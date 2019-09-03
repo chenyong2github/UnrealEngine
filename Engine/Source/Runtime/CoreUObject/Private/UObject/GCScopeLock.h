@@ -62,9 +62,6 @@ class FGCCSyncObject
 	/** Event used to block non-game threads when GC is running */
 	FEvent* GCUnlockedEvent;
 
-	/** One and only global instance of FGCCSyncObject */
-	static TUniquePtr<FGCCSyncObject> Singleton;
-
 public:
 
 	FGCCSyncObject();
@@ -74,11 +71,7 @@ public:
 	static void Create();
 
 	/** Gets the singleton object */
-	static FGCCSyncObject& Get()
-	{
-		check(Singleton.IsValid());
-		return *Singleton.Get();
-	}
+	static FGCCSyncObject& Get();
 
 	/** Lock on non-game thread. Will block if GC is running. */
 	void LockAsync()

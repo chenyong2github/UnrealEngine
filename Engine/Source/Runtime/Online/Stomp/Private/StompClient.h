@@ -102,7 +102,7 @@ public:
 		return ClosedEvent;
 	}
 private:
-	FStompClient(const FString& Url, const FTimespan& InPingInterval, const FTimespan& InPongInterval);
+	FStompClient(const FString& Url, const FTimespan& InPingInterval, const FTimespan& InPongInterval, const FString& OptAuthToken);
 
 	FString MakeId(const class FStompFrame& Frame);
 	void WriteFrame(class FStompFrame& Frame, const FStompRequestCompleted& CompletionCallback=FStompRequestCompleted());
@@ -149,6 +149,21 @@ private:
 	FString SessionId;
 	FString ServerString;
 	FString ProtocolVersion;
+
+	/** Enum to allow safety check to ensure consistent use of API for auth, effectivily a compile-time property */
+	enum class EAuthStrategy
+	{
+		/** Not using any auth */
+		None,
+
+		/** Auth token is provided on FStompClient construction, and passed in HTTPS request that upgrades connection to WSS */
+		OnConnectionUpgrade,
+
+		/** Auth token is provided on Connect call as Stomp headers to pass in Connect frome */
+		OnStompConnect
+	};
+
+	EAuthStrategy AuthStrategy = EAuthStrategy::None;
 
 	friend class FStompModule;
 	friend class FStompMessage;

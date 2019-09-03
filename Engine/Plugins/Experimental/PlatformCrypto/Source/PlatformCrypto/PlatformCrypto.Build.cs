@@ -6,15 +6,11 @@ namespace UnrealBuildTool.Rules
 	{
 		public PlatformCrypto(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[] {
-				}
-				);
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
+					"PlatformCryptoTypes",
 				}
 				);
 
@@ -26,13 +22,6 @@ namespace UnrealBuildTool.Rules
 						"PlatformCryptoBCrypt",
 					}
 					);
-
-				PublicIncludePathModuleNames.AddRange(
-					new string[]
-					{
-						"PlatformCryptoBCrypt"
-					}
-					);
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Switch)
 			{
@@ -42,13 +31,6 @@ namespace UnrealBuildTool.Rules
 						"PlatformCryptoSwitch",
 					}
 					);
-
-				PublicIncludePathModuleNames.AddRange(
-					new string[]
-					{
-						"PlatformCryptoSwitch"
-					}
-					);
 			}
 			else
 			{
@@ -56,13 +38,6 @@ namespace UnrealBuildTool.Rules
 					new string[]
 					{
 						"PlatformCryptoOpenSSL",
-					}
-					);
-
-				PublicIncludePathModuleNames.AddRange(
-					new string[]
-					{
-						"PlatformCryptoOpenSSL"
 					}
 					);
 			}

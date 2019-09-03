@@ -57,13 +57,14 @@ public:
 	{
 		if (ColumnName == "Available")
 		{
+			const FCoreTexts& CoreTexts = FCoreTexts::Get();
 			return SNew(SBox)
 				.Padding(FMargin(4.0f, 0.0f))
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
 						.ColorAndOpacity(this, &SDeviceDetailsFeatureListRow::HandleTextColorAndOpacity)
-						.Text(Feature->Available ? GYes : GNo)
+						.Text(Feature->Available ? CoreTexts.Yes : CoreTexts.No)
 				];
 		}
 		else if (ColumnName == "Feature")

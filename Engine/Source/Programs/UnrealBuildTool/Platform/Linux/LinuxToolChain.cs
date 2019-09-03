@@ -835,11 +835,22 @@ namespace UnrealBuildTool
 				: string.Format("{0}={1}", myKey, myValue);
 		}
 
-		static string GetCompileArguments_CPP()
+		static string GetCompileArguments_CPP(CppCompileEnvironment CompilerEnvironment)
 		{
 			string Result = "";
 			Result += " -x c++";
-			Result += " -std=c++14";
+			if (CompilerEnvironment.CppStandard == CppStandardVersion.Cpp14 || CompilerEnvironment.CppStandard == CppStandardVersion.Default)
+			{
+				Result += " -std=c++14";
+			}
+			else if (CompilerEnvironment.CppStandard == CppStandardVersion.Cpp17)
+			{
+				Result += " -std=c++17";
+			}
+			else if (CompilerEnvironment.CppStandard == CppStandardVersion.Latest)
+			{
+				Result += " -std=c++17";
+			}
 			return Result;
 		}
 
@@ -1295,7 +1306,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					FileArguments += GetCompileArguments_CPP();
+					FileArguments += GetCompileArguments_CPP(CompileEnvironment);
 
 					// only use PCH for .cpp files
 					FileArguments += PCHArguments;

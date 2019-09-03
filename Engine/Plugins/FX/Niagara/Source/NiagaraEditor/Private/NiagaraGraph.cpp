@@ -635,10 +635,7 @@ TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs(bool bReachableOn
 			}			
 		}
 	}
-	Result.Sort([](const FNiagaraVariable& Left, const FNiagaraVariable& Right)
-	{
-		return Left.GetName().LexicalLess(Right.GetName());
-	});
+	Algo::SortBy(Result, &FNiagaraVariable::GetName, FNameLexicalLess());
 	return Result;
 }
 

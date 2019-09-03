@@ -13,7 +13,7 @@
 
 #if WITH_XMPP_STROPHE
 
-const FName FXmppMultiUserChatStrophe::TickRequesterId = FName("StropheMultichat");
+#define TickRequesterId FName("StropheMultichat")
 
 FXmppMultiUserChatStrophe::FXmppMultiUserChatStrophe(FXmppConnectionStrophe& InConnectionManager)
 	: ConnectionManager(InConnectionManager)
@@ -1371,5 +1371,7 @@ void FXmppMultiUserChatStrophe::CleanupMessages()
 		FEmbeddedCommunication::AllowSleep(TickRequesterId);
 	}
 }
+
+#undef TickRequesterId
 
 #endif

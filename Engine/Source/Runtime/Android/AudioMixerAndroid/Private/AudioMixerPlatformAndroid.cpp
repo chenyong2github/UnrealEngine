@@ -3,12 +3,16 @@
 #include "AudioMixerPlatformAndroid.h"
 #include "Modules/ModuleManager.h"
 #include "AudioMixer.h"
-#include "AudioMixerDevice.h"
 #include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ScopeLock.h"
+
+#if WITH_ENGINE
 #include "VorbisAudioInfo.h"
 #include "ADPCMAudioInfo.h"
 #include "AudioPluginUtilities.h"
+#endif
+
 
 #include <SLES/OpenSLES.h>
 #include "SLES/OpenSLES_Android.h"
@@ -352,8 +356,12 @@ namespace Audio
 
  	FAudioPlatformSettings FMixerPlatformAndroid::GetPlatformSettings() const
  	{
+#if WITH_ENGINE
 		const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::Android);
 		FAudioPlatformSettings PlatformSettings = FAudioPlatformSettings::GetPlatformSettings(ConfigSection);
+#else
+		FAudioPlatformSettings PlatformSettings = FAudioPlatformSettings();
+#endif // WITH_ENGINE
 
 		PlatformSettings.CallbackBufferFrameSize = GetDeviceBufferSize(PlatformSettings.CallbackBufferFrameSize);
 		return PlatformSettings;
@@ -416,6 +424,7 @@ namespace Audio
 
 	FName FMixerPlatformAndroid::GetRuntimeFormat(USoundWave* InSoundWave)
 	{
+#if WITH_ENGINE
 		static FName NAME_ADPCM(TEXT("ADPCM"));
 
 		if (InSoundWave->IsSeekableStreaming())
@@ -429,8 +438,11 @@ namespace Audio
 		{
 			return NAME_OGG;
 		}
-#endif
+#endif // WITH_OGGVORBIS
 		return NAME_ADPCM;
+#else
+		return FName(TEXT("None"));
+#endif //WITH_ENGINE
 	}
 
 	bool FMixerPlatformAndroid::HasCompressedAudioInfoClass(USoundWave* InSoundWave)
@@ -440,6 +452,7 @@ namespace Audio
 
 	ICompressedAudioInfo* FMixerPlatformAndroid::CreateCompressedAudioInfo(USoundWave* InSoundWave)
 	{
+#if WITH_ENGINE
 		static FName NAME_OGG(TEXT("OGG"));
 		static FName NAME_ADPCM(TEXT("ADPCM"));
 
@@ -449,6 +462,9 @@ namespace Audio
 		}
 
 		return new FVorbisAudioInfo();
+#else
+		return nullptr;
+#endif // WITH_ENGINE
 	}
 
 	FString FMixerPlatformAndroid::GetDefaultDeviceName()

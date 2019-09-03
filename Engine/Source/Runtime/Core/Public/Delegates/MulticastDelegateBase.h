@@ -9,10 +9,12 @@
 #include "Delegates/IDelegateInstance.h"
 #include "Delegates/DelegateBase.h"
 
-#if USE_SMALL_MULTICAST_DELEGATES
+#if !defined(NUM_MULTICAST_DELEGATE_INLINE_ENTRIES) || NUM_MULTICAST_DELEGATE_INLINE_ENTRIES == 0
 	typedef FHeapAllocator FMulticastInvocationListAllocatorType;
+#elif NUM_MULTICAST_DELEGATE_INLINE_ENTRIES < 0
+	#error NUM_MULTICAST_DELEGATE_INLINE_ENTRIES must be positive
 #else
-	typedef TInlineAllocator<1> FMulticastInvocationListAllocatorType;
+	typedef TInlineAllocator<NUM_MULTICAST_DELEGATE_INLINE_ENTRIES> FMulticastInvocationListAllocatorType;
 #endif
 
 typedef TArray<FDelegateBase, FMulticastInvocationListAllocatorType> TInvocationList;

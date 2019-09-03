@@ -6,7 +6,7 @@
 #include "DSP/Filter.h"
 #include "DSP/LFO.h"
 #include "DSP/Envelope.h"
-#include "Sound/SampleBuffer.h"
+#include "SampleBuffer.h"
 
 namespace Audio
 {

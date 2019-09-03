@@ -47,7 +47,8 @@ public class GameProjectGeneration : ModuleRules
 				"LauncherPlatform",
 				"HardwareTargeting",
 				"AddContentDialog",
-                "AudioMixer"
+                "AudioMixer",
+				"AudioMixerCore"
 			}
 		);
 

@@ -60,7 +60,7 @@ FText UKismetTextLibrary::Conv_ObjectToText(class UObject* InObj)
 		return FText::AsCultureInvariant(InObj->GetName());
 	}
 
-	return GNone;
+	return FCoreTexts::Get().None;
 }
 
 FText UKismetTextLibrary::Conv_ColorToText(FLinearColor InColor)

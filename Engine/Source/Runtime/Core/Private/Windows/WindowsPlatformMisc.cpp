@@ -90,9 +90,9 @@ static TAutoConsoleVariable<int32> CVarDriverDetectionMethod(
 	TEXT("  4: Use Windows functions, use names such as DirectX Device (newest, most promising)"),
 	ECVF_RenderThreadSafe);
 
-int32 FWindowsOSVersionHelper::GetOSVersions( FString& out_OSVersionLabel, FString& out_OSSubVersionLabel )
+int32 GetOSVersionsHelper( TCHAR* OutOSVersionLabel, int32 OSVersionLabelLength, TCHAR* OutOSSubVersionLabel, int32 OSSubVersionLabelLength )
 {
-	int32 ErrorCode = (int32)SUCCEEDED;
+	int32 ErrorCode = (int32)FWindowsOSVersionHelper::SUCCEEDED;
 
 	// Get system info
 	SYSTEM_INFO SystemInfo;
@@ -107,8 +107,8 @@ int32 FWindowsOSVersionHelper::GetOSVersions( FString& out_OSVersionLabel, FStri
 
 	OSVERSIONINFOEX OsVersionInfo = {0};
 	OsVersionInfo.dwOSVersionInfoSize = sizeof( OSVERSIONINFOEX );
-	out_OSVersionLabel = TEXT( "Windows (unknown version)" );
-	out_OSSubVersionLabel = FString();
+	FString OSVersionLabel = TEXT("Windows (unknown version)");
+	FString OSSubVersionLabel = TEXT("");
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -132,63 +132,63 @@ int32 FWindowsOSVersionHelper::GetOSVersions( FString& out_OSVersionLabel, FStri
 			switch (OsVersionInfo.dwMinorVersion)
 			{
 			case 0:
-				out_OSVersionLabel = TEXT("Windows 2000");
+				OSVersionLabel = TEXT("Windows 2000");
 				if (OsVersionInfo.wProductType == VER_NT_WORKSTATION)
 				{
-					out_OSSubVersionLabel = TEXT("Professional");
+					OSSubVersionLabel = TEXT("Professional");
 				}
 				else
 				{
 					if (OsVersionInfo.wSuiteMask & VER_SUITE_DATACENTER)
 					{
-						out_OSSubVersionLabel = TEXT("Datacenter Server");
+						OSSubVersionLabel = TEXT("Datacenter Server");
 					}
 					else if (OsVersionInfo.wSuiteMask & VER_SUITE_ENTERPRISE)
 					{
-						out_OSSubVersionLabel = TEXT("Advanced Server");
+						OSSubVersionLabel = TEXT("Advanced Server");
 					}
 					else
 					{
-						out_OSSubVersionLabel = TEXT("Server");
+						OSSubVersionLabel = TEXT("Server");
 					}
 				}
 				break;
 			case 1:
-				out_OSVersionLabel = TEXT("Windows XP");
+				OSVersionLabel = TEXT("Windows XP");
 				if (OsVersionInfo.wSuiteMask & VER_SUITE_PERSONAL)
 				{
-					out_OSSubVersionLabel = TEXT("Home Edition");
+					OSSubVersionLabel = TEXT("Home Edition");
 				}
 				else
 				{
-					out_OSSubVersionLabel = TEXT("Professional");
+					OSSubVersionLabel = TEXT("Professional");
 				}
 				break;
 			case 2:
 				if (GetSystemMetrics(SM_SERVERR2))
 				{
-					out_OSVersionLabel = TEXT("Windows Server 2003 R2");
+					OSVersionLabel = TEXT("Windows Server 2003 R2");
 				}
 				else if (OsVersionInfo.wSuiteMask & VER_SUITE_STORAGE_SERVER)
 				{
-					out_OSVersionLabel = TEXT("Windows Storage Server 2003");
+					OSVersionLabel = TEXT("Windows Storage Server 2003");
 				}
 				else if (OsVersionInfo.wSuiteMask & VER_SUITE_WH_SERVER)
 				{
-					out_OSVersionLabel = TEXT("Windows Home Server");
+					OSVersionLabel = TEXT("Windows Home Server");
 				}
 				else if (OsVersionInfo.wProductType == VER_NT_WORKSTATION && SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
 				{
-					out_OSVersionLabel = TEXT("Windows XP");
-					out_OSSubVersionLabel = TEXT("Professional x64 Edition");
+					OSVersionLabel = TEXT("Windows XP");
+					OSSubVersionLabel = TEXT("Professional x64 Edition");
 				}
 				else
 				{
-					out_OSVersionLabel = TEXT("Windows Server 2003");
+					OSVersionLabel = TEXT("Windows Server 2003");
 				}
 				break;
 			default:
-				ErrorCode |= (int32)ERROR_UNKNOWNVERSION;
+				ErrorCode |= (int32)FWindowsOSVersionHelper::ERROR_UNKNOWNVERSION;
 			}
 			break;
 		case 6:
@@ -197,45 +197,45 @@ int32 FWindowsOSVersionHelper::GetOSVersions( FString& out_OSVersionLabel, FStri
 			case 0:
 				if (OsVersionInfo.wProductType == VER_NT_WORKSTATION)
 				{
-					out_OSVersionLabel = TEXT("Windows Vista");
+					OSVersionLabel = TEXT("Windows Vista");
 				}
 				else
 				{
-					out_OSVersionLabel = TEXT("Windows Server 2008");
+					OSVersionLabel = TEXT("Windows Server 2008");
 				}
 				break;
 			case 1:
 				if (OsVersionInfo.wProductType == VER_NT_WORKSTATION)
 				{
-					out_OSVersionLabel = TEXT("Windows 7");
+					OSVersionLabel = TEXT("Windows 7");
 				}
 				else
 				{
-					out_OSVersionLabel = TEXT("Windows Server 2008 R2");
+					OSVersionLabel = TEXT("Windows Server 2008 R2");
 				}
 				break;
 			case 2:
 				if (OsVersionInfo.wProductType == VER_NT_WORKSTATION)
 				{
-					out_OSVersionLabel = TEXT("Windows 8");
+					OSVersionLabel = TEXT("Windows 8");
 				}
 				else
 				{
-					out_OSVersionLabel = TEXT("Windows Server 2012");
+					OSVersionLabel = TEXT("Windows Server 2012");
 				}
 				break;
 			case 3:
 				if (OsVersionInfo.wProductType == VER_NT_WORKSTATION)
 				{
-					out_OSVersionLabel = TEXT("Windows 8.1");
+					OSVersionLabel = TEXT("Windows 8.1");
 				}
 				else
 				{
-					out_OSVersionLabel = TEXT("Windows Server 2012 R2");
+					OSVersionLabel = TEXT("Windows Server 2012 R2");
 				}
 				break;
 			default:
-				ErrorCode |= (int32)ERROR_UNKNOWNVERSION;
+				ErrorCode |= (int32)FWindowsOSVersionHelper::ERROR_UNKNOWNVERSION;
 				break;
 			}
 			break;
@@ -245,11 +245,11 @@ int32 FWindowsOSVersionHelper::GetOSVersions( FString& out_OSVersionLabel, FStri
 			case 0:
 				if (OsVersionInfo.wProductType == VER_NT_WORKSTATION)
 				{
-					out_OSVersionLabel = TEXT("Windows 10");
+					OSVersionLabel = TEXT("Windows 10");
 				}
 				else
 				{
-					out_OSVersionLabel = TEXT("Windows Server Technical Preview");
+					OSVersionLabel = TEXT("Windows Server Technical Preview");
 				}
 
 				// For Windows 10, get the release number and append that to the string too (eg. 1709 = Fall Creators Update). There doesn't seem to be any good way to get
@@ -258,18 +258,18 @@ int32 FWindowsOSVersionHelper::GetOSVersions( FString& out_OSVersionLabel, FStri
 					FString ReleaseId;
 					if(FWindowsPlatformMisc::QueryRegKey(HKEY_LOCAL_MACHINE, TEXT("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"), TEXT("ReleaseId"), ReleaseId))
 					{
-						out_OSVersionLabel += FString::Printf(TEXT(" (Release %s)"), *ReleaseId);
+						OSVersionLabel += FString::Printf(TEXT(" (Release %s)"), *ReleaseId);
 					}
 				}
 
 				break;
 			default:
-				ErrorCode |= (int32)ERROR_UNKNOWNVERSION;
+				ErrorCode |= (int32)FWindowsOSVersionHelper::ERROR_UNKNOWNVERSION;
 				break;
 			}
 			break;
 		default:
-			ErrorCode |= ERROR_UNKNOWNVERSION;
+			ErrorCode |= FWindowsOSVersionHelper::ERROR_UNKNOWNVERSION;
 			break;
 		}
 
@@ -288,65 +288,65 @@ int32 FWindowsOSVersionHelper::GetOSVersions( FString& out_OSVersionLabel, FStri
 				switch( Type )
 				{
 					case PRODUCT_ULTIMATE:
-						out_OSSubVersionLabel = TEXT( "Ultimate Edition" );
+						OSSubVersionLabel = TEXT( "Ultimate Edition" );
 						break;
 					case PRODUCT_PROFESSIONAL:
-						out_OSSubVersionLabel = TEXT( "Professional" );
+						OSSubVersionLabel = TEXT( "Professional" );
 						break;
 					case PRODUCT_HOME_PREMIUM:
-						out_OSSubVersionLabel = TEXT( "Home Premium Edition" );
+						OSSubVersionLabel = TEXT( "Home Premium Edition" );
 						break;
 					case PRODUCT_HOME_BASIC:
-						out_OSSubVersionLabel = TEXT( "Home Basic Edition" );
+						OSSubVersionLabel = TEXT( "Home Basic Edition" );
 						break;
 					case PRODUCT_ENTERPRISE:
-						out_OSSubVersionLabel = TEXT( "Enterprise Edition" );
+						OSSubVersionLabel = TEXT( "Enterprise Edition" );
 						break;
 					case PRODUCT_BUSINESS:
-						out_OSSubVersionLabel = TEXT( "Business Edition" );
+						OSSubVersionLabel = TEXT( "Business Edition" );
 						break;
 					case PRODUCT_STARTER:
-						out_OSSubVersionLabel = TEXT( "Starter Edition" );
+						OSSubVersionLabel = TEXT( "Starter Edition" );
 						break;
 					case PRODUCT_CLUSTER_SERVER:
-						out_OSSubVersionLabel = TEXT( "Cluster Server Edition" );
+						OSSubVersionLabel = TEXT( "Cluster Server Edition" );
 						break;
 					case PRODUCT_DATACENTER_SERVER:
-						out_OSSubVersionLabel = TEXT( "Datacenter Edition" );
+						OSSubVersionLabel = TEXT( "Datacenter Edition" );
 						break;
 					case PRODUCT_DATACENTER_SERVER_CORE:
-						out_OSSubVersionLabel = TEXT( "Datacenter Edition (core installation)" );
+						OSSubVersionLabel = TEXT( "Datacenter Edition (core installation)" );
 						break;
 					case PRODUCT_ENTERPRISE_SERVER:
-						out_OSSubVersionLabel = TEXT( "Enterprise Edition" );
+						OSSubVersionLabel = TEXT( "Enterprise Edition" );
 						break;
 					case PRODUCT_ENTERPRISE_SERVER_CORE:
-						out_OSSubVersionLabel = TEXT( "Enterprise Edition (core installation)" );
+						OSSubVersionLabel = TEXT( "Enterprise Edition (core installation)" );
 						break;
 					case PRODUCT_ENTERPRISE_SERVER_IA64:
-						out_OSSubVersionLabel = TEXT( "Enterprise Edition for Itanium-based Systems" );
+						OSSubVersionLabel = TEXT( "Enterprise Edition for Itanium-based Systems" );
 						break;
 					case PRODUCT_SMALLBUSINESS_SERVER:
-						out_OSSubVersionLabel = TEXT( "Small Business Server" );
+						OSSubVersionLabel = TEXT( "Small Business Server" );
 						break;
 					case PRODUCT_SMALLBUSINESS_SERVER_PREMIUM:
-						out_OSSubVersionLabel = TEXT( "Small Business Server Premium Edition" );
+						OSSubVersionLabel = TEXT( "Small Business Server Premium Edition" );
 						break;
 					case PRODUCT_STANDARD_SERVER:
-						out_OSSubVersionLabel = TEXT( "Standard Edition" );
+						OSSubVersionLabel = TEXT( "Standard Edition" );
 						break;
 					case PRODUCT_STANDARD_SERVER_CORE:
-						out_OSSubVersionLabel = TEXT( "Standard Edition (core installation)" );
+						OSSubVersionLabel = TEXT( "Standard Edition (core installation)" );
 						break;
 					case PRODUCT_WEB_SERVER:
-						out_OSSubVersionLabel = TEXT( "Web Server Edition" );
+						OSSubVersionLabel = TEXT( "Web Server Edition" );
 						break;
 				}
 			}
 			else
 			{
-				out_OSSubVersionLabel = TEXT( "(type unknown)" );
-				ErrorCode |= (int32)ERROR_GETPRODUCTINFO_FAILED;
+				OSSubVersionLabel = TEXT( "(type unknown)" );
+				ErrorCode |= (int32)FWindowsOSVersionHelper::ERROR_GETPRODUCTINFO_FAILED;
 			}
 		}
 
@@ -359,55 +359,78 @@ int32 FWindowsOSVersionHelper::GetOSVersions( FString& out_OSVersionLabel, FStri
 		}
 #else
 		// THIS BIT USES SERVICE PACK INFO ONLY
-		out_OSSubVersionLabel = OsVersionInfo.szCSDVersion;
+		OSSubVersionLabel = OsVersionInfo.szCSDVersion;
 #endif
 	}
 	else
 	{
-		ErrorCode |= ERROR_GETVERSIONEX_FAILED;
+		ErrorCode |= FWindowsOSVersionHelper::ERROR_GETVERSIONEX_FAILED;
 	}
+
+	FCString::Strcpy(OutOSVersionLabel, OSVersionLabelLength, *OSVersionLabel);
+	FCString::Strcpy(OutOSSubVersionLabel, OSSubVersionLabelLength, *OSSubVersionLabel);
 
 	return ErrorCode;
 }
 
-FString FWindowsOSVersionHelper::GetOSVersion()
+int32 FWindowsOSVersionHelper::GetOSVersions( FString& OutOSVersionLabel, FString& OutOSSubVersionLabel )
 {
-	int32 ErrorCode = (int32)SUCCEEDED;
+	TCHAR OSVersionLabel[128];
+	TCHAR OSSubVersionLabel[128];
 
-	// Get system info
-	SYSTEM_INFO SystemInfo;
-	const TCHAR* Architecture;
-	if (FPlatformMisc::Is64bitOperatingSystem())
-	{
-		Architecture = TEXT("64bit");
-		GetNativeSystemInfo(&SystemInfo);
-	}
-	else
-	{
-		Architecture = TEXT("32bit");
-		GetSystemInfo(&SystemInfo);
-	}
+	OSVersionLabel[0] = 0;
+	OSSubVersionLabel[0] = 0;
 
-	OSVERSIONINFOEX OsVersionInfo = { 0 };
-	OsVersionInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#else
-#pragma warning(push)
-#pragma warning(disable : 4996) // 'function' was declared deprecated
-#endif
-	CA_SUPPRESS(28159)
-	if (GetVersionEx((LPOSVERSIONINFO)&OsVersionInfo))
-#ifdef __clang__
-#pragma clang diagnostic pop
-#else
-#pragma warning(pop)
-#endif
+	int32 Result = GetOSVersionsHelper( OSVersionLabel, ARRAY_COUNT(OSVersionLabel), OSSubVersionLabel, ARRAY_COUNT(OSSubVersionLabel) );
+
+	OutOSVersionLabel = OSVersionLabel;
+	OutOSSubVersionLabel = OSSubVersionLabel;
+
+	return Result;
+}
+
+namespace
+{
+	bool GetOSVersionHelper(TCHAR* OutString, int32 Length)
 	{
-		return FString::Printf(TEXT("%d.%d.%d.%d.%d.%s"), OsVersionInfo.dwMajorVersion, OsVersionInfo.dwMinorVersion, OsVersionInfo.dwBuildNumber, OsVersionInfo.wProductType, OsVersionInfo.wSuiteMask, Architecture);
+		int32 ErrorCode = (int32)FWindowsOSVersionHelper::SUCCEEDED;
+
+		// Get system info
+		SYSTEM_INFO SystemInfo;
+		const TCHAR* Architecture;
+		if (FPlatformMisc::Is64bitOperatingSystem())
+		{
+			Architecture = TEXT("64bit");
+			GetNativeSystemInfo(&SystemInfo);
+		}
+		else
+		{
+			Architecture = TEXT("32bit");
+			GetSystemInfo(&SystemInfo);
+		}
+
+		OSVERSIONINFOEX OsVersionInfo = { 0 };
+		OsVersionInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+	#ifdef __clang__
+	#pragma clang diagnostic push
+	#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+	#else
+	#pragma warning(push)
+	#pragma warning(disable : 4996) // 'function' was declared deprecated
+	#endif
+		CA_SUPPRESS(28159)
+		if (GetVersionEx((LPOSVERSIONINFO)&OsVersionInfo))
+	#ifdef __clang__
+	#pragma clang diagnostic pop
+	#else
+	#pragma warning(pop)
+	#endif
+		{
+			FCString::Snprintf(OutString, Length, TEXT("%d.%d.%d.%d.%d.%s"), OsVersionInfo.dwMajorVersion, OsVersionInfo.dwMinorVersion, OsVersionInfo.dwBuildNumber, OsVersionInfo.wProductType, OsVersionInfo.wSuiteMask, Architecture);
+			return true;
+		}
+		return false;
 	}
-	return FString();
 }
 
 #include "Windows/HideWindowsPlatformTypes.h"
@@ -1962,8 +1985,8 @@ public:
 	{
 		if(bHasCPUIDInstruction)
 		{
-			Vendor = QueryCPUVendor();
-			Brand = QueryCPUBrand();
+			GetCPUVendor(Vendor);
+			GetCPUBrand(Brand);
 			int Info[4];
 			QueryCPUInfo(Info);
 			CPUInfo = Info[0];
@@ -1987,7 +2010,7 @@ public:
 	 *
 	 * @returns CPU vendor name.
 	 */
-	static const FString& GetVendor()
+	static const ANSICHAR (&GetVendor())[12 + 1]
 	{
 		return CPUIDStaticCache.Vendor;
 	}
@@ -1997,7 +2020,7 @@ public:
 	*
 	* @returns CPU brand string.
 	*/
-	static const FString& GetBrand()
+	static const ANSICHAR (&GetBrand())[0x40]
 	{
 		return CPUIDStaticCache.Brand;
 	}
@@ -2061,7 +2084,7 @@ private:
 	 *
 	 * @returns CPU vendor name.
 	 */
-	static FString QueryCPUVendor()
+	static void GetCPUVendor(ANSICHAR (&OutBuffer)[12 + 1])
 	{
 		union
 		{
@@ -2082,7 +2105,7 @@ private:
 		VendorResult.Dw.dw2 = Args[2];
 		VendorResult.Buffer[12] = 0;
 
-		return ANSI_TO_TCHAR(VendorResult.Buffer);
+		FMemory::Memcpy(OutBuffer, VendorResult.Buffer);
 	}
 
 	/**
@@ -2090,7 +2113,7 @@ private:
 	 *
 	 * @returns CPU brand string.
 	 */
-	static FString QueryCPUBrand()
+	static void GetCPUBrand(ANSICHAR (&OutBrandString)[0x40])
 	{
 		// @see for more information http://msdn.microsoft.com/en-us/library/vstudio/hskdteyh(v=vs.100).aspx
 		ANSICHAR BrandString[0x40] = {0};
@@ -2111,7 +2134,7 @@ private:
 			}
 		}
 
-		return ANSI_TO_TCHAR( BrandString );
+		FMemory::Memcpy(OutBrandString, BrandString);
 	}
 
 	/**
@@ -2149,10 +2172,10 @@ private:
 	bool bHasCPUIDInstruction;
 
 	/** Vendor of the CPU. */
-	FString Vendor;
+	ANSICHAR Vendor[12 + 1];
 
 	/** CPU brand. */
-	FString Brand;
+	ANSICHAR Brand[0x40];
 
 	/** CPU info from __cpuid. */
 	uint32 CPUInfo;
@@ -2496,25 +2519,42 @@ FGPUDriverInfo FWindowsPlatformMisc::GetGPUDriverInfo(const FString& DeviceDescr
 
 #include "Windows/HideWindowsPlatformTypes.h"
 
-void FWindowsPlatformMisc::GetOSVersions( FString& out_OSVersionLabel, FString& out_OSSubVersionLabel )
+void FWindowsPlatformMisc::GetOSVersions( FString& OutOSVersionLabel, FString& OutOSSubVersionLabel )
 {
-	static FString OSVersionLabel;
-	static FString OSSubVersionLabel;
-
-	if( OSVersionLabel.IsEmpty() && OSSubVersionLabel.IsEmpty() )
+	static struct FOSVersionsInitializer
 	{
-		FWindowsOSVersionHelper::GetOSVersions( OSVersionLabel, OSSubVersionLabel );
-	}
+		FOSVersionsInitializer()
+		{
+			OSVersionLabel[0] = 0;
+			OSSubVersionLabel[0] = 0;
+			GetOSVersionsHelper( OSVersionLabel, ARRAY_COUNT(OSVersionLabel), OSSubVersionLabel, ARRAY_COUNT(OSSubVersionLabel) );
+		}
 
-	out_OSVersionLabel = OSVersionLabel;
-	out_OSSubVersionLabel = OSSubVersionLabel;
+		TCHAR OSVersionLabel[128];
+		TCHAR OSSubVersionLabel[128];
+	} OSVersionsInitializer;
+
+	OutOSVersionLabel = OSVersionsInitializer.OSVersionLabel;
+	OutOSSubVersionLabel = OSVersionsInitializer.OSSubVersionLabel;
 }
 
 
 FString FWindowsPlatformMisc::GetOSVersion()
 {
-	static FString CachedOSVersion = FWindowsOSVersionHelper::GetOSVersion();
-	return CachedOSVersion;
+	static struct FOSVersionInitializer
+	{
+		FOSVersionInitializer()
+		{
+			CachedOSVersion[0] = 0;
+			if (!GetOSVersionHelper(CachedOSVersion, ARRAY_COUNT(CachedOSVersion)))
+			{
+				CachedOSVersion[0] = 0;
+			}
+		}
+
+		TCHAR CachedOSVersion[128];
+	} OSVersionInitializer;
+	return OSVersionInitializer.CachedOSVersion;
 }
 
 bool FWindowsPlatformMisc::GetDiskTotalAndFreeSpace( const FString& InPath, uint64& TotalNumberOfBytes, uint64& NumberOfFreeBytes )

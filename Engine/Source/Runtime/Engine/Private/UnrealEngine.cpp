@@ -8985,7 +8985,7 @@ bool UEngine::FErrorsAndWarningsCollector::Tick(float Seconds)
 		// Remove any dupes and count them
 		do 
 		{
-			uint32 ThisHash = FCrc::StrCrc32(*BufferedLines[DupeCount].Data);
+			uint32 ThisHash = FCrc::StrCrc32(BufferedLines[DupeCount].Data);
 
 			if (CurrentHash && ThisHash != CurrentHash)
 			{

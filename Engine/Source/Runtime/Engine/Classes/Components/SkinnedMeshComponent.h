@@ -1503,10 +1503,12 @@ public:
 	{
 		const bool bIsRegistered = Component->IsRegistered();
 
+		const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
 		ensureMsgf(bWasInitiallyRegistered == bIsRegistered,
 			TEXT("Component Registered state changed from %s to %s within FRenderStateRecreator scope."),
-			*((bWasInitiallyRegistered ? GTrue : GFalse).ToString()),
-			*((bIsRegistered ? GTrue : GFalse).ToString()));
+			*((bWasInitiallyRegistered ? CoreTexts.True : CoreTexts.False).ToString()),
+			*((bIsRegistered ? CoreTexts.True : CoreTexts.False).ToString()));
 
 		if (bWasRenderStateCreated && bIsRegistered)
 		{

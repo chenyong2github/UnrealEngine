@@ -138,6 +138,7 @@ namespace UnrealBuildTool
 		{
 			// 			PlatformExtraModules.Add("VulkanRHI");
 			PlatformExtraModules.Add("MagicLeapAudio");
+			PlatformExtraModules.Add("MagicLeapAudioCapture");
 		}
 
 		/// <summary>

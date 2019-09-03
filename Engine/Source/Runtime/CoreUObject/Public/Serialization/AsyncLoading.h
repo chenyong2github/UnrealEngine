@@ -959,6 +959,10 @@ struct FScopedAsyncPackageEvent
 	~FScopedAsyncPackageEvent();
 };
 
+// Access to precache handler
+extern COREUOBJECT_API struct FPrecacheCallbackHandler* InitGlobalPrecacheHandler();
+extern COREUOBJECT_API void DeleteGlobalPrecacheHandler(struct FPrecacheCallbackHandler* InHandler);
+
 // Stats for ChartCreation.cpp
 extern COREUOBJECT_API double GFlushAsyncLoadingTime;
 extern COREUOBJECT_API uint32 GFlushAsyncLoadingCount;

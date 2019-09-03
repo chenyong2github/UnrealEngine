@@ -1,83 +1,121 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "EncryptionContextOpenSSL.h"
+#include "PlatformCryptoOpenSSLTypes.h"
+#include "PlatformCryptoAesEncryptorsOpenSSL.h"
+#include "PlatformCryptoAesDecryptorsOpenSSL.h"
 
-#include <openssl/evp.h>
-#include <openssl/rsa.h>
-#include <openssl/rand.h>
-
-DEFINE_LOG_CATEGORY_STATIC(LogPlatformCryptoOpenSSL, Warning, All);
-
-static const int32 AES256_KeySizeInBytes = 32;
-static const int32 AES256_BlockSizeInBytes = 16;
-static const int32 AES256_IVSizeInBytes = 12;
-static const int32 AES256_AuthTagSizeInBytes = 16;
-
-class FScopedEVPContext
-{
-public:
-	FScopedEVPContext() :
-		Context(EVP_CIPHER_CTX_new())
-	{
-	}
-
-	~FScopedEVPContext()
-	{
-		EVP_CIPHER_CTX_free(Context);
-	}
-
-	EVP_CIPHER_CTX* Get() const { return Context; }
-
-private:
-	EVP_CIPHER_CTX* Context;
-};
+DEFINE_LOG_CATEGORY(LogPlatformCryptoOpenSSL);
 
 TArray<uint8> FEncryptionContextOpenSSL::Encrypt_AES_256_ECB(const TArrayView<const uint8> Plaintext, const TArrayView<const uint8> Key, EPlatformCryptoResult& OutResult)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OpenSSL AES256 Encrypt"), STAT_OpenSSL_AES_Encrypt, STATGROUP_PlatformCrypto);
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OpenSSL AES256 ECB Encrypt"), STAT_OpenSSL_AES256_ECB_Encrypt, STATGROUP_PlatformCrypto);
 
 	OutResult = EPlatformCryptoResult::Failure;
 
-	if (Key.Num() != AES256_KeySizeInBytes)
+	TUniquePtr<IPlatformCryptoEncryptor> Encryptor = CreateEncryptor_AES_256_ECB(Key);
+	if (!Encryptor.IsValid())
 	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Encrypt_AES_256_ECB: Key size %d is not the expected size %d."), Key.Num(), AES256_KeySizeInBytes);
-		return TArray<uint8>();
-	}
-
-	FScopedEVPContext Context;
-	if (Context.Get() == nullptr)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Encrypt_AES_256_ECB: failed to create EVP context."));
-		return TArray<uint8>();
-	}
-
-	const int InitResult = EVP_EncryptInit_ex(Context.Get(), EVP_aes_256_ecb(), nullptr, Key.GetData(), nullptr);
-	if (InitResult != 1)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Encrypt_AES_256_ECB: EVP_EncryptInit_ex failed."));
 		return TArray<uint8>();
 	}
 
 	TArray<uint8> Ciphertext;
-	Ciphertext.SetNumUninitialized(Plaintext.Num() + AES256_BlockSizeInBytes); // Allow for up to a block of padding.
+	Ciphertext.AddUninitialized(Encryptor->GetUpdateBufferSizeBytes(Plaintext) + Encryptor->GetFinalizeBufferSizeBytes());
 
-	int OutLength = 0;
-	const int UpdateResult = EVP_EncryptUpdate(Context.Get(), Ciphertext.GetData(), &OutLength, Plaintext.GetData(), Plaintext.Num());
-	if (UpdateResult != 1)
+	int32 UpdateBytesWritten = 0;
+	if (Encryptor->Update(Plaintext, Ciphertext, UpdateBytesWritten) != EPlatformCryptoResult::Success)
 	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Encrypt_AES_256_ECB: EVP_EncryptUpdate failed."));
 		return TArray<uint8>();
 	}
 
-	int FinalizeLength = 0;
-	const int FinalizeResult = EVP_EncryptFinal_ex(Context.Get(), Ciphertext.GetData() + OutLength, &FinalizeLength);
-	if (FinalizeResult != 1)
+	int32 FinalizeBytesWritten = 0;
+	if (Encryptor->Finalize(TArrayView<uint8>(Ciphertext.GetData() + UpdateBytesWritten, Ciphertext.Num() - UpdateBytesWritten), FinalizeBytesWritten) != EPlatformCryptoResult::Success)
 	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Encrypt_AES_256_ECB: EVP_EncryptFinal_ex failed."));
 		return TArray<uint8>();
 	}
 
-	Ciphertext.SetNum(OutLength + FinalizeLength);
+	// Truncate message to final length
+	Ciphertext.SetNum(UpdateBytesWritten + FinalizeBytesWritten);
+
+	OutResult = EPlatformCryptoResult::Success;
+	return Ciphertext;
+}
+
+TArray<uint8> FEncryptionContextOpenSSL::Encrypt_AES_256_CBC(const TArrayView<const uint8> Plaintext, const TArrayView<const uint8> Key, const TArrayView<const uint8> InitializationVector, EPlatformCryptoResult& OutResult)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OpenSSL AES256 CBC Encrypt"), STAT_OpenSSL_AES256_CBC_Encrypt, STATGROUP_PlatformCrypto);
+
+	OutResult = EPlatformCryptoResult::Failure;
+
+	TUniquePtr<IPlatformCryptoEncryptor> Encryptor = CreateEncryptor_AES_256_CBC(Key, InitializationVector);
+	if (!Encryptor.IsValid())
+	{
+		return TArray<uint8>();
+	}
+
+	TArray<uint8> Ciphertext;
+	Ciphertext.AddUninitialized(Encryptor->GetUpdateBufferSizeBytes(Plaintext) + Encryptor->GetFinalizeBufferSizeBytes());
+
+	int32 UpdateBytesWritten = 0;
+	if (Encryptor->Update(Plaintext, Ciphertext, UpdateBytesWritten) != EPlatformCryptoResult::Success)
+	{
+		return TArray<uint8>();
+	}
+
+	int32 FinalizeBytesWritten = 0;
+	if (Encryptor->Finalize(TArrayView<uint8>(Ciphertext.GetData() + UpdateBytesWritten, Ciphertext.Num() - UpdateBytesWritten), FinalizeBytesWritten) != EPlatformCryptoResult::Success)
+	{
+		return TArray<uint8>();
+	}
+
+	// Truncate message to final length
+	Ciphertext.SetNum(UpdateBytesWritten + FinalizeBytesWritten);
+
+	OutResult = EPlatformCryptoResult::Success;
+	return Ciphertext;
+}
+
+TArray<uint8> FEncryptionContextOpenSSL::Encrypt_AES_256_GCM(const TArrayView<const uint8> Plaintext, const TArrayView<const uint8> Key, const TArrayView<const uint8> InitializationVector, TArray<uint8>& OutAuthTag, EPlatformCryptoResult& OutResult)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OpenSSL AES256 GCM Encrypt"), STAT_OpenSSL_AES256_GCM_Encrypt, STATGROUP_PlatformCrypto);
+
+	OutAuthTag.Reset();
+	OutResult = EPlatformCryptoResult::Failure;
+
+	TUniquePtr<IPlatformCryptoEncryptor> Encryptor = CreateEncryptor_AES_256_GCM(Key, InitializationVector);
+	if (!Encryptor.IsValid())
+	{
+		return TArray<uint8>();
+	}
+
+	TArray<uint8> Ciphertext;
+	Ciphertext.AddUninitialized(Encryptor->GetUpdateBufferSizeBytes(Plaintext) + Encryptor->GetFinalizeBufferSizeBytes());
+
+	int32 UpdateBytesWritten = 0;
+	if (Encryptor->Update(Plaintext, Ciphertext, UpdateBytesWritten) != EPlatformCryptoResult::Success)
+	{
+		return TArray<uint8>();
+	}
+
+	int32 FinalizeBytesWritten = 0;
+	if (Encryptor->Finalize(TArrayView<uint8>(Ciphertext.GetData() + UpdateBytesWritten, Ciphertext.Num() - UpdateBytesWritten), FinalizeBytesWritten) != EPlatformCryptoResult::Success)
+	{
+		return TArray<uint8>();
+	}
+
+	// Truncate message to final length
+	Ciphertext.SetNum(UpdateBytesWritten + FinalizeBytesWritten);
+
+	OutAuthTag.SetNumUninitialized(Encryptor->GetCipherAuthTagSizeBytes());
+	int32 AuthTagBytesWritten = 0;
+	if (Encryptor->GenerateAuthTag(OutAuthTag, AuthTagBytesWritten) != EPlatformCryptoResult::Success)
+	{
+		OutAuthTag.Reset();
+		return TArray<uint8>();
+	}
+
+	// Truncate auth tag to final length
+	OutAuthTag.SetNum(AuthTagBytesWritten);
 
 	OutResult = EPlatformCryptoResult::Success;
 	return Ciphertext;
@@ -85,227 +123,135 @@ TArray<uint8> FEncryptionContextOpenSSL::Encrypt_AES_256_ECB(const TArrayView<co
 
 TArray<uint8> FEncryptionContextOpenSSL::Decrypt_AES_256_ECB(const TArrayView<const uint8> Ciphertext, const TArrayView<const uint8> Key, EPlatformCryptoResult& OutResult)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OpenSSL AES256 Decrypt"), STAT_OpenSSL_AES_Decrypt, STATGROUP_PlatformCrypto);
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OpenSSL AES256 ECB Decrypt"), STAT_OpenSSL_AES256_ECB_Decrypt, STATGROUP_PlatformCrypto);
 
 	OutResult = EPlatformCryptoResult::Failure;
 
-	if (Key.Num() != AES256_KeySizeInBytes)
+	TUniquePtr<IPlatformCryptoDecryptor> Decryptor = CreateDecryptor_AES_256_ECB(Key);
+	if (!Decryptor.IsValid())
 	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Decrypt_AES_256_ECB: Key size %d is not the expected size %d."), Key.Num(), AES256_KeySizeInBytes);
-		return TArray<uint8>();
-	}
-
-	FScopedEVPContext Context;
-	if (Context.Get() == nullptr)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Decrypt_AES_256_ECB: failed to create EVP context."));
-		return TArray<uint8>();
-	}
-
-	const int InitResult = EVP_DecryptInit_ex(Context.Get(), EVP_aes_256_ecb(), nullptr, Key.GetData(), nullptr);
-	if (InitResult != 1)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Decrypt_AES_256_ECB: EVP_DecryptInit_ex failed."));
 		return TArray<uint8>();
 	}
 
 	TArray<uint8> Plaintext;
-	Plaintext.SetNumUninitialized(Ciphertext.Num());
+	Plaintext.AddUninitialized(Decryptor->GetUpdateBufferSizeBytes(Ciphertext) + Decryptor->GetFinalizeBufferSizeBytes());
 
-	int OutLength = 0;
-	const int UpdateResult = EVP_DecryptUpdate(Context.Get(), Plaintext.GetData(), &OutLength, Ciphertext.GetData(), Ciphertext.Num());
-	if (UpdateResult != 1)
+	int32 UpdateBytesWritten = 0;
+	if (Decryptor->Update(Ciphertext, Plaintext, UpdateBytesWritten) != EPlatformCryptoResult::Success)
 	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Decrypt_AES_256_ECB: EVP_DecryptUpdate failed."));
 		return TArray<uint8>();
 	}
 
-	int FinalizeLength = 0;
-	const int FinalizeResult = EVP_DecryptFinal_ex(Context.Get(), Plaintext.GetData() + OutLength, &FinalizeLength);
-	if (FinalizeResult != 1)
+	int32 FinalizeBytesWritten = 0;
+	if (Decryptor->Finalize(TArrayView<uint8>(Plaintext.GetData() + UpdateBytesWritten, Plaintext.Num() - UpdateBytesWritten), FinalizeBytesWritten) != EPlatformCryptoResult::Success)
 	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Decrypt_AES_256_ECB: EVP_DecryptFinal_ex failed."));
 		return TArray<uint8>();
 	}
 
-	Plaintext.SetNum(OutLength + FinalizeLength);
+	// Truncate message to final length
+	Plaintext.SetNum(UpdateBytesWritten + FinalizeBytesWritten);
 
 	OutResult = EPlatformCryptoResult::Success;
 	return Plaintext;
 }
 
-TArray<uint8> FEncryptionContextOpenSSL::Encrypt_AES_256_GCM(const TArrayView<const uint8> Plaintext, const TArrayView<const uint8> Key, const TArrayView<const uint8> IV, TArray<uint8>& OutAuthTag, EPlatformCryptoResult& OutResult)
+TArray<uint8> FEncryptionContextOpenSSL::Decrypt_AES_256_CBC(const TArrayView<const uint8> Ciphertext, const TArrayView<const uint8> Key, const TArrayView<const uint8> InitializationVector, EPlatformCryptoResult& OutResult)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OpenSSL AES256GCM Encrypt"), STAT_OpenSSL_AES_GCM_Encrypt, STATGROUP_PlatformCrypto);
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OpenSSL AES256 CBC Decrypt"), STAT_OpenSSL_AES256_CBC_Decrypt, STATGROUP_PlatformCrypto);
 
 	OutResult = EPlatformCryptoResult::Failure;
 
-	if (Key.Num() != AES256_KeySizeInBytes)
+	TUniquePtr<IPlatformCryptoDecryptor> Decryptor = CreateDecryptor_AES_256_CBC(Key, InitializationVector);
+	if (!Decryptor.IsValid())
 	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Encrypt_AES_256_GCM: Key size %d is not the expected size %d."), Key.Num(), AES256_KeySizeInBytes);
-		return TArray<uint8>();
-	}
-
-	FScopedEVPContext Context;
-	if (Context.Get() == nullptr)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Encrypt_AES_256_GCM: failed to create EVP context."));
-		return TArray<uint8>();
-	}
-
-	const int InitResult = EVP_EncryptInit_ex(Context.Get(), EVP_aes_256_gcm(), nullptr, Key.GetData(), IV.GetData());
-	if (InitResult != 1)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Encrypt_AES_256_GCM: EVP_EncryptInit_ex failed."));
-		return TArray<uint8>();
-	}
-
-	TArray<uint8> Ciphertext;
-	Ciphertext.SetNumUninitialized(Plaintext.Num() + AES256_BlockSizeInBytes); // Allow for up to a block of padding.
-
-	int OutLength = 0;
-	const int UpdateResult = EVP_EncryptUpdate(Context.Get(), Ciphertext.GetData(), &OutLength, Plaintext.GetData(), Plaintext.Num());
-	if (UpdateResult != 1)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Encrypt_AES_256_GCM: EVP_EncryptUpdate failed."));
-		return TArray<uint8>();
-	}
-
-	int FinalizeLength = 0;
-	const int FinalizeResult = EVP_EncryptFinal_ex(Context.Get(), Ciphertext.GetData() + OutLength, &FinalizeLength);
-	if (FinalizeResult != 1)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Encrypt_AES_256_GCM: EVP_EncryptFinal_ex failed."));
-		return TArray<uint8>();
-	}
-
-	OutAuthTag.Reset();
-	OutAuthTag.AddUninitialized(AES256_AuthTagSizeInBytes);
-
-	const int GetTagResult = EVP_CIPHER_CTX_ctrl(Context.Get(), EVP_CTRL_GCM_GET_TAG, OutAuthTag.Num(), OutAuthTag.GetData());
-	if (GetTagResult != 1)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Encrypt_AES_256_GCM: EVP_CIPHER_CTX_ctrl failed."));
-		return TArray<uint8>();
-	}
-
-	Ciphertext.SetNum(OutLength + FinalizeLength);
-
-	OutResult = EPlatformCryptoResult::Success;
-	return Ciphertext;
-}
-
-TArray<uint8> FEncryptionContextOpenSSL::Decrypt_AES_256_GCM(const TArrayView<const uint8> Ciphertext, const TArrayView<const uint8> Key, const TArrayView<const uint8> IV, const TArrayView<const uint8> AuthTag, EPlatformCryptoResult& OutResult)
-{
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OpenSSL AES256GCM Decrypt"), STAT_OpenSSL_AES_GCM_Decrypt, STATGROUP_PlatformCrypto);
-
-	OutResult = EPlatformCryptoResult::Failure;
-
-	if (Key.Num() != AES256_KeySizeInBytes)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Decrypt_AES_256_GCM: Key size %d is not the expected size %d."), Key.Num(), AES256_KeySizeInBytes);
-		return TArray<uint8>();
-	}
-
-	if (IV.Num() != AES256_IVSizeInBytes)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Decrypt_AES_256_GCM: IV size %d is not the expected size %d."), IV.Num(), AES256_IVSizeInBytes);
-		return TArray<uint8>();
-	}
-
-	if (AuthTag.Num() != AES256_AuthTagSizeInBytes)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Decrypt_AES_256_GCM: Auth tag size %d is not the expected size %d."), IV.Num(), AES256_AuthTagSizeInBytes);
-		return TArray<uint8>();
-	}
-
-	FScopedEVPContext Context;
-	if (Context.Get() == nullptr)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Decrypt_AES_256_GCM: failed to create EVP context."));
-		return TArray<uint8>();
-	}
-
-	const int InitResult = EVP_DecryptInit_ex(Context.Get(), EVP_aes_256_gcm(), nullptr, Key.GetData(), IV.GetData());
-	if (InitResult != 1)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Decrypt_AES_256_GCM: EVP_DecryptInit_ex failed."));
 		return TArray<uint8>();
 	}
 
 	TArray<uint8> Plaintext;
-	Plaintext.SetNumUninitialized(Ciphertext.Num());
+	Plaintext.AddUninitialized(Decryptor->GetUpdateBufferSizeBytes(Ciphertext) + Decryptor->GetFinalizeBufferSizeBytes());
 
-	int OutLength = 0;
-	const int UpdateResult = EVP_DecryptUpdate(Context.Get(), Plaintext.GetData(), &OutLength, Ciphertext.GetData(), Ciphertext.Num());
-	if (UpdateResult != 1)
+	int32 UpdateBytesWritten = 0;
+	if (Decryptor->Update(Ciphertext, Plaintext, UpdateBytesWritten) != EPlatformCryptoResult::Success)
 	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Decrypt_AES_256_GCM: EVP_DecryptUpdate failed."));
 		return TArray<uint8>();
 	}
 
-	const int SetTagResult = EVP_CIPHER_CTX_ctrl(Context.Get(), EVP_CTRL_GCM_SET_TAG, AuthTag.Num(), const_cast<uint8*>(AuthTag.GetData()));
-	if (SetTagResult != 1)
+	int32 FinalizeBytesWritten = 0;
+	if (Decryptor->Finalize(TArrayView<uint8>(Plaintext.GetData() + UpdateBytesWritten, Plaintext.Num() - UpdateBytesWritten), FinalizeBytesWritten) != EPlatformCryptoResult::Success)
 	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Decrypt_AES_256_GCM: EVP_CIPHER_CTX_ctrl failed."));
 		return TArray<uint8>();
 	}
 
-	int FinalizeLength = 0;
-	const int FinalizeResult = EVP_DecryptFinal_ex(Context.Get(), Plaintext.GetData() + OutLength, &FinalizeLength);
-	if (FinalizeResult != 1)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::Decrypt_AES_256_GCM: EVP_DecryptFinal_ex failed."));
-		return TArray<uint8>();
-	}
-
-	Plaintext.SetNum(OutLength + FinalizeLength);
+	// Truncate message to final length
+	Plaintext.SetNum(UpdateBytesWritten + FinalizeBytesWritten);
 
 	OutResult = EPlatformCryptoResult::Success;
 	return Plaintext;
 }
 
-TArray<uint8> FEncryptionContextOpenSSL::GetRandomBytes(uint32 NumBytes, EPlatformCryptoResult& OutResult)
+TArray<uint8> FEncryptionContextOpenSSL::Decrypt_AES_256_GCM(const TArrayView<const uint8> Ciphertext, const TArrayView<const uint8> Key, const TArrayView<const uint8> InitializationVector, const TArrayView<const uint8> AuthTag, EPlatformCryptoResult& OutResult)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OpenSSL GetRandomBytes"), STAT_OpenSSL_GetRandomBytes, STATGROUP_PlatformCrypto);
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OpenSSL AES256 GCM Decrypt"), STAT_OpenSSL_AES256_GCM_Decrypt, STATGROUP_PlatformCrypto);
 
 	OutResult = EPlatformCryptoResult::Failure;
 
-	TArray<uint8> RandomBytes;
-	RandomBytes.AddUninitialized(NumBytes);
-
-	const int RandResult = RAND_bytes(RandomBytes.GetData(), RandomBytes.Num());
-	if (RandResult != 1)
+	TUniquePtr<IPlatformCryptoDecryptor> Decryptor = CreateDecryptor_AES_256_GCM(Key, InitializationVector, AuthTag);
+	if (!Decryptor.IsValid())
 	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::GetRandomBytes: RAND_bytes failed."));
 		return TArray<uint8>();
 	}
-	
+
+	TArray<uint8> Plaintext;
+	Plaintext.AddUninitialized(Decryptor->GetUpdateBufferSizeBytes(Ciphertext) + Decryptor->GetFinalizeBufferSizeBytes());
+
+	int32 UpdateBytesWritten = 0;
+	if (Decryptor->Update(Ciphertext, Plaintext, UpdateBytesWritten) != EPlatformCryptoResult::Success)
+	{
+		return TArray<uint8>();
+	}
+
+	int32 FinalizeBytesWritten = 0;
+	if (Decryptor->Finalize(TArrayView<uint8>(Plaintext.GetData() + UpdateBytesWritten, Plaintext.Num() - UpdateBytesWritten), FinalizeBytesWritten) != EPlatformCryptoResult::Success)
+	{
+		return TArray<uint8>();
+	}
+
+	// Truncate message to final length
+	Plaintext.SetNum(UpdateBytesWritten + FinalizeBytesWritten);
+
 	OutResult = EPlatformCryptoResult::Success;
-	return RandomBytes;
+	return Plaintext;
 }
 
-class FScopedEVPMDContext
+TUniquePtr<IPlatformCryptoEncryptor> FEncryptionContextOpenSSL::CreateEncryptor_AES_256_ECB(const TArrayView<const uint8> Key)
 {
-public:
-	FScopedEVPMDContext() :
-		Context(EVP_MD_CTX_create())
-	{
-	}
+	return FPlatformCryptoEncryptor_AES_256_ECB_OpenSSL::Create(Key);
+}
 
-	FScopedEVPMDContext(FScopedEVPMDContext&) = delete;
-	FScopedEVPMDContext& operator=(FScopedEVPMDContext&) = delete;
+TUniquePtr<IPlatformCryptoEncryptor> FEncryptionContextOpenSSL::CreateEncryptor_AES_256_CBC(const TArrayView<const uint8> Key, const TArrayView<const uint8> InitializationVector)
+{
+	return FPlatformCryptoEncryptor_AES_256_CBC_OpenSSL::Create(Key, InitializationVector);
+}
 
-	~FScopedEVPMDContext()
-	{
-		EVP_MD_CTX_destroy(Context);
-	}
+TUniquePtr<IPlatformCryptoEncryptor> FEncryptionContextOpenSSL::CreateEncryptor_AES_256_GCM(const TArrayView<const uint8> Key, const TArrayView<const uint8> InitializationVector)
+{
+	return FPlatformCryptoEncryptor_AES_256_GCM_OpenSSL::Create(Key, InitializationVector);
+}
 
-	EVP_MD_CTX* Get() const { return Context; }
+TUniquePtr<IPlatformCryptoDecryptor> FEncryptionContextOpenSSL::CreateDecryptor_AES_256_ECB(const TArrayView<const uint8> Key)
+{
+	return FPlatformCryptoDecryptor_AES_256_ECB_OpenSSL::Create(Key);
+}
 
-private:
-	EVP_MD_CTX* Context;
-};
+TUniquePtr<IPlatformCryptoDecryptor> FEncryptionContextOpenSSL::CreateDecryptor_AES_256_CBC(const TArrayView<const uint8> Key, const TArrayView<const uint8> InitializationVector)
+{
+	return FPlatformCryptoDecryptor_AES_256_CBC_OpenSSL::Create(Key, InitializationVector);
+}
+
+TUniquePtr<IPlatformCryptoDecryptor> FEncryptionContextOpenSSL::CreateDecryptor_AES_256_GCM(const TArrayView<const uint8> Key, const TArrayView<const uint8> InitializationVector, const TArrayView<const uint8> AuthTag)
+{
+	return FPlatformCryptoDecryptor_AES_256_GCM_OpenSSL::Create(Key, InitializationVector, AuthTag);
+}
 
 bool FEncryptionContextOpenSSL::DigestVerify_PS256(const TArrayView<const char> Message, const TArrayView<const uint8> Signature, const TArrayView<const uint8> PKCS1Key)
 {
@@ -442,4 +388,18 @@ int32 FEncryptionContextOpenSSL::DecryptPrivate_RSA(TArrayView<const uint8> Sour
 		Dest.SetNum(NumDecryptedBytes);
 	}
 	return NumDecryptedBytes;
+}
+
+EPlatformCryptoResult FEncryptionContextOpenSSL::CreateRandomBytes(const TArrayView<uint8> OutData)
+{
+	return (RAND_bytes(OutData.GetData(), OutData.Num()) == 1) ? EPlatformCryptoResult::Success : EPlatformCryptoResult::Failure;
+}
+
+EPlatformCryptoResult FEncryptionContextOpenSSL::CreatePseudoRandomBytes(const TArrayView<uint8> OutData)
+{
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	return (RAND_pseudo_bytes(OutData.GetData(), OutData.Num()) == 1) ? EPlatformCryptoResult::Success : EPlatformCryptoResult::Failure;
+#else // OPENSSL_VERSION_NUMBER < 0x10100000L
+	return CreateRandomBytes(OutData);
+#endif // OPENSSL_VERSION_NUMBER < 0x10100000L
 }

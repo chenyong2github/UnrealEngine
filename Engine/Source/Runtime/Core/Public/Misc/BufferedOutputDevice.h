@@ -23,14 +23,14 @@ public:
 
 	void	SetVerbosity(ELogVerbosity::Type Verbosity) { FilterLevel = Verbosity; }
 	void	Serialize(const TCHAR* InData, ELogVerbosity::Type Verbosity, const class FName& Category) override;
-	void	GetContents(TArray<FBufferedLine>& DestBuffer, bool ClearDevice = true);
+	void	GetContents(TArray<FBufferedLine>& DestBuffer);
 
 	/** Pushes buffered lines into the specified output device. */
 	void RedirectTo(class FOutputDevice& Ar)
 	{
 		for (const FBufferedLine& BufferedLine : BufferedLines)
 		{
-			Ar.Serialize(*BufferedLine.Data, BufferedLine.Verbosity, BufferedLine.Category);
+			Ar.Serialize(BufferedLine.Data, BufferedLine.Verbosity, BufferedLine.Category);
 		}
 	}
 };

@@ -20,6 +20,11 @@ struct IEngineCrypto : public IModularFeature
 		return Name;
 	}
 
+	/**
+	 * Shutdown / cleanup the feature
+	 */
+	virtual void Shutdown() = 0;
+
 	/** 
 	* Create a new RSA key from the given little-endian exponents and modulus
 	*/
