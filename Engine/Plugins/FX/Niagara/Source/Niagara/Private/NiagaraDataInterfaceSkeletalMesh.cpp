@@ -1564,12 +1564,6 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVMExternalFunction(const FVMExternalF
 	BindSkeletonSamplingFunction(BindingInfo, InstData, OutFunc);
 	if (OutFunc.IsBound())
 	{
-#if WITH_EDITOR
-		if ( SkinningMode == ENDISkeletalMesh_SkinningMode::None )
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to use skeleton sampling but skinning mode is none. Interface: %s"), *GetFullName());
-		}
-#endif // WITH_EDITOR
 		return;
 	}
 
@@ -1592,7 +1586,6 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVMExternalFunction(const FVMExternalF
 
 	// Bind vertex sampling function
 	BindVertexSamplingFunction(BindingInfo, InstData, OutFunc);
-
 	if (OutFunc.IsBound())
 	{
 		if (!InstData->bAllowCPUMeshDataAccess)
