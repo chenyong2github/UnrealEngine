@@ -10,7 +10,7 @@
 #include "Async/Async.h"
 #include "AudioDecompress.h"
 
-static int32 ForceSyncAudioDecodesCvar = 1;
+static int32 ForceSyncAudioDecodesCvar = 0;
 FAutoConsoleVariableRef CVarForceSyncAudioDecodes(
                                                   TEXT("au.ForceSyncAudioDecodes"),
                                                   ForceSyncAudioDecodesCvar,
