@@ -1025,7 +1025,7 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 				ConnectionManager->ReplicateDormantDestructionInfos();
 			}
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if DO_ENABLE_REPGRAPH_DEBUG_ACTOR
 			{
 				RG_QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_ReplicateDebugActor);
 				if (ConnectionManager->DebugActor)
@@ -2209,7 +2209,7 @@ void UNetReplicationGraphConnection::Serialize(FArchive& Ar)
 
 void UNetReplicationGraphConnection::TearDown()
 {
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if DO_ENABLE_REPGRAPH_DEBUG_ACTOR
 	if (DebugActor)
 	{
 		DebugActor->Destroy();
@@ -2308,7 +2308,7 @@ void UNetReplicationGraphConnection::InitForConnection(UNetConnection* InConnect
 	NetConnection = InConnection;
 	InConnection->SetReplicationConnectionDriver(this);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if DO_ENABLE_REPGRAPH_DEBUG_ACTOR
 	UReplicationGraph* Graph = Cast<UReplicationGraph>(GetOuter());
 	DebugActor = Graph->CreateDebugActor();
 	if (DebugActor)
