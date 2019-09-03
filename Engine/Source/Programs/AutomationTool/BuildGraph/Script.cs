@@ -81,7 +81,7 @@ namespace AutomationTool
 				{
 					if (!Document.bHasErrors)
 					{
-						Log.TraceError(File.FullName, Ex.LineNumber, "{0}", Ex.Message);
+						Log.TraceError(File, Ex.LineNumber, "{0}", Ex.Message);
 						Document.bHasErrors = true;
 					}
 				}
