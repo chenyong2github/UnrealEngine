@@ -120,7 +120,7 @@ namespace Audio
 			case E_INVALIDARG:								return TEXT("E_INVALIDARG");
 			case E_OUTOFMEMORY:								return TEXT("E_OUTOFMEMORY");
 #endif
-			default:										return TEXT("UKNOWN");
+			default:										return TEXT("UNKNOWN");
 		}
 	}
 
