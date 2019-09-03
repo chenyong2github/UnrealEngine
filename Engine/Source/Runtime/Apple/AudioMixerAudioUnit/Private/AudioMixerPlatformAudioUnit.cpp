@@ -7,7 +7,9 @@
 #include "CoreGlobals.h"
 #include "CoreMinimal.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
 #include "ADPCMAudioInfo.h"
+
 
 /*
  This implementation only depends on the audio units API which allows it to run on MacOS, iOS and tvOS.
