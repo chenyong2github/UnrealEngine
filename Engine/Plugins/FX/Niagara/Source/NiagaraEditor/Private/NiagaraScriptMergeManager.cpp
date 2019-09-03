@@ -796,19 +796,6 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::Resolv
 
 		DiffResults.bModifiedGraph = bAnySet;
 
-		UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(OriginalEmitterInstance.GraphSource);
-		if (ScriptSource && bAnySet)
-		{
-			UNiagaraGraph* OtherGraph = ScriptSource->NodeGraph;
-			if (OtherGraph)
-			{
-				for (UNiagaraGraph* Graph : Graphs)
-				{
-					Graph->SynchronizeInternalCacheWithGraph(OtherGraph);
-				}
-			}
-		}
-
 		if (bAnySet)
 		{
 			bool bAnyUpdated = false;

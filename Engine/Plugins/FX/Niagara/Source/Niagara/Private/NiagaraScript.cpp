@@ -136,21 +136,6 @@ bool FNiagaraVMExecutableDataId::operator==(const FNiagaraVMExecutableDataId& Re
 			return false;
 		}
 	}
-	
-	if (ReferencedDependencyIds.Num() != ReferenceSet.ReferencedDependencyIds.Num())
-	{
-		return false;
-	}
-
-	for (int32 RefFunctionIndex = 0; RefFunctionIndex < ReferenceSet.ReferencedDependencyIds.Num(); RefFunctionIndex++)
-	{
-		const FGuid& ReferenceGuid = ReferenceSet.ReferencedDependencyIds[RefFunctionIndex];
-
-		if (ReferencedDependencyIds[RefFunctionIndex] != ReferenceGuid)
-		{
-			return false;
-		}
-	}
 
 	if (AdditionalDefines.Num() != ReferenceSet.AdditionalDefines.Num())
 	{
@@ -203,17 +188,6 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString) const
 			KeyString += TEXT("_");
 		}
 	}
-
-	// Add any referenced functions to the key so that we will recompile when they are changed
-	for (int32 FunctionIndex = 0; FunctionIndex < ReferencedDependencyIds.Num(); FunctionIndex++)
-	{
-		KeyString += ReferencedDependencyIds[FunctionIndex].ToString();
-
-		if (FunctionIndex < ReferencedDependencyIds.Num() - 1)
-		{
-			KeyString += TEXT("_");
-		}
-	}	
 }
 #endif
 
@@ -641,24 +615,6 @@ bool UNiagaraScript::AreScriptAndSourceSynchronized() const
 							{
 								UE_LOG(LogNiagara, Log, TEXT("AreScriptAndSourceSynchronized referenced compile hash %d doesn't match. %s != %s, script %s, source %s"),
 									i, *NewId.ReferencedCompileHashes[i].ToString(), *CachedScriptVMId.ReferencedCompileHashes[i].ToString(), *GetPathName(),
-									NewId.ReferencedObjects[i] != nullptr ? *NewId.ReferencedObjects[i]->GetPathName() : TEXT("nullptr"));
-							}
-						}
-					}
-
-					if (NewId.ReferencedDependencyIds.Num() != CachedScriptVMId.ReferencedDependencyIds.Num())
-					{
-						UE_LOG(LogNiagara, Log, TEXT("AreScriptAndSourceSynchronized num dependencies don't match. %d != %d, script %s"),
-							NewId.ReferencedDependencyIds.Num(), CachedScriptVMId.ReferencedDependencyIds.Num(), *GetPathName());
-					}
-					else
-					{
-						for (int32 i = 0; i < NewId.ReferencedDependencyIds.Num(); i++)
-						{
-							if (NewId.ReferencedDependencyIds[i] != CachedScriptVMId.ReferencedDependencyIds[i])
-							{
-								UE_LOG(LogNiagara, Log, TEXT("AreScriptAndSourceSynchronized reference id %d doesn't match. %s != %s, script %s, source %s"),
-									i, *NewId.ReferencedDependencyIds[i].ToString(), *CachedScriptVMId.ReferencedDependencyIds[i].ToString(), *GetPathName(),
 									NewId.ReferencedObjects[i] != nullptr ? *NewId.ReferencedObjects[i]->GetPathName() : TEXT("nullptr"));
 							}
 						}
@@ -1184,7 +1140,7 @@ void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatfo
 			check(CachedScriptVMId.BaseScriptCompileHash.IsValid());
 
 			NewResource->SetScript(this, (ERHIFeatureLevel::Type)TargetFeatureLevel, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.BaseScriptID, CachedScriptVMId.AdditionalDefines,
-				CachedScriptVMId.BaseScriptCompileHash,	CachedScriptVMId.ReferencedCompileHashes, CachedScriptVMId.ReferencedDependencyIds, GetFullName());
+				CachedScriptVMId.BaseScriptCompileHash,	CachedScriptVMId.ReferencedCompileHashes, GetFullName());
 			ResourceToCache = NewResource;
 
 			check(ResourceToCache);
@@ -1249,7 +1205,7 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 			FNiagaraShaderScript* ResourceToCache;
 			ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
 			ScriptResource.SetScript(this, FeatureLevel, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.BaseScriptID, CachedScriptVMId.AdditionalDefines,
-				CachedScriptVMId.BaseScriptCompileHash, CachedScriptVMId.ReferencedCompileHashes, CachedScriptVMId.ReferencedDependencyIds, GetFullName());
+				CachedScriptVMId.BaseScriptCompileHash, CachedScriptVMId.ReferencedCompileHashes, GetFullName());
 
 			//if (ScriptResourcesByFeatureLevel[FeatureLevel])
 			{
