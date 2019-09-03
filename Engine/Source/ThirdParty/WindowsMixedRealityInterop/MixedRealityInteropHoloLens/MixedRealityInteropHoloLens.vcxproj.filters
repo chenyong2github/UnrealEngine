@@ -63,7 +63,10 @@
     <ClCompile Include="..\MixedRealityInterop\QRCodeObserver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\MixedRealityInterop\SceneUnderstandingObserver.cpp">
+    <ClCompile Include="..\MixedRealityInterop\SpatialAudioClientInterop.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+	<ClCompile Include="..\MixedRealityInterop\SceneUnderstandingObserver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
