@@ -195,3 +195,14 @@ FIOSAudioSoundBuffer* FIOSAudioSoundBuffer::Init(FIOSAudioDevice* IOSAudioDevice
 	return Buffer;
 }
 
+bool FIOSAudioSoundBuffer::ReleaseCurrentChunk()
+{
+	if (DecompressionState && bStreaming)
+	{
+		return DecompressionState->ReleaseStreamChunk(true);
+	}
+	else
+	{
+		return true;
+	}
+}
