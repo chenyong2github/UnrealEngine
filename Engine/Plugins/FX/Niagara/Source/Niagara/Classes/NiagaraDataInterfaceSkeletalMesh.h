@@ -675,6 +675,8 @@ public:
 
 	void GetSpecificSocketBoneAt(FVectorVMContext& Context);
 
+	void GetSpecificSocketTransform(FVectorVMContext& Context);
+
 	void RandomSpecificSocketBone(FVectorVMContext& Context);
 		
 	// End of Direct Bone + Socket Sampling
@@ -712,6 +714,7 @@ public:
 	static const FName RandomSpecificSocketBoneName;
 	static const FName GetSpecificSocketCountName;
 	static const FName GetSpecificSocketBoneAtName;
+	static const FName GetSpecificSocketTransformName;
 
 	// Vertex Sampling
 	static const FName IsValidVertexName;
