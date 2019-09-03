@@ -743,6 +743,9 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 			}
 		}
 
+		// Reset the unity file cache
+		symbols::ResetCachedUnityManifests();
+
 		// Build up a list of all the modified object files in each module
 		types::unordered_set<std::wstring> ValidModuleFileNames;
 		for (const LiveModule* liveModule : m_liveModules)

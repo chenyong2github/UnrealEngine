@@ -88,10 +88,6 @@ namespace symbols
 		bool isPartOfLibrary;
 		bool wasRecompiled;
 
-		// BEGIN EPIC MOD - Allow mapping from object files to their unity object file
-		uint32_t amalgamatedUniqueId = ~(uint32_t)0;
-		// END EPIC MOD
-
 		LC_DISABLE_ASSIGNMENT(Compiland);
 		LC_DISABLE_COPY(Compiland);
 	};
@@ -216,6 +212,11 @@ namespace symbols
 	Provider* OpenEXE(const wchar_t* filename, uint32_t openOptions);
 	void Close(Provider* provider);
 
+	// BEGIN EPIC MOD - Static grouping of compilands by unity blobs
+	void ResetCachedUnityManifests();
+	bool TryGetCompilandIdFromUnityManifest(const std::wstring& objPath, uint32_t& compilandId);
+	uint32_t GetCompilandIdFromPath(const std::wstring& objPath);
+	// END EPIC MOD
 
 
 	// UPDATE
