@@ -71,7 +71,7 @@ public:
 
 	// IClickDragBehaviorTarget implementation
 
-	virtual bool CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
+	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
 	virtual void OnClickPress(const FInputDeviceRay& PressPos) override;
 	virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
 	// these are not used in this Tool
@@ -96,7 +96,7 @@ protected:
 	bool bSecondPointModifierDown = false;				// flag we use to keep track of modifier state
 	bool bMoveSecondPoint = false;						// flag we use to keep track of which point we are moving during a press-drag
 
-	bool FindRayHit(const FRay& WorldRay, FVector& HitPos);		// raycasts into World
+	FInputRayHit FindRayHit(const FRay& WorldRay, FVector& HitPos);		// raycasts into World
 	void UpdatePosition(const FRay& WorldRay);					// updates first or second point based on raycast
 	void UpdateDistance();										// updates distance
 };
