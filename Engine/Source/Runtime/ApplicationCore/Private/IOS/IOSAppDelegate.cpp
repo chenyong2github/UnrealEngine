@@ -617,7 +617,7 @@ static IOSAppDelegate* CachedDelegate = nil;
 	self.bAudioActive = bActive;
 	
 	// get the category and settings to use
-	AVAudioSessionCategory Category = [self IsFeatureActive:EAudioFeature::DoNotMixWithOthers] ? AVAudioSessionCategorySoloAmbient : AVAudioSessionCategoryAmbient;
+	NSString* Category = [self IsFeatureActive:EAudioFeature::DoNotMixWithOthers] ? AVAudioSessionCategorySoloAmbient : AVAudioSessionCategoryAmbient;
 	NSString* Mode = AVAudioSessionModeDefault;
 	AVAudioSessionCategoryOptions Options = 0;
 	if (self.bAudioActive || [self IsBackgroundAudioPlaying] || [self IsFeatureActive:EAudioFeature::BackgroundAudio])
