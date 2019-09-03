@@ -24,4 +24,7 @@ private:
 	FReply OnSelectConnectedSegmentsButtonClicked();
 	FReply OnMoveToCurrentLevelButtonClicked();
 	bool IsMoveToCurrentLevelButtonEnabled() const;
+
+	FReply OnUpdateSplineMeshLevelsButtonClicked();
+	bool IsUpdateSplineMeshLevelsButtonEnabled() const;
 };
