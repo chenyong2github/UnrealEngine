@@ -373,7 +373,7 @@ void FStaticMeshInstanceBuffer::CreateVertexBuffer(FResourceArrayInterface* InRe
 
 void FStaticMeshInstanceBuffer::BindInstanceVertexBuffer(const class FVertexFactory* VertexFactory, FInstancedStaticMeshDataType& InstancedStaticMeshData) const
 {
-	if (InstanceData->GetNumInstances())
+	if (InstanceData->GetNumInstances() && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
 		check(InstanceOriginSRV);
 		check(InstanceTransformSRV);
