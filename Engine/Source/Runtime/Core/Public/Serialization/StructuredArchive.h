@@ -194,8 +194,30 @@ private:
 		uint32 Id = 0;
 	};
 
-	class CORE_API FSlotBase
+	// Represents a position of a slot within the hierarchy.
+	class CORE_API FSlotPosition
 	{
+		friend class FStructuredArchive;
+
+	protected:
+		int32 Depth;
+		FElementId ElementId;
+
+		FORCEINLINE explicit FSlotPosition(int32 InDepth, FElementId InElementId)
+			: Depth(InDepth)
+			, ElementId(InElementId)
+		{
+		}
+	};
+
+	// The base class of all slot types
+	class CORE_API FSlotBase
+#if WITH_TEXT_ARCHIVE_SUPPORT
+		: protected FSlotPosition
+#endif
+	{
+		friend class FStructuredArchive;
+
 	public:
 		FORCEINLINE FArchive& GetUnderlyingArchive()
 		{
@@ -204,14 +226,11 @@ private:
 
 	protected:
 		FStructuredArchive& Ar;
-#if WITH_TEXT_ARCHIVE_SUPPORT
-		const int32 Depth;
-		const FElementId ElementId;
 
+#if WITH_TEXT_ARCHIVE_SUPPORT
 		FORCEINLINE explicit FSlotBase(FStructuredArchive& InAr, int32 InDepth, FElementId InElementId)
-			: Ar(InAr)
-			, Depth(InDepth)
-			, ElementId(InElementId)
+			: FSlotPosition(InDepth, InElementId)
+			, Ar(InAr)
 		{
 		}
 #else
@@ -483,14 +502,14 @@ private:
 	/**
 	 * Enters the current slot for serializing a value. Asserts if the archive is not in a state about to write to an empty-slot.
 	 */
-	void EnterSlot(int32 ParentDepth, FElementId ElementId);
+	void EnterSlot(FSlotPosition Slot);
 
 	/**
 	 * Enters the current slot, adding an element onto the stack. Asserts if the archive is not in a state about to write to an empty-slot.
 	 *
 	 * @return  The depth of the newly-entered slot.
 	 */
-	int32 EnterSlotAsType(int32 ParentDepth, FElementId ElementId, EElementType ElementType);
+	int32 EnterSlotAsType(FSlotPosition Slot, EElementType ElementType);
 
 	/**
 	 * Leaves slot at the top of the current scope
@@ -498,9 +517,9 @@ private:
 	void LeaveSlot();
 
 	/**
-	 * Switches to the scope at the given element id, updating the formatter state as necessary
+	 * Switches to the scope for the given slot.
 	 */
-	void SetScope(int32 Depth, FElementId ElementId);
+	void SetScope(FSlotPosition Slot);
 #endif
 };
 
