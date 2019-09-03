@@ -34,9 +34,10 @@ public:
 	 * @param InArgs The declaration data for this widget.
 	 * @param InSessionManager The session to use.
 	 */
-	void Construct( const FArguments& InArgs, const TArray<FString>& InAssetNames )
+	void Construct( const FArguments& InArgs, const TArray<FString>& InAssetNames, const FString InTestNames )
 	{
 		AssetNames = InAssetNames;
+		TestNames = InTestNames;
 
 		ChildSlot
 		[
@@ -62,7 +63,14 @@ protected:
 
 		MenuBuilder.BeginSection("AutomationOptions", LOCTEXT("MenuHeadingText", "Automation Options"));
 		{
-			MenuBuilder.AddMenuEntry(LOCTEXT("AutomationMenuEntryLoadText", "Load the asset(s)"), FText::GetEmpty(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &SAutomationTestItemContextMenu::HandleContextItemTerminate)));
+			if (!TestNames.IsEmpty())
+			{
+				MenuBuilder.AddMenuEntry(LOCTEXT("AutomationMenuEntryCopyTestNameText", "Copy test name(s)"), FText::GetEmpty(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &SAutomationTestItemContextMenu::HandleContextItemCopyName)));
+			}
+			if (AssetNames.Num())
+			{
+				MenuBuilder.AddMenuEntry(LOCTEXT("AutomationMenuEntryLoadText", "Load the asset(s)"), FText::GetEmpty(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &SAutomationTestItemContextMenu::HandleContextItemTerminate)));
+			}
 		}
 		MenuBuilder.EndSection();
 
@@ -80,10 +88,19 @@ private:
 		}
 	}
 
+	/** Handle the context menu closing down. Copy the test names to clipboard */
+	void HandleContextItemCopyName()
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*TestNames);
+	}
+
 private:
 
 	/** Holds the selected asset name. */
 	TArray<FString> AssetNames;
+
+	//** Holds the test names. */
+	FString TestNames;
 };
 
 
