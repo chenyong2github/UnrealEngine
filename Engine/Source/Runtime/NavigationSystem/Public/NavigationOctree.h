@@ -20,15 +20,18 @@ struct NAVIGATIONSYSTEM_API FNavigationOctreeElement
 {
 	FBoxSphereBounds Bounds;
 	TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> Data;
+	uint32 OwnerUniqueId = INDEX_NONE;	
 
 public:
 	explicit FNavigationOctreeElement(UObject& SourceObject)
 		: Data(new FNavigationRelevantData(SourceObject))
+		, OwnerUniqueId(SourceObject.GetUniqueID())
 	{}
 
 	FNavigationOctreeElement(const FNavigationOctreeElement& Other)
 		: Bounds(Other.Bounds)
 		, Data(Other.Data)
+		, OwnerUniqueId(Other.OwnerUniqueId)
 	{}
 
 	FNavigationOctreeElement& operator=(const FNavigationOctreeElement& Other)
@@ -163,7 +166,7 @@ protected:
 	friend struct FNavigationOctreeController;
 	friend struct FNavigationOctreeSemantics;
 
-	void SetElementIdImpl(const UObject& Object, FOctreeElementId Id);
+	void SetElementIdImpl(const uint32 OwnerUniqueId, FOctreeElementId Id);
 
 	TMap<uint32, FOctreeElementId> ObjectToOctreeId;
 	ENavDataGatheringMode DefaultGeometryGatheringMode;
