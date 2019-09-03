@@ -100,6 +100,15 @@ TAutoConsoleVariable<int32> CVarOodleMinSizeForCompression(
 	TEXT("The minimum size an outgoing packet must be, for it to be considered for compression (does not count overhead of handler components which process packets after Oodle)."));
 
 
+TAutoConsoleVariable<FString> CVarOodleServerEnableMode(
+	TEXT("net.OodleServerEnableMode"), "",
+	TEXT("When to enable compression on the server (overrides the 'ServerEnableMode' .ini setting)."));
+
+TAutoConsoleVariable<FString> CVarOodleClientEnableMode(
+	TEXT("net.OodleClientEnableMode"), "",
+	TEXT("When to enable compression on the client (overrides the 'ClientEnableMode' .ini setting)."));
+
+
 
 // @todo #JohnB: Remove after Oodle update, and after checking with Luigi
 static rrbool STDCALL UEOodleDisplayAssert(const char* File, const int Line, const char* Function, const char* Message)
@@ -366,26 +375,50 @@ void OodleHandlerComponent::Initialize()
 
 	FString CurEnableModeStr;
 	UEnum* EnableModeEnum = StaticEnum<EOodleEnableMode>();
-
-	if (GConfig->GetString(OODLE_INI_SECTION, TEXT("ServerEnableMode"), CurEnableModeStr, GEngineIni))
-	{
-		int64 EnumVal = EnableModeEnum->GetValueByNameString(CurEnableModeStr);
-
-		if (EnumVal != INDEX_NONE)
+	bool bSetServerEnableMode = false;
+	bool bSetClientEnableMode = false;
+	auto SetEnableModeFromStr = [&EnableModeEnum](EOodleEnableMode& OutMode, FString ModeStr) -> bool
 		{
-			ServerEnableMode = (EOodleEnableMode)EnumVal;
-		}
+			bool bSuccess = false;
+
+			int64 EnumVal = EnableModeEnum->GetValueByNameString(ModeStr);
+
+			if (EnumVal != INDEX_NONE)
+			{
+				OutMode = (EOodleEnableMode)EnumVal;
+				bSuccess = true;
+			}
+			else
+			{
+				UE_LOG(OodleHandlerComponentLog, Error, TEXT("Failed to parse EOodleEnableMode value '%s'"), *ModeStr);
+			}
+
+			return bSuccess;
+		};
+
+	// ServerEnableMode
+	CurEnableModeStr = CVarOodleServerEnableMode.GetValueOnAnyThread();
+
+	bSetServerEnableMode = CurEnableModeStr.Len() > 0 && SetEnableModeFromStr(ServerEnableMode, CurEnableModeStr);
+
+	if (!bSetServerEnableMode)
+	{
+		bSetServerEnableMode = GConfig->GetString(OODLE_INI_SECTION, TEXT("ServerEnableMode"), CurEnableModeStr, GEngineIni) &&
+								SetEnableModeFromStr(ServerEnableMode, CurEnableModeStr);
 	}
 
-	if (GConfig->GetString(OODLE_INI_SECTION, TEXT("ClientEnableMode"), CurEnableModeStr, GEngineIni))
-	{
-		int64 EnumVal = EnableModeEnum->GetValueByNameString(CurEnableModeStr);
+	// ClientEnableMode
+	CurEnableModeStr = CVarOodleClientEnableMode.GetValueOnAnyThread();
 
-		if (EnumVal != INDEX_NONE)
-		{
-			ClientEnableMode = (EOodleEnableMode)EnumVal;
-		}
+	bSetClientEnableMode = CurEnableModeStr.Len() > 0 && SetEnableModeFromStr(ClientEnableMode, CurEnableModeStr);
+
+	if (!bSetClientEnableMode)
+	{
+		bSetClientEnableMode = GConfig->GetString(OODLE_INI_SECTION, TEXT("ClientEnableMode"), CurEnableModeStr, GEngineIni) &&
+								SetEnableModeFromStr(ClientEnableMode, CurEnableModeStr);
 	}
+
+
 
 #if !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
 	GConfig->GetBool(OODLE_INI_SECTION, TEXT("bUseDictionaryIfPresent"), bUseDictionaryIfPresent, GEngineIni);
