@@ -165,6 +165,7 @@ private:
 	const uint8*	CurCompressedChunkData;			// A pointer to the current chunk of data
 	FAudioChunkHandle CurCompressedChunkHandle;     // Shared reference to the current chunk of data.
 	FCriticalSection CurCompressedChunkHandleCriticalSection;
+	bool bDecompressorReleased;                     // When the chunk is released, we raise this to true, then early exit on future decodes.
 
 	uint32			CurrentCompressedBlockIndex;		// For non disk streaming - the current compressed block in the compressed source data
 	uint32			TotalCompressedBlocksPerChannel;	// For non disk streaming - the total number of compressed blocks per channel
