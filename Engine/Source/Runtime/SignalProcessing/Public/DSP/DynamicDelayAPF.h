@@ -19,6 +19,7 @@ namespace Audio
 		// InMinDelay is the minimum allowable delay of the all pass filter.
 		// InMaxDelay is the maximum allowable delay of the all pass filter.
 		// InMaxNumInternalBufferSamples is the maximum internal block size used internally. 
+		// InSampleRate is the current rendering sample rate. Used to convert parameter ease time from seconds to samples.
 		FDynamicDelayAPF(float InG, int32 InMinDelay, int32 InMaxDelay, int32 InMaxNumInternalBufferSamples, float InSampleRate);
 
 		// Destructor
