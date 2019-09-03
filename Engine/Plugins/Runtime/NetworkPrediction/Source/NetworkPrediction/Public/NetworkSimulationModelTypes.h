@@ -17,6 +17,18 @@ enum ENetworkSimBufferTypeId
 	Debug
 };
 
+inline FString LexToString(ENetworkSimBufferTypeId A)
+{
+	switch(A)
+	{
+		case Input: return TEXT("Input");
+		case Sync: return TEXT("Sync");
+		case Aux: return TEXT("Aux");
+		case Debug: return TEXT("Debug");
+	};
+	return TEXT("Unknown");
+}
+
 // Helper needed to specialize TNetworkSimBufferTypes::Get (must be done outside of templated struct)
 template<typename TBufferTypes, ENetworkSimBufferTypeId BufferId> 
 struct TSelectTypeHelper
@@ -194,6 +206,10 @@ struct TNetworkSimTime
 	
 	TRealTime ToRealTimeSeconds() const { return (Time * TickSettings::GetSimToRealFactor()); }
 	FString ToString() const { return LexToString(this->Time); }
+
+	bool IsPositive() const { return (Time > 0); }
+	bool IsNegative() const { return (Time < 0); }
+	void Reset() { Time = 0; }
 
 	// FIXME
 	void NetSerialize(FArchive& Ar) { Ar << Time; }
