@@ -72,6 +72,9 @@ public:
 			case ELauncherAction::AppInstaller:
 				LauncherOptions.LauncherRelativeUrl += TEXT("?action=installer");
 				break;
+			case ELauncherAction::AppVerifyInstallation:
+				LauncherOptions.LauncherRelativeUrl += TEXT("?action=verify");
+				break;
 			};
 
 			// If our payload starts with the correct encoded character, then append the string
