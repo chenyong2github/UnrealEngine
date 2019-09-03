@@ -228,7 +228,7 @@ FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayloa
 	Output.IndirectIrradiance[0] = f32tof16(Input.IndirectIrradiance.x);
 	Output.IndirectIrradiance[0] |= f32tof16(Input.IndirectIrradiance.y) << 16;
 	Output.IndirectIrradiance[1] = f32tof16(Input.IndirectIrradiance.z);
-	Output.CustomData = f32tof16(Input.CustomData.x) | (f32tof16(Input.CustomData.y) << 16);
+	Output.CustomData = f32tof16(Input.CustomData.z) | (f32tof16(Input.CustomData.w) << 16);
 
 	return Output;
 }
@@ -267,9 +267,9 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 	Output.IndirectIrradiance.x	= f16tof32(Input.IndirectIrradiance[0]);
 	Output.IndirectIrradiance.y	= f16tof32(Input.IndirectIrradiance[0] >> 16);
 	Output.IndirectIrradiance.z	= f16tof32(Input.IndirectIrradiance[1]);
-	Output.CustomData.x = f16tof32(Input.CustomData.x & 0xFFFF);
-	Output.CustomData.y = f16tof32(Input.CustomData.x >> 16);
-	Output.CustomData.zw = 0;
+	Output.CustomData.z = f16tof32(Input.CustomData.x & 0xFFFF);
+	Output.CustomData.w = f16tof32(Input.CustomData.x >> 16);
+	Output.CustomData.xy = 0;
 
 	Output.DiffuseColor  = Output.BaseColor - Output.BaseColor * Output.Metallic;
 	Output.SpecularColor = ComputeF0(Output.Specular, Output.BaseColor, Output.Metallic);

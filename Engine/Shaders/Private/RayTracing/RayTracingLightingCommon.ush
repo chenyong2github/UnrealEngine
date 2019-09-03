@@ -323,7 +323,7 @@ float3 ComputeDirectLightingCulled(
 	GBufferData.CustomData = Payload.CustomData;
 	GBufferData.GBufferAO = Payload.GBufferAO;
 	GBufferData.IndirectIrradiance = (Payload.IndirectIrradiance.x + Payload.IndirectIrradiance.y + Payload.IndirectIrradiance.z) / 3.f; 
-	GBufferData.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
+	GBufferData.ShadingModelID = Payload.ShadingModelID;
 	GBufferData.SpecularColor = Payload.SpecularColor;
 	GBufferData.DiffuseColor = Payload.DiffuseColor;
 
