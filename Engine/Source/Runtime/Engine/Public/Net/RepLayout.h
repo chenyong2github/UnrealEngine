@@ -145,13 +145,10 @@ public:
 class FRepChangedPropertyTracker : public IRepChangedPropertyTracker
 {
 public:
-	FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording):
-		bIsReplay(InbIsReplay),
-		bIsClientReplayRecording(InbIsClientReplayRecording),
-		ExternalDataNumBits(0)
-	{}
 
-	virtual ~FRepChangedPropertyTracker() {}
+	FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording);
+
+	virtual ~FRepChangedPropertyTracker();
 
 	//~ Begin IRepChangedPropertyTracker Interface.
 	/**
@@ -163,13 +160,7 @@ public:
 	 * @param RepIndex	Replication index for the Property.
 	 * @param bIsActive	The new Active state.
 	 */
-	virtual void SetCustomIsActiveOverride(const uint16 RepIndex, const bool bIsActive) override
-	{
-		FRepChangedParent & Parent = Parents[RepIndex];
-
-		Parent.Active = (bIsActive || bIsClientReplayRecording) ? 1 : 0;
-		Parent.OldActive = Parent.Active;
-	}
+	virtual void SetCustomIsActiveOverride(const uint16 RepIndex, const bool bIsActive) override;
 
 	/**
 	 * Sets (or resets) the External Data.
@@ -179,29 +170,12 @@ public:
 	 * @param Src		Memory containing the external data.
 	 * @param NumBits	Size of the memory, in bits.
 	 */
-	virtual void SetExternalData(const uint8* Src, const int32 NumBits) override
-	{
-		ExternalDataNumBits = NumBits;
-		const int32 NumBytes = (NumBits + 7) >> 3;
-		ExternalData.Reset(NumBytes);
-		ExternalData.AddUninitialized(NumBytes);
-		FMemory::Memcpy(ExternalData.GetData(), Src, NumBytes);
-	}
+	virtual void SetExternalData(const uint8* Src, const int32 NumBits) override;
 
 	/** Whether or not this is being used for a replay (may be recording or playback). */
-	virtual bool IsReplay() const override
-	{
-		return bIsReplay;
-	}
+	virtual bool IsReplay() const override;
 
-	virtual void CountBytes(FArchive& Ar) const override
-	{
-		// Include our size here, because the caller won't know.
-		Ar.CountBytes(sizeof(FRepChangedPropertyTracker), sizeof(FRepChangedPropertyTracker));
-		Parents.CountBytes(Ar);
-		ExternalData.CountBytes(Ar);
-
-	}
+	virtual void CountBytes(FArchive& Ar) const override;
 	//~ End IRepChangedPropertyTracker Interface
 
 	/** Activation data for top level Properties on the given Actor / Object. */
@@ -792,14 +766,14 @@ public:
 };
 
 /** Various flags that describe how a Property should be handled. */
-enum class ERepLayoutFlags : uint8
+enum class ERepLayoutCmdFlags : uint8
 {
 	None					= 0,		//! No flags.
 	IsSharedSerialization	= (1 << 0),	//! Indicates the property is eligible for shared serialization.
 	IsStruct				= (1 << 1)	//! This is a struct property.
 };
 
-ENUM_CLASS_FLAGS(ERepLayoutFlags)
+ENUM_CLASS_FLAGS(ERepLayoutCmdFlags)
 
 /**
  * Represents a single property, which could be either a Top Level Property, a Nested Struct Property,
@@ -836,7 +810,7 @@ public:
 	uint32 CompatibleChecksum;
 
 	ERepLayoutCmdType Type;
-	ERepLayoutFlags Flags;
+	ERepLayoutCmdFlags Flags;
 };
 	
 /** Converts a relative handle to the appropriate index into the Cmds array */
@@ -1004,7 +978,14 @@ enum class ECreateRepLayoutFlags
 };
 ENUM_CLASS_FLAGS(ECreateRepLayoutFlags);
 
-enum class ERepLayoutState
+enum class ERepLayoutFlags : uint8
+{
+	None = 0,
+	IsActor = 1 << 1,	//! This RepLayout is for AActor or a subclass of AActor.
+};
+ENUM_CLASS_FLAGS(ERepLayoutFlags);
+
+enum class UE_DEPRECATED(4.24, "Use FRepLayout::IsEmpty() instead.") ERepLayoutState
 {
 	Uninitialized,	//! The RepLayout was never initiliazed, this should not be possible.
 	Empty,			//! The RepLayout was initialized, but doesn't have any RepCommands.
@@ -1413,9 +1394,21 @@ public:
 		return nullptr;
 	}
 
-	const ERepLayoutState GetRepLayoutState() const
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+	UE_DEPRECATED(4.24, "Use GetFlags instead.")
+	const ERepLayoutState GetRepLayoutState() const;
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	const ERepLayoutFlags GetFlags() const
 	{
-		return LayoutState;
+		return Flags;
+	}
+
+	const bool IsEmpty() const
+	{
+		return 0 == Parents.Num();
 	}
 
 	void CountBytes(FArchive& Ar) const;
@@ -1737,7 +1730,7 @@ private:
 
 	const ELifetimeCondition GetLifetimeCustomDeltaPropertyCondition(const uint16 RepIndCustomDeltaPropertyIndexex) const;
 
-	ERepLayoutState LayoutState;
+	ERepLayoutFlags Flags;
 
 	/** Index of the Role property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
 	int16 RoleIndex;
@@ -1772,3 +1765,13 @@ private:
 	/** Shared comparison to default state for multicast rpc */
 	TBitArray<> SharedInfoRPCParentsChanged;
 };
+
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+inline const ERepLayoutState FRepLayout::GetRepLayoutState() const
+{
+	// Because our constructor is hidden, we're guaranteed to be initialized.
+	// We're either Empty or Normal.
+	return IsEmpty() ? ERepLayoutState::Empty : ERepLayoutState::Normal;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

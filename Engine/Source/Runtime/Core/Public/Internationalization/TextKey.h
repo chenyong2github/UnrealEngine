@@ -67,6 +67,9 @@ public:
 	/** Compact any slack within the internal table */
 	static void CompactDataStructures();
 
+	/** Do not use any FTextKey or FTextId after calling this */
+	static void TearDown();
+
 private:
 	/** Pointer to the string buffer we reference from the internal table */
 	const TCHAR* StrPtr;

@@ -155,3 +155,17 @@ void SGraphEditor::FocusCommentNodes(TArray<UEdGraphNode*> &CommentNodes, TArray
 		}
 	}
 }
+
+TSharedPtr<SGraphEditor> SGraphEditor::FindGraphEditorForGraph(const UEdGraph* Graph)
+{
+	for (TWeakPtr<SGraphEditor>& WeakWidget : AllInstances)
+	{
+		TSharedPtr<SGraphEditor> WidgetPtr = WeakWidget.Pin();
+		if (WidgetPtr.IsValid() && (WidgetPtr->GetCurrentGraph() == Graph))
+		{
+			return WidgetPtr;
+		}
+	}
+
+	return nullptr;
+}

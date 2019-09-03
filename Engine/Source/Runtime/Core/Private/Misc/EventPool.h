@@ -8,6 +8,10 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/Event.h"
 
+#ifndef USE_EVENT_POOLING
+	#define USE_EVENT_POOLING 1
+#endif
+
 /**
  * Enumerates available event pool types.
  */
@@ -77,17 +81,15 @@ template<EEventPoolTypes PoolType>
 class FEventPool
 {
 public:
-
-	/**
-	 * Gets the singleton instance of the event pool.
-	 *
-	 * @return Pool singleton.
-	 */
-	CORE_API static FEventPool& Get()
+#if USE_EVENT_POOLING
+	~FEventPool()
 	{
-		static FEventPool Singleton;
-		return Singleton;
+		while (FEvent* Event = Pool.Pop())
+		{
+			delete Event;
+		}
 	}
+#endif
 
 	/**
 	 * Gets an event from the pool or creates one if necessary.
@@ -97,9 +99,12 @@ public:
 	 */
 	FEvent* GetEventFromPool()
 	{
-		FEvent* Result = Pool.Pop();
+		FEvent* Result = nullptr;
 
+#if USE_EVENT_POOLING
+		Result = Pool.Pop();
 		if (!Result)
+#endif
 		{
 			// FEventPool is allowed to create synchronization events.
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -127,11 +132,16 @@ public:
 		delete SafeEvent;
 		check(Result);
 		Result->Reset();
+#if USE_EVENT_POOLING
 		Pool.Push(Result);
+#else
+		delete Result;
+#endif
 	}
 
 private:
-
+#if USE_EVENT_POOLING
 	/** Holds the collection of recycled events. */
 	TLockFreePointerListUnordered<FEvent, PLATFORM_CACHE_LINE_SIZE> Pool;
+#endif
 };

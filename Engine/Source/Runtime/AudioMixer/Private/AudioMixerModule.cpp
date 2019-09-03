@@ -2,10 +2,6 @@
 
 #include "AudioMixerModule.h"
 #include "Modules/ModuleManager.h"
-#include "AudioMixerLog.h"
-
-DEFINE_LOG_CATEGORY(LogAudioMixer);
-DEFINE_LOG_CATEGORY(LogAudioMixerDebug);
 
 class FAudioMixerModule : public IModuleInterface
 {

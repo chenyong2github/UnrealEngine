@@ -104,13 +104,12 @@ namespace UnrealBuildTool
 
 				// set up the path to our toolchain
 				GCCPath = "";
-				// we rely on the fact that appending ".exe" is optional when invoking a binary on Windows
-				ClangPath = Path.Combine(BaseLinuxPath, @"bin", "clang++");
-				ArPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "ar")));
-				LlvmArPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}", "llvm-ar")));
-				RanlibPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "ranlib")));
-				StripPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "strip")));
-				ObjcopyPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "objcopy")));
+				ClangPath = Path.Combine(BaseLinuxPath, @"bin", "clang++" + GetHostPlatformBinarySuffix());
+				ArPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "ar" + GetHostPlatformBinarySuffix())));
+				LlvmArPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}", "llvm-ar" + GetHostPlatformBinarySuffix())));
+				RanlibPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "ranlib" + GetHostPlatformBinarySuffix())));
+				StripPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "strip" + GetHostPlatformBinarySuffix())));
+				ObjcopyPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "objcopy" + GetHostPlatformBinarySuffix())));
 
 				// When cross-compiling on Windows, use old FixDeps. It is slow, but it does not have timing issues
 				bUseFixdeps = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32);
@@ -196,6 +195,16 @@ namespace UnrealBuildTool
 			PlatformSDK = InSDK;
 			Options = InOptions;
 			bPreservePSYM = InPreservePSYM;
+		}
+
+		private string GetHostPlatformBinarySuffix()
+		{
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32)
+			{
+				return ".exe";
+			}
+
+			return "";
 		}
 
 		protected virtual bool CrossCompiling()
@@ -826,11 +835,22 @@ namespace UnrealBuildTool
 				: string.Format("{0}={1}", myKey, myValue);
 		}
 
-		static string GetCompileArguments_CPP()
+		static string GetCompileArguments_CPP(CppCompileEnvironment CompilerEnvironment)
 		{
 			string Result = "";
 			Result += " -x c++";
-			Result += " -std=c++14";
+			if (CompilerEnvironment.CppStandard == CppStandardVersion.Cpp14 || CompilerEnvironment.CppStandard == CppStandardVersion.Default)
+			{
+				Result += " -std=c++14";
+			}
+			else if (CompilerEnvironment.CppStandard == CppStandardVersion.Cpp17)
+			{
+				Result += " -std=c++17";
+			}
+			else if (CompilerEnvironment.CppStandard == CppStandardVersion.Latest)
+			{
+				Result += " -std=c++17";
+			}
 			return Result;
 		}
 
@@ -1286,7 +1306,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					FileArguments += GetCompileArguments_CPP();
+					FileArguments += GetCompileArguments_CPP(CompileEnvironment);
 
 					// only use PCH for .cpp files
 					FileArguments += PCHArguments;

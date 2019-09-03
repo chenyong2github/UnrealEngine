@@ -14,19 +14,23 @@ public class AudioMixerAudioUnit : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
+				"AudioMixerCore"
 			}
 			);
 
 		PrecompileForTargets = PrecompileTargetsType.None;
 
-		PrivateDependencyModuleNames.Add("AudioMixer");
+        if (Target.bCompileAgainstEngine)
+        {
+            // Engine module is required for CompressedAudioInfo implementations.
+            PrivateDependencyModuleNames.Add("Engine");
 
-		AddEngineThirdPartyPrivateStaticDependencies(Target, 
-			"UEOgg",
-			"Vorbis",
-			"VorbisFile"
-			);
+            AddEngineThirdPartyPrivateStaticDependencies(Target,
+                "UEOgg",
+                "Vorbis",
+                "VorbisFile"
+            );
+        }
 
 		PublicFrameworks.AddRange(new string[]
 		{

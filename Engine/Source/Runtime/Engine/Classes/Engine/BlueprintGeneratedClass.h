@@ -554,7 +554,7 @@ struct ENGINE_API FBlueprintCookedComponentInstancingData
 
 	/** Flag indicating whether or not this contains valid cooked data. Note that an empty changed property list can also be a valid template data context. */
 	UPROPERTY()
-	uint8 bHasValidCookedData : 1;
+	bool bHasValidCookedData;
 
 	/** Default constructor. */
 	FBlueprintCookedComponentInstancingData()

@@ -146,7 +146,6 @@ public:
 
 	FORCEINLINE TArray<int32>& GetIDTable() { return IDToIndexTable; }
 
-	template<bool bDoResourceTransitions>
 	void SetShaderParams(class FNiagaraShader *Shader, FRHICommandList &CommandList, bool bInput);
 	void UnsetShaderParams(class FNiagaraShader *Shader, FRHICommandList &CommandList);
 

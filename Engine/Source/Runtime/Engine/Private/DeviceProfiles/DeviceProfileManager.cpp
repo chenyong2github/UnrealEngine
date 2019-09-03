@@ -294,6 +294,79 @@ void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSett
 	}
 }
 
+bool UDeviceProfileManager::DoActiveProfilesReference(const TSet<FString>& DeviceProfilesToQuery)
+{
+	FConfigCacheIni::LoadGlobalIniFile(DeviceProfileFileName, TEXT("DeviceProfiles"));
+	TArray< FString > AvailableProfiles;
+	GConfig->GetSectionNames(DeviceProfileFileName, AvailableProfiles);
+
+	auto DoesProfileReference = [&AvailableProfiles, DeviceProfileFileName = DeviceProfileFileName](const FString& SearchProfile, const TSet<FString>& InDeviceProfilesToQuery)
+	{
+		// For each device profile, starting with the selected and working our way up the BaseProfileName tree,
+		FString BaseDeviceProfileName = SearchProfile;
+		bool bReachedEndOfTree = BaseDeviceProfileName.IsEmpty();
+		while (bReachedEndOfTree == false)
+		{
+			FString CurrentSectionName = FString::Printf(TEXT("%s %s"), *BaseDeviceProfileName, *UDeviceProfile::StaticClass()->GetName());
+			bool bProfileExists = AvailableProfiles.Contains(CurrentSectionName);
+			if (bProfileExists)
+			{
+				if (InDeviceProfilesToQuery.Contains(BaseDeviceProfileName))
+				{
+					return true;
+				}
+
+				// Get the next device profile name
+				FString NextBaseDeviceProfileName;
+				if (GConfig->GetString(*CurrentSectionName, TEXT("BaseProfileName"), NextBaseDeviceProfileName, DeviceProfileFileName))
+				{
+					BaseDeviceProfileName = NextBaseDeviceProfileName;
+				}
+				else
+				{
+					BaseDeviceProfileName.Empty();
+				}
+			}
+			bReachedEndOfTree = !bProfileExists || BaseDeviceProfileName.IsEmpty();
+		}
+		return false;
+	};
+
+	bool bDoActiveProfilesReferenceQuerySet = DoesProfileReference(DeviceProfileManagerSingleton->GetActiveProfile()->GetName(), DeviceProfilesToQuery);
+	if (!bDoActiveProfilesReferenceQuerySet && DeviceProfileManagerSingleton->BaseDeviceProfile != nullptr)
+	{
+		bDoActiveProfilesReferenceQuerySet = DoesProfileReference(DeviceProfileManagerSingleton->BaseDeviceProfile->GetName(), DeviceProfilesToQuery);
+	}
+	return bDoActiveProfilesReferenceQuerySet;
+}
+
+void UDeviceProfileManager::ReapplyDeviceProfile()
+{	
+	UDeviceProfile* OverrideProfile = DeviceProfileManagerSingleton->BaseDeviceProfile ? DeviceProfileManagerSingleton->GetActiveProfile() : nullptr;
+	UDeviceProfile* BaseProfile = DeviceProfileManagerSingleton->BaseDeviceProfile ? DeviceProfileManagerSingleton->BaseDeviceProfile : DeviceProfileManagerSingleton->GetActiveProfile();
+
+	UE_LOG(LogInit, Log, TEXT("ReapplyDeviceProfile applying profile: [%s]"), *BaseProfile->GetName(), OverrideProfile ? *OverrideProfile->GetName() : TEXT("not set.") );
+
+	// pop any pushed settings
+	RestoreDefaultDeviceProfile();
+
+	// Set base profile and re-apply cvars.
+	SetActiveDeviceProfile(BaseProfile);
+	InitializeCVarsForActiveDeviceProfile();
+
+	if (OverrideProfile)
+	{
+		UE_LOG(LogInit, Log, TEXT("ReapplyDeviceProfile applying override profile: [%s]"), *OverrideProfile->GetName());
+		// reapply the override.
+		SetOverrideDeviceProfile(OverrideProfile);
+	}
+	else
+	{
+		// broadcast cvar sinks now that we are done
+		IConsoleManager::Get().CallAllConsoleVariableSinks();
+	}
+}
+
 static void TestProfileForCircularReferences(const FString& ProfileName, const FString& ParentName, const FConfigFile &PlatformConfigFile)
 {
 	TArray<FString> ProfileDependancies;
@@ -533,6 +606,9 @@ void UDeviceProfileManager::SetOverrideDeviceProfile(UDeviceProfile* DeviceProfi
 	// pop any pushed settings
 	HandleDeviceProfileOverridePop();
 
+	// record the currently active profile, needed when we restore the default.
+	BaseDeviceProfile = DeviceProfileManagerSingleton->GetActiveProfile();
+
 	// activate new one!
 	DeviceProfileManagerSingleton->SetActiveDeviceProfile(DeviceProfile);
 	InitializeCVarsForActiveDeviceProfile(true);
@@ -556,6 +632,13 @@ void UDeviceProfileManager::RestoreDefaultDeviceProfile()
 			CVar->Set(*It.Value(), ECVF_SetByDeviceProfile);
 			UE_LOG(LogInit, Log, TEXT("Popping Device Profile CVar: [[%s:%s]]"), *It.Key(), *It.Value());
 		}
+	}
+
+	if(BaseDeviceProfile)
+	{
+		// reset the base profile as we are no longer overriding
+		DeviceProfileManagerSingleton->SetActiveDeviceProfile(BaseDeviceProfile);
+		BaseDeviceProfile = nullptr;
 	}
 }
 

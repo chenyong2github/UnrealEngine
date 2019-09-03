@@ -131,7 +131,7 @@ private:
 
 namespace FNetworkProtocolTypes
 {
-	ONLINESUBSYSTEMOCULUS_API extern const FName Oculus;
+	ONLINESUBSYSTEMOCULUS_API extern const FLazyName Oculus;
 }
 
 typedef TSharedPtr<FOnlineSubsystemOculus, ESPMode::ThreadSafe> FOnlineSubsystemOculusPtr;

@@ -10,6 +10,7 @@
 #include "AIGraphConnectionDrawingPolicy.h"
 #include "ScopedTransaction.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "EdGraphNode_Comment.h"
 
 #define LOCTEXT_NAMESPACE "AIGraph"
 #define SNAP_GRID (16) // @todo ensure this is the same as SNodePanel::GetSnapGridSize()
@@ -19,6 +20,30 @@ namespace
 	// Maximum distance a drag can be off a node edge to require 'push off' from node
 	const int32 NodeDistance = 60;
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+UEdGraphNode* FAISchemaAction_AddComment::PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
+{
+	UEdGraphNode_Comment* const CommentTemplate = NewObject<UEdGraphNode_Comment>();
+
+	FVector2D SpawnLocation = Location;
+	FSlateRect Bounds;
+
+	TSharedPtr<SGraphEditor> GraphEditorPtr = SGraphEditor::FindGraphEditorForGraph(ParentGraph);
+	if (GraphEditorPtr.IsValid() && GraphEditorPtr->GetBoundsForSelectedNodes(/*out*/ Bounds, 50.0f))
+	{
+		CommentTemplate->SetBounds(Bounds);
+		SpawnLocation.X = CommentTemplate->NodePosX;
+		SpawnLocation.Y = CommentTemplate->NodePosY;
+	}
+
+	UEdGraphNode* const NewNode = FEdGraphSchemaAction_NewNode::SpawnNodeFromTemplate<UEdGraphNode_Comment>(ParentGraph, CommentTemplate, SpawnLocation, bSelectNewNode);
+
+	return NewNode;
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 UEdGraphNode* FAISchemaAction_NewNode::PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
 {
@@ -121,6 +146,7 @@ void FAISchemaAction_NewSubNode::AddReferencedObjects(FReferenceCollector& Colle
 	Collector.AddReferencedObject(NodeTemplate);
 	Collector.AddReferencedObject(ParentNode);
 }
+
 //////////////////////////////////////////////////////////////////////////
 
 UAIGraphSchema::UAIGraphSchema(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -293,6 +319,25 @@ bool UAIGraphSchema::ShouldHidePinDefaultValue(UEdGraphPin* Pin) const
 class FConnectionDrawingPolicy* UAIGraphSchema::CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, class FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj) const
 {
 	return new FAIGraphConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements, InGraphObj);
+}
+
+TSharedPtr<FEdGraphSchemaAction> UAIGraphSchema::GetCreateCommentAction() const
+{
+	return TSharedPtr<FEdGraphSchemaAction>(static_cast<FEdGraphSchemaAction*>(new FAISchemaAction_AddComment));
+}
+
+int32 UAIGraphSchema::GetNodeSelectionCount(const UEdGraph* Graph) const
+{
+	if (Graph)
+	{
+		TSharedPtr<SGraphEditor> GraphEditorPtr = SGraphEditor::FindGraphEditorForGraph(Graph);
+		if (GraphEditorPtr.IsValid())
+		{
+			return GraphEditorPtr->GetNumberOfSelectedNodes();
+		}
+	}
+
+	return 0;
 }
 
 #undef LOCTEXT_NAMESPACE

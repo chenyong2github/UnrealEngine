@@ -4,11 +4,19 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "AudioMixer.h"
-#include "Sound/SoundWave.h"
+#include "Sound/SoundWaveProcedural.h"
 #include "HAL/RunnableThread.h"
 #include "AudioMixerBuffer.h"
 #include "Async/Async.h"
 #include "AudioDecompress.h"
+
+static int32 ForceSyncAudioDecodesCvar = 0;
+FAutoConsoleVariableRef CVarForceSyncAudioDecodes(
+	TEXT("au.ForceSyncAudioDecodes"),
+	ForceSyncAudioDecodesCvar,
+	TEXT("Disables using async tasks for processing sources.\n")
+	TEXT("0: Not Disabled, 1: Disabled"),
+	ECVF_Default);
 
 namespace Audio
 {
@@ -220,6 +228,12 @@ public:
 	FHeaderDecodeHandle(const FHeaderParseAudioTaskData& InJobData)
 	{
 		Task = new FAsyncTask<FAsyncDecodeWorker>(InJobData);
+        if (ForceSyncAudioDecodesCvar)
+        {
+            Task->StartSynchronousTask();
+            return;
+        }
+        
 		Task->StartBackgroundTask();
 	}
 
@@ -235,6 +249,12 @@ public:
 	FProceduralDecodeHandle(const FProceduralAudioTaskData& InJobData)
 	{
 		Task = new FAsyncTask<FAsyncDecodeWorker>(InJobData);
+        if (ForceSyncAudioDecodesCvar)
+        {
+            Task->StartSynchronousTask();
+            return;
+        }
+        
 		Task->StartBackgroundTask();
 	}
 
@@ -257,6 +277,12 @@ public:
 	FDecodeHandle(const FDecodeAudioTaskData& InJobData)
 	{
 		Task = new FAsyncTask<FAsyncDecodeWorker>(InJobData);
+        if (ForceSyncAudioDecodesCvar)
+        {
+            Task->StartSynchronousTask();
+            return;
+        }
+        
 		const bool bUseBackground = ShouldUseBackgroundPoolFor_FAsyncRealtimeAudioTask();
 		Task->StartBackgroundTask(bUseBackground ? GBackgroundPriorityThreadPool : GThreadPool);
 	}

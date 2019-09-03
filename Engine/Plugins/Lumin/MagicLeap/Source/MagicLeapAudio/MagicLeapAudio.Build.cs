@@ -21,7 +21,8 @@ public class MagicLeapAudio : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"MLSDK",
-				"AudioMixer"
+				"AudioMixer",
+				"AudioMixerCore"
 			}
 		);
 

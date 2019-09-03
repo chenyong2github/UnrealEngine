@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "Sound/SampleBuffer.h"
+#include "SampleBufferIO.h"
 #include "SoundEffectSubmix.h"
 #include "IAmbisonicsMixer.h"
 #include "Curves/CurveFloat.h"

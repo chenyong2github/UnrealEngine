@@ -9,7 +9,6 @@
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
 #include "IAudioExtensionPlugin.h"
-#include "Modules/ModuleInterface.h"
 #include "AudioDynamicParameter.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/AudioVolume.h"
@@ -19,7 +18,7 @@
 #include "Sound/SoundMix.h"
 #include "Sound/SoundSourceBus.h"
 #include "AudioVirtualLoop.h"
-
+#include "AudioMixer.h"
 
 /**
  * Forward declares
@@ -534,6 +533,13 @@ public:
 	 * @param   bForceFullDecompression If true, the sound wave will be fully decompressed regardless of size.
 	 */
 	virtual void Precache(USoundWave* SoundWave, bool bSynchronous = false, bool bTrackMemory = true, bool bForceFullDecompression = false);
+
+	float GetCompressionDurationThreshold(const FSoundGroup &SoundGroup);
+
+	/**
+	 * Returns true if a sound wave should be decompressed.
+	 */
+	bool ShouldUseRealtimeDecompression(bool bForceFullDecompression, const FSoundGroup &SoundGroup, USoundWave* SoundWave, float CompressedDurationThreshold) const;
 
 	/**
 	 * Precaches all existing sounds. Called when audio setup is complete
@@ -1827,7 +1833,10 @@ private:
 	TArray<FActiveSound*> ActiveSounds;
 	/** Array of sound waves to add references to avoid GC until guaranteed to be done with precache or decodes. */
 	TArray<USoundWave*> ReferencedSoundWaves;
+
 	void UpdateReferencedSoundWaves();
+	TArray<USoundWave*> ReferencedSoundWaves_AudioThread;
+	FCriticalSection ReferencedSoundWaveCritSec;
 
 	TArray<USoundWave*> PrecachingSoundWaves;
 
@@ -1874,21 +1883,6 @@ private:
 	// Global min and max pitch scale, derived from audio settings
 	float GlobalMinPitch;
 	float GlobalMaxPitch;
-};
-
-
-/**
- * Interface for audio device modules
- */
-
-/** Defines the interface of a module implementing an audio device and associated classes. */
-class IAudioDeviceModule : public IModuleInterface
-{
-public:
-
-	/** Creates a new instance of the audio device implemented by the module. */
-	virtual bool IsAudioMixerModule() const { return false; }
-	virtual FAudioDevice* CreateAudioDevice() = 0;
 };
 
 

@@ -49,13 +49,13 @@ struct RtcpIntervalConfig final {
 };
 
 struct AudioPayload {
-  ~AudioPayload() noexcept {};
+  ~AudioPayload() noexcept {}
   SdpAudioFormat format;
   uint32_t rate;
 };
 
 struct VideoPayload {
-  ~VideoPayload() noexcept {};
+  ~VideoPayload() noexcept {}
   VideoCodecType videoCodecType;
   // The H264 profile only matters if videoCodecType == kVideoCodecH264.
   H264::Profile h264_profile;

@@ -13,7 +13,7 @@ TUniquePtr<FHttpServerResponse> FHttpServerResponse::Create(const FString& Text,
 	const uint8* ConvertToUtf8Bytes = (reinterpret_cast<const uint8*>(ConvertToUtf8.Get()));
 	Response->Body.Append(ConvertToUtf8Bytes, ConvertToUtf8.Length());
 
-	FString Utf8CharsetContentType = FString::Printf(TEXT("%s ;charset=utf-8"), *ContentType);
+	FString Utf8CharsetContentType = FString::Printf(TEXT("%s;charset=utf-8"), *ContentType);
 	TArray<FString> ContentTypeValue = { MoveTemp(Utf8CharsetContentType) };
 	Response->Headers.Add(FHttpServerHeaderKeys::CONTENT_TYPE, MoveTemp(ContentTypeValue));
 

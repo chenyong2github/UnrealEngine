@@ -14,9 +14,12 @@
 
 
 class FScene;
+class FViewInfo;
 class FLightSceneInfo;
 class USkyAtmosphereComponent;
+class FSkyAtmosphereSceneProxy;
 
+struct FEngineShowFlags;
 
 
 // Use as a global shader parameter struct and also the CPU structure representing the atmosphere it self.
@@ -59,55 +62,39 @@ class FSkyAtmosphereRenderSceneInfo
 public:
 
 	/** Initialization constructor. */
-	explicit FSkyAtmosphereRenderSceneInfo(const USkyAtmosphereComponent* InComponent);
+	explicit FSkyAtmosphereRenderSceneInfo(FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxy);
 	~FSkyAtmosphereRenderSceneInfo();
-
-	/** Prepare the sun light data as a function of current atmosphere state. */
-	void PrepareSunLightProxy(uint32 AtmosphereLightIndex, FLightSceneInfo& AtmosphereLight) const;
-
-	bool IsMultiScatteringEnabled() const { return AtmosphereSetup.MultiScatteringFactor > 0.0f; }
-	FLinearColor GetSkyLuminanceFactor() const { return SkyLuminanceFactor; }
-	float GetAerialPespectiveViewDistanceScale() const { return AerialPespectiveViewDistanceScale; }
 
 	const TUniformBufferRef<FAtmosphereUniformShaderParameters>& GetAtmosphereUniformBuffer() { return AtmosphereUniformBuffer; }
 	TRefCountPtr<IPooledRenderTarget>& GetTransmittanceLutTexture() { return TransmittanceLutTexture; }
 	TRefCountPtr<IPooledRenderTarget>& GetMultiScatteredLuminanceLutTexture() { return MultiScatteredLuminanceLutTexture; }
-	TRefCountPtr<IPooledRenderTarget>& GetDistantSkyLightLutTexture() { return DistantSkyLightLutTexture; }
-	FTextureRHIRef GetDistantSkyLightLutTextureRHI();
+	TRefCountPtr<IPooledRenderTarget>& GetDistantSkyLightLutTexture();
 
-	const FAtmosphereSetup& GetAtmosphereSetup() const { return AtmosphereSetup; }
 	const FAtmosphereUniformShaderParameters* GetAtmosphereShaderParameters() const { return &AtmosphereUniformShaderParameters; }
-
-	void OverrideAtmosphereLightDirection(const class USkyAtmosphereComponent* SkyAtmosphereComponent, int32 AtmosphereLightIndex, const FVector& LightDirection);
-	FVector GetAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& DefaultDirection) const;
-
-	bool bStaticLightingBuilt;
+	const FSkyAtmosphereSceneProxy& GetSkyAtmosphereSceneProxy() const { return SkyAtmosphereSceneProxy; }
 
 private:
 
-	const USkyAtmosphereComponent* Component_DoNotDereference;
+	FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxy;
 
-	FAtmosphereSetup AtmosphereSetup;
 	FAtmosphereUniformShaderParameters AtmosphereUniformShaderParameters;
 
 	TUniformBufferRef<FAtmosphereUniformShaderParameters> AtmosphereUniformBuffer;
+
 	TRefCountPtr<IPooledRenderTarget> TransmittanceLutTexture;
 	TRefCountPtr<IPooledRenderTarget> MultiScatteredLuminanceLutTexture;
 	TRefCountPtr<IPooledRenderTarget> DistantSkyLightLutTexture;
-
-	FLinearColor TransmittanceAtZenith;
-	FLinearColor SkyLuminanceFactor;
-	float AerialPespectiveViewDistanceScale;
-
-	bool OverrideAtmosphericLight[NUM_ATMOSPHERE_LIGHTS];
-	FVector OverrideAtmosphericLightDirection[NUM_ATMOSPHERE_LIGHTS];
 };
 
-bool ShouldRenderSkyAtmosphere(const FScene* Scene);
+
+
+bool ShouldRenderSkyAtmosphere(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
 
 void InitSkyAtmosphereForScene(FRHICommandListImmediate& RHICmdList, FScene* Scene);
 void InitSkyAtmosphereForView(FRHICommandListImmediate& RHICmdList, const FScene* Scene, FViewInfo& View);
 
 extern void SetupSkyAtmosphereViewSharedUniformShaderParameters(const class FViewInfo& View, FSkyAtmosphereViewSharedUniformShaderParameters& OutParameters);
 
+// Prepare the sun light data as a function of the atmosphere state. 
+void PrepareSunLightProxy(const FSkyAtmosphereRenderSceneInfo& SkyAtmosphere, uint32 AtmosphereLightIndex, FLightSceneInfo& AtmosphereLight);
 

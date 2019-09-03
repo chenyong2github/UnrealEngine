@@ -680,8 +680,15 @@ void FLwsWebSocket::ConnectInternal(struct lws_context &LwsContext)
 		return;
 	}
 
-	const FString CombinedProtocols(FString::Join(Protocols, TEXT(",")));
-	FTCHARToUTF8 CombinedProtocolsUTF8(*CombinedProtocols);
+	// If we specify protocols, convert the comma separated list into UTF8
+	TOptional<FTCHARToUTF8> OptionalCombinedProtocolsUTF8;
+	if (Protocols.Num() > 0)
+	{
+		const FString CombinedProtocols(FString::Join(Protocols, TEXT(",")));
+		OptionalCombinedProtocolsUTF8.Emplace(*CombinedProtocols);
+	}
+
+	const char* const CombinedProtocolsUTF8 = OptionalCombinedProtocolsUTF8.IsSet() ? OptionalCombinedProtocolsUTF8.GetValue().Get() : nullptr;
 
 	struct lws_client_connect_info ConnectInfo = {};
 	ConnectInfo.context = &LwsContext;
@@ -691,7 +698,7 @@ void FLwsWebSocket::ConnectInternal(struct lws_context &LwsContext)
 	ConnectInfo.path = UrlPath;
 	ConnectInfo.host = ConnectInfo.address;
 	ConnectInfo.origin = ConnectInfo.address;
-	ConnectInfo.protocol = CombinedProtocolsUTF8.Get();
+	ConnectInfo.protocol = CombinedProtocolsUTF8;
 	ConnectInfo.ietf_version_or_minus_one = -1;
 	ConnectInfo.userdata = this;
 

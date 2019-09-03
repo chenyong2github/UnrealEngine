@@ -61,6 +61,7 @@ struct NAVIGATIONSYSTEM_API FNavMeshSceneProxyData : public TSharedFromThis<FNav
 	TArray<FDebugRenderSceneProxy::FDebugLine> NavLinkLines;
 	TArray<FDebugRenderSceneProxy::FDebugLine> ClusterLinkLines;
 	TArray<FDebugRenderSceneProxy::FDebugBox> AuxBoxes;
+	TArray<FDebugRenderSceneProxy::FMesh> Meshes;
 
 	struct FDebugText
 	{

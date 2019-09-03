@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "Internationalization/LegacyInternationalization.h"
+#include "Internationalization/Cultures/LeetCulture.h"
 
 #if !UE_ENABLE_ICU
 
@@ -18,6 +20,10 @@ bool FLegacyInternationalization::Initialize()
 	I18N->DefaultLocale = I18N->InvariantCulture;
 	I18N->CurrentLanguage = I18N->InvariantCulture;
 	I18N->CurrentLocale = I18N->InvariantCulture;
+
+#if ENABLE_LOC_TESTING
+	I18N->AddCustomCulture(MakeShared<FLeetCulture>(I18N->InvariantCulture.ToSharedRef()));
+#endif
 
 	return true;
 }
@@ -46,7 +52,12 @@ void FLegacyInternationalization::HandleLanguageChanged(const FString& Name)
 
 void FLegacyInternationalization::GetCultureNames(TArray<FString>& CultureNames) const
 {
-	CultureNames.Add(TEXT(""));
+	CultureNames.Reset(1 + I18N->CustomCultures.Num());
+	CultureNames.Add(FString());
+	for (const FCultureRef& CustomCulture : I18N->CustomCultures)
+	{
+		CultureNames.Add(CustomCulture->GetName());
+	}
 }
 
 TArray<FString> FLegacyInternationalization::GetPrioritizedCultureNames(const FString& Name)
@@ -58,7 +69,12 @@ TArray<FString> FLegacyInternationalization::GetPrioritizedCultureNames(const FS
 
 FCulturePtr FLegacyInternationalization::GetCulture(const FString& Name)
 {
-	return Name.IsEmpty() ? I18N->InvariantCulture : nullptr;
+	FCulturePtr Culture = I18N->GetCustomCulture(Name);
+	if (!Culture && Name.IsEmpty())
+	{
+		Culture = I18N->InvariantCulture;
+	}
+	return Culture;
 }
 
 #endif

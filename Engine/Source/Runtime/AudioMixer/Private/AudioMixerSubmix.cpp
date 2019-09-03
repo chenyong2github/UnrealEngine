@@ -8,7 +8,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 
 // Link to "Audio" profiling category
-CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXER_API, Audio);
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
 namespace Audio
 {
@@ -62,12 +62,21 @@ namespace Audio
 		check(IsInAudioThread());
 		if (InSoundSubmix != nullptr)
 		{
-			OwningSubmixObject = InSoundSubmix;
-	
-			SubmixCommand([this]()
+			// This is a first init and needs to be synchronous
+			if (!OwningSubmixObject)
 			{
+				OwningSubmixObject = InSoundSubmix;
 				InitInternal();
-			});
+			}
+			else
+			{
+				// This is a re-init and needs to be thread safe
+				check(OwningSubmixObject == InSoundSubmix);
+				SubmixCommand([this]()
+				{
+					InitInternal();
+				});
+			}
 		}
 	}
 

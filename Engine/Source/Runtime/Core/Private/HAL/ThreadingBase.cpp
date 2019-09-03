@@ -6,6 +6,7 @@
 #include "Stats/Stats.h"
 #include "Misc/CoreStats.h"
 #include "Misc/EventPool.h"
+#include "Misc/LazySingleton.h"
 #include "Templates/Atomic.h"
 #include "HAL/PlatformStackWalk.h"
 #include "ProfilingDebugging/MiscTrace.h"
@@ -248,10 +249,10 @@ void FThreadManager::GetAllThreadStackBackTraces(TArray<FThreadStackBackTrace>& 
 	StackTraces.Empty(NumThreads);
 	GetAllThreadStackBackTraces_ProcessSingle(CurThreadId, GGameThreadId, TEXT("GameThread"), StackTraces.AddDefaulted_GetRef());
 
-	for (TMap<uint32, FRunnableThread*>::TConstIterator It(Threads); It; ++It)
+	for (const TPair<uint32, FRunnableThread*>& Pair : Threads)
 	{
-		const uint32 Id = It->Key;
-		const FString& Name = It->Value->GetThreadName();
+		const uint32 Id = Pair.Key;
+		const FString& Name = Pair.Value->GetThreadName();
 		GetAllThreadStackBackTraces_ProcessSingle(CurThreadId, Id, *Name, StackTraces.AddDefaulted_GetRef());
 	}
 }
@@ -316,7 +317,7 @@ void FEvent::ResetForStats()
 }
 
 FScopedEvent::FScopedEvent()
-	: Event(FEventPool<EEventPoolTypes::AutoReset>::Get().GetEventFromPool())
+	: Event(TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::Get().GetEventFromPool())
 { }
 
 bool FScopedEvent::IsReady()
@@ -325,7 +326,7 @@ bool FScopedEvent::IsReady()
 	{
 		if ( Event->Wait(1) )
 		{
-			FEventPool<EEventPoolTypes::AutoReset>::Get().ReturnToPool(Event);
+			TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::Get().ReturnToPool(Event);
 			Event = nullptr;
 			return true;
 		}
@@ -339,7 +340,7 @@ FScopedEvent::~FScopedEvent()
 	if ( Event )
 	{
 		Event->Wait();
-		FEventPool<EEventPoolTypes::AutoReset>::Get().ReturnToPool(Event);
+		TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::Get().ReturnToPool(Event);
 		Event = nullptr;
 	}
 }

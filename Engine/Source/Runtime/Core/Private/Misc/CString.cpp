@@ -40,12 +40,14 @@ bool FToBoolHelper::FromCStringAnsi( const ANSICHAR* String )
 
 bool FToBoolHelper::FromCStringWide( const WIDECHAR* String )
 {
+	const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
 	if (
 			FCStringWide::Stricmp(String, TEXT("True"))==0
 		||	FCStringWide::Stricmp(String, TEXT("Yes"))==0
 		||	FCStringWide::Stricmp(String, TEXT("On"))==0
-		||	FCStringWide::Stricmp(String, *(GTrue.ToString()))==0
-		||	FCStringWide::Stricmp(String, *(GYes.ToString()))==0)
+		||	FCStringWide::Stricmp(String, *(CoreTexts.True.ToString()))==0
+		||	FCStringWide::Stricmp(String, *(CoreTexts.Yes.ToString()))==0)
 	{
 		return true;
 	}
@@ -53,8 +55,8 @@ bool FToBoolHelper::FromCStringWide( const WIDECHAR* String )
 			FCStringWide::Stricmp(String, TEXT("False"))==0
 		||	FCStringWide::Stricmp(String, TEXT("No"))==0
 		||	FCStringWide::Stricmp(String, TEXT("Off"))==0
-		||	FCStringWide::Stricmp(String, *(GFalse.ToString()))==0
-		||	FCStringWide::Stricmp(String, *(GNo.ToString()))==0)
+		||	FCStringWide::Stricmp(String, *(CoreTexts.False.ToString()))==0
+		||	FCStringWide::Stricmp(String, *(CoreTexts.No.ToString()))==0)
 	{
 		return false;
 	}

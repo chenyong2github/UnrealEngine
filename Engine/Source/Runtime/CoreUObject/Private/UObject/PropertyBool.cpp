@@ -295,12 +295,14 @@ const TCHAR* UBoolProperty::ImportText_Internal( const TCHAR* Buffer, void* Data
 
 	check(FieldSize != 0);
 	uint8* ByteValue = (uint8*)Data + ByteOffset;
-	if( Temp==TEXT("1") || Temp==TEXT("True") || Temp==*(GTrue.ToString()) || Temp == TEXT("Yes") || Temp == *(GYes.ToString()) )
+
+	const FCoreTexts& CoreTexts = FCoreTexts::Get();
+	if( Temp==TEXT("1") || Temp==TEXT("True") || Temp==*CoreTexts.True.ToString() || Temp == TEXT("Yes") || Temp == *CoreTexts.Yes.ToString() )
 	{
 		*ByteValue |= ByteMask;
 	}
 	else 
-	if( Temp==TEXT("0") || Temp==TEXT("False") || Temp==*(GFalse.ToString()) || Temp == TEXT("No") || Temp == *(GNo.ToString()) )
+	if( Temp==TEXT("0") || Temp==TEXT("False") || Temp==*CoreTexts.False.ToString() || Temp == TEXT("No") || Temp == *CoreTexts.No.ToString() )
 	{
 		*ByteValue &= ~FieldMask;
 	}

@@ -168,11 +168,12 @@ public:
 				{
 					Ar.Log(TEXT("  Active Connections:"));
 
+					const FCoreTexts& CoreTexts = FCoreTexts::Get();
 					for (const auto& Connection : Connections)
 					{
 						Ar.Logf(TEXT("  > %s, Open: %s, Uptime: %s, Bytes Received: %i, Bytes Sent: %i"),
 							*Connection->GetName().ToString(),
-							Connection->IsOpen() ? *GYes.ToString() : *GNo.ToString(),
+							Connection->IsOpen() ? *CoreTexts.Yes.ToString() : *CoreTexts.No.ToString(),
 							*Connection->GetUptime().ToString(),
 							Connection->GetTotalBytesReceived(),
 							Connection->GetTotalBytesSent()

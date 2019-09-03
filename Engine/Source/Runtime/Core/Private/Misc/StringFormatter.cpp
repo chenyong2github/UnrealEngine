@@ -433,15 +433,21 @@ TValueOrError<FString, FExpressionError> FStringFormatter::FormatInternal(const 
 }
 
 /** Default formatter for string formatting - thread safe since all formatting is const */
-FStringFormatter DefaultFormatter;
+FStringFormatter& GetDefaultFormatter()
+{
+	static FStringFormatter DefaultFormatter;
+	return DefaultFormatter;
+}
 
 FString FString::Format(const TCHAR* InFormatString, const TMap<FString, FStringFormatArg>& InNamedArguments)
 {
+	FStringFormatter& DefaultFormatter = GetDefaultFormatter();
 	return DefaultFormatter.Format(InFormatString, InNamedArguments);
 }
 
 FString FString::Format(const TCHAR* InFormatString, const TArray<FStringFormatArg>& InOrderedArguments)
 {
+	FStringFormatter& DefaultFormatter = GetDefaultFormatter();
 	return DefaultFormatter.Format(InFormatString, InOrderedArguments);
 }
 

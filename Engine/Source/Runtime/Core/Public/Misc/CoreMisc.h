@@ -27,11 +27,6 @@ public:
 
 	/** Routes a command to the self-registered execs. */
 	static bool StaticExec( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar );
-
-private:
-	
-	/** Array of registered exec's routed via StaticExec. */
-	static TArray<FSelfRegisteringExec*>& GetRegisteredExecs();
 };
 
 /** Registers a static Exec function using FSelfRegisteringExec. */

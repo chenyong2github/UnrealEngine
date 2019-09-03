@@ -182,6 +182,11 @@ struct ENGINE_API FNavAgentSelector
 	}
 
 	bool Serialize(FArchive& Ar);
+
+	uint32 GetAgentBits() const 
+	{
+		return (~InitializedBit & PackedBits);
+	}
 };
 
 template<>

@@ -175,6 +175,23 @@ void URuntimeVirtualTextureStreamingProxy::GetVirtualTextureBuildSettings(FVirtu
 	OutSettings = Settings;
 }
 
+#if WITH_EDITOR
+
+void URuntimeVirtualTextureStreamingProxy::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
+{
+	// Even though we skip the cook of this object for non VT platforms in URuntimeVirtualTexture::Serialize()
+	// we still load the object at cook time and kick off the DDC build. This will trigger an error in the texture DDC code.
+	// Either we need to make the DDC code more robust for non VT platforms or we can skip the process here...
+	if (!UseVirtualTexturing(GMaxRHIFeatureLevel, TargetPlatform))
+	{
+		return;
+	}
+
+	Super::BeginCacheForCookedPlatformData(TargetPlatform);
+}
+
+#endif
+
 
 URuntimeVirtualTexture::URuntimeVirtualTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -372,6 +389,22 @@ void URuntimeVirtualTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& Out
 	OutTags.Add(FAssetRegistryTag("Size", FString::FromInt(GetSize()), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("TileSize", FString::FromInt(GetTileSize()), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("TileBorderSize", FString::FromInt(GetTileBorderSize()), FAssetRegistryTag::TT_Numerical));
+}
+
+void URuntimeVirtualTexture::Serialize(FArchive& Ar)
+{
+	if (Ar.IsCooking() && Ar.IsSaving() && !UseVirtualTexturing(GMaxRHIFeatureLevel, Ar.CookingTarget()))
+	{
+		// Clear StreamingTexture during cook for platforms that don't support virtual texturing
+		URuntimeVirtualTextureStreamingProxy* StreamingTextureBackup = StreamingTexture;
+		StreamingTexture = nullptr;
+		Super::Serialize(Ar);
+		StreamingTexture = StreamingTextureBackup;
+	}
+	else
+	{
+		Super::Serialize(Ar);
+	}
 }
 
 #if WITH_EDITOR

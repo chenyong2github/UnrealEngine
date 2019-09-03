@@ -202,8 +202,8 @@ void FStreamer::Stream(uint64 Timestamp, PixelStreamingProtocol::EToProxyMsg Pkt
 
 	SaveEncodedVideoToFile(PktType, Data, Size);
 
-	if (ProxyConnection->Send(reinterpret_cast<const uint8*>(&Timestamp), sizeof(Timestamp))
-		&& ProxyConnection->Send(reinterpret_cast<const uint8*>(&PktType), 1)
+	if (ProxyConnection->Send(reinterpret_cast<const uint8*>(&PktType), 1)
+		&& ProxyConnection->Send(reinterpret_cast<const uint8*>(&Timestamp), sizeof(Timestamp))
 		&& ProxyConnection->Send(reinterpret_cast<const uint8*>(&Size), sizeof(Size))
 		&& ProxyConnection->Send(Data, Size))
 	{
@@ -344,4 +344,27 @@ void FStreamer::SetFramerate(int32 Fps)
 void FStreamer::SendResponse(const FString& Descriptor)
 {
 	Stream(FPlatformTime::Seconds(), PixelStreamingProtocol::EToProxyMsg::Response, reinterpret_cast<const uint8*>(*Descriptor), Descriptor.Len() * sizeof(TCHAR));
+}
+
+void FStreamer::SendFreezeFrame(const TArray<uint8>& JpegBytes)
+{
+	UE_LOG(PixelStreaming, Log, TEXT("Sending freeze frame to Proxy"));
+	Stream(FPlatformTime::Seconds(), PixelStreamingProtocol::EToProxyMsg::FreezeFrame, JpegBytes.GetData(), JpegBytes.Num());
+	CachedJpegBytes = JpegBytes;
+}
+
+void FStreamer::SendFreezeFrame()
+{
+	if (CachedJpegBytes.Num() > 0)
+	{
+		UE_LOG(PixelStreaming, Log, TEXT("Sending cached freeze frame to Proxy"));
+		Stream(FPlatformTime::Seconds(), PixelStreamingProtocol::EToProxyMsg::FreezeFrame, CachedJpegBytes.GetData(), CachedJpegBytes.Num());
+	}
+}
+
+void FStreamer::SendUnfreezeFrame()
+{
+	UE_LOG(PixelStreaming, Log, TEXT("Sending unfreeze message to Proxy"));
+	Stream(FPlatformTime::Seconds(), PixelStreamingProtocol::EToProxyMsg::UnfreezeFrame, nullptr, 0);
+	CachedJpegBytes.Empty();
 }

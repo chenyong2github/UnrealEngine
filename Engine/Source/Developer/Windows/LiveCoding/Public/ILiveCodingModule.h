@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "Modules/ModuleInterface.h"
 
 #define LIVE_CODING_MODULE_NAME "LiveCoding"
@@ -23,5 +24,8 @@ public:
 	virtual void Compile() = 0;
 	virtual bool IsCompiling() const = 0;
 	virtual void Tick() = 0;
+
+	DECLARE_MULTICAST_DELEGATE(FOnPatchCompleteDelegate);
+	virtual FOnPatchCompleteDelegate& GetOnPatchCompleteDelegate() = 0;
 };
 

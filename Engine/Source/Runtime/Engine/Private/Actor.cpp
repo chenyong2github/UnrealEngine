@@ -1180,6 +1180,7 @@ bool AActor::IsBasedOnActor(const AActor* Other) const
 	return IsAttachedTo(Other);
 }
 
+#if WITH_EDITOR
 bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 {
 	if (!CanModify())
@@ -1222,6 +1223,7 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 
 	return bSavedToTransactionBuffer;
 }
+#endif
 
 FBox AActor::GetComponentsBoundingBox(bool bNonColliding) const
 {

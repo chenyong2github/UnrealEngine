@@ -2,10 +2,13 @@
 
 #include "MicrosoftSpatialSoundPlugin.h"
 #include "Features/IModularFeatures.h"
+#include "HAL/PlatformMisc.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMicrosoftSpatialSound, Verbose, All);
 
-PRAGMA_DISABLE_OPTIMIZATION
+
+#define MIN_WIN_10_VERSION_FOR_WMR_SPATSOUND 1809
+#define WINDOWS_MIXED_REALITY_DEBUG_DLL_SPATSOUND 0
 
 static const float UnrealUnitsToMeters = 0.01f;
 
@@ -188,7 +191,6 @@ void FMicrosoftSpatialSound::Initialize(const FAudioPluginInitializationParams I
 	MinFramesRequiredPerObjectUpdate = InitParams.SampleRate / 100;
 
 	SAC = WindowsMixedReality::SpatialAudioClient::CreateSpatialAudioClient();
-
 	if (SAC)
 	{
 		bool bSuccess = SAC->Start(InitParams.NumSources, InitParams.SampleRate);
@@ -385,13 +387,52 @@ uint32 FMicrosoftSpatialSound::Run()
 
 void FMicrosoftSpatialSoundModule::StartupModule()
 {
+#if PLATFORM_WINDOWS
+	FString OSVersionLabel;
+	FString OSSubVersionLabel;
+	FPlatformMisc::GetOSVersions(OSVersionLabel, OSSubVersionLabel);
+
+	// GetOSVersion returns the Win10 release version in the OSVersion rather than the OSSubVersion, so parse it out ourselves
+	OSSubVersionLabel = OSVersionLabel;
+	OSSubVersionLabel.RemoveFromStart("Windows 10 (Release ");
+	OSSubVersionLabel.RemoveFromEnd(")");
+	int32 CurrentVersionNumber = FCString::Atoi(*OSSubVersionLabel);
+
+	if (CurrentVersionNumber < MIN_WIN_10_VERSION_FOR_WMR_SPATSOUND)
+	{
+		UE_LOG(LogMicrosoftSpatialSound,
+			Warning,
+			TEXT("Microsoft Spatial Sound for UE4 currently only supports windows version '%d' or higher (Current version: '%d')"),
+			MIN_WIN_10_VERSION_FOR_WMR_SPATSOUND,
+			CurrentVersionNumber);
+
+			return;
+	}
+
+	// Load the mixed reality interop library
+	FString EngineDir = FPaths::EngineDir();
+	FString BinariesSubDir = FPlatformProcess::GetBinariesSubdirectory();
+#if WINDOWS_MIXED_REALITY_DEBUG_DLL_SPATSOUND
+	FString DLLName(TEXT("MixedRealityInteropDebug.dll"));
+#else // WINDOWS_MIXED_REALITY_DEBUG_DLL
+	FString DLLName(TEXT("MixedRealityInterop.dll"));
+#endif // WINDOWS_MIXED_REALITY_DEBUG_DLL
+	FString MRInteropLibraryPath = EngineDir / "Binaries/ThirdParty/MixedRealityInteropLibrary" / BinariesSubDir / DLLName;
+	// Then finally try to load the WMR Interop Library
+	void* MixedRealityInteropLibraryHandle = !MRInteropLibraryPath.IsEmpty() ? FPlatformProcess::GetDllHandle(*MRInteropLibraryPath) : nullptr;
+	if (!MixedRealityInteropLibraryHandle)
+	{
+		UE_LOG(LogMicrosoftSpatialSound, Warning, TEXT("Failed to load the microsoft mixed reality interop DLL"));
+
+		return;
+	}
+#endif
+
 	IModularFeatures::Get().RegisterModularFeature(FMicrosoftSpatialSoundPluginFactory::GetModularFeatureName(), &PluginFactory);
 }
 
 void FMicrosoftSpatialSoundModule::ShutdownModule()
 {
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 IMPLEMENT_MODULE(FMicrosoftSpatialSoundModule, MicrosoftSpatialSound)

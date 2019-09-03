@@ -74,7 +74,7 @@ private:
 
 private:
 	/** The name of this log */
-	FName LogName;
+	FLogCategoryName LogName;
 };
 
 FMessageLog::FMessageLog( const FName& InLogName )

@@ -32,7 +32,7 @@ template <
 
 	// Defines how replication happens on these special channels, but doesn't dictate how simulation evolves
 	typename TRepProxyReplay =		TReplicator_Sequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Sync,  3>,
-	typename TRepProxyDebug =		TReplicator_Sequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Debug, 3>
+	typename TRepProxyDebug =		TReplicator_Debug		<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings>
 >
 class TNetworkedSimulationModel : public IReplicationProxy
 {
@@ -71,12 +71,40 @@ public:
 	template<typename TDriver>
 	void Tick(TDriver* Driver, const FTickParameters& Parameters)
 	{
-		TDebugState* const DebugState = GetNextDebugStateWrite();
+		// Update previous DebugState based on what we (might) have sent *after* our last Tick 
+		// (property replication and ServerRPC get sent after the tick, rather than forcing awkward callback into the NetSim post replication, we can check it here)
+		if (auto* DebugBuffer = GetLocalDebugBuffer())
+		{
+			if (TDebugState* const PrevDebugState = DebugBuffer->FindElementByKeyframe(DebugBuffer->GetHeadKeyframe()))
+			{
+				if (Parameters.Role == ROLE_AutonomousProxy)
+				{
+					PrevDebugState->LastSentInputKeyframe = RepProxy_ServerRPC.GetLastSerializedKeyframe();
+				}
+				else if (Parameters.Role == ROLE_Authority)
+				{
+					PrevDebugState->LastSentInputKeyframe = RepProxy_Autonomous.GetLastSerializedKeyframe();
+				}
+			}
+		}
+
+		// Current frame debug state
+		TDebugState* const DebugState = GetNextLocalDebugStateWrite();
 		if (DebugState)
 		{
+			*DebugState = TDebugState();
 			DebugState->LocalDeltaTimeSeconds = Parameters.LocalDeltaTimeSeconds;
 			DebugState->LocalGFrameNumber = GFrameNumber;
 			DebugState->ProcessedKeyframes.Reset();
+			
+			if (Parameters.Role == ROLE_AutonomousProxy)
+			{
+				DebugState->LastReceivedInputKeyframe = RepProxy_Autonomous.GetLastSerializedKeyframe();
+			}
+			else if (Parameters.Role == ROLE_Authority)
+			{
+				DebugState->LastReceivedInputKeyframe = RepProxy_ServerRPC.GetLastSerializedKeyframe();
+			}
 		}
 
 		// --------------------------------------------------------------------------------------------------------------------------
@@ -163,7 +191,7 @@ public:
 			if (TInputCmd* NextCmd = Buffers.Input.FindElementByKeyframe(Keyframe))
 			{
 				// We have an unprocessed command, do we have enough allotted simulation time to process it?
-				if (TickInfo.GetRemaningAllowedSimulationTime() >= NextCmd->GetFrameDeltaTime())
+				if (TickInfo.GetRemainingAllowedSimulationTime() >= NextCmd->GetFrameDeltaTime())
 				{
 					// -------------------------------------------------------------------------------------------------
 					//	The core process input command and call ::Update block!
@@ -218,6 +246,7 @@ public:
 		{
 			DebugState->LastProcessedKeyframe = TickInfo.LastProcessedInputKeyframe;
 			DebugState->HeadKeyframe = Buffers.Input.GetHeadKeyframe();
+			DebugState->RemainingAllowedSimulationTimeSeconds = (float)TickInfo.GetRemainingAllowedSimulationTime().ToRealTimeSeconds();
 		}
 
 		// Historical data recording (longer buffers for historical reference)
@@ -235,9 +264,9 @@ public:
 		Buffers.Sync.SetBufferSize(Parameters.SyncedBufferSize);
 		Buffers.Aux.SetBufferSize(Parameters.AuxBufferSize);
 
-		if (GetDebugBuffer())
+		if (GetLocalDebugBuffer())
 		{
-			GetDebugBuffer()->SetBufferSize(Parameters.DebugBufferSize);
+			GetLocalDebugBuffer()->SetBufferSize(Parameters.DebugBufferSize);
 		}
 
 		if (auto* MyHistoricBuffers = GetHistoricBuffers(true))
@@ -345,17 +374,20 @@ private:
 public:
 
 #if NETSIM_MODEL_DEBUG
-	TReplicationBuffer<TDebugState>* GetDebugBuffer() {	return &Buffers.Debug; }
-	TDebugState* GetNextDebugStateWrite() { return Buffers.Debug.GetWriteNext(); }
+	TReplicationBuffer<TDebugState>* GetLocalDebugBuffer() {	return &Buffers.Debug; }
+	TDebugState* GetNextLocalDebugStateWrite() { return Buffers.Debug.GetWriteNext(); }
 	TNetworkSimBufferContainer<TBufferTypes>* GetHistoricBuffers(bool bCreate=false)
 	{
 		if (HistoricBuffers.IsValid() == false && bCreate) { HistoricBuffers.Reset(new TNetworkSimBufferContainer<TBufferTypes>()); }
 		return HistoricBuffers.Get();
 	}
+
+	TReplicationBuffer<TDebugState>* GetRemoteDebugBuffer() {	return &RepProxy_Debug.ReceivedBuffer; }
 #else
-	TReplicationBuffer<TDebugState>* GetDebugBuffer(bool bCreate=false) {	return nullptr; }
-	TDebugState* GetNextDebugStateWrite() { return nullptr; }
+	TReplicationBuffer<TDebugState>* GetLocalDebugBuffer(bool bCreate=false) {	return nullptr; }
+	TDebugState* GetNextLocalDebugStateWrite() { return nullptr; }
 	TNetworkSimBufferContainer<TBufferTypes>* GetHistoricBuffers() { return nullptr; }
+	TReplicationBuffer<TDebugState>* GetRemoteDebugBuffer() {	return nullptr; }
 #endif
 
 private:

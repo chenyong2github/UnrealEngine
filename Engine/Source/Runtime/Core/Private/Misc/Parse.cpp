@@ -133,7 +133,11 @@ void ConsoleCommandLibrary_DumpLibraryHTML(UWorld* InWorld, FExec& SubSystem, co
 	if(FFileHelper::LoadFileToString(TemplateFile, *TemplateFilename, FFileHelper::EHashOptions::EnableVerify | FFileHelper::EHashOptions::ErrorMissingHash) )
 	{
 		// todo: do we need to create the directory?
+#if ALLOW_DEBUG_FILES
 		FArchive* File = IFileManager::Get().CreateDebugFileWriter(*OutPath);
+#else
+		FArchive* File = nullptr;
+#endif
 
 		if(File)
 		{

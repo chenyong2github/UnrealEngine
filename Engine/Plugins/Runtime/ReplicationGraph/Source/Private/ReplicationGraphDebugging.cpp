@@ -66,11 +66,6 @@ UNetConnection* AReplicationGraphDebugActor::GetNetConnection() const
 
 // -------------------------------------------------------------
 
-bool AReplicationGraphDebugActor::ServerStartDebugging_Validate()
-{
-	return true;
-}
-
 void AReplicationGraphDebugActor::ServerStartDebugging_Implementation()
 {
 	UE_LOG(LogReplicationGraph, Display, TEXT("ServerStartDebugging"));
@@ -148,44 +143,53 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphDebugActorStart(TEXT("Net.RepGrap
 
 // -------------------------------------------------------------
 
-bool AReplicationGraphDebugActor::ServerStopDebugging_Validate()
-{
-	return true;
-}
-
 void AReplicationGraphDebugActor::ServerStopDebugging_Implementation()
 {
 	
 }
 
 // -------------------------------------------------------------
-
-void AReplicationGraphDebugActor::PrintCullDistances()
+void UReplicationGraph::DebugPrintCullDistances(UNetReplicationGraphConnection* SpecificConnection) const
 {
 	struct FData
 	{
 		UClass* Class = nullptr;
-		float DistSq;
+		float Dist;
+		float ConnectionDist;
 		int32 Count;
 	};
 
 	TArray<FData> DataList;
 
-	for (auto It = ReplicationGraph->GlobalActorReplicationInfoMap.CreateActorMapIterator(); It; ++It)
+	for (auto It = GlobalActorReplicationInfoMap.CreateActorMapIterator(); It; ++It)
 	{
 		AActor* Actor = It.Key();
-		TUniquePtr<FGlobalActorReplicationInfo>& InfoPtr = It.Value();
+		const TUniquePtr<FGlobalActorReplicationInfo>& InfoPtr = It.Value();
 		if (!InfoPtr || InfoPtr.Get() == nullptr)
 		{
 			continue;
 		}
 
-		FGlobalActorReplicationInfo& Info = *InfoPtr.Get();
+		const FGlobalActorReplicationInfo& Info = *InfoPtr.Get();
+
+		float ConnectionCullDist = 0.0f;
+
+		// Optionally find this connection's CullDistance
+		if (SpecificConnection)
+		{
+			FPerConnectionActorInfoMap& ConnectionInfo = SpecificConnection->ActorInfoMap;
+			if (FConnectionReplicationActorInfo* ConnectionActorInfo = ConnectionInfo.Find(Actor))
+			{
+				ConnectionCullDist = ConnectionActorInfo->GetCullDistance();
+			}
+		}
 
 		bool bFound = false;
 		for (FData& ExistingData : DataList)
 		{
-			if (ExistingData.Class == Actor->GetClass() && FMath::IsNearlyZero(ExistingData.DistSq - Info.Settings.GetCullDistanceSquared()))
+			if (ExistingData.Class == Actor->GetClass() && 
+				FMath::IsNearlyEqual(ExistingData.Dist, Info.Settings.GetCullDistance()) &&
+				FMath::IsNearlyEqual(ExistingData.ConnectionDist, ConnectionCullDist))
 			{
 				ExistingData.Count++;
 				bFound = true;
@@ -200,32 +204,65 @@ void AReplicationGraphDebugActor::PrintCullDistances()
 
 		FData NewData;
 		NewData.Class = Actor->GetClass();
-		NewData.DistSq = Info.Settings.GetCullDistanceSquared();
+		NewData.Dist = Info.Settings.GetCullDistance();
+		NewData.ConnectionDist = ConnectionCullDist;
 		NewData.Count = 1;
 		DataList.Add(NewData);
 	}
 
-	DataList.Sort([](const FData& LHS, const FData& RHS) { return LHS.DistSq < RHS.DistSq; });
+	DataList.Sort([](const FData& LHS, const FData& RHS) { return LHS.Dist < RHS.Dist; });
 
 	for (FData& Data : DataList)
 	{
 		const UClass* NativeParent = Data.Class;
-		while(NativeParent && !NativeParent->IsNative())
+		while (NativeParent && !NativeParent->IsNative())
 		{
 			NativeParent = NativeParent->GetSuperClass();
 		}
 
-
-		UE_LOG(LogReplicationGraph, Display, TEXT("%s (%s) [%d] = %.2f"), *GetNameSafe(Data.Class), *GetNameSafe(NativeParent), Data.Count, FMath::Sqrt(Data.DistSq));
+		if( SpecificConnection == nullptr )
+		{
+			UE_LOG(LogReplicationGraph, Display, TEXT("%s (%s) [%d] GlobalCullDistance (%.2f)"), *GetNameSafe(Data.Class), *GetNameSafe(NativeParent), Data.Count, Data.Dist);
+		}
+		else
+		{
+			UE_LOG(LogReplicationGraph, Display, TEXT("%s (%s) [%d] GlobalCullDistance (%.2f) ConnectionCullDistance (%.2f)"), *GetNameSafe(Data.Class), *GetNameSafe(NativeParent), Data.Count, Data.Dist, Data.ConnectionDist);
+		}
 	}
 }
 
-FAutoConsoleCommandWithWorldAndArgs NetRepGraphPrintCullDistancesCommand(TEXT("Net.RepGraph.PrintCullDistances"),TEXT(""),
+void AReplicationGraphDebugActor::ServerPrintCullDistances_Implementation()
+{
+	PrintCullDistances();
+}
+
+void AReplicationGraphDebugActor::PrintCullDistances()
+{
+	ReplicationGraph->DebugPrintCullDistances(ConnectionManager);
+}
+
+// -------------------------------------------------------------
+
+FAutoConsoleCommandWithWorldAndArgs NetRepGraphPrintCullDistancesForConnectionCommand(TEXT("Net.RepGraph.PrintCullDistancesForConnection"),TEXT("Print the cull distances via the ReplicationDebugActor to add the connection cull distances."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		for (TActorIterator<AReplicationGraphDebugActor> It(World); It; ++It)
 		{
-			It->PrintCullDistances();
+			It->ServerPrintCullDistances();
+		}
+	})
+);
+
+FAutoConsoleCommandWithWorldAndArgs NetRepGraphPrintCullDistancesCommand(TEXT("Net.RepGraph.PrintCullDistances"), TEXT("Print the cull distances of RepGraph actors on the server."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		for (TObjectIterator<UReplicationGraph> It; It; ++It)
+		{
+			if (It->NetDriver && It->NetDriver->GetNetMode() != NM_Client)
+			{
+				It->DebugPrintCullDistances();
+				break;
+			}
 		}
 	})
 );
@@ -236,11 +273,6 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphPrintCullDistancesCommand(TEXT("N
 void AReplicationGraphDebugActor::ServerPrintAllActorInfo_Implementation(const FString& Str)
 {
 	PrintAllActorInfo(Str);
-}
-
-bool AReplicationGraphDebugActor::ServerPrintAllActorInfo_Validate(const FString& Str)
-{
-	return true;
 }
 
 void AReplicationGraphDebugActor::PrintAllActorInfo(FString MatchString)
@@ -325,11 +357,6 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphPrintAllActorInfoCmd(TEXT("Net.Re
 );
 
 // -------------------------------------------------------------
-
-bool AReplicationGraphDebugActor::ServerCellInfo_Validate()
-{
-	return true;
-}
 
 void AReplicationGraphDebugActor::ServerCellInfo_Implementation()
 {
@@ -426,11 +453,6 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphCellInfo(TEXT("Net.RepGraph.Spati
 
 // -------------------------------------------------------------
 
-bool AReplicationGraphDebugActor::ServerSetCullDistanceForClass_Validate(UClass* Class, float CullDistance)
-{
-	return true;
-}
-
 void AReplicationGraphDebugActor::ServerSetCullDistanceForClass_Implementation(UClass* Class, float CullDistance)
 {
 	if (!Class)
@@ -494,11 +516,6 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetClassCullDistance(TEXT("Net.Re
 
 // -------------------------------------------------------------
 
-bool AReplicationGraphDebugActor::ServerSetPeriodFrameForClass_Validate(UClass* Class, int32 PeriodFrame)
-{
-	return true;
-}
-
 void AReplicationGraphDebugActor::ServerSetPeriodFrameForClass_Implementation(UClass* Class, int32 PeriodFrame)
 {
 	if (!Class)
@@ -559,11 +576,6 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetPeriodFrame(TEXT("Net.RepGraph
 );
 
 // -------------------------------------------------------------
-
-bool AReplicationGraphDebugActor::ServerSetConditionalActorBreakpoint_Validate(AActor* Actor)
-{
-	return true;
-}
 
 void AReplicationGraphDebugActor::ServerSetConditionalActorBreakpoint_Implementation(AActor* Actor)
 {

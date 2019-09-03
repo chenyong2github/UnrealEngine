@@ -17,15 +17,24 @@
 
 enum class EAudioFeature : uint8
 {
-	ExternalAudio, // background music, music app, etc
-	VoiceChat,
-	Playback,
-	Record,
-	BackgroundAudio,
-	
+	Playback, // Audio Not affected by the ringer switch
+	Record, // Recording only, unless Playback or VoiceChat is also set
+
+	DoNotMixWithOthers, // Do not mix audio with other applications
+
+	VoiceChat, // set AVAudioSessionModeVoiceChat when both Playback and Record are enabled
+	UseReceiver, // use receiver instead of speaker when both Playback and Record are enabled. Headsets will still be preferred if they are present
+	DisableBluetoothSpeaker, // disable the use of Bluetooth A2DP speakers when both Playback and Record are enabled
+
+	BluetoothMicrophone, // enable the use of Bluetooth HFP headsets when Record is enabled
+
+	BackgroundAudio, // continue to play audio in the background. Requires an appropriate background mode to be set in Info.plist
+
 	NumFeatures,
 };
 
+void LexFromString(EAudioFeature& OutFeature, const TCHAR* String);
+FString LexToString(EAudioFeature Feature);
 
 // Predicate to decide whether a push notification message should be processed
 DECLARE_DELEGATE_RetVal_OneParam(bool, FPushNotificationFilter, NSDictionary*);
@@ -201,9 +210,6 @@ APPLICATIONCORE_API
 @property (assign) bool bLastOtherAudioPlaying;
 @property (assign) bool bForceEmitOtherAudioPlaying;
 
-/** TRUE if audio from other apps will be allowed to play while this app is active */
-@property (assign) bool bAllowExternalAudio;
-
 #if USE_MUTE_SWITCH_DETECTION
 @property (assign) bool bLastMutedState;
 @property (assign) bool bForceEmitMutedState;
@@ -213,19 +219,19 @@ APPLICATIONCORE_API
 @property (assign) bool bForceEmitVolume;
 
 - (void)InitializeAudioSession;
-- (void)ToggleAudioSession:(bool)bActive force:(bool)bForce;
+- (void)ToggleAudioSession:(bool)bActive;
 - (bool)IsBackgroundAudioPlaying;
 - (bool)HasRecordPermission;
 - (void)EnableVoiceChat:(bool)bEnable;
 - (void)EnableHighQualityVoiceChat:(bool)bEnable;
 - (bool)IsVoiceChatEnabled;
 
+/** Enable/Disable an EAudioFeature. This is reference counted, so a feature must be disabled as many times as it has been enabled to actually be disabled. */
 - (void)SetFeature:(EAudioFeature)Feature Active:(bool)bIsActive;
 - (bool)IsFeatureActive:(EAudioFeature)Mode;
 
 @property (atomic) bool bAudioActive;
 @property (atomic) bool bVoiceChatEnabled;
-@property (atomic) bool bHighQualityVoiceChatEnabled;
 
 @property (atomic) bool bIsSuspended;
 @property (atomic) bool bHasSuspended;

@@ -10,7 +10,7 @@ public class libcurl : ModuleRules
 
 		PublicDefinitions.Add("WITH_LIBCURL=1");
 
-		string LinuxLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/7_48_0/";
+		string LinuxLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/7_65_3/";
 		string WinLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/curl-7.55.1/";
 		string AndroidLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/";
 

@@ -342,14 +342,12 @@ void UNetDriver::InitPacketSimulationSettings()
 #endif
 }
 
+#if DO_ENABLE_NET_TEST
 bool UNetDriver::IsSimulatingPacketLossBurst() const
 {
-#if DO_ENABLE_NET_TEST
 	return PacketLossBurstEndTime > Time;
-#else
-	return false;
-#endif
 }
+#endif
 
 void UNetDriver::PostInitProperties()
 {
@@ -447,6 +445,8 @@ void UNetDriver::AssertValid()
 void UNetDriver::AddNetworkActor(AActor* Actor)
 {
 	LLM_SCOPE(ELLMTag::Networking);
+	ensureMsgf(Actor == nullptr || !(Actor->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)), TEXT("%s is a CDO or Archetype and should not be replicated."), *GetFullNameSafe(Actor));
+
 	GetNetworkObjectList().FindOrAdd(Actor, this);
 	if (ReplicationDriver)
 	{
@@ -456,6 +456,8 @@ void UNetDriver::AddNetworkActor(AActor* Actor)
 
 FNetworkObjectInfo* UNetDriver::FindOrAddNetworkObjectInfo(const AActor* InActor)
 {
+	ensureMsgf(InActor == nullptr || !(InActor->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)), TEXT("%s is a CDO or Archetype and should not be replicated."), *GetFullNameSafe(InActor));
+
 	bool bWasAdded = false;
 	if (TSharedPtr<FNetworkObjectInfo>* InfoPtr = GetNetworkObjectList().FindOrAdd(const_cast<AActor*>(InActor), this, &bWasAdded))
 	{
@@ -3114,6 +3116,27 @@ void UNetDriver::ForceNetUpdate(AActor* Actor)
 	}
 }
 
+void UNetDriver::ForceAllActorsNetUpdateTime(float NetUpdateTimeOffset, TFunctionRef<bool(const AActor* const)> ValidActorTestFunc)
+{
+	for (auto It = GetNetworkObjectList().GetAllObjects().CreateConstIterator(); It; ++It)
+	{
+		FNetworkObjectInfo* NetActorInfo = (*It).Get();
+		if (NetActorInfo)
+		{
+			const AActor* const Actor = NetActorInfo->Actor;
+			if (Actor && !Actor->IsPendingKill())
+			{
+				if (ValidActorTestFunc(Actor))
+				{
+					// Only allow the next update to be sooner than the current one
+					const double NewUpdateTime = World->TimeSeconds + NetUpdateTimeOffset * FMath::FRand();
+					NetActorInfo->NextUpdateTime = FMath::Min(NetActorInfo->NextUpdateTime, NewUpdateTime);
+				}
+			}
+		}
+	}
+}
+
 /** UNetDriver::FlushActorDormancy(AActor* Actor)
  *	 Flushes the actor from the NetDriver's dormant list and/or cancels pending dormancy on the actor channel.
  *
@@ -3534,7 +3557,7 @@ bool FPacketSimulationSettings::ParseHelper(const TCHAR* Cmd, const TCHAR* Name,
 	return false;
 }
 
-#endif
+#endif //#if DO_ENABLE_NET_TEST
 
 FNetViewer::FNetViewer(UNetConnection* InConnection, float DeltaSeconds) :
 	Connection(InConnection),

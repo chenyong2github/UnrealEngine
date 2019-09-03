@@ -2,6 +2,7 @@
 
 #include "SynthComponents/SynthComponentGranulator.h"
 #include "UObject/Package.h"
+#include "AudioDevice.h"
 
 UGranularSynth::UGranularSynth(const FObjectInitializer& ObjInitializer)
 	: Super(ObjInitializer)

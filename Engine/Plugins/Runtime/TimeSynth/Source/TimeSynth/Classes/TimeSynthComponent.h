@@ -11,7 +11,7 @@
 #include "Sound/SoundWaveProcedural.h"
 #include "Components/SynthComponent.h"
 #include "Engine/Classes/Sound/SoundWave.h"
-#include "DSP/SoundWaveDecoder.h"
+#include "SoundWaveDecoder.h"
 #include "Engine/Public/AudioDevice.h"
 #include "Math/RandomStream.h"
 #include "DSP/EventQuantizer.h"

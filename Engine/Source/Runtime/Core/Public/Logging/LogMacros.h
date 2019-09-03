@@ -14,8 +14,6 @@
 #include "Templates/IsArrayOrRefOfType.h"
 
 
-class FName;
-
 /*----------------------------------------------------------------------------
 	Logging
 ----------------------------------------------------------------------------*/
@@ -44,7 +42,7 @@ struct CORE_API FMsg
 
 	/** Log function */
 	template <typename FmtType, typename... Types>
-	static void Logf(const ANSICHAR* File, int32 Line, const FName& Category, ELogVerbosity::Type Verbosity, const FmtType& Fmt, Types... Args)
+	static void Logf(const ANSICHAR* File, int32 Line, const FLogCategoryName& Category, ELogVerbosity::Type Verbosity, const FmtType& Fmt, Types... Args)
 	{
 		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FMsg::Logf");
@@ -54,7 +52,7 @@ struct CORE_API FMsg
 
 	/** Internal version of log function. Should be used only in logging macros, as it relies on caller to call assert on fatal error */
 	template <typename FmtType, typename... Types>
-	static void Logf_Internal(const ANSICHAR* File, int32 Line, const FName& Category, ELogVerbosity::Type Verbosity, const FmtType& Fmt, Types... Args)
+	static void Logf_Internal(const ANSICHAR* File, int32 Line, const FLogCategoryName& Category, ELogVerbosity::Type Verbosity, const FmtType& Fmt, Types... Args)
 	{
 		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FMsg::Logf_Internal");
@@ -63,8 +61,8 @@ struct CORE_API FMsg
 	}
 
 private:
-	static void VARARGS LogfImpl(const ANSICHAR* File, int32 Line, const FName& Category, ELogVerbosity::Type Verbosity, const TCHAR* Fmt, ...);
-	static void VARARGS Logf_InternalImpl(const ANSICHAR* File, int32 Line, const FName& Category, ELogVerbosity::Type Verbosity, const TCHAR* Fmt, ...);
+	static void VARARGS LogfImpl(const ANSICHAR* File, int32 Line, const FLogCategoryName& Category, ELogVerbosity::Type Verbosity, const TCHAR* Fmt, ...);
+	static void VARARGS Logf_InternalImpl(const ANSICHAR* File, int32 Line, const FLogCategoryName& Category, ELogVerbosity::Type Verbosity, const TCHAR* Fmt, ...);
 	static void VARARGS SendNotificationStringfImpl(const TCHAR* Fmt, ...);
 };
 

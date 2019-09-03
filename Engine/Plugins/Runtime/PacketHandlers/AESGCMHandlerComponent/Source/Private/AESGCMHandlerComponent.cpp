@@ -166,8 +166,9 @@ void FAESGCMHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Tra
 				return;
 			}
 
-			EPlatformCryptoResult RandResult = EPlatformCryptoResult::Failure;
-			TArray<uint8> OutIV = EncryptionContext->GetRandomBytes(IVSizeInBytes, RandResult);
+			TArray<uint8> OutIV;
+			OutIV.AddUninitialized(IVSizeInBytes);
+			EPlatformCryptoResult RandResult = EncryptionContext->CreateRandomBytes(OutIV);
 			if (RandResult == EPlatformCryptoResult::Failure)
 			{
 				UE_LOG(PacketHandlerLog, Log, TEXT("FAESGCMHandlerComponent::Outgoing: failed to generate IV."));

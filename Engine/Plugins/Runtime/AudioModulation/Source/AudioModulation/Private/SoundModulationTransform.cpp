@@ -3,7 +3,7 @@
 #include "SoundModulationTransform.h"
 
 #include "Audio.h"
-
+#include "DSP/Dsp.h"
 
 FSoundModulationInputTransform::FSoundModulationInputTransform()
 	: InputMin(0.0f)

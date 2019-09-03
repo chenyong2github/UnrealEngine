@@ -367,7 +367,7 @@ DECLARE_DELEGATE_SevenParams(FOnSendRPC, AActor* /*Actor*/, UFunction* /*Functio
 //
 // Whether to support net lag and packet loss testing.
 //
-#define DO_ENABLE_NET_TEST !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#define DO_ENABLE_NET_TEST !(UE_BUILD_SHIPPING)
 
 
 /** Holds the packet simulation settings in one place */
@@ -848,7 +848,9 @@ public:
 	void InitPacketSimulationSettings();
 
 	/** Returns true during the duration of a packet loss burst triggered by the net.pktlossburst command. */
+#if DO_ENABLE_NET_TEST
 	bool IsSimulatingPacketLossBurst() const;
+#endif
 
 	/** Interface for communication network state to others (ie World usually, but anything that implements FNetworkNotify) */
 	class FNetworkNotify*		Notify;
@@ -1330,6 +1332,8 @@ public:
 	// ---------------------------------------------------------------
 
 	ENGINE_API virtual void ForceNetUpdate(AActor* Actor);
+
+	ENGINE_API void ForceAllActorsNetUpdateTime(float NetUpdateTimeOffset, TFunctionRef<bool(const AActor* const)> ValidActorTestFunc);
 
 	/** Flushes actor from NetDriver's dormancy list, but does not change any state on the Actor itself */
 	ENGINE_API void FlushActorDormancy(AActor *Actor, bool bWasDormInitial=false);
