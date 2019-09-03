@@ -970,7 +970,6 @@ bool FNiagaraDataBuffer::AppendToRegisterTable(uint8** Registers, int32& NumRegi
 
 /////////////////////////////////////////////////////////////////////////
 
-template<bool bDoResourceTransitions>
 void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList &CommandList, bool bInput)
 {
 	check(IsInRenderingThread());
@@ -978,10 +977,6 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList
 	{
 		if (Shader->FloatInputBufferParam.IsBound())
 		{
-			if (bDoResourceTransitions)
-			{
-				CommandList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, GetGPUBufferFloat().UAV);
-			}
 			if (GetNumInstancesAllocated() > 0)
 			{
 				CommandList.SetShaderResourceViewParameter(Shader->GetComputeShader(), Shader->FloatInputBufferParam.GetBaseIndex(), GetGPUBufferFloat().SRV);
@@ -994,10 +989,6 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList
 
 		if (Shader->IntInputBufferParam.IsBound())
 		{
-			if (bDoResourceTransitions)
-			{
-				CommandList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, GetGPUBufferInt().UAV);
-			}
 			if (GetNumInstancesAllocated() > 0)
 			{
 				CommandList.SetShaderResourceViewParameter(Shader->GetComputeShader(), Shader->IntInputBufferParam.GetBaseIndex(), GetGPUBufferInt().SRV);
@@ -1018,19 +1009,11 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList
 	{
 		if (Shader->FloatOutputBufferParam.IsUAVBound())
 		{
-			if (bDoResourceTransitions)
-			{
-				CommandList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, GetGPUBufferFloat().UAV);
-			}
 			CommandList.SetUAVParameter(Shader->GetComputeShader(), Shader->FloatOutputBufferParam.GetUAVIndex(), GetGPUBufferFloat().UAV);
 		}
 
 		if (Shader->IntOutputBufferParam.IsUAVBound())
 		{
-			if (bDoResourceTransitions)
-			{
-				CommandList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, GetGPUBufferInt().UAV);
-			}
 			CommandList.SetUAVParameter(Shader->GetComputeShader(), Shader->IntOutputBufferParam.GetUAVIndex(), GetGPUBufferInt().UAV);
 		}
 
@@ -1041,10 +1024,6 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList
 		}
 	}
 }
-
-template void FNiagaraDataBuffer::SetShaderParams<true>(FNiagaraShader*, FRHICommandList&, bool);
-template void FNiagaraDataBuffer::SetShaderParams<false>(FNiagaraShader*, FRHICommandList&, bool);
-
 
 void FNiagaraDataBuffer::UnsetShaderParams(FNiagaraShader *Shader, FRHICommandList &RHICmdList)
 {
