@@ -305,7 +305,7 @@ namespace UnrealBuildTool
 
 				if(Action.ActionType == ActionType.Link)
 				{
-					ToolElement.SetAttribute("AutoRecover", "Unexpected PDB error; OK(0)");
+					ToolElement.SetAttribute("AutoRecover", "Unexpected PDB error; OK (0)");
 				}
 			}
 
