@@ -236,6 +236,7 @@ protected:
 			.Orientation(Args.Orientation)
 			.OnGenerateRow_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
+			.OnIsSelectableOrNavigable_UObject(Implementer, &UListViewBaseT::HandleIsSelectableOrNavigable)
 			.OnRowReleased_UObject(Implementer, &UListViewBaseT::HandleRowReleased)
 			.OnItemScrolledIntoView_UObject(Implementer, &UListViewBaseT::HandleItemScrolledIntoView)
 			.OnListViewScrolled_UObject(Implementer, &UListViewBaseT::HandleListViewScrolled)
@@ -272,6 +273,7 @@ protected:
 			.OnGenerateTile_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnTileReleased_UObject(Implementer, &UListViewBaseT::HandleRowReleased)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
+			.OnIsSelectableOrNavigable_UObject(Implementer, &UListViewBaseT::HandleIsSelectableOrNavigable)
 			.OnItemScrolledIntoView_UObject(Implementer, &UListViewBaseT::HandleItemScrolledIntoView)
 			.OnTileViewScrolled_UObject(Implementer, &UListViewBaseT::HandleListViewScrolled)
 			.OnMouseButtonClick_UObject(Implementer, &UListViewBaseT::HandleItemClicked)
@@ -299,6 +301,7 @@ protected:
 			.SelectionMode(Args.SelectionMode)
 			.OnGenerateRow_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
+			.OnIsSelectableOrNavigable_UObject(Implementer, &UListViewBaseT::HandleIsSelectableOrNavigable)
 			.OnRowReleased_UObject(Implementer, &UListViewBaseT::HandleRowReleased)
 			.OnItemScrolledIntoView_UObject(Implementer, &UListViewBaseT::HandleItemScrolledIntoView)
 			.OnTreeViewScrolled_UObject(Implementer, &UListViewBaseT::HandleListViewScrolled)
@@ -403,6 +406,7 @@ protected:
 	virtual void OnItemClickedInternal(ItemType Item) {}
 	virtual void OnItemDoubleClickedInternal(ItemType Item) {}
 	virtual void OnSelectionChangedInternal(NullableItemType FirstSelectedItem) {}
+	virtual bool OnIsSelectableOrNavigableInternal(ItemType FirstSelectedItem) { return true; }
 	virtual void OnItemScrolledIntoViewInternal(ItemType Item, UUserWidget& EntryWidget) {}
 	virtual void OnListViewScrolledInternal(float ItemOffset, float DistanceRemaining) {}
 	virtual void OnItemExpansionChangedInternal(ItemType Item, bool bIsExpanded) {}
@@ -441,6 +445,11 @@ private:
 		//		It only works for single selection lists, and even then only broadcasts at the end - you don't get anything for de-selection
 		OnSelectionChangedInternal(Item);
 		OnItemSelectionChanged().Broadcast(Item);
+	}
+
+	bool HandleIsSelectableOrNavigable(ItemType Item)
+	{
+		return OnIsSelectableOrNavigableInternal(Item);
 	}
 
 	void HandleListViewScrolled(double OffsetInItems)
