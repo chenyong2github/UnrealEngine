@@ -88,7 +88,7 @@ struct FStreamingViewInfo
  * This structure allows audio chunk data to be accessed, and guarantees that the chunk in question will not be deleted
  * during it's lifecycle.
  */
-class FAudioChunkHandle
+class ENGINE_API FAudioChunkHandle
 {
 public:
 	FAudioChunkHandle();
