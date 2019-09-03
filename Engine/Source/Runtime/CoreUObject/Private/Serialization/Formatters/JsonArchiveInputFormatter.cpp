@@ -254,6 +254,26 @@ void FJsonArchiveInputFormatter::EnterAttributedValueValue()
 	}
 }
 
+bool FJsonArchiveInputFormatter::TryEnterAttributedValueValue()
+{
+	TSharedPtr<FJsonValue>& Value = ValueStack.Top();
+	const TSharedPtr<FJsonObject>* ObjectPtr = nullptr;
+	if (Value->TryGetObject(ObjectPtr))
+	{
+		FJsonObject& ObjectRef = **ObjectPtr;
+
+		TSharedPtr<FJsonValue> Field = ObjectRef.TryGetField(EscapeFieldName(TEXT("_Value")));
+		if (Field.IsValid())
+		{
+			ObjectStack.Emplace(*ObjectPtr, ValueStack.Num());
+			ValueStack.Add(Field);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void FJsonArchiveInputFormatter::LeaveAttribute()
 {
 	ValueStack.Pop();

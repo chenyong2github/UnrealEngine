@@ -109,6 +109,7 @@ public:
 	virtual void LeaveAttribute() = 0;
 	virtual void LeaveAttributedValue() = 0;
 	virtual bool TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting) = 0;
+	virtual bool TryEnterAttributedValueValue() = 0;
 
 	virtual void Serialize(uint8& Value) = 0;
 	virtual void Serialize(uint16& Value) = 0;

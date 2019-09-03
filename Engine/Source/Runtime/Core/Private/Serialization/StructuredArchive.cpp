@@ -98,7 +98,7 @@ void FStructuredArchive::Close()
 	SetScope(FSlotPosition(0, RootElementId));
 }
 
-void FStructuredArchive::EnterSlot(FSlotPosition Slot)
+void FStructuredArchive::EnterSlot(FSlotPosition Slot, bool bEnteringAttributedValue)
 {
 	int32      ParentDepth = Slot.Depth;
 	FElementId ElementId   = Slot.ElementId;
@@ -116,6 +116,16 @@ void FStructuredArchive::EnterSlot(FSlotPosition Slot)
 		SetScope(FSlotPosition(ParentDepth + 1, ElementId));
 		Formatter.EnterAttributedValueValue();
 	}
+	else if (!bEnteringAttributedValue && Formatter.TryEnterAttributedValueValue())
+	{
+		int32 NewDepth = EnterSlotAsType(FSlotPosition(ParentDepth, ElementId), EElementType::AttributedValue);
+		check(NewDepth == ParentDepth + 1);
+		FElementId AttributedValueId = CurrentScope[NewDepth].Id;
+		SetScope(FSlotPosition(NewDepth, AttributedValueId));
+#if DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS
+		CurrentContainer.Emplace(0);
+#endif
+	}
 	else
 	{
 		checkf(ElementId == CurrentSlotElementId, TEXT("Attempt to serialize data into an invalid slot"));
@@ -127,7 +137,7 @@ void FStructuredArchive::EnterSlot(FSlotPosition Slot)
 
 int32 FStructuredArchive::EnterSlotAsType(FSlotPosition Slot, EElementType ElementType)
 {
-	EnterSlot(Slot);
+	EnterSlot(Slot, ElementType == EElementType::AttributedValue);
 
 	int32 NewSlotDepth = Slot.Depth + 1;
 
