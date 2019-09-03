@@ -17,6 +17,9 @@
 #ifndef OBOE_OPENSLES_OPENSLESUTILITIES_H
 #define OBOE_OPENSLES_OPENSLESUTILITIES_H
 
+
+#include <SLES/OpenSLES_Platform.h>
+#include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
 #include "oboe/Oboe.h"
 
