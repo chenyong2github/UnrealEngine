@@ -326,7 +326,7 @@ public:
 	void ReleaseLayersRenderingResource();
 	
 	LANDSCAPE_API void ToggleCanHaveLayersContent();
-	LANDSCAPE_API void ForceUpdateLayersContent();
+	LANDSCAPE_API void ForceUpdateLayersContent(bool bIntermediateRender = false);
 
 private:
 	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
@@ -450,6 +450,9 @@ private:
 	};
 
 	FLandscapeEdModeInfo LandscapeEdModeInfo;
+
+	/** Some tools need to do an intermediate render with hidden layers. Do not dirty the landscape for those renders. */
+	bool bIntermediateRender;
 
 	UPROPERTY(Transient)
 	bool bLandscapeLayersAreInitialized;
