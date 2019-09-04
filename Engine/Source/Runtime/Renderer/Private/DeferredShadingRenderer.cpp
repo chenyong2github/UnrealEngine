@@ -979,8 +979,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bUseVirtualTexturing)
 	{
-		Scene->FlushDirtyRuntimeVirtualTextures();
-		FVirtualTextureSystem::Get().Update(RHICmdList, FeatureLevel);
+		FVirtualTextureSystem::Get().Update(RHICmdList, FeatureLevel, Scene);
 	}
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
