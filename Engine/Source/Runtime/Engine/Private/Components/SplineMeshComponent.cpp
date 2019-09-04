@@ -554,6 +554,7 @@ void USplineMeshComponent::Serialize(FArchive& Ar)
 #endif
 }
 
+#if WITH_EDITOR
 bool USplineMeshComponent::Modify(bool bAlwaysMarkDirty)
 {
 	bool bSavedToTransactionBuffer = Super::Modify(bAlwaysMarkDirty);
@@ -565,6 +566,7 @@ bool USplineMeshComponent::Modify(bool bAlwaysMarkDirty)
 
 	return bSavedToTransactionBuffer;
 }
+#endif
 
 FPrimitiveSceneProxy* USplineMeshComponent::CreateSceneProxy()
 {
