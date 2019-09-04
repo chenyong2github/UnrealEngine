@@ -594,6 +594,9 @@ int32 FAudioDevice::GetMaxSources() const
 
 void FAudioDevice::Teardown()
 {
+	// Make sure we process any pending game thread tasks before tearing down the audio device.
+	FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
+
 	// Do a fadeout to prevent clicking on shutdown
 	FadeOut();
 
