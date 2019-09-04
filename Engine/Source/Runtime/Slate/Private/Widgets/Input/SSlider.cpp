@@ -368,6 +368,8 @@ void SSlider::CommitValue(float NewValue)
 		ValueAttribute.Set(NewValue);
 	}
 
+	Invalidate(EInvalidateWidgetReason::Paint);
+
 	OnValueChanged.ExecuteIfBound(NewValue);
 }
 
