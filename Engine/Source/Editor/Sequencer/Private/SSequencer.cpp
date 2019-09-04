@@ -408,6 +408,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	PinnedTrackArea->SetTreeView(PinnedTreeView);
 	PinnedTrackArea->SetShowPinned(true);
+	PinnedTrackArea->SetIsSlave(true);
 	PinnedTreeView->SetShowPinned(true);
 
 	SAssignNew(TrackArea, SSequencerTrackArea, TimeSliderControllerRef, InSequencer);

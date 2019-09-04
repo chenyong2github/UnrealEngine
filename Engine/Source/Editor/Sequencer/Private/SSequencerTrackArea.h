@@ -91,6 +91,10 @@ public:
 	void SetShowPinned(bool bShowPinned) { bShowPinnedNodes = bShowPinned; }
 	bool ShowPinned() const { return bShowPinnedNodes; }
 
+	/** Set whether this TrackArea is slaved to a master TrackArea and should skip updating external controls */
+	void SetIsSlave(bool bInIsSlave) { bIsSlave = bInIsSlave; }
+	bool IsSlave() const { return bIsSlave; }
+	
 public:
 
 	// SWidget interface
@@ -157,6 +161,9 @@ private:
 
 	/** Whether this TrackArea is for pinned nodes or non-pinned nodes */
 	bool bShowPinnedNodes;
+
+	/** Whether this TrackArea is slaved to a master TrackArea and should skip updating external controls */
+	bool bIsSlave;
 
 private:
 

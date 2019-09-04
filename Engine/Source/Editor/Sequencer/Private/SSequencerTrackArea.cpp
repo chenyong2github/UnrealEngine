@@ -444,7 +444,7 @@ void SSequencerTrackArea::Tick( const FGeometry& AllottedGeometry, const double 
 {
 	FVector2D Size = AllottedGeometry.GetLocalSize();
 
-	if (SizeLastFrame.IsSet() && Size.X != SizeLastFrame->X)
+	if (!IsSlave() && SizeLastFrame.IsSet() && Size.X != SizeLastFrame->X)
 	{
 		// Zoom by the difference in horizontal size
 		const float Difference = Size.X - SizeLastFrame->X;
