@@ -377,6 +377,14 @@ void UToolMenus::AssembleMenu(UToolMenu* GeneratedMenu, const UToolMenu* Other)
 					continue;
 				}
 			}
+			else
+			{
+				// Allow overriding label
+				if (!Section->Label.IsSet() && RemainingSection.Label.IsSet())
+				{
+					Section->Label = RemainingSection.Label;
+				}
+			}
 
 			AssembleMenuSection(GeneratedMenu, Other, Section, RemainingSection);
 			RemainingSections.RemoveAt(i);
