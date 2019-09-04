@@ -1439,7 +1439,7 @@ void FSceneRenderer::RenderSkyAtmosphereEditorNotifications(FRHICommandListImmed
 	{
 		FViewInfo& View = Views[ViewIndex];
 
-		if (View.bSceneHasSkyMaterial)
+		if (View.bSceneHasSkyMaterial && View.Family->EngineShowFlags.Atmosphere)
 		{
 			const float ViewPortWidth = float(View.ViewRect.Width());
 			const float ViewPortHeight = float(View.ViewRect.Height());
