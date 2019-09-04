@@ -13,9 +13,6 @@
 
 FAtmosphereSetup::FAtmosphereSetup(const USkyAtmosphereComponent& SkyAtmosphereComponent)
 {
-	// For now we convert color as if they were linear because this is how scattering coefficient should be considered for instance. Coefficients are not a perceptual value.
-	auto LinearFColorToLinearColor = [](const FColor& c) {return FLinearColor(float(c.R) / 255.0f, float(c.G) / 255.0f, float(c.B) / 255.0f, float(c.A) / 255.0f); };
-
 	// Convert Tent distribution to linear curve coefficients.
 	auto TentToCoefficients = [](const FTentDistribution& Tent, float& LayerWidth, float& LinTerm0, float&  LinTerm1, float& ConstTerm0, float& ConstTerm1)
 	{
@@ -46,15 +43,15 @@ FAtmosphereSetup::FAtmosphereSetup(const USkyAtmosphereComponent& SkyAtmosphereC
 	MultiScatteringFactor = SkyAtmosphereComponent.MultiScatteringFactor;
 
 	RayleighDensityExpScale = -1.0f / SkyAtmosphereComponent.RayleighExponentialDistribution;
-	RayleighScattering = LinearFColorToLinearColor(SkyAtmosphereComponent.RayleighScattering) * SkyAtmosphereComponent.RayleighScatteringScale;
+	RayleighScattering = (SkyAtmosphereComponent.RayleighScattering * SkyAtmosphereComponent.RayleighScatteringScale).GetClamped(0.0f, 1e38f);
 
-	MieScattering = LinearFColorToLinearColor(SkyAtmosphereComponent.MieScattering) * SkyAtmosphereComponent.MieScatteringScale;
-	MieAbsorption = LinearFColorToLinearColor(SkyAtmosphereComponent.MieAbsorption) * SkyAtmosphereComponent.MieAbsorptionScale;
+	MieScattering = (SkyAtmosphereComponent.MieScattering * SkyAtmosphereComponent.MieScatteringScale).GetClamped(0.0f, 1e38f);
+	MieAbsorption = (SkyAtmosphereComponent.MieAbsorption * SkyAtmosphereComponent.MieAbsorptionScale).GetClamped(0.0f, 1e38f);
 	MieExtinction = MieScattering + MieAbsorption;
 	MiePhaseG = SkyAtmosphereComponent.MieAnisotropy;
 	MieDensityExpScale = -1.0f / SkyAtmosphereComponent.MieExponentialDistribution;
 
-	AbsorptionExtinction = LinearFColorToLinearColor(SkyAtmosphereComponent.OtherAbsorption) * SkyAtmosphereComponent.OtherAbsorptionScale;
+	AbsorptionExtinction = (SkyAtmosphereComponent.OtherAbsorption * SkyAtmosphereComponent.OtherAbsorptionScale).GetClamped(0.0f, 1e38f);
 	TentToCoefficients(SkyAtmosphereComponent.OtherTentDistribution, AbsorptionDensity0LayerWidth, AbsorptionDensity0LinearTerm, AbsorptionDensity1LinearTerm, AbsorptionDensity0ConstantTerm, AbsorptionDensity1ConstantTerm);
 }
 
