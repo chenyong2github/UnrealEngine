@@ -376,14 +376,18 @@ void URuntimeVirtualTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& Out
 
 void URuntimeVirtualTexture::Serialize(FArchive& Ar)
 {
-	// Clear StreamingTexture during cook for platforms that don't support virtual texturing
- 	URuntimeVirtualTextureStreamingProxy* StreamingTextureBackup = StreamingTexture;
- 	if (Ar.IsCooking() && Ar.IsSaving() && !UseVirtualTexturing(GMaxRHIFeatureLevel, Ar.CookingTarget()))
- 	{
- 		StreamingTexture = nullptr;
- 	}
-	Super::Serialize(Ar);
-	StreamingTexture = StreamingTextureBackup;
+	if (Ar.IsCooking() && Ar.IsSaving() && !UseVirtualTexturing(GMaxRHIFeatureLevel, Ar.CookingTarget()))
+	{
+		// Clear StreamingTexture during cook for platforms that don't support virtual texturing
+		URuntimeVirtualTextureStreamingProxy* StreamingTextureBackup = StreamingTexture;
+		StreamingTexture = nullptr;
+		Super::Serialize(Ar);
+		StreamingTexture = StreamingTextureBackup;
+	}
+	else
+	{
+		Super::Serialize(Ar);
+	}
 }
 
 #if WITH_EDITOR
