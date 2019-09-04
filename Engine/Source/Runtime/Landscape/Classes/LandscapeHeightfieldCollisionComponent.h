@@ -183,6 +183,9 @@ private:
 protected:
 	virtual void OnCreatePhysicsState() override;
 public:
+
+	TOptional<float> GetHeight(float X, float Y);
+
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 	//~ End UActorComponent Interface.
 

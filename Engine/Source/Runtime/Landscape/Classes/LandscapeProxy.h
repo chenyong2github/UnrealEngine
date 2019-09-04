@@ -415,6 +415,8 @@ protected:
 	FGuid LandscapeGuid;
 
 public:
+	LANDSCAPE_API TOptional<float> GetHeightAtLocation(FVector Location) const;
+
 	/** Offset in quads from global components grid origin (in quads) **/
 	UPROPERTY()
 	FIntPoint LandscapeSectionOffset;
