@@ -14,7 +14,7 @@ class FSceneInterface;
 class FRuntimeVirtualTextureFinalizer : public IVirtualTextureFinalizer
 {
 public:
-	FRuntimeVirtualTextureFinalizer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, FSceneInterface* InScene, FTransform const& InUVToWorld);
+	FRuntimeVirtualTextureFinalizer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, bool InClearTextures, FSceneInterface* InScene, FTransform const& InUVToWorld);
 	virtual ~FRuntimeVirtualTextureFinalizer() {}
 
 	/** A description for a single tile to render. */
@@ -52,6 +52,8 @@ private:
 	uint32 RuntimeVirtualTextureMask;
 	/** Contents of virtual texture layer stack. */
 	ERuntimeVirtualTextureMaterialType MaterialType;
+	/** Clear before render flag. */
+	bool bClearTextures;
 	/** Scene that the virtual texture is placed within. */
 	FSceneInterface* Scene;
 	/** Transform from UV space to world space. */
@@ -64,7 +66,7 @@ private:
 class FRuntimeVirtualTextureProducer : public IVirtualTexture
 {
 public:
-	RENDERER_API FRuntimeVirtualTextureProducer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, FSceneInterface* InScene, FTransform const& InUVToWorld);
+	RENDERER_API FRuntimeVirtualTextureProducer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, bool InClearTextures, FSceneInterface* InScene, FTransform const& InUVToWorld);
 	RENDERER_API virtual ~FRuntimeVirtualTextureProducer() {}
 
 	//~ Begin IVirtualTexture Interface.
