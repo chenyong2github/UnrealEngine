@@ -671,10 +671,10 @@ public:
 	virtual void PropagateLightingScenarioChange() override;
 	//~ End UActorComponent Interface.
 
-
-#if WITH_EDITOR
 	/** Gets the landscape info object for this landscape */
 	LANDSCAPE_API ULandscapeInfo* GetLandscapeInfo() const;
+
+#if WITH_EDITOR
 
 	/** Deletes a layer from this component, removing all its data */
 	LANDSCAPE_API void DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLandscapeEditDataInterface& LandscapeEdit);
