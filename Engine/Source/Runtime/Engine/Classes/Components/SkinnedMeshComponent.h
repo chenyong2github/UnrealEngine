@@ -1095,7 +1095,11 @@ public:
 
 	void SetComponentSpaceTransformsDoubleBuffering(bool bInDoubleBufferedComponentSpaceTransforms);
 
-	const FBoxSphereBounds& GetCachedLocalBounds() { return CachedLocalBounds; } 
+	FBoxSphereBounds GetCachedLocalBounds()  const
+	{ 
+		ensure(bCachedLocalBoundsUpToDate);
+		return CachedWorldSpaceBounds.TransformBy(CachedWorldToLocalTransform);
+	} 
 
 	/**
 	* Should update transform in Tick
@@ -1125,9 +1129,11 @@ protected:
 	virtual bool AllocateTransformData();
 	virtual void DeallocateTransformData();
 
-	/** LocalBounds cached, so they're computed just once. */
+	/** Bounds cached, so they're computed just once. */
 	UPROPERTY(Transient)
-	mutable FBoxSphereBounds CachedLocalBounds;
+	mutable FBoxSphereBounds CachedWorldSpaceBounds;
+	UPROPERTY(Transient)
+	mutable FMatrix CachedWorldToLocalTransform;
 
 public:
 
