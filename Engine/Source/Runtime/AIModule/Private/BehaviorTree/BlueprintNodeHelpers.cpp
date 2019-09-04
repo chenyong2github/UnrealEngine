@@ -11,6 +11,7 @@
 #include "BehaviorTree/BehaviorTreeTypes.h"
 #include "BehaviorTree/BTNode.h"
 #include "GameplayTagContainer.h"
+#include "UObject/TextProperty.h"
 
 namespace BlueprintNodeHelpers
 {
@@ -37,7 +38,9 @@ namespace BlueprintNodeHelpers
 	{
 		if (TestProperty->IsA(UNumericProperty::StaticClass()) ||
 			TestProperty->IsA(UBoolProperty::StaticClass()) ||
-			TestProperty->IsA(UNameProperty::StaticClass()))
+			TestProperty->IsA(UNameProperty::StaticClass()) ||
+			TestProperty->IsA(UStrProperty::StaticClass()) ||
+			TestProperty->IsA(UTextProperty::StaticClass()) )
 		{
 			return true;
 		}
@@ -100,6 +103,14 @@ namespace BlueprintNodeHelpers
 		else if (StructProp && StructProp->Struct && StructProp->Struct->IsChildOf(TBaseStructure<FGameplayTag>::Get()))
 		{
 			ExportedStringValue = ((const FGameplayTag*)PropertyAddr)->ToString();
+
+#if WITH_EDITOR
+			const FString CategoryLimit = StructProp->GetMetaData(TEXT("Categories"));
+			if (!CategoryLimit.IsEmpty() && ExportedStringValue.StartsWith(CategoryLimit))
+			{
+				ExportedStringValue = ExportedStringValue.Mid(CategoryLimit.Len());
+			}
+#endif
 		}
 		else if (FloatProp)
 		{

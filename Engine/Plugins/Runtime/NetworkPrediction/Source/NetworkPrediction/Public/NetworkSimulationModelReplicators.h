@@ -95,34 +95,6 @@ struct TReplicatorBase
 	{
 		// Accumulate local delta time into TickInfo
 		TickInfo.GiveSimulationTime(TickParameters.LocalDeltaTimeSeconds);
-
-		// See if we have sim time to spend (variable tick will always go through. fixed step will miss frames while accumulating)
-		TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemaningAllowedSimulationTime();
-		if (DeltaSimTime.ToRealTimeSeconds() > 0)
-		{
-			if (TickParameters.bGenerateLocalInputCmds)
-			{
-				if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
-				{
-					*InputCmd = TInputCmd();
-					InputCmd->SetFrameDeltaTime(DeltaSimTime);
-					Driver->ProduceInput(DeltaSimTime, *InputCmd);
-					TickInfo.MaxAllowedInputKeyframe++;
-				}
-			}
-			else
-			{
-				// Allowed to process all remaining commands (we will still check for frame time in the core input processing loop to prevent speed hacks)
-				TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
-
-				// Check for gaps in commands
-				if ( TickInfo.LastProcessedInputKeyframe+1 < Buffers.Input.GetTailKeyframe() )
-				{
-					UE_LOG(LogNetworkSim, Warning, TEXT("::Tick missing inputcmds. LastProcessedInputKeyframe: %d. %s"), TickInfo.LastProcessedInputKeyframe, *Buffers.Input.GetBasicDebugStr());
-					TickInfo.LastProcessedInputKeyframe = Buffers.Input.GetTailKeyframe()+1;
-				}
-			}
-		}
 	}
 };
 
@@ -181,7 +153,7 @@ struct TReplicator_Sequence : public TBase
 			if (PrevHead < StartingKeyframe && PrevHead >= 0)
 			{
 				// There is a gap in the stream. In some cases, we want this to be a "fault" and bubble up. We may want to synthesize state or maybe we just skip ahead.
-				UE_LOG(LogNetworkSim, Warning, TEXT("Fault: gap in received buffer. PrevHead: %d. Received: %d-%d. Reseting previous buffer contents"), PrevHead, StartingKeyframe, HeadKeyframe);
+				UE_LOG(LogNetworkSim, Warning, TEXT("Fault: gap in received %s buffer. PrevHead: %d. Received: %d-%d. Reseting previous buffer contents"), *LexToString(BufferId), PrevHead, StartingKeyframe, HeadKeyframe);
 			}
 
 			Buffer.ResetNextHeadKeyframe(StartingKeyframe);
@@ -194,7 +166,15 @@ struct TReplicator_Sequence : public TBase
 			auto* Cmd = Ar.IsLoading() ? Buffer.GetWriteNext() : Buffer.FindElementByKeyframe(Keyframe);
 			Cmd->NetSerialize(P);
 		}
+
+		LastSerializedKeyframe = HeadKeyframe;
 	}
+
+	int32 GetLastSerializedKeyframe() const { return LastSerializedKeyframe; }
+
+protected:
+
+	int32 LastSerializedKeyframe = 0;
 };
 
 // Replicates only the latest single element in the selected buffer.
@@ -234,17 +214,54 @@ struct TReplicator_Single : public TBase
 };
 
 // -------------------------------------------------------------------------------------------------------
-//	Role based Replicators: these replicators are meant to server specific roles
+//	Role based Replicators: these replicators are meant to serve specific roles wrt how the simulation evolves
 // -------------------------------------------------------------------------------------------------------
 
-// Default Replicator for the Server
-//	-Replicates the InputBuffer client->server
-template<typename TBufferTypes, typename TTickSettings, ENetworkSimBufferTypeId BufferId=ENetworkSimBufferTypeId::Input, typename TBase=TReplicator_Sequence<TBufferTypes, TTickSettings, BufferId, 3>>
+// Default Replicator for the Server: Replicates the InputBuffer client->server
+template<typename TBufferTypes, typename TTickSettings, typename TBase=TReplicator_Sequence<TBufferTypes, TTickSettings, ENetworkSimBufferTypeId::Input, 3>>
 struct TReplicator_Server : public TBase
 {
+	using TInputCmd = typename TBufferTypes::TInputCmd;
 
+	template<typename T, typename TDriver>
+	void Reconcile(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo)
+	{
+		// After receiving input, server may process up to the latest received frames.
+		// (If we needed to buffer input server side for whatever reason, we would do it here)
+		// (also note that we will implicitly guard against speed hacks int he core update loop by not processing cmds past what we have been "allowed")
+		TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
+
+		// Check for gaps in commands
+		if ( TickInfo.LastProcessedInputKeyframe+1 < Buffers.Input.GetTailKeyframe() )
+		{
+			UE_LOG(LogNetworkSim, Warning, TEXT("TReplicator_Server::Reconcile missing inputcmds. LastProcessedInputKeyframe: %d. %s"), TickInfo.LastProcessedInputKeyframe, *Buffers.Input.GetBasicDebugStr());
+			TickInfo.LastProcessedInputKeyframe = Buffers.Input.GetTailKeyframe()+1;
+		}
+	}
+
+	template<typename T, typename TDriver, typename TTickParameters>
+	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const TTickParameters& TickParameters)
+	{
+		TickInfo.GiveSimulationTime(TickParameters.LocalDeltaTimeSeconds);
+
+		if (TickParameters.bGenerateLocalInputCmds)
+		{
+			TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
+			if (DeltaSimTime.IsPositive())
+			{
+				if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
+				{
+					*InputCmd = TInputCmd();
+					InputCmd->SetFrameDeltaTime(DeltaSimTime);
+					Driver->ProduceInput(DeltaSimTime, *InputCmd);
+					TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
+				}
+			}
+		}
+	}
 };
 
+/** Simulated: "non locally controlled" simulations. We support "Simulation Extrapolation" here (using the sim to fake inputs to advance the sim)  */
 template<typename TBufferTypes, typename TTickSettings, typename TBase=TReplicator_Single<TBufferTypes, TTickSettings, ENetworkSimBufferTypeId::Sync>>
 struct TReplicator_Simulated : public TBase
 {
@@ -331,9 +348,26 @@ struct TReplicator_Simulated : public TBase
 	template<typename T, typename TDriver, typename TTickParameters>
 	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const TTickParameters& TickParameters)
 	{
-		if (NetworkSimulationModelCVars::EnableSimulatedExtrapolation())
+		if (NetworkSimulationModelCVars::EnableSimulatedExtrapolation() == 0)
 		{
-			TBase::template PreSimTick<T, TDriver, TTickParameters>(Driver, Buffers, TickInfo, TickParameters);
+			return;
+		}
+		
+		TickInfo.GiveSimulationTime(TickParameters.LocalDeltaTimeSeconds);
+
+		if (TickParameters.bGenerateLocalInputCmds)
+		{
+			TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
+			if (DeltaSimTime.IsPositive())
+			{
+				if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
+				{
+					*InputCmd = TInputCmd();
+					InputCmd->SetFrameDeltaTime(DeltaSimTime);
+					Driver->ProduceInput(DeltaSimTime, *InputCmd);
+					TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
+				}
+			}
 		}
 	}
 
@@ -381,12 +415,6 @@ struct TReplicator_Autonomous : public TBase
 		}
 		else
 		{
-			// Its possible we process two packets in between ticks. This isn't really a problem but should be rare.
-			if (bPendingReconciliation)
-			{
-				UE_LOG(LogNetworkSim, Warning, TEXT("bPendingReconciliation while in ::NetSerialize. LastSerializedKeyframe: %d. New SerializedHeadKeyframe: %d."), LastSerializedKeyframe, SerializedHeadKeyframe);
-			}
-
 			// Lazy init the reconciliation buffer. We don't need this on the server/writing side. (Fixme, with templated approach we could easily specialize this to an inline element instead of buffer?)
 			if (ReconciliationBuffer.GetMaxNumElements() == 0)
 			{
@@ -461,14 +489,22 @@ struct TReplicator_Autonomous : public TBase
 		// Resimulate
 		// -------------------------------------------------------------------------------------------------------------------------
 
-		TSyncState* ClientSyncState = Buffers.Sync.FindElementByKeyframe( ReconciliationKeyframe );	
+		TSyncState* ClientSyncState = Buffers.Sync.FindElementByKeyframe( ReconciliationKeyframe );
 
-		ServerState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::LastConfirmed, ReconciliationKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+		const bool bDoVisualLog = NetworkSimulationModelCVars::EnableLocalPrediction() > 0; // don't visual log if we have prediction disabled
+		
+		if (bDoVisualLog)
+		{
+			ServerState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::LastConfirmed, ReconciliationKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+		}
 
 		if (ClientSyncState)
 		{
 			// Existing ClientSyncState, log it before overwriting it
-			ClientSyncState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::FirstMispredicted, ReconciliationKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+			if (bDoVisualLog)
+			{
+				ClientSyncState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::FirstMispredicted, ReconciliationKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+			}
 		}
 		else
 		{
@@ -485,6 +521,12 @@ struct TReplicator_Autonomous : public TBase
 		TickInfo.TotalProcessedSimulationTime = SerializedTime;
 		TickInfo.LastProcessedInputKeyframe = ReconciliationKeyframe;
 		TickInfo.MaxAllowedInputKeyframe = FMath::Max(TickInfo.MaxAllowedInputKeyframe, TickInfo.LastProcessedInputKeyframe); // Make sure this doesn't lag behind. This is the only place we should need to do this.
+
+		if (NetworkSimulationModelCVars::EnableLocalPrediction() == 0)
+		{
+			// If we aren't predicting at all, then we advanced the allowed sim time here, (since we aren't doing it in PreSimTick). This just keeps us constantly falling behind and not being able to toggle prediction on/off for debugging.
+			TickInfo.TotalAllowedSimulationTime = SerializedTime;
+		}
 		
 		// Resimulate all user commands 
 		const int32 LastKeyframeToProcess = TickInfo.MaxAllowedInputKeyframe;
@@ -497,7 +539,12 @@ struct TReplicator_Autonomous : public TBase
 			
 			check(ResimulateCmd);
 			check(PrevMotionState);
-			check(NextMotionState);
+			if (NextMotionState == nullptr)
+			{
+				// This should only happen if we transition from no local prediction to local prediction, since we will traverse through out input buffer but not have predicted sync states to look at.
+				NextMotionState = Buffers.Sync.GetWriteNext();
+				check(Keyframe == Buffers.Sync.GetHeadKeyframe());
+			}
 
 			// TEMP (Aux buffer not fully plumbed through the system yet)
 			// ------------------------------------------------------
@@ -536,23 +583,108 @@ struct TReplicator_Autonomous : public TBase
 			return;
 		}
 
-		const int32 StartingMaxAllowedInputKeyframe = TickInfo.MaxAllowedInputKeyframe;
-
-		TBase::template PreSimTick<T, TDriver, TTickParameters>(Driver, Buffers, TickInfo, TickParameters);
-
-		// If prediction is disabled we need to reset our MaxAllowedInputKeyframe so we don't process the command(s) generated above
-		if (NetworkSimulationModelCVars::EnableLocalPrediction() == 0)
+		if (TickParameters.bGenerateLocalInputCmds)
 		{
-			TickInfo.MaxAllowedInputKeyframe = StartingMaxAllowedInputKeyframe;
+			if (NetworkSimulationModelCVars::EnableLocalPrediction() > 0)
+			{
+				// Prediction: add simulation time and generate new commands
+				TickInfo.GiveSimulationTime(TickParameters.LocalDeltaTimeSeconds);
+				const TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
+				if (DeltaSimTime.IsPositive())
+				{
+					if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
+					{
+						*InputCmd = TInputCmd();
+						InputCmd->SetFrameDeltaTime(DeltaSimTime);
+						Driver->ProduceInput(DeltaSimTime, *InputCmd);
+						TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe(); // Allow the new command to be processed by the local simulation
+					}
+				}
+			}
+			else
+			{
+				// Local prediction disabled: we must use a separate time accumulator to figure out when we should add more input cmds.
+				// Since we aren't processing the simulation locally, our core simulation time will only advance from network updates.
+				// (still, we need *something* to tell us when to generate a new command and what the delta time should be)
+
+				TNetworkSimTime<TTickSettings> NonPredictedInputTime;
+				NonPredictedInputTimeAccumulator.Accumulate(NonPredictedInputTime, TickParameters.LocalDeltaTimeSeconds);
+				if (NonPredictedInputTime.IsPositive())
+				{
+					if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
+					{
+						*InputCmd = TInputCmd();
+						InputCmd->SetFrameDeltaTime(NonPredictedInputTime);
+						Driver->ProduceInput(NonPredictedInputTime, *InputCmd);
+					}
+				}
+			}
 		}
 	}
 
 private:
+
+
 	
 	TReplicationBuffer<TSyncState> ReconciliationBuffer;
 	TNetworkSimTime<TTickSettings> SerializedTime; // last serialized time keeper
+	TRealTimeAccumulator<TTickSettings> NonPredictedInputTimeAccumulator; // for tracking input time in the non predictive case
 
 	int32 LastSerializedKeyframe = -1;
 	bool bPendingReconciliation = false;	// Reconciliation is pending: we need to reconcile state from the server that differs from the locally predicted state
 	bool bReconcileFaultDetected = false;	// A fault was detected: we received state from the server that we are unable to reconcile with locally predicted state
+};
+
+/** Special replicator for debug buffer, this preserves the local buffer and receives into a replicator-owned buffer (we want these buffers to be distinct/not merged) */
+template<typename TBufferTypes, typename TTickSettings, int32 MaxNumElements=5, typename TBase=TReplicator_SimTime<TBufferTypes, TTickSettings>>
+struct TReplicator_Debug : public TBase
+{
+	using TDebugState = typename TBufferTypes::TDebugState;
+
+	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<TBufferTypes>& Buffers) const 
+	{
+		return Buffers.Debug.GetDirtyCount() ^ (TBase::GetProxyDirtyCount(Buffers) << 2); 
+	}
+
+	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo)
+	{
+		TBase::NetSerialize(P, Buffers, TickInfo);
+		FArchive& Ar = P.Ar;
+
+		TReplicationBuffer<TDebugState>& Buffer = Ar.IsSaving() ? Buffers.Debug : ReceivedBuffer;
+		
+		uint8 SerializedNumElements = FMath::Min<uint8>(MaxNumElements, Buffer.GetNumValidElements());
+		Ar << SerializedNumElements;
+
+		const int32 HeadKeyframe = FNetworkSimulationSerialization::SerializeKeyframe(Ar, Buffer.GetHeadKeyframe());
+		const int32 StartingKeyframe = FMath::Max(0, HeadKeyframe - SerializedNumElements + 1);
+
+		if (Ar.IsLoading())
+		{
+			// Lazy init on recieve
+			if (ReceivedBuffer.GetMaxNumElements() != Buffers.Debug.GetMaxNumElements())
+			{
+				ReceivedBuffer.SetBufferSize(Buffers.Debug.GetMaxNumElements());
+			}
+
+			const int32 PrevHead = Buffer.GetHeadKeyframe();
+			if (PrevHead < StartingKeyframe && PrevHead >= 0)
+			{
+				// There is a gap in the stream. In some cases, we want this to be a "fault" and bubble up. We may want to synthesize state or maybe we just skip ahead.
+				UE_LOG(LogNetworkSim, Warning, TEXT("Fault: gap in received Debug buffer. PrevHead: %d. Received: %d-%d. Reseting previous buffer contents"), PrevHead, StartingKeyframe, HeadKeyframe);
+			}
+
+			Buffer.ResetNextHeadKeyframe(StartingKeyframe);
+		}
+
+		for (int32 Keyframe = StartingKeyframe; Keyframe <= HeadKeyframe; ++Keyframe)
+		{
+			// This, as is, is bad. The intention is that these functions serialize multiple items in some delta compressed fashion.
+			// As is, we are just serializing the elements individually.
+			auto* Cmd = Ar.IsLoading() ? Buffer.GetWriteNext() : Buffer.FindElementByKeyframe(Keyframe);
+			Cmd->NetSerialize(P);
+		}
+	}
+
+	TReplicationBuffer<TDebugState> ReceivedBuffer;
 };

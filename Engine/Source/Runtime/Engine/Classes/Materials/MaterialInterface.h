@@ -49,6 +49,7 @@ enum EMaterialUsage
 	MATUSAGE_NiagaraRibbons,
 	MATUSAGE_NiagaraMeshParticles,
 	MATUSAGE_GeometryCache,
+	MATUSAGE_Water,
 
 	MATUSAGE_MAX,
 };

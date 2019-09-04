@@ -842,11 +842,24 @@ public:
 	 * @return The instigator for this actor if it is the specified type, nullptr otherwise.
 	 */
 	template <class T>
-	T* GetInstigator() const { return Cast<T>(Instigator); };
+	T* GetInstigator() const
+	{
+		return Cast<T>(GetInstigator());
+	}
 
 	/** Returns the instigator's controller for this actor, or nullptr if there is none. */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintProtected = "true"), Category="Game")
 	AController* GetInstigatorController() const;
+
+	/** 
+	 * Returns the instigator's controller, cast as a specific class.
+	 * @return The instigator's controller for this actor if it is the specified type, nullptr otherwise.
+	 * */
+	template<class T>
+	T* GetInstigatorController() const
+	{
+		return Cast<T>(GetInstigatorController());
+	}
 
 
 	//~=============================================================================

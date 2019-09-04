@@ -210,24 +210,6 @@ public:
 	 */
 	LANDSCAPE_API void ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)> Fn) const;
 
-	/** Associates passed actor with this info object
- 	 *  @param	Proxy		Landscape actor to register
-	 *  @param  bMapCheck	Whether to warn about landscape errors
-	 */
-	LANDSCAPE_API void RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck = false);
-	
-	/** Deassociates passed actor with this info object*/
-	LANDSCAPE_API void UnregisterActor(ALandscapeProxy* Proxy);
-
-	/** Associates passed landscape component with this info object
-	 *  @param	Component	Landscape component to register
-	 *  @param  bMapCheck	Whether to warn about landscape errors
-	 */
-	LANDSCAPE_API void RegisterActorComponent(ULandscapeComponent* Component, bool bMapCheck = false);
-	
-	/** Deassociates passed landscape component with this info object*/
-	LANDSCAPE_API void UnregisterActorComponent(ULandscapeComponent* Component);
-
 	/** Resets all actors, proxies, components registrations */
 	LANDSCAPE_API void Reset();
 
@@ -257,4 +239,21 @@ public:
 	/** Will tell if the landscape actor can have some content related to the layer system */
 	LANDSCAPE_API bool CanHaveLayersContent() const;
 #endif
+	/** Associates passed actor with this info object
+ *  @param	Proxy		Landscape actor to register
+ *  @param  bMapCheck	Whether to warn about landscape errors
+ */
+	LANDSCAPE_API void RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck = false);
+
+	/** Deassociates passed actor with this info object*/
+	LANDSCAPE_API void UnregisterActor(ALandscapeProxy* Proxy);
+
+	/** Associates passed landscape component with this info object
+	 *  @param	Component	Landscape component to register
+	 *  @param  bMapCheck	Whether to warn about landscape errors
+	 */
+	LANDSCAPE_API void RegisterActorComponent(ULandscapeComponent* Component, bool bMapCheck = false);
+
+	/** Deassociates passed landscape component with this info object*/
+	LANDSCAPE_API void UnregisterActorComponent(ULandscapeComponent* Component);
 };

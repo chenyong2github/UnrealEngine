@@ -4,6 +4,7 @@
 #include "GameplayEffect.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemGlobals.h"
 
 
 TArray<FActiveGameplayEffectHandle> FGameplayAbilityTargetData::ApplyGameplayEffect(const UGameplayEffect* GameplayEffect, const FGameplayEffectContextHandle& InEffectContext, float Level, FPredictionKey PredictionKey)
@@ -134,6 +135,11 @@ FGameplayAbilityTargetDataHandle FGameplayAbilityTargetingLocationInfo::MakeTarg
 	return ReturnDataHandle;
 }
 
+// If defined, we'll serialize target data in a safer way (untested/unproven still: goal should be to remove old code asap)
+#ifndef TARGETDATAHANDLE_SAFE_NET_SERIALIZE
+#define TARGETDATAHANDLE_SAFE_NET_SERIALIZE 1
+#endif
+
 bool FGameplayAbilityTargetDataHandle::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
 	Ar << UniqueId;
@@ -158,7 +164,11 @@ bool FGameplayAbilityTargetDataHandle::NetSerialize(FArchive& Ar, class UPackage
 	{
 		TCheckedObjPtr<UScriptStruct> ScriptStruct = Data[i].IsValid() ? Data[i]->GetScriptStruct() : NULL;
 
+#if TARGETDATAHANDLE_SAFE_NET_SERIALIZE
+		UAbilitySystemGlobals::Get().TargetDataStructCache.NetSerialize(Ar, ScriptStruct.Get());
+#else
 		Ar << ScriptStruct;
+#endif
 
 		if (ScriptStruct.IsValid())
 		{

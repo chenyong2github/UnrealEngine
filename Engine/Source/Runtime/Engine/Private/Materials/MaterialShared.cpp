@@ -1125,6 +1125,11 @@ bool FMaterialResource::IsUsedWithGeometryCache() const
 	return Material->bUsedWithGeometryCache;
 }
 
+bool FMaterialResource::IsUsedWithWater() const
+{
+	return Material->bUsedWithWater;
+}
+
 bool FMaterialResource::IsUsedWithLandscape() const
 {
 	return false;

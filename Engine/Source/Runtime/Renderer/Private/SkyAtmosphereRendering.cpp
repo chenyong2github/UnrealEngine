@@ -285,7 +285,6 @@ bool ShouldRenderSkyAtmosphere(const FScene* Scene, const FEngineShowFlags& Engi
 
 		const bool ShadersCompiled = ShouldPipelineCompileSkyAtmosphereShader(ShaderPlatform);
 		return FReadOnlyCVARCache::Get().bSupportSkyAtmosphere && ShadersCompiled && CVarSkyAtmosphere.GetValueOnRenderThread() > 0;
-		// TODO: Add new or reuse EngineShowFlags.AtmosphericFog? ALso take into account EngineShowFlags.Fog as previously?
 	}
 	return false;
 }

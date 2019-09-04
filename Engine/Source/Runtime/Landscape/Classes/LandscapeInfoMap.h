@@ -27,7 +27,6 @@ public:
 	UWorld* World;
 
 
-#if WITH_EDITORONLY_DATA
 	/**
 	* Gets landscape-specific data for given world.
 	*
@@ -36,5 +35,4 @@ public:
 	* @returns Landscape-specific data associated with given world.
 	*/
 	LANDSCAPE_API static ULandscapeInfoMap& GetLandscapeInfoMap(const UWorld* World);
-#endif // WITH_EDITORONLY_DATA
 };

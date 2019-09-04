@@ -22,6 +22,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogNetworkSimDebug, Log, All);
 namespace NetworkSimulationModelDebugCVars
 {
 	NETSIM_DEVCVAR_SHIPCONST_INT(DrawKeyframes, 1, "nsm.debug.DrawKeyFrames", "Draws keyframe data (text) in debug graphs");
+	NETSIM_DEVCVAR_SHIPCONST_INT(DrawNetworkSendLines, 1, "nsm.debug.DrawNetworkSendLines", "Draws lines representing network traffic in debugger");
 	NETSIM_DEVCVAR_SHIPCONST_INT(GatherServerSidePIE, 1, "nsm.debug.GatherServerSide", "Whenever we gather debug info from a client side actor, also gather server side equivelent. Only works in PIE.");
 }
 
@@ -248,6 +249,13 @@ struct NETWORKPREDICTION_API FNetworkSimulationModelDebuggerManager: public FTic
 		CanvasItems[1].Emplace( MakeUnique<FCanvasTextItem>(ScreenPosition, FText::FromString(Str), GEngine->GetTinyFont(), Color) );
 	}
 
+	void EmitLine(FVector2D StartPosition, FVector2D EndPosition, FColor Color, float Thickness=1.f)
+	{
+		CanvasItems[0].Emplace( MakeUnique<FCanvasLineItem>(StartPosition, EndPosition) );
+		CanvasItems[0].Last()->SetColor(Color);
+		((FCanvasLineItem*)CanvasItems[0].Last().Get())->LineThickness = Thickness;
+	}
+
 private:
 
 	INetworkSimulationModelDebugger* Find(AActor* Actor)
@@ -326,6 +334,7 @@ template <typename TNetSimModel, typename TDriver>
 struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 {
 	using TSimTime = typename TNetSimModel::TSimTime;
+	using TDebugState = typename TNetSimModel::TDebugState;
 
 	TNetworkSimulationModelDebugger(TNetSimModel* InNetSim, TDriver* InDriver, AActor* OwningActor, FString InDebugName)
 	{
@@ -338,7 +347,176 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 	~TNetworkSimulationModelDebugger()
 	{
 		
-	}	
+	}
+
+	struct FCachedScreenPositionMap
+	{
+		struct FScreenPositions
+		{
+			void SetSent(const FVector2D& In) { if (SentPosition == FVector2D::ZeroVector) SentPosition = In; }
+			void SetRecv(const FVector2D& In) { if (RecvPosition == FVector2D::ZeroVector) RecvPosition = In; }
+
+			FVector2D SentPosition = FVector2D::ZeroVector;
+			FVector2D RecvPosition = FVector2D::ZeroVector;
+		};
+
+		TMap<int32, FScreenPositions> Keyframes;
+	};
+
+	void GatherDebugGraph(FNetworkSimulationModelDebuggerManager& Out, UCanvas* Canvas, TReplicationBuffer<TDebugState>* DebugBuffer, FRect DrawRect, const float MaxColumnTimeSeconds, const float MaxLocalFrameTime, const FString& Header, FCachedScreenPositionMap& SendCache, FCachedScreenPositionMap& RecvCache)
+	{
+		static float Pad = 2.f;
+		static float BaseLineYPCT = 0.8f;
+
+		auto& InputBuffer = NetworkSim->GetHistoricBuffers() ? NetworkSim->GetHistoricBuffers()->Input : NetworkSim->Buffers.Input;
+
+		if (Canvas && DebugBuffer && DebugBuffer->GetNumValidElements() > 0)
+		{
+			// Outline + Header
+			Out.EmitLine( FVector2D(DrawRect.Min.X, DrawRect.Min.Y), FVector2D(DrawRect.Min.X, DrawRect.Max.Y), FColor::White );
+			Out.EmitLine( FVector2D(DrawRect.Min.X, DrawRect.Min.Y), FVector2D(DrawRect.Max.X, DrawRect.Min.Y), FColor::White );
+			Out.EmitLine( FVector2D(DrawRect.Max.X, DrawRect.Min.Y), FVector2D(DrawRect.Max.X, DrawRect.Max.Y), FColor::White );
+			Out.EmitLine( FVector2D(DrawRect.Min.X, DrawRect.Max.Y), FVector2D(DrawRect.Max.X, DrawRect.Max.Y), FColor::White );
+
+			Out.EmitText( DrawRect.Min, FColor::White, Header );
+
+			// Frame Columns
+			const float BaseLineYPos = DrawRect.Min.Y + (BaseLineYPCT * (DrawRect.Max.Y - DrawRect.Min.Y));
+
+			const float AboveBaseLineSecondsToPixelsY = (BaseLineYPos - DrawRect.Min.Y - Pad) / MaxColumnTimeSeconds;
+			const float BelowBaseLineSecondsToPixelsY = (DrawRect.Max.Y - BaseLineYPos - Pad) / MaxLocalFrameTime;
+
+			const float SecondsToPixelsY = FMath::Min<float>(BelowBaseLineSecondsToPixelsY, AboveBaseLineSecondsToPixelsY);
+
+			Out.EmitLine( FVector2D(DrawRect.Min.X, BaseLineYPos), FVector2D(DrawRect.Max.X, BaseLineYPos), FColor::Black );
+
+
+			FTextSizingParameters TextSizing;
+			TextSizing.DrawFont = GEngine->GetTinyFont();
+			TextSizing.Scaling = FVector2D(1.f,1.f);
+			Canvas->CanvasStringSize(TextSizing, TEXT("00000"));
+
+			const float FixedWidth = TextSizing.DrawXL;
+
+			float ScreenX = DrawRect.Min.X;
+			float ScreenY = BaseLineYPos + Pad;
+
+			for (auto It = DebugBuffer->CreateIterator(); It; ++It)
+			{
+				auto* DebugState = It.Element();
+				const float FrameHeight = SecondsToPixelsY * DebugState->LocalDeltaTimeSeconds;
+				
+				// Green local frame time (below baseline)
+				FColor Color = FColor::Green;
+				Out.EmitQuad(FVector2D( ScreenX, ScreenY), FVector2D( FixedWidth, FrameHeight), Color);
+				Out.EmitText(FVector2D( ScreenX, ScreenY), FColor::Black, FString::Printf(TEXT("%.2f"), (DebugState->LocalDeltaTimeSeconds * 1000.f)));
+
+				// Processed InputcmdsKeyframes (above baseline)
+				float ClientX = ScreenX;
+				float ClientY = ScreenY - Pad;
+
+				for (int32 Keyframe : DebugState->ProcessedKeyframes)
+				{
+					auto* Cmd = InputBuffer.FindElementByKeyframe(Keyframe);
+					if (Cmd)
+					{
+						float ClientSizeX = FixedWidth;
+						float ClientSizeY = SecondsToPixelsY * Cmd->GetFrameDeltaTime().ToRealTimeSeconds();
+
+						FVector2D ScreenPos(ClientX, ClientY - ClientSizeY);
+						Out.EmitQuad(ScreenPos, FVector2D( ClientSizeX, ClientSizeY), FColor::Blue);
+						Out.EmitText(ScreenPos, FColor::White, LexToString(Keyframe));
+						ClientY -= (ClientSizeY + Pad);
+					}
+				}
+
+				// Unprocessed InputCmds (above processed)				
+				for (int32 Keyframe = DebugState->LastProcessedKeyframe+1; Keyframe <= DebugState->HeadKeyframe; ++Keyframe)
+				{
+					if (auto* Cmd = InputBuffer.FindElementByKeyframe(Keyframe))
+					{
+						float ClientSizeX = FixedWidth;
+						float ClientSizeY = SecondsToPixelsY * Cmd->GetFrameDeltaTime().ToRealTimeSeconds();
+						FVector2D ScreenPos(ClientX, ClientY - ClientSizeY);
+						Out.EmitQuad(ScreenPos, FVector2D( ClientSizeX, ClientSizeY), FColor::Red);
+						Out.EmitText(ScreenPos, FColor::White, LexToString(Keyframe));
+						ClientY -= (ClientSizeY + Pad);
+					}
+				}
+
+				// Cache Screen Positions based on keyframe
+				RecvCache.Keyframes.FindOrAdd(DebugState->LastReceivedInputKeyframe).SetRecv(FVector2D(ScreenX, BaseLineYPos));
+				
+				// Advance 
+				ScreenX += FixedWidth + Pad;
+
+				// Send cache
+				SendCache.Keyframes.FindOrAdd(DebugState->LastSentInputKeyframe).SetSent(FVector2D(ScreenX, BaseLineYPos));
+			}
+
+
+			// Remaining Simulation Time
+			TOptional<FVector2D> LastLinePos;
+			FVector2D LinePos(DrawRect.Min.X, BaseLineYPos);
+			for (auto It = DebugBuffer->CreateIterator(); It; ++It)
+			{
+				auto* DebugState = It.Element();
+				
+				LinePos.X += FixedWidth + Pad;
+				LinePos.Y = BaseLineYPos - (DebugState->RemainingAllowedSimulationTimeSeconds * SecondsToPixelsY);
+
+				FColor LineColor =  FColor::White;
+				if (LinePos.Y < DrawRect.Min.Y)
+				{
+					LinePos.Y = DrawRect.Min.Y;
+					LineColor = FColor::Red;
+				}
+				if (LinePos.Y > DrawRect.Max.Y)
+				{
+					LinePos.Y = DrawRect.Max.Y;
+					LineColor = FColor::Red;
+				}
+				
+				if (LastLinePos.IsSet())
+				{
+					Out.EmitLine(LastLinePos.GetValue(), LinePos, LineColor, 2.f);
+				}
+
+				LastLinePos = LinePos;
+				
+			}
+		}
+	}
+
+	void CalcMaxColumnFrameTime(TReplicationBuffer<TDebugState>* DebugBuffer, float& MaxInputTime, float& MaxLocalFrameTime)
+	{
+		auto& InputBuffer = NetworkSim->GetHistoricBuffers() ? NetworkSim->GetHistoricBuffers()->Input : NetworkSim->Buffers.Input;
+
+		for (auto It = DebugBuffer->CreateIterator(); It; ++It)
+		{
+			float ColumnTime = 0.f;
+
+			auto* DebugState = It.Element();
+			for (int32 Keyframe : DebugState->ProcessedKeyframes)
+			{
+				auto* Cmd = InputBuffer.FindElementByKeyframe(Keyframe);
+				if (Cmd)
+				{
+					ColumnTime += (float)Cmd->GetFrameDeltaTime().ToRealTimeSeconds();
+				}
+			}
+			for (int32 Keyframe = DebugState->LastProcessedKeyframe+1; Keyframe <= DebugState->HeadKeyframe; ++Keyframe)
+			{
+				if (auto* Cmd = InputBuffer.FindElementByKeyframe(Keyframe))
+				{
+					ColumnTime += (float)Cmd->GetFrameDeltaTime().ToRealTimeSeconds();
+				}
+			}
+
+			MaxInputTime = FMath::Max<float>(ColumnTime, MaxInputTime);
+			MaxLocalFrameTime = FMath::Max<float>(DebugState->LocalDeltaTimeSeconds, MaxLocalFrameTime);
+		}
+	}
 
 	void GatherCurrent(FNetworkSimulationModelDebuggerManager& Out, UCanvas* Canvas) override
 	{
@@ -385,7 +563,9 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 			FString SimulationTimeString = FString::Printf(TEXT("Local SimulationTime: %s. SerialisedSimulationTime: %s. Difference MS: %s"), *NetworkSim->TickInfo.TotalProcessedSimulationTime.ToString(),
 				*NetworkSim->RepProxy_Autonomous.GetLastSerializedSimTime().ToString(), *(NetworkSim->TickInfo.TotalProcessedSimulationTime - NetworkSim->RepProxy_Autonomous.GetLastSerializedSimTime()).ToString());
 			Out.Emit(*SimulationTimeString, Color);
-			
+
+			FString AllowedSimulationTimeString = FString::Printf(TEXT("Allowed Simulation Time: %s. Keyframe: %d/%d/%d"), *NetworkSim->TickInfo.GetRemainingAllowedSimulationTime().ToString(), NetworkSim->TickInfo.MaxAllowedInputKeyframe, NetworkSim->TickInfo.LastProcessedInputKeyframe, NetworkSim->Buffers.Input.GetHeadKeyframe());
+			Out.Emit(*AllowedSimulationTimeString, Color);
 		}
 
 		auto EmitBuffer = [&Out](FString BufferName, auto& Buffer)
@@ -404,89 +584,59 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 		//	Canvas
 		// ------------------------------------------------------------------------------------------------------------------------------------------------
 
-		auto* DebugBuffer = NetworkSim->GetDebugBuffer();
-		if (Canvas && DebugBuffer && DebugBuffer->GetNumValidElements() > 0)
+		if (Canvas)
 		{
-			auto& InputBuffer = NetworkSim->GetHistoricBuffers() ? NetworkSim->GetHistoricBuffers()->Input : NetworkSim->Buffers.Input;
+			FRect ServerRect;
+			ServerRect.Min.X = 0.30f * (float)Canvas->SizeX;
+			ServerRect.Max.X = 0.95f * (float)Canvas->SizeX;
+			ServerRect.Min.Y = 0.05f * (float)Canvas->SizeY;
+			ServerRect.Max.Y = 0.45f * (float)Canvas->SizeY;
 
-			static float StartPctX = 0.3f;
-			static float StartPctY = 0.6f;
-			static float LocalFrameHeightPct = 0.01f;
+			FRect ClientRect;
+			ClientRect.Min.X = 0.30f * (float)Canvas->SizeX;
+			ClientRect.Max.X = 0.95f * (float)Canvas->SizeX;
+			ClientRect.Min.Y = 0.55f * (float)Canvas->SizeY;
+			ClientRect.Max.Y = 0.95f * (float)Canvas->SizeY;
 
-			float ScreenX = StartPctX * (float)Canvas->SizeX;
-			float ScreenY = StartPctY * (float)Canvas->SizeY;
-			float LocalFrameHeight = LocalFrameHeightPct * (float)Canvas->SizeY;
+			float MaxColumnTime = 1.f/60.f;
+			float MaxLocalFrameTime = 1.f/60.f;
+			CalcMaxColumnFrameTime(NetworkSim->GetRemoteDebugBuffer(), MaxColumnTime, MaxLocalFrameTime);
+			CalcMaxColumnFrameTime(NetworkSim->GetLocalDebugBuffer(), MaxColumnTime, MaxLocalFrameTime);
 
-			static float LocalFrameTimeGreen = 1/30.f;
-			static float LocalFrameTimeRed = 1/10.f;
+			FCachedScreenPositionMap ServerToClientCache;
+			FCachedScreenPositionMap ClientToServerCache;
 
-			static float Thickness = 1.f;
-			static float ClientOffsetY = 2.f;
+			GatherDebugGraph(Out, Canvas, NetworkSim->GetRemoteDebugBuffer(), ServerRect, MaxColumnTime, MaxLocalFrameTime, TEXT("Server"), ServerToClientCache, ClientToServerCache);
+			GatherDebugGraph(Out, Canvas, NetworkSim->GetLocalDebugBuffer(), ClientRect, MaxColumnTime, MaxLocalFrameTime, TEXT("Client"), ClientToServerCache, ServerToClientCache);
 
-			FTextSizingParameters TextSizing;
-			TextSizing.DrawFont = GEngine->GetTinyFont();
-			TextSizing.Scaling = FVector2D(1.f,1.f);
-			Canvas->CanvasStringSize(TextSizing, TEXT("00000"));
-
-			float MinWidth = TextSizing.DrawXL;
-			float MinHeight = TextSizing.DrawYL;
-			static float MinHeightSeconds = 1/60.f;	// 60hz frame is drawn at MinHeight.
-
-			auto CalcHeight = [&](float RealTimeSeconds)
+			// Network Send/Recv lines
+			if (NetworkSimulationModelDebugCVars::DrawNetworkSendLines() > 0)
 			{
-				const float Ratio = MinHeight / MinHeightSeconds;
-				return RealTimeSeconds * Ratio;
-			};
-
-			for (auto It = DebugBuffer->CreateIterator(); It; ++It)
-			{
-				auto* DebugState = It.Element();
-
-				
-				float ScreenWidth = MinWidth;
-				float FramePct = FMath::Clamp<float>((DebugState->LocalDeltaTimeSeconds - LocalFrameTimeRed) / ( LocalFrameTimeGreen - LocalFrameTimeRed ), 0.f, 1.f);
-				FColor Color = FColor::MakeRedToGreenColorFromScalar( FramePct );
-				float ServerHeight = CalcHeight(DebugState->LocalDeltaTimeSeconds);
-
-				Out.EmitQuad(FVector2D( ScreenX, ScreenY), FVector2D( ScreenWidth, ServerHeight), Color);
-				Out.EmitText(FVector2D( ScreenX, ScreenY), FColor::Black, FString::Printf(TEXT("%.2f"), (DebugState->LocalDeltaTimeSeconds * 1000.f)));
-
-				TSimTime ClientSimTime;
-				float ClientX = ScreenX;
-				float ClientY = ScreenY - ClientOffsetY;
-				for (int32 Keyframe : DebugState->ProcessedKeyframes)
+				for (auto& It : ServerToClientCache.Keyframes)
 				{
-					auto* Cmd = InputBuffer.FindElementByKeyframe(Keyframe);
-					if (Cmd)
+					const int32 KeyFrame = It.Key;
+					auto& Positions = It.Value;
+					if (KeyFrame != 0 && Positions.RecvPosition != FVector2D::ZeroVector && Positions.SentPosition != FVector2D::ZeroVector)
 					{
-						ClientSimTime += Cmd->GetFrameDeltaTime();
-						
-						float ClientSizeX = MinWidth;
-						float ClientSizeY =  CalcHeight(Cmd->GetFrameDeltaTime().ToRealTimeSeconds());
+						Out.EmitLine(Positions.SentPosition, Positions.RecvPosition, FColor::Purple);
 
-						FVector2D ScreenPos(ClientX, ClientY - ClientSizeY);
-						Out.EmitQuad(ScreenPos, FVector2D( ClientSizeX, ClientSizeY), FColor::Blue);
-						Out.EmitText(ScreenPos, FColor::White, LexToString(Keyframe));
-						ClientY -= (ClientSizeY + ClientOffsetY);
+						FVector2D TextPos = Positions.SentPosition + (0.25f * (Positions.RecvPosition - Positions.SentPosition));
+						Out.EmitText(TextPos, FColor::Purple, LexToString(KeyFrame));
 					}
 				}
 
-				for (int32 Keyframe = DebugState->LastProcessedKeyframe+1; Keyframe <= DebugState->HeadKeyframe; ++Keyframe)
+				for (auto& It : ClientToServerCache.Keyframes)
 				{
-					if (auto* Cmd = InputBuffer.FindElementByKeyframe(Keyframe))
+					const int32 KeyFrame = It.Key;
+					auto& Positions = It.Value;
+					if (KeyFrame != 0 && Positions.RecvPosition != FVector2D::ZeroVector && Positions.SentPosition != FVector2D::ZeroVector)
 					{
-						float ClientSizeX = MinWidth;
-						float ClientSizeY = CalcHeight(Cmd->GetFrameDeltaTime().ToRealTimeSeconds());
-						FVector2D ScreenPos(ClientX, ClientY - ClientSizeY);
-						Out.EmitQuad(ScreenPos, FVector2D( ClientSizeX, ClientSizeY), FColor::Red);
-						Out.EmitText(ScreenPos, FColor::White, LexToString(Keyframe));
-						ClientY -= (ClientSizeY + ClientOffsetY);
+						Out.EmitLine(Positions.SentPosition, Positions.RecvPosition, FColor::Orange);
+
+						FVector2D TextPos = Positions.SentPosition + (0.25f * (Positions.RecvPosition - Positions.SentPosition));
+						Out.EmitText(TextPos, FColor::Orange, LexToString(KeyFrame));
 					}
 				}
-
-					
-				// -------------------------------------------
-				ScreenX += ScreenWidth + 2.f;
 			}
 		}
 	}

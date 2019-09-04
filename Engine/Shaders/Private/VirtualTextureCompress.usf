@@ -221,6 +221,11 @@ void CompressBaseColorNormalSpecularExCS(
 	float3 BlockSpecular[16];
 	ReadBlockRGB(RenderTexture2, TextureSampler2, SampleUV, TexelUVSize, BlockSpecular);
 
+	for (int i=0; i<16; i++)
+	{
+		BlockSpecular[i].z = round(BlockSpecular[i].z);
+	}
+
 	OutCompressTexture0_u4[ThreadId.xy + DestRect.xy] = CompressBC3Block_SRGB(BlockBaseColor, BlockNormalX);
 	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC3Block(BlockSpecular, BlockNormalY);
 }
@@ -238,8 +243,10 @@ void CopyNormalSpecularExCS(
 
 	float3 BaseColor = LinearToSrgb(RenderTexture0[SamplePos].xyz);
 	float2 NormalXY = RenderTexture1[SamplePos].xy;
-	float2 RoughnessSpecular = RenderTexture2[SamplePos].xy;
+	float3 RoughnessSpecularNormalZ = RenderTexture2[SamplePos].xyz;
+	
+	RoughnessSpecularNormalZ.z = round(RoughnessSpecularNormalZ.z);
 	
 	OutCopyTexture0[ThreadId.xy + DestRect.xy] = float4(BaseColor, NormalXY.x);
-	OutCopyTexture1[ThreadId.xy + DestRect.xy] = float4(RoughnessSpecular.x, RoughnessSpecular.y, 0.0f, NormalXY.y);
+	OutCopyTexture1[ThreadId.xy + DestRect.xy] = float4(RoughnessSpecularNormalZ, NormalXY.y);
 }

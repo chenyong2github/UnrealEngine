@@ -24,6 +24,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Layout, meta = (DisplayName = "Enable BC texture compression"))
 	bool bCompressTextures = true;
 
+	/** Enable clear before rendering a page of the virtual texture. Disabling this can be an optimization if you know that the texture will always be fully covered by rendering.  */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = Layout, meta = (DisplayName = "Enable clear before render"))
+	bool bClearTextures = true;
+
 	/** Size of virtual texture along the largest axis. (Actual values increase in powers of 2) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Size, meta = (UIMin = "0", UIMax = "8", DisplayName = "Size of the virtual texture"))
 	int32 Size = 6; // 65536
@@ -37,7 +41,7 @@ protected:
 	int32 TileBorderSize = 2; // 4
 
 	/** Number of low mips to cut from the virtual texture. This can reduce peak virtual texture update cost but will also increase the probability of mip shimmering. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = LowMips, meta = (UIMin = "0", UIMax = "6", DisplayName = "Number of low mips to remove from the virtual texture"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = LowMips, meta = (UIMin = "0", UIMax = "6", DisplayName = "Number of low mips to remove from the virtual texture"))
 	int32 RemoveLowMips = 0;
 
 	/** Number of low mips to serialize and stream for the virtual texture. This can reduce rendering update cost. */
@@ -49,7 +53,7 @@ protected:
 	class URuntimeVirtualTextureStreamingProxy* StreamingTexture;
 
 	/** Enable usage of the virtual texture. When disabled there is no rendering into the virtual texture, and sampling will return zero values. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Layout, meta = (DisplayName = "Enable virtual texture"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = Layout, meta = (DisplayName = "Enable virtual texture"))
 	bool bEnable = true;
 
 public:
@@ -84,6 +88,8 @@ public:
 	EPixelFormat GetLayerFormat(int32 LayerIndex) const;
 	/** Return true if the virtual texture layer should be sampled as sRGB */
 	bool IsLayerSRGB(int32 LayerIndex) const;
+	/** Returns true if texture pages should be cleared before render */
+	bool GetClearTextures() const { return bClearTextures; }
 
 	/** (Re)Initialize this object. Call this whenever we modify the producer or transform. */
 	void Initialize(IVirtualTexture* InProducer, FTransform const& VolumeToWorld);

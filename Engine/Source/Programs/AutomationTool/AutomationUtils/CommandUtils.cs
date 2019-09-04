@@ -2323,27 +2323,6 @@ namespace AutomationTool
 
 			return BuildVersionPaths;
 		}
-
-		static public string GetPreviousXboxOneReleaseArchiveDir(string XboxOneReleasesArchiveDir)
-		{
-			var BuildFolders = Directory.GetDirectories(XboxOneReleasesArchiveDir);
-			if (BuildFolders.Length > 0)
-			{
-				Dictionary<Version, string> BuildVersionPathMap = GetBuildVersionPathMap(BuildFolders);
-				if (BuildVersionPathMap.Count > 0)
-				{
-					return BuildVersionPathMap.Where(archiveDir => DirectoryExists(CombinePaths(archiveDir.Value, "Paks"))).OrderByDescending(versionPathPair => versionPathPair.Key).First().Value;
-				}
-				else
-				{
-					throw new AutomationException(String.Format("No valid builds were found in %s", XboxOneReleasesArchiveDir));
-				}
-			}
-			else
-			{
-				throw new AutomationException(String.Format("No builds were found in %s", XboxOneReleasesArchiveDir));
-			}
-		}
 		
 		public static string FormatSizeString(long Size)
 		{

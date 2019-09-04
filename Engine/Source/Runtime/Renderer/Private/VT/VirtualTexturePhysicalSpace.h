@@ -41,7 +41,7 @@ public:
 	inline FIntVector GetPhysicalLocation(uint16 pAddress) const { return FIntVector(pAddress % TextureSizeInTiles, pAddress / TextureSizeInTiles, 0); }
 
 	// 16bit page tables allocate 6bits to address TileX/Y, so can only address tiles from 0-63
-	inline bool DoesSupport16BitPageTable() const { return false; }// TextureSizeInTiles <= 64u;
+	inline bool DoesSupport16BitPageTable() const { return TextureSizeInTiles <= 64u; }
 
 	uint32 GetSizeInBytes() const;
 

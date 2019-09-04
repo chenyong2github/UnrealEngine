@@ -7,7 +7,9 @@
 #include "CoreGlobals.h"
 #include "CoreMinimal.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
 #include "ADPCMAudioInfo.h"
+
 
 /*
  This implementation only depends on the audio units API which allows it to run on MacOS, iOS and tvOS.
@@ -281,6 +283,9 @@ namespace Audio
 			return false;
 		}
 		AudioStreamInfo.StreamState = EAudioOutputStreamState::Open;
+        
+        FCoreDelegates::ApplicationWillDeactivateDelegate.AddRaw(this, &FMixerPlatformAudioUnit::SuspendContext);
+        FCoreDelegates::ApplicationHasReactivatedDelegate.AddRaw(this, &FMixerPlatformAudioUnit::ResumeContext);
 		
 		return true;
 	}
@@ -293,6 +298,9 @@ namespace Audio
 		}
 		
 		AudioStreamInfo.StreamState = EAudioOutputStreamState::Closed;
+        
+        FCoreDelegates::ApplicationWillDeactivateDelegate.RemoveAll(this);
+        FCoreDelegates::ApplicationHasReactivatedDelegate.RemoveAll(this);
 		
 		return true;
 	}
@@ -324,11 +332,8 @@ namespace Audio
 			return false;
 		}
 		
-		AudioStreamInfo.StreamState = EAudioOutputStreamState::Stopping;
-		
+        StopGeneratingAudio();
 		AUGraphStop(AudioUnitGraph);
-		
-		AudioStreamInfo.StreamState = EAudioOutputStreamState::Stopped;
 		
 		return true;
 	}

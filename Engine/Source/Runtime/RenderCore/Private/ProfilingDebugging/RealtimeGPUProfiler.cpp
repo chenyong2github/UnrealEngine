@@ -8,6 +8,8 @@
 // Only exposed for debugging. Disabling this carries a severe performance penalty
 #define RENDER_QUERY_POOLING_ENABLED 1
 
+#define REALTIME_GPU_PROFILER_EVENT_TRACK_FRAME_NUMBER (TRACING_PROFILER || DO_CHECK)
+
 #if HAS_GPU_STATS 
 
 CSV_DEFINE_CATEGORY_MODULE(RENDERCORE_API, GPU, true);
@@ -118,7 +120,7 @@ public:
 		, EndQuery(RenderQueryPool.AllocateQuery())
 		, StartResultMicroseconds(InvalidQueryResult)
 		, EndResultMicroseconds(InvalidQueryResult)
-#if TRACING_PROFILER
+#if REALTIME_GPU_PROFILER_EVENT_TRACK_FRAME_NUMBER
 		, FrameNumber(-1)
 #endif
 #if DO_CHECK
@@ -141,7 +143,7 @@ public:
 		STAT(StatName = NewStatName;)
 		StartResultMicroseconds = InvalidQueryResult;
 		EndResultMicroseconds = InvalidQueryResult;
-#if TRACING_PROFILER
+#if REALTIME_GPU_PROFILER_EVENT_TRACK_FRAME_NUMBER
 		FrameNumber = GFrameNumberRenderThread;
 #endif
 	}
@@ -244,7 +246,7 @@ private:
 	uint64 StartResultMicroseconds;
 	uint64 EndResultMicroseconds;
 
-#if TRACING_PROFILER
+#if REALTIME_GPU_PROFILER_EVENT_TRACK_FRAME_NUMBER
 	uint32 FrameNumber;
 #endif
 
@@ -601,11 +603,14 @@ FRealtimeGPUProfiler::FRealtimeGPUProfiler()
 	, bStatGatheringPaused(false)
 	, bInBeginEndBlock(false)
 {
-	const int MaxGPUQueries = CVarGPUStatsMaxQueriesPerFrame.GetValueOnRenderThread();
-	RenderQueryPool = RHICreateRenderQueryPool(RQT_AbsoluteTime, (MaxGPUQueries > 0) ? MaxGPUQueries * 2 : UINT32_MAX);
-	for (int Index = 0; Index < NumGPUProfilerBufferedFrames; Index++)
+	if (GSupportsTimestampRenderQueries)
 	{
-		Frames.Add(new FRealtimeGPUProfilerFrame(RenderQueryPool, QueryCount));
+		const int MaxGPUQueries = CVarGPUStatsMaxQueriesPerFrame.GetValueOnRenderThread();
+		RenderQueryPool = RHICreateRenderQueryPool(RQT_AbsoluteTime, (MaxGPUQueries > 0) ? MaxGPUQueries * 2 : UINT32_MAX);
+		for (int Index = 0; Index < NumGPUProfilerBufferedFrames; Index++)
+		{
+			Frames.Add(new FRealtimeGPUProfilerFrame(RenderQueryPool, QueryCount));
+		}
 	}
 }
 
@@ -662,7 +667,7 @@ void FRealtimeGPUProfiler::EndFrame(FRHICommandListImmediate& RHICmdList)
 	// This is called at the end of the renderthread frame. Note that the RHI thread may still be processing commands for the frame at this point, however
 	// The read buffer index is always 3 frames beind the write buffer index in order to prevent us reading from the frame the RHI thread is still processing. 
 	// This should also ensure the GPU is done with the queries before we try to read them
-	check(Frames.Num() > 0);
+	check(!GSupportsTimestampRenderQueries || Frames.Num() > 0);
 	check(IsInRenderingThread());
 	check(bInBeginEndBlock == true);
 	bInBeginEndBlock = false;

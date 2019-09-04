@@ -4057,6 +4057,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	{
 		String loginId = null;
 
+	//$${gameActivityGetLoginIdAdditions}$$
+
 		// check for existing GUID fallback in internal
 		File file = new File(InternalFilesDir + "login-identifier.txt");
 		if (file.exists())

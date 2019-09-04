@@ -43,7 +43,6 @@ void ULandscapeInfoMap::AddReferencedObjects(UObject* InThis, FReferenceCollecto
 	Collector.AddReferencedObjects(This->Map, This);
 }
 
-#if WITH_EDITORONLY_DATA
 ULandscapeInfoMap& ULandscapeInfoMap::GetLandscapeInfoMap(const UWorld* World)
 {
 	ULandscapeInfoMap *FoundObject = nullptr;
@@ -53,4 +52,3 @@ ULandscapeInfoMap& ULandscapeInfoMap::GetLandscapeInfoMap(const UWorld* World)
 
 	return *FoundObject;
 }
-#endif // WITH_EDITORONLY_DATA
