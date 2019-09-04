@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -1113,8 +1113,6 @@ namespace UnrealBuildTool
 			{
 				CompileEnvironment.Definitions.Add("ENABLE_ADVERTISING_IDENTIFIER=1");
 			}
-
-			CompileEnvironment.Definitions.Add("HAS_OPENGL_ES=" + ((Target.IOSPlatform.RuntimeVersion < 12.0) ? "1" : "0"));
 
 			// if the project has an Oodle compression Dll, enable the decompressor on IOS
 			if (Target.ProjectFile != null)
