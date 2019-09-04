@@ -1287,8 +1287,8 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(D3D12_RESOURCE_DESC Desc, co
 //	Fast Allocation
 //-----------------------------------------------------------------------------
 
-template void* FD3D12FastAllocator::Allocate<FD3D12ScopeLock>(uint32 Size, uint32 Alignment, class FD3D12ResourceLocation* ResourceLocation, bool bMultiFrame);
-template void* FD3D12FastAllocator::Allocate<FD3D12ScopeNoLock>(uint32 Size, uint32 Alignment, class FD3D12ResourceLocation* ResourceLocation, bool bMultiFrame);
+template void* FD3D12FastAllocator::Allocate<FD3D12ScopeLock>(uint32 Size, uint32 Alignment, class FD3D12ResourceLocation* ResourceLocation);
+template void* FD3D12FastAllocator::Allocate<FD3D12ScopeNoLock>(uint32 Size, uint32 Alignment, class FD3D12ResourceLocation* ResourceLocation);
 
 template void FD3D12FastAllocator::CleanupPages<FD3D12ScopeLock>(uint64 FrameLag);
 template void FD3D12FastAllocator::CleanupPages<FD3D12ScopeNoLock>(uint64 FrameLag);
@@ -1311,7 +1311,7 @@ FD3D12FastAllocator::FD3D12FastAllocator(FD3D12Device* Parent, FRHIGPUMask Visib
 {}
 
 template<typename LockType>
-void* FD3D12FastAllocator::Allocate(uint32 Size, uint32 Alignment, class FD3D12ResourceLocation* ResourceLocation, bool bMultiFrame)
+void* FD3D12FastAllocator::Allocate(uint32 Size, uint32 Alignment, class FD3D12ResourceLocation* ResourceLocation)
 {
 	LockType Lock(&CS);
 
@@ -1364,8 +1364,7 @@ void* FD3D12FastAllocator::Allocate(uint32 Size, uint32 Alignment, class FD3D12R
 			Size,
 			CurrentAllocatorPage->FastAllocBuffer->GetGPUVirtualAddress(),
 			CurrentAllocatorPage->FastAllocData,
-			CurrentOffset,
-			bMultiFrame);
+			CurrentOffset);
 
 		CurrentAllocatorPage->NextFastAllocOffset = CurrentOffset + Size;
 
