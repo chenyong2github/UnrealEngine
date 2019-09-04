@@ -34,11 +34,13 @@ FOvrpLayer::FOvrpLayer(uint32 InOvrpLayerId) :
 
 FOvrpLayer::~FOvrpLayer()
 {
-	check(InRenderThread() || InRHIThread());
-	ExecuteOnRHIThread_DoNotWait([this]()
+	if (!IsInGameThread())
 	{
-		ovrp_DestroyLayer(OvrpLayerId);
-	});
+		ExecuteOnRHIThread_DoNotWait([this]()
+		{
+			ovrp_DestroyLayer(OvrpLayerId);
+		});
+	}
 }
 
 

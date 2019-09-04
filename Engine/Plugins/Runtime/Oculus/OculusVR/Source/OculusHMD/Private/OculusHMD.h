@@ -351,6 +351,7 @@ protected:
 #endif
 
 	void LoadFromSettings();
+	void DoSessionShutdown();
 
 protected:
 	void UpdateHMDWornState();
@@ -436,6 +437,8 @@ protected:
 #if !UE_BUILD_SHIPPING
 	FDelegateHandle DrawDebugDelegateHandle;
 #endif
+
+	bool bShutdownRequestQueued;
 };
 
 typedef TSharedPtr< FOculusHMD, ESPMode::ThreadSafe > FOculusHMDPtr;
