@@ -209,6 +209,7 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 					]
 				]
 				.ValueContent()
+				.MaxDesiredWidth(250.0f)
 				[
 					SNew(SBox)
 					.Padding(2.0f)
@@ -216,7 +217,7 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 						SNew(SHorizontalBox)
 						+SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
-						.AutoWidth()
+						.FillWidth(1.0f)
 						[
 							SNew(STextBlock)
 							.Text_Lambda(GetSubInputLabel)
@@ -226,7 +227,7 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 						.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 						.VAlign(VAlign_Center)
 						.HAlign(HAlign_Right)
-						.FillWidth(1.0f)
+						.AutoWidth()
 						[
 							SNew(SButton)
 							.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
