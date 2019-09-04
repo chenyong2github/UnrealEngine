@@ -1319,12 +1319,10 @@ ERuntimeVirtualTextureMainPassType ULandscapeComponent::GetVirtualTextureRenderP
 	return GetLandscapeProxy()->VirtualTextureRenderPassType;
 }
 
-#if WITH_EDITOR
 ULandscapeInfo* ULandscapeComponent::GetLandscapeInfo() const
 {
 	return GetLandscapeProxy()->GetLandscapeInfo();
 }
-#endif
 
 void ULandscapeComponent::BeginDestroy()
 {
@@ -3043,6 +3041,7 @@ void ULandscapeInfo::RegisterActorComponent(ULandscapeComponent* Component, bool
 		}
 		else if (bMapCheck)
 		{
+#if WITH_EDITOR
 			ALandscapeProxy* OurProxy = Component->GetLandscapeProxy();
 			ALandscapeProxy* ExistingProxy = RegisteredComponent->GetLandscapeProxy();
 			FFormatNamedArguments Arguments;
@@ -3060,6 +3059,7 @@ void ULandscapeInfo::RegisterActorComponent(ULandscapeComponent* Component, bool
 
 			// Show MapCheck window
 			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
+#endif
 		}
 	}
 
