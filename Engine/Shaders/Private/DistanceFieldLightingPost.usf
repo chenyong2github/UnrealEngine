@@ -76,9 +76,6 @@ float4 GetNormalWeights(float2 Corner00UV, float2 LowResTexelSize, float3 WorldN
 	return max(NormalWeights, .0001f);
 }
 
-// 1 / ((1 - FadeDistanceFraction) * AOMaxViewDistance)
-float DistanceFadeScale;
-
 float ComputeSampleWeightBasedOnPosition(float4 ReferencePlane, float2 SampleScreenUV, float SampleDepth)
 {
 	float2 SampleScreenPosition = (SampleScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
@@ -146,12 +143,9 @@ void GeometryAwareUpsample(float4 UVAndScreenPos, out float4 OutBentNormal)
 
 	OutBentNormal = float4(AverageBentNormal, SceneDepth);
 
-	// Fade to unoccluded in the distance
-	//@todo - box distance from largest cascade
 	float BentNormalLength = length(OutBentNormal.rgb);
-	float FadeAlpha = saturate((AOMaxViewDistance - SceneDepth) * DistanceFadeScale);
 	float3 NormalizedBentNormal = OutBentNormal.rgb / max(BentNormalLength, .0001f);
-	OutBentNormal.rgb = NormalizedBentNormal * lerp(1, BentNormalLength, FadeAlpha);
+	OutBentNormal.rgb = NormalizedBentNormal * BentNormalLength;
 	//OutBentNormal = float4(WorldNormal, SceneDepth);
 }
 
@@ -372,7 +366,9 @@ void AOUpsamplePS(
 	,out float4 OutSceneColor : SV_Target0
 	)
 {
-	float3 BentNormal = UpsampleDFAO(UVAndScreenPos.xy, CalcSceneDepth(UVAndScreenPos.xy));
+	FGBufferData GBuffer = GetGBufferData(UVAndScreenPos.xy);
+
+	float3 BentNormal = UpsampleDFAO(UVAndScreenPos.xy, GBuffer.Depth, GBuffer.WorldNormal);
 
 #if MODULATE_SCENE_COLOR
 	float Visibility = lerp(length(BentNormal), 1.0f, MinIndirectDiffuseOcclusion);
