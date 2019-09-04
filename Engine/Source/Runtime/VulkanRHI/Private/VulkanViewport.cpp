@@ -649,7 +649,7 @@ void FVulkanViewport::DestroySwapchain()
 		RHIBackBuffer = nullptr;
 	}
 		
-	if (FVulkanPlatform::SupportsStandardSwapchain())
+	if (FVulkanPlatform::SupportsStandardSwapchain() && SwapChain)
 	{
 		for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
 		{
