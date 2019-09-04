@@ -22,6 +22,21 @@ struct FGameplayEffectSpecForRPC;
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAbilitySystemAssetOpenedDelegate, FString , int );
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAbilitySystemAssetFoundDelegate, FString, int);
 
+//  Container for safely replicating  script struct references (constrained to a specified parent struct)
+USTRUCT()
+struct FNetSerializeScriptStructCache
+{
+	GENERATED_BODY()
+
+	void InitForType(UScriptStruct* InScriptStruct);
+
+	// Serializes reference to given script struct (must be in the cache)
+	bool NetSerialize(FArchive& Ar, UScriptStruct*& Struct);
+
+	UPROPERTY()
+	TArray<UScriptStruct*> ScriptStructs;
+};
+
 
 /** Holds global data for the ability system. Can be configured per project via config file */
 UCLASS(config=Game)
@@ -262,6 +277,9 @@ class GAMEPLAYABILITIES_API UAbilitySystemGlobals : public UObject
 
 	/** Path where the engine will load gameplay cue notifies from */
 	virtual TArray<FString> GetGameplayCueNotifyPaths() { return GameplayCueNotifyPaths; }
+
+	UPROPERTY()
+	FNetSerializeScriptStructCache	TargetDataStructCache;
 
 protected:
 
