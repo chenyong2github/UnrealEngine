@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -286,7 +286,7 @@ namespace IncludeTool
 		/// </summary>
 		/// <param name="Definitions">Definitions passed in on the command-line</param>
 		/// <param name="IncludePaths">Paths to search when resolving include directives</param>
-		public Preprocessor(FileReference PreludeFile, IEnumerable<string> Definitions, IEnumerable<DirectoryReference> IncludePaths, IEnumerable<FileReference> ForceIncludedFiles)
+		public Preprocessor(FileReference PreludeFile, IEnumerable<string> Definitions, IEnumerable<DirectoryReference> IncludePaths)
 		{
 			DateTime Now = DateTime.Now;
 			AddSingleTokenMacro("__DATE__", TokenType.StringLiteral, String.Format("\"{0} {1,2} {2}\"", Now.ToString("MMM"), Now.Day, Now.Year));
@@ -342,16 +342,6 @@ namespace IncludeTool
 				if(Directory.Exists(IncludePath.FullName))
 				{
 					IncludeDirectories.Add(new IncludeDirectory() { Location = IncludePath, WorkspaceDirectory = Workspace.GetDirectory(IncludePath) });
-				}
-			}
-
-			foreach(FileReference ForceIncludedFile in ForceIncludedFiles)
-			{
-				TextBuffer ForceIncludedText = TextBuffer.FromFile(ForceIncludedFile.FullName);
-				PreprocessorMarkup[] ForceIncludedMarkup = PreprocessorMarkup.ParseArray(ForceIncludedText);
-				foreach(PreprocessorMarkup Markup in ForceIncludedMarkup)
-				{
-					ParseMarkup(Markup.Type, Markup.Tokens, Markup.Location.LineIdx);
 				}
 			}
 		}
@@ -1463,12 +1453,19 @@ namespace IncludeTool
 		/// </summary>
 		/// <param name="InputFile">The file to read from</param>
 		/// <param name="OutputFile">File to output to</param>
-		public void PreprocessFile(string InputFileName, FileReference OutputFile)
+		public void PreprocessFile(string InputFileName, FileReference OutputFile, IEnumerable<FileReference> ForceIncludeFiles)
 		{
 			using (StreamWriter Writer = new StreamWriter(OutputFile.FullName))
 			{
-				WorkspaceFile InputWorkspaceFile = Workspace.GetFile(new FileReference(InputFileName));
-				PreprocessFile(new PreprocessorFile(InputFileName, InputWorkspaceFile), Writer);
+				List<FileReference> InputFiles = new List<FileReference>();
+				InputFiles.AddRange(ForceIncludeFiles);
+				InputFiles.Add(new FileReference(InputFileName));
+
+				foreach(FileReference InputFile in InputFiles)
+				{
+					WorkspaceFile InputWorkspaceFile = Workspace.GetFile(InputFile);
+					PreprocessFile(new PreprocessorFile(InputFile.FullName, InputWorkspaceFile), Writer);
+				}
 			}
 		}
 
@@ -1960,7 +1957,7 @@ namespace IncludeTool
         {
 			SourceFile File = new SourceFile(null, TextBuffer.FromString(Fragment), SourceFileFlags.Inline);
 
-			Preprocessor Instance = new Preprocessor(null, new string[] { }, new DirectoryReference[] { }, new FileReference[] { });
+			Preprocessor Instance = new Preprocessor(null, new string[] { }, new DirectoryReference[] { });
 
 			string Result;
 			try
@@ -2066,9 +2063,9 @@ namespace IncludeTool
 			BufferedTextWriter BufferedLog = new BufferedTextWriter();
 
 			// Run the preprocessor on it
-			Preprocessor ToolPreprocessor = new Preprocessor(PreludeFile, Environment.Definitions, Environment.IncludePaths, Environment.ForceIncludeFiles);
+			Preprocessor ToolPreprocessor = new Preprocessor(PreludeFile, Environment.Definitions, Environment.IncludePaths);
 			FileReference ToolOutputFile = FileReference.Combine(ToolDir, InputFile.GetFileNameWithoutExtension() + ".i");
-			ToolPreprocessor.PreprocessFile(InputFile.FullName, ToolOutputFile);
+			ToolPreprocessor.PreprocessFile(InputFile.FullName, ToolOutputFile, Environment.ForceIncludeFiles);
 
 			// Generate the compiler output
 			FileReference CompilerOutputFile = FileReference.Combine(CompilerDir, InputFile.GetFileNameWithoutExtension() + ".i");
