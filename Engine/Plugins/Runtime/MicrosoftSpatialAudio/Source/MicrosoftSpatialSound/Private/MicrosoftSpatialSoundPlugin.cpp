@@ -418,6 +418,16 @@ void FMicrosoftSpatialSoundModule::StartupModule()
 	FString DLLName(TEXT("MixedRealityInterop.dll"));
 #endif // WINDOWS_MIXED_REALITY_DEBUG_DLL
 	FString MRInteropLibraryPath = EngineDir / "Binaries/ThirdParty/MixedRealityInteropLibrary" / BinariesSubDir / DLLName;
+
+#if PLATFORM_64BITS
+	// Load these dependencies first or MixedRealityInteropLibraryHandle fails to load since it doesn't look in the correct path for its dependencies automatically
+	FString HoloLensLibraryDir = EngineDir / "Binaries/ThirdParty/Windows/x64";
+	FPlatformProcess::PushDllDirectory(*HoloLensLibraryDir);
+	FPlatformProcess::GetDllHandle(_TEXT("PerceptionDevice.dll"));
+	FPlatformProcess::GetDllHandle(_TEXT("Microsoft.Holographic.AppRemoting.dll"));
+	FPlatformProcess::PopDllDirectory(*HoloLensLibraryDir);
+#endif // PLATFORM_64BITS && WITH_EDITOR	
+	
 	// Then finally try to load the WMR Interop Library
 	void* MixedRealityInteropLibraryHandle = !MRInteropLibraryPath.IsEmpty() ? FPlatformProcess::GetDllHandle(*MRInteropLibraryPath) : nullptr;
 	if (!MixedRealityInteropLibraryHandle)
