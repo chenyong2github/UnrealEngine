@@ -63,6 +63,8 @@ UReplicationGraph::InitConnectionGraphNodes
 
 #include "ReplicationGraph.generated.h"
 
+#define DO_ENABLE_REPGRAPH_DEBUG_ACTOR !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
 UCLASS(transient, config=Engine)
 class REPLICATIONGRAPH_API UReplicationGraphNode : public UObject
 {
@@ -872,10 +874,12 @@ public:
 
 	uint32 GetReplicationGraphFrame() const { return ReplicationGraphFrame; }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if DO_ENABLE_REPGRAPH_DEBUG_ACTOR
 	virtual class AReplicationGraphDebugActor* CreateDebugActor() const;
 #endif
 
+	/** Print the Net Culling Distance of all actors in the RepGraph. When a connection is specified will also output the cull distance in the connection info list*/
+	void DebugPrintCullDistances(UNetReplicationGraphConnection* SpecificConnection=nullptr) const;
 
 	/** Prioritization Constants: these affect how the final priority of an actor is calculated in the prioritize phase */
 	struct FPrioritizationConstants
@@ -1184,26 +1188,29 @@ public:
 	UPROPERTY()
 	UReplicationGraph* ReplicationGraph;
 
-	UFUNCTION(Server, Reliable, WithValidation)
+	UFUNCTION(Server, Reliable)
 	void ServerStartDebugging();
 
-	UFUNCTION(Server, Reliable, WithValidation)
+	UFUNCTION(Server, Reliable)
 	void ServerStopDebugging();
 
-	UFUNCTION(Server, Reliable, WithValidation)
+	UFUNCTION(Server, Reliable)
 	void ServerCellInfo();
 
-	UFUNCTION(Server, Reliable, WithValidation)
+	UFUNCTION(Server, Reliable)
 	void ServerPrintAllActorInfo(const FString& Str);
 
-	UFUNCTION(Server, Reliable, WithValidation)
+	UFUNCTION(Server, Reliable)
 	void ServerSetCullDistanceForClass(UClass* Class, float CullDistance);
 
-	UFUNCTION(Server, Reliable, WithValidation)
+	UFUNCTION(Server, Reliable)
 	void ServerSetPeriodFrameForClass(UClass* Class, int32 PeriodFrame);
 
-	UFUNCTION(Server, Reliable, WithValidation)
+	UFUNCTION(Server, Reliable)
 	void ServerSetConditionalActorBreakpoint(AActor* Actor);
+
+	UFUNCTION(Server, Reliable)
+	void ServerPrintCullDistances();
 
 	UFUNCTION(Client, Reliable)
 	void ClientCellInfo(FVector CellLocation, FVector CellExtent, const TArray<AActor*>& Actors);
