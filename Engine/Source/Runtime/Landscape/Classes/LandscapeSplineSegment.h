@@ -42,6 +42,15 @@ struct FLandscapeSplineInterpPoint
 	UPROPERTY()
 	FVector FalloffRight;
 
+	/** Left Layer Falloff Point */
+	UPROPERTY()
+	FVector LayerFalloffLeft;
+
+	/** Right Layer FalloffPoint */
+	UPROPERTY()
+	FVector LayerFalloffRight;
+
+
 	/** Start/End Falloff fraction */
 	UPROPERTY()
 	float StartEndFalloff;
@@ -52,16 +61,20 @@ struct FLandscapeSplineInterpPoint
 		, Right(ForceInitToZero)
 		, FalloffLeft(ForceInitToZero)
 		, FalloffRight(ForceInitToZero)
+		, LayerFalloffLeft(ForceInitToZero)
+		, LayerFalloffRight(ForceInitToZero)
 		, StartEndFalloff(0.0f)
 	{
 	}
 
-	FLandscapeSplineInterpPoint(FVector InCenter, FVector InLeft, FVector InRight, FVector InFalloffLeft, FVector InFalloffRight, float InStartEndFalloff) :
+	FLandscapeSplineInterpPoint(FVector InCenter, FVector InLeft, FVector InRight, FVector InFalloffLeft, FVector InFalloffRight, FVector InLayerFalloffLeft, FVector InLayerFalloffRight, float InStartEndFalloff) :
 		Center(InCenter),
 		Left(InLeft),
 		Right(InRight),
 		FalloffLeft(InFalloffLeft),
 		FalloffRight(InFalloffRight),
+		LayerFalloffLeft(InLayerFalloffLeft),
+		LayerFalloffRight(InLayerFalloffRight),
 		StartEndFalloff(InStartEndFalloff)
 	{
 	}
