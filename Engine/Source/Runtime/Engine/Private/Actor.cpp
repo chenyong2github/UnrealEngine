@@ -710,6 +710,9 @@ void AActor::PostLoad()
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
+
+	// Since the actor is being loading, it finished spawning by definition when it was originally spawned, so set to true now
+	bHasFinishedSpawning = true;
 }
 
 void AActor::PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph)

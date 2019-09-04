@@ -3137,6 +3137,13 @@ UObject* UClass::CreateDefaultObject()
 					USparseDelegateFunction* SparseDelegateFunction = CastChecked<USparseDelegateFunction>(SparseDelegateIt->SignatureFunction);
 					FSparseDelegateStorage::RegisterDelegateOffset(ClassDefaultObject, SparseDelegateFunction->DelegateName, (size_t)&SparseDelegate - (size_t)ClassDefaultObject);
 				}
+				if (HasAnyClassFlags(CLASS_CompiledFromBlueprint))
+				{
+					if (UDynamicClass* DynamicClass = Cast<UDynamicClass>(this))
+					{
+						(*(DynamicClass->DynamicClassInitializer))(DynamicClass);
+					}
+				}
 				(*ClassConstructor)(FObjectInitializer(ClassDefaultObject, ParentDefaultObject, false, bShouldInitializeProperties));
 				if (bDoNotify)
 				{
@@ -3221,7 +3228,7 @@ FFeedbackContext& UClass::GetDefaultPropertiesFeedbackContext()
 * Get the name of the CDO for the this class
 * @return The name of the CDO
 */
-FName UClass::GetDefaultObjectName()
+FName UClass::GetDefaultObjectName() const
 {
 	FString DefaultName;
 	DefaultName.Reserve(NAME_SIZE);
@@ -4612,7 +4619,8 @@ void GetPrivateStaticClassBody(
 	UClass::ClassAddReferencedObjectsType InClassAddReferencedObjects,
 	UClass::StaticClassFunctionType InSuperClassFn,
 	UClass::StaticClassFunctionType InWithinClassFn,
-	bool bIsDynamic /*= false*/
+	bool bIsDynamic /*= false*/,
+	UDynamicClass::DynamicClassInitializerType InDynamicClassInitializerFn /*= nullptr*/
 	)
 {
 #if WITH_HOT_RELOAD
@@ -4690,7 +4698,8 @@ void GetPrivateStaticClassBody(
 			EObjectFlags(RF_Public | RF_Standalone | RF_Transient | RF_Dynamic | (GIsInitialLoad ? RF_MarkAsRootSet : RF_NoFlags)),
 			InClassConstructor,
 			InClassVTableHelperCtorCaller,
-			InClassAddReferencedObjects
+			InClassAddReferencedObjects,
+			InDynamicClassInitializerFn
 			);
 		check(ReturnClass);
 	}
@@ -5277,7 +5286,8 @@ UDynamicClass::UDynamicClass(
 	EObjectFlags	InFlags,
 	ClassConstructorType InClassConstructor,
 	ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
-	ClassAddReferencedObjectsType InClassAddReferencedObjects)
+	ClassAddReferencedObjectsType InClassAddReferencedObjects,
+	DynamicClassInitializerType InDynamicClassInitializer)
 : UClass(
   EC_StaticConstructor
 , InName
@@ -5291,6 +5301,7 @@ UDynamicClass::UDynamicClass(
 , InClassVTableHelperCtorCaller
 , InClassAddReferencedObjects)
 , AnimClassImplementation(nullptr)
+, DynamicClassInitializer(InDynamicClassInitializer)
 {
 }
 
@@ -5304,6 +5315,11 @@ void UDynamicClass::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 	Collector.AddReferencedObjects(This->DynamicBindingObjects, This);
 	Collector.AddReferencedObjects(This->ComponentTemplates, This);
 	Collector.AddReferencedObjects(This->Timelines, This);
+
+	for (TPair<FName, UClass*>& Override : This->ComponentClassOverrides)
+	{
+		Collector.AddReferencedObject(Override.Value);
+	}
 
 	Collector.AddReferencedObject(This->AnimClassImplementation, This);
 
@@ -5332,14 +5348,14 @@ void UDynamicClass::PurgeClass(bool bRecompilingOnLoad)
 	DynamicBindingObjects.Empty();
 	ComponentTemplates.Empty();
 	Timelines.Empty();
+	ComponentClassOverrides.Empty();
 
 	AnimClassImplementation = nullptr;
 }
 
-UObject* UDynamicClass::FindArchetype(UClass* ArchetypeClass, const FName ArchetypeName) const
+UObject* UDynamicClass::FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName) const
 {
-	UDynamicClass* ThisClass = const_cast<UDynamicClass*>(this);
-	UObject* Archetype = static_cast<UObject*>(FindObjectWithOuter(ThisClass, ArchetypeClass, ArchetypeName));
+	UObject* Archetype = static_cast<UObject*>(FindObjectWithOuter(this, ArchetypeClass, ArchetypeName));
 	if (!Archetype)
 	{
 		// See UBlueprintGeneratedClass::FindArchetype, UE-35259, UE-37480
@@ -5357,6 +5373,17 @@ UObject* UDynamicClass::FindArchetype(UClass* ArchetypeClass, const FName Archet
 	return Archetype ? Archetype :
 		(SuperClass ? SuperClass->FindArchetype(ArchetypeClass, ArchetypeName) : nullptr);
 }
+
+void UDynamicClass::SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const
+{
+	for (const TPair<FName, UClass*>& Override : ComponentClassOverrides)
+	{
+		ObjectInitializer.SetDefaultSubobjectClass(Override.Key, Override.Value);
+	}
+
+	GetSuperClass()->SetupObjectInitializer(ObjectInitializer);
+}
+
 
 UStructProperty* UDynamicClass::FindStructPropertyChecked(const TCHAR* PropertyName) const
 {

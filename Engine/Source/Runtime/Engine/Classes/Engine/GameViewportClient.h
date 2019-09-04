@@ -368,12 +368,26 @@ public:
 	virtual void LayoutPlayers();
 
 	/** Allows game code to disable splitscreen (useful when in menus) */
-	void SetDisableSplitscreenOverride( const bool bDisabled );
+	void SetForceDisableSplitscreen(const bool bDisabled);
 
 	/** Determines whether splitscreen is forced to be turned off */
-	bool GetDisableSplitscreenOverride() const
+	bool IsSplitscreenForceDisabled() const
 	{
 		return bDisableSplitScreenOverride;
+	}
+
+	/** Allows game code to disable splitscreen (useful when in menus) */
+	UE_DEPRECATED(4.24, "SetDisableSplitscreenOverride is deprecated. Please call UGameViewportClient::SetForceDisableSplitscreen(bDisabled) instead.")
+	void SetDisableSplitscreenOverride( const bool bDisabled )
+	{
+		SetForceDisableSplitscreen(bDisabled);
+	}
+
+	/** Determines whether splitscreen is forced to be turned off */
+	UE_DEPRECATED(4.24, "GetDisableSplitscreenOverride is deprecated. Please call UGameViewportClient::IsSplitscreenForceDisabled() instead.")
+	bool GetDisableSplitscreenOverride() const
+	{
+		return IsSplitscreenForceDisabled();
 	}
 
 	/** called before rending subtitles to allow the game viewport to determine the size of the subtitle area

@@ -2085,9 +2085,10 @@ UFXSystemAsset::UFXSystemAsset(const FObjectInitializer& ObjectInitializer)
 UParticleSystem::UParticleSystem(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, OcclusionBoundsMethod(EPSOBM_ParticleBounds)
+	, bAnyEmitterLoopsForever(false)
 	, HighestSignificance(EParticleSignificanceLevel::Critical)
 	, LowestSignificance(EParticleSignificanceLevel::Low)
-	, bAnyEmitterLoopsForever(false)
+	, bShouldManageSignificance(false)
 	, bIsImmortal(false)
 	, bWillBecomeZombie(false)
 {
@@ -2127,7 +2128,6 @@ UParticleSystem::UParticleSystem(const FObjectInitializer& ObjectInitializer)
 	InsignificanceDelay = 0.0f;
 	MaxSignificanceLevel = EParticleSignificanceLevel::Critical;
 	MaxPoolSize = 32;
-	bShouldManageSignificance = false;
 
 
 	bAllowManagedTicking = true;

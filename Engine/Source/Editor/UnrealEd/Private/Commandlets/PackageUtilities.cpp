@@ -2726,9 +2726,9 @@ int32 UReplaceActorCommandlet::Main(const FString& Params)
 	}
 
 	// UEditorEngine::FinishDestroy() expects GWorld to exist
-	if( GWorld )
+	if( UWorld* World = GWorld )
 	{
-		GWorld->DestroyWorld( false );
+		World->DestroyWorld( false );
 	}
 	GWorld = UWorld::CreateWorld(EWorldType::Editor, false );
 	return 0;
