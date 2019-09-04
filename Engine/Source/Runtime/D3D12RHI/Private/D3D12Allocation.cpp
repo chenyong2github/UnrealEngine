@@ -8,6 +8,7 @@
 #include "D3D12RHIPrivate.h"
 #include "D3D12Allocation.h"
 #include "Misc/BufferedOutputDevice.h"
+#include "HAL/PlatformStackWalk.h"
 
 #if D3D12RHI_SEGREGATED_TEXTURE_ALLOC
 static int32 GD3D12ReadOnlyTextureAllocatorMinPoolSize = 4 * 1024 * 1024;
@@ -30,6 +31,16 @@ static FAutoConsoleVariableRef CVarD3D12ReadOnlyTextureAllocatorMaxPoolSize(
 	TEXT("d3d12.ReadOnlyTextureAllocator.MaxPoolSize"),
 	GD3D12ReadOnlyTextureAllocatorMaxPoolSize,
 	TEXT("Maximum allocation granularity (in bytes) of each size list"),
+	ECVF_ReadOnly);
+#endif
+
+
+#if D3D12RHI_SEGLIST_ALLOC_TRACK_WASTAGE
+static int32 GD3D12SegListTrackLeaks = 0;
+static FAutoConsoleVariableRef CVarD3D12SegListTrackLeaks(
+	TEXT("d3d12.SegListTrackLeaks"),
+	GD3D12SegListTrackLeaks,
+	TEXT("1: Enable leak tracking in d3d12 seglist's"),
 	ECVF_ReadOnly);
 #endif
 
@@ -1694,9 +1705,7 @@ void FD3D12SegListAllocator::FreeRetiredBlocks(TArray<TArray<FRetiredBlock, Allo
 			FD3D12SegList* Owner = BackingHeap->OwnerList;
 			check(!!Owner);
 			Owner->FreeBlock(BackingHeap, Block.Offset);
-#if D3D12RHI_SEGLIST_ALLOC_TRACK_WASTAGE
-			TotalBytesRequested -= Block.ResourceSize;
-#endif
+			OnFree(Block.Offset, BackingHeap, Block.ResourceSize);
 		}
 	}
 }
@@ -1741,9 +1750,7 @@ void FD3D12SegListAllocator::Destroy()
 		FreeRetiredBlocks(DeferredDeletionQueue);
 		FenceValues.Empty();
 		DeferredDeletionQueue.Empty();
-#if D3D12RHI_SEGLIST_ALLOC_TRACK_WASTAGE
-		check(!TotalBytesRequested);
-#endif
+		VerifyEmpty();
 	}
 	{
 		FRWScopeLock Lock(SegListsRWLock, SLT_Write);
@@ -1757,3 +1764,73 @@ void FD3D12SegListAllocator::Destroy()
 		SegLists.Empty();
 	}
 }
+#if D3D12RHI_SEGLIST_ALLOC_TRACK_WASTAGE
+void FD3D12SegListAllocator::VerifyEmpty()
+{
+	FScopeLock Lock(&SegListTrackedAllocationCS);
+	if(SegListTrackedAllocations.Num() != 0)
+	{
+		UE_LOG(LogD3D12RHI, Warning, TEXT("Dumping leaked SegListAllocations\n"));
+		for (FD3D12SegListAllocatorLeakTrack& LeakTrack : SegListTrackedAllocations)
+		{
+			DumpStack(LeakTrack);
+		}
+	}
+	check(TotalBytesRequested == 0); //SegList was not properly freed. Run with d3d12.SegListTrackLeaks=1 to print callstacks of offending allocations
+}
+
+
+void FD3D12SegListAllocator::DumpStack(const FD3D12SegListAllocatorLeakTrack& LeakTrack)
+{
+	UE_LOG(LogD3D12RHI, Warning, TEXT("Leaking Allocation Heap %p Offset %d\nStack Dump\n"), LeakTrack.Heap, LeakTrack.Offset);
+	for(uint32 Index = 0; Index < LeakTrack.StackDepth; ++Index)
+	{
+		const size_t STRING_SIZE = 16 * 1024;
+		ANSICHAR StackTrace[STRING_SIZE];
+		StackTrace[0] = 0;
+		FPlatformStackWalk::ProgramCounterToHumanReadableString(Index, LeakTrack.Stack[Index], StackTrace, STRING_SIZE, 0);
+		UE_LOG(LogD3D12RHI, Warning, TEXT("%d %S\n"), Index, StackTrace);
+	}
+}
+
+void FD3D12SegListAllocator::OnAlloc(uint32 Offset, void* Heap, uint32 Size)
+{
+	TotalBytesRequested += Size;
+
+	if(GD3D12SegListTrackLeaks == 0)
+		return;
+	FD3D12SegListAllocatorLeakTrack LeakTrack;
+	LeakTrack.Offset = Offset;
+	LeakTrack.Heap = Heap;
+	LeakTrack.Size = Size;
+	LeakTrack.StackDepth = FPlatformStackWalk::CaptureStackBackTrace(&LeakTrack.Stack[0], D3D12RHI_SEGLIST_ALLOC_TRACK_LEAK_STACK_DEPTH);
+
+	FScopeLock Lock(&SegListTrackedAllocationCS);
+	check(!SegListTrackedAllocations.Contains(LeakTrack));
+	SegListTrackedAllocations.Add(LeakTrack);
+}
+void FD3D12SegListAllocator::OnFree(uint32 Offset, void* Heap, uint32 Size)
+{
+	TotalBytesRequested -= Size;
+	if (GD3D12SegListTrackLeaks == 0)
+		return;
+
+	FD3D12SegListAllocatorLeakTrack LeakTrack;
+	LeakTrack.Offset = Offset;
+	LeakTrack.Heap = Heap;
+	FScopeLock Lock(&SegListTrackedAllocationCS);
+	FD3D12SegListAllocatorLeakTrack* Element = SegListTrackedAllocations.Find(LeakTrack);
+	check(Element); // element being freed was not found.
+	if(Element->Size != Size)
+	{
+		UE_LOG(LogD3D12RHI, Warning, TEXT("Mismatched alloc/free size %d != %d, %p/%08x"), Element->Size, Size, Element->Heap, Element->Offset);
+		DumpStack(*Element);
+		check(0); //element being freed had incorrect size. 
+	}
+	SegListTrackedAllocations.Remove(LeakTrack);
+	check(!SegListTrackedAllocations.Contains(LeakTrack));
+}
+#endif
+
+
+
