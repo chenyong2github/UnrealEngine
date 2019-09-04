@@ -17,6 +17,8 @@
 #define VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING		1
 #define VULKAN_FREEPAGE_FOR_TYPE					1
 #define VULKAN_PURGE_SHADER_MODULES					0
+#define VULKAN_SUPPORTS_DEDICATED_ALLOCATION		0
+#define VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2	0
 
 
 // Android's hashes currently work fine as the problematic cases are:
