@@ -710,7 +710,8 @@ namespace IncludeTool
 				{
 					if(!ReadClassOrStructForwardDeclaration(Reader, HeaderFile, SymbolToHeader, Log) 
 						&& !ReadTemplateClassOrStructForwardDeclaration(Reader, HeaderFile, SymbolToHeader, Log)
-						&& !ReadEnumClassForwardDeclaration(Reader, HeaderFile, SymbolToHeader, Log))
+						&& !ReadEnumClassForwardDeclaration(Reader, HeaderFile, SymbolToHeader, Log)
+						&& !SkipAliasDeclaration(Reader))
 					{
 						Log.WriteLine("{0}({1}): error: invalid forward declaration - '{2}'", HeaderFile.Location, Reader.CurrentLine + 1, HeaderFile.Text[Reader.CurrentLine]);
 						return false;
@@ -894,6 +895,46 @@ namespace IncludeTool
 
 			bMoveNext = Reader.MoveNext(TokenReaderContext.IgnoreNewlines);
 			return bMoveNext;
+		}
+
+		/// <summary>
+		/// Skip over the declaration of an alias
+		/// </summary>
+		/// <param name="OriginalReader">The current token reader</param>
+		/// <returns>True if a forward declaration was read, false otherwise</returns>
+		bool SkipAliasDeclaration(TokenReader OriginalReader)
+		{
+			TokenReader Reader = new TokenReader(OriginalReader);
+
+			if(Reader.Current.Text == "template")
+			{
+				if (!Reader.MoveNext(TokenReaderContext.IgnoreNewlines))
+				{
+					return false;
+				}
+
+				bool bMoveNext = true;
+				if (!SkipTemplateArguments(Reader, ref bMoveNext) || !bMoveNext)
+				{
+					return false;
+				}
+			}
+
+			if(Reader.Current.Text != "using")
+			{
+				return false;
+			}
+
+			while(Reader.MoveNext(TokenReaderContext.IgnoreNewlines))
+			{
+				if(Reader.Current.Text == ";")
+				{
+					break;
+				}
+			}
+
+			OriginalReader.Set(Reader);
+			return true;
 		}
 
 		/// <summary>
