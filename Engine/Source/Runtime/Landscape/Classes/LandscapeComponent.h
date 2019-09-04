@@ -936,6 +936,7 @@ public:
 	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false, bool bUpdateCollision = true);
 	LANDSCAPE_API void RequestEditingClientUpdate();
 	LANDSCAPE_API void RequestDeferredClientUpdate();
+	LANDSCAPE_API uint32 GetLayerUpdateFlagPerMode() const { return LayerUpdateFlagPerMode; }
 	LANDSCAPE_API uint32 ComputeWeightmapsHash();
 #endif
 
