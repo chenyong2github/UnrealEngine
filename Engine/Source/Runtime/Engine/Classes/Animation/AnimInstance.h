@@ -718,8 +718,9 @@ public:
 	void SetSubInstanceClassByTag(FName InTag, TSubclassOf<UAnimInstance> InClass);
 
 	/** 
-	 * Runs through all layer nodes, attempting to layer nodes that are implemented by the specified class, then sets up a sub instance of the class for each.
-	 * Allocates one sub instance to run each of the groups specified in the class, so state is shared.
+	 * Runs through all layer nodes, attempting to find layer nodes that are implemented by the specified class, then sets up a sub instance of the class for each.
+	 * Allocates one sub instance to run each of the groups specified in the class, so state is shared. If a layer is not grouped (ie. NAME_None), then state is not shared
+	 * and a separate sub-instance is allocated for each layer node.
 	 * If InClass is null, then layers are reset to their defaults.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Layers")
