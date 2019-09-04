@@ -44,7 +44,7 @@ private:
 
 	int32 HandleAddOrViewIndexForButton(const FName EventName, FName PropertyName) const;
 
-	/** Handle specific customizations for ESlateAccessibleBehavior properties */
+	void PerformAccessibilityCustomization(IDetailLayoutBuilder& DetailLayout);
 	void CustomizeAccessibilityProperty(IDetailLayoutBuilder& DetailLayout, const FName& BehaviorPropertyName, const FName& TextPropertyName);
 private:
 

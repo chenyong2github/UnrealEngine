@@ -49,8 +49,10 @@ UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 
 	WidgetStyle = *DefaultEditableTextBoxStyle;
 
+#if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Auto;
 	bCanChildrenBeAccessible = false;
+#endif
 }
 
 void UEditableTextBox::ReleaseSlateResources(bool bReleaseChildren)

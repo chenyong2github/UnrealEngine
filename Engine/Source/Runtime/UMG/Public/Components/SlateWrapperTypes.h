@@ -53,6 +53,61 @@ enum class ESlateAccessibleBehavior : uint8
 	ToolTip
 };
 
+/**
+ * A container for all accessible properties for a UWidget that will be passed to the underlying SWidget.
+ * Any property here must also be added to UWidget.h and synchronized. See UWidget for more information.
+ */
+UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)
+class USlateAccessibleWidgetData : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_DELEGATE_RetVal(FText, FGetText);
+
+	USlateAccessibleWidgetData()
+	{
+		AccessibleBehavior = ESlateAccessibleBehavior::NotAccessible;
+		AccessibleSummaryBehavior = ESlateAccessibleBehavior::Auto;
+		bCanChildrenBeAccessible = true;
+	}
+
+	TAttribute<FText> CreateAccessibleTextAttribute()
+	{
+		return AccessibleTextDelegate.IsBound() ?
+			TAttribute<FText>::Create(AccessibleTextDelegate.GetUObject(), AccessibleTextDelegate.GetFunctionName()) :
+			TAttribute<FText>(AccessibleText);
+	}
+
+	TAttribute<FText> CreateAccessibleSummaryTextAttribute()
+	{
+		return AccessibleSummaryTextDelegate.IsBound() ?
+			TAttribute<FText>::Create(AccessibleSummaryTextDelegate.GetUObject(), AccessibleSummaryTextDelegate.GetFunctionName()) :
+			TAttribute<FText>(AccessibleSummaryText);
+	}
+
+	UPROPERTY()
+	bool bCanChildrenBeAccessible;
+
+	UPROPERTY()
+	ESlateAccessibleBehavior AccessibleBehavior;
+
+	UPROPERTY()
+	ESlateAccessibleBehavior AccessibleSummaryBehavior;
+
+	UPROPERTY()
+	FText AccessibleText;
+
+	UPROPERTY()
+	FGetText AccessibleTextDelegate;
+
+	UPROPERTY()
+	FText AccessibleSummaryText;
+
+	UPROPERTY()
+	FGetText AccessibleSummaryTextDelegate;
+};
+
 /** The sizing options of UWidgets */
 UENUM(BlueprintType)
 namespace ESlateSizeRule
