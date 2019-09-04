@@ -286,7 +286,7 @@ struct TSimulationTickState
 	}
 
 	// How much granted simulation time is left to process
-	TNetworkSimTime<TSettings> GetRemaningAllowedSimulationTime() const
+	TNetworkSimTime<TSettings> GetRemainingAllowedSimulationTime() const
 	{
 		return TotalAllowedSimulationTime - TotalProcessedSimulationTime;
 	}
