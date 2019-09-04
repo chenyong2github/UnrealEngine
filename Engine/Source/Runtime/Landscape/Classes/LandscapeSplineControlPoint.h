@@ -212,7 +212,7 @@ public:
 	TMap<ULandscapeSplinesComponent*, UControlPointMeshComponent*> GetForeignMeshComponents();
 
 	/** Update spline points */
-	virtual void UpdateSplinePoints(bool bUpdateCollision = true, bool bUpdateAttachedSegments = true);
+	virtual void UpdateSplinePoints(bool bUpdateCollision = true, bool bUpdateAttachedSegments = true, bool bUpdateMeshLevel = false);
 
 	/** Delete spline points */
 	virtual void DeleteSplinePoints();
