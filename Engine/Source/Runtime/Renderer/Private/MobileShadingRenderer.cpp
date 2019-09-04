@@ -373,7 +373,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	// Generate the Sky/Atmosphere look up tables
 	// Do compute work first, before any graphics work
-	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene);
+	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
 	if (bShouldRenderSkyAtmosphere)
 	{
 		RenderSkyAtmosphereLookUpTables(RHICmdList);
