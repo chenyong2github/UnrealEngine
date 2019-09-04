@@ -119,19 +119,6 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 		}
 		FApp::SetGraphicsRHI(TEXT("Metal"));
 	}
-	else if (bForceOpenGL)
-	{
-		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(TEXT("OpenGLDrv"));
-		if (Sum == 1)
-		{
-#if PLATFORM_MAC
-			RequestedFeatureLevel = ERHIFeatureLevel::ES3_1;
-#else
-			RequestedFeatureLevel = ERHIFeatureLevel::ES2;
-#endif
-		}
-		FApp::SetGraphicsRHI(TEXT("OpenGL"));
-	}
 	else
 	{
 		FText Title = NSLOCTEXT("AppleDynamicRHI", "OpenGLNotSupportedTitle","OpenGL Not Supported");
