@@ -124,6 +124,8 @@ struct FNiagaraCustomVersion
 		
 		AddLibraryAssetProperty, // Add property to all Niagara scripts indicating whether or not they belong to the library
 
+		AddAdditionalDefinesProperty, // Addding additional defines to the GPU script
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1,
