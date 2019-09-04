@@ -165,6 +165,11 @@ void FLiveCodingModule::EnableForSession(bool bEnable)
 			StartLiveCoding();
 			ShowConsole();
 		}
+		else
+		{
+			bEnabledForSession = true;
+			ShowConsole();
+		}
 	}
 	else 
 	{
