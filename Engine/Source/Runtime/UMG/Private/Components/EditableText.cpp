@@ -48,8 +48,10 @@ UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
 	Clipping = EWidgetClipping::ClipToBounds;
 
+#if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Auto;
 	bCanChildrenBeAccessible = false;
+#endif
 }
 
 void UEditableText::ReleaseSlateResources(bool bReleaseChildren)

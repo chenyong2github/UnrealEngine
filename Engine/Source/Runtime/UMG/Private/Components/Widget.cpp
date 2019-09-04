@@ -161,9 +161,13 @@ UWidget::UWidget(const FObjectInitializer& ObjectInitializer)
 	RenderTransformPivot = FVector2D(0.5f, 0.5f);
 	Cursor = EMouseCursor::Default;
 
+#if WITH_EDITORONLY_DATA
+	bOverrideAccessibleDefaults = false;
 	AccessibleBehavior = ESlateAccessibleBehavior::NotAccessible;
 	AccessibleSummaryBehavior = ESlateAccessibleBehavior::Auto;
 	bCanChildrenBeAccessible = true;
+#endif
+	AccessibleWidgetData = nullptr;
 
 #if WITH_EDITORONLY_DATA
 	{ static const FAutoRegisterLocalizationDataGatheringCallback AutomaticRegistrationOfLocalizationGatherer(UWidget::StaticClass(), &GatherWidgetForLocalization); }
@@ -1072,6 +1076,10 @@ void UWidget::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent
 	{
 		SynchronizeProperties();
 	}
+	else
+	{
+		SynchronizeAccessibleData();
+	}
 }
 
 void UWidget::SelectByDesigner()
@@ -1101,6 +1109,15 @@ void UWidget::DeselectByDesigner()
 #undef LOCTEXT_NAMESPACE
 #define LOCTEXT_NAMESPACE "UMG"
 #endif
+
+void UWidget::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+	Super::PreSave(TargetPlatform);
+
+	// This is a failsafe to make sure all the accessibility data is copied over in case
+	// some rare instance isn't handled by SynchronizeProperties. It might not be necessary.
+	SynchronizeAccessibleData();
+}
 
 #if WITH_EDITOR
 bool UWidget::Modify(bool bAlwaysMarkDirty)
@@ -1143,6 +1160,9 @@ void UWidget::SynchronizeProperties()
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	bRoutedSynchronizeProperties = true;
 #endif
+
+	// Always sync accessible data even if the SWidget doesn't exist
+	SynchronizeAccessibleData();
 
 	// We want to apply the bindings to the cached widget, which could be the SWidget, or the SObjectWidget, 
 	// in the case where it's a user widget.  We always want to prefer the SObjectWidget so that bindings to 
@@ -1218,12 +1238,40 @@ void UWidget::SynchronizeProperties()
 	}
 
 #if WITH_ACCESSIBILITY
-	TSharedPtr<SWidget> AccessibleWidget = GetAccessibleWidget();
-	if (AccessibleWidget.IsValid())
+	if (AccessibleWidgetData)
 	{
-		AccessibleWidget->SetAccessibleBehavior((EAccessibleBehavior)AccessibleBehavior, PROPERTY_BINDING(FText, AccessibleText), EAccessibleType::Main);
-		AccessibleWidget->SetAccessibleBehavior((EAccessibleBehavior)AccessibleSummaryBehavior, PROPERTY_BINDING(FText, AccessibleSummaryText), EAccessibleType::Summary);
-		AccessibleWidget->SetCanChildrenBeAccessible(bCanChildrenBeAccessible);
+		TSharedPtr<SWidget> AccessibleWidget = GetAccessibleWidget();
+		if (AccessibleWidget.IsValid())
+		{
+			AccessibleWidget->SetAccessibleBehavior((EAccessibleBehavior)AccessibleWidgetData->AccessibleBehavior, AccessibleWidgetData->CreateAccessibleTextAttribute(), EAccessibleType::Main);
+			AccessibleWidget->SetAccessibleBehavior((EAccessibleBehavior)AccessibleWidgetData->AccessibleSummaryBehavior, AccessibleWidgetData->CreateAccessibleSummaryTextAttribute(), EAccessibleType::Summary);
+			AccessibleWidget->SetCanChildrenBeAccessible(AccessibleWidgetData->bCanChildrenBeAccessible);
+		}
+	}
+#endif
+}
+
+
+void UWidget::SynchronizeAccessibleData()
+{
+#if WITH_EDITORONLY_DATA
+	if (bOverrideAccessibleDefaults)
+	{
+		if (!AccessibleWidgetData)
+		{
+			AccessibleWidgetData = NewObject<USlateAccessibleWidgetData>(this);
+		}
+		AccessibleWidgetData->bCanChildrenBeAccessible = bCanChildrenBeAccessible;
+		AccessibleWidgetData->AccessibleBehavior = AccessibleBehavior;
+		AccessibleWidgetData->AccessibleText = AccessibleText;
+		AccessibleWidgetData->AccessibleTextDelegate = AccessibleTextDelegate;
+		AccessibleWidgetData->AccessibleSummaryBehavior = AccessibleSummaryBehavior;
+		AccessibleWidgetData->AccessibleSummaryText = AccessibleSummaryText;
+		AccessibleWidgetData->AccessibleSummaryTextDelegate = AccessibleSummaryTextDelegate;
+	}
+	else if (AccessibleWidgetData)
+	{
+		AccessibleWidgetData = nullptr;
 	}
 #endif
 }
