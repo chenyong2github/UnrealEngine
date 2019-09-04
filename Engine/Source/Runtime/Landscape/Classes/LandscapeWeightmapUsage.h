@@ -43,6 +43,17 @@ public:
 		}
 	}
 
+	void ClearUsage(ULandscapeComponent* Component)
+	{
+		for (int8 i = 0; i < NumChannels; ++i)
+		{
+			if (ChannelUsage[i] == Component)
+			{
+				ChannelUsage[i] = nullptr;
+			}
+		}
+	}
+
 	bool IsEmpty() const
 	{
 		return FreeChannelCount() == NumChannels;
