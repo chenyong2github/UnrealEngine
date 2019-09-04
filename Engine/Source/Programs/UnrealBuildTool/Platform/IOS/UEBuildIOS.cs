@@ -1059,7 +1059,11 @@ namespace UnrealBuildTool
 				CompileEnvironment.Definitions.Add("ENABLE_ADVERTISING_IDENTIFIER=1");
 			}
 
-			CompileEnvironment.Definitions.Add("HAS_OPENGL_ES=" + ((Target.IOSPlatform.RuntimeVersion < 12.0) ? "1" : "0"));
+			// For 4.23 the version check fails for binary builds, re-enabling along with deprecation warning suppression for all builds UE-77520
+			// ES support will be fully removed in 4.24
+			CompileEnvironment.Definitions.Add("HAS_OPENGL_ES=1");
+			CompileEnvironment.Definitions.Add("GLES_SILENCE_DEPRECATION=1"); 
+			//CompileEnvironment.Definitions.Add("HAS_OPENGL_ES=" + ((Target.IOSPlatform.RuntimeVersion < 12.0) ? "1" : "0"));
 
 			// if the project has an Oodle compression Dll, enable the decompressor on IOS
 			if (Target.ProjectFile != null)
