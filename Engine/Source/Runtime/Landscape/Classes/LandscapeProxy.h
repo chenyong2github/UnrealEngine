@@ -868,6 +868,9 @@ public:
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual void PostLoad() override;
 
+	LANDSCAPE_API ULandscapeInfo* CreateLandscapeInfo();
+	LANDSCAPE_API ULandscapeInfo* GetLandscapeInfo() const;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditImport() override;
@@ -879,9 +882,6 @@ public:
 	LANDSCAPE_API TArray<FName> GetLayersFromMaterial() const;
 	LANDSCAPE_API static ULandscapeLayerInfoObject* CreateLayerInfo(const TCHAR* LayerName, ULevel* Level);
 	LANDSCAPE_API ULandscapeLayerInfoObject* CreateLayerInfo(const TCHAR* LayerName);
-
-	LANDSCAPE_API ULandscapeInfo* CreateLandscapeInfo();
-	LANDSCAPE_API ULandscapeInfo* GetLandscapeInfo() const;
 
 	// Get Landscape Material assigned to this Landscape
 	virtual UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;
