@@ -518,7 +518,18 @@ namespace IncludeTool
 				{
 					if ((PreprocessedFile.Flags & SourceFileFlags.Inline) == 0 && (PreprocessedFile.Flags & SourceFileFlags.GeneratedHeader) == 0 && PreprocessedFile.Counterpart == null)
 					{
-						SymbolTable.AddExports(PreprocessedFile);
+						try
+						{
+							SymbolTable.AddExports(PreprocessedFile);
+						}
+						catch(UnbalancedScopeException Ex)
+						{
+							Log.WriteLine("error: {0}", Ex.Message);
+						}
+						catch(Exception Ex)
+						{
+							throw new Exception(String.Format("Error while processing {0}", PreprocessedFile.Location), Ex);
+						}
 					}
 				}
 

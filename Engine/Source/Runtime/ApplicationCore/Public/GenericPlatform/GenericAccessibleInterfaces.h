@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Variant.h"
+#include "Stats/Stats.h"
 
 /** Whether a widget should be included in accessibility, and if so, how its text should be retrieved. */
 enum class EAccessibleBehavior : uint8
@@ -22,9 +24,6 @@ enum class EAccessibleBehavior : uint8
 APPLICATIONCORE_API DECLARE_LOG_CATEGORY_EXTERN(LogAccessibility, Log, All);
 
 #if WITH_ACCESSIBILITY
-
-#include "Misc/Variant.h"
-#include "Stats/Stats.h"
 
 class FGenericWindow;
 class IAccessibleWidget;
