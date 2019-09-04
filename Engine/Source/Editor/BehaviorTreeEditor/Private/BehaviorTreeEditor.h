@@ -48,12 +48,10 @@ public:
 	//~ End IToolkit Interface
 
 	//~ Begin IBehaviorTreeEditor Interface
-	virtual uint32 GetSelectedNodesCount() const override { return SelectedNodesCount; }
 	virtual void InitializeDebuggerState(class FBehaviorTreeDebugger* ParentDebugger) const override;
 	virtual UEdGraphNode* FindInjectedNode(int32 Index) const override;
 	virtual void DoubleClickNode(class UEdGraphNode* Node) override;
 	virtual void FocusWindow(UObject* ObjectToFocusOn = NULL) override;
-	virtual bool GetBoundsForSelectedNodes(class FSlateRect& Rect, float Padding) const override;
 	//~ End IBehaviorTreeEditor Interface
 
 	//~ Begin FEditorUndoClient Interface
@@ -85,8 +83,6 @@ public:
 	bool CanAddBreakpoint() const;
 	void OnRemoveBreakpoint();
 	bool CanRemoveBreakpoint() const;
-	void OnCreateComment();
-	bool CanCreateComment() const;
 
 	void SearchTree();
 	bool CanSearchTree() const;
@@ -310,7 +306,6 @@ private:
 	uint32 bForceDisablePropertyEdit : 1;
 	uint32 bSelectedNodeIsInjected : 1;
 	uint32 bSelectedNodeIsRootLevel : 1;
-	uint32 SelectedNodesCount;
 
 	uint32 bHasMultipleTaskBP : 1;
 	uint32 bHasMultipleDecoratorBP : 1;
