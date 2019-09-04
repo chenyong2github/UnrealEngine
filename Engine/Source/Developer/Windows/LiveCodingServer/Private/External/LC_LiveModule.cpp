@@ -39,13 +39,6 @@
 #include "Misc/Paths.h"
 // END EPIC MOD
 
-// BEGIN EPIC MOD - Allow mapping from object files to their unity object file
-#include "Misc/FileHelper.h"
-#include "Serialization/JsonReader.h"
-#include "Serialization/JsonSerializer.h"
-#include "Dom/JsonObject.h"
-// END EPIC MOD
-
 namespace
 {
 	// common linker options:
@@ -396,123 +389,11 @@ namespace
 		return LiveModule::CompileResult { exitCode, true };
 	}
 
-	// BEGIN EPIC MOD - Allow mapping from object files to their unity object file
-	static void AddCompilandId(types::StringMap<uint32_t>& objFileToCompilandId, const std::wstring& objFile, uint32_t compilandId)
-	{
-		std::wstring WideObjectFile = file::NormalizePath(objFile.c_str());
-		ImmutableString ObjectFile = string::ToUtf8String(WideObjectFile);
-		if (objFileToCompilandId.find(ObjectFile) == objFileToCompilandId.end())
-		{
-			objFileToCompilandId.insert(std::make_pair(ObjectFile, compilandId));
-		}
-	}
-
-	static bool ReadLiveCodingInfo(const wchar_t* manifestFile, types::StringMap<uint32_t>& objFileToCompilandId)
-	{
-		// Read the file to a string
-		FString FileContents;
-		if (!FFileHelper::LoadFileToString(FileContents, manifestFile))
-		{
-			return false;
-		}
-
-		// Deserialize a JSON object from the string
-		TSharedPtr< FJsonObject > Object;
-		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create(FileContents);
-		if (!FJsonSerializer::Deserialize(Reader, Object) || !Object.IsValid())
-		{
-			return false;
-		}
-
-		const TSharedPtr<FJsonObject>* FilesObject;
-		if (!Object->TryGetObjectField(TEXT("RemapUnityFiles"), FilesObject))
-		{
-			return false;
-		}
-
-		std::wstring BaseDir = file::GetDirectory(manifestFile);
-		for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : FilesObject->Get()->Values)
-		{
-			std::wstring UnityObjectFile = file::NormalizePath((BaseDir + L"\\" + *Pair.Key).c_str());
-			uint32_t UnityCompilandId = uniqueId::Generate(UnityObjectFile);
-			objFileToCompilandId.insert(std::make_pair(string::ToUtf8String(UnityObjectFile), UnityCompilandId));
-
-			const FJsonValue* Value = Pair.Value.Get();
-			if (Value->Type != EJson::Array)
-			{
-				return false;
-			}
-
-			const TArray<TSharedPtr<FJsonValue>>& SourceFileValues = Value->AsArray();
-			for (const TSharedPtr<FJsonValue>& SourceFileValue : SourceFileValues)
-			{
-				if (SourceFileValue->Type != EJson::String)
-				{
-					return false;
-				}
-
-				std::wstring objFile = BaseDir + L"\\" + *SourceFileValue->AsString();
-				AddCompilandId(objFileToCompilandId, objFile, UnityCompilandId);
-
-				std::wstring patchedObjFile = file::RemoveExtension(objFile) + L".lc.obj";
-				AddCompilandId(objFileToCompilandId, patchedObjFile, UnityCompilandId);
-			}
-		}
-
-		return true;
-	}
-
-	static void UpdateCompilandCache(types::StringMap<symbols::Compiland*>& compilands, types::StringMap<uint32_t>& objFileToCompilandId)
-	{
-		types::unordered_set<std::wstring> Directories;
-		for (std::pair<const ImmutableString, symbols::Compiland*>& Pair : compilands)
-		{
-			symbols::Compiland* Compiland = Pair.second;
-			if (Compiland != nullptr && Compiland->amalgamatedUniqueId == ~(uint32_t)0)
-			{
-				const std::wstring& wideObjPath = string::ToWideString(Pair.first);
-				Directories.insert(file::GetDirectory(wideObjPath));
-			}
-		}
-		for (const std::wstring& Directory : Directories)
-		{
-			std::wstring ManifestFile = Directory + L"\\LiveCodingInfo.json";
-			if (file::DoesExist(file::GetAttributes(ManifestFile.c_str())))
-			{
-				ReadLiveCodingInfo(ManifestFile.c_str(), objFileToCompilandId);
-			}
-		}
-		for (std::pair<const ImmutableString, symbols::Compiland*>& Pair : compilands)
-		{
-			symbols::Compiland* Compiland = Pair.second;
-			if (Compiland != nullptr && Compiland->amalgamatedUniqueId == ~(uint32_t)0)
-			{
-				types::StringMap<uint32_t>::const_iterator Iter = objFileToCompilandId.find(Pair.first);
-				if (Iter == objFileToCompilandId.end())
-				{
-					LC_WARNING_DEV("Unable to get amalgamated id for %s", Pair.first.c_str());
-				}
-				else
-				{
-					Compiland->amalgamatedUniqueId = Iter->second;
-				}
-			}
-		}
-	}
-	// END EPIC MOD
-
 	// helper function that returns or generates the unique ID of an optional compiland.
 	// for files split off from amalgamated files, we need to use the original object path of the amalgamated file here,
 	// otherwise names of symbols would differ, leading to constructors of global instances being called again.
 	static inline uint32_t GetCompilandId(const symbols::Compiland* compiland, const wchar_t* const objPath, const types::vector<LiveModule::ModifiedObjFile>& modifiedObjFiles)
 	{
-		// BEGIN EPIC MOD - Allow mapping from object files to their unity object file
-		if (compiland && compiland->amalgamatedUniqueId != ~(uint32_t)0)
-		{
-			return compiland->amalgamatedUniqueId;
-		}
-		// END EPIC MOD
-
 		// try to find the given .obj path in the array of modified object files to check if there's an original amalgamated object path for it
 		for (size_t i = 0u; i < modifiedObjFiles.size(); ++i)
 		{
@@ -535,7 +416,9 @@ namespace
 		}
 		else
 		{
-			return uniqueId::Generate(file::NormalizePath(objPath));
+			// BEGIN EPIC MOD - Static map of object file to unity blob
+			return symbols::GetCompilandIdFromPath(objPath);
+			// BEGIN EPIC MOD - Static map of object file to unity blob
 		}
 	}
 
@@ -1184,10 +1067,6 @@ void LiveModule::Load(symbols::Provider* provider, symbols::DiaCompilandDB* diaC
 	{
 		LC_LOG_DEV("Caching all .objs on Load() due to external build system being used");
 
-		// BEGIN EPIC MOD - Allow mapping from object files to their unity object file
-		UpdateCompilandCache(m_compilandDB->compilands, m_objFileToCompilandId);
-		// END EPIC MOD
-
 		// the user wants to use an external build system. in this case, we only track .objs for changes and never
 		// compile anything ourselves. we cannot load .objs lazily in this case, so we have to do that right now.
 		struct GatherResult
@@ -1217,20 +1096,13 @@ void LiveModule::Load(symbols::Provider* provider, symbols::DiaCompilandDB* diaC
 
 			// do the loading and gathering concurrently
 			auto task = scheduler::CreateTask(gatherTaskRoot, [objPath, compiland]()
-				{
+			{
 				const std::wstring& wideObjPath = string::ToWideString(objPath);
 				coff::ObjFile* objFile = coff::OpenObj(wideObjPath.c_str());
-				// BEGIN EPIC MOD - Allow mapping from object files to their unity object file
-				uint32_t uniqueId;
-			    if (compiland->amalgamatedUniqueId != ~(uint32_t)0)
-			    {
-				    uniqueId = compiland->amalgamatedUniqueId;
-			    }
-			    else
-			    {
-				    uniqueId = compiland->uniqueId;
-			    }
-				coff::CoffDB* database = coff::GatherDatabase(objFile, uniqueId, coff::ReadFlags::NONE);
+				// BEGIN EPIC MOD - Support for unity files s with external build system
+				const bool splitAmalgamatedFiles = appSettings::g_amalgamationSplitIntoSingleParts->GetValue();
+				const coff::ReadFlags::Enum coffReadFlags = splitAmalgamatedFiles ? coff::ReadFlags::GENERATE_ANS_NAME_FROM_UNIQUE_ID : coff::ReadFlags::NONE;
+				coff::CoffDB* database = coff::GatherDatabase(objFile, compiland->uniqueId, coffReadFlags);
 				// END EPIC MOD
 				coff::CloseObj(objFile);
 
@@ -2296,10 +2168,6 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			executable::CloseImage(image);
 		}
 	}
-
-	// BEGIN EPIC MOD - Allow mapping from object files to their unity object file
-	UpdateCompilandCache(m_compiledCompilands, m_objFileToCompilandId);
-	// END EPIC MOD
 
 	// update the COFF cache for all compiled files
 	UpdateCoffCache(m_compiledCompilands, m_coffCache, CacheUpdate::ALL, coffReadFlags, modifiedOrNewObjFiles);
