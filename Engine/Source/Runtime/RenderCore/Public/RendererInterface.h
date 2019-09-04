@@ -614,6 +614,8 @@ public:
 	/** Forces reallocation of scene render targets. */
 	virtual void ReallocateSceneRenderTargets() = 0;
 
+	virtual void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources) = 0;
+
 	/** Sets the buffer size of the render targets. */
 	virtual void SceneRenderTargetsSetBufferSize(uint32 SizeX, uint32 SizeY) = 0;
 
