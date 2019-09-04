@@ -1139,7 +1139,6 @@ ULandscapeInfo* ALandscapeProxy::CreateLandscapeInfo()
 {
 	ULandscapeInfo* LandscapeInfo = nullptr;
 
-	check(GIsEditor);
 	check(LandscapeGuid.IsValid());
 	UWorld* OwningWorld = GetWorld();
 	check(OwningWorld);
