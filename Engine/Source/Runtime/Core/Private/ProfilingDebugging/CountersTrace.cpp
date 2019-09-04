@@ -8,6 +8,7 @@
 UE_TRACE_EVENT_BEGIN(Counters, Spec, Always)
 	UE_TRACE_EVENT_FIELD(uint16, Id)
 	UE_TRACE_EVENT_FIELD(uint8, Type)
+	UE_TRACE_EVENT_FIELD(uint8, DisplayHint)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Counters, SetValueInt)
@@ -23,79 +24,33 @@ UE_TRACE_EVENT_BEGIN(Counters, SetValueFloat)
 UE_TRACE_EVENT_END()
 
 
-struct FCountersTracePrivate
-{
-	static uint16 InitCounter(const TCHAR* CounterName, ETraceCounterType Type);
-	
-	static void SetValue(uint16 CounterId, int64 Value)
-	{
-		UE_TRACE_LOG(Counters, SetValueInt)
-			<< SetValueInt.Cycle(FPlatformTime::Cycles64())
-			<< SetValueInt.Value(Value)
-			<< SetValueInt.CounterId(CounterId);
-	}
-
-	static void SetValue(uint16 CounterId, float Value)
-	{
-		UE_TRACE_LOG(Counters, SetValueFloat)
-			<< SetValueFloat.Cycle(FPlatformTime::Cycles64())
-			<< SetValueFloat.Value(Value)
-			<< SetValueFloat.CounterId(CounterId);
-	}
-};
-
-uint16 FCountersTracePrivate::InitCounter(const TCHAR* CounterName, ETraceCounterType Type)
+uint16 FCountersTrace::OutputInitCounter(const TCHAR* CounterName, ETraceCounterType CounterType, ETraceCounterDisplayHint CounterDisplayHint)
 {
 	static TAtomic<uint16> NextId(1);
 	uint16 CounterId = uint16(NextId++);
 	uint16 NameSize = (FCString::Strlen(CounterName) + 1) * sizeof(TCHAR);
 	UE_TRACE_LOG(Counters, Spec, NameSize)
 		<< Spec.Id(CounterId)
-		<< Spec.Type(uint8(Type))
+		<< Spec.Type(uint8(CounterType))
+		<< Spec.DisplayHint(uint8(CounterDisplayHint))
 		<< Spec.Attachment(CounterName, NameSize);
 	return CounterId;
 }
 
-void FCountersTrace::FCounterInt::Init(const TCHAR* CounterName)
+void FCountersTrace::OutputSetValue(uint16 CounterId, int64 Value)
 {
-	CounterId = FCountersTracePrivate::InitCounter(CounterName, TraceCounterType_Int);
+	UE_TRACE_LOG(Counters, SetValueInt)
+		<< SetValueInt.Cycle(FPlatformTime::Cycles64())
+		<< SetValueInt.Value(Value)
+		<< SetValueInt.CounterId(CounterId);
 }
 
-void FCountersTrace::FCounterInt::Set(int64 Value)
+void FCountersTrace::OutputSetValue(uint16 CounterId, double Value)
 {
-	if (Value != CurrentValue)
-	{
-		CurrentValue = Value;
-		FCountersTracePrivate::SetValue(CounterId, Value);
-	}
-}
-
-void FCountersTrace::FCounterFloat::Init(const TCHAR* CounterName)
-{
-	CounterId = FCountersTracePrivate::InitCounter(CounterName, TraceCounterType_Float);
-}
-
-void FCountersTrace::FCounterFloat::Set(float Value)
-{
-	if (Value != CurrentValue)
-	{
-		CurrentValue = Value;
-		FCountersTracePrivate::SetValue(CounterId, Value);
-	}
-}
-
-void FCountersTrace::FCounterMemory::Init(const TCHAR* CounterName)
-{
-	CounterId = FCountersTracePrivate::InitCounter(CounterName, TraceCounterType_Memory);
-}
-
-void FCountersTrace::FCounterMemory::Set(uint64 Value)
-{
-	if (Value != CurrentValue)
-	{
-		CurrentValue = Value;
-		FCountersTracePrivate::SetValue(CounterId, (int64)Value);
-	}
+	UE_TRACE_LOG(Counters, SetValueFloat)
+		<< SetValueFloat.Cycle(FPlatformTime::Cycles64())
+		<< SetValueFloat.Value(Value)
+		<< SetValueFloat.CounterId(CounterId);
 }
 
 void FCountersTrace::Init(const TCHAR* CmdLine)

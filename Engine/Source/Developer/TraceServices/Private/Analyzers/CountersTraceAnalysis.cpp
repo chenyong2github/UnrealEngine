@@ -30,12 +30,13 @@ void FCountersAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	{
 		uint16 CounterId = EventData.GetValue<uint16>("Id");
 		ETraceCounterType CounterType = static_cast<ETraceCounterType>(EventData.GetValue<uint8>("Type"));
+		ETraceCounterDisplayHint CounterDisplayHint = static_cast<ETraceCounterDisplayHint>(EventData.GetValue<uint8>("DisplayHint"));
 		Trace::ICounter* Counter = CounterProvider.CreateCounter();
 		if (CounterType == TraceCounterType_Float)
 		{
 			Counter->SetIsFloatingPoint(true);
 		}
-		else if (CounterType == TraceCounterType_Memory)
+		if (CounterDisplayHint == TraceCounterDisplayHint_Memory)
 		{
 			Counter->SetDisplayHint(Trace::CounterDisplayHint_Memory);
 		}
