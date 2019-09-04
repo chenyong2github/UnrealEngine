@@ -719,6 +719,44 @@ static uint32 GetRepLayoutCmdCompatibleChecksum(
 	return CompatibleChecksum;
 }
 
+FRepChangedPropertyTracker::FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording):
+		bIsReplay(InbIsReplay),
+		bIsClientReplayRecording(InbIsClientReplayRecording),
+		ExternalDataNumBits(0)
+	{}
+
+FRepChangedPropertyTracker::~FRepChangedPropertyTracker() {}
+
+void FRepChangedPropertyTracker::SetCustomIsActiveOverride(const uint16 RepIndex, const bool bIsActive)
+{
+	FRepChangedParent & Parent = Parents[RepIndex];
+
+	Parent.Active = (bIsActive || bIsClientReplayRecording) ? 1 : 0;
+	Parent.OldActive = Parent.Active;
+}
+
+void FRepChangedPropertyTracker::SetExternalData(const uint8* Src, const int32 NumBits)
+{
+	ExternalDataNumBits = NumBits;
+	const int32 NumBytes = (NumBits + 7) >> 3;
+	ExternalData.Reset(NumBytes);
+	ExternalData.AddUninitialized(NumBytes);
+	FMemory::Memcpy(ExternalData.GetData(), Src, NumBytes);
+}
+
+bool FRepChangedPropertyTracker::IsReplay() const
+{
+	return bIsReplay;
+}
+
+void FRepChangedPropertyTracker::CountBytes(FArchive& Ar) const
+{
+	// Include our size here, because the caller won't know.
+	Ar.CountBytes(sizeof(FRepChangedPropertyTracker), sizeof(FRepChangedPropertyTracker));
+	Parents.CountBytes(Ar);
+	ExternalData.CountBytes(Ar);
+
+}
 
 void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 {
