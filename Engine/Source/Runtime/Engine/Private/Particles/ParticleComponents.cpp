@@ -4633,8 +4633,7 @@ FBoxSphereBounds UParticleSystemComponent::CalcBounds(const FTransform& LocalToW
 	}
 	else if (FXConsoleVariables::bAllowCulling == false)
 	{
-		BoundingBox.Min = FVector(-HALF_WORLD_MAX);
-		BoundingBox.Max = FVector(+HALF_WORLD_MAX);
+		BoundingBox = FBox(FVector(-HALF_WORLD_MAX), FVector(HALF_WORLD_MAX));
 	}
 	else if(Template && Template->bUseFixedRelativeBoundingBox)
 	{
@@ -4650,6 +4649,12 @@ FBoxSphereBounds UParticleSystemComponent::CalcBounds(const FTransform& LocalToW
 			{
 				BoundingBox += EmitterInstance->GetBoundingBox();
 			}
+		}
+
+		// If the bounding box is not valid at this point there were no active particles, return zero-extent/radius box at local origin.
+		if (!BoundingBox.IsValid)
+		{
+			return FBoxSphereBounds(LocalToWorld.GetTranslation(), FVector::ZeroVector, 0.0f);
 		}
 
 		// Expand the actual bounding-box slightly so it will be valid longer in the case of expanding particle systems.
