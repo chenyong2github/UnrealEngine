@@ -68,7 +68,7 @@ class USkyAtmosphereComponent : public USceneComponent
 
 	/** The Rayleigh scattering coefficients resulting from molecules in the air at an altitude of 0 kilometer. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Raleigh", meta=(HideAlphaChannel))
-	FColor RayleighScattering;
+	FLinearColor RayleighScattering;
 
 	/** The altitude in kilometer at which Rayleigh scattering effect is reduced to 40%.*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Raleigh", meta = (UIMin = 0.01, UIMax = 20.0, ClampMin = 0.1, SliderExponent = 5.0))
@@ -82,7 +82,7 @@ class USkyAtmosphereComponent : public USceneComponent
 
 	/** The Mie scattering coefficients resulting from particles in the air at an altitude of 0 kilometer. As it becomes higher, light will be scattered more. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Mie", meta = (HideAlphaChannel))
-	FColor MieScattering;
+	FLinearColor MieScattering;
 
 	/** Mie absorption coefficient scale.*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Mie", meta = (UIMin = 0.0, UIMax = 5.0, ClampMin = 0.0, SliderExponent = 4.0))
@@ -90,7 +90,7 @@ class USkyAtmosphereComponent : public USceneComponent
 
 	/** The Mie absorption coefficients resulting from particles in the air at an altitude of 0 kilometer. As it becomes higher, light will be absorbed more. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Mie", meta = (HideAlphaChannel))
-	FColor MieAbsorption;
+	FLinearColor MieAbsorption;
 	
 	/** A value of 0 mean light is uniformly scattered. A value closer to 1 means lights will scatter more forward, resulting in halos around light sources. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Mie", meta = (UIMin = 0.0, UIMax = 0.999, ClampMin = 0.0, ClampMax = 0.999))
@@ -108,7 +108,7 @@ class USkyAtmosphereComponent : public USceneComponent
 
 	/** Absorption coefficients for another atmosphere layer. Density increase from 0 to 1 between 10 to 25km and decreases from 1 to 0 between 25 to 40km. The default values represents ozone molecules absorption in the Earth atmosphere. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Absorption", meta = (DisplayName = "Absorption", HideAlphaChannel))
-	FColor OtherAbsorption;
+	FLinearColor OtherAbsorption;
 
 	/** Represents the altitude based tent distribution of absorption particles in the atmosphere. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Atmosphere - Absorption", meta = (DisplayName = "Tent Distribution"))
@@ -132,18 +132,18 @@ class USkyAtmosphereComponent : public USceneComponent
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetRayleighScatteringScale(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	ENGINE_API void SetRayleighScattering(FColor NewValue);
+	ENGINE_API void SetRayleighScattering(FLinearColor NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetRayleighExponentialDistribution(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetMieScatteringScale(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	ENGINE_API void SetMieScattering(FColor NewValue);
+	ENGINE_API void SetMieScattering(FLinearColor NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetMieAbsorptionScale(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	ENGINE_API void SetMieAbsorption(FColor NewValue);
+	ENGINE_API void SetMieAbsorption(FLinearColor NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetMieAnisotropy(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
@@ -152,7 +152,7 @@ class USkyAtmosphereComponent : public USceneComponent
 	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (DisplayName = "Set Absorption Scale"))
 	ENGINE_API void SetOtherAbsorptionScale(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (DisplayName = "Set Absorption"))
-	ENGINE_API void SetOtherAbsorption(FColor NewValue);
+	ENGINE_API void SetOtherAbsorption(FLinearColor NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetSkyLuminanceFactor(FLinearColor NewValue);
