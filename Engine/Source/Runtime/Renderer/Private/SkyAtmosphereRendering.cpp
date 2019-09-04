@@ -269,9 +269,9 @@ static bool ShouldPipelineCompileSkyAtmosphereShader(EShaderPlatform ShaderPlatf
 	return RHISupportsComputeShaders(ShaderPlatform);
 }
 
-bool ShouldRenderSkyAtmosphere(const FScene* Scene)
+bool ShouldRenderSkyAtmosphere(const FScene* Scene, const FEngineShowFlags& EngineShowFlags)
 {
-	if (Scene && Scene->HasSkyAtmosphere())
+	if (Scene && Scene->HasSkyAtmosphere() && EngineShowFlags.Atmosphere)
 	{
 		EShaderPlatform ShaderPlatform = Scene->GetShaderPlatform();
 		const FSkyAtmosphereRenderSceneInfo* SkyAtmosphere = Scene->GetSkyAtmosphereSceneInfo();
@@ -279,7 +279,6 @@ bool ShouldRenderSkyAtmosphere(const FScene* Scene)
 
 		const bool ShadersCompiled = ShouldPipelineCompileSkyAtmosphereShader(ShaderPlatform);
 		return FReadOnlyCVARCache::Get().bSupportSkyAtmosphere && ShadersCompiled && CVarSkyAtmosphere.GetValueOnRenderThread() > 0;
-		// TODO: Add new or reuse EngineShowFlags.AtmosphericFog? ALso take into account EngineShowFlags.Fog as previously?
 	}
 	return false;
 }
@@ -920,7 +919,6 @@ void InitSkyAtmosphereForScene(FRHICommandListImmediate& RHICmdList, FScene* Sce
 	{
 		GET_VALID_DATA_FROM_CVAR;
 
-		check(ShouldRenderSkyAtmosphere(Scene)); // This should not be called if we should not render SkyAtmosphere
 		FPooledRenderTargetDesc Desc;
 		check(Scene->GetSkyAtmosphereSceneInfo());
 		FSkyAtmosphereRenderSceneInfo& SkyInfo = *Scene->GetSkyAtmosphereSceneInfo();
@@ -963,7 +961,7 @@ void InitSkyAtmosphereForView(FRHICommandListImmediate& RHICmdList, const FScene
 	{
 		GET_VALID_DATA_FROM_CVAR;
 
-		check(ShouldRenderSkyAtmosphere(Scene)); // This should not be called if we should not render SkyAtmosphere
+		check(ShouldRenderSkyAtmosphere(Scene, View.Family->EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
 		FPooledRenderTargetDesc Desc;
 		check(Scene->GetSkyAtmosphereSceneInfo());
 		const FSkyAtmosphereRenderSceneInfo& SkyInfo = *Scene->GetSkyAtmosphereSceneInfo();
@@ -1065,7 +1063,7 @@ static bool IsSecondAtmosphereLightEnabled(FScene* Scene)
 
 void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& RHICmdList)
 {
-	check(ShouldRenderSkyAtmosphere(Scene)); // This should not be called if we should not render SkyAtmosphere
+	check(ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
 
 	DECLARE_GPU_STAT(SkyAtmosphereLUTs);
 	SCOPED_DRAW_EVENT(RHICmdList, SkyAtmosphereLUTs);
@@ -1234,7 +1232,7 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 	// In this case, the sky must be rendered as an opaque mesh using the shader graph as a composition tool.
 	check(!IsMobilePlatform(Scene->GetShaderPlatform()));
 
-	check(ShouldRenderSkyAtmosphere(Scene)); // This should not be called if we should not render SkyAtmosphere
+	check(ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
 
 	DECLARE_GPU_STAT(SkyAtmosphere);
 	SCOPED_DRAW_EVENT(RHICmdList, SkyAtmosphere);
@@ -1482,7 +1480,7 @@ void FSceneRenderer::RenderSkyAtmosphereEditorNotifications(FRHICommandListImmed
 void FDeferredShadingSceneRenderer::RenderDebugSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 {
 #if WITH_EDITOR
-	check(ShouldRenderSkyAtmosphere(Scene)); // This should not be called if we should not render SkyAtmosphere
+	check(ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
 
 	//if (!RHISupportsComputeShaders()) return;	// TODO cannot render, add a ShouldRender function. Also should PipelineShouldCook ?
 

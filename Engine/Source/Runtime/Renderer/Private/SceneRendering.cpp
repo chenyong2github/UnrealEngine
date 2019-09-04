@@ -1225,7 +1225,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	FRHITexture* SkyViewLutTextureFound = nullptr;
 	FRHITexture* CameraAerialPerspectiveVolumeFound = nullptr;
 	FRHITexture* DistantSkyLightLutTextureFound = nullptr;
-	if (ShouldRenderSkyAtmosphere(Scene))
+	if (ShouldRenderSkyAtmosphere(Scene, Family->EngineShowFlags))
 	{
 		check(Scene->SkyAtmosphere->GetTransmittanceLutTexture().IsValid());
 		FSkyAtmosphereRenderSceneInfo* SkyAtmosphere = Scene->SkyAtmosphere;
