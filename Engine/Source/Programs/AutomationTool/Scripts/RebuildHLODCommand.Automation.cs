@@ -375,7 +375,14 @@ namespace AutomationScripts.Automation
 					// RoboMerge default behaviour is to ignore buildmachine changes 
 					return "";
 				}
-				return (Command == "deadend" ? "#ROBOMERGE #DEADEND" : "#ROBOMERGE[ALL]") + " #DisregardExcludedAuthors";
+				else if (Command == "all")
+				{
+					return "#ROBOMERGE[ALL] #DisregardExcludedAuthors";
+				}
+				else
+				{
+					return "#ROBOMERGE " + Command + " #DisregardExcludedAuthors";
+				}
 			}
 		}
 
