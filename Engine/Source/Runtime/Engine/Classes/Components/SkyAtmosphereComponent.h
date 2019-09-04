@@ -11,6 +11,9 @@
 #include "SkyAtmosphereComponent.generated.h"
 
 
+class FSkyAtmosphereSceneProxy;
+
+
 USTRUCT(BlueprintType)
 struct FTentDistribution
 {
@@ -188,9 +191,7 @@ public:
 
 private:
 
-	/** Add this component to the render scene */
-	void AddToRenderScene() const;
-
+	FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy;
 
 	/**
 	 * GUID used to associate a atmospheric component with precomputed lighting/shadowing information across levels.
