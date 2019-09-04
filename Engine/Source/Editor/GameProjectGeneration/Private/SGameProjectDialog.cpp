@@ -246,6 +246,16 @@ TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
 		]
 	];
 
+	if (MajorTemplateCategories.Num() == 0)
+	{
+		MajorCategoryTileView->SetVisibility(EVisibility::Collapsed);
+	}
+
+	if (MinorTemplateCategories.Num() == 0)
+	{
+		MinorCategoryTileView->SetVisibility(EVisibility::Collapsed);
+	}
+
 	return Widget;
 }
 
@@ -256,8 +266,6 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 TSharedRef<ITableRow> SGameProjectDialog::ConstructTile(TSharedPtr<FTemplateCategory> Item, const TSharedRef<STableViewBase>& TableView)
 {
-	const float TextWidth = (Item->IsMajor ? GameProjectDialogDefs::TextWidth * 2 : GameProjectDialogDefs::TextWidth)/* - GameProjectDialogDefs::Padding * 2*/;
-
 	TSharedRef<STableRow<TSharedPtr<FTemplateCategory>>> Row = SNew(STableRow<TSharedPtr<FTemplateCategory>>, TableView)
 	.Style(FEditorStyle::Get(), "GameProjectDialog.TemplateListView.TableRow")
 	[
@@ -282,7 +290,7 @@ TSharedRef<ITableRow> SGameProjectDialog::ConstructTile(TSharedPtr<FTemplateCate
 				.Padding(0)
 				[
 					SNew(SImage)
-					.Image(Item->Image)
+					.Image(Item->Icon)
 				]
 			]
 
@@ -308,7 +316,7 @@ TSharedRef<ITableRow> SGameProjectDialog::ConstructTile(TSharedPtr<FTemplateCate
 				.Padding(0)
 				[
 					SNew(STextBlock)
-					.WrapTextAt(TextWidth)
+					.AutoWrapText(true)
 					.LineBreakPolicy(FBreakIterator::CreateWordBreakIterator())
 					.Justification(ETextJustify::Left)
 					.Text(Item->Description)

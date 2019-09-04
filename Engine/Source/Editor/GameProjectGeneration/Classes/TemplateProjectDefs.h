@@ -184,12 +184,11 @@ struct FTemplateCategoryDef
 	UPROPERTY()
 	TArray<FLocalizedTemplateString> LocalizedDescriptions;
 
+	/** Reference to an icon to display for this category. Should be around 128x128. */
 	UPROPERTY()
-	FName Icon;
+	FString Icon;
 
-	UPROPERTY()
-	FName Image;
-
+	/** Is this a major top-level category? Major categories are displayed as full rows, eg. the Game category.*/
 	UPROPERTY()
 	bool IsMajorCategory;
 };

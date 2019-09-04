@@ -1226,6 +1226,16 @@ UTemplateCategories* GameProjectUtils::LoadTemplateCategories(const FString& Roo
 	{
 		TemplateCategories = NewObject<UTemplateCategories>();
 		TemplateCategories->LoadConfig(UTemplateCategories::StaticClass(), *TemplateCategoriesIniFilename);
+
+		for (FTemplateCategoryDef& Category : TemplateCategories->Categories)
+		{
+			// attempt to resolve the icon relative to the root directory
+			FString TemplateCategoryIcon = RootDir / Category.Icon;
+			if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*TemplateCategoryIcon))
+			{
+				Category.Icon = TemplateCategoryIcon;
+			}
+		}
 	}
 
 	return TemplateCategories;

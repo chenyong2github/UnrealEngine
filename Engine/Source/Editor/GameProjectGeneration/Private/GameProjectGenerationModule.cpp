@@ -195,8 +195,10 @@ void FGameProjectGenerationModule::LoadTemplateCategories()
 				TemplateCategory->Key = Category.Key;
 				TemplateCategory->DisplayName = FLocalizedTemplateString::GetLocalizedText(Category.LocalizedDisplayNames);
 				TemplateCategory->Description = FLocalizedTemplateString::GetLocalizedText(Category.LocalizedDescriptions);
-				TemplateCategory->Icon = FEditorStyle::GetBrush(Category.Icon);
-				TemplateCategory->Image = FEditorStyle::GetBrush(Category.Image);
+				
+				const FName BrushName(*Category.Icon);
+				TemplateCategory->Icon = new FSlateDynamicImageBrush(BrushName, FVector2D(128, 128));
+
 				TemplateCategory->IsMajor = Category.IsMajorCategory;
 			}
 		}

@@ -17,9 +17,6 @@ struct FTemplateCategory
 	/** A thumbnail to help identify this category (on the tab) */
 	const FSlateBrush* Icon;
 
-	/** A thumbnail to help identify this category (on the screenshot)*/
-	const FSlateBrush* Image;
-
 	/** A unique key for this category */
 	FName Key;
 
