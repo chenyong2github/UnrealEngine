@@ -16,17 +16,27 @@
 #include "Rendering/SlateRenderer.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Misc/ConfigCacheIni.h"
+#include "PixelStreamingFreezeFrame.h"
 #include "PixelStreamingInputDevice.h"
 #include "PixelStreamingInputComponent.h"
 #include "GameFramework/GameModeBase.h"
 #include "Dom/JsonObject.h"
 #include "Misc/App.h"
 #include "Misc/MessageDialog.h"
+#include "IImageWrapper.h"
+#include "IImageWrapperModule.h"
+#include "Async/Async.h"
 
 DEFINE_LOG_CATEGORY(PixelStreaming);
 DEFINE_LOG_CATEGORY(PixelStreamingInput);
 DEFINE_LOG_CATEGORY(PixelStreamingNet);
 DEFINE_LOG_CATEGORY(PixelStreamingCapture);
+
+TAutoConsoleVariable<int32> CVarPixelStreamingFreezeFrameQuality(
+	TEXT("PixelStreaming.FreezeFrameQuality"),
+	100,
+	TEXT("Compression quality of the freeze frame"),
+	ECVF_Default);
 
 /** IModuleInterface implementation */
 void FPixelStreamingPlugin::StartupModule()
@@ -71,6 +81,12 @@ void FPixelStreamingPlugin::StartupModule()
 	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
 
 	FApp::SetUnfocusedVolumeMultiplier(1.0f);
+
+	// Allow Pixel Streaming to be frozen and a freeze frame image to be used
+	// instead of the video stream.
+	UPixelStreamingFreezeFrame::CreateInstance();
+	bFrozen = false;
+	bCaptureNextBackBufferAndStream = false;
 }
 
 void FPixelStreamingPlugin::ShutdownModule()
@@ -126,7 +142,25 @@ void FPixelStreamingPlugin::OnBackBufferReady_RenderThread(SWindow& SlateWindow,
 		Streamer = MakeUnique<FStreamer>(*IP, Port, BackBuffer);
 	}
 
-	Streamer->OnFrameBufferReady(BackBuffer);
+	if (!bFrozen)
+	{
+		Streamer->OnFrameBufferReady(BackBuffer);
+	}
+
+	// Check to see if we have been instructed to capture the back buffer as a
+	// freeze frame.
+	if (bCaptureNextBackBufferAndStream)
+	{
+		bCaptureNextBackBufferAndStream = false;
+
+		// Read the data out of the back buffer and send as a JPEG.
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		FIntRect Rect(0, 0, BackBuffer->GetSizeX(), BackBuffer->GetSizeY());
+		TArray<FColor>* Data = new TArray<FColor>;
+
+		RHICmdList.ReadSurfaceData(BackBuffer, Rect, *Data, FReadSurfaceDataFlags());
+		SendJpeg(Data, Rect);
+	}
 }
 
 void FPixelStreamingPlugin::OnPreResizeWindowBackbuffer(void* BackBuffer)
@@ -164,6 +198,58 @@ FPixelStreamingInputDevice& FPixelStreamingPlugin::GetInputDevice()
 TSharedPtr<FPixelStreamingInputDevice> FPixelStreamingPlugin::GetInputDevicePtr()
 {
 	return InputDevice;
+}
+
+void FPixelStreamingPlugin::FreezeFrame(UTexture2D* Texture)
+{
+	if (Texture)
+	{
+		// A frame is supplied so immediately read its data and send as a JPEG.
+		FTexture2DRHIRef Texture2DRHI = Texture->Resource && Texture->Resource->TextureRHI ? Texture->Resource->TextureRHI->GetTexture2D() : nullptr;
+		if (!Texture2DRHI)
+		{
+			UE_LOG(PixelStreaming, Error, TEXT("Attempting freeze frame with texture %s with no texture 2D RHI"), *Texture->GetName());
+			return;
+		}
+
+		struct FReadSurfaceContext
+		{
+			FTexture2DRHIRef Texture;
+			FIntRect Rect;
+			TArray<FColor>* Data;
+		};
+
+		FReadSurfaceContext Context =
+		{
+			Texture2DRHI,
+			FIntRect(0, 0, Texture->GetSizeX(), Texture->GetSizeY()),
+			new TArray<FColor>
+		};
+
+		ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)(
+			[this, Context](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.ReadSurfaceData(Context.Texture, Context.Rect, *Context.Data, FReadSurfaceDataFlags());
+			SendJpeg(Context.Data, Context.Rect);
+		});
+	}
+	else
+	{
+		// A frame is not supplied, so we need to capture the back buffer at
+		// the next opportunity, and send as a JPEG.
+		bCaptureNextBackBufferAndStream = true;
+	}
+
+	// Stop streaming.
+	bFrozen = true;
+}
+
+void FPixelStreamingPlugin::UnfreezeFrame()
+{
+	Streamer->SendUnfreezeFrame();
+
+	// Resume streaming.
+	bFrozen = false;
 }
 
 void FPixelStreamingPlugin::AddClientConfig(TSharedRef<FJsonObject>& JsonObject)
@@ -213,6 +299,30 @@ void FPixelStreamingPlugin::OnGameModePostLogin(AGameModeBase* GameMode, APlayer
 void FPixelStreamingPlugin::OnGameModeLogout(AGameModeBase* GameMode, AController* Exiting)
 {
 	InputComponents.Empty();
+}
+
+void FPixelStreamingPlugin::SendJpeg(TArray<FColor>* Data, const FIntRect& Rect)
+{
+	AsyncTask(ENamedThreads::GameThread, [this, Data, Rect]
+	{
+		// Set up the image wrapper so we can compress the frame data to a JPEG.
+		IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::JPEG);
+		bool bSuccess = ImageWrapper->SetRaw(Data->GetData(), Data->Num() * sizeof(FColor), Rect.Width(), Rect.Height(), ERGBFormat::BGRA, 8);
+		if (bSuccess)
+		{
+			// Compress to a JPEG of the maximum possible quality.
+			int32 Quality = CVarPixelStreamingFreezeFrameQuality.GetValueOnGameThread();
+			const TArray<uint8>& JpegBytes = ImageWrapper->GetCompressed(Quality);
+			Streamer->SendFreezeFrame(JpegBytes);
+		}
+		else
+		{
+			UE_LOG(PixelStreaming, Error, TEXT("JPEG image wrapper failed to accept frame data"));
+		}
+
+		delete Data;
+	});
 }
 
 IMPLEMENT_MODULE(FPixelStreamingPlugin, PixelStreaming)

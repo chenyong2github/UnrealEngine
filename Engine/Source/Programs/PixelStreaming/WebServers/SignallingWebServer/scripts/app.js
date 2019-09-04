@@ -17,6 +17,18 @@ var resizeTimeout;
 var onDataChannelConnected;
 var responseEventListeners = new Map();
 
+var freezeFrameOverlay = null;
+var shouldShowPlayOverlay = true;
+
+// A freeze frame is a still JPEG image shown instead of the video.
+var freezeFrame = {
+	chunks: null,
+	numChunks: 0,
+	height: 0,
+	width: 0,
+	valid: false
+};
+
 var t0 = Date.now();
 function log(str) {
     console.log(`${Math.floor(Date.now() - t0)}: ` + str);
@@ -220,8 +232,10 @@ function showPlayOverlay(){
 
 		requestQualityControl();
 
+		showFreezeFrameOverlay();
 		hideOverlay();
 	});
+	shouldShowPlayOverlay = false;
 }
 
 function hideOverlay(){
@@ -255,12 +269,15 @@ function removeResponseEventListener(name) {
 // Must be kept in sync with PixelStreamingProtocol::EToClientMsg C++ enum.
 const ToClientMessageType = {
 	QualityControlOwnership: 0,
-	Response: 1
+	Response: 1,
+	FreezeFrame: 2,
+	UnfreezeFrame: 3
 };
 
 function setupWebRtcPlayer(htmlElement, clientConfig){
     webRtcPlayerObj = new webRtcPlayer({peerConnectionOptions: clientConfig.peerConnectionOptions});
     htmlElement.appendChild(webRtcPlayerObj.video);
+	htmlElement.appendChild(freezeFrameOverlay);
 
     webRtcPlayerObj.onWebRtcOffer = function (offer) {
    		socket.emit("webrtc-offer", offer);
@@ -270,9 +287,11 @@ function setupWebRtcPlayer(htmlElement, clientConfig){
 		socket.emit('webrtc-ice', candidate);
     };
 
-    webRtcPlayerObj.onVideoInitialised = function(){
-    	showPlayOverlay();
-    	resizePlayerStyle();
+	webRtcPlayerObj.onVideoInitialised = function(){
+		if (shouldShowPlayOverlay) {
+			showPlayOverlay();
+			resizePlayerStyle();
+		}
     }
 
     webRtcPlayerObj.onDataChannelConnected = function(){
@@ -298,6 +317,42 @@ function setupWebRtcPlayer(htmlElement, clientConfig){
 			for (let listener of responseEventListeners.values()) {
 				listener(response);
 			}
+		} else if (view[0] == ToClientMessageType.FreezeFrame) {
+			let chunkIdx = view[1];
+			if (chunkIdx == 0) {
+				// The first chunk has arrived.
+				freezeFrame.numChunks = view[2];
+				freezeFrame.chunks = new Uint8Array(data.slice(3));
+			} else {
+				// Subsequent chunks expand the data.
+				let chunk = new Uint8Array(data.slice(2));
+				let expandedChunks = new Uint8Array(freezeFrame.chunks.length + chunk.length);
+				expandedChunks.set(freezeFrame.chunks);
+				expandedChunks.set(chunk, freezeFrame.chunks.length);
+				freezeFrame.chunks = expandedChunks;
+			}
+
+			if (chunkIdx == freezeFrame.numChunks - 1) {
+				// All the chunks have arrived so we set the JPEG data.
+				freezeFrame.valid = true;
+				let base64 = btoa(freezeFrame.chunks.reduce((data, byte) => data + String.fromCharCode(byte), ''));
+				freezeFrameOverlay.src = 'data:image/jpeg;base64,' + base64;
+
+				freezeFrameOverlay.onload = function () {
+					freezeFrame.height = freezeFrameOverlay.naturalHeight;
+					freezeFrame.width = freezeFrameOverlay.naturalWidth;
+					resizeFreezeFrameOverlay();
+
+					if (shouldShowPlayOverlay) {
+						showPlayOverlay();
+						resizePlayerStyle();
+					} else {
+						showFreezeFrameOverlay();
+					}
+				}
+			}
+		} else if (view[0] == ToClientMessageType.UnfreezeFrame) {
+			invalidateFreezeFrameOverlay();
 		}
 	}
 
@@ -456,19 +511,75 @@ function resizePlayerStyleToFillWindow(playerElement) {
 function resizePlayerStyleToActualSize(playerElement) {
     let videoElement = playerElement.getElementsByTagName("VIDEO");
 
-    // Display image in its actual size
-    styleWidth = videoElement.videoWidth;
-    styleHeight = videoElement.videoHeight;
-    styleTop = Math.floor((window.innerHeight - styleHeight) * 0.5);
-    styleLeft = Math.floor((window.innerWidth - styleWidth) * 0.5);
-    //Video is now 100% of the playerElement, so set the playerElement style
-    playerElement.style = "top: " + styleTop + "px; left: " + styleLeft + "px; width: " + styleWidth + "px; height: " + styleHeight + "px; cursor: " + styleCursor + "; " + styleAdditional;
+	if (videoElement.length > 0) {
+		// Display image in its actual size
+		styleWidth = videoElement[0].videoWidth;
+		styleHeight = videoElement[0].videoHeight;
+		styleTop = Math.floor((window.innerHeight - styleHeight) * 0.5);
+		styleLeft = Math.floor((window.innerWidth - styleWidth) * 0.5);
+		//Video is now 100% of the playerElement, so set the playerElement style
+		playerElement.style = "top: " + styleTop + "px; left: " + styleLeft + "px; width: " + styleWidth + "px; height: " + styleHeight + "px; cursor: " + styleCursor + "; " + styleAdditional;
+	}
 }
 
 function resizePlayerStyleToArbitrarySize(playerElement) {
     let videoElement = playerElement.getElementsByTagName("VIDEO");
     //Video is now 100% of the playerElement, so set the playerElement style
     playerElement.style = "top: 0px; left: 0px; width: " + styleWidth + "px; height: " + styleHeight + "px; cursor: " + styleCursor + "; " + styleAdditional;
+}
+
+function setupFreezeFrameOverlay() {
+	freezeFrameOverlay = document.createElement('img');
+	freezeFrameOverlay.id = 'freezeFrameOverlay';
+	freezeFrameOverlay.style.display = 'none';
+	freezeFrameOverlay.style.pointerEvents = 'none';
+	freezeFrameOverlay.style.position = 'absolute';
+	freezeFrameOverlay.style.zIndex = '30';
+}
+
+function showFreezeFrameOverlay() {
+	if (freezeFrame.valid) {
+		freezeFrameOverlay.style.display = 'block';
+	}
+}
+
+function invalidateFreezeFrameOverlay() {
+	freezeFrameOverlay.style.display = 'none';
+	freezeFrame.valid = false;
+}
+
+function resizeFreezeFrameOverlay() {
+	if (freezeFrame.width != 0 && freezeFrame.height != 0) {
+		let displayWidth = 0;
+		let displayHeight = 0;
+		let displayTop = 0;
+		let displayLeft = 0;
+		let checkBox = document.getElementById('enlarge-display-to-fill-window-tgl');
+		if (checkBox != null && checkBox.checked) {
+			let windowAspectRatio = window.innerWidth / window.innerHeight;
+			let videoAspectRatio = freezeFrame.width / freezeFrame.height;
+			if (windowAspectRatio < videoAspectRatio) {
+				displayWidth = window.innerWidth;
+				displayHeight = Math.floor(window.innerWidth / videoAspectRatio);
+				displayTop = Math.floor((window.innerHeight - displayHeight) * 0.5);
+				displayLeft = 0;
+			} else {
+				displayWidth = Math.floor(window.innerHeight * videoAspectRatio);
+				displayHeight = window.innerHeight;
+				displayTop = 0;
+				displayLeft = Math.floor((window.innerWidth - displayWidth) * 0.5);
+			}
+		} else {
+			displayWidth = freezeFrame.width;
+			displayHeight = freezeFrame.height;
+			displayTop = 0;
+			displayLeft = 0;
+		}
+		freezeFrameOverlay.style.width = displayWidth + 'px';
+		freezeFrameOverlay.style.height = displayHeight + 'px';
+		freezeFrameOverlay.style.left = displayLeft + 'px';
+		freezeFrameOverlay.style.top = displayTop + 'px';
+	}
 }
 
 function resizePlayerStyle(event) {
@@ -498,6 +609,7 @@ function resizePlayerStyle(event) {
 	} else {
 		resizePlayerStyleToArbitrarySize(playerElement);
 	}
+	resizeFreezeFrameOverlay();
 }
 
 function updateVideoStreamSize() {
@@ -1149,6 +1261,8 @@ function start() {
 				
 	if (!connect_on_load || is_reconnection){
 		showConnectOverlay();
+		invalidateFreezeFrameOverlay();
+		shouldShowPlayOverlay = true;
 		resizePlayerStyle();
 	} else {
 		connect();
@@ -1237,6 +1351,7 @@ function onClientConfig(clientConfig) {
 
 function load() {
 	setupHtmlEvents();
+	setupFreezeFrameOverlay();
     registerKeyboardEvents();
     start();
 }
