@@ -223,6 +223,7 @@
     <ClCompile Include="..\MixedRealityInterop\MixedRealityInterop.cpp" />
     <ClCompile Include="..\MixedRealityInterop\QRCodeObserver.cpp" />
     <ClCompile Include="..\MixedRealityInterop\SpatialAnchorHelper.cpp" />
+    <ClCompile Include="..\MixedRealityInterop\SpatialAudioClientInterop.cpp" />
     <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
