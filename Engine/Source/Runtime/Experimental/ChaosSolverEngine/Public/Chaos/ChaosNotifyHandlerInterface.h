@@ -1,10 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Kismet/BlueprintFunctionLibrary.h"
-
-
 #pragma once
 
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "UObject/Interface.h"
 #include "Engine/EngineTypes.h"
 #include "ChaosNotifyHandlerInterface.generated.h"

@@ -555,7 +555,8 @@ namespace IncludeTool
 					{
 						if (SourceFile.BodyMaxIdx > SourceFile.BodyMinIdx && SourceFile.Markup[SourceFile.BodyMinIdx].Type != PreprocessorMarkupType.Include && (SourceFile.Flags & SourceFileFlags.External) == 0)
 						{
-							Log.WriteLine("warning: Source file does not begin with an #include directive: {0}", SourceFile.Location.MakeRelativeTo(InputDir));
+							// TODO disabling for the moment
+//							Log.WriteLine("warning: Source file does not begin with an #include directive: {0}", SourceFile.Location.MakeRelativeTo(InputDir));
 						}
 					}
 
