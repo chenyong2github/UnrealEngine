@@ -20,11 +20,7 @@ FRuntimeVirtualTextureFinalizer::FRuntimeVirtualTextureFinalizer(FVTProducerDesc
 
 bool FRuntimeVirtualTextureFinalizer::IsReady()
 {
-	//todo[vt]: 
-	// Test if we have everything we need to render (mips loaded etc).
-
-	// Test scene is loaded and has been updated once by main rendering passes
-	return Scene != nullptr && Scene->GetRenderScene() != nullptr && Scene->GetRenderScene()->GetFrameNumber() > 1;
+	return RuntimeVirtualTexture::IsSceneReadyToRender(Scene->GetRenderScene());
 }
 
 void FRuntimeVirtualTextureFinalizer::InitProducer(const FVirtualTextureProducerHandle& ProducerHandle)
