@@ -2569,39 +2569,76 @@ void UAnimInstance::SetLayerOverlay(TSubclassOf<UAnimInstance> InClass)
 		{
 			for(TPair<FName, TArray<FAnimNode_Layer*, TInlineAllocator<4>>> LayerPair : LayerNodesToSet)
 			{
-				// If the class is null, then reset to default (which can be null)
-				UClass* ClassToSet = NewClass != nullptr ? NewClass : LayerPair.Value[0]->InstanceClass.Get();
-				if(ClassToSet != nullptr && ClassToSet != GetClass())
+				if (LayerPair.Key == NAME_None)
 				{
-					// Create and add one sub-instance for this group
-					USkeletalMeshComponent* MeshComp = GetSkelMeshComponent();
-					UAnimInstance* NewSubInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
-
+					// Ungrouped path - each layer gets a separate instance
 					for(FAnimNode_Layer* LayerNode : LayerPair.Value)
 					{
-						LayerNode->SetLayerOverlaySubInstance(this, NewSubInstance);
-					}
-
-					// Init after we link in the new graph segments, so propagation happens correctly
-					NewSubInstance->InitializeAnimation();
-
-					// Initialize the correct parts of the sub instance
-					for(FAnimNode_Layer* LayerNode : LayerPair.Value)
-					{
-						if(LayerNode->LinkedRoot)
+						UClass* ClassToSet = NewClass != nullptr ? NewClass : LayerNode->InstanceClass.Get();
+						if (ClassToSet != nullptr && ClassToSet != GetClass())
 						{
-							NewSubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>().InitializeRootNode_WithRoot(LayerNode->LinkedRoot);
+							USkeletalMeshComponent* MeshComp = GetSkelMeshComponent();
+							UAnimInstance* NewSubInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
+
+							LayerNode->SetLayerOverlaySubInstance(this, NewSubInstance);
+
+							// Init after we link in the new graph segments, so propagation happens correctly
+							NewSubInstance->InitializeAnimation();
+
+							// Initialize the correct parts of the sub instance
+							if(LayerNode->LinkedRoot)
+							{
+								FAnimInstanceProxy& Proxy = NewSubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+								Proxy.InitializeObjects(NewSubInstance);
+								Proxy.InitializeRootNode_WithRoot(LayerNode->LinkedRoot);
+								Proxy.ClearObjects();
+							}
+
+							MeshComp->SubInstances.Add(NewSubInstance);
 						}
 					}
-
-					MeshComp->SubInstances.Add(NewSubInstance);
 				}
 				else
-				{
-					// Clear the node's instance - we didnt find a class to use
-					for(FAnimNode_Layer* LayerNode : LayerPair.Value)
+				{		
+					// Grouped path - each group gets an instance
+					// If the class is null, then reset to default (which can be null)
+					UClass* ClassToSet = NewClass != nullptr ? NewClass : LayerPair.Value[0]->InstanceClass.Get();
+					if(ClassToSet != nullptr && ClassToSet != GetClass())
 					{
-						LayerNode->SetLayerOverlaySubInstance(this, nullptr);
+						// Create and add one sub-instance for this group
+						USkeletalMeshComponent* MeshComp = GetSkelMeshComponent();
+						UAnimInstance* NewSubInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
+
+						for(FAnimNode_Layer* LayerNode : LayerPair.Value)
+						{
+							LayerNode->SetLayerOverlaySubInstance(this, NewSubInstance);
+						}
+
+						// Init after we link in the new graph segments, so propagation happens correctly
+						NewSubInstance->InitializeAnimation();
+
+						FAnimInstanceProxy& Proxy = NewSubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+
+						// Initialize the correct parts of the sub instance
+						for(FAnimNode_Layer* LayerNode : LayerPair.Value)
+						{
+							if(LayerNode->LinkedRoot)
+							{
+								Proxy.InitializeObjects(NewSubInstance);
+								Proxy.InitializeRootNode_WithRoot(LayerNode->LinkedRoot);
+								Proxy.ClearObjects();
+							}
+						}
+
+						MeshComp->SubInstances.Add(NewSubInstance);
+					}
+					else
+					{
+						// Clear the node's instance - we didnt find a class to use
+						for(FAnimNode_Layer* LayerNode : LayerPair.Value)
+						{
+							LayerNode->SetLayerOverlaySubInstance(this, nullptr);
+						}
 					}
 				}
 			}

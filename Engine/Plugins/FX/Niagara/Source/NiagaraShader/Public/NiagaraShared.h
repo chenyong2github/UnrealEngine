@@ -172,9 +172,6 @@ public:
 	/** The compile hashes of the top level scripts the script is dependent on. */
 	TArray<FNiagaraCompileHash> ReferencedCompileHashes;
 
-	/** Guids of any functions or module scripts the script was dependent on. */
-	TArray<FGuid> ReferencedDependencyIds;
-
 	FNiagaraShaderMapId()
 		: CompilerVersionID()
 		, FeatureLevel(GMaxRHIFeatureLevel)
@@ -670,7 +667,7 @@ public:
 
 
 	NIAGARASHADER_API void SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersion, const FGuid& InBaseScriptID, const TArray<FString>& InAdditionalDefines,
-		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, const TArray<FGuid>& InReferencedDependencyIds, FString InFriendlyName);
+		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, FString InFriendlyName);
 
 	UNiagaraScript *GetBaseVMScript()
 	{
@@ -756,9 +753,6 @@ private:
 
 	/** The compile hashes for the top level scripts referenced by the script. */
 	TArray<FNiagaraCompileHash> ReferencedCompileHashes;
-
-	/** Dependencies of the script*/
-	TArray<FGuid> ReferencedDependencyIds;
 
 	/** 
 	 * Contains the compiling id of this shader map when it is being compiled asynchronously. 

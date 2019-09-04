@@ -3044,12 +3044,13 @@ bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResour
 	FlushRenderingCommands();
 
 	bool bChanged = false;
+    const bool bUpdateHash = !bIntermediateRender;
 	for (int8 MipIndex = 0; MipIndex < OutMipsData.Num(); ++MipIndex)
 	{
 		if (OutMipsData[MipIndex].Num() > 0)
 		{
 			uint8* TextureData = InOutputTexture->Source.LockMip(MipIndex);
-			if (MipIndex == 0)
+			if (MipIndex == 0 && bUpdateHash)
 			{
 				bChanged = InCPUReadBackTexture->UpdateHashFromTextureSource((uint8*)OutMipsData[MipIndex].GetData());
 			}
@@ -4568,6 +4569,7 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 
 	bool bPartialUpdate = !bForceRender && !bUpdateAll && CVarLandscapeLayerOptim.GetValueOnAnyThread() == 1;
 	TSet<UTexture*> Heightmaps;
+	TSet<UTexture*> HeightmapsToRender;
 	TSet<ULandscapeComponent*> NeighborsComponents;
 	TSet<ULandscapeComponent*> WeightmapsComponents;
 	TSet<ULandscapeWeightmapUsage*> WeightmapUsagesToResolve;
@@ -4590,6 +4592,10 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 				GetLandscapeComponentNeighborsToRender(Component, NeighborsComponents);
 				// Gather Heightmaps (All Components sharing Heightmap textures need to be rendered and resolved)
 				Heightmaps.Add(Component->GetHeightmap(false));
+				Component->ForEachLayer([&](const FGuid&, FLandscapeLayerComponentData& LayerData)
+				{
+					HeightmapsToRender.Add(LayerData.HeightmapData.Texture);
+				});
 				// Gather WeightmapUsages (Components sharing weightmap usages with the resolved Components need to be rendered so that the resolving is valid)
 				GetLandscapeComponentWeightmapsToRender(Component, WeightmapsComponents);
 			}
@@ -4599,6 +4605,15 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 			SkippedComponents.Add(Component);
 		}
 	});
+
+	// Because of Heightmap Sharing anytime we render a heightmap we need to render all the components that use it
+	for (ULandscapeComponent* NeighborsComponent : NeighborsComponents)
+	{
+		NeighborsComponent->ForEachLayer([&](const FGuid&, FLandscapeLayerComponentData& LayerData)
+		{
+			HeightmapsToRender.Add(LayerData.HeightmapData.Texture);
+		});
+	}
 
 	// Copy first list into others
 	LandscapeComponentsHeightmapsToResolve.Append(AllLandscapeComponents);
@@ -4619,6 +4634,21 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 			else if (NeighborsComponents.Contains(Component))
 			{
 				LandscapeComponentsHeightmapsToRender.Add(Component);
+			}
+			else
+			{
+				bool bAdd = false;
+				Component->ForEachLayer([&](const FGuid&, FLandscapeLayerComponentData& LayerData)
+				{
+					if (HeightmapsToRender.Contains(LayerData.HeightmapData.Texture))
+					{
+						bAdd = true;
+					}
+				});
+				if (bAdd)
+				{
+					LandscapeComponentsHeightmapsToRender.Add(Component);
+				}
 			}
 
 			if (WeightmapsComponents.Contains(Component))
@@ -4794,11 +4824,14 @@ void ALandscape::OnPreSave()
 	ForceUpdateLayersContent();
 }
 
-void ALandscape::ForceUpdateLayersContent()
+void ALandscape::ForceUpdateLayersContent(bool bInIntermediateRender)
 {
 	const bool bWaitForStreaming = true;
 	const bool bInSkipMonitorLandscapeEdModeChanges = true;
+
+	bIntermediateRender = bInIntermediateRender;
 	UpdateLayersContent(bWaitForStreaming, bInSkipMonitorLandscapeEdModeChanges);
+	bInIntermediateRender = false;
 }
 
 void ALandscape::TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)

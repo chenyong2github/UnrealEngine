@@ -32,9 +32,10 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		MaxDirtyLevel = Desc.MaxLevel;
 
 		const ERuntimeVirtualTextureMaterialType MaterialType = VirtualTexture->GetMaterialType();
+		const bool bClearTextures = VirtualTexture->GetClearTextures();
 
 		// The Producer object created here will be passed into the virtual texture system which will take ownership.
-		IVirtualTexture* Producer = new FRuntimeVirtualTextureProducer(Desc, ProducerId, MaterialType, InComponent->GetScene(), Transform);
+		IVirtualTexture* Producer = new FRuntimeVirtualTextureProducer(Desc, ProducerId, MaterialType, bClearTextures, InComponent->GetScene(), Transform);
 
 		if (InComponent->IsStreamingLowMips() && VirtualTexture->GetStreamLowMips() > 0)
 		{

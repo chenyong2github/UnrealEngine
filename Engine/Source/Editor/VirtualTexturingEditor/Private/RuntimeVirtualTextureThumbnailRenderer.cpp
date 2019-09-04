@@ -84,6 +84,7 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 			Scene->GetRenderScene(),
 			1 << VirtualTextureSceneIndex,
 			MaterialType,
+			true,
 			RenderTarget->GetRenderTargetTexture(), DestRect,
 			nullptr, DestRect,
 			Transform,
