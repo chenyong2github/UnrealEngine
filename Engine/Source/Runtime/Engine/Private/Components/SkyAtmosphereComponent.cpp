@@ -11,6 +11,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
+#include "Rendering/SkyAtmosphereCommonData.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -30,6 +31,7 @@
 
 USkyAtmosphereComponent::USkyAtmosphereComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, SkyAtmosphereSceneProxy(nullptr)
 {
 	// All distance here are in kilometer and scattering/absorptions coefficient in 1/kilometers.
 	const float EarthBottomRadius = 6360.0f;
@@ -91,36 +93,46 @@ static bool SkyAtmosphereComponentStaticLightingBuilt(const USkyAtmosphereCompon
 	return true;	// The component has not been spawned in any world yet so let's mark it as built for now.
 }
 
-void USkyAtmosphereComponent::AddToRenderScene() const
-{
-	if (ShouldComponentAddToScene() && ShouldRender() && IsRegistered() && (GetOuter() == NULL || !GetOuter()->HasAnyFlags(RF_ClassDefaultObject)))
-	{
-		GetWorld()->Scene->AddSkyAtmosphere(this, SkyAtmosphereComponentStaticLightingBuilt(this));
-	}
-}
-
 void USkyAtmosphereComponent::CreateRenderState_Concurrent()
 {
 	Super::CreateRenderState_Concurrent();
 	// If one day we need to look up lightmass built data, lookup it up here using the guid from the correct MapBuildData.
-	AddToRenderScene();
+
+	bool bHidden = false;
+#if WITH_EDITORONLY_DATA
+	bHidden = GetOwner() ? GetOwner()->bHiddenEdLevel : false;
+#endif // WITH_EDITORONLY_DATA
+	if (!ShouldComponentAddToScene())
+	{
+		bHidden = true;
+	}
+
+	if (bVisible && !bHidden &&
+		ShouldComponentAddToScene() && ShouldRender() && IsRegistered() && (GetOuter() == NULL || !GetOuter()->HasAnyFlags(RF_ClassDefaultObject)))
+	{
+		// Create the scene proxy.
+		SkyAtmosphereSceneProxy = new FSkyAtmosphereSceneProxy(this);
+		GetWorld()->Scene->AddSkyAtmosphere(SkyAtmosphereSceneProxy, SkyAtmosphereComponentStaticLightingBuilt(this));
+	}
+
 }
 
 void USkyAtmosphereComponent::DestroyRenderState_Concurrent()
 {
 	Super::DestroyRenderState_Concurrent();
-	GetWorld()->Scene->RemoveSkyAtmosphere(this);
 
-	// Search for new fog component
-	for (TObjectIterator<USkyAtmosphereComponent> It; It; ++It)
+	if (SkyAtmosphereSceneProxy)
 	{
-		USkyAtmosphereComponent* Component = *It;
-		checkSlow(Component);
-		if (Component != this && Component->IsRegistered())
+		GetWorld()->Scene->RemoveSkyAtmosphere(SkyAtmosphereSceneProxy);
+
+		FSkyAtmosphereSceneProxy* SceneProxy = SkyAtmosphereSceneProxy;
+		ENQUEUE_RENDER_COMMAND(FDestroySkyAtmosphereSceneProxyCommand)(
+			[SceneProxy](FRHICommandList& RHICmdList)
 		{
-			Component->AddToRenderScene();
-			break;
-		}
+			delete SceneProxy;
+		});
+
+		SkyAtmosphereSceneProxy = nullptr;
 	}
 }
 
@@ -237,10 +249,10 @@ void USkyAtmosphereComponent::Serialize(FArchive& Ar)
 
 void USkyAtmosphereComponent::OverrideAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& LightDirection)
 {
-	if (AreDynamicDataChangesAllowed())
+	if (AreDynamicDataChangesAllowed() && SkyAtmosphereSceneProxy)
 	{
 		FSceneInterface* Scene = GetWorld()->Scene;
-		Scene->OverrideSkyAtmosphereLightDirection(this, AtmosphereLightIndex, LightDirection);
+		Scene->OverrideSkyAtmosphereLightDirection(SkyAtmosphereSceneProxy, AtmosphereLightIndex, LightDirection);
 	}
 }
 
@@ -330,6 +342,47 @@ ASkyAtmosphere::ASkyAtmosphere(const FObjectInitializer& ObjectInitializer)
 	PrimaryActorTick.bCanEverTick = true;
 	bHidden = false;
 }
+
+
+
+/*=============================================================================
+	FSkyAtmosphereSceneProxy implementation.
+=============================================================================*/
+
+
+
+FSkyAtmosphereSceneProxy::FSkyAtmosphereSceneProxy(const USkyAtmosphereComponent* InComponent)
+	: bStaticLightingBuilt(false)
+	, AtmosphereSetup(*InComponent)
+{
+	SkyLuminanceFactor = InComponent->SkyLuminanceFactor;
+	AerialPespectiveViewDistanceScale = InComponent->AerialPespectiveViewDistanceScale;
+	memset(OverrideAtmosphericLight, 0, sizeof(OverrideAtmosphericLight));
+
+	TransmittanceAtZenith = AtmosphereSetup.GetTransmittanceAtGroundLevel(FVector(0.0f, 0.0f, 1.0f));
+}
+
+FSkyAtmosphereSceneProxy::~FSkyAtmosphereSceneProxy()
+{
+}
+
+void FSkyAtmosphereSceneProxy::OverrideAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& LightDirection)
+{
+	check(AtmosphereLightIndex >= 0 && AtmosphereLightIndex < NUM_ATMOSPHERE_LIGHTS);
+	AtmosphereLightIndex = FMath::Clamp(AtmosphereLightIndex, 0, NUM_ATMOSPHERE_LIGHTS - 1);	// To make sure we do not crash, blueprint function cannot enforce input ranges
+	OverrideAtmosphericLight[AtmosphereLightIndex] = true;
+	OverrideAtmosphericLightDirection[AtmosphereLightIndex] = LightDirection;
+}
+
+FVector FSkyAtmosphereSceneProxy::GetAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& DefaultDirection) const
+{
+	if (OverrideAtmosphericLight[AtmosphereLightIndex])
+	{
+		return OverrideAtmosphericLightDirection[AtmosphereLightIndex];
+	}
+	return DefaultDirection;
+}
+
 
 #undef LOCTEXT_NAMESPACE
 
