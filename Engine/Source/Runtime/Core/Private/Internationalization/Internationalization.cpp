@@ -7,6 +7,7 @@
 #include "Misc/LazySingleton.h"
 #include "Misc/Paths.h"
 #include "Internationalization/Culture.h"
+#include "Internationalization/CustomCultureImplementation.h"
 #include "Internationalization/TextCache.h"
 
 #if UE_ENABLE_ICU
@@ -43,7 +44,7 @@ FText FInternationalization::ForUseOnlyByLocMacroAndGraphNodeTextLiterals_Create
 
 bool FInternationalization::SetCurrentCulture(const FString& InCultureName)
 {
-	FCulturePtr NewCulture = Implementation->GetCulture(InCultureName);
+	FCulturePtr NewCulture = GetCulture(InCultureName);
 
 	if (NewCulture.IsValid())
 	{
@@ -64,7 +65,7 @@ bool FInternationalization::SetCurrentCulture(const FString& InCultureName)
 
 bool FInternationalization::SetCurrentLanguage(const FString& InCultureName)
 {
-	FCulturePtr NewCulture = Implementation->GetCulture(InCultureName);
+	FCulturePtr NewCulture = GetCulture(InCultureName);
 
 	if (NewCulture.IsValid())
 	{
@@ -83,7 +84,7 @@ bool FInternationalization::SetCurrentLanguage(const FString& InCultureName)
 
 bool FInternationalization::SetCurrentLocale(const FString& InCultureName)
 {
-	FCulturePtr NewCulture = Implementation->GetCulture(InCultureName);
+	FCulturePtr NewCulture = GetCulture(InCultureName);
 
 	if (NewCulture.IsValid())
 	{
@@ -100,7 +101,7 @@ bool FInternationalization::SetCurrentLocale(const FString& InCultureName)
 
 bool FInternationalization::SetCurrentLanguageAndLocale(const FString& InCultureName)
 {
-	FCulturePtr NewCulture = Implementation->GetCulture(InCultureName);
+	FCulturePtr NewCulture = GetCulture(InCultureName);
 
 	if (NewCulture.IsValid())
 	{
@@ -120,7 +121,7 @@ bool FInternationalization::SetCurrentLanguageAndLocale(const FString& InCulture
 
 bool FInternationalization::SetCurrentAssetGroupCulture(const FName& InAssetGroupName, const FString& InCultureName)
 {
-	FCulturePtr NewCulture = Implementation->GetCulture(InCultureName);
+	FCulturePtr NewCulture = GetCulture(InCultureName);
 
 	if (NewCulture.IsValid())
 	{
@@ -194,7 +195,7 @@ void FInternationalization::RestoreCultureState(const FCultureStateSnapshot& InS
 	// Apply the language
 	if (!InSnapshot.Language.IsEmpty())
 	{
-		FCulturePtr NewCulture = Implementation->GetCulture(InSnapshot.Language);
+		FCulturePtr NewCulture = GetCulture(InSnapshot.Language);
 
 		if (NewCulture.IsValid())
 		{
@@ -212,7 +213,7 @@ void FInternationalization::RestoreCultureState(const FCultureStateSnapshot& InS
 	// Apply the locale
 	if (!InSnapshot.Locale.IsEmpty())
 	{
-		FCulturePtr NewCulture = Implementation->GetCulture(InSnapshot.Locale);
+		FCulturePtr NewCulture = GetCulture(InSnapshot.Locale);
 
 		if (NewCulture.IsValid())
 		{
@@ -230,7 +231,7 @@ void FInternationalization::RestoreCultureState(const FCultureStateSnapshot& InS
 	CurrentAssetGroupCultures.Reset(InSnapshot.AssetGroups.Num());
 	for (const auto& AssetGroupCultureNamePair : InSnapshot.AssetGroups)
 	{
-		FCulturePtr NewCulture = Implementation->GetCulture(AssetGroupCultureNamePair.Value);
+		FCulturePtr NewCulture = GetCulture(AssetGroupCultureNamePair.Value);
 		if (NewCulture.IsValid())
 		{
 			bChangedCulture = true;
@@ -275,6 +276,7 @@ void FInternationalization::Terminate()
 	DefaultLanguage.Reset();
 	DefaultLocale.Reset();
 
+	CustomCultures.Reset();
 	InvariantCulture.Reset();
 
 	Implementation->Terminate();
@@ -393,6 +395,20 @@ void FInternationalization::LoadAllCultureData()
 	Implementation->LoadAllCultureData();
 }
 
+void FInternationalization::AddCustomCulture(const TSharedRef<ICustomCulture>& InCustomCulture)
+{
+	CustomCultures.Add(FCulture::Create(MakeUnique<FCustomCultureImplementation>(InCustomCulture)));
+}
+
+FCulturePtr FInternationalization::GetCustomCulture(const FString& InCultureName) const
+{
+	const FCultureRef* CulturePtr = CustomCultures.FindByPredicate([&InCultureName](const FCultureRef& InPotentialCulture)
+	{
+		return InPotentialCulture->GetName() == InCultureName;
+	});
+	return CulturePtr ? FCulturePtr(*CulturePtr) : FCulturePtr();
+}
+
 bool FInternationalization::IsCultureRemapped(const FString& Name, FString* OutMappedCulture)
 {
 	return Implementation->IsCultureRemapped(Name, OutMappedCulture);
@@ -436,7 +452,7 @@ TArray<FCultureRef> FInternationalization::GetAvailableCultures(const TArray<FSt
 				const TArray<FString> PrioritizedParentCultureNames = Culture->GetPrioritizedParentCultureNames();
 				for (const FString& PrioritizedParentCultureName : PrioritizedParentCultureNames)
 				{
-					if (InCultureNames.Contains(PrioritizedParentCultureName) && Implementation->IsCultureAllowed(Culture->GetName()))
+					if (InCultureNames.Contains(PrioritizedParentCultureName) && IsCultureAllowed(Culture->GetName()))
 					{
 						AvailableCultures.AddUnique(Culture.ToSharedRef());
 						break;
