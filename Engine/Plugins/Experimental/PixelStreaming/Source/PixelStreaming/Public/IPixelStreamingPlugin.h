@@ -8,6 +8,8 @@
 #include "PixelStreamingCommon.h"
 #include "IInputDeviceModule.h"
 
+class UTexture2D;
+
 /**
 * The public interface to this module
 */
@@ -56,5 +58,16 @@ public:
 	 * @param Descriptor - A generic descriptor string.
 	 */
 	virtual void SendResponse(const FString& Descriptor) = 0;
+
+	/**
+	 * Freeze Pixel Streaming.
+	 * @param Texture - The freeze frame to display. If null then the back buffer is captured.
+	 */
+	virtual void FreezeFrame(UTexture2D* Texture) = 0;
+
+	/**
+	 * Unfreeze Pixel Streaming.
+	 */
+	virtual void UnfreezeFrame() = 0;
 };
 
