@@ -244,7 +244,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 	{
 		// Only support single Block/Layer here (Blocks and Layers are intended for VT support)
 		ensure(TextureData.Blocks.Num() == 1);
-		//ensure(TextureData.Layers.Num() == 1);
+		ensure(TextureData.Layers.Num() == 1);
 
 		check(DerivedData->Mips.Num() == 0);
 		DerivedData->SizeX = 0;
