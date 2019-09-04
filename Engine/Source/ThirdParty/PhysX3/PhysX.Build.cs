@@ -381,21 +381,21 @@ public class PhysX : ModuleRules
 
 			string[] PhysXLibs = new string[]
 				{
-					"LowLevel",
-					"LowLevelAABB",
-					"LowLevelCloth",
-					"LowLevelDynamics",
-					"LowLevelParticles",
-					"PhysX3",
-					"PhysX3Common",
-					// "PhysX3Cooking", // not needed until Apex
-					"PhysX3Extensions",
-					"SceneQuery",
-					"SimulationController",
-					"PxFoundation",
-					"PxTask",
-					"PxPvdSDK",
-					"PsFastXml"
+					"LowLevel{0}",
+					"LowLevelAABB{0}",
+					"LowLevelCloth{0}",
+					"LowLevelDynamics{0}",
+					"LowLevelParticles{0}",
+					"PhysX3{0}",
+					"PhysX3Common{0}",
+					// "PhysX3Cooking{0}", // not needed until Apex
+					"PhysX3Extensions{0}",
+					"SceneQuery{0}",
+					"SimulationController{0}",
+					"PxFoundation{0}",
+					"PxTask{0}",
+					"PxPvdSDK{0}",
+					"PsFastXml{0}"
 				};
 
 			foreach (string PhysXLib in PhysXLibs)
@@ -410,20 +410,20 @@ public class PhysX : ModuleRules
 
 			string[] PhysXLibs = new string[]
 				{
-					"LowLevel",
-					"LowLevelAABB",
-					"LowLevelCloth",
-					"LowLevelDynamics",
-					"LowLevelParticles",
-					"PhysX3",
-					"PhysX3Common",
-					// "PhysX3Cooking", // not needed until Apex
-					"PhysX3Extensions",
-					"SceneQuery",
-					"SimulationController",
-					"PxFoundation",
-					"PxTask",
-					"PxPvdSDK",
+					"LowLevel{0}",
+					"LowLevelAABB{0}",
+					"LowLevelCloth{0}",
+					"LowLevelDynamics{0}",
+					"LowLevelParticles{0}",
+					"PhysX3{0}",
+					"PhysX3Common{0}",
+					// "PhysX3Cooking{0}", // not needed until Apex
+					"PhysX3Extensions{0}",
+					"SceneQuery{0}",
+					"SimulationController{0}",
+					"PxFoundation{0}",
+					"PxTask{0}",
+					"PxPvdSDK{0}",
 					"PsFastXml"
 				};
 
@@ -541,21 +541,21 @@ public class PhysX : ModuleRules
 			PhysXLibDir = Path.Combine(PhysXLibDir, "Switch");
 
 			string[] StaticLibrariesSwitch = new string[] {
-					"LowLevel",
-					"LowLevelAABB",
-					"LowLevelCloth",
-					"LowLevelDynamics",
-					"LowLevelParticles",
-					"PhysX3",
-					"PhysX3Common",
-					"PhysX3Cooking",
-					"PhysX3Extensions",
-					"SceneQuery",
-					"SimulationController",
-					"PxFoundation",
-					"PxTask",
-					"PxPvdSDK",
-					"PsFastXml"
+					"LowLevel{0}",
+					"LowLevelAABB{0}",
+					"LowLevelCloth{0}",
+					"LowLevelDynamics{0}",
+					"LowLevelParticles{0}",
+					"PhysX3{0}",
+					"PhysX3Common{0}",
+					"PhysX3Cooking{0}",
+					"PhysX3Extensions{0}",
+					"SceneQuery{0}",
+					"SimulationController{0}",
+					"PxFoundation{0}",
+					"PxTask{0}",
+					"PxPvdSDK{0}",
+					"PsFastXml{0}"
 			};
 
 			foreach (string Lib in StaticLibrariesSwitch)
