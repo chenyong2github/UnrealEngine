@@ -2,16 +2,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UnrealBuildTool;
-using BuildGraph;
-using System.Reflection;
-using System.Collections;
 using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text;
 using System.Xml;
 using Tools.DotNETCommon;
+using UnrealBuildTool;
 
 namespace AutomationTool
 {
@@ -168,7 +165,7 @@ namespace AutomationTool
 			// Generate documentation
 			if(DocumentationFileName != null)
 			{
-				GenerateDocumentation(NameToTask, new FileReference(DocumentationFileName));
+				WriteDocumentation(NameToTask, new FileReference(DocumentationFileName));
 				return ExitCode.Success;
 			}
 
@@ -824,7 +821,7 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="NameToTask">Map of task name to implementation</param>
 		/// <param name="OutputFile">Output file</param>
-		static void GenerateDocumentation(Dictionary<string, ScriptTask> NameToTask, FileReference OutputFile)
+		static void WriteDocumentation(Dictionary<string, ScriptTask> NameToTask, FileReference OutputFile)
 		{
 			// Find all the assemblies containing tasks
 			Assembly[] TaskAssemblies = NameToTask.Values.Select(x => x.ParametersClass.Assembly).Distinct().ToArray();
@@ -860,6 +857,125 @@ namespace AutomationTool
 			}
 
 			// Write the output file
+			if (OutputFile.HasExtension(".udn"))
+			{
+				WriteDocumentationUDN(NameToTask, MemberNameToElement, OutputFile);
+			}
+			else if (OutputFile.HasExtension(".html"))
+			{
+				WriteDocumentationHTML(NameToTask, MemberNameToElement, OutputFile);
+			}
+			else
+			{
+				throw new BuildException("Unable to detect format from extension of output file ({0})", OutputFile);
+			}
+		}
+
+		/// <summary>
+		/// Writes documentation to a UDN file
+		/// </summary>
+		/// <param name="NameToTask">Map of name to script task</param>
+		/// <param name="MemberNameToElement">Map of field name to XML documenation element</param>
+		/// <param name="OutputFile">The output file to write to</param>
+		static void WriteDocumentationUDN(Dictionary<string, ScriptTask> NameToTask, Dictionary<string, XmlElement> MemberNameToElement, FileReference OutputFile)
+		{
+			using (StreamWriter Writer = new StreamWriter(OutputFile.FullName))
+			{
+				Writer.WriteLine("Availability: NoPublish");
+				Writer.WriteLine("Title: BuildGraph Predefined Tasks");
+				Writer.WriteLine("Crumbs: %ROOT%, Programming, Programming/Development, Programming/Development/BuildGraph, Programming/Development/BuildGraph/BuildGraphScriptTasks");
+				Writer.WriteLine("Description: This is a procedurally generated markdown page.");
+				Writer.WriteLine("version: {0}.{1}", ReadOnlyBuildVersion.Current.MajorVersion, ReadOnlyBuildVersion.Current.MinorVersion);
+				Writer.WriteLine("parent:Programming/Development/BuildGraph/BuildGraphScriptTasks");
+				Writer.WriteLine();
+				foreach (string TaskName in NameToTask.Keys.OrderBy(x => x))
+				{
+					// Get the task object
+					ScriptTask Task = NameToTask[TaskName];
+
+					// Get the documentation for this task
+					XmlElement TaskElement;
+					if (MemberNameToElement.TryGetValue("T:" + Task.TaskClass.FullName, out TaskElement))
+					{
+						// Write the task heading
+						Writer.WriteLine("### {0}", TaskName);
+						Writer.WriteLine();
+						Writer.WriteLine(ConvertToMarkdown(TaskElement.SelectSingleNode("summary")));
+						Writer.WriteLine();
+
+						// Document the parameters
+						List<string[]> Rows = new List<string[]>();
+						foreach (string ParameterName in Task.NameToParameter.Keys)
+						{
+							// Get the parameter data
+							ScriptTaskParameter Parameter = Task.NameToParameter[ParameterName];
+
+							// Get the documentation for this parameter
+							XmlElement ParameterElement;
+							if (MemberNameToElement.TryGetValue("F:" + Parameter.FieldInfo.DeclaringType.FullName + "." + Parameter.Name, out ParameterElement))
+							{
+								string TypeName = Parameter.FieldInfo.FieldType.Name;
+								if (Parameter.ValidationType != TaskParameterValidationType.Default)
+								{
+									StringBuilder NewTypeName = new StringBuilder(Parameter.ValidationType.ToString());
+									for (int Idx = 1; Idx < NewTypeName.Length; Idx++)
+									{
+										if (Char.IsLower(NewTypeName[Idx - 1]) && Char.IsUpper(NewTypeName[Idx]))
+										{
+											NewTypeName.Insert(Idx, ' ');
+										}
+									}
+									TypeName = NewTypeName.ToString();
+								}
+
+								string[] Columns = new string[4];
+								Columns[0] = ParameterName;
+								Columns[1] = TypeName;
+								Columns[2] = Parameter.bOptional ? "Optional" : "Required";
+								Columns[3] = ConvertToMarkdown(ParameterElement.SelectSingleNode("summary"));
+								Rows.Add(Columns);
+							}
+						}
+
+						// Always include the "If" attribute
+						string[] IfColumns = new string[4];
+						IfColumns[0] = "If";
+						IfColumns[1] = "Condition";
+						IfColumns[2] = "Optional";
+						IfColumns[3] = "Whether to execute this task. It is ignored if this condition evaluates to false.";
+						Rows.Add(IfColumns);
+
+						// Get the width of each column
+						int[] Widths = new int[4];
+						for (int Idx = 0; Idx < 4; Idx++)
+						{
+							Widths[Idx] = Rows.Max(x => x[Idx].Length);
+						}
+
+						// Format the markdown table
+						string Format = String.Format("| {{0,-{0}}} | {{1,-{1}}} | {{2,-{2}}} | {{3,-{3}}} |", Widths[0], Widths[1], Widths[2], Widths[3]);
+						Writer.WriteLine(Format, "", "", "", "");
+						Writer.WriteLine(Format, new string('-', Widths[0]), new string('-', Widths[1]), new string('-', Widths[2]), new string('-', Widths[3]));
+						for (int Idx = 0; Idx < Rows.Count; Idx++)
+						{
+							Writer.WriteLine(Format, Rows[Idx][0], Rows[Idx][1], Rows[Idx][2], Rows[Idx][3]);
+						}
+
+						// Blank line before next task
+						Writer.WriteLine();
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Writes documentation to an HTML file
+		/// </summary>
+		/// <param name="NameToTask">Map of name to script task</param>
+		/// <param name="MemberNameToElement">Map of field name to XML documenation element</param>
+		/// <param name="OutputFile">The output file to write to</param>
+		static void WriteDocumentationHTML(Dictionary<string, ScriptTask> NameToTask, Dictionary<string, XmlElement> MemberNameToElement, FileReference OutputFile)
+		{
 			LogInformation("Writing {0}...", OutputFile);
 			using (StreamWriter Writer = new StreamWriter(OutputFile.FullName))
 			{

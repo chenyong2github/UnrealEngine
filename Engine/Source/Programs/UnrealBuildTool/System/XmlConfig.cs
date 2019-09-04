@@ -702,31 +702,60 @@ namespace UnrealBuildTool
 			}
 
 			// Generate the documentation file
+			if(OutputFile.HasExtension(".udn"))
+			{
+				WriteDocumentationUDN(OutputFile, InputDocumentation, CategoryToFields);
+			}
+			else if(OutputFile.HasExtension(".html"))
+			{
+				WriteDocumentationHTML(OutputFile, InputDocumentation, CategoryToFields);
+			}
+			else
+			{
+				throw new BuildException("Unable to detect format from extension of output file ({0})", OutputFile);
+			}
+
+			// Success!
+			Log.TraceInformation("Written documentation to {0}.", OutputFile);
+		}
+
+		/// <summary>
+		/// Writes out documentation in UDN format
+		/// </summary>
+		/// <param name="OutputFile">The output file</param>
+		/// <param name="InputDocumentation">The XML documentation for this assembly</param>
+		/// <param name="CategoryToFields">Map of string to types to fields</param>
+		private static void WriteDocumentationUDN(FileReference OutputFile, XmlDocument InputDocumentation, Dictionary<string, Dictionary<string, FieldInfo>> CategoryToFields)
+		{
 			using (StreamWriter Writer = new StreamWriter(OutputFile.FullName))
 			{
-				Writer.WriteLine("<html>");
-				Writer.WriteLine("  <body>");
-				Writer.WriteLine("  <h2>BuildConfiguration Properties</h2>");
-				foreach(KeyValuePair<string, Dictionary<string, FieldInfo>> CategoryPair in CategoryToFields)
+				Writer.WriteLine("Availability: NoPublish");
+				Writer.WriteLine("Title: Build Configuration Properties Page");
+				Writer.WriteLine("Crumbs:");
+				Writer.WriteLine("Description: This is a procedurally generated markdown page.");
+				Writer.WriteLine("Version: {0}.{1}", ReadOnlyBuildVersion.Current.MajorVersion, ReadOnlyBuildVersion.Current.MinorVersion);
+				Writer.WriteLine("");
+
+				foreach (KeyValuePair<string, Dictionary<string, FieldInfo>> CategoryPair in CategoryToFields)
 				{
 					string CategoryName = CategoryPair.Key;
-					Writer.WriteLine("    <h3>{0}</h3>", CategoryName);
-					Writer.WriteLine("    <dl>");
+					Writer.WriteLine("### {0}", CategoryName);
+					Writer.WriteLine();
 
 					Dictionary<string, FieldInfo> Fields = CategoryPair.Value;
-					foreach(KeyValuePair<string, FieldInfo> FieldPair in Fields)
+					foreach (KeyValuePair<string, FieldInfo> FieldPair in Fields)
 					{
 						string FieldName = FieldPair.Key;
 
 						FieldInfo Field = FieldPair.Value;
 						XmlNode Node = InputDocumentation.SelectSingleNode(String.Format("//member[@name='F:{0}.{1}']/summary", Field.DeclaringType.FullName, Field.Name));
-						if(Node != null)
+						if (Node != null)
 						{
 							// Reflow the comments into paragraphs, assuming that each paragraph will be separated by a blank line
 							List<string> Lines = new List<string>(Node.InnerText.Trim().Split('\n').Select(x => x.Trim()));
-							for(int Idx = Lines.Count - 1; Idx > 0; Idx--)
+							for (int Idx = Lines.Count - 1; Idx > 0; Idx--)
 							{
-								if(Lines[Idx - 1].Length > 0 && !Lines[Idx].StartsWith("*") && !Lines[Idx].StartsWith("-"))
+								if (Lines[Idx - 1].Length > 0 && !Lines[Idx].StartsWith("*") && !Lines[Idx].StartsWith("-"))
 								{
 									Lines[Idx - 1] += " " + Lines[Idx];
 									Lines.RemoveAt(Idx);
@@ -734,23 +763,85 @@ namespace UnrealBuildTool
 							}
 
 							// Write the result to the .udn file
-							if(Lines.Count > 0)
+							if (Lines.Count > 0)
+							{
+								Writer.WriteLine("$ {0} : {1}", FieldName, Lines[0]);
+								for (int Idx = 1; Idx < Lines.Count; Idx++)
+								{
+									if (Lines[Idx].StartsWith("*") || Lines[Idx].StartsWith("-"))
+									{
+										Writer.WriteLine("        * {0}", Lines[Idx].Substring(1).TrimStart());
+									}
+									else
+									{
+										Writer.WriteLine("    * {0}", Lines[Idx]);
+									}
+								}
+								Writer.WriteLine();
+							}
+						}
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Writes out documentation in HTML format
+		/// </summary>
+		/// <param name="OutputFile">The output file</param>
+		/// <param name="InputDocumentation">The XML documentation for this assembly</param>
+		/// <param name="CategoryToFields">Map of string to types to fields</param>
+		private static void WriteDocumentationHTML(FileReference OutputFile, XmlDocument InputDocumentation, Dictionary<string, Dictionary<string, FieldInfo>> CategoryToFields)
+		{
+			using (StreamWriter Writer = new StreamWriter(OutputFile.FullName))
+			{
+				Writer.WriteLine("<html>");
+				Writer.WriteLine("  <body>");
+				Writer.WriteLine("  <h2>BuildConfiguration Properties</h2>");
+				foreach (KeyValuePair<string, Dictionary<string, FieldInfo>> CategoryPair in CategoryToFields)
+				{
+					string CategoryName = CategoryPair.Key;
+					Writer.WriteLine("    <h3>{0}</h3>", CategoryName);
+					Writer.WriteLine("    <dl>");
+
+					Dictionary<string, FieldInfo> Fields = CategoryPair.Value;
+					foreach (KeyValuePair<string, FieldInfo> FieldPair in Fields)
+					{
+						string FieldName = FieldPair.Key;
+
+						FieldInfo Field = FieldPair.Value;
+						XmlNode Node = InputDocumentation.SelectSingleNode(String.Format("//member[@name='F:{0}.{1}']/summary", Field.DeclaringType.FullName, Field.Name));
+						if (Node != null)
+						{
+							// Reflow the comments into paragraphs, assuming that each paragraph will be separated by a blank line
+							List<string> Lines = new List<string>(Node.InnerText.Trim().Split('\n').Select(x => x.Trim()));
+							for (int Idx = Lines.Count - 1; Idx > 0; Idx--)
+							{
+								if (Lines[Idx - 1].Length > 0 && !Lines[Idx].StartsWith("*") && !Lines[Idx].StartsWith("-"))
+								{
+									Lines[Idx - 1] += " " + Lines[Idx];
+									Lines.RemoveAt(Idx);
+								}
+							}
+
+							// Write the result to the .udn file
+							if (Lines.Count > 0)
 							{
 								Writer.WriteLine("      <dt>{0}</dt>", FieldName);
 
-								if(Lines.Count == 1)
+								if (Lines.Count == 1)
 								{
 									Writer.WriteLine("      <dd>{0}</dd>", Lines[0]);
 								}
 								else
 								{
 									Writer.WriteLine("      <dd>");
-									for(int Idx = 0; Idx < Lines.Count; Idx++)
+									for (int Idx = 0; Idx < Lines.Count; Idx++)
 									{
-										if(Lines[Idx].StartsWith("*") || Lines[Idx].StartsWith("-"))
+										if (Lines[Idx].StartsWith("*") || Lines[Idx].StartsWith("-"))
 										{
 											Writer.WriteLine("        <ul>");
-											for(; Idx < Lines.Count && (Lines[Idx].StartsWith("*") || Lines[Idx].StartsWith("-")); Idx++)
+											for (; Idx < Lines.Count && (Lines[Idx].StartsWith("*") || Lines[Idx].StartsWith("-")); Idx++)
 											{
 												Writer.WriteLine("          <li>{0}</li>", Lines[Idx].Substring(1).TrimStart());
 											}
@@ -772,9 +863,7 @@ namespace UnrealBuildTool
 				Writer.WriteLine("  </body>");
 				Writer.WriteLine("</html>");
 			}
-
-			// Success!
-			Log.TraceInformation("Written documentation to {0}.", OutputFile);
 		}
 	}
 }
+
