@@ -28,6 +28,8 @@ namespace FLandscapeCustomVersion
 		MigrateOldPropertiesToNewRenderingProperties,
 		// Migration of old EnabledCollision for spline elements to the full body instance exposed
 		AddingBodyInstanceToSplinesElements,
+		// Spline Layer Falloff
+		AddSplineLayerFalloff,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
