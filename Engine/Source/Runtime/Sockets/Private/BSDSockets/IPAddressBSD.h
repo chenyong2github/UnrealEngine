@@ -170,6 +170,11 @@ public:
 	 */
 	virtual void GetIp(uint32& OutAddr) const override;
 
+	sockaddr_storage* GetRawAddr()
+	{
+		return &Addr;
+	}
+
 	/**
 	 * Sets the port number from a host byte order int
 	 *
