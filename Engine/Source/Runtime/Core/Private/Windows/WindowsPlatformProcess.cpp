@@ -674,8 +674,9 @@ FString FWindowsPlatformProcess::GetApplicationName( uint32 ProcessId )
 			// TODO no null termination guarantee on GetProcessImageFileName?  it returns size as well, whereas QueryFullProcessImageName just returns non-zero on success
 			Output = ProcessNameBuffer;
 		}
+
+		CloseHandle(ProcessHandle);
 	}
-	CloseHandle(ProcessHandle);
 
 	return Output;
 }
