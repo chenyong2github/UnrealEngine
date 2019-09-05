@@ -3123,8 +3123,8 @@ void UNetDriver::ForceAllActorsNetUpdateTime(float NetUpdateTimeOffset, TFunctio
 		FNetworkObjectInfo* NetActorInfo = (*It).Get();
 		if (NetActorInfo)
 		{
-			const AActor* const Actor = NetActorInfo->Actor;
-			if (Actor && !Actor->IsPendingKill())
+			const AActor* const Actor = NetActorInfo->WeakActor.Get();
+			if (Actor)
 			{
 				if (ValidActorTestFunc(Actor))
 				{
