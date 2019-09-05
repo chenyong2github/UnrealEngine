@@ -16,6 +16,10 @@
 
 class Error;
 
+// This is a dummy type which is not implemented anywhere. It's only 
+// used to flag a deprecated Conform argument to package save functions.
+class FLinkerNull;
+
 /**
 * Represents the result of saving a package
 */
@@ -540,7 +544,7 @@ public:
 	* @return	FSavePackageResultStruct enum value with the result of saving a package as well as extra data
 	*/
 	static FSavePackageResultStruct Save(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-		FOutputDevice* Error=GError, FLinkerLoad* Conform=NULL, bool bForceByteSwapping=false, bool bWarnOfLongFilename=true, 
+		FOutputDevice* Error=GError, FLinkerNull* Conform=NULL, bool bForceByteSwapping=false, bool bWarnOfLongFilename=true, 
 		uint32 SaveFlags=SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), 
 		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr);
 
@@ -565,7 +569,7 @@ public:
 	* @return	true if the package was saved successfully.
 	*/
 	static bool SavePackage(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-		FOutputDevice* Error = GError, FLinkerLoad* Conform = NULL, bool bForceByteSwapping = false, bool bWarnOfLongFilename = true,
+		FOutputDevice* Error = GError, FLinkerNull* Conform = NULL, bool bForceByteSwapping = false, bool bWarnOfLongFilename = true,
 		uint32 SaveFlags = SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), bool bSlowTask = true);
 
 	/** Wait for any SAVE_Async file writes to complete **/
