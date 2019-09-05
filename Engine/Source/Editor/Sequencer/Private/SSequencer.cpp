@@ -2240,7 +2240,7 @@ SSequencer::~SSequencer()
 
 
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
-	if(Sequencer)
+	if(Sequencer && Sequencer->GetToolkitHost() && Sequencer->GetToolkitHost()->GetTabManager())
 	{
 		FTabId TabId = FTabId(SSequencer::CurveEditorTabName);
 		TSharedPtr<SDockTab> CurveEditorTab = Sequencer->GetToolkitHost()->GetTabManager()->FindExistingLiveTab(TabId);
