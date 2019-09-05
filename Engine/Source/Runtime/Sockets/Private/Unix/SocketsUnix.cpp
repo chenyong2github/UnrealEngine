@@ -2,6 +2,7 @@
 
 
 #include "SocketsUnix.h"
+#include "BSDSockets/IPAddressBSD.h"
 
 
 // @todo: Add timestamp support for normal Recv/RecvFrom (not essential, there is no API for this yet)
