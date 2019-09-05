@@ -238,6 +238,7 @@ public class UnrealEd : ModuleRules
 				"Media",
 				"TimeManagementEditor",
 				"VirtualTexturingEditor",
+				"EditorInteractiveToolsFramework"
 			}
 		);
 
