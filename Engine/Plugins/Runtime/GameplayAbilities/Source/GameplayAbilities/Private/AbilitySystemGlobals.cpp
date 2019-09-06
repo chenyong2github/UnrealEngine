@@ -9,7 +9,7 @@
 #include "GameplayCueManager.h"
 #include "GameplayTagResponseTable.h"
 #include "GameplayTagsManager.h"
-#include "UObjectIterator.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
