@@ -755,8 +755,9 @@ public:
 
 #elif ENABLE_STATNAMEDEVENTS
 
-struct FScopeCycleCounterUObject
+class FScopeCycleCounterUObject
 {
+public:
 	FScopeCycleCounter ScopeCycleCounter;
 	FORCEINLINE_STATS FScopeCycleCounterUObject(const UObjectBaseUtility *Object)
 	: ScopeCycleCounter(Object ? Object->GetStatID().StatString : nullptr)
@@ -798,8 +799,9 @@ public:
 #define SCOPE_CYCLE_UOBJECT(Name, Object) \
 	FScopeCycleCounterUObject ObjCycleCount_##Name(Object);
 #else
-struct FScopeCycleCounterUObject
+class FScopeCycleCounterUObject
 {
+public:
 	FORCEINLINE_STATS FScopeCycleCounterUObject(const UObjectBaseUtility *Object)
 	{
 	}
