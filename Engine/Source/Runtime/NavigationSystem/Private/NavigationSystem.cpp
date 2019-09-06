@@ -1056,6 +1056,7 @@ void UNavigationSystemV1::SetNavigationAutoUpdateEnabled(bool bNewEnable, UNavig
 FPathFindingResult UNavigationSystemV1::FindPathSync(const FNavAgentProperties& AgentProperties, FPathFindingQuery Query, EPathFindingMode::Type Mode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_PathfindingSync);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PathfindingSync);
 
 	if (Query.NavData.IsValid() == false)
 	{
@@ -1081,6 +1082,7 @@ FPathFindingResult UNavigationSystemV1::FindPathSync(const FNavAgentProperties& 
 FPathFindingResult UNavigationSystemV1::FindPathSync(FPathFindingQuery Query, EPathFindingMode::Type Mode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_PathfindingSync);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PathfindingSync);
 
 	if (Query.NavData.IsValid() == false)
 	{
@@ -1106,6 +1108,7 @@ FPathFindingResult UNavigationSystemV1::FindPathSync(FPathFindingQuery Query, EP
 bool UNavigationSystemV1::TestPathSync(FPathFindingQuery Query, EPathFindingMode::Type Mode, int32* NumVisitedNodes) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_PathfindingSync);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PathfindingSync);
 
 	if (Query.NavData.IsValid() == false)
 	{
@@ -1194,12 +1197,15 @@ void UNavigationSystemV1::TriggerAsyncQueries(TArray<FAsyncPathFindingQuery>& Pa
 
 static void AsyncQueryDone(FAsyncPathFindingQuery Query)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AsyncNavQueryFinished);
+
 	Query.OnDoneDelegate.ExecuteIfBound(Query.QueryID, Query.Result.Result, Query.Result.Path);
 }
 
 void UNavigationSystemV1::PerformAsyncQueries(TArray<FAsyncPathFindingQuery> PathFindingQueries)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_PathfindingAsync);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PathfindingAsync);
 
 	if (PathFindingQueries.Num() == 0)
 	{
