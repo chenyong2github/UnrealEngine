@@ -163,8 +163,6 @@ namespace WindowsMixedReality
 		ID3D11Texture2D* stereoDepthTexture = nullptr;
 		const float farPlaneDistance = 650.0f;
 
-		// The back buffer for this frame
-		FTexture2DRHIRef CurrentBackBuffer;
 		void InitTrackingFrame();
 		TRefCountPtr<FWindowsMixedRealityCustomPresent> mCustomPresent = nullptr;
 
