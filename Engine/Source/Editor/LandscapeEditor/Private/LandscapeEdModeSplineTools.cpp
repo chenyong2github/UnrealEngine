@@ -1443,6 +1443,8 @@ public:
 									if (ULandscapeSplineSegment* SplineSegment = Cast<ULandscapeSplineSegment>(ComponentOwner))
 									{
 										ClickedSplineSegment = SplineSegment;
+										// Find actual SplineComponent owner of the Segment (not the SplineComponent owner of the mesh)
+										SplineComponent = SplineSegment->GetTypedOuter<ULandscapeSplinesComponent>();
 										ALandscapeProxy* LandscapeProxy = CastChecked<ALandscapeProxy>(SplineComponent->GetOwner());
 										LandscapeToSpline = LandscapeProxy->LandscapeActorToWorld().GetRelativeTransform(SplineComponent->GetComponentTransform());
 									}
