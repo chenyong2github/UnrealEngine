@@ -284,6 +284,20 @@ FString UNiagaraParameterCollection::GetFullNamespace()const
 	return TEXT("NPC.") + Namespace.ToString() + TEXT(".");
 }
 
+FNiagaraCompileHash UNiagaraParameterCollection::GetCompileHash() const
+{
+	// TODO - Implement an actual hash for parameter collections instead of just hashing a change id.
+	FSHA1 CompileHash;
+	CompileHash.Update((const uint8*)&CompileId, sizeof(FGuid));
+	CompileHash.Final();
+
+	TArray<uint8> DataHash;
+	DataHash.AddUninitialized(20);
+	CompileHash.GetHash(DataHash.GetData());
+
+	return FNiagaraCompileHash(DataHash);
+}
+
 void UNiagaraParameterCollection::RefreshCompileId()
 {
 	CompileId = FGuid::NewGuid();
