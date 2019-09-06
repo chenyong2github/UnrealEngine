@@ -122,7 +122,14 @@ void FNiagaraShaderMapId::Serialize(FArchive& Ar)
 
 	Ar << BaseScriptID;
 	Ar << (int32&)FeatureLevel;
-	Ar << ReferencedDependencyIds;
+
+	if (Ar.IsLoading() && NiagaraVer < FNiagaraCustomVersion::RemoveGraphUsageCompileIds)
+	{
+		// These values are no longer used, but need to be loaded from old files to keep the archive valid.
+		TArray<FGuid> ReferencedDependencyIds;
+		Ar << ReferencedDependencyIds;
+	}
+
 	if (NiagaraVer >= FNiagaraCustomVersion::UseHashesToIdentifyCompileStateOfTopLevelScripts)
 	{
 		Ar << BaseCompileHash;
@@ -154,11 +161,6 @@ void FNiagaraShaderMapId::GetScriptHash(FSHAHash& OutHash) const
 	for (int32 Index = 0; Index < ReferencedCompileHashes.Num(); Index++)
 	{
 		HashState.Update(ReferencedCompileHashes[Index].GetData(), FNiagaraCompileHash::HashSize);
-	}
-
-	for (int32 Index = 0; Index < ReferencedDependencyIds.Num(); Index++)
-	{
-		HashState.Update((const uint8*)&ReferencedDependencyIds[Index], sizeof(ReferencedDependencyIds[Index]));
 	}
 
 	//ParameterSet.UpdateHash(HashState);		// will need for static switches
@@ -208,18 +210,6 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 		}
 	}
 
-	if (ReferencedDependencyIds.Num() != ReferenceSet.ReferencedDependencyIds.Num())
-	{
-		return false;
-	}
-
-	for (int32 i = 0; i < ReferencedDependencyIds.Num(); i++)
-	{
-		if (ReferencedDependencyIds[i] != ReferenceSet.ReferencedDependencyIds[i])
-		{
-			return false;
-		}
-	}
 	/*
 	if (ParameterSet != ReferenceSet.ParameterSet
 		|| ReferencedFunctions.Num() != ReferenceSet.ReferencedFunctions.Num()
@@ -270,17 +260,6 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 	{
 		KeyString += ReferencedCompileHashes[HashIndex].ToString();
 		if (HashIndex < ReferencedCompileHashes.Num() - 1)
-		{
-			KeyString += TEXT("_");
-		}
-	}
-
-	// Add any referenced functions to the key so that we will recompile when they are changed
-	for (int32 FunctionIndex = 0; FunctionIndex < ReferencedDependencyIds.Num(); FunctionIndex++)
-	{
-		KeyString += ReferencedDependencyIds[FunctionIndex].ToString();
-
-		if (FunctionIndex < ReferencedDependencyIds.Num() - 1)
 		{
 			KeyString += TEXT("_");
 		}
