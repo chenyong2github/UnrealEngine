@@ -26,7 +26,18 @@ static void GrainRandomFromFrame(FVector* RESTRICT const Constant, uint32 FrameN
 }
 
 
-void FilmPostSetConstants(FVector4* RESTRICT const Constants, const FPostProcessSettings* RESTRICT const FinalPostProcessSettings, bool bMobile, bool UseColorMatrix, bool UseShadowTint, bool UseContrast);
+BEGIN_SHADER_PARAMETER_STRUCT(FMobileFilmTonemapParameters, )
+	SHADER_PARAMETER(FVector4, ColorMatrixR_ColorCurveCd1)
+	SHADER_PARAMETER(FVector4, ColorMatrixG_ColorCurveCd3Cm3)
+	SHADER_PARAMETER(FVector4, ColorMatrixB_ColorCurveCm2)
+	SHADER_PARAMETER(FVector4, ColorCurve_Cm0Cd0_Cd2_Ch0Cm1_Ch3)
+	SHADER_PARAMETER(FVector4, ColorCurve_Ch1_Ch2)
+	SHADER_PARAMETER(FVector4, ColorShadow_Luma)
+	SHADER_PARAMETER(FVector4, ColorShadow_Tint1)
+	SHADER_PARAMETER(FVector4, ColorShadow_Tint2)
+END_SHADER_PARAMETER_STRUCT()
+
+FMobileFilmTonemapParameters GetMobileFilmTonemapParameters(const FPostProcessSettings& PostProcessSettings, bool bUseColorMatrix, bool bUseShadowTint, bool bUseContrast);
 
 // derives from TRenderingCompositePassBase<InputCount, OutputCount>
 // ePId_Input0: SceneColor

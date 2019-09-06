@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/PostProcessCombineLUTs.h"
+#include "PostProcess/PostProcessTonemap.h"
 
 namespace
 {
@@ -30,6 +31,12 @@ FAutoConsoleVariableRef CVarLUTSize(
 	TEXT("r.LUT.Size"),
 	GLUTSize,
 	TEXT("Size of film LUT"),
+	ECVF_RenderThreadSafe);
+
+TAutoConsoleVariable<int32> CVarTonemapperFilm(
+	TEXT("r.TonemapperFilm"),
+	1,
+	TEXT("Use new film tone mapper"),
 	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarMobileTonemapperFilm(
@@ -134,8 +141,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCombineLUTParameters, )
 	SHADER_PARAMETER(float, ExpandGamut)
 	SHADER_PARAMETER(uint32, OutputDevice)
 	SHADER_PARAMETER(uint32, OutputGamut)
+	SHADER_PARAMETER(uint32, bUseMobileTonemapper)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FColorRemapParameters, ColorRemap)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FFilmTonemapParameters, FilmTonemap)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FMobileFilmTonemapParameters, MobileFilmTonemap)
 END_SHADER_PARAMETER_STRUCT()
 
 void GetCombineLUTParameters(
@@ -205,7 +214,15 @@ void GetCombineLUTParameters(
 	Parameters.BlueCorrection = Settings.BlueCorrection;
 	Parameters.ExpandGamut = Settings.ExpandGamut;
 
+	Parameters.bUseMobileTonemapper = CVarTonemapperFilm.GetValueOnRenderThread() == 0;
+
 	Parameters.FilmTonemap = GetFilmTonemapParameters(Settings);
+
+	Parameters.MobileFilmTonemap = GetMobileFilmTonemapParameters(
+		Settings,
+		/* UseColorMatrix = */ true,
+		/* UseShadowTint = */ true,
+		/* UseContrast = */ true);
 
 	{
 		static TConsoleVariableData<int32>* CVarOutputGamut = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.ColorGamut"));
