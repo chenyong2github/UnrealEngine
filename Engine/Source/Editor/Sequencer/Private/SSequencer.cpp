@@ -408,16 +408,18 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	TrackArea->SetTreeView(TreeView);
 
 	TAttribute<FAnimatedRange> ViewRangeAttribute = InArgs._ViewRange;
-	
-	// We create a custom Time Slider Controller which is just a wrapper around the actual one, but is aware of our custom bounds logic. Currently the range the
-	// bar displays is tied to Sequencer timeline and not the Bounds, so we need a way of changing it to look at the Bounds but only for the Curve Editor time
-	// slider controller. We want everything else to just pass through though.
-	TSharedRef<ITimeSliderController> CurveEditorTimeSliderController = MakeShared<FSequencerCurveEditorTimeSliderController>(TimeSliderArgs, SequencerPtr, InSequencer->GetCurveEditor().ToSharedRef());
 
-	// Initialize the Curve Editor Widget if there is a tab manager to spawn our extra tab in.
-	// Some areas that use Sequencer don't use our curve editor. In this case no button is shown on the UI.
-	if (InSequencer->GetToolkitHost().IsValid())
+	if (InSequencer->GetHostCapabilities().bSupportsCurveEditor)
 	{
+		// If they've said they want to support the curve editor then they need to provide a toolkit host
+		// so that we know where to spawn our tab into.
+		check(InSequencer->GetToolkitHost().IsValid());
+
+		// We create a custom Time Slider Controller which is just a wrapper around the actual one, but is aware of our custom bounds logic. Currently the range the
+		// bar displays is tied to Sequencer timeline and not the Bounds, so we need a way of changing it to look at the Bounds but only for the Curve Editor time
+		// slider controller. We want everything else to just pass through though.
+		TSharedRef<ITimeSliderController> CurveEditorTimeSliderController = MakeShared<FSequencerCurveEditorTimeSliderController>(TimeSliderArgs, SequencerPtr, InSequencer->GetCurveEditor().ToSharedRef());
+
 		CurveEditorTree = SNew(SCurveEditorTree, InSequencer->GetCurveEditor());
 		TSharedRef<SCurveEditorPanel> CurveEditorWidget = SNew(SCurveEditorPanel, InSequencer->GetCurveEditor().ToSharedRef())
 			// Grid lines match the color specified in FSequencerTimeSliderController::OnPaintViewArea
@@ -1179,23 +1181,30 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 				}
 			}));
 
-			ToolBarBuilder.AddToolBarButton(
-				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnSaveMovieSceneClicked)),
-				NAME_None,
-				LOCTEXT("SaveDirtyPackages", "Save"),
-				LOCTEXT("SaveDirtyPackagesTooltip", "Saves the current sequence and any subsequences"),
-				SaveIcon
-			);
+			if (SequencerPtr.Pin()->GetHostCapabilities().bSupportsSaveMovieSceneAsset)
+			{
+				ToolBarBuilder.AddToolBarButton(
+					FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnSaveMovieSceneClicked)),
+					NAME_None,
+					LOCTEXT("SaveDirtyPackages", "Save"),
+					LOCTEXT("SaveDirtyPackagesTooltip", "Saves the current sequence and any subsequences"),
+					SaveIcon
+				);
 
-			ToolBarBuilder.AddToolBarButton(
-				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnSaveMovieSceneAsClicked)),
-				NAME_None,
-				LOCTEXT("SaveAs", "Save As"),
-				LOCTEXT("SaveAsTooltip", "Saves the current sequence under a different name"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SaveAs")
-			);
+				ToolBarBuilder.AddToolBarButton(
+					FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnSaveMovieSceneAsClicked)),
+					NAME_None,
+					LOCTEXT("SaveAs", "Save As"),
+					LOCTEXT("SaveAsTooltip", "Saves the current sequence under a different name"),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SaveAs")
+				);
+			}
 
-			//ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().DiscardChanges );
+			if (SequencerPtr.Pin()->GetHostCapabilities().bSupportsDiscardChanges)
+			{
+				ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().DiscardChanges );
+			}
+
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().FindInContentBrowser );
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().CreateCamera );
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie );
@@ -1366,8 +1375,8 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 
 	ToolBarBuilder.BeginSection("Curve Editor");
 	{
-		// Only add the button if we have a toolkit host to spawn tabs in
-		if (SequencerPtr.Pin()->GetToolkitHost().IsValid())
+		// Only add the button if supported
+		if (SequencerPtr.Pin()->GetHostCapabilities().bSupportsCurveEditor)
 		{
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().ToggleShowCurveEditor );
 		}
@@ -2133,11 +2142,14 @@ SSequencer::~SSequencer()
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	if(Sequencer)
 	{
-		FTabId TabId = FTabId(SSequencer::CurveEditorTabName);
-		TSharedPtr<SDockTab> CurveEditorTab = Sequencer->GetToolkitHost()->GetTabManager()->FindExistingLiveTab(TabId);
-		if (CurveEditorTab)
+		if (Sequencer->GetHostCapabilities().bSupportsCurveEditor)
 		{
-			CurveEditorTab->RequestCloseTab();
+			FTabId TabId = FTabId(SSequencer::CurveEditorTabName);
+			TSharedPtr<SDockTab> CurveEditorTab = Sequencer->GetToolkitHost()->GetTabManager()->FindExistingLiveTab(TabId);
+			if (CurveEditorTab)
+			{
+				CurveEditorTab->RequestCloseTab();
+			}
 		}
 	}
 }
@@ -2794,6 +2806,12 @@ void SSequencer::OnCurveEditorVisibilityChanged(bool bShouldBeVisible)
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	FTabId TabId = FTabId(SSequencer::CurveEditorTabName);
+
+	// Curve Editor may not be supported
+	if (!Sequencer->GetHostCapabilities().bSupportsCurveEditor)
+	{
+		return;
+	}
 
 	if (bShouldBeVisible)
 	{
