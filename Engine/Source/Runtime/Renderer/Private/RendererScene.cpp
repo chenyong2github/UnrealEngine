@@ -220,6 +220,9 @@ FSceneViewState::FSceneViewState()
 	}
 	bReadbackInitialized = false;
 	RayCountGPUReadback = new FRHIGPUBufferReadback(TEXT("Ray Count Readback"));
+
+	GatherPointsBuffer = nullptr;
+	GatherPointsResolution = FIntPoint(0, 0);
 #endif
 }
 
