@@ -3044,12 +3044,13 @@ bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResour
 	FlushRenderingCommands();
 
 	bool bChanged = false;
+    const bool bUpdateHash = !bIntermediateRender;
 	for (int8 MipIndex = 0; MipIndex < OutMipsData.Num(); ++MipIndex)
 	{
 		if (OutMipsData[MipIndex].Num() > 0)
 		{
 			uint8* TextureData = InOutputTexture->Source.LockMip(MipIndex);
-			if (MipIndex == 0)
+			if (MipIndex == 0 && bUpdateHash)
 			{
 				bChanged = InCPUReadBackTexture->UpdateHashFromTextureSource((uint8*)OutMipsData[MipIndex].GetData());
 			}
@@ -4823,11 +4824,14 @@ void ALandscape::OnPreSave()
 	ForceUpdateLayersContent();
 }
 
-void ALandscape::ForceUpdateLayersContent()
+void ALandscape::ForceUpdateLayersContent(bool bInIntermediateRender)
 {
 	const bool bWaitForStreaming = true;
 	const bool bInSkipMonitorLandscapeEdModeChanges = true;
+
+	bIntermediateRender = bInIntermediateRender;
 	UpdateLayersContent(bWaitForStreaming, bInSkipMonitorLandscapeEdModeChanges);
+	bInIntermediateRender = false;
 }
 
 void ALandscape::TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
