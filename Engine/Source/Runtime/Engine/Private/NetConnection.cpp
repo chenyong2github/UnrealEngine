@@ -38,6 +38,8 @@
 
 static TAutoConsoleVariable<int32> CVarPingExcludeFrameTime( TEXT( "net.PingExcludeFrameTime" ), 0, TEXT( "Calculate RTT time between NIC's of server and client." ) );
 
+static TAutoConsoleVariable<int32> CVarPingUsePacketRecvTime(TEXT("net.PingUsePacketRecvTime"), 0, TEXT("Use OS or Receive Thread packet receive time, for calculating the ping. Excludes frame time."));
+
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarPingDisplayServerTime( TEXT( "net.PingDisplayServerTime" ), 0, TEXT( "Show server frame time" ) );
 #endif
@@ -163,6 +165,8 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	TickCount			( 0 )
 ,	LastProcessedFrame	( 0 )
 ,	ConnectTime			( 0.0 )
+,	LastOSReceiveTime	()
+,	bIsOSReceiveTimeLocal(false)
 
 ,	AllowMerge			( false )
 ,	TimeSensitive		( false )
@@ -1703,8 +1707,24 @@ bool UNetConnection::ReadPacketInfo(FBitReader& Reader)
 		}
 #endif
 
+		double PacketReceiveTime = 0.0;
+		FTimespan& RecvTimespan = LastOSReceiveTime.Timestamp;
+
+		if (!RecvTimespan.IsZero() && Driver != nullptr && CVarPingUsePacketRecvTime.GetValueOnAnyThread())
+		{
+			if (bIsOSReceiveTimeLocal)
+			{
+				PacketReceiveTime = RecvTimespan.GetTotalSeconds();
+			}
+			else if (ISocketSubsystem* SocketSubsystem = Driver->GetSocketSubsystem())
+			{
+				PacketReceiveTime = SocketSubsystem->TranslatePacketTimestamp(LastOSReceiveTime);
+			}
+		}
+
+
 		// use FApp's time because it is set closer to the beginning of the frame - we don't care about the time so far of the current frame to process the packet
-		const double CurrentTime = FApp::GetCurrentTime();
+		const double CurrentTime = (PacketReceiveTime != 0.0 ? PacketReceiveTime : FApp::GetCurrentTime());
 		const double GameTime	 = ServerFrameTime;
 		const double RTT		 = (CurrentTime - OutLagTime[Index] ) - ( CVarPingExcludeFrameTime.GetValueOnAnyThread() ? GameTime : 0.0 );
 		const double NewLag		 = FMath::Max( RTT, 0.0 );

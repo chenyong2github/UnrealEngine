@@ -392,6 +392,11 @@ public:
 	/** Time when connection request was first initiated */
 	float			ConnectTime;
 
+private:
+	FPacketTimestamp	LastOSReceiveTime;		// Last time a packet was received at the OS/NIC layer
+	bool				bIsOSReceiveTimeLocal;	// Whether LastOSReceiveTime uses the same clock as the game, or needs translating
+
+public:
 	// Merge info.
 	FBitWriterMark  LastStart;				// Most recently sent bunch start.
 	FBitWriterMark  LastEnd;				// Most recently sent bunch end.
@@ -1142,6 +1147,18 @@ public:
 	 * @param bFlushWholeCache	Whether or not the whole cache should be flushed, or only flush up to the next missing packet
 	 */
 	void FlushPacketOrderCache(bool bFlushWholeCache=false);
+
+	/**
+	 * Sets the OS/NIC level timestamp, for the last packet that was received
+	 *
+	 * @param InOSReceiveTime			The OS/NIC level timestamp, for the last packet that was received
+	 * @param bInIsOSReceiveTimeLocal	Whether the input timestamp is based on the same clock as the game thread, or needs translating
+	 */
+	void SetPacketOSReceiveTime(const FPacketTimestamp& InOSReceiveTime, bool bInIsOSReceiveTimeLocal)
+	{
+		LastOSReceiveTime = InOSReceiveTime;
+		bIsOSReceiveTimeLocal = bInIsOSReceiveTimeLocal;
+	}
 
 	/** Called when an actor channel is open and knows its NetGUID. */
 	ENGINE_API virtual void NotifyActorNetGUID(UActorChannel* Channel) {}
