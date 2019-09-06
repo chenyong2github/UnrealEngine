@@ -243,9 +243,9 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 	}
 }
 
-int32 URuntimeVirtualTexture::GetLayerCount() const
+int32 URuntimeVirtualTexture::GetLayerCount(ERuntimeVirtualTextureMaterialType InMaterialType)
 {
-	switch (MaterialType)
+	switch (InMaterialType)
 	{
 	case ERuntimeVirtualTextureMaterialType::BaseColor:
 	case ERuntimeVirtualTextureMaterialType::WorldHeight:
@@ -261,6 +261,11 @@ int32 URuntimeVirtualTexture::GetLayerCount() const
 	// Implement logic for any missing material types
 	check(false);
 	return 1;
+}
+
+int32 URuntimeVirtualTexture::GetLayerCount() const
+{
+	return GetLayerCount(MaterialType);
 }
 
 EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
@@ -345,7 +350,7 @@ IAllocatedVirtualTexture* URuntimeVirtualTexture::GetAllocatedVirtualTexture() c
 	return Resource->GetAllocatedVirtualTexture();
 }
 
-FVector4 URuntimeVirtualTexture::GetUniformParameter(int32 Index)
+FVector4 URuntimeVirtualTexture::GetUniformParameter(int32 Index) const
 {
 	check(Index >= 0 && Index < sizeof(WorldToUVTransformParameters)/sizeof(WorldToUVTransformParameters[0]));
 	
