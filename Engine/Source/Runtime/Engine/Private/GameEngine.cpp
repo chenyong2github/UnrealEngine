@@ -1137,6 +1137,8 @@ void UGameEngine::Start()
 
 void UGameEngine::PreExit()
 {
+	UE_LOG(LogInit, Display, TEXT("PreExit Game."));
+
 	GetGameUserSettings()->SaveSettings();
 
 	// Stop tracking, automatically flushes.
