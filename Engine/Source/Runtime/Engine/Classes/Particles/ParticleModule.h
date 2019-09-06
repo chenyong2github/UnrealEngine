@@ -98,14 +98,14 @@ struct FParticleRandomSeedInfo
 	 *	the RandomSeeds array.
 	 */
 	UPROPERTY(EditAnywhere, Category=ParticleRandomSeedInfo)
-	uint32 bGetSeedFromInstance:1;
+	uint8 bGetSeedFromInstance:1;
 
 	/** 
 	 *	If true, the seed value retrieved from the instance will be an
 	 *	index into the array of seeds.
 	 */
 	UPROPERTY(EditAnywhere, Category=ParticleRandomSeedInfo)
-	uint32 bInstanceSeedIsIndex:1;
+	uint8 bInstanceSeedIsIndex:1;
 
 	/** 
 	 *	If true, then reset the seed upon the emitter looping.
@@ -113,13 +113,13 @@ struct FParticleRandomSeedInfo
 	 *	a repeating pattern.
 	 */
 	UPROPERTY(EditAnywhere, Category=ParticleRandomSeedInfo)
-	uint32 bResetSeedOnEmitterLooping:1;
+	uint8 bResetSeedOnEmitterLooping:1;
 
 	/**
 	*	If true, then randomly select a seed entry from the RandomSeeds array
 	*/
 	UPROPERTY(EditAnywhere, Category = ParticleRandomSeedInfo)
-	uint32 bRandomlySelectSeedArray:1;
+	uint8 bRandomlySelectSeedArray:1;
 
 	/** 
 	 *	The random seed values to utilize for the module. 
@@ -151,39 +151,39 @@ class ENGINE_API UParticleModule : public UObject
 
 	/** If true, the module performs operations on particles during Spawning		*/
 	UPROPERTY()
-	uint32 bSpawnModule:1;
+	uint8 bSpawnModule:1;
 
 	/** If true, the module performs operations on particles during Updating		*/
 	UPROPERTY()
-	uint32 bUpdateModule:1;
+	uint8 bUpdateModule:1;
 
 	/** If true, the module performs operations on particles during final update	*/
 	UPROPERTY()
-	uint32 bFinalUpdateModule:1;
+	uint8 bFinalUpdateModule:1;
 
 	/** If true, the module performs operations on particles during update and/or final update for GPU emitters*/
 	UPROPERTY()
-	uint32 bUpdateForGPUEmitter:1;
+	uint8 bUpdateForGPUEmitter:1;
 
 	/** If true, the module displays FVector curves as colors						*/
 	UPROPERTY()
-	uint32 bCurvesAsColor:1;
+	uint8 bCurvesAsColor:1;
 
 	/** If true, the module should render its 3D visualization helper				*/
 	UPROPERTY(EditAnywhere, Category=Cascade)
-	uint32 b3DDrawMode:1;
+	uint8 b3DDrawMode:1;
 
 	/** If true, the module supports rendering a 3D visualization helper			*/
 	UPROPERTY()
-	uint32 bSupported3DDrawMode:1;
+	uint8 bSupported3DDrawMode:1;
 
 	/** If true, the module is enabled												*/
 	UPROPERTY()
-	uint32 bEnabled:1;
+	uint8 bEnabled:1;
 
 	/** If true, the module has had editing enabled on it							*/
 	UPROPERTY()
-	uint32 bEditable:1;
+	uint8 bEditable:1;
 
 	/**
 	*	If true, this flag indicates that auto-generation for LOD will result in
@@ -191,15 +191,15 @@ class ENGINE_API UParticleModule : public UObject
 	*	If false, it will result in a module with different settings.
 	*/
 	UPROPERTY()
-	uint32 LODDuplicate:1;
+	uint8 LODDuplicate:1;
 
 	/** If true, the module supports RandomSeed setting */
 	UPROPERTY()
-	uint32 bSupportsRandomSeed:1;
+	uint8 bSupportsRandomSeed:1;
 
 	/** If true, the module should be told when looping */
 	UPROPERTY()
-	uint32 bRequiresLoopingNotification:1;
+	uint8 bRequiresLoopingNotification:1;
 
 	/**
 	 *	The LOD levels this module is present in.
@@ -273,12 +273,6 @@ class ENGINE_API UParticleModule : public UObject
 	 *	@return uint32		The number of bytes the module needs per emitter instance.
 	 */
 	virtual uint32	RequiredBytesPerInstance();
-
-	UE_DEPRECATED(4.11, "RequiredBytes now takes a UParticleModuleTypeDataBase*, not per-instance information.")
-	virtual uint32	RequiredBytes(FParticleEmitterInstance* Owner);
-
-	UE_DEPRECATED(4.11, "RequiredBytesPerInstance no longer takes per-instance information.")
-	virtual uint32	RequiredBytesPerInstance(FParticleEmitterInstance* Owner);
 
 	/**
 	 *	Allows the module to prep its 'per-instance' data block.

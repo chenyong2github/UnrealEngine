@@ -16,7 +16,7 @@ namespace ERawImageFormat
 	/**
 	 * Enumerates supported raw image formats.
 	 */
-	enum Type
+	enum Type : uint8
 	{
 		G8,
 		BGRA8,

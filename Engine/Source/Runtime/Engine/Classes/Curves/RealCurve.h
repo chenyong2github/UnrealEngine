@@ -47,9 +47,9 @@ struct ENGINE_API FRealCurve
 
 	FRealCurve() 
 		: FIndexedCurve()
+		, DefaultValue(MAX_flt)
 		, PreInfinityExtrap(RCCE_Constant)
 		, PostInfinityExtrap(RCCE_Constant)
-		, DefaultValue(MAX_flt)
 	{ }
 
 public:
@@ -141,6 +141,10 @@ protected:
 
 public:
 
+	/** Default value */
+	UPROPERTY(EditAnywhere, Category = "Curve")
+	float DefaultValue;
+
 	/** Pre-infinity extrapolation state */
 	UPROPERTY()
 	TEnumAsByte<ERichCurveExtrapolation> PreInfinityExtrap;
@@ -148,8 +152,4 @@ public:
 	/** Post-infinity extrapolation state */
 	UPROPERTY()
 	TEnumAsByte<ERichCurveExtrapolation> PostInfinityExtrap;
-
-	/** Default value */
-	UPROPERTY(EditAnywhere, Category="Curve")
-	float DefaultValue;
 };

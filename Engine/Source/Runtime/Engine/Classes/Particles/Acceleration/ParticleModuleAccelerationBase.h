@@ -19,8 +19,7 @@ class UParticleModuleAccelerationBase : public UParticleModule
 	 *	If true, then treat the acceleration as world-space
 	 */
 	UPROPERTY(EditAnywhere, Category=Acceleration)
-	uint32 bAlwaysInWorldSpace:1;
-
+	uint8 bAlwaysInWorldSpace : 1;
 
 	//~ Begin UParticleModule Interface
 	virtual void SetToSensibleDefaults(UParticleEmitter* Owner) override;

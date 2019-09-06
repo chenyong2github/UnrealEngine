@@ -22,116 +22,117 @@ class UMG_API USizeBox : public UContentWidget
 {
 	GENERATED_UCLASS_BODY()
 
+protected:
+	TSharedPtr<SBox> MySizeBox;
+
 public:
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
-		uint32 bOverride_WidthOverride : 1;
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
-		uint32 bOverride_HeightOverride : 1;
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
-		uint32 bOverride_MinDesiredWidth : 1;
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
-		uint32 bOverride_MinDesiredHeight : 1;
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
-		uint32 bOverride_MaxDesiredWidth : 1;
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
-		uint32 bOverride_MaxDesiredHeight : 1;
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
-	uint32 bOverride_MinAspectRatio : 1;
-
-	/**  */
-	UPROPERTY(EditAnywhere, Category = "Child Layout", meta=(InlineEditConditionToggle))
-	uint32 bOverride_MaxAspectRatio : 1;
-
 
 	/** When specified, ignore the content's desired size and report the WidthOverride as the Box's desired width. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Child Layout", meta=( editcondition="bOverride_WidthOverride" ))
-		float WidthOverride;
+	float WidthOverride;
 
 	/** When specified, ignore the content's desired size and report the HeightOverride as the Box's desired height. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Child Layout", meta=( editcondition="bOverride_HeightOverride" ))
-		float HeightOverride;
+	float HeightOverride;
 
 	/** When specified, will report the MinDesiredWidth if larger than the content's desired width. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Child Layout", meta=( editcondition="bOverride_MinDesiredWidth" ))
-		float MinDesiredWidth;
+	float MinDesiredWidth;
 
 	/** When specified, will report the MinDesiredHeight if larger than the content's desired height. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Child Layout", meta=( editcondition="bOverride_MinDesiredHeight" ))
-		float MinDesiredHeight;
+	float MinDesiredHeight;
 
 	/** When specified, will report the MaxDesiredWidth if smaller than the content's desired width. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Child Layout", meta=( editcondition="bOverride_MaxDesiredWidth" ))
-		float MaxDesiredWidth;
+	float MaxDesiredWidth;
 
 	/** When specified, will report the MaxDesiredHeight if smaller than the content's desired height. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Child Layout", meta=( editcondition="bOverride_MaxDesiredHeight" ))
-		float MaxDesiredHeight;
+	float MaxDesiredHeight;
 
 	/** */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Child Layout", meta = (editcondition = "bOverride_MinAspectRatio"))
-		float MinAspectRatio;
+	float MinAspectRatio;
 
 	/** */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Child Layout", meta=( editcondition="bOverride_MaxAspectRatio" ))
-		float MaxAspectRatio;
+	float MaxAspectRatio;
 
-public:
+	/**  */
+	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
+	uint8 bOverride_WidthOverride : 1;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
+	uint8 bOverride_HeightOverride : 1;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
+	uint8 bOverride_MinDesiredWidth : 1;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
+	uint8 bOverride_MinDesiredHeight : 1;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
+	uint8 bOverride_MaxDesiredWidth : 1;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
+	uint8 bOverride_MaxDesiredHeight : 1;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category="Child Layout", meta=(InlineEditConditionToggle))
+	uint8 bOverride_MinAspectRatio : 1;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Child Layout", meta=(InlineEditConditionToggle))
+	uint8 bOverride_MaxAspectRatio : 1;
+
 		
 	/** When specified, ignore the content's desired size and report the WidthOverride as the Box's desired width. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-		void SetWidthOverride(float InWidthOverride);
+	void SetWidthOverride(float InWidthOverride);
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-		void ClearWidthOverride();
+	void ClearWidthOverride();
 
 	/** When specified, ignore the content's desired size and report the HeightOverride as the Box's desired height. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-		void SetHeightOverride(float InHeightOverride);
+	void SetHeightOverride(float InHeightOverride);
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-		void ClearHeightOverride();
+	void ClearHeightOverride();
 
 	/** When specified, will report the MinDesiredWidth if larger than the content's desired width. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-		void SetMinDesiredWidth(float InMinDesiredWidth);
+	void SetMinDesiredWidth(float InMinDesiredWidth);
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-		void ClearMinDesiredWidth();
+	void ClearMinDesiredWidth();
 
 	/** When specified, will report the MinDesiredHeight if larger than the content's desired height. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-		void SetMinDesiredHeight(float InMinDesiredHeight);
+	void SetMinDesiredHeight(float InMinDesiredHeight);
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-		void ClearMinDesiredHeight();
+	void ClearMinDesiredHeight();
 
 	/** When specified, will report the MaxDesiredWidth if smaller than the content's desired width. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-		void SetMaxDesiredWidth(float InMaxDesiredWidth);
+	void SetMaxDesiredWidth(float InMaxDesiredWidth);
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-		void ClearMaxDesiredWidth();
+	void ClearMaxDesiredWidth();
 
 	/** When specified, will report the MaxDesiredHeight if smaller than the content's desired height. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-		void SetMaxDesiredHeight(float InMaxDesiredHeight);
+	void SetMaxDesiredHeight(float InMaxDesiredHeight);
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-		void ClearMaxDesiredHeight();
+	void ClearMaxDesiredHeight();
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
 	void SetMinAspectRatio(float InMinAspectRatio);
@@ -145,7 +146,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
 	void ClearMaxAspectRatio();
 
-public:
 
 	// UWidget interface
 	virtual void SynchronizeProperties() override;
@@ -167,10 +167,6 @@ protected:
 	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
-protected:
-	TSharedPtr<SBox> MySizeBox;
-
-protected:
 	// UWidget interface
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface

@@ -109,12 +109,17 @@ void UK2Node_FunctionTerminator::PromoteFromInterfaceOverride(bool bIsPrimaryTer
 {
 	// Remove the signature class, that is not relevant.
 	FunctionReference.SetSelfMember(FunctionReference.GetMemberName());
-	TArray<UEdGraphPin*> OriginalPins = Pins;
-	for (const UEdGraphPin* Pin : OriginalPins)
+	
+	// For every pin that has been defined, make it a user defined pin if we can
+	for (UEdGraphPin* const Pin : Pins)
 	{
-		if (Pin->PinType.PinCategory != UEdGraphSchema_K2::PC_Exec)
+		if (Pin->PinType.PinCategory != UEdGraphSchema_K2::PC_Exec && !UserDefinedPinExists(Pin->PinName))
 		{
-			CreateUserDefinedPin(Pin->PinName, Pin->PinType, Pin->Direction, false);
+			TSharedPtr<FUserPinInfo> NewPinInfo = MakeShareable(new FUserPinInfo());
+			NewPinInfo->PinName = Pin->PinName;
+			NewPinInfo->PinType = Pin->PinType;
+			NewPinInfo->DesiredPinDirection = Pin->Direction;
+			UserDefinedPins.Add(NewPinInfo);
 		}
 	}
 	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();

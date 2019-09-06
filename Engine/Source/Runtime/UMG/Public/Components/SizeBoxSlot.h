@@ -23,6 +23,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|SizeBox Slot")
 	FMargin Padding;
 
+private:
+	/** A pointer to the button to allow us to adjust the size, padding...etc at runtime. */
+	TWeakPtr<SBox> SizeBox;
+
+public:
 	/** The alignment of the object horizontally. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|SizeBox Slot")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
@@ -31,7 +36,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|SizeBox Slot")
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 
-public:
 
 	UFUNCTION(BlueprintCallable, Category="Layout|SizeBox Slot")
 	void SetPadding(FMargin InPadding);
@@ -42,8 +46,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Layout|SizeBox Slot")
 	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
-public:
-
 	// UPanelSlot interface
 	virtual void SynchronizeProperties() override;
 	// End of UPanelSlot interface
@@ -52,9 +54,4 @@ public:
 	void BuildSlot(TSharedRef<SBox> InSizeBox);
 
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
-
-private:
-
-	/** A pointer to the button to allow us to adjust the size, padding...etc at runtime. */
-	TWeakPtr<SBox> SizeBox;
 };
