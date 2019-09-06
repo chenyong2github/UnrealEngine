@@ -245,12 +245,12 @@ AActor* FGeometryCollectionCommandCommon::GetEditableMeshActor(UEditableMesh* Ed
 	AActor* ReturnActor = nullptr;
 	const TArray<AActor*>& SelectedActors = CommandCommon::GetSelectedActors();
 
-	for (int i = 0; i < SelectedActors.Num(); i++)
+	TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
+	for (int32 i = 0; i < SelectedActors.Num(); i++)
 	{
-		TArray<UActorComponent*> PrimitiveComponents = SelectedActors[i]->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-		for (UActorComponent* PrimitiveActorComponent : PrimitiveComponents)
+		SelectedActors[i]->GetComponents(PrimitiveComponents);
+		for (UPrimitiveComponent* Component : PrimitiveComponents)
 		{
-			UPrimitiveComponent* Component = CastChecked<UPrimitiveComponent>(PrimitiveActorComponent);
 			FEditableMeshSubMeshAddress SubMeshAddress = UEditableMeshFactory::MakeSubmeshAddress(Component, 0);
 
 			if (EditableMesh->GetSubMeshAddress() == SubMeshAddress)
@@ -259,6 +259,7 @@ AActor* FGeometryCollectionCommandCommon::GetEditableMeshActor(UEditableMesh* Ed
 				break;
 			}
 		}
+		PrimitiveComponents.Reset();
 	}
 
 	return ReturnActor;
@@ -267,10 +268,10 @@ AActor* FGeometryCollectionCommandCommon::GetEditableMeshActor(UEditableMesh* Ed
 UEditableMesh* FGeometryCollectionCommandCommon::GetEditableMeshForActor(AActor* Actor, TArray<UEditableMesh *>& SelectedMeshes)
 {
 	check(Actor);
-	TArray<UActorComponent*> PrimitiveComponents = Actor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-	for (UActorComponent* PrimitiveActorComponent : PrimitiveComponents)
+	TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
+	Actor->GetComponents(PrimitiveComponents);
+	for (UPrimitiveComponent* Component : PrimitiveComponents)
 	{
-		UPrimitiveComponent* Component = CastChecked<UPrimitiveComponent>(PrimitiveActorComponent);
 		FEditableMeshSubMeshAddress SubMeshAddress = UEditableMeshFactory::MakeSubmeshAddress(Component, 0);
 
 		for (UEditableMesh* EditableMesh : SelectedMeshes)
@@ -389,12 +390,13 @@ void FGeometryCollectionCommandCommon::AppendMeshesToGeometryCollection(TArray<A
 				TManagedArray<FTransform>& ExplodedTransforms = GeometryCollection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
 				TManagedArray<FVector>& ExplodedVectors = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
 
-				TArray<UActorComponent*> PrimitiveComponents = SelectedActor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-				for (UActorComponent* PrimitiveComponent : PrimitiveComponents)
+				TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
+				SelectedActor->GetComponents(PrimitiveComponents);
+				for (UPrimitiveComponent* Component : PrimitiveComponents)
 				{
 					bool ValidComponent = false;
 
-					if (UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(PrimitiveComponent))
+					if (UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(Component))
 					{
 						MeshTransform = StaticMeshComp->GetComponentTransform();
 						MeshTransform = MeshTransform.GetRelativeTransform(SourceActorTransform);
@@ -402,7 +404,7 @@ void FGeometryCollectionCommandCommon::AppendMeshesToGeometryCollection(TArray<A
 						FGeometryCollectionConversion::AppendStaticMesh(StaticMeshComp->GetStaticMesh(), StaticMeshComp, MeshTransform, GeometryCollectionObject, false);
 						ValidComponent = true;
 					}
-					else if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent))
+					else if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(Component))
 					{
 						MeshTransform = GeometryCollectionComponent->GetComponentTransform();
 						MeshTransform = MeshTransform.GetRelativeTransform(SourceActorTransform);

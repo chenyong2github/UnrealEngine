@@ -68,9 +68,13 @@ int ToolBuilderUtil::CountSelectedComponentsOfType(const FToolBuilderState& Inpu
 		{
 			if (AActor* Actor = Cast<AActor>(*Iter))
 			{
-				// [RMS] is there a more efficient way to do this?
-				TArray<UActorComponent*> TypedComponents = Actor->GetComponentsByClass(ComponentType::StaticClass());
-				nTypedComponents += TypedComponents.Num();
+				for (UActorComponent* Component : Actor->GetComponents())
+				{
+					if (Cast<ComponentType>(Component))
+					{
+						++nTypedComponents;
+					}
+				}
 			}
 		}
 	}
@@ -102,11 +106,9 @@ ComponentType* ToolBuilderUtil::FindFirstComponentOfType(const FToolBuilderState
 		{
 			if (AActor* Actor = Cast<AActor>(*Iter))
 			{
-				// [RMS] is there a more efficient way to do this?
-				TArray<UActorComponent*> TypedComponents = Actor->GetComponentsByClass(ComponentType::StaticClass());
-				if (TypedComponents.Num() > 0)
+				if (ComponentType* TypedComponent = Actor->FindComponentByClass<ComponentType>())
 				{
-					return (ComponentType*)TypedComponents[0];
+					return TypedComponent;
 				}
 			}
 		}

@@ -2361,10 +2361,11 @@ TArray<ComponentClass*> FPaintModePainter::GetSelectedComponents() const
 			AActor* SelectedActor = Cast<AActor>(ActorSelection->GetSelectedObject(SelectionIndex));
 			if (SelectedActor)
 			{
-				TArray<UActorComponent*> ActorComponents = SelectedActor->GetComponentsByClass(ComponentClass::StaticClass());
-				for (UActorComponent* Component : ActorComponents)
+				TInlineComponentArray<ComponentClass*> ActorComponents;
+				SelectedActor->GetComponents(ActorComponents);
+				for (ComponentClass* Component : ActorComponents)
 				{
-					Components.AddUnique(CastChecked<ComponentClass>(Component));
+					Components.AddUnique(Component);
 				}
 			}
 		}
