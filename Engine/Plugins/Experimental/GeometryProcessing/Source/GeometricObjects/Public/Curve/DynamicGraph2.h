@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "CoreTypes.h"
 
 #include "BoxTypes.h"
@@ -12,8 +14,6 @@
 #include "Util/SmallListSet.h"
 #include "VectorTypes.h"
 #include "VectorUtil.h"
-
-#pragma once
 
 template <typename T>
 class FDynamicGraph2 : public FDynamicGraph
