@@ -157,7 +157,7 @@ FSlateDebuggingMouseCaptureEventArgs::FSlateDebuggingMouseCaptureEventArgs(
 	bool InCaptured,
 	uint32 InUserIndex,
 	uint32 InPointerIndex,
-	const TSharedPtr<SWidget>& InCapturingWidget)
+	const TSharedPtr<const SWidget>& InCapturingWidget)
 	: Captured(InCaptured)
 	, UserIndex(InUserIndex)
 	, PointerIndex(InPointerIndex)
@@ -252,12 +252,12 @@ void FSlateDebugging::BroadcastExecuteNavigation()
 	ExecuteNavigationEvent.Broadcast(FSlateDebuggingExecuteNavigationEventArgs());
 }
 
-void FSlateDebugging::BroadcastMouseCapture(uint32 UserIndex, uint32 PointerIndex, const TSharedPtr<SWidget>& InCapturingWidget)
+void FSlateDebugging::BroadcastMouseCapture(uint32 UserIndex, uint32 PointerIndex, TSharedPtr<const SWidget> InCapturingWidget)
 {
 	MouseCaptureEvent.Broadcast(FSlateDebuggingMouseCaptureEventArgs(true, UserIndex, PointerIndex, InCapturingWidget));
 }
 
-void FSlateDebugging::BroadcastMouseCaptureLost(uint32 UserIndex, uint32 PointerIndex, const TSharedPtr<SWidget>& InWidgetLostCapture)
+void FSlateDebugging::BroadcastMouseCaptureLost(uint32 UserIndex, uint32 PointerIndex, TSharedPtr<const SWidget> InWidgetLostCapture)
 {
 	MouseCaptureEvent.Broadcast(FSlateDebuggingMouseCaptureEventArgs(false, UserIndex, PointerIndex, InWidgetLostCapture));
 }

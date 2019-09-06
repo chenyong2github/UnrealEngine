@@ -12,7 +12,7 @@
 #include "Layout/WidgetPath.h"
 #include "WidgetInteractionComponent.generated.h"
 
-class FSlateVirtualUser;
+class FSlateVirtualUserHandle;
 class UPrimitiveComponent;
 class UWidgetComponent;
 
@@ -187,7 +187,7 @@ private:
 	 * the mouse and keyboard focus input (the viewport), so that things like the player controller receive
 	 * standard hardware input.
 	 */
-	TSharedPtr<FSlateVirtualUser> VirtualUser;
+	TSharedPtr<FSlateVirtualUserHandle> VirtualUser;
 
 public:
 

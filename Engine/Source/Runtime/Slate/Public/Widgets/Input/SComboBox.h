@@ -16,6 +16,7 @@
 #include "Styling/CoreStyle.h"
 #include "Framework/SlateDelegates.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/SlateUser.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SComboButton.h"
@@ -454,10 +455,11 @@ private:
 			}
 
 			// Set focus back to ComboBox for users focusing the ListView that just closed
-			FSlateApplication::Get().ForEachUser([&](FSlateUser* User) {
-				if (FSlateApplication::Get().HasUserFocusedDescendants(AsShared(), User->GetUserIndex()))
+			TSharedRef<SWidget> ThisRef = AsShared();
+			FSlateApplication::Get().ForEachUser([&ThisRef](FSlateUser& User) {
+				if (User.HasFocusedDescendants(ThisRef))
 				{
-					FSlateApplication::Get().SetUserFocus(User->GetUserIndex(), AsShared(), EFocusCause::SetDirectly);
+					User.SetFocus(ThisRef, EFocusCause::SetDirectly);
 				}
 			});
 
