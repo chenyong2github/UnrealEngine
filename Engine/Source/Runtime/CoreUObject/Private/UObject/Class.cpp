@@ -2010,6 +2010,8 @@ void UScriptStruct::PrepareCppStructOps()
 			return;
 		}
 
+		StructFlags = EStructFlags(StructFlags | STRUCT_Native);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		// test that the constructor is initializing everything
 		if (!CppStructOps->HasZeroConstructor()
