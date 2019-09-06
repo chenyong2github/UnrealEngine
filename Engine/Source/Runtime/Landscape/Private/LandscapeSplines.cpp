@@ -2367,7 +2367,8 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 	// Unregister components, Remove Foreign/Local Associations
 	for (auto* LocalMeshComponent : OldLocalMeshComponents)
 	{
-		OuterSplines->MeshComponentLocalOwnersMap.Remove(LocalMeshComponent);
+		checkSlow(OuterSplines->MeshComponentLocalOwnersMap.FindRef(LocalMeshComponent) == this);
+		verifySlow(OuterSplines->MeshComponentLocalOwnersMap.Remove(LocalMeshComponent) == 1);
 		LocalMeshComponent->Modify();
 		LocalMeshComponent->UnregisterComponent();
 	}
@@ -2730,8 +2731,6 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 	// Clean up unused components
 	for (auto* LocalMeshComponent : OldLocalMeshComponents)
 	{
-		checkSlow(OuterSplines->MeshComponentLocalOwnersMap.FindRef(LocalMeshComponent) == this);
-		verifySlow(OuterSplines->MeshComponentLocalOwnersMap.Remove(LocalMeshComponent) == 1);
 		LocalMeshComponent->DestroyComponent();
 	}
 	OldLocalMeshComponents.Empty();
