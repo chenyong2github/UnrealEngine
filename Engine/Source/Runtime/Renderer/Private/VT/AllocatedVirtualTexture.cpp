@@ -269,10 +269,10 @@ void FAllocatedVirtualTexture::GetPackedUniform(FUintVector4* OutUniform, uint32
 	{
 		const uint32 vPageSize = GetVirtualTileSize();
 		const uint32 PageBorderSize = GetTileBorderSize();
-
 		const float RcpPhysicalTextureSize = 1.0f / float(PhysicalTextureSize);
 		const uint32 pPageSize = vPageSize + PageBorderSize * 2u;
-		OutUniform->X = 0u;
+
+		OutUniform->X = GetPageTableFormat() == EVTPageTableFormat::UInt16 ? 1 : 0;
 		OutUniform->Y = BitcastFloatToUInt32((float)vPageSize * RcpPhysicalTextureSize);
 		OutUniform->Z = BitcastFloatToUInt32((float)PageBorderSize * RcpPhysicalTextureSize);
 		OutUniform->W = BitcastFloatToUInt32((float)pPageSize * RcpPhysicalTextureSize);
