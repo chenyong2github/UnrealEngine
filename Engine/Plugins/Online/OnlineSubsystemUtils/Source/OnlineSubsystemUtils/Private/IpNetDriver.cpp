@@ -90,7 +90,7 @@ class FPacketIterator
 private:
 	struct FCachedPacket
 	{
-		/** Whether or not socket receive succeeded. Don't rely on the Error field for this, due to implementation/platform uncertainties. */
+		/** Whether socket receive succeeded. Don't rely on the Error field for this, due to implementation/platform uncertainties. */
 		bool bRecvSuccess;
 
 		/** Pre-allocated Data field, for storing packets of any expected size */
@@ -140,23 +140,27 @@ private:
 	/**
 	 * Retrieves the packet information from the current iteration. Avoid calling more than once, per iteration.
 	 *
-	 * @param OutData		Returns a pointer to the packet data
-	 * @param OutBytesRead	Returns the number of bytes read
-	 * @param OutError		Returns the socket error, if receiving failed
-	 * @param OutAddr		Returns the address the packet was received from
+	 * @param OutPacket		Outputs a view to the received packet data
 	 * @return				Returns whether or not receiving was successful for the current packet
 	 */
-	bool GetCurrentPacket(const uint8*& OutData, uint32& OutBytesRead, ESocketErrors& OutError, TSharedPtr<FInternetAddr>& OutAddr)
+	bool GetCurrentPacket(FReceivedPacketView& OutPacket)
 	{
 		bool bRecvSuccess = false;
 
-		OutData = CurrentPacket.Data.GetData();
-		OutBytesRead = CurrentPacket.Data.Num();
-		OutError = CurrentPacket.Error;
-		OutAddr = CurrentPacket.Address;
+		OutPacket.Data = MakeArrayView(CurrentPacket.Data);
+		OutPacket.Error = CurrentPacket.Error;
+		OutPacket.Address = CurrentPacket.Address;
 		bRecvSuccess = CurrentPacket.bRecvSuccess;
 
 		return bRecvSuccess;
+	}
+	
+	/**
+	 * Returns a view of the iterator's packet buffer, for updating packet data as it's processed, and generating new packet views
+	 */
+	FPacketBufferView GetWorkingBuffer()
+	{
+		return { CurrentPacket.Data.GetData(), MAX_PACKET_SIZE };
 	}
 
 	/**
@@ -578,38 +582,34 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 			}
 		}
 
-		uint8* Data = nullptr;
-		int32 BytesRead = 0;
-		ESocketErrors Error = SE_NO_ERROR;
-		TSharedPtr<FInternetAddr> FromAddrPtr;
-		bool bOk = It.GetCurrentPacket((const uint8*&)Data, (uint32&)BytesRead, Error, FromAddrPtr);
-		TSharedRef<FInternetAddr> FromAddr = FromAddrPtr.ToSharedRef();
+		FReceivedPacketView ReceivedPacket;
+		bool bOk = It.GetCurrentPacket(ReceivedPacket);
+		const TSharedRef<const FInternetAddr> FromAddr = ReceivedPacket.Address.ToSharedRef();
 		UNetConnection* Connection = nullptr;
 		UIpConnection* const MyServerConnection = GetServerConnection();
 
 		if (bOk)
 		{
 			// Immediately stop processing (continuing to next receive), for empty packets (usually a DDoS)
-			if (BytesRead == 0)
+			if (ReceivedPacket.Data.Num() == 0)
 			{
 				DDoS.IncBadPacketCounter();
 				continue;
 			}
 
-			FPacketAudit::NotifyLowLevelReceive(Data, BytesRead);
+			FPacketAudit::NotifyLowLevelReceive((uint8*)ReceivedPacket.Data.GetData(), ReceivedPacket.Data.Num());
 		}
 		else
 		{
-			if (IsRecvFailBlocking(Error))
+			if (IsRecvFailBlocking(ReceivedPacket.Error))
 			{
-				// No data or no error? (SE_ECONNABORTED is for PS4 LAN cable pulls)
 				break;
 			}
-			else if (Error != SE_ECONNRESET && Error != SE_UDP_ERR_PORT_UNREACH)
+			else if (ReceivedPacket.Error != SE_ECONNRESET && ReceivedPacket.Error != SE_UDP_ERR_PORT_UNREACH)
 			{
 				// MalformedPacket: Client tried receiving a packet that exceeded the maximum packet limit
 				// enforced by the server
-				if (Error == SE_EMSGSIZE)
+				if (ReceivedPacket.Error == SE_EMSGSIZE)
 				{
 					DDoS.IncBadPacketCounter();
 
@@ -639,8 +639,8 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 				}
 
 				FString ErrorString = FString::Printf(TEXT("UIpNetDriver::TickDispatch: Socket->RecvFrom: %i (%s) from %s"),
-					static_cast<int32>(Error),
-					SocketSubsystem->GetSocketError(Error),
+					static_cast<int32>(ReceivedPacket.Error),
+					SocketSubsystem->GetSocketError(ReceivedPacket.Error),
 					*FromAddr->ToString(true));
 
 
@@ -688,8 +688,7 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 
 		if (Connection == nullptr)
 		{
-			const TSharedRef<const FInternetAddr> ConstFromAddr = FromAddr;
-			UNetConnection** Result = MappedClientConnections.Find(ConstFromAddr);
+			UNetConnection** Result = MappedClientConnections.Find(FromAddr);
 
 			if (Result != nullptr)
 			{
@@ -773,11 +772,13 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 
 				if (bAcceptingConnection)
 				{
-					UE_CLOG(!DDoS.CheckLogRestrictions(), LogNet, Log, TEXT("NotifyAcceptingConnection accepted from: %s"), *FromAddr->ToString(true));
+					UE_CLOG(!DDoS.CheckLogRestrictions(), LogNet, Log, TEXT("NotifyAcceptingConnection accepted from: %s"),
+								*FromAddr->ToString(true));
 
-					Connection = ProcessConnectionlessPacket(FromAddr, Data, BytesRead);
+					FPacketBufferView WorkingBuffer = It.GetWorkingBuffer();
 
-					bIgnorePacket = BytesRead == 0;
+					Connection = ProcessConnectionlessPacket(ReceivedPacket, WorkingBuffer);
+					bIgnorePacket = ReceivedPacket.Data.Num() == 0;
 				}
 				else
 				{
@@ -794,7 +795,7 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 					DDoS.CondCheckNetConnLimits();
 				}
 
-				Connection->ReceivedRawPacket(Data, BytesRead);
+				Connection->ReceivedRawPacket((uint8*)ReceivedPacket.Data.GetData(), ReceivedPacket.Data.Num());
 			}
 		}
 	}
@@ -809,10 +810,11 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 	}
 }
 
-UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(const TSharedRef<FInternetAddr>& Address, uint8* Data, int32& CountBytesRef)
+UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& PacketRef, const FPacketBufferView& WorkingBuffer)
 {
 	UNetConnection* ReturnVal = nullptr;
 	TSharedPtr<StatelessConnectHandlerComponent> StatelessConnect;
+	const TSharedPtr<FInternetAddr>& Address = PacketRef.Address;
 	FString IncomingAddress = Address->ToString(true);
 	bool bPassedChallenge = false;
 	bool bRestartedHandshake = false;
@@ -822,9 +824,10 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(const TSharedRef<FInte
 	{
 		StatelessConnect = StatelessConnectComponent.Pin();
 
-		const ProcessedPacket UnProcessedPacket = ConnectionlessHandler->IncomingConnectionless(Address, Data, CountBytesRef);
+		const ProcessedPacket HandlerResult = ConnectionlessHandler->IncomingConnectionless(Address,
+																		(uint8*)PacketRef.Data.GetData(), PacketRef.Data.Num());
 
-		if (!UnProcessedPacket.bError)
+		if (!HandlerResult.bError)
 		{
 			bPassedChallenge = StatelessConnect->HasPassedChallenge(Address, bRestartedHandshake);
 
@@ -892,14 +895,17 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(const TSharedRef<FInte
 					}
 				}
 
-				CountBytesRef = FMath::DivideAndRoundUp(UnProcessedPacket.CountBits, 8);
 
-				if (CountBytesRef > 0)
+				int32 NewCountBytes = FMath::DivideAndRoundUp(HandlerResult.CountBits, 8);
+
+				if (NewCountBytes > 0)
 				{
-					FMemory::Memcpy(Data, UnProcessedPacket.Data, CountBytesRef);
+					FMemory::Memcpy(WorkingBuffer.Buffer.GetData(), HandlerResult.Data, NewCountBytes);
 
 					bIgnorePacket = false;
 				}
+
+				PacketRef.Data = MakeArrayView(WorkingBuffer.Buffer.GetData(), NewCountBytes);
 			}
 		}
 	}
@@ -960,12 +966,12 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(const TSharedRef<FInte
 	}
 	else
 	{
-		UE_LOG(LogNet, VeryVerbose, TEXT( "Server failed post-challenge connection from: %s" ), *IncomingAddress);
+		UE_LOG(LogNet, VeryVerbose, TEXT("Server failed post-challenge connection from: %s"), *IncomingAddress);
 	}
 
 	if (bIgnorePacket)
 	{
-		CountBytesRef = 0;
+		PacketRef.Data = MakeArrayView(PacketRef.Data.GetData(), 0);
 	}
 
 	return ReturnVal;

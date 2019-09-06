@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 
+// Forward declarations
+class FInternetAddr;
+
 /** Indicates the socket protocol of socket being used, typically for BSD Sockets */
 enum class ESocketProtocolFamily : uint8
 {
@@ -176,4 +179,37 @@ enum class ESocketShutdownMode
 	 * Disables reading and writing on the socket.
 	 */
 	ReadWrite
+};
+
+
+/**
+ * Represents a view of a buffer for storing packets. Buffer contents may be modified, but the allocation can not be resized.
+ * Should only be stored as a local variable within functions that handle received packets.
+ */
+struct FPacketBufferView
+{
+	/** View of the packet buffer, with Num() representing allocated size. Internal buffer data can be modified, but not view/size. */
+	const TArrayView<uint8>		Buffer;
+
+
+	FPacketBufferView(uint8* InData, int32 MaxBufferSize)
+		: Buffer(MakeArrayView<uint8>(InData, MaxBufferSize))
+	{
+	}
+};
+
+/**
+ * Represents a view of a received packet, which may be modified to update Data it points to and Data size, as a packet is processed.
+ * Should only be stored as a local variable within functions that handle received packets.
+ */
+struct FReceivedPacketView
+{
+	/** View of packet data, with Num() representing BytesRead - can reassign to point elsewhere, but don't use to modify packet data */
+	TArrayView<const uint8>		Data;
+
+	/** Receive address for the packet */
+	TSharedPtr<FInternetAddr>	Address;
+
+	/** Error if receiving a packet failed */
+	ESocketErrors				Error;
 };
