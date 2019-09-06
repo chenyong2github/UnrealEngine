@@ -24,6 +24,7 @@ Notes:
 
 #include "IPAddress.h"
 #include "Sockets.h"
+#include "Serialization/ArchiveCountMem.h"
 
 /** For backwards compatibility with the engine stateless connect code */
 #ifndef STATELESSCONNECT_HAS_RANDOM_SEQUENCE
@@ -74,6 +75,24 @@ TAutoConsoleVariable<int32> CVarNetIpNetDriverReceiveThreadPollTimeMS(
 	250,
 	TEXT("If net.IpNetDriverUseReceiveThread is true, the number of milliseconds to use as the timeout value for FSocket::Wait on the receive thread. A negative value means to wait indefinitely (FSocket::Shutdown should cancel it though)."));
 
+TAutoConsoleVariable<int32> CVarNetUseRecvMulti(
+	TEXT("net.UseRecvMulti"),
+	0,
+	TEXT("If true, and if running on a Unix/Linux platform, multiple packets will be retrieved from the socket with one syscall, ")
+		TEXT("improving performance and also allowing retrieval of timestamp information."));
+
+TAutoConsoleVariable<int32> CVarRecvMultiCapacity(
+	TEXT("net.RecvMultiCapacity"),
+	2048,
+	TEXT("When RecvMulti is enabled, this is the number of packets it is allocated to handle per call - ")
+		TEXT("bigger is better (especially under a DDoS), but keep an eye on memory cost."));
+
+TAutoConsoleVariable<int32> CVarNetUseRecvTimestamps(
+	TEXT("net.UseRecvTimestamps"),
+	0,
+	TEXT("If true and if net.UseRecvMulti is also true, on a Unix/Linux platform, ")
+		TEXT("the kernel timestamp will be retrieved for each packet received, providing more accurate ping calculations."));
+
 
 
 /**
@@ -90,7 +109,7 @@ class FPacketIterator
 private:
 	struct FCachedPacket
 	{
-		/** Whether or not socket receive succeeded. Don't rely on the Error field for this, due to implementation/platform uncertainties. */
+		/** Whether socket receive succeeded. Don't rely on the Error field for this, due to implementation/platform uncertainties. */
 		bool bRecvSuccess;
 
 		/** Pre-allocated Data field, for storing packets of any expected size */
@@ -115,8 +134,13 @@ private:
 		, Socket(Driver->Socket)
 		, SocketReceiveThreadRunnable(Driver->SocketReceiveThreadRunnable.Get())
 		, CurrentPacket()
+		, RecvMultiIdx(0)
+		, RecvMultiPacketCount(0)
 	{
-		if (SocketSubsystem != nullptr)
+		RMState = Driver->RecvMultiState.Get();
+		bUseRecvMulti = CVarNetUseRecvMulti.GetValueOnAnyThread() != 0 && RMState != nullptr;
+
+		if (!bUseRecvMulti && SocketSubsystem != nullptr)
 		{
 			CurrentPacket.Address = SocketSubsystem->CreateInternetAddr();
 		}
@@ -140,23 +164,65 @@ private:
 	/**
 	 * Retrieves the packet information from the current iteration. Avoid calling more than once, per iteration.
 	 *
-	 * @param OutData		Returns a pointer to the packet data
-	 * @param OutBytesRead	Returns the number of bytes read
-	 * @param OutError		Returns the socket error, if receiving failed
-	 * @param OutAddr		Returns the address the packet was received from
+	 * @param OutPacket		Outputs a view to the received packet data
 	 * @return				Returns whether or not receiving was successful for the current packet
 	 */
-	bool GetCurrentPacket(const uint8*& OutData, uint32& OutBytesRead, ESocketErrors& OutError, TSharedPtr<FInternetAddr>& OutAddr)
+	bool GetCurrentPacket(FReceivedPacketView& OutPacket)
 	{
 		bool bRecvSuccess = false;
 
-		OutData = CurrentPacket.Data.GetData();
-		OutBytesRead = CurrentPacket.Data.Num();
-		OutError = CurrentPacket.Error;
-		OutAddr = CurrentPacket.Address;
-		bRecvSuccess = CurrentPacket.bRecvSuccess;
+		if (bUseRecvMulti)
+		{
+			RMState->GetPacket(RecvMultiIdx, OutPacket);
+			bRecvSuccess = true;
+		}
+		else
+		{
+			OutPacket.Data = MakeArrayView(CurrentPacket.Data);
+			OutPacket.Error = CurrentPacket.Error;
+			OutPacket.Address = CurrentPacket.Address;
+			bRecvSuccess = CurrentPacket.bRecvSuccess;
+		}
 
 		return bRecvSuccess;
+	}
+
+	/**
+	 * Retrieves the packet timestamp information from the current iteration. As above, avoid calling more than once.
+	 *
+	 * @param ForConnection		The connection we are retrieving timestamp information for
+	 */
+	void GetCurrentPacketTimestamp(UNetConnection* ForConnection)
+	{
+		FPacketTimestamp CurrentTimestamp;
+		bool bIsLocalTimestamp = false;
+		bool bSuccess = false;
+
+		if (bUseRecvMulti)
+		{
+			RMState->GetPacketTimestamp(RecvMultiIdx, CurrentTimestamp);
+			bIsLocalTimestamp = false;
+			bSuccess = true;
+		}
+		else if (CurrentPacket.PacketTimestamp != 0.0)
+		{
+			CurrentTimestamp.Timestamp = FTimespan::FromSeconds(CurrentPacket.PacketTimestamp);
+			bIsLocalTimestamp = true;
+			bSuccess = true;
+		}
+
+		if (bSuccess)
+		{
+			ForConnection->SetPacketOSReceiveTime(CurrentTimestamp, bIsLocalTimestamp);
+		}
+	}
+
+	/**
+	 * Returns a view of the iterator's packet buffer, for updating packet data as it's processed, and generating new packet views
+	 */
+	FPacketBufferView GetWorkingBuffer()
+	{
+		return { CurrentPacket.Data.GetData(), MAX_PACKET_SIZE };
 	}
 
 	/**
@@ -164,7 +230,23 @@ private:
 	 */
 	void AdvanceCurrentPacket()
 	{
-		bBreak = !ReceiveSinglePacket();
+		if (bUseRecvMulti)
+		{
+			if (RecvMultiPacketCount == 0 || ((RecvMultiIdx + 1) >= RecvMultiPacketCount))
+			{
+				AdvanceRecvMultiState();
+			}
+			else
+			{
+				RecvMultiIdx++;
+			}
+
+			// At this point, bBreak will be set, or RecvMultiPacketCount will be > 0
+		}
+		else
+		{
+			bBreak = !ReceiveSinglePacket();
+		}
 	}
 
 	/**
@@ -301,6 +383,63 @@ private:
 		return bReceivedPacketOrError;
 	}
 
+	/**
+	 * Load a fresh batch of RecvMulti packets
+	 */
+	void AdvanceRecvMultiState()
+	{
+		RecvMultiIdx = 0;
+		RecvMultiPacketCount = 0;
+
+		while (true)
+		{
+			bool bRecvMultiOk = Socket != nullptr ? Socket->RecvMulti(*RMState) : false;
+
+			if (!bRecvMultiOk)
+			{
+				ESocketErrors RecvMultiError = (SocketSubsystem != nullptr ? SocketSubsystem->GetLastErrorCode() : SE_NO_ERROR);
+
+				if (UIpNetDriver::IsRecvFailBlocking(RecvMultiError))
+				{
+					bBreak = true;
+					break;
+				}
+				else
+				{
+					// When the Linux recvmmsg syscall encounters an error after successfully receiving at least one packet,
+					// it won't return an error until called again, but this error can be overwritten before recvmmsg is called again.
+					// This makes the error handling for recvmmsg unreliable. Continue until the socket blocks.
+
+					// Continue is safe, as 0 packets have been received
+					continue;
+				}
+			}
+
+			// Extreme-early-out. NetConnection per frame time limit, limits all packet processing - RecvMulti drops all packets at once
+			if (DDoS.ShouldBlockNetConnPackets())
+			{
+				int32 NumDropped = RMState->GetNumPackets();
+
+				DDoS.IncDroppedPacketCounter(NumDropped);
+
+				// Have a threshold, to stop the RecvMulti syscall spinning with low packet counts - let the socket buffer build up
+				if (NumDropped > 10)
+				{
+					continue;
+				}
+				else
+				{
+					bBreak = true;
+					break;
+				}
+			}
+
+			RecvMultiPacketCount = RMState->GetNumPackets();
+
+			break;
+		}
+	}
+
 
 private:
 	/** Specified internally, when the packet iterator should break/stop (no packets, DDoS limits triggered, etc.) */
@@ -321,6 +460,18 @@ private:
 
 	/** Stores information for the current packet being received (when using single-receive mode) */
 	FCachedPacket CurrentPacket;
+
+	/** Stores information for receiving packets using RecvMulti */
+	FRecvMulti* RMState;
+
+	/** Whether or not RecvMulti is enabled/supported */
+	bool bUseRecvMulti;
+
+	/** The RecvMulti index of the next packet to be received (if RecvMultiPacketCount > 0) */
+	int32 RecvMultiIdx;
+
+	/** The number of packets waiting to be read from the FRecvMulti state */
+	int32 RecvMultiPacketCount;
 };
 
 /**
@@ -334,6 +485,7 @@ UIpNetDriver::UIpNetDriver(const FObjectInitializer& ObjectInitializer)
 	, ServerDesiredSocketSendBufferBytes(0x20000)
 	, ClientDesiredSocketReceiveBufferBytes(0x8000)
 	, ClientDesiredSocketSendBufferBytes(0x8000)
+	, RecvMultiState(nullptr)
 {
 }
 
@@ -459,6 +611,47 @@ bool UIpNetDriver::InitBase( bool bInitAsClient, FNetworkNotify* InNotify, const
 		SocketReceiveThread.Reset(FRunnableThread::Create(SocketReceiveThreadRunnable.Get(), *FString::Printf(TEXT("IpNetDriver Receive Thread"), *NetDriverName.ToString())));
 	}
 
+
+	bool bRecvMultiEnabled = CVarNetUseRecvMulti.GetValueOnAnyThread() != 0;
+	bool bRecvThreadEnabled = CVarNetIpNetDriverUseReceiveThread.GetValueOnAnyThread() != 0;
+
+	if (bRecvMultiEnabled && !bRecvThreadEnabled)
+	{
+		bool bSupportsRecvMulti = SocketSubsystem->IsSocketRecvMultiSupported();
+
+		if (bSupportsRecvMulti)
+		{
+			bool bRetrieveTimestamps = CVarNetUseRecvTimestamps.GetValueOnAnyThread() != 0;
+
+			if (bRetrieveTimestamps)
+			{
+				Socket->SetRetrieveTimestamp(true);
+			}
+
+
+			ERecvMultiFlags RecvMultiFlags = bRetrieveTimestamps ? ERecvMultiFlags::RetrieveTimestamps : ERecvMultiFlags::None;
+			int32 MaxRecvMultiPackets = FMath::Max(32, CVarRecvMultiCapacity.GetValueOnAnyThread());
+
+			RecvMultiState = SocketSubsystem->CreateRecvMulti(MaxRecvMultiPackets, MAX_PACKET_SIZE, RecvMultiFlags);
+
+
+			FArchiveCountMem MemArc(nullptr);
+
+			RecvMultiState->CountBytes(MemArc);
+
+			UE_LOG(LogNet, Log, TEXT("NetDriver RecvMulti state size: %i, Retrieve Timestamps: %i"), MemArc.GetMax(),
+					(uint32)bRetrieveTimestamps);
+		}
+		else
+		{
+			UE_LOG(LogNet, Warning, TEXT("NetDriver could not enable RecvMulti, as current socket subsystem does not support it."));
+		}
+	}
+	else if (bRecvThreadEnabled)
+	{
+		UE_LOG(LogNet, Warning, TEXT("NetDriver RecvMulti is not yet supported with the Receive Thread enabled."));
+	}
+
 	// Success.
 	return true;
 }
@@ -540,6 +733,7 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 	const double StartReceiveTime = FPlatformTime::Seconds();
 	double AlarmTime = StartReceiveTime + GIpNetDriverMaxDesiredTimeSliceBeforeAlarmSecs;
 	const bool bSlowFrameChecks = OnNetworkProcessingCausingSlowFrame.IsBound();
+	bool bRetrieveTimestamps = CVarNetUseRecvTimestamps.GetValueOnAnyThread() != 0;
 
 	const bool bCheckReceiveTime = (MaxSecondsInReceive > 0.0) && (NbPacketsBetweenReceiveTimeTest > 0);
 	const double BailOutTime = StartReceiveTime + MaxSecondsInReceive;
@@ -578,38 +772,34 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 			}
 		}
 
-		uint8* Data = nullptr;
-		int32 BytesRead = 0;
-		ESocketErrors Error = SE_NO_ERROR;
-		TSharedPtr<FInternetAddr> FromAddrPtr;
-		bool bOk = It.GetCurrentPacket((const uint8*&)Data, (uint32&)BytesRead, Error, FromAddrPtr);
-		TSharedRef<FInternetAddr> FromAddr = FromAddrPtr.ToSharedRef();
+		FReceivedPacketView ReceivedPacket;
+		bool bOk = It.GetCurrentPacket(ReceivedPacket);
+		const TSharedRef<const FInternetAddr> FromAddr = ReceivedPacket.Address.ToSharedRef();
 		UNetConnection* Connection = nullptr;
 		UIpConnection* const MyServerConnection = GetServerConnection();
 
 		if (bOk)
 		{
 			// Immediately stop processing (continuing to next receive), for empty packets (usually a DDoS)
-			if (BytesRead == 0)
+			if (ReceivedPacket.Data.Num() == 0)
 			{
 				DDoS.IncBadPacketCounter();
 				continue;
 			}
 
-			FPacketAudit::NotifyLowLevelReceive(Data, BytesRead);
+			FPacketAudit::NotifyLowLevelReceive((uint8*)ReceivedPacket.Data.GetData(), ReceivedPacket.Data.Num());
 		}
 		else
 		{
-			if (IsRecvFailBlocking(Error))
+			if (IsRecvFailBlocking(ReceivedPacket.Error))
 			{
-				// No data or no error? (SE_ECONNABORTED is for PS4 LAN cable pulls)
 				break;
 			}
-			else if (Error != SE_ECONNRESET && Error != SE_UDP_ERR_PORT_UNREACH)
+			else if (ReceivedPacket.Error != SE_ECONNRESET && ReceivedPacket.Error != SE_UDP_ERR_PORT_UNREACH)
 			{
 				// MalformedPacket: Client tried receiving a packet that exceeded the maximum packet limit
 				// enforced by the server
-				if (Error == SE_EMSGSIZE)
+				if (ReceivedPacket.Error == SE_EMSGSIZE)
 				{
 					DDoS.IncBadPacketCounter();
 
@@ -639,8 +829,8 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 				}
 
 				FString ErrorString = FString::Printf(TEXT("UIpNetDriver::TickDispatch: Socket->RecvFrom: %i (%s) from %s"),
-					static_cast<int32>(Error),
-					SocketSubsystem->GetSocketError(Error),
+					static_cast<int32>(ReceivedPacket.Error),
+					SocketSubsystem->GetSocketError(ReceivedPacket.Error),
 					*FromAddr->ToString(true));
 
 
@@ -688,8 +878,7 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 
 		if (Connection == nullptr)
 		{
-			const TSharedRef<const FInternetAddr> ConstFromAddr = FromAddr;
-			UNetConnection** Result = MappedClientConnections.Find(ConstFromAddr);
+			UNetConnection** Result = MappedClientConnections.Find(FromAddr);
 
 			if (Result != nullptr)
 			{
@@ -773,11 +962,13 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 
 				if (bAcceptingConnection)
 				{
-					UE_CLOG(!DDoS.CheckLogRestrictions(), LogNet, Log, TEXT("NotifyAcceptingConnection accepted from: %s"), *FromAddr->ToString(true));
+					UE_CLOG(!DDoS.CheckLogRestrictions(), LogNet, Log, TEXT("NotifyAcceptingConnection accepted from: %s"),
+								*FromAddr->ToString(true));
 
-					Connection = ProcessConnectionlessPacket(FromAddr, Data, BytesRead);
+					FPacketBufferView WorkingBuffer = It.GetWorkingBuffer();
 
-					bIgnorePacket = BytesRead == 0;
+					Connection = ProcessConnectionlessPacket(ReceivedPacket, WorkingBuffer);
+					bIgnorePacket = ReceivedPacket.Data.Num() == 0;
 				}
 				else
 				{
@@ -794,7 +985,12 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 					DDoS.CondCheckNetConnLimits();
 				}
 
-				Connection->ReceivedRawPacket(Data, BytesRead);
+				if (bRetrieveTimestamps)
+				{
+					It.GetCurrentPacketTimestamp(Connection);
+				}
+
+				Connection->ReceivedRawPacket((uint8*)ReceivedPacket.Data.GetData(), ReceivedPacket.Data.Num());
 			}
 		}
 	}
@@ -809,10 +1005,11 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 	}
 }
 
-UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(const TSharedRef<FInternetAddr>& Address, uint8* Data, int32& CountBytesRef)
+UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& PacketRef, const FPacketBufferView& WorkingBuffer)
 {
 	UNetConnection* ReturnVal = nullptr;
 	TSharedPtr<StatelessConnectHandlerComponent> StatelessConnect;
+	const TSharedPtr<FInternetAddr>& Address = PacketRef.Address;
 	FString IncomingAddress = Address->ToString(true);
 	bool bPassedChallenge = false;
 	bool bRestartedHandshake = false;
@@ -822,9 +1019,10 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(const TSharedRef<FInte
 	{
 		StatelessConnect = StatelessConnectComponent.Pin();
 
-		const ProcessedPacket UnProcessedPacket = ConnectionlessHandler->IncomingConnectionless(Address, Data, CountBytesRef);
+		const ProcessedPacket HandlerResult = ConnectionlessHandler->IncomingConnectionless(Address,
+																		(uint8*)PacketRef.Data.GetData(), PacketRef.Data.Num());
 
-		if (!UnProcessedPacket.bError)
+		if (!HandlerResult.bError)
 		{
 			bPassedChallenge = StatelessConnect->HasPassedChallenge(Address, bRestartedHandshake);
 
@@ -892,14 +1090,17 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(const TSharedRef<FInte
 					}
 				}
 
-				CountBytesRef = FMath::DivideAndRoundUp(UnProcessedPacket.CountBits, 8);
 
-				if (CountBytesRef > 0)
+				int32 NewCountBytes = FMath::DivideAndRoundUp(HandlerResult.CountBits, 8);
+
+				if (NewCountBytes > 0)
 				{
-					FMemory::Memcpy(Data, UnProcessedPacket.Data, CountBytesRef);
+					FMemory::Memcpy(WorkingBuffer.Buffer.GetData(), HandlerResult.Data, NewCountBytes);
 
 					bIgnorePacket = false;
 				}
+
+				PacketRef.Data = MakeArrayView(WorkingBuffer.Buffer.GetData(), NewCountBytes);
 			}
 		}
 	}
@@ -960,12 +1161,12 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(const TSharedRef<FInte
 	}
 	else
 	{
-		UE_LOG(LogNet, VeryVerbose, TEXT( "Server failed post-challenge connection from: %s" ), *IncomingAddress);
+		UE_LOG(LogNet, VeryVerbose, TEXT("Server failed post-challenge connection from: %s"), *IncomingAddress);
 	}
 
 	if (bIgnorePacket)
 	{
-		CountBytesRef = 0;
+		PacketRef.Data = MakeArrayView(PacketRef.Data.GetData(), 0);
 	}
 
 	return ReturnVal;

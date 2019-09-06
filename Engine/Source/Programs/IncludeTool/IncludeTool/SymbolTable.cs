@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
 using System;
@@ -126,6 +126,14 @@ namespace IncludeTool
 		RequiresDefinition
 	}
 
+	class UnbalancedScopeException : Exception
+	{
+		public UnbalancedScopeException(string Message) 
+			: base(Message)
+		{
+		}
+	}
+
 	/// <summary>
 	/// Registry of symbol names to definitions
 	/// </summary>
@@ -243,7 +251,7 @@ namespace IncludeTool
 					// Make sure they were all consistent
 					if(NewScopes.Any(x => x != NewScopes[0]))
 					{
-						throw new Exception(String.Format("Unbalanced scope depth between conditional block derivations while parsing {0}", File.Location));
+						throw new UnbalancedScopeException(String.Format("Unbalanced scope depth between conditional block derivations while parsing {0}", File.Location));
 					}
 
 					// Update the scope
@@ -285,7 +293,7 @@ namespace IncludeTool
 						}
 						else if(Reader.Current.Text == "}" && --Scope < 0)
 						{
-							throw new Exception(String.Format("Unbalanced '}}' while parsing '{0}'", File.Location));
+							throw new UnbalancedScopeException(String.Format("Unbalanced '}}' while parsing '{0}'", File.Location));
 						}
 
 						// Move to the next token
@@ -454,30 +462,62 @@ namespace IncludeTool
 		bool ReadTypedefHeader(TokenReader OriginalReader, SourceFragment Fragment)
 		{
 			TokenReader Reader = new TokenReader(OriginalReader);
+			if(Reader.Current.Text == "typedef")
+			{
+				// Check for the typedef keyword
+				Token PreviousToken = Reader.Current;
+				if(!Reader.MoveNext(TokenReaderContext.IgnoreNewlines))
+				{
+					return false;
+				}
 
-			// Check for the typedef keyword
-			Token PreviousToken = Reader.Current;
-			if(Reader.Current.Text != "typedef" || !Reader.MoveNext(TokenReaderContext.IgnoreNewlines))
+				// Scan to the next semicolon
+				while(Reader.MoveNext(TokenReaderContext.IgnoreNewlines) && Reader.Current.Text != ";" && Reader.Current.Text != "{")
+				{
+					PreviousToken = Reader.Current;
+				}
+
+				// Ignore 'typedef struct' and 'typedef union' declarations.
+				if(Reader.Current.Text == "{")
+				{
+					return false;
+				}
+
+				// Try to add a symbol for the previous token. If it already exists, replace it. 
+				if(PreviousToken.Type == TokenType.Identifier && Rules.AllowSymbol(PreviousToken.Text))
+				{
+					AddSymbol(PreviousToken.Text, SymbolType.Typedef, null, Fragment, OriginalReader.TokenLocation);
+				}
+			}
+			else if(Reader.Current.Text == "using")
+			{
+				// Check for the using keyword
+				if (!Reader.MoveNext(TokenReaderContext.IgnoreNewlines))
+				{
+					return false;
+				}
+
+				// Get the identifier
+				Token Identifier = Reader.Current;
+				if (Reader.Current.Type != TokenType.Identifier || !Reader.MoveNext(TokenReaderContext.IgnoreNewlines) || Reader.Current.Text != "=")
+				{
+					return false;
+				}
+
+				// Scan to the next semicolon
+				while (Reader.MoveNext(TokenReaderContext.IgnoreNewlines) && Reader.Current.Text != ";" && Reader.Current.Text != "{")
+				{
+				}
+
+				// Get the identifier
+				if (Rules.AllowSymbol(Identifier.Text))
+				{
+					AddSymbol(Identifier.Text, SymbolType.Typedef, null, Fragment, OriginalReader.TokenLocation);
+				}
+			}
+			else
 			{
 				return false;
-			}
-
-			// Scan to the next semicolon
-			while(Reader.MoveNext(TokenReaderContext.IgnoreNewlines) && Reader.Current.Text != ";" && Reader.Current.Text != "{")
-			{
-				PreviousToken = Reader.Current;
-			}
-
-			// Ignore 'typedef struct' and 'typedef union' declarations.
-			if(Reader.Current.Text == "{")
-			{
-				return false;
-			}
-
-			// Try to add a symbol for the previous token. If it already exists, replace it. 
-			if(PreviousToken.Type == TokenType.Identifier && Rules.AllowSymbol(PreviousToken.Text))
-			{
-				AddSymbol(PreviousToken.Text, SymbolType.Typedef, null, Fragment, OriginalReader.TokenLocation);
 			}
 
 			// Move the original reader past the declaration
@@ -670,7 +710,8 @@ namespace IncludeTool
 				{
 					if(!ReadClassOrStructForwardDeclaration(Reader, HeaderFile, SymbolToHeader, Log) 
 						&& !ReadTemplateClassOrStructForwardDeclaration(Reader, HeaderFile, SymbolToHeader, Log)
-						&& !ReadEnumClassForwardDeclaration(Reader, HeaderFile, SymbolToHeader, Log))
+						&& !ReadEnumClassForwardDeclaration(Reader, HeaderFile, SymbolToHeader, Log)
+						&& !SkipAliasDeclaration(Reader))
 					{
 						Log.WriteLine("{0}({1}): error: invalid forward declaration - '{2}'", HeaderFile.Location, Reader.CurrentLine + 1, HeaderFile.Text[Reader.CurrentLine]);
 						return false;
@@ -854,6 +895,46 @@ namespace IncludeTool
 
 			bMoveNext = Reader.MoveNext(TokenReaderContext.IgnoreNewlines);
 			return bMoveNext;
+		}
+
+		/// <summary>
+		/// Skip over the declaration of an alias
+		/// </summary>
+		/// <param name="OriginalReader">The current token reader</param>
+		/// <returns>True if a forward declaration was read, false otherwise</returns>
+		bool SkipAliasDeclaration(TokenReader OriginalReader)
+		{
+			TokenReader Reader = new TokenReader(OriginalReader);
+
+			if(Reader.Current.Text == "template")
+			{
+				if (!Reader.MoveNext(TokenReaderContext.IgnoreNewlines))
+				{
+					return false;
+				}
+
+				bool bMoveNext = true;
+				if (!SkipTemplateArguments(Reader, ref bMoveNext) || !bMoveNext)
+				{
+					return false;
+				}
+			}
+
+			if(Reader.Current.Text != "using")
+			{
+				return false;
+			}
+
+			while(Reader.MoveNext(TokenReaderContext.IgnoreNewlines))
+			{
+				if(Reader.Current.Text == ";")
+				{
+					break;
+				}
+			}
+
+			OriginalReader.Set(Reader);
+			return true;
 		}
 
 		/// <summary>

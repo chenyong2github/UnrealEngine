@@ -1093,6 +1093,8 @@ bool FAudioDeviceManager::GetAudioDebugSound(FString& OutDebugSound)
 
 float FAudioDeviceManager::GetDynamicSoundVolume(ESoundType SoundType, const FName& SoundName) const
 {
+	check(IsInAudioThread());
+
 	TTuple<ESoundType, FName> SoundKey(SoundType, SoundName);
 	if (const float* Volume = DynamicSoundVolumes.Find(SoundKey))
 	{

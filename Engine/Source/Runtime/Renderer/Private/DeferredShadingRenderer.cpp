@@ -544,6 +544,11 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 		return false;
 	}
 
+	if (GetForceRayTracingEffectsCVarValue() == 0 && Views.Num() > 0 && CanOverlayRayTracingOutput(Views[0])) // #dxr_todo: UE-72557 multi-view case
+	{
+		return false;
+	}
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_GenerateVisibleRayTracingMeshCommands);
 		RayTracingCollector.ClearViewMeshArrays();
@@ -788,6 +793,11 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 		return false;
 	}
 
+	if (GetForceRayTracingEffectsCVarValue() == 0 && Views.Num() > 0 && CanOverlayRayTracingOutput(Views[0])) // #dxr_todo: UE-72557 multi-view case
+	{
+		return false; 
+	}
+
 	SCOPED_GPU_STAT(RHICmdList, RayTracingTLAS);
 
 	Scene->GetRayTracingDynamicGeometryCollection()->DispatchUpdates(RHICmdList);
@@ -851,7 +861,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			if (Scene->AtmosphereLights[LightIndex])
 			{
-				Scene->GetSkyAtmosphereSceneInfo()->PrepareSunLightProxy(LightIndex, *Scene->AtmosphereLights[LightIndex]);
+				PrepareSunLightProxy(*Scene->GetSkyAtmosphereSceneInfo(),LightIndex, *Scene->AtmosphereLights[LightIndex]);
 			}
 		}
 	}

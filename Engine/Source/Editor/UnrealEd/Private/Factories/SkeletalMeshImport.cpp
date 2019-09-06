@@ -409,6 +409,9 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 			}
 		}
 	}
+	//Store mesh changed delegate data
+	ExistingMeshDataPtr->ExistingOnMeshChanged = ExistingSkelMesh->GetOnMeshChanged();
+
 	return ExistingMeshDataPtr;
 }
 
@@ -1033,5 +1036,7 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 		UserDataObject->Rename(nullptr, SkeletalMesh, REN_DontCreateRedirectors | REN_DoNotDirty);
 		SkeletalMesh->AddAssetUserData(UserDataObject);
 	}
+	//Copy mesh changed delegate data
+	SkeletalMesh->GetOnMeshChanged() = MeshData->ExistingOnMeshChanged;
 }
 #undef LOCTEXT_NAMESPACE

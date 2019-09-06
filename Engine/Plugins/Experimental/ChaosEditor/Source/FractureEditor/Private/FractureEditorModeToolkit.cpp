@@ -730,10 +730,10 @@ void FFractureEditorModeToolkit::OnSetExplodedViewValue(float NewValue)
 
 		for (AActor* Actor : SelectedActors)
 		{
-			TArray<UActorComponent*> Components = Actor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-			for (UActorComponent* Component : Components)
+			TInlineComponentArray<UPrimitiveComponent*> Components;
+			Actor->GetComponents(Components);
+			for (UPrimitiveComponent* PrimitiveComponent : Components)
 			{
-				UPrimitiveComponent* PrimitiveComponent = CastChecked<UPrimitiveComponent>(Component);
 				AGeometryCollectionActor* GeometryCollectionActor = Cast<AGeometryCollectionActor>(Actor);
 				if(GeometryCollectionActor)
 				{
@@ -1054,18 +1054,14 @@ void FFractureEditorModeToolkit::OnSelectByMode(GeometryCollection::ESelectionMo
 
 	for (AActor* Actor : SelectedActors)
 	{
-		TArray<UActorComponent*> Components = Actor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-		for (UActorComponent* Component : Components)
-		{
-			UPrimitiveComponent* PrimitiveComponent = CastChecked<UPrimitiveComponent>(Component);
-			UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent);
+		TInlineComponentArray<UGeometryCollectionComponent*> GeometryCollectionComponents;
+		Actor->GetComponents(GeometryCollectionComponents);
 
-			if (GeometryCollectionComponent)
-			{
-				FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-				EditBoneColor.SelectBones(SelectionMode);
-				SetBoneSelection(GeometryCollectionComponent, EditBoneColor.GetSelectedBones(), true);
-			}
+		for (UGeometryCollectionComponent* GeometryCollectionComponent : GeometryCollectionComponents)
+		{
+			FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
+			EditBoneColor.SelectBones(SelectionMode);
+			SetBoneSelection(GeometryCollectionComponent, EditBoneColor.GetSelectedBones(), true);
 		}
 	}
 }
@@ -1081,57 +1077,93 @@ void FFractureEditorModeToolkit::GetFractureContexts(TArray<FFractureContext>& F
 		AActor* Actor = Cast<AActor>(*Iter);
 		if (Actor)
 		{
-			TArray<UActorComponent*> Components = Actor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-			for (UActorComponent* Component : Components)
+			TInlineComponentArray<UGeometryCollectionComponent*> GeometryCollectionComponents;
+			Actor->GetComponents(GeometryCollectionComponents);
+			for (UGeometryCollectionComponent* GeometryCollectionComponent : GeometryCollectionComponents)
 			{
-				UPrimitiveComponent* PrimitiveComponent = CastChecked<UPrimitiveComponent>(Component);
-				if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent))
+				FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
+				UGeometryCollection* FracturedGeometryCollection = RestCollection.GetRestCollection();
+				if (FracturedGeometryCollection == nullptr)
 				{
-					FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
-					UGeometryCollection* FracturedGeometryCollection = RestCollection.GetRestCollection();
-					if (FracturedGeometryCollection == nullptr)
+					continue;
+				}
+
+				const TArray<int32>& SelectedBonesOriginal = GeometryCollectionComponent->GetSelectedBones();
+
+				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FracturedGeometryCollection->GetGeometryCollection();
+				FGeometryCollection* OutGeometryCollection = GeometryCollectionPtr.Get();
+
+				const TManagedArray<TSet<int32>>& Children = OutGeometryCollection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+
+				TArray<int32> SelectedBones;
+				SelectedBones.Reserve(SelectedBonesOriginal.Num());
+				for (int32 BoneIndex : SelectedBonesOriginal)
+				{
+					if (Children[BoneIndex].Num() == 0)
 					{
-						continue;
+						SelectedBones.Add(BoneIndex);
+					}
+				}
+
+				const TManagedArray<FTransform>& Transform = OutGeometryCollection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
+				const TManagedArray<int32>& TransformToGeometryIndex = OutGeometryCollection->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
+
+				const TManagedArray<FBox>& BoundingBoxes = OutGeometryCollection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
+
+				TArray<FTransform> Transforms;
+				GeometryCollectionAlgo::GlobalMatrices(Transform, OutGeometryCollection->Parent, Transforms);
+
+				TMap<int32, FBox> BoundsToBone;
+
+				for (int32 Idx = 0, ni = FracturedGeometryCollection->NumElements(FGeometryCollection::TransformGroup); Idx < ni; ++Idx)
+				{
+					if (TransformToGeometryIndex[Idx] > -1)
+					{
+						ensure(TransformToGeometryIndex[Idx] > -1);
+						BoundsToBone.Add(Idx, BoundingBoxes[TransformToGeometryIndex[Idx]].TransformBy(Transforms[Idx]));
+					}
+				}
+
+				if (CommonSettings->bGroupFracture)
+				{
+					FractureContexts.AddDefaulted();
+					FFractureContext& FractureContext = FractureContexts.Last();
+					FractureContext.RandomSeed = FMath::Rand();
+					if (CommonSettings->RandomSeed > -1)
+					{
+						// make sure it's unique for each context if it's specified.
+						FractureContext.RandomSeed = CommonSettings->RandomSeed + FractureContexts.Num();
 					}
 
-					const TArray<int32>& SelectedBonesOriginal = GeometryCollectionComponent->GetSelectedBones();
+					FractureContext.OriginalActor = Actor;
+					FractureContext.Transform = Actor->GetActorTransform();
+					FractureContext.OriginalPrimitiveComponent = GeometryCollectionComponent;
+					FractureContext.FracturedGeometryCollection = FracturedGeometryCollection;
+					FractureContext.SelectedBones = SelectedBones;
 
-					TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FracturedGeometryCollection->GetGeometryCollection();
-					FGeometryCollection* OutGeometryCollection = GeometryCollectionPtr.Get();
-
-					const TManagedArray<TSet<int32>>& Children = OutGeometryCollection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
-
-					TArray<int32> SelectedBones;
-					SelectedBones.Reserve(SelectedBonesOriginal.Num());
-					for (int32 BoneIndex : SelectedBonesOriginal)
+					FractureContext.Bounds = FBox(ForceInit);
+					for (int32 BoneIndex : FractureContext.SelectedBones)
 					{
-						if (Children[BoneIndex].Num() == 0)
+						if (FractureContext.SelectedBones.Num() > 1 && RandomStream.FRand() > CommonSettings->ChanceToFracture)
 						{
-							SelectedBones.Add(BoneIndex);
+							continue;
+						}
+
+						if (TransformToGeometryIndex[BoneIndex] > -1)
+						{
+							FractureContext.Bounds += BoundsToBone[BoneIndex];
 						}
 					}
-
-					const TManagedArray<FTransform>& Transform = OutGeometryCollection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-					const TManagedArray<int32>& TransformToGeometryIndex = OutGeometryCollection->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
-
-					const TManagedArray<FBox>& BoundingBoxes = OutGeometryCollection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
-
-					TArray<FTransform> Transforms;
-					GeometryCollectionAlgo::GlobalMatrices(Transform, OutGeometryCollection->Parent, Transforms);
-
-					TMap<int32, FBox> BoundsToBone;
-
-					for (int32 Idx = 0, ni = FracturedGeometryCollection->NumElements(FGeometryCollection::TransformGroup); Idx < ni; ++Idx)
+				}
+				else
+				{
+					for (int32 BoneIndex : SelectedBones)
 					{
-						if (TransformToGeometryIndex[Idx] > -1)
+						if (SelectedBones.Num() > 1 && RandomStream.FRand() > CommonSettings->ChanceToFracture)
 						{
-							ensure(TransformToGeometryIndex[Idx] > -1);
-							BoundsToBone.Add(Idx, BoundingBoxes[TransformToGeometryIndex[Idx]].TransformBy(Transforms[Idx]));
+							continue;
 						}
-					}
 
-					if (CommonSettings->bGroupFracture)
-					{
 						FractureContexts.AddDefaulted();
 						FFractureContext& FractureContext = FractureContexts.Last();
 						FractureContext.RandomSeed = FMath::Rand();
@@ -1145,49 +1177,10 @@ void FFractureEditorModeToolkit::GetFractureContexts(TArray<FFractureContext>& F
 						FractureContext.Transform = Actor->GetActorTransform();
 						FractureContext.OriginalPrimitiveComponent = GeometryCollectionComponent;
 						FractureContext.FracturedGeometryCollection = FracturedGeometryCollection;
-						FractureContext.SelectedBones = SelectedBones;
-
-						FractureContext.Bounds = FBox(ForceInit);
-						for (int32 BoneIndex : FractureContext.SelectedBones)
+						FractureContext.SelectedBones = { BoneIndex };
+						if(TransformToGeometryIndex[BoneIndex] > -1)
 						{
-							if (FractureContext.SelectedBones.Num() > 1 && RandomStream.FRand() > CommonSettings->ChanceToFracture)
-							{
-								continue;
-							}
-
-							if (TransformToGeometryIndex[BoneIndex] > -1)
-							{
-								FractureContext.Bounds += BoundsToBone[BoneIndex];
-							}
-						}
-					}
-					else
-					{
-						for (int32 BoneIndex : SelectedBones)
-						{
-							if (SelectedBones.Num() > 1 && RandomStream.FRand() > CommonSettings->ChanceToFracture)
-							{
-								continue;
-							}
-
-							FractureContexts.AddDefaulted();
-							FFractureContext& FractureContext = FractureContexts.Last();
-							FractureContext.RandomSeed = FMath::Rand();
-							if (CommonSettings->RandomSeed > -1)
-							{
-								// make sure it's unique for each context if it's specified.
-								FractureContext.RandomSeed = CommonSettings->RandomSeed + FractureContexts.Num();
-							}
-
-							FractureContext.OriginalActor = Actor;
-							FractureContext.Transform = Actor->GetActorTransform();
-							FractureContext.OriginalPrimitiveComponent = GeometryCollectionComponent;
-							FractureContext.FracturedGeometryCollection = FracturedGeometryCollection;
-							FractureContext.SelectedBones = { BoneIndex };
-							if(TransformToGeometryIndex[BoneIndex] > -1)
-							{
-								FractureContext.Bounds = BoundsToBone[BoneIndex];
-							}
+							FractureContext.Bounds = BoundsToBone[BoneIndex];
 						}
 					}
 				}
@@ -1330,15 +1323,9 @@ void FFractureEditorModeToolkit::GetSelectedGeometryCollectionComponents(TSet<UG
 
 	for (AActor* Actor : SelectedActors)
 	{
-		TArray<UActorComponent*> Components = Actor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-		for (UActorComponent* Component : Components)
-		{
-			UPrimitiveComponent* PrimitiveComponent = CastChecked<UPrimitiveComponent>(Component);
-			if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent))
-			{
-				GeomCompSelection.Add(GeometryCollectionComponent);
-			}
-		}
+		TInlineComponentArray<UGeometryCollectionComponent*> GeometryCollectionComponents;
+		Actor->GetComponents(GeometryCollectionComponents);
+		GeomCompSelection.Append(GeometryCollectionComponents);
 	}
 }
 
@@ -1742,8 +1729,7 @@ bool FFractureEditorModeToolkit::IsGeometryCollectionSelected()
 		AActor* Actor = Cast<AActor>(*Iter);
 		if (Actor)
 		{
-			TArray<UActorComponent*> Components = Actor->GetComponentsByClass(UGeometryCollectionComponent::StaticClass());
-			if (Components.Num() > 0)
+			if (Actor->FindComponentByClass<UGeometryCollectionComponent>())
 			{
 				return true;
 			}

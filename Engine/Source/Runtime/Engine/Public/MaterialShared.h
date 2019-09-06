@@ -69,10 +69,6 @@ template <class ElementType> class TLinkedList;
 // disallow debug data in shipping or on non-desktop Test
 #define ALLOW_SHADERMAP_DEBUG_DATA (!(UE_BUILD_SHIPPING || (UE_BUILD_TEST && !PLATFORM_DESKTOP)))
 
-#ifndef STORE_ONLY_ACTIVE_SHADERMAPS
-#define STORE_ONLY_ACTIVE_SHADERMAPS 0
-#endif
-
 #define MATERIAL_OPACITYMASK_DOESNT_SUPPORT_VIRTUALTEXTURE 1
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMaterial,Log,Verbose);
@@ -315,7 +311,7 @@ public:
 	/** Get the UTexture referenced by this expression (can be a nullptr). */
 	virtual void GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const UTexture*& OutValue) const;
 	/** Get the URuntimeVirtualTexture referenced by this expression (can be a nullptr). */
-	virtual void GetTextureValue(const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const;
+	virtual void GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const;
 	/** Get the UTexture referenced by this expression including any transient override logic. */
 	virtual void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue, bool bAllowOverride = true) const;
 
@@ -1458,6 +1454,7 @@ public:
 	virtual bool IsUsedWithAPEXCloth() const { return false; }
 	virtual bool IsUsedWithUI() const { return false; }
 	virtual bool IsUsedWithGeometryCache() const { return false; }
+	virtual bool IsUsedWithWater() const { return false; }
 	ENGINE_API virtual enum EMaterialTessellationMode GetTessellationMode() const;
 	virtual bool IsCrackFreeDisplacementEnabled() const { return false; }
 	virtual bool IsAdaptiveTessellationEnabled() const { return false; }
@@ -2206,6 +2203,7 @@ public:
 	ENGINE_API virtual bool IsUsedWithGeometryCollections() const override;
 	ENGINE_API virtual bool IsUsedWithAPEXCloth() const override;
 	ENGINE_API virtual bool IsUsedWithGeometryCache() const override;
+	ENGINE_API virtual bool IsUsedWithWater() const override;
 	ENGINE_API virtual enum EMaterialTessellationMode GetTessellationMode() const override;
 	ENGINE_API virtual bool IsCrackFreeDisplacementEnabled() const override;
 	ENGINE_API virtual bool IsAdaptiveTessellationEnabled() const override;

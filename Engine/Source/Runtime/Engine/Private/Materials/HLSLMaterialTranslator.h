@@ -5072,9 +5072,33 @@ protected:
 		return AddUniformExpression(new FMaterialUniformExpressionTexture(TextureReferenceIndex, LayerIndex, SamplerType), MCT_TextureVirtual, TEXT(""));
 	}
 
-	virtual int32 VirtualTextureParam(int32 TextureIndex, int32 ParamIndex) override
+	virtual int32 VirtualTextureParameter(FName ParameterName, URuntimeVirtualTexture* DefaultValue, int32 LayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) override
 	{
-		return AddUniformExpression(new FMaterialUniformExpressionRuntimeVirtualTextureParameter(TextureIndex, ParamIndex), MCT_Float3, TEXT(""));
+		if (!UseVirtualTexturing(FeatureLevel, TargetPlatform))
+		{
+			return INDEX_NONE;
+		}
+
+		TextureReferenceIndex = Material->GetReferencedTextures().Find(DefaultValue);
+		checkf(TextureReferenceIndex != INDEX_NONE, TEXT("Material expression called Compiler->VirtualTexture() without implementing UMaterialExpression::GetReferencedTexture properly"));
+
+		FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
+		ParameterInfo.Name = ParameterName;
+
+		return AddUniformExpression(new FMaterialUniformExpressionTextureParameter(ParameterInfo, TextureReferenceIndex, LayerIndex, SamplerType), MCT_TextureVirtual, TEXT(""));
+	}
+
+	virtual int32 VirtualTextureUniform(int32 TextureIndex, int32 VectorIndex) override
+	{
+		return AddUniformExpression(new FMaterialUniformExpressionRuntimeVirtualTextureUniform(TextureIndex, VectorIndex), MCT_Float3, TEXT(""));
+	}
+
+	virtual int32 VirtualTextureUniform(FName ParameterName, int32 TextureIndex, int32 VectorIndex) override
+	{
+		FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
+		ParameterInfo.Name = ParameterName;
+
+		return AddUniformExpression(new FMaterialUniformExpressionRuntimeVirtualTextureUniform(ParameterInfo, TextureIndex, VectorIndex), MCT_Float3, TEXT(""));
 	}
 
 	virtual int32 VirtualTextureWorldToUV(int32 WorldPositionIndex, int32 P0, int32 P1, int32 P2) override

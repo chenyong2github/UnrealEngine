@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#if WITH_EDITOR
+	#include "DerivedDataPluginInterface.h"
+#endif
 
 class UGeometryCollection;
 
 #if WITH_EDITOR
-#include "DerivedDataPluginInterface.h"
 
 class FDerivedDataGeometryCollectionCooker : public FDerivedDataPluginInterface
 {

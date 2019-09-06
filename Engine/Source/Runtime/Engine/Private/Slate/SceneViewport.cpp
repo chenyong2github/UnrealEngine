@@ -14,6 +14,7 @@
 #include "Layout/WidgetPath.h"
 #include "UnrealEngine.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/SlateUser.h"
 #include "Slate/SlateTextures.h"
 #include "Slate/DebugCanvas.h"
 

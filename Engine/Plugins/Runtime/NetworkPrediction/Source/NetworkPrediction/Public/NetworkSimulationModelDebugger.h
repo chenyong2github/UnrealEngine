@@ -22,6 +22,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogNetworkSimDebug, Log, All);
 namespace NetworkSimulationModelDebugCVars
 {
 	NETSIM_DEVCVAR_SHIPCONST_INT(DrawKeyframes, 1, "nsm.debug.DrawKeyFrames", "Draws keyframe data (text) in debug graphs");
+	NETSIM_DEVCVAR_SHIPCONST_INT(DrawNetworkSendLines, 1, "nsm.debug.DrawNetworkSendLines", "Draws lines representing network traffic in debugger");
 	NETSIM_DEVCVAR_SHIPCONST_INT(GatherServerSidePIE, 1, "nsm.debug.GatherServerSide", "Whenever we gather debug info from a client side actor, also gather server side equivelent. Only works in PIE.");
 }
 
@@ -248,10 +249,11 @@ struct NETWORKPREDICTION_API FNetworkSimulationModelDebuggerManager: public FTic
 		CanvasItems[1].Emplace( MakeUnique<FCanvasTextItem>(ScreenPosition, FText::FromString(Str), GEngine->GetTinyFont(), Color) );
 	}
 
-	void EmitLine(FVector2D StartPosition, FVector2D EndPosition, FColor Color)
+	void EmitLine(FVector2D StartPosition, FVector2D EndPosition, FColor Color, float Thickness=1.f)
 	{
 		CanvasItems[0].Emplace( MakeUnique<FCanvasLineItem>(StartPosition, EndPosition) );
 		CanvasItems[0].Last()->SetColor(Color);
+		((FCanvasLineItem*)CanvasItems[0].Last().Get())->LineThickness = Thickness;
 	}
 
 private:
@@ -462,10 +464,22 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 				
 				LinePos.X += FixedWidth + Pad;
 				LinePos.Y = BaseLineYPos - (DebugState->RemainingAllowedSimulationTimeSeconds * SecondsToPixelsY);
+
+				FColor LineColor =  FColor::White;
+				if (LinePos.Y < DrawRect.Min.Y)
+				{
+					LinePos.Y = DrawRect.Min.Y;
+					LineColor = FColor::Red;
+				}
+				if (LinePos.Y > DrawRect.Max.Y)
+				{
+					LinePos.Y = DrawRect.Max.Y;
+					LineColor = FColor::Red;
+				}
 				
 				if (LastLinePos.IsSet())
 				{
-					Out.EmitLine(LastLinePos.GetValue(), LinePos, FColor::White);
+					Out.EmitLine(LastLinePos.GetValue(), LinePos, LineColor, 2.f);
 				}
 
 				LastLinePos = LinePos;
@@ -596,30 +610,32 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 			GatherDebugGraph(Out, Canvas, NetworkSim->GetLocalDebugBuffer(), ClientRect, MaxColumnTime, MaxLocalFrameTime, TEXT("Client"), ClientToServerCache, ServerToClientCache);
 
 			// Network Send/Recv lines
-
-			for (auto& It : ServerToClientCache.Keyframes)
+			if (NetworkSimulationModelDebugCVars::DrawNetworkSendLines() > 0)
 			{
-				const int32 KeyFrame = It.Key;
-				auto& Positions = It.Value;
-				if (KeyFrame != 0 && Positions.RecvPosition != FVector2D::ZeroVector && Positions.SentPosition != FVector2D::ZeroVector)
+				for (auto& It : ServerToClientCache.Keyframes)
 				{
-					Out.EmitLine(Positions.SentPosition, Positions.RecvPosition, FColor::Purple);
+					const int32 KeyFrame = It.Key;
+					auto& Positions = It.Value;
+					if (KeyFrame != 0 && Positions.RecvPosition != FVector2D::ZeroVector && Positions.SentPosition != FVector2D::ZeroVector)
+					{
+						Out.EmitLine(Positions.SentPosition, Positions.RecvPosition, FColor::Purple);
 
-					FVector2D TextPos = Positions.SentPosition + (0.25f * (Positions.RecvPosition - Positions.SentPosition));
-					Out.EmitText(TextPos, FColor::Purple, LexToString(KeyFrame));
+						FVector2D TextPos = Positions.SentPosition + (0.25f * (Positions.RecvPosition - Positions.SentPosition));
+						Out.EmitText(TextPos, FColor::Purple, LexToString(KeyFrame));
+					}
 				}
-			}
 
-			for (auto& It : ClientToServerCache.Keyframes)
-			{
-				const int32 KeyFrame = It.Key;
-				auto& Positions = It.Value;
-				if (KeyFrame != 0 && Positions.RecvPosition != FVector2D::ZeroVector && Positions.SentPosition != FVector2D::ZeroVector)
+				for (auto& It : ClientToServerCache.Keyframes)
 				{
-					Out.EmitLine(Positions.SentPosition, Positions.RecvPosition, FColor::Orange);
+					const int32 KeyFrame = It.Key;
+					auto& Positions = It.Value;
+					if (KeyFrame != 0 && Positions.RecvPosition != FVector2D::ZeroVector && Positions.SentPosition != FVector2D::ZeroVector)
+					{
+						Out.EmitLine(Positions.SentPosition, Positions.RecvPosition, FColor::Orange);
 
-					FVector2D TextPos = Positions.SentPosition + (0.25f * (Positions.RecvPosition - Positions.SentPosition));
-					Out.EmitText(TextPos, FColor::Orange, LexToString(KeyFrame));
+						FVector2D TextPos = Positions.SentPosition + (0.25f * (Positions.RecvPosition - Positions.SentPosition));
+						Out.EmitText(TextPos, FColor::Orange, LexToString(KeyFrame));
+					}
 				}
 			}
 		}

@@ -8,11 +8,12 @@
 #include "VT/RuntimeVirtualTextureSceneProxy.h"
 
 
-FRuntimeVirtualTextureFinalizer::FRuntimeVirtualTextureFinalizer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, FSceneInterface* InScene, FTransform const& InUVToWorld)
+FRuntimeVirtualTextureFinalizer::FRuntimeVirtualTextureFinalizer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, bool InClearTextures, FSceneInterface* InScene, FTransform const& InUVToWorld)
 	: Desc(InDesc)
 	, ProducerId(InProducerId)
 	, RuntimeVirtualTextureMask(0)
 	, MaterialType(InMaterialType)
+	, bClearTextures(InClearTextures)
 	, Scene(InScene)
 	, UVToWorld(InUVToWorld)
 {
@@ -20,11 +21,7 @@ FRuntimeVirtualTextureFinalizer::FRuntimeVirtualTextureFinalizer(FVTProducerDesc
 
 bool FRuntimeVirtualTextureFinalizer::IsReady()
 {
-	//todo[vt]: 
-	// Test if we have everything we need to render (mips loaded etc).
-
-	// Test scene is loaded and has been updated once by main rendering passes
-	return Scene != nullptr && Scene->GetRenderScene() != nullptr && Scene->GetRenderScene()->GetFrameNumber() > 1;
+	return RuntimeVirtualTexture::IsSceneReadyToRender(Scene->GetRenderScene());
 }
 
 void FRuntimeVirtualTextureFinalizer::InitProducer(const FVirtualTextureProducerHandle& ProducerHandle)
@@ -83,6 +80,7 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 			Scene->GetRenderScene(),
 			RuntimeVirtualTextureMask,
 			MaterialType,
+			bClearTextures,
 			Entry.Texture0, 
 			DestinationBox0, 
 			Entry.Texture1,
@@ -97,8 +95,8 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 	Tiles.SetNumUnsafeInternal(0);
 }
 
-FRuntimeVirtualTextureProducer::FRuntimeVirtualTextureProducer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, FSceneInterface* InScene, FTransform const& InUVToWorld)
-	: Finalizer(InDesc, InProducerId, InMaterialType, InScene, InUVToWorld)
+FRuntimeVirtualTextureProducer::FRuntimeVirtualTextureProducer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, bool InClearTextures, FSceneInterface* InScene, FTransform const& InUVToWorld)
+	: Finalizer(InDesc, InProducerId, InMaterialType, InClearTextures, InScene, InUVToWorld)
 {
 }
 

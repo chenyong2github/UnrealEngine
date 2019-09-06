@@ -344,7 +344,7 @@ protected:
 		{
 			FolderName = TEXT("Lights");
 		}
-		else if (Actor.Get()->GetComponentsByClass(UParticleSystemComponent::StaticClass()).Num())
+		else if (Actor.Get()->FindComponentByClass<UParticleSystemComponent>())
 		{
 			FolderName = TEXT("Particles");
 		}

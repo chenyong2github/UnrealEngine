@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
 using System;
@@ -443,6 +443,21 @@ namespace IncludeTool
 					{
 						throw new PreprocessorException("Invalid octal value");
 					}
+				}
+			}
+			else if(Token.Length >= 2 && Token.StartsWith("'") && Token.EndsWith("'"))
+			{
+				if(Token.Length == 3)
+				{
+					Value = Token[1];
+				}
+				else if(Token.Length == 6 && Token[1] == '\\' && (Token[2] >= '0' && Token[2] <= '7') && (Token[3] >= '0' && Token[3] <= '7') && (Token[4] >= '0' && Token[4] <= '7'))
+				{
+					Value = ((Token[2] - '0') << 6) | ((Token[1] - '0') << 3) | (Token[2] - '0');
+				}
+				else
+				{
+					throw new PreprocessorException("Invalid character value");
 				}
 			}
 			else

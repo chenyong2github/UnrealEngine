@@ -920,7 +920,7 @@ public:
 			CacheUpToEditingLayer.GetDataAndCache(X1, Y1, X2, Y2, Data, [&]() -> FIntRect
 			{
 				TSet<ULandscapeComponent*> AffectedComponents;
-				LandscapeInfo->GetComponentsInRegion(X1, Y1, X2, Y2, AffectedComponents);
+				LandscapeInfo->GetComponentsInRegion(Bounds.Min.X, Bounds.Min.Y, Bounds.Max.X, Bounds.Max.Y, AffectedComponents);
 				SynchronousUpdateComponentVisibilityForHeight(AffectedComponents, NewLayerVisibility);
 				return Bounds;
 			});
@@ -931,7 +931,7 @@ public:
 			{
 				NewLayerVisibility[EditingLayerIndex] = false;
 				TSet<ULandscapeComponent*> AffectedComponents;
-				LandscapeInfo->GetComponentsInRegion(X1, Y1, X2, Y2, AffectedComponents);
+				LandscapeInfo->GetComponentsInRegion(Bounds.Min.X, Bounds.Min.Y, Bounds.Max.X, Bounds.Max.Y, AffectedComponents);
 				SynchronousUpdateComponentVisibilityForHeight(AffectedComponents, NewLayerVisibility);
 				return Bounds;
 			});
@@ -975,7 +975,8 @@ public:
 				TSet<ULandscapeComponent*> AffectedComponents;
 				LandscapeInfo->GetComponentsInRegion(X1, Y1, X2, Y2, AffectedComponents);
                 const bool bUpdateCollision = true;
-				SynchronousUpdateHeightmapForComponents(AffectedComponents, bUpdateCollision);
+				const bool bIntermediateRender = false;
+				SynchronousUpdateHeightmapForComponents(AffectedComponents, bUpdateCollision, bIntermediateRender);
 				bVisibilityChanged = false;
 			}
 		}
@@ -988,14 +989,14 @@ public:
 
 private:
 
-	void SynchronousUpdateHeightmapForComponents(const TSet<ULandscapeComponent*>& InComponents, bool bUpdateCollision)
+	void SynchronousUpdateHeightmapForComponents(const TSet<ULandscapeComponent*>& InComponents, bool bUpdateCollision, bool bIntermediateRender)
 	{
 		for (ULandscapeComponent* Component : InComponents)
 		{
 			const bool bUpdateAll = false; // default value
 			Component->RequestHeightmapUpdate(bUpdateAll, bUpdateCollision);
 		}
-		Landscape->ForceUpdateLayersContent();
+		Landscape->ForceUpdateLayersContent(bIntermediateRender);
 	};
 
 	void SetLayersVisibility(const TArray<bool>& InLayerVisibility)
@@ -1019,7 +1020,8 @@ private:
 		SetLayersVisibility(InLayerVisibility);
         // No need to update collision here as we are only doing a intermediate render to gather heightdata
         const bool bUpdateCollision = false;
-		SynchronousUpdateHeightmapForComponents(InComponents, bUpdateCollision);
+		const bool bIntermediateRender = true;
+		SynchronousUpdateHeightmapForComponents(InComponents, bUpdateCollision, bIntermediateRender);
 	};
 
 	ULandscapeInfo* LandscapeInfo;

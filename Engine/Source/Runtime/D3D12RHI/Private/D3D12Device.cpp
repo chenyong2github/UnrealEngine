@@ -56,7 +56,7 @@ FD3D12Device::~FD3D12Device()
 	// Cleanup the allocator near the end, as some resources may be returned to the allocator or references are shared by multiple GPUs
 	DefaultBufferAllocator.FreeDefaultBufferPools();
 
-	DefaultFastAllocator.Destroy<FD3D12ScopeLock>();
+	DefaultFastAllocator.Destroy();
 
 	TextureAllocator.CleanUpAllocations();
 	TextureAllocator.Destroy();

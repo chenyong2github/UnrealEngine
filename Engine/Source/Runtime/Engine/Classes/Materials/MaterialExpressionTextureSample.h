@@ -73,17 +73,23 @@ class ENGINE_API UMaterialExpressionTextureSample : public UMaterialExpressionTe
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionTextureSample)
 	TEnumAsByte<enum ESamplerSourceMode> SamplerSource;
 
+	/** Whether the texture should be sampled with per view mip biasing for sharper output with Temporal AA. */
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSample)
+	uint8 AutomaticViewMipBias : 1;
+
+protected:
+	// Inherited parameter expressions can hide unused input pin
+	uint8 bShowTextureInputPin : 1;
+
+public:
+
 	/** only used if Coordinates is not hooked up */
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSample)
-	uint32 ConstCoordinate;
+	uint8 ConstCoordinate;
 
 	/** only used if MipValue is not hooked up */
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSample)
 	int32 ConstMipValue;
-
-	/** Whether the texture should be sampled with per view mip biasing for sharper output with Temporal AA. */
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSample)
-	uint32 AutomaticViewMipBias : 1;
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR
@@ -115,11 +121,4 @@ class ENGINE_API UMaterialExpressionTextureSample : public UMaterialExpressionTe
 	int32 CompileMipValue0(class FMaterialCompiler* Compiler);
 	int32 CompileMipValue1(class FMaterialCompiler* Compiler);
 #endif // WITH_EDITOR
-
-protected:
-	// Inherited parameter expressions can hide unused input pin
-	bool bShowTextureInputPin;
 };
-
-
-

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Trace.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace Trace
 {
@@ -66,8 +67,6 @@ template <class T> struct TFieldType<T*>	{ enum { Value = Field_Ptr }; };
 } // namespace Trace
 
 #if UE_TRACE_ENABLED
-
-#include "Templates/UnrealTemplate.h"
 
 namespace Trace
 {

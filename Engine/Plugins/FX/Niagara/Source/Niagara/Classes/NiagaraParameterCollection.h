@@ -4,6 +4,7 @@
 
 #include "NiagaraParameterStore.h"
 #include "NiagaraCommon.h"
+#include "NiagaraCompileHash.h"
 #include "NiagaraParameterCollection.generated.h"
 
 class UNiagaraParameterCollection;
@@ -154,7 +155,7 @@ public:
 	FString GetFullNamespace()const;
 
 	/** The compile Id is an indicator to any compiled scripts that reference this collection that contents may have changed and a recompile is recommended to be safe.*/
-	FGuid GetCompileId() const { return CompileId; };
+	FNiagaraCompileHash GetCompileHash() const;
 
 	/** If for any reason this data has changed externally and needs recompilation and it isn't autodetected, use this method. */
 	void RefreshCompileId();

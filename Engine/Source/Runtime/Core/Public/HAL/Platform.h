@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Misc/Build.h"
+
 // define all other platforms to be zero
 //@port Define the platform here to be zero when compiling for other platforms
 #if !defined(PLATFORM_WINDOWS)
@@ -283,6 +285,12 @@
 #endif
 #ifndef PLATFORM_HAS_BSD_SOCKET_FEATURE_MSG_DONTWAIT
 	#define PLATFORM_HAS_BSD_SOCKET_FEATURE_MSG_DONTWAIT	0
+#endif
+#ifndef PLATFORM_HAS_BSD_SOCKET_FEATURE_RECVMMSG
+	#define PLATFORM_HAS_BSD_SOCKET_FEATURE_RECVMMSG	0
+#endif
+#ifndef PLATFORM_HAS_BSD_SOCKET_FEATURE_TIMESTAMP
+	#define PLATFORM_HAS_BSD_SOCKET_FEATURE_TIMESTAMP 0
 #endif
 #ifndef PLATFORM_HAS_NO_EPROCLIM
 	#define PLATFORM_HAS_NO_EPROCLIM			0

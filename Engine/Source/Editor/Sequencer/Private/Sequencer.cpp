@@ -282,6 +282,7 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 {
 	bIsEditingWithinLevelEditor = InitParams.bEditWithinLevelEditor;
 	ScrubStyle = InitParams.ViewParams.ScrubberStyle;
+	HostCapabilities = InitParams.HostCapabilities;
 
 	SilentModeCount = 0;
 	bReadOnly = InitParams.ViewParams.bReadOnly;
@@ -3620,8 +3621,8 @@ FReply FSequencer::OnPlay(bool bTogglePlay)
 
 		if (GetLocalTime().Time <= MinInclusiveTime || GetLocalTime().Time >= MaxInclusiveTime)
 		{
-			FFrameTime NewLocalTime = (PlaybackSpeed > 0 ? MinInclusiveTime : MaxInclusiveTime) * RootToLocalTransform.Inverse();
-			SetLocalTimeDirectly(NewLocalTime);
+			FFrameTime NewGlobalTime = (PlaybackSpeed > 0 ? MinInclusiveTime : MaxInclusiveTime) * RootToLocalTransform.Inverse();
+			SetGlobalTime(NewGlobalTime);
 		}
 
 		SetPlaybackStatus(EMovieScenePlayerStatus::Playing);
@@ -4988,6 +4989,12 @@ void FSequencer::SetShowCurveEditor(bool bInShowCurveEditor)
 
 bool FSequencer::GetCurveEditorIsVisible() const
 {
+	// Some Sequencer usages don't support the Curve Editor
+	if (!GetHostCapabilities().bSupportsCurveEditor)
+	{
+		return false;
+	}
+
 	// We always want to retrieve this directly from the UI instead of mirroring it to a local bool as there are
 	// a lot of ways the UI could get out of sync with a local bool (such as previously restored tab layouts)
 	return GetToolkitHost()->GetTabManager()->FindExistingLiveTab(FTabId(SSequencer::CurveEditorTabName)).IsValid();
@@ -5065,12 +5072,13 @@ void FSequencer::SaveCurrentMovieScene()
 
 void FSequencer::SaveCurrentMovieSceneAs()
 {
-	TSharedPtr<IToolkitHost> MyToolkitHost = GetToolkitHost();
-
-	if (!MyToolkitHost.IsValid())
+	if (!GetHostCapabilities().bSupportsSaveMovieSceneAsset)
 	{
 		return;
 	}
+
+	TSharedPtr<IToolkitHost> MyToolkitHost = GetToolkitHost();
+	check(MyToolkitHost);
 
 	TArray<UObject*> AssetsToSave;
 	AssetsToSave.Add(GetCurrentAsset());

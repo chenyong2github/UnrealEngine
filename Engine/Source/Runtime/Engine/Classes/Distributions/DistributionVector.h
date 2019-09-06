@@ -150,14 +150,14 @@ class ENGINE_API UDistributionVector : public UDistribution
 
 	/** Can this variable be baked out to a FRawDistribution? Should be true 99% of the time*/
 	UPROPERTY(EditAnywhere, Category=Baked)
-	uint32 bCanBeBaked:1;
+	uint8 bCanBeBaked:1;
 
 	/** Set internally when the distribution is updated so that that FRawDistribution can know to update itself*/
 	UPROPERTY()
-	uint32 bIsDirty:1;
+	uint8 bIsDirty:1;
 protected:
 	UPROPERTY()
-	uint32 bBakedDataSuccesfully:1;	//It's possible that even though we want to bake we are not able to because of content or code.
+	uint8 bBakedDataSuccesfully:1;	//It's possible that even though we want to bake we are not able to because of content or code.
 public:
 
 	/** Script-accessible way to query a FVector distribution */

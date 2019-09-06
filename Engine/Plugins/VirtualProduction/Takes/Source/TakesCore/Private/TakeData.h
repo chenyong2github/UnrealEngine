@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "TakesCoreFwd.h"
+#include "TakesCoreLog.h"
 #include "TakeMetaData.h"
 #include "TakesCoreBlueprintLibrary.h"
 

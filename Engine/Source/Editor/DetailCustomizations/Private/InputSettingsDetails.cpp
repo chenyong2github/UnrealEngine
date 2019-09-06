@@ -51,6 +51,7 @@ void FActionMappingsNodeBuilder::GenerateHeaderRowContent( FDetailWidgetRow& Nod
 		LOCTEXT("ClearActionMappingToolTip", "Removes all Action Mappings") );
 
 	NodeRow
+	.FilterString(ActionMappingsPropertyHandle->GetPropertyDisplayName())
 	[
 		SNew( SHorizontalBox )
 		+SHorizontalBox::Slot()

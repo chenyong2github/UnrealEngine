@@ -1034,7 +1034,7 @@ FReply FDataTableEditor::OnFindRowInContentBrowserClicked()
 void FDataTableEditor::OnNavigateToDataTableRowCode()
 {
 	const UDataTable* DataTable = GetDataTable();
-	if (DataTable && FSourceCodeNavigation::NavigateToStruct(DataTable->GetRowStruct()))
+	if (DataTable && FSourceCodeNavigation::CanNavigateToStruct(DataTable->GetRowStruct()))
 	{
 		FSourceCodeNavigation::NavigateToStruct(DataTable->GetRowStruct());
 	}

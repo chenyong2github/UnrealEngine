@@ -88,6 +88,8 @@ struct ExistingSkelMeshData
 	FPerPlatformInt							MaxNumOptionalLODs;
 
 	TMap<UAssetUserData*, bool>				ExistingAssetUserData;
+
+	USkeletalMesh::FOnMeshChanged			ExistingOnMeshChanged;
 };
 
 /** 

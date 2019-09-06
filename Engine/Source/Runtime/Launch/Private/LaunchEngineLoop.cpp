@@ -508,6 +508,26 @@ bool ParseGameProjectFromCommandLine(const TCHAR* InCmdLine, FString& OutProject
 	return false;
 }
 
+#if WITH_EDITOR
+bool ReadInstalledProjectPath(FString& OutProjFilePath)
+{
+	if(FApp::IsInstalled())
+	{
+		FString ProjFilePath;
+		if (FFileHelper::LoadFileToString(ProjFilePath, *(FPaths::RootDir() / TEXT("Engine/Build/InstalledProjectBuild.txt"))))
+		{
+			ProjFilePath.TrimStartAndEndInline();
+			if(ProjFilePath.Len() > 0)
+			{
+				OutProjFilePath = FPaths::RootDir() / ProjFilePath;
+				FPaths::NormalizeFilename(OutProjFilePath);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+#endif
 
 bool LaunchSetGameName(const TCHAR *InCmdLine, FString& OutGameProjectFilePathUnnormalized)
 {
@@ -528,6 +548,18 @@ bool LaunchSetGameName(const TCHAR *InCmdLine, FString& OutGameProjectFilePathUn
 			OutGameProjectFilePathUnnormalized = ProjFilePath;
 			FPaths::SetProjectFilePath(ProjFilePath);
 		}
+#if WITH_EDITOR
+		else if(ReadInstalledProjectPath(ProjFilePath))
+		{
+			// Only set the game name if this is NOT a program...
+			if (FPlatformProperties::IsProgram() == false)
+			{
+				FApp::SetProjectName(*FPaths::GetBaseFilename(ProjFilePath));
+			}
+			OutGameProjectFilePathUnnormalized = ProjFilePath;
+			FPaths::SetProjectFilePath(ProjFilePath);
+		}
+#endif
 #if UE_GAME
 		else
 		{
@@ -2502,6 +2534,11 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 					FPlatformMisc::PlatformHandleSplashScreen(true);
 				}
             }
+		
+			if (FCoreDelegates::OnInitialLoadingScreenShown.IsBound())
+			{
+				FCoreDelegates::OnInitialLoadingScreenShown.Broadcast();
+			}
 		}
 		else if ( IsRunningCommandlet() )
 		{
@@ -4874,7 +4911,7 @@ bool FEngineLoop::AppInit( )
 
 	// Check whether the project or any of its plugins are missing or are out of date
 #if UE_EDITOR && !IS_MONOLITHIC
-	if(!GIsBuildMachine && FPaths::IsProjectFilePathSet())
+	if(!GIsBuildMachine && !FApp::IsUnattended() && FPaths::IsProjectFilePathSet())
 	{
 		// Check all the plugins are present
 		if(!PluginManager.AreRequiredPluginsAvailable())

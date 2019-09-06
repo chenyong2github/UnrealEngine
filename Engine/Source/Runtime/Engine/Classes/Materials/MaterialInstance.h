@@ -295,9 +295,6 @@ class ENGINE_VTABLE UMaterialInstance : public UMaterialInterface
 	 */
 	ENGINE_API const FStaticParameterSet& GetStaticParameters() const;
 
-	/** Flag to detect cycles in the material instance graph. */
-	bool ReentrantFlag[2];
-
 	/**
 	 * Indicates whether the instance has static permutation resources (which are required when static parameters are present) 
 	 * Read directly from the rendering thread, can only be modified with the use of a FMaterialUpdateContext.
@@ -316,7 +313,9 @@ class ENGINE_VTABLE UMaterialInstance : public UMaterialInterface
 	uint8 bIsShadingModelFromMaterialExpression : 1;
 
 	TEnumAsByte<EBlendMode> BlendMode;
-	FMaterialShadingModelField ShadingModels;
+
+	//Cached copies of the base property overrides or the value from the parent to avoid traversing the parent chain for each access.
+	float OpacityMaskClipValue;
 
 	FORCEINLINE bool GetReentrantFlag() const
 	{
@@ -357,8 +356,10 @@ class ENGINE_VTABLE UMaterialInstance : public UMaterialInterface
 	uint32 OffsetToFirstResource;
 #endif
 
-	//Cached copies of the base property overrides or the value from the parent to avoid traversing the parent chain for each access.
-	float OpacityMaskClipValue;
+	FMaterialShadingModelField ShadingModels;
+
+	/** Flag to detect cycles in the material instance graph. */
+	bool ReentrantFlag[2];
 
 	/** 
 	 * FMaterialRenderProxy derivative that represent this material instance to the renderer, when the renderer needs to fetch parameter values. 

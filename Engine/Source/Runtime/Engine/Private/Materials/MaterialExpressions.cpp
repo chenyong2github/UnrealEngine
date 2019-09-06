@@ -161,6 +161,7 @@
 #include "Materials/MaterialExpressionRuntimeVirtualTextureOutput.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureReplace.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSample.h"
+#include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionVirtualTextureFeatureSwitch.h"
 #include "Materials/MaterialExpressionSaturate.h"
 #include "Materials/MaterialExpressionSceneColor.h"
@@ -2216,7 +2217,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	
 	// Compile the texture object references
 	enum { MAX_RVT_LAYERS = 2 };
-	const int32 LayerCount = VirtualTexture->GetLayerCount();
+	const int32 LayerCount = URuntimeVirtualTexture::GetLayerCount(MaterialType);
 	check(LayerCount <= MAX_RVT_LAYERS);
 
 	int32 TextureCodeIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
@@ -2240,9 +2241,9 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	if (Coordinates.GetTracedInput().Expression == nullptr)
 	{
 		int32 WorldPositionIndex = Compiler->WorldPosition(WPT_Default);
-		int32 P0 = Compiler->VirtualTextureParam(TextureReferenceIndex[0], 0);
-		int32 P1 = Compiler->VirtualTextureParam(TextureReferenceIndex[0], 1);
-		int32 P2 = Compiler->VirtualTextureParam(TextureReferenceIndex[0], 2);
+		int32 P0 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 0);
+		int32 P1 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 1);
+		int32 P2 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 2);
 		CoordinateIndex = Compiler->VirtualTextureWorldToUV(WorldPositionIndex, P0, P1, P2);
 	}
 	else
@@ -2290,6 +2291,116 @@ void UMaterialExpressionRuntimeVirtualTextureSample::GetCaption(TArray<FString>&
 }
 
 #endif // WITH_EDITOR
+
+UMaterialExpressionRuntimeVirtualTextureSampleParameter::UMaterialExpressionRuntimeVirtualTextureSampleParameter(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Parameters;
+		FConstructorStatics()
+			: NAME_Parameters(LOCTEXT("Parameters", "Parameters"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	bIsParameterExpression = true;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Parameters);
+#endif
+}
+
+bool UMaterialExpressionRuntimeVirtualTextureSampleParameter::IsNamedParameter(const FMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue) const
+{
+	if (ParameterInfo.Name == ParameterName)
+	{
+		OutValue = VirtualTexture;
+		return true;
+	}
+
+	return false;
+}
+
+void UMaterialExpressionRuntimeVirtualTextureSampleParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
+{
+	int32 CurrentSize = OutParameterInfo.Num();
+	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
+#if WITH_EDITOR
+	NewParameter.ParameterLocation = Material;
+	if (Function != nullptr)
+	{
+		NewParameter.ParameterLocation = Function;
+	}
+	if (HasConnectedOutputs())
+#endif
+	{
+		OutParameterInfo.AddUnique(NewParameter);
+		if (CurrentSize != OutParameterInfo.Num())
+		{
+			OutParameterIds.Add(ExpressionGUID);
+		}
+	}
+}
+
+#if WITH_EDITOR
+
+bool UMaterialExpressionRuntimeVirtualTextureSampleParameter::SetParameterValue(FName InParameterName, URuntimeVirtualTexture* InValue)
+{
+	if (InParameterName == ParameterName)
+	{
+		VirtualTexture = InValue;
+		return true;
+	}
+
+	return false;
+}
+
+void UMaterialExpressionRuntimeVirtualTextureSampleParameter::SetEditableName(const FString& NewName)
+{
+	ParameterName = *NewName;
+}
+
+FString UMaterialExpressionRuntimeVirtualTextureSampleParameter::GetEditableName() const
+{
+	return ParameterName.ToString();
+}
+
+void UMaterialExpressionRuntimeVirtualTextureSampleParameter::ValidateParameterName(const bool bAllowDuplicateName)
+{
+	ValidateParameterNameInternal(this, Material, bAllowDuplicateName);
+}
+
+void UMaterialExpressionRuntimeVirtualTextureSampleParameter::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString(TEXT("Runtime Virtual Texture Sample Param ")));
+	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
+}
+
+bool UMaterialExpressionRuntimeVirtualTextureSampleParameter::MatchesSearchQuery(const TCHAR* SearchQuery)
+{
+	if (ParameterName.ToString().Contains(SearchQuery))
+	{
+		return true;
+	}
+
+	return Super::MatchesSearchQuery(SearchQuery);
+}
+
+void UMaterialExpressionRuntimeVirtualTextureSampleParameter::SetValueToMatchingExpression(UMaterialExpression* OtherExpression)
+{
+	URuntimeVirtualTexture* Value = nullptr;
+	//todo[vt]: Store RVT params in the material
+	//Material->GetRuntimeVirtualTextureParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), Value);
+	VirtualTexture = Value;
+	UProperty* ParamProperty = FindField<UProperty>(UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionRuntimeVirtualTextureSampleParameter, VirtualTexture));
+	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+	PostEditChangeProperty(PropertyChangedEvent);
+}
+
+#endif
 
 UMaterialExpressionRuntimeVirtualTextureReplace::UMaterialExpressionRuntimeVirtualTextureReplace(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

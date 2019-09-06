@@ -77,14 +77,6 @@ class ENGINE_API USoundCue : public USoundBase
 {
 	GENERATED_UCLASS_BODY()
 
-	/* Indicates whether attenuation should use the Attenuation Overrides or the Attenuation Settings asset */
-	UPROPERTY(EditAnywhere, Category=Attenuation)
-	uint32 bOverrideAttenuation:1;
-
-	/* Makes this sound cue ignore per-platform random node culling for memory purposes */
-	UPROPERTY(EditAnywhere, Category=Culling)
-	uint32 bExcludeFromRandomNodeBranchCulling:1;
-
 	UPROPERTY()
 	USoundNode* FirstNode;
 
@@ -116,6 +108,16 @@ protected:
 private:
 	float MaxAudibleDistance;
 
+public:
+	/* Indicates whether attenuation should use the Attenuation Overrides or the Attenuation Settings asset */
+	UPROPERTY(EditAnywhere, Category=Attenuation)
+	uint8 bOverrideAttenuation : 1;
+
+	/* Makes this sound cue ignore per-platform random node culling for memory purposes */
+	UPROPERTY(EditAnywhere, Category=Culling)
+	uint8 bExcludeFromRandomNodeBranchCulling : 1;
+
+private:
 	/** Whether a sound has play when silent enabled (i.e. for a sound cue, if any sound wave player has it enabled). */
 	UPROPERTY()
 	uint8 bHasPlayWhenSilent : 1;

@@ -1047,6 +1047,9 @@ namespace WindowsMixedReality
 		nearPlaneDistance = nearPlane;
 		farPlaneDistance = farPlane;
 
+		LastKnownProjection.Left = winrt::Windows::Foundation::Numerics::float4x4::identity();
+		LastKnownProjection.Right = winrt::Windows::Foundation::Numerics::float4x4::identity();
+
 		if (bInitialized)
 		{
 			return;
@@ -2230,7 +2233,7 @@ namespace WindowsMixedReality
 				SpatialInteractionSourceLocation sourceLocation = prop.TryGetLocation(coordinateSystem);
 				if (sourceLocation != nullptr)
 				{
-					if (source.IsPointingSupported() && sourceLocation.SourcePointerPose() != nullptr)
+					if (!m_isHL1Remoting && source.IsPointingSupported() && sourceLocation.SourcePointerPose() != nullptr)
 					{
 						float3 pos = sourceLocation.SourcePointerPose().Position();
 						float3 forward = sourceLocation.SourcePointerPose().ForwardDirection();
@@ -3161,7 +3164,6 @@ namespace WindowsMixedReality
 
 	void ReleaseSpatialRecognizers()
 	{
-		interactionManager = SpatialInteractionManager::GetForCurrentView();
 		{
 			std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 			for (auto&& p : gestureRecognizerMap)
@@ -3169,6 +3171,7 @@ namespace WindowsMixedReality
 				p.second = nullptr;
 			}
 		}
+		interactionManager = nullptr;
 	}
 
 	GestureRecognizerInterop::~GestureRecognizerInterop()

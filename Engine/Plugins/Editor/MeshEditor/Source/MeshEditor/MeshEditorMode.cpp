@@ -4488,11 +4488,10 @@ void FMeshEditorMode::UpdateSelectedEditableMeshes()
 		AActor* Actor = Cast<AActor>( *SelectionIt );
 		if( Actor != nullptr )
 		{
-			TArray<UActorComponent*> PrimitiveComponents = Actor->GetComponentsByClass( UPrimitiveComponent::StaticClass() );
-			for( UActorComponent* PrimitiveActorComponent : PrimitiveComponents )
+			TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
+			Actor->GetComponents(PrimitiveComponents);
+			for(UPrimitiveComponent* Component : PrimitiveComponents )
 			{
-				UPrimitiveComponent* Component = CastChecked<UPrimitiveComponent>( PrimitiveActorComponent );
-
 				// Don't bother with editor-only 'helper' actors, we never want to visualize or edit geometry on those
 				if( !Component->IsEditorOnly() &&
 					Component->GetCollisionEnabled() != ECollisionEnabled::NoCollision &&

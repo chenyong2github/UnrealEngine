@@ -361,9 +361,12 @@ void FBlueprintWidgetCustomization::CustomizeAccessibilityProperty(IDetailLayout
 	IDetailPropertyRow& AccessibilityRow = DetailLayout.EditCategory("Accessibility").AddProperty(AccessibleBehaviorPropertyHandle);
 
 	TSharedRef<IPropertyHandle> AccessibleTextPropertyHandle = DetailLayout.GetProperty(TextPropertyName);
+	const FName DelegateName(*(TextPropertyName.ToString() + "Delegate"));
+	UDelegateProperty* AccessibleTextDelegateProperty = FindFieldChecked<UDelegateProperty>(CastChecked<UClass>(AccessibleTextPropertyHandle->GetProperty()->GetOuter()), DelegateName);
 	// Make sure the old AccessibleText properties are hidden so we don't get duplicate widgets
 	DetailLayout.HideProperty(AccessibleTextPropertyHandle);
 
+	TSharedRef<SWidget> BindingWidget = SNew(SPropertyBinding, Editor.Pin().ToSharedRef(), AccessibleTextDelegateProperty, AccessibleTextPropertyHandle).GeneratePureBindings(false);
 	TSharedRef<SHorizontalBox> CustomTextLayout = SNew(SHorizontalBox)
 	.Visibility(TAttribute<EVisibility>::Create([AccessibleBehaviorPropertyHandle]() -> EVisibility
 	{
@@ -375,14 +378,11 @@ void FBlueprintWidgetCustomization::CustomizeAccessibilityProperty(IDetailLayout
 	.Padding(FMargin(4.0f, 0.0f))
 	[
 		AccessibleTextPropertyHandle->CreatePropertyValueWidget()
-	];
-
-	TSharedRef<SWidget> ExtensionWidget = const_cast<IDetailsView*>(DetailLayout.GetDetailsView())->GetExtensionHandler()->GenerateExtensionWidget(UWidget::StaticClass(), AccessibleTextPropertyHandle);
-	ensure(ExtensionWidget != SNullWidget::NullWidget);
-	CustomTextLayout->AddSlot()
+	]
+	+SHorizontalBox::Slot()
 	.AutoWidth()
 	[
-		ExtensionWidget
+		BindingWidget
 	];
 
 	TSharedPtr<SWidget> AccessibleBehaviorNameWidget, AccessibleBehaviorValueWidget;

@@ -32,7 +32,7 @@
 class FLogFilter_TextFilterExpressionContext : public ITextFilterExpressionContext
 {
 public:
-	explicit FLogFilter_TextFilterExpressionContext(const FLogMessage& InMessage) : Message(&InMessage) {}
+	explicit FLogFilter_TextFilterExpressionContext(const FOutputLogMessage& InMessage) : Message(&InMessage) {}
 
 	/** Test the given value against the strings extracted from the current item */
 	virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override { return TextFilterUtils::TestBasicStringExpression(*Message->Message, InValue, InTextComparisonMode); }
@@ -45,7 +45,7 @@ public:
 
 private:
 	/** Message that is being filtered */
-	const FLogMessage* Message;
+	const FOutputLogMessage* Message;
 };
 
 SConsoleInputBox::SConsoleInputBox()
@@ -646,7 +646,7 @@ FReply SConsoleInputBox::OnKeyCharHandler(const FGeometry& MyGeometry, const FCh
 	}
 }
 
-TSharedRef< FOutputLogTextLayoutMarshaller > FOutputLogTextLayoutMarshaller::Create(TArray< TSharedPtr<FLogMessage> > InMessages, FLogFilter* InFilter)
+TSharedRef< FOutputLogTextLayoutMarshaller > FOutputLogTextLayoutMarshaller::Create(TArray< TSharedPtr<FOutputLogMessage> > InMessages, FOutputLogFilter* InFilter)
 {
 	return MakeShareable(new FOutputLogTextLayoutMarshaller(MoveTemp(InMessages), InFilter));
 }
@@ -668,7 +668,7 @@ void FOutputLogTextLayoutMarshaller::GetText(FString& TargetString, const FTextL
 
 bool FOutputLogTextLayoutMarshaller::AppendMessage(const TCHAR* InText, const ELogVerbosity::Type InVerbosity, const FName& InCategory)
 {
-	TArray< TSharedPtr<FLogMessage> > NewMessages;
+	TArray< TSharedPtr<FOutputLogMessage> > NewMessages;
 	if(SOutputLog::CreateLogMessages(InText, InVerbosity, InCategory, NewMessages))
 	{
 		const bool bWasEmpty = Messages.Num() == 0;
@@ -704,7 +704,7 @@ bool FOutputLogTextLayoutMarshaller::AppendMessage(const TCHAR* InText, const EL
 	return false;
 }
 
-void FOutputLogTextLayoutMarshaller::AppendMessageToTextLayout(const TSharedPtr<FLogMessage>& InMessage)
+void FOutputLogTextLayoutMarshaller::AppendMessageToTextLayout(const TSharedPtr<FOutputLogMessage>& InMessage)
 {
 	if (!Filter->IsMessageAllowed(InMessage))
 	{
@@ -727,7 +727,7 @@ void FOutputLogTextLayoutMarshaller::AppendMessageToTextLayout(const TSharedPtr<
 	TextLayout->AddLine(FSlateTextLayout::FNewLineData(MoveTemp(LineText), MoveTemp(Runs)));
 }
 
-void FOutputLogTextLayoutMarshaller::AppendMessagesToTextLayout(const TArray<TSharedPtr<FLogMessage>>& InMessages)
+void FOutputLogTextLayoutMarshaller::AppendMessagesToTextLayout(const TArray<TSharedPtr<FOutputLogMessage>>& InMessages)
 {
 	TArray<FTextLayout::FNewLineData> LinesToAdd;
 	LinesToAdd.Reserve(InMessages.Num());
@@ -817,7 +817,7 @@ void FOutputLogTextLayoutMarshaller::MarkMessagesCacheAsDirty()
 	bNumMessagesCacheDirty = true;
 }
 
-FOutputLogTextLayoutMarshaller::FOutputLogTextLayoutMarshaller(TArray< TSharedPtr<FLogMessage> > InMessages, FLogFilter* InFilter)
+FOutputLogTextLayoutMarshaller::FOutputLogTextLayoutMarshaller(TArray< TSharedPtr<FOutputLogMessage> > InMessages, FOutputLogFilter* InFilter)
 	: Messages(MoveTemp(InMessages))
 	, CachedNumMessages(0)
 	, Filter(InFilter)
@@ -996,7 +996,7 @@ void SOutputLog::OnCrash()
 	}
 }
 
-bool SOutputLog::CreateLogMessages( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category, TArray< TSharedPtr<FLogMessage> >& OutMessages )
+bool SOutputLog::CreateLogMessages( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category, TArray< TSharedPtr<FOutputLogMessage> >& OutMessages )
 {
 	if (Verbosity == ELogVerbosity::SetColor)
 	{
@@ -1060,14 +1060,14 @@ bool SOutputLog::CreateLogMessages( const TCHAR* V, ELogVerbosity::Type Verbosit
 						HardWrapLineLen = FMath::Min(HardWrapLen - MessagePrefix.Len(), Line.Len() - CurrentStartIndex);
 						FString HardWrapLine = Line.Mid(CurrentStartIndex, HardWrapLineLen);
 
-						OutMessages.Add(MakeShared<FLogMessage>(MakeShared<FString>(MessagePrefix + HardWrapLine), Verbosity, Category, Style));
+						OutMessages.Add(MakeShared<FOutputLogMessage>(MakeShared<FString>(MessagePrefix + HardWrapLine), Verbosity, Category, Style));
 					}
 					else
 					{
 						HardWrapLineLen = FMath::Min(HardWrapLen, Line.Len() - CurrentStartIndex);
 						FString HardWrapLine = Line.Mid(CurrentStartIndex, HardWrapLineLen);
 
-						OutMessages.Add(MakeShared<FLogMessage>(MakeShared<FString>(MoveTemp(HardWrapLine)), Verbosity, Category, Style));
+						OutMessages.Add(MakeShared<FOutputLogMessage>(MakeShared<FString>(MoveTemp(HardWrapLine)), Verbosity, Category, Style));
 					}
 
 					bIsFirstLineInMessage = false;
@@ -1471,7 +1471,7 @@ void SOutputLog::OpenLogFileInExternalEditor()
 	FPlatformProcess::LaunchFileInDefaultExternalApplication(*Path, NULL, ELaunchVerb::Open);
 } 
 
-bool FLogFilter::IsMessageAllowed(const TSharedPtr<FLogMessage>& Message)
+bool FOutputLogFilter::IsMessageAllowed(const TSharedPtr<FOutputLogMessage>& Message)
 {
 	// Filter Verbosity
 	{
@@ -1510,7 +1510,7 @@ bool FLogFilter::IsMessageAllowed(const TSharedPtr<FLogMessage>& Message)
 	return true;
 }
 
-void FLogFilter::AddAvailableLogCategory(FName& LogCategory)
+void FOutputLogFilter::AddAvailableLogCategory(FName& LogCategory)
 {
 	// Use an insert-sort to keep AvailableLogCategories alphabetically sorted
 	int32 InsertIndex = 0;
@@ -1534,7 +1534,7 @@ void FLogFilter::AddAvailableLogCategory(FName& LogCategory)
 	}
 }
 
-void FLogFilter::ToggleLogCategory(const FName& LogCategory)
+void FOutputLogFilter::ToggleLogCategory(const FName& LogCategory)
 {
 	int32 FoundIndex = SelectedLogCategories.Find(LogCategory);
 	if (FoundIndex == INDEX_NONE)
@@ -1547,12 +1547,12 @@ void FLogFilter::ToggleLogCategory(const FName& LogCategory)
 	}
 }
 
-bool FLogFilter::IsLogCategoryEnabled(const FName& LogCategory) const
+bool FOutputLogFilter::IsLogCategoryEnabled(const FName& LogCategory) const
 {
 	return SelectedLogCategories.Contains(LogCategory);
 }
 
-void FLogFilter::ClearSelectedLogCategories()
+void FOutputLogFilter::ClearSelectedLogCategories()
 {
 	// No need to churn memory each time the selected categories are cleared
 	SelectedLogCategories.Reset(SelectedLogCategories.GetAllocatedSize());

@@ -4375,6 +4375,17 @@ void FEdModeLandscape::SetCurrentLayer(int32 InLayerIndex)
 {
 	UISettings->Modify();
 	UISettings->CurrentLayerIndex = InLayerIndex;
+
+	if (ALandscape* Landscape = GetLandscape())
+	{
+		const FLandscapeLayer* SplineLayer = Landscape->GetLandscapeSplinesReservedLayer();
+		if (SplineLayer != nullptr && SplineLayer == Landscape->GetLayer(InLayerIndex))
+		{
+			SetCurrentToolMode("ToolMode_Manage", false);
+			SetCurrentTool(FName("Splines"));
+		}
+	}
+
 	RefreshDetailPanel();
 	RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Update_Client_Editing);
 }

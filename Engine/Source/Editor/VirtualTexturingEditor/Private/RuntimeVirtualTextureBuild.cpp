@@ -110,6 +110,7 @@ namespace RuntimeVirtualTexture
 						Scene->GetRenderScene(),
 						1 << VirtualTextureSceneIndex,
 						MaterialType,
+						true,
 						RenderTargetResource[0] != nullptr ? RenderTargetResource[0]->GetRenderTargetTexture() : nullptr, TileBox,
 						RenderTargetResource[1] != nullptr ? RenderTargetResource[1]->GetRenderTargetTexture() : nullptr, TileBox,
 						Transform,

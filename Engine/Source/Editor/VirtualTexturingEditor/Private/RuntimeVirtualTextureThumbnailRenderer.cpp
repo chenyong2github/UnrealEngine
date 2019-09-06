@@ -3,6 +3,7 @@
 #include "RuntimeVirtualTextureThumbnailRenderer.h"
 
 #include "Components/RuntimeVirtualTextureComponent.h"
+#include "MaterialShared.h"
 #include "RenderingThread.h"
 #include "SceneInterface.h"
 #include "VT/RuntimeVirtualTexture.h"
@@ -43,8 +44,14 @@ bool URuntimeVirtualTextureThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 		{
 			// We need a matching URuntimeVirtualTextureComponent in a Scene to be able to render a thumbnail
 			URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = FindComponent(RuntimeVirtualTexture);
-			FSceneInterface* Scene = RuntimeVirtualTextureComponent != nullptr ? RuntimeVirtualTextureComponent->GetScene() : nullptr;
-			return Scene != nullptr;
+			if (RuntimeVirtualTextureComponent != nullptr)
+			{
+				FSceneInterface* Scene = RuntimeVirtualTextureComponent->GetScene();
+				if (Scene != nullptr && RuntimeVirtualTexture::IsSceneReadyToRender(Scene->GetRenderScene()))
+				{
+					return true;
+				}
+			}
 		}
 	}
 
@@ -70,11 +77,14 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 	ENQUEUE_RENDER_COMMAND(BakeStreamingTextureTileCommand)(
 		[Scene, VirtualTextureSceneIndex, MaterialType, RenderTarget, DestRect, Transform, MaxLevel](FRHICommandListImmediate& RHICmdList)
 	{
+		FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
+
 		RuntimeVirtualTexture::RenderPage(
 			RHICmdList,
 			Scene->GetRenderScene(),
 			1 << VirtualTextureSceneIndex,
 			MaterialType,
+			true,
 			RenderTarget->GetRenderTargetTexture(), DestRect,
 			nullptr, DestRect,
 			Transform,

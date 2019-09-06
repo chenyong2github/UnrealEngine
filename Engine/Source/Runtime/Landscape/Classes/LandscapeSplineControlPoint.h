@@ -215,7 +215,7 @@ public:
 
 	virtual void AutoSetConnections(bool bIncludingValid);
 
-	TMap<ULandscapeSplinesComponent*, UControlPointMeshComponent*> GetForeignMeshComponents();
+	LANDSCAPE_API TMap<ULandscapeSplinesComponent*, UControlPointMeshComponent*> GetForeignMeshComponents();
 
 	/** Update spline points */
 	virtual void UpdateSplinePoints(bool bUpdateCollision = true, bool bUpdateAttachedSegments = true, bool bUpdateMeshLevel = false);

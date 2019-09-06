@@ -569,6 +569,7 @@ public:
 	// Simple type info
 	static FName StaticGetTypeId() {static FName Type("FEdGraphSchemaAction_K2LocalVar"); return Type;}
 	virtual FName GetTypeId() const override { return StaticGetTypeId(); } 
+	virtual int32 GetReorderIndexInContainer() const override;
 
 	FEdGraphSchemaAction_K2LocalVar() 
 		: FEdGraphSchemaAction_BlueprintVariableBase()

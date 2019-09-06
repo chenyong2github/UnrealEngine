@@ -11,8 +11,10 @@
 
 #if !USE_COMPACT_ASSET_REGISTRY
 
-/** Type of tag map */
-typedef TSortedMap<FName, FString, FDefaultAllocator, FNameFastLess> FAssetDataTagMap;
+/** Type of tag map. Using derived class to allow prototyping. */
+class FAssetDataTagMap : public TSortedMap<FName, FString, FDefaultAllocator, FNameFastLess>
+{
+};
 
 #else
 

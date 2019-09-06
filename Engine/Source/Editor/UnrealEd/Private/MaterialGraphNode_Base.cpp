@@ -112,20 +112,36 @@ void UMaterialGraphNode_Base::ReplaceNode(UMaterialGraphNode_Base* OldNode)
 	// Copy Outputs from old node
 	for (int32 PinIndex = 0; PinIndex < OldOutputPins.Num(); PinIndex++)
 	{
-		// If we can't find an equivalent output in this node, just use the first
-		// The user will have to fix up any issues from the mismatch
-		int32 FoundPinIndex = 0;
-
 		// Try to find an equivalent output in this node
-		for (int32 NewPinIndex = 0; NewPinIndex < NewOutputPins.Num(); NewPinIndex++)
+		int32 FoundPinIndex = -1;
+		if (FoundPinIndex == -1)
 		{
-			if (OldOutputPins[PinIndex]->PinType == NewOutputPins[NewPinIndex]->PinType)
+			// First check names
+			for (int32 NewPinIndex = 0; NewPinIndex < NewOutputPins.Num(); NewPinIndex++)
 			{
-				FoundPinIndex = NewPinIndex;
-				break;
+				if (OldOutputPins[PinIndex]->PinName == NewOutputPins[NewPinIndex]->PinName)
+				{
+					FoundPinIndex = NewPinIndex;
+					break;
+				}
 			}
 		}
-		
+		if (FoundPinIndex == -1)
+		{
+			// Now check types
+			for (int32 NewPinIndex = 0; NewPinIndex < NewOutputPins.Num(); NewPinIndex++)
+			{
+				if (OldOutputPins[PinIndex]->PinType == NewOutputPins[NewPinIndex]->PinType)
+				{
+					FoundPinIndex = NewPinIndex;
+					break;
+				}
+			}
+		}
+
+		// If we can't find an equivalent output in this node, just use the first
+		// The user will have to fix up any issues from the mismatch
+		FoundPinIndex = FMath::Max(FoundPinIndex, 0);
 		if (FoundPinIndex < NewOutputPins.Num())
 		{
 			ModifyAndCopyPersistentPinData(*NewOutputPins[FoundPinIndex], *OldOutputPins[PinIndex]);

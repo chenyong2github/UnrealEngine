@@ -1784,6 +1784,12 @@ UEnum* FHeaderParser::CompileEnum()
 	}
 
 	CheckDocumentationPolicyForEnum(Enum, EnumValueMetaData, EntryMetaData);
+
+	if (!Enum->IsValidEnumValue(0) && EnumToken.MetaData.Contains(BlueprintTypeName))
+	{
+		UE_LOG_WARNING_UHT(TEXT("'%s' does not have a 0 entry! (This is a problem when the enum is initalized by default)"), *Enum->GetName());
+	}
+
 	return Enum;
 }
 

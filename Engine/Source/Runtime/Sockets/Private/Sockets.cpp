@@ -4,6 +4,27 @@
 #include "SocketSubsystem.h"
 //#include "Net/NetworkProfiler.h"
 
+
+/**
+ * FRecvMulti
+ */
+
+FRecvMulti::FRecvMulti(ISocketSubsystem* SocketSubsystem, int32 InMaxNumPackets, int32 InMaxPacketSize, ERecvMultiFlags InitFlags)
+	: Packets(MakeUnique<FRecvData[]>(InMaxNumPackets))
+	, NumPackets(0)
+	, MaxNumPackets(InMaxNumPackets)
+	, MaxPacketSize(InMaxPacketSize)
+{
+}
+
+void FRecvMulti::CountBytes(FArchive& Ar) const
+{
+	Ar.CountBytes(sizeof(*this), sizeof(*this));
+
+	// Packets
+	Ar.CountBytes(MaxNumPackets * sizeof(FRecvData), MaxNumPackets * sizeof(FRecvData));
+}
+
 //
 // FSocket stats implementation
 //
@@ -41,4 +62,14 @@ bool FSocket::Recv(uint8* Data, int32 BufferSize, int32& BytesRead, ESocketRecei
 		UE_LOG(LogSockets, Verbose, TEXT("Socket '%s' Recv %i Bytes"), *SocketDescription, BytesRead );
 	}
 	return true;
+}
+
+bool FSocket::RecvMulti(FRecvMulti& MultiData, ESocketReceiveFlags::Type Flags/*=ESocketReceiveFlags::None*/)
+{
+	return false;
+}
+
+bool FSocket::SetRetrieveTimestamp(bool bRetrieveTimestamp/*=true*/)
+{
+	return false;
 }

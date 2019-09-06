@@ -26,7 +26,7 @@ void SDeviceOutputLog::Construct( const FArguments& InArgs )
 {
 	bAutoSelectDevice = InArgs._AutoSelectDevice;
 
-	MessagesTextMarshaller = FOutputLogTextLayoutMarshaller::Create(TArray<TSharedPtr<FLogMessage>>(), &Filter);
+	MessagesTextMarshaller = FOutputLogTextLayoutMarshaller::Create(TArray<TSharedPtr<FOutputLogMessage>>(), &Filter);
 
 	MessagesTextBox = SNew(SMultiLineEditableTextBox)
 		.Style(FEditorStyle::Get(), "Log.TextBox")

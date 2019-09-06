@@ -1535,16 +1535,20 @@ static void DefaultCrashHandler(FIOSCrashContext const& Context)
 static uint32 GIOSStackIgnoreDepth = 6;
 
 // true system specific crash handler that gets called first
+static FIOSCrashContext TempCrashContext(ECrashContextType::Crash, TEXT("Temp Context"));
 static void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 {
+	// switch to crash handler malloc to avoid malloc reentrancy
+	check(FIOSApplicationInfo::CrashMalloc);
+	FIOSApplicationInfo::CrashMalloc->Enable(&TempCrashContext, FPlatformTLS::GetCurrentThreadId());
+	
     FIOSCrashContext CrashContext(ECrashContextType::Crash, TEXT("Caught signal"));
     CrashContext.IgnoreDepth = GIOSStackIgnoreDepth;
     CrashContext.InitFromSignal(Signal, Info, Context);
-    
-    // switch to crash handler malloc to avoid malloc reentrancy
-    check(FIOSApplicationInfo::CrashMalloc);
-    FIOSApplicationInfo::CrashMalloc->Enable(&CrashContext, FPlatformTLS::GetCurrentThreadId());
-    
+	
+	// switch to the crash malloc to the new context now that we have everything
+	FIOSApplicationInfo::CrashMalloc->SetContext(&CrashContext);
+	
     if (GCrashHandlerPointer)
     {
         GCrashHandlerPointer(CrashContext);

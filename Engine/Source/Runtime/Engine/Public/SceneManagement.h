@@ -27,6 +27,7 @@
 #include "SceneUtils.h"
 #include "LightmapUniformShaderParameters.h"
 #include "DynamicBufferAllocator.h"
+#include "Rendering/SkyAtmosphereCommonData.h"
 
 class FCanvas;
 class FLightMap;
@@ -44,6 +45,8 @@ class ULightMapTexture2D;
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UShadowMapTexture2D;
+class USkyAtmosphereComponent;
+class FSkyAtmosphereRenderSceneInfo;
 class USkyLightComponent;
 struct FDynamicMeshVertex;
 class ULightMapVirtualTexture2D;
@@ -1090,6 +1093,37 @@ private:
 	const uint8 bMovable : 1;
 };
 
+/** Represents a USkyAtmosphereComponent to the rendering thread. */
+class ENGINE_API FSkyAtmosphereSceneProxy
+{
+public:
+
+	// Initialization constructor.
+	FSkyAtmosphereSceneProxy(const USkyAtmosphereComponent* InComponent);
+	~FSkyAtmosphereSceneProxy();
+
+	bool IsMultiScatteringEnabled() const { return AtmosphereSetup.MultiScatteringFactor > 0.0f; }
+	FLinearColor GetSkyLuminanceFactor() const { return SkyLuminanceFactor; }
+	FLinearColor GetTransmittanceAtZenith() const { return TransmittanceAtZenith; };
+	float GetAerialPespectiveViewDistanceScale() const { return AerialPespectiveViewDistanceScale; }
+
+	const FAtmosphereSetup& GetAtmosphereSetup() const { return AtmosphereSetup; }
+
+	FVector GetAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& DefaultDirection) const;
+
+	bool bStaticLightingBuilt;
+	FSkyAtmosphereRenderSceneInfo* RenderSceneInfo;
+private:
+
+	FAtmosphereSetup AtmosphereSetup;
+
+	FLinearColor TransmittanceAtZenith;
+	FLinearColor SkyLuminanceFactor;
+	float AerialPespectiveViewDistanceScale;
+
+	bool OverrideAtmosphericLight[NUM_ATMOSPHERE_LIGHTS];
+	FVector OverrideAtmosphericLightDirection[NUM_ATMOSPHERE_LIGHTS];
+};
 
 /** Shader paraneter structure for rendering lights. */
 BEGIN_SHADER_PARAMETER_STRUCT(FLightShaderParameters, ENGINE_API)
@@ -1322,6 +1356,7 @@ public:
 	inline bool CastsVolumetricShadow() const { return bCastVolumetricShadow; }
 	inline bool CastsRaytracedShadow() const { return bCastRaytracedShadow; }
 	inline bool AffectReflection() const { return bAffectReflection; }
+	inline bool AffectGlobalIllumination() const { return bAffectGlobalIllumination; }
 	inline bool CastsShadowsFromCinematicObjectsOnly() const { return bCastShadowsFromCinematicObjectsOnly; }
 	inline bool CastsModulatedShadows() const { return bCastModulatedShadows; }
 	inline const FLinearColor& GetModulatedShadowColor() const { return ModulatedShadowColor; }
@@ -1495,6 +1530,9 @@ protected:
 
 	/** Whether the light affects objects in reflections, when ray-traced reflection is enabled. */
 	const uint8 bAffectReflection : 1;
+
+	/** Whether the light affects objects in reflections, when ray-traced global illumination is enabled. */
+	const uint8 bAffectGlobalIllumination : 1;
 
 	/** Whether the light affects translucency or not.  Disabling this can save GPU time when there are many small lights. */
 	const uint8 bAffectTranslucentLighting : 1;

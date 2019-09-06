@@ -20,18 +20,6 @@
 
 template<typename TBufferStruct> class TUniformBufferRef;
 
-template<typename ParameterType> 
-struct TUniformParameter
-{
-	int32 Index;
-	ParameterType ShaderParameter;
-	friend FArchive& operator<<(FArchive& Ar,TUniformParameter<ParameterType>& P)
-	{
-		return Ar << P.Index << P.ShaderParameter;
-	}
-};
-
-
 /**
  * Debug information related to uniform expression sets.
  */

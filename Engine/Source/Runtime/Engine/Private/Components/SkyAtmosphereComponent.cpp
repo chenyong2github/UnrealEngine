@@ -11,6 +11,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
+#include "Rendering/SkyAtmosphereCommonData.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -30,6 +31,7 @@
 
 USkyAtmosphereComponent::USkyAtmosphereComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, SkyAtmosphereSceneProxy(nullptr)
 {
 	// All distance here are in kilometer and scattering/absorptions coefficient in 1/kilometers.
 	const float EarthBottomRadius = 6360.0f;
@@ -40,11 +42,11 @@ USkyAtmosphereComponent::USkyAtmosphereComponent(const FObjectInitializer& Objec
 	// Default: Earth like atmosphere
 	BottomRadius = EarthBottomRadius;
 	AtmosphereHeight = EarthTopRadius - EarthBottomRadius;
-	GroundAlbedo = FColor(0.0f, 0.0f, 0.0f);
+	GroundAlbedo = FColor(170, 170, 170); // 170 => 0.4f linear
 
 	// FLoat to a u8 rgb + float length can lose some precision but it is better UI wise.
 	const FLinearColor RayleightScatteringRaw = FLinearColor(0.005802f, 0.013558f, 0.033100f);
-	RayleighScattering = (RayleightScatteringRaw * (1.0f / RayleightScatteringRaw.B)).ToFColor(false);
+	RayleighScattering = RayleightScatteringRaw * (1.0f / RayleightScatteringRaw.B);
 	RayleighScatteringScale = RayleightScatteringRaw.B;
 	RayleighExponentialDistribution = EarthRayleighScaleHeight;
 
@@ -58,7 +60,7 @@ USkyAtmosphereComponent::USkyAtmosphereComponent(const FObjectInitializer& Objec
 	// Absorption tent distribution representing ozone distribution in Earth atmosphere.
 	const FLinearColor OtherAbsorptionRaw = FLinearColor(0.000650f, 0.001881f, 0.000085f);
 	OtherAbsorptionScale = OtherAbsorptionRaw.G;
-	OtherAbsorption = (OtherAbsorptionRaw * (1.0f / OtherAbsorptionRaw.G)).ToFColor(false);
+	OtherAbsorption = OtherAbsorptionRaw * (1.0f / OtherAbsorptionRaw.G);
 	OtherTentDistribution.TipAltitude = 25.0f;
 	OtherTentDistribution.TipValue    =  1.0f;
 	OtherTentDistribution.Width       = 15.0f;
@@ -66,6 +68,8 @@ USkyAtmosphereComponent::USkyAtmosphereComponent(const FObjectInitializer& Objec
 	SkyLuminanceFactor = FLinearColor(FLinearColor::White);
 	MultiScatteringFactor = 1.0f;
 	AerialPespectiveViewDistanceScale = 1.0f;
+
+	memset(OverrideAtmosphericLight, 0, sizeof(OverrideAtmosphericLight));
 
 	ValidateStaticLightingGUIDs();
 }
@@ -91,36 +95,46 @@ static bool SkyAtmosphereComponentStaticLightingBuilt(const USkyAtmosphereCompon
 	return true;	// The component has not been spawned in any world yet so let's mark it as built for now.
 }
 
-void USkyAtmosphereComponent::AddToRenderScene() const
-{
-	if (ShouldComponentAddToScene() && ShouldRender() && IsRegistered() && (GetOuter() == NULL || !GetOuter()->HasAnyFlags(RF_ClassDefaultObject)))
-	{
-		GetWorld()->Scene->AddSkyAtmosphere(this, SkyAtmosphereComponentStaticLightingBuilt(this));
-	}
-}
-
 void USkyAtmosphereComponent::CreateRenderState_Concurrent()
 {
 	Super::CreateRenderState_Concurrent();
 	// If one day we need to look up lightmass built data, lookup it up here using the guid from the correct MapBuildData.
-	AddToRenderScene();
+
+	bool bHidden = false;
+#if WITH_EDITORONLY_DATA
+	bHidden = GetOwner() ? GetOwner()->bHiddenEdLevel : false;
+#endif // WITH_EDITORONLY_DATA
+	if (!ShouldComponentAddToScene())
+	{
+		bHidden = true;
+	}
+
+	if (bVisible && !bHidden &&
+		ShouldComponentAddToScene() && ShouldRender() && IsRegistered() && (GetOuter() == NULL || !GetOuter()->HasAnyFlags(RF_ClassDefaultObject)))
+	{
+		// Create the scene proxy.
+		SkyAtmosphereSceneProxy = new FSkyAtmosphereSceneProxy(this);
+		GetWorld()->Scene->AddSkyAtmosphere(SkyAtmosphereSceneProxy, SkyAtmosphereComponentStaticLightingBuilt(this));
+	}
+
 }
 
 void USkyAtmosphereComponent::DestroyRenderState_Concurrent()
 {
 	Super::DestroyRenderState_Concurrent();
-	GetWorld()->Scene->RemoveSkyAtmosphere(this);
 
-	// Search for new fog component
-	for (TObjectIterator<USkyAtmosphereComponent> It; It; ++It)
+	if (SkyAtmosphereSceneProxy)
 	{
-		USkyAtmosphereComponent* Component = *It;
-		checkSlow(Component);
-		if (Component != this && Component->IsRegistered())
+		GetWorld()->Scene->RemoveSkyAtmosphere(SkyAtmosphereSceneProxy);
+
+		FSkyAtmosphereSceneProxy* SceneProxy = SkyAtmosphereSceneProxy;
+		ENQUEUE_RENDER_COMMAND(FDestroySkyAtmosphereSceneProxyCommand)(
+			[SceneProxy](FRHICommandList& RHICmdList)
 		{
-			Component->AddToRenderScene();
-			break;
-		}
+			delete SceneProxy;
+		});
+
+		SkyAtmosphereSceneProxy = nullptr;
 	}
 }
 
@@ -237,11 +251,21 @@ void USkyAtmosphereComponent::Serialize(FArchive& Ar)
 
 void USkyAtmosphereComponent::OverrideAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& LightDirection)
 {
-	if (AreDynamicDataChangesAllowed())
+	check(AtmosphereLightIndex >= 0 && AtmosphereLightIndex < NUM_ATMOSPHERE_LIGHTS);
+	if (AreDynamicDataChangesAllowed() && SkyAtmosphereSceneProxy &&
+		(!OverrideAtmosphericLight[AtmosphereLightIndex] || OverrideAtmosphericLightDirection[AtmosphereLightIndex]!=LightDirection))
 	{
 		FSceneInterface* Scene = GetWorld()->Scene;
-		Scene->OverrideSkyAtmosphereLightDirection(this, AtmosphereLightIndex, LightDirection);
+		OverrideAtmosphericLight[AtmosphereLightIndex] = true;
+		OverrideAtmosphericLightDirection[AtmosphereLightIndex] = LightDirection;
+		MarkRenderStateDirty();
 	}
+}
+
+void USkyAtmosphereComponent::GetOverrideLightStatus(bool* OutOverrideAtmosphericLight, FVector* OutOverrideAtmosphericLightDirection) const
+{
+	memcpy(OutOverrideAtmosphericLight, OverrideAtmosphericLight, sizeof(OverrideAtmosphericLight));
+	memcpy(OutOverrideAtmosphericLightDirection, OverrideAtmosphericLightDirection, sizeof(OverrideAtmosphericLightDirection));
 }
 
 #define SKY_DECLARE_BLUEPRINT_SETFUNCTION(MemberType, MemberName) void USkyAtmosphereComponent::Set##MemberName(MemberType NewValue)\
@@ -253,21 +277,30 @@ void USkyAtmosphereComponent::OverrideAtmosphereLightDirection(int32 AtmosphereL
 	}\
 }\
 
+#define SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(MemberName) void USkyAtmosphereComponent::Set##MemberName(FLinearColor NewValue)\
+{\
+	if (AreDynamicDataChangesAllowed() && MemberName != NewValue)\
+	{\
+		MemberName = NewValue.GetClamped(0.0f, 1e38f); \
+		MarkRenderStateDirty();\
+	}\
+}\
+
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, RayleighScatteringScale);
-SKY_DECLARE_BLUEPRINT_SETFUNCTION(FColor, RayleighScattering);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(RayleighScattering);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, RayleighExponentialDistribution);
 
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MieScatteringScale);
-SKY_DECLARE_BLUEPRINT_SETFUNCTION(FColor, MieScattering);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(MieScattering);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MieAbsorptionScale);
-SKY_DECLARE_BLUEPRINT_SETFUNCTION(FColor, MieAbsorption);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(MieAbsorption);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MieAnisotropy);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MieExponentialDistribution);
 
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, OtherAbsorptionScale);
-SKY_DECLARE_BLUEPRINT_SETFUNCTION(FColor, OtherAbsorption);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(OtherAbsorption);
 
-SKY_DECLARE_BLUEPRINT_SETFUNCTION(FLinearColor, SkyLuminanceFactor);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(SkyLuminanceFactor);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, AerialPespectiveViewDistanceScale);
 
 /*=============================================================================
@@ -330,6 +363,40 @@ ASkyAtmosphere::ASkyAtmosphere(const FObjectInitializer& ObjectInitializer)
 	PrimaryActorTick.bCanEverTick = true;
 	bHidden = false;
 }
+
+
+
+/*=============================================================================
+	FSkyAtmosphereSceneProxy implementation.
+=============================================================================*/
+
+
+
+FSkyAtmosphereSceneProxy::FSkyAtmosphereSceneProxy(const USkyAtmosphereComponent* InComponent)
+	: bStaticLightingBuilt(false)
+	, AtmosphereSetup(*InComponent)
+{
+	SkyLuminanceFactor = InComponent->SkyLuminanceFactor;
+	AerialPespectiveViewDistanceScale = InComponent->AerialPespectiveViewDistanceScale;
+
+	InComponent->GetOverrideLightStatus(OverrideAtmosphericLight, OverrideAtmosphericLightDirection);
+
+	TransmittanceAtZenith = AtmosphereSetup.GetTransmittanceAtGroundLevel(FVector(0.0f, 0.0f, 1.0f));
+}
+
+FSkyAtmosphereSceneProxy::~FSkyAtmosphereSceneProxy()
+{
+}
+
+FVector FSkyAtmosphereSceneProxy::GetAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& DefaultDirection) const
+{
+	if (OverrideAtmosphericLight[AtmosphereLightIndex])
+	{
+		return OverrideAtmosphericLightDirection[AtmosphereLightIndex];
+	}
+	return DefaultDirection;
+}
+
 
 #undef LOCTEXT_NAMESPACE
 

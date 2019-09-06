@@ -24,14 +24,14 @@ class SMenuAnchor;
 * A single log message for the output log, holding a message and
 * a style, for color and bolding of the message.
 */
-struct FLogMessage
+struct FOutputLogMessage
 {
 	TSharedRef<FString> Message;
 	ELogVerbosity::Type Verbosity;
 	FName Category;
 	FName Style;
 
-	FLogMessage(const TSharedRef<FString>& NewMessage, FName NewCategory, FName NewStyle = NAME_None)
+	FOutputLogMessage(const TSharedRef<FString>& NewMessage, FName NewCategory, FName NewStyle = NAME_None)
 		: Message(NewMessage)
 		, Verbosity(ELogVerbosity::Log)
 		, Category(NewCategory)
@@ -39,7 +39,7 @@ struct FLogMessage
 	{
 	}
 
-	FLogMessage(const TSharedRef<FString>& NewMessage, ELogVerbosity::Type NewVerbosity, FName NewCategory, FName NewStyle = NAME_None)
+	FOutputLogMessage(const TSharedRef<FString>& NewMessage, ELogVerbosity::Type NewVerbosity, FName NewCategory, FName NewStyle = NAME_None)
 		: Message(NewMessage)
 		, Verbosity(NewVerbosity)
 		, Category(NewCategory)
@@ -239,7 +239,7 @@ private:
 /**
 * Holds information about filters
 */
-struct FLogFilter
+struct FOutputLogFilter
 {
 	/** true to show Logs. */
 	bool bShowLogs;
@@ -254,7 +254,7 @@ struct FLogFilter
 	bool bShowAllCategories;
 
 	/** Enable all filters by default */
-	FLogFilter() : TextFilterExpressionEvaluator(ETextFilterExpressionEvaluatorMode::BasicString)
+	FOutputLogFilter() : TextFilterExpressionEvaluator(ETextFilterExpressionEvaluatorMode::BasicString)
 	{
 		bShowErrors = bShowLogs = bShowWarnings = bShowAllCategories = true;
 	}
@@ -263,7 +263,7 @@ struct FLogFilter
 	bool IsFilterSet() { return !bShowErrors || !bShowLogs || !bShowWarnings || TextFilterExpressionEvaluator.GetFilterType() != ETextFilterExpressionType::Empty || !TextFilterExpressionEvaluator.GetFilterText().IsEmpty(); }
 
 	/** Checks the given message against set filters */
-	bool IsMessageAllowed(const TSharedPtr<FLogMessage>& Message);
+	bool IsMessageAllowed(const TSharedPtr<FOutputLogMessage>& Message);
 
 	/** Set the Text to be used as the Filter's restrictions */
 	void SetFilterText(const FText& InFilterText) { TextFilterExpressionEvaluator.SetFilterText(InFilterText); }
@@ -314,7 +314,7 @@ public:
 		{}
 		
 		/** All messages captured before this log window has been created */
-		SLATE_ARGUMENT( TArray< TSharedPtr<FLogMessage> >, Messages )
+		SLATE_ARGUMENT( TArray< TSharedPtr<FOutputLogMessage> >, Messages )
 
 	SLATE_END_ARGS()
 
@@ -329,17 +329,17 @@ public:
 	void Construct( const FArguments& InArgs );
 
 	/**
-	 * Creates FLogMessage objects from FOutputDevice log callback
+	 * Creates FOutputLogMessage objects from FOutputDevice log callback
 	 *
 	 * @param	V Message text
 	 * @param Verbosity Message verbosity
 	 * @param Category Message category
-	 * @param OutMessages Array to receive created FLogMessage messages
+	 * @param OutMessages Array to receive created FOutputLogMessage messages
 	 * @param Filters [Optional] Filters to apply to Messages
 	 *
 	 * @return true if any messages have been created, false otherwise
 	 */
-	static bool CreateLogMessages(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category, TArray< TSharedPtr<FLogMessage> >& OutMessages);
+	static bool CreateLogMessages(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category, TArray< TSharedPtr<FOutputLogMessage> >& OutMessages);
 
 	/**
 	* Called when delete all is selected
@@ -451,17 +451,17 @@ private:
 
 public:
 	/** Visible messages filter */
-	FLogFilter Filter;
+	FOutputLogFilter Filter;
 
 	TSharedPtr<class SComboButton> ViewOptionsComboButton;
 };
 
-/** Output log text marshaller to convert an array of FLogMessages into styled lines to be consumed by an FTextLayout */
+/** Output log text marshaller to convert an array of FOutputLogMessages into styled lines to be consumed by an FTextLayout */
 class FOutputLogTextLayoutMarshaller : public FBaseTextLayoutMarshaller
 {
 public:
 
-	static TSharedRef< FOutputLogTextLayoutMarshaller > Create(TArray< TSharedPtr<FLogMessage> > InMessages, FLogFilter* InFilter);
+	static TSharedRef< FOutputLogTextLayoutMarshaller > Create(TArray< TSharedPtr<FOutputLogMessage> > InMessages, FOutputLogFilter* InFilter);
 
 	virtual ~FOutputLogTextLayoutMarshaller();
 	
@@ -481,13 +481,13 @@ public:
 
 protected:
 
-	FOutputLogTextLayoutMarshaller(TArray< TSharedPtr<FLogMessage> > InMessages, FLogFilter* InFilter);
+	FOutputLogTextLayoutMarshaller(TArray< TSharedPtr<FOutputLogMessage> > InMessages, FOutputLogFilter* InFilter);
 
-	void AppendMessageToTextLayout(const TSharedPtr<FLogMessage>& InMessage);
-	void AppendMessagesToTextLayout(const TArray<TSharedPtr<FLogMessage>>& InMessages);
+	void AppendMessageToTextLayout(const TSharedPtr<FOutputLogMessage>& InMessage);
+	void AppendMessagesToTextLayout(const TArray<TSharedPtr<FOutputLogMessage>>& InMessages);
 
 	/** All log messages to show in the text box */
-	TArray< TSharedPtr<FLogMessage> > Messages;
+	TArray< TSharedPtr<FOutputLogMessage> > Messages;
 
 	/** Holds cached numbers of messages to avoid unnecessary re-filtering */
 	int32 CachedNumMessages;
@@ -496,7 +496,7 @@ protected:
 	bool bNumMessagesCacheDirty;
 
 	/** Visible messages filter */
-	FLogFilter* Filter;
+	FOutputLogFilter* Filter;
 
 	FTextLayout* TextLayout;
 };

@@ -498,14 +498,17 @@ static int32 FrustumCull(const FScene* Scene, FViewInfo& View)
 					}
 
 					// Fading HLODs and their children must be visible, objects hidden by HLODs can be culled
-					if (HLODState && HLODState->IsNodeForcedVisible(Index))
+					if (HLODState)
 					{
-						MaxDrawDistance = FLT_MAX;
-						MinDrawDistanceSq = 0.f;
-					}
-					else if (HLODState && HLODState->IsNodeForcedHidden(Index))
-					{
-						MaxDrawDistance = 0.f;
+						if (HLODState->IsNodeForcedVisible(Index))
+						{
+							MaxDrawDistance = FLT_MAX;
+							MinDrawDistanceSq = 0.f;
+						}
+						else if (HLODState->IsNodeForcedHidden(Index))
+						{
+							MaxDrawDistance = 0.f;
+						}
 					}
 
 					if (DistanceSquared > FMath::Square(MaxDrawDistance + FadeRadius) ||
@@ -1784,7 +1787,9 @@ struct FDrawCommandRelevancePacket
 				const FCachedMeshDrawCommandInfo& CachedMeshDrawCommand = InPrimitiveSceneInfo->StaticMeshCommandInfos[StaticMeshCommandInfoIndex];
 				const FCachedPassMeshDrawList& SceneDrawList = Scene->CachedDrawLists[PassType];
 
-				FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
+				// AddUninitialized_GetRef()
+				VisibleCachedDrawCommands[(uint32)PassType].AddUninitialized();
+				FVisibleMeshDrawCommand& NewVisibleMeshDrawCommand = VisibleCachedDrawCommands[(uint32)PassType].Last();
 
 				const FMeshDrawCommand* MeshDrawCommand = CachedMeshDrawCommand.StateBucketId >= 0
 					? &Scene->CachedMeshDrawCommandStateBuckets[FSetElementId::FromInteger(CachedMeshDrawCommand.StateBucketId)].MeshDrawCommand
@@ -1798,8 +1803,6 @@ struct FDrawCommandRelevancePacket
 					CachedMeshDrawCommand.MeshFillMode,
 					CachedMeshDrawCommand.MeshCullMode,
 					CachedMeshDrawCommand.SortKey);
-
-				VisibleCachedDrawCommands[(uint32)PassType].Add(NewVisibleMeshDrawCommand);
 			}
 		}
 		else
@@ -4653,6 +4656,9 @@ void FLODSceneTree::HideNodeChildren(FSceneViewState* ViewState, FLODSceneNode& 
 				}
 
 				HLODState.ForcedHiddenPrimitiveMap[ChildIndex] = true;
+				
+				// Clear the force visible flag in case the child was processed before it's parent
+				HLODState.ForcedVisiblePrimitiveMap[ChildIndex] = false;
 
 				if (FLODSceneNode* ChildNode = SceneNodes.Find(Child->PrimitiveComponentId))
 				{

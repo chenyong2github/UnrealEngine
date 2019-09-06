@@ -317,7 +317,7 @@ public:
 
 	virtual void AutoFlipTangents();
 
-	TMap<ULandscapeSplinesComponent*, TArray<USplineMeshComponent*>> GetForeignMeshComponents();
+	LANDSCAPE_API TMap<ULandscapeSplinesComponent*, TArray<USplineMeshComponent*>> GetForeignMeshComponents();
 	TArray<USplineMeshComponent*> GetLocalMeshComponents() const;
 	
 	virtual void UpdateSplinePoints(bool bUpdateCollision = true, bool bUpdateMeshLevel = false);
