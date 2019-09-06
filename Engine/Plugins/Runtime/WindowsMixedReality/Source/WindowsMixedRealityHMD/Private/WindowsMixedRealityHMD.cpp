@@ -1096,8 +1096,6 @@ namespace WindowsMixedReality
 			outTargetableTexture,
 			outShaderResourceTexture);
 
-		CurrentBackBuffer = outTargetableTexture;
-
 		return true;
 	}
 
@@ -1184,8 +1182,17 @@ namespace WindowsMixedReality
 #if WITH_WINDOWS_MIXED_REALITY
 		// Update depth texture to match format Windows Mixed Reality platform is expecting.
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-		FRHITexture2D* depthFRHITexture = SceneContext.GetSceneDepthTexture().GetReference()->GetTexture2D();
+		if (SceneContext.SceneDepthZ == nullptr)
+		{
+			return;
+		}
+		const FTexture2DRHIRef SceneDepthTexture = SceneContext.GetSceneDepthTexture();
+		if (SceneDepthTexture == nullptr)
+		{
+			return;
+		}
 
+		FRHITexture2D* depthFRHITexture = SceneContext.GetSceneDepthTexture().GetReference()->GetTexture2D();
 		if (depthFRHITexture == nullptr || depthFRHITexture->GetNativeResource() == nullptr)
 		{
 			return;
