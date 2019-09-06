@@ -65,8 +65,11 @@ void FNiagaraGraphScriptUsageInfo::PostLoad(UObject* Owner)
 	const int32 NiagaraVer = Owner->GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 	if (NiagaraVer < FNiagaraCustomVersion::UseHashesToIdentifyCompileStateOfTopLevelScripts)
 	{
-		// When loading old data use the last generated compile id as the base id to prevent recompiles on load for existing scripts.
-		BaseId = GeneratedCompileId;
+		if (BaseId.IsValid() == false && GeneratedCompileId_DEPRECATED.IsValid())
+		{
+			// When loading old data use the last generated compile id as the base id to prevent recompiles on load for existing scripts.
+			BaseId = GeneratedCompileId_DEPRECATED;
+		}
 
 		if (CompileHash.IsValid() == false && DataHash_DEPRECATED.Num() == FNiagaraCompileHash::HashSize)
 		{
@@ -287,22 +290,6 @@ void UNiagaraGraph::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 class UNiagaraScriptSource* UNiagaraGraph::GetSource() const
 {
 	return CastChecked<UNiagaraScriptSource>(GetOuter());
-}
-
-FGuid UNiagaraGraph::ComputeCompileID(ENiagaraScriptUsage InUsage, const FGuid& InUsageId)
-{
-	RebuildCachedCompileIds();
-
-	for (int32 j = 0; j < CachedUsageInfo.Num(); j++)
-	{
-		if (UNiagaraScript::IsEquivalentUsage(CachedUsageInfo[j].UsageType, InUsage) && CachedUsageInfo[j].UsageId == InUsageId)
-		{
-			return CachedUsageInfo[j].GeneratedCompileId;
-		}
-	}
-
-	return FGuid();
-
 }
 
 FNiagaraCompileHash UNiagaraGraph::GetCompileDataHash(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const
@@ -1043,24 +1030,6 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 		HashState.GetHash(DataHash.GetData());
 		NewUsageCache[i].CompileHash = FNiagaraCompileHash(DataHash);
 
-		bool bNeedsNewCompileId = true;
-
-		// Now compare the hashed data. If it is the same as before, then leave the compile ID as-is. If it is different, generate a new guid.
-		if (FoundMatchIdx != INDEX_NONE)
-		{
-			if (NewUsageCache[i].CompileHash == CachedUsageInfo[FoundMatchIdx].CompileHash)
-			{
-				NewUsageCache[i].GeneratedCompileId = CachedUsageInfo[FoundMatchIdx].GeneratedCompileId;
-				bNeedsNewCompileId = false;
-			}
-		}
-
-		if (bNeedsNewCompileId)
-		{
-			NewUsageCache[i].GeneratedCompileId = FGuid::NewGuid();
-			bNeedsAnyNewCompileIds = true;
-		}
-
 		// TODO sckime debug logic... should be disabled or put under a cvar in the future
 		{
 
@@ -1073,15 +1042,6 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 			if (FoundEnum)
 			{
 				ResultsEnum = FoundEnum->GetNameStringByValue((int64)NewUsageCache[i].UsageType);
-			}
-
-			if (bNeedsNewCompileId)
-			{
-				//UE_LOG(LogNiagaraEditor, Log, TEXT("'%s' changes detected in %s .. new guid: %s"), *GetFullName(), *ResultsEnum, *NewUsageCache[i].GeneratedCompileId.ToString());
-			}
-			else
-			{
-				//UE_LOG(LogNiagaraEditor, Log, TEXT("'%s' changes NOT detected in %s .. keeping guid: %s"), *GetFullName(), *ResultsEnum, *NewUsageCache[i].GeneratedCompileId.ToString());
 			}
 		}
 
@@ -1115,30 +1075,10 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 			GpuUsageInfo.BaseId = OldGpuInfo->BaseId;
 		}
 
-		GpuUsageInfo.Traversal.Append(ParticleSpawnUsageInfo->Traversal);
-		GpuUsageInfo.Traversal.Append(ParticleUpdateUsageInfo->Traversal);
-
-		FSHA1 HashState;
-		for (UNiagaraNode* Node : GpuUsageInfo.Traversal)
-		{
-			Node->UpdateCompileHashForNode(HashState);
-		}
-		HashState.Final();
-
+		// The gpu script has no graph representation so the hash is empty.  Changes to the gpu script are handled by collecting the compile hashes of it's dependencies.
 		TArray<uint8> DataHash;
-		DataHash.AddUninitialized(20);
-		HashState.GetHash(DataHash.GetData());
+		DataHash.AddZeroed(20);
 		GpuUsageInfo.CompileHash = FNiagaraCompileHash(DataHash);
-
-		FNiagaraGraphScriptUsageInfo* OldGpuUsageInfo = CachedUsageInfo.FindByPredicate([](const FNiagaraGraphScriptUsageInfo& UsageInfo) { return UsageInfo.UsageType == ENiagaraScriptUsage::ParticleGPUComputeScript && UsageInfo.UsageId == FGuid(); });
-		if (OldGpuUsageInfo != nullptr && OldGpuUsageInfo->CompileHash == GpuUsageInfo.CompileHash)
-		{
-			GpuUsageInfo.GeneratedCompileId = OldGpuUsageInfo->GeneratedCompileId;
-		}
-		else
-		{
-			GpuUsageInfo.GeneratedCompileId = FGuid::NewGuid();
-		}
 
 		NewUsageCache.Add(GpuUsageInfo);
 	}
@@ -1233,63 +1173,6 @@ void UNiagaraGraph::ResolveNumerics(TMap<UNiagaraNode*, bool>& VisitedNodes, UEd
 	}
 }
 
-
-void UNiagaraGraph::SynchronizeInternalCacheWithGraph(UNiagaraGraph* Other)
-{
-	// Force us to rebuild the cache, note that this builds traversals and everything else, keeping it in sync if nothing changed from the current version.
-	RebuildCachedCompileIds(true);
-	
-	UEnum* FoundEnum = nullptr;
-
-	// Now go through all of the other graph's usage info. If we find a match for its usage and our data hashes match, use the generated compile id from
-	// the other graph.
-	for (int32 i = 0; i < CachedUsageInfo.Num(); i++)
-	{
-		int32 FoundMatchIdx = INDEX_NONE;
-		for (int32 j = 0; j < Other->CachedUsageInfo.Num(); j++)
-		{
-			if (UNiagaraScript::IsEquivalentUsage(Other->CachedUsageInfo[j].UsageType, CachedUsageInfo[i].UsageType) && Other->CachedUsageInfo[j].UsageId == CachedUsageInfo[i].UsageId)
-			{
-				FoundMatchIdx = j;
-				break;
-			}
-		}
-
-		if (FoundMatchIdx != INDEX_NONE)
-		{
-			if (CachedUsageInfo[i].CompileHash == Other->CachedUsageInfo[FoundMatchIdx].CompileHash)
-			{
-				CachedUsageInfo[i].GeneratedCompileId = Other->CachedUsageInfo[FoundMatchIdx].GeneratedCompileId;		
-
-				// TODO sckime debug logic... should be disabled or put under a cvar in the future
-				{
-					if (FoundEnum == nullptr)
-					{
-						FoundEnum = StaticEnum<ENiagaraScriptUsage>();
-					}
-
-					FString ResultsEnum = TEXT("??");
-					if (FoundEnum)
-					{
-						ResultsEnum = FoundEnum->GetNameStringByValue((int64)CachedUsageInfo[i].UsageType);
-					}
-					if (GEnableVerboseNiagaraChangeIdLogging)
-					{
-						UE_LOG(LogNiagaraEditor, Log, TEXT("'%s' changes synchronized with master script in %s .. synced guid: %s"), *GetFullName(), *ResultsEnum, *CachedUsageInfo[i].GeneratedCompileId.ToString());
-					}
-				}
-			}
-		}
-	}
-
-	if (bWriteToLog)
-	{
-		TMap<FGuid, FGuid> ComputeChangeIds;
-		FNiagaraEditorUtilities::GatherChangeIds(*this, ComputeChangeIds, GetName() + TEXT(".Synced"));
-	}
-}
-
-
 void UNiagaraGraph::InvalidateCachedCompileIds()
 {
 	Modify();
@@ -1297,52 +1180,29 @@ void UNiagaraGraph::InvalidateCachedCompileIds()
 	MarkGraphRequiresSynchronization(__FUNCTION__);
 }
 
-void UNiagaraGraph::GatherExternalDependencyIDs(ENiagaraScriptUsage InUsage, const FGuid& InUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FGuid>& InReferencedIDs, TArray<UObject*>& InReferencedObjs)
+void UNiagaraGraph::GatherExternalDependencyData(ENiagaraScriptUsage InUsage, const FGuid& InUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<UObject*>& InReferencedObjs)
 {
 	RebuildCachedCompileIds();
 	
-	// Particle compute scripts get all particle scripts baked into their dependency chain. 
-	if (InUsage == ENiagaraScriptUsage::ParticleGPUComputeScript)
+	for (int32 i = 0; i < CachedUsageInfo.Num(); i++)
 	{
-		for (int32 i = 0; i < CachedUsageInfo.Num(); i++)
+		// First add our direct dependency chain...
+		if (UNiagaraScript::IsEquivalentUsage(CachedUsageInfo[i].UsageType, InUsage) && CachedUsageInfo[i].UsageId == InUsageId)
 		{
-			// Add all chains that we depend on.
-			if (UNiagaraScript::IsUsageDependentOn(InUsage, CachedUsageInfo[i].UsageType)) 
+			for (UNiagaraNode* Node : CachedUsageInfo[i].Traversal)
 			{
-				InReferencedCompileHashes.Add(CachedUsageInfo[i].CompileHash);
-				InReferencedObjs.Add(CachedUsageInfo[i].Traversal.Last());
-
-				for (UNiagaraNode* Node : CachedUsageInfo[i].Traversal)
-				{
-					Node->GatherExternalDependencyIDs(InUsage, InUsageId, InReferencedCompileHashes, InReferencedIDs, InReferencedObjs);
-				}
+				Node->GatherExternalDependencyData(InUsage, InUsageId, InReferencedCompileHashes, InReferencedObjs);
 			}
 		}
-	}
-	// Otherwise, just add downstream dependencies for the specific usage type we're on.
-	else
-	{
-		for (int32 i = 0; i < CachedUsageInfo.Num(); i++)
+		// Now add any other dependency chains that we might have...
+		else if (UNiagaraScript::IsUsageDependentOn(InUsage, CachedUsageInfo[i].UsageType))
 		{
-			// First add our direct dependency chain...
-			if (UNiagaraScript::IsEquivalentUsage(CachedUsageInfo[i].UsageType, InUsage) && CachedUsageInfo[i].UsageId == InUsageId)
-			{
-				// Skip adding to list because we already did it in GetCompileId above.
-				for (UNiagaraNode* Node : CachedUsageInfo[i].Traversal)
-				{
-					Node->GatherExternalDependencyIDs(InUsage, InUsageId, InReferencedCompileHashes, InReferencedIDs, InReferencedObjs);
-				}
-			}
-			// Now add any other dependency chains that we might have...
-			else if (UNiagaraScript::IsUsageDependentOn(InUsage, CachedUsageInfo[i].UsageType))
-			{
-				InReferencedCompileHashes.Add(CachedUsageInfo[i].CompileHash);
-				InReferencedObjs.Add(CachedUsageInfo[i].Traversal.Last());
+			InReferencedCompileHashes.Add(CachedUsageInfo[i].CompileHash);
+			InReferencedObjs.Add(CachedUsageInfo[i].Traversal.Last());
 
-				for (UNiagaraNode* Node : CachedUsageInfo[i].Traversal)
-				{
-					Node->GatherExternalDependencyIDs(InUsage, InUsageId, InReferencedCompileHashes, InReferencedIDs, InReferencedObjs);
-				}
+			for (UNiagaraNode* Node : CachedUsageInfo[i].Traversal)
+			{
+				Node->GatherExternalDependencyData(InUsage, InUsageId, InReferencedCompileHashes, InReferencedObjs);
 			}
 		}
 	}
