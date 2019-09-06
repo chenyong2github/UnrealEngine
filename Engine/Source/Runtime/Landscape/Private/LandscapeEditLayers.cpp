@@ -2721,6 +2721,12 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 		return 0;
 	}
 
+	// Nothing to do (return that we did the processing)
+	if (InLandscapeComponentsToResolve.Num() == 0)
+	{
+		return HeightmapUpdateModes;
+	}
+
 	// Init CPU Readbacks
 	if (HeightmapUpdateModes)
 	{
@@ -3555,6 +3561,11 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 	if ((WeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr || Info->Layers.Num() == 0 || !PrepareLayersWeightmapTextureResources(bInWaitForStreaming))
 	{
 		return 0;
+	}
+
+	if (InLandscapeComponentsToResolve.Num() == 0)
+	{
+		return WeightmapUpdateModes;
 	}
 			
 	TArray<ULandscapeComponent*> ComponentThatNeedMaterialRebuild;
