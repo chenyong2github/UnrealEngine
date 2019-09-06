@@ -6,6 +6,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Components/ArrowComponent.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/SlateUser.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
 
