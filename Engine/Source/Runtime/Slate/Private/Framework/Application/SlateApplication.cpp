@@ -4513,9 +4513,10 @@ FReply FSlateApplication::RoutePointerDownEvent(const FWidgetPath& WidgetsUnderP
 	if( ( !bFocusChangedByEventHandler || bNeedToActivateWindow ) &&
 		( !Reply.GetUserFocusRecepient().IsValid()
 #if PLATFORM_MAC
-			|| bIsDetectingLMBDrag)
+			|| bIsDetectingLMBDrag
 #endif
 		)
+	)
 	{
 		for ( int32 WidgetIndex = WidgetsUnderPointer.Widgets.Num() - 1; WidgetIndex >= 0; --WidgetIndex )
 		{
