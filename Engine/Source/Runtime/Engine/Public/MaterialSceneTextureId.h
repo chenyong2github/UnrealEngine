@@ -7,6 +7,10 @@
 #include "UObject/ObjectMacros.h"
 #include "MaterialSceneTextureId.generated.h"
 
+#ifndef STORE_ONLY_ACTIVE_SHADERMAPS
+#define STORE_ONLY_ACTIVE_SHADERMAPS 0
+#endif
+
 /** like EPassInputId but can expose more e.g. GBuffer */
 UENUM()
 enum ESceneTextureId
