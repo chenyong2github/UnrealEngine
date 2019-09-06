@@ -4,7 +4,7 @@
 #include "Misc/CommandLine.h"
 #include "SocketSubsystemModule.h"
 #include "BSDSockets/IPAddressBSD.h"
-#include "BSDSockets/SocketsBSD.h"
+#include "Unix/SocketsUnix.h"
 
 #include <ifaddrs.h>
 #include <net/if.h>
@@ -193,3 +193,59 @@ bool FSocketSubsystemUnix::GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetA
 
 	return (OutAddresses.Num() > 0);
 }
+
+FSocketBSD* FSocketSubsystemUnix::InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, const FName& SocketProtocol)
+{
+	return new FSocketUnix(Socket, SocketType, SocketDescription, SocketProtocol, this);
+}
+
+TUniquePtr<FRecvMulti> FSocketSubsystemUnix::CreateRecvMulti(int32 MaxNumPackets, int32 MaxPacketSize, ERecvMultiFlags Flags)
+{
+#if PLATFORM_HAS_BSD_SOCKET_FEATURE_RECVMMSG
+	return MakeUnique<FUnixRecvMulti>(this, MaxNumPackets, MaxPacketSize, Flags);
+#endif
+
+	return nullptr;
+}
+
+bool FSocketSubsystemUnix::IsSocketRecvMultiSupported() const
+{
+#if PLATFORM_HAS_BSD_SOCKET_FEATURE_RECVMMSG
+	return true;
+#endif
+
+	return false;
+}
+
+double FSocketSubsystemUnix::TranslatePacketTimestamp(const FPacketTimestamp& Timestamp, ETimestampTranslation Translation)
+{
+	double ReturnVal = 0.0;
+	const bool bDeltaOnly = Translation == ETimestampTranslation::TimeDelta;
+
+	if (Translation == ETimestampTranslation::LocalTimestamp || bDeltaOnly)
+	{
+		// Unfortunately, the packet timestamp is platform-specific, using CLOCK_REALTIME in this case,
+		// whereas FPlatformTime may select from a variety of incompatible clocks.
+		// So, the only safe option is to return the time difference instead.
+		struct timespec CurPlatformTime;
+
+		clock_gettime(CLOCK_REALTIME, &CurPlatformTime);
+
+		FTimespan CurPlatformTimespan((CurPlatformTime.tv_sec * ETimespan::TicksPerSecond) +
+										(CurPlatformTime.tv_nsec / ETimespan::NanosecondsPerTick));
+
+		ReturnVal = (CurPlatformTimespan - Timestamp.Timestamp).GetTotalSeconds();
+
+		if (!bDeltaOnly)
+		{
+			ReturnVal = FPlatformTime::Seconds() - ReturnVal;
+		}
+	}
+	else
+	{
+		UE_LOG(LogSockets, Warning, TEXT("TranslatePacketTimestamp: Unknown ETimestampTranslation type: %i"), (uint32)Translation);
+	}
+
+	return ReturnVal;
+}
+
