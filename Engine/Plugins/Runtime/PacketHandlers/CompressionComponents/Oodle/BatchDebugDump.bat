@@ -49,7 +49,7 @@ goto End
 
 
 :AutoGenDictionaries
-set DebugDumpParms=-run=OodleHandlerComponent.OodleTrainerCommandlet DebugDump
+set DebugDumpParms=-run=OodleTrainerCommandlet DebugDump
 set PreDumpCmdLine=%GameName:"=% %DebugDumpParms% %OutputDir:"=% %CaptureDir:"=%
 set PostDumpCmdLine=-forcelogflush
 
