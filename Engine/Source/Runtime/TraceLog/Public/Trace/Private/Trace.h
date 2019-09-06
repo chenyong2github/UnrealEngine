@@ -7,7 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #if !defined(UE_TRACE_ENABLED)
 #	if !UE_BUILD_SHIPPING && !IS_PROGRAM
-#		if PLATFORM_WINDOWS || PLATFORM_PS4 || PLATFORM_XBOXONE
+#		if PLATFORM_WINDOWS || PLATFORM_UNIX || PLATFORM_PS4 || PLATFORM_XBOXONE
 #			define UE_TRACE_ENABLED	1
 #		endif
 #	endif
