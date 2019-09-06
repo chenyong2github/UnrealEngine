@@ -26,14 +26,14 @@ struct CORE_API FUnixTime : public FGenericPlatformTime
 	static FORCEINLINE uint32 Cycles()
 	{
 		struct timespec ts;
-		clock_gettime(ClockSource, &ts);
+		clock_gettime(CLOCK_MONOTONIC, &ts);
 		return static_cast<uint32>(static_cast<uint64>(ts.tv_sec) * 1000000ULL + static_cast<uint64>(ts.tv_nsec) / 1000ULL);
 	}
 
 	static FORCEINLINE uint64 Cycles64()
 	{
 		struct timespec ts;
-		clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+		clock_gettime(CLOCK_MONOTONIC, &ts);
 		return static_cast<uint64>(static_cast<uint64>(ts.tv_sec) * 1000000ULL + static_cast<uint64>(ts.tv_nsec) / 1000ULL);
 	}
 
