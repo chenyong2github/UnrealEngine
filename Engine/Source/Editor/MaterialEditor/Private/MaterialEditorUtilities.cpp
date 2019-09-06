@@ -16,6 +16,7 @@
 #include "Materials/MaterialExpressionComment.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
+#include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionFontSampleParameter.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
@@ -407,6 +408,7 @@ void FMaterialEditorUtilities::GetVisibleMaterialParametersFromExpression(
 	// If it's a material parameter it must be visible so add it to the list
 	UMaterialExpressionParameter* Param = Cast<UMaterialExpressionParameter>( MaterialExpressionKey.Expression );
 	UMaterialExpressionTextureSampleParameter* TexParam = Cast<UMaterialExpressionTextureSampleParameter>( MaterialExpressionKey.Expression );
+	UMaterialExpressionRuntimeVirtualTextureSampleParameter* RuntimeVirtualTexParam = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(MaterialExpressionKey.Expression);
 	UMaterialExpressionFontSampleParameter* FontParam = Cast<UMaterialExpressionFontSampleParameter>( MaterialExpressionKey.Expression );
 
 	if (Param)
@@ -417,12 +419,16 @@ void FMaterialEditorUtilities::GetVisibleMaterialParametersFromExpression(
 	{
 		ParameterInfo.Name = TexParam->ParameterName;
 	}
+	else if (RuntimeVirtualTexParam)
+	{
+		ParameterInfo.Name = RuntimeVirtualTexParam->ParameterName;
+	}
 	else if (FontParam)
 	{
 		ParameterInfo.Name = FontParam->ParameterName;
 	}
 		
-	if (Param || TexParam || FontParam)
+	if (Param || TexParam || FontParam || RuntimeVirtualTexParam)
 	{
 		VisibleExpressions.AddUnique(ParameterInfo);
 	}
