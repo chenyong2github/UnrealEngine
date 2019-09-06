@@ -920,8 +920,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(UNiagaraCompon
 			}
 			else if (AActor* Actor = Cast<AActor>(UserParamObject))
 			{
-				TArray<UActorComponent*> SourceComps = Actor->GetComponentsByClass(USkeletalMeshComponent::StaticClass());
-				for (UActorComponent* ActorComp : SourceComps)
+				for (UActorComponent* ActorComp : Actor->GetComponents())
 				{
 					USkeletalMeshComponent* SourceComp = Cast<USkeletalMeshComponent>(ActorComp);
 					if (SourceComp)
@@ -994,8 +993,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(UNiagaraCompon
 			}
 			else if (AActor* Owner = SimComp->GetAttachmentRootActor())
 			{
-				TArray<UActorComponent*> SourceComps = Owner->GetComponentsByClass(USkeletalMeshComponent::StaticClass());
-				for (UActorComponent* ActorComp : SourceComps)
+				for (UActorComponent* ActorComp : Owner->GetComponents())
 				{
 					USkeletalMeshComponent* SourceComp = Cast<USkeletalMeshComponent>(ActorComp);
 					if (SourceComp)

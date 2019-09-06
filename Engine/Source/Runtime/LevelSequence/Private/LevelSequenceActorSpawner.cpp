@@ -120,10 +120,12 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 
 	{
 		// Disable all particle components so that they don't auto fire as soon as the actor is spawned. The particles should be triggered through the particle track.
-		TArray<UActorComponent*> ParticleComponents = ObjectTemplate->GetComponentsByClass(UParticleSystemComponent::StaticClass());
-		for (int32 ComponentIdx = 0; ComponentIdx < ParticleComponents.Num(); ++ComponentIdx)
+		for (UActorComponent* Component : ObjectTemplate->GetComponents())
 		{
-			ParticleComponents[ComponentIdx]->bAutoActivate = false;
+			if (UParticleSystemComponent* ParticleComponent = Cast<UParticleSystemComponent>(Component))
+			{
+				Component->bAutoActivate = false;
+			}
 		}
 	}
 
