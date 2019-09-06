@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Private/Trace.h"
+#include "Private/Field.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 namespace Trace
@@ -23,6 +24,5 @@ UE_TRACE_API void	Flush() UE_TRACE_IMPL();
 #define UE_TRACE_EVENT_IS_ENABLED(LoggerName, EventName)		TRACE_PRIVATE_EVENT_IS_ENABLED(LoggerName, EventName)
 #define UE_TRACE_LOG(LoggerName, EventName, ...)				TRACE_PRIVATE_LOG(LoggerName, EventName, ##__VA_ARGS__)
 
-#include "Private/Field.h"
 #include "Private/Event.inl"
 #include "Private/Writer.inl"

@@ -1,12 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if WITH_DEV_AUTOMATION_TESTS 
-
 #include "Misc/Char.h"
 #include "Misc/AutomationTest.h"
 #include <locale.h>
 #include <ctype.h>
 #include <wctype.h>
+
+#if WITH_DEV_AUTOMATION_TESTS 
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(TCharTest, "System.Core.Misc.Char", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 

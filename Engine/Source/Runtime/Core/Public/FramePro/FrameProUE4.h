@@ -22,6 +22,8 @@
 	Add FramePro.cpp to your project to allow FramePro to communicate with your application.
 */
 
+#pragma once
+
 //------------------------------------------------------------------------
 #include "FramePro.h"
 
