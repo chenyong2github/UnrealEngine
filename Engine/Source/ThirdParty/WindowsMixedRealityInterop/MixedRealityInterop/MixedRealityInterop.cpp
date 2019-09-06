@@ -2244,7 +2244,7 @@ namespace WindowsMixedReality
 				SpatialInteractionSourceLocation sourceLocation = prop.TryGetLocation(coordinateSystem);
 				if (sourceLocation != nullptr)
 				{
-					if (source.IsPointingSupported() && sourceLocation.SourcePointerPose() != nullptr)
+					if (!m_isHL1Remoting && source.IsPointingSupported() && sourceLocation.SourcePointerPose() != nullptr)
 					{
 						float3 pos = sourceLocation.SourcePointerPose().Position();
 						float3 forward = sourceLocation.SourcePointerPose().ForwardDirection();
