@@ -13,6 +13,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Editor.h"
 #include "ScopedTransaction.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ActorSequenceEditorStyle.h"
