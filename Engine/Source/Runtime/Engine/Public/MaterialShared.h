@@ -69,10 +69,6 @@ template <class ElementType> class TLinkedList;
 // disallow debug data in shipping or on non-desktop Test
 #define ALLOW_SHADERMAP_DEBUG_DATA (!(UE_BUILD_SHIPPING || (UE_BUILD_TEST && !PLATFORM_DESKTOP)))
 
-#ifndef STORE_ONLY_ACTIVE_SHADERMAPS
-#define STORE_ONLY_ACTIVE_SHADERMAPS 0
-#endif
-
 #define MATERIAL_OPACITYMASK_DOESNT_SUPPORT_VIRTUALTEXTURE 1
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMaterial,Log,Verbose);
