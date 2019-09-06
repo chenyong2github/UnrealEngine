@@ -25,8 +25,9 @@ class ONLINESUBSYSTEMUTILS_API UIpNetDriver : public UNetDriver
 {
 	friend class FPacketIterator;
 
-    GENERATED_UCLASS_BODY()
+    GENERATED_BODY()
 
+public:
 	/** Should port unreachable messages be logged */
     UPROPERTY(Config)
     uint32 LogPortUnreach:1;
@@ -44,6 +45,10 @@ class ONLINESUBSYSTEMUTILS_API UIpNetDriver : public UNetDriver
 
 	/** If pausing socket receives, the time at which this should end */
 	float PauseReceiveEnd;
+
+
+	/** Base constructor */
+	UIpNetDriver(const FObjectInitializer& ObjectInitializer);
 
 	//~ Begin UNetDriver Interface.
 	virtual bool IsAvailable() const override;
@@ -69,8 +74,33 @@ class ONLINESUBSYSTEMUTILS_API UIpNetDriver : public UNetDriver
 	 * @param CountBytesRef		The packet size (may be modified)
 	 * @return					If a new NetConnection is created, returns the net connection
 	 */
-	UNetConnection* ProcessConnectionlessPacket(const TSharedRef<FInternetAddr>& Address, uint8* Data, int32& CountBytesRef);
+	UE_DEPRECATED(4.24, "ProcessConnectionlessPacket has a new API, and will become private soon.")
+	UNetConnection* ProcessConnectionlessPacket(const TSharedRef<FInternetAddr>& Address, uint8* Data, int32& CountBytesRef)
+	{
+		FReceivedPacketView PacketView;
 
+		PacketView.Data = MakeArrayView(Data, CountBytesRef);
+		PacketView.Address = Address;
+		PacketView.Error = SE_NO_ERROR;
+
+		UNetConnection* ReturnVal = ProcessConnectionlessPacket(PacketView, { Data, MAX_PACKET_SIZE } );
+
+		CountBytesRef = PacketView.Data.Num();
+
+		return ReturnVal;
+	}
+
+private:
+	/**
+	 * Process packets not associated with a NetConnection, performing handshaking and NetConnection creation or remapping as necessary.
+	 *
+	 * @param PacketRef			A view of the received packet (may output a new packet view, possibly using WorkingBuffer)
+	 * @param WorkingBuffer		A buffer for storing processed packet data (may be the buffer the input ReceivedPacketRef points to)
+	 * @return					If a new NetConnection is created, returns the net connection
+	 */
+	UNetConnection* ProcessConnectionlessPacket(FReceivedPacketView& PacketRef, const FPacketBufferView& WorkingBuffer);
+
+public:
 	//~ Begin UIpNetDriver Interface.
 	virtual FSocket * CreateSocket();
 
