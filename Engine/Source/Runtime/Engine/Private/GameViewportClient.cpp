@@ -2159,7 +2159,7 @@ void UGameViewportClient::LayoutPlayers()
 	}
 }
 
-void UGameViewportClient::SetDisableSplitscreenOverride( const bool bDisabled )
+void UGameViewportClient::SetForceDisableSplitscreen(const bool bDisabled)
 {
 	bDisableSplitScreenOverride = bDisabled;
 	LayoutPlayers();

@@ -14,7 +14,7 @@ class FFloat16Color;
 /**
  * Enum for the different kinds of gamma spaces we expect to need to convert from/to.
  */
-enum class EGammaSpace
+enum class EGammaSpace : uint8
 {
 	/** No gamma correction is applied to this space, the incoming colors are assumed to already be in linear space. */
 	Linear,

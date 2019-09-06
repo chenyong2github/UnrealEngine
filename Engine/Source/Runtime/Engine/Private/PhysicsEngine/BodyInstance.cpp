@@ -2303,12 +2303,17 @@ const FWalkableSlopeOverride& FBodyInstance::GetWalkableSlopeOverride() const
 	}
 }
 
-void FBodyInstance::SetWalkableSlopeOverride(const FWalkableSlopeOverride& NewOverride)
+void FBodyInstance::SetWalkableSlopeOverride(const FWalkableSlopeOverride& NewOverride, bool bNewOverideSetting)
 {
-	bOverrideWalkableSlopeOnInstance = true;
+	bOverrideWalkableSlopeOnInstance = bNewOverideSetting;
 	WalkableSlopeOverride = NewOverride;
 }
 
+
+bool FBodyInstance::GetOverrideWalkableSlopeOnInstance() const
+{
+	return bOverrideWalkableSlopeOnInstance;
+}
 
 /** 
 *	Changes the current PhysMaterialOverride for this body. 

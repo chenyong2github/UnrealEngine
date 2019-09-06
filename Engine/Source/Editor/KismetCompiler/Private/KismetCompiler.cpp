@@ -591,6 +591,44 @@ void FKismetCompilerContext::ValidateVariableNames()
 	}
 }
 
+void FKismetCompilerContext::ValidateComponentClassOverrides()
+{
+	if (UClass* ParentClass = Blueprint->ParentClass)
+	{
+		if (UObject* CDO = ParentClass->GetDefaultObject(false))
+		{
+			for (auto It(Blueprint->ComponentClassOverrides.CreateIterator()); It; ++It)
+			{
+				const FBPComponentClassOverride& Override = *It;
+				if (UObject* OverridenObject = (UObject*)FindObjectWithOuter(CDO, nullptr, Override.ComponentName))
+				{
+					if (Override.ComponentClass && !Override.ComponentClass->IsChildOf(OverridenObject->GetClass()))
+					{
+						MessageLog.Error(
+							*FText::Format(
+								LOCTEXT("InvalidOverride", "{0} is not a legal override for component {1} because it does not derive from {2}."),
+								FText::FromName(Override.ComponentClass->GetFName()),
+								FText::FromName(Override.ComponentName),
+								FText::FromName(OverridenObject->GetClass()->GetFName())
+								).ToString()
+						);
+					}
+				}
+				else
+				{
+					MessageLog.Note(
+						*FText::Format(
+							LOCTEXT("UnneededOverride", "Removing class override for component {0} that no longer exists."),
+							FText::FromName(Override.ComponentName)
+						).ToString()
+					);
+					It.RemoveCurrent();
+				}
+			}
+		}
+	}
+}
+
 void FKismetCompilerContext::ValidateTimelineNames()
 {
 	TSharedPtr<FKismetNameValidator> ParentBPNameValidator;
@@ -2449,6 +2487,7 @@ void FKismetCompilerContext::FinishCompilingClass(UClass* Class)
 		BPGClass->Timelines = Blueprint->Timelines;
 		BPGClass->SimpleConstructionScript = Blueprint->SimpleConstructionScript;
 		BPGClass->InheritableComponentHandler = Blueprint->InheritableComponentHandler;
+		BPGClass->ComponentClassOverrides = Blueprint->ComponentClassOverrides;
 	}
 
 	//@TODO: Not sure if doing this again is actually necessary
@@ -3951,6 +3990,8 @@ void FKismetCompilerContext::CompileClassLayout(EInternalCompilerFlags InternalF
 	// Ensure that member variable names are valid and that there are no collisions with a parent class
 	// This validation requires CDO object.
 	ValidateVariableNames();
+
+	ValidateComponentClassOverrides();
 
 	OldCDO = NULL;
 	OldGenLinkerIdx = INDEX_NONE;

@@ -2430,7 +2430,7 @@ public:
 	ClassAddReferencedObjectsType ClassAddReferencedObjects;
 
 	/** Class pseudo-unique counter; used to accelerate unique instance name generation */
-	uint32 ClassUnique:31;
+	mutable uint32 ClassUnique:31;
 
 	/** Used to check if the class was cooked or not */
 	uint32 bCooked:1;
@@ -2710,11 +2710,11 @@ public:
 	 * @param	bCreateIfNeeded if true (default) then the CDO is created if it is null
 	 * @return		the CDO for this class
 	 */
-	UObject* GetDefaultObject(bool bCreateIfNeeded = true)
+	UObject* GetDefaultObject(bool bCreateIfNeeded = true) const
 	{
 		if (ClassDefaultObject == nullptr && bCreateIfNeeded)
 		{
-			CreateDefaultObject();
+			const_cast<UClass*>(this)->CreateDefaultObject();
 		}
 
 		return ClassDefaultObject;
@@ -2735,10 +2735,15 @@ public:
 	virtual void InitPropertiesFromCustomList(uint8* DataPtr, const uint8* DefaultDataPtr) {}
 
 	/**
+	 * Allows class to provide data to the object initializer that can affect how native class subobjects are created.
+	 */
+	virtual void SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const {}
+
+	/**
 	 * Get the name of the CDO for the this class
 	 * @return The name of the CDO
 	 */
-	FName GetDefaultObjectName();
+	FName GetDefaultObjectName() const;
 
 	/** Returns memory used to store temporary data on an instance, used by blueprints */
 	virtual uint8* GetPersistentUberGraphFrame(UObject* Obj, UFunction* FuncToCheck) const
@@ -2761,7 +2766,7 @@ public:
 	 * @return		the CDO for this class
 	 */
 	template<class T>
-	T* GetDefaultObject()
+	T* GetDefaultObject() const
 	{
 		UObject *Ret = GetDefaultObject();
 		check(Ret->IsA(T::StaticClass()));
@@ -2973,7 +2978,7 @@ public:
 	virtual bool HasProperty(UProperty* InProperty) const;
 
 	/** Finds the object that is used as the parent object when serializing properties, overridden for blueprints */
-	virtual UObject* FindArchetype(UClass* ArchetypeClass, const FName ArchetypeName) const { return nullptr; }
+	virtual UObject* FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName) const { return nullptr; }
 
 	/** Returns archetype object for CDO */
 	virtual UObject* GetArchetypeForCDO() const;
@@ -3056,12 +3061,15 @@ class COREUOBJECT_API UDynamicClass : public UClass
 
 public:
 
+	typedef void (*DynamicClassInitializerType)	(UDynamicClass*);
+
 	UDynamicClass(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	explicit UDynamicClass(const FObjectInitializer& ObjectInitializer, UClass* InSuperClass);
 	UDynamicClass(EStaticConstructor, FName InName, uint32 InSize, uint32 InAlignment, EClassFlags InClassFlags, EClassCastFlags InClassCastFlags,
 		const TCHAR* InClassConfigName, EObjectFlags InFlags, ClassConstructorType InClassConstructor,
 		ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
-		ClassAddReferencedObjectsType InClassAddReferencedObjects);
+		ClassAddReferencedObjectsType InClassAddReferencedObjects,
+		DynamicClassInitializerType InDynamicClassInitializer);
 
 	// UObject interface.
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
@@ -3069,7 +3077,8 @@ public:
 	// UClass interface
 	virtual UObject* CreateDefaultObject();
 	virtual void PurgeClass(bool bRecompilingOnLoad) override;
-	virtual UObject* FindArchetype(UClass* ArchetypeClass, const FName ArchetypeName) const override;
+	virtual UObject* FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName) const override;
+	virtual void SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const override;
 
 	/** Find a struct property, called from generated code */
 	UStructProperty* FindStructPropertyChecked(const TCHAR* PropertyName) const;
@@ -3088,8 +3097,13 @@ public:
 	TArray<UObject*> ComponentTemplates;
 	TArray<UObject*> Timelines;
 
+	/** Array of blueprint overrides of component classes in parent classes */
+	TArray<TPair<FName, UClass*>> ComponentClassOverrides;
+
 	/** IAnimClassInterface (UAnimClassData) or null */
 	UObject* AnimClassImplementation;
+
+	DynamicClassInitializerType DynamicClassInitializer;
 };
 
 /**
@@ -3153,7 +3167,8 @@ COREUOBJECT_API void GetPrivateStaticClassBody(
 	UClass::ClassAddReferencedObjectsType InClassAddReferencedObjects,
 	UClass::StaticClassFunctionType InSuperClassFn,
 	UClass::StaticClassFunctionType InWithinClassFn,
-	bool bIsDynamic = false);
+	bool bIsDynamic = false,
+	UDynamicClass::DynamicClassInitializerType InDynamicClassInitializer = nullptr);
 
 /*-----------------------------------------------------------------------------
 	FObjectInstancingGraph.

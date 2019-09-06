@@ -187,6 +187,7 @@ ENUM_CLASS_FLAGS(EGoogleARCoreLineTraceChannel);
 UENUM(BlueprintType, Category = "GoogleARCore|CameraConfig")
 enum class EGoogleARCoreCameraFacing : uint8
 {
+	None = 0 UMETA(Hidden),
 	/* Camera facing away from user. */
 	Back = 1,
 	/* Camera facing towards user. */

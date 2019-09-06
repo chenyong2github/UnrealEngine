@@ -14,6 +14,7 @@
 UENUM(BlueprintType, meta=(Bitflags))
 enum EAnimAssetCurveFlags
 {
+	AACF_NONE = 0 UMETA(Hidden),
 	// Used as morph target curve
 	AACF_DriveMorphTarget_DEPRECATED = 0x00000001 UMETA(Hidden), // This has moved to FAnimCurveType:bMorphTarget. Set per skeleton. DO NOT REMOVE UNTIL FrameworkObjectVersion.MoveCurveTypesToSkeleton expires.
 	// Used as triggering event

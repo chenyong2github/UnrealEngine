@@ -12,6 +12,10 @@
 
 enum class EParticleSignificanceLevel : uint8;
 enum class EParticleSystemInsignificanceReaction: uint8;
+class UInterpCurveEdSetup;
+class UMaterialInterface;
+class UParticleSystemComponent;
+class UParticleEmitter;
 
 /**
  *	ParticleSystemUpdateMode
@@ -100,7 +104,7 @@ struct FNamedEmitterMaterial
 	FName Name;
 
 	UPROPERTY(EditAnywhere, Category = NamedMaterial)
-	class UMaterialInterface* Material;
+	UMaterialInterface* Material;
 };
 
 UCLASS(Abstract, MinimalAPI, BlueprintType)
@@ -132,9 +136,6 @@ class UParticleSystem : public UFXSystemAsset
 
 	}
 
-	UPROPERTY(EditAnywhere, Category=ParticleSystem, AssetRegistrySearchable)
-	TEnumAsByte<enum EParticleSystemUpdateMode> SystemUpdateMode;
-
 	/** UpdateTime_FPS	- the frame per second to update at in FixedTime mode		*/
 	UPROPERTY(EditAnywhere, Category=ParticleSystem)
 	float UpdateTime_FPS;
@@ -159,11 +160,11 @@ class UParticleSystem : public UFXSystemAsset
 
 	/** Emitters	- internal - the array of emitters in the system				*/
 	UPROPERTY(instanced)
-	TArray<class UParticleEmitter*> Emitters;
+	TArray<UParticleEmitter*> Emitters;
 
 	/** The component used to preview the particle system in Cascade				*/
 	UPROPERTY(transient)
-	class UParticleSystemComponent* PreviewComponent;
+	UParticleSystemComponent* PreviewComponent;
 
 #if WITH_EDITORONLY_DATA
 	/** The angle to use when rendering the thumbnail image							*/
@@ -181,11 +182,7 @@ class UParticleSystem : public UFXSystemAsset
 #endif // WITH_EDITORONLY_DATA
 	/** Used for curve editor to remember curve-editing setup.						*/
 	UPROPERTY(export)
-	class UInterpCurveEdSetup* CurveEdSetup;
-
-	/** If true, the system's Z axis will be oriented toward the camera				*/
-	UPROPERTY(EditAnywhere, Category=ParticleSystem)
-	uint32 bOrientZAxisTowardCamera:1;
+	UInterpCurveEdSetup* CurveEdSetup;
 
 	//
 	//	LOD
@@ -196,14 +193,9 @@ class UParticleSystem : public UFXSystemAsset
 	UPROPERTY(EditAnywhere, Category=LOD, AssetRegistrySearchable)
 	float LODDistanceCheckTime;
 
-	/**
-	 *	The method of LOD level determination to utilize for this particle system
-	 *	  PARTICLESYSTEMLODMETHOD_Automatic - Automatically set the LOD level, checking every LODDistanceCheckTime seconds.
-	 *    PARTICLESYSTEMLODMETHOD_DirectSet - LOD level is directly set by the game code.
-	 *    PARTICLESYSTEMLODMETHOD_ActivateAutomatic - LOD level is determined at Activation time, then left alone unless directly set by game code.
-	 */
-	UPROPERTY(EditAnywhere, Category=LOD)
-	TEnumAsByte<enum ParticleSystemLODMethod> LODMethod;
+	/** World space radius that UVs generated with the ParticleMacroUV material node will tile based on. */
+	UPROPERTY(EditAnywhere, Category = MacroUV)
+	float MacroUVRadius;
 
 	/**
 	 *	The array of distances for each LOD level in the system.
@@ -228,20 +220,9 @@ class UParticleSystem : public UFXSystemAsset
 	int32 EditorLODSetting;
 
 #endif // WITH_EDITORONLY_DATA
-	/**
-	 *	Internal value that tracks the regenerate LOD levels preference.
-	 *	If true, when autoregenerating LOD levels in code, the low level will
-	 *	be a duplicate of the high.
-	 */
-	UPROPERTY()
-	uint32 bRegenerateLODDuplicate:1;
 
 	UPROPERTY(EditAnywhere, Category=LOD)
-	TArray<struct FParticleSystemLOD> LODSettings;
-
-	/** Whether to use the fixed relative bounding box or calculate it every frame. */
-	UPROPERTY(EditAnywhere, Category=Bounds)
-	uint32 bUseFixedRelativeBoundingBox:1;
+	TArray<FParticleSystemLOD> LODSettings;
 
 	/**	Fixed relative bounding box for particle system.							*/
 	UPROPERTY(EditAnywhere, Category=Bounds)
@@ -278,35 +259,7 @@ class UParticleSystem : public UFXSystemAsset
 	FColor BackgroundColor;
 
 #endif // WITH_EDITORONLY_DATA
-	/** EDITOR ONLY: Indicates that Cascade would like to have the PeakActiveParticles count reset */
-	UPROPERTY()
-	uint32 bShouldResetPeakCounts:1;
-
-	/** Set during load time to indicate that physics is used... */
-	UPROPERTY(transient)
-	uint32 bHasPhysics:1;
-
-	/** Inidicates the old 'real-time' thumbnail rendering should be used	*/
-	UPROPERTY(EditAnywhere, Category=Thumbnail)
-	uint32 bUseRealtimeThumbnail:1;
-
-	/** Internal: Indicates the PSys thumbnail image is out of date			*/
-	UPROPERTY()
-	uint32 ThumbnailImageOutOfDate:1;
-
-private:
-	/** if true, this psys can tick in any thread **/
-	uint32 bIsElligibleForAsyncTick:1;
-	/** if true, bIsElligibleForAsyncTick is set up **/
-	uint32 bIsElligibleForAsyncTickComputed:1;
-public:
-
-#if WITH_EDITORONLY_DATA
-	/** Internal: The PSys thumbnail image									*/
-	UPROPERTY()
-	class UTexture2D* ThumbnailImage;
-
-#endif // WITH_EDITORONLY_DATA
+	
 	/** How long this Particle system should delay when ActivateSystem is called on it. */
 	UPROPERTY(EditAnywhere, Category=Delay, AssetRegistrySearchable)
 	float Delay;
@@ -315,49 +268,109 @@ public:
 	UPROPERTY(EditAnywhere, Category=Delay)
 	float DelayLow;
 
+	/** If true, the system's Z axis will be oriented toward the camera				*/
+	UPROPERTY(EditAnywhere, Category = ParticleSystem)
+	uint8 bOrientZAxisTowardCamera : 1;
+
+	/** Whether to use the fixed relative bounding box or calculate it every frame. */
+	UPROPERTY(EditAnywhere, Category = Bounds)
+	uint8 bUseFixedRelativeBoundingBox : 1;
+
+	/** EDITOR ONLY: Indicates that Cascade would like to have the PeakActiveParticles count reset */
+	UPROPERTY()
+	uint8 bShouldResetPeakCounts : 1;
+
+	/** Set during load time to indicate that physics is used... */
+	UPROPERTY(transient)
+	uint8 bHasPhysics : 1;
+
+	/** Inidicates the old 'real-time' thumbnail rendering should be used	*/
+	UPROPERTY(EditAnywhere, Category=Thumbnail)
+	uint8 bUseRealtimeThumbnail : 1;
+
+	/** Internal: Indicates the PSys thumbnail image is out of date			*/
+	UPROPERTY()
+	uint8 ThumbnailImageOutOfDate : 1;
+
+private:
+	/** if true, this psys can tick in any thread **/
+	uint8 bIsElligibleForAsyncTick : 1;
+	/** if true, bIsElligibleForAsyncTick is set up **/
+	uint8 bIsElligibleForAsyncTickComputed : 1;
+public:
+
+#if WITH_EDITORONLY_DATA
+	/** Internal: The PSys thumbnail image									*/
+	UPROPERTY()
+	class UTexture2D* ThumbnailImage;
+
+#endif // WITH_EDITORONLY_DATA
+
 	/**
 	 *	If true, select the emitter delay from the range 
 	 *		[DelayLow..Delay]
 	 */
 	UPROPERTY(EditAnywhere, Category=Delay)
-	uint32 bUseDelayRange:1;
+	uint8 bUseDelayRange : 1;
 
 	UPROPERTY(EditAnywhere, Category = Performance, meta = (ToolTip = "Whether or not to allow instances of this system to have their ticks managed."), AdvancedDisplay)
-	uint32 bAllowManagedTicking:1;
+	uint8 bAllowManagedTicking : 1;
 
 	UPROPERTY(EditAnywhere, Category = Performance, meta = (ToolTip = "Auto-deactivate system if all emitters are determined to not spawn particles again, regardless of lifetime."))
-	bool bAutoDeactivate;
+	uint8 bAutoDeactivate : 1;
 
-	UPROPERTY(EditAnywhere, Category = Performance, meta = (ToolTip = "Minimum duration between ticks; 33=tick at max. 30FPS, 16=60FPS, 8=120FPS"))
-	uint32 MinTimeBetweenTicks;
+	/**
+	 *	Internal value that tracks the regenerate LOD levels preference.
+	 *	If true, when autoregenerating LOD levels in code, the low level will
+	 *	be a duplicate of the high.
+	 */	
+	UPROPERTY()
+	uint8 bRegenerateLODDuplicate : 1;
+
+	UPROPERTY(EditAnywhere, Category = ParticleSystem, AssetRegistrySearchable)
+	TEnumAsByte<enum EParticleSystemUpdateMode> SystemUpdateMode;
+
+	/**
+	 *	The method of LOD level determination to utilize for this particle system
+	 *	  PARTICLESYSTEMLODMETHOD_Automatic - Automatically set the LOD level, checking every LODDistanceCheckTime seconds.
+	 *    PARTICLESYSTEMLODMETHOD_DirectSet - LOD level is directly set by the game code.
+	 *    PARTICLESYSTEMLODMETHOD_ActivateAutomatic - LOD level is determined at Activation time, then left alone unless directly set by game code.
+	 */
+	UPROPERTY(EditAnywhere, Category=LOD)
+	TEnumAsByte<enum ParticleSystemLODMethod> LODMethod;
 
 	/** The reaction this system takes when all emitters are insignificant. */
 	UPROPERTY(EditAnywhere, Category = Performance)
 	EParticleSystemInsignificanceReaction InsignificantReaction;
 
-	/** Time delay between all emitters becoming insignificant and the systems insignificant reaction. */
-	UPROPERTY(EditAnywhere, Category = Performance)
-	float InsignificanceDelay;
+	/**
+	 *	Which occlusion bounds method to use for this particle system.
+	 *	EPSOBM_None - Don't determine occlusion for this system.
+	 *	EPSOBM_ParticleBounds - Use the bounds of the component when determining occlusion.
+	 */
+	UPROPERTY(EditAnywhere, Category = Occlusion)
+	TEnumAsByte<enum EParticleSystemOcclusionBoundsMethod> OcclusionBoundsMethod;
+
+private:
+	/** Does any emitter loop forever? */
+	uint8 bAnyEmitterLoopsForever : 1;
+
+public:
 
 	/** The maximum level of significance for emitters in this system. Any emitters with a higher significance will be capped at this significance level. */
 	UPROPERTY(EditAnywhere, Category = Performance)
 	EParticleSignificanceLevel MaxSignificanceLevel;
 
+	UPROPERTY(EditAnywhere, Category = Performance, meta = (ToolTip = "Minimum duration between ticks; 33=tick at max. 30FPS, 16=60FPS, 8=120FPS"))
+	uint32 MinTimeBetweenTicks;
+
+	/** Time delay between all emitters becoming insignificant and the systems insignificant reaction. */
+	UPROPERTY(EditAnywhere, Category = Performance)
+	float InsignificanceDelay;
+
 	/** Local space position that UVs generated with the ParticleMacroUV material node will be centered on. */
 	UPROPERTY(EditAnywhere, Category=MacroUV)
 	FVector MacroUVPosition;
-
-	/** World space radius that UVs generated with the ParticleMacroUV material node will tile based on. */
-	UPROPERTY(EditAnywhere, Category=MacroUV)
-	float MacroUVRadius;
-
-	/** 
-	 *	Which occlusion bounds method to use for this particle system.
-	 *	EPSOBM_None - Don't determine occlusion for this system.
-	 *	EPSOBM_ParticleBounds - Use the bounds of the component when determining occlusion.
-	 */
-	UPROPERTY(EditAnywhere, Category=Occlusion)
-	TEnumAsByte<enum EParticleSystemOcclusionBoundsMethod> OcclusionBoundsMethod;
 
 	/** The occlusion bounds to use if OcclusionBoundsMethod is set to EPSOBM_CustomBounds */
 	UPROPERTY(EditAnywhere, Category=Occlusion)
@@ -384,7 +397,7 @@ public:
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	bool UsesCPUCollision() const;
 	virtual bool CanBeClusterRoot() const override;
-	virtual void Serialize(FArchive& Ar);
+	virtual void Serialize(FArchive& Ar) override;
 
 	//~ End UObject Interface.
 
@@ -551,15 +564,10 @@ private:
 	/** The lowest significance of any emitter. Clamped by MaxSignificanceLevel.*/
 	EParticleSignificanceLevel LowestSignificance;
 	
-	uint32 bShouldManageSignificance : 1;
+	uint8 bShouldManageSignificance : 1;
 
-	/** Does any emitter loop forever? */
-	uint32 bAnyEmitterLoopsForever : 1;
-	/** Does any emiter never die due to infinie looping AND indefinite duration? */
-	uint32 bIsImmortal : 1;
+	/** Does any emitter never die due to infinite looping AND indefinite duration? */
+	uint8 bIsImmortal : 1;
 	/** Does any emitter ever become a zombie (is immortal AND stops spawning at some point, i.e. is burst only)? */
-	uint32 bWillBecomeZombie : 1;
+	uint8 bWillBecomeZombie : 1;
 };
-
-
-

@@ -26,17 +26,17 @@ class ENGINE_API UArrowComponent : public UPrimitiveComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ArrowComponent)
 	float ArrowSize;
 
+	/** The size on screen to limit this arrow to (in screen space) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ArrowComponent)
+	float ScreenSize;
+
 	/** Set to limit the screen size of this arrow */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ArrowComponent)
-	bool bIsScreenSizeScaled;
-
-	/** The size on screen to limit this arrow to (in screen space) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ArrowComponent)
-	float ScreenSize;
+	uint8 bIsScreenSizeScaled : 1;
 
 	/** If true, don't show the arrow when EngineShowFlags.BillboardSprites is disabled. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ArrowComponent)
-	uint32 bTreatAsASprite:1;
+	uint8 bTreatAsASprite : 1;
 
 #if WITH_EDITORONLY_DATA
 	/** Sprite category that the arrow component belongs to, if being treated as a sprite. Value serves as a key into the localization file. */
