@@ -8,6 +8,7 @@ public class TP_VehicleTarget : TargetRules
 	public TP_VehicleTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
+		DefaultBuildSettings = BuildSettingsVersion.Latest;
 		ExtraModuleNames.Add("TP_Vehicle");
 	}
 }

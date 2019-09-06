@@ -304,7 +304,7 @@ namespace UnrealBuildTool
 					// Execute the actions
 					if(MergedActionsToExecute.Count == 0)
 					{
-						if((Options & BuildOptions.Quiet) == 0)
+						if ((Options & BuildOptions.Quiet) == 0)
 						{
 							Log.TraceInformation((TargetDescriptors.Count == 1)? "Target is up to date" : "Targets are up to date");
 						}
@@ -346,18 +346,20 @@ namespace UnrealBuildTool
 		/// <param name="Makefiles">Matching array of makefiles for each target</param>
 		static void OutputToolchainInfo(List<TargetDescriptor> TargetDescriptors, TargetMakefile[] Makefiles)
 		{
-			List<string> UniqueStrings = new List<string>(Makefiles.Select(x => x.ToolchainInfo).Where(x => x != null).Distinct());
-			if(UniqueStrings.Count == 1)
+			if(Makefiles.Length == 1 || Makefiles.Skip(1).All(x => Enumerable.SequenceEqual(x.Diagnostics, Makefiles[0].Diagnostics)))
 			{
-				Log.TraceInformation("{0}", UniqueStrings[0]);
+				foreach(string Diagnostic in Makefiles[0].Diagnostics)
+				{
+					Log.TraceInformation("{0}", Diagnostic);
+				}
 			}
 			else
 			{
 				for(int Idx = 0; Idx < TargetDescriptors.Count; Idx++)
 				{
-					if(Makefiles[Idx].ToolchainInfo != null)
+					foreach(string Diagnostic in Makefiles[Idx].Diagnostics)
 					{
-						Log.TraceInformation("For {0}: {1}", TargetDescriptors[Idx], Makefiles[Idx].ToolchainInfo);
+						Log.TraceInformation("For {0}: {1}", TargetDescriptors[Idx], Diagnostic);
 					}
 				}
 			}

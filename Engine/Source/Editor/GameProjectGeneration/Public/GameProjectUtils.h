@@ -277,6 +277,9 @@ public:
 	 */
 	static void UpdateAdditionalPluginDirectory(const FString& InDir, const bool bAddOrRemove);
 
+	/** Gets the default build settings version for UBT */
+	static const TCHAR* GetDefaultBuildSettingsVersion();
+
 private:
 
 	static FString GetHardwareConfigString(const FProjectInformation& InProjectInfo);

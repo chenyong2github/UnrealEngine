@@ -1556,7 +1556,11 @@ namespace UnrealBuildTool
 
 			// Create the makefile
 			string ExternalMetadata = UEBuildPlatform.GetBuildPlatform(Platform).GetExternalBuildMetadata(ProjectFile);
-			TargetMakefile Makefile = new TargetMakefile(TargetToolChain.GetVersionInfo(), ExternalMetadata, Binaries[0].OutputFilePaths[0], ReceiptFileName, ProjectIntermediateDirectory, TargetType, Rules.ConfigValueTracker, bDeployAfterCompile, bHasProjectScriptPlugin);
+			TargetMakefile Makefile = new TargetMakefile(ExternalMetadata, Binaries[0].OutputFilePaths[0], ReceiptFileName, ProjectIntermediateDirectory, TargetType, Rules.ConfigValueTracker, bDeployAfterCompile, bHasProjectScriptPlugin);
+
+			// Get diagnostic info to be printed before each build
+			TargetToolChain.GetVersionInfo(Makefile.Diagnostics);
+			Rules.GetBuildSettingsInfo(Makefile.Diagnostics);
 
 			// Setup the hot reload module list
 			Makefile.HotReloadModuleNames = GetHotReloadModuleNames();
@@ -3650,29 +3654,6 @@ namespace UnrealBuildTool
 					if(ProjectFile == null || !RulesObject.File.IsUnderDirectory(ProjectFile.Directory))
 					{
 						Log.TraceWarning("{0} module has shared PCHs disabled, but does not have a private PCH set", ModuleName);
-					}
-				}
-
-				// Disable shared PCHs for game modules by default (but not game plugins, since they won't depend on the game's PCH!)
-				if (RulesObject.PCHUsage == ModuleRules.PCHUsageMode.Default)
-				{
-					if(RulesObject.bUseBackwardsCompatibleDefaults && !Rules.bIWYU)
-					{
-						if(RulesObject.Plugin != null)
-						{
-							// Game plugin.  Enable shared PCHs by default, since they aren't typically large enough to warrant their own PCH.
-							RulesObject.PCHUsage = ModuleRules.PCHUsageMode.UseSharedPCHs;
-						}
-						else
-						{
-							// Game module.  Do not enable shared PCHs by default, because games usually have a large precompiled header of their own and compile times would suffer.
-							RulesObject.PCHUsage = ModuleRules.PCHUsageMode.NoSharedPCHs;
-						}
-					}
-					else
-					{
-						// Engine module or plugin module -- allow shared PCHs
-						RulesObject.PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 					}
 				}
 

@@ -83,6 +83,29 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// Determines which version of the engine to take default build settings from. This allows for backwards compatibility as new options are enabled by default.
+	/// </summary>
+	public enum BuildSettingsVersion
+	{
+		/// <summary>
+		/// Legacy default build settings for 4.23 and earlier.
+		/// </summary>
+		V1,
+
+		/// <summary>
+		/// New defaults for 4.24: ModuleRules.PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs, ModuleRules.bLegacyPublicIncludePaths = false.
+		/// </summary>
+		V2,
+
+		// *** When adding new entries here, be sure to update GameProjectUtils::GetDefaultBuildSettingsVersion() to ensure that new projects are created correctly. ***
+
+		/// <summary>
+		/// Always use the defaults for the current engine version. Note that this may cause compatibility issues when upgrading.
+		/// </summary>
+		Latest
+	}
+
+	/// <summary>
 	/// Attribute used to mark fields which much match between targets in the shared build environment
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
@@ -173,6 +196,12 @@ namespace UnrealBuildTool
 		/// The type of target.
 		/// </summary>
 		public global::UnrealBuildTool.TargetType Type = global::UnrealBuildTool.TargetType.Game;
+
+		/// <summary>
+		/// Specifies the engine version to maintain backwards-compatible default build settings with (eg. DefaultSettingsVersion.Release_4_23, DefaultSettingsVersion.Release_4_24). Specify DefaultSettingsVersion.Latest to always
+		/// use defaults for the current engine version, at the risk of introducing build errors while upgrading.
+		/// </summary>
+		public BuildSettingsVersion DefaultBuildSettings = BuildSettingsVersion.V1;
 
 		/// <summary>
 		/// Tracks a list of config values read while constructing this target
@@ -635,10 +664,15 @@ namespace UnrealBuildTool
 		/// Whether to use backwards compatible defaults for this module. By default, engine modules always use the latest default settings, while project modules do not (to support
 		/// an easier migration path).
 		/// </summary>
-		public bool bUseBackwardsCompatibleDefaults = true;
+		[Obsolete("Set DefaultBuildSettings to the appropriate engine version (eg. BuildSettingsVersion.Release_4_23) or BuildSettingsVersion.Latest instead")]
+		public bool bUseBackwardsCompatibleDefaults
+		{
+			get { return DefaultBuildSettings != BuildSettingsVersion.Latest; }
+			set { DefaultBuildSettings = (value ? BuildSettingsVersion.V1 : BuildSettingsVersion.Latest); }
+		}
 
 		/// <summary>
-		/// Enables "include what you use" by default for modules in this target. Changes the default PCH mode for any module in this project to PCHUsageModule.UseExplicitOrSharedPCHs.
+		/// Enables "include what you use" by default for modules in this target. Changes the default PCH mode for any module in this project to PCHUsageMode.UseExplicitOrSharedPCHs.
 		/// </summary>
 		[CommandLine("-IWYU")]
 		public bool bIWYU = false;
@@ -1055,7 +1089,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Add all the public folders as include paths for the compile environment.
 		/// </summary>
-		public bool bLegacyPublicIncludePaths = true;
+		public bool bLegacyPublicIncludePaths
+		{
+			get { return bLegacyPublicIncludePathsPrivate ?? (DefaultBuildSettings < BuildSettingsVersion.V2); }
+			set { bLegacyPublicIncludePathsPrivate = value; }
+		}
+		private bool? bLegacyPublicIncludePathsPrivate;
 
 		/// <summary>
 		/// Which C++ stanard to use for compiling this target
@@ -1632,6 +1671,38 @@ namespace UnrealBuildTool
 		{
 			get { return UnrealBuildTool.IsEngineInstalled(); }
 		}
+
+		/// <summary>
+		/// Gets diagnostic messages about default settings which have changed in newer versions of the engine
+		/// </summary>
+		/// <param name="Diagnostics">List of diagnostic messages</param>
+		internal void GetBuildSettingsInfo(List<string> Diagnostics)
+		{
+			if(DefaultBuildSettings < BuildSettingsVersion.Latest)
+			{
+				Diagnostics.Add("[Upgrade]");
+				string Version = DefaultBuildSettings.ToString().Replace("Release_", "").Replace("_", ".");
+				Diagnostics.Add(String.Format("[Upgrade] Using UE {0} compatible build settings. The latest version of UE4 sets the following values by default, which may require code changes:", Version));
+
+				List<Tuple<string, string>> ModifiedSettings = new List<Tuple<string, string>>();
+				if(DefaultBuildSettings < BuildSettingsVersion.V2)
+				{
+					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = false", nameof(bLegacyPublicIncludePaths)), "Omits subfolders from public include paths to reduce compiler command line length."));
+					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = PCHUsageMode.UseExplicitOrSharedPCHs", nameof(ModuleRules.PCHUsage)), "Set in build.cs files to enables IWYU-style PCH model. See https://docs.unrealengine.com/en-US/Programming/BuildTools/UnrealBuildTool/IWYU/index.html."));
+				}
+
+				if(ModifiedSettings.Count > 0)
+				{
+					string FormatString = String.Format("[Upgrade]     {{0,-{0}}}   => {{1}}", ModifiedSettings.Max(x => x.Item1.Length));
+					foreach (Tuple<string, string> ModifiedSetting in ModifiedSettings)
+					{
+						Diagnostics.Add(String.Format(FormatString, ModifiedSetting.Item1, ModifiedSetting.Item2));
+					}
+				}
+				Diagnostics.Add(String.Format("[Upgrade] Suppress this message by setting 'DefaultBuildSettings = BuildSettingsVersion.{1};' in {2}, and explicitly overriding desired settings.", Version, (BuildSettingsVersion)(BuildSettingsVersion.Latest - 1), File.GetFileName()));
+				Diagnostics.Add("[Upgrade]");
+			}
+		}
 	}
 
 	/// <summary>
@@ -1710,6 +1781,11 @@ namespace UnrealBuildTool
 		public TargetType Type
 		{
 			get { return Inner.Type; }
+		}
+
+		public BuildSettingsVersion DefaultBuildSettings
+		{
+			get { return Inner.DefaultBuildSettings; }
 		}
 
 		internal ConfigValueTracker ConfigValueTracker
@@ -2038,9 +2114,12 @@ namespace UnrealBuildTool
 			get { return Inner.bEventDrivenLoader; }
 		}
 
+		[Obsolete("Use DefaultBuildSettings to determine the default settings used for this target instead")]
 		public bool bUseBackwardsCompatibleDefaults
 		{
+			#pragma warning disable CS0618
 			get { return Inner.bUseBackwardsCompatibleDefaults; }
+			#pragma warning restore CS0618
 		}
 
 		public bool bIWYU
@@ -2568,6 +2647,15 @@ namespace UnrealBuildTool
 		public bool IsInPlatformGroup(UnrealPlatformGroup Group)
 		{
 			return UEBuildPlatform.IsPlatformInGroup(Platform, Group);
+		}
+
+		/// <summary>
+		/// Gets diagnostic messages about default settings which have changed in newer versions of the engine
+		/// </summary>
+		/// <param name="Diagnostics">List of messages to be appended to</param>
+		internal void GetBuildSettingsInfo(List<string> Diagnostics)
+		{
+			Inner.GetBuildSettingsInfo(Diagnostics);
 		}
 	}
 }
