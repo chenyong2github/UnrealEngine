@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DSP/BufferVectorOperations.h"
 
 namespace Audio
 {
@@ -11,7 +12,7 @@ namespace Audio
 	 *  InData contains data to be cumulatively summed.
 	 *  OutData contains sum and is same size as InData.
 	 */
-	void ArrayCumulativeSum(const TArray<float>& InData, TArray<float>& OutData);
+	AUDIOMIXER_API void ArrayCumulativeSum(const TArray<float>& InData, TArray<float>& OutData);
 
 	/** Mean filter of array.
 	 *
@@ -23,7 +24,7 @@ namespace Audio
 	 *  WindowOrigin describes the offset from the windows first sample to the index of OutData. For example, if WindowOrigin = WindowSize/4, then OutData[i] = Mean(InData[i - Window/4 : i + 3 * Window / 4]).
 	 *  OutData contains the produceds data.
 	 */
-	void ArrayMeanFilter(const TArray<float>& InData, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData);
+	AUDIOMIXER_API void ArrayMeanFilter(const TArray<float>& InData, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData);
 
 	/** Max filter of array.
 	 *
@@ -34,11 +35,82 @@ namespace Audio
 	 *  WindowOrigin describes the offset from the windows first sample to the index of OutData. For example, if WindowOrigin = WindowSize/4, then OutData[i] = Max(InData[i - Window/4 : i + 3 * Window / 4]).
 	 *  OutData contains the produceds data.
 	 */
-	void ArrayMaxFilter(const TArray<float>& InData, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData);
+	AUDIOMIXER_API void ArrayMaxFilter(const TArray<float>& InData, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData);
 
 	/** Computes the EuclideanNorm of the InArray. Same as calculating the energy in window. */
 	void ArrayGetEuclideanNorm(const TArray<float>& InArray, float& OutEuclideanNorm);
 
 	/** Multiplies each element in InArray by InMultiplier */
-	void ArrayMultiplyByConstantInPlace(TArray<float>& InArray, const float InMultiplier);
+	AUDIOMIXER_API void ArrayMultiplyByConstantInPlace(TArray<float>& InArray, const float InMultiplier);
+
+
+	/** FContiguousSparse2DKernelTransform
+	 *
+	 *  FContiguousSparse2DKernelTransform applies a matrix transformation to an input array. 
+	 *  [OutArray] = [[Kernal]][InArray]  
+	 *
+	 *  It provides some optimization by exploit the contiguous and sparse qualities of the kernel rows,
+	 *  which allows it to skip multiplications with the number zero. 
+	 *
+	 *  It works with non-sparse and non-contiguous kernels as well, but will be more computationally 
+	 *  expensive than a naive implementation. Also, only takes advantage of sparse contiguous rows, not columns.
+	 */
+	class AUDIOMIXER_API FContiguousSparse2DKernelTransform
+	{
+		struct FRow
+		{
+			int32 StartIndex;
+			TArray<float> OffsetValues;
+		};
+
+	public:
+
+		/**
+		 * NumInElements sets the expected number of input array elements as well as the number of elements in a row.
+		 * NumOutElements sets the number of output array elements as well as the number or rows.
+		 */
+		FContiguousSparse2DKernelTransform(const int32 NumInElements, const int32 NumOutElements);
+
+		/** Returns the required size of the input array */
+		int32 GetNumInElements() const;
+
+		/** Returns the size of the output array */
+		int32 GetNumOutElements() const;
+	
+		/** Set the kernel values for an individual row.
+		 *
+		 *  RowIndex determines which row is being set.
+		 *  StartIndex denotes the offset into the row where the OffsetValues will be inserted.
+		 *  OffsetValues contains the contiguous chunk of values which represent all the nonzero elements in the row.
+		 */
+		void SetRow(const int32 RowIndex, const int32 StartIndex, TArrayView<const float> OffsetValues);
+
+		/** Transforms the input array given the kernel.
+		 *
+		 *  InArray is the array to be transformed. It must have `NumInElements` number of elements.
+		 *  OutArray is the transformed array. It will have `NumOutElements` number of elements.
+		 */
+		void TransformArray(TArrayView<const float> InArray, TArray<float>& OutArray) const;
+
+		/** Transforms the input array given the kernel.
+		 *
+		 *  InArray is the array to be transformed. It must have `NumInElements` number of elements.
+		 *  OutArray is the transformed array. It will have `NumOutElements` number of elements.
+		 */
+		void TransformArray(TArrayView<const float> InArray, AlignedFloatBuffer& OutArray) const;
+
+		/** Transforms the input array given the kernel.
+		 *
+		 *  InArray is the array to be transformed. It must have `NumInElements` number of elements.
+		 *  OutArray is the transformed array. It must be allocated to hold at least NumOutElements. 
+		 */
+		void TransformArray(const float* InArray, float* OutArray) const;
+
+	private:
+
+		int32 NumIn;
+		int32 NumOut;
+		TArray<FRow> Kernel;
+	};
+
 }
