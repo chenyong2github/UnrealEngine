@@ -1082,8 +1082,8 @@ void FAssetTypeActions_Texture::ConvertVTTexture(TArray<TWeakObjectPtr<UTexture>
 				UE_LOG(LogVirtualTextureConversion, Display, TEXT("Broadcasting to editor."));
 				FEditorDelegates::RefreshEditor.Broadcast();
 				FEditorSupportDelegates::RedrawAllViewports.Broadcast();
-			}*/
-		}
+			}
+		}*/
 #endif
 	}
 }

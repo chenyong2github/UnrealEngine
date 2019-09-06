@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
 using System;
@@ -126,6 +126,14 @@ namespace IncludeTool
 		RequiresDefinition
 	}
 
+	class UnbalancedScopeException : Exception
+	{
+		public UnbalancedScopeException(string Message) 
+			: base(Message)
+		{
+		}
+	}
+
 	/// <summary>
 	/// Registry of symbol names to definitions
 	/// </summary>
@@ -243,7 +251,7 @@ namespace IncludeTool
 					// Make sure they were all consistent
 					if(NewScopes.Any(x => x != NewScopes[0]))
 					{
-						throw new Exception(String.Format("Unbalanced scope depth between conditional block derivations while parsing {0}", File.Location));
+						throw new UnbalancedScopeException(String.Format("Unbalanced scope depth between conditional block derivations while parsing {0}", File.Location));
 					}
 
 					// Update the scope
@@ -285,7 +293,7 @@ namespace IncludeTool
 						}
 						else if(Reader.Current.Text == "}" && --Scope < 0)
 						{
-							throw new Exception(String.Format("Unbalanced '}}' while parsing '{0}'", File.Location));
+							throw new UnbalancedScopeException(String.Format("Unbalanced '}}' while parsing '{0}'", File.Location));
 						}
 
 						// Move to the next token
