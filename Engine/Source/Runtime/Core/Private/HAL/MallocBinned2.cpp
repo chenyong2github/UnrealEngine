@@ -13,6 +13,7 @@
 #include "HAL/IConsoleManager.h"
 #include "HAL/MemoryMisc.h"
 #include "HAL/PlatformMisc.h"
+#include "Misc/App.h"
 
 #if BINNED2_ALLOW_RUNTIME_TWEAKING
 
