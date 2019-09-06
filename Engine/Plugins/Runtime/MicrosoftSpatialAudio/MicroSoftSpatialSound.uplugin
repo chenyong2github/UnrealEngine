@@ -14,8 +14,7 @@
 	"IsBetaVersion": false,
 	"Installed": false,
 	"SupportedTargetPlatforms": [
-		"HoloLens",
-		"Win64"
+		"HoloLens"
 	],
 	"Modules": [
 		{
@@ -23,8 +22,7 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
 			"WhitelistPlatforms": [
-				"HoloLens",
-				"Win64"
+				"HoloLens"
 			]
 		}
 	]
