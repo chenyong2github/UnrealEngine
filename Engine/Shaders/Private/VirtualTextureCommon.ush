@@ -545,29 +545,30 @@ float2 VirtualTextureWorldToUV(in float3 WorldPos, in float3 Origin, in float3 U
 }
 
 /** Generic normal unpack funtion. */
-float3 VirtualTextureUnpackNormal(in float2 PackedValue)
+float3 VirtualTextureUnpackNormal(in float2 PackedXY, in float PackedSignZ)
 {
-	float2 NormalXY = PackedValue * 2.f - 1.f;
-	float NormalZ = sqrt(saturate(1.0f - dot(NormalXY, NormalXY)));
-	return float3(NormalXY.xy, NormalZ);
+	float2 NormalXY = PackedXY * 2.f - 1.f;
+	float SignZ = PackedSignZ * 2.f - 1.f;
+	float NormalZ = sqrt(saturate(1.0f - dot(NormalXY, NormalXY))) * SignZ;
+	return float3(NormalXY, NormalZ);
 }
 
 /** Unpack normal from BC3. */
 float3 VirtualTextureUnpackNormalBC3(in float4 PackedValue)
 {
-	return VirtualTextureUnpackNormal(PackedValue.ag);
+	return VirtualTextureUnpackNormal(PackedValue.ag, 1.f);
 }
 
 /** Unpack normal from two BC3 textures. */
 float3 VirtualTextureUnpackNormalBC3BC3(in float4 PackedValue0, in float4 PackedValue1)
 {
-	return VirtualTextureUnpackNormal(float2(PackedValue0.a, PackedValue1.a));
+	return VirtualTextureUnpackNormal(float2(PackedValue0.a, PackedValue1.a), PackedValue1.b);
 }
 
 /** Unpack normal from BC5. */
 float3 VirtualTextureUnpackNormalBC5(in float4 PackedValue)
 {
-	return VirtualTextureUnpackNormal(PackedValue.rg);
+	return VirtualTextureUnpackNormal(PackedValue.rg, 1.f);
 }
 
 /** Unpack 16 bit height (with some hardcoded range scale/bias). */
