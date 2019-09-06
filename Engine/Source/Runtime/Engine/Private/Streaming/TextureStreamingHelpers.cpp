@@ -277,6 +277,13 @@ static TAutoConsoleVariable<int32> CVarStreamingStressTestFramesForFullUpdate(
 	TEXT("Num frames to update texture states when doing the stress tests."),
 	ECVF_Cheat);
 
+static TAutoConsoleVariable<int32> CVarStreamingVRAMPercentageClamp(
+	TEXT("r.Streaming.PoolSize.VRAMPercentageClamp"),
+	1024,
+	TEXT("When using PoolSizeVRAMPercentage, a maximum amout of memory to reserve in MB.\n")
+	TEXT("This avoids reserving too much space for systems with a lot of VRAM. (default=1024)"),
+	ECVF_Cheat);
+
 void FRenderAssetStreamingSettings::Update()
 {
 	MaxEffectiveScreenSize = CVarStreamingScreenSizeEffectiveMax.GetValueOnAnyThread();
@@ -298,6 +305,7 @@ void FRenderAssetStreamingSettings::Update()
 	HiddenPrimitiveScale = bUseNewMetrics ? CVarStreamingHiddenPrimitiveScale.GetValueOnAnyThread() : 1.f;
 	bMipCalculationEnablePerLevelList = CVarStreamingMipCalculationEnablePerLevelList.GetValueOnAnyThread() != 0;
 	bPrioritizeMeshLODRetention = CVarPrioritizeMeshLODRetention.GetValueOnAnyThread() != 0;
+	VRAMPercentageClamp = CVarStreamingVRAMPercentageClamp.GetValueOnAnyThread();
 
 	MaterialQualityLevel = (int32)GetCachedScalabilityCVars().MaterialQualityLevel;
 
