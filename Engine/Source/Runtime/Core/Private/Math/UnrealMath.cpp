@@ -400,7 +400,7 @@ FQuat FRotator::Quaternion() const
 
 	DiagnosticCheckNaN();
 
-#if PLATFORM_ENABLE_VECTORINTRINSICS
+#if PLATFORM_ENABLE_VECTORINTRINSICS || PLATFORM_ENABLE_VECTORINTRINSICS_NEON
 	const VectorRegister Angles = MakeVectorRegister(Pitch, Yaw, Roll, 0.0f);
 	const VectorRegister AnglesNoWinding = VectorMod(Angles, GlobalVectorConstants::Float360);
 	const VectorRegister HalfAngles = VectorMultiply(AnglesNoWinding, GlobalVectorConstants::DEG_TO_RAD_HALF);
