@@ -58,7 +58,7 @@ namespace Audio
 		const float LastSummedData = SummedData.Last();
 		
 		
-		const int32 LastIndexBeforeEndBoundaryCondition = FMath::Max(WindowOrigin, Num - WindowSize + WindowOrigin + 1);
+		const int32 LastIndexBeforeEndBoundaryCondition = FMath::Max(WindowOrigin + 1, Num - WindowSize + WindowOrigin + 1);
 		const int32 StartOffset = -WindowOrigin - 1;
 		const int32 EndOffset = WindowSize - WindowOrigin - 1;
 		const int32 WindowTail = WindowSize - WindowOrigin;
@@ -200,6 +200,95 @@ namespace Audio
 		for (int32 i = 0; i < Num; i++)
 		{
 			InArrayData[i] *= InMultiplier;
+		}
+	}
+
+	FContiguousSparse2DKernelTransform::FContiguousSparse2DKernelTransform(const int32 NumInElements, const int32 NumOutElements)
+	:	NumIn(NumInElements)
+	,	NumOut(NumOutElements)
+	{
+		check(NumIn >= 0);
+		check(NumOut >= 0)
+		FRow EmptyRow;
+		EmptyRow.StartIndex = 0;
+
+		// Fill up the kernel with emptp rows
+		Kernel.Init(EmptyRow, NumOut);
+	}
+
+	int32 FContiguousSparse2DKernelTransform::GetNumInElements() const
+	{
+		return NumIn;
+	}
+
+
+	int32 FContiguousSparse2DKernelTransform::GetNumOutElements() const
+	{
+		return NumOut;
+	}
+
+	void FContiguousSparse2DKernelTransform::SetRow(const int32 RowIndex, const int32 StartIndex, TArrayView<const float> OffsetValues)
+	{
+		check((StartIndex + OffsetValues.Num()) <= NumIn);
+
+		// Copy row data internally
+		Kernel[RowIndex].StartIndex = StartIndex;
+		Kernel[RowIndex].OffsetValues = TArray<float>(OffsetValues.GetData(), OffsetValues.Num());
+	}
+
+	void FContiguousSparse2DKernelTransform::TransformArray(TArrayView<const float> InArray, TArray<float>& OutArray) const
+	{
+		check(InArray.Num() == NumIn);
+
+		// Resize output
+		OutArray.Reset(NumOut);
+		if (NumOut > 0)
+		{
+			OutArray.AddUninitialized(NumOut);
+		}
+
+		TransformArray(InArray.GetData(), OutArray.GetData());
+	}
+
+	void FContiguousSparse2DKernelTransform::TransformArray(TArrayView<const float> InArray, AlignedFloatBuffer& OutArray) const
+	{	
+		check(InArray.Num() == NumIn);
+
+		// Resize output
+		OutArray.Reset(NumOut);
+		if (NumOut > 0)
+		{
+			OutArray.AddUninitialized(NumOut);
+		}
+
+		TransformArray(InArray.GetData(), OutArray.GetData());
+	}
+
+	void FContiguousSparse2DKernelTransform::TransformArray(const float* InArray, float* OutArray) const
+	{
+		check(nullptr != InArray);
+		check(nullptr != OutArray);
+
+		// Initialize output
+		FMemory::Memset(OutArray, 0, sizeof(float) * NumOut);
+
+		// Apply kernel one row at a time
+		const FRow* KernelData = Kernel.GetData();
+		for (int32 RowIndex = 0; RowIndex < Kernel.Num(); RowIndex++)
+		{
+			const FRow& Row = KernelData[RowIndex];
+
+			// Get offset pointer into input array.
+			const float* OffsetInData = &InArray[Row.StartIndex];
+			// Get offset pointer of row.
+			const float* RowValuePtr = Row.OffsetValues.GetData();
+
+			// dot prod 'em. 
+			int32 NumToMult = Row.OffsetValues.Num();
+			for (int32 i = 0; i < NumToMult; i++)
+			{
+				OutArray[RowIndex] += OffsetInData[i] * RowValuePtr[i];
+			}
 		}
 	}
 }
