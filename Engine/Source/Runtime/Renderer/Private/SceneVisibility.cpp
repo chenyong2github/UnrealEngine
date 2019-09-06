@@ -498,14 +498,17 @@ static int32 FrustumCull(const FScene* Scene, FViewInfo& View)
 					}
 
 					// Fading HLODs and their children must be visible, objects hidden by HLODs can be culled
-					if (HLODState && HLODState->IsNodeForcedVisible(Index))
+					if (HLODState)
 					{
-						MaxDrawDistance = FLT_MAX;
-						MinDrawDistanceSq = 0.f;
-					}
-					else if (HLODState && HLODState->IsNodeForcedHidden(Index))
-					{
-						MaxDrawDistance = 0.f;
+						if (HLODState->IsNodeForcedVisible(Index))
+						{
+							MaxDrawDistance = FLT_MAX;
+							MinDrawDistanceSq = 0.f;
+						}
+						else if (HLODState->IsNodeForcedHidden(Index))
+						{
+							MaxDrawDistance = 0.f;
+						}
 					}
 
 					if (DistanceSquared > FMath::Square(MaxDrawDistance + FadeRadius) ||
@@ -4653,6 +4656,9 @@ void FLODSceneTree::HideNodeChildren(FSceneViewState* ViewState, FLODSceneNode& 
 				}
 
 				HLODState.ForcedHiddenPrimitiveMap[ChildIndex] = true;
+				
+				// Clear the force visible flag in case the child was processed before it's parent
+				HLODState.ForcedVisiblePrimitiveMap[ChildIndex] = false;
 
 				if (FLODSceneNode* ChildNode = SceneNodes.Find(Child->PrimitiveComponentId))
 				{
