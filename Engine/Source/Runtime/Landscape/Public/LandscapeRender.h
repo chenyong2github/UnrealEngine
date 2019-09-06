@@ -861,6 +861,10 @@ public:
 			return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 		}
 	}
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+	}
 };
 
 class FLandscapeSelectMaterialRenderProxy : public FMaterialRenderProxy
@@ -908,6 +912,10 @@ public:
 			return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 		}
 	}
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+	}
 };
 
 class FLandscapeMaskMaterialRenderProxy : public FMaterialRenderProxy
@@ -953,6 +961,10 @@ public:
 		{
 			return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 		}
+	}
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 	}
 };
 
@@ -1028,6 +1040,10 @@ public:
 		return Parent->GetScalarValue(ParameterInfo, OutValue, Context);
 	}
 	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+	}
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
 	{
 		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 	}

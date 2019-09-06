@@ -120,6 +120,11 @@ bool FDebugViewModeMaterialProxy::GetTextureValue(const FMaterialParameterInfo& 
 	return MaterialInterface->GetRenderProxy()->GetTextureValue(ParameterInfo,OutValue,Context);
 }
 
+bool FDebugViewModeMaterialProxy::GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+{
+	return MaterialInterface->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
+}
+
 EMaterialDomain FDebugViewModeMaterialProxy::GetMaterialDomain() const
 {
 	return Material ? (EMaterialDomain)(Material->MaterialDomain) : MD_Surface;
