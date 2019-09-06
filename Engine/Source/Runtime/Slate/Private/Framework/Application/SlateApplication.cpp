@@ -4516,7 +4516,6 @@ FReply FSlateApplication::RoutePointerDownEvent(const FWidgetPath& WidgetsUnderP
 			|| bIsDetectingLMBDrag)
 #endif
 		)
-	)
 	{
 		for ( int32 WidgetIndex = WidgetsUnderPointer.Widgets.Num() - 1; WidgetIndex >= 0; --WidgetIndex )
 		{
