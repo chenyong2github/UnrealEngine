@@ -3381,11 +3381,10 @@ void FRecastNavMeshGenerator::Init()
 
 		// mark all the areas we need to update, which is the whole (known) navigable space if not restricted to active tiles
 		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-		if (NavSys)
+		if (NavSys && NavSys->IsActiveTilesGenerationEnabled() == false)
 		{
-			bRestrictBuildingToActiveTiles = NavSys->IsActiveTilesGenerationEnabled();
+			MarkNavBoundsDirty();
 		}
-		MarkNavBoundsDirty();
 	}
 	else
 	{
