@@ -2,12 +2,11 @@
 
 // Port of geometry3Sharp PointHashGrid2
 
+#pragma once
+
 #include "CoreMinimal.h"
 #include "Misc/ScopeLock.h"
 #include "Util/GridIndexing2.h"
-
-#pragma once
-
 
 /**
  * Hash Grid for values associated with 2D points.

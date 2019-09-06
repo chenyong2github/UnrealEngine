@@ -1,9 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if WITH_DEV_AUTOMATION_TESTS 
-
 #include "Misc/AsciiSet.h"
 #include "Misc/AutomationTest.h"
+
+#if WITH_DEV_AUTOMATION_TESTS 
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(TAsciiSetTest, "System.Core.Misc.AsciiSet", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 
