@@ -3293,14 +3293,18 @@ void FLightmapResourceCluster::UpdateUniformBuffer(ERHIFeatureLevel::Type InFeat
 	});
 }
 
+bool FLightmapResourceCluster::GetUseVirtualTexturing() const
+{
+	const bool bAllowHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
+	return bAllowHighQualityLightMaps && (CVarVirtualTexturedLightMaps.GetValueOnRenderThread() != 0) && UseVirtualTexturing(FeatureLevel);
+}
+
 void FLightmapResourceCluster::UpdateUniformBuffer_RenderThread()
 {
 	check(IsInRenderingThread());
-	const bool bAllowHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
-	const bool bUseVirtualTextures = bAllowHighQualityLightMaps && (CVarVirtualTexturedLightMaps.GetValueOnRenderThread() != 0) && UseVirtualTexturing(FeatureLevel);
 
 	FLightmapResourceClusterShaderParameters Parameters;
-	GetLightmapClusterResourceParameters(FeatureLevel, Input, bUseVirtualTextures ? AcquireAllocatedVT() : nullptr, Parameters);
+	GetLightmapClusterResourceParameters(FeatureLevel, Input, GetUseVirtualTexturing() ? AcquireAllocatedVT() : nullptr, Parameters);
 
 	RHIUpdateUniformBuffer(UniformBuffer, &Parameters);
 }
@@ -3379,7 +3383,18 @@ void FLightmapResourceCluster::ReleaseAllocatedVT()
 void FLightmapResourceCluster::InitRHI()
 {
 	FLightmapResourceClusterShaderParameters Parameters;
-	GetLightmapClusterResourceParameters(GMaxRHIFeatureLevel, FLightmapClusterResourceInput(), nullptr, Parameters);
+
+	// Lightmap resources are normally created before the feature level is known, so we'll use defaults and rely on a subsequent call to UpdateUniformBuffer()
+	// to set the correct level and update things accordingly. However, when we're coming from FRenderResource::ChangeFeatureLevel(), the feature level
+	// has already been set, so we can go ahead and use the correct level and input from the start (UpdateUniformBuffer() is not being called in that case).
+	if (FeatureLevel < ERHIFeatureLevel::Num)
+	{
+		GetLightmapClusterResourceParameters(FeatureLevel, Input, GetUseVirtualTexturing() ? AcquireAllocatedVT() : nullptr, Parameters);
+	}
+	else
+	{
+		GetLightmapClusterResourceParameters(GMaxRHIFeatureLevel, FLightmapClusterResourceInput(), nullptr, Parameters);
+	}
 
 	UniformBuffer = FLightmapResourceClusterShaderParameters::CreateUniformBuffer(Parameters, UniformBuffer_MultiFrame);
 }
