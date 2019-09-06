@@ -1186,6 +1186,7 @@ struct FClearValueBinding
 	// common clear values
 	static RHI_API const FClearValueBinding None;
 	static RHI_API const FClearValueBinding Black;
+	static RHI_API const FClearValueBinding BlackMaxAlpha;
 	static RHI_API const FClearValueBinding White;
 	static RHI_API const FClearValueBinding Transparent;
 	static RHI_API const FClearValueBinding DepthOne;
