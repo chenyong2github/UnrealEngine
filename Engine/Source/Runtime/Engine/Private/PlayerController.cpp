@@ -1056,8 +1056,8 @@ void APlayerController::ServerShortTimeout_Implementation()
 			{
 				if (NetworkObjectInfo.IsValid())
 				{
-					AActor* const A = NetworkObjectInfo->Actor;
-					if (A && !A->IsPendingKill())
+					AActor* const A = NetworkObjectInfo->WeakActor.Get();
+					if (A)
 					{
 						if (!A->bOnlyRelevantToOwner)
 						{
