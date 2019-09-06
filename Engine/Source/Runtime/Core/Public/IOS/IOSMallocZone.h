@@ -47,6 +47,8 @@ public:
 	
 	void Enable( FIOSCrashContext* Context, uint32 CrashedThreadId );
 	
+	void SetContext( FIOSCrashContext* Context );
+	
 	// FMalloc interface.
 	virtual void* Malloc( SIZE_T Size, uint32 Alignment ) override;
 	
