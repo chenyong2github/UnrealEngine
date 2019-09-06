@@ -9,6 +9,7 @@
 
 class Error;
 class FInternetAddr;
+class FSocket;
 
 SOCKETS_API DECLARE_LOG_CATEGORY_EXTERN(LogSockets, Log, All);
 
@@ -44,7 +45,6 @@ SOCKETS_API DECLARE_LOG_CATEGORY_EXTERN(LogSockets, Log, All);
  */
 class SOCKETS_API ISocketSubsystem
 {
-
 public:
 
 	/**
@@ -83,7 +83,7 @@ public:
 	 *
 	 * @return the new socket or NULL if failed
 	 */
-	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, bool bForceUDP = false)
+	virtual FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, bool bForceUDP = false)
 	{
 		const FName NoProtocolTypeName(NAME_None);
 		return CreateSocket(SocketType, SocketDescription, NoProtocolTypeName);
@@ -99,7 +99,7 @@ public:
 	 * @return the new socket or NULL if failed
 	 */
 	UE_DEPRECATED(4.23, "Use the CreateSocket with the FName parameter for support for multiple protocol types.")
-	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, ESocketProtocolFamily ProtocolType)
+	virtual FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, ESocketProtocolFamily ProtocolType)
 	{
 		return CreateSocket(SocketType, SocketDescription, GetProtocolNameFromFamily(ProtocolType));
 	}
@@ -113,7 +113,7 @@ public:
 	 *
 	 * @return the new socket or NULL if failed
 	 */
-	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolName) = 0;
+	virtual FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolName) = 0;
 
 	/**
 	 * Creates a resolve info cached struct to hold the resolved address
@@ -129,7 +129,7 @@ public:
 	 *
 	 * @param Socket the socket object to destroy
 	 */
-	virtual void DestroySocket(class FSocket* Socket) = 0;
+	virtual void DestroySocket(FSocket* Socket) = 0;
 
 	/**
 	 * Gets the address information of the given hostname and outputs it into an array of resolvable addresses.
@@ -294,6 +294,17 @@ public:
 	virtual TSharedRef<FInternetAddr> CreateInternetAddr() = 0;
 
 	/**
+	 * Create a platform specific FRecvMulti representation
+	 *
+	 * @param MaxNumPackets			The maximum number of packet receives supported
+	 * @param MaxPacketSize			The maximum supported packet size
+	 * @param Flags					Flags for specifying how FRecvMulti should be initialized (for e.g. retrieving timestamps)
+	 * @return						Returns the platform specific FRecvMulti instance
+	 */
+	virtual TUniquePtr<FRecvMulti> CreateRecvMulti(int32 MaxNumPackets, int32 MaxPacketSize,
+													ERecvMultiFlags Flags=ERecvMultiFlags::None);
+
+	/**
 	 * @return Whether the machine has a properly configured network device or not
 	 */
 	virtual bool HasNetworkDevice() = 0;
@@ -348,7 +359,7 @@ public:
 	 *
 	 * @return The bound port number, or 0 on failure
 	 */
-	int32 BindNextPort(class FSocket* Socket, FInternetAddr& Addr, int32 PortCount, int32 PortIncrement);
+	int32 BindNextPort(FSocket* Socket, FInternetAddr& Addr, int32 PortCount, int32 PortIncrement);
 
 	/**
 	 * Uses the platform specific look up to determine the host address
@@ -396,9 +407,26 @@ public:
 	void RemoveHostNameFromCache(const ANSICHAR* HostName);
 
 	/**
+	 * Returns true if FSocket::RecvMulti is supported by this socket subsystem
+	 */
+	virtual bool IsSocketRecvMultiSupported() const;
+
+
+	/**
 	 * Returns true if FSocket::Wait is supported by this socket subsystem.
 	 */
 	virtual bool IsSocketWaitSupported() const = 0;
+
+
+	/**
+	 * Converts a platform packet timestamp, into a local timestamp, or into a time delta etc.
+	 *
+	 * @param Timestamp		The timestamp to translate
+	 * @param Translation	The type of translation to perform on the timestamp (time delta is usually faster than local timestamp)
+	 * @return				Returns the translated timestamp or delta
+	 */
+	virtual double TranslatePacketTimestamp(const FPacketTimestamp& Timestamp,
+											ETimestampTranslation Translation=ETimestampTranslation::LocalTimestamp);
 
 protected:
 

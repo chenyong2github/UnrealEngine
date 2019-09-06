@@ -217,6 +217,17 @@ public:
 	virtual bool Recv(uint8* Data, int32 BufferSize, int32& BytesRead, ESocketReceiveFlags::Type Flags = ESocketReceiveFlags::None);
 
 	/**
+	 * Reads multiple packets from the socket at once, gathering the source address and other optional platform specific data.
+	 * Use ISocketSubsystem::IsSocketRecvMultiSupported to check if the current socket platform supports this.
+	 * NOTE: For optimal performance, one FRecvMulti instance should be used, for the lifetime of the socket.
+	 *
+	 * @param MultiData		The FRecvMulti instance that receives packet data and holds platform specific buffers for receiving data.
+	 * @param Flags			The receive flags.
+	 * @return				Whether or not data was successfully received
+	 */
+	virtual bool RecvMulti(FRecvMulti& MultiData, ESocketReceiveFlags::Type Flags=ESocketReceiveFlags::None);
+
+	/**
 	 * Blocks until the specified condition is met.
 	 *
 	 * @param Condition The condition to wait for.
@@ -392,6 +403,14 @@ public:
 	 * @return true if the call succeeded, false otherwise.
 	 */
 	virtual bool SetReceiveBufferSize(int32 Size, int32& NewSize) = 0;
+
+	/**
+	 * Sets whether to retrieve the system-level receive timestamp, for sockets
+	 *
+	 * @param bRetrieveTimestamp	Whether to retrieve the timestamp upon receive
+	 * @return						True if the call succeeded, false otherwise.
+	 */
+	virtual bool SetRetrieveTimestamp(bool bRetrieveTimestamp=true);
 
 	/**
 	 * Reads the port this socket is bound to.
