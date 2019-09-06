@@ -263,13 +263,6 @@ public:
 	 */
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() = 0;
 	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const = 0;
-	/**
-	 * Override a sky atmosphere light direction
-	 * @param SkyAtmosphereSceneProxy - the sky atmosphere proxy
-	 * @param AtmosphereLightIndex - the atmosphere light index to consider
-	 * @param LightDirection - the new light direction to override the atmosphere light with
-	 */
-	virtual void OverrideSkyAtmosphereLightDirection(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, int32 AtmosphereLightIndex, const FVector& LightDirection) = 0;
 
 	/**
 	 * Adds a wind source component to the scene.

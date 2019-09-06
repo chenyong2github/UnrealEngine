@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
+#include "EngineDefines.h"
 #include "GameFramework/Info.h"
 #include "Misc/Guid.h"
 #include "RenderResource.h"
@@ -189,9 +190,14 @@ public:
 
 	FGuid GetStaticLightingBuiltGuid() const { return bStaticLightingBuiltGUID; }
 
+	void GetOverrideLightStatus(bool* OverrideAtmosphericLight, FVector* OverrideAtmosphericLightDirection) const;
+
 private:
 
 	FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy;
+
+	bool OverrideAtmosphericLight[NUM_ATMOSPHERE_LIGHTS];
+	FVector OverrideAtmosphericLightDirection[NUM_ATMOSPHERE_LIGHTS];
 
 	/**
 	 * GUID used to associate a atmospheric component with precomputed lighting/shadowing information across levels.
