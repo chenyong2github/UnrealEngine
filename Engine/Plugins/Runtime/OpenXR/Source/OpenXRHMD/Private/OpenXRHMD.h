@@ -109,6 +109,9 @@ protected:
 	bool ReadNextEvent(XrEventDataBuffer* buffer);
 	void CloseSession();
 
+	void BuildOcclusionMeshes();
+	bool BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMDViewMesh& Mesh);
+
 public:
 	/** IHeadMountedDisplay interface */
 	virtual bool IsHMDConnected() override { return true; }
@@ -122,8 +125,10 @@ public:
 	virtual bool GetHMDDistortionEnabled(EShadingPath ShadingPath) const override { return false; }
 	virtual FIntRect GetFullFlatEyeRect_RenderThread(FTexture2DRHIRef EyeTexture) const override;
 	virtual void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, FRHITexture2D* DstTexture, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const override;
-	virtual bool HasHiddenAreaMesh() const override { return false; };
-	virtual void DrawHiddenAreaMesh_RenderThread(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
+	virtual bool HasHiddenAreaMesh() const override final;
+	virtual bool HasVisibleAreaMesh() const override final;
+	virtual void DrawHiddenAreaMesh_RenderThread(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override final;
+	virtual void DrawVisibleAreaMesh_RenderThread(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override final;
 	virtual void OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily) override;
 	virtual void OnBeginRendering_GameThread() override;
 	virtual void OnLateUpdateApplied_RenderThread(const FTransform& NewRelativeTransform) override;
@@ -164,7 +169,7 @@ public:
 
 public:
 	/** Constructor */
-	FOpenXRHMD(const FAutoRegister&, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, bool InDepthExtensionSupported);
+	FOpenXRHMD(const FAutoRegister&, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, const TSet<FString>& Extensions);
 
 	/** Destructor */
 	virtual ~FOpenXRHMD();
@@ -217,9 +222,7 @@ private:
 	TArray<XrView>			Views;
 	TArray<XrCompositionLayerProjectionView> ViewsRHI;
 	TArray<XrCompositionLayerDepthInfoKHR> DepthLayersRHI;
-#if 0
-	TArray<FHMDViewMesh>	HiddenAreaMeshes;
-#endif
+
 	TArray<FActionSpace>	ActionSpaces;
 
 	TRefCountPtr<FOpenXRRenderBridge> RenderBridge;
@@ -227,4 +230,7 @@ private:
 
 	FXRSwapChainPtr			Swapchain;
 	FXRSwapChainPtr			DepthSwapchain;
+
+	TArray<FHMDViewMesh>	HiddenAreaMeshes;
+	TArray<FHMDViewMesh>	VisibleAreaMeshes;
 };
