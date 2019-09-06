@@ -463,7 +463,7 @@ void FEmitDefaultValueHelper::InnerGenerate(FEmitterLocalContext& Context, const
 						if (EStructConstructionType::Custom == ValueConstruction)
 						{
 							FString ValueStr;
-							bValueComplete = OneLineConstruction(Context, MapProperty->ValueProp, ScriptMapHelper.GetKeyPtr(Index), ValueStr, /*bGenerateEmptyStructConstructor=*/ false);
+							bValueComplete = OneLineConstruction(Context, MapProperty->ValueProp, ScriptMapHelper.GetValuePtr(Index), ValueStr, /*bGenerateEmptyStructConstructor=*/ false);
 							if (!ValueStr.IsEmpty())
 							{
 								Context.AddLine(FString::Printf(TEXT("%s = %s;"), *ValuePath, *ValueStr));
