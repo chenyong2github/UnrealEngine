@@ -2,7 +2,7 @@
 
 #include "TakeRecorderSources.h"
 #include "TakeRecorderSource.h"
-#include "TakesCoreFwd.h"
+#include "TakesCoreLog.h"
 #include "LevelSequence.h"
 #include "TakeMetaData.h"
 #include "AssetRegistryModule.h"
