@@ -5,6 +5,33 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraNodeIf.generated.h"
 
+USTRUCT()
+struct FPinGuidsForPath
+{
+	GENERATED_USTRUCT_BODY()
+
+	FPinGuidsForPath()
+		: OutputPinGuid(FGuid())
+		, InputAPinGuid(FGuid())
+		, InputBPinGuid(FGuid())
+	{
+	}
+
+	bool IsValid() const
+	{
+		return OutputPinGuid.IsValid() && InputAPinGuid.IsValid() && InputBPinGuid.IsValid();
+	}
+
+	UPROPERTY()
+	FGuid OutputPinGuid;
+
+	UPROPERTY()
+	FGuid InputAPinGuid;
+
+	UPROPERTY()
+	FGuid InputBPinGuid;
+};
+
 UCLASS(MinimalAPI)
 class UNiagaraNodeIf : public UNiagaraNodeWithDynamicPins
 {
@@ -17,13 +44,10 @@ public:
 	TArray<FNiagaraVariable> OutputVars;
 
 	UPROPERTY()
-	TArray<FGuid> OutputVarGuids;
+	TArray<FPinGuidsForPath> PathAssociatedPinGuids;
 
 	UPROPERTY()
-	TArray<FGuid> InputAVarGuids;
-
-	UPROPERTY()
-	TArray<FGuid> InputBVarGuids;
+	FGuid ConditionPinGuid;
 
 	//~ Begin UObject Interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -45,8 +69,11 @@ public:
 
 protected:
 
-	/** Helper function to create a variable to add to the OutputVars and FGuid to add to OutputVarGuids. */
+	/** Helper function to create a variable to add to the OutputVars and FGuid to add to PathAssociatedPinGuids. */
 	FGuid AddOutput(FNiagaraTypeDefinition Type, const FName& Name);
+
+	/** Helper to get a pin in the pins list by GUID */
+	const UEdGraphPin* GetPinByGuid(const FGuid& InGuid);
 
 	//~ Begin EdGraphNode Interface
 	virtual void OnPinRemoved(UEdGraphPin* PinToRemove) override;
@@ -64,4 +91,5 @@ protected:
 private:
 	static const FString InputAPinSuffix;
 	static const FString InputBPinSuffix;
+	static const FName ConditionPinName;
 };
