@@ -2533,6 +2533,8 @@ void UAnimInstance::SetLayerOverlay(TSubclassOf<UAnimInstance> InClass)
 			}
 		}
 
+		GetProxyOnAnyThread<FAnimInstanceProxy>().InitializeObjects(this);
+
 		// Map of group name->nodes to run under that group instance
 		TMap<FName, TArray<FAnimNode_Layer*, TInlineAllocator<4>>, TInlineSetAllocator<4>> LayerNodesToSet;
 
