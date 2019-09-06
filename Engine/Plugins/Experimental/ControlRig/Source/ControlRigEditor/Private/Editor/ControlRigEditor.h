@@ -5,7 +5,7 @@
 #include "IControlRigEditor.h"
 #include "ControlRigEditorEditMode.h"
 #include "AssetEditorModeManager.h"
-#include "DragAndDrop//GraphNodeDragDropOp.h"
+#include "DragAndDrop/GraphNodeDragDropOp.h"
 #include "ControlRigDefines.h"
 #include "ControlRigLog.h"
 #include "Drawing/ControlRigDrawInterface.h"

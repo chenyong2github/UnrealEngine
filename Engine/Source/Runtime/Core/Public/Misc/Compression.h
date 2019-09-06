@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "UObject/NameTypes.h"
 #include "Templates/Atomic.h"
 #include "Misc/CompressionFlags.h"
 #include "HAL/CriticalSection.h"

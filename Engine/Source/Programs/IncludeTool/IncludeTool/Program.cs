@@ -937,7 +937,11 @@ namespace IncludeTool
 			IncludePaths.AddRange(ExtraSystemIncludePaths);
 
 			// Set up the preprocessor with the correct defines for this environment
-			Preprocessor PreprocessorInst = new Preprocessor(PreludeLocation, CompileEnvironment.Definitions, IncludePaths, CompileEnvironment.ForceIncludeFiles);
+			Preprocessor PreprocessorInst = new Preprocessor(PreludeLocation, CompileEnvironment.Definitions, IncludePaths);
+			foreach(FileReference ForceIncludedFile in CompileEnvironment.ForceIncludeFiles)
+			{
+				PreprocessIncludedFile(PreprocessorInst, new PreprocessorFile(ForceIncludedFile.FullName, Workspace.GetFile(ForceIncludedFile)), FileToActiveMarkup, Log);
+			}
 			PreprocessIncludedFile(PreprocessorInst, InitialFile, FileToActiveMarkup, Log);
 		}
 
@@ -1002,7 +1006,7 @@ namespace IncludeTool
 				{
 					foreach(PreprocessorMarkup Markup in File.Markup)
 					{
-						if(Markup.IncludedFile != null && (Markup.IncludedFile.Flags & SourceFileFlags.External) == 0 && !File.Location.FullName.Contains("PhyaLib") && !File.Location.GetFileName().Contains("Recast") && !File.Location.GetFileName().Contains("FramePro") && !File.Location.GetFileName().Contains("libSampleRate"))
+						if(Markup.IncludedFile != null && (Markup.IncludedFile.Flags & SourceFileFlags.External) == 0 && !File.Location.FullName.Contains("PhyaLib") && !File.Location.GetFileName().Contains("Recast") && !File.Location.GetFileName().Contains("FramePro") && !File.Location.FullName.Contains("libSampleRate"))
 						{
 							Log.WriteLine("{0}({1}): warning: external file is including non-external file ('{2}')", IncludedFile.Location.FullName, Markup.Location.LineIdx + 1, Markup.IncludedFile.Location);
 						}

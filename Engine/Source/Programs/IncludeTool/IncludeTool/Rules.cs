@@ -262,6 +262,7 @@ namespace IncludeTool
 			"/Engine/Source/Runtime/Core/Public/UObject/PendingVersions.h",
 			"/Engine/Source/Runtime/CoreUObject/Public/UObject/ScriptSerialization.h",
 			"/Engine/Source/Runtime/Online/HTTP/Public/HttpPackage.h",
+			"/Engine/Plugins/NotForLicensees/OnlineGameplayFramework/Source/McpProfileSys/Public/McpProfileSysPackage.h",
 			"/Engine/Plugins/Online/OnlineSubsystem/Source/Public/OnlineSubsystemPackage.h",
 			"/Engine/Plugins/Online/OnlineSubsystemNull/Source/Public/OnlineSubsystemNullPackage.h",
 			"/Engine/Plugins/Online/NotForLicensees/OnlineSubsystemMcp/Source/Public/OnlineSubsystemMcpPackage.h",
@@ -559,6 +560,10 @@ namespace IncludeTool
 		{
 			PreprocessorMarkup Markup = File.Markup[MarkupIdx];
 			if(Markup.Type == PreprocessorMarkupType.Text && Markup.EndLocation.LineIdx == Markup.Location.LineIdx + 1 && File.Text.Lines[Markup.Location.LineIdx].Contains("friend") && File.Text.Lines[Markup.Location.LineIdx].Contains("Z_Construct_"))
+			{
+				return true;
+			}
+			if(Markup.Type == PreprocessorMarkupType.Define && Markup.Tokens[0].Text == "ONLINE_LOG_PREFIX")
 			{
 				return true;
 			}
