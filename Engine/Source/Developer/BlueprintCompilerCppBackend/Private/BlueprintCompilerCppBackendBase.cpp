@@ -357,6 +357,7 @@ FString FBlueprintCompilerCppBackendBase::GenerateCodeFromClass(UClass* SourceCl
 			EmitterContext.Header.AddLine(TEXT("{"));
 			EmitterContext.Header.IncreaseIndent();
 			EmitterContext.Header.AddLine(TEXT("GENERATED_BODY()"));
+			EmitterContext.Header.AddLine(TEXT("static void __CustomDynamicClassInitialization(UDynamicClass* InDynamicClass) {}"));
 			EmitterContext.Header.DecreaseIndent();
 			EmitterContext.Header.AddLine(TEXT("};"));
 			EmitterContext.Header.AddLine(FString::Printf(TEXT("class %s"), *CppClassName));
