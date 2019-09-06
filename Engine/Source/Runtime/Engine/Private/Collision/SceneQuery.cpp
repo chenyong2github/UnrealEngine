@@ -20,10 +20,6 @@
 
 #include "Collision/CollisionDebugDrawing.h"
 
-#if WITH_CHAOS || PHYSICS_INTERFACE_LLIMMEDIATE
-#define STARTQUERYTIMER()
-#endif
-
 float DebugLineLifetime = 2.f;
 
 #include "PhysicsEngine/PhysXSupport.h"
