@@ -80,7 +80,7 @@ void UK2Node_EditablePinBase::AllocateDefaultPins()
 	for(int32 i = 0; i < UserDefinedPins.Num(); i++)
 	{
 		FText DummyErrorMsg;
-		if (!IsEditable() || CanCreateUserDefinedPin(UserDefinedPins[i]->PinType, UserDefinedPins[i]->DesiredPinDirection, DummyErrorMsg))
+		if ((!IsEditable() || CanCreateUserDefinedPin(UserDefinedPins[i]->PinType, UserDefinedPins[i]->DesiredPinDirection, DummyErrorMsg)) && !FindPin(UserDefinedPins[i]->PinName))
 		{
 			CreatePinFromUserDefinition(UserDefinedPins[i]);
 		}
@@ -132,6 +132,14 @@ void UK2Node_EditablePinBase::RemoveUserDefinedPinByName(const FName PinName)
 
 	// Remove the description from the user-defined pins array
 	UserDefinedPins.RemoveAll([&](const TSharedPtr<FUserPinInfo>& UDPin)
+	{
+		return UDPin.IsValid() && (UDPin->PinName == PinName);
+	});
+}
+
+bool UK2Node_EditablePinBase::UserDefinedPinExists(const FName PinName) const
+{
+	return UserDefinedPins.ContainsByPredicate([&PinName](const TSharedPtr<FUserPinInfo>& UDPin)
 	{
 		return UDPin.IsValid() && (UDPin->PinName == PinName);
 	});

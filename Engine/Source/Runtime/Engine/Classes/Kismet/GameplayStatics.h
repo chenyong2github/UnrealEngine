@@ -268,6 +268,20 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	static bool IsGamePaused(const UObject* WorldContextObject);
 
 	/**
+	 * Enables split screen
+	 * @param	bDisable		Whether the viewport should split screen between local players or not
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Viewport", meta = (WorldContext = "WorldContextObject"))
+	static void SetForceDisableSplitscreen(const UObject* WorldContextObject, bool bDisable);
+
+	/**
+	 * Returns the split screen state
+	 * @return	Whether the game viewport is split screen or not
+	 */
+	UFUNCTION(BlueprintPure, Category = "Viewport", meta = (WorldContext = "WorldContextObject"))
+	static bool IsSplitscreenForceDisabled(const UObject* WorldContextObject);
+
+	/**
 	 * Enabled rendering of the world
 	 * @param	bEnable		Whether the world should be rendered or not
 	 */

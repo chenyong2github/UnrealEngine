@@ -30,6 +30,9 @@ class UTimelineTemplate;
 struct FBlueprintCookedComponentInstancingData;
 struct FComponentKey;
 class UAnimGraphNode_Root;
+class UBlueprint;
+struct FBPInterfaceDescription;
+class UFunction;
 
 /** 
   * Flags describing how to handle graph removal
@@ -551,6 +554,13 @@ public:
 	 * @return	Whether or not this is an interface blueprint
 	 */
 	static bool IsInterfaceBlueprint(const UBlueprint* Blueprint);
+
+	/**
+	* Whether or not this graph is an interface graph (i.e. is from an interface blueprint)
+	* 
+	* @return	Whether or not this is an interface graph
+	*/
+	static bool IsInterfaceGraph(const UEdGraph* Graph);
 
 	/**
 	 * Whether or not this blueprint is an interface, used only for defining functions to implement
@@ -1142,8 +1152,19 @@ public:
 	 */
 	static int32 FindNewVariableIndex(const UBlueprint* Blueprint, const FName& InName);
 
+	/**
+	 * Find the index of a local variable declared in this blueprint. Returns INDEX_NONE if not found.
+	 *
+	 * @param	VariableScope	Struct of owning function.
+	 *
+	 * @param	InVariableName	Name of the variable to find.
+	 *
+	 * @return	The index of the variable, or INDEX_NONE if it wasn't introduced in this blueprint.
+	 */
+	static int32 FindLocalVariableIndex(const UBlueprint* Blueprint, UStruct* VariableScope, const FName& InVariableName);
+
 	/** Change the order of variables in the Blueprint */
-	static bool MoveVariableBeforeVariable(UBlueprint* Blueprint, FName VarNameToMove, FName TargetVarName, bool bDontRecompile);
+	static bool MoveVariableBeforeVariable(UBlueprint* Blueprint, UStruct* VariableScope, FName VarNameToMove, FName TargetVarName, bool bDontRecompile);
 
 	/**
 	 * Find the index of a timeline first declared in this blueprint. Returns INDEX_NONE if not found.
@@ -1275,7 +1296,7 @@ public:
 	* 
 	* @return	True if the function was removed from the blueprint
 	*/
-	static bool RemoveInterfaceFunction(class UBlueprint* Blueprint, struct FBPInterfaceDescription& Interface, class UFunction* Function, bool bPreserveFunction);
+	static bool RemoveInterfaceFunction(UBlueprint* Blueprint, FBPInterfaceDescription& Interface, UFunction* Function, bool bPreserveFunction);
 
 	/**
 	* Promotes a Graph from being an Interface Override to a full member function

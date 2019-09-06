@@ -28,7 +28,7 @@ class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression
 	
 	/** Is default selected texture when using mesh paint mode texture painting */
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionTextureBase)
-	uint32 IsDefaultMeshpaintTexture:1;
+	uint8 IsDefaultMeshpaintTexture:1;
 	
 	//~ Begin UObject Interface
 #if WITH_EDITOR

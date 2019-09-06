@@ -14,6 +14,8 @@ class UInterpCurveEdSetup;
 class UParticleEmitter;
 struct FCurveEdEntry;
 struct FParticleEmitterInstance;
+struct FRawDistributionFloat;
+struct FRawDistributionVector;
 
 UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Initial Color"))
 class ENGINE_API UParticleModuleColor : public UParticleModuleColorBase
@@ -22,15 +24,15 @@ class ENGINE_API UParticleModuleColor : public UParticleModuleColorBase
 
 	/** Initial color for a particle as a function of Emitter time. */
 	UPROPERTY(EditAnywhere, Category = Color, meta = (TreatAsColor))
-	struct FRawDistributionVector StartColor;
+	FRawDistributionVector StartColor;
 
 	/** Initial alpha for a particle as a function of Emitter time. */
 	UPROPERTY(EditAnywhere, Category=Color)
-	struct FRawDistributionFloat StartAlpha;
+	FRawDistributionFloat StartAlpha;
 
 	/** If true, the alpha value will be clamped to the [0..1] range. */
 	UPROPERTY(EditAnywhere, Category=Color)
-	uint32 bClampAlpha:1;
+	uint8 bClampAlpha:1;
 
 	/** Initializes the default values for this property */
 	void InitializeDefaults();

@@ -159,34 +159,13 @@ void UParticleModule::FinalUpdate(FParticleEmitterInstance* Owner, int32 Offset,
 
 uint32 UParticleModule::RequiredBytes(UParticleModuleTypeDataBase* TypeData)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		// To try and handle deprecation, if function is not overriden, call old function
-	// Will fail though if actually trying to use Owner
-	return RequiredBytes(static_cast<FParticleEmitterInstance*>(nullptr));
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	return 0;
 }
 
 uint32 UParticleModule::RequiredBytesPerInstance()
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// To try and handle deprecation, if function is not overriden, call old function
-	// Will fail though if actually trying to use Owner
-	return RequiredBytesPerInstance(nullptr);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-// DEPRECATED 4.11
-uint32 UParticleModule::RequiredBytes(FParticleEmitterInstance* Owner)
-{
 	return 0;
 }
-
-// DEPRECATED 4.11
-uint32 UParticleModule::RequiredBytesPerInstance(FParticleEmitterInstance* Owner)
-{
-	return 0;
-}
-
 
 uint32 UParticleModule::PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData)
 {
@@ -3426,7 +3405,7 @@ void UParticleModuleTypeDataMesh::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_MESH_EMITTER_INITIAL_ORIENTATION_DISTRIBUTION)
 	{
-		FVector oldOrient(Roll_DEPRECATED, Pitch_DEPRECATED, Yaw_DEPRECATED);
+		FVector oldOrient(0.0f, 0.0f, 0.0f);
 		CreateDistribution();
 		UDistributionVectorUniform* RPYDistribution = Cast<UDistributionVectorUniform>(RollPitchYawRange.Distribution);
 		RPYDistribution->Min = oldOrient;
