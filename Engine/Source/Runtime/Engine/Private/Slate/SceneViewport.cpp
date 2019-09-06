@@ -14,6 +14,7 @@
 #include "Layout/WidgetPath.h"
 #include "UnrealEngine.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/SlateUser.h"
 #include "Slate/SlateTextures.h"
 #include "Slate/DebugCanvas.h"
 
@@ -1120,10 +1121,10 @@ void FSceneViewport::OnFocusLost( const FFocusEvent& InFocusEvent )
 		TSharedPtr<SWidget> ViewportWidgetPin = ViewportWidget.Pin();
 		if ( ViewportWidgetPin.IsValid() )
 		{
-			FSlateApplication::Get().ForEachUser([&] (FSlateUser* User) {
-				if ( User->GetFocusedWidget() == ViewportWidgetPin )
+			FSlateApplication::Get().ForEachUser([&ViewportWidgetPin] (FSlateUser& User) {
+				if (User.GetFocusedWidget() == ViewportWidgetPin )
 				{
-					FSlateApplication::Get().ClearUserFocus(User->GetUserIndex());
+					User.ClearFocus();
 				}
 			});
 		}
