@@ -8,13 +8,9 @@
 #include "StaticMeshResources.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
 #include "GeometryCollectionRendering.h"
+#include "GeometryCollection/GeometryCollectionEditorSelection.h"
 #include "HitProxies.h"
 #include "EngineUtils.h"
-
-#ifndef GEOMETRYCOLLECTION_EDITOR_SELECTION
-#define GEOMETRYCOLLECTION_EDITOR_SELECTION WITH_EDITOR
-#endif
-
 
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 #include "GeometryCollection/GeometryCollectionHitProxy.h"
