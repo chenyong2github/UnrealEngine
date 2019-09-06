@@ -462,30 +462,62 @@ namespace IncludeTool
 		bool ReadTypedefHeader(TokenReader OriginalReader, SourceFragment Fragment)
 		{
 			TokenReader Reader = new TokenReader(OriginalReader);
+			if(Reader.Current.Text == "typedef")
+			{
+				// Check for the typedef keyword
+				Token PreviousToken = Reader.Current;
+				if(!Reader.MoveNext(TokenReaderContext.IgnoreNewlines))
+				{
+					return false;
+				}
 
-			// Check for the typedef keyword
-			Token PreviousToken = Reader.Current;
-			if(Reader.Current.Text != "typedef" || !Reader.MoveNext(TokenReaderContext.IgnoreNewlines))
+				// Scan to the next semicolon
+				while(Reader.MoveNext(TokenReaderContext.IgnoreNewlines) && Reader.Current.Text != ";" && Reader.Current.Text != "{")
+				{
+					PreviousToken = Reader.Current;
+				}
+
+				// Ignore 'typedef struct' and 'typedef union' declarations.
+				if(Reader.Current.Text == "{")
+				{
+					return false;
+				}
+
+				// Try to add a symbol for the previous token. If it already exists, replace it. 
+				if(PreviousToken.Type == TokenType.Identifier && Rules.AllowSymbol(PreviousToken.Text))
+				{
+					AddSymbol(PreviousToken.Text, SymbolType.Typedef, null, Fragment, OriginalReader.TokenLocation);
+				}
+			}
+			else if(Reader.Current.Text == "using")
+			{
+				// Check for the using keyword
+				if (!Reader.MoveNext(TokenReaderContext.IgnoreNewlines))
+				{
+					return false;
+				}
+
+				// Get the identifier
+				Token Identifier = Reader.Current;
+				if (Reader.Current.Type != TokenType.Identifier || !Reader.MoveNext(TokenReaderContext.IgnoreNewlines) || Reader.Current.Text != "=")
+				{
+					return false;
+				}
+
+				// Scan to the next semicolon
+				while (Reader.MoveNext(TokenReaderContext.IgnoreNewlines) && Reader.Current.Text != ";" && Reader.Current.Text != "{")
+				{
+				}
+
+				// Get the identifier
+				if (Rules.AllowSymbol(Identifier.Text))
+				{
+					AddSymbol(Identifier.Text, SymbolType.Typedef, null, Fragment, OriginalReader.TokenLocation);
+				}
+			}
+			else
 			{
 				return false;
-			}
-
-			// Scan to the next semicolon
-			while(Reader.MoveNext(TokenReaderContext.IgnoreNewlines) && Reader.Current.Text != ";" && Reader.Current.Text != "{")
-			{
-				PreviousToken = Reader.Current;
-			}
-
-			// Ignore 'typedef struct' and 'typedef union' declarations.
-			if(Reader.Current.Text == "{")
-			{
-				return false;
-			}
-
-			// Try to add a symbol for the previous token. If it already exists, replace it. 
-			if(PreviousToken.Type == TokenType.Identifier && Rules.AllowSymbol(PreviousToken.Text))
-			{
-				AddSymbol(PreviousToken.Text, SymbolType.Typedef, null, Fragment, OriginalReader.TokenLocation);
 			}
 
 			// Move the original reader past the declaration
