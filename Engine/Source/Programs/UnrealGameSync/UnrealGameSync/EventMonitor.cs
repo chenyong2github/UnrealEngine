@@ -487,7 +487,7 @@ namespace UnrealGameSync
 					if(Timer.Elapsed > TimeSpan.FromSeconds(RequestThrottle))
 					{
 						bUpdateThrottledRequests = true;
-						Timer.Reset();
+						Timer.Restart();
 					}
 
 					// Read all the new reviews, pass whether or not to fire the throttled requests
