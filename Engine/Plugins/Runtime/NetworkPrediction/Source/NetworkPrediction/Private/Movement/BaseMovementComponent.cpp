@@ -385,7 +385,7 @@ void UBaseMovementComponent::DrawDebug(const IBaseMovementDriver::FDrawDebugPara
 			if (BaseMovementCVars::UseDrawDebug)
 			{
 				static const float Thickness = 2.f;
-				DrawDebugCapsule(Params.DebugWorld, Params.Transform.GetLocation(), HalfHeight, Radius, Params.Transform.GetRotation(), Params.DrawColor, PersistentLines, LifetimeSeconds, 0.f, Thickness);
+				DrawDebugCapsule(Params.DebugWorld, Params.Transform.GetLocation(), HalfHeight, Radius, Params.Transform.GetRotation(), Params.DrawColor, false, LifetimeSeconds, 0.f, Thickness);
 			}
 
 			if (BaseMovementCVars::UseVLogger)
