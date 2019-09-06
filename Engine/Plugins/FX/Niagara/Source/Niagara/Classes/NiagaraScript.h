@@ -150,10 +150,6 @@ public:
 	UPROPERTY()
 	TArray<FNiagaraCompileHash> ReferencedCompileHashes;
 
-	/** Guids of any functions, module scripts, parameter collections, or other assets the script was dependent on that might trigger a recompile if they change. */
-	UPROPERTY()
-	TArray<FGuid> ReferencedDependencyIds;
-
 	/** Temp storage while generating the Id. This is NOT serialized and shouldn't be used in any comparisons*/
 	TArray<UObject*> ReferencedObjects;
 #endif
