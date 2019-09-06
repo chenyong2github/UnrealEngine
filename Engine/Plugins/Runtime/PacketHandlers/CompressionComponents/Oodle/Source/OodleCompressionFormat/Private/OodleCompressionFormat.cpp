@@ -4,6 +4,7 @@
 #include "Misc/Compression.h"
 #include "Misc/ICompressionFormat.h"
 #include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 #if HAS_OODLE_DATA_SDK
 
