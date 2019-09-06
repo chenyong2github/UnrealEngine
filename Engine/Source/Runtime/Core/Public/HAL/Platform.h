@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Misc/Build.h"
+
 // define all other platforms to be zero
 //@port Define the platform here to be zero when compiling for other platforms
 #if !defined(PLATFORM_WINDOWS)
