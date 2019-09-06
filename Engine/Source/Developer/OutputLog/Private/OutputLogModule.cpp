@@ -43,7 +43,7 @@ public:
 	}
 
 	/** Gets all captured messages */
-	const TArray< TSharedPtr<FLogMessage> >& GetMessages() const
+	const TArray< TSharedPtr<FOutputLogMessage> >& GetMessages() const
 	{
 		return Messages;
 	}
@@ -59,7 +59,7 @@ protected:
 private:
 
 	/** All log messsges since this module has been started */
-	TArray< TSharedPtr<FLogMessage> > Messages;
+	TArray< TSharedPtr<FOutputLogMessage> > Messages;
 };
 
 /** Our global output log app spawner */

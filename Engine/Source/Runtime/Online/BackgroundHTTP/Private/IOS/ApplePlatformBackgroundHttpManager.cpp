@@ -13,6 +13,8 @@
 
 #include "IOS/IOSBackgroundURLSessionHandler.h"
 
+#include "PlatformBackgroundHttp.h"
+
 FApplePlatformBackgroundHttpManager::~FApplePlatformBackgroundHttpManager()
 {
     [UnAssociatedTasks release];
