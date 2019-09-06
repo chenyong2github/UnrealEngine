@@ -522,13 +522,9 @@ public:
 	FD3D12FastAllocator(FD3D12Device* Parent, FRHIGPUMask VisibiltyMask, D3D12_HEAP_TYPE InHeapType, uint32 PageSize);
 	FD3D12FastAllocator(FD3D12Device* Parent, FRHIGPUMask VisibiltyMask, const D3D12_HEAP_PROPERTIES& InHeapProperties, uint32 PageSize);
 
-	template<typename LockType>
 	void* Allocate(uint32 Size, uint32 Alignment, class FD3D12ResourceLocation* ResourceLocation);
-
-	template<typename LockType>
 	void Destroy();
 
-	template<typename LockType>
 	void CleanupPages(uint64 FrameLag);
 
 protected:

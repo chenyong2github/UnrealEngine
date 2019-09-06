@@ -1,12 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	D3D12VertexBuffer.cpp: D3D texture RHI implementation.
+	D3D12Texture.cpp: D3D texture RHI implementation.
 	=============================================================================*/
 
 #include "D3D12RHIPrivate.h"
 
- 
+
 int64 FD3D12GlobalStats::GDedicatedVideoMemory = 0;
 int64 FD3D12GlobalStats::GDedicatedSystemMemory = 0;
 int64 FD3D12GlobalStats::GSharedSystemMemory = 0;
@@ -1259,10 +1259,31 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 
 		check((TextureDesc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) == 0);
 
-		const uint64 Size = GetRequiredIntermediateSize(TextureOut->GetResource()->GetResource(), 0, NumMips);
-		FD3D12FastAllocator& FastAllocator = GetHelperThreadDynamicUploadHeapAllocator();
+		FD3D12FastAllocator& FastAllocator = TextureOut->GetParentDevice()->GetDefaultFastAllocator();
+		uint64 Size = GetRequiredIntermediateSize(TextureOut->GetResource()->GetResource(), 0, NumMips);
+		uint64 SizeLowMips;
+
 		FD3D12ResourceLocation TempResourceLocation(FastAllocator.GetParentDevice());
-		FastAllocator.Allocate<FD3D12ScopeLock>(Size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &TempResourceLocation);
+		FD3D12ResourceLocation TempResourceLocationLowMips(FastAllocator.GetParentDevice());
+
+		// The allocator work in pages of 4MB. Increasing page size is undesirable from a hitching point of view because there's a performance cliff above 4MB
+		// where creation time of new pages can increase by an order of magnitude. Most allocations are smaller than 4MB, but a common exception is
+		// 2048x2048 BC3 textures with mips, which takes 5.33MB. To avoid this case falling into the standalone allocations fallback path and risking hitching badly,
+		// we split the top mip into a separate allocation, allowing it to fit within 4MB.
+		const bool bSplitAllocation = (Size > 4 * 1024 * 1024) && (NumMips > 1);
+
+		if (bSplitAllocation)
+		{
+			Size = GetRequiredIntermediateSize(TextureOut->GetResource()->GetResource(), 0, 1);
+			SizeLowMips = GetRequiredIntermediateSize(TextureOut->GetResource()->GetResource(), 1, NumMips - 1);
+
+			FastAllocator.Allocate(Size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &TempResourceLocation);
+			FastAllocator.Allocate(SizeLowMips, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &TempResourceLocationLowMips);
+		}
+		else
+		{
+			FastAllocator.Allocate(Size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &TempResourceLocation);
+		}
 
 		FD3D12Texture2D* CurrentTexture = TextureOut;
 		while (CurrentTexture != nullptr)
@@ -1276,13 +1297,35 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 			hCopyCommandList.SetCurrentOwningContext(&Device->GetDefaultCommandContext());
 
 			hCopyCommandList.GetCurrentOwningContext()->numCopies++;
-			UpdateSubresources(
-				(ID3D12GraphicsCommandList*)hCopyCommandList.CommandList(),
-				Resource->GetResource(),
-				TempResourceLocation.GetResource()->GetResource(),
-				TempResourceLocation.GetOffsetFromBaseOfResource(),
-				0, NumMips,
-				SubResourceData);
+
+			if (bSplitAllocation)
+			{
+				UpdateSubresources(
+					(ID3D12GraphicsCommandList*)hCopyCommandList.CommandList(),
+					Resource->GetResource(),
+					TempResourceLocation.GetResource()->GetResource(),
+					TempResourceLocation.GetOffsetFromBaseOfResource(),
+					0, 1,
+					SubResourceData);
+
+				UpdateSubresources(
+					(ID3D12GraphicsCommandList*)hCopyCommandList.CommandList(),
+					Resource->GetResource(),
+					TempResourceLocationLowMips.GetResource()->GetResource(),
+					TempResourceLocationLowMips.GetOffsetFromBaseOfResource(),
+					1, NumMips - 1,
+					SubResourceData + 1);
+			}
+			else
+			{
+				UpdateSubresources(
+					(ID3D12GraphicsCommandList*)hCopyCommandList.CommandList(),
+					Resource->GetResource(),
+					TempResourceLocation.GetResource()->GetResource(),
+					TempResourceLocation.GetOffsetFromBaseOfResource(),
+					0, NumMips,
+					SubResourceData);
+			}
 
 			hCopyCommandList.UpdateResidency(Resource);
 
@@ -1564,7 +1607,7 @@ void* TD3D12Texture2D<RHIResourceType>::Lock(class FRHICommandListImmediate* RHI
 		//const uint32 bufferSize = (uint32)GetRequiredIntermediateSize(this->GetResource()->GetResource(), Subresource, 1);
 		const uint32 bufferSize = Align(MipBytesAligned, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
 
-		void* pData = Device->GetDefaultFastAllocator().Allocate<FD3D12ScopeLock>(bufferSize, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &LockedResource->ResourceLocation);
+		void* pData = Device->GetDefaultFastAllocator().Allocate(bufferSize, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &LockedResource->ResourceLocation);
 		if (nullptr == pData)
 		{
 			check(false);
@@ -1708,7 +1751,7 @@ void FD3D12TextureBase::InitializeTextureData(FRHICommandListImmediate* RHICmdLi
 	uint64 Size = GetRequiredIntermediateSize(GetResource()->GetResource(), 0, NumSubresources);
 
 	FD3D12ResourceLocation SrcResourceLoc(GetParentDevice());
-	uint8* DstData = (uint8*) SrcResourceLoc.GetParentDevice()->GetDefaultFastAllocator().Allocate<FD3D12ScopeLock>(Size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &SrcResourceLoc);
+	uint8* DstData = (uint8*) SrcResourceLoc.GetParentDevice()->GetDefaultFastAllocator().Allocate(Size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &SrcResourceLoc);
 	uint32 DstDataOffset = 0;
 
 	const uint8* SrcData = (const uint8*) InitData;
@@ -1867,7 +1910,7 @@ void TD3D12Texture2D<RHIResourceType>::UpdateTexture2D(class FRHICommandListImme
 	while (Texture)
 	{
 		FD3D12ResourceLocation UploadHeapResourceLocation(GetParentDevice());
-		void* pData = GetParentDevice()->GetDefaultFastAllocator().template Allocate<FD3D12ScopeLock>(bufferSize, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &UploadHeapResourceLocation);
+		void* pData = GetParentDevice()->GetDefaultFastAllocator().Allocate(bufferSize, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &UploadHeapResourceLocation);
 		check(nullptr != pData);
 
 		byte* pRowData = (byte*)pData;
@@ -2234,7 +2277,7 @@ FUpdateTexture3DData FD3D12DynamicRHI::BeginUpdateTexture3D_Internal(FRHITexture
 
 		//@TODO Probably need to use the TextureAllocator here to get correct tiling.
 		// Currently the texture are allocated in linear, see hanlding around bVolume in FXboxOneTextureFormat::CompressImage(). 
-		UpdateData.Data = (uint8*)GetRHIDevice()->GetDefaultFastAllocator().Allocate<FD3D12ScopeLock>(BufferSize, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, UpdateDataD3D12->UploadHeapResourceLocation);
+		UpdateData.Data = (uint8*)GetRHIDevice()->GetDefaultFastAllocator().Allocate(BufferSize, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, UpdateDataD3D12->UploadHeapResourceLocation);
 
 		check(UpdateData.Data != nullptr);
 	}
