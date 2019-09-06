@@ -217,7 +217,9 @@ FRenderingCompositeOutputRef AddDownsamplePass(
 		PassInputs.Quality = InQuality;
 		PassInputs.Flags = InFlags;
 
-		FDownsamplePassOutputs PassOutputs = AddDownsamplePass(GraphBuilder, FScreenPassViewInfo(InContext.View), PassInputs);
+		FScreenPassViewInfo ScreenPassView(InContext.View);
+
+		FDownsamplePassOutputs PassOutputs = AddDownsamplePass(GraphBuilder, ScreenPassView, PassInputs);
 
 		Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, PassOutputs.Texture);
 

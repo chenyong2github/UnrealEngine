@@ -124,7 +124,9 @@ FRenderingCompositeOutputRef AddTestImagePass(FRenderingCompositionGraph& Graph,
 
 		FRDGTextureRef SceneTextureOutput = InPass->FindOrCreateRDGTextureForOutput(GraphBuilder, ePId_Output0, OutputTextureDesc, TEXT("TestImage"));
 
-		AddTestImagePass(GraphBuilder, FScreenPassViewInfo(InContext.View), SceneTextureOutput, InContext.SceneColorViewRect);
+		FScreenPassViewInfo ScreenPassView(InContext.View);
+
+		AddTestImagePass(GraphBuilder, ScreenPassView, SceneTextureOutput, InContext.SceneColorViewRect);
 
 		InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, SceneTextureOutput);
 
