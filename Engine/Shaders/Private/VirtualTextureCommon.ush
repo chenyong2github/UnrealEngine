@@ -424,6 +424,7 @@ struct VTUniform
 	float pPageSize;
 	float vPageSize;
 	float vPageBorderSize;
+	uint PageCoordinateBitCount;
 };
 
 VTUniform VTUniform_Unpack(uint4 PackedUniform)
@@ -432,6 +433,7 @@ VTUniform VTUniform_Unpack(uint4 PackedUniform)
 	result.pPageSize = asfloat(PackedUniform.w);
 	result.vPageSize = asfloat(PackedUniform.y);
 	result.vPageBorderSize = asfloat(PackedUniform.z);
+	result.PageCoordinateBitCount = PackedUniform.x == 0 ? 8 : 6;
 	return result;
 }
 
@@ -440,9 +442,11 @@ float2 VTComputePhysicalUVs(in out VTPageTableResult PageTableResult, uint Layer
 {
 	const uint PackedPageTableValue = PageTableResult.PageTableValue[LayerIndex / 4u][LayerIndex & 3u];
 
-	const float UVScale = f16tof32(PackedPageTableValue);
-	const float pPageX = UnpackByte2(PackedPageTableValue);
-	const float pPageY = UnpackByte3(PackedPageTableValue);
+	// See packing in PageTableUpdate.usf
+	const uint vLevel = PackedPageTableValue & 0xf;
+	const float UVScale = 1.0f / (float)(1 << vLevel);
+	const float pPageX = (float)((PackedPageTableValue >> 4) & ((1 << Uniform.PageCoordinateBitCount) - 1));
+	const float pPageY = (float)(PackedPageTableValue >> (4 + Uniform.PageCoordinateBitCount));
 
 	const float2 vPageFrac = frac(PageTableResult.UV * UVScale);
 	const float2 pUV = float2(pPageX, pPageY) * Uniform.pPageSize + (vPageFrac * Uniform.vPageSize + Uniform.vPageBorderSize);
