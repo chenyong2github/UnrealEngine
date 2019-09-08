@@ -417,7 +417,7 @@ void FNiagaraUserParameterBindingCustomization::ChangeSource(FName InVarName)
 
 	PropertyHandle->NotifyPreChange();
 	TargetUserParameterBinding->Parameter.SetName(InVarName);
-	TargetUserParameterBinding->Parameter.SetType(FNiagaraTypeDefinition::GetUObjectDef());
+	//TargetUserParameterBinding->Parameter.SetType(FNiagaraTypeDefinition::GetUObjectDef()); Do not override the type here!
 	//TargetVariableBinding->DataSetVariable = FNiagaraConstants::GetAttributeAsDataSetKey(TargetVariableBinding->BoundVariable);
 	PropertyHandle->NotifyPostChange();
 	PropertyHandle->NotifyFinishedChangingProperties();

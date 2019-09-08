@@ -311,7 +311,7 @@ public:
 	{
 		int32 Offset = IndexOf(Parameter);
 		UObject* Obj = GetUObject(Offset);
-		checkSlow(!Obj || Parameter.GetType().GetClass() == Obj->GetClass());
+		checkSlow(!Obj || Obj->IsA(Parameter.GetType().GetClass()));
 		return Obj;
 	}
 
@@ -1079,7 +1079,7 @@ struct FNiagaraParameterDirectBinding<UObject*>
 			BoundVariable = DestVariable;
 			LayoutVersion = BoundStore->GetLayoutVersion();
 
-			check(BoundVariable.GetType() == FNiagaraTypeDefinition::GetUObjectDef());
+			check(BoundVariable.GetType().IsUObject());
 			UObjectOffset = BoundStore->IndexOf(DestVariable);
 			UObject* Ret = BoundStore->GetUObject(UObjectOffset);
 			return Ret;
@@ -1091,7 +1091,7 @@ struct FNiagaraParameterDirectBinding<UObject*>
 	{
 		if (UObjectOffset != INDEX_NONE)
 		{
-			checkSlow(BoundVariable.GetType() == FNiagaraTypeDefinition::GetUObjectDef());
+			checkSlow(BoundVariable.GetType().IsUObject());
 			checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 			BoundStore->SetUObject(InValue, UObjectOffset);
@@ -1102,7 +1102,7 @@ struct FNiagaraParameterDirectBinding<UObject*>
 	{
 		if (UObjectOffset != INDEX_NONE)
 		{
-			checkSlow(BoundVariable.GetType() == FNiagaraTypeDefinition::GetUObjectDef());
+			checkSlow(BoundVariable.GetType().IsUObject());
 			checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 			return BoundStore->GetUObject(UObjectOffset);
