@@ -7,6 +7,7 @@
 #include "NiagaraBoundsCalculatorHelper.h"
 
 FNiagaraMeshMaterialOverride::FNiagaraMeshMaterialOverride()
+	: ExplicitMat(nullptr)
 {
 	FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
 	UserParamBinding.Parameter.SetType(MaterialDef);
