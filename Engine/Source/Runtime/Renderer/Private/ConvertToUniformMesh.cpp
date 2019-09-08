@@ -307,12 +307,12 @@ public:
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		if (Material->IsUIMaterial())
+		if (Parameters.Material->IsUIMaterial())
 		{
 			return false;
 		}
 
-		if (Material->GetShadingModels().IsUnlit())
+		if (Parameters.Material->GetShadingModels().IsUnlit())
 		{
 			return false;
 		}
