@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PacketSizesViewHelper.h"
+//#include "PacketViewHelper.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
@@ -10,6 +11,7 @@
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/NetworkingProfiler/ViewModels/PacketSizesViewport.h"
+//#include "Insights/NetworkingProfiler/ViewModels/PacketViewViewport.h"
 #include "Insights/ViewModels/DrawHelpers.h"
 
 #include <limits>
@@ -18,7 +20,7 @@
 // FNetworkPacketSeriesBuilder
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FNetworkPacketSeriesBuilder::FNetworkPacketSeriesBuilder(FNetworkPacketSeries& InSeries, const FPacketSizesViewport& InViewport)
+FNetworkPacketSeriesBuilder::FNetworkPacketSeriesBuilder(FNetworkPacketSeries& InSeries, const FPacketViewViewport& InViewport)
 	: Series(InSeries)
 	, Viewport(InViewport)
 	, NumAddedPackets(0)
@@ -26,7 +28,7 @@ FNetworkPacketSeriesBuilder::FNetworkPacketSeriesBuilder(FNetworkPacketSeries& I
 	SampleW = Viewport.GetSampleWidth();
 	PacketsPerSample = Viewport.GetNumPacketsPerSample();
 	NumSamples = FMath::Max(0, FMath::CeilToInt(Viewport.GetWidth() / SampleW));
-	FirstFrameIndex = Viewport.GetFirstFrameIndex();
+	FirstPacketIndex = Viewport.GetFirstPacketIndex();
 
 	Series.NumAggregatedPackets = 0;
 	Series.Samples.Reset();
@@ -35,38 +37,51 @@ FNetworkPacketSeriesBuilder::FNetworkPacketSeriesBuilder(FNetworkPacketSeries& I
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FNetworkPacketSeriesBuilder::AddPacket(int32 FrameIndex, int64 Size, double TimeSent, double TimeAck, ENetworkPacketStatus Status)
+void FNetworkPacketSeriesBuilder::AddPacket(int32 PacketIndex, const Trace::FNetProfilerPacket& Packet)
 {
 	NumAddedPackets++;
 
-	int32 SampleIndex = (FrameIndex - FirstFrameIndex) / PacketsPerSample;
+	int32 SampleIndex = (PacketIndex - FirstPacketIndex) / PacketsPerSample;
 	if (SampleIndex >= 0 && SampleIndex < NumSamples)
 	{
 		FNetworkPacketAggregatedSample& Sample = Series.Samples[SampleIndex];
 		Sample.NumPackets++;
 
-		if (TimeSent < Sample.StartTime)
+		const double TimeStamp = static_cast<double>(Packet.TimeStamp);
+		if (TimeStamp < Sample.StartTime)
 		{
-			Sample.StartTime = TimeSent;
+			Sample.StartTime = TimeStamp;
 		}
-		if (TimeSent > Sample.EndTime)
+		if (TimeStamp > Sample.EndTime)
 		{
-			Sample.EndTime = TimeSent;
-		}
-
-		if (Size > Sample.LargestPacket.Size)
-		{
-			Sample.LargestPacket.FrameIndex = FrameIndex;
-			Sample.LargestPacket.Size = Size;
-			Sample.LargestPacket.TimeSent = TimeSent;
-			Sample.LargestPacket.TimeAck = TimeAck;
-			Sample.LargestPacket.Status = Status;
+			Sample.EndTime = TimeStamp;
 		}
 
-		ensure(Status != ENetworkPacketStatus::Unknown);
-		if (static_cast<int32>(Status) > static_cast<int32>(Sample.AggregatedStatus))
+		if (Packet.TotalPacketSizeInBytes > Sample.LargestPacket.TotalSizeInBytes)
 		{
-			Sample.AggregatedStatus = Status;
+			Sample.LargestPacket.Index = PacketIndex;
+			Sample.LargestPacket.SequenceNumber = Packet.SequenceNumber;
+			Sample.LargestPacket.ContentSizeInBits = Packet.ContentSizeInBits;
+			Sample.LargestPacket.TotalSizeInBytes = Packet.TotalPacketSizeInBytes;
+			Sample.LargestPacket.TimeStamp = TimeStamp;
+			Sample.LargestPacket.Status = Packet.DeliveryStatus;
+		}
+
+		switch (Sample.AggregatedStatus)
+		{
+			case Trace::ENetProfilerDeliveryStatus::Unknown:
+				Sample.AggregatedStatus = Packet.DeliveryStatus;
+				break;
+
+			case Trace::ENetProfilerDeliveryStatus::Dropped:
+				break;
+
+			case Trace::ENetProfilerDeliveryStatus::Delivered:
+				if (Packet.DeliveryStatus == Trace::ENetProfilerDeliveryStatus::Dropped)
+				{
+					Sample.AggregatedStatus = Trace::ENetProfilerDeliveryStatus::Dropped;
+				}
+				break;
 		}
 
 		Series.NumAggregatedPackets++;
@@ -74,10 +89,10 @@ void FNetworkPacketSeriesBuilder::AddPacket(int32 FrameIndex, int64 Size, double
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// FPacketSizesViewDrawHelper
+// FPacketViewDrawHelper
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FPacketSizesViewDrawHelper::FPacketSizesViewDrawHelper(const FDrawContext& InDrawContext, const FPacketSizesViewport& InViewport)
+FPacketViewDrawHelper::FPacketViewDrawHelper(const FDrawContext& InDrawContext, const FPacketViewViewport& InViewport)
 	: DrawContext(InDrawContext)
 	, Viewport(InViewport)
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
@@ -91,7 +106,7 @@ FPacketSizesViewDrawHelper::FPacketSizesViewDrawHelper(const FDrawContext& InDra
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketSizesViewDrawHelper::DrawBackground() const
+void FPacketViewDrawHelper::DrawBackground() const
 {
 	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
 
@@ -108,21 +123,18 @@ void FPacketSizesViewDrawHelper::DrawBackground() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FLinearColor FPacketSizesViewDrawHelper::GetColorByStatus(ENetworkPacketStatus Status)
+FLinearColor FPacketViewDrawHelper::GetColorByStatus(Trace::ENetProfilerDeliveryStatus Status)
 {
-	const float Alpha = 1.0f;
+	constexpr float Alpha = 1.0f;
 	switch (Status)
 	{
-	case ENetworkPacketStatus::Unknown:
+	case Trace::ENetProfilerDeliveryStatus::Unknown:
 		return FLinearColor(0.25f, 0.25f, 0.25f, Alpha);
 
-	case ENetworkPacketStatus::Sent:
-		return FLinearColor(0.75f, 0.75f, 0.75f, Alpha);
-
-	case ENetworkPacketStatus::ConfirmedReceived:
+	case Trace::ENetProfilerDeliveryStatus::Delivered:
 		return FLinearColor(0.5f, 1.0f, 0.5f, Alpha);
 
-	case ENetworkPacketStatus::ConfirmedLost:
+	case Trace::ENetProfilerDeliveryStatus::Dropped:
 		return FLinearColor(1.0f, 0.5f, 0.5f, Alpha);
 
 	default:
@@ -132,7 +144,7 @@ FLinearColor FPacketSizesViewDrawHelper::GetColorByStatus(ENetworkPacketStatus S
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketSizesViewDrawHelper::DrawCached(const FNetworkPacketSeries& Series) const
+void FPacketViewDrawHelper::DrawCached(const FNetworkPacketSeries& Series) const
 {
 	if (Series.NumAggregatedPackets == 0)
 	{
@@ -161,7 +173,8 @@ void FPacketSizesViewDrawHelper::DrawCached(const FNetworkPacketSeries& Series) 
 
 		const float X = SampleIndex * SampleW;
 
-		const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.Size)));
+		//const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.ContentSizeInBits)));
+		const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.TotalSizeInBytes * 8)));
 
 		const float H = ValueY - BaselineY;
 		const float Y = ViewHeight - H;
@@ -190,19 +203,21 @@ void FPacketSizesViewDrawHelper::DrawCached(const FNetworkPacketSeries& Series) 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketSizesViewDrawHelper::DrawSampleHighlight(const FNetworkPacketAggregatedSample& Sample, EHighlightMode Mode) const
+void FPacketViewDrawHelper::DrawSampleHighlight(const FNetworkPacketAggregatedSample& Sample, EHighlightMode Mode) const
 {
 	const float SampleW = Viewport.GetSampleWidth();
 	const int32 PacketsPerSample = Viewport.GetNumPacketsPerSample();
-	const int32 FirstFrameIndex = Viewport.GetFirstFrameIndex();
-	const int32 SampleIndex = (Sample.LargestPacket.FrameIndex - FirstFrameIndex) / PacketsPerSample;
+	const int32 FirstPacketIndex = Viewport.GetFirstPacketIndex();
+	const int32 SampleIndex = (Sample.LargestPacket.Index - FirstPacketIndex) / PacketsPerSample;
 	const float X = SampleIndex * SampleW;
 
 	const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
 
 	const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
 	const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
-	const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.Size)));
+
+	//const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.ContentSizeInBits)));
+	const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.TotalSizeInBytes * 8)));
 
 	const float H = ValueY - BaselineY;
 	const float Y = ViewHeight - H;

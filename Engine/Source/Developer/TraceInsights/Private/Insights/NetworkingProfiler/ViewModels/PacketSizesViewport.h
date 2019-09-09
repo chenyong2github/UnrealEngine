@@ -10,13 +10,13 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FPacketSizesViewport
+class FPacketViewViewport
 {
 private:
 	static constexpr float SLATE_UNITS_TOLERANCE = 0.1f;
 
 public:
-	FPacketSizesViewport()
+	FPacketViewViewport()
 	{
 		Reset();
 	}
@@ -50,7 +50,7 @@ public:
 
 	float GetSampleWidth() const { return HorizontalAxisViewport.GetSampleSize(); }
 	int32 GetNumPacketsPerSample() const { return HorizontalAxisViewport.GetNumSamplesPerPixel(); }
-	int32 GetFirstFrameIndex() const { return HorizontalAxisViewport.GetValueAtOffset(0.0f); }
+	int32 GetFirstPacketIndex() const { return HorizontalAxisViewport.GetValueAtOffset(0.0f); }
 
 private:
 	void OnSizeChanged()

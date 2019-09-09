@@ -4,9 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
+#include "TraceServices/Model/NetProfiler.h"
 #include "Styling/WidgetStyle.h"
-
-#include <limits>
 
 enum class ESlateDrawEffect : uint8;
 
@@ -14,7 +13,7 @@ struct FDrawContext;
 struct FGeometry;
 struct FSlateBrush;
 
-class FPacketBreakdownViewport;
+class FPacketContentViewport;
 class FSlateWindowElementList;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,7 +56,7 @@ struct FNetworkPacketEvent
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FPacketBreakdownViewDrawState
+struct FPacketContentViewDrawState
 {
 	struct FPacketEvent
 	{
@@ -84,7 +83,7 @@ struct FPacketBreakdownViewDrawState
 		bool bWhite;
 	};
 
-	FPacketBreakdownViewDrawState()
+	FPacketContentViewDrawState()
 	{
 	}
 
@@ -110,7 +109,7 @@ struct FPacketBreakdownViewDrawState
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FPacketBreakdownViewDrawStateBuilder
+class FPacketContentViewDrawStateBuilder
 {
 private:
 	struct FBoxData
@@ -125,23 +124,23 @@ private:
 	};
 
 public:
-	explicit FPacketBreakdownViewDrawStateBuilder(FPacketBreakdownViewDrawState& InState, const FPacketBreakdownViewport& InViewport);
+	explicit FPacketContentViewDrawStateBuilder(FPacketContentViewDrawState& InState, const FPacketContentViewport& InViewport);
 
 	/**
 	 * Non-copyable
 	 */
-	FPacketBreakdownViewDrawStateBuilder(const FPacketBreakdownViewDrawStateBuilder&) = delete;
-	FPacketBreakdownViewDrawStateBuilder& operator=(const FPacketBreakdownViewDrawStateBuilder&) = delete;
+	FPacketContentViewDrawStateBuilder(const FPacketContentViewDrawStateBuilder&) = delete;
+	FPacketContentViewDrawStateBuilder& operator=(const FPacketContentViewDrawStateBuilder&) = delete;
 
-	void AddEvent(int64 Offset, int64 Size, int32 Type, int32 Depth);
+	void AddEvent(const Trace::FNetProfilerContentEvent& Event, const TCHAR* Name = nullptr);
 	void Flush();
 
 private:
 	void FlushBox(const FBoxData& Box, const float EventY, const float EventH);
 
 private:
-	FPacketBreakdownViewDrawState& DrawState; // cached draw state to build
-	const FPacketBreakdownViewport& Viewport;
+	FPacketContentViewDrawState& DrawState; // cached draw state to build
+	const FPacketContentViewport& Viewport;
 
 	int32 MaxDepth;
 
@@ -153,7 +152,7 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FPacketBreakdownViewDrawHelper
+class FPacketContentViewDrawHelper
 {
 public:
 	enum class EHighlightMode : uint32
@@ -164,26 +163,26 @@ public:
 	};
 
 public:
-	explicit FPacketBreakdownViewDrawHelper(const FDrawContext& InDrawContext, const FPacketBreakdownViewport& InViewport);
+	explicit FPacketContentViewDrawHelper(const FDrawContext& InDrawContext, const FPacketContentViewport& InViewport);
 
 	/**
 	 * Non-copyable
 	 */
-	FPacketBreakdownViewDrawHelper(const FPacketBreakdownViewDrawHelper&) = delete;
-	FPacketBreakdownViewDrawHelper& operator=(const FPacketBreakdownViewDrawHelper&) = delete;
+	FPacketContentViewDrawHelper(const FPacketContentViewDrawHelper&) = delete;
+	FPacketContentViewDrawHelper& operator=(const FPacketContentViewDrawHelper&) = delete;
 
 	const FSlateBrush* GetWhiteBrush() const { return WhiteBrush; }
 	const FSlateFontInfo& GetEventFont() const { return EventFont; }
 
 	void DrawBackground() const;
-	void Draw(const FPacketBreakdownViewDrawState& DrawState) const;
+	void Draw(const FPacketContentViewDrawState& DrawState) const;
 	void DrawEventHighlight(const FNetworkPacketEvent& Event) const;
 
 	static FLinearColor GetColorByType(int32 Type);
 
 private:
 	const FDrawContext& DrawContext;
-	const FPacketBreakdownViewport& Viewport;
+	const FPacketContentViewport& Viewport;
 
 	const FSlateBrush* WhiteBrush;
 	const FSlateBrush* EventBorderBrush;

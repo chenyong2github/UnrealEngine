@@ -9,10 +9,10 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FPacketBreakdownViewport
+class FPacketContentViewport
 {
 public:
-	FPacketBreakdownViewport()
+	FPacketContentViewport()
 	{
 		Reset();
 	}

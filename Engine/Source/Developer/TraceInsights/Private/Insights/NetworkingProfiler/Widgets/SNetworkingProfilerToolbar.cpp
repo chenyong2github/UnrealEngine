@@ -18,6 +18,7 @@
 #include "Insights/InsightsManager.h"
 #include "Insights/NetworkingProfiler/NetworkingProfilerCommands.h"
 #include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
+#include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -37,43 +38,36 @@ SNetworkingProfilerToolbar::~SNetworkingProfilerToolbar()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs)
+void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow)
 {
+	ProfilerWindow = InProfilerWindow;
+
 	struct Local
 	{
-		static void FillViewToolbar(FToolBarBuilder& ToolbarBuilder)
+		static void FillViewToolbar(TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow, FToolBarBuilder& ToolbarBuilder)
 		{
 			ToolbarBuilder.BeginSection("View");
 			{
-				ToolbarBuilder.AddToolBarButton(FNetworkingProfilerCommands::Get().TogglePacketSizesViewVisibility);
-				ToolbarBuilder.AddToolBarButton(FNetworkingProfilerCommands::Get().TogglePacketBreakdownViewVisibility);
-				//ToolbarBuilder.AddToolBarButton(FNetworkingProfilerCommands::Get().ToggleDataStreamBreakdownViewVisibility);
+				ToolbarBuilder.AddToolBarButton(FNetworkingProfilerManager::GetCommands().TogglePacketViewVisibility);
+				ToolbarBuilder.AddToolBarButton(FNetworkingProfilerManager::GetCommands().TogglePacketContentViewVisibility);
+				ToolbarBuilder.AddToolBarButton(FNetworkingProfilerManager::GetCommands().ToggleNetStatsViewVisibility);
 			}
 			ToolbarBuilder.EndSection();
 			ToolbarBuilder.BeginSection("Connection");
 			{
-				//FUIAction Action_ChooseReplicationSystem
-				//(
-				//	FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_Execute),
-				//	FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_CanExecute)
-				//);
-				//const FOnGetContent MenuContentGenerator;
-				//ToolbarBuilder.AddComboButton(Action, MenuContentGenerator);
-				TSharedRef<SWidget> ReplicationWidget = SNew(STextBlock)
-					.Text(LOCTEXT("Replication", "Replication System"));
-				ToolbarBuilder.AddWidget(ReplicationWidget);
+				TSharedRef<SWidget> GameInstanceWidget = ProfilerWindow->CreateGameInstanceComboBox();
+				ToolbarBuilder.AddWidget(GameInstanceWidget);
 
-				ToolbarBuilder.AddSeparator();
-
-				TSharedRef<SWidget> ConnectionWidget = SNew(STextBlock)
-					.Text(LOCTEXT("Connection", "Connection"));
+				TSharedRef<SWidget> ConnectionWidget = ProfilerWindow->CreateConnectionComboBox();
 				ToolbarBuilder.AddWidget(ConnectionWidget);
 
-				ToolbarBuilder.AddSeparator();
-
-				TSharedRef<SWidget> TypeWidget = SNew(STextBlock)
-					.Text(LOCTEXT("Type", "Sent/Received"));
-				ToolbarBuilder.AddWidget(TypeWidget);
+				TSharedRef<SWidget> ConnectionModeWidget = ProfilerWindow->CreateConnectionModeComboBox();
+				ToolbarBuilder.AddWidget(ConnectionModeWidget);
+			}
+			ToolbarBuilder.EndSection();
+			ToolbarBuilder.BeginSection("New");
+			{
+				//TODO: ToolbarBuilder.AddToolBarButton(FNetworkingProfilerManager::GetCommands().OpenNewWindow);
 			}
 			ToolbarBuilder.EndSection();
 		}
@@ -88,10 +82,11 @@ void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs)
 		}
 	};
 
-	TSharedPtr<FUICommandList> CommandList = FInsightsManager::Get()->GetCommandList();
+	//TSharedPtr<FUICommandList> CommandList = FInsightsManager::Get()->GetCommandList();
+	TSharedPtr<FUICommandList> CommandList = ProfilerWindow->GetCommandList();
 
 	FToolBarBuilder ToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
-	Local::FillViewToolbar(ToolbarBuilder);
+	Local::FillViewToolbar(ProfilerWindow, ToolbarBuilder);
 
 	FToolBarBuilder RightSideToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
 	Local::FillRightSideToolbar(RightSideToolbarBuilder);
@@ -119,7 +114,7 @@ void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs)
 		+SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
-		.FillWidth(1.0)
+		.AutoWidth()
 		.Padding(0.0f)
 		[
 			SNew(SBorder)

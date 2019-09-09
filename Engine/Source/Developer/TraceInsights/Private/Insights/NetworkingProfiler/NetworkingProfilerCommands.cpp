@@ -52,9 +52,9 @@ FNetworkingProfilerCommands::FNetworkingProfilerCommands()
 PRAGMA_DISABLE_OPTIMIZATION
 void FNetworkingProfilerCommands::RegisterCommands()
 {
-	UI_COMMAND(TogglePacketSizesViewVisibility, "Packet Sizes", "Toggles the visibility of the Packet Sizes view", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(TogglePacketBreakdownViewVisibility, "Packet Breakdown", "Toggles the visibility of the Packet Breakdown view", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ToggleDataStreamBreakdownViewVisibility, "Data Stream Breakdown", "Toggles the visibility of the Data Stream Breakdown view", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(TogglePacketViewVisibility, "Packets", "Toggles the visibility of the Packets view", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(TogglePacketContentViewVisibility, "Packet Content", "Toggles the visibility of the Packet Content view", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleNetStatsViewVisibility, "Net Stats", "Toggles the visibility of the Net Stats view", EUserInterfaceActionType::ToggleButton, FInputChord());
 }
 PRAGMA_ENABLE_OPTIMIZATION
 
@@ -95,9 +95,7 @@ PRAGMA_ENABLE_OPTIMIZATION
 		return b##IsEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;\
 	}
 
-IMPLEMENT_TOGGLE_COMMAND(TogglePacketSizesViewVisibility, IsPacketSizesViewVisible, ShowHidePacketSizesView)
-IMPLEMENT_TOGGLE_COMMAND(TogglePacketBreakdownViewVisibility, IsPacketBreakdownViewVisible, ShowHidePacketBreakdownView)
-IMPLEMENT_TOGGLE_COMMAND(ToggleDataStreamBreakdownViewVisibility, IsDataStreamBreakdownViewVisible, ShowHideDataStreamBreakdownView)
+//IMPLEMENT_TOGGLE_COMMAND(ToggleAAAViewVisibility, IsAAAViewVisible, ShowHideAAAView)
 
 #undef IMPLEMENT_TOGGLE_COMMAND
 

@@ -7,15 +7,19 @@
 #include "Input/Reply.h"
 #include "Layout/Geometry.h"
 #include "Rendering/RenderingCommon.h"
+#include "TraceServices/Model/NetProfiler.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 // Insights
 #include "Insights/Common/FixedCircularBuffer.h"
 #include "Insights/NetworkingProfiler/ViewModels/PacketSizesViewHelper.h"
+//#include "Insights/NetworkingProfiler/ViewModels/PacketViewHelper.h"
 #include "Insights/NetworkingProfiler/ViewModels/PacketSizesViewport.h"
+//#include "Insights/NetworkingProfiler/ViewModels/PacketViewViewport.h"
 
 class SScrollBar;
+class SNetworkingProfilerWindow;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -73,7 +77,7 @@ struct FNetworkPacketSampleRef
 /**
  * Widget used to present the network packets as a bar track.
  */
-class SPacketSizesView : public SCompoundWidget
+class SPacketView : public SCompoundWidget
 {
 public:
 	/** Number of pixels. */
@@ -88,15 +92,17 @@ public:
 
 public:
 	/** Default constructor. */
-	SPacketSizesView();
+	SPacketView();
 
 	/** Virtual destructor. */
-	virtual ~SPacketSizesView();
+	virtual ~SPacketView();
 
 	/** Resets internal widget's data to the default one. */
 	void Reset();
 
-	SLATE_BEGIN_ARGS(SPacketSizesView)
+	void SetConnection(uint32 GameInstanceIndex, uint32 ConnectionIndex, Trace::ENetProfilerConnectionMode ConnectionMode);
+
+	SLATE_BEGIN_ARGS(SPacketView)
 	{
 		_Clipping = EWidgetClipping::ClipToBounds;
 	}
@@ -106,7 +112,7 @@ public:
 	 * Construct this widget
 	 * @param InArgs The declaration data for this widget
 	 */
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow);
 
 	/**
 	 * Ticks this widget. Override in derived classes, but always call the parent implementation.
@@ -136,6 +142,7 @@ private:
 
 	FNetworkPacketSampleRef GetSampleAtMousePosition(float X, float Y);
 	void SelectSampleAtMousePosition(float X, float Y);
+	void OnSelectedSampleChanged();
 
 	void ShowContextMenu(const FPointerEvent& MouseEvent);
 
@@ -156,8 +163,14 @@ private:
 	void ZoomHorizontally(const float Delta, const float X);
 
 private:
+	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow;
+
+	uint32 GameInstanceIndex;
+	uint32 ConnectionIndex;
+	Trace::ENetProfilerConnectionMode ConnectionMode;
+
 	/** The track's viewport. Encapsulates info about position and scale. */
-	FPacketSizesViewport Viewport;
+	FPacketViewViewport Viewport;
 	bool bIsViewportDirty;
 
 	/** Cached info for the packet series. */
@@ -167,6 +180,7 @@ private:
 	bool bIsAutoZoomEnabled;
 
 	uint64 AnalysisSyncNextTimestamp;
+	uint32 ConnectionChangeCount;
 
 	//////////////////////////////////////////////////
 

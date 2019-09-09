@@ -344,7 +344,7 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 								.Padding(8.0f)
 								.HAlign(HAlign_Fill)
 								[
-									ConstructRecoderPanel()
+									ConstructRecorderPanel()
 								]
 							]
 						]
@@ -562,7 +562,7 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLocalSessionDirectoryPanel()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> SStartPageWindow::ConstructRecoderPanel()
+TSharedRef<SWidget> SStartPageWindow::ConstructRecorderPanel()
 {
 	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
 

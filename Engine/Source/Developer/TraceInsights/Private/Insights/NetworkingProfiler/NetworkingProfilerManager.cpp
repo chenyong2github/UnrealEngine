@@ -8,10 +8,7 @@
 
 // Insights
 #include "Insights/InsightsManager.h"
-#include "Insights/NetworkingProfiler/Widgets/SDataStreamBreakdownView.h"
 #include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerWindow.h"
-#include "Insights/NetworkingProfiler/Widgets/SPacketBreakdownView.h"
-#include "Insights/NetworkingProfiler/Widgets/SPacketSizesView.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -31,10 +28,7 @@ TSharedPtr<FNetworkingProfilerManager> FNetworkingProfilerManager::Instance = nu
 FNetworkingProfilerManager::FNetworkingProfilerManager(TSharedRef<FUICommandList> InCommandList)
 	: CommandList(InCommandList)
 	, ActionManager(this)
-	, ProfilerWindow(nullptr)
-	, bIsPacketSizesViewVisible(true)
-	, bIsPacketBreakdownViewVisible(true)
-	, bIsDataStreamBreakdownViewVisible(true)
+	, ProfilerWindows()
 {
 }
 
@@ -54,9 +48,6 @@ void FNetworkingProfilerManager::PostConstructor()
 
 void FNetworkingProfilerManager::BindCommands()
 {
-	ActionManager.Map_TogglePacketSizesViewVisibility_Global();
-	ActionManager.Map_TogglePacketBreakdownViewVisibility_Global();
-	ActionManager.Map_ToggleDataStreamBreakdownViewVisibility_Global();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -110,55 +101,13 @@ bool FNetworkingProfilerManager::Tick(float DeltaTime)
 
 void FNetworkingProfilerManager::OnSessionChanged()
 {
-	TSharedPtr<SNetworkingProfilerWindow> Wnd = GetProfilerWindow();
-	if (Wnd.IsValid())
+	for (TWeakPtr<SNetworkingProfilerWindow> WndWeakPtr : ProfilerWindows)
 	{
-		Wnd->Reset();
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FNetworkingProfilerManager::ShowHidePacketSizesView(const bool bPacketSizesViewVisibleState)
-{
-	//bool bWasPacketSizesViewVisible = bIsPacketSizesViewVisible;
-
-	bIsPacketSizesViewVisible = bPacketSizesViewVisibleState;
-
-	TSharedPtr<SNetworkingProfilerWindow> Wnd = GetProfilerWindow();
-	if (Wnd.IsValid())
-	{
-		Wnd->ShowHideTab(FNetworkingProfilerTabs::PacketSizesViewID, bIsPacketSizesViewVisible);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FNetworkingProfilerManager::ShowHidePacketBreakdownView(const bool bPacketBreakdownViewVisibleState)
-{
-	//bool bWasPacketBreakdownViewVisible = bIsPacketBreakdownViewVisible;
-
-	bIsPacketBreakdownViewVisible = bPacketBreakdownViewVisibleState;
-
-	TSharedPtr<SNetworkingProfilerWindow> Wnd = GetProfilerWindow();
-	if (Wnd.IsValid())
-	{
-		Wnd->ShowHideTab(FNetworkingProfilerTabs::PacketBreakdownViewID, bIsPacketBreakdownViewVisible);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FNetworkingProfilerManager::ShowHideDataStreamBreakdownView(const bool bDataStreamBreakdownViewVisibleState)
-{
-	//bool bWasDataStreamBreakdownViewVisible = bIsDataStreamBreakdownViewVisible;
-
-	bIsDataStreamBreakdownViewVisible = bDataStreamBreakdownViewVisibleState;
-
-	TSharedPtr<SNetworkingProfilerWindow> Wnd = GetProfilerWindow();
-	if (Wnd.IsValid())
-	{
-		Wnd->ShowHideTab(FNetworkingProfilerTabs::DataStreamBreakdownViewID, bIsDataStreamBreakdownViewVisible);
+		TSharedPtr<SNetworkingProfilerWindow> Wnd = WndWeakPtr.Pin();
+		if (Wnd.IsValid())
+		{
+			Wnd->Reset();
+		}
 	}
 }
 

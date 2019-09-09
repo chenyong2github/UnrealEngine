@@ -7,13 +7,16 @@
 #include "Input/Reply.h"
 #include "Layout/Geometry.h"
 #include "Rendering/RenderingCommon.h"
+#include "TraceServices/Model/NetProfiler.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 // Insights
 #include "Insights/Common/FixedCircularBuffer.h"
 #include "Insights/NetworkingProfiler/ViewModels/PacketBreakdownViewHelper.h"
+//#include "Insights/NetworkingProfiler/ViewModels/PacketContentViewHelper.h"
 #include "Insights/NetworkingProfiler/ViewModels/PacketBreakdownViewport.h"
+//#include "Insights/NetworkingProfiler/ViewModels/PacketContentViewport.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 
 class SScrollBar;
@@ -70,7 +73,7 @@ struct FNetworkPacketEventRef
 /**
  * Widget used to present content of a network packet.
  */
-class SPacketBreakdownView : public SCompoundWidget
+class SPacketContentView : public SCompoundWidget
 {
 public:
 	/** Number of pixels. */
@@ -85,15 +88,15 @@ public:
 
 public:
 	/** Default constructor. */
-	SPacketBreakdownView();
+	SPacketContentView();
 
 	/** Virtual destructor. */
-	virtual ~SPacketBreakdownView();
+	virtual ~SPacketContentView();
 
 	/** Resets internal widget's data to the default one. */
 	void Reset();
 
-	SLATE_BEGIN_ARGS(SPacketBreakdownView) {}
+	SLATE_BEGIN_ARGS(SPacketContentView) {}
 	SLATE_END_ARGS()
 
 	/**
@@ -122,7 +125,8 @@ public:
 
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 
-	void SetPacket(int32 InPacketFrameIndex, int64 InPacketBitSize);
+	void ResetPacket();
+	void SetPacket(uint32 InGameInstanceIndex, uint32 InConnectionIndex, Trace::ENetProfilerConnectionMode InConnectionMode, uint32 InPacketIndex, int64 InPacketBitSize);
 
 private:
 	void UpdateState();
@@ -145,14 +149,17 @@ private:
 
 private:
 	/** The track's viewport. Encapsulates info about position and scale. */
-	FPacketBreakdownViewport Viewport;
+	FPacketContentViewport Viewport;
 	bool bIsViewportDirty;
 
-	int32 PacketFrameIndex;
-	int64 PacketSize; // total number of bits; [bit]
+	uint32 GameInstanceIndex;
+	uint32 ConnectionIndex;
+	Trace::ENetProfilerConnectionMode ConnectionMode;
+	uint32 PacketIndex;
+	int64 PacketBitSize; // total number of bits; [bit]
 
 	/** Cached draw state of the packet content (i.e. all it needs to render). */
-	TSharedPtr<FPacketBreakdownViewDrawState> DrawState;
+	TSharedPtr<FPacketContentViewDrawState> DrawState;
 	bool bIsStateDirty;
 	//////////////////////////////////////////////////
 

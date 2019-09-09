@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SPacketBreakdownView.h"
+//#include "SPacketContentView.h"
 
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
@@ -18,25 +19,25 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define LOCTEXT_NAMESPACE "SPacketBreakdownView"
+#define LOCTEXT_NAMESPACE "SPacketContentView"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-SPacketBreakdownView::SPacketBreakdownView()
-	: DrawState(MakeShareable(new FPacketBreakdownViewDrawState()))
+SPacketContentView::SPacketContentView()
+	: DrawState(MakeShareable(new FPacketContentViewDrawState()))
 {
 	Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-SPacketBreakdownView::~SPacketBreakdownView()
+SPacketContentView::~SPacketContentView()
 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketBreakdownView::Reset()
+void SPacketContentView::Reset()
 {
 	Viewport.Reset();
 	//FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
@@ -44,8 +45,12 @@ void SPacketBreakdownView::Reset()
 	//ViewportX.SetScale(1.0);
 	bIsViewportDirty = true;
 
-	PacketFrameIndex = -1;
-	PacketSize = 0;
+	GameInstanceIndex = 0;
+	ConnectionIndex = 0;
+	ConnectionMode = Trace::ENetProfilerConnectionMode::Outgoing;
+	PacketIndex = 0;
+	PacketBitSize = 0;
+
 	DrawState->Reset();
 	bIsStateDirty = true;
 
@@ -76,7 +81,7 @@ void SPacketBreakdownView::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketBreakdownView::Construct(const FArguments& InArgs)
+void SPacketContentView::Construct(const FArguments& InArgs)
 {
 	ChildSlot
 	[
@@ -93,7 +98,7 @@ void SPacketBreakdownView::Construct(const FArguments& InArgs)
 			.Visibility(EVisibility::Visible)
 			.Thickness(FVector2D(5.0f, 5.0f))
 			.RenderOpacity(0.75)
-			.OnUserScrolled(this, &SPacketBreakdownView::HorizontalScrollBar_OnUserScrolled)
+			.OnUserScrolled(this, &SPacketContentView::HorizontalScrollBar_OnUserScrolled)
 		]
 	];
 
@@ -104,7 +109,7 @@ void SPacketBreakdownView::Construct(const FArguments& InArgs)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketBreakdownView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+void SPacketContentView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	if (ThisGeometry != AllottedGeometry || bIsViewportDirty)
 	{
@@ -143,14 +148,17 @@ void SPacketBreakdownView::Tick(const FGeometry& AllottedGeometry, const double 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketBreakdownView::SetPacket(int32 InFrameIndex, int64 InBitSize)
+void SPacketContentView::ResetPacket()
 {
-	PacketFrameIndex = InFrameIndex;
-	PacketSize = InBitSize;
+	GameInstanceIndex = 0;
+	ConnectionIndex = 0;
+	ConnectionMode = Trace::ENetProfilerConnectionMode::Outgoing;
+	PacketIndex = 0;
+	PacketBitSize = 0;
 
 	FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
-	ViewportX.SetMinMaxValueInterval(0.0f, static_cast<double>(InBitSize));
-	ViewportX.CenterOnValueInterval(0.0f, static_cast<double>(InBitSize));
+	ViewportX.SetMinMaxValueInterval(0.0, 0.0);
+	ViewportX.CenterOnValue(0.0);
 	UpdateHorizontalScrollBar();
 
 	DrawState->Reset();
@@ -159,9 +167,33 @@ void SPacketBreakdownView::SetPacket(int32 InFrameIndex, int64 InBitSize)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void AddMockEventsRec(FPacketBreakdownViewDrawStateBuilder& Builder, FRandomStream& RandomStream , int32 Depth, int64 Offset, int64 Size, int32 Type)
+void SPacketContentView::SetPacket(uint32 InGameInstanceIndex, uint32 InConnectionIndex, Trace::ENetProfilerConnectionMode InConnectionMode, uint32 InPacketIndex, int64 InPacketBitSize)
 {
-	Builder.AddEvent(Offset, Size, Type, Depth);
+	GameInstanceIndex = InGameInstanceIndex;
+	ConnectionIndex = InConnectionIndex;
+	ConnectionMode = InConnectionMode;
+	PacketIndex = InPacketIndex;
+	PacketBitSize = InPacketBitSize;
+
+	FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
+	ViewportX.SetMinMaxValueInterval(0.0, static_cast<double>(InPacketBitSize));
+	ViewportX.CenterOnValueInterval(0.0, static_cast<double>(InPacketBitSize));
+	UpdateHorizontalScrollBar();
+
+	DrawState->Reset();
+	bIsStateDirty = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void AddMockEventsRec(FPacketContentViewDrawStateBuilder& Builder, FRandomStream& RandomStream , int32 Depth, int64 Offset, int64 Size, int32 Type)
+{
+	Trace::FNetProfilerContentEvent Event;
+	Event.StartPos = Offset;
+	Event.EndPos = Offset + Size;
+	Event.Level = Depth;
+	Event.NameIndex = Type;
+	Builder.AddEvent(Event);
 
 	int64 ChildEventOffset = Offset;
 	while (ChildEventOffset < Offset + Size)
@@ -184,18 +216,56 @@ void AddMockEventsRec(FPacketBreakdownViewDrawStateBuilder& Builder, FRandomStre
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketBreakdownView::UpdateState()
+void SPacketContentView::UpdateState()
 {
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
 
-	if (PacketFrameIndex >= 0 && PacketSize > 0)
+	if (PacketBitSize > 0)
 	{
-		FPacketBreakdownViewDrawStateBuilder Builder(*DrawState, Viewport);
+		FPacketContentViewDrawStateBuilder Builder(*DrawState, Viewport);
+
+		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid())
+		{
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+
+			//uint32 StartEventIndex;
+			//uint32 EndEventIndex;
+			//NetProfilerProvider.ReadConnection(ConnectionIndex, [&StartEventIndex, &EndEventIndex](const Trace::FNetProfilerConnection& Connection)
+			//{
+			//	StartEventIndex = Connection.StartEventIndex;
+			//	EndEventIndex = Connection.EndEventIndex;
+			//});
+			//NetProfilerProvider.EnumeratePacketContentEventsByIndex(ConnectionIndex, ConnectionMode, StartEventIndex, uint32 EndEventIndex, [](const Trace::FNetProfilerContentEvent& Event)
+			//{
+			//});
+
+			const FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+			const int64 MinPos = static_cast<int64>(FMath::FloorToDouble(ViewportX.GetValueAtOffset(0.0f)));
+			const int64 MaxPos = static_cast<int64>(FMath::CeilToDouble(ViewportX.GetValueAtOffset(ViewportX.GetSize())));
+
+			const uint32 StartPos = 0;
+			const uint32 EndPos = PacketBitSize;
+			NetProfilerProvider.EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex, StartPos, EndPos, [&Builder, &NetProfilerProvider](const Trace::FNetProfilerContentEvent& Event)
+			{
+				const TCHAR* Name = nullptr;
+				NetProfilerProvider.ReadName(Event.NameIndex, [&Name](const Trace::FNetProfilerName& NetProfilerName)
+				{
+					Name = NetProfilerName.Name;
+				});
+				Builder.AddEvent(Event, Name);
+			});
+		}
 
 		// Init packet content with mock data.
-		FRandomStream RandomStream(PacketFrameIndex);
-		AddMockEventsRec(Builder, RandomStream, 0, 0, PacketSize, 0);
+		if (false)
+		{
+			FRandomStream RandomStream(PacketIndex);
+			AddMockEventsRec(Builder, RandomStream, 0, 0, PacketBitSize, 0);
+		}
 
 		Builder.Flush();
 	}
@@ -206,7 +276,7 @@ void SPacketBreakdownView::UpdateState()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketBreakdownView::UpdateHoveredEvent()
+void SPacketContentView::UpdateHoveredEvent()
 {
 	HoveredEvent = GetEventAtMousePosition(MousePosition.X, MousePosition.Y);
 	//if (!HoveredEvent.IsValid())
@@ -246,7 +316,7 @@ void SPacketBreakdownView::UpdateHoveredEvent()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FNetworkPacketEventRef SPacketBreakdownView::GetEventAtMousePosition(float X, float Y)
+FNetworkPacketEventRef SPacketContentView::GetEventAtMousePosition(float X, float Y)
 {
 	if (!bIsStateDirty)
 	{
@@ -276,7 +346,7 @@ FNetworkPacketEventRef SPacketBreakdownView::GetEventAtMousePosition(float X, fl
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int32 SPacketBreakdownView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
+int32 SPacketContentView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	const bool bEnabled = ShouldBeEnabled(bParentEnabled);
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
@@ -290,7 +360,7 @@ int32 SPacketBreakdownView::OnPaint(const FPaintArgs& Args, const FGeometry& All
 		FStopwatch Stopwatch;
 		Stopwatch.Start();
 
-		FPacketBreakdownViewDrawHelper Helper(DrawContext, Viewport);
+		FPacketContentViewDrawHelper Helper(DrawContext, Viewport);
 
 		Helper.DrawBackground();
 
@@ -321,8 +391,8 @@ int32 SPacketBreakdownView::OnPaint(const FPaintArgs& Args, const FGeometry& All
 		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont).Y;
 		const float DbgDY = MaxFontCharHeight;
 
-		const float DbgW = 260.0f;
-		const float DbgH = DbgDY * 4 + 3.0f;
+		const float DbgW = 280.0f;
+		const float DbgH = DbgDY * 5 + 3.0f;
 		const float DbgX = ViewWidth - DbgW - 20.0f;
 		float DbgY = 7.0f;
 
@@ -390,6 +460,19 @@ int32 SPacketBreakdownView::OnPaint(const FPaintArgs& Args, const FGeometry& All
 			SummaryFont, DbgTextColor
 		);
 		DbgY += DbgDY;
+
+		// Draw packet info.
+		DrawContext.DrawText
+		(
+			DbgX, DbgY,
+			FString::Printf(TEXT("Game Instance %d, Connection %d (%s), Packet %d"),
+				GameInstanceIndex,
+				ConnectionIndex,
+				(ConnectionMode == Trace::ENetProfilerConnectionMode::Outgoing) ? TEXT("Outgoing") : TEXT("Incoming"),
+				PacketIndex),
+			SummaryFont, DbgTextColor
+		);
+		DbgY += DbgDY;
 	}
 
 	return SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled && IsEnabled());
@@ -397,7 +480,7 @@ int32 SPacketBreakdownView::OnPaint(const FPaintArgs& Args, const FGeometry& All
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketBreakdownView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+FReply SPacketContentView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	FReply Reply = FReply::Unhandled();
 
@@ -424,7 +507,7 @@ FReply SPacketBreakdownView::OnMouseButtonDown(const FGeometry& MyGeometry, cons
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketBreakdownView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+FReply SPacketContentView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	FReply Reply = FReply::Unhandled();
 
@@ -478,7 +561,7 @@ FReply SPacketBreakdownView::OnMouseButtonUp(const FGeometry& MyGeometry, const 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketBreakdownView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+FReply SPacketContentView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	FReply Reply = FReply::Unhandled();
 
@@ -520,13 +603,13 @@ FReply SPacketBreakdownView::OnMouseMove(const FGeometry& MyGeometry, const FPoi
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketBreakdownView::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+void SPacketContentView::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketBreakdownView::OnMouseLeave(const FPointerEvent& MouseEvent)
+void SPacketContentView::OnMouseLeave(const FPointerEvent& MouseEvent)
 {
 	if (!HasMouseCapture())
 	{
@@ -547,7 +630,7 @@ void SPacketBreakdownView::OnMouseLeave(const FPointerEvent& MouseEvent)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketBreakdownView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+FReply SPacketContentView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
@@ -566,14 +649,14 @@ FReply SPacketBreakdownView::OnMouseWheel(const FGeometry& MyGeometry, const FPo
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketBreakdownView::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+FReply SPacketContentView::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	return FReply::Unhandled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCursorReply SPacketBreakdownView::OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
+FCursorReply SPacketContentView::OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
 {
 	FCursorReply CursorReply = FCursorReply::Unhandled();
 
@@ -591,13 +674,13 @@ FCursorReply SPacketBreakdownView::OnCursorQuery(const FGeometry& MyGeometry, co
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketBreakdownView::BindCommands()
+void SPacketContentView::BindCommands()
 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketBreakdownView::HorizontalScrollBar_OnUserScrolled(float ScrollOffset)
+void SPacketContentView::HorizontalScrollBar_OnUserScrolled(float ScrollOffset)
 {
 	FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
 	ViewportX.OnUserScrolled(HorizontalScrollBar, ScrollOffset);
@@ -606,7 +689,7 @@ void SPacketBreakdownView::HorizontalScrollBar_OnUserScrolled(float ScrollOffset
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketBreakdownView::UpdateHorizontalScrollBar()
+void SPacketContentView::UpdateHorizontalScrollBar()
 {
 	FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
 	ViewportX.UpdateScrollBar(HorizontalScrollBar);
@@ -614,7 +697,7 @@ void SPacketBreakdownView::UpdateHorizontalScrollBar()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketBreakdownView::ZoomHorizontally(const float Delta, const float X)
+void SPacketContentView::ZoomHorizontally(const float Delta, const float X)
 {
 	FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
 	ViewportX.RelativeZoomWithFixedOffset(Delta, X);

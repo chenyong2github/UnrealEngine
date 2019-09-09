@@ -81,7 +81,7 @@ private:
 	TSharedRef<SWidget> ConstructSessionsPanel();
 	TSharedRef<SWidget> ConstructLoadPanel();
 	TSharedRef<SWidget> ConstructLocalSessionDirectoryPanel();
-	TSharedRef<SWidget> ConstructRecoderPanel();
+	TSharedRef<SWidget> ConstructRecorderPanel();
 	TSharedRef<SWidget> ConstructConnectPanel();
 
 	/** Generate a new row for the TraceSessions list view. */

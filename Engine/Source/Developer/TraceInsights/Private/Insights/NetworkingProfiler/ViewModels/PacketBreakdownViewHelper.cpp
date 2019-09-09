@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PacketBreakdownViewHelper.h"
+//#include "PacketContentViewHelper.h"
 
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
@@ -12,15 +13,16 @@
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/NetworkingProfiler/ViewModels/PacketBreakdownViewport.h"
+//#include "Insights/NetworkingProfiler/ViewModels/PacketContentViewport.h"
 #include "Insights/ViewModels/DrawHelpers.h"
 
 #include <limits>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// FPacketBreakdownViewDrawStateBuilder
+// FPacketContentViewDrawStateBuilder
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FPacketBreakdownViewDrawStateBuilder::FPacketBreakdownViewDrawStateBuilder(FPacketBreakdownViewDrawState& InDrawState, const FPacketBreakdownViewport& InViewport)
+FPacketContentViewDrawStateBuilder::FPacketContentViewDrawStateBuilder(FPacketContentViewDrawState& InDrawState, const FPacketContentViewport& InViewport)
 	: DrawState(InDrawState)
 	, Viewport(InViewport)
 	, MaxDepth(-1)
@@ -33,18 +35,20 @@ FPacketBreakdownViewDrawStateBuilder::FPacketBreakdownViewDrawStateBuilder(FPack
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketBreakdownViewDrawStateBuilder::AddEvent(int64 EventOffset, int64 EventSize, int32 EventType, int32 Depth)
+void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerContentEvent& Event, const TCHAR* EventName)
 {
+	const int32 Depth = Event.Level;
+
 	DrawState.Events.AddUninitialized();
-	FPacketBreakdownViewDrawState::FPacketEvent& PacketEvent = DrawState.Events.Last();
-	PacketEvent.Offset = EventOffset;
-	PacketEvent.Size = EventSize;
-	PacketEvent.Type = EventType;
+	FPacketContentViewDrawState::FPacketEvent& PacketEvent = DrawState.Events.Last();
+	PacketEvent.Offset = Event.StartPos;
+	PacketEvent.Size = Event.EndPos - Event.StartPos;
+	PacketEvent.Type = Event.NameIndex;
 	PacketEvent.Depth = Depth;
 
 	const FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
 
-	float EventX1 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(EventOffset));
+	float EventX1 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.StartPos));
 	if (EventX1 > Viewport.GetWidth())
 	{
 		return;
@@ -53,15 +57,15 @@ void FPacketBreakdownViewDrawStateBuilder::AddEvent(int64 EventOffset, int64 Eve
 	//float EventX2 = EventSize == 0 ?
 	//	EventX1 + 1.0f :
 	//	ViewportX.GetScale() < 1.0f ?
-	//	ViewportX.GetRoundedOffsetForValue(static_cast<double>(EventOffset + EventSize - 1)) + 1.0f : // x2 = pos of last inclusive bit + 1px
-	//	ViewportX.GetRoundedOffsetForValue(static_cast<double>(EventOffset + EventSize));             // x2 = pos of first exclusive bit
-	float EventX2 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(EventOffset + EventSize));
+	//	ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.EndPos - 1)) + 1.0f : // x2 = pos of last inclusive bit + 1px
+	//	ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.EndPos));             // x2 = pos of first exclusive bit
+	float EventX2 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.EndPos));
 	if (EventX2 < 0)
 	{
 		return;
 	}
 
-	// Timing events are displayed with minimum 1px (including empty ones).
+	// Events are displayed with minimum 1px (including empty ones).
 	if (EventX1 == EventX2)
 	{
 		EventX2 = EventX1 + 1.0f;
@@ -121,7 +125,7 @@ void FPacketBreakdownViewDrawStateBuilder::AddEvent(int64 EventOffset, int64 Eve
 	//////////////////////////////////////////////////
 	// Coloring
 
-	const uint32 Color = (static_cast<uint32>(EventType) + 0x2c2c57ed) * 0x2c2c57ed;
+	const uint32 Color = (Event.NameIndex + 0x2c2c57ed) * 0x2c2c57ed;
 	const FLinearColor EventColorFill(((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, 1.0f);
 	constexpr float BorderColorFactor = 1.25f; // brighter border
 
@@ -131,7 +135,7 @@ void FPacketBreakdownViewDrawStateBuilder::AddEvent(int64 EventOffset, int64 Eve
 	{
 		// Fill inside of the event box.
 		DrawState.Boxes.AddUninitialized();
-		FPacketBreakdownViewDrawState::FBox& DrawBox = DrawState.Boxes.Last();
+		FPacketContentViewDrawState::FBox& DrawBox = DrawState.Boxes.Last();
 		DrawBox.X = EventX1 + 1.0f;
 		DrawBox.Y = EventY + 1.0f;
 		DrawBox.W = EventW - 2.0f;
@@ -153,7 +157,7 @@ void FPacketBreakdownViewDrawStateBuilder::AddEvent(int64 EventOffset, int64 Eve
 		}
 
 		DrawState.Borders.AddUninitialized();
-		FPacketBreakdownViewDrawState::FBox& DrawBox = DrawState.Borders.Last();
+		FPacketContentViewDrawState::FBox& DrawBox = DrawState.Borders.Last();
 		DrawBox.X = EventX1;
 		DrawBox.Y = EventY;
 		DrawBox.W = EventW;
@@ -195,16 +199,26 @@ void FPacketBreakdownViewDrawStateBuilder::AddEvent(int64 EventOffset, int64 Eve
 	// Draw the name of the event.
 	if (EventW > 8.0f && EventH > 10.0f)
 	{
-		FString Name = TEXT("NetObject") + FText::AsNumber(EventType).ToString();
+		FString Name = EventName ? EventName : TEXT("?");
 		if (EventW > Name.Len() * 2.0f + 48.0f)
 		{
-			if (EventSize == 1)
+			if (Event.ObjectInstanceIndex != 0)
 			{
-				Name += TEXT(" (1 bit)");
+				Name += TEXT(" (NetId:");
+				Name += FText::AsNumber(Event.ObjectInstanceIndex).ToString();
+				Name += TEXT(", ");
 			}
 			else
 			{
 				Name += TEXT(" (");
+			}
+			const uint32 EventSize = Event.EndPos - Event.StartPos;
+			if (EventSize == 1)
+			{
+				Name += TEXT("1 bit)");
+			}
+			else
+			{
 				Name += FText::AsNumber(EventSize).ToString();
 				Name += TEXT(" bits)");
 			}
@@ -221,7 +235,7 @@ void FPacketBreakdownViewDrawStateBuilder::AddEvent(int64 EventOffset, int64 Eve
 			const bool bIsDarkColor = (EventColorFill.ComputeLuminance() < 0.4f);
 
 			DrawState.Texts.AddDefaulted();
-			FPacketBreakdownViewDrawState::FText& DrawText = DrawState.Texts.Last();
+			FPacketContentViewDrawState::FText& DrawText = DrawState.Texts.Last();
 			DrawText.X = EventX1 + 2.0f;
 			DrawText.Y = EventY + 1.0f;
 			DrawText.Text = Name.Left(LastWholeCharacterIndex + 1);
@@ -232,10 +246,10 @@ void FPacketBreakdownViewDrawStateBuilder::AddEvent(int64 EventOffset, int64 Eve
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketBreakdownViewDrawStateBuilder::FlushBox(const FBoxData& Box, const float EventY, const float EventH)
+void FPacketContentViewDrawStateBuilder::FlushBox(const FBoxData& Box, const float EventY, const float EventH)
 {
 	DrawState.Boxes.AddUninitialized();
-	FPacketBreakdownViewDrawState::FBox& DrawBox = DrawState.Boxes.Last();
+	FPacketContentViewDrawState::FBox& DrawBox = DrawState.Boxes.Last();
 	DrawBox.X = Box.X1;
 	DrawBox.W = Box.X2 - Box.X1;
 	DrawBox.Y = EventY;
@@ -245,7 +259,7 @@ void FPacketBreakdownViewDrawStateBuilder::FlushBox(const FBoxData& Box, const f
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketBreakdownViewDrawStateBuilder::Flush()
+void FPacketContentViewDrawStateBuilder::Flush()
 {
 	constexpr float Y0 = 0.0f;
 	constexpr float EventH = 14.0f;
@@ -264,10 +278,10 @@ void FPacketBreakdownViewDrawStateBuilder::Flush()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// FPacketBreakdownViewDrawHelper
+// FPacketContentViewDrawHelper
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FPacketBreakdownViewDrawHelper::FPacketBreakdownViewDrawHelper(const FDrawContext& InDrawContext, const FPacketBreakdownViewport& InViewport)
+FPacketContentViewDrawHelper::FPacketContentViewDrawHelper(const FDrawContext& InDrawContext, const FPacketContentViewport& InViewport)
 	: DrawContext(InDrawContext)
 	, Viewport(InViewport)
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
@@ -280,7 +294,7 @@ FPacketBreakdownViewDrawHelper::FPacketBreakdownViewDrawHelper(const FDrawContex
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketBreakdownViewDrawHelper::DrawBackground() const
+void FPacketContentViewDrawHelper::DrawBackground() const
 {
 	const FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
 
@@ -297,7 +311,7 @@ void FPacketBreakdownViewDrawHelper::DrawBackground() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FLinearColor FPacketBreakdownViewDrawHelper::GetColorByType(int32 Type)
+FLinearColor FPacketContentViewDrawHelper::GetColorByType(int32 Type)
 {
 	constexpr float Alpha = 1.0f;
 	switch (Type)
@@ -333,24 +347,24 @@ FLinearColor FPacketBreakdownViewDrawHelper::GetColorByType(int32 Type)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketBreakdownViewDrawHelper::Draw(const FPacketBreakdownViewDrawState& DrawState) const
+void FPacketContentViewDrawHelper::Draw(const FPacketContentViewDrawState& DrawState) const
 {
 	// Draw filled boxes.
-	for (const FPacketBreakdownViewDrawState::FBox& Box : DrawState.Boxes)
+	for (const FPacketContentViewDrawState::FBox& Box : DrawState.Boxes)
 	{
 		DrawContext.DrawBox(Box.X, Box.Y, Box.W, Box.H, WhiteBrush, Box.Color);
 	}
 	DrawContext.LayerId++;
 
 	// Draw borders.
-	for (const FPacketBreakdownViewDrawState::FBox& Box : DrawState.Borders)
+	for (const FPacketContentViewDrawState::FBox& Box : DrawState.Borders)
 	{
 		DrawContext.DrawBox(Box.X, Box.Y, Box.W, Box.H, EventBorderBrush, Box.Color);
 	}
 	DrawContext.LayerId++;
 
 	// Draw texts.
-	for (const FPacketBreakdownViewDrawState::FText& Text : DrawState.Texts)
+	for (const FPacketContentViewDrawState::FText& Text : DrawState.Texts)
 	{
 		DrawContext.DrawText(Text.X, Text.Y, Text.Text, EventFont, Text.bWhite ? FLinearColor::White : FLinearColor::Black);
 	}
@@ -359,7 +373,7 @@ void FPacketBreakdownViewDrawHelper::Draw(const FPacketBreakdownViewDrawState& D
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketBreakdownViewDrawHelper::DrawEventHighlight(const FNetworkPacketEvent& Event) const
+void FPacketContentViewDrawHelper::DrawEventHighlight(const FNetworkPacketEvent& Event) const
 {
 	const FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
 

@@ -29,14 +29,14 @@ public:
 	//     const FUIAction <CommandName>_Custom(...) const;
 	//////////////////////////////////////////////////
 
-	/** Toggles visibility for the Packet Sizes view. Global and custom command. */
-	TSharedPtr<FUICommandInfo> TogglePacketSizesViewVisibility;
+	/** Toggles visibility for the Packet view. Per profiler window, custom command. */
+	TSharedPtr<FUICommandInfo> TogglePacketViewVisibility;
 
-	/** Toggles visibility for the Packet Breakdown view. Global and custom command. */
-	TSharedPtr<FUICommandInfo> TogglePacketBreakdownViewVisibility;
+	/** Toggles visibility for the Packet Content view. Per profiler window, custom command. */
+	TSharedPtr<FUICommandInfo> TogglePacketContentViewVisibility;
 
-	/** Toggles visibility for the Data Stream Breakdown view. Global and custom command. */
-	TSharedPtr<FUICommandInfo> ToggleDataStreamBreakdownViewVisibility;
+	/** Toggles visibility for the Net Stats view. Per profiler window, custom command. */
+	TSharedPtr<FUICommandInfo> ToggleNetStatsViewVisibility;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,9 +88,7 @@ protected:\
 	bool CmdName##_CanExecute() const; /**< Handles FCanExecuteAction for CmdName. */\
 	ECheckBoxState CmdName##_GetCheckState() const; /**< Handles FGetActionCheckState for CmdName. */
 
-	DECLARE_TOGGLE_COMMAND(TogglePacketSizesViewVisibility)
-	DECLARE_TOGGLE_COMMAND(TogglePacketBreakdownViewVisibility)
-	DECLARE_TOGGLE_COMMAND(ToggleDataStreamBreakdownViewVisibility)
+	//DECLARE_TOGGLE_COMMAND(ToggleAAAViewVisibility)
 #undef DECLARE_TOGGLE_COMMAND
 
 	//////////////////////////////////////////////////

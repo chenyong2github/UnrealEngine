@@ -21,14 +21,14 @@ namespace Trace
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * This class manages the Timing Profiler state and settings.
+ * This class manages the Networking Profiler state and settings.
  */
 class FNetworkingProfilerManager : public TSharedFromThis<FNetworkingProfilerManager>
 {
 	friend class FNetworkingProfilerActionManager;
 
 public:
-	/** Creates the Timing Profiler manager, only one instance can exist. */
+	/** Creates the Networking Profiler (Networking Insights) manager, only one instance can exist. */
 	FNetworkingProfilerManager(TSharedRef<FUICommandList> InCommandList);
 
 	/** Virtual destructor. */
@@ -48,7 +48,7 @@ public:
 		return FNetworkingProfilerManager::Instance;
 	}
 
-	/** Shutdowns the Timing Profiler manager. */
+	/** Shutdowns the Networking Profiler manager. */
 	void Shutdown()
 	{
 		FNetworkingProfilerManager::Instance.Reset();
@@ -63,7 +63,7 @@ protected:
 
 public:
 	/**
-	 * @return the global instance of the Networking Profiler (Asset Networking Insights) manager.
+	 * @return the global instance of the Networking Profiler (Networking Insights) manager.
 	 * This is an internal singleton and cannot be used outside ProfilerModule.
 	 * For external use:
 	 *     IProfilerModule& ProfilerModule = FModuleManager::Get().LoadModuleChecked<IProfilerModule>("Profiler");
@@ -71,46 +71,33 @@ public:
 	 */
 	static TSharedPtr<FNetworkingProfilerManager> Get();
 
-	/** @returns UI command list for the Timing Profiler manager. */
+	/** @returns UI command list for the Networking Profiler manager. */
 	const TSharedRef<FUICommandList> GetCommandList() const;
 
-	/** @return an instance of the Timing Profiler commands. */
+	/** @return an instance of the Networking Profiler commands. */
 	static const FNetworkingProfilerCommands& GetCommands();
 
-	/** @return an instance of the Timing Profiler action manager. */
+	/** @return an instance of the Networking Profiler action manager. */
 	static FNetworkingProfilerActionManager& GetActionManager();
 
-	void AssignProfilerWindow(const TSharedRef<SNetworkingProfilerWindow>& InProfilerWindow)
+	void AddProfilerWindow(const TSharedRef<SNetworkingProfilerWindow>& InProfilerWindow)
 	{
-		ProfilerWindow = InProfilerWindow;
+		ProfilerWindows.Add(InProfilerWindow);
+	}
+
+	void RemoveProfilerWindow(const TSharedRef<SNetworkingProfilerWindow>& InProfilerWindow)
+	{
+		ProfilerWindows.Remove(InProfilerWindow);
 	}
 
 	/**
 	 * Converts profiler window weak pointer to a shared pointer and returns it.
 	 * Make sure the returned pointer is valid before trying to dereference it.
 	 */
-	TSharedPtr<class SNetworkingProfilerWindow> GetProfilerWindow() const
+	TSharedPtr<class SNetworkingProfilerWindow> GetProfilerWindow(int32 Index) const
 	{
-		return ProfilerWindow.Pin();
+		return ProfilerWindows[Index].Pin();
 	}
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Getters and setters used by Toggle Commands.
-
-	/** @return true, if Packet Sizes view is visible */
-	const bool IsPacketSizesViewVisible() const { return bIsPacketSizesViewVisible; }
-	void SetPacketSizesViewVisible(const bool bPacketSizesViewVisibleState) { bIsPacketSizesViewVisible = bPacketSizesViewVisibleState; }
-	void ShowHidePacketSizesView(const bool bPacketSizesViewVisibleState);
-
-	/** @return true, if Packet Breakdown view is visible */
-	const bool IsPacketBreakdownViewVisible() const { return bIsPacketBreakdownViewVisible; }
-	void SetPacketBreakdownViewVisible(const bool bVisibleState) { bIsPacketBreakdownViewVisible = bVisibleState; }
-	void ShowHidePacketBreakdownView(const bool bVisibleState);
-
-	/** @return true, if Data Stream Breakdown view is visible */
-	const bool IsDataStreamBreakdownViewVisible() const { return bIsDataStreamBreakdownViewVisible; }
-	void SetDataStreamBreakdownViewVisible(const bool bVisibleState) { bIsDataStreamBreakdownViewVisible = bVisibleState; }
-	void ShowHideDataStreamBreakdownView(const bool bVisibleState);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -133,17 +120,8 @@ protected:
 	/** An instance of the Networking Profiler action manager. */
 	FNetworkingProfilerActionManager ActionManager;
 
-	/** A weak pointer to the Networking Profiler window. */
-	TWeakPtr<class SNetworkingProfilerWindow> ProfilerWindow;
-
-	/** If the Packet Sizes view is visible or hidden. */
-	bool bIsPacketSizesViewVisible;
-
-	/** If the Packet Breakdown view is visible or hidden. */
-	bool bIsPacketBreakdownViewVisible;
-
-	/** If the Data Stream Breakdown tree view is visible or hidden. */
-	bool bIsDataStreamBreakdownViewVisible;
+	/** A list of weak pointers to the Networking Profiler windows. */
+	TArray<TWeakPtr<class SNetworkingProfilerWindow>> ProfilerWindows;
 
 	/** A shared pointer to the global instance of the profiler manager. */
 	static TSharedPtr<FNetworkingProfilerManager> Instance;

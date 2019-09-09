@@ -7,16 +7,16 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SDataStreamBreakdownView : public SCompoundWidget
+class SNetStatsView : public SCompoundWidget
 {
 public:
 	/** Default constructor. */
-	SDataStreamBreakdownView();
+	SNetStatsView();
 
 	/** Virtual destructor. */
-	virtual ~SDataStreamBreakdownView();
+	virtual ~SNetStatsView();
 
-	SLATE_BEGIN_ARGS(SDataStreamBreakdownView) {}
+	SLATE_BEGIN_ARGS(SNetStatsView) {}
 	SLATE_END_ARGS()
 
 	/**

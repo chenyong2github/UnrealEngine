@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Styling/WidgetStyle.h"
+#include "TraceServices/Model/NetProfiler.h"
 
 #include <limits>
 
@@ -13,35 +14,27 @@ struct FDrawContext;
 struct FGeometry;
 struct FSlateBrush;
 
-class FPacketSizesViewport;
+class FPacketViewViewport;
 class FSlateWindowElementList;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-enum class ENetworkPacketStatus
-{
-	Unknown = 0,
-	ConfirmedReceived, // Sent + Ack(Received)
-	Sent, // Sent, no Ack event yet
-	ConfirmedLost // Sent + Ack(Lost)
-};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct FNetworkPacket
 {
-	int32 FrameIndex;
-	int64 Size; // [bits]
-	double TimeSent; // time when packet is sent
-	double TimeAck; // time when ACK event is received (either confirmed received or lost)
-	ENetworkPacketStatus Status;
+	int32 Index;
+	uint32 SequenceNumber;
+	uint32 ContentSizeInBits;
+	uint32 TotalSizeInBytes;
+	double TimeStamp;
+	Trace::ENetProfilerDeliveryStatus Status;
 
 	FNetworkPacket()
-		: FrameIndex(-1)
-		, Size(-1)
-		, TimeSent(std::numeric_limits<double>::infinity())
-		, TimeAck(std::numeric_limits<double>::infinity())
-		, Status(ENetworkPacketStatus::Unknown)
+		: Index(-1)
+		, SequenceNumber(0)
+		, ContentSizeInBits(0)
+		, TotalSizeInBytes(0)
+		, TimeStamp(std::numeric_limits<double>::infinity())
+		, Status(Trace::ENetProfilerDeliveryStatus::Unknown)
 	{}
 
 	FNetworkPacket(const FNetworkPacket&) = default;
@@ -52,10 +45,11 @@ struct FNetworkPacket
 
 	bool Equals(const FNetworkPacket& Other) const
 	{
-		return FrameIndex == Other.FrameIndex
-			&& Size == Other.Size
-			/*&& TimeSent == Other.TimeSent
-			&& TimeAck == Other.TimeAck
+		return Index == Other.Index
+			&& SequenceNumber == Other.SequenceNumber
+			//&& ContentSizeInBits == Other.ContentSizeInBits
+			&& TotalSizeInBytes == Other.TotalSizeInBytes
+			/*&& TimeStamp == Other.TimeStamp
 			&& Status == Other.Status*/;
 	}
 
@@ -80,7 +74,7 @@ struct FNetworkPacketAggregatedSample
 	 *    Received --> at least one packet in the sample set is confirmed received and none are confirmed lost
 	 *    Lost     --> at least one packet in the sample set is confirmed lost
 	**/
-	ENetworkPacketStatus AggregatedStatus;
+	Trace::ENetProfilerDeliveryStatus AggregatedStatus;
 
 	FNetworkPacket LargestPacket;
 
@@ -88,7 +82,7 @@ struct FNetworkPacketAggregatedSample
 		: NumPackets(0)
 		, StartTime(DBL_MAX)
 		, EndTime(-DBL_MAX)
-		, AggregatedStatus(ENetworkPacketStatus::Unknown)
+		, AggregatedStatus(Trace::ENetProfilerDeliveryStatus::Unknown)
 		, LargestPacket()
 	{}
 
@@ -139,7 +133,7 @@ struct FNetworkPacketSeries
 class FNetworkPacketSeriesBuilder
 {
 public:
-	explicit FNetworkPacketSeriesBuilder(FNetworkPacketSeries& InSeries, const FPacketSizesViewport& InViewport);
+	explicit FNetworkPacketSeriesBuilder(FNetworkPacketSeries& InSeries, const FPacketViewViewport& InViewport);
 
 	/**
 	 * Non-copyable
@@ -147,17 +141,17 @@ public:
 	FNetworkPacketSeriesBuilder(const FNetworkPacketSeriesBuilder&) = delete;
 	FNetworkPacketSeriesBuilder& operator=(const FNetworkPacketSeriesBuilder&) = delete;
 
-	void AddPacket(int32 FrameIndex, int64 Size, double TimeSent, double TimeAck, ENetworkPacketStatus Status);
+	void AddPacket(int32 PacketIndex, const Trace::FNetProfilerPacket& Packet);
 
 	int32 GetNumAddedPackets() const { return NumAddedPackets; }
 
 private:
 	FNetworkPacketSeries& Series; // series to update
-	const FPacketSizesViewport& Viewport;
+	const FPacketViewViewport& Viewport;
 
 	float SampleW; // width of a sample, in Slate units
 	int32 PacketsPerSample; // number of packets in a sample
-	int32 FirstFrameIndex; // index of first frame in first sample; can be negative
+	int32 FirstPacketIndex; // index of the first packet in the first sample; can be negative
 	int32 NumSamples; // total number of samples
 
 	// Debug stats.
@@ -166,7 +160,7 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FPacketSizesViewDrawHelper
+class FPacketViewDrawHelper
 {
 public:
 	enum class EHighlightMode : uint32
@@ -177,26 +171,26 @@ public:
 	};
 
 public:
-	explicit FPacketSizesViewDrawHelper(const FDrawContext& InDrawContext, const FPacketSizesViewport& InViewport);
+	explicit FPacketViewDrawHelper(const FDrawContext& InDrawContext, const FPacketViewViewport& InViewport);
 
 	/**
 	 * Non-copyable
 	 */
-	FPacketSizesViewDrawHelper(const FPacketSizesViewDrawHelper&) = delete;
-	FPacketSizesViewDrawHelper& operator=(const FPacketSizesViewDrawHelper&) = delete;
+	FPacketViewDrawHelper(const FPacketViewDrawHelper&) = delete;
+	FPacketViewDrawHelper& operator=(const FPacketViewDrawHelper&) = delete;
 
 	void DrawBackground() const;
 	void DrawCached(const FNetworkPacketSeries& Series) const;
 	void DrawSampleHighlight(const FNetworkPacketAggregatedSample& Sample, EHighlightMode Mode) const;
 
-	static FLinearColor GetColorByStatus(ENetworkPacketStatus Status);
+	static FLinearColor GetColorByStatus(Trace::ENetProfilerDeliveryStatus Status);
 
 	int32 GetNumPackets() const { return NumPackets; }
 	int32 GetNumDrawSamples() const { return NumDrawSamples; }
 
 private:
 	const FDrawContext& DrawContext;
-	const FPacketSizesViewport& Viewport;
+	const FPacketViewViewport& Viewport;
 
 	const FSlateBrush* WhiteBrush;
 	//const FSlateBrush* EventBorderBrush;
