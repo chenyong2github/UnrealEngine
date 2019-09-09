@@ -107,6 +107,7 @@ static FAutoConsoleCommandWithOutputDevice GDumpRHIMemoryCmd(
 //Static init order is undefined and you will likely end up with bad values on some platforms.
 const FClearValueBinding FClearValueBinding::None(EClearBinding::ENoneBound);
 const FClearValueBinding FClearValueBinding::Black(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+const FClearValueBinding FClearValueBinding::BlackMaxAlpha(FLinearColor(0.0f, 0.0f, 0.0f, FLT_MAX));
 const FClearValueBinding FClearValueBinding::White(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
 const FClearValueBinding FClearValueBinding::Transparent(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
 const FClearValueBinding FClearValueBinding::DepthOne(1.0f, 0);
