@@ -5254,8 +5254,6 @@ void FEngineLoop::AppPreExit( )
 		GShaderCompilingManager = nullptr;
 	}
 #endif
-
-	Trace::Flush();
 }
 
 

@@ -12,7 +12,6 @@ namespace Private
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-void	Writer_Flush();
 bool	Writer_Connect(const ANSICHAR*);
 bool	Writer_Open(const ANSICHAR*);
 uint32	Writer_EventToggle(const ANSICHAR*, bool);
@@ -59,12 +58,6 @@ uint32 ToggleEvent(const TCHAR* Wildcard, bool bState)
 	ToAnsiCheap(WildcardA, Wildcard);
 
 	return Private::Writer_EventToggle(WildcardA, bState);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void Flush()
-{
-	Private::Writer_Flush();
 }
 
 } // namespace Trace

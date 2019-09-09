@@ -222,31 +222,6 @@ static void Writer_UpdateBuffers(void (*DataSink)(const uint8*, uint32))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void Writer_Flush()
-{
-	using namespace Private;
-
-	FBuffer* Buffer = GActiveBuffer.load(std::memory_order_acquire);
-	uint32 PrevUsed = Buffer->Used.fetch_add(BufferSize, std::memory_order_relaxed);
-
-	if (!(PrevUsed & BufferSize))
-	{
-		FBuffer* NextBuffer;
-		for (; ; Writer_Yield())
-		{
-			NextBuffer = Buffer->Next.load(std::memory_order_relaxed);
-			if (NextBuffer != nullptr)
-			{
-				break;
-			}
-		}
-
-		Buffer->Final = PrevUsed & BufferSizeMask;
-		GActiveBuffer.store(NextBuffer, std::memory_order_release);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 UE_TRACE_API void* Writer_NextBuffer(Private::FBuffer* Buffer, uint32 PrevUsed, uint32 SizeAndRef)
 {
 	using namespace Private;
@@ -835,8 +810,6 @@ static void Writer_Shutdown()
 	{
 		return;
 	}
-
-	Writer_Flush();
 
 	GWorkerThreadQuit = true;
 	ThreadJoin(GWorkerThread);
