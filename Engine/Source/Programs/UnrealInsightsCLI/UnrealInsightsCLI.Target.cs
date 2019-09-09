@@ -13,7 +13,7 @@ public class UnrealInsightsCLITarget : TargetRules
 		LaunchModuleName = "UnrealInsightsCLI";
 
 		bBuildDeveloperTools = false;
-		bBuildWithEditorOnlyData = true;
+		bBuildWithEditorOnlyData = false;
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = false;
 		bCompileAgainstApplicationCore = false;
