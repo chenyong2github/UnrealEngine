@@ -203,6 +203,17 @@ public:
 		GEditor->OnBlueprintPreCompile().Remove(OnBlueprintPreCompileHandle);
 		FCoreUObjectDelegates::OnObjectSaved.Remove(OnObjectSavedHandle);
 	}
+	
+	TSharedRef<SDockTab> SpawnCurveEditorTab(const FSpawnTabArgs&)
+	{
+		const FSlateIcon SequencerGraphIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.TabIcon");
+		return SNew(SDockTab)
+			.Icon(SequencerGraphIcon.GetIcon())
+			.Label(NSLOCTEXT("Sequencer", "SequencerMainGraphEditorTitle", "Sequencer Curves"))
+			[
+				SNullWidget::NullWidget
+			];
+	}
 
 	void Construct(const FArguments&, TWeakPtr<FBlueprintEditor> InBlueprintEditor)
 	{
@@ -210,6 +221,13 @@ public:
 		OnObjectSavedHandle = FCoreUObjectDelegates::OnObjectSaved.AddSP(this, &SActorSequenceEditorWidgetImpl::OnObjectPreSave);
 
 		WeakBlueprintEditor = InBlueprintEditor;
+
+		{
+			// Register an empty tab to spawn the Curve Editor in so that layouts restore properly.
+			WeakBlueprintEditor.Pin()->GetTabManager()->RegisterTabSpawner("SequencerGraphEditor", 
+				FOnSpawnTab::CreateSP(this, &SActorSequenceEditorWidgetImpl::SpawnCurveEditorTab))
+				.SetMenuType(ETabSpawnerMenuType::Type::Hidden);
+		}
 
 		ChildSlot
 		[
@@ -309,6 +327,12 @@ public:
 			SequencerInitParams.RootSequence = NewSequence;
 			SequencerInitParams.EventContexts = TAttribute<TArray<UObject*>>(this, &SActorSequenceEditorWidgetImpl::GetEventContexts);
 			SequencerInitParams.PlaybackContext = TAttribute<UObject*>(this, &SActorSequenceEditorWidgetImpl::GetPlaybackContext);
+			
+			if (WeakBlueprintEditor.IsValid())
+			{
+				SequencerInitParams.ToolkitHost = WeakBlueprintEditor.Pin()->GetToolkitHost();
+				SequencerInitParams.HostCapabilities.bSupportsCurveEditor = true;
+			}
 
 			TSharedRef<FExtender> AddMenuExtender = MakeShareable(new FExtender);
 

@@ -462,6 +462,8 @@ public:
 	/** @return The toolkit that this sequencer is hosted in (if any) */
 	TSharedPtr<IToolkitHost> GetToolkitHost() const { return ToolkitHost.Pin(); }
 
+	const FSequencerHostCapabilities& GetHostCapabilities() const { return HostCapabilities; }
+
 	/** @return Whether or not this sequencer is used in the level editor */
 	bool IsLevelEditorSequencer() const { return bIsEditingWithinLevelEditor; }
 
@@ -1075,6 +1077,9 @@ private:
 
 	/** The asset editor that created this Sequencer if any */
 	TWeakPtr<IToolkitHost> ToolkitHost;
+
+	/** A copy of the supported features/capabilities we were initialized with. */
+	FSequencerHostCapabilities HostCapabilities;
 
 	TWeakObjectPtr<UMovieSceneSequence> RootSequence;
 	FMovieSceneRootEvaluationTemplateInstance RootTemplateInstance;
