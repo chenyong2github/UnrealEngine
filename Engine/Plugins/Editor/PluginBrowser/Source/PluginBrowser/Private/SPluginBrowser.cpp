@@ -85,7 +85,9 @@ void SPluginBrowser::Construct( const FArguments& Args )
 		static void PluginToStringArray( const IPlugin* Plugin, OUT TArray< FString >& StringArray )
 		{
 			// NOTE: Only the friendly name is searchable for now.  We don't display the actual plugin name in the UI.
-			StringArray.Add( Plugin->GetDescriptor().FriendlyName );
+			const FPluginDescriptor& Descriptor = Plugin->GetDescriptor();
+			StringArray.Add( Descriptor.FriendlyName );
+			StringArray.Add( Descriptor.Description );
 		}
 	};
 
