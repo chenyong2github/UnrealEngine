@@ -62,7 +62,7 @@ void FAnimNode_SubInstance::Evaluate_AnyThread(FPoseContext& Output)
 		Output.Pose.SetBoneContainer(&Proxy.GetRequiredBones());
 
 		// Create an evaluation context
-		FPoseContext EvaluationContext(&Proxy);
+		FPoseContext EvaluationContext(&Proxy, Output.ExpectsAdditivePose());
 		EvaluationContext.ResetToRefPose();
 			
 		// Run the anim blueprint
