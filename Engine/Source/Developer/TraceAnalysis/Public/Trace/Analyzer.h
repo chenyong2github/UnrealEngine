@@ -46,6 +46,10 @@ public:
 		 * @param Logger Name of the logger that emits the event.
 		 * @param Event Name of the event to subscribe to. */
 		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) = 0;
+
+		/** Subscribe to all events in the trace stream being analyzed.
+		 * @param RouteId User-provided identifier for this event subscription. */
+		virtual void RouteAllEvents(uint16 RouteId) = 0;
 	};
 
 	struct FOnAnalysisContext

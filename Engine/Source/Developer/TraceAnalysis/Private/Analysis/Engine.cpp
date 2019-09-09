@@ -394,6 +394,7 @@ enum ERouteId : uint16
 enum EKnownRouteHashes : uint32
 {
 	RouteHash_NewEvent = 0, // must be 0 to match traces.
+	RouteHash_AllEvents,	
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -475,6 +476,11 @@ void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) override
 		{
 			Self->AddRoute(AnalyzerIndex, RouteId, Logger, Event);
+		}
+
+		virtual void RouteAllEvents(uint16 RouteId) override
+		{
+			Self->AddRoute(AnalyzerIndex, RouteId, RouteHash_AllEvents);
 		}
 
 		FAnalysisEngine* Self;
@@ -641,6 +647,16 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 			Analyzer->OnNewEvent(Route->Id, (FEventTypeInfo&)Dispatch);
 		}
 	}
+
+	const FRoute* Route = Routes.GetData() + 1;
+	if (RouteCount > 1 && Route->Hash == RouteHash_AllEvents)
+	{
+		for (uint32 n = Route->Count; n--; ++Route)
+		{
+			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
+			Analyzer->OnNewEvent(Route->Id, (FEventTypeInfo&)Dispatch);
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -752,6 +768,22 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 		if (Dispatch->FirstRoute < RouteCount)
 		{
 			const FRoute* Route = Routes.GetData() + Dispatch->FirstRoute;
+			for (uint32 n = Route->Count; n--; ++Route)
+			{
+				IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
+				Analyzer->OnEvent(Route->Id, { SessionContext, EventData });
+			}
+		}
+
+		// Don't broadcast internal events
+		if (!Uid) // TODO: This makes assumptions about EKnownEventUids::User. Instead we should add this information to the trace.
+		{
+			continue;
+		}
+
+		const FRoute* Route = Routes.GetData() + 1;
+		if (RouteCount > 1 && Route->Hash == RouteHash_AllEvents)
+		{
 			for (uint32 n = Route->Count; n--; ++Route)
 			{
 				IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
