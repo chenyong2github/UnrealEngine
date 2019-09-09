@@ -153,13 +153,13 @@ public:
 		bool InCaptured,
 		uint32 InUserIndex,
 		uint32 InPointerIndex,
-		const TSharedPtr<SWidget>& InCapturingWidget
+		const TSharedPtr<const SWidget>& InCapturingWidget
 	);
 
 	bool Captured;
 	uint32 UserIndex;
 	uint32 PointerIndex;
-	const TSharedPtr<SWidget>& CaptureWidget;
+	const TSharedPtr<const SWidget>& CaptureWidget;
 };
 
 
@@ -235,8 +235,8 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWidgetMouseCaptureEvent, const FSlateDebuggingMouseCaptureEventArgs& /*EventArgs*/);
 	static FWidgetMouseCaptureEvent MouseCaptureEvent;
 
-	static void BroadcastMouseCapture(uint32 UserIndex, uint32 PointerIndex, const TSharedPtr<SWidget>& InCapturingWidget);
-	static void BroadcastMouseCaptureLost(uint32 UserIndex, uint32 PointerIndex, const TSharedPtr<SWidget>& InWidgetLostCapture);
+	static void BroadcastMouseCapture(uint32 UserIndex, uint32 PointerIndex, TSharedPtr<const SWidget> InCapturingWidget);
+	static void BroadcastMouseCaptureLost(uint32 UserIndex, uint32 PointerIndex, TSharedPtr<const SWidget> InWidgetLostCapture);
 
 public:
 	/**  */
