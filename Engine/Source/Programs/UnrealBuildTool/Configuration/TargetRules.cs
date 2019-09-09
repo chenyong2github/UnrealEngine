@@ -1476,6 +1476,7 @@ namespace UnrealBuildTool
 			else if(Type == global::UnrealBuildTool.TargetType.Client)
 			{
 				GlobalDefinitions.Add("UE_GAME=1");
+				GlobalDefinitions.Add("UE_CLIENT=1");
 			}
 			else if(Type == global::UnrealBuildTool.TargetType.Editor)
 			{

@@ -87,6 +87,23 @@ EBuildConfiguration FApp::GetBuildConfiguration()
 #endif
 }
 
+EBuildTargetType FApp::GetBuildTargetType()
+{
+#if IS_CLIENT_TARGET
+	return EBuildTargetType::Client;
+#elif UE_GAME
+	return EBuildTargetType::Game;
+#elif UE_EDITOR
+	return EBuildTargetType::Editor;
+#elif UE_SERVER
+	return EBuildTargetType::Server;
+#elif IS_PROGRAM
+	return EBuildTargetType::Program;
+#else
+	static_assert(false, "No host type is set.");
+#endif
+}
+
 #if UE_BUILD_DEVELOPMENT
 void FApp::SetDebugGame(bool bInIsDebugGame)
 {

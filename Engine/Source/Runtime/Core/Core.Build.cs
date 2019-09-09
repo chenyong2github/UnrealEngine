@@ -199,10 +199,20 @@ public class Core : ModuleRules
             PublicDefinitions.Add("WITH_DIRECTXMATH=0");
         }
 
-        // Decide if validating memory allocator (aka MallocStomp) can be used on the current platform.
-        // Run-time validation must be enabled through '-stompmalloc' command line argument.
+		// Set a macro to allow FApp::GetBuildTargetType() to detect client targts
+		if(Target.Type == TargetRules.TargetType.Client)
+		{
+			PrivateDefinitions.Add("IS_CLIENT_TARGET=1");
+		}
+		else
+		{
+			PrivateDefinitions.Add("IS_CLIENT_TARGET=1");
+		}
 
-        bool bWithMallocStomp = false;
+		// Decide if validating memory allocator (aka MallocStomp) can be used on the current platform.
+		// Run-time validation must be enabled through '-stompmalloc' command line argument.
+
+		bool bWithMallocStomp = false;
         if (Target.Configuration != UnrealTargetConfiguration.Shipping)
         {
 			if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Win64)
