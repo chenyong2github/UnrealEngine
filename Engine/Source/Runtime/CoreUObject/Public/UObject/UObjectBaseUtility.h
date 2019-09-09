@@ -680,8 +680,9 @@ COREUOBJECT_API UClass* GetParentNativeClass(UClass* Class);
 #if STATS
 
 /** Structure used to track time spent by a UObject */
-struct FScopeCycleCounterUObject : public FCycleCounter
+class FScopeCycleCounterUObject : public FCycleCounter
 {
+public:
 #if USE_MALLOC_PROFILER
 	/** Package path being tracked */
 	FName PackageTag;

@@ -334,7 +334,9 @@ private:
 
 #else
 
-	typedef FArchiveObjectCrc32 FArchiveObjectCrc32NonEditorProperties;
+class COREUOBJECT_API FArchiveObjectCrc32NonEditorProperties : public FArchiveObjectCrc32
+{
+}
 
 #endif
 

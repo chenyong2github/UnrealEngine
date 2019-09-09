@@ -193,7 +193,7 @@ namespace IncludeTool
 			{
 				return true;
 			}
-			if(NormalizedPath.EndsWith("/recastmesh.cpp") || NormalizedPath.EndsWith("/recastfilter.cpp") || NormalizedPath.EndsWith("/recastcontour.cpp") || NormalizedPath.EndsWith("/framepro.h") || NormalizedPath.EndsWith("/framepro.cpp") || NormalizedPath.EndsWith("/sqlite3.inl"))
+			if(NormalizedPath.EndsWith("/recastmesh.cpp") || NormalizedPath.EndsWith("/recastfilter.cpp") || NormalizedPath.EndsWith("/recastcontour.cpp") || NormalizedPath.EndsWith("/framepro.h") || NormalizedPath.EndsWith("/framepro.cpp") || NormalizedPath.EndsWith("/sqlite3.h") || NormalizedPath.EndsWith("/sqlite3.inl") || NormalizedPath.EndsWith("/vorbis_stream_encoder.h"))
 			{
 				return true;
 			}
@@ -265,6 +265,7 @@ namespace IncludeTool
 			"/Engine/Plugins/NotForLicensees/OnlineGameplayFramework/Source/McpProfileSys/Public/McpProfileSysPackage.h",
 			"/Engine/Plugins/Online/OnlineSubsystem/Source/Public/OnlineSubsystemPackage.h",
 			"/Engine/Plugins/Online/OnlineSubsystemNull/Source/Public/OnlineSubsystemNullPackage.h",
+			"/Engine/Plugins/Online/OnlineFramework/Source/Party/Public/PartyPackage.h",
 			"/Engine/Plugins/Online/NotForLicensees/OnlineSubsystemMcp/Source/Public/OnlineSubsystemMcpPackage.h",
 			"/Engine/Plugins/OnlineGameplayFramework/Source/McpProfileSys/Public/McpProfileSysPackage.h",
 			"/Engine/Plugins/Online/NotForLicensees/OnlineSubsystemTencent/Source/Public/OnlineSubsystemTencentPackage.h",
@@ -368,6 +369,9 @@ namespace IncludeTool
 			"/Engine/Source/Runtime/Core/Public/Misc/CoreMiscDefines.h",
 			"/Engine/Source/Runtime/Core/Public/Misc/CoreDefines.h",
 
+			// Platform wrapper
+			"/Engine/Source/Runtime/Online/SSL/Private/PlatformSslCertificateManager.h",
+
 			// Weird Android multiple target platform through INL file stuff
 			"/Engine/Source/Developer/Android/AndroidTargetPlatform/Private/AndroidTargetDevice.h",
 			"/Engine/Source/Developer/Android/AndroidTargetPlatform/Private/AndroidTargetDeviceOutput.h",
@@ -434,7 +438,11 @@ namespace IncludeTool
 			"/Engine/Source/Runtime/CoreUObject/Public/UObject/Class.h",
 			"/Engine/Source/Runtime/Sockets/Private/BSDSockets/SocketSubsystemBSD.h",
 			"/Engine/Source/Runtime/Sockets/Private/BSDSockets/SocketsBSD.h",
-			"/Engine/Plugins/Runtime/PacketHandlers/CompressionComponents/Oodle/Source/OodleHandlerComponent/Public/OodleHandlerComponent.h"
+			"/Engine/Plugins/Runtime/PacketHandlers/CompressionComponents/Oodle/Source/OodleHandlerComponent/Public/OodleHandlerComponent.h",
+
+			// TODO check
+			"/Engine/Source/Runtime/RHI/Public/RHI.h",
+			"/Engine/Source/Runtime/Online/SSL/Private/PlatformSslCertificateManager.h",
 		};
 
 		/// <summary>
