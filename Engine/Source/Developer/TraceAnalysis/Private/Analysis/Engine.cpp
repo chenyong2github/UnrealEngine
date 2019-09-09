@@ -37,6 +37,7 @@ private:
 class FTransportReader
 {
 public:
+	virtual					~FTransportReader() {}
 	void					SetSource(FStreamReader::FData& InSource);
 	template <typename RetType>
 	RetType const*			GetPointer();
@@ -423,6 +424,8 @@ FAnalysisEngine::~FAnalysisEngine()
 	{
 		FMemory::Free(Dispatch);
 	}
+
+	delete Transport;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
