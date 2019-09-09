@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+fix // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
 using System;
@@ -296,6 +296,7 @@ namespace IncludeTool
 			"/Engine/Source/Programs/UnrealHeaderTool/Private/Specifiers/VariableSpecifiers.def",
 			"/Engine/Source/Runtime/Engine/Public/ShowFlagsValues.inl",
 			"/Engine/Source/Runtime/Engine/Public/Animation/AnimMTStats.h",
+            "/Engine/Source/Runtime/Slate/Public/SlateScope.h",
             "/FortniteGame/Plugins/Online/OnlineSubsystem/Source/Public/OnlineSubsystemPackage.h",
             "/FortniteGame/Plugins/Online/NotForLicensees/OnlineSubsystemMcp/Source/Public/OnlineSubsystemMcpPackage.h",
 			"/FortniteGame/Plugins/Online/OnlineSubsystemNull/Source/Public/OnlineSubsystemNullPackage.h",
