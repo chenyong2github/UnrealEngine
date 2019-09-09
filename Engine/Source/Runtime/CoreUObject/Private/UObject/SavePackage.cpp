@@ -336,7 +336,7 @@ private:
 
 class COREUOBJECT_API FArchiveObjectCrc32NonEditorProperties : public FArchiveObjectCrc32
 {
-}
+};
 
 #endif
 
