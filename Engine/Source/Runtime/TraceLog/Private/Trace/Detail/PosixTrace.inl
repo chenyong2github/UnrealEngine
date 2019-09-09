@@ -7,8 +7,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-namespace Trace
-{
+namespace Trace {
+namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
 UPTRINT ThreadCreate(const ANSICHAR* Name, void (*Entry)())
@@ -198,4 +198,5 @@ UPTRINT FileOpen(const ANSICHAR* Path, const ANSICHAR* Mode)
 	return UPTRINT(Out) + 1;
 }
 
+} // namespace Private
 } // namespace Trace

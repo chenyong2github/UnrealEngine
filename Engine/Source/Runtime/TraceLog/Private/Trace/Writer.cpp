@@ -16,8 +16,8 @@
 	#error Unsupported architecture!
 #endif
 
-namespace Trace
-{
+namespace Trace {
+namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
 uint8*	MemoryReserve(SIZE_T);
@@ -40,9 +40,6 @@ uint64	TimeGetFrequency();
 uint64	TimeGetTimestamp();
 
 
-
-namespace Private
-{
 
 ////////////////////////////////////////////////////////////////////////////////
 inline void Writer_Yield()

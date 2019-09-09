@@ -9,8 +9,8 @@
 #include <sys/mman.h>
 #include <time.h>
 
-namespace Trace
-{
+namespace Trace {
+namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
 uint8* MemoryReserve(SIZE_T Size)
@@ -52,6 +52,7 @@ uint64 TimeGetTimestamp()
 	return (uint64(Time.tv_sec) * (1000 * 1000 * 1000)) + Time.tv_nsec;
 }
 
+} // namespace Private
 } // namespace Trace
 
 #endif // UE_TRACE_ENABLED

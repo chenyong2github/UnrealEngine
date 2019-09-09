@@ -16,8 +16,8 @@
 #pragma warning(disable : 6250) // VirtualFree() missing MEM_RELEASE - a false positive
 #pragma warning(disable : 6031) // WSAStartup() return ignore  - we're error tolerant
 
-namespace Trace
-{
+namespace Trace {
+namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
 uint8* MemoryReserve(SIZE_T Size)
@@ -303,6 +303,7 @@ UPTRINT FileOpen(const ANSICHAR* Path, const ANSICHAR* Mode)
 	return UPTRINT(Out) + 1;
 }
 
+} // namespace Private
 } // namespace Trace
 
 #pragma warning(pop)
