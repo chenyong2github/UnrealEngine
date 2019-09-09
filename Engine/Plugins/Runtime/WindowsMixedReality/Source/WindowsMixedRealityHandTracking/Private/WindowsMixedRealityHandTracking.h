@@ -29,6 +29,7 @@ public:
 		FHandState();
 
 		FTransform KeypointTransforms[EWMRHandKeypointCount];
+		bool ReceivedJointPoses = false;
 
 		bool GetTransform(EWMRHandKeypoint KeyPoint, FTransform& OutTransform) const;
 		const FTransform& GetTransform(EWMRHandKeypoint KeyPoint) const;
