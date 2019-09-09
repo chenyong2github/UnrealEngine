@@ -21,6 +21,7 @@
 #include "Interfaces/IProjectManager.h"
 #include "ProjectDescriptor.h"
 #include "GameProjectGenerationModule.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "PluginsEditor"
 
@@ -95,6 +96,45 @@ void SPluginBrowser::Construct( const FArguments& Args )
 
 	PluginCategories = SNew( SPluginCategoryTree, SharedThis( this ) );
 
+	FMenuBuilder DetailViewOptions(true, nullptr);
+	DetailViewOptions.AddMenuEntry(
+		LOCTEXT("ShowOnlyEnabled", "Show Only Enabled"),
+		LOCTEXT("ShowOnlyEnabled_ToolTip", "Displays only the plugins which are enabled"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]
+			{
+				PluginCategories->ToggleFilterType(SPluginCategoryTree::EFilterType::OnlyEnabled);
+			}),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([this]() -> bool
+			{
+				return PluginCategories->IsFilterEnabled(SPluginCategoryTree::EFilterType::OnlyEnabled);
+			})
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	DetailViewOptions.AddMenuEntry(
+		LOCTEXT("ShowOnlyDisabled", "Show Only Disabled"),
+		LOCTEXT("ShowOnlyDisabled_ToolTip", "Displays only the plugins which are disabled"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]
+			{
+				PluginCategories->ToggleFilterType(SPluginCategoryTree::EFilterType::OnlyDisabled);
+			}),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([this]() -> bool
+			{
+				return PluginCategories->IsFilterEnabled(SPluginCategoryTree::EFilterType::OnlyDisabled);
+			})
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
 	TSharedRef<SVerticalBox> MainContent = SNew( SVerticalBox )
 	+SVerticalBox::Slot()
 	[
@@ -102,7 +142,12 @@ void SPluginBrowser::Construct( const FArguments& Args )
 		+SSplitter::Slot()
 		.Value(.3f)
 		[
-			PluginCategories.ToSharedRef()
+			SNew(SBorder)
+			.Padding(8.0f)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				PluginCategories.ToSharedRef()
+			]
 		]
 		+SSplitter::Slot()
 		[
@@ -128,6 +173,25 @@ void SPluginBrowser::Construct( const FArguments& Args )
 				[
 					SAssignNew( SearchBoxPtr, SSearchBox )
 					.OnTextChanged( this, &SPluginBrowser::SearchBox_OnPluginSearchTextChanged )
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SComboButton)
+					.ContentPadding(0)
+					.ForegroundColor(FSlateColor::UseForeground())
+					.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ViewOptions")))
+					.MenuContent()
+					[
+						DetailViewOptions.MakeWidget()
+					]
+					.ButtonContent()
+					[
+						SNew(SImage)
+						.Image(FEditorStyle::GetBrush("GenericViewButton"))
+					]
 				]
 			]
 
@@ -172,6 +236,8 @@ void SPluginBrowser::Construct( const FArguments& Args )
 						SNew(SButton)
 						.Text(LOCTEXT("PluginSettingsRestartEditor", "Restart Now"))
 						.OnClicked(this, &SPluginBrowser::HandleRestartEditorButtonClicked)
+						.TextStyle(FEditorStyle::Get(), "LargeText")
+						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
 					]
 				]
 			]
@@ -212,28 +278,28 @@ void SPluginBrowser::Construct( const FArguments& Args )
 						SNew(SButton)
 						.Text(LOCTEXT("PluginSettingsUpgradeToStudio", "Convert Project & Restart"))
 						.OnClicked(this, &SPluginBrowser::HandleUpgradeToUnrealStudioButtonClicked)
+						.TextStyle(FEditorStyle::Get(), "LargeText")
+						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
 					]
 				]
 			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(FMargin(PaddingAmount, PaddingAmount, PaddingAmount, 0.0f))
+			.HAlign(HAlign_Right)
+			[
+				SNew(SButton)
+				.ContentPadding(5)
+				.IsEnabled(true)
+				.ToolTip(SNew(SToolTip).Text(LOCTEXT("NewPluginEnabled", "Click here to open the Plugin Creator dialog.")))
+				.TextStyle(FEditorStyle::Get(), "LargeText")
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+				.HAlign(HAlign_Center)
+				.Text(LOCTEXT("NewPluginLabel", "New Plugin"))
+				.OnClicked(this, &SPluginBrowser::HandleNewPluginButtonClicked)
+			]
 		]
-	];
-
-	const FText NewPluginTooltip = LOCTEXT("NewPluginEnabled", "Click here to open the Plugin Creator dialog.");
-
-	MainContent->AddSlot()
-	.AutoHeight()
-	.Padding(5)
-	.HAlign(HAlign_Right)
-	[
-		SNew(SButton)
-		.ContentPadding(5)
-		.IsEnabled(true)
-		.ToolTip(SNew(SToolTip).Text(NewPluginTooltip))
-		.TextStyle(FEditorStyle::Get(), "LargeText")
-		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-		.HAlign(HAlign_Center)
-		.Text(LOCTEXT("NewPluginLabel", "New Plugin"))
-		.OnClicked(this, &SPluginBrowser::HandleNewPluginButtonClicked)
 	];
 
 	ChildSlot

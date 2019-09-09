@@ -13,6 +13,8 @@ void SPluginCategoryTree::Construct( const FArguments& Args, const TSharedRef< S
 {
 	OwnerWeak = Owner;
 
+	FilterType = EFilterType::None;
+
 	// Create the root categories
 	BuiltInCategory = MakeShareable(new FPluginCategory(NULL, TEXT("Built-In"), LOCTEXT("BuiltInCategoryName", "Built-In")));
 	InstalledCategory = MakeShareable(new FPluginCategory(NULL, TEXT("Installed"), LOCTEXT("InstalledCategoryName", "Installed")));
@@ -85,6 +87,24 @@ void SPluginCategoryTree::RebuildAndFilterCategoryTree()
 		if (Plugin->IsHidden())
 		{
 			continue;
+		}
+
+		switch (FilterType)
+		{
+		case SPluginCategoryTree::EFilterType::None:
+			break;
+		case SPluginCategoryTree::EFilterType::OnlyEnabled:
+			if (!Plugin->IsEnabled())
+			{
+				continue;
+			}
+			break;
+		case SPluginCategoryTree::EFilterType::OnlyDisabled:
+			if (Plugin->IsEnabled())
+			{
+				continue;
+			}
+			break;
 		}
 
 		// Figure out which base category this plugin belongs in
@@ -270,6 +290,17 @@ bool SPluginCategoryTree::IsItemExpanded( const TSharedPtr<FPluginCategory> Item
 void SPluginCategoryTree::SetNeedsRefresh()
 {
 	RegisterActiveTimer (0.f, FWidgetActiveTimerDelegate::CreateSP (this, &SPluginCategoryTree::TriggerCategoriesRefresh));
+}
+
+bool SPluginCategoryTree::IsFilterEnabled(EFilterType FilterValue) const
+{
+	return (FilterType == FilterValue);
+}
+
+void SPluginCategoryTree::ToggleFilterType(EFilterType FilterValue)
+{
+	FilterType = IsFilterEnabled(FilterValue) ? EFilterType::None : FilterValue;
+	SetNeedsRefresh();
 }
 
 EActiveTimerReturnType SPluginCategoryTree::TriggerCategoriesRefresh(double InCurrentTime, float InDeltaTime)
