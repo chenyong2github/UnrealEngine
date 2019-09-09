@@ -427,6 +427,7 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 	AddCrashProperty( TEXT( "AppDefaultLocale" ), NCached::Session.DefaultLocale );
 	AddCrashProperty( TEXT( "BuildVersion" ), FApp::GetBuildVersion() );
 	AddCrashProperty( TEXT( "IsUE4Release" ), NCached::Session.bIsUE4Release );
+	AddCrashProperty( TEXT( "IsRequestingExit" ), GIsRequestingExit );
 
 	// Remove periods from user names to match AutoReporter user names
 	// The name prefix is read by CrashRepository.AddNewCrash in the website code
