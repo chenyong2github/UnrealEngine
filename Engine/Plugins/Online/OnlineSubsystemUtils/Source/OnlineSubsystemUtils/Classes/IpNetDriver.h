@@ -19,6 +19,7 @@ class Error;
 class FInternetAddr;
 class FNetworkNotify;
 class FSocket;
+struct FRecvMulti;
 
 UCLASS(transient, config=Engine)
 class ONLINESUBSYSTEMUTILS_API UIpNetDriver : public UNetDriver
@@ -225,4 +226,7 @@ private:
 
 	/** Receive thread object. */
 	TUniquePtr<FRunnableThread> SocketReceiveThread;
+
+	/** The preallocated state/buffers, for efficiently executing RecvMulti */
+	TUniquePtr<FRecvMulti> RecvMultiState;
 };
