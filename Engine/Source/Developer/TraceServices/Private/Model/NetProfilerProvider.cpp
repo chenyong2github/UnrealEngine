@@ -2,6 +2,7 @@
 
 #include "NetProfilerProvider.h"
 #include "AnalysisServicePrivate.h"
+#include "Containers/ArrayView.h"
 #include "Common/StringStore.h"
 
 namespace Trace
