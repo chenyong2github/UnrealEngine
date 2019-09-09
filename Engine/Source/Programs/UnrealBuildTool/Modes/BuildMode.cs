@@ -359,7 +359,7 @@ namespace UnrealBuildTool
 				{
 					foreach(string Diagnostic in Makefiles[Idx].Diagnostics)
 					{
-						Log.TraceInformation("For {0}: {1}", TargetDescriptors[Idx], Diagnostic);
+						Log.TraceInformation("{0}: {1}", TargetDescriptors[Idx].Name, Diagnostic);
 					}
 				}
 			}
