@@ -484,19 +484,23 @@ void SNewProjectWizard::Construct( const FArguments& InArgs )
 							.AutoHeight()
 							.Padding(FMargin(0.0f, 5.0f, 0.0f, 5.0f))
 							[
-								SNew(SVerticalBox)
-								+ SVerticalBox::Slot()
+								SNew(SBox)
+								.Visibility(this, &SNewProjectWizard::GetSelectedTemplateLanguageVisibility)
 								[
-									SNew(STextBlock)
-									.TextStyle(FEditorStyle::Get(), "GameProjectDialog.FeatureText")
-									.Text(LOCTEXT("LanguagesAvailable", "Languages Available:"))
-								]
-								+ SVerticalBox::Slot()
-								.AutoHeight()
-								[
-									SNew(STextBlock)
-									.AutoWrapText(true)
-									.Text(this, &SNewProjectWizard::GetSelectedTemplateLanguages)
+									SNew(SVerticalBox)
+									+ SVerticalBox::Slot()
+									[
+										SNew(STextBlock)
+										.TextStyle(FEditorStyle::Get(), "GameProjectDialog.FeatureText")
+										.Text(LOCTEXT("LanguagesAvailable", "Languages Available:"))
+									]
+									+ SVerticalBox::Slot()
+									.AutoHeight()
+									[
+										SNew(STextBlock)
+										.AutoWrapText(true)
+										.Text(this, &SNewProjectWizard::GetSelectedTemplateLanguages)
+									]
 								]
 							]
 						]
@@ -662,6 +666,17 @@ FText SNewProjectWizard::GetSelectedTemplateLanguages() const
 	}
 
 	return FText::GetEmpty();
+}
+
+EVisibility SNewProjectWizard::GetSelectedTemplateLanguageVisibility() const
+{
+	FText Languages = GetSelectedTemplateLanguages();
+	if (Languages.IsEmpty())
+	{
+		return EVisibility::Collapsed;
+	}
+
+	return EVisibility::Visible;
 }
 
 FText SNewProjectWizard::GetCurrentProjectFileName() const
@@ -927,6 +942,7 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 					Template->AssetTypes = TemplateDefs->AssetTypes;
 					Template->bSkipProjectSettings = TemplateDefs->bSkipProjectSettings;
 					Template->HiddenSettings = TemplateDefs->HiddenSettings;
+					Template->bIsEnterprise = TemplateDefs->bIsEnterprise;
 
 					Template->Name = TemplateDefs->GetDisplayNameText();
 					if (Template->Name.IsEmpty())
@@ -992,10 +1008,35 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 		}
 	}
 
+	if (Templates.Num() == 0)
+	{
+		static const FName DefaultCategory("Default");
+		Templates.Add(DefaultCategory);
+	}
+
+	{
+		TSharedPtr<FTemplateItem> BlankTemplate = MakeShareable(new FTemplateItem());
+		BlankTemplate->Name = LOCTEXT("BlankProjectName", "Blank");
+		BlankTemplate->Description = LOCTEXT("BlankProjectDescription", "A clean empty project with no code.");
+		BlankTemplate->Key = TEXT("Blank");
+		BlankTemplate->SortKey = TEXT("_1");
+		BlankTemplate->Thumbnail = MakeShareable(new FSlateBrush(*FEditorStyle::GetBrush("GameProjectDialog.BlankProjectThumbnail")));
+		BlankTemplate->PreviewImage = MakeShareable(new FSlateBrush(*FEditorStyle::GetBrush("GameProjectDialog.BlankProjectPreview")));
+		BlankTemplate->BlueprintProjectFile = TEXT("");
+		BlankTemplate->CodeProjectFile = TEXT("");
+		BlankTemplate->bSkipProjectSettings = false;
+		BlankTemplate->bIsEnterprise = false;
+
+		for (auto& Pair : Templates)
+		{
+			Pair.Value.Add(BlankTemplate);
+		}
+	}
+
 	return Templates;
 }
 
-void SNewProjectWizard::SetDefaultProjectLocation( )
+void SNewProjectWizard::SetDefaultProjectLocation()
 {
 	FString DefaultProjectFilePath;
 	
@@ -1164,9 +1205,7 @@ bool SNewProjectWizard::CreateProject( const FString& ProjectFile )
 	ProjectInfo.DefaultGraphicsPerformance = SelectedGraphicsPreset;
 	ProjectInfo.bForceExtendedLuminanceRange = ProjectInfo.TemplateFile.IsEmpty();
 	ProjectInfo.bEnableVR = bEnableVR;
-
-	// @todo (sebastiann): This is a poor way to determine Enterprise-ness.
-	ProjectInfo.bIsEnterpriseProject = ActiveCategory != TEXT("Game");
+	ProjectInfo.bIsEnterpriseProject = SelectedTemplate->bIsEnterprise;
 
 	if (!GameProjectUtils::CreateProject(ProjectInfo, FailReason, FailLog))
 	{

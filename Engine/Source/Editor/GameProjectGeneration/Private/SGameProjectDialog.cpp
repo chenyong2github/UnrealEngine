@@ -126,6 +126,19 @@ TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
 	TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
 	FGameProjectGenerationModule::Get().GetAllTemplateCategories(AllTemplateCategories);
 
+	if (AllTemplateCategories.Num() == 0)
+	{
+		TSharedPtr<FTemplateCategory> DefaultCategory = MakeShareable(new FTemplateCategory());
+		static const FName DefaultCategoryKey("Default");
+		DefaultCategory->Key = DefaultCategoryKey;
+		DefaultCategory->DisplayName = LOCTEXT("ProjectDialog_DefaultCategoryName", "Blank Project");
+		DefaultCategory->Description = LOCTEXT("ProjectDialog_DefaultCategoryDescription", "Create a new blank Unreal project.");
+		DefaultCategory->IsMajor = true;
+		DefaultCategory->Icon = FEditorStyle::GetBrush("GameProjectDialog.DefaultGameThumbnail");
+
+		AllTemplateCategories.Add(DefaultCategory);
+	}
+
 	for (const TSharedPtr<FTemplateCategory>& Category : AllTemplateCategories)
 	{
 		if (Category->IsMajor)
@@ -469,9 +482,6 @@ void SGameProjectDialog::OnFinishClicked()
 	{
 		NewProjectWizard->CreateAndOpenProject();
 	}
-
-	TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(AsShared());
-	Window->RequestDestroyWindow();
 }
 
 void SGameProjectDialog::OnCancelClicked() const

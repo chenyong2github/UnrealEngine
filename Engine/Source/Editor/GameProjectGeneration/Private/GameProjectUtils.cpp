@@ -43,6 +43,7 @@
 #include "DefaultTemplateProjectDefs.h"
 #include "SNewClassDialog.h"
 #include "FeaturedClasses.inl"
+#include "TemplateCategory.h"
 
 #include "Features/IModularFeatures.h"
 
@@ -1265,8 +1266,25 @@ UTemplateProjectDefs* GameProjectUtils::LoadTemplateDefs(const FString& ProjectD
 				UE_LOG(LogGameProjectGeneration, Error, TEXT("Failed to find template project defs class '%s', using default."), *ClassName);
 			}
 		}
+
 		TemplateDefs = NewObject<UTemplateProjectDefs>(GetTransientPackage(), ClassToConstruct);
 		TemplateDefs->LoadConfig(UTemplateProjectDefs::StaticClass(), *TemplateDefsIniFilename);
+
+		TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
+		FGameProjectGenerationModule::Get().GetAllTemplateCategories(AllTemplateCategories);
+
+		for (const FName& CategoryKey : TemplateDefs->Categories)
+		{
+			bool bCategoryExists = AllTemplateCategories.ContainsByPredicate([&CategoryKey](const TSharedPtr<FTemplateCategory>& Category)
+				{
+					return Category->Key == CategoryKey;
+				});
+
+			if (!bCategoryExists)
+			{
+				UE_LOG(LogGameProjectGeneration, Warning, TEXT("Failed to find category definition named '%s', not defined in TemplateCategories.ini."), *CategoryKey.ToString());
+			}
+		}
 	}
 
 	return TemplateDefs;

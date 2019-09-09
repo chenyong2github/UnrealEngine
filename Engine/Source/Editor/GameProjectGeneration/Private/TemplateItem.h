@@ -27,4 +27,6 @@ struct FTemplateItem
 
 	bool		bSkipProjectSettings;
 	TArray<ETemplateSetting> HiddenSettings;
+
+	bool		bIsEnterprise;
 };

@@ -22,4 +22,7 @@ struct FTemplateCategory
 
 	/** Is this a major or minor category? Controls where in the UI it will show up. */
 	bool IsMajor;
+
+	/** Is this an enterprise project? Will end up including Datasmith modules if true. */
+	bool IsEnterprise;
 };

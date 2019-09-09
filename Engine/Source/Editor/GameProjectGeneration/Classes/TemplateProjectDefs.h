@@ -123,6 +123,10 @@ public:
 	UPROPERTY(config)
 	bool bSkipProjectSettings;
 
+	/** Is this an enterprise template? */
+	UPROPERTY(config)
+	bool bIsEnterprise;
+
 	/* Optional list of settings to hide. If none are specified, then all settings are shown. */
 	UPROPERTY(config)
 	TArray<ETemplateSetting> HiddenSettings;

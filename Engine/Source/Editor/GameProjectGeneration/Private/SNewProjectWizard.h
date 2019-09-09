@@ -102,8 +102,11 @@ private:
 	/** Get a string that details the class types referenced in the selected template */
 	FText GetSelectedTemplateClassTypes() const;
 
-	/** Get a string that details the class types referenced in the selected template */
+	/** Get a string that details the languages supported by the selected template */
 	FText GetSelectedTemplateLanguages() const;
+
+	/** Get visibility of the languages display. */
+	EVisibility GetSelectedTemplateLanguageVisibility() const;
 	
 	/** Get a visiblity of the class types display. If the string is empty this return Collapsed otherwise it will return Visible */
 	EVisibility GetSelectedTemplateClassVisibility() const;
