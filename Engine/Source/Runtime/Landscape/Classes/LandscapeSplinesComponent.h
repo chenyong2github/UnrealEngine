@@ -188,6 +188,8 @@ public:
 	void AutoFixMeshComponentErrors(UWorld* OtherWorld);
 
 	bool IsUsingEditorMesh(const USplineMeshComponent* SplineMeshComponent) const;
+
+	bool IsUsingLayerInfo(const ULandscapeLayerInfoObject* LayerInfo) const;
 #endif
 
 	//~ Begin UObject Interface

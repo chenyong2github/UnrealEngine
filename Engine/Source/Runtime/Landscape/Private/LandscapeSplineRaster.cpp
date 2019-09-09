@@ -29,6 +29,13 @@
 //////////////////////////////////////////////////////////////////////////
 
 #if WITH_EDITOR
+TAutoConsoleVariable<int32> CVarLandscapeSplineFalloffModulation(
+	TEXT("landscape.SplineFalloffModulation"),
+	1,
+	TEXT("Enable Texture Modulation fo Spline Layer Falloff."));
+
+using FModulateAlphaFunc = TFunction<float(float InValue, int32 X, int32 Y)>;
+
 class FLandscapeSplineHeightsRasterPolicy
 {
 public:
@@ -112,6 +119,77 @@ private:
 	uint32 bRaiseTerrain : 1, bLowerTerrain : 1;
 };
 
+extern const size_t ChannelOffsets[4];
+
+class FModulateAlpha
+{
+public:
+	static TSharedPtr<FModulateAlpha> CreateFromLayerInfo(ULandscapeLayerInfoObject* InLayerInfo, int32 InLandscapeMinX, int32 InLandscapeMinY)
+	{
+		if (CVarLandscapeSplineFalloffModulation.GetValueOnAnyThread() == 0 || InLayerInfo == nullptr || InLayerInfo->SplineFalloffModulationTexture == nullptr)
+		{
+			return nullptr;
+		}
+
+		return MakeShareable(new FModulateAlpha(InLayerInfo, InLandscapeMinX, InLandscapeMinY));
+	}
+
+	float Modulate(float InValue, int32 InX, int32 InY) const
+	{
+		float X = FMath::Frac((float)(InX - LandscapeMinX) / (TextureWidth * Tiling)) * TextureWidth;
+		float Y = FMath::Frac((float)(InY - LandscapeMinY) / (TextureHeight * Tiling)) * TextureHeight;
+
+		int32 X0 = FMath::FloorToInt(X);
+		int32 X1 = FMath::CeilToInt(X);
+		int32 Y0 = FMath::FloorToInt(Y);
+		int32 Y1 = FMath::CeilToInt(Y);
+
+		const uint8* Data = MipData.GetData() + ChannelOffset;
+		uint8 SampleX0Y0 = *(Data + ((Y0*TextureWidth + X0) * sizeof(FColor)));
+		uint8 SampleX1Y0 = *(Data + ((Y0*TextureWidth + X1) * sizeof(FColor)));
+		uint8 SampleX0Y1 = *(Data + ((Y1*TextureWidth + X0) * sizeof(FColor)));
+		uint8 SampleX1Y1 = *(Data + ((Y1*TextureWidth + X1) * sizeof(FColor)));
+
+		uint8 LerpY0 = FMath::Lerp(SampleX0Y0, SampleX1Y0, X - X0);
+		uint8 LerpY1 = FMath::Lerp(SampleX0Y1, SampleX1Y1, X - X0);
+		uint8 FinalLerp = FMath::Lerp(LerpY0, LerpY1, Y - Y0);
+
+		InValue = InValue + (((FinalLerp / 255.0f) - Bias) * Scale);
+
+		return FMath::Clamp(InValue, 0.0f, 1.0f);
+	}
+
+private:
+	FModulateAlpha(ULandscapeLayerInfoObject* InLayerInfo, int32 InLandscapeMinX, int32 InLandscapeMinY)
+	{
+		check(InLayerInfo && InLayerInfo->SplineFalloffModulationTexture);
+
+		InLayerInfo->SplineFalloffModulationTexture->Source.GetMipData(MipData, 0);
+		TextureWidth = InLayerInfo->SplineFalloffModulationTexture->Source.GetSizeX();
+		TextureHeight = InLayerInfo->SplineFalloffModulationTexture->Source.GetSizeY();
+
+		Tiling = 1.0f / InLayerInfo->SplineFalloffModulationTiling;
+		Bias = InLayerInfo->SplineFalloffModulationBias;
+		Scale = InLayerInfo->SplineFalloffModulationScale;
+
+		LandscapeMinX = InLandscapeMinX;
+		LandscapeMinY = InLandscapeMinY;
+
+		ChannelOffset = ChannelOffsets[(int32)InLayerInfo->SplineFalloffModulationColorMask];
+	}
+
+private:
+	float Tiling;
+	float Bias;
+	float Scale;
+	TArray<uint8> MipData;
+	int32 TextureWidth;
+	int32 TextureHeight;
+	int32 LandscapeMinX;
+	int32 LandscapeMinY;
+	int32 ChannelOffset;
+};
+
 class FLandscapeSplineBlendmaskRasterPolicy
 {
 public:
@@ -119,15 +197,15 @@ public:
 	typedef FVector InterpolantType;
 
 	/** Initialization constructor. */
-	FLandscapeSplineBlendmaskRasterPolicy(TArray<uint8>& InData, int32 InMinX, int32 InMinY, int32 InMaxX, int32 InMaxY) :
+	FLandscapeSplineBlendmaskRasterPolicy(TArray<uint8>& InData, int32 InMinX, int32 InMinY, int32 InMaxX, int32 InMaxY, const TSharedPtr<FModulateAlpha>& InModulateAlpha = nullptr) :
 		Data(InData),
 		MinX(InMinX),
 		MinY(InMinY),
 		MaxX(InMaxX),
-		MaxY(InMaxY)
+		MaxY(InMaxY),
+		ModulateAlpha(InModulateAlpha)
 	{
 	}
-
 protected:
 
 	// FTriangleRasterizer policy interface.
@@ -139,9 +217,21 @@ protected:
 
 	inline void ProcessPixel(int32 X, int32 Y, const InterpolantType& Interpolant, bool BackFacing)
 	{
-		const float CosInterpX = (Interpolant.X >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.X * PI));
-		const float CosInterpY = (Interpolant.Y >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.Y * PI));
-		const float Alpha = CosInterpX * CosInterpY;
+		float Alpha = 0.0f;
+		
+		if (ModulateAlpha == nullptr)
+		{
+			const float CosInterpX = (Interpolant.X >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.X * PI));
+			const float CosInterpY = (Interpolant.Y >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.Y * PI));
+			Alpha = CosInterpX * CosInterpY;
+		}
+		else
+		{
+			const float InterpX = FMath::Clamp<float>(Interpolant.X, 0.0f, 1.0f);
+			const float InterpY = FMath::Clamp<float>(Interpolant.Y, 0.0f, 1.0f);
+			Alpha = ModulateAlpha->Modulate(InterpX * InterpY, X, Y);
+		}
+
 		uint8& Dest = Data[(Y - MinY)*(1 + MaxX - MinX) + X - MinX];
 		float Value = FMath::Lerp((float)Dest, Interpolant.Z, Alpha);
 		Dest = (uint32)FMath::Clamp<float>(Value, 0, LandscapeDataAccess::MaxValue);
@@ -150,6 +240,7 @@ protected:
 private:
 	TArray<uint8>& Data;
 	int32 MinX, MinY, MaxX, MaxY;
+	const TSharedPtr<FModulateAlpha>& ModulateAlpha;
 };
 
 void RasterizeHeight(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, FLandscapeEditDataInterface& LandscapeEdit, bool bRaiseTerrain, bool bLowerTerrain, TSet<ULandscapeComponent*>& ModifiedComponents, TFunctionRef<void(FTriangleRasterizer<FLandscapeSplineHeightsRasterPolicy>&)> RasterizerFunction)
@@ -265,7 +356,7 @@ void RasterizeControlPointHeights(int32& MinX, int32& MinY, int32& MaxX, int32& 
 	});
 }
 
-void RasterizeControlPointAlpha(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, FLandscapeEditDataInterface& LandscapeEdit, FVector ControlPointLocation, const TArray<FLandscapeSplineInterpPoint>& Points, ULandscapeLayerInfoObject* LayerInfo, TSet<ULandscapeComponent*>& ModifiedComponents)
+void RasterizeControlPointAlpha(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, FLandscapeEditDataInterface& LandscapeEdit, FVector ControlPointLocation, const TArray<FLandscapeSplineInterpPoint>& Points, ULandscapeLayerInfoObject* LayerInfo, TSet<ULandscapeComponent*>& ModifiedComponents, const TSharedPtr<FModulateAlpha>& ModulateAlpha = nullptr)
 {
 	if (LayerInfo == nullptr)
 	{
@@ -305,7 +396,7 @@ void RasterizeControlPointAlpha(int32& MinX, int32& MinY, int32& MaxX, int32& Ma
 	MaxY = ValidMaxY;
 
 	FTriangleRasterizer<FLandscapeSplineBlendmaskRasterPolicy> Rasterizer(
-		FLandscapeSplineBlendmaskRasterPolicy(Data, MinX, MinY, MaxX, MaxY));
+		FLandscapeSplineBlendmaskRasterPolicy(Data, MinX, MinY, MaxX, MaxY, ModulateAlpha));
 
 	const float BlendValue = 255;
 
@@ -315,9 +406,9 @@ void RasterizeControlPointAlpha(int32& MinX, int32& MinY, int32& MaxX, int32& Ma
 	for (int32 i = Points.Num() - 1, j = 0; j < Points.Num(); i = j++)
 	{
 		// Solid center
-		const FVector2D Right0Pos = FVector2D(Points[i].Right);
-		const FVector2D Left1Pos = FVector2D(Points[j].Left);
-		const FVector2D Right1Pos = FVector2D(Points[j].Right);
+		const FVector2D Right0Pos = FVector2D(Points[i].LayerRight);
+		const FVector2D Left1Pos = FVector2D(Points[j].LayerLeft);
+		const FVector2D Right1Pos = FVector2D(Points[j].LayerRight);
 		const FVector Right0 = FVector(1.0f, Points[i].StartEndFalloff, BlendValue);
 		const FVector Left1 = FVector(1.0f, Points[j].StartEndFalloff, BlendValue);
 		const FVector Right1 = FVector(1.0f, Points[j].StartEndFalloff, BlendValue);
@@ -377,7 +468,7 @@ void RasterizeSegmentHeight(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, 
 }
 
 
-void RasterizeSegmentAlpha(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, FLandscapeEditDataInterface& LandscapeEdit, const TArray<FLandscapeSplineInterpPoint>& Points, ULandscapeLayerInfoObject* LayerInfo, TSet<ULandscapeComponent*>& ModifiedComponents)
+void RasterizeSegmentAlpha(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, FLandscapeEditDataInterface& LandscapeEdit, const TArray<FLandscapeSplineInterpPoint>& Points, ULandscapeLayerInfoObject* LayerInfo, TSet<ULandscapeComponent*>& ModifiedComponents, const TSharedPtr<FModulateAlpha>& ModulateAlpha = nullptr)
 {
 	if (LayerInfo == nullptr)
 	{
@@ -417,17 +508,17 @@ void RasterizeSegmentAlpha(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, F
 	MaxY = ValidMaxY;
 
 	FTriangleRasterizer<FLandscapeSplineBlendmaskRasterPolicy> Rasterizer(
-		FLandscapeSplineBlendmaskRasterPolicy(Data, MinX, MinY, MaxX, MaxY));
+		FLandscapeSplineBlendmaskRasterPolicy(Data, MinX, MinY, MaxX, MaxY, ModulateAlpha));
 
 	const float BlendValue = 255;
 
 	for (int32 j = 1; j < Points.Num(); j++)
 	{
 		// Middle
-		FVector2D Left0Pos = FVector2D(Points[j - 1].Left);
-		FVector2D Right0Pos = FVector2D(Points[j - 1].Right);
-		FVector2D Left1Pos = FVector2D(Points[j].Left);
-		FVector2D Right1Pos = FVector2D(Points[j].Right);
+		FVector2D Left0Pos = FVector2D(Points[j - 1].LayerLeft);
+		FVector2D Right0Pos = FVector2D(Points[j - 1].LayerRight);
+		FVector2D Left1Pos = FVector2D(Points[j].LayerLeft);
+		FVector2D Right1Pos = FVector2D(Points[j].LayerRight);
 		FVector Left0 = FVector(1.0f, Points[j - 1].StartEndFalloff, BlendValue);
 		FVector Right0 = FVector(1.0f, Points[j - 1].StartEndFalloff, BlendValue);
 		FVector Left1 = FVector(1.0f, Points[j].StartEndFalloff, BlendValue);
@@ -496,6 +587,21 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 		return false;
 	}
 
+	TMap<ULandscapeLayerInfoObject*, TSharedPtr<FModulateAlpha>> ModulatePerLayerInfo;
+	
+	auto GetOrCreateModulate = [&](ULandscapeLayerInfoObject* LayerInfo) -> TSharedPtr<FModulateAlpha>
+	{
+		if (const TSharedPtr<FModulateAlpha>* SharedPtr = ModulatePerLayerInfo.Find(LayerInfo))
+		{
+			return *SharedPtr;
+		}
+		
+		TSharedPtr<FModulateAlpha> SharedPtr = FModulateAlpha::CreateFromLayerInfo(LayerInfo, LandscapeMinX, LandscapeMinY);
+		ModulatePerLayerInfo.Add(LayerInfo, SharedPtr);
+
+		return SharedPtr;
+	};
+
 	for (const ULandscapeSplineControlPoint* ControlPoint : Proxy->SplineComponent->ControlPoints)
 	{
 		if (bOnlySelected && !ControlPoint->IsSplineSelected())
@@ -535,6 +641,9 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 			Points[j].Right = SplineToLandscape.TransformPosition(Points[j].Right);
 			Points[j].FalloffLeft = SplineToLandscape.TransformPosition(Points[j].FalloffLeft);
 			Points[j].FalloffRight = SplineToLandscape.TransformPosition(Points[j].FalloffRight);
+
+			Points[j].LayerLeft = SplineToLandscape.TransformPosition(Points[j].LayerLeft);
+			Points[j].LayerRight = SplineToLandscape.TransformPosition(Points[j].LayerRight);
 			Points[j].LayerFalloffLeft = SplineToLandscape.TransformPosition(Points[j].LayerFalloffLeft);
 			Points[j].LayerFalloffRight = SplineToLandscape.TransformPosition(Points[j].LayerFalloffRight);
 
@@ -543,6 +652,11 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 			Points[j].Right.Z = Points[j].Right.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
 			Points[j].FalloffLeft.Z = Points[j].FalloffLeft.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
 			Points[j].FalloffRight.Z = Points[j].FalloffRight.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
+
+			Points[j].LayerLeft.Z = Points[j].LayerLeft.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
+			Points[j].LayerRight.Z = Points[j].LayerRight.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
+			Points[j].LayerFalloffLeft.Z = Points[j].LayerFalloffLeft.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
+			Points[j].LayerFalloffRight.Z = Points[j].LayerFalloffRight.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
 		}
 
 		// Heights raster
@@ -559,7 +673,8 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 		{
 			const FVector Center3D = SplineToLandscape.TransformPosition(ControlPoint->Location);
 
-			RasterizeControlPointAlpha(MinX, MinY, MaxX, MaxY, LandscapeEdit, Center3D, Points, LayerInfo, ModifiedComponents);
+			TSharedPtr<FModulateAlpha> ModulateAlpha = GetOrCreateModulate(LayerInfo);
+			RasterizeControlPointAlpha(MinX, MinY, MaxX, MaxY, LandscapeEdit, Center3D, Points, LayerInfo, ModifiedComponents, ModulateAlpha);
 		}
 	}
 
@@ -597,6 +712,9 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 			Points[j].Right = SplineToLandscape.TransformPosition(Points[j].Right);
 			Points[j].FalloffLeft = SplineToLandscape.TransformPosition(Points[j].FalloffLeft);
 			Points[j].FalloffRight = SplineToLandscape.TransformPosition(Points[j].FalloffRight);
+
+			Points[j].LayerLeft = SplineToLandscape.TransformPosition(Points[j].LayerLeft);
+			Points[j].LayerRight = SplineToLandscape.TransformPosition(Points[j].LayerRight);
 			Points[j].LayerFalloffLeft = SplineToLandscape.TransformPosition(Points[j].LayerFalloffLeft);
 			Points[j].LayerFalloffRight = SplineToLandscape.TransformPosition(Points[j].LayerFalloffRight);
 
@@ -605,6 +723,9 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 			Points[j].Right.Z = Points[j].Right.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
 			Points[j].FalloffLeft.Z = Points[j].FalloffLeft.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
 			Points[j].FalloffRight.Z = Points[j].FalloffRight.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
+
+			Points[j].LayerLeft.Z = Points[j].LayerLeft.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
+			Points[j].LayerRight.Z = Points[j].LayerRight.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
 			Points[j].LayerFalloffLeft.Z = Points[j].LayerFalloffLeft.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
 			Points[j].LayerFalloffRight.Z = Points[j].LayerFalloffRight.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
 		}
@@ -625,7 +746,8 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 		ULandscapeLayerInfoObject* LayerInfo = GetLayerInfoByName(Segment->LayerName);
 		if (Segment->LayerName != NAME_None && LayerInfo != NULL)
 		{
-			RasterizeSegmentAlpha(MinX, MinY, MaxX, MaxY, LandscapeEdit, Points, LayerInfo, ModifiedComponents);
+			TSharedPtr<FModulateAlpha> ModulateAlpha = GetOrCreateModulate(LayerInfo);
+			RasterizeSegmentAlpha(MinX, MinY, MaxX, MaxY, LandscapeEdit, Points, LayerInfo, ModifiedComponents, ModulateAlpha);
 		}
 	}
 
@@ -713,11 +835,21 @@ namespace LandscapeSplineRaster
 			Points[j].FalloffLeft = SplineToLandscape.TransformPosition(Points[j].FalloffLeft);
 			Points[j].FalloffRight = SplineToLandscape.TransformPosition(Points[j].FalloffRight);
 
+			Points[j].LayerLeft = SplineToLandscape.TransformPosition(Points[j].LayerLeft);
+			Points[j].LayerRight = SplineToLandscape.TransformPosition(Points[j].LayerRight);
+			Points[j].LayerFalloffLeft = SplineToLandscape.TransformPosition(Points[j].LayerFalloffLeft);
+			Points[j].LayerFalloffRight = SplineToLandscape.TransformPosition(Points[j].LayerFalloffRight);
+
 			// local-heights to texture value heights
 			Points[j].Left.Z = Points[j].Left.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
 			Points[j].Right.Z = Points[j].Right.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
 			Points[j].FalloffLeft.Z = Points[j].FalloffLeft.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
 			Points[j].FalloffRight.Z = Points[j].FalloffRight.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
+
+			Points[j].LayerLeft.Z = Points[j].LayerLeft.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
+			Points[j].LayerRight.Z = Points[j].LayerRight.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
+			Points[j].LayerFalloffLeft.Z = Points[j].LayerFalloffLeft.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
+			Points[j].LayerFalloffRight.Z = Points[j].LayerFalloffRight.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
 		}
 
 		// Heights raster
@@ -879,6 +1011,7 @@ namespace LandscapeSplineRaster
 	void Pointify(const FInterpCurveVector& SplineInfo, TArray<FLandscapeSplineInterpPoint>& Points, int32 NumSubdivisions,
 		float StartFalloffFraction, float EndFalloffFraction,
 		const float StartWidth, const float EndWidth,
+		const float StartLayerWidth, const float EndLayerWidth,
 		const FPointifyFalloffs& Falloffs,
 		const float StartRollDegrees, const float EndRollDegrees)
 	{
@@ -899,6 +1032,7 @@ namespace LandscapeSplineRaster
 			const float NewKeyTime = SplineInfo.Points[i].InVal;
 			const float NewKeyCosInterp = 0.5f - 0.5f * FMath::Cos(NewKeyTime * PI);
 			const float NewKeyWidth = FMath::Lerp(StartWidth, EndWidth, NewKeyCosInterp);
+			const float NewKeyLayerWidth = FMath::Lerp(StartLayerWidth, EndLayerWidth, NewKeyCosInterp);
 			const float NewKeyLeftFalloff = FMath::Lerp(Falloffs.StartLeftSide, Falloffs.EndLeftSide, NewKeyCosInterp);
 			const float NewKeyRightFalloff = FMath::Lerp(Falloffs.StartRightSide, Falloffs.EndRightSide, NewKeyCosInterp);
 			const float NewKeyLeftLayerFalloff = FMath::Lerp(Falloffs.StartLeftSideLayer, Falloffs.EndLeftSideLayer, NewKeyCosInterp);
@@ -911,8 +1045,11 @@ namespace LandscapeSplineRaster
 			const FVector NewKeyRightPos = NewKeyPos + NewKeyBiNormal * NewKeyWidth;
 			const FVector NewKeyFalloffLeftPos = NewKeyPos - NewKeyBiNormal * (NewKeyWidth + NewKeyLeftFalloff);
 			const FVector NewKeyFalloffRightPos = NewKeyPos + NewKeyBiNormal * (NewKeyWidth + NewKeyRightFalloff);
-			const FVector NewKeyLayerFalloffLeftPos = NewKeyPos - NewKeyBiNormal * (NewKeyWidth + NewKeyLeftLayerFalloff);
-			const FVector NewKeyLayerFalloffRightPos = NewKeyPos + NewKeyBiNormal * (NewKeyWidth + NewKeyRightLayerFalloff);
+			
+			const FVector NewKeyLayerLeftPos = NewKeyPos - NewKeyBiNormal * NewKeyLayerWidth;
+			const FVector NewKeyLayerRightPos = NewKeyPos + NewKeyBiNormal * NewKeyLayerWidth;
+			const FVector NewKeyLayerFalloffLeftPos = NewKeyPos - NewKeyBiNormal * (NewKeyLayerWidth + NewKeyLeftLayerFalloff);
+			const FVector NewKeyLayerFalloffRightPos = NewKeyPos + NewKeyBiNormal * (NewKeyLayerWidth + NewKeyRightLayerFalloff);
 			const float NewKeyStartEndFalloff = FMath::Min((StartFalloffFraction > 0 ? NewKeyTime / StartFalloffFraction : 1.0f), (EndFalloffFraction > 0 ? (1 - NewKeyTime) / EndFalloffFraction : 1.0f));
 
 			// If not the first keypoint, interp from the last keypoint.
@@ -927,6 +1064,7 @@ namespace LandscapeSplineRaster
 					const float NewTime = OldKeyTime + j*DrawSubstep;
 					const float NewCosInterp = 0.5f - 0.5f * FMath::Cos(NewTime * PI);
 					const float NewWidth = FMath::Lerp(StartWidth, EndWidth, NewCosInterp);
+					const float NewLayerWidth = FMath::Lerp(StartLayerWidth, EndLayerWidth, NewCosInterp);
 					const float NewLeftFalloff = FMath::Lerp(Falloffs.StartLeftSide, Falloffs.EndLeftSide, NewCosInterp);
 					const float NewRightFalloff = FMath::Lerp(Falloffs.StartRightSide, Falloffs.EndRightSide, NewCosInterp);
 					const float NewLeftLayerFalloff = FMath::Lerp(Falloffs.StartLeftSideLayer, Falloffs.EndLeftSideLayer, NewCosInterp);
@@ -939,15 +1077,18 @@ namespace LandscapeSplineRaster
 					const FVector NewRightPos = NewPos + NewBiNormal * NewWidth;
 					const FVector NewFalloffLeftPos = NewPos - NewBiNormal * (NewWidth + NewLeftFalloff);
 					const FVector NewFalloffRightPos = NewPos + NewBiNormal * (NewWidth + NewRightFalloff);
-					const FVector NewLayerFalloffLeftPos = NewPos - NewBiNormal * (NewWidth + NewLeftLayerFalloff);
-					const FVector NewLayerFalloffRightPos = NewPos + NewBiNormal * (NewWidth + NewRightLayerFalloff);
+
+					const FVector NewLayerLeftPos = NewPos - NewBiNormal * NewLayerWidth;
+					const FVector NewLayerRightPos = NewPos + NewBiNormal * NewLayerWidth;
+					const FVector NewLayerFalloffLeftPos = NewPos - NewBiNormal * (NewLayerWidth + NewLeftLayerFalloff);
+					const FVector NewLayerFalloffRightPos = NewPos + NewBiNormal * (NewLayerWidth + NewRightLayerFalloff);
 					const float NewStartEndFalloff = FMath::Min((StartFalloffFraction > 0 ? NewTime / StartFalloffFraction : 1.0f), (EndFalloffFraction > 0 ? (1 - NewTime) / EndFalloffFraction : 1.0f));
 
-					Points.Emplace(NewPos, NewLeftPos, NewRightPos, NewFalloffLeftPos, NewFalloffRightPos, NewLayerFalloffLeftPos, NewLayerFalloffRightPos, NewStartEndFalloff);
+					Points.Emplace(NewPos, NewLeftPos, NewRightPos, NewFalloffLeftPos, NewFalloffRightPos, NewLayerLeftPos, NewLayerRightPos, NewLayerFalloffLeftPos, NewLayerFalloffRightPos, NewStartEndFalloff);
 				}
 			}
 
-			Points.Emplace(NewKeyPos, NewKeyLeftPos, NewKeyRightPos, NewKeyFalloffLeftPos, NewKeyFalloffRightPos, NewKeyLayerFalloffLeftPos, NewKeyLayerFalloffRightPos, NewKeyStartEndFalloff);
+			Points.Emplace(NewKeyPos, NewKeyLeftPos, NewKeyRightPos, NewKeyFalloffLeftPos, NewKeyFalloffRightPos, NewKeyLayerLeftPos, NewKeyLayerRightPos, NewKeyLayerFalloffLeftPos, NewKeyLayerFalloffRightPos, NewKeyStartEndFalloff);
 
 			OldKeyTime = NewKeyTime;
 		}
@@ -957,6 +1098,8 @@ namespace LandscapeSplineRaster
 		FixSelfIntersection(Points, &FLandscapeSplineInterpPoint::Right);
 		FixSelfIntersection(Points, &FLandscapeSplineInterpPoint::FalloffLeft);
 		FixSelfIntersection(Points, &FLandscapeSplineInterpPoint::FalloffRight);
+		FixSelfIntersection(Points, &FLandscapeSplineInterpPoint::LayerLeft);
+		FixSelfIntersection(Points, &FLandscapeSplineInterpPoint::LayerRight);
 		FixSelfIntersection(Points, &FLandscapeSplineInterpPoint::LayerFalloffLeft);
 		FixSelfIntersection(Points, &FLandscapeSplineInterpPoint::LayerFalloffRight);
 
