@@ -473,7 +473,7 @@ public:
 	/** Whether to use spatialization, which controls 3D effects like panning */
 	void SetUseSpatialization(const bool InUseSpatialization) { bUseSpatialization = InUseSpatialization; }
 
-	/** Whether this wave will be spatializized, which controls 3D effects like panning */
+	/** Whether this wave will be spatialized, which controls 3D effects like panning */
 	bool GetUseSpatialization() const;
 };
 

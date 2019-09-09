@@ -1,0 +1,17 @@
+{
+    "branches": [
+        {
+            "streamDepot": "MergeMainRevToRelease",
+            "name": "MergeMainRevToReleaseMain",
+            "streamName": "Main",
+            "flowsTo": ["MergeMainRevToReleaseRelease"],
+            "forceAll": true
+        },
+        {
+            "streamDepot": "MergeMainRevToRelease",
+            "name": "MergeMainRevToReleaseRelease",
+            "streamName": "Release",
+            "flowsTo": ["MergeMainRevToReleaseMain"]
+        }
+    ]
+}

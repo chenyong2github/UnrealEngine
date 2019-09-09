@@ -232,17 +232,6 @@ void FNiagaraSceneProxy::CreateRenderThreadResources()
 	return;
 }
 
-void FNiagaraSceneProxy::OnTransformChanged()
-{
-	for (FNiagaraRenderer* Renderer : EmitterRenderers)
-	{
-		if (Renderer)
-		{
-			Renderer->TransformChanged();
-		}
-	}
-}
-
 FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* View) const
 {
 	FPrimitiveViewRelevance Relevance;
@@ -1084,7 +1073,7 @@ int32 UNiagaraComponent::GetNumMaterials() const
 			for (int32 EmitterIdx = 0; EmitterIdx < Emitter->GetRenderers().Num(); EmitterIdx++)
 			{
 				UNiagaraRendererProperties* Properties = Emitter->GetRenderers()[EmitterIdx];
-				Properties->GetUsedMaterials(UsedMaterials);
+				Properties->GetUsedMaterials(EmitterInst, UsedMaterials);
 			}
 		}
 	}
@@ -1154,7 +1143,7 @@ void UNiagaraComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 			{
 				if (UNiagaraRendererProperties* Renderer = Props->GetRenderers()[i])
 				{
-					Renderer->GetUsedMaterials(OutMaterials);
+					Renderer->GetUsedMaterials(&Sim.Get(), OutMaterials);
 				}
 			}
 		}
@@ -1283,6 +1272,12 @@ void UNiagaraComponent::SetNiagaraVariableObject(const FString& InVariableName, 
 void UNiagaraComponent::SetVariableObject(FName InVariableName, UObject* InValue)
 {
 	OverrideParameters.SetUObject(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetUObjectDef(), InVariableName));
+}
+
+void UNiagaraComponent::SetVariableMaterial(FName InVariableName, UMaterialInterface* InValue)
+{
+	OverrideParameters.SetUObject(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetUMaterialDef(), InVariableName));
+	MarkRenderStateDirty(); // Materials might be using this on the system, so invalidate the render state to re-gather them.
 }
 
 TArray<FVector> UNiagaraComponent::GetNiagaraParticlePositions_DebugOnly(const FString& InEmitterName)
@@ -1418,6 +1413,13 @@ void UNiagaraComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	ReinitializeSystem();
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UNiagaraComponent::OverrideUObjectParameter(const FNiagaraVariable& InVar, UObject* InObj)
+{
+	FNiagaraUserRedirectionParameterStore& ParamStore = GetOverrideParameters();
+	ParamStore.SetUObject(InObj, InVar);
+	SetParameterValueOverriddenLocally(InVar, true, false);
 }
 
 void UNiagaraComponent::SynchronizeWithSourceSystem()
@@ -1595,6 +1597,11 @@ void UNiagaraComponent::SetParameterValueOverriddenLocally(const FNiagaraVariabl
 		Asset->GetExposedParameters().CopyParameterData(OverrideParameters, InParam);
 	}
 	
+	if (InParam.IsUObject() && InParam.GetType().GetClass()->IsChildOf(UMaterialInterface::StaticClass()))
+	{
+		MarkRenderStateDirty();
+	}
+
 	if (bRequiresSystemInstanceReset && SystemInstance)
 	{
 		SystemInstance->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);

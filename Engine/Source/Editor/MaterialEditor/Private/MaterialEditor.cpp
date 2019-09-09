@@ -1600,9 +1600,19 @@ void FMaterialEditor::SetPreviewMaterial(UMaterialInterface* InMaterialInterface
 		{
 			PreviewUIViewport->SetPreviewMaterial(InMaterialInterface);
 		}
+
+		if (PreviewViewport.IsValid())
+		{
+			PreviewViewport->SetPreviewMaterial(nullptr);
+		}
 	}
 	else
 	{
+		if (PreviewUIViewport.IsValid())
+		{
+			PreviewUIViewport->SetPreviewMaterial(nullptr);
+		}
+
 		if (PreviewViewport.IsValid())
 		{
 			PreviewViewport->SetPreviewMaterial(InMaterialInterface);

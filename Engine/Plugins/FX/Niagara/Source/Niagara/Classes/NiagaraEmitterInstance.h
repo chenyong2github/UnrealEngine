@@ -119,6 +119,8 @@ public:
 
 	void SetSystemFixedBoundsOverride(FBox SystemFixedBounds);
 
+	bool FindBinding(const FNiagaraUserParameterBinding& InBinding, TArray<UMaterialInterface*>& OutMaterials) const;
+
 private:
 
 	void CheckForErrors();

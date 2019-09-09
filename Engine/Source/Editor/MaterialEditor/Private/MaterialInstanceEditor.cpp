@@ -11,6 +11,7 @@
 #include "EditorStyleSet.h"
 #include "Styling/CoreStyle.h"
 #include "MaterialEditor/DEditorTextureParameterValue.h"
+#include "MaterialEditor/DEditorRuntimeVirtualTextureParameterValue.h"
 #include "Materials/Material.h"
 #include "MaterialEditor/MaterialEditorInstanceConstant.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
@@ -24,6 +25,7 @@
 
 #include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
+#include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 
 #include "MaterialEditor.h"
 #include "MaterialEditorActions.h"
@@ -46,6 +48,7 @@
 #include "MaterialEditingLibrary.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "DebugViewModeHelpers.h"
+#include "VT/RuntimeVirtualTexture.h"
 #include "Widgets/Input/SButton.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
@@ -492,6 +495,7 @@ void FMaterialInstanceEditor::ReInitMaterialFunctionProxies()
 		TArray<FScalarParameterValue> ScalarParameterValues = FunctionInstanceProxy->ScalarParameterValues;
 		TArray<FVectorParameterValue> VectorParameterValues = FunctionInstanceProxy->VectorParameterValues;
 		TArray<FTextureParameterValue> TextureParameterValues = FunctionInstanceProxy->TextureParameterValues;
+		TArray<FRuntimeVirtualTextureParameterValue> RuntimeVirtualTextureParameterValues = FunctionInstanceProxy->RuntimeVirtualTextureParameterValues;
 		TArray<FFontParameterValue> FontParameterValues = FunctionInstanceProxy->FontParameterValues;
 
 		const FStaticParameterSet& OldStaticParameters = FunctionInstanceProxy->GetStaticParameters();
@@ -540,6 +544,18 @@ void FMaterialInstanceEditor::ReInitMaterialFunctionProxies()
 			{
 				FunctionInstanceProxy->TextureParameterValues.Add(TextureParameter);
 				FunctionInstanceProxy->TextureParameterValues.Last().ParameterInfo = OutParameterInfo[Index];
+			}
+		}
+
+		FunctionInstanceProxy->GetAllRuntimeVirtualTextureParameterInfo(OutParameterInfo, Guids);
+		FunctionInstanceProxy->RuntimeVirtualTextureParameterValues.Empty();
+		for (FRuntimeVirtualTextureParameterValue& RuntimeVirtualTextureParameter : RuntimeVirtualTextureParameterValues)
+		{
+			int32 Index = Guids.Find(RuntimeVirtualTextureParameter.ExpressionGUID);
+			if (Index != INDEX_NONE)
+			{
+				FunctionInstanceProxy->RuntimeVirtualTextureParameterValues.Add(RuntimeVirtualTextureParameter);
+				FunctionInstanceProxy->RuntimeVirtualTextureParameterValues.Last().ParameterInfo = OutParameterInfo[Index];
 			}
 		}
 
@@ -1282,6 +1298,8 @@ void FMaterialInstanceEditor::DrawSamplerWarningStrings(FCanvas* Canvas, int32& 
 			const int32 SpacingBetweenLines = 13;
 			UEnum* SamplerTypeEnum = StaticEnum<EMaterialSamplerType>();
 			check( SamplerTypeEnum );
+			UEnum* MaterialTypeEnum = StaticEnum<ERuntimeVirtualTextureMaterialType>();
+			check(MaterialTypeEnum);
 
 			const int32 GroupCount = MaterialEditorInstance->ParameterGroups.Num();
 			for ( int32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex )
@@ -1346,6 +1364,34 @@ void FMaterialInstanceEditor::DrawSamplerWarningStrings(FCanvas* Canvas, int32& 
 										FLinearColor(1, 1, 0));
 									DrawPositionY += SpacingBetweenLines;
 								}
+							}
+						}
+					}
+
+					UDEditorRuntimeVirtualTextureParameterValue* RuntimeVirtualTextureParameterValue = Cast<UDEditorRuntimeVirtualTextureParameterValue>(Group.Parameters[ParameterIndex]);
+					if (RuntimeVirtualTextureParameterValue && RuntimeVirtualTextureParameterValue->ExpressionId.IsValid())
+					{
+						URuntimeVirtualTexture* RuntimeVirtualTexture = NULL;
+						MaterialEditorInstance->SourceInstance->GetRuntimeVirtualTextureParameterValue(RuntimeVirtualTextureParameterValue->ParameterInfo, RuntimeVirtualTexture);
+						if (RuntimeVirtualTexture)
+						{
+							UMaterialExpressionRuntimeVirtualTextureSampleParameter* Expression = BaseMaterial->FindExpressionByGUID<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(RuntimeVirtualTextureParameterValue->ExpressionId);
+							if (Expression->MaterialType != RuntimeVirtualTexture->GetMaterialType())
+							{
+								FString BaseMaterialTypeDisplayName = MaterialTypeEnum->GetDisplayNameTextByValue((int64)(Expression->MaterialType)).ToString();
+								FString OverrideMaterialTypeDisplayName = MaterialTypeEnum->GetDisplayNameTextByValue((int64)(RuntimeVirtualTexture->GetMaterialType())).ToString();
+
+								Canvas->DrawShadowedString(
+									5, DrawPositionY,
+									*FString::Printf(TEXT("Warning: '%s' interprets the virtual texture as '%s' not '%s'"),
+										*RuntimeVirtualTextureParameterValue->ParameterInfo.Name.ToString(),
+										*BaseMaterialTypeDisplayName,
+										*OverrideMaterialTypeDisplayName,
+										*RuntimeVirtualTexture->GetPathName()),
+									FontToUse,
+									FLinearColor(1, 1, 0));
+
+								DrawPositionY += SpacingBetweenLines;
 							}
 						}
 					}

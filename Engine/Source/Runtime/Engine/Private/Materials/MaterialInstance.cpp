@@ -17,6 +17,7 @@
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Materials/MaterialExpressionFontSampleParameter.h"
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"
+#include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionStaticSwitchParameter.h"
 #include "Materials/MaterialExpressionStaticComponentMaskParameter.h"
 #include "Materials/MaterialFunctionInstance.h"
@@ -286,6 +287,29 @@ bool FMaterialInstanceResource::GetTextureValue(
 	}
 }
 
+bool FMaterialInstanceResource::GetTextureValue(
+	const FMaterialParameterInfo& ParameterInfo,
+	const URuntimeVirtualTexture** OutValue,
+	const FMaterialRenderContext& Context
+) const
+{
+	checkSlow(IsInParallelRenderingThread());
+	const URuntimeVirtualTexture* const * Value = RenderThread_FindParameterByName<const URuntimeVirtualTexture*>(ParameterInfo);
+	if (Value && *Value)
+	{
+		*OutValue = *Value;
+		return true;
+	}
+	else if (Parent)
+	{
+		return Parent->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
+	}
+	else
+	{
+		return false;
+	}
+}
+
 void UMaterialInstance::PropagateDataToMaterialProxy()
 {
 	if (Resource)
@@ -371,6 +395,9 @@ bool UMaterialInstance::UpdateParameters()
 
 			// Texture parameters
 			bDirty = UpdateParameterSet<FTextureParameterValue, UMaterialExpressionTextureSampleParameter>(TextureParameterValues, ParentMaterial) || bDirty;
+
+			// Runtime Virtual Texture parameters
+			bDirty = UpdateParameterSet<FRuntimeVirtualTextureParameterValue, UMaterialExpressionRuntimeVirtualTextureSampleParameter>(RuntimeVirtualTextureParameterValues, ParentMaterial) || bDirty;
 
 			// Font parameters
 			bDirty = UpdateParameterSet<FFontParameterValue, UMaterialExpressionFontSampleParameter>(FontParameterValues, ParentMaterial) || bDirty;
@@ -470,6 +497,7 @@ void UMaterialInstance::InitResources()
 	GameThread_InitMIParameters(this, VectorParameterValues);
 	GameThread_InitMIParameters(this, TextureParameterValues);
 	GameThread_InitMIParameters(this, FontParameterValues);
+	GameThread_InitMIParameters(this, RuntimeVirtualTextureParameterValues);
 
 	PropagateDataToMaterialProxy();
 
@@ -876,6 +904,61 @@ bool UMaterialInstance::GetTextureParameterValue(const FMaterialParameterInfo& P
 		return Parent->GetTextureParameterValue(ParameterInfo,OutValue,bOveriddenOnly);
 	}
 	
+	return false;
+}
+
+bool UMaterialInstance::GetRuntimeVirtualTextureParameterValue(const FMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly) const
+{
+	bool bFoundAValue = false;
+
+	if (GetReentrantFlag())
+	{
+		return false;
+	}
+
+	// Instance override
+	const FRuntimeVirtualTextureParameterValue* ParameterValue = GameThread_FindParameterByName(RuntimeVirtualTextureParameterValues, ParameterInfo);
+	if (ParameterValue)
+	{
+		OutValue = ParameterValue->ParameterValue;
+		return true;
+	}
+
+	// Instance-included default
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	{
+		UMaterialExpressionRuntimeVirtualTextureSampleParameter* Parameter = nullptr;
+		for (const FStaticMaterialLayersParameter& LayersParam : StaticParameters.MaterialLayersParameters)
+		{
+			if (LayersParam.bOverride)
+			{
+				UMaterialFunctionInterface* Function = LayersParam.GetParameterAssociatedFunction(ParameterInfo);
+				UMaterialFunctionInterface* ParameterOwner = nullptr;
+
+				if (Function && Function->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
+				{
+					return true;
+				}
+
+				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
+				{
+					if (!ParameterOwner->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
+					{
+						Parameter->IsNamedParameter(ParameterInfo, OutValue);
+					}
+					return true;
+				}
+			}
+		}
+	}
+
+	// Next material in hierarchy
+	if (Parent)
+	{
+		FMICReentranceGuard	Guard(this);
+		return Parent->GetRuntimeVirtualTextureParameterValue(ParameterInfo, OutValue, bOveriddenOnly);
+	}
+
 	return false;
 }
 
@@ -1700,6 +1783,22 @@ void UMaterialInstance::CopyMaterialInstanceParameters(UMaterialInterface* Sourc
 			}
 		}
 
+		// Now do the runtime virtual texture params
+		OutParameterInfo.Reset();
+		Guids.Reset();
+		GetAllRuntimeVirtualTextureParameterInfo(OutParameterInfo, Guids);
+		for (const FMaterialParameterInfo& ParameterInfo : OutParameterInfo)
+		{
+			URuntimeVirtualTexture* Value = nullptr;
+			if (Source->GetRuntimeVirtualTextureParameterValue(ParameterInfo, Value))
+			{
+				FRuntimeVirtualTextureParameterValue* ParameterValue = new(RuntimeVirtualTextureParameterValues) FRuntimeVirtualTextureParameterValue;
+				ParameterValue->ParameterInfo = ParameterInfo;
+				ParameterValue->ExpressionGUID.Invalidate();
+				ParameterValue->ParameterValue = Value;
+			}
+		}
+
 		// Now, init the resources
 		InitResources();
 	}
@@ -1900,6 +1999,16 @@ void UMaterialInstance::GetAllTextureParameterInfo(TArray<FMaterialParameterInfo
 	if (const UMaterial* Material = GetMaterial())
 	{
 		Material->GetAllParameterInfo<UMaterialExpressionTextureSampleParameter>(OutParameterInfo, OutParameterIds, &StaticParameters.MaterialLayersParameters);
+	}
+}
+
+void UMaterialInstance::GetAllRuntimeVirtualTextureParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
+{
+	OutParameterInfo.Empty();
+	OutParameterIds.Empty();
+	if (const UMaterial* Material = GetMaterial())
+	{
+		Material->GetAllParameterInfo<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(OutParameterInfo, OutParameterIds, &StaticParameters.MaterialLayersParameters);
 	}
 }
 
@@ -2159,6 +2268,69 @@ bool UMaterialInstance::GetTextureParameterDefaultValue(const FMaterialParameter
 		FMICReentranceGuard	Guard(this);
 #endif
 		return Parent->GetTextureParameterDefaultValue(ParameterInfo, OutValue, true);
+	}
+
+	return false;
+}
+
+bool UMaterialInstance::GetRuntimeVirtualTextureParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bCheckOwnedGlobalOverrides) const
+{
+#if WITH_EDITOR
+	if (GetReentrantFlag())
+	{
+		return false;
+	}
+#endif
+
+	// In the case of duplicate parameters with different values, this will return the
+	// first matching expression found, not necessarily the one that's used for rendering
+	UMaterialExpressionRuntimeVirtualTextureSampleParameter* Parameter = nullptr;
+
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	{
+		// Parameters introduced by this instance's layer stack
+		for (const FStaticMaterialLayersParameter& LayersParam : StaticParameters.MaterialLayersParameters)
+		{
+			if (LayersParam.bOverride)
+			{
+				UMaterialFunctionInterface* Function = LayersParam.GetParameterAssociatedFunction(ParameterInfo);
+				UMaterialFunctionInterface* ParameterOwner = nullptr;
+
+				if (Function && Function->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
+				{
+					return true;
+				}
+
+				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
+				{
+					if (!ParameterOwner->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
+					{
+						Parameter->IsNamedParameter(ParameterInfo, OutValue);
+					}
+					return true;
+				}
+			}
+		}
+	}
+	else if (bCheckOwnedGlobalOverrides)
+	{
+		// Parameters overridden by this instance
+		for (const FRuntimeVirtualTextureParameterValue& RuntimeVirtualTextureParam : RuntimeVirtualTextureParameterValues)
+		{
+			if (RuntimeVirtualTextureParam.ParameterInfo == ParameterInfo)
+			{
+				OutValue = RuntimeVirtualTextureParam.ParameterValue;
+				return true;
+			}
+		}
+	}
+
+	if (Parent)
+	{
+#if WITH_EDITOR
+		FMICReentranceGuard	Guard(this);
+#endif
+		return Parent->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, OutValue, true);
 	}
 
 	return false;
@@ -3283,6 +3455,17 @@ void UMaterialInstance::PostLoad()
 		}
 	}
 
+	// do the same for runtime virtual textures
+	for (int32 ValueIndex = 0; ValueIndex < RuntimeVirtualTextureParameterValues.Num(); ValueIndex++)
+	{
+		// Make sure the texture is postloaded so the resource isn't null.
+		URuntimeVirtualTexture* Value = RuntimeVirtualTextureParameterValues[ValueIndex].ParameterValue;
+		if (Value)
+		{
+			Value->ConditionalPostLoad();
+		}
+	}
+
 	// do the same for font textures
 	for( int32 ValueIndex=0; ValueIndex < FontParameterValues.Num(); ValueIndex++ )
 	{
@@ -3632,6 +3815,36 @@ void UMaterialInstance::SetTextureParameterValueInternal(const FMaterialParamete
 	}
 }
 
+void UMaterialInstance::SetRuntimeVirtualTextureParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture* Value)
+{
+	LLM_SCOPE(ELLMTag::MaterialInstance);
+
+	FRuntimeVirtualTextureParameterValue* ParameterValue = GameThread_FindParameterByName(RuntimeVirtualTextureParameterValues, ParameterInfo);
+
+	bool bForceUpdate = false;
+	if (!ParameterValue)
+	{
+		// If there's no element for the named parameter in array yet, add one.
+		ParameterValue = new(RuntimeVirtualTextureParameterValues) FRuntimeVirtualTextureParameterValue;
+		ParameterValue->ParameterInfo = ParameterInfo;
+		ParameterValue->ExpressionGUID.Invalidate();
+		bForceUpdate = true;
+	}
+
+	// Don't enqueue an update if it isn't needed
+	if (bForceUpdate || ParameterValue->ParameterValue != Value)
+	{
+		// set as an ensure, because it is somehow possible to accidentally pass non-textures into here via blueprints...
+		if (Value && ensureMsgf(Value->IsA(URuntimeVirtualTexture::StaticClass()), TEXT("Expecting a URuntimeVirtualTexture! Value='%s' class='%s'"), *Value->GetName(), *Value->GetClass()->GetName()))
+		{
+			ParameterValue->ParameterValue = Value;
+			// Update the material instance data in the rendering thread.
+			GameThread_UpdateMIParameter(this, *ParameterValue);
+			CacheMaterialInstanceUniformExpressions(this);
+		}
+	}
+}
+
 void UMaterialInstance::SetFontParameterValueInternal(const FMaterialParameterInfo& ParameterInfo,class UFont* FontValue,int32 FontPage)
 {
 	LLM_SCOPE(ELLMTag::MaterialInstance);
@@ -3669,6 +3882,7 @@ void UMaterialInstance::ClearParameterValuesInternal(const bool bAllParameters)
 	if(bAllParameters)
 	{
 		TextureParameterValues.Empty();
+		RuntimeVirtualTextureParameterValues.Empty();
 		FontParameterValues.Empty();
 	}
 
@@ -3978,6 +4192,7 @@ void UMaterialInstance::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSiz
 		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(ScalarParameterValues.Num() * sizeof(FMaterialInstanceResource::TNamedParameter<float>));
 		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(VectorParameterValues.Num() * sizeof(FMaterialInstanceResource::TNamedParameter<FLinearColor>));
 		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(TextureParameterValues.Num() * sizeof(FMaterialInstanceResource::TNamedParameter<const UTexture*>));
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RuntimeVirtualTextureParameterValues.Num() * sizeof(FMaterialInstanceResource::TNamedParameter<const URuntimeVirtualTexture*>));
 		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FontParameterValues.Num() * sizeof(FMaterialInstanceResource::TNamedParameter<const UTexture*>));
 	}
 }
@@ -4287,6 +4502,10 @@ bool UMaterialInstance::Equivalent(const UMaterialInstance* CompareTo) const
 	{
 		return false;
 	}
+	if (!CompareValueArraysByExpressionGUID(RuntimeVirtualTextureParameterValues, CompareTo->RuntimeVirtualTextureParameterValues))
+	{
+		return false;
+	}
 	if (!CompareValueArraysByExpressionGUID(FontParameterValues, CompareTo->FontParameterValues))
 	{
 		return false;
@@ -4509,6 +4728,28 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 						TextureParameterValues.Add(Parameter);
 					}
 				}
+
+				// Runtime Virtual Textures
+				for (FRuntimeVirtualTextureParameterValue& Parameter : AsInstance->RuntimeVirtualTextureParameterValues)
+				{
+					// If the parameter already exists, override it
+					bool bExisting = false;
+					for (FRuntimeVirtualTextureParameterValue& ExistingParameter : RuntimeVirtualTextureParameterValues)
+					{
+						if (ExistingParameter.ParameterInfo.Name == Parameter.ParameterInfo.Name)
+						{
+							ExistingParameter.ParameterValue = Parameter.ParameterValue;
+							bExisting = true;
+							break;
+						}
+					}
+
+					// Instance has introduced a new parameter via static param set
+					if (!bExisting)
+					{
+						RuntimeVirtualTextureParameterValues.Add(Parameter);
+					}
+				}
 			}
 			else if (UMaterial* AsMaterial = Cast<UMaterial>(Interface))
 			{
@@ -4516,6 +4757,7 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 				checkSlow(ScalarParameterValues.Num() == 0);
 				checkSlow(VectorParameterValues.Num() == 0);
 				checkSlow(TextureParameterValues.Num() == 0);
+				checkSlow(RuntimeVirtualTextureParameterValues.Num() == 0);
 
 				const FMaterialResource* MaterialResource = nullptr;
 				if (UWorld* World = AsMaterial->GetWorld())

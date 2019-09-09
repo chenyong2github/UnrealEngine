@@ -1,0 +1,23 @@
+{
+  "name": "robomerge",
+  "version": "2.0.0",
+  "description": "Automatic P4 merge management bot.",
+  "repository": {},
+  "keywords": [
+    "robomerge"
+  ],
+  "author": "james.hopkin",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "node dist/robo/watchdog.js -botname=TEST -devMode",
+    "test": "node dist/robo/unit-tests.js"
+  },
+  "dependencies": {
+    "@types/ldapjs": "^1.0.3",
+    "@types/node": "^10.3.2",
+    "@types/nodemailer": "^4.3.4",
+    "jsonlint": "^1.6.3",
+    "ldapauth-fork": "^4.0.2",
+    "nodemailer": "^4.6.3"
+  }
+}

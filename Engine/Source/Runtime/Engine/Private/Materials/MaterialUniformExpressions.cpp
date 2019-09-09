@@ -1009,8 +1009,25 @@ void FMaterialUniformExpressionTextureParameter::GetTextureValue(const FMaterial
 
 void FMaterialUniformExpressionTextureParameter::GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const
 {
-	// todo[vt]: Add runtime virtual texture parameter
-	check(false);
+	if (!Context.MaterialRenderProxy || !Context.MaterialRenderProxy->GetTextureValue(ParameterInfo, &OutValue, Context))
+	{
+		URuntimeVirtualTexture* Value = nullptr;
+
+		if (AreExperimentalMaterialLayersEnabled())
+		{
+			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
+			if (!Interface || !Interface->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, Value))
+			{
+				Value = GetIndexedTexture<URuntimeVirtualTexture>(Material, TextureIndex);
+			}
+		}
+		else
+		{
+			Value = GetIndexedTexture<URuntimeVirtualTexture>(Material, TextureIndex);
+		}
+
+		OutValue = Value;
+	}
 }
 
 void FMaterialUniformExpressionTextureParameter::GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue, bool bAllowOverride) const
@@ -1323,10 +1340,11 @@ bool FMaterialUniformExpressionRuntimeVirtualTextureUniform::IsIdentical(const F
 
 void FMaterialUniformExpressionRuntimeVirtualTextureUniform::GetNumberValue(const struct FMaterialRenderContext& Context, FLinearColor& OutValue) const
 {
-	//todo[vt]: Add support for parameters
-	check(!bParameter)
-
-	URuntimeVirtualTexture* Texture = GetIndexedTexture<URuntimeVirtualTexture>(Context.Material, TextureIndex);
+	const URuntimeVirtualTexture* Texture = nullptr;
+	if (!bParameter || !Context.MaterialRenderProxy || !Context.MaterialRenderProxy->GetTextureValue(ParameterInfo, &Texture, Context))
+	{
+		Texture = GetIndexedTexture<URuntimeVirtualTexture>(Context.Material, TextureIndex);
+	}
 	if (Texture != nullptr && VectorIndex != INDEX_NONE)
 	{
 		OutValue = FLinearColor(Texture->GetUniformParameter(VectorIndex));

@@ -807,7 +807,9 @@ const TArray<FString>& FGenericPlatformMisc::GetAdditionalRootDirectories()
 void FGenericPlatformMisc::AddAdditionalRootDirectory(const FString& RootDir)
 {
 	TArray<FString>& RootDirectories = TLazySingleton<FStaticData>::Get().AdditionalRootDirectories;
-	RootDirectories.Add(RootDir);
+	FString NewRootDirectory = RootDir;
+	FPaths::MakePlatformFilename(NewRootDirectory);
+	RootDirectories.Add(NewRootDirectory);
 }
 
 const TCHAR* FGenericPlatformMisc::EngineDir()
@@ -1183,7 +1185,7 @@ void FGenericPlatformMisc::UpdateHotfixableEnsureSettings()
 	else
 	{
 		float HandleEnsurePercentOnCmdLine = 100.0f;
-		if (FParse::Value(FCommandLine::Get(), TEXT("handleensurepercent="), HandleEnsurePercentOnCmdLine))
+		if (!FCommandLine::IsInitialized() && FParse::Value(FCommandLine::Get(), TEXT("handleensurepercent="), HandleEnsurePercentOnCmdLine))
 		{
 			GenericPlatformMisc::GEnsureChance = HandleEnsurePercentOnCmdLine / 100.0;
 		}

@@ -346,6 +346,11 @@ bool UMaterialInterface::GetTextureParameterValue(const FMaterialParameterInfo& 
 	return false;
 }
 
+bool UMaterialInterface::GetRuntimeVirtualTextureParameterValue(const FMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly) const
+{
+	return false;
+}
+
 #if WITH_EDITOR
 bool UMaterialInterface::GetTextureParameterChannelNames(const FMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
 {

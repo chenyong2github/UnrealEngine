@@ -1630,3 +1630,26 @@ void FNiagaraEmitterInstance::SetExecutionState(ENiagaraExecutionState InState)
 	}
 
 }
+
+bool FNiagaraEmitterInstance::FindBinding(const FNiagaraUserParameterBinding& InBinding, TArray<UMaterialInterface*>& OutMaterials) const
+{
+	FNiagaraSystemInstance* SystemInstance = GetParentSystemInstance();
+	if (SystemInstance)
+	{
+		UNiagaraComponent* Component = SystemInstance->GetComponent();
+		if (Component)
+		{
+			UObject* Obj = Component->GetOverrideParameters().GetUObject(InBinding.Parameter);
+			if (Obj)
+			{
+				UMaterialInterface* Material = Cast<UMaterialInterface>(Obj);
+				if (Material)
+				{
+					OutMaterials.Add(Material);
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}

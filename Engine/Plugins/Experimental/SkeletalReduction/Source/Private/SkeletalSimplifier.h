@@ -240,7 +240,7 @@ namespace SkeletalSimplifier
 		int32               CountDegenerates() const; // Included for testing.
 
 
-
+	
 	protected:
 
 		// --- Weights for quadric simplification
@@ -411,10 +411,10 @@ namespace SkeletalSimplifier
 
 		double maxError = 0.0f;
 		float  distError = 0.0f;
-		
+
 		while (CollapseCostHeap.Num() > 0)
 		{
-			
+		
 
 			// get the next vertex to collapse
 			uint32 TopIndex = CollapseCostHeap.Top();
@@ -438,16 +438,15 @@ namespace SkeletalSimplifier
 			// Pointer to the candidate edge (link list) for collapse
 			SimpEdgeType* TopEdgePtr = MeshManager.GetEdgePtr(TopIndex);
 			checkSlow(TopEdgePtr);
-
+			
 
 			// Gather all the edges that are really in this group.
 			EdgePtrArray CoincidentEdges;
 			MeshManager.GetEdgesInGroup(*TopEdgePtr, CoincidentEdges);
 
-			// Will return 'true' if any of the edges are locked.
-			const bool bIsLocked = MeshManager.IsLocked(CoincidentEdges);
-			if (bIsLocked)
+			if (MeshManager.HasLockedVerts(TopEdgePtr) || MeshManager.IsLockedGroup(CoincidentEdges))
 			{
+				// this edge shouldn't be collapsed.
 				continue;
 			}
 
@@ -457,29 +456,52 @@ namespace SkeletalSimplifier
 			MeshManager.GetAdjacentTopology(*TopEdgePtr, DirtyTris, DirtyVerts, DirtyEdges);
 
 			const int32 NumCoincidentEdges = CoincidentEdges.Num();
-#if 1
+
 			// Remove any edges in from this group that happen to be degenerate (no adjacent triangles)
 			// and capture the Idx of the dead edges.  Also removes the edges from the edge-index heap.
 			FSimplifierMeshManager::IdxArray InvalidCostIdxArray;  // Keep track of the Idx to remove from the cost heap
-			MeshManager.RemoveEdgeIfInvalid(CoincidentEdges, InvalidCostIdxArray);
-
-
-			if (MeshManager.IsInvalid(TopEdgePtr))
+			const int32 NumRemovedEdges = MeshManager.RemoveEdgeIfInvalid(CoincidentEdges, InvalidCostIdxArray);
+			
+			// if none of the edges in this group were valid, just continue.
+			if (NumCoincidentEdges == NumRemovedEdges)
+			{
 				continue;
-#endif
+			}
+
+			// The representative edge in our edge group was removed.  Replace it with another from the group that is valid.
+			if (MeshManager.IsRemoved(TopEdgePtr) || MeshManager.IsInvalid(TopEdgePtr))
+			{
+				// try to find a valid edge in the batch.. 
+				for (SimpEdgeType* EPtr : CoincidentEdges)
+				{
+					if (EPtr && !MeshManager.IsRemoved(EPtr))
+					{
+						TopEdgePtr = EPtr;
+						break;
+					}
+				}
+			}
+
+			// continue if no edge actually exists.
+			if (MeshManager.IsRemoved(TopEdgePtr) || MeshManager.IsInvalid(TopEdgePtr))
+			{
+				continue;
+			}
 
 			// update Edge->v1 to new locations :  move verts to new verts
 			{
 
 				// Copy the  edge->v1->verts and update the location & attributes
 				// capturing the corresponding SimpVert.
-
+				// The VertexUpdate Array is built by adding 
+				// 1) the two vertices for each edge
+				// 2) Elements from TopEdge->v0 vert group not already added
+				// 3) Elements from TopEdge->v1 vert group not already added
 				EdgeUpdateTupleArray VertexUpdateArray;
-				//ComputeEdgeCollapseVerts(TopEdgePtr, VertexUpdateArray);
 				ComputeEdgeCollapseVertsAndFixBones(TopEdgePtr, VertexUpdateArray); // re-targets using closest bone
-
+			
 				// Compute the distance of the new vertex to each plane of the affected triangles. 
-				
+			
 				if (bCheckDistance)
 				{
 					const FVector NewPos = VertexUpdateArray[0].Get<2>().GetPos();
@@ -507,15 +529,17 @@ namespace SkeletalSimplifier
 					const MeshVertType&  VertAttributes = EdgeUpdate.Get<2>();
 
 					// update the first edge vertex
-					if (SimpVertType* Vert = EdgeUpdate.Get<0>())
+					SimpVertType* VtxPtr = EdgeUpdate.Get<0>();
+					if (VtxPtr != nullptr)
 					{
-						MeshManager.UpdateVertexAttributes(*Vert, VertAttributes);
+						MeshManager.UpdateVertexAttributes(*VtxPtr, VertAttributes);
 					}
 
 					// update the second edge vertex
-					if (SimpVertType* Vert = EdgeUpdate.Get<1>())
+					VtxPtr = EdgeUpdate.Get<1>();
+					if (VtxPtr != nullptr)
 					{
-						MeshManager.UpdateVertexAttributes(*Vert, VertAttributes);
+						MeshManager.UpdateVertexAttributes(*VtxPtr, VertAttributes);
 					}
 
 				}
@@ -523,20 +547,30 @@ namespace SkeletalSimplifier
 
 			// collapse all edges by moving edge->v0 to edge->v1
 			{
+				
+				// All positions and attributes should be fixed now, but we need to update the
+				// mesh connectivity. 
 				for (int i = 0; i < NumCoincidentEdges; ++i)
 				{
 					SimpEdgeType* EdgePtr = CoincidentEdges[i];
 
-					bool bSkip = !EdgePtr || EdgePtr->TestFlags(SIMP_REMOVED);
+					bool bSkip = !EdgePtr || MeshManager.IsRemoved(EdgePtr); 
 
 					if (bSkip) continue;
 
 					// Collapse the edge, delete triangles that become degenerate
 					// and update any edges that used to include v0 to include v1 now.
 					// V1 acquires any lock from v0
-					MeshManager.CollapseEdge(EdgePtr, InvalidCostIdxArray);
+					bool bCollapsed = MeshManager.CollapseEdge(EdgePtr, InvalidCostIdxArray);
 
-					// NB: added 6/29/18. 
+					// this edge has been collapsed.  Remove it from the CoincidentEdges array
+					if (bCollapsed)
+					{
+						CoincidentEdges[i] = NULL;
+					}
+
+					// NB: two edges in this group may have shared a single vertex. 
+					// so the above collapse could have also collapsed other edges in the group.
 					MeshManager.RemoveEdgeIfInvalid(CoincidentEdges, InvalidCostIdxArray);
 
 				}
@@ -545,14 +579,15 @@ namespace SkeletalSimplifier
 
 				{
 					// I'm not totally okay with this.. this adds all the v0 verts to the v1 group,
-					// but doesn't change there Position()
-					MeshManager.MergeGroups(*TopEdgePtr->v0, *TopEdgePtr->v1);
+					// resulting in v1, v1', v1''.. v0, v0', ..
+					// but doesn't change their Position()
+					MeshManager.MergeGroups(TopEdgePtr->v0, TopEdgePtr->v1);  
+
+					// if any of the verts in the group is locked, make them all locked
+					MeshManager.PropagateFlag<SIMP_LOCKED>(*TopEdgePtr->v1);
 
 					// prune any SIMP_REMOVED verts from the v1 link list.
 					MeshManager.PruneVerts<SIMP_REMOVED>(*TopEdgePtr->v1);
-
-					// spread locked flag to all members of the vert group
-					MeshManager.PropagateFlag<SIMP_LOCKED>(*TopEdgePtr->v1);
 				}
 			}
 
@@ -567,10 +602,10 @@ namespace SkeletalSimplifier
 			// If a dirty tri has zero area, remove it and tag as SIMP_REMOVED
 			MeshManager.RemoveIfDegenerate(DirtyTris);
 
-
+			
 			// Tag verts that aren't part of tris ad SIMP_REMOVED
 			// and remove them from the mesh vert groups.
-			MeshManager.RemoveIfDegenerate(DirtyVerts);
+			MeshManager.RemoveIfDegenerate(DirtyVerts); 
 
 			// Remove edges with out verts and update
 			// the cost & heap for all the remaining dirty edges.

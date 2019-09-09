@@ -2145,8 +2145,6 @@ void AActor::RouteEndPlay(const EEndPlayReason::Type EndPlayReason)
 		{
 			SetLifeSpan(0.f);
 		}
-
-		FNavigationSystem::OnActorUnregistered(*this);
 	}
 
 	UninitializeComponents();
@@ -2834,6 +2832,7 @@ void AActor::DisableComponentsSimulatePhysics()
 
 void AActor::PreRegisterAllComponents()
 {
+	FNavigationSystem::OnActorRegistered(*this);
 }
 
 void AActor::PostRegisterAllComponents() 
@@ -4284,6 +4283,11 @@ void AActor::UnregisterAllComponents(const bool bForReregister)
 	PostUnregisterAllComponents();
 }
 
+void AActor::PostUnregisterAllComponents()
+{
+	FNavigationSystem::OnActorUnregistered(*this);
+}
+
 void AActor::RegisterAllComponents()
 {
 	PreRegisterAllComponents();
@@ -4666,8 +4670,6 @@ void AActor::PostInitializeComponents()
 	if( !IsPendingKill() )
 	{
 		bActorInitialized = true;
-
-		FNavigationSystem::OnActorRegistered(*this);
 		
 		UpdateAllReplicatedComponents();
 	}

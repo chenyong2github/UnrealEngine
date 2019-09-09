@@ -2329,7 +2329,7 @@ public:
 	virtual void UnregisterAllComponents(bool bForReregister = false);
 
 	/** Called after all currently registered components are cleared */
-	virtual void PostUnregisterAllComponents() {}
+	virtual void PostUnregisterAllComponents();
 
 	/** Will reregister all components on this actor. Does a lot of work - should only really be used in editor, generally use UpdateComponentTransforms or MarkComponentsRenderStateDirty. */
 	virtual void ReregisterAllComponents();
