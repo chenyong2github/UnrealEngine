@@ -207,14 +207,11 @@ void UFractureToolComponent::OnEnterFractureMode()
 	bInFractureMode = true;
 	for(const AActor* SelectedActor : GetSelectedActors())
 	{
-		TArray<UActorComponent*> PrimitiveComponents = SelectedActor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-		for (UActorComponent* PrimitiveActorComponent : PrimitiveComponents)
+		TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
+		SelectedActor->GetComponents(PrimitiveComponents);
+		for (UPrimitiveComponent* Component : PrimitiveComponents)
 		{
-			UPrimitiveComponent* Component = CastChecked<UPrimitiveComponent>(PrimitiveActorComponent);
-			if (Component)
-			{
-				OnSelected(Component);
-			}
+			OnSelected(Component);
 		}
 	}
 }
@@ -225,14 +222,11 @@ void UFractureToolComponent::OnExitFractureMode()
 	// find all the selected geometry collections and turn off color rendering mode
 	for (const AActor* SelectedActor : GetSelectedActors())
 	{
-		TArray<UActorComponent*> PrimitiveComponents = SelectedActor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-		for (UActorComponent* PrimitiveActorComponent : PrimitiveComponents)
+		TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
+		SelectedActor->GetComponents(PrimitiveComponents);
+		for (UPrimitiveComponent* Component : PrimitiveComponents)
 		{
-			UPrimitiveComponent* Component = CastChecked<UPrimitiveComponent>(PrimitiveActorComponent);
-			if (Component)
-			{
-				OnDeselected(Component);
-			}
+			OnDeselected(Component);
 		}
 	}
 	LeaveFracturingCleanup();
@@ -258,12 +252,12 @@ AActor* UFractureToolComponent::GetEditableMeshActor(UEditableMesh* EditableMesh
 	AActor* ReturnActor = nullptr;
 	const TArray<AActor*>& SelectedActors = GetSelectedActors();
 
-	for (int i = 0; i < SelectedActors.Num(); i++)
+	TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
+	for (int32 i = 0; i < SelectedActors.Num(); i++)
 	{
-		TArray<UActorComponent*> PrimitiveComponents = SelectedActors[i]->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-		for (UActorComponent* PrimitiveActorComponent : PrimitiveComponents)
+		SelectedActors[i]->GetComponents(PrimitiveComponents);
+		for (UPrimitiveComponent* Component : PrimitiveComponents)
 		{
-			UPrimitiveComponent* Component = CastChecked<UPrimitiveComponent>(PrimitiveActorComponent);
 			FEditableMeshSubMeshAddress SubMeshAddress = UEditableMeshFactory::MakeSubmeshAddress(Component, 0);
 
 			if (EditableMesh->GetSubMeshAddress() == SubMeshAddress)
@@ -272,6 +266,7 @@ AActor* UFractureToolComponent::GetEditableMeshActor(UEditableMesh* EditableMesh
 				break;
 			}
 		}
+		PrimitiveComponents.Reset();
 	}
 
 	return ReturnActor;
@@ -282,18 +277,12 @@ AActor* UFractureToolComponent::GetEditableMeshActor()
 	AActor* ReturnActor = nullptr;
 	const TArray<AActor*>& SelectedActors = GetSelectedActors();
 
-	for (int i = 0; i < SelectedActors.Num(); i++)
+	for (int32 i = 0; i < SelectedActors.Num(); i++)
 	{
-		TArray<UActorComponent*> PrimitiveComponents = SelectedActors[i]->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-		for (UActorComponent* PrimitiveActorComponent : PrimitiveComponents)
+		if (UPrimitiveComponent* Component = SelectedActors[i]->FindComponentByClass<UPrimitiveComponent>())
 		{
-			UPrimitiveComponent* Component = CastChecked<UPrimitiveComponent>(PrimitiveActorComponent);
-
-			if (Component)
-			{
-				ReturnActor = Component->GetOwner();
-				break;
-			}
+			ReturnActor = Component->GetOwner();
+			break;
 		}
 	}
 
@@ -351,19 +340,16 @@ void UFractureToolComponent::LeaveFracturingCleanup()
 		if (GeometryActor)
 		{
 			// hide the bones
-			TArray<UActorComponent*> PrimitiveComponents = Actor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-			for (UActorComponent* PrimitiveActorComponent : PrimitiveComponents)
+			TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
+			Actor->GetComponents(PrimitiveComponents);
+			for (UPrimitiveComponent* Component : PrimitiveComponents)
 			{
-				UPrimitiveComponent* Component = CastChecked<UPrimitiveComponent>(PrimitiveActorComponent);
-				if (Component)
+				UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(Component);
+				if (GeometryCollectionComponent)
 				{
-					UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(Component);
-					if (GeometryCollectionComponent)
-					{
-						FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-						EditBoneColor.SetShowBoneColors(false);
-						EditBoneColor.SetEnableBoneSelection(false);
-					}
+					FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
+					EditBoneColor.SetShowBoneColors(false);
+					EditBoneColor.SetEnableBoneSelection(false);
 				}
 			}
 
