@@ -2796,50 +2796,29 @@ UActorComponent* AActor::GetComponentByClass(TSubclassOf<UActorComponent> Compon
 	return FindComponentByClass(ComponentClass);
 }
 
-TArray<UActorComponent*> AActor::GetComponentsByClass(TSubclassOf<UActorComponent> ComponentClass) const
+TArray<UActorComponent*> AActor::K2_GetComponentsByClass(TSubclassOf<UActorComponent> ComponentClass) const
 {
-	TArray<UActorComponent*> ValidComponents;
-
-	// In the UActorComponent case we can skip the IsA checks for a slight performance benefit
-	if (ComponentClass == UActorComponent::StaticClass())
-	{
-		for (UActorComponent* Component : OwnedComponents)
-		{
-			if (Component)
-			{
-				ValidComponents.Add(Component);
-			}
-		}
-	}
-	else if (*ComponentClass)
-	{
-		for (UActorComponent* Component : OwnedComponents)
-		{
-			if (Component && Component->IsA(ComponentClass))
-			{
-				ValidComponents.Add(Component);
-			}
-		}
-	}
-	
-	return ValidComponents;
+	TArray<UActorComponent*> Components;
+	GetComponents(ComponentClass, Components);
+	return MoveTemp(Components);
 }
 
 TArray<UActorComponent*> AActor::GetComponentsByTag(TSubclassOf<UActorComponent> ComponentClass, FName Tag) const
 {
-	TArray<UActorComponent*> ComponentsByClass = GetComponentsByClass(ComponentClass);
+	TInlineComponentArray<UActorComponent*> ComponentsByClass;
+	GetComponents(ComponentClass, ComponentsByClass);
 
 	TArray<UActorComponent*> ComponentsByTag;
 	ComponentsByTag.Reserve(ComponentsByClass.Num());
-	for (int i = 0; i < ComponentsByClass.Num(); ++i)
+	for (UActorComponent* Component : ComponentsByClass)
 	{
-		if (ComponentsByClass[i]->ComponentHasTag(Tag))
+		if (Component->ComponentHasTag(Tag))
 		{
-			ComponentsByTag.Push(ComponentsByClass[i]);
+			ComponentsByTag.Push(Component);
 		}
 	}
 
-	return ComponentsByTag;
+	return MoveTemp(ComponentsByTag);
 }
 
 void AActor::DisableComponentsSimulatePhysics()
