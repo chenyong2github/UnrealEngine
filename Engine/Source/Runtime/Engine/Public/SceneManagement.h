@@ -174,6 +174,11 @@ public:
 	 */
 	virtual UMaterialInstanceDynamic* GetReusableMID(class UMaterialInterface* InSource) = 0;
 
+	/**
+	 * Clears the pool of mids being referenced by this view state 
+	 */
+	virtual void ClearMIDPool() = 0;
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** If frozen view matrices are available, set those as active on the SceneView */
 	virtual void ActivateFrozenViewMatrices(FSceneView& SceneView) = 0;
