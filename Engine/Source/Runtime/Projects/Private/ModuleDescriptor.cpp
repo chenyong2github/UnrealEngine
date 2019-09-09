@@ -169,104 +169,24 @@ bool FModuleDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
 		}
 	}
 
-	// Read the whitelisted platforms
-	TSharedPtr<FJsonValue> WhitelistPlatformsValue = Object.TryGetField(TEXT("WhitelistPlatforms"));
-	if(WhitelistPlatformsValue.IsValid() && WhitelistPlatformsValue->Type == EJson::Array)
-	{
-		const TArray< TSharedPtr< FJsonValue > >& PlatformsArray = WhitelistPlatformsValue->AsArray();
-		for(int Idx = 0; Idx < PlatformsArray.Num(); Idx++)
-		{
-			WhitelistPlatforms.Add(PlatformsArray[Idx]->AsString());
-		}
-	}
+	// Read the whitelisted and blacklisted platforms
+	Object.TryGetStringArrayField(TEXT("WhitelistPlatforms"), WhitelistPlatforms);
+	Object.TryGetStringArrayField(TEXT("BlacklistPlatforms"), BlacklistPlatforms);
 
-	// Read the blacklisted platforms
-	TSharedPtr<FJsonValue> BlacklistPlatformsValue = Object.TryGetField(TEXT("BlacklistPlatforms"));
-	if(BlacklistPlatformsValue.IsValid() && BlacklistPlatformsValue->Type == EJson::Array)
-	{
-		const TArray< TSharedPtr< FJsonValue > >& PlatformsArray = BlacklistPlatformsValue->AsArray();
-		for(int Idx = 0; Idx < PlatformsArray.Num(); Idx++)
-		{
-			BlacklistPlatforms.Add(PlatformsArray[Idx]->AsString());
-		}
-	}
+	// Read the whitelisted and blacklisted targets
+	Object.TryGetEnumArrayField(TEXT("WhitelistTargets"), WhitelistTargets);
+	Object.TryGetEnumArrayField(TEXT("BlacklistTargets"), BlacklistTargets);
 
-	// Read the whitelisted targets
-	TSharedPtr<FJsonValue> WhitelistTargetsValue = Object.TryGetField(TEXT("WhitelistTargets"));
-	if (WhitelistTargetsValue.IsValid() && WhitelistTargetsValue->Type == EJson::Array)
-	{
-		const TArray< TSharedPtr< FJsonValue > >& TargetsArray = WhitelistTargetsValue->AsArray();
-		for (int Idx = 0; Idx < TargetsArray.Num(); Idx++)
-		{
-			WhitelistTargets.Add(TargetsArray[Idx]->AsString());
-		}
-	}
+	// Read the whitelisted and blacklisted target configurations
+	Object.TryGetEnumArrayField(TEXT("WhitelistTargetConfigurations"), WhitelistTargetConfigurations);
+	Object.TryGetEnumArrayField(TEXT("BlacklistTargetConfigurations"), BlacklistTargetConfigurations);
 
-	// Read the blacklisted targets
-	TSharedPtr<FJsonValue> BlacklistTargetsValue = Object.TryGetField(TEXT("BlacklistTargets"));
-	if (BlacklistTargetsValue.IsValid() && BlacklistTargetsValue->Type == EJson::Array)
-	{
-		const TArray< TSharedPtr< FJsonValue > >& TargetsArray = BlacklistTargetsValue->AsArray();
-		for (int Idx = 0; Idx < TargetsArray.Num(); Idx++)
-		{
-			BlacklistTargets.Add(TargetsArray[Idx]->AsString());
-		}
-	}
-
-	// Read the whitelisted target configurations
-	TSharedPtr<FJsonValue> WhitelistTargetConfigurationsValue = Object.TryGetField(TEXT("WhitelistTargetConfigurations"));
-	if (WhitelistTargetConfigurationsValue.IsValid() && WhitelistTargetConfigurationsValue->Type == EJson::Array)
-	{
-		const TArray< TSharedPtr< FJsonValue > >& ConfigsArray = WhitelistTargetConfigurationsValue->AsArray();
-		for (int Idx = 0; Idx < ConfigsArray.Num(); Idx++)
-		{
-			WhitelistTargetConfigurations.Add(ConfigsArray[Idx]->AsString());
-		}
-	}
-
-	// Read the blacklisted target configurations
-	TSharedPtr<FJsonValue> BlacklistTargetConfigurationsValue = Object.TryGetField(TEXT("BlacklistTargetConfigurations"));
-	if (BlacklistTargetConfigurationsValue.IsValid() && BlacklistTargetConfigurationsValue->Type == EJson::Array)
-	{
-		const TArray< TSharedPtr< FJsonValue > >& ConfigsArray = BlacklistTargetConfigurationsValue->AsArray();
-		for (int Idx = 0; Idx < ConfigsArray.Num(); Idx++)
-		{
-			BlacklistTargetConfigurations.Add(ConfigsArray[Idx]->AsString());
-		}
-	}
-
-	// Read the whitelisted programs
-	TSharedPtr<FJsonValue> WhitelistProgramsValue = Object.TryGetField(TEXT("WhitelistPrograms"));
-	if (WhitelistProgramsValue.IsValid() && WhitelistProgramsValue->Type == EJson::Array)
-	{
-		const TArray< TSharedPtr< FJsonValue > >& ProgramsArray = WhitelistProgramsValue->AsArray();
-		for (int Idx = 0; Idx < ProgramsArray.Num(); Idx++)
-		{
-			WhitelistPrograms.Add(ProgramsArray[Idx]->AsString());
-		}
-	}
-
-	// Read the blacklisted programs
-	TSharedPtr<FJsonValue> BlacklistProgramsValue = Object.TryGetField(TEXT("BlacklistPrograms"));
-	if (BlacklistProgramsValue.IsValid() && BlacklistProgramsValue->Type == EJson::Array)
-	{
-		const TArray< TSharedPtr< FJsonValue > >& ProgramsArray = BlacklistProgramsValue->AsArray();
-		for (int Idx = 0; Idx < ProgramsArray.Num(); Idx++)
-		{
-			BlacklistPrograms.Add(ProgramsArray[Idx]->AsString());
-		}
-	}
+	// Read the whitelisted and blacklisted programs
+	Object.TryGetStringArrayField(TEXT("WhitelistPrograms"), WhitelistPrograms);
+	Object.TryGetStringArrayField(TEXT("BlacklistPrograms"), BlacklistPrograms);
 
 	// Read the additional dependencies
-	TSharedPtr<FJsonValue> AdditionalDependenciesValue = Object.TryGetField(TEXT("AdditionalDependencies"));
-	if (AdditionalDependenciesValue.IsValid() && AdditionalDependenciesValue->Type == EJson::Array)
-	{
-		const TArray< TSharedPtr< FJsonValue > >& DepArray = AdditionalDependenciesValue->AsArray();
-		for (int Idx = 0; Idx < DepArray.Num(); Idx++)
-		{
-			AdditionalDependencies.Add(DepArray[Idx]->AsString());
-		}
-	}
+	Object.TryGetStringArrayField(TEXT("AdditionalDependencies"), AdditionalDependencies);
 
 	return true;
 }
@@ -334,7 +254,7 @@ void FModuleDescriptor::Write(TJsonWriter<>& Writer) const
 		Writer.WriteArrayStart(TEXT("WhitelistTargets"));
 		for (int Idx = 0; Idx < WhitelistTargets.Num(); Idx++)
 		{
-			Writer.WriteValue(WhitelistTargets[Idx]);
+			Writer.WriteValue(LexToString(WhitelistTargets[Idx]));
 		}
 		Writer.WriteArrayEnd();
 	}
@@ -343,7 +263,7 @@ void FModuleDescriptor::Write(TJsonWriter<>& Writer) const
 		Writer.WriteArrayStart(TEXT("BlacklistTargets"));
 		for (int Idx = 0; Idx < BlacklistTargets.Num(); Idx++)
 		{
-			Writer.WriteValue(BlacklistTargets[Idx]);
+			Writer.WriteValue(LexToString(BlacklistTargets[Idx]));
 		}
 		Writer.WriteArrayEnd();
 	}
@@ -352,7 +272,7 @@ void FModuleDescriptor::Write(TJsonWriter<>& Writer) const
 		Writer.WriteArrayStart(TEXT("WhitelistTargetConfigurations"));
 		for (int Idx = 0; Idx < WhitelistTargetConfigurations.Num(); Idx++)
 		{
-			Writer.WriteValue(WhitelistTargetConfigurations[Idx]);
+			Writer.WriteValue(LexToString(WhitelistTargetConfigurations[Idx]));
 		}
 		Writer.WriteArrayEnd();
 	}
@@ -361,7 +281,7 @@ void FModuleDescriptor::Write(TJsonWriter<>& Writer) const
 		Writer.WriteArrayStart(TEXT("BlacklistTargetConfigurations"));
 		for (int Idx = 0; Idx < BlacklistTargetConfigurations.Num(); Idx++)
 		{
-			Writer.WriteValue(BlacklistTargetConfigurations[Idx]);
+			Writer.WriteValue(LexToString(BlacklistTargetConfigurations[Idx]));
 		}
 		Writer.WriteArrayEnd();
 	}
@@ -408,133 +328,95 @@ void FModuleDescriptor::WriteArray(TJsonWriter<>& Writer, const TCHAR* Name, con
 	}
 }
 
-bool FModuleDescriptor::IsCompiledInCurrentConfiguration() const
+bool FModuleDescriptor::IsCompiledInConfiguration(const FString& Platform, EBuildConfiguration Configuration, const FString& TargetName, EBuildTargetType TargetType, bool bBuildDeveloperTools, bool bBuildRequiresCookedData) const
 {
-	// Cache the string for the current platform
-	static const FString UBTPlatform = FPlatformMisc::GetUBTPlatform();
-	static const FString UBTTarget = FPlatformMisc::GetUBTTarget();
-	static const FString UBTTargetConfiguration = LexToString(FApp::GetBuildConfiguration());
-
 	// Check the platform is whitelisted
-	if(WhitelistPlatforms.Num() > 0 && !WhitelistPlatforms.Contains(UBTPlatform))
+	if (WhitelistPlatforms.Num() > 0 && !WhitelistPlatforms.Contains(Platform))
 	{
 		return false;
 	}
 
 	// Check the platform is not blacklisted
-	if(BlacklistPlatforms.Num() > 0 && BlacklistPlatforms.Contains(UBTPlatform))
+	if (BlacklistPlatforms.Contains(Platform))
 	{
 		return false;
 	}
 
 	// Check the target is whitelisted
-	if (WhitelistTargets.Num() > 0 && !WhitelistTargets.Contains(UBTTarget))
+	if (WhitelistTargets.Num() > 0 && !WhitelistTargets.Contains(TargetType))
 	{
 		return false;
 	}
 
 	// Check the target is not blacklisted
-	if (BlacklistTargets.Num() > 0 && BlacklistTargets.Contains(UBTTarget))
+	if (BlacklistTargets.Contains(TargetType))
 	{
 		return false;
 	}
 
 	// Check the target configuration is whitelisted
-	if (WhitelistTargetConfigurations.Num() > 0 && !WhitelistTargetConfigurations.Contains(UBTTargetConfiguration))
+	if (WhitelistTargetConfigurations.Num() > 0 && !WhitelistTargetConfigurations.Contains(Configuration))
 	{
 		return false;
 	}
 
 	// Check the target configuration is not blacklisted
-	if (BlacklistTargetConfigurations.Num() > 0 && BlacklistTargetConfigurations.Contains(UBTTargetConfiguration))
+	if (BlacklistTargetConfigurations.Contains(Configuration))
 	{
 		return false;
 	}
 
-#if IS_PROGRAM
-	// Check the program is whitelisted. Note that the behavior is slightly different to other whitelist/blacklist pairs here; we will whitelist a module of any type if it's explicitly allowed for this program.
-	if (WhitelistPrograms.Num() > 0)
+	// Special checks just for programs
+	if(TargetType == EBuildTargetType::Program)
 	{
-		return WhitelistPrograms.Contains(UE_APP_NAME);
+		// Check the program name is whitelisted. Note that this behavior is slightly different to other whitelist/blacklist checks; we will whitelist a module of any type if it's explicitly allowed for this program.
+		if(WhitelistPrograms.Num() > 0)
+		{
+			return WhitelistPrograms.Contains(TargetName);
+		}
+				
+		// Check the program name is not blacklisted
+		if(BlacklistPrograms.Contains(TargetName))
+		{
+			return false;
+		}
 	}
 
-	// Check the program is allowed
-	if (BlacklistPrograms.Num() > 0 && BlacklistPrograms.Contains(UE_APP_NAME))
-	{
-		return false;
-	}
-#endif
-
-	// Check the module is compatible with this target. This should match ModuleDescriptor.IsCompiledInConfiguration in UBT
+	// Check the module is compatible with this target.
 	switch (Type)
 	{
 	case EHostType::Runtime:
 	case EHostType::RuntimeNoCommandlet:
-		#if !IS_PROGRAM
-			return true;
-		#endif
-		break;
-
+        return TargetType != EBuildTargetType::Program;
 	case EHostType::RuntimeAndProgram:
 		return true;
-
 	case EHostType::CookedOnly:
-		return FPlatformProperties::RequiresCookedData();
-
+        return bBuildRequiresCookedData;
 	case EHostType::UncookedOnly:
-		return !FPlatformProperties::RequiresCookedData();
-
+		return !bBuildRequiresCookedData;
 	case EHostType::Developer:
-		#if WITH_EDITOR || IS_PROGRAM
-			return true;
-		#else
-			return false;
-		#endif
-
+		return TargetType == EBuildTargetType::Editor || TargetType == EBuildTargetType::Program;
 	case EHostType::DeveloperTool:
-		#if WITH_UNREAL_DEVELOPER_TOOLS
-			return true;
-		#else
-			return false;		
-		#endif
-
+		return bBuildDeveloperTools;
 	case EHostType::Editor:
 	case EHostType::EditorNoCommandlet:
-		#if WITH_EDITOR
-			return true;
-		#endif
-		break;
-
+		return TargetType == EBuildTargetType::Editor;
 	case EHostType::EditorAndProgram:
-		#if WITH_EDITOR || IS_PROGRAM
-			return true;
-		#else
-			return false;
-		#endif
-
+		return TargetType == EBuildTargetType::Editor || TargetType == EBuildTargetType::Program;
 	case EHostType::Program:
-		#if IS_PROGRAM
-			return true;
-		#endif
-		break;
-
-	case EHostType::ServerOnly:
-#if IS_PROGRAM
-		return false;
-#else
-		return !FPlatformProperties::IsClientOnly();
-#endif
-
-	case EHostType::ClientOnly:
-#if IS_PROGRAM
-		return false;
-#else
-		return !FPlatformProperties::IsServerOnly();
-#endif
-
-	}
+		return TargetType == EBuildTargetType::Program;
+    case EHostType::ServerOnly:
+        return TargetType != EBuildTargetType::Program && TargetType != EBuildTargetType::Client;
+    case EHostType::ClientOnly:
+        return TargetType != EBuildTargetType::Program && TargetType != EBuildTargetType::Server;
+    }
 
 	return false;
+}
+
+bool FModuleDescriptor::IsCompiledInCurrentConfiguration() const
+{
+	return IsCompiledInConfiguration(FPlatformMisc::GetUBTPlatform(), FApp::GetBuildConfiguration(), UE_APP_NAME, FApp::GetBuildTargetType(), !!WITH_UNREAL_DEVELOPER_TOOLS, FPlatformProperties::RequiresCookedData());
 }
 
 bool FModuleDescriptor::IsLoadedInCurrentConfiguration() const

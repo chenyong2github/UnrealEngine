@@ -137,22 +137,22 @@ static bool BlueprintNativeCodeGenUtilsImpl::GeneratePluginDescFile(const FBluep
 				switch (PlatformInfo.PlatformType)
 				{
 				case EBuildTargetType::Game:
-					ModuleDesc->WhitelistTargets.AddUnique(TEXT("Game"));
+					ModuleDesc->WhitelistTargets.AddUnique(EBuildTargetType::Game);
 
 					// Hack to allow clients for PS4/XboxOne (etc.) to build the nativized assets plugin
 					if(!bIsClientValidForPlatform)
 					{
 						// Also add "Client" target
-						ModuleDesc->WhitelistTargets.AddUnique(TEXT("Client"));
+						ModuleDesc->WhitelistTargets.AddUnique(EBuildTargetType::Client);
 					}
 					break;
 
 				case EBuildTargetType::Client:
-					ModuleDesc->WhitelistTargets.AddUnique(TEXT("Client"));
+					ModuleDesc->WhitelistTargets.AddUnique(EBuildTargetType::Client);
 					break;
 
 				case EBuildTargetType::Server:
-					ModuleDesc->WhitelistTargets.AddUnique(TEXT("Server"));
+					ModuleDesc->WhitelistTargets.AddUnique(EBuildTargetType::Server);
 					break;
 
 				case EBuildTargetType::Editor:

@@ -34,16 +34,16 @@ struct PROJECTS_API FPluginReferenceDescriptor
 	TArray<FString> BlacklistPlatforms;
  
 	/** If enabled, list of target configurations for which the plugin should be enabled (or all target configurations if blank). */
-	TArray<FString> WhitelistTargetConfigurations;
+	TArray<EBuildConfiguration> WhitelistTargetConfigurations;
 
 	/** If enabled, list of target configurations for which the plugin should be disabled. */
-	TArray<FString> BlacklistTargetConfigurations;
+	TArray<EBuildConfiguration> BlacklistTargetConfigurations;
 
 	/** If enabled, list of targets for which the plugin should be enabled (or all targets if blank). */
-	TArray<FString> WhitelistTargets;
+	TArray<EBuildTargetType> WhitelistTargets;
 
 	/** If enabled, list of targets for which the plugin should be disabled. */
-	TArray<FString> BlacklistTargets;
+	TArray<EBuildTargetType> BlacklistTargets;
 
 	/** The list of supported target platforms for this plugin. This field is copied from the plugin descriptor, and supplements the user's whitelisted and blacklisted platforms. */
 	TArray<FString> SupportedTargetPlatforms;
@@ -55,10 +55,10 @@ struct PROJECTS_API FPluginReferenceDescriptor
 	bool IsEnabledForPlatform(const FString& Platform) const;
 
 	/** Determines whether the plugin is enabled for the given target configuration */
-	bool IsEnabledForTargetConfiguration(const FString& TargetConfiguration) const;
+	bool IsEnabledForTargetConfiguration(EBuildConfiguration Configuration) const;
 
 	/** Determines whether the plugin is enabled for the given target */
-	bool IsEnabledForTarget(const FString& Target) const;
+	bool IsEnabledForTarget(EBuildTargetType TargetType) const;
 
 	/** Determines if the referenced plugin is supported for the given platform */
 	bool IsSupportedTargetPlatform(const FString& Platform) const;
