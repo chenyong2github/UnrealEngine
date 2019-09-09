@@ -8,7 +8,7 @@
 #include "Recorder/TakeRecorder.h"
 #include "Recorder/TakeRecorderParameters.h"
 #include "TakesCoreBlueprintLibrary.h"
-#include "TakesCoreFwd.h"
+#include "TakesCoreLog.h"
 #include "TakeMetaData.h"
 #include "TakeRecorderActorSource.h"
 #include "TakeRecorderSources.h"
