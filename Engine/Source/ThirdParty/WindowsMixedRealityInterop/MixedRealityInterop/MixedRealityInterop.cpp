@@ -3161,7 +3161,6 @@ namespace WindowsMixedReality
 
 	void ReleaseSpatialRecognizers()
 	{
-		interactionManager = SpatialInteractionManager::GetForCurrentView();
 		{
 			std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 			for (auto&& p : gestureRecognizerMap)
@@ -3169,6 +3168,7 @@ namespace WindowsMixedReality
 				p.second = nullptr;
 			}
 		}
+		interactionManager = nullptr;
 	}
 
 	GestureRecognizerInterop::~GestureRecognizerInterop()
