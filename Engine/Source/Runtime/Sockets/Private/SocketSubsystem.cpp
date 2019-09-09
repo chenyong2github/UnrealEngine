@@ -491,25 +491,24 @@ const TCHAR* ISocketSubsystem::GetSocketError(ESocketErrors Code)
 	};
 }
 
+TUniquePtr<FRecvMulti> ISocketSubsystem::CreateRecvMulti(int32 MaxNumPackets, int32 MaxPacketSize,
+															ERecvMultiFlags Flags/*=ERecvMultiFlags::None*/)
+{
+	UE_LOG(LogSockets, Warning, TEXT("RecvMulti is not supported by current socket subsystem."));
 
+	return nullptr;
+}
 
+bool ISocketSubsystem::IsSocketRecvMultiSupported() const
+{
+	return false;
+}
 
+double ISocketSubsystem::TranslatePacketTimestamp(const FPacketTimestamp& Timestamp,
+													ETimestampTranslation Translation/*=ETimestampTranslation::LocalTimestamp*/)
+{
+	UE_LOG(LogSockets, Warning, TEXT("TranslatePacketTimestamp is not supported by current socket subsystem."));
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	return 0.0;
+}
 
