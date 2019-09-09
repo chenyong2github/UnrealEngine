@@ -632,7 +632,6 @@ public:
 
 #if DO_ENABLE_NET_TEST
 
-	// For development.
 	/** Packet settings for testing lag, net errors, etc */
 	FPacketSimulationSettings PacketSimulationSettings;
 
