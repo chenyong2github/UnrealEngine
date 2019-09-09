@@ -44,6 +44,13 @@ static FAutoConsoleVariableRef CVarD3D12SegListTrackLeaks(
 	ECVF_ReadOnly);
 #endif
 
+static int32 GD3D12FastAllocatorMinPagesToRetain = 5;
+static FAutoConsoleVariableRef CVarD3D12FastAllocatorMinPagesToRetain(
+	TEXT("d3d12.FastAllocator.MinPagesToRetain"),
+	GD3D12FastAllocatorMinPagesToRetain,
+	TEXT("Minimum number of pages to retain. Pages below this limit will never be released. Pages above can be released after being unused for a certain number of frames."),
+	ECVF_Default);
+
 namespace ED3D12AllocatorID
 {
 	enum Type
@@ -1298,15 +1305,6 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(D3D12_RESOURCE_DESC Desc, co
 //	Fast Allocation
 //-----------------------------------------------------------------------------
 
-template void* FD3D12FastAllocator::Allocate<FD3D12ScopeLock>(uint32 Size, uint32 Alignment, class FD3D12ResourceLocation* ResourceLocation);
-template void* FD3D12FastAllocator::Allocate<FD3D12ScopeNoLock>(uint32 Size, uint32 Alignment, class FD3D12ResourceLocation* ResourceLocation);
-
-template void FD3D12FastAllocator::CleanupPages<FD3D12ScopeLock>(uint64 FrameLag);
-template void FD3D12FastAllocator::CleanupPages<FD3D12ScopeNoLock>(uint64 FrameLag);
-
-template void FD3D12FastAllocator::Destroy<FD3D12ScopeLock>();
-template void FD3D12FastAllocator::Destroy<FD3D12ScopeNoLock>();
-
 FD3D12FastAllocator::FD3D12FastAllocator(FD3D12Device* Parent, FRHIGPUMask VisibiltyMask, D3D12_HEAP_TYPE InHeapType, uint32 PageSize)
 	: FD3D12DeviceChild(Parent)
 	, FD3D12MultiNodeGPUObject(Parent->GetGPUMask(), VisibiltyMask)
@@ -1321,11 +1319,8 @@ FD3D12FastAllocator::FD3D12FastAllocator(FD3D12Device* Parent, FRHIGPUMask Visib
 	, CurrentAllocatorPage(nullptr)
 {}
 
-template<typename LockType>
 void* FD3D12FastAllocator::Allocate(uint32 Size, uint32 Alignment, class FD3D12ResourceLocation* ResourceLocation)
 {
-	LockType Lock(&CS);
-
 	// Check to make sure our assumption that we don't need a ResourceLocation->Clear() here is valid.
 	checkf(!ResourceLocation->IsValid(), TEXT("The supplied resource location already has a valid resource. You should Clear() it first or it may leak."));
 
@@ -1353,6 +1348,8 @@ void* FD3D12FastAllocator::Allocate(uint32 Size, uint32 Alignment, class FD3D12R
 	}
 	else
 	{
+		FD3D12ScopeLock Lock(&CS);
+
 		const uint32 Offset = (CurrentAllocatorPage) ? CurrentAllocatorPage->NextFastAllocOffset : 0;
 		uint32 CurrentOffset = AlignArbitrary(Offset, Alignment);
 
@@ -1384,18 +1381,15 @@ void* FD3D12FastAllocator::Allocate(uint32 Size, uint32 Alignment, class FD3D12R
 	}
 }
 
-template<typename LockType>
 void FD3D12FastAllocator::CleanupPages(uint64 FrameLag)
 {
-	LockType Lock(&CS);
+	FD3D12ScopeLock Lock(&CS);
 	PagePool.CleanupPages(FrameLag);
 }
 
-template<typename LockType>
 void FD3D12FastAllocator::Destroy()
 {
-	LockType Lock(&CS);
-
+	FD3D12ScopeLock Lock(&CS);
 	if (CurrentAllocatorPage)
 	{
 		PagePool.ReturnFastAllocatorPage(CurrentAllocatorPage);
@@ -1449,6 +1443,7 @@ FD3D12FastAllocatorPage* FD3D12FastAllocatorPagePool::RequestFastAllocatorPage()
 	VERIFYD3D12RESULT(Adapter->CreateBuffer(HeapProperties, InitialState, PageSize, Page->FastAllocBuffer.GetInitReference(), TEXT("Fast Allocator Page")));
 
 	Page->FastAllocData = Page->FastAllocBuffer->Map();
+
 	return Page;
 }
 
@@ -1464,36 +1459,30 @@ void FD3D12FastAllocatorPagePool::ReturnFastAllocatorPage(FD3D12FastAllocatorPag
 
 void FD3D12FastAllocatorPagePool::CleanupPages(uint64 FrameLag)
 {
+	if (Pool.Num() <= GD3D12FastAllocatorMinPagesToRetain)
+	{
+		return;
+	}
+
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
 	FD3D12Fence& FrameFence = Adapter->GetFrameFence();
 
 	const uint64 CompletedFence = FrameFence.UpdateLastCompletedFence();
 
-	bool Found = false;
-
-	int32 Index = 0;
-	while (Index < Pool.Num())
+	// Pages get returned to end of list, so we'll look for pages to delete, starting from the LRU
+	for (int32 Index = 0; Index < Pool.Num(); Index++)
 	{
 		//If the GPU is done with it and no-one has a lock on it
 		if (Pool[Index]->FastAllocBuffer->GetRefCount() == 1 &&
 			Pool[Index]->FrameFence + FrameLag <= CompletedFence)
 		{
-			// Always keep one to avoid a recurring delete/create dance
-			if (Found)
-			{
-				FD3D12FastAllocatorPage* Page = Pool[Index];
-				Pool.RemoveAt(Index);
-				delete(Page);
+			FD3D12FastAllocatorPage* Page = Pool[Index];
+			Pool.RemoveAt(Index);
+			delete(Page);
 
-				continue;
-			}
-			else
-			{
-				Found = true;
-			}
+			// Only release at most one page per frame			
+			return;
 		}
-
-		++Index;
 	}
 }
 
