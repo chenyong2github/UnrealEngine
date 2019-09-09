@@ -2,6 +2,9 @@
 
 #include "TableTreeNode.h"
 
+// Insights
+#include "Insights/Table/ViewModels/TableColumn.h"
+
 #define LOCTEXT_NAMESPACE "Insights_TableTreeNode"
 
 namespace Insights
@@ -9,18 +12,44 @@ namespace Insights
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FTableTreeNode::GetValueBool(int32 InColumnIndex) const
+FTableCellValue FTableTreeNode::GetValue(const FTableColumn& Column) const
+{
+	switch (Column.GetDataType())
+	{
+	case ETableCellDataType::Bool:    return FTableCellValue(GetValueBool(Column));
+	case ETableCellDataType::Int64:   return FTableCellValue(GetValueInt64(Column));
+	case ETableCellDataType::Float:   return FTableCellValue(GetValueFloat(Column));
+	case ETableCellDataType::Double:  return FTableCellValue(GetValueDouble(Column));
+	case ETableCellDataType::CString: return FTableCellValue(GetValueCString(Column));
+	default:                          return FTableCellValue();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTableTreeNode::GetValueBool(const FTableColumn& Column) const
 {
 	bool Value = false;
 
-	TSharedPtr<FTable> Table = ParentTable.Pin();
-	if (Table.IsValid())
+	if (!IsGroup())
 	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table->GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
+		TSharedPtr<FTable> Table = ParentTable.Pin();
+		if (Table.IsValid())
 		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			Value = Reader->GetValueBool(InColumnIndex);
+			TSharedPtr<Trace::IUntypedTableReader> Reader = Table->GetTableReader();
+			if (Reader.IsValid() && RowId.HasValidIndex())
+			{
+				Reader->SetRowIndex(RowId.RowIndex);
+				Value = Reader->GetValueBool(Column.GetIndex());
+			}
+		}
+	}
+	else
+	{
+		const FTableCellValue* ValuePtr = AggregatedValues.Find(Column.GetId());
+		if (ValuePtr != nullptr)
+		{
+			Value = ValuePtr->Bool;
 		}
 	}
 
@@ -29,18 +58,29 @@ bool FTableTreeNode::GetValueBool(int32 InColumnIndex) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int64 FTableTreeNode::GetValueInt(int32 InColumnIndex) const
+int64 FTableTreeNode::GetValueInt64(const FTableColumn& Column) const
 {
 	int64 Value = 0;
 
-	TSharedPtr<FTable> Table = ParentTable.Pin();
-	if (Table.IsValid())
+	if (!IsGroup())
 	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table->GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
+		TSharedPtr<FTable> Table = ParentTable.Pin();
+		if (Table.IsValid())
 		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			Value = Reader->GetValueInt(InColumnIndex);
+			TSharedPtr<Trace::IUntypedTableReader> Reader = Table->GetTableReader();
+			if (Reader.IsValid() && RowId.HasValidIndex())
+			{
+				Reader->SetRowIndex(RowId.RowIndex);
+				Value = Reader->GetValueInt(Column.GetIndex());
+			}
+		}
+	}
+	else
+	{
+		const FTableCellValue* ValuePtr = AggregatedValues.Find(Column.GetId());
+		if (ValuePtr != nullptr)
+		{
+			Value = ValuePtr->Int64;
 		}
 	}
 
@@ -49,18 +89,29 @@ int64 FTableTreeNode::GetValueInt(int32 InColumnIndex) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-float FTableTreeNode::GetValueFloat(int32 InColumnIndex) const
+float FTableTreeNode::GetValueFloat(const FTableColumn& Column) const
 {
 	float Value = 0.0f;
 
-	TSharedPtr<FTable> Table = ParentTable.Pin();
-	if (Table.IsValid())
+	if (!IsGroup())
 	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table->GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
+		TSharedPtr<FTable> Table = ParentTable.Pin();
+		if (Table.IsValid())
 		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			Value = Reader->GetValueFloat(InColumnIndex);
+			TSharedPtr<Trace::IUntypedTableReader> Reader = Table->GetTableReader();
+			if (Reader.IsValid() && RowId.HasValidIndex())
+			{
+				Reader->SetRowIndex(RowId.RowIndex);
+				Value = Reader->GetValueFloat(Column.GetIndex());
+			}
+		}
+	}
+	else
+	{
+		const FTableCellValue* ValuePtr = AggregatedValues.Find(Column.GetId());
+		if (ValuePtr != nullptr)
+		{
+			Value = ValuePtr->Float;
 		}
 	}
 
@@ -69,18 +120,28 @@ float FTableTreeNode::GetValueFloat(int32 InColumnIndex) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-double FTableTreeNode::GetValueDouble(int32 InColumnIndex) const
+double FTableTreeNode::GetValueDouble(const FTableColumn& Column) const
 {
 	double Value = 0.0;
 
-	TSharedPtr<FTable> Table = ParentTable.Pin();
-	if (Table.IsValid())
+	if (!IsGroup())
 	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table->GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
+		TSharedPtr<FTable> Table = ParentTable.Pin();
+		if (Table.IsValid())
 		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			Value = Reader->GetValueDouble(InColumnIndex);
+			TSharedPtr<Trace::IUntypedTableReader> Reader = Table->GetTableReader();
+			if (Reader.IsValid() && RowId.HasValidIndex())
+			{
+				Reader->SetRowIndex(RowId.RowIndex);
+				Value = Reader->GetValueDouble(Column.GetIndex());
+			}
+		}
+	}
+	{
+		const FTableCellValue* ValuePtr = AggregatedValues.Find(Column.GetId());
+		if (ValuePtr != nullptr)
+		{
+			Value = ValuePtr->Double;
 		}
 	}
 
@@ -89,18 +150,29 @@ double FTableTreeNode::GetValueDouble(int32 InColumnIndex) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const TCHAR* FTableTreeNode::GetValueCString(int32 InColumnIndex) const
+const TCHAR* FTableTreeNode::GetValueCString(const FTableColumn& Column) const
 {
 	const TCHAR* Value = nullptr;
 
-	TSharedPtr<FTable> Table = ParentTable.Pin();
-	if (Table.IsValid())
+	if (!IsGroup())
 	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table->GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
+		TSharedPtr<FTable> Table = ParentTable.Pin();
+		if (Table.IsValid())
 		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			Value = Reader->GetValueCString(InColumnIndex);
+			TSharedPtr<Trace::IUntypedTableReader> Reader = Table->GetTableReader();
+			if (Reader.IsValid() && RowId.HasValidIndex())
+			{
+				Reader->SetRowIndex(RowId.RowIndex);
+				Value = Reader->GetValueCString(Column.GetIndex());
+			}
+		}
+	}
+	else
+	{
+		const FTableCellValue* ValuePtr = AggregatedValues.Find(Column.GetId());
+		if (ValuePtr != nullptr)
+		{
+			Value = ValuePtr->CString;
 		}
 	}
 

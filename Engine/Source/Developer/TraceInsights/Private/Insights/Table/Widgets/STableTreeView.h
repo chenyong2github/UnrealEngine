@@ -104,6 +104,9 @@ protected:
 
 	void InitializeAndShowHeaderColumns();
 	void TreeViewHeaderRow_CreateColumnArgs(const FTableColumn& Column);
+
+	FText OnGetHeaderText(const FName ColumnId) const;
+
 	TSharedRef<SWidget> TreeViewHeaderRow_GenerateColumnMenu(const FTableColumn& Column);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////

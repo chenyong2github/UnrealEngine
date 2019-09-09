@@ -75,7 +75,7 @@ public:
 	}
 
 private:
-	void CreateHierarchyColumn(const TCHAR* ColumnName);
+	void CreateHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName);
 	void AddColumn(TSharedPtr<FTableColumn> ColumnPtr);
 	void CreateColumns();
 

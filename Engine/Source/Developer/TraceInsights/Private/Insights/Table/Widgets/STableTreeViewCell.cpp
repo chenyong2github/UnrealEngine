@@ -101,7 +101,18 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArgum
 
 TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
-	const FText FormattedValue = ColumnPtr->GetValueAsText(TableTreeNodePtr->GetRowId());
+	FText FormattedValue = FText::GetEmpty();
+	if (TableTreeNodePtr->IsGroup())
+	{
+		if (ColumnPtr->GetAggregation() != ETableColumnAggregation::None)
+		{
+			FormattedValue = ColumnPtr->GetValueFormatter()->FormatValue(TableTreeNodePtr->GetValue(*ColumnPtr));
+		}
+	}
+	else
+	{
+		FormattedValue = ColumnPtr->GetValueAsText(TableTreeNodePtr->GetRowId());
+	}
 
 	return
 		SNew(SHorizontalBox)

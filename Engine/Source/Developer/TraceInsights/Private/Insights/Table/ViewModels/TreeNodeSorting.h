@@ -101,11 +101,11 @@ public:
 class FTableTreeNodeSorting : public FTreeNodeSorting
 {
 public:
-	FTableTreeNodeSorting(TSharedPtr<FTableColumn> InColumnPtr);
+	FTableTreeNodeSorting(TSharedRef<FTableColumn> InColumnRef);
 	virtual ~FTableTreeNodeSorting() {}
 
 protected:
-	TSharedPtr<FTableColumn> ColumnPtr;
+	TSharedRef<FTableColumn> ColumnRef;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -113,7 +113,7 @@ protected:
 class FTreeNodeSortingByBoolValue : public FTableTreeNodeSorting
 {
 public:
-	FTreeNodeSortingByBoolValue(TSharedPtr<FTableColumn> InColumnPtr);
+	FTreeNodeSortingByBoolValue(TSharedRef<FTableColumn> InColumnRef);
 	virtual ~FTreeNodeSortingByBoolValue() {}
 };
 
@@ -122,7 +122,7 @@ public:
 class FTreeNodeSortingByIntValue : public FTableTreeNodeSorting
 {
 public:
-	FTreeNodeSortingByIntValue(TSharedPtr<FTableColumn> InColumnPtr);
+	FTreeNodeSortingByIntValue(TSharedRef<FTableColumn> InColumnRef);
 	virtual ~FTreeNodeSortingByIntValue() {}
 };
 
@@ -131,7 +131,7 @@ public:
 class FTreeNodeSortingByFloatValue : public FTableTreeNodeSorting
 {
 public:
-	FTreeNodeSortingByFloatValue(TSharedPtr<FTableColumn> InColumnPtr);
+	FTreeNodeSortingByFloatValue(TSharedRef<FTableColumn> InColumnRef);
 	virtual ~FTreeNodeSortingByFloatValue() {}
 };
 
@@ -140,7 +140,7 @@ public:
 class FTreeNodeSortingByDoubleValue : public FTableTreeNodeSorting
 {
 public:
-	FTreeNodeSortingByDoubleValue(TSharedPtr<FTableColumn> InColumnPtr);
+	FTreeNodeSortingByDoubleValue(TSharedRef<FTableColumn> InColumnRef);
 	virtual ~FTreeNodeSortingByDoubleValue() {}
 };
 
@@ -149,7 +149,7 @@ public:
 class FTreeNodeSortingByCStringValue : public FTableTreeNodeSorting
 {
 public:
-	FTreeNodeSortingByCStringValue(TSharedPtr<FTableColumn> InColumnPtr);
+	FTreeNodeSortingByCStringValue(TSharedRef<FTableColumn> InColumnRef);
 	virtual ~FTreeNodeSortingByCStringValue() {}
 };
 

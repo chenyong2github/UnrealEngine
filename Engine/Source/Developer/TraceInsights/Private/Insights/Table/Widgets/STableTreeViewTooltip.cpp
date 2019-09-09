@@ -127,6 +127,7 @@ TSharedPtr<SToolTip> STableTreeViewTooltip::GetCellTooltip(const TSharedPtr<FTab
 					// Id: [Id]
 					+SGridPanel::Slot(0, 0)
 					.Padding(2.0f)
+					//.HAlign(HAlign_Right)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Id", "Id:"))
@@ -134,6 +135,7 @@ TSharedPtr<SToolTip> STableTreeViewTooltip::GetCellTooltip(const TSharedPtr<FTab
 					]
 					+SGridPanel::Slot(1, 0)
 					.Padding(2.0f)
+					.HAlign(HAlign_Left)
 					[
 						SNew(STextBlock)
 						.Text(FText::AsNumber(TreeNodePtr->GetId()))
@@ -143,6 +145,7 @@ TSharedPtr<SToolTip> STableTreeViewTooltip::GetCellTooltip(const TSharedPtr<FTab
 					// Name: [Name]
 					+SGridPanel::Slot(0, 1)
 					.Padding(2.0f)
+					//.HAlign(HAlign_Right)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Name", "Name:"))
@@ -150,6 +153,7 @@ TSharedPtr<SToolTip> STableTreeViewTooltip::GetCellTooltip(const TSharedPtr<FTab
 					]
 					+SGridPanel::Slot(1, 1)
 					.Padding(2.0f)
+					.HAlign(HAlign_Left)
 					[
 						SNew(STextBlock)
 						.Text(FText::FromName(TreeNodePtr->GetName()))
@@ -159,6 +163,7 @@ TSharedPtr<SToolTip> STableTreeViewTooltip::GetCellTooltip(const TSharedPtr<FTab
 					// Type: [Type]
 					+ SGridPanel::Slot(0, 3)
 					.Padding(2.0f)
+					//.HAlign(HAlign_Right)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Type", "Type:"))
@@ -166,6 +171,7 @@ TSharedPtr<SToolTip> STableTreeViewTooltip::GetCellTooltip(const TSharedPtr<FTab
 					]
 					+ SGridPanel::Slot(1, 3)
 					.Padding(2.0f)
+					.HAlign(HAlign_Left)
 					[
 						SNew(STextBlock)
 						.Text(FText::FromName(TreeNodePtr->GetTypeId()))
@@ -223,6 +229,7 @@ void STableTreeViewTooltip::AddGridRow(TSharedPtr<SGridPanel> Grid, int32& Row, 
 {
 	Grid->AddSlot(0, Row)
 		.Padding(2.0f)
+		//.HAlign(HAlign_Right)
 		[
 			SNew(STextBlock)
 			.Text(Name)

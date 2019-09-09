@@ -10,6 +10,7 @@ namespace Insights
 {
 
 class FTable;
+class FTableColumn;
 struct FTableRowId;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -27,6 +28,70 @@ enum class ETableColumnFlags : uint32
 ENUM_CLASS_FLAGS(ETableColumnFlags);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+enum class ETableCellDataType : uint32
+{
+	Unknown,
+
+	Bool,
+	Int64,
+	Float,
+	Double,
+	CString,
+
+	/** Invalid enum type, may be used as a number of enumerations. */
+	InvalidOrMax,
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FTableCellValue
+{
+	FTableCellValue() = default;
+	FTableCellValue(bool Value) : Bool(Value) {}
+	FTableCellValue(int64 Value) : Int64(Value) {}
+	FTableCellValue(float Value) : Float(Value) {}
+	FTableCellValue(double Value) : Double(Value) {}
+	FTableCellValue(const TCHAR* Value) : CString(Value) {}
+
+	union
+	{
+		bool Bool;
+		int64 Int64;
+		float Float;
+		double Double;
+		const TCHAR* CString;
+	};
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTableCellValueFormatter
+{
+public:
+	FTableCellValueFormatter() {}
+	virtual ~FTableCellValueFormatter() {}
+
+	virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) { return FText::GetEmpty(); }
+	virtual FText FormatValueForTooltip(const TOptional<FTableCellValue>& InValue) { return FormatValue(InValue); }
+
+	virtual FText FormatValue(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) { return FText::GetEmpty(); }
+	virtual FText FormatValueForTooltip(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) { return FormatValue(Table, Column, RowId); }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+enum class ETableColumnAggregation : uint32
+{
+	None = 0,
+	Sum,
+	//Min,
+	//Max,
+	//Average,
+	//Median,
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Table Column View Model.
  * Holds information about a column in STableListView or STableTreeView widgets.
@@ -34,6 +99,7 @@ ENUM_CLASS_FLAGS(ETableColumnFlags);
 class FTableColumn
 {
 public:
+	typedef TFunction<FText(const FTableCellValue& Value)> FGetCellValueAsTextFunction;
 	typedef TFunction<FText(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId)> FGetValueAsTextFunction;
 
 public:
@@ -50,10 +116,13 @@ public:
 		FText InTitleName,
 		FText InDescription,
 		const ETableColumnFlags InFlags,
+		const ETableCellDataType InDataType,
+		const ETableColumnAggregation InAggregation,
 		const EHorizontalAlignment InHorizontalAlignment,
 		const float InInitialWidth,
 		const float InMinWidth,
-		const float InMaxWidth
+		const float InMaxWidth,
+		TSharedRef<FTableCellValueFormatter> InValueFormatter
 	)
 		: Order(InOrder)
 		, Index(InIndex)
@@ -61,20 +130,17 @@ public:
 		, ShortName(MoveTemp(InShortName))
 		, TitleName(MoveTemp(InTitleName))
 		, Description(MoveTemp(InDescription))
+		, bIsVisible(false)
 		, Flags(InFlags)
+		, DataType(InDataType)
+		, Aggregation(InAggregation)
 		, HorizontalAlignment(InHorizontalAlignment)
 		, InitialWidth(InInitialWidth)
 		, MinWidth(InMinWidth)
 		, MaxWidth(InMaxWidth)
-		, GetValueAsTextFn(nullptr)
-		, GetValueAsTooltipTextFn(nullptr)
+		, ValueFormatter(InValueFormatter)
 		, ParentTable(nullptr)
 	{
-		GetValueAsTextFn = [](const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) -> FText
-		{
-			return FText();
-		};
-		GetValueAsTooltipTextFn = GetValueAsTextFn;
 	}
 
 	int32 GetOrder() const { return Order; }
@@ -85,6 +151,10 @@ public:
 	const FText& GetShortName() const { return ShortName; }
 	const FText& GetTitleName() const { return TitleName; }
 	const FText& GetDescription() const { return Description; }
+
+	void SetShortName(const FText& InShortName) { ShortName = InShortName; }
+	void SetTitleName(const FText& InTitleName) { TitleName = InTitleName; }
+	void SetDescription(const FText& InDescription) { Description = InDescription; }
 
 	bool IsVisible() const { return bIsVisible; }
 	void Show() { bIsVisible = true; OnVisibilityChanged(); }
@@ -108,6 +178,9 @@ public:
 	/** Whether this column is the hierarcy (name) column, in a tree view. */
 	bool IsHierarchy() const { return EnumHasAnyFlags(Flags, ETableColumnFlags::IsHierarchy); }
 
+	ETableCellDataType GetDataType() const { return DataType; }
+	ETableColumnAggregation GetAggregation() const { return Aggregation; }
+
 	EHorizontalAlignment GetHorizontalAlignment() const { return HorizontalAlignment; }
 
 	float GetInitialWidth() const { return InitialWidth; }
@@ -118,18 +191,17 @@ public:
 	/** If MinWidth == MaxWidth, this column has fixed width and cannot be resized. */
 	bool IsFixedWidth() const { return MinWidth == MaxWidth; }
 
+	TSharedRef<FTableCellValueFormatter> GetValueFormatter() const { return ValueFormatter; }
+
 	FText GetValueAsText(const FTableRowId& InRowId) const
 	{
-		return GetValueAsTextFn(*ParentTable.Pin(), *this, InRowId);
+		return ValueFormatter->FormatValue(*ParentTable.Pin(), *this, InRowId);
 	}
 
 	FText GetValueAsTooltipText(const FTableRowId& InRowId) const
 	{
-		return GetValueAsTooltipTextFn(*ParentTable.Pin(), *this, InRowId);
+		return ValueFormatter->FormatValueForTooltip(*ParentTable.Pin(), *this, InRowId);
 	}
-
-	void SetValueAsTextFunction(const FGetValueAsTextFunction InGetValueAsTextFn) { GetValueAsTextFn = InGetValueAsTextFn; }
-	void SetValueAsTooltipTextFunction(const FGetValueAsTextFunction InGetValueAsTooltipTextFn) { GetValueAsTooltipTextFn = InGetValueAsTooltipTextFn; }
 
 	TWeakPtr<FTable> GetParentTable() const { return ParentTable; }
 	void SetParentTable(TWeakPtr<FTable> InParentTable) { ParentTable = InParentTable; }
@@ -159,6 +231,12 @@ private:
 	/** Other on/off switches. */
 	ETableColumnFlags Flags;
 
+	/** Data type for this column. */
+	ETableCellDataType DataType;
+
+	/** Aggregation for values in this column, when grouped. */
+	ETableColumnAggregation Aggregation; // TODO: make this an object (Aggregator)
+
 	/** Horizontal alignment of the content in this column. */
 	EHorizontalAlignment HorizontalAlignment;
 
@@ -167,11 +245,8 @@ private:
 	float MaxWidth; /**< Maximum column width. */
 	//float Width; /**< Current column width. */
 
-	/** Custom function used to format (as an FText) the value displayed by this column (usually in table views). */
-	FGetValueAsTextFunction GetValueAsTextFn;
-
-	/** Custom function used to format (as an FText) the value displayed by this column (usually in tooltips; i.e. with increased precission). */
-	FGetValueAsTextFunction GetValueAsTooltipTextFn;
+	/** Custom formater for the value displayed by this column. */
+	TSharedRef<FTableCellValueFormatter> ValueFormatter;
 
 	/* Parent table. Only one table instance can own this column. */
 	TWeakPtr<FTable> ParentTable;

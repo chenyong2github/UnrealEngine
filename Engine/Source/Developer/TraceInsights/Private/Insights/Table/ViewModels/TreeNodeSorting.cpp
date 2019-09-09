@@ -124,14 +124,14 @@ FTreeNodeSortingByType::FTreeNodeSortingByType()
 // FTableTreeNodeSorting
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTableTreeNodeSorting::FTableTreeNodeSorting(TSharedPtr<FTableColumn> InColumnPtr)
+FTableTreeNodeSorting::FTableTreeNodeSorting(TSharedRef<FTableColumn> InColumnRef)
 	: FTreeNodeSorting(
-		InColumnPtr->GetId(),
-		FText::Format(LOCTEXT("Sorting_TableValue_Name", "By {0}"), InColumnPtr->GetShortName()),
-		FText::Format(LOCTEXT("Sorting_TableValue_Title", "Sort By {0}"), InColumnPtr->GetTitleName()),
-		FText::Format(LOCTEXT("Sorting_TableValue_Desc", "Sort by {0} (ascending or descending), then by name (ascending)."), InColumnPtr->GetShortName()),
-		InColumnPtr->GetId())
-	, ColumnPtr(InColumnPtr)
+		InColumnRef->GetId(),
+		FText::Format(LOCTEXT("Sorting_TableValue_Name", "By {0}"), InColumnRef->GetShortName()),
+		FText::Format(LOCTEXT("Sorting_TableValue_Title", "Sort By {0}"), InColumnRef->GetTitleName()),
+		FText::Format(LOCTEXT("Sorting_TableValue_Desc", "Sort by {0} (ascending or descending), then by name (ascending)."), InColumnRef->GetShortName()),
+		InColumnRef->GetId())
+	, ColumnRef(InColumnRef)
 {
 }
 
@@ -139,15 +139,15 @@ FTableTreeNodeSorting::FTableTreeNodeSorting(TSharedPtr<FTableColumn> InColumnPt
 // FTreeNodeSortingByBoolValue
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTreeNodeSortingByBoolValue::FTreeNodeSortingByBoolValue(TSharedPtr<FTableColumn> InColumnPtr)
-	: FTableTreeNodeSorting(InColumnPtr)
+FTreeNodeSortingByBoolValue::FTreeNodeSortingByBoolValue(TSharedRef<FTableColumn> InColumnRef)
+	: FTableTreeNodeSorting(InColumnRef)
 {
-	const int32 ColumnIndex = ColumnPtr->GetIndex();
+	const FTableColumn& Column = *InColumnRef;
 
-	AscendingCompareDelegate = [ColumnIndex](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	AscendingCompareDelegate = [&Column](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
-		const bool ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueBool(ColumnIndex);
-		const bool ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueBool(ColumnIndex);
+		const bool ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueBool(Column);
+		const bool ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueBool(Column);
 
 		if (ValueA == ValueB)
 		{
@@ -161,10 +161,10 @@ FTreeNodeSortingByBoolValue::FTreeNodeSortingByBoolValue(TSharedPtr<FTableColumn
 		}
 	};
 
-	DescendingCompareDelegate = [ColumnIndex](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	DescendingCompareDelegate = [&Column](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
-		const bool ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueBool(ColumnIndex);
-		const bool ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueBool(ColumnIndex);
+		const bool ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueBool(Column);
+		const bool ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueBool(Column);
 
 		if (ValueA == ValueB)
 		{
@@ -183,15 +183,15 @@ FTreeNodeSortingByBoolValue::FTreeNodeSortingByBoolValue(TSharedPtr<FTableColumn
 // FTreeNodeSortingByIntValue
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTreeNodeSortingByIntValue::FTreeNodeSortingByIntValue(TSharedPtr<FTableColumn> InColumnPtr)
-	: FTableTreeNodeSorting(InColumnPtr)
+FTreeNodeSortingByIntValue::FTreeNodeSortingByIntValue(TSharedRef<FTableColumn> InColumnRef)
+	: FTableTreeNodeSorting(InColumnRef)
 {
-	const int32 ColumnIndex = ColumnPtr->GetIndex();
+	const FTableColumn& Column = *InColumnRef;
 
-	AscendingCompareDelegate = [ColumnIndex](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	AscendingCompareDelegate = [&Column](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
-		const int64 ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueInt(ColumnIndex);
-		const int64 ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueInt(ColumnIndex);
+		const int64 ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueInt64(Column);
+		const int64 ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueInt64(Column);
 
 		if (ValueA == ValueB)
 		{
@@ -205,10 +205,10 @@ FTreeNodeSortingByIntValue::FTreeNodeSortingByIntValue(TSharedPtr<FTableColumn> 
 		}
 	};
 
-	DescendingCompareDelegate = [ColumnIndex](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	DescendingCompareDelegate = [&Column](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
-		const int64 ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueInt(ColumnIndex);
-		const int64 ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueInt(ColumnIndex);
+		const int64 ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueInt64(Column);
+		const int64 ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueInt64(Column);
 
 		if (ValueA == ValueB)
 		{
@@ -227,15 +227,15 @@ FTreeNodeSortingByIntValue::FTreeNodeSortingByIntValue(TSharedPtr<FTableColumn> 
 // FTreeNodeSortingByFloatValue
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTreeNodeSortingByFloatValue::FTreeNodeSortingByFloatValue(TSharedPtr<FTableColumn> InColumnPtr)
-	: FTableTreeNodeSorting(InColumnPtr)
+FTreeNodeSortingByFloatValue::FTreeNodeSortingByFloatValue(TSharedRef<FTableColumn> InColumnRef)
+	: FTableTreeNodeSorting(InColumnRef)
 {
-	const int32 ColumnIndex = ColumnPtr->GetIndex();
+	const FTableColumn& Column = *InColumnRef;
 
-	AscendingCompareDelegate = [ColumnIndex](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	AscendingCompareDelegate = [&Column](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
-		const float ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueFloat(ColumnIndex);
-		const float ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueFloat(ColumnIndex);
+		const float ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueFloat(Column);
+		const float ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueFloat(Column);
 
 		if (ValueA == ValueB)
 		{
@@ -249,10 +249,10 @@ FTreeNodeSortingByFloatValue::FTreeNodeSortingByFloatValue(TSharedPtr<FTableColu
 		}
 	};
 
-	DescendingCompareDelegate = [ColumnIndex](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	DescendingCompareDelegate = [&Column](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
-		const float ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueFloat(ColumnIndex);
-		const float ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueFloat(ColumnIndex);
+		const float ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueFloat(Column);
+		const float ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueFloat(Column);
 
 		if (ValueA == ValueB)
 		{
@@ -271,15 +271,15 @@ FTreeNodeSortingByFloatValue::FTreeNodeSortingByFloatValue(TSharedPtr<FTableColu
 // FTreeNodeSortingByDoubleValue
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTreeNodeSortingByDoubleValue::FTreeNodeSortingByDoubleValue(TSharedPtr<FTableColumn> InColumnPtr)
-	: FTableTreeNodeSorting(InColumnPtr)
+FTreeNodeSortingByDoubleValue::FTreeNodeSortingByDoubleValue(TSharedRef<FTableColumn> InColumnRef)
+	: FTableTreeNodeSorting(InColumnRef)
 {
-	const int32 ColumnIndex = ColumnPtr->GetIndex();
+	const FTableColumn& Column = *InColumnRef;
 
-	AscendingCompareDelegate = [ColumnIndex](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	AscendingCompareDelegate = [&Column](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
-		const double ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueDouble(ColumnIndex);
-		const double ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueDouble(ColumnIndex);
+		const double ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueDouble(Column);
+		const double ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueDouble(Column);
 
 		if (ValueA == ValueB)
 		{
@@ -293,10 +293,10 @@ FTreeNodeSortingByDoubleValue::FTreeNodeSortingByDoubleValue(TSharedPtr<FTableCo
 		}
 	};
 
-	DescendingCompareDelegate = [ColumnIndex](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	DescendingCompareDelegate = [&Column](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
-		const double ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueDouble(ColumnIndex);
-		const double ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueDouble(ColumnIndex);
+		const double ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueDouble(Column);
+		const double ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueDouble(Column);
 
 		if (ValueA == ValueB)
 		{
@@ -315,15 +315,15 @@ FTreeNodeSortingByDoubleValue::FTreeNodeSortingByDoubleValue(TSharedPtr<FTableCo
 // FTreeNodeSortingByCStringValue
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTreeNodeSortingByCStringValue::FTreeNodeSortingByCStringValue(TSharedPtr<FTableColumn> InColumnPtr)
-	: FTableTreeNodeSorting(InColumnPtr)
+FTreeNodeSortingByCStringValue::FTreeNodeSortingByCStringValue(TSharedRef<FTableColumn> InColumnRef)
+	: FTableTreeNodeSorting(InColumnRef)
 {
-	const int32 ColumnIndex = ColumnPtr->GetIndex();
+	const FTableColumn& Column = *InColumnRef;
 
-	AscendingCompareDelegate = [ColumnIndex](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	AscendingCompareDelegate = [&Column](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
-		const TCHAR* ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueCString(ColumnIndex);
-		const TCHAR* ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueCString(ColumnIndex);
+		const TCHAR* ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueCString(Column);
+		const TCHAR* ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueCString(Column);
 
 		if (ValueA == ValueB)
 		{
@@ -337,10 +337,10 @@ FTreeNodeSortingByCStringValue::FTreeNodeSortingByCStringValue(TSharedPtr<FTable
 		}
 	};
 
-	DescendingCompareDelegate = [ColumnIndex](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
+	DescendingCompareDelegate = [&Column](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
 	{
-		const TCHAR* ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueCString(ColumnIndex);
-		const TCHAR* ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueCString(ColumnIndex);
+		const TCHAR* ValueA = StaticCastSharedPtr<FTableTreeNode>(A)->GetValueCString(Column);
+		const TCHAR* ValueB = StaticCastSharedPtr<FTableTreeNode>(B)->GetValueCString(Column);
 
 		if (ValueA == ValueB)
 		{

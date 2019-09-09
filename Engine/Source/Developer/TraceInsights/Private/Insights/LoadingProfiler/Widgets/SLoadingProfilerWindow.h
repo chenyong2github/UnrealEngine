@@ -36,6 +36,8 @@ struct FLoadingProfilerTabs
 	static const FName TimingViewID;
 	static const FName EventAggregationTreeViewID;
 	static const FName ObjectTypeAggregationTreeViewID;
+	static const FName PackageDetailsTreeViewID;
+	static const FName ExportDetailsTreeViewID;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -67,6 +69,8 @@ public:
 	TSharedPtr<STimingView> GetTimingView() const { return TimingView; }
 	TSharedPtr<Insights::STableTreeView> GetEventAggregationTreeView() const { return EventAggregationTreeView; }
 	TSharedPtr<Insights::STableTreeView> GetObjectTypeAggregationTreeView() const { return ObjectTypeAggregationTreeView; }
+	TSharedPtr<Insights::STableTreeView> GetPackageDetailsTreeView() const { return PackageDetailsTreeView; }
+	TSharedPtr<Insights::STableTreeView> GetExportDetailsTreeView() const { return ExportDetailsTreeView; }
 
 private:
 	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
@@ -80,6 +84,12 @@ private:
 
 	TSharedRef<SDockTab> SpawnTab_ObjectTypeAggregationTreeView(const FSpawnTabArgs& Args);
 	void OnObjectTypeAggregationTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	TSharedRef<SDockTab> SpawnTab_PackageDetailsTreeView(const FSpawnTabArgs& Args);
+	void OnPackageDetailsTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	TSharedRef<SDockTab> SpawnTab_ExportDetailsTreeView(const FSpawnTabArgs& Args);
+	void OnExportDetailsTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
 	/**
 	 * Fill the main menu with menu items.
@@ -161,6 +171,12 @@ private:
 
 	/** The Object Type Aggregation tree view widget */
 	TSharedPtr<Insights::STableTreeView> ObjectTypeAggregationTreeView;
+
+	/** The Package Details tree view widget */
+	TSharedPtr<Insights::STableTreeView> PackageDetailsTreeView;
+
+	/** The Export Details tree view widget */
+	TSharedPtr<Insights::STableTreeView> ExportDetailsTreeView;
 
 	/** Holds the tab manager that manages the front-end's tabs. */
 	TSharedPtr<FTabManager> TabManager;

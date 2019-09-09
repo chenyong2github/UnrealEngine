@@ -282,8 +282,6 @@ protected:
 
 	void AddTimingEventsTrack(FTimingEventsTrack* Track);
 
-	void DrawTimeRangeSelection(FDrawContext& DrawContext) const;
-
 	void ShowContextMenu(const FPointerEvent& MouseEvent);
 
 	/** Binds our UI commands to delegates. */
@@ -308,8 +306,6 @@ protected:
 	void UpdateVerticalScrollBar();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	float DrawAssetLoadingAggregationTable(FDrawContext& DrawContext, float RightX, float BottomY, const TCHAR* TableName, const TArray<FAssetLoadingEventAggregationRow>& Aggregation, int32 TotalRowCount) const;
 
 	void UpdateAggregatedStats();
 
@@ -370,14 +366,14 @@ protected:
 	  */
 	TMap<uint64, FTimingEventsTrack*> CachedTimelines;
 
-	//TODO: TArray<FBaseTimingTrack*> TopTracks; /**< tracks docked on top, in order to be displayed (top to bottom) */
-	//TODO: TArray<FBaseTimingTrack*> ScrollableTracks; /**< tracks in scrollable area, in order to be displayed (top to bottom) */
-	//TODO: TArray<FBaseTimingTrack*> BottomTracks; /**< tracks docked on bottom, in order to be displayed (top to bottom) */
-	//TODO: TArray<FBaseTimingTrack*> ForegorundTracks; /**< tracks to draw over top/scrollable/bottom tracks (can use entire area), in order to be displayed (back to front) */
+	//TODO: TArray<FBaseTimingTrack*> TopTracks; /**< tracks docked on top, in the order to be displayed (top to bottom) */
+	//TODO: TArray<FBaseTimingTrack*> ScrollableTracks; /**< tracks in scrollable area, in the order to be displayed (top to bottom) */
+	//TODO: TArray<FBaseTimingTrack*> BottomTracks; /**< tracks docked on bottom, in the order to be displayed (top to bottom) */
+	//TODO: TArray<FBaseTimingTrack*> ForegorundTracks; /**< tracks to draw over top/scrollable/bottom tracks (can use entire area), in the order to be displayed (back to front) */
 
 	////////////////////////////////////////////////////////////
 
-	TArray<FTimingEventsTrack*> TimingEventsTracks; /**< all timing events tracks in order to be displayed */
+	TArray<FTimingEventsTrack*> TimingEventsTracks; /**< all timing events tracks, in the order to be displayed */
 
 	bool bAreTimingEventsTracksDirty;
 
@@ -410,12 +406,6 @@ protected:
 	uint32 LoadingAsyncThreadId;
 
 	bool bAssetLoadingMode;
-
-	int32 EventAggregationTotalCount;
-	TArray<FAssetLoadingEventAggregationRow> EventAggregation;
-
-	int32 ObjectTypeAggregationTotalCount;
-	TArray<FAssetLoadingEventAggregationRow> ObjectTypeAggregation;
 
 	////////////////////////////////////////////////////////////
 	// File activity (I/O)

@@ -34,6 +34,8 @@ FLoadingProfilerManager::FLoadingProfilerManager(TSharedRef<FUICommandList> InCo
 	, bIsTimingViewVisible(true)
 	, bIsEventAggregationTreeViewVisible(true)
 	, bIsObjectTypeAggregationTreeViewVisible(true)
+	, bIsPackageDetailsTreeViewVisible(true)
+	, bIsExportDetailsTreeViewVisible(true)
 {
 }
 
@@ -56,6 +58,8 @@ void FLoadingProfilerManager::BindCommands()
 	ActionManager.Map_ToggleTimingViewVisibility_Global();
 	ActionManager.Map_ToggleEventAggregationTreeViewVisibility_Global();
 	ActionManager.Map_ToggleObjectTypeAggregationTreeViewVisibility_Global();
+	ActionManager.Map_TogglePackageDetailsTreeViewVisibility_Global();
+	ActionManager.Map_ToggleExportDetailsTreeViewVisibility_Global();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -118,46 +122,66 @@ void FLoadingProfilerManager::OnSessionChanged()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLoadingProfilerManager::ShowHideTimingView(const bool bTimingViewVisibleState)
+void FLoadingProfilerManager::ShowHideTimingView(const bool bIsVisible)
 {
-	//bool bWasTimingViewVisible = bIsTimingViewVisible;
-
-	bIsTimingViewVisible = bTimingViewVisibleState;
+	bIsTimingViewVisible = bIsVisible;
 
 	TSharedPtr<SLoadingProfilerWindow> Wnd = GetProfilerWindow();
 	if (Wnd.IsValid())
 	{
-		Wnd->ShowHideTab(FLoadingProfilerTabs::TimingViewID, bIsTimingViewVisible);
+		Wnd->ShowHideTab(FLoadingProfilerTabs::TimingViewID, bIsVisible);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLoadingProfilerManager::ShowHideEventAggregationTreeView(const bool bEventAggregationTreeViewVisibleState)
+void FLoadingProfilerManager::ShowHideEventAggregationTreeView(const bool bIsVisible)
 {
-	//bool bWasEventAggregationTreeViewVisible = bIsEventAggregationTreeViewVisible;
-
-	bIsEventAggregationTreeViewVisible = bEventAggregationTreeViewVisibleState;
+	bIsEventAggregationTreeViewVisible = bIsVisible;
 
 	TSharedPtr<SLoadingProfilerWindow> Wnd = GetProfilerWindow();
 	if (Wnd.IsValid())
 	{
-		Wnd->ShowHideTab(FLoadingProfilerTabs::EventAggregationTreeViewID, bIsEventAggregationTreeViewVisible);
+		Wnd->ShowHideTab(FLoadingProfilerTabs::EventAggregationTreeViewID, bIsVisible);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLoadingProfilerManager::ShowHideObjectTypeAggregationTreeView(const bool bObjectTypeAggregationTreeViewVisibleState)
+void FLoadingProfilerManager::ShowHideObjectTypeAggregationTreeView(const bool bIsVisible)
 {
-	//bool bWasObjectTypeAggregationTreeViewVisible = bIsObjectTypeAggregationTreeViewVisible;
-
-	bIsObjectTypeAggregationTreeViewVisible = bObjectTypeAggregationTreeViewVisibleState;
+	bIsObjectTypeAggregationTreeViewVisible = bIsVisible;
 
 	TSharedPtr<SLoadingProfilerWindow> Wnd = GetProfilerWindow();
 	if (Wnd.IsValid())
 	{
-		Wnd->ShowHideTab(FLoadingProfilerTabs::ObjectTypeAggregationTreeViewID, bIsObjectTypeAggregationTreeViewVisible);
+		Wnd->ShowHideTab(FLoadingProfilerTabs::ObjectTypeAggregationTreeViewID, bIsVisible);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FLoadingProfilerManager::ShowHidePackageDetailsTreeView(const bool bIsVisible)
+{
+	bIsPackageDetailsTreeViewVisible = bIsVisible;
+
+	TSharedPtr<SLoadingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd.IsValid())
+	{
+		Wnd->ShowHideTab(FLoadingProfilerTabs::PackageDetailsTreeViewID, bIsVisible);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FLoadingProfilerManager::ShowHideExportDetailsTreeView(const bool bIsVisible)
+{
+	bIsExportDetailsTreeViewVisible = bIsVisible;
+
+	TSharedPtr<SLoadingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd.IsValid())
+	{
+		Wnd->ShowHideTab(FLoadingProfilerTabs::ExportDetailsTreeViewID, bIsVisible);
 	}
 }
 

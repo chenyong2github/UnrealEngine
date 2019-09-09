@@ -117,9 +117,11 @@ protected:
 	FSlateColor GetStatsColorAndOpacity() const
 	{
 		const FLinearColor TextColor =
-			TableTreeNodePtr->IsFiltered() ?
-				FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
-				FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+			TableTreeNodePtr->IsGroup() ?
+				FLinearColor(0.7f, 0.7f, 0.7f, 1.0f) :
+				TableTreeNodePtr->IsFiltered() ?
+					FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
+					FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		return TextColor;
 	}
 

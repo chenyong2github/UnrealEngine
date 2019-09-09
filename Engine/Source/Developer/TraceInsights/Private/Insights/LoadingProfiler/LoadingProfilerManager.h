@@ -99,18 +99,28 @@ public:
 
 	/** @return true, if Timing view is visible */
 	const bool IsTimingViewVisible() const { return bIsTimingViewVisible; }
-	void SetTimingViewVisible(const bool bTimingViewVisibleState) { bIsTimingViewVisible = bTimingViewVisibleState; }
-	void ShowHideTimingView(const bool bTimingViewVisibleState);
+	void SetTimingViewVisible(const bool bIsVisible) { bIsTimingViewVisible = bIsVisible; }
+	void ShowHideTimingView(const bool bIsVisible);
 
 	/** @return true, if Event Aggregation tree view is visible */
 	const bool IsEventAggregationTreeViewVisible() const { return bIsEventAggregationTreeViewVisible; }
-	void SetEventAggregationTreeViewVisible(const bool bVisibleState) { bIsEventAggregationTreeViewVisible = bVisibleState; }
-	void ShowHideEventAggregationTreeView(const bool bVisibleState);
+	void SetEventAggregationTreeViewVisible(const bool bIsVisible) { bIsEventAggregationTreeViewVisible = bIsVisible; }
+	void ShowHideEventAggregationTreeView(const bool bIsVisible);
 
 	/** @return true, if Object Type Aggregation tree view is visible */
 	const bool IsObjectTypeAggregationTreeViewVisible() const { return bIsObjectTypeAggregationTreeViewVisible; }
-	void SetObjectTypeAggregationTreeViewVisible(const bool bVisibleState) { bIsObjectTypeAggregationTreeViewVisible = bVisibleState; }
-	void ShowHideObjectTypeAggregationTreeView(const bool bVisibleState);
+	void SetObjectTypeAggregationTreeViewVisible(const bool bIsVisible) { bIsObjectTypeAggregationTreeViewVisible = bIsVisible; }
+	void ShowHideObjectTypeAggregationTreeView(const bool bIsVisible);
+
+	/** @return true, if Package Details tree view is visible */
+	const bool IsPackageDetailsTreeViewVisible() const { return bIsPackageDetailsTreeViewVisible; }
+	void SetPackageDetailsTreeViewVisible(const bool bIsVisible) { bIsPackageDetailsTreeViewVisible = bIsVisible; }
+	void ShowHidePackageDetailsTreeView(const bool bIsVisible);
+
+	/** @return true, if Export Details tree view is visible */
+	const bool IsExportDetailsTreeViewVisible() const { return bIsExportDetailsTreeViewVisible; }
+	void SetExportDetailsTreeViewVisible(const bool bIsVisible) { bIsExportDetailsTreeViewVisible = bIsVisible; }
+	void ShowHideExportDetailsTreeView(const bool bIsVisible);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -144,6 +154,12 @@ protected:
 
 	/** If the Object Type Aggregation tree view is visible or hidden. */
 	bool bIsObjectTypeAggregationTreeViewVisible;
+
+	/** If the Package Details tree view is visible or hidden. */
+	bool bIsPackageDetailsTreeViewVisible;
+
+	/** If the Export Details tree view is visible or hidden. */
+	bool bIsExportDetailsTreeViewVisible;
 
 	/** A shared pointer to the global instance of the profiler manager. */
 	static TSharedPtr<FLoadingProfilerManager> Instance;

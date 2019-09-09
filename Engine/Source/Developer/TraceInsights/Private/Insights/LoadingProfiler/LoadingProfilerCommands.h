@@ -37,6 +37,12 @@ public:
 
 	/** Toggles visibility for the Object Type Aggregation tree view. Global and custom command. */
 	TSharedPtr<FUICommandInfo> ToggleObjectTypeAggregationTreeViewVisibility;
+
+	/** Toggles visibility for the Package Details tree view. Global and custom command. */
+	TSharedPtr<FUICommandInfo> TogglePackageDetailsTreeViewVisibility;
+
+	/** Toggles visibility for the Export Details tree view. Global and custom command. */
+	TSharedPtr<FUICommandInfo> ToggleExportDetailsTreeViewVisibility;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,6 +97,8 @@ protected:\
 	DECLARE_TOGGLE_COMMAND(ToggleTimingViewVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleEventAggregationTreeViewVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleObjectTypeAggregationTreeViewVisibility)
+	DECLARE_TOGGLE_COMMAND(TogglePackageDetailsTreeViewVisibility)
+	DECLARE_TOGGLE_COMMAND(ToggleExportDetailsTreeViewVisibility)
 #undef DECLARE_TOGGLE_COMMAND
 
 	//////////////////////////////////////////////////

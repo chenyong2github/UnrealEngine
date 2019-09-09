@@ -2,6 +2,8 @@
 
 #include "TreeNodeGrouping.h"
 
+#include "Insights/Table/ViewModels/TableTreeNode.h"
+
 #define LOCTEXT_NAMESPACE "Insights_TreeNode"
 
 namespace Insights
@@ -37,9 +39,29 @@ FTreeNodeGroupInfo FTreeNodeGroupingFlat::GetGroupForNode(const FBaseTreeNodePtr
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FTreeNodeGroupingByUniqueValue::FTreeNodeGroupingByUniqueValue(TSharedRef<FTableColumn> InColumn)
+	: FTreeNodeGrouping(
+		FText::Format(LOCTEXT("Grouping_ByUniqueValue_NameFmt", "Unique Values - {0}"), InColumn->GetTitleName()),
+		LOCTEXT("Grouping_ByUniqueValue_Desc", "Creates a group for each unique value."),
+		TEXT("Profiler.FiltersAndPresets.Group1NameIcon"), //TODO: "Icons.Grouping.ByName"
+		nullptr)
+	, Column(InColumn)
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FTreeNodeGroupInfo FTreeNodeGroupingByUniqueValue::GetGroupForNode(const FBaseTreeNodePtr InNode) const
+{
+	FTableTreeNodePtr TableTreeNodePtr = StaticCastSharedPtr<FTableTreeNode>(InNode);
+	return { FName(*Column->GetValueAsText(TableTreeNodePtr->GetRowId()).ToString()), false };
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FTreeNodeGroupingByNameFirstLetter::FTreeNodeGroupingByNameFirstLetter()
 	: FTreeNodeGrouping(
-		LOCTEXT("Grouping_ByName_Name", "Name"),
+		LOCTEXT("Grouping_ByName_Name", "Name (First Letter)"),
 		LOCTEXT("Grouping_ByName_Desc", "Creates a group for each first letter of node names."),
 		TEXT("Profiler.FiltersAndPresets.Group1NameIcon"), //TODO: "Icons.Grouping.ByName"
 		nullptr)

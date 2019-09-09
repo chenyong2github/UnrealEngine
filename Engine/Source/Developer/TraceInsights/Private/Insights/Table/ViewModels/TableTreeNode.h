@@ -8,6 +8,7 @@
 // Insights
 #include "Insights/Table/ViewModels/BaseTreeNode.h"
 #include "Insights/Table/ViewModels/Table.h"
+#include "Insights/Table/ViewModels/TableColumn.h"
 
 namespace Insights
 {
@@ -56,15 +57,25 @@ public:
 	FTableRowId GetRowId() const { return RowId; }
 	int32 GetRowIndex() const { return RowId.RowIndex; }
 
-	bool GetValueBool(int32 InColumnIndex) const;
-	int64 GetValueInt(int32 InColumnIndex) const;
-	float GetValueFloat(int32 InColumnIndex) const;
-	double GetValueDouble(int32 InColumnIndex) const;
-	const TCHAR* GetValueCString(int32 InColumnIndex) const;
+	FTableCellValue GetValue(const FTableColumn& Column) const;
+
+	bool GetValueBool(const FTableColumn& Column) const;
+	int64 GetValueInt64(const FTableColumn& Column) const;
+	float GetValueFloat(const FTableColumn& Column) const;
+	double GetValueDouble(const FTableColumn& Column) const;
+	const TCHAR* GetValueCString(const FTableColumn& Column) const;
+
+	void ResetAggregatedValues() { AggregatedValues.Reset(); }
+	bool HasAggregatedValue(const FName& ColumnId) const { return AggregatedValues.Contains(ColumnId); }
+	const FTableCellValue& GetAggregatedValue(const FName& ColumnId) { return AggregatedValues.FindChecked(ColumnId); }
+	void AddAggregatedValue(const FName& ColumnId, const FTableCellValue& Value) { AggregatedValues.Add(ColumnId, Value); }
+	void SetAggregatedValue(const FName& ColumnId, const FTableCellValue& Value) { AggregatedValues[ColumnId] = Value; }
 
 protected:
 	TWeakPtr<FTable> ParentTable;
 	FTableRowId RowId;
+
+	TMap<FName, FTableCellValue> AggregatedValues;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

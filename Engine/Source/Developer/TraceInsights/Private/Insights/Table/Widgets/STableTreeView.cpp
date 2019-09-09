@@ -463,7 +463,7 @@ void STableTreeView::TreeViewHeaderRow_CreateColumnArgs(const FTableColumn& Colu
 		.SortMode(EColumnSortMode::None)
 		.HAlignHeader(HAlign_Fill)
 		.VAlignHeader(VAlign_Fill)
-		.HeaderContentPadding(TOptional<FMargin>(2.0f))
+		.HeaderContentPadding(FMargin(2.0f))
 		.HAlignCell(HAlign_Fill)
 		.VAlignCell(VAlign_Fill)
 		.SortMode(this, &STableTreeView::GetSortModeForColumn, Column.GetId())
@@ -472,15 +472,13 @@ void STableTreeView::TreeViewHeaderRow_CreateColumnArgs(const FTableColumn& Colu
 		.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
 		.HeaderContent()
 		[
-			SNew(SHorizontalBox)
+			SNew(SBox)
 			.ToolTip(STableTreeViewTooltip::GetColumnTooltip(Column))
-
-			+ SHorizontalBox::Slot()
 			.HAlign(Column.GetHorizontalAlignment())
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(Column.GetShortName())
+				.Text(this, &STableTreeView::OnGetHeaderText, Column.GetId())
 			]
 		]
 		.MenuContent()
@@ -489,6 +487,14 @@ void STableTreeView::TreeViewHeaderRow_CreateColumnArgs(const FTableColumn& Colu
 		];
 
 	TreeViewHeaderColumnArgs.Add(Column.GetId(), ColumnArgs);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STableTreeView::OnGetHeaderText(const FName ColumnId) const
+{
+	FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	return Column.GetShortName();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -871,6 +877,81 @@ void STableTreeView::CreateGroups()
 		GroupPtr->AddChildAndSetGroupPtr(NodePtr);
 	}
 
+	// Update aggregations.
+	for (const FTableTreeNodePtr& GroupPtr : GroupNodes)
+	{
+		GroupPtr->ResetAggregatedValues();
+	}
+	for (const TSharedPtr<FTableColumn> ColumnPtr : Table->GetColumns())
+	{
+		if (ColumnPtr->GetAggregation() == ETableColumnAggregation::Sum)
+		{
+			bool bValidForAggregation = false;
+
+			switch (ColumnPtr->GetDataType())
+			{
+				case ETableCellDataType::Int64:
+					bValidForAggregation = true;
+					break;
+				case ETableCellDataType::Float:
+					bValidForAggregation = true;
+					break;
+				case ETableCellDataType::Double:
+					bValidForAggregation = true;
+					break;
+			}
+
+			if (bValidForAggregation)
+			{
+				for (const FTableTreeNodePtr& GroupPtr : GroupNodes)
+				{
+					switch (ColumnPtr->GetDataType())
+					{
+						case ETableCellDataType::Int64:
+						{
+							int64 AggregatedValue = 0;
+							for (FBaseTreeNodePtr NodePtr : GroupPtr->GetChildren())
+							{
+								FTableTreeNodePtr TableNodePtr = StaticCastSharedPtr<FTableTreeNode>(NodePtr);
+								FTableCellValue Value = TableNodePtr->GetValue(*ColumnPtr);
+								AggregatedValue += Value.Int64;
+							}
+							GroupPtr->AddAggregatedValue(ColumnPtr->GetId(), FTableCellValue(AggregatedValue));
+							break;
+						}
+						case ETableCellDataType::Float:
+						{
+							float AggregatedValue = 0.0f;
+							for (FBaseTreeNodePtr NodePtr : GroupPtr->GetChildren())
+							{
+								FTableTreeNodePtr TableNodePtr = StaticCastSharedPtr<FTableTreeNode>(NodePtr);
+								FTableCellValue Value = TableNodePtr->GetValue(*ColumnPtr);
+								AggregatedValue += Value.Float;
+							}
+							GroupPtr->AddAggregatedValue(ColumnPtr->GetId(), FTableCellValue(AggregatedValue));
+							break;
+						}
+						case ETableCellDataType::Double:
+						{
+							double AggregatedValue = 0.0;
+							for (FBaseTreeNodePtr NodePtr : GroupPtr->GetChildren())
+							{
+								FTableTreeNodePtr TableNodePtr = StaticCastSharedPtr<FTableTreeNode>(NodePtr);
+								FTableCellValue Value = TableNodePtr->GetValue(*ColumnPtr);
+								AggregatedValue += Value.Double;
+							}
+							GroupPtr->AddAggregatedValue(ColumnPtr->GetId(), FTableCellValue(AggregatedValue));
+							break;
+						}
+					}
+				}
+			}
+		}
+		// TODO: else if (ColumnPtr->GetAggregation() == ETableColumnAggregation::Min)
+		//{
+		//}
+	}
+
 	// Sort groups by name.
 	GroupNodes.Sort([](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) { return A->GetName().LexicalLess(B->GetName()); });
 }
@@ -882,8 +963,16 @@ void STableTreeView::CreateGroupings()
 	AvailableGroupings.Reset(3);
 
 	AvailableGroupings.Add(MakeShareable(new FTreeNodeGroupingFlat()));
-	AvailableGroupings.Add(MakeShareable(new FTreeNodeGroupingByNameFirstLetter()));
-	AvailableGroupings.Add(MakeShareable(new FTreeNodeGroupingByType()));
+	//AvailableGroupings.Add(MakeShareable(new FTreeNodeGroupingByNameFirstLetter()));
+	//AvailableGroupings.Add(MakeShareable(new FTreeNodeGroupingByType()));
+
+	for (const TSharedPtr<FTableColumn> ColumnPtr : Table->GetColumns())
+	{
+		if (!ColumnPtr->IsHierarchy())
+		{
+			AvailableGroupings.Add(MakeShareable(new FTreeNodeGroupingByUniqueValue(ColumnPtr.ToSharedRef())));
+		}
+	}
 
 	CurrentGrouping = AvailableGroupings[0];
 
@@ -895,9 +984,63 @@ void STableTreeView::CreateGroupings()
 
 void STableTreeView::GroupBy_OnSelectionChanged(TSharedPtr<FTreeNodeGrouping> NewGrouping, ESelectInfo::Type SelectInfo)
 {
+	constexpr float HierarcyColumnWidth = 80.0f;
+
 	if (SelectInfo != ESelectInfo::Direct)
 	{
+		if (CurrentGrouping.IsValid() && CurrentGrouping->GetName().ToString().StartsWith("Unique Value"))
+		{
+			TSharedPtr<FTreeNodeGroupingByUniqueValue> GroupingByUniqueValue = StaticCastSharedPtr<FTreeNodeGroupingByUniqueValue>(CurrentGrouping);
+
+			const FName& ColumnId = GroupingByUniqueValue->GetColumn()->GetId();
+
+			ShowColumn(ColumnId);
+
+			SHeaderRow::FColumn& HierarcyColumn = const_cast<SHeaderRow::FColumn&>(TreeViewHeaderRow->GetColumns()[0]);
+			FTableColumn& HierarcyTableColumn = *Table->FindColumnChecked(HierarcyColumn.ColumnId);
+			const FText HierarcyColumnName(LOCTEXT("HierarchyShortName", "Hierarchy"));
+			HierarcyTableColumn.SetShortName(HierarcyColumnName);
+
+			const int32 NumColumns = TreeViewHeaderRow->GetColumns().Num();
+			for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ++ColumnIndex)
+			{
+				const SHeaderRow::FColumn& CurrentColumn = TreeViewHeaderRow->GetColumns()[ColumnIndex];
+				if (CurrentColumn.ColumnId == ColumnId)
+				{
+					HierarcyColumn.SetWidth(HierarcyColumnWidth);
+					break;
+				}
+			}
+		}
+
 		CurrentGrouping = NewGrouping;
+
+		if (CurrentGrouping.IsValid() && CurrentGrouping->GetName().ToString().StartsWith("Unique Value"))
+		{
+			TSharedPtr<FTreeNodeGroupingByUniqueValue> GroupingByUniqueValue = StaticCastSharedPtr<FTreeNodeGroupingByUniqueValue>(CurrentGrouping);
+
+			const FName& ColumnId = GroupingByUniqueValue->GetColumn()->GetId();
+
+			SHeaderRow::FColumn& HierarcyColumn = const_cast<SHeaderRow::FColumn&>(TreeViewHeaderRow->GetColumns()[0]);
+			FTableColumn& HierarcyTableColumn = *Table->FindColumnChecked(HierarcyColumn.ColumnId);
+			const FText HierarcyColumnName = FText::Format(LOCTEXT("HierarchyShortNameFmt", "Hierarchy ({0})"), GroupingByUniqueValue->GetColumn()->GetShortName());
+			HierarcyTableColumn.SetShortName(HierarcyColumnName);
+
+			const int32 NumColumns = TreeViewHeaderRow->GetColumns().Num();
+			for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ++ColumnIndex)
+			{
+				const SHeaderRow::FColumn& CurrentColumn = TreeViewHeaderRow->GetColumns()[ColumnIndex];
+				if (CurrentColumn.ColumnId == ColumnId)
+				{
+					HierarcyColumn.SetWidth(HierarcyColumnWidth + CurrentColumn.GetWidth());
+					break;
+				}
+			}
+
+			HideColumn(ColumnId);
+		}
+
+		TreeViewHeaderRow->RefreshColumns();
 
 		CreateGroups();
 		SortTreeNodes();
@@ -961,19 +1104,19 @@ void STableTreeView::CreateSortings()
 				switch (TableLayout.GetColumnType(ColumnPtr->GetIndex()))
 				{
 				case Trace::TableColumnType_Bool:
-					Sorting = MakeShareable(new FTreeNodeSortingByBoolValue(ColumnPtr));
+					Sorting = MakeShareable(new FTreeNodeSortingByBoolValue(ColumnPtr.ToSharedRef()));
 					break;
 				case Trace::TableColumnType_Int:
-					Sorting = MakeShareable(new FTreeNodeSortingByIntValue(ColumnPtr));
+					Sorting = MakeShareable(new FTreeNodeSortingByIntValue(ColumnPtr.ToSharedRef()));
 					break;
 				case Trace::TableColumnType_Float:
-					Sorting = MakeShareable(new FTreeNodeSortingByFloatValue(ColumnPtr));
+					Sorting = MakeShareable(new FTreeNodeSortingByFloatValue(ColumnPtr.ToSharedRef()));
 					break;
 				case Trace::TableColumnType_Double:
-					Sorting = MakeShareable(new FTreeNodeSortingByDoubleValue(ColumnPtr));
+					Sorting = MakeShareable(new FTreeNodeSortingByDoubleValue(ColumnPtr.ToSharedRef()));
 					break;
 				case Trace::TableColumnType_CString:
-					Sorting = MakeShareable(new FTreeNodeSortingByCStringValue(ColumnPtr));
+					Sorting = MakeShareable(new FTreeNodeSortingByCStringValue(ColumnPtr.ToSharedRef()));
 					break;
 				}
 
@@ -1003,10 +1146,11 @@ void STableTreeView::SortTreeNodes()
 	{
 		const Insights::ITreeNodeSorting* Sorter = CurrentSorting.Get();
 
-		const int32 NumGroups = GroupNodes.Num();
-
 		if (ColumnSortMode == EColumnSortMode::Type::Descending)
 		{
+			GroupNodes.Sort(Sorter->GetDescendingCompareDelegate());
+
+			const int32 NumGroups = GroupNodes.Num();
 			for (int32 GroupIndex = 0; GroupIndex < NumGroups; ++GroupIndex)
 			{
 				GroupNodes[GroupIndex]->SortChildrenDescending(Sorter);
@@ -1014,6 +1158,9 @@ void STableTreeView::SortTreeNodes()
 		}
 		else
 		{
+			GroupNodes.Sort(Sorter->GetAscendingCompareDelegate());
+
+			const int32 NumGroups = GroupNodes.Num();
 			for (int32 GroupIndex = 0; GroupIndex < NumGroups; ++GroupIndex)
 			{
 				GroupNodes[GroupIndex]->SortChildrenAscending(Sorter);
@@ -1355,13 +1502,11 @@ void STableTreeView::RebuildTree(bool bResync)
 			}
 			*/
 
-			int32 NameColumnIndex = 0;
-
 			for (int32 RowIndex = 0; RowIndex < TotalRowCount; ++RowIndex)
 			{
 				TableReader->SetRowIndex(RowIndex);
 				uint64 NodeId = static_cast<uint64>(RowIndex);
-				FName NodeName(TableReader->GetValueCString(NameColumnIndex));
+				FName NodeName(*FString::Printf(TEXT("row %d"), RowIndex));
 				FTableTreeNodePtr NodePtr = MakeShareable(new FTableTreeNode(NodeId, NodeName, Table, RowIndex));
 				TableTreeNodes.Add(NodePtr);
 				//TableTreeNodesMap.Add(Name, NodePtr);

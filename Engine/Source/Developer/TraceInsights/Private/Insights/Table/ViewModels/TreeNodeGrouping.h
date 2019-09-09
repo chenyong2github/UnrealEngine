@@ -8,6 +8,7 @@
 
 // Insights
 #include "Insights/Table/ViewModels/BaseTreeNode.h"
+#include "Insights/Table/ViewModels/TableColumn.h"
 
 namespace Insights
 {
@@ -65,6 +66,23 @@ public:
 	virtual ~FTreeNodeGroupingFlat() {}
 
 	virtual FTreeNodeGroupInfo GetGroupForNode(const FBaseTreeNodePtr InNode) const override;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Creates a group for unique column value of node. */
+class FTreeNodeGroupingByUniqueValue : public FTreeNodeGrouping
+{
+public:
+	FTreeNodeGroupingByUniqueValue(TSharedRef<FTableColumn> InColumn);
+	virtual ~FTreeNodeGroupingByUniqueValue() {}
+
+	virtual FTreeNodeGroupInfo GetGroupForNode(const FBaseTreeNodePtr InNode) const override;
+
+	TSharedRef<FTableColumn> GetColumn() const { return Column; }
+
+private:
+	TSharedRef<FTableColumn> Column;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
