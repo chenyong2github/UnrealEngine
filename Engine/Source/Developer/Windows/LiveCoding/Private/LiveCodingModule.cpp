@@ -237,15 +237,6 @@ bool FLiveCodingModule::IsCompiling() const
 
 void FLiveCodingModule::Tick()
 {
-	extern void LppSyncPoint();
-	LppSyncPoint();
-
-	if (GHasLoadedPatch)
-	{
-		OnPatchCompleteDelegate.Broadcast();
-		GHasLoadedPatch = false;
-	}
-
 	if (LppWantsRestart())
 	{
 		LppRestart(lpp::LPP_RESTART_BEHAVIOR_REQUEST_EXIT, 0);
@@ -261,6 +252,16 @@ void FLiveCodingModule::Tick()
 	{
 		UpdateModules();
 		bUpdateModulesInTick = false;
+	}
+
+	// Needs to happen after updating modules, since "Quick Restart" functionality may try to install patch immediately
+	extern void LppSyncPoint();
+	LppSyncPoint();
+
+	if (GHasLoadedPatch)
+	{
+		OnPatchCompleteDelegate.Broadcast();
+		GHasLoadedPatch = false;
 	}
 }
 
