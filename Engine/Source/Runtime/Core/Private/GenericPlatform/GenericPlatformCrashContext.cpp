@@ -415,6 +415,9 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 #ifdef UE_BUILD_FLAVOR
 	Symbols = FString::Printf(TEXT( "%s-%s" ), *Symbols, *FString(UE_BUILD_FLAVOR));
 #endif
+#ifdef UE_APP_FLAVOR
+	Symbols = FString::Printf(TEXT( "%s-%s" ), *Symbols, *FString(UE_APP_FLAVOR));
+#endif
 
 	AddCrashProperty( TEXT( "Symbols" ), Symbols);
 
