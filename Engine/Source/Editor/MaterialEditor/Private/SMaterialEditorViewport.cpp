@@ -427,7 +427,7 @@ void SMaterialEditor3DPreviewViewport::SetPreviewMaterial(UMaterialInterface* In
 	PreviewMaterial = InMaterialInterface;
 
 	// Spawn post processing volume actor if the material has post processing as domain.
-	if (PreviewMaterial->GetMaterial()->IsPostProcessMaterial())
+	if (PreviewMaterial && PreviewMaterial->GetMaterial()->IsPostProcessMaterial())
 	{
 		if (PostProcessVolumeActor == nullptr)
 		{
@@ -456,7 +456,12 @@ void SMaterialEditor3DPreviewViewport::SetPreviewMaterial(UMaterialInterface* In
 		if (PreviewMeshComponent != nullptr)
 		{
 			PreviewMeshComponent->OverrideMaterials.Empty();
-			PreviewMeshComponent->OverrideMaterials.Add(PreviewMaterial);
+
+			if (PreviewMaterial)
+			{
+				PreviewMeshComponent->OverrideMaterials.Add(PreviewMaterial);
+			}
+
 			PreviewMeshComponent->MarkRenderStateDirty();
 		}
 		
