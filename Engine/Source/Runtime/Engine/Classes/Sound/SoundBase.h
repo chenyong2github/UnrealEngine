@@ -175,7 +175,9 @@ public:
 
 	//~ Begin UObject Interface.
 	virtual void PostInitProperties() override;
+#if WITH_EDITORONLY_DATA
 	virtual void PostLoad() override;
+#endif
 	virtual bool CanBeClusterRoot() const override;
 	virtual bool CanBeInCluster() const override;
 	virtual void Serialize(FArchive& Ar) override;
