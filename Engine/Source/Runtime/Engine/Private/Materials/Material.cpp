@@ -27,6 +27,7 @@
 #include "Materials/MaterialExpressionShadingPathSwitch.h"
 #include "Materials/MaterialExpressionMakeMaterialAttributes.h"
 #include "Materials/MaterialExpressionParameter.h"
+#include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionStaticBoolParameter.h"
 #include "Materials/MaterialExpressionStaticComponentMaskParameter.h"
@@ -1315,6 +1316,11 @@ bool UMaterial::SetTextureParameterValueEditorOnly(FName ParameterName, class UT
 	return SetParameterValueEditorOnly<UMaterialExpressionTextureSampleParameter>(ParameterName, InValue);
 }
 
+bool UMaterial::SetRuntimeVirtualTextureParameterValueEditorOnly(FName ParameterName, class URuntimeVirtualTexture* InValue)
+{
+	return SetParameterValueEditorOnly<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(ParameterName, InValue);
+}
+
 bool UMaterial::SetFontParameterValueEditorOnly(FName ParameterName, class UFont* InFontValue, int32 InFontPage)
 {
 	return SetParameterValueEditorOnly<UMaterialExpressionFontSampleParameter>(ParameterName, InFontValue, InFontPage);
@@ -1786,6 +1792,11 @@ bool UMaterial::GetVectorParameterDefaultValue(const FMaterialParameterInfo& Par
 bool UMaterial::GetTextureParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue, bool bCheckOwnedGlobalOverrides) const
 {
 	return GetTextureParameterValue(ParameterInfo, OutValue);
+}
+
+bool UMaterial::GetRuntimeVirtualTextureParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture*& OutValue, bool bCheckOwnedGlobalOverrides) const
+{
+	return GetRuntimeVirtualTextureParameterValue(ParameterInfo, OutValue);
 }
 
 bool UMaterial::GetFontParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, class UFont*& OutFontValue, int32& OutFontPage, bool bCheckOwnedGlobalOverrides) const
@@ -2441,6 +2452,76 @@ bool UMaterial::GetTextureParameterValue(const FMaterialParameterInfo& Parameter
 				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
 				{
 					if (!ParameterOwner->OverrideNamedTextureParameter(ParameterInfo, OutValue))
+					{
+						Parameter->IsNamedParameter(ParameterInfo, OutValue);
+					}
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+bool UMaterial::GetRuntimeVirtualTextureParameterValue(const FMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly) const
+{
+	if (bOveriddenOnly && !AreExperimentalMaterialLayersEnabled())
+	{
+		return false;
+	}
+
+	// In the case of duplicate parameters with different values, this will return the
+	// first matching expression found, not necessarily the one that's used for rendering
+	UMaterialExpressionRuntimeVirtualTextureSampleParameter* Parameter = nullptr;
+
+	for (UMaterialExpression* Expression : Expressions)
+	{
+		// Only need to check parameters that match in associated scope
+		if (ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
+		{
+			if (UMaterialExpressionRuntimeVirtualTextureSampleParameter* ExpressionParameter = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(Expression))
+			{
+				if (ExpressionParameter->IsNamedParameter(ParameterInfo, OutValue))
+				{
+					return true;
+				}
+			}
+			else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
+			{
+				UMaterialFunctionInterface* Function = FunctionCall->MaterialFunction;
+				UMaterialFunctionInterface* ParameterOwner = nullptr;
+
+				if (Function && Function->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
+				{
+					return true;
+				}
+
+				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
+				{
+					if (!ParameterOwner->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
+					{
+						Parameter->IsNamedParameter(ParameterInfo, OutValue);
+					}
+					return true;
+				}
+			}
+		}
+		else
+		{
+			if (UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
+			{
+				UMaterialFunctionInterface* Function = LayersExpression->GetParameterAssociatedFunction(ParameterInfo);
+				UMaterialFunctionInterface* ParameterOwner = nullptr;
+
+				if (Function && Function->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
+				{
+					return true;
+				}
+
+				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
+				{
+					if (!ParameterOwner->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
 					{
 						Parameter->IsNamedParameter(ParameterInfo, OutValue);
 					}
