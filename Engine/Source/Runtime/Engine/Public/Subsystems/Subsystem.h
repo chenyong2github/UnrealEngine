@@ -15,6 +15,7 @@ class FSubsystemCollectionBase;
  *		Engine		 -> inherit UEngineSubsystem
  *		Editor		 -> inherit UEditorSubsystem
  *		GameInstance -> inherit UGameInstanceSubsystem
+ *		World		 -> inherit UWorldSubsystem
  *		LocalPlayer	 -> inherit ULocalPlayerSubsystem
  *
  *
