@@ -215,7 +215,7 @@ public:
 	Class const* operator -> () const	{ return (Class const*)Buffer; }
 
 protected:
-	uint8 alignas(Class) Buffer[sizeof(Class)];
+	alignas(Class) uint8 Buffer[sizeof(Class)];
 };
 
 
