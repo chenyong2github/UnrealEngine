@@ -789,7 +789,7 @@ FORCEINLINE FQuat FQuat::operator-(const FQuat& Q) const
 
 FORCEINLINE bool FQuat::Equals(const FQuat& Q, float Tolerance) const
 {
-#if PLATFORM_ENABLE_VECTORINTRINSICS || PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+#if PLATFORM_ENABLE_VECTORINTRINSICS
 	const VectorRegister ToleranceV = VectorLoadFloat1(&Tolerance);
 	const VectorRegister A = VectorLoadAligned(this);
 	const VectorRegister B = VectorLoadAligned(&Q);
@@ -918,7 +918,7 @@ FORCEINLINE float FQuat::operator|(const FQuat& Q) const
 
 FORCEINLINE void FQuat::Normalize(float Tolerance)
 {
-#if PLATFORM_ENABLE_VECTORINTRINSICS || PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+#if PLATFORM_ENABLE_VECTORINTRINSICS
 	const VectorRegister Vector = VectorLoadAligned(this);
 
 	const VectorRegister SquareSum = VectorDot4(Vector, Vector);
