@@ -5312,6 +5312,18 @@ void FAsyncLoadingThread::Stop()
 	StopTaskCounter.Increment();
 }
 
+void FAsyncLoadingThread::Kill()
+{
+	check(IsInGameThread());
+
+	Stop();
+
+	if (IsMultithreaded() && Thread)
+	{
+		Thread->Kill(true); 
+	}
+}
+
 void FAsyncLoadingThread::CancelAsyncLoading()
 {
 	check(IsInGameThread());	
