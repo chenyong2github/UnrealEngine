@@ -306,7 +306,16 @@ public:
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		//@todo - lit materials only 
+		if (Material->GetMaterialDomain() == MD_UI)
+		{
+			return false;
+		}
+
+		if (Material->GetShadingModels().IsUnlit())
+		{
+			return false;
+		}
+
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldGI(Parameters.Platform);
 	}
 
