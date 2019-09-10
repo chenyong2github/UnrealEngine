@@ -37,6 +37,19 @@ public:
 		  DisplayName(InDisplayName)
 	{
 	}
+
+	/** Finds a sub-category by name */
+	TSharedPtr<FPluginCategory> FindSubCategory(const FString& SubCategoryName)
+	{
+		for (TSharedPtr<FPluginCategory>& SubCategory : SubCategories)
+		{
+			if (SubCategory->Name == SubCategoryName)
+			{
+				return SubCategory;
+			}
+		}
+		return TSharedPtr<FPluginCategory>();
+	}
 };
 
 /**
