@@ -63,6 +63,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Animation)
 	uint32 MapSkeletalMotionToRoot : 1;
 
+	/** If enabled, export sequencer animation in its local time, relative to its master sequence. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Animation)
+	uint32 bExportLocalTime : 1;
+
 	/* Set all the UProperty to the CDO value */
 	void ResetToDefault();
 

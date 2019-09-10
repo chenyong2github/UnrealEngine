@@ -26,6 +26,7 @@ struct FMovieSceneEvaluationTrack;
 class UMovieSceneUserImportFBXSettings;
 struct FMovieSceneFloatValue;
 class INodeNameAdapter;
+struct FMovieSceneSequenceTransform;
 template<typename ChannelType> struct TMovieSceneChannelData;
 
 namespace fbxsdk
@@ -231,9 +232,10 @@ public:
 	* @param NodeNameAdaptor Adaptor to look up actor names.
 	* @param InFBXFileName the fbx file name.
 	* @param Template Movie scene sequence id.
+	* @param RootToLocalTransform The root to local transform time.
 	* @return Whether the export was successful
 	*/
-	static bool ExportFBX(UWorld* World, UMovieScene* MovieScene, IMovieScenePlayer* Player, TArray<FGuid>& Bindings, INodeNameAdapter& NodeNameAdapter, FMovieSceneSequenceIDRef& Template,  const FString& InFBXFileName);
+	static bool ExportFBX(UWorld* World, UMovieScene* MovieScene, IMovieScenePlayer* Player, TArray<FGuid>& Bindings, INodeNameAdapter& NodeNameAdapter, FMovieSceneSequenceIDRef& Template,  const FString& InFBXFileName, FMovieSceneSequenceTransform& RootToLocalTransform);
 
 	/**
 	* Import FBX with dialog

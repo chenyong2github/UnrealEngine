@@ -9694,7 +9694,7 @@ void FSequencer::ExportFBXInternal(const FString& ExportFilename, TArray<FGuid>&
 			UWorld* World = Cast<UWorld>(GetPlaybackContext());
 			FMovieSceneSequenceIDRef Template = GetFocusedTemplateID();
 			UnFbx::FFbxExporter::FLevelSequenceNodeNameAdapter NodeNameAdapter(MovieScene, this, Template);
-			MovieSceneToolHelpers::ExportFBX(World,MovieScene, this, Bindings, NodeNameAdapter, Template, ExportFilename);
+			MovieSceneToolHelpers::ExportFBX(World,MovieScene, this, Bindings, NodeNameAdapter, Template, ExportFilename, RootToLocalTransform);
 		}
 	}
 }
