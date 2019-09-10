@@ -1330,6 +1330,12 @@ public:
 		return NewMID;
 	}
 
+	virtual void ClearMIDPool() override
+	{
+		check(IsInGameThread());
+		MIDPool.Empty();
+	}
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	virtual void ActivateFrozenViewMatrices(FSceneView& SceneView) override
 	{
