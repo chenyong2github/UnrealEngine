@@ -10,6 +10,7 @@
 
 
 class UMovieScenePropertyTrack;
+class UMovieSceneObjectPropertyTrack;
 
 /**
  * Function library containing methods that should be hoisted onto UMovieScenePropertyTrack for scripting
@@ -57,4 +58,22 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Track", meta=(ScriptMethod))
 	static FName GetUniqueTrackName(UMovieScenePropertyTrack* Track);
+
+	/**
+	 * Set this object property track's property class
+	 *
+	 * @param Track        The track to use
+	 * @param PropertyClass The property class to set
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Track", meta = (ScriptMethod))
+	static void SetObjectPropertyClass(UMovieSceneObjectPropertyTrack* Track, UClass* PropertyClass);
+
+	/**
+	 * Get this object property track's property class
+	 *
+	 * @param Track        The track to use
+	 * @return The property class for this object property track
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Track", meta = (ScriptMethod))
+	static UClass* GetObjectPropertyClass(UMovieSceneObjectPropertyTrack* Track);
 };
