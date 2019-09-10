@@ -20,6 +20,8 @@ void UInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* QueriesAPI, I
 
 	GizmoManager = NewObject<UInteractiveGizmoManager>(this);
 	GizmoManager->Initialize(QueriesAPI, TransactionsAPI, InputRouter);
+
+	GizmoManager->RegisterDefaultGizmos();
 }
 
 

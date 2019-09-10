@@ -11,7 +11,7 @@
 #include "ToolContextInterfaces.h"
 #include "InteractiveGizmoManager.generated.h"
 
-
+class UTransformGizmo;
 
 USTRUCT()
 struct FActiveGizmo
@@ -21,6 +21,7 @@ struct FActiveGizmo
 	UInteractiveGizmo* Gizmo;
 	FString BuilderIdentifier;
 	FString InstanceIdentifier;
+	void* Owner = nullptr;
 };
 
 
@@ -72,9 +73,10 @@ public:
 	 * Try to activate a new Gizmo instance on the given Side
 	 * @param BuilderIdentifier string used to identify Builder that should be called
 	 * @param InstanceIdentifier client-defined string that can be used to locate this instance
+	 * @param Owner void pointer to whatever "owns" this Gizmo. Allows Gizmo to later be deleted using DestroyAllGizmosByOwner()
 	 * @return new Gizmo instance that has been created and initialized
 	 */	
-	virtual UInteractiveGizmo* CreateGizmo(const FString& BuilderIdentifier, const FString& InstanceIdentifier );
+	virtual UInteractiveGizmo* CreateGizmo(const FString& BuilderIdentifier, const FString& InstanceIdentifier, void* Owner = nullptr);
 
 
 	/**
@@ -89,6 +91,13 @@ public:
 	 * @param BuilderIdentifier the Builder string registered with RegisterGizmoType
 	 */
 	virtual void DestroyAllGizmosOfType(const FString& BuilderIdentifier);
+
+	/**
+	 * Destroy all Gizmos that are owned by the given pointer
+	 * @param Owner pointer that was passed to CreateGizmo
+	 */
+	virtual void DestroyAllGizmosByOwner(void* Owner);
+
 
 	/**
 	 * Find all the existing Gizmo instances that were created by the identified GizmoBuilder
@@ -158,7 +167,36 @@ public:
 	virtual IToolsContextQueriesAPI* GetContextQueriesAPI() { return QueriesAPI; }
 
 
+
+
 public:
+	//
+	// Standard Gizmos
+	// 
+
+	/**
+	 * Register default gizmo types
+	 */
+	virtual void RegisterDefaultGizmos();
+
+	/**
+	 * Activate a new instance of the default 3-axis transformation Gizmo. RegisterDefaultGizmos() must have been called first.
+	 * @param InstanceIdentifier client-defined *unique* string that can be used to locate this instance
+	 * @param Owner void pointer to whatever "owns" this Gizmo. Allows Gizmo to later be deleted using DestroyAllGizmosByOwner()
+	 * @return new Gizmo instance that has been created and initialized
+	 */
+	virtual UTransformGizmo* Create3AxisTransformGizmo(const FString& InstanceIdentifier, void* Owner = nullptr);
+
+
+public:
+	// builder identifiers for default gizmo types. Perhaps should have an API for this...
+	static FString DefaultAxisPositionBuilderIdentifier;
+	static FString DefaultPlanePositionBuilderIdentifier;
+	static FString DefaultAxisAngleBuilderIdentifier;
+	static FString DefaultThreeAxisTransformBuilderIdentifier;
+
+
+protected:
 	/** set of Currently-active Gizmos */
 	UPROPERTY()
 	TArray<FActiveGizmo> ActiveGizmos;
@@ -176,4 +214,6 @@ protected:
 	/** Current set of named GizmoBuilders */
 	UPROPERTY()
 	TMap<FString, UInteractiveGizmoBuilder*> GizmoBuilders;
+
+	bool bDefaultGizmosRegistered = false;
 };

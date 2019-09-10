@@ -4,6 +4,11 @@
 #include "InteractiveGizmoManager.h"
 #include "InteractiveToolsContext.h"
 
+#include "BaseGizmos/AxisPositionGizmo.h"
+#include "BaseGizmos/PlanePositionGizmo.h"
+#include "BaseGizmos/AxisAngleGizmo.h"
+#include "BaseGizmos/TransformGizmo.h"
+
 
 UInteractiveGizmoManager::UInteractiveGizmoManager()
 {
@@ -33,6 +38,14 @@ void UInteractiveGizmoManager::Shutdown()
 	ActiveGizmos.Reset();
 
 	this->TransactionsAPI = nullptr;
+
+	if (bDefaultGizmosRegistered)
+	{
+		DeregisterGizmoType(DefaultAxisPositionBuilderIdentifier);
+		DeregisterGizmoType(DefaultPlanePositionBuilderIdentifier);
+		DeregisterGizmoType(DefaultAxisAngleBuilderIdentifier);
+		DeregisterGizmoType(DefaultThreeAxisTransformBuilderIdentifier);
+	}
 }
 
 
@@ -58,7 +71,7 @@ bool UInteractiveGizmoManager::DeregisterGizmoType(const FString& BuilderIdentif
 
 
 
-UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderIdentifier, const FString& InstanceIdentifier)
+UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderIdentifier, const FString& InstanceIdentifier, void* Owner)
 {
 	if ( GizmoBuilders.Contains(BuilderIdentifier) == false )
 	{
@@ -94,7 +107,7 @@ UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderI
 
 	PostInvalidation();
 
-	FActiveGizmo ActiveGizmo = { NewGizmo, BuilderIdentifier, InstanceIdentifier };
+	FActiveGizmo ActiveGizmo = { NewGizmo, BuilderIdentifier, InstanceIdentifier, Owner };
 	ActiveGizmos.Add(ActiveGizmo);
 
 	return NewGizmo;
@@ -155,6 +168,23 @@ void UInteractiveGizmoManager::DestroyAllGizmosOfType(const FString& BuilderIden
 	for (int i = 0; i < ToRemove.Num(); ++i)
 	{
 		DestroyGizmo(ToRemove[i]);
+	}
+}
+
+
+void UInteractiveGizmoManager::DestroyAllGizmosByOwner(void* Owner)
+{
+	TArray<UInteractiveGizmo*> Found;
+	for ( const FActiveGizmo& ActiveGizmo : ActiveGizmos )
+	{
+		if (ActiveGizmo.Owner == Owner)
+		{
+			Found.Add(ActiveGizmo.Gizmo);
+		}
+	}
+	for (UInteractiveGizmo* Gizmo : Found)
+	{
+		DestroyGizmo(Gizmo);
 	}
 }
 
@@ -226,3 +256,37 @@ void UInteractiveGizmoManager::EmitObjectChange(UObject* TargetObject, TUniquePt
 }
 
 
+
+
+FString UInteractiveGizmoManager::DefaultAxisPositionBuilderIdentifier = TEXT("StandardXFormAxisTranslationGizmo");
+FString UInteractiveGizmoManager::DefaultPlanePositionBuilderIdentifier = TEXT("StandardXFormPlaneTranslationGizmo");
+FString UInteractiveGizmoManager::DefaultAxisAngleBuilderIdentifier = TEXT("StandardXFormAxisRotationGizmo");
+FString UInteractiveGizmoManager::DefaultThreeAxisTransformBuilderIdentifier = TEXT("DefaultThreeAxisTransformBuilderIdentifier");
+
+
+void UInteractiveGizmoManager::RegisterDefaultGizmos()
+{
+	check(bDefaultGizmosRegistered == false);
+
+	UAxisPositionGizmoBuilder* AxisTranslationBuilder = NewObject<UAxisPositionGizmoBuilder>();
+	RegisterGizmoType(DefaultAxisPositionBuilderIdentifier, AxisTranslationBuilder);
+
+	UPlanePositionGizmoBuilder* PlaneTranslationBuilder = NewObject<UPlanePositionGizmoBuilder>();
+	RegisterGizmoType(DefaultPlanePositionBuilderIdentifier, PlaneTranslationBuilder);
+
+	UAxisAngleGizmoBuilder* AxisRotationBuilder = NewObject<UAxisAngleGizmoBuilder>();
+	RegisterGizmoType(DefaultAxisAngleBuilderIdentifier, AxisRotationBuilder);
+
+	UTransformGizmoBuilder* TransformBuilder = NewObject<UTransformGizmoBuilder>();
+	RegisterGizmoType(DefaultThreeAxisTransformBuilderIdentifier, TransformBuilder);
+
+	bDefaultGizmosRegistered = true;
+}
+
+UTransformGizmo* UInteractiveGizmoManager::Create3AxisTransformGizmo(const FString& InstanceIdentifier, void* Owner)
+{
+	check(bDefaultGizmosRegistered);
+	UInteractiveGizmo* NewGizmo = CreateGizmo(DefaultThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
+	check(NewGizmo);
+	return Cast<UTransformGizmo>(NewGizmo);
+}
