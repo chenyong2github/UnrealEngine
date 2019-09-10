@@ -811,6 +811,47 @@ bool UMaterialInstance::IsVectorParameterUsedAsChannelMask(const FMaterialParame
 	return false;
 }
 
+#if WITH_EDITOR
+bool  UMaterialInstance::GetVectorParameterChannelNames(const FMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
+{
+	bool bFoundAValue = false;
+
+	if (GetReentrantFlag())
+	{
+		return false;
+	}
+
+	// Instance-included default
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	{
+		UMaterialExpressionVectorParameter* Parameter = nullptr;
+		for (const FStaticMaterialLayersParameter& LayersParam : StaticParameters.MaterialLayersParameters)
+		{
+			if (LayersParam.bOverride)
+			{
+				UMaterialFunctionInterface* Function = LayersParam.GetParameterAssociatedFunction(ParameterInfo);
+				UMaterialFunctionInterface* ParameterOwner = nullptr;
+
+				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
+				{
+					OutValue = Parameter->GetVectorChannelNames();
+					return true;
+				}
+			}
+		}
+	}
+
+	// Next material in hierarchy
+	if (Parent)
+	{
+		FMICReentranceGuard	Guard(this);
+		return Parent->GetVectorParameterChannelNames(ParameterInfo, OutValue);
+	}
+
+	return false;
+};
+#endif
+
 bool UMaterialInstance::GetTextureParameterValue(const FMaterialParameterInfo& ParameterInfo, UTexture*& OutValue, bool bOveriddenOnly) const
 {
 	bool bFoundAValue = false;
@@ -920,6 +961,48 @@ bool UMaterialInstance::GetRuntimeVirtualTextureParameterValue(const FMaterialPa
 
 	return false;
 }
+
+
+#if WITH_EDITOR
+bool  UMaterialInstance::GetTextureParameterChannelNames(const FMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
+{
+	bool bFoundAValue = false;
+
+	if (GetReentrantFlag())
+	{
+		return false;
+	}
+
+	// Instance-included default
+	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+	{
+		UMaterialExpressionTextureSampleParameter* Parameter = nullptr;
+		for (const FStaticMaterialLayersParameter& LayersParam : StaticParameters.MaterialLayersParameters)
+		{
+			if (LayersParam.bOverride)
+			{
+				UMaterialFunctionInterface* Function = LayersParam.GetParameterAssociatedFunction(ParameterInfo);
+				UMaterialFunctionInterface* ParameterOwner = nullptr;
+
+				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
+				{
+					OutValue = Parameter->GetTextureChannelNames();
+					return true;
+				}
+			}
+		}
+	}
+
+	// Next material in hierarchy
+	if (Parent)
+	{
+		FMICReentranceGuard	Guard(this);
+		return Parent->GetTextureParameterChannelNames(ParameterInfo, OutValue);
+	}
+
+	return false;
+};
+#endif
 
 bool UMaterialInstance::GetFontParameterValue(const FMaterialParameterInfo& ParameterInfo,class UFont*& OutFontValue, int32& OutFontPage, bool bOveriddenOnly) const
 {

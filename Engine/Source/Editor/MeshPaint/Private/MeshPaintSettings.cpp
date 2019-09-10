@@ -18,8 +18,8 @@ UPaintBrushSettings::UPaintBrushSettings(const FObjectInitializer& ObjectInitial
 
 	{
 		const UProperty* BrushRadiusProperty = UPaintBrushSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPaintBrushSettings, BrushRadius));
-		BrushRadiusMin = BrushRadiusProperty->GetFLOATMetaData(ClampMin);
-		BrushRadiusMax = BrushRadiusProperty->GetFLOATMetaData(ClampMax);
+		BrushRadiusMin = BrushRadiusProperty->GetFloatMetaData(ClampMin);
+		BrushRadiusMax = BrushRadiusProperty->GetFloatMetaData(ClampMax);
 
 		GConfig->GetFloat(TEXT("MeshPaintEdit"), TEXT("DefaultBrushRadius"), BrushRadius, GEditorPerProjectIni);
 		BrushRadius = FMath::Clamp(BrushRadius, BrushRadiusMin, BrushRadiusMax);
@@ -27,8 +27,8 @@ UPaintBrushSettings::UPaintBrushSettings(const FObjectInitializer& ObjectInitial
 
 	{
 		const UProperty* BrushStrengthProperty = UPaintBrushSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPaintBrushSettings, BrushStrength));
-		float BrushStrengthMin = BrushStrengthProperty->GetFLOATMetaData(ClampMin);
-		float BrushStrengthMax = BrushStrengthProperty->GetFLOATMetaData(ClampMax);
+		float BrushStrengthMin = BrushStrengthProperty->GetFloatMetaData(ClampMin);
+		float BrushStrengthMax = BrushStrengthProperty->GetFloatMetaData(ClampMax);
 
 		GConfig->GetFloat(TEXT("MeshPaintEdit"), TEXT("DefaultBrushStrength"), BrushStrength, GEditorPerProjectIni);
 		BrushStrength = FMath::Clamp(BrushStrength, BrushStrengthMin, BrushStrengthMax);
@@ -36,8 +36,8 @@ UPaintBrushSettings::UPaintBrushSettings(const FObjectInitializer& ObjectInitial
 
 	{
 		const UProperty* BrushFalloffProperty = UPaintBrushSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPaintBrushSettings, BrushFalloffAmount));
-		float BrushFalloffMin = BrushFalloffProperty->GetFLOATMetaData(ClampMin);
-		float BrushFalloffMax = BrushFalloffProperty->GetFLOATMetaData(ClampMax);
+		float BrushFalloffMin = BrushFalloffProperty->GetFloatMetaData(ClampMin);
+		float BrushFalloffMax = BrushFalloffProperty->GetFloatMetaData(ClampMax);
 
 		GConfig->GetFloat(TEXT("MeshPaintEdit"), TEXT("DefaultBrushFalloff"), BrushFalloffAmount, GEditorPerProjectIni);
 		BrushFalloffAmount = FMath::Clamp(BrushFalloffAmount, BrushFalloffMin, BrushFalloffMax);

@@ -12,7 +12,7 @@
 #include "Toolkits/ToolkitManager.h"
 #include "ISequencer.h"
 #include "SequencerSettings.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "LevelSequence.h"
 
 #define LOCTEXT_NAMESPACE "TakePresetActions"

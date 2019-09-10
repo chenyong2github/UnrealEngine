@@ -61,6 +61,11 @@ void FMeshDescriptionHelper::GetRenderMeshDescription(UObject* Owner, const FMes
 			// If removing degenerate triangles, ignore them when computing tangents.
 			TangentOptions |= FMeshDescriptionOperations::ETangentOptions::IgnoreDegenerateTriangles;
 		}
+		if (BuildSettings->bComputeWeightedNormals)
+		{
+			// Specify we want to compute weighted normals.
+			TangentOptions |= FMeshDescriptionOperations::ETangentOptions::UseWeightedAreaAndAngle;
+		}
 		
 		//Keep the original mesh description NTBs if we do not rebuild the normals or tangents.
 		bool bComputeTangentLegacy = !BuildSettings->bUseMikkTSpace && (BuildSettings->bRecomputeNormals || BuildSettings->bRecomputeTangents);

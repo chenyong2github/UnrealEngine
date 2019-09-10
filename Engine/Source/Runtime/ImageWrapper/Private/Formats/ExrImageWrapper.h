@@ -9,16 +9,16 @@
 #if WITH_UNREALEXR
 
 THIRD_PARTY_INCLUDES_START
-	#include "ThirdParty/openexr/Deploy/include/ImfIO.h"
-	#include "ThirdParty/openexr/Deploy/include/ImathBox.h"
-	#include "ThirdParty/openexr/Deploy/include/ImfChannelList.h"
-	#include "ThirdParty/openexr/Deploy/include/ImfInputFile.h"
-	#include "ThirdParty/openexr/Deploy/include/ImfOutputFile.h"
-	#include "ThirdParty/openexr/Deploy/include/ImfArray.h"
-	#include "ThirdParty/openexr/Deploy/include/ImfHeader.h"
-	#include "ThirdParty/openexr/Deploy/include/ImfStdIO.h"
-	#include "ThirdParty/openexr/Deploy/include/ImfChannelList.h"
-	#include "ThirdParty/openexr/Deploy/include/ImfRgbaFile.h"
+	#include "OpenEXR/include/ImfIO.h"
+	#include "OpenEXR/include/ImathBox.h"
+	#include "OpenEXR/include/ImfChannelList.h"
+	#include "OpenEXR/include/ImfInputFile.h"
+	#include "OpenEXR/include/ImfOutputFile.h"
+	#include "OpenEXR/include/ImfArray.h"
+	#include "OpenEXR/include//ImfHeader.h"
+	#include "OpenEXR/include/ImfStdIO.h"
+	#include "OpenEXR/include/ImfChannelList.h"
+	#include "OpenEXR/include/ImfRgbaFile.h"
 THIRD_PARTY_INCLUDES_END
 
 

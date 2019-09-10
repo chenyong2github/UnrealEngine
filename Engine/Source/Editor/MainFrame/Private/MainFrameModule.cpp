@@ -233,16 +233,30 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 	}
 }
 
-
-TSharedRef<SWidget> FMainFrameModule::MakeMainMenu( const TSharedPtr<FTabManager>& TabManager, const TSharedRef< FExtender > Extender ) const
+void FMainFrameModule::RecreateDefaultMainFrame(const bool bStartImmersive, const bool bStartPIE)
 {
-	return FMainMenu::MakeMainMenu( TabManager, Extender );
+	// Clean previous default main frame
+	if (IsWindowInitialized())
+	{
+		// Clean FSlateApplication
+		FSlateApplication::Get().CloseAllWindowsImmediately();
+		// Clean FGlobalTabmanager
+		FGlobalTabmanager::Get()->CloseAllAreas();
+	}
+	// (Re-)create default main frame
+	CreateDefaultMainFrame(bStartImmersive, bStartPIE);
 }
 
 
-TSharedRef<SWidget> FMainFrameModule::MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const TSharedRef< FExtender > Extender ) const
+TSharedRef<SWidget> FMainFrameModule::MakeMainMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const
 {
-	return FMainMenu::MakeMainTabMenu( TabManager, Extender );
+	return FMainMenu::MakeMainMenu(TabManager, MenuName, ToolMenuContext);
+}
+
+
+TSharedRef<SWidget> FMainFrameModule::MakeMainTabMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const
+{
+	return FMainMenu::MakeMainTabMenu(TabManager, MenuName, ToolMenuContext);
 }
 
 

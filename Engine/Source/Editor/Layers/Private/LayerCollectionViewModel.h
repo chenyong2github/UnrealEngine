@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Framework/Commands/UICommandList.h"
 #include "EditorUndoClient.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 
 class AActor;
 class FLayerViewModel;
@@ -33,9 +33,9 @@ public:
 	 *	@param	InWorldLayers	The layer management logic object
 	 *	@param	InEditor		The UEditorEngine to use
 	 */
-	static TSharedRef< FLayerCollectionViewModel > Create( const TSharedRef< ILayers >& InWorldLayers, const TWeakObjectPtr< UEditorEngine >& InEditor )
+	static TSharedRef< FLayerCollectionViewModel > Create( const TWeakObjectPtr< UEditorEngine >& InEditor )
 	{
-		TSharedRef< FLayerCollectionViewModel > LayersView( new FLayerCollectionViewModel( InWorldLayers, InEditor ) );
+		TSharedRef< FLayerCollectionViewModel > LayersView( new FLayerCollectionViewModel( InEditor ) );
 		LayersView->Initialize();
 
 		return LayersView;
@@ -102,7 +102,7 @@ public:
 	 ********************************************************************/
 
 	/** Broadcasts whenever the number of layers changes */
-	DECLARE_DERIVED_EVENT( FLayerCollectionViewModel, ILayers::FOnLayersChanged, FOnLayersChanged );
+	DECLARE_DERIVED_EVENT( FLayerCollectionViewModel, ULayersSubsystem::FOnLayersChanged, FOnLayersChanged );
 	FOnLayersChanged& OnLayersChanged() { return LayersChanged; }
 
 	/**	Broadcasts whenever the currently selected layers changes */
@@ -120,7 +120,7 @@ private:
 	 *	@param	InWorldLayers	The layer management logic object
 	 *	@param	InEditor		The UEditorEngine to use
 	 */
-	FLayerCollectionViewModel( const TSharedRef< ILayers >& InWorldLayers, const TWeakObjectPtr< UEditorEngine >& InEditor );
+	FLayerCollectionViewModel( const TWeakObjectPtr< UEditorEngine >& InEditor );
 
 	/** Initializes the LayersView for use */
 	void Initialize();
@@ -258,11 +258,11 @@ private:
 	/** The list of commands with bound delegates for the layer browser */
 	const TSharedRef< FUICommandList > CommandList;
 
-	/** The layer management logic object */
-	const TSharedRef< ILayers > WorldLayers;
-
 	/** The UEditorEngine to use */
 	const TWeakObjectPtr< UEditorEngine > Editor;
+
+	/** The layer management logic object */
+	ULayersSubsystem* WorldLayers;
 
 	/**	Broadcasts whenever one or more layers changes */
 	FOnLayersChanged LayersChanged;

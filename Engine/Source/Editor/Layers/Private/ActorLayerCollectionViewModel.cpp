@@ -8,21 +8,31 @@
 
 #define LOCTEXT_NAMESPACE "LayersView"
 
-FActorLayerCollectionViewModel::FActorLayerCollectionViewModel( const TSharedRef< ILayers >& InWorldLayers, const TWeakObjectPtr< UEditorEngine >& InEditor )
-	: bIsRefreshing( false )
-	, WorldLayers( InWorldLayers )
-	, Editor( InEditor )
-{
+DEFINE_LOG_CATEGORY_STATIC(LogActorLayerCollectionViewModel, Fatal, All);
 
+FActorLayerCollectionViewModel::FActorLayerCollectionViewModel( const TWeakObjectPtr< UEditorEngine >& InEditor )
+	: bIsRefreshing( false )
+	, Editor(InEditor)
+	, WorldLayers(Editor.IsValid() ? Editor->GetEditorSubsystem<ULayersSubsystem>() : nullptr)
+{
+	// Sanity checks
+	if (!Editor.IsValid())
+	{
+		UE_LOG(LogActorLayerCollectionViewModel, Fatal, TEXT("This function requires Editor.IsValid() == true."));
+	}
+	else if (WorldLayers == nullptr)
+	{
+		UE_LOG(LogActorLayerCollectionViewModel, Fatal, TEXT("This function requires Editor->GetEditorSubsystem<ULayersSubsystem>() to be already loaded rather than being a nullptr."));
+	}
 }
 
 
 FActorLayerCollectionViewModel::~FActorLayerCollectionViewModel()
 {
-	WorldLayers->OnLayersChanged().RemoveAll( this );
-
 	if ( Editor.IsValid() )
 	{
+		WorldLayers->OnLayersChanged().RemoveAll(this);
+
 		Editor->UnregisterForUndo( this );
 	}
 }
@@ -30,10 +40,10 @@ FActorLayerCollectionViewModel::~FActorLayerCollectionViewModel()
 
 void FActorLayerCollectionViewModel::Initialize()
 {
-	WorldLayers->OnLayersChanged().AddSP( this, &FActorLayerCollectionViewModel::OnLayersChanged );
-
 	if ( Editor.IsValid() )
 	{
+		WorldLayers->OnLayersChanged().AddSP(this, &FActorLayerCollectionViewModel::OnLayersChanged);
+
 		Editor->RegisterForUndo( this );
 	}
 
@@ -78,7 +88,7 @@ void FActorLayerCollectionViewModel::OnLayersChanged( const ELayersAction::Type 
 			{
 				if( ChangedLayer.IsValid() )
 				{
-					TSharedRef< FActorLayerViewModel > NewFLayer = FActorLayerViewModel::Create( ChangedLayer, Actors, WorldLayers, Editor );
+					TSharedRef< FActorLayerViewModel > NewFLayer = FActorLayerViewModel::Create( ChangedLayer, Actors, Editor );
 
 					if( DoAllActorsBelongtoLayer( NewFLayer ) )
 					{
@@ -123,7 +133,7 @@ void FActorLayerCollectionViewModel::RefreshLayers()
 
 	for( auto LayersIt = TempLayers.CreateIterator(); LayersIt; ++LayersIt )
 	{
-		TSharedRef< FActorLayerViewModel > NewFLayer = FActorLayerViewModel::Create( *LayersIt, Actors, WorldLayers, Editor );
+		TSharedRef< FActorLayerViewModel > NewFLayer = FActorLayerViewModel::Create( *LayersIt, Actors, Editor );
 
 		if( DoAllActorsBelongtoLayer( NewFLayer ) )
 		{

@@ -82,6 +82,10 @@ class UFbxMeshImportData : public UFbxAssetImportData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, AdvancedDisplay, Category = Mesh, meta=(ImportType="Mesh|GeoOnly"))
 	TEnumAsByte<enum EFBXNormalGenerationMethod::Type> NormalGenerationMethod;
 
+	/** Enabling this option will use weighted normals algorithm (area and angle) when computing normals or tangents */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, config, Category = Mesh, meta = (OBJRestrict = "true", ImportType = "Mesh|GeoOnly"))
+	uint32 bComputeWeightedNormals : 1;
+
 	/* If checked, The material list will be reorder to the same order has the FBX file. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, AdvancedDisplay, Category = Material, meta = (OBJRestrict = "true"))
 	bool bReorderMaterialToFbxOrder;

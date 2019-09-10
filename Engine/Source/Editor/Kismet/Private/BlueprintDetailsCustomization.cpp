@@ -75,6 +75,7 @@
 #include "Widgets/Input/STextComboBox.h"
 
 #include "UObject/TextProperty.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintDetailsCustomization"
 
@@ -5256,7 +5257,7 @@ void FBlueprintInterfaceLayout::OnBrowseToInterface(TWeakObjectPtr<UObject> Asse
 {
 	if (Asset.IsValid())
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(Asset.Get());
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset.Get());
 	}
 }
 

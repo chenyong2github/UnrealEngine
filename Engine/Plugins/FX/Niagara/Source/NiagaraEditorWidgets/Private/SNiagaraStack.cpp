@@ -55,6 +55,7 @@
 #include "Widgets/Layout/SWrapBox.h"
 #include "Stack/SNiagaraStackSpacer.h"
 #include "ViewModels/Stack/NiagaraStackRoot.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStack"
 
@@ -198,7 +199,7 @@ private:
 		UNiagaraEmitter* ParentEmitter = const_cast<UNiagaraEmitter*>(EmitterHandleViewModel->GetEmitterViewModel()->GetParentEmitter());
 		if (ParentEmitter != nullptr)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(ParentEmitter);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ParentEmitter);
 		}
 		return FReply::Handled();
 	}

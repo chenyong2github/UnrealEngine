@@ -101,6 +101,8 @@ void UStylusInputSubsystem::Tick(float DeltaTime)
 {
 	if (InputInterface.IsValid())
 	{
+		InputInterface->Tick();
+
 		for (int32 DeviceIdx = 0; DeviceIdx < NumInputDevices(); ++DeviceIdx)
 		{
 			IStylusInputDevice* InputDevice = InputInterface->GetInputDevice(DeviceIdx);

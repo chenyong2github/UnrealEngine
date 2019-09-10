@@ -18,6 +18,7 @@
 class UEdGraph;
 struct FNotificationInfo;
 struct Rect;
+class FMenuBuilder;
 
 DECLARE_DELEGATE_ThreeParams( FOnNodeTextCommitted, const FText&, ETextCommit::Type, UEdGraphNode* );
 DECLARE_DELEGATE_RetVal_ThreeParams( bool, FOnNodeVerifyTextCommit, const FText&, UEdGraphNode*, FText& );

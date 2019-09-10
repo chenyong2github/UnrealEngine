@@ -9,7 +9,7 @@
 
 
 
-void FDynamicMeshToMeshDescription::Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut)
+void FDynamicMeshToMeshDescription::Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bRecomputeNormals)
 {
 	FMeshDescriptionBuilder Builder;
 	Builder.SetMeshDescription(&MeshOut);
@@ -23,16 +23,108 @@ void FDynamicMeshToMeshDescription::Update(const FDynamicMesh3* MeshIn, FMeshDes
 		Builder.SetPosition(FVertexID(VertID), MeshIn->GetVertex(VertID));
 	}
 
-	// can't trust these yet...
-	//const FDynamicMeshUVOverlay* UVOverlay = MeshIn->HasAttributes() ? MeshIn->Attributes()->PrimaryUV() : nullptr;
-	//const FDynamicMeshNormalOverlay* NormalOverlay = MeshIn->HasAttributes() ? MeshIn->Attributes()->PrimaryNormals() : nullptr;
-
-	Builder.RecalculateInstanceNormals();
+	if (bRecomputeNormals)
+	{
+		Builder.RecalculateInstanceNormals();
+	}
+	else
+	{
+		UpdateAttributes(MeshIn, MeshOut, true, false);
+	}
 }
 
 
+namespace DynamicMeshToMeshDescriptionConversionHelper
+{
+	// NOTE: assumes the order of triangles in the MeshIn correspond to the ordering you'd get by iterating over polygons, then tris-in-polygons, on MeshOut
+	// This matches conversion currently used in MeshDescriptionToDynamicMesh.cpp, but if that changes we will need to change this function to match!
+	template <typename OutAttributeType, int VecLen, typename InAttributeType>
+	void SetAttributesFromOverlay(
+		const FDynamicMesh3* MeshInArg, const FMeshDescription& MeshOutArg,
+		TVertexInstanceAttributesRef<OutAttributeType>& InstanceAttrib, const TDynamicMeshVectorOverlay<float, VecLen, InAttributeType>* Overlay)
+	{
+		const FPolygonArray& Polygons = MeshOutArg.Polygons();
+		int MeshInTriIdx = 0;
+		for (const FPolygonID PolygonID : Polygons.GetElementIDs())
+		{
+			FPolygonGroupID PolygonGroupID = MeshOutArg.GetPolygonPolygonGroup(PolygonID);
+
+			const TArray<FTriangleID>& TriangleIDs = MeshOutArg.GetPolygonTriangleIDs(PolygonID);
+			int NumTriangles = TriangleIDs.Num();
+			for (int TriIdx = 0; TriIdx < NumTriangles; ++TriIdx, ++MeshInTriIdx)
+			{
+				const FTriangleID TriangleID = TriangleIDs[TriIdx];
+				TArrayView<const FVertexInstanceID> InstanceTri = MeshOutArg.GetTriangleVertexInstances(TriangleID);
+
+				FIndex3i OverlayVertIndices = Overlay->GetTriangle(MeshInTriIdx);
+				InstanceAttrib.Set(InstanceTri[0], OutAttributeType(Overlay->GetElement(OverlayVertIndices.A)));
+				InstanceAttrib.Set(InstanceTri[1], OutAttributeType(Overlay->GetElement(OverlayVertIndices.B)));
+				InstanceAttrib.Set(InstanceTri[2], OutAttributeType(Overlay->GetElement(OverlayVertIndices.C)));
+			}
+		}
+	}
+}
 
 
+void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bUpdateNormals, bool bUpdateUVs)
+{
+	check(MeshIn->IsCompactV());
+	check(MeshIn->VertexCount() == MeshOut.Vertices().Num());
+	check(MeshIn->TriangleCount() == MeshOut.Triangles().Num())
+
+	if (bUpdateNormals)
+	{
+		TVertexInstanceAttributesRef<FVector> InstanceAttrib =
+			MeshOut.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+		ensureMsgf(InstanceAttrib.IsValid(), TEXT("Trying to update normals on a MeshDescription that has no normal attributes"));
+		if (InstanceAttrib.IsValid())
+		{
+			const FDynamicMeshNormalOverlay* Overlay = MeshIn->HasAttributes() ? MeshIn->Attributes()->PrimaryNormals() : nullptr;
+			if (Overlay)
+			{
+				DynamicMeshToMeshDescriptionConversionHelper::SetAttributesFromOverlay(MeshIn, MeshOut, InstanceAttrib, Overlay);
+			}
+			else
+			{
+				for (int VertID : MeshIn->VertexIndicesItr())
+				{
+					FVector Normal = (FVector)MeshIn->GetVertexNormal(VertID);
+					for (FVertexInstanceID InstanceID : MeshOut.GetVertexVertexInstances(FVertexID(VertID)))
+					{
+						InstanceAttrib.Set(InstanceID, Normal);
+					}
+				}
+			}
+		}
+	}
+
+	if (bUpdateUVs)
+	{
+		const FDynamicMeshUVOverlay* Overlay = MeshIn->HasAttributes() ? MeshIn->Attributes()->PrimaryUV() : nullptr;
+
+		TVertexInstanceAttributesRef<FVector2D> InstanceAttrib =
+			MeshOut.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		ensureMsgf(InstanceAttrib.IsValid(), TEXT("Trying to update UVs on a MeshDescription that has no texture coordinate attributes"));
+		if (InstanceAttrib.IsValid())
+		{
+			if (Overlay)
+			{
+				DynamicMeshToMeshDescriptionConversionHelper::SetAttributesFromOverlay(MeshIn, MeshOut, InstanceAttrib, Overlay);
+			}
+			else
+			{
+				for (int VertID : MeshIn->VertexIndicesItr())
+				{
+					FVector2D UV = (FVector2D)MeshIn->GetVertexUV(VertID);
+					for (FVertexInstanceID InstanceID : MeshOut.GetVertexVertexInstances(FVertexID(VertID)))
+					{
+						InstanceAttrib.Set(InstanceID, UV);
+					}
+				}
+			}
+		}
+	}
+}
 
 
 

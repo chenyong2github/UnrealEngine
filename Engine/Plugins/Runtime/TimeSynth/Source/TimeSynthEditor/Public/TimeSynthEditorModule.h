@@ -15,5 +15,6 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
-	TSharedPtr<ISoundWaveAssetActionExtensions> TimeSynthSoundWaveAssetActionExtender;
+
+	void RegisterMenus();
 };

@@ -11,6 +11,7 @@ namespace WorldHierarchy
 {
 	struct IWorldTreeItem;
 	typedef TSharedPtr<IWorldTreeItem> FWorldTreeItemPtr;
+	typedef TSharedRef<IWorldTreeItem> FWorldTreeItemRef;
 
 	struct FValidationInfo
 	{

@@ -4,7 +4,7 @@
 #include "AssetRegistryModule.h"
 #include "EditorUtilityBlueprint.h"
 #include "Misc/PackageName.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "BlueprintEditorModule.h"
 #include "GlobalEditorUtilityBase.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -20,6 +20,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "ScopedTransaction.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "BlutilityMenuExtensions"
 
@@ -261,7 +262,7 @@ void FBlutilityMenuExtensions::CreateBlutilityActionsMenu(FMenuBuilder& MenuBuil
 								// Edit the script if we have shift held down
 								if(UBlueprint* Blueprint = Cast<UBlueprint>(Cast<UObject>(FunctionAndUtil.Util)->GetClass()->ClassGeneratedBy))
 								{
-									if(IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(Blueprint, true))
+									if(IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Blueprint, true))
 									{
 										check(AssetEditor->GetEditorName() == TEXT("BlueprintEditor"));
 										IBlueprintEditor* BlueprintEditor = static_cast<IBlueprintEditor*>(AssetEditor);

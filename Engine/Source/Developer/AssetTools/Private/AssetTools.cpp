@@ -26,6 +26,7 @@
 #include "AssetToolsLog.h"
 #include "AssetToolsModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "IClassTypeActions.h"
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
 #include "AssetTypeActions/AssetTypeActions_Curve.h"
@@ -128,7 +129,9 @@
 #include "SAdvancedCopyReportDialog.h"
 #include "AssetToolsSettings.h"
 #include "AssetVtConversion.h"
-
+#if WITH_EDITOR
+#include "Subsystems/AssetEditorSubsystem.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "AssetTools"
 
@@ -387,48 +390,6 @@ TWeakPtr<IClassTypeActions> UAssetToolsImpl::GetClassTypeActionsForClass( UClass
 	}
 
 	return MostDerivedClassTypeActions;
-}
-
-bool UAssetToolsImpl::GetAssetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder, bool bIncludeHeading )
-{
-	bool bAddedActions = false;
-
-	if ( InObjects.Num() )
-	{
-		// Find the most derived common class for all passed in Objects
-		UClass* CommonClass = InObjects[0]->GetClass();
-		for (int32 ObjIdx = 1; ObjIdx < InObjects.Num(); ++ObjIdx)
-		{
-			while (!InObjects[ObjIdx]->IsA(CommonClass))
-			{
-				CommonClass = CommonClass->GetSuperClass();
-			}
-		}
-
-		// Get the nearest common asset type for all the selected objects
-		TSharedPtr<IAssetTypeActions> CommonAssetTypeActions = GetAssetTypeActionsForClass(CommonClass).Pin();
-
-		// If we found a common type actions object, get actions from it
-		if ( CommonAssetTypeActions.IsValid() && CommonAssetTypeActions->HasActions(InObjects) )
-		{
-			if ( bIncludeHeading )
-			{
-				MenuBuilder.BeginSection("GetAssetActions", FText::Format( LOCTEXT("AssetSpecificOptionsMenuHeading", "{0} Actions"), CommonAssetTypeActions->GetName() ) );
-			}
-
-			// Get the actions
-			CommonAssetTypeActions->GetActions(InObjects, MenuBuilder);
-
-			if ( bIncludeHeading )
-			{
-				MenuBuilder.EndSection();
-			}
-
-			bAddedActions = true;
-		}
-	}
-
-	return bAddedActions;
 }
 
 struct FRootedOnScope
@@ -2927,7 +2888,9 @@ void UAssetToolsImpl::FixupReferencers(const TArray<UObjectRedirector*>& Objects
 
 void UAssetToolsImpl::OpenEditorForAssets(const TArray<UObject*>& Assets)
 {
-	FAssetEditorManager::Get().OpenEditorForAssets(Assets);
+#if WITH_EDITOR
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(Assets);
+#endif
 }
 
 void UAssetToolsImpl::ConvertVirtualTextures(const TArray<UTexture2D *>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial *>* RelatedMaterials /* = nullptr */) const

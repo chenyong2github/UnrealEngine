@@ -697,7 +697,7 @@ private:
 		}
 	}
 
-	TSharedPtr< SWidget > GetCrumbMenuContent( const int32& Item )
+	TSharedRef< SWidget > GetCrumbMenuContent( const int32& Item )
 	{
 		TSharedRef< FPropertyPath > RootPath = Table->GetRootPath();
 		if ( Item == INDEX_NONE )

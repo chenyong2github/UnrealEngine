@@ -465,11 +465,6 @@ public:
 		}
 	}
 
-	virtual FString GetReferencerName() const override
-	{
-		return TEXT("FTextRenderComponentMIDCache");
-	}
-
 private:
 	/** Key identifying an array of MIDs */
 	struct FKey
@@ -743,6 +738,7 @@ void FTextRenderSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 					Mesh.MaterialRenderProxy = TextBatch.Material->GetRenderProxy();
 					Mesh.bCanApplyViewModeOverrides = !bAlwaysRenderAsText;
 					Mesh.LODIndex = 0;
+					Mesh.bUseWireframeSelectionColoring = IsSelected() ? 1 : 0;
 
 					Collector.AddMesh(ViewIndex, Mesh);
 				}

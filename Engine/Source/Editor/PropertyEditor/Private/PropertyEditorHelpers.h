@@ -116,6 +116,12 @@ private:
 
 namespace PropertyEditorHelpers
 {
+	/** 
+	 * Perform common checks from metadata to determine if a given Property
+	 * should be visible when displayed underneath the given property node.
+	 */
+	bool ShouldBeVisible(const FPropertyNode& InParentNode, const UProperty* Property);
+
 	/**
 	 * Returns whether or not a property is a built in struct property like a vector or color
 	 *

@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SSlotNameReferenceWindow.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "EditorStyleSet.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Images/SImage.h"
@@ -10,6 +10,7 @@
 #include "AnimGraphNode_Slot.h"
 #include "EdGraph/EdGraph.h"
 #include "BlueprintEditor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SkeletonSlotNames"
 
@@ -103,7 +104,7 @@ FReply SMontageReferenceListRow::OnViewInContentBrowserClicked()
 
 FReply SMontageReferenceListRow::OnOpenAssetClicked()
 {
-	FAssetEditorManager::Get().OpenEditorForAsset(ReferenceInfo->AssetData.GetAsset());
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ReferenceInfo->AssetData.GetAsset());
 
 	return FReply::Handled();
 }
@@ -181,9 +182,9 @@ FReply SBlueprintReferenceListRow::OnViewInContentBrowserClicked()
 
 FReply SBlueprintReferenceListRow::OnOpenAssetClicked()
 {
-	FAssetEditorManager::Get().OpenEditorForAsset(ReferenceInfo->AnimBlueprint);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ReferenceInfo->AnimBlueprint);
 	
-	FBlueprintEditor* BPEditor = static_cast<FBlueprintEditor*>(FAssetEditorManager::Get().FindEditorForAsset(ReferenceInfo->AnimBlueprint, true));
+	FBlueprintEditor* BPEditor = static_cast<FBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(ReferenceInfo->AnimBlueprint, true));
 	if(BPEditor)
 	{
 		// Should only ever get an FPersona object back for an animBP.

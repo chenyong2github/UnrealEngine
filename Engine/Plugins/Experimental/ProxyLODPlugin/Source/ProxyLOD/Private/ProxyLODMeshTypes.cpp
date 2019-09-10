@@ -20,22 +20,18 @@ FMeshDescriptionAdapter::FMeshDescriptionAdapter(const FMeshDescriptionAdapter& 
 void FMeshDescriptionAdapter::InitializeCacheData()
 {
 	VertexPositions = RawMesh->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	TriangleCount = 0;
-	for (const FPolygonID& PolygonID : RawMesh->Polygons().GetElementIDs())
-	{
-		TriangleCount += RawMesh->GetPolygonTriangles(PolygonID).Num();
-	}
+	TriangleCount = RawMesh->Triangles().Num();
 
 	IndexBuffer.Reserve(TriangleCount * 3);
 
-	for (const FPolygonID& PolygonID : RawMesh->Polygons().GetElementIDs())
+	for (const FPolygonID PolygonID : RawMesh->Polygons().GetElementIDs())
 	{
-		const auto& Triangles = RawMesh->GetPolygonTriangles(PolygonID);
-		for (const FMeshTriangle& Tri : Triangles)
+		const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
+		for (const FTriangleID TriangleID : TriangleIDs)
 		{
-			IndexBuffer.Add(Tri.VertexInstanceID0);
-			IndexBuffer.Add(Tri.VertexInstanceID1);
-			IndexBuffer.Add(Tri.VertexInstanceID2);
+			IndexBuffer.Add(RawMesh->GetTriangleVertexInstance(TriangleID, 0));
+			IndexBuffer.Add(RawMesh->GetTriangleVertexInstance(TriangleID, 1));
+			IndexBuffer.Add(RawMesh->GetTriangleVertexInstance(TriangleID, 2));
 		}
 	}
 
@@ -82,24 +78,20 @@ FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const TArray<const FM
 
 		PointCount += size_t(RawMesh->Vertices().Num());
 		// Sum up all the polys in this mesh.
-		int32 MeshPolyCount = 0;
-		for (const FPolygonID& PolygonID : RawMesh->Polygons().GetElementIDs())
-		{
-			MeshPolyCount += RawMesh->GetPolygonTriangles(PolygonID).Num();
-		}
+		int32 MeshPolyCount = RawMesh->Triangles().Num();
 
 		// Construct local index buffer for this mesh
 		IndexBufferArray.push_back(std::vector<FVertexInstanceID>());
 		std::vector<FVertexInstanceID>& IndexBuffer = IndexBufferArray[MeshIdx];
 		IndexBuffer.reserve(MeshPolyCount * 3);
-		for (const FPolygonID& PolygonID : RawMesh->Polygons().GetElementIDs())
+		for (const FPolygonID PolygonID : RawMesh->Polygons().GetElementIDs())
 		{
-			const auto& Triangles = RawMesh->GetPolygonTriangles(PolygonID);
-			for (const FMeshTriangle& Tri : Triangles)
+			const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
+			for (const FTriangleID TriangleID : TriangleIDs)
 			{
-				IndexBuffer.push_back(Tri.VertexInstanceID0);
-				IndexBuffer.push_back(Tri.VertexInstanceID1);
-				IndexBuffer.push_back(Tri.VertexInstanceID2);
+				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 0));
+				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 1));
+				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 2));
 			}
 		}
 
@@ -132,24 +124,20 @@ FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const TArray<FMeshMer
 		PointCount += size_t(RawMesh->Vertices().Num());
 
 		// Sum up all the polys in this mesh.
-		int32 MeshPolyCount = 0;
-		for (const FPolygonID& PolygonID : RawMesh->Polygons().GetElementIDs())
-		{
-			MeshPolyCount += RawMesh->GetPolygonTriangles(PolygonID).Num();
-		}
+		int32 MeshPolyCount = RawMesh->Triangles().Num();
 		PolyCount += MeshPolyCount;
 		// Construct local index buffer for this mesh
 		IndexBufferArray.push_back(std::vector<FVertexInstanceID>());
 		std::vector<FVertexInstanceID>& IndexBuffer = IndexBufferArray[MeshIdx];
 		IndexBuffer.reserve(MeshPolyCount * 3);
-		for (const FPolygonID& PolygonID : RawMesh->Polygons().GetElementIDs())
+		for (const FPolygonID PolygonID : RawMesh->Polygons().GetElementIDs())
 		{
-			const auto& Triangles = RawMesh->GetPolygonTriangles(PolygonID);
-			for (const FMeshTriangle& Tri : Triangles)
+			const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
+			for (const FTriangleID TriangleID : TriangleIDs)
 			{
-				IndexBuffer.push_back(Tri.VertexInstanceID0);
-				IndexBuffer.push_back(Tri.VertexInstanceID1);
-				IndexBuffer.push_back(Tri.VertexInstanceID2);
+				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 0));
+				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 1));
+				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 2));
 			}
 		}
 
@@ -179,11 +167,7 @@ FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const TArray<FMeshMer
 		PointCount += size_t(RawMesh->Vertices().Num());
 		
 		// Sum up all the polys in this mesh.
-		int32 MeshPolyCount = 0;
-		for (const FPolygonID& PolygonID : RawMesh->Polygons().GetElementIDs())
-		{
-			MeshPolyCount += RawMesh->GetPolygonTriangles(PolygonID).Num();
-		}
+		int32 MeshPolyCount = RawMesh->Triangles().Num();
 
 		// Construct local index buffer for this mesh
 		IndexBufferArray.push_back(std::vector<FVertexInstanceID>());
@@ -191,12 +175,12 @@ FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const TArray<FMeshMer
 		IndexBuffer.reserve(MeshPolyCount * 3);
 		for (const FPolygonID& PolygonID : RawMesh->Polygons().GetElementIDs())
 		{
-			const auto& Triangles = RawMesh->GetPolygonTriangles(PolygonID);
-			for (const FMeshTriangle& Tri : Triangles)
+			const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
+			for (const FTriangleID TriangleID : TriangleIDs)
 			{
-				IndexBuffer.push_back(Tri.VertexInstanceID0);
-				IndexBuffer.push_back(Tri.VertexInstanceID1);
-				IndexBuffer.push_back(Tri.VertexInstanceID2);
+				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 0));
+				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 1));
+				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 2));
 			}
 		}
 
@@ -320,12 +304,11 @@ FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(
 	RawPoly.FaceMaterialIndex = RawMesh.GetPolygonPolygonGroup(PolygonID).GetValue();
 	RawPoly.FaceSmoothingMask = AttributesGetter->FaceSmoothingMasks[LocalFaceNumber];
 
-	for (const FMeshTriangle& Triangle : RawMesh.GetPolygonTriangles(PolygonID))
+	for (const FTriangleID TriangleID : RawMesh.GetPolygonTriangleIDs(PolygonID))
 	{
-		FVertexInstanceID VertexInstanceIDs[3];
+		TArrayView<const FVertexInstanceID> VertexInstanceIDs = RawMesh.GetTriangleVertexInstances(TriangleID);
 		for (int32 i = 0; i < 3; ++i)
 		{
-			VertexInstanceIDs[i] = Triangle.GetVertexInstanceID(i);
 			RawPoly.VertexPositions[i] = AttributesGetter->VertexPositions[RawMesh.GetVertexInstanceVertex(VertexInstanceIDs[i])];
 		}
 

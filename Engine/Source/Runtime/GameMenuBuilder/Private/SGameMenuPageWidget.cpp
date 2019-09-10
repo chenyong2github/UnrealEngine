@@ -942,12 +942,12 @@ FReply SGameMenuPageWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEve
 	if ((CurrentMenu.IsValid() == true) && !bControlsLocked)
 	{
 		bool bNavigationLocked = PendingMainMenu.IsValid() || PendingSubMenu.IsValid();
-		const FKey Key = InKeyEvent.GetKey();
-		EUINavigationAction NavAction = FSlateApplication::Get().GetNavigationActionForKey(Key);
+		const EUINavigation NavDirection = FSlateApplication::Get().GetNavigationDirectionFromKey(InKeyEvent);
+		const EUINavigationAction NavAction = FSlateApplication::Get().GetNavigationActionFromKey(InKeyEvent);
 
 		if (bNavigationLocked == false)
 		{
-			if (Key == EKeys::Up || Key == EKeys::Gamepad_DPad_Up || Key == EKeys::Gamepad_LeftStick_Up)
+			if (NavDirection == EUINavigation::Up)
 			{
 				if (SelectedIndex > 0)
 				{
@@ -955,7 +955,7 @@ FReply SGameMenuPageWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEve
 				}
 				Result = FReply::Handled();
 			}
-			else if (Key == EKeys::Down || Key == EKeys::Gamepad_DPad_Down || Key == EKeys::Gamepad_LeftStick_Down)
+			else if (NavDirection == EUINavigation::Down)
 			{
 				if (SelectedIndex + 1 < CurrentMenu->NumItems())
 				{
@@ -963,12 +963,12 @@ FReply SGameMenuPageWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEve
 				}
 				Result = FReply::Handled();
 			}
-			else if (Key == EKeys::Left || Key == EKeys::Gamepad_DPad_Left || Key == EKeys::Gamepad_LeftStick_Left)
+			else if (NavDirection == EUINavigation::Left)
 			{
 				ChangeOption(-1);
 				Result = FReply::Handled();
 			}
-			else if (Key == EKeys::Right || Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Gamepad_LeftStick_Right)
+			else if (NavDirection == EUINavigation::Right)
 			{
 				ChangeOption(1);
 				Result = FReply::Handled();
@@ -979,7 +979,7 @@ FReply SGameMenuPageWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEve
 			ConfirmMenuItem();
 			Result = FReply::Handled();
 		} 
-		else if (NavAction == EUINavigationAction::Back || Key == EKeys::Gamepad_Special_Left)
+		else if (NavAction == EUINavigationAction::Back || InKeyEvent.GetKey() == EKeys::Gamepad_Special_Left)
 		{
 			MenuGoBack(true);
 			Result = FReply::Handled();

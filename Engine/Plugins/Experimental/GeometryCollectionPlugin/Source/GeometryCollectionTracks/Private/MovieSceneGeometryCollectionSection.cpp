@@ -65,7 +65,7 @@ TOptional<TRange<FFrameNumber> > UMovieSceneGeometryCollectionSection::GetAutoSi
 }
 
 
-void UMovieSceneGeometryCollectionSection::TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft)
+void UMovieSceneGeometryCollectionSection::TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys)
 {
 	SetFlags(RF_Transactional);
 
@@ -78,22 +78,28 @@ void UMovieSceneGeometryCollectionSection::TrimSection(FQualifiedFrameTime TrimT
 			Params.StartFrameOffset = HasStartFrame() ? GetStartOffsetAtTrimTime(TrimTime, Params, GetInclusiveStartFrame(), FrameRate) : 0;
 		}
 
-		Super::TrimSection(TrimTime, bTrimLeft);
+		Super::TrimSection(TrimTime, bTrimLeft, bDeleteKeys);
 	}
 }
 
-UMovieSceneSection* UMovieSceneGeometryCollectionSection::SplitSection(FQualifiedFrameTime SplitTime)
+UMovieSceneSection* UMovieSceneGeometryCollectionSection::SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys)
 {
+	const FFrameNumber InitialStartFrameOffset = Params.StartFrameOffset;
+
 	FFrameRate FrameRate = GetTypedOuter<UMovieScene>()->GetTickResolution();
 
 	const FFrameNumber NewOffset = HasStartFrame() ? GetStartOffsetAtTrimTime(SplitTime, Params, GetInclusiveStartFrame(), FrameRate) : 0;
 
-	UMovieSceneSection* NewSection = Super::SplitSection(SplitTime);
+	UMovieSceneSection* NewSection = Super::SplitSection(SplitTime, bDeleteKeys);
 	if (NewSection != nullptr)
 	{
 		UMovieSceneGeometryCollectionSection* NewGeometrySection = Cast<UMovieSceneGeometryCollectionSection>(NewSection);
 		NewGeometrySection->Params.StartFrameOffset = NewOffset;
 	}
+
+	// Restore original offset modified by splitting
+	Params.StartFrameOffset = InitialStartFrameOffset;
+
 	return NewSection;
 }
 

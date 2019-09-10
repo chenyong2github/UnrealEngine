@@ -216,12 +216,12 @@ FDetailCategoryImpl& FDetailLayoutBuilderImpl::DefaultCategory( FName CategoryNa
 	return *CategoryImpl;
 }
 
-TSharedPtr<FDetailCategoryImpl> FDetailLayoutBuilderImpl::GetSubCategoryImpl(FName CategoryName)
+TSharedPtr<FDetailCategoryImpl> FDetailLayoutBuilderImpl::GetSubCategoryImpl(FName CategoryName) const
 {
 	return SubCategoryMap.FindRef(CategoryName);
 }
 
-bool FDetailLayoutBuilderImpl::HasCategory(FName CategoryName)
+bool FDetailLayoutBuilderImpl::HasCategory(FName CategoryName) const
 {
 	return DefaultCategoryMap.Contains(CategoryName);
 }
@@ -632,14 +632,14 @@ bool FDetailLayoutBuilderImpl::IsPropertyVisible( TSharedRef<IPropertyHandle> Pr
 	{
 		TArray<UObject*> OuterObjects;
 		PropertyHandle->GetOuterObjects(OuterObjects);
-
-		TArray<TWeakObjectPtr<UObject> > Objects;
+		
+		TArray<TWeakObjectPtr<UObject>> Objects;
 		for (auto OuterObject : OuterObjects)
 		{
 			Objects.Add(OuterObject);
 		}
 
-		FPropertyAndParent PropertyAndParent(*PropertyHandle->GetProperty(), PropertyHandle->GetParentHandle().IsValid() ? PropertyHandle->GetParentHandle()->GetProperty() : nullptr, Objects );
+		FPropertyAndParent PropertyAndParent(PropertyHandle, Objects);
 
 		return IsPropertyVisible(PropertyAndParent);
 	}

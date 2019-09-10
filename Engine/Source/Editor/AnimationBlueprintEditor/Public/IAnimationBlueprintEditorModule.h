@@ -20,7 +20,7 @@ public:
 	 *
 	 * Note: This function should not be called directly, use one of the following instead:
 	 *	- FKismetEditorUtilities::BringKismetToFocusAttentionOnObject
-	 *  - FAssetEditorManager::Get().OpenEditorForAsset
+	 *  - GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset
 	 *
 	 * @param	Mode					Mode that this editor should operate in
 	 * @param	InitToolkitHost			When Mode is WorldCentric, this is the level editor instance to spawn this editor within

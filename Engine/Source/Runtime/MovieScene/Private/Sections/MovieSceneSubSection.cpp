@@ -208,7 +208,7 @@ void UMovieSceneSubSection::PostEditChangeProperty(FPropertyChangedEvent& Proper
 }
 #endif
 
-UMovieSceneSection* UMovieSceneSubSection::SplitSection( FQualifiedFrameTime SplitTime )
+UMovieSceneSection* UMovieSceneSubSection::SplitSection( FQualifiedFrameTime SplitTime, bool bDeleteKeys)
 {
 	// GetRange is in owning sequence resolution so we check against the incoming SplitTime without converting it.
 	TRange<FFrameNumber> InitialRange = GetRange();
@@ -219,7 +219,7 @@ UMovieSceneSection* UMovieSceneSubSection::SplitSection( FQualifiedFrameTime Spl
 
 	FFrameNumber InitialStartOffset = Parameters.StartFrameOffset;
 
-	UMovieSceneSubSection* NewSection = Cast<UMovieSceneSubSection>( UMovieSceneSection::SplitSection( SplitTime ) );
+	UMovieSceneSubSection* NewSection = Cast<UMovieSceneSubSection>( UMovieSceneSection::SplitSection( SplitTime, bDeleteKeys ) );
 	if ( NewSection )
 	{
 		if (InitialRange.GetLowerBound().IsClosed())
@@ -254,6 +254,9 @@ UMovieSceneSection* UMovieSceneSubSection::SplitSection( FQualifiedFrameTime Spl
 		return NewSection;
 	}
 
+	// Restore original offset modified by splitting
+	Parameters.StartFrameOffset = InitialStartOffset;
+
 	return nullptr;
 }
 
@@ -273,7 +276,7 @@ TOptional<TRange<FFrameNumber> > UMovieSceneSubSection::GetAutoSizeRange() const
 	return Super::GetAutoSizeRange();
 }
 
-void UMovieSceneSubSection::TrimSection( FQualifiedFrameTime TrimTime, bool bTrimLeft )
+void UMovieSceneSubSection::TrimSection( FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys)
 {
 	TRange<FFrameNumber> InitialRange = GetRange();
 	if ( !InitialRange.Contains( TrimTime.Time.GetFrame() ) )
@@ -283,7 +286,7 @@ void UMovieSceneSubSection::TrimSection( FQualifiedFrameTime TrimTime, bool bTri
 
 	FFrameNumber InitialStartOffset = Parameters.StartFrameOffset;
 
-	UMovieSceneSection::TrimSection( TrimTime, bTrimLeft );
+	UMovieSceneSection::TrimSection( TrimTime, bTrimLeft, bDeleteKeys );
 
 	// If trimming off the left, set the offset of the shot
 	if ( bTrimLeft && InitialRange.GetLowerBound().IsClosed() )

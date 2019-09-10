@@ -10,6 +10,7 @@
 #include "Framework/DelayedDrag.h"
 
 class SSequencer;
+class SSequencerTrackArea;
 struct ISequencerHotspot;
 
 class FSequencerEditTool_Selection
@@ -21,7 +22,7 @@ public:
 	static const FName Identifier;
 
 	/** Create and initialize a new instance. */
-	FSequencerEditTool_Selection(FSequencer& InSequencer);
+	FSequencerEditTool_Selection(FSequencer& InSequencer, SSequencerTrackArea& InTrackArea);
 
 public:
 
@@ -64,6 +65,9 @@ private:
 
 	/** Cached mouse position for software cursor rendering */
 	FVector2D MousePosition;
+
+	/** TrackArea this object belongs to */
+	SSequencerTrackArea& TrackArea;
 
 	/** Software cursor decorator brush */
 	const FSlateBrush* CursorDecorator;

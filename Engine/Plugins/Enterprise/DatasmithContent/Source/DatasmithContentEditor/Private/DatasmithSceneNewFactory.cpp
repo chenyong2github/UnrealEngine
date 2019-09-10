@@ -13,7 +13,7 @@
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/SoftObjectPath.h"
 

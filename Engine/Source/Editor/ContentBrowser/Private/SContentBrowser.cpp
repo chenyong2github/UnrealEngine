@@ -55,6 +55,7 @@
 #include "AddToProjectConfig.h"
 #include "GameProjectGenerationModule.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -391,6 +392,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 						.ShowLeadingDelimiter(false)
 						.InvertTextColorOnHover(false)
 						.OnCrumbClicked(this, &SContentBrowser::OnPathClicked)
+						.HasCrumbMenuContent(this, &SContentBrowser::OnHasCrumbDelimiterContent)
 						.GetCrumbMenuContent(this, &SContentBrowser::OnGetCrumbDelimiterContent)
 						.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserPath")))
 					]
@@ -996,6 +998,17 @@ void SContentBrowser::PrepareToSync( const TArray<FAssetData>& AssetDataList, co
 				bDisplayEngine = true;
 				GetMutableDefault<UContentBrowserSettings>()->SetDisplayEngineFolder(true, true);
 				bRepopulate = true;
+
+				// Handle being a plugin as well
+				if (!bDisplayPlugins && (FolderCategory == ContentBrowserUtils::ECBFolderCategory::EngineContent))
+				{
+					EPluginLoadedFrom PluginSource;
+					if (ContentBrowserUtils::IsPluginFolder(PackagePath, &PluginSource))
+					{
+						bDisplayPlugins = true;
+						GetMutableDefault<UContentBrowserSettings>()->SetDisplayPluginFolders(true, true);
+					}
+				}
 			}
 			else if ( !bDisplayPlugins && (FolderCategory == ContentBrowserUtils::ECBFolderCategory::PluginContent || FolderCategory == ContentBrowserUtils::ECBFolderCategory::PluginClasses) )
 			{
@@ -1756,7 +1769,62 @@ void SContentBrowser::OnPathMenuItemClicked(FString ClickedPath)
 	OnPathClicked( ClickedPath );
 }
 
-TSharedPtr<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& CrumbData) const
+bool SContentBrowser::OnHasCrumbDelimiterContent(const FString& CrumbData) const
+{
+	const FSourcesData SourcesData = AssetViewPtr->GetSourcesData();
+	if (SourcesData.HasCollections())
+	{
+		TOptional<FCollectionNameType> CollectionClicked;
+		{
+			FString CollectionName;
+			FString CollectionTypeString;
+			if (CrumbData.Split(TEXT("?"), &CollectionName, &CollectionTypeString))
+			{
+				const int32 CollectionType = FCString::Atoi(*CollectionTypeString);
+				if (CollectionType >= 0 && CollectionType < ECollectionShareType::CST_All)
+				{
+					CollectionClicked = FCollectionNameType(FName(*CollectionName), ECollectionShareType::Type(CollectionType));
+				}
+			}
+		}
+
+		TArray<FCollectionNameType> ChildCollections;
+		if (CollectionClicked.IsSet())
+		{
+			FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
+			CollectionManagerModule.Get().GetChildCollections(CollectionClicked->Name, CollectionClicked->Type, ChildCollections);
+		}
+
+		return (ChildCollections.Num() > 0);
+	}
+	else if (SourcesData.HasPackagePaths())
+	{
+		TArray<FString> SubPaths;
+		const bool bRecurse = false;
+		if (ContentBrowserUtils::IsClassPath(CrumbData))
+		{
+			TSharedRef<FNativeClassHierarchy> NativeClassHierarchy = FContentBrowserSingleton::Get().GetNativeClassHierarchy();
+
+			FNativeClassHierarchyFilter ClassFilter;
+			ClassFilter.ClassPaths.Add(FName(*CrumbData));
+			ClassFilter.bRecursivePaths = bRecurse;
+
+			NativeClassHierarchy->GetMatchingFolders(ClassFilter, SubPaths);
+		}
+		else
+		{
+			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+			AssetRegistry.GetSubPaths(CrumbData, SubPaths, bRecurse);
+		}
+
+		return (SubPaths.Num() > 0);
+	}
+	return false;
+}
+
+TSharedRef<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& CrumbData) const
 {
 	FSourcesData SourcesData = AssetViewPtr->GetSourcesData();
 
@@ -1862,7 +1930,7 @@ TSharedPtr<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& C
 			];
 	}
 
-	return Widget;
+	return Widget.ToSharedRef();
 }
 
 TSharedRef<SWidget> SContentBrowser::GetPathPickerContent()
@@ -2127,7 +2195,20 @@ void SContentBrowser::OnAssetsActivated(const TArray<FAssetData>& ActivatedAsset
 		const TSharedRef<IAssetTypeActions>& TypeActions = TypeActionsIt.Key();
 		const TArray<UObject*>& ObjList = TypeActionsIt.Value();
 
-		TypeActions->AssetsActivated(ObjList, ActivationMethod);
+		if (!TypeActions->AssetsActivatedOverride(ObjList, ActivationMethod))
+		{
+			if (ActivationMethod == EAssetTypeActivationMethod::DoubleClicked || ActivationMethod == EAssetTypeActivationMethod::Opened)
+			{
+				if (ObjList.Num() == 1)
+				{
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ObjList[0]);
+				}
+				else if (ObjList.Num() > 1)
+				{
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(ObjList);
+				}
+			}
+		}
 	}
 
 	// Finally, open a simple asset editor for all assets which do not have asset type actions if activating with enter or double click

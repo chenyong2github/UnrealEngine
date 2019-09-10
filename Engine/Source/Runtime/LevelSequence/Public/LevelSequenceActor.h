@@ -86,6 +86,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="General")
 	TArray<AActor*> AdditionalEventReceivers;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Cameras", meta=(ShowOnlyInnerProperties))
+	FLevelSequenceCameraSettings CameraSettings;
+
 	UPROPERTY(Instanced, BlueprintReadOnly, Category="General")
 	ULevelSequenceBurnInOptions* BurnInOptions;
 

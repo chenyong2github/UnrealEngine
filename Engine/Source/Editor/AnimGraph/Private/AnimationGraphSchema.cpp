@@ -8,6 +8,7 @@
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimBlueprint.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "K2Node.h"
 #include "EdGraphSchema_K2_Actions.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -549,18 +550,17 @@ void UAnimationGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>&
 	}
 }
 
-void UAnimationGraphSchema::GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging) const
+void UAnimationGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	Super::GetContextMenuActions(CurrentGraph, InGraphNode, InGraphPin, MenuBuilder, bIsDebugging);
+	Super::GetContextMenuActions(Menu, Context);
 
-	if (const UAnimGraphNode_Base* AnimGraphNode = Cast<const UAnimGraphNode_Base>(InGraphNode))
+	if (const UAnimGraphNode_Base* AnimGraphNode = Cast<const UAnimGraphNode_Base>(Context->Node))
 	{
-		MenuBuilder->BeginSection("AnimGraphSchemaNodeActions", LOCTEXT("AnimNodeActionsMenuHeader", "Anim Node Actions"));
 		{
 			// Node contextual actions
-			MenuBuilder->AddMenuEntry(FAnimGraphCommands::Get().TogglePoseWatch);
+			FToolMenuSection& Section = Menu->AddSection("AnimGraphSchemaNodeActions", LOCTEXT("AnimNodeActionsMenuHeader", "Anim Node Actions"));
+			Section.AddMenuEntry(FAnimGraphCommands::Get().TogglePoseWatch);
 		}
-		MenuBuilder->EndSection();
 	}
 }
 
