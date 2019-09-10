@@ -84,6 +84,8 @@ public:
 
 	/** Returns number of texture layers in the virtual texture */
 	int32 GetLayerCount() const;
+	/** Returns number of texture layers in the virtual texture of a given material type */
+	static int32 GetLayerCount(ERuntimeVirtualTextureMaterialType InMaterialType);
 	/** Returns the texture format for the virtual texture layer */
 	EPixelFormat GetLayerFormat(int32 LayerIndex) const;
 	/** Return true if the virtual texture layer should be sampled as sRGB */
@@ -103,7 +105,7 @@ public:
 	IAllocatedVirtualTexture* GetAllocatedVirtualTexture() const;
 
 	/** Getter for the shader uniform parameters. */
-	FVector4 GetUniformParameter(int32 Index);
+	FVector4 GetUniformParameter(int32 Index) const;
 
 #if WITH_EDITOR
 	/** Get a hash of the current state to use for streaming texture invalidation. */
