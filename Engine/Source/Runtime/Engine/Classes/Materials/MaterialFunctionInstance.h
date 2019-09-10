@@ -61,6 +61,10 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 	UPROPERTY(EditAnywhere, Category=MaterialFunctionInstance)
 	TArray<struct FStaticComponentMaskParameter> StaticComponentMaskParameterValues;
 
+	/** Runtime virtual texture parameters. */
+	UPROPERTY(EditAnywhere, Category = MaterialFunctionInstance)
+	TArray<struct FRuntimeVirtualTextureParameterValue> RuntimeVirtualTextureParameterValues;
+
 	ENGINE_API void UpdateParameterSet();
 #if WITH_EDITOR
 	ENGINE_API void OverrideMaterialInstanceParameterValues(class UMaterialInstance* Instance);
@@ -160,6 +164,7 @@ public:
 	virtual bool OverrideNamedScalarParameter(const FMaterialParameterInfo& ParameterInfo, float& OutValue) override;
 	virtual bool OverrideNamedVectorParameter(const FMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue) override;
 	virtual bool OverrideNamedTextureParameter(const FMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue) override;
+	virtual bool OverrideNamedRuntimeVirtualTextureParameter(const FMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture*& OutValue) override;
 	virtual bool OverrideNamedFontParameter(const FMaterialParameterInfo& ParameterInfo, class UFont*& OutFontValue, int32& OutFontPage) override;
 	virtual bool OverrideNamedStaticSwitchParameter(const FMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid) override;
 	virtual bool OverrideNamedStaticComponentMaskParameter(const FMaterialParameterInfo& ParameterInfo, bool& OutR, bool& OutG, bool& OutB, bool& OutA, FGuid& OutExpressionGuid) override;
