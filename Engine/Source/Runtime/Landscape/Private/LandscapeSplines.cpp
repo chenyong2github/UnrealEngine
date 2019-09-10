@@ -1761,6 +1761,34 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 			MeshComponent->SetCastShadow(bCastShadow);
 		}
 
+		if (MeshComponent->RuntimeVirtualTextures != RuntimeVirtualTextures)
+		{
+			MeshComponent->Modify();
+			MeshComponent->RuntimeVirtualTextures = RuntimeVirtualTextures;
+			MeshComponent->MarkRenderStateDirty();
+		}
+
+		if (MeshComponent->VirtualTextureLodBias != VirtualTextureLodBias)
+		{
+			MeshComponent->Modify();
+			MeshComponent->VirtualTextureLodBias = VirtualTextureLodBias;
+			MeshComponent->MarkRenderStateDirty();
+		}
+		
+		if (MeshComponent->VirtualTextureCullMips != VirtualTextureCullMips)
+		{
+			MeshComponent->Modify();
+			MeshComponent->VirtualTextureCullMips = VirtualTextureCullMips;
+			MeshComponent->MarkRenderStateDirty();
+		}
+
+		if (MeshComponent->VirtualTextureRenderPassType != VirtualTextureRenderPassType)
+		{
+			MeshComponent->Modify();
+			MeshComponent->VirtualTextureRenderPassType = VirtualTextureRenderPassType;
+			MeshComponent->MarkRenderStateDirty();
+		}
+
 		if (bComponentNeedsRegistering)
 		{
 			MeshComponent->RegisterComponent();
