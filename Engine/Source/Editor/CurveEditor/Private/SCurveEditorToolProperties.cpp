@@ -64,6 +64,11 @@ void SCurveEditorToolProperties::RebuildProperties()
 			ToolOptions = CurveEditor->GetToolExtensions()[ToolId]->GetToolOptions();
 			DetailsView->SetStructureData(ToolOptions);
 		}
+		else
+		{
+			ToolOptions = nullptr;
+			DetailsView->SetStructureData(nullptr);
+		}
 	}
 }
 
