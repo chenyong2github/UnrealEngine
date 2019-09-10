@@ -6,6 +6,25 @@
 #include "NiagaraConstants.h"
 #include "NiagaraBoundsCalculatorHelper.h"
 
+FNiagaraMeshMaterialOverride::FNiagaraMeshMaterialOverride()
+{
+	FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
+	UserParamBinding.Parameter.SetType(MaterialDef);
+}
+
+bool FNiagaraMeshMaterialOverride::SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
+{
+	// We have to handle the fact that UNiagaraMeshRendererProperties OverrideMaterials just used to be an array of UMaterialInterfaces
+	if (Tag.Type == NAME_ObjectProperty)
+	{
+		Slot << ExplicitMat;
+		return true;
+	}
+
+	return false;
+}
+
+
 UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	: ParticleMesh(nullptr)
 	, SortMode(ENiagaraSortMode::ViewDistance)
@@ -75,7 +94,9 @@ void UNiagaraMeshRendererProperties::InitBindings()
 	}
 }
 
-void UNiagaraMeshRendererProperties::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials) const
+
+
+void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
 	if (ParticleMesh)
 	{
@@ -87,9 +108,27 @@ void UNiagaraMeshRendererProperties::GetUsedMaterials(TArray<UMaterialInterface*
 				const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
 				UMaterialInterface* ParticleMeshMaterial = ParticleMesh->GetMaterial(Section.MaterialIndex);
 
-				if (Section.MaterialIndex >= 0 && OverrideMaterials.Num() > Section.MaterialIndex && OverrideMaterials[Section.MaterialIndex] != nullptr)
+				if (Section.MaterialIndex >= 0 && OverrideMaterials.Num() > Section.MaterialIndex)
 				{
-					OutMaterials.Add(OverrideMaterials[Section.MaterialIndex]);
+					bool bSet = false;
+					
+					// UserParamBinding, if mapped to a real value, always wins. Otherwise, use the ExplictMat if it is set. Finally, fall
+					// back to the particle mesh material. This allows the user to effectively optionally bind to a Material binding
+					// and still have good defaults if it isn't set to anything.
+					if (OverrideMaterials[Section.MaterialIndex].UserParamBinding.Parameter.IsValid() && InEmitter->FindBinding(OverrideMaterials[Section.MaterialIndex].UserParamBinding, OutMaterials))
+					{
+						bSet = true;
+					}
+					else if (OverrideMaterials[Section.MaterialIndex].ExplicitMat != nullptr)
+					{
+						bSet = true;
+						OutMaterials.Add(OverrideMaterials[Section.MaterialIndex].ExplicitMat);
+					}
+
+					if (!bSet)
+					{
+						OutMaterials.Add(ParticleMeshMaterial);
+					}
 				}
 				else
 				{
@@ -113,6 +152,12 @@ uint32 UNiagaraMeshRendererProperties::GetNumIndicesPerInstance() const
 {
 	// TODO: Add proper support for multiple mesh sections for GPU mesh particles.
 	return ParticleMesh ? ParticleMesh->RenderData->LODResources[0].Sections[0].NumTriangles * 3 : 0;
+}
+
+
+void UNiagaraMeshRendererProperties::PostLoad()
+{
+	Super::PostLoad();
 }
 
 

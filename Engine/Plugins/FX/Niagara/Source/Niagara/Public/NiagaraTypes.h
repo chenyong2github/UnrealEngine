@@ -564,6 +564,7 @@ public:
 	static const FNiagaraTypeDefinition& GetParameterMapDef() { return ParameterMapDef; }
 	static const FNiagaraTypeDefinition& GetIDDef() { return IDDef; }
 	static const FNiagaraTypeDefinition& GetUObjectDef() { return UObjectDef; }
+	static const FNiagaraTypeDefinition& GetUMaterialDef() { return UMaterialDef; }
 
 	static UScriptStruct* GetFloatStruct() { return FloatStruct; }
 	static UScriptStruct* GetBoolStruct() { return BoolStruct; }
@@ -617,6 +618,7 @@ private:
 	static FNiagaraTypeDefinition ParameterMapDef;
 	static FNiagaraTypeDefinition IDDef;
 	static FNiagaraTypeDefinition UObjectDef;
+	static FNiagaraTypeDefinition UMaterialDef;
 
 	static UScriptStruct* FloatStruct;
 	static UScriptStruct* BoolStruct;
@@ -630,6 +632,7 @@ private:
 	static UScriptStruct* NumericStruct;
 
 	static UClass* UObjectClass;
+	static UClass* UMaterialClass;
 
 	static UEnum* SimulationTargetEnum;
 	static UEnum* ScriptUsageEnum;
