@@ -265,14 +265,14 @@ private:
 template<typename TextureType>
 static TextureType* GetIndexedTexture(const FMaterial& Material, int32 TextureIndex)
 {
-	TextureType* IndexedTexture = NULL;
-
+	UObject* IndexedTexture = nullptr;
 	const TArray<UObject*>& ReferencedTextures = Material.GetReferencedTextures();
 	if (ReferencedTextures.IsValidIndex(TextureIndex))
 	{
-		IndexedTexture = Cast<TextureType>(ReferencedTextures[TextureIndex]);
+		IndexedTexture = ReferencedTextures[TextureIndex];
 	}
-	else
+
+	if (IndexedTexture == nullptr)
 	{
 		static bool bWarnedOnce = false;
 		if (!bWarnedOnce)
@@ -282,17 +282,8 @@ static TextureType* GetIndexedTexture(const FMaterial& Material, int32 TextureIn
 		}
 	}
 
-	if (IndexedTexture == nullptr)
-	{
-		static bool bWarnedOnce = false;
-		if (!bWarnedOnce)
-		{
-			UE_LOG(LogMaterial, Warning, TEXT("%s: GetIndexedTexture returning NULL (%u)"), *Material.GetFriendlyName(), TextureIndex);
-			bWarnedOnce = true;
-		}
-	}
-
-	return IndexedTexture;
+	// Can return nullptr if TextureType doesn't match type of indexed texture
+	return Cast<TextureType>(IndexedTexture);
 }
 
 /**
