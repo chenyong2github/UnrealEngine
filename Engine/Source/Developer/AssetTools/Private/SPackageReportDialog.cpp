@@ -9,6 +9,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
 #include "EditorStyleSet.h"
 #include "Interfaces/IMainFrameModule.h"
@@ -24,20 +25,28 @@ struct FCompareFPackageReportNodeByName
 };
 
 FPackageReportNode::FPackageReportNode()
-	: bIsFolder(false)
+	: bIsChecked(true)
+	, bIsActive(true)
+	, bShouldMigratePackage(nullptr)
+	, bIsFolder(false)
+	, Parent(nullptr)
 {}
 
 FPackageReportNode::FPackageReportNode(const FString& InNodeName, bool InIsFolder)
 	: NodeName(InNodeName)
+	, bIsChecked(true)
+	, bIsActive(true)
+	, bShouldMigratePackage(nullptr)
 	, bIsFolder(InIsFolder)
+	, Parent(nullptr)
 {}
 
-void FPackageReportNode::AddPackage(const FString& PackageName)
+void FPackageReportNode::AddPackage(const FString& PackageName, bool* bInShouldMigratePackage)
 {
 	TArray<FString> PathElements;
 	PackageName.ParseIntoArray(PathElements, TEXT("/"), /*InCullEmpty=*/true);
 
-	return AddPackage_Recursive(PathElements);
+	return AddPackage_Recursive(PathElements, bInShouldMigratePackage);
 }
 
 void FPackageReportNode::ExpandChildrenRecursively(const TSharedRef<PackageReportTree>& Treeview)
@@ -49,7 +58,7 @@ void FPackageReportNode::ExpandChildrenRecursively(const TSharedRef<PackageRepor
 	}
 }
 
-void FPackageReportNode::AddPackage_Recursive(TArray<FString>& PathElements)
+void FPackageReportNode::AddPackage_Recursive(TArray<FString>& PathElements, bool* bInShouldMigratePackage)
 {
 	if ( PathElements.Num() > 0 )
 	{
@@ -74,18 +83,23 @@ void FPackageReportNode::AddPackage_Recursive(TArray<FString>& PathElements)
 			const bool bIsAFolder = (PathElements.Num() > 0);
 			int32 ChildIdx = Children.Add( MakeShareable(new FPackageReportNode(ChildNodeName, bIsAFolder)) );
 			Child = Children[ChildIdx];
+			Child.Get()->Parent = this;
 			Children.Sort( FCompareFPackageReportNodeByName() );
 		}
 
 		if ( ensure(Child.IsValid()) )
 		{
-			Child->AddPackage_Recursive(PathElements);
+			Child->AddPackage_Recursive(PathElements, bInShouldMigratePackage);
 		}
+	}
+	else 
+	{
+		bShouldMigratePackage = bInShouldMigratePackage;
 	}
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void SPackageReportDialog::Construct( const FArguments& InArgs, const FText& InReportMessage, const TArray<FString>& InPackageNames, const FOnReportConfirmed& InOnReportConfirmed )
+void SPackageReportDialog::Construct( const FArguments& InArgs, const FText& InReportMessage, TArray<ReportPackageData>& InPackageNames, const FOnReportConfirmed& InOnReportConfirmed )
 {
 	OnReportConfirmed = InOnReportConfirmed;
 	FolderOpenBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderOpen");
@@ -165,7 +179,7 @@ void SPackageReportDialog::Construct( const FArguments& InArgs, const FText& InR
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void SPackageReportDialog::OpenPackageReportDialog(const FText& ReportMessage, const TArray<FString>& PackageNames, const FOnReportConfirmed& InOnReportConfirmed)
+void SPackageReportDialog::OpenPackageReportDialog(const FText& ReportMessage, TArray<ReportPackageData>& PackageNames, const FOnReportConfirmed& InOnReportConfirmed)
 {
 	TSharedRef<SWindow> ReportWindow = SNew(SWindow)
 		.Title(LOCTEXT("ReportWindowTitle", "Asset Report"))
@@ -175,7 +189,7 @@ void SPackageReportDialog::OpenPackageReportDialog(const FText& ReportMessage, c
 		[
 			SNew(SPackageReportDialog, ReportMessage, PackageNames, InOnReportConfirmed)
 		];
-
+		
 	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
 	if ( MainFrameModule.GetParentWindow().IsValid() )
 	{
@@ -197,7 +211,7 @@ void SPackageReportDialog::CloseDialog()
 	}
 }
 
-TSharedRef<ITableRow> SPackageReportDialog::GenerateTreeRow( TSharedPtr<FPackageReportNode> TreeItem, const TSharedRef<STableViewBase>& OwnerTable )
+TSharedRef<ITableRow> SPackageReportDialog::GenerateTreeRow( TSharedPtr<FPackageReportNode> TreeItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	check(TreeItem.IsValid());
 
@@ -210,16 +224,57 @@ TSharedRef<ITableRow> SPackageReportDialog::GenerateTreeRow( TSharedPtr<FPackage
 			+SHorizontalBox::Slot()
 			.AutoWidth()
 			[
-				SNew(SImage).Image( IconBrush )
-			]
+				SNew(SCheckBox)
+				.OnCheckStateChanged(this, &SPackageReportDialog::CheckBoxStateChanged, TreeItem, OwnerTable)
+				.IsChecked(this, &SPackageReportDialog::GetEnabledCheckState, TreeItem)
+				.IsEnabled(TreeItem.Get()->Parent == nullptr ? true : TreeItem.Get()->Parent->bIsActive)
 
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SImage).Image(IconBrush)
+			]
 			// Name
 			+SHorizontalBox::Slot()
 			.FillWidth(1.f)
 			[
 				SNew(STextBlock).Text(FText::FromString(TreeItem->NodeName))
+				.ColorAndOpacity(TreeItem.Get()->bIsActive ? FSlateColor::UseForeground() : FSlateColor::UseSubduedForeground())
 			]
 		];
+}
+
+ECheckBoxState SPackageReportDialog::GetEnabledCheckState(TSharedPtr<FPackageReportNode> TreeItem) const
+{
+	return TreeItem.Get()->bIsChecked ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SPackageReportDialog::SetStateRecursive(TSharedPtr<FPackageReportNode> TreeItem, bool bWasChecked)
+{
+	if (TreeItem.Get() == nullptr) return;
+
+	TreeItem.Get()->bIsActive = bWasChecked && TreeItem.Get()->bIsChecked;
+	if (TreeItem.Get()->bShouldMigratePackage)
+	{
+		*(TreeItem.Get()->bShouldMigratePackage) = TreeItem.Get()->bIsActive;
+	}
+
+	TArray< TSharedPtr<FPackageReportNode> > Children;
+	GetChildrenForTree(TreeItem, Children);
+	for (int i = 0; i < Children.Num(); i++)
+	{
+		if (Children[i].Get() == nullptr) continue;
+
+		SetStateRecursive(Children[i], TreeItem.Get()->bIsActive);
+	}
+}
+
+void SPackageReportDialog::CheckBoxStateChanged(ECheckBoxState InCheckBoxState, TSharedPtr<FPackageReportNode> TreeItem, TSharedRef<STableViewBase> OwnerTable)
+{
+	TreeItem.Get()->bIsChecked = InCheckBoxState == ECheckBoxState::Checked;
+	SetStateRecursive(TreeItem, InCheckBoxState == ECheckBoxState::Checked);
+	OwnerTable.Get().RebuildList();
 }
 
 void SPackageReportDialog::GetChildrenForTree( TSharedPtr<FPackageReportNode> TreeItem, TArray< TSharedPtr<FPackageReportNode> >& OutChildren )
@@ -227,11 +282,11 @@ void SPackageReportDialog::GetChildrenForTree( TSharedPtr<FPackageReportNode> Tr
 	OutChildren = TreeItem->Children;
 }
 
-void SPackageReportDialog::ConstructNodeTree(const TArray<FString>& PackageNames)
+void SPackageReportDialog::ConstructNodeTree(TArray<ReportPackageData>& PackageNames)
 {
-	for ( auto PackageIt = PackageNames.CreateConstIterator(); PackageIt; ++PackageIt )
+	for (ReportPackageData& Package : PackageNames)
 	{
-		PackageReportRootNode.AddPackage(*PackageIt);
+		PackageReportRootNode.AddPackage(Package.Name, &Package.bShouldMigratePackage);
 	}
 }
 
