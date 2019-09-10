@@ -77,6 +77,7 @@ FSlateMaterialShaderPS::FSlateMaterialShaderPS(const FMaterialShaderType::Compil
 {
 	ShaderParams.Bind(Initializer.ParameterMap, TEXT("ShaderParams"));
 	GammaAndAlphaValues.Bind(Initializer.ParameterMap, TEXT("GammaAndAlphaValues"));
+	DrawFlags.Bind(Initializer.ParameterMap, TEXT("DrawFlags"));
 	AdditionalTextureParameter.Bind(Initializer.ParameterMap, TEXT("ElementTexture"));
 	TextureParameterSampler.Bind(Initializer.ParameterMap, TEXT("ElementTextureSampler"));
 }
@@ -139,10 +140,18 @@ void FSlateMaterialShaderPS::SetDisplayGammaAndContrast(FRHICommandList& RHICmdL
 	SetShaderValue(RHICmdList, GetPixelShader(), GammaAndAlphaValues, InGammaValues);
 }
 
+void FSlateMaterialShaderPS::SetDrawFlags(FRHICommandList& RHICmdList, bool bDrawDisabledEffect)
+{
+	FVector4 InDrawFlags(bDrawDisabledEffect ? 1 : 0, 0, 0, 0);
+
+	SetShaderValue(RHICmdList, GetPixelShader(), DrawFlags, InDrawFlags);
+}
+
 bool FSlateMaterialShaderPS::Serialize(FArchive& Ar)
 {
 	bool bShaderHasOutdatedParameters = FMaterialShader::Serialize(Ar);
 	Ar << GammaAndAlphaValues;
+	Ar << DrawFlags;
 	Ar << ShaderParams;
 	Ar << TextureParameterSampler;
 	Ar << AdditionalTextureParameter;
@@ -159,17 +168,12 @@ IMPLEMENT_SLATE_VERTEXMATERIALSHADER_TYPE(true);
 /** Non instancing vertex shader */
 IMPLEMENT_SLATE_VERTEXMATERIALSHADER_TYPE(false);
 
-#define IMPLEMENT_SLATE_MATERIALSHADER_TYPE(ShaderType, bDrawDisabledEffect) \
-	typedef TSlateMaterialShaderPS<ESlateShader::ShaderType, bDrawDisabledEffect> TSlateMaterialShaderPS##ShaderType##bDrawDisabledEffect; \
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TSlateMaterialShaderPS##ShaderType##bDrawDisabledEffect, TEXT("/Engine/Private/SlateElementPixelShader.usf"), TEXT("Main"), SF_Pixel);
+#define IMPLEMENT_SLATE_MATERIALSHADER_TYPE(ShaderType) \
+	typedef TSlateMaterialShaderPS<ESlateShader::ShaderType> TSlateMaterialShaderPS##ShaderType; \
+	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TSlateMaterialShaderPS##ShaderType, TEXT("/Engine/Private/SlateElementPixelShader.usf"), TEXT("Main"), SF_Pixel);
 
-IMPLEMENT_SLATE_MATERIALSHADER_TYPE(Custom, false)
-
-IMPLEMENT_SLATE_MATERIALSHADER_TYPE(Default, true);
-IMPLEMENT_SLATE_MATERIALSHADER_TYPE(Default, false);
-IMPLEMENT_SLATE_MATERIALSHADER_TYPE(Border, true);
-IMPLEMENT_SLATE_MATERIALSHADER_TYPE(Border, false);
-IMPLEMENT_SLATE_MATERIALSHADER_TYPE(GrayscaleFont, true);
-IMPLEMENT_SLATE_MATERIALSHADER_TYPE(GrayscaleFont, false);
-IMPLEMENT_SLATE_MATERIALSHADER_TYPE(ColorFont, true);
-IMPLEMENT_SLATE_MATERIALSHADER_TYPE(ColorFont, false);
+IMPLEMENT_SLATE_MATERIALSHADER_TYPE(Custom)
+IMPLEMENT_SLATE_MATERIALSHADER_TYPE(Default);
+IMPLEMENT_SLATE_MATERIALSHADER_TYPE(Border);
+IMPLEMENT_SLATE_MATERIALSHADER_TYPE(GrayscaleFont);
+IMPLEMENT_SLATE_MATERIALSHADER_TYPE(ColorFont);
