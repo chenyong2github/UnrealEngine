@@ -914,6 +914,9 @@ public:
 
 	// IES light profiles
 	FIESLightProfileResource IESLightProfileResources;
+
+	TRefCountPtr<FPooledRDGBuffer> GatherPointsBuffer;
+	FIntPoint GatherPointsResolution;
 #endif
 
 	// cache for stencil reads to a avoid reallocations of the SRV, Key is to detect if the object has changed
