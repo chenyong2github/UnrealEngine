@@ -132,6 +132,8 @@ struct FNiagaraSystemSimulationTickContext
 	bool bPendingSpawnPass;
 	FGraphEventRef MyCompletionGraphEvent;
 
+	FGraphEventRef FinalizeCompleteGraphEvent;
+
 	bool bTickAsync;
 	bool bTickInstancesAsync;
 
@@ -282,11 +284,10 @@ protected:
 	uint32 bCanExecute : 1;
 	uint32 bBindingsInitialized : 1;
 	uint32 bInSpawnPhase : 1;
+	uint32 bIsSolo : 1;
 
 	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
 	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;
-
-	bool bIsSolo;
 
 	TOptional<float> MaxDeltaTime;
 
