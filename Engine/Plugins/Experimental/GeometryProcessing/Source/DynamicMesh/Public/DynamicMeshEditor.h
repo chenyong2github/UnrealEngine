@@ -201,6 +201,15 @@ public:
 	 */
 	bool RemoveTriangles(const TArray<int>& Triangles, bool bRemoveIsolatedVerts);
 
+	/**
+	 * Remove a list of triangles from the mesh, and optionally any vertices that are now orphaned
+	 * @param Triangles the triangles to remove
+	 * @param bRemoveIsolatedVerts if true, remove vertices that end up with no triangles
+	 * @param OnRemoveTriFunc called for each triangle to be removed
+	 * @return true if all removes succeeded
+	 */
+	bool RemoveTriangles(const TArray<int>& Triangles, bool bRemoveIsolatedVerts, TFunctionRef<void(int)> OnRemoveTriFunc);
+
 
 	//////////////////////////////////////////////////////////////////////////
 	// Normal utility functions
@@ -373,6 +382,20 @@ public:
 		const FDynamicMeshUVOverlay* FromUVs, FDynamicMeshUVOverlay* ToUVs,
 		const FIndexMapi& VertexMap, const FIndexMapi& TriangleMap,
 		FIndexMapi& UVMapOut);
+
+
+
+
+	/**
+	 * Append triangles of an existing mesh. This duplicates the current groups and also any attributes existing on the triangles.
+	 * @param SourceMesh the mesh to copy from
+	 * @param SourceTriangles the triangles to copy
+	 * @param IndexMaps returned mappings from old to new triangles/vertices/etc (you may initialize to optimize memory usage, etc)
+	 * @param ResultOut lists of newly created triangles/vertices/etc
+	 */
+	void AppendTriangles(const FDynamicMesh3* SourceMesh, const TArray<int>& SourceTriangles, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
+
+
 };
 
 
