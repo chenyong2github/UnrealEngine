@@ -170,5 +170,5 @@ private:
 	FCurveEditorMultiScaleWidget MultiScaleWidget;
 
 private:
-	void GetPivot(FCurveModel* InCurve, FKeyData& InOutKeyData);
+	FVector2D GetPivot(FCurveModel* InCurve, const TArray<FKeyPosition>& InKeyPositions) const;
 };
