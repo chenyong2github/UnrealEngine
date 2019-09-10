@@ -174,7 +174,7 @@ struct FStreamingRenderAsset
 		// In editor, forced stream in should never have reduced mips as they can be edited.
 		return (IsMesh() || LODGroup != TEXTUREGROUP_HierarchicalLOD)
 			&& !bIsTerrainTexture
-			&& !bIgnoreStreamingMipBias
+			&& !(bForceFullyLoadHeuristic && bIgnoreStreamingMipBias)
 			&& !(GIsEditor && bForceFullyLoadHeuristic); 
 	}
 
@@ -286,7 +286,7 @@ struct FStreamingRenderAsset
 	uint32			bReadyForStreaming : 1;
 	/** (2) Whether the texture should be forcibly fully loaded. */
 	uint32			bForceFullyLoad : 1;
-	/** (2) Whether the texture resolution should be affected by the memory budget. */
+	/** (2) Whether the texture resolution should be affected by the memory budget. Only effective when forced fully resident. */
 	uint32			bIgnoreStreamingMipBias : 1;
 
 	/** (3) Whether the texture is currently being streamed in/out. */
