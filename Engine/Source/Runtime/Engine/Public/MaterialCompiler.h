@@ -331,11 +331,11 @@ public:
 	virtual int32 EyeAdaptation() = 0;
 	virtual int32 AtmosphericLightVector() = 0;
 	virtual int32 AtmosphericLightColor() = 0;
-	virtual int32 SkyAtmosphereLightIlluminance(int32 LightIndex) = 0;
+	virtual int32 SkyAtmosphereLightIlluminance(int32 WorldPosition, int32 LightIndex) = 0;
 	virtual int32 SkyAtmosphereLightDirection(int32 LightIndex) = 0;
 	virtual int32 SkyAtmosphereLightDiskLuminance(int32 LightIndex) = 0;
 	virtual int32 SkyAtmosphereViewLuminance() = 0;
-	virtual int32 SkyAtmosphereAerialPerspective() = 0;
+	virtual int32 SkyAtmosphereAerialPerspective(int32 WorldPosition) = 0;
 	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() = 0;
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) = 0;
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) = 0;
@@ -610,9 +610,9 @@ public:
 		return Compiler->AtmosphericLightColor();
 	}
 
-	virtual int32 SkyAtmosphereLightIlluminance(int32 LightIndex) override
+	virtual int32 SkyAtmosphereLightIlluminance(int32 WorldPosition, int32 LightIndex) override
 	{
-		return Compiler->SkyAtmosphereLightIlluminance(LightIndex);
+		return Compiler->SkyAtmosphereLightIlluminance(WorldPosition, LightIndex);
 	}
 
 	virtual int32 SkyAtmosphereLightDirection(int32 LightIndex) override
@@ -630,9 +630,9 @@ public:
 		return Compiler->SkyAtmosphereViewLuminance();
 	}
 
-	virtual int32 SkyAtmosphereAerialPerspective() override
+	virtual int32 SkyAtmosphereAerialPerspective(int32 WorldPosition) override
 	{
-		return Compiler->SkyAtmosphereAerialPerspective();
+		return Compiler->SkyAtmosphereAerialPerspective(WorldPosition);
 	}
 
 	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() override
