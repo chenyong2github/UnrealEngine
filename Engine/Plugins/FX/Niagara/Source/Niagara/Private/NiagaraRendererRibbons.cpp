@@ -210,7 +210,6 @@ void FNiagaraRendererRibbons::ReleaseRenderThreadResources(NiagaraEmitterInstanc
 {
 	FNiagaraRenderer::ReleaseRenderThreadResources(Batcher);
 	VertexFactory->ReleaseResource();
-	WorldSpacePrimitiveUniformBuffer.ReleaseResource();
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
@@ -850,7 +849,7 @@ void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(
 	MeshElement.NumInstances = 1;
 	MeshElement.MinVertexIndex = 0;
 	MeshElement.MaxVertexIndex = 0;
-	MeshElement.PrimitiveUniformBuffer = WorldSpacePrimitiveUniformBuffer.GetUniformBufferRHI();
+	MeshElement.PrimitiveUniformBuffer = SceneProxy->GetUniformBuffer();
 
 }
 
