@@ -23,6 +23,7 @@ static const FName NumCellsFunctionName("GetNumCells");
 static const FName CellSizeFunctionName("GetCellSize");
 
 static const FName WorldToUnitFunctionName("WorldToUnit");
+static const FName UnitToWorldFunctionName("UnitToWorld");
 static const FName UnitToIndexFunctionName("UnitToIndex");
 static const FName IndexToUnitFunctionName("IndexToUnit");
 static const FName IndexToUnitStaggeredXFunctionName("IndexToUnitStaggeredX");
