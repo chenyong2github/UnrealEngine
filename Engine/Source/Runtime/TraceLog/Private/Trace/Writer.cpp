@@ -4,6 +4,7 @@
 
 #if UE_TRACE_ENABLED
 
+#include "Trace/Platform.h"
 #include "Trace/Trace.h"
 #include "Misc/CString.h"
 
@@ -18,28 +19,6 @@
 
 namespace Trace {
 namespace Private {
-
-////////////////////////////////////////////////////////////////////////////////
-uint8*	MemoryReserve(SIZE_T);
-void	MemoryFree(void*, SIZE_T);
-void	MemoryMap(void*, SIZE_T);
-UPTRINT	TcpSocketConnect(const ANSICHAR*, uint16);
-UPTRINT	TcpSocketListen(uint16);
-int32	TcpSocketAccept(UPTRINT, UPTRINT&);
-bool	TcpSocketHasData(UPTRINT);
-int32	IoRead(UPTRINT, void*, uint32);
-bool	IoWrite(UPTRINT, const void*, uint32);
-void	IoClose(UPTRINT);
-UPTRINT	FileOpen(const ANSICHAR*, const ANSICHAR*);
-UPTRINT	ThreadCreate(const ANSICHAR*, void (*)());
-uint32	ThreadGetCurrentId();
-void	ThreadSleep(uint32 Milliseconds);
-void	ThreadJoin(UPTRINT);
-void	ThreadDestroy(UPTRINT);
-uint64	TimeGetFrequency();
-uint64	TimeGetTimestamp();
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 inline void Writer_Yield()
