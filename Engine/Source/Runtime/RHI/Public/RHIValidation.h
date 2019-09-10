@@ -981,6 +981,21 @@ public:
 		return RHI->RHIGetFMaskTexture(SourceTextureRHI);
 	}
 
+	virtual void RHIAliasTextureResources(FRHITexture* DestTexture, FRHITexture* SourceTexture) override final
+	{
+		// Source and target need to be valid objects.
+		check(DestTexture && SourceTexture);
+		// Source texture must have been created (i.e. have a native resource backing).
+		check(SourceTexture->GetNativeResource() != nullptr);
+		RHI->RHIAliasTextureResources(DestTexture, SourceTexture);
+	}
+
+	virtual FTextureRHIRef RHICreateAliasedTexture(FRHITexture* SourceTexture) override final
+	{
+		check(SourceTexture);
+		return RHI->RHICreateAliasedTexture(SourceTexture);
+	}
+
 	// Only relevant with an RHI thread, this advances the backbuffer for the purpose of GetViewportBackBuffer
 	// FlushType: Thread safe
 	virtual void RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport) override final

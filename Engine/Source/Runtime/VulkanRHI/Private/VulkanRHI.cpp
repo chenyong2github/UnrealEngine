@@ -1038,6 +1038,29 @@ void FVulkanDynamicRHI::RHIAliasTextureResources(FRHITexture* DestTextureRHI, FR
 	}
 }
 
+FTextureRHIRef FVulkanDynamicRHI::RHICreateAliasedTexture(FRHITexture* SourceTexture)
+{
+	FTextureRHIRef AliasedTexture;
+	if (SourceTexture->GetTexture2D() != nullptr)
+	{
+		AliasedTexture = new FVulkanTexture2D(static_cast<FVulkanTexture2D*>(SourceTexture));
+	}
+	else if (SourceTexture->GetTexture2DArray() != nullptr)
+	{
+		AliasedTexture = new FVulkanTexture2DArray(static_cast<FVulkanTexture2DArray*>(SourceTexture));
+	}
+	else if (SourceTexture->GetTextureCube() != nullptr)
+	{
+		AliasedTexture = new FVulkanTextureCube(static_cast<FVulkanTextureCube*>(SourceTexture));
+	}
+	else
+	{
+		UE_LOG(LogRHI, Error, TEXT("Currently FOpenGLDynamicRHI::RHICreateAliasedTexture only supports 2D, 2D Array and Cube textures."));
+	}
+
+	return AliasedTexture;
+}
+
 void FVulkanDynamicRHI::RHICopySubTextureRegion(FRHITexture2D* SourceTexture, FRHITexture2D* DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox)
 {
 	FRHICopyTextureInfo CopyInfo;
