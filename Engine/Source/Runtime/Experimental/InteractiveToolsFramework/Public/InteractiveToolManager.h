@@ -234,3 +234,44 @@ protected:
 	UInteractiveToolBuilder* ActiveRightBuilder;
 
 };
+
+
+
+
+/**
+ * FBeginToolChange is used by UInteractiveToolManager to back out of a Tool on Undo.
+ * No action is taken on Redo, ie we do not re-start the Tool on Redo.
+ */
+class INTERACTIVETOOLSFRAMEWORK_API FBeginToolChange : public FCommandChange
+{
+public:
+	virtual void Apply(UObject* Object) override;
+
+	virtual void Revert(UObject* Object) override;
+
+	virtual bool HasExpired(UObject* Object) const override;
+
+	virtual FString ToString() const override;
+};
+
+
+
+/**
+ * FToolChangeWrapperChange wraps an FChange emitted by an InteractiveTool, allowing
+ * us to Expire the change without each FChange implementation needing to handle this explicitly.
+ */
+class INTERACTIVETOOLSFRAMEWORK_API FToolChangeWrapperChange : public FCommandChange
+{
+public:
+	TWeakObjectPtr<UInteractiveToolManager> ToolManager;
+	TWeakObjectPtr<UInteractiveTool> ActiveTool;
+	TUniquePtr<FChange> ToolChange;
+
+	virtual void Apply(UObject* Object) override;
+
+	virtual void Revert(UObject* Object) override;
+
+	virtual bool HasExpired(UObject* Object) const override;
+
+	virtual FString ToString() const override;
+};

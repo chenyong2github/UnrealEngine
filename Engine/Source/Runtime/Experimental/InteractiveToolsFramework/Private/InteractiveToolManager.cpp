@@ -5,6 +5,10 @@
 #include "InteractiveToolsContext.h"
 
 
+
+#define LOCTEXT_NAMESPACE "UInteractiveToolManager"
+
+
 UInteractiveToolManager::UInteractiveToolManager()
 {
 	QueriesAPI = nullptr;
@@ -132,6 +136,9 @@ bool UInteractiveToolManager::ActivateTool(EToolSide Side)
 	PostInvalidation();
 
 	OnToolStarted.Broadcast(this, ActiveLeftTool);
+
+	// emit a change so that we can undo to cancel the tool
+	EmitObjectChange(this, MakeUnique<FBeginToolChange>(), LOCTEXT("ActivateToolChange", "Activate Tool"));
 
 	return true;
 }
@@ -263,10 +270,97 @@ void UInteractiveToolManager::EndUndoTransaction()
 
 void UInteractiveToolManager::EmitObjectChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description)
 {
-	TransactionsAPI->AppendChange(TargetObject, MoveTemp(Change), Description );
+	// wrap change 
+	check(HasActiveTool(EToolSide::Left));
+	TUniquePtr<FToolChangeWrapperChange> Wrapper = MakeUnique<FToolChangeWrapperChange>();
+	Wrapper->ToolManager = this;
+	Wrapper->ActiveTool = GetActiveTool(EToolSide::Left);
+	Wrapper->ToolChange = MoveTemp(Change);
+
+	TransactionsAPI->AppendChange(TargetObject, MoveTemp(Wrapper), Description );
 }
 
 bool UInteractiveToolManager::RequestSelectionChange(const FSelectedOjectsChangeList& SelectionChange)
 {
 	return TransactionsAPI->RequestSelectionChange(SelectionChange);
 }
+
+
+
+
+
+
+
+void FBeginToolChange::Apply(UObject* Object)
+{
+	// do nothing on apply, we do not want to re-enter the tool
+}
+
+void FBeginToolChange::Revert(UObject* Object)
+{
+	// On revert, if a tool is active, we cancel it.
+	// Note that this should only happen once, because any further tool activations
+	// would be pushing their own FBeginToolChange
+	UInteractiveToolManager* ToolManager = CastChecked<UInteractiveToolManager>(Object);
+	if (ToolManager->HasAnyActiveTool())
+	{
+		ToolManager->DeactivateTool(EToolSide::Left, EToolShutdownType::Cancel);
+	}
+}
+
+bool FBeginToolChange::HasExpired( UObject* Object ) const
+{
+	UInteractiveToolManager* ToolManager = CastChecked<UInteractiveToolManager>(Object);
+	return (ToolManager == nullptr) || (ToolManager->HasAnyActiveTool() == false);
+}
+
+FString FBeginToolChange::ToString() const
+{
+	return FString(TEXT("Begin Tool"));
+}
+
+
+
+
+
+void FToolChangeWrapperChange::Apply(UObject* Object)
+{
+	if (ToolChange.IsValid())
+	{
+		ToolChange->Apply(Object);
+	}
+}
+
+void FToolChangeWrapperChange::Revert(UObject* Object)
+{
+	if (ToolChange.IsValid())
+	{
+		ToolChange->Revert(Object);
+	}
+}
+
+bool FToolChangeWrapperChange::HasExpired(UObject* Object) const
+{
+	if (ToolChange.IsValid() && ToolManager.IsValid() && ActiveTool.IsValid())
+	{
+		if (ToolManager->GetActiveTool(EToolSide::Left) == ActiveTool.Get())
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+FString FToolChangeWrapperChange::ToString() const
+{
+	if (ToolChange.IsValid())
+	{
+		return ToolChange->ToString();
+	}
+	return FString();
+}
+
+
+
+
+#undef LOCTEXT_NAMESPACE
