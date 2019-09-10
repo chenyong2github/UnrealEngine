@@ -489,7 +489,6 @@ FSequencer::FSequencer()
 	, NodeTree( MakeShareable( new FSequencerNodeTree( *this ) ) )
 	, bUpdatingSequencerSelection( false )
 	, bUpdatingExternalSelection( false )
-	, OldMaxTickRate(GEngine->GetMaxFPS())
 	, bNeedsEvaluate(false)
 {
 	Selection.GetOnOutlinerNodeSelectionChanged().AddRaw(this, &FSequencer::OnSelectedOutlinerNodesChanged);
@@ -519,6 +518,12 @@ FSequencer::~FSequencer()
 
 void FSequencer::Close()
 {
+	if (OldMaxTickRate.IsSet())
+	{
+		GEngine->SetMaxFPS(OldMaxTickRate.GetValue());
+		OldMaxTickRate.Reset();
+	}
+
 	RootTemplateInstance.Finish(*this);
 	RestorePreAnimatedState();
 
@@ -621,19 +626,6 @@ void FSequencer::Tick(float InDeltaTime)
 		FQualifiedFrameTime CurrentTime = GetLocalTime();
 		FFrameTime Offset = (AutoscrubOffset.GetValue() * AutoScrollFactor) * CurrentTime.Rate;
 		SetLocalTimeDirectly(CurrentTime.Time + Offset);
-	}
-
-	// override max frame rate
-	if (PlaybackState == EMovieScenePlayerStatus::Playing)
-	{
-		if (PlayPosition.GetEvaluationType() == EMovieSceneEvaluationType::FrameLocked)
-		{
-			GEngine->SetMaxFPS(1.f / PlayPosition.GetInputRate().AsInterval());
-		}
-		else
-		{
-			GEngine->SetMaxFPS(OldMaxTickRate);
-		}
 	}
 
 	if (GetSelectionRange().IsEmpty() && GetLoopMode() == SLM_LoopSelectionRange)
@@ -3243,16 +3235,28 @@ void FSequencer::SetPlaybackStatus(EMovieScenePlayerStatus::Type InPlaybackStatu
 		}
 	}
 
-	// backup or restore tick rate
 	if (InPlaybackStatus == EMovieScenePlayerStatus::Playing)
 	{
-		OldMaxTickRate = GEngine->GetMaxFPS();
+		// override max frame rate
+		if (PlayPosition.GetEvaluationType() == EMovieSceneEvaluationType::FrameLocked)
+		{
+			if (!OldMaxTickRate.IsSet())
+			{
+				OldMaxTickRate = GEngine->GetMaxFPS();
+			}
+
+			GEngine->SetMaxFPS(1.f / PlayPosition.GetInputRate().AsInterval());
+		}
 	}
 	else
 	{
 		StopAutoscroll();
 
-		GEngine->SetMaxFPS(OldMaxTickRate);
+		if (OldMaxTickRate.IsSet())
+		{
+			GEngine->SetMaxFPS(OldMaxTickRate.GetValue());
+			OldMaxTickRate.Reset();
+		}
 
 		ShuttleMultiplier = 0;
 	}

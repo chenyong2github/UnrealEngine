@@ -1227,7 +1227,7 @@ private:
 	bool bUpdatingExternalSelection;
 
 	/** The maximum tick rate prior to playing (used for overriding delta time during playback). */
-	double OldMaxTickRate;
+	TOptional<double> OldMaxTickRate;
 
 	/** Timing manager that can adjust playback times */
 	TSharedPtr<FMovieSceneTimeController> TimeController;
