@@ -649,13 +649,20 @@ bool SWidget::ConditionallyDetatchParentWidget(SWidget* InExpectedParent)
 	return false;
 }
 
-void SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 ParentIndex, TArray<FWidgetProxy, TMemStackAllocator<>>& FastPathList, bool bParentVisible, bool bParentVolatile)
+bool SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 ParentIndex, TArray<FWidgetProxy, TMemStackAllocator<>>& FastPathList, bool bParentVisible, bool bParentVolatile)
 {
+	// Because null widgets are a shared static widget they are not valid for the fast path and are treated as non-existent
+	if (this == &SNullWidget::NullWidget.Get())
+	{
+		return false;
+	}
+
 	if (FastPathProxyHandle.IsValid())
 	{
 		ensureAlwaysMsgf(!FastPathProxyHandle.IsValid(), TEXT("Widget %s was already assigned a proxy handle. If this is being hit this widget is in the active slate tree more than once.  This is illegal and at best will result in UI corruption."), *FReflectionMetaData::GetWidgetDebugInfo(*this));
-		return;
+		return false;
 	}
+
 	FWidgetProxy MyProxy(this);
 	MyProxy.Index = FastPathList.Num();
 	MyProxy.ParentIndex = ParentIndex;
@@ -696,10 +703,9 @@ void SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 Parent
 		{
 			// Because null widgets are a shared static widget they are not valid for the fast path and are treated as non-existent
 			const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
-			if (Child != SNullWidget::NullWidget)
+			if (Child->AssignIndicesToChildren(Root, MyProxy.Index, FastPathList, bParentAndSelfVisible, bParentVolatile || IsVolatile()))
 			{
-				++NumChildrenValidForFastPath;
-				Child->AssignIndicesToChildren(Root, MyProxy.Index, FastPathList, bParentAndSelfVisible, bParentVolatile || IsVolatile());
+				NumChildrenValidForFastPath++;
 			}
 		}
 
@@ -709,8 +715,9 @@ void SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 Parent
 			int32 LastIndex = FastPathList.Num() - 1;
 			MyProxyRef.LeafMostChildIndex = LastIndex != MyProxy.Index ? LastIndex : INDEX_NONE;
 		}
-
 	}
+
+	return true;
 }
 
 void SWidget::UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved, FHittestGrid* ParentHittestGrid)

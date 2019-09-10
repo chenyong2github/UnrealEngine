@@ -680,7 +680,7 @@ public:
 
 protected:
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) { return false; }
-	void AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 ParentIndex, TArray<FWidgetProxy, TMemStackAllocator<>>& FastPathList, bool bParentVisible, bool bParentVolatile);
+	bool AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 ParentIndex, TArray<FWidgetProxy, TMemStackAllocator<>>& FastPathList, bool bParentVisible, bool bParentVolatile);
 
 	/**
 	 * The system calls this method. It performs a breadth-first traversal of every visible widget and asks
