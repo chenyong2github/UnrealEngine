@@ -185,31 +185,33 @@ void USoundCue::EvaluateNodes(bool bAddToRoot)
 		}
 	}
 
-	TArray<USoundNode*> NodesToEvaluate;
-	NodesToEvaluate.Push(FirstNode);
-
-	while (NodesToEvaluate.Num() > 0)
+	TFunction<void(USoundNode*)> EvaluateNodes_Internal = [&](USoundNode* SoundNode)
 	{
-		if (USoundNode* SoundNode = NodesToEvaluate.Pop(false))
+		if (USoundNodeAssetReferencer* AssetReferencerNode = Cast<USoundNodeAssetReferencer>(SoundNode))
 		{
-			if (USoundNodeAssetReferencer* AssetReferencerNode = Cast<USoundNodeAssetReferencer>(SoundNode))
+			AssetReferencerNode->ConditionalPostLoad();
+			AssetReferencerNode->LoadAsset(bAddToRoot);
+		}
+		else if (USoundNodeQualityLevel* QualityLevelNode = Cast<USoundNodeQualityLevel>(SoundNode))
+		{
+			if (CachedQualityLevel < QualityLevelNode->ChildNodes.Num())
 			{
-				AssetReferencerNode->ConditionalPostLoad();
-				AssetReferencerNode->LoadAsset(bAddToRoot);
-			}
-			else if (USoundNodeQualityLevel* QualityLevelNode = Cast<USoundNodeQualityLevel>(SoundNode))
-			{
-				if (CachedQualityLevel < QualityLevelNode->ChildNodes.Num())
-				{
-					NodesToEvaluate.Add(QualityLevelNode->ChildNodes[CachedQualityLevel]);
-				}
-			}
-			else
-			{
-				NodesToEvaluate.Append(SoundNode->ChildNodes);
+				EvaluateNodes_Internal(QualityLevelNode->ChildNodes[CachedQualityLevel]);
 			}
 		}
-	}
+		else if (SoundNode)
+		{
+			for (USoundNode* ChildNode : SoundNode->ChildNodes)
+			{
+				if (ChildNode)
+				{
+					EvaluateNodes_Internal(ChildNode);
+				}
+			}
+		}
+	};
+
+	EvaluateNodes_Internal(FirstNode);
 }
 
 float USoundCue::FindMaxDistanceInternal() const
