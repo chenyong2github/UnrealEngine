@@ -513,6 +513,11 @@ public:
 	*/
 	void SetupShadowUniformBuffers(FRHICommandListImmediate& RHICmdList, FScene* Scene);
 
+	/**
+	* Ensure Cached Shadowmap is in EReadable state
+	*/
+	void TransitionCachedShadowmap(FRHICommandListImmediate& RHICmdList, FScene* Scene);
+
 
 private:
 	// 0 if Setup...() wasn't called yet

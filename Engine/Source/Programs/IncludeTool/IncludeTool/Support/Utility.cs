@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -95,7 +95,7 @@ namespace IncludeTool.Support
 		/// <param name="Arguments">Arguments for the program</param>
 		/// <param name="WorkingDir">The working directory to run in</param>
 		/// <param name="Log">Writer to receive output messages</param>
-		public static int Run(FileReference ExecutableFile, string Arguments, DirectoryReference WorkingDir, TextWriter Log)
+		public static int Run(FileReference ExecutableFile, string Arguments, DirectoryReference WorkingDir, LineBasedTextWriter Log)
 		{
 			using (Process NewProcess = new Process())
 			{
@@ -224,7 +224,7 @@ namespace IncludeTool.Support
 			/// <param name="TotalCount">The total number of iterations</param>
 			/// <param name="Message">The message to output</param>
 			/// <param name="Log">Writer for output messages</param>
-			public void Increment(int TotalCount, string Message, TextWriter Log)
+			public void Increment(int TotalCount, string Message, LineBasedTextWriter Log)
 			{
 				lock(this)
 				{
@@ -247,7 +247,7 @@ namespace IncludeTool.Support
 			/// <param name="TotalCount">The total number of iterations</param>
 			/// <param name="Message">The message to output</param>
 			/// <param name="Log">Writer for output messages</param>
-			public void Complete(int TotalCount, string Message, TextWriter Log)
+			public void Complete(int TotalCount, string Message, LineBasedTextWriter Log)
 			{
 				Log.WriteLine("[{0}] {1} ({2}/{3}; {4}%)", Timer.Elapsed.ToString(@"hh\:mm\:ss"), Message, TotalCount, TotalCount, 100);
 			}
@@ -261,7 +261,7 @@ namespace IncludeTool.Support
 		/// <param name="EndValue">The upper bound for the for loop, exclusive</param>
 		/// <param name="Action">The action to execute for each iteration</param>
 		/// <param name="Log">Log for output messages</param>
-		public static void ParallelForWithStatus(string Message, int BeginValue, int EndValue, Action<int> Action, TextWriter Log)
+		public static void ParallelForWithStatus(string Message, int BeginValue, int EndValue, Action<int> Action, LineBasedTextWriter Log)
 		{
 			ParallelForWithStatus(Message, BeginValue, EndValue, new ParallelOptions(), Action, Log);
 		}
@@ -274,7 +274,7 @@ namespace IncludeTool.Support
 		/// <param name="EndValue">The upper bound for the for loop, exclusive</param>
 		/// <param name="Action">The action to execute for each iteration</param>
 		/// <param name="Log">Log for output messages</param>
-		public static void ParallelForWithStatus(string Message, int BeginValue, int EndValue, ParallelOptions Options, Action<int> Action, TextWriter Log)
+		public static void ParallelForWithStatus(string Message, int BeginValue, int EndValue, ParallelOptions Options, Action<int> Action, LineBasedTextWriter Log)
 		{
 			Log.WriteLine(Message);
 

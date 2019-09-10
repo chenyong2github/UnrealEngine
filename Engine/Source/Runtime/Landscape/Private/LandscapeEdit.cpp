@@ -3730,6 +3730,11 @@ ULandscapeLayerInfoObject::ULandscapeLayerInfoObject(const FObjectInitializer& O
 	Hardness = 0.5f;
 #if WITH_EDITORONLY_DATA
 	bNoWeightBlend = false;
+	SplineFalloffModulationTexture = nullptr;
+	SplineFalloffModulationColorMask = ESplineModulationColorMask::Red;
+	SplineFalloffModulationTiling = 1.0f;
+	SplineFalloffModulationBias = 0.5;
+	SplineFalloffModulationScale = 1.0f;
 #endif // WITH_EDITORONLY_DATA
 
 	// Assign initial LayerUsageDebugColor
@@ -3794,6 +3799,20 @@ void ULandscapeLayerInfoObject::PostEditChangeProperty(FPropertyChangedEvent& Pr
 				if (Proxy->GetWorld() && !Proxy->GetWorld()->IsPlayInEditor())
 				{
 					Proxy->MarkComponentsRenderStateDirty();
+				}
+			}
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULandscapeLayerInfoObject, SplineFalloffModulationTexture) ||
+				PropertyName == GET_MEMBER_NAME_CHECKED(ULandscapeLayerInfoObject, SplineFalloffModulationColorMask) ||
+				PropertyName == GET_MEMBER_NAME_CHECKED(ULandscapeLayerInfoObject, SplineFalloffModulationBias) ||
+				PropertyName == GET_MEMBER_NAME_CHECKED(ULandscapeLayerInfoObject, SplineFalloffModulationScale) ||
+				PropertyName == GET_MEMBER_NAME_CHECKED(ULandscapeLayerInfoObject, SplineFalloffModulationTiling))
+		{
+			for (TObjectIterator<ULandscapeInfo> It; It; ++It)
+			{
+				if(ALandscape* Landscape = It->LandscapeActor.Get())
+				{
+					Landscape->OnLayerInfoSplineFalloffModulationChanged(this);
 				}
 			}
 		}

@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
 using System;
@@ -36,7 +36,7 @@ namespace IncludeTool.Reports
 		/// <param name="Target"></param>
 		/// <param name="SourceFileToCompileEnvironment"></param>
 		/// <param name="Log">Writer for log output</param>
-		public static void Generate(FileReference ReportFileLocation, DirectoryReference InputDir, BuildTarget Target, Dictionary<SourceFile, CompileEnvironment> SourceFileToCompileEnvironment, TextWriter Log)
+		public static void Generate(FileReference ReportFileLocation, DirectoryReference InputDir, BuildTarget Target, Dictionary<SourceFile, CompileEnvironment> SourceFileToCompileEnvironment, LineBasedTextWriter Log)
 		{
 			Log.WriteLine("Writing {0}...", ReportFileLocation.FullName);
 
@@ -72,7 +72,7 @@ namespace IncludeTool.Reports
 		/// <param name="OutputFileContents">Dictionary which receives the files to output</param>
 		/// <param name="MinRatio">Ratio of source files which must include a header for it to be included in the pch</param>
 		/// <param name="Log">Writer for log output</param>
-		public static void GeneratePCHs(BuildTarget Target, Dictionary<SourceFile, CompileEnvironment> SourceFileToCompileEnvironment, IEnumerable<DirectoryReference> IncludePaths, IEnumerable<DirectoryReference> SystemIncludePaths, Dictionary<FileReference, string> OutputFileContents, float MinRatio, TextWriter Log)
+		public static void GeneratePCHs(BuildTarget Target, Dictionary<SourceFile, CompileEnvironment> SourceFileToCompileEnvironment, IEnumerable<DirectoryReference> IncludePaths, IEnumerable<DirectoryReference> SystemIncludePaths, Dictionary<FileReference, string> OutputFileContents, float MinRatio, LineBasedTextWriter Log)
 		{
 			Log.WriteLine("Optimizing precompiled headers...");
 
@@ -135,7 +135,7 @@ namespace IncludeTool.Reports
 		/// <param name="SourceFileToCompileEnvironment">Files being compiled</param>
 		/// <param name="PchToIncludeFileCount">Mapping of PCH to included files</param>
 		/// <param name="Log">Writer for log messages</param>
-		static void FindPchInfo(BuildTarget Target, Dictionary<SourceFile, CompileEnvironment> SourceFileToCompileEnvironment, Dictionary<FileReference, PchInfo> FileToPchInfo, TextWriter Log)
+		static void FindPchInfo(BuildTarget Target, Dictionary<SourceFile, CompileEnvironment> SourceFileToCompileEnvironment, Dictionary<FileReference, PchInfo> FileToPchInfo, LineBasedTextWriter Log)
 		{
 			// Create a map of module to the shared PCH it uses
 			Dictionary<BuildModule, FileReference> ModuleToPch = new Dictionary<BuildModule, FileReference>();

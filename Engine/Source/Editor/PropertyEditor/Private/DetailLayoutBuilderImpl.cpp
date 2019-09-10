@@ -523,6 +523,11 @@ TSharedPtr<FPropertyNode> FDetailLayoutBuilderImpl::GetPropertyNodeInternal( con
 					{
 						if( Index != INDEX_NONE )
 						{
+							if (Index >= PropertyNode->GetNumChildNodes())
+							{
+								return nullptr;
+							}
+
 							// The parent is the actual array, its children are array elements
 							PropertyNode = PropertyNode->GetChildNode( Index );
 						}
