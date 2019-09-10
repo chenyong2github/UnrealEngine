@@ -2769,11 +2769,28 @@ void USkeletalMeshComponent::SetLayerOverlay(TSubclassOf<UAnimInstance> InClass)
 	}
 }
 
+void USkeletalMeshComponent::ClearLayerOverlay(TSubclassOf<UAnimInstance> InClass)
+{
+	if(AnimScriptInstance)
+	{
+		AnimScriptInstance->ClearLayerOverlay(InClass);
+	}
+}
+
 UAnimInstance* USkeletalMeshComponent::GetLayerSubInstanceByGroup(FName InGroup) const
 {
 	if(AnimScriptInstance)
 	{
 		return AnimScriptInstance->GetLayerSubInstanceByGroup(InGroup);
+	}
+	return nullptr;
+}
+
+UAnimInstance* USkeletalMeshComponent::GetLayerSubInstanceByClass(TSubclassOf<UAnimInstance> InClass) const
+{
+	if(AnimScriptInstance)
+	{
+		return AnimScriptInstance->GetLayerSubInstanceByClass(InClass);
 	}
 	return nullptr;
 }
