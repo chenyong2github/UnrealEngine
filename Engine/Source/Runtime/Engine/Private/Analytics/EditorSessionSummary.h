@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 struct FUserActivity;
-struct FSessionRecord;
+struct FEditorSessionRecord;
 
 /** Writer for SessionSummary events to track all editor sessions. */
 class FEditorSessionSummaryWriter
@@ -20,8 +20,8 @@ public:
 private:
 	void InitializeRecords(bool bFirstAttempt);
 
-	FSessionRecord* CreateRecordForCurrentSession() const;
-	void WriteStoredRecord(const FSessionRecord& Record) const;
+	FEditorSessionRecord* CreateRecordForCurrentSession() const;
+	void WriteStoredRecord(const FEditorSessionRecord& Record) const;
 
 	void OnCrashing();
 	void OnTerminate();
@@ -33,7 +33,7 @@ private:
 
 private:
 	bool bInitializedRecords;
-	FSessionRecord* CurrentSession;
+	FEditorSessionRecord* CurrentSession;
 	FString CurrentSessionSectionName;
 	float HeartbeatTimeElapsed;
 	bool bShutdown;
@@ -53,10 +53,10 @@ public:
 private:
 	/** Send any stored records. Returns true if we successfully recorded any outstanding events. */
 	void SendStoredRecords(FTimespan Timeout) const;
-	TArray<FSessionRecord> ReadStoredRecords() const;
-	void DeleteStoredRecord(const FSessionRecord& Record) const;
-	void SendSessionSummaryEvent(const FSessionRecord& Record) const;
-	bool IsSessionProcessRunning(const FSessionRecord& Record) const;
+	TArray<FEditorSessionRecord> ReadStoredRecords() const;
+	void DeleteStoredRecord(const FEditorSessionRecord& Record) const;
+	void SendSessionSummaryEvent(const FEditorSessionRecord& Record) const;
+	bool IsSessionProcessRunning(const FEditorSessionRecord& Record) const;
 
 private:
 	float HeartbeatTimeElapsed;
