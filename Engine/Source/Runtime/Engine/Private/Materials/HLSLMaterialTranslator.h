@@ -5074,7 +5074,7 @@ protected:
 
 	virtual int32 VirtualTextureParam(int32 TextureIndex, int32 ParamIndex) override
 	{
-		return AddUniformExpression(new FMaterialUniformExpressionRuntimeVirtualTextureParameter(TextureIndex, ParamIndex), MCT_Float3, TEXT(""));
+		return AddUniformExpression(new FMaterialUniformExpressionRuntimeVirtualTextureUniform(TextureIndex, ParamIndex), MCT_Float3, TEXT(""));
 	}
 
 	virtual int32 VirtualTextureWorldToUV(int32 WorldPositionIndex, int32 P0, int32 P1, int32 P2) override
