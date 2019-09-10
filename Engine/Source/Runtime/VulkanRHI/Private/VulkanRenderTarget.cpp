@@ -469,6 +469,28 @@ void FTransitionAndLayoutManager::NotifyDeletedRenderTarget(FVulkanDevice& InDev
 	}
 }
 
+VkImageLayout FTransitionAndLayoutManager::FindOrAddLayout(VkImage Image, VkImageLayout LayoutIfNotFound)
+{
+	VkImageLayout* Found = Layouts.Find(Image);
+	if (Found)
+	{
+		return *Found;
+	}
+
+	Layouts.Add(Image, LayoutIfNotFound);
+	return LayoutIfNotFound;
+}
+
+VkImageLayout& FTransitionAndLayoutManager::FindOrAddLayoutRW(VkImage Image, VkImageLayout LayoutIfNotFound)
+{
+	VkImageLayout* Found = Layouts.Find(Image);
+	if (Found)
+	{
+		return *Found;
+	}
+	return Layouts.Add(Image, LayoutIfNotFound);
+}
+
 void FTransitionAndLayoutManager::TransitionResource(FVulkanCmdBuffer* CmdBuffer, FVulkanSurface& Surface, VulkanRHI::EImageLayoutBarrier DestLayout)
 {
 	VkImageLayout* FoundLayout = Layouts.Find(Surface.Image);
