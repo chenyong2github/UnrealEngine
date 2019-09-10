@@ -8,6 +8,7 @@
 #include "LandscapeLayerInfoObject.generated.h"
 
 class UPhysicalMaterial;
+class UTexture2D;
 struct FPropertyChangedEvent;
 
 UENUM()
