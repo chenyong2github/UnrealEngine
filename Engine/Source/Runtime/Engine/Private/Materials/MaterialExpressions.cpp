@@ -2341,12 +2341,13 @@ bool UMaterialExpressionRuntimeVirtualTextureSampleParameter::MatchesSearchQuery
 void UMaterialExpressionRuntimeVirtualTextureSampleParameter::SetValueToMatchingExpression(UMaterialExpression* OtherExpression)
 {
 	URuntimeVirtualTexture* Value = nullptr;
-	//todo[vt]: Store RVT params in the material
-	//Material->GetRuntimeVirtualTextureParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), Value);
-	VirtualTexture = Value;
-	UProperty* ParamProperty = FindField<UProperty>(UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionRuntimeVirtualTextureSampleParameter, VirtualTexture));
-	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
-	PostEditChangeProperty(PropertyChangedEvent);
+	if (Material->GetRuntimeVirtualTextureParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), Value))
+	{
+		VirtualTexture = Value;
+		UProperty* ParamProperty = FindField<UProperty>(UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionRuntimeVirtualTextureSampleParameter, VirtualTexture));
+		FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+		PostEditChangeProperty(PropertyChangedEvent);
+	}
 }
 
 #endif

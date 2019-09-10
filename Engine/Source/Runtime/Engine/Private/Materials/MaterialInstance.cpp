@@ -17,6 +17,7 @@
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Materials/MaterialExpressionFontSampleParameter.h"
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"
+#include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionStaticSwitchParameter.h"
 #include "Materials/MaterialExpressionStaticComponentMaskParameter.h"
 #include "Materials/MaterialFunctionInstance.h"
@@ -284,6 +285,16 @@ bool FMaterialInstanceResource::GetTextureValue(
 	{
 		return false;
 	}
+}
+
+bool FMaterialInstanceResource::GetTextureValue(
+	const FMaterialParameterInfo& ParameterInfo,
+	const URuntimeVirtualTexture** OutValue,
+	const FMaterialRenderContext& Context
+) const
+{
+	//todo[vt]
+	return false;
 }
 
 void UMaterialInstance::PropagateDataToMaterialProxy()
@@ -835,6 +846,12 @@ bool UMaterialInstance::GetTextureParameterValue(const FMaterialParameterInfo& P
 		return Parent->GetTextureParameterValue(ParameterInfo,OutValue,bOveriddenOnly);
 	}
 	
+	return false;
+}
+
+bool UMaterialInstance::GetRuntimeVirtualTextureParameterValue(const FMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly) const
+{
+	// todo[vt]:
 	return false;
 }
 

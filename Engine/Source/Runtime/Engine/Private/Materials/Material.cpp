@@ -364,6 +364,19 @@ public:
 		}
 	}
 
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+	{
+		const FMaterialResource* MaterialResource = Material->GetMaterialResource(Context.Material.GetFeatureLevel());
+		if (MaterialResource && MaterialResource->GetRenderingThreadShaderMap())
+		{
+			return false;
+		}
+		else
+		{
+			return GetFallbackRenderProxy().GetTextureValue(ParameterInfo, OutValue, Context);
+		}
+	}
+
 	// FRenderResource interface.
 	virtual FString GetFriendlyName() const { return Material->GetName(); }
 

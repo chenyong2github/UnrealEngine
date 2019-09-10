@@ -235,6 +235,11 @@ public:
 	{
 		return Material->GetRenderProxy()->GetTextureValue(ParameterInfo,OutValue,Context);
 	}
+
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Material->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
+	}
 };
 
 /** Implementation of Preview Material functions*/
