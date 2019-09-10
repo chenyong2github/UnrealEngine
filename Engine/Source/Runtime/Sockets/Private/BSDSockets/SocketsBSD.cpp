@@ -427,7 +427,7 @@ bool FSocketBSD::JoinMulticastGroup(const FInternetAddr& GroupAddress, const FIn
 		ipv6_mreq imr;
 		imr.ipv6mr_interface = htonl(BSDIFAddr.GetScopeId());
 		imr.ipv6mr_multiaddr = ((sockaddr_in6*)&(BSDAddr.Addr))->sin6_addr;
-		return (setsockopt(Socket, IPPROTO_IPV6, IP_ADD_MEMBERSHIP, (char*)&imr, sizeof(imr)) == 0);
+		return (setsockopt(Socket, IPPROTO_IPV6, IPV6_JOIN_GROUP, (char*)&imr, sizeof(imr)) == 0);
 	}
 #endif
 
@@ -468,7 +468,7 @@ bool FSocketBSD::LeaveMulticastGroup(const FInternetAddr& GroupAddress, const FI
 		ipv6_mreq imr;
 		imr.ipv6mr_interface = htonl(BSDIFAddr.GetScopeId());
 		imr.ipv6mr_multiaddr = ((sockaddr_in6*)&(BSDAddr.Addr))->sin6_addr;
-		return (setsockopt(Socket, IPPROTO_IPV6, IP_DROP_MEMBERSHIP, (char*)&imr, sizeof(imr)) == 0);
+		return (setsockopt(Socket, IPPROTO_IPV6, IPV6_LEAVE_GROUP, (char*)&imr, sizeof(imr)) == 0);
 	}
 #endif
 
