@@ -4992,13 +4992,7 @@ bool UEditorEngine::SnapObjectTo( FActorOrComponent Object, const bool InAlign, 
 			RebuildAlteredBSP();
 		}
 
-		TArray<FEdMode*> ActiveModes; 
-		GCurrentLevelEditingViewportClient->GetModeTools()->GetActiveModes(ActiveModes);
-		for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-		{
-			// Notify active modes
-			ActiveModes[ModeIndex]->ActorMoveNotify();
-		}
+		GCurrentLevelEditingViewportClient->GetModeTools()->ActorMoveNotify();
 
 		return true;
 	}

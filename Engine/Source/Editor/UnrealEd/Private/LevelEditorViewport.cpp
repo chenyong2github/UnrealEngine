@@ -2538,13 +2538,7 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 					bApplyCameraSpeedScaleByDistance = true;
 				}
 
-				TArray<FEdMode*> ActiveModes; 
-				ModeTools->GetActiveModes(ActiveModes);
-
-				for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-				{
-					ActiveModes[ModeIndex]->UpdateInternalData();
-				}
+				ModeTools->UpdateInternalData();
 			}
 
 			bHandled = true;
@@ -3068,13 +3062,7 @@ void FLevelEditorViewportClient::TrackingStopped()
 		GEditor->DisableDeltaModification(false);
 	}
 
-	TArray<FEdMode*> ActiveModes; 
-	ModeTools->GetActiveModes(ActiveModes);
-	for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-	{
-		// Also notify the current editing modes if they are interested.
-		ActiveModes[ModeIndex]->ActorMoveNotify();
-	}
+	ModeTools->ActorMoveNotify();
 
 	if( bDidAnythingActuallyChange )
 	{

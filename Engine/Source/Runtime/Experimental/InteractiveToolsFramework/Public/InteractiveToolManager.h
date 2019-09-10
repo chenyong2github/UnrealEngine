@@ -192,6 +192,7 @@ public:
 	/** @return current IToolsContextQueriesAPI */
 	virtual IToolsContextQueriesAPI* GetContextQueriesAPI() { return QueriesAPI; }
 
+	UInteractiveGizmoManager* GetPairedGizmoManager();
 
 
 public:

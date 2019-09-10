@@ -102,6 +102,7 @@ public class UnrealEd : ModuleRules
                 "MeshBuilder",
                 "MaterialShaderQualitySettings",
                 "EditorSubsystem",
+                "InteractiveToolsFramework"
             }
 		);
 
@@ -172,7 +173,7 @@ public class UnrealEd : ModuleRules
 				"TimeManagement",
                 "LandscapeEditorUtilities",
                 "DerivedDataCache",
-				"ToolMenus",
+				"ToolMenus"
             }
 		);
 

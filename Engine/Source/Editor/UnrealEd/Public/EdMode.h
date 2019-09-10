@@ -9,6 +9,7 @@
 #include "EditorComponents.h"
 #include "EngineGlobals.h"
 #include "EditorModeRegistry.h"
+#include "Tools/UEdMode.h"
 
 class FCanvas;
 class FEditorModeTools;
@@ -29,20 +30,6 @@ struct FViewportClick;
 class FModeTool;
 class FEditorViewportClient;
 struct FViewportClick;
-
-/** Outcomes when determining whether it's possible to perform an action on the edit modes*/
-namespace EEditAction
-{
-	enum Type
-	{
-		/** Can't process this action */
-		Skip		= 0,
-		/** Can process this action */
-		Process,
-		/** Stop evaluating other modes (early out) */
-		Halt,
-	};
-};
 
 /**
  * Base class for all editor modes.

@@ -1320,9 +1320,6 @@ void UEditorEngine::MapBrushGet(UWorld* InWorld)
 
 void UEditorEngine::mapBrushPut()
 {
-	TArray<FEdMode*> ActiveModes; 
-	GLevelEditorModeTools().GetActiveModes( ActiveModes );
-
 	for ( FSelectionIterator It( GEditor->GetSelectedActorIterator() ) ; It ; ++It )
 	{
 		AActor* Actor = static_cast<AActor*>( *It );
@@ -1342,10 +1339,7 @@ void UEditorEngine::mapBrushPut()
 
 			WorldBrush->ReregisterAllComponents();
 
-			for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-			{
-				ActiveModes[ModeIndex]->UpdateInternalData();
-			}
+			GLevelEditorModeTools().UpdateInternalData();
 		}
 	}
 }

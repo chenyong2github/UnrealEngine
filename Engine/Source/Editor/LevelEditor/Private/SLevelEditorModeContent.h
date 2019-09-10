@@ -12,6 +12,8 @@
 
 class FEdMode;
 class SBorder;
+class FName;
+typedef FName FEditorModeID;
 
 /**
  * Tools for the level editor                   
@@ -43,7 +45,7 @@ private:
 	 * @param Mode The mode that changed.
 	 * @param IsEnabled true if the mode is enabled, otherwise false.
 	 */
-	void HandleEditorModeChanged(FEdMode* Mode, bool IsEnabled);
+	void HandleEditorModeChanged(const FEditorModeID& EditorModeID, bool IsEnabled);
 
 	/** Gets the visibility for the SBorder showing toolbox editor mode inline content */
 	EVisibility GetInlineContentHolderVisibility() const;

@@ -2,6 +2,7 @@
 
 
 #include "InteractiveToolManager.h"
+#include "InteractiveToolsContext.h"
 
 
 UInteractiveToolManager::UInteractiveToolManager()
@@ -225,6 +226,12 @@ void UInteractiveToolManager::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
+
+
+UInteractiveGizmoManager* UInteractiveToolManager::GetPairedGizmoManager()
+{
+	return Cast<UInteractiveToolsContext>(GetOuter())->GizmoManager;
+}
 
 void UInteractiveToolManager::PostMessage(const TCHAR* Message, EToolMessageLevel Level)
 {

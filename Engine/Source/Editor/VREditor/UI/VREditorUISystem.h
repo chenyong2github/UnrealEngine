@@ -27,6 +27,8 @@ class FMenuBuilder;
 class FUICommandList;
 class UVREditorWidgetComponent;
 class UWidgetComponent;
+class FName;
+typedef FName FEditorModeID;
 
 typedef FName VREditorPanelID;
 
@@ -313,7 +315,7 @@ protected:
 	* @param Mode The mode that changed.
 	* @param IsEnabled true if the mode is enabled, otherwise false.
 	*/
-	void HandleEditorModeChanged(class FEdMode* Mode, bool IsEnabled);
+	void HandleEditorModeChanged(const FEditorModeID& EditorModeID, bool IsEnabled);
 
 	/** Reset function that puts you back in placement mode, closes all UIs, etc. */
 	void ResetAll();

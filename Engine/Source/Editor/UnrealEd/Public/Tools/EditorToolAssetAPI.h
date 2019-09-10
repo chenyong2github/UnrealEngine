@@ -9,7 +9,7 @@
  * Implementation of ToolsContext Asset management API that is suitable for use
  * inside the Editor (eg inside an FEdMode)
  */
-class EDITORINTERACTIVETOOLSFRAMEWORK_API FEditorToolAssetAPI : public IToolsContextAssetAPI
+class UNREALED_API FEditorToolAssetAPI : public IToolsContextAssetAPI
 {
 public:
 	virtual FString GetActiveAssetFolderPath() override;

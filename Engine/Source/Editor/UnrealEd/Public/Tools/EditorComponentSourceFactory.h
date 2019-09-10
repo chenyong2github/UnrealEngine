@@ -7,14 +7,14 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 
-class EDITORINTERACTIVETOOLSFRAMEWORK_API FStaticMeshComponentTargetFactory : public FComponentTargetFactory
+class UNREALED_API FStaticMeshComponentTargetFactory : public FComponentTargetFactory
 {
 public:
 	bool CanBuild( UActorComponent* Candidate ) override;
 	TUniquePtr<FPrimitiveComponentTarget> Build( UPrimitiveComponent* PrimitiveComponent ) override;
 };
 
-class EDITORINTERACTIVETOOLSFRAMEWORK_API FStaticMeshComponentTarget : public FPrimitiveComponentTarget
+class UNREALED_API FStaticMeshComponentTarget : public FPrimitiveComponentTarget
 {
 public:
 	FStaticMeshComponentTarget( UPrimitiveComponent* Component )

@@ -606,15 +606,7 @@ void FVREditorActionCallbacks::ChangeEditorModes(FEditorModeID InMode)
 	GLevelEditorModeTools().ActivateMode(InMode);
 
 	// Find and disable any other 'visible' modes since we only ever allow one of those active at a time.
-	TArray<FEdMode*> ActiveModes;
-	GLevelEditorModeTools().GetActiveModes(ActiveModes);
-	for (FEdMode* Mode : ActiveModes)
-	{
-		if (Mode->GetID() != InMode && Mode->GetModeInfo().bVisible)
-		{
-			GLevelEditorModeTools().DeactivateMode(Mode->GetID());
-		}
-	}
+	GLevelEditorModeTools().DeactivateOtherVisibleModes(InMode);
 }
 
 ECheckBoxState FVREditorActionCallbacks::EditorModeActive(FEditorModeID InMode)

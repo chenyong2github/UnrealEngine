@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "EditorComponentSourceFactory.h"
+#include "Tools/EditorComponentSourceFactory.h"
 
 #include "Engine/StaticMesh.h"
 #include "Components/PrimitiveComponent.h"

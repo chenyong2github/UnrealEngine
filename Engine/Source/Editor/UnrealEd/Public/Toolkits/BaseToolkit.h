@@ -9,7 +9,11 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Toolkits/IToolkitHost.h"
 
+class UInteractiveTool;
 class SDockableTab;
+class UEdMode;
+class IDetailsView;
+enum class EToolShutdownType;
 
 /**
  * Base class for all toolkits (abstract).
@@ -89,8 +93,10 @@ protected:
 };
 
 
+
 /**
- * Base class for all editor mode toolkits.
+ * This FModeToolkit just creates a basic UI panel that allows various InteractiveTools to
+ * be initialized, and a DetailsView used to show properties of the active Tool.
  */
 class UNREALED_API FModeToolkit
 	: public FBaseToolkit
@@ -111,10 +117,30 @@ public:
 public:
 
 	// IToolkit interface
+	virtual FName GetToolkitFName() const override;
+	virtual FText GetBaseToolkitName() const override;
 	virtual FText GetToolkitName() const override { return GetBaseToolkitName(); }
 	virtual FText GetToolkitToolTipText() const override { return GetBaseToolkitName(); }
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual bool IsAssetEditor() const override;
 	virtual const TArray<UObject*>* GetObjectsCurrentlyBeingEdited() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
+	virtual class FEdMode* GetEditorMode() const override;
+
+	virtual UEdMode* GetScriptableEditorMode() const;
+
+private:
+
+	TSharedPtr<SWidget> ToolkitWidget;
+	TSharedPtr<IDetailsView> DetailsView;
+
+	// these functions just forward calls to the ToolsContext / ToolManager
+
+	bool CanStartTool(const FString& ToolTypeIdentifier);
+	bool CanAcceptActiveTool();
+	bool CanCancelActiveTool();
+	bool CanCompleteActiveTool();
+
+	FReply StartTool(const FString& ToolTypeIdentifier);
+	FReply EndTool(EToolShutdownType ShutdownType);
 };

@@ -27,6 +27,8 @@ class ITargetPlatform;
 class UPrimitiveComponent;
 class UTexture2D;
 class UUnrealEdOptions;
+class FName;
+typedef FName FEditorModeID;
 
 UENUM()
 enum EPackageNotifyState
@@ -828,7 +830,9 @@ public:
 	bool HandleDisasmScriptCommand( const TCHAR* Str, FOutputDevice& Ar );	
 
 	/** OnEditorModeChanged delegate which looks for Matinee editor closing */
+	UE_DEPRECATED(4.24, "Use UpdateEdModeOnMatineeClose() instead")
 	void OnMatineeEditorClosed( class FEdMode* Mode, bool IsEntering );
+	void UpdateEdModeOnMatineeClose(const FEditorModeID& EditorModeID, bool IsEntering);
 
 	bool IsComponentSelected(const UPrimitiveComponent* PrimComponent);
 
@@ -863,6 +867,8 @@ protected:
 
 	/** Handle to the registered OnMatineeEditorClosed delegate. */
 	FDelegateHandle OnMatineeEditorClosedDelegateHandle;
+	/** Handle to the registered UpdateEdModeOnMatineeClose delegate. */
+	FDelegateHandle UpdateEdModeOnMatineeCloseDelegateHandle;
 
 	/** Whether the pivot has been moved independently */
 	bool bPivotMovedIndependently;

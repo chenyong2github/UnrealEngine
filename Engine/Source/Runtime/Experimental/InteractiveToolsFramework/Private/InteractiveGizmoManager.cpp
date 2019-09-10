@@ -2,6 +2,7 @@
 
 
 #include "InteractiveGizmoManager.h"
+#include "InteractiveToolsContext.h"
 
 
 UInteractiveGizmoManager::UInteractiveGizmoManager()
@@ -190,7 +191,6 @@ void UInteractiveGizmoManager::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 
 }
-
 
 void UInteractiveGizmoManager::PostMessage(const TCHAR* Message, EToolMessageLevel Level)
 {

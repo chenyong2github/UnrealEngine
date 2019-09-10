@@ -391,12 +391,7 @@ void UUnrealEdEngine::NoteSelectionChange(bool bNotify)
 	// Clear active editing visualizer on selection change
 	ComponentVisManager.ClearActiveComponentVis();
 
-	TArray<FEdMode*> ActiveModes;
-	GLevelEditorModeTools().GetActiveModes( ActiveModes );
-	for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-	{
-		ActiveModes[ModeIndex]->ActorSelectionChangeNotify();
-	}
+	GLevelEditorModeTools().ActorSelectionChangeNotify();
 
 	const bool bComponentSelectionChanged = GetSelectedComponentCount() > 0;
 	if (bNotify)
@@ -529,16 +524,8 @@ bool UUnrealEdEngine::CanSelectActor(AActor* Actor, bool bInSelected, bool bSele
 		return false;
 	}
 
-	// Allow active modes to determine whether the selection is allowed. If there are no active modes, allow selection anyway.
-	TArray<FEdMode*> ActiveModes;
-	GLevelEditorModeTools().GetActiveModes( ActiveModes );
-	bool bSelectionAllowed = (ActiveModes.Num() == 0);
-	for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-	{
-		bSelectionAllowed |= ActiveModes[ModeIndex]->IsSelectionAllowed( Actor, bInSelected );
-	}
-
-	return bSelectionAllowed;
+	// Allow active modes to determine whether the selection is allowed. 
+	return GLevelEditorModeTools().IsSelectionAllowed(Actor, bInSelected);
 }
 
 void UUnrealEdEngine::SelectActor(AActor* Actor, bool bInSelected, bool bNotify, bool bSelectEvenIfHidden, bool bForceRefresh)
@@ -549,14 +536,8 @@ void UUnrealEdEngine::SelectActor(AActor* Actor, bool bInSelected, bool bNotify,
 		return;
 	}
 
-	bool bSelectionHandled = false;
+	bool bSelectionHandled = GLevelEditorModeTools().IsSelectionHandled(Actor, bInSelected);
 
-	TArray<FEdMode*> ActiveModes;
-	GLevelEditorModeTools().GetActiveModes( ActiveModes );
-	for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
-	{
-		bSelectionHandled |= ActiveModes[ModeIndex]->Select( Actor, bInSelected );
-	}
 
 	// Select the actor and update its internals.
 	if( !bSelectionHandled )

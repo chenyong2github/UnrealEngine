@@ -2,7 +2,7 @@
 
 #include "EditorInteractiveToolsFrameworkModule.h"
 #include "ComponentSourceInterfaces.h"
-#include "EditorComponentSourceFactory.h"
+#include "Tools/EditorComponentSourceFactory.h"
 
 #define LOCTEXT_NAMESPACE "FEditorInteractiveToolsFrameworkModule"
 

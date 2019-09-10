@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "EditorToolAssetAPI.h"
+#include "Tools/EditorToolAssetAPI.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 

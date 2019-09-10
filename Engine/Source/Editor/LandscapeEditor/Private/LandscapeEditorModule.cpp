@@ -234,7 +234,7 @@ public:
 
 	void OnPreSaveWorld(uint32 SaveFlags, class UWorld* World)
 	{
-		FEdModeLandscape* EdMode = (FEdModeLandscape*)GLevelEditorModeTools().FindMode(FBuiltinEditorModes::EM_Landscape);
+		FEdModeLandscape* EdMode = (FEdModeLandscape*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Landscape);
 		if (EdMode)
 		{
 			EdMode->OnPreSaveWorld(SaveFlags, World);

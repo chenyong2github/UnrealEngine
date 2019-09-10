@@ -31,7 +31,7 @@ enum class EStandardToolModeCommands
  * call FStandardToolModeCommands::Get().FindStandardCommand() to get the registered UICommandInfo.
  * 
  */
-class EDITORINTERACTIVETOOLSFRAMEWORK_API FStandardToolModeCommands : public TCommands<FStandardToolModeCommands>
+class UNREALED_API FStandardToolModeCommands : public TCommands<FStandardToolModeCommands>
 {
 public:
 	FStandardToolModeCommands();

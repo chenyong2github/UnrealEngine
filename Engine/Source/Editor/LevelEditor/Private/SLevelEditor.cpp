@@ -1357,37 +1357,12 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 	GLevelEditorModeTools().ActivateMode( ModeID );
 
 	// Find and disable any other 'visible' modes since we only ever allow one of those active at a time.
-	TArray<FEdMode*> ActiveModes;
-	GLevelEditorModeTools().GetActiveModes( ActiveModes );
-	for ( FEdMode* Mode : ActiveModes )
-	{
-		if ( Mode->GetID() != ModeID && Mode->GetModeInfo().bVisible )
-		{
-			GLevelEditorModeTools().DeactivateMode( Mode->GetID() );
-		}
-	}
+	GLevelEditorModeTools().DeactivateOtherVisibleModes(ModeID);
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor" );
 	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
 	TSharedRef<SDockTab> ToolboxTab = LevelEditorTabManager->InvokeTab( FTabId("LevelEditorToolBox") );
-
-	//// If it's already active deactivate the mode
-	//if ( GLevelEditorModeTools().IsModeActive( ModeID ) )
-	//{
-	//	//GLevelEditorModeTools().DeactivateAllModes();
-	//	//GLevelEditorModeTools().DeactivateMode( ModeID );
-	//}
-	//else // Activate the mode and create the tab for it.
-	//{
-	//	GLevelEditorModeTools().DeactivateAllModes();
-	//	GLevelEditorModeTools().ActivateMode( ModeID );
-
-	//	//FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor" );
-	//	//TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-
-	//	//TSharedRef<SDockTab> ToolboxTab = LevelEditorTabManager->InvokeTab( GetEditorModeTabId( ModeID ) );
-	//}
 }
 
 bool SLevelEditor::IsModeActive( FEditorModeID ModeID )
@@ -1395,15 +1370,9 @@ bool SLevelEditor::IsModeActive( FEditorModeID ModeID )
 	// The level editor changes the default mode to placement
 	if ( ModeID == FBuiltinEditorModes::EM_Placement )
 	{
-		// Only return true if this is the *only* active mode
-		TArray<FEdMode*> ActiveModes;
-		GLevelEditorModeTools().GetActiveModes(ActiveModes);
-		for( FEdMode* Mode : ActiveModes )
+		if (!GLevelEditorModeTools().IsOnlyVisibleActiveMode(ModeID))
 		{
-			if( Mode->GetModeInfo().bVisible && Mode->GetID() != FBuiltinEditorModes::EM_Placement )
-			{
-				return false;
-			}
+			return false;
 		}
 	}
 	return GLevelEditorModeTools().IsModeActive( ModeID );

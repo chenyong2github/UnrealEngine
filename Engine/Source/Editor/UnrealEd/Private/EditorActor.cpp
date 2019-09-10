@@ -620,14 +620,7 @@ void UUnrealEdEngine::edactDuplicateSelected( ULevel* InLevel, bool bOffsetLocat
 			PostDuplicateSelection.Add(Actor);
 		}
 
-		TArray<FEdMode*> ActiveModes;
-		GLevelEditorModeTools().GetActiveModes(ActiveModes);
-
-		for (int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex)
-		{
-			// Tell the tools about the duplication
-			ActiveModes[ModeIndex]->ActorsDuplicatedNotify(PreDuplicateSelection, PostDuplicateSelection, bOffsetLocations);
-		}
+		GLevelEditorModeTools().ActorsDuplicatedNotify(PreDuplicateSelection, PostDuplicateSelection, bOffsetLocations);
 	}
 }
 

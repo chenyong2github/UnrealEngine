@@ -8,6 +8,7 @@
 class FEditorModeTools;
 class FEditorViewportClient;
 class FViewport;
+class UEdMode;
 
 class FPhysicsManipulationEdModeFactory : public IEditorModeFactory
 {
@@ -19,6 +20,10 @@ class FPhysicsManipulationEdModeFactory : public IEditorModeFactory
 
 	/** Create a new instance of our mode */
 	virtual TSharedRef<FEdMode> CreateMode() const override;
+
+	virtual UEdMode* CreateScriptableMode() const override { return nullptr; }
+
+	virtual bool ForScriptableMode() const override { return false; }
 };
 
 /** 

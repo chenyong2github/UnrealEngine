@@ -1512,19 +1512,14 @@ void FLevelEditorActionCallbacks::ReplaceActorsFromClass_Clicked( UClass* ActorC
 
 bool FLevelEditorActionCallbacks::Duplicate_CanExecute()
 {
-	TArray<FEdMode*> ActiveModes; 
-	GLevelEditorModeTools().GetActiveModes( ActiveModes );
-	for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
+	const EEditAction::Type CanProcess = GLevelEditorModeTools().GetActionEditDuplicate();
+	if (CanProcess == EEditAction::Process)
 	{
-		const EEditAction::Type CanProcess = ActiveModes[ModeIndex]->GetActionEditDuplicate();
-		if (CanProcess == EEditAction::Process)
-		{
-			return true;
-		}
-		else if (CanProcess == EEditAction::Halt)
-		{
-			return false;
-		}
+		return true;
+	}
+	else if (CanProcess == EEditAction::Halt)
+	{
+		return false;
 	}
 	
 	// If we can copy, we can duplicate
@@ -1566,19 +1561,14 @@ bool FLevelEditorActionCallbacks::Duplicate_CanExecute()
 
 bool FLevelEditorActionCallbacks::Delete_CanExecute()
 {
-	TArray<FEdMode*> ActiveModes; 
-	GLevelEditorModeTools().GetActiveModes( ActiveModes );
-	for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
+	const EEditAction::Type CanProcess = GLevelEditorModeTools().GetActionEditDelete();
+	if (CanProcess == EEditAction::Process)
 	{
-		const EEditAction::Type CanProcess = ActiveModes[ModeIndex]->GetActionEditDelete();
-		if (CanProcess == EEditAction::Process)
-		{
-			return true;
-		}
-		else if (CanProcess == EEditAction::Halt)
-		{
-			return false;
-		}
+		return true;
+	}
+	else if (CanProcess == EEditAction::Halt)
+	{
+		return false;
 	}
 
 	bool bCanDelete = false;
@@ -1676,19 +1666,14 @@ bool FLevelEditorActionCallbacks::Rename_CanExecute()
 
 bool FLevelEditorActionCallbacks::Cut_CanExecute()
 {
-	TArray<FEdMode*> ActiveModes; 
-	GLevelEditorModeTools().GetActiveModes( ActiveModes );
-	for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
+	const EEditAction::Type CanProcess = GLevelEditorModeTools().GetActionEditCut();
+	if (CanProcess == EEditAction::Process)
 	{
-		const EEditAction::Type CanProcess = ActiveModes[ModeIndex]->GetActionEditCut();
-		if (CanProcess == EEditAction::Process)
-		{
-			return true;
-		}
-		else if (CanProcess == EEditAction::Halt)
-		{
-			return false;
-		}
+		return true;
+	}
+	else if (CanProcess == EEditAction::Halt)
+	{
+		return false;
 	}
 
 	bool bCanCut = false;
@@ -1731,19 +1716,14 @@ bool FLevelEditorActionCallbacks::Cut_CanExecute()
 
 bool FLevelEditorActionCallbacks::Copy_CanExecute()
 {
-	TArray<FEdMode*> ActiveModes; 
-	GLevelEditorModeTools().GetActiveModes( ActiveModes );
-	for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
+	const EEditAction::Type CanProcess = GLevelEditorModeTools().GetActionEditCopy();
+	if (CanProcess == EEditAction::Process)
 	{
-		const EEditAction::Type CanProcess = ActiveModes[ModeIndex]->GetActionEditCopy();
-		if (CanProcess == EEditAction::Process)
-		{
-			return true;
-		}
-		else if (CanProcess == EEditAction::Halt)
-		{
-			return false;
-		}
+		return true;
+	}
+	else if (CanProcess == EEditAction::Halt)
+	{
+		return false;
 	}
 
 	bool bCanCopy = false;
@@ -1784,19 +1764,14 @@ bool FLevelEditorActionCallbacks::Copy_CanExecute()
 
 bool FLevelEditorActionCallbacks::Paste_CanExecute()
 {
-	TArray<FEdMode*> ActiveModes; 
-	GLevelEditorModeTools().GetActiveModes( ActiveModes );
-	for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
+	const EEditAction::Type CanProcess = GLevelEditorModeTools().GetActionEditPaste();
+	if (CanProcess == EEditAction::Process)
 	{
-		const EEditAction::Type CanProcess = ActiveModes[ModeIndex]->GetActionEditPaste();
-		if (CanProcess == EEditAction::Process)
-		{
-			return true;
-		}
-		else if (CanProcess == EEditAction::Halt)
-		{
-			return false;
-		}
+		return true;
+	}
+	else if (CanProcess == EEditAction::Halt)
+	{
+		return false;
 	}
 
 	bool bCanPaste = false;

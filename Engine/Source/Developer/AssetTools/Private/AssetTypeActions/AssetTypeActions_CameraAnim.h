@@ -10,6 +10,8 @@
 #include "Camera/CameraAnim.h"
 
 class AMatineeActorCameraAnim;
+class FName;
+typedef FName FEditorModeID;
 
 class FAssetTypeActions_CameraAnim : public FAssetTypeActions_Base
 {
@@ -30,7 +32,7 @@ private:
 	void CreateCameraActorForCameraAnim(class UCameraAnim* InCameraAnim);
 
 	/** Delegate fired when the editor mode is changed */
-	void OnMatineeEditorClosed(class FEdMode* InEditorMode);
+	void OnMatineeEditorClosed(const FEditorModeID& InEditorModeID);
 
 	/** Helper function to hookup preview pawn */
 	void CreatePreviewPawnForCameraAnim(class UCameraAnim* InCameraAnim);

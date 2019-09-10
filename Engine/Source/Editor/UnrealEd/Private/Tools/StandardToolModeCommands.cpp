@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "StandardToolModeCommands.h"
+#include "Tools/StandardToolModeCommands.h"
 #include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "StandardToolModeCommands"

@@ -98,6 +98,8 @@ struct UNREALED_API FEditorDelegates
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMapOpened, const FString& /* Filename */, bool /*bAsTemplate*/);
 	/** Delegate used for entering or exiting an editor mode */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEditorModeTransitioned, FEdMode* /*Mode*/);
+	/** Delegate used for entering or exiting an editor mode */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEditorModeIDTransitioned, const FEditorModeID& /*Mode*/);
 	/** delegate type to determine if a user requests can delete certain assets. */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAssetsCanDelete, const TArray<UObject*>& /*InObjectToDelete*/, FCanDeleteAssetResult& /*OutCanDelete*/);
 	/** delegate type for when a user requests to delete certain assets... DOES NOT mean the asset(s) will be deleted (the user could cancel) */
@@ -166,9 +168,15 @@ struct UNREALED_API FEditorDelegates
 	/** Called when load errors are about to be displayed */
 	static FSimpleMulticastDelegate DisplayLoadErrors;
 	/** Called when an editor mode is being entered */
+	UE_DEPRECATED(4.24, "Use EditorModeIDEnter instead")
 	static FOnEditorModeTransitioned EditorModeEnter;
 	/** Called when an editor mode is being exited */
+	UE_DEPRECATED(4.24, "Use EditorModeIDExit instead")
 	static FOnEditorModeTransitioned EditorModeExit;
+	/** Called when an editor mode ID is being entered */
+	static FOnEditorModeIDTransitioned EditorModeIDEnter;
+	/** Called when an editor mode ID is being exited */
+	static FOnEditorModeIDTransitioned EditorModeIDExit;
 	/** Sent when a PIE session is beginning (before we decide if PIE can run - allows clients to avoid blocking PIE) */
 	static FOnPIEEvent PreBeginPIE;
 	/** Sent when a PIE session is beginning (but hasn't actually started yet) */
