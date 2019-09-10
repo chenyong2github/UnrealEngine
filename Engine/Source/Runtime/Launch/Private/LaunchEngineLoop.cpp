@@ -2540,6 +2540,11 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 					FPlatformMisc::PlatformHandleSplashScreen(true);
 				}
             }
+		
+			if (FCoreDelegates::OnInitialLoadingScreenShown.IsBound())
+			{
+				FCoreDelegates::OnInitialLoadingScreenShown.Broadcast();
+			}
 		}
 		else if ( IsRunningCommandlet() )
 		{

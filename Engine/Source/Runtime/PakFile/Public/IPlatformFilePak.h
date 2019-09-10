@@ -1560,6 +1560,11 @@ public:
 	static const TCHAR* GetMountStartupPaksWildCard();
 
 	/**
+	 * Overrides the wildcard used for searching paks. Call before initialization
+	 */
+	static void SetMountStartupPaksWildCard(const FString& WildCard);
+
+	/**
 	* Determine location information for a given chunk ID. Will be DoesNotExist if the pak file wasn't detected, NotAvailable if it exists but hasn't been mounted due to a missing encryption key, or LocalFast if it exists and has been mounted
 	*/
 	EChunkLocation::Type GetPakChunkLocation(int32 InChunkID) const;
