@@ -1,0 +1,62 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch TEST Bot (single process)",
+            "program": "${workspaceFolder}/dist/robo/robo.js",
+            "preLaunchTask": "tsc: build - tsconfig.json",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ],
+            "args": [
+                "-noIPC", "-noTLS"
+            ],
+            "env": {
+                "NODE_ENV": "development",
+                "ROBO_BRANCHSPECS_DIRECTORY": "./debugdata",
+                "ROBO_VAULT_PATH": "./vault",
+                "ROBO_DEV_MODE": "true",
+                "ROBO_EXTERNAL_URL": "http://localhost:8080"
+            },
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "TEST Bot Multi-process (Watchdog)",
+            "program": "${workspaceFolder}/dist/robo/watchdog.js",
+            "preLaunchTask": "tsc: build - tsconfig.json",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ],
+            "env": {
+                "ROBO_DEV_MODE": "true",
+                "ROBO_EXTERNAL_URL": "https://localhost:4433",
+                "NODE_ENV": "development",
+                "ROBO_BRANCHSPECS_DIRECTORY": "./debugdata",
+                "ROBO_VAULT_PATH": "./vault"
+            },
+            "autoAttachChildProcesses": true
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Run unit tests",
+            "program": "${workspaceFolder}/dist/robo/branchmap.js",
+            "preLaunchTask": "tsc: build - tsconfig.json",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ],
+            "args": [
+                "__TEST_COMPUTE_TARGETS__"
+            ],
+            "env": {
+                "NODE_ENV": "development"
+            },
+        }
+    ]
+}
