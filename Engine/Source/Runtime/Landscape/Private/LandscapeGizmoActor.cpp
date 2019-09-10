@@ -111,6 +111,10 @@ public:
 		}
 		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 	}
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+	}
 };
 
 /** Represents a LandscapeGizmoRenderingComponent to the scene manager. */

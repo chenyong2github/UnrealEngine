@@ -341,6 +341,11 @@ bool UMaterialInterface::GetTextureParameterValue(const FMaterialParameterInfo& 
 	return false;
 }
 
+bool UMaterialInterface::GetRuntimeVirtualTextureParameterValue(const FMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly) const
+{
+	return false;
+}
+
 bool UMaterialInterface::GetFontParameterValue(const FMaterialParameterInfo& ParameterInfo, class UFont*& OutFontValue, int32& OutFontPage, bool bOveriddenOnly) const
 {
 	return false;
