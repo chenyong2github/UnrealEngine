@@ -10,6 +10,15 @@
 class UPhysicalMaterial;
 struct FPropertyChangedEvent;
 
+UENUM()
+enum class ESplineModulationColorMask : uint8
+{
+	Red,
+	Green,
+	Blue,
+	Alpha
+};
+
 UCLASS(MinimalAPI, BlueprintType)
 class ULandscapeLayerInfoObject : public UObject
 {
@@ -28,6 +37,22 @@ class ULandscapeLayerInfoObject : public UObject
 	UPROPERTY(EditAnywhere, Category=LandscapeLayerInfoObject)
 	uint32 bNoWeightBlend:1;
 
+	/** Texture to modulate the Splines Falloff Layer Alpha */
+	UPROPERTY(EditAnywhere, Category = SplineFalloffModulation, Meta = (DisplayName="Texture"))
+	UTexture2D* SplineFalloffModulationTexture;
+
+	UPROPERTY(EditAnywhere, Category = SplineFalloffModulation, Meta = (DisplayName = "Color Mask"))
+	ESplineModulationColorMask SplineFalloffModulationColorMask;
+
+	UPROPERTY(EditAnywhere, Category = SplineFalloffModulation, Meta = (DisplayName = "Tiling", ClampMin="0.01"))
+	float SplineFalloffModulationTiling;
+
+	UPROPERTY(EditAnywhere, Category = SplineFalloffModulation, Meta = (DisplayName = "Bias", ClampMin="0"))
+	float SplineFalloffModulationBias;
+
+	UPROPERTY(EditAnywhere, Category = SplineFalloffModulation, Meta = (DisplayName = "Scale", ClampMin="0"))
+	float SplineFalloffModulationScale;
+				
 	UPROPERTY(NonTransactional, Transient)
 	bool IsReferencedFromLoadedData;
 #endif // WITH_EDITORONLY_DATA
