@@ -41,6 +41,9 @@ public:
 	/** Reverts change to the object */
 	virtual void Revert( UObject* Object ) = 0;
 
+	/** @return true if this Change has Expired, ie it will no longer have any effect and could be skipped by undo/redo */
+	virtual bool HasExpired( UObject* Object ) const { return false; }
+
 	/** Describes this change (for debugging) */
 	virtual FString ToString() const = 0;
 

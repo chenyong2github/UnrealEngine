@@ -554,6 +554,23 @@ bool FTransaction::ContainsPieObjects() const
 	return false;
 }
 
+bool FTransaction::HasExpired() const
+{
+	if (Records.Num() == 0)		// only return true if we definitely have expired changes
+	{
+		return false;
+	}
+	for (const FObjectRecord& Record : Records)
+	{
+		if (Record.HasExpired() == false)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+
 bool FTransaction::IsObjectTransacting(const UObject* Object) const
 {
 	// This function is meaningless when called outside of a transaction context. Without this
@@ -725,6 +742,15 @@ bool FTransaction::FObjectRecord::ContainsPieObject() const
 bool FTransaction::FObjectRecord::HasChanges() const
 {
 	return DeltaChange.HasChanged() || CustomChange;
+}
+
+bool FTransaction::FObjectRecord::HasExpired() const
+{
+	if (CustomChange && CustomChange->HasExpired(Object.Get()) == true)
+	{
+		return true;
+	}
+	return false;
 }
 
 void FTransaction::AddReferencedObjects( FReferenceCollector& Collector )
@@ -1428,21 +1454,33 @@ bool UTransBuffer::Undo(bool bCanRedo)
 
 	// Apply the undo changes.
 	GIsTransacting = true;
+
+	// custom changes (FChange) can be applied to temporary objects that require undo/redo for some time,
+	// but we want to skip over these changes later (eg in the context of a Tool that is used for a while and
+	// then closed). In this case the Transaction is "expired" and we continue to Undo until we find a 
+	// non-Expired Transaction. 
+	bool bDoneTransacting = false;
+	do
 	{
 		FTransaction& Transaction = UndoBuffer[ UndoBuffer.Num() - ++UndoCount ].Get();
-		UE_LOG(LogEditorTransaction, Log,  TEXT("Undo %s"), *Transaction.GetTitle().ToString() );
-		CurrentTransaction = &Transaction;
-		CurrentTransaction->BeginOperation();
+		if (Transaction.HasExpired() == false)
+		{
+			UE_LOG(LogEditorTransaction, Log, TEXT("Undo %s"), *Transaction.GetTitle().ToString());
+			CurrentTransaction = &Transaction;
+			CurrentTransaction->BeginOperation();
 
-		const FTransactionContext TransactionContext = CurrentTransaction->GetContext();
-		TransactionStateChangedDelegate.Broadcast(TransactionContext, ETransactionStateEventType::UndoRedoStarted);
-		BeforeRedoUndoDelegate.Broadcast(TransactionContext);
-		Transaction.Apply();
-		UndoDelegate.Broadcast(TransactionContext, true);
-		TransactionStateChangedDelegate.Broadcast(TransactionContext, ETransactionStateEventType::UndoRedoFinalized);
+			const FTransactionContext TransactionContext = CurrentTransaction->GetContext();
+			TransactionStateChangedDelegate.Broadcast(TransactionContext, ETransactionStateEventType::UndoRedoStarted);
+			BeforeRedoUndoDelegate.Broadcast(TransactionContext);
+			Transaction.Apply();
+			UndoDelegate.Broadcast(TransactionContext, true);
+			TransactionStateChangedDelegate.Broadcast(TransactionContext, ETransactionStateEventType::UndoRedoFinalized);
 
-		CurrentTransaction->EndOperation();
-		CurrentTransaction = nullptr;
+			CurrentTransaction->EndOperation();
+			CurrentTransaction = nullptr;
+
+			bDoneTransacting = true;
+		}
 
 		if (!bCanRedo)
 		{
@@ -1451,8 +1489,17 @@ bool UTransBuffer::Undo(bool bCanRedo)
 
 			UndoBufferChangedDelegate.Broadcast();
 		}
-	}
+	} 
+	while (bDoneTransacting == false && CanUndo());
+
 	GIsTransacting = false;
+
+	// if all transactions were expired, reproduce the !CanUndo() branch at the top of the function
+	if (bDoneTransacting == false)
+	{
+		UndoDelegate.Broadcast(FTransactionContext(), false);
+		return false;
+	}
 
 	CheckState();
 
@@ -1472,23 +1519,41 @@ bool UTransBuffer::Redo()
 
 	// Apply the redo changes.
 	GIsTransacting = true;
+
+	// Skip over Expired transactions (see comments in ::Undo)
+	bool bDoneTransacting = false;
+	do
 	{
 		FTransaction& Transaction = UndoBuffer[ UndoBuffer.Num() - UndoCount-- ].Get();
-		UE_LOG(LogEditorTransaction, Log,  TEXT("Redo %s"), *Transaction.GetTitle().ToString() );
-		CurrentTransaction = &Transaction;
-		CurrentTransaction->BeginOperation();
+		if (Transaction.HasExpired() == false)
+		{
+			UE_LOG(LogEditorTransaction, Log, TEXT("Redo %s"), *Transaction.GetTitle().ToString());
+			CurrentTransaction = &Transaction;
+			CurrentTransaction->BeginOperation();
 
-		const FTransactionContext TransactionContext = CurrentTransaction->GetContext();
-		TransactionStateChangedDelegate.Broadcast(TransactionContext, ETransactionStateEventType::UndoRedoStarted);
-		BeforeRedoUndoDelegate.Broadcast(TransactionContext);
-		Transaction.Apply();
-		RedoDelegate.Broadcast(TransactionContext, true);
-		TransactionStateChangedDelegate.Broadcast(TransactionContext, ETransactionStateEventType::UndoRedoFinalized);
+			const FTransactionContext TransactionContext = CurrentTransaction->GetContext();
+			TransactionStateChangedDelegate.Broadcast(TransactionContext, ETransactionStateEventType::UndoRedoStarted);
+			BeforeRedoUndoDelegate.Broadcast(TransactionContext);
+			Transaction.Apply();
+			RedoDelegate.Broadcast(TransactionContext, true);
+			TransactionStateChangedDelegate.Broadcast(TransactionContext, ETransactionStateEventType::UndoRedoFinalized);
 
-		CurrentTransaction->EndOperation();
-		CurrentTransaction = nullptr;
-	}
+			CurrentTransaction->EndOperation();
+			CurrentTransaction = nullptr;
+
+			bDoneTransacting = true;
+		}
+	} 
+	while (bDoneTransacting == false && CanRedo());
+
 	GIsTransacting = false;
+
+	// if all transactions were expired, reproduce the !CanRedo() branch at the top of the function
+	if (bDoneTransacting == false)
+	{
+		RedoDelegate.Broadcast(FTransactionContext(), false);
+		return false;
+	}
 
 	CheckState();
 
