@@ -1052,7 +1052,9 @@ FString FIOSPlatformFile::ConvertToIOSPath(const FString& Filename, bool bForWri
 	{
 		return Result;
 	}
-    
+	
+	FPaths::MakePlatformFilename(Result);
+	
 	Result.ReplaceInline(TEXT("../"), TEXT(""));
 	Result.ReplaceInline(TEXT(".."), TEXT(""));
 	Result.ReplaceInline(FPlatformProcess::BaseDir(), TEXT(""));
@@ -1061,7 +1063,8 @@ FString FIOSPlatformFile::ConvertToIOSPath(const FString& Filename, bool bForWri
 	{
         AdditionalRootDirectory.ReplaceInline(TEXT("../"), TEXT(""));
         AdditionalRootDirectory.ReplaceInline(TEXT(".."), TEXT(""));
-		if (Result.StartsWith(AdditionalRootDirectory))
+		if (Result.StartsWith(AdditionalRootDirectory) &&
+			(Result.Len() == AdditionalRootDirectory.Len() || Result.Mid(AdditionalRootDirectory.Len()).StartsWith(FPlatformMisc::GetDefaultPathSeparator())))
 		{
 			static FString ReadPathBase = FString([NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]);
 
