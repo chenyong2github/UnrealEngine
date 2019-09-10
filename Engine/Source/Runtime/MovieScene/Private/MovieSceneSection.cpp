@@ -446,8 +446,8 @@ UMovieSceneSection* UMovieSceneSection::SplitSection(FQualifiedFrameTime SplitTi
 
 		Track->AddSection(*NewSection);
 
-		NewSection->TrimSection(SplitTime, false, bDeleteKeys);
-		TrimSection(SplitTime, true, bDeleteKeys);
+		TrimSection(SplitTime, false, bDeleteKeys);
+		NewSection->TrimSection(SplitTime, true, bDeleteKeys);
 
 		return NewSection;
 	}

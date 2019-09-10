@@ -254,6 +254,9 @@ UMovieSceneSection* UMovieSceneSubSection::SplitSection( FQualifiedFrameTime Spl
 		return NewSection;
 	}
 
+	// Restore original offset modified by splitting
+	Parameters.StartFrameOffset = InitialStartOffset;
+
 	return nullptr;
 }
 
