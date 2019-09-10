@@ -162,7 +162,7 @@ public:
 		Context.MyCompletionGraphEvent = MyCompletionGraphEvent;
 		Context.Owner->Tick_Concurrent(Context);
 
-		FinalizeCompleteTask->Unlock(ENamedThreads::GameThread);
+		FinalizeCompleteTask->Unlock();
 	}
 };
 
