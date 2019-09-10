@@ -310,7 +310,7 @@ public:
 	/** Get the UTexture referenced by this expression (can be a nullptr). */
 	virtual void GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const UTexture*& OutValue) const;
 	/** Get the URuntimeVirtualTexture referenced by this expression (can be a nullptr). */
-	virtual void GetTextureValue(const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const;
+	virtual void GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const;
 	/** Get the UTexture referenced by this expression including any transient override logic. */
 	virtual void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue, bool bAllowOverride = true) const;
 
