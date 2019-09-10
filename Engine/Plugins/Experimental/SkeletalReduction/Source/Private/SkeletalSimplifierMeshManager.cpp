@@ -319,8 +319,7 @@ void SkeletalSimplifier::FSimplifierMeshManager::GetCoincidentVertGroups(VertPtr
 			while (tmp->next != Vert)
 			{
 				tmp = tmp->next;
-				checkSlow(!tmp->TestFlags(SIMP_REMOVED));
-				if (tmp > maxVert)
+				if (tmp > maxVert && !tmp->TestFlags(SIMP_REMOVED)) 
 				{
 					maxVert = tmp;
 				}
@@ -422,8 +421,7 @@ void SkeletalSimplifier::FSimplifierMeshManager::RebuildEdgeLinkLists(EdgePtrArr
 
 
 void SkeletalSimplifier::FSimplifierMeshManager::FlagBoundary(const ESimpElementFlags Flag)
-{
-	check(Flag == ESimpElementFlags::SIMP_LOCKED);
+{ 
 
 	TArray< SimpVertType*, TInlineAllocator<64> > adjVerts;
 
@@ -434,8 +432,33 @@ void SkeletalSimplifier::FSimplifierMeshManager::FlagBoundary(const ESimpElement
 		checkSlow(v0 != NULL);
 		check(v0->adjTris.Num() > 0);
 
+		if (v0->TestFlags(Flag))
+		{
+			// we must have visited this vert already in a vert group
+			continue;
+		}
+
+
+		//Find all the verts that are adjacent to any vert in this group.
 		adjVerts.Reset();
-		v0->FindAdjacentVertsGroup(adjVerts);
+		//the scope below replaces  v0->FindAdjacentVertsGroup(adjVerts);
+		{
+			SimpVertType* v = v0;
+			do {
+				for (TriIterator triIter = v->adjTris.Begin(); triIter != v->adjTris.End(); ++triIter)
+				{
+					for (int j = 0; j < 3; j++)
+					{
+						SimpVertType* TriVert = (*triIter)->verts[j];
+						if (TriVert != v)
+						{
+							adjVerts.AddUnique(TriVert);
+						}
+					}
+				}
+				v = v->next;
+			} while (v != v0);
+		}
 
 		for (SimpVertType* v1 : adjVerts)
 		{
@@ -459,6 +482,7 @@ void SkeletalSimplifier::FSimplifierMeshManager::FlagBoundary(const ESimpElement
 					vert = vert->next;
 				} while (vert != v0);
 
+				// reset v0-group flag.
 				v0->DisableAdjTriFlagsGroup(SIMP_MARK1);
 
 				if (faceCount == 1)
@@ -652,25 +676,47 @@ int32 SkeletalSimplifier::FSimplifierMeshManager::RemoveEdgeIfInvalid(EdgePtrArr
 	const uint32 NumCandidateEdges = CandidateEdges.Num();
 	for (uint32 i = 0; i < NumCandidateEdges; ++i)
 	{
+	
 		SimpEdgeType* EdgePtr = CandidateEdges[i];
-		
-		// DJH - added 6/29/18
+
+		// Edge has already been removed..
 		if (!EdgePtr) continue;
+
 		
-		if (IsInvalid(EdgePtr))
+		// Verify the edge has an adjacent face.
+		auto HasAdjacentFace = [](SimpEdgeType* e)->bool
 		{
-			const uint32 Idx = RemoveEdge(*EdgePtr);
+			// Verify that this is truly an edge of a triangle
+
+			e->v0->EnableAdjVertFlags(SIMP_MARK1);
+			e->v1->DisableAdjVertFlags(SIMP_MARK1);
+
+			if (e->v0->TestFlags(SIMP_MARK1))
+			{
+				// Invalid edge results from collapsing a bridge tri
+				// There are no actual triangles connecting these verts
+				e->v0->DisableAdjVertFlags(SIMP_MARK1);
+
+				return false;
+			}
+
+			return true;
+		};
+
+		// remove invalid faces from the hash, edge group and flag.
+		if ( IsInvalid(EdgePtr) || !HasAdjacentFace(EdgePtr) ) // one of the verts touches zero triangles
+		{
+			// unlinks the edge from the edge group, remove from edge hash, add removed flag.
+
+			const uint32 Idx = RemoveEdge(*EdgePtr); 
 
 			// Record the index of the edge we remove.
+
 			if (Idx < INVALID_EDGE_ID)
 			{
-				RemovedEdgeIdxArray.AddUnique(Idx); // djh changed from Add()
+				RemovedEdgeIdxArray.AddUnique(Idx); 
 			}
 			CandidateEdges[i] = NULL;
-		}
-		else
-		{
-			checkSlow(!EdgePtr->TestFlags(SIMP_REMOVED));
 		}
 	}
 
@@ -824,12 +870,12 @@ int32 SkeletalSimplifier::FSimplifierMeshManager::RemoveIfDegenerate(VertPtrArra
 	{
 		if (VertPtr->TestFlags(SIMP_REMOVED))
 			continue;
-
+		
 		if (VertPtr->adjTris.Num() == 0)
 		{
 			NumRemoved++;
 			VertPtr->EnableFlags(SIMP_REMOVED);
-
+		
 			// ungroup
 			VertPtr->prev->next = VertPtr->next;
 			VertPtr->next->prev = VertPtr->prev;
@@ -884,7 +930,7 @@ int32 SkeletalSimplifier::FSimplifierMeshManager::RemoveIfDegenerate(EdgePtrArra
 
 		if (edge->TestFlags(SIMP_REMOVED))
 			continue;
-
+	
 		if (edge->v0 == edge->v1)
 		{
 			edge->EnableFlags(SIMP_REMOVED); // djh 8/3/18.  not sure why this happens
@@ -892,19 +938,17 @@ int32 SkeletalSimplifier::FSimplifierMeshManager::RemoveIfDegenerate(EdgePtrArra
 			uint32 Idx = RemoveEdge(*edge);
 			if (Idx < INVALID_EDGE_ID)
 			{
-				RemovedEdgeIdxArray.Add(Idx);
+				RemovedEdgeIdxArray.AddUnique(Idx);
 			}
-
 		}
-
-		if (edge->v0->TestFlags(SIMP_REMOVED) ||
-			edge->v1->TestFlags(SIMP_REMOVED))
+		else if (edge->v0->TestFlags(SIMP_REMOVED) ||
+			     edge->v1->TestFlags(SIMP_REMOVED))
 		{
-			//RemoveEdgeFromLocationMapAndHeap(edge);
+			
 			uint32 Idx = RemoveEdge(*edge);
 			if (Idx < INVALID_EDGE_ID)
 			{
-				RemovedEdgeIdxArray.Add(Idx);
+				RemovedEdgeIdxArray.AddUnique(Idx);
 			}
 		}
 	}
@@ -914,7 +958,7 @@ int32 SkeletalSimplifier::FSimplifierMeshManager::RemoveIfDegenerate(EdgePtrArra
 
 
 
-void SkeletalSimplifier::FSimplifierMeshManager::CollapseEdge(SimpEdgeType * EdgePtr, IdxArray& RemovedEdgeIdxArray)
+bool SkeletalSimplifier::FSimplifierMeshManager::CollapseEdge(SimpEdgeType * EdgePtr, IdxArray& RemovedEdgeIdxArray)
 {
 	SimpVertType* v0 = EdgePtr->v0;
 	SimpVertType* v1 = EdgePtr->v1;
@@ -942,7 +986,16 @@ void SkeletalSimplifier::FSimplifierMeshManager::CollapseEdge(SimpEdgeType * Edg
 		// Invalid edge results from collapsing a bridge tri
 		// There are no actual triangles connecting these verts
 		v0->DisableAdjVertFlags(SIMP_MARK1);
-		return;
+
+		EdgePtr->EnableFlags(SIMP_REMOVED);
+		const uint32 Idx = RemoveEdge(*EdgePtr);
+		if (Idx < INVALID_EDGE_ID)
+		{
+			RemovedEdgeIdxArray.AddUnique(Idx);
+		}
+
+		// return false because the was no real edge to collapse
+		return false;
 	}
 
 	// update edges from v0 to v1
@@ -952,6 +1005,8 @@ void SkeletalSimplifier::FSimplifierMeshManager::CollapseEdge(SimpEdgeType * Edg
 	if (v0->TestFlags(SIMP_LOCKED))
 		v1->EnableFlags(SIMP_LOCKED);
 
+	// this version of the vertex will be removed after the collapse
+	v0->DisableFlags(SIMP_LOCKED); // we already shared the locked state with the remaining vertex
 
 	// Update 'other'-u edges to 'other'-v edges ( where other != v) 
 
@@ -1074,6 +1129,8 @@ void SkeletalSimplifier::FSimplifierMeshManager::CollapseEdge(SimpEdgeType * Edg
 	// record the reduced number of verts
 
 	ReducedNumVerts--;
+
+	return true;
 }
 
 void SkeletalSimplifier::FSimplifierMeshManager::OutputMesh(MeshVertType* verts, uint32* indexes, TArray<int32>* LockedVerts)
