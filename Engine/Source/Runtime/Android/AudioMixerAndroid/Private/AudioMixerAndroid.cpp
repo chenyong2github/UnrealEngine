@@ -7,6 +7,8 @@
 class FAudioMixerModuleAndroid : public IAudioDeviceModule
 {
 public:
+	virtual bool IsAudioMixerModule() const override { return true; }
+
 	virtual Audio::IAudioMixerPlatformInterface* CreateAudioMixerPlatformInterface() override
 	{
 		return new Audio::FMixerPlatformAndroid();
