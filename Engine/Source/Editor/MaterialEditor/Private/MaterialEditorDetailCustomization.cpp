@@ -23,12 +23,13 @@
 #include "Modules/ModuleManager.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "MaterialEditor/DEditorScalarParameterValue.h"
 #include "MaterialEditor/DEditorFontParameterValue.h"
-#include "MaterialEditor/DEditorTextureParameterValue.h"
-#include "MaterialEditor/DEditorVectorParameterValue.h"
+#include "MaterialEditor/DEditorRuntimeVirtualTextureParameterValue.h"
+#include "MaterialEditor/DEditorScalarParameterValue.h"
 #include "MaterialEditor/DEditorStaticSwitchParameterValue.h"
 #include "MaterialEditor/DEditorStaticComponentMaskParameterValue.h"
+#include "MaterialEditor/DEditorTextureParameterValue.h"
+#include "MaterialEditor/DEditorVectorParameterValue.h"
 #include "MaterialPropertyHelpers.h"
 #include "MaterialEditor/DEditorMaterialLayersParameterValue.h"
 #include "PropertyCustomizationHelpers.h"
@@ -185,6 +186,7 @@ void FMaterialEditorParameterDetails::CreateSingleGroupWidget(FEditorParameterGr
 		UDEditorStaticComponentMaskParameterValue* CompMaskParam = Cast<UDEditorStaticComponentMaskParameterValue>(Parameter);
 		UDEditorStaticSwitchParameterValue* SwitchParam = Cast<UDEditorStaticSwitchParameterValue>(Parameter);
 		UDEditorTextureParameterValue* TextureParam = Cast<UDEditorTextureParameterValue>(Parameter);
+		UDEditorRuntimeVirtualTextureParameterValue* RuntimeVirtualTextureParam = Cast<UDEditorRuntimeVirtualTextureParameterValue>(Parameter);
 		UDEditorVectorParameterValue* VectorParam = Cast<UDEditorVectorParameterValue>(Parameter);
 		UDEditorMaterialLayersParameterValue* LayersParam = Cast<UDEditorMaterialLayersParameterValue>(Parameter);
 
@@ -196,7 +198,7 @@ void FMaterialEditorParameterDetails::CreateSingleGroupWidget(FEditorParameterGr
 		{
 			CreateScalarAtlasPositionParameterValueWidget(Parameter, ParameterProperty, DetailGroup);
 		}
-		else if (ScalarParam || SwitchParam || TextureParam || VectorParam || FontParam)
+		else if (ScalarParam || SwitchParam || TextureParam || RuntimeVirtualTextureParam || VectorParam || FontParam)
 		{
 			if (ScalarParam && ScalarParam->SliderMax > ScalarParam->SliderMin)
 			{
