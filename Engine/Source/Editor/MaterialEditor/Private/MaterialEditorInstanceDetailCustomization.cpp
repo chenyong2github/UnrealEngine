@@ -13,6 +13,7 @@
 #include "Materials/MaterialInterface.h"
 #include "MaterialEditor/DEditorFontParameterValue.h"
 #include "MaterialEditor/DEditorMaterialLayersParameterValue.h"
+#include "MaterialEditor/DEditorRuntimeVirtualTextureParameterValue.h"
 #include "MaterialEditor/DEditorScalarParameterValue.h"
 #include "MaterialEditor/DEditorStaticComponentMaskParameterValue.h"
 #include "MaterialEditor/DEditorStaticSwitchParameterValue.h"
@@ -416,6 +417,7 @@ void FMaterialInstanceParameterDetails::CreateSingleGroupWidget(FEditorParameter
 		UDEditorStaticComponentMaskParameterValue* CompMaskParam = Cast<UDEditorStaticComponentMaskParameterValue>(Parameter);
 		UDEditorStaticSwitchParameterValue* SwitchParam = Cast<UDEditorStaticSwitchParameterValue>(Parameter);
 		UDEditorTextureParameterValue* TextureParam = Cast<UDEditorTextureParameterValue>(Parameter);
+		UDEditorRuntimeVirtualTextureParameterValue* RuntimeVirtualTextureParam = Cast<UDEditorRuntimeVirtualTextureParameterValue>(Parameter);
 		UDEditorVectorParameterValue* VectorParam = Cast<UDEditorVectorParameterValue>(Parameter);
 
 		if (Parameter->ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
@@ -428,7 +430,7 @@ void FMaterialInstanceParameterDetails::CreateSingleGroupWidget(FEditorParameter
 			{
 				CreateScalarAtlasPositionParameterValueWidget(Parameter, ParameterProperty, DetailGroup);
 			}
-			else if (ScalarParam || SwitchParam || TextureParam || VectorParam || FontParam)
+			else if (ScalarParam || SwitchParam || TextureParam || RuntimeVirtualTextureParam || VectorParam || FontParam)
 			{
 				if (ScalarParam && ScalarParam->SliderMax > ScalarParam->SliderMin)
 				{
