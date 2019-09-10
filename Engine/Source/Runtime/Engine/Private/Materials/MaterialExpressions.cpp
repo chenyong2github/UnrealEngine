@@ -2262,17 +2262,6 @@ UMaterialExpressionRuntimeVirtualTextureSampleParameter::UMaterialExpressionRunt
 #endif
 }
 
-bool UMaterialExpressionRuntimeVirtualTextureSampleParameter::SetParameterValue(FName InParameterName, URuntimeVirtualTexture* InValue)
-{
-	if (InParameterName == ParameterName)
-	{
-		VirtualTexture = InValue;
-		return true;
-	}
-
-	return false;
-}
-
 bool UMaterialExpressionRuntimeVirtualTextureSampleParameter::IsNamedParameter(const FMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue) const
 {
 	if (ParameterInfo.Name == ParameterName)
@@ -2306,6 +2295,17 @@ void UMaterialExpressionRuntimeVirtualTextureSampleParameter::GetAllParameterInf
 }
 
 #if WITH_EDITOR
+
+bool UMaterialExpressionRuntimeVirtualTextureSampleParameter::SetParameterValue(FName InParameterName, URuntimeVirtualTexture* InValue)
+{
+	if (InParameterName == ParameterName)
+	{
+		VirtualTexture = InValue;
+		return true;
+	}
+
+	return false;
+}
 
 void UMaterialExpressionRuntimeVirtualTextureSampleParameter::SetEditableName(const FString& NewName)
 {
