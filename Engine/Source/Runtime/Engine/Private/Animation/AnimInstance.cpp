@@ -2664,6 +2664,8 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 				}
 			}
 		}
+
+		RecalcRequiredBones();
 	}
 }
 
