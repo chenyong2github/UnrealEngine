@@ -566,11 +566,6 @@ void FHoloLensARSystem::AllocateMeshBuffers(MeshUpdate* InMeshUpdate)
 
 		// The transform information is only updated when the vertices are updated so it needs to be captured here
 		FVector Translation(InMeshUpdate->Translation[0], InMeshUpdate->Translation[1], InMeshUpdate->Translation[2]);
-		if (TrackingSystem->GetTrackingOrigin() == EHMDTrackingOrigin::Eye)
-		{
-			//@todo JoeG - we should pass eye height through to the interop layer, but use this value until then
-			Translation.Z += 180.f;
-		}
 		MeshUpdate->Location = Translation;
 		FVector Scale(InMeshUpdate->Scale[0], InMeshUpdate->Scale[1], InMeshUpdate->Scale[2]);
 		MeshUpdate->Scale = Scale;
