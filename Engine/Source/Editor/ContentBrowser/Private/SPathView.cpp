@@ -1180,25 +1180,60 @@ void SPathView::SortRootItems()
 
 	// We have some manual sorting requirements that game must come before engine, and engine before everything else - we do that here after sorting everything by name
 	// The array below is in the inverse order as we iterate through and move each match to the beginning of the root items array
-	static const FString InverseSortOrder[] = {
-		TEXT("Classes_Engine"),
-		TEXT("Engine"),
-		TEXT("Classes_Game"),
+	const TArray<FString> SpecialDefaultFolders = {
 		TEXT("Game"),
+		TEXT("Classes_Game"),
+		TEXT("Engine"),
+		TEXT("Classes_Engine"),
 	};
-	for(const FString& SortItem : InverseSortOrder)
+
+	const FString ClassesPrefix = TEXT("Classes_");
+
+	struct FRootItemSortInfo
 	{
-		const int32 FoundItemIndex = TreeRootItems.IndexOfByPredicate([&SortItem](const TSharedPtr<FTreeItem>& TreeItem) -> bool
-		{
-			return TreeItem->FolderName == SortItem;
-		});
-		if(FoundItemIndex != INDEX_NONE)
-		{
-			TSharedPtr<FTreeItem> ItemToMove = TreeRootItems[FoundItemIndex];
-			TreeRootItems.RemoveAt(FoundItemIndex);
-			TreeRootItems.Insert(ItemToMove, 0);
-		}
+		FString FolderName;
+		float Priority;
+		int32 SpecialDefaultFolderPriority;
+		bool bIsClassesFolder;
+	};
+
+	TMap<FTreeItem*, FRootItemSortInfo> SortInfoMap;
+	for (const TSharedPtr<FTreeItem>& RootItem : TreeRootItems)
+	{
+		FRootItemSortInfo SortInfo;
+		SortInfo.bIsClassesFolder = RootItem->FolderName.StartsWith(ClassesPrefix);
+		SortInfo.FolderName = SortInfo.bIsClassesFolder ? RootItem->FolderName.RightChop(ClassesPrefix.Len()) : RootItem->FolderName;
+		int32 SpecialDefaultFolderIdx = SpecialDefaultFolders.IndexOfByKey(RootItem->FolderName);
+		SortInfo.SpecialDefaultFolderPriority = SpecialDefaultFolderIdx != INDEX_NONE ? SpecialDefaultFolders.Num() - SpecialDefaultFolderIdx : 0;
+		SortInfo.Priority = SpecialDefaultFolderIdx == INDEX_NONE ? FContentBrowserSingleton::Get().GetPluginSettings(FName(*SortInfo.FolderName)).RootFolderSortPriority : 1.f;
+		SortInfoMap.Add(RootItem.Get(), SortInfo);
 	}
+
+	
+	TreeRootItems.Sort([&SortInfoMap](const TSharedPtr<FTreeItem>& RootItemA, const TSharedPtr<FTreeItem>& RootItemB) {
+		const FRootItemSortInfo& SortInfoA = SortInfoMap.FindChecked(RootItemA.Get());
+		const FRootItemSortInfo& SortInfoB = SortInfoMap.FindChecked(RootItemB.Get());
+		if (SortInfoA.Priority != SortInfoB.Priority)
+		{
+			// Not the same priority, use priority to sort
+			return SortInfoA.Priority > SortInfoB.Priority;
+		}
+		else if (SortInfoA.SpecialDefaultFolderPriority != SortInfoB.SpecialDefaultFolderPriority)
+		{
+			// Special folders use the index to sort. Non special folders are all set to 0.
+			return SortInfoA.SpecialDefaultFolderPriority > SortInfoB.SpecialDefaultFolderPriority;
+		}
+		else if (SortInfoA.FolderName != SortInfoB.FolderName)
+		{
+			// Two non special folders of the same priorty, sort alphabetically
+			return SortInfoA.FolderName < SortInfoB.FolderName;
+		}
+		else
+		{
+			// Classes folders have the same name so sort them adjacent but under non-classes
+			return !SortInfoA.bIsClassesFolder;
+		}
+	});
 
 	TreeViewPtr->RequestTreeRefresh();
 }
