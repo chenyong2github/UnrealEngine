@@ -114,8 +114,9 @@ void SGameProjectDialog::Construct(const FArguments& InArgs, EMode InMode)
 			+ SWizard::Page()
 			.Name(GetPageTitle(GameProjectDialogDefs::ProjectSettingsPageIndex))
 			.CanShow(DialogMode != EMode::Open)
+			.OnEnter(this, &SGameProjectDialog::OnEnterSettingsPage)
 			[
-				NewProjectWizard->CreateProjectSettingsPage()
+				SAssignNew(ProjectSettingsPage, SBox)
 			]
 		]
 	];
@@ -429,6 +430,11 @@ int32 SGameProjectDialog::GetNextPageIndex(int32 Current) const
 	}
 
 	return INDEX_NONE;
+}
+
+void SGameProjectDialog::OnEnterSettingsPage()
+{
+	ProjectSettingsPage->SetContent(NewProjectWizard->CreateProjectSettingsPage());
 }
 
 bool SGameProjectDialog::OnCanFinish() const

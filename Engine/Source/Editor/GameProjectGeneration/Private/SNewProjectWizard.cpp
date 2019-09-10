@@ -573,25 +573,6 @@ void SNewProjectWizard::Tick( const FGeometry& AllottedGeometry, const double In
 void SNewProjectWizard::HandleTemplateListViewSelectionChanged(TSharedPtr<FTemplateItem> TemplateItem, ESelectInfo::Type SelectInfo)
 {
 	UpdateProjectFileValidity();
-
-	bool bIsBlueprintAvailable = !GetSelectedTemplateProperty(&FTemplateItem::BlueprintProjectFile).IsEmpty();
-	bool bIsCodeAvailable = !GetSelectedTemplateProperty(&FTemplateItem::CodeProjectFile).IsEmpty();
-
-	// if neither is available, then this is a blank template, so both are available
-	if (!bIsBlueprintAvailable && !bIsCodeAvailable)
-	{
-		bIsBlueprintAvailable = true;
-		bIsCodeAvailable = true;
-	}
-
-	TArray<SDecoratedEnumCombo<int32>::FComboOption>& LanguageOptions = ProjectLanguageEnum->GetOptions();
-	ensure(LanguageOptions[0].Text.IdenticalTo(LOCTEXT("ProjectDialog_Blueprint", "Blueprint")));
-	ensure(LanguageOptions[1].Text.IdenticalTo(LOCTEXT("ProjectDialog_Code", "C++")));
-
-	LanguageOptions[0].bChoosable = bIsBlueprintAvailable;
-	LanguageOptions[1].bChoosable = bIsCodeAvailable;
-
-	bShouldGenerateCode = !bIsBlueprintAvailable;
 }
 
 TSharedPtr<FTemplateItem> SNewProjectWizard::GetSelectedTemplateItem() const
@@ -1017,7 +998,7 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 	{
 		TSharedPtr<FTemplateItem> BlankTemplate = MakeShareable(new FTemplateItem());
 		BlankTemplate->Name = LOCTEXT("BlankProjectName", "Blank");
-		BlankTemplate->Description = LOCTEXT("BlankProjectDescription", "A clean empty project with no code.");
+		BlankTemplate->Description = LOCTEXT("BlankProjectDescription", "A clean empty project with no code and default settings.");
 		BlankTemplate->Key = TEXT("Blank");
 		BlankTemplate->SortKey = TEXT("_1");
 		BlankTemplate->Thumbnail = MakeShareable(new FSlateBrush(*FEditorStyle::GetBrush("GameProjectDialog.BlankProjectThumbnail")));
@@ -1596,19 +1577,35 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 
 	if (!HiddenSettings.Contains(ETemplateSetting::Languages))
 	{
+		bool bIsBlueprintAvailable = !GetSelectedTemplateProperty(&FTemplateItem::BlueprintProjectFile).IsEmpty();
+		bool bIsCodeAvailable = !GetSelectedTemplateProperty(&FTemplateItem::CodeProjectFile).IsEmpty();
+
+		// if neither is available, then this is a blank template, so both are available
+		if (!bIsBlueprintAvailable && !bIsCodeAvailable)
+		{
+			bIsBlueprintAvailable = true;
+			bIsCodeAvailable = true;
+		}
+
+		bShouldGenerateCode = !bIsBlueprintAvailable;
+
 		TArray<SDecoratedEnumCombo<int32>::FComboOption> BlueprintOrCppOptions;
 		BlueprintOrCppOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
-			0, FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.BlueprintImage_64"), LOCTEXT("ProjectDialog_Blueprint", "Blueprint")));
+			0, 
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.BlueprintImage_64"), 
+			LOCTEXT("ProjectDialog_Blueprint", "Blueprint"), 
+			bIsBlueprintAvailable));
 
 		BlueprintOrCppOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
-			1, FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.CodeImage_64"), LOCTEXT("ProjectDialog_Code", "C++")));
+			1,
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.CodeImage_64"),
+			LOCTEXT("ProjectDialog_Code", "C++"), 
+			bIsCodeAvailable));
 
 		TSharedRef<SDecoratedEnumCombo<int32>> Enum = SNew(SDecoratedEnumCombo<int32>, MoveTemp(BlueprintOrCppOptions))
 			.SelectedEnum(this, &SNewProjectWizard::OnGetBlueprintOrCppIndex)
 			.OnEnumChanged(this, &SNewProjectWizard::OnSetBlueprintOrCppIndex)
 			.Orientation(Orient_Vertical);
-
-		ProjectLanguageEnum = Enum;
 
 		TSharedRef<SRichTextBlock> Description = SNew(SRichTextBlock)
 			.Text(LOCTEXT("ProjectDialog_BlueprintOrCppDescription", "Choose whether to create a Blueprint or C++ project."))

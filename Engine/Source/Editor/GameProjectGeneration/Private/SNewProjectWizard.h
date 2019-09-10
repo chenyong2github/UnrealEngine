@@ -262,8 +262,6 @@ private:
 	/** The slate widget representing the list of templates */
 	TSharedPtr<STileView<TSharedPtr<FTemplateItem>>> TemplateListView;
 
-	TSharedPtr<SDecoratedEnumCombo<int32>> ProjectLanguageEnum;
-
 	/** Names for pages */
 	static FName TemplatePageName;
 	static FName NameAndLocationPageName;

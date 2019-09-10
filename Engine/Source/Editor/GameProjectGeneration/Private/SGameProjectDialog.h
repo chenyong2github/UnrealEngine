@@ -50,6 +50,7 @@ private:
 	TSharedPtr<SProjectBrowser> ProjectBrowserPage;
 	TSharedPtr<SNewProjectWizard> NewProjectWizard;
 	TSharedPtr<SRecentProjectBrowser> RecentProjectBrowser;
+	TSharedPtr<SBox> ProjectSettingsPage;
 
 	TSharedPtr<STileView<TSharedPtr<FTemplateCategory>>> MajorCategoryTileView;
 	TSharedPtr<STileView<TSharedPtr<FTemplateCategory>>> MinorCategoryTileView;
@@ -78,6 +79,9 @@ private:
 	void OnCancelClicked() const;
 	bool OnCanFinish() const;
 	void OnFinishClicked();
+
+	void OnEnterSettingsPage();
+
 	FText GetFinishText() const;
 	FText GetFinishTooltip() const;
 	FText GetPageTitle(int32 Index) const;
