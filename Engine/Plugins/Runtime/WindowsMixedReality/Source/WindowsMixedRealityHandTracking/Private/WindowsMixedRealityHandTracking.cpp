@@ -170,7 +170,8 @@ bool FWindowsMixedRealityHandTracking::FHandState::GetTransform(EWMRHandKeypoint
 {
 	check((int32)Keypoint < EWMRHandKeypointCount);
 	OutTransform = KeypointTransforms[(uint32)Keypoint];
-	return true;
+	
+	return ReceivedJointPoses;
 }
 
 const FTransform& FWindowsMixedRealityHandTracking::FHandState::GetTransform(EWMRHandKeypoint Keypoint) const
@@ -385,6 +386,11 @@ void FWindowsMixedRealityHandTracking::UpdateTrackerData()
 					Position))
 				{
 					HandStates[Hand].KeypointTransforms[Keypoint] = FTransform(Orientation, Position);
+					HandStates[Hand].ReceivedJointPoses = true;
+				}
+				else
+				{
+					HandStates[Hand].ReceivedJointPoses = false;
 				}
 			}
 		}
