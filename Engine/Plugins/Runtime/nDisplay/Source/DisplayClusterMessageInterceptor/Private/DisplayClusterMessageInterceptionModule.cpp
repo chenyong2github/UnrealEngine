@@ -131,6 +131,8 @@ private:
 		if (Interceptor)
 		{
 			Interceptor->Stop();
+			// remove internal reference to message bus
+			Interceptor->Setup(nullptr, nullptr);
 		}
 	}
 
