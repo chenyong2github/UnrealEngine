@@ -860,7 +860,7 @@ namespace IncludeTool
 		/// <param name="Target">The target to compile (eg. UE4Editor Win64 Development)</param>
 		/// <param name="TaskListFile">The output file for the task list</param>
 		/// <param name="Log">Log to output messages to</param>
-		static void GenerateTaskList(DirectoryReference RootDir, string Target, TargetPlatform Platform, TargetConfiguration Configuration, bool Precompile, FileReference TaskListFile, TextWriter Log)
+		static void GenerateTaskList(DirectoryReference RootDir, string Target, TargetPlatform Platform, TargetConfiguration Configuration, bool Precompile, FileReference TaskListFile, LineBasedTextWriter Log)
 		{
 			DirectoryReference IntermediateDir = DirectoryReference.Combine(RootDir, "Engine", "Intermediate", "Build");
 			if(IntermediateDir.Exists())
@@ -917,7 +917,7 @@ namespace IncludeTool
 		/// </summary>
 		/// <param name="WorkingDir">The working directory for fragments</param>
 		/// <param name="FilesToCompile">Array of files to compile, with their corresponding compile environment</param>
-		static void PreprocessFiles(DirectoryReference WorkingDir, KeyValuePair<FileReference, CompileEnvironment>[] FilesToCompile, IEnumerable<DirectoryReference> ExtraSystemIncludePaths, TextWriter Log)
+		static void PreprocessFiles(DirectoryReference WorkingDir, KeyValuePair<FileReference, CompileEnvironment>[] FilesToCompile, IEnumerable<DirectoryReference> ExtraSystemIncludePaths, LineBasedTextWriter Log)
 		{
 			if(FilesToCompile.Length > 0)
 			{
@@ -939,7 +939,7 @@ namespace IncludeTool
 		/// <param name="CompileEnvironment">Compile environment for the given file</param>
 		/// <param name="FileToActiveMarkup">Map from source file to bit array of the markup blocks that are active. Used to verify all preprocessed files parse the same way.</param>
 		/// <param name="Log">Writer for output messages</param>
-		static void PreprocessFile(FileReference Location, FileReference PreludeLocation, CompileEnvironment CompileEnvironment, IEnumerable<DirectoryReference> ExtraSystemIncludePaths, ConcurrentDictionary<SourceFile, MarkupState> FileToActiveMarkup, TextWriter Log)
+		static void PreprocessFile(FileReference Location, FileReference PreludeLocation, CompileEnvironment CompileEnvironment, IEnumerable<DirectoryReference> ExtraSystemIncludePaths, ConcurrentDictionary<SourceFile, MarkupState> FileToActiveMarkup, LineBasedTextWriter Log)
 		{
 			// Get the initial file
 			PreprocessorFile InitialFile = new PreprocessorFile(Location.FullName, Workspace.GetFile(Location));
@@ -964,7 +964,7 @@ namespace IncludeTool
 		/// <param name="IncludedFile">The file to include</param>
 		/// <param name="FileToActiveMarkup">Map from source file to bit array of the markup blocks that are active. Used to verify all preprocessed files parse the same way.</param>
 		/// <param name="Log">Writer for output messages</param>
-		static void PreprocessIncludedFile(Preprocessor Preprocessor, PreprocessorFile IncludedFile, ConcurrentDictionary<SourceFile, MarkupState> FileToActiveMarkup, TextWriter Log)
+		static void PreprocessIncludedFile(Preprocessor Preprocessor, PreprocessorFile IncludedFile, ConcurrentDictionary<SourceFile, MarkupState> FileToActiveMarkup, LineBasedTextWriter Log)
 		{
 			if(Preprocessor.PushFile(IncludedFile))
 			{
@@ -1257,7 +1257,7 @@ namespace IncludeTool
 		/// <param name="bMultiProcess">Whether to spawn child processes to execute the search. Useful with XGE.</param>
 		/// <param name="Log">Writer for log files</param>
 		/// <returns>True on success</returns>
-		public static bool ProcessSequenceTree(SequenceProbeType Type, Dictionary<SourceFile, CompileEnvironment> SourceFileToCompileEnvironment, DirectoryReference IntermediateDir, IEnumerable<DirectoryReference> ExtraSystemIncludePaths, int MaxParallel, int ShardIdx, int NumShards, double TimeLimit, TextWriter Log)
+		public static bool ProcessSequenceTree(SequenceProbeType Type, Dictionary<SourceFile, CompileEnvironment> SourceFileToCompileEnvironment, DirectoryReference IntermediateDir, IEnumerable<DirectoryReference> ExtraSystemIncludePaths, int MaxParallel, int ShardIdx, int NumShards, double TimeLimit, LineBasedTextWriter Log)
 		{
 			Stopwatch Timer = Stopwatch.StartNew();
 			Log.WriteLine("Creating probes...");
@@ -1493,7 +1493,7 @@ namespace IncludeTool
 		/// <param name="bWithP4">If true, read-only files will be checked out of Perforce</param>
 		/// <param name="Log">Log writer</param>
 		/// <returns>True if the files were written successfully</returns>
-		static bool WriteOptimizedFiles(DirectoryReference InputDir, DirectoryReference OutputDir, HashList<DirectoryReference> PublicIncludePaths, Dictionary<BuildModule, HashList<DirectoryReference>> PrivateIncludePaths, HashList<DirectoryReference> SystemIncludePaths, IEnumerable<SourceFile> OutputFiles, bool bWithP4, bool bWithVerboseLog, bool bRemoveForwardDeclarations, TextWriter Log)
+		static bool WriteOptimizedFiles(DirectoryReference InputDir, DirectoryReference OutputDir, HashList<DirectoryReference> PublicIncludePaths, Dictionary<BuildModule, HashList<DirectoryReference>> PrivateIncludePaths, HashList<DirectoryReference> SystemIncludePaths, IEnumerable<SourceFile> OutputFiles, bool bWithP4, bool bWithVerboseLog, bool bRemoveForwardDeclarations, LineBasedTextWriter Log)
 		{
 			// Find all the output files that need to be written
 			Dictionary<FileReference, string> OutputFileContents = new Dictionary<FileReference, string>();
@@ -1531,7 +1531,7 @@ namespace IncludeTool
 		/// <param name="bWithP4">If true, read-only files will be checked out of Perforce</param>
 		/// <param name="Log">Log writer</param>
 		/// <returns>True if the files were written successfully</returns>
-		static bool WriteOutputFiles(DirectoryReference OutputDir, Dictionary<FileReference, string> OutputFileContents, bool bWithP4, TextWriter Log)
+		static bool WriteOutputFiles(DirectoryReference OutputDir, Dictionary<FileReference, string> OutputFileContents, bool bWithP4, LineBasedTextWriter Log)
 		{
 			// Create the output directory
 			OutputDir.CreateDirectory();

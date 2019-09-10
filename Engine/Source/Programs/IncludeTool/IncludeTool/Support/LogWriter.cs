@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -12,7 +12,7 @@ namespace IncludeTool.Support
 	/// <summary>
 	/// Provides for writing log messages to a log file and the display, as well as setting status messages
 	/// </summary>
-	class LogWriter : TextWriter
+	class LogWriter : LineBasedTextWriter, IDisposable
 	{
 		/// <summary>
 		/// Output stream for log text
@@ -32,7 +32,7 @@ namespace IncludeTool.Support
 		/// <summary>
 		/// Dispose of the current object, and its resources
 		/// </summary>
-		protected override void Dispose(bool Disposing)
+		public void Dispose()
 		{
 			if(FileWriter != null)
 			{
@@ -42,21 +42,13 @@ namespace IncludeTool.Support
 		}
 
 		/// <summary>
-		/// Returns the encoding of this log writer
-		/// </summary>
-		public override Encoding Encoding
-		{
-			get { return Encoding.Unicode; }
-		}
-
-		/// <summary>
 		/// Writes a character to the output stream
 		/// </summary>
 		/// <param name="Value">Character to write</param>
-		public override void Write(char Value)
+		public override void WriteLine(string Text)
 		{
-			FileWriter.Write(Value);
-			Console.Write(Value);
+			FileWriter.WriteLine(Text);
+			Console.WriteLine(Text);
 		}
 	}
 }
