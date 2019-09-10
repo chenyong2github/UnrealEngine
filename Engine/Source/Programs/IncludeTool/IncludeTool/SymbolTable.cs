@@ -166,7 +166,7 @@ namespace IncludeTool
 		/// Prints all the symbols with conflicting definitions
 		/// </summary>
 		/// <param name="Log">Writer for log messagsThe source fragment to parse</param>
-		public void PrintConflicts(TextWriter Log)
+		public void PrintConflicts(LineBasedTextWriter Log)
 		{
 			foreach(string SymbolName in Lookup.Keys)
 			{
@@ -701,7 +701,7 @@ namespace IncludeTool
 		/// <param name="HeaderFile">The file to read from</param>
 		/// <param name="SymbolToHeader">Map of symbol to the file containing it</param>
 		/// <param name="Log">Writer for warnings and errors</param>
-		public bool ReadForwardDeclarations(SourceFile HeaderFile, Dictionary<Symbol, SourceFile> SymbolToHeader, TextWriter Log)
+		public bool ReadForwardDeclarations(SourceFile HeaderFile, Dictionary<Symbol, SourceFile> SymbolToHeader, LineBasedTextWriter Log)
 		{
 			foreach (PreprocessorMarkup Markup in HeaderFile.Markup.Where(x => x.Type == PreprocessorMarkupType.Text))
 			{
@@ -729,7 +729,7 @@ namespace IncludeTool
 		/// <param name="SymbolToHeader">Map of symbol to the file containing it</param>
 		/// <param name="Log">Writer for warnings and errors</param>
 		/// <returns>True if a forward declaration was read, false otherwise</returns>
-		bool ReadClassOrStructForwardDeclaration(TokenReader OriginalReader, SourceFile HeaderFile, Dictionary<Symbol, SourceFile> SymbolToHeader, TextWriter Log)
+		bool ReadClassOrStructForwardDeclaration(TokenReader OriginalReader, SourceFile HeaderFile, Dictionary<Symbol, SourceFile> SymbolToHeader, LineBasedTextWriter Log)
 		{
 			SymbolType Type;
 			if(OriginalReader.Current.Text == "class")
@@ -770,7 +770,7 @@ namespace IncludeTool
 		/// <param name="SymbolToHeader">Map of symbol to the file containing it</param>
 		/// <param name="Log">Writer for warnings and errors</param>
 		/// <returns>True if a forward declaration was read, false otherwise</returns>
-		bool ReadEnumClassForwardDeclaration(TokenReader OriginalReader, SourceFile HeaderFile, Dictionary<Symbol, SourceFile> SymbolToHeader, TextWriter Log)
+		bool ReadEnumClassForwardDeclaration(TokenReader OriginalReader, SourceFile HeaderFile, Dictionary<Symbol, SourceFile> SymbolToHeader, LineBasedTextWriter Log)
 		{
 			if(OriginalReader.Current.Text != "enum")
 			{
@@ -813,7 +813,7 @@ namespace IncludeTool
 		/// <param name="SymbolToHeader">Map of symbol to the file containing it</param>
 		/// <param name="Log">Writer for warnings and errors</param>
 		/// <returns>True if a forward declaration was read, false otherwise</returns>
-		bool ReadTemplateClassOrStructForwardDeclaration(TokenReader OriginalReader, SourceFile HeaderFile, Dictionary<Symbol, SourceFile> SymbolToHeader, TextWriter Log)
+		bool ReadTemplateClassOrStructForwardDeclaration(TokenReader OriginalReader, SourceFile HeaderFile, Dictionary<Symbol, SourceFile> SymbolToHeader, LineBasedTextWriter Log)
 		{
 			if(OriginalReader.Current.Text != "template")
 			{
@@ -945,7 +945,7 @@ namespace IncludeTool
 		/// <param name="Type"></param>
 		/// <param name="SymbolToHeader"></param>
 		/// <param name="Log"></param>
-		void AddForwardDeclaration(SourceFile HeaderFile, string SymbolName, SymbolType Type, Dictionary<Symbol, SourceFile> SymbolToHeader, TextWriter Log)
+		void AddForwardDeclaration(SourceFile HeaderFile, string SymbolName, SymbolType Type, Dictionary<Symbol, SourceFile> SymbolToHeader, LineBasedTextWriter Log)
 		{
 			foreach (Symbol Symbol in Lookup.WithKey(SymbolName))
 			{

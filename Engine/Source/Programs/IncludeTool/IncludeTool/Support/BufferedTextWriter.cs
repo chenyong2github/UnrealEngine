@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -12,17 +12,12 @@ namespace IncludeTool.Support
 	/// <summary>
 	/// Implementation of a TextWriter which buffers characters written to it, and can be copied to another TextWriter at a later time.
 	/// </summary>
-	class BufferedTextWriter : TextWriter
+	class BufferedTextWriter : LineBasedTextWriter
 	{
 		/// <summary>
 		/// List of buffered lines
 		/// </summary>
 		List<string> Lines = new List<string>();
-
-		/// <summary>
-		/// Buffered characters for the current line
-		/// </summary>
-		StringBuilder CurrentLine = new StringBuilder();
 
 		/// <summary>
 		/// Default constructor
@@ -46,48 +41,27 @@ namespace IncludeTool.Support
 		public void Clear()
 		{
 			Lines.Clear();
-			CurrentLine.Clear();
 		}
 
 		/// <summary>
 		/// Copies the current contents of the BufferedTextWriter to another TextWriter
 		/// </summary>
 		/// <param name="Other">The TextWriter to copy the buffered text to</param>
-		public void CopyTo(TextWriter Other, string Prefix)
+		public void CopyTo(LineBasedTextWriter Other, string Prefix)
 		{
 			for (int Idx = 0; Idx < Lines.Count; Idx++)
 			{
 				Other.WriteLine("{0}{1}", Prefix, Lines[Idx]);
 			}
-			if(CurrentLine.Length > 0)
-			{
-				Other.Write("{0}{1}", Prefix, CurrentLine.ToString());
-			}
-		}
-
-		/// <summary>
-		/// Returns the encoding for this TextWriter
-		/// </summary>
-		public override Encoding Encoding
-		{
-			get { return Encoding.Unicode; }
 		}
 
 		/// <summary>
 		/// Write a single character to the buffer
 		/// </summary>
 		/// <param name="Character">Character to write</param>
-		public override void Write(char Character)
+		public override void WriteLine(string Line)
 		{
-			if (Character != '\r' && Character != '\n')
-			{
-				CurrentLine.Append(Character);
-			}
-			if (Character == '\n')
-			{
-				Lines.Add(CurrentLine.ToString());
-				CurrentLine.Clear();
-			}
+			Lines.Add(Line);
 		}
 
 		/// <summary>
@@ -96,7 +70,7 @@ namespace IncludeTool.Support
 		/// <returns>String containing the current buffered text</returns>
 		public override string ToString()
 		{
-			return String.Join("\n", Lines) + "\n" + CurrentLine.ToString();
+			return String.Join("\n", Lines);
 		}
 	}
 }
