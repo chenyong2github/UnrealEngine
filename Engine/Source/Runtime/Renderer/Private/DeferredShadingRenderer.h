@@ -499,11 +499,35 @@ private:
 	void RenderRayTracingStochasticRectLight(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo& RectLightSceneInfo, TRefCountPtr<IPooledRenderTarget>& RectLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
 	void CompositeRayTracingSkyLight(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& SkyLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
 	
-	void RenderRayTracingGlobalIllumination(
+	bool RenderRayTracingGlobalIllumination(
 		FRDGBuilder& GraphBuilder, 
 		FSceneTextureParameters& SceneTextures,
 		FViewInfo& View,
 		IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig* RayTracingConfig,
+		IScreenSpaceDenoiser::FDiffuseIndirectInputs* OutDenoiserInputs);
+	
+	void RenderRayTracingGlobalIlluminationBruteForce(
+		FRDGBuilder& GraphBuilder,
+		FSceneTextureParameters& SceneTextures,
+		FViewInfo& View,
+		const IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig& RayTracingConfig,
+		int32 UpscaleFactor,
+		IScreenSpaceDenoiser::FDiffuseIndirectInputs* OutDenoiserInputs);
+
+	void RayTracingGlobalIlluminationCreateGatherPoints(
+		FRDGBuilder& GraphBuilder,
+		FSceneTextureParameters& SceneTextures,
+		FViewInfo& View,
+		int32 UpscaleFactor,
+		FRDGBufferRef& GatherPointsBuffer,
+		FIntPoint& GatherPointsResolution);
+
+	void RenderRayTracingGlobalIlluminationFinalGather(
+		FRDGBuilder& GraphBuilder,
+		FSceneTextureParameters& SceneTextures,
+		FViewInfo& View,
+		const IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig& RayTracingConfig,
+		int32 UpscaleFactor,
 		IScreenSpaceDenoiser::FDiffuseIndirectInputs* OutDenoiserInputs);
 	
 	void RenderRayTracingAmbientOcclusion(
@@ -517,33 +541,6 @@ private:
 	template <int TextureImportanceSampling> void RenderRayTracingRectLightInternal(FRHICommandListImmediate& RHICmdList, const TArray<FViewInfo>& Views, const FLightSceneInfo& RectLightSceneInfo, TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskTexture, TRefCountPtr<IPooledRenderTarget>& RayDistanceTexture);
 	void VisualizeRectLightMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FRWBuffer& RectLightMipTree, const FIntVector& RectLightMipTreeDimensions);
 	
-	bool RenderRayTracingGlobalIlluminationBruteForce(
-		FRHICommandListImmediate& RHICmdList,
-		FRDGBuilder& GraphBuilder,
-		FSceneTextureParameters& SceneTextures,
-		FViewInfo& View,
-		const IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig& RayTracingConfig,
-		int32 UpscaleFactor,
-		FRDGTextureUAV* GlobalIlluminationUAV,
-		FRDGTextureUAV* RayDistanceUAV);
-
-	void RayTracingGlobalIlluminationCreateGatherPoints(
-		FRDGBuilder& GraphBuilder,
-		FSceneTextureParameters& SceneTextures,
-		FViewInfo& View,
-		int32 UpscaleFactor,
-		FRDGBufferRef& GatherPointsBuffer,
-		FIntPoint& GatherPointsResolution);
-
-	bool RenderRayTracingGlobalIlluminationFinalGather(
-		FRDGBuilder& GraphBuilder,
-		FSceneTextureParameters& SceneTextures,
-		FViewInfo& View,
-		const IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig& RayTracingConfig,
-		int32 UpscaleFactor,
-		FRDGTextureUAV* GlobalIlluminationUAV,
-		FRDGTextureUAV* RayDistanceUAV);
-
 	void BuildSkyLightCdfs(FRHICommandListImmediate& RHICmdList, FSkyLightSceneProxy* SkyLight);
 	void BuildSkyLightMipTree(FRHICommandListImmediate& RHICmdList, FTextureRHIRef SkyLightTexture, FRWBuffer& SkyLightMipTreePosX, FRWBuffer& SkyLightMipTreePosY, FRWBuffer& SkyLightMipTreePosZ, FRWBuffer& SkyLightMipTreeNegX, FRWBuffer& SkyLightMipTreeNegY, FRWBuffer& SkyLightMipTreeNegZ, FIntVector& SkyLightMipTreeDimensions);
 	void BuildSkyLightMipTreePdf(
