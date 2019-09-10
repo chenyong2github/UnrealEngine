@@ -303,12 +303,12 @@ void FFoliagePaletteItemModel::SetTypeActiveInPalette(bool bSetActiveInPalette)
 	UFoliageType* FoliageType = GetFoliageType();
 	if (FoliageType->IsSelected != bSetActiveInPalette)
 	{
-		FoliageType->Modify();
+		FoliageType->Modify(false);
 		FoliageType->IsSelected = bSetActiveInPalette;
 
 		if (IsBlueprint())
 		{
-			FoliageType->GetClass()->ClassGeneratedBy->Modify();
+			FoliageType->GetClass()->ClassGeneratedBy->Modify(false);
 			FoliageType->GetClass()->GetDefaultObject<UFoliageType>()->IsSelected = bSetActiveInPalette;
 		}
 	}
