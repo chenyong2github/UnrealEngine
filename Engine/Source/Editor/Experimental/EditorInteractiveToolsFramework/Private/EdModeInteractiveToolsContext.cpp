@@ -325,6 +325,12 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 		TerminateActiveToolsOnSaveWorld();
 	});
 
+	ToolManager->OnToolEnded.AddLambda([this](UInteractiveToolManager*, UInteractiveTool*)
+	{
+		RestoreEditorState();
+	});
+
+
 	bInvalidationPending = false;
 }
 
