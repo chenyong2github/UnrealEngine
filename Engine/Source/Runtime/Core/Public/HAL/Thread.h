@@ -78,7 +78,7 @@ public:
 	 */
 	void Join();
 
-	static constexpr uint32 InvalidThreadId = static_cast<uint32>(-1);
+	static constexpr uint32 InvalidThreadId = ~uint32(0);
 
 	/**
 	 * @return Thread ID for this thread
