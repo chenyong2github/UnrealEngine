@@ -48,8 +48,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonUniformParameters, NIAGARAVER
 	SHADER_PARAMETER(float, OneOverUV0TilingDistance)
 	SHADER_PARAMETER(float, OneOverUV1TilingDistance)
 	SHADER_PARAMETER(FVector4, PackedVData)
-	SHADER_PARAMETER_EX(FMatrix, LocalToWorld, EShaderPrecisionModifier::Half)
-	SHADER_PARAMETER_EX(FMatrix, LocalToWorldInverseTransposed, EShaderPrecisionModifier::Half)
+	SHADER_PARAMETER(bool, bLocalSpace)
 	SHADER_PARAMETER_EX(float, DeltaSeconds, EShaderPrecisionModifier::Half)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 typedef TUniformBufferRef<FNiagaraRibbonUniformParameters> FNiagaraRibbonUniformBufferRef;
