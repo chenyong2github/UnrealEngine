@@ -11539,6 +11539,49 @@ bool UMaterialFunction::SetTextureParameterValueEditorOnly(FName ParameterName, 
 	return false;
 };
 
+bool UMaterialFunction::SetRuntimeVirtualTextureParameterValueEditorOnly(FName ParameterName, class URuntimeVirtualTexture* InValue)
+{
+	for (UMaterialExpression* Expression : FunctionExpressions)
+	{
+		if (UMaterialExpressionRuntimeVirtualTextureSampleParameter* Parameter = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(Expression))
+		{
+			if (Parameter->SetParameterValue(ParameterName, InValue))
+			{
+				return true;
+				// Warning: in the case of duplicate parameters with different default values, this will find the first in the expression array, not necessarily the one that's used for rendering
+			}
+		}
+		else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
+		{
+			if (FunctionCall->MaterialFunction)
+			{
+				TArray<UMaterialFunctionInterface*> Functions;
+				Functions.Add(FunctionCall->MaterialFunction);
+				FunctionCall->MaterialFunction->GetDependentFunctions(Functions);
+
+				for (UMaterialFunctionInterface* Function : Functions)
+				{
+					const TArray<UMaterialExpression*>* ExpressionPtr = Function->GetFunctionExpressions();
+					if (ExpressionPtr)
+					{
+						for (UMaterialExpression* FunctionExpression : *ExpressionPtr)
+						{
+							if (UMaterialExpressionRuntimeVirtualTextureSampleParameter* FunctionExpressionParameter = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(FunctionExpression))
+							{
+								if (FunctionExpressionParameter->SetParameterValue(ParameterName, InValue))
+								{
+									return true;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return false;
+};
+
 bool UMaterialFunction::SetFontParameterValueEditorOnly(FName ParameterName, class UFont* InFontValue, int32 InFontPage)
 {
 	for (UMaterialExpression* Expression : FunctionExpressions)
@@ -11728,6 +11771,17 @@ void UMaterialFunctionInstance::UpdateParameterSet()
 						}
 					}
 				}
+				else if (const UMaterialExpressionRuntimeVirtualTextureSampleParameter* RuntimeVirtualTextureParameter = Cast<const UMaterialExpressionRuntimeVirtualTextureSampleParameter>(FunctionExpression))
+				{
+					for (FRuntimeVirtualTextureParameterValue& RuntimeVirtualTextureParameterValue : RuntimeVirtualTextureParameterValues)
+					{
+						if (RuntimeVirtualTextureParameterValue.ExpressionGUID == RuntimeVirtualTextureParameter->ExpressionGUID)
+						{
+							RuntimeVirtualTextureParameterValue.ParameterInfo.Name = RuntimeVirtualTextureParameter->ParameterName;
+							break;
+						}
+					}
+				}
 				else if (const UMaterialExpressionFontSampleParameter* FontParameter = Cast<const UMaterialExpressionFontSampleParameter>(FunctionExpression))
 				{
 					for (FFontParameterValue& FontParameterValue : FontParameterValues)
@@ -11773,6 +11827,7 @@ void UMaterialFunctionInstance::OverrideMaterialInstanceParameterValues(UMateria
 	Instance->ScalarParameterValues = ScalarParameterValues;
 	Instance->VectorParameterValues = VectorParameterValues;
 	Instance->TextureParameterValues = TextureParameterValues;
+	Instance->RuntimeVirtualTextureParameterValues = RuntimeVirtualTextureParameterValues;
 	Instance->FontParameterValues = FontParameterValues;
 
 	// Static parameters
@@ -11929,6 +11984,20 @@ bool UMaterialFunctionInstance::OverrideNamedTextureParameter(const FMaterialPar
 		if (TextureParameter.ParameterInfo.Name == ParameterInfo.Name)
 		{
 			OutValue = TextureParameter.ParameterValue;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UMaterialFunctionInstance::OverrideNamedRuntimeVirtualTextureParameter(const FMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue)
+{
+	for (const FRuntimeVirtualTextureParameterValue& RuntimeVirtualTextureParameter : RuntimeVirtualTextureParameterValues)
+	{
+		if (RuntimeVirtualTextureParameter.ParameterInfo.Name == ParameterInfo.Name)
+		{
+			OutValue = RuntimeVirtualTextureParameter.ParameterValue;
 			return true;
 		}
 	}
