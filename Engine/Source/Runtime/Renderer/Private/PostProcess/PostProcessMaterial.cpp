@@ -412,7 +412,7 @@ FRDGTextureRef ComputePostProcessMaterial(
 	{
 		PostProcessMaterialParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthStencilTexture,
-			ERenderTargetLoadAction::ENoAction,
+			ERenderTargetLoadAction::ELoad,
 			ERenderTargetLoadAction::ELoad,
 			FExclusiveDepthStencil::DepthRead_StencilRead);
 	}
