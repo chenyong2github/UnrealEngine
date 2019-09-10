@@ -61,8 +61,6 @@ private:
 
 	FCPUSimParticleDataAllocation AllocateParticleDataIfCPUSim(struct FNiagaraDynamicDataRibbon* DynamicDataRibbon, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
 
-	void InitPrimitiveUniformBufferIfUninitialized(const FNiagaraSceneProxy *SceneProxy) const;
-
 	class FNiagaraRibbonVertexFactory *VertexFactory;
 
 	ENiagaraRibbonFacingMode FacingMode;

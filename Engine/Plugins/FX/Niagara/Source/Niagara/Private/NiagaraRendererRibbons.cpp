@@ -310,9 +310,6 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 	FScopeCycleCounter EmitterStatsCounter(EmitterStatID);
 #endif
 
-	InitPrimitiveUniformBufferIfUninitialized(SceneProxy);
-
-
 	// Compute the per-view uniform buffers.
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -356,11 +353,6 @@ int FNiagaraRendererRibbons::GetDynamicDataSize()const
 	}
 
 	return Size;
-}
-
-void FNiagaraRendererRibbons::TransformChanged()
-{
-	WorldSpacePrimitiveUniformBuffer.ReleaseResource();
 }
 
 void CalculateUVScaleAndOffsets(
@@ -883,33 +875,6 @@ FNiagaraRendererRibbons::FCPUSimParticleDataAllocation FNiagaraRendererRibbons::
 	return CPUSimParticleDataAllocation;
 }
 
-void FNiagaraRendererRibbons::InitPrimitiveUniformBufferIfUninitialized(const FNiagaraSceneProxy *SceneProxy) const
-{
-	if (!WorldSpacePrimitiveUniformBuffer.IsInitialized())
-	{
-		FPrimitiveUniformShaderParameters PrimitiveUniformShaderParameters = GetPrimitiveUniformShaderParameters(
-			FMatrix::Identity,
-			FMatrix::Identity,
-			SceneProxy->GetActorPosition(),
-			SceneProxy->GetBounds(),
-			SceneProxy->GetLocalBounds(),
-			SceneProxy->ReceivesDecals(),
-			false,
-			false,
-			SceneProxy->UseSingleSampleShadowFromStationaryLights(),
-			SceneProxy->GetScene().HasPrecomputedVolumetricLightmap_RenderThread(),
-			SceneProxy->DrawsVelocity(),
-			SceneProxy->GetLightingChannelMask(),
-			0,
-			INDEX_NONE,
-			INDEX_NONE,
-			SceneProxy->AlwaysHasVelocity()
-		);
-		WorldSpacePrimitiveUniformBuffer.SetContents(PrimitiveUniformShaderParameters);
-		WorldSpacePrimitiveUniformBuffer.InitResource();
-	}
-}
-
 void FNiagaraRendererRibbons::CreatePerViewResources(
 	const FSceneView* View, const FSceneViewFamily& ViewFamily, const FNiagaraSceneProxy* SceneProxy, FMeshElementCollector& Collector,
 	uint16& OutVertexCount, uint32& OutNumberOfPrimitives, FNiagaraRibbonUniformBufferRef& OutUniformBuffer, FGlobalDynamicIndexBuffer::FAllocation& InOutIndexAllocation) const
@@ -994,8 +959,7 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 	GenerateIndexBuffer((uint16*)InOutIndexAllocation.Buffer, OutVertexCount, DynamicDataRibbon->SegmentData, SegmentTessellation, bInvertOrder);
 
 	FNiagaraRibbonUniformParameters PerViewUniformParameters;
-	PerViewUniformParameters.LocalToWorld = bLocalSpace ? SceneProxy->GetLocalToWorld() : FMatrix::Identity;//For now just handle local space like this but maybe in future have a VF variant to avoid the transform entirely?
-	PerViewUniformParameters.LocalToWorldInverseTransposed = bLocalSpace ? SceneProxy->GetLocalToWorld().Inverse().GetTransposed() : FMatrix::Identity;
+	PerViewUniformParameters.bLocalSpace = bLocalSpace;
 	PerViewUniformParameters.DeltaSeconds = ViewFamily.DeltaWorldTime;
 	PerViewUniformParameters.CameraUp = View->GetViewUp(); // FVector4(0.0f, 0.0f, 1.0f, 0.0f);
 	PerViewUniformParameters.CameraRight = View->GetViewRight();//	FVector4(1.0f, 0.0f, 0.0f, 0.0f);
