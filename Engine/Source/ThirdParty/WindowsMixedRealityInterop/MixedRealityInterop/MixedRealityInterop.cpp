@@ -1061,6 +1061,9 @@ namespace WindowsMixedReality
 		nearPlaneDistance = nearPlane;
 		farPlaneDistance = farPlane;
 
+		LastKnownProjection.Left = winrt::Windows::Foundation::Numerics::float4x4::identity();
+		LastKnownProjection.Right = winrt::Windows::Foundation::Numerics::float4x4::identity();
+
 		if (bInitialized)
 		{
 			return;

@@ -180,6 +180,9 @@ namespace WindowsMixedReality
 			FTransform LeftTransform = FTransform::Identity;
 			FTransform RightTransform = FTransform::Identity;
 			FTransform HeadTransform = FTransform::Identity;
+			FMatrix ProjectionMatrixR = FMatrix::Identity;
+			FMatrix ProjectionMatrixL = FMatrix::Identity;
+
 		};
 		Frame Frame_NextGameThread;
 		FCriticalSection Frame_NextGameThreadLock;
