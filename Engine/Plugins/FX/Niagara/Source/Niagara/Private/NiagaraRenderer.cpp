@@ -197,7 +197,7 @@ FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type FeatureLevel, const UN
 void FNiagaraRenderer::Initialize(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
 {
 	//Get our list of valid base materials. Fall back to default material if they're not valid.
-	InProps->GetUsedMaterials(BaseMaterials_GT);
+	InProps->GetUsedMaterials(Emitter, BaseMaterials_GT);
 	for (UMaterialInterface*& Mat : BaseMaterials_GT)
 	{
 		if (!IsMaterialValid(Mat))

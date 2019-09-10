@@ -50,6 +50,9 @@ private:
 
 	FSlateColor GetInputIconColor() const;
 
+	void OnAssetSelectedFromPicker(const FAssetData& InAssetData);
+	FString GetCurrentAssetPath() const;
+
 private:
 	UNiagaraStackParameterStoreEntry* StackEntry;
 
