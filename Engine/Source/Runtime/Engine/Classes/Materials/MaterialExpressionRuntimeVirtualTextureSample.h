@@ -30,7 +30,7 @@ enum ERuntimeVirtualTextureMipValueMode
 
 /** Material expression for sampling from a runtime virtual texture. */
 UCLASS(collapsecategories, hidecategories=Object)
-class UMaterialExpressionRuntimeVirtualTextureSample : public UMaterialExpression
+class ENGINE_API UMaterialExpressionRuntimeVirtualTextureSample : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
