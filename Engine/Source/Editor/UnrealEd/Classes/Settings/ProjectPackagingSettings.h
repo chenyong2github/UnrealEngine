@@ -17,50 +17,35 @@ enum EProjectPackagingBuildConfigurations
 	/** Debug configuration. */
 	PPBC_Debug UMETA(DisplayName="Debug"),
 
-	/** Debug Client configuration. */
-	PPBC_DebugClient UMETA(DisplayName = "Debug Client"),
-
-	/** Debug Server configuration. */
-	PPBC_DebugServer UMETA(DisplayName = "Debug Server"),
+	/** Debug client & server configuration. */
+	PPBC_DebugClientAndServer UMETA(DisplayName = "Debug (Client & Server)"),
 
 	/** DebugGame configuration. */
 	PPBC_DebugGame UMETA(DisplayName="DebugGame"),
 
-	/** DebugGame Client configuration. */
-	PPBC_DebugGameClient UMETA(DisplayName = "DebugGame Client"),
-
-	/** DebugGame Server configuration. */
-	PPBC_DebugGameServer UMETA(DisplayName = "DebugGame Server"),
+	/** DebugGame client & server configuration. */
+	PPBC_DebugGameClientAndServer UMETA(DisplayName = "DebugGame (Client & Server)"),
 
 	/** Development configuration. */
 	PPBC_Development UMETA(DisplayName="Development"),
 
-	/** Development Client configuration. */
-	PPBC_DevelopmentClient UMETA(DisplayName = "Development Client"),
-
-	/** Development Server configuration. */
-	PPBC_DevelopmentServer UMETA(DisplayName = "Development Server"),
+	/** Development client & server configuration. */
+	PPBC_DevelopmentClientAndServer UMETA(DisplayName = "Development (Client & Server)"),
 
 	/** Test configuration. */
 	PPBC_Test UMETA(DisplayName="Test"),
 
-	/** Test Client configuration. */
-	PPBC_TestClient UMETA(DisplayName = "Test Client"),
-
-	/** Test Server configuration. */
-	PPBC_TestServer UMETA(DisplayName = "Test Server"),
+	/** Test client & server configuration. */
+	PPBC_TestClientAndServer UMETA(DisplayName = "Test (Client & Server)"),
 
 	/** Shipping configuration. */
 	PPBC_Shipping UMETA(DisplayName="Shipping"),
 
-	/** Shipping Client configuration. */
-	PPBC_ShippingClient UMETA(DisplayName = "Shipping Client"),
-
-	/** Shipping Server configuration. */
-	PPBC_ShippingServer UMETA(DisplayName = "Shipping Server"),
+	/** Shipping client & server configuration. */
+	PPBC_ShippingClientAndServer UMETA(DisplayName = "Shipping (Client & Server)"),
 
 	/** Number of entries in the enum. */
-	PPBC_Max
+	PPBC_MAX
 };
 
 /**
@@ -136,7 +121,7 @@ public:
 	struct FConfigurationInfo
 	{
 		EBuildConfiguration Configuration;
-		EBuildTargetType TargetType;
+		bool bClientAndServer;
 		FText Name;
 		FText ToolTip;
 	};
@@ -144,7 +129,7 @@ public:
 	/**
 	 * Static array of information about each configuration
 	 */
-	static const FConfigurationInfo ConfigurationInfo[PPBC_Max];
+	static const FConfigurationInfo ConfigurationInfo[PPBC_MAX];
 
 	/** Specifies whether to build the game executable during packaging. */
 	UPROPERTY(config, EditAnywhere, Category=Project)
@@ -465,6 +450,9 @@ public:
 
 	/** Determines if the specified Blueprint is already saved for exclusive nativization. */
 	bool IsBlueprintAssetInNativizationList(const class UBlueprint* InBlueprint) const { return FindBlueprintInNativizationList(InBlueprint) >= 0; }
+
+	/** Gets a list of all valid packaging configurations for the current project */
+	static TArray<EProjectPackagingBuildConfigurations> GetValidPackageConfigurations();
 
 private:
 	/** Returns the index of the specified Blueprint in the exclusive nativization list (otherwise INDEX_NONE) */

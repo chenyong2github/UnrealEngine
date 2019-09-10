@@ -169,48 +169,10 @@ protected:
 	 */
 	static void MakeBuildConfigurationsMenu(FMenuBuilder& MenuBuilder)
 	{
-		// Check if the project has code
-		FProjectStatus ProjectStatus;
-		bool bHasCode = IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && ProjectStatus.bCodeBasedProject;
-
-		// If if does, find all the targets
-		const TArray<FTargetInfo>* Targets = nullptr;
-		if (bHasCode)
+		TArray<EProjectPackagingBuildConfigurations> PackagingConfigurations = UProjectPackagingSettings::GetValidPackageConfigurations();
+		for(EProjectPackagingBuildConfigurations PackagingConfiguration : PackagingConfigurations)
 		{
-			Targets = &(FDesktopPlatformModule::Get()->GetTargetsForCurrentProject());
-		}
-
-		// Set up all the configurations
-		for (int32 Idx = 0; Idx < PPBC_Max; Idx++)
-		{
-			EProjectPackagingBuildConfigurations PackagingConfiguration = (EProjectPackagingBuildConfigurations)Idx;
-			const UProjectPackagingSettings::FConfigurationInfo& Info = UProjectPackagingSettings::ConfigurationInfo[Idx];
-
-			// Make sure the selected configuration is supported
-			EProjectType ProjectType = bHasCode? EProjectType::Code : EProjectType::Content;
-			if(!FInstalledPlatformInfo::Get().IsValid(Info.TargetType, TOptional<FString>(), Info.Configuration, ProjectType, EInstalledPlatformState::Downloaded))
-			{
-				continue;
-			}
-
-			// Check the target type is valid
-			if(bHasCode)
-			{
-				EBuildTargetType TargetType = Info.TargetType;
-				if(!Targets->ContainsByPredicate([TargetType](const FTargetInfo& Target) -> bool { return Target.Type == TargetType; }))
-				{
-					continue;
-				}
-			}
-			else
-			{
-				if(Info.Configuration == EBuildConfiguration::DebugGame)
-				{
-					continue;
-				}
-			}
-
-			// Add the menu item
+			const UProjectPackagingSettings::FConfigurationInfo& Info = UProjectPackagingSettings::ConfigurationInfo[(int)PackagingConfiguration];
 			MenuBuilder.AddMenuEntry(
 				Info.Name, 
 				Info.ToolTip,

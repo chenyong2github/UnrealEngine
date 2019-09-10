@@ -36,6 +36,8 @@
 #include "Settings/SkeletalMeshEditorSettings.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
+#include "DesktopPlatformModule.h"
+#include "InstalledPlatformInfo.h"
 
 #define LOCTEXT_NAMESPACE "SettingsClasses"
 
@@ -809,27 +811,22 @@ void ULevelEditorViewportSettings::PostEditChangeProperty( struct FPropertyChang
 /* UProjectPackagingSettings interface
  *****************************************************************************/
 
-const UProjectPackagingSettings::FConfigurationInfo UProjectPackagingSettings::ConfigurationInfo[PPBC_Max] = 
+const UProjectPackagingSettings::FConfigurationInfo UProjectPackagingSettings::ConfigurationInfo[PPBC_MAX] = 
 {
-	/* PPBC_Debug */             { EBuildConfiguration::Debug, EBuildTargetType::Game, LOCTEXT("DebugConfiguration", "Debug"), LOCTEXT("DebugConfigurationTooltip", "Package the game in Debug configuration") },
-	/* PPBC_DebugClient */       { EBuildConfiguration::Debug, EBuildTargetType::Client, LOCTEXT("DebugClientConfiguration", "Debug Client"), LOCTEXT("DebugClientConfigurationTooltip", "Package the client in Debug configuration") },
-	/* PPBC_DebugServer */       { EBuildConfiguration::Debug, EBuildTargetType::Server, LOCTEXT("DebugServerConfiguration", "Debug Server"), LOCTEXT("DebugServerConfigurationTooltip", "Package the server in Debug configuration") },
+	/* PPBC_Debug */                      { EBuildConfiguration::Debug, false, LOCTEXT("DebugConfiguration", "Debug"), LOCTEXT("DebugConfigurationTooltip", "Package the game in Debug configuration") },
+	/* PPBC_DebugClientAndServer */       { EBuildConfiguration::Debug, true, LOCTEXT("DebugClientConfiguration", "Debug (Client & Server)"), LOCTEXT("DebugClientConfigurationTooltip", "Package a client and server in Debug configuration") },
 
-	/* PPBC_DebugGame */         { EBuildConfiguration::DebugGame, EBuildTargetType::Game, LOCTEXT("DebugGameConfiguration", "DebugGame"), LOCTEXT("DebugGameConfigurationTooltip", "Package the game in DebugGame configuration") },
-	/* PPBC_DebugGameClient */   { EBuildConfiguration::DebugGame, EBuildTargetType::Client, LOCTEXT("DebugGameClientConfiguration", "DebugGame Client"), LOCTEXT("DebugGameClientConfigurationTooltip", "Package the client in DebugGame configuration") },
-	/* PPBC_DebugGameServer */   { EBuildConfiguration::DebugGame, EBuildTargetType::Server, LOCTEXT("DebugGameServerConfiguration", "DebugGame Server"), LOCTEXT("DebugGameServerConfigurationTooltip", "Package the server in DebugGame configuration") },
+	/* PPBC_DebugGame */                  { EBuildConfiguration::DebugGame, false, LOCTEXT("DebugGameConfiguration", "DebugGame"), LOCTEXT("DebugGameConfigurationTooltip", "Package the game in DebugGame configuration") },
+	/* PPBC_DebugGameClientAndServer */   { EBuildConfiguration::DebugGame, true, LOCTEXT("DebugGameClientConfiguration", "DebugGame (Client & Server)"), LOCTEXT("DebugGameClientConfigurationTooltip", "Package a client and server in DebugGame configuration") },
 
-	/* PPBC_Development */       { EBuildConfiguration::Development, EBuildTargetType::Game, LOCTEXT("DevelopmentConfiguration", "Development"), LOCTEXT("DevelopmentConfigurationTooltip", "Package the game in Development configuration") },
-	/* PPBC_DevelopmentClient */ { EBuildConfiguration::Development, EBuildTargetType::Client, LOCTEXT("DevelopmentClientConfiguration", "Development Client"), LOCTEXT("DevelopmentClientConfigurationTooltip", "Package the client in Development configuration") },
-	/* PPBC_DevelopmentServer */ { EBuildConfiguration::Development, EBuildTargetType::Server, LOCTEXT("DevelopmentServerConfiguration", "Development Server"), LOCTEXT("DevelopmentServerConfigurationTooltip", "Package the server in Development configuration") },
+	/* PPBC_Development */                { EBuildConfiguration::Development, false, LOCTEXT("DevelopmentConfiguration", "Development"), LOCTEXT("DevelopmentConfigurationTooltip", "Package the game in Development configuration") },
+	/* PPBC_DevelopmentClientAndServer */ { EBuildConfiguration::Development, true, LOCTEXT("DevelopmentClientConfiguration", "Development (Client & Server)"), LOCTEXT("DevelopmentClientConfigurationTooltip", "Package a client and server in Development configuration") },
 
-	/* PPBC_Test */              { EBuildConfiguration::Test, EBuildTargetType::Game, LOCTEXT("TestConfiguration", "Test"), LOCTEXT("TestConfigurationTooltip", "Package the game in Test configuration") },
-	/* PPBC_TestClient */        { EBuildConfiguration::Test, EBuildTargetType::Client, LOCTEXT("TestClientConfiguration", "Test Client"), LOCTEXT("TestClientConfigurationTooltip", "Package the client in Test configuration") },
-	/* PPBC_TestServer */        { EBuildConfiguration::Test, EBuildTargetType::Server, LOCTEXT("TestServerConfiguration", "Test Server"), LOCTEXT("TestServerConfigurationTooltip", "Package the server in Test configuration") },
+	/* PPBC_Test */                       { EBuildConfiguration::Test, false, LOCTEXT("TestConfiguration", "Test"), LOCTEXT("TestConfigurationTooltip", "Package the game in Test configuration") },
+	/* PPBC_TestClientAndServer */        { EBuildConfiguration::Test, true, LOCTEXT("TestClientConfiguration", "Test (Client & Server)"), LOCTEXT("TestClientConfigurationTooltip", "Package a client and server in Test configuration") },
 
-	/* PPBC_Shipping */          { EBuildConfiguration::Shipping, EBuildTargetType::Game, LOCTEXT("ShippingConfiguration", "Shipping"), LOCTEXT("ShippingConfigurationTooltip", "Package the game in Shipping configuration") },
-	/* PPBC_ShippingClient */    { EBuildConfiguration::Shipping, EBuildTargetType::Client, LOCTEXT("ShippingClientConfiguration", "Shipping Client"), LOCTEXT("ShippingClientConfigurationTooltip", "Package the client in Shipping configuration") },
-	/* PPBC_ShippingServer */    { EBuildConfiguration::Shipping, EBuildTargetType::Server, LOCTEXT("ShippingServerConfiguration", "Shipping Server"), LOCTEXT("ShippingServerConfigurationTooltip", "Package the server in Shipping configuration") }
+	/* PPBC_Shipping */                   { EBuildConfiguration::Shipping, false, LOCTEXT("ShippingConfiguration", "Shipping"), LOCTEXT("ShippingConfigurationTooltip", "Package the game in Shipping configuration") },
+	/* PPBC_ShippingClientAndServer */    { EBuildConfiguration::Shipping, true, LOCTEXT("ShippingClientConfiguration", "Shipping (Client & Server)"), LOCTEXT("ShippingClientConfigurationTooltip", "Package a client and server in Shipping configuration") },
 };
 
 UProjectPackagingSettings::UProjectPackagingSettings( const FObjectInitializer& ObjectInitializer )
@@ -908,7 +905,7 @@ void UProjectPackagingSettings::PostEditChangeProperty( FPropertyChangedEvent& P
 	}
 	else if (Name == FName(TEXT("ForDistribution")))
 	{
-		if (ForDistribution && BuildConfiguration != EProjectPackagingBuildConfigurations::PPBC_Shipping && BuildConfiguration != EProjectPackagingBuildConfigurations::PPBC_ShippingClient)
+		if (ForDistribution && BuildConfiguration != EProjectPackagingBuildConfigurations::PPBC_Shipping && BuildConfiguration != EProjectPackagingBuildConfigurations::PPBC_ShippingClientAndServer)
 		{
 			BuildConfiguration = EProjectPackagingBuildConfigurations::PPBC_Shipping;
 			// force serialization for "Build COnfiguration"
@@ -1120,6 +1117,82 @@ bool UProjectPackagingSettings::RemoveBlueprintAssetFromNativizationList(const c
 	}
 
 	return false;
+}
+
+TArray<EProjectPackagingBuildConfigurations> UProjectPackagingSettings::GetValidPackageConfigurations()
+{
+	// Check if the project has code
+	FProjectStatus ProjectStatus;
+	bool bHasCode = IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && ProjectStatus.bCodeBasedProject;
+
+	// If if does, find all the targets
+	const TArray<FTargetInfo>* Targets = nullptr;
+	if (bHasCode)
+	{
+		Targets = &(FDesktopPlatformModule::Get()->GetTargetsForCurrentProject());
+	}
+
+	// Set up all the configurations
+	TArray<EProjectPackagingBuildConfigurations> Configurations;
+	for (int32 Idx = 0; Idx < PPBC_MAX; Idx++)
+	{
+		EProjectPackagingBuildConfigurations PackagingConfiguration = (EProjectPackagingBuildConfigurations)Idx;
+		const UProjectPackagingSettings::FConfigurationInfo& Info = UProjectPackagingSettings::ConfigurationInfo[Idx];
+
+		// Make sure the selected configuration is supported
+		EProjectType ProjectType = bHasCode? EProjectType::Code : EProjectType::Content;
+		if (Info.bClientAndServer)
+		{
+			if(!FInstalledPlatformInfo::Get().IsValid(EBuildTargetType::Client, TOptional<FString>(), Info.Configuration, ProjectType, EInstalledPlatformState::Downloaded))
+			{
+				continue;
+			}
+			if(!FInstalledPlatformInfo::Get().IsValid(EBuildTargetType::Server, TOptional<FString>(), Info.Configuration, ProjectType, EInstalledPlatformState::Downloaded))
+			{
+				continue;
+			}
+		}
+		else
+		{
+			if(!FInstalledPlatformInfo::Get().IsValid(EBuildTargetType::Game, TOptional<FString>(), Info.Configuration, ProjectType, EInstalledPlatformState::Downloaded))
+			{
+				continue;
+			}
+		}
+
+		// Check the target type is valid
+		if(bHasCode)
+		{
+			if (Info.bClientAndServer)
+			{
+				if (!Targets->ContainsByPredicate([](const FTargetInfo& Target) -> bool { return Target.Type == EBuildTargetType::Client; }))
+				{
+					continue;
+				}
+				if (!Targets->ContainsByPredicate([](const FTargetInfo& Target) -> bool { return Target.Type == EBuildTargetType::Server; }))
+				{
+					continue;
+				}
+			}
+			else
+			{
+				if (!Targets->ContainsByPredicate([](const FTargetInfo& Target) -> bool { return Target.Type == EBuildTargetType::Game; }))
+				{
+					continue;
+				}
+			}
+		}
+		else
+		{
+			if(Info.Configuration == EBuildConfiguration::DebugGame)
+			{
+				continue;
+			}
+		}
+
+		Configurations.Add(PackagingConfiguration);
+	}
+	return Configurations;
 }
 
 int32 UProjectPackagingSettings::FindBlueprintInNativizationList(const UBlueprint* InBlueprint) const
