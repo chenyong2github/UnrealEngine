@@ -233,7 +233,7 @@ void UGameUserSettings::SetToDefaults()
 		UpdateResolutionQuality();
 	}
 
-	bUseHeadphoneMode = true;
+	bUseHeadphoneMode = false;
 
 	bUseDynamicResolution = false;
 	bUseHDRDisplayOutput = GUserSettingsDefaultHDRValue;
@@ -463,7 +463,7 @@ void UGameUserSettings::ApplyNonResolutionSettings()
 
 	IConsoleManager::Get().CallAllConsoleVariableSinks();
 
-	EnableHeadphoneMode(bUseHeadphoneMode);
+	EnableHeadphoneMode(true /*bUseHeadphoneMode*/);
 
 	bool bWithEditor = false;
 #if WITH_EDITOR
