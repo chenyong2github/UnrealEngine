@@ -4381,7 +4381,7 @@ void FLevelEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDrawInter
 						{
 							const FTransform SocketTransform = SceneComponent->GetSocketTransform(Socket.Name);
 
-							const float DiamondSize = 5.0f;
+							const float DiamondSize = 2.0f;
 							const FColor DiamondColor(255,128,128);
 
 							PDI->SetHitProxy( new HLevelSocketProxy( *It, SceneComponent, Socket.Name ) );
