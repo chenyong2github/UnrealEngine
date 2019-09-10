@@ -1059,7 +1059,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 					const FMaterial* Material = MaterialRenderProxy->GetMaterial(ActiveSceneView.GetFeatureLevel());
 
-					FSlateMaterialShaderPS* PixelShader = GetMaterialPixelShader(Material, ShaderType, DrawEffects);
+					FSlateMaterialShaderPS* PixelShader = GetMaterialPixelShader(Material, ShaderType);
 
 					const bool bUseInstancing = RenderBatch.InstanceCount > 0 && RenderBatch.InstanceData != nullptr;
 					FSlateMaterialShaderVS* VertexShader = GetMaterialVertexShader(Material, bUseInstancing);
@@ -1117,6 +1117,8 @@ void FSlateRHIRenderingPolicy::DrawElements(
 								const float FinalGamma = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::ReverseGamma) ? 1.0f / EngineGamma : EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1.0f : DisplayGamma;
 								const float FinalContrast = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1 : DisplayContrast;
 								PixelShader->SetDisplayGammaAndContrast(RHICmdList, FinalGamma, FinalContrast);
+								const bool bDrawDisabled = EnumHasAllFlags(DrawEffects, ESlateDrawEffect::DisabledEffect);
+								PixelShader->SetDrawFlags(RHICmdList, bDrawDisabled);
 
 								if (MaskResource)
 								{
@@ -1420,60 +1422,27 @@ FSlateElementPS* FSlateRHIRenderingPolicy::GetTexturePixelShader( TShaderMap<FGl
 	return PixelShader;
 }
 
-FSlateMaterialShaderPS* FSlateRHIRenderingPolicy::GetMaterialPixelShader( const FMaterial* Material, ESlateShader ShaderType, ESlateDrawEffect DrawEffects )
+FSlateMaterialShaderPS* FSlateRHIRenderingPolicy::GetMaterialPixelShader( const FMaterial* Material, ESlateShader ShaderType)
 {
 	const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
-
-	const bool bDrawDisabled = EnumHasAllFlags(DrawEffects, ESlateDrawEffect::DisabledEffect);
-	const bool bUseTextureAlpha = !EnumHasAllFlags(DrawEffects, ESlateDrawEffect::IgnoreTextureAlpha);
 
 	FShader* FoundShader = nullptr;
 	switch (ShaderType)
 	{
 	case ESlateShader::Default:
-		if (bDrawDisabled)
-		{
-			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Default, true>::StaticType);
-		}
-		else
-		{
-			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Default, false>::StaticType);
-		}
+		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Default>::StaticType);
 		break;
 	case ESlateShader::Border:
-		if (bDrawDisabled)
-		{
-			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Border, true>::StaticType);
-		}
-		else
-		{
-			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Border, false>::StaticType);
-		}
+		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Border>::StaticType);
 		break;
 	case ESlateShader::GrayscaleFont:
-		if(bDrawDisabled)
-		{
-			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::GrayscaleFont, true>::StaticType);
-		}
-		else
-		{
-			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::GrayscaleFont, false>::StaticType);
-		}
+		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::GrayscaleFont>::StaticType);
 		break;
 	case ESlateShader::ColorFont:
-		if (bDrawDisabled)
-		{
-			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::ColorFont, true>::StaticType);
-		}
-		else
-		{
-			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::ColorFont, false>::StaticType);
-		}
+		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::ColorFont>::StaticType);
 		break;
 	case ESlateShader::Custom:
-		{
-			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Custom, false>::StaticType);
-		}
+		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Custom>::StaticType);
 		break;
 	default:
 		checkf(false, TEXT("Unsupported Slate shader type for use with materials"));
