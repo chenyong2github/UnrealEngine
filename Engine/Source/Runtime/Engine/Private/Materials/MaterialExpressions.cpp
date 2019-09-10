@@ -2165,7 +2165,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	
 	// Compile the texture object references
 	enum { MAX_RVT_LAYERS = 2 };
-	const int32 LayerCount = VirtualTexture->GetLayerCount();
+	const int32 LayerCount = URuntimeVirtualTexture::GetLayerCount(MaterialType);
 	check(LayerCount <= MAX_RVT_LAYERS);
 
 	int32 TextureCodeIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
