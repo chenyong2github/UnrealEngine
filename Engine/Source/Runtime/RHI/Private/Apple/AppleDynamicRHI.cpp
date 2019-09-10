@@ -28,23 +28,15 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 
 	bool const bIsMetalSupported = FPlatformMisc::HasPlatformFeature(TEXT("Metal"));
 	bool const bAllowMetal = (GAppleMetalEnabled && bIsMetalSupported);
-	bool const bAllowOpenGL = !GAppleOpenGLDisabled && !PLATFORM_MAC;
 
 #if PLATFORM_MAC
 	bool bForceMetal = bAllowMetal && (FParse::Param(FCommandLine::Get(),TEXT("metal")) || FParse::Param(FCommandLine::Get(),TEXT("metalsm5")));
-	bool bForceOpenGL = false; // OpenGL is no longer supported on Mac
 #else
 	bool bForceMetal = bAllowMetal && (FParse::Param(FCommandLine::Get(),TEXT("metal")) || FParse::Param(FCommandLine::Get(),TEXT("metalmrt")));
-	bool bForceOpenGL = bAllowOpenGL && FParse::Param(FCommandLine::Get(),TEXT("es2"));
 #endif
 
 	ERHIFeatureLevel::Type RequestedFeatureLevel = ERHIFeatureLevel::Num;
-	int32 Sum = ((bForceMetal ? 1 : 0) + (bForceOpenGL ? 1 : 0));
-	if (Sum > 1)
-	{
-		UE_LOG(LogRHI, Fatal,TEXT("-metal, -metalsm5, and -opengl are mutually exclusive options, but more than one was specified on the command-line."));
-	}
-	else if (Sum == 0)
+	 if (bForceMetal)
 	{
 		// Check the list of targeted shader platforms and decide an RHI based off them
 		TArray<FString> TargetedShaderFormats;
@@ -83,7 +75,6 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 			if (bAllowMetal == true || !IsMetalPlatform(TargetedPlatform))
 			{
 				bForceMetal = IsMetalPlatform(TargetedPlatform);
-				bForceOpenGL = IsOpenGLPlatform(TargetedPlatform) && !PLATFORM_MAC;
 				RequestedFeatureLevel = GetMaxSupportedFeatureLevel(TargetedPlatform);
 				break;
 			}
@@ -95,7 +86,6 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 	{
 		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(TEXT("MetalRHI"));
 		
-		if (Sum == 1)
 		{
 #if PLATFORM_MAC
 			if (FParse::Param(FCommandLine::Get(),TEXT("metal")))
