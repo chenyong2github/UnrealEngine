@@ -8,7 +8,6 @@ namespace UnrealBuildTool.Rules
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
-					"SignalProcessing",
 					"AudioMixer",
 					"Core",
 					"CoreUObject",
