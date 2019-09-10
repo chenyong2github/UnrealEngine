@@ -11,6 +11,7 @@
 #include "Widgets/Images/SImage.h"
 #include "SlateMaterialBrush.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include "Engine/Texture2D.h"
 
 UMaterialInstanceThumbnailRenderer::UMaterialInstanceThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
