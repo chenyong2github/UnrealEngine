@@ -334,7 +334,7 @@ public:
 	UPROPERTY(transient)
 	uint64 HiddenEditorViews;
 
-	UPROPERTY()
+	UPROPERTY(transient)
 	uint32 IsSelected:1;
 #endif
 public:
