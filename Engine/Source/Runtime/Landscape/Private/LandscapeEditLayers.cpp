@@ -35,6 +35,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "Misc/MessageDialog.h"
 #include "GameFramework/WorldSettings.h"
 #include "UObject/UObjectThreadContext.h"
+#include "LandscapeSplinesComponent.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -4263,6 +4264,14 @@ void ALandscape::RequestLayersInitialization(bool bInRequestContentUpdate)
 	}
 }
 
+void ALandscape::RequestSplineLayerUpdate()
+{
+	if (HasLayersContent() && GetLandscapeSplinesReservedLayer() != nullptr)
+	{
+		bSplineLayerUpdateRequested = true;
+	}
+}
+
 void ALandscape::RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode)
 {
 	LayerContentUpdateModes |= InUpdateMode;
@@ -4568,6 +4577,12 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		MonitorLandscapeEdModeChanges();
 	}
 	MonitorShaderCompilation();
+
+	if (bSplineLayerUpdateRequested)
+	{
+		UpdateLandscapeSplines();
+		bSplineLayerUpdateRequested = false;
+	}
 
 	const bool bForceRender = CVarOutputLayersDebugDrawCallName.GetValueOnAnyThread() == 1;
 
@@ -6000,6 +6015,33 @@ void ALandscape::OnBlueprintBrushChanged()
 	LandscapeBlueprintBrushChangedDelegate.Broadcast();
 	RequestLayersContentUpdateForceAll();
 #endif
+}
+
+void ALandscape::OnLayerInfoSplineFalloffModulationChanged(ULandscapeLayerInfoObject* InLayerInfo)
+{
+	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+	
+	if (!LandscapeInfo)
+	{
+		return;
+	}
+	
+	ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
+	if (!Landscape || !Landscape->HasLayersContent())
+	{
+		return;
+	}
+
+	bool bUsedForSplines = false;
+	LandscapeInfo->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	{
+		bUsedForSplines |= (Proxy->SplineComponent && Proxy->SplineComponent->IsUsingLayerInfo(InLayerInfo));
+	});
+
+	if (bUsedForSplines)
+	{
+		Landscape->RequestSplineLayerUpdate();
+	}
 }
 
 ALandscapeBlueprintBrushBase* ALandscape::GetBrushForLayer(int32 InLayerIndex, int8 InBrushIndex) const

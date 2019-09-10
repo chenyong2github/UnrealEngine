@@ -64,6 +64,10 @@ class ULandscapeSplineControlPoint : public UObject
 	UPROPERTY(EditAnywhere, Category=LandscapeSpline)
 	float Width;
 
+	/** Layer Width ratio of the spline at this point. */
+	UPROPERTY(EditAnywhere, Category = LandscapeSpline)
+	float LayerWidthRatio = 1.f;
+
 	/** Falloff at the sides of the spline at this point. */
 	UPROPERTY(EditAnywhere, Category=LandscapeSpline)
 	float SideFalloff;
