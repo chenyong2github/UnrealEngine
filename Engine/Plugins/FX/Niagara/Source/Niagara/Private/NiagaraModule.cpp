@@ -453,6 +453,7 @@ UScriptStruct* FNiagaraTypeDefinition::ColorStruct;
 UScriptStruct* FNiagaraTypeDefinition::QuatStruct;
 
 UClass* FNiagaraTypeDefinition::UObjectClass;
+UClass* FNiagaraTypeDefinition::UMaterialClass;
 
 UEnum* FNiagaraTypeDefinition::ExecutionStateEnum;
 UEnum* FNiagaraTypeDefinition::SimulationTargetEnum;
@@ -473,6 +474,7 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::ColorDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::QuatDef;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UObjectDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::UMaterialDef;
 
 TSet<UScriptStruct*> FNiagaraTypeDefinition::NumericStructs;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeDefinition::OrderedNumericTypes;
@@ -517,6 +519,7 @@ void FNiagaraTypeDefinition::Init()
 	FNiagaraTypeDefinition::QuatStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Quat"));
 
 	FNiagaraTypeDefinition::UObjectClass = UObject::StaticClass();
+	FNiagaraTypeDefinition::UMaterialClass = UMaterialInterface::StaticClass();
 	
 	ParameterMapDef = FNiagaraTypeDefinition(ParameterMapStruct);
 	IDDef = FNiagaraTypeDefinition(IDStruct);
@@ -532,6 +535,7 @@ void FNiagaraTypeDefinition::Init()
 	Matrix4Def = FNiagaraTypeDefinition(Matrix4Struct);
 
 	UObjectDef = FNiagaraTypeDefinition(UObjectClass);
+	UMaterialDef = FNiagaraTypeDefinition(UMaterialClass);
 
 	CollisionEventDef = FNiagaraTypeDefinition(FNiagaraCollisionEventPayload::StaticStruct());
 	NumericStructs.Add(NumericStruct);
@@ -618,6 +622,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(SpawnInfoStruct), true, false, false);
 
 	FNiagaraTypeRegistry::Register(UObjectDef, true, false, false);
+	FNiagaraTypeRegistry::Register(UMaterialDef, true, false, false);
 
 	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 	check(Settings);

@@ -25,6 +25,34 @@ enum class ENiagaraMeshFacingMode : uint8
 	CameraPlane
 };
 
+USTRUCT()
+struct FNiagaraMeshMaterialOverride 
+{
+	GENERATED_USTRUCT_BODY()
+public:	
+	FNiagaraMeshMaterialOverride();
+	
+	/** Used to upgrade a serialized FNiagaraParameterStore property to our own struct */
+	bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+
+	/** Use this UMaterialInterface if set to a valid value. This will be subordinate to UserParamBinding if it is set to a valid user variable.*/
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
+	UMaterialInterface* ExplicitMat;
+
+	/** Use the UMaterialInterface bound to this user variable if it is set to a valid value. If this is bound to a valid value and ExplicitMat is also set, UserParamBinding wins.*/
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
+	FNiagaraUserParameterBinding UserParamBinding;
+};
+
+template<>
+struct TStructOpsTypeTraits<FNiagaraMeshMaterialOverride> : public TStructOpsTypeTraitsBase2<FNiagaraMeshMaterialOverride>
+{
+	enum
+	{
+		WithStructuredSerializeFromMismatchedTag = true,
+	};
+};
+
 UCLASS(editinlinenew, meta = (DisplayName = "Mesh Renderer"))
 class UNiagaraMeshRendererProperties : public UNiagaraRendererProperties
 {
@@ -45,8 +73,9 @@ public:
 	//~ UNiagaraRendererProperties interface
 	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter) override;
 	virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() override;
-	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials) const override;
+	virtual void GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const override;
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return true; };
+	virtual void PostLoad();
 
 #if WITH_EDITORONLY_DATA
 	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) override;
@@ -76,7 +105,7 @@ public:
 	/** The materials to be used instead of the StaticMesh's materials. Note that each material must have the Niagara Mesh Particles flag checked. If the ParticleMesh 
 	requires more materials than exist in this array or any entry in this array is set to None, we will use the ParticleMesh's existing Material instead.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials"))
-	TArray<UMaterialInterface*> OverrideMaterials;
+	TArray<FNiagaraMeshMaterialOverride> OverrideMaterials;
 
 	/** Determines how the mesh orients itself relative to the camera.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
@@ -130,6 +159,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding NormalizedAgeBinding;
 
+
 protected:
+	bool FindBinding(const FNiagaraUserParameterBinding& InBinding, const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials);
 	void InitBindings();
 };
