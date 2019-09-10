@@ -12,6 +12,7 @@
 #include "MovieSceneFwd.h"
 #include "FbxImporter.h"
 #include "UObject/GCObject.h"
+#include "Animation/AnimTypes.h"
 
 class ABrush;
 class ACameraActor;
