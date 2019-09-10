@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
 using System;
@@ -378,7 +378,7 @@ namespace IncludeTool
 		/// <param name="IncludePaths">Base directories for relative include paths</param>
 		/// <param name="SystemIncludePaths">Base directories for system include paths</param>
 		/// <param name="Writer">Writer for the output text</param>
-		public void Write(IEnumerable<DirectoryReference> IncludePaths, IEnumerable<DirectoryReference> SystemIncludePaths, TextWriter Writer, bool bRemoveForwardDeclarations, TextWriter Log)
+		public void Write(IEnumerable<DirectoryReference> IncludePaths, IEnumerable<DirectoryReference> SystemIncludePaths, TextWriter Writer, bool bRemoveForwardDeclarations, LineBasedTextWriter Log)
 		{
 			// Write the file header
 			TextLocation LastLocation = Text.Start;
@@ -687,7 +687,7 @@ namespace IncludeTool
 		/// <param name="IncludePaths">Directories to base relative include paths from</param>
 		/// <param name="SystemIncludePaths">Directories to base system include paths from</param>
 		/// <returns>Formatted include path, with surrounding quotes</returns>
-		public static string FormatInclude(DirectoryReference FromDirectory, FileReference IncludeFile, IEnumerable<DirectoryReference> IncludePaths, IEnumerable<DirectoryReference> SystemIncludePaths, TextWriter Log)
+		public static string FormatInclude(DirectoryReference FromDirectory, FileReference IncludeFile, IEnumerable<DirectoryReference> IncludePaths, IEnumerable<DirectoryReference> SystemIncludePaths, LineBasedTextWriter Log)
 		{
 			string IncludeText;
 			if(!TryFormatInclude(FromDirectory, IncludeFile, IncludePaths, SystemIncludePaths, out IncludeText))
