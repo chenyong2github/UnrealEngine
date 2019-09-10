@@ -8,6 +8,7 @@
 #include "Misc/RuntimeErrors.h"
 #include "UObject/Stack.h"
 #include "Serialization/AsyncLoading.h"
+#include "Serialization/AsyncLoadingThread.h"
 
 void UClassRegisterAllCompiledInClasses();
 bool IsInAsyncLoadingThreadCoreUObjectInternal();
@@ -59,6 +60,10 @@ void FCoreUObjectModule::StartupModule()
 
 void FCoreUObjectModule::ShutdownModule()
 {
+	// Before deleting our handler, we need to make sure any async loading threads are stopped.
+	// Otherwise the threads will be stuck in an invalid state.
+	FAsyncLoadingThread::Get().Kill();
+
 	DeleteGlobalPrecacheHandler(GlobalPrecacheHandler);
 	GlobalPrecacheHandler = nullptr;
 }
