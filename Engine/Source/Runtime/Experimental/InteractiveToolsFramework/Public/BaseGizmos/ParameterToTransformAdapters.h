@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "BaseGizmos/GizmoInterfaces.h"
+#include "BaseGizmos/GizmoComponents.h"
 #include "ParameterToTransformAdapters.generated.h"
 
 
