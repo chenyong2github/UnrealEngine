@@ -38,7 +38,7 @@ void FAnimNode_SubInput::Evaluate_AnyThread(FPoseContext& Output)
 	{
 		Output.Pose.SetBoneContainer(&InputProxy->GetRequiredBones());
 
-		FPoseContext InputContext(InputProxy);
+		FPoseContext InputContext(InputProxy, Output.ExpectsAdditivePose());
 		InputPose.Evaluate(InputContext);
 
 		Output.Pose.MoveBonesFrom(InputContext.Pose);

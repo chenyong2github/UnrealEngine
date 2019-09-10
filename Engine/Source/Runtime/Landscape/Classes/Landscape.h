@@ -18,6 +18,10 @@ namespace ELandscapeToolTargetType
 	enum Type : int8;
 };
 
+#if WITH_EDITOR
+extern LANDSCAPE_API TAutoConsoleVariable<int32> CVarLandscapeSplineFalloffModulation;
+#endif
+
 UENUM()
 enum ELandscapeSetupErrors
 {
@@ -265,6 +269,7 @@ public:
 	LANDSCAPE_API void RegisterLandscapeEdMode(ILandscapeEdModeInterface* InLandscapeEdMode) { LandscapeEdMode = InLandscapeEdMode; }
 	LANDSCAPE_API void UnregisterLandscapeEdMode() { LandscapeEdMode = nullptr; }
 	LANDSCAPE_API virtual bool HasLayersContent() const override;
+	LANDSCAPE_API void RequestSplineLayerUpdate();
 	LANDSCAPE_API void RequestLayersInitialization(bool bInRequestContentUpdate = true);
 	LANDSCAPE_API void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InModeMask = ELandscapeLayerUpdateMode::Update_All);
 	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InModeMask);
@@ -320,13 +325,13 @@ public:
 	LANDSCAPE_API class ALandscapeBlueprintBrushBase* GetBrushForLayer(int32 InLayerIndex, int8 BrushIndex) const;
 	LANDSCAPE_API TArray<class ALandscapeBlueprintBrushBase*> GetBrushesForLayer(int32 InLayerIndex) const;
 	LANDSCAPE_API void OnBlueprintBrushChanged();
-	
+	LANDSCAPE_API void OnLayerInfoSplineFalloffModulationChanged(ULandscapeLayerInfoObject* InLayerInfo);
 	LANDSCAPE_API void OnPreSave();
 
 	void ReleaseLayersRenderingResource();
 	
 	LANDSCAPE_API void ToggleCanHaveLayersContent();
-	LANDSCAPE_API void ForceUpdateLayersContent();
+	LANDSCAPE_API void ForceUpdateLayersContent(bool bIntermediateRender = false);
 
 private:
 	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
@@ -451,6 +456,9 @@ private:
 
 	FLandscapeEdModeInfo LandscapeEdModeInfo;
 
+	/** Some tools need to do an intermediate render with hidden layers. Do not dirty the landscape for those renders. */
+	bool bIntermediateRender;
+
 	UPROPERTY(Transient)
 	bool bLandscapeLayersAreInitialized;
 	
@@ -460,6 +468,9 @@ private:
 	UPROPERTY(Transient)
 	uint32 LayerContentUpdateModes;
 		
+	UPROPERTY(Transient)
+	bool bSplineLayerUpdateRequested;
+
 	// Represent all the resolved paint layer, from all layers blended together (size of the landscape x material layer count)
 	class FLandscapeTexture2DArrayResource* CombinedLayersWeightmapAllMaterialLayersResource;
 	

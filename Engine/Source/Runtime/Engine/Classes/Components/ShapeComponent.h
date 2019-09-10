@@ -29,6 +29,10 @@ class ENGINE_API UShapeComponent : public UPrimitiveComponent
 	UPROPERTY(transient, duplicatetransient)
 	class UBodySetup* ShapeBodySetup;
 
+	/** Navigation area type (empty = default obstacle) */
+	UPROPERTY(EditAnywhere, Category = Navigation)
+	TSubclassOf<class UNavAreaBase> AreaClass;
+
 	/** Color used to draw the shape. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Shape)
 	FColor ShapeColor;
@@ -68,10 +72,6 @@ protected:
 	template <typename ShapeElemType> void CreateShapeBodySetupIfNeeded();
 
 public:
-
-	/** Navigation area type (empty = default obstacle) */
-	UPROPERTY(EditAnywhere, Category = Navigation)
-	TSubclassOf<class UNavAreaBase> AreaClass;
 
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;

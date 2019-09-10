@@ -891,31 +891,6 @@ public:
 
 public:
 
-	inline FD3D12FastAllocator& GetHelperThreadDynamicUploadHeapAllocator()
-	{
-		FD3D12Device* Device = GetRHIDevice();
-		const FRHIGPUMask Node = Device->GetGPUMask();
-
-		check(!IsInActualRenderingThread());
-
-		static const uint32 AsyncTexturePoolSize = 1024 * 512;
-
-		if (HelperThreadDynamicHeapAllocator == nullptr)
-		{
-			uint32 NextIndex = FPlatformAtomics::InterlockedIncrement(&NumThreadDynamicHeapAllocators) - 1;
-			check(NextIndex < (uint32)ThreadDynamicHeapAllocatorArray.Num());
-			HelperThreadDynamicHeapAllocator = new FD3D12FastAllocator(Device, Node, D3D12_HEAP_TYPE_UPLOAD, AsyncTexturePoolSize);
-
-			ThreadDynamicHeapAllocatorArray[NextIndex] = HelperThreadDynamicHeapAllocator;
-		}
-
-		return *HelperThreadDynamicHeapAllocator;
-	}
-
-	TArray<FD3D12FastAllocator*> ThreadDynamicHeapAllocatorArray;
-	int32 NumThreadDynamicHeapAllocators;
-	static __declspec(thread) FD3D12FastAllocator* HelperThreadDynamicHeapAllocator;
-
 #if	PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	virtual void* CreateVirtualTexture(uint32 Flags, D3D12_RESOURCE_DESC& ResourceDesc, const struct FD3D12TextureLayout& TextureLayout, FD3D12Resource** ppResource, FPlatformMemory::FPlatformVirtualMemoryBlock& RawTextureBlock, D3D12_RESOURCE_STATES InitialUsage = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) = 0;
 	virtual void DestroyVirtualTexture(uint32 Flags, void* RawTextureMemory, FPlatformMemory::FPlatformVirtualMemoryBlock& RawTextureBlock, uint64 CommittedTextureSize) = 0;

@@ -27,7 +27,6 @@ public:
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const override;
 	virtual FNiagaraDynamicDataBase *GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitteride) const override;
 	virtual int32 GetDynamicDataSize()const override;
-	virtual void TransformChanged() override;
 	virtual bool IsMaterialValid(UMaterialInterface* Mat)const override;
 #if RHI_RAYTRACING
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* Proxy) final override;
@@ -65,7 +64,6 @@ private:
 	void InitPrimitiveUniformBufferIfUninitialized(const FNiagaraSceneProxy *SceneProxy) const;
 
 	class FNiagaraRibbonVertexFactory *VertexFactory;
-	mutable TUniformBuffer<FPrimitiveUniformShaderParameters> WorldSpacePrimitiveUniformBuffer;
 
 	ENiagaraRibbonFacingMode FacingMode;
 	float UV0TilingDistance;

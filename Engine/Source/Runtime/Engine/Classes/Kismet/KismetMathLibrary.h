@@ -3265,11 +3265,11 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 
 	/**
 	 * Tries to reach Target based on distance from Current position, giving a nice smooth feeling when tracking a position.
-	 *
+	 * 
 	 * @param		Current			Actual position
 	 * @param		Target			Target position
 	 * @param		DeltaTime		Time since last tick
-	 * @param		InterpSpeed		Interpolation speed
+	 * @param		InterpSpeed		Interpolation speed, if the speed given is 0, then jump to the target.
 	 * @return		New interpolated position
 	 */
 	UFUNCTION(BlueprintPure, Category="Math|Interpolation")
@@ -3293,7 +3293,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 * @param		Current			Actual rotation
 	 * @param		Target			Target rotation
 	 * @param		DeltaTime		Time since last tick
-	 * @param		InterpSpeed		Interpolation speed
+	 * @param		InterpSpeed		Interpolation speed, if the speed given is 0, then jump to the target.
 	 * @return		New interpolated position
 	 */
 	UFUNCTION(BlueprintPure, Category="Math|Interpolation", meta=(Keywords="rotation rotate"))

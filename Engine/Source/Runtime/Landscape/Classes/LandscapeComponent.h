@@ -315,12 +315,16 @@ enum ELandscapeComponentUpdateFlag : uint32
 
 enum ELandscapeLayerUpdateMode : uint32
 { 
+	// No Update
+	None = 0,
+	// Update types
 	Update_Heightmap_All = 1 << 0,
 	Update_Heightmap_Editing = 1 << 1,
 	Update_Heightmap_Editing_NoCollision = 1 << 2,
 	Update_Weightmap_All = 1 << 3,
 	Update_Weightmap_Editing = 1 << 4,
 	Update_Weightmap_Editing_NoCollision = 1 << 5,
+	// Combinations
 	Update_All = Update_Weightmap_All | Update_Heightmap_All,
 	Update_All_Editing = Update_Weightmap_Editing | Update_Heightmap_Editing,
 	Update_All_Editing_NoCollision = Update_Weightmap_Editing_NoCollision | Update_Heightmap_Editing_NoCollision,

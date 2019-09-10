@@ -57,6 +57,8 @@
 #include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionParticleSubUV.h"
+#include "Materials/MaterialExpressionRuntimeVirtualTextureSample.h"
+#include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionStaticComponentMaskParameter.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
@@ -1598,9 +1600,19 @@ void FMaterialEditor::SetPreviewMaterial(UMaterialInterface* InMaterialInterface
 		{
 			PreviewUIViewport->SetPreviewMaterial(InMaterialInterface);
 		}
+
+		if (PreviewViewport.IsValid())
+		{
+			PreviewViewport->SetPreviewMaterial(nullptr);
+		}
 	}
 	else
 	{
+		if (PreviewUIViewport.IsValid())
+		{
+			PreviewUIViewport->SetPreviewMaterial(nullptr);
+		}
+
 		if (PreviewViewport.IsValid())
 		{
 			PreviewViewport->SetPreviewMaterial(InMaterialInterface);
@@ -2843,6 +2855,7 @@ void FMaterialEditor::OnConvertObjects()
 				UMaterialExpressionScalarParameter* ScalarParameterExpression = Cast<UMaterialExpressionScalarParameter>(CurrentSelectedExpression);
 				UMaterialExpressionVectorParameter* VectorParameterExpression = Cast<UMaterialExpressionVectorParameter>(CurrentSelectedExpression);
 				UMaterialExpressionTextureObjectParameter* TextureObjectParameterExpression = Cast<UMaterialExpressionTextureObjectParameter>(CurrentSelectedExpression);
+				UMaterialExpressionRuntimeVirtualTextureSample* RuntimeVirtualTextureSampleExpression = Cast<UMaterialExpressionRuntimeVirtualTextureSample>(CurrentSelectedExpression);
 
 				// Setup the class to convert to
 				UClass* ClassToCreate = NULL;
@@ -2877,6 +2890,10 @@ void FMaterialEditor::OnConvertObjects()
 				else if (TextureSampleExpression)
 				{
 					ClassToCreate = UMaterialExpressionTextureSampleParameter2D::StaticClass();
+				}
+				else if (RuntimeVirtualTextureSampleExpression)
+				{
+					ClassToCreate = UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass();
 				}
 				else if (ComponentMaskExpression)
 				{
@@ -2945,6 +2962,15 @@ void FMaterialEditor::OnConvertObjects()
 							NewTextureExpr->CoordinatesDX = TextureSampleExpression->CoordinatesDX;
 							NewTextureExpr->CoordinatesDY = TextureSampleExpression->CoordinatesDY;
 							NewTextureExpr->MipValueMode = TextureSampleExpression->MipValueMode;
+							NewGraphNode->ReconstructNode();
+						}
+						else if (RuntimeVirtualTextureSampleExpression)
+						{
+							bNeedsRefresh = true;
+							UMaterialExpressionRuntimeVirtualTextureSampleParameter* NewRuntimeVirtualTextureExpression = CastChecked<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(NewExpression);
+							NewRuntimeVirtualTextureExpression->VirtualTexture = RuntimeVirtualTextureSampleExpression->VirtualTexture;
+							NewRuntimeVirtualTextureExpression->MaterialType = RuntimeVirtualTextureSampleExpression->MaterialType;
+							NewRuntimeVirtualTextureExpression->MipValueMode = RuntimeVirtualTextureSampleExpression->MipValueMode;
 							NewGraphNode->ReconstructNode();
 						}
 						else if (ComponentMaskExpression)

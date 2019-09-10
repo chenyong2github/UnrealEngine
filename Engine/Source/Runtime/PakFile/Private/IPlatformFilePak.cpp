@@ -51,6 +51,8 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
 #define MOUNT_STARTUP_PAKS_WILDCARD ALL_PAKS_WILDCARD
 #endif
 
+static FString GMountStartupPaksWildCard = TEXT(MOUNT_STARTUP_PAKS_WILDCARD);
+
 int32 ParseChunkIDFromFilename(const FString& InFilename)
 {
 	FString ChunkIdentifier(TEXT("pakchunk"));
@@ -5967,10 +5969,15 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 	// Signed if we have keys, and are not running with fileopenlog (currently results in a deadlock).
 	bSigned = FCoreDelegates::GetPakSigningKeysDelegate().IsBound() && !FParse::Param(FCommandLine::Get(), TEXT("fileopenlog"));
 
+	FString StartupPaksWildcard = GMountStartupPaksWildCard;
+#if !UE_BUILD_SHIPPING
+	FParse::Value(FCommandLine::Get(), TEXT("StartupPaksWildcard="), StartupPaksWildcard);
+#endif
+
 	// Find and mount pak files from the specified directories.
 	TArray<FString> PakFolders;
 	GetPakFolders(FCommandLine::Get(), PakFolders);
-	MountAllPakFiles(PakFolders, TEXT(MOUNT_STARTUP_PAKS_WILDCARD));
+	MountAllPakFiles(PakFolders, *StartupPaksWildcard);
 
 #if !UE_BUILD_SHIPPING
 	GPakExec = MakeUnique<FPakExec>(*this);
@@ -6426,8 +6433,14 @@ IFileHandle* FPakPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
 
 const TCHAR* FPakPlatformFile::GetMountStartupPaksWildCard()
 {
-	return TEXT(MOUNT_STARTUP_PAKS_WILDCARD);
+	return *GMountStartupPaksWildCard;
 }
+
+void FPakPlatformFile::SetMountStartupPaksWildCard(const FString& WildCard)
+{
+	GMountStartupPaksWildCard = WildCard;
+}
+
 
 EChunkLocation::Type FPakPlatformFile::GetPakChunkLocation(int32 InChunkID) const
 {

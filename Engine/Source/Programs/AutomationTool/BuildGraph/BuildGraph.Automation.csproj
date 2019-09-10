@@ -102,6 +102,7 @@
     <Compile Include="Tasks\UnzipTask.cs" />
     <Compile Include="Tasks\ZipTask.cs" />
     <Compile Include="TempStorage.cs" />
+    <Compile Include="Tasks\ModifyConfigTask.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj">

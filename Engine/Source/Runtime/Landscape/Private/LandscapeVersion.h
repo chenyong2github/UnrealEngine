@@ -30,6 +30,8 @@ namespace FLandscapeCustomVersion
 		AddingBodyInstanceToSplinesElements,
 		// Spline Layer Falloff
 		AddSplineLayerFalloff,
+		// Spline Layer Width
+		AddSplineLayerWidth,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

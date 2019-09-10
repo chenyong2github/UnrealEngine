@@ -5000,6 +5000,14 @@ void FLevelEditorViewportClient::ClearHoverFromObjects()
 void FLevelEditorViewportClient::OnEditorCleanse()
 {
 	ClearHoverFromObjects();
+
+	FSceneViewStateInterface* ViewStateInterface = ViewState.GetReference();
+	if (ViewStateInterface)
+	{
+		// The view state can reference materials from the world being cleaned up. (Example post process materials)
+		ViewStateInterface->ClearMIDPool();
+	}
+
 }
 
 void FLevelEditorViewportClient::OnPreBeginPIE(const bool bIsSimulating)

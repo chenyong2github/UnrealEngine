@@ -181,7 +181,7 @@ namespace IncludeTool
 		/// <param name="CppFiles">Input files to optimize</param>
 		/// <param name="Log">Writer for log messages</param>
 		/// <returns>Array of output files</returns>
-		public static void PrepareFilesForOutput(IEnumerable<SourceFile> CppFiles, Dictionary<SourceFile, SourceFile> CppFileToHeaderFile, Dictionary<Symbol, SourceFile> FwdSymbolToInputHeader, bool bMakeStandalone, bool bUseOriginalIncludes, TextWriter Log)
+		public static void PrepareFilesForOutput(IEnumerable<SourceFile> CppFiles, Dictionary<SourceFile, SourceFile> CppFileToHeaderFile, Dictionary<Symbol, SourceFile> FwdSymbolToInputHeader, bool bMakeStandalone, bool bUseOriginalIncludes, LineBasedTextWriter Log)
 		{
 			// Cache of all the created output files
 			Dictionary<SourceFile, OutputFile> OutputFileLookup = new Dictionary<SourceFile,OutputFile>();
@@ -240,7 +240,7 @@ namespace IncludeTool
 		/// <param name="OutputFiles">List of output files</param>
 		/// <param name="OutputFileLookup">Mapping from source file to output file</param>
 		/// <returns>The new or existing output file</returns>
-		static OutputFile FindOrCreateOutputFile(List<SourceFile> InputFileStack, Dictionary<SourceFile, SourceFile> CppFileToHeaderFile, HashList<OutputFile> PreviousFiles, Dictionary<SourceFile, OutputFile> OutputFileLookup, Dictionary<Symbol, OutputFile> FwdSymbolToHeader, bool bMakeStandalone, bool bUseOriginalIncludes, TextWriter Log)
+		static OutputFile FindOrCreateOutputFile(List<SourceFile> InputFileStack, Dictionary<SourceFile, SourceFile> CppFileToHeaderFile, HashList<OutputFile> PreviousFiles, Dictionary<SourceFile, OutputFile> OutputFileLookup, Dictionary<Symbol, OutputFile> FwdSymbolToHeader, bool bMakeStandalone, bool bUseOriginalIncludes, LineBasedTextWriter Log)
 		{
 			// Get the file at the top of the stack
 			SourceFile InputFile = InputFileStack[InputFileStack.Count - 1];
@@ -334,7 +334,7 @@ namespace IncludeTool
 		/// <param name="FwdSymbolToHeader"></param>
 		/// <param name="bMakeStandalone">Whether to make this output file standalone</param>
 		/// <param name="Log">Writer for log messages</param>
-		public static OutputFile CreateOptimizedOutputFile(SourceFile InputFile, OutputFile HeaderFile, List<OutputFile> PreviousFiles, List<OutputFileInclude> Includes, List<SourceFile> InputFileStack, Dictionary<Symbol, OutputFile> FwdSymbolToHeader, bool bMakeStandalone, TextWriter Log)
+		public static OutputFile CreateOptimizedOutputFile(SourceFile InputFile, OutputFile HeaderFile, List<OutputFile> PreviousFiles, List<OutputFileInclude> Includes, List<SourceFile> InputFileStack, Dictionary<Symbol, OutputFile> FwdSymbolToHeader, bool bMakeStandalone, LineBasedTextWriter Log)
 		{
 			Debug.Assert(HeaderFile == null || (InputFile.Flags & SourceFileFlags.TranslationUnit) != 0);
 
@@ -590,7 +590,7 @@ namespace IncludeTool
 		/// <param name="InputFile">The input file that this output file corresponds to</param>
 		/// <param name="Includes">The active set of includes parsed for this file</param>
 		/// <param name="Log">Writer for log messages</param>
-		public static OutputFile CreatePassthroughOutputFile(SourceFile InputFile, List<OutputFileInclude> Includes, TextWriter Log)
+		public static OutputFile CreatePassthroughOutputFile(SourceFile InputFile, List<OutputFileInclude> Includes, LineBasedTextWriter Log)
 		{
 			// Write the state
 			InputFile.LogVerbose("InputFile={0}", InputFile.Location.FullName);

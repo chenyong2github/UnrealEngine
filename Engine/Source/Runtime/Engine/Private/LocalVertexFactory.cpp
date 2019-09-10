@@ -181,6 +181,11 @@ void FLocalVertexFactoryShaderParameters::GetElementShaderBindings(
  */
 bool FLocalVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
 {
+	if (Material->GetMaterialDomain() == MD_UI)
+	{
+		return false;
+	}
+
 	return true; 
 }
 

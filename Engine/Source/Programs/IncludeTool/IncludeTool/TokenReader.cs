@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
 using System;
@@ -421,7 +421,7 @@ namespace IncludeTool
 				for (;;)
 				{
 					Character = Text[LineIdx, ColumnIdx];
-					if((Character < 'a' || Character > 'z') && (Character < 'A' || Character > 'Z') && (Character < '0' || Character > '9') && Character != '_' && Character != '$')
+					if((Character < 'a' || Character > 'z') && (Character < 'A' || Character > 'Z') && (Character < '0' || Character > '9') && Character != '_' && Character != '$' && Character != '\'')
 					{
 						if((Character != '+' && Character != '-') || (LastCharacter != 'e' && LastCharacter != 'E'))
 						{

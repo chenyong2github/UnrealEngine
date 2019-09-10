@@ -317,9 +317,16 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 	AddCrashProperty( TEXT( "GameSessionID" ), *NCachedCrashContextProperties::GameSessionID );
 	
 	// Unique string specifying the symbols to be used by CrashReporter
-	FString Symbols = FString::Printf( TEXT( "%s-%s-%s" ), FApp::GetBuildVersion(), FPlatformMisc::GetUBTPlatform(), LexToString(FApp::GetBuildConfiguration())).Replace( TEXT( "+" ), TEXT( "*" ));
+	FString Symbols = FString::Printf( TEXT( "%s" ), FApp::GetBuildVersion());
+#ifdef UE_APP_FLAVOR
+	Symbols = FString::Printf(TEXT( "%s-%s" ), *Symbols, *FString(UE_APP_FLAVOR));
+#endif
+	Symbols = FString::Printf(TEXT("%s-%s-%s"), *Symbols, FPlatformMisc::GetUBTPlatform(), LexToString(FApp::GetBuildConfiguration())).Replace( TEXT( "+" ), TEXT( "*" ));
 #ifdef UE_BUILD_FLAVOR
 	Symbols = FString::Printf(TEXT( "%s-%s" ), *Symbols, *FString(UE_BUILD_FLAVOR));
+#endif
+#ifdef UE_APP_FLAVOR
+	Symbols = FString::Printf(TEXT( "%s-%s" ), *Symbols, *FString(UE_APP_FLAVOR));
 #endif
 
 	AddCrashProperty( TEXT( "Symbols" ), Symbols);
@@ -337,6 +344,7 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 	AddCrashProperty( TEXT( "AppDefaultLocale" ), *NCachedCrashContextProperties::DefaultLocale );
 	AddCrashProperty( TEXT( "BuildVersion" ), FApp::GetBuildVersion() );
 	AddCrashProperty( TEXT( "IsUE4Release" ), NCachedCrashContextProperties::bIsUE4Release );
+	AddCrashProperty( TEXT( "IsRequestingExit" ), GIsRequestingExit );
 
 	// Remove periods from user names to match AutoReporter user names
 	// The name prefix is read by CrashRepository.AddNewCrash in the website code

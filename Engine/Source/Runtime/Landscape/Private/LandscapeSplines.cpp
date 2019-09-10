@@ -38,6 +38,7 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Landscape.h"
+#include "LandscapeLayerInfoObject.h"
 #endif
 
 IMPLEMENT_HIT_PROXY(HLandscapeSplineProxy, HHitProxy);
@@ -643,6 +644,27 @@ void ULandscapeSplinesComponent::AutoFixMeshComponentErrors(UWorld* OtherWorld)
 bool ULandscapeSplinesComponent::IsUsingEditorMesh(const USplineMeshComponent* SplineMeshComponent) const
 {
 	return SplineMeshComponent->GetStaticMesh() == SplineEditorMesh && SplineMeshComponent->bHiddenInGame;
+}
+
+bool ULandscapeSplinesComponent::IsUsingLayerInfo(const ULandscapeLayerInfoObject* LayerInfo) const
+{
+	for (ULandscapeSplineControlPoint* ControlPoint : ControlPoints)
+	{
+		if (ControlPoint->LayerName == LayerInfo->LayerName)
+		{
+			return true;
+		}
+	}
+
+	for (ULandscapeSplineSegment* Segment : Segments)
+	{
+		if (Segment->LayerName == LayerInfo->LayerName)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void ULandscapeSplinesComponent::CheckForErrors()
@@ -1305,6 +1327,15 @@ void ULandscapeSplineControlPoint::Serialize(FArchive& Ar)
 			Point.LayerFalloffRight = Point.FalloffRight;
 		}
 	}
+
+	if (Ar.IsLoading() && Ar.CustomVer(FLandscapeCustomVersion::GUID) << FLandscapeCustomVersion::AddSplineLayerWidth)
+	{
+		for (FLandscapeSplineInterpPoint& Point : Points)
+		{
+			Point.LayerLeft = Point.Left;
+			Point.LayerRight = Point.Right;
+		}
+	}
 #endif
 }
 
@@ -1730,6 +1761,34 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 			MeshComponent->SetCastShadow(bCastShadow);
 		}
 
+		if (MeshComponent->RuntimeVirtualTextures != RuntimeVirtualTextures)
+		{
+			MeshComponent->Modify();
+			MeshComponent->RuntimeVirtualTextures = RuntimeVirtualTextures;
+			MeshComponent->MarkRenderStateDirty();
+		}
+
+		if (MeshComponent->VirtualTextureLodBias != VirtualTextureLodBias)
+		{
+			MeshComponent->Modify();
+			MeshComponent->VirtualTextureLodBias = VirtualTextureLodBias;
+			MeshComponent->MarkRenderStateDirty();
+		}
+		
+		if (MeshComponent->VirtualTextureCullMips != VirtualTextureCullMips)
+		{
+			MeshComponent->Modify();
+			MeshComponent->VirtualTextureCullMips = VirtualTextureCullMips;
+			MeshComponent->MarkRenderStateDirty();
+		}
+
+		if (MeshComponent->VirtualTextureRenderPassType != VirtualTextureRenderPassType)
+		{
+			MeshComponent->Modify();
+			MeshComponent->VirtualTextureRenderPassType = VirtualTextureRenderPassType;
+			MeshComponent->MarkRenderStateDirty();
+		}
+
 		if (bComponentNeedsRegistering)
 		{
 			MeshComponent->RegisterComponent();
@@ -1771,6 +1830,7 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 	const float RightSideFalloff = RightSideFalloffFactor * SideFalloff;
 	const float LeftSideLayerFalloff = LeftSideLayerFalloffFactor * SideFalloff;
 	const float RightSideLayerFalloff = RightSideLayerFalloffFactor * SideFalloff;
+	const float LayerWidth = Width * LayerWidthRatio;
 
 	// Update "Points" array
 	if (Mesh != nullptr)
@@ -1789,10 +1849,13 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 			const FVector RightPos = StartLocation + BiNormal * Width;
 			const FVector FalloffLeftPos = StartLocation - BiNormal * (Width + LeftSideFalloff);
 			const FVector FalloffRightPos = StartLocation + BiNormal * (Width + RightSideFalloff);
-			const FVector LayerFalloffLeftPos = StartLocation - BiNormal * (Width + LeftSideLayerFalloff);
-			const FVector LayerFalloffRightPos = StartLocation + BiNormal * (Width + RightSideLayerFalloff);
+			
+			const FVector LayerLeftPos = StartLocation - BiNormal * LayerWidth;
+			const FVector LayerRightPos = StartLocation + BiNormal * LayerWidth;
+			const FVector LayerFalloffLeftPos = StartLocation - BiNormal * (LayerWidth + LeftSideLayerFalloff);
+			const FVector LayerFalloffRightPos = StartLocation + BiNormal * (LayerWidth + RightSideLayerFalloff);
 
-			Points.Emplace(StartLocation, LeftPos, RightPos, FalloffLeftPos, FalloffRightPos, LayerFalloffLeftPos, LayerFalloffRightPos, 1.0f);
+			Points.Emplace(StartLocation, LeftPos, RightPos, FalloffLeftPos, FalloffRightPos, LayerLeftPos, LayerRightPos, LayerFalloffLeftPos, LayerFalloffRightPos, 1.0f);
 		}
 
 		const FVector CPLocation = Location;
@@ -1812,11 +1875,13 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 		const FVector RightPos = StartLocation + BiNormal * Width;
 		const FVector FalloffLeftPos = StartLocation - BiNormal * (Width + LeftSideFalloff);
 		const FVector FalloffRightPos = StartLocation + BiNormal * (Width + RightSideFalloff);
-		const FVector LayerFalloffLeftPos = StartLocation - BiNormal * (Width + LeftSideLayerFalloff);
-		const FVector LayerFalloffRightPos = StartLocation + BiNormal * (Width + RightSideLayerFalloff);
 
+		const FVector LayerLeftPos = StartLocation - BiNormal * LayerWidth;
+		const FVector LayerRightPos = StartLocation + BiNormal * LayerWidth;
+		const FVector LayerFalloffLeftPos = StartLocation - BiNormal * (LayerWidth + LeftSideLayerFalloff);
+		const FVector LayerFalloffRightPos = StartLocation + BiNormal * (LayerWidth + RightSideLayerFalloff);
 
-		Points.Emplace(StartLocation, LeftPos, RightPos, FalloffLeftPos, FalloffRightPos, LayerFalloffLeftPos, LayerFalloffRightPos, 1.0f);
+		Points.Emplace(StartLocation, LeftPos, RightPos, FalloffLeftPos, FalloffRightPos, LayerLeftPos, LayerRightPos, LayerFalloffLeftPos, LayerFalloffRightPos, 1.0f);
 	}
 
 	// Update bounds
@@ -1919,6 +1984,7 @@ void ULandscapeSplineControlPoint::PostEditChangeProperty(FPropertyChangedEvent&
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	Width = FMath::Max(Width, 0.001f);
+	LayerWidthRatio = FMath::Max(LayerWidthRatio, 0.01f);
 	SideFalloff = FMath::Max(SideFalloff, 0.0f);
 	LeftSideFalloffFactor = FMath::Clamp(LeftSideFalloffFactor, 0.0f, 1.0f);
 	RightSideFalloffFactor = FMath::Clamp(RightSideFalloffFactor, 0.0f, 1.0f);
@@ -1939,9 +2005,9 @@ void ULandscapeSplineControlPoint::PostEditChangeProperty(FPropertyChangedEvent&
 	{
 		ALandscapeProxy* OuterLandscape = Cast<ALandscapeProxy>(GetOuterULandscapeSplinesComponent()->GetOwner());
 		ALandscape* Landscape = OuterLandscape ? OuterLandscape->GetLandscapeActor() : nullptr;
-		if (Landscape && Landscape->HasLayersContent() && Landscape->GetLandscapeSplinesReservedLayer())
+		if (Landscape)
 		{
-			Landscape->UpdateLandscapeSplines();
+			Landscape->RequestSplineLayerUpdate();
 		}
 	}
 }
@@ -2037,6 +2103,15 @@ void ULandscapeSplineSegment::Serialize(FArchive& Ar)
 		{
 			Point.LayerFalloffLeft = Point.FalloffLeft;
 			Point.LayerFalloffRight = Point.FalloffRight;
+		}
+	}
+
+	if (Ar.IsLoading() && Ar.CustomVer(FLandscapeCustomVersion::GUID) << FLandscapeCustomVersion::AddSplineLayerWidth)
+	{
+		for (FLandscapeSplineInterpPoint& Point : Points)
+		{
+			Point.LayerLeft = Point.Left;
+			Point.LayerRight = Point.Right;
 		}
 	}
 #endif
@@ -2294,6 +2369,8 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 	const float EndFalloffFraction = ((Connections[1].ControlPoint->ConnectedSegments.Num() > 1) ? 0 : (Connections[1].ControlPoint->EndFalloff / SplineLength));
 	const float StartWidth = Connections[0].ControlPoint->Width;
 	const float EndWidth = Connections[1].ControlPoint->Width;
+	const float StartLayerWidth = StartWidth * Connections[0].ControlPoint->LayerWidthRatio;
+	const float EndLayerWidth = EndWidth * Connections[1].ControlPoint->LayerWidthRatio;
 
 	LandscapeSplineRaster::FPointifyFalloffs Falloffs;
 	Falloffs.StartLeftSide = Connections[0].ControlPoint->LeftSideFalloffFactor * Connections[0].ControlPoint->SideFalloff;
@@ -2314,7 +2391,7 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 	int32 NumPoints = FMath::CeilToInt(SplineLength / OuterSplines->SplineResolution);
 	NumPoints = FMath::Clamp(NumPoints, 1, 1000);
 
-	LandscapeSplineRaster::Pointify(SplineInfo, Points, NumPoints, StartFalloffFraction, EndFalloffFraction, StartWidth, EndWidth, Falloffs, StartRollDegrees, EndRollDegrees);
+	LandscapeSplineRaster::Pointify(SplineInfo, Points, NumPoints, StartFalloffFraction, EndFalloffFraction, StartWidth, EndWidth, StartLayerWidth, EndLayerWidth, Falloffs, StartRollDegrees, EndRollDegrees);
 
 	// Update Bounds
 	Bounds = FBox(ForceInit);
@@ -2367,7 +2444,8 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 	// Unregister components, Remove Foreign/Local Associations
 	for (auto* LocalMeshComponent : OldLocalMeshComponents)
 	{
-		OuterSplines->MeshComponentLocalOwnersMap.Remove(LocalMeshComponent);
+		checkSlow(OuterSplines->MeshComponentLocalOwnersMap.FindRef(LocalMeshComponent) == this);
+		verifySlow(OuterSplines->MeshComponentLocalOwnersMap.Remove(LocalMeshComponent) == 1);
 		LocalMeshComponent->Modify();
 		LocalMeshComponent->UnregisterComponent();
 	}
@@ -2730,8 +2808,6 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 	// Clean up unused components
 	for (auto* LocalMeshComponent : OldLocalMeshComponents)
 	{
-		checkSlow(OuterSplines->MeshComponentLocalOwnersMap.FindRef(LocalMeshComponent) == this);
-		verifySlow(OuterSplines->MeshComponentLocalOwnersMap.Remove(LocalMeshComponent) == 1);
 		LocalMeshComponent->DestroyComponent();
 	}
 	OldLocalMeshComponents.Empty();
@@ -2895,9 +2971,9 @@ void ULandscapeSplineSegment::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	{
 		ALandscapeProxy* OuterLandscape = Cast<ALandscapeProxy>(GetOuterULandscapeSplinesComponent()->GetOwner());
 		ALandscape* Landscape = OuterLandscape ? OuterLandscape->GetLandscapeActor() : nullptr;
-		if (Landscape && Landscape->HasLayersContent() && Landscape->GetLandscapeSplinesReservedLayer())
+		if (Landscape)
 		{
-			Landscape->UpdateLandscapeSplines();
+			Landscape->RequestSplineLayerUpdate();
 		}
 	}
 }

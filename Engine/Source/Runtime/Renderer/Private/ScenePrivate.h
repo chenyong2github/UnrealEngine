@@ -925,6 +925,9 @@ public:
 
 	// IES light profiles
 	FIESLightProfileResource IESLightProfileResources;
+
+	TRefCountPtr<FPooledRDGBuffer> GatherPointsBuffer;
+	FIntPoint GatherPointsResolution;
 #endif
 
 	// cache for stencil reads to a avoid reallocations of the SRV, Key is to detect if the object has changed
@@ -1336,6 +1339,12 @@ public:
 		check(NewMID->GetRenderProxy());
 		MIDUsedCount++;
 		return NewMID;
+	}
+
+	virtual void ClearMIDPool() override
+	{
+		check(IsInGameThread());
+		MIDPool.Empty();
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -2709,7 +2718,6 @@ public:
 	virtual void RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy) override;
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() override { return SkyAtmosphere; }
 	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const override { return SkyAtmosphere; }
-	virtual void OverrideSkyAtmosphereLightDirection(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, int32 AtmosphereLightIndex, const FVector& LightDirection) override;
 
 	virtual void AddWindSource(UWindDirectionalSourceComponent* WindComponent) override;
 	virtual void RemoveWindSource(UWindDirectionalSourceComponent* WindComponent) override;

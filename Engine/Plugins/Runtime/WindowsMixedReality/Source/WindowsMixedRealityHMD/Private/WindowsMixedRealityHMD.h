@@ -83,6 +83,11 @@ namespace WindowsMixedReality
 		{
 			return SharedThis(this);
 		}
+		
+		// Tracking status
+		virtual bool DoesSupportPositionalTracking() const override { return true; }
+		virtual bool HasValidTrackingPosition() override;
+
 	protected:
 		/** FXRTrackingSystemBase protected interface */
 		virtual float GetWorldToMetersScale() const override;
@@ -172,8 +177,6 @@ namespace WindowsMixedReality
 		ID3D11Texture2D* stereoDepthTexture = nullptr;
 		const float farPlaneDistance = 650.0f;
 
-		// The back buffer for this frame
-		FTexture2DRHIRef CurrentBackBuffer;
 		void InitTrackingFrame();
 		TRefCountPtr<FWindowsMixedRealityCustomPresent> mCustomPresent = nullptr;
 
@@ -191,6 +194,10 @@ namespace WindowsMixedReality
 			FTransform LeftTransform = FTransform::Identity;
 			FTransform RightTransform = FTransform::Identity;
 			FTransform HeadTransform = FTransform::Identity;
+			FMatrix ProjectionMatrixR = FMatrix::Identity;
+			FMatrix ProjectionMatrixL = FMatrix::Identity;
+			bool bPositionalTrackingUsed = false;
+
 		};
 		Frame Frame_NextGameThread;
 		FCriticalSection Frame_NextGameThreadLock;

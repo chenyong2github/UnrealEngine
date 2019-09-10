@@ -9,7 +9,7 @@
 #include "LiveLinkTimeSynchronizationSource.generated.h"
 
 UCLASS(EditInlineNew)
-class ULiveLinkTimeSynchronizationSource : public UTimeSynchronizationSource
+class LIVELINK_API ULiveLinkTimeSynchronizationSource : public UTimeSynchronizationSource
 {
 	GENERATED_BODY()
 

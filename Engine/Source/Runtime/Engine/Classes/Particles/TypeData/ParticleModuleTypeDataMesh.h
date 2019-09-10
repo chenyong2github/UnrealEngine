@@ -14,6 +14,7 @@
 class UParticleEmitter;
 class UParticleSystemComponent;
 struct FParticleEmitterInstance;
+class UStaticMesh;
 
 UENUM()
 enum EMeshScreenAlignment
@@ -64,24 +65,26 @@ class UParticleModuleTypeDataMesh : public UParticleModuleTypeDataBase
 
 	/** The static mesh to render at the particle positions */
 	UPROPERTY(EditAnywhere, Category=Mesh)
-	class UStaticMesh* Mesh;
+	UStaticMesh* Mesh;
 
-	/** use the static mesh's LOD setup and switch LODs based on largest particle's screen size*/
-	UPROPERTY(EditAnywhere, Category = Mesh)
-	bool bUseStaticMeshLODs;
+	/** Random stream for the initial rotation distribution */
+	FRandomStream RandomStream;
 
 	/** use the static mesh's LOD setup and switch LODs based on largest particle's screen size*/
 	UPROPERTY(EditAnywhere, Category = Mesh)
 	float LODSizeScale;
 
+	/** use the static mesh's LOD setup and switch LODs based on largest particle's screen size*/
+	UPROPERTY(EditAnywhere, Category = Mesh)
+	uint8 bUseStaticMeshLODs : 1;
 
 	/** If true, has the meshes cast shadows */
 	UPROPERTY()
-	uint32 CastShadows:1;
+	uint8 CastShadows:1;
 
 	/** UNUSED (the collision module dictates doing collisions) */
 	UPROPERTY()
-	uint32 DoCollisions:1;
+	uint8 DoCollisions:1;
 
 	/** 
 	 *	The alignment to use on the meshes emitted.
@@ -103,29 +106,17 @@ class UParticleModuleTypeDataMesh : public UParticleModuleTypeDataBase
 	 *	to the static mesh model.
 	 */
 	UPROPERTY(EditAnywhere, Category=Mesh)
-	uint32 bOverrideMaterial:1;
+	uint8 bOverrideMaterial:1;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	uint32 bOverrideDefaultMotionBlurSettings : 1;
+	uint8 bOverrideDefaultMotionBlurSettings : 1;
 
 	UPROPERTY(EditAnywhere, Category = Mesh, meta=(EditCondition="bOverrideDefaultMotionBlurSettings"))
-	uint32 bEnableMotionBlur : 1;
-
-	/** deprecated properties for initial orientation */
-	UPROPERTY()
-	float Pitch_DEPRECATED;
-	UPROPERTY()
-	float Roll_DEPRECATED;
-	UPROPERTY()
-	float Yaw_DEPRECATED;
-
+	uint8 bEnableMotionBlur : 1;
 
 	/** The 'pre' rotation pitch (in degrees) to apply to the static mesh used. */
 	UPROPERTY(EditAnywhere, Category=Orientation)
 	FRawDistributionVector RollPitchYawRange;
-
-	/** Random stream for the initial rotation distribution */
-	FRandomStream RandomStream;
 
 	/**
 	 *	The axis to lock the mesh on. This overrides TypeSpecific mesh alignment as well as the LockAxis module.
@@ -148,7 +139,7 @@ class UParticleModuleTypeDataMesh : public UParticleModuleTypeDataBase
 	 *	When set, AxisLockOption as well as all other locked axis/screen alignment settings are ignored.
 	 */
 	UPROPERTY(EditAnywhere, Category=CameraFacing)
-	uint32 bCameraFacing:1;
+	uint8 bCameraFacing:1;
 
 	/**
 	 *	The axis of the mesh to point up when camera facing the X-axis.
@@ -189,21 +180,21 @@ class UParticleModuleTypeDataMesh : public UParticleModuleTypeDataBase
 	 *	If false, apply 'sprite' particle rotation about the camera facing axis.
 	 */
 	UPROPERTY(EditAnywhere, Category=CameraFacing)
-	uint32 bApplyParticleRotationAsSpin:1;
+	uint8 bApplyParticleRotationAsSpin : 1;
 
 	/** 
 	*	If true, all camera facing options will point the mesh against the camera's view direction rather than pointing at the cameras location. 
 	*	If false, the camera facing will point to the cameras position as normal.
 	*/
 	UPROPERTY(EditAnywhere, Category=CameraFacing)
-	uint32 bFaceCameraDirectionRatherThanPosition:1;
+	uint8 bFaceCameraDirectionRatherThanPosition : 1;
 
 	/**
 	*	If true, all collisions for mesh particle on this emitter will take the particle size into account.
 	*	If false, particle size will be ignored in collision checks.
 	*/
 	UPROPERTY(EditAnywhere, Category = Collision)
-	uint32 bCollisionsConsiderPartilceSize : 1;
+	uint8 bCollisionsConsiderPartilceSize : 1;
 
 	static int32 GetCurrentDetailMode();
 	static int32 GetMeshParticleMotionBlurMinDetailMode();

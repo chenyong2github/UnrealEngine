@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "TakesCoreFwd.h"
+#include "TakesCoreLog.h"
 #include "TakeMetaData.h"
 #include "TakeData.h"
 

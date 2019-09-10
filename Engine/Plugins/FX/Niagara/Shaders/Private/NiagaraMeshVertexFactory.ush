@@ -14,6 +14,30 @@
 #define USE_PARTICLE_RANDOM (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && NEEDS_PARTICLE_RANDOM)
 #define USE_PARTICLE_TRANSFORM (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && NEEDS_PARTICLE_TRANSFORM)
 
+float3 TransformPosition(float3 InPosition)
+{
+	if (NiagaraMeshVF.bLocalSpace)
+	{
+		return TransformLocalToWorld(InPosition);
+	}
+	else
+	{
+		return InPosition;
+	}
+}
+
+float3 TransformVector(float3 InVector)
+{
+	if (NiagaraMeshVF.bLocalSpace)
+	{
+		return RotateLocalToWorld(InVector);
+	}
+	else
+	{
+		return InVector;
+	}
+}
+
 // Only support previous transform for deferred feature level
 //#define USE_PREVIOUS_TRANSFORM (FEATURE_LEVEL >= FEATURE_LEVEL_SM4)
 #define USE_PREVIOUS_TRANSFORM 0
@@ -608,7 +632,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		float4 Quat = GetVec4(NiagaraMeshVF.TransformDataOffset, Input.InstanceId);
 
 		//Transform axis to handle local space.
-		//AxisAngle.xyz = mul(float4(AxisAngle.xyz, 0), NiagaraMeshVF.LocalToWorldInverseTransposed);
+		//AxisAngle.xyz = TransformVector(AxisAngle.xyz);
 
 
 		float4x4 EulerToMat = QuatTo4x4(normalize(Quat));
@@ -640,7 +664,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else if (MeshFacingMode == MESH_FACING_CAMERA_POSITION)
 	{
-		float3 WorldPosition = mul(Intermediates.ParticlePosition, NiagaraMeshVF.LocalToWorld).xyz;
+		float3 WorldPosition = TransformPosition(Intermediates.ParticlePosition);
 		float3 CameraVector = ResolvedView.WorldCameraOrigin.xyz - WorldPosition.xyz;
 		float3 CameraDirection = normalize(CameraVector);
 		float4 ToAlignmentQuat = FindQuatBetween(float3(1.0f, 0.0f, 0.0f), CameraDirection);
@@ -662,9 +686,12 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	//Handle local space. TODO: Optimize behind define.
 	//Apply local space to local to world, also pretranspse here to avoid it in the vs&ps
 	Intermediates.LocalToWorld = transpose(Intermediates.LocalToWorld);
-	Intermediates.LocalToWorld = mul(Intermediates.LocalToWorld, NiagaraMeshVF.LocalToWorld);
-	Intermediates.ParticlePosition = mul(Intermediates.ParticlePosition, NiagaraMeshVF.LocalToWorld);
-	//Intermediates.ParticleVelocity.xyz = mul(float4(Intermediates.ParticleVelocity.xyz,0), NiagaraMeshVF.LocalToWorldInverseTransposed);
+	if (NiagaraMeshVF.bLocalSpace)
+	{
+		Intermediates.LocalToWorld = mul(Intermediates.LocalToWorld, Primitive.LocalToWorld);
+		Intermediates.ParticlePosition = TransformLocalToWorld(Intermediates.ParticlePosition);
+	}
+	//Intermediates.ParticleVelocity.xyz = TransformVector(Intermediates.ParticleVelocity.xyz);
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 	for(int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; CoordinateIndex++)

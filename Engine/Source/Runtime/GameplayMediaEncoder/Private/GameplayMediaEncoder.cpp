@@ -296,9 +296,7 @@ bool FGameplayMediaEncoder::Start()
 	}
 
 	VideoEncoder->Start();
-	FSlateRenderer::FOnBackBufferReadyToPresent OnBackBufferReadyDelegate;
-	OnBackBufferReadyDelegate.AddRaw(this, &FGameplayMediaEncoder::OnBackBufferReady);
-	FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent() = OnBackBufferReadyDelegate;
+	FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().AddRaw(this, &FGameplayMediaEncoder::OnBackBufferReady);
 
 	return true;
 }

@@ -1097,12 +1097,14 @@ ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 	bLockLocation = false;
 	WasCompilingShaders = false;
 	LayerContentUpdateModes = 0;
+	bSplineLayerUpdateRequested = false;
 	CombinedLayersWeightmapAllMaterialLayersResource = nullptr;
 	CurrentLayersWeightmapAllMaterialLayersResource = nullptr;
 	WeightmapScratchExtractLayerTextureResource = nullptr;
 	WeightmapScratchPackLayerTextureResource = nullptr;
 	bLandscapeLayersAreInitialized = false;
 	LandscapeEdMode = nullptr;	
+	bIntermediateRender = false;
 	bGrassUpdateEnabled = true;
 #endif // WITH_EDITORONLY_DATA
 }

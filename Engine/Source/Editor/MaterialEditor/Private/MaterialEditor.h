@@ -139,7 +139,16 @@ public:
 		}
 		return false;
 	}
-	
+
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
+	{
+		if (Expression.IsValid() && Expression->Material)
+		{
+			return Expression->Material->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
+		}
+		return false;
+	}
+
 	// Material properties.
 	/** Entry point for compiling a specific material property.  This must call SetMaterialProperty. */
 	virtual int32 CompilePropertyAndSetMaterialProperty(EMaterialProperty Property, FMaterialCompiler* Compiler, EShaderFrequency OverrideShaderFrequency, bool bUsePreviousFrameTime) const override;

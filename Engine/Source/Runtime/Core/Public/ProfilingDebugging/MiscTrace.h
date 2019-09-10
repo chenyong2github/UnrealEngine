@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Trace/Trace.h"
+#include "ProfilingDebugging/FormatArgsTrace.h"
 
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
 #define MISCTRACE_ENABLED 1
@@ -38,8 +39,6 @@ struct FTraceUtils
 };
 
 #if MISCTRACE_ENABLED
-
-#include "ProfilingDebugging/FormatArgsTrace.h"
 
 class FName;
 

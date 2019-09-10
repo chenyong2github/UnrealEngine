@@ -306,23 +306,36 @@ public:
 	void Create(const GraphicsPipelineCreationArgs& InCreationArgs);
 	void CreateAsync(const GraphicsPipelineCreationArgs& InCreationArgs);
 
-	ID3D12PipelineState* GetPipelineState();
+	FORCEINLINE ID3D12PipelineState* GetPipelineState()
+	{
+		if (CachedPipelineState)
+		{
+			return CachedPipelineState;
+		}
+		else
+		{
+			return InternalGetPipelineState();
+		}
+	}
 
 	FD3D12PipelineState& operator=(const FD3D12PipelineState& other)
 	{
 		checkSlow(GPUMask == other.GPUMask);
 		checkSlow(VisibilityMask == other.VisibilityMask);
-		ensure(PendingWaitOnWorkerCalls == 0);
 
 		PipelineState = other.PipelineState;
 		Worker = other.Worker;
 		return *this;
 	}
 
+private:
+	ID3D12PipelineState* InternalGetPipelineState();
+
 protected:
+	ID3D12PipelineState* CachedPipelineState;
 	TRefCountPtr<ID3D12PipelineState> PipelineState;
 	FAsyncTask<FD3D12PipelineStateWorker>* Worker;
-	volatile int32 PendingWaitOnWorkerCalls;
+	FRWLock GetPipelineStateMutex;
 };
 
 struct FD3D12GraphicsPipelineState : public FRHIGraphicsPipelineState
@@ -442,12 +455,7 @@ protected:
 	mutable FRWLock LowLevelGraphicsPipelineStateCacheMutex;
 	mutable FRWLock ComputePipelineStateCacheMutex;
 
-	FCriticalSection DiskCachesCS;
-
-#if !PLATFORM_WINDOWS
-	FRWLock CS;
-#endif
-
+	FRWLock DiskCachesCS;
 	FDiskCacheInterface DiskCaches[NUM_PSO_CACHE_TYPES];
 
 	void CleanupPipelineStateCaches();

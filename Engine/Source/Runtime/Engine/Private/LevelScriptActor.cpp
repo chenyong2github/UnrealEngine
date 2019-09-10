@@ -32,7 +32,7 @@ ALevelScriptActor::ALevelScriptActor(const FObjectInitializer& ObjectInitializer
 
 void ALevelScriptActor::PreInitializeComponents()
 {
-	if (UInputDelegateBinding::SupportsInputDelegate(GetClass()))
+	if (UInputDelegateBinding::SupportsInputDelegate(GetClass()) && !InputComponent)
 	{
 		// create an InputComponent object so that the level script actor can bind key events
 		InputComponent = NewObject<UInputComponent>(this);

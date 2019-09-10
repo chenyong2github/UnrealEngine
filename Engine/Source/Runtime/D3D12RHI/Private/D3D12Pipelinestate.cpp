@@ -134,7 +134,7 @@ FD3D12PipelineStateWorker::FD3D12PipelineStateWorker(FD3D12Adapter* Adapter, con
 
 
 /// @endcond
-#if defined(_M_IX86_FP) && _M_IX86_FP >= 2
+#if defined(_WIN64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
 #ifndef __clang__
 
 FORCEINLINE uint32 SSE4_CRC32(const void* Data, SIZE_T NumBytes)
@@ -181,7 +181,7 @@ uint32 FD3D12PipelineStateCacheBase::HashData(const void* Data, SIZE_T NumBytes)
 #ifdef __clang__
 	return FCrc::MemCrc32(Data, NumBytes);
 #else
-#if defined(_M_IX86_FP) && _M_IX86_FP >= 2
+#if defined(_WIN64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
 	if (GCPUSupportsSSE4)
 	{
 		return SSE4_CRC32(Data, NumBytes);
@@ -235,7 +235,7 @@ SIZE_T FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12ComputePipelineStat
 FD3D12PipelineStateCacheBase::FD3D12PipelineStateCacheBase(FD3D12Adapter* InParent) :
 	FD3D12AdapterChild(InParent)
 {
-#if defined(_M_IX86_FP) && _M_IX86_FP >= 2
+#if defined(_WIN64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
 	// Check for SSE4 support see: https://msdn.microsoft.com/en-us/library/vstudio/hskdteyh(v=vs.100).aspx
 	{
 		int32 cpui[4];
@@ -256,8 +256,8 @@ FD3D12PipelineStateCacheBase::~FD3D12PipelineStateCacheBase()
 FD3D12PipelineState::FD3D12PipelineState(FD3D12Adapter* Parent)
 	: FD3D12AdapterChild(Parent)
 	, FD3D12MultiNodeGPUObject(FRHIGPUMask::All(), FRHIGPUMask::All()) //Create on all, visible on all
+	, CachedPipelineState(nullptr)
 	, Worker(nullptr)
-	, PendingWaitOnWorkerCalls(0)
 {
 	INC_DWORD_STAT(STAT_D3D12NumPSOs);
 }
@@ -266,7 +266,6 @@ FD3D12PipelineState::~FD3D12PipelineState()
 {
 	if (Worker)
 	{
-		ensure(PendingWaitOnWorkerCalls == 0);
 		Worker->EnsureCompletion(true);
 		delete Worker;
 		Worker = nullptr;
@@ -275,57 +274,42 @@ FD3D12PipelineState::~FD3D12PipelineState()
 	DEC_DWORD_STAT(STAT_D3D12NumPSOs);
 }
 
-ID3D12PipelineState* FD3D12PipelineState::GetPipelineState()
+ID3D12PipelineState* FD3D12PipelineState::InternalGetPipelineState()
 {
+	// Only one thread should finalize any tasks and set the cached pipeline state.
+	// Other threads can wait efficiently behind the lock. Using Sleep() can wake threads 1ms too late.
+	FRWScopeLock Lock(GetPipelineStateMutex, SLT_Write);
+
 	if (Worker)
 	{
-		const bool bIsSyncThread = (FPlatformAtomics::InterlockedIncrement(&PendingWaitOnWorkerCalls) == 1);
+		Worker->EnsureCompletion(true);
+		check(Worker->IsWorkDone());
 
-		// Cache the Worker ptr as the thread with bIsSyncThread cloud clear it at any time.
-		// MemoryBarrier() is required to prevent the compiler from caching Worker.
-		FPlatformMisc::MemoryBarrier();
-		FAsyncTask<FD3D12PipelineStateWorker>* WorkerRef = Worker;
-		if (WorkerRef)
-		{
-			WorkerRef->EnsureCompletion(true);
-			check(WorkerRef->IsWorkDone());		
+		PipelineState = Worker->GetTask().PSO.GetReference();
+		CachedPipelineState = PipelineState.GetReference();
 
-			if (bIsSyncThread)
-			{
-				PipelineState = WorkerRef->GetTask().PSO;
-				
-				// Only set the worker to null after setting the PipelineState because of the initial branching.
-				// Note that only one thread must set the pipeline state as TRefCountPtr is not threadsafe.
-				Worker = nullptr;
-
-				// Decrement but also wait till 0 before deleting the worker as other threads could be referring it.
-				if (FPlatformAtomics::InterlockedDecrement(&PendingWaitOnWorkerCalls) != 0)
-				{
-					do
-					{
-						FPlatformProcess::Sleep(0);
-					}
-					while (PendingWaitOnWorkerCalls != 0);
-				}
-
-				delete WorkerRef;
-			}
-			else
-			{
-				// Cache the result before decrementing the counter because after the decrement, 
-				// the worker could be deleted at any time by the thread with bIsSyncThread.
-				// this allows to return immediately without having to wait for PendingWaitOnWorkerCalls to reach 0.
-				ID3D12PipelineState* Result = WorkerRef->GetTask().PSO.GetReference();
-				FPlatformAtomics::InterlockedDecrement(&PendingWaitOnWorkerCalls);
-				return Result;
-			}
-		}
-		else // Decrement but don't wait since if Worker is null, PipelineState is valid.
-		{
-			FPlatformAtomics::InterlockedDecrement(&PendingWaitOnWorkerCalls);
-		}
+		// Cleanup the worker.
+		delete Worker;
+		Worker = nullptr;
 	}
-	return PipelineState.GetReference();
+
+	// Busy-wait for the PSO. This avoids giving up our time slice.
+	if (CachedPipelineState == nullptr)
+	{
+		const double StartTime = FPlatformTime::Seconds();
+		static const float BusyWaitTimeoutInMs = CVarPSOStallTimeoutInMs.GetValueOnAnyThread();
+		while (PipelineState.GetReference() == nullptr)
+		{
+			if (((FPlatformTime::Seconds() - StartTime) * 1000) > BusyWaitTimeoutInMs)
+			{
+				UE_LOG(LogD3D12RHI, Fatal, TEXT("Waiting for PSO creation failed to complete within the timeout interval (%.3f ms)."), BusyWaitTimeoutInMs);
+			}
+		}
+
+		CachedPipelineState = PipelineState.GetReference();
+	}
+
+	return CachedPipelineState;
 }
 
 FD3D12GraphicsPipelineState::FD3D12GraphicsPipelineState(
@@ -370,10 +354,10 @@ FD3D12ComputePipelineState::~FD3D12ComputePipelineState()
 void FD3D12PipelineStateCacheBase::CleanupPipelineStateCaches()
 {
 #if D3D12RHI_USE_HIGH_LEVEL_PSO_CACHE
+	// The runtime caches manage the lifetime of their FD3D12GraphicsPipelineState and FD3D12ComputePipelineState.
+	// We need to release them.
 	{
 		FRWScopeLock Lock(InitializerToGraphicsPipelineMapMutex, FRWScopeLockType::SLT_Write);
-		// The runtime caches manage the lifetime of their FD3D12GraphicsPipelineState and FD3D12ComputePipelineState.
-		// We need to release them.
 		for (auto Pair : InitializerToGraphicsPipelineMap)
 		{
 			FD3D12GraphicsPipelineState* GraphicsPipelineState = Pair.Value;
@@ -396,8 +380,6 @@ void FD3D12PipelineStateCacheBase::CleanupPipelineStateCaches()
 #endif
 	{
 		FRWScopeLock Lock(LowLevelGraphicsPipelineStateCacheMutex, FRWScopeLockType::SLT_Write);
-		// The low level graphics and compute maps manage the lifetime of their PSOs.
-		// We need to delete each element before we empty it.
 		for (auto Iter = LowLevelGraphicsPipelineStateCache.CreateConstIterator(); Iter; ++Iter)
 		{
 			const FD3D12PipelineState* const PipelineState = Iter.Value();
@@ -486,24 +468,27 @@ void FD3D12PipelineStateCacheBase::AddToLowLevelCache(const FD3D12LowLevelGraphi
 
 	// Double check the desc doesn't already exist while the lock is taken.
 	// This avoids having multiple threads try to create the same PSO.
-	FRWScopeLock Lock(LowLevelGraphicsPipelineStateCacheMutex, FRWScopeLockType::SLT_Write);
-	FD3D12PipelineState** const PipelineState = LowLevelGraphicsPipelineStateCache.Find(Desc);
-	if (PipelineState)
 	{
-		// This desc already exists.
-		*OutPipelineState = *PipelineState;
-	}
-	else
-	{
+		FRWScopeLock Lock(LowLevelGraphicsPipelineStateCacheMutex, FRWScopeLockType::SLT_Write);
+		FD3D12PipelineState** const PipelineState = LowLevelGraphicsPipelineStateCache.Find(Desc);
+		if (PipelineState)
+		{
+			// This desc already exists.
+			*OutPipelineState = *PipelineState;
+			return;
+		}
+
+		// Add the FD3D12PipelineState object to the cache, but don't actually create the underlying PSO yet while the lock is taken.
+		// This allows multiple threads to create different PSOs at the same time.
+		INC_DWORD_STAT(STAT_PSOGraphicsNumLowlevelCacheEntries);
 		FD3D12PipelineState* NewPipelineState = new FD3D12PipelineState(GetParentAdapter());
 		LowLevelGraphicsPipelineStateCache.Add(Desc, NewPipelineState);
 
-		INC_DWORD_STAT(STAT_PSOGraphicsNumLowlevelCacheEntries);
 		*OutPipelineState = NewPipelineState;
-
-		// Do the callback now with the lock still on.
-		PostCreateCallback(OutPipelineState, Desc);
 	}
+
+	// Create the underlying PSO and then perform any other additional tasks like cleaning up/adding to caches, etc.
+	PostCreateCallback(OutPipelineState, Desc);
 }
 
 #if D3D12RHI_USE_HIGH_LEVEL_PSO_CACHE
@@ -564,24 +549,27 @@ void FD3D12PipelineStateCacheBase::AddToLowLevelCache(const FD3D12ComputePipelin
 
 	// Double check the desc doesn't already exist while the lock is taken.
 	// This avoids having multiple threads try to create the same PSO.
-	FRWScopeLock Lock(ComputePipelineStateCacheMutex, FRWScopeLockType::SLT_Write);
-	FD3D12PipelineState** const PipelineState = ComputePipelineStateCache.Find(Desc);
-	if (PipelineState)
 	{
-		// This desc already exists.
-		*OutPipelineState = *PipelineState;
-	}
-	else
-	{
+		FRWScopeLock Lock(ComputePipelineStateCacheMutex, FRWScopeLockType::SLT_Write);
+		FD3D12PipelineState** const PipelineState = ComputePipelineStateCache.Find(Desc);
+		if (PipelineState)
+		{
+			// This desc already exists.
+			*OutPipelineState = *PipelineState;
+			return;
+		}
+
+		// Add the FD3D12PipelineState object to the cache, but don't actually create the underlying PSO yet while the lock is taken.
+		// This allows multiple threads to create different PSOs at the same time.
+		INC_DWORD_STAT(STAT_PSOComputeNumLowlevelCacheEntries);
 		FD3D12PipelineState* NewPipelineState = new FD3D12PipelineState(GetParentAdapter());
 		ComputePipelineStateCache.Add(Desc, NewPipelineState);
 
-		INC_DWORD_STAT(STAT_PSOComputeNumLowlevelCacheEntries);
 		*OutPipelineState = NewPipelineState;
-
-		// Do the callback now with the lock still on.
-		PostCreateCallback(NewPipelineState, Desc);
 	}
+
+	// Create the underlying PSO and then perform any other additional tasks like cleaning up/adding to caches, etc.
+	PostCreateCallback(*OutPipelineState, Desc);
 }
 
 #if D3D12RHI_USE_HIGH_LEVEL_PSO_CACHE

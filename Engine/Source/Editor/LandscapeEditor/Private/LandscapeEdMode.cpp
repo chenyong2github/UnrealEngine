@@ -1061,6 +1061,16 @@ void FEdModeLandscape::Tick(FEditorViewportClient* ViewportClient, float DeltaTi
 			}
 		}
 	}
+
+	static int32 LastLandscapeSplineFalloffModulationValue = CVarLandscapeSplineFalloffModulation.GetValueOnAnyThread();
+	if (LastLandscapeSplineFalloffModulationValue != CVarLandscapeSplineFalloffModulation.GetValueOnAnyThread())
+	{
+		if (ALandscape* Landscape = GetLandscape())
+		{
+			Landscape->RequestSplineLayerUpdate();
+		}
+		LastLandscapeSplineFalloffModulationValue = CVarLandscapeSplineFalloffModulation.GetValueOnAnyThread();
+	}
 }
 
 
@@ -4375,6 +4385,17 @@ void FEdModeLandscape::SetCurrentLayer(int32 InLayerIndex)
 {
 	UISettings->Modify();
 	UISettings->CurrentLayerIndex = InLayerIndex;
+
+	if (ALandscape* Landscape = GetLandscape())
+	{
+		const FLandscapeLayer* SplineLayer = Landscape->GetLandscapeSplinesReservedLayer();
+		if (SplineLayer != nullptr && SplineLayer == Landscape->GetLayer(InLayerIndex))
+		{
+			SetCurrentToolMode("ToolMode_Manage", false);
+			SetCurrentTool(FName("Splines"));
+		}
+	}
+
 	RefreshDetailPanel();
 	RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Update_Client_Editing);
 }
@@ -4596,7 +4617,7 @@ void FEdModeLandscape::AutoUpdateDirtyLandscapeSplines()
 		if (Landscape && Landscape->GetLandscapeSplinesReservedLayer())
 		{
 			// TODO : Only update dirty regions
-			UpdateLandscapeSplines();
+			Landscape->RequestSplineLayerUpdate();
 		}
 	}
 }

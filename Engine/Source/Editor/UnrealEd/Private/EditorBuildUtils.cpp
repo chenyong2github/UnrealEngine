@@ -718,12 +718,13 @@ bool FEditorBuildUtils::PrepForAutomatedBuild( const FEditorAutomatedBuildSettin
 	if ( bBuildSuccessful )
 	{
 		bool bVisibilityToggled = false;
-		if ( !FLevelUtils::IsLevelVisible( GWorld->PersistentLevel ) )
+		UWorld* World = GWorld;
+		if ( !FLevelUtils::IsLevelVisible( World->PersistentLevel ) )
 		{
-			EditorLevelUtils::SetLevelVisibility( GWorld->PersistentLevel, true, false );
+			EditorLevelUtils::SetLevelVisibility( World->PersistentLevel, true, false );
 			bVisibilityToggled = true;
 		}
-		for (ULevelStreaming* CurStreamingLevel : GWorld->GetStreamingLevels())
+		for (ULevelStreaming* CurStreamingLevel : World->GetStreamingLevels())
 		{
 			if ( CurStreamingLevel && !FLevelUtils::IsStreamingLevelVisibleInEditor( CurStreamingLevel ) )
 			{
@@ -733,7 +734,7 @@ bool FEditorBuildUtils::PrepForAutomatedBuild( const FEditorAutomatedBuildSettin
 		}
 		if ( bVisibilityToggled )
 		{
-			GWorld->FlushLevelStreaming();
+			World->FlushLevelStreaming();
 		}
 	}
 

@@ -220,6 +220,9 @@ FSceneViewState::FSceneViewState()
 	}
 	bReadbackInitialized = false;
 	RayCountGPUReadback = new FRHIGPUBufferReadback(TEXT("Ray Count Readback"));
+
+	GatherPointsBuffer = nullptr;
+	GatherPointsResolution = FIntPoint(0, 0);
 #endif
 }
 
@@ -3975,7 +3978,6 @@ public:
 	virtual void RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy) override {}
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() override { return NULL; }
 	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const override { return NULL; }
-	virtual void OverrideSkyAtmosphereLightDirection(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, int32 AtmosphereLightIndex, const FVector& LightDirection) override {}
 
 	virtual void AddWindSource(class UWindDirectionalSourceComponent* WindComponent) override {}
 	virtual void RemoveWindSource(class UWindDirectionalSourceComponent* WindComponent) override {}

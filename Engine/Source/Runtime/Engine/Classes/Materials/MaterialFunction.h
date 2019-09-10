@@ -14,6 +14,7 @@
 class UMaterial;
 class UTexture;
 struct FPropertyChangedEvent;
+class UMaterialExpression;
 
 /**
  * A Material Function is a collection of material expressions that can be reused in different materials
@@ -33,13 +34,17 @@ class UMaterialFunction : public UMaterialFunctionInterface
 	UPROPERTY(EditAnywhere, Category=MaterialFunction, AssetRegistrySearchable)
 	FString Description;
 
+	/** Array of material expressions, excluding Comments.  Used by the material editor. */
+	UPROPERTY()
+	TArray<UMaterialExpression*> FunctionExpressions;
+
 	/** Whether to list this function in the material function library, which is a window in the material editor that lists categorized functions. */
 	UPROPERTY(EditAnywhere, Category=MaterialFunction, AssetRegistrySearchable)
-	uint32 bExposeToLibrary:1;
+	uint8 bExposeToLibrary:1;
 	
 	/** If true, parameters in this function will have a prefix added to their group name. */
 	UPROPERTY(EditAnywhere, Category=MaterialFunction)
-	uint32 bPrefixParameterNames:1;
+	uint8 bPrefixParameterNames:1;
 
 #if WITH_EDITORONLY_DATA
 	/** 
@@ -56,9 +61,6 @@ class UMaterialFunction : public UMaterialFunctionInterface
 	UPROPERTY(EditAnywhere, Category=MaterialFunction, AssetRegistrySearchable)
 	TArray<FText> LibraryCategoriesText;
 #endif
-	/** Array of material expressions, excluding Comments.  Used by the material editor. */
-	UPROPERTY()
-	TArray<class UMaterialExpression*> FunctionExpressions;
 
 #if WITH_EDITORONLY_DATA
 	/** Array of comments associated with this material; viewed in the material editor. */
@@ -72,7 +74,7 @@ class UMaterialFunction : public UMaterialFunctionInterface
 private:
 	/** Transient flag used to track re-entrance in recursive functions like IsDependent. */
 	UPROPERTY(transient)
-	uint32 bReentrantFlag:1;
+	uint8 bReentrantFlag:1;
 
 public:
 	//~ Begin UObject Interface.
@@ -141,6 +143,7 @@ public:
 	ENGINE_API bool SetVectorParameterValueEditorOnly(FName ParameterName, FLinearColor InValue);
 	ENGINE_API bool SetScalarParameterValueEditorOnly(FName ParameterName, float InValue);
 	ENGINE_API bool SetTextureParameterValueEditorOnly(FName ParameterName, class UTexture* InValue);
+	ENGINE_API bool SetRuntimeVirtualTextureParameterValueEditorOnly(FName ParameterName, class URuntimeVirtualTexture* InValue);
 	ENGINE_API bool SetFontParameterValueEditorOnly(FName ParameterName, class UFont* InFontValue, int32 InFontPage);
 	ENGINE_API bool SetStaticComponentMaskParameterValueEditorOnly(FName ParameterName, bool R, bool G, bool B, bool A, FGuid OutExpressionGuid);
 	ENGINE_API bool SetStaticSwitchParameterValueEditorOnly(FName ParameterName, bool OutValue, FGuid OutExpressionGuid);

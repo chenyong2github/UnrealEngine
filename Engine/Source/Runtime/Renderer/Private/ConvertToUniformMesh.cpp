@@ -15,6 +15,7 @@
 #include "ScenePrivate.h"
 #include "DistanceFieldLightingShared.h"
 #include "MeshPassProcessor.inl"
+#include "MaterialShared.h"
 
 class FConvertToUniformMeshVS : public FMeshMaterialShader
 {
@@ -310,7 +311,16 @@ public:
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		//@todo - lit materials only 
+		if (Parameters.Material->IsUIMaterial())
+		{
+			return false;
+		}
+
+		if (Parameters.Material->GetShadingModels().IsUnlit())
+		{
+			return false;
+		}
+
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldGI(Parameters.Platform);
 	}
 

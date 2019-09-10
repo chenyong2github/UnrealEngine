@@ -414,6 +414,12 @@ namespace WindowsMixedReality
 		return nullptr;
 	}
 
+	bool FWindowsMixedRealityHMD::HasValidTrackingPosition()
+	{
+		const Frame& TheFrame = GetFrame();
+		return TheFrame.bPositionalTrackingUsed;
+	}
+
 	FString FWindowsMixedRealityHMD::GetVersionString() const
 	{
 #if WITH_WINDOWS_MIXED_REALITY
@@ -656,6 +662,37 @@ namespace WindowsMixedReality
 #endif
 	}
 
+	FMatrix FetchProjectionMatrix(EStereoscopicPass StereoPassType, WindowsMixedReality::MixedRealityInterop* HMD)
+	{
+		if (StereoPassType != eSSP_LEFT_EYE &&
+			StereoPassType != eSSP_RIGHT_EYE)
+		{
+			return FMatrix::Identity;
+		}
+
+#if WITH_WINDOWS_MIXED_REALITY
+		DirectX::XMFLOAT4X4 projection = (StereoPassType == eSSP_LEFT_EYE)
+			? HMD->GetProjectionMatrix(HMDEye::Left)
+			: HMD->GetProjectionMatrix(HMDEye::Right);
+
+		auto result = WMRUtility::ToFMatrix(projection).GetTransposed();
+		// Convert from RH to LH projection matrix
+		// See PerspectiveOffCenterRH: https://msdn.microsoft.com/en-us/library/windows/desktop/ms918176.aspx
+		result.M[2][0] *= -1;
+		result.M[2][1] *= -1;
+		result.M[2][2] *= -1;
+		result.M[2][3] *= -1;
+
+		// Switch to reverse-z, replace near and far distance
+		result.M[2][2] = 0.0f;  // Must be 0 for reverse-z.
+		result.M[3][2] = GNearClippingPlane;
+
+		return result;
+#else
+		return FMatrix::Identity;
+#endif
+	}
+
 	void FWindowsMixedRealityHMD::InitTrackingFrame()
 	{
 #if WITH_WINDOWS_MIXED_REALITY
@@ -672,7 +709,7 @@ namespace WindowsMixedReality
 			{
 				trackingOrigin == WindowsMixedReality::HMDTrackingOrigin::Eye ?
 					SetTrackingOrigin(EHMDTrackingOrigin::Eye) :
-					SetTrackingOrigin(EHMDTrackingOrigin::Floor);
+					SetTrackingOrigin(EHMDTrackingOrigin::Stage);
 
 				// Convert to unreal space
 				FMatrix UPoseL = WMRUtility::ToFMatrix(leftPose);
@@ -703,6 +740,7 @@ namespace WindowsMixedReality
 
 				FVector HeadPosition = FMath::Lerp(PositionL, PositionR, 0.5f);
 
+				Frame_RenderThread.bPositionalTrackingUsed = HMD->GetTrackingState() == WindowsMixedReality::HMDSpatialLocatability::PositionalTrackingActive;
 				Frame_RenderThread.RotationL = RotationL;
 				Frame_RenderThread.RotationR = RotationR;
 				Frame_RenderThread.PositionL = PositionL;
@@ -712,7 +750,10 @@ namespace WindowsMixedReality
 				Frame_RenderThread.LeftTransform = FTransform(RotationL, PositionL, FVector::OneVector);
 				Frame_RenderThread.RightTransform = FTransform(RotationR, PositionR, FVector::OneVector);
 				Frame_RenderThread.HeadTransform = FTransform(HeadRotation, HeadPosition, FVector::OneVector);
-			
+
+				Frame_RenderThread.ProjectionMatrixL = FetchProjectionMatrix(eSSP_LEFT_EYE, HMD);
+				Frame_RenderThread.ProjectionMatrixR = FetchProjectionMatrix(eSSP_RIGHT_EYE, HMD);
+
 				{
 					FScopeLock Lock(&Frame_NextGameThreadLock);
 					Frame_NextGameThread = Frame_RenderThread;
@@ -890,33 +931,20 @@ namespace WindowsMixedReality
 
 	FMatrix FWindowsMixedRealityHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
 	{
-		if (StereoPassType != eSSP_LEFT_EYE &&
-			StereoPassType != eSSP_RIGHT_EYE)
+		check(IsInGameThread());
+
+		if (StereoPassType == eSSP_LEFT_EYE)
+		{
+			return Frame_GameThread.ProjectionMatrixL;
+		}
+		else if (StereoPassType == eSSP_RIGHT_EYE)
+		{
+			return Frame_GameThread.ProjectionMatrixR;
+		}
+		else
 		{
 			return FMatrix::Identity;
 		}
-
-#if WITH_WINDOWS_MIXED_REALITY
-		DirectX::XMFLOAT4X4 projection = (StereoPassType == eSSP_LEFT_EYE)
-			? HMD->GetProjectionMatrix(HMDEye::Left)
-			: HMD->GetProjectionMatrix(HMDEye::Right);
-
-		auto result = WMRUtility::ToFMatrix(projection).GetTransposed();
-		// Convert from RH to LH projection matrix
-		// See PerspectiveOffCenterRH: https://msdn.microsoft.com/en-us/library/windows/desktop/ms918176.aspx
-		result.M[2][0] *= -1;
-		result.M[2][1] *= -1;
-		result.M[2][2] *= -1;
-		result.M[2][3] *= -1;
-
-		// Switch to reverse-z, replace near and far distance
-		result.M[2][2] = 0.0f;  // Must be 0 for reverse-z.
-		result.M[3][2] = GNearClippingPlane;
-
-		return result;
-#else
-		return FMatrix::Identity;
-#endif
 	}
 
 	void FWindowsMixedRealityHMD::GetEyeRenderParams_RenderThread(
@@ -1096,8 +1124,6 @@ namespace WindowsMixedReality
 			outTargetableTexture,
 			outShaderResourceTexture);
 
-		CurrentBackBuffer = outTargetableTexture;
-
 		return true;
 	}
 
@@ -1184,8 +1210,17 @@ namespace WindowsMixedReality
 #if WITH_WINDOWS_MIXED_REALITY
 		// Update depth texture to match format Windows Mixed Reality platform is expecting.
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-		FRHITexture2D* depthFRHITexture = SceneContext.GetSceneDepthTexture().GetReference()->GetTexture2D();
+		if (SceneContext.SceneDepthZ == nullptr)
+		{
+			return;
+		}
+		const FTexture2DRHIRef SceneDepthTexture = SceneContext.GetSceneDepthTexture();
+		if (SceneDepthTexture == nullptr)
+		{
+			return;
+		}
 
+		FRHITexture2D* depthFRHITexture = SceneContext.GetSceneDepthTexture().GetReference()->GetTexture2D();
 		if (depthFRHITexture == nullptr || depthFRHITexture->GetNativeResource() == nullptr)
 		{
 			return;
@@ -1367,6 +1402,8 @@ namespace WindowsMixedReality
 
 		bIsStereoDesired = false;
 		bIsStereoEnabled = false;
+		
+		GetFrame().bPositionalTrackingUsed = false;
 
 		for (int i = 0; i < 2; i++)
 		{

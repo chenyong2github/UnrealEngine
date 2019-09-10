@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections;
@@ -18,7 +18,7 @@ namespace IncludeTool
 	/// <summary>
 	/// Encapsulates the state of a sequence of fragments being optimized
 	/// </summary>
-	public class SequenceWorker
+	class SequenceWorker
 	{
 		/// <summary>
 		/// Path to the temporary file to write out permutations of the source file to try compiling
@@ -286,7 +286,7 @@ namespace IncludeTool
 		/// Compiles the permutation in its current state
 		/// </summary>
 		/// <param name="Writer">Writer for diagnostic messages</param>
-		public void Verify(TextWriter Writer)
+		public void Verify(LineBasedTextWriter Writer)
 		{
 			bResult = CompilePermutation(new List<int> { RemainingFragmentCount }, 0, 0, 0);
 		}
@@ -295,7 +295,7 @@ namespace IncludeTool
 		/// Find the next dependency
 		/// </summary>
 		/// <param name="Writer">Writer for diagnostic messages</param>
-		public void FindNextDependency(TextWriter Writer)
+		public void FindNextDependency(LineBasedTextWriter Writer)
 		{
 			// Update the required count for all the dependencies that are explicitly listed
 			while(KnownDependencies.Contains(RemainingFragmentCount - 1))

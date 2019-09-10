@@ -377,7 +377,7 @@ FMenuStack::FPrePushResults FMenuStack::PrePush(const FPrePushArgs& InArgs)
 	// Release the mouse so that context can be properly restored upon closing menus.  See CL 1411833 before changing this.
 	if (InArgs.bFocusImmediately)
 	{
-		FSlateApplication::Get().ReleaseMouseCapture();
+		FSlateApplication::Get().ReleaseAllPointerCapture();
 	}
 
 	return OutResults;

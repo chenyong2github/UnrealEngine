@@ -1832,7 +1832,7 @@ FReply SAnimNotifyNode::OnMouseMove( const FGeometry& MyGeometry, const FPointer
 	if(CurrentDragHandle == ENotifyStateHandleHit::None)
 	{
 		// We've had focus taken away - realease the mouse
-		FSlateApplication::Get().ReleaseMouseCapture();
+		FSlateApplication::Get().ReleaseAllPointerCapture();
 		return FReply::Unhandled();
 	}
 	

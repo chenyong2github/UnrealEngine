@@ -447,17 +447,6 @@ void FScene::RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereScenePro
 		} );
 }
 
-void FScene::OverrideSkyAtmosphereLightDirection(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, int32 AtmosphereLightIndex, const FVector& InLightDirection)
-{
-	FVector LightDirection = InLightDirection;
-	LightDirection.Normalize();
-	ENQUEUE_RENDER_COMMAND(FOverrideSkyAtmosphereLightDirection)(
-		[SkyAtmosphereSceneProxy, AtmosphereLightIndex, LightDirection](FRHICommandListImmediate& RHICmdList)
-	{
-		SkyAtmosphereSceneProxy->OverrideAtmosphereLightDirection(AtmosphereLightIndex, LightDirection);
-	});
-}
-
 void FScene::ResetAtmosphereLightsProperties()
 {
 	// Also rest the current atmospheric light to default atmosphere

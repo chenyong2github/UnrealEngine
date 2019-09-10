@@ -395,7 +395,7 @@ void SMenuAnchor::SetIsOpen( bool InIsOpen, const bool bFocusMenu, const int32 F
 
 							if (bFocusMenu)
 							{
-								FSlateApplication::Get().ReleaseMouseCaptureForUser(FocusUserIndex);
+								FSlateApplication::Get().ReleaseAllPointerCapture(FocusUserIndex);
 							}
 
 							TSharedRef<SMenuAnchor> SharedThis = StaticCastSharedRef<SMenuAnchor>(AsShared());
@@ -445,7 +445,7 @@ void SMenuAnchor::SetIsOpen( bool InIsOpen, const bool bFocusMenu, const int32 F
 							// Release the mouse so that context can be properly restored upon closing menus.  See CL 1411833 before changing this.
 							if (bFocusMenu)
 							{
-								FSlateApplication::Get().ReleaseMouseCaptureForUser(FocusUserIndex);
+								FSlateApplication::Get().ReleaseAllPointerCapture(FocusUserIndex);
 							}
 
 							// Create a new window for the menu
@@ -487,7 +487,7 @@ void SMenuAnchor::SetIsOpen( bool InIsOpen, const bool bFocusMenu, const int32 F
 
 							if (bFocusMenu)
 							{
-								FSlateApplication::Get().ReleaseMouseCaptureForUser(FocusUserIndex);
+								FSlateApplication::Get().ReleaseAllPointerCapture(FocusUserIndex);
 							}
 
 							TSharedRef<SMenuAnchor> SharedThis = StaticCastSharedRef<SMenuAnchor>(AsShared());

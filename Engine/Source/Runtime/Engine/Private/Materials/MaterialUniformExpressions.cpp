@@ -515,7 +515,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			if (!bFoundTexture)
 			{
 				const URuntimeVirtualTexture* Texture = nullptr;
-				UniformVirtualTextureExpressions[ExpressionIndex]->GetTextureValue(MaterialRenderContext.Material, Texture);
+				UniformVirtualTextureExpressions[ExpressionIndex]->GetTextureValue(MaterialRenderContext, MaterialRenderContext.Material, Texture);
 				if (Texture != nullptr)
 				{
 					int32 LayerIndex = UniformVirtualTextureExpressions[ExpressionIndex]->GetLayerIndex();
@@ -878,7 +878,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			if (!bValidResources)
 			{
 				const URuntimeVirtualTexture* Texture;
-				UniformVirtualTextureExpressions[ExpressionIndex]->GetTextureValue(MaterialRenderContext.Material, Texture);
+				UniformVirtualTextureExpressions[ExpressionIndex]->GetTextureValue(MaterialRenderContext, MaterialRenderContext.Material, Texture);
 				if (Texture != nullptr)
 				{
 					IAllocatedVirtualTexture const* AllocatedVT = Texture->GetAllocatedVirtualTexture();
@@ -1009,7 +1009,7 @@ void FMaterialUniformExpressionTexture::GetTextureValue(const FMaterialRenderCon
 	}
 }
 
-void FMaterialUniformExpressionTexture::GetTextureValue(const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const
+void FMaterialUniformExpressionTexture::GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const
 {
 	check(IsInParallelRenderingThread());
 	OutValue = GetIndexedTexture<URuntimeVirtualTexture>(Material, TextureIndex);
@@ -1037,6 +1037,78 @@ bool FMaterialUniformExpressionTexture::IsIdentical(const FMaterialUniformExpres
 	FMaterialUniformExpressionTexture* OtherTextureExpression = (FMaterialUniformExpressionTexture*)OtherExpression;
 
 	return TextureIndex == OtherTextureExpression->TextureIndex && LayerIndex == OtherTextureExpression->LayerIndex && bVirtualTexture == OtherTextureExpression->bVirtualTexture;
+}
+
+void FMaterialUniformExpressionTextureParameter::GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const UTexture*& OutValue) const
+{
+	check(IsInParallelRenderingThread());
+	if (TransientOverrideValue_RenderThread != NULL)
+	{
+		OutValue = TransientOverrideValue_RenderThread;
+	}
+	else
+	{
+		if (!Context.MaterialRenderProxy || !Context.MaterialRenderProxy->GetTextureValue(ParameterInfo, &OutValue, Context))
+		{
+			UTexture* Value = nullptr;
+
+			if (AreExperimentalMaterialLayersEnabled())
+			{
+				UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
+				if (!Interface || !Interface->GetTextureParameterDefaultValue(ParameterInfo, Value))
+				{
+					Value = GetIndexedTexture<UTexture>(Material, TextureIndex);
+				}
+			}
+			else
+			{
+				Value = GetIndexedTexture<UTexture>(Material, TextureIndex);
+			}
+
+			OutValue = Value;
+		}
+	}
+}
+
+void FMaterialUniformExpressionTextureParameter::GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const
+{
+	if (!Context.MaterialRenderProxy || !Context.MaterialRenderProxy->GetTextureValue(ParameterInfo, &OutValue, Context))
+	{
+		URuntimeVirtualTexture* Value = nullptr;
+
+		if (AreExperimentalMaterialLayersEnabled())
+		{
+			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
+			if (!Interface || !Interface->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, Value))
+			{
+				Value = GetIndexedTexture<URuntimeVirtualTexture>(Material, TextureIndex);
+			}
+		}
+		else
+		{
+			Value = GetIndexedTexture<URuntimeVirtualTexture>(Material, TextureIndex);
+		}
+
+		OutValue = Value;
+	}
+}
+
+void FMaterialUniformExpressionTextureParameter::GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue, bool bAllowOverride) const
+{
+	check(IsInGameThread());
+	if (bAllowOverride && TransientOverrideValue_GameThread != NULL)
+	{
+		OutValue = TransientOverrideValue_GameThread;
+	}
+	else
+	{
+		OutValue = NULL;
+		const bool bOverrideValuesOnly = !AreExperimentalMaterialLayersEnabled();
+		if (!MaterialInterface->GetTextureParameterValue(ParameterInfo, OutValue, bOverrideValuesOnly))
+		{
+			OutValue = GetIndexedTexture<UTexture>(Material, TextureIndex);
+		}
+	}
 }
 
 FMaterialUniformExpressionExternalTextureBase::FMaterialUniformExpressionExternalTextureBase(int32 InSourceTextureIndex)
@@ -1288,47 +1360,81 @@ void FMaterialUniformExpressionExternalTextureCoordinateOffset::GetNumberValue(c
 	}
 }
 
-FMaterialUniformExpressionRuntimeVirtualTextureParameter::FMaterialUniformExpressionRuntimeVirtualTextureParameter()
-	: TextureIndex(INDEX_NONE)
-	, ParamIndex(INDEX_NONE)
+FMaterialUniformExpressionRuntimeVirtualTextureUniform::FMaterialUniformExpressionRuntimeVirtualTextureUniform()
+	: bParameter(false)
+	, TextureIndex(INDEX_NONE)
+	, VectorIndex(INDEX_NONE)
 {
 }
 
-FMaterialUniformExpressionRuntimeVirtualTextureParameter::FMaterialUniformExpressionRuntimeVirtualTextureParameter(int32 InTextureIndex, int32 InParamIndex)
-	: TextureIndex(InTextureIndex)
-	, ParamIndex(InParamIndex)
+FMaterialUniformExpressionRuntimeVirtualTextureUniform::FMaterialUniformExpressionRuntimeVirtualTextureUniform(int32 InTextureIndex, int32 InVectorIndex)
+	: bParameter(false)
+	, TextureIndex(InTextureIndex)
+	, VectorIndex(InVectorIndex)
 {
 }
 
-void FMaterialUniformExpressionRuntimeVirtualTextureParameter::Serialize(FArchive& Ar)
+FMaterialUniformExpressionRuntimeVirtualTextureUniform::FMaterialUniformExpressionRuntimeVirtualTextureUniform(const FMaterialParameterInfo& InParameterInfo, int32 InTextureIndex, int32 InVectorIndex)
+	: bParameter(true)
+	, ParameterInfo(InParameterInfo)
+	, TextureIndex(InTextureIndex)
+	, VectorIndex(InVectorIndex)
 {
+}
+
+void FMaterialUniformExpressionRuntimeVirtualTextureUniform::Serialize(FArchive& Ar)
+{
+	Ar << bParameter;
+	Ar << ParameterInfo;
 	Ar << TextureIndex;
-	Ar << ParamIndex;
+	Ar << VectorIndex;
 }
 
-bool FMaterialUniformExpressionRuntimeVirtualTextureParameter::IsIdentical(const FMaterialUniformExpression* OtherExpression) const
+bool FMaterialUniformExpressionRuntimeVirtualTextureUniform::IsIdentical(const FMaterialUniformExpression* OtherExpression) const
 {
 	if (GetType() != OtherExpression->GetType())
 	{
 		return false;
 	}
 
-	const auto* Other = static_cast<const FMaterialUniformExpressionRuntimeVirtualTextureParameter*>(OtherExpression);
-	return TextureIndex == Other->TextureIndex && ParamIndex == Other->ParamIndex;
+	const auto* Other = static_cast<const FMaterialUniformExpressionRuntimeVirtualTextureUniform*>(OtherExpression);
+	return ParameterInfo == Other->ParameterInfo && TextureIndex == Other->TextureIndex && VectorIndex == Other->VectorIndex;
 }
 
-void FMaterialUniformExpressionRuntimeVirtualTextureParameter::GetNumberValue(const struct FMaterialRenderContext& Context, FLinearColor& OutValue) const
+void FMaterialUniformExpressionRuntimeVirtualTextureUniform::GetNumberValue(const struct FMaterialRenderContext& Context, FLinearColor& OutValue) const
 {
-	URuntimeVirtualTexture* Texture = GetIndexedTexture<URuntimeVirtualTexture>(Context.Material, TextureIndex);
-	if (Texture != nullptr && ParamIndex != INDEX_NONE)
+	const URuntimeVirtualTexture* Texture = nullptr;
+	if (!bParameter || !Context.MaterialRenderProxy || !Context.MaterialRenderProxy->GetTextureValue(ParameterInfo, &Texture, Context))
 	{
-		OutValue = FLinearColor(Texture->GetUniformParameter(ParamIndex));
+		Texture = GetIndexedTexture<URuntimeVirtualTexture>(Context.Material, TextureIndex);
+	}
+	if (Texture != nullptr && VectorIndex != INDEX_NONE)
+	{
+		OutValue = FLinearColor(Texture->GetUniformParameter(VectorIndex));
 	}
 	else
 	{
 		OutValue = FLinearColor(0.f, 0.f, 0.f, 0.f);
 	}
 }
+
+/**
+ * Deprecated FMaterialUniformExpressionRuntimeVirtualTextureParameter in favor of FMaterialUniformExpressionRuntimeVirtualTextureUniform
+ * Keep around until we no longer need to support serialization of 4.23 data
+ */
+class FMaterialUniformExpressionRuntimeVirtualTextureParameter_DEPRECATED : public FMaterialUniformExpressionRuntimeVirtualTextureUniform
+{
+	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionRuntimeVirtualTextureParameter_DEPRECATED);
+
+public:
+	virtual void Serialize(FArchive& Ar) override
+	{
+		Ar << TextureIndex;
+		Ar << VectorIndex;
+	}
+};
+// Specific implementation of FMaterialUniformExpressionRuntimeVirtualTextureParameter_DEPRECATED to serialize old class name
+FMaterialUniformExpressionType FMaterialUniformExpressionRuntimeVirtualTextureParameter_DEPRECATED::StaticType(TEXT("FMaterialUniformExpressionRuntimeVirtualTextureParameter"), &FMaterialUniformExpressionRuntimeVirtualTextureParameter_DEPRECATED::SerializationConstructor);
 
 
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionTexture);
@@ -1341,7 +1447,7 @@ IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionExternalTextu
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionExternalTextureParameter);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionExternalTextureCoordinateScaleRotation);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionExternalTextureCoordinateOffset);
-IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionRuntimeVirtualTextureParameter);
+IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionRuntimeVirtualTextureUniform);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionFlipBookTextureParameter);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionSine);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionSquareRoot);
