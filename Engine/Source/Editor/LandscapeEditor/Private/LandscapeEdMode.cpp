@@ -1061,6 +1061,16 @@ void FEdModeLandscape::Tick(FEditorViewportClient* ViewportClient, float DeltaTi
 			}
 		}
 	}
+
+	static int32 LastLandscapeSplineFalloffModulationValue = CVarLandscapeSplineFalloffModulation.GetValueOnAnyThread();
+	if (LastLandscapeSplineFalloffModulationValue != CVarLandscapeSplineFalloffModulation.GetValueOnAnyThread())
+	{
+		if (ALandscape* Landscape = GetLandscape())
+		{
+			Landscape->RequestSplineLayerUpdate();
+		}
+		LastLandscapeSplineFalloffModulationValue = CVarLandscapeSplineFalloffModulation.GetValueOnAnyThread();
+	}
 }
 
 
@@ -4607,7 +4617,7 @@ void FEdModeLandscape::AutoUpdateDirtyLandscapeSplines()
 		if (Landscape && Landscape->GetLandscapeSplinesReservedLayer())
 		{
 			// TODO : Only update dirty regions
-			UpdateLandscapeSplines();
+			Landscape->RequestSplineLayerUpdate();
 		}
 	}
 }
