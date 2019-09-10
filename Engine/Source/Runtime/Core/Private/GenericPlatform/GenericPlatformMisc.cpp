@@ -808,10 +808,7 @@ void FGenericPlatformMisc::AddAdditionalRootDirectory(const FString& RootDir)
 {
 	TArray<FString>& RootDirectories = TLazySingleton<FStaticData>::Get().AdditionalRootDirectories;
 	FString NewRootDirectory = RootDir;
-	if (!NewRootDirectory.EndsWith(GetDefaultPathSeparator()))
-	{
-		NewRootDirectory = NewRootDirectory + GetDefaultPathSeparator();
-	}
+	FPaths::MakePlatformFilename(NewRootDirectory);
 	RootDirectories.Add(NewRootDirectory);
 }
 
