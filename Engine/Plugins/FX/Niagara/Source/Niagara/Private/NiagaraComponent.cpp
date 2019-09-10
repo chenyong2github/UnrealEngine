@@ -232,17 +232,6 @@ void FNiagaraSceneProxy::CreateRenderThreadResources()
 	return;
 }
 
-void FNiagaraSceneProxy::OnTransformChanged()
-{
-	for (FNiagaraRenderer* Renderer : EmitterRenderers)
-	{
-		if (Renderer)
-		{
-			Renderer->TransformChanged();
-		}
-	}
-}
-
 FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* View) const
 {
 	FPrimitiveViewRelevance Relevance;
