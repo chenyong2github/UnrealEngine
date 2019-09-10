@@ -188,7 +188,9 @@ public:
 	virtual int32 TextureParameter(FName ParameterName,UTexture* DefaultTexture,int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource=SSM_FromTextureAsset) = 0;
 
 	virtual int32 VirtualTexture(URuntimeVirtualTexture* InTexture, int32 LayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) = 0;
-	virtual int32 VirtualTextureParam(int32 TextureIndex, int32 ParamIndex) = 0;
+	virtual int32 VirtualTextureParameter(FName ParameterName, URuntimeVirtualTexture* DefaultValue, int32 LayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) = 0;
+	virtual int32 VirtualTextureUniform(int32 TextureIndex, int32 VectorIndex) = 0;
+	virtual int32 VirtualTextureUniform(FName ParameterName, int32 TextureIndex, int32 VectorIndex) = 0;
 	virtual int32 VirtualTextureWorldToUV(int32 WorldPositionIndex, int32 P0, int32 P1, int32 P2) = 0;
 	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, EVirtualTextureUnpackType UnpackType) = 0;
 
@@ -212,6 +214,12 @@ public:
 	{
 		int32 TextureReferenceIndex = INDEX_NONE;
 		return VirtualTexture(InTexture, LayerIndex, TextureReferenceIndex, SamplerType);
+	}
+
+	int32 VirtualTextureParameter(FName ParameterName, URuntimeVirtualTexture* DefaultValue, int32 LayerIndex, EMaterialSamplerType SamplerType)
+	{
+		int32 TextureReferenceIndex = INDEX_NONE;
+		return VirtualTextureParameter(ParameterName, DefaultValue, LayerIndex, TextureReferenceIndex, SamplerType);
 	}
 
 	int32 ExternalTexture(UTexture* DefaultTexture)
@@ -462,7 +470,9 @@ public:
 	virtual int32 TextureParameter(FName ParameterName,UTexture* DefaultValue,int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource=SSM_FromTextureAsset) override { return Compiler->TextureParameter(ParameterName,DefaultValue,TextureReferenceIndex, SamplerType, SamplerSource); }
 
 	virtual int32 VirtualTexture(URuntimeVirtualTexture* InTexture, int32 LayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) override { return Compiler->VirtualTexture(InTexture, LayerIndex, TextureReferenceIndex, SamplerType); }
-	virtual int32 VirtualTextureParam(int32 TextureIndex, int32 ParamIndex) override { return Compiler->VirtualTextureParam(TextureIndex, ParamIndex); }
+	virtual int32 VirtualTextureParameter(FName ParameterName, URuntimeVirtualTexture* DefaultValue, int32 LayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) override { return Compiler->VirtualTextureParameter(ParameterName, DefaultValue, LayerIndex, TextureReferenceIndex, SamplerType); }
+	virtual int32 VirtualTextureUniform(int32 TextureIndex, int32 VectorIndex) override { return Compiler->VirtualTextureUniform(TextureIndex, VectorIndex); }
+	virtual int32 VirtualTextureUniform(FName ParameterName, int32 TextureIndex, int32 VectorIndex) override { return Compiler->VirtualTextureUniform(ParameterName, TextureIndex, VectorIndex); }
 	virtual int32 VirtualTextureWorldToUV(int32 WorldPositionIndex, int32 P0, int32 P1, int32 P2) override { return Compiler->VirtualTextureWorldToUV(WorldPositionIndex, P0, P1, P2); }
 	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, EVirtualTextureUnpackType UnpackType) override { return Compiler->VirtualTextureUnpack(CodeIndex0, CodeIndex1, UnpackType); }
 

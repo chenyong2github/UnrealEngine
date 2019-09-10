@@ -2190,9 +2190,9 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	if (Coordinates.GetTracedInput().Expression == nullptr)
 	{
 		int32 WorldPositionIndex = Compiler->WorldPosition(WPT_Default);
-		int32 P0 = Compiler->VirtualTextureParam(TextureReferenceIndex[0], 0);
-		int32 P1 = Compiler->VirtualTextureParam(TextureReferenceIndex[0], 1);
-		int32 P2 = Compiler->VirtualTextureParam(TextureReferenceIndex[0], 2);
+		int32 P0 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 0);
+		int32 P1 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 1);
+		int32 P2 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 2);
 		CoordinateIndex = Compiler->VirtualTextureWorldToUV(WorldPositionIndex, P0, P1, P2);
 	}
 	else
