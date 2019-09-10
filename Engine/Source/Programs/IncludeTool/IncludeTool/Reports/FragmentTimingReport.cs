@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
 using System;
@@ -254,7 +254,7 @@ namespace IncludeTool.Reports
 		/// <param name="NumSamples">Number of samples to take</param>
 		/// <param name="MaxParallel">Maximum number of tasks to run in parallel.</param>
 		/// <param name="Log">Log writer</param>
-		public static void Generate(DirectoryReference InputDir, DirectoryReference WorkingDir, Dictionary<SourceFile, CompileEnvironment> FileToCompileEnvironment, int NumSamples, int Shard, int NumShards, int MaxParallel, TextWriter Log)
+		public static void Generate(DirectoryReference InputDir, DirectoryReference WorkingDir, Dictionary<SourceFile, CompileEnvironment> FileToCompileEnvironment, int NumSamples, int Shard, int NumShards, int MaxParallel, LineBasedTextWriter Log)
 		{
 			Stopwatch Timer = Stopwatch.StartNew();
 
