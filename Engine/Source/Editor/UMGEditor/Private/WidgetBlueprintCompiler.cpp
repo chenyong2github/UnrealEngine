@@ -837,9 +837,9 @@ private:
 };
 
 
-void FWidgetBlueprintCompilerContext::PostCompile()
+void FWidgetBlueprintCompilerContext::OnPostCDOCompiled()
 {
-	Super::PostCompile();
+	Super::OnPostCDOCompiled();
 
 	WidgetToMemberVariableMap.Empty();
 	WidgetAnimToMemberVariableMap.Empty();
