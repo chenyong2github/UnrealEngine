@@ -450,11 +450,11 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 {
 	GUnrealEd->CancelPlayingViaLauncher();
 	SaveAll();
-	
+
 	// does the project have any code?
 	FGameProjectGenerationModule& GameProjectModule = FModuleManager::LoadModuleChecked<FGameProjectGenerationModule>(TEXT("GameProjectGeneration"));
-	bool bProjectHasCode = GameProjectModule.Get().ProjectRequiresBuild(InPlatformInfoName);
-
+	bool bProjectHasCode = GameProjectModule.Get().ProjectHasCodeFiles();
+	
 	const PlatformInfo::FPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(InPlatformInfoName);
 	check(PlatformInfo);
 
@@ -484,16 +484,18 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 	}
 
 	UProjectPackagingSettings* PackagingSettings = Cast<UProjectPackagingSettings>(UProjectPackagingSettings::StaticClass()->GetDefaultObject());
-
+	const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[PackagingSettings->BuildConfiguration];
+	bool bAssetNativizationEnabled = (PackagingSettings->BlueprintNativizationMethod != EProjectPackagingBlueprintNativizationMethod::Disabled);
+	
+	const ITargetPlatform* const Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatformInfo->TargetPlatformName.ToString());
 	{
-		const ITargetPlatform* const Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatformInfo->TargetPlatformName.ToString());
 		if (Platform)
 		{
 			FString NotInstalledTutorialLink;
 			FString DocumentationLink;
 			FText CustomizedLogMessage;
-			FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()) : FPaths::RootDir() / FApp::GetProjectName() / FApp::GetProjectName() + TEXT(".uproject");
-			int32 Result = Platform->CheckRequirements(ProjectPath, bProjectHasCode, NotInstalledTutorialLink, DocumentationLink, CustomizedLogMessage);
+
+			int32 Result = Platform->CheckRequirements(bProjectHasCode, ConfigurationInfo.Configuration, bAssetNativizationEnabled, NotInstalledTutorialLink, DocumentationLink, CustomizedLogMessage);
 
 			// report to analytics
 			FEditorAnalytics::ReportBuildRequirementsFailure(TEXT("Editor.Package.Failed"), PlatformInfo->TargetPlatformName.ToString(), bProjectHasCode, Result);
@@ -706,7 +708,8 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 	}
 	else if(PackagingSettings->Build == EProjectPackagingBuild::IfProjectHasCode)
 	{
-		bBuild = bProjectHasCode || !FApp::GetEngineIsPromotedBuild();
+		FText Reason;
+		bBuild = bProjectHasCode || !FApp::GetEngineIsPromotedBuild() || (Platform == nullptr || Platform->RequiresTempTarget(bProjectHasCode, ConfigurationInfo.Configuration, bAssetNativizationEnabled, Reason));
 	}
 	else if(PackagingSettings->Build == EProjectPackagingBuild::IfEditorWasBuiltLocally)
 	{
@@ -734,12 +737,11 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		OptionalParams += FString::Printf(TEXT(" -NumCookersToSpawn=%d"), NumCookers); 
 	}
 
-	const UProjectPackagingSettings::FConfigurationInfo& Info = UProjectPackagingSettings::ConfigurationInfo[PackagingSettings->BuildConfiguration];
-	if (Info.TargetType == EBuildTargetType::Client)
+	if (ConfigurationInfo.TargetType == EBuildTargetType::Client)
 	{
 		OptionalParams += TEXT(" -client");
 	}
-	else if (Info.TargetType == EBuildTargetType::Server)
+	else if (ConfigurationInfo.TargetType == EBuildTargetType::Server)
 	{
 		OptionalParams += TEXT(" -server");
 	}
@@ -751,7 +753,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		FApp::IsEngineInstalled() ? TEXT(" -installed") : TEXT(""),
 		*ProjectPath,
 		*PackagingSettings->StagingDirectory.Path,
-		LexToString(Info.Configuration),
+		LexToString(ConfigurationInfo.Configuration),
 		*FUnrealEdMisc::Get().GetExecutableForCommandlets(),
 		*OptionalParams
 	);

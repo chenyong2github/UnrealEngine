@@ -512,10 +512,10 @@ namespace UnrealBuildTool
 		/// <param name="Project">The project to check. May be null.</param>
 		/// <param name="Plugin">Information about the plugin</param>
 		/// <param name="Platform">The target platform</param>
-		/// <param name="TargetConfiguration">The target configuration</param>
-		/// <param name="Target"></param>
+		/// <param name="Configuration">The target configuration</param>
+		/// <param name="TargetType">The type of target being built</param>
 		/// <returns>True if the plugin should be enabled for this project</returns>
-		public static bool IsPluginEnabledForProject(PluginInfo Plugin, ProjectDescriptor Project, UnrealTargetPlatform Platform, UnrealTargetConfiguration TargetConfiguration, TargetType Target)
+		public static bool IsPluginEnabledForTarget(PluginInfo Plugin, ProjectDescriptor Project, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType)
 		{
 			if (!Plugin.Descriptor.SupportsTargetPlatform(Platform))
 			{
@@ -529,11 +529,39 @@ namespace UnrealBuildTool
 				{
 					if (String.Compare(PluginReference.Name, Plugin.Name, true) == 0 && !PluginReference.bOptional)
 					{
-						bEnabled = PluginReference.IsEnabledForPlatform(Platform) && PluginReference.IsEnabledForTargetConfiguration(TargetConfiguration) && PluginReference.IsEnabledForTarget(Target);
+						bEnabled = PluginReference.IsEnabledForPlatform(Platform) && PluginReference.IsEnabledForTargetConfiguration(Configuration) && PluginReference.IsEnabledForTarget(TargetType);
 					}
 				}
 			}
 			return bEnabled;
+		}
+
+		/// <summary>
+		/// Determine if a plugin is enabled for a given project
+		/// </summary>
+		/// <param name="Project">The project to check. May be null.</param>
+		/// <param name="Plugin">Information about the plugin</param>
+		/// <param name="Platform">The target platform</param>
+		/// <param name="Configuration">The target configuration</param>
+		/// <param name="TargetType">The type of target being built</param>
+		/// <param name="bRequiresCookedData">Whether the target requires cooked data</param>
+		/// <returns>True if the plugin should be enabled for this project</returns>
+		public static bool IsPluginCompiledForTarget(PluginInfo Plugin, ProjectDescriptor Project, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, bool bRequiresCookedData)
+		{
+			bool bCompiledForTarget = false;
+			if (IsPluginEnabledForTarget(Plugin, Project, Platform, Configuration, TargetType))
+			{
+				bool bBuildDeveloperTools = (TargetType == TargetType.Editor || TargetType == TargetType.Program || (Configuration != UnrealTargetConfiguration.Test && Configuration != UnrealTargetConfiguration.Shipping));
+				foreach (ModuleDescriptor Module in Plugin.Descriptor.Modules)
+				{
+					if (Module.IsCompiledInConfiguration(Platform, Configuration, "", TargetType, bBuildDeveloperTools, bRequiresCookedData))
+					{
+						bCompiledForTarget = true;
+						break;
+					}
+				}
+			}
+			return bCompiledForTarget;
 		}
 	}
 }

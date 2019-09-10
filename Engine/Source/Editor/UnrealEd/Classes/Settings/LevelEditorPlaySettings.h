@@ -414,6 +414,23 @@ public:
 	EVisibility GetClientWindowSizeVisibility() const { return (RunUnderOneProcess ? EVisibility::Hidden : EVisibility::Visible); }
 	bool IsCreateAudioDeviceForEveryPlayer() const { return CreateAudioDeviceForEveryPlayer; }
 
+	EBuildConfiguration GetLaunchBuildConfiguration() const
+	{
+		switch (LaunchConfiguration)
+		{
+		case LaunchConfig_Debug:
+			return EBuildConfiguration::Debug;
+		case LaunchConfig_Development:
+			return EBuildConfiguration::Development;
+		case LaunchConfig_Test:
+			return EBuildConfiguration::Test;
+		case LaunchConfig_Shipping:
+			return EBuildConfiguration::Shipping;
+		default:
+			return FApp::GetBuildConfiguration();
+		}
+	}
+
 public:
 
 	/** The last used height for multiple instance windows (in pixels). */

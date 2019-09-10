@@ -171,7 +171,7 @@ bool FHoloLensTargetPlatform::IsSdkInstalled(bool bProjectHasCode, FString& OutD
 	return SDKVersions.Num() > 0;
 }
 
-int32 FHoloLensTargetPlatform::CheckRequirements(const FString& ProjectPath, bool bProjectHasCode, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const
+int32 FHoloLensTargetPlatform::CheckRequirements(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const
 {
 	OutDocumentationPath = TEXT("Platforms/HoloLens/GettingStarted");
 	FString LocalErrors;

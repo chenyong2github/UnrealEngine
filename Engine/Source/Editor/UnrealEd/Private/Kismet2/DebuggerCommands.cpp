@@ -2128,7 +2128,7 @@ bool FInternalPlayWorldCommandCallbacks::IsReadyToLaunchOnDevice(FString DeviceI
 	checkf(PlatformInfo, TEXT("Unable to find PlatformInfo for %s"), *PlatformName);
 
 	FGameProjectGenerationModule& GameProjectModule = FModuleManager::LoadModuleChecked<FGameProjectGenerationModule>(TEXT("GameProjectGeneration"));
-	bool bHasCode = GameProjectModule.Get().ProjectRequiresBuild(FName(*PlatformName));
+	bool bHasCode = GameProjectModule.Get().ProjectHasCodeFiles();
 
 	if (PlatformInfo->SDKStatus == PlatformInfo::EPlatformSDKStatus::NotInstalled)
 	{
@@ -2146,8 +2146,10 @@ bool FInternalPlayWorldCommandCallbacks::IsReadyToLaunchOnDevice(FString DeviceI
 		FString NotInstalledTutorialLink;
 		FString DocumentationLink;
 		FText CustomizedLogMessage;
-		FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()) : FPaths::RootDir() / FApp::GetProjectName() / FApp::GetProjectName() + TEXT(".uproject");
-		int32 Result = Platform->CheckRequirements(ProjectPath, bHasCode, NotInstalledTutorialLink, DocumentationLink, CustomizedLogMessage);
+
+	    EBuildConfiguration BuildConfiguration = GetDefault<ULevelEditorPlaySettings>()->GetLaunchBuildConfiguration();
+	    bool bEnableAssetNativization = false;
+		int32 Result = Platform->CheckRequirements(bHasCode, BuildConfiguration, bEnableAssetNativization, NotInstalledTutorialLink, DocumentationLink, CustomizedLogMessage);
 		
 		// report to analytics
 		FEditorAnalytics::ReportBuildRequirementsFailure(TEXT("Editor.LaunchOn.Failed"), PlatformName, bHasCode, Result);
