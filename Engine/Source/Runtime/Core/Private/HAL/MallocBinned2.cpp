@@ -1097,7 +1097,7 @@ void FMallocBinned2::Trim(bool bTrimThreadCaches)
 			FlushCurrentThreadCache();
 		};
 		// Skip task threads on desktop platforms as it is too slow and they don't have much memory
-		FTaskGraphInterface::BroadcastSlow_OnlyUseForSpecialPurposes(((!PLATFORM_DESKTOP) && FPlatformProcess::SupportsMultithreading() && FApp::ShouldUseThreadingForPerformance()), false, Broadcast);
+		FTaskGraphInterface::BroadcastSlow_OnlyUseForSpecialPurposes((!(PLATFORM_DESKTOP) && FPlatformProcess::SupportsMultithreading() && FApp::ShouldUseThreadingForPerformance()), false, Broadcast);
 		//UE_LOG(LogTemp, Display, TEXT("Trim Broadcast = %6.2fms"), 1000.0f * float(FPlatformTime::Seconds() - StartTime));
 	}
 	{
