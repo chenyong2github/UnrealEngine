@@ -74,6 +74,11 @@ namespace WindowsMixedReality
 			FVector& CurrentPosition) override;
 		virtual bool GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQuat& OutOrientation, FVector& OutPosition) override;
 
+		
+		// Tracking status
+		virtual bool DoesSupportPositionalTracking() const override { return true; }
+		virtual bool HasValidTrackingPosition() override;
+
 	protected:
 		/** FXRTrackingSystemBase protected interface */
 		virtual float GetWorldToMetersScale() const override;
@@ -182,6 +187,7 @@ namespace WindowsMixedReality
 			FTransform HeadTransform = FTransform::Identity;
 			FMatrix ProjectionMatrixR = FMatrix::Identity;
 			FMatrix ProjectionMatrixL = FMatrix::Identity;
+			bool bPositionalTrackingUsed = false;
 
 		};
 		Frame Frame_NextGameThread;

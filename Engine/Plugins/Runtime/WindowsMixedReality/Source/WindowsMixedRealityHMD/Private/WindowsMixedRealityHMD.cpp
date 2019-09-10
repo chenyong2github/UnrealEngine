@@ -414,6 +414,12 @@ namespace WindowsMixedReality
 		return nullptr;
 	}
 
+	bool FWindowsMixedRealityHMD::HasValidTrackingPosition()
+	{
+		const Frame& TheFrame = GetFrame();
+		return TheFrame.bPositionalTrackingUsed;
+	}
+
 	FString FWindowsMixedRealityHMD::GetVersionString() const
 	{
 #if WITH_WINDOWS_MIXED_REALITY
@@ -703,7 +709,7 @@ namespace WindowsMixedReality
 			{
 				trackingOrigin == WindowsMixedReality::HMDTrackingOrigin::Eye ?
 					SetTrackingOrigin(EHMDTrackingOrigin::Eye) :
-					SetTrackingOrigin(EHMDTrackingOrigin::Floor);
+					SetTrackingOrigin(EHMDTrackingOrigin::Stage);
 
 				// Convert to unreal space
 				FMatrix UPoseL = WMRUtility::ToFMatrix(leftPose);
@@ -734,6 +740,7 @@ namespace WindowsMixedReality
 
 				FVector HeadPosition = FMath::Lerp(PositionL, PositionR, 0.5f);
 
+				Frame_RenderThread.bPositionalTrackingUsed = HMD->GetTrackingState() == WindowsMixedReality::HMDSpatialLocatability::PositionalTrackingActive;
 				Frame_RenderThread.RotationL = RotationL;
 				Frame_RenderThread.RotationR = RotationR;
 				Frame_RenderThread.PositionL = PositionL;
@@ -1395,6 +1402,8 @@ namespace WindowsMixedReality
 
 		bIsStereoDesired = false;
 		bIsStereoEnabled = false;
+		
+		GetFrame().bPositionalTrackingUsed = false;
 
 		for (int i = 0; i < 2; i++)
 		{
