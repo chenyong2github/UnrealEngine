@@ -81,6 +81,7 @@ public:
 
 
 	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderPanelChanged);
+	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderPreInitialize);
 	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderStarted);
 	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderStopped);
 	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnTakeRecorderFinished, ULevelSequence*, SequenceAsset);
@@ -90,6 +91,10 @@ public:
 	/** Called when a Take Panel is constructed or destroyed. */
 	UFUNCTION(BlueprintCallable, Category="Take Recorder", meta=(DisplayName="Set On Take Recorder Panel Changed"))
 	static void SetOnTakeRecorderPanelChanged(FOnTakeRecorderPanelChanged OnTakeRecorderPanelChanged);
+
+	/** Called before initialization occurs (ie. when the recording button is pressed and before the countdown starts) */
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
+	static void SetOnTakeRecorderPreInitialize(FOnTakeRecorderPreInitialize OnTakeRecorderPreInitialize);
 
 	/** Called when take recording starts. */
 	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
@@ -111,6 +116,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
 	static void SetOnTakeRecorderMarkedFrameAdded(FOnTakeRecorderMarkedFrameAdded OnTakeRecorderMarkedFrameAdded);
 
+	static void OnTakeRecorderPreInitialize();
 	static void OnTakeRecorderStarted();
 	static void OnTakeRecorderStopped();
 	static void OnTakeRecorderFinished(ULevelSequence* InSequenceAsset);

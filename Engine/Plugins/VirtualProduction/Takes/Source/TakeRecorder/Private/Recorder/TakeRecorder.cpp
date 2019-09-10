@@ -389,6 +389,10 @@ bool UTakeRecorder::Initialize(ULevelSequence* LevelSequenceBase, UTakeRecorderS
 		return false;
 	}
 
+	OnRecordingPreInitializeEvent.Broadcast(this);
+
+	UTakeRecorderBlueprintLibrary::OnTakeRecorderPreInitialize();
+
 	if (!CreateDestinationAsset(*InParameters.Project.GetTakeAssetPath(), LevelSequenceBase, Sources, MetaData, OutError))
 	{
 		return false;
@@ -844,6 +848,11 @@ void UTakeRecorder::Stop()
 	}
 
 	RemoveFromRoot();
+}
+
+FOnTakeRecordingPreInitialize& UTakeRecorder::OnRecordingPreInitialize()
+{
+	return OnRecordingPreInitializeEvent;
 }
 
 FOnTakeRecordingStarted& UTakeRecorder::OnRecordingStarted()
