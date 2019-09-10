@@ -2618,6 +2618,11 @@ bool FColoredMaterialRenderProxy::GetTextureValue(const FMaterialParameterInfo& 
 	return Parent->GetTextureValue(ParameterInfo,OutValue,Context);
 }
 
+bool FColoredMaterialRenderProxy::GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+{
+	return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+}
+
 /*-----------------------------------------------------------------------------
 	FColoredTexturedMaterialRenderProxy
 -----------------------------------------------------------------------------*/
@@ -2662,6 +2667,11 @@ bool FOverrideSelectionColorMaterialRenderProxy::GetScalarValue(const FMaterialP
 }
 
 bool FOverrideSelectionColorMaterialRenderProxy::GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const
+{
+	return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+}
+
+bool FOverrideSelectionColorMaterialRenderProxy::GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
 {
 	return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 }
