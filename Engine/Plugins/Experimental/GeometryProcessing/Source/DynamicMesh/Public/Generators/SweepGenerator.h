@@ -255,6 +255,8 @@ public:
 		const TArray<FVector2d>& XVerts = X.GetVertices();
 		ECapType Caps[2] = {ECapType::None, ECapType::None};
 
+		FVector2d NormalSide = (FVector2d(Radius[1], Height) - FVector2d(Radius[0], 0)).Perp().Normalized();
+
 		if (bCapped)
 		{
 			Caps[0] = ECapType::FlatTriangulation;
@@ -268,7 +270,7 @@ public:
 			{
 				Vertices[SubIdx + XIdx * AngleSamples] =
 					FVector3d(XVerts[SubIdx].X * Radius[XIdx], XVerts[SubIdx].Y * Radius[XIdx], XIdx * Height);
-				Normals[SubIdx + XIdx * AngleSamples] = FVector3f(XVerts[SubIdx].X, XVerts[SubIdx].Y, 0);
+				Normals[SubIdx + XIdx * AngleSamples] = FVector3f(XVerts[SubIdx].X*NormalSide.X, XVerts[SubIdx].Y*NormalSide.X, NormalSide.Y);
 
 				if (bCapped)
 				{
@@ -285,6 +287,7 @@ public:
 		return *this;
 	}
 };
+
 
 /**
  * Sweep a 2D Profile Polygon along a 3D Path.

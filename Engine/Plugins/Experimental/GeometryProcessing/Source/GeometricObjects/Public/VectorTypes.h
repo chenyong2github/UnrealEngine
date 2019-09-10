@@ -6,6 +6,293 @@
 #include "MathUtil.h"
 
 
+
+
+
+/**
+* Templated 2D Vector. Ported from g3Sharp library, with the intention of
+* maintaining compatibility with existing g3Sharp code. Has an API
+* similar to WildMagic, GTEngine, Eigen, etc.
+*
+* Convenience typedefs for FVector2f/FVector2d/FVector2i are defined, and
+* should be preferentially used over the base template type
+*
+* Implicit casts to/from FVector2D are defined, for all types.
+*
+* @todo Possibly can be replaced/merged with Chaos TVector<T,N>
+*/
+template <typename T>
+struct FVector2
+{
+	T X, Y;
+
+	FVector2()
+	{
+	}
+	FVector2(T ValX, T ValY)
+		: X(ValX), Y(ValY)
+	{
+	}
+	FVector2(const T* Data)
+	{
+		X = Data[0];
+		Y = Data[1];
+	}
+
+	inline operator const T*() const
+	{
+		return &X;
+	};
+	inline operator T*()
+	{
+		return &X;
+	}
+
+	operator FVector2D() const
+	{
+		return FVector2D((float)X, (float)Y);
+	}
+	FVector2(const FVector2D& Vec)
+	{
+		X = (T)Vec.X;
+		Y = (T)Vec.Y;
+	}
+
+	static FVector2<T> Zero()
+	{
+		return FVector2<T>((T)0, (T)0);
+	}
+	static FVector2<T> One()
+	{
+		return FVector2<T>((T)1, (T)1);
+	}
+	static FVector2<T> UnitX()
+	{
+		return FVector2<T>((T)1, (T)0);
+	}
+	static FVector2<T> UnitY()
+	{
+		return FVector2<T>((T)0, (T)1);
+	}
+
+	FVector2<T>& operator=(const FVector2<T>& V2)
+	{
+		X = V2.X;
+		Y = V2.Y;
+		return *this;
+	}
+
+	T& operator[](int Idx)
+	{
+		return (&X)[Idx];
+	}
+	const T& operator[](int Idx) const
+	{
+		return (&X)[Idx];
+	}
+
+	T Length() const
+	{
+		return TMathUtil<T>::Sqrt(X * X + Y * Y);
+	}
+	T SquaredLength() const
+	{
+		return X * X + Y * Y;
+	}
+
+	inline T Distance(const FVector2<T>& V2) const
+	{
+		T dx = V2.X - X;
+		T dy = V2.Y - Y;
+		return TMathUtil<T>::Sqrt(dx * dx + dy * dy);
+	}
+	inline T DistanceSquared(const FVector2<T>& V2) const
+	{
+		T dx = V2.X - X;
+		T dy = V2.Y - Y;
+		return dx * dx + dy * dy;
+	}
+
+	T Dot(const FVector2<T>& V2) const
+	{
+		return X * V2.X + Y * V2.Y;
+	}
+
+	// Note: DotPerp and FVector2's version of Cross are the same function
+	inline T DotPerp(const FVector2<T>& V2) const
+	{
+		return X * V2.Y - Y * V2.X;
+	}
+	inline T Cross(const FVector2<T>& V2) const
+	{
+		return X * V2.Y - Y * V2.X;
+	}
+
+	FVector2<T> Perp() const
+	{
+		return FVector2<T>(Y, -X);
+	}
+
+	inline FVector2 operator-() const
+	{
+		return FVector2(-X, -Y);
+	}
+
+	inline FVector2 operator+(const FVector2& V2) const
+	{
+		return FVector2(X + V2.X, Y + V2.Y);
+	}
+
+	inline FVector2 operator-(const FVector2& V2) const
+	{
+		return FVector2(X - V2.X, Y - V2.Y);
+	}
+
+	inline FVector2<T> operator+(const T& Scalar) const
+	{
+		return FVector2<T>(X + Scalar, Y + Scalar);
+	}
+
+	inline FVector2<T> operator-(const T& Scalar) const
+	{
+		return FVector2<T>(X - Scalar, Y - Scalar);
+	}
+
+	inline FVector2 operator*(const T& Scalar) const
+	{
+		return FVector2(X * Scalar, Y * Scalar);
+	}
+
+	inline FVector2<T> operator*(const FVector2<T>& V2) const // component-wise
+	{
+		return FVector2<T>(X * V2.X, Y * V2.Y);
+	}
+
+	inline FVector2 operator/(const T& Scalar) const
+	{
+		return FVector2(X / Scalar, Y / Scalar);
+	}
+
+	inline FVector2<T> operator/(const FVector2<T>& V2) const // component-wise
+	{
+		return FVector2<T>(X / V2.X, Y / V2.Y);
+	}
+
+	inline FVector2<T>& operator+=(const FVector2<T>& V2)
+	{
+		X += V2.X;
+		Y += V2.Y;
+		return *this;
+	}
+
+	inline FVector2<T>& operator-=(const FVector2<T>& V2)
+	{
+		X -= V2.X;
+		Y -= V2.Y;
+		return *this;
+	}
+
+	inline FVector2<T>& operator*=(const T& Scalar)
+	{
+		X *= Scalar;
+		Y *= Scalar;
+		return *this;
+	}
+
+	inline FVector2<T>& operator/=(const T& Scalar)
+	{
+		X /= Scalar;
+		Y /= Scalar;
+		return *this;
+	}
+
+	inline bool IsNormalized()
+	{
+		return TMathUtil<T>::Abs((X * X + Y * Y) - 1) < TMathUtil<T>::ZeroTolerance;
+	}
+
+	// Angle in Degrees
+	T AngleD(const FVector2<T>& V2) const
+	{
+		T DotVal = Dot(V2);
+		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
+		return (T)(acos(ClampedDot) * (T)(180.0 / 3.14159265358979323846));
+	}
+
+	// Angle in Radians
+	T AngleR(const FVector2<T>& V2) const
+	{
+		T DotVal = Dot(V2);
+		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
+		return (T)acos(ClampedDot);
+	}
+
+	// Angle in Radians
+	T SignedAngleR(const FVector2<T>& V2) const
+	{
+		T DotVal = Dot(V2);
+		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
+		T Direction = Cross(V2);
+		if (Direction*Direction < TMathUtil<T>::ZeroTolerance)
+		{
+			return (DotVal < 0) ? TMathUtil<T>::Pi : (T)0;
+		}
+		else
+		{
+			T Sign = Direction < 0 ? (T)-1 : (T)1;
+			return Sign * TMathUtil<T>::ACos(ClampedDot);
+		}
+	}
+
+	T Normalize(const T Epsilon = 0)
+	{
+		T length = Length();
+		if (length > Epsilon)
+		{
+			T invLength = ((T)1) / length;
+			X *= invLength;
+			Y *= invLength;
+			return length;
+		}
+		X = Y = (T)0;
+		return 0;
+	}
+
+	inline FVector2<T> Normalized(const T Epsilon = 0) const
+	{
+		T length = Length();
+		if (length > Epsilon)
+		{
+			T invLength = ((T)1) / length;
+			return FVector2<T>(X * invLength, Y * invLength);
+		}
+		return FVector2<T>((T)0, (T)0);
+	}
+
+
+
+	bool operator==(const FVector2<T>& Other) const
+	{
+		return X == Other.X && Y == Other.Y;
+	}
+
+
+	static FVector2<T> Lerp(const FVector2<T>& A, const FVector2<T>& B, T Alpha)
+	{
+		T OneMinusAlpha = (T)1 - Alpha;
+		return FVector2<T>(OneMinusAlpha * A.X + Alpha * B.X,
+			OneMinusAlpha * A.Y + Alpha * B.Y);
+	}
+
+	// Note: This was called "IsLeft" in the Geometry3Sharp code (where it also went through Math.Sign)
+	// Returns >0 if C is to the left of the A->B Line, <0 if to the right, 0 if on the line
+	static T Orient(const FVector2<T>& A, const FVector2<T>& B, const FVector2<T>& C)
+	{
+		return (B - A).DotPerp(C - A);
+	}
+};
+
+
 /**
  * Templated 3D Vector. Ported from g3Sharp library, with the intention of 
  * maintaining compatibility with existing g3Sharp code. Has an API
@@ -35,6 +322,12 @@ struct FVector3
 		X = Data[0];
 		Y = Data[1];
 		Z = Data[2];
+	}
+	FVector3(const FVector2<T>& Data)
+	{
+		X = Data.X;
+		Y = Data.Y;
+		Z = (T)0;
 	}
 
 	inline operator const T*() const
@@ -326,290 +619,6 @@ FORCEINLINE uint32 GetTypeHash(const FVector3<T>& Vector)
 
 
 
-
-
-/**
- * Templated 2D Vector. Ported from g3Sharp library, with the intention of
- * maintaining compatibility with existing g3Sharp code. Has an API
- * similar to WildMagic, GTEngine, Eigen, etc.
- *
- * Convenience typedefs for FVector2f/FVector2d/FVector2i are defined, and
- * should be preferentially used over the base template type
- *
- * Implicit casts to/from FVector2D are defined, for all types.
- *
- * @todo Possibly can be replaced/merged with Chaos TVector<T,N>
- */
-template <typename T>
-struct FVector2
-{
-	T X, Y;
-
-	FVector2()
-	{
-	}
-	FVector2(T ValX, T ValY)
-		: X(ValX), Y(ValY)
-	{
-	}
-	FVector2(const T* Data)
-	{
-		X = Data[0];
-		Y = Data[1];
-	}
-
-	inline operator const T*() const
-	{
-		return &X;
-	};
-	inline operator T*()
-	{
-		return &X;
-	}
-
-	operator FVector2D() const
-	{
-		return FVector2D((float)X, (float)Y);
-	}
-	FVector2(const FVector2D& Vec)
-	{
-		X = (T)Vec.X;
-		Y = (T)Vec.Y;
-	}
-
-	static FVector2<T> Zero()
-	{
-		return FVector2<T>((T)0, (T)0);
-	}
-	static FVector2<T> One()
-	{
-		return FVector2<T>((T)1, (T)1);
-	}
-	static FVector2<T> UnitX()
-	{
-		return FVector2<T>((T)1, (T)0);
-	}
-	static FVector2<T> UnitY()
-	{
-		return FVector2<T>((T)0, (T)1);
-	}
-
-	FVector2<T>& operator=(const FVector2<T>& V2)
-	{
-		X = V2.X;
-		Y = V2.Y;
-		return *this;
-	}
-
-	T& operator[](int Idx)
-	{
-		return (&X)[Idx];
-	}
-	const T& operator[](int Idx) const
-	{
-		return (&X)[Idx];
-	}
-
-	T Length() const
-	{
-		return TMathUtil<T>::Sqrt(X * X + Y * Y);
-	}
-	T SquaredLength() const
-	{
-		return X * X + Y * Y;
-	}
-
-	inline T Distance(const FVector2<T>& V2) const
-	{
-		T dx = V2.X - X;
-		T dy = V2.Y - Y;
-		return TMathUtil<T>::Sqrt(dx * dx + dy * dy);
-	}
-	inline T DistanceSquared(const FVector2<T>& V2) const
-	{
-		T dx = V2.X - X;
-		T dy = V2.Y - Y;
-		return dx * dx + dy * dy;
-	}
-
-	T Dot(const FVector2<T>& V2) const
-	{
-		return X * V2.X + Y * V2.Y;
-	}
-
-	// Note: DotPerp and FVector2's version of Cross are the same function
-	inline T DotPerp(const FVector2<T>& V2) const
-	{
-		return X * V2.Y - Y * V2.X;
-	}
-	inline T Cross(const FVector2<T>& V2) const
-	{
-		return X * V2.Y - Y * V2.X;
-	}
-
-	FVector2<T> Perp() const
-	{
-		return FVector2<T>(Y, -X);
-	}
-
-	inline FVector2 operator-() const
-	{
-		return FVector2(-X, -Y);
-	}
-
-	inline FVector2 operator+(const FVector2& V2) const
-	{
-		return FVector2(X + V2.X, Y + V2.Y);
-	}
-
-	inline FVector2 operator-(const FVector2& V2) const
-	{
-		return FVector2(X - V2.X, Y - V2.Y);
-	}
-
-	inline FVector2<T> operator+(const T& Scalar) const
-	{
-		return FVector2<T>(X + Scalar, Y + Scalar);
-	}
-
-	inline FVector2<T> operator-(const T& Scalar) const
-	{
-		return FVector2<T>(X - Scalar, Y - Scalar);
-	}
-
-	inline FVector2 operator*(const T& Scalar) const
-	{
-		return FVector2(X * Scalar, Y * Scalar);
-	}
-
-	inline FVector2<T> operator*(const FVector2<T>& V2) const // component-wise
-	{
-		return FVector2<T>(X * V2.X, Y * V2.Y);
-	}
-
-	inline FVector2 operator/(const T& Scalar) const
-	{
-		return FVector2(X / Scalar, Y / Scalar);
-	}
-
-	inline FVector2<T> operator/(const FVector2<T>& V2) const // component-wise
-	{
-		return FVector2<T>(X / V2.X, Y / V2.Y);
-	}
-
-	inline FVector2<T>& operator+=(const FVector2<T>& V2)
-	{
-		X += V2.X;
-		Y += V2.Y;
-		return *this;
-	}
-
-	inline FVector2<T>& operator-=(const FVector2<T>& V2)
-	{
-		X -= V2.X;
-		Y -= V2.Y;
-		return *this;
-	}
-
-	inline FVector2<T>& operator*=(const T& Scalar)
-	{
-		X *= Scalar;
-		Y *= Scalar;
-		return *this;
-	}
-
-	inline FVector2<T>& operator/=(const T& Scalar)
-	{
-		X /= Scalar;
-		Y /= Scalar;
-		return *this;
-	}
-
-	inline bool IsNormalized()
-	{
-		return TMathUtil<T>::Abs((X * X + Y * Y) - 1) < TMathUtil<T>::ZeroTolerance;
-	}
-
-	// Angle in Degrees
-	T AngleD(const FVector2<T>& V2) const
-	{
-		T DotVal = Dot(V2);
-		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
-		return (T)(acos(ClampedDot) * (T)(180.0 / 3.14159265358979323846));
-	}
-
-	// Angle in Radians
-	T AngleR(const FVector2<T>& V2) const
-	{
-		T DotVal = Dot(V2);
-		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
-		return (T)acos(ClampedDot);
-	}
-
-	// Angle in Radians
-	T SignedAngleR(const FVector2<T>& V2) const
-	{
-		T DotVal = Dot(V2);
-		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
-		T Direction = Cross(V2);
-		if (Direction*Direction < TMathUtil<T>::ZeroTolerance)
-		{
-			return (DotVal < 0) ? TMathUtil<T>::Pi : (T)0;
-		}
-		else
-		{
-			T Sign = Direction < 0 ? (T)-1 : (T)1;
-			return Sign * TMathUtil<T>::ACos(ClampedDot);
-		}
-	}
-
-	T Normalize(const T Epsilon = 0)
-	{
-		T length = Length();
-		if (length > Epsilon)
-		{
-			T invLength = ((T)1) / length;
-			X *= invLength;
-			Y *= invLength;
-			return length;
-		}
-		X = Y = (T)0;
-		return 0;
-	}
-
-	inline FVector2<T> Normalized(const T Epsilon = 0) const
-	{
-		T length = Length();
-		if (length > Epsilon)
-		{
-			T invLength = ((T)1) / length;
-			return FVector2<T>(X * invLength, Y * invLength);
-		}
-		return FVector2<T>((T)0, (T)0);
-	}
-
-
-
-	bool operator==(const FVector2<T>& Other) const
-	{
-		return X == Other.X && Y == Other.Y;
-	}
-
-
-	static FVector2<T> Lerp(const FVector2<T>& A, const FVector2<T>& B, T Alpha)
-	{
-		T OneMinusAlpha = (T)1 - Alpha;
-		return FVector2<T>(OneMinusAlpha * A.X + Alpha * B.X,
-			OneMinusAlpha * A.Y + Alpha * B.Y);
-	}
-
-	// Note: This was called "IsLeft" in the Geometry3Sharp code (where it also went through Math.Sign)
-	// Returns >0 if C is to the left of the A->B Line, <0 if to the right, 0 if on the line
-	static T Orient(const FVector2<T>& A, const FVector2<T>& B, const FVector2<T>& C)
-	{
-		return (B - A).DotPerp(C - A);
-	}
-};
 
 template <typename T>
 FORCEINLINE uint32 GetTypeHash(const FVector2<T>& Vector)

@@ -131,7 +131,20 @@ struct TOrientedBox3
 		return Frame.PointAt(dx, dy, dz);
 	}
 
-
+	/**
+	 * Get whether the corner at Index (see diagram in GetCorner documentation comment) is in the negative or positive direction for each axis
+	 * @param Index corner index in range 0-7
+	 * @return Index3i with 0 or 1 for each axis, 0 if corner is in the negative direction for that axis, 1 if in the positive direction
+	 */
+	static FIndex3i GetCornerSide(int Index)
+	{
+		check(Index >= 0 && Index <= 7);
+		return FIndex3i(
+			(((Index & 1) != 0) ^ ((Index & 2) != 0)) ? 1 : 0,
+			((Index / 2) % 2 == 0) ? 0 : 1,
+			(Index < 4) ? 0 : 1
+		);
+	}
 
 
 
