@@ -21,6 +21,7 @@ class INTERACTIVETOOLSFRAMEWORK_API AGizmoActor : public AInternalToolFrameworkA
 {
 	GENERATED_BODY()
 public:
+	AGizmoActor();
 
 	/** Add standard arrow component to Actor, generally used for axis-translation */
 	static UGizmoArrowComponent* AddDefaultArrowComponent(

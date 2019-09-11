@@ -13,6 +13,13 @@
 #define LOCTEXT_NAMESPACE "UTransformGizmo"
 
 
+AGizmoActor::AGizmoActor()
+{
+	// generally gizmo actor creation/destruction should not be transacted
+	ClearFlags(RF_Transactional);
+}
+
+
 UGizmoArrowComponent* AGizmoActor::AddDefaultArrowComponent(
 	UWorld* World, AActor* Actor,
 	const FLinearColor& Color, const FVector& LocalDirection)
