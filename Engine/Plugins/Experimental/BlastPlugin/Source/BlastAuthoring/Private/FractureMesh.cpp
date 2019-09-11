@@ -5,7 +5,6 @@
 #include "MeshAttributes.h"
 #include "MeshDescription.h"
 #include "Engine/StaticMeshActor.h"
-#include "Layers/ILayers.h"
 #include "Materials/Material.h"
 #include "DrawDebugHelpers.h"
 #include "MeshUtility.h"

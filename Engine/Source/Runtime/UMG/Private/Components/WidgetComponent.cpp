@@ -297,7 +297,7 @@ public:
 	{
 		bWillEverBeLit = false;
 
-		MaterialRelevance = MaterialInstance->GetRelevance(GetScene().GetFeatureLevel());
+		MaterialRelevance = MaterialInstance->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
 	}
 
 	// FPrimitiveSceneProxy interface.
@@ -654,6 +654,10 @@ void UWidgetComponent::BeginPlay()
 {
 	InitWidget();
 	Super::BeginPlay();
+
+	CurrentDrawSize = DrawSize;
+	UpdateBodySetup(true);
+	RecreatePhysicsState();
 }
 
 void UWidgetComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)

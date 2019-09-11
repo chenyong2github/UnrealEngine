@@ -8,7 +8,7 @@
 #include "EditorStyleSet.h"
 #include "Editor.h"
 #include "Containers/ArrayBuilder.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "FileMediaSource.h"
 #include "MediaPlayer.h"
 #include "MediaPlaylist.h"
@@ -20,10 +20,13 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Text/STextBlock.h"
-
+#include "ToolMenus.h"
+#include "Shared/MediaPlayerEditorMediaContext.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SMediaPlayerEditorMedia"
 
+const FName SMediaPlayerEditorMedia::AssetPickerAssetContextMenuName = "MediaPlayer.AssetPickerAssetContextMenu";
 
 /* SMediaPlayerEditorMedia interface
  *****************************************************************************/
@@ -124,6 +127,104 @@ void SMediaPlayerEditorMedia::HandleAssetPickerAssetEnterPressed(const TArray<FA
 	}
 }
 
+void SMediaPlayerEditorMedia::RegisterMenus()
+{
+	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(AssetPickerAssetContextMenuName);
+	{
+		FToolMenuSection& Section = Menu->AddSection("MediaSection", LOCTEXT("MediaSection", "Media"));
+		Section.AddEntry(FToolMenuEntry::InitMenuEntry(
+			"Edit",
+			LOCTEXT("EditMenuAction", "Edit..."),
+			LOCTEXT("EditMenuActionTooltip", "Opens the selected asset for edit."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Edit"),
+			FToolMenuExecuteAction::CreateLambda([](const FToolMenuContext& InContext)
+			{
+				if (UMediaPlayerEditorMediaContext* Context = InContext.Find<UMediaPlayerEditorMediaContext>())
+				{
+					if (Context->SelectedAsset)
+					{
+						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Context->SelectedAsset);
+					}
+				}
+			})
+		));
+
+
+		Section.AddDynamicEntry("Open", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			if (UMediaPlayerEditorMediaContext* Context = InSection.FindContext<UMediaPlayerEditorMediaContext>())
+			{
+				InSection.AddEntry(FToolMenuEntry::InitMenuEntry(
+					"Open",
+					LOCTEXT("OpenMenuAction", "Open"),
+					LOCTEXT("OpenMenuActionTooltip", "Open this media asset in the player"),
+					FSlateIcon(Context->StyleSetName, "MediaPlayerEditor.NextMedia.Small"),
+					FToolMenuExecuteAction::CreateLambda([=](const FToolMenuContext& InContext)
+					{
+						if (UMediaPlayerEditorMediaContext* Context = InContext.Find<UMediaPlayerEditorMediaContext>())
+						{
+							if (Context->MediaPlayerEditorMedia.IsValid())
+							{
+								Context->MediaPlayerEditorMedia.Pin()->OpenMediaAsset(Context->SelectedAsset);
+							}
+						}
+					})
+				));
+			}
+		}));
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("AssetSection", LOCTEXT("AssetSection", "Asset"));
+		Section.AddEntry(FToolMenuEntry::InitMenuEntry(
+			"FindInCbMenuAction",
+			LOCTEXT("FindInCbMenuAction", "Find in Content Browser"),
+			LOCTEXT("FindInCbMenuActionTooltip", "Summons the Content Browser and navigates to the selected asset"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+			FToolMenuExecuteAction::CreateLambda([](const FToolMenuContext& InContext)
+			{
+				if (UMediaPlayerEditorMediaContext* Context = InContext.Find<UMediaPlayerEditorMediaContext>())
+				{
+					TArray<UObject*> AssetsToSync = TArrayBuilder<UObject*>().Add(Context->SelectedAsset);
+					GEditor->SyncBrowserToObjects(AssetsToSync);
+				}
+			})
+		));
+
+		Section.AddDynamicEntry("OpenInFileManager", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			if (UMediaPlayerEditorMediaContext* Context = InSection.FindContext<UMediaPlayerEditorMediaContext>())
+			{
+				if (UFileMediaSource* FileMediaSource = Cast<UFileMediaSource>(Context->SelectedAsset))
+				{
+					FFormatNamedArguments Args;
+					{
+						Args.Add(TEXT("FileManagerName"), FPlatformMisc::GetFileManagerName());
+					}
+
+					TWeakObjectPtr<UFileMediaSource> FileMediaSourceWeak = FileMediaSource;
+					InSection.AddEntry(FToolMenuEntry::InitMenuEntry(
+						"OpenInFileManager",
+						FText::Format(LOCTEXT("OpenInFileManager", "Show Media File in {FileManagerName}"), Args),
+						LOCTEXT("OpenInFileManagerTooltip", "Finds the media file that this asset points to on disk"),
+						FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+						FUIAction(
+							FExecuteAction::CreateLambda([=]() {
+								if (FileMediaSourceWeak.IsValid())
+								{
+									FPlatformProcess::ExploreFolder(*FileMediaSourceWeak->GetFullPath());
+								}
+							}),
+							FCanExecuteAction::CreateLambda([=]() -> bool {
+								return FileMediaSourceWeak.IsValid() && FileMediaSourceWeak->Validate();
+							})
+						)
+					));
+				}
+			}
+		}));
+	}
+}
 
 TSharedPtr<SWidget> SMediaPlayerEditorMedia::HandleAssetPickerGetAssetContextMenu(const TArray<FAssetData>& SelectedAssets)
 {
@@ -133,84 +234,16 @@ TSharedPtr<SWidget> SMediaPlayerEditorMedia::HandleAssetPickerGetAssetContextMen
 	}
 
 	UObject* SelectedAsset = SelectedAssets[0].GetAsset();
-
 	if (SelectedAsset == nullptr)
 	{
 		return nullptr;
 	}
 
-	FMenuBuilder MenuBuilder(true /*bInShouldCloseWindowAfterMenuSelection=*/, nullptr);
-	{
-		// media section
-		MenuBuilder.BeginSection("MediaSection", LOCTEXT("MediaSection", "Media"));
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("EditMenuAction", "Edit..."),
-				LOCTEXT("EditMenuActionTooltip", "Opens the selected asset for edit."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Edit"),
-				FUIAction(
-					FExecuteAction::CreateLambda([=]() {
-						FAssetEditorManager::Get().OpenEditorForAsset(SelectedAsset);
-					})
-				)
-			);
-
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("OpenMenuAction", "Open"),
-				LOCTEXT("OpenMenuActionTooltip", "Open this media asset in the player"),
-				FSlateIcon(Style->GetStyleSetName(), "MediaPlayerEditor.NextMedia.Small"),
-				FUIAction(
-					FExecuteAction::CreateLambda([=]() {
-						OpenMediaAsset(SelectedAsset);
-					})
-				)
-			);
-		}
-		MenuBuilder.EndSection();
-
-		// asset section
-		MenuBuilder.BeginSection("AssetSection", LOCTEXT("AssetSection", "Asset"));
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("FindInCbMenuAction", "Find in Content Browser"),
-				LOCTEXT("FindInCbMenuActionTooltip", "Summons the Content Browser and navigates to the selected asset"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
-				FUIAction(
-					FExecuteAction::CreateLambda([=]() {
-						TArray<UObject*> AssetsToSync = TArrayBuilder<UObject*>().Add(SelectedAsset);
-						GEditor->SyncBrowserToObjects(AssetsToSync);
-					})
-				)
-			);
-
-			auto FileMediaSource = Cast<UFileMediaSource>(SelectedAsset);
-
-			if (FileMediaSource != nullptr)
-			{
-				FFormatNamedArguments Args;
-				{
-					Args.Add(TEXT("FileManagerName"), FPlatformMisc::GetFileManagerName());
-				}
-
-				MenuBuilder.AddMenuEntry(
-					FText::Format(LOCTEXT("OpenInFileManager", "Show Media File in {FileManagerName}"), Args),
-					LOCTEXT("OpenInFileManagerTooltip", "Finds the media file that this asset points to on disk"),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
-					FUIAction(
-						FExecuteAction::CreateLambda([=]() {
-							FPlatformProcess::ExploreFolder(*FileMediaSource->GetFullPath());
-						}),
-						FCanExecuteAction::CreateLambda([=]() -> bool {
-							return FileMediaSource->Validate();
-						})
-					)
-				);
-			}
-		}
-		MenuBuilder.EndSection();
-	}
-
-	return MenuBuilder.MakeWidget();
+	UMediaPlayerEditorMediaContext* ContextObject = NewObject<UMediaPlayerEditorMediaContext>();
+	ContextObject->InitContext(SelectedAsset, Style->GetStyleSetName());
+	ContextObject->MediaPlayerEditorMedia = SharedThis(this);
+	FToolMenuContext MenuContext(ContextObject);
+	return UToolMenus::Get()->GenerateWidget(AssetPickerAssetContextMenuName, MenuContext);
 }
 
 

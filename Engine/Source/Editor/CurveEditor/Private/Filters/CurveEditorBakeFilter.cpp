@@ -20,9 +20,6 @@ void UCurveEditorBakeFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEd
 	TArray<FKeyPosition> NewKeyPositions;
 	TArray<FKeyAttributes> NewKeyAttributes;
 
-	// Look at our Input Snap rate to determine how far apart the baked keys are.
-	FFrameRate BakeRate = InCurveEditor->GetSnapMetrics().InputSnapRate;
-
 	for (const TTuple<FCurveModelID, FKeyHandleSet>& Pair : InKeysToOperateOn)
 	{
 		FCurveModel* Curve = InCurveEditor->FindCurve(Pair.Key);
@@ -31,6 +28,9 @@ void UCurveEditorBakeFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEd
 		{
 			continue;
 		}
+
+		// Look at our Input Snap rate to determine how far apart the baked keys are.
+		FFrameRate BakeRate = InCurveEditor->GetCurveSnapMetrics(Pair.Key).InputSnapRate;
 
 		KeyHandles.Reset(Pair.Value.Num());
 		KeyHandles.Append(Pair.Value.AsArray().GetData(), Pair.Value.Num());

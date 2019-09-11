@@ -38,12 +38,23 @@
 #include "Misc/MessageDialog.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/Blueprint.h"
 
 #include "CommonMovieSceneTools.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
+
+#include "IDetailCustomization.h"
+#include "DetailLayoutBuilder.h"
+#include "PropertyEditorModule.h"
+#include "IDetailChildrenBuilder.h"
+#include "DetailWidgetRow.h"
+#include "PropertyCustomizationHelpers.h"
+#include "IPropertyUtilities.h"
+
 
 namespace SkeletalAnimationEditorConstants
 {
@@ -155,10 +166,100 @@ USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, TSharedPtr<ISequence
 }
 
 
+class FMovieSceneSkeletalAnimationParamsDetailCustomization : public IPropertyTypeCustomization
+{
+public:
+	FMovieSceneSkeletalAnimationParamsDetailCustomization(const FSequencerSectionPropertyDetailsViewCustomizationParams& InParams)
+		: Params(InParams)
+	{
+	}
+
+	// IDetailCustomization interface
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override
+	{
+	}
+
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override
+	{
+		const FName AnimationPropertyName = GET_MEMBER_NAME_CHECKED(FMovieSceneSkeletalAnimationParams, Animation);
+
+		uint32 NumChildren;
+		PropertyHandle->GetNumChildren(NumChildren);
+		for (uint32 i = 0; i < NumChildren; ++i)
+		{
+			TSharedPtr<IPropertyHandle> ChildPropertyHandle = PropertyHandle->GetChildHandle(i);
+			IDetailPropertyRow& ChildPropertyRow = ChildBuilder.AddProperty(ChildPropertyHandle.ToSharedRef());
+
+			// Let most properties be whatever they want to be... we just want to customize the `Animation` property
+			// by making it look like a normal asset reference property, but with some custom filtering.
+			if (ChildPropertyHandle->GetProperty()->GetFName() == AnimationPropertyName)
+			{
+				FDetailWidgetRow& Row = ChildPropertyRow.CustomWidget();
+
+				if (Params.ParentObjectBindingGuid.IsValid())
+				{
+					// Store the compatible skeleton's name, and create a property widget with a filter that will check
+					// for animations that match that skeleton.
+					USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(Params.ParentObjectBindingGuid, Params.Sequencer);
+					SkeletonName = FAssetData(Skeleton).GetExportTextName();
+
+					TSharedPtr<IPropertyUtilities> PropertyUtilities = CustomizationUtils.GetPropertyUtilities();
+
+					TSharedRef<SObjectPropertyEntryBox> ContentWidget = SNew(SObjectPropertyEntryBox)
+						.PropertyHandle(ChildPropertyHandle)
+						.DisplayThumbnail(true)
+						.ThumbnailPool(PropertyUtilities.IsValid() ? PropertyUtilities->GetThumbnailPool() : nullptr)
+						.OnShouldFilterAsset(FOnShouldFilterAsset::CreateRaw(this, &FMovieSceneSkeletalAnimationParamsDetailCustomization::ShouldFilterAsset));
+
+					Row.NameContent()[ChildPropertyHandle->CreatePropertyNameWidget()];
+					Row.ValueContent()[ContentWidget];
+
+					float MinDesiredWidth, MaxDesiredWidth;
+					ContentWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
+					Row.ValueContent().MinWidth = MinDesiredWidth;
+					Row.ValueContent().MaxWidth = MaxDesiredWidth;
+
+					// The content widget already contains a "reset to default" button, so we don't want the details view row
+					// to make another one. We add this metadata on the property handle instance to suppress it.
+					ChildPropertyHandle->SetInstanceMetaData(TEXT("NoResetToDefault"), TEXT("true"));
+				}
+			}
+		}
+	}
+
+	bool ShouldFilterAsset(const FAssetData& AssetData)
+	{
+		// Since the `SObjectPropertyEntryBox` doesn't support passing some `Filter` properties for the asset picker, 
+		// we just combine the tag value filtering we want (i.e. checking the skeleton compatibility) along with the
+		// other filtering we already get from the track editor's filter callback.
+		FSkeletalAnimationTrackEditor& TrackEditor = static_cast<FSkeletalAnimationTrackEditor&>(Params.TrackEditor);
+		if (TrackEditor.ShouldFilterAsset(AssetData))
+		{
+			return true;
+		}
+
+		if (!SkeletonName.IsEmpty())
+		{
+			const FString& SkeletonTag = AssetData.GetTagValueRef<FString>(TEXT("Skeleton"));
+			if (SkeletonTag != SkeletonName)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+private:
+	const FSequencerSectionPropertyDetailsViewCustomizationParams& Params;
+	FString SkeletonName;
+};
+
+
 FSkeletalAnimationSection::FSkeletalAnimationSection( UMovieSceneSection& InSection, TWeakPtr<ISequencer> InSequencer)
 	: Section(*CastChecked<UMovieSceneSkeletalAnimationSection>(&InSection))
 	, Sequencer(InSequencer)
-	, InitialStartOffsetDuringResize(0)
+	, InitialFirstLoopStartOffsetDuringResize(0)
 	, InitialStartTimeDuringResize(0)
 { }
 
@@ -209,13 +310,14 @@ int32 FSkeletalAnimationSection::OnPaintSection( FSequencerSectionPainter& Paint
 	FFrameRate TickResolution = TimeToPixelConverter.GetTickResolution();
 
 	// Add lines where the animation starts and ends/loops
-	float AnimPlayRate = FMath::IsNearlyZero(Section.Params.PlayRate) ? 1.0f : Section.Params.PlayRate;
-	float SeqLength = Section.Params.GetSequenceLength() - (TickResolution.AsSeconds(Section.Params.StartFrameOffset + Section.Params.EndFrameOffset) / AnimPlayRate);
+	const float AnimPlayRate = FMath::IsNearlyZero(Section.Params.PlayRate) ? 1.0f : Section.Params.PlayRate;
+	const float SeqLength = (Section.Params.GetSequenceLength() - TickResolution.AsSeconds(Section.Params.StartFrameOffset + Section.Params.EndFrameOffset)) / AnimPlayRate;
+	const float FirstLoopSeqLength = SeqLength - TickResolution.AsSeconds(Section.Params.FirstLoopStartFrameOffset) / AnimPlayRate;
 
 	if (!FMath::IsNearlyZero(SeqLength, KINDA_SMALL_NUMBER) && SeqLength > 0)
 	{
 		float MaxOffset  = Section.GetRange().Size<FFrameTime>() / TickResolution;
-		float OffsetTime = SeqLength;
+		float OffsetTime = FirstLoopSeqLength;
 		float StartTime  = Section.GetInclusiveStartFrame() / TickResolution;
 
 		while (OffsetTime < MaxOffset)
@@ -256,7 +358,7 @@ int32 FSkeletalAnimationSection::OnPaintSection( FSequencerSectionPainter& Paint
 
 void FSkeletalAnimationSection::BeginResizeSection()
 {
-	InitialStartOffsetDuringResize = Section.Params.StartFrameOffset;
+	InitialFirstLoopStartOffsetDuringResize = Section.Params.FirstLoopStartFrameOffset;
 	InitialStartTimeDuringResize   = Section.HasStartFrame() ? Section.GetInclusiveStartFrame() : 0;
 }
 
@@ -268,17 +370,23 @@ void FSkeletalAnimationSection::ResizeSection(ESequencerSectionResizeMode Resize
 		FFrameRate FrameRate   = Section.GetTypedOuter<UMovieScene>()->GetTickResolution();
 		FFrameNumber StartOffset = FrameRate.AsFrameNumber((ResizeTime - InitialStartTimeDuringResize) / FrameRate * Section.Params.PlayRate);
 
-		StartOffset += InitialStartOffsetDuringResize;
+		StartOffset += InitialFirstLoopStartOffsetDuringResize;
 
-		// Ensure start offset is not less than 0 and adjust ResizeTime
 		if (StartOffset < 0)
 		{
+			// Ensure start offset is not less than 0 and adjust ResizeTime
 			ResizeTime = ResizeTime - StartOffset;
 
 			StartOffset = FFrameNumber(0);
 		}
+		else
+		{
+			// If the start offset exceeds the length of one loop, trim it back.
+			const FFrameNumber SeqLength = FrameRate.AsFrameNumber(Section.Params.GetSequenceLength()) - Section.Params.StartFrameOffset - Section.Params.EndFrameOffset;
+			StartOffset = StartOffset % SeqLength;
+		}
 
-		Section.Params.StartFrameOffset = StartOffset;
+		Section.Params.FirstLoopStartFrameOffset = StartOffset;
 	}
 
 	ISequencerSection::ResizeSection(ResizeMode, ResizeTime);
@@ -294,17 +402,23 @@ void FSkeletalAnimationSection::SlipSection(FFrameNumber SlipTime)
 	FFrameRate FrameRate = Section.GetTypedOuter<UMovieScene>()->GetTickResolution();
 	FFrameNumber StartOffset = FrameRate.AsFrameNumber((SlipTime - InitialStartTimeDuringResize) / FrameRate * Section.Params.PlayRate);
 
-	StartOffset += InitialStartOffsetDuringResize;
+	StartOffset += InitialFirstLoopStartOffsetDuringResize;
 
-	// Ensure start offset is not less than 0 and adjust ResizeTime
 	if (StartOffset < 0)
 	{
+		// Ensure start offset is not less than 0 and adjust ResizeTime
 		SlipTime = SlipTime - StartOffset;
 
 		StartOffset = FFrameNumber(0);
 	}
+	else
+	{
+		// If the start offset exceeds the length of one loop, trim it back.
+		const FFrameNumber SeqLength = FrameRate.AsFrameNumber(Section.Params.GetSequenceLength()) - Section.Params.StartFrameOffset - Section.Params.EndFrameOffset;
+		StartOffset = StartOffset % SeqLength;
+	}
 
-	Section.Params.StartFrameOffset = StartOffset;
+	Section.Params.FirstLoopStartFrameOffset = StartOffset;
 
 	ISequencerSection::SlipSection(SlipTime);
 }
@@ -344,7 +458,7 @@ bool FSkeletalAnimationSection::CreatePoseAsset(const TArray<UObject*> NewAssets
 			Info.bUseLargeFont = false;
 			Info.Hyperlink = FSimpleDelegate::CreateLambda([NewAssets]()
 			{
-				FAssetEditorManager::Get().OpenEditorForAssets(NewAssets);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(NewAssets);
 			});
 			Info.HyperlinkText = FText::Format(LOCTEXT("OpenNewPoseAssetHyperlink", "Open {0}"), FText::FromString(NewAssets[0]->GetName()));
 				
@@ -388,6 +502,13 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 		EUserInterfaceActionType::Button);
 
 	MenuBuilder.EndSection();
+}
+
+void FSkeletalAnimationSection::CustomizePropertiesDetailsView(TSharedRef<IDetailsView> DetailsView, const FSequencerSectionPropertyDetailsViewCustomizationParams& InParams) const
+{
+	DetailsView->RegisterInstancedCustomPropertyTypeLayout(
+		TEXT("MovieSceneSkeletalAnimationParams"),
+		FOnGetPropertyTypeCustomizationInstance::CreateLambda([=]() { return MakeShared<FMovieSceneSkeletalAnimationParamsDetailCustomization>(InParams); }));
 }
 
 

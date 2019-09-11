@@ -641,7 +641,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "IPackageAutoSaver.h"
 #include "ComponentVisualizerManager.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Factories/FbxAnimSequenceImportData.h"
 #include "Factories/FbxSceneImportFactory.h"
 #include "EditorModeManager.h"

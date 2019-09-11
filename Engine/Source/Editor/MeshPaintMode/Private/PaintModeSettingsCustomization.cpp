@@ -190,7 +190,7 @@ void FVertexPaintSettingsCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 			static const FName EditConditionName = "EnumCondition";
 			if (ChildHandle->HasMetaData(EditConditionName))
 			{
-				int32 EnumCondition = ChildHandle->GetINTMetaData(EditConditionName);
+				int32 EnumCondition = ChildHandle->GetIntMetaData(EditConditionName);
 				Property.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FVertexPaintSettingsCustomization::ArePropertiesVisible, EnumCondition)));
 			}
 		}

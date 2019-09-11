@@ -6,7 +6,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Framework/Commands/UIAction.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_CallFunction.h"
@@ -318,14 +318,13 @@ bool UK2Node_VariableGet::IsValidTypeForNonPure(const FEdGraphPinType& InPinType
 	return !InPinType.IsContainer() && (InPinType.PinCategory == UEdGraphSchema_K2::PC_Object || InPinType.PinCategory == UEdGraphSchema_K2::PC_Class || InPinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject || InPinType.PinCategory == UEdGraphSchema_K2::PC_SoftClass);
 }
 
-void UK2Node_VariableGet::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UK2Node_VariableGet::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	Super::GetContextMenuActions(Context);
+	Super::GetNodeContextMenuActions(Menu, Context);
 
 	const UEdGraphPin* ValuePin = GetValuePin();
 	if (ValuePin && IsValidTypeForNonPure(ValuePin->PinType))
 	{
-		Context.MenuBuilder->BeginSection("K2NodeVariableGet", LOCTEXT("VariableGetHeader", "Variable Get"));
 		{
 			FText MenuEntryTitle;
 			FText MenuEntryTooltip;
@@ -356,18 +355,19 @@ void UK2Node_VariableGet::GetContextMenuActions(const FGraphNodeContextMenuBuild
 				MenuEntryTooltip = LOCTEXT("ConvertToPureGetTooltip", "Removes the execution pins to make the node more versatile.");
 			}
 
-			Context.MenuBuilder->AddMenuEntry(
+			FToolMenuSection& Section = Menu->AddSection("K2NodeVariableGet", LOCTEXT("VariableGetHeader", "Variable Get"));
+			Section.AddMenuEntry(
+				"TogglePurity",
 				MenuEntryTitle,
 				MenuEntryTooltip,
 				FSlateIcon(),
 				FUIAction(
 				FExecuteAction::CreateUObject(const_cast<UK2Node_VariableGet*>(this), &UK2Node_VariableGet::TogglePurity),
-				FCanExecuteAction::CreateStatic(CanExecutePurityToggle, bCanTogglePurity && !Context.bIsDebugging),
+				FCanExecuteAction::CreateStatic(CanExecutePurityToggle, bCanTogglePurity && !Context->bIsDebugging),
 				FIsActionChecked()
 				)
 				);
 		}
-		Context.MenuBuilder->EndSection();
 	}
 }
 

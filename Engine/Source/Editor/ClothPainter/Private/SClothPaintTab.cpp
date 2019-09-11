@@ -12,7 +12,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Toolkits/AssetEditorManager.h"
+
 
 #include "ClothPaintingModule.h"
 #include "ClothPainter.h"

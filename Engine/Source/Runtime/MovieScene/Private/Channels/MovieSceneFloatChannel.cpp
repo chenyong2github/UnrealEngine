@@ -896,6 +896,25 @@ void FMovieSceneFloatChannel::DeleteKeys(TArrayView<const FKeyHandle> InHandles)
 	GetData().DeleteKeys(InHandles);
 }
 
+void FMovieSceneFloatChannel::DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore)
+{
+	// Insert a key at the current time to maintain evaluation
+	if (GetData().GetTimes().Num() > 0)
+	{
+		int32 KeyHandleIndex = GetData().FindKey(InTime);
+		if (KeyHandleIndex == INDEX_NONE)
+		{
+			float Value = 0.f;
+			if (Evaluate(InTime, Value))
+			{
+				AddCubicKey(InTime, Value);
+			}
+		}
+	}
+
+	GetData().DeleteKeysFrom(InTime, bDeleteKeysBefore);
+}
+
 void FMovieSceneFloatChannel::ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate)
 {
 	check(Times.Num() == Values.Num());

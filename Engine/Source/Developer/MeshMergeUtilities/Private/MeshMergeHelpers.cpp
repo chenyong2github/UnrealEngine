@@ -238,8 +238,12 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshCompo
 		// If removing degenerate triangles, ignore them when computing tangents.
 		TangentOptions |= FMeshDescriptionOperations::ETangentOptions::IgnoreDegenerateTriangles;
 	}
+	if (BuildSettings.bUseMikkTSpace)
+	{
+		TangentOptions |= FMeshDescriptionOperations::ETangentOptions::UseMikkTSpace;
+	}
 	FMeshDescriptionOperations::CreatePolygonNTB(RawMesh, 0.0f);
-	FMeshDescriptionOperations::RecomputeNormalsAndTangentsIfNeeded(RawMesh, (FMeshDescriptionOperations::ETangentOptions)TangentOptions, BuildSettings.bUseMikkTSpace);
+	FMeshDescriptionOperations::RecomputeNormalsAndTangentsIfNeeded(RawMesh, (FMeshDescriptionOperations::ETangentOptions)TangentOptions);
 }
 
 void FMeshMergeHelpers::RetrieveMesh(USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex, FMeshDescription& RawMesh, bool bPropagateVertexColours)
@@ -351,9 +355,6 @@ void FMeshMergeHelpers::RetrieveMesh(USkeletalMeshComponent* SkeletalMeshCompone
 				}
 				//Create a polygon from this triangle
 				const FPolygonID NewPolygonID = RawMesh.CreatePolygon(SectionPolygonGroupID, VertexInstanceIDs);
-				//Triangulate the polygon
-				FMeshPolygon& Polygon = RawMesh.GetPolygon(NewPolygonID);
-				RawMesh.ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
 			}
 		}
 	}
@@ -397,8 +398,12 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMesh* StaticMesh, int32 LODInd
 		// If removing degenerate triangles, ignore them when computing tangents.
 		TangentOptions |= FMeshDescriptionOperations::ETangentOptions::IgnoreDegenerateTriangles;
 	}
+	if (BuildSettings.bUseMikkTSpace)
+	{
+		TangentOptions |= FMeshDescriptionOperations::ETangentOptions::UseMikkTSpace;
+	}
 	FMeshDescriptionOperations::CreatePolygonNTB(RawMesh, 0.0f);
-	FMeshDescriptionOperations::RecomputeNormalsAndTangentsIfNeeded(RawMesh, (FMeshDescriptionOperations::ETangentOptions)TangentOptions, BuildSettings.bUseMikkTSpace, (bImportedMesh && BuildSettings.bRecomputeNormals), (bImportedMesh && BuildSettings.bRecomputeTangents));
+	FMeshDescriptionOperations::RecomputeNormalsAndTangentsIfNeeded(RawMesh, (FMeshDescriptionOperations::ETangentOptions)TangentOptions, (bImportedMesh && BuildSettings.bRecomputeNormals), (bImportedMesh && BuildSettings.bRecomputeTangents));
 }
 
 void FMeshMergeHelpers::ExportStaticMeshLOD(const FStaticMeshLODResources& StaticMeshLOD, FMeshDescription& OutRawMesh, const TArray<FStaticMaterial>& Materials)
@@ -510,9 +515,6 @@ void FMeshMergeHelpers::ExportStaticMeshLOD(const FStaticMeshLODResources& Stati
 		}
 		//Create a polygon from this triangle
 		const FPolygonID NewPolygonID = OutRawMesh.CreatePolygon(CurrentPolygonGroupID, VertexInstanceIDs);
-		//Triangulate the polygon
-		FMeshPolygon& Polygon = OutRawMesh.GetPolygon(NewPolygonID);
-		OutRawMesh.ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
 	}
 }
 
@@ -653,14 +655,14 @@ void FMeshMergeHelpers::CullTrianglesFromVolumesAndUnderLandscapes(const UWorld*
 
 	// We now know which vertices are below the landscape
 	TArray<FPolygonID> PolygonToRemove;
-	for(const FPolygonID& PolygonID : InOutRawMesh.Polygons().GetElementIDs())
+	for(const FPolygonID PolygonID : InOutRawMesh.Polygons().GetElementIDs())
 	{
 		bool AboveLandscape = false;
-		for (FMeshTriangle& Triangle : InOutRawMesh.GetPolygonTriangles(PolygonID))
+		for (const FTriangleID TriangleID : InOutRawMesh.GetPolygonTriangleIDs(PolygonID))
 		{
 			for (int32 Corner = 0; Corner < 3; ++Corner)
 			{
-				AboveLandscape |= VertexVisible[InOutRawMesh.GetVertexInstanceVertex(Triangle.GetVertexInstanceID(Corner))];
+				AboveLandscape |= VertexVisible[InOutRawMesh.GetVertexInstanceVertex(InOutRawMesh.GetTriangleVertexInstance(TriangleID, Corner))];
 			}
 		}
 		if (!AboveLandscape)
@@ -712,13 +714,13 @@ void FMeshMergeHelpers::PropagateSplineDeformationToRawMesh(const USplineMeshCom
 
 	// Apply spline deformation for each vertex's tangents
 	int32 WedgeIndex = 0;
-	for (const FPolygonID& PolygonID : OutRawMesh.Polygons().GetElementIDs())
+	for (const FPolygonID PolygonID : OutRawMesh.Polygons().GetElementIDs())
 	{
-		for (FMeshTriangle& Triangle : OutRawMesh.GetPolygonTriangles(PolygonID))
+		for (const FTriangleID TriangleID : OutRawMesh.GetPolygonTriangleIDs(PolygonID))
 		{
 			for (int32 Corner = 0; Corner < 3; ++Corner, ++WedgeIndex)
 			{
-				const FVertexInstanceID VertexInstanceID = Triangle.GetVertexInstanceID(Corner);
+				const FVertexInstanceID VertexInstanceID = OutRawMesh.GetTriangleVertexInstance(TriangleID, Corner);
 				const FVertexID VertexID = OutRawMesh.GetVertexInstanceVertex(VertexInstanceID);
 				const float& AxisValue = USplineMeshComponent::GetAxisValue(VertexPositions[VertexID], InSplineMeshComponent->ForwardAxis);
 				FTransform SliceTransform = InSplineMeshComponent->CalcSliceTransform(AxisValue);
@@ -1028,7 +1030,7 @@ void FMeshMergeHelpers::CalculateTextureCoordinateBoundsForRawMesh(const FMeshDe
 		if (OutBounds.Num() <= MaterialIndex)
 			OutBounds.SetNumZeroed(MaterialIndex + 1);
 		{
-			TArray<FVertexInstanceID> PolygonVertexInstances = InRawMesh.GetPolygonPerimeterVertexInstances(PolygonID);
+			TArray<FVertexInstanceID> PolygonVertexInstances = InRawMesh.GetPolygonVertexInstances(PolygonID);
 			for (const FVertexInstanceID& VertexInstanceID : PolygonVertexInstances)
 			{
 				for (int32 UVIndex = 0; UVIndex < VertexInstanceUVs.GetNumIndices(); ++UVIndex)
@@ -1065,14 +1067,14 @@ bool FMeshMergeHelpers::PropagatePaintedColorsToRawMesh(const UStaticMeshCompone
 				TMap<int32, FVertexInstanceID> IndexToVertexInstanceID;
 				IndexToVertexInstanceID.Reserve(NumWedges);
 				int32 CurrentWedgeIndex = 0;
-				for (const FPolygonID& PolygonID : RawMesh.Polygons().GetElementIDs())
+				for (const FPolygonID PolygonID : RawMesh.Polygons().GetElementIDs())
 				{
-					const TArray<FMeshTriangle>& Triangles = RawMesh.GetPolygonTriangles(PolygonID);
-					for (const FMeshTriangle& Triangle : Triangles)
+					const TArray<FTriangleID>& TriangleIDs = RawMesh.GetPolygonTriangleIDs(PolygonID);
+					for (const FTriangleID TriangleID : TriangleIDs)
 					{
 						for (int32 Corner = 0; Corner < 3; ++Corner, ++CurrentWedgeIndex)
 						{
-							IndexToVertexInstanceID.Add(CurrentWedgeIndex, Triangle.GetVertexInstanceID(Corner));
+							IndexToVertexInstanceID.Add(CurrentWedgeIndex, RawMesh.GetTriangleVertexInstance(TriangleID, Corner));
 						}
 					}
 				}
@@ -1251,8 +1253,9 @@ void FMeshMergeHelpers::AppendRawMesh(FMeshDescription& InTarget, const FMeshDes
 	SourceToTargetEdgeID.Reserve(InSource.Edges().Num());
 	for (const FEdgeID& SourceEdgeID : InSource.Edges().GetElementIDs())
 	{
-		const FMeshEdge& SourceEdge = InSource.GetEdge(SourceEdgeID);
-		const FEdgeID TargetEdgeID = InTarget.CreateEdge(SourceToTargetVertexID[SourceEdge.VertexIDs[0]], SourceToTargetVertexID[SourceEdge.VertexIDs[1]]);
+		const FVertexID EdgeVertex0 = InSource.GetEdgeVertex(SourceEdgeID, 0);
+		const FVertexID EdgeVertex1 = InSource.GetEdgeVertex(SourceEdgeID, 1);
+		const FEdgeID TargetEdgeID = InTarget.CreateEdge(SourceToTargetVertexID[EdgeVertex0], SourceToTargetVertexID[EdgeVertex1]);
 		TargetEdgeHardnesses[TargetEdgeID] = SourceEdgeHardnesses[SourceEdgeID];
 		TargetEdgeCreaseSharpnesses[TargetEdgeID] = SourceEdgeCreaseSharpnesses[SourceEdgeID];
 		SourceToTargetEdgeID.Add(SourceEdgeID, TargetEdgeID);
@@ -1269,20 +1272,16 @@ void FMeshMergeHelpers::AppendRawMesh(FMeshDescription& InTarget, const FMeshDes
 	};
 
 	//Append Polygons
-	for (const FPolygonID& SourcePolygonID : InSource.Polygons().GetElementIDs())
+	for (const FPolygonID SourcePolygonID : InSource.Polygons().GetElementIDs())
 	{
-		const FMeshPolygon& SourcePolygon = InSource.GetPolygon(SourcePolygonID);
-		const TArray<FVertexInstanceID>& SourceVertexInstanceIDs = InSource.GetPolygonPerimeterVertexInstances(SourcePolygonID);
-
+		const TArray<FVertexInstanceID>& SourceVertexInstanceIDs = InSource.GetPolygonVertexInstances(SourcePolygonID);
+		const FPolygonGroupID PolygonGroupID = InSource.GetPolygonPolygonGroup(SourcePolygonID);
 
 		TArray<FVertexInstanceID> ContourVertexInstances;
 		CreateContour(SourceVertexInstanceIDs, ContourVertexInstances);
 
 		// Insert a polygon into the mesh
-		const FPolygonID TargetPolygonID = InTarget.CreatePolygon(SourcePolygon.PolygonGroupID, ContourVertexInstances);
-		//Triangulate the polygon
-		FMeshPolygon& Polygon = InTarget.GetPolygon(TargetPolygonID);
-		InTarget.ComputePolygonTriangulation(TargetPolygonID, Polygon.Triangles);
+		const FPolygonID TargetPolygonID = InTarget.CreatePolygon(PolygonGroupID, ContourVertexInstances);
 	}
 }
 

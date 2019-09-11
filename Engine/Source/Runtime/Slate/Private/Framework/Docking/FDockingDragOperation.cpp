@@ -26,14 +26,7 @@ void FDockingDragOperation::OnDrop( bool bDropWasHandled, const FPointerEvent& M
 		// The event was handled, so we HAVE to have some window that we dropped onto.
 		TSharedRef<SWindow> WindowDroppedInto = MouseEvent.GetWindow();
 
-		// Let every widget under this tab manager know that this tab has found a new home.
-		TSharedPtr<SWindow> NewWindow = ( TabOwnerAreaOfOrigin->GetParentWindow() == WindowDroppedInto )
-			// Tab dropped into same window as before, meaning there is no NewWindow.
-			? TSharedPtr<SWindow>()
-			// Tab was dropped into a different window, so the tab manager needs to know in order to re-parent child windows.
-			: WindowDroppedInto;
-
-		TabOwnerAreaOfOrigin->GetTabManager()->GetPrivateApi().OnTabRelocated( TabBeingDragged.ToSharedRef(), WindowDroppedInto );
+		TabOwnerAreaOfOrigin->GetTabManager()->GetPrivateApi().OnTabRelocated(TabBeingDragged.ToSharedRef(), WindowDroppedInto);
 	}
 
 	// Destroy the CursorDecoratorWindow by calling the base class implementation because we are relocating the content into a more permanent home.

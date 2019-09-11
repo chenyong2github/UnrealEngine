@@ -24,6 +24,10 @@ USTRUCT()
 	UPROPERTY(EditAnywhere, Category = "GeometryCache", DisplayName = "Geometry Cache")
 	UGeometryCache* GeometryCacheAsset;
 
+	/** The offset for the first loop of the animation clip */
+	UPROPERTY(EditAnywhere, Category = "GeometryCache")
+	FFrameNumber FirstLoopStartFrameOffset;
+
 	/** The offset into the beginning of the animation clip */
 	UPROPERTY(EditAnywhere, Category = "GeometryCache")
 	FFrameNumber StartFrameOffset;
@@ -70,8 +74,8 @@ public:
 protected:
 	//~ UMovieSceneSection interface
 	virtual TOptional<TRange<FFrameNumber> > GetAutoSizeRange() const override;
-	virtual void TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft) override;
-	virtual UMovieSceneSection* SplitSection(FQualifiedFrameTime SplitTime) override;
+	virtual void TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys) override;
+	virtual UMovieSceneSection* SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys) override;
 	virtual void GetSnapTimes(TArray<FFrameNumber>& OutSnapTimes, bool bGetSectionBorders) const override;
 	virtual TOptional<FFrameTime> GetOffsetTime() const override;
 	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;

@@ -15,10 +15,14 @@
 #include "EngineSessionManager.h"
 #include "Misc/EngineVersion.h"
 #include "RHI.h"
+#include "Analytics/EditorSessionSummary.h"
 
 bool FEngineAnalytics::bIsInitialized;
 TSharedPtr<IAnalyticsProviderET> FEngineAnalytics::Analytics;
 TSharedPtr<FEngineSessionManager> FEngineAnalytics::SessionManager;
+
+static TSharedPtr<FEditorSessionSummaryWriter> SessionSummaryWriter;
+static TSharedPtr<FEditorSessionSummarySender> SessionSummarySender;
 
 /**
 * Default config func.
@@ -150,9 +154,19 @@ void FEngineAnalytics::Initialize()
 			SessionManager = MakeShareable(new FEngineSessionManager(EEngineSessionManagerMode::Editor));
 			SessionManager->Initialize();
 		}
+
+		if (!SessionSummaryWriter.IsValid())
+		{
+			SessionSummaryWriter = MakeShareable(new FEditorSessionSummaryWriter());
+			SessionSummaryWriter->Initialize();
+		}
+
+		if (!SessionSummarySender.IsValid())
+		{
+			SessionSummarySender = MakeShareable(new FEditorSessionSummarySender());
+		}
 	}
 }
-
 
 void FEngineAnalytics::Shutdown(bool bIsEngineShutdown)
 {
@@ -166,6 +180,14 @@ void FEngineAnalytics::Shutdown(bool bIsEngineShutdown)
 		SessionManager->Shutdown();
 		SessionManager.Reset();
 	}
+
+	if (SessionSummaryWriter.IsValid())
+	{
+		SessionSummaryWriter->Shutdown();
+		SessionSummaryWriter.Reset();
+	}
+
+	SessionSummarySender.Reset();
 }
 
 void FEngineAnalytics::Tick(float DeltaTime)
@@ -175,5 +197,15 @@ void FEngineAnalytics::Tick(float DeltaTime)
 	if (SessionManager.IsValid())
 	{
 		SessionManager->Tick(DeltaTime);
+	}
+
+	if (SessionSummaryWriter.IsValid())
+	{
+		SessionSummaryWriter->Tick(DeltaTime);
+	}
+
+	if (SessionSummarySender.IsValid())
+	{
+		SessionSummarySender->Tick(DeltaTime);
 	}
 }

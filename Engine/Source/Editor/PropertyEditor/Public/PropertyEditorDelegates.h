@@ -7,20 +7,17 @@
 
 class FPropertyPath;
 struct FPropertyChangedEvent;
+class IPropertyHandle;
 
 struct FPropertyAndParent
 {
-	FPropertyAndParent( const UProperty& InProperty, const UProperty* const InParentProperty, const TArray< TWeakObjectPtr<UObject> >& InObjects )
-		: Property( InProperty )
-		, ParentProperty( InParentProperty )
-		, Objects( InObjects )
-	{}
+	FPropertyAndParent(const TSharedRef<IPropertyHandle>& InPropertyHandle, const TArray< TWeakObjectPtr< UObject > >& InObjects);
 
 	/** The property always exists */
 	const UProperty& Property;
 
-	/** The parent property may not exist */
-	const UProperty* const ParentProperty;
+	/** The entire chain of parent properties, all the way to the property root. ParentProperties[0] is the immediate parent.*/
+	TArray< const UProperty* > ParentProperties;
 
 	/** The objects for these properties */
 	TArray< TWeakObjectPtr< UObject > > Objects;

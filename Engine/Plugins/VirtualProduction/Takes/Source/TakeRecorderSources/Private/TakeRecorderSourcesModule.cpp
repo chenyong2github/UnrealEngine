@@ -562,7 +562,7 @@ public:
 			ULevelSequence* ActiveSequence = ActiveRecorder->GetSequence();
 			if (ActiveSequence)
 			{
-				FAssetEditorManager::Get().CloseAllEditorsForAsset(ActiveSequence);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(ActiveSequence);
 			}
 
 			ActiveRecorder->Stop();

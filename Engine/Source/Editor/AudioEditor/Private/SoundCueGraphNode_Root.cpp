@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "SoundCueGraph/SoundCueGraphNode_Root.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "GraphEditorSettings.h"
 #include "SoundCueGraphEditorCommands.h"
 
@@ -39,18 +39,17 @@ void USoundCueGraphNode_Root::CreateInputPins()
 	CreatePin(EGPD_Input, TEXT("SoundNode"), TEXT("Root"), NAME_None);
 }
 
-void USoundCueGraphNode_Root::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void USoundCueGraphNode_Root::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if (Context.Pin)
+	if (Context->Pin)
 	{
 	}
-	else if (Context.Node)
+	else if (Context->Node)
 	{
-		Context.MenuBuilder->BeginSection("SoundCueGraphNodePlay");
 		{
-			Context.MenuBuilder->AddMenuEntry(FSoundCueGraphEditorCommands::Get().PlayNode);
+			FToolMenuSection& Section = Menu->AddSection("SoundCueGraphNodePlay");
+			Section.AddMenuEntry(FSoundCueGraphEditorCommands::Get().PlayNode);
 		}
-		Context.MenuBuilder->EndSection();
 	}
 }
 

@@ -14,6 +14,7 @@ UUMGEditorProjectSettings::UUMGEditorProjectSettings()
 	bShowWidgetsFromEngineContent = false;
 	bShowWidgetsFromDeveloperContent = true;
 
+	bUseWidgetTemplateSelector = false;
 	DefaultRootWidget = UCanvasPanel::StaticClass();
 
 	// Deprecated

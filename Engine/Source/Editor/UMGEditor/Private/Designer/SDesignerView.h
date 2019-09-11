@@ -195,8 +195,8 @@ private:
 	EVisibility GetCustomResolutionEntryVisibility() const;
 	
 	// Handles selecting a common screen resolution.
-	void HandleOnCommonResolutionSelected(FPlayScreenResolution InResolution);
-	bool HandleIsCommonResolutionSelected(FPlayScreenResolution InResolution) const;
+	void HandleOnCommonResolutionSelected(const FPlayScreenResolution InResolution);
+	bool HandleIsCommonResolutionSelected(const FPlayScreenResolution InResolution) const;
 	void AddScreenResolutionSection(FMenuBuilder& MenuBuilder, const TArray<FPlayScreenResolution> Resolutions, const FText SectionName);
 	TSharedRef<SWidget> GetResolutionsMenu();
 

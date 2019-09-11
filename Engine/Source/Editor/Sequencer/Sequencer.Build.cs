@@ -24,7 +24,9 @@ public class Sequencer : ModuleRules
 			new string[] {
 				"AppFramework", 
 				"ApplicationCore",
-                "CinematicCamera",
+				"AssetRegistry",
+				"CinematicCamera",
+				"ContentBrowser",
 				"Core", 
 				"CoreUObject", 
                 "CurveEditor",
@@ -45,8 +47,9 @@ public class Sequencer : ModuleRules
 				"LevelSequence",
 				"GraphEditor",
                 "ViewportInteraction",
-                "SerializedRecorderInterface"
-            }
+                "SerializedRecorderInterface",
+				"ToolMenus"
+			}
 		);
 
 		CircularlyReferencedDependentModules.AddRange(

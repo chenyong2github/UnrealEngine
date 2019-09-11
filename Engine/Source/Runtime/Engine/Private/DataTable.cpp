@@ -189,6 +189,7 @@ void UDataTable::OnPostDataImported(TArray<FString>& OutCollectedImportProblems)
 		}
 	}
 
+	OnDataTableImported().Broadcast();
 	OnDataTableChanged().Broadcast();
 }
 

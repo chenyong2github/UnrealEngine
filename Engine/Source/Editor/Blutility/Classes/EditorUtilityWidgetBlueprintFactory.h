@@ -37,4 +37,5 @@ class UEditorUtilityWidgetBlueprintFactory : public UFactory
 	
 	// End of UFactory interface
 
+	UClass* RootWidgetClass;
 };

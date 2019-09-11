@@ -1058,6 +1058,11 @@ public partial class Project : CommandUtils
 		}
 		else
 		{
+			if (NormalizedPath.StartsWith("layouts/"))
+			{
+				return true;
+			}
+
 			if (NormalizedPath.StartsWith("localization/"))
 			{
 				return false;

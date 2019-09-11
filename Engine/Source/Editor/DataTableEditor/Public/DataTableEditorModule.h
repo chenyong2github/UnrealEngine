@@ -12,7 +12,7 @@ class UDataTable;
 
 /** DataTable Editor module */
 class FDataTableEditorModule : public IModuleInterface,
-	public IHasMenuExtensibility
+	public IHasMenuExtensibility, public IHasToolBarExtensibility
 {
 
 public:
@@ -34,6 +34,8 @@ public:
 	/** Gets the extensibility managers for outside entities to extend static mesh editor's menus and toolbars */
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override {return MenuExtensibilityManager;}
 
+	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }
+	
 	/** DataTable Editor app identifier string */
 	static const FName DataTableEditorAppIdentifier;
 
@@ -43,6 +45,9 @@ private:
 	TSharedRef<IDataTableEditor> CreateCompositeDataTableEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UDataTable* Table);
 
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
+	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
+;
+
 };
 
 

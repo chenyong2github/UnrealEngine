@@ -7,10 +7,11 @@
 
 
 // predeclarations so we don't have to include these in all tools
+class AActor;
+class UActorComponent;
 class FChange;
 class UPackage;
 class FPrimitiveDrawInterface;
-class USelection;
 class UInteractiveToolManager;
 class UInteractiveGizmoManager;
 
@@ -29,16 +30,9 @@ struct INTERACTIVETOOLSFRAMEWORK_API FToolBuilderState
 	UInteractiveGizmoManager* GizmoManager = nullptr;
 
 	/** Current selected Actors. May be empty or nullptr. */
-	USelection* SelectedActors = nullptr;
+	TArray<AActor*> SelectedActors;
 	/** Current selected Components. May be empty or nullptr. */
-	USelection* SelectedComponents = nullptr;
-
-	/** Implementation that can build Sources (like MeshDescriptionSource) for Components */
-	IComponentSourceFactory* SourceBuilder = nullptr;
-
-	FToolBuilderState()
-	{
-	}
+	TArray<UActorComponent*> SelectedComponents;
 };
 
 
@@ -288,7 +282,6 @@ public:
 
 };
 
-
 /**
  * Users of the Tools Framework need to implement IToolsContextRenderAPI to allow
  * Tools, Indicators, and Gizmos to make low-level rendering calls for things like line drawing.
@@ -303,9 +296,6 @@ public:
 	/** @return Current PDI */
 	virtual FPrimitiveDrawInterface* GetPrimitiveDrawInterface() = 0;
 };
-
-
-
 
 /**
  * Users of the Tools Framework need to provide an IToolsContextAssetAPI implementation

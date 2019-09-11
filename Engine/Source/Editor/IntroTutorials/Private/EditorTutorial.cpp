@@ -8,12 +8,13 @@
 #include "Settings/ContentBrowserSettings.h"
 #include "EngineGlobals.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "IIntroTutorials.h"
 #include "IntroTutorials.h"
 #include "LevelEditor.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Misc/RuntimeErrors.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #if WITH_EDITORONLY_DATA
 namespace
@@ -102,7 +103,7 @@ void UEditorTutorial::OpenAsset(UObject* Asset)
 {
 	if (ensureAsRuntimeWarning(Asset != nullptr))
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(Asset);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset);
 	}
 }
 

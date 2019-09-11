@@ -20,8 +20,7 @@ public class MeshConversion : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[]
             {
-                "CoreUObject",
-                "Engine"
+                "CoreUObject"
 			}
 		);
     }

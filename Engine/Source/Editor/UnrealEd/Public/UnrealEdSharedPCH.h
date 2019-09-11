@@ -609,7 +609,7 @@
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Editor/EditorEngine.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "AssetThumbnail.h"
 #include "Toolkits/BaseToolkit.h"
 #include "Toolkits/AssetEditorToolkit.h"

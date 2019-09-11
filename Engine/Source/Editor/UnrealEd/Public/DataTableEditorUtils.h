@@ -33,12 +33,23 @@ struct FDataTableEditorRowListViewData
 	/** The calculated height of this row taking into account the cell data for each column */
 	float DesiredRowHeight;
 
+	/** Insertion number of the row */
+	uint32 RowNum;
+
 	/** Array corresponding to each cell in this row */
 	TArray<FText> CellData;
 };
 
 typedef TSharedPtr<FDataTableEditorColumnHeaderData> FDataTableEditorColumnHeaderDataPtr;
 typedef TSharedPtr<FDataTableEditorRowListViewData>  FDataTableEditorRowListViewDataPtr;
+
+
+enum class ERowInsertionPosition
+{
+	Above,
+	Below,
+	Bottom,
+};
 
 struct UNREALED_API FDataTableEditorUtils
 {
@@ -79,6 +90,8 @@ struct UNREALED_API FDataTableEditorUtils
 	static bool SelectRow(const UDataTable* DataTable, FName RowName);
 	static bool DiffersFromDefault(UDataTable* DataTable, FName RowName);
 	static bool ResetToDefault(UDataTable* DataTable, FName RowName);
+
+	static uint8* AddRowAboveOrBelowSelection(UDataTable* DataTable, const FName& RowName, const FName& NewRowName, ERowInsertionPosition InsertPosition);
 
 	static void BroadcastPreChange(UDataTable* DataTable, EDataTableChangeInfo Info);
 	static void BroadcastPostChange(UDataTable* DataTable, EDataTableChangeInfo Info);

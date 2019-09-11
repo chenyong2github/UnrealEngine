@@ -112,9 +112,9 @@ void SSynthKnob::ResetControllerState()
 FReply SSynthKnob::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	FReply Reply = FReply::Unhandled();
-	const FKey KeyPressed = InKeyEvent.GetKey();
+	const EUINavigation NavDirection = FSlateApplication::Get().GetNavigationDirectionFromKey(InKeyEvent);
 
-	if (KeyPressed == FineTuneKey)
+	if (InKeyEvent.GetKey() == FineTuneKey)
 	{
 		bIsFineTune = true;
 	}
@@ -124,7 +124,7 @@ FReply SSynthKnob::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKey
 		// The controller's bottom face button must be pressed once to begin manipulating the slider's value.
 		// Navigation away from the widget is prevented until the button has been pressed again or focus is lost.
 		// The value can be manipulated by using the game pad's directional arrows ( relative to slider orientation ).
-		if (FSlateApplication::Get().GetNavigationActionForKey(KeyPressed) == EUINavigationAction::Accept)
+		if (FSlateApplication::Get().GetNavigationActionFromKey(InKeyEvent) == EUINavigationAction::Accept)
 		{
 			if (bControllerInputCaptured == false)
 			{
@@ -143,11 +143,11 @@ FReply SSynthKnob::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKey
 		if (bControllerInputCaptured)
 		{
 			float NewValue = ValueAttribute.Get();
-			if (KeyPressed == EKeys::Down || KeyPressed == EKeys::Gamepad_DPad_Down || KeyPressed == EKeys::Gamepad_LeftStick_Down)
+			if (NavDirection == EUINavigation::Down)
 			{
 				NewValue -= StepSize.Get();
 			}
-			else if (KeyPressed == EKeys::Up || KeyPressed == EKeys::Gamepad_DPad_Up || KeyPressed == EKeys::Gamepad_LeftStick_Up)
+			else if (NavDirection == EUINavigation::Up)
 			{
 				NewValue += StepSize.Get();
 			}

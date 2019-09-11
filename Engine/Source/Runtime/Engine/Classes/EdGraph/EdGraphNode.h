@@ -151,23 +151,36 @@ private:
 	FNodeMetadata() {}
 };
 
-/** This is the context for a GetContextMenuActions call into a specific node. */
-struct FGraphNodeContextMenuBuilder
+/** This is the context for GetContextMenuActions and GetNodeContextMenuActions calls. */
+UCLASS()
+class ENGINE_API UGraphNodeContextMenuContext : public UObject
 {
+	GENERATED_BODY()
+
+public:
+
+	UGraphNodeContextMenuContext();
+
+	void Init(const UEdGraph* InGraph, const UEdGraphNode* InNode, const UEdGraphPin* InPin, bool bInDebuggingMode);
+
 	/** The blueprint associated with this context; may be NULL for non-Kismet related graphs. */
+	UPROPERTY()
 	const UBlueprint* Blueprint;
+
 	/** The graph associated with this context. */
+	UPROPERTY()
 	const UEdGraph* Graph;
+
 	/** The node associated with this context. */
+	UPROPERTY()
 	const UEdGraphNode* Node;
+
 	/** The pin associated with this context; may be NULL when over a node. */
 	const UEdGraphPin* Pin;
-	/** The menu builder to append actions to. */
-	class FMenuBuilder* MenuBuilder;
-	/** Whether the graph editor is currently part of a debugging session (any non-debugging commands should be disabled). */
-	bool bIsDebugging;
 
-	FGraphNodeContextMenuBuilder(const UEdGraph* InGraph, const UEdGraphNode* InNode, const UEdGraphPin* InPin, class FMenuBuilder* InMenuBuilder, bool bInDebuggingMode);
+	/** Whether the graph editor is currently part of a debugging session (any non-debugging commands should be disabled). */
+	UPROPERTY()
+	bool bIsDebugging;
 };
 
 /** Deprecation types for node response. */
@@ -807,7 +820,10 @@ public:
 	void CreateNewGuid();
 
 	/** Gets a list of actions that can be done to this particular node */
-	virtual void GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const {}
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const {}
+
+	/** Does the node context menu inherit parent class's menu */
+	virtual bool IncludeParentNodeContextMenu() const { return false; }
 
 	// Gives each visual node a chance to do final validation before it's node is harvested for use at runtime
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const {}

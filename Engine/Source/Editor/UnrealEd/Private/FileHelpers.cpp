@@ -43,7 +43,6 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Exporters/Exporter.h"
 
-
 #include "PackagesDialog.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "IAssetTools.h"
@@ -52,7 +51,6 @@
 #include "DesktopPlatformModule.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
-
 
 #include "Dialogs/DlgPickPath.h"
 
@@ -542,7 +540,7 @@ static bool SaveWorld(UWorld* World,
 	FString PackageName = Package->GetName();
 
 	FString	ExistingFilename;
-	FString		Path;
+	FString	Path;
 	FString	CleanFilename;
 
 	// Does a filename already exist for this package?
@@ -1590,11 +1588,17 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 		}
 		
 		// Prepare the buttons for the checkout dialog
+
+		if (OutPackagesNotNeedingCheckout != nullptr && OutPackagesNotNeedingCheckout->Num() > 0)
+		{
+			CheckoutPackagesDialogModule.AddButton(DRT_Save, NSLOCTEXT("PackagesDialogModule", "Dlg_SaveCheckedOutButton", "Save Checked Out"), NSLOCTEXT("PackagesDialogModule", "Dlg_SaveCheckedOutTooltip", "Save already checked out packages, but not the packages in this dialog."));
+		}
+
 		// The checkout button should be disabled if no packages can be checked out.
 		CheckoutPackagesDialogModule.AddButton(DRT_CheckOut, NSLOCTEXT("PackagesDialogModule", "Dlg_CheckOutButtonp", "Check Out Selected"), NSLOCTEXT("PackagesDialogModule", "Dlg_CheckOutTooltip", "Attempt to Check Out Checked Assets"), CheckOutSelectedDisabledAttrib );
 		
 		// Make writable button to make checked files writable
-		CheckoutPackagesDialogModule.AddButton(DRT_MakeWritable, NSLOCTEXT("PackagesDialogModule", "Dlg_MakeWritableButton", "Make Writable"), NSLOCTEXT("PackagesDialogModule", "Dlg_MakeWritableTooltip", "Makes selected files writiable on disk"));
+		CheckoutPackagesDialogModule.AddButton(DRT_MakeWritable, NSLOCTEXT("PackagesDialogModule", "Dlg_MakeWritableButton", "Make Writable"), NSLOCTEXT("PackagesDialogModule", "Dlg_MakeWritableTooltip", "Makes selected files writable on disk"));
 
 		// The cancel button should be different if we are prompting during a modify.
 		const FText CancelButtonText  = bPromptingAfterModify ? NSLOCTEXT("PackagesDialogModule", "Dlg_AskMeLater", "Ask Me Later") : NSLOCTEXT("PackagesDialogModule", "Dlg_Cancel", "Cancel");
@@ -1684,9 +1688,14 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 
 				bPerformedOperation = true;
 			}
-			// Handle the case of the user canceling out of the dialog
-			else
+			else if (UserResponse == DRT_Save)
 			{
+				bResult = true;
+				bPerformedOperation = true;
+			}
+			else if (UserResponse == DRT_Cancel)
+			{
+				// Handle the case of the user canceling out of the dialog
 				bResult = false;
 				bPerformedOperation = true;
 			}
@@ -3701,8 +3710,8 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 	// Assemble list of packages to save
 	const TArray<UPackage*>& PackagesToSave = FilteredPackages;
 
-	// If there are any packages to save and the user didn't decline/cancel, then first prompt to check out any that are under source control, and then
-	// go ahead and save the specified packages
+	// If there are any packages to save and the user didn't decline/cancel, then first prompt to check out any that are under source control,
+	// and then go ahead and save the specified packages
 	if ( PackagesToSave.Num() > 0 && ReturnResponse == PR_Success )
 	{
 		TArray<UPackage*> FailedPackages;
@@ -3711,9 +3720,14 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 		TArray<UPackage*> PackagesNotNeedingCheckout;
 
 		// Prompt to check-out any packages under source control
-		const bool UserResponse = bAlreadyCheckedOut || FEditorFileUtils::PromptToCheckoutPackages( false, PackagesToSave, &PackagesCheckedOutOrMadeWritable, &PackagesNotNeedingCheckout );
+		bool bUserResponse = true;
 
-		if( UserResponse )
+		if (!bAlreadyCheckedOut)
+		{
+			bUserResponse = FEditorFileUtils::PromptToCheckoutPackages(false, PackagesToSave, &PackagesCheckedOutOrMadeWritable, &PackagesNotNeedingCheckout);
+		}
+
+		if( bUserResponse && (PackagesCheckedOutOrMadeWritable.Num() > 0 || PackagesNotNeedingCheckout.Num() > 0) )
 		{
 			TArray<UPackage*> FinalSaveList;
 			
@@ -3730,13 +3744,6 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 			{
 				const bool bUseDialog = true;
 				ReturnResponse = InternalPromptForCheckoutAndSave(FinalSaveList, bUseDialog, FailedPackages);
-			}
-
-			if( UserResponse == false && PackagesNotNeedingCheckout.Num() > 0 )
-			{
-				// Return response should still be PR_Cancelled even if the user cancelled the source control dialog but there were writable packages we could save.
-				// This is in case the save is happing during editor exit. We don't want to shutdown the editor if some packages failed to save.
-				ReturnResponse = PR_Cancelled;
 			}
 
 			// Set the failure array to have the same contents as the local one.

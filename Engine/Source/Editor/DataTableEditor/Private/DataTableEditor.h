@@ -15,6 +15,7 @@
 #include "Kismet2/StructureEditorUtils.h"
 #include "DataTableEditorUtils.h"
 #include "SRowEditor.h"
+#include "Widgets/Input/SSearchBox.h"
 
 class FJsonObject;
 
@@ -83,11 +84,17 @@ protected:
 
 	void RefreshCachedDataTable(const FName InCachedSelection = NAME_None, const bool bUpdateEvenIfValid = false);
 
+	void ImportDataTableUpdate();
+
 	void UpdateVisibleRows(const FName InCachedSelection = NAME_None, const bool bUpdateEvenIfValid = false);
 
 	void RestoreCachedSelection(const FName InCachedSelection, const bool bUpdateEvenIfValid = false);
 	
 	void OnFilterTextChanged(const FText& InFilterText);
+
+	void OnFilterTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo);
+
+	void OnFilterCleared();
 
 	virtual void PostRegenerateMenusAndToolbars() override;
 
@@ -112,18 +119,23 @@ protected:
 	/**	Spawns the tab with the Row Editor inside */
 	TSharedRef<SDockTab> SpawnTab_RowEditor(const FSpawnTabArgs& Args);
 
-	FOptionalSize GetRowNameColumnWidth() const;
+	float GetRowNameColumnWidth() const;
+	void RefreshRowNameColumnWidth();
+
+	float GetRowNumberColumnWidth() const;
+	void RefreshRowNumberColumnWidth();
 
 	float GetColumnWidth(const int32 ColumnIndex) const;
 
 	void OnColumnResized(const float NewWidth, const int32 ColumnIndex);
 
+	void OnRowNameColumnResized(const float NewWidth);
+
+	void OnRowNumberColumnResized(const float NewWidth);
+
 	void LoadLayoutData();
 
 	void SaveLayoutData();
-
-	/** Make the widget for a row name entry in the data table row list view */
-	TSharedRef<ITableRow> MakeRowNameWidget(FDataTableEditorRowListViewDataPtr InRowDataPtr, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** Make the widget for a row entry in the data table row list view */
 	TSharedRef<ITableRow> MakeRowWidget(FDataTableEditorRowListViewDataPtr InRowDataPtr, const TSharedRef<STableViewBase>& OwnerTable);
@@ -131,15 +143,13 @@ protected:
 	/** Make the widget for a cell entry in the data table row list view */
 	TSharedRef<SWidget> MakeCellWidget(FDataTableEditorRowListViewDataPtr InRowDataPtr, const int32 InRowIndex, const FName& InColumnId);
 
-	void OnRowNamesListViewScrolled(double InScrollOffset);
-
-	void OnCellsListViewScrolled(double InScrollOffset);
-
 	void OnRowSelectionChanged(FDataTableEditorRowListViewDataPtr InNewSelection, ESelectInfo::Type InSelectInfo);
 
 	void CopySelectedRow();
 	void PasteOnSelectedRow();
 	void DuplicateSelectedRow();
+	void RenameSelectedRowCommand();
+	void DeleteSelectedRow();
 
 	/** Helper function for creating and registering the tab containing the data table data */
 	virtual void CreateAndRegisterDataTableTab(const TSharedRef<class FTabManager>& InTabManager);
@@ -149,6 +159,35 @@ protected:
 
 	/** Helper function for creating and registering the tab containing the row editor */
 	virtual void CreateAndRegisterRowEditorTab(const TSharedRef<class FTabManager>& InTabManager);
+
+	void BrowseDocumentation_Execute() const;
+
+	virtual FString GetDocumentationLink() const override;
+	
+	void OnAddClicked();
+	void OnRemoveClicked();
+	FReply OnMoveRowClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection);
+	FReply OnMoveToExtentClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection);
+	void OnCopyClicked();
+	void OnPasteClicked();
+	void OnDuplicateClicked();
+
+	void SetDefaultSort();
+	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
+	void OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
+	void OnColumnNumberSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
+	void OnColumnNameSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
+
+	void OnEditDataTableStructClicked();
+
+	FReply SaveDataTable_Execute();
+	FReply BrowseForDataTable_Execute();
+	
+	void ExtendToolbar(TSharedPtr<FExtender> Extender);
+	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
+
+private:
+	UDataTable* GetEditableDataTable() const;
 
 protected:
 
@@ -174,6 +213,9 @@ protected:
 	TSharedPtr<class IDetailsView> PropertyView;
 
 	/** UI for the "Row Editor" tab */
+	TSharedPtr<SSearchBox> SearchBoxWidget;
+
+	/** UI for the "Row Editor" tab */
 	TSharedPtr<SWidget> RowEditorTabWidget;
 
 	/** Array of the columns that are available for editing */
@@ -181,21 +223,21 @@ protected:
 
 	/** Array of the rows that are available for editing */
 	TArray<FDataTableEditorRowListViewDataPtr> AvailableRows;
-	
+
 	/** Array of the rows that match the active filter(s) */
 	TArray<FDataTableEditorRowListViewDataPtr> VisibleRows;
 
 	/** Header row containing entries for each column in AvailableColumns */
 	TSharedPtr<SHeaderRow> ColumnNamesHeaderRow;
 
-	/** List view responsible for showing the row names column */
-	TSharedPtr<SListView<FDataTableEditorRowListViewDataPtr>> RowNamesListView;
-
 	/** List view responsible for showing the rows in VisibleRows for each entry in AvailableColumns */
 	TSharedPtr<SListView<FDataTableEditorRowListViewDataPtr>> CellsListView;
 
 	/** Width of the row name column */
 	float RowNameColumnWidth;
+
+	/** Width of the row number column */
+	float RowNumberColumnWidth;
 
 	/** Widths of data table cell columns */
 	TArray<FColumnWidth> ColumnWidths;
@@ -206,8 +248,17 @@ protected:
 	/** The name of the currently selected row */
 	FName HighlightedRowName;
 
+	/** The visible row index of the currently selected row */
+	int32 HighlightedVisibleRowIndex;
+
 	/** The current filter text applied to the data table */
 	FText ActiveFilterText;
+
+	/** Currently selected sorting mode */
+	EColumnSortMode::Type SortMode;
+
+	/** Specify which column to sort with */
+	FName SortByColumn;
 
 	FOnRowHighlighted CallbackOnRowHighlighted;
 
@@ -224,4 +275,10 @@ protected:
 
 	/** The column id for the row name list view column */
 	static const FName RowNameColumnId;
+
+	/** The column id for the row number list view column */
+	static const FName RowNumberColumnId;
+
+	/** The column id for the drag drop column */
+	static const FName RowDragDropColumnId;
 };

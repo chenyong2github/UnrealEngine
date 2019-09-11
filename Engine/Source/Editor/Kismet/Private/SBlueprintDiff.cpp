@@ -24,7 +24,8 @@
 #include "WidgetBlueprint.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Toolkits/AssetEditorManager.h"
+
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SBlueprintDif"
 
@@ -909,7 +910,7 @@ void SBlueprintDiff::Construct( const FArguments& InArgs)
 	{
 		WeakParentWindow = InArgs._ParentWindow;
 
-		AssetEditorCloseDelegate = FAssetEditorManager::Get().OnAssetEditorRequestClose().AddSP(this, &SBlueprintDiff::OnCloseAssetEditor);
+		AssetEditorCloseDelegate = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorRequestClose().AddSP(this, &SBlueprintDiff::OnCloseAssetEditor);
 	}
 
 	FToolBarBuilder ToolbarBuilder(TSharedPtr< const FUICommandList >(), FMultiBoxCustomization::None);
@@ -1049,7 +1050,7 @@ SBlueprintDiff::~SBlueprintDiff()
 {
 	if (AssetEditorCloseDelegate.IsValid())
 	{
-		FAssetEditorManager::Get().OnAssetEditorRequestClose().Remove(AssetEditorCloseDelegate);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorRequestClose().Remove(AssetEditorCloseDelegate);
 	}
 }
 
@@ -1062,7 +1063,7 @@ void SBlueprintDiff::OnCloseAssetEditor(UObject* Asset, EAssetEditorCloseReason 
 
 		if (AssetEditorCloseDelegate.IsValid())
 		{
-			FAssetEditorManager::Get().OnAssetEditorRequestClose().Remove(AssetEditorCloseDelegate);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorRequestClose().Remove(AssetEditorCloseDelegate);
 		}
 
 		if (WeakParentWindow.IsValid())

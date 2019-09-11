@@ -35,7 +35,7 @@ EditorLevelUtils.cpp: Editor-specific level management routines
 
 #include "BusyCursor.h"
 #include "LevelUtils.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 
 #include "ScopedTransaction.h"
 #include "ActorEditorUtils.h"
@@ -670,10 +670,8 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWo
 
 bool UEditorLevelUtils::RemoveLevelFromWorld(ULevel* InLevel)
 {
-	if (GEditor->Layers.IsValid())
-	{
-		GEditor->Layers->RemoveLevelLayerInformation(InLevel);
-	}
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+	Layers->RemoveLevelLayerInformation(InLevel);
 
 	GEditor->CloseEditedWorldAssets(CastChecked<UWorld>(InLevel->GetOuter()));
 
@@ -901,7 +899,7 @@ void UEditorLevelUtils::SetLevelVisibilityTemporarily(ULevel* Level, bool bShoul
 	}
 }
 
-void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible, bool bForceLayersVisible, ELevelVisibilityDirtyMode ModifyMode)
+void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldBeVisible, const bool bForceLayersVisible, const ELevelVisibilityDirtyMode ModifyMode)
 {
 	// Nothing to do
 	if (Level == NULL)
@@ -914,7 +912,7 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 	// Also, intentionally do not force layers visible for the p-level
 	if (Level->IsPersistentLevel())
 	{
-		//create a transaction so we can undo the visibilty toggle
+		// Create a transaction so we can undo the visibility toggle
 		const FScopedTransaction Transaction(LOCTEXT("ToggleLevelVisibility", "Toggle Level Visibility"));
 		if (Level->bIsVisible != bShouldBeVisible && ModifyMode == ELevelVisibilityDirtyMode::ModifyOnChange)
 		{
@@ -971,7 +969,6 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 		}
 
 		Level->GetWorld()->OnLevelsChanged().Broadcast();
-		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 	}
 	else
 	{
@@ -1000,9 +997,10 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 			StreamingLevel->SetShouldBeVisibleInEditor(bShouldBeVisible);
 		}
 
-		if (!bShouldBeVisible && GEditor->Layers.IsValid())
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		if (!bShouldBeVisible)
 		{
-			GEditor->Layers->RemoveLevelLayerInformation(Level);
+			Layers->RemoveLevelLayerInformation(Level);
 		}
 
 		// UpdateLevelStreaming sets Level->bIsVisible directly, so we need to make sure it gets saved to the transaction buffer.
@@ -1037,9 +1035,9 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 			check(Level->bIsVisible == bShouldBeVisible);
 		}
 
-		if (bShouldBeVisible && GEditor->Layers.IsValid())
+		if (bShouldBeVisible)
 		{
-			GEditor->Layers->AddLevelLayerInformation(Level);
+			Layers->AddLevelLayerInformation(Level);
 		}
 
 		// Force the level's layers to be visible, if desired
@@ -1054,8 +1052,7 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 			{
 				bool bModified = false;
 				if (bShouldBeVisible && bForceLayersVisible &&
-					GEditor->Layers.IsValid() &&
-					GEditor->Layers->IsActorValidForLayer(Actor))
+					Layers->IsActorValidForLayer(Actor))
 				{
 					// Make the actor layer visible, if it's not already.
 					if (Actor->bHiddenEdLayer)
@@ -1069,7 +1066,7 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 					}
 
 					const bool bIsVisible = true;
-					GEditor->Layers->SetLayersVisibility(Actor->Layers, bIsVisible);
+					Layers->SetLayersVisibility(Actor->Layers, bIsVisible);
 				}
 
 				// Set the visibility of each actor in the streaming level
@@ -1094,17 +1091,14 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 		}
 	}
 
-	FEditorDelegates::RefreshLayerBrowser.Broadcast();
+	Level->bIsVisible = bShouldBeVisible;
 
-	// Notify the Scene Outliner, as new Actors may be present in the world.
-	GEngine->BroadcastLevelActorListChanged();
-
-	// If the level is being hidden, deselect actors and surfaces that belong to this level.
+	// If the level is being hidden, deselect actors and surfaces that belong to this level. (Part 1/2)
 	if (!bShouldBeVisible && ModifyMode == ELevelVisibilityDirtyMode::ModifyOnChange)
 	{
 		USelection* SelectedActors = GEditor->GetSelectedActors();
 		SelectedActors->Modify();
-		TArray<AActor*>& Actors = Level->Actors;
+		const TArray<AActor*>& Actors = Level->Actors;
 		for (int32 ActorIndex = 0; ActorIndex < Actors.Num(); ++ActorIndex)
 		{
 			AActor* Actor = Actors[ActorIndex];
@@ -1114,17 +1108,80 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 			}
 		}
 
-		DeselectAllSurfacesInLevel(Level);
-
-		// Tell the editor selection status was changed.
-		GEditor->NoteSelectionChange();
+		UEditorLevelUtils::DeselectAllSurfacesInLevel(Level);
 	}
-
-	Level->bIsVisible = bShouldBeVisible;
 
 	if (Level->bIsLightingScenario)
 	{
 		Level->OwningWorld->PropagateLightingScenarioChange();
+	}
+}
+
+void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, const bool bShouldBeVisible, const bool bForceLayersVisible, const ELevelVisibilityDirtyMode ModifyMode)
+{
+	TArray<ULevel*> Levels({ Level });
+	TArray<bool> bTheyShouldBeVisible({ bShouldBeVisible });
+	SetLevelsVisibility(Levels, bTheyShouldBeVisible, bForceLayersVisible, ModifyMode);
+}
+
+void UEditorLevelUtils::SetLevelsVisibility(const TArray<ULevel*>& Levels, const TArray<bool>& bTheyShouldBeVisible, const bool bForceLayersVisible, const ELevelVisibilityDirtyMode ModifyMode)
+{
+	// Nothing to do
+	if (Levels.Num() == 0 || Levels.Num() != bTheyShouldBeVisible.Num())
+	{
+		return;
+	}
+
+	// Perform SetLevelVisibilityNoGlobalUpdateInternal for each Level
+	for (int32 LevelIndex = 0; LevelIndex < Levels.Num(); ++LevelIndex)
+	{
+		ULevel* Level = Levels[LevelIndex];
+		if (Level)
+		{
+			SetLevelVisibilityNoGlobalUpdateInternal(Level, bTheyShouldBeVisible[LevelIndex], bForceLayersVisible, ModifyMode);
+		}
+	}
+
+	// If at least 1 persistent level, then RedrawAllViewports.Broadcast
+	for (int32 LevelIndex = 0; LevelIndex < Levels.Num(); ++LevelIndex)
+	{
+		ULevel* Level = Levels[LevelIndex];
+		if (Level && Level->IsPersistentLevel())
+		{
+			FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+			break;
+		}
+	}
+
+	// If at least 1 level becomes visible, force layers to update their actor status
+	// Otherwise, changes made on the layers for actors belonging to a non-visible level would not work
+	{
+		for (int32 LevelIndex = 0; LevelIndex < bTheyShouldBeVisible.Num(); ++LevelIndex)
+		{
+			if (bTheyShouldBeVisible[LevelIndex])
+			{
+				// Equivalent to GEditor->GetEditorSubsystem<ULayersSubsystem>()->UpdateAllActorsVisibilityDefault();
+				FEditorDelegates::RefreshLayerBrowser.Broadcast();
+				break;
+			}
+		}
+	}
+
+	// Notify the Scene Outliner, as new Actors may be present in the world.
+	GEngine->BroadcastLevelActorListChanged();
+
+	// If the level is being hidden, deselect actors and surfaces that belong to this level. (Part 2/2)
+	if (ModifyMode == ELevelVisibilityDirtyMode::ModifyOnChange)
+	{
+		for (int32 LevelIndex = 0; LevelIndex < bTheyShouldBeVisible.Num(); ++LevelIndex)
+		{
+			if (!bTheyShouldBeVisible[LevelIndex])
+			{
+				// Tell the editor selection status was changed.
+				GEditor->NoteSelectionChange();
+				break;
+			}
+		}
 	}
 }
 

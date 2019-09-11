@@ -17,8 +17,9 @@
 #include "Profile/MediaProfile.h"
 #include "Profile/MediaProfileSettings.h"
 #include "PropertyCustomizationHelpers.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "UI/MediaFrameworkUtilitiesEditorStyle.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "MediaProfileEditor"
 
@@ -34,7 +35,7 @@ struct FMediaProfileMenuEntryImpl
 			{
 				if (UMediaProfile* MediaProfile = IMediaProfileManager::Get().GetCurrentMediaProfile())
 				{
-					FAssetEditorManager::Get().OpenEditorForAsset(MediaProfile);
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(MediaProfile);
 				}
 			}),
 			FCanExecuteAction::CreateLambda([] { return IMediaProfileManager::Get().GetCurrentMediaProfile() != nullptr; }),
@@ -74,7 +75,7 @@ struct FMediaProfileMenuEntryImpl
 		{
 			GetMutableDefault<UMediaProfileEditorSettings>()->SetUserMediaProfile(NewAsset);
 			IMediaProfileManager::Get().SetCurrentMediaProfile(NewAsset);
-			FAssetEditorManager::Get().OpenEditorForAsset(NewAsset);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
 		}
 	}
 

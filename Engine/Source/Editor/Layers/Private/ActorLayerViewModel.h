@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
 #include "EditorUndoClient.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 
 class AActor;
 class UEditorEngine;
@@ -25,12 +25,11 @@ public:
 	 *	Factory method which creates a new FActorLayerViewModel object
 	 *
 	 *	@param	InLayer			The layer wrap
-	 *	@param	InWorldLayers	The layer management logic object
 	 *	@param	InEditor		The UEditorEngine to use
 	 */
-	static TSharedRef< FActorLayerViewModel > Create( const TWeakObjectPtr< ULayer >& InLayer, const TArray< TWeakObjectPtr< AActor > >& InActors, const TSharedRef< ILayers >& InWorldLayers, const TWeakObjectPtr< UEditorEngine >& InEditor )
+	static TSharedRef< FActorLayerViewModel > Create( const TWeakObjectPtr< ULayer >& InLayer, const TArray< TWeakObjectPtr< AActor > >& InActors, const TWeakObjectPtr< UEditorEngine >& InEditor )
 	{
-		const TSharedRef< FActorLayerViewModel > NewLayer( new FActorLayerViewModel( InLayer, InActors, InWorldLayers, InEditor ) );
+		const TSharedRef< FActorLayerViewModel > NewLayer( new FActorLayerViewModel( InLayer, InActors, InEditor ) );
 		NewLayer->Initialize();
 
 		return NewLayer;
@@ -62,10 +61,9 @@ private:
 	 *	FActorLayerViewModel Constructor
 	 *
 	 *	@param	InLayer			The Layer to represent
-	 *	@param	InWorldLayers	The layer management logic object
 	 *	@param	InEditor		The UEditorEngine to use
 	 */
-	FActorLayerViewModel( const TWeakObjectPtr< ULayer >& InLayer, const TArray< TWeakObjectPtr< AActor > >& InActors, const TSharedRef< ILayers >& InWorldLayers, const TWeakObjectPtr< UEditorEngine >& InEditor );
+	FActorLayerViewModel( const TWeakObjectPtr< ULayer >& InLayer, const TArray< TWeakObjectPtr< AActor > >& InActors, const TWeakObjectPtr< UEditorEngine >& InEditor );
 
 	/**	Initializes the FActorLayerViewModel for use */
 	void Initialize();
@@ -78,9 +76,6 @@ private:
 
 
 private:
-
-	/** The layer management logic object */
-	const TSharedRef< ILayers > WorldLayers;
 
 	/** The UEditorEngine to use */
 	const TWeakObjectPtr< UEditorEngine > Editor;

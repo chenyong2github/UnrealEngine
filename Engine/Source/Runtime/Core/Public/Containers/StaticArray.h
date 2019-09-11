@@ -93,6 +93,7 @@ public:
 		return Result;
 	}
 
+
 private:
 
 	struct alignas(Alignment) TArrayStorageElementAligned
@@ -123,6 +124,46 @@ private:
 	};
 
 	TArrayStorage Storage;
+
+
+public:
+
+	template <typename StorageElementType>
+	struct FRangedForIterator
+	{
+		explicit FRangedForIterator(StorageElementType* InPtr)
+			: Ptr(InPtr)
+		{}
+
+		auto& operator*() const
+		{
+			return Ptr->Element;
+		}
+
+		FRangedForIterator& operator++()
+		{
+			++Ptr;
+			return *this;
+		}
+
+		friend bool operator!=(const FRangedForIterator& A, const FRangedForIterator& B)
+		{
+			return A.Ptr != B.Ptr;
+		}
+
+	private:
+		StorageElementType* Ptr;
+	};
+
+	using RangedForIteratorType = FRangedForIterator<TArrayStorageElementAligned>;
+	using RangedForConstIteratorType = FRangedForIterator<const TArrayStorageElementAligned>;
+
+	/** STL-like iterators to enable range-based for loop support. */
+	FORCEINLINE RangedForIteratorType		begin()			{ return RangedForIteratorType(Storage.Elements); }
+	FORCEINLINE RangedForConstIteratorType	begin() const	{ return RangedForConstIteratorType(Storage.Elements); }
+	FORCEINLINE RangedForIteratorType		end()			{ return RangedForIteratorType(Storage.Elements + NumElements); }
+	FORCEINLINE RangedForConstIteratorType	end() const		{ return RangedForConstIteratorType(Storage.Elements + NumElements); }
+
 };
 
 /** Creates a static array filled with the specified value. */

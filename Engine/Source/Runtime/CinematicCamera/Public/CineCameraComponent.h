@@ -307,6 +307,7 @@ protected:
 	
 	/// @endcond
 	
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostInitProperties() override;
 	virtual void OnRegister() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -344,9 +345,13 @@ protected:
 	UPROPERTY(config)
 	TArray<FNamedLensPreset> LensPresets;
 
+	/** Deprecated. See DefaultFilmbackPreset */
+	UPROPERTY(config)
+	FString DefaultFilmbackPresetName_DEPRECATED;
+
 	/** Name of the default filmback preset */
 	UPROPERTY(config)
-	FString DefaultFilmbackPresetName;
+	FString DefaultFilmbackPreset;
 
 	/** Name of the default lens preset */
 	UPROPERTY(config)

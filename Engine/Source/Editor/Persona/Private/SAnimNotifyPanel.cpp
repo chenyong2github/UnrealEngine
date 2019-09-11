@@ -12,7 +12,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Animation/AnimSequence.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/MenuStack.h"
 #include "Fonts/FontMeasure.h"
@@ -43,6 +43,7 @@
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
 #include "SSkeletonAnimNotifies.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 // Track Panel drawing
 const float NotificationTrackHeight = 20.0f;
@@ -3165,7 +3166,7 @@ void SAnimNotifyTrack::OnManageNotifies()
 
 void SAnimNotifyTrack::OnOpenNotifySource(UBlueprint* InSourceBlueprint) const
 {
-	FAssetEditorManager::Get().OpenEditorForAsset(InSourceBlueprint);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(InSourceBlueprint);
 }
 
 bool SAnimNotifyTrack::IsSingleNodeSelected()

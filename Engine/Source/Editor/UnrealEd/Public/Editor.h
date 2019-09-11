@@ -16,7 +16,6 @@
 #include "Subsystems/ImportSubsystem.h"
 
 
-
 #define CAMERA_ZOOM_DAMPEN			200.f
 
 class AStaticMeshActor;
