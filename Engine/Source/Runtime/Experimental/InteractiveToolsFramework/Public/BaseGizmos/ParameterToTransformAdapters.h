@@ -4,7 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "BaseGizmos/GizmoInterfaces.h"
-#include "BaseGizmos/GizmoComponents.h"
+#include "BaseGizmos/ParameterSourcesFloat.h"
+#include "BaseGizmos/ParameterSourcesVec2.h"
 #include "ParameterToTransformAdapters.generated.h"
 
 

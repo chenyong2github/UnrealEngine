@@ -17,13 +17,16 @@ const FSceneView* GizmoRenderingUtil::FindActiveSceneView(
 		if (VisibilityMap & (1 << ViewIndex))
 		{
 			const FSceneView* View = Views[ViewIndex];
-			if (FirstValidView == nullptr)
+			if (View != nullptr)
 			{
-				FirstValidView = View;
-			}
-			if (View->IsPerspectiveProjection())
-			{
-				GizmoControlView = View;
+				if (FirstValidView == nullptr)
+				{
+					FirstValidView = View;
+				}
+				if (View->IsPerspectiveProjection())
+				{
+					GizmoControlView = View;
+				}
 			}
 		}
 	}

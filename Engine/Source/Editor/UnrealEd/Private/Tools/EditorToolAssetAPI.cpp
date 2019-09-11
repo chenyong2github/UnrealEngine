@@ -17,7 +17,7 @@
 
 FString FEditorToolAssetAPI::GetActiveAssetFolderPath()
 {
-	check(false);  	// [RMS] this only works if we have an asset selected!
+	check(false);  	// this only works if we have an asset selected!
 
 	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
 
