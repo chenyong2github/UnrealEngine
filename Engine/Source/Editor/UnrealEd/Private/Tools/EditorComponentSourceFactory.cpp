@@ -41,7 +41,8 @@ FStaticMeshComponentTarget::CommitMesh( const FCommitter& Committer )
 bool
 FStaticMeshComponentTargetFactory::CanBuild(UActorComponent* Component)
 {
-	return Component != nullptr;
+	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
+	return StaticMeshComponent != nullptr;
 }
 
 TUniquePtr< FPrimitiveComponentTarget >
