@@ -1,0 +1,36 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+
+class FPlasticSourceControlSettings
+{
+public:
+	/** Get/Set the Plastic Binary Path */
+	FString GetBinaryPath() const;
+	bool SetBinaryPath(const FString& InString);
+
+	/** Enable an asynchronous "Update Status" at Editor Startup (default is no, can take a long time). */
+	bool UpdateStatusAtStartup() const;
+	void SetUpdateStatusAtStartup(const bool bInUpdateStatusAtStartup);
+
+	/** Load settings from ini file */
+	void LoadSettings();
+
+	/** Save settings to ini file */
+	void SaveSettings() const;
+
+private:
+	/** A critical section for settings access */
+	mutable FCriticalSection CriticalSection;
+
+	/** Plastic binary path */
+	FString BinaryPath;
+
+	/** Enable an asynchronous "Update Status" at Editor Startup (default is no).
+	 * This does not work well with very big projects where this operation could take dozens of seconds
+	 * preventing the project to have any source control support during this time.
+	*/
+	bool bUpdateStatusAtStartup;
+};
