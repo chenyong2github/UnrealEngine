@@ -179,6 +179,9 @@ public:
 	
 	// Move instances based on a component that has just been moved.
 	void MoveInstancesForMovedComponent(UActorComponent* InComponent);
+
+	// Move instances that are owned by foliage actor.
+	void MoveInstancesForMovedOwnedActors(AActor* InActor);
 	
 	// Returns a map of Static Meshes and their placed instances attached to a component.
 	FOLIAGE_API TMap<UFoliageType*, TArray<const FFoliageInstancePlacementInfo*>> GetInstancesForComponent(UActorComponent* InComponent);
@@ -240,6 +243,8 @@ public:
 
 	/* Fix up a duplicate IFA */
 	void RepairDuplicateIFA(AInstancedFoliageActor* InDuplicateIFA);
+
+	void RemoveBaseComponentOnFoliageTypeInstances(UFoliageType* FoliageType);
 #endif	//WITH_EDITOR
 
 private:

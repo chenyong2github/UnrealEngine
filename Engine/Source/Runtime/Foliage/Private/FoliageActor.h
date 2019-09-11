@@ -11,9 +11,11 @@ struct FFoliageActor : public FFoliageImpl
 
 	TArray<AActor*> ActorInstances;
 	UClass* ActorClass;
+	bool bShouldAttachToBaseComponent;
 	
 	FFoliageActor()
 		: ActorClass(nullptr)
+		, bShouldAttachToBaseComponent(true)
 	{
 	}
 
@@ -45,6 +47,9 @@ struct FFoliageActor : public FFoliageImpl
 	void Reapply(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, bool bPostLoad = false);
 	AActor* Spawn(AInstancedFoliageActor* IFA, const FFoliageInstance& Instance);
 	TArray<AActor*> GetActorsFromSelectedIndices(const TSet<int32>& SelectedIndices) const;
+	virtual bool ShouldAttachToBaseComponent() const override { return bShouldAttachToBaseComponent; }
+	bool UpdateInstanceFromActor(AInstancedFoliageActor* IFA, AActor* InActor, FFoliageInfo& FoliageInfo);
+	void GetInvalidInstances(TArray<int32>& InvalidInstances);
 
 private:
 	void UpdateActorTransforms(const TArray<FFoliageInstance>& Instances);
