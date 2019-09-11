@@ -1092,6 +1092,18 @@ void FProjectedShadowInfo::SetupShadowUniformBuffers(FRHICommandListImmediate& R
 	}
 }
 
+void FProjectedShadowInfo::TransitionCachedShadowmap(FRHICommandListImmediate& RHICmdList, FScene* Scene)
+{
+	if (CacheMode == SDCM_MovablePrimitivesOnly)
+	{
+		const FCachedShadowMapData& CachedShadowMapData = Scene->CachedShadowMaps.FindChecked(GetLightSceneInfo().Id);
+		if (CachedShadowMapData.bCachedShadowMapHasPrimitives && CachedShadowMapData.ShadowMap.IsValid())
+		{
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, CachedShadowMapData.ShadowMap.DepthTarget->GetRenderTargetItem().ShaderResourceTexture);
+		}
+	}
+}
+
 
 void FProjectedShadowInfo::RenderDepthInner(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer, FBeginShadowRenderPassFunction BeginShadowRenderPass, bool bDoParallelDispatch)
 {
@@ -1400,6 +1412,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 						*LightNameWithLevel);
 				}
 				ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
+				ProjectedShadowInfo->TransitionCachedShadowmap(RHICmdList, Scene);
 				ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, true);
 			}
 		}
@@ -1436,6 +1449,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 				}
 
 				ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
+				ProjectedShadowInfo->TransitionCachedShadowmap(RHICmdList, Scene);
 				BeginShadowRenderPass(RHICmdList, ShadowIndex == 0);
 				ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, false);
 				RHICmdList.EndRenderPass();
