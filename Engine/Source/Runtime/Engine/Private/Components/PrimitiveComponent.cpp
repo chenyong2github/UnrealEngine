@@ -1429,6 +1429,15 @@ void UPrimitiveComponent::SetLightAttachmentsAsGroup(bool bInLightAttachmentsAsG
 	}
 }
 
+void UPrimitiveComponent::SetExcludeFromLightAttachmentGroup(bool bInExcludeFromLightAttachmentGroup)
+{
+	if (bExcludeFromLightAttachmentGroup != bInExcludeFromLightAttachmentGroup)
+	{
+		bExcludeFromLightAttachmentGroup = bInExcludeFromLightAttachmentGroup;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPrimitiveComponent::SetSingleSampleShadowFromStationaryLights(bool bNewSingleSampleShadowFromStationaryLights)
 {
 	if (bNewSingleSampleShadowFromStationaryLights != bSingleSampleShadowFromStationaryLights)
@@ -3255,6 +3264,12 @@ bool UPrimitiveComponent::ComponentOverlapMultiImpl(TArray<struct FOverlapResult
 
 const UPrimitiveComponent* UPrimitiveComponent::GetLightingAttachmentRoot() const
 {
+	// Exclude  from light attachment group whatever the parent says
+	if (bExcludeFromLightAttachmentGroup)
+	{
+		return nullptr;
+	}
+
 	const USceneComponent* CurrentHead = this;
 
 	while (CurrentHead)
