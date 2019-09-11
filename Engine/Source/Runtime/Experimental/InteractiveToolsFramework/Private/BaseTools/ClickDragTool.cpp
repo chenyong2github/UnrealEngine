@@ -38,9 +38,9 @@ void UClickDragTool::Setup()
 }
 
 
-bool UClickDragTool::CanBeginClickDragSequence(const FInputDeviceRay& ClickPos)
+FInputRayHit UClickDragTool::CanBeginClickDragSequence(const FInputDeviceRay& ClickPos)
 {
-	return true;
+	return FInputRayHit(0.0f);
 }
 
 

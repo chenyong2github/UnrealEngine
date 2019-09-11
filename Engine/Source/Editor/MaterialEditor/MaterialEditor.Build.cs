@@ -42,6 +42,7 @@ public class MaterialEditor : ModuleRules
                 "AdvancedPreviewScene",
                 "Projects",
                 "AssetRegistry",
+				"ToolMenus",
 				"MainFrame",
 			}
 		);

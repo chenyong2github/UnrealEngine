@@ -15,9 +15,10 @@
 #include "Editor/UnrealEdEngine.h"
 #include "UnrealEdGlobals.h"
 #include "EditorStyleSet.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "AssetRegistryModule.h"
 #include "EnvironmentQuery/EnvQuery.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "EnvironmentQueryEditor"
 
@@ -230,7 +231,7 @@ void SEnvQueryProfiler::OnItemDoubleClicked(TSharedPtr<SEnvQueryProfiler::FStatD
 	UObject* QueryOb = FindQueryObjectByName(Item->QueryName);
 	if (QueryOb)
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(QueryOb);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(QueryOb);
 	}
 }
 

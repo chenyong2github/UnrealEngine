@@ -46,6 +46,7 @@ FImgMediaPlayer::FImgMediaPlayer(IMediaEventSink& InEventSink, const TSharedRef<
 	, SelectedVideoTrack(INDEX_NONE)
 	, ShouldLoop(false)
 	, GlobalCache(InGlobalCache)
+	, RequestFrameHasRun(true)
 { }
 
 
@@ -305,6 +306,31 @@ void FImgMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan /*Timecode*/)
 	if (SelectedVideoTrack == 0)
 	{
 		Loader->RequestFrame(CurrentTime, CurrentRate, ShouldLoop);
+	}
+	RequestFrameHasRun = true;
+}
+
+void FImgMediaPlayer::ProcessVideoSamples()
+{
+	// Did we already run this frame?
+	if (RequestFrameHasRun)
+	{
+		RequestFrameHasRun = false;
+	}
+	else
+	{
+		// We are blocked... run stuff here as it will not get run normally.
+		if (Loader.IsValid())
+		{
+			if (SelectedVideoTrack == 0)
+			{
+				Loader->RequestFrame(CurrentTime, CurrentRate, ShouldLoop);
+			}
+		}
+		if (Scheduler.IsValid())
+		{
+			Scheduler->TickFetch(FTimespan::Zero(), FTimespan::Zero());
+		}
 	}
 }
 

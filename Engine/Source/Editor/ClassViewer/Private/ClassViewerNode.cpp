@@ -30,6 +30,7 @@ FClassViewerNode::FClassViewerNode(UClass* InClass)
 	}
 
 	bPassesFilter = false;
+	bPassesFilterRegardlessTextFilter = false;
 }
 
 FClassViewerNode::FClassViewerNode(const FString& InClassName, const FString& InClassDisplayName)
@@ -37,6 +38,7 @@ FClassViewerNode::FClassViewerNode(const FString& InClassName, const FString& In
 	ClassName = MakeShareable(new FString(InClassName));
 	ClassDisplayName = MakeShareable(new FString(InClassDisplayName));
 	bPassesFilter = false;
+	bPassesFilterRegardlessTextFilter = false;
 
 	Class = nullptr;
 	Blueprint = nullptr;
@@ -47,6 +49,7 @@ FClassViewerNode::FClassViewerNode( const FClassViewerNode& InCopyObject)
 	ClassName = InCopyObject.ClassName;
 	ClassDisplayName = InCopyObject.ClassDisplayName;
 	bPassesFilter = InCopyObject.bPassesFilter;
+	bPassesFilterRegardlessTextFilter = InCopyObject.bPassesFilterRegardlessTextFilter;
 
 	Class = InCopyObject.Class;
 	Blueprint = InCopyObject.Blueprint;

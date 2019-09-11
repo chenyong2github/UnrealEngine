@@ -50,16 +50,58 @@ namespace ProxyLOD
 	* @param MaxStretch           The maximum amount of stretch between (0 - none and 1 - any)
 	* @param MaxChartNumber       Maximum number of charts required for the atlas.  If this is 0, will be parameterized solely on stretch. 
 	*                             Note, not a hard limit - isochart will stop when a valid charting is found that is greater or equal to this number.
+	* @param bComputeIMTNormal    Compute a metric tensor from the normals.  Generally not a good thing.
+	* @param StatusCallBack       Allows for termination of the UV generation.
 	* @param MaxStretchOut        Actual max stretch used in computing uvs
 	* @param NumChartsOut         Number of charts actually generated
 	*
 	* @return 'true' if the UV generation succeeded,  'false' if it failed.
 	*/
-	bool GenerateUVs(FVertexDataMesh& InOutMesh, const FTextureAtlasDesc& TextureAtlasDesc, const bool VertexColorParts,
-												 const float MaxStretch, const size_t MaxChartNumber, 
-		                                         const bool bComputeIMTFromVertexNormal,
-		                                         std::function<HRESULT __cdecl(float percentComplete)> StatusCallBack,
-		                                         float* MaxStretchOut = NULL, size_t* NumChartsOut = NULL);
+	bool GenerateUVs(FVertexDataMesh& InOutMesh, 
+		             const FTextureAtlasDesc& TextureAtlasDesc, 
+		             const bool bVertexColorParts,
+				     const float MaxStretch, 
+		             const size_t MaxChartNumber, 
+		             const bool bComputeIMTNormal,
+		             std::function<HRESULT __cdecl(float percentComplete)> StatusCallBack,
+		             float* MaxStretchOut = NULL, 
+		             size_t* NumChartsOut = NULL);
+
+
+	/**
+	* Lower-level entry point:
+	* Method that generates new UVs inconstant with the mesh defined by the VertexBuffer/IndexBuffer 
+	* according to the parameters specified in the FTextureAtlasDesc
+	* The underlying code uses Isometeric approach (Iso-Charts) in UV generation.
+	* This assumes that the caller has already generated the mesh adjacency information. 
+	*
+	*
+	*
+	* @param InTextureAtlasDesc   Description of the texel resolution of the desired texture atlas.
+	* @param VertexBuffer         Positions of vertices
+	* @param IndexBuffer          Triangle definitions
+	* @param AdjacencyBuffer      3 entries for each face, each entry is the face index of the face that is adjacent to the given face. -1 means no face.
+	* @param StatusCallBack       Allows for termination of the UV generation.
+	* @param UVVertexBuffer       Resulting UVs
+	* @param UVIndexBuffer        Connectivity for the UVs
+	* @param VertexRemapArray     Array that remaps the vertices split by the UV generation to the source vertices.
+	* @param MaxStretch           On Input, The maximum amount of stretch between (0 - none and 1 - any), on Output the actual max stretch used.
+	* @param MaxChartNumber       On Input Maximum number of charts required for the atlas.  If this is 0, will be parameterized solely on stretch.
+	*                             Note, not a hard limit - isochart will stop when a valid charting is found that is greater or equal to this number.
+	*                             On Output: Number of charts actually generated
+	*
+	* @return 'true' if the UV generation succeeded,  'false' if it failed.
+	*/
+	bool GenerateUVs(const FTextureAtlasDesc& TextureAtlasDesc,
+		             const TArray<FVector>&   VertexBuffer,
+		             const TArray<int32>&     IndexBuffer,
+		             const TArray<int32>&     AdjacencyBuffer,
+		             TFunction<bool(float)>&  Callback,
+		             TArray<FVector2D>&       UVVertexBuffer,
+		             TArray<int32>&           UVIndexBuffer,
+		             TArray<int32>&           VertexRemapArray,
+		             float&                   MaxStretch,
+		             int32&                   NumCharts);
 
 	/**
 	* Generate adjacency data needed for the mesh, additionally this may alter the mesh in attempting to 

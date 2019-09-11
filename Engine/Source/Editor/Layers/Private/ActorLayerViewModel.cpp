@@ -6,10 +6,8 @@
 
 #define LOCTEXT_NAMESPACE "Layer"
 
-
-FActorLayerViewModel::FActorLayerViewModel( const TWeakObjectPtr< ULayer >& InLayer, const TArray< TWeakObjectPtr< AActor > >& InActors, const TSharedRef< ILayers >& InWorldLayers, const TWeakObjectPtr< UEditorEngine >& InEditor )
-	: WorldLayers( InWorldLayers )
-	, Editor( InEditor )
+FActorLayerViewModel::FActorLayerViewModel( const TWeakObjectPtr< ULayer >& InLayer, const TArray< TWeakObjectPtr< AActor > >& InActors, const TWeakObjectPtr< UEditorEngine >& InEditor )
+	: Editor( InEditor )
 	, Layer( InLayer )
 {
 	Actors.Append( InActors );
@@ -18,10 +16,11 @@ FActorLayerViewModel::FActorLayerViewModel( const TWeakObjectPtr< ULayer >& InLa
 
 void FActorLayerViewModel::Initialize()
 {
-	WorldLayers->OnLayersChanged().AddSP( this, &FActorLayerViewModel::OnLayersChanged );
-
 	if ( Editor.IsValid() )
 	{
+		ULayersSubsystem* WorldLayers = Editor->GetEditorSubsystem<ULayersSubsystem>();
+		WorldLayers->OnLayersChanged().AddSP(this, &FActorLayerViewModel::OnLayersChanged);
+
 		Editor->RegisterForUndo(this);
 	}
 }
@@ -29,10 +28,11 @@ void FActorLayerViewModel::Initialize()
 
 FActorLayerViewModel::~FActorLayerViewModel()
 {
-	WorldLayers->OnLayersChanged().RemoveAll( this );
-
 	if ( Editor.IsValid() )
 	{
+		ULayersSubsystem* WorldLayers = Editor->GetEditorSubsystem<ULayersSubsystem>();
+		WorldLayers->OnLayersChanged().RemoveAll(this);
+
 		Editor->UnregisterForUndo(this);
 	}
 }

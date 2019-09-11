@@ -10,7 +10,7 @@
 #include "NiagaraCustomVersion.h"
 #include "ScopedTransaction.h"
 #include "EdGraphSchema_Niagara.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SEditableTextBoxWithVerification.h"
@@ -79,15 +79,16 @@ void UNiagaraNodeOutput::PinNameTextCommitted(const FText& Text, ETextCommit::Ty
 	}
 }
 
-void UNiagaraNodeOutput::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UNiagaraNodeOutput::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	Super::GetContextMenuActions(Context);
-	if (Context.Pin != nullptr)
+	Super::GetNodeContextMenuActions(Menu, Context);
+
+	if (Context->Pin != nullptr)
 	{
-		Context.MenuBuilder->BeginSection("EdGraphSchema_NiagaraPinActions", LOCTEXT("EditPinMenuHeader", "Edit Pin"));
+		FToolMenuSection& Section = Menu->AddSection("EdGraphSchema_NiagaraPinActions", LOCTEXT("EditPinMenuHeader", "Edit Pin"));
 		
 		{
-			UEdGraphPin* Pin = const_cast<UEdGraphPin*>(Context.Pin);
+			UEdGraphPin* Pin = const_cast<UEdGraphPin*>(Context->Pin);
 			TSharedRef<SWidget> RenameWidget =
 				SNew(SBox)
 				.WidthOverride(100)
@@ -98,16 +99,16 @@ void UNiagaraNodeOutput::GetContextMenuActions(const FGraphNodeContextMenuBuilde
 					.OnVerifyTextChanged_UObject(this, &UNiagaraNodeOutput::VerifyPinNameTextChanged, Pin)
 					.OnTextCommitted_UObject(const_cast<UNiagaraNodeOutput*>(this), &UNiagaraNodeOutput::PinNameTextCommitted, Pin)
 				];
-			Context.MenuBuilder->AddWidget(RenameWidget, LOCTEXT("NameMenuItem", "Name"));
+			Section.AddEntry(FToolMenuEntry::InitWidget("RenameWidget", RenameWidget, LOCTEXT("NameMenuItem", "Name")));
 		}
 
-		
 		{
-			Context.MenuBuilder->AddMenuEntry(
+			Section.AddMenuEntry(
+				"RemoveDynamicPin",
 				LOCTEXT("RemoveDynamicPin", "Remove pin"),
 				LOCTEXT("RemoveDynamicPinToolTip", "Remove this pin and any connections."),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateUObject(const_cast<UNiagaraNodeOutput*>(this), &UNiagaraNodeOutput::RemoveOutputPin, const_cast<UEdGraphPin*>(Context.Pin))));
+				FUIAction(FExecuteAction::CreateUObject(const_cast<UNiagaraNodeOutput*>(this), &UNiagaraNodeOutput::RemoveOutputPin, const_cast<UEdGraphPin*>(Context->Pin))));
 		}
 	}
 }

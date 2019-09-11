@@ -18,5 +18,14 @@ public class OutputLog : ModuleRules
                 "DesktopPlatform"
 			}
 		);
-	}
+
+		if (Target.bBuildEditor)
+        {
+            PrivateDependencyModuleNames.AddRange(
+				new string[] {
+                        "UnrealEd"
+				}
+			);
+        }
+    }
 }

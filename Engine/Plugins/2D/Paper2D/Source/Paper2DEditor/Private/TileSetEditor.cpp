@@ -14,6 +14,7 @@
 #include "TileSetEditor/TileSetDetailsCustomization.h"
 #include "PaperEditorShared/SpriteGeometryEditCommands.h"
 #include "IDetailsView.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "TileSetEditor"
 
@@ -167,7 +168,7 @@ void FTileSetEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& 
 
 void FTileSetEditor::InitTileSetEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, class UPaperTileSet* InitTileSet)
 {
-	FAssetEditorManager::Get().CloseOtherEditors(InitTileSet, this);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseOtherEditors(InitTileSet, this);
 	TileSetBeingEdited = InitTileSet;
 
 	TileSetViewport = SNew(STileSetSelectorViewport, InitTileSet, /*EdMode=*/ nullptr);

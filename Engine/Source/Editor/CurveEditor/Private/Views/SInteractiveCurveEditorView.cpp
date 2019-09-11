@@ -134,7 +134,7 @@ FSlateColor SInteractiveCurveEditorView::GetCurveCaptionColor() const
 	return BackgroundTint.CopyWithNewOpacity(1.f);
 }
 
-void SInteractiveCurveEditorView::GetGridLinesX(TSharedRef<FCurveEditor> CurveEditor, TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const
+void SInteractiveCurveEditorView::GetGridLinesX(TSharedRef<const FCurveEditor> CurveEditor, TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels) const
 {
 	CurveEditor->GetGridLinesX(MajorGridLines, MinorGridLines, MajorGridLabels);
 
@@ -156,9 +156,17 @@ void SInteractiveCurveEditorView::GetGridLinesX(TSharedRef<FCurveEditor> CurveEd
 	}
 }
 
-void SInteractiveCurveEditorView::GetGridLinesY(TSharedRef<FCurveEditor> CurveEditor, TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const
+void SInteractiveCurveEditorView::GetGridLinesY(TSharedRef<const FCurveEditor> CurveEditor, TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels) const
 {
-	CurveEditor::ConstructYGridLines(GetViewSpace(), 4, MajorGridLines, MinorGridLines, CurveEditor->GetGridLineLabelFormatYAttribute().Get(), &MajorGridLabels);
+	const TOptional<float> GridLineSpacing = CurveEditor->GetGridSpacing();
+	if (!GridLineSpacing)
+	{
+		CurveEditor::ConstructYGridLines(GetViewSpace(), 4, MajorGridLines, MinorGridLines, CurveEditor->GetGridLineLabelFormatYAttribute().Get(), MajorGridLabels);
+	}
+	else
+	{
+		CurveEditor::ConstructFixedYGridLines(GetViewSpace(), 4, GridLineSpacing.GetValue(), MajorGridLines, MinorGridLines, CurveEditor->GetGridLineLabelFormatYAttribute().Get(), MajorGridLabels, TOptional<double>(), TOptional<double>());
+	}
 }
 
 int32 SInteractiveCurveEditorView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
@@ -178,6 +186,7 @@ void SInteractiveCurveEditorView::PaintView(const FPaintArgs& Args, const FGeome
 
 		DrawBackground(AllottedGeometry, OutDrawElements, BaseLayerId, DrawEffects);
 		DrawGridLines(CurveEditor.ToSharedRef(), AllottedGeometry, OutDrawElements, BaseLayerId, DrawEffects);
+		DrawBufferedCurves(CurveEditor.ToSharedRef(), AllottedGeometry, MyCullingRect, OutDrawElements, BaseLayerId, InWidgetStyle, DrawEffects);
 		DrawCurves(CurveEditor.ToSharedRef(), AllottedGeometry, MyCullingRect, OutDrawElements, BaseLayerId, InWidgetStyle, DrawEffects);
 	}
 }
@@ -211,7 +220,7 @@ void SInteractiveCurveEditorView::DrawGridLines(TSharedRef<FCurveEditor> CurveEd
 	TArray<float> MajorGridLines, MinorGridLines;
 	TArray<FText> MajorGridLabels;
 
-	GetGridLinesX(CurveEditor, MajorGridLines, MinorGridLines, MajorGridLabels);
+	GetGridLinesX(CurveEditor, MajorGridLines, MinorGridLines, &MajorGridLabels);
 	ensureMsgf(MajorGridLabels.Num() == 0 || MajorGridLines.Num() == MajorGridLabels.Num(), TEXT("If grid labels are specified, one must be specified for every major grid line, even if it is just an empty FText."));
 
 	// Pre-allocate an array of line points to draw our vertical lines. Each major grid line
@@ -294,7 +303,7 @@ void SInteractiveCurveEditorView::DrawGridLines(TSharedRef<FCurveEditor> CurveEd
 	MajorGridLines.Reset();
 	MinorGridLines.Reset();
 	MajorGridLabels.Reset();
-	GetGridLinesY(CurveEditor, MajorGridLines, MinorGridLines, MajorGridLabels);
+	GetGridLinesY(CurveEditor, MajorGridLines, MinorGridLines, &MajorGridLabels);
 	ensureMsgf(MajorGridLabels.Num() == 0 || MajorGridLines.Num() == MajorGridLabels.Num(), TEXT("If grid labels are specified, one must be specified for every major grid line, even if it is just an empty FText."));
 
 	// Reset our cached Line to draw from left to right
@@ -431,6 +440,45 @@ void SInteractiveCurveEditorView::DrawCurves(TSharedRef<FCurveEditor> CurveEdito
 
 			FSlateDrawElement::MakeBox(OutDrawElements, KeyLayerId, PointGeometry, PointDrawInfo.Brush, DrawEffects, PointTint);
 		}
+	}
+}
+
+void SInteractiveCurveEditorView::DrawBufferedCurves(TSharedRef<FCurveEditor> CurveEditor, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, ESlateDrawEffect DrawEffects) const
+{
+	const float BufferedCurveThickness = 1.f;
+	const bool  bAntiAliasCurves = true;
+	const FLinearColor CurveColor = CurveViewConstants::BufferedCurveColor;
+	const TArray<TUniquePtr<IBufferedCurveModel>>& BufferedCurves = CurveEditor->GetBufferedCurves();
+
+	const int32 CurveLayerId = BaseLayerId + CurveViewConstants::ELayerOffset::Curves;
+
+	// Draw each buffered curve using the view space transform since the curve space for all curves is the same
+	for (const TUniquePtr<IBufferedCurveModel>& BufferedCurve : BufferedCurves)
+	{
+		TArray<TTuple<double, double>> CurveSpaceInterpolatingPoints;
+		FCurveEditorScreenSpace CurveSpace = GetViewSpace();
+
+		BufferedCurve->DrawCurve(*CurveEditor, CurveSpace, CurveSpaceInterpolatingPoints);
+
+		TArray<FVector2D> ScreenSpaceInterpolatingPoints;
+		for (TTuple<double, double> Point : CurveSpaceInterpolatingPoints)
+		{
+			ScreenSpaceInterpolatingPoints.Add(FVector2D(
+				CurveSpace.SecondsToScreen(Point.Get<0>()),
+				CurveSpace.ValueToScreen(Point.Get<1>())
+			));
+		}
+
+		FSlateDrawElement::MakeLines(
+			OutDrawElements,
+			CurveLayerId,
+			AllottedGeometry.ToPaintGeometry(),
+			ScreenSpaceInterpolatingPoints,
+			DrawEffects,
+			CurveColor,
+			bAntiAliasCurves,
+			BufferedCurveThickness
+		);
 	}
 }
 
@@ -691,7 +739,7 @@ void SInteractiveCurveEditorView::UpdateCurveProximities(FVector2D MousePixel)
 		{
 			FCurveEditorScreenSpace CurveSpace = GetCurveSpace(CurveProximities[0].Get<0>());
 			double MouseTime = CurveSpace.ScreenToSeconds(MousePixel.X) - HoveredCurve->GetInputDisplayOffset();
-			double EvaluatedTime = CurveEditor->GetSnapMetrics().SnapInputSeconds(MouseTime);
+			double EvaluatedTime = CurveEditor->GetCurveSnapMetrics(CurveProximities[0].Get<0>()).SnapInputSeconds(MouseTime);
 
 			double EvaluatedValue = 0.0;
 			HoveredCurve->Evaluate(EvaluatedTime, EvaluatedValue);
@@ -884,8 +932,9 @@ FReply SInteractiveCurveEditorView::OnMouseButtonDown(const FGeometry& MyGeometr
 					double MouseTime = CurveSpace.ScreenToSeconds(MousePixel.X);
 					double MouseValue = CurveSpace.ScreenToValue(MousePixel.Y);
 
-					MouseTime = CurveEditor->GetSnapMetrics().SnapInputSeconds(MouseTime);
-					MouseValue = CurveEditor->GetSnapMetrics().SnapOutput(MouseValue);
+					FCurveSnapMetrics SnapMetrics = CurveEditor->GetCurveSnapMetrics(HoveredCurve.GetValue());
+					MouseTime = SnapMetrics.SnapInputSeconds(MouseTime);
+					MouseValue = SnapMetrics.SnapOutput(MouseValue);
 
 					// When adding to a curve with no variance, add it with the same value so that
 					// curves don't pop wildly in normalized views due to a slight difference between the keys
@@ -1014,7 +1063,7 @@ FReply SInteractiveCurveEditorView::OnMouseButtonUp(const FGeometry& MyGeometry,
 	{
 		// Curve Selection Testing.
 		TOptional<FCurveModelID> HitCurve = GetHoveredCurve();
-		if (!HitPoint(MousePosition).IsSet() && HitCurve.IsSet() && !MouseEvent.IsShiftDown() && !MouseEvent.IsAltDown() && !MouseEvent.IsControlDown())
+		if (!HitPoint(MousePosition).IsSet() && HitCurve.IsSet() && !MouseEvent.IsAltDown())
 		{
 			FCurveModel* CurveModel = CurveEditor->FindCurve(HitCurve.GetValue());
 
@@ -1301,9 +1350,6 @@ void SInteractiveCurveEditorView::AddKeyAtTime(const TSet<FCurveModelID>& ToCurv
 		return;
 	}
 
-	// Ensure the time is snapped if needed
-	InTime = CurveEditor->GetSnapMetrics().SnapInputSeconds(InTime);
-
 	FScopedTransaction Transaction(LOCTEXT("AddKeyAtTime", "Add Key"));
 	bool bAddedKey = false;
 
@@ -1317,14 +1363,18 @@ void SInteractiveCurveEditorView::AddKeyAtTime(const TSet<FCurveModelID>& ToCurv
 		FCurveModel* CurveModel = CurveEditor->FindCurve(CurveModelID);
 		check(CurveModel);
 
+		// Ensure the time is snapped if needed
+		FCurveSnapMetrics SnapMetrics = CurveEditor->GetCurveSnapMetrics(CurveModelID);
+		double SnappedTime = SnapMetrics.SnapInputSeconds(InTime);
+
 		// Support optional input display offsets 
-		double EvalTime = InTime - CurveModel->GetInputDisplayOffset();
+		double EvalTime = SnappedTime - CurveModel->GetInputDisplayOffset();
 
 		double CurveValue = 0.0;
 		if (CurveModel->Evaluate(EvalTime, CurveValue))
 		{
 			CurveModel->Modify();
-			CurveValue = CurveEditor->GetSnapMetrics().SnapOutput(CurveValue);
+			CurveValue = SnapMetrics.SnapOutput(CurveValue);
 
 			// Curve Models allow us to create new keys ontop of existing keys which works, but causes some user confusion
 			// Before we create a key, we instead check to see if there is already a key at this time, and if there is, we

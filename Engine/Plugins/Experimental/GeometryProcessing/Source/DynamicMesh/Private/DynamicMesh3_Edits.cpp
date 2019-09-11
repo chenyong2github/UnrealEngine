@@ -170,9 +170,8 @@ int FDynamicMesh3::AppendTriangle(const FIndex3i& tv, int gid)
 		check(false);
 		return InvalidID;
 	}
-	if (tv[0] == tv[1] || tv[0] == tv[2] || tv[1] == tv[2])
+	if (!ensure(tv[0] != tv[1] && tv[0] != tv[2] && tv[1] != tv[2]))
 	{
-		check(false);
 		return InvalidID;
 	}
 
@@ -902,7 +901,8 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 		int t2 = AddTriangleInternal(f, b, c, InvalidID, InvalidID, InvalidID);
 		if (HasTriangleGroups())
 		{
-			TriangleGroups->InsertAt((*TriangleGroups)[t0], t2);
+			int group0 = (*TriangleGroups)[t0];
+			TriangleGroups->InsertAt(group0, t2);
 		}
 
 		// rewrite edge bc, create edge af
@@ -983,8 +983,10 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 		int t3 = AddTriangleInternal(f, d, b, InvalidID, InvalidID, InvalidID);
 		if (HasTriangleGroups()) 
 		{
-			TriangleGroups->InsertAt((*TriangleGroups)[t0], t2);
-			TriangleGroups->InsertAt((*TriangleGroups)[t1], t3);
+			int group0 = (*TriangleGroups)[t0];
+			TriangleGroups->InsertAt(group0, t2);
+			int group1 = (*TriangleGroups)[t1];
+			TriangleGroups->InsertAt(group1, t3);
 		}
 
 		// update the edges we found above, to point to triangles

@@ -19,6 +19,8 @@ struct FProjectItem;
 struct FSlateBrush;
 enum class ECheckBoxState : uint8;
 
+DECLARE_DELEGATE_OneParam(FProjectSelectionChanged, FString);
+
 /**
  * A list of known projects with the option to add a new one
  */
@@ -30,6 +32,8 @@ public:
 	DECLARE_DELEGATE(FNewProjectScreenRequested)
 
 	SLATE_BEGIN_ARGS(SProjectBrowser) { }
+
+	SLATE_ARGUMENT(FProjectSelectionChanged, OnSelectionChanged);
 
 	SLATE_END_ARGS()
 
@@ -47,9 +51,16 @@ public:
 
 	bool HasProjects() const;
 
+	void ClearSelection();
+
+	FString GetSelectedProjectFile() const;
+
+	/** Begins the opening process for the selected project */
+	void OpenSelectedProject();
+
 protected:
 
-	void ConstructCategory( const TSharedRef<SVerticalBox>& CategoriesBox, const TSharedRef<FProjectCategory>& Category ) const;
+	void ConstructCategory( const TSharedRef<SVerticalBox>& CategoriesBox, const TSharedRef<FProjectCategory>& Category );
 
 	/** Creates a row in the template list */
 	TSharedRef<ITableRow> MakeProjectViewWidget( TSharedPtr<FProjectItem> ProjectItem, const TSharedRef<STableViewBase>& OwnerTable );
@@ -87,12 +98,9 @@ protected:
 	/** Opens the specified project file */
 	bool OpenProject( const FString& ProjectFile );
 
-	/** Begins the opening process for the selected project */
-	void OpenSelectedProject( );
-
 	/** Populate the list of filtered project categories */
 	void PopulateFilteredProjectCategories();
-	
+
 	/**
 	 * Called after a key is pressed when this widget has focus (this event bubbles if not handled)
 	 *
@@ -102,6 +110,17 @@ protected:
 	 * @return  Returns whether the event was handled, along with other possible actions
 	 */
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+
+protected:
+
+	/** Holds the collection of project categories. */
+	TArray<TSharedRef<FProjectCategory> > ProjectCategories;
+
+	bool bHasProjectFiles;
+
+	TSharedPtr<SVerticalBox> CategoriesBox;
+
+	FProjectSelectionChanged ProjectSelectionChangedDelegate;
 
 private:
 
@@ -143,8 +162,6 @@ private:
 	FText GetItemHighlightText() const;
 
 private:
-	// Holds the collection of project categories.
-	TArray<TSharedRef<FProjectCategory> > ProjectCategories;
 
 	/** Search box used to set the filter text */
 	TSharedPtr<class SSearchBox> SearchBoxPtr;
@@ -162,11 +179,25 @@ private:
 	FText CurrentSelectedProjectPath;
 
 	bool IsOnlineContentFinished;
-	TSharedPtr<SVerticalBox> CategoriesBox;
-
-	bool bHasProjectFiles;
-private:
 
 	// Holds a delegate that is executed when the new project screen is being requested.
 	FNewProjectScreenRequested NewProjectScreenRequestedDelegate;
+};
+
+/** Class to only display a finite number of most-recent projects. */
+class SRecentProjectBrowser : public SProjectBrowser
+{
+	SLATE_BEGIN_ARGS(SRecentProjectBrowser) 
+	{
+		_NumProjects = 10;
+	}
+
+	SLATE_ARGUMENT(int32, NumProjects);
+	SLATE_EVENT(FProjectSelectionChanged, OnSelectionChanged);
+
+	SLATE_END_ARGS()
+
+	SRecentProjectBrowser();
+
+	void Construct(const FArguments& InArgs);
 };

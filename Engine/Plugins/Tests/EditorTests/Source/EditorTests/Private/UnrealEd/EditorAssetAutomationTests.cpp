@@ -94,7 +94,7 @@
 #include "ObjectTools.h"
 #include "PackageTools.h"
 #include "AssetRegistryModule.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "ContentBrowserModule.h"
 
 #include "Slate/SlateBrushAsset.h"
@@ -111,6 +111,7 @@
 #include "Factories/DataAssetFactory.h"
 #include "Factories/CurveFactory.h"
 #include "AssetExportTask.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "EditorAssetAutomationTests"
 
@@ -909,7 +910,7 @@ namespace ImportExportAssetHelper
 				// Do not show progress window because we need to take screenshot
 				// ActiveTopLevelWindow does not get set to editor window for asset if progress modal window was open
 				const bool bShowProgressWindow = false;
-				if (FAssetEditorManager::Get().OpenEditorForAsset(ImportedAsset, EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), bShowProgressWindow))
+				if (GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ImportedAsset, EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), bShowProgressWindow))
 				{
 					State = EState::WaitForEditor;
 				}
@@ -934,7 +935,7 @@ namespace ImportExportAssetHelper
 				if (!ActiveWindowTitle.StartsWith(ImportedAsset->GetName()))
 				{
 					//Bring the asset editor to the front
-					FAssetEditorManager::Get().FindEditorForAsset(ImportedAsset, true);
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(ImportedAsset, true);
 				}
 
 				State = EState::Screenshot;
@@ -977,7 +978,7 @@ namespace ImportExportAssetHelper
 				}
 
 				//Close the editor
-				FAssetEditorManager::Get().CloseAllAssetEditors();
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllAssetEditors();
 
 				State = EState::Export;
 			}

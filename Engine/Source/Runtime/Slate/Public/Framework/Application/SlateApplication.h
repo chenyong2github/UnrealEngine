@@ -115,6 +115,7 @@ class SLATE_API FPopupSupport
 class SLATE_API ISlateInputManager
 {
 public:
+	virtual int32 GetUserIndexForMouse() const = 0;
 	virtual int32 GetUserIndexForKeyboard() const = 0;
 	virtual int32 GetUserIndexForController(int32 ControllerId) const = 0;
 };
@@ -122,6 +123,7 @@ public:
 class SLATE_API FSlateDefaultInputMapping : public ISlateInputManager
 {
 public:
+	virtual int32 GetUserIndexForMouse() const override { return 0; }
 	virtual int32 GetUserIndexForKeyboard() const override { return 0; }
 	virtual int32 GetUserIndexForController(int32 ControllerId) const override { return ControllerId; }
 };
@@ -274,10 +276,16 @@ public:
 	/** Returns true if this slate application is ready to display windows. */
 	bool CanDisplayWindows() const;
 
+	/** Returns navigation direction matching a key event, this is determined in the FNavigationConfig */
 	virtual EUINavigation GetNavigationDirectionFromKey(const FKeyEvent& InKeyEvent) const override;
+
+	/** Returns navigation direction matching an anlog event, this is determined in the FNavigationConfig */
 	virtual EUINavigation GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent) override;
 
-	/** Returns the navigation action corresponding to this key, or Invalid if not found */
+	/** Returns the navigation action corresponding to a key event. This version will handle multiple users correctly */
+	virtual EUINavigationAction GetNavigationActionFromKey(const FKeyEvent& InKeyEvent) const override;
+
+	UE_DEPRECATED(4.24, "GetNavigationActionForKey doesn't handle multiple users properly, use GetNavigationActionFromKey instead")
 	virtual EUINavigationAction GetNavigationActionForKey(const FKey& InKey) const override;
 
 	/**
@@ -762,7 +770,7 @@ public:
 	 * @param InSize The size of the tooltip window.
 	 * @return The suggested position.
 	 */
-	FVector2D CalculateTooltipWindowPosition( const FSlateRect& InAnchorRect, const FVector2D& InSize, bool bAutoAdjustForDPIScale) const;
+	virtual FVector2D CalculateTooltipWindowPosition( const FSlateRect& InAnchorRect, const FVector2D& InSize, bool bAutoAdjustForDPIScale) const;
 
 	/**
 	 * Is the window in the app's destroy queue? If so it will be destroyed next tick.
@@ -1416,7 +1424,14 @@ public:
 	 */
 	FReply RouteMouseWheelOrGestureEvent(const FWidgetPath& WidgetsUnderPointer, const FPointerEvent& InWheelEvent, const FPointerEvent* InGestureEvent = nullptr);
 
-	/** @return int user index that the keyboard is mapped to. */
+	/**
+	 * @return int user index that the mouse is mapped to.
+	 */
+	int32 GetUserIndexForMouse() const;
+
+	/**
+	 * @return int user index that the keyboard is mapped to.
+	 */
 	int32 GetUserIndexForKeyboard() const;
 
 	/** @return int user index that this controller is mapped to. */

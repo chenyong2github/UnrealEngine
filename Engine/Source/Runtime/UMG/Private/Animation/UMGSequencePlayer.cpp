@@ -13,6 +13,7 @@ UUMGSequencePlayer::UUMGSequencePlayer(const FObjectInitializer& ObjectInitializ
 	PlayerStatus = EMovieScenePlayerStatus::Stopped;
 	TimeCursorPosition = FFrameTime(0);
 	PlaybackSpeed = 1;
+	bRestoreState = false;
 	Animation = nullptr;
 	bIsEvaluating = false;
 	UserTag = NAME_None;
@@ -125,16 +126,28 @@ void UUMGSequencePlayer::Tick(float DeltaTime)
 		if ( bCompleted )
 		{
 			PlayerStatus = EMovieScenePlayerStatus::Stopped;
+			
+			if (bRestoreState)
+			{
+				RestorePreAnimatedState();
+			}
+
 			UserWidget->OnAnimationFinishedPlaying(*this);
 			OnSequenceFinishedPlayingEvent.Broadcast(*this);
 		}
 	}
 }
 
-void UUMGSequencePlayer::PlayInternal(double StartAtTime, double EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed)
+void UUMGSequencePlayer::PlayInternal(double StartAtTime, double EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bInRestoreState)
 {
+	if (bInRestoreState)
+	{
+		PreAnimatedState.EnableGlobalCapture();
+	}
+
 	RootTemplateInstance.Initialize(*Animation, *this);
 
+	bRestoreState = bInRestoreState;
 	PlaybackSpeed = FMath::Abs(InPlaybackSpeed);
 	PlayMode = InPlayMode;
 
@@ -180,14 +193,14 @@ void UUMGSequencePlayer::PlayInternal(double StartAtTime, double EndAtTime, int3
 	}
 }
 
-void UUMGSequencePlayer::Play(float StartAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed)
+void UUMGSequencePlayer::Play(float StartAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bInRestoreState)
 {
-	PlayInternal(StartAtTime, 0.0, InNumLoopsToPlay, InPlayMode, InPlaybackSpeed);
+	PlayInternal(StartAtTime, 0.0, InNumLoopsToPlay, InPlayMode, InPlaybackSpeed, bInRestoreState);
 }
 
-void UUMGSequencePlayer::PlayTo(float StartAtTime, float EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed)
+void UUMGSequencePlayer::PlayTo(float StartAtTime, float EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bInRestoreState)
 {
-	PlayInternal(StartAtTime, EndAtTime, InNumLoopsToPlay, InPlayMode, InPlaybackSpeed);
+	PlayInternal(StartAtTime, EndAtTime, InNumLoopsToPlay, InPlayMode, InPlaybackSpeed, bInRestoreState);
 }
 
 void UUMGSequencePlayer::Pause()
@@ -231,6 +244,11 @@ void UUMGSequencePlayer::Stop()
 		const FMovieSceneContext Context(FMovieSceneEvaluationRange(AbsolutePlaybackStart, AnimationResolution), PlayerStatus);
 		RootTemplateInstance.Evaluate(Context, *this);
 		RootTemplateInstance.Finish(*this);
+	}
+
+	if (bRestoreState)
+	{
+		RestorePreAnimatedState();
 	}
 
 	UserWidget->OnAnimationFinishedPlaying(*this);

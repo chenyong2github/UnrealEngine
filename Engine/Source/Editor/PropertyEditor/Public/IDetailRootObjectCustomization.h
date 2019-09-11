@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 
 class SWidget;
+class ITableRow;
 
 /** 
  * Interface for any class that lays out details for a specific class
@@ -19,6 +20,17 @@ public:
 	 * @param	InRootObject	The object whose header is being customized
  	 */
 	virtual TSharedPtr<SWidget> CustomizeObjectHeader(const UObject* InRootObject) = 0;
+
+	/** 
+	 * Called when the details panel wants to display an object header widget for a given object
+	 *
+	 * @param	InRootObject	The object whose header is being customized
+	 * @param	InTableRow		The ITableRow object (table views to talk to their rows) that will use the current IDetailRootObjectCustomization element
+ 	 */
+	virtual TSharedPtr<SWidget> CustomizeObjectHeader(const UObject* InRootObject, const TSharedRef<ITableRow>& InTableRow)
+	{
+		return CustomizeObjectHeader(InRootObject);
+	}
 
 	/**
 	 * Whether or not the object and all of its children should be visible in the details panel

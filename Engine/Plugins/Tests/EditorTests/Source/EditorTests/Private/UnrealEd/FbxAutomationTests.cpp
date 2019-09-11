@@ -296,6 +296,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					ImportData->bImportMeshLODs = TestPlan->ImportUI->StaticMeshImportData->bImportMeshLODs;
 					ImportData->NormalImportMethod = TestPlan->ImportUI->StaticMeshImportData->NormalImportMethod;
 					ImportData->NormalGenerationMethod = TestPlan->ImportUI->StaticMeshImportData->NormalGenerationMethod;
+					ImportData->bComputeWeightedNormals = TestPlan->ImportUI->StaticMeshImportData->bComputeWeightedNormals;
 					//Copy UFbxAssetImportData
 					ImportData->ImportTranslation = TestPlan->ImportUI->StaticMeshImportData->ImportTranslation;
 					ImportData->ImportRotation = TestPlan->ImportUI->StaticMeshImportData->ImportRotation;
@@ -401,6 +402,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					ImportData->bImportMeshLODs = TestPlan->ImportUI->StaticMeshImportData->bImportMeshLODs;
 					ImportData->NormalImportMethod = TestPlan->ImportUI->StaticMeshImportData->NormalImportMethod;
 					ImportData->NormalGenerationMethod = TestPlan->ImportUI->StaticMeshImportData->NormalGenerationMethod;
+					ImportData->bComputeWeightedNormals = TestPlan->ImportUI->StaticMeshImportData->bComputeWeightedNormals;
 					//Copy UFbxAssetImportData
 					ImportData->ImportTranslation = TestPlan->ImportUI->StaticMeshImportData->ImportTranslation;
 					ImportData->ImportRotation = TestPlan->ImportUI->StaticMeshImportData->ImportRotation;

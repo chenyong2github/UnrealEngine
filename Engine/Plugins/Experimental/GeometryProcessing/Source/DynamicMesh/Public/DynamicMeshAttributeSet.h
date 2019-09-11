@@ -67,6 +67,11 @@ public:
 	// UV Layers 
 	//
 
+	/** @return The number of UV layers in this attribute set */
+	int GetNumUVLayers() const
+	{
+		return UVLayers.Num();
+	}
 
 	/** @return the UV layer at the given Index */
 	FDynamicMeshUVOverlay* GetUVLayer(int Index)
@@ -101,6 +106,12 @@ public:
 	//
 	// Normal Layers 
 	//
+
+	/** @return The number of normal layers in this attribute set */
+	int GetNumNormalLayers() const
+	{
+		return NormalLayers.Num();
+	}
 
 	/** @return the Normal layer at the given Index */
 	FDynamicMeshNormalOverlay* GetNormalLayer(int Index)

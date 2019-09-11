@@ -3,7 +3,7 @@
 #include "AnimGraphNode_PoseBlendNode.h"
 #include "EdGraphSchema_K2_Actions.h"
 #include "Modules/ModuleManager.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 
 #include "GraphEditorActions.h"
 #include "ARFilter.h"
@@ -244,16 +244,15 @@ bool UAnimGraphNode_PoseBlendNode::DoesSupportTimeForTransitionGetter() const
 	return false;
 }
 
-void UAnimGraphNode_PoseBlendNode::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UAnimGraphNode_PoseBlendNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if (!Context.bIsDebugging)
+	if (!Context->bIsDebugging)
 	{
 		// add an option to convert to single frame
-		Context.MenuBuilder->BeginSection("AnimGraphNodePoseBlender", LOCTEXT("PoseBlenderHeading", "Pose Blender"));
 		{
-			Context.MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().ConvertToPoseByName);
+			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodePoseBlender", LOCTEXT("PoseBlenderHeading", "Pose Blender"));
+			Section.AddMenuEntry(FGraphEditorCommands::Get().ConvertToPoseByName);
 		}
-		Context.MenuBuilder->EndSection();
 	}
 }
 

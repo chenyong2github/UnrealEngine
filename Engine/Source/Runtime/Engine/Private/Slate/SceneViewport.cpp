@@ -285,8 +285,8 @@ void FSceneViewport::ProcessAccumulatedPointerInput()
 	if (NumMouseSamplesX > 0 || NumMouseSamplesY > 0)
 	{
 		const float DeltaTime = FApp::GetDeltaTime();
-		ViewportClient->InputAxis( this, 0, EKeys::MouseX, MouseDelta.X, DeltaTime, NumMouseSamplesX );
-		ViewportClient->InputAxis( this, 0, EKeys::MouseY, MouseDelta.Y, DeltaTime, NumMouseSamplesY );
+		ViewportClient->InputAxis( this, MouseDeltaUserIndex, EKeys::MouseX, MouseDelta.X, DeltaTime, NumMouseSamplesX );
+		ViewportClient->InputAxis( this, MouseDeltaUserIndex, EKeys::MouseY, MouseDelta.Y, DeltaTime, NumMouseSamplesY );
 	}
 
 	if ( bCursorHiddenDueToCapture )
@@ -321,6 +321,7 @@ void FSceneViewport::ProcessAccumulatedPointerInput()
 	MouseDelta = FIntPoint::ZeroValue;
 	NumMouseSamplesX = 0;
 	NumMouseSamplesY = 0;
+	MouseDeltaUserIndex = INDEX_NONE;
 }
 
 FVector2D FSceneViewport::VirtualDesktopPixelToViewport(FIntPoint VirtualDesktopPointPx) const
@@ -656,6 +657,8 @@ FReply FSceneViewport::OnMouseMove( const FGeometry& InGeometry, const FPointerE
 
 			MouseDelta.Y -= CursorDelta.Y;
 			++NumMouseSamplesY;
+
+			MouseDeltaUserIndex = InMouseEvent.GetUserIndex();
 		}
 
 		if ( bCursorHiddenDueToCapture )
@@ -1056,7 +1059,7 @@ FReply FSceneViewport::OnFocusReceived(const FFocusEvent& InFocusEvent)
 {
 	CurrentReplyState = FReply::Handled(); 
 
-	if ( InFocusEvent.GetUser() == 0 )
+	if ( InFocusEvent.GetUser() == FSlateApplication::Get().GetUserIndexForKeyboard() )
 	{
 		if ( ViewportClient != nullptr )
 		{
@@ -1105,7 +1108,7 @@ FReply FSceneViewport::OnFocusReceived(const FFocusEvent& InFocusEvent)
 void FSceneViewport::OnFocusLost( const FFocusEvent& InFocusEvent )
 {
 	// If the focus loss event isn't the for the primary 'keyboard' user, don't worry about it.
-	if ( InFocusEvent.GetUser() != 0 )
+	if ( InFocusEvent.GetUser() != FSlateApplication::Get().GetUserIndexForKeyboard() )
 	{
 		return;
 	}
@@ -1117,19 +1120,6 @@ void FSceneViewport::OnFocusLost( const FFocusEvent& InFocusEvent )
 	{
 		FScopedConditionalWorldSwitcher WorldSwitcher(ViewportClient);
 		ViewportClient->LostFocus(this);
-
-		TSharedPtr<SWidget> ViewportWidgetPin = ViewportWidget.Pin();
-		if ( ViewportWidgetPin.IsValid() )
-		{
-			FSlateApplication::Get().ForEachUser([&ViewportWidgetPin] (FSlateUser& User) {
-				if (User.GetFocusedWidget() == ViewportWidgetPin )
-				{
-					User.ClearFocus();
-				}
-			});
-		}
-
-		UE_LOG(LogSlate, Log, TEXT("FSceneViewport::OnFocusLost() reason %d"), (int32)InFocusEvent.GetCause());
 	}
 }
 

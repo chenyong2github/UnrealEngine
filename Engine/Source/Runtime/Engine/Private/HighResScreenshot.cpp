@@ -32,6 +32,7 @@ FHighResScreenshotConfig::FHighResScreenshotConfig()
 	: ResolutionMultiplier(FHighResScreenshotConfig::MinResolutionMultipler)
 	, ResolutionMultiplierScale(0.0f)
 	, bMaskEnabled(false)
+	, bDateTimeBasedNaming(false)
 	, bDumpBufferVisualizationTargets(false)
 {
 	ChangeViewport(TWeakPtr<FSceneViewport>());
@@ -91,6 +92,7 @@ void FHighResScreenshotConfig::ChangeViewport(TWeakPtr<FSceneViewport> InViewpor
 	UnscaledCaptureRegion = FIntRect(0, 0, 0, 0);
 	CaptureRegion = UnscaledCaptureRegion;
 	bMaskEnabled = false;
+	bDateTimeBasedNaming = false;
 	bDumpBufferVisualizationTargets = false;
 	ResolutionMultiplier = FHighResScreenshotConfig::MinResolutionMultipler;
 	ResolutionMultiplierScale = 0.0f;
@@ -104,7 +106,7 @@ bool FHighResScreenshotConfig::ParseConsoleCommand(const FString& InCmd, FOutput
 	ResolutionMultiplier = FHighResScreenshotConfig::MinResolutionMultipler;
 	ResolutionMultiplierScale = 0.0f;
 
-	if( GetHighResScreenShotInput(*InCmd, Ar, GScreenshotResolutionX, GScreenshotResolutionY, ResolutionMultiplier, CaptureRegion, bMaskEnabled, bDumpBufferVisualizationTargets, bCaptureHDR, FilenameOverride) )
+	if( GetHighResScreenShotInput(*InCmd, Ar, GScreenshotResolutionX, GScreenshotResolutionY, ResolutionMultiplier, CaptureRegion, bMaskEnabled, bDumpBufferVisualizationTargets, bCaptureHDR, FilenameOverride, bDateTimeBasedNaming) )
 	{
 		GScreenshotResolutionX *= ResolutionMultiplier;
 		GScreenshotResolutionY *= ResolutionMultiplier;

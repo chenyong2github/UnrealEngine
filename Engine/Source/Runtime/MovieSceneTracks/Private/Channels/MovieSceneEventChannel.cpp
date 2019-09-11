@@ -27,6 +27,11 @@ void FMovieSceneEventChannel::DeleteKeys(TArrayView<const FKeyHandle> InHandles)
 	GetData().DeleteKeys(InHandles);
 }
 
+void FMovieSceneEventChannel::DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore)
+{
+	GetData().DeleteKeysFrom(InTime, bDeleteKeysBefore);
+}
+
 void FMovieSceneEventChannel::ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate)
 {
 	GetData().ChangeFrameResolution(SourceRate, DestinationRate);

@@ -138,6 +138,7 @@ struct FBXImportOptions
 	float ImportUniformScale;
 	EFBXNormalImportMethod NormalImportMethod;
 	EFBXNormalGenerationMethod::Type NormalGenerationMethod;
+	bool bComputeWeightedNormals;
 	bool bTransformVertexToAbsolute;
 	bool bBakePivotInVertex;
 	EFBXImportType ImportType;
@@ -908,7 +909,7 @@ public:
 	 * @param BaseSkelMesh - base Skeletal Mesh
 	 * @param LODIndex - LOD index
 	 */
-	UNREALED_API void ImportFbxMorphTarget(TArray<FbxNode*> &SkelMeshNodeArray, USkeletalMesh* BaseSkelMesh, UObject* Parent, int32 LODIndex, const FSkeletalMeshImportData &BaseSkeletalMeshImportData);
+	UNREALED_API void ImportFbxMorphTarget(TArray<FbxNode*> &SkelMeshNodeArray, USkeletalMesh* BaseSkelMesh, int32 LODIndex, FSkeletalMeshImportData &BaseSkeletalMeshImportData);
 
 	/**
 	 * Import LOD object for skeletal mesh
@@ -947,8 +948,8 @@ public:
 	bool ImportCollisionModels(UStaticMesh* StaticMesh, const FbxString& NodeName);
 
 	//help
-	ANSICHAR* MakeName(const ANSICHAR* name);
-	FString MakeString(const ANSICHAR* Name);
+	ANSICHAR* MakeName(const ANSICHAR* name) const;
+	FString MakeString(const ANSICHAR* Name) const;
 	FName MakeNameForMesh(FString InName, FbxObject* FbxObject);
 
 	// meshes
@@ -1173,7 +1174,7 @@ private:
 	 * @param BaseSkelMesh - base Skeletal Mesh
 	 * @param LODIndex - LOD index of the skeletal mesh
 	 */
-	void ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMeshNodeArray, USkeletalMesh* BaseSkelMesh, UObject* Parent, int32 LODIndex, const FSkeletalMeshImportData &BaseSkeletalMeshImportData);
+	void ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMeshNodeArray, USkeletalMesh* BaseSkelMesh, int32 LODIndex, FSkeletalMeshImportData &BaseSkeletalMeshImportData);
 
 	/**
 	* sub-method called from ImportSkeletalMeshLOD method

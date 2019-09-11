@@ -59,7 +59,7 @@
 
 // Actor Details, Modes
 #include "SEditorViewport.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "ILevelEditor.h"
 #include "LevelEditor.h"
 

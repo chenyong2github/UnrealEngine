@@ -4,11 +4,12 @@
 #include "ControlRigBlueprintFactory.h"
 #include "ControlRigBlueprint.h"
 #include "IControlRigEditorModule.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
 #include "EditorStyleSet.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprintActions"
 
@@ -29,7 +30,7 @@ void FControlRigBlueprintActions::OpenAssetEditor( const TArray<UObject*>& InObj
 		if (UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(*ObjIt))
 		{
 			const bool bBringToFrontIfOpen = true;
-			if (IAssetEditorInstance* EditorInstance = FAssetEditorManager::Get().FindEditorForAsset(ControlRigBlueprint, bBringToFrontIfOpen))
+			if (IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(ControlRigBlueprint, bBringToFrontIfOpen))
 			{
 				EditorInstance->FocusWindow(ControlRigBlueprint);
 			}

@@ -52,7 +52,7 @@ public:
 	 * @param ClickPos device position/ray at click point
 	 * @return true if target wants to begin sequence
 	 */
-	virtual bool CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
+	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
 
 	/**
 	 * Notify Target that click press ocurred

@@ -912,6 +912,8 @@ bool SetApexDestructibleAsset(UDestructibleMesh& DestructibleMesh, apex::Destruc
 		IMeshUtilities::MeshBuildOptions BuildOptions;
 		BuildOptions.bComputeNormals = !bHaveNormals;
 		BuildOptions.bComputeTangents = !bHaveTangents;
+		BuildOptions.bUseMikkTSpace = true;
+		BuildOptions.bComputeWeightedNormals = true;
 
 		// Create actual rendering data.
 		if (!MeshUtilities.BuildSkeletalMesh(DestructibleMeshResource.LODModels[0], DestructibleMesh.RefSkeleton, LODInfluences,LODWedges,LODFaces,LODPoints,LODPointToRawMap,BuildOptions))

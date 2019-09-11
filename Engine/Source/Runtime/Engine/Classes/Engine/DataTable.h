@@ -59,6 +59,7 @@ class ENGINE_VTABLE UDataTable
 	GENERATED_UCLASS_BODY()
 
 	DECLARE_MULTICAST_DELEGATE(FOnDataTableChanged);
+	DECLARE_MULTICAST_DELEGATE(FOnDataTableImport);
 	
 	friend FDataTableEditorUtils;
 	friend UGameplayTagTableManager;
@@ -148,9 +149,16 @@ private:
 	/** A multicast delegate that is called any time the data table changes. */
 	FOnDataTableChanged OnDataTableChangedDelegate;
 
+	/** A multicast delegate that is called any time a data table is imported. */
+	FOnDataTableChanged OnDataTableImportedDelegate;
+
 public:
 	/** Gets a multicast delegate that is called any time the data table changes. */
 	FOnDataTableChanged& OnDataTableChanged() { return OnDataTableChangedDelegate; }
+
+	/** Gets a multicast delegate that is called any time a data table is imported. */
+	FOnDataTableImport& OnDataTableImported() { return OnDataTableImportedDelegate; }
+
 
 	//~ Begin UDataTable Interface
 

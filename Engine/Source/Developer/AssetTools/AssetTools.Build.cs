@@ -33,7 +33,8 @@ public class AssetTools : ModuleRules
                 "Foliage",
                 "Projects",
 				"RHI",
-				"MaterialEditor"
+				"MaterialEditor",
+				"ToolMenus",
             }
 		);
 

@@ -92,11 +92,12 @@ void UMeasureDistanceSampleTool::OnUpdateModifierState(int ModifierID, bool bIsO
 
 
 
-bool UMeasureDistanceSampleTool::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
+FInputRayHit UMeasureDistanceSampleTool::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
 {
 	// we only start drag if press-down is on top of something we can raycast
 	FVector Temp;
-	return FindRayHit(PressPos.WorldRay, Temp);
+	FInputRayHit Result = FindRayHit(PressPos.WorldRay, Temp);
+	return Result;
 }
 
 void UMeasureDistanceSampleTool::OnClickPress(const FInputDeviceRay& PressPos)
@@ -113,7 +114,7 @@ void UMeasureDistanceSampleTool::OnClickDrag(const FInputDeviceRay& DragPos)
 
 
 
-bool UMeasureDistanceSampleTool::FindRayHit(const FRay& WorldRay, FVector& HitPos)
+FInputRayHit UMeasureDistanceSampleTool::FindRayHit(const FRay& WorldRay, FVector& HitPos)
 {
 	// trace a ray into the World
 	FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
@@ -122,15 +123,16 @@ bool UMeasureDistanceSampleTool::FindRayHit(const FRay& WorldRay, FVector& HitPo
 	if (bHitWorld)
 	{
 		HitPos = Result.ImpactPoint;
-		return true;
+		return FInputRayHit(Result.Distance);
 	}
-	return false;
+	return FInputRayHit();
 }
 
 
 void UMeasureDistanceSampleTool::UpdatePosition(const FRay& WorldRay)
 {
-	if (FindRayHit(WorldRay, (bMoveSecondPoint) ? Properties->EndPoint : Properties->StartPoint))
+	FInputRayHit HitResult = FindRayHit(WorldRay, (bMoveSecondPoint) ? Properties->EndPoint : Properties->StartPoint);
+	if (HitResult.bHit)
 	{
 		UpdateDistance();
 	}

@@ -176,6 +176,11 @@ public:
 	virtual FText GetDisplayNameToolTipText() const;
 
 	/**
+	 * Return whether the new display name is valid for this node.
+	 */
+	virtual bool ValidateDisplayName(const FText& NewDisplayName, FText& OutErrorMessage) const;
+
+	/**
 	 * Set the node's display name.
 	 *
 	 * @param NewDisplayName the display name to set.
@@ -412,6 +417,11 @@ public:
 	virtual void GetChildKeyAreaNodesRecursively(TArray<TSharedRef<class FSequencerSectionKeyAreaNode>>& OutNodes) const;
 
 	/**
+	 * @return The base node this node belongs to, for collections of tracks that are part of an object
+	 */
+	FSequencerDisplayNode* GetBaseNode() const;
+
+	/**
 	 * Set whether this node is expanded or not
 	 */
 	void SetExpansionState(bool bInExpanded);
@@ -420,6 +430,21 @@ public:
 	 * @return Whether or not this node is expanded
 	 */
 	bool IsExpanded() const;
+
+	/**
+	 * @return Whether or not this node is pinned
+	 */
+	bool IsPinned() const;
+
+	/**
+	 * Toggle whether or not this node is pinned
+	 */
+	void TogglePinned();
+
+	/**
+	 * If this node is pinned, unpin it.
+	 */
+	void Unpin();
 
 	/**
 	 * @return Whether this node is explicitly hidden from the view or not
@@ -532,6 +557,9 @@ protected:
 
 	/** Whether or not the node is expanded */
 	bool bExpanded;
+
+	/** Whether or not the node is pinned */
+	bool bPinned;
 
 	/** Event that is triggered when rename is requested */
 	FRequestRenameEvent RenameRequestedEvent;

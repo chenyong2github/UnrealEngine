@@ -23,7 +23,11 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const UObject* InSettingsObject, ISettingsEditorModelPtr InModel, TSharedPtr<IDetailsView> InDetailsView);
+	void Construct(const FArguments& InArgs, const UObject* InSettingsObject, ISettingsEditorModelPtr InModel, TSharedPtr<IDetailsView> InDetailsView, const TSharedRef<ITableRow>& InTableRow);
+
 private:
+
+	void CommonConstruct(const UObject* InSettingsObject, ISettingsEditorModelPtr InModel, TSharedPtr<IDetailsView> InDetailsView);
 
 	FText GetSettingsBoxTitleText() const;
 	FText GetSettingsBoxDescriptionText() const;
@@ -107,12 +111,13 @@ private:
 class FSettingsDetailRootObjectCustomization : public IDetailRootObjectCustomization
 {
 public:
-	FSettingsDetailRootObjectCustomization(ISettingsEditorModelPtr InModel, TSharedRef<IDetailsView> InDetailsView);
+	FSettingsDetailRootObjectCustomization(ISettingsEditorModelPtr InModel, const TSharedRef<IDetailsView>& InDetailsView);
 
 	void Initialize();
 
 	/** IDetailRootObjectCustomization interface */
 	virtual TSharedPtr<SWidget> CustomizeObjectHeader(const UObject* InRootObject) override;
+	virtual TSharedPtr<SWidget> CustomizeObjectHeader(const UObject* InRootObject, const TSharedRef<ITableRow>& InTableRow) override;
 	virtual bool IsObjectVisible(const UObject* InRootObject) const override;
 	virtual bool ShouldDisplayHeader(const UObject* InRootObject) const override;
 private:

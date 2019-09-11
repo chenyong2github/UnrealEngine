@@ -42,11 +42,7 @@ void ProxyLOD::BuildkDOPTree(const FMeshDescription& MeshDescription, FkDOPTree&
 {
 	TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
 
-	uint32 NumSrcPoly = 0;
-	for (const FPolygonID& PolygonID : MeshDescription.Polygons().GetElementIDs())
-	{
-		NumSrcPoly += MeshDescription.GetPolygonTriangles(PolygonID).Num();
-	}
+	uint32 NumSrcPoly = MeshDescription.Triangles().Num();
 
 	TArray<FkDOPBuildTriangle> BuildTriangleArray;
 

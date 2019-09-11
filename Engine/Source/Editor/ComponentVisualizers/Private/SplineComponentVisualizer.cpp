@@ -536,13 +536,13 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 	{
 		const USplineComponent* SplineComp = CastChecked<const USplineComponent>(VisProxy->Component.Get());
 
-		SplineCompPropName = GetComponentPropertyName(SplineComp);
-		if(SplineCompPropName.IsValid())
-		{
-			AActor* OldSplineOwningActor = SplineOwningActor.Get();
-			SplineOwningActor = SplineComp->GetOwner();
+		AActor* OldSplineOwningActor = SplinePropertyPath.GetParentOwningActor();
+		SplinePropertyPath = FComponentPropertyPath(SplineComp);
+		AActor* NewSplineOwningActor = SplinePropertyPath.GetParentOwningActor();
 
-			if (OldSplineOwningActor != SplineOwningActor)
+		if (SplinePropertyPath.IsValid())
+		{
+			if (OldSplineOwningActor != NewSplineOwningActor)
 			{
 				// Reset selection state if we are selecting a different actor to the one previously selected
 				ChangeSelectionState(INDEX_NONE, false);
@@ -570,7 +570,7 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 
 				if (LastKeyIndexSelected == INDEX_NONE)
 				{
-					SplineOwningActor = nullptr;
+					SplinePropertyPath.Reset();
 					return false;
 				}
 
@@ -594,7 +594,7 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 
 				if (LastKeyIndexSelected == INDEX_NONE)
 				{
-					SplineOwningActor = nullptr;
+					SplinePropertyPath.Reset();
 					return false;
 				}
 
@@ -648,7 +648,7 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 		}
 		else
 		{
-			SplineOwningActor = nullptr;
+			SplinePropertyPath.Reset();
 		}
 	}
 
@@ -657,7 +657,7 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 
 USplineComponent* FSplineComponentVisualizer::GetEditedSplineComponent() const
 {
-	return Cast<USplineComponent>(GetComponentFromPropertyName(SplineOwningActor.Get(), SplineCompPropName));
+	return Cast<USplineComponent>(SplinePropertyPath.GetComponent());
 }
 
 
@@ -1470,8 +1470,7 @@ bool FSplineComponentVisualizer::CanSnapAll() const
 
 void FSplineComponentVisualizer::EndEditing()
 {
-	SplineOwningActor = NULL;
-	SplineCompPropName.Clear();
+	SplinePropertyPath.Reset();
 	ChangeSelectionState(INDEX_NONE, false);
 	SelectedSegmentIndex = INDEX_NONE;
 	SelectedTangentHandle = INDEX_NONE;
@@ -2298,9 +2297,9 @@ void FSplineComponentVisualizer::OnResetToDefault()
 	const FScopedTransaction Transaction(LOCTEXT("ResetToDefault", "Reset to Default"));
 
 	SplineComp->Modify();
-	if (SplineOwningActor.IsValid())
+	if (AActor* Owner = SplineComp->GetOwner())
 	{
-		SplineOwningActor.Get()->Modify();
+		Owner->Modify();
 	}
 
 	SplineComp->bSplineHasBeenEdited = false;
@@ -2311,9 +2310,9 @@ void FSplineComponentVisualizer::OnResetToDefault()
 	SelectedTangentHandle = INDEX_NONE;
 	SelectedTangentHandleType = ESelectedTangentHandle::None;
 
-	if (SplineOwningActor.IsValid())
+	if (AActor* Owner = SplineComp->GetOwner())
 	{
-		SplineOwningActor.Get()->PostEditMove(false);
+		Owner->PostEditMove(false);
 	}
 
 	GEditor->RedrawLevelEditingViewports(true);

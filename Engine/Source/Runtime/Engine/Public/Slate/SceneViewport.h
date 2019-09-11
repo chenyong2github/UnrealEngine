@@ -407,6 +407,8 @@ private:
 	int32 NumMouseSamplesX;
 	/** The number of input samples in Y since input was was last processed */
 	int32 NumMouseSamplesY;
+	/** User index supplied by mouse events accumulated into NumMouseSamplesX and NumMouseSamplesY */
+	int32 MouseDeltaUserIndex;
 	/** The current mouse delta */
 	FIntPoint MouseDelta;
 	/** true if the cursor is currently visible */

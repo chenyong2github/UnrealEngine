@@ -23,7 +23,7 @@
 #include "EditorSupportDelegates.h"
 #include "ScopedTransaction.h"
 #include "LevelEditorViewport.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "ActorEditorUtils.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -2038,7 +2038,8 @@ static ABrush* ClipBrushAgainstPlane( const FPlane& InPlane, ABrush* InBrush)
 		// Copy the temporary brush back over onto the builder brush (keeping object flags)
 		BuilderBrush->Modify();
 		FBSPOps::csgCopyBrush( BuilderBrush, ClippedBrush, BuilderBrush->PolyFlags, BuilderBrush->GetFlags(), 0, true );
-		GEditor->Layers->DisassociateActorFromLayers( ClippedBrush );
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		Layers->DisassociateActorFromLayers( ClippedBrush );
 		World->EditorDestroyActor( ClippedBrush, false );
 		// Note that we're purposefully returning non-NULL here to report that the clip was successful,
 		// even though the ClippedBrush has been destroyed!
@@ -2239,10 +2240,11 @@ void UGeomModifier_Clip::ApplyClip( bool InSplit, bool InFlipNormal )
 		GEditor->SelectNone( false, true );
 
 		// Delete old brushes.
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 		for ( int32 BrushIndex = 0 ; BrushIndex < OldBrushes.Num() ; ++BrushIndex )
 		{
 			ABrush* OldBrush = OldBrushes[ BrushIndex ];
-			GEditor->Layers->DisassociateActorFromLayers( OldBrush );
+			Layers->DisassociateActorFromLayers( OldBrush );
 			OldBrush->GetWorld()->EditorDestroyActor( OldBrush, true );
 		}
 

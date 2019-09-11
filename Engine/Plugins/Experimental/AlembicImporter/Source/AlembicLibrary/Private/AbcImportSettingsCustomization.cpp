@@ -84,7 +84,7 @@ void FAbcSamplingSettingsCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 
 		IDetailPropertyRow& Property = StructBuilder.AddProperty(ChildHandle);
 		static const FName EditConditionName = "EnumCondition";
-		int32 EnumCondition = ChildHandle->GetINTMetaData(EditConditionName);
+		int32 EnumCondition = ChildHandle->GetIntMetaData(EditConditionName);
 		Property.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FAbcSamplingSettingsCustomization::ArePropertiesVisible, EnumCondition)));
 	}
 }
@@ -121,7 +121,7 @@ void FAbcCompressionSettingsCustomization::CustomizeChildren(TSharedRef<IPropert
 
 		IDetailPropertyRow& Property = StructBuilder.AddProperty(ChildHandle);
 		static const FName EditConditionName = "EnumCondition";
-		int32 EnumCondition = ChildHandle->GetINTMetaData(EditConditionName);
+		int32 EnumCondition = ChildHandle->GetIntMetaData(EditConditionName);
 		Property.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FAbcCompressionSettingsCustomization::ArePropertiesVisible, EnumCondition)));
 	}
 }
