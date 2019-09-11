@@ -330,6 +330,32 @@ void FPersonaToolkit::SetPreviewMesh(class USkeletalMesh* InSkeletalMesh, bool b
 	}
 }
 
+void FPersonaToolkit::SetPreviewAnimationBlueprint(UAnimBlueprint* InAnimBlueprint)
+{
+	// Only allowed for anim blueprints
+	if (InitialAssetClass == UAnimBlueprint::StaticClass())
+	{
+		FScopedTransaction Transaction(NSLOCTEXT("PersonaToolkit", "SetAnimBlueprintPreviewBlueprint", "Set Animation Blueprint Preview Blueprint"));
+
+		check(AnimBlueprint);
+		AnimBlueprint->SetPreviewAnimationBlueprint(InAnimBlueprint);
+
+		// Note setting the 'edited' blueprint as an overlay here
+		GetPreviewScene()->SetPreviewAnimationBlueprint(InAnimBlueprint, AnimBlueprint);
+	}
+}
+
+UAnimBlueprint* FPersonaToolkit::GetPreviewAnimationBlueprint() const
+{
+	if (InitialAssetClass == UAnimBlueprint::StaticClass())
+	{
+		check(AnimBlueprint);
+		return AnimBlueprint->GetPreviewAnimationBlueprint();
+	}
+
+	return nullptr;
+}
+
 int32 FPersonaToolkit::GetCustomData(const int32 Key) const
 {
 	if (!CustomEditorData.Contains(Key))

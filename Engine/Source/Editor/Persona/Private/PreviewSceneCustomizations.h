@@ -47,7 +47,7 @@ private:
 
 	FReply OnSaveCollectionClicked(TSharedRef<IPropertyHandle> InAdditionalMeshesProperty, IDetailLayoutBuilder* DetailLayoutBuilder);
 
-	bool HandleShouldFilterAsset(const FAssetData& InAssetData, bool bCanUseDifferentSkeleton);
+	bool HandleShouldFilterAsset(const FAssetData& InAssetData, FName InTag, bool bCanUseDifferentSkeleton);
 
 	bool HandleShouldFilterAdditionalMesh(const FAssetData& InAssetData, bool bCanUseDifferentSkeleton);
 
@@ -64,6 +64,8 @@ private:
 	void HandlePreviewControllerPropertyChanged();
 
 	void HandleMeshChanged(const FAssetData& InAssetData);
+
+	void HandlePreviewAnimBlueprintChanged(const FAssetData& InAssetData);
 
 	void HandleAdditionalMeshesChanged(const FAssetData& InAssetData, IDetailLayoutBuilder* DetailLayoutBuilder);
 

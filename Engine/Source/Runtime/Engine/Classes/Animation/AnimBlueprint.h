@@ -57,6 +57,17 @@ struct FAnimParentNodeAssetOverride
 	}
 };
 
+/** The method by which a preview animation blueprint is applied */
+UENUM()
+enum class EPreviewAnimationBlueprintApplicationMethod : uint8
+{
+	/** Apply the preview animation blueprint using SetLayerOverlay */
+	OverlayLayer,
+
+	/** Apply the preview animation blueprint using SetSubInstanceClassByTag */
+	SubInstance,
+};
+
 /**
  * An Anim Blueprint is essentially a specialized Blueprint whose graphs control the animation of a Skeletal Mesh.
  * It can perform blending of animations, directly control the bones of the skeleton, and output a final pose
@@ -166,6 +177,16 @@ public:
 	virtual USkeletalMesh* GetPreviewMesh(bool bFindIfNotSet = false) override;
 	virtual USkeletalMesh* GetPreviewMesh() const override;
 
+	/** Preview anim blueprint support */
+	void SetPreviewAnimationBlueprint(UAnimBlueprint* InPreviewAnimationBlueprint);
+	UAnimBlueprint* GetPreviewAnimationBlueprint() const;
+
+	void SetPreviewAnimationBlueprintApplicationMethod(EPreviewAnimationBlueprintApplicationMethod InMethod);
+	EPreviewAnimationBlueprintApplicationMethod GetPreviewAnimationBlueprintApplicationMethod() const;
+
+	void SetPreviewAnimationBlueprintTag(FName InTag);
+	FName GetPreviewAnimationBlueprintTag() const;
+
 public:
 	/** Check if the anim instance is the active debug object for this anim BP */
 	bool IsObjectBeingDebugged(const UObject* AnimInstance) const;
@@ -188,5 +209,20 @@ private:
 	/** The default skeletal mesh to use when previewing this asset - this only applies when you open Persona using this asset*/
 	UPROPERTY(duplicatetransient, AssetRegistrySearchable)
 	TSoftObjectPtr<class USkeletalMesh> PreviewSkeletalMesh;
+
+	/** 
+	 * An animation Blueprint to overlay with this Blueprint. When working on layers, this allows this Blueprint to be previewed in the context of another 'outer' anim blueprint. 
+	 * Setting this is the equivalent of running the preview animation blueprint on the preview mesh, then calling SetLayerOverlay with this anim blueprint.
+	 */
+	UPROPERTY(duplicatetransient, AssetRegistrySearchable)
+	TSoftObjectPtr<class UAnimBlueprint> PreviewAnimationBlueprint;
+
+	/** The method by which a preview animation blueprint is applied, either as an overlay layer, or as a sub-instance */
+	UPROPERTY()
+	EPreviewAnimationBlueprintApplicationMethod PreviewAnimationBlueprintApplicationMethod;
+
+	/** The tag to use when applying a preview animation blueprint via SetSubInstanceClassByTag */
+	UPROPERTY()
+	FName PreviewAnimationBlueprintTag;
 #endif // WITH_EDITORONLY_DATA
 };
