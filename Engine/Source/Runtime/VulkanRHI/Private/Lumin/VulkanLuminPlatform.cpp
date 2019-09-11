@@ -69,6 +69,10 @@ bool FVulkanLuminPlatform::LoadVulkanInstanceFunctions(VkInstance inInstance)
 	ENUM_VK_ENTRYPOINTS_OPTIONAL_PLATFORM_INSTANCE(GETINSTANCE_VK_ENTRYPOINTS);
 	ENUM_VK_ENTRYPOINTS_OPTIONAL_PLATFORM_INSTANCE(CHECK_VK_ENTRYPOINTS);
 
+
+	//#todo-rco: Media textures are not working properly, quick workaround
+	GValidationCvar->Set(2, ECVF_SetByCommandline);
+
 	return bFoundAllEntryPoints;
 }
 
