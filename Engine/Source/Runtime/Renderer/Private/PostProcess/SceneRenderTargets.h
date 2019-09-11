@@ -185,7 +185,8 @@ protected:
 		DefaultColorClear(FClearValueBinding::Black),
 		DefaultDepthClear(FClearValueBinding::DepthFar),
 		QuadOverdrawIndex(INDEX_NONE),
-		bHMDAllocatedDepthTarget(false)
+		bHMDAllocatedDepthTarget(false),
+		bKeepDepthContent(true)
 		{
 			FMemory::Memset(LargestDesiredSizes, 0);
 #if PREVENT_RENDERTARGET_SIZE_THRASHING
@@ -210,6 +211,11 @@ public:
 	void SetBufferSize(int32 InBufferSizeX, int32 InBufferSizeY);
 
 	void SetSeparateTranslucencyBufferSize(bool bAnyViewWantsDownsampledSeparateTranslucency);
+
+	void SetKeepDepthContent(bool bKeep)
+	{
+		bKeepDepthContent = bKeep;
+	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** Returns the RT index where the QuadOverdrawUAV will be bound. */
@@ -759,6 +765,9 @@ private:
 
 	/** True if the depth target is allocated by an HMD plugin. This is a temporary fix to deal with HMD depth target swap chains not tracking the stencil SRV. */
 	bool bHMDAllocatedDepthTarget;
+
+	/** True if the contents of the depth buffer must be kept for post-processing. When this is false, the depth buffer can be allocated as memoryless on mobile platforms which support it. */
+	bool bKeepDepthContent;
 
 	/** CAUTION: When adding new data, make sure you copy it in the snapshot constructor! **/
 

@@ -826,6 +826,17 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 #endif
 		}
 		
+#if PLATFORM_IOS
+		if (Flags & TexCreate_Memoryless)
+		{
+			ensure(Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
+			ensure(!(Flags & (TexCreate_CPUReadback | TexCreate_CPUWritable)));
+			ensure(!(Flags & TexCreate_UAV));
+			Desc.SetStorageMode(mtlpp::StorageMode::Memoryless);
+			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeMemoryless));
+		}
+#endif
+
 		static mtlpp::ResourceOptions GeneralResourceOption = FMetalCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions::HazardTrackingModeUntracked);
 		Desc.SetResourceOptions((mtlpp::ResourceOptions)(Desc.GetResourceOptions() | GeneralResourceOption));
 	}
