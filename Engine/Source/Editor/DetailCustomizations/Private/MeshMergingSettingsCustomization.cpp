@@ -38,7 +38,7 @@ void FMeshMergingSettingsObjectCustomization::CustomizeDetails(IDetailLayoutBuil
 		if (Property->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FMeshMergingSettings, SpecificLOD))
 		{
 			static const FName EditConditionName = "EnumCondition";
-			int32 EnumCondition = Property->GetINTMetaData(EditConditionName);
+			int32 EnumCondition = Property->GetIntMetaData(EditConditionName);
 			PropertyRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FMeshMergingSettingsObjectCustomization::ArePropertiesVisible, EnumCondition)));
 		}
 		else if (Property->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FMeshMergingSettings, LODSelectionType))

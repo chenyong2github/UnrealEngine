@@ -787,13 +787,6 @@ void GetBrushMesh(ABrush* Brush, UModel* Model, FMeshDescription& MeshDescriptio
 				//All edge are hard for BSP
 				EdgeHardnesses[NewEdgeID] = true;
 			}
-			int32 NewTriangleIndex = MeshDescription.GetPolygonTriangles(NewPolygonID).AddDefaulted();
-			FMeshTriangle& NewTriangle = MeshDescription.GetPolygonTriangles(NewPolygonID)[NewTriangleIndex];
-			for (int32 TriangleVertexIndex = 0; TriangleVertexIndex < 3; ++TriangleVertexIndex)
-			{
-				const FVertexInstanceID &VertexInstanceID = VertexInstanceIDs[TriangleVertexIndex];
-				NewTriangle.SetVertexInstanceID(TriangleVertexIndex, VertexInstanceID);
-			}
 		}
 	}
 }

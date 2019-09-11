@@ -135,15 +135,20 @@ public:
 
 	void Solve(const VectorType& BVector, VectorType& SolVector) const override
 	{
-		checkSlow(bSetup);
-		SolVector = MatrixSolver.solve(BVector);
+		if (bSetup)
+		{
+			SolVector = MatrixSolver.solve(BVector);
+		}
 	}
 
 	void Solve(const FSOAPositions& BVectors, FSOAPositions& SolVectors) const override
 	{
 		const bool bForceSingleThreaded = false;
-		ParallelFor(3, [&](int Dir)
-		{ SolVectors.Array(Dir) = MatrixSolver.solve(BVectors.Array(Dir)); }, bForceSingleThreaded);
+		if (bSetup)
+		{
+			ParallelFor(3, [&](int Dir)
+			{ SolVectors.Array(Dir) = MatrixSolver.solve(BVectors.Array(Dir)); }, bForceSingleThreaded);
+		}
 	}
 
 	void SetUp(const FSparseMatrixD& SparseMatrix, bool bIsSymmetric) override
@@ -164,7 +169,9 @@ public:
 
 	bool bSucceeded() const override
 	{
-		return (MatrixSolver.info() == Eigen::ComputationInfo::Success);
+		const auto Info = MatrixSolver.info();
+		bool bSuccess = bSetup && (Info == Eigen::ComputationInfo::Success);
+		return bSuccess;
 	}
 
 
@@ -172,6 +179,11 @@ private:
 
 	void SetUp(const FSparseMatrixD& SparseMatrix)
 	{
+		if (SparseMatrix.rows() == 0)
+		{
+			return;
+		}
+		
 		// The analyzePattern could be done just once if
 		// the sparsity pattern of the matrix is fixed.
 		// But testing indicates that takes little time compared 
@@ -180,7 +192,7 @@ private:
 		MatrixSolver.analyzePattern(SparseMatrix);
 		MatrixSolver.factorize(SparseMatrix);
 
-		bSetup = true;
+		bSetup = true;	
 	}
 private:
 
@@ -236,28 +248,38 @@ public:
 
 	void Solve(const VectorType& BVector, VectorType& SolVector) const override
 	{
-		checkSlow(bSetup);
-		SolVector = MatrixSolver.solve(BVector);
+		if (bSetup)
+		{
+			SolVector = MatrixSolver.solve(BVector);
+		}
 	}
 	void Solve(const FSOAPositions& BVectors, FSOAPositions& SolVectors) const override
 	{
 		const bool bForceSingleThreaded = false;
-		ParallelFor(3, [&](int Dir)
-		{ SolVectors.Array(Dir) = MatrixSolver.solve(BVectors.Array(Dir)); }, bForceSingleThreaded);
+		if (bSetup)
+		{
+			ParallelFor(3, [&](int Dir)
+			{ SolVectors.Array(Dir) = MatrixSolver.solve(BVectors.Array(Dir)); }, bForceSingleThreaded);
+		}
 	}
 
 	void SolveWithGuess(const VectorType& GuessVector, const VectorType& BVector, VectorType& SolVector)  const override
 	{
 
-		checkSlow(bSetup);
-		SolVector = MatrixSolver.solveWithGuess(BVector, GuessVector);
+		if (bSetup)
+		{
+			SolVector = MatrixSolver.solveWithGuess(BVector, GuessVector);
+		}
 	}
 
 	void SolveWithGuess(const FSOAPositions& GuessVectors, const FSOAPositions& BVectors, FSOAPositions& SolVectors) const override
 	{
 		const bool bForceSingleThreaded = false;
-		ParallelFor(3, [&](int Dir)
-		{ SolVectors.Array(Dir) = MatrixSolver.solveWithGuess(BVectors.Array(Dir), GuessVectors.Array(Dir)); }, bForceSingleThreaded);
+		if (bSetup)
+		{
+			ParallelFor(3, [&](int Dir)
+			{ SolVectors.Array(Dir) = MatrixSolver.solveWithGuess(BVectors.Array(Dir), GuessVectors.Array(Dir)); }, bForceSingleThreaded);
+		}
 	}
 	void SetUp(const FSparseMatrixD& SparseMatrix, bool bIsSymmetric) override
 	{
@@ -275,7 +297,9 @@ public:
 
 	bool bSucceeded() const override
 	{
-		return (MatrixSolver.info() == Eigen::ComputationInfo::Success);
+		const auto Info = MatrixSolver.info();
+		bool bSuccess = bSetup && (Info == Eigen::ComputationInfo::Success);
+		return bSuccess;
 	}
 
 private:

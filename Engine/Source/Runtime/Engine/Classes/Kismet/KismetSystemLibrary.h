@@ -434,6 +434,14 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game",meta=(WorldContext="WorldContextObject"))
 	static void QuitGame(UObject* WorldContextObject, class APlayerController* SpecificPlayer, TEnumAsByte<EQuitPreference::Type> QuitPreference, bool bIgnorePlatformRestrictions);
+	
+#if WITH_EDITOR
+	/**
+	 *	Exit the editor
+	 */
+	UFUNCTION(BlueprintCallable, Category="Development")
+	static void QuitEditor();
+#endif	// WITH_EDITOR
 
 	//=============================================================================
 	// Latent Actions

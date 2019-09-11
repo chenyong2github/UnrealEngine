@@ -11,7 +11,7 @@
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/LayoutService.h"
 #include "EngineGlobals.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Editor/UnrealEdEngine.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
@@ -20,6 +20,7 @@
 #include "LevelEditor.h"
 #include "ILevelViewport.h"
 #include "MainFrameLog.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 const FText StaticGetApplicationTitle( const bool bIncludeGameName );
 
@@ -255,7 +256,7 @@ public:
 				LevelEditor.FocusViewport();
 
 				// Restore any assets we had open. Note we don't do this on immersive PIE as its annoying to the user.
-				FAssetEditorManager::Get().RequestRestorePreviouslyOpenAssets();
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->RequestRestorePreviouslyOpenAssets();
 			}
 		}
 	}

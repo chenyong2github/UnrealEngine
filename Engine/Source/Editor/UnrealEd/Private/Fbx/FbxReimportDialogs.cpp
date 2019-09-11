@@ -18,7 +18,7 @@
 #include "Misc/FbxErrors.h"
 #include "HAL/FileManager.h"
 #include "Factories/FbxSceneImportFactory.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "AssetRegistryModule.h"
 
 //Windows dialog popup

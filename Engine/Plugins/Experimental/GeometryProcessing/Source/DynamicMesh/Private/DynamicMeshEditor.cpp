@@ -85,10 +85,15 @@ bool FDynamicMeshEditor::StitchVertexLoopsMinimal(const TArray<int>& Loop1, cons
 
 operation_failed:
 	// remove what we added so far
-	if (i > 0) 
+	if (ResultOut.NewQuads.Num()) 
 	{
-		ResultOut.NewTriangles.SetNum(2 * i + 1);
-		if (RemoveTriangles(ResultOut.NewTriangles, false) == false)
+		TArray<int> Triangles; Triangles.Reserve(2*ResultOut.NewQuads.Num());
+		for (const FIndex2i& QuadTriIndices : ResultOut.NewQuads)
+		{
+			Triangles.Add(QuadTriIndices.A);
+			Triangles.Add(QuadTriIndices.B);
+		}
+		if (!RemoveTriangles(Triangles, false))
 		{
 			checkf(false, TEXT("FDynamicMeshEditor::StitchLoop: failed to add all triangles, and also failed to back out changes."));
 		}
@@ -96,6 +101,134 @@ operation_failed:
 	return false;
 }
 
+
+
+bool FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops(const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, FDynamicMeshEditResult& ResultOut)
+{
+	int CorrespondN = MatchedIndices1.Num();
+	if (!ensureMsgf(CorrespondN == MatchedIndices2.Num(), TEXT("FDynamicMeshEditor::StitchSparselyCorrespondedVertices: correspondence arrays are not the same length!")))
+	{
+		return false;
+	}
+	// TODO: support case of only one corresponded vertex & a connecting a full loop around?
+	// this requires allowing start==end to not immediately stop the walk ...
+	if (!ensureMsgf(CorrespondN >= 2, TEXT("Must have at least two corresponded vertices")))
+	{
+		return false;
+	}
+	ResultOut.NewGroups.Reserve(CorrespondN);
+
+	int i = 0;
+	for (; i < CorrespondN; ++i) 
+	{
+		int Starts[2] { MatchedIndices1[i], MatchedIndices2[i] };
+		int Ends[2] { MatchedIndices1[(i + 1) % CorrespondN], MatchedIndices2[(i + 1) % CorrespondN] };
+
+		auto GetWrappedSpanLen = [](const FDynamicMesh3* M, const TArray<int>& VertexIDs, int StartInd, int EndInd)
+		{
+			float LenTotal = 0;
+			FVector3d V = M->GetVertex(VertexIDs[StartInd]);
+			for (int Ind = StartInd, IndNext; Ind != EndInd;)
+			{
+				IndNext = (Ind + 1) % VertexIDs.Num();
+				FVector3d VNext = M->GetVertex(VertexIDs[IndNext]);
+				LenTotal += V.Distance(VNext);
+				Ind = IndNext;
+				V = VNext;
+			}
+			return LenTotal;
+		};
+		float LenTotal[2] { GetWrappedSpanLen(Mesh, VertexIDs1, Starts[0], Ends[0]), GetWrappedSpanLen(Mesh, VertexIDs2, Starts[1], Ends[1]) };
+		float LenAlong[2] { FMathf::Epsilon, FMathf::Epsilon };
+		LenTotal[0] += FMathf::Epsilon;
+		LenTotal[1] += FMathf::Epsilon;
+
+
+		int NewGroupID = Mesh->AllocateTriangleGroup();
+		ResultOut.NewGroups.Add(NewGroupID);
+		
+		int Walks[2]{ Starts[0], Starts[1] };
+		FVector3d Vertex[2]{ Mesh->GetVertex(VertexIDs1[Starts[0]]), Mesh->GetVertex(VertexIDs2[Starts[1]]) };
+		while (Walks[0] != Ends[0] || Walks[1] != Ends[1])
+		{
+			float PctAlong[2]{ LenAlong[0] / LenTotal[0], LenAlong[1] / LenTotal[1] };
+			bool bAdvanceSecond = (Walks[0] == Ends[0] || (Walks[1] != Ends[1] && PctAlong[0] > PctAlong[1]));
+			FIndex3i Tri(VertexIDs1[Walks[0]], VertexIDs2[Walks[1]], -1);
+			if (!bAdvanceSecond)
+			{
+				Walks[0] = (Walks[0] + 1) % VertexIDs1.Num();
+				
+				Tri.C = VertexIDs1[Walks[0]];
+				FVector3d NextV = Mesh->GetVertex(Tri.C);
+				LenAlong[0] += NextV.Distance(Vertex[0]);
+				Vertex[0] = NextV;
+			}
+			else
+			{
+				Walks[1] = (Walks[1] + 1) % VertexIDs2.Num();
+				Tri.C = VertexIDs2[Walks[1]];
+				FVector3d NextV = Mesh->GetVertex(Tri.C);
+				LenAlong[1] += NextV.Distance(Vertex[1]);
+				Vertex[1] = NextV;
+			}
+			int Tid = Mesh->AppendTriangle(Tri, NewGroupID);
+			ResultOut.NewTriangles.Add(Tid);
+
+			if (Tid < 0)
+			{
+				goto operation_failed;
+			}
+		}
+	}
+
+	return true;
+
+operation_failed:
+	// remove what we added so far
+	if (ResultOut.NewTriangles.Num()) 
+	{
+		ensureMsgf(RemoveTriangles(ResultOut.NewTriangles, false), TEXT("FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops: failed to add all triangles, and also failed to back out changes."));
+	}
+	return false;
+}
+
+bool FDynamicMeshEditor::AddTriangleFan_OrderedVertexLoop(int CenterVertex, const TArray<int>& VertexLoop, int GroupID, FDynamicMeshEditResult& ResultOut)
+{
+	if (GroupID == -1)
+	{
+		GroupID = Mesh->AllocateTriangleGroup();
+		ResultOut.NewGroups.Add(GroupID);
+	}
+
+	int N = VertexLoop.Num();
+	ResultOut.NewTriangles.Reserve(N);
+
+	int i = 0;
+	for (i = 0; i < N; ++i)
+	{
+		int A = VertexLoop[i];
+		int B = VertexLoop[(i + 1) % N];
+
+		FIndex3i NewT(CenterVertex, B, A);
+		int NewTID = Mesh->AppendTriangle(NewT, GroupID);
+		if (NewTID < 0)
+		{
+			goto operation_failed;
+		}
+
+		ResultOut.NewTriangles.Add(NewTID);
+	}
+
+	return true;
+
+operation_failed:
+	// remove what we added so far
+	if (!RemoveTriangles(ResultOut.NewTriangles, false))
+	{
+		checkf(false, TEXT("FDynamicMeshEditor::AddTriangleFan: failed to add all triangles, and also failed to back out changes."));
+	}
+	return false;
+}
 
 
 
@@ -323,10 +456,55 @@ void FDynamicMeshEditor::SetTriangleNormals(const TArray<int>& Triangles, const 
 }
 
 
+void FDynamicMeshEditor::SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor, int UVLayerIndex)
+{
+	if (!Triangles.Num())
+	{
+		return;
+	}
+
+	check(Mesh->HasAttributes() && Mesh->Attributes()->NumUVLayers() > UVLayerIndex);
+	FDynamicMeshUVOverlay* UVs = Mesh->Attributes()->GetUVLayer(UVLayerIndex);
+
+	TMap<int, int> BaseToOverlayVIDMap;
+	TArray<int> AllUVIndices;
+
+	FAxisAlignedBox2f UVBounds(FAxisAlignedBox2f::Empty());
+
+	for (int TID : Triangles)
+	{
+		FIndex3i BaseTri = Mesh->GetTriangle(TID);
+		FIndex3i ElemTri;
+		for (int j = 0; j < 3; ++j)
+		{
+			const int* FoundElementID = BaseToOverlayVIDMap.Find(BaseTri[j]);
+			if (FoundElementID == nullptr)
+			{
+				FVector2f UV = (FVector2f)ProjectionFrame.ToPlaneUV(Mesh->GetVertex(BaseTri[j]), 2);
+				UVBounds.Contain(UV);
+				ElemTri[j] = UVs->AppendElement(UV, BaseTri[j]);
+				AllUVIndices.Add(ElemTri[j]);
+				BaseToOverlayVIDMap.Add(BaseTri[j], ElemTri[j]);
+			}
+			else
+			{
+				ElemTri[j] = *FoundElementID;
+			}
+		}
+		UVs->SetTriangle(TID, ElemTri);
+	}
+
+	// shift UVs so that their bbox min-corner is at origin and scaled by external scale factor
+	for (int UVID : AllUVIndices)
+	{
+		FVector2f UV = UVs->GetElement(UVID);
+		FVector2f TransformedUV = (UV - UVBounds.Min) * UVScaleFactor;
+		UVs->SetElement(UVID, TransformedUV);
+	}
+}
 
 
-
-void FDynamicMeshEditor::SetQuadUVsFromProjection(const FIndex2i& QuadTris, const FFrame3f& ProjectionFrame, float UVScaleFactor, int UVLayerIndex)
+void FDynamicMeshEditor::SetQuadUVsFromProjection(const FIndex2i& QuadTris, const FFrame3d& ProjectionFrame, float UVScaleFactor, int UVLayerIndex)
 {
 	check(Mesh->HasAttributes() && Mesh->Attributes()->NumUVLayers() > UVLayerIndex );
 	FDynamicMeshUVOverlay* UVs = Mesh->Attributes()->GetUVLayer(UVLayerIndex);
@@ -339,7 +517,7 @@ void FDynamicMeshEditor::SetQuadUVsFromProjection(const FIndex2i& QuadTris, cons
 	FIndex3i UVTriangle1;
 	for (int j = 0; j < 3; ++j)
 	{
-		FVector2f UV = ProjectionFrame.ToPlaneUV( (FVector3f)Mesh->GetVertex(Triangle1[j]), 2);
+		FVector2f UV = (FVector2f)ProjectionFrame.ToPlaneUV(Mesh->GetVertex(Triangle1[j]), 2);
 		UVTriangle1[j] = UVs->AppendElement(UV, Triangle1[j]);
 		AllUVs[j] = UV;
 		AllUVIndices[j] = UVTriangle1[j];
@@ -356,7 +534,7 @@ void FDynamicMeshEditor::SetQuadUVsFromProjection(const FIndex2i& QuadTris, cons
 			int i = Triangle1.IndexOf(Triangle2[j]);
 			if (i == -1)
 			{
-				FVector2f UV = ProjectionFrame.ToPlaneUV( (FVector3f)Mesh->GetVertex(Triangle2[j]), 2);
+				FVector2f UV = (FVector2f)ProjectionFrame.ToPlaneUV(Mesh->GetVertex(Triangle2[j]), 2);
 				UVTriangle2[j] = UVs->AppendElement(UV, Triangle2[j]);
 				AllUVs[3] = UV;
 				AllUVIndices[3] = UVTriangle2[j];
@@ -571,11 +749,12 @@ int FDynamicMeshEditor::FindOrCreateDuplicateGroup(int TriangleID, FMeshIndexMap
 
 
 void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
-	FMeshIndexMappings& IndexMapsOut, FDynamicMeshEditResult& ResultOut,
+	FMeshIndexMappings& IndexMapsOut, 
 	TFunction<FVector3d(int, const FVector3d&)> PositionTransform,
-	TFunction<FVector3f(int, const FVector3f&)> NormalTransform)
+	TFunction<FVector3d(int, const FVector3d&)> NormalTransform)
 {
 	IndexMapsOut.Reset();
+	IndexMapsOut.Initialize(Mesh);
 
 	FIndexMapi& VertexMap = IndexMapsOut.GetVertexMap();
 	VertexMap.Reserve(AppendMesh->VertexCount());
@@ -594,21 +773,135 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 			FVector3f Normal = AppendMesh->GetVertexNormal(VertID);
 			if (NormalTransform != nullptr)
 			{
-				Normal = NormalTransform(VertID, Normal);
+				Normal = (FVector3f)NormalTransform(VertID, (FVector3d)Normal);
 			}
 			Mesh->SetVertexNormal(NewVertID, Normal);
 		}
 
-		if (AppendMesh->HasVertexColors() && Mesh->HasVertexColors()) 
+		if (AppendMesh->HasVertexColors() && Mesh->HasVertexColors())
 		{
 			FVector3f Color = AppendMesh->GetVertexColor(VertID);
 			Mesh->SetVertexColor(NewVertID, Color);
 		}
 	}
 
+	FIndexMapi& TriangleMap = IndexMapsOut.GetTriangleMap();
+	bool bAppendGroups = AppendMesh->HasTriangleGroups() && Mesh->HasTriangleGroups();
+	FIndexMapi& GroupsMap = IndexMapsOut.GetGroupMap();
 	for (int TriID : AppendMesh->TriangleIndicesItr())
 	{
+		// append trigroup
+		int GroupID = FDynamicMesh3::InvalidID;
+		if (bAppendGroups)
+		{
+			GroupID = AppendMesh->GetTriangleGroup(TriID);
+			if (GroupID != FDynamicMesh3::InvalidID)
+			{
+				const int* FoundNewGroupID = GroupsMap.FindTo(GroupID);
+				if (FoundNewGroupID == nullptr)
+				{
+					int NewGroupID = Mesh->AllocateTriangleGroup();
+					GroupsMap.Add(GroupID, NewGroupID);
+					GroupID = NewGroupID;
+				}
+				else
+				{
+					GroupID = *FoundNewGroupID;
+				}
+			}
+		}
+
 		FIndex3i Tri = AppendMesh->GetTriangle(TriID);
-		int NewTriID = Mesh->AppendTriangle(VertexMap.GetTo(Tri.A), VertexMap.GetTo(Tri.B), VertexMap.GetTo(Tri.C));
+		int NewTriID = Mesh->AppendTriangle(VertexMap.GetTo(Tri.A), VertexMap.GetTo(Tri.B), VertexMap.GetTo(Tri.C), GroupID);
+		TriangleMap.Add(TriID, NewTriID);
+	}
+
+
+	// @todo support multiple UV/normal layer copying
+	// @todo can we have a template fn that does this?
+
+	if (AppendMesh->HasAttributes() && Mesh->HasAttributes())
+	{
+		const FDynamicMeshNormalOverlay* FromNormals = AppendMesh->Attributes()->PrimaryNormals();
+		FDynamicMeshNormalOverlay* ToNormals = Mesh->Attributes()->PrimaryNormals();
+		if (FromNormals != nullptr && ToNormals != nullptr)
+		{
+			FIndexMapi& NormalMap = IndexMapsOut.GetNormalMap(0);
+			NormalMap.Reserve(FromNormals->ElementCount());
+			AppendNormals(AppendMesh, FromNormals, ToNormals,
+				VertexMap, TriangleMap, NormalTransform, NormalMap);
+		}
+
+		const FDynamicMeshUVOverlay* FromUVs = AppendMesh->Attributes()->PrimaryUV();
+		FDynamicMeshUVOverlay* ToUVs = Mesh->Attributes()->PrimaryUV();
+		if (FromUVs != nullptr && ToUVs != nullptr)
+		{
+			FIndexMapi& UVMap = IndexMapsOut.GetUVMap(0);
+			UVMap.Reserve(FromUVs->ElementCount());
+			AppendUVs(AppendMesh, FromUVs, ToUVs,
+				VertexMap, TriangleMap, UVMap);
+		}
+	}
+}
+
+
+
+void FDynamicMeshEditor::AppendNormals(const FDynamicMesh3* AppendMesh, 
+	const FDynamicMeshNormalOverlay* FromNormals, FDynamicMeshNormalOverlay* ToNormals,
+	const FIndexMapi& VertexMap, const FIndexMapi& TriangleMap,
+	TFunction<FVector3d(int, const FVector3d&)> NormalTransform,
+	FIndexMapi& NormalMapOut)
+{
+	// copy over normals
+	for (int ElemID : FromNormals->ElementIndicesItr())
+	{
+		int ParentVertID = FromNormals->GetParentVertex(ElemID);
+		FVector3f Normal = FromNormals->GetElement(ElemID);
+		if (NormalTransform != nullptr)
+		{
+			Normal = (FVector3f)NormalTransform(ParentVertID, (FVector3d)Normal);
+		}
+		int NewElemID = ToNormals->AppendElement(Normal, VertexMap.GetTo(ParentVertID));
+		NormalMapOut.Add(ElemID, NewElemID);
+	}
+
+	// now set new triangles
+	for (int TriID : AppendMesh->TriangleIndicesItr())
+	{
+		FIndex3i ElemTri = FromNormals->GetTriangle(TriID);
+		int NewTriID = TriangleMap.GetTo(TriID);
+		for (int j = 0; j < 3; ++j)
+		{
+			ElemTri[j] = FromNormals->IsElement(ElemTri[j]) ? NormalMapOut.GetTo(ElemTri[j]) : FDynamicMesh3::InvalidID;
+		}
+		ToNormals->SetTriangle(NewTriID, ElemTri);
+	}
+}
+
+
+void FDynamicMeshEditor::AppendUVs(const FDynamicMesh3* AppendMesh,
+	const FDynamicMeshUVOverlay* FromUVs, FDynamicMeshUVOverlay* ToUVs,
+	const FIndexMapi& VertexMap, const FIndexMapi& TriangleMap,
+	FIndexMapi& UVMapOut)
+{
+	// copy over uv elements
+	for (int ElemID : FromUVs->ElementIndicesItr())
+	{
+		int ParentVertID = FromUVs->GetParentVertex(ElemID);
+		FVector2f UV = FromUVs->GetElement(ElemID);
+		int NewElemID = ToUVs->AppendElement(UV, VertexMap.GetTo(ParentVertID));
+		UVMapOut.Add(ElemID, NewElemID);
+	}
+
+	// now set new triangles
+	for (int TriID : AppendMesh->TriangleIndicesItr())
+	{
+		FIndex3i ElemTri = FromUVs->GetTriangle(TriID);
+		int NewTriID = TriangleMap.GetTo(TriID);
+		for (int j = 0; j < 3; ++j)
+		{
+			ElemTri[j] = FromUVs->IsElement(ElemTri[j]) ? UVMapOut.GetTo(ElemTri[j]) : FDynamicMesh3::InvalidID;
+		}
+		ToUVs->SetTriangle(NewTriID, ElemTri);
 	}
 }

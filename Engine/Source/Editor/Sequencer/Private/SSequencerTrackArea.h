@@ -79,6 +79,7 @@ public:
 
 	/** Assign a tree view to this track area. */
 	void SetTreeView(const TSharedPtr<SSequencerTreeView>& InTreeView);
+	TWeakPtr<SSequencerTreeView> GetTreeView() const { return TreeView; }
 
 	/** Access the currently active track area edit tool */
 	const ISequencerEditTool* GetEditTool() const { return EditTool.IsValid() ? EditTool.Get() : nullptr; }
@@ -86,6 +87,14 @@ public:
 	/** Attempt to activate the tool specified by the identifier */
 	bool AttemptToActivateTool(FName Identifier);
 
+	/** Set whether this TrackArea should show only pinned nodes or only non-pinned nodes  */
+	void SetShowPinned(bool bShowPinned) { bShowPinnedNodes = bShowPinned; }
+	bool ShowPinned() const { return bShowPinnedNodes; }
+
+	/** Set whether this TrackArea is slaved to a master TrackArea and should skip updating external controls */
+	void SetIsSlave(bool bInIsSlave) { bIsSlave = bInIsSlave; }
+	bool IsSlave() const { return bIsSlave; }
+	
 public:
 
 	// SWidget interface
@@ -149,6 +158,12 @@ private:
 
 	/** Whether the dropped node is allowed to be dropped onto */
 	bool bAllowDrop;
+
+	/** Whether this TrackArea is for pinned nodes or non-pinned nodes */
+	bool bShowPinnedNodes;
+
+	/** Whether this TrackArea is slaved to a master TrackArea and should skip updating external controls */
+	bool bIsSlave;
 
 private:
 

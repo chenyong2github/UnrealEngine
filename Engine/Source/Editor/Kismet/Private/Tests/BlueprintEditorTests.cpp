@@ -23,7 +23,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "AssetData.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Kismet2/KismetEditorUtilities.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraphSchema_K2_Actions.h"
@@ -48,6 +48,7 @@
 #include "Tests/AutomationTestSettings.h"
 #include "Tests/AutomationEditorCommon.h"
 #include "Tests/AutomationEditorPromotionCommon.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -195,7 +196,7 @@ namespace BlueprintEditorPromotionUtils
 	*/
 	static USCS_Node* CreateBlueprintComponent(UBlueprint* InBlueprint, UObject* InAsset)
 	{
-		IAssetEditorInstance* OpenEditor = FAssetEditorManager::Get().FindEditorForAsset(InBlueprint, true);
+		IAssetEditorInstance* OpenEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(InBlueprint, true);
 		FBlueprintEditor* CurrentBlueprintEditor = (FBlueprintEditor*)OpenEditor;
 		TSubclassOf<UActorComponent> ComponentClass = FComponentAssetBrokerage::GetPrimaryComponentForAsset(InAsset->GetClass());
 
@@ -411,7 +412,7 @@ namespace BlueprintEditorPromotionUtils
 	*/
 	static void PromotePinToVariable(UBlueprint* InBlueprint, UEdGraphNode* Node, const FName& PinName)
 	{
-		IAssetEditorInstance* OpenEditor = FAssetEditorManager::Get().FindEditorForAsset(InBlueprint, true);
+		IAssetEditorInstance* OpenEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(InBlueprint, true);
 		FBlueprintEditor* CurrentBlueprintEditor = (FBlueprintEditor*)OpenEditor;
 
 		UEdGraphPin* PinToPromote = Node->FindPin(PinName);
@@ -751,7 +752,7 @@ namespace BlueprintEditorPromotionTestHelper
 		bool Cleanup()
 		{
 			//Make sure no editors are open
-			FAssetEditorManager::Get().CloseAllAssetEditors();
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllAssetEditors();
 
 			//remove all assets in the build package
 			// Load the asset registry module
@@ -881,7 +882,7 @@ namespace BlueprintEditorPromotionTestHelper
 				BlueprintPackage->MarkPackageDirty();
 
 				Test->AddInfo(TEXT("Opening the blueprint editor for the first time"));
-				FAssetEditorManager::Get().OpenEditorForAsset(BlueprintObject);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(BlueprintObject);
 			}
 
 			return true;
@@ -895,7 +896,7 @@ namespace BlueprintEditorPromotionTestHelper
 		{
 			if (BlueprintObject)
 			{
-				IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(BlueprintObject, true);
+				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(BlueprintObject, true);
 				IBlueprintEditor* BlueprintEditor = (IBlueprintEditor*)AssetEditor;
 				Test->TestTrue(TEXT("Opened correct initial editor"), BlueprintEditor->GetCurrentMode() != FBlueprintEditorApplicationModes::BlueprintDefaultsMode);
 			}
@@ -912,7 +913,7 @@ namespace BlueprintEditorPromotionTestHelper
 			if (BlueprintObject)
 			{
 				Test->AddInfo(TEXT("Closing the blueprint editor"));
-				FAssetEditorManager::Get().CloseAllAssetEditors();
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllAssetEditors();
 			}
 			return true;
 		}
@@ -926,7 +927,7 @@ namespace BlueprintEditorPromotionTestHelper
 			if (BlueprintObject)
 			{
 				Test->AddInfo(TEXT("Opening the blueprint editor for the second time"));
-				FAssetEditorManager::Get().OpenEditorForAsset(BlueprintObject);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(BlueprintObject);
 			}
 			return true;
 		}
@@ -939,7 +940,7 @@ namespace BlueprintEditorPromotionTestHelper
 		{
 			if (BlueprintObject)
 			{
-				IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(BlueprintObject, true);
+				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(BlueprintObject, true);
 				IBlueprintEditor* BlueprintEditor = (IBlueprintEditor*)AssetEditor;
 				
 				bool bCorrectEditorOpened = BlueprintEditor->GetCurrentMode() == FBlueprintEditorApplicationModes::BlueprintDefaultsMode;
@@ -962,7 +963,7 @@ namespace BlueprintEditorPromotionTestHelper
 		{
 			if (BlueprintObject)
 			{
-				IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(BlueprintObject, true);
+				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(BlueprintObject, true);
 				IBlueprintEditor* BlueprintEditor = (IBlueprintEditor*)AssetEditor;
 
 				MeshNode = BlueprintEditorPromotionUtils::CreateBlueprintComponent(BlueprintObject, FirstBlueprintMesh);
@@ -1007,7 +1008,7 @@ namespace BlueprintEditorPromotionTestHelper
 		{
 			if (BlueprintObject)
 			{
-				IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(BlueprintObject, true);
+				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(BlueprintObject, true);
 				IBlueprintEditor* BlueprintEditor = (IBlueprintEditor*)AssetEditor;
 
 				//FEditorPromotionTestUtilities::TakeScreenshot(TEXT("BlueprintComponentVariables"), true);
@@ -1042,7 +1043,7 @@ namespace BlueprintEditorPromotionTestHelper
 		{
 			if (BlueprintObject)
 			{
-				IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(BlueprintObject, true);
+				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(BlueprintObject, true);
 				FBlueprintEditor* BlueprintEditor = (FBlueprintEditor*)AssetEditor;
 
 				UEdGraph* ConstructionGraph = FBlueprintEditorUtils::FindUserConstructionScript(BlueprintObject);
@@ -1105,7 +1106,7 @@ namespace BlueprintEditorPromotionTestHelper
 		{
 			if (BlueprintObject)
 			{
-				IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(BlueprintObject, true);
+				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(BlueprintObject, true);
 				FBlueprintEditor* BlueprintEditor = (FBlueprintEditor*)AssetEditor;
 
 				BlueprintEditorPromotionUtils::PromotePinToVariable(BlueprintObject, AddMeshNode, UEdGraphSchema_K2::PN_ReturnValue);
@@ -1129,7 +1130,7 @@ namespace BlueprintEditorPromotionTestHelper
 		{
 			if (BlueprintObject)
 			{
-				IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(BlueprintObject, true);
+				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(BlueprintObject, true);
 				FBlueprintEditor* BlueprintEditor = (FBlueprintEditor*)AssetEditor;
 
 				//FEditorPromotionTestUtilities::TakeScreenshot(TEXT("BlueprintMeshVariable"), true);
@@ -1163,7 +1164,7 @@ namespace BlueprintEditorPromotionTestHelper
 		{
 			if (BlueprintObject)
 			{
-				IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(BlueprintObject, true);
+				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(BlueprintObject, true);
 				FBlueprintEditor* BlueprintEditor = (FBlueprintEditor*)AssetEditor;
 
 				UEdGraph* EventGraph = FBlueprintEditorUtils::FindEventGraph(BlueprintObject);

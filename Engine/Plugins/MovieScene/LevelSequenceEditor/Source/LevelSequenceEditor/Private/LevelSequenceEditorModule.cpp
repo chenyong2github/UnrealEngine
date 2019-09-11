@@ -10,7 +10,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "IAssetTypeActions.h"
 #include "AssetTools/LevelSequenceActions.h"
 #include "LevelSequenceEditorCommands.h"
@@ -37,6 +37,7 @@
 #include "SequencerSettings.h"
 #include "Misc/MovieSceneSequenceEditor_LevelSequence.h"
 #include "BlueprintAssetHandler.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "LevelSequenceEditor"
 
@@ -158,10 +159,10 @@ protected:
 
 		// Create and register the level editor toolbar menu extension
 		CinematicsMenuExtender = MakeShareable(new FExtender);
-		CinematicsMenuExtender->AddMenuExtension("LevelEditorNewMatinee", EExtensionHook::First, CommandList, FMenuExtensionDelegate::CreateStatic([](FMenuBuilder& MenuBuilder) {
+		CinematicsMenuExtender->AddMenuExtension("LevelEditorNewCinematics", EExtensionHook::First, CommandList, FMenuExtensionDelegate::CreateStatic([](FMenuBuilder& MenuBuilder) {
 			MenuBuilder.AddMenuEntry(FLevelSequenceEditorCommands::Get().CreateNewLevelSequenceInLevel);
 		}));
-		CinematicsMenuExtender->AddMenuExtension("LevelEditorNewMatinee", EExtensionHook::First, CommandList, FMenuExtensionDelegate::CreateStatic([](FMenuBuilder& MenuBuilder) {
+		CinematicsMenuExtender->AddMenuExtension("LevelEditorNewCinematics", EExtensionHook::First, CommandList, FMenuExtensionDelegate::CreateStatic([](FMenuBuilder& MenuBuilder) {
 			MenuBuilder.AddMenuEntry(FLevelSequenceEditorCommands::Get().CreateNewMasterSequenceInLevel);
 		}));
 
@@ -354,7 +355,7 @@ protected:
 			GEditor->MoveViewportCamerasToActor(*NewActor, false);
 		}
 
-		FAssetEditorManager::Get().OpenEditorForAsset(NewAsset);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
 	}
 
 	/** Callback for creating a new level sequence asset in the level. */
@@ -367,16 +368,6 @@ protected:
 	FOnMasterSequenceCreated& OnMasterSequenceCreated() override
 	{
 		return OnMasterSequenceCreatedEvent;
-	}
-
-	virtual void RegisterLevelSequenceActionExtender(TSharedRef<FLevelSequenceActionExtender> InExtender) override
-	{
-		LevelSequenceTypeActions->RegisterLevelSequenceActionExtender(InExtender);
-	}
-
-	virtual void UnregisterLevelSequenceActionExtender(TSharedRef<FLevelSequenceActionExtender> InExtender) override
-	{
-		LevelSequenceTypeActions->UnregisterLevelSequenceActionExtender(InExtender);
 	}
 
 	static TSharedRef<ISequencerEditorObjectBinding> OnCreateActorBinding(TSharedRef<ISequencer> InSequencer)

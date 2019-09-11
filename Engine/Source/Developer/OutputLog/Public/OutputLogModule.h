@@ -47,6 +47,8 @@ public:
 	/** Closes the debug console for the specified window */
 	virtual void CloseDebugConsole();
 
+	virtual void ClearOnPIE(const bool bIsSimulating);
+
 private:
 
 	/** Weak pointer to a debug console that's currently open, if any */

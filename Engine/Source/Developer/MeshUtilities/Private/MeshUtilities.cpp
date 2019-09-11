@@ -43,7 +43,6 @@
 #include "HierarchicalLODUtilitiesModule.h"
 #include "MeshBoneReduction.h"
 #include "MeshMergeData.h"
-#include "Editor/EditorPerProjectUserSettings.h"
 #include "GPUSkinVertexFactory.h"
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
@@ -68,6 +67,8 @@
 #include "IAnimationBlueprintEditorModule.h"
 #include "IAnimationEditor.h"
 #include "IAnimationEditorModule.h"
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
 #include "ISkeletalMeshEditor.h"
 #include "ISkeletalMeshEditorModule.h"
 #include "ISkeletonEditor.h"
@@ -82,6 +83,7 @@
 #include "Engine/SkeletalMeshSimplificationSettings.h"
 #include "Engine/ProxyLODMeshSimplificationSettings.h"
 
+#include "Editor/EditorPerProjectUserSettings.h"
 #include "IDetailCustomization.h"
 #include "EditorStyleSet.h"
 #include "PropertyEditorModule.h"
@@ -98,6 +100,7 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "UnrealEdMisc.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #endif
 #include "MaterialBakingStructures.h"
 #include "IMaterialBakingModule.h"
@@ -108,6 +111,7 @@
 #include "PrimitiveSceneInfo.h"
 #include "IMeshReductionManagerModule.h"
 #include "MeshMergeModule.h"
+
 
 DEFINE_LOG_CATEGORY(LogMeshUtilities);
 /*------------------------------------------------------------------------------
@@ -400,6 +404,8 @@ static void StaticMeshToRawMeshes(UStaticMeshComponent* InStaticMeshComponent, i
 
 UStaticMesh* FMeshUtilities::ConvertMeshesToStaticMesh(const TArray<UMeshComponent*>& InMeshComponents, const FTransform& InRootTransform, const FString& InPackageName)
 {
+	UStaticMesh* StaticMesh = nullptr;
+
 	// Build a package name to use
 	FString MeshName;
 	FString PackageName;
@@ -528,7 +534,7 @@ UStaticMesh* FMeshUtilities::ConvertMeshesToStaticMesh(const TArray<UMeshCompone
 			check(Package);
 
 			// Create StaticMesh object
-			UStaticMesh* StaticMesh = NewObject<UStaticMesh>(Package, *MeshName, RF_Public | RF_Standalone);
+			StaticMesh = NewObject<UStaticMesh>(Package, *MeshName, RF_Public | RF_Standalone);
 			StaticMesh->InitResources();
 
 			StaticMesh->LightingGuid = FGuid::NewGuid();
@@ -600,7 +606,7 @@ UStaticMesh* FMeshUtilities::ConvertMeshesToStaticMesh(const TArray<UMeshCompone
 				FNotificationInfo Info(FText::Format(LOCTEXT("SkeletalMeshConverted", "Successfully Converted Mesh"), FText::FromString(StaticMesh->GetName())));
 				Info.ExpireDuration = 8.0f;
 				Info.bUseLargeFont = false;
-				Info.Hyperlink = FSimpleDelegate::CreateLambda([=]() { FAssetEditorManager::Get().OpenEditorForAssets(TArray<UObject*>({ StaticMesh })); });
+				Info.Hyperlink = FSimpleDelegate::CreateLambda([=]() { GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(TArray<UObject*>({ StaticMesh })); });
 				Info.HyperlinkText = FText::Format(LOCTEXT("OpenNewAnimationHyperlink", "Open {0}"), FText::FromString(StaticMesh->GetName()));
 				TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
 				if ( Notification.IsValid() )
@@ -611,7 +617,7 @@ UStaticMesh* FMeshUtilities::ConvertMeshesToStaticMesh(const TArray<UMeshCompone
 		}
 	}
 
-	return nullptr;
+	return StaticMesh;
 }
 
 /**
@@ -3451,6 +3457,7 @@ public:
 	{
 		bool bBlendOverlappingNormals = true;
 		bool bIgnoreDegenerateTriangles = BuildData->BuildOptions.bRemoveDegenerateTriangles;
+		bool bComputeWeightedNormals = BuildData->BuildOptions.bComputeWeightedNormals;
 		
 		// Compute per-triangle tangents.
 		TArray<FVector> TriangleTangentX;
@@ -3628,8 +3635,8 @@ public:
 								FFanFace& NextFace = RelevantFacesForCorner[CornerIndex][NextFaceIndex];
 								if (!NextFace.bFilled) // && !NextFace.bBlendTangents)
 								{
-									if (NextFaceIndex != OtherFaceIdx)
-										//&& (BuildData->GetFaceSmoothingGroups(NextFace.FaceIndex) & BuildData->GetFaceSmoothingGroups(OtherFace.FaceIndex)))
+									if ((NextFaceIndex != OtherFaceIdx)
+										&& (BuildData->GetFaceSmoothingGroups(NextFace.FaceIndex) & BuildData->GetFaceSmoothingGroups(OtherFace.FaceIndex)))
 									{
 										int32 CommonVertices = 0;
 										int32 CommonTangentVertices = 0;
@@ -3710,14 +3717,26 @@ public:
 						if (RelevantFace.bFilled)
 						{
 							int32 OtherFaceIndex = RelevantFace.FaceIndex;
+							float CornerWeight = 1.0f;
+							if (bComputeWeightedNormals)
+							{
+
+								FVector OtherFacePoint[3] = { BuildData->GetVertexPosition(OtherFaceIndex, 0), BuildData->GetVertexPosition(OtherFaceIndex, 1), BuildData->GetVertexPosition(OtherFaceIndex, 2) };
+								float OtherFaceArea = TriangleUtilities::ComputeTriangleArea(OtherFacePoint[0], OtherFacePoint[1], OtherFacePoint[2]);
+								int32 OtherFaceCornerIndex = RelevantFace.LinkedVertexIndex;
+								float OtherFaceAngle = TriangleUtilities::ComputeTriangleCornerAngle(OtherFacePoint[OtherFaceCornerIndex], OtherFacePoint[(OtherFaceCornerIndex + 1) % 3], OtherFacePoint[(OtherFaceCornerIndex + 2) % 3]);
+								//Get the CornerWeight
+								CornerWeight = OtherFaceArea * OtherFaceAngle;
+							}
+
 							if (RelevantFace.bBlendTangents)
 							{
-								CornerTangentX[CornerIndex] += TriangleTangentX[OtherFaceIndex];
-								CornerTangentY[CornerIndex] += TriangleTangentY[OtherFaceIndex];
+								CornerTangentX[CornerIndex] += CornerWeight * TriangleTangentX[OtherFaceIndex];
+								CornerTangentY[CornerIndex] += CornerWeight * TriangleTangentY[OtherFaceIndex];
 							}
 							if (RelevantFace.bBlendNormals)
 							{
-								CornerTangentZ[CornerIndex] += TriangleTangentZ[OtherFaceIndex];
+								CornerTangentZ[CornerIndex] += CornerWeight * TriangleTangentZ[OtherFaceIndex];
 							}
 						}
 					}
@@ -3807,6 +3826,7 @@ public:
 	{
 		bool bBlendOverlappingNormals = true;
 		bool bIgnoreDegenerateTriangles = BuildData->BuildOptions.bRemoveDegenerateTriangles;
+		bool bComputeWeightedNormals = BuildData->BuildOptions.bComputeWeightedNormals;
 		
 		int32 NumFaces = BuildData->GetNumFaces();
 		int32 NumWedges = BuildData->GetNumWedges();
@@ -4045,9 +4065,20 @@ public:
 						if (RelevantFace.bFilled)
 						{
 							int32 OtherFaceIndex = RelevantFace.FaceIndex;
+							float CornerWeight = 1.0f;
+							if (bComputeWeightedNormals)
+							{
+								FVector OtherFacePoint[3] = { BuildData->GetVertexPosition(OtherFaceIndex, 0), BuildData->GetVertexPosition(OtherFaceIndex, 1), BuildData->GetVertexPosition(OtherFaceIndex, 2) };
+								float OtherFaceArea = TriangleUtilities::ComputeTriangleArea(OtherFacePoint[0], OtherFacePoint[1], OtherFacePoint[2]);
+								int32 OtherFaceCornerIndex = RelevantFace.LinkedVertexIndex;
+								float OtherFaceAngle = TriangleUtilities::ComputeTriangleCornerAngle(OtherFacePoint[OtherFaceCornerIndex], OtherFacePoint[(OtherFaceCornerIndex + 1) % 3], OtherFacePoint[(OtherFaceCornerIndex + 2) % 3]);
+								//Get the CornerWeight
+								CornerWeight = OtherFaceArea * OtherFaceAngle;
+							}
+							
 							if (RelevantFace.bBlendNormals)
 							{
-								CornerNormal[CornerIndex] += TriangleTangentZ[OtherFaceIndex];
+								CornerNormal[CornerIndex] += CornerWeight * TriangleTangentZ[OtherFaceIndex];
 							}
 						}
 					}
@@ -4449,7 +4480,7 @@ bool FMeshUtilities::BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel, const FR
 	// Temporarily supporting both import paths
 	if (!BuildOptions.bUseMikkTSpace)
 	{
-		bool bBuildSuccess = BuildSkeletalMesh_Legacy(LODModel, RefSkeleton, Influences, Wedges, Faces, Points, PointToOriginalMap, BuildOptions.OverlappingThresholds, BuildOptions.bComputeNormals, BuildOptions.bComputeTangents, OutWarningMessages, OutWarningNames);
+		bool bBuildSuccess = BuildSkeletalMesh_Legacy(LODModel, RefSkeleton, Influences, Wedges, Faces, Points, PointToOriginalMap, BuildOptions.OverlappingThresholds, BuildOptions.bComputeNormals, BuildOptions.bComputeTangents, BuildOptions.bComputeWeightedNormals, OutWarningMessages, OutWarningNames);
 		if (bBuildSuccess)
 		{
 			UpdateOverlappingVertices(LODModel);
@@ -4673,6 +4704,7 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 											, const FOverlappingThresholds& OverlappingThresholds
 											, bool bComputeNormals
 											, bool bComputeTangents
+											, bool bComputeWeightedNormals
 											, TArray<FText> * OutWarningMessages
 											, TArray<FName> * OutWarningNames)
 {
@@ -4914,15 +4946,19 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 				}
 			}
 
+			FVector FacePoint[3] = { Points[Wedges[Face.iWedge[0]].iVertex], Points[Wedges[Face.iWedge[1]].iVertex], Points[Wedges[Face.iWedge[2]].iVertex] };
 			// Process adjacent faces
 			for (int32 AdjacentFaceIndex = 0; AdjacentFaceIndex < AdjacentFaces.Num(); AdjacentFaceIndex++)
 			{
 				int32 OtherFaceIndex = AdjacentFaces[AdjacentFaceIndex];
 				const SkeletalMeshImportData::FMeshFace&	OtherFace = Faces[OtherFaceIndex];
+
+				FVector OtherFacePoint[3] = { Points[Wedges[OtherFace.iWedge[0]].iVertex], Points[Wedges[OtherFace.iWedge[1]].iVertex], Points[Wedges[OtherFace.iWedge[2]].iVertex] };
+				float OtherFaceArea = !bComputeWeightedNormals ? 1.0f : TriangleUtilities::ComputeTriangleArea(OtherFacePoint[0], OtherFacePoint[1], OtherFacePoint[2]);
 				FVector		OtherTriangleNormal = FPlane(
-					Points[Wedges[OtherFace.iWedge[2]].iVertex],
-					Points[Wedges[OtherFace.iWedge[1]].iVertex],
-					Points[Wedges[OtherFace.iWedge[0]].iVertex]
+					OtherFacePoint[2],
+					OtherFacePoint[1],
+					OtherFacePoint[0]
 					);
 				float		OtherFaceDeterminant = FVector::Triple(FaceTangentX[OtherFaceIndex], FaceTangentY[OtherFaceIndex], OtherTriangleNormal);
 
@@ -4931,22 +4967,27 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 					for (int32 OtherVertexIndex = 0; OtherVertexIndex < 3; OtherVertexIndex++)
 					{
 						if (PointsEqual(
-							Points[Wedges[OtherFace.iWedge[OtherVertexIndex]].iVertex],
-							Points[Wedges[Face.iWedge[VertexIndex]].iVertex],
+							OtherFacePoint[OtherVertexIndex],
+							FacePoint[VertexIndex],
 							OverlappingThresholds
 							))
 						{
+							//Compute the angle
+							float OtherFaceAngle = !bComputeWeightedNormals ? 1.0f : TriangleUtilities::ComputeTriangleCornerAngle(OtherFacePoint[OtherVertexIndex], OtherFacePoint[(OtherVertexIndex + 1) % 3], OtherFacePoint[(OtherVertexIndex + 2) % 3]);
+							
+							float CornerWeight = (OtherFaceArea * OtherFaceAngle);
+
 							if (Determinant * OtherFaceDeterminant > 0.0f && SkeletalMeshTools::SkeletalMesh_UVsEqual(Wedges[OtherFace.iWedge[OtherVertexIndex]], Wedges[Face.iWedge[VertexIndex]], OverlappingThresholds))
 							{
-								VertexTangentX[VertexIndex] += FaceTangentX[OtherFaceIndex];
-								VertexTangentY[VertexIndex] += FaceTangentY[OtherFaceIndex];
+								VertexTangentX[VertexIndex] += CornerWeight *FaceTangentX[OtherFaceIndex];
+								VertexTangentY[VertexIndex] += CornerWeight *FaceTangentY[OtherFaceIndex];
 							}
 
 							// Only contribute 'normal' if the vertices are truly one and the same to obey hard "smoothing" edges baked into 
 							// the mesh by vertex duplication
 							if (Wedges[OtherFace.iWedge[OtherVertexIndex]].iVertex == Wedges[Face.iWedge[VertexIndex]].iVertex)
 							{
-								VertexTangentZ[VertexIndex] += OtherTriangleNormal;
+								VertexTangentZ[VertexIndex] += CornerWeight *OtherTriangleNormal;
 							}
 						}
 					}
@@ -6231,7 +6272,7 @@ TSharedRef<FExtender> FMeshUtilities::GetLevelViewportContextMenuExtender(const 
 					FText::Format(LOCTEXT("ConvertSelectedActorsToStaticMeshText", "Convert {0} To Static Mesh"), ActorName),
 					LOCTEXT("ConvertSelectedActorsToStaticMeshTooltip", "Convert the selected actor's meshes to a new Static Mesh asset. Supports static and skeletal meshes."),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateRaw(this, &FMeshUtilities::ConvertActorMeshesToStaticMesh, InActors))
+					FUIAction(FExecuteAction::CreateRaw(this, &FMeshUtilities::ConvertActorMeshesToStaticMeshUIAction, InActors))
 				);
 			})
 			);
@@ -6241,7 +6282,7 @@ TSharedRef<FExtender> FMeshUtilities::GetLevelViewportContextMenuExtender(const 
 	return Extender;
 }
 
-void FMeshUtilities::ConvertActorMeshesToStaticMesh(const TArray<AActor*> InActors)
+void FMeshUtilities::ConvertActorMeshesToStaticMeshUIAction(const TArray<AActor*> InActors)
 {
 	TArray<UMeshComponent*> MeshComponents;
 
@@ -6287,7 +6328,14 @@ void FMeshUtilities::ConvertActorMeshesToStaticMesh(const TArray<AActor*> InActo
 		RootTransform.SetLocation(Location);
 	}
 
-	ConvertMeshesToStaticMesh(MeshComponents, RootTransform);
+	UStaticMesh* StaticMesh = ConvertMeshesToStaticMesh(MeshComponents, RootTransform);
+
+	// Also notify the content browser that the new assets exists
+	if (StaticMesh != nullptr)
+	{
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+		ContentBrowserModule.Get().SyncBrowserToAssets(TArray<UObject*>({ StaticMesh }), true);
+	}
 }
 
 /************************************************************************/

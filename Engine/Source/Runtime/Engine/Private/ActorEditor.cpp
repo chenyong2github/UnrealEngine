@@ -885,7 +885,7 @@ const FName& AActor::GetFolderPath() const
 
 void AActor::SetFolderPath(const FName& NewFolderPath)
 {
-	if (NewFolderPath != FolderPath)
+	if (!NewFolderPath.IsEqual(FolderPath, ENameCase::CaseSensitive))
 	{
 		Modify();
 

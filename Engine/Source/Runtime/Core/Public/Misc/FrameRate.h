@@ -135,7 +135,7 @@ struct FFrameRate
 	 * @param DesiredMajorTickPx (Optional) The desired size to compute major tick lines from
 	 * @return True if a valid grid spacing was computed, false otherwise.
 	 */
-	CORE_API bool ComputeGridSpacing(const float PixelsPerSecond, double& OutMajorInterval, int32& OutMinorDivisions, float MinTickPx = 30.f, float DesiredMajorTickPx = 120.f);
+	CORE_API bool ComputeGridSpacing(const float PixelsPerSecond, double& OutMajorInterval, int32& OutMinorDivisions, float MinTickPx = 30.f, float DesiredMajorTickPx = 120.f) const;
 
 	/**
 	 * Get the maximum number of seconds representable with this framerate

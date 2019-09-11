@@ -84,11 +84,8 @@ protected:
 	/** Syncs changes made by the visualizer in the actual component */
 	void NotifyComponentModified();
 
-	/** Actor that owns the currently edited spline */
-	TWeakObjectPtr<AActor> SplineMeshOwningActor;
-
-	/** Name of property on the actor that references the spline we are editing */
-	FPropertyNameAndIndex SplineMeshCompPropName;
+	/** Property path from the parent actor to the component */
+	FComponentPropertyPath SplineMeshPropertyPath;
 
 	/** Index of the key we selected */
 	int32 SelectedKey;

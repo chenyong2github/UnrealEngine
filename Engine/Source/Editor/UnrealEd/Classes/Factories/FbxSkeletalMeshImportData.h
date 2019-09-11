@@ -29,6 +29,8 @@ class UFbxSkeletalMeshImportData : public UFbxMeshImportData
 {
 	GENERATED_UCLASS_BODY()
 public:
+	virtual void Serialize(FArchive& Ar) override;
+
 	/** Filter the content we want to import from the incoming FBX skeletal mesh.*/
 	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ImportType = "SkeletalMesh", DisplayName = "Import Content Type", OBJRestrict = "true"))
 	TEnumAsByte<enum EFBXImportContentType> ImportContentType;
@@ -105,7 +107,6 @@ namespace SkeletalMeshImportData
 
 extern UNREALED_API ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, bool bSaveMaterials, int32 ReimportLODIndex);
 extern UNREALED_API void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* SkeletalMesh, int32 ReimportLODIndex, bool bCanShowDialog, bool bImportSkinningOnly);
-extern UNREALED_API void ProcessImportMeshInfluences(const int32 WedgeCount, TArray <SkeletalMeshImportData::FRawBoneInfluence>& Influences);
 extern UNREALED_API void ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData);
 extern UNREALED_API void ProcessImportMeshMaterials(TArray<FSkeletalMaterial>& Materials, FSkeletalMeshImportData& ImportData);
 extern UNREALED_API bool ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, FSkeletalMeshImportData& ImportData);

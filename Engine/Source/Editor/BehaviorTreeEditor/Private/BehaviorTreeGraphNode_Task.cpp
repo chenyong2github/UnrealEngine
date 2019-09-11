@@ -31,8 +31,8 @@ FText UBehaviorTreeGraphNode_Task::GetNodeTitle(ENodeTitleType::Type TitleType) 
 	return Super::GetNodeTitle(TitleType);
 }
 
-void UBehaviorTreeGraphNode_Task::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UBehaviorTreeGraphNode_Task::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	AddContextMenuActionsDecorators(Context);
-	AddContextMenuActionsServices(Context);
+	AddContextMenuActionsDecorators(Menu, "BehaviorTreeGraphNode", Context);
+	AddContextMenuActionsServices(Menu, "BehaviorTreeGraphNode", Context);
 }

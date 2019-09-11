@@ -10,6 +10,8 @@
 #include "CurveEditorTypes.h"
 #include "Math/TransformCalculus2D.h"
 
+#include "IBufferedCurveModel.h"
+
 struct FKeyHandle;
 struct FKeyDrawInfo;
 struct FCurveDrawParams;
@@ -203,6 +205,26 @@ public:
 	{}
 
 	/**
+	 * Creates a copy of this curve, stored in a minimal buffered curve object.
+	 * Buffered curves are used to cache the positions and attributes of a curve's keys. After creation, a buffered curve 
+	 * can be applied to any curve to set it to its saved state. Each curve must implement its own buffered curve which 
+	 * inherits IBufferedCurve and implements the DrawCurve method in order for it to be drawn on screen.
+	 * Optionally implemented
+	 */
+	virtual TUniquePtr<IBufferedCurveModel> CreateBufferedCurveCopy() const
+	{
+		return nullptr;
+	}
+
+	/** 
+	 * Returns whether the curve model should be edited or not
+	 */
+	virtual bool IsReadOnly() const
+	{
+		return false;
+	}
+
+	/**
 	 * Helper function for assigning a the same attributes to a number of keys
 	 */
 	void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, const FKeyAttributes& InAttributes);
@@ -285,9 +307,9 @@ public:
 	/**
 	 * Retrieve this curve's color
 	 */
-	FORCEINLINE const FLinearColor& GetColor() const
+	FORCEINLINE FLinearColor GetColor() const
 	{
-		return Color;
+		return IsReadOnly() ? Color.Desaturate(.6f) : Color;
 	}
 
 	/**

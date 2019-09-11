@@ -36,6 +36,7 @@ public:
 		: _UseScrollBox(true)
 		, _ScrollBoxMaxHeight(300)
 	{
+		_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Auto);
 	}
 		/** Title to display for the dialog. */
 		SLATE_ARGUMENT(FText, Title)

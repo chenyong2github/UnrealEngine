@@ -33,7 +33,7 @@ FDetailPropertyRow::FDetailPropertyRow(TSharedPtr<FPropertyNode> InPropertyNode,
 	if( InPropertyNode.IsValid() )
 	{
 		TSharedRef<FPropertyNode> PropertyNodeRef = PropertyNode.ToSharedRef();
-
+		
 		PropertyHandle = InParentCategory->GetParentLayoutImpl().GetPropertyHandle(PropertyNodeRef);
 
 		const TSharedRef<IPropertyUtilities> Utilities = InParentCategory->GetParentLayoutImpl().GetPropertyUtilities();
@@ -52,17 +52,23 @@ FDetailPropertyRow::FDetailPropertyRow(TSharedPtr<FPropertyNode> InPropertyNode,
 
 		if (PropertyNode->GetPropertyKeyNode().IsValid())
 		{
-			UStructProperty* KeyStructProp = Cast<UStructProperty>(PropertyNode->GetPropertyKeyNode()->GetProperty());
-
 			// Only struct and customized properties require their own nodes. Everything else just needs a property editor.
-			bool bNeedsKeyPropEditor = KeyStructProp == nullptr && !GetPropertyCustomization(PropertyNode->GetPropertyKeyNode().ToSharedRef(), InParentCategory).IsValid();
-
-			if ( bNeedsKeyPropEditor )
+			if (!NeedsKeyNode(PropertyNodeRef, InParentCategory))
 			{
 				MakePropertyEditor(PropertyNode->GetPropertyKeyNode().ToSharedRef(), Utilities, PropertyKeyEditor);
 			}
 		}
 	}
+}
+
+bool FDetailPropertyRow::NeedsKeyNode(TSharedRef<FPropertyNode> InPropertyNode, TSharedRef<FDetailCategoryImpl> InParentCategory)
+{
+	UStructProperty* KeyStructProp = Cast<UStructProperty>(InPropertyNode->GetPropertyKeyNode()->GetProperty());
+	UStructProperty* ValueStructProp = Cast<UStructProperty>(InPropertyNode->GetProperty());
+
+	return KeyStructProp != nullptr || ValueStructProp != nullptr ||
+		GetPropertyCustomization(InPropertyNode->GetPropertyKeyNode().ToSharedRef(), InParentCategory).IsValid() ||
+		GetPropertyCustomization(InPropertyNode, InParentCategory).IsValid();
 }
 
 IDetailPropertyRow& FDetailPropertyRow::DisplayName( const FText& InDisplayName )
@@ -160,7 +166,8 @@ bool FDetailPropertyRow::ShowOnlyChildren() const
 
 bool FDetailPropertyRow::RequiresTick() const
 {
-	return PropertyVisibility.IsBound();
+	return PropertyVisibility.IsBound() || 
+		(PropertyEditor.IsValid() && PropertyEditor->IsOnlyVisibleWhenEditConditionMet());
 }
 
 FDetailWidgetRow& FDetailPropertyRow::CustomWidget( bool bShowChildren )
@@ -330,7 +337,7 @@ void FDetailPropertyRow::GenerateChildrenForPropertyNode( TSharedPtr<FPropertyNo
 					GenerateChildrenForPropertyNode( ChildNode, OutChildren );
 				}
 				// Only struct children can have custom visibility that is different from their parent.
-				else if ( !bStructProperty || LayoutBuilder.IsPropertyVisible( FPropertyAndParent(*ChildNode->GetProperty(), ParentProperty, Objects ) ) )
+				else if ( !bStructProperty || LayoutBuilder.IsPropertyVisible( FPropertyAndParent( PropertyEditorHelpers::GetPropertyHandle(ChildNode.ToSharedRef(), nullptr, nullptr).ToSharedRef(), Objects ) ) )
 				{	
 					TArray<TSharedRef<FDetailTreeNode>> PropNodes;
 					bool bHasKeyNode = false;
@@ -538,6 +545,16 @@ void FDetailPropertyRow::MakeExternalPropertyRowCustomization(const TArray<UObje
 	}
 }
 
+EVisibility FDetailPropertyRow::GetPropertyVisibility() const
+{
+	if (PropertyEditor.IsValid() && PropertyEditor->IsOnlyVisibleWhenEditConditionMet() && !PropertyEditor->IsEditConditionMet())
+	{
+		return EVisibility::Collapsed;
+	}
+
+	return PropertyVisibility.Get();
+}
+
 bool FDetailPropertyRow::HasEditCondition() const
 {
 	return ( PropertyEditor.IsValid() && PropertyEditor->HasEditCondition() ) || CustomEditCondition.IsValid();
@@ -589,7 +606,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 	EHorizontalAlignment HorizontalAlignment = HAlign_Fill;
 
 	// We will only use key widgets for non-struct keys
-	const bool bHasKeyNode =  PropertyKeyEditor.IsValid() && !PropertyHandle->HasMetaData(TEXT("ReadOnlyKeys"));
+	const bool bHasKeyNode = PropertyKeyEditor.IsValid() && !PropertyHandle->HasMetaData(TEXT("ReadOnlyKeys"));
 
 	if( !bHasKeyNode && InCustomRow.IsValid() )
 	{
@@ -697,7 +714,7 @@ void FDetailPropertyRow::MakeValueWidget( FDetailWidgetRow& Row, const TSharedPt
 
 	TSharedPtr<SResetToDefaultPropertyEditor> ResetButton = nullptr;
 	TSharedPtr<SWidget> ResetWidget = nullptr;
-	if (!PropertyHandle->HasMetaData(TEXT("NoResetToDefault")))
+	if (!PropertyHandle->HasMetaData(TEXT("NoResetToDefault")) && !PropertyHandle->GetInstanceMetaData(TEXT("NoResetToDefault")))
 	{
 		if (PropertyHandle->IsResetToDefaultCustomized())
 		{

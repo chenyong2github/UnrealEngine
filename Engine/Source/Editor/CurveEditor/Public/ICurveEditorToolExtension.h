@@ -4,6 +4,7 @@
 #include "Templates/SharedPointer.h"
 #include "Input/Reply.h"
 
+class FStructOnScope;
 class FUICommandList;
 class FPaintArgs;
 class FSlateRect;
@@ -74,6 +75,8 @@ private:
 	uint32 ID;
 };
 
+typedef TMulticastDelegate<void> FOnOptionsRefresh;
+
 /**
 * You can extend the Curve Editor toolset by implementing this interface. The Curve Editor guarantees that only
 * one tool will be active at any given time. A tool needs to specify if they handled certain mouse events so that
@@ -98,6 +101,8 @@ public:
 	virtual FReply OnMouseMove(TSharedRef<SWidget> OwningWidget, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) { return FReply::Unhandled(); }
 	virtual FReply OnMouseButtonDoubleClick(TSharedRef<SWidget> OwningWidget, const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) { return FReply::Unhandled(); }
 	virtual void OnFocusLost(const FFocusEvent& InFocusEvent) {}
+	virtual TSharedPtr<FStructOnScope> GetToolOptions() const { return nullptr; }
+	virtual void OnToolOptionsUpdated(const FPropertyChangedEvent& PropertyChangedEvent) {}
 	// ~SWidget
 
 	/**
@@ -130,6 +135,8 @@ public:
 	{
 		ToolID = InToolID;
 	}
+
+	FOnOptionsRefresh OnOptionsRefreshDelegate;
 
 protected:
 	FCurveEditorToolID ToolID;

@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_SoundMod.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "Editor.h"
 #include "Components/AudioComponent.h"
 #include "SoundMod.h"
@@ -13,11 +13,12 @@ UClass* FAssetTypeActions_SoundMod::GetSupportedClass() const
 	return USoundMod::StaticClass();
 }
 
-void FAssetTypeActions_SoundMod::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_SoundMod::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Sounds = GetTypedWeakObjectPtrs<USoundMod>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Sound_PlaySound",
 		LOCTEXT("Sound_PlaySound", "Play"),
 		LOCTEXT("Sound_PlaySoundTooltip", "Plays the selected sound."),
 		FSlateIcon(),
@@ -27,7 +28,8 @@ void FAssetTypeActions_SoundMod::GetActions(const TArray<UObject*>& InObjects, F
 		)
 		);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Sound_StopSound",
 		LOCTEXT("Sound_StopSound", "Stop"),
 		LOCTEXT("Sound_StopSoundTooltip", "Stops the selected sounds."),
 		FSlateIcon(),
@@ -43,7 +45,7 @@ bool FAssetTypeActions_SoundMod::CanExecutePlayCommand(TArray<TWeakObjectPtr<USo
 	return Objects.Num() == 1;
 }
 
-void FAssetTypeActions_SoundMod::AssetsActivated(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType)
+bool FAssetTypeActions_SoundMod::AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType)
 {
 	if (ActivationType == EAssetTypeActivationMethod::Previewed)
 	{
@@ -77,11 +79,9 @@ void FAssetTypeActions_SoundMod::AssetsActivated(const TArray<UObject*>& InObjec
 			// Not already playing, play the target sound cue if it exists
 			PlaySound(TargetSound);
 		}
+		return true;
 	}
-	else
-	{
-		FAssetTypeActions_Base::AssetsActivated(InObjects, ActivationType);
-	}
+	return false;
 }
 
 void FAssetTypeActions_SoundMod::ExecutePlaySound(TArray<TWeakObjectPtr<USoundMod>> Objects)

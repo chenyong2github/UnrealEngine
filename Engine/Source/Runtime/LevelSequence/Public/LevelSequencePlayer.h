@@ -92,6 +92,18 @@ struct FLevelSequencePlayerSnapshot
 	FMovieSceneSequenceID ShotID;
 };
 
+USTRUCT(BlueprintType)
+struct FLevelSequenceCameraSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aspect Ratio")
+	bool bOverrideAspectRatioAxisConstraint = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aspect Ratio", meta = (EditCondition = bOverrideAspectRatioAxisConstraint))
+	TEnumAsByte<enum EAspectRatioAxisConstraint> AspectRatioAxisConstraint = EAspectRatioAxisConstraint::AspectRatio_MaintainXFOV;
+};
+
 /**
  * ULevelSequencePlayer is used to actually "play" an level sequence asset at runtime.
  *
@@ -114,7 +126,10 @@ public:
 	 * @param InLevel The level that the animation is played in.
 	 * @param Settings The desired playback settings
 	 */
-	void Initialize(ULevelSequence* InLevelSequence, ULevel* InLevel, const FMovieSceneSequencePlaybackSettings& Settings);
+	void Initialize(ULevelSequence* InLevelSequence, ULevel* InLevel, const FMovieSceneSequencePlaybackSettings& Settings, const FLevelSequenceCameraSettings& InCameraSettings);
+
+	UE_DEPRECATED(4.23, "Added camera settings to Initialize.")
+	void Initialize(ULevelSequence* InLevelSequence, ULevel* InLevel, const FMovieSceneSequencePlaybackSettings& Settings) { Initialize(InLevelSequence, InLevel, Settings, FLevelSequenceCameraSettings()); }
 
 public:
 
@@ -191,11 +206,14 @@ private:
 	/** The full asset path (/Game/Folder/MapName.MapName) of the streaming level this player resides within. Bindings to actors with the same FSoftObjectPath::GetAssetPathName are resolved within the cached level, rather than globally.. */
 	FName StreamedLevelAssetPath;
 
+	/** The camera settings to use when playing the sequence */
+	FLevelSequenceCameraSettings CameraSettings;
+
 	/** The last view target to reset to when updating camera cuts to null */
 	TWeakObjectPtr<AActor> LastViewTarget;
 
 	/** The last aspect ratio axis constraint to reset to when the camera cut is null */
-	EAspectRatioAxisConstraint LastAspectRatioAxisConstraint;
+	TOptional<EAspectRatioAxisConstraint> LastAspectRatioAxisConstraint;
 
 protected:
 

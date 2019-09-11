@@ -117,7 +117,8 @@ namespace DetailLayoutHelpers
 						}
 					}
 
-					FPropertyAndParent PropertyAndParent(*Property, ParentProperty, Objects);
+					TSharedPtr<IPropertyHandle> ChildHandle = PropertyEditorHelpers::GetPropertyHandle(ChildNodePtr.ToSharedRef(), nullptr, nullptr);
+					FPropertyAndParent PropertyAndParent(ChildHandle.ToSharedRef(), Objects);
 					const bool bIsUserVisible = InUpdateArgs.IsPropertyVisible(PropertyAndParent);
 
 					// Inners of customized in structs should not be taken into consideration for customizing.  They are not designed to be individually customized when their parent is already customized

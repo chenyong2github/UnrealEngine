@@ -22,6 +22,7 @@ class ENGINE_API UMeshComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
 
+public:
 	/** Per-Component material overrides.  These must NOT be set directly or a race condition can occur between GC and the rendering thread. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Rendering, Meta=(ToolTip="Material overrides."))
 	TArray<class UMaterialInterface*> OverrideMaterials;

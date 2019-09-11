@@ -819,17 +819,7 @@ TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent( TSharedRef<FU
 {
 	// Get all menu extenders for this context menu from the level editor module
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-	TArray<FLevelEditorModule::FLevelEditorMenuExtender> MenuExtenderDelegates = LevelEditorModule.GetAllLevelEditorToolbarPlayMenuExtenders();
-
-	TArray<TSharedPtr<FExtender>> Extenders;
-	for ( int32 i = 0; i < MenuExtenderDelegates.Num(); ++i )
-	{
-		if ( MenuExtenderDelegates[i].IsBound() )
-		{
-			Extenders.Add(MenuExtenderDelegates[i].Execute(InCommandList));
-		}
-	}
-	TSharedPtr<FExtender> MenuExtender = FExtender::Combine(Extenders);
+	TSharedPtr<FExtender> MenuExtender = LevelEditorModule.AssembleExtenders(InCommandList, LevelEditorModule.GetAllLevelEditorToolbarPlayMenuExtenders());
 
 	struct FLocal
 	{

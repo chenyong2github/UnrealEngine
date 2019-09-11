@@ -15,6 +15,7 @@ public:
 	 * Overridden function to get the derived object node
 	 */
 	virtual FCategoryPropertyNode* AsCategoryNode() override { return this; }
+	virtual const FCategoryPropertyNode* AsCategoryNode() const override { return this; }
 
 	/**
 	 * Accessor functions for getting a category name

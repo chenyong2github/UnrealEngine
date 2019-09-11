@@ -282,7 +282,7 @@ bool FCEFJSScripting::HandleExecuteUObjectMethodMessage(CefRefPtr<CefListValue> 
 		}
 
 		// UFunction is a subclass of UStruct, so we can treat the arguments as a struct for deserialization
-		Params.AddUninitialized(ParamsSize);
+		Params.AddUninitialized(Function->GetStructureSize());
 		Function->InitializeStruct(Params.GetData());
 		FCEFJSStructDeserializerBackend Backend = FCEFJSStructDeserializerBackend(SharedThis(this), NamedArgs);
 		FStructDeserializer::Deserialize(Params.GetData(), *Function, Backend);

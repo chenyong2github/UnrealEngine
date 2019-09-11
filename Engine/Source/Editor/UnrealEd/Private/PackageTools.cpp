@@ -27,7 +27,7 @@
 #include "SourceControlHelpers.h"
 #include "Editor.h"
 #include "Dialogs/Dialogs.h"
-#include "Toolkits/AssetEditorManager.h"
+
 
 #include "ObjectTools.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -51,6 +51,7 @@
 #include "ShaderCompiler.h"
 #include "DistanceFieldAtlas.h"
 #include "AssetToolsModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "PackageTools"
 
@@ -379,7 +380,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 				{
 					if (Obj->IsAsset())
 					{
-						FAssetEditorManager::Get().CloseAllEditorsForAsset(Obj);
+						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(Obj);
 					}
 				}, false);
 
@@ -775,7 +776,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			{
 				TArray<FName> WorldNamesToReload;
 				WorldNamesToReload.Add(WorldNameToReload);
-				FAssetEditorManager::Get().OpenEditorsForAssets(WorldNamesToReload);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(WorldNamesToReload);
 			}
 			else if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
 			{

@@ -40,6 +40,7 @@
 #include "Materials/Material.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "ControlRigEditModeSettings.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "ControlRigSequenceExporter.h"
@@ -73,6 +74,7 @@
 #include "Editor/SControlRigProfilingView.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -158,7 +160,7 @@ void FControlRigEditorModule::StartupModule()
 	SequencerModule.GetToolBarExtensibilityManager()->AddExtender(SequencerToolbarExtender);
 
 	// Register for assets being opened
-	AssetEditorOpenedHandle = FAssetEditorManager::Get().OnAssetEditorOpened().AddRaw(this, &FControlRigEditorModule::HandleAssetEditorOpened);
+	AssetEditorOpenedHandle = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorOpened().AddRaw(this, &FControlRigEditorModule::HandleAssetEditorOpened);
 
 	// Register level sequence spawner
 	ILevelSequenceModule& LevelSequenceModule = FModuleManager::LoadModuleChecked<ILevelSequenceModule>("LevelSequence");
@@ -355,7 +357,13 @@ void FControlRigEditorModule::ShutdownModule()
 		TrajectoryMaterial->RemoveFromRoot();
 	}
 
-	FAssetEditorManager::Get().OnAssetEditorOpened().Remove(AssetEditorOpenedHandle);
+	if (GEditor)
+	{
+		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+		{
+			AssetEditorSubsystem->OnAssetEditorOpened().Remove(AssetEditorOpenedHandle);
+		}
+	}
 
 	FEditorModeRegistry::Get().UnregisterMode(FControlRigEditorEditMode::ModeName);
 	FEditorModeRegistry::Get().UnregisterMode(FControlRigEditMode::ModeName);
@@ -852,95 +860,80 @@ FConnectionDrawingPolicy* FControlRigEditorModule::CreateConnectionDrawingPolicy
 	return new FControlRigConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements, InGraphObj);
 }
 
-void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphNode* Node, const FGraphNodeContextMenuBuilder& Context )
+void FControlRigEditorModule::GetNodeContextMenuActions(const UControlRigGraphNode* Node, UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if(Context.MenuBuilder != nullptr)
 	{
-		if(Context.Pin != nullptr)
+		if (Context->Pin != nullptr)
 		{
 			// Add array operations for array pins
-			if(Context.Pin->PinType.IsArray())
+			if (Context->Pin->PinType.IsArray())
 			{
-				// End the section as this function is called with a section 'open'
-				Context.MenuBuilder->EndSection();
-
-				Context.MenuBuilder->BeginSection(TEXT("ArrayOperations"), LOCTEXT("ArrayOperations", "Array Operations"));
+				FToolMenuSection& Section = Menu->AddSection(TEXT("ArrayOperations"), LOCTEXT("ArrayOperations", "Array Operations"));
 
 				// Array operations
-				Context.MenuBuilder->AddMenuEntry(
+				Section.AddMenuEntry(
+					"ClearArray",
 					LOCTEXT("ClearArray", "Clear"),
 					LOCTEXT("ClearArray_Tooltip", "Clear this array of all of its entries"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleClearArray, Context.Pin->PinName.ToString())));
-
-				Context.MenuBuilder->EndSection();
+					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleClearArray, Context->Pin->PinName.ToString())));
 			}
-			else if(Context.Pin->ParentPin != nullptr && Context.Pin->ParentPin->PinType.IsArray())
+			else if (Context->Pin->ParentPin != nullptr && Context->Pin->ParentPin->PinType.IsArray())
 			{
-				// End the section as this function is called with a section 'open'
-				Context.MenuBuilder->EndSection();
-
-				Context.MenuBuilder->BeginSection(TEXT("ArrayElementOperations"), LOCTEXT("ArrayElementOperations", "Array Element Operations"));
+				FToolMenuSection& Section = Menu->AddSection(TEXT("ArrayElementOperations"), LOCTEXT("ArrayElementOperations", "Array Element Operations"));
 
 				// Array element operations
-				Context.MenuBuilder->AddMenuEntry(
+				Section.AddMenuEntry(
+					"RemoveArrayElement",
 					LOCTEXT("RemoveArrayElement", "Remove"),
 					LOCTEXT("RemoveArrayElement_Tooltip", "Remove this array element"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleRemoveArrayElement, Context.Pin->PinName.ToString())));
+					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleRemoveArrayElement, Context->Pin->PinName.ToString())));
 
-				Context.MenuBuilder->AddMenuEntry(
+				Section.AddMenuEntry(
+					"InsertArrayElement",
 					LOCTEXT("InsertArrayElement", "Insert"),
 					LOCTEXT("InsertArrayElement_Tooltip", "Insert an array element after this one"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleInsertArrayElement, Context.Pin->PinName.ToString())));
-
-				Context.MenuBuilder->EndSection();
+					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleInsertArrayElement, Context->Pin->PinName.ToString())));
 			}
 		}
 	}
 }
 
-void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema* Schema, const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging)
+void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema* Schema, UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if(MenuBuilder)
+	if (Menu && Context)
 	{
-		MenuBuilder->BeginSection("ContextMenu");
+		Schema->UEdGraphSchema::GetContextMenuActions(Menu, Context);
 
-		Schema->UEdGraphSchema::GetContextMenuActions(CurrentGraph, InGraphNode, InGraphPin, MenuBuilder, bIsDebugging);
-
-		MenuBuilder->EndSection();
-
-		if (InGraphPin != NULL)
+		if (const UEdGraphPin* InGraphPin = Context->Pin)
 		{
-			MenuBuilder->BeginSection("EdGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
 			{
+				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
 				// Break pin links
 				if (InGraphPin->LinkedTo.Num() > 0)
 				{
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().BreakPinLinks );
+					Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
 				}
 			}
-			MenuBuilder->EndSection();
 
 			// Add the watch pin / unwatch pin menu items
-			MenuBuilder->BeginSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
 			{
-				UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(CurrentGraph);
+				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
+				UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(Context->Graph);
 				{
 					const UEdGraphPin* WatchedPin = ((InGraphPin->Direction == EGPD_Input) && (InGraphPin->LinkedTo.Num() > 0)) ? InGraphPin->LinkedTo[0] : InGraphPin;
 					if (FKismetDebugUtilities::IsPinBeingWatched(OwnerBlueprint, WatchedPin))
 					{
-						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().StopWatchingPin);
+						Section.AddMenuEntry(FGraphEditorCommands::Get().StopWatchingPin);
 					}
 					else
 					{
-						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().StartWatchingPin);
+						Section.AddMenuEntry(FGraphEditorCommands::Get().StartWatchingPin);
 					}
 				}
 			}
-			MenuBuilder->EndSection();
-
 		}
 	}
 }
