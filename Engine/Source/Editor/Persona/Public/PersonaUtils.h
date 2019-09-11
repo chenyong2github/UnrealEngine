@@ -6,6 +6,7 @@
 
 class UAnimInstance;
 class USceneComponent;
+class UAnimBlueprint;
 
 namespace PersonaUtils
 {
