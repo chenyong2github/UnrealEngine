@@ -5734,7 +5734,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						int64 BulkEndOffset = TargetArchive->Tell();
 						int64 LinkerEndOffset = Linker->Tell();
 
-						int64 SizeOnDisk = (int32)(BulkEndOffset - BulkStartOffset);
+						int64 SizeOnDisk = BulkEndOffset - BulkStartOffset;
 				
 						Linker->Seek(BulkDataStorageInfo.BulkDataFlagsPos);
 						*Linker << ModifiedBulkDataFlags;
