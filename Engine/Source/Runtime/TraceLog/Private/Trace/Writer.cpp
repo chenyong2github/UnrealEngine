@@ -5,6 +5,7 @@
 #if UE_TRACE_ENABLED
 
 #include "Trace/Platform.h"
+#include "Trace/Private/Atomic.h"
 #include "Trace/Trace.h"
 #include "Misc/CString.h"
 
@@ -55,158 +56,150 @@ void Writer_InitializeTiming()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-UE_TRACE_API TTraceAtomic<FBuffer*>	GActiveBuffer;
-static FBuffer*						GTailBuffer;
-static FBuffer*						GHeadBuffer;
-static void*						GAllocBase;
-static uint32						GAllocSize;
-static uint32						GTailPreSent;
+#define T_ALIGN alignas(PLATFORM_CACHE_LINE_SIZE)
+static uint8						GEmptyBuffer[sizeof(FWriteBuffer)];
+thread_local FWriteBuffer*			GWriteBuffer		= (FWriteBuffer*)GEmptyBuffer;
+T_ALIGN static void* volatile		GFirstEvent;
+UE_TRACE_API T_ALIGN void* volatile	GLastEvent;			// = nullptr;
+static const uint32					GPoolSize			= 384 << 20; // 384MB ought to be enough
+static const uint32					GPoolBlockSize		= 2 << 10;
+static const uint32					GPoolPageGrowth		= GPoolBlockSize << 5;
+static const uint32					GPoolInitPageSize	= GPoolBlockSize << 5;
+static uint8*						GPoolBase;			// = nullptr;
+T_ALIGN static uint8* volatile		GPoolPageCursor;	// = nullptr;
+T_ALIGN static void* volatile		GPoolFreeList;		// = nullptr;
+#undef T_ALIGN
 
 ////////////////////////////////////////////////////////////////////////////////
-static void Writer_InitializeBuffers()
+#if !IS_MONOLITHIC
+UE_TRACE_API FWriteBuffer* Writer_GetBuffer()
 {
-	const uint32 BufferCount = 4;
-
-	GAllocSize = BufferSize * (BufferCount + 1);
-	GAllocBase = MemoryReserve(GAllocSize);
-
-	UPTRINT BufferBase = UPTRINT(GAllocBase);
-	BufferBase += BufferSizeMask;
-	BufferBase &= ~UPTRINT(BufferSizeMask);
-	MemoryMap((void*)BufferBase, BufferSize * BufferCount);
-
-	FBuffer* Buffers[BufferCount];
-	for (int i = 0; i < BufferCount; ++i)
-	{
-		void* Block = (void*)(BufferBase + (BufferSize * i));
-		Buffers[i] = new (Block) FBuffer();
-	}
-
-	for (int i = 1; i < BufferCount; ++i)
-	{
-		Buffers[i - 1]->Next = Buffers[i];
-	}
-
-	GTailBuffer = Buffers[0];
-	GHeadBuffer = Buffers[BufferCount - 1];
-	GTailPreSent = 0;
-
-	GActiveBuffer.store(Buffers[0], std::memory_order_release);
+	// Thread locals and DLLs don't mix so for modular builds we are forced to
+	// export this function to access thread-local variables.
+	return GWriteBuffer;
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
-static void Writer_ShutdownBuffers()
+static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 {
-	MemoryFree(GAllocBase, GAllocSize);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static void Writer_RetireBuffer(void (*DataSink)(const uint8*, uint32))
-{
-	uint32 TailUsed;
-	for (; ; Writer_Yield())
+	// Fetch a new buffer
+	FWriteBuffer* Next;
+	while (true)
 	{
-		TailUsed = GTailBuffer->Used.load(std::memory_order_acquire);
-		if (TailUsed < BufferRefBit)
+		// First we'll try one from the free list
+		void* Owned = AtomicLoadRelaxed(&GPoolFreeList);
+		if (Owned != nullptr)
 		{
+			if (!AtomicCompareExchangeRelaxed(&GPoolFreeList, *(void**)Owned, Owned))
+			{
+				Writer_Yield();
+				continue;
+			}
+		}
+
+		// If we didn't fetch the sentinal then we've taken a block we can use
+		if (Owned != nullptr)
+		{
+			Next = (FWriteBuffer*)Owned;
 			break;
 		}
-	}
 
-	if (uint32 SendSize = GTailBuffer->Final - sizeof(FBuffer))
-	{
-		SendSize -= GTailPreSent;
-		DataSink(GTailBuffer->Data + GTailPreSent, SendSize);
-	}
-
-	FBuffer* Next = GTailBuffer->Next.load(std::memory_order_relaxed);
-	new (GTailBuffer) FBuffer();
-
-	GHeadBuffer->Next.store(GTailBuffer, std::memory_order_release);
-	GHeadBuffer = GTailBuffer;
-	GTailBuffer = Next;
-	GTailPreSent = 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static void Writer_UpdateBuffers(void (*DataSink)(const uint8*, uint32))
-{
-	while (true)
-	{
-		FBuffer* Buffer = GActiveBuffer.load(std::memory_order_acquire);
-		if (GTailBuffer != Buffer)
+		// The free list is empty. Map some more memory.
+		uint8* PageBase = (uint8*)AtomicLoadRelaxed(&GPoolPageCursor);
+		if (!AtomicCompareExchangeAcquire(&GPoolPageCursor, PageBase + PageGrowth, PageBase))
 		{
-			Writer_RetireBuffer(DataSink);
+			// Someone else is mapping memory so we'll briefly yield and try the
+			// free list again.
+			Writer_Yield();
 			continue;
 		}
 
-		uint32 Used = Buffer->Used.load(std::memory_order_relaxed);
-		if (Used >= BufferSize) /* is the buffer in use somewhere? */
+		// We claimed the pool cursor so it is now our job to map memory and add
+		// it to the free list.
+		MemoryMap(PageBase, PageGrowth);
+
+		// The first block in the page we'll use for the next buffer
+		Next = (FWriteBuffer*)PageBase;
+		uint8* FirstBlock = PageBase + GPoolBlockSize;
+
+		// Link subsequent blocks together
+		uint8* Block = FirstBlock;
+		for (int i = 2, n = PageGrowth / GPoolBlockSize; i < n; ++i)
 		{
-			continue;
+			auto* Buffer = (FWriteBuffer*)Block;
+			Buffer->Next = (FWriteBuffer*)(Block + GPoolBlockSize);
+			Block += GPoolBlockSize;
 		}
 
-		if (uint32 Sendable = Used - sizeof(FBuffer) - GTailPreSent)
+		// And insert the block list into the freelist
+		uint8* LastBlock = Block;
+		for (void** ListNode = (void**)LastBlock;; Writer_Yield())
 		{
-			DataSink(Buffer->Data + GTailPreSent, Sendable);
-			GTailPreSent += Sendable;
-		}
-
-		break;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-UE_TRACE_API void* Writer_NextBuffer(Private::FBuffer* Buffer, uint32 PrevUsed, uint32 SizeAndRef)
-{
-	using namespace Private;
-
-	FBuffer* NextBuffer;
-	while (true)
-	{
-		if (!(PrevUsed & BufferSize))
-		{
-			Buffer->Final = PrevUsed & BufferSizeMask;
-		}
-
-		// Get the next candidate buffer to allocate from.
-		for (; ; Writer_Yield())
-		{
-			NextBuffer = Buffer->Next.load(std::memory_order_relaxed);
-			if (NextBuffer != nullptr)
+			*ListNode = AtomicLoadRelaxed(&GPoolFreeList);
+			if (AtomicCompareExchangeRelease(&GPoolFreeList, (void*)FirstBlock, *ListNode))
 			{
 				break;
 			}
 		}
 
-		Buffer->Used.fetch_sub(BufferRefBit, std::memory_order_release);
-
-		// Try and allocate some space in the next buffer.
-		PrevUsed = NextBuffer->Used.fetch_add(SizeAndRef, std::memory_order_relaxed);
-		uint32 Used = PrevUsed + SizeAndRef;
-		if (UNLIKELY(!(Used & BufferSize)))
-		{
-			break;
-		}
-
-		// Next buffer's full. Try again.
-		Buffer = NextBuffer;
+		break;
 	}
 
-	if (!(PrevUsed & BufferSize))
+	GWriteBuffer = Next;
+
+	Next->Cursor = ((uint8*)Next + GPoolBlockSize);
+	return Next;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+UE_TRACE_API uint8* Writer_NextBuffer(uint16 Size)
+{
+	FWriteBuffer* Current = GWriteBuffer;
+
+	// Retire current buffer unless its the initial boot one.
+	if (UPTRINT(Current) != UPTRINT(GEmptyBuffer))
 	{
-		GActiveBuffer.compare_exchange_weak(Buffer, NextBuffer, std::memory_order_release);
+		// To retire a buffer we'll link it into the event list which event
+		// consumption can detect and use to return the buffer to the free list.
+		for (;; Writer_Yield())
+		{
+			void* Expected = AtomicLoadRelaxed(&GLastEvent);
+			*(void**)Current = Expected;
+			if (AtomicCompareExchangeRelease(&GLastEvent, (void*)Current, Expected))
+			{
+				break;
+			}
+		}
 	}
 
-	PrevUsed &= BufferSizeMask;
-	uint8* Out = (uint8*)(UPTRINT(NextBuffer) + PrevUsed);
+	FWriteBuffer* NextBuffer = Writer_NextBufferInternal(GPoolPageGrowth);
 
-	return Out;
+	NextBuffer->Cursor -= Size;
+	return NextBuffer->Cursor;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+static void Writer_InitializeBuffers()
+{
+	GPoolBase = MemoryReserve(GPoolSize);
+	AtomicStoreRelaxed(&GPoolPageCursor, GPoolBase);
+
+	Writer_NextBufferInternal(GPoolInitPageSize);
+
+	static_assert(GPoolPageGrowth >= 0x10000, "Page growth must be >= 64KB");
+	static_assert(GPoolInitPageSize >= 0x10000, "Initial page size must be >= 64KB");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+static void Writer_ShutdownBuffers()
+{
+	MemoryFree(GPoolBase, GPoolSize);
 }
 
 
 
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 template <typename Class>
 class alignas(Class) TSafeStatic
 {
@@ -307,6 +300,136 @@ static EDataState		GDataState;			// = EDataState::Passive;
 UPTRINT					GPendingDataHandle	= 0;
 
 ////////////////////////////////////////////////////////////////////////////////
+static void Writer_ConsumeEvents()
+{
+	// Claim ownership of the latest chain of sent events.
+	void* LatestEvent;
+	for (;; Writer_Yield())
+	{
+		LatestEvent = AtomicLoadRelaxed(&GLastEvent);
+		if (AtomicCompareExchangeAcquire(&GLastEvent, (void*)nullptr, LatestEvent))
+		{
+			break;
+		}
+	}
+
+	FWriteBuffer* RetiredHead = nullptr;
+	FWriteBuffer* RetiredTail = nullptr;
+
+	struct FCollector
+	{
+		struct FPayload
+		{
+			struct FHeader
+			{
+				uint16	Serial;
+				uint16	Size; // including header
+			};
+			FHeader		Header;
+			uint8		Data[8192];
+		};
+
+		void Send(const void* Data, uint32 Size)
+		{
+			if (GDataState == EDataState::Sending)
+			{
+				// Transmit data to the io handle
+				if (GDataHandle)
+				{
+					if (!IoWrite(GDataHandle, Data, Size))
+					{
+						IoClose(GDataHandle);
+						GDataHandle = 0;
+					}
+				}
+			}
+			else
+			{
+				GHoldBuffer->Write(Data, Size);
+
+				// Did we overflow? Enter partial mode.
+				bool bOverflown = GHoldBuffer->IsFull();
+				if (bOverflown && GDataState != EDataState::Partial)
+				{
+					GDataState = EDataState::Partial;
+				}
+			}
+		}
+
+		void Flush()
+		{
+			// There will always be space remaining for the header because we've
+			// arranged for that by including the header in FPayload. We'll shift
+			// it forward so it butts up against the event data (at the expense of
+			// some occasional unaligned stores).
+			Cursor -= sizeof(FPayload::FHeader);
+
+			auto* Out = (FPayload::FHeader*)(Payload.Data + Cursor);
+			Out->Serial = Serial;
+			Out->Size = sizeof(FPayload::Data) - Cursor;
+			Send(Out, Out->Size);
+
+			Cursor = sizeof(FPayload::Data);
+			Serial++;
+		}
+
+		void Write(const void* Data, uint32 Size)
+		{
+			if (int32(Cursor - Size) < 0)
+			{
+				Flush();
+			}
+
+			Cursor -= Size;
+			memcpy(Payload.Data + Cursor, Data, Size);
+		}
+
+		int16		Cursor = sizeof(FPayload::Data);
+		uint16		Serial = 0;
+		FPayload	Payload;
+	};
+
+	FCollector Collector;
+	for (void* EventPtr = LatestEvent; EventPtr != nullptr; )
+	{
+		// Is this "event" a retired buffer?
+		if ((UPTRINT(EventPtr) & (GPoolBlockSize - 1)) == 0)
+		{
+			auto* Retiree = (FWriteBuffer*)EventPtr;
+			EventPtr = *(void**)EventPtr;
+
+			Retiree->Next = RetiredHead;
+			RetiredHead = Retiree;
+			RetiredTail = (RetiredTail != nullptr) ? RetiredTail : RetiredHead;
+			continue;
+		}
+
+		const uint16* Header = (uint16*)(UPTRINT(EventPtr) + sizeof(void*));
+		uint16 DataSize = Header[1] + sizeof(uint32);
+
+		Collector.Write(Header, DataSize);
+
+		EventPtr = *(void**)EventPtr;
+	}
+	Collector.Flush();
+
+	if (RetiredHead == nullptr)
+	{
+		return;
+	}
+
+	// Put the retirees we found back into the system again.
+	for (void** ListNode = (void**)RetiredTail;; Writer_Yield())
+	{
+		*ListNode = AtomicLoadRelaxed(&GPoolFreeList);
+		if (AtomicCompareExchangeRelease(&GPoolFreeList, (void*)RetiredHead, *ListNode))
+		{
+			break;
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 static void Writer_UpdateData()
 {
 	if (GPendingDataHandle)
@@ -329,7 +452,7 @@ static void Writer_UpdateData()
 			const struct {
 				uint8 Format;
 				uint8 Parameter;
-			} TransportHeader = { 1 };
+			} TransportHeader = { 2 };
 			bOk &= IoWrite(GDataHandle, &TransportHeader, sizeof(TransportHeader));
 
 			// Passively collected data
@@ -348,41 +471,7 @@ static void Writer_UpdateData()
 		}
 	}
 
-	// Passive mode?
-	if (GDataState == EDataState::Sending)
-	{
-		// Transmit data to the io handle
-		if (GDataHandle)
-		{
-			Writer_UpdateBuffers([] (const uint8* Data, uint32 Size)
-			{
-				if (GDataHandle && !IoWrite(GDataHandle, Data, Size))
-				{
-					IoClose(GDataHandle);
-					GDataHandle = 0;
-				}
-			});
-		}
-		else
-		{
-			Writer_UpdateBuffers([] (const uint8*, uint32) {});
-		}
-	}
-	else
-	{
-		// Send data to hold/ring
-		Writer_UpdateBuffers([] (const uint8* Data, uint32 Size)
-		{
-			GHoldBuffer->Write(Data, Size);
-		});
-
-		// Did we overflow? Enter partial mode.
-		bool bOverflown = GHoldBuffer->IsFull();
-		if (bOverflown && GDataState != EDataState::Partial)
-		{
-			GDataState = EDataState::Partial;
-		}
-	}
+	Writer_ConsumeEvents();
 }
 
 
@@ -684,12 +773,14 @@ static void Writer_WorkerThread()
 {
 	while (!GWorkerThreadQuit)
 	{
-		const uint32 SleepMs = 60;
+		const uint32 SleepMs = 24;
 		ThreadSleep(SleepMs);
 
 		Writer_UpdateControl();
 		Writer_UpdateData();
 	}
+
+	Writer_ConsumeEvents();
 }
 
 
@@ -722,11 +813,11 @@ static void Writer_InternalInitialize()
 	GInitialized = true;
 
 	Writer_InitializeBuffers();
+	Writer_LogHeader();
+
 	GHoldBuffer->Init();
 
 	GWorkerThread = ThreadCreate("TraceWorker", Writer_WorkerThread);
-
-	Writer_LogHeader();
 
 	Writer_InitializeControl();
 	Writer_InitializeTiming();

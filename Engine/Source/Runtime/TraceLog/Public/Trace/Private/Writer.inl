@@ -5,6 +5,7 @@
 #if UE_TRACE_ENABLED
 
 #include <atomic>
+#include "Atomic.h"
 
 namespace Trace
 {
@@ -22,40 +23,32 @@ namespace Private
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-struct FBuffer
+struct FWriteBuffer
 {
-	FBuffer()
-	: Next(nullptr)
-	, Used(sizeof(FBuffer))
-	{
-	}
-
 	union
 	{
-		TTraceAtomic<FBuffer*>	Next;
-		char					Padding0[PLATFORM_CACHE_LINE_SIZE];
+		uint8*			Cursor;
+		FWriteBuffer*	Next;
 	};
-	union
-	{
-		TTraceAtomic<uint32>	Used;
-		char					Padding1[PLATFORM_CACHE_LINE_SIZE];
-	};
-	uint32						Final;
-	alignas(void*) uint8		Data[];
+	uint8				Data[];
 };
 
 #if defined(_MSC_VER)
 	#pragma warning(pop)
 #endif
 
-extern UE_TRACE_API TTraceAtomic<FBuffer*> GActiveBuffer;
+////////////////////////////////////////////////////////////////////////////////
+extern UE_TRACE_API void* volatile	GLastEvent;
+UE_TRACE_API uint8*					Writer_NextBuffer(uint16);
+UE_TRACE_API FWriteBuffer*			Writer_GetBuffer();
 
-static const uint16		BufferSizePow2	= 19;
-static const uint32		BufferSize		= 1 << BufferSizePow2;
-static const uint32		BufferSizeMask	= BufferSize - 1;
-static const uint32		BufferRefBit	= BufferSize << 1;
-
-extern UE_TRACE_API void* Writer_NextBuffer(FBuffer*, uint32, uint32);
+#if IS_MONOLITHIC
+extern thread_local FWriteBuffer* GWriteBuffer;
+inline FWriteBuffer* Writer_GetBuffer()
+{
+	return GWriteBuffer;
+}
+#endif
 
 } // Private
 
@@ -64,24 +57,17 @@ inline uint8* Writer_BeginLog(uint16 EventUid, uint16 Size)
 {
 	using namespace Private;
 
-	uint32 AllocSize = Size;
-	AllocSize += sizeof(uint32);
-	AllocSize += BufferRefBit;
+	static const uint32 HeaderSize = sizeof(void*) + sizeof(uint32);
+	uint32 AllocSize = ((Size + HeaderSize) + 7) & ~7;
 
-	// Fetch buffer and claim some space in it.
-	FBuffer* Buffer = GActiveBuffer.load(std::memory_order_acquire);
-	uint32 PrevUsed = Buffer->Used.fetch_add(AllocSize, std::memory_order_relaxed);
-	uint32 Used = PrevUsed + AllocSize;
-
-	uint32* Out = (uint32*)(UPTRINT(Buffer) + (BufferSizeMask & PrevUsed));
-
-	// Did we exhaust the active buffer?
-	if (UNLIKELY(Used & BufferSize))
+	FWriteBuffer* Buffer = Writer_GetBuffer();
+	uint8* Cursor = (Buffer->Cursor -= AllocSize);
+	if (UNLIKELY(PTRINT(Cursor) < PTRINT(Buffer->Data)))
 	{
-		Out = (uint32*)Writer_NextBuffer(Buffer, PrevUsed, AllocSize);
-		Buffer = (FBuffer*)(UPTRINT(Out) & ~UPTRINT(BufferSizeMask));
+		Cursor = Writer_NextBuffer(AllocSize);
 	}
 
+	uint32* Out = (uint32*)(Cursor + sizeof(void*));
 	Out[0] = (uint32(Size) << 16)|uint32(EventUid);
 	return (uint8*)(Out + 1);
 }
@@ -90,8 +76,19 @@ inline uint8* Writer_BeginLog(uint16 EventUid, uint16 Size)
 inline void Writer_EndLog(uint8* EventData)
 {
 	using namespace Private;
-	auto* Buffer = (FBuffer*)(UPTRINT(EventData) & ~UPTRINT(BufferSizeMask));
-	Buffer->Used.fetch_sub(BufferRefBit, std::memory_order_release);
+
+	EventData -= sizeof(void*) + sizeof(uint32);
+
+	// Add the event into the master linked list of events.
+	while (true)
+	{
+		void* Expected = AtomicLoadRelaxed(&GLastEvent);
+		*(void**)EventData = Expected;
+		if (AtomicCompareExchangeRelease(&GLastEvent, (void*)EventData, Expected))
+		{
+			break;
+		}
+	}
 }
 
 } // namespace Trace
