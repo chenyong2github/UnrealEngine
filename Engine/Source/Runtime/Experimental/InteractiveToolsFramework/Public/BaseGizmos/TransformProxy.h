@@ -52,6 +52,18 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTransformChanged, UTransformProxy*, FTransform);
 	FOnTransformChanged OnTransformChanged;
 
+	/**
+	 * If true, relative rotation of shared transform is applied to objects before relative translation (ie they rotate in place)
+	 */
+	UPROPERTY()
+	bool bRotatePerObject = false;
+
+	/**
+	 * If true, then on SetTransform() the components are not moved, and their local transforms are recalculated
+	 */
+	UPROPERTY()
+	bool bSetPivotMode = false;
+
 	
 protected:
 
@@ -73,8 +85,15 @@ protected:
 	UPROPERTY()
 	FTransform SharedTransform;
 
+	/** The main transform */
+	UPROPERTY()
+	FTransform InitialSharedTransform;
+
 	/** Recalculate main SharedTransform when object set changes*/
 	virtual void UpdateSharedTransform();
+
+	/** Recalculate per-object relative transforms */
+	virtual void UpdateObjectTransforms();
 
 	/** Propagate a transform update to the sub-objects */
 	virtual void UpdateObjects();

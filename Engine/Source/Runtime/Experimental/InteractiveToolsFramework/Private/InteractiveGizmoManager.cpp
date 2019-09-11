@@ -81,12 +81,15 @@ UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderI
 	UInteractiveGizmoBuilder* FoundBuilder = GizmoBuilders[BuilderIdentifier];
 
 	// check if we have used this instance identifier
-	for (FActiveGizmo& ActiveGizmo : ActiveGizmos)
+	if (InstanceIdentifier.IsEmpty() == false)
 	{
-		if (ActiveGizmo.InstanceIdentifier == InstanceIdentifier)
+		for (FActiveGizmo& ActiveGizmo : ActiveGizmos)
 		{
-			PostMessage(FString::Printf(TEXT("UInteractiveGizmoManager::CreateGizmo: instance identifier %s already in use!"), *InstanceIdentifier), EToolMessageLevel::Internal);
-			return nullptr;
+			if (ActiveGizmo.InstanceIdentifier == InstanceIdentifier)
+			{
+				PostMessage(FString::Printf(TEXT("UInteractiveGizmoManager::CreateGizmo: instance identifier %s already in use!"), *InstanceIdentifier), EToolMessageLevel::Internal);
+				return nullptr;
+			}
 		}
 	}
 

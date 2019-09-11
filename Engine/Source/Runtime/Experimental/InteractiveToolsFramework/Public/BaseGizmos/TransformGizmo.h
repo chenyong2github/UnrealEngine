@@ -220,7 +220,6 @@ protected:
 	/** @return a new instance of the standard axis-translation Gizmo */
 	virtual UInteractiveGizmo* AddAxisTranslationGizmo(
 		UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
-		const FString& Identifier,
 		IGizmoAxisSource* AxisSource,
 		IGizmoTransformSource* TransformSource, 
 		IGizmoStateTarget* StateTarget);
@@ -228,7 +227,6 @@ protected:
 	/** @return a new instance of the standard plane-translation Gizmo */
 	virtual UInteractiveGizmo* AddPlaneTranslationGizmo(
 		UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
-		const FString& Identifier,
 		IGizmoAxisSource* AxisSource,
 		IGizmoTransformSource* TransformSource,
 		IGizmoStateTarget* StateTarget);
@@ -236,7 +234,6 @@ protected:
 	/** @return a new instance of the standard axis-rotation Gizmo */
 	virtual UInteractiveGizmo* AddAxisRotationGizmo(
 		UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
-		const FString& Identifier,
 		IGizmoAxisSource* AxisSource,
 		IGizmoTransformSource* TransformSource,
 		IGizmoStateTarget* StateTarget);

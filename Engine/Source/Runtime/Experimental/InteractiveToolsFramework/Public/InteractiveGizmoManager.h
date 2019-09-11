@@ -72,11 +72,11 @@ public:
 	/**
 	 * Try to activate a new Gizmo instance on the given Side
 	 * @param BuilderIdentifier string used to identify Builder that should be called
-	 * @param InstanceIdentifier client-defined string that can be used to locate this instance
+	 * @param InstanceIdentifier optional client-defined string that can be used to locate this instance (must be unique across all Gizmos)
 	 * @param Owner void pointer to whatever "owns" this Gizmo. Allows Gizmo to later be deleted using DestroyAllGizmosByOwner()
 	 * @return new Gizmo instance that has been created and initialized
 	 */	
-	virtual UInteractiveGizmo* CreateGizmo(const FString& BuilderIdentifier, const FString& InstanceIdentifier, void* Owner = nullptr);
+	virtual UInteractiveGizmo* CreateGizmo(const FString& BuilderIdentifier, const FString& InstanceIdentifier = FString(), void* Owner = nullptr);
 
 
 	/**
@@ -185,7 +185,7 @@ public:
 	 * @param Owner void pointer to whatever "owns" this Gizmo. Allows Gizmo to later be deleted using DestroyAllGizmosByOwner()
 	 * @return new Gizmo instance that has been created and initialized
 	 */
-	virtual UTransformGizmo* Create3AxisTransformGizmo(const FString& InstanceIdentifier, void* Owner = nullptr);
+	virtual UTransformGizmo* Create3AxisTransformGizmo(const FString& InstanceIdentifier = FString(), void* Owner = nullptr);
 
 
 public:

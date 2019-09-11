@@ -29,9 +29,15 @@ void UTransformProxy::SetTransform(const FTransform& TransformIn)
 {
 	SharedTransform = TransformIn;
 
-	UpdateObjects();
-
-	OnTransformChanged.Broadcast(this, SharedTransform);
+	if (bSetPivotMode)
+	{
+		UpdateObjectTransforms();
+	}
+	else
+	{
+		UpdateObjects();
+		OnTransformChanged.Broadcast(this, SharedTransform);
+	}
 }
 
 
@@ -42,7 +48,18 @@ void UTransformProxy::UpdateObjects()
 	for (FRelativeObject& Obj : Objects)
 	{
 		FTransform CombinedTransform;
-		FTransform::Multiply(&CombinedTransform, &SharedTransform, &Obj.RelativeTransform);
+		if (bRotatePerObject)
+		{
+			FTransform Temp = SharedTransform.GetRelativeTransform(InitialSharedTransform);
+
+			CombinedTransform = Obj.StartTransform;
+			CombinedTransform.AddToTranslation(Temp.GetTranslation());
+			CombinedTransform.ConcatenateRotation(Temp.GetRotation());
+		}
+		else
+		{
+			FTransform::Multiply(&CombinedTransform, &Obj.RelativeTransform, &SharedTransform);
+		}
 		
 		if (Obj.Component.IsValid())
 		{
@@ -89,4 +106,20 @@ void UTransformProxy::UpdateSharedTransform()
 		}
 	}
 
+	InitialSharedTransform = SharedTransform;
+}
+
+
+
+void UTransformProxy::UpdateObjectTransforms()
+{
+	for (FRelativeObject& Obj : Objects)
+	{
+		if (Obj.Component != nullptr)
+		{
+			Obj.StartTransform = Obj.Component->GetComponentToWorld();
+		}
+		Obj.RelativeTransform = Obj.StartTransform;
+		Obj.RelativeTransform.SetToRelativeTransform(SharedTransform);
+	}
 }

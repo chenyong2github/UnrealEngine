@@ -183,42 +183,42 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target)
 	// todo should we hold onto these?
 	if (GizmoActor->TranslateX != nullptr)
 	{
-		AddAxisTranslationGizmo(GizmoActor->TranslateX, GizmoComponent, TEXT("TranslateX"), AxisXSource, TransformSource, StateTarget);
+		AddAxisTranslationGizmo(GizmoActor->TranslateX, GizmoComponent, AxisXSource, TransformSource, StateTarget);
 	}
 	if (GizmoActor->TranslateY != nullptr)
 	{
-		AddAxisTranslationGizmo(GizmoActor->TranslateY, GizmoComponent, TEXT("TranslateY"), AxisYSource, TransformSource, StateTarget);
+		AddAxisTranslationGizmo(GizmoActor->TranslateY, GizmoComponent, AxisYSource, TransformSource, StateTarget);
 	}
 	if (GizmoActor->TranslateZ != nullptr)
 	{
-		AddAxisTranslationGizmo(GizmoActor->TranslateZ, GizmoComponent, TEXT("TranslateZ"), AxisZSource, TransformSource, StateTarget);
+		AddAxisTranslationGizmo(GizmoActor->TranslateZ, GizmoComponent, AxisZSource, TransformSource, StateTarget);
 	}
 
 
 	if (GizmoActor->TranslateYZ != nullptr)
 	{
-		AddPlaneTranslationGizmo(GizmoActor->TranslateYZ, GizmoComponent, TEXT("TranslateYZ"), AxisXSource, TransformSource, StateTarget);
+		AddPlaneTranslationGizmo(GizmoActor->TranslateYZ, GizmoComponent, AxisXSource, TransformSource, StateTarget);
 	}
 	if (GizmoActor->TranslateXZ != nullptr)
 	{
-		AddPlaneTranslationGizmo(GizmoActor->TranslateXZ, GizmoComponent, TEXT("TranslateXZ"), AxisYSource, TransformSource, StateTarget);
+		AddPlaneTranslationGizmo(GizmoActor->TranslateXZ, GizmoComponent, AxisYSource, TransformSource, StateTarget);
 	}
 	if (GizmoActor->TranslateXY != nullptr)
 	{
-		AddPlaneTranslationGizmo(GizmoActor->TranslateXY, GizmoComponent, TEXT("TranslateXY"), AxisZSource, TransformSource, StateTarget);
+		AddPlaneTranslationGizmo(GizmoActor->TranslateXY, GizmoComponent, AxisZSource, TransformSource, StateTarget);
 	}
 
 	if (GizmoActor->RotateX != nullptr)
 	{
-		AddAxisRotationGizmo(GizmoActor->RotateX, GizmoComponent, TEXT("RotateX"), AxisXSource, TransformSource, StateTarget);
+		AddAxisRotationGizmo(GizmoActor->RotateX, GizmoComponent, AxisXSource, TransformSource, StateTarget);
 	}
 	if (GizmoActor->RotateY != nullptr)
 	{
-		AddAxisRotationGizmo(GizmoActor->RotateY, GizmoComponent, TEXT("RotateY"), AxisYSource, TransformSource, StateTarget);
+		AddAxisRotationGizmo(GizmoActor->RotateY, GizmoComponent, AxisYSource, TransformSource, StateTarget);
 	}
 	if (GizmoActor->RotateZ != nullptr)
 	{
-		AddAxisRotationGizmo(GizmoActor->RotateZ, GizmoComponent, TEXT("RotateZ"), AxisZSource, TransformSource, StateTarget);
+		AddAxisRotationGizmo(GizmoActor->RotateZ, GizmoComponent, AxisZSource, TransformSource, StateTarget);
 	}
 }
 
@@ -226,14 +226,13 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target)
 
 UInteractiveGizmo* UTransformGizmo::AddAxisTranslationGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
-	const FString& Identifier,
 	IGizmoAxisSource* AxisSource,
 	IGizmoTransformSource* TransformSource,
 	IGizmoStateTarget* StateTarget)
 {
 	// create axis-position gizmo, axis-position parameter will drive translation
 	UAxisPositionGizmo* TranslateGizmo = Cast<UAxisPositionGizmo>(GetGizmoManager()->CreateGizmo(
-		UInteractiveGizmoManager::DefaultAxisPositionBuilderIdentifier, Identifier));
+		UInteractiveGizmoManager::DefaultAxisPositionBuilderIdentifier));
 	check(TranslateGizmo);
 
 	// axis source provides the translation axis
@@ -260,14 +259,13 @@ UInteractiveGizmo* UTransformGizmo::AddAxisTranslationGizmo(
 
 UInteractiveGizmo* UTransformGizmo::AddPlaneTranslationGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
-	const FString& Identifier,
 	IGizmoAxisSource* AxisSource,
 	IGizmoTransformSource* TransformSource,
 	IGizmoStateTarget* StateTarget)
 {
 	// create axis-position gizmo, axis-position parameter will drive translation
 	UPlanePositionGizmo* TranslateGizmo = Cast<UPlanePositionGizmo>(GetGizmoManager()->CreateGizmo(
-		UInteractiveGizmoManager::DefaultPlanePositionBuilderIdentifier, Identifier));
+		UInteractiveGizmoManager::DefaultPlanePositionBuilderIdentifier));
 	check(TranslateGizmo);
 
 	// axis source provides the translation axis
@@ -296,14 +294,13 @@ UInteractiveGizmo* UTransformGizmo::AddPlaneTranslationGizmo(
 
 UInteractiveGizmo* UTransformGizmo::AddAxisRotationGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
-	const FString& Identifier,
 	IGizmoAxisSource* AxisSource,
 	IGizmoTransformSource* TransformSource,
 	IGizmoStateTarget* StateTarget)
 {
 	// create axis-angle gizmo, angle will drive axis-rotation
 	UAxisAngleGizmo* RotateGizmo = Cast<UAxisAngleGizmo>(GetGizmoManager()->CreateGizmo(
-		UInteractiveGizmoManager::DefaultAxisAngleBuilderIdentifier, Identifier));
+		UInteractiveGizmoManager::DefaultAxisAngleBuilderIdentifier));
 	check(RotateGizmo);
 
 	// axis source provides the rotation axis
