@@ -289,7 +289,7 @@ namespace Gauntlet
 			if (Directory.Exists(DSymDir))
 			{
 				DSymBundle = Directory.GetDirectories(DSymDir).Where(D => Path.GetExtension(D).ToLower() == ".dsym").FirstOrDefault();
-				DSymBundle = string.IsNullOrEmpty(DSymBundle) ? "" : DSymBundle = " -s \"" + DSymBundle + "\"";
+				DSymBundle = string.IsNullOrEmpty(DSymBundle) ? "" : DSymBundle = " -S \"" + DSymBundle + "\"";
 			}
 
 			string CL = "--noinstall -I" + DSymBundle + " -b \"" + LocalAppBundle + "\" --args '" + CommandLine.Trim() + "'";
