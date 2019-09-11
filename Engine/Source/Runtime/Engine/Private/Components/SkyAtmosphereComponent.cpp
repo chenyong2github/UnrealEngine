@@ -68,6 +68,7 @@ USkyAtmosphereComponent::USkyAtmosphereComponent(const FObjectInitializer& Objec
 	SkyLuminanceFactor = FLinearColor(FLinearColor::White);
 	MultiScatteringFactor = 1.0f;
 	AerialPespectiveViewDistanceScale = 1.0f;
+	HeightFogContribution = 1.0f;
 
 	memset(OverrideAtmosphericLight, 0, sizeof(OverrideAtmosphericLight));
 
@@ -302,6 +303,7 @@ SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(OtherAbsorption);
 
 SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(SkyLuminanceFactor);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, AerialPespectiveViewDistanceScale);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, HeightFogContribution);
 
 /*=============================================================================
 	ASkyAtmosphere implementation.
@@ -378,6 +380,7 @@ FSkyAtmosphereSceneProxy::FSkyAtmosphereSceneProxy(const USkyAtmosphereComponent
 {
 	SkyLuminanceFactor = InComponent->SkyLuminanceFactor;
 	AerialPespectiveViewDistanceScale = InComponent->AerialPespectiveViewDistanceScale;
+	HeightFogContribution = InComponent->HeightFogContribution;
 
 	InComponent->GetOverrideLightStatus(OverrideAtmosphericLight, OverrideAtmosphericLightDirection);
 
