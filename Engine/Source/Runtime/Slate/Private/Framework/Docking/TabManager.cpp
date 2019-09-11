@@ -1498,25 +1498,16 @@ TSharedPtr<SDockTab> FTabManager::SpawnTab( const FTabId& TabId, const TSharedPt
 	}
 
 	// The tab was allowed to be spawned but failed for some reason
-	if (bSpawningAllowedBySpawner && !NewTabWidget.IsValid() )
+	if (bSpawningAllowedBySpawner && !NewTabWidget.IsValid())
 	{
-		// We don't know how to spawn this tab.
-		// Make a dummy tab so that things aren't entirely broken.
-
-		NewTabWidget = SNew(SDockTab)
-			.Label( TabId.ToText() )
-			.ShouldAutosize( false )
-			[
-				SNew(SBox)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text( NSLOCTEXT("TabManagement", "Unrecognized", "unrecognized tab") )
-				]
-			];
-
-		NewTabWidget->SetLayoutIdentifier(TabId);
+		// We don't know how to spawn this tab. 2 alternatives:
+		// 1) Make a dummy tab so that things aren't entirely broken (previous versions did this).
+		// 2) Do not open the widget, but keep it saved in the layout, so this function should still return it.
+		const FString StringToDisplay = (Spawner.IsValid() && !Spawner->GetDisplayName().IsEmpty() ? Spawner->GetDisplayName().ToString() : TabId.TabType.ToString());
+		UE_LOG(LogSlate, Warning,
+			TEXT("The tab \"%s\" attempted to spawn but failed for some reason. It will not be displayed but it will be saved in the layout settings file."),
+			*(!StringToDisplay.IsEmpty() ? StringToDisplay : FString("Unknown"))
+			);
 	}
 
 	if (NewTabWidget.IsValid())
