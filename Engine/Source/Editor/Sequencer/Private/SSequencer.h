@@ -516,8 +516,11 @@ public:
 	void OnPaste();
 	bool CanPaste();
 
-	/** Handle Track Paste */
-	void DoPaste();
+	/**
+	 * Handle Track Paste
+	 * @return Whether the paste event was handled
+	 */
+	bool DoPaste();
 
 	/** Open the paste menu */
 	bool OpenPasteMenu();

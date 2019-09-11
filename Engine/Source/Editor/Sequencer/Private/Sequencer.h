@@ -507,7 +507,11 @@ public:
 
 	/** Called when a user executes the paste track menu item */
 	bool CanPaste(const FString& TextToImport);
-	void DoPaste();
+	/**
+	 * Attempts to paste from the clipboard
+	 * @return Whether the paste event was handled
+	 */
+	bool DoPaste();
 	bool PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
 	bool PasteSections(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
 	bool PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);

@@ -3076,6 +3076,7 @@ FPasteContextMenuArgs SSequencer::GeneratePasteArgs(FFrameNumber PasteAtTime, TS
 	TArray<TSharedRef<FSequencerDisplayNode>> PasteIntoNodes;
 	{
 		TSet<TWeakObjectPtr<UMovieSceneSection>> Sections = Sequencer->GetSelection().GetSelectedSections();
+		
 		for (const FSequencerSelectedKey& Key : Sequencer->GetSelection().GetSelectedKeys())
 		{
 			Sections.Add(Key.Section);
@@ -3086,6 +3087,15 @@ FPasteContextMenuArgs SSequencer::GeneratePasteArgs(FFrameNumber PasteAtTime, TS
 			if (TOptional<FSectionHandle> Handle = Sequencer->GetNodeTree()->GetSectionHandle(WeakSection.Get()))
 			{
 				PasteIntoNodes.Add(Handle->GetTrackNode());
+			}
+		}
+
+		auto SelectedNodes = Sequencer->GetSelection().GetSelectedOutlinerNodes();
+		for (const TSharedRef<FSequencerDisplayNode>& SelectedNode : SelectedNodes)
+		{
+			if (SelectedNode->GetType() == ESequencerNode::Category || SelectedNode->GetType() == ESequencerNode::Track || SelectedNode->GetType() == ESequencerNode::KeyArea)
+			{
+				PasteIntoNodes.Add(SelectedNode);
 			}
 		}
 	}
@@ -3108,13 +3118,20 @@ void SSequencer::OnPaste()
 	TSet<TSharedRef<FSequencerDisplayNode>> SelectedNodes = Sequencer->GetSelection().GetSelectedOutlinerNodes();
 	if (SelectedNodes.Num() == 0)
 	{
-		if (OpenPasteMenu())
+		if (!OpenPasteMenu())
 		{
-			return;
+			DoPaste();
+		}
+	}
+	else
+	{
+		if (!DoPaste())
+		{
+			OpenPasteMenu();
 		}
 	}
 
-	DoPaste();
+	
 }
 
 bool SSequencer::CanPaste()
@@ -3148,11 +3165,11 @@ bool SSequencer::CanPaste()
 	return SequencerPtr.Pin()->GetClipboardStack().Num() != 0;
 }
 
-void SSequencer::DoPaste()
+bool SSequencer::DoPaste()
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 
-	Sequencer->DoPaste();
+	return Sequencer->DoPaste();
 }
 
 bool SSequencer::OpenPasteMenu()

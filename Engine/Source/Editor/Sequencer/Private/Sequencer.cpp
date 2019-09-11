@@ -6844,12 +6844,13 @@ void FSequencer::ExportObjectsToText(TArray<UObject*> ObjectsToExport, FString& 
 	ExportedText = Archive;
 }
 
-void FSequencer::DoPaste()
+bool FSequencer::DoPaste()
 {
 	if (IsReadOnly())
 	{
 		ShowReadOnlyError();
-		return;
+		// If we cancel the paste due to being read-only, count that as having handled the paste operation
+		return true;
 	}
 
 	// Grab the text to paste from the clipboard
@@ -6871,6 +6872,8 @@ void FSequencer::DoPaste()
 		NotificationInfo.bUseLargeFont = false;
 		FSlateNotificationManager::Get().AddNotification(NotificationInfo);
 	}
+
+	return bAnythingPasted;
 }
 
 bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors)
