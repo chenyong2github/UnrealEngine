@@ -16,6 +16,7 @@ class UPreviewMeshCollection;
 class USkeletalMesh;
 class UDataAsset;
 class UPreviewMeshCollection;
+class UAnimBlueprint;
 enum class EPreviewAnimationBlueprintApplicationMethod : uint8;
 
 UCLASS()
