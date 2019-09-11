@@ -929,10 +929,12 @@ private:
 	 */
 	ELinkerStatus SerializeExportMap();
 
+#if WITH_TEXT_ARCHIVE_SUPPORT
 	/**
 	 * Create an import and export table when loading a text asset.
 	 */
 	ELinkerStatus ReconstructImportAndExportMap();
+#endif
 
 	ELinkerStatus SerializeDependsMap();
 
@@ -1195,6 +1197,13 @@ private:
 	//
 	// FLinkerLoad creation helpers END
 	//
+
+private:
+
+#if WITH_TEXT_ARCHIVE_SUPPORT
+	// Cache of the export names in a text asset. Allows us to enter those export slots by index rather than needing to reconstruct the name
+	TArray<FName> OriginalExportNames;
+#endif
 
 public:
 

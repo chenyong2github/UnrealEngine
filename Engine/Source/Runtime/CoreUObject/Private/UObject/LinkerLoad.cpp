@@ -731,12 +731,14 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::Tick( float InTimeLimit, bool bInUseTime
 				Status = SerializeExportMap();
 			}
 
+#if WITH_TEXT_ARCHIVE_SUPPORT
 			// Reconstruct the import and export maps for text assets
 			if (Status == LINKER_Loaded)
 			{
 				SCOPED_LOADTIMER(LinkerLoad_ReconstructImportAndExportMap);
 				Status = ReconstructImportAndExportMap();
 			}
+#endif
 
 			// Fix up import map for backward compatible serialization.
 			if( Status == LINKER_Loaded )
@@ -1730,6 +1732,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeExportMap()
 	return ((ExportMapIndex == Summary.ExportCount) && !IsTimeLimitExceeded( TEXT("serializing export map") )) ? LINKER_Loaded : LINKER_TimedOut;
 }
 
+#if WITH_TEXT_ARCHIVE_SUPPORT
+
 FPackageIndex FLinkerLoad::FindOrCreateImport(const FName InObjectName, const FName InClassName, const FName InClassPackageName)
 {
 	for (int32 ImportIndex = 0; ImportIndex < ImportMap.Num(); ++ImportIndex)
@@ -1754,6 +1758,20 @@ FPackageIndex FLinkerLoad::FindOrCreateImport(const FName InObjectName, const FN
 	return FPackageIndex::FromImport(ImportMap.Num() - 1);
 }
 
+FString ExtractObjectName(const FString& InFullPath)
+{
+	FString ObjectName = InFullPath;
+	int32 LastDot, LastSemi;
+	InFullPath.FindLastChar('.', LastDot);
+	InFullPath.FindLastChar(':', LastSemi);
+	int32 StartOfObjectName = FMath::Max(LastDot, LastSemi);
+	if (StartOfObjectName != INDEX_NONE)
+	{
+		return ObjectName.Right(ObjectName.Len() - StartOfObjectName - 1);
+	}
+	return ObjectName;
+}
+
 FPackageIndex FLinkerLoad::FindOrCreateImportOrExport(const FString& InFullPath)
 {
 	if (InFullPath.Len() == 0)
@@ -1763,15 +1781,15 @@ FPackageIndex FLinkerLoad::FindOrCreateImportOrExport(const FString& InFullPath)
 
 	FString Class, Package, Object, SubObject;
 	FPackageName::SplitFullObjectPath(InFullPath, Class, Package, Object, SubObject);
-	bool bIsExport = (Package == LinkerRoot->GetName());
+	FName ObjectName = *(Object + (SubObject.Len() ? TEXT(":") : TEXT("")) + SubObject);
 
-	FName ObjectName = *Object;
+	bool bIsExport = Package == LinkerRoot->GetName();
 
 	if (bIsExport)
 	{
 		for (int32 ExportIndex = 0; ExportIndex < ExportMap.Num(); ++ExportIndex)
 		{
-			if (ExportMap[ExportIndex].ObjectName == ObjectName)
+			if (OriginalExportNames[ExportIndex] == ObjectName)
 			{
 				return FPackageIndex::FromExport(ExportIndex);
 			}
@@ -1811,11 +1829,11 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::ReconstructImportAndExportMap()
 	{
 		int32 NumExports = 0;
 		FStructuredArchive::FMap PackageExports = StructuredArchiveRootRecord->EnterMap(SA_FIELD_NAME(TEXT("Exports")), NumExports);
-		ExportMap.Reserve(NumExports);
 
 		TArray<FObjectTextExport> ExportRecords;
 		ExportRecords.Reserve(NumExports);
 		ExportMap.SetNum(NumExports);
+		OriginalExportNames.SetNum(NumExports);
 
 		Summary.ExportCount = ExportMap.Num();
 		Summary.ImportCount = 0;
@@ -1823,9 +1841,10 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::ReconstructImportAndExportMap()
 		for (int32 ExportIndex = 0; ExportIndex < NumExports; ++ExportIndex)
 		{
 			FObjectTextExport& TextExport = ExportRecords.Emplace_GetRef(ExportMap[ExportIndex], nullptr);
-			FString ObjectName;
-			PackageExports.EnterElement(ObjectName) << TextExport;
-			ExportMap[ExportIndex].ObjectName = *ObjectName;
+			FString ExportName;
+			PackageExports.EnterElement(ExportName) << TextExport;
+			OriginalExportNames[ExportIndex] = *ExportName;
+			ExportMap[ExportIndex].ObjectName = *ExtractObjectName(OriginalExportNames[ExportIndex].ToString());
 		}
 		
 		// Now pass over all the exports and rebuild the export/import records
@@ -1847,6 +1866,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::ReconstructImportAndExportMap()
 		return LINKER_Loaded;
 	}
 }
+
+#endif // WITH_TEXT_ARCHIVE_SUPPORT
 
 /**
  * Serializes the depends map.
@@ -3669,8 +3690,7 @@ void FLinkerLoad::Preload( UObject* Object )
 #if WITH_EDITOR && WITH_TEXT_ARCHIVE_SUPPORT
 						if (IsTextFormat())
 						{
-							FString ObjectName = Object->GetPathName(Object->GetOutermost());
-							FStructuredArchive::FSlot ExportSlot = StructuredArchiveRootRecord->EnterField(SA_FIELD_NAME(*ObjectName));
+							FStructuredArchive::FSlot ExportSlot = StructuredArchiveRootRecord->EnterField(SA_FIELD_NAME(*OriginalExportNames[Export.ThisIndex.ToExport()].ToString()));
 
 							if (bClassSupportsTextFormat)
 							{
@@ -3710,11 +3730,7 @@ void FLinkerLoad::Preload( UObject* Object )
 #if WITH_EDITOR && WITH_TEXT_ARCHIVE_SUPPORT
 						if (IsTextFormat())
 						{
-							FStructuredArchive::FSlot ExportSlot = StructuredArchiveRootRecord->EnterRecord(SA_FIELD_NAME(TEXT("Exports"))).EnterField(SA_FIELD_NAME(*Export.ObjectName.ToString()));
-
-							// TODO BEFORE CHECKIN: This attribute read only exists because we crash if we attempt to serialize the value of an attributed field when we don't read any attributes first
-							FString Temp;
-							ExportSlot << SA_ATTRIBUTE(TEXT("Class"), Temp);
+							FStructuredArchive::FSlot ExportSlot = StructuredArchiveRootRecord->EnterRecord(SA_FIELD_NAME(TEXT("Exports"))).EnterField(SA_FIELD_NAME(*OriginalExportNames[Export.ThisIndex.ToExport()].ToString()));
 
 							if (bClassSupportsTextFormat)
 							{

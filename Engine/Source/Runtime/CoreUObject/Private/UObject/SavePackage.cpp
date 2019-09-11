@@ -5080,11 +5080,11 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						{
 							SoftReferenceStream.EnterElement() << SoftPackageName;
 						}
-					}
 
-					// Save searchable names map
-					Linker->Summary.SearchableNamesOffset = Linker->Tell();
-					Linker->SerializeSearchableNamesMap(StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("SearchableNames"))));
+						// Save searchable names map
+						Linker->Summary.SearchableNamesOffset = Linker->Tell();
+						Linker->SerializeSearchableNamesMap(StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("SearchableNames"))));
+					}
 				}
 				else
 				{
@@ -5501,7 +5501,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					FStructuredArchive::FRecord ExportsRecord = StructuredArchiveRoot.EnterRecord(SA_FIELD_NAME(TEXT("Exports")));
 
 					// Save exports.
-					FString ObjectName;
 					int32 LastExportSaveStep = 0;
 					for( int32 i=0; i<Linker->ExportMap.Num(); i++ )
 					{
@@ -5519,8 +5518,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							Linker->CurrentlySavingExport = FPackageIndex::FromExport(i);
 							// UE_LOG(LogSavePackage, Log, TEXT("export %s for %s"), *Export.Object->GetFullName(), *Linker->CookingTarget()->PlatformName());
 
-							ObjectName.Reset();
-							Export.Object->GetPathName(InOuter, ObjectName);
+							FString ObjectName = Export.Object->GetPathName(InOuter);
 							FStructuredArchive::FSlot ExportSlot = ExportsRecord.EnterField(SA_FIELD_NAME(*ObjectName));
 
 							if (bTextFormat)
@@ -5860,88 +5858,85 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					if (!bTextFormat)
 					{
 						Linker->Seek(Linker->Summary.ImportOffset);
-					}
 
-					int32 NumImports = Linker->ImportMap.Num();
-					FStructuredArchive::FStream ImportTableStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("ImportTable")));
+						int32 NumImports = Linker->ImportMap.Num();
+						FStructuredArchive::FStream ImportTableStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("ImportTable")));
 
-					for (int32 i = 0; i < Linker->ImportMap.Num(); i++)
-					{
-						FObjectImport& Import = Linker->ImportMap[i];
-						if (Import.XObject)
+						for (int32 i = 0; i < Linker->ImportMap.Num(); i++)
 						{
-							// Set the package index.
-							if (Import.XObject->GetOuter())
+							FObjectImport& Import = Linker->ImportMap[i];
+							if (Import.XObject)
 							{
-								if (Import.XObject->GetOuter()->IsIn(InOuter))
+								// Set the package index.
+								if (Import.XObject->GetOuter())
 								{
-									if (!Import.XObject->HasAllFlags(RF_Transient) || !Import.XObject->IsNative())
+									if (Import.XObject->GetOuter()->IsIn(InOuter))
 									{
-										UE_LOG(LogSavePackage, Warning, TEXT("Bad Object=%s"), *Import.XObject->GetFullName());
+										if (!Import.XObject->HasAllFlags(RF_Transient) || !Import.XObject->IsNative())
+										{
+											UE_LOG(LogSavePackage, Warning, TEXT("Bad Object=%s"), *Import.XObject->GetFullName());
+										}
+										else
+										{
+											// if an object is marked RF_Transient and native, it is either an intrinsic class or
+											// a property of an intrinsic class.  Only properties of intrinsic classes will have
+											// an Outer that passes the check for "GetOuter()->IsIn(InOuter)" (thus ending up in this
+											// block of code).  Just verify that the Outer for this property is also marked RF_Transient and Native
+											check(Import.XObject->GetOuter()->HasAllFlags(RF_Transient) && Import.XObject->GetOuter()->IsNative());
+										}
+									}
+									check(!Import.XObject->GetOuter()->IsIn(InOuter) || Import.XObject->HasAllFlags(RF_Transient) || Import.XObject->IsNative());
+#if WITH_EDITOR
+									UObject** ReplacedOuter = ReplacedImportOuters.Find(Import.XObject);
+									if (ReplacedOuter && *ReplacedOuter)
+									{
+										Import.OuterIndex = Linker->MapObject(*ReplacedOuter);
+										ensure(Import.OuterIndex != FPackageIndex());
 									}
 									else
+#endif
 									{
-										// if an object is marked RF_Transient and native, it is either an intrinsic class or
-										// a property of an intrinsic class.  Only properties of intrinsic classes will have
-										// an Outer that passes the check for "GetOuter()->IsIn(InOuter)" (thus ending up in this
-										// block of code).  Just verify that the Outer for this property is also marked RF_Transient and Native
-										check(Import.XObject->GetOuter()->HasAllFlags(RF_Transient) && Import.XObject->GetOuter()->IsNative());
+										Import.OuterIndex = Linker->MapObject(Import.XObject->GetOuter());
+									}
+
+									if (Linker->IsCooking() && IsEventDrivenLoaderEnabledInCookedBuilds())
+									{
+										// Only package imports are allowed to have no outer
+										ensureMsgf(Import.OuterIndex != FPackageIndex() || Import.ClassName == NAME_Package, TEXT("Import %s has no valid outer when cooking!"), *Import.XObject->GetPathName());
 									}
 								}
-								check(!Import.XObject->GetOuter()->IsIn(InOuter) || Import.XObject->HasAllFlags(RF_Transient) || Import.XObject->IsNative());
-#if WITH_EDITOR
-								UObject** ReplacedOuter = ReplacedImportOuters.Find(Import.XObject);
-								if (ReplacedOuter && *ReplacedOuter)
-								{
-									Import.OuterIndex = Linker->MapObject(*ReplacedOuter);
-									ensure(Import.OuterIndex != FPackageIndex());
-								}
-								else
-#endif
-								{
-									Import.OuterIndex = Linker->MapObject(Import.XObject->GetOuter());
-								}
-
-								if (Linker->IsCooking() && IsEventDrivenLoaderEnabledInCookedBuilds())
-								{
-									// Only package imports are allowed to have no outer
-									ensureMsgf(Import.OuterIndex != FPackageIndex() || Import.ClassName == NAME_Package, TEXT("Import %s has no valid outer when cooking!"), *Import.XObject->GetPathName());
-								}
 							}
-						}
-						else
-						{
-							checkf(Conform != nullptr, TEXT("NULL XObject for import %i - Object: %s Class: %s"), i, *Import.ObjectName.ToString(), *Import.ClassName.ToString());
-						}
+							else
+							{
+								checkf(Conform != nullptr, TEXT("NULL XObject for import %i - Object: %s Class: %s"), i, *Import.ObjectName.ToString(), *Import.ClassName.ToString());
+							}
 
-						// Save it.
-						ImportTableStream.EnterElement() << Import;
+							// Save it.
+							ImportTableStream.EnterElement() << Import;
+						}
 					}
 				}
 
 				// Save the export map.
 				if (!bTextFormat)
 				{
-				check( Linker->Tell() == OffsetAfterImportMap );
+					check( Linker->Tell() == OffsetAfterImportMap );
 					Linker->Seek(Linker->Summary.ExportOffset);
-				}
 
-				int32 NumExports = Linker->ExportMap.Num();
-				FStructuredArchive::FStream ExportTableStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("ExportTable")));
-				{
-#if WITH_EDITOR
-					FArchive::FScopeSetDebugSerializationFlags S(*Linker, DSF_IgnoreDiff, true);
-					FArchiveStackTraceIgnoreScope IgnoreSummaryDiffsScope(DiffSettings.bIgnoreHeaderDiffs);
-#endif
-					for (int32 i = 0; i < Linker->ExportMap.Num(); i++)
+					int32 NumExports = Linker->ExportMap.Num();
+					FStructuredArchive::FStream ExportTableStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("ExportTable")));
 					{
-						FObjectExport& Export = Linker->ExportMap[i];
-						ExportTableStream.EnterElement() << Export;
+#if WITH_EDITOR
+						FArchive::FScopeSetDebugSerializationFlags S(*Linker, DSF_IgnoreDiff, true);
+						FArchiveStackTraceIgnoreScope IgnoreSummaryDiffsScope(DiffSettings.bIgnoreHeaderDiffs);
+#endif
+						for (int32 i = 0; i < Linker->ExportMap.Num(); i++)
+						{
+							FObjectExport& Export = Linker->ExportMap[i];
+							ExportTableStream.EnterElement() << Export;
+						}
 					}
-				}
 
-				if (!bTextFormat)
-				{
 					check( Linker->Tell() == OffsetAfterExportMap );
 				}
 
