@@ -215,7 +215,7 @@ public:
 			}
 
 			FText Reason;
-			if (RequiresTempTarget(bProjectHasCode, Configuration, bRequiresAssetNativization, Reason))
+			if (this->RequiresTempTarget(bProjectHasCode, Configuration, bRequiresAssetNativization, Reason))
 			{
 				ReadyToBuild |= ETargetPlatformReadyStatus::PluginsUnsupported;
 			}
