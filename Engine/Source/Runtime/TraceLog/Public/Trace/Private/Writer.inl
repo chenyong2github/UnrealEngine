@@ -30,6 +30,7 @@ struct FWriteBuffer
 		uint8*			Cursor;
 		FWriteBuffer*	Next;
 	};
+	uint32				ThreadId;
 	uint8				Data[];
 };
 
