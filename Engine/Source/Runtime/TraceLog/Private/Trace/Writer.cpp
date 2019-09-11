@@ -195,6 +195,7 @@ UE_TRACE_API uint8* Writer_NextBuffer(uint16 Size)
 	}
 
 	FWriteBuffer* NextBuffer = Writer_NextBufferInternal(GPoolPageGrowth);
+	NextBuffer->ThreadId = ThreadId;
 
 	NextBuffer->Cursor -= Size;
 	return NextBuffer->Cursor;
