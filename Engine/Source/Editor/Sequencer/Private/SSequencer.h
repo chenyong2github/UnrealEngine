@@ -472,6 +472,12 @@ private:
 	/** Gets the root movie scene name */
 	FText GetRootAnimationName() const;
 
+	/** Get the maximum height the pinned track area should be allowed to be.. */
+	float GetPinnedAreaMaxHeight() const;
+	
+	/** Gets whether or not the Pinned track area should be visible. */
+	EVisibility GetPinnedAreaVisibility() const;
+
 	FText GetBreadcrumbTextForSection(TWeakObjectPtr<UMovieSceneSubSection> SubSection) const;
 	FText GetBreadcrumbTextForSequence(TWeakObjectPtr<UMovieSceneSequence> Sequence, bool bIsActive) const;
 
@@ -543,6 +549,9 @@ private:
 
 	/** Stretch box widget. */
 	TSharedPtr<SSequencerStretchBox> StretchBox;
+
+	/** Main Sequencer Area*/
+	TSharedPtr<SVerticalBox> MainSequencerArea;
 
 	/** Section area widget */
 	TSharedPtr<SSequencerTrackArea> TrackArea;
