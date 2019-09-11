@@ -27,7 +27,7 @@ struct FStructuredArchive::FContainer
 };
 #endif
 
-FStructuredArchiveChildReader::FStructuredArchiveChildReader(FStructuredArchive::FSlot InSlot)
+FStructuredArchiveChildReader::FStructuredArchiveChildReader(FStructuredArchiveSlot InSlot)
 	: OwnedFormatter(nullptr)
 	, Archive(nullptr)
 {
@@ -79,32 +79,32 @@ FStructuredArchive::~FStructuredArchive()
 	Close();
 }
 
-FStructuredArchive::FSlot FStructuredArchive::Open()
+FStructuredArchiveSlot FStructuredArchive::Open()
 {
 	check(CurrentScope.Num() == 0);
 	check(!RootElementId.IsValid());
 	check(!CurrentSlotElementId.IsValid());
 
 	RootElementId = ElementIdGenerator.Generate();
-	CurrentScope.Emplace(RootElementId, EElementType::Root);
+	CurrentScope.Emplace(RootElementId, UE4StructuredArchive_Private::EElementType::Root);
 
 	CurrentSlotElementId = ElementIdGenerator.Generate();
 
-	return FSlot(*this, 0, CurrentSlotElementId);
+	return FStructuredArchiveSlot(*this, 0, CurrentSlotElementId);
 }
 
 void FStructuredArchive::Close()
 {
-	SetScope(FSlotPosition(0, RootElementId));
+	SetScope(UE4StructuredArchive_Private::FSlotPosition(0, RootElementId));
 }
 
-void FStructuredArchive::EnterSlot(FSlotPosition Slot, bool bEnteringAttributedValue)
+void FStructuredArchive::EnterSlot(UE4StructuredArchive_Private::FSlotPosition Slot, bool bEnteringAttributedValue)
 {
-	int32      ParentDepth = Slot.Depth;
-	FElementId ElementId   = Slot.ElementId;
+	int32                                    ParentDepth = Slot.Depth;
+	UE4StructuredArchive_Private::FElementId ElementId   = Slot.ElementId;
 
 	// If the slot being entered has attributes, enter the value slot first.
-	if (ParentDepth + 1 < CurrentScope.Num() && CurrentScope[ParentDepth + 1].Id == ElementId && CurrentScope[ParentDepth + 1].Type == EElementType::AttributedValue)
+	if (ParentDepth + 1 < CurrentScope.Num() && CurrentScope[ParentDepth + 1].Id == ElementId && CurrentScope[ParentDepth + 1].Type == UE4StructuredArchive_Private::EElementType::AttributedValue)
 	{
 #if DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS
 		checkf(!CurrentSlotElementId.IsValid() && !CurrentContainer.Top()->bAttributedValueWritten, TEXT("Attempt to serialize data into an invalid slot"));
@@ -113,15 +113,15 @@ void FStructuredArchive::EnterSlot(FSlotPosition Slot, bool bEnteringAttributedV
 		checkf(!CurrentSlotElementId.IsValid(), TEXT("Attempt to serialize data into an invalid slot"));
 #endif
 
-		SetScope(FSlotPosition(ParentDepth + 1, ElementId));
+		SetScope(UE4StructuredArchive_Private::FSlotPosition(ParentDepth + 1, ElementId));
 		Formatter.EnterAttributedValueValue();
 	}
 	else if (!bEnteringAttributedValue && Formatter.TryEnterAttributedValueValue())
 	{
-		int32 NewDepth = EnterSlotAsType(FSlotPosition(ParentDepth, ElementId), EElementType::AttributedValue);
+		int32 NewDepth = EnterSlotAsType(UE4StructuredArchive_Private::FSlotPosition(ParentDepth, ElementId), UE4StructuredArchive_Private::EElementType::AttributedValue);
 		check(NewDepth == ParentDepth + 1);
-		FElementId AttributedValueId = CurrentScope[NewDepth].Id;
-		SetScope(FSlotPosition(NewDepth, AttributedValueId));
+		UE4StructuredArchive_Private::FElementId AttributedValueId = CurrentScope[NewDepth].Id;
+		SetScope(UE4StructuredArchive_Private::FSlotPosition(NewDepth, AttributedValueId));
 #if DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS
 		CurrentContainer.Emplace(0);
 #endif
@@ -132,12 +132,12 @@ void FStructuredArchive::EnterSlot(FSlotPosition Slot, bool bEnteringAttributedV
 		CurrentSlotElementId.Reset();
 	}
 
-	CurrentEnteringAttributeState = EEnteringAttributeState::NotEnteringAttribute;
+	CurrentEnteringAttributeState = UE4StructuredArchive_Private::EEnteringAttributeState::NotEnteringAttribute;
 }
 
-int32 FStructuredArchive::EnterSlotAsType(FSlotPosition Slot, EElementType ElementType)
+int32 FStructuredArchive::EnterSlotAsType(UE4StructuredArchive_Private::FSlotPosition Slot, UE4StructuredArchive_Private::EElementType ElementType)
 {
-	EnterSlot(Slot, ElementType == EElementType::AttributedValue);
+	EnterSlot(Slot, ElementType == UE4StructuredArchive_Private::EElementType::AttributedValue);
 
 	int32 NewSlotDepth = Slot.Depth + 1;
 
@@ -146,8 +146,8 @@ int32 FStructuredArchive::EnterSlotAsType(FSlotPosition Slot, EElementType Eleme
 	//
 	// We don't need to do adjust for attributes, because entering the attribute slot will bump the depth anyway.
 	if (NewSlotDepth < CurrentScope.Num() &&
-		CurrentScope[NewSlotDepth].Type == EElementType::AttributedValue &&
-		CurrentEnteringAttributeState == EEnteringAttributeState::NotEnteringAttribute)
+		CurrentScope[NewSlotDepth].Type == UE4StructuredArchive_Private::EElementType::AttributedValue &&
+		CurrentEnteringAttributeState == UE4StructuredArchive_Private::EEnteringAttributeState::NotEnteringAttribute)
 	{
 		++NewSlotDepth;
 	}
@@ -162,32 +162,32 @@ void FStructuredArchive::LeaveSlot()
 	{
 		switch (CurrentScope.Top().Type)
 		{
-		case EElementType::Record:
+		case UE4StructuredArchive_Private::EElementType::Record:
 			Formatter.LeaveField();
 			break;
-		case EElementType::Array:
+		case UE4StructuredArchive_Private::EElementType::Array:
 			Formatter.LeaveArrayElement();
 #if DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS
 			CurrentContainer.Top()->Index++;
 #endif
 			break;
-		case EElementType::Stream:
+		case UE4StructuredArchive_Private::EElementType::Stream:
 			Formatter.LeaveStreamElement();
 			break;
-		case EElementType::Map:
+		case UE4StructuredArchive_Private::EElementType::Map:
 			Formatter.LeaveMapElement();
 #if DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS
 			CurrentContainer.Top()->Index++;
 #endif
 			break;
-		case EElementType::AttributedValue:
+		case UE4StructuredArchive_Private::EElementType::AttributedValue:
 			Formatter.LeaveAttribute();
 			break;
 		}
 	}
 }
 
-void FStructuredArchive::SetScope(FSlotPosition Slot)
+void FStructuredArchive::SetScope(UE4StructuredArchive_Private::FSlotPosition Slot)
 {
 	// Make sure the scope is valid
 	checkf(Slot.Depth < CurrentScope.Num() && CurrentScope[Slot.Depth].Id == Slot.ElementId, TEXT("Invalid scope for writing to archive"));
@@ -202,13 +202,13 @@ void FStructuredArchive::SetScope(FSlotPosition Slot)
 			const FElement& Element = CurrentScope[CurrentDepth];
 			switch (Element.Type)
 			{
-			case EElementType::Record:
+			case UE4StructuredArchive_Private::EElementType::Record:
 				Formatter.LeaveRecord();
 #if DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS
 				CurrentContainer.Pop(false);
 #endif
 				break;
-			case EElementType::Array:
+			case UE4StructuredArchive_Private::EElementType::Array:
 #if DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS
 				checkf(GetUnderlyingArchive().IsLoading() || CurrentContainer.Top()->Index == CurrentContainer.Top()->Count, TEXT("Incorrect number of elements serialized in array"));
 #endif
@@ -217,10 +217,10 @@ void FStructuredArchive::SetScope(FSlotPosition Slot)
 				CurrentContainer.Pop(false);
 #endif
 				break;
-			case EElementType::Stream:
+			case UE4StructuredArchive_Private::EElementType::Stream:
 				Formatter.LeaveStream();
 				break;
-			case EElementType::Map:
+			case UE4StructuredArchive_Private::EElementType::Map:
 #if DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS
 				checkf(CurrentContainer.Top()->Index == CurrentContainer.Top()->Count, TEXT("Incorrect number of elements serialized in map"));
 #endif
@@ -229,7 +229,7 @@ void FStructuredArchive::SetScope(FSlotPosition Slot)
 				CurrentContainer.Pop(false);
 #endif
 				break;
-			case EElementType::AttributedValue:
+			case UE4StructuredArchive_Private::EElementType::AttributedValue:
 				Formatter.LeaveAttributedValue();
 #if DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS
 				CurrentContainer.Pop(false);
@@ -251,11 +251,11 @@ void FStructuredArchive::SetScope(FSlotPosition Slot)
 	}
 }
 
-//////////// FStructuredArchive::FSlot ////////////
+//////////// FStructuredArchiveSlot ////////////
 
-FStructuredArchive::FRecord FStructuredArchive::FSlot::EnterRecord()
+FStructuredArchiveRecord FStructuredArchiveSlot::EnterRecord()
 {
-	int32 NewDepth = Ar.EnterSlotAsType(*this, EElementType::Record);
+	int32 NewDepth = Ar.EnterSlotAsType(*this, UE4StructuredArchive_Private::EElementType::Record);
 
 #if DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS
 	Ar.CurrentContainer.Emplace(0);
@@ -263,12 +263,12 @@ FStructuredArchive::FRecord FStructuredArchive::FSlot::EnterRecord()
 
 	Ar.Formatter.EnterRecord();
 
-	return FRecord(Ar, NewDepth, ElementId);
+	return FStructuredArchiveRecord(Ar, NewDepth, ElementId);
 }
 
-FStructuredArchive::FRecord FStructuredArchive::FSlot::EnterRecord_TextOnly(TArray<FString>& OutFieldNames)
+FStructuredArchiveRecord FStructuredArchiveSlot::EnterRecord_TextOnly(TArray<FString>& OutFieldNames)
 {
-	int32 NewDepth = Ar.EnterSlotAsType(*this, EElementType::Record);
+	int32 NewDepth = Ar.EnterSlotAsType(*this, UE4StructuredArchive_Private::EElementType::Record);
 
 #if DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS
 	Ar.CurrentContainer.Emplace(0);
@@ -276,12 +276,12 @@ FStructuredArchive::FRecord FStructuredArchive::FSlot::EnterRecord_TextOnly(TArr
 
 	Ar.Formatter.EnterRecord_TextOnly(OutFieldNames);
 
-	return FRecord(Ar, NewDepth, ElementId);
+	return FStructuredArchiveRecord(Ar, NewDepth, ElementId);
 }
 
-FStructuredArchive::FArray FStructuredArchive::FSlot::EnterArray(int32& Num)
+FStructuredArchiveArray FStructuredArchiveSlot::EnterArray(int32& Num)
 {
-	int32 NewDepth = Ar.EnterSlotAsType(*this, EElementType::Array);
+	int32 NewDepth = Ar.EnterSlotAsType(*this, UE4StructuredArchive_Private::EElementType::Array);
 
 	Ar.Formatter.EnterArray(Num);
 
@@ -289,30 +289,30 @@ FStructuredArchive::FArray FStructuredArchive::FSlot::EnterArray(int32& Num)
 	Ar.CurrentContainer.Emplace(Num);
 #endif
 
-	return FArray(Ar, NewDepth, ElementId);
+	return FStructuredArchiveArray(Ar, NewDepth, ElementId);
 }
 
-FStructuredArchive::FStream FStructuredArchive::FSlot::EnterStream()
+FStructuredArchiveStream FStructuredArchiveSlot::EnterStream()
 {
-	int32 NewDepth = Ar.EnterSlotAsType(*this, EElementType::Stream);
+	int32 NewDepth = Ar.EnterSlotAsType(*this, UE4StructuredArchive_Private::EElementType::Stream);
 
 	Ar.Formatter.EnterStream();
 
-	return FStream(Ar, NewDepth, ElementId);
+	return FStructuredArchiveStream(Ar, NewDepth, ElementId);
 }
 
-FStructuredArchive::FStream FStructuredArchive::FSlot::EnterStream_TextOnly(int32& OutNumElements)
+FStructuredArchiveStream FStructuredArchiveSlot::EnterStream_TextOnly(int32& OutNumElements)
 {
-	int32 NewDepth = Ar.EnterSlotAsType(*this, EElementType::Stream);
+	int32 NewDepth = Ar.EnterSlotAsType(*this, UE4StructuredArchive_Private::EElementType::Stream);
 
 	Ar.Formatter.EnterStream_TextOnly(OutNumElements);
 
-	return FStream(Ar, NewDepth, ElementId);
+	return FStructuredArchiveStream(Ar, NewDepth, ElementId);
 }
 
-FStructuredArchive::FMap FStructuredArchive::FSlot::EnterMap(int32& Num)
+FStructuredArchiveMap FStructuredArchiveSlot::EnterMap(int32& Num)
 {
-	int32 NewDepth = Ar.EnterSlotAsType(*this, EElementType::Map);
+	int32 NewDepth = Ar.EnterSlotAsType(*this, UE4StructuredArchive_Private::EElementType::Map);
 
 	Ar.Formatter.EnterMap(Num);
 
@@ -320,17 +320,17 @@ FStructuredArchive::FMap FStructuredArchive::FSlot::EnterMap(int32& Num)
 	Ar.CurrentContainer.Emplace(Num);
 #endif
 
-	return FMap(Ar, NewDepth, ElementId);
+	return FStructuredArchiveMap(Ar, NewDepth, ElementId);
 }
 
-FStructuredArchive::FSlot FStructuredArchive::FSlot::EnterAttribute(FArchiveFieldName AttributeName)
+FStructuredArchiveSlot FStructuredArchiveSlot::EnterAttribute(FArchiveFieldName AttributeName)
 {
 	check(Ar.CurrentScope.Num() > 0);
 
 	int32 NewDepth = Depth + 1;
-	if (NewDepth >= Ar.CurrentScope.Num() || Ar.CurrentScope[NewDepth].Id != ElementId || Ar.CurrentScope[NewDepth].Type != EElementType::AttributedValue)
+	if (NewDepth >= Ar.CurrentScope.Num() || Ar.CurrentScope[NewDepth].Id != ElementId || Ar.CurrentScope[NewDepth].Type != UE4StructuredArchive_Private::EElementType::AttributedValue)
 	{
-		int32 NewDepthCheck = Ar.EnterSlotAsType(*this, EElementType::AttributedValue);
+		int32 NewDepthCheck = Ar.EnterSlotAsType(*this, UE4StructuredArchive_Private::EElementType::AttributedValue);
 		checkSlow(NewDepth == NewDepthCheck);
 
 		Ar.Formatter.EnterAttributedValue();
@@ -340,11 +340,11 @@ FStructuredArchive::FSlot FStructuredArchive::FSlot::EnterAttribute(FArchiveFiel
 #endif
 	}
 
-	Ar.CurrentEnteringAttributeState = EEnteringAttributeState::NotEnteringAttribute;
+	Ar.CurrentEnteringAttributeState = UE4StructuredArchive_Private::EEnteringAttributeState::NotEnteringAttribute;
 
-	FElementId AttributedValueId = Ar.CurrentScope[NewDepth].Id;
+	UE4StructuredArchive_Private::FElementId AttributedValueId = Ar.CurrentScope[NewDepth].Id;
 
-	Ar.SetScope(FSlotPosition(NewDepth, AttributedValueId));
+	Ar.SetScope(UE4StructuredArchive_Private::FSlotPosition(NewDepth, AttributedValueId));
 
 	Ar.CurrentSlotElementId = Ar.ElementIdGenerator.Generate();
 
@@ -361,17 +361,17 @@ FStructuredArchive::FSlot FStructuredArchive::FSlot::EnterAttribute(FArchiveFiel
 
 	Ar.Formatter.EnterAttribute(AttributeName);
 
-	return FSlot(Ar, NewDepth, Ar.CurrentSlotElementId);
+	return FStructuredArchiveSlot(Ar, NewDepth, Ar.CurrentSlotElementId);
 }
 
-TOptional<FStructuredArchive::FSlot> FStructuredArchive::FSlot::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting)
+TOptional<FStructuredArchiveSlot> FStructuredArchiveSlot::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting)
 {
 	check(Ar.CurrentScope.Num() > 0);
 
 	int32 NewDepth = Depth + 1;
-	if (NewDepth >= Ar.CurrentScope.Num() || Ar.CurrentScope[NewDepth].Id != ElementId || Ar.CurrentScope[NewDepth].Type != EElementType::AttributedValue)
+	if (NewDepth >= Ar.CurrentScope.Num() || Ar.CurrentScope[NewDepth].Id != ElementId || Ar.CurrentScope[NewDepth].Type != UE4StructuredArchive_Private::EElementType::AttributedValue)
 	{
-		int32 NewDepthCheck = Ar.EnterSlotAsType(*this, EElementType::AttributedValue);
+		int32 NewDepthCheck = Ar.EnterSlotAsType(*this, UE4StructuredArchive_Private::EElementType::AttributedValue);
 		checkSlow(NewDepth == NewDepthCheck);
 
 		Ar.Formatter.EnterAttributedValue();
@@ -392,17 +392,17 @@ TOptional<FStructuredArchive::FSlot> FStructuredArchive::FSlot::TryEnterAttribut
 #endif
 #endif
 
-	FElementId AttributedValueId = Ar.CurrentScope[NewDepth].Id;
+	UE4StructuredArchive_Private::FElementId AttributedValueId = Ar.CurrentScope[NewDepth].Id;
 
-	Ar.SetScope(FSlotPosition(NewDepth, AttributedValueId));
+	Ar.SetScope(UE4StructuredArchive_Private::FSlotPosition(NewDepth, AttributedValueId));
 
 	if (Ar.Formatter.TryEnterAttribute(AttributeName, bEnterWhenWriting))
 	{
-		Ar.CurrentEnteringAttributeState = EEnteringAttributeState::NotEnteringAttribute;
+		Ar.CurrentEnteringAttributeState = UE4StructuredArchive_Private::EEnteringAttributeState::NotEnteringAttribute;
 
 		Ar.CurrentSlotElementId = Ar.ElementIdGenerator.Generate();
 
-		return FSlot(Ar, NewDepth, Ar.CurrentSlotElementId);
+		return FStructuredArchiveSlot(Ar, NewDepth, Ar.CurrentSlotElementId);
 	}
 	else
 	{
@@ -410,156 +410,156 @@ TOptional<FStructuredArchive::FSlot> FStructuredArchive::FSlot::TryEnterAttribut
 	}
 }
 
-void FStructuredArchive::FSlot::operator<< (uint8& Value)
+void FStructuredArchiveSlot::operator<< (uint8& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (uint16& Value)
+void FStructuredArchiveSlot::operator<< (uint16& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (uint32& Value)
+void FStructuredArchiveSlot::operator<< (uint32& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (uint64& Value)
+void FStructuredArchiveSlot::operator<< (uint64& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (int8& Value)
+void FStructuredArchiveSlot::operator<< (int8& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (int16& Value)
+void FStructuredArchiveSlot::operator<< (int16& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (int32& Value)
+void FStructuredArchiveSlot::operator<< (int32& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (int64& Value)
+void FStructuredArchiveSlot::operator<< (int64& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (float& Value)
+void FStructuredArchiveSlot::operator<< (float& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (double& Value)
+void FStructuredArchiveSlot::operator<< (double& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (bool& Value)
+void FStructuredArchiveSlot::operator<< (bool& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (FString& Value)
+void FStructuredArchiveSlot::operator<< (FString& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (FName& Value)
+void FStructuredArchiveSlot::operator<< (FName& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (UObject*& Value)
+void FStructuredArchiveSlot::operator<< (UObject*& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (FText& Value)
+void FStructuredArchiveSlot::operator<< (FText& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (FWeakObjectPtr& Value)
+void FStructuredArchiveSlot::operator<< (FWeakObjectPtr& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (FLazyObjectPtr& Value)
+void FStructuredArchiveSlot::operator<< (FLazyObjectPtr& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (FSoftObjectPtr& Value)
+void FStructuredArchiveSlot::operator<< (FSoftObjectPtr& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::operator<< (FSoftObjectPath& Value)
+void FStructuredArchiveSlot::operator<< (FSoftObjectPath& Value)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Value);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::Serialize(TArray<uint8>& Data)
+void FStructuredArchiveSlot::Serialize(TArray<uint8>& Data)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Data);
 	Ar.LeaveSlot();
 }
 
-void FStructuredArchive::FSlot::Serialize(void* Data, uint64 DataSize)
+void FStructuredArchiveSlot::Serialize(void* Data, uint64 DataSize)
 {
 	Ar.EnterSlot(*this);
 	Ar.Formatter.Serialize(Data, DataSize);
 	Ar.LeaveSlot();
 }
 
-//////////// FStructuredArchive::FObject ////////////
+//////////// FStructuredArchiveRecord ////////////
 
-FStructuredArchive::FSlot FStructuredArchive::FRecord::EnterField(FArchiveFieldName Name)
+FStructuredArchiveSlot FStructuredArchiveRecord::EnterField(FArchiveFieldName Name)
 {
 	Ar.SetScope(*this);
 
@@ -578,40 +578,40 @@ FStructuredArchive::FSlot FStructuredArchive::FRecord::EnterField(FArchiveFieldN
 
 	Ar.Formatter.EnterField(Name);
 
-	return FSlot(Ar, Depth, Ar.CurrentSlotElementId);
+	return FStructuredArchiveSlot(Ar, Depth, Ar.CurrentSlotElementId);
 }
 
-FStructuredArchive::FRecord FStructuredArchive::FRecord::EnterRecord(FArchiveFieldName Name)
+FStructuredArchiveRecord FStructuredArchiveRecord::EnterRecord(FArchiveFieldName Name)
 {
 	return EnterField(Name).EnterRecord();
 }
 
-FStructuredArchive::FRecord FStructuredArchive::FRecord::EnterRecord_TextOnly(FArchiveFieldName Name, TArray<FString>& OutFieldNames)
+FStructuredArchiveRecord FStructuredArchiveRecord::EnterRecord_TextOnly(FArchiveFieldName Name, TArray<FString>& OutFieldNames)
 {
 	return EnterField(Name).EnterRecord_TextOnly(OutFieldNames);
 }
 
-FStructuredArchive::FArray FStructuredArchive::FRecord::EnterArray(FArchiveFieldName Name, int32& Num)
+FStructuredArchiveArray FStructuredArchiveRecord::EnterArray(FArchiveFieldName Name, int32& Num)
 {
 	return EnterField(Name).EnterArray(Num);
 }
 
-FStructuredArchive::FStream FStructuredArchive::FRecord::EnterStream(FArchiveFieldName Name)
+FStructuredArchiveStream FStructuredArchiveRecord::EnterStream(FArchiveFieldName Name)
 {
 	return EnterField(Name).EnterStream();
 }
 
-FStructuredArchive::FStream FStructuredArchive::FRecord::EnterStream_TextOnly(FArchiveFieldName Name, int32& OutNumElements)
+FStructuredArchiveStream FStructuredArchiveRecord::EnterStream_TextOnly(FArchiveFieldName Name, int32& OutNumElements)
 {
 	return EnterField(Name).EnterStream_TextOnly(OutNumElements);
 }
 
-FStructuredArchive::FMap FStructuredArchive::FRecord::EnterMap(FArchiveFieldName Name, int32& Num)
+FStructuredArchiveMap FStructuredArchiveRecord::EnterMap(FArchiveFieldName Name, int32& Num)
 {
 	return EnterField(Name).EnterMap(Num);
 }
 
-TOptional<FStructuredArchive::FSlot> FStructuredArchive::FRecord::TryEnterField(FArchiveFieldName Name, bool bEnterWhenWriting)
+TOptional<FStructuredArchiveSlot> FStructuredArchiveRecord::TryEnterField(FArchiveFieldName Name, bool bEnterWhenWriting)
 {
 	Ar.SetScope(*this);
 
@@ -629,7 +629,7 @@ TOptional<FStructuredArchive::FSlot> FStructuredArchive::FRecord::TryEnterField(
 	if (Ar.Formatter.TryEnterField(Name, bEnterWhenWriting))
 	{
 		Ar.CurrentSlotElementId = Ar.ElementIdGenerator.Generate();
-		return FSlot(Ar, Depth, Ar.CurrentSlotElementId);
+		return FStructuredArchiveSlot(Ar, Depth, Ar.CurrentSlotElementId);
 	}
 	else
 	{
@@ -637,9 +637,9 @@ TOptional<FStructuredArchive::FSlot> FStructuredArchive::FRecord::TryEnterField(
 	}
 }
 
-//////////// FStructuredArchive::FArray ////////////
+//////////// FStructuredArchiveArray ////////////
 
-FStructuredArchive::FSlot FStructuredArchive::FArray::EnterElement()
+FStructuredArchiveSlot FStructuredArchiveArray::EnterElement()
 {
 	Ar.SetScope(*this);
 
@@ -651,10 +651,10 @@ FStructuredArchive::FSlot FStructuredArchive::FArray::EnterElement()
 
 	Ar.Formatter.EnterArrayElement();
 
-	return FSlot(Ar, Depth, Ar.CurrentSlotElementId);
+	return FStructuredArchiveSlot(Ar, Depth, Ar.CurrentSlotElementId);
 }
 
-FStructuredArchive::FSlot FStructuredArchive::FArray::EnterElement_TextOnly(EArchiveValueType& OutType)
+FStructuredArchiveSlot FStructuredArchiveArray::EnterElement_TextOnly(EArchiveValueType& OutType)
 {
 	Ar.SetScope(*this);
 
@@ -666,12 +666,12 @@ FStructuredArchive::FSlot FStructuredArchive::FArray::EnterElement_TextOnly(EArc
 
 	Ar.Formatter.EnterArrayElement_TextOnly(OutType);
 
-	return FSlot(Ar, Depth, Ar.CurrentSlotElementId);
+	return FStructuredArchiveSlot(Ar, Depth, Ar.CurrentSlotElementId);
 }
 
-//////////// FStructuredArchive::FStream ////////////
+//////////// FStructuredArchiveStream ////////////
 
-FStructuredArchive::FSlot FStructuredArchive::FStream::EnterElement()
+FStructuredArchiveSlot FStructuredArchiveStream::EnterElement()
 {
 	Ar.SetScope(*this);
 
@@ -679,10 +679,10 @@ FStructuredArchive::FSlot FStructuredArchive::FStream::EnterElement()
 
 	Ar.Formatter.EnterStreamElement();
 
-	return FSlot(Ar, Depth, Ar.CurrentSlotElementId);
+	return FStructuredArchiveSlot(Ar, Depth, Ar.CurrentSlotElementId);
 }
 
-FStructuredArchive::FSlot FStructuredArchive::FStream::EnterElement_TextOnly(EArchiveValueType& OutType)
+FStructuredArchiveSlot FStructuredArchiveStream::EnterElement_TextOnly(EArchiveValueType& OutType)
 {
 	Ar.SetScope(*this);
 
@@ -690,12 +690,12 @@ FStructuredArchive::FSlot FStructuredArchive::FStream::EnterElement_TextOnly(EAr
 
 	Ar.Formatter.EnterStreamElement_TextOnly(OutType);
 
-	return FSlot(Ar, Depth, Ar.CurrentSlotElementId);
+	return FStructuredArchiveSlot(Ar, Depth, Ar.CurrentSlotElementId);
 }
 
-//////////// FStructuredArchive::FMap ////////////
+//////////// FStructuredArchiveMap ////////////
 
-FStructuredArchive::FSlot FStructuredArchive::FMap::EnterElement(FString& Name)
+FStructuredArchiveSlot FStructuredArchiveMap::EnterElement(FString& Name)
 {
 	Ar.SetScope(*this);
 
@@ -729,10 +729,10 @@ FStructuredArchive::FSlot FStructuredArchive::FMap::EnterElement(FString& Name)
 #endif
 #endif
 
-	return FSlot(Ar, Depth, Ar.CurrentSlotElementId);
+	return FStructuredArchiveSlot(Ar, Depth, Ar.CurrentSlotElementId);
 }
 
-FStructuredArchive::FSlot FStructuredArchive::FMap::EnterElement_TextOnly(FString& Name, EArchiveValueType& OutType)
+FStructuredArchiveSlot FStructuredArchiveMap::EnterElement_TextOnly(FString& Name, EArchiveValueType& OutType)
 {
 	Ar.SetScope(*this);
 
@@ -766,7 +766,7 @@ FStructuredArchive::FSlot FStructuredArchive::FMap::EnterElement_TextOnly(FStrin
 #endif
 #endif
 
-	return FSlot(Ar, Depth, Ar.CurrentSlotElementId);
+	return FStructuredArchiveSlot(Ar, Depth, Ar.CurrentSlotElementId);
 }
 
 #endif
