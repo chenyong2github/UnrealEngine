@@ -44,7 +44,7 @@ public class DX11Audio : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
-			PublicAdditionalLibraries.AddRange(
+            PublicSystemLibraries.AddRange(
 			new string[]
 			{
 				LibDir + "dxguid.lib",

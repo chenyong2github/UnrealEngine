@@ -48,7 +48,8 @@ public class MixedRealityInteropLibrary : ModuleRules
 		}
 		else if(Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
-			PublicSystemLibraries.Add("MixedRealityInteropHoloLens.lib");
+			string InteropLibPath = Target.UEThirdPartySourceDirectory + "/WindowsMixedRealityInterop/Lib/arm64/";
+			PublicAdditionalLibraries.Add(InteropLibPath + "MixedRealityInteropHoloLens.lib");
 		}
 	}
 }
