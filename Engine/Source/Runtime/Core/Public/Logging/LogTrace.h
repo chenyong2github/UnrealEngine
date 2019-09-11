@@ -23,7 +23,7 @@ struct FLogTrace
 	template <typename... Types>
 	static void OutputLogMessage(const void* LogPoint, Types... FormatArgs)
 	{
-		uint8 FormatArgsBuffer[4096];
+		uint8 FormatArgsBuffer[3072];
 		uint16 FormatArgsSize = FFormatArgsTrace::EncodeArguments(FormatArgsBuffer, FormatArgs...);
 		if (FormatArgsSize)
 		{
