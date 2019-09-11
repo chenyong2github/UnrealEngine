@@ -98,8 +98,8 @@ public:
 	TEnumAsByte<EMaxConcurrentResolutionRule::Type> MaxConcurrentResolutionRule_DEPRECATED;
 #endif // WITH_EDITORONLY_DATA
 
-	/** Number of times this sound is currently being played (counted if sound is virtualized). */
-	int32 CurrentPlayCount;
+	/** Map of device handle to number of times this sound is currently being played using that device(counted if sound is virtualized). */
+	TMap<Audio::FDeviceId, int32> CurrentPlayCount;
 
 #if WITH_EDITORONLY_DATA
 	/** If Override Concurrency is false, the sound concurrency settings to use for this sound. */

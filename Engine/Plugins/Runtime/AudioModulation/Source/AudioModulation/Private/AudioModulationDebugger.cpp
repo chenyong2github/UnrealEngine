@@ -87,23 +87,11 @@ namespace AudioModulation
 				}
 
 				const FString ValueString  = FString::Printf(TEXT("%.6f"), LFOPair.GetValue());
-				const FString AmpString    = FString::Printf(TEXT("%.6f"), LFOPair.GetAmplitude());
-				const FString FreqString   = FString::Printf(TEXT("%.6f"), LFOPair.GetFreq());
-				const FString OffsetString = FString::Printf(TEXT("%.6f"), LFOPair.GetOffset());
 
 				Canvas.DrawShadowedString(RowX, Y, *Name, &Font, FColor::Green);
 				RowX += Width * CellWidth;
 
 				Canvas.DrawShadowedString(RowX, Y, *ValueString, &Font, FColor::Green);
-				RowX += Width * CellWidth;
-
-				Canvas.DrawShadowedString(RowX, Y, *AmpString, &Font, FColor::Green);
-				RowX += Width * CellWidth;
-
-				Canvas.DrawShadowedString(RowX, Y, *FreqString, &Font, FColor::Green);
-				RowX += Width * CellWidth;
-
-				Canvas.DrawShadowedString(RowX, Y, *OffsetString, &Font, FColor::Green);
 				RowX += Width * CellWidth;
 
 				Y += Height;
@@ -112,7 +100,7 @@ namespace AudioModulation
 			return Y;
 		}
 
-		int32 RenderStatMixMatrix(const TArray<FModulatorBusMixProxy>& FilteredMixes, const TArray<FModulatorBusProxy>& FilteredBuses, FCanvas& Canvas, int32 X, int32 Y, const UFont& Font)
+		int32 RenderStatMixMatrix(const TArray<FModulatorBusMixProxy>& FilteredMixes, const TArray<FControlBusProxy>& FilteredBuses, FCanvas& Canvas, int32 X, int32 Y, const UFont& Font)
 		{
 			int32 Height = 12;
 			int32 Width = 12;
@@ -139,14 +127,14 @@ namespace AudioModulation
 			{
 				CellWidth = FMath::Max(CellWidth, BusMix.GetName().Len());
 			}
-			for (const FModulatorBusProxy& BusPair : FilteredBuses)
+			for (const FControlBusProxy& BusPair : FilteredBuses)
 			{
 				CellWidth = FMath::Max(CellWidth, BusPair.GetName().Len());
 			}
 
 			// Draw Column Headers
 			int32 RowX = X;
-			for (const FModulatorBusProxy& BusPair : FilteredBuses)
+			for (const FControlBusProxy& BusPair : FilteredBuses)
 			{
 				FString Name = BusPair.GetName().Left(MaxNameLength);
 				if (Name.Len() < MaxNameLength)
@@ -180,13 +168,13 @@ namespace AudioModulation
 				ColumnY += Height; // Add before to leave space for column headers
 				RowX = X;
 
-				for (const FModulatorBusProxy& Bus : FilteredBuses)
+				for (const FControlBusProxy& Bus : FilteredBuses)
 				{
 					RowX += Width * CellWidth; // Add before to leave space for row headers
 
 					float Target = Bus.GetDefaultValue();
 					float Value = Bus.GetDefaultValue();
-					if (const FModulatorBusMixChannelProxy* ChannelProxy = BusMix.Channels.Find(Bus.GetBusId()))
+					if (const FModulatorBusMixChannelProxy* ChannelProxy = BusMix.Channels.Find(Bus.GetId()))
 					{
 						Target = ChannelProxy->Value.TargetValue;
 						Value  = ChannelProxy->Value.GetCurrentValue();
@@ -208,7 +196,7 @@ namespace AudioModulation
 			// Draw Sub-Totals & Totals
 			Canvas.DrawShadowedString(X, Y, *MixSubTotalHeader, &Font, FColor::Yellow);
 			RowX = X;
-			for (const FModulatorBusProxy& BusPair : FilteredBuses)
+			for (const FControlBusProxy& BusPair : FilteredBuses)
 			{
 				RowX += Width * CellWidth; // Add before to leave space for row headers
 
@@ -227,7 +215,7 @@ namespace AudioModulation
 
 			Canvas.DrawShadowedString(X, Y, *LFOSubTotalHeader, &Font, FColor::Yellow);
 			RowX = X;
-			for (const FModulatorBusProxy& BusPair : FilteredBuses)
+			for (const FControlBusProxy& BusPair : FilteredBuses)
 			{
 				RowX += Width * CellWidth; // Add before to leave space for row headers
 				const float Value = BusPair.GetLFOValue();
@@ -238,7 +226,7 @@ namespace AudioModulation
 			Y += Height;
 			Canvas.DrawShadowedString(X, Y, *TotalHeader, &Font, FColor::Yellow);
 			RowX = X;
-			for (const FModulatorBusProxy& BusPair : FilteredBuses)
+			for (const FControlBusProxy& BusPair : FilteredBuses)
 			{
 				RowX += Width * CellWidth; // Add before to leave space for row headers
 				const float Value = BusPair.GetValue();
@@ -299,8 +287,8 @@ namespace AudioModulation
 		}
 
 		static const int32 MaxFilteredBuses = 8;
-		TArray<FModulatorBusProxy> InFilteredBuses;
-		FilterDebugArray<BusProxyMap, FModulatorBusProxy>(ActiveBuses, BusStringFilter, MaxFilteredBuses, InFilteredBuses);
+		TArray<FControlBusProxy> InFilteredBuses;
+		FilterDebugArray<BusProxyMap, FControlBusProxy>(ActiveBuses, BusStringFilter, MaxFilteredBuses, InFilteredBuses);
 
 		static const int32 MaxFilteredMixes = 16;
 		TArray<FModulatorBusMixProxy> InFilteredMixes;
@@ -313,7 +301,7 @@ namespace AudioModulation
 		FAudioThread::RunCommandOnGameThread([this, InFilteredBuses, InFilteredMixes, InFilteredLFOs]()
 		{
 			FilteredBuses = InFilteredBuses;
-			FilteredBuses.Sort(&CompareNames<FModulatorBusProxy>);
+			FilteredBuses.Sort(&CompareNames<FControlBusProxy>);
 
 			FilteredMixes = InFilteredMixes;
 			FilteredMixes.Sort(&CompareNames<FModulatorBusMixProxy>);
