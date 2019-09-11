@@ -14,14 +14,10 @@ class SWidget;
 class SWorldHierarchy;
 class FLevelCollectionModel;
 class SWorldHierarchyImpl;
-class FMenuBuilder;
+class UToolMenu;
 
 namespace WorldHierarchy
 {
-	struct IWorldTreeItem;
-	typedef TSharedPtr<IWorldTreeItem> FWorldTreeItemPtr;
-	typedef TSharedRef<IWorldTreeItem> FWorldTreeItemRef;
-
 	/** Interface for validating drag/drop movement */
 	struct IDropTarget
 	{
@@ -274,7 +270,7 @@ namespace WorldHierarchy
 		virtual bool CanChangeParents() const = 0;
 
 		/** Generates a context menu option for this item if and only if it's the only item selected in the hierarchy */
-		virtual void GenerateContextMenu(FMenuBuilder& MenuBuilder, const SWorldHierarchyImpl& Hierarchy) {}
+		virtual void GenerateContextMenu(UToolMenu* Menu, const SWorldHierarchyImpl& Hierarchy) {}
 
 		/** Sets the item's visible status */
 		virtual void SetVisible(bool bVisible) = 0;

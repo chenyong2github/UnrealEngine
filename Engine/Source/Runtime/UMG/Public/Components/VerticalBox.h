@@ -18,7 +18,7 @@ class UVerticalBoxSlot;
  * * Many Children
  * * Flows Vertical
  */
-UCLASS()
+UCLASS(meta = (ShortTooltip = "A layout panel for automatically laying child widgets out vertically"))
 class UMG_API UVerticalBox : public UPanelWidget
 {
 	GENERATED_UCLASS_BODY()

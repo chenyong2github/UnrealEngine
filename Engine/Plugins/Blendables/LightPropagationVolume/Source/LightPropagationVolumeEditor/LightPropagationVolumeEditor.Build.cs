@@ -10,7 +10,7 @@ public class LightPropagationVolumeEditor : ModuleRules
 			new string[] {	
 				"Core",
 				"CoreUObject",
-                "UnrealEd",         // for FAssetEditorManager
+                "UnrealEd",         // for UAssetEditorSubsystem
 				"AssetTools",       // class FAssetTypeActions_Base
 				"LightPropagationVolumeRuntime",
 			}

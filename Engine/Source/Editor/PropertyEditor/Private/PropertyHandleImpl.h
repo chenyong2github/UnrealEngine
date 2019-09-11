@@ -468,8 +468,8 @@ public:
 	virtual bool HasMetaData(const FName& Key) const override;
 	virtual const FString& GetMetaData(const FName& Key) const override;
 	virtual bool GetBoolMetaData(const FName& Key) const override;
-	virtual int32 GetINTMetaData(const FName& Key) const override;
-	virtual float GetFLOATMetaData(const FName& Key) const override;
+	virtual int32 GetIntMetaData(const FName& Key) const override;
+	virtual float GetFloatMetaData(const FName& Key) const override;
 	virtual UClass* GetClassMetaData(const FName& Key) const override;
 	virtual void SetInstanceMetaData(const FName& Key, const FString& Value) override;
 	virtual const FString* GetInstanceMetaData(const FName& Key) const override;

@@ -135,7 +135,8 @@ public class UnrealEd : ModuleRules
 				"Projects",
 				"RawMesh",
 				"MeshUtilitiesCommon",
-				"RenderCore",
+                "SkeletalMeshUtilitiesCommon",
+                "RenderCore",
 				"RHI",
 				"Sockets",
 				"SourceControlWindows",
@@ -176,7 +177,8 @@ public class UnrealEd : ModuleRules
 				"TimeManagement",
                 "LandscapeEditorUtilities",
                 "DerivedDataCache",
-			}
+				"ToolMenus",
+            }
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
@@ -241,6 +243,7 @@ public class UnrealEd : ModuleRules
 				"Media",
 				"TimeManagementEditor",
 				"VirtualTexturingEditor",
+				"EditorInteractiveToolsFramework"
 			}
 		);
 

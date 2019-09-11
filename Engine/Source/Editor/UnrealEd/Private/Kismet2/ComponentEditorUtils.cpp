@@ -25,8 +25,11 @@
 #include "Styling/SlateIconFinder.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "HAL/PlatformApplicationMisc.h"
+#include "ToolMenus.h"
+#include "Kismet2/ComponentEditorContextMenuContex.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "ComponentEditorUtils"
 
@@ -931,19 +934,18 @@ FName FComponentEditorUtils::FindVariableNameGivenComponentInstance(const UActor
 	return NAME_None;
 }
 
-void FComponentEditorUtils::FillComponentContextMenuOptions(FMenuBuilder& MenuBuilder, const TArray<UActorComponent*>& SelectedComponents)
+void FComponentEditorUtils::FillComponentContextMenuOptions(UToolMenu* Menu, const TArray<UActorComponent*>& SelectedComponents)
 {
 	// Basic commands
-	MenuBuilder.BeginSection("EditComponent", LOCTEXT("EditComponentHeading", "Edit"));
 	{
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename);
+		FToolMenuSection& Section = Menu->AddSection("EditComponent", LOCTEXT("EditComponentHeading", "Edit"));
+		Section.AddMenuEntry(FGenericCommands::Get().Cut);
+		Section.AddMenuEntry(FGenericCommands::Get().Copy);
+		Section.AddMenuEntry(FGenericCommands::Get().Paste);
+		Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
+		Section.AddMenuEntry(FGenericCommands::Get().Delete);
+		Section.AddMenuEntry(FGenericCommands::Get().Rename);
 	}
-	MenuBuilder.EndSection();
 
 	if (SelectedComponents.Num() == 1)
 	{
@@ -951,9 +953,10 @@ void FComponentEditorUtils::FillComponentContextMenuOptions(FMenuBuilder& MenuBu
 
 		if (Component->GetClass()->ClassGeneratedBy)
 		{
-			MenuBuilder.BeginSection("ComponentAsset", LOCTEXT("ComponentAssetHeading", "Asset"));
 			{
-				MenuBuilder.AddMenuEntry(
+				FToolMenuSection& Section = Menu->AddSection("ComponentAsset", LOCTEXT("ComponentAssetHeading", "Asset"));
+				Section.AddMenuEntry(
+					"GoToBlueprintForComponent",
 					FText::Format(LOCTEXT("GoToBlueprintForComponent", "Edit {0}"), FText::FromString(Component->GetClass()->ClassGeneratedBy->GetName())),
 					LOCTEXT("EditBlueprintForComponent_ToolTip", "Edits the Blueprint Class that defines this component."),
 					FSlateIconFinder::FindIconForClass(Component->GetClass()),
@@ -961,7 +964,8 @@ void FComponentEditorUtils::FillComponentContextMenuOptions(FMenuBuilder& MenuBu
 					FExecuteAction::CreateStatic(&FComponentEditorUtils::OnEditBlueprintComponent, Component->GetClass()->ClassGeneratedBy),
 					FCanExecuteAction()));
 
-				MenuBuilder.AddMenuEntry(
+				Section.AddMenuEntry(
+					"GoToAssetForComponent",
 					LOCTEXT("GoToAssetForComponent", "Find Class in Content Browser"),
 					LOCTEXT("GoToAssetForComponent_ToolTip", "Summons the content browser and goes to the class for this component."),
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
@@ -969,12 +973,11 @@ void FComponentEditorUtils::FillComponentContextMenuOptions(FMenuBuilder& MenuBu
 					FExecuteAction::CreateStatic(&FComponentEditorUtils::OnGoToComponentAssetInBrowser, Component->GetClass()->ClassGeneratedBy),
 					FCanExecuteAction()));
 			}
-			MenuBuilder.EndSection();
 		}
 		else
 		{
-			MenuBuilder.BeginSection("ComponentCode", LOCTEXT("ComponentCodeHeading", "C++"));
 			{
+				FToolMenuSection& Section = Menu->AddSection("ComponentCode", LOCTEXT("ComponentCodeHeading", "C++"));
 				if (FSourceCodeNavigation::IsCompilerAvailable())
 				{
 					FString ClassHeaderPath;
@@ -982,7 +985,8 @@ void FComponentEditorUtils::FillComponentContextMenuOptions(FMenuBuilder& MenuBu
 					{
 						const FString CodeFileName = FPaths::GetCleanFilename(*ClassHeaderPath);
 
-						MenuBuilder.AddMenuEntry(
+						Section.AddMenuEntry(
+							"GoToCodeForComponent",
 							FText::Format(LOCTEXT("GoToCodeForComponent", "Open {0}"), FText::FromString(CodeFileName)),
 							FText::Format(LOCTEXT("GoToCodeForComponent_ToolTip", "Opens the header file for this component ({0}) in a code editing program"), FText::FromString(CodeFileName)),
 							FSlateIcon(),
@@ -991,7 +995,8 @@ void FComponentEditorUtils::FillComponentContextMenuOptions(FMenuBuilder& MenuBu
 							FCanExecuteAction()));
 					}
 
-					MenuBuilder.AddMenuEntry(
+					Section.AddMenuEntry(
+						"GoToAssetForComponent",
 						LOCTEXT("GoToAssetForComponent", "Find Class in Content Browser"),
 						LOCTEXT("GoToAssetForComponent_ToolTip", "Summons the content browser and goes to the class for this component."),
 						FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
@@ -1000,7 +1005,6 @@ void FComponentEditorUtils::FillComponentContextMenuOptions(FMenuBuilder& MenuBu
 						FCanExecuteAction()));
 				}
 			}
-			MenuBuilder.EndSection();
 		}
 	}
 }
@@ -1122,7 +1126,7 @@ void FComponentEditorUtils::OnOpenComponentCodeFile(const FString CodeFileName)
 
 void FComponentEditorUtils::OnEditBlueprintComponent(UObject* Blueprint)
 {
-	FAssetEditorManager::Get().OpenEditorForAsset(Blueprint);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
 }
 
 #undef LOCTEXT_NAMESPACE

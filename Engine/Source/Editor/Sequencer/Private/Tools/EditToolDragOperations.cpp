@@ -1058,9 +1058,6 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 				{
 					TargetRowIndex = -1;
 				}
-
-				// Ensure the track path is expanded
-				TrackNode->SetExpansionState(true);
 			}
 			else if (TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
 			{

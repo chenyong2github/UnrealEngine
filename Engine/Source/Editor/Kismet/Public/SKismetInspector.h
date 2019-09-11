@@ -202,4 +202,6 @@ protected:
 
 	ECheckBoxState GetPublicViewCheckboxState() const;
 	void SetPublicViewCheckboxState(ECheckBoxState InIsChecked);
+
+	bool IsAnyParentContainerSelected(const FPropertyAndParent& PropertyAndParent) const;
 };

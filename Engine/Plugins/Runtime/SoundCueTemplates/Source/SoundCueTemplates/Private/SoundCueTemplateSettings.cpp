@@ -8,7 +8,7 @@
 #include "SoundCueTemplatesModule.h"
 
 #if WITH_EDITOR
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Notifications/SNotificationList.h"

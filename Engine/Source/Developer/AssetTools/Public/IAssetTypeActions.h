@@ -57,11 +57,17 @@ public:
 	/** Generates a menubuilder for the specified objects. */
 	virtual void GetActions( const TArray<UObject*>& InObjects, class FMenuBuilder& MenuBuilder ) = 0;
 
+	/** Generates a menu section for the specified objects. */
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) = 0;
+
 	/** Opens the asset editor for the specified objects. If EditWithinLevelEditor is valid, the world-centric editor will be used. */
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) = 0;
 
 	/** Performs asset type specific activation for the supplied assets. This happens when the user double clicks, presses enter, or presses space. */
 	virtual void AssetsActivated( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType ) = 0;
+
+	/** Allows overriding asset activation to perform asset type specific activation for the supplied assets. This happens when the user double clicks, presses enter, or presses space. Return true if you have overridden the behavior. */
+	virtual bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) = 0;
 
 	/** Returns true if this class can be used as a filter in the content browser */
 	virtual bool CanFilter() = 0;

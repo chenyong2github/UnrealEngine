@@ -299,6 +299,11 @@ bool UMaterialInterface::IsVectorParameterUsedAsChannelMask(const FMaterialParam
 }
 
 #if WITH_EDITOR
+bool UMaterialInterface::GetVectorParameterChannelNames(const FMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
+{
+	return false;
+}
+
 bool UMaterialInterface::GetScalarParameterSliderMinMax(const FMaterialParameterInfo& ParameterInfo, float& OutSliderMin, float& OutSliderMax) const
 {
 	return false;
@@ -345,6 +350,13 @@ bool UMaterialInterface::GetRuntimeVirtualTextureParameterValue(const FMaterialP
 {
 	return false;
 }
+
+#if WITH_EDITOR
+bool UMaterialInterface::GetTextureParameterChannelNames(const FMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
+{
+	return false;
+}
+#endif
 
 bool UMaterialInterface::GetFontParameterValue(const FMaterialParameterInfo& ParameterInfo, class UFont*& OutFontValue, int32& OutFontPage, bool bOveriddenOnly) const
 {

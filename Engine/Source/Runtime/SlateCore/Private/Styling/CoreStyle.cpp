@@ -1049,6 +1049,15 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 			);
 	}
 
+	// SWizard defaults
+	{
+		Style->Set("Wizard.PageTitle", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("BoldCondensed", 28))
+			.SetShadowOffset(FVector2D(1, 1))
+			.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f))
+			);
+	}
+
 	// SNotificationList defaults...
 	{
 		Style->Set( "NotificationList.FontBold", DEFAULT_FONT( "Bold", 16 ) );

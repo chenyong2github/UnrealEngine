@@ -22,7 +22,7 @@
 #include "IMeshMergeUtilities.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet2/ComponentEditorUtils.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "LevelEditorViewport.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
@@ -464,10 +464,8 @@ bool UEditorLevelLibrary::DestroyActor(class AActor* ToDestroyActor)
 		GEditor->SelectNone(true, true, false);
 	}
 
-	if (GEditor->Layers)
-	{
-		GEditor->Layers->DisassociateActorFromLayers(ToDestroyActor);
-	}
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+	Layers->DisassociateActorFromLayers(ToDestroyActor);
 	return World->EditorDestroyActor(ToDestroyActor, true);
 }
 
@@ -1242,10 +1240,11 @@ AActor* UEditorLevelLibrary::JoinStaticMeshActors(const TArray<AStaticMeshActor*
 
 	if (JoinOptions.bDestroySourceActors)
 	{
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 		UWorld* World = AllActors[0]->GetWorld();
 		for (AActor* Actor : AllActors)
 		{
-			GEditor->Layers->DisassociateActorFromLayers(Actor);
+			Layers->DisassociateActorFromLayers(Actor);
 			World->EditorDestroyActor(Actor, true);
 		}
 	}
@@ -1338,10 +1337,11 @@ bool UEditorLevelLibrary::MergeStaticMeshActors(const TArray<AStaticMeshActor*>&
 	// Remove source actors
 	if (MergeOptions.bDestroySourceActors)
 	{
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 		UWorld* World = AllActors[0]->GetWorld();
 		for (AActor* Actor : AllActors)
 		{
-			GEditor->Layers->DisassociateActorFromLayers(Actor);
+			Layers->DisassociateActorFromLayers(Actor);
 			World->EditorDestroyActor(Actor, true);
 		}
 	}
@@ -1445,9 +1445,10 @@ bool UEditorLevelLibrary::CreateProxyMeshActor(const TArray<class AStaticMeshAct
 	// Remove source actors
 	if (MergeOptions.bDestroySourceActors)
 	{
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 		for (AActor* Actor : AllActors)
 		{
-			GEditor->Layers->DisassociateActorFromLayers(Actor);
+			Layers->DisassociateActorFromLayers(Actor);
 			ActorWorld->EditorDestroyActor(Actor, true);
 		}
 	}

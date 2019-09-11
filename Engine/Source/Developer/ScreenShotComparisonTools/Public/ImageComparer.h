@@ -13,7 +13,7 @@ class FComparableImage;
  * 
  */
 USTRUCT()
-struct FImageTolerance
+struct SCREENSHOTCOMPARISONTOOLS_API FImageTolerance
 {
 	GENERATED_USTRUCT_BODY()
 

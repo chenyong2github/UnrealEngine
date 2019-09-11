@@ -211,11 +211,7 @@ public:
 
 		TMap< int32, int32 > VertsMap;
 
-		int32 NumFaces = 0;
-		for (const FPolygonID PolygonID : InMesh.Polygons().GetElementIDs())
-		{
-			NumFaces += InMesh.GetPolygonTriangles(PolygonID).Num();
-		}
+		int32 NumFaces = InMesh.Triangles().Num();
 		int32 NumWedges = NumFaces * 3;
 		FStaticMeshDescriptionConstAttributeGetter InMeshAttribute(&InMesh);
 		TVertexAttributesConstRef<FVector> InVertexPositions = InMeshAttribute.GetPositions();
@@ -233,15 +229,15 @@ public:
 		{
 			const FPolygonGroupID PolygonGroupID = InMesh.GetPolygonPolygonGroup(PolygonID);
 
-			const TArray<FMeshTriangle>& PolygonTriangles = InMesh.GetPolygonTriangles(PolygonID);
-			for (int32 TriangleIndex = 0; TriangleIndex < PolygonTriangles.Num(); ++TriangleIndex)
+			const TArray<FTriangleID>& TriangleIDs = InMesh.GetPolygonTriangleIDs(PolygonID);
+			for (int32 TriangleIndex = 0; TriangleIndex < TriangleIDs.Num(); ++TriangleIndex)
 			{
-				const FMeshTriangle& Triangle = PolygonTriangles[TriangleIndex];
+				const FTriangleID TriangleID = TriangleIDs[TriangleIndex];
 
 				FVector CornerPositions[3];
 				for (int32 TriVert = 0; TriVert < 3; ++TriVert)
 				{
-					const FVertexInstanceID VertexInstanceID = Triangle.GetVertexInstanceID(TriVert);
+					const FVertexInstanceID VertexInstanceID = InMesh.GetTriangleVertexInstance(TriangleID, TriVert);
 					const FVertexID TmpVertexID = InMesh.GetVertexInstanceVertex(VertexInstanceID);
 					const FVertexID VertexID = bWeldVertices ? VertexIDRemap[TmpVertexID] : TmpVertexID;
 					CornerPositions[TriVert] = InVertexPositions[VertexID];
@@ -259,7 +255,7 @@ public:
 				int32 VertexIndices[3];
 				for (int32 TriVert = 0; TriVert < 3; ++TriVert, ++WedgeIndex)
 				{
-					const FVertexInstanceID VertexInstanceID = Triangle.GetVertexInstanceID(TriVert);
+					const FVertexInstanceID VertexInstanceID = InMesh.GetTriangleVertexInstance(TriangleID, TriVert);
 					const int32 VertexInstanceValue = VertexInstanceID.GetValue();
 					const FVector& VertexPosition = CornerPositions[TriVert];
 
@@ -521,13 +517,6 @@ public:
 				{
 					// @todo: set NewEdgeID edge hardness?
 				}
-				const int32 NewTriangleIndex = OutReducedMesh.GetPolygonTriangles(NewPolygonID).AddDefaulted();
-				FMeshTriangle& NewTriangle = OutReducedMesh.GetPolygonTriangles(NewPolygonID)[NewTriangleIndex];
-				for (int32 TriangleVertexIndex = 0; TriangleVertexIndex < 3; ++TriangleVertexIndex)
-				{
-					const FVertexInstanceID VertexInstanceID = CornerInstanceIDs[TriangleVertexIndex];
-					NewTriangle.SetVertexInstanceID(TriangleVertexIndex, VertexInstanceID);
-				}
 			}
 			Verts.Empty();
 			Indexes.Empty();
@@ -536,8 +525,7 @@ public:
 			TArray<FPolygonGroupID> ToDeletePolygonGroupIDs;
 			for (const FPolygonGroupID& PolygonGroupID : OutReducedMesh.PolygonGroups().GetElementIDs())
 			{
-				FMeshPolygonGroup& PolygonGroup = OutReducedMesh.GetPolygonGroup(PolygonGroupID);
-				if (PolygonGroup.Polygons.Num() == 0)
+				if (OutReducedMesh.GetPolygonGroupPolygons(PolygonGroupID).Num() == 0)
 				{
 					ToDeletePolygonGroupIDs.Add(PolygonGroupID);
 				}

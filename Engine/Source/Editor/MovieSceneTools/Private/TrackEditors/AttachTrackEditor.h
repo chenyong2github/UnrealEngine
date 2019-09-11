@@ -10,10 +10,28 @@
 #include "ISequencer.h"
 #include "ISequencerTrackEditor.h"
 #include "TrackEditors/ActorPickerTrackEditor.h"
+#include "Containers/Union.h"
+#include "Containers/Map.h"
+#include "Templates/Function.h"
+
+struct FMovieSceneFloatChannel;
 
 class AActor;
 class FMenuBuilder;
 class USceneComponent;
+class UMovieScene3DTransformTrack;
+class UMovieScene3DTransformSection;
+class UMovieScene3DAttachSection;
+
+struct ITransformEvaluator;
+
+enum class ETransformPreserveType
+{
+	CurrentKey,
+	AllKeys,
+	Bake,
+	None
+};
 
 /**
  * Tools for attaching an object to another object
@@ -53,8 +71,24 @@ public:
 	virtual bool IsActorPickable( const AActor* const ParentActor, FGuid ObjectBinding, UMovieSceneSection* InSection ) override;
 	virtual void ActorSocketPicked(const FName SocketName, USceneComponent* Component, FActorPickerID ActorPickerID, TArray<FGuid> ObjectBindings, UMovieSceneSection* Section) override;
 
+	/** Trims an attach track on the left/right and preserves the world space transform immediately before/after attach/detach */
+	void TrimAndPreserve(const FGuid InObjectBinding, UMovieSceneSection* InSection, bool bInTrimLeft);
+
 private:
+
+	void ShowPickerSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, UMovieSceneSection* Section);
+
+	/** Helper for AddKeyInternal to get transform tracks for child */
+	void FindOrCreateTransformTrack(const TRange<FFrameNumber>& InAttachRange, UMovieScene* InMovieScene, const FGuid& InObjectHandle, UMovieScene3DTransformTrack*& OutTransformTrack, UMovieScene3DTransformSection*& OutTransformSection, FMovieSceneEvaluationTrack*& OutEvalTrack);
+
+	/** Helper for AddKeyInternal to offset child track's keys */
+	template<typename ModifierFuncType>
+	void CompensateChildTrack(const TRange<FFrameNumber>& InAttachRange, TArrayView<FMovieSceneFloatChannel*> Channels, TOptional<TArrayView<FMovieSceneFloatChannel*>> ParentChannels,
+		const ITransformEvaluator& InParentTransformEval, const ITransformEvaluator& InChildTransformEval, ETransformPreserveType InPreserveType, ModifierFuncType InModifyTransform);
 
 	/** Delegate for AnimatablePropertyChanged in AddKey */
 	FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, const FName SocketName, const FName ComponentName, FActorPickerID ActorPickerID);
+
+private:
+	ETransformPreserveType PreserveType;
 };

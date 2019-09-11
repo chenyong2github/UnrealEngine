@@ -313,11 +313,8 @@ void FItemPropertyNode::InitChildNodes()
 		for (TFieldIterator<UProperty> It(StructProperty->Struct); It; ++It)
 		{
 			UProperty* StructMember = *It;
-			static const FName Name_InlineEditConditionToggle("InlineEditConditionToggle");
-			const bool bOnlyShowAsInlineEditCondition = StructMember->HasMetaData(Name_InlineEditConditionToggle);
-			const bool bShowIfEditableProperty = StructMember->HasAnyPropertyFlags(CPF_Edit);
-			const bool bShowIfDisableEditOnInstance = !StructMember->HasAnyPropertyFlags(CPF_DisableEditOnInstance) || bShouldShowDisableEditOnInstance;
-			if (bShouldShowHiddenProperties || (bShowIfEditableProperty && !bOnlyShowAsInlineEditCondition && bShowIfDisableEditOnInstance))
+			
+			if (PropertyEditorHelpers::ShouldBeVisible(*this, StructMember))
 			{
 				StructMembers.Add(StructMember);
 			}
@@ -327,7 +324,7 @@ void FItemPropertyNode::InitChildNodes()
 
 		for (UProperty* StructMember : StructMembers)
 		{
-			TSharedPtr<FItemPropertyNode> NewItemNode( new FItemPropertyNode );//;//CreatePropertyItem(StructMember,INDEX_NONE,this);
+			TSharedPtr<FItemPropertyNode> NewItemNode( new FItemPropertyNode );
 		
 			FPropertyNodeInitParams InitParams;
 			InitParams.ParentNode = SharedThis(this);

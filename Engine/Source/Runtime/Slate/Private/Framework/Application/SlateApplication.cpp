@@ -1745,9 +1745,16 @@ EUINavigation FSlateApplication::GetNavigationDirectionFromAnalog(const FAnalogI
 	return NavigationConfig->GetNavigationDirectionFromAnalog(InAnalogEvent);
 }
 
+EUINavigationAction FSlateApplication::GetNavigationActionFromKey(const FKeyEvent& InKeyEvent) const
+{
+	return NavigationConfig->GetNavigationActionFromKey(InKeyEvent);
+}
+
 EUINavigationAction FSlateApplication::GetNavigationActionForKey(const FKey& InKey) const
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return NavigationConfig->GetNavigationActionForKey(InKey);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FSlateApplication::AddModalWindow( TSharedRef<SWindow> InSlateWindow, const TSharedPtr<const SWidget> InParentWidget, bool bSlowTaskWindow )
@@ -2208,6 +2215,11 @@ void FSlateApplication::FlushRenderState()
 TSharedPtr<SViewport> FSlateApplication::GetGameViewport() const
 {
 	return GameViewportWidget.Pin();
+}
+
+int32 FSlateApplication::GetUserIndexForMouse() const
+{
+	return InputManager->GetUserIndexForMouse();
 }
 
 int32 FSlateApplication::GetUserIndexForKeyboard() const
@@ -4323,6 +4335,7 @@ bool FSlateApplication::OnMouseDown( const TSharedPtr< FGenericWindow >& Platfor
 	FKey Key = TranslateMouseButtonToKey( Button );
 
 	FPointerEvent MouseEvent(
+		GetUserIndexForMouse(),
 		CursorPointerIndex,
 		CursorPos,
 		GetLastCursorPos(),
@@ -4979,6 +4992,7 @@ bool FSlateApplication::OnMouseDoubleClick( const TSharedPtr< FGenericWindow >& 
 	FKey Key = TranslateMouseButtonToKey( Button );
 
 	FPointerEvent MouseEvent(
+		GetUserIndexForMouse(),
 		CursorPointerIndex,
 		CursorPos,
 		GetLastCursorPos(),
@@ -5065,6 +5079,7 @@ bool FSlateApplication::OnMouseUp( const EMouseButtons::Type Button, const FVect
 	FKey Key = TranslateMouseButtonToKey( Button );
 
 	FPointerEvent MouseEvent(
+		GetUserIndexForMouse(),
 		CursorPointerIndex,
 		CursorPos,
 		GetLastCursorPos(),
@@ -5124,6 +5139,7 @@ bool FSlateApplication::OnMouseWheel( const float Delta )
 bool FSlateApplication::OnMouseWheel( const float Delta, const FVector2D CursorPos )
 {
 	FPointerEvent MouseWheelEvent(
+		GetUserIndexForMouse(),
 		CursorPointerIndex,
 		CursorPos,
 		CursorPos,
@@ -5248,6 +5264,7 @@ bool FSlateApplication::OnMouseMove()
 		LastMouseMoveTime = GetCurrentTime();
 
 		FPointerEvent MouseEvent(
+			GetUserIndexForMouse(),
 			CursorPointerIndex,
 			CurrentCursorPosition,
 			LastCursorPosition,
@@ -5286,6 +5303,7 @@ bool FSlateApplication::OnRawMouseMove( const int32 X, const int32 Y )
 	if ( X != 0 || Y != 0 )
 	{
 		FPointerEvent MouseEvent(
+			GetUserIndexForMouse(),
 			CursorPointerIndex,
 			GetCursorPos(),
 			GetLastCursorPos(),
@@ -6060,7 +6078,7 @@ void FSlateApplication::ProcessApplicationActivationEvent(bool InAppActivated)
 		ForEachUser([](FSlateUser& User) { 
 			if (User.IsDragDropping() && User.GetDragDropContent()->IsExternalOperation())
 			{
-				User.ResetDragDropContent();
+				User.CancelDragDrop();
 			}
 		});
 
@@ -6239,6 +6257,7 @@ EDropEffect::Type FSlateApplication::OnDragEnter( const TSharedRef< SWindow >& W
 	// Make a faux mouse event for slate, so we can initiate a drag and drop.
 	FDragDropEvent DragDropEvent(
 		FPointerEvent(
+		GetUserIndexForMouse(),
 		CursorPointerIndex,
 		CurrentCursorPosition,
 		LastCursorPosition,
@@ -6285,6 +6304,7 @@ EDropEffect::Type FSlateApplication::OnDragOver( const TSharedPtr< FGenericWindo
 		if ( LastCursorPosition != CurrentCursorPosition )
 		{
 			FPointerEvent MouseEvent(
+				GetUserIndexForMouse(),
 				CursorPointerIndex,
 				CurrentCursorPosition,
 				LastCursorPosition,
@@ -6326,6 +6346,7 @@ EDropEffect::Type FSlateApplication::OnDragDrop(const TSharedPtr< FGenericWindow
 	if (GetOrCreateUser(CursorUserIndex)->IsDragDropping())
 	{
 		FPointerEvent MouseEvent(
+			GetUserIndexForMouse(),
 			CursorPointerIndex,
 			GetCursorPos(),
 			GetLastCursorPos(),

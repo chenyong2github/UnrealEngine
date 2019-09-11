@@ -591,7 +591,7 @@ void FCurveEditorRetimeTool::OnDrag(const FVector2D& InStartPosition, const FVec
 
 				// Snap the new values to the grid.
 				FKeyPosition NewPosition = Position;
-				NewPosition.InputValue = View->IsTimeSnapEnabled() ? CurveEditor->GetSnapMetrics().SnapInputSeconds(NewKeyValue) : NewKeyValue;
+				NewPosition.InputValue = View->IsTimeSnapEnabled() ? CurveEditor->GetCurveSnapMetrics(ChannelData.CurveID).SnapInputSeconds(NewKeyValue) : NewKeyValue;
 
 				// Update our Curve Model with our updated data.
 				Curve->SetKeyPositions(MakeArrayView(&ChannelData.Handles[KeyIndex], 1), MakeArrayView(&NewPosition, 1));

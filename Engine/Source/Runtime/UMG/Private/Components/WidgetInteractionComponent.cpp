@@ -96,6 +96,14 @@ void UWidgetInteractionComponent::SetCustomHitResult(const FHitResult& HitResult
 	CustomHitResult = HitResult;
 }
 
+void UWidgetInteractionComponent::SetFocus(UWidget* FocusWidget)
+{
+	if (VirtualUser.IsValid())
+	{
+		FSlateApplication::Get().SetUserFocus(VirtualUser->GetUserIndex(), FocusWidget->GetCachedWidget(), EFocusCause::SetDirectly);
+	}
+}
+
 FWidgetPath UWidgetInteractionComponent::FindHoveredWidgetPath(const FWidgetTraceResult& TraceResult) const
 {
 	if (TraceResult.HitWidgetComponent)

@@ -950,23 +950,13 @@ TArray<FMovieSceneObjectBindingID> UMovieSceneSequencePlayer::GetObjectBindings(
 	return ObjectBindings;
 }
 
-void UMovieSceneSequencePlayer::BeginDestroy()
-{
-	Stop();
-
-	if (GEngine && OldMaxTickRate.IsSet())
-	{
-		GEngine->SetMaxFPS(OldMaxTickRate.GetValue());
-	}
-
-	Super::BeginDestroy();
-}
-
 UWorld* UMovieSceneSequencePlayer::GetPlaybackWorld() const
 {
 	UObject* PlaybackContext = GetPlaybackContext();
 	return PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
-}bool UMovieSceneSequencePlayer::HasAuthority() const
+}
+
+bool UMovieSceneSequencePlayer::HasAuthority() const
 {
 	AActor* Actor = GetTypedOuter<AActor>();
 	return Actor && Actor->HasAuthority() && !IsPendingKillOrUnreachable();

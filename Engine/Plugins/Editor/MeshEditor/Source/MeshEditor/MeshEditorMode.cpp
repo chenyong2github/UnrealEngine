@@ -1436,7 +1436,7 @@ void FMeshEditorMode::UpdateDebugNormals()
 			// @todo mesheditor: total debug feature for now. Need a way of making this look nice.
 			const float Length = 10.0f; // @todo mesheditor: determine length of debug line from distance from the mesh origin to the camera?
 
-			for( const FVertexInstanceID VertexInstanceID : MeshDescription->GetPolygonPerimeterVertexInstances( PolygonID ) )
+			for( const FVertexInstanceID VertexInstanceID : MeshDescription->GetPolygonVertexInstances( PolygonID ) )
 			{
 				const FVector Position = VertexPositions[ MeshDescription->GetVertexInstanceVertex( VertexInstanceID ) ];
 				const FVector Normal = VertexNormals[ VertexInstanceID ];
@@ -2109,7 +2109,7 @@ void FMeshEditorMode::FrameSelectedElements( FEditorViewportClient* ViewportClie
 					{
 						const FPolygonID PolygonID( PolygonElement.ElementAddress.ElementID );
 
-						for( const FVertexInstanceID VertexInstanceID : MeshDescription->GetPolygonPerimeterVertexInstances( PolygonID ) )
+						for( const FVertexInstanceID VertexInstanceID : MeshDescription->GetPolygonVertexInstances( PolygonID ) )
 						{
 							const FVector VertexPosition = VertexPositions[ MeshDescription->GetVertexInstanceVertex( VertexInstanceID ) ];
 							BoundingBox += Component->GetComponentTransform().TransformPosition( VertexPosition );
@@ -2489,14 +2489,15 @@ void FMeshEditorMode::AddMeshElementToOverlay( UOverlayComponent* OverlayCompone
 					case EEditableMeshElementType::Polygon:
 					{
 						const FPolygonID PolygonID( MeshElement.ElementAddress.ElementID );
-						const int32 PolygonTriangleCount = EditableMesh->GetPolygonTriangulatedTriangleCount( PolygonID );
+						const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs( PolygonID );
 
-						for( int32 PolygonTriangle = 0; PolygonTriangle < PolygonTriangleCount; PolygonTriangle++ )
+						for( int32 PolygonTriangle = 0; PolygonTriangle < TriangleIDs.Num(); PolygonTriangle++ )
 						{
+							const FTriangleID TriangleID = TriangleIDs[ PolygonTriangle ];
 							FVector TriangleVertexPositions[ 3 ];
 							for( int32 TriangleVertex = 0; TriangleVertex < 3; TriangleVertex++ )
 							{
-								const FVertexInstanceID VertexInstanceID = EditableMesh->GetPolygonTriangulatedTriangle( PolygonID, PolygonTriangle ).GetVertexInstanceID( TriangleVertex );
+								const FVertexInstanceID VertexInstanceID = MeshDescription->GetTriangleVertexInstance( TriangleID, TriangleVertex );
 								const FVertexID VertexID = EditableMesh->GetVertexInstanceVertex( VertexInstanceID );
 								TriangleVertexPositions[ TriangleVertex ] = ComponentToWorldMatrix.TransformPosition( VertexPositions[ VertexID ] );
 							}

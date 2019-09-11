@@ -67,7 +67,7 @@ static UGeometryCacheComponent* AcquireGeometryCacheFromObjectGuid(const FGuid& 
 FGeometryCacheSection::FGeometryCacheSection(UMovieSceneSection& InSection, TWeakPtr<ISequencer> InSequencer)
 	: Section(*CastChecked<UMovieSceneGeometryCacheSection>(&InSection))
 	, Sequencer(InSequencer)
-	, InitialStartOffsetDuringResize(0)
+	, InitialFirstLoopStartOffsetDuringResize(0)
 	, InitialStartTimeDuringResize(0)
 { }
 
@@ -113,14 +113,15 @@ int32 FGeometryCacheSection::OnPaintSection(FSequencerSectionPainter& Painter) c
 	FFrameRate TickResolution = TimeToPixelConverter.GetTickResolution();
 
 	// Add lines where the animation starts and ends/loops
-	float AnimPlayRate = FMath::IsNearlyZero(Section.Params.PlayRate) ? 1.0f : Section.Params.PlayRate;
-	float Duration = Section.Params.GetSequenceLength();
-	float SeqLength = Duration - TickResolution.AsSeconds(Section.Params.StartFrameOffset + Section.Params.EndFrameOffset) / AnimPlayRate;
+	const float AnimPlayRate = FMath::IsNearlyZero(Section.Params.PlayRate) ? 1.0f : Section.Params.PlayRate;
+	const float Duration = Section.Params.GetSequenceLength();
+	const float SeqLength = Duration - TickResolution.AsSeconds(Section.Params.StartFrameOffset + Section.Params.EndFrameOffset) / AnimPlayRate;
+	const float FirstLoopSeqLength = SeqLength - TickResolution.AsSeconds(Section.Params.FirstLoopStartFrameOffset) / AnimPlayRate;
 
 	if (!FMath::IsNearlyZero(SeqLength, KINDA_SMALL_NUMBER) && SeqLength > 0)
 	{
 		float MaxOffset = Section.GetRange().Size<FFrameTime>() / TickResolution;
-		float OffsetTime = SeqLength;
+		float OffsetTime = FirstLoopSeqLength;
 		float StartTime = Section.GetInclusiveStartFrame() / TickResolution;
 
 		while (OffsetTime < MaxOffset)
@@ -200,7 +201,7 @@ int32 FGeometryCacheSection::OnPaintSection(FSequencerSectionPainter& Painter) c
 
 void FGeometryCacheSection::BeginResizeSection()
 {
-	InitialStartOffsetDuringResize = Section.Params.StartFrameOffset;
+	InitialFirstLoopStartOffsetDuringResize = Section.Params.FirstLoopStartFrameOffset;
 	InitialStartTimeDuringResize = Section.HasStartFrame() ? Section.GetInclusiveStartFrame() : 0;
 }
 
@@ -212,17 +213,23 @@ void FGeometryCacheSection::ResizeSection(ESequencerSectionResizeMode ResizeMode
 		FFrameRate FrameRate = Section.GetTypedOuter<UMovieScene>()->GetTickResolution();
 		FFrameNumber StartOffset = FrameRate.AsFrameNumber((ResizeTime - InitialStartTimeDuringResize) / FrameRate * Section.Params.PlayRate);
 
-		StartOffset += InitialStartOffsetDuringResize;
+		StartOffset += InitialFirstLoopStartOffsetDuringResize;
 
-		// Ensure start offset is not less than 0 and adjust ResizeTime
 		if (StartOffset < 0)
 		{
+			// Ensure start offset is not less than 0 and adjust ResizeTime
 			ResizeTime = ResizeTime - StartOffset;
 
 			StartOffset = FFrameNumber(0);
 		}
+		else
+		{
+			// If the start offset exceeds the length of one loop, trim it back.
+			const FFrameNumber SeqLength = FrameRate.AsFrameNumber(Section.Params.GetSequenceLength()) - Section.Params.StartFrameOffset - Section.Params.EndFrameOffset;
+			StartOffset = StartOffset % SeqLength;
+		}
 
-		Section.Params.StartFrameOffset = StartOffset;
+		Section.Params.FirstLoopStartFrameOffset = StartOffset;
 	}
 
 	ISequencerSection::ResizeSection(ResizeMode, ResizeTime);
@@ -238,17 +245,23 @@ void FGeometryCacheSection::SlipSection(FFrameNumber SlipTime)
 	FFrameRate FrameRate = Section.GetTypedOuter<UMovieScene>()->GetTickResolution();
 	FFrameNumber StartOffset = FrameRate.AsFrameNumber((SlipTime - InitialStartTimeDuringResize) / FrameRate * Section.Params.PlayRate);
 
-	StartOffset += InitialStartOffsetDuringResize;
+	StartOffset += InitialFirstLoopStartOffsetDuringResize;
 
-	// Ensure start offset is not less than 0 and adjust ResizeTime
 	if (StartOffset < 0)
 	{
+		// Ensure start offset is not less than 0 and adjust ResizeTime
 		SlipTime = SlipTime - StartOffset;
 
 		StartOffset = FFrameNumber(0);
 	}
+	else
+	{
+		// If the start offset exceeds the length of one loop, trim it back.
+		const FFrameNumber SeqLength = FrameRate.AsFrameNumber(Section.Params.GetSequenceLength()) - Section.Params.StartFrameOffset - Section.Params.EndFrameOffset;
+		StartOffset = StartOffset % SeqLength;
+	}
 
-	Section.Params.StartFrameOffset = StartOffset;
+	Section.Params.FirstLoopStartFrameOffset = StartOffset;
 
 	ISequencerSection::SlipSection(SlipTime);
 }

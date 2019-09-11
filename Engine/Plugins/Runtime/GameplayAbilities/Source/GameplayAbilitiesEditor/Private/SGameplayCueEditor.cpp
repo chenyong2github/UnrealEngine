@@ -43,7 +43,7 @@
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "GameplayTagsModule.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "AbilitySystemGlobals.h"
 #include "AssetToolsModule.h"
 #include "GameplayTagsEditorModule.h"
@@ -53,6 +53,7 @@
 #include "GameplayTagsEditor/Private/SAddNewGameplayTagWidget.h"
 
 #include "SGameplayCueEditor_Picker.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #define LOCTEXT_NAMESPACE "SGameplayCueEditor"
 
 static const FName CueTagColumnName("GameplayCueTags");
@@ -1456,7 +1457,7 @@ void SGameplayCueEditor::OpenEditorForNotify(FString NotifyFullPath)
 		{
 			FString AssetName = FPaths::GetBaseFilename(AssetRef.ToString());
 			UObject* AssetObject = FindObject<UObject>(pkg, *AssetName);
-			FAssetEditorManager::Get().OpenEditorForAsset(AssetObject);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetObject);
 		}
 	}
 }

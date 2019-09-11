@@ -7,7 +7,7 @@
 #include "DetailWidgetRow.h"
 #include "LayersDragDropOp.h"
 #include "Layers/Layer.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
@@ -103,7 +103,8 @@ FText FActorLayerPropertyTypeCustomization::GetLayerText() const
 	FName LayerName;
 	if (PropertyHandle->GetValue(LayerName) == FPropertyAccess::Success)
 	{
-		ULayer* LayerImpl = GEditor->Layers->GetLayer(LayerName).Get();
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		ULayer* LayerImpl = Layers->GetLayer(LayerName);
 		if (LayerImpl)
 		{
 			return GetLayerDescription(LayerImpl);
@@ -150,7 +151,8 @@ TSharedRef<SWidget> FActorLayerPropertyTypeCustomization::OnGetLayerMenu()
 	MenuBuilder.BeginSection(FName(), LOCTEXT("ExistingLayers", "Existing Layers"));
 	{
 		TArray<TWeakObjectPtr<ULayer>> AllLayers;
-		GEditor->Layers->AddAllLayersTo(AllLayers);
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		Layers->AddAllLayersTo(AllLayers);
 
 		for (TWeakObjectPtr<ULayer> WeakLayer : AllLayers)
 		{
@@ -186,7 +188,8 @@ FReply FActorLayerPropertyTypeCustomization::OnSelectLayer()
 	if (PropertyHandle->GetValue(LayerName) == FPropertyAccess::Success)
 	{
 		GEditor->SelectNone(true, true);
-		GEditor->Layers->SelectActorsInLayer(LayerName, true, true);
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		Layers->SelectActorsInLayer(LayerName, true, true);
 	}
 	return FReply::Handled();
 }

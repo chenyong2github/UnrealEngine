@@ -117,16 +117,16 @@ public:
 
 public:
 
-	/** (Un)register a new type of template category to be shown on the new project page */
-	virtual bool RegisterTemplateCategory(FName Type, FText Name, FText Description, const FSlateBrush* Icon, const FSlateBrush* Image);
-	virtual void UnRegisterTemplateCategory(FName Type);
-
 	// Non DLL-exposed access to template categories
 	TSharedPtr<const FTemplateCategory> GetCategory(FName Type) const { return TemplateCategories.FindRef(Type); }
+
+	void GetAllTemplateCategories(TArray<TSharedPtr<FTemplateCategory>>& OutCategories) const { TemplateCategories.GenerateValueArray(OutCategories); }
 
 private:
 	FAddCodeToProjectDialogOpenedEvent AddCodeToProjectDialogOpenedEvent;
 
 	/** Map of template categories from type to ptr */
 	FTemplateCategoryMap TemplateCategories;
+
+	void LoadTemplateCategories();
 };
