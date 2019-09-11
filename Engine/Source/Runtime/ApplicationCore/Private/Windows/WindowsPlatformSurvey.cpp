@@ -157,10 +157,14 @@ bool FWindowsPlatformSurvey::GetSurveyResults( FHardwareSurveyResults& OutResult
 
 	// get HDD details
 	OutResults.HardDriveGB = -1;
-	ULARGE_INTEGER TotalBytes;
-	if (GetDiskFreeSpaceEx(FPlatformProcess::BaseDir(), NULL, &TotalBytes, NULL))
+	OutResults.HardDriveFreeMB = -1;
+	
+	uint64 TotalDiskSpace = 0;
+	uint64 FreeDiskSpace = 0;
+	if (FPlatformMisc::GetDiskTotalAndFreeSpace(FPlatformProcess::BaseDir(), TotalDiskSpace, FreeDiskSpace))
 	{
-		OutResults.HardDriveGB = (TotalBytes.HighPart << 2) | (TotalBytes.LowPart >> 30);
+		OutResults.HardDriveGB = (uint32)(TotalDiskSpace / uint64(1024 * 1024 * 1024));
+		OutResults.HardDriveFreeMB = (uint32)(FreeDiskSpace / uint64(1024 * 1024));
 	}
 	else
 	{
