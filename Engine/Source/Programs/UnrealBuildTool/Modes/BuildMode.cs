@@ -24,19 +24,14 @@ namespace UnrealBuildTool
 		None = 0,
 
 		/// <summary>
-		/// Don't output any messages unless we're going to build something
-		/// </summary>
-		Quiet = 1,
-
-		/// <summary>
 		/// Don't build anything, just do target setup and terminate
 		/// </summary>
-		SkipBuild = 2,
+		SkipBuild = 1,
 
 		/// <summary>
 		/// Just output a list of XGE actions; don't build anything
 		/// </summary>
-		XGEExport = 4,
+		XGEExport = 2,
 	}
 
 	/// <summary>
@@ -304,14 +299,14 @@ namespace UnrealBuildTool
 					// Execute the actions
 					if(MergedActionsToExecute.Count == 0)
 					{
-						if ((Options & BuildOptions.Quiet) == 0)
+						if (TargetDescriptors.Any(x => !x.bQuiet))
 						{
 							Log.TraceInformation((TargetDescriptors.Count == 1)? "Target is up to date" : "Targets are up to date");
 						}
 					}
 					else
 					{
-						if((Options & BuildOptions.Quiet) != 0)
+						if (TargetDescriptors.Any(x => !x.bQuiet))
 						{
 							Log.TraceInformation("Building {0}...", StringUtils.FormatList(TargetDescriptors.Select(x => x.Name).Distinct()));
 						}
@@ -346,20 +341,29 @@ namespace UnrealBuildTool
 		/// <param name="Makefiles">Matching array of makefiles for each target</param>
 		static void OutputToolchainInfo(List<TargetDescriptor> TargetDescriptors, TargetMakefile[] Makefiles)
 		{
-			if(Makefiles.Length == 1 || Makefiles.Skip(1).All(x => Enumerable.SequenceEqual(x.Diagnostics, Makefiles[0].Diagnostics)))
+			List<int> OutputIndices = new List<int>();
+			for (int Idx = 0; Idx < TargetDescriptors.Count; Idx++)
 			{
-				foreach(string Diagnostic in Makefiles[0].Diagnostics)
+				if (!TargetDescriptors[Idx].bQuiet)
+				{
+					OutputIndices.Add(Idx);
+				}
+			}
+
+			if(OutputIndices.Count == 1)
+			{
+				foreach(string Diagnostic in Makefiles[OutputIndices[0]].Diagnostics)
 				{
 					Log.TraceInformation("{0}", Diagnostic);
 				}
 			}
 			else
 			{
-				for(int Idx = 0; Idx < TargetDescriptors.Count; Idx++)
+				foreach(int OutputIndex in OutputIndices)
 				{
-					foreach(string Diagnostic in Makefiles[Idx].Diagnostics)
+					foreach(string Diagnostic in Makefiles[OutputIndex].Diagnostics)
 					{
-						Log.TraceInformation("{0}: {1}", TargetDescriptors[Idx].Name, Diagnostic);
+						Log.TraceInformation("{0}: {1}", TargetDescriptors[OutputIndex].Name, Diagnostic);
 					}
 				}
 			}

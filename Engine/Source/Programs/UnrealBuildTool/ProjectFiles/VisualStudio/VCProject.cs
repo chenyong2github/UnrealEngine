@@ -1397,7 +1397,7 @@ namespace UnrealBuildTool
 						BuildArguments.Append("\"");
 						foreach(string ExtraTarget in ExtraTargets)
 						{
-							BuildArguments.AppendFormat(" -Target=\"{0}\"", ExtraTarget);
+							BuildArguments.AppendFormat(" -Target=\"{0} -Quiet\"", ExtraTarget);
 						}
 					}
 

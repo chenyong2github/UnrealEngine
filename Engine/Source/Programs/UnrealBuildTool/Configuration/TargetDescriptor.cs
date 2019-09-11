@@ -71,6 +71,12 @@ namespace UnrealBuildTool
 		public FileReference LiveCodingManifest = null;
 
 		/// <summary>
+		/// Suppress messages about building this target
+		/// </summary>
+		[CommandLine("-Quiet")]
+		public bool bQuiet;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="ProjectFile">Path to the project file</param>
