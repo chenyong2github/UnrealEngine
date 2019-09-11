@@ -314,11 +314,10 @@ HRESULT STDCALL FWindowsUIAWidgetProvider::GetPropertyValue(PROPERTYID propertyI
 		pRetVal->vt = VT_I4;
 		pRetVal->lVal = WidgetTypeToControlType(Widget);
 		break;
-	//case UIA_CulturePropertyId:
-	//	pRetVal->vt = VT_I4;
-	//	// todo: https://docs.microsoft.com/en-us/windows/desktop/Intl/language-identifier-constants-and-strings
-	//	pRetVal->lVal = 0;
-	//	break;
+	case UIA_CulturePropertyId:
+		pRetVal->vt = VT_I4;
+		pRetVal->lVal = UIAManager->GetCachedCurrentLocaleLCID();
+		break;
 	case UIA_FrameworkIdPropertyId:
 		pRetVal->vt = VT_BSTR;
 		// todo: figure out what goes here

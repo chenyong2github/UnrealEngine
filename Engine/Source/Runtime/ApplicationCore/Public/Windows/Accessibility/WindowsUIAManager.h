@@ -67,6 +67,7 @@ public:
 	 */
 	void OnAccessibleMessageHandlerChanged();
 
+	uint32 GetCachedCurrentLocaleLCID() const { return CachedCurrentLocaleLCID; }
 
 	static TMap<EAccessibleWidgetType, ULONG> WidgetTypeToWindowsTypeMap;
 	static TMap<EAccessibleWidgetType, FText> WidgetTypeToTextMap;
@@ -79,6 +80,15 @@ private:
 	/** Callback function for processing events raised from the AccessibleMessageHandler */
 	void OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue, FVariant NewValue);
 
+	/** Called when the first window widget provider is requested. */
+	void OnAccessibilityEnabled(); 
+
+	/** Called when the last widget provider is removed. */
+	void OnAccessibilityDisabled();
+
+	/** Updates the cached current locale LCID to match the current locale LCID in FInternationalization */
+	void UpdateCachedCurrentLocaleLCID();
+
 	/** Cache of all Providers with a RefCount of at least 1 that map to an accessible widget. */
 	TMap<TSharedRef<IAccessibleWidget>, FWindowsUIAWidgetProvider*> CachedWidgetProviders;
 	/**
@@ -88,6 +98,15 @@ private:
 	TSet<FWindowsUIABaseProvider*> ProviderList;
 	/** A reference back to the owning application that can be used to access the AccessibleMessageHandler */
 	const FWindowsApplication& WindowsApplication;
+
+	/**Handle associated with registering for culture change events from FInternationalization */
+	FDelegateHandle OnCultureChangedHandle; 
+	
+	/**Current LCID of the current locale in FInternationalization. Used to ensure screen readers 
+	* pronounce localized text in a native voice. 
+	* For more info: https://docs.microsoft.com/en-us/windows/win32/intl/language-identifier-constants-and-strings
+	*/
+	uint32 CachedCurrentLocaleLCID;
 };
 
 #endif
