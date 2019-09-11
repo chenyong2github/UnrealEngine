@@ -15,6 +15,15 @@ namespace
 	static const FName AssetToolsName = TEXT("AssetTools");
 
 	TSharedPtr<FSlateStyleSet> StyleSet;
+
+	template <typename T>
+	void AddAssetAction(IAssetTools& AssetTools, TArray<TSharedPtr<FAssetTypeActions_Base>>& AssetArray)
+	{
+		TSharedPtr<T> AssetAction = MakeShareable(new T);
+		TSharedPtr<FAssetTypeActions_Base> AssetActionBase = StaticCastSharedPtr<FAssetTypeActions_Base>(AssetAction);
+		AssetTools.RegisterAssetTypeActions(AssetAction.ToSharedRef());
+		AssetArray.Add(AssetActionBase);
+	}
 } // namespace <>
 
 FAudioModulationEditorModule::FAudioModulationEditorModule()
@@ -41,18 +50,13 @@ void FAudioModulationEditorModule::StartupModule()
 	// Register the audio editor asset type actions
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(AssetToolsName).Get();
 
-	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundVolumeControlBus));
-	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundPitchControlBus));
-	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundHPFControlBus));
-	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundLPFControlBus));
-	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundControlBusMix));
-	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundModulatorLFO));
-	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundModulationSettings));
-
-	for (TSharedPtr<FAssetTypeActions_Base>& AssetAction : AssetActions)
-	{
-		AssetTools.RegisterAssetTypeActions(AssetAction.ToSharedRef());
-	}
+	AddAssetAction<FAssetTypeActions_SoundVolumeControlBus>(AssetTools, AssetActions);
+	AddAssetAction<FAssetTypeActions_SoundPitchControlBus>(AssetTools, AssetActions);
+	AddAssetAction<FAssetTypeActions_SoundHPFControlBus>(AssetTools, AssetActions);
+	AddAssetAction<FAssetTypeActions_SoundLPFControlBus>(AssetTools, AssetActions);
+	AddAssetAction<FAssetTypeActions_SoundControlBusMix>(AssetTools, AssetActions);
+	AddAssetAction<FAssetTypeActions_SoundModulatorLFO>(AssetTools, AssetActions);
+	AddAssetAction<FAssetTypeActions_SoundModulationSettings>(AssetTools, AssetActions);
 
 	SetIcon(TEXT("SoundVolumeControlBus"));
 	SetIcon(TEXT("SoundPitchControlBus"));
