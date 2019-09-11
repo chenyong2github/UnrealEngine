@@ -205,6 +205,7 @@ namespace WindowsMixedReality
 	// Controller pose
 	float3 ControllerPositions[2];
 	quaternion ControllerOrientations[2];
+	bool ControllerIsTracked[2];
 
 	PointerPoseInfo PointerPoses[2];
 
@@ -923,6 +924,7 @@ namespace WindowsMixedReality
 		{
 			ControllerPositions[i] = float3(0, 0, 0);
 			ControllerOrientations[i] = quaternion::identity();
+			ControllerIsTracked[i] = false;
 			HandIDs[i] = -1;
 			JointPoseValid[i] = false;
 		}
@@ -1594,9 +1596,7 @@ namespace WindowsMixedReality
 	bool MixedRealityInterop::IsActiveAndValid()
 	{
 		if (!IsInitialized()
-			|| CameraResources == nullptr
-			// Do not update the frame after we generate rendering parameters for it.
-			|| CurrentFrameResources != nullptr)
+			|| CameraResources == nullptr)
 		{
 			return false;
 		}
@@ -2265,6 +2265,9 @@ namespace WindowsMixedReality
 			}
 		}
 
+		ControllerIsTracked[(int)hand] =
+			trackingStatus == HMDTrackingStatus::Tracked ? true : false;
+
 		return trackingStatus;
 	}
 
@@ -2284,7 +2287,7 @@ namespace WindowsMixedReality
 		orientation = DirectX::XMFLOAT4(rot.x, rot.y, rot.z, rot.w);
 		position = DirectX::XMFLOAT3(pos.x, pos.y, pos.z);
 
-		return true;
+		return ControllerIsTracked[(int)hand];
 	}
 
 	bool MixedRealityInterop::GetHandJointOrientationAndPosition(HMDHand hand, HMDHandJoint joint, DirectX::XMFLOAT4& orientation, DirectX::XMFLOAT3& position)
