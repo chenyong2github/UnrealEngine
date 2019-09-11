@@ -45,6 +45,8 @@ public:
 	bool IsShowManagementReferences() const;
 	bool IsShowSearchableNames() const;
 	bool IsShowNativePackages() const;
+	bool IsShowReferencers() const;
+	bool IsShowDependencies() const;
 
 	void SetSearchDepthLimitEnabled(bool newEnabled);
 	void SetSearchBreadthLimitEnabled(bool newEnabled);
@@ -53,6 +55,8 @@ public:
 	void SetShowManagementReferencesEnabled(bool newEnabled);
 	void SetShowSearchableNames(bool newEnabled);
 	void SetShowNativePackages(bool newEnabled);
+	void SetShowReferencers(const bool bShouldShowReferencers);
+	void SetShowDependencies(const bool bShouldShowDependencies);
 
 	int32 GetSearchDepthLimit() const;
 	int32 GetSearchBreadthLimit() const;
@@ -109,6 +113,10 @@ private:
 	bool bIsShowManagementReferences;
 	bool bIsShowSearchableNames;
 	bool bIsShowNativePackages;
+	/* Whether to display the Referencers */
+	bool bIsShowReferencers;
+	/* Whether to display the Dependencies */
+	bool bIsShowDependencies;
 
 	friend SReferenceViewer;
 };

@@ -303,8 +303,8 @@ public:
 	virtual void OpenAssetAuditUI(TArray<FAssetData> SelectedAssets) override;
 	virtual void OpenAssetAuditUI(TArray<FAssetIdentifier> SelectedIdentifiers) override;
 	virtual void OpenAssetAuditUI(TArray<FName> SelectedPackages) override;
-	virtual void OpenReferenceViewerUI(TArray<FAssetIdentifier> SelectedIdentifiers) override;
-	virtual void OpenReferenceViewerUI(TArray<FName> SelectedPackages) override;
+	virtual void OpenReferenceViewerUI(const TArray<FAssetIdentifier> SelectedIdentifiers, const FReferenceViewerParams ReferenceViewerParams = FReferenceViewerParams()) override;
+	virtual void OpenReferenceViewerUI(const TArray<FName> SelectedPackages, const FReferenceViewerParams ReferenceViewerParams = FReferenceViewerParams()) override;
 	virtual void OpenSizeMapUI(TArray<FAssetIdentifier> SelectedIdentifiers) override;
 	virtual void OpenSizeMapUI(TArray<FName> SelectedPackages) override;	
 	virtual bool GetStringValueForCustomColumn(const FAssetData& AssetData, FName ColumnName, FString& OutValue) override;
@@ -683,17 +683,17 @@ void FAssetManagerEditorModule::OpenAssetAuditUI(TArray<FName> SelectedPackages)
 	}
 }
 
-void FAssetManagerEditorModule::OpenReferenceViewerUI(TArray<FAssetIdentifier> SelectedIdentifiers)
+void FAssetManagerEditorModule::OpenReferenceViewerUI(const TArray<FAssetIdentifier> SelectedIdentifiers, const FReferenceViewerParams ReferenceViewerParams)
 {
 	if (SelectedIdentifiers.Num() > 0)
 	{
 		TSharedRef<SDockTab> NewTab = FGlobalTabmanager::Get()->InvokeTab(ReferenceViewerTabName);
 		TSharedRef<SReferenceViewer> ReferenceViewer = StaticCastSharedRef<SReferenceViewer>(NewTab->GetContent());
-		ReferenceViewer->SetGraphRootIdentifiers(SelectedIdentifiers);
+		ReferenceViewer->SetGraphRootIdentifiers(SelectedIdentifiers, ReferenceViewerParams);
 	}
 }
 
-void FAssetManagerEditorModule::OpenReferenceViewerUI(TArray<FName> SelectedPackages)
+void FAssetManagerEditorModule::OpenReferenceViewerUI(const TArray<FName> SelectedPackages, const FReferenceViewerParams ReferenceViewerParams)
 {
 	TArray<FAssetIdentifier> Identifiers;
 	for (FName Name : SelectedPackages)
@@ -701,7 +701,7 @@ void FAssetManagerEditorModule::OpenReferenceViewerUI(TArray<FName> SelectedPack
 		Identifiers.Add(FAssetIdentifier(Name));
 	}
 
-	OpenReferenceViewerUI(Identifiers);
+	OpenReferenceViewerUI(Identifiers, ReferenceViewerParams);
 }
 
 void FAssetManagerEditorModule::OpenSizeMapUI(TArray<FName> SelectedPackages)
@@ -885,7 +885,7 @@ TSharedRef<FExtender> FAssetManagerEditorModule::OnExtendAssetEditor(const TShar
 		// It's safe to modify the CommandList here because this is run as the editor UI is created and the payloads are safe
 		CommandList->MapAction(
 			FAssetManagerEditorCommands::Get().ViewReferences,
-			FExecuteAction::CreateRaw(this, &FAssetManagerEditorModule::OpenReferenceViewerUI, PackageNames));
+			FExecuteAction::CreateRaw(this, &FAssetManagerEditorModule::OpenReferenceViewerUI, PackageNames, FReferenceViewerParams()));
 
 		CommandList->MapAction(
 			FAssetManagerEditorCommands::Get().ViewSizeMap,

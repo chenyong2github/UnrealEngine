@@ -14,6 +14,8 @@
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 #include "ARFilter.h"
+#include "AssetData.h"
+#include "Misc/PackageName.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -26,7 +28,7 @@ const FString BlendCompareString = (TEXT("MaterialLayerBlend"));
 
 void FAssetTypeActions_MaterialFunction::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
-	auto Functions = GetTypedWeakObjectPtrs<UMaterialFunctionInterface>(InObjects);
+	const TArray<TWeakObjectPtr<UMaterialFunctionInterface>> Functions = GetTypedWeakObjectPtrs<UMaterialFunctionInterface>(InObjects);
 
 	IMaterialEditorModule& MaterialEditorModule = FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
 	if (MaterialEditorModule.MaterialLayersEnabled())
@@ -42,16 +44,19 @@ void FAssetTypeActions_MaterialFunction::GetActions(const TArray<UObject*>& InOb
 		);
 	}
 
-	Section.AddMenuEntry(
-		"MaterialFunction_FindMaterials",
-		LOCTEXT("MaterialFunction_FindMaterials", "Find Materials Using This"),
-		LOCTEXT("MaterialFunction_FindMaterialsTooltip", "Finds the materials that reference this material function in the content browser."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.GenericFind"),
-		FUIAction(
-			FExecuteAction::CreateSP( this, &FAssetTypeActions_MaterialFunction::ExecuteFindMaterials, Functions ),
-			FCanExecuteAction()
-			)
-		);
+	if (FEditorDelegates::OnOpenReferenceViewer.IsBound())
+	{
+		Section.AddMenuEntry(
+			"MaterialFunction_FindMaterials",
+			LOCTEXT("MaterialFunction_FindMaterials", "Find Materials Using This"),
+			LOCTEXT("MaterialFunction_FindMaterialsTooltip", "Finds the materials that reference this material function and visually displays them with the light version of the Reference Viewer."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.GenericFind"),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &FAssetTypeActions_MaterialFunction::ExecuteFindMaterials, Functions ),
+				FCanExecuteAction()
+				)
+			);
+	}
 }
 
 void FAssetTypeActions_MaterialFunction::OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor )
@@ -127,34 +132,32 @@ void FAssetTypeActions_MaterialFunction::ExecuteNewMFI(TArray<TWeakObjectPtr<UMa
 
 void FAssetTypeActions_MaterialFunction::ExecuteFindMaterials(TArray<TWeakObjectPtr<UMaterialFunctionInterface>> Objects)
 {
-	TArray<UObject*> ObjectsToSync;
-
-	for (auto ObjIt = Objects.CreateConstIterator(); ObjIt; ++ObjIt)
+#ifdef WITH_EDITOR
+	if (FEditorDelegates::OnOpenReferenceViewer.IsBound())
 	{
-		auto Object = (*ObjIt).Get();
-		if ( Object )
+		// TArray that will be send to the ReferenceViewer for display
+		TArray<FAssetIdentifier> AssetIdentifiers;
+		// Iterate over all selected UMaterialFunctionInterface instances
+		for (auto ObjIt = Objects.CreateConstIterator(); ObjIt; ++ObjIt)
 		{
-			// @todo This only considers loaded materials! Find a good way to make this use the asset registry.
-			for (TObjectIterator<UMaterial> It; It; ++It)
+			const UMaterialFunctionInterface* const Object = (*ObjIt).Get();
+			// If valid pointer, add to AssetIdentifiers for display on the ReferenceViewer
+			if (Object)
 			{
-				UMaterial* CurrentMaterial = *It;
-
-				for (int32 FunctionIndex = 0; FunctionIndex < CurrentMaterial->MaterialFunctionInfos.Num(); FunctionIndex++)
-				{
-					if (CurrentMaterial->MaterialFunctionInfos[FunctionIndex].Function == Object)
-					{
-						ObjectsToSync.Add(CurrentMaterial);
-						break;
-					}
-				}
+				// Construct FAssetIdentifier and add to TArray
+				const FName AssetName(*FPackageName::ObjectPathToPackageName(GetPathNameSafe(Object)));
+				AssetIdentifiers.Add(FAssetIdentifier(AssetName));
 			}
 		}
+		// Call ReferenceViewer
+		FReferenceViewerParams ReferenceViewerParams;
+		ReferenceViewerParams.bShowDependencies = false;
+		ReferenceViewerParams.FixAndHideSearchDepthLimit = 1;
+		ReferenceViewerParams.bShowShowReferencesOptions = false;
+		ReferenceViewerParams.bShowShowSearchableNames = false;
+		FEditorDelegates::OnOpenReferenceViewer.Broadcast(AssetIdentifiers, ReferenceViewerParams);
 	}
-
-	if (ObjectsToSync.Num() > 0)
-	{
-		FAssetTools::Get().SyncBrowserToAssets(ObjectsToSync);
-	}
+#endif // WITH_EDITOR
 }
 
 UThumbnailInfo* FAssetTypeActions_MaterialFunction::GetThumbnailInfo(UObject* Asset) const

@@ -140,7 +140,7 @@ FEditorDelegates::FOnDuplicateActorsBegin				FEditorDelegates::OnDuplicateActors
 FEditorDelegates::FOnDuplicateActorsEnd					FEditorDelegates::OnDuplicateActorsEnd;
 FEditorDelegates::FOnDeleteActorsBegin					FEditorDelegates::OnDeleteActorsBegin;
 FEditorDelegates::FOnDeleteActorsEnd					FEditorDelegates::OnDeleteActorsEnd;
-FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenReferenceViewer;
+FEditorDelegates::FOnOpenReferenceViewer				FEditorDelegates::OnOpenReferenceViewer;
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenSizeMap;
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenAssetAudit;
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnEditAssetIdentifiers;

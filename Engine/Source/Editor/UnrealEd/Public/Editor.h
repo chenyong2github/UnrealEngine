@@ -134,6 +134,8 @@ struct UNREALED_API FEditorDelegates
 	DECLARE_MULTICAST_DELEGATE(FOnDeleteActorsEnd);
 	/** delegate type to handle viewing/editing a set of asset identifiers which are packages or ids */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnViewAssetIdentifiers, TArray<FAssetIdentifier>);
+	/** delegate type to handle viewing/editing a set of asset identifiers (which are packages or ids) in the reference viewer */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnOpenReferenceViewer, const TArray<FAssetIdentifier>, const FReferenceViewerParams);
 
 	/** Called when the CurrentLevel is switched to a new level.  Note that this event won't be fired for temporary
 		changes to the current level, such as when copying/pasting actors. */
@@ -279,7 +281,7 @@ struct UNREALED_API FEditorDelegates
 	/** Sent when delete end called */
 	static FOnDeleteActorsEnd OnDeleteActorsEnd;
 	/** Called when you want to view things in the reference viewer, these are bound to by asset manager editor plugins */
-	static FOnViewAssetIdentifiers OnOpenReferenceViewer;
+	static FOnOpenReferenceViewer OnOpenReferenceViewer;
 	/** Called when you want to view things in the size map */
 	static FOnViewAssetIdentifiers OnOpenSizeMap;
 	/** Called when you want to view things in the asset audit window */
