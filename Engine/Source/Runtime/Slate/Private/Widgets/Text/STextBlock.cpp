@@ -117,28 +117,21 @@ void STextBlock::SetText( const TAttribute< FString >& InText )
 {
 	if (InText.IsSet() && !InText.IsBound())
 	{
-		SetText(InText.Get());
+		SetText(FText::AsCultureInvariant(InText.Get()));
 		return;
 	}
 
 	SCOPE_CYCLE_COUNTER(Stat_SlateTextBlockSetText);
-	struct Local
+	BoundText = MakeAttributeLambda([InText]()
 	{
-		static FText PassThroughAttribute( TAttribute< FString > InString )
-		{
-			return FText::FromString( InString.Get( TEXT("") ) );
-		}
-	};
-
-	BoundText = TAttribute< FText >::Create(TAttribute<FText>::FGetter::CreateStatic( &Local::PassThroughAttribute, InText) );
-
+		return FText::AsCultureInvariant(InText.Get(FString()));
+	});
 	InvalidateText(EInvalidateWidget::LayoutAndVolatility);
-
 }
 
 void STextBlock::SetText( const FString& InText )
 {
-	SetText(FText::FromString(InText));
+	SetText(FText::AsCultureInvariant(InText));
 }
 
 void STextBlock::SetText( const TAttribute< FText >& InText )
