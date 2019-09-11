@@ -102,6 +102,8 @@ public:
 	/** Set the triangle to the given Element index tuple, and increment element reference counts */
 	EMeshResult SetTriangle(int TriangleID, const FIndex3i& TriElements);
 
+	/** @return true if this triangle was set */
+	bool IsSetTriangle(int TID) const { return ElementTriangles[3 * TID] >= 0; }
 
 
 	/**
