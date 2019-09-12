@@ -32,10 +32,11 @@ private:
 	void UpdateTimestamps();
 
 private:
-	bool bInitializedRecords;
 	FEditorSessionRecord* CurrentSession;
 	FString CurrentSessionSectionName;
+	double LastUserInteractionTime;
 	float HeartbeatTimeElapsed;
+	bool bInitializedRecords;
 	bool bShutdown;
 };
 
