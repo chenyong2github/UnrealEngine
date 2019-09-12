@@ -120,7 +120,7 @@ int SpawnTarget(WCHAR* CmdLine)
 	PROCESS_INFORMATION ProcessInfo;
 	ZeroMemory(&ProcessInfo, sizeof(ProcessInfo));
 
-	if(!CreateProcess(NULL, CmdLine, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo, &ProcessInfo))
+	if(!CreateProcess(NULL, CmdLine, NULL, NULL, TRUE, 0, NULL, NULL, &StartupInfo, &ProcessInfo))
 	{
 		DWORD ErrorCode = GetLastError();
 
