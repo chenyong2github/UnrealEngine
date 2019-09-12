@@ -4437,19 +4437,19 @@ FConstCameraActorIterator UWorld::GetAutoActivateCameraIterator() const
 }
 
 
-void UWorld::AddNetworkActor( AActor* Actor )
+void UWorld::AddNetworkActor(AActor* Actor)
 {
-	if ( Actor == nullptr )
+	if (Actor == nullptr)
 	{
 		return;
 	}
 
-	if ( Actor->IsPendingKill() ) 
+	if (Actor->IsPendingKillPending())
 	{
 		return;
 	}
 
-	if ( !ContainsLevel(Actor->GetLevel()) )
+	if (!ContainsLevel(Actor->GetLevel()))
 	{
 		return;
 	}
