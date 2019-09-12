@@ -198,7 +198,7 @@ USoundControlBusMix* UAudioModulationStatics::CreateBusMix(const UObject* WorldC
 	{
 		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
 		{
-			ModulationImpl->ActivateBusMix(*NewBusMix, false);
+			ModulationImpl->ActivateBusMix(*NewBusMix);
 		}
 	}
 
