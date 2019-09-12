@@ -183,6 +183,12 @@ private:	// CONTEXT MENU
 	/** @return Whether selecting instances is currently possible */
 	bool CanSelectInstances() const;
 
+	/** Handler for 'Reflect Selection in Palette ' command */
+	void OnReflectSelectionInPalette();
+
+	/** Selects Foliage Type in palette */
+	void SelectFoliageTypesInPalette(const TArray<const UFoliageType*>& FoliageTypes);
+
 private:	// THUMBNAIL VIEW
 
 	/** Creates a thumbnail tile for the given foliage type */
