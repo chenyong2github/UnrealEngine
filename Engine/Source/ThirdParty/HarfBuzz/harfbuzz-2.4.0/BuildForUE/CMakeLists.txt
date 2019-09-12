@@ -67,7 +67,7 @@ if(USE_STUB_GETENV)
 endif()
 	
 # Add the include directory for our own build of FreeType2
-add_definitions(-DHAVE_OT)
+add_definitions(-DHAVE_OT -DHAVE_FALLBACK)
 include_directories("${FREETYPE2_ROOT}/devel" "${FREETYPE2_ROOT}/include")
 
 # Add the include directory for our own build of ICU
