@@ -275,33 +275,7 @@ public:
 	// Accessors.
 	FD3D12Resource* GetResource() const { return (FD3D12Resource*)FD3D12TextureBase::GetResource(); }
 
-	void GetReadBackHeapDesc(D3D12_PLACED_SUBRESOURCE_FOOTPRINT& OutFootprint, uint32 Subresource) const
-	{
-		check((GetFlags() & TexCreate_CPUReadback) != 0);
-
-		FIntVector Size = GetSizeXYZ();
-
-		D3D12_RESOURCE_DESC Desc = {};
-		Desc.Dimension        = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		Desc.Width            = Size.X;
-		Desc.Height           = Size.Y;
-		Desc.DepthOrArraySize = Size.Z;
-		Desc.MipLevels        = GetNumMips();
-		Desc.Format           = (DXGI_FORMAT) GPixelFormats[GetFormat()].PlatformFormat;
-		Desc.SampleDesc.Count = GetNumSamples();
-
-		ID3D12Device* Device = GetParentDevice()->GetDevice();
-
-		uint64 Offset = 0;
-		if (Subresource > 0)
-		{
-			Device->GetCopyableFootprints(&Desc, 0, Subresource, 0, nullptr, nullptr, nullptr, &Offset);
-			Offset = Align(Offset, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
-		}
-		Device->GetCopyableFootprints(&Desc, Subresource, 1, Offset, &OutFootprint, nullptr, nullptr, nullptr);
-
-		check(OutFootprint.Footprint.Width > 0 && OutFootprint.Footprint.Height > 0);
-	}
+	void GetReadBackHeapDesc(D3D12_PLACED_SUBRESOURCE_FOOTPRINT& OutFootprint, uint32 Subresource) const;
 
 	FD3D12CLSyncPoint GetReadBackSyncPoint() const { return ReadBackSyncPoint; }
 	bool IsCubemap() const { return bCubemap; }
