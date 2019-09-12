@@ -387,7 +387,7 @@ FCocoaRunLoopSource* FCocoaRunLoopSource::GameRunLoopSource = nullptr;
 	GGameThreadId = GMainThreadId;
 	
 	// Tell the main thread we are OK to quit, but don't wait for it.
-	if (GIsRequestingExit)
+	if (IsEngineExitRequested())
 	{
 		MainThreadCall(^{
 			[NSApp replyToApplicationShouldTerminate:YES];
@@ -481,7 +481,7 @@ void RunGameThread(id Target, SEL Selector)
 #else
 	[Target performSelector:Selector withObject:nil];
 	
-	if (GIsRequestingExit)
+	if (IsEngineExitRequested())
 	{
 		[NSApp replyToApplicationShouldTerminate:YES];
 	}

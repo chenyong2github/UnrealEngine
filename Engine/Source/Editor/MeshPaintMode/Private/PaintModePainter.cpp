@@ -1120,7 +1120,7 @@ void FPaintModePainter::Reset()
 	ApplyForcedLODIndex(-1);
 
 	// If the user has pending changes and the editor is not exiting, we want to do the commit for all the modified textures.
-	if ((GetNumberOfPendingPaintChanges() > 0) && !GIsRequestingExit)
+	if ((GetNumberOfPendingPaintChanges() > 0) && !IsEngineExitRequested())
 	{
 		CommitAllPaintedTextures();
 	}

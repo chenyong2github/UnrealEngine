@@ -1621,7 +1621,6 @@ bool UCookOnTheFlyServer::StartNetworkFileServer( const bool BindAnyPort )
 	PackageTracker->CookRequestEvent = FPlatformProcess::GetSynchEventFromPool();
 
 	// loop while waiting for requests
-	GIsRequestingExit = false;
 	return true;
 }
 
@@ -2109,7 +2108,7 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 	// we use this in the unsolicited packages processing below
 	TArray<FName> AllTargetPlatformNames;
 
-	while (!GIsRequestingExit || CurrentCookMode == ECookMode::CookByTheBook)
+	while (!IsEngineExitRequested() || CurrentCookMode == ECookMode::CookByTheBook)
 	{
 		if (HasCookRequests())
 		{

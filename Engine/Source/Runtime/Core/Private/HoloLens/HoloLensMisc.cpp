@@ -170,11 +170,11 @@ void FHoloLensMisc::RequestExit(bool Force)
 		// Force immediate exit.
 		// Dangerous because config code isn't flushed, global destructors aren't called, etc.
 		//::TerminateProcess(GetCurrentProcess(), 0); 
-		GIsRequestingExit = 1;
+		RequestEngineExit(TEXT("FHoloLensMisc::RequestExit"));
 	}
 	else
 	{
-		GIsRequestingExit = 1;
+		RequestEngineExit(TEXT("FHoloLensMisc::RequestExit"));
 	}
 }
 

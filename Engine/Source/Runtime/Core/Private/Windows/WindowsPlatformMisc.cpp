@@ -610,11 +610,11 @@ void FWindowsPlatformMisc::PlatformInit()
 static BOOL WINAPI ConsoleCtrlHandler(DWORD CtrlType)
 {
 	// Broadcast the termination the first time through.
-	bool IsRequestingExit = GIsRequestingExit;
+	bool IsRequestingExit = IsEngineExitRequested();
 	static bool AppTermDelegateBroadcast = false;
 	if (!AppTermDelegateBroadcast)
 	{
-		GIsRequestingExit = true;
+		RequestEngineExit(TEXT("ConsoleCtrl RequestExit"));
 		FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
 		AppTermDelegateBroadcast = true;
 	}
@@ -649,11 +649,11 @@ static BOOL WINAPI ConsoleCtrlHandler(DWORD CtrlType)
 	if (!IsRequestingExit)
 	{
 		// We'll two-step Ctrl-C events to give processes like servers time to
-		// correctly terminate. Note the GIsRequestingExit is true now.
+		// correctly terminate. Note the IsEngineExitRequested() is true now.
 		return true;
 	}
 
-	// There's no guarantee that the process is paying attention to GIsRequestingExit
+	// There's no guarantee that the process is paying attention to IsEngineExitRequested()
 	// (e.g. some long-running commandlets). Using that for shutdown is therefore not
 	// reliable. Deferring to the default CtrlHandler is also no good as that calls
 	// ExitProcess() which will terminate all threads and detach all DLLS. This can
@@ -920,7 +920,7 @@ void FWindowsPlatformMisc::RequestExit( bool Force )
 {
 	UE_LOG(LogWindows, Log,  TEXT("FPlatformMisc::RequestExit(%i)"), Force );
 
-	GIsRequestingExit = 1;
+	RequestEngineExit(TEXT("Win RequestExit"));
 	FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
 
 	if( Force )

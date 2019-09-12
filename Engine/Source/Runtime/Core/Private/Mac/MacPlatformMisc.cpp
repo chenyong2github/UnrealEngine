@@ -615,7 +615,7 @@ void FMacPlatformMisc::RequestExit( bool Force )
 	else
 	{
 		// Tell the platform specific code we want to exit cleanly from the main loop.
-		GIsRequestingExit = 1;
+		RequestEngineExit(TEXT("Mac RequestExit"));
 	}
 }
 
@@ -1621,9 +1621,9 @@ static void GracefulTerminationHandler(int32 Signal, siginfo_t* Info, void* Cont
 		GError->Flush();
 	}
 	
-	if( !GIsRequestingExit )
+	if( !IsEngineExitRequested() )
 	{
-		GIsRequestingExit = 1;
+		RequestEngineExit(TEXT("Mac GracefulTerminationHandler"));
 	}
 	else
 	{

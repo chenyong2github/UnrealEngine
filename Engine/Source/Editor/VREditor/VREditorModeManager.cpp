@@ -182,7 +182,7 @@ void FVREditorModeManager::AddReferencedObjects( FReferenceCollector& Collector 
 
 void FVREditorModeManager::StartVREditorMode( const bool bForceWithoutHMD )
 {
-	if (!GIsRequestingExit)
+	if (!IsEngineExitRequested())
 	{
 		UVREditorMode* VRMode = nullptr;
 		{

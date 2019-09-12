@@ -6056,7 +6056,7 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 		}
 	}
 
-	GIsRequestingExit = true;
+	RequestEngineExit(TEXT("UnrealHeaderTool finished"));
 
 	if (Result != ECompilationResult::Succeeded || NumFailures > 0)
 	{

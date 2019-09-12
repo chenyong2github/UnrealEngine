@@ -506,7 +506,7 @@ int32 AndroidMain(struct android_app* state)
 	BootTimingPoint("Tick loop starting");
 	DumpBootTiming();
 	// tick until done
-	while (!GIsRequestingExit)
+	while (!IsEngineExitRequested())
 	{
 		FAndroidStats::UpdateAndroidStats();
 
@@ -692,7 +692,7 @@ static void* AndroidEventThreadWorker( void* param )
 	GAndroidWindowLock.Lock();
 
 	//continue to process events until the engine is shutting down
-	while (!GIsRequestingExit)
+	while (!IsEngineExitRequested())
 	{
 //		FPlatformMisc::LowLevelOutputDebugString(TEXT("AndroidEventThreadWorker"));
 
@@ -1449,7 +1449,9 @@ static void OnAppCommandCB(struct android_app* app, int32_t cmd)
 				FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
 			}, TStatId(), NULL, ENamedThreads::GameThread);
 			FTaskGraphInterface::Get().WaitUntilTaskCompletes(WillTerminateTask);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			GIsRequestingExit = true; //destroy immediately. Game will shutdown.
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}));
 
 
