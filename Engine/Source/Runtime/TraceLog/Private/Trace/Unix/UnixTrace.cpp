@@ -63,15 +63,6 @@ UPTRINT ThreadCreate(const ANSICHAR* Name, void (*Entry)())
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-uint32 ThreadGetCurrentId()
-{
-	// FIXME: suboptimal
-	pid_t ThreadId = static_cast<pid_t>(syscall(SYS_gettid));
-	static_assert(sizeof(pid_t) <= sizeof(uint32), "pid_t is larger than uint32, reconsider implementation of GetCurrentThreadId()");
-	return static_cast<uint32>(ThreadId);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 void ThreadSleep(uint32 Milliseconds)
 {
 	usleep(Milliseconds * 1000U);

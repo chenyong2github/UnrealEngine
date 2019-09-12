@@ -17,7 +17,6 @@ void	MemoryUnmap(void* Address, SIZE_T Size);
 
 ////////////////////////////////////////////////////////////////////////////////
 UPTRINT	ThreadCreate(const ANSICHAR* Name, void (*Entry)());
-uint32	ThreadGetCurrentId();
 void	ThreadSleep(uint32 Milliseconds);
 void	ThreadJoin(UPTRINT Handle);
 void	ThreadDestroy(UPTRINT Handle);
