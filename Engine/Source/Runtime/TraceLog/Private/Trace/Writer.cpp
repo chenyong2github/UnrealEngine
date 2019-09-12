@@ -316,10 +316,10 @@ enum class EDataState : uint8
 	Partial,			// Passive, but buffers are full so some events are lost
 	Sending,			// Events are being sent to an IO handle
 };
-static FHoldBuffer		GHoldBuffer;
-static UPTRINT			GDataHandle			= 0;
-static EDataState		GDataState;			// = EDataState::Passive;
-UPTRINT					GPendingDataHandle	= 0;
+static FHoldBuffer		GHoldBuffer;		// will init to zero.
+static UPTRINT			GDataHandle;		// = 0
+static EDataState		GDataState;			// = EDataState::Passive
+UPTRINT					GPendingDataHandle;	// = 0
 
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_ConsumeEvents()
