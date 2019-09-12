@@ -1368,7 +1368,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 		}
 		
 		// Propagate fact that package cannot use lazy loading to archive (aka this).
-		if( (Summary.PackageFlags & PKG_DisallowLazyLoading) || IsTextFormat() )
+		if (IsTextFormat())
 		{
 			ArAllowLazyLoading = false;
 		}
