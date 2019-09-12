@@ -238,11 +238,22 @@ static void GetContentBrowserSelectionFactoryMenuEntries( FAssetData& TargetAsse
 
 		bPlaceable = AssetSelectionUtils::IsClassPlaceable( Class );
 	}
-	else if ( TargetAssetData.GetClass()->IsChildOf<UBlueprint>() )
+	else if (TargetAssetData.GetClass()->IsChildOf<UBlueprint>())
 	{
 		// For blueprints, attempt to determine placeability from its tag information
 
 		FString TagValue;
+
+		if ( TargetAssetData.GetTagValue( FBlueprintTags::NativeParentClassPath, TagValue ) && !TagValue.IsEmpty() )
+		{
+			// If the native parent class can't be placed, neither can the blueprint
+
+			UObject* Outer = nullptr;
+			ResolveName( Outer, TagValue, false, false );
+			UClass* NativeParentClass = FindObject<UClass>( ANY_PACKAGE, *TagValue );
+
+			bPlaceable = AssetSelectionUtils::IsChildBlueprintPlaceable( NativeParentClass );
+		}
 		
 		if ( bPlaceable && TargetAssetData.GetTagValue( FBlueprintTags::ClassFlags, TagValue ) && !TagValue.IsEmpty() )
 		{
