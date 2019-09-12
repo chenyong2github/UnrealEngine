@@ -806,13 +806,6 @@ void ULandscapeSplinesComponent::PostLoad()
 #endif
 
 	CheckSplinesValid();
-
-#if WITH_EDITOR
-	if (GIsEditor && GetWorld()->WorldType == EWorldType::Editor)
-	{
-		CheckForErrors();
-	}
-#endif
 }
 
 #if WITH_EDITOR
