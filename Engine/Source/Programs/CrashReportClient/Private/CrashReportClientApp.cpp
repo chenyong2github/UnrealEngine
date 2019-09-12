@@ -16,6 +16,7 @@
 #include "Modules/ModuleManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformCrashContext.h"
+#include "IAnalyticsProviderET.h"
 
 #if !CRASH_REPORT_UNATTENDED_ONLY
 	#include "SCrashReportClient.h"
@@ -68,6 +69,14 @@ static void* MonitorReadPipe = nullptr;
 
 /** If in monitor mode, pipe to write data to game. */
 static void* MonitorWritePipe = nullptr;
+
+/** Result of submission of report */
+enum SubmitCrashReportResult {
+	Failed,				// Failed to send report
+	SuccessClosed,		// Succeeded sending report, user has not elected to relaunch
+	SuccessRestarted,	// Succeeded sending report, user has elected to restart process
+	SuccessContinue		// Succeeded sending report, continue running (if monitor mode).
+};
 
 /**
  * Look for the report to upload, either in the command line or in the platform's report queue
@@ -215,7 +224,7 @@ static void OnRequestExit()
 }
 
 #if !CRASH_REPORT_UNATTENDED_ONLY
-bool RunWithUI(FPlatformErrorReport ErrorReport)
+SubmitCrashReportResult RunWithUI(FPlatformErrorReport ErrorReport)
 {
 	// create the platform slate application (what FSlateApplication::Get() returns)
 	TSharedRef<FSlateApplication> Slate = FSlateApplication::Create(MakeShareable(FPlatformApplicationMisc::CreateApplication()));
@@ -247,7 +256,7 @@ bool RunWithUI(FPlatformErrorReport ErrorReport)
 	{
 		// Close down the Slate application
 		FSlateApplication::Shutdown();
-		return false;
+		return Failed;
 	}
 	else if (bRendererFailedToInitializeAtLeastOnce)
 	{
@@ -318,7 +327,8 @@ bool RunWithUI(FPlatformErrorReport ErrorReport)
 	// Close down the Slate application
 	FSlateApplication::Shutdown();
 
-	return true;
+	// Detect if ensure, if user has selected to restart or close.	
+	return CrashReportClient->GetIsSuccesfullRestart() ? SuccessRestarted : (FPrimaryCrashProperties::Get()->bIsEnsure ? SuccessContinue : SuccessClosed);
 }
 #endif // !CRASH_REPORT_UNATTENDED_ONLY
 
@@ -339,7 +349,7 @@ class FMessageBoxThread : public FRunnable
 	}
 };
 
-void RunUnattended(FPlatformErrorReport ErrorReport)
+SubmitCrashReportResult RunUnattended(FPlatformErrorReport ErrorReport)
 {
 	// Set up the main ticker
 	FMainLoopTiming MainLoop(IdealTickRate, EMainLoopOptions::CoreTickerOnly);
@@ -366,6 +376,9 @@ void RunUnattended(FPlatformErrorReport ErrorReport)
 	{
 		MessageBoxThread->WaitForCompletion();
 	}
+
+	// Continue running in case of ensures, otherwise close
+	return FPrimaryCrashProperties::Get()->bIsEnsure ? SuccessContinue : SuccessClosed;
 }
 
 FPlatformErrorReport CollectErrorReport(uint32 Pid, const FSharedCrashContext& SharedCrashContext, void* WritePipe) 
@@ -441,8 +454,8 @@ FPlatformErrorReport CollectErrorReport(uint32 Pid, const FSharedCrashContext& S
 	// At this point the game can continue execution. It is important this happens
 	// as soon as thread state and minidump has been created, so that ensures cause
 	// as little hitch as possible.
-	uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
-	FPlatformProcess::WritePipe(WritePipe, ResponseCode, sizeof(ResponseCode));
+	//uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
+	//FPlatformProcess::WritePipe(WritePipe, ResponseCode, sizeof(ResponseCode));
 
 	// Write out the XML file.
 	const FString CrashContextXMLPath = FPaths::Combine(*ReportDirectoryAbsolutePath, FPlatformCrashContext::CrashContextRuntimeXMLNameW);
@@ -470,7 +483,7 @@ FPlatformErrorReport CollectErrorReport(uint32 Pid, const FSharedCrashContext& S
 #endif
 }
 
-void SendErrorReport(FPlatformErrorReport& ErrorReport)
+SubmitCrashReportResult SendErrorReport(FPlatformErrorReport& ErrorReport, TOptional<bool> bNoDialog = TOptional<bool>())
 {
 	if (!GIsRequestingExit && ErrorReport.HasFilesToUpload() && FPrimaryCrashProperties::Get() != nullptr)
 	{
@@ -478,32 +491,35 @@ void SendErrorReport(FPlatformErrorReport& ErrorReport)
 #if CRASH_REPORT_UNATTENDED_ONLY
 			true;
 #else
-			FApp::IsUnattended();
+			bNoDialog.IsSet() ? bNoDialog.GetValue() : FApp::IsUnattended();
 #endif // CRASH_REPORT_UNATTENDED_ONLY
 
 		ErrorReport.SetCrashReportClientVersion(FCrashReportCoreConfig::Get().GetVersion());
 
 		if (bUnattended)
 		{
-			RunUnattended(ErrorReport);
+			return RunUnattended(ErrorReport);
 		}
 #if !CRASH_REPORT_UNATTENDED_ONLY
 		else
 		{
-			if (!RunWithUI(ErrorReport))
+			const SubmitCrashReportResult Result = RunWithUI(ErrorReport);
+			if (Result == Failed)
 			{
 				// UI failed to initialize, probably due to driver crash. Send in unattended mode if allowed.
 				bool bCanSendWhenUIFailedToInitialize = true;
 				GConfig->GetBool(TEXT("CrashReportClient"), TEXT("CanSendWhenUIFailedToInitialize"), bCanSendWhenUIFailedToInitialize, GEngineIni);
 				if (bCanSendWhenUIFailedToInitialize && !FCrashReportCoreConfig::Get().IsAllowedToCloseWithoutSending())
 				{
-					RunUnattended(ErrorReport);
+					return RunUnattended(ErrorReport);
 				}
 			}
+			return Result;
 		}
 #endif // !CRASH_REPORT_UNATTENDED_ONLY
 
 	}
+	return Failed;
 }
 
 bool WaitForCrash(uint32 WatchedProcess, FSharedCrashContext& CrashContext, void* ReadPipe)
@@ -548,35 +564,69 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 	ParseCommandLine(CommandLine);
 
 	FPlatformErrorReport::Init();
-	if (AnalyticsEnabledFromCmd)
-	{
-		FCrashReportAnalytics::Initialize();
-	}
 
 	if (MonitorPid && MonitorWritePipe && MonitorReadPipe) 
 	{
-		while (FPlatformProcess::IsApplicationAlive(MonitorPid))
+		while (FPlatformProcess::IsApplicationAlive(MonitorPid) && !GIsRequestingExit)
 		{
 			// Wait for parent process to signal crash
 			FSharedCrashContext CrashContext;
 			if (WaitForCrash(MonitorPid, CrashContext, MonitorReadPipe))
 			{
+				// When running in monitor mode we cannot setup analytics info on the command line (we start earlier than 
+				// config system), instead the crash context contains what the user has selected.
+				if (CrashContext.bSendUsageData)
+				{
+					FCrashReportAnalytics::Initialize();
+				}
+
 				// Build error report in memory
 				FPlatformErrorReport ErrorReport = CollectErrorReport(MonitorPid, CrashContext, MonitorWritePipe);
-				SendErrorReport(ErrorReport);
+				const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, CrashContext.bNoDialog && CrashContext.bSendUnattenededBugReports);
+
+				// At this point the game can continue execution. It is important this happens
+				// as soon as thread state and minidump has been created, so that ensures cause
+				// as little hitch as possible.
+				uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
+				FPlatformProcess::WritePipe(MonitorWritePipe, ResponseCode, sizeof(ResponseCode));
+
+				if (AnalyticsEnabledFromCmd)
+				{
+					// If analytics is enabled make sure they are submitted now.
+					FCrashReportAnalytics::GetProvider().BlockUntilFlushed(5.0f);
+				}
+
+				// This is ugly, but since many parts of CrashReportClient and CrashReportCoreUnattended is built
+				// using this flag to exit tick loops, this was the easiest way of making the monitor path be able to
+				// send multiple reports (e.g. ensure followed by crash).
+				if (Result == SuccessContinue)
+				{
+					GIsRequestingExit = false;
+				}
+
+				if (CrashContext.bSendUsageData)
+				{
+					FCrashReportAnalytics::Shutdown();
+				}
 			}
 		}
 	}
 	else
 	{
+		if (AnalyticsEnabledFromCmd)
+		{
+			FCrashReportAnalytics::Initialize();
+		}
+
 		// Load error report generated by the process from disk
 		FPlatformErrorReport ErrorReport = LoadErrorReport();
-		SendErrorReport(ErrorReport);
-	}
+		const SubmitCrashReportResult Result = SendErrorReport(ErrorReport);
+		// We are not interested in the result of this
 
-	if (AnalyticsEnabledFromCmd)
-	{
-		FCrashReportAnalytics::Shutdown();
+		if (AnalyticsEnabledFromCmd)
+		{
+			FCrashReportAnalytics::Shutdown();
+		}
 	}
 
 	FPrimaryCrashProperties::Shutdown();

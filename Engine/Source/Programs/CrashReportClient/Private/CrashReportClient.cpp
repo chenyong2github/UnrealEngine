@@ -37,6 +37,7 @@ FCrashReportClient::FCrashReportClient(const FPlatformErrorReport& InErrorReport
 	, DataRouterUploader(FCrashReportCoreConfig::Get().GetDataRouterURL())
 	, bShouldWindowBeHidden(false)
 	, bSendData(false)
+	, bIsSuccesfullRestart(false)
 {
 	if (FPrimaryCrashProperties::Get()->IsValid())
 	{
@@ -138,6 +139,7 @@ FReply FCrashReportClient::SubmitAndRestart()
 				if (LauncherPlatform->OpenLauncher(OpenOptions))
 				{
 					bLauncherRestarted = true;
+					bIsSuccesfullRestart = true;
 				}
 			}
 		}
@@ -148,6 +150,7 @@ FReply FCrashReportClient::SubmitAndRestart()
 		// Launcher didn't restart the process so start it ourselves
 		const FString CommandLineArguments = FPrimaryCrashProperties::Get()->RestartCommandLine;
 		FPlatformProcess::CreateProc(*CrashedAppPath, *CommandLineArguments, true, false, false, NULL, 0, NULL, NULL);
+		bIsSuccesfullRestart = true;
 	}
 
 	return FReply::Handled();
