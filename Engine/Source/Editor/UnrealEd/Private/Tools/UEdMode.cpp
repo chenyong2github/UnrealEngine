@@ -238,7 +238,7 @@ public:
 	}
 
 
-	virtual void PostMessage(const TCHAR* Message, EToolMessageLevel Level) override
+	virtual void PostMessage(const TCHAR* Message, EToolMessageLevel Level)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ToolsContext] %s"), Message);
 	}
