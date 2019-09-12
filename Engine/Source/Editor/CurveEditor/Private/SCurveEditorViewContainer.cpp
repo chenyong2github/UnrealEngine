@@ -131,6 +131,8 @@ FReply SCurveEditorViewContainer::OnKeyDown(const FGeometry& MyGeometry, const F
 
 FReply SCurveEditorViewContainer::OnPreviewMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
+	bCaughtMouseDown = true;
+
 	if (CurveEditor->GetCurrentTool())
 	{
 		return CurveEditor->GetCurrentTool()->OnMouseButtonDown(AsShared(), MyGeometry, MouseEvent);
@@ -237,7 +239,7 @@ FReply SCurveEditorViewContainer::OnMouseButtonUp(const FGeometry& MyGeometry, c
 		Reply = CurveEditor->GetCurrentTool()->OnMouseButtonUp(AsShared(), MyGeometry, MouseEvent);
 	}
 
-	if (!Reply.IsEventHandled() && MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	if (!Reply.IsEventHandled() && MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && bCaughtMouseDown)
 	{
 		if (!MouseEvent.IsShiftDown() && !MouseEvent.IsAltDown() && !MouseEvent.IsControlDown())
 		{
@@ -246,6 +248,7 @@ FReply SCurveEditorViewContainer::OnMouseButtonUp(const FGeometry& MyGeometry, c
 		}
 	}
 
+	bCaughtMouseDown = false;
 	DragOperation.Reset();
 	return Reply.ReleaseMouseCapture();
 }
