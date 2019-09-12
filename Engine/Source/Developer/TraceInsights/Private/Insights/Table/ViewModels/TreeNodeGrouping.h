@@ -18,10 +18,14 @@ namespace Insights
 class ITreeNodeGrouping
 {
 public:
-	virtual FText GetName() const = 0;
+	virtual FText GetShortName() const = 0;
+	virtual FText GetTitleName() const = 0;
 	virtual FText GetDescription() const = 0;
+
 	virtual FName GetBrushName() const = 0;
 	virtual const FSlateBrush* GetIcon() const = 0;
+
+	virtual FName GetColumnId() const = 0;
 
 	//virtual void CreateGrouping() = 0;
 };
@@ -39,18 +43,23 @@ struct FTreeNodeGroupInfo
 class FTreeNodeGrouping : public ITreeNodeGrouping
 {
 public:
-	FTreeNodeGrouping(FText InName, FText InDescription, FName InBrushName,  FSlateBrush* InIcon);
+	FTreeNodeGrouping(FText InShortName, FText InTitleName, FText InDescription, FName InBrushName,  FSlateBrush* InIcon);
 	virtual ~FTreeNodeGrouping() {}
 
-	virtual FText GetName() const override { return Name; }
+	virtual FText GetShortName() const override { return ShortName; }
+	virtual FText GetTitleName() const override { return TitleName; }
 	virtual FText GetDescription() const override { return Description; }
+
 	virtual FName GetBrushName() const override { return BrushName; }
 	virtual const FSlateBrush* GetIcon() const override { return Icon; }
+
+	virtual FName GetColumnId() const override { return NAME_None; }
 
 	virtual FTreeNodeGroupInfo GetGroupForNode(const FBaseTreeNodePtr InNode) const { return { FName(), false }; }
 
 protected:
-	FText Name;
+	FText ShortName;
+	FText TitleName;
 	FText Description;
 	FName BrushName;
 	const FSlateBrush* Icon;
@@ -74,15 +83,16 @@ public:
 class FTreeNodeGroupingByUniqueValue : public FTreeNodeGrouping
 {
 public:
-	FTreeNodeGroupingByUniqueValue(TSharedRef<FTableColumn> InColumn);
+	FTreeNodeGroupingByUniqueValue(TSharedRef<FTableColumn> InColumnRef);
 	virtual ~FTreeNodeGroupingByUniqueValue() {}
 
 	virtual FTreeNodeGroupInfo GetGroupForNode(const FBaseTreeNodePtr InNode) const override;
 
-	TSharedRef<FTableColumn> GetColumn() const { return Column; }
+	virtual FName GetColumnId() const override { return ColumnRef->GetId(); }
+	TSharedRef<FTableColumn> GetColumn() const { return ColumnRef; }
 
 private:
-	TSharedRef<FTableColumn> Column;
+	TSharedRef<FTableColumn> ColumnRef;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

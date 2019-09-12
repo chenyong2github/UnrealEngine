@@ -130,6 +130,16 @@ public:
 		Children.Add(ChildPtr);
 	}
 
+	/** Clears children. */
+	void ClearChildren()
+	{
+		for (FBaseTreeNodePtr& NodePtr : Children)
+		{
+			NodePtr->GroupPtr = nullptr;
+		}
+		Children.Reset();
+	}
+
 	/** Adds specified child to the filtered children. */
 	FORCEINLINE_DEBUGGABLE void AddFilteredChild(const FBaseTreeNodePtr& ChildPtr)
 	{

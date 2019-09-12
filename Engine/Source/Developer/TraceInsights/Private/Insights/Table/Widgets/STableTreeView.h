@@ -7,7 +7,7 @@
 #include "Misc/TextFilter.h"
 #include "SlateFwd.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Navigation/SBreadcrumbTrail.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Views/SHeaderRow.h"
@@ -147,6 +147,8 @@ protected:
 	/** Populates the group and stat tree with items based on the current data. */
 	void ApplyFiltering();
 
+	bool ApplyFilteringForNode(FTableTreeNodePtr NodePtr);
+
 	bool SearchBox_IsEnabled() const;
 	void SearchBox_OnTextChanged(const FText& InFilterText);
 
@@ -154,15 +156,33 @@ protected:
 	// Grouping
 
 	void CreateGroupings();
+
 	void CreateGroups();
+	void GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, int32 GroupingDepth);
 
-	void GroupBy_OnSelectionChanged(TSharedPtr<FTreeNodeGrouping> NewGrouping, ESelectInfo::Type SelectInfo);
+	void ResetAggregatedValuesRec(FTableTreeNode& GroupNode);
+	void UpdateInt64SumAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode);
+	void UpdateFloatSumAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode);
+	void UpdateDoubleSumAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode);
 
-	TSharedRef<SWidget> GroupBy_OnGenerateWidget(TSharedPtr<FTreeNodeGrouping> InGrouping) const;
+	void RebuildGroupingCrumbs();
+	void OnGroupingCrumbClicked(const TSharedPtr<FTreeNodeGrouping>& InEntry);
+	void BuildGroupingSubMenu_Change(FMenuBuilder& MenuBuilder, const TSharedPtr<FTreeNodeGrouping> CrumbGrouping);
+	void BuildGroupingSubMenu_Add(FMenuBuilder& MenuBuilder, const TSharedPtr<FTreeNodeGrouping> CrumbGrouping);
+	TSharedRef<SWidget> GetGroupingCrumbMenuContent(const TSharedPtr<FTreeNodeGrouping>& CrumbGrouping) const;
 
-	FText GroupBy_GetSelectedText() const;
+	void PreChangeGroupings();
+	void PostChangeGroupings();
+	int32 GetGroupingDepth(const TSharedPtr<FTreeNodeGrouping>& Grouping) const;
 
-	FText GroupBy_GetSelectedTooltipText() const;
+	void GroupingCrumbMenu_Reset_Execute();
+	void GroupingCrumbMenu_Remove_Execute(const TSharedPtr<FTreeNodeGrouping> Grouping);
+	void GroupingCrumbMenu_MoveLeft_Execute(const TSharedPtr<FTreeNodeGrouping> Grouping);
+	void GroupingCrumbMenu_MoveRight_Execute(const TSharedPtr<FTreeNodeGrouping> Grouping);
+	void GroupingCrumbMenu_Change_Execute(const TSharedPtr<FTreeNodeGrouping> OldGrouping, const TSharedPtr<FTreeNodeGrouping> NewGrouping);
+	bool GroupingCrumbMenu_Change_CanExecute(const TSharedPtr<FTreeNodeGrouping> OldGrouping, const TSharedPtr<FTreeNodeGrouping> NewGrouping) const;
+	void GroupingCrumbMenu_Add_Execute(const TSharedPtr<FTreeNodeGrouping> Grouping, const TSharedPtr<FTreeNodeGrouping> AfterGrouping);
+	bool GroupingCrumbMenu_Add_CanExecute(const TSharedPtr<FTreeNodeGrouping> Grouping, const TSharedPtr<FTreeNodeGrouping> AfterGrouping) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting
@@ -171,6 +191,7 @@ protected:
 
 	void UpdateCurrentSortingByColumn();
 	void SortTreeNodes();
+	void SortTreeNodesRec(FTableTreeNode& GroupNode, const Insights::ITreeNodeSorting* Sorter);
 
 	EColumnSortMode::Type GetSortModeForColumn(const FName ColumnId) const;
 	void SetSortModeForColumn(const FName& ColumnId, EColumnSortMode::Type SortMode);
@@ -257,11 +278,13 @@ protected:
 	//////////////////////////////////////////////////
 	// Tree Nodes
 
-	/** All nodes. Each node corresponds to a table row. */
-	TArray<FTableTreeNodePtr> TableTreeNodes;
+	static const FName RootNodeName;
 
-	/** The array of group nodes. */
-	TArray<FTableTreeNodePtr> GroupNodes;
+	/** The root node of the tree. */
+	FTableTreeNodePtr Root;
+
+	/** Table (row) nodes. Each node corresponds to a table row. */
+	TArray<FTableTreeNodePtr> TableTreeNodes;
 
 	/** A filtered array of group and nodes to be displayed in the tree widget. */
 	TArray<FTableTreeNodePtr> FilteredGroupNodes;
@@ -292,10 +315,10 @@ protected:
 
 	TArray<TSharedPtr<FTreeNodeGrouping>> AvailableGroupings;
 
-	TSharedPtr<SComboBox<TSharedPtr<FTreeNodeGrouping>>> GroupByComboBox;
-
 	/** How we group the tree nodes? */
-	TSharedPtr<FTreeNodeGrouping> CurrentGrouping;
+	TArray<TSharedPtr<FTreeNodeGrouping>> CurrentGroupings;
+
+	TSharedPtr<SBreadcrumbTrail<TSharedPtr<FTreeNodeGrouping>>> GroupingBreadcrumbTrail;
 
 	//////////////////////////////////////////////////
 	// Sorting

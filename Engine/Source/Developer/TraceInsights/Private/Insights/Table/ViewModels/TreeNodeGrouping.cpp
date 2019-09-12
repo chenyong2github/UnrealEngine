@@ -11,8 +11,9 @@ namespace Insights
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTreeNodeGrouping::FTreeNodeGrouping(FText InName, FText InDescription, FName InBrushName,  FSlateBrush* InIcon)
-	: Name(InName)
+FTreeNodeGrouping::FTreeNodeGrouping(FText InShortName, FText InTitleName, FText InDescription, FName InBrushName,  FSlateBrush* InIcon)
+	: ShortName(InShortName)
+	, TitleName(InTitleName)
 	, Description(InDescription)
 	, BrushName(InBrushName)
 	, Icon(InIcon)
@@ -23,8 +24,9 @@ FTreeNodeGrouping::FTreeNodeGrouping(FText InName, FText InDescription, FName In
 
 FTreeNodeGroupingFlat::FTreeNodeGroupingFlat()
 	: FTreeNodeGrouping(
-		LOCTEXT("Grouping_Name_Flat", "Flat"),
-		LOCTEXT("Grouping_Desc_Flat", "Creates a single group. Includes all items."),
+		LOCTEXT("Grouping_Flat_ShortName", "All"),
+		LOCTEXT("Grouping_Flat_TitleName", "Flat (All)"),
+		LOCTEXT("Grouping_Flat_Desc", "Creates a single group. Includes all items."),
 		TEXT("Profiler.FiltersAndPresets.GroupNameIcon"), //TODO: "Icons.Grouping.Flat"
 		nullptr)
 {
@@ -39,13 +41,14 @@ FTreeNodeGroupInfo FTreeNodeGroupingFlat::GetGroupForNode(const FBaseTreeNodePtr
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTreeNodeGroupingByUniqueValue::FTreeNodeGroupingByUniqueValue(TSharedRef<FTableColumn> InColumn)
+FTreeNodeGroupingByUniqueValue::FTreeNodeGroupingByUniqueValue(TSharedRef<FTableColumn> InColumnRef)
 	: FTreeNodeGrouping(
-		FText::Format(LOCTEXT("Grouping_ByUniqueValue_NameFmt", "Unique Values - {0}"), InColumn->GetTitleName()),
+		InColumnRef->GetTitleName(),
+		FText::Format(LOCTEXT("Grouping_ByUniqueValue_TitleNameFmt", "Unique Values - {0}"), InColumnRef->GetTitleName()),
 		LOCTEXT("Grouping_ByUniqueValue_Desc", "Creates a group for each unique value."),
 		TEXT("Profiler.FiltersAndPresets.Group1NameIcon"), //TODO: "Icons.Grouping.ByName"
 		nullptr)
-	, Column(InColumn)
+	, ColumnRef(InColumnRef)
 {
 }
 
@@ -54,14 +57,16 @@ FTreeNodeGroupingByUniqueValue::FTreeNodeGroupingByUniqueValue(TSharedRef<FTable
 FTreeNodeGroupInfo FTreeNodeGroupingByUniqueValue::GetGroupForNode(const FBaseTreeNodePtr InNode) const
 {
 	FTableTreeNodePtr TableTreeNodePtr = StaticCastSharedPtr<FTableTreeNode>(InNode);
-	return { FName(*Column->GetValueAsText(TableTreeNodePtr->GetRowId()).ToString()), false };
+	return { FName(*ColumnRef->GetValueFormatter()->FormatValue(TableTreeNodePtr->GetValue(*ColumnRef)).ToString()), false };
+	//return { FName(*ColumnRef->GetValueAsText(TableTreeNodePtr->GetRowId()).ToString()), false };
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FTreeNodeGroupingByNameFirstLetter::FTreeNodeGroupingByNameFirstLetter()
 	: FTreeNodeGrouping(
-		LOCTEXT("Grouping_ByName_Name", "Name (First Letter)"),
+		LOCTEXT("Grouping_ByName_ShortName", "Name"),
+		LOCTEXT("Grouping_ByName_TitleName", "Name (First Letter)"),
 		LOCTEXT("Grouping_ByName_Desc", "Creates a group for each first letter of node names."),
 		TEXT("Profiler.FiltersAndPresets.Group1NameIcon"), //TODO: "Icons.Grouping.ByName"
 		nullptr)
@@ -79,7 +84,8 @@ FTreeNodeGroupInfo FTreeNodeGroupingByNameFirstLetter::GetGroupForNode(const FBa
 
 FTreeNodeGroupingByType::FTreeNodeGroupingByType()
 	: FTreeNodeGrouping(
-		LOCTEXT("Grouping_ByType_Name", "Type"),
+		LOCTEXT("Grouping_ByType_ShortName", "Type"),
+		LOCTEXT("Grouping_ByType_TitleName", "Type"),
 		LOCTEXT("Grouping_ByType_Desc", "Creates a group for each type."),
 		TEXT("Profiler.FiltersAndPresets.StatTypeIcon"), //TODO
 		nullptr)

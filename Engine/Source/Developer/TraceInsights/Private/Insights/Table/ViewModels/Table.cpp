@@ -422,7 +422,7 @@ void FTable::CreateHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName)
 	constexpr ETableCellDataType DataType = ETableCellDataType::CString;
 	constexpr ETableColumnAggregation Aggregation = ETableColumnAggregation::None;
 
-	constexpr float InitialColumnWidth = 80.0f;
+	constexpr float InitialColumnWidth = 90.0f;
 	constexpr float MinColumnWidth = 0.0f;
 	constexpr float MaxColumnWidth = FLT_MAX;
 
