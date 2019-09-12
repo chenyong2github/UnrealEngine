@@ -1019,13 +1019,16 @@ void UWidgetComponent::RegisterWindow()
 		{
 			if (UWorld* LocalWorld = GetWorld())
 			{
-				UGameInstance* GameInstance = LocalWorld->GetGameInstance();
-				check(GameInstance);
-
-				UGameViewportClient* GameViewportClient = GameInstance->GetGameViewportClient();
-				if (GameViewportClient)
+				if (LocalWorld->IsGameWorld())
 				{
-					SlateWindow->AssignParentWidget(GameViewportClient->GetGameViewportWidget());
+					UGameInstance* GameInstance = LocalWorld->GetGameInstance();
+					check(GameInstance);
+
+					UGameViewportClient* GameViewportClient = GameInstance->GetGameViewportClient();
+					if (GameViewportClient)
+					{
+						SlateWindow->AssignParentWidget(GameViewportClient->GetGameViewportWidget());
+					}
 				}
 			}
 		}
