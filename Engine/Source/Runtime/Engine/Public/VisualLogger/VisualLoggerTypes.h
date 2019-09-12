@@ -266,6 +266,7 @@ public:
 		FVisualLogEntry Entry;
 	};
 
+	FVisualLogDevice();
 	virtual ~FVisualLogDevice() { }
 	virtual void Serialize(const UObject* LogOwner, FName OwnerName, FName InOwnerClassName, const FVisualLogEntry& LogEntry) = 0;
 	virtual void Cleanup(bool bReleaseMemory = false) { /* Empty */ }
@@ -275,6 +276,9 @@ public:
 	virtual void SetFileName(const FString& InFileName) { /* Empty */ }
 	virtual void GetRecordedLogs(TArray<FVisualLogDevice::FVisualLogEntryItem>& OutLogs)  const { /* Empty */ }
 	virtual bool HasFlags(int32 InFlags) const { return false; }
+	uint32 GetShortID() const { return GUID[0]; }
+
+	const FGuid GUID;
 };
 
 struct ENGINE_API FVisualLoggerCategoryVerbosityPair
