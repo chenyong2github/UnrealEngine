@@ -5,13 +5,12 @@
 #include "CoreMinimal.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
-#include "ProxyLODVolume.h"
 
 
 
 
 
-class MODELINGOPERATORSEDITORONLY_API FPlaneCutOp : public FDynamicMeshOperator
+class MODELINGOPERATORS_API FPlaneCutOp : public FDynamicMeshOperator
 {
 public:
 	virtual ~FPlaneCutOp() {}

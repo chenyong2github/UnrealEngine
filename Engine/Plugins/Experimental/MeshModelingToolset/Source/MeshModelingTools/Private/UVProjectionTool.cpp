@@ -202,17 +202,8 @@ void UUVProjectionTool::Shutdown(EToolShutdownType ShutdownType)
 		GenerateAsset(Results);
 	}
 
-	// TODO MAKE THIS UNNECESSARY GIZMOS SHOULD BE AUTO DESTROYED!!
-	for (UTransformGizmo* TransformGizmo : TransformGizmos)
-	{
-		if (TransformGizmo != nullptr)
-		{
-			GizmoManager->DestroyGizmo(TransformGizmo);
-		}
-	}
+	GizmoManager->DestroyAllGizmosByOwner(this);
 	TransformGizmos.Empty();
-
-	GizmoManager->DeregisterGizmoType(TEXT("TransformGizmo"));
 }
 
 void UUVProjectionTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)

@@ -16,6 +16,8 @@
 // predeclarations
 struct FMeshDescription;
 class USimpleDynamicMeshComponent;
+class UTransformGizmo;
+class UTransformProxy;
 
 
 
@@ -25,7 +27,7 @@ class USimpleDynamicMeshComponent;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UPlaneCutToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UPlaneCutToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 
@@ -44,7 +46,7 @@ public:
  * Standard properties of the plane cut operation
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UPlaneCutToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UPlaneCutToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -76,7 +78,7 @@ public:
  * Advanced properties of the plane cut operation
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UPlaneCutAdvancedProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UPlaneCutAdvancedProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -94,7 +96,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UPlaneCutOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API UPlaneCutOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
@@ -113,7 +115,7 @@ public:
  * Simple Mesh Plane Cutting Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UPlaneCutTool : public USingleSelectionTool
+class MESHMODELINGTOOLS_API UPlaneCutTool : public USingleSelectionTool
 {
 	GENERATED_BODY()
 
@@ -170,11 +172,13 @@ protected:
 
 	FViewCameraState CameraState;
 
-	// cutting plane control
 	UPROPERTY()
-	UInteractiveGizmo* PositionPlaneGizmo;
+	UTransformGizmo* PlaneTransformGizmo;
 
-	void UpdateCutPlaneFromGizmo(const FFrame3d& WorldPosition);
+	UPROPERTY()
+	UTransformProxy* PlaneTransformProxy;
+
+	void TransformChanged(UTransformProxy* Proxy, FTransform Transform);
 
 	void UpdateNumPreviews();
 

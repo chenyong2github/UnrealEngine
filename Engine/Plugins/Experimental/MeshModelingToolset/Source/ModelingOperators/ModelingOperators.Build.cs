@@ -31,7 +31,6 @@ public class ModelingOperators : ModuleRules
 				// editor dependencies
 				//
 				//"MeshSolverUtilities",
-				//"GeometryAlgorithms", // required for constrained Delaunay triangulation
                 //"ProxyLODMeshReduction", // currently required to be public due to IVoxelBasedCSG API
                 //"MeshDescription",
 
@@ -40,6 +39,7 @@ public class ModelingOperators : ModuleRules
 				"GeometricObjects",
 				"DynamicMesh",
 				"MeshConversion",
+                "GeometryAlgorithms", // required for constrained Delaunay triangulation
                 "MeshSolverUtilities", // required by the smoothing operators
 				// ... add other public dependencies that you statically link with here ...
 			}

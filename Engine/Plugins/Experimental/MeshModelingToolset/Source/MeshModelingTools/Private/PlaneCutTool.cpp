@@ -15,7 +15,10 @@
 
 #include "InteractiveGizmoManager.h"
 
-#include "PositionPlaneGizmo.h"
+#include "BaseGizmos/GizmoComponents.h"
+#include "BaseGizmos/TransformGizmo.h"
+
+#include "Drawing/MeshDebugDrawing.h"
 #include "AssetGenerationUtil.h"
 
 #include "CuttingOps/PlaneCutOp.h"
@@ -103,15 +106,10 @@ void UPlaneCutTool::Setup()
 	ClickToSetPlaneBehavior->Initialize(SetPointInWorldConnector);
 	AddInputBehavior(ClickToSetPlaneBehavior);
 
-
-	UPositionPlaneGizmoBuilder* PositionPlaneGizmoBuilder = NewObject<UPositionPlaneGizmoBuilder>();
+	// create proxy and gizmo (but don't attach yet)
 	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
-	GizmoManager->RegisterGizmoType(TEXT("CutPlaneGizmo"), PositionPlaneGizmoBuilder);
-	PositionPlaneGizmo = GizmoManager->CreateGizmo(TEXT("CutPlaneGizmo"), TEXT("TestGizmo2"));
-	Cast<UPositionPlaneGizmo>(PositionPlaneGizmo)->OnPositionUpdatedFunc = [this](const FFrame3d& WorldFrame)
-	{
-		UpdateCutPlaneFromGizmo(WorldFrame);
-	};
+	PlaneTransformProxy = NewObject<UTransformProxy>(this);
+	PlaneTransformGizmo = GizmoManager->Create3AxisTransformGizmo(TEXT("PlaneCutToolTransformGizmo"), this);
 
 	BasicProperties = NewObject<UPlaneCutToolProperties>(this, TEXT("Plane Cut Settings"));
 	AdvancedProperties = NewObject<UPlaneCutAdvancedProperties>(this, TEXT("Advanced Settings"));
@@ -124,9 +122,12 @@ void UPlaneCutTool::Setup()
 	// initialize the PreviewMesh+BackgroundCompute object
 	UpdateNumPreviews();
 
+	// set initial cut plane (also attaches gizmo/proxy)
 	FVector DefaultOrigin, Extents;
 	ComponentTarget->GetOwnerActor()->GetActorBounds(false, DefaultOrigin, Extents);
 	SetCutPlaneFromWorldPos(DefaultOrigin, FVector::UpVector);
+	// hook up callback so further changes trigger recut
+	PlaneTransformProxy->OnTransformChanged.AddUObject(this, &UPlaneCutTool::TransformChanged);
 
 
 
@@ -194,9 +195,7 @@ void UPlaneCutTool::Shutdown(EToolShutdownType ShutdownType)
 		delete SetPointInWorldConnector;
 	}
 	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
-	GizmoManager->DestroyGizmo(PositionPlaneGizmo);
-	PositionPlaneGizmo = nullptr;
-	GizmoManager->DeregisterGizmoType(TEXT("CutPlaneGizmo"));
+	GizmoManager->DestroyAllGizmosByOwner(this);
 }
 
 void UPlaneCutTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
@@ -237,6 +236,14 @@ TSharedPtr<FDynamicMeshOperator> UPlaneCutOperatorFactory::MakeNewOperator()
 
 void UPlaneCutTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
+	FColor GridColor(128, 128, 128, 32);
+	float GridThickness = 0.5f;
+	float GridLineSpacing = 25.0f;   // @todo should be relative to view
+	int NumGridLines = 10;
+	
+	FFrame3f DrawFrame(CutPlaneOrigin, CutPlaneOrientation);
+	MeshDebugDraw::DrawSimpleGrid(DrawFrame, NumGridLines, GridLineSpacing, GridThickness, GridColor, false, PDI, FTransform::Identity);
 }
 
 void UPlaneCutTool::Tick(float DeltaTime)
@@ -248,7 +255,7 @@ void UPlaneCutTool::Tick(float DeltaTime)
 }
 
 
-
+#if WITH_EDITOR
 void UPlaneCutTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	UpdateNumPreviews();
@@ -257,6 +264,7 @@ void UPlaneCutTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		Preview->InvalidateResult();
 	}
 }
+#endif
 
 void UPlaneCutTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
 {
@@ -268,6 +276,16 @@ void UPlaneCutTool::OnPropertyModified(UObject* PropertySet, UProperty* Property
 }
 
 
+void UPlaneCutTool::TransformChanged(UTransformProxy* Proxy, FTransform Transform)
+{
+	// TODO: if multi-select is re-enabled, only invalidate the preview that actually needs it?
+	CutPlaneOrientation = Transform.GetRotation();
+	CutPlaneOrigin = (FVector)Transform.GetTranslation();
+	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
+	{
+		Preview->InvalidateResult();
+	}
+}
 
 
 void UPlaneCutTool::SetCutPlaneFromWorldPos(const FVector& Position, const FVector& Normal)
@@ -277,19 +295,8 @@ void UPlaneCutTool::SetCutPlaneFromWorldPos(const FVector& Position, const FVect
 	FFrame3f CutPlane(Position, Normal);
 	CutPlaneOrientation = CutPlane.Rotation;
 
-	UPositionPlaneGizmo* Gizmo = Cast<UPositionPlaneGizmo>(PositionPlaneGizmo);
-	Gizmo->ExternalUpdatePosition(CutPlaneOrigin, CutPlaneOrientation, false);
-}
-
-
-void UPlaneCutTool::UpdateCutPlaneFromGizmo(const FFrame3d& WorldPosition)
-{
-	CutPlaneOrientation = WorldPosition.Rotation;
-	CutPlaneOrigin = (FVector)WorldPosition.Origin;
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
-	{
-		Preview->InvalidateResult();
-	}
+	PlaneTransformProxy->SetTransform(CutPlane.ToFTransform());
+	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy);
 }
 
 
@@ -326,6 +333,9 @@ void UPlaneCutTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResult>>
 		Converter.Convert(Results[0]->Mesh.Get(), *MeshDescription);
 	});
 
+
+	// The method for creating a new mesh (AssetGenerationUtil::GenerateStaticMeshActor) is editor-only; just creating the other half if not in editor
+#if WITH_EDITOR
 	if (Results.Num() == 2)
 	{
 		FSelectedOjectsChangeList NewSelection;
@@ -341,6 +351,7 @@ void UPlaneCutTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResult>>
 		NewSelection.Actors.Add(NewActor);
 		GetToolManager()->RequestSelectionChange(NewSelection);
 	}
+#endif
 
 	GetToolManager()->EndUndoTransaction();
 }
