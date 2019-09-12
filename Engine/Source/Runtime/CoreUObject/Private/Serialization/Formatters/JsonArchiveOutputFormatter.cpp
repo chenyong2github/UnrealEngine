@@ -371,7 +371,7 @@ void FJsonArchiveOutputFormatter::Serialize(FSoftObjectPath& Value)
 {
 	if (Value.IsValid())
 	{
-		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value.GetAssetPathName().ToString()));
+		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value.ToString()));
 	}
 	else
 	{
