@@ -1362,6 +1362,11 @@ public:
 	{
 	}
 
+	static void HidePlatformStartupScreen()
+	{
+
+	}
+
 #if !UE_BUILD_SHIPPING
 	/** 
 	 * Returns any platform specific warning messages we want printed on screen
@@ -1369,10 +1374,6 @@ public:
 	static bool GetPlatformScreenWarnings(TArray<FText>& PlatformScreenWarnings)
 	{
 		return false;
-	}
-
-	static void HidePlatformStartupScreen()
-	{
 	}
 
 protected:
