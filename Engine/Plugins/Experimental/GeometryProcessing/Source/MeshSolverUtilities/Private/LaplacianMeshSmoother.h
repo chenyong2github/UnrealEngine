@@ -178,10 +178,10 @@ public:
 	FDiffusionIntegrator(const FDynamicMesh3& DynamicMesh, const ELaplacianWeightScheme Scheme);
 	virtual ~FDiffusionIntegrator() {}
 
-	void Integrate_ForwardEuler(int32 NumSteps, double Speed, double);
+	void Integrate_ForwardEuler(const int32 NumSteps, const double Speed);
 
 	// Note: 
-	void Integrate_BackwardEuler(const EMatrixSolverType MatrixSolverType, int32 NumSteps, double Speed, double Intensity);
+	void Integrate_BackwardEuler(const EMatrixSolverType MatrixSolverType, const int32 NumSteps, const double TimeStepSize);
 
 	void GetPositions(TArray<FVector3d>& PositionArray) const;
 
