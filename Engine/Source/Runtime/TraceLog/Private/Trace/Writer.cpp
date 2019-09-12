@@ -478,7 +478,10 @@ static void Writer_UpdateData()
 			bOk &= IoWrite(GDataHandle, &TransportHeader, sizeof(TransportHeader));
 
 			// Passively collected data
-			bOk &= IoWrite(GDataHandle, GHoldBuffer->GetData(), GHoldBuffer->GetSize());
+			if (GHoldBuffer->GetSize())
+			{
+				bOk &= IoWrite(GDataHandle, GHoldBuffer->GetData(), GHoldBuffer->GetSize());
+			}
 
 			if (bOk)
 			{
