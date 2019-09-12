@@ -177,6 +177,9 @@ private:	// CONTEXT MENU
 	/** Handler for 'Select Invalid Instances' command  */
 	void OnSelectInvalidInstances();
 
+	/** Executes Function on gathered list of foliage types from the selected palette items */
+	void ExecuteOnSelectedItemFoliageTypes(TFunctionRef<void(const TArray<const UFoliageType*>&)> ExecuteFunc);
+
 	/** @return Whether selecting instances is currently possible */
 	bool CanSelectInstances() const;
 
