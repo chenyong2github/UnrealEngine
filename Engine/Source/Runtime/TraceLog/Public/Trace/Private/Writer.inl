@@ -4,19 +4,15 @@
 
 #if UE_TRACE_ENABLED
 
-#include <atomic>
 #include "Atomic.h"
 
 namespace Trace
 {
 
-////////////////////////////////////////////////////////////////////////////////
-template <typename Type>
-using TTraceAtomic = std::atomic<Type>;
-
 namespace Private
 {
 
+////////////////////////////////////////////////////////////////////////////////
 #if defined(_MSC_VER)
 	#pragma warning(push)
 	#pragma warning(disable : 4200) // non-standard zero-sized array
