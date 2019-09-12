@@ -308,6 +308,8 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 {
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneStart));
 
+	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+
 	PrepareViewRectsForRendering();
 
 	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
