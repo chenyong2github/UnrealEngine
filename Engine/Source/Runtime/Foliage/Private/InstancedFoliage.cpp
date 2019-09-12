@@ -3152,6 +3152,7 @@ void AInstancedFoliageActor::Destroyed()
 				FoliageActor->DestroyActors(false);
 			}
 		}
+		FoliageInfos.Empty();
 	}
 
 	Super::Destroyed();
