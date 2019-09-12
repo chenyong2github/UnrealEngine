@@ -576,31 +576,6 @@ public:
 	static void WaitForAsyncFileWrites();
 
 	/**
-	* Static: Saves thumbnail data for the specified package outer and linker
-	*
-	* @param	InOuter							the outer to use for the new package
-	* @param	Linker							linker we're currently saving with
-	*/
-	static void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
-
-	/**
-	* Static: Saves asset registry data for the specified package outer and linker
-	*
-	* @param	InOuter							the outer to use for the new package
-	* @param	Linker							linker we're currently saving with
-	*/
-	static void SaveAssetRegistryData(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
-
-	/**
-	* Static: Saves the level information used by the World browser
-	*
-	* @param	InOuter							the outer to use for the new package
-	* @param	Linker							linker we're currently saving with
-	* @param	Record							the structured archive record we should add the world level info to
-	*/
-	static void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FRecord Record);
-
-	/**
 	* Determines if a package contains no more assets.
 	*
 	* @param Package			the package to test
@@ -608,16 +583,5 @@ public:
 	* @return true if Package contains no more assets.
 	*/
 	static bool IsEmptyPackage(UPackage* Package, const UObject* LastReferencer = NULL);
-
-	/**
-	* Determines the set of object marks that should be excluded for the target platform
-	*
-	* @param TargetPlatform	The platform being saved for
-	* @param bIsCooking		Whether we are cooking or not
-	*
-	* @return Excluded object marks specific for the particular target platform, objects with any of these marks will be rejected from the cook
-	*/
-	static EObjectMark GetExcludedObjectMarksForTargetPlatform( const class ITargetPlatform* TargetPlatform, const bool bIsCooking );
-
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
