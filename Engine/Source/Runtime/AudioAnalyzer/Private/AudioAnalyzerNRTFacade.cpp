@@ -83,10 +83,10 @@ namespace Audio
 		}
 
 		// Convert 16 bit pcm to 32 bit float
-		TSampleBuffer<float> FloatSamples((const int16*)InRawWaveData.GetData(), InRawWaveData.Num(), InNumChannels, InSampleRate);
+		TSampleBuffer<float> FloatSamples((const int16*)InRawWaveData.GetData(), InRawWaveData.Num() / 2, InNumChannels, InSampleRate);
 
 		// Perform and finalize audio analysis.
-		Worker->Analyze(FloatSamples, Result.Get());
+		Worker->Analyze(FloatSamples.GetArrayView(), Result.Get());
 		Worker->Finalize(Result.Get());
 
 		return Result;
