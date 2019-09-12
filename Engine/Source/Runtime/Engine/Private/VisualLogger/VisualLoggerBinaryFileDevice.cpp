@@ -33,6 +33,9 @@ void FVisualLoggerBinaryFileDevice::StartRecordingToFile(float TimeStamp)
 		return;
 	}
 
+	// start new session
+	SessionGUID = FGuid::NewGuid();
+
 	StartRecordingTime = TimeStamp;
 	LastLogTimeStamp = StartRecordingTime;
 	TempFileName = FVisualLoggerHelpers::GenerateTemporaryFilename(VISLOG_FILENAME_EXT);
@@ -61,7 +64,7 @@ void FVisualLoggerBinaryFileDevice::StopRecordingToFile(float TimeStamp)
 	FileArchive = nullptr;
 
 	const FString TempFullFilename = FPaths::Combine(*FPaths::ProjectLogDir(), *TempFileName);
-	const FString NewFileName = FString::Printf(TEXT("%u_%s"), GetShortID(), *FVisualLoggerHelpers::GenerateFilename(TempFileName, FileName, StartRecordingTime, LastLogTimeStamp));
+	const FString NewFileName = FString::Printf(TEXT("%u_%s"), GetShortSessionID(), *FVisualLoggerHelpers::GenerateFilename(TempFileName, FileName, StartRecordingTime, LastLogTimeStamp));
 	const FString NewFullFileName = FPaths::Combine(*FPaths::ProjectLogDir(), *NewFileName);
 
 	if (TotalSize > 0)
