@@ -61,6 +61,13 @@ bool FCEFBrowserHandler::OnTooltip(CefRefPtr<CefBrowser> Browser, CefString& Tex
 	return false;
 }
 
+bool FCEFBrowserHandler::OnConsoleMessage(CefRefPtr<CefBrowser> Browser, const CefString& Message, const CefString& Source, int Line)
+{
+	ConsoleMessageDelegate.ExecuteIfBound(Browser, Message, Source, Line);
+	// Return false to let it output to console.
+	return false;
+}
+
 void FCEFBrowserHandler::OnAfterCreated(CefRefPtr<CefBrowser> Browser)
 {
 	if(Browser->IsPopup())
@@ -234,9 +241,22 @@ void FCEFBrowserHandler::OnLoadError(CefRefPtr<CefBrowser> Browser,
 void FCEFBrowserHandler::OnLoadStart(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame)
 {
 }
+#elif PLATFORM_WINDOWS
+void FCEFBrowserHandler::OnLoadStart(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, TransitionType CefTransitionType)
+{
+	if (Browser->GetHost()->GetWindowHandle() != nullptr)
+	{
+		RECT rcWnd;
+		GetWindowRect(Browser->GetHost()->GetWindowHandle(), &rcWnd);
+		float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(rcWnd.left, rcWnd.top);
+		double ZoomLevel = (double((DPIScaleFactor * 100) - 100)) / 25.0;
+		Browser->GetHost()->SetZoomLevel(ZoomLevel);
+	}
+}
 #else
 void FCEFBrowserHandler::OnLoadStart(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, TransitionType CefTransitionType)
 {
+
 }
 #endif
 
@@ -323,6 +343,7 @@ void FCEFBrowserHandler::OnPopupSize(CefRefPtr<CefBrowser> Browser, const CefRec
 bool FCEFBrowserHandler::GetScreenInfo(CefRefPtr<CefBrowser> Browser, CefScreenInfo& ScreenInfo)
 {
 	TSharedPtr<FWebBrowserWindow> BrowserWindow = BrowserWindowPtr.Pin();
+	ScreenInfo.depth = 24;
 
 	if (BrowserWindow.IsValid() && BrowserWindow->GetParentWindow().IsValid())
 	{
@@ -371,6 +392,20 @@ CefRequestHandler::ReturnValue FCEFBrowserHandler::OnBeforeResourceLoad(CefRefPt
 			HeaderMap.insert(std::pair<CefString, CefString>(TCHAR_TO_WCHAR(*LanguageHeaderText), TCHAR_TO_WCHAR(*LocaleCode)));
 		}
 
+		if (BeforeResourceLoadDelegate.IsBound())
+		{
+			FRequestHeaders AdditionalHeaders;
+			BeforeResourceLoadDelegate.Execute(Request->GetURL(), Request->GetResourceType(), AdditionalHeaders);
+
+			for (auto Iter = AdditionalHeaders.CreateConstIterator(); Iter; ++Iter)
+			{
+				const FString& Header = Iter.Key();
+				const FString& Value = Iter.Value();
+
+				HeaderMap.insert(std::pair<CefString, CefString>(TCHAR_TO_WCHAR(*Header), TCHAR_TO_WCHAR(*Value)));
+			}
+		}
+
 		TSharedPtr<FCEFWebBrowserWindow> BrowserWindow = BrowserWindowPtr.Pin();
 
 		if (BrowserWindow.IsValid())
@@ -410,6 +445,21 @@ CefRequestHandler::ReturnValue FCEFBrowserHandler::OnBeforeResourceLoad(CefRefPt
 
 	// Tell CEF that we're handling this asynchronously.
 	return RV_CONTINUE_ASYNC;
+}
+
+void FCEFBrowserHandler::OnResourceLoadComplete(
+	CefRefPtr<CefBrowser> Browser,
+	CefRefPtr<CefFrame> Frame,
+	CefRefPtr<CefRequest> Request,
+	CefRefPtr<CefResponse> Response,
+	URLRequestStatus Status,
+	int64 Received_content_length)
+{
+	// Current thread is IO thread. We need to invoke our delegates on the UI (aka Game) thread:
+	CefPostTask(TID_UI, new FCEFBrowserClosureTask(this, [=]()
+	{
+		ResourceLoadCompleteDelegate.ExecuteIfBound(Request->GetURL(), Request->GetResourceType(), Status, Received_content_length);
+	}));
 }
 
 void FCEFBrowserHandler::OnRenderProcessTerminated(CefRefPtr<CefBrowser> Browser, TerminationStatus Status)

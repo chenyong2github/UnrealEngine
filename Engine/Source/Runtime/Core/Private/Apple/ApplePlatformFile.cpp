@@ -520,7 +520,7 @@ IFileHandle* FApplePlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrit
 	{
 #if PLATFORM_MAC && !UE_BUILD_SHIPPING
 		// No blocking attempt shared lock, failure means we should not have opened the file for reading, protect against multiple instances and client/server versions
-		if(flock(Handle, LOCK_NB | LOCK_SH) == -1)
+		if(!bAllowWrite && flock(Handle, LOCK_NB | LOCK_SH) == -1)
 		{
 			close(Handle);
 			return NULL;
@@ -555,7 +555,7 @@ IFileHandle* FApplePlatformFile::OpenWrite(const TCHAR* Filename, bool bAppend, 
 	{
 #if PLATFORM_MAC && !UE_BUILD_SHIPPING
 		// No blocking attempt exclusive lock, failure means we should not have opened the file for writing, protect against multiple instances and client/server versions
-		if(flock(Handle, LOCK_NB | LOCK_EX) == -1)
+		if(!bAllowRead && flock(Handle, LOCK_NB | LOCK_EX) == -1)
 		{
 			close(Handle);
 			return NULL;

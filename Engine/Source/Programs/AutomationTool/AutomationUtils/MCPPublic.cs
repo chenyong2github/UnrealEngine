@@ -727,8 +727,12 @@ namespace EpicGames.MCP.Automation
 			public string ManifestB;
 			/// <summary>
 			/// The install tags to use for ManifestB.
-			/// </summary
+			/// </summary>
 			public HashSet<string> InstallTagsB;
+			/// <summary>
+			/// Tag sets to be compared between manifests 
+			/// </summary>
+			public List<HashSet<string>> CompareTagSets;
 		}
 
 		public class ManifestDiffOutput
@@ -761,10 +765,18 @@ namespace EpicGames.MCP.Automation
 				/// </summary>
 				public Dictionary<string, ulong> IndividualTagDownloadSizes;
 				/// <summary>
+				/// The list of download sizes for each tag set that was in the list to be analyzed.
+				/// </summary>
+				public Dictionary<string, ulong> CompareTagSetDownloadSizes;
+				/// <summary>
 				/// The list of build sizes for each individual install tag that was used.
 				/// Note that the sum of these can be higher than the actual total due to possibility of shares files.
 				/// </summary>
 				public Dictionary<string, ulong> IndividualTagBuildSizes;
+				/// <summary>
+				/// The list of build sizes for each tag set that was in the list to be analyzed.
+				/// </summary>
+				public Dictionary<string, ulong> CompareTagSetBuildSizes;
 			}
 			public class ManifestDiff
 			{
@@ -793,10 +805,22 @@ namespace EpicGames.MCP.Automation
 				/// </summary>
 				public ulong DeltaDownloadSize;
 				/// <summary>
+				/// The required disk space to apply the patch from ManifestA to ManifestB, subject to using the tags that were provided.
+				/// </summary>
+				public ulong TempDiskSpaceReq;
+				/// <summary>
 				/// The list of delta sizes for each individual install tag that was used.
 				/// Note that the sum of these can be higher than the actual total due to possibility of shares files.
 				/// </summary>
 				public Dictionary<string, ulong> IndividualTagDeltaSizes;
+				/// <summary>
+				/// The list of delta sizes for each tag set that was in the list to be analyzed.
+				/// </summary>
+				public Dictionary<string, ulong> CompareTagSetDeltaSizes;
+				/// <summary>
+				/// The list of disk space requirements to apply the patch for each tag set that was in the list to be analyzed.
+				/// </summary>
+				public Dictionary<string, ulong> CompareTagSetTempDiskSpaceReqs;
 				/// <summary>
 				/// Install time coefficients represent an estimation for time to install the patch. These are not accurate timing representations, but are comparable between runs with different versions.
 				/// They can be used to spot out of the ordinary time requirements for installing an update.
@@ -1079,6 +1103,15 @@ namespace EpicGames.MCP.Automation
 		abstract public void PostBuildInfo(BuildPatchToolStagingInfo StagingInfo, string McpConfigName);
 
 		/// <summary>
+		/// Sets a value in the key/value pair metadata associated with the specified build.
+		/// </summary>
+		/// <param name="StagingIfno">StagingInfo describing the build info to edit.</param>
+		/// <param name="Key">The key for the metadata item.</param>
+		/// <param name="Value">The value to associate with the key.</param>
+		/// <param name="McpConfigName">Name of which MCP config to post to.</param>
+		abstract public void SetMetadata(BuildPatchToolStagingInfo StagingInfo, string Key, string Value, string McpConfigName);
+
+		/// <summary>
 		/// Given a BuildVersion defining our a build, return the labels applied to that build
 		/// </summary>
 		/// <param name="BuildVersion">Build version to return labels for.</param>
@@ -1172,6 +1205,9 @@ namespace EpicGames.MCP.Automation
     {
         static McpAccountServiceBase Handler = null;
 
+		Dictionary<string, Tuple<string, DateTime>> CachedTokens = new Dictionary<string, Tuple<string, DateTime>>();
+		readonly object CachedTokensLock = new object();
+
         public static McpAccountServiceBase Get()
         {
             if (Handler == null)
@@ -1204,7 +1240,35 @@ namespace EpicGames.MCP.Automation
 		/// <returns>An OAuth client token for the specified environment.</returns>
 		public string GetClientToken(McpConfigData McpConfig)
 		{
-			return GetClientToken(McpConfig, McpConfig.ClientId, McpConfig.ClientSecret);
+			lock(CachedTokensLock)
+			{
+				if (CachedTokens.ContainsKey(McpConfig.Name))
+				{
+					Tuple<string, DateTime> TokenWithExpiry = CachedTokens[McpConfig.Name];
+					if (TokenWithExpiry.Item2 > DateTime.UtcNow)
+					{
+						CommandUtils.LogInformation("Reusing client token for {0} with expiry {1:yyyy-MM-dd HH:mm:ss}", McpConfig.Name, TokenWithExpiry.Item2);
+						return TokenWithExpiry.Item1;
+					}
+				}
+			}
+
+			DateTime Expiry;
+			string Result = GetClientToken(McpConfig, McpConfig.ClientId, McpConfig.ClientSecret, out Expiry);
+
+			lock(CachedTokensLock)
+			{
+				if (CachedTokens.ContainsKey(McpConfig.Name))
+				{
+					CachedTokens[McpConfig.Name] = new Tuple<string, DateTime>(Result, Expiry);
+				}
+				else
+				{
+					CachedTokens.Add(McpConfig.Name, new Tuple<string, DateTime>(Result, Expiry));
+				}
+				CommandUtils.LogInformation("Obtained new client token for {0} with expiry {1:yyyy-MM-dd HH:mm:ss}", McpConfig.Name, Expiry);
+			}
+			return Result;
 		}
 
 		/// <summary>
@@ -1225,7 +1289,21 @@ namespace EpicGames.MCP.Automation
 		/// <param name="ClientId">The client id used to obtain the token</param>
 		/// <param name="ClientSecret">The client secret used to obtain the token</param>
 		/// <returns>An OAuth client token for the specified environment.</returns>
-		public abstract string GetClientToken(McpConfigData McpConfig, string ClientId, string ClientSecret);
+		public string GetClientToken(McpConfigData McpConfig, string ClientId, string ClientSecret)
+		{
+			DateTime ThrowAway;
+			return GetClientToken(McpConfig, ClientId, ClientSecret, out ThrowAway);
+		}
+
+		/// <summary>
+		/// Gets an OAuth client token for an environment using the specified client id and client secret
+		/// </summary>
+		/// <param name="McpConfig">A descriptor for the environment we want a token for</param>
+		/// <param name="ClientId">The client id used to obtain the token</param>
+		/// <param name="ClientSecret">The client secret used to obtain the token</param>
+		/// <param name="Expiry">Output parameter which receives the expiry date of the generated token</param>
+		/// <returns>An OAuth client token for the specified environment.</returns>
+		public abstract string GetClientToken(McpConfigData McpConfig, string ClientId, string ClientSecret, out DateTime Expiry);
 
 		public abstract string SendWebRequest(WebRequest Upload, string Method, string ContentType, byte[] Data);
     }
@@ -1797,7 +1875,7 @@ namespace EpicGames.MCP.Config
 			CommandUtils.LogVerbose("LauncherV2BaseUrl : {0}", LauncherV2BaseUrl);
 			CommandUtils.LogVerbose("CatalogBaseUrl : {0}", CatalogBaseUrl);
             CommandUtils.LogVerbose("ClientId : {0}", ClientId);
-            // we don't really want this in logs CommandUtils.Log("ClientSecret : {0}", ClientSecret);
+            // we don't really want this in logs CommandUtils.LogVerbose("ClientSecret : {0}", ClientSecret);
         }
     }
 

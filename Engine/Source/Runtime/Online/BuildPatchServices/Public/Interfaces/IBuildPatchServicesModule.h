@@ -5,14 +5,15 @@
 #include "Modules/ModuleInterface.h"
 #include "Interfaces/IBuildInstaller.h"
 #include "Interfaces/IBuildStatistics.h"
+#include "Interfaces/IPatchDataEnumeration.h"
 #include "BuildPatchSettings.h"
 
-class FHttpServiceTracker;
 class IAnalyticsProvider;
 
 /**
  * Delegates that will be accepted and fired off by the implementation.
  */
+DECLARE_DELEGATE_OneParam(FBuildPatchInstallerDelegate, const IBuildInstallerRef&);
 DECLARE_DELEGATE_TwoParams(FBuildPatchBoolManifestDelegate, bool, IBuildManifestRef);
 
 namespace ECompactifyMode
@@ -37,11 +38,25 @@ public:
 	virtual ~IBuildPatchServicesModule() { }
 
 	/**
+	 * Factory providing construction of a build installer class.
+	 * @param Configuration     The configuration for the installer.
+	 * @return an instance of an IBuildInstaller implementation.
+	 */
+	virtual IBuildInstallerRef CreateBuildInstaller(BuildPatchServices::FBuildInstallerConfiguration Configuration, FBuildPatchInstallerDelegate OnComplete) const = 0;
+
+	/**
 	 * Factory providing construction of a build statistics class.
 	 * @param Installer     The installer to create a build statistics for.
 	 * @return an instance of an IBuildStatistics implementation. 
 	 */
 	virtual BuildPatchServices::IBuildStatisticsRef CreateBuildStatistics(const IBuildInstallerRef& Installer) const = 0;
+
+	/**
+	 * Factory providing construction of a patch data enumeration class.
+	 * @param Configuration         Specifies the settings for the operation.  See BuildPatchServices::FPatchDataEnumerationConfiguration comments.
+	 * @return an instance of an IPatchDataEnumeration implementation. 
+	 */
+	virtual BuildPatchServices::IPatchDataEnumerationRef CreatePatchDataEnumeration(BuildPatchServices::FPatchDataEnumerationConfiguration Configuration) const = 0;
 
 	/**
 	 * Loads a Build Manifest from file and returns the interface
@@ -70,43 +85,6 @@ public:
 	 * @return a set containing all installed prerequisite identifiers.
 	 */
 	virtual TSet<FString> GetInstalledPrereqIds() const = 0;
-
-	/**
-	 * Starts an installer thread for the provided manifests
-	 * NB: THIS FUNCTION WILL EVENTUALLY BE DEPRECATED.
-	 *     Use StartBuildInstall(const BuildPatchServices::FInstallerConfiguration& Configuration);
-	 * @param	CurrentManifest			The manifest that the current install was generated from (if applicable)
-	 * @param	InstallManifest			The manifest to be installed
-	 * @param	InstallDirectory		The directory to install the App to
-	 * @param	OnCompleteDelegate		The delegate to call on completion
-	 * @param	bIsRepair				Whether the operation is a repair to an existing installation
-	 * @param	InstallTags				The set of tags that describe what to be installed, default empty set means full installation
-	 * @return		An interface to the created installer. Will be an invalid ptr if error.
-	 */
-	virtual IBuildInstallerPtr StartBuildInstall(IBuildManifestPtr CurrentManifest, IBuildManifestPtr InstallManifest, const FString& InstallDirectory, FBuildPatchBoolManifestDelegate OnCompleteDelegate, bool bIsRepair = false, TSet<FString> InstallTags = TSet<FString>()) = 0;
-
-	/**
-	 * Starts an installer thread for the provided manifests, only producing the necessary stage. Useful for handling specific install directory write access requirements yourself.
-	 * The staged files will be in the provided staging directory as StagingDirectory/Install/
-	 * NB: THIS FUNCTION WILL EVENTUALLY BE DEPRECATED.
-	 *     Use StartBuildInstall(const BuildPatchServices::FInstallerConfiguration& Configuration);
-	 * @param	CurrentManifest			The manifest that the current install was generated from (if applicable)
-	 * @param	InstallManifest			The manifest to be installed
-	 * @param	InstallDirectory		The directory to install the App to - this should still be the real install directory. It may be read from for patching.
-	 * @param	OnCompleteDelegate		The delegate to call on completion
-	 * @param	bIsRepair				Whether the operation is a repair to an existing installation
-	 * @param	InstallTags				The set of tags that describe what to be installed, default empty set means full installation
-	 * @return		An interface to the created installer. Will be an invalid ptr if error.
-	 */
-	virtual IBuildInstallerPtr StartBuildInstallStageOnly(IBuildManifestPtr CurrentManifest, IBuildManifestPtr InstallManifest, const FString& InstallDirectory, FBuildPatchBoolManifestDelegate OnCompleteDelegate, bool bIsRepair = false, TSet<FString> InstallTags = TSet<FString>()) = 0;
-
-	/**
-	 * Starts an installer thread for the provided manifests
-	 * @param   Configuration           The full configuration for the installer.
-	 * @param   OnCompleteDelegate      The delegate to call on completion.
-	 * @return  An interface to the created installer.
-	 */
-	virtual IBuildInstallerRef StartBuildInstall(BuildPatchServices::FInstallerConfiguration Configuration, FBuildPatchBoolManifestDelegate OnCompleteDelegate) = 0;
 
 	/**
 	 * Gets a list of currently active installers
@@ -144,13 +122,6 @@ public:
 	 * @param AnalyticsProvider		Shared ptr to an analytics interface to use. If NULL analytics will be disabled.
 	 */
 	virtual void SetAnalyticsProvider( TSharedPtr< IAnalyticsProvider > AnalyticsProvider ) = 0;
-
-	/**
-	 * Set the Http Service Tracker to be used for tracking Http Service responsiveness.
-	 * Will only track HTTP requests, not file requests.
-	 * @param HttpTracker	Shared ptr to an Http service tracker interface to use. If NULL tracking will be disabled.
-	 */
-	virtual void SetHttpTracker( TSharedPtr< FHttpServiceTracker > HttpTracker ) = 0;
 
 	/**
 	 * Registers an installation on this machine. This information is used to gather a list of install locations that can be used as chunk sources.
@@ -250,9 +221,9 @@ public:
 	DECLARE_EVENT(IBuildPatchServicesModule, FSimpleEvent)
 	virtual FSimpleEvent& OnStartBuildInstall() = 0;
 
-	/**
-	 * Deprecated function, use MakeManifestFromData instead.
-	 */
+
+	///// DEPRECATED FUNCTIONS
+
 	UE_DEPRECATED(4.21, "MakeManifestFromJSON(const FString& ManifestJSON) has been deprecated.  Please use MakeManifestFromData(const TArray<uint8>& ManifestData) instead.")
 	virtual IBuildManifestPtr MakeManifestFromJSON(const FString& ManifestJSON) = 0;
 
@@ -270,5 +241,64 @@ public:
 	virtual bool GenerateChunksManifestFromDirectory(const BuildPatchServices::FGenerationConfiguration& Configuration)
 	{
 		return ChunkBuildDirectory(Configuration);
+	}
+
+	UE_DEPRECATED(4.23, "StartBuildInstall(IBuildManifestPtr, IBuildManifestPtr, const FString&, FBuildPatchBoolManifestDelegate, bool, TSet<FString>) has been deprecated.  Please use CreateBuildInstaller(BuildPatchServices::FBuildInstallerConfiguration, FBuildPatchInstallerDelegate) instead, followed by IBuildInstaller::StartInstallation.")
+	IBuildInstallerPtr StartBuildInstall(IBuildManifestPtr CurrentManifest, IBuildManifestPtr InstallManifest, const FString& InstallDirectory, FBuildPatchBoolManifestDelegate OnCompleteDelegate, bool bIsRepair = false, TSet<FString> InstallTags = TSet<FString>())
+	{
+		BuildPatchServices::FBuildInstallerConfiguration InstallerConfiguration({ BuildPatchServices::FInstallerAction::MakeInstallOrUpdate(CurrentManifest, InstallManifest.ToSharedRef(), InstallTags) });
+		FBuildPatchInstallerDelegate CompleteDelegate = FBuildPatchInstallerDelegate::CreateLambda([OnCompleteDelegate, InstallManifest](const IBuildInstallerRef& Installer)
+		{
+			OnCompleteDelegate.ExecuteIfBound(Installer->CompletedSuccessfully(), InstallManifest.ToSharedRef());
+		});
+		IBuildInstallerRef Installer = CreateBuildInstaller(InstallerConfiguration, CompleteDelegate);
+		Installer->StartInstallation();
+		return Installer;
+	}
+
+	UE_DEPRECATED(4.23, "StartBuildInstallStageOnly(IBuildManifestPtr, IBuildManifestPtr, const FString&, FBuildPatchBoolManifestDelegate, bool, TSet<FString>) has been deprecated.  Please use CreateBuildInstaller(BuildPatchServices::FBuildInstallerConfiguration, FBuildPatchInstallerDelegate) instead, followed by IBuildInstaller::StartInstallation.")
+	IBuildInstallerPtr StartBuildInstallStageOnly(IBuildManifestPtr CurrentManifest, IBuildManifestPtr InstallManifest, const FString& InstallDirectory, FBuildPatchBoolManifestDelegate OnCompleteDelegate, bool bIsRepair = false, TSet<FString> InstallTags = TSet<FString>())
+	{
+		BuildPatchServices::FBuildInstallerConfiguration InstallerConfiguration({ BuildPatchServices::FInstallerAction::MakeInstallOrUpdate(CurrentManifest, InstallManifest.ToSharedRef(), InstallTags) });
+		InstallerConfiguration.InstallMode = BuildPatchServices::EInstallMode::StageFiles;
+		FBuildPatchInstallerDelegate CompleteDelegate = FBuildPatchInstallerDelegate::CreateLambda([OnCompleteDelegate, InstallManifest](const IBuildInstallerRef& Installer)
+		{
+			OnCompleteDelegate.ExecuteIfBound(Installer->CompletedSuccessfully(), InstallManifest.ToSharedRef());
+		});
+		IBuildInstallerRef Installer = CreateBuildInstaller(InstallerConfiguration, CompleteDelegate);
+		Installer->StartInstallation();
+		return Installer;
+	}
+
+	UE_DEPRECATED(4.23, "StartBuildInstall(BuildPatchServices::FInstallerConfiguration, FBuildPatchBoolManifestDelegate) has been deprecated.  Please use CreateBuildInstaller(BuildPatchServices::FBuildInstallerConfiguration, FBuildPatchInstallerDelegate) instead, followed by IBuildInstaller::StartInstallation.")
+	IBuildInstallerRef StartBuildInstall(BuildPatchServices::FInstallerConfiguration Configuration, FBuildPatchBoolManifestDelegate OnCompleteDelegate)
+	{
+		FBuildPatchInstallerDelegate CompleteDelegate = FBuildPatchInstallerDelegate::CreateLambda([Configuration, OnCompleteDelegate](const IBuildInstallerRef& Installer)
+		{
+			OnCompleteDelegate.ExecuteIfBound(Installer->CompletedSuccessfully(), Configuration.InstallManifest);
+		});
+		TArray<BuildPatchServices::FInstallerAction> Actions;
+		if (Configuration.bIsRepair)
+		{
+			Actions.Add(BuildPatchServices::FInstallerAction::MakeRepair(Configuration.InstallManifest, Configuration.InstallTags));
+		}
+		else
+		{
+			Actions.Add(BuildPatchServices::FInstallerAction::MakeInstallOrUpdate(Configuration.CurrentManifest, Configuration.InstallManifest, Configuration.InstallTags));
+		}
+		BuildPatchServices::FBuildInstallerConfiguration BuildInstallerConfiguration(MoveTemp(Actions));
+		BuildInstallerConfiguration.InstallDirectory = Configuration.InstallDirectory;
+		BuildInstallerConfiguration.StagingDirectory = Configuration.StagingDirectory;
+		BuildInstallerConfiguration.BackupDirectory = Configuration.BackupDirectory;
+		BuildInstallerConfiguration.ChunkDatabaseFiles = Configuration.ChunkDatabaseFiles;
+		BuildInstallerConfiguration.CloudDirectories = Configuration.CloudDirectories;
+		BuildInstallerConfiguration.InstallMode =  Configuration.InstallMode;
+		BuildInstallerConfiguration.VerifyMode = Configuration.VerifyMode;
+		BuildInstallerConfiguration.DeltaPolicy = Configuration.DeltaPolicy;
+		BuildInstallerConfiguration.bRunRequiredPrereqs = Configuration.bRunRequiredPrereqs;
+		BuildInstallerConfiguration.bAllowConcurrentExecution = Configuration.bAllowConcurrentExecution;
+		IBuildInstallerRef Installer = CreateBuildInstaller(BuildInstallerConfiguration, CompleteDelegate);
+		Installer->StartInstallation();
+		return Installer;
 	}
 };

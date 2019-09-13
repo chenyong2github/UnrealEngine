@@ -61,7 +61,8 @@ namespace BuildPatchServices
 		~FHttpDownload();
 
 		// IDownload interface begin.
-		virtual bool WasSuccessful() const override;
+		virtual bool RequestSuccessful() const override;
+		virtual bool ResponseSuccessful() const override;
 		virtual int32 GetResponseCode() const override;
 		virtual const TArray<uint8>& GetData() const override;
 		// IDownload interface end.
@@ -82,9 +83,14 @@ namespace BuildPatchServices
 	{
 	}
 
-	bool FHttpDownload::WasSuccessful() const
+	bool FHttpDownload::RequestSuccessful() const
 	{
 		return bSuccess;
+	}
+
+	bool FHttpDownload::ResponseSuccessful() const
+	{
+		return EHttpResponseCodes::IsOk(GetResponseCode());
 	}
 
 	int32 FHttpDownload::GetResponseCode() const
@@ -105,7 +111,8 @@ namespace BuildPatchServices
 		~FFileDownload();
 
 		// IDownload interface begin.
-		virtual bool WasSuccessful() const override;
+		virtual bool RequestSuccessful() const override;
+		virtual bool ResponseSuccessful() const override;
 		virtual int32 GetResponseCode() const override;
 		virtual const TArray<uint8>& GetData() const override;
 		// IDownload interface end.
@@ -126,14 +133,19 @@ namespace BuildPatchServices
 	{
 	}
 
-	bool FFileDownload::WasSuccessful() const
+	bool FFileDownload::RequestSuccessful() const
 	{
 		return bSuccess;
 	}
 
+	bool FFileDownload::ResponseSuccessful() const
+	{
+		return EHttpResponseCodes::IsOk(GetResponseCode());
+	}
+
 	int32 FFileDownload::GetResponseCode() const
 	{
-		return WasSuccessful() ? EHttpResponseCodes::Ok : EHttpResponseCodes::NotFound;
+		return RequestSuccessful() ? EHttpResponseCodes::Ok : EHttpResponseCodes::NotFound;
 	}
 
 	const TArray<uint8>& FFileDownload::GetData() const
@@ -560,6 +572,7 @@ namespace BuildPatchServices
 				}
 				DownloadRecord.SpeedRecord.CyclesEnd = FStatsCollector::GetCycles();
 				DownloadRecord.bSuccess = bSuccess;
+				DownloadRecord.ResponseCode = bSuccess ? EHttpResponseCodes::Ok : EHttpResponseCodes::NotFound;
 			}
 			SetFileRequestComplete(RequestId, bSuccess, MoveTemp(FileDataArray), MoveTemp(DownloadRecord));
 		};
