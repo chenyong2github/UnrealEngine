@@ -12,7 +12,7 @@ using System.Reflection;
 
 namespace AutomationTool
 {
-	public struct SingleTargetProperties
+	public class SingleTargetProperties
 	{
 		public string TargetName;
 		public TargetRules Rules;
@@ -568,7 +568,7 @@ namespace AutomationTool
 					TargetRules Rules = Activator.CreateInstance(TargetType, DummyTargetInfo) as TargetRules;
 					CommandUtils.LogVerbose("Adding target: {0} ({1})", TargetType.Name, Rules.Type);
 
-					SingleTargetProperties TargetData;
+					SingleTargetProperties TargetData = new SingleTargetProperties();
 					TargetData.TargetName = GetTargetName(TargetType);
 					TargetData.Rules = Rules;
 					if (Rules.Type == global::UnrealBuildTool.TargetType.Program)
@@ -890,7 +890,7 @@ namespace AutomationTool
 				}
 			}
 
-            SingleTargetProperties Result;
+            SingleTargetProperties Result = new SingleTargetProperties();
             Result.TargetName = ProgramName;
             Result.Rules = null;
             return Result;

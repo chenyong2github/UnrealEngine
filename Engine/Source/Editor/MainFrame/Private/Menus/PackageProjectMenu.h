@@ -90,6 +90,11 @@ public:
 			LOCTEXT("PackageProjectBuildConfigurationSubMenuToolTip", "Select the build configuration to package the project with"),
 			FNewMenuDelegate::CreateStatic(&FPackageProjectMenu::MakeBuildConfigurationsMenu)
 		);
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("PackageProjectBuildTargetSubMenuLabel", "Build Target"),
+			LOCTEXT("PackageProjectBuildTargetSubMenuToolTip", "Select the build target to package"),
+			FNewMenuDelegate::CreateStatic(&FPackageProjectMenu::MakeBuildTargetsMenu)
+		);
 
 		MenuBuilder.AddMenuSeparator();
 		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().PackagingSettings);
@@ -185,6 +190,38 @@ protected:
 				NAME_None,
 				EUserInterfaceActionType::RadioButton
 			);
+		}
+	}
+
+	/**
+	 * Creates a build configuration sub-menu.
+	 *
+	 * @param MenuBuilder The builder for the menu that owns this menu.
+	 */
+	static void MakeBuildTargetsMenu(FMenuBuilder& MenuBuilder)
+	{
+		IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+
+		TArray<FTargetInfo> Targets = DesktopPlatform->GetTargetsForCurrentProject();
+		Targets.Sort([](const FTargetInfo& A, const FTargetInfo& B){ return A.Name < B.Name; });
+
+		for (const FTargetInfo& Target : Targets)
+		{
+			if (Target.Type == EBuildTargetType::Game || Target.Type == EBuildTargetType::Client || Target.Type == EBuildTargetType::Server)
+			{
+				MenuBuilder.AddMenuEntry(
+					FText::FromString(Target.Name),
+					FText::Format(LOCTEXT("PackageTargetName", "Package the '{0}' target."), FText::FromString(Target.Name)),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::PackageBuildTarget, Target.Name),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateStatic(&FMainFrameActionCallbacks::PackageBuildTargetIsChecked, Target.Name)
+					),
+					NAME_None,
+					EUserInterfaceActionType::RadioButton
+				);
+			}
 		}
 	}
 };

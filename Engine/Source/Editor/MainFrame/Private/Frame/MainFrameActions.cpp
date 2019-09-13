@@ -531,6 +531,18 @@ bool FMainFrameActionCallbacks::PackageBuildConfigurationIsChecked( EProjectPack
 	return (GetDefault<UProjectPackagingSettings>()->BuildConfiguration == BuildConfiguration);
 }
 
+void FMainFrameActionCallbacks::PackageBuildTarget( FString TargetName )
+{
+	UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
+	PackagingSettings->BuildTarget = TargetName;
+}
+
+bool FMainFrameActionCallbacks::PackageBuildTargetIsChecked( FString TargetName )
+{
+	const FTargetInfo* Target = GetDefault<UProjectPackagingSettings>()->GetBuildTargetInfo();
+	return (Target != nullptr && Target->Name == TargetName);
+}
+
 void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 {
 	GUnrealEd->CancelPlayingViaLauncher();
@@ -571,7 +583,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 	UProjectPackagingSettings* PackagingSettings = Cast<UProjectPackagingSettings>(UProjectPackagingSettings::StaticClass()->GetDefaultObject());
 	const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[PackagingSettings->BuildConfiguration];
 	bool bAssetNativizationEnabled = (PackagingSettings->BlueprintNativizationMethod != EProjectPackagingBlueprintNativizationMethod::Disabled);
-	
+
 	const ITargetPlatform* const Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatformInfo->TargetPlatformName.ToString());
 	{
 		if (Platform)
@@ -822,13 +834,18 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		OptionalParams += FString::Printf(TEXT(" -NumCookersToSpawn=%d"), NumCookers); 
 	}
 
-	if (ConfigurationInfo.bClientAndServer)
+	const FTargetInfo* Target = PackagingSettings->GetBuildTargetInfo();
+	if (Target == nullptr)
 	{
-		OptionalParams += FString::Printf(TEXT(" -client -clientconfig=%s -server -serverconfig=%s"), LexToString(ConfigurationInfo.Configuration), LexToString(ConfigurationInfo.Configuration));
+		OptionalParams += FString::Printf(TEXT(" -clientconfig=%s"), LexToString(ConfigurationInfo.Configuration));
+	}
+	else if(Target->Type == EBuildTargetType::Server)
+	{
+		OptionalParams += FString::Printf(TEXT(" -target=%s -serverconfig=%s"), *Target->Name, LexToString(ConfigurationInfo.Configuration));
 	}
 	else
 	{
-		OptionalParams += FString::Printf(TEXT(" -clientconfig=%s"), LexToString(ConfigurationInfo.Configuration));
+		OptionalParams += FString::Printf(TEXT(" -target=%s -clientconfig=%s"), *Target->Name, LexToString(ConfigurationInfo.Configuration));
 	}
 
 	FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()) : FPaths::RootDir() / FApp::GetProjectName() / FApp::GetProjectName() + TEXT(".uproject");

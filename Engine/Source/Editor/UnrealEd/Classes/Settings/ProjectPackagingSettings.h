@@ -8,6 +8,8 @@
 #include "Engine/EngineTypes.h"
 #include "ProjectPackagingSettings.generated.h"
 
+struct FTargetInfo;
+
 /**
  * Enumerates the available build configurations for project packaging.
  */
@@ -17,32 +19,17 @@ enum EProjectPackagingBuildConfigurations
 	/** Debug configuration. */
 	PPBC_Debug UMETA(DisplayName="Debug"),
 
-	/** Debug client & server configuration. */
-	PPBC_DebugClientAndServer UMETA(DisplayName = "Debug (Client & Server)"),
-
 	/** DebugGame configuration. */
 	PPBC_DebugGame UMETA(DisplayName="DebugGame"),
-
-	/** DebugGame client & server configuration. */
-	PPBC_DebugGameClientAndServer UMETA(DisplayName = "DebugGame (Client & Server)"),
 
 	/** Development configuration. */
 	PPBC_Development UMETA(DisplayName="Development"),
 
-	/** Development client & server configuration. */
-	PPBC_DevelopmentClientAndServer UMETA(DisplayName = "Development (Client & Server)"),
-
 	/** Test configuration. */
 	PPBC_Test UMETA(DisplayName="Test"),
 
-	/** Test client & server configuration. */
-	PPBC_TestClientAndServer UMETA(DisplayName = "Test (Client & Server)"),
-
 	/** Shipping configuration. */
 	PPBC_Shipping UMETA(DisplayName="Shipping"),
-
-	/** Shipping client & server configuration. */
-	PPBC_ShippingClientAndServer UMETA(DisplayName = "Shipping (Client & Server)"),
 
 	/** Number of entries in the enum. */
 	PPBC_MAX
@@ -121,7 +108,6 @@ public:
 	struct FConfigurationInfo
 	{
 		EBuildConfiguration Configuration;
-		bool bClientAndServer;
 		FText Name;
 		FText ToolTip;
 	};
@@ -138,6 +124,10 @@ public:
 	/** The build configuration for which the project is packaged. */
 	UPROPERTY(config, EditAnywhere, Category=Project)
 	TEnumAsByte<EProjectPackagingBuildConfigurations> BuildConfiguration;
+
+	/** Name of the target to build */
+	UPROPERTY(config, EditAnywhere, Category=Project)
+	FString BuildTarget;
 
 	/** The directory to which the packaged project will be copied. */
 	UPROPERTY(config, EditAnywhere, Category=Project)
@@ -453,6 +443,9 @@ public:
 
 	/** Gets a list of all valid packaging configurations for the current project */
 	static TArray<EProjectPackagingBuildConfigurations> GetValidPackageConfigurations();
+
+	/** Gets the current build target, checking that it's valid, and the default build target if it is not */
+	const FTargetInfo* GetBuildTargetInfo() const;
 
 private:
 	/** Returns the index of the specified Blueprint in the exclusive nativization list (otherwise INDEX_NONE) */
