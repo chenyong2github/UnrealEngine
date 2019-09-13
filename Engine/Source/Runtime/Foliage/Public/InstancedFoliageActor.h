@@ -104,6 +104,9 @@ public:
 	// Delegate type for selection change events
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSelectionChanged, bool, const TArray<AActor*>&);
 	FOLIAGE_API static FOnSelectionChanged SelectionChanged;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnInstanceCoundChanged, const UFoliageType*);
+	FOLIAGE_API static FOnInstanceCoundChanged InstanceCountChanged;
 #endif
 	//~ End AActor Interface.
 
