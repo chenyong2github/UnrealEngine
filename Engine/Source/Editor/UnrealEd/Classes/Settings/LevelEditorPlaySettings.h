@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "Layout/Margin.h"
 #include "Layout/Visibility.h"
+#include "Misc/App.h"
 #include "Settings/LevelEditorPlayNetworkEmulationSettings.h"
 #include "LevelEditorPlaySettings.generated.h"
 
