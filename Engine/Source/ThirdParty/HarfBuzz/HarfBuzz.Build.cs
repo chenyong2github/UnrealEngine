@@ -17,39 +17,117 @@ public class HarfBuzz : ModuleRules
 		}
 
 		string HarfBuzzVersion = "harfbuzz-1.2.4";
+		string HarfBuzzLibSubPath = "";
+		if (Target.Platform == UnrealTargetPlatform.IOS ||
+			Target.Platform == UnrealTargetPlatform.Mac ||
+			Target.Platform == UnrealTargetPlatform.PS4 ||
+			Target.Platform == UnrealTargetPlatform.Switch ||
+			Target.Platform == UnrealTargetPlatform.Win32 ||
+			Target.Platform == UnrealTargetPlatform.Win64 ||
+			Target.Platform == UnrealTargetPlatform.XboxOne ||
+			Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
+			Target.IsInPlatformGroup(UnrealPlatformGroup.Unix)
+			)
+		{
+			HarfBuzzVersion = "harfbuzz-2.4.0";
+			HarfBuzzLibSubPath = "lib/";
+			PublicDefinitions.Add("WITH_HARFBUZZ_V24=1"); // TODO: Remove this once everything is using HarfBuzz 2.4.0
+			PublicDefinitions.Add("WITH_HARFBUZZ=1");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.HTML5)
+		{
+			PublicDefinitions.Add("WITH_HARFBUZZ=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_HARFBUZZ=0");
+		}
 		string HarfBuzzRootPath = Target.UEThirdPartySourceDirectory + "HarfBuzz/" + HarfBuzzVersion + "/";
+		string HarfBuzzLibPath = HarfBuzzRootPath + HarfBuzzLibSubPath;
 
 		// Includes
 		PublicSystemIncludePaths.Add(HarfBuzzRootPath + "src" + "/");
 
-		string PlatformFolderName = Target.Platform.ToString();
-
-		string HarfBuzzLibPath = HarfBuzzRootPath + PlatformFolderName + "/";
-
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32))
+		// Libs
+		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicDefinitions.Add("WITH_HARFBUZZ=1");
+			HarfBuzzLibPath += (Target.Platform == UnrealTargetPlatform.Win64) ? "Win64/" : "Win32/";
+			HarfBuzzLibPath += "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+			HarfBuzzLibPath += "/";
 
-			string VSVersionFolderName = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			HarfBuzzLibPath += VSVersionFolderName + "/";
+			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+			{
+				HarfBuzzLibPath += "Debug";
+			}
+			else
+			{
+				HarfBuzzLibPath += "Release";
+				//HarfBuzzLibPath += "RelWithDebInfo";
+			}
 
-			string BuildTypeFolderName = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-				? "Debug"
-				: "RelWithDebInfo";
-			HarfBuzzLibPath += BuildTypeFolderName + "/";
-
-			PublicAdditionalLibraries.Add(HarfBuzzLibPath + "harfbuzz.lib");
+			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, "harfbuzz.lib"));
 		}
-
-		else if (Target.Platform == UnrealTargetPlatform.HTML5 )
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			PublicDefinitions.Add("WITH_HARFBUZZ=1");
+			HarfBuzzLibPath += "Mac/";
+
+			string HarfBuzzLibName = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "libharfbuzzd.a" : "libharfbuzz.a";
+			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, HarfBuzzLibName));
+		}
+		else if (Target.Platform == UnrealTargetPlatform.IOS)
+		{
+			HarfBuzzLibPath += "IOS/";
+
+			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+			{
+				HarfBuzzLibPath += "Debug";
+			}
+			else
+			{
+				HarfBuzzLibPath += "Release";
+			}
+
+			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, "libharfbuzz.a"));
+		}
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
+		{
+			HarfBuzzLibPath += "Android/";
+
+			string HarfBuzzLibFolder = "Release";
+			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+			{
+				HarfBuzzLibFolder = "Debug";
+			}
+
+			// filtered out in the toolchain
+			string HarfBuzzLibName = "libharfbuzz.a";
+			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, "ARMv7", HarfBuzzLibFolder, HarfBuzzLibName));
+			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, "ARM64", HarfBuzzLibFolder, HarfBuzzLibName));
+			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, "x86", HarfBuzzLibFolder, HarfBuzzLibName));
+			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, "x64", HarfBuzzLibFolder, HarfBuzzLibName));
+		}
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+		{
+			if (Target.Type == TargetType.Server)
+			{
+				string Err = string.Format("{0} dedicated server is made to depend on {1}. We want to avoid this, please correct module dependencies.", Target.Platform.ToString(), this.ToString());
+				System.Console.WriteLine(Err);
+				throw new BuildException(Err);
+			}
+
+			HarfBuzzLibPath += "Linux/";
+
+			string FreeType2LibName = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "libharfbuzzd_fPIC.a" : "libharfbuzz_fPIC.a";
+			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, Target.Architecture, FreeType2LibName));
+		}
+		else if (Target.Platform == UnrealTargetPlatform.HTML5)
+		{
+			HarfBuzzLibPath += "HTML5/";
 
 			string OpimizationSuffix = "_Oz"; // i.e. bCompileForSize
-			if ( ! Target.bCompileForSize )
+			if (!Target.bCompileForSize)
 			{
-				switch(Target.Configuration)
+				switch (Target.Configuration)
 				{
 					case UnrealTargetConfiguration.Development:
 						OpimizationSuffix = "_O2";
@@ -60,70 +138,63 @@ public class HarfBuzz : ModuleRules
 					default:
 						OpimizationSuffix = "";
 						break;
-			}	}
-			PublicAdditionalLibraries.Add(HarfBuzzRootPath + "HTML5/libharfbuzz" + OpimizationSuffix + ".bc");
+				}
+			}
+			PublicAdditionalLibraries.Add(HarfBuzzLibPath + "libharfbuzz" + OpimizationSuffix + ".bc");
 		}
-
-		else if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS)
-		{
-			PublicDefinitions.Add("WITH_HARFBUZZ=1");
-
-			PublicAdditionalLibraries.Add(HarfBuzzLibPath + "libharfbuzz.a");
-		}
-
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
-			PublicDefinitions.Add("WITH_HARFBUZZ=1");
+			HarfBuzzLibPath += "PS4/";
 
-			string BuildTypeFolderName = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-				? "Debug"
-				: "Release";
-			HarfBuzzLibPath += BuildTypeFolderName + "/";
+			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+			{
+				HarfBuzzLibPath += "Debug";
+			}
+			else
+			{
+				HarfBuzzLibPath += "Release";
+			}
 
-			PublicAdditionalLibraries.Add(HarfBuzzLibPath + "libharfbuzz.a");
+			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, "libharfbuzz.a"));
 		}
-
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
-			PublicDefinitions.Add("WITH_HARFBUZZ=1");
+			// Use reflection to allow type not to exist if console code is not present
+			System.Type XboxOnePlatformType = System.Type.GetType("UnrealBuildTool.XboxOnePlatform,UnrealBuildTool");
+			if (XboxOnePlatformType != null)
+			{
+				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null);
 
-			string BuildTypeFolderName = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-				? "Debug"
-				: "Release";
-			HarfBuzzLibPath += "VS2015/" + BuildTypeFolderName + "/";
+				HarfBuzzLibPath += "XboxOne/";
+				HarfBuzzLibPath += "VS" + VersionName.ToString();
+				HarfBuzzLibPath += "/";
 
-			PublicAdditionalLibraries.Add(HarfBuzzLibPath + "harfbuzz.lib");
+				if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+				{
+					HarfBuzzLibPath += "Debug";
+				}
+				else
+				{
+					HarfBuzzLibPath += "Release";
+				}
+
+				PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, "harfbuzz.lib"));
+			}
 		}
-
-		else if (Target.Platform == UnrealTargetPlatform.Android)
-		{
-			PublicDefinitions.Add("WITH_HARFBUZZ=1");
-
-			string BuildTypeFolderName = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-				? "Debug/"
-				: "Release/";
-
-			PublicAdditionalLibraries.Add(HarfBuzzRootPath + "Android/ARM64/" + BuildTypeFolderName + "/libharfbuzz.a");
-			PublicAdditionalLibraries.Add(HarfBuzzRootPath + "Android/ARMv7/" + BuildTypeFolderName + "/libharfbuzz.a");
-			PublicAdditionalLibraries.Add(HarfBuzzRootPath + "Android/x64/" + BuildTypeFolderName + "/libharfbuzz.a");
-			PublicAdditionalLibraries.Add(HarfBuzzRootPath + "Android/x86/" + BuildTypeFolderName + "/libharfbuzz.a");
-		}
-
 		else if (Target.Platform == UnrealTargetPlatform.Switch)
 		{
-			PublicDefinitions.Add("WITH_HARFBUZZ=1");
+			HarfBuzzLibPath += "Switch/";
 
-			string BuildTypeFolderName = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-				? "Debug"
-				: "Release";
-			HarfBuzzLibPath += BuildTypeFolderName + "/";
+			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+			{
+				HarfBuzzLibPath += "Debug";
+			}
+			else
+			{
+				HarfBuzzLibPath += "Release";
+			}
 
-			PublicAdditionalLibraries.Add(HarfBuzzLibPath + "libharfbuzz.a");
-		}
-
-		else
-		{
-			PublicDefinitions.Add("WITH_HARFBUZZ=0");
+			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, "libharfbuzz.a"));
 		}
 	}
 }

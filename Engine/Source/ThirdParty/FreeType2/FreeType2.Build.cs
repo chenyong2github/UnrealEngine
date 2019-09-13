@@ -15,72 +15,98 @@ public class FreeType2 : ModuleRules
 		string FreeType2Path;
 		string FreeType2LibPath;
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.XboxOne ||
-			Target.Platform == UnrealTargetPlatform.Switch || Target.Platform == UnrealTargetPlatform.PS4 || Target.Platform == UnrealTargetPlatform.Linux ||
-			Target.Platform == UnrealTargetPlatform.HTML5 || Target.Platform == UnrealTargetPlatform.HoloLens)
+		if (Target.Platform == UnrealTargetPlatform.IOS ||
+			Target.Platform == UnrealTargetPlatform.Mac ||
+			Target.Platform == UnrealTargetPlatform.PS4 ||
+			Target.Platform == UnrealTargetPlatform.Switch ||
+			Target.Platform == UnrealTargetPlatform.Win32 ||
+			Target.Platform == UnrealTargetPlatform.Win64 ||
+			Target.Platform == UnrealTargetPlatform.XboxOne ||
+			Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
+			Target.IsInPlatformGroup(UnrealPlatformGroup.Unix)
+			)
 		{
-			FreeType2Path = Target.UEThirdPartySourceDirectory + "FreeType2/FreeType2-2.6/";
-			PublicSystemIncludePaths.Add(FreeType2Path + "Include");
+			// FreeType needs these to deal with bitmap fonts
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "UElibPNG");
+
+			FreeType2Path = Target.UEThirdPartySourceDirectory + "FreeType2/FreeType2-2.10.0/";
+			FreeType2LibPath = FreeType2Path + "lib/";
+			PublicSystemIncludePaths.Add(FreeType2Path + "include");
+			PublicDefinitions.Add("WITH_FREETYPE_V210=1"); // TODO: Remove this once everything is using FreeType 2.10.0
+		}
+		else if (Target.Platform == UnrealTargetPlatform.TVOS)
+		{
+			FreeType2Path = Target.UEThirdPartySourceDirectory + "FreeType2/FreeType2-2.4.12/";
+			FreeType2LibPath = FreeType2Path + "Lib/";
+			PublicSystemIncludePaths.Add(FreeType2Path + "include");
 		}
 		else
 		{
-			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+			FreeType2Path = Target.UEThirdPartySourceDirectory + "FreeType2/FreeType2-2.6/";
+			FreeType2LibPath = FreeType2Path + "Lib/";
+			PublicSystemIncludePaths.Add(FreeType2Path + "Include");
+		}
+
+		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			FreeType2LibPath += (Target.Platform == UnrealTargetPlatform.Win64) ? "Win64/" : "Win32/";
+			FreeType2LibPath += "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+			FreeType2LibPath += "/";
+
+			string FreeType2LibName = "freetype.lib";
+			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
-				FreeType2Path = Target.UEThirdPartySourceDirectory + "FreeType2/FreeType2-2.6/";
-				PublicSystemIncludePaths.Add(FreeType2Path + "Include");
+				FreeType2LibPath += "Debug";
+				FreeType2LibName = "freetyped.lib";
 			}
 			else
 			{
-				FreeType2Path = Target.UEThirdPartySourceDirectory + "FreeType2/FreeType2-2.4.12/";
-				PublicSystemIncludePaths.Add(FreeType2Path + "include");
+				FreeType2LibPath += "Release";
+				//FreeType2LibPath += "RelWithDebInfo";
 			}
-		}
-		
-		FreeType2LibPath = FreeType2Path + "Lib/";
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 ||
-			Target.Platform == UnrealTargetPlatform.Win64)
-		{
-
-			FreeType2LibPath += (Target.Platform == UnrealTargetPlatform.Win64) ? "Win64/" : "Win32/";
-			FreeType2LibPath += "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-
-			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath,"freetype26MT.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, FreeType2LibName));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
-
-            string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
+			string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
 
 			string LibDir;
-            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
-            {
-                LibDir = System.String.Format("{0}Lib/{1}/VS{2}/{3}/", FreeType2Path, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath());
-            }
+			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+			{
+				LibDir = System.String.Format("{0}Lib/{1}/VS{2}/{3}/", FreeType2Path, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath());
+			}
 			else
-            {
-                LibDir = System.String.Format("{0}Lib/{1}/VS{2}/", FreeType2Path, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-            }
+			{
+				LibDir = System.String.Format("{0}Lib/{1}/VS{2}/", FreeType2Path, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+			}
 
-            PublicAdditionalLibraries.Add(Path.Combine(LibDir, "freetype26MT.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "freetype26MT.lib"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			PublicAdditionalLibraries.Add(FreeType2LibPath + "Mac/libfreetype2412.a");
+			FreeType2LibPath += "Mac/";
+
+			string FreeType2LibName = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "libfreetyped.a" : "libfreetype.a";
+			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, FreeType2LibName));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
-			string LibDir;
-			if (Target.Architecture == "-simulator")
+			FreeType2LibPath += "IOS/";
+
+			string FreeType2LibName = "libfreetype.a";
+			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
-				LibDir = FreeType2LibPath + "ios/Simulator";
+				FreeType2LibPath += "Debug";
+				FreeType2LibName = "libfreetyped.a";
 			}
 			else
 			{
-				LibDir = FreeType2LibPath + "ios/Device";
+				FreeType2LibPath += "Release";
 			}
 
-			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libfreetype2412.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, FreeType2LibName));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.TVOS)
 		{
@@ -98,12 +124,21 @@ public class FreeType2 : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
-			const string LibName = "libfreetype2412.a";
+			FreeType2LibPath += "Android/";
+
+			string FreeType2LibFolder = "Release";
+			string FreeType2LibName = "libfreetype.a";
+			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+			{
+				FreeType2LibFolder = "Debug";
+				FreeType2LibName = "libfreetyped.a";
+			}
+
 			// filtered out in the toolchain
-			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "Android", "ARM64", LibName));
-			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "Android", "ARMv7", LibName));
-			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "Android", "x86", LibName));
-			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "Android", "x64", LibName));
+			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "ARMv7", FreeType2LibFolder, FreeType2LibName));
+			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "ARM64", FreeType2LibFolder, FreeType2LibName));
+			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "x86", FreeType2LibFolder, FreeType2LibName));
+			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "x64", FreeType2LibFolder, FreeType2LibName));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
@@ -114,16 +149,10 @@ public class FreeType2 : ModuleRules
 				throw new BuildException(Err);
 			}
 
-			PublicSystemIncludePaths.Add(FreeType2Path + "Include");
+			FreeType2LibPath += "Linux/";
 
-			if (Target.LinkType == TargetLinkType.Monolithic)
-			{
-				PublicAdditionalLibraries.Add(FreeType2LibPath + "Linux/" + Target.Architecture + "/libfreetype.a");
-			}
-			else
-			{
-				PublicAdditionalLibraries.Add(FreeType2LibPath + "Linux/" + Target.Architecture + "/libfreetype_fPIC.a");
-			}
+			string FreeType2LibName = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "libfreetyped_fPIC.a" : "libfreetype_fPIC.a";
+			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, Target.Architecture, FreeType2LibName));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
@@ -147,7 +176,18 @@ public class FreeType2 : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath + "PS4", "libfreetype26.a"));
+			FreeType2LibPath += "PS4/";
+
+			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+			{
+				FreeType2LibPath += "Debug";
+			}
+			else
+			{
+				FreeType2LibPath += "Release";
+			}
+
+			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "libfreetype.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
@@ -156,13 +196,39 @@ public class FreeType2 : ModuleRules
 			if (XboxOnePlatformType != null)
 			{
 				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null);
-				string LibDir = FreeType2LibPath + "XboxOne/VS" + VersionName.ToString();
-				PublicAdditionalLibraries.Add(Path.Combine(LibDir, "freetype26.lib"));
+
+				FreeType2LibPath += "XboxOne/";
+				FreeType2LibPath += "VS" + VersionName.ToString();
+				FreeType2LibPath += "/";
+
+				string FreeType2LibName = "freetype.lib";
+				if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+				{
+					FreeType2LibPath += "Debug";
+					FreeType2LibName = "freetyped.lib";
+				}
+				else
+				{
+					FreeType2LibPath += "Release";
+				}
+
+				PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, FreeType2LibName));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Switch)
 		{
-			PublicAdditionalLibraries.Add(System.IO.Path.Combine(FreeType2LibPath, "Switch/libFreetype.a"));
+			FreeType2LibPath += "Switch/";
+
+			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+			{
+				FreeType2LibPath += "Debug";
+			}
+			else
+			{
+				FreeType2LibPath += "Release";
+			}
+
+			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "libfreetype.a"));
 		}
 	}
 }
