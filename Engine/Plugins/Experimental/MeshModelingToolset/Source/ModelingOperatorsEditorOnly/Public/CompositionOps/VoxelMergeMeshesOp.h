@@ -22,6 +22,7 @@ public:
 	double VoxelSizeD = 1.0;
 	double AdaptivityD = 0;
 	double IsoSurfaceD = 0;
+	bool bAutoSimplify = false;
 
 	double FastCollapseVoxelSizeMultipler = 1.2;
 	int NumFastCollapsePasses = 10;

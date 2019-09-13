@@ -69,11 +69,15 @@ public:
 
 	/** Remeshing adaptivity */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float Adaptivity = 0.01f;
+	float Adaptivity = 0.001f;
 
 	/** Offset when remeshing, measured in voxels units */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "-2", UIMax = "2", ClampMin = "-2", ClampMax = "2"))
 	float IsoSurface = 0;
+
+	/** Automatically simplify the result of voxel-based merge.*/
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bAutoSimplify = true;
 };
 
 

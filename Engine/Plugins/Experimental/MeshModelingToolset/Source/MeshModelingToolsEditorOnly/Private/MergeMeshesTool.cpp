@@ -151,9 +151,10 @@ void UMergeMeshesTool::OnPropertyModified(UObject* PropertySet, UProperty* Prope
 TSharedPtr<FDynamicMeshOperator> UMergeMeshesTool::MakeNewOperator()
 {
 	TSharedPtr<FVoxelMergeMeshesOp> MergeOp = MakeShared<FVoxelMergeMeshesOp>();
-	MergeOp->VoxelCount = MergeProps->VoxelCount;
-	MergeOp->AdaptivityD = MergeProps->Adaptivity;
-	MergeOp->IsoSurfaceD = MergeProps->IsoSurface;
+	MergeOp->VoxelCount     = MergeProps->VoxelCount;
+	MergeOp->AdaptivityD    = MergeProps->Adaptivity;
+	MergeOp->IsoSurfaceD    = MergeProps->IsoSurface;
+	MergeOp->bAutoSimplify  = MergeProps->bAutoSimplify;
 	MergeOp->InputMeshArray = InputMeshes;
 	return MergeOp;
 }

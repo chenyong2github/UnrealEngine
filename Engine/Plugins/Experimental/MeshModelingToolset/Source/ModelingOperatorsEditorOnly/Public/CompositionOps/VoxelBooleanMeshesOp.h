@@ -29,6 +29,7 @@ public:
 	double VoxelSizeD = 1.0;
 	double AdaptivityD = 0;
 	double IsoSurfaceD = 0;
+	bool   bAutoSimplify = false;
 	EBooleanOperation Operation = EBooleanOperation::DifferenceBA;
 
 	double FastCollapseVoxelSizeMultipler = 1.2;

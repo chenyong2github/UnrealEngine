@@ -74,6 +74,12 @@ public:
 	 */
 	virtual void SimplifyToEdgeLength(double MinEdgeLength);
 
+	/**
+	 * Simplify mesh until the quadric error of an edge collapse exceeds the specified criteria.
+	 * @param MaxError collapse an edge if the corresponding quadric error exceeds this 
+	 */
+	virtual void SimplifyToMaxError(double MaxError);
+
 	/** 
 	 * Does N rounds of collapsing edges longer than fMinEdgeLength. Does not use Quadrics or priority queue.
 	 * This is a quick way to get triangle count down on huge meshes (eg like marching cubes output). 
@@ -94,14 +100,15 @@ protected:
 	// this just lets us write more concise code
 	bool EnableInlineProjection() const { return ProjectionMode == ETargetProjectionMode::Inline; }
 
-
+	float MaxErrorAllowed = FLT_MAX;
 	double MinEdgeLength = FMathd::MaxReal;
 	int TargetCount = INT_MAX;
 	enum class ETargetModes
 	{
 		TriangleCount = 0,
 		VertexCount = 1,
-		MinEdgeLength = 2
+		MinEdgeLength = 2,
+		MaxError  = 3
 	};
 	ETargetModes SimplifyMode = ETargetModes::TriangleCount;
 

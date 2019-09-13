@@ -145,10 +145,11 @@ void UVoxelCSGMeshesTool::OnPropertyModified(UObject* PropertySet, UProperty* Pr
 TSharedPtr<FDynamicMeshOperator> UVoxelCSGMeshesTool::MakeNewOperator()
 {
 	TSharedPtr<FVoxelBooleanMeshesOp> CSGOp = MakeShared<FVoxelBooleanMeshesOp>();
-	CSGOp->Operation = (FVoxelBooleanMeshesOp::EBooleanOperation)(int)CSGProps->Operation;
-	CSGOp->VoxelCount = CSGProps->VoxelCount;
-	CSGOp->AdaptivityD = CSGProps->Adaptivity;
-	CSGOp->IsoSurfaceD = CSGProps->IsoSurface;
+	CSGOp->Operation      = (FVoxelBooleanMeshesOp::EBooleanOperation)(int)CSGProps->Operation;
+	CSGOp->VoxelCount     = CSGProps->VoxelCount;
+	CSGOp->AdaptivityD    = CSGProps->Adaptivity;
+	CSGOp->IsoSurfaceD    = CSGProps->IsoSurface;
+	CSGOp->bAutoSimplify  = CSGProps->bAutoSimplify;
 	CSGOp->InputMeshArray = InputMeshes;
 	return CSGOp;
 }

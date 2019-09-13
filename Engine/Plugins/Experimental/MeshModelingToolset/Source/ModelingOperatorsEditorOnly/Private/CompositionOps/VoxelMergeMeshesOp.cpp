@@ -43,21 +43,17 @@ void FVoxelMergeMeshesOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 
-	if (AdaptivityD > 0)
+	if (bAutoSimplify)
 	{
 		FQEMSimplification Reducer(ResultMesh.Get());
 		FMeshConstraints constraints;
 		FMeshConstraintsUtil::ConstrainAllSeams(constraints, *ResultMesh, true, false);
 		Reducer.SetExternalConstraints(&constraints);
 		Reducer.Progress = Progress;
-		for (int k = 0; k < NumFastCollapsePasses; ++k)
-		{
-			Reducer.FastCollapsePass(FastCollapseVoxelSizeMultipler * VoxelSizeD);
-			if (Progress->Cancelled())
-			{
-				return;
-			}
-		}
+
+		const double MaxDisplacementSqr = 3. *VoxelSizeD * VoxelSizeD;
+
+		Reducer.SimplifyToMaxError(MaxDisplacementSqr);
 	}
 }
 
