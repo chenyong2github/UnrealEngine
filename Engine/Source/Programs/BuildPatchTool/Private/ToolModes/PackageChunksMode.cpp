@@ -45,7 +45,11 @@ public:
 			UE_LOG(LogBuildPatchTool, Display, TEXT("  -CloudDir=\"\"         Specifies in quotes the cloud directory where chunks to be packaged can be found."));
 			UE_LOG(LogBuildPatchTool, Display, TEXT("  -MaxOutputFileSize=  When specified, the size of each output file (in bytes) will be limited to a maximum of the provided value."));
 			UE_LOG(LogBuildPatchTool, Display, TEXT("  -ResultDataFile=\"\"   Specifies in quotes the file path where the results will be exported as a JSON object."));
-			UE_LOG(LogBuildPatchTool, Display, TEXT("  -TagSets=\"t1,t2\"     Specifies in quotes a comma seperated list of tags for filtering of data saved. Multiple sets can be provided to split the chunkdb files by tagsets."));
+			UE_LOG(LogBuildPatchTool, Display, TEXT("  -TagSets=\",t1,t2\"     Specifies in quotes a comma seperated tagset for filtering of data saved. Multiple sets can also be provided to split the chunkdb files by tagsets."));
+			UE_LOG(LogBuildPatchTool, Display, TEXT("                        Untagged files will be referenced with an empty tag, which you can specify using an extra comma."));
+			UE_LOG(LogBuildPatchTool, Display, TEXT("  -PrevTagSet=\",tA,tB\"  Specifies in quotes a comma seperated tagset for filtering of input data usable from PrevManifestFile. This will increase the amount of chunks"));
+			UE_LOG(LogBuildPatchTool, Display, TEXT("                        saved out by reducing the number of files from the input manifest that are assumed usable. Only one PrevTagSet should be provided."));
+			UE_LOG(LogBuildPatchTool, Display, TEXT("                        Untagged files will be referenced with an empty tag, which you can specify using an extra comma."));
 			UE_LOG(LogBuildPatchTool, Display, TEXT(""));
 			UE_LOG(LogBuildPatchTool, Display, TEXT("NB: If CloudDir is not specified, the manifest file location will be used as the cloud directory."));
 			UE_LOG(LogBuildPatchTool, Display, TEXT("NB: If an optimised delta was available, the file extension .delta.chunkdb will be used."));
@@ -75,6 +79,7 @@ public:
 		Configuration.ManifestFilePath = ManifestFile;
 		Configuration.PrevManifestFilePath = PrevManifestFile;
 		Configuration.TagSetArray = TagSetArray;
+		Configuration.PrevTagSet = PrevTagSet;
 		Configuration.OutputFile = OutputFile;
 		Configuration.CloudDir = CloudDir;
 		Configuration.MaxOutputFileSize = MaxOutputFileSize;
@@ -126,6 +131,7 @@ private:
 		NormalizeUriFile(PrevManifestFile);
 		NormalizeUriFile(ResultDataFile);
 		PARSE_SWITCHES(TagSets);
+		PARSE_SWITCH(PrevTagSet);
 
 		if (!PARSE_SWITCH(CloudDir))
 		{
@@ -188,6 +194,7 @@ private:
 	uint64 MaxOutputFileSize;
 	TArray<FString> TagSets;
 	TArray<TSet<FString>> TagSetArray;
+	TSet<FString> PrevTagSet;
 };
 
 BuildPatchTool::IToolModeRef BuildPatchTool::FPackageChunksToolModeFactory::Create(IBuildPatchServicesModule& BpsInterface)

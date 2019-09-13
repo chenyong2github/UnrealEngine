@@ -1,4 +1,4 @@
-fix // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
 using System;
@@ -260,7 +260,7 @@ namespace IncludeTool
 		/// <summary>
 		/// List of context-specific files
 		/// </summary>
-		static readonly HashSet<string> InlineFileNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+		static readonly HashSet<string> InlineFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			//"/Engine/Source/Runtime/Core/Public/Delegates/DelegateCombinations.h",
 			"/Engine/Source/Runtime/Core/Public/UObject/PendingVersions.h",
@@ -307,7 +307,7 @@ namespace IncludeTool
 		/// <summary>
 		/// List of files whose includes are pinned to the file they are included from
 		/// </summary>
-		static readonly HashSet<string> PinnedFileNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+		static readonly HashSet<string> PinnedFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"/Engine/Source/Runtime/Core/Public/GenericPlatform/GenericPlatform.h",
 			"/Engine/Source/Runtime/Core/Public/Math/UnrealMatrix.h",
@@ -400,7 +400,7 @@ namespace IncludeTool
 		/// <summary>
 		/// List of files whose includes are pinned to the file they are included from
 		/// </summary>
-		static readonly HashSet<string> NotStandaloneFileNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+		static readonly HashSet<string> NotStandaloneFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"/Engine/Source/Runtime/Core/Public/Delegates/DelegateCombinations.h",
 			"/Engine/Source/Runtime/Core/Public/Containers/LockFreeListImpl.h",
@@ -419,7 +419,7 @@ namespace IncludeTool
 		/// <summary>
 		/// List of files whose includes are pinned to the file they are included from
 		/// </summary>
-		static readonly HashSet<string> AggregateFileNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+		static readonly HashSet<string> AggregateFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 //			"/Engine/Source/Runtime/CoreUObject/Classes/Object.h",
 			"/Engine/Source/Runtime/Slate/Public/SlateBasics.h",
@@ -429,7 +429,7 @@ namespace IncludeTool
 		/// <summary>
 		/// List of files whose includes are pinned to the file they are included from
 		/// </summary>
-		static readonly HashSet<string> NonAggregateFileNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+		static readonly HashSet<string> NonAggregateFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"/Engine/Source/Runtime/RHI/Public/RHI.h",
 		};
@@ -437,7 +437,7 @@ namespace IncludeTool
 		/// <summary>
 		/// List of files which are ok to split into multiple fragments
 		/// </summary>
-		static readonly HashSet<string> AllowMultipleFragmentFileNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+		static readonly HashSet<string> AllowMultipleFragmentFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"/Engine/Source/Runtime/CoreUObject/Public/UObject/UObjectBaseUtility.h",
 			"/Engine/Source/Runtime/CoreUObject/Public/UObject/Class.h",
@@ -453,7 +453,7 @@ namespace IncludeTool
 		/// <summary>
 		/// Files which should not be treated as containing purely forward declarations, despite a "fwd.h" suffix
 		/// </summary>
-		static readonly HashSet<string> IgnoreFwdHeaders = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+		static readonly HashSet<string> IgnoreFwdHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"/Engine/Source/Runtime/Core/Public/Internationalization/TextNamespaceFwd.h",
 			"/Engine/Source/Editor/SceneOutliner/Public/SceneOutlinerFwd.h",
@@ -461,6 +461,7 @@ namespace IncludeTool
 			"/Engine/Source/Runtime/Slate/Public/Framework/Text/ShapedTextCacheFwd.h", // Typedef isn't a forward declaration
 			"/Engine/Source/Runtime/MovieScene/Public/MovieSceneFwd.h",
 			"/Engine/Source/Runtime/Core/Public/Internationalization/StringTableCoreFwd.h", // Typedef isn't a forward declaration
+			"/Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/ParticleHandleFwd.h", // invalid forward declaration - 'namespace Chaos'
 		};
 
 		/// <summary>

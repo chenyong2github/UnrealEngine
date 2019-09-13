@@ -8,7 +8,7 @@
 #include "AudioModulationLogging.h"
 
 #include "Engine/Engine.h"
-#include "SoundModulatorBus.h"
+#include "SoundControlBus.h"
 
 #define LOCTEXT_NAMESPACE "AudioModulationStatics"
 
@@ -47,7 +47,7 @@ UAudioModulationStatics::UAudioModulationStatics(const FObjectInitializer& Objec
 {
 }
 
-void UAudioModulationStatics::ActivateBus(const UObject* WorldContextObject, USoundModulatorBusBase* Bus)
+void UAudioModulationStatics::ActivateBus(const UObject* WorldContextObject, USoundControlBusBase* Bus)
 {
 	if (!Bus)
 	{
@@ -61,24 +61,24 @@ void UAudioModulationStatics::ActivateBus(const UObject* WorldContextObject, USo
 	}
 }
 
-void UAudioModulationStatics::ActivateBusMix(const UObject* WorldContextObject, USoundModulatorBusMix* BusMix)
+void UAudioModulationStatics::ActivateBusMix(const UObject* WorldContextObject, USoundControlBusMix* BusMix)
 {
 	if (BusMix)
 	{
 		UWorld* World = GetAudioWorld(WorldContextObject);
 		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
 		{
-			ModulationImpl->ActivateBusMix(*BusMix, false);
+			ModulationImpl->ActivateBusMix(*BusMix);
 		}
 	}
 }
 
-void UAudioModulationStatics::ActivateModulator(const UObject* WorldContextObject, USoundModulatorBase* Modulator)
+void UAudioModulationStatics::ActivateBusModulator(const UObject* WorldContextObject, USoundBusModulatorBase* Modulator)
 {
 	UWorld* World = GetAudioWorld(WorldContextObject);
 	if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
 	{
-		if (USoundModulatorLFO* LFO = Cast<USoundModulatorLFO>(Modulator))
+		if (USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(Modulator))
 		{
 			ModulationImpl->ActivateLFO(*LFO);
 		}
@@ -112,10 +112,7 @@ AudioModulation::FAudioModulationImpl* UAudioModulationStatics::GetModulationImp
 	{
 		if (GEngine)
 		{
-			if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
-			{
-				AudioDevice = DeviceManager->GetActiveAudioDevice();
-			}
+			AudioDevice = GEngine->GetMainAudioDevice();
 		}
 	}
 
@@ -130,27 +127,27 @@ AudioModulation::FAudioModulationImpl* UAudioModulationStatics::GetModulationImp
 	return nullptr;
 }
 
-USoundVolumeModulatorBus* UAudioModulationStatics::CreateVolumeBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
+USoundVolumeControlBus* UAudioModulationStatics::CreateVolumeBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
 {
-	return CreateModulatorBus<USoundVolumeModulatorBus>(WorldContextObject, Name, DefaultValue, Activate);
+	return CreateModulatorBus<USoundVolumeControlBus>(WorldContextObject, Name, DefaultValue, Activate);
 }
 
-USoundPitchModulatorBus* UAudioModulationStatics::CreatePitchBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
+USoundPitchControlBus* UAudioModulationStatics::CreatePitchBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
 {
-	return CreateModulatorBus<USoundPitchModulatorBus>(WorldContextObject, Name, DefaultValue, Activate);
+	return CreateModulatorBus<USoundPitchControlBus>(WorldContextObject, Name, DefaultValue, Activate);
 }
 
-USoundLPFModulatorBus* UAudioModulationStatics::CreateLPFBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
+USoundLPFControlBus* UAudioModulationStatics::CreateLPFBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
 {
-	return CreateModulatorBus<USoundLPFModulatorBus>(WorldContextObject, Name, DefaultValue, Activate);
+	return CreateModulatorBus<USoundLPFControlBus>(WorldContextObject, Name, DefaultValue, Activate);
 }
 
-USoundHPFModulatorBus* UAudioModulationStatics::CreateHPFBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
+USoundHPFControlBus* UAudioModulationStatics::CreateHPFBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
 {
-	return CreateModulatorBus<USoundHPFModulatorBus>(WorldContextObject, Name, DefaultValue, Activate);
+	return CreateModulatorBus<USoundHPFControlBus>(WorldContextObject, Name, DefaultValue, Activate);
 }
 
-USoundModulatorLFO* UAudioModulationStatics::CreateLFO(const UObject* WorldContextObject, FName Name, float Amplitude, float Frequency, float Offset, bool Activate)
+USoundBusModulatorLFO* UAudioModulationStatics::CreateLFO(const UObject* WorldContextObject, FName Name, float Amplitude, float Frequency, float Offset, bool Activate)
 {
 	UWorld* World = GetAudioWorld(WorldContextObject);
 	if (!World)
@@ -158,7 +155,7 @@ USoundModulatorLFO* UAudioModulationStatics::CreateLFO(const UObject* WorldConte
 		return nullptr;
 	}
 
-	USoundModulatorLFO* NewLFO = NewObject<USoundModulatorLFO>(nullptr, Name, RF_Transient);
+	USoundBusModulatorLFO* NewLFO = NewObject<USoundBusModulatorLFO>(nullptr, Name, RF_Transient);
 	NewLFO->Amplitude = Amplitude;
 	NewLFO->Frequency = Frequency;
 	NewLFO->Offset    = Offset;
@@ -174,7 +171,7 @@ USoundModulatorLFO* UAudioModulationStatics::CreateLFO(const UObject* WorldConte
 	return NewLFO;
 }
 
-USoundModulatorBusMix* UAudioModulationStatics::CreateBusMix(const UObject* WorldContextObject, FName Name, TArray<USoundModulatorBusBase*> Buses, float TargetValue, bool Activate)
+USoundControlBusMix* UAudioModulationStatics::CreateBusMix(const UObject* WorldContextObject, FName Name, TArray<USoundControlBusBase*> Buses, float TargetValue, bool Activate)
 {
 	UWorld* World = GetAudioWorld(WorldContextObject);
 	if (!World)
@@ -182,8 +179,8 @@ USoundModulatorBusMix* UAudioModulationStatics::CreateBusMix(const UObject* Worl
 		return nullptr;
 	}
 
-	USoundModulatorBusMix* NewBusMix = NewObject<USoundModulatorBusMix>(nullptr, Name, RF_Transient);
-	for (USoundModulatorBusBase* Bus : Buses)
+	USoundControlBusMix* NewBusMix = NewObject<USoundControlBusMix>(nullptr, Name, RF_Transient);
+	for (USoundControlBusBase* Bus : Buses)
 	{
 		if (Bus)
 		{
@@ -192,7 +189,7 @@ USoundModulatorBusMix* UAudioModulationStatics::CreateBusMix(const UObject* Worl
 		else
 		{
 			UE_LOG(LogAudioModulation, Warning,
-				TEXT("USoundModulatorBusMix '%s' was created but bus provided is null. Channel not added."),
+				TEXT("USoundControlBusMix '%s' was created but bus provided is null. Channel not added."),
 				*Name.ToString());
 		}
 	}
@@ -201,14 +198,14 @@ USoundModulatorBusMix* UAudioModulationStatics::CreateBusMix(const UObject* Worl
 	{
 		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
 		{
-			ModulationImpl->ActivateBusMix(*NewBusMix, false);
+			ModulationImpl->ActivateBusMix(*NewBusMix);
 		}
 	}
 
 	return NewBusMix;
 }
 
-void UAudioModulationStatics::DeactivateBus(const UObject* WorldContextObject, USoundModulatorBusBase* Bus)
+void UAudioModulationStatics::DeactivateBus(const UObject* WorldContextObject, USoundControlBusBase* Bus)
 {
 	if (!Bus)
 	{
@@ -218,84 +215,46 @@ void UAudioModulationStatics::DeactivateBus(const UObject* WorldContextObject, U
 	UWorld* World = GetAudioWorld(WorldContextObject);
 	if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
 	{
-		auto BusId = static_cast<const AudioModulation::BusId>(Bus->GetUniqueID());
+		auto BusId = static_cast<const AudioModulation::FBusId>(Bus->GetUniqueID());
 		ModulationImpl->DeactivateBus(BusId);
 	}
 }
 
-void UAudioModulationStatics::DeactivateBusMix(const UObject* WorldContextObject, USoundModulatorBusMix* BusMix)
+void UAudioModulationStatics::DeactivateBusMix(const UObject* WorldContextObject, USoundControlBusMix* BusMix)
 {
 	if (BusMix)
 	{
 		UWorld* World = GetAudioWorld(WorldContextObject);
 		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
 		{
-			auto BusMixId = static_cast<const AudioModulation::BusMixId>(BusMix->GetUniqueID());
+			auto BusMixId = static_cast<const AudioModulation::FBusMixId>(BusMix->GetUniqueID());
 			ModulationImpl->DeactivateBusMix(BusMixId);
 		}
 	}
 }
 
-void UAudioModulationStatics::DeactivateModulator(const UObject* WorldContextObject, USoundModulatorBase* Modulator)
+void UAudioModulationStatics::DeactivateBusModulator(const UObject* WorldContextObject, USoundBusModulatorBase* Modulator)
 {
 	UWorld* World = GetAudioWorld(WorldContextObject);
 	if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
 	{
-		if (USoundModulatorLFO* LFO = Cast<USoundModulatorLFO>(Modulator))
+		if (USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(Modulator))
 		{
-			auto LFOId = static_cast<const AudioModulation::LFOId>(Modulator->GetUniqueID());
+			auto LFOId = static_cast<const AudioModulation::FLFOId>(Modulator->GetUniqueID());
 			ModulationImpl->DeactivateLFO(LFOId);
 		}
 	}
 }
 
-void UAudioModulationStatics::SetBusDefault(const UObject* WorldContextObject, USoundModulatorBusBase* Bus, float Value)
+void UAudioModulationStatics::UpdateModulator(const UObject* WorldContextObject, USoundModulatorBase* Modulator)
 {
-	if (Bus)
+	if (Modulator)
 	{
 		UWorld* World = GetAudioWorld(WorldContextObject);
 		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
 		{
-			ModulationImpl->SetBusDefault(*Bus, Value);
+			ModulationImpl->UpdateModulator(*Modulator);
 		}
 	}
-	else
-	{
-		UE_LOG(LogAudioModulation, Warning, TEXT("Bus not specified. Bus default set request ignored."));
-	}
 }
-
-void UAudioModulationStatics::SetBusMixChannel(const UObject* WorldContextObject, USoundModulatorBusMix* BusMix, USoundModulatorBusBase* Bus, float TargetValue)
-{
-	if (BusMix && Bus)
-	{
-		UWorld* World = GetAudioWorld(WorldContextObject);
-		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
-		{
-			ModulationImpl->SetBusMixChannel(*BusMix, *Bus, TargetValue);
-		}
-	}
-	else
-	{
-		UE_LOG(LogAudioModulation, Warning, TEXT("USoundModulatorBusMix or bus not specified. Bus channel mix set request ignored."));
-	}
-}
-
-void UAudioModulationStatics::SetLFOFrequency(const UObject* WorldContextObject, USoundModulatorLFO* LFO, float Freq)
-{
-	if (LFO)
-	{
-		UWorld* World = GetAudioWorld(WorldContextObject);
-		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
-		{
-			ModulationImpl->SetLFOFrequency(*LFO, Freq);
-		}
-	}
-	else
-	{
-		UE_LOG(LogAudioModulation, Warning,
-			TEXT("USoundModulatorLFO not specified. LFO frequency set ignored."));
-	}
-}
-
 #undef LOCTEXT_NAMESPACE

@@ -904,9 +904,6 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 		TArray<FEdgeID> NewEdgeIDs;
 		const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(PolygonGroupID, CornerInstanceIDs, &NewEdgeIDs);
 		check(NewEdgeIDs.Num() == 0);
-		//Triangulate the polygon
-		FMeshPolygon& Polygon = MeshDescription->GetPolygon(NewPolygonID);
-		MeshDescription->ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
 	}
 	//Call this after all GetMeshEdgeIndexForPolygon call this is for optimization purpose.
 	Mesh->EndGetMeshEdgeIndexForPolygon();
@@ -1693,6 +1690,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		SrcModel.BuildSettings.bRecomputeNormals = ImportOptions->NormalImportMethod == FBXNIM_ComputeNormals;
 		SrcModel.BuildSettings.bRecomputeTangents = ImportOptions->NormalImportMethod != FBXNIM_ImportNormalsAndTangents;
 		SrcModel.BuildSettings.bUseMikkTSpace = (ImportOptions->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace) && (!ImportOptions->ShouldImportNormals() || !ImportOptions->ShouldImportTangents());
+		SrcModel.BuildSettings.bComputeWeightedNormals = ImportOptions->bComputeWeightedNormals;
 		if (ImportOptions->bGenerateLightmapUVs)
 		{
 			SrcModel.BuildSettings.bGenerateLightmapUVs = true;

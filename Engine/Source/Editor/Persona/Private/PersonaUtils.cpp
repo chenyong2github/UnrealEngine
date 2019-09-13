@@ -9,6 +9,7 @@
 #include "Animation/AnimInstance.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Animation/AnimNodeBase.h"
+#include "Animation/AnimBlueprint.h"
 
 namespace PersonaUtils
 {
@@ -95,6 +96,31 @@ int32 CopyPropertiesToCDO(UAnimInstance* InAnimInstance, const FCopyOptions& Opt
 	}
 
 	return CopiedPropertyCount;
+}
+
+void SetObjectBeingDebugged(UAnimBlueprint* InAnimBlueprint, UAnimInstance* InAnimInstance)
+{
+	UAnimBlueprint* PreviewAnimBlueprint = InAnimBlueprint->GetPreviewAnimationBlueprint();
+		
+	if (PreviewAnimBlueprint)
+	{
+		EPreviewAnimationBlueprintApplicationMethod ApplicationMethod = InAnimBlueprint->GetPreviewAnimationBlueprintApplicationMethod();
+		if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::OverlayLayer)
+		{
+			// Make sure the object being debugged is the overlay instance
+			InAnimBlueprint->SetObjectBeingDebugged(InAnimInstance->GetLayerSubInstanceByClass(InAnimBlueprint->GeneratedClass.Get()));
+		}
+		else if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::SubInstance)
+		{
+			// Make sure the object being debugged is the sub instance
+			InAnimBlueprint->SetObjectBeingDebugged(InAnimInstance->GetSubInstanceByTag(InAnimBlueprint->GetPreviewAnimationBlueprintTag()));
+		}
+	}
+	else
+	{
+		// Make sure the object being debugged is the preview instance
+		InAnimBlueprint->SetObjectBeingDebugged(InAnimInstance);
+	}
 }
 
 }

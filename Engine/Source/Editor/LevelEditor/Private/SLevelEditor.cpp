@@ -2,6 +2,7 @@
 
 #include "SLevelEditor.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
+#include "ToolMenus.h"
 #include "Framework/Docking/LayoutService.h"
 #include "EditorModeRegistry.h"
 #include "EdMode.h"
@@ -48,7 +49,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "HierarchicalLODOutlinerModule.h"
-
+#include "EditorViewportCommands.h"
 
 static const FName LevelEditorBuildAndSubmitTab("LevelEditorBuildAndSubmit");
 static const FName LevelEditorStatsViewerTab("LevelEditorStatsViewer");
@@ -140,6 +141,17 @@ void SLevelEditor::BindCommands()
 		Actions.FocusAllViewportsToSelection, 
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("CAMERA ALIGN") ) )
 		);
+
+	LevelEditorCommands->MapAction( 
+		FEditorViewportCommands::Get().FocusViewportToSelection, 
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("CAMERA ALIGN ACTIVEVIEWPORTONLY") ) )
+		);
+}
+
+void SLevelEditor::RegisterMenus()
+{
+	FLevelEditorMenu::RegisterLevelEditorMenus();
+	FLevelEditorToolBar::RegisterLevelEditorToolBar(LevelEditorCommands.ToSharedRef(), SharedThis(this));
 }
 
 void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
@@ -153,6 +165,8 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 	GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().AddRaw(this, &SLevelEditor::HandleExperimentalSettingChanged);
 
 	BindCommands();
+
+	RegisterMenus();
 
 	// We need to register when modes list changes so that we can refresh the auto generated commands.
 	FEditorModeRegistry::Get().OnRegisteredModesChanged().AddRaw(this, &SLevelEditor::EditorModeCommandsChanged);
@@ -685,15 +699,34 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 		InitOptions.bShowTransient = true;
 		InitOptions.Mode = ESceneOutlinerMode::ActorBrowsing;
 		{
+			UToolMenus* ToolMenus = UToolMenus::Get();
+			static const FName MenuName = "LevelEditor.LevelEditorSceneOutliner.ContextMenu";
+			if (!ToolMenus->IsMenuRegistered(MenuName))
+			{
+				UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName, "SceneOutliner.DefaultContextMenuBase");
+				FToolMenuSection& Section = Menu->AddDynamicSection("LevelEditorContextMenu", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+				{
+					FName LevelContextMenuName = FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext::SceneOutliner);
+					if (LevelContextMenuName != NAME_None)
+					{
+						// Extend the menu even if no actors selected, as Edit menu should always exist for scene outliner
+						UToolMenu* OtherMenu = UToolMenus::Get()->GenerateMenu(LevelContextMenuName, InMenu->Context);
+						InMenu->Sections.Append(OtherMenu->Sections);
+					}
+				}));
+				Section.InsertPosition = FToolMenuInsert("MainSection", EToolMenuInsertType::Before);
+			}
+
 			TWeakPtr<SLevelEditor> WeakLevelEditor = SharedThis(this);
-			InitOptions.DefaultMenuExtender = MakeShareable(new FExtender);
-			InitOptions.DefaultMenuExtender->AddMenuExtension(
-				"MainSection", EExtensionHook::Before, GetLevelEditorActions(),
-				FMenuExtensionDelegate::CreateStatic([](FMenuBuilder& MenuBuilder, TWeakPtr<SLevelEditor> InWeakLevelEditor){
-					// Extend the menu even if no actors selected, as Edit menu should always exist for scene outliner
-					FLevelEditorContextMenu::FillMenu(MenuBuilder, InWeakLevelEditor, LevelEditorMenuContext::SceneOutliner, TSharedPtr<FExtender>());
-				}, WeakLevelEditor)
-			);
+			InitOptions.ModifyContextMenu.BindLambda([=](FName& OutMenuName, FToolMenuContext& MenuContext)
+			{
+				OutMenuName = MenuName;
+
+				if (WeakLevelEditor.IsValid())
+				{
+					FLevelEditorContextMenu::InitMenuContext(MenuContext, WeakLevelEditor, ELevelEditorMenuContext::SceneOutliner);
+				}
+			});
 		}
 
 
@@ -1165,7 +1198,7 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 			const FSlateIcon SequencerIcon("LevelSequenceEditorStyle", "LevelSequenceEditor.Tabs.Sequencer" );
 			LevelEditorTabManager->RegisterTabSpawner( "Sequencer", FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, FName("Sequencer"), FString()) )
 				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "Sequencer", "Sequencer"))
-				.SetGroup( MenuStructure.GetLevelEditorCategory() )
+				.SetGroup( MenuStructure.GetLevelEditorCinematicsCategory() )
 				.SetIcon( SequencerIcon );
 		}
 
@@ -1484,7 +1517,7 @@ void SLevelEditor::OnLayoutHasChanged()
 
 void SLevelEditor::SummonLevelViewportContextMenu()
 {
-	FLevelEditorContextMenu::SummonMenu( SharedThis( this ), LevelEditorMenuContext::Viewport );
+	FLevelEditorContextMenu::SummonMenu( SharedThis( this ), ELevelEditorMenuContext::Viewport );
 }
 
 void SLevelEditor::SummonLevelViewportViewOptionMenu(const ELevelViewportType ViewOption)

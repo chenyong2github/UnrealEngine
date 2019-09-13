@@ -34,10 +34,12 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveLinearColorAtlas.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 
 #define LOCTEXT_NAMESPACE "MaterialLayerCustomization"
@@ -699,6 +701,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 					.DisplayThumbnail(true)
 					.ThumbnailPool(InArgs._InTree->GetTreeThumbnailPool())
 					.OnShouldSetAsset(FOnShouldSetAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldSetCurveAsset, ScalarParam->AtlasData.Atlas))
+					.OnShouldFilterAsset(FOnShouldFilterAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldFilterCurveAsset, ScalarParam->AtlasData.Atlas))
 					.OnObjectChanged(FOnSetObject::CreateStatic(&FMaterialPropertyHelpers::SetPositionFromCurveAsset, ScalarParam->AtlasData.Atlas, ScalarParam, StackParameterData->ParameterHandle, (UObject*)MaterialEditorInstance))
 					.DisplayCompactSize(true)
 				];
@@ -1453,7 +1456,7 @@ FReply SMaterialLayersFunctionsInstanceTree::OnThumbnailDoubleClick(const FGeome
 	}
 	if (AssetToOpen != nullptr)
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(AssetToOpen);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetToOpen);
 		return FReply::Handled();
 	}
 	return FReply::Unhandled();
@@ -1911,6 +1914,7 @@ public:
 						.DisplayThumbnail(true)
 						.ThumbnailPool(InArgs._InTree->GetTreeThumbnailPool())
 						.OnShouldSetAsset(FOnShouldSetAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldSetCurveAsset, ScalarParam->AtlasData.Atlas))
+						.OnShouldFilterAsset(FOnShouldFilterAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldFilterCurveAsset, ScalarParam->AtlasData.Atlas))
 						.OnObjectChanged(FOnSetObject::CreateStatic(&FMaterialPropertyHelpers::SetPositionFromCurveAsset, ScalarParam->AtlasData.Atlas, ScalarParam, StackParameterData->ParameterHandle, (UObject*)MaterialEditorInstance))
 						.DisplayCompactSize(true)
 					];

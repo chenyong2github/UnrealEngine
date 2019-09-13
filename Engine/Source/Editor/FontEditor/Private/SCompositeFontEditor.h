@@ -534,6 +534,9 @@ private:
 	/** Get the visibility of the "Add Font Override" combo button */
 	EVisibility GetAddFontOverrideVisibility() const;
 
+	/** True if the font override combo should be enabled (due to still having parent fonts that can be overridden in this sub-font) */
+	bool IsFontOverrideComboEnabled() const;
+
 	/** Called before the font override combo is opened - used to update the list of available font overrides */
 	void OnAddFontOverrideComboOpening();
 

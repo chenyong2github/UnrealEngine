@@ -14,6 +14,7 @@
 #include "PersonaAssetFamily.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "AnimationEditorPreviewActor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 FPersonaToolkit::FPersonaToolkit()
 	: Skeleton(nullptr)
@@ -319,14 +320,40 @@ void FPersonaToolkit::SetPreviewMesh(class USkeletalMesh* InSkeletalMesh, bool b
 			}
 			check(AssetToReopen);
 
-			FAssetEditorManager::Get().CloseAllEditorsForAsset(AssetToReopen);
-			FAssetEditorManager::Get().OpenEditorForAsset(AssetToReopen);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(AssetToReopen);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetToReopen);
 			return;
 		}
 
 		// if it's here, it allows to replace 
 		GetPreviewScene()->SetPreviewMesh(InSkeletalMesh, false);
 	}
+}
+
+void FPersonaToolkit::SetPreviewAnimationBlueprint(UAnimBlueprint* InAnimBlueprint)
+{
+	// Only allowed for anim blueprints
+	if (InitialAssetClass == UAnimBlueprint::StaticClass())
+	{
+		FScopedTransaction Transaction(NSLOCTEXT("PersonaToolkit", "SetAnimBlueprintPreviewBlueprint", "Set Animation Blueprint Preview Blueprint"));
+
+		check(AnimBlueprint);
+		AnimBlueprint->SetPreviewAnimationBlueprint(InAnimBlueprint);
+
+		// Note setting the 'edited' blueprint as an overlay here
+		GetPreviewScene()->SetPreviewAnimationBlueprint(InAnimBlueprint, AnimBlueprint);
+	}
+}
+
+UAnimBlueprint* FPersonaToolkit::GetPreviewAnimationBlueprint() const
+{
+	if (InitialAssetClass == UAnimBlueprint::StaticClass())
+	{
+		check(AnimBlueprint);
+		return AnimBlueprint->GetPreviewAnimationBlueprint();
+	}
+
+	return nullptr;
 }
 
 int32 FPersonaToolkit::GetCustomData(const int32 Key) const

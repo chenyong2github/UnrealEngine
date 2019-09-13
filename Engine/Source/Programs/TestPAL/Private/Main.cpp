@@ -1140,7 +1140,7 @@ void ReplayMallocFile(const FString& ReplayFileName, uint64 OperationToStopAfter
 
 	UE_LOG(LogTestPAL, Display, TEXT("Replayed %llu operations in %f seconds, waiting for Ctrl-C to proceed further. You can now examine heap/process state."), OperationNumber, WallTimeDuration);
 
-	while(!GIsRequestingExit)
+	while(!IsEngineExitRequested())
 	{
 		FPlatformProcess::Sleep(1.0);
 	}

@@ -387,7 +387,7 @@ void FNetworkPlatformFile::ProcessServerCachedFilesResponse(FArrayReader& Respon
 
 FNetworkPlatformFile::~FNetworkPlatformFile()
 {
-	if (!GIsRequestingExit) // the socket subsystem is probably already gone, so it will crash if we clean up
+	if (!IsEngineExitRequested()) // the socket subsystem is probably already gone, so it will crash if we clean up
 	{
 		FScopeLock ScopeLock(&SynchronizationObject);
 		if ( FinishedAsyncNetworkReadUnsolicitedFiles )

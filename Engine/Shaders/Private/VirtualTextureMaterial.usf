@@ -40,7 +40,7 @@ void MainVS(
 // Prepare for VirtualTextureUnpackNormal() in VirtualTextureCommon.h
 float3 PackNormal( float3 N )
 {
-	return normalize(N) * 0.5 + 0.5;
+	return normalize(N) * 0.5f + 0.5f;
 }
 
 // Prepare for VirtualTextureUnpackHeightR16() in VirtualTextureCommon.ush

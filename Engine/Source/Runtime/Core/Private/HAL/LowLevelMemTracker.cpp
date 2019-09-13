@@ -208,6 +208,27 @@ extern int32 LLMGetTagParent(ELLMTag Tag)
 	}
 }
 
+#if DO_CHECK
+
+bool LLMPrivate::HandleAssert(bool bLog, const TCHAR* Format, ...)
+{
+	if (bLog)
+	{
+		TCHAR DescriptionString[4096];
+		GET_VARARGS(DescriptionString, ARRAY_COUNT(DescriptionString), ARRAY_COUNT(DescriptionString) - 1, Format, Format);
+
+		FPlatformMisc::LowLevelOutputDebugString(DescriptionString);
+
+		if (FPlatformMisc::IsDebuggerPresent())
+			FPlatformMisc::PromptForRemoteDebugging(true);
+
+		UE_DEBUG_BREAK();
+	}
+	return false;
+}
+
+#endif
+
 /**
  * FLLMCsvWriter: class for writing out the LLM stats to a csv file every few seconds
  */
@@ -779,7 +800,7 @@ FLLMTracker* FLowLevelMemTracker::GetTracker(ELLMTracker Tracker)
 
 void FLowLevelMemTracker::OnLowLevelAllocMoved(ELLMTracker Tracker, const void* Dest, const void* Source)
 {
-	if (bIsDisabled || GIsRequestingExit)
+	if (bIsDisabled || IsEngineExitRequested())
 	{
 		return;
 	}
@@ -975,7 +996,7 @@ void FLLMScope::Init(int64 Tag, ELLMTagSet Set, ELLMTracker Tracker)
 {
 	TagSet = Set;
 	TrackerSet = Tracker;
-	Enabled = Tag != (int64)ELLMTag::Untagged && !GIsRequestingExit;
+	Enabled = Tag != (int64)ELLMTag::Untagged && !IsEngineExitRequested();
 
 	// early out if tracking is disabled (don't do the singleton call, this is called a lot!)
 	if (!Enabled)
@@ -1092,7 +1113,7 @@ FLLMScopeFromPtr::FLLMScopeFromPtr(void* Ptr, ELLMTracker Tracker )
 	: TrackerSet(Tracker)
 	, Enabled(false)
 {
-	if(GIsRequestingExit || Ptr == nullptr)
+	if(IsEngineExitRequested() || Ptr == nullptr)
 	{
 		return;
 	}
@@ -1356,7 +1377,7 @@ bool FLLMTracker::IsPaused(ELLMAllocType AllocType)
 {
 	FLLMTracker::FLLMThreadState* State = GetState();
 	// pause during shutdown, as the massive number of frees is likely to overflow some of the buffers
-	return GIsRequestingExit || (State == nullptr ? false : (State->PausedCounter[(int32)ELLMAllocType::None]>0) || (State->PausedCounter[(int32)AllocType])>0);
+	return IsEngineExitRequested() || (State == nullptr ? false : (State->PausedCounter[(int32)ELLMAllocType::None]>0) || (State->PausedCounter[(int32)AllocType])>0);
 }
 
 void FLLMTracker::Clear()

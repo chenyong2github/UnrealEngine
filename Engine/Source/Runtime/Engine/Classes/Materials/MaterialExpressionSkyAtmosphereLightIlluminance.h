@@ -17,6 +17,10 @@ class UMaterialExpressionSkyAtmosphereLightIlluminance : public UMaterialExpress
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialExpressionTextureCoordinate, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	int32 LightIndex;
 
+	/** World position of the sample. If not specified, the pixel world position will be used. */
+	UPROPERTY()
+	FExpressionInput WorldPosition;
+
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
@@ -50,6 +54,11 @@ UCLASS()
 class UMaterialExpressionSkyAtmosphereAerialPerspective : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
+
+	/** World position of the sample. If not specified, the pixel world position will be used. Larger distance will result in more fog. Please make sure .SkyAtmosphere.AerialPerspectiveLUT.Depth is set far enough to have fog data.
+		If you are scaling the sky dome pixel world position, make sure it is centered around the origin.*/
+	UPROPERTY()
+	FExpressionInput WorldPosition;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR

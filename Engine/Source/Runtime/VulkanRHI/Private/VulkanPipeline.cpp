@@ -18,6 +18,13 @@
 #include "VulkanLLM.h"
 #include "Misc/ScopeRWLock.h"
 
+
+#if !UE_BUILD_SHIPPING
+static TAtomic<uint64> SGraphicsRHICount;
+static TAtomic<uint64> SPipelineCount;
+static TAtomic<uint64> SPipelineGfxCount;
+#endif
+
 static const double HitchTime = 1.0 / 1000.0;
 
 static FCriticalSection EntryKeyToGfxPipelineMapCS;
@@ -103,10 +110,16 @@ FVulkanPipeline::FVulkanPipeline(FVulkanDevice* InDevice)
 	, Pipeline(VK_NULL_HANDLE)
 	, Layout(nullptr)
 {
+#if !UE_BUILD_SHIPPING
+	SPipelineCount++;
+#endif
 }
 
 FVulkanPipeline::~FVulkanPipeline()
 {
+#if !UE_BUILD_SHIPPING
+	SPipelineCount--;
+#endif
 	if (Pipeline != VK_NULL_HANDLE)
 	{
 		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::Pipeline, Pipeline);
@@ -140,6 +153,16 @@ FVulkanGfxPipeline::FVulkanGfxPipeline(FVulkanDevice* InDevice)
 	, bRuntimeObjectsValid(false)
 #endif
 {
+#if !UE_BUILD_SHIPPING
+	SPipelineGfxCount++;
+#endif
+}
+
+FVulkanGfxPipeline::~FVulkanGfxPipeline()
+{
+#if !UE_BUILD_SHIPPING
+	SPipelineGfxCount--;
+#endif
 }
 
 void FVulkanGfxPipeline::CreateRuntimeObjects(const FGraphicsPipelineStateInitializer& InPSOInitializer)
@@ -153,9 +176,27 @@ void FVulkanGfxPipeline::CreateRuntimeObjects(const FGraphicsPipelineStateInitia
 	VertexInputState.Generate(ResourceCast(InPSOInitializer.BoundShaderState.VertexDeclarationRHI), VSHeader.InOutMask);
 	bRuntimeObjectsValid = true;
 }
+FVulkanRHIGraphicsPipelineState::FVulkanRHIGraphicsPipelineState(const FBoundShaderStateInput& InBSI, FVulkanGfxPipeline* InPipeline, EPrimitiveType InPrimitiveType)
+	: Pipeline(InPipeline)
+	, PrimitiveType(InPrimitiveType)
+{
+
+	for (int32 StageIdx = 0; StageIdx < ShaderStage::NumStages; ++StageIdx)
+	{
+		ShaderKeys[StageIdx] = GetShaderKeyForGfxStage(InBSI, (ShaderStage::EStage)StageIdx);
+	}
+
+	bHasInputAttachments = InPipeline->GetGfxLayout().GetDescriptorSetsLayout().HasInputAttachments();
+#if !UE_BUILD_SHIPPING
+	SGraphicsRHICount++;
+#endif
+}
 
 FVulkanRHIGraphicsPipelineState::~FVulkanRHIGraphicsPipelineState()
 {
+#if !UE_BUILD_SHIPPING
+	SGraphicsRHICount--;
+#endif
 	if (Pipeline)
 	{
 		Pipeline->Device->NotifyDeletedGfxPipeline(this);
@@ -613,12 +654,20 @@ FVulkanRHIGraphicsPipelineState* FVulkanPipelineStateCacheManager::CreateAndAdd(
 		}
 	}
 
-	FVulkanRHIGraphicsPipelineState* PipelineState = new FVulkanRHIGraphicsPipelineState(PSOInitializer.BoundShaderState, Pipeline, PSOInitializer.PrimitiveType);
-	PipelineState->AddRef();
-
+	FVulkanRHIGraphicsPipelineState* PipelineState = nullptr;
 	{
 		FScopeLock Lock(&InitializerToPipelineMapCS);
-		InitializerToPipelineMap.Add(MoveTemp(PSIKey), PipelineState);
+		FVulkanRHIGraphicsPipelineState** Existing = InitializerToPipelineMap.Find(PSIKey);
+		if (Existing)
+		{
+			PipelineState = *Existing;
+		}
+		else
+		{
+			PipelineState = new FVulkanRHIGraphicsPipelineState(PSOInitializer.BoundShaderState, Pipeline, PSOInitializer.PrimitiveType);
+			PipelineState->AddRef();
+			InitializerToPipelineMap.Add(MoveTemp(PSIKey), PipelineState);
+		}
 	}
 
 	EntryKeyToGfxPipelineMap.Add(MoveTemp(GfxEntryKey), PipelineState->Pipeline);
@@ -1080,9 +1129,20 @@ void FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FGfxPipelineEn
 	CBInfo.attachmentCount = GfxEntry->ColorAttachmentStates.Num();
 	VkPipelineColorBlendAttachmentState BlendStates[MaxSimultaneousRenderTargets];
 	FMemory::Memzero(BlendStates);
+	uint32 ColorWriteMask = 0xffffffff;
+	if(Shaders[ShaderStage::Pixel])
+	{
+		ColorWriteMask = Shaders[ShaderStage::Pixel]->CodeHeader.InOutMask;
+	}
 	for (int32 Index = 0; Index < GfxEntry->ColorAttachmentStates.Num(); ++Index)
 	{
 		GfxEntry->ColorAttachmentStates[Index].WriteInto(BlendStates[Index]);
+		
+		if(0 == (ColorWriteMask & 1)) //clear write mask of rendertargets not written by pixelshader.
+		{
+			BlendStates[Index].colorWriteMask = 0;
+		}
+		ColorWriteMask >>= 1;
 	}
 	CBInfo.pAttachments = BlendStates;
 	CBInfo.blendConstants[0] = 1.0f;
@@ -1611,12 +1671,21 @@ FVulkanRHIGraphicsPipelineState* FVulkanPipelineStateCacheManager::FindInLoadedL
 		{
 			(*FoundPipeline)->CreateRuntimeObjects(PSOInitializer);
 		}
-		FVulkanRHIGraphicsPipelineState* PipelineState = new FVulkanRHIGraphicsPipelineState(PSOInitializer.BoundShaderState, *FoundPipeline, PSOInitializer.PrimitiveType);
+		FVulkanRHIGraphicsPipelineState* PipelineState = nullptr;
 		{
 			FScopeLock Lock2(&InitializerToPipelineMapCS);
-			InitializerToPipelineMap.Add(MoveTemp(PSIKey), PipelineState);
-		}
-		PipelineState->AddRef();
+			FVulkanRHIGraphicsPipelineState** Existing = InitializerToPipelineMap.Find(PSIKey);
+			if (Existing)
+			{
+				PipelineState = *Existing;
+			}
+			else
+			{
+				PipelineState = new FVulkanRHIGraphicsPipelineState(PSOInitializer.BoundShaderState, *FoundPipeline, PSOInitializer.PrimitiveType);
+				PipelineState->AddRef();
+				InitializerToPipelineMap.Add(MoveTemp(PSIKey), PipelineState);
+			}
+		}		
 		delete GfxEntry;
 #if VULKAN_ENABLE_LRU_CACHE
 		PipelineLRU.Touch(PipelineState);

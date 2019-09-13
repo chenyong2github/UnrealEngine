@@ -85,6 +85,15 @@ struct MOVIESCENE_API FMovieSceneChannel
 	{}
 
 	/**
+	 * Delete keys before or after a specified time
+	 *
+	 * @param InTime				Delete keys after this time
+	 * @param bDeleteKeysBefore     Whether to delete keys before the specified time
+	 */
+	virtual void DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore)
+	{}
+
+	/**
 	 * Called when the frame resolution of this channel is to be changed.
 	 *
 	 * @param SourceRate      The previous frame resolution that the channel is currently in

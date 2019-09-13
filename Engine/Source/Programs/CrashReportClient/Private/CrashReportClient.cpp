@@ -87,7 +87,7 @@ void FCrashReportClient::StopBackgroundThread()
 
 FReply FCrashReportClient::CloseWithoutSending()
 {
-	GIsRequestingExit = true;
+	RequestEngineExit(TEXT("FCrashReportClient::CloseWithoutSending()"));
 	return FReply::Handled();
 }
 

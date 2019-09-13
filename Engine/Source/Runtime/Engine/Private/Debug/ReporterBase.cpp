@@ -17,9 +17,11 @@ UReporterBase::UReporterBase(const FObjectInitializer& ObjectInitializer) :
 
 FVector2D UReporterBase::ToScreenSpace(const FVector2D& InVector, UCanvas* Canvas)
 {
+	const float DPIScale = Canvas->GetDPIScale();
+
 	FVector2D OutVector = InVector;
-	OutVector.X *= Canvas->SizeX;
-	OutVector.Y *= Canvas->SizeY;
+	OutVector.X *= (Canvas->SizeX / DPIScale);
+	OutVector.Y *= (Canvas->SizeY / DPIScale);
 
 	return OutVector;
 }

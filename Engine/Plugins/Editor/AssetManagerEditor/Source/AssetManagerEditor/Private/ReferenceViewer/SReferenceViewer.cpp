@@ -1533,7 +1533,11 @@ void SReferenceViewer::HandleOnSearchTextCommitted(const FText& SearchText, ETex
 	{
 		GraphEditorPtr->ClearSelectionSet();
 	}
-		
+	else if (CommitType == ETextCommit::OnEnter)
+	{
+		HandleOnSearchTextChanged(SearchBox->GetText());
+	}
+	
 	GraphEditorPtr->ZoomToFit(true);
 }
 

@@ -327,7 +327,10 @@ namespace BuildPatchServices
 			return RetVal;
 		}
 
-		virtual void GetOutdatedFiles(const FBuildPatchAppManifestPtr& OldManifest, const FString& InstallDirectory, TSet<FString>& OutOutdatedFiles) const override
+		virtual void GetOutdatedFiles(const IBuildManifestRef& OldManifest, TSet<FString>& OutOutdatedFiles) const override { GetOutdatedFiles(FBuildPatchAppManifestPtr(StaticCastSharedRef<FBuildPatchAppManifest>(OldManifest)), TEXT(""), OutOutdatedFiles); }
+		virtual void GetOutdatedFiles(const FBuildPatchAppManifestPtr& OldManifest, const FString& InstallDirectory, TSet<FString>& OutOutdatedFiles) const override { GetOutdatedFiles(OldManifest.Get(), InstallDirectory, OutOutdatedFiles); }
+		virtual void GetOutdatedFiles(const FBuildPatchAppManifest*    OldManifest, const FString& InstallDirectory, TSet<FString>& OutOutdatedFiles) const override { GetOutdatedFiles(OldManifest, InstallDirectory, TSet<FString>(), OutOutdatedFiles); }
+		virtual void GetOutdatedFiles(const FBuildPatchAppManifest*    OldManifest, const FString& InstallDirectory, const TSet<FString>& FilesToCheck, TSet<FString>& OutOutdatedFiles) const
 		{
 			OutOutdatedFiles = OutOutdatedFiles.Union(OutdatedFiles);
 		}

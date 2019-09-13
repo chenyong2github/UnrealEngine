@@ -36,7 +36,7 @@ PRAGMA_DEFAULT_VISIBILITY_END
 #include "SkelImport.h"
 #include "Animation/AnimSequence.h"
 #include "Rendering/SkeletalMeshModel.h"
-#include "Toolkits/AssetEditorManager.h"
+
 
 #include "AbcImportUtilities.h"
 #include "Utils.h"
@@ -59,6 +59,8 @@ PRAGMA_DEFAULT_VISIBILITY_END
 #include "AnimationUtils.h"
 #include "ComponentReregisterContext.h"
 #include "GeometryCacheCodecV1.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "AbcImporter"
 
@@ -806,10 +808,10 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 		GeneratedObjects.Add(Skeleton);
 		GeneratedObjects.Add(Sequence);
 
-		FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
-		AssetEditorManager.CloseAllEditorsForAsset(Skeleton);
-		AssetEditorManager.CloseAllEditorsForAsset(SkeletalMesh);
-		AssetEditorManager.CloseAllEditorsForAsset(Sequence);
+		UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+		AssetEditorSubsystem->CloseAllEditorsForAsset(Skeleton);
+		AssetEditorSubsystem->CloseAllEditorsForAsset(SkeletalMesh);
+		AssetEditorSubsystem->CloseAllEditorsForAsset(Sequence);
 	}
 
 	if (RecreateExistingRenderStateContext)
@@ -1348,10 +1350,7 @@ void FAbcImporter::GenerateMeshDescriptionFromSample(const FAbcMeshSample* Sampl
 
 		const FPolygonGroupID PolygonGroupID(Sample->MaterialIndices[TriangleIndex]);
 		// Insert a polygon into the mesh
-		const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(PolygonGroupID, CornerVertexInstanceIDs);
-		//Triangulate the polygon
-		FMeshPolygon& Polygon = MeshDescription->GetPolygon(NewPolygonID);
-		MeshDescription->ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
+		MeshDescription->CreatePolygon(PolygonGroupID, CornerVertexInstanceIDs);
 	}
 	//Set the edge hardness from the smooth group
 	FMeshDescriptionOperations::ConvertSmoothGroupToHardEdges(Sample->SmoothingGroupIndices, *MeshDescription);

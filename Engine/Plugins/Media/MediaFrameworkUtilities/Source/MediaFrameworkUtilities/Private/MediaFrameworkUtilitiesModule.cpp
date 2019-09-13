@@ -126,7 +126,7 @@ class FMediaFrameworkUtilitiesModule : public IMediaFrameworkUtilitiesModule
 			FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
 		}
 
-		if (!GIsRequestingExit)
+		if (!IsEngineExitRequested())
 		{
 			MediaProfileManager.SetCurrentMediaProfile(nullptr);
 		}

@@ -1334,7 +1334,22 @@ void SHierarchyViewItem::Construct(const FArguments& InArgs, const TSharedRef< S
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.ToolTipText(LOCTEXT("FlowDirectionHierarchyToolTip", "This widget overrides the flow direction preference."))
+				// TODO Tooltip should tell you what the widget is setup to do
+				.ToolTipText(LOCTEXT("NavigationHierarchyToolTip", "This widget overrides the navigation preference."))
+				.Visibility_Lambda([InModel] { return InModel->DoesWidgetOverrideNavigation() ? EVisibility::Visible : EVisibility::Collapsed; })
+				.ColorAndOpacity(FCoreStyle::Get().GetSlateColor("Foreground"))
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Text(FEditorFontGlyphs::Arrows)
+			]
+
+			// Localization Flow Direction Icon
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				// TODO Tooltip should tell you what the widget is setup to do
+				.ToolTipText(LOCTEXT("FlowDirectionHierarchyToolTip", "This widget overrides the culture/localization flow direction preference."))
 				.Visibility_Lambda([InModel] { return InModel->DoesWidgetOverrideFlowDirection() ? EVisibility::Visible : EVisibility::Collapsed; })
 				.ColorAndOpacity(FCoreStyle::Get().GetSlateColor("Foreground"))
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))

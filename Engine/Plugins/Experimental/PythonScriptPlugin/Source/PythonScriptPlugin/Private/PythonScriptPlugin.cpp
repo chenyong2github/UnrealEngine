@@ -32,7 +32,7 @@
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "LevelEditor.h"
+#include "ToolMenus.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
 #endif	// WITH_EDITOR
@@ -219,20 +219,12 @@ public:
 	{
 		LoadConfig();
 
-		// Create & Add menu extension
-		MenuExtender = MakeShareable(new FExtender);
-		MenuExtender->AddMenuExtension("FileLoadAndSave", EExtensionHook::After, nullptr, FMenuExtensionDelegate::CreateRaw(this, &FPythonCommandMenuImpl::CreateMenu));
-
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-		LevelEditorModule.GetMenuExtensibilityManager()->AddExtender(MenuExtender);
+		RegisterMenus();
 	}
 
 	virtual void OnShutdownMenu() override
 	{
-		// Remove menu extension
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-		LevelEditorModule.GetMenuExtensibilityManager()->RemoveExtender(MenuExtender);
-		MenuExtender = nullptr;
+		UToolMenus::UnregisterOwner(this);
 
 		// Write to file
 		if (bRecentsFilesDirty)
@@ -321,37 +313,51 @@ private:
 		GConfig->Flush(false);
 	}
 
-	void MakeRecentPythonScriptMenu(FMenuBuilder& InMenuBuilder)
+	void MakeRecentPythonScriptMenu(UToolMenu* InMenu)
 	{
+		FToolMenuOwnerScoped OwnerScoped(this);
+		FToolMenuSection& Section = InMenu->AddSection("Files");
 		for (int32 Index = RecentsFiles.Num() - 1; Index >= 0; --Index)
 		{
-			InMenuBuilder.AddMenuEntry(
+			Section.AddMenuEntry(
+				NAME_None,
 				FText::FromString(RecentsFiles[Index]),
 				FText::GetEmpty(),
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateRaw(this, &FPythonCommandMenuImpl::Menu_ExecutePythonRecent, Index))
 			);
 		}
-		int32 Variable1 = 1;
+
+		FToolMenuSection& ClearSection = InMenu->AddSection("Clear");
+		Section.AddMenuEntry(
+			"ClearRecentPython",
+			LOCTEXT("ClearRecentPython", "Clear Recent Python Scripts"),
+			FText::GetEmpty(),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FPythonCommandMenuImpl::Menu_ClearRecentPython))
+		);
 	}
 
-	void CreateMenu(FMenuBuilder& MenuBuilder)
+	void RegisterMenus()
 	{
-		MenuBuilder.BeginSection("Python", LOCTEXT("Python", "Python"));
-		MenuBuilder.AddMenuEntry(
+		FToolMenuOwnerScoped OwnerScoped(this);
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.File");
+		FToolMenuSection& Section = Menu->AddSection("Python", LOCTEXT("Python", "Python"), FToolMenuInsert("FileLoadAndSave", EToolMenuInsertType::After));
+		Section.AddMenuEntry(
+			"OpenPython",
 			LOCTEXT("OpenPython", "Execute Python Script..."),
 			LOCTEXT("OpenPythonTooltip", "Open a Python Script file and Execute it."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FPythonCommandMenuImpl::Menu_ExecutePython))
 		);
-		MenuBuilder.AddSubMenu(
+		Section.AddSubMenu(
+			"RecentPythonsSubMenu",
 			LOCTEXT("RecentPythonsSubMenu", "Recent Python Scripts"),
 			LOCTEXT("RecentPythonsSubMenu_ToolTip", "Select a recent Python Script file and Execute it."),
-			FNewMenuDelegate::CreateRaw(this, &FPythonCommandMenuImpl::MakeRecentPythonScriptMenu),
+			FNewToolMenuDelegate::CreateRaw(this, &FPythonCommandMenuImpl::MakeRecentPythonScriptMenu),
 			false,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.RecentLevels")
 		);
-		MenuBuilder.EndSection();
 	}
 
 	void Menu_ExecutePythonRecent(int32 Index)
@@ -360,6 +366,15 @@ private:
 		{
 			FString PyCopied = RecentsFiles[Index];
 			GEngine->Exec(NULL, *FString::Printf(TEXT("py \"%s\""), *PyCopied));
+		}
+	}
+
+	void Menu_ClearRecentPython()
+	{
+		if (RecentsFiles.Num() > 0)
+		{
+			RecentsFiles.Reset();
+			bRecentsFilesDirty = true;
 		}
 	}
 
@@ -395,7 +410,6 @@ private:
 	}
 
 private:
-	TSharedPtr<FExtender> MenuExtender;
 
 	TArray<FString> RecentsFiles;
 	FString LastDirectory;
@@ -484,14 +498,31 @@ void FPythonScriptPlugin::StartupModule()
 	RemoteExecution = MakeUnique<FPythonScriptRemoteExecution>(this);
 
 #if WITH_EDITOR
-	check(CmdMenu == nullptr);
-	CmdMenu = new FPythonCommandMenuImpl();
-	CmdMenu->OnStartupMenu();
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FPythonScriptPlugin::OnPostEngineInit);
 #endif // WITH_EDITOR
 
 	FCoreDelegates::OnPreExit.AddRaw(this, &FPythonScriptPlugin::ShutdownPython);
 #endif	// WITH_PYTHON
 }
+
+#if WITH_PYTHON
+#if WITH_EDITOR
+void FPythonScriptPlugin::OnPostEngineInit()
+{
+	if (UToolMenus::IsToolMenuUIEnabled())
+	{
+		check(CmdMenu == nullptr);
+		CmdMenu = new FPythonCommandMenuImpl();
+		CmdMenu->OnStartupMenu();
+
+		UToolMenus::Get()->RegisterStringCommandHandler("Python", FToolMenuExecuteString::CreateLambda([this](const FString& InString, const FToolMenuContext& InContext) {
+			ExecPythonCommand(*InString);
+		}));
+	}
+}
+
+#endif // WITH_EDITOR
+#endif // WITH_PYTHON
 
 void FPythonScriptPlugin::ShutdownModule()
 {
@@ -501,10 +532,19 @@ void FPythonScriptPlugin::ShutdownModule()
 	RemoteExecution.Reset();
 
 #if WITH_EDITOR
-	check(CmdMenu);
-	CmdMenu->OnShutdownMenu();
-	delete CmdMenu;
-	CmdMenu = nullptr;
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+
+	if (CmdMenu)
+	{
+		CmdMenu->OnShutdownMenu();
+		delete CmdMenu;
+		CmdMenu = nullptr;
+	}
+
+	if (UToolMenus* ToolMenus = UToolMenus::TryGet())
+	{
+		ToolMenus->UnregisterStringCommandHandler("Python");
+	}
 #endif // WITH_EDITOR
 
 	IModularFeatures::Get().UnregisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), &CmdExec);

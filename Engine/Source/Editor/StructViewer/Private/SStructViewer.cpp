@@ -34,7 +34,7 @@
 #include "ARFilter.h"
 #include "AssetData.h"
 #include "AssetRegistryModule.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "DragAndDrop/AssetDragDropOp.h"
 
 #include "Editor/UnrealEdEngine.h"
@@ -46,6 +46,7 @@
 #include "PropertyHandle.h"
 #include "Logging/LogMacros.h"
 #include "SourceCodeNavigation.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SStructViewer"
 
@@ -537,7 +538,7 @@ namespace StructViewer
 		{
 			if (InStruct)
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(const_cast<UUserDefinedStruct*>(InStruct));
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(const_cast<UUserDefinedStruct*>(InStruct));
 			}
 		}
 

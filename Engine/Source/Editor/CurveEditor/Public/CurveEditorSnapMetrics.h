@@ -4,18 +4,14 @@
 
 #include "Misc/FrameRate.h"
 #include "Math/Axis.h"
+#include "Runtime/Core/Public/Algo/MinElement.h"
 
-
-/**
- * Utility struct that acts as a cache of the current snapping metrics for the curve editor
- */
-struct FCurveEditorSnapMetrics
+struct FCurveSnapMetrics
 {
-	FCurveEditorSnapMetrics()
+	FCurveSnapMetrics()
 	{
 		bSnapOutputValues = 0;
 		bSnapInputValues = 0;
-		OutputSnapInterval = 1.0;
 	}
 
 	/** Whether we are snapping to the output snap interval */
@@ -24,8 +20,8 @@ struct FCurveEditorSnapMetrics
 	/** Whether we are snapping to the input snap rate */
 	uint8 bSnapInputValues : 1;
 
-	/** The output snap interval */
-	double OutputSnapInterval;
+	/** Grid lines to snap to */
+	TArray<double> AllGridLines;
 
 	/** The input snap rate */
 	FFrameRate InputSnapRate;
@@ -35,11 +31,13 @@ struct FCurveEditorSnapMetrics
 	{
 		return bSnapInputValues && InputSnapRate.IsValid() ? (InputTime * InputSnapRate).RoundToFrame() / InputSnapRate : InputTime;
 	}
-
+	
 	/** Snap the specified output value to the output snap interval if necessary */
 	FORCEINLINE double SnapOutput(double OutputValue)
 	{
-		return bSnapOutputValues && OutputSnapInterval != 0.f ? FMath::RoundToDouble(OutputValue / OutputSnapInterval) * OutputSnapInterval : OutputValue;
+		return bSnapOutputValues ? *Algo::MinElement(AllGridLines, 
+			[OutputValue](double Val1, double Val2) { return FMath::Abs(Val1 - OutputValue) < FMath::Abs(Val2 - OutputValue); }
+		) : OutputValue;
 	}
 };
 

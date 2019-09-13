@@ -433,7 +433,7 @@ const FLevelViewportCommands& FLevelEditorModule::GetLevelViewportCommands() con
 	return FLevelViewportCommands::Get();
 }
 
-TWeakPtr<class SLevelEditor> FLevelEditorModule::GetLevelEditorInstance() const
+TWeakPtr<class ILevelEditor> FLevelEditorModule::GetLevelEditorInstance() const
 {
 	return LevelEditorInstancePtr;
 }
@@ -585,6 +585,19 @@ TSharedRef<IViewportLayoutEntity> FLevelEditorModule::FactoryViewport(FName InTy
 	}
 
 	return MakeShareable(new FLevelViewportLayoutEntity(ConstructionArgs));
+}
+
+TSharedPtr<FExtender> FLevelEditorModule::AssembleExtenders(TSharedRef<FUICommandList>& InCommandList, TArray<FLevelEditorMenuExtender>& MenuExtenderDelegates) const
+{
+	TArray<TSharedPtr<FExtender>> Extenders;
+	for (int32 i = 0; i < MenuExtenderDelegates.Num(); ++i)
+	{
+		if (MenuExtenderDelegates[i].IsBound())
+		{
+			Extenders.Add(MenuExtenderDelegates[i].Execute(InCommandList));
+		}
+	}
+	return FExtender::Combine(Extenders);
 }
 
 void FLevelEditorModule::BindGlobalLevelEditorCommands()
@@ -1730,10 +1743,6 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnToggleHideViewportUI ),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateStatic( &FLevelEditorActionCallbacks::IsViewportUIHidden ) 
-		);
-	ActionList.MapAction(
-		Commands.AddMatinee,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnAddMatinee )
 		);
 
 	ActionList.MapAction( 

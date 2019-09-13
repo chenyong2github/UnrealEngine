@@ -112,6 +112,7 @@ void SWebBrowserView::Construct(const FArguments& InArgs, const TSharedPtr<IWebB
 			Settings.ContentsToLoad = InArgs._ContentsToLoad;
 			Settings.bShowErrorMessage = InArgs._ShowErrorMessage;
 			Settings.BackgroundColor = InArgs._BackgroundColor;
+			Settings.BrowserFrameRate = InArgs._BrowserFrameRate;
 			Settings.Context = InArgs._ContextSettings;
 			Settings.AltRetryDomains = InArgs._AltRetryDomains;
 

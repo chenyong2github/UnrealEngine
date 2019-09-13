@@ -1,6 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/AutomationTest.h"
+
+#include "BuildPatchSettings.h"
+
 #include "Tests/TestHelpers.h"
 #include "Tests/Fake/ChunkDataAccess.fake.h"
 #include "Tests/Fake/FileSystem.fake.h"
@@ -29,11 +32,12 @@ TUniquePtr<BuildPatchServices::FMockInstallChunkSourceStat> MockInstallChunkSour
 BuildPatchServices::FMockManifestPtr MockManifest;
 // Data.
 BuildPatchServices::FInstallSourceConfig Configuration;
-TMap<FString, FBuildPatchAppManifestRef> InstallationSources;
+TMultiMap<FString, FBuildPatchAppManifestRef> InstallationSources;
 TSet<FGuid> SomeAvailableChunks;
 FGuid SomeChunk;
 float PauseTime;
 bool bHasPaused;
+TUniquePtr<BuildPatchServices::IBuildManifestSet> ManifestSet;
 // Test helpers.
 void MakeUnit();
 void InventUsableChunkData();
@@ -62,6 +66,7 @@ void FInstallChunkSourceSpec::Define()
 		MockInstallerError.Reset(new FFakeInstallerError());
 		MockInstallChunkSourceStat.Reset(new FMockInstallChunkSourceStat());
 		MockManifest = MakeShareable(new FMockManifest());
+		ManifestSet.Reset(FBuildManifestSetFactory::Create({ BuildPatchServices::FInstallerAction::MakeInstall(MockManifest.ToSharedRef()) }));
 	});
 
 	Describe("InstallChunkSource", [this]()
@@ -336,6 +341,7 @@ void FInstallChunkSourceSpec::Define()
 		MockChunkReferenceTracker.Reset();
 		MockInstallerError.Reset();
 		MockInstallChunkSourceStat.Reset();
+		ManifestSet.Reset();
 		MockManifest.Reset();
 		InstallationSources.Reset();
 		SomeAvailableChunks.Reset();
@@ -353,7 +359,7 @@ void FInstallChunkSourceSpec::MakeUnit()
 		MockInstallerError.Get(),
 		MockInstallChunkSourceStat.Get(),
 		InstallationSources,
-		MockManifest.ToSharedRef()));
+		ManifestSet.Get()));
 }
 
 void FInstallChunkSourceSpec::InventUsableChunkData()

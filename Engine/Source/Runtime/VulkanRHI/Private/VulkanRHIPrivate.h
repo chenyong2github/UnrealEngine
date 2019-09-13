@@ -629,18 +629,18 @@ static inline VkAttachmentLoadOp RenderTargetLoadActionToVulkan(ERenderTargetLoa
 	return OutLoadAction;
 }
 
-static inline VkAttachmentStoreOp RenderTargetStoreActionToVulkan(ERenderTargetStoreAction InStoreAction, bool bRealRenderPass = false)
+static inline VkAttachmentStoreOp RenderTargetStoreActionToVulkan(ERenderTargetStoreAction InStoreAction)
 {
 	VkAttachmentStoreOp OutStoreAction = VK_ATTACHMENT_STORE_OP_MAX_ENUM;
 
 	switch (InStoreAction)
 	{
-	case ERenderTargetStoreAction::EStore:		OutStoreAction = VK_ATTACHMENT_STORE_OP_STORE;
+	case ERenderTargetStoreAction::EStore:
+		OutStoreAction = VK_ATTACHMENT_STORE_OP_STORE;
 		break;
-	//#todo-rco: Temp until we have fully switched to RenderPass system
 	case ERenderTargetStoreAction::ENoAction:
 	case ERenderTargetStoreAction::EMultisampleResolve:
-		OutStoreAction = bRealRenderPass ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
+		OutStoreAction = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		break;
 	default:
 		break;
@@ -810,6 +810,10 @@ namespace VulkanRHI
 		}
 #if VULKAN_SUPPORTS_MAINTENANCE_LAYER2
 		else if (RequestedDSAccess == FExclusiveDepthStencil::DepthRead_StencilWrite && InDevice.GetOptionalExtensions().HasKHRMaintenance2)
+		{
+			return VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR;
+		}
+		if(!RequestedDSAccess.IsUsingDepth() && RequestedDSAccess.IsUsingStencil())
 		{
 			return VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR;
 		}

@@ -45,8 +45,8 @@ FText UBehaviorTreeGraphNode_Composite::GetTooltipText() const
 	return Super::GetTooltipText();
 }
 
-void UBehaviorTreeGraphNode_Composite::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UBehaviorTreeGraphNode_Composite::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	AddContextMenuActionsDecorators(Context);
-	AddContextMenuActionsServices(Context);
+	AddContextMenuActionsDecorators(Menu, "BehaviorTreeGraphNode", Context);
+	AddContextMenuActionsServices(Menu, "BehaviorTreeGraphNode", Context);
 }

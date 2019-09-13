@@ -10,6 +10,7 @@
 #include <sys/file.h>
 
 #include "HAL/PlatformFileCommon.h"
+#include "HAL/PlatformFilemanager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnixPlatformFile, Log, All);
 
@@ -628,6 +629,14 @@ public:
 			}
 			else
 			{
+#if (UE_GAME || UE_SERVER)
+				// Games (including clients) and servers have no business traversing the filesystem when reading from the pak files - make sure the paths are correct!
+				static bool bReadingFromPakFiles = FPlatformFileManager::Get().FindPlatformFile(TEXT("PakFile")) != nullptr;
+				if (LIKELY(bReadingFromPakFiles))
+				{
+					return -1;
+				}
+#endif
 				// perform a case-insensitive search
 				// make sure we get the absolute filename
 				checkf(Filename[0] == TEXT('/'), TEXT("Filename '%s' given to OpenCaseInsensitiveRead is not absolute!"), *Filename);
@@ -1127,10 +1136,19 @@ bool FUnixPlatformFile::CreateDirectoriesFromPath(const TCHAR* Path)
 				if (mkdir(SubPath, 0755) == -1)
 				{
 					int ErrNo = errno;
-					UE_LOG_UNIX_FILE(Warning, TEXT( "create dir('%s') failed: errno=%d (%s)" ), UTF8_TO_TCHAR(DirPath), ErrNo, UTF8_TO_TCHAR(strerror(ErrNo)));
+
+					// We happen to have gotten into a position after stat that the folder was created so dont treat this as an error
+					bool bErrnoDirExist = ErrNo == EEXIST;
+
+					if (!bErrnoDirExist)
+					{
+						UE_LOG_UNIX_FILE(Warning, TEXT( "create dir('%s') failed: errno=%d (%s)" ), UTF8_TO_TCHAR(DirPath), ErrNo, UTF8_TO_TCHAR(strerror(ErrNo)));
+					}
+
 					FMemory::Free(DirPath);
 					FMemory::Free(SubPath);
-					return false;
+
+					return bErrnoDirExist;
 				}
 			}
 		}

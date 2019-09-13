@@ -209,6 +209,7 @@
 
 			<!-- Build utilities -->
 			Engine/Build/Windows/cl-filter/cl-filter.exe
+			Engine/Build/Windows/link-filter/link-filter.exe
 			Engine/Source/ThirdParty/IntelISPC/bin/Windows/ispc.exe
 
 			<!-- Default resource files -->

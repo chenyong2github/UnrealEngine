@@ -9,13 +9,22 @@
 #include "Engine/Engine.h"
 #include "DynamicBufferAllocator.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraGPUSortInfo.h"
 
 DECLARE_CYCLE_STAT(TEXT("Sort Particles"), STAT_NiagaraSortParticles, STATGROUP_Niagara);
-
 DECLARE_CYCLE_STAT(TEXT("Global Float Alloc - All"), STAT_NiagaraAllocateGlobalFloatAll, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Global Float Alloc - InsideLock"), STAT_NiagaraAllocateGlobalFloatInsideLock, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Global Float Alloc - Alloc New Buffer"), STAT_NiagaraAllocateGlobalFloatAllocNew, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Global Float Alloc - Map Buffer"), STAT_NiagaraAllocateGlobalFloatMapBuffer, STATGROUP_Niagara);
+
+int32 GNiagaraRadixSortThreshold = 400;
+static FAutoConsoleVariableRef CVarNiagaraRadixSortThreshold(
+	TEXT("Niagara.RadixSortThreshold"),
+	GNiagaraRadixSortThreshold,
+	TEXT("Instance count at which radix sort gets used instead of introspective sort.\n")
+	TEXT("Set to  -1 to never use radixsort. (default=400)"),
+	ECVF_Default
+);
 
 class FNiagaraDummyRWBufferFloat : public FRenderResource
 {
@@ -259,106 +268,103 @@ void FNiagaraRenderer::SetDynamicData_RenderThread(FNiagaraDynamicDataBase* NewD
 	DynamicDataRender = NewDynamicData;
 }
 
-void FNiagaraRenderer::SortIndices(ENiagaraSortMode SortMode, int32 SortAttributeOffset, const FNiagaraDataBuffer& Buffer, const FMatrix& LocalToWorld, const FSceneView* View, FGlobalDynamicReadBuffer::FAllocation& OutIndices)const
+struct FParticleOrderAsUint
+{
+	uint32 OrderAsUint;
+	int32 Index;
+
+	template <bool bStrictlyPositive, bool bAscending>
+	FORCEINLINE void SetAsUint(int32 InIndex, float InOrder) 
+	{
+		const uint32 SortKeySignBit = 0x80000000;
+		uint32 InOrderAsUint = reinterpret_cast<uint32&>(InOrder);
+		InOrderAsUint = (bStrictlyPositive || InOrder >= 0) ? (InOrderAsUint | SortKeySignBit) : ~InOrderAsUint;
+		OrderAsUint = bAscending ? InOrderAsUint : ~InOrderAsUint;
+
+		Index = InIndex;
+	}
+		
+	FORCEINLINE operator uint32() const { return OrderAsUint; }
+};
+
+void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices)const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSortParticles);
 
 	uint32 NumInstances = Buffer.GetNumInstances();
 	check(OutIndices.ReadBuffer->NumBytes >= OutIndices.FirstIndex + NumInstances * sizeof(int32));
-	check(SortMode != ENiagaraSortMode::None);
-	check(SortAttributeOffset != INDEX_NONE);
+	check(SortInfo.SortMode != ENiagaraSortMode::None);
+	check(SortInfo.SortAttributeOffset != INDEX_NONE);
+
+	const bool bUseRadixSort = GNiagaraRadixSortThreshold != -1 && (int32)NumInstances  > GNiagaraRadixSortThreshold;
 
 	int32* RESTRICT IndexBuffer = (int32*)(OutIndices.Buffer);
 
-	struct FParticleOrder
-	{
-		int32 Index;
-		float Order;
-	};
 	FMemMark Mark(FMemStack::Get());
-	FParticleOrder* RESTRICT ParticleOrder = (FParticleOrder*)FMemStack::Get().Alloc(sizeof(FParticleOrder) * NumInstances, alignof(FParticleOrder));
+	FParticleOrderAsUint* RESTRICT ParticleOrder = (FParticleOrderAsUint*)FMemStack::Get().Alloc(sizeof(FParticleOrderAsUint) * NumInstances, alignof(FParticleOrderAsUint));
 
-	auto SortAscending = [](const FParticleOrder& A, const FParticleOrder& B) { return A.Order < B.Order; };
-	auto SortDescending = [](const FParticleOrder& A, const FParticleOrder& B) { return A.Order > B.Order; };
-
-	if (SortMode == ENiagaraSortMode::ViewDepth || SortMode == ENiagaraSortMode::ViewDistance)
+	if (SortInfo.SortMode == ENiagaraSortMode::ViewDepth || SortInfo.SortMode == ENiagaraSortMode::ViewDistance)
 	{
-		float* RESTRICT PositionX = (float*)Buffer.GetComponentPtrFloat(SortAttributeOffset);
-		float* RESTRICT PositionY = (float*)Buffer.GetComponentPtrFloat(SortAttributeOffset + 1);
-		float* RESTRICT PositionZ = (float*)Buffer.GetComponentPtrFloat(SortAttributeOffset + 2);
+		float* RESTRICT PositionX = (float*)Buffer.GetComponentPtrFloat(SortInfo.SortAttributeOffset);
+		float* RESTRICT PositionY = (float*)Buffer.GetComponentPtrFloat(SortInfo.SortAttributeOffset + 1);
+		float* RESTRICT PositionZ = (float*)Buffer.GetComponentPtrFloat(SortInfo.SortAttributeOffset + 2);
 		auto GetPos = [&PositionX, &PositionY, &PositionZ](int32 Idx)
 		{
 			return FVector(PositionX[Idx], PositionY[Idx], PositionZ[Idx]);
 		};
 
-		//TODO Parallelize in batches? Move to GPU for large emitters?
-		if (SortMode == ENiagaraSortMode::ViewDepth)
+		if (SortInfo.SortMode == ENiagaraSortMode::ViewDepth)
 		{
-			FMatrix ViewProjMatrix = View->ViewMatrices.GetViewProjectionMatrix();
-			if (bLocalSpace)
+			for (uint32 i = 0; i < NumInstances; ++i)
 			{
-				for (uint32 i = 0; i < NumInstances; ++i)
-				{
-					ParticleOrder[i].Index = i;
-					ParticleOrder[i].Order = ViewProjMatrix.TransformPosition(LocalToWorld.TransformPosition(GetPos(i))).W;
-				}
+				ParticleOrder[i].SetAsUint<true, false>(i, FVector::DotProduct(GetPos(i) - SortInfo.ViewOrigin, SortInfo.ViewDirection));
 			}
-			else
-			{
-				for (uint32 i = 0; i < NumInstances; ++i)
-				{
-					ParticleOrder[i].Index = i;
-					ParticleOrder[i].Order = ViewProjMatrix.TransformPosition(GetPos(i)).W;
-				}
-			}
-
-			Sort(ParticleOrder, NumInstances, SortDescending);
 		}
-		else 
+		else
 		{
-			// check(SortMode == ENiagaraSortMode::ViewDistance); Should always be true because we are within this block. If code is moved or copied, please change.
-			FVector ViewOrigin = View->ViewMatrices.GetViewOrigin();
-			if (bLocalSpace)
+			for (uint32 i = 0; i < NumInstances; ++i)
 			{
-				for (uint32 i = 0; i < NumInstances; ++i)
-				{
-					ParticleOrder[i].Index = i;
-					ParticleOrder[i].Order = (ViewOrigin - LocalToWorld.TransformPosition(GetPos(i))).SizeSquared();
-				}
+				ParticleOrder[i].SetAsUint<true, false>(i, (GetPos(i) - SortInfo.ViewOrigin).SizeSquared());
 			}
-			else
-			{
-				for (uint32 i = 0; i < NumInstances; ++i)
-				{
-					ParticleOrder[i].Index = i;
-					ParticleOrder[i].Order = (ViewOrigin - GetPos(i)).SizeSquared();
-				}
-			}
-
-			Sort(ParticleOrder, NumInstances, SortDescending);
 		}
 	}
 	else
 	{
-		float* RESTRICT CustomSorting = (float*)Buffer.GetComponentPtrFloat(SortAttributeOffset);
-		for (uint32 i = 0; i < NumInstances; ++i)
+		float* RESTRICT CustomSorting = (float*)Buffer.GetComponentPtrFloat(SortInfo.SortAttributeOffset);
+
+		if (SortInfo.SortMode == ENiagaraSortMode::CustomAscending)
 		{
-			ParticleOrder[i].Index = i;
-			ParticleOrder[i].Order = CustomSorting[i];
+			for (uint32 i = 0; i < NumInstances; ++i)
+			{
+				ParticleOrder[i].SetAsUint<false, true>(i, CustomSorting[i]);
+			}
 		}
-		if (SortMode == ENiagaraSortMode::CustomAscending)
+		else // ENiagaraSortMode::CustomDecending
 		{
-			Sort(ParticleOrder, NumInstances, SortAscending);
-		}
-		else if (SortMode == ENiagaraSortMode::CustomDecending)
-		{
-			Sort(ParticleOrder, NumInstances, SortDescending);
+			for (uint32 i = 0; i < NumInstances; ++i)
+			{
+				ParticleOrder[i].SetAsUint<false, false>(i, CustomSorting[i]);
+			}
 		}
 	}
 
-	//Now transfer to the real index buffer.
-	for (uint32 i = 0; i < NumInstances; ++i)
+	if (!bUseRadixSort)
 	{
-		IndexBuffer[i] = ParticleOrder[i].Index;
+		Sort(ParticleOrder, NumInstances, [](const FParticleOrderAsUint& A, const FParticleOrderAsUint& B) { return A.OrderAsUint < B.OrderAsUint; });
+		//Now transfer to the real index buffer.
+		for (uint32 i = 0; i < NumInstances; ++i)
+		{
+			IndexBuffer[i] = ParticleOrder[i].Index;
+		}
+	}
+	else
+	{
+		FParticleOrderAsUint* RESTRICT ParticleOrderResult = bUseRadixSort ? (FParticleOrderAsUint*)FMemStack::Get().Alloc(sizeof(FParticleOrderAsUint) * NumInstances, alignof(FParticleOrderAsUint)) : nullptr;
+		RadixSort32(ParticleOrderResult, ParticleOrder, NumInstances);
+		//Now transfer to the real index buffer.
+		for (uint32 i = 0; i < NumInstances; ++i)
+		{
+			IndexBuffer[i] = ParticleOrderResult[i].Index;
+		}
 	}
 }

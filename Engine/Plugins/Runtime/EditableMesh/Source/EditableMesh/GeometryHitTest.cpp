@@ -94,18 +94,13 @@ FEditableMeshElementAddress FGeometryTests::QueryElement(const UEditableMesh& Ed
 	// Check polygons first; this is so we always impose a closest hit location at the poly before checking other elements, so anything behind is occluded
 	for (const FPolygonID PolygonID : FrontFacingPolygons)
 	{
-		static TArray<FVertexID> MeshVertexIDs;
-		MeshVertexIDs.Reset();
-		EditableMesh.GetPolygonPerimeterVertices(PolygonID, /* Out */ MeshVertexIDs);
-
-		const uint32 PolygonTriangleCount = EditableMesh.GetPolygonTriangulatedTriangleCount(PolygonID);
-		for (uint32 PolygonTriangleNumber = 0; PolygonTriangleNumber < PolygonTriangleCount; ++PolygonTriangleNumber)
+		for (const FTriangleID TriangleID : MeshDescription->GetPolygonTriangleIDs(PolygonID))
 		{
 			FVector TriangleVertexPositions[3];
 			for (uint32 TriangleVertexNumber = 0; TriangleVertexNumber < 3; ++TriangleVertexNumber)
 			{
-				const FVertexInstanceID VertexInstanceID = EditableMesh.GetPolygonTriangulatedTriangle(PolygonID, PolygonTriangleNumber).GetVertexInstanceID(TriangleVertexNumber);
-				const FVertexID VertexID = EditableMesh.GetVertexInstanceVertex(VertexInstanceID);
+				const FVertexInstanceID VertexInstanceID = MeshDescription->GetTriangleVertexInstance(TriangleID, TriangleVertexNumber);
+				const FVertexID VertexID = MeshDescription->GetVertexInstanceVertex(VertexInstanceID);
 				TriangleVertexPositions[TriangleVertexNumber] = VertexPositions[VertexID];
 			}
 

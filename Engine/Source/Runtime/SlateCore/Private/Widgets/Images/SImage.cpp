@@ -9,7 +9,7 @@
 
 void SImage::Construct( const FArguments& InArgs )
 {
-	Image = InArgs._Image;
+	Image = FInvalidatableBrushAttribute(InArgs._Image);
 	ColorAndOpacity = InArgs._ColorAndOpacity;
 	bFlipForRightToLeftFlowDirection = InArgs._FlipForRightToLeftFlowDirection;
 	SetOnMouseButtonDown(InArgs._OnMouseButtonDown);
@@ -17,7 +17,7 @@ void SImage::Construct( const FArguments& InArgs )
 
 int32 SImage::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
 {
-	const FSlateBrush* ImageBrush = Image.Get();
+	const FSlateBrush* ImageBrush = Image.GetImage().Get();
 
 	if ((ImageBrush != nullptr) && (ImageBrush->DrawAs != ESlateBrushDrawType::NoDrawType))
 	{
@@ -62,22 +62,7 @@ void SImage::SetColorAndOpacity( FLinearColor InColorAndOpacity )
 
 void SImage::SetImage(TAttribute<const FSlateBrush*> InImage)
 {
-	const bool bImagePointerChanged = SetAttribute(Image, InImage, EInvalidateWidgetReason::Layout);
-
-	const FSlateBrush* ImagePtr = Image.Get();
-	const FSlateBrush NewImageToCache = ImagePtr ? *ImagePtr : FSlateBrush();
-
-	// If the slate brush pointer didn't change, that may not mean nothing changed.  We
-	// sometimes reuse the slate brush memory address and change out the texture.  In those
-	// circumstances we need to actually look at the data the brush has compared to what it had
-	// previously.
-	if (!bImagePointerChanged && ImageCache != NewImageToCache)
-	{
-		Invalidate(EInvalidateWidgetReason::Layout);
-	}
-
-	// Cache the new image's value in case the memory changes later.
-	ImageCache = NewImageToCache;
+	Image.SetImage(*this, InImage);
 }
 
 #if WITH_ACCESSIBILITY

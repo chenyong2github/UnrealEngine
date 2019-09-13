@@ -99,7 +99,7 @@ struct NIAGARA_API FNiagaraParameterStore
 
 private:
 	/** Owner of this store. Used to provide an outer to data interfaces in this store. */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	UObject* Owner;
 	
 	/** Map from parameter defs to their offset in the data table or the data interface. TODO: Separate out into a layout and instance class to reduce duplicated data for this?  */
@@ -214,6 +214,8 @@ public:
 
 	FORCEINLINE void SetParameterDataArray(const TArray<uint8>& InParameterDataArray);
 
+	void SanityCheckData(bool bInitInterfaces = true);
+
 	// Called to initially set up the parameter store to *exactly* match the input store (other than any bindings and the internal name of it).
 	virtual void InitFromSource(const FNiagaraParameterStore* SrcStore, bool bNotifyAsDirty);
 
@@ -324,6 +326,7 @@ public:
 		{
 			if (Parameter.IsDataInterface())
 			{
+				ensure(DestStore.DataInterfaces.IsValidIndex(DestIndex));
 				DataInterfaces[SrcIndex]->CopyTo(DestStore.DataInterfaces[DestIndex]);
 				DestStore.OnInterfaceChange();
 			}

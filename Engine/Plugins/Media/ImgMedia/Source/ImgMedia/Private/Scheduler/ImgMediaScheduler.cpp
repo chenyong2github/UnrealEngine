@@ -48,6 +48,24 @@ void FImgMediaScheduler::Initialize()
 		NumWorkers = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
 	}
 
+	uint32 StackSize = GetWorkerStackSize();
+
+	// create worker threads
+	FScopeLock Lock(&CriticalSection);
+
+	while (NumWorkers-- > 0)
+	{
+		CreateWorker(StackSize);
+	}
+
+#if WITH_EDITOR
+	UpdateSettingsHandle = UImgMediaSettings::OnSettingsChanged().AddRaw(this, &FImgMediaScheduler::UpdateSettings);
+#endif
+}
+
+
+uint32 FImgMediaScheduler::GetWorkerStackSize()
+{
 	uint32 StackSize = GetDefault<UImgMediaSettings>()->CacheThreadStackSizeKB;
 
 	if (StackSize < IMGMEDIA_SCHEDULERTHREAD_MIN_STACK_SIZE)
@@ -55,15 +73,15 @@ void FImgMediaScheduler::Initialize()
 		StackSize = IMGMEDIA_SCHEDULERTHREAD_MIN_STACK_SIZE;
 	}
 
-	// create worker threads
-	FScopeLock Lock(&CriticalSection);
+	return StackSize;
+}
 
-	while (NumWorkers-- > 0)
-	{
-		auto Thread = new FImgMediaSchedulerThread(*this, StackSize, TPri_Normal);
-		AvailableThreads.Add(Thread);
-		AllThreads.Add(Thread);
-	}
+
+void FImgMediaScheduler::CreateWorker(uint32 StackSize)
+{
+	FImgMediaSchedulerThread* Thread = new FImgMediaSchedulerThread(*this, StackSize, TPri_Normal);
+	AvailableThreads.Add(Thread);
+	AllThreads.Add(Thread);
 }
 
 
@@ -77,6 +95,10 @@ void FImgMediaScheduler::RegisterLoader(const TSharedRef<FImgMediaLoader, ESPMod
 void FImgMediaScheduler::Shutdown()
 {
 	FScopeLock Lock(&CriticalSection);
+
+#if WITH_EDITOR
+	UImgMediaSettings::OnSettingsChanged().Remove(UpdateSettingsHandle);
+#endif
 
 	// destroy worker threads
 	for (FImgMediaSchedulerThread* Thread : AllThreads)
@@ -144,43 +166,87 @@ void FImgMediaScheduler::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 
 IQueuedWork* FImgMediaScheduler::GetWorkOrReturnToPool(FImgMediaSchedulerThread* Thread)
 {
-	FScopeLock Lock(&CriticalSection);
-
-	if ((Thread == nullptr) || FPlatformProcess::SupportsMultithreading())
+#if WITH_EDITOR
+	bool DeleteThread = false;
+#endif
 	{
-		const int32 NumLoaders = Loaders.Num();
+		FScopeLock Lock(&CriticalSection);
 
-		if (NumLoaders > 0)
+		if ((Thread == nullptr) || FPlatformProcess::SupportsMultithreading())
 		{
-			int32 CheckedLoaders = 0;
+			const int32 NumLoaders = Loaders.Num();
 
-			while (CheckedLoaders++ < NumLoaders)
+			if (NumLoaders > 0)
 			{
-				LoaderRoundRobin = (LoaderRoundRobin + 1) % NumLoaders;
+				int32 CheckedLoaders = 0;
 
-				TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Loader = Loaders[LoaderRoundRobin].Pin();
-
-				if (Loader.IsValid())
+				while (CheckedLoaders++ < NumLoaders)
 				{
-					IQueuedWork* Work = Loader->GetWork();
+					LoaderRoundRobin = (LoaderRoundRobin + 1) % NumLoaders;
 
-					if (Work != nullptr)
+					TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Loader = Loaders[LoaderRoundRobin].Pin();
+
+					if (Loader.IsValid())
 					{
-						return Work;
+						IQueuedWork* Work = Loader->GetWork();
+
+						if (Work != nullptr)
+						{
+							return Work;
+						}
 					}
-				}
-				else
-				{
-					RemoveLoader(LoaderRoundRobin);
+					else
+					{
+						RemoveLoader(LoaderRoundRobin);
+					}
 				}
 			}
 		}
+
+		if (Thread != nullptr)
+		{
+#if WITH_EDITOR
+			// If there are too many workers then delete this one.
+			int32 NumWorkers = GetDefault<UImgMediaSettings>()->CacheThreads;
+			if (NumWorkers < AllThreads.Num())
+			{
+				AllThreads.Remove(Thread);
+				DeleteThread = true;
+			}
+			else
+			{
+				AvailableThreads.Add(Thread);
+			}
+#else
+			AvailableThreads.Add(Thread);
+#endif
+		}
 	}
 
-	if (Thread != nullptr)
+#if WITH_EDITOR
+	if (DeleteThread)
 	{
-		AvailableThreads.Add(Thread);
+		delete Thread;
 	}
+#endif
 
 	return nullptr;
+	}
+
+
+#if WITH_EDITOR
+
+void FImgMediaScheduler::UpdateSettings(const UImgMediaSettings* Settings)
+{
+	FScopeLock Lock(&CriticalSection);
+
+	// Create more workers if needed.
+	uint32 StackSize = GetWorkerStackSize();
+	while (Settings->CacheThreads > AllThreads.Num())
+	{
+		CreateWorker(StackSize);
+	}
+
 }
+
+#endif

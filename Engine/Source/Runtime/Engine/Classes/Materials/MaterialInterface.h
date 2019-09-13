@@ -29,6 +29,9 @@ class UTexture;
 struct FPrimitiveViewRelevance;
 struct FMaterialParameterInfo;
 struct FMaterialResourceLocOnDisk;
+#if WITH_EDITORONLY_DATA
+struct FParameterChannelNames;
+#endif
 
 typedef TArray<FMaterialResource*> FMaterialResourceDeferredDeletionArray;
 
@@ -703,11 +706,17 @@ public:
 	ENGINE_API virtual bool GetScalarCurveParameterValue(const FMaterialParameterInfo& ParameterInfo, FInterpCurveFloat& OutValue) const;
 	ENGINE_API virtual bool GetVectorParameterValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly = false) const;
 	ENGINE_API virtual bool IsVectorParameterUsedAsChannelMask(const FMaterialParameterInfo& ParameterInfo, bool& OutValue) const;
+#if WITH_EDITOR
+	ENGINE_API virtual bool GetVectorParameterChannelNames(const FMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const;
+#endif
 	ENGINE_API virtual bool GetVectorCurveParameterValue(const FMaterialParameterInfo& ParameterInfo, FInterpCurveVector& OutValue) const;
 	ENGINE_API virtual bool GetLinearColorParameterValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue) const;
 	ENGINE_API virtual bool GetLinearColorCurveParameterValue(const FMaterialParameterInfo& ParameterInfo, FInterpCurveLinearColor& OutValue) const;
 	ENGINE_API virtual bool GetTextureParameterValue(const FMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue, bool bOveriddenOnly = false) const;
 	ENGINE_API virtual bool GetRuntimeVirtualTextureParameterValue(const FMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly = false) const;
+#if WITH_EDITOR
+	ENGINE_API virtual bool GetTextureParameterChannelNames(const FMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const;
+#endif
 	ENGINE_API virtual bool GetFontParameterValue(const FMaterialParameterInfo& ParameterInfo,class UFont*& OutFontValue, int32& OutFontPage, bool bOveriddenOnly = false) const;
 	ENGINE_API virtual bool GetRefractionSettings(float& OutBiasValue) const;
 
@@ -737,9 +746,10 @@ public:
 	 * @param bForceMiplevelsToBeResidentValue		- true forces all mips to stream in. false lets other factors decide what to do with the mips.
 	 * @param ForceDuration							- Number of seconds to keep all mip-levels in memory, disregarding the normal priority logic. Negative value turns it off.
 	 * @param CinematicTextureGroups				- Bitfield indicating texture groups that should use extra high-resolution mips
+	 * @param bFastResponse							- USE WITH EXTREME CAUTION! Fast response textures incur sizable GT overhead and disturb streaming metric calculation. Avoid whenever possible.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
-	ENGINE_API virtual void SetForceMipLevelsToBeResident( bool OverrideForceMiplevelsToBeResident, bool bForceMiplevelsToBeResidentValue, float ForceDuration, int32 CinematicTextureGroups = 0 );
+	ENGINE_API virtual void SetForceMipLevelsToBeResident( bool OverrideForceMiplevelsToBeResident, bool bForceMiplevelsToBeResidentValue, float ForceDuration, int32 CinematicTextureGroups = 0, bool bFastResponse = false );
 
 	/**
 	 * Re-caches uniform expressions for all material interfaces

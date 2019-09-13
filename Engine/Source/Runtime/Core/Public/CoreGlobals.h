@@ -252,7 +252,21 @@ extern CORE_API bool GIsSilent;
 extern CORE_API bool GIsSlowTask;
 extern CORE_API bool GSlowTaskOccurred;
 extern CORE_API bool GIsGuarded;
+
+UE_DEPRECATED(4.24, "Please use IsEngineExitRequested()/RequestEngineExit(const FString&)")
 extern CORE_API bool GIsRequestingExit;
+
+FORCEINLINE bool IsEngineExitRequested()
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return GIsRequestingExit;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+// Request that the engine exit as soon as it can safely do so
+// The ReasonString is not optional and should be a useful description of why the engine exit is requested
+CORE_API void RequestEngineExit(const TCHAR* ReasonString);
+CORE_API void RequestEngineExit(const FString& ReasonString);
 
 /**
 *	Global value indicating on-screen warnings/message should be displayed.

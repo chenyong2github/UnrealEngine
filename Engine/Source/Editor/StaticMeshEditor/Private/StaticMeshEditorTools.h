@@ -183,6 +183,7 @@ private:
 	ECheckBoxState ShouldRecomputeNormals() const;
 	ECheckBoxState ShouldRecomputeTangents() const;
 	ECheckBoxState ShouldUseMikkTSpace() const;
+	ECheckBoxState ShouldComputeWeightedNormals() const;
 	ECheckBoxState ShouldRemoveDegenerates() const;
 	ECheckBoxState ShouldBuildAdjacencyBuffer() const;
 	ECheckBoxState ShouldBuildReversedIndexBuffer() const;
@@ -201,6 +202,7 @@ private:
 	void OnRecomputeNormalsChanged(ECheckBoxState NewState);
 	void OnRecomputeTangentsChanged(ECheckBoxState NewState);
 	void OnUseMikkTSpaceChanged(ECheckBoxState NewState);
+	void OnComputeWeightedNormalsChanged(ECheckBoxState NewState);
 	void OnRemoveDegeneratesChanged(ECheckBoxState NewState);
 	void OnBuildAdjacencyBufferChanged(ECheckBoxState NewState);
 	void OnBuildReversedIndexBufferChanged(ECheckBoxState NewState);

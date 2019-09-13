@@ -48,8 +48,9 @@ public:
 		: _InitialURL(TEXT("https://www.google.com"))
 		, _ShowErrorMessage(true)
 		, _SupportsTransparency(false)
-		, _SupportsThumbMouseButtonNavigation(false)
+		, _SupportsThumbMouseButtonNavigation(true)
 		, _BackgroundColor(255,255,255,255)
+		, _BrowserFrameRate(24)
 		, _PopupMenuMethod(TOptional<EPopupMethod>())
 		, _ContextSettings()
 		, _AltRetryDomains(TArray<FString>())
@@ -76,6 +77,9 @@ public:
 
 		/** Opaque background color used before a document is loaded and when no document color is specified. */
 		SLATE_ARGUMENT(FColor, BackgroundColor)
+
+		/** The frames per second rate that the browser will attempt to use. */
+		SLATE_ARGUMENT(int, BrowserFrameRate)
 
 		/** Override the popup menu method used for popup menus. If not set, parent widgets will be queried instead. */
 		SLATE_ARGUMENT(TOptional<EPopupMethod>, PopupMenuMethod)

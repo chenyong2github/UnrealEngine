@@ -248,7 +248,6 @@ public:
 		, RawTextureMemory(InRawTextureMemory)
 #endif
 	{
-		FMemory::Memzero(ReadBackHeapDesc);
 		if (InTextureLayout == nullptr)
 		{
 			FMemory::Memzero(TextureLayout);
@@ -275,13 +274,8 @@ public:
 
 	// Accessors.
 	FD3D12Resource* GetResource() const { return (FD3D12Resource*)FD3D12TextureBase::GetResource(); }
-	const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& GetReadBackHeapDesc() const
-	{
-		// This should only be called if SetReadBackHeapDesc() was called with actual contents
-		check(ReadBackHeapDesc.Footprint.Width > 0 && ReadBackHeapDesc.Footprint.Height > 0);
 
-		return ReadBackHeapDesc;
-	}
+	void GetReadBackHeapDesc(D3D12_PLACED_SUBRESOURCE_FOOTPRINT& OutFootprint, uint32 Subresource) const;
 
 	FD3D12CLSyncPoint GetReadBackSyncPoint() const { return ReadBackSyncPoint; }
 	bool IsCubemap() const { return bCubemap; }
@@ -299,7 +293,6 @@ public:
 	}
 
 	// Modifiers.
-	void SetReadBackHeapDesc(const D3D12_PLACED_SUBRESOURCE_FOOTPRINT &newReadBackHeapDesc) { ReadBackHeapDesc = newReadBackHeapDesc; }
 	void SetReadBackListHandle(FD3D12CommandListHandle listToWaitFor) { ReadBackSyncPoint = listToWaitFor; }
 
 	// IRefCountedObject interface.
@@ -337,7 +330,6 @@ private:
 	/** Unlocks a previously locked mip-map. */
 	void UnlockInternal(class FRHICommandListImmediate* RHICmdList, TD3D12Texture2D* Previous, uint32 MipIndex, uint32 ArrayIndex);
 
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT ReadBackHeapDesc;
 	FD3D12CLSyncPoint ReadBackSyncPoint;
 
 	/** Whether the texture is a cube-map. */

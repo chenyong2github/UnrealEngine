@@ -53,3 +53,31 @@ inline bool PointsEqual(const FVector& V1, const FVector& V2, float ComparisonTh
 	}
 	return true;
 }
+
+namespace TriangleUtilities
+{
+	/*
+	 * This function compute the area of a triangle, it will return zero if the triangle is degenerated
+	 */
+	static float ComputeTriangleArea(const FVector& PointA, const FVector& PointB, const FVector& PointC)
+	{
+		return FVector::CrossProduct((PointB - PointA), (PointC - PointA)).Size() / 2.0f;
+	}
+
+	/*
+	 * This function compute the angle of a triangle corner, it will return zero if the triangle is degenerated
+	 */
+	static float ComputeTriangleCornerAngle(const FVector& PointA, const FVector& PointB, const FVector& PointC)
+	{
+		FVector E1 = (PointB - PointA);
+		FVector E2 = (PointC - PointA);
+		//Normalize both edges (unit vector) of the triangle so we get a dotProduct result that will be a valid acos input [-1, 1]
+		if (!E1.Normalize() || !E2.Normalize())
+		{
+			//Return a null ratio if the polygon is degenerate
+			return 0.0f;
+		}
+		float DotProduct = FVector::DotProduct(E1, E2);
+		return FMath::Acos(DotProduct);
+	}
+}

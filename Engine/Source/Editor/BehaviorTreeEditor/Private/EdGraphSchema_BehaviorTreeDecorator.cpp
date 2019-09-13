@@ -10,6 +10,7 @@
 #include "BehaviorTreeDecoratorGraphNode_Decorator.h"
 #include "BehaviorTreeDecoratorGraphNode_Logic.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "BehaviorTreeEditorModule.h"
 #include "GraphEditorSettings.h"
 #include "GraphEditorActions.h"
@@ -158,33 +159,31 @@ void UEdGraphSchema_BehaviorTreeDecorator::GetGraphContextActions(FGraphContextM
 #endif
 }
 
-void UEdGraphSchema_BehaviorTreeDecorator::GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, class FMenuBuilder* MenuBuilder, bool bIsDebugging) const
+void UEdGraphSchema_BehaviorTreeDecorator::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	const UBehaviorTreeDecoratorGraphNode_Logic* LogicNode = Cast<const UBehaviorTreeDecoratorGraphNode_Logic>(InGraphNode);
-	if (CurrentGraph && !CurrentGraph->bEditable)
+	const UBehaviorTreeDecoratorGraphNode_Logic* LogicNode = Cast<const UBehaviorTreeDecoratorGraphNode_Logic>(Context->Node);
+	if (Context->Graph && !Context->Graph->bEditable)
 	{
 		return;
 	}
 
-	if (InGraphPin)
+	if (Context->Pin)
 	{
 		// Only display the 'Break Links' option if there is a link to break!
-		if (InGraphPin->LinkedTo.Num() > 0)
+		if (Context->Pin->LinkedTo.Num() > 0)
 		{
-			MenuBuilder->BeginSection("DecoratorGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
-			MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().BreakPinLinks );
-			MenuBuilder->EndSection();
+			FToolMenuSection& Section = Menu->AddSection("DecoratorGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
+			Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
 		}
 	}
-	else if (InGraphNode)
+	else if (Context->Node)
 	{
-		MenuBuilder->BeginSection("DecoratorGraphSchemaNodeActions", LOCTEXT("ClassActionsMenuHeader", "Node Actions"));
 		{
-			MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().AddExecutionPin);
-			MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
-			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Delete);
+			FToolMenuSection& Section = Menu->AddSection("DecoratorGraphSchemaNodeActions", LOCTEXT("ClassActionsMenuHeader", "Node Actions"));
+			Section.AddMenuEntry(FGraphEditorCommands::Get().AddExecutionPin);
+			Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
+			Section.AddMenuEntry(FGenericCommands::Get().Delete);
 		}
-		MenuBuilder->EndSection();
 	}
 }
 

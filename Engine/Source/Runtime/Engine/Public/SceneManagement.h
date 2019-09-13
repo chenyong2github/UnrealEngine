@@ -1111,6 +1111,7 @@ public:
 	FLinearColor GetSkyLuminanceFactor() const { return SkyLuminanceFactor; }
 	FLinearColor GetTransmittanceAtZenith() const { return TransmittanceAtZenith; };
 	float GetAerialPespectiveViewDistanceScale() const { return AerialPespectiveViewDistanceScale; }
+	float GetHeightFogContribution() const { return HeightFogContribution; }
 
 	const FAtmosphereSetup& GetAtmosphereSetup() const { return AtmosphereSetup; }
 
@@ -1125,6 +1126,7 @@ private:
 	FLinearColor TransmittanceAtZenith;
 	FLinearColor SkyLuminanceFactor;
 	float AerialPespectiveViewDistanceScale;
+	float HeightFogContribution;
 
 	bool OverrideAtmosphericLight[NUM_ATMOSPHERE_LIGHTS];
 	FVector OverrideAtmosphericLightDirection[NUM_ATMOSPHERE_LIGHTS];

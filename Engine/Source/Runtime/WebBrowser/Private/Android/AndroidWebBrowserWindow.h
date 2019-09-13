@@ -153,6 +153,21 @@ public:
 		return BeforePopupDelegate;
 	}
 
+	virtual FOnBeforeResourceLoadDelegate& OnBeforeResourceLoad() override
+	{
+		return BeforeResourceLoadDelegate;
+	}
+
+	virtual FOnResourceLoadCompleteDelegate& OnResourceLoadComplete() override
+	{
+		return ResourceLoadCompleteDelegate;
+	}
+
+	virtual FOnConsoleMessageDelegate& OnConsoleMessage() override
+	{
+		return ConsoleMessageDelegate;
+	}
+
 	DECLARE_DERIVED_EVENT(FAndroidWebBrowserWindow, IWebBrowserWindow::FOnShowPopup, FOnShowPopup);
 	virtual FOnShowPopup& OnShowPopup() override
 	{
@@ -267,6 +282,15 @@ private:
 
 	/** Delegate for notifying that a popup window is attempting to open. */
 	FOnBeforePopupDelegate BeforePopupDelegate;
+
+	/** Delegate for notifying that the browser is about to load a resource. */
+	FOnBeforeResourceLoadDelegate BeforeResourceLoadDelegate;
+
+	/** Delegate that allows for responses to resource loads */
+	FOnResourceLoadCompleteDelegate ResourceLoadCompleteDelegate;
+
+	/** Delegate that allows for response to console logs.  Typically used to capture and mirror web logs in client application logs. */
+	FOnConsoleMessageDelegate ConsoleMessageDelegate;
 
 	/** Delegate for handling requests to create new windows. */
 	FOnCreateWindow CreateWindowDelegate;

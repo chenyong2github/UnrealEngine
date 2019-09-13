@@ -86,6 +86,10 @@ class ENGINESETTINGS_API UConsoleSettings
 	UPROPERTY(config, EditAnywhere, Category = AutoComplete)
 	bool bOrderTopToBottom;
 
+	/** Display the first line of any available help text in the auto-complete window, if a description isn't available */
+	UPROPERTY(config, EditAnywhere, Category = AutoComplete)
+	bool bDisplayHelpInAutoComplete;
+
 	/** The color used for text input. */
 	UPROPERTY(config, EditAnywhere, Category=Colors)
 	FColor InputColor;

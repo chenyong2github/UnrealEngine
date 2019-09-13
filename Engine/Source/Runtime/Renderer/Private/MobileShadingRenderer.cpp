@@ -340,14 +340,42 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
-
 	const ERHIFeatureLevel::Type ViewFeatureLevel = ViewFamily.GetFeatureLevel();
+
+	// This might eventually be a problem with multiple views.
+	// Using only view 0 to check to do on-chip transform of alpha.
+	FViewInfo& View = Views[0];
+
+	const bool bGammaSpace = !IsMobileHDR();
+
+	const FIntPoint RenderTargetSize = (ViewFamily.RenderTarget->GetRenderTargetTexture().IsValid()) ? ViewFamily.RenderTarget->GetRenderTargetTexture()->GetSizeXY() : ViewFamily.RenderTarget->GetSizeXY();
+	const bool bRequiresUpscale = ((int32)RenderTargetSize.X > FamilySize.X || (int32)RenderTargetSize.Y > FamilySize.Y);
+
+	// ES2 requires that the back buffer and depth match dimensions.
+	// For the most part this is not the case when using scene captures. Thus scene captures always render to scene color target.
+	const bool bStereoRenderingAndHMD = View.Family->EngineShowFlags.StereoRendering && View.Family->EngineShowFlags.HMDDistortion;
+	const bool bRenderToSceneColor = bStereoRenderingAndHMD || bRequiresUpscale || FSceneRenderer::ShouldCompositeEditorPrimitives(View) || View.bIsSceneCapture || View.bIsReflectionCapture;
+
+	// Whether we need to render translucency in a separate render pass
+	// On mobile it's better to render as much as possible in a single pass
+	const bool bRequiresTranslucencyPass = RequiresTranslucencyPass(RHICmdList, View);
+	// Whether we need to store depth for post-processing
+	// On PowerVR we see flickering of shadows and depths not updating correctly if targets are discarded.
+	// See CVarMobileForceDepthResolve use in ConditionalResolveSceneDepth.
+	const bool bForceDepthResolve = CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1;
+	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(View);
+	bool bKeepDepthContent = bRenderToSceneColor &&
+		(bForceDepthResolve || bSeparateTranslucencyActive || (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth)));
+
+	// Whether to submit cmdbuffer with offscreen rendering before doing post-processing
+	bool bSubmitOffscreenRendering = !bGammaSpace || bRenderToSceneColor;
 
 	// Initialize global system textures (pass-through if already initialized).
 	GSystemTextures.InitializeTextures(RHICmdList, ViewFeatureLevel);
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
 	// Allocate the maximum scene render target space for the current view family.
+	SceneContext.SetKeepDepthContent(bKeepDepthContent);
 	SceneContext.Allocate(RHICmdList, this);
 
 	//make sure all the targets we're going to use will be safely writable.
@@ -395,10 +423,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
-	// This might eventually be a problem with multiple views.
-	// Using only view 0 to check to do on-chip transform of alpha.
-	FViewInfo& View = Views[0];
-
 	// Default view list
 	TArray<const FViewInfo*> ViewList;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) 
@@ -406,8 +430,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		ViewList.Add(&Views[ViewIndex]);
 	}
 
-	const bool bGammaSpace = !IsMobileHDR();
-	
 	// Custom depth
 	if (!bGammaSpace)
 	{
@@ -424,28 +446,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 		
-	const FIntPoint RenderTargetSize = (ViewFamily.RenderTarget->GetRenderTargetTexture().IsValid()) ? ViewFamily.RenderTarget->GetRenderTargetTexture()->GetSizeXY() : ViewFamily.RenderTarget->GetSizeXY();
-	const bool bRequiresUpscale = ((int32)RenderTargetSize.X > FamilySize.X || (int32)RenderTargetSize.Y > FamilySize.Y);
-
-	// ES2 requires that the back buffer and depth match dimensions.
-	// For the most part this is not the case when using scene captures. Thus scene captures always render to scene color target.
-	const bool bStereoRenderingAndHMD = View.Family->EngineShowFlags.StereoRendering && View.Family->EngineShowFlags.HMDDistortion;
-	const bool bRenderToSceneColor = bStereoRenderingAndHMD || bRequiresUpscale || FSceneRenderer::ShouldCompositeEditorPrimitives(View) || View.bIsSceneCapture || View.bIsReflectionCapture;
-
-	// Whether we need to render translucency in a separate render pass
-	// On mobile it's better to render as much as possible in a single pass
-	const bool bRequiresTranslucencyPass = RequiresTranslucencyPass(RHICmdList, View);
-	// Whether we need to store depth for post-processing
-	// On PowerVR we see flickering of shadows and depths not updating correctly if targets are discarded.
-	// See CVarMobileForceDepthResolve use in ConditionalResolveSceneDepth.
-	const bool bForceDepthResolve = CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1;
-	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(View);
-	bool bKeepDepthContent = bRenderToSceneColor && 
-		(bForceDepthResolve || bSeparateTranslucencyActive || (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth)));
-
-	// Whether to submit cmdbuffer with offscreen rendering before doing post-processing
-	bool bSubmitOffscreenRendering = !bGammaSpace || bRenderToSceneColor;
-
 	//
 	FRHITexture* SceneColor = nullptr;
 	FRHITexture* SceneColorResolve = nullptr;

@@ -236,6 +236,47 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 					[
 						SNew(SHorizontalBox)
 						.Visibility(this, &SFoliageEdit::GetVisibility_Options)
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.MaxWidth(140)
+						.Padding(StandardLeftPadding)
+						[
+							SNew(SCheckBox)
+							.Visibility(this, &SFoliageEdit::GetVisibility_SingleInstantiationMode)
+							.OnCheckStateChanged(this, &SFoliageEdit::OnCheckStateChanged_SingleInstantiationMode)
+							.IsChecked(this, &SFoliageEdit::GetCheckState_SingleInstantiationMode)
+							.ToolTipText(LOCTEXT("SingleInstantiationModeTooltips", "Paint a single foliage instance at the mouse cursor location (i + Mouse Click)"))
+							[
+								SNew(STextBlock)
+								.Text(LOCTEXT("SingleInstantiationMode", "Single Instance Mode: "))
+								.Font(StandardFont)
+							]
+						]
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
+						.Padding(StandardRightPadding)
+						[
+							SNew(SComboButton)
+							.Visibility(this, &SFoliageEdit::GetVisibility_SingleInstantiationPlacementMode)
+							.IsEnabled(this, &SFoliageEdit::GetIsEnabled_SingleInstantiationPlacementMode)
+							.OnGetMenuContent(this, &SFoliageEdit::GetSingleInstantiationModeMenuContent)
+							.ContentPadding(2)
+							.ToolTipText(LOCTEXT("SingleInstantiationPlacementModeToolTips", "Changes the placement mode when using single instance"))
+							.ButtonContent()
+							[
+								SNew(STextBlock)
+								.Text(this, &SFoliageEdit::GetCurrentSingleInstantiationPlacementModeText)
+							]
+						]
+					]
+
+					+ SVerticalBox::Slot()
+					.Padding(StandardPadding)
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						.Visibility(this, &SFoliageEdit::GetVisibility_Options)
 
 						+ SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
@@ -244,24 +285,6 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 							SNew(SWrapBox)
 							.UseAllottedWidth(true)
 							.InnerSlotPadding({6, 5})
-
-							+ SWrapBox::Slot()
-							[
-								SNew(SBox)
-								.MinDesiredWidth(150)
-								[
-									SNew(SCheckBox)
-									.Visibility(this, &SFoliageEdit::GetVisibility_SingleInstantiationMode)
-									.OnCheckStateChanged(this, &SFoliageEdit::OnCheckStateChanged_SingleInstantiationMode)
-									.IsChecked(this, &SFoliageEdit::GetCheckState_SingleInstantiationMode)
-									.ToolTipText(LOCTEXT("SingleInstantiationModeTooltips", "Paint a single foliage instance at the mouse cursor location (i + Mouse Click)"))
-									[
-										SNew(STextBlock)
-										.Text(LOCTEXT("SingleInstantiationMode", "Single Instance Mode"))
-										.Font(StandardFont)
-									]
-								]
-							]
 
 							+ SWrapBox::Slot()
 							[
@@ -684,45 +707,50 @@ EVisibility SFoliageEdit::GetVisibility_SelectionOptions() const
 	return IsSelectTool() || IsLassoSelectTool() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
 }
 
-FReply SFoliageEdit::OnSelectAllInstances()
+void SFoliageEdit::ExecuteOnAllCurrentLevelFoliageTypes(TFunctionRef<void(const TArray<const UFoliageType*>&)> ExecuteFunc)
 {
-	for (FFoliageMeshUIInfoPtr& TypeInfo : FoliageEditMode->GetFoliageMeshList())
+	TArray<FFoliageMeshUIInfoPtr>& FoliageUIList = FoliageEditMode->GetFoliageMeshList();
+	TArray<const UFoliageType*> FoliageTypes;
+	FoliageTypes.Reserve(FoliageUIList.Num());
+
+	for (FFoliageMeshUIInfoPtr& TypeInfo : FoliageUIList)
 	{
 		if (TypeInfo->InstanceCountCurrentLevel > 0)
 		{
-			UFoliageType* FoliageType = TypeInfo->Settings;
-			FoliageEditMode->SelectInstances(FoliageType, true);
+			FoliageTypes.Add(TypeInfo->Settings);
 		}
 	}
+
+	ExecuteFunc(FoliageTypes);
+}
+
+FReply SFoliageEdit::OnSelectAllInstances()
+{
+	ExecuteOnAllCurrentLevelFoliageTypes([&](const TArray<const UFoliageType*>& FoliageTypes)
+	{
+		FoliageEditMode->SelectInstances(FoliageTypes, true);
+	});
 
 	return FReply::Handled();
 }
 
 FReply SFoliageEdit::OnSelectInvalidInstances()
 {
-	for (FFoliageMeshUIInfoPtr& TypeInfo : FoliageEditMode->GetFoliageMeshList())
+	ExecuteOnAllCurrentLevelFoliageTypes([&](const TArray<const UFoliageType*>& FoliageTypes)
 	{
-		if (TypeInfo->InstanceCountCurrentLevel > 0)
-		{
-			const UFoliageType* FoliageType = TypeInfo->Settings;
-			FoliageEditMode->SelectInstances(FoliageType, false);
-			FoliageEditMode->SelectInvalidInstances(FoliageType);
-		}
-	}
+		FoliageEditMode->SelectInstances(FoliageTypes, false);
+		FoliageEditMode->SelectInvalidInstances(FoliageTypes);
+	});
 
 	return FReply::Handled();
 }
 
 FReply SFoliageEdit::OnDeselectAllInstances()
 {
-	for (FFoliageMeshUIInfoPtr& TypeInfo : FoliageEditMode->GetFoliageMeshList())
+	ExecuteOnAllCurrentLevelFoliageTypes([&](const TArray<const UFoliageType*>& FoliageTypes)
 	{
-		if (TypeInfo->InstanceCountCurrentLevel > 0)
-		{
-			UFoliageType* FoliageType = TypeInfo->Settings;
-			FoliageEditMode->SelectInstances(FoliageType, false);
-		}
-	}
+		FoliageEditMode->SelectInstances(FoliageTypes, false);
+	});
 
 	return FReply::Handled();
 }
@@ -995,6 +1023,21 @@ EVisibility SFoliageEdit::GetVisibility_SingleInstantiationMode() const
 	return EVisibility::Collapsed;
 }
 
+EVisibility SFoliageEdit::GetVisibility_SingleInstantiationPlacementMode() const
+{
+	if (FoliageEditMode->UISettings.GetPaintToolSelected())
+	{
+		return EVisibility::Visible;
+	}
+
+	return EVisibility::Collapsed;
+}
+
+bool SFoliageEdit::GetIsEnabled_SingleInstantiationPlacementMode() const
+{
+	return FoliageEditMode->UISettings.IsInAnySingleInstantiationMode();
+}
+
 EVisibility SFoliageEdit::GetVisibility_SpawnInCurrentLevelMode() const
 {
 	if (FoliageEditMode->UISettings.GetPaintToolSelected())
@@ -1013,6 +1056,41 @@ EVisibility SFoliageEdit::GetVisibility_Options() const
 	}
 
 	return EVisibility::Visible;
+}
+
+void SFoliageEdit::OnSingleInstantiationPlacementModeChanged(int32 InMode)
+{
+	FoliageEditMode->UISettings.SetSingleInstantiationPlacementMode(EFoliageSingleInstantiationPlacementMode::Type(InMode));
+}
+
+TSharedRef<SWidget> SFoliageEdit::GetSingleInstantiationModeMenuContent()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	for (int32 i = 0; i < (int32)EFoliageSingleInstantiationPlacementMode::Type::ModeCount; i++)
+	{
+		MenuBuilder.AddMenuEntry(GetSingleInstantiationPlacementModeText(EFoliageSingleInstantiationPlacementMode::Type(i)), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &SFoliageEdit::OnSingleInstantiationPlacementModeChanged, i));
+	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+FText SFoliageEdit::GetSingleInstantiationPlacementModeText(EFoliageSingleInstantiationPlacementMode::Type InMode) const
+{
+	switch (InMode)
+	{
+	case EFoliageSingleInstantiationPlacementMode::Type::All:
+		return LOCTEXT("SingleInstantiationPlacementModeAll", "All Selected");
+	case EFoliageSingleInstantiationPlacementMode::Type::CycleThrough:
+		return LOCTEXT("SingleInstantiationPlacementModeCycleThrough", "Cycle Through Selected");
+	}
+
+	return LOCTEXT("SingleInstantiationPlacementModeNone", "Invalid");
+}
+
+FText SFoliageEdit::GetCurrentSingleInstantiationPlacementModeText() const
+{
+	return GetSingleInstantiationPlacementModeText(FoliageEditMode->UISettings.GetSingleInstantiationPlacementMode());
 }
 
 #undef LOCTEXT_NAMESPACE

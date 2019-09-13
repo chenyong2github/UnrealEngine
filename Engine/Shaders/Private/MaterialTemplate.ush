@@ -994,11 +994,11 @@ float3 MaterialExpressionAtmosphericLightColor(FMaterialPixelParameters Paramete
 #endif
 }
 
-float3 MaterialExpressionSkyAtmosphereLightIlluminance(FMaterialPixelParameters Parameters, uint LightIndex)
+float3 MaterialExpressionSkyAtmosphereLightIlluminance(FMaterialPixelParameters Parameters, float3 WorldPosition, uint LightIndex)
 {
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
-	const float3 WorldPos = GetWorldPosition(Parameters)*CM_TO_SKY_UNIT;
+	const float3 WorldPos = WorldPosition * CM_TO_SKY_UNIT;
 	const float3 PlanetCenterToWorldPos = WorldPos - PlanetCenter;
 	const float WorldPosHeight = length(PlanetCenterToWorldPos);
 	const float3 UpVector = PlanetCenterToWorldPos / WorldPosHeight;
@@ -1068,16 +1068,18 @@ float3 MaterialExpressionSkyAtmosphereViewLuminance(FMaterialPixelParameters Par
 #endif
 }
 
-float4 MaterialExpressionSkyAtmosphereAerialPerspective(FMaterialPixelParameters Parameters)
+float4 MaterialExpressionSkyAtmosphereAerialPerspective(FMaterialPixelParameters Parameters, float3 WorldPosition)
 {
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
 
 	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
-	const float3 WorldPos = Parameters.AbsoluteWorldPosition.xyz*CM_TO_SKY_UNIT;
+	const float3 WorldPos = WorldPosition * CM_TO_SKY_UNIT;
 	const float3 CameraPos = ResolvedView.SkyWorldCameraOrigin.xyz*CM_TO_SKY_UNIT;
 
-	float4 NDCPosition = mul(float4(Parameters.AbsoluteWorldPosition.xyz, 1), ResolvedView.WorldToClip); // Because SvPosition seems different...
+	// NDCPosition is not computed using WorldPosition because it could result in position outside the frustum, 
+	// distorted uvs and bad visuals with artefact. Only the distance computation can actually be benefit from the surface position specified here.
+	float4 NDCPosition = mul(float4(Parameters.AbsoluteWorldPosition.xyz, 1), ResolvedView.WorldToClip);
 
 	float4 FogToApplyOver = 1.0f;
 	float4 AerialPerspective = GetAerialPerspectiveLuminanceTransmittance(

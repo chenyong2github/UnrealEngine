@@ -192,7 +192,9 @@ struct FFoliageImpl
 	virtual bool IsOwnedComponent(const UPrimitiveComponent* Component) const = 0;
 	virtual int32 FindIndex(const UPrimitiveComponent* HitComponent) const { return INDEX_NONE; }
 
-	virtual void SelectInstances(bool bSelect, int32 InstanceIndex, int32 Count) = 0;
+	virtual void SelectAllInstances(bool bSelect) = 0;
+	virtual void SelectInstance(bool bSelect, int32 Index) = 0;
+	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) = 0;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) = 0;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) = 0;
 
@@ -206,6 +208,7 @@ struct FFoliageImpl
 	virtual void NotifyFoliageTypeChanged(AInstancedFoliageActor* IFA, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices, bool bSourceChanged) = 0;
 	virtual void EnterEditMode() {}
 	virtual void ExitEditMode() {}
+	virtual bool ShouldAttachToBaseComponent() const { return true; }
 #endif
 
 	virtual int32 GetOverlappingSphereCount(const FSphere& Sphere) const { return 0; }
@@ -237,6 +240,9 @@ struct FFoliageInfo
 
 	// Transient, editor-only list of selected instances.
 	TSet<int32> SelectedIndices;
+
+	// Moving instances
+	bool bMovingInstances;
 #endif
 
 	FOLIAGE_API FFoliageInfo();
@@ -299,6 +305,7 @@ struct FFoliageInfo
 
 	FOLIAGE_API void AddToBaseHash(int32 InstanceIdx);
 	FOLIAGE_API void RemoveFromBaseHash(int32 InstanceIdx);
+	FOLIAGE_API bool ShouldAttachToBaseComponent() const { return Implementation->ShouldAttachToBaseComponent(); }
 
 	// For debugging. Validate state after editing.
 	void CheckValid();
@@ -309,6 +316,10 @@ struct FFoliageInfo
 	FOLIAGE_API void PreEditUndo(AInstancedFoliageActor* IFA, UFoliageType* FoliageType);
 	FOLIAGE_API void EnterEditMode();
 	FOLIAGE_API void ExitEditMode();
+
+	FOLIAGE_API void RemoveBaseComponentOnInstances();
+	FOLIAGE_API void IncludeActor(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType, AActor* InActor);
+	FOLIAGE_API void ExcludeActors();
 #endif
 
 	friend FArchive& operator<<(FArchive& Ar, FFoliageInfo& MeshInfo);
@@ -357,12 +368,19 @@ public:
 		CellMap.FindOrAdd(Key).Add(InstanceIndex);
 	}
 
-	void RemoveInstance(const FVector& InstanceLocation, int32 InstanceIndex)
+	void RemoveInstance(const FVector& InstanceLocation, int32 InstanceIndex, bool bChecked = true)
 	{
 		uint64 Key = MakeKey(InstanceLocation);
 
-		int32 RemoveCount = CellMap.FindChecked(Key).Remove(InstanceIndex);
-		check(RemoveCount == 1);
+		if (bChecked)
+		{
+			int32 RemoveCount = CellMap.FindChecked(Key).Remove(InstanceIndex);
+			check(RemoveCount == 1);
+		}
+		else if(TSet<int32>* Value = CellMap.Find(Key))
+		{
+			Value->Remove(InstanceIndex);
+		}
 	}
 
 	void GetInstancesOverlappingBox(const FBox& InBox, TArray<int32>& OutInstanceIndices) const

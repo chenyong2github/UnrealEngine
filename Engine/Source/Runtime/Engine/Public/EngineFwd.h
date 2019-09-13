@@ -201,7 +201,6 @@ struct FExpressionInput;
 struct FGraphActionListBuilderBase;
 struct FGraphContextMenuBuilder;
 struct FGraphDisplayInfo;
-struct FGraphNodeContextMenuBuilder;
 struct FHitResult;
 struct FIntegralCurve;
 struct FKAggregateGeom;

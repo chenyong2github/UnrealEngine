@@ -42,7 +42,6 @@ UFileServerCommandlet::UFileServerCommandlet( const FObjectInitializer& ObjectIn
 
 int32 UFileServerCommandlet::Main( const FString& Params )
 {
-	GIsRequestingExit = false;
 	GIsRunning = true;
 
 	//@todo abstract properly or delete
@@ -97,7 +96,7 @@ int32 UFileServerCommandlet::Main( const FString& Params )
 	// main loop
 	FDateTime LastConnectionTime = FDateTime::UtcNow();
 
-	while (GIsRunning && !GIsRequestingExit)
+	while (GIsRunning && !IsEngineExitRequested())
 	{
 		GEngine->UpdateTimeAndHandleMaxTickRate();
 		GEngine->Tick(FApp::GetDeltaTime(), false);
@@ -146,7 +145,7 @@ int32 UFileServerCommandlet::Main( const FString& Params )
 #if PLATFORM_WINDOWS
 		if (ComWrapperShutdownEvent->Wait(0))
 		{
-			GIsRequestingExit = true;
+			RequestEngineExit(TEXT("FileServerCommandlet ComWrapperShutdownEvent"));
 		}
 #endif
 	}

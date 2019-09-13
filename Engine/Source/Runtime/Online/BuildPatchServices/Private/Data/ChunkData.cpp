@@ -215,8 +215,12 @@ namespace BuildPatchServices
 
 		if (bSuccess)
 		{
-			// Make sure the archive now points to data location.
-			Ar.Seek(StartPos + Header.HeaderSize);
+			// Make sure the archive now points to data location. Only seek if we must, to avoid a flush.
+			const int64 DataLocation = StartPos + Header.HeaderSize;
+			if (Ar.Tell() != DataLocation)
+			{
+				Ar.Seek(DataLocation);
+			}
 		}
 		else
 		{
@@ -284,8 +288,12 @@ namespace BuildPatchServices
 			Ar.Seek(EndPos);
 		}
 
-		// We must always make sure to seek the archive to the correct end location.
-		Ar.Seek(StartPos + DataSize);
+		// We must always make sure to seek the archive to the correct end location. Only seek if we must, to avoid a flush.
+		const int64 DataLocation = StartPos + DataSize;
+		if (Ar.Tell() != DataLocation)
+		{
+			Ar.Seek(DataLocation);
+		}
 		return Ar;
 	}
 
@@ -377,8 +385,12 @@ namespace BuildPatchServices
 
 		if (bSuccess)
 		{
-			// Make sure the archive now points to data location.
-			Ar.Seek(StartPos + Header.HeaderSize);
+			// Make sure the archive now points to data location. Only seek if we must, to avoid a flush.
+			const int64 DataLocation = StartPos + Header.HeaderSize;
+			if (Ar.Tell() != DataLocation)
+			{
+				Ar.Seek(DataLocation);
+			}
 		}
 		else
 		{

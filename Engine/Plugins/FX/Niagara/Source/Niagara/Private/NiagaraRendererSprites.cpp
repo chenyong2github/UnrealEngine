@@ -334,14 +334,22 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 		{
 			SortInfo.ParticleCount = NumInstances;
 			SortInfo.SortMode = SortMode;
-			SortInfo.SortAttributeOffset = (SortInfo.SortMode == ENiagaraSortMode::CustomAscending || SortInfo.SortMode == ENiagaraSortMode::CustomDecending) ? CustomSortingOffset : PositionOffset;
-			SortInfo.ViewOrigin = View->ViewMatrices.GetViewOrigin();
-			SortInfo.ViewDirection = View->GetViewDirection();
-			if (bLocalSpace)
+			if (SortInfo.SortMode == ENiagaraSortMode::CustomAscending || SortInfo.SortMode == ENiagaraSortMode::CustomDecending)
 			{
-				FMatrix InvTransform = SceneProxy->GetLocalToWorld().InverseFast();
-				SortInfo.ViewOrigin = InvTransform.TransformPosition(SortInfo.ViewOrigin);
-				SortInfo.ViewDirection = InvTransform.TransformVector(SortInfo.ViewDirection);
+				SortInfo.SortAttributeOffset = CustomSortingOffset;
+				SortInfo.ViewOrigin.Set(0, 0, 0);
+				SortInfo.ViewDirection.Set(0, 0, 1);
+			}
+			else
+			{
+				SortInfo.SortAttributeOffset = PositionOffset;
+				SortInfo.ViewOrigin = View->ViewMatrices.GetViewOrigin();
+				SortInfo.ViewDirection = View->GetViewDirection();
+				if (bLocalSpace)
+				{
+					SortInfo.ViewOrigin = SceneProxy->GetLocalToWorldInverse().TransformPosition(SortInfo.ViewOrigin);
+					SortInfo.ViewDirection = SceneProxy->GetLocalToWorld().GetTransposed().TransformVector(SortInfo.ViewDirection);
+				}
 			}
 		};
 
@@ -370,7 +378,7 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 
 					FGlobalDynamicReadBuffer::FAllocation SortedIndices;
 					SortedIndices = CPUSimParticleDataAllocation.DynamicReadBuffer.AllocateInt32(NumInstances);
-					SortIndices(SortInfo.SortMode, SortInfo.SortAttributeOffset, *SourceParticleData, SceneProxy->GetLocalToWorld(), View, SortedIndices);
+					SortIndices(SortInfo, *SourceParticleData, SortedIndices);
 					OutVertexFactory.SetSortedIndices(SortedIndices.ReadBuffer->SRV, SortedIndices.FirstIndex / sizeof(float));
 				}
 			}

@@ -39,9 +39,23 @@ namespace BuildPatchServices
 		TMap<FString, FFileAttributes> FileAttributesMap;
 	};
 
+	struct FManifestBuilderConfig
+	{
+	public:
+		/**
+		 * Default constructor. Initializes all members with default behavior values.
+		 */
+		FManifestBuilderConfig();
+
+	public:
+		// Whether or not we should allow build manifests with no data.
+		bool bAllowEmptyBuilds;
+	};
+
 	class IManifestBuilder
 	{
 	public:
+		virtual ~IManifestBuilder() {}
 		virtual void AddChunkMatch(const FGuid& ChunkGuid, const FBlockStructure& Structure) = 0;
 		virtual bool FinalizeData(const TArray<FFileSpan>& FileSpans, TArray<FChunkInfo> ChunkInfo) = 0;
 		virtual bool SaveToFile(const FString& Filename) = 0;
@@ -53,6 +67,6 @@ namespace BuildPatchServices
 	class FManifestBuilderFactory
 	{
 	public:
-		static IManifestBuilderRef Create(const FManifestDetails& Details);
+		static IManifestBuilderRef Create(IFileSystem* FileSystem, const FManifestBuilderConfig& Config, const FManifestDetails& Details);
 	};
 }

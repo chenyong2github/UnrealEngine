@@ -366,6 +366,8 @@ FEdModeLandscape::FEdModeLandscape()
 	CommandList->MapAction(LandscapeActions.DecreaseBrushFalloff, FExecuteAction::CreateRaw(this, &FEdModeLandscape::ChangeBrushFalloff, false), FCanExecuteAction(), FIsActionChecked());
 	CommandList->MapAction(LandscapeActions.IncreaseBrushStrength, FExecuteAction::CreateRaw(this, &FEdModeLandscape::ChangeBrushStrength, true), FCanExecuteAction(), FIsActionChecked());
 	CommandList->MapAction(LandscapeActions.DecreaseBrushStrength, FExecuteAction::CreateRaw(this, &FEdModeLandscape::ChangeBrushStrength, false), FCanExecuteAction(), FIsActionChecked());
+	CommandList->MapAction(LandscapeActions.IncreaseAlphaBrushRotation, FExecuteAction::CreateRaw(this, &FEdModeLandscape::ChangeAlphaBrushRotation, true), FCanExecuteAction(), FIsActionChecked());
+	CommandList->MapAction(LandscapeActions.DecreaseAlphaBrushRotation, FExecuteAction::CreateRaw(this, &FEdModeLandscape::ChangeAlphaBrushRotation, false), FCanExecuteAction(), FIsActionChecked());
 }
 
 /** Destructor */
@@ -1902,6 +1904,16 @@ void FEdModeLandscape::ChangeBrushStrength(bool bIncrease)
 
 	NewValue = FMath::Clamp(NewValue, SliderMin, SliderMax);
 	UISettings->ToolStrength = NewValue;
+}
+
+void FEdModeLandscape::ChangeAlphaBrushRotation(bool bIncrease)
+{
+	const float SliderMin = -180.f;
+	const float SliderMax = 180.f;
+	const float DefaultDiffValue = 10.f;
+	const float Diff = bIncrease ? DefaultDiffValue : -DefaultDiffValue;
+	UISettings->Modify();
+	UISettings->AlphaBrushRotation = FMath::Clamp(UISettings->AlphaBrushRotation + Diff, SliderMin, SliderMax);
 }
 
 

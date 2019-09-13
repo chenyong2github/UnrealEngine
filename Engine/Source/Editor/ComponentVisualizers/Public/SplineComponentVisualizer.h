@@ -17,6 +17,7 @@ class FUICommandList;
 class FViewport;
 class SWidget;
 class USplineComponent;
+class SSplineGeneratorPanel;
 struct FViewportClick;
 struct FConvexVolume;
 
@@ -201,14 +202,13 @@ protected:
 	/** Generate the submenu containing the lock axis types */
 	void GenerateLockAxisSubMenu(FMenuBuilder& MenuBuilder) const;
 
+	void CreateSplineGeneratorPanel();
+
 	/** Output log commands */
 	TSharedPtr<FUICommandList> SplineComponentVisualizerActions;
 
-	/** Actor that owns the currently edited spline */
-	TWeakObjectPtr<AActor> SplineOwningActor;
-
-	/** Name of property on the actor that references the spline we are editing */
-	FPropertyNameAndIndex SplineCompPropName;
+	/** Property path from the parent actor to the component */
+	FComponentPropertyPath SplinePropertyPath;
 
 	/** Index of keys we have selected */
 	TSet<int32> SelectedKeys;
@@ -265,4 +265,7 @@ protected:
 
 private:
 	UProperty* SplineCurvesProperty;
+
+	TSharedPtr<SSplineGeneratorPanel> SplineGeneratorPanel;
+	static TWeakPtr<SWindow> WeakExistingWindow;
 };

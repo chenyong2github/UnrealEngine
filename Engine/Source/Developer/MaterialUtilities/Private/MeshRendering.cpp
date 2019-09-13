@@ -158,7 +158,7 @@ public:
 			const FPolygonGroupID PolygonGroupID = RawMesh.GetPolygonPolygonGroup(PolygonID);
 			if (PolygonGroupID.GetValue() == Data.MaterialIndex)
 			{
-				NumTris += RawMesh.GetPolygonTriangles(PolygonID).Num();
+				NumTris += RawMesh.GetPolygonTriangleIDs(PolygonID).Num();
 			}
 		}
 		if (NumTris == 0)
@@ -205,15 +205,15 @@ public:
 		for (const FPolygonID PolygonID : RawMesh.Polygons().GetElementIDs())
 		{
 			const FPolygonGroupID PolygonGroupID = RawMesh.GetPolygonPolygonGroup(PolygonID);
-			const TArray<FMeshTriangle>& Triangles = RawMesh.GetPolygonTriangles(PolygonID);
-			for (const FMeshTriangle& Triangle : Triangles)
+			const TArray<FTriangleID>& TriangleIDs = RawMesh.GetPolygonTriangleIDs(PolygonID);
+			for (const FTriangleID TriangleID : TriangleIDs)
 			{
 				if (PolygonGroupID.GetValue() == Data.MaterialIndex)
 				{
 					for (int32 Corner = 0; Corner < 3; Corner++)
 					{
 						const int32 SrcVertIndex = FaceIndex * 3 + Corner;
-						const FVertexInstanceID SrcVertexInstanceID = Triangle.GetVertexInstanceID(Corner);
+						const FVertexInstanceID SrcVertexInstanceID = RawMesh.GetTriangleVertexInstance(TriangleID, Corner);
 						const FVertexID SrcVertexID = RawMesh.GetVertexInstanceVertex(SrcVertexInstanceID);
 
 						// add vertex

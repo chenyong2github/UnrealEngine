@@ -37,6 +37,17 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Attach")
 	FName AttachComponentName;
 
+
+#if WITH_EDITORONLY_DATA
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Attach")
+	bool bFullRevertOnDetach;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Attach")
+	AActor* ReAttachOnDetach;
+
+#endif
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Attach")
 	EAttachmentRule AttachmentLocationRule;
 

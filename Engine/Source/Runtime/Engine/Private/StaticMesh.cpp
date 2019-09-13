@@ -601,6 +601,11 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FStaticMeshLODResources::Serialize"), STAT_StaticMeshLODResources_Serialize, STATGROUP_LoadTime);
 
+	bool bUsingCookedData = false;
+#if WITH_EDITORONLY_DATA
+	bUsingCookedData = Owner->GetOutermost()->bIsCookedForEditor;
+#endif
+
 	UStaticMesh* OwnerStaticMesh = Cast<UStaticMesh>(Owner);
 	// Actual flags used during serialization
 	const uint8 ClassDataStripFlags = GenerateClassStripFlags(Ar, OwnerStaticMesh, Index);
@@ -626,7 +631,7 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 			Ar << TmpBuffersSize;
 			BuffersSize = TmpBuffersSize.CalcBuffersSize();
 		}
-		else if (FPlatformProperties::RequiresCookedData() || Ar.IsCooking())
+		else if (FPlatformProperties::RequiresCookedData() || Ar.IsCooking() || bUsingCookedData)
 		{
 #if WITH_EDITOR
 			if (Ar.IsSaving())
@@ -1361,16 +1366,13 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 				if (bValid)
 				{
 #if WITH_EDITOR
-					check(LOD.DistanceFieldData != nullptr);
-
-					bool bDownSampling = Ar.IsCooking() && Ar.IsSaving();
-					
-					if (bDownSampling)
+					if (Ar.IsCooking() && Ar.IsSaving())
 					{
-						float Divider = Ar.CookingTarget()->GetDownSampleMeshDistanceFieldDivider();
-						bDownSampling = Divider > 1;
+						check(LOD.DistanceFieldData != nullptr);
 
-						if (bDownSampling)
+						float Divider = Ar.CookingTarget()->GetDownSampleMeshDistanceFieldDivider();
+
+						if (Divider > 1)
 						{
 							FDistanceFieldVolumeData DownSampledDFVolumeData = *LOD.DistanceFieldData;
 							IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>(TEXT("MeshUtilities"));
@@ -1379,20 +1381,21 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 
 							Ar << DownSampledDFVolumeData;
 						}
+						else
+						{
+							Ar << *(LOD.DistanceFieldData);
+						}
 					}
-
-					if (!bDownSampling)
+					else
+#endif
 					{
+						if (LOD.DistanceFieldData == nullptr)
+						{
+							LOD.DistanceFieldData = new FDistanceFieldVolumeData();
+						}
+
 						Ar << *(LOD.DistanceFieldData);
 					}
-#else
-					if (LOD.DistanceFieldData == nullptr)
-					{
-						LOD.DistanceFieldData = new FDistanceFieldVolumeData();
-					}
-
-					Ar << *(LOD.DistanceFieldData);
-#endif
 				}
 			}
 		}
@@ -1980,6 +1983,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bRecomputeNormals);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bRecomputeTangents);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseMikkTSpace);
+	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bComputeWeightedNormals);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bRemoveDegenerates);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bBuildAdjacencyBuffer);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bBuildReversedIndexBuffer);
@@ -2013,7 +2017,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define STATICMESH_DERIVEDDATA_VER TEXT("B5FB810437E4428D9CC6367AE010BEEC")
+#define STATICMESH_DERIVEDDATA_VER TEXT("7D08EB504D3A42A4AAFAE139899C44E7")
 
 static const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -3915,7 +3919,7 @@ void UStaticMesh::FixupMaterialSlotName()
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("6E342F4997294EBEA9FB3ED1E8CF5D3B")
+#define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("A3E0B7AD760A496A8C56C261B5FE9BF9")
 
 static const FString& GetMeshDataKeyStaticMeshDerivedDataVersion()
 {
@@ -5012,7 +5016,7 @@ bool UStaticMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 	// if resident and requested mip counts match then no pending request is in flight
 	if (PendingUpdate)
 	{
-		if (GIsRequestingExit || !RenderData)
+		if (IsEngineExitRequested() || !RenderData)
 		{
 			PendingUpdate->Abort();
 		}

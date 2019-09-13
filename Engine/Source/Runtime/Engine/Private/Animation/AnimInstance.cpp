@@ -2568,6 +2568,8 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 			}
 		}
 
+		USkeletalMeshComponent* MeshComp = GetSkelMeshComponent();
+
 		for(TPair<FName, TArray<FAnimNode_Layer*, TInlineAllocator<4>>> LayerPair : LayerNodesToSet)
 		{
 			if (LayerPair.Key == NAME_None)
@@ -2585,7 +2587,6 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 						// Skip setting if the class is the same
 						if (TargetInstance == nullptr || ClassToSet != TargetInstance->GetClass())
 						{
-							USkeletalMeshComponent* MeshComp = GetSkelMeshComponent();
 							UAnimInstance* NewSubInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
 
 							LayerNode->SetLayerOverlaySubInstance(this, NewSubInstance);
@@ -2599,6 +2600,7 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 								FAnimInstanceProxy& Proxy = NewSubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
 								Proxy.InitializeObjects(NewSubInstance);
 								Proxy.InitializeRootNode_WithRoot(LayerNode->LinkedRoot);
+								Proxy.CacheBones_WithRoot(LayerNode->LinkedRoot);
 								Proxy.ClearObjects();
 							}
 
@@ -2627,7 +2629,6 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 					if (TargetInstance == nullptr || ClassToSet != TargetInstance->GetClass())
 					{
 						// Create and add one sub-instance for this group
-						USkeletalMeshComponent* MeshComp = GetSkelMeshComponent();
 						UAnimInstance* NewSubInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
 
 						for(FAnimNode_Layer* LayerNode : LayerPair.Value)
@@ -2647,6 +2648,7 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 							{
 								Proxy.InitializeObjects(NewSubInstance);
 								Proxy.InitializeRootNode_WithRoot(LayerNode->LinkedRoot);
+								Proxy.CacheBones_WithRoot(LayerNode->LinkedRoot);
 								Proxy.ClearObjects();
 							}
 						}
@@ -2664,8 +2666,6 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 				}
 			}
 		}
-
-		RecalcRequiredBones();
 	}
 }
 

@@ -223,62 +223,90 @@ bool FSkeletalMeshSkinningData::Tick(float InDeltaSeconds, bool bRequirePreskin)
 
 //////////////////////////////////////////////////////////////////////////
 
-FSkeletalMeshSkinningDataHandle FNDI_SkeletalMesh_GeneratedData::GetCachedSkinningData(TWeakObjectPtr<USkeletalMeshComponent>& InComponent, FSkeletalMeshSkinningDataUsage Usage)
+FSkeletalMeshSkinningDataHandle FNDI_SkeletalMesh_GeneratedData::GetCachedSkinningData(TWeakObjectPtr<USkeletalMeshComponent>& Component, FSkeletalMeshSkinningDataUsage Usage)
 {
-	FScopeLock Lock(&CriticalSection);
-	
-	USkeletalMeshComponent* Component = InComponent.Get();
-	check(Component);
-	TSharedPtr<FSkeletalMeshSkinningData> SkinningData = nullptr;
+	check(Component.Get() != nullptr);
 
-	if (CachedSkinningDataAndUsage* Existing = CachedSkinningData.Find(Component))
+	// Attempt to Find data
 	{
-		check(Existing && Existing->SkinningData.IsValid());//We shouldn't be able to have an invalid ptr here.
-		SkinningData = Existing->SkinningData; // Reuse the old skinning data
-		Existing->Usage = Usage; // Overwrite the old Usage
-	}
-	else
-	{
-		SkinningData = MakeShared<FSkeletalMeshSkinningData>(InComponent);
-		CachedSkinningData.Add(Component) = { SkinningData, Usage };
+		FRWScopeLock ReadLock(CachedSkinningDataGuard, SLT_ReadOnly);
+		if ( CachedSkinningDataAndUsage* Existing = CachedSkinningData.Find(Component) )
+		{
+			check(Existing->SkinningData.IsValid());
+			return FSkeletalMeshSkinningDataHandle(Existing->Usage, Existing->SkinningData);
+		}
 	}
 
-	return FSkeletalMeshSkinningDataHandle(Usage, SkinningData);
+	// We need to add
+	FRWScopeLock WriteLock(CachedSkinningDataGuard, SLT_Write);
+	CachedSkinningDataAndUsage& NewData = CachedSkinningData.FindOrAdd(Component);
+	NewData.Usage = Usage;
+	NewData.SkinningData = MakeShared<FSkeletalMeshSkinningData>(Component);
+	return FSkeletalMeshSkinningDataHandle(NewData.Usage, NewData.SkinningData);
 }
 
-void FNDI_SkeletalMesh_GeneratedData::TickGeneratedData(float DeltaSeconds)
+void FNDI_SkeletalMesh_GeneratedData::TickGeneratedData(ETickingGroup TickGroup, float DeltaSeconds)
 {
 	check(IsInGameThread());
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_PreSkin);
 
-	//Tick skinning data.
-	TArray<TWeakObjectPtr<USkeletalMeshComponent>, TInlineAllocator<64>> ToRemove;
-	TArray<FSkeletalMeshSkinningData*> ToTickBonesOnly;
-	TArray<FSkeletalMeshSkinningData*> ToTickPreskin;
+	FRWScopeLock WriteLock(CachedSkinningDataGuard, SLT_Write);
+
+	// We may want to look at separating out how we manage the ticks here
+	//-OPT: Move into different arrays per tick group, manage promotions, demotions, etc, or add ourselves as a subsequent of the component's tick
+	TArray<TWeakObjectPtr<USkeletalMeshComponent>, TInlineAllocator<32>> ToRemove;
+	TArray<FSkeletalMeshSkinningData*, TInlineAllocator<32>> ToTickBonesOnly;
+	TArray<FSkeletalMeshSkinningData*, TInlineAllocator<32>> ToTickPreskin;
+	const bool bForceTick = TickGroup == NiagaraLastTickGroup;
+
 	ToTickBonesOnly.Reserve(CachedSkinningData.Num());
 	ToTickPreskin.Reserve(CachedSkinningData.Num());
+
 	for (TPair<TWeakObjectPtr<USkeletalMeshComponent>, CachedSkinningDataAndUsage>& Pair : CachedSkinningData)
 	{
-		TSharedPtr<FSkeletalMeshSkinningData>& Ptr = Pair.Value.SkinningData;
-			
-		if (Ptr.IsUnique() || !Pair.Key.Get() || !Ptr->IsUsed())
+		if ( TickGroup == NiagaraFirstTickGroup )
 		{
-			ToRemove.Add(Pair.Key);//Remove unused skin data or for those with GCd components as we go.
+			Pair.Value.bHasTicked = false;
+		}
+
+		// Should remove?
+		TSharedPtr<FSkeletalMeshSkinningData>& SkinningData = Pair.Value.SkinningData;
+		USkeletalMeshComponent* Component = Pair.Key.Get();
+		if ( (Component == nullptr) || SkinningData.IsUnique() || !SkinningData->IsUsed() )
+		{
+			ToRemove.Add(Pair.Key);
+			continue;
+		}
+
+		if ( Pair.Value.bHasTicked == true )
+		{
+			continue;
+		}
+
+		// Has ticked or can be ticked
+		if (bForceTick == false)
+		{
+			const ETickingGroup PrereqTickGroup = FMath::Max(Component->PrimaryComponentTick.TickGroup, Component->PrimaryComponentTick.EndTickGroup);
+			if ((PrereqTickGroup > TickGroup) || (Component->PrimaryComponentTick.IsCompletionHandleValid() && !Component->PrimaryComponentTick.GetCompletionHandle()->IsComplete()))
+			{
+				continue;
+			}
+		}
+
+		// We are going to tick this one
+		Pair.Value.bHasTicked = true;
+
+		FSkeletalMeshSkinningDataUsage Usage = Pair.Value.Usage;
+		FSkeletalMeshSkinningData* SkinningDataPtr = SkinningData.Get();
+		check(SkinningDataPtr);
+
+		if (Usage.NeedPreSkinnedVerts())
+		{
+			ToTickPreskin.Add(SkinningDataPtr);
 		}
 		else
 		{
-			FSkeletalMeshSkinningDataUsage Usage = Pair.Value.Usage;
-			FSkeletalMeshSkinningData* SkinData = Ptr.Get();
-			check(SkinData);
-
-			if (Usage.NeedPreSkinnedVerts())
-			{
-				ToTickPreskin.Add(SkinData);
-			}
-			else
-			{
-				ToTickBonesOnly.Add(SkinData);
-			}
+			ToTickBonesOnly.Add(SkinningDataPtr);
 		}
 	}
 
@@ -289,7 +317,8 @@ void FNDI_SkeletalMesh_GeneratedData::TickGeneratedData(float DeltaSeconds)
 	
 	// First tick the meshes that don't need pre-skinning. 
 	// This prevents additional threading overhead when we don't need to pre-skin.
-	for (int i = 0; i < ToTickBonesOnly.Num(); i++) {
+	for (int i = 0; i < ToTickBonesOnly.Num(); i++)
+	{
 		ToTickBonesOnly[i]->Tick(DeltaSeconds, false);
 	}
 		
@@ -314,14 +343,37 @@ FSkeletalMeshGpuSpawnStaticBuffers::~FSkeletalMeshGpuSpawnStaticBuffers()
 
 void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceData* InstData, const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData, const FSkeletalMeshSamplingLODBuiltData& MeshSamplingLODBuiltData)
 {
+	if (!InstData)
+	{
+		SkeletalMeshSamplingLODBuiltData = nullptr;
+		bUseGpuUniformlyDistributedSampling = false;
+
+		LODRenderData = nullptr;
+		TriangleCount = 0;
+		VertexCount = 0;
+
+		NumSpecificBones = 0;
+		SpecificBonesArray.Empty();
+		NumSpecificSockets = 0;
+		SpecificSocketBoneOffset = 0;
+		return;
+	}
+
 	SkeletalMeshSamplingLODBuiltData = &MeshSamplingLODBuiltData;
 	bUseGpuUniformlyDistributedSampling = InstData->bIsGpuUniformlyDistributedSampling;
 
 	LODRenderData = &SkeletalMeshLODRenderData;
 	TriangleCount = SkeletalMeshLODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->Num() / 3;
 	VertexCount = SkeletalMeshLODRenderData.GetNumVertices();
-	check(TriangleCount > 0);
-	check(VertexCount > 0);
+	
+	if (TriangleCount == 0)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> Triangle count is invalid %d"), TriangleCount, (InstData && InstData->Mesh) ? *InstData->Mesh->GetFullName() : TEXT("Unknown Mesh"));
+	}
+	if (VertexCount == 0)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> Vertex count is invalid %d"), VertexCount, (InstData && InstData->Mesh) ? *InstData->Mesh->GetFullName() : TEXT("Unknown Mesh"));
+	}
 
 	// Copy Specific Bones / Socket data into arrays that the renderer will use to create read buffers
 	//-TODO: Exclude setting up these arrays if we don't sample from them
@@ -2060,6 +2112,17 @@ void UNiagaraDataInterfaceSkeletalMesh::SetSourceComponentFromBlueprints(USkelet
 	ChangeId++;
 	SourceComponent = ComponentToUse;
 	Source = ComponentToUse->GetOwner();
+}
+
+ETickingGroup UNiagaraDataInterfaceSkeletalMesh::CalculateTickGroup(void* PerInstanceData) const
+{
+	FNDISkeletalMesh_InstanceData* InstData = static_cast<FNDISkeletalMesh_InstanceData*>(PerInstanceData);
+	USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(InstData->Component.Get());
+	if ( Component )
+	{
+		return ETickingGroup(FMath::Max(Component->PrimaryComponentTick.TickGroup, Component->PrimaryComponentTick.EndTickGroup) + 1);
+	}
+	return NiagaraFirstTickGroup;
 }
 
 //UNiagaraDataInterfaceSkeletalMesh END

@@ -4,10 +4,7 @@
 #include "TemplateProjectDefs.h"
 #include "Internationalization/Culture.h"
 
-namespace
-{
-
-FText GetLocalizedText(const TArray<FLocalizedTemplateString>& LocalizedStrings)
+FText FLocalizedTemplateString::GetLocalizedText(const TArray<FLocalizedTemplateString>& LocalizedStrings)
 {
 	auto FindLocalizedStringForCulture = [&LocalizedStrings](const FString& InCulture)
 	{
@@ -49,8 +46,6 @@ FText GetLocalizedText(const TArray<FLocalizedTemplateString>& LocalizedStrings)
 	return FText();
 }
 
-}
-
 FTemplateConfigValue::FTemplateConfigValue(const FString& InFile, const FString& InSection, const FString& InKey, const FString& InValue, bool InShouldReplaceExistingValue)
 	: ConfigFile(InFile)
 	, ConfigSection(InSection)
@@ -59,8 +54,6 @@ FTemplateConfigValue::FTemplateConfigValue(const FString& InFile, const FString&
 	, bShouldReplaceExistingValue(InShouldReplaceExistingValue)
 {
 }
-
-
 
 
 UTemplateProjectDefs::UTemplateProjectDefs(const FObjectInitializer& ObjectInitializer)
@@ -106,12 +99,12 @@ void UTemplateProjectDefs::FixupStrings(const FString& TemplateName, const FStri
 
 FText UTemplateProjectDefs::GetDisplayNameText()
 {
-	return GetLocalizedText(LocalizedDisplayNames);
+	return FLocalizedTemplateString::GetLocalizedText(LocalizedDisplayNames);
 }
 
 FText UTemplateProjectDefs::GetLocalizedDescription()
 {
-	return GetLocalizedText(LocalizedDescriptions);
+	return FLocalizedTemplateString::GetLocalizedText(LocalizedDescriptions);
 }
 
 void UTemplateProjectDefs::FixString(FString& InOutStringToFix, const FString& TemplateName, const FString& ProjectName)

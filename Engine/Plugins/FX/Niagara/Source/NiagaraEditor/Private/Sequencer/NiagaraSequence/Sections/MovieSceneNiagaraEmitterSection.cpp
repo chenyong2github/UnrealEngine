@@ -67,6 +67,21 @@ void FMovieSceneNiagaraEmitterChannel::DeleteKeys(TArrayView<const FKeyHandle> I
 	GetData().DeleteKeys(InHandles);
 }
 
+void FMovieSceneNiagaraEmitterChannel::DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore)
+{
+	// Insert a key at the current time to maintain evaluation
+	if (GetData().GetTimes().Num() > 0)
+	{
+		FNiagaraEmitterSectionKey Value;
+		if (Evaluate(InTime, Value))
+		{
+			GetData().UpdateOrAddKey(InTime, Value);
+		}
+	}
+
+	GetData().DeleteKeysFrom(InTime, bDeleteKeysBefore);
+}
+
 void FMovieSceneNiagaraEmitterChannel::ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate)
 {
 	GetData().ChangeFrameResolution(SourceRate, DestinationRate);

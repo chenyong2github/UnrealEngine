@@ -5,7 +5,7 @@
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
 #include "Settings/EditorLoadingSavingSettings.h"
 #include "Toolkits/IToolkitHost.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Toolkits/SimpleAssetEditor.h"
 
 FAssetTypeActions_SoundEffectPreset::FAssetTypeActions_SoundEffectPreset(USoundEffectPreset* InEffectPreset)

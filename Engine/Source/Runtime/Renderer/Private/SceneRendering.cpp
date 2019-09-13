@@ -1269,6 +1269,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthInv = OutParameters.CameraAerialPerspectiveVolumeDepthSliceLengthInv;
 		ViewUniformShaderParameters.SkyAtmosphereApplyCameraAerialPerspectiveVolume = OutParameters.ApplyCameraAerialPerspectiveVolume;
 		ViewUniformShaderParameters.SkyAtmosphereSkyLuminanceFactor = SkyAtmosphereSceneProxy.GetSkyLuminanceFactor();
+		ViewUniformShaderParameters.SkyAtmosphereHeightFogContribution = SkyAtmosphereSceneProxy.GetHeightFogContribution();
 
 		// Fill atmosphere lights shader parameters
 		for (uint8 Index = 0; Index < NUM_ATMOSPHERE_LIGHTS; ++Index)
@@ -1307,6 +1308,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	}
 	else
 	{
+		ViewUniformShaderParameters.SkyAtmosphereHeightFogContribution = 0.0f;
 		ViewUniformShaderParameters.SkyViewLutSizeAndInvSize = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 		ViewUniformShaderParameters.SkyAtmosphereBottomRadius = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereTopRadius = 1.0f;

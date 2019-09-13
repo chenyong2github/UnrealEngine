@@ -157,7 +157,7 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 			auto RegisterTabSpawner = []()
 			{
 				FGlobalTabmanager::Get()->RegisterNomadTabSpawner(SequenceRecorderTabName, FOnSpawnTab::CreateStatic(&FSequenceRecorderModule::SpawnSequenceRecorderTab))
-				.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory())
+				.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorCinematicsCategory())
 				.SetDisplayName(LOCTEXT("SequenceRecorderTabTitle", "Sequence Recorder"))
 				.SetTooltipText(LOCTEXT("SequenceRecorderTooltipText", "Open the Sequence Recorder tab."))
 				.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "SequenceRecorder.TabIcon"));
@@ -764,7 +764,7 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 	virtual void RemoveSequenceRecorderExtender(TSharedPtr<ISequenceRecorderExtender> SequenceRecorderExternder) override
 	{
 		FSequenceRecorder::Get().GetSequenceRecorderExtenders().Remove(SequenceRecorderExternder);
-		if (!GIsRequestingExit)
+		if (!IsEngineExitRequested())
 		{
 			// Rebuild the UI
 			TSharedPtr<SDockTab> SequenceRecorderTabPtr = SequenceRecorderTab.Pin();

@@ -401,6 +401,10 @@ enum EBlendFactor
 	BF_InverseDestColor,
 	BF_ConstantBlendFactor,
 	BF_InverseConstantBlendFactor,
+	BF_Source1Color,
+	BF_InverseSource1Color,
+	BF_Source1Alpha,
+	BF_InverseSource1Alpha,
 
 	EBlendFactor_Num,
 	EBlendFactor_NumBits = 4,
@@ -798,8 +802,8 @@ enum ETextureCreateFlags
 	TexCreate_InputAttachmentRead	= 1<<9,
 	// Disable automatic defragmentation if the initial texture memory allocation fails.
 	TexCreate_DisableAutoDefrag		= 1<<10,
-	// Create the texture with automatic -1..1 biasing
-	TexCreate_BiasNormalMap			= 1<<11,
+	// This texture has no GPU or CPU backing. It only exists in tile memory on TBDR GPUs (i.e., mobile).
+	TexCreate_Memoryless			= 1<<11,
 	// Create the texture with the flag that allows mip generation later, only applicable to D3D11
 	TexCreate_GenerateMipCapable	= 1<<12,
 	// The texture can be partially allocated in fastvram
@@ -1208,6 +1212,11 @@ inline bool RHISupportsShaderPipelines(EShaderPlatform Platform)
 	return !IsMobilePlatform(Platform);
 }
 
+inline bool RHISupportsDualSourceBlending(EShaderPlatform Platform)
+{
+	// For now only enable support for SM5
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform, true) || IsPS4Platform(Platform) || IsVulkanPlatform(Platform) || IsMetalPlatform(Platform));
+}
 
 // Return what the expected number of samplers will be supported by a feature level
 // Note that since the Feature Level is pretty orthogonal to the RHI/HW, this is not going to be perfect

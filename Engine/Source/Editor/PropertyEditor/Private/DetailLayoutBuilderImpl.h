@@ -58,12 +58,15 @@ public:
 	 */
 	FDetailCategoryImpl& DefaultCategory(FName CategoryName);
 
-	TSharedPtr<FDetailCategoryImpl> GetSubCategoryImpl(FName CategoryName);
+	/** 
+	 * Find a subcategory with the given name, if it exists
+	 */
+	TSharedPtr<FDetailCategoryImpl> GetSubCategoryImpl(FName CategoryName) const;
 
 	/**
-	* Return true if the category exist
-	*/
-	bool HasCategory(FName CategoryName);
+	 * @returns true if a category with the given name exists
+	 */
+	bool HasCategory(FName CategoryName) const;
 
 	/**
 	 * Generates the layout for this detail builder
@@ -92,7 +95,6 @@ public:
 	 *
 	 * @param PropertyPath	The path to the property
 	 * @param ClassOutermost	The outer class of the property
-	 * @param bMarkPropertyAsCustomized	Whether or not to mark the property as customized so it does not appear in the default layout
 	 * @return The found property node
 	 */
 	TSharedPtr<FPropertyNode> GetPropertyNode(FName PropertyPath, const UClass* ClassOutermost, FName InstanceName) const;
@@ -101,7 +103,6 @@ public:
 	 * Gets the property node from the provided handle
 	 *
 	 * @param PropertyHandle	The property handle to get the node from
-	 * @param bMarkAsCustomized	Whether or not to mark the value as customized
 	 */
 	TSharedPtr<FPropertyNode> GetPropertyNode(TSharedPtr<IPropertyHandle> PropertyHandle) const;
 

@@ -371,7 +371,7 @@ bool WaitForProcess(IAnalyticsProviderET& Analytics, const FWatchdogCommandLine&
 	FProcHandle ParentProcess = GetProcessHandle(CommandLine);
 	if (ParentProcess.IsValid())
 	{
-		while (!GIsRequestingExit)
+		while (!IsEngineExitRequested())
 		{
 			TickHeartbeat(Analytics, CommandLine, NextHeartbeatSend);
 

@@ -15,8 +15,9 @@
 #include "Misc/FeedbackContext.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Toolkits/AssetEditorToolkit.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 
 #define LOCTEXT_NAMESPACE "TimecodeSynchronizerEditor"
@@ -37,7 +38,7 @@ FTimecodeSynchronizerEditorLevelToolbar::FTimecodeSynchronizerEditorLevelToolbar
 
 FTimecodeSynchronizerEditorLevelToolbar::~FTimecodeSynchronizerEditorLevelToolbar()
 {
-	if (UObjectInitialized() && LevelToolbarExtender.IsValid() && !GIsRequestingExit)
+	if (UObjectInitialized() && LevelToolbarExtender.IsValid() && !IsEngineExitRequested())
 	{
 		// Add a TimecodeSynchronizer toolbar section after the settings section of the level editor
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
@@ -168,7 +169,7 @@ void FTimecodeSynchronizerEditorLevelToolbar::AddObjectSubMenu(FMenuBuilder& Men
 
 void FTimecodeSynchronizerEditorLevelToolbar::OpenCurrentTimecodeSynchronizer()
 {
-	FAssetEditorManager::Get().OpenEditorForAsset(CurrentTimecodeSynchronizer.Get());
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(CurrentTimecodeSynchronizer.Get());
 }
 
 void FTimecodeSynchronizerEditorLevelToolbar::CreateNewTimecodeSynchronizer()
@@ -181,7 +182,7 @@ void FTimecodeSynchronizerEditorLevelToolbar::CreateNewTimecodeSynchronizer()
 		GetMutableDefault<UTimecodeSynchronizerEditorSettings>()->UserTimecodeSynchronizer = NewAsset;
 		GetMutableDefault<UTimecodeSynchronizerEditorSettings>()->SaveConfig();
 		CurrentTimecodeSynchronizer = NewAsset;
-		FAssetEditorManager::Get().OpenEditorForAsset(NewAsset);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
 	}
 }
 

@@ -179,7 +179,7 @@ bool FAndroidWindow::WaitForWindowDimensions()
 {
 	while (!bAreCachedNativeDimensionsValid)
 	{
-		if (GIsRequestingExit
+		if (IsEngineExitRequested()
 #if USE_ANDROID_EVENTS
 		|| FAppEventManager::GetInstance()->WaitForEventInQueue(EAppEventState::APP_EVENT_STATE_ON_DESTROY, 0.0f)
 #endif
@@ -244,14 +244,14 @@ void* FAndroidWindow::WaitForHardwareWindow()
 	// Before sleeping, we peek into the event manager queue to see if it contains an ON_DESTROY event, 
 	// in which case, we exit the loop to allow the application to exit before a window has been created.
 	// For instance when the user aborts the "Place your phone into thr Daydream headset." screen.
-	// It is not sufficient to check the GIsRequestingExit global variable, as the handler reacting to the APP_EVENT_STATE_ON_DESTROY
+	// It is not sufficient to check the IsEngineExitRequested() global function, as the handler reacting to the APP_EVENT_STATE_ON_DESTROY
 	// may be running in the same thread as this method and therefore lead to a deadlock.
 
 	void* WindowEventThread = GetHardwareWindow_EventThread();
 	while (WindowEventThread == nullptr)
 	{
 #if USE_ANDROID_EVENTS
-		if (GIsRequestingExit || FAppEventManager::GetInstance()->WaitForEventInQueue(EAppEventState::APP_EVENT_STATE_ON_DESTROY, 0.0f))
+		if (IsEngineExitRequested() || FAppEventManager::GetInstance()->WaitForEventInQueue(EAppEventState::APP_EVENT_STATE_ON_DESTROY, 0.0f))
 		{
 			// Application is shutting down soon, abort the wait and return nullptr
 			return nullptr;

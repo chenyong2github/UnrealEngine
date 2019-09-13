@@ -102,7 +102,6 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 	FEditorSupportDelegates::PostWindowsMessage.AddUObject(this, &UUnrealEdEngine::OnPostWindowsMessage);
 
 	USelection::SelectionChangedEvent.AddUObject(this, &UUnrealEdEngine::OnEditorSelectionChanged);
-	OnObjectsReplaced().AddUObject(this, &UUnrealEdEngine::ReplaceCachedVisualizerObjects);
 
 	// Initialize the snap manager
 	FSnappingUtils::InitEditorSnappingTools();
@@ -886,7 +885,7 @@ void UUnrealEdEngine::CloseEditor()
 	EndPlayOnLocalPc();
 
 	// Can't use FPlatformMisc::RequestExit as it uses PostQuitMessage which is not what we want here.
-	GIsRequestingExit = 1;
+	RequestEngineExit(TEXT("UUnrealEdEngine::CloseEditor()"));
 }
 
 
@@ -1338,7 +1337,7 @@ void UUnrealEdEngine::DrawComponentVisualizers(const FSceneView* View, FPrimitiv
 {
 	for(FCachedComponentVisualizer& CachedVisualizer : VisualizersForSelection)
 	{
-		CachedVisualizer.Visualizer->DrawVisualization(CachedVisualizer.Component.Get(), View, PDI);
+		CachedVisualizer.Visualizer->DrawVisualization(CachedVisualizer.ComponentPropertyPath.GetComponent(), View, PDI);
 	}
 }
 
@@ -1347,7 +1346,7 @@ void UUnrealEdEngine::DrawComponentVisualizersHUD(const FViewport* Viewport, con
 {
 	for(FCachedComponentVisualizer& CachedVisualizer : VisualizersForSelection)
 	{
-		CachedVisualizer.Visualizer->DrawVisualizationHUD(CachedVisualizer.Component.Get(), Viewport, View, Canvas);
+		CachedVisualizer.Visualizer->DrawVisualizationHUD(CachedVisualizer.ComponentPropertyPath.GetComponent(), Viewport, View, Canvas);
 	}
 }
 
@@ -1365,9 +1364,9 @@ void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
 			AActor* Actor = Cast<AActor>(*It);
 			if(Actor != nullptr)
 			{
-				// Then iterate over components of that actor
+				// Then iterate over components of that actor (and recurse through child components)
 				TInlineComponentArray<UActorComponent*> Components;
-				Actor->GetComponents(Components);
+				Actor->GetComponents(Components, true);
 
 				for(int32 CompIdx = 0; CompIdx < Components.Num(); CompIdx++)
 				{
@@ -1387,18 +1386,6 @@ void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
 	}
 }
 
-void UUnrealEdEngine::ReplaceCachedVisualizerObjects(const TMap<UObject*, UObject*>& ReplacementMap)
-{
-	for(FCachedComponentVisualizer& Visualizer : VisualizersForSelection)
-	{
-		UObject* OldObject = Visualizer.Component.Get(true);
-		UActorComponent* NewComponent = Cast<UActorComponent>(ReplacementMap.FindRef(OldObject));
-		if(NewComponent)
-		{
-			Visualizer.Component = NewComponent;
-		}
-	}
-}
 
 EWriteDisallowedWarningState UUnrealEdEngine::GetWarningStateForWritePermission(const FString& PackageName) const
 {

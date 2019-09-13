@@ -66,7 +66,8 @@ namespace BuildPatchServices
 	namespace MoveErrorCodes
 	{
 		static const TCHAR* StageToInstall = TEXT("01");
-		static const TCHAR* DeleteFileFailed = TEXT("02");
+		static const TCHAR* DeletePrevFileFailed = TEXT("02");
+		static const TCHAR* DeleteOldFileFailed = TEXT("03");
 	}
 
 	/**

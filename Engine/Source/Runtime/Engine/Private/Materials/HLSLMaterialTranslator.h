@@ -6641,10 +6641,10 @@ protected:
 
 	}
 
-	virtual int32 SkyAtmosphereLightIlluminance(int32 LightIndex) override
+	virtual int32 SkyAtmosphereLightIlluminance(int32 WorldPosition, int32 LightIndex) override
 	{
 		bUsesSkyAtmosphere = true;
-		return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereLightIlluminance(Parameters, %d)"), LightIndex);
+		return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereLightIlluminance(Parameters, %s, %d)"), *GetParameterCode(WorldPosition), LightIndex);
 	}
 
 	virtual int32 SkyAtmosphereLightDirection(int32 LightIndex) override
@@ -6665,10 +6665,10 @@ protected:
 		return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereViewLuminance(Parameters)"));
 	}
 
-	virtual int32 SkyAtmosphereAerialPerspective() override
+	virtual int32 SkyAtmosphereAerialPerspective(int32 WorldPosition) override
 	{
 		bUsesSkyAtmosphere = true;
-		return AddCodeChunk(MCT_Float4, TEXT("MaterialExpressionSkyAtmosphereAerialPerspective(Parameters)"));
+		return AddCodeChunk(MCT_Float4, TEXT("MaterialExpressionSkyAtmosphereAerialPerspective(Parameters, %s)"), *GetParameterCode(WorldPosition));
 	}
 
 	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() override

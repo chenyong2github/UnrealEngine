@@ -453,7 +453,8 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 					{
 						FScriptSetHelper SetHelper(SetProp, ParentNode->GetValueBaseAddress((uint8*)Cur.Object));
 
-						if ( SetHelper.HasElement(Cur.BaseAddress, InValues[ObjectIndex]) )
+						if (SetHelper.HasElement(Cur.BaseAddress, InValues[ObjectIndex]) &&
+							(Flags & EPropertyValueSetFlags::InteractiveChange) == 0)
 						{
 							// Duplicate element in the set
 							ShowInvalidOperationError(LOCTEXT("DuplicateSetElement", "Duplicate elements are not allowed in Set properties."));
@@ -469,8 +470,8 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 					if (bIsInContainer)
 					{
 						FScriptMapHelper MapHelper(MapProperty, ParentNode->GetValueBaseAddress((uint8*)Cur.Object));
-
-						if ( MapHelper.HasKey(Cur.BaseAddress, InValues[ObjectIndex]) )
+						if (MapHelper.HasKey(Cur.BaseAddress, InValues[ObjectIndex]) && 
+							(Flags & EPropertyValueSetFlags::InteractiveChange) == 0)
 						{
 							// Duplicate key in the map
 							ShowInvalidOperationError(LOCTEXT("DuplicateMapKey", "Duplicate keys are not allowed in Map properties."));
@@ -2581,16 +2582,16 @@ bool FPropertyHandleBase::GetBoolMetaData(const FName& Key) const
 	return (MetaDataProperty) ? MetaDataProperty->GetBoolMetaData(Key) : false;
 }
 
-int32 FPropertyHandleBase::GetINTMetaData(const FName& Key) const
+int32 FPropertyHandleBase::GetIntMetaData(const FName& Key) const
 {
 	UProperty* const MetaDataProperty = GetMetaDataProperty();
-	return (MetaDataProperty) ? MetaDataProperty->GetINTMetaData(Key) : 0;
+	return (MetaDataProperty) ? MetaDataProperty->GetIntMetaData(Key) : 0;
 }
 
-float FPropertyHandleBase::GetFLOATMetaData(const FName& Key) const
+float FPropertyHandleBase::GetFloatMetaData(const FName& Key) const
 {
 	UProperty* const MetaDataProperty = GetMetaDataProperty();
-	return (MetaDataProperty) ? MetaDataProperty->GetFLOATMetaData(Key) : 0.0f;
+	return (MetaDataProperty) ? MetaDataProperty->GetFloatMetaData(Key) : 0.0f;
 }
 
 UClass* FPropertyHandleBase::GetClassMetaData(const FName& Key) const
@@ -3068,17 +3069,8 @@ TArray<TSharedPtr<IPropertyHandle>> FPropertyHandleBase::AddChildStructure( TSha
 	for (TFieldIterator<UProperty> It(InStruct->GetStruct()); It; ++It)
 	{
 		UProperty* StructMember = *It;
-		if (!StructMember)
-		{
-			continue;
-		}
 
-		static const FName Name_InlineEditConditionToggle("InlineEditConditionToggle");
-		const bool bOnlyShowAsInlineEditCondition = StructMember->HasMetaData(Name_InlineEditConditionToggle);
-		const bool bShowIfEditableProperty = StructMember->HasAnyPropertyFlags(CPF_Edit);
-		const bool bShowIfDisableEditOnInstance = !StructMember->HasAnyPropertyFlags(CPF_DisableEditOnInstance) || bShouldShowDisableEditOnInstance;
-
-		if (bShouldShowHiddenProperties || (bShowIfEditableProperty && !bOnlyShowAsInlineEditCondition && bShowIfDisableEditOnInstance))
+		if (PropertyEditorHelpers::ShouldBeVisible(*StructPropertyNode.Get(), StructMember))
 		{
 			TSharedRef<FItemPropertyNode> NewItemNode(new FItemPropertyNode);
 
@@ -3786,7 +3778,7 @@ FPropertyAccess::Result FPropertyHandleObject::SetValueFromFormattedString(const
 					const bool bIsInterface = AllowedClass && AllowedClass->HasAnyClassFlags(CLASS_Interface);
 
 					// Check if the object is an allowed class type this property supports
-					if ((AllowedClass && QualifiedObject->IsA(AllowedClass)) || (bIsInterface && QualifiedObject->GetClass()->ImplementsInterface(AllowedClass)))
+					if ((AllowedClass && QualifiedClass->IsChildOf(AllowedClass)) || (bIsInterface && QualifiedObject->GetClass()->ImplementsInterface(AllowedClass)))
 					{
 						bSupportedObject = true;
 						break;
@@ -3809,7 +3801,7 @@ FPropertyAccess::Result FPropertyHandleObject::SetValueFromFormattedString(const
 					UClass* DisallowedClass = FindObject<UClass>(ANY_PACKAGE, *DisallowedClassName);
 					const bool bIsInterface = DisallowedClass && DisallowedClass->HasAnyClassFlags(CLASS_Interface);
 
-					if ((DisallowedClass && QualifiedObject->IsA(DisallowedClass)) || (bIsInterface && QualifiedObject->GetClass()->ImplementsInterface(DisallowedClass)))
+					if ((DisallowedClass && QualifiedClass->IsChildOf(DisallowedClass)) || (bIsInterface && QualifiedObject->GetClass()->ImplementsInterface(DisallowedClass)))
 					{
 						bSupportedObject = false;
 						break;

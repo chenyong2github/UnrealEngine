@@ -207,12 +207,14 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 	// Create the per-material polygons sets.
 	int32 SectionCount = SourceModel.Sections.Num();
 	int32 ClothSectionVertexRemoveOffset = 0;
+	TArray<TPair<uint32, uint32>> VertexIndexOffsetPairArray{ TPair<uint32, uint32>(0,0) };
 	for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
 	{
 		const FSkelMeshSection& Section = SourceModel.Sections[SectionIndex];
 		if (Section.HasClothingData())
 		{
 			ClothSectionVertexRemoveOffset += Section.GetNumVertices();
+			VertexIndexOffsetPairArray.Emplace(Section.BaseVertexIndex, ClothSectionVertexRemoveOffset);
 			continue;
 		}
 		int32 MatIndex = Section.MaterialIndex;
@@ -283,7 +285,17 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 				{
 					// Apply the morph target deltas to the control points.
 					FMorphTargetDelta& CurrentDelta = MorphTargetDeltas[MorphTargetDeltaIndex];
-					ShapeControlPoints[CurrentDelta.SourceIdx] = Converter.ConvertToFbxPos(Vertices[CurrentDelta.SourceIdx].Position + CurrentDelta.PositionDelta);
+					uint32 RemappedSourceIndex = CurrentDelta.SourceIdx;
+
+					if (VertexIndexOffsetPairArray.Num() > 1)
+					{
+						//If the skeletal mesh contains clothing we need to remap the morph target index too.
+						int32 UpperBoundIndex = Algo::UpperBoundBy(VertexIndexOffsetPairArray, RemappedSourceIndex,
+							[](const auto& CurrentPair) { return CurrentPair.Key; }); //Value functor
+						RemappedSourceIndex -= VertexIndexOffsetPairArray[UpperBoundIndex - 1].Value;
+					}
+
+					ShapeControlPoints[RemappedSourceIndex] = Converter.ConvertToFbxPos(Vertices[RemappedSourceIndex].Position + CurrentDelta.PositionDelta);
 				}
 
 				BlendShapeChannel->AddTargetShape(Shape);

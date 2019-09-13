@@ -2,6 +2,7 @@
 
 #include "AppleARKitVideoOverlay.h"
 #include "AppleARKitFrame.h"
+#include "AppleARKitSystem.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "MaterialShaderType.h"
@@ -27,16 +28,45 @@
 	#include "IOSAppDelegate.h"
 #endif
 
+DECLARE_CYCLE_STAT(TEXT("Update Occlusion Textures"), STAT_UpdateOcclusionTextures, STATGROUP_ARKIT);
+
+const FString UARKitCameraOverlayMaterialLoader::OverlayMaterialPath(TEXT("/AppleARKit/M_CameraOverlay.M_CameraOverlay"));
+const FString UARKitCameraOverlayMaterialLoader::DepthOcclusionOverlayMaterialPath(TEXT("/AppleARKit/MI_DepthOcclusionOverlay.MI_DepthOcclusionOverlay"));
+const FString UARKitCameraOverlayMaterialLoader::MatteOcclusionOverlayMaterialPath(TEXT("/AppleARKit/MI_MatteOcclusionOverlay.MI_MatteOcclusionOverlay"));
+
 FAppleARKitVideoOverlay::FAppleARKitVideoOverlay()
 	: MID_CameraOverlay(nullptr)
-	, RenderingOverlayMaterial(nullptr)
 {
-	UMaterialInterface* LoadedMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/AppleARKit/M_CameraOverlay.M_CameraOverlay"));
+	UMaterialInterface* LoadedMaterial = LoadObject<UMaterialInterface>(nullptr, *UARKitCameraOverlayMaterialLoader::OverlayMaterialPath);
 	check(LoadedMaterial != nullptr);
 	// Create a MaterialInstanceDynamic which we'll replace the texture with the camera texture from ARKit
 	MID_CameraOverlay = UMaterialInstanceDynamic::Create(LoadedMaterial, GetTransientPackage());
-	RenderingOverlayMaterial = MID_CameraOverlay;
-	check(RenderingOverlayMaterial != nullptr);
+	check(MID_CameraOverlay != nullptr);
+	
+	UMaterialInterface* DepthOcclusionMaterial = LoadObject<UMaterialInterface>(nullptr, *UARKitCameraOverlayMaterialLoader::DepthOcclusionOverlayMaterialPath);
+	check(DepthOcclusionMaterial);
+	MID_DepthOcclusionOverlay = UMaterialInstanceDynamic::Create(DepthOcclusionMaterial, GetTransientPackage());
+	
+	UMaterialInterface* MatteOcclusionMaterial = LoadObject<UMaterialInterface>(nullptr, *UARKitCameraOverlayMaterialLoader::MatteOcclusionOverlayMaterialPath);
+	check(MatteOcclusionMaterial);
+	MID_MatteOcclusionOverlay = UMaterialInstanceDynamic::Create(MatteOcclusionMaterial, GetTransientPackage());
+}
+
+FAppleARKitVideoOverlay::~FAppleARKitVideoOverlay()
+{
+#if SUPPORTS_ARKIT_3_0
+	if (CommandQueue)
+	{
+		[CommandQueue release];
+		CommandQueue = nullptr;
+	}
+	
+	if (MatteGenerator)
+	{
+		[MatteGenerator release];
+		MatteGenerator = nullptr;
+	}
+#endif
 }
 
 template <bool bIsMobileRenderer>
@@ -130,13 +160,65 @@ using FARKitCameraOverlayMobilePS = TARKitCameraOverlayPS<true>;
 template<> IMPLEMENT_MATERIAL_SHADER(FARKitCameraOverlayPS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainPS_VideoOverlay", SF_Pixel);
 template<> IMPLEMENT_MATERIAL_SHADER(FARKitCameraOverlayMobilePS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainPS_ES2", SF_Pixel);
 
-void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, FAppleARKitFrame& Frame, const EDeviceScreenOrientation DeviceOrientation)
+void FAppleARKitVideoOverlay::UpdateOcclusionTextures(const FAppleARKitFrame& Frame)
+{
+#if SUPPORTS_ARKIT_3_0
+	SCOPE_CYCLE_COUNTER(STAT_UpdateOcclusionTextures);
+	
+	if (FAppleARKitAvailability::SupportsARKit30())
+	{
+		ARFrame* NativeFrame = (ARFrame*)Frame.NativeFrame;
+		if (bEnablePersonOcclusion && NativeFrame &&
+			(NativeFrame.segmentationBuffer || NativeFrame.estimatedDepthData))
+		{
+			id<MTLDevice> Device = (id<MTLDevice>)GDynamicRHI->RHIGetNativeDevice();
+			check(Device);
+			
+			if (!MatteGenerator)
+			{
+				// TODO: add config variable for the matte resolution
+				MatteGenerator = [[ARMatteGenerator alloc] initWithDevice: Device
+														  matteResolution: ARMatteResolutionFull];
+			}
+			
+			if (!CommandQueue)
+			{
+				CommandQueue = [Device newCommandQueue];
+			}
+			
+			id<MTLCommandBuffer> CommandBuffer = [CommandQueue commandBuffer];
+			id<MTLTexture> MatteTexture = nullptr;
+			id<MTLTexture> DepthTexture = nullptr;
+			
+			MatteTexture = [MatteGenerator generateMatteFromFrame: NativeFrame commandBuffer: CommandBuffer];
+			DepthTexture = [MatteGenerator generateDilatedDepthFromFrame: NativeFrame commandBuffer: CommandBuffer];
+			
+			if (MatteTexture && OcclusionMatteTexture)
+			{
+				OcclusionMatteTexture->SetMetalTexture(Frame.Timestamp, MatteTexture);
+			}
+			
+			if (DepthTexture && OcclusionDepthTexture)
+			{
+				OcclusionDepthTexture->SetMetalTexture(Frame.Timestamp, DepthTexture);
+				bOcclusionDepthTextureRecentlyUpdated = true;
+			}
+			
+			[CommandBuffer commit];
+		}
+	}
+#endif
+}
+
+void FAppleARKitVideoOverlay::RenderVideoOverlayWithMaterial(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, const EDeviceScreenOrientation DeviceOrientation, UMaterialInstanceDynamic* RenderingOverlayMaterial, const bool bRenderingOcclusion)
 {
 	if (RenderingOverlayMaterial == nullptr || !RenderingOverlayMaterial->IsValidLowLevel())
 	{
 		return;
 	}
-
+	
+	SCOPED_DRAW_EVENTF(RHICmdList, RenderVideoOverlay, bRenderingOcclusion ? TEXT("VideoOverlay (Occlusion)") : TEXT("VideoOverlay (Background)"));
+	
 	if (OverlayVertexBufferRHI[0] == nullptr || !OverlayVertexBufferRHI[0].IsValid())
 	{
 		const FVector2D ViewSize(InView.UnconstrainedViewRect.Max.X, InView.UnconstrainedViewRect.Max.Y);
@@ -238,10 +320,19 @@ void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImm
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+	
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI();
+	if (bRenderingOcclusion)
+	{
+		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+	}
+	else
+	{
+		// Disable the write mask for the alpha channel so that the scene depth info saved in it is retained
+		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI();
+	}
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 
@@ -332,6 +423,34 @@ void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImm
 	}
 }
 
+void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, FAppleARKitFrame& Frame, const EDeviceScreenOrientation DeviceOrientation, const float WorldToMeterScale)
+{
+	UpdateOcclusionTextures(Frame);
+	
+	RenderVideoOverlayWithMaterial(RHICmdList, InView, Frame, DeviceOrientation, MID_CameraOverlay, false);
+	
+	if (bEnablePersonOcclusion)
+	{
+		UMaterialInstanceDynamic* OcclusionMaterial = bOcclusionDepthTextureRecentlyUpdated ? MID_DepthOcclusionOverlay : MID_MatteOcclusionOverlay;
+		
+		static const FName WorldToMeterScaleParamName(TEXT("WorldToMeterScale"));
+		OcclusionMaterial->SetScalarParameterValue(WorldToMeterScaleParamName, WorldToMeterScale);
+		
+		const bool bIsLandscape = (DeviceOrientation == EDeviceScreenOrientation::LandscapeLeft || DeviceOrientation == EDeviceScreenOrientation::LandscapeRight);
+		FLinearColor DepthTextureUVParamValue = {
+			1.f - (bIsLandscape ? UVOffset.X : UVOffset.Y) * 2.f,
+			1.f - (bIsLandscape ? UVOffset.Y : UVOffset.X) * 2.f,
+			1.f,
+			1.f
+		};
+		
+		static const FName DepthTextureUVParamName(TEXT("DepthTextureUVParam"));
+		OcclusionMaterial->SetVectorParameterValue(DepthTextureUVParamName, DepthTextureUVParamValue);
+		
+		RenderVideoOverlayWithMaterial(RHICmdList, InView, Frame, DeviceOrientation, OcclusionMaterial, true);
+		bOcclusionDepthTextureRecentlyUpdated = false;
+	}
+}
 
 bool FAppleARKitVideoOverlay::GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EDeviceScreenOrientation DeviceOrientation)
 {
@@ -383,11 +502,56 @@ bool FAppleARKitVideoOverlay::GetPassthroughCameraUVs_RenderThread(TArray<FVecto
 
 void FAppleARKitVideoOverlay::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObject(RenderingOverlayMaterial);
 	Collector.AddReferencedObject(MID_CameraOverlay);
+	Collector.AddReferencedObject(OcclusionMatteTexture);
+	Collector.AddReferencedObject(OcclusionDepthTexture);
+	Collector.AddReferencedObject(MID_DepthOcclusionOverlay);
+	Collector.AddReferencedObject(MID_MatteOcclusionOverlay);
 }
 
 void FAppleARKitVideoOverlay::SetOverlayTexture(UARTextureCameraImage* InCameraImage)
 {
-	MID_CameraOverlay->SetTextureParameterValue(FName("CameraImage"), InCameraImage);
+	static const FName ParamName(TEXT("CameraImage"));
+	MID_CameraOverlay->SetTextureParameterValue(ParamName, InCameraImage);
+	MID_DepthOcclusionOverlay->SetTextureParameterValue(ParamName, InCameraImage);
+	MID_MatteOcclusionOverlay->SetTextureParameterValue(ParamName, InCameraImage);
+}
+
+void FAppleARKitVideoOverlay::SetEnablePersonOcclusion(bool bEnable)
+{
+#if SUPPORTS_ARKIT_3_0
+	bEnablePersonOcclusion = bEnable;
+	
+	if (bEnablePersonOcclusion)
+	{
+		// TODO: add new EARTextureType for the occlusion textures
+		OcclusionMatteTexture = NewObject<UAppleARKitOcclusionTexture>();
+		OcclusionMatteTexture->TextureType = EARTextureType::CameraImage;
+		OcclusionMatteTexture->UpdateResource();
+		
+		OcclusionDepthTexture = NewObject<UAppleARKitOcclusionTexture>();
+		OcclusionDepthTexture->TextureType = EARTextureType::CameraImage;
+		OcclusionDepthTexture->UpdateResource();
+	}
+	else
+	{
+		OcclusionMatteTexture = OcclusionDepthTexture = nullptr;
+	}
+	
+	static const FName MatteTextureParamName(TEXT("OcclusionMatteTexture"));
+	static const FName DepthTextureParamName(TEXT("OcclusionDepthTexture"));
+	
+	MID_DepthOcclusionOverlay->SetTextureParameterValue(MatteTextureParamName, OcclusionMatteTexture);
+	MID_DepthOcclusionOverlay->SetTextureParameterValue(DepthTextureParamName, OcclusionDepthTexture);
+	
+	MID_MatteOcclusionOverlay->SetTextureParameterValue(MatteTextureParamName, OcclusionMatteTexture);
+	MID_MatteOcclusionOverlay->SetTextureParameterValue(DepthTextureParamName, OcclusionDepthTexture);
+	
+	// we need to clear the scene color with max alpha to ensure the scene depth is correct on mobile
+	static IConsoleVariable* CVarSceneColorClearAlphaFlag = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileClearSceneColorWithMaxAlpha"));
+	if (CVarSceneColorClearAlphaFlag)
+	{
+		CVarSceneColorClearAlphaFlag->Set(bEnablePersonOcclusion ? 1 : 0);
+	}
+#endif
 }

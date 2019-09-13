@@ -61,6 +61,15 @@ struct FGameplayDebuggerDebugActor
 	int32 SyncCounter;
 };
 
+USTRUCT()
+struct FGameplayDebuggerVisLogSync
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	FString DeviceIDs;
+};
+
 DECLARE_MULTICAST_DELEGATE_TwoParams(FNotifyGameplayDebuggerOwnerChange, AGameplayDebuggerCategoryReplicator*, APlayerController* /** Old Owner */);
 
 UCLASS(NotBlueprintable, NotBlueprintType, notplaceable, noteditinlinenew, hidedropdown, Transient)
@@ -110,6 +119,8 @@ public:
 	/** get sync counter, increased with every change of DebugActor */
 	int16 GetDebugActorCounter() const { return DebugActor.SyncCounter; }
 
+	const FGameplayDebuggerVisLogSync& GetVisLogSyncData() const { return VisLogSync; }
+
 	/** get player controller owning this replicator */
 	APlayerController* GetReplicationOwner() const { return OwnerPC; }
 
@@ -152,6 +163,9 @@ protected:
 
 	UPROPERTY(Replicated)
 	FGameplayDebuggerDebugActor	DebugActor;
+
+	UPROPERTY(Replicated)
+	FGameplayDebuggerVisLogSync	VisLogSync;
 
 	/** rendering component needs to attached to some actor, and this is as good as any */
 	UPROPERTY()

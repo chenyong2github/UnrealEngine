@@ -36,6 +36,9 @@
 #include "Curves/CurveLinearColor.h"
 #include "IPropertyUtilities.h"
 #include "Engine/Texture.h"
+#include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
+#include "Curves/CurveLinearColorAtlas.h"
+
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
 
@@ -448,6 +451,7 @@ void FMaterialEditorParameterDetails::CreateScalarAtlasPositionParameterValueWid
 				.NewAssetFactories(TArray<UFactory*>())
 				.DisplayThumbnail(true)
 				.ThumbnailPool(PropertyUtilities.Pin()->GetThumbnailPool())
+				.OnShouldFilterAsset(FOnShouldFilterAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldFilterCurveAsset, AtlasParameter->AtlasData.Atlas))
 				.OnShouldSetAsset(FOnShouldSetAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldSetCurveAsset, AtlasParameter->AtlasData.Atlas))
 				.OnObjectChanged(FOnSetObject::CreateStatic(&FMaterialPropertyHelpers::SetPositionFromCurveAsset, AtlasParameter->AtlasData.Atlas, AtlasParameter, ParameterProperty, (UObject*)MaterialEditorInstance))
 				.DisplayCompactSize(true)
@@ -506,6 +510,7 @@ void FMaterialExpressionParameterDetails::CustomizeDetails( IDetailLayoutBuilder
 	ScalarParameterObjects.Reset();
 
 	const FName MaterialExpressionCategory = TEXT("MaterialExpression");
+	IDetailCategoryBuilder& ExpressionCategory = DetailLayout.EditCategory(MaterialExpressionCategory);
 
 	for (const auto& WeakObjectPtr : Objects)
 	{
@@ -548,6 +553,51 @@ void FMaterialExpressionParameterDetails::CustomizeDetails( IDetailLayoutBuilder
 				}));
 			}
 
+			if (ScalarParameter->IsUsedAsAtlasPosition())
+			{
+				UMaterialExpressionCurveAtlasRowParameter* ColorCurveParameter = Cast<UMaterialExpressionCurveAtlasRowParameter>(ScalarParameter);
+				TSharedPtr<IPropertyHandle> CurveHandle = DetailLayout.GetProperty("Curve", UMaterialExpressionCurveAtlasRowParameter::StaticClass());
+				if (CurveHandle.IsValid() && CurveHandle->IsValidHandle())
+				{
+					const FName AtlasCategoryName = TEXT("MaterialExpressionCurveAtlasRowParameter");
+					IDetailCategoryBuilder& AtlasCategory = DetailLayout.EditCategory(AtlasCategoryName);
+					TSoftObjectPtr<UCurveLinearColorAtlas> Atlas = TSoftObjectPtr<UCurveLinearColorAtlas>(FSoftObjectPath(ColorCurveParameter->Atlas->GetPathName()));
+					CurveHandle->MarkHiddenByCustomization();
+					AtlasCategory.AddCustomRow(CurveHandle->GetPropertyDisplayName())
+						.NameContent()
+						[
+							SNew(STextBlock)
+							.Text(CurveHandle->GetPropertyDisplayName())
+							.Font(IDetailLayoutBuilder::GetDetailFont())
+						]
+						.ValueContent()
+						.HAlign(HAlign_Fill)
+						.MaxDesiredWidth(400.0f)
+						[
+							SNew(SObjectPropertyEntryBox)
+							.PropertyHandle(CurveHandle)
+							.AllowedClass(UCurveLinearColor::StaticClass())
+							.NewAssetFactories(TArray<UFactory*>())
+							.DisplayThumbnail(true)
+							.ThumbnailPool(DetailLayout.GetThumbnailPool())
+							.OnShouldFilterAsset(FOnShouldFilterAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldFilterCurveAsset, Atlas))
+							.OnShouldSetAsset(FOnShouldSetAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldSetCurveAsset, Atlas))
+						];
+
+
+						TSharedPtr<IPropertyHandle> AtlasHandle = DetailLayout.GetProperty("Atlas", UMaterialExpressionCurveAtlasRowParameter::StaticClass());
+						if (AtlasHandle.IsValid() && AtlasHandle->IsValidHandle())
+						{
+							// Rebuild the layout when the bUseCustomPrimitiveData property changes
+							AtlasHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+							{
+								DetailLayout.ForceRefreshDetails();
+							}));
+						}
+
+				}
+			}
+
 			if (ScalarParameter->bUseCustomPrimitiveData)
 			{
 				DetailLayout.HideCategory(TEXT("MaterialExpressionScalarParameter"));
@@ -568,11 +618,233 @@ void FMaterialExpressionParameterDetails::CustomizeDetails( IDetailLayoutBuilder
 					DetailLayout.ForceRefreshDetails();
 				}));
 			}
-			
+
+			TSharedPtr<IPropertyHandle> ChannelHandle = DetailLayout.GetProperty("ChannelNames", UMaterialExpressionVectorParameter::StaticClass());
+			TSharedPtr<IPropertyHandle> ValueHandle = DetailLayout.GetProperty("DefaultValue", UMaterialExpressionVectorParameter::StaticClass());
+			if (ChannelHandle.IsValid() && ChannelHandle->IsValidHandle())
+			{
+				static const FName Red("R");
+				static const FName Green("G");
+				static const FName Blue("B");
+				static const FName Alpha("A");
+				// Rebuild the layout when the ChannelNames property changes
+				ChannelHandle->GetChildHandle(Red)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+				{
+	
+					DetailLayout.ForceRefreshDetails();
+				}));
+				ChannelHandle->GetChildHandle(Green)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+				{
+
+					DetailLayout.ForceRefreshDetails();
+				}));
+				ChannelHandle->GetChildHandle(Blue)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+				{
+
+					DetailLayout.ForceRefreshDetails();
+				}));
+				ChannelHandle->GetChildHandle(Alpha)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+				{
+
+					DetailLayout.ForceRefreshDetails();
+				}));
+			}
+
 			if (VectorParameter->bUseCustomPrimitiveData)
 			{
 				DetailLayout.HideCategory(TEXT("MaterialExpressionVectorParameter"));
 				DetailLayout.HideCategory(MaterialExpressionCategory);
+			}
+
+			if (ValueHandle.IsValid() && ValueHandle->IsValidHandle())
+			{
+				static const FName Red("R");
+				static const FName Green("G");
+				static const FName Blue("B");
+				static const FName Alpha("A");
+				if (!VectorParameter->ChannelNames.R.IsEmpty())
+				{
+					ValueHandle->GetChildHandle(Red)->SetPropertyDisplayName(VectorParameter->ChannelNames.R);
+				}
+				if (!VectorParameter->ChannelNames.G.IsEmpty())
+				{
+					ValueHandle->GetChildHandle(Green)->SetPropertyDisplayName(VectorParameter->ChannelNames.G);
+				}
+				if (!VectorParameter->ChannelNames.B.IsEmpty())
+				{
+					ValueHandle->GetChildHandle(Blue)->SetPropertyDisplayName(VectorParameter->ChannelNames.B);
+				}
+				if (!VectorParameter->ChannelNames.A.IsEmpty())
+				{
+					ValueHandle->GetChildHandle(Alpha)->SetPropertyDisplayName(VectorParameter->ChannelNames.A);
+				}
+			}
+		}
+
+		UMaterialExpressionTextureSampleParameter* TextureParameter = Cast<UMaterialExpressionTextureSampleParameter>(Object);
+
+		if (TextureParameter)
+		{
+			TSharedPtr<IPropertyHandle> ChannelHandle = DetailLayout.GetProperty("ChannelNames", UMaterialExpressionTextureSampleParameter::StaticClass());
+			TSharedPtr<IPropertyHandle> ValueHandle = DetailLayout.GetProperty("Texture", UMaterialExpressionTextureBase::StaticClass());
+			if (TextureParameter->GetOutputType(0) != MCT_Texture)
+			{
+				if (ChannelHandle.IsValid() && ChannelHandle->IsValidHandle())
+				{
+					static const FName Red("R");
+					static const FName Green("G");
+					static const FName Blue("B");
+					static const FName Alpha("A");
+					// Rebuild the layout when the ChannelNames property changes
+					ChannelHandle->GetChildHandle(Red)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+					{
+						DetailLayout.ForceRefreshDetails();
+					}));
+					ChannelHandle->GetChildHandle(Green)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+					{
+						DetailLayout.ForceRefreshDetails();
+					}));
+					ChannelHandle->GetChildHandle(Blue)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+					{
+						DetailLayout.ForceRefreshDetails();
+					}));
+					ChannelHandle->GetChildHandle(Alpha)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+					{
+						DetailLayout.ForceRefreshDetails();
+					}));
+				}
+
+				if (ValueHandle.IsValid() && ValueHandle->IsValidHandle())
+				{
+					IDetailPropertyRow& PropertyRow = *DetailLayout.EditDefaultProperty(ValueHandle);
+					TSharedPtr<SWidget> NameWidget;
+					TSharedPtr<SWidget> ValueWidget;
+					FDetailWidgetRow DefaultRow;
+					PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, DefaultRow);
+
+					FDetailWidgetRow &DetailWidgetRow = PropertyRow.CustomWidget();
+					TSharedPtr<SVerticalBox> NameVerticalBox;
+					DetailWidgetRow.NameContent()
+						[
+							SAssignNew(NameVerticalBox, SVerticalBox)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								SNew(STextBlock)
+								.Text(FText::FromName(TextureParameter->ParameterName))
+								.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							]
+						];
+
+					DetailWidgetRow.ValueContent()
+						.MinDesiredWidth(DefaultRow.ValueWidget.MinWidth)
+						.MaxDesiredWidth(DefaultRow.ValueWidget.MaxWidth)
+						[
+							ValueWidget.ToSharedRef()
+						];
+
+					static const FName Red("R");
+					static const FName Green("G");
+					static const FName Blue("B");
+					static const FName Alpha("A");
+
+					if (!TextureParameter->ChannelNames.R.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.Padding(20.0, 2.0, 4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(FText::FromName(Red))
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.Padding(4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(TextureParameter->ChannelNames.R)
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								]
+							];
+					}
+					if (!TextureParameter->ChannelNames.G.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.Padding(20.0, 2.0, 4.0, 2.0)
+								.AutoWidth()
+								[
+									SNew(STextBlock)
+									.Text(FText::FromName(Green))
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.Padding(4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(TextureParameter->ChannelNames.G)
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								]
+							];
+					}
+					if (!TextureParameter->ChannelNames.B.IsEmpty())
+					{
+							NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.Padding(20.0, 2.0, 4.0, 2.0)
+								.AutoWidth()
+								[
+									SNew(STextBlock)
+									.Text(FText::FromName(Blue))
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.Padding(4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(TextureParameter->ChannelNames.B)
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								]
+							];
+					}
+					if (!TextureParameter->ChannelNames.A.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.Padding(20.0, 2.0, 4.0, 2.0)
+								.AutoWidth()
+								[
+									SNew(STextBlock)
+									.Text(FText::FromName(Alpha))
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.Padding(4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(TextureParameter->ChannelNames.A)
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								]
+							];
+					}
+				}
+			}
+			else
+			{
+				DetailLayout.HideProperty(ChannelHandle);
 			}
 		}
 
@@ -582,7 +854,7 @@ void FMaterialExpressionParameterDetails::CustomizeDetails( IDetailLayoutBuilder
 	
 	Category.AddProperty("ParameterName");
 
-	IDetailCategoryBuilder& ExpressionCategory = DetailLayout.EditCategory(MaterialExpressionCategory);
+
 
 	// Get a handle to the property we are about to edit
 	GroupPropertyHandle = DetailLayout.GetProperty( "Group" );

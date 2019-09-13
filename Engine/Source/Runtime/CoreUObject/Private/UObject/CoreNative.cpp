@@ -2,13 +2,12 @@
 
 #include "UObject/CoreNative.h"
 #include "Misc/CoreDelegates.h"
+#include "Modules/ModuleManager.h"
 #include "UObject/Class.h"
 #include "UObject/UnrealType.h"
 #include "Misc/PackageName.h"
 #include "Misc/RuntimeErrors.h"
 #include "UObject/Stack.h"
-#include "Serialization/AsyncLoading.h"
-#include "Serialization/AsyncLoadingThread.h"
 
 void UClassRegisterAllCompiledInClasses();
 bool IsInAsyncLoadingThreadCoreUObjectInternal();
@@ -18,57 +17,48 @@ void ResumeAsyncLoadingInternal();
 bool IsAsyncLoadingSuspendedInternal();
 bool IsAsyncLoadingMultithreadedCoreUObjectInternal();
 
-void FCoreUObjectModule::RouteRuntimeMessageToBP(ELogVerbosity::Type Verbosity, const ANSICHAR* FileName, int32 LineNumber, const FText& Message)
+// CoreUObject module. Handles UObject system pre-init (registers init function with Core callbacks).
+class FCoreUObjectModule : public FDefaultModuleImpl
 {
+public:
+	static void RouteRuntimeMessageToBP(ELogVerbosity::Type Verbosity, const ANSICHAR* FileName, int32 LineNumber, const FText& Message)
+	{
 #if UE_RAISE_RUNTIME_ERRORS && !NO_LOGGING
-	check((Verbosity == ELogVerbosity::Error) || (Verbosity == ELogVerbosity::Warning));
-	FMsg::Logf_Internal(FileName, LineNumber, LogScript.GetCategoryName(), Verbosity, TEXT("%s(%d): Runtime %s: \"%s\""), ANSI_TO_TCHAR(FileName), LineNumber, (Verbosity == ELogVerbosity::Error) ? TEXT("Error") : TEXT("Warning"), *Message.ToString());
+		check((Verbosity == ELogVerbosity::Error) || (Verbosity == ELogVerbosity::Warning));
+		FMsg::Logf_Internal(FileName, LineNumber, LogScript.GetCategoryName(), Verbosity, TEXT("%s(%d): Runtime %s: \"%s\""), ANSI_TO_TCHAR(FileName), LineNumber, (Verbosity == ELogVerbosity::Error) ? TEXT("Error") : TEXT("Warning"), *Message.ToString());
 #endif
-	FFrame::KismetExecutionMessage(*Message.ToString(), Verbosity);
-}
+		FFrame::KismetExecutionMessage(*Message.ToString(), Verbosity);
+	}
 
-void FCoreUObjectModule::StartupModule()
-{
-	GlobalPrecacheHandler = InitGlobalPrecacheHandler();
+	virtual void StartupModule() override
+	{
+		// Register all classes that have been loaded so far. This is required for CVars to work.		
+		UClassRegisterAllCompiledInClasses();
 
-	// Register all classes that have been loaded so far. This is required for CVars to work.		
-	UClassRegisterAllCompiledInClasses();
+		void InitUObject();
+		FCoreDelegates::OnInit.AddStatic(InitUObject);
 
-	void InitUObject();
-	FCoreDelegates::OnInit.AddStatic(InitUObject);
+		// Substitute Core version of async loading functions with CoreUObject ones.
+		IsInAsyncLoadingThread = &IsInAsyncLoadingThreadCoreUObjectInternal;
+		IsAsyncLoading = &IsAsyncLoadingCoreUObjectInternal;
+		SuspendAsyncLoading = &SuspendAsyncLoadingInternal;
+		ResumeAsyncLoading = &ResumeAsyncLoadingInternal;
+		IsAsyncLoadingSuspended = &IsAsyncLoadingSuspendedInternal;
+		IsAsyncLoadingMultithreaded = &IsAsyncLoadingMultithreadedCoreUObjectInternal;
 
-	// Substitute Core version of async loading functions with CoreUObject ones.
-	IsInAsyncLoadingThread = &IsInAsyncLoadingThreadCoreUObjectInternal;
-	IsAsyncLoading = &IsAsyncLoadingCoreUObjectInternal;
-	SuspendAsyncLoading = &SuspendAsyncLoadingInternal;
-	ResumeAsyncLoading = &ResumeAsyncLoadingInternal;
-	IsAsyncLoadingSuspended = &IsAsyncLoadingSuspendedInternal;
-	IsAsyncLoadingMultithreaded = &IsAsyncLoadingMultithreadedCoreUObjectInternal;
-
-	// Register the script callstack callback to the runtime error logging
+		// Register the script callstack callback to the runtime error logging
 #if UE_RAISE_RUNTIME_ERRORS
-	FRuntimeErrors::OnRuntimeIssueLogged.BindStatic(&FCoreUObjectModule::RouteRuntimeMessageToBP);
+		FRuntimeErrors::OnRuntimeIssueLogged.BindStatic(&FCoreUObjectModule::RouteRuntimeMessageToBP);
 #endif
 
-	// Make sure that additional content mount points can be registered after CoreUObject loads
-	FPackageName::EnsureContentPathsAreRegistered();
+		// Make sure that additional content mount points can be registered after CoreUObject loads
+		FPackageName::EnsureContentPathsAreRegistered();
 
 #if DO_BLUEPRINT_GUARD
-	FFrame::InitPrintScriptCallstack();
+		FFrame::InitPrintScriptCallstack();
 #endif
-}
-
-void FCoreUObjectModule::ShutdownModule()
-{
-	// Before deleting our handler, we need to make sure any async loading threads are stopped.
-	// Otherwise the threads will be stuck in an invalid state.
-	FAsyncLoadingThread::Get().Kill();
-
-	DeleteGlobalPrecacheHandler(GlobalPrecacheHandler);
-	GlobalPrecacheHandler = nullptr;
-}
-
-struct FPrecacheCallbackHandler* FCoreUObjectModule::GlobalPrecacheHandler = nullptr;
+	}
+};
 IMPLEMENT_MODULE( FCoreUObjectModule, CoreUObject );
 
 // if we are not using compiled in natives, we still need this as a base class for intrinsics

@@ -312,7 +312,7 @@ void FOutputDeviceRedirector::SerializeImpl(const TCHAR* Data, ELogVerbosity::Ty
 
 #if PLATFORM_DESKTOP
 	// this is for errors which occur after shutdown we might be able to salvage information from stdout 
-	if ((BufferedOutputDevices.Num() == 0) && GIsRequestingExit)
+	if ((BufferedOutputDevices.Num() == 0) && IsEngineExitRequested())
 	{
 #if PLATFORM_WINDOWS
 		_tprintf(_T("%s\n"), Data);

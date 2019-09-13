@@ -200,6 +200,11 @@ void SSequencerSectionAreaView::OnArrangeChildren( const FGeometry& AllottedGeom
 FTimeToPixel SSequencerSectionAreaView::GetTimeToPixel( const FGeometry& AllottedGeometry ) const
 {
 	const UMovieSceneTrack* Track      = SectionAreaNode->GetTrack();
+	if (!Track)
+	{
+		return FTimeToPixel(AllottedGeometry, ViewRange.Get(), FFrameRate());
+	}
+
 	const FFrameRate        Resolution = Track->GetTypedOuter<UMovieScene>()->GetTickResolution();
 
 	return FTimeToPixel( AllottedGeometry, ViewRange.Get(), Resolution );

@@ -451,7 +451,7 @@ namespace IncludeTool
 					while(NewLastLocation.LineIdx < Text.Lines.Length)
 					{
 						string TrimLine = Text.Lines[NewLastLocation.LineIdx].Trim();
-						if(TrimLine.Length > 0 && !TrimLine.Equals("// Forward declarations", StringComparison.InvariantCultureIgnoreCase) && !TrimLine.Equals("// Forward declarations.", StringComparison.InvariantCultureIgnoreCase))
+						if(TrimLine.Length > 0 && !TrimLine.Equals("// Forward declarations", StringComparison.OrdinalIgnoreCase) && !TrimLine.Equals("// Forward declarations.", StringComparison.OrdinalIgnoreCase))
 						{
 							// Create a token reader for the current line
 							TokenReader Reader = new TokenReader(Text, new TextLocation(NewLastLocation.LineIdx, 0), new TextLocation(NewLastLocation.LineIdx, Text.Lines[NewLastLocation.LineIdx].Length));
@@ -540,7 +540,7 @@ namespace IncludeTool
 						{
 							IncludeText = OriginalIncludeText;
 						}
-						else if(OriginalIncludeText != null && (Flags & SourceFileFlags.TranslationUnit) == 0 && OriginalIncludeText.EndsWith(IncludeText.TrimStart('\"'), StringComparison.InvariantCultureIgnoreCase) && (OriginalIncludeText.StartsWith("\"Runtime/", StringComparison.InvariantCultureIgnoreCase) || OriginalIncludeText.StartsWith("\"Developer/", StringComparison.InvariantCultureIgnoreCase) || OriginalIncludeText.StartsWith("\"Editor/", StringComparison.InvariantCultureIgnoreCase)))
+						else if(OriginalIncludeText != null && (Flags & SourceFileFlags.TranslationUnit) == 0 && OriginalIncludeText.EndsWith(IncludeText.TrimStart('\"'), StringComparison.OrdinalIgnoreCase) && (OriginalIncludeText.StartsWith("\"Runtime/", StringComparison.InvariantCultureIgnoreCase) || OriginalIncludeText.StartsWith("\"Developer/", StringComparison.InvariantCultureIgnoreCase) || OriginalIncludeText.StartsWith("\"Editor/", StringComparison.InvariantCultureIgnoreCase)))
 						{
 							IncludeText = OriginalIncludeText;
 						}
@@ -743,26 +743,26 @@ namespace IncludeTool
 			}
 
 			// HACK: VsPerf.h is in the compiler environment, but the include path is added directly
-			if (IncludeFile.FullName.EndsWith("\\PerfSDK\\VSPerf.h", StringComparison.InvariantCultureIgnoreCase))
+			if (IncludeFile.FullName.EndsWith("\\PerfSDK\\VSPerf.h", StringComparison.OrdinalIgnoreCase))
 			{
 				IncludeText = "\"VSPerf.h\"";
 				return true;
 			}
 
 			// HACK: public Paper2D header in classes folder including private Paper2D header
-			if(IncludeFile.FullName.IndexOf("\\Paper2D\\Private\\", StringComparison.InvariantCultureIgnoreCase) != -1)
+			if(IncludeFile.FullName.IndexOf("\\Paper2D\\Private\\", StringComparison.OrdinalIgnoreCase) != -1)
 			{
 				IncludeText = "\"" + IncludeFile.GetFileName() + "\"";
 				return true;
 			}
-			if(IncludeFile.FullName.IndexOf("\\OnlineSubsystemUtils\\Private\\", StringComparison.InvariantCultureIgnoreCase) != -1)
+			if(IncludeFile.FullName.IndexOf("\\OnlineSubsystemUtils\\Private\\", StringComparison.OrdinalIgnoreCase) != -1)
 			{
 				IncludeText = "\"" + IncludeFile.GetFileName() + "\"";
 				return true;
 			}
 
 			// HACK: including private headers from public headers in the same module
-			int PrivateIdx = IncludeFile.FullName.IndexOf("\\Private\\", StringComparison.InvariantCultureIgnoreCase);
+			int PrivateIdx = IncludeFile.FullName.IndexOf("\\Private\\", StringComparison.OrdinalIgnoreCase);
 			if(PrivateIdx != -1)
 			{
 				DirectoryReference BaseDir = new DirectoryReference(IncludeFile.FullName.Substring(0, PrivateIdx));

@@ -147,6 +147,14 @@ float FNavigationConfig::GetRepeatRateForPressure(float InPressure, int32 InRepe
 	return RepeatRate;
 }
 
+EUINavigationAction FNavigationConfig::GetNavigationActionFromKey(const FKeyEvent& InKeyEvent) const
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Call raw key version for back compatibility, subclasses should override this function
+	return GetNavigationActionForKey(InKeyEvent.GetKey());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 EUINavigationAction FNavigationConfig::GetNavigationActionForKey(const FKey& InKey) const
 {
 	if (InKey == EKeys::Enter || InKey == EKeys::SpaceBar || InKey == EKeys::Virtual_Accept)
