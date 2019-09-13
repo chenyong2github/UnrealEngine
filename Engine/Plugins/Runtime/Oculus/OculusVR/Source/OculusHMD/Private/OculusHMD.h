@@ -105,6 +105,7 @@ public:
 	virtual void OnEndPlay(FWorldContext& InWorldContext) override;
 	virtual bool OnStartGameFrame(FWorldContext& WorldContext) override;
 	virtual bool OnEndGameFrame(FWorldContext& WorldContext) override;
+	virtual class IXRLoadingScreen* CreateLoadingScreen() override { return GetSplash(); }
 
 	// IHeadMountedDisplay
 	virtual bool IsHMDConnected() override;
@@ -169,7 +170,7 @@ public:
 	//virtual void UseImplicitHmdPosition(bool bInImplicitHmdPosition) override;
 	//virtual bool GetUseImplicitHmdPosition() override;
 
-	// FHeadMoundedDisplayBase interface
+	// FHeadMountedDisplayBase interface
 	virtual FVector2D GetEyeCenterPoint_RenderThread(EStereoscopicPass StereoPassType) const override;
 	virtual FIntRect GetFullFlatEyeRect_RenderThread(FTexture2DRHIRef EyeTexture) const override;
 	virtual void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, FRHITexture2D* DstTexture, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const override;
@@ -192,10 +193,11 @@ public:
 	virtual void SetLayerDesc(uint32 LayerId, const IStereoLayers::FLayerDesc& InLayerDesc) override;
 	virtual bool GetLayerDesc(uint32 LayerId, IStereoLayers::FLayerDesc& OutLayerDesc) override;
 	virtual void MarkTextureForUpdate(uint32 LayerId) override;
-	virtual void UpdateSplashScreen() override;
 	virtual IStereoLayers::FLayerDesc GetDebugCanvasLayerDesc(FTextureRHIRef Texture) override;
 	virtual void GetAllocatedTexture(uint32 LayerId, FTextureRHIRef &Texture, FTextureRHIRef &LeftTexture) override;
 	virtual bool ShouldCopyDebugLayersToSpectatorScreen() const override { return true; }
+	virtual void PushLayerState(bool) override { /* Todo */ }
+	virtual void PopLayerState() override { /* Todo */ }
 
 	// ISceneViewExtension
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override;
@@ -224,7 +226,6 @@ protected:
 	void ApplicationResumeDelegate();
 	void SetupOcclusionMeshes();
 	void UpdateStereoRenderingParams();
-	void UpdateSplashScreen_GameThread();
 	void UpdateHmdRenderInfo();
 	void InitializeEyeLayer_RenderThread(FRHICommandListImmediate& RHICmdList);
 	void ApplySystemOverridesOnStereo(bool force = false);
@@ -365,7 +366,6 @@ protected:
 
 			uint64	bNeedEnableStereo : 1;
 			uint64	bNeedDisableStereo : 1;
-			uint64  bNeedSplashUpdate : 1;
 		};
 		uint64 Raw;
 	} Flags;

@@ -539,7 +539,8 @@ namespace OculusHMD
 			// @todo vreditor: If we add support for starting PIE while in VR Editor, we don't want to kill stereo mode when exiting PIE
 			if (Splash->IsShown())
 			{
-				Splash->Hide();
+				Splash->HideLoadingScreen(); // This will only request hiding the screen
+				Splash->UpdateLoadingScreen_GameThread(); // Update is needed to complete removing the loading screen
 			}
 			EnableStereo(false);
 			ReleaseDevice();
@@ -1657,34 +1658,6 @@ namespace OculusHMD
 		if (LayerFound)
 		{
 			(*LayerFound)->MarkTextureForUpdate();
-		}
-	}
-
-
-	void FOculusHMD::UpdateSplashScreen()
-	{
-		if (!GetSplash() || !IsInGameThread())
-		{
-			return;
-		}
-
-		Flags.bNeedSplashUpdate = true;
-	}
-
-	void FOculusHMD::UpdateSplashScreen_GameThread()
-	{
-		if (Flags.bNeedSplashUpdate)
-		{
-			if (bSplashIsShown)
-			{
-				Splash->Show();
-			}
-			else
-			{
-				Splash->Hide();
-			}
-
-			Flags.bNeedSplashUpdate = false;
 		}
 	}
 
@@ -3141,7 +3114,7 @@ namespace OculusHMD
 
 		if (!Frame.IsValid())
 		{
-			UpdateSplashScreen_GameThread(); //the result of this is used in CreateGameFrame to know if Frame is a "real" one or a "splash" one.
+			Splash->UpdateLoadingScreen_GameThread(); //the result of this is used in CreateGameFrame to know if Frame is a "real" one or a "splash" one.
 			Frame = CreateNewGameFrame();
 			NextFrameToRender = Frame;
 

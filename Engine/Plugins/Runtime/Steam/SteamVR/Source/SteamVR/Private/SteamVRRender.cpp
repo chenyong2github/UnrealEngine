@@ -34,7 +34,7 @@ void FSteamVRHMD::RenderTexture_RenderThread(FRHICommandListImmediate& RHICmdLis
 {
 	check(IsInRenderingThread());
 
-	if (bSplashIsShown)
+	if (bSplashIsShown || !IsBackgroundLayerVisible())
 	{
 		FRHIRenderPassInfo RPInfo(SrcTexture, ERenderTargetActions::DontLoad_Store);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("Clear"));

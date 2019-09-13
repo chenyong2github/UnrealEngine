@@ -14,6 +14,7 @@
 #include "ClearQuad.h"
 #include "SceneView.h"
 #include "CommonRenderResources.h"
+#include "IXRLoadingScreen.h"
 
 namespace 
 {
@@ -250,8 +251,13 @@ void FDefaultStereoLayers::PostRenderView_RenderThread(FRHICommandListImmediate&
 
 	FRHIRenderPassInfo RPInfo(RenderTarget, ERenderTargetActions::Load_Store);
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("StereoLayerRender"));
-
 	RHICmdList.SetViewport(RenderParams.Viewport.Min.X, RenderParams.Viewport.Min.Y, 0, RenderParams.Viewport.Max.X, RenderParams.Viewport.Max.Y, 1.0f);
+
+	if (bSplashIsShown || !IsBackgroundLayerVisible())
+	{
+		DrawClearQuad(RHICmdList, FLinearColor::Black);
+	}
+
 	StereoLayerRender(RHICmdList, SortedSceneLayers, RenderParams);
 	
 	// Optionally render face-locked layers into a non-reprojected target if supported by the HMD platform
@@ -275,47 +281,6 @@ void FDefaultStereoLayers::PostRenderView_RenderThread(FRHICommandListImmediate&
 bool FDefaultStereoLayers::IsActiveThisFrame(class FViewport* InViewport) const
 {
 	return GEngine && GEngine->IsStereoscopic3D(InViewport);
-}
-
-void FDefaultStereoLayers::UpdateSplashScreen()
-{
-	FTexture2DRHIRef Texture = (bSplashShowMovie && SplashMovie.IsValid()) ? SplashMovie : SplashTexture;
-	if (bSplashIsShown && Texture.IsValid())
-	{
-		FQuat Orientation;
-		FVector Position;
-
-		HMDDevice->GetCurrentPose(IXRTrackingSystem::HMDDeviceId, Orientation, Position);
-		FLayerDesc LayerDesc;
-		LayerDesc.Flags = ELayerFlags::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL;
-		LayerDesc.PositionType = ELayerType::TrackerLocked;
-		LayerDesc.Texture = Texture;
-
-		FTransform Translation(FVector(500.0f, 0.0f, 100.0f) + SplashOffset);
-		FRotator Rotation(Orientation);
-		Rotation.Pitch = 0.0f;
-		Rotation.Roll = 0.0f;
-		LayerDesc.Transform = Translation * FTransform(Rotation.Quaternion());
-
-		LayerDesc.QuadSize = FVector2D(800.0f, 450.0f) * SplashScale;
-
-		if (SplashLayerHandle)
-		{
-			SetLayerDesc(SplashLayerHandle, LayerDesc);
-		}
-		else
-		{
-			SplashLayerHandle = CreateLayer(LayerDesc);
-		}
-	}
-	else
-	{
-		if (SplashLayerHandle)
-		{
-			DestroyLayer(SplashLayerHandle);
-			SplashLayerHandle = 0;
-		}
-	}
 }
 
 void FDefaultStereoLayers::SetupViewFamily(FSceneViewFamily& InViewFamily)
