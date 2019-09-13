@@ -40,7 +40,7 @@ public:
 		GConfig->GetDouble(TEXT("/Script/Engine.InputSettings"), TEXT("ButtonRepeatDelay"), ButtonRepeatDelay, GInputIni);
 
 		// Initialize the API, so we can start calling SteamController functions
-		SteamAPIHandle = FSteamSharedModule::Get().ObtainSteamInstanceHandle();
+		SteamAPIHandle = FSteamSharedModule::Get().ObtainSteamClientInstanceHandle();
 
 		// [RCL] 2015-01-23 FIXME: move to some other code than constructor so we can handle failures more gracefully
 		if (SteamAPIHandle.IsValid() && (SteamInput() != nullptr))
@@ -330,7 +330,7 @@ private:
 	TSharedRef<FGenericApplicationMessageHandler> MessageHandler;
 
 	/** SteamAPI initialized **/
-	TSharedPtr<class FSteamInstanceHandler> SteamAPIHandle;
+	TSharedPtr<class FSteamClientInstanceHandler> SteamAPIHandle;
 
 	/** SteamController initialized **/
 	bool bSteamControllerInitialized;

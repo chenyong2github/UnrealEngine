@@ -6,6 +6,9 @@
 #include "Misc/CommandLine.h"
 #include "Modules/ModuleManager.h"
 #include "HAL/PlatformProcess.h"
+#include "Misc/ConfigCacheIni.h"
+#include "SocketSubsystem.h"
+#include "IPAddress.h"
 
 #ifndef STEAM_SDK_INSTALLED
 #error Steam SDK not located! Expected to be found in Engine/Source/ThirdParty/Steamworks/{SteamVersion}
@@ -14,6 +17,7 @@
 // Steam API for Initialization
 THIRD_PARTY_INCLUDES_START
 #include "steam/steam_api.h"
+#include "steam/steam_gameserver.h"
 THIRD_PARTY_INCLUDES_END
 
 DEFINE_LOG_CATEGORY_STATIC(LogSteamShared, Log, All);
@@ -48,6 +52,18 @@ FString FSteamSharedModule::GetSteamModulePath() const
 #endif	//PLATFORM_WINDOWS
 }
 
+bool FSteamSharedModule::CanLoadClientDllsOnServer() const
+{
+#if PLATFORM_WINDOWS
+	if (IsRunningDedicatedServer())
+	{
+		return true;
+	}
+#endif
+
+	return false;
+}
+
 void FSteamSharedModule::StartupModule()
 {
 	// On startup load the modules. Anyone who uses this shared library can guarantee
@@ -61,42 +77,77 @@ void FSteamSharedModule::ShutdownModule()
 	if (AreSteamDllsLoaded())
 	{
 		// Make sure everyone cleaned up their instances properly.
-		if (InstanceHandlerObserver.IsValid()) // If our weakptr is still valid, that means there are cases that didn't clean up somehow.
+		if (SteamClientObserver.IsValid()) // If our weakptr is still valid, that means there are cases that didn't clean up somehow.
 		{
 			// If they have not, warn to them they need to clean up in the future and force the deletion.
-			uint32 NumSharedReferences = InstanceHandlerObserver.Pin().GetSharedReferenceCount();
+			uint32 NumSharedReferences = SteamClientObserver.Pin().GetSharedReferenceCount();
 			// Make sure to subtract 1 here as we just created a new sharedptr in order to get the reference count
 			// (this sharedptr is out of scope so it does not matter)
 			UE_LOG(LogSteamShared, Warning, TEXT("There are still %d additional Steam instances in use. These must be shutdown before unloading the module!"), NumSharedReferences - 1);
 		}
-		InstanceHandlerObserver.Reset(); // Force the clearing of our weakptr.
+		SteamClientObserver.Reset(); // Force the clearing of our weakptr.
+
+		// Do the above but this time with the server observer.
+		if (SteamServerObserver.IsValid())
+		{
+			uint32 NumSharedReferences = SteamServerObserver.Pin().GetSharedReferenceCount();
+			UE_LOG(LogSteamShared, Warning, TEXT("There are still %d additional Steam server instances in use. These must be shutdown before unloading the module!"), NumSharedReferences - 1);
+		}
+		SteamServerObserver.Reset();
 	}
 
 	// Here we are no longer loaded, so we need to override any DLL handles still open and unlink the DLLs.
 	UnloadSteamModules();
 }
 
-TSharedPtr<class FSteamInstanceHandler> FSteamSharedModule::ObtainSteamInstanceHandle()
+TSharedPtr<class FSteamClientInstanceHandler> FSteamSharedModule::ObtainSteamClientInstanceHandle()
 {
-	if (InstanceHandlerObserver.IsValid())
+	if (SteamClientObserver.IsValid())
 	{
-		return InstanceHandlerObserver.Pin();
+		return SteamClientObserver.Pin();
 	}
 	else
 	{
 		// Create the original base object, and store our weakptrs.
-		TSharedPtr<FSteamInstanceHandler> BaseInstance = MakeShareable(new FSteamInstanceHandler(this));
-		InstanceHandlerObserver = BaseInstance;
-		if (BaseInstance->bInitialized) // Make sure the SteamAPI was initialized properly.
+		TSharedPtr<FSteamClientInstanceHandler> BaseInstance = MakeShareable(new FSteamClientInstanceHandler(this));
+		SteamClientObserver = BaseInstance;
+		if (BaseInstance->IsInitialized()) // Make sure the SteamAPI was initialized properly.
 		{
 			// This is safe because we'll end up incrementing the BaseInstance refcounter before we go out of scope.
 			// Thus the InstanceHandler will not be deleted before we return.
-			return InstanceHandlerObserver.Pin();
+			return SteamClientObserver.Pin();
 		}
 		else
 		{
 			// We don't want to hold any references to failed instances.
-			InstanceHandlerObserver = nullptr;
+			SteamClientObserver = nullptr;
+		}
+	}
+
+	return nullptr;
+}
+
+TSharedPtr<class FSteamServerInstanceHandler> FSteamSharedModule::ObtainSteamServerInstanceHandle()
+{
+	if (SteamServerObserver.IsValid())
+	{
+		return SteamServerObserver.Pin();
+	}
+	else
+	{
+		// Create the original base object, and store our weakptrs.
+		TSharedPtr<FSteamServerInstanceHandler> BaseInstance = MakeShareable(new FSteamServerInstanceHandler(this));
+		SteamServerObserver = BaseInstance;
+		if (BaseInstance->IsInitialized()) // Make sure the SteamAPI was initialized properly.
+		{
+			// This is safe because we'll end up incrementing the BaseInstance refcounter before we go out of scope.
+			// Thus the InstanceHandler will not be deleted before we return.
+			return SteamServerObserver.Pin();
+		}
+		else
+		{
+			// We don't want to hold any references to failed instances.
+			SteamServerObserver = nullptr;
 		}
 	}
 
@@ -193,7 +244,7 @@ void FSteamSharedModule::UnloadSteamModules()
 {
 	// Only free the handles if no one is using them anymore.
 	// There's no need to check AreSteamDllsLoaded as this is done individually below.
-	if (!InstanceHandlerObserver.IsValid())
+	if (!SteamClientObserver.IsValid() && !SteamServerObserver.IsValid())
 	{
 #if LOADING_STEAM_LIBRARIES_DYNAMICALLY
 		UE_LOG(LogSteamShared, Log, TEXT("Freeing the Steam Loaded Modules..."));
@@ -213,8 +264,8 @@ void FSteamSharedModule::UnloadSteamModules()
 	}
 }
 
-FSteamInstanceHandler::FSteamInstanceHandler(FSteamSharedModule* SteamInitializer) :
-	bInitialized(false)
+FSteamClientInstanceHandler::FSteamClientInstanceHandler(FSteamSharedModule* SteamInitializer) :
+	FSteamInstanceHandlerBase()
 {
 	// A module must be loaded in order for us to initialize the Steam API.
 	if (SteamInitializer != nullptr && SteamInitializer->AreSteamDllsLoaded())
@@ -228,20 +279,108 @@ FSteamInstanceHandler::FSteamInstanceHandler(FSteamSharedModule* SteamInitialize
 
 		// The conditions mentioned in this print can be found at https://partner.steamgames.com/doc/sdk/api#initialization_and_shutdown
 		UE_LOG(LogSteamShared, Warning, TEXT("SteamAPI failed to initialize, conditions not met."));
-		bInitialized = false;
 		return;
 	}
 	UE_LOG(LogSteamShared, Warning, TEXT("SteamAPI failed to initialize as the Dlls are not loaded."));
 }
 
-FSteamInstanceHandler::~FSteamInstanceHandler()
+void FSteamClientInstanceHandler::InternalShutdown()
 {
-	// So long as a module is loaded, we can call shutdown.
-	if (bInitialized && FSteamSharedModule::IsAvailable() && FSteamSharedModule::Get().AreSteamDllsLoaded())
+	UE_LOG(LogSteamShared, Log, TEXT("Unloading the Steam API..."));
+	SteamAPI_Shutdown();
+}
+
+
+FSteamServerInstanceHandler::FSteamServerInstanceHandler(FSteamSharedModule* SteamInitializer) :
+	FSteamInstanceHandlerBase()
+{
+	if (SteamInitializer == nullptr || !SteamInitializer->AreSteamDllsLoaded())
 	{
-		// By getting here, we must be the last instance of the object, thus we should be deleted.
-		// If no one is using the API, we can shut it down.
-		UE_LOG(LogSteamShared, Log, TEXT("Unloading the Steam API..."));
-		SteamAPI_Shutdown();
+		UE_LOG(LogSteamShared, Warning, TEXT("Steam Server API failed to initialize as the Dlls are not loaded."));
+		return;
+	}
+
+	// Get the multihome address. If there isn't one, this server will be set to listen on the any address.
+	uint32 LocalServerIP = 0;
+	FString MultiHome;
+	if (FParse::Value(FCommandLine::Get(), TEXT("MULTIHOME="), MultiHome) && !MultiHome.IsEmpty())
+	{
+		TSharedPtr<FInternetAddr> MultiHomeIP = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetAddressFromString(MultiHome);
+		if (MultiHomeIP.IsValid())
+		{
+			MultiHomeIP->GetIp(LocalServerIP);
+		}
+	}
+
+	// Grab the gameport for game communications.
+	if (FParse::Value(FCommandLine::Get(), TEXT("Port="), GamePort) == false)
+	{
+		GConfig->GetInt(TEXT("URL"), TEXT("Port"), GamePort, GEngineIni);
+	}
+
+	// Grab the SteamPort, which handles communications over the steam network.
+	SteamPort = GamePort + 1;
+
+	// Allow the command line to override the default query port for master server communications
+	if (FParse::Value(FCommandLine::Get(), TEXT("QueryPort="), QueryPort) == false)
+	{
+		if (!GConfig->GetInt(TEXT("OnlineSubsystemSteam"), TEXT("GameServerQueryPort"), QueryPort, GEngineIni))
+		{
+			QueryPort = 27015;
+		}
+	}
+
+	// Set VAC
+	bool bVACEnabled = false;
+	GConfig->GetBool(TEXT("OnlineSubsystemSteam"), TEXT("bVACEnabled"), bVACEnabled, GEngineIni);
+
+	// Set GameVersions
+	FString GameVersion;
+	GConfig->GetString(TEXT("OnlineSubsystemSteam"), TEXT("GameVersion"), GameVersion, GEngineIni);
+	if (GameVersion.Len() == 0)
+	{
+		UE_LOG(LogSteamShared, Warning, TEXT("[OnlineSubsystemSteam].GameVersion is not set. Server advertising will fail"));
+	}
+
+	UE_LOG(LogSteamShared, Verbose, TEXT("Initializing Steam Game Server IP: 0x%08X Port: %d SteamPort: %d QueryPort: %d"), LocalServerIP, GamePort, SteamPort, QueryPort);
+
+	if (SteamGameServer_Init(LocalServerIP, SteamPort, GamePort, QueryPort,
+		(bVACEnabled ? eServerModeAuthenticationAndSecure : eServerModeAuthentication),
+		TCHAR_TO_UTF8(*GameVersion)))
+	{
+		UE_LOG(LogSteamShared, Verbose, TEXT("Steam Dedicated Server API initialized."));
+		bInitialized = true;
+	}
+	else
+	{
+		UE_LOG(LogSteamShared, Warning, TEXT("Steam Dedicated Server API failed to initialize."));
 	}
 }
+
+void FSteamServerInstanceHandler::InternalShutdown()
+{
+	// Log off of the steam master servers, removes this server immediately from the backend.
+	if (SteamGameServer() && SteamGameServer()->BLoggedOn())
+	{
+		SteamGameServer()->LogOff();
+	}
+
+	// By getting here, we must be the last instance of the object, thus we should be deleted.
+	// If no one is using the API, we can shut it down.
+	UE_LOG(LogSteamShared, Log, TEXT("Unloading the Steam server API..."));
+	SteamGameServer_Shutdown();
+}
+
+bool FSteamInstanceHandlerBase::CanCleanUp() const
+{
+	return bInitialized && FSteamSharedModule::IsAvailable() && FSteamSharedModule::Get().AreSteamDllsLoaded();
+}
+
+void FSteamInstanceHandlerBase::Destroy()
+{
+	if (CanCleanUp())
+	{
+		InternalShutdown();
+	}
+}
+

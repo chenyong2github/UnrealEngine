@@ -15,8 +15,13 @@ public class SteamShared : ModuleRules
         {
             PublicDefinitions.Add("STEAM_SDK_INSTALLED");
         }
-
-        PrivateDependencyModuleNames.Add("Core");
+	
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"Core", 
+				"Sockets"
+            }
+		);
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "Steamworks");
 	}

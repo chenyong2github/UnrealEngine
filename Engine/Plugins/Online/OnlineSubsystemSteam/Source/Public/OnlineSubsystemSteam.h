@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "OnlineDelegateMacros.h"
 #include "OnlineSubsystemImpl.h"
 #include "OnlineSubsystemSteamPackage.h"
 
@@ -18,6 +19,7 @@ class FOnlineVoiceSteam;
 class FOnlinePresenceSteam;
 class FOnlineAuthSteam;
 class FOnlineAuthUtilsSteam;
+class FOnlinePingInterfaceSteam;
 
 /** Forward declarations of all interface classes */
 typedef TSharedPtr<class FOnlineSessionSteam, ESPMode::ThreadSafe> FOnlineSessionSteamPtr;
@@ -32,6 +34,16 @@ typedef TSharedPtr<class FOnlineAchievementsSteam, ESPMode::ThreadSafe> FOnlineA
 typedef TSharedPtr<class FOnlinePresenceSteam, ESPMode::ThreadSafe> FOnlinePresenceSteamPtr;
 typedef TSharedPtr<class FOnlineAuthSteam, ESPMode::ThreadSafe> FOnlineAuthSteamPtr;
 typedef TSharedPtr<class FOnlineAuthUtilsSteam, ESPMode::ThreadSafe> FOnlineAuthSteamUtilsPtr;
+typedef TSharedPtr<class FOnlinePingInterfaceSteam, ESPMode::ThreadSafe> FOnlinePingSteamPtr;
+
+/**
+* Delegate fired when a Steam Game Server has completed its login tasks with the Steam backend.
+*
+* @param bWasSuccessful if the login completed successfully
+*/
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSteamServerLoginCompleted, bool /* bWasSuccessful */);
+typedef FOnSteamServerLoginCompleted::FDelegate FOnSteamServerLoginCompletedDelegate;
+
 
 /**
  *	OnlineSubsystemSteam - Implementation of the online subsystem for STEAM services
@@ -46,6 +58,9 @@ protected:
 
 	/** Whether or not the Steam game server API is initialized */
 	bool bSteamworksGameServerInitialized;
+
+	/** If we are using the SteamNetworking protocol or not. */
+	bool bUsingSteamNetworking;
 
 	/** Steam App ID for the running game */
 	uint32 SteamAppID;
@@ -99,6 +114,9 @@ protected:
 	FOnlineAuthSteamPtr AuthInterface;
 	FOnlineAuthSteamUtilsPtr AuthInterfaceUtils;
 
+	/** Interface for dynamically calculating SteamNetworking ping based off protocol */
+	FOnlinePingSteamPtr PingInterface;
+
 	/** Online async task runnable */
 	class FOnlineAsyncTaskManagerSteam* OnlineAsyncTaskThreadRunnable;
 
@@ -106,7 +124,10 @@ protected:
 	class FRunnableThread* OnlineAsyncTaskThread;
 
 	/** Steam Client API Handle */
-	TSharedPtr<class FSteamInstanceHandler> SteamAPIClientHandle;
+	TSharedPtr<class FSteamClientInstanceHandler> SteamAPIClientHandle;
+
+	/** Steam Server API Handle */
+	TSharedPtr<class FSteamServerInstanceHandler> SteamAPIServerHandle;
 
 PACKAGE_SCOPE:
 
@@ -116,6 +137,7 @@ PACKAGE_SCOPE:
 		FOnlineSubsystemImpl(STEAM_SUBSYSTEM, InInstanceName),
 		bSteamworksClientInitialized(false),
 		bSteamworksGameServerInitialized(false),
+		bUsingSteamNetworking(false),
 		SteamAppID(0),
 		GameServerSteamPort(0),
 		GameServerGamePort(0),
@@ -132,9 +154,11 @@ PACKAGE_SCOPE:
 		PresenceInterface(nullptr),
 		AuthInterface(nullptr),
 		AuthInterfaceUtils(nullptr),
+		PingInterface(nullptr),
 		OnlineAsyncTaskThreadRunnable(nullptr),
 		OnlineAsyncTaskThread(nullptr),
-		SteamAPIClientHandle(nullptr)
+		SteamAPIClientHandle(nullptr),
+		SteamAPIServerHandle(nullptr)
 	{}
 
 	/** Critical sections for thread safe operation of the cloud files */
@@ -214,6 +238,9 @@ public:
 
 	virtual FOnlineAuthSteamPtr GetAuthInterface() const;
 	virtual FOnlineAuthSteamUtilsPtr GetAuthInterfaceUtils() const;
+	
+	virtual FOnlinePingSteamPtr GetPingInterface() const;
+	virtual void SetPingInterface(FOnlinePingSteamPtr InPingInterface);
 
 	// IOnlineSubsystem
 
@@ -313,6 +340,12 @@ public:
 	{
 		return GameServerQueryPort;
 	}
+
+	/**
+	 * This delegate fires whenever a steam login has succeeded or failed its async task.
+	 * Useful for modules that need to check to see if a user is logged in before running other behavior
+	 */
+	DEFINE_ONLINE_DELEGATE_ONE_PARAM(OnSteamServerLoginCompleted, bool);
 };
 
 namespace FNetworkProtocolTypes

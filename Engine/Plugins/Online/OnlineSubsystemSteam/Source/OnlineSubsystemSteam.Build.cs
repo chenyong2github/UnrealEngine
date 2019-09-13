@@ -27,6 +27,7 @@ public class OnlineSubsystemSteam : ModuleRules
 				"OnlineSubsystem",
 				"Json",
 				"PacketHandler",
+				"Projects",
                 "SteamShared"
             }
 		);

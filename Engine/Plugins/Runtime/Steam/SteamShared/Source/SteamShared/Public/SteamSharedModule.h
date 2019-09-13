@@ -19,7 +19,8 @@ public:
 		SteamDLLHandle(nullptr),
 		SteamServerDLLHandle(nullptr),
 		bForceLoadSteamClientDll(false),
-		InstanceHandlerObserver(nullptr)
+		SteamClientObserver(nullptr),
+		SteamServerObserver(nullptr)
 	{
 	}
 
@@ -41,23 +42,44 @@ public:
 	 *
 	 * @return A handler to the Steam Client API, use IsValid to check if the handle is initialized.
 	 */
-	TSharedPtr<class FSteamInstanceHandler> ObtainSteamInstanceHandle();
+	TSharedPtr<class FSteamClientInstanceHandler> ObtainSteamClientInstanceHandle();
+
+	/**
+	 * Initializes Steam Server API and provides a handler that will keep the API valid for the lifetime of the
+	 * the object. Several Handlers can be active at once.
+	 *
+	 * @return A handler to the Steam Server API, use IsValid to check if the handle is initialized.
+	 */
+	TSharedPtr<class FSteamServerInstanceHandler> ObtainSteamServerInstanceHandle();
 	
 	/**
 	 * Are the Steamworks Dlls loaded
+	 *
+	 * @return if the steam dlls are currently loaded (if we are loading them dynamically, statically linked are always true)
 	 */
 	bool AreSteamDllsLoaded() const;
 	
 	/**
 	 * The path to where the Steam binaries are stored, for use in debugging.
+	 *
+	 * @return The directory path of the location of the steam dlls
 	 */
 	FString GetSteamModulePath() const;
 
 	/**
 	 * If the module will be loading the client dlls for the dedicated server instance.
 	 * Really only useful on Windows.
+	 *
+	 * @return If this application is currently loading client dlls on the server
 	 */
 	bool IsLoadingServerClientDlls() const { return bForceLoadSteamClientDll; }
+
+	/**
+	 * Checks if we can load client dlls on dedicated server instances.
+	 * 
+	 * @return On dedicated servers on windows, this returns true, for other platforms this returns false (as feature is unnecessary)
+	 */
+	bool CanLoadClientDllsOnServer() const;
 
 	/**
 	 * Singleton-like access to this module's interface.  This is just for convenience!
@@ -92,7 +114,8 @@ private:
 	bool bForceLoadSteamClientDll;
 
 	/** Object that holds the refcounted pointer that's given out */
-	TWeakPtr<class FSteamInstanceHandler> InstanceHandlerObserver;
+	TWeakPtr<class FSteamClientInstanceHandler> SteamClientObserver;
+	TWeakPtr<class FSteamServerInstanceHandler> SteamServerObserver;
 
 	/** Load the required modules for Steam */
 	void LoadSteamModules();
@@ -101,21 +124,68 @@ private:
 	void UnloadSteamModules();
 };
 
-/** A simple instance handler that creates and uninitializes the SteamAPI automatically. */
-class STEAMSHARED_API FSteamInstanceHandler
+/** Base instance handler class for the Steam shared classes, this allows for less code redundancy between the shared modules. */
+class STEAMSHARED_API FSteamInstanceHandlerBase
 {
 public:
-	virtual ~FSteamInstanceHandler();
+	virtual ~FSteamInstanceHandlerBase() {}
+	virtual bool IsInitialized() const { return bInitialized; }
+
+protected:
+	FSteamInstanceHandlerBase() : bInitialized(false) {}
+
+	bool bInitialized;
+	virtual bool CanCleanUp() const;
+	virtual void Destroy();
+	virtual void InternalShutdown() = 0;
+};
+
+/** A simple instance handler that creates and uninitializes the client SteamAPI automatically. */
+class STEAMSHARED_API FSteamClientInstanceHandler : public FSteamInstanceHandlerBase
+{
+public:
+	virtual ~FSteamClientInstanceHandler() { Destroy(); }
 
 PACKAGE_SCOPE:
-	/** This is mostly here for safety so that we don't try to clean up when we shouldn't */
-	bool bInitialized;
-
 	/** Initializes the Steamworks client API on call */	
-	FSteamInstanceHandler(FSteamSharedModule* SteamInitializer);
+	FSteamClientInstanceHandler(FSteamSharedModule* SteamInitializer);
+
+protected:
+	virtual void InternalShutdown() override;
 
 private:
-	FSteamInstanceHandler() : bInitialized(false)
+	FSteamClientInstanceHandler() : 
+		FSteamInstanceHandlerBase()
+	{
+	}
+};
+
+/** A simple instance handler that creates and uninitializes the server SteamAPI automatically. */
+class STEAMSHARED_API FSteamServerInstanceHandler : public FSteamInstanceHandlerBase
+{
+public:
+	virtual ~FSteamServerInstanceHandler() { Destroy(); }
+
+	int32 GetGamePort() const { return GamePort; }
+	int32 GetSteamPort() const { return SteamPort; }
+	int32 GetQueryPort() const { return QueryPort; }
+
+PACKAGE_SCOPE:
+	/** Initializes the Steamworks server API on call */
+	FSteamServerInstanceHandler(FSteamSharedModule* SteamInitializer);
+
+protected:
+	int32 GamePort;
+	int32 SteamPort;
+	int32 QueryPort;
+	virtual void InternalShutdown() override;
+
+private:
+	FSteamServerInstanceHandler() : 
+		FSteamInstanceHandlerBase(),
+		GamePort(-1),
+		SteamPort(-1),
+		QueryPort(-1)
 	{
 	}
 };

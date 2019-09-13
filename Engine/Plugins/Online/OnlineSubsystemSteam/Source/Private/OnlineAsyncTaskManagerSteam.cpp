@@ -281,7 +281,7 @@ public:
 			if (Session)
 			{
 				// Make sure the session has all the valid session data
-				if (!FillSessionFromLobbyData(LobbyId, *Session) ||
+				if (!FillSessionFromLobbyData(Subsystem, LobbyId, *Session) ||
 					!FillMembersFromLobbyData(LobbyId, *Session))
 				{
 					UE_LOG_ONLINE(Warning, TEXT("Failed to parse session %s lobby update %s"), *Session->SessionName.ToString(), *LobbyId.ToDebugString());
@@ -678,6 +678,11 @@ public:
 			{			
 				SocketSubsystem->FixupSockets(*SessionInt->GameServerSteamId);
 			}
+
+			if (Subsystem)
+			{
+				Subsystem->TriggerOnSteamServerLoginCompletedDelegates(true);
+			}
 		}
 
 		// log on is not finished until OnPolicyResponse() is called
@@ -770,11 +775,65 @@ void FOnlineAsyncTaskManagerSteam::OnSteamServersDisconnectedGS(SteamServersDisc
 }
 
 /**
+ * Notification event from Steam that server login has failed.
+ */
+class FOnlineAsyncEventSteamServerFailedGS : public FOnlineAsyncEvent<FOnlineSubsystemSteam>
+{
+private:
+
+	/** Callback data */
+	SteamServerConnectFailure_t CallbackResults;
+
+	/** Hidden on purpose */
+	FOnlineAsyncEventSteamServerFailedGS()
+	{
+	}
+
+public:
+
+	FOnlineAsyncEventSteamServerFailedGS(FOnlineSubsystemSteam* InSubsystem, SteamServerConnectFailure_t& InResults) :
+		FOnlineAsyncEvent(InSubsystem),
+		CallbackResults(InResults)
+	{
+	}
+
+	virtual ~FOnlineAsyncEventSteamServerFailedGS()
+	{
+	}
+
+	/**
+	 *	Get a human readable description of task
+	 */
+	virtual FString ToString() const override
+	{
+		return FString::Printf(TEXT("FOnlineAsyncEventSteamServerFailedGS Result: %s"), *SteamResultString(CallbackResults.m_eResult));
+	}
+
+	/**
+	 * Give the async task a chance to marshal its data back to the game thread
+	 * Can only be called on the game thread by the async task manager
+	 */
+	virtual void Finalize() override
+	{
+		if (Subsystem)
+		{
+			Subsystem->TriggerOnSteamServerLoginCompletedDelegates(false);
+		}
+	}
+};
+
+/**
  *	GameServer API version of disconnected from Steam backend callback
  */
 void FOnlineAsyncTaskManagerSteam::OnSteamServersConnectFailureGS(SteamServerConnectFailure_t* CallbackData)
 {
-	UE_LOG_ONLINE(Warning, TEXT("Steam connection failure."));
+	// Only do something if we are no longer retrying to connect with the backend.
+	if (!CallbackData->m_bStillRetrying)
+	{
+		FOnlineAsyncEventSteamServerFailedGS* NewEvent = new FOnlineAsyncEventSteamServerFailedGS(SteamSubsystem, *CallbackData);
+		UE_LOG_ONLINE(Verbose, TEXT("%s"), *NewEvent->ToString());
+		AddToOutQueue(NewEvent);
+	}
 }
 
 /**
