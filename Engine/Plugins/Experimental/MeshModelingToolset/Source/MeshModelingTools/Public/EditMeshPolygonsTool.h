@@ -18,7 +18,7 @@
 #include "MeshSolverUtilities/Private/LaplacianMeshSmoother.h"
 #include "Curves/CurveFloat.h"
 #include "ModelingOperators/Public/ModelingTaskTypes.h"
-#include "PolygonMeshDeformTool.generated.h"
+#include "EditMeshPolygonsTool.generated.h"
 
 class FMeshVertexChangeBuilder;
 class FGroupTopologyLaplacianDeformer;
@@ -29,12 +29,12 @@ struct FConstraintData;
  * ToolBuilder
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UPolygonMeshDeformToolBuilder : public UMeshSurfacePointToolBuilder
+class MESHMODELINGTOOLS_API UEditMeshPolygonsToolBuilder : public UMeshSurfacePointToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	UPolygonMeshDeformToolBuilder()
+	UEditMeshPolygonsToolBuilder()
 	{
 	}
 
@@ -374,12 +374,12 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UPolygonMeshDeformTool : public UMeshSurfacePointTool
+class MESHMODELINGTOOLS_API UEditMeshPolygonsTool : public UMeshSurfacePointTool
 {
 	GENERATED_BODY()
 
 public:
-	UPolygonMeshDeformTool();
+	UEditMeshPolygonsTool();
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 

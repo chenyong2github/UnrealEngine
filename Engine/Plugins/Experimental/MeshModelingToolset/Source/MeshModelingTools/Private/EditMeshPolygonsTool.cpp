@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "PolygonMeshDeformTool.h"
+#include "EditMeshPolygonsTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 
@@ -13,7 +13,7 @@
 #include "Async/ParallelFor.h"
 #include "Containers/BitArray.h"
 
-#define LOCTEXT_NAMESPACE "UPolygonMeshDeformTool"
+#define LOCTEXT_NAMESPACE "UEditMeshPolygonsTool"
 
 
 
@@ -35,9 +35,9 @@
 /*
  * ToolBuilder
  */
-UMeshSurfacePointTool* UPolygonMeshDeformToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
+UMeshSurfacePointTool* UEditMeshPolygonsToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	UPolygonMeshDeformTool* DeformTool = NewObject<UPolygonMeshDeformTool>(SceneState.ToolManager);
+	UEditMeshPolygonsTool* DeformTool = NewObject<UEditMeshPolygonsTool>(SceneState.ToolManager);
 	return DeformTool;
 }
 
@@ -588,11 +588,11 @@ inline void FGroupTopologyLaplacianDeformer::Shutdown()
 * Tool methods
 */
 
-UPolygonMeshDeformTool::UPolygonMeshDeformTool()
+UEditMeshPolygonsTool::UEditMeshPolygonsTool()
 {
 }
 
-void UPolygonMeshDeformTool::Setup()
+void UEditMeshPolygonsTool::Setup()
 {
 	UMeshSurfacePointTool::Setup();
 
@@ -613,7 +613,7 @@ void UPolygonMeshDeformTool::Setup()
 	DynamicMeshComponent->TangentsType = EDynamicMeshTangentCalcType::AutoCalculated;
 	DynamicMeshComponent->InitializeMesh(ComponentTarget->GetMesh());
 	OnDynamicMeshComponentChangedHandle = DynamicMeshComponent->OnMeshChanged.Add(
-		FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UPolygonMeshDeformTool::OnDynamicMeshComponentChanged));
+		FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UEditMeshPolygonsTool::OnDynamicMeshComponentChanged));
 
 	// initialize AABBTree
 	MeshSpatial.SetMesh(DynamicMeshComponent->GetMesh());
@@ -669,7 +669,7 @@ void UPolygonMeshDeformTool::Setup()
 	*/
 }
 
-void UPolygonMeshDeformTool::Shutdown(EToolShutdownType ShutdownType)
+void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	//Tell the background thread to cancel the rest of its jobs before we close;
 	LaplacianDeformer.Shutdown();
@@ -683,7 +683,7 @@ void UPolygonMeshDeformTool::Shutdown(EToolShutdownType ShutdownType)
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("PolygonMeshDeformToolTransactionName", "Deform Mesh"));
+			GetToolManager()->BeginUndoTransaction(LOCTEXT("EditMeshPolygonsToolTransactionName", "Deform Mesh"));
 			ComponentTarget->CommitMesh([=](FMeshDescription* MeshDescription)
 			{
 				DynamicMeshComponent->Bake(MeshDescription, false);
@@ -699,7 +699,7 @@ void UPolygonMeshDeformTool::Shutdown(EToolShutdownType ShutdownType)
 
 
 
-void UPolygonMeshDeformTool::ToggleLocalTransformFrameAction()
+void UEditMeshPolygonsTool::ToggleLocalTransformFrameAction()
 {
 	TransformProps->bUseLocalAxis = !TransformProps->bUseLocalAxis;
 	if (bInDrag)
@@ -708,7 +708,7 @@ void UPolygonMeshDeformTool::ToggleLocalTransformFrameAction()
 	}
 }
 
-void UPolygonMeshDeformTool::NextTransformTypeAction()
+void UEditMeshPolygonsTool::NextTransformTypeAction()
 {
 	if (bInDrag == false)
 	{
@@ -726,7 +726,7 @@ void UPolygonMeshDeformTool::NextTransformTypeAction()
 
 
 
-void UPolygonMeshDeformTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
+void UEditMeshPolygonsTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 {
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 1,
 		TEXT("ToggleFrame"),
@@ -747,7 +747,7 @@ void UPolygonMeshDeformTool::RegisterActions(FInteractiveToolActionSet& ActionSe
 
 
 
-void UPolygonMeshDeformTool::OnDynamicMeshComponentChanged()
+void UEditMeshPolygonsTool::OnDynamicMeshComponentChanged()
 {
 	bSpatialDirty = true;
 	TopoSelector.Invalidate(true, false);
@@ -773,7 +773,7 @@ void UPolygonMeshDeformTool::OnDynamicMeshComponentChanged()
 	}
 }
 
-FDynamicMeshAABBTree3& UPolygonMeshDeformTool::GetSpatial()
+FDynamicMeshAABBTree3& UEditMeshPolygonsTool::GetSpatial()
 {
 	if (bSpatialDirty)
 	{
@@ -784,7 +784,7 @@ FDynamicMeshAABBTree3& UPolygonMeshDeformTool::GetSpatial()
 }
 
 
-bool UPolygonMeshDeformTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
+bool UEditMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 {
 	FTransform Transform = ComponentTarget->GetWorldTransform();
 	FRay3d LocalRay(Transform.InverseTransformPosition(WorldRay.Origin),
@@ -830,7 +830,7 @@ bool UPolygonMeshDeformTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 }
 
 
-void UPolygonMeshDeformTool::OnBeginDrag(const FRay& WorldRay)
+void UEditMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 {
 	FTransform Transform = ComponentTarget->GetWorldTransform();
 	FRay3d LocalRay(Transform.InverseTransformPosition(WorldRay.Origin),
@@ -915,7 +915,7 @@ void UPolygonMeshDeformTool::OnBeginDrag(const FRay& WorldRay)
 }
 
 
-void UPolygonMeshDeformTool::UpdateActiveSurfaceFrame(FGroupTopologySelection& Selection)
+void UEditMeshPolygonsTool::UpdateActiveSurfaceFrame(FGroupTopologySelection& Selection)
 {
 	FTransform Transform = ComponentTarget->GetWorldTransform();
 
@@ -941,7 +941,7 @@ void UPolygonMeshDeformTool::UpdateActiveSurfaceFrame(FGroupTopologySelection& S
 }
 
 
-FQuickTransformer* UPolygonMeshDeformTool::GetActiveQuickTransformer()
+FQuickTransformer* UEditMeshPolygonsTool::GetActiveQuickTransformer()
 {
 	if (TransformProps->TransformMode == EQuickTransformerMode::AxisRotation)
 	{
@@ -954,7 +954,7 @@ FQuickTransformer* UPolygonMeshDeformTool::GetActiveQuickTransformer()
 }
 
 
-void UPolygonMeshDeformTool::UpdateQuickTransformer()
+void UEditMeshPolygonsTool::UpdateQuickTransformer()
 {
 	if (TransformProps->bUseLocalAxis)
 	{
@@ -970,7 +970,7 @@ void UPolygonMeshDeformTool::UpdateQuickTransformer()
 
 
 
-void UPolygonMeshDeformTool::UpdateChangeFromROI(bool bFinal)
+void UEditMeshPolygonsTool::UpdateChangeFromROI(bool bFinal)
 {
 	if (ActiveVertexChange == nullptr)
 	{
@@ -986,7 +986,7 @@ void UPolygonMeshDeformTool::UpdateChangeFromROI(bool bFinal)
 }
 
 
-void UPolygonMeshDeformTool::OnUpdateDrag(const FRay& Ray)
+void UEditMeshPolygonsTool::OnUpdateDrag(const FRay& Ray)
 {
 	if (bInDrag)
 	{
@@ -995,7 +995,7 @@ void UPolygonMeshDeformTool::OnUpdateDrag(const FRay& Ray)
 	}
 }
 
-void UPolygonMeshDeformTool::OnEndDrag(const FRay& Ray)
+void UEditMeshPolygonsTool::OnEndDrag(const FRay& Ray)
 {
 	bInDrag = false;
 	bUpdatePending = false;
@@ -1017,7 +1017,7 @@ void UPolygonMeshDeformTool::OnEndDrag(const FRay& Ray)
 
 
 
-void UPolygonMeshDeformTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
+void UEditMeshPolygonsTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	//if (!bNeedEmitEndChange)
 	if (ActiveVertexChange == nullptr)
@@ -1046,7 +1046,7 @@ void UPolygonMeshDeformTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 
 
 
-void UPolygonMeshDeformTool::ComputeUpdate()
+void UEditMeshPolygonsTool::ComputeUpdate()
 {
 
 	if (bUpdatePending == true)
@@ -1122,7 +1122,7 @@ void UPolygonMeshDeformTool::ComputeUpdate()
 
 
 
-void UPolygonMeshDeformTool::ComputeUpdate_Rotate()
+void UEditMeshPolygonsTool::ComputeUpdate_Rotate()
 {
 	const bool bIsLaplacian = (TransformProps->DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian); 
 	FGroupTopologyDeformer& SelectedDeformer = (bIsLaplacian) ? LaplacianDeformer : LinearDeformer;
@@ -1212,7 +1212,7 @@ void UPolygonMeshDeformTool::ComputeUpdate_Rotate()
 
 
 
-void UPolygonMeshDeformTool::ComputeUpdate_Translate()
+void UEditMeshPolygonsTool::ComputeUpdate_Translate()
 {
 	const bool bIsLaplacian = (TransformProps->DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian);
 	FGroupTopologyDeformer& SelectedDeformer = (bIsLaplacian) ? LaplacianDeformer : LinearDeformer;
@@ -1268,7 +1268,7 @@ void UPolygonMeshDeformTool::ComputeUpdate_Translate()
 
 
 
-void UPolygonMeshDeformTool::Tick(float DeltaTime)
+void UEditMeshPolygonsTool::Tick(float DeltaTime)
 {
 	UMeshSurfacePointTool::Tick(DeltaTime);
 	
@@ -1278,7 +1278,7 @@ void UPolygonMeshDeformTool::Tick(float DeltaTime)
 
 
 
-void UPolygonMeshDeformTool::PrecomputeTopology()
+void UEditMeshPolygonsTool::PrecomputeTopology()
 {
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	Topology = FGroupTopology(Mesh, true);
@@ -1293,7 +1293,7 @@ void UPolygonMeshDeformTool::PrecomputeTopology()
 
 
 
-void UPolygonMeshDeformTool::Render(IToolsContextRenderAPI* RenderAPI)
+void UEditMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 
 	ComputeUpdate();
@@ -1379,7 +1379,7 @@ void UPolygonMeshDeformTool::Render(IToolsContextRenderAPI* RenderAPI)
 //
 
 
-void UPolygonMeshDeformTool::BeginChange()
+void UEditMeshPolygonsTool::BeginChange()
 {
 	const bool bIsLaplacian = (TransformProps->DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian);
 	if (!bIsLaplacian || LaplacianDeformer.IsDone())
@@ -1393,7 +1393,7 @@ void UPolygonMeshDeformTool::BeginChange()
 }
 
 
-void UPolygonMeshDeformTool::EndChange()
+void UEditMeshPolygonsTool::EndChange()
 {
 
 	if (ActiveVertexChange != nullptr)

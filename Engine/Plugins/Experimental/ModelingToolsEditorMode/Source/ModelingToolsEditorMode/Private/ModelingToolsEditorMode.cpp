@@ -12,7 +12,7 @@
 //#include "MeshSurfacePointTool.h"
 //#include "MeshVertexDragTool.h"
 #include "DynamicMeshSculptTool.h"
-#include "PolygonMeshDeformTool.h"
+#include "EditMeshPolygonsTool.h"
 #include "ConvertToPolygonsTool.h"
 #include "AddPrimitiveTool.h"
 #include "SmoothMeshTool.h"
@@ -400,7 +400,7 @@ void FModelingToolsEditorMode::Enter()
 	MoveVerticesToolBuilder->bEnableRemeshing = false;
 	RegisterToolFunc(ToolManagerCommands.BeginSculptMeshTool, TEXT("MoveVerticesTool"), MoveVerticesToolBuilder);
 
-	RegisterToolFunc(ToolManagerCommands.BeginPolyEditTool, TEXT("PolygonMeshDeformTool"), NewObject<UPolygonMeshDeformToolBuilder>());
+	RegisterToolFunc(ToolManagerCommands.BeginPolyEditTool, TEXT("EditMeshPolygonsTool"), NewObject<UEditMeshPolygonsToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginSmoothMeshTool, TEXT("SmoothMeshTool"), NewObject<USmoothMeshToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginDisplaceMeshTool, TEXT("DisplaceMeshTool"), NewObject<UDisplaceMeshToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginMeshSpaceDeformerTool, TEXT("MeshSpaceDeformerTool"), NewObject<UMeshSpaceDeformerToolBuilder>());

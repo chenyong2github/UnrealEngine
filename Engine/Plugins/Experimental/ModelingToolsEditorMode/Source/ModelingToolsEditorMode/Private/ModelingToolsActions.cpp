@@ -5,7 +5,7 @@
 #include "DynamicMeshSculptTool.h"
 #include "MeshInspectorTool.h"
 #include "DrawPolygonTool.h"
-#include "PolygonMeshDeformTool.h"
+#include "EditMeshPolygonsTool.h"
 #include "ShapeSprayTool.h"
 #include "MeshSpaceDeformerTool.h"
 #include "MeshSelectionTool.h"
@@ -32,7 +32,7 @@ void FModelingToolActionCommands::GetToolDefaultObjectList(TArray<UInteractiveTo
 	ToolCDOs.Add(GetMutableDefault<UDynamicMeshSculptTool>());
 	ToolCDOs.Add(GetMutableDefault<UMeshInspectorTool>());
 	ToolCDOs.Add(GetMutableDefault<UDrawPolygonTool>());
-	ToolCDOs.Add(GetMutableDefault<UPolygonMeshDeformTool>());
+	ToolCDOs.Add(GetMutableDefault<UEditMeshPolygonsTool>());
 	ToolCDOs.Add(GetMutableDefault<UMeshSpaceDeformerTool>());
 	ToolCDOs.Add(GetMutableDefault<UShapeSprayTool>());
 	ToolCDOs.Add(GetMutableDefault<UMeshSelectionTool>());
