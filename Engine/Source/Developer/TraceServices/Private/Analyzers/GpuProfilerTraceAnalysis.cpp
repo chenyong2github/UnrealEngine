@@ -20,7 +20,7 @@ void FGpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_Frame, "GpuProfiler", "Frame");
 }
 
-void FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -75,6 +75,8 @@ void FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	}
 		
 	}
+
+	return true;
 }
 
 double FGpuProfilerAnalyzer::GpuTimestampToSessionTime(uint64 GpuMicroseconds)

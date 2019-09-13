@@ -42,7 +42,7 @@ void FMiscTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_EndRenderFrame, "Misc", "EndRenderFrame");
 }
 
-void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -161,6 +161,8 @@ void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		break;
 	}
 	}
+
+	return true;
 }
 
 FMiscTraceAnalyzer::FThreadState* FMiscTraceAnalyzer::GetThreadState(uint32 ThreadId)

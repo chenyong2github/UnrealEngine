@@ -89,7 +89,7 @@ void FAsyncLoadingTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Conte
 	Builder.RouteEvent(RouteId_ClassInfo, "LoadTime", "ClassInfo");
 }
 
-void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
@@ -350,6 +350,8 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		break;
 	}
 	}
+
+	return true;
 }
 
 void FAsyncLoadingTraceAnalyzer::FThreadState::EnterPackageScope(double Time, const Trace::FPackageInfo* PackageInfo, ELoadTimeProfilerPackageEventType EventType)

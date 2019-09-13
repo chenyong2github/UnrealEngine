@@ -35,14 +35,14 @@ void FNetTraceAnalyzer::OnAnalysisEnd()
 {
 }
 
-void FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
 	// check that we always get the InitEvent before processing any other events
 	if (!ensure(RouteId == RouteId_InitEvent || NetTraceVersion > 0))
 	{
-		return;
+		return false;
 	}
 
 	const auto& EventData = Context.EventData;
@@ -305,6 +305,8 @@ void FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		}
 		break;
 	}
+
+	return true;
 }
 
 TSharedRef<FNetTraceAnalyzer::FNetTraceGameInstanceState> FNetTraceAnalyzer::GetOrCreateActiveGameInstanceState(uint32 GameInstanceId)

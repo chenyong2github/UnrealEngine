@@ -20,7 +20,7 @@ void FCpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_EndCapture, "CpuProfiler", "EndCapture");
 }
 
-void FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -100,6 +100,8 @@ void FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 		break;
 	}
 	}
+
+	return true;
 }
 
 TSharedRef<FCpuProfilerAnalyzer::FThreadState> FCpuProfilerAnalyzer::GetThreadState(uint32 ThreadId)

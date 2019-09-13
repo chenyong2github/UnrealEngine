@@ -20,7 +20,7 @@ void FLogTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_LogMessage, "Logging", "LogMessage");
 }
 
-void FLogTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FLogTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -57,4 +57,6 @@ void FLogTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		break;
 	}
 	}
+
+	return true;
 }

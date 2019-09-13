@@ -19,7 +19,7 @@ void FStatsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_EventBatch, "Stats", "EventBatch");
 }
 
-void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -136,6 +136,8 @@ void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		break;
 	}
 	}
+
+	return true;
 }
 
 TSharedRef<FStatsAnalyzer::FThreadState> FStatsAnalyzer::GetThreadState(uint32 ThreadId)

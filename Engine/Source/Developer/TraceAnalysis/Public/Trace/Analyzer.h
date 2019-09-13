@@ -140,14 +140,22 @@ public:
 	/** When a new event type appears in the trace stream, this method is called
 	 * if the event type has been subscribed to.
 	 * @param RouteId User-provided identifier for this event subscription.
-	 * @param TypeInfo Object describing the new event's type. */
-	virtual void OnNewEvent(uint16 RouteId, const FEventTypeInfo& TypeInfo) {}
+	 * @param TypeInfo Object describing the new event's type.
+	 * @return This analyzer is removed from the analysis session if false is returned. */
+	virtual bool OnNewEvent(uint16 RouteId, const FEventTypeInfo& TypeInfo)
+	{
+		return true;
+	}
 
 	/** For each event subscribed to in OnAnalysisBegin(), the analysis engine
 	 * will call this method when those events are encountered in a trace log
-	 * @param RouteId User-provided identifier given when subscribing to a particular event
-	 * @param Context Access to the instance of the subscribed event */
-	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) {}
+	 * @param RouteId User-provided identifier given when subscribing to a particular event.
+	 * @param Context Access to the instance of the subscribed event.
+	 * @return This analyzer is removed from the analysis session if false is returned. */
+	virtual bool OnEvent(uint16 RouteId, const FOnEventContext& Context)
+	{
+		return true;
+	}
 };
 
 ////////////////////////////////////////////////////////////////////////////////

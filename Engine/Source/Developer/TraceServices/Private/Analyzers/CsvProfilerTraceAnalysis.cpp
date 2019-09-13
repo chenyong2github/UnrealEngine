@@ -59,7 +59,7 @@ void FCsvProfilerAnalyzer::OnAnalysisEnd()
 	ThreadStatesMap.Empty();
 }
 
-void FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -150,6 +150,8 @@ void FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 		CsvProfilerProvider.EndCapture(CaptureEndFrame);
 	}
 	}
+
+	return true;
 }
 
 FCsvProfilerAnalyzer::FThreadState& FCsvProfilerAnalyzer::GetThreadState(uint32 ThreadId)

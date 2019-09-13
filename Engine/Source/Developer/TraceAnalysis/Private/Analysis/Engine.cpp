@@ -554,7 +554,10 @@ FAnalysisEngine::~FAnalysisEngine()
 {
 	for (IAnalyzer* Analyzer : Analyzers)
 	{
-		Analyzer->OnAnalysisEnd();
+		if (Analyzer != nullptr)
+		{
+			Analyzer->OnAnalysisEnd();
+		}
 	}
 
 	for (FDispatch* Dispatch : Dispatches)
@@ -566,14 +569,35 @@ FAnalysisEngine::~FAnalysisEngine()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+void FAnalysisEngine::RetireAnalyzer(uint32 AnalyzerIndex)
+{
+	if (AnalyzerIndex >= uint32(Analyzers.Num()))
+	{
+		return;
+	}
+
+	IAnalyzer* Analyzer = Analyzers[AnalyzerIndex]; // this line is brought to you with the word "Analyzer" (mostly).
+	if (Analyzer == nullptr)
+	{
+		return;
+	}
+
+	Analyzer->OnAnalysisEnd();
+	Analyzers[AnalyzerIndex] = nullptr;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	switch (RouteId)
 	{
-	case RouteId_NewEvent:	return OnNewEventInternal(Context);
-	case RouteId_NewTrace:	return OnNewTrace(Context);
-	case RouteId_Timing:	return OnTiming(Context);
+	case RouteId_NewEvent:	OnNewEventInternal(Context);	break;
+	case RouteId_NewTrace:	OnNewTrace(Context);			break;
+	case RouteId_Timing:	OnTiming(Context);				break;
 	}
+
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -780,7 +804,15 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 		for (uint32 n = Route->Count; n--; ++Route)
 		{
 			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
-			Analyzer->OnNewEvent(Route->Id, (FEventTypeInfo&)Dispatch);
+			if (Analyzer == nullptr)
+			{
+				continue;
+			}
+
+			if (!Analyzer->OnNewEvent(Route->Id, (FEventTypeInfo&)Dispatch))
+			{
+				RetireAnalyzer(Route->AnalyzerIndex);
+			}
 		}
 	}
 
@@ -790,7 +822,15 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 		for (uint32 n = Route->Count; n--; ++Route)
 		{
 			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
-			Analyzer->OnNewEvent(Route->Id, (FEventTypeInfo&)Dispatch);
+			if (Analyzer == nullptr)
+			{
+				continue;
+			}
+
+			if (!Analyzer->OnNewEvent(Route->Id, (FEventTypeInfo&)Dispatch))
+			{
+				RetireAnalyzer(Route->AnalyzerIndex);
+			}
 		}
 	}
 }
@@ -908,7 +948,15 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 			for (uint32 n = Route->Count; n--; ++Route)
 			{
 				IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
-				Analyzer->OnEvent(Route->Id, { SessionContext, EventData });
+				if (Analyzer == nullptr)
+				{
+					continue;
+				}
+
+				if (!Analyzer->OnEvent(Route->Id, { SessionContext, EventData }))
+				{
+					RetireAnalyzer(Route->AnalyzerIndex);
+				}
 			}
 		}
 
@@ -924,12 +972,30 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 			for (uint32 n = Route->Count; n--; ++Route)
 			{
 				IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
-				Analyzer->OnEvent(Route->Id, { SessionContext, EventData });
+				if (Analyzer == nullptr)
+				{
+					continue;
+				}
+
+				if (!Analyzer->OnEvent(Route->Id, { SessionContext, EventData }))
+				{
+					RetireAnalyzer(Route->AnalyzerIndex);
+				}
 			}
 		}
 	}
 
-	return true;
+	// If there's no analyzers left we might as well not continue
+	int32 ActiveAnalyzerCount = 0;
+	for (IAnalyzer* Analyzer : Analyzers)
+	{
+		if ((Analyzer != nullptr) && (Analyzer != this))
+		{
+			ActiveAnalyzerCount++;
+		}
+	}
+
+	return (ActiveAnalyzerCount > 0);
 }
 
 } // namespace Trace

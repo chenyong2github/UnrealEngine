@@ -37,7 +37,7 @@ private:
 		uint16			_Unused0;
 	};
 
-	virtual void		OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
+	virtual bool		OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 
 	bool				EstablishTransport(FStreamReader::FData& Data);
 	FDispatch&			AddDispatch(uint16 Uid, uint16 FieldCount=0, uint16 ExtraData=0);
@@ -46,6 +46,7 @@ private:
 	void				OnNewTrace(const FOnEventContext& Context);
 	void				OnTiming(const FOnEventContext& Context);
 	void				OnNewEventInternal(const FOnEventContext& Context);
+	void				RetireAnalyzer(uint32 AnalyzerIndex);
 	FSessionContext		SessionContext;
 	TArray<FRoute>		Routes;
 	TArray<IAnalyzer*>	Analyzers;
