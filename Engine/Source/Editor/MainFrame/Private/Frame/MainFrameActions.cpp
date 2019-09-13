@@ -900,17 +900,7 @@ void FMainFrameActionCallbacks::OpenIDE()
 	{
 		if ( !FSourceCodeNavigation::OpenModuleSolution() )
 		{
-			FString SolutionPath;
-			if(FDesktopPlatformModule::Get()->GetSolutionPath(SolutionPath))
-			{
-				const FString FullPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead( *SolutionPath );
-				const FText Message = FText::Format( LOCTEXT( "OpenIDEFailed_MissingFile", "Could not open {0} for project {1}" ), FSourceCodeNavigation::GetSelectedSourceCodeIDE(), FText::FromString( FullPath ) );
-				FMessageDialog::Open( EAppMsgType::Ok, Message );
-			}
-			else
-			{
-				FMessageDialog::Open( EAppMsgType::Ok, LOCTEXT("OpenIDEFailed_MissingSolution", "Couldn't find solution"));
-			}
+			FMessageDialog::Open( EAppMsgType::Ok, LOCTEXT("OpenIDEFailed_UnableToOpenSolution", "Unable to open solution"));
 		}
 	}
 }

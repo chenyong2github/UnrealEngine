@@ -1319,15 +1319,7 @@ bool FUDNParser::ParseCodeLink(FString &InternalLink)
 	}
 
 	// Finally create the complete path - project name and all
-	int32 PathEndIndex;
-	FString SolutionPath;
-	if( FDesktopPlatformModule::Get()->GetSolutionPath(SolutionPath) && SolutionPath.FindLastChar(TEXT('/'), PathEndIndex) == true)
-	{
-		SolutionPath = SolutionPath.LeftChop(SolutionPath.Len() - PathEndIndex - 1);
-		SolutionPath += Path;
-		bLinkParsedOK = SourceCodeAccessor.OpenFileAtLine(SolutionPath, Line, Col);
-	}
-	return bLinkParsedOK;
+	return SourceCodeAccessor.OpenFileAtLine(FPaths::RootDir() + Path, Line, Col);
 }
 
 bool FUDNParser::ParseAssetLink(FString &InternalLink)

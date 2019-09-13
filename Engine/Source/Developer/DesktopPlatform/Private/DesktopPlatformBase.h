@@ -10,6 +10,8 @@
 class FEngineVersion;
 class FJsonObject;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // For FDesktopPlatformBase::GetSolutionPath() implementation
+
 class FDesktopPlatformBase : public IDesktopPlatform
 {
 public:
@@ -83,3 +85,5 @@ protected:
 	FString GetUnrealBuildToolProjectFileName(const FString& RootDir) const;
 	FString GetUnrealBuildToolExecutableFilename(const FString& RootDir) const;	
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

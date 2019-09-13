@@ -28,6 +28,8 @@
 #include "SBlueprintEditorSelectedDebugObjectWidget.h"
 #include "DesktopPlatformModule.h"
 #include "SBlueprintRevisionMenu.h"
+#include "ISourceCodeAccessor.h"
+#include "ISourceCodeAccessModule.h"
 
 #define LOCTEXT_NAMESPACE "KismetToolbar"
 
@@ -79,8 +81,8 @@ void FKismet2Menu::FillFileMenuBlueprintSection( FMenuBuilder& MenuBuilder, FBlu
 	MenuBuilder.EndSection();
 
 	// Only show the developer menu on machines with the solution (assuming they can build it)
-	FString SolutionPath;
-	if(FDesktopPlatformModule::Get()->GetSolutionPath(SolutionPath))
+	ISourceCodeAccessModule* SourceCodeAccessModule = FModuleManager::GetModulePtr<ISourceCodeAccessModule>("SourceCodeAccess");
+	if(SourceCodeAccessModule != nullptr && SourceCodeAccessModule->GetAccessor().CanAccessSourceCode())
 	{
 		MenuBuilder.BeginSection("FileDeveloper");
 		{

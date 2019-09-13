@@ -19,6 +19,7 @@ public class Kismet : ModuleRules
                 "LevelEditor",
 				"GameProjectGeneration",
 				"Sequencer",
+				"SourceCodeAccess",
 			}
 			);
 
