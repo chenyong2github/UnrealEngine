@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,9 +10,6 @@ using Tools.DotNETCommon;
 
 public partial class Project : CommandUtils
 {
-
-	#region Utilities
-
 	public static void CreateArchiveManifest(ProjectParams Params, DeploymentContext SC)
 	{
 		if (!Params.Archive)
@@ -45,10 +42,6 @@ public partial class Project : CommandUtils
 			}
 		}
 	}
-
-	#endregion
-
-	#region Archive Command
 
 	public static void Archive(ProjectParams Params)
 	{
@@ -86,6 +79,4 @@ public partial class Project : CommandUtils
 		}
 		LogInformation("********** ARCHIVE COMMAND COMPLETED **********");
     }
-
-	#endregion
 }

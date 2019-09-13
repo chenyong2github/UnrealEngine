@@ -20,8 +20,6 @@ using System.Xml.Serialization;
 
 namespace AutomationTool
 {
-	#region ParamList
-
 	/// <summary>
 	/// Wrapper around List with support for multi parameter constructor, i.e:
 	///   var Maps = new ParamList<string>("Map1", "Map2");
@@ -54,10 +52,6 @@ namespace AutomationTool
 		}
 	}
 
-	#endregion
-
-	#region PathSeparator
-
 	public enum PathSeparator
 	{
 		Default = 0,
@@ -67,15 +61,11 @@ namespace AutomationTool
 		Local
 	}
 
-	#endregion
-
 	/// <summary>
 	/// Base utility function for script commands.
 	/// </summary>
 	public partial class CommandUtils
 	{
-		#region Environment Setup
-
 		static private CommandEnvironment CmdEnvironment;
 
 		/// <summary>
@@ -104,8 +94,6 @@ namespace AutomationTool
 			CmdEnvironment = new CommandEnvironment();
 		}
 
-		#endregion
-
 		/// <summary>
 		/// Returns true if AutomationTool is running using installed Engine components
 		/// </summary>
@@ -120,8 +108,6 @@ namespace AutomationTool
 		}
 
 		static private bool? bIsEngineInstalled;
-
-		#region Logging
 
 		/// <summary>
 		/// Writes formatted text to log (with LogEventType.Console).
@@ -283,10 +269,6 @@ namespace AutomationTool
             Tools.DotNETCommon.Log.WriteLine(1, Verbosity, LogUtils.FormatException(Ex));
 		}
 
-		#endregion
-
-		#region Progress Logging
-
 		public static void LogPushProgress(bool bShowProgress, int Numerator, int Denominator)
 		{
 			if(bShowProgress)
@@ -326,10 +308,6 @@ namespace AutomationTool
 				LogInformation("[@progress {0}/{1} '{2}' skipline]", Numerator, Denominator, String.Format(Format, Args));
 			}
 		}
-
-		#endregion
-
-		#region IO
 
 		/// <summary>
 		/// Finds files in specified paths. 
@@ -1619,10 +1597,6 @@ namespace AutomationTool
 			CloneDirectoryRecursiveWorker(SourcePath, TargetPath, ClonedFiles, bIncremental: true);
 		}
 
-		#endregion
-
-		#region Threaded Copy
-
         /// <summary>
 		/// Copies files using multiple threads
 		/// </summary>
@@ -1743,10 +1717,6 @@ namespace AutomationTool
 			}
 		}
 
-		#endregion
-
-		#region Environment variables
-
 		/// <summary>
 		/// Gets environment variable value.
 		/// </summary>
@@ -1799,10 +1769,6 @@ namespace AutomationTool
 				Environment.SetEnvironmentVariable(VarName, Value);
 			}
 		}
-
-		#endregion
-
-		#region CommandLine
 
 		/// <summary>
 		/// Converts a list of arguments to a string where each argument is separated with a space character.
@@ -1934,10 +1900,6 @@ namespace AutomationTool
 			return UnrealBuildTool.Utils.MakePathSafeToUseWithCommandLine(InPath);
 		}
 
-		#endregion
-
-		#region Other
-
 		public static string EscapePath(string InPath)
 		{
 			return InPath.Replace(":", "").Replace("/", "+").Replace("\\", "+").Replace(" ", "+");
@@ -1952,10 +1914,6 @@ namespace AutomationTool
 		{
 			return Collection == null || Collection.Count == 0;
 		}
-
-	    #endregion
-
-		#region Properties
 
 		/// <summary>
 		/// Checks if this command is running on a build machine.
@@ -2009,8 +1967,6 @@ namespace AutomationTool
 		/// Telemetry data for the current run. Add -WriteTelemetry=<Path> to the command line to export to disk.
 		/// </summary>
 		public static TelemetryData Telemetry = new TelemetryData();
-
-		#endregion
 
         /// <summary>
         /// Cached location of the build root storage because the logic to compute it is a little non-trivial.

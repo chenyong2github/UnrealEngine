@@ -11,8 +11,6 @@ using Tools.DotNETCommon;
 
 namespace AutomationTool
 {
-	#region Command info
-
 	/// <summary>
 	/// Command to execute info.
 	/// </summary>
@@ -37,10 +35,6 @@ namespace AutomationTool
 			return Result;
 		}
 	}
-
-	#endregion
-
-	#region Command Line helpers
 
 	/// <summary>
 	/// Helper class for automatically registering command line params.
@@ -132,8 +126,6 @@ namespace AutomationTool
 		}
 	}
 
-	#endregion
-
 	[Help(
 @"Executes scripted commands
 
@@ -153,8 +145,6 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
     [Help("UseLocalBuildStorage", @"Allows you to use local storage for your root build storage dir (default of P:\Builds (on PC) is changed to Engine\Saved\LocalBuilds). Used for local testing.")]
     public static class Automation
 	{
-		#region Command line parsing
-
 		/// <summary>
 		/// Parses command line parameter.
 		/// </summary>
@@ -417,10 +407,6 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 			}
 		}
 
-		#endregion
-
-		#region Main Program
-
 		/// <summary>
 		/// Compiler with all scripts
 		/// </summary>
@@ -571,10 +557,6 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 			return ExitCode.Success;
 		}
 
-		#endregion
-
-		#region Help
-
 		/// <summary>
 		/// Display help for the specified commands (to execute)
 		/// </summary>
@@ -620,10 +602,6 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 			CommandUtils.LogInformation(Message);
 		}
 
-		#endregion
-
-		#region HelperFunctions
-
 		/// <summary>
 		/// Returns true if AutomationTool is running using installed Engine components
 		/// </summary>
@@ -633,10 +611,6 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 		{
 			return CommandUtils.IsEngineInstalled();
 		}
-
-		#endregion
-
-		#region Properties
 
 		/// <summary>
 		/// True if this process is running on a build machine, false if locally.
@@ -678,7 +652,6 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 			}
 		}
 		private static bool? bShouldKillProcesses;
-		#endregion
 	}
 
 }

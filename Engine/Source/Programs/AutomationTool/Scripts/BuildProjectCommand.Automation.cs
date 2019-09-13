@@ -37,8 +37,6 @@ public enum ProjectBuildTargets
 /// </remarks>
 public partial class Project : CommandUtils
 {
-	#region Build Command
-
 	/// <summary>
 	/// PlatformSupportsCrashReporter
 	/// </summary>
@@ -232,6 +230,4 @@ public partial class Project : CommandUtils
 
 		LogInformation("********** BUILD COMMAND COMPLETED **********");
 	}
-
-	#endregion
 }

@@ -11,8 +11,6 @@ using Tools.DotNETCommon;
 
 public partial class Project : CommandUtils
 {
-	#region GetFile Command
-
 	public static void GetFile(ProjectParams Params)
 	{
 		Params.ValidateAndLog();
@@ -36,6 +34,4 @@ public partial class Project : CommandUtils
 
 		LogInformation("********** GETFILE COMMAND COMPLETED **********");
 	}
-
-	#endregion
 }

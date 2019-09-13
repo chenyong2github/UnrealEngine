@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -16,8 +16,6 @@ using System.Reflection;
 
 namespace AutomationTool
 {
-	#region Help
-
 	/// <summary>
 	/// Help Attribute.
 	/// </summary>
@@ -74,15 +72,11 @@ namespace AutomationTool
 		}
 	}
 
-	#endregion
-
 	/// <summary>
 	/// Base utility function for script commands.
 	/// </summary>
 	public partial class CommandUtils
 	{
-		#region Help
-
 		/// <summary>
 		/// Displays help for the specified command.
 		/// <param name="Command">Command type.</param>
@@ -377,7 +371,5 @@ namespace AutomationTool
 			}
 			return Members;
 		}
-
-		#endregion
 	}
 }

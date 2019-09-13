@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,8 +9,6 @@ using UnrealBuildTool;
 
 public partial class Project : CommandUtils
 {
-	#region Deploy Command
-
 	public static void Deploy(ProjectParams Params)
 	{
 		Params.ValidateAndLog();
@@ -70,6 +68,4 @@ public partial class Project : CommandUtils
 
 		LogInformation("********** DEPLOY COMMAND COMPLETED **********");
 	}
-
-	#endregion
 }

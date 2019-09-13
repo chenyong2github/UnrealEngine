@@ -14,8 +14,6 @@ namespace AutomationTool
 	[Help("servertargetplatform=PlatformName", "target platform for building, cooking and deployment of the dedicated server (also -ServerPlatform)")]
 	public class ProjectParams
 	{
-		#region Constructors
-
 		/// <summary>
 		/// Gets a parameter from the command line if it hasn't been specified in the constructor. 
 		/// If the command line is not available, default value will be used.
@@ -1102,10 +1100,6 @@ namespace AutomationTool
 			return ConfigValue;
 		}
 
-		#endregion
-
-		#region Shared
-
 		/// <summary>
 		/// Shared: Full path to the .uproject file
 		/// </summary>
@@ -1349,10 +1343,6 @@ namespace AutomationTool
 		/// </summary>
 		public List<string> ConfigOverrideParams = new List<string>();
 
-        #endregion
-
-        #region Build
-
         /// <summary>
         /// Build: True if build step should be executed, command: -build
         /// </summary>
@@ -1461,10 +1451,6 @@ namespace AutomationTool
 		/// Build: Specifies the names of targets to build
 		/// </summary>
 		private List<string> TargetNames;
-
-		#endregion
-
-		#region Cook
 
 		/// <summary>
 		/// Cook: List of maps to cook.
@@ -1662,10 +1648,6 @@ namespace AutomationTool
 		[Help("IgnoreCookErrors", "Ignores cook errors and continues with packaging etc")]
 		public bool IgnoreCookErrors { private set; get; }
 
-		#endregion
-
-		#region Stage
-
 		/// <summary>
 		/// Stage: Commandline: -nodebuginfo
 		/// </summary>
@@ -1748,10 +1730,6 @@ namespace AutomationTool
 		/// If true, use chunk manifest files generated for extra flavor
 		/// </summary>
 		public bool bUseExtraFlavor = false;
-
-		#endregion
-
-		#region Run
 
 		/// <summary>
 		/// Run: True if the Run step should be executed, command: -run
@@ -1918,10 +1896,6 @@ namespace AutomationTool
         /// </summary>
         public string ServerDeviceAddress;
 
-        #endregion
-
-		#region Package
-
 		[Help("package", "package the project for the target platform")]
 		public bool Package { get; set; }
 
@@ -1952,26 +1926,14 @@ namespace AutomationTool
 		[Help("AdditionalPackageOptions", "extra options to pass to the platform's packager")]
 		public string AdditionalPackageOptions { get; set; }
 
-#endregion
-
-#region Deploy
-
-[Help("deploy", "deploy the project for the target platform")]
+		[Help("deploy", "deploy the project for the target platform")]
 		public bool Deploy { get; set; }
 
 		[Help("deploy", "Location to deploy to on the target platform")]
 		public string DeployFolder { get; set; }
 
-		#endregion
-
-		#region GetFile
-
 		[Help("getfile", "download file from target after successful run")]
 		public string GetFile { get; set; }
-
-		#endregion
-
-		#region Misc
 
 		[Help("MapsToRebuildLightMaps", "List of maps that need light maps rebuilding")]
 		public ParamList<string> MapsToRebuildLightMaps = new ParamList<string>();
@@ -1981,10 +1943,6 @@ namespace AutomationTool
 
         [Help("IgnoreLightMapErrors", "Whether Light Map errors should be treated as critical")]
 		public bool IgnoreLightMapErrors { get; set; }
-
-		#endregion
-
-		#region Initialization
 
 		private List<SingleTargetProperties> DetectedTargets;
 		private Dictionary<UnrealTargetPlatform, ConfigHierarchy> LoadedEngineConfigs;
@@ -2270,10 +2228,6 @@ namespace AutomationTool
 				}
 			}
 		}
-
-		#endregion
-
-		#region Utilities
 
 		public bool HasEditorTargets
 		{
@@ -2844,7 +2798,5 @@ namespace AutomationTool
 
 			Validate();
 		}
-
-		#endregion
 	}
 }

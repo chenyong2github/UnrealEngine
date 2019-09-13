@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,8 +9,6 @@ using UnrealBuildTool;
 
 public partial class Project : CommandUtils
 {
-	#region Package Command
-
 	public static void Package(ProjectParams Params, int WorkingCL=-1)
 	{
 		if (!Params.SkipStage || Params.Package)
@@ -42,6 +40,4 @@ public partial class Project : CommandUtils
 			}
 		}
 	}
-
-	#endregion
 }

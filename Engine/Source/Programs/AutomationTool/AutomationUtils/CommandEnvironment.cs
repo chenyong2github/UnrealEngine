@@ -50,8 +50,6 @@ namespace AutomationTool
 		/// </summary>
 		public static readonly string KnownFileRelativeToRoot = @"Engine/Config/BaseEngine.ini";
 
-		#region Command Environment properties
-
 		public string LocalRoot { get; protected set; }
 		public string EngineSavedFolder { get; protected set; }
 		public string LogFolder { get; protected set; }
@@ -66,8 +64,6 @@ namespace AutomationTool
 		public string MsBuildExe { get; protected set; }
 		public string MallocNanoZone { get; protected set; }
 		public bool IsChildInstance { get; protected set; }
-
-		#endregion
 
 		/// <summary>
 		/// Initializes the environment.

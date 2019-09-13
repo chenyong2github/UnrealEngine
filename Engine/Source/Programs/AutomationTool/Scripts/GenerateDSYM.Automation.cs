@@ -12,8 +12,6 @@ using UnrealBuildTool;
 [Help("config=Configuration", @"Project configuration (required), i.e: -config=Development")]
 public class GenerateDSYM : BuildCommand
 {
-	#region BaseCommand interface
-
 	public override void ExecuteBuild()
 	{
 		var ProjectName = ParseParamValue("project");
@@ -23,6 +21,4 @@ public class GenerateDSYM : BuildCommand
 
 		RunAndLog(CmdEnv, IPPExe, "RPC " + ProjectName + " -config " + Config + " GenDSYM");
 	}
-
-	#endregion
 }

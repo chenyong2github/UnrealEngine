@@ -21,8 +21,6 @@ using Tools.DotNETCommon;
 /// </remarks>
 public partial class Project : CommandUtils
 {
-    #region Cook Command
-
     public static void Cook(ProjectParams Params)
 	{
 		if ((!Params.Cook && !(Params.CookOnTheFly && !Params.SkipServer)) || Params.SkipCook)
@@ -595,6 +593,4 @@ public partial class Project : CommandUtils
 			DeleteDirectory(bQuiet, CleanDir);
 		}
 	}
-
-	#endregion
 }
