@@ -17,4 +17,19 @@ public:
 	*/
 	UPROPERTY(config, EditAnywhere, Category = "Offline Shader Compilers", meta = (DisplayName = "Mali Offline Compiler"))
 	FFilePath MaliOfflineCompilerPath;
+
+protected:
+	// The width (in pixels) of the preview viewport when a material editor is first opened
+	UPROPERTY(config, EditAnywhere, meta=(ClampMin=1, ClampMax=4096), Category="User Interface Domain")
+	int32 DefaultPreviewWidth = 250;
+
+	// The height (in pixels) of the preview viewport when a material editor is first opened
+	UPROPERTY(config, EditAnywhere, meta=(ClampMin=1, ClampMax=4096), Category="User Interface Domain")
+	int32 DefaultPreviewHeight = 250;
+
+public:
+	FIntPoint GetPreviewViewportStartingSize() const
+	{
+		return FIntPoint(DefaultPreviewWidth, DefaultPreviewHeight);
+	}
 };
