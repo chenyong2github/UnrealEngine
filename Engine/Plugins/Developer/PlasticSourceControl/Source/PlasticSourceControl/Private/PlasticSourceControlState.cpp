@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PlasticSourceControlState.h"
+#include "ISourceControlModule.h"
 
 #define LOCTEXT_NAMESPACE "PlasticSourceControl.State"
 
