@@ -4,7 +4,7 @@
 
 #include "IXRLoadingScreen.h"
 #include "TickableObjectRenderThread.h"
-
+#include "XRThreadUtils.h"
 
 
 /**
@@ -59,7 +59,7 @@ public:
 			HMDOrientation.Normalize();
 		}
 
-		for (FSplashData& Splash : Splashes)
+		for (SplashType& Splash : Splashes)
 		{
 			DoShowSplash(Splash);
 		}
@@ -81,7 +81,7 @@ public:
 			return;
 		}
 
-		for (FSplashData& Splash : Splashes)
+		for (SplashType& Splash : Splashes)
 		{
 			DoHideSplash(Splash);
 		}

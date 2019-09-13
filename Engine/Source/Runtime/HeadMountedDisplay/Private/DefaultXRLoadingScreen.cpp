@@ -2,7 +2,6 @@
 
 #include "DefaultXRLoadingScreen.h"
 #include "IXRTrackingSystem.h"
-#include "XRThreadUtils.h"
 
 using FLayerDesc = IStereoLayers::FLayerDesc;
 using FSplashDesc = IXRLoadingScreen::FSplashDesc;
