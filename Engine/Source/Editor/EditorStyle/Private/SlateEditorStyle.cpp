@@ -1923,6 +1923,12 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 
 		Set( "GameProjectDialog.IncludeStarterContent", new IMAGE_BRUSH( "/GameProjectDialog/IncludeStarterContent", FVector2D(64, 64) ) );
 		Set( "GameProjectDialog.NoStarterContent", new IMAGE_BRUSH( "/GameProjectDialog/NoStarterContent", FVector2D(64, 64) ) );
+		
+		Set("GameProjectDialog.XRDisabled", new IMAGE_BRUSH("Icons/AssetIcons/SkeletalMesh_64x", Icon64x64));
+		Set("GameProjectDialog.XREnabled", new IMAGE_BRUSH("Icons/AssetIcons/SkeletalMesh_64x", Icon64x64));
+
+		Set("GameProjectDialog.RaytracingDisabled", new IMAGE_BRUSH("Icons/AssetIcons/Procedural_Foliage_Spawner_64x", Icon64x64));
+		Set("GameProjectDialog.RaytracingEnabled", new IMAGE_BRUSH("Icons/AssetIcons/Procedural_Foliage_Spawner_64x", Icon64x64));
 
 		Set( "FilePath.FolderButton",
 			FButtonStyle(HoverHintOnly)

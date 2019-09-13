@@ -73,7 +73,9 @@ enum class ETemplateSetting
 	HardwareTarget,
 	GraphicsPreset,
 	StarterContent,
-	VR
+	XR,
+	Raytracing,
+	All
 };
 
 UCLASS(abstract,config=TemplateDefs,MinimalAPI)
@@ -115,13 +117,9 @@ public:
 	UPROPERTY(config)
 	FString AssetTypes;
 
-	/* Should we allow creation of a project from this template */
+	/* Should we allow creation of a project from this template. If this is false, the template is treated as a feature pack. */
 	UPROPERTY(config)
 	bool bAllowProjectCreation;
-
-	/* Should we skip the project settings page when creating a project from this template */
-	UPROPERTY(config)
-	bool bSkipProjectSettings;
 
 	/** Is this an enterprise template? */
 	UPROPERTY(config)

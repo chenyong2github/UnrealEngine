@@ -25,7 +25,6 @@ struct FTemplateItem
 	FString		CodeProjectFile;
 	FString		BlueprintProjectFile;
 
-	bool		bSkipProjectSettings;
 	TArray<ETemplateSetting> HiddenSettings;
 
 	bool		bIsEnterprise;

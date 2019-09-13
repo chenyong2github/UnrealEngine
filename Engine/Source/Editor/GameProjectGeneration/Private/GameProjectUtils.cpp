@@ -160,6 +160,50 @@ namespace
 
 		return MoveTemp(DefaultProjectSettings);
 	}
+
+	/** Set the state of XR plugins in OutProject based on the flags in InProjectInfo. */
+	void SetXRPluginStates(const FProjectInformation& InProjectInfo, FProjectDescriptor& OutProject)
+	{
+		static const FString XRPlugins[] = {
+			TEXT("MagicLeapMedia"),
+			TEXT("MagicLeap"),
+			TEXT("OculusVR"),
+			TEXT("SteamVR") };
+
+		if (!InProjectInfo.bEnableXR)
+		{
+			for (const FString& Plugin : XRPlugins)
+			{
+				int32 Index = OutProject.FindPluginReferenceIndex(Plugin);
+				if (Index == INDEX_NONE)
+				{
+					Index = OutProject.Plugins.AddDefaulted();
+					OutProject.Plugins[Index].Name = Plugin;
+				}
+
+				OutProject.Plugins[Index].bEnabled = false;
+			}
+		}
+	}
+
+	/** Get the configuration values for raytracing if enabled. */
+	FString GetRaytracingConfigString(const FProjectInformation& InProjectInfo)
+	{
+		FString RaytracingConfig;
+
+		if (InProjectInfo.bEnableRaytracing)
+		{
+			RaytracingConfig += LINE_TERMINATOR;
+			RaytracingConfig += TEXT("[/Script/WindowsTargetPlatform.WindowsTargetSettings]") LINE_TERMINATOR;
+			RaytracingConfig += TEXT("DefaultGraphicsRHI=DefaultGraphicsRHI_DX12") LINE_TERMINATOR;
+			RaytracingConfig += LINE_TERMINATOR;
+			RaytracingConfig += TEXT("[/Script/Engine.RendererSettings]") LINE_TERMINATOR;
+			RaytracingConfig += TEXT("r.SkinCache.CompileShaders=True") LINE_TERMINATOR;
+			RaytracingConfig += TEXT("r.RayTracing=True") LINE_TERMINATOR;
+		}
+
+		return MoveTemp(RaytracingConfig);
+	}
 } // namespace <>
 
 FText FNewClassInfo::GetClassName() const
@@ -1270,6 +1314,11 @@ UTemplateProjectDefs* GameProjectUtils::LoadTemplateDefs(const FString& ProjectD
 		TemplateDefs = NewObject<UTemplateProjectDefs>(GetTransientPackage(), ClassToConstruct);
 		TemplateDefs->LoadConfig(UTemplateProjectDefs::StaticClass(), *TemplateDefsIniFilename);
 
+		if (TemplateDefs->HiddenSettings.Num() > 1 && TemplateDefs->HiddenSettings.Contains(ETemplateSetting::All))
+		{
+			UE_LOG(LogGameProjectGeneration, Warning, TEXT("Template '%s' contains 'All' in HiddenSettings in addition to other entries. This is a mistake, and means that all settings will be hidden."), *ProjectDirectory);
+		}
+
 		TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
 		FGameProjectGenerationModule::Get().GetAllTemplateCategories(AllTemplateCategories);
 
@@ -1282,7 +1331,7 @@ UTemplateProjectDefs* GameProjectUtils::LoadTemplateDefs(const FString& ProjectD
 
 			if (!bCategoryExists)
 			{
-				UE_LOG(LogGameProjectGeneration, Warning, TEXT("Failed to find category definition named '%s', not defined in TemplateCategories.ini."), *CategoryKey.ToString());
+				UE_LOG(LogGameProjectGeneration, Warning, TEXT("Failed to find category definition named '%s' while loading template '%s', it is not defined in any TemplateCategories.ini."), *CategoryKey.ToString(), *ProjectDirectory);
 			}
 		}
 	}
@@ -1351,17 +1400,19 @@ bool GameProjectUtils::GenerateProjectFromScratch(const FProjectInformation& InP
 	// Generate the project file
 	{
 		// Set up the descriptor
-		FProjectDescriptor Descriptor;
+		FProjectDescriptor Project;
 		for(int32 Idx = 0; Idx < StartupModuleNames.Num(); Idx++)
 		{
-			Descriptor.Modules.Add(FModuleDescriptor(*StartupModuleNames[Idx]));
+			Project.Modules.Add(FModuleDescriptor(*StartupModuleNames[Idx]));
 		}
 
-		Descriptor.bIsEnterpriseProject = InProjectInfo.bIsEnterpriseProject;
+		Project.bIsEnterpriseProject = InProjectInfo.bIsEnterpriseProject;
+
+		SetXRPluginStates(InProjectInfo, Project);
 
 		// Try to save it
 		FText LocalFailReason;
-		if(!Descriptor.Save(InProjectInfo.ProjectFilename, LocalFailReason))
+		if(!Project.Save(InProjectInfo.ProjectFilename, LocalFailReason))
 		{
 			OutFailReason = LocalFailReason;
 			return false;
@@ -1587,6 +1638,8 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 		FileContents += LINE_TERMINATOR;
 		FileContents += GetHardwareConfigString(InProjectInfo);
 
+		FileContents += GetRaytracingConfigString(InProjectInfo);
+
 		if ( !WriteOutputFile(DefaultEngineIniFilename, FileContents, OutFailReason) )
 		{
 			return false;
@@ -1751,6 +1804,9 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 		{
 			ModuleInfo.Name = FName(*ModuleInfo.Name.ToString().Replace(*BaseSourceName, *BaseNewName));
 		}
+
+		// Disable XR plugins if desired
+		SetXRPluginStates(InProjectInfo, Project);
 
 		// Save it to disk
 		if(!Project.Save(InProjectInfo.ProjectFilename, OutFailReason))
@@ -1917,7 +1973,7 @@ FString GameProjectUtils::GetHardwareConfigString(const FProjectInformation& InP
 	HardwareTargeting += FString::Printf(TEXT("DefaultGraphicsPerformance=%s") LINE_TERMINATOR, *GraphicsPresetAsString);
 	HardwareTargeting += LINE_TERMINATOR;
 
-	return HardwareTargeting;
+	return MoveTemp(HardwareTargeting);
 }
 
 bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectInfo, TArray<FString>& OutCreatedFiles, FText& OutFailReason)
@@ -1980,6 +2036,9 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 				FileContents += FString::Printf(TEXT("GlobalDefaultGameMode=\"/Script/%s.%sGameMode\"") LINE_TERMINATOR, *NewProjectName, *NewProjectName);
 			}
 		}
+
+		FileContents += LINE_TERMINATOR;
+		FileContents += GetRaytracingConfigString(InProjectInfo);
 
 		if (WriteOutputFile(DefaultEngineIniFilename, FileContents, OutFailReason))
 		{
@@ -4198,7 +4257,6 @@ bool GameProjectUtils::AddSharedContentToProject(const FProjectInformation &InPr
 		{
 			RequiredDetail = EFeaturePackDetailLevel::Standard;
 		}
-
 
 		TUniquePtr<FFeaturePackContentSource> TempFeaturePack = MakeUnique<FFeaturePackContentSource>();
 		bool bCopied = TempFeaturePack->InsertAdditionalResources(TemplateDefs->SharedContentPacks,RequiredDetail, DestFolder,CreatedFiles);
