@@ -22,12 +22,24 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms" : [ "Mac", "iOS", "Win64" ]
+		},
+		{
+			"Name": "AppleARKitPoseTrackingLiveLink",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"WhitelistPlatforms" : [ "Mac", "iOS", "Win64" ]
+
 		}
 	],
     "Plugins": [
         {
             "Name": "AppleImageUtils",
             "Enabled": true
+		},
+		{
+            "Name": "LiveLink",
+            "Enabled": true
         }
+
     ]
 }
