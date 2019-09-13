@@ -14,7 +14,7 @@
 #include "DynamicMeshSculptTool.h"
 #include "PolygonMeshDeformTool.h"
 #include "ConvertToPolygonsTool.h"
-#include "MakeMeshTestTool.h"
+#include "AddPrimitiveTool.h"
 #include "SmoothMeshTool.h"
 #include "RemeshMeshTool.h"
 #include "SimplifyMeshTool.h"
@@ -93,7 +93,7 @@ void FModelingToolsEditorMode::BuildModeToolbar(FToolBarBuilder& ToolbarBuilder)
 
 	ToolbarBuilder.AddSeparator();
 
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginMakePrimitiveTool);
+	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginAddPrimitiveTool);
 	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginDrawPolygonTool);
 	if (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0)
 	{
@@ -379,9 +379,9 @@ void FModelingToolsEditorMode::Enter()
 	//
 	// make shape tools
 	//
-	auto MakeMeshTestToolBuilder = NewObject<UMakeMeshTestToolBuilder>();
-	MakeMeshTestToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
-	RegisterToolFunc(ToolManagerCommands.BeginMakePrimitiveTool, TEXT("MakeMeshTestTool"), MakeMeshTestToolBuilder);
+	auto AddPrimitiveToolBuilder = NewObject<UAddPrimitiveToolBuilder>();
+	AddPrimitiveToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginAddPrimitiveTool, TEXT("AddPrimitiveTool"), AddPrimitiveToolBuilder);
 
 	auto DrawPolygonToolBuilder = NewObject<UDrawPolygonToolBuilder>();
 	DrawPolygonToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();

@@ -15,7 +15,7 @@ public:
 	FModelingToolsManagerCommands();
 
 
-	TSharedPtr<FUICommandInfo> BeginMakePrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddPrimitiveTool;
 	TSharedPtr<FUICommandInfo> BeginDrawPolygonTool;
 	TSharedPtr<FUICommandInfo> BeginShapeSprayTool;
 

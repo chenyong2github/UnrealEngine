@@ -7,7 +7,7 @@
 #include "InteractiveToolBuilder.h"
 #include "BaseTools/SingleClickTool.h"
 #include "PreviewMesh.h"
-#include "MakeMeshTestTool.generated.h"
+#include "AddPrimitiveTool.generated.h"
 
 class FDynamicMesh3;
 
@@ -15,14 +15,14 @@ class FDynamicMesh3;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UMakeMeshTestToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UAddPrimitiveToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 
 public:
 	IToolsContextAssetAPI* AssetAPI;
 
-	UMakeMeshTestToolBuilder() 
+	UAddPrimitiveToolBuilder() 
 	{
 		AssetAPI = nullptr;
 	}
@@ -119,7 +119,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UMakeMeshTestTool : public USingleClickTool, public IHoverBehaviorTarget
+class MESHMODELINGTOOLS_API UAddPrimitiveTool : public USingleClickTool, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
 

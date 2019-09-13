@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "MakeMeshTestTool.h"
+#include "AddPrimitiveTool.h"
 #include "ToolBuilderUtil.h"
 #include "InteractiveToolManager.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
@@ -17,7 +17,7 @@
 #include "StaticMeshComponentBuilder.h"
 #include "Drawing/MeshDebugDrawing.h"
 
-#define LOCTEXT_NAMESPACE "UMakeMeshTestTool"
+#define LOCTEXT_NAMESPACE "UAddPrimitiveTool"
 
 
 /*
@@ -25,14 +25,14 @@
  */
 
 
-bool UMakeMeshTestToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+bool UAddPrimitiveToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return (this->AssetAPI != nullptr);
 }
 
-UInteractiveTool* UMakeMeshTestToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UInteractiveTool* UAddPrimitiveToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
-	UMakeMeshTestTool* NewTool = NewObject<UMakeMeshTestTool>(SceneState.ToolManager);
+	UAddPrimitiveTool* NewTool = NewObject<UAddPrimitiveTool>(SceneState.ToolManager);
 	NewTool->SetWorld(SceneState.World);
 	NewTool->SetAssetAPI(AssetAPI);
 	return NewTool;
@@ -58,18 +58,18 @@ UProceduralShapeToolProperties::UProceduralShapeToolProperties()
 }
 
 
-void UMakeMeshTestTool::SetWorld(UWorld* World)
+void UAddPrimitiveTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
 }
 
-void UMakeMeshTestTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UAddPrimitiveTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }
 
 
-void UMakeMeshTestTool::Setup()
+void UAddPrimitiveTool::Setup()
 {
 	USingleClickTool::Setup();
 
@@ -93,7 +93,7 @@ void UMakeMeshTestTool::Setup()
 }
 
 
-void UMakeMeshTestTool::Shutdown(EToolShutdownType ShutdownType)
+void UAddPrimitiveTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->Disconnect();
@@ -101,7 +101,7 @@ void UMakeMeshTestTool::Shutdown(EToolShutdownType ShutdownType)
 }
 
 
-void UMakeMeshTestTool::Render(IToolsContextRenderAPI* RenderAPI)
+void UAddPrimitiveTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	//FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 	//MeshDebugDraw::DrawSimpleGrid(ShapeFrame, 13, 5.0f, 1.0f, FColor::Orange, false, PDI, FTransform::Identity);
@@ -109,7 +109,7 @@ void UMakeMeshTestTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 
 
-void UMakeMeshTestTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UAddPrimitiveTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
 {
 	UpdatePreviewMesh();
 }
@@ -117,13 +117,13 @@ void UMakeMeshTestTool::OnPropertyModified(UObject* PropertySet, UProperty* Prop
 
 
 
-void UMakeMeshTestTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
+void UAddPrimitiveTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	UpdatePreviewPosition(DevicePos);
 }
 
 
-void UMakeMeshTestTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClickPos)
+void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClickPos)
 {
 	FRay ClickPosWorldRay = DeviceClickPos.WorldRay;
 
@@ -169,7 +169,7 @@ void UMakeMeshTestTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 }
 
 
-void UMakeMeshTestTool::UpdatePreviewMesh()
+void UAddPrimitiveTool::UpdatePreviewMesh()
 {
 	FDynamicMesh3 NewMesh;
 	switch (ShapeSettings->Shape)
@@ -217,7 +217,7 @@ void UMakeMeshTestTool::UpdatePreviewMesh()
 
 
 
-void UMakeMeshTestTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
+void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 {
 #if WITH_EDITOR
 	const FDynamicMesh3* CurMesh = PreviewMesh->GetPreviewDynamicMesh();
@@ -241,7 +241,7 @@ void UMakeMeshTestTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 
 
 
-void UMakeMeshTestTool::GenerateBox(FDynamicMesh3* OutMesh)
+void UAddPrimitiveTool::GenerateBox(FDynamicMesh3* OutMesh)
 {
 	FGridBoxMeshGenerator BoxGen;
 	BoxGen.Box = FOrientedBox3d(FVector3d::Zero(), 0.5*FVector3d(ShapeSettings->Width, ShapeSettings->Width, ShapeSettings->Height));
@@ -252,7 +252,7 @@ void UMakeMeshTestTool::GenerateBox(FDynamicMesh3* OutMesh)
 }
 
 
-void UMakeMeshTestTool::GeneratePlane(FDynamicMesh3* OutMesh)
+void UAddPrimitiveTool::GeneratePlane(FDynamicMesh3* OutMesh)
 {
 	FRectangleMeshGenerator RectGen;
 	RectGen.Width = ShapeSettings->Width;
@@ -263,7 +263,7 @@ void UMakeMeshTestTool::GeneratePlane(FDynamicMesh3* OutMesh)
 }
 
 
-void UMakeMeshTestTool::GenerateCylinder(FDynamicMesh3* OutMesh)
+void UAddPrimitiveTool::GenerateCylinder(FDynamicMesh3* OutMesh)
 {
 	FCylinderGenerator CylGen;
 	CylGen.Radius[0] = ShapeSettings->Width * 0.5f;
@@ -276,7 +276,7 @@ void UMakeMeshTestTool::GenerateCylinder(FDynamicMesh3* OutMesh)
 }
 
 
-void UMakeMeshTestTool::GenerateCone(FDynamicMesh3* OutMesh)
+void UAddPrimitiveTool::GenerateCone(FDynamicMesh3* OutMesh)
 {
 	// Unreal's standard cone is just a cylinder with a very small top
 	FCylinderGenerator CylGen;
@@ -290,7 +290,7 @@ void UMakeMeshTestTool::GenerateCone(FDynamicMesh3* OutMesh)
 }
 
 
-void UMakeMeshTestTool::GenerateSphere(FDynamicMesh3* OutMesh)
+void UAddPrimitiveTool::GenerateSphere(FDynamicMesh3* OutMesh)
 {
 	FSphereGenerator SphereGen;
 	SphereGen.Radius = ShapeSettings->Width * 0.5f;
