@@ -41,11 +41,8 @@
 /*
  * ToolBuilder
  */
-
-
 constexpr int StartPointSnapID = FPointPlanarSnapSolver::BaseExternalPointID + 1;
 constexpr int CurrentSceneSnapID = FPointPlanarSnapSolver::BaseExternalPointID + 2;
-
 
 bool UDrawPolygonToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
@@ -60,19 +57,23 @@ UInteractiveTool* UDrawPolygonToolBuilder::BuildTool(const FToolBuilderState& Sc
 	return NewTool;
 }
 
-
+/*
+ * Properties
+ */
+UDrawPolygonToolStandardProperties::UDrawPolygonToolStandardProperties()
+{
+	Material = CreateDefaultSubobject<UMaterialInterface>(TEXT("MATERIAL"));
+}
 
 /*
  * Tool
  */
-
 UDrawPolygonTool::UDrawPolygonTool()
 {
 	DrawPlaneOrigin = FVector::ZeroVector;
 	DrawPlaneOrientation = FQuat::Identity;
 	bInInteractiveExtrude = false;
 }
-
 
 void UDrawPolygonTool::SetWorld(UWorld* World)
 {
@@ -83,9 +84,6 @@ void UDrawPolygonTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }
-
-
-
 
 void UDrawPolygonTool::Setup()
 {
@@ -133,6 +131,7 @@ void UDrawPolygonTool::Setup()
 	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("PreviewMesh"));
 	PreviewMesh->CreateInWorld(this->TargetWorld, FTransform::Identity);
 	PreviewMesh->SetVisible(false);
+	PreviewMesh->SetMaterial(PolygonProperties->Material);
 	bPreviewUpdatePending = false;
 
 	SnapEngine.SnapMetricTolerance = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD();
@@ -166,9 +165,6 @@ void UDrawPolygonTool::Shutdown(EToolShutdownType ShutdownType)
 	GizmoManager->DeregisterGizmoType(TEXT("DrawPolygonPlaneGizmo"));
 }
 
-
-
-
 void UDrawPolygonTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 {
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 1,
@@ -178,7 +174,6 @@ void UDrawPolygonTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		EModifierKey::None, EKeys::BackSpace,
 		[this]() { PopLastVertexAction(); });
 }
-
 
 void UDrawPolygonTool::PopLastVertexAction()
 {
@@ -215,9 +210,6 @@ void UDrawPolygonTool::PopLastVertexAction()
 	}
 }
 
-
-
-
 void DrawEdgeTicks(FPrimitiveDrawInterface* PDI, 
 	const FSegment3f& Segment, float Height,
 	const FVector3f& PlaneNormal, 
@@ -234,8 +226,6 @@ void DrawEdgeTicks(FPrimitiveDrawInterface* PDI,
 	B += Height * 0.5f*X;
 	PDI->DrawLine(A, B, Color, DepthPriorityGroup, LineThickness, 0.0f, bIsScreenSpace);
 }
-
-
 
 void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
@@ -408,8 +398,6 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
-
-
 void UDrawPolygonTool::ResetPolygon()
 {
 	PolygonVertices.Reset();
@@ -430,12 +418,10 @@ void UDrawPolygonTool::UpdatePreviewVertex(const FVector& PreviewVertexIn)
 	}
 }
 
-
 void UDrawPolygonTool::AppendVertex(const FVector& Vertex)
 {
 	PolygonVertices.Add(Vertex);
 }
-
 
 bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FVector& HitPosOut)
 {
@@ -504,7 +490,6 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 	return true;
 }
 
-
 void UDrawPolygonTool::OnBeginSequencePreview(const FInputDeviceRay& DevicePos)
 {
 	// just update snapped point preview
@@ -515,7 +500,6 @@ void UDrawPolygonTool::OnBeginSequencePreview(const FInputDeviceRay& DevicePos)
 	}
 	
 }
-
 
 bool UDrawPolygonTool::CanBeginClickSequence(const FInputDeviceRay& ClickPos)
 {
@@ -692,8 +676,6 @@ bool UDrawPolygonTool::RequestAbortClickSequence()
 	return false;
 }
 
-
-
 void UDrawPolygonTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
 {
 	if (ModifierID == IgnoreSnappingModifier)
@@ -705,9 +687,6 @@ void UDrawPolygonTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
 
 	}
 }
-
-
-
 
 bool UDrawPolygonTool::UpdateSelfIntersection()
 {
@@ -736,8 +715,6 @@ bool UDrawPolygonTool::UpdateSelfIntersection()
 	}
 	return false;
 }
-
-
 
 void UDrawPolygonTool::GenerateFixedPolygon(TArray<FVector>& FixedPoints, TArray<FVector>& VerticesOut)
 {
@@ -779,15 +756,12 @@ void UDrawPolygonTool::GenerateFixedPolygon(TArray<FVector>& FixedPoints, TArray
 	}
 }
 
-
-
 void UDrawPolygonTool::BeginInteractiveExtrude()
 {
 	bInInteractiveExtrude = true;
 
 	GeneratePreviewHeightTarget();
 }
-
 
 void UDrawPolygonTool::EndInteractiveExtrude()
 {
@@ -798,7 +772,6 @@ void UDrawPolygonTool::EndInteractiveExtrude()
 
 	bInInteractiveExtrude = false;
 }
-
 
 float UDrawPolygonTool::FindInteractiveHeightDistance(const FInputDeviceRay& ClickPos)
 {
@@ -855,10 +828,6 @@ float UDrawPolygonTool::FindInteractiveHeightDistance(const FInputDeviceRay& Cli
 	
 }
 
-
-
-
-
 void UDrawPolygonTool::SetDrawPlaneFromWorldPos(const FVector& Position, const FVector& Normal)
 {
 	DrawPlaneOrigin = Position;
@@ -877,7 +846,6 @@ void UDrawPolygonTool::SetDrawPlaneFromWorldPos(const FVector& Position, const F
 	Gizmo->ExternalUpdatePosition(DrawPlaneOrigin, DrawPlaneOrientation, false);
 }
 
-
 void UDrawPolygonTool::UpdateDrawPlaneFromGizmo(const FFrame3d& WorldPosition)
 {
 	if (bIgnoreSnappingToggle == false)
@@ -895,10 +863,6 @@ void UDrawPolygonTool::UpdateDrawPlaneFromGizmo(const FFrame3d& WorldPosition)
 	}
 }
 
-
-
-
-
 void UDrawPolygonTool::EmitCurrentPolygon()
 {
 #if WITH_EDITOR
@@ -915,7 +879,8 @@ void UDrawPolygonTool::EmitCurrentPolygon()
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
 		&Mesh, PlaneFrameOut.ToTransform(), TEXT("Polygon"),
-		AssetGenerationUtil::GetDefaultAutoGeneratedAssetPath());
+		AssetGenerationUtil::GetDefaultAutoGeneratedAssetPath(),
+		PolygonProperties->Material);
 
 	// select newly-created object
 	ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
@@ -926,11 +891,6 @@ void UDrawPolygonTool::EmitCurrentPolygon()
 #endif
 	ResetPolygon();
 }
-
-
-
-
-
 
 void UDrawPolygonTool::UpdateLivePreview()
 {
@@ -947,11 +907,9 @@ void UDrawPolygonTool::UpdateLivePreview()
 	GeneratePolygonMesh(PolygonVertices, &Mesh, PlaneFrame, false, ExtrudeDist, false);
 
 	PreviewMesh->SetTransform(PlaneFrame.ToFTransform());
+	PreviewMesh->SetMaterial(PolygonProperties->Material);
 	PreviewMesh->UpdatePreview(&Mesh);
 }
-
-
-
 
 void UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, FDynamicMesh3* ResultMeshOut, FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric)
 {
@@ -1025,17 +983,10 @@ void UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, FDyna
 	}
 }
 
-
-
-
 void UDrawPolygonTool::GeneratePreviewHeightTarget()
 {
 	GeneratePolygonMesh(PolygonVertices, &PreviewHeightTarget, PreviewHeightFrame, false, 99999, true);
 	PreviewHeightTargetAABB.SetMesh(&PreviewHeightTarget);
 }
-
-
-
-
 
 #undef LOCTEXT_NAMESPACE

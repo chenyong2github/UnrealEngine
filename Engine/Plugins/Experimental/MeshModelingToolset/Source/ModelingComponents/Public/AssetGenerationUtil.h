@@ -40,7 +40,8 @@ namespace AssetGenerationUtil
 		const FDynamicMesh3* Mesh,
 		const FTransform3d& Transform,
 		FString ObjectName,
-		FString PackagePath
+		FString PackagePath,
+		UMaterialInterface* Material = nullptr
 	);
 #endif
 

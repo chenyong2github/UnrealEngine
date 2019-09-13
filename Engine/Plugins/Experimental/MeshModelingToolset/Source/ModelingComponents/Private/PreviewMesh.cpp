@@ -56,6 +56,13 @@ void UPreviewMesh::SetMaterial(UMaterialInterface* Material)
 	DynamicMeshComponent->SetMaterial(0, Material);
 }
 
+UMaterialInterface*
+UPreviewMesh::GetMaterial() const
+{
+	check(DynamicMeshComponent);
+	return DynamicMeshComponent->GetMaterial(0);
+}
+
 
 void UPreviewMesh::EnableWireframe(bool bEnable)
 {

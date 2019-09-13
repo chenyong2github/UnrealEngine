@@ -78,7 +78,9 @@ class MESHMODELINGTOOLS_API UDrawPolygonToolStandardProperties : public UObject
 {
 	GENERATED_BODY()
 
-public:
+	public:
+	UDrawPolygonToolStandardProperties();
+
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
 	EDrawPolygonDrawMode PolygonType = EDrawPolygonDrawMode::Freehand;
 
@@ -95,6 +97,10 @@ public:
 
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
 	bool bAllowSelfIntersections = false;
+
+	/** Material for new mesh*/
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (DisplayName = "Material"))
+	UMaterialInterface* Material;
 };
 
 

@@ -90,6 +90,10 @@ public:
 	void SetMaterial(UMaterialInterface* Material);
 
 	/**
+	* Get material from the preview mesh
+	*/
+	UMaterialInterface* GetMaterial() const;
+	/**
 	 * Get the current transform on the preview mesh
 	 */
 	FTransform GetTransform() const;

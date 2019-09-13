@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MaterialShared.h"
 #include "UObject/NoExportTypes.h"
 #include "InteractiveToolBuilder.h"
 #include "BaseTools/SingleClickTool.h"
@@ -107,6 +108,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Subdivisions", UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "4000"))
 	int Subdivisions;
 
+	/** Material */
+	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Material"))
+	UMaterialInterface* Material;
 };
 
 

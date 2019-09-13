@@ -27,7 +27,8 @@ AActor* AssetGenerationUtil::GenerateStaticMeshActor(
 	const FDynamicMesh3* Mesh,
 	const FTransform3d& Transform,
 	FString ObjectName,
-	FString PackagePath
+	FString PackagePath,
+	UMaterialInterface* Material
 )
 {
 	check(AssetAPI);
@@ -74,7 +75,12 @@ AActor* AssetGenerationUtil::GenerateStaticMeshActor(
 
 	// transform new component to origin
 	Builder.NewMeshComponent->SetWorldTransform((FTransform)Transform);
-
+	UMaterialInstance;
+	UMaterialInterface;
+	if (Material)
+	{
+		Builder.NewMeshComponent->SetMaterial(0, Material);
+	}
 	// force save of asset
 	//AssetAPI->InteractiveSaveGeneratedAsset(Builder.NewStaticMesh, AssetPackage);
 	AssetAPI->AutoSaveGeneratedAsset(Builder.NewStaticMesh, AssetPackage);
