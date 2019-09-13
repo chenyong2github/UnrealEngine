@@ -131,11 +131,15 @@ public:
 	/** Called when analysis of a trace is beginning. Analyzer implementers can
 	 * subscribe to the events that they are interested in at this point
 	 * @param Context Contextual information and interface for subscribing to events. */
-	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) {}
+	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context)
+	{
+	}
 
 	/** Indicates that the analysis of a trace log has completed and there are no
 	 * further events */
-	virtual void OnAnalysisEnd() {}
+	virtual void OnAnalysisEnd()
+	{
+	}
 
 	/** When a new event type appears in the trace stream, this method is called
 	 * if the event type has been subscribed to.
