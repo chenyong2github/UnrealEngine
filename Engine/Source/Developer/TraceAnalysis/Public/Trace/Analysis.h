@@ -32,10 +32,17 @@ public:
 	 * @param bState Pause if true, resume if false. */
 	void Pause(bool bState);
 
+	~FAnalysisProcessor();
+	FAnalysisProcessor(FAnalysisProcessor&& Rhs);
+
 private:
-	friend		class FAnalysisContext;
-	class		FImpl;
-	FImpl*		Impl = nullptr;
+	friend				class FAnalysisContext;
+						FAnalysisProcessor() = default;
+						FAnalysisProcessor(FAnalysisProcessor&) = delete;
+	FAnalysisProcessor&	operator = (FAnalysisProcessor&) = delete;
+	FAnalysisProcessor&	operator = (FAnalysisProcessor&&) = delete;
+	class				FImpl;
+	FImpl*				Impl = nullptr;
 };
 
 

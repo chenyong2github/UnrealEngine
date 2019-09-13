@@ -94,4 +94,16 @@ void FAnalysisProcessor::Stop()				{ if (Impl != nullptr) { Impl->StopAnalysis()
 void FAnalysisProcessor::Wait()				{ if (Impl != nullptr) { Impl->WaitOnAnalysis(); } }
 void FAnalysisProcessor::Pause(bool bState) { if (Impl != nullptr) { Impl->PauseAnalysis(bState); } }
 
+////////////////////////////////////////////////////////////////////////////////
+FAnalysisProcessor::FAnalysisProcessor(FAnalysisProcessor&& Rhs)
+{
+	Swap(Impl, Rhs.Impl);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FAnalysisProcessor::~FAnalysisProcessor()
+{
+	delete Impl;
+}
+
 } // namespace Trace
