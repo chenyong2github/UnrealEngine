@@ -481,6 +481,8 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 							IFileManager::Get().Delete(*DiffFilename, false, false, true);
 						}
 					}
+
+					DiffFilenames.Empty();
 				}
 
 				static const bool bDisableCleanup = FParse::Param(FCommandLine::Get(), TEXT("disablecleanup"));
