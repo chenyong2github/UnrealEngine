@@ -987,7 +987,7 @@ void UNiagaraComponent::OnEndOfFrameUpdateDuringTick()
 	Super::OnEndOfFrameUpdateDuringTick();
 	if ( SystemInstance )
 	{
-		SystemInstance->WaitForAsyncTick(true);
+		SystemInstance->WaitForAsyncTick();
 	}
 }
 
