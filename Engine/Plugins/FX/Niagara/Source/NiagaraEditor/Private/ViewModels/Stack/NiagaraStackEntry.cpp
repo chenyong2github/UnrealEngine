@@ -340,9 +340,9 @@ bool UNiagaraStackEntry::CanDrag() const
 	return false;
 }
 
-TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::CanDrop(const TArray<UNiagaraStackEntry*>& DraggedEntries)
+TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::CanDrop(const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions)
 {
-	TOptional<FDropResult> Result = CanDropInternal(DraggedEntries);
+	TOptional<FDropResult> Result = CanDropInternal(DraggedEntries, DragOptions);
 	if (Result.IsSet())
 	{
 		return Result;
@@ -350,14 +350,14 @@ TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::CanDrop(const TAr
 	else
 	{
 		return OnRequestCanDropDelegate.IsBound() 
-			? OnRequestCanDropDelegate.Execute(*this, DraggedEntries)
+			? OnRequestCanDropDelegate.Execute(*this, DraggedEntries, DragOptions)
 			: TOptional<FDropResult>();
 	}
 }
 
-TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::Drop(const TArray<UNiagaraStackEntry*>& DraggedEntries)
+TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::Drop(const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions)
 {
-	TOptional<FDropResult> Result = DropInternal(DraggedEntries);
+	TOptional<FDropResult> Result = DropInternal(DraggedEntries, DragOptions);
 	if (Result.IsSet())
 	{
 		return Result;
@@ -365,7 +365,7 @@ TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::Drop(const TArray
 	else
 	{
 		return OnRequestDropDelegate.IsBound()
-			? OnRequestDropDelegate.Execute(*this, DraggedEntries)
+			? OnRequestDropDelegate.Execute(*this, DraggedEntries, DragOptions)
 			: TOptional<FDropResult>();
 	}
 }
@@ -400,22 +400,22 @@ bool UNiagaraStackEntry::HasBaseEmitter() const
 	return bHasBaseEmitterCache.GetValue();
 }
 
-TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::CanDropInternal(const TArray<UNiagaraStackEntry*>& DraggedEntries)
+TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::CanDropInternal(const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions)
 {
 	return TOptional<FDropResult>();
 }
 
-TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::DropInternal(const TArray<UNiagaraStackEntry*>& DraggedEntries)
+TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::DropInternal(const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions)
 {
 	return TOptional<FDropResult>();
 }
 
-TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::ChildRequestCanDropInternal(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries)
+TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::ChildRequestCanDropInternal(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions)
 {
 	return TOptional<FDropResult>();
 }
 
-TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::ChildRequestDropInternal(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries)
+TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::ChildRequestDropInternal(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions)
 {
 	return TOptional<FDropResult>();
 }
@@ -595,9 +595,9 @@ void UNiagaraStackEntry::ChildRequestFullRefreshDeferred()
 	RequestFullRefreshDeferredDelegate.Broadcast();
 }
 
-TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::ChildRequestCanDrop(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries)
+TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::ChildRequestCanDrop(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions)
 {
-	TOptional<FDropResult> Result = ChildRequestCanDropInternal(TargetChild, DraggedEntries);
+	TOptional<FDropResult> Result = ChildRequestCanDropInternal(TargetChild, DraggedEntries, DragOptions);
 	if (Result.IsSet())
 	{
 		return Result;
@@ -605,14 +605,14 @@ TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::ChildRequestCanDr
 	else
 	{
 		return OnRequestCanDropDelegate.IsBound()
-			? OnRequestCanDropDelegate.Execute(TargetChild, DraggedEntries)
+			? OnRequestCanDropDelegate.Execute(TargetChild, DraggedEntries, DragOptions)
 			: TOptional<FDropResult>();
 	}
 }
 
-TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::ChildRequestDrop(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries)
+TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::ChildRequestDrop(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions)
 {
-	TOptional<FDropResult> Result = ChildRequestDropInternal(TargetChild, DraggedEntries);
+	TOptional<FDropResult> Result = ChildRequestDropInternal(TargetChild, DraggedEntries, DragOptions);
 	if (Result.IsSet())
 	{
 		return Result;
@@ -620,7 +620,7 @@ TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::ChildRequestDrop(
 	else
 	{
 		return OnRequestDropDelegate.IsBound()
-			? OnRequestDropDelegate.Execute(TargetChild, DraggedEntries)
+			? OnRequestDropDelegate.Execute(TargetChild, DraggedEntries, DragOptions)
 			: TOptional<FDropResult>();
 	}
 }

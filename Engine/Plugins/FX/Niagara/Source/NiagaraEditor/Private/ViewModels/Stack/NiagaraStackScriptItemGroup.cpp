@@ -552,14 +552,14 @@ void GenerateDragDropData(
 	}
 }
 
-TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackScriptItemGroup::ChildRequestCanDropInternal(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries)
+TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackScriptItemGroup::ChildRequestCanDropInternal(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions)
 {
-	if (bIsValidForOutput && DraggedEntries.Num() == 1)
+	if (bIsValidForOutput && DraggedEntries.Num() == 1 && (DragOptions == UNiagaraStackEntry::EDragOptions::Move || DragOptions == UNiagaraStackEntry::EDragOptions::Copy))
 	{
 		UNiagaraStackModuleItem* SourceModuleItem = Cast<UNiagaraStackModuleItem>(DraggedEntries[0]);
 		if (SourceModuleItem != nullptr)
 		{
-			if (SourceModuleItem->CanMoveAndDelete() == false)
+			if (DragOptions == EDragOptions::Move && SourceModuleItem->CanMoveAndDelete() == false)
 			{
 				return FDropResult(false, LOCTEXT("CantMoveModuleError", "This inherited module can't be moved."));
 			}
@@ -568,11 +568,6 @@ TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackScriptItemGroup::ChildRe
 			if (SourceUsages.ContainsByPredicate([this](ENiagaraScriptUsage SourceUsage) { return UNiagaraScript::IsEquivalentUsage(ScriptUsage, SourceUsage); }) == false)
 			{
 				return FDropResult(false, LOCTEXT("CantMoveByUsage", "This module can't be moved to this section of the stack because its it's not supported in this context."));
-			}
-
-			if (SourceModuleItem->GetSystemViewModel() != TargetChild.GetSystemViewModel())
-			{
-				return FDropResult(false, LOCTEXT("CantMoveFromAnotherSystem", "This module can't be moved into this system from a different system."));
 			}
 
 			const UNiagaraStackSpacer* TargetSpacer = Cast<UNiagaraStackSpacer>(&TargetChild);
@@ -594,9 +589,12 @@ TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackScriptItemGroup::ChildRe
 
 					// Make sure the source and target indices are within safe ranges, and make sure that the insert target isn't the source target or the spot directly
 					// after the source target since that won't actually move the module.
-					if (SourceGroupIndex > 0 && SourceGroupIndex < SourceStackGroups.Num() - 1 && TargetGroupIndex > 0 && TargetGroupIndex < TargetStackGroups.Num() &&
-						SourceStackGroups[SourceGroupIndex].EndNode != TargetStackGroups[TargetGroupIndex].EndNode &&
-						SourceStackGroups[SourceGroupIndex].EndNode != TargetStackGroups[TargetGroupIndex - 1].EndNode)
+					bool bSourceWithinRange = SourceGroupIndex > 0 && SourceGroupIndex < SourceStackGroups.Num() - 1;
+					bool bTargetWithinRange = TargetGroupIndex > 0 && TargetGroupIndex < TargetStackGroups.Num();
+					bool bWillMove = DragOptions == EDragOptions::Copy ||
+						(SourceStackGroups[SourceGroupIndex].EndNode != TargetStackGroups[TargetGroupIndex].EndNode &&
+						SourceStackGroups[SourceGroupIndex].EndNode != TargetStackGroups[TargetGroupIndex - 1].EndNode);
+					if(bSourceWithinRange && bTargetWithinRange && bWillMove)
 					{
 						return FDropResult(true, LOCTEXT("MoveModuleResult", "Move this module here."));
 					}
@@ -607,8 +605,13 @@ TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackScriptItemGroup::ChildRe
 	return TOptional<FDropResult>();
 }
 
-TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackScriptItemGroup::ChildRequestDropInternal(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries)
+TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackScriptItemGroup::ChildRequestDropInternal(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions)
 {
+	if (DragOptions != EDragOptions::Move && DragOptions != EDragOptions::Copy)
+	{
+		return TOptional<UNiagaraStackEntry::FDropResult>();
+	}
+
 	if (bIsValidForOutput && DraggedEntries.Num() == 1 && DraggedEntries[0]->IsA<UNiagaraStackModuleItem>())
 	{
 		UNiagaraStackModuleItem* SourceModuleItem = CastChecked<UNiagaraStackModuleItem>(DraggedEntries[0]);
@@ -651,7 +654,7 @@ TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackScriptItemGroup::ChildRe
 					FScopedTransaction ScopedTransaction(LOCTEXT("DragAndDropModule", "Drag and drop module"));
 					{
 						FNiagaraStackGraphUtilities::MoveModule(*SourceModuleScript, SourceModuleItem->GetModuleNode(), GetSystemViewModel()->GetSystem(), TargetEmitterHandleId,
-							ScriptUsage, ScriptUsageId, TargetIndex);
+							ScriptUsage, ScriptUsageId, TargetIndex, DragOptions == EDragOptions::Copy);
 
 						UNiagaraGraph* TargetGraph = ScriptViewModel.Pin()->GetGraphViewModel()->GetGraph();
 						FNiagaraStackGraphUtilities::RelayoutGraph(*TargetGraph);
