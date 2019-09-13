@@ -190,8 +190,14 @@ void UMeshSelectionTool::CalculateTriangleROI(const FBrushStampData& Stamp, TArr
 	FTransform Transform = ComponentTarget->GetWorldTransform();
 	FVector StampPosLocal = Transform.InverseTransformPosition(Stamp.WorldPosition);
 
-	float RadiusSqr = CurrentBrushRadius * CurrentBrushRadius;
+	// always select first triangle
 	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
+	if (Mesh->IsTriangle(Stamp.HitResult.FaceIndex))
+	{
+		TriangleROI.Add(Stamp.HitResult.FaceIndex);
+	}
+
+	float RadiusSqr = CurrentBrushRadius * CurrentBrushRadius;
 	for (int TriIdx : Mesh->TriangleIndicesItr())
 	{
 		FVector3d Position = Mesh->GetTriCentroid(TriIdx);
