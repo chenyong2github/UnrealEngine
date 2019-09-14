@@ -12,6 +12,7 @@
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 #include "InteractiveGizmoManager.h"
 
