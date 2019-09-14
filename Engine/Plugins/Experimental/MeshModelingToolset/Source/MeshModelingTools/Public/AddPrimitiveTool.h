@@ -32,20 +32,19 @@ public:
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
 
-
-
 /** Shape Types */
 UENUM()
 enum class EMakeMeshShapeType : uint8
 {
-	Box = 0 UMETA(DisplayName = "Box"),
-	Cylinder = 1 UMETA(DisplayName = "Cylinder"),
-	Cone = 2 UMETA(DisplayName = "Cone"),
-	Plane = 3 UMETA(DisplayName = "Plane"),
-	Sphere = 4 UMETA(DisplayName = "Sphere")
+	None     = 0x00 UMETA(DisplayName = "None", Hidden),
+	All      = 0xff UMETA(DisplayName = "All", Hidden), 
+	Box      = 0x01 UMETA(DisplayName = "Box"),
+	Cylinder = 0x02 UMETA(DisplayName = "Cylinder"),
+	Cone     = 0x04 UMETA(DisplayName = "Cone"),
+	Plane    = 0x08 UMETA(DisplayName = "Plane"),
+	Sphere   = 0x10 UMETA(DisplayName = "Sphere")
 };
-
-
+ENUM_CLASS_FLAGS(EMakeMeshShapeType);
 
 /** Placement Target Types */
 UENUM()
@@ -55,10 +54,6 @@ enum class EMakeMeshPlacementType : uint8
 	OnScene = 1
 };
 
-
-
-
-
 UCLASS()
 class MESHMODELINGTOOLS_API UProceduralShapeToolProperties : public UInteractiveToolPropertySet
 {
@@ -66,6 +61,7 @@ class MESHMODELINGTOOLS_API UProceduralShapeToolProperties : public UInteractive
 
 public:
 	UProceduralShapeToolProperties();
+	bool CanEditChange( const UProperty* InProperty ) const override;
 
 	/** Type of shape to generate */
 	UPROPERTY(EditAnywhere, Category = ShapeSettings)
