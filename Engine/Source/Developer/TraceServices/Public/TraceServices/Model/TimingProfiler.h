@@ -42,6 +42,7 @@ struct FTimingProfilerButterflyNode
 class ITimingProfilerButterfly
 {
 public:
+	virtual ~ITimingProfilerButterfly() = default;
 	virtual const FTimingProfilerButterflyNode& GenerateCallersTree(uint32 TimerId) = 0;
 	virtual const FTimingProfilerButterflyNode& GenerateCalleesTree(uint32 TimerId) = 0;
 };
