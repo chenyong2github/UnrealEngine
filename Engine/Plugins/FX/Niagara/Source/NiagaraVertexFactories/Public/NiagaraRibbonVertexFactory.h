@@ -53,6 +53,19 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonUniformParameters, NIAGARAVER
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 typedef TUniformBufferRef<FNiagaraRibbonUniformParameters> FNiagaraRibbonUniformBufferRef;
 
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonVFLooseParameters, NIAGARAVERTEXFACTORIES_API)
+	SHADER_PARAMETER(uint32, NiagaraFloatDataOffset)
+	SHADER_PARAMETER(uint32, NiagaraFloatDataStride)
+	SHADER_PARAMETER(uint32, SortedIndicesOffset)
+	SHADER_PARAMETER(uint32, FacingMode)
+	SHADER_PARAMETER_SRV(Buffer<int>, SortedIndices)
+	SHADER_PARAMETER_SRV(Buffer<float4>, TangentsAndDistances)
+	SHADER_PARAMETER_SRV(Buffer<uint>, MultiRibbonIndices)
+	SHADER_PARAMETER_SRV(Buffer<float>, PackedPerRibbonDataByIndex)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFloat)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+typedef TUniformBufferRef<FNiagaraRibbonVFLooseParameters> FNiagaraRibbonVFLooseParametersRef;
+
 /**
 * Beam/Trail particle vertex factory.
 */
@@ -126,25 +139,29 @@ public:
 		FloatDataStride = InFloatDataStride;
 	}
 
-	void SetSortedIndices(const FShaderResourceViewRHIRef& InSortedIndicesSRV, uint32 InSortedIndicesOffset)
+	void SetSortedIndices(const FVertexBufferRHIRef& InSortedIndicesBuffer, const FShaderResourceViewRHIRef& InSortedIndicesSRV, uint32 InSortedIndicesOffset)
 	{
+		SortedIndicesBuffer = InSortedIndicesBuffer;
 		SortedIndicesSRV = InSortedIndicesSRV;
 		SortedIndicesOffset = InSortedIndicesOffset;
 	}
 
-	void SetTangentAndDistances(const FShaderResourceViewRHIRef& InTangentAndDistancesSRV)
+	void SetTangentAndDistances(const FVertexBufferRHIRef& InTangentAndDistancesBuffer, const FShaderResourceViewRHIRef& InTangentAndDistancesSRV)
 	{
+		TangentAndDistancesBuffer = InTangentAndDistancesBuffer;
 		TangentAndDistancesSRV = InTangentAndDistancesSRV;
 	}
 
 
-	void SetMultiRibbonIndicesSRV(const FShaderResourceViewRHIRef& InMultiRibbonIndicesSRV)
+	void SetMultiRibbonIndicesSRV(const FVertexBufferRHIRef& InMultiRibbonIndicesBuffer, const FShaderResourceViewRHIRef& InMultiRibbonIndicesSRV)
 	{
+		MultiRibbonIndicesBuffer = InMultiRibbonIndicesBuffer;
 		MultiRibbonIndicesSRV = InMultiRibbonIndicesSRV;
 	}
 
-	void SetPackedPerRibbonDataByIndexSRV(const FShaderResourceViewRHIRef& InPackedPerRibbonDataByIndexSRV)
+	void SetPackedPerRibbonDataByIndexSRV(const FVertexBufferRHIRef& InPackedPerRibbonDataByIndexBuffer, const FShaderResourceViewRHIRef& InPackedPerRibbonDataByIndexSRV)
 	{
+		PackedPerRibbonDataByIndexBuffer = InPackedPerRibbonDataByIndexBuffer;
 		PackedPerRibbonDataByIndexSRV = InPackedPerRibbonDataByIndexSRV;
 	}
 
@@ -218,6 +235,8 @@ public:
 		return OutTriangleCount;
 	}
 
+	FUniformBufferRHIRef LooseParameterUniformBuffer;
+
 private:
 
 	/** Uniform buffer with beam/trail parameters. */
@@ -233,6 +252,11 @@ private:
 	FShaderResourceViewRHIRef ParticleDataFloatSRV;
 	uint32 FloatDataOffset;
 	uint32 FloatDataStride;
+
+	FVertexBufferRHIRef SortedIndicesBuffer;
+	FVertexBufferRHIRef TangentAndDistancesBuffer;
+	FVertexBufferRHIRef MultiRibbonIndicesBuffer;
+	FVertexBufferRHIRef PackedPerRibbonDataByIndexBuffer;
 
 	FShaderResourceViewRHIRef SortedIndicesSRV;
 	FShaderResourceViewRHIRef TangentAndDistancesSRV;

@@ -20,7 +20,6 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Media",
 					"MediaUtils",
-					"UtilityShaders",
 					"libOpus",
 					"UEOgg",
 					"Vorbis",

@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "RHI.h"
+#include "ScenePrivate.h"
 
 #if RHI_RAYTRACING
 
@@ -10,7 +11,8 @@
 #include "RenderGraphBuilder.h"
 #include "SceneUtils.h"
 #include "RayTracingDebugDefinitions.h"
-
+#include "RayTracing/RayTracingLighting.h"
+#include "RayTracing/RaytracingOptions.h"
 #define LOCTEXT_NAMESPACE "RayTracingDebugVisualizationMenuCommands"
 
 DECLARE_GPU_STAT(RayTracingDebug);
@@ -34,26 +36,6 @@ class FRayTracingDebugRGS : public FGlobalShader
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugMainRGS", SF_RayGen);
-
-class FRayTracingDebugCHS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FRayTracingDebugCHS, Global);
-
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	FRayTracingDebugCHS() = default;
-	FRayTracingDebugCHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{}
-};
-
-// Dummy shader permutations to test hit group API
-IMPLEMENT_SHADER_TYPE(, FRayTracingDebugCHS, TEXT("/Engine/Private/RayTracing/RayTracingDebug.usf"), TEXT("RayTracingDebugMainCHS"), SF_RayHitGroup);
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingDebug(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
@@ -87,6 +69,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("World Position", "World Position").ToString()),								RAY_TRACING_DEBUG_VIZ_WORLD_POSITION);
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("HitKind", "HitKind").ToString()),												RAY_TRACING_DEBUG_VIZ_HITKIND);
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Barycentrics", "Barycentrics").ToString()),									RAY_TRACING_DEBUG_VIZ_BARYCENTRICS);
+		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("PrimaryRays", "PrimaryRays").ToString()),							RAY_TRACING_DEBUG_VIZ_PRIMARY_RAYS);
 	}
 
 	uint32 DebugVisualizationMode = RayTracingDebugVisualizationModes.FindRef(View.CurrentRayTracingDebugVisualizationMode);
@@ -96,14 +79,28 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 		return RenderRayTracingBarycentrics(RHICmdList, View);
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
 	FRDGBuilder GraphBuilder(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	if (DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_PRIMARY_RAYS) 
+	{
+		FRDGTextureRef OutputColor = nullptr;
+		FRDGTextureRef HitDistanceTexture = nullptr;
+		auto SceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
+
+		RenderRayTracingPrimaryRaysView(
+				GraphBuilder, View, &OutputColor, &HitDistanceTexture, 1, 1, 1,
+			ERayTracingPrimaryRaysFlag::ConsiderSurfaceScatter);
+		AddCopyTexturePass(GraphBuilder, OutputColor, SceneColor, View.ViewRect.Min, View.ViewRect.Min, View.ViewRect.Size());
+
+		GraphBuilder.Execute();
+		return;
+	}
+
+
 
 	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 	auto RayGenShader = ShaderMap->GetShader<FRayTracingDebugRGS>();
-	auto ClosestHitShader = ShaderMap->GetShader<FRayTracingDebugCHS>();
 
 	FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
 

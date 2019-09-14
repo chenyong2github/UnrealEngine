@@ -28,8 +28,7 @@ public class PicpMPCDI : ModuleRules
 				"PicpProjection",
 				"Projects",				
 				"RenderCore",
-                "RHI",
-				"UtilityShaders"
+                "RHI"
 			}
 		);
 

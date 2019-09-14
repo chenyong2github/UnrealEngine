@@ -328,6 +328,10 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			{
 				Platforms += TEXT("+Linux");
 			}
+			else if (PlatformInfo->TargetPlatformName == FName("LinuxAArch64NoEditor"))
+			{
+				Platforms += TEXT("+LinuxAArch64");
+			}
 			else if (PlatformInfo->TargetPlatformName == FName("WindowsNoEditor") || PlatformInfo->TargetPlatformName == FName("Windows") || PlatformInfo->TargetPlatformName == FName("WindowsClient"))
 			{
 				Platforms += TEXT("+Win64");

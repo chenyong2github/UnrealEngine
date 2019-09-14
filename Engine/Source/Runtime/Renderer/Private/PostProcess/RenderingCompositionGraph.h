@@ -174,6 +174,31 @@ struct FRenderingCompositePassContext
 		return SceneColorViewRect;
 	}
 
+	FIntPoint GetSceneColorDownscaleFactor(FIntPoint InputExtent) const
+	{
+		const uint32 ScaleFactorX = FMath::RoundUpToPowerOfTwo(FMath::DivideAndRoundUp(ReferenceBufferSize.X, InputExtent.X));
+		const uint32 ScaleFactorY = FMath::RoundUpToPowerOfTwo(FMath::DivideAndRoundUp(ReferenceBufferSize.Y, InputExtent.Y));
+		return FIntPoint(ScaleFactorX, ScaleFactorY);
+	}
+
+	FIntRect GetDownsampledSceneColorViewRect(FIntPoint DownsampleFactor) const
+	{
+		FIntRect Rect = FIntRect::DivideAndRoundUp(SceneColorViewRect, DownsampleFactor);
+		Rect.Max.X = FMath::Max(Rect.Max.X, 1);
+		Rect.Max.Y = FMath::Max(Rect.Max.Y, 1);
+		return Rect;
+	}
+
+	FIntRect GetDownsampledSceneColorViewRect(uint32 DownsampleFactor) const
+	{
+		return GetDownsampledSceneColorViewRect(FIntPoint(DownsampleFactor, DownsampleFactor));
+	}
+
+	FIntRect GetDownsampledSceneColorViewRectFromInputExtent(FIntPoint InputExtent) const
+	{
+		return GetDownsampledSceneColorViewRect(GetSceneColorDownscaleFactor(InputExtent));
+	}
+
 	/** Returns the LoadAction that should be use for a given render target. */
 	ERenderTargetLoadAction GetLoadActionForRenderTarget(const FSceneRenderTargetItem& DestRenderTarget) const;
 
@@ -356,6 +381,12 @@ struct FRenderingCompositePass
 		const FRDGTextureDesc& TextureDesc,
 		const TCHAR* TextureName);
 
+	/** Finds an allocated output texture if one exists. Otherwise, returns null */
+	FRDGTextureRef FindRDGTextureForOutput(
+		FRDGBuilder& GraphBuilder,
+		EPassOutputId OutputId,
+		const TCHAR* TextureName);
+
 	/**
 	 * Registers a RDG texture to be extracted to the assigned output during graph execution.
 	 */
@@ -435,6 +466,16 @@ struct FRenderingCompositeOutputRef
 	FRHIComputeFence* GetComputePassEndFence() const
 	{
 		return IsValid() ? Source->GetComputePassEndFence() : nullptr;
+	}
+
+	bool operator==(const FRenderingCompositeOutputRef& Other) const
+	{
+		return Source == Other.Source && PassOutputId == Other.PassOutputId;
+	}
+
+	bool operator!=(const FRenderingCompositeOutputRef& Other) const
+	{
+		return !(*this == Other);
 	}
 
 private:

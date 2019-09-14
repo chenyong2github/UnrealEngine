@@ -4,13 +4,19 @@
 	PostProcessHistogramCommon.usf: PostProcessing histogram shared functions and structures.
 =============================================================================*/
 
-// [0] .x:ExposureLowPercent/100, .y:EyeAdaptationHighPercent/100, .z:EyeAdaptationMin, .w:EyeAdaptationMax
-// [1] .x:exp2(ExposureOffset), .y:DeltaWorldTime, .zw: EyeAdaptionSpeedUp/Down
-// [2] .x:Histogram multiply, .y:Histogram add, .z:HistogramMinIntensity w:BasicExposureFocus
-// [3] .y:Calibration Constant
-float4 EyeAdaptationParams[EYE_ADAPTATION_PARAMS_SIZE];
-
-#define AverageLuminanceScale (EyeAdaptationParams[3].y)
+float EyeAdaptation_ExposureLowPercent;
+float EyeAdaptation_ExposureHighPercent;
+float EyeAdaptation_MinAverageLuminance;
+float EyeAdaptation_MaxAverageLuminance;
+float EyeAdaptation_ExposureCompensation;
+float EyeAdaptation_DeltaWorldTime;
+float EyeAdaptation_ExposureSpeedUp;
+float EyeAdaptation_ExposureSpeedDown;
+float EyeAdaptation_HistogramScale;
+float EyeAdaptation_HistogramBias;
+float EyeAdaptation_LuminanceMin;
+float EyeAdaptation_CalibrationConstantInverse;
+float EyeAdaptation_WeightSlope;
 
 // inverse of ComputeLuminanceFromHistogramPosition
 // is executed more often than ComputeLuminanceFromHistogramPosition()
@@ -18,16 +24,16 @@ float4 EyeAdaptationParams[EYE_ADAPTATION_PARAMS_SIZE];
 // @return HistogramPosition 0..1
 float ComputeHistogramPositionFromLuminance(float Luminance)
 {
-	return log2(Luminance) * EyeAdaptationParams[2].x + EyeAdaptationParams[2].y;
+	return log2(Luminance) * EyeAdaptation_HistogramScale + EyeAdaptation_HistogramBias;
 }
 
 // inverse of ComputeHistogramPositionFromLuminance()
 // is not as often executed as ComputeHistogramPositionFromLuminance()
 // @param HistogramPosition 0..1
-// @return Lumiance
+// @return Luminance
 float ComputeLuminanceFromHistogramPosition(float HistogramPosition)
 {
-	return exp2( (HistogramPosition - EyeAdaptationParams[2].y) / EyeAdaptationParams[2].x );
+	return exp2((HistogramPosition - EyeAdaptation_HistogramBias) / EyeAdaptation_HistogramScale);
 }
 
 #define HISTOGRAM_SIZE 64
@@ -123,19 +129,17 @@ float ComputeAverageLuminaneWithoutOutlier(Texture2D HistogramTexture, float Min
 	return SumWithoutOutliers.x / max(0.0001f, SumWithoutOutliers.y);
 }
 
-// used by bloom and tonemapper VS
-// requires EyeAdaptationParams to be set
 float ComputeEyeAdaptationExposure(Texture2D HistogramTexture)
 {
 	float HistogramSum = ComputeHistogramSum(HistogramTexture);
-	return ComputeAverageLuminaneWithoutOutlier(HistogramTexture, HistogramSum * EyeAdaptationParams[0].x, HistogramSum * EyeAdaptationParams[0].y);
+	return ComputeAverageLuminaneWithoutOutlier(HistogramTexture, HistogramSum * EyeAdaptation_ExposureLowPercent, HistogramSum * EyeAdaptation_ExposureHighPercent);
 }
 
 // Computation of triangle function on normalized space
 // used in Basic EyeAdaptation in weighting the center of the screen
 // @return range of 0..1 with 1 nx = 0.5
 // @param nx in 0..1 
-// @param slope assumed possitive
+// @param slope assumed positive
 float AdaptationWeight(float nx, float slope)
 {
 	return max(1.f - 2. * slope * abs(nx - 0.5f), 0.0f);

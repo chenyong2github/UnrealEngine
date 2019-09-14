@@ -78,7 +78,11 @@ public:
 	
 	bool AsyncCopyFromTextureToTexture(FMetalTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, mtlpp::Origin sourceOrigin, mtlpp::Size sourceSize, FMetalTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, mtlpp::Origin destinationOrigin);
 	
+	bool CanAsyncCopyToBuffer(FMetalBuffer const& DestinationBuffer);
+	
 	void AsyncCopyFromBufferToBuffer(FMetalBuffer const& SourceBuffer, NSUInteger SourceOffset, FMetalBuffer const& DestinationBuffer, NSUInteger DestinationOffset, NSUInteger Size);
+	
+	FMetalBuffer AllocateTemporyBufferForCopy(FMetalBuffer const& DestinationBuffer, NSUInteger Size, NSUInteger Align);
 	
 	void AsyncGenerateMipmapsForTexture(FMetalTexture const& Texture);
 	
@@ -138,6 +142,11 @@ public:
 	FMetalSubBufferRing& GetRingBuffer(void);
 	
 	/*
+	 * Attempts to shrink the ring-buffers so we don't keep very large allocations when we don't need them.
+	 */
+	void ShrinkRingBuffers(void);
+	
+	/*
 	 * Whether the render-pass is within a parallel rendering pass.
 	 * @returns True if and only if within a parallel rendering pass, otherwise false.
 	 */
@@ -153,6 +162,7 @@ private:
 #pragma mark -
     void ConditionalSwitchToRender(void);
     void ConditionalSwitchToTessellation(void);
+	void ConditionalSwitchToSeparateTessellation(void);
     void ConditionalSwitchToCompute(void);
 	void ConditionalSwitchToBlit(void);
 	void ConditionalSwitchToAsyncBlit(void);
@@ -161,6 +171,8 @@ private:
     void PrepareToRender(uint32 PrimType);
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
     void PrepareToTessellate(uint32 PrimType);
+	void PrepareToStreamOut(uint32 PrimType);
+	void PrepareToSeparateTessellate(uint32 PrimType);
 #endif
     void PrepareToDispatch(void);
 	void PrepareToAsyncDispatch(void);
@@ -168,6 +180,8 @@ private:
     void CommitRenderResourceTables(void);
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
     void CommitTessellationResourceTables(void);
+	void CommitStreamOutResourceTables(void);
+	void CommitSeparateTessellationResourceTables(void);
 #endif
     void CommitDispatchResourceTables(void);
 	void CommitAsyncDispatchResourceTables(void);

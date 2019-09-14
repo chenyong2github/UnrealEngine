@@ -77,6 +77,12 @@
 #include "ActorGroupingUtils.h"
 #include "EditorWorldExtension.h"
 #include "VREditorMode.h"
+#include "Engine/VolumeTexture.h"
+#include "Materials/MaterialExpressionDivide.h"
+#include "Materials/MaterialExpressionSubtract.h"
+#include "Materials/MaterialExpressionTransformPosition.h"
+#include "Materials/MaterialExpressionCustom.h"
+#include "Materials/MaterialExpressionWorldPosition.h"
 
 DEFINE_LOG_CATEGORY(LogEditorViewport);
 
@@ -411,6 +417,79 @@ static bool TryAndCreateMaterialInput( UMaterial* UnrealMaterial, EMaterialKind:
 	UnrealTextureExpression->AutoSetSampleType();
 	UnrealTextureExpression->MaterialExpressionEditorX += X;
 	UnrealTextureExpression->MaterialExpressionEditorY += Y;
+
+	if ( UnrealTexture->IsA<UVolumeTexture>() )
+	{
+		// If it's a volume texture, build an expression which computes UVW coordinates from bounds-relative pixel position.
+		UMaterialExpressionDivide* DivideExpression = NewObject<UMaterialExpressionDivide>(UnrealMaterial);
+		UMaterialExpressionSubtract* BoundsRelativePosExpression = NewObject<UMaterialExpressionSubtract>(UnrealMaterial);
+		UMaterialExpressionSubtract* BoundsSizeExpression = NewObject<UMaterialExpressionSubtract>(UnrealMaterial);
+		UMaterialExpressionCustom* LocalBoundsMinExpression = NewObject<UMaterialExpressionCustom>(UnrealMaterial);
+		UMaterialExpressionCustom* LocalBoundsMaxExpression = NewObject<UMaterialExpressionCustom>(UnrealMaterial);
+		UMaterialExpressionTransformPosition* TransformPositionExpression = NewObject<UMaterialExpressionTransformPosition>(UnrealMaterial);
+		UMaterialExpressionWorldPosition* WorldPosExpression = NewObject<UMaterialExpressionWorldPosition>(UnrealMaterial);
+
+		UnrealMaterial->Expressions.Add( DivideExpression );
+		UnrealMaterial->Expressions.Add( BoundsRelativePosExpression );
+		UnrealMaterial->Expressions.Add( BoundsSizeExpression );
+		UnrealMaterial->Expressions.Add( LocalBoundsMinExpression );
+		UnrealMaterial->Expressions.Add( LocalBoundsMaxExpression );
+		UnrealMaterial->Expressions.Add( TransformPositionExpression );
+		UnrealMaterial->Expressions.Add( WorldPosExpression );
+
+		int32 EditorPosX = UnrealTextureExpression->MaterialExpressionEditorX;
+		int32 EditorPosY = UnrealTextureExpression->MaterialExpressionEditorY;
+
+		UnrealTextureExpression->Coordinates.Expression = DivideExpression;
+
+		EditorPosX -= 150;
+
+		DivideExpression->A.Expression = BoundsRelativePosExpression;
+		DivideExpression->B.Expression = BoundsSizeExpression;
+		DivideExpression->MaterialExpressionEditorX = EditorPosX;
+		DivideExpression->MaterialExpressionEditorY = EditorPosY;
+
+		EditorPosX -= 150;
+
+		BoundsRelativePosExpression->A.Expression = TransformPositionExpression;
+		BoundsRelativePosExpression->B.Expression = LocalBoundsMinExpression;
+		BoundsRelativePosExpression->MaterialExpressionEditorX = EditorPosX;
+		BoundsRelativePosExpression->MaterialExpressionEditorY = EditorPosY;
+
+		BoundsSizeExpression->A.Expression = LocalBoundsMaxExpression;
+		BoundsSizeExpression->B.Expression = LocalBoundsMinExpression;
+		BoundsSizeExpression->MaterialExpressionEditorX = EditorPosX;
+		BoundsSizeExpression->MaterialExpressionEditorY = EditorPosY + 100;
+
+		EditorPosX -= 300;
+
+		TransformPositionExpression->Input.Expression = WorldPosExpression;
+		TransformPositionExpression->TransformSourceType = TRANSFORMPOSSOURCE_World;
+		TransformPositionExpression->TransformType = TRANSFORMPOSSOURCE_Local;
+		TransformPositionExpression->MaterialExpressionEditorX = EditorPosX;
+		TransformPositionExpression->MaterialExpressionEditorY = EditorPosY;
+
+		// There's an ObjectLocalBounds node, but it's a compound node which uses two custom expressions inside to get the
+		// min and max, and it's too much of a hassle to create that from a uasset and then query its outputs by name. Instead,
+		// we'll just use the same custom expressions directly.
+		LocalBoundsMinExpression->Code = TEXT("GetPrimitiveData(Parameters.PrimitiveId).LocalObjectBoundsMin.xyz");
+		LocalBoundsMinExpression->OutputType = CMOT_Float3;
+		LocalBoundsMinExpression->Description = TEXT("Local Bounds Min");
+		LocalBoundsMinExpression->MaterialExpressionEditorX = EditorPosX;
+		LocalBoundsMinExpression->MaterialExpressionEditorY = EditorPosY + 100;
+
+		LocalBoundsMaxExpression->Code = TEXT("GetPrimitiveData(Parameters.PrimitiveId).LocalObjectBoundsMax.xyz");
+		LocalBoundsMaxExpression->OutputType = CMOT_Float3;
+		LocalBoundsMaxExpression->Description = TEXT("Local Bounds Max");
+		LocalBoundsMaxExpression->MaterialExpressionEditorX = EditorPosX;
+		LocalBoundsMaxExpression->MaterialExpressionEditorY = EditorPosY + 300;
+
+		EditorPosX -= 250;
+
+		WorldPosExpression->WorldPositionShaderOffset = WPT_Default;
+		WorldPosExpression->MaterialExpressionEditorX = EditorPosX;
+		WorldPosExpression->MaterialExpressionEditorY = EditorPosY;
+	}
 
 	// If we know for a fact this is a normal map, it can only legally be placed in the normal map slot.
 	// Ignore the Material kind for, but for everything else try and match it to the right slot, fallback

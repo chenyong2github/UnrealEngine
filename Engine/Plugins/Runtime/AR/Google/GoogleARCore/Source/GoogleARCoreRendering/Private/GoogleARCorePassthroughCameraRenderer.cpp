@@ -12,6 +12,7 @@
 #include "SceneUtils.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "PostProcess/SceneFilterRendering.h"
+#include "PostProcess/PostProcessMaterial.h"
 #include "PostProcessParameters.h"
 #include "MaterialShader.h"
 #include "MaterialShaderType.h"
@@ -142,11 +143,11 @@ void FGoogleARCorePassthroughCameraRenderer::UpdateOverlayUVCoordinate_RenderThr
 	OverlayVertexBufferRHI = RHICreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfo);
 }
 
-// We use something similar to the PostProcessMaterial to render the color camera overlay.
-class FGoogleARCoreCameraOverlayVS : public FMaterialShader
+class FPostProcessMaterialShader : public FMaterialShader
 {
-	DECLARE_SHADER_TYPE(FGoogleARCoreCameraOverlayVS, Material);
 public:
+	using FParameters = FPostProcessMaterialParameters;
+	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FPostProcessMaterialShader, FMaterialShader);
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
@@ -156,96 +157,62 @@ public:
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FMaterialShader::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
-
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
+		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_MOBILE"), 1);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
+	}
+};
+
+// We use something similar to the PostProcessMaterial to render the color camera overlay.
+class FGoogleARCoreCameraOverlayVS : public FPostProcessMaterialShader
+{
+public:
+	DECLARE_MATERIAL_SHADER(FGoogleARCoreCameraOverlayVS);
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FPostProcessMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_AR_PASSTHROUGH"), 1);
 	}
 
-	FGoogleARCoreCameraOverlayVS( )	{ }
+	FGoogleARCoreCameraOverlayVS() = default;
 	FGoogleARCoreCameraOverlayVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FMaterialShader(Initializer)
-	{
-	}
+		: FPostProcessMaterialShader(Initializer)
+	{}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView View)
 	{
 		FRHIVertexShader* ShaderRHI = GetVertexShader();
 		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
 	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMaterialShader::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
-	}
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(,FGoogleARCoreCameraOverlayVS,TEXT("/Engine/Private/PostProcessMaterialShaders.usf"),TEXT("MainVS_ES2"),SF_Vertex);
+IMPLEMENT_MATERIAL_SHADER(FGoogleARCoreCameraOverlayVS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainVS", SF_Vertex);
 
-class FGoogleARCoreCameraOverlayPS : public FMaterialShader
+class FGoogleARCoreCameraOverlayPS : public FPostProcessMaterialShader
 {
-	DECLARE_SHADER_TYPE(FGoogleARCoreCameraOverlayPS, Material);
 public:
-
-	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
-	{
-		return Parameters.Material->GetMaterialDomain() == MD_PostProcess && IsMobilePlatform(Parameters.Platform);
-	}
+	DECLARE_MATERIAL_SHADER(FGoogleARCoreCameraOverlayPS);
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FMaterialShader::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
-
-		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
+		FPostProcessMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("OUTPUT_GAMMA_SPACE"), IsMobileHDR() ? 0 : 1);
-		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
 	}
 
-	FGoogleARCoreCameraOverlayPS() {}
-	FGoogleARCoreCameraOverlayPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FMaterialShader(Initializer)
-	{
-		for (uint32 InputIter = 0; InputIter < ePId_Input_MAX; ++InputIter)
-		{
-			PostprocessInputParameter[InputIter].Bind(Initializer.ParameterMap, *FString::Printf(TEXT("PostprocessInput%d"), InputIter));
-			PostprocessInputParameterSampler[InputIter].Bind(Initializer.ParameterMap, *FString::Printf(TEXT("PostprocessInput%dSampler"), InputIter));
-		}
-	}
+	FGoogleARCoreCameraOverlayPS() = default;
+	FGoogleARCoreCameraOverlayPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FPostProcessMaterialShader(Initializer)
+	{}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView View, const FMaterialRenderProxy* Material)
 	{
 		FRHIPixelShader* ShaderRHI = GetPixelShader();
-
 		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, Material, *Material->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::None);
-
-		for (uint32 InputIter = 0; InputIter < ePId_Input_MAX; ++InputIter)
-		{
-			if (PostprocessInputParameter[InputIter].IsBound())
-			{
-				SetTextureParameter(
-					RHICmdList,
-					ShaderRHI,
-					PostprocessInputParameter[InputIter],
-					PostprocessInputParameterSampler[InputIter],
-					TStaticSamplerState<>::GetRHI(),
-					GBlackTexture->TextureRHI);
-			}
-		}
 	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMaterialShader::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
-	}
-
-private:
-	FShaderResourceParameter PostprocessInputParameter[ePId_Input_MAX];
-	FShaderResourceParameter PostprocessInputParameterSampler[ePId_Input_MAX];
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(,FGoogleARCoreCameraOverlayPS,TEXT("/Engine/Private/PostProcessMaterialShaders.usf"),TEXT("MainPS_ES2"),SF_Pixel);
+IMPLEMENT_MATERIAL_SHADER(FGoogleARCoreCameraOverlayPS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainPS", SF_Pixel);
 
 void FGoogleARCorePassthroughCameraRenderer::RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
 {

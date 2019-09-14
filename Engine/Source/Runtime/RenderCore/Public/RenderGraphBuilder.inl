@@ -2,13 +2,17 @@
 
 #pragma once
 
-inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture, const TCHAR* Name)
+inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
+	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+	const TCHAR* Name,
+	ERDGResourceFlags Flags)
 {
 #if RDG_ENABLE_DEBUG
 	{
 		checkf(ExternalPooledTexture.IsValid(), TEXT("Attempted to register NULL external texture: %s"), Name);
 		Validation.ExecuteGuard(TEXT("RegisterExternalTexture"), Name);
 		checkf(Name, TEXT("Externally allocated texture requires a debug name when registering them to render graph."));
+		Validation.ExecuteGuard(TEXT("RegisterExternalTexture"), Name);
 	}
 #endif
 
@@ -17,19 +21,22 @@ inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(const TRefCountPtr<IP
 		return *Texture;
 	}
 
-	FRDGTexture* OutTexture = AllocateForRHILifeTime<FRDGTexture>(Name, ExternalPooledTexture->GetDesc(), ERDGResourceFlags::None);
+	FRDGTexture* OutTexture = AllocateForRHILifeTime<FRDGTexture>(Name, ExternalPooledTexture->GetDesc(), Flags);
 	OutTexture->PooledRenderTarget = ExternalPooledTexture;
 	OutTexture->ResourceRHI = ExternalPooledTexture->GetRenderTargetItem().ShaderResourceTexture;
 	AllocatedTextures.Add(OutTexture, ExternalPooledTexture);
 
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalResource(OutTexture));
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalTexture(OutTexture));
 
 	ExternalTextures.Add(ExternalPooledTexture.GetReference(), OutTexture);
 
 	return OutTexture;
 }
 
-inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer, const TCHAR* Name)
+inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
+	const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer,
+	const TCHAR* Name,
+	ERDGResourceFlags Flags)
 {
 #if RDG_ENABLE_DEBUG
 	{
@@ -43,11 +50,11 @@ inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FPoo
 		return *Buffer;
 	}
 
-	FRDGBuffer* OutBuffer = AllocateForRHILifeTime<FRDGBuffer>(Name, ExternalPooledBuffer->Desc, ERDGResourceFlags::None);
+	FRDGBuffer* OutBuffer = AllocateForRHILifeTime<FRDGBuffer>(Name, ExternalPooledBuffer->Desc, Flags);
 	OutBuffer->PooledBuffer = ExternalPooledBuffer;
 	AllocatedBuffers.Add(OutBuffer, ExternalPooledBuffer);
 
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalResource(OutBuffer));
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalBuffer(OutBuffer));
 
 	ExternalBuffers.Add(ExternalPooledBuffer.GetReference(), OutBuffer);
 
@@ -63,7 +70,12 @@ inline FRDGTextureRef FRDGBuilder::CreateTexture(
 	{
 		checkf(Name, TEXT("Creating a render graph texture requires a valid debug name."));
 		Validation.ExecuteGuard(TEXT("CreateTexture"), Name);
+
+		// Validate the pixel format.
 		checkf(Desc.Format != PF_Unknown, TEXT("Illegal to create texture %s with an invalid pixel format."), Name);
+		checkf(Desc.Format < PF_MAX, TEXT("Illegal to create texture %s with invalid FPooledRenderTargetDesc::Format."), Name);
+		checkf(GPixelFormats[Desc.Format].Supported, TEXT("Failed to create texture %s with pixel format %s because it is not supported."),
+			Name, GPixelFormats[Desc.Format].Name);
 
 		const bool bCanHaveUAV = Desc.TargetableFlags & TexCreate_UAV;
 		const bool bIsMSAA = Desc.NumSamples > 1;
@@ -76,7 +88,7 @@ inline FRDGTextureRef FRDGBuilder::CreateTexture(
 
 	FRDGTexture* Texture = AllocateForRHILifeTime<FRDGTexture>(Name, Desc, Flags);
 
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateResource(Texture));
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateTexture(Texture));
 
 	return Texture;
 }
@@ -90,12 +102,19 @@ inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 	{
 		checkf(Name, TEXT("Creating a render graph buffer requires a valid debug name."));
 		Validation.ExecuteGuard(TEXT("CreateBuffer"), Name);
+
+		const bool bIsByteAddress = (Desc.Usage & BUF_ByteAddressBuffer) == BUF_ByteAddressBuffer;
+
+		if (bIsByteAddress && Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
+		{
+			checkf(Desc.BytesPerElement == 4, TEXT("Creating buffer '%s' as a structured buffer that is also byte addressable, BytesPerElement must be 4! Instead it is %d"), Name, Desc.BytesPerElement);
+		}
 	}
 #endif
 
 	FRDGBufferRef Buffer = AllocateForRHILifeTime<FRDGBuffer>(Name, Desc, Flags);
 
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateResource(Buffer));
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateBuffer(Buffer));
 
 	return Buffer;
 }
@@ -108,7 +127,33 @@ inline FRDGTextureSRVRef FRDGBuilder::CreateSRV(const FRDGTextureSRVDesc& Desc)
 	{
 		checkf(Texture, TEXT("RenderGraph texture SRV created with a null texture."));
 		Validation.ExecuteGuard(TEXT("CreateSRV"), Texture->Name);
-		checkf(Desc.Texture->Desc.TargetableFlags & TexCreate_ShaderResource, TEXT("Attempted to create SRV from texture %s which was not created with TexCreate_ShaderResource"), Desc.Texture->Name);
+		checkf(Texture->Desc.TargetableFlags & TexCreate_ShaderResource, TEXT("Attempted to create SRV from texture %s which was not created with TexCreate_ShaderResource"), Desc.Texture->Name);
+		
+		// Validate the pixel format if overridden by the SRV's descriptor.
+		if (Desc.Format == PF_X24_G8)
+		{
+			// PF_X24_G8 is a bit of mess in the RHI, used to read the stencil, but have varying BlockBytes.
+			checkf(Texture->Desc.Format == PF_DepthStencil, TEXT("PF_X24_G8 is only to read stencil from a PF_DepthStencil texture"));
+		}
+		else if (Desc.Format != PF_Unknown)
+		{
+			checkf(Desc.Format < PF_MAX, TEXT("Illegal to create SRV for texture %s with invalid FPooledRenderTargetDesc::Format."), Texture->Name);
+			checkf(GPixelFormats[Desc.Format].Supported, TEXT("Failed to create SRV for texture %s with pixel format %s because it is not supported."),
+				Texture->Name, GPixelFormats[Desc.Format].Name);
+
+			EPixelFormat ResourcePixelFormat = Texture->Desc.Format;
+
+			checkf(
+				GPixelFormats[Desc.Format].BlockBytes == GPixelFormats[ResourcePixelFormat].BlockBytes &&
+				GPixelFormats[Desc.Format].BlockSizeX == GPixelFormats[ResourcePixelFormat].BlockSizeX &&
+				GPixelFormats[Desc.Format].BlockSizeY == GPixelFormats[ResourcePixelFormat].BlockSizeY &&
+				GPixelFormats[Desc.Format].BlockSizeZ == GPixelFormats[ResourcePixelFormat].BlockSizeZ,
+				TEXT("Failed to create SRV for texture %s with pixel format %s because it does not match the byte size of the texture's pixel format %s."),
+				Texture->Name, GPixelFormats[Desc.Format].Name, GPixelFormats[ResourcePixelFormat].Name);
+		}
+
+		checkf((Desc.MipLevel + Desc.NumMipLevels) <= Texture->Desc.NumMips, TEXT("Failed to create SRV at mips %d-%d: the texture %s has only %d mip levels."),
+			Desc.MipLevel, (Desc.MipLevel + Desc.NumMipLevels), Texture->Name, Texture->Desc.NumMips);
 	}
 #endif
 
@@ -138,6 +183,7 @@ inline FRDGTextureUAVRef FRDGBuilder::CreateUAV(const FRDGTextureUAVDesc& Desc)
 		checkf(Texture, TEXT("RenderGraph texture UAV created with a null texture."));
 		Validation.ExecuteGuard(TEXT("CreateUAV"), Texture->Name);
 		checkf(Texture->Desc.TargetableFlags & TexCreate_UAV, TEXT("Attempted to create UAV from texture %s which was not created with TexCreate_UAV"), Texture->Name);
+		checkf(Desc.MipLevel < Texture->Desc.NumMips, TEXT("Failed to create UAV at mip %d: the texture %s has only %d mip levels."), Desc.MipLevel, Texture->Name, Texture->Desc.NumMips);
 	}
 #endif
 
@@ -205,7 +251,7 @@ inline void FRDGBuilder::QueueTextureExtraction(
 	DeferredInternalTextureQueries.Emplace(Query);
 }
 
-inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FPooledRDGBuffer>* OutBufferPtr)
+inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FPooledRDGBuffer>* OutBufferPtr, FRDGResourceState::EAccess DestinationAccess, FRDGResourceState::EPipeline DestinationPipeline)
 {
 	IF_RDG_ENABLE_DEBUG(Validation.ValidateExtractResource(Buffer));
 
@@ -214,6 +260,8 @@ inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPt
 	FDeferredInternalBufferQuery Query;
 	Query.Buffer = Buffer;
 	Query.OutBufferPtr = OutBufferPtr;
+	Query.DestinationAccess = DestinationAccess;
+	Query.DestinationPipeline = DestinationPipeline;
 	DeferredInternalBufferQueries.Emplace(Query);
 }
 

@@ -24,7 +24,11 @@ public class VulkanShaderFormat : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "HLSLCC");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "GlsLang");
 
-		if (Target.Platform != UnrealTargetPlatform.Win64 && Target.Platform != UnrealTargetPlatform.Win32 && Target.Platform != UnrealTargetPlatform.Android && Target.Platform != UnrealTargetPlatform.Linux && Target.Platform != UnrealTargetPlatform.Mac)
+		if (Target.Platform != UnrealTargetPlatform.Win64 &&
+			Target.Platform != UnrealTargetPlatform.Win32 &&
+			Target.Platform != UnrealTargetPlatform.Android &&
+			!Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) &&
+			Target.Platform != UnrealTargetPlatform.Mac)
 		{
 			PrecompileForTargets = PrecompileTargetsType.None;
 		}

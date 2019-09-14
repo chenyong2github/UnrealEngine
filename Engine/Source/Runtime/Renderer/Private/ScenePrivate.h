@@ -46,6 +46,7 @@
 #include "LightMapDensityRendering.h"
 #include "VolumetricFogShared.h"
 #include "DebugViewModeRendering.h"
+#include "PrecomputedVolumetricLightmap.h"
 #if RHI_RAYTRACING
 #include "RayTracing/RayTracingIESLightProfiles.h"
 #include "Halton.h"
@@ -844,8 +845,15 @@ public:
 
 	// counts up by one each frame, warped in 0..7 range, ResetViewState() puts it back to 0
 	uint32 FrameIndex;
-
-	// Previous frame's view info to use.
+	
+	/** Informations of to persist for the next frame's FViewInfo::PrevViewInfo.
+	 *
+	 * Under normal use case (temporal histories are not frozen), this gets cleared after setting FViewInfo::PrevViewInfo
+	 * after being copied to FViewInfo::PrevViewInfo. New temporal histories get directly written to it.
+	 *
+	 * When temporal histories are frozen (pause command, or r.Test.FreezeTemporalHistories), this keeps it's values, and the currently
+	 * rendering FViewInfo should not update it. Refer to FViewInfo::bStatePrevViewInfoIsReadOnly.
+	 */
 	FPreviousViewInfo PrevFrameViewInfo;
 
 	FHeightfieldLightingAtlas* HeightfieldLightingAtlas;
@@ -863,6 +871,9 @@ public:
 	TRefCountPtr<IPooledRenderTarget> MobileAaBloomSunVignette1;
 	TRefCountPtr<IPooledRenderTarget> MobileAaColor0;
 	TRefCountPtr<IPooledRenderTarget> MobileAaColor1;
+
+	// Burley Subsurface scattering variance texture from the last frame.
+	TRefCountPtr<IPooledRenderTarget> SubsurfaceScatteringQualityHistoryRT;
 
 	// Pre-computed filter in spectral (i.e. FFT) domain along with data to determine if we need to up date it
 	struct {
@@ -1194,7 +1205,7 @@ public:
 	}
 
 	// Returns a reference to the render target used for the LUT.  Allocated on the first request.
-	FSceneRenderTargetItem& GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput)
+	IPooledRenderTarget* GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput)
 	{
 		if (CombinedLUTRenderTarget.IsValid() == false || 
 			CombinedLUTRenderTarget->GetDesc().Extent.Y != LUTSize ||
@@ -1207,11 +1218,11 @@ public:
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, CombinedLUTRenderTarget, Desc.DebugName);
 		}
 
-		FSceneRenderTargetItem& RenderTarget = CombinedLUTRenderTarget.GetReference()->GetRenderTargetItem();
-		return RenderTarget;
+		return CombinedLUTRenderTarget.GetReference();
 	}
 
-	const FTextureRHIRef* GetTonemappingLUTTexture() const {
+	const FTextureRHIRef* GetTonemappingLUTTexture() const
+	{
 		const FTextureRHIRef* ShaderResourceTexture = NULL;
 
 		if (CombinedLUTRenderTarget.IsValid()) {
@@ -1556,17 +1567,21 @@ class FVolumetricLightmapSceneData
 {
 public:
 
+	FVolumetricLightmapSceneData() { GlobalVolumetricLightmap.Data = &GlobalVolumetricLightmapData; }
 	bool HasData() const { return LevelVolumetricLightmaps.Num() > 0; }
-	void AddLevelVolume(const class FPrecomputedVolumetricLightmap* InVolume, EShadingPath ShadingPath);
+	void AddLevelVolume(const class FPrecomputedVolumetricLightmap* InVolume, EShadingPath ShadingPath, bool bIsPersistentLevel);
 	void RemoveLevelVolume(const class FPrecomputedVolumetricLightmap* InVolume);
 	const FPrecomputedVolumetricLightmap* GetLevelVolumetricLightmap() const 
 	{ 
-		return LevelVolumetricLightmaps.Num() > 0 ? LevelVolumetricLightmaps.Last() : NULL; 
+		return &GlobalVolumetricLightmap;
 	}
 
 	TMap<FVector, FVolumetricLightmapInterpolation> CPUInterpolationCache;
 
+	FPrecomputedVolumetricLightmapData GlobalVolumetricLightmapData;
 private:
+	FPrecomputedVolumetricLightmap GlobalVolumetricLightmap;
+	const FPrecomputedVolumetricLightmap* PersistentLevelVolumetricLightmap = nullptr;
 	TArray<const FPrecomputedVolumetricLightmap*> LevelVolumetricLightmaps;
 };
 
@@ -2650,6 +2665,7 @@ public:
 	virtual void AddPrimitive(UPrimitiveComponent* Primitive) override;
 	virtual void RemovePrimitive(UPrimitiveComponent* Primitive) override;
 	virtual void ReleasePrimitive(UPrimitiveComponent* Primitive) override;
+	virtual void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList) override;
 	virtual void UpdatePrimitiveTransform(UPrimitiveComponent* Primitive) override;
 	virtual void UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive) override;
 	virtual void UpdateCustomPrimitiveData(UPrimitiveComponent* Primitive) override;
@@ -2684,7 +2700,7 @@ public:
 	virtual void AddPrecomputedLightVolume(const class FPrecomputedLightVolume* Volume) override;
 	virtual void RemovePrecomputedLightVolume(const class FPrecomputedLightVolume* Volume) override;
 	virtual bool HasPrecomputedVolumetricLightmap_RenderThread() const override;
-	virtual void AddPrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume) override;
+	virtual void AddPrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume, bool bIsPersistentLevel) override;
 	virtual void RemovePrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume) override;
 	virtual void AddRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) override;
 	virtual void RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) override;
@@ -2900,7 +2916,7 @@ private:
 	/**
 	 * Ensures the packed primitive arrays contain the same number of elements.
 	 */
-	void CheckPrimitiveArrays();
+	void CheckPrimitiveArrays(int MaxTypeOffsetIndex = -1);
 
 	/**
 	 * Retrieves the lights interacting with the passed in primitive and adds them to the out array.
@@ -2914,7 +2930,7 @@ private:
 	 * Adds a primitive to the scene.  Called in the rendering thread by AddPrimitive.
 	 * @param PrimitiveSceneInfo - The primitive being added.
 	 */
-	void AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmdList, FPrimitiveSceneInfo* PrimitiveSceneInfo);
+	void AddPrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* PrimitiveSceneInfo, const TOptional<FTransform>& PreviousTransform);
 
 	/**
 	 * Removes a primitive from the scene.  Called in the rendering thread by RemovePrimitive.
@@ -2923,7 +2939,7 @@ private:
 	void RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* PrimitiveSceneInfo);
 
 	/** Updates a primitive's transform, called on the rendering thread. */
-	void UpdatePrimitiveTransform_RenderThread(FRHICommandListImmediate& RHICmdList, FPrimitiveSceneProxy* PrimitiveSceneProxy, const FBoxSphereBounds& WorldBounds, const FBoxSphereBounds& LocalBounds, const FMatrix& LocalToWorld, const FVector& OwnerPosition);
+	void UpdatePrimitiveTransform_RenderThread(FPrimitiveSceneProxy* PrimitiveSceneProxy, const FBoxSphereBounds& WorldBounds, const FBoxSphereBounds& LocalBounds, const FMatrix& LocalToWorld, const FVector& OwnerPosition, const TOptional<FTransform>& PreviousTransform);
 
 	/** Updates a single primitive's lighting attachment root. */
 	void UpdatePrimitiveLightingAttachmentRoot(UPrimitiveComponent* Primitive);
@@ -2996,6 +3012,22 @@ private:
 	void ProcessAtmosphereLightAddition_RenderThread(FLightSceneInfo* LightSceneInfo);
 
 private:
+	struct FUpdateTransformCommand
+	{
+		FBoxSphereBounds WorldBounds;
+		FBoxSphereBounds LocalBounds; 
+		FMatrix LocalToWorld; 
+		FVector AttachmentRootPosition;
+	};
+
+	TMap<FPrimitiveSceneInfo*, FPrimitiveComponentId> UpdatedAttachmentRoots;
+	TMap<FPrimitiveSceneProxy*, FCustomPrimitiveData> UpdatedCustomPrimitiveParams;
+	TMap<FPrimitiveSceneProxy*, FUpdateTransformCommand> UpdatedTransforms;
+	TMap<FPrimitiveSceneInfo*, FMatrix> OverridenPreviousTransforms;
+	TSet<FPrimitiveSceneInfo*> AddedPrimitiveSceneInfos;
+	TSet<FPrimitiveSceneInfo*> RemovedPrimitiveSceneInfos;
+	TSet<FPrimitiveSceneInfo*> DistanceFieldSceneDataUpdates;
+
 	/** 
 	 * The number of visible lights in the scene
 	 * Note: This is tracked on the game thread!

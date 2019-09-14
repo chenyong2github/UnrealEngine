@@ -89,6 +89,17 @@ struct CORE_API FRenderingObjectVersion
 
 		SkyAtmosphereStaticLightingVersioning,
 
+		// UTextureRenderTarget2D now explicitly allows users to create sRGB or non-sRGB type targets
+		ExplicitSRGBSetting,
+
+		VolumetricLightmapStreaming,
+
+		//ShaderModel4 support removed from engine
+		RemovedSM4,
+
+		// Deterministic ShaderMapID serialization
+		MaterialShaderMapIdSerialization,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -15,18 +15,20 @@
 // ---------------------------------------------------
 
 // Texture0 is the neutral one and is computed in the shader
-Texture2D Texture1;
-SamplerState Texture1Sampler;
-Texture2D Texture2;
-SamplerState Texture2Sampler;
-Texture2D Texture3;
-SamplerState Texture3Sampler;
-Texture2D Texture4;
-SamplerState Texture4Sampler;
-// 0 is for neutral, 1 for Texture1, 2 for ...
+Texture2D Textures_1;
+SamplerState Samplers_1;
+Texture2D Textures_2;
+SamplerState Samplers_2;
+Texture2D Textures_3;
+SamplerState Samplers_3;
+Texture2D Textures_4;
+SamplerState Samplers_4;
+// 0 is for neutral, 1 for Textures_1, 2 for ...
 float LUTWeights[5];
 half3 ColorScale;
 half4 OverlayColor;
+
+uint bUseMobileTonemapper;
 
 static const float LUTSize = 32;
 
@@ -269,7 +271,7 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	float3 ColorAP1 = mul( sRGB_2_AP1, BalancedColor );
 
 	// Expand bright saturated colors outside the sRGB gamut to fake wide gamut rendering.
-	if( ColorShadow_Tint2.a != 0 )
+	if (!bUseMobileTonemapper)
 	{
 		float  LumaAP1 = dot( ColorAP1, AP1_RGB2Y );
 		float3 ChromaAP1 = ColorAP1 / LumaAP1;
@@ -331,10 +333,10 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 
 #if FEATURE_LEVEL > FEATURE_LEVEL_ES3_1 // Mobile path uses separate shader for legacy tone mapper
 	BRANCH
-	if( ColorShadow_Tint2.a == 0 )
+	if (bUseMobileTonemapper)
 	{
 		// Legacy tone mapper
-		FilmColor = FilmPostProcess( GradedColor );
+		FilmColor = FilmPostProcess(GradedColor);
 	}
 #endif // FEATURE_LEVEL > FEATURE_LEVEL_ES3_1
 
@@ -353,19 +355,19 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 
 		// BLENDCOUNT is the number of LUT that are blended together including the neutral one
 	#if BLENDCOUNT >= 2
-		GammaColor += LUTWeights[1] * UnwrappedTexture3DSample( Texture1, Texture1Sampler, UVW, 16 ).rgb;
+		GammaColor += LUTWeights[1] * UnwrappedTexture3DSample( Textures_1, Samplers_1, UVW, 16 ).rgb;
 	#endif
 
 	#if BLENDCOUNT >= 3
-		GammaColor += LUTWeights[2] * UnwrappedTexture3DSample( Texture2, Texture2Sampler, UVW, 16 ).rgb;
+		GammaColor += LUTWeights[2] * UnwrappedTexture3DSample( Textures_2, Samplers_2, UVW, 16 ).rgb;
 	#endif
 
 	#if BLENDCOUNT >= 4
-		GammaColor += LUTWeights[3] * UnwrappedTexture3DSample( Texture3, Texture3Sampler, UVW, 16 ).rgb;
+		GammaColor += LUTWeights[3] * UnwrappedTexture3DSample( Textures_3, Samplers_3, UVW, 16 ).rgb;
 	#endif
 
 	#if BLENDCOUNT >= 5
-		GammaColor += LUTWeights[4] * UnwrappedTexture3DSample( Texture4, Texture4Sampler, UVW, 16 ).rgb;
+		GammaColor += LUTWeights[4] * UnwrappedTexture3DSample( Textures_4, Samplers_4, UVW, 16 ).rgb;
 	#endif
 
 		// Back to linear space, AP1 gamut
@@ -481,35 +483,35 @@ void MainPS(noperspective float4 InUV : TEXCOORD0, out float4 OutColor : SV_Targ
 
 #if COMPUTESHADER
 // xy: Unused, zw: ThreadToUVScale
-float4 CombineLUTsComputeParams;
+float2 OutputExtentInverse;
 
 #if USE_VOLUME_LUT == 1
-RWTexture3D<float4> RWOutComputeTex;
+RWTexture3D<float4> RWOutputTexture;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID) 
 {
-	float2 UV = ((float2)DispatchThreadId.xy + 0.5f) * CombineLUTsComputeParams.zw;
+	float2 UV = ((float2)DispatchThreadId.xy + 0.5f) * OutputExtentInverse;
 	uint LayerIndex = DispatchThreadId.z;
 	
 	float4 OutColor = CombineLUTsCommon(UV, LayerIndex);
 
 	uint3 PixelPos = DispatchThreadId;
-	RWOutComputeTex[PixelPos] = OutColor;
+	RWOutputTexture[PixelPos] = OutColor;
 }
 #else
-RWTexture2D<float4> RWOutComputeTex;
+RWTexture2D<float4> RWOutputTexture;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	float2 UV = ((float2)DispatchThreadId + 0.5f) * CombineLUTsComputeParams.zw;
+	float2 UV = ((float2)DispatchThreadId + 0.5f) * OutputExtentInverse;
 	uint LayerIndex = 0;
 	
 	float4 OutColor = CombineLUTsCommon(UV, LayerIndex);
 
 	uint2 PixelPos = DispatchThreadId;
-	RWOutComputeTex[PixelPos] = OutColor;
+	RWOutputTexture[PixelPos] = OutColor;
 }
 #endif
 #endif

@@ -43,7 +43,6 @@ namespace UnrealBuildTool.Rules
 					"Renderer",
 					"RenderCore",
                     "HeadMountedDisplay",
-                    "UtilityShaders",
                     "Slate",
                     "SlateCore",
                     "OpenGLDrv",

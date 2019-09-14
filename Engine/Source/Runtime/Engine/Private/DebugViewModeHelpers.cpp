@@ -19,7 +19,7 @@
 static bool PlatformSupportsDebugViewShaders(EShaderPlatform Platform)
 {
 	// List of platforms that have been tested and proved functional.
-	return Platform == SP_PCD3D_SM4 || Platform == SP_PCD3D_SM5 || Platform == SP_OPENGL_SM4 || Platform == SP_METAL_SM5_NOTESS || Platform == SP_METAL_SM5;
+	return Platform == SP_PCD3D_SM5 || Platform == SP_OPENGL_SM4 || Platform == SP_METAL_SM5_NOTESS || Platform == SP_METAL_SM5;
 }
 
 bool AllowDebugViewVSDSHS(EShaderPlatform Platform)
@@ -62,7 +62,7 @@ bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform P
 		return false;
 	}
 #else
-	return ShaderMode == DVSM_ShaderComplexity && FeatureLevel != ERHIFeatureLevel::SM4;
+	return ShaderMode == DVSM_ShaderComplexity;
 #endif
 }
 

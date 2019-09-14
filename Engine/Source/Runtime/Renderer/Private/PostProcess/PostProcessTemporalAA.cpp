@@ -14,15 +14,15 @@
 #include "PostProcess/SceneFilterRendering.h"
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "PostProcess/PostProcessTonemap.h"
+#include "PostProcess/PostProcessMitchellNetravali.h"
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
 #include "PostProcessing.h"
-
-
 #include "RenderGraph.h"
 #include "SceneTextureParameters.h"
 #include "PixelShaderUtils.h"
 
+extern int32 GetPostProcessAAQuality();
 
 const int32 GTemporalAATileSizeX = 8;
 const int32 GTemporalAATileSizeY = 8;
@@ -57,6 +57,11 @@ static TAutoConsoleVariable<int32> CVarTemporalAAUpsampleFiltered(
 	TEXT("Use filtering to fetch color history during TamporalAA upsampling (see AA_FILTERED define in TAA shader). Disabling this makes TAAU faster, but lower quality. "),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarTemporalAAHistorySP(
+	TEXT("r.TemporalAA.HistoryScreenPercentage"),
+	100.0f,
+	TEXT("Size of temporal AA's history."),
+	ECVF_RenderThreadSafe);
 
 static float CatmullRom( float x )
 {
@@ -67,49 +72,16 @@ static float CatmullRom( float x )
 		return ( 1.5f * ax - 2.5f ) * ax*ax + 1.0f;
 }
 
+static float GetTemporalAAHistoryUpscaleFactor(const FViewInfo& View)
+{
+	// We only support history upscale on PC with feature level SM5+
+	if (!IsPCPlatform(View.GetShaderPlatform()) || !IsFeatureLevelSupported(View.GetShaderPlatform(), ERHIFeatureLevel::SM5))
+	{
+		return 1.0f;
+	}
 
-BEGIN_SHADER_PARAMETER_STRUCT(FTAAShaderParameters,)
-	SHADER_PARAMETER(FVector4, ViewportUVToInputBufferUV)
-	SHADER_PARAMETER(FVector4, MaxViewportUVAndSvPositionToViewportUV)
-	SHADER_PARAMETER(FVector2D, ScreenPosAbsMax)
-	SHADER_PARAMETER(float, HistoryPreExposureCorrection)
-	SHADER_PARAMETER(float, CurrentFrameWeight)
-	SHADER_PARAMETER(int32, bCameraCut)
-	
-	SHADER_PARAMETER_ARRAY(float, SampleWeights, [9])
-	SHADER_PARAMETER_ARRAY(float, PlusWeights, [5])
-
-	SHADER_PARAMETER(FVector4, InputSceneColorSize)
-	SHADER_PARAMETER(FVector4, OutputViewportSize)
-	SHADER_PARAMETER(FVector4, OutputViewportRect)
-
-	// History parameters
-	SHADER_PARAMETER(FVector4, HistoryBufferSize)
-	SHADER_PARAMETER(FVector4, HistoryBufferUVMinMax)
-	SHADER_PARAMETER(FVector4, ScreenPosToHistoryBufferUV)
-	
-	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-	
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
-
-	// Inputs
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColor)
-	SHADER_PARAMETER_SAMPLER(SamplerState, InputSceneColorSampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneMetadata)
-	SHADER_PARAMETER_SAMPLER(SamplerState, InputSceneMetadataSampler)
-
-	// History resourrces
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryBuffer0)
-	SHADER_PARAMETER_SAMPLER(SamplerState, HistoryBuffer0Sampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryBuffer1)
-	SHADER_PARAMETER_SAMPLER(SamplerState, HistoryBuffer1Sampler)
-	
-	SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthBufferSampler)
-	SHADER_PARAMETER_SAMPLER(SamplerState, SceneVelocityBufferSampler)
-
-	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-END_SHADER_PARAMETER_STRUCT()
-
+	return FMath::Clamp(CVarTemporalAAHistorySP.GetValueOnRenderThread() / 100.0f, 1.0f, 2.0f);
+}
 
 // ---------------------------------------------------- Shader permutation dimensions
 
@@ -128,60 +100,6 @@ class FTAADownsampleDim : SHADER_PERMUTATION_BOOL("TAA_DOWNSAMPLE");
 
 // ---------------------------------------------------- Shaders
 
-class FTemporalAAPS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FTemporalAAPS);
-	SHADER_USE_PARAMETER_STRUCT(FTemporalAAPS, FGlobalShader);
-
-	using FPermutationDomain = TShaderPermutationDomain<
-		FTAAPassConfigDim,
-		FTAAFastDim,
-		FTAAResponsiveDim>;
-	
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTAAShaderParameters, CommonParameters)
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-
-		// TAAU is compute shader only.
-		if (IsTAAUpsamplingConfig(PermutationVector.Get<FTAAPassConfigDim>()))
-		{
-			return false;
-		}
-
-		// Fast dimensions is only for Main and Diaphragm DOF.
-		if (PermutationVector.Get<FTAAFastDim>() &&
-			!IsMainTAAConfig(PermutationVector.Get<FTAAPassConfigDim>()) &&
-			!IsDOFTAAConfig(PermutationVector.Get<FTAAPassConfigDim>()))
-		{
-			return false;
-		}
-		
-		// DOF setup chain is full compute shader, no need for a pixel shader for TAA.
-		if (IsDOFTAAConfig(PermutationVector.Get<FTAAPassConfigDim>()))
-		{
-			return false;
-		}
-
-		// Responsive dimension is only for Main.
-		if (PermutationVector.Get<FTAAResponsiveDim>() && !SupportsResponsiveDim(PermutationVector))
-		{
-			return false;
-		}
-
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
-	}
-
-	static bool SupportsResponsiveDim(const FPermutationDomain& PermutationVector)
-	{
-		return PermutationVector.Get<FTAAPassConfigDim>() == ETAAPassConfig::Main;
-	}
-}; // class FTemporalAAPS
-
 class FTemporalAACS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FTemporalAACS);
@@ -195,7 +113,45 @@ class FTemporalAACS : public FGlobalShader
 		FTAADownsampleDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTAAShaderParameters, CommonParameters)
+		SHADER_PARAMETER(FVector4, ViewportUVToInputBufferUV)
+		SHADER_PARAMETER(FVector4, MaxViewportUVAndSvPositionToViewportUV)
+		SHADER_PARAMETER(FVector2D, ScreenPosAbsMax)
+		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
+		SHADER_PARAMETER(float, CurrentFrameWeight)
+		SHADER_PARAMETER(int32, bCameraCut)
+
+		SHADER_PARAMETER_ARRAY(float, SampleWeights, [9])
+		SHADER_PARAMETER_ARRAY(float, PlusWeights, [5])
+
+		SHADER_PARAMETER(FVector4, InputSceneColorSize)
+		SHADER_PARAMETER(FVector4, OutputViewportSize)
+		SHADER_PARAMETER(FVector4, OutputViewportRect)
+
+		// History parameters
+		SHADER_PARAMETER(FVector4, HistoryBufferSize)
+		SHADER_PARAMETER(FVector4, HistoryBufferUVMinMax)
+		SHADER_PARAMETER(FVector4, ScreenPosToHistoryBufferUV)
+
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
+
+		// Inputs
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColor)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InputSceneColorSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneMetadata)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InputSceneMetadataSampler)
+
+		// History resources
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryBuffer0)
+		SHADER_PARAMETER_SAMPLER(SamplerState, HistoryBuffer0Sampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryBuffer1)
+		SHADER_PARAMETER_SAMPLER(SamplerState, HistoryBuffer1Sampler)
+
+		SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthBufferSampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SceneVelocityBufferSampler)
+
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		
 		// Temporal upsample specific parameters.
 		SHADER_PARAMETER(FVector4, InputViewSize)
@@ -295,11 +251,10 @@ class FTemporalAACS : public FGlobalShader
 }; // class FTemporalAACS
 
 
-IMPLEMENT_GLOBAL_SHADER(FTemporalAAPS, "/Engine/Private/PostProcessTemporalAA.usf", "MainPS", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FTemporalAACS, "/Engine/Private/PostProcessTemporalAA.usf", "MainCS", SF_Compute);
 
 
-static void SetupSampleWeightParameters(FTAAShaderParameters* OutTAAParameters, const FTAAPassParameters& PassParameters, FVector2D TemporalJitterPixels)
+static void SetupSampleWeightParameters(FTemporalAACS::FParameters* OutTAAParameters, const FTAAPassParameters& PassParameters, FVector2D TemporalJitterPixels)
 {
 	float JitterX = TemporalJitterPixels.X;
 	float JitterY = TemporalJitterPixels.Y;
@@ -430,184 +385,78 @@ bool FTAAPassParameters::Validate() const
 	return true;
 }
 
-
-FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
+FTAAOutputs AddTemporalAAPass(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
+	const FTAAPassParameters& Inputs,
 	const FTemporalAAHistory& InputHistory,
-	FTemporalAAHistory* OutputHistory) const
+	FTemporalAAHistory* OutputHistory)
 {
-	check(Validate());
+	check(Inputs.Validate());
 
 	// Number of render target in TAA history.
-	const int32 RenderTargetCount = IsDOFTAAConfig(Pass) && FPostProcessing::HasAlphaChannelSupport() ? 2 : 1;
+	const int32 RenderTargetCount = IsDOFTAAConfig(Inputs.Pass) && FPostProcessing::HasAlphaChannelSupport() ? 2 : 1;
 	
 	// Whether this is main TAA pass;
-	bool bIsMainPass = IsMainTAAConfig(Pass);
+	const bool bIsMainPass = IsMainTAAConfig(Inputs.Pass);
 	
 	// Whether to use camera cut shader permutation or not.
 	const bool bCameraCut = !InputHistory.IsValid() || View.bCameraCut;
 
-	FIntPoint OutputExtent = GetOutputExtent();
+	const FIntPoint OutputExtent = Inputs.GetOutputExtent();
 
 	// Src rectangle.
-	FIntRect SrcRect = InputViewRect;
-	FIntRect DestRect = OutputViewRect;
-	FIntRect PracticableSrcRect = FIntRect::DivideAndRoundUp(SrcRect, ResolutionDivisor);
-	FIntRect PracticableDestRect = FIntRect::DivideAndRoundUp(DestRect, ResolutionDivisor);
+	const FIntRect SrcRect = Inputs.InputViewRect;
+	const FIntRect DestRect = Inputs.OutputViewRect;
+	const FIntRect PracticableSrcRect = FIntRect::DivideAndRoundUp(SrcRect, Inputs.ResolutionDivisor);
+	const FIntRect PracticableDestRect = FIntRect::DivideAndRoundUp(DestRect, Inputs.ResolutionDivisor);
+
+	const uint32 PassIndex = static_cast<uint32>(Inputs.Pass);
 
 	// Name of the pass.
-	const TCHAR* PassName = kTAAPassNames[static_cast<int32>(Pass)];
-
-	// Setups common shader parameters
-	FTAAShaderParameters CommonShaderParameters;
-	{
-		FIntPoint SrcSize = SceneColorInput->Desc.Extent;
-
-		if (!IsTAAUpsamplingConfig(Pass))
-			SetupSampleWeightParameters(&CommonShaderParameters, *this, View.TemporalJitterPixels);
-	
-		float ResDivisor = ResolutionDivisor;
-		float ResDivisorInv = 1.0f / ResDivisor;
-
-		CommonShaderParameters.ViewUniformBuffer = View.ViewUniformBuffer;
-		CommonShaderParameters.CurrentFrameWeight = CVarTemporalAACurrentFrameWeight.GetValueOnRenderThread();
-		CommonShaderParameters.bCameraCut = bCameraCut;
-
-		CommonShaderParameters.SceneTextures = SceneTextures;
-		CommonShaderParameters.SceneDepthBufferSampler = TStaticSamplerState<SF_Point>::GetRHI();
-		CommonShaderParameters.SceneVelocityBufferSampler = TStaticSamplerState<SF_Point>::GetRHI();
-
-		// Input buffer shader parameters
-		{
-			CommonShaderParameters.InputSceneColorSize = FVector4(
-				SceneColorInput->Desc.Extent.X,
-				SceneColorInput->Desc.Extent.Y,
-				1.0f / float(SceneColorInput->Desc.Extent.X),
-				1.0f / float(SceneColorInput->Desc.Extent.Y));
-			CommonShaderParameters.InputSceneColor = SceneColorInput;
-			CommonShaderParameters.InputSceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
-			CommonShaderParameters.InputSceneMetadata = SceneMetadataInput;
-			CommonShaderParameters.InputSceneMetadataSampler = TStaticSamplerState<SF_Point>::GetRHI();
-		}
-
-		CommonShaderParameters.OutputViewportSize = FVector4(
-			PracticableDestRect.Width(), PracticableDestRect.Height(), 1.0f / float(PracticableDestRect.Width()), 1.0f / float(PracticableDestRect.Height()));
-		CommonShaderParameters.OutputViewportRect = FVector4(PracticableDestRect.Min.X, PracticableDestRect.Min.Y, PracticableDestRect.Max.X, PracticableDestRect.Max.Y);
-
-		// Set history shader parameters.
-		{
-			if (bCameraCut)
-			{
-				FRDGTextureRef BlackDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-
-				CommonShaderParameters.ScreenPosToHistoryBufferUV = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-				CommonShaderParameters.ScreenPosAbsMax = FVector2D(0.0f, 0.0f);
-				CommonShaderParameters.HistoryBufferUVMinMax = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-				CommonShaderParameters.HistoryBufferSize = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-				CommonShaderParameters.HistoryBuffer0 = BlackDummy;
-				CommonShaderParameters.HistoryBuffer1 = BlackDummy;
-				
-				// Remove dependency of the velocity buffer on camera cut, given it's going to be ignored by the shader.
-				CommonShaderParameters.SceneTextures.SceneVelocityBuffer = BlackDummy;
-			}
-			else
-			{
-				FIntPoint ReferenceViewportOffset = InputHistory.ViewportRect.Min;
-				FIntPoint ReferenceViewportExtent = InputHistory.ViewportRect.Size();
-				FIntPoint ReferenceBufferSize = InputHistory.ReferenceBufferSize;
-
-				float InvReferenceBufferSizeX = 1.f / float(InputHistory.ReferenceBufferSize.X);
-				float InvReferenceBufferSizeY = 1.f / float(InputHistory.ReferenceBufferSize.Y);
-
-				CommonShaderParameters.ScreenPosToHistoryBufferUV = FVector4(
-					ReferenceViewportExtent.X * 0.5f * InvReferenceBufferSizeX,
-					-ReferenceViewportExtent.Y * 0.5f * InvReferenceBufferSizeY,
-					(ReferenceViewportExtent.X * 0.5f + ReferenceViewportOffset.X) * InvReferenceBufferSizeX,
-					(ReferenceViewportExtent.Y * 0.5f + ReferenceViewportOffset.Y) * InvReferenceBufferSizeY);
-
-				FIntPoint ViewportOffset = ReferenceViewportOffset / ResolutionDivisor;
-				FIntPoint ViewportExtent = FIntPoint::DivideAndRoundUp(ReferenceViewportExtent, ResolutionDivisor);
-				FIntPoint BufferSize = ReferenceBufferSize / ResolutionDivisor;
-
-				CommonShaderParameters.ScreenPosAbsMax = FVector2D(1.0f - 1.0f / float(ViewportExtent.X), 1.0f - 1.0f / float(ViewportExtent.Y));
-
-				float InvBufferSizeX = 1.f / float(BufferSize.X);
-				float InvBufferSizeY = 1.f / float(BufferSize.Y);
-
-				CommonShaderParameters.HistoryBufferUVMinMax = FVector4(
-					(ViewportOffset.X + 0.5f) * InvBufferSizeX,
-					(ViewportOffset.Y + 0.5f) * InvBufferSizeY,
-					(ViewportOffset.X + ViewportExtent.X - 0.5f) * InvBufferSizeX,
-					(ViewportOffset.Y + ViewportExtent.Y - 0.5f) * InvBufferSizeY);
-
-				CommonShaderParameters.HistoryBufferSize = FVector4(BufferSize.X, BufferSize.Y, InvBufferSizeX, InvBufferSizeY);
-
-				CommonShaderParameters.HistoryBuffer0 = GraphBuilder.RegisterExternalTexture(InputHistory.RT[0]);
-				if (InputHistory.RT[1].IsValid())
-					CommonShaderParameters.HistoryBuffer1 = GraphBuilder.RegisterExternalTexture(InputHistory.RT[1]);
-			}
-
-			CommonShaderParameters.HistoryBuffer0Sampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-			CommonShaderParameters.HistoryBuffer1Sampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-		}
-
-		CommonShaderParameters.MaxViewportUVAndSvPositionToViewportUV = FVector4(
-			(PracticableDestRect.Width() - 0.5f * ResDivisor) / float(PracticableDestRect.Width()),
-			(PracticableDestRect.Height() - 0.5f * ResDivisor) / float(PracticableDestRect.Height()),
-			ResDivisor / float(DestRect.Width()),
-			ResDivisor / float(DestRect.Height()));
-
-		CommonShaderParameters.HistoryPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
-
-		{
-			float InvSizeX = 1.0f / float(SrcSize.X);
-			float InvSizeY = 1.0f / float(SrcSize.Y);
-			CommonShaderParameters.ViewportUVToInputBufferUV = FVector4(
-				ResDivisorInv * InputViewRect.Width() * InvSizeX,
-				ResDivisorInv * InputViewRect.Height() * InvSizeY,
-				ResDivisorInv * InputViewRect.Min.X * InvSizeX,
-				ResDivisorInv * InputViewRect.Min.Y * InvSizeY);
-		}
-		
-		CommonShaderParameters.EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
-	}
+	const TCHAR* PassName = kTAAPassNames[PassIndex];
 
 	// Create outputs
 	FTAAOutputs Outputs;
+
 	{
 		FRDGTextureDesc SceneColorDesc = FRDGTextureDesc::Create2DDesc(
-			GetOutputExtent(),
+			OutputExtent,
 			PF_FloatRGBA,
 			FClearValueBinding::Black,
 			/* InFlags = */ TexCreate_None,
-			/* InTargetableFlags = */ TexCreate_ShaderResource | (bIsComputePass ? TexCreate_UAV : TexCreate_RenderTargetable),
+			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
 			/* bInForceSeparateTargetAndShaderResource = */ false);
+
+		if (Inputs.bOutputRenderTargetable)
+		{
+			SceneColorDesc.TargetableFlags |= TexCreate_RenderTargetable;
+		}
+
+		const TCHAR* OutputName = kTAAOutputNames[PassIndex];
 
 		Outputs.SceneColor = GraphBuilder.CreateTexture(
 			SceneColorDesc,
-			kTAAOutputNames[static_cast<int32>(Pass)],
+			OutputName,
 			ERDGResourceFlags::MultiFrame);
 
 		if (RenderTargetCount == 2)
 		{
 			Outputs.SceneMetadata = GraphBuilder.CreateTexture(
 				SceneColorDesc,
-				kTAAOutputNames[static_cast<int32>(Pass)],
+				OutputName,
 				ERDGResourceFlags::MultiFrame);
 		}
 
-		if (bDownsample)
+		if (Inputs.bDownsample)
 		{
-			check(bIsComputePass);
-			
-			FRDGTextureDesc HalfResSceneColorDesc = FRDGTextureDesc::Create2DDesc(
+			const FRDGTextureDesc HalfResSceneColorDesc = FRDGTextureDesc::Create2DDesc(
 				SceneColorDesc.Extent / 2,
-				DownsampleOverrideFormat != PF_Unknown ? DownsampleOverrideFormat : SceneColorInput->Desc.Format,
+				Inputs.DownsampleOverrideFormat != PF_Unknown ? Inputs.DownsampleOverrideFormat : Inputs.SceneColorInput->Desc.Format,
 				FClearValueBinding::Black,
 				/* InFlags = */ TexCreate_None,
-				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_Transient | (bIsComputePass ? TexCreate_UAV : TexCreate_RenderTargetable),
+				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_Transient | TexCreate_UAV,
 				/* bInForceSeparateTargetAndShaderResource = */ false);
 
 			Outputs.DownsampledSceneColor = GraphBuilder.CreateTexture(HalfResSceneColorDesc, TEXT("SceneColorHalfRes"));
@@ -616,17 +465,16 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 
 	RDG_GPU_STAT_SCOPE(GraphBuilder, TAA);
 
-	if (bIsComputePass)
 	{
 		FTemporalAACS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FTAAPassConfigDim>(Pass);
-		PermutationVector.Set<FTAAFastDim>(bUseFast);
-		PermutationVector.Set<FTAADownsampleDim>(bDownsample);
+		PermutationVector.Set<FTAAPassConfigDim>(Inputs.Pass);
+		PermutationVector.Set<FTAAFastDim>(Inputs.bUseFast);
+		PermutationVector.Set<FTAADownsampleDim>(Inputs.bDownsample);
 		PermutationVector.Set<FTAAUpsampleFilteredDim>(true);
 
-		if (IsTAAUpsamplingConfig(Pass))
+		if (IsTAAUpsamplingConfig(Inputs.Pass))
 		{
-			const bool bUpsampleFiltered = CVarTemporalAAUpsampleFiltered.GetValueOnRenderThread() != 0 || Pass != ETAAPassConfig::MainUpsampling;
+			const bool bUpsampleFiltered = CVarTemporalAAUpsampleFiltered.GetValueOnRenderThread() != 0 || Inputs.Pass != ETAAPassConfig::MainUpsampling;
 			PermutationVector.Set<FTAAUpsampleFilteredDim>(bUpsampleFiltered);
 
 			// If screen percentage > 100% on X or Y axes, then use screen percentage range = 2 shader permutation to disable LDS caching.
@@ -638,7 +486,7 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 			// If screen percentage < 50% on X and Y axes, then use screen percentage range = 3 shader permutation.
 			else if (SrcRect.Width() * 100 < 50 * DestRect.Width() &&
 				SrcRect.Height() * 100 < 50 * DestRect.Height() &&
-				Pass == ETAAPassConfig::MainSuperSampling)
+				Inputs.Pass == ETAAPassConfig::MainSuperSampling)
 			{
 				PermutationVector.Set<FTAAScreenPercentageDim>(3);
 			}
@@ -651,12 +499,132 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 		}
 
 		FTemporalAACS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTemporalAACS::FParameters>();
-		PassParameters->CommonParameters = CommonShaderParameters;
+
+		// Setups common shader parameters
+		const FIntPoint InputExtent = Inputs.SceneColorInput->Desc.Extent;
+		const FIntRect InputViewRect = Inputs.InputViewRect;
+		const FIntRect OutputViewRect = Inputs.OutputViewRect;
+
+		if (!IsTAAUpsamplingConfig(Inputs.Pass))
+		{
+			SetupSampleWeightParameters(PassParameters, Inputs, View.TemporalJitterPixels);
+		}
+
+		const float ResDivisor = Inputs.ResolutionDivisor;
+		const float ResDivisorInv = 1.0f / ResDivisor;
+
+		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->CurrentFrameWeight = CVarTemporalAACurrentFrameWeight.GetValueOnRenderThread();
+		PassParameters->bCameraCut = bCameraCut;
+
+		PassParameters->SceneTextures = SceneTextures;
+		PassParameters->SceneDepthBufferSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->SceneVelocityBufferSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
+		// We need a valid velocity buffer texture. Use black (no velocity) if none exists.
+		if (!PassParameters->SceneTextures.SceneVelocityBuffer)
+		{
+			PassParameters->SceneTextures.SceneVelocityBuffer = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);;
+		}
+
+		// Input buffer shader parameters
+		{
+			PassParameters->InputSceneColorSize = FVector4(
+				InputExtent.X,
+				InputExtent.Y,
+				1.0f / float(InputExtent.X),
+				1.0f / float(InputExtent.Y));
+			PassParameters->InputSceneColor = Inputs.SceneColorInput;
+			PassParameters->InputSceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
+			PassParameters->InputSceneMetadata = Inputs.SceneMetadataInput;
+			PassParameters->InputSceneMetadataSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		}
+
+		PassParameters->OutputViewportSize = FVector4(
+			PracticableDestRect.Width(), PracticableDestRect.Height(), 1.0f / float(PracticableDestRect.Width()), 1.0f / float(PracticableDestRect.Height()));
+		PassParameters->OutputViewportRect = FVector4(PracticableDestRect.Min.X, PracticableDestRect.Min.Y, PracticableDestRect.Max.X, PracticableDestRect.Max.Y);
+
+		// Set history shader parameters.
+		{
+			if (bCameraCut)
+			{
+				FRDGTextureRef BlackDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+
+				PassParameters->ScreenPosToHistoryBufferUV = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+				PassParameters->ScreenPosAbsMax = FVector2D(0.0f, 0.0f);
+				PassParameters->HistoryBufferUVMinMax = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+				PassParameters->HistoryBufferSize = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+				PassParameters->HistoryBuffer0 = BlackDummy;
+				PassParameters->HistoryBuffer1 = BlackDummy;
+
+				// Remove dependency of the velocity buffer on camera cut, given it's going to be ignored by the shader.
+				PassParameters->SceneTextures.SceneVelocityBuffer = BlackDummy;
+			}
+			else
+			{
+				FIntPoint ReferenceViewportOffset = InputHistory.ViewportRect.Min;
+				FIntPoint ReferenceViewportExtent = InputHistory.ViewportRect.Size();
+				FIntPoint ReferenceBufferSize = InputHistory.ReferenceBufferSize;
+
+				float InvReferenceBufferSizeX = 1.f / float(InputHistory.ReferenceBufferSize.X);
+				float InvReferenceBufferSizeY = 1.f / float(InputHistory.ReferenceBufferSize.Y);
+
+				PassParameters->ScreenPosToHistoryBufferUV = FVector4(
+					ReferenceViewportExtent.X * 0.5f * InvReferenceBufferSizeX,
+					-ReferenceViewportExtent.Y * 0.5f * InvReferenceBufferSizeY,
+					(ReferenceViewportExtent.X * 0.5f + ReferenceViewportOffset.X) * InvReferenceBufferSizeX,
+					(ReferenceViewportExtent.Y * 0.5f + ReferenceViewportOffset.Y) * InvReferenceBufferSizeY);
+
+				FIntPoint ViewportOffset = ReferenceViewportOffset / Inputs.ResolutionDivisor;
+				FIntPoint ViewportExtent = FIntPoint::DivideAndRoundUp(ReferenceViewportExtent, Inputs.ResolutionDivisor);
+				FIntPoint BufferSize = ReferenceBufferSize / Inputs.ResolutionDivisor;
+
+				PassParameters->ScreenPosAbsMax = FVector2D(1.0f - 1.0f / float(ViewportExtent.X), 1.0f - 1.0f / float(ViewportExtent.Y));
+
+				float InvBufferSizeX = 1.f / float(BufferSize.X);
+				float InvBufferSizeY = 1.f / float(BufferSize.Y);
+
+				PassParameters->HistoryBufferUVMinMax = FVector4(
+					(ViewportOffset.X + 0.5f) * InvBufferSizeX,
+					(ViewportOffset.Y + 0.5f) * InvBufferSizeY,
+					(ViewportOffset.X + ViewportExtent.X - 0.5f) * InvBufferSizeX,
+					(ViewportOffset.Y + ViewportExtent.Y - 0.5f) * InvBufferSizeY);
+
+				PassParameters->HistoryBufferSize = FVector4(BufferSize.X, BufferSize.Y, InvBufferSizeX, InvBufferSizeY);
+
+				PassParameters->HistoryBuffer0 = GraphBuilder.RegisterExternalTexture(InputHistory.RT[0]);
+				if (InputHistory.RT[1].IsValid())
+					PassParameters->HistoryBuffer1 = GraphBuilder.RegisterExternalTexture(InputHistory.RT[1]);
+			}
+
+			PassParameters->HistoryBuffer0Sampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+			PassParameters->HistoryBuffer1Sampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+		}
+
+		PassParameters->MaxViewportUVAndSvPositionToViewportUV = FVector4(
+			(PracticableDestRect.Width() - 0.5f * ResDivisor) / float(PracticableDestRect.Width()),
+			(PracticableDestRect.Height() - 0.5f * ResDivisor) / float(PracticableDestRect.Height()),
+			ResDivisor / float(DestRect.Width()),
+			ResDivisor / float(DestRect.Height()));
+
+		PassParameters->HistoryPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
+
+		{
+			float InvSizeX = 1.0f / float(InputExtent.X);
+			float InvSizeY = 1.0f / float(InputExtent.Y);
+			PassParameters->ViewportUVToInputBufferUV = FVector4(
+				ResDivisorInv * InputViewRect.Width() * InvSizeX,
+				ResDivisorInv * InputViewRect.Height() * InvSizeY,
+				ResDivisorInv * InputViewRect.Min.X * InvSizeX,
+				ResDivisorInv * InputViewRect.Min.Y * InvSizeY);
+		}
+
+		PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
 
 		// Temporal upsample specific shader parameters.
 		{
 			// Temporal AA upscale specific params.
-			float InputViewSizeInvScale = ResolutionDivisor;
+			float InputViewSizeInvScale = Inputs.ResolutionDivisor;
 			float InputViewSizeScale = 1.0f / InputViewSizeInvScale;
 
 			PassParameters->TemporalJitterPixels = InputViewSizeScale * View.TemporalJitterPixels;
@@ -672,194 +640,223 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 		{
 			PassParameters->OutComputeTex0 = GraphBuilder.CreateUAV(Outputs.SceneColor);
 			if (Outputs.SceneMetadata)
+			{
 				PassParameters->OutComputeTex1 = GraphBuilder.CreateUAV(Outputs.SceneMetadata);
+			}
 			if (Outputs.DownsampledSceneColor)
+			{
 				PassParameters->OutComputeTexDownsampled = GraphBuilder.CreateUAV(Outputs.DownsampledSceneColor);
+			}
 		}
 
 		TShaderMapRef<FTemporalAACS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TAA %s CS%s %dx%d -> %dx%d",
-				PassName, bUseFast ? TEXT(" Fast") : TEXT(""),
+			RDG_EVENT_NAME("TAA %s%s %dx%d -> %dx%d",
+				PassName, Inputs.bUseFast ? TEXT(" Fast") : TEXT(""),
 				PracticableSrcRect.Width(), PracticableSrcRect.Height(),
 				PracticableDestRect.Width(), PracticableDestRect.Height()),
 			*ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(PracticableDestRect.Size(), GTemporalAATileSizeX));
 	}
-	else
-	{
-		check(!IsTAAUpsamplingConfig(Pass));
-
-		// Whether to use responsive stencil test.
-		bool bUseResponsiveStencilTest = Pass == ETAAPassConfig::Main && !bIsComputePass && !bCameraCut;
 	
-		FTemporalAAPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTemporalAAPS::FParameters>();
-		PassParameters->CommonParameters = CommonShaderParameters;
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(
-			Outputs.SceneColor,
-			ERenderTargetLoadAction::ENoAction,
-			ERenderTargetStoreAction::EStore);
-		
-		if (Outputs.SceneMetadata)
-		{
-			PassParameters->RenderTargets[1] = FRenderTargetBinding(
-				Outputs.SceneMetadata,
-				ERenderTargetLoadAction::ENoAction,
-				ERenderTargetStoreAction::EStore);
-		}
-
-		if (bUseResponsiveStencilTest)
-		{
-			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-				SceneTextures.SceneDepthBuffer,
-				ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction,
-				ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore,
-				FExclusiveDepthStencil::DepthRead_StencilRead);
-		}
-		
-		FTemporalAAPS::FPermutationDomain BasePermutationVector;
-		BasePermutationVector.Set<FTAAPassConfigDim>(Pass);
-		BasePermutationVector.Set<FTAAFastDim>(bUseFast);
-
-		TShaderMapRef<FTemporalAAPS> PixelShader(View.ShaderMap, BasePermutationVector);
-		ClearUnusedGraphResources(*PixelShader, PassParameters);
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("TAA %s PS%s %dx%d",
-				PassName, bUseFast ? TEXT(" Fast") : TEXT(""),
-				PracticableDestRect.Width(), PracticableDestRect.Height()),
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[PassParameters, &View, PracticableDestRect, bCameraCut, BasePermutationVector, bUseResponsiveStencilTest](FRHICommandList& RHICmdList)
-		{
-			RHICmdList.SetViewport(PracticableDestRect.Min.X, PracticableDestRect.Min.Y, 0.0f, PracticableDestRect.Max.X, PracticableDestRect.Max.Y, 1.0f);
-
-			FTemporalAAPS::FPermutationDomain PermutationVector = BasePermutationVector;
-
-			// Lambda to draw pixel shader.
-			auto DrawTAAPixelShader = [&](FRHIDepthStencilState* DepthStencilState)
-			{
-				TShaderMapRef<FTemporalAAPS> TAAPixelShader(View.ShaderMap, PermutationVector);
-
-				FGraphicsPipelineStateInitializer GraphicsPSOInit;
-				FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, *TAAPixelShader, GraphicsPSOInit);
-				GraphicsPSOInit.DepthStencilState = DepthStencilState;
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-				SetShaderParameters(RHICmdList, *TAAPixelShader, TAAPixelShader->GetPixelShader(), *PassParameters);
-				
-				FPixelShaderUtils::DrawFullscreenTriangle(RHICmdList);
-			};
-	
-			if (bUseResponsiveStencilTest)
-			{
-				// Normal temporal feedback
-				// Draw to pixels where stencil == 0
-				FRHIDepthStencilState* DepthStencilState = TStaticDepthStencilState<
-					false, CF_Always,
-					true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
-					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-					STENCIL_TEMPORAL_RESPONSIVE_AA_MASK, STENCIL_TEMPORAL_RESPONSIVE_AA_MASK>::GetRHI();
-
-				DrawTAAPixelShader(DepthStencilState);
-
-				// Responsive feedback for tagged pixels
-				// Draw to pixels where stencil != 0
-				DepthStencilState = TStaticDepthStencilState<
-					false, CF_Always,
-					true, CF_NotEqual, SO_Keep, SO_Keep, SO_Keep,
-					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-					STENCIL_TEMPORAL_RESPONSIVE_AA_MASK, STENCIL_TEMPORAL_RESPONSIVE_AA_MASK>::GetRHI();
-
-				PermutationVector.Set<FTAAResponsiveDim>(true);
-				DrawTAAPixelShader(DepthStencilState);
-			}
-			else
-			{
-				DrawTAAPixelShader(TStaticDepthStencilState<false, CF_Always>::GetRHI());
-			}
-		});
-	}
-	
-	if (!View.bViewStateIsReadOnly)
+	if (!View.bStatePrevViewInfoIsReadOnly)
 	{
 		OutputHistory->SafeRelease();
 
 		GraphBuilder.QueueTextureExtraction(Outputs.SceneColor, &OutputHistory->RT[0]);
+
 		if (Outputs.SceneMetadata)
+		{
 			GraphBuilder.QueueTextureExtraction(Outputs.SceneMetadata, &OutputHistory->RT[1]);
+		}
 
 		OutputHistory->ViewportRect = DestRect;
-		OutputHistory->ReferenceBufferSize = OutputExtent * ResolutionDivisor;
+		OutputHistory->ReferenceBufferSize = OutputExtent * Inputs.ResolutionDivisor;
 	}
 
 	return Outputs;
-} // AddTemporalAAPass()
-
-
-FRCPassPostProcessTemporalAA::FRCPassPostProcessTemporalAA(
-	const FPostprocessContext& Context,
-	const FTAAPassParameters& InParameters,
-	const FTemporalAAHistory& InInputHistory,
-	FTemporalAAHistory* OutOutputHistory)
-	: SavedParameters(InParameters)
-	, InputHistory(InInputHistory)
-	, OutputHistory(OutOutputHistory)
-{
-	check(SavedParameters.Validate());
-
-	bIsComputePass = SavedParameters.bIsComputePass;
-	bPreferAsyncCompute = false;
 }
 
-void FRCPassPostProcessTemporalAA::Process(FRenderingCompositePassContext& Context)
+void AddTemporalAAPass(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FScreenPassViewInfo& ScreenPassView,
+	const bool bAllowDownsampleSceneColor,
+	const EPixelFormat DownsampleOverrideFormat,
+	FRDGTextureRef InSceneColorTexture,
+	FRDGTextureRef* OutSceneColorTexture,
+	FIntRect* OutSceneColorViewRect,
+	FRDGTextureRef* OutSceneColorHalfResTexture,
+	FIntRect* OutSceneColorHalfResViewRect)
 {
-	WaitForInputPassComputeFences(Context.RHICmdList);
+	const FViewInfo& View = ScreenPassView.View;
 
-	AsyncEndFence = FComputeFenceRHIRef();
-	
-	FRDGBuilder GraphBuilder(Context.RHICmdList);
+	check(View.AntiAliasingMethod == AAM_TemporalAA && View.ViewState);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-	FSceneTextureParameters SceneTextures;
-	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+	FTAAPassParameters TAAParameters(View);
 
-	// FPostProcessing::Process() does a AdjustGBufferRefCount(RHICmdList, -1), therefore need to pass down reference on velocity buffer manually.
-	if (FRDGTextureRef SceneVelocityBuffer = CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input2, TEXT("SceneVelocity")))
+	TAAParameters.Pass = View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale
+		? ETAAPassConfig::MainUpsampling
+		: ETAAPassConfig::Main;
+
+	TAAParameters.SetupViewRect(View);
+
+	const int32 LowQualityTemporalAA = 3;
+
+	TAAParameters.bUseFast = GetPostProcessAAQuality() == LowQualityTemporalAA;
+
+	const FIntRect SecondaryViewRect = TAAParameters.OutputViewRect;
+
+	const float HistoryUpscaleFactor = GetTemporalAAHistoryUpscaleFactor(View);
+
+	// Configures TAA to upscale the history buffer; this is in addition to the secondary screen percentage upscale.
+	// We end up with a scene color that is larger than the secondary screen percentage. We immediately downscale
+	// afterwards using a Mitchel-Netravali filter.
+	if (HistoryUpscaleFactor > 1.0f)
 	{
-		SceneTextures.SceneVelocityBuffer = SceneVelocityBuffer;
+		const FIntPoint HistoryViewSize(
+			TAAParameters.OutputViewRect.Width() * HistoryUpscaleFactor,
+			TAAParameters.OutputViewRect.Height() * HistoryUpscaleFactor);
+
+		FIntPoint QuantizedMinHistorySize;
+		QuantizeSceneBufferSize(HistoryViewSize, QuantizedMinHistorySize);
+
+		TAAParameters.Pass = ETAAPassConfig::MainSuperSampling;
+		TAAParameters.bUseFast = false;
+
+		TAAParameters.OutputViewRect.Min.X = 0;
+		TAAParameters.OutputViewRect.Min.Y = 0;
+		TAAParameters.OutputViewRect.Max = HistoryViewSize;
 	}
 
-	FTAAPassParameters Parameters = SavedParameters;
-	Parameters.SceneColorInput = CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
-	Parameters.SceneMetadataInput = CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input1, TEXT("SceneColor"));
+	TAAParameters.DownsampleOverrideFormat = DownsampleOverrideFormat;
 
-	FTAAOutputs Outputs = Parameters.AddTemporalAAPass(
+	TAAParameters.bDownsample = bAllowDownsampleSceneColor && TAAParameters.bUseFast;
+
+	TAAParameters.SceneColorInput = InSceneColorTexture;
+
+	const FTemporalAAHistory& InputHistory = View.PrevViewInfo.TemporalAAHistory;
+
+	FTemporalAAHistory& OutputHistory = View.ViewState->PrevFrameViewInfo.TemporalAAHistory;
+
+	const FTAAOutputs TAAOutputs = AddTemporalAAPass(
 		GraphBuilder,
-		SceneTextures, Context.View,
-		InputHistory, /* out */ OutputHistory);
-		
-	ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, Outputs.SceneColor);
-	if (Outputs.SceneMetadata)
-		ExtractRDGTextureForOutput(GraphBuilder, ePId_Output1, Outputs.SceneMetadata);
-	if (Outputs.DownsampledSceneColor)
-		ExtractRDGTextureForOutput(GraphBuilder, ePId_Output2, Outputs.DownsampledSceneColor);
+		SceneTextures,
+		View,
+		TAAParameters,
+		InputHistory,
+		&OutputHistory);
 
-	GraphBuilder.Execute();
+	FRDGTextureRef SceneColorTexture = TAAOutputs.SceneColor;
 
-	// Changes the view rectangle of the scene color and reference buffer size when doing temporal upsample for the
-	// following passes to still work.
-	if (Parameters.Pass == ETAAPassConfig::MainUpsampling || Parameters.Pass == ETAAPassConfig::MainSuperSampling)
+	// If we upscaled the history buffer, downsize back to the secondary screen percentage size.
+	if (HistoryUpscaleFactor > 1.0f)
 	{
-		Context.SceneColorViewRect = Parameters.OutputViewRect;
-		Context.ReferenceBufferSize = Parameters.GetOutputExtent() * Parameters.ResolutionDivisor;
+		const FIntRect InputViewport = TAAParameters.OutputViewRect;
+
+		FIntPoint QuantizedOutputSize;
+		QuantizeSceneBufferSize(SecondaryViewRect.Size(), QuantizedOutputSize);
+
+		FScreenPassTextureViewport OutputViewport;
+		OutputViewport.Rect = SecondaryViewRect;
+		OutputViewport.Extent.X = FMath::Max(InSceneColorTexture->Desc.Extent.X, QuantizedOutputSize.X);
+		OutputViewport.Extent.Y = FMath::Max(InSceneColorTexture->Desc.Extent.Y, QuantizedOutputSize.Y);
+
+		SceneColorTexture = ComputeMitchellNetravaliDownsample(GraphBuilder, ScreenPassView, SceneColorTexture, InputViewport, OutputViewport);
 	}
+
+	*OutSceneColorTexture = SceneColorTexture;
+	*OutSceneColorViewRect = SecondaryViewRect;
+	*OutSceneColorHalfResTexture = TAAOutputs.DownsampledSceneColor;
+	*OutSceneColorHalfResViewRect = FIntRect::DivideAndRoundUp(SecondaryViewRect, 2);
 }
 
-FPooledRenderTargetDesc FRCPassPostProcessTemporalAA::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+//////////////////////////////////////////////////////////////////////////
+//! Legacy - Only used by DebugViewModeRendering. Remove after porting.
+
+class FRCPassPostProcessTemporalAA : public TRenderingCompositePassBase<3, 3>
 {
-	// ExtractRDGTextureForOutput() is doing this work for us already.
-	return FPooledRenderTargetDesc();
+public:
+	FRCPassPostProcessTemporalAA(
+		const FPostprocessContext& Context,
+		const FTAAPassParameters& InParameters,
+		const FTemporalAAHistory& InInputHistory,
+		FTemporalAAHistory* OutOutputHistory)
+		: SavedParameters(InParameters)
+		, InputHistory(InInputHistory)
+		, OutputHistory(OutOutputHistory)
+	{
+		check(InParameters.Pass == ETAAPassConfig::Main);
+		check(SavedParameters.Validate());
+
+		bIsComputePass = true;
+		bPreferAsyncCompute = false;
+	}
+
+	void Process(FRenderingCompositePassContext& Context) override
+	{
+		WaitForInputPassComputeFences(Context.RHICmdList);
+
+		AsyncEndFence = FComputeFenceRHIRef();
+
+		FRDGBuilder GraphBuilder(Context.RHICmdList);
+
+		FSceneTextureParameters SceneTextures;
+		SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+
+		FTAAPassParameters Parameters = SavedParameters;
+		Parameters.SceneColorInput = CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
+
+		FTAAOutputs Outputs = AddTemporalAAPass(
+			GraphBuilder,
+			SceneTextures,
+			Context.View,
+			Parameters,
+			InputHistory,
+			/* out */ OutputHistory);
+
+		ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, Outputs.SceneColor);
+
+		GraphBuilder.Execute();
+	}
+
+	void Release() override { delete this; }
+
+	FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override
+	{
+		// ExtractRDGTextureForOutput() is doing this work for us already.
+		return FPooledRenderTargetDesc();
+	}
+
+	FRHIComputeFence* GetComputePassEndFence() const override { return AsyncEndFence; }
+
+private:
+	const FTAAPassParameters SavedParameters;
+
+	FComputeFenceRHIRef AsyncEndFence;
+
+	const FTemporalAAHistory& InputHistory;
+	FTemporalAAHistory* OutputHistory;
+};
+
+FRenderingCompositeOutputRef AddTemporalAADebugViewPass(FPostprocessContext& Context)
+{
+	check(Context.View.ViewState);
+
+	FSceneViewState* ViewState = Context.View.ViewState;
+
+	FTAAPassParameters Parameters(Context.View);
+
+	FRCPassPostProcessTemporalAA* TemporalAAPass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessTemporalAA(
+		Context,
+		Parameters,
+		Context.View.PrevViewInfo.TemporalAAHistory,
+		&ViewState->PrevFrameViewInfo.TemporalAAHistory));
+
+	TemporalAAPass->SetInput(ePId_Input0, Context.FinalOutput);
+	return FRenderingCompositeOutputRef(TemporalAAPass);
 }
+
+//////////////////////////////////////////////////////////////////////////

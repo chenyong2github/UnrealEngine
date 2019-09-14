@@ -128,7 +128,7 @@ float ComputeDistanceToRect(int2 Pos, int2 LeftTop, int2 Extent, bool bRoundBord
 }
 
 
-float4 MappingPolynomial;			 // RGB = a, b, c where y = a * x*x + b * x + c
+float3 MappingPolynomial;			 // RGB = a, b, c where y = a * x*x + b * x + c
 
 // @param InLDRColor needs to be LDR (0..1) and in linear space
 half3 ColorCorrection(half3 InLDRColor)

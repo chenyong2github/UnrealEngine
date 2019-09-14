@@ -5,9 +5,8 @@
 =============================================================================*/
 
 #include "Common.ush"
-#include "PostProcessCommon.ush"
+#include "ScreenPass.ush"
 #include "EyeAdaptationCommon.ush"
-
 
 //------------------------------------------------------- COMPILE TIME CONSTANTS
 
@@ -80,20 +79,15 @@ float MitchellNetravali(float d, const float B, const float C)
 }
 
 
+Texture2D InputTexture;
+SamplerState InputSampler;
 
-//------------------------------------------------------- PARAMETERS
+SCREEN_PASS_TEXTURE_VIEWPORT(Input)
 
-float4 DispatchThreadToInputBufferUV;
+float2 DispatchThreadToInputUVScale;
+float2 DispatchThreadToInputUVBias;
 
-float2 DownscaleFactor;
-
-
-//------------------------------------------------------- OUTPUTS
-
-RWTexture2D<float4>	Output0;
-
-
-//------------------------------------------------------- ENTRY POINT
+RWTexture2D<float4>	OutputTexture;
 
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
 void DownsampleMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
@@ -107,35 +101,32 @@ void DownsampleMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const float B = rcp(3.0);
 	const float C = rcp(3.0);
 
-	float2 InputBufferUV = DispatchThreadId * DispatchThreadToInputBufferUV.xy + DispatchThreadToInputBufferUV.zw;
+	float2 InputBufferUV = DispatchThreadId * DispatchThreadToInputUVScale + DispatchThreadToInputUVBias;
 
 	float4 OutColor = 0;
 	float OutWeight = 0;
 
-	#if 1
 	{
 		const uint KernelSize = 4;
 
 		// Position of the output pixel in the input buffer.
-		float2 OutputPixelPos = InputBufferUV * PostprocessInput0Size.xy;
+		float2 OutputPixelPos = InputBufferUV * Input_Extent;
 
 		float2 TopLeftKernel = floor(OutputPixelPos + (0.5 - 0.5 * KernelSize)) + 0.5;
 
 		UNROLL
 		for (uint x = 0; x < KernelSize; x++)
-		{	
+		{
 			UNROLL
 			for (uint y = 0; y < KernelSize; y++)
 			{
 				float2 SamplePixelPos = TopLeftKernel + float2(x, y);
 
-				float2 SampleUV = SamplePixelPos * PostprocessInput0Size.zw;
-				if (true)
-				{
-					SampleUV = clamp(SampleUV, PostprocessInput0MinMax.xy, PostprocessInput0MinMax.zw);
-				}
-				
-				float4 SampleColor = PostprocessInput0.SampleLevel(PostprocessInput0Sampler, SampleUV, 0);
+				float2 SampleUV = SamplePixelPos * Input_ExtentInverse;
+
+				SampleUV = clamp(SampleUV, Input_UVViewportBilinearMin, Input_UVViewportBilinearMax);
+
+				float4 SampleColor = InputTexture.SampleLevel(InputSampler, SampleUV, 0);
 
 				float2 PixelOffset = abs(SamplePixelPos - OutputPixelPos);
 
@@ -148,27 +139,6 @@ void DownsampleMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			}
 		}
 	}
-	#else
-	{
-		// TODO: This is assuming input view size == 2 * output view size. Actually need to implement Mitchell-Netrali filter.
-		UNROLL
-		for (uint i = 0; i < 4; i++)
-		{
-			float2 SampleUV = InputBufferUV + (kOffsetsCross3x3[i] * 0.5) * PostprocessInput0Size.zw;
-			if (true)
-			{
-				SampleUV = clamp(SampleUV, PostprocessInput0MinMax.xy, PostprocessInput0MinMax.zw);
-			}
-
-			float4 SampleColor = PostprocessInput0.SampleLevel(PostprocessInput0Sampler, SampleUV, 0);
-
-			float HdrWeight = HdrWeight4(SampleColor.rgb, FrameExposureScale);
-
-			OutColor += HdrWeight * SampleColor;
-			OutWeight += HdrWeight;
-		}
-	}
-	#endif
 	
 	if (OutWeight > 0)
 	{
@@ -180,9 +150,9 @@ void DownsampleMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		OutColor.a = 0;
 	#endif
 
-	if (all(DispatchThreadId < ViewportRect.zw))
+	if (all(DispatchThreadId < Input_ViewportMax))
 	{
-		Output0[DispatchThreadId] = OutColor;
+		OutputTexture[DispatchThreadId] = OutColor;
 	}
 }
  

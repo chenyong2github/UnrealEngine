@@ -108,6 +108,9 @@ public:
 
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	void CommitTessellationResources(FMetalCommandEncoder* Raster, FMetalCommandEncoder* Compute);
+	
+	void CommitVertexStreamResources(FMetalCommandEncoder* Raster);
+	void CommitSeparateTessellationResources(FMetalCommandEncoder* Raster, FMetalCommandEncoder* Compute);
 #endif
 
 	void CommitComputeResources(FMetalCommandEncoder* Compute);
@@ -154,7 +157,11 @@ public:
 	FTexture2DRHIRef CreateFallbackDepthStencilSurface(uint32 Width, uint32 Height);
 	bool GetFallbackDepthStencilBound(void) const { return bFallbackDepthStencilBound; }
 	
-    void SetRenderPipelineState(FMetalCommandEncoder& CommandEncoder, FMetalCommandEncoder* PrologueEncoder);
+	void SetRenderPipelineState(FMetalCommandEncoder& CommandEncoder, FMetalCommandEncoder* PrologueEncoder);
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+	void SetTessellationPipelineState(FMetalCommandEncoder& CommandEncoder, FMetalCommandEncoder* PrologueEncoder);
+	void SetStreamOutPipelineState(FMetalCommandEncoder& CommandEncoder);
+#endif
     void SetComputePipelineState(FMetalCommandEncoder& CommandEncoder);
 	void FlushVisibilityResults(FMetalCommandEncoder& CommandEncoder);
 

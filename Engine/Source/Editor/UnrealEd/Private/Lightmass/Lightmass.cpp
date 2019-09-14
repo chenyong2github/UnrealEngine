@@ -58,7 +58,7 @@
 
 extern FSwarmDebugOptions GSwarmDebugOptions;
 
-DEFINE_LOG_CATEGORY_STATIC(LogLightmassSolver, Error, All);
+DEFINE_LOG_CATEGORY_STATIC(LogLightmassSolver, Warning, All);
 /**
  * If false (default behavior), Lightmass is launched automatically when a lighting build starts.
  * If true, it must be launched manually (e.g. through a debugger).
@@ -2147,24 +2147,26 @@ void FLightmassExporter::SetVolumetricLightmapSettings(Lightmass::FVolumetricLig
 	const float TargetDetailCellSize = WorldInfoSettings.VolumetricLightmapDetailCellSize;
 
 	FIntVector FullGridSize(
-		FMath::TruncToInt(RequiredVolumeSize.X / TargetDetailCellSize) + 1,
-		FMath::TruncToInt(RequiredVolumeSize.Y / TargetDetailCellSize) + 1,
-		FMath::TruncToInt(RequiredVolumeSize.Z / TargetDetailCellSize) + 1);
+		FMath::TruncToInt(2 * ImportanceExtent.X / TargetDetailCellSize) + 1,
+		FMath::TruncToInt(2 * ImportanceExtent.Y / TargetDetailCellSize) + 1,
+		FMath::TruncToInt(2 * ImportanceExtent.Z / TargetDetailCellSize) + 1);
 
-	if (FullGridSize.GetMax() > 800)
+	// Make sure size of indirection texture does not exceed INT_MAX
+	const int32 MaxGridDimension = FMath::Pow(2048000000 / 4, 1.0f / 3) * OutSettings.BrickSize;
+	if (FullGridSize.GetMax() > MaxGridDimension)
 	{
 		UE_LOG(LogLightmassSolver, Warning, 
 			TEXT("Volumetric lightmap grid size is too large which can cause potential crashes or long build time, clamping from (%d, %d, %d) to (%d, %d, %d)"),
 			FullGridSize.X,
 			FullGridSize.Y,
 			FullGridSize.Z,
-			FMath::Min(FullGridSize.X, 800),
-			FMath::Min(FullGridSize.Y, 800),
-			FMath::Min(FullGridSize.Z, 800)
+			FMath::Min(FullGridSize.X, MaxGridDimension),
+			FMath::Min(FullGridSize.Y, MaxGridDimension),
+			FMath::Min(FullGridSize.Z, MaxGridDimension)
 			);
-		FullGridSize.X = FMath::Min(FullGridSize.X, 800);
-		FullGridSize.Y = FMath::Min(FullGridSize.Y, 800);
-		FullGridSize.Z = FMath::Min(FullGridSize.Z, 800);
+		FullGridSize.X = FMath::Min(FullGridSize.X, MaxGridDimension);
+		FullGridSize.Y = FMath::Min(FullGridSize.Y, MaxGridDimension);
+		FullGridSize.Z = FMath::Min(FullGridSize.Z, MaxGridDimension);
 	}
 
 	const int32 BrickSizeLog2 = FMath::FloorLog2(OutSettings.BrickSize);
@@ -2208,6 +2210,8 @@ void FLightmassExporter::WriteSceneSettings( Lightmass::FSceneFileHeader& Scene 
 		VERIFYLIGHTMASSINI(GConfig->GetBool(TEXT("DevOptions.StaticLighting"), TEXT("bVerifyEmbree"), bConfigBool, GLightmassIni));
 		Scene.GeneralSettings.bVerifyEmbree = Scene.GeneralSettings.bUseEmbree && bConfigBool;
 		VERIFYLIGHTMASSINI(GConfig->GetBool(TEXT("DevOptions.StaticLighting"), TEXT("bUseEmbreePacketTracing"), Scene.GeneralSettings.bUseEmbreePacketTracing, GLightmassIni));
+		VERIFYLIGHTMASSINI(GConfig->GetBool(TEXT("DevOptions.StaticLighting"), TEXT("bUseFastVoxelization"), Scene.GeneralSettings.bUseFastVoxelization, GLightmassIni));
+		VERIFYLIGHTMASSINI(GConfig->GetBool(TEXT("DevOptions.StaticLighting"), TEXT("bUseEmbreeInstancing"), Scene.GeneralSettings.bUseEmbreeInstancing, GLightmassIni));
 		VERIFYLIGHTMASSINI(GConfig->GetInt(TEXT("DevOptions.StaticLighting"), TEXT("MappingSurfaceCacheDownsampleFactor"), Scene.GeneralSettings.MappingSurfaceCacheDownsampleFactor, GLightmassIni));
 
 		int32 CheckQualityLevel;
@@ -4503,7 +4507,7 @@ UStaticMesh* FLightmassProcessor::FindStaticMesh(FGuid& Guid)
 	return NULL;
 }
 
-ULevel* FLightmassProcessor::FindLevel(FGuid& Guid)
+ULevel* FLightmassProcessor::FindLevel(const FGuid& Guid)
 {
 	if (Exporter)
 	{

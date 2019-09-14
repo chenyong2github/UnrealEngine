@@ -1407,11 +1407,10 @@ public:
 		uint32* RESTRICT RawSrcEnd = RawSrc + (NumBytes >> 2);
 
 		bool bChanged = false;
-		do
+		while (RawSrc != RawSrcEnd)
 		{
 			bChanged |= CopyAndReturnNotEqual(*RawDst++, *RawSrc++);
 		}
-		while (RawSrc != RawSrcEnd);
 
 		InOutPackedUniformBufferStagingDirty = InOutPackedUniformBufferStagingDirty | ((uint64)(bChanged ? 1 : 0) << (uint64)BufferIndex);
 	}

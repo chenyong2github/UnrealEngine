@@ -22,7 +22,10 @@ struct FTemporalAAHistory;
 
 namespace DiaphragmDOF
 {
-	
+
+// Whether DOF is enabled for the requested view.
+bool IsEnabled(const FViewInfo& View);
+
 float ComputeFocalLengthFromFov(const FSceneView& View);
 FVector4 CircleDofHalfCoc(const FViewInfo& View);
 

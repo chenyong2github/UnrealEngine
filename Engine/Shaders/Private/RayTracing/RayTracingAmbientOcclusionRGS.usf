@@ -61,7 +61,7 @@ void AmbientOcclusionRGS()
 
 	float RayCount = 0.0;
 	float Visibility = 0.0;
-	float ClosestRayHitDistance = 1.#INF;
+	float ClosestRayHitDistance = INFINITE_FLOAT;
 	// Declaring intensity as a local variable is a workaround for a shader compiler bug with NV drivers 430.39 and 430.64.
 	const float IntensityLocal = Intensity;
 	uint SamplesPerPixelLocal = SamplesPerPixel;

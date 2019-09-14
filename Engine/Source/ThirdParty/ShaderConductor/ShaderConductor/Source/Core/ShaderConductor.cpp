@@ -563,9 +563,20 @@ namespace
         case ShadingLanguage::Essl:
         case ShadingLanguage::Msl:
             dxcArgStrings.push_back(L"-spirv");
+			dxcArgStrings.push_back(L"-fvk-ue4-layout");
+			if (options.globalsAsPushConstants)
+				dxcArgStrings.push_back(L"-fvk-globals-push-constants");
+			/* UE Change Begin: Proper fix for SV_Position.w being inverted in SPIRV & Metal vs. D3D. */
+			if (targetLanguage != ShadingLanguage::Hlsl)
+				dxcArgStrings.push_back(L"-fvk-use-dx-position-w");
+			/* UE Change End: Proper fix for SV_Position.w being inverted in SPIRV & Metal vs. D3D. */
 			/* UE Change Begin: Specify SPIRV reflection so that we retain semantic strings! */
 			dxcArgStrings.push_back(L"-fspv-reflect");
 			/* UE Change End: Specify SPIRV reflection so that we retain semantic strings! */
+			/* UE Change Begin: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can. */
+			if (targetLanguage == ShadingLanguage::Msl || options.enableFMAPass)
+				dxcArgStrings.push_back(L"-fspv-fusemuladd");
+			/* UE Change End: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can. */
 			/* UE Change Begin: Emit SPIRV debug info when asked to */
 			if (options.enableDebugInfo)
 				dxcArgStrings.push_back(L"-fspv-debug=line");
@@ -742,17 +753,32 @@ namespace ShaderConductor
         }
         opts.es = (target.language == ShadingLanguage::Essl);
         opts.force_temporary = false;
-        opts.separate_shader_objects = true;
+        opts.separate_shader_objects = (target.language != ShadingLanguage::Essl);
         opts.flatten_multidimensional_arrays = false;
         opts.enable_420pack_extension =
             (target.language == ShadingLanguage::Glsl) && ((target.version == nullptr) || (opts.version >= 420));
         opts.vulkan_semantics = false;
-        opts.vertex.fixup_clipspace = false;
-        opts.vertex.flip_vert_y = false;
+        opts.vertex.fixup_clipspace = (target.language == ShadingLanguage::Essl);
+        opts.vertex.flip_vert_y = (target.language == ShadingLanguage::Essl);
         opts.vertex.support_nonzero_base_instance = true;
         compiler->set_common_options(opts);
 
-        if (target.language == ShadingLanguage::Hlsl)
+		if (target.language == ShadingLanguage::Essl)
+		{
+			if (target.variableTypeRenameCallback)
+			{
+				compiler->set_variable_type_remap_callback([&target](const spirv_cross::SPIRType &, const std::string &var_name, std::string &name_of_type)
+				{
+					Blob* Result = target.variableTypeRenameCallback(var_name.c_str(), name_of_type.c_str());
+					if (Result)
+					{
+						name_of_type = (char const*)Result->Data();
+						DestroyBlob(Result);
+					}
+				});
+			}
+		}
+        else if (target.language == ShadingLanguage::Hlsl)
         {
             auto* hlslCompiler = static_cast<spirv_cross::CompilerHLSL*>(compiler.get());
             auto hlslOpts = hlslCompiler->get_hlsl_options();
@@ -860,6 +886,24 @@ namespace ShaderConductor
 					mslOpts.shader_input_wg_index = (uint32_t)std::stoi(Define.value);
 				}
 				/* UE Change End: Allow the caller to specify the various auxiliary Metal buffer indices */
+				/* UE Change Begin: Allow the caller to specify the Metal translation should use argument buffers */
+				if (!strcmp(Define.name, "argument_buffers"))
+				{
+					mslOpts.argument_buffers = (std::stoi(Define.value) != 0);
+				}
+				if (!strcmp(Define.name, "argument_buffer_offset"))
+				{
+					mslOpts.argument_buffer_offset = (uint32_t)std::stoi(Define.value);
+				}
+				/* UE Change End: Allow the caller to specify the Metal translation should use argument buffers */
+				if (!strcmp(Define.name, "invariant_float_math"))
+				{
+					mslOpts.invariant_float_math = (std::stoi(Define.value) != 0);
+				}
+				if (!strcmp(Define.name, "emulate_cube_array"))
+				{
+					mslOpts.emulate_cube_array = (std::stoi(Define.value) != 0);
+				}
 			}
 			
 			mslCompiler->set_msl_options(mslOpts);

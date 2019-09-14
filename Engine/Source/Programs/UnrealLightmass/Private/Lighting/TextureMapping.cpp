@@ -531,7 +531,7 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 						{
 							const float DistanceSquared = (Intersections[CornerIndex].IntersectionVertex.WorldPosition - TexelCenterOffset).SizeSquared3();
 
-							if (!bHitBackfaces[CornerIndex] && (ClosestIntersectionIndex == INDEX_NONE || (DistanceSquared < ClosestIntersectionDistanceSq)))
+							if (!bHitBackfaces[CornerIndex] && (ClosestIntersectionIndex == INDEX_NONE || DistanceSquared < ClosestIntersectionDistanceSq))
 							{
 								ClosestIntersectionDistanceSq = DistanceSquared;
 								ClosestIntersectionIndex = CornerIndex;

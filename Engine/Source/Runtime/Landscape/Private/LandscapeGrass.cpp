@@ -55,6 +55,7 @@
 #include "InstancedStaticMesh.h"
 #include "MeshPassProcessor.h"
 #include "MeshPassProcessor.inl"
+#include "Math/Halton.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -204,7 +205,7 @@ static bool ShouldCacheLandscapeGrassShaders(EShaderPlatform Platform, const FMa
 {
 	// We only need grass weight shaders for Landscape vertex factories on desktop platforms
 	return (Material->IsUsedWithLandscape() || Material->IsSpecialEngineMaterial()) &&
-		IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) &&
+		IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) &&
 		((VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeVertexFactory"), FNAME_Find))) || (VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeXYOffsetVertexFactory"), FNAME_Find))))
 		&& !IsConsolePlatform(Platform);
 }
@@ -866,7 +867,7 @@ bool ULandscapeComponent::CanRenderGrassMap() const
 {
 	// Check we can render
 	UWorld* ComponentWorld = GetWorld();
-	if (!GIsEditor || GUsingNullRHI || !ComponentWorld || ComponentWorld->IsGameWorld() || ComponentWorld->FeatureLevel < ERHIFeatureLevel::SM4 || !SceneProxy)
+	if (!GIsEditor || GUsingNullRHI || !ComponentWorld || ComponentWorld->IsGameWorld() || ComponentWorld->FeatureLevel < ERHIFeatureLevel::SM5 || !SceneProxy)
 	{
 		return false;
 	}
@@ -1545,21 +1546,6 @@ private:
 	int32 Stride;
 };
 
-template<uint32 Base>
-static FORCEINLINE float Halton(uint32 Index)
-{
-	float Result = 0.0f;
-	float InvBase = 1.0f / Base;
-	float Fraction = InvBase;
-	while( Index > 0 )
-	{
-		Result += ( Index % Base ) * Fraction;
-		Index /= Base;
-		Fraction *= InvBase;
-	}
-	return Result;
-}
-
 struct FAsyncGrassBuilder : public FGrassBuilderBase
 {
 	FLandscapeComponentGrassAccess GrassData;
@@ -1783,8 +1769,8 @@ struct FAsyncGrassBuilder : public FGrassBuilderBase
 			FVector DivExtent(Extent * Div);
 			for (int32 InstanceIndex = 0; InstanceIndex < MaxNum; InstanceIndex++)
 			{
-				float HaltonX = Halton<2>(InstanceIndex + HaltonBaseIndex);
-				float HaltonY = Halton<3>(InstanceIndex + HaltonBaseIndex);
+				float HaltonX = Halton(InstanceIndex + HaltonBaseIndex, 2);
+				float HaltonY = Halton(InstanceIndex + HaltonBaseIndex, 3);
 				FVector Location(Origin.X + HaltonX * Extent.X, Origin.Y + HaltonY * Extent.Y, 0.0f);
 				FVector LocationWithHeight;
 				float Weight = GetLayerWeightAtLocationLocal(Location, &LocationWithHeight);
@@ -2045,7 +2031,7 @@ void ALandscapeProxy::FlushGrassComponents(const TSet<ULandscapeComponent*>* Onl
 			}
 		}
 #if WITH_EDITOR
-		if (GIsEditor && bFlushGrassMaps && GetWorld() && GetWorld()->FeatureLevel >= ERHIFeatureLevel::SM4)
+		if (GIsEditor && bFlushGrassMaps && GetWorld() && GetWorld()->FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			for (ULandscapeComponent* Component : *OnlyForComponents)
 			{
@@ -2090,7 +2076,7 @@ void ALandscapeProxy::FlushGrassComponents(const TSet<ULandscapeComponent*>* Onl
 #if WITH_EDITOR
 		UWorld* World = GetWorld();
 
-		if (GIsEditor && bFlushGrassMaps && World != nullptr && World->Scene != nullptr && World->Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM4)
+		if (GIsEditor && bFlushGrassMaps && World != nullptr && World->Scene != nullptr && World->Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
 			// Clear GrassMaps
 			for (UActorComponent* Component : GetComponents())
