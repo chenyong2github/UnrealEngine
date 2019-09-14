@@ -26,6 +26,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"DetailCustomizations",
 					"SlateCore",
+					"SourceCodeAccess"
 				}
 			);
 		}
