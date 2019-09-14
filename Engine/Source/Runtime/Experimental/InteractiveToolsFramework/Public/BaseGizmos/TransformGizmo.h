@@ -86,6 +86,15 @@ public:
 	static ATransformGizmoActor* ConstructDefault3AxisGizmo(
 		UWorld* World
 	);
+
+	/**
+	 * Create a new instance of ATransformGizmoActor. Populate the sub-components 
+	 * specified by Elements with standard GizmoXComponent instances suitable for a 3-axis transformer Gizmo
+	 */
+	static ATransformGizmoActor* ConstructCustom3AxisGizmo(
+		UWorld* World,
+		ETransformGizmoSubElements Elements
+	);
 };
 
 
@@ -106,6 +115,10 @@ public:
 class INTERACTIVETOOLSFRAMEWORK_API FTransformGizmoActorFactory
 {
 public:
+	/** Only these members of the ATransformGizmoActor gizmo will be initialized */
+	ETransformGizmoSubElements EnableElements =
+		ETransformGizmoSubElements::TranslateAllAxes | ETransformGizmoSubElements::TranslateAllPlanes | ETransformGizmoSubElements::RotateAllAxes;
+
 	/**
 	 * @param World the UWorld to create the new Actor in
 	 * @return new ATransformGizmoActor instance with members initialized with Components suitable for a transformation Gizmo

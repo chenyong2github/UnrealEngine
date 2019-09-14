@@ -169,7 +169,7 @@ void UTransformMeshesTool::SetActiveGizmos_Single(bool bLocalRotations)
 	{
 		Transformable.TransformProxy->AddComponent(Target->GetOwnerComponent());
 	}
-	Transformable.TransformGizmo = GizmoManager->Create3AxisTransformGizmo(FString(), this);
+	Transformable.TransformGizmo = GizmoManager->Create3AxisTransformGizmo(this);
 	Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy);
 
 	ActiveGizmos.Add(Transformable);
@@ -184,7 +184,7 @@ void UTransformMeshesTool::SetActiveGizmos_PerObject()
 		FTransformMeshesTarget Transformable;
 		Transformable.TransformProxy = NewObject<UTransformProxy>(this);
 		Transformable.TransformProxy->AddComponent(Target->GetOwnerComponent());
-		Transformable.TransformGizmo = GizmoManager->Create3AxisTransformGizmo(FString(), this);
+		Transformable.TransformGizmo = GizmoManager->Create3AxisTransformGizmo(this);
 		Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy);
 		ActiveGizmos.Add(Transformable);
 	}

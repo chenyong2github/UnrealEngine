@@ -37,31 +37,75 @@ ATransformGizmoActor::ATransformGizmoActor()
 
 ATransformGizmoActor* ATransformGizmoActor::ConstructDefault3AxisGizmo(UWorld* World)
 {
+	return ConstructCustom3AxisGizmo(World, 
+		ETransformGizmoSubElements::TranslateAllAxes |
+		ETransformGizmoSubElements::TranslateAllPlanes |
+		ETransformGizmoSubElements::RotateAllAxes);
+}
+
+
+ATransformGizmoActor* ATransformGizmoActor::ConstructCustom3AxisGizmo(
+	UWorld* World,
+	ETransformGizmoSubElements Elements)
+{
 	FActorSpawnParameters SpawnInfo;
 	ATransformGizmoActor* NewActor = World->SpawnActor<ATransformGizmoActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);
 
-	NewActor->TranslateX = AddDefaultArrowComponent(World, NewActor, FLinearColor::Red, FVector(1, 0, 0));
-	NewActor->TranslateY = AddDefaultArrowComponent(World, NewActor, FLinearColor::Green, FVector(0, 1, 0));
-	NewActor->TranslateZ = AddDefaultArrowComponent(World, NewActor, FLinearColor::Blue, FVector(0, 0, 1));
+	if ((Elements & ETransformGizmoSubElements::TranslateAxisX) != ETransformGizmoSubElements::None)
+	{
+		NewActor->TranslateX = AddDefaultArrowComponent(World, NewActor, FLinearColor::Red, FVector(1, 0, 0));
+	}
+	if ((Elements & ETransformGizmoSubElements::TranslateAxisY) != ETransformGizmoSubElements::None)
+	{
+		NewActor->TranslateY = AddDefaultArrowComponent(World, NewActor, FLinearColor::Green, FVector(0, 1, 0));
+	}
+	if ((Elements & ETransformGizmoSubElements::TranslateAxisZ) != ETransformGizmoSubElements::None)
+	{
+		NewActor->TranslateZ = AddDefaultArrowComponent(World, NewActor, FLinearColor::Blue, FVector(0, 0, 1));
+	}
 
-	NewActor->TranslateYZ = AddDefaultRectangleComponent(World, NewActor, FLinearColor::Red, FVector(0,1,0), FVector(0,0,1));
-	NewActor->TranslateXZ = AddDefaultRectangleComponent(World, NewActor, FLinearColor::Green, FVector(1, 0, 0), FVector(0, 0, 1));
-	NewActor->TranslateXY = AddDefaultRectangleComponent(World, NewActor, FLinearColor::Blue, FVector(1, 0, 0), FVector(0, 1, 0));
+	if ((Elements & ETransformGizmoSubElements::TranslatePlaneYZ) != ETransformGizmoSubElements::None)
+	{
+		NewActor->TranslateYZ = AddDefaultRectangleComponent(World, NewActor, FLinearColor::Red, FVector(0, 1, 0), FVector(0, 0, 1));
+	}
+	if ((Elements & ETransformGizmoSubElements::TranslatePlaneXZ) != ETransformGizmoSubElements::None)
+	{
+		NewActor->TranslateXZ = AddDefaultRectangleComponent(World, NewActor, FLinearColor::Green, FVector(1, 0, 0), FVector(0, 0, 1));
+	}
+	if ((Elements & ETransformGizmoSubElements::TranslatePlaneXY) != ETransformGizmoSubElements::None)
+	{
+		NewActor->TranslateXY = AddDefaultRectangleComponent(World, NewActor, FLinearColor::Blue, FVector(1, 0, 0), FVector(0, 1, 0));
+	}
 
-	NewActor->RotateX = AddDefaultCircleComponent(World, NewActor, FLinearColor::Red, FVector(1, 0, 0));
-	NewActor->RotateY = AddDefaultCircleComponent(World, NewActor, FLinearColor::Green, FVector(0, 1, 0));
-	NewActor->RotateZ = AddDefaultCircleComponent(World, NewActor, FLinearColor::Blue, FVector(0, 0, 1));
+	bool bAnyRotate = false;
+	if ((Elements & ETransformGizmoSubElements::RotateAxisX) != ETransformGizmoSubElements::None)
+	{
+		NewActor->RotateX = AddDefaultCircleComponent(World, NewActor, FLinearColor::Red, FVector(1, 0, 0));
+		bAnyRotate = true;
+	}
+	if ((Elements & ETransformGizmoSubElements::RotateAxisY) != ETransformGizmoSubElements::None)
+	{
+		NewActor->RotateY = AddDefaultCircleComponent(World, NewActor, FLinearColor::Green, FVector(0, 1, 0));
+		bAnyRotate = true;
+	}
+	if ((Elements & ETransformGizmoSubElements::RotateAxisZ) != ETransformGizmoSubElements::None)
+	{
+		NewActor->RotateZ = AddDefaultCircleComponent(World, NewActor, FLinearColor::Blue, FVector(0, 0, 1));
+		bAnyRotate = true;
+	}
 
 
 	// add a non-interactive view-aligned circle element, so the axes look like a sphere.
-	UGizmoCircleComponent* SphereEdge = NewObject<UGizmoCircleComponent>(NewActor);
-	NewActor->AddInstanceComponent(SphereEdge);
-	SphereEdge->AttachToComponent(NewActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-	SphereEdge->Color = FLinearColor::Gray;
-	SphereEdge->Thickness = 1.0f;
-	SphereEdge->bViewAligned = true;
-	SphereEdge->RegisterComponent();
-
+	if (bAnyRotate)
+	{
+		UGizmoCircleComponent* SphereEdge = NewObject<UGizmoCircleComponent>(NewActor);
+		NewActor->AddInstanceComponent(SphereEdge);
+		SphereEdge->AttachToComponent(NewActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+		SphereEdge->Color = FLinearColor::Gray;
+		SphereEdge->Thickness = 1.0f;
+		SphereEdge->bViewAligned = true;
+		SphereEdge->RegisterComponent();
+	}
 
 	return NewActor;
 }
@@ -69,10 +113,9 @@ ATransformGizmoActor* ATransformGizmoActor::ConstructDefault3AxisGizmo(UWorld* W
 
 
 
-
 ATransformGizmoActor* FTransformGizmoActorFactory::CreateNewGizmoActor(UWorld* World) const
 {
-	return ATransformGizmoActor::ConstructDefault3AxisGizmo(World);
+	return ATransformGizmoActor::ConstructCustom3AxisGizmo(World, EnableElements);
 }
 
 

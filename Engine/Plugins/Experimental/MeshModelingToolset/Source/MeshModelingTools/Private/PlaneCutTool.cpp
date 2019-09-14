@@ -109,7 +109,7 @@ void UPlaneCutTool::Setup()
 	// create proxy and gizmo (but don't attach yet)
 	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
 	PlaneTransformProxy = NewObject<UTransformProxy>(this);
-	PlaneTransformGizmo = GizmoManager->Create3AxisTransformGizmo(TEXT("PlaneCutToolTransformGizmo"), this);
+	PlaneTransformGizmo = GizmoManager->Create3AxisTransformGizmo(this);
 
 	BasicProperties = NewObject<UPlaneCutToolProperties>(this, TEXT("Plane Cut Settings"));
 	AdvancedProperties = NewObject<UPlaneCutAdvancedProperties>(this, TEXT("Advanced Settings"));

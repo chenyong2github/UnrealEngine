@@ -175,7 +175,7 @@ void UUVProjectionTool::UpdateNumPreviews()
 			TransformProxy->SetTransform(LocalXF * ComponentTargets[PreviewIdx]->GetWorldTransform());
 			TransformProxy->OnTransformChanged.AddUObject(this, &UUVProjectionTool::TransformChanged);
 
-			UTransformGizmo* TransformGizmo = TransformGizmos.Add_GetRef(GizmoManager->Create3AxisTransformGizmo(TEXT("UVProjectionToolTransformGizmo"), this));
+			UTransformGizmo* TransformGizmo = TransformGizmos.Add_GetRef(GizmoManager->Create3AxisTransformGizmo(this));
 			TransformGizmo->SetActiveTarget(TransformProxy);
 		}
 		check(TransformProxies.Num() == TargetNumPreview);

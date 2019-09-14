@@ -12,11 +12,12 @@
 #include "InteractiveGizmoManager.generated.h"
 
 class UTransformGizmo;
+class UTransformGizmoBuilder;
 
 USTRUCT()
 struct FActiveGizmo
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 
 	UInteractiveGizmo* Gizmo;
 	FString BuilderIdentifier;
@@ -178,11 +179,20 @@ public:
 
 	/**
 	 * Activate a new instance of the default 3-axis transformation Gizmo. RegisterDefaultGizmos() must have been called first.
-	 * @param InstanceIdentifier client-defined *unique* string that can be used to locate this instance
-	 * @param Owner void pointer to whatever "owns" this Gizmo. Allows Gizmo to later be deleted using DestroyAllGizmosByOwner()
+	 * @param Owner optional void pointer to whatever "owns" this Gizmo. Allows Gizmo to later be deleted using DestroyAllGizmosByOwner()
+	 * @param InstanceIdentifier optional client-defined *unique* string that can be used to locate this instance
 	 * @return new Gizmo instance that has been created and initialized
 	 */
-	virtual UTransformGizmo* Create3AxisTransformGizmo(const FString& InstanceIdentifier = FString(), void* Owner = nullptr);
+	virtual UTransformGizmo* Create3AxisTransformGizmo(void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+
+	/**
+	 * Activate a new customized instance of the default 3-axis transformation Gizmo, with only certain elements included. RegisterDefaultGizmos() must have been called first.
+	 * @param Elements flags that indicate which standard gizmo sub-elements should be included
+	 * @param Owner optional void pointer to whatever "owns" this Gizmo. Allows Gizmo to later be deleted using DestroyAllGizmosByOwner()
+	 * @param InstanceIdentifier optional client-defined *unique* string that can be used to locate this instance
+	 * @return new Gizmo instance that has been created and initialized
+	 */
+	virtual UTransformGizmo* CreateCustomTransformGizmo(ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 
 public:
@@ -191,6 +201,7 @@ public:
 	static FString DefaultPlanePositionBuilderIdentifier;
 	static FString DefaultAxisAngleBuilderIdentifier;
 	static FString DefaultThreeAxisTransformBuilderIdentifier;
+	static const FString CustomThreeAxisTransformBuilderIdentifier;
 
 
 protected:
@@ -213,4 +224,5 @@ protected:
 	TMap<FString, UInteractiveGizmoBuilder*> GizmoBuilders;
 
 	bool bDefaultGizmosRegistered = false;
+	UTransformGizmoBuilder* CustomThreeAxisBuilder = nullptr;
 };
