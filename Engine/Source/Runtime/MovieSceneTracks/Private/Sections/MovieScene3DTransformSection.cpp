@@ -728,6 +728,5 @@ void UMovieScene3DTransformSection::SetBlendType(EMovieSceneBlendType InBlendTyp
 
 FMovieSceneInterrogationKey UMovieScene3DTransformSection::GetInterrogationKey()
 {
-	static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();
-	return TypeID;
+	return FMovieSceneInterrogationKey::GetTransformInterrogationKey();
 }

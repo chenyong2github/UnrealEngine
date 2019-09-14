@@ -20,3 +20,9 @@ FMovieSceneBlendingAccumulator& FMovieSceneInterrogationData::GetAccumulator()
 
 	return *Accumulator;
 }
+
+FMovieSceneInterrogationKey FMovieSceneInterrogationKey::GetTransformInterrogationKey()
+{
+	static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();
+	return TypeID;
+}
