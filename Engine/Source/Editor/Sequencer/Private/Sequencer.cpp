@@ -1660,6 +1660,14 @@ void FSequencer::BakeTransform()
 				FFrameNumber KeyTime = FFrameRate::Snap(EvalTime, Resolution, SnapRate).FloorToFrame();
 				FMovieSceneEvaluationRange Range = PlayPosition.JumpTo(KeyTime * RootToLocalTransform.Inverse());
 				EvaluateInternal(Range);
+				
+				// The CameraRig_rail updates the spline position tick, so it needs to be ticked manually while baking the frames
+				USceneComponent* Parent = CameraComponent->GetAttachParent();
+				while (Parent && Parent->GetOwner())
+				{
+					Parent->GetOwner()->Tick(0.3f);
+					Parent = Parent->GetAttachParent();
+				}
 
 				if (CameraComponent)
 				{
