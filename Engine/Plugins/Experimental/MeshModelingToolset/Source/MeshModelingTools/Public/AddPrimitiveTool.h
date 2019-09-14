@@ -54,6 +54,14 @@ enum class EMakeMeshPlacementType : uint8
 	OnScene = 1
 };
 
+/** Placement Pivot Location */
+UENUM()
+enum class EMakeMeshPivotLocation : uint8
+{
+	Base,
+	Centered
+};
+
 UCLASS()
 class MESHMODELINGTOOLS_API UProceduralShapeToolProperties : public UInteractiveToolPropertySet
 {
@@ -85,7 +93,7 @@ public:
 
 	/** Center shape at click point */
 	UPROPERTY(EditAnywhere, Category = ShapeSettings)
-	bool bCentered;
+    EMakeMeshPivotLocation PivotLocation;
 
 	///** Start Angle of Shape */
 	//UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Start Angle", UIMin = "0.0", UIMax = "360.0", ClampMin = "-10000", ClampMax = "10000.0"))

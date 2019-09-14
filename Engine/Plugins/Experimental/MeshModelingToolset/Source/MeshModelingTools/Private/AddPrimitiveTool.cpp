@@ -47,7 +47,7 @@ UProceduralShapeToolProperties::UProceduralShapeToolProperties()
 	//EndAngle = 360;
 	Slices = 16;
 	Subdivisions = 0;
-	bCentered = false;
+	PivotLocation = EMakeMeshPivotLocation::Base;
 	PlaceMode = EMakeMeshPlacementType::OnScene;
     Material = CreateDefaultSubobject<UMaterialInterface>(TEXT("MATERIAL"));
 }
@@ -59,15 +59,15 @@ namespace
 		EMakeMeshShapeType EnabledShapes;
 	} EnabledShapesMap[] =
 	{ 
-	  { TEXT("Shape"),        EMakeMeshShapeType::All },
-	  { TEXT("Width"),        EMakeMeshShapeType::All },
-	  { TEXT("Height"),       EMakeMeshShapeType::Box | EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Plane },
-	  { TEXT("Rotation"),     EMakeMeshShapeType::All },
-	  { TEXT("PlaceMode"),    EMakeMeshShapeType::All },
-	  { TEXT("bCentered"),    EMakeMeshShapeType::All },
-	  { TEXT("Slices"),       EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Sphere },
-	  { TEXT("Subdivisions"), EMakeMeshShapeType::Box | EMakeMeshShapeType::Plane },
-	  { TEXT("Material"),     EMakeMeshShapeType::All },
+	  { TEXT("Shape"),         EMakeMeshShapeType::All },
+	  { TEXT("Width"),         EMakeMeshShapeType::All },
+	  { TEXT("Height"),        EMakeMeshShapeType::Box | EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Plane },
+	  { TEXT("Rotation"),      EMakeMeshShapeType::All },
+	  { TEXT("PlaceMode"),     EMakeMeshShapeType::All },
+	  { TEXT("PivotLocation"), EMakeMeshShapeType::All },
+	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Sphere },
+	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Plane },
+	  { TEXT("Material"),      EMakeMeshShapeType::All },
 	};
 };
 
@@ -222,7 +222,7 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 	// set mesh position
 	FAxisAlignedBox3d Bounds = NewMesh.GetCachedBounds();
 	FVector3d TargetOrigin = Bounds.Center();
-	if (ShapeSettings->bCentered == false)
+	if (ShapeSettings->PivotLocation == EMakeMeshPivotLocation::Base)
 	{
 		TargetOrigin.Z = Bounds.Min.Z;
 	}
