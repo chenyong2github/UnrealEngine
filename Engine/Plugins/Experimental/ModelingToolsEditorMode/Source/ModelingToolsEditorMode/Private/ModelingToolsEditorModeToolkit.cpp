@@ -20,44 +20,6 @@ FModelingToolsEditorModeToolkit::FModelingToolsEditorModeToolkit()
 }
 
 
-TSharedRef<SButton> FModelingToolsEditorModeToolkit::MakeToolButton(const FText& ButtonLabel, const FString& ToolIdentifier)
-{
-	return SNew(SButton).Text(ButtonLabel)
-		.OnClicked_Lambda([this, ToolIdentifier]() { GetToolsContext()->StartTool(ToolIdentifier); return FReply::Handled(); })
-		.IsEnabled_Lambda([this, ToolIdentifier]() { return GetToolsContext()->CanStartTool(ToolIdentifier); });
-}
-
-SVerticalBox::FSlot& FModelingToolsEditorModeToolkit::MakeToolButtonSlotV(const FText& ButtonLabel, const FString& ToolIdentifier)
-{
-	return SVerticalBox::Slot()
-		.HAlign(HAlign_Center)
-		.AutoHeight()
-		[MakeToolButton(ButtonLabel, ToolIdentifier)];
-}
-
-SHorizontalBox::FSlot& FModelingToolsEditorModeToolkit::MakeToolButtonSlotH(const FText& ButtonLabel, const FString& ToolIdentifier)
-{
-	return SHorizontalBox::Slot()
-		.HAlign(HAlign_Center)
-		.AutoWidth()
-		[MakeToolButton(ButtonLabel, ToolIdentifier)];
-}
-
-
-SVerticalBox::FSlot& FModelingToolsEditorModeToolkit::MakeSetToolLabelV(const FText& LabelText)
-{
-	return SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Center)
-		.Padding(5)
-		[
-			SNew(STextBlock)
-			.AutoWrapText(true)
-			.Text(LabelText)
-		];
-}
-
-
 
 void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
 {
@@ -80,9 +42,20 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 
 
-	ToolHeaderLabel = SNew(STextBlock).AutoWrapText(true);
+	ToolHeaderLabel = SNew(STextBlock)
+		.AutoWrapText(true)
+		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 12));
 	ToolHeaderLabel->SetText(LOCTEXT("SelectToolLabel", "Select a Tool from the Toolbar"));
 	ToolHeaderLabel->SetJustification(ETextJustify::Center);
+
+	//const FTextBlockStyle DefaultText = FTextBlockStyle()
+	//	.SetFont(DEFAULT_FONT("Bold", 10));
+
+	ToolMessageArea = SNew(STextBlock)
+		.AutoWrapText(true)
+		.Font(FCoreStyle::GetDefaultFontStyle("Italic", 9))
+		.ColorAndOpacity(FSlateColor(FLinearColor::White * 0.7f));
+	ToolMessageArea->SetText(LOCTEXT("ToolMessageLabel", ""));
 
 	SAssignNew(ToolkitWidget, SBorder)
 		.HAlign(HAlign_Fill)
@@ -91,7 +64,14 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 			SNew(SVerticalBox)
 
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
-				[ToolHeaderLabel->AsShared()]
+				[
+					ToolHeaderLabel->AsShared()
+				]
+
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).AutoHeight().Padding(10, 10, 10, 20)
+				[
+					ToolMessageArea->AsShared()
+				]
 
 			+ SVerticalBox::Slot().HAlign(HAlign_Fill).AutoHeight().MaxHeight(500.0f)
 				[
@@ -117,10 +97,29 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 	{
 		DetailsView->SetObject(nullptr);
 		ToolHeaderLabel->SetText(LOCTEXT("SelectToolLabel", "Select a Tool from the Toolbar"));
+		ClearNotification();
 	});
+
+
+	GetToolsEditorMode()->OnToolNotificationMessage.AddLambda([this](const FText& Message)
+	{
+		PostNotification(Message);
+	});
+
 
 }
 
+
+
+void FModelingToolsEditorModeToolkit::PostNotification(const FText& Message)
+{
+	ToolMessageArea->SetText(Message);
+}
+
+void FModelingToolsEditorModeToolkit::ClearNotification()
+{
+	ToolMessageArea->SetText(FText());
+}
 
 
 

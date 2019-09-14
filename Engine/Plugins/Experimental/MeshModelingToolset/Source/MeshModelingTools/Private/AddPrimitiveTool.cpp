@@ -112,6 +112,10 @@ void UAddPrimitiveTool::Setup()
 	PreviewMesh->SetMaterial(ShapeSettings->Material);
 
 	UpdatePreviewMesh();
+
+	GetToolManager()->PostMessage(
+		LOCTEXT("OnStartAddPrimitiveTool", "Position the Primitive by moving the mouse over the scene. Drop a new instance by Left-clicking."),
+		EToolMessageLevel::UserNotification);
 }
 
 

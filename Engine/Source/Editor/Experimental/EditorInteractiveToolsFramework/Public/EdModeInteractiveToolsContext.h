@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "EdMode.h"
 #include "InteractiveToolsContext.h"
+#include "Delegates/Delegate.h"
 #include "EdModeInteractiveToolsContext.generated.h"
 
 /**
@@ -67,6 +68,14 @@ public:
 	virtual bool CanCompleteActiveTool() const;
 	virtual void StartTool(const FString& ToolTypeIdentifier);
 	virtual void EndTool(EToolShutdownType ShutdownType);
+
+
+public:
+	// forwards message to OnToolNotificationMessage delegate
+	virtual void PostToolNotificationMessage(const FText& Message);
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FEdModeToolsContextToolNotification, const FText&);
+	FEdModeToolsContextToolNotification OnToolNotificationMessage;
 
 
 protected:

@@ -237,12 +237,10 @@ public:
 		EdMode = InEdMode;
 	}
 
-
-	virtual void PostMessage(const TCHAR* Message, EToolMessageLevel Level)
+	virtual void PostMessage(const FText& Message, EToolMessageLevel Level) override
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ToolsContext] %s"), Message);
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message.ToString());
 	}
-
 
 	virtual void PostInvalidation() override
 	{

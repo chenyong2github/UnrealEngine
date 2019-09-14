@@ -150,7 +150,9 @@ void UConvertToPolygonsTool::UpdatePolygons()
 	Polygons.FindPolygons(DotTolerance);
 	Polygons.FindPolygonEdges();
 
-	GetToolManager()->PostMessage(FString::Printf(TEXT("ConvertToPolygons - found %d polys in %d triangles"), Polygons.FoundPolygons.Num(), SearchMesh.TriangleCount()), EToolMessageLevel::Internal);
+	GetToolManager()->PostMessage(
+		FText::Format(LOCTEXT("UpdatePolygonsMessage", "ConvertToPolygons - found {0} polys in {1} triangles"), 
+			FText::AsNumber(Polygons.FoundPolygons.Num()), FText::AsNumber(SearchMesh.TriangleCount()) ), EToolMessageLevel::Internal);
 
 	if (Settings->bCalculateNormals)
 	{

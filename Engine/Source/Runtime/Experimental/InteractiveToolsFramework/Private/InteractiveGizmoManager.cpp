@@ -9,6 +9,8 @@
 #include "BaseGizmos/AxisAngleGizmo.h"
 #include "BaseGizmos/TransformGizmo.h"
 
+#define LOCTEXT_NAMESPACE "UInteractiveGizmoManager"
+
 
 UInteractiveGizmoManager::UInteractiveGizmoManager()
 {
@@ -61,7 +63,9 @@ bool UInteractiveGizmoManager::DeregisterGizmoType(const FString& BuilderIdentif
 {
 	if (GizmoBuilders.Contains(BuilderIdentifier) == false)
 	{
-		PostMessage(FString::Printf(TEXT("UInteractiveGizmoManager::DeregisterGizmoType: could not find requested type %s"), *BuilderIdentifier), EToolMessageLevel::Internal);
+		PostMessage(
+			FText::Format(LOCTEXT("DeregisterFailedMessage", "UInteractiveGizmoManager::DeregisterGizmoType: could not find requested type {0}"), FText::FromString(BuilderIdentifier) ),
+			EToolMessageLevel::Internal);
 		return false;
 	}
 	GizmoBuilders.Remove(BuilderIdentifier);
@@ -75,7 +79,9 @@ UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderI
 {
 	if ( GizmoBuilders.Contains(BuilderIdentifier) == false )
 	{
-		PostMessage(FString::Printf(TEXT("UInteractiveGizmoManager::CreateGizmo: could not find requested type %s"), *BuilderIdentifier), EToolMessageLevel::Internal);
+		PostMessage(
+			FText::Format(LOCTEXT("CreateGizmoCannotFindFailedMessage", "UInteractiveGizmoManager::CreateGizmo: could not find requested type {0}"), FText::FromString(BuilderIdentifier) ),
+			EToolMessageLevel::Internal);
 		return nullptr;
 	}
 	UInteractiveGizmoBuilder* FoundBuilder = GizmoBuilders[BuilderIdentifier];
@@ -87,7 +93,9 @@ UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderI
 		{
 			if (ActiveGizmo.InstanceIdentifier == InstanceIdentifier)
 			{
-				PostMessage(FString::Printf(TEXT("UInteractiveGizmoManager::CreateGizmo: instance identifier %s already in use!"), *InstanceIdentifier), EToolMessageLevel::Internal);
+				PostMessage(
+					FText::Format(LOCTEXT("CreateGizmoExistsMessage", "UInteractiveGizmoManager::CreateGizmo: instance identifier {0} already in use!"), FText::FromString(InstanceIdentifier) ),
+					EToolMessageLevel::Internal);
 				return nullptr;
 			}
 		}
@@ -99,7 +107,7 @@ UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderI
 	UInteractiveGizmo* NewGizmo = FoundBuilder->BuildGizmo(CurrentSceneState);
 	if (NewGizmo == nullptr)
 	{
-		PostMessage(FString::Printf(TEXT("UInteractiveGizmoManager::CreateGizmo: BuildGizmo() returned null")), EToolMessageLevel::Internal);
+		PostMessage(LOCTEXT("CreateGizmoReturnNullMessage", "UInteractiveGizmoManager::CreateGizmo: BuildGizmo() returned null"), EToolMessageLevel::Internal);
 		return nullptr;
 	}
 
@@ -225,14 +233,9 @@ void UInteractiveGizmoManager::Render(IToolsContextRenderAPI* RenderAPI)
 
 }
 
-void UInteractiveGizmoManager::PostMessage(const TCHAR* Message, EToolMessageLevel Level)
+void UInteractiveGizmoManager::PostMessage(const FText& Message, EToolMessageLevel Level)
 {
 	TransactionsAPI->PostMessage(Message, Level);
-}
-
-void UInteractiveGizmoManager::PostMessage(const FString& Message, EToolMessageLevel Level)
-{
-	TransactionsAPI->PostMessage(*Message, Level);
 }
 
 void UInteractiveGizmoManager::PostInvalidation()
@@ -293,3 +296,6 @@ UTransformGizmo* UInteractiveGizmoManager::Create3AxisTransformGizmo(const FStri
 	check(NewGizmo);
 	return Cast<UTransformGizmo>(NewGizmo);
 }
+
+
+#undef LOCTEXT_NAMESPACE

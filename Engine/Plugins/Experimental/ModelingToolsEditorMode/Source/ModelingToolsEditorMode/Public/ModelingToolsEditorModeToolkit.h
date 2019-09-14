@@ -31,18 +31,17 @@ public:
 	virtual FModelingToolsEditorMode* GetToolsEditorMode() const;
 	virtual UEdModeInteractiveToolsContext* GetToolsContext() const;
 
+	// set/clear notification message area
+	virtual void PostNotification(const FText& Message);
+	virtual void ClearNotification();
+
 private:
 
 	TSharedPtr<SWidget> ToolkitWidget;
 	TSharedPtr<IDetailsView> DetailsView;
 
-	TSharedRef<SButton> MakeToolButton(const FText& ButtonLabel, const FString& ToolIdentifier);
-	SVerticalBox::FSlot& MakeToolButtonSlotV(const FText& ButtonLabel, const FString& ToolIdentifier);
-	SHorizontalBox::FSlot& MakeToolButtonSlotH(const FText& ButtonLabel, const FString& ToolIdentifier);
-
-	SVerticalBox::FSlot& MakeSetToolLabelV(const FText& LabelText);
-
 	TSharedPtr<STextBlock> ToolHeaderLabel;
+	TSharedPtr<STextBlock> ToolMessageArea;
 	TSharedPtr<SButton> AcceptButton;
 	TSharedPtr<SButton> CancelButton;
 	TSharedPtr<SButton> CompletedButton;

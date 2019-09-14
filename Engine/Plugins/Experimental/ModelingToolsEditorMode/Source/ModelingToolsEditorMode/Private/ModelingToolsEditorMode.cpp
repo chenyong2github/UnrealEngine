@@ -312,18 +312,21 @@ bool FModelingToolsEditorMode::MouseLeave(FEditorViewportClient* ViewportClient,
 
 
 
-
-static FString MeshInspectorToolName("MeshInspectorTool");
-
-
 void FModelingToolsEditorMode::Enter()
 {
 	FEdMode::Enter();
 
 	// initialize FEdMode ToolsContext adapter
 
-	ToolsContext = NewObject<UEdModeInteractiveToolsContext>(GetTransientPackage(), TEXT("ToolsContext"), RF_Transient);
+	//ToolsContext = NewObject<UEdModeInteractiveToolsContext>(GetTransientPackage(), TEXT("ToolsContext"), RF_Transient);
+	ToolsContext = NewObject<UEdModeInteractiveToolsContext>();
 	ToolsContext->InitializeContextFromEdMode(this);
+
+	ToolsContext->OnToolNotificationMessage.AddLambda([this](const FText& Message)
+	{
+		this->OnToolNotificationMessage.Broadcast(Message);
+	});
+
 
 	if (!Toolkit.IsValid() && UsesToolkits())
 	{
@@ -509,9 +512,10 @@ void FModelingToolsEditorMode::Enter()
 
 
 
-
 void FModelingToolsEditorMode::Exit()
 {
+	OnToolNotificationMessage.Clear();
+
 	ToolsContext->ShutdownContext();
 	ToolsContext = nullptr;
 

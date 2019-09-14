@@ -240,9 +240,16 @@ public:
 	}
 
 
-	virtual void PostMessage(const TCHAR* Message, EToolMessageLevel Level) override
+	virtual void PostMessage(const FText& Message, EToolMessageLevel Level) override
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ToolsContext] %s"), Message);
+		if (Level == EToolMessageLevel::UserNotification)
+		{
+			ToolsContext->PostToolNotificationMessage(Message);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s"), *Message.ToString());
+		}
 	}
 
 
@@ -372,6 +379,8 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 {
 	Shutdown();
 
+	OnToolNotificationMessage.Clear();
+
 	if (QueriesAPI != nullptr)
 	{
 		delete QueriesAPI;
@@ -393,6 +402,11 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 	this->EditorMode = nullptr;
 }
 
+
+void UEdModeInteractiveToolsContext::PostToolNotificationMessage(const FText& Message)
+{
+	OnToolNotificationMessage.Broadcast(Message);
+}
 
 
 

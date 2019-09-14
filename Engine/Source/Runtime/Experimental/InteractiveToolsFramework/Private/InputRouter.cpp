@@ -4,6 +4,8 @@
 #include "InputRouter.h"
 
 
+#define LOCTEXT_NAMESPACE "UInputRouter"
+
 UInputRouter::UInputRouter()
 {
 	ActiveLeftCapture = nullptr;
@@ -65,7 +67,7 @@ void UInputRouter::PostInputEvent(const FInputDeviceState& Input)
 	else
 	{
 		unimplemented();
-		TransactionsAPI->PostMessage(TEXT("UInteractiveToolManager::PostInputEvent - input device is not currently supported."), EToolMessageLevel::Internal);
+		TransactionsAPI->PostMessage(LOCTEXT("PostInputEventMessage", "UInteractiveToolManager::PostInputEvent - input device is not currently supported."), EToolMessageLevel::Internal);
 		return;
 	}
 }
@@ -136,7 +138,7 @@ void UInputRouter::HandleCapturedKeyboardInput(const FInputDeviceState& Input)
 	}
 	else if (Result.State != EInputCaptureState::Continue)
 	{
-		TransactionsAPI->PostMessage(TEXT("UInteractiveToolManager::HandleCapturedKeyboardInput - unexpected capture state!"), EToolMessageLevel::Internal);
+		TransactionsAPI->PostMessage(LOCTEXT("HandleCapturedKeyboardInputMessage", "UInteractiveToolManager::HandleCapturedKeyboardInput - unexpected capture state!"), EToolMessageLevel::Internal);
 	}
 
 	if (bAutoInvalidateOnCapture)
@@ -248,7 +250,7 @@ void UInputRouter::HandleCapturedMouseInput(const FInputDeviceState& Input)
 	}
 	else if (Result.State != EInputCaptureState::Continue)
 	{
-		TransactionsAPI->PostMessage(TEXT("UInteractiveToolManager::HandleCapturedMouseInput - unexpected capture state!"), EToolMessageLevel::Internal);
+		TransactionsAPI->PostMessage(LOCTEXT("HandleCapturedMouseInputMessage", "UInteractiveToolManager::HandleCapturedMouseInput - unexpected capture state!"), EToolMessageLevel::Internal);
 	}
 
 	if (bAutoInvalidateOnCapture)
@@ -316,3 +318,6 @@ void UInputRouter::ForceTerminateSource(IInputBehaviorSource* Source)
 	}
 }
 
+
+
+#undef LOCTEXT_NAMESPACE

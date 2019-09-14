@@ -201,6 +201,7 @@ enum class EToolMessageLevel
 	UserError = 3
 };
 
+
 /** Type of change we want to apply to a selection */
 UENUM()
 enum class ESelectedObjectsModificationType
@@ -239,7 +240,7 @@ public:
 	 * @param Message text of message
 	 * @param Level severity level of message
 	 */
-	virtual void PostMessage(const TCHAR* Message, EToolMessageLevel Level) = 0;
+	virtual void PostMessage(const FText& Message, EToolMessageLevel Level) = 0;
 
 	/** 
 	 * Forward an invalidation request from Tools framework, to cause repaint/etc. 

@@ -6,6 +6,8 @@
 #include "ToolBuilderUtil.h"
 #include "Components/PrimitiveComponent.h"
 
+#define LOCTEXT_NAMESPACE "UMeshSurfacePointTool"
+
 
 /*
  * ToolBuilder
@@ -75,7 +77,9 @@ void UMeshSurfacePointTool::OnUpdateDrag(const FRay& Ray)
 	if ( HitTest(Ray, OutHit) ) 
 	{
 		GetToolManager()->PostMessage( 
-			FString::Printf(TEXT("[UMeshSurfacePointTool::OnUpdateDrag] Hit triangle index %d at ray distance %f"), OutHit.FaceIndex, OutHit.Distance), EToolMessageLevel::Internal);
+			FText::Format(LOCTEXT("OnUpdateDragMessage", "UMeshSurfacePointTool::OnUpdateDrag: Hit triangle index {0} at ray distance {1}"),
+				FText::AsNumber(OutHit.FaceIndex), FText::AsNumber(OutHit.Distance)),
+			EToolMessageLevel::Internal);
 	}
 }
 
@@ -156,5 +160,4 @@ void UMeshSurfacePointToolMouseBehavior::ForceEndCapture(const FInputCaptureData
 
 
 
-
-
+#undef LOCTEXT_NAMESPACE

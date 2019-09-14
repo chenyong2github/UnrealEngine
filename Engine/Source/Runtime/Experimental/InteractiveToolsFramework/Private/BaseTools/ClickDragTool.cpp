@@ -5,6 +5,9 @@
 #include "BaseBehaviors/ClickDragBehavior.h"
 
 
+#define LOCTEXT_NAMESPACE "UClickDragTool"
+
+
 /*
  * ToolBuilder
  */
@@ -48,8 +51,9 @@ void UClickDragTool::OnClickPress(const FInputDeviceRay& ClickPos)
 {
 	// print debug message
 	GetToolManager()->PostMessage( 
-		FString::Printf( TEXT("UClickDragTool::OnClickPress at (%f,%f)"), ClickPos.ScreenPosition.X, ClickPos.ScreenPosition.Y), 
-		EToolMessageLevel::Internal );
+		FText::Format(LOCTEXT("OnClickPressMessage", "UClickDragTool::OnClickPress: clicked at ({0},{1})"),
+			FText::AsNumber(ClickPos.ScreenPosition.X), FText::AsNumber(ClickPos.ScreenPosition.Y)),
+		EToolMessageLevel::Internal);
 }
 
 void UClickDragTool::OnClickDrag(const FInputDeviceRay& ClickPos)
@@ -61,7 +65,8 @@ void UClickDragTool::OnClickRelease(const FInputDeviceRay& ClickPos)
 {
 	// print debug message
 	GetToolManager()->PostMessage(
-		FString::Printf(TEXT("UClickDragTool::OnClickRelease at (%f,%f)"), ClickPos.ScreenPosition.X, ClickPos.ScreenPosition.Y),
+		FText::Format(LOCTEXT("OnClickReleaseMessage", "UClickDragTool::OnClickRelease: released at ({0},{1})"),
+			FText::AsNumber(ClickPos.ScreenPosition.X), FText::AsNumber(ClickPos.ScreenPosition.Y)),
 		EToolMessageLevel::Internal);
 }
 
@@ -70,3 +75,6 @@ void UClickDragTool::OnTerminateDragSequence()
 {
 
 }
+
+
+#undef LOCTEXT_NAMESPACE
