@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/SceneComponent.h"
+
 /**
 * Stores information about a transform for the purpose of adding keys to a transform section
 */
