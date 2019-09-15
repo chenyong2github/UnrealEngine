@@ -14,6 +14,9 @@
 
 #define LOCTEXT_NAMESPACE "ToolMenuSubsystem"
 
+UToolMenus* UToolMenus::Singleton = nullptr;
+bool UToolMenus::bHasShutDown = false;
+
 FAutoConsoleCommand ToolMenusRefreshMenuWidget = FAutoConsoleCommand(
 	TEXT("ToolMenus.RefreshAllWidgets"),
 	TEXT("Refresh All Tool Menu Widgets"),
@@ -64,26 +67,6 @@ FToolUIActionChoice::FToolUIActionChoice(const TSharedPtr< const FUICommandInfo 
 	}
 }
 
-void ModifyEntryForEditDialog(FToolMenuEntry& Entry)
-{
-	if (Entry.Type == EMultiBlockType::ToolBarButton)
-	{
-		Entry.Type = EMultiBlockType::MenuEntry;
-	}
-	else if (Entry.Type == EMultiBlockType::ToolBarComboButton)
-	{
-		Entry.Type = EMultiBlockType::MenuEntry;
-		if (Entry.ToolBarData.bSimpleComboBox)
-		{
-			Entry.SubMenuData.bIsSubMenu = true;
-		}
-	}
-	else if (Entry.Type == EMultiBlockType::ToolBarSeparator)
-	{
-		Entry.Type = EMultiBlockType::MenuSeparator;
-	}
-}
-
 UToolMenus::UToolMenus() :
 	bNextTickTimerIsSet(false),
 	bRefreshWidgetsNextTick(false),
@@ -93,14 +76,28 @@ UToolMenus::UToolMenus() :
 
 UToolMenus* UToolMenus::Get()
 {
-	static UToolMenus* Singleton = nullptr;
-	if (!Singleton)
+	if (!Singleton && !bHasShutDown)
 	{
+		// Required for StartupModule and ShutdownModule to be called and FindModule to list the ToolsMenus module
+		FModuleManager::LoadModuleChecked<IToolMenusModule>("ToolMenus");
+
 		Singleton = NewObject<UToolMenus>();
 		Singleton->AddToRoot();
 		check(Singleton);
 	}
+
 	return Singleton;
+}
+
+void UToolMenus::BeginDestroy()
+{
+	if (Singleton == this)
+	{
+		bHasShutDown = true;
+		Singleton = nullptr;
+	}
+
+	Super::BeginDestroy();
 }
 
 bool UToolMenus::IsToolMenuUIEnabled()
@@ -1259,6 +1256,26 @@ TSharedRef<SWidget> UToolMenus::GenerateWidget(UToolMenu* GeneratedMenu)
 	}
 
 	return SNullWidget::NullWidget;
+}
+
+void UToolMenus::ModifyEntryForEditDialog(FToolMenuEntry& Entry)
+{
+	if (Entry.Type == EMultiBlockType::ToolBarButton)
+	{
+		Entry.Type = EMultiBlockType::MenuEntry;
+	}
+	else if (Entry.Type == EMultiBlockType::ToolBarComboButton)
+	{
+		Entry.Type = EMultiBlockType::MenuEntry;
+		if (Entry.ToolBarData.bSimpleComboBox)
+		{
+			Entry.SubMenuData.bIsSubMenu = true;
+		}
+	}
+	else if (Entry.Type == EMultiBlockType::ToolBarSeparator)
+	{
+		Entry.Type = EMultiBlockType::MenuSeparator;
+	}
 }
 
 void UToolMenus::AssignSetTimerForNextTickDelegate(const FSimpleDelegate& InDelegate)

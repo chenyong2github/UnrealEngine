@@ -272,6 +272,8 @@ public:
 
 	//~ Begin UObject Interface
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void BeginDestroy() override;
+	virtual bool IsDestructionThreadSafe() const override { return false; }
 	//~ End UObject Interface
 
 	FSlateIcon EditMenuIcon;
@@ -334,6 +336,8 @@ private:
 
 	bool GetDisplayUIExtensionPoints() const;
 
+	static void ModifyEntryForEditDialog(FToolMenuEntry& Entry);
+
 private:
 
 	UPROPERTY(EditAnywhere, Category = Misc)
@@ -356,6 +360,10 @@ private:
 	bool bNextTickTimerIsSet;
 	bool bRefreshWidgetsNextTick;
 	bool bCleanupStaleWidgetsNextTick;
+
+	
+	static UToolMenus* Singleton;
+	static bool bHasShutDown;
 };
 
 struct FToolMenuOwnerScoped
