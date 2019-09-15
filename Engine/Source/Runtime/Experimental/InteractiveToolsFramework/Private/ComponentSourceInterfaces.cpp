@@ -61,6 +61,12 @@ FPrimitiveComponentTarget::SetOwnerVisibility(bool bVisible) const
 	Component->SetVisibility(bVisible);
 }
 
+
+int32 FPrimitiveComponentTarget::GetNumMaterials() const
+{
+	return Component->GetNumMaterials();
+}
+
 UMaterialInterface*
 FPrimitiveComponentTarget::GetMaterial(int32 MaterialIndex) const
 {
