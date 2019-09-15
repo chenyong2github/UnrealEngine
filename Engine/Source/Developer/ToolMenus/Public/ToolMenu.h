@@ -116,6 +116,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ToolBar")
 	bool bToolBarForceSmallIcons;
+		
+	/** Prevent menu from being customized */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ToolBar")
+	bool bPreventCustomization;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
 	FToolMenuOwner MenuOwner;
