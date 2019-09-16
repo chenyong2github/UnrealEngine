@@ -2064,6 +2064,10 @@ namespace AutomationTool
 				{
 					NoClient = true;
 				}
+				else
+				{
+					GameTarget = ClientCookedTargetsList[0];
+				}
 
 				// Validate all the settings
 				if (Client && bHasGameTarget)
