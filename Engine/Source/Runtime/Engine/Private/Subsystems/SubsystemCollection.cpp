@@ -90,6 +90,12 @@ const TArray<USubsystem*>& FSubsystemCollectionBase::GetSubsystemArrayInternal(T
 
 void FSubsystemCollectionBase::Initialize(UObject* NewOuter)
 {
+	if (Outer != nullptr)
+	{
+		// already initialized
+		return;
+	}
+
 	Outer = NewOuter;
 	check(Outer);
 	if (ensure(BaseType) && ensureMsgf(SubsystemMap.Num() == 0, TEXT("Currently don't support repopulation of Subsystem Collections.")))
