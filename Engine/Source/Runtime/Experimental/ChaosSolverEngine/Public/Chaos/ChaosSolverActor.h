@@ -192,7 +192,7 @@ public:
 	virtual void PostRegisterAllComponents() override;
 	
 	virtual void BeginPlay() override;
-	virtual void EndPlay(EEndPlayReason::Type ReasonEnd) override;
+	virtual void EndPlay(const EEndPlayReason::Type ReasonEnd) override;
 
 private:
 #if INCLUDE_CHAOS
