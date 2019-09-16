@@ -293,6 +293,7 @@ protected:
 	uint32 bBindingsInitialized : 1;
 	uint32 bInSpawnPhase : 1;
 	uint32 bIsSolo : 1;
+	uint32 bHasEverTicked : 1;
 
 	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
 	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;
