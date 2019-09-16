@@ -118,7 +118,7 @@ bool UInteractiveToolManager::ActivateTool(EToolSide Side)
 
 	if (ActiveLeftBuilder->CanBuildTool(InputState) == false)
 	{
-		TransactionsAPI->PostMessage( LOCTEXT("ActivateToolCanBuildFailMessage", "UInteractiveToolManager::ActivateTool: CanBuildTool returned false."), EToolMessageLevel::Internal);
+		TransactionsAPI->DisplayMessage( LOCTEXT("ActivateToolCanBuildFailMessage", "UInteractiveToolManager::ActivateTool: CanBuildTool returned false."), EToolMessageLevel::Internal);
 		return false;
 	}
 
@@ -240,9 +240,9 @@ UInteractiveGizmoManager* UInteractiveToolManager::GetPairedGizmoManager()
 	return Cast<UInteractiveToolsContext>(GetOuter())->GizmoManager;
 }
 
-void UInteractiveToolManager::PostMessage(const FText& Message, EToolMessageLevel Level)
+void UInteractiveToolManager::DisplayMessage(const FText& Message, EToolMessageLevel Level)
 {
-	TransactionsAPI->PostMessage(Message, Level);
+	TransactionsAPI->DisplayMessage(Message, Level);
 }
 
 void UInteractiveToolManager::PostInvalidation()

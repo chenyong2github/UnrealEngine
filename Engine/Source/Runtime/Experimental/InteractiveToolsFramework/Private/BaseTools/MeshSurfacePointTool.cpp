@@ -76,7 +76,7 @@ void UMeshSurfacePointTool::OnUpdateDrag(const FRay& Ray)
 	FHitResult OutHit;
 	if ( HitTest(Ray, OutHit) ) 
 	{
-		GetToolManager()->PostMessage( 
+		GetToolManager()->DisplayMessage( 
 			FText::Format(LOCTEXT("OnUpdateDragMessage", "UMeshSurfacePointTool::OnUpdateDrag: Hit triangle index {0} at ray distance {1}"),
 				FText::AsNumber(OutHit.FaceIndex), FText::AsNumber(OutHit.Distance)),
 			EToolMessageLevel::Internal);
@@ -85,7 +85,7 @@ void UMeshSurfacePointTool::OnUpdateDrag(const FRay& Ray)
 
 void UMeshSurfacePointTool::OnEndDrag(const FRay& Ray)
 {
-	//GetToolManager()->PostMessage(TEXT("UMeshSurfacePointTool::OnEndDrag!"), EToolMessageLevel::Internal);
+	//GetToolManager()->DisplayMessage(TEXT("UMeshSurfacePointTool::OnEndDrag!"), EToolMessageLevel::Internal);
 }
 
 

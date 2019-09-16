@@ -147,7 +147,7 @@ void UDrawPolygonTool::Setup()
 	AddToolPropertySource(PolygonProperties);
 	AddToolPropertySource(SnapProperties);
 
-	GetToolManager()->PostMessage(
+	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartDrawPolygonTool", "Left-click to place points on the Drawing Plane. Ctrl-click on the scene to reposition the Plane, and click-drag on the gizmo to move it."),
 		EToolMessageLevel::UserNotification);
 }

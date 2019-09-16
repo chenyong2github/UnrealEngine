@@ -237,7 +237,7 @@ public:
 		EdMode = InEdMode;
 	}
 
-	virtual void PostMessage(const FText& Message, EToolMessageLevel Level) override
+	virtual void DisplayMessage(const FText& Message, EToolMessageLevel Level) override
 	{
 		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message.ToString());
 	}

@@ -49,7 +49,7 @@ bool USingleClickTool::IsHitByClick(const FInputDeviceRay& ClickPos)
 void USingleClickTool::OnClicked(const FInputDeviceRay& ClickPos)
 {
 	// print debug message
-	GetToolManager()->PostMessage(
+	GetToolManager()->DisplayMessage(
 		FText::Format(LOCTEXT("OnClickedMessage", "USingleClickTool::OnClicked at ({0},{1})"),
 			FText::AsNumber(ClickPos.ScreenPosition.X), FText::AsNumber(ClickPos.ScreenPosition.Y)),
 		EToolMessageLevel::Internal );

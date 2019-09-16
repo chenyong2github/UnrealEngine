@@ -240,7 +240,7 @@ public:
 	 * @param Message text of message
 	 * @param Level severity level of message
 	 */
-	virtual void PostMessage(const FText& Message, EToolMessageLevel Level) = 0;
+	virtual void DisplayMessage(const FText& Message, EToolMessageLevel Level) = 0;
 
 	/** 
 	 * Forward an invalidation request from Tools framework, to cause repaint/etc. 

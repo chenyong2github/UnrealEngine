@@ -205,7 +205,7 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target)
 	// target tracks location of GizmoComponent
 	GizmoActor->GetRootComponent()->TransformUpdated.AddLambda(
 		[this, SaveScale](USceneComponent* Component, EUpdateTransformFlags /*UpdateTransformFlags*/, ETeleportType /*Teleport*/) {
-		//this->GetGizmoManager()->PostMessage(TEXT("TRANSFORM UPDATED"), EToolMessageLevel::Internal);
+		//this->GetGizmoManager()->DisplayMessage(TEXT("TRANSFORM UPDATED"), EToolMessageLevel::Internal);
 		FTransform NewXForm = Component->GetComponentToWorld();
 		NewXForm.SetScale3D(SaveScale);
 		this->ActiveTarget->SetTransform(NewXForm);

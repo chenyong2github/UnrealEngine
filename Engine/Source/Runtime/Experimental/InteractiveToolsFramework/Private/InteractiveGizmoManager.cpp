@@ -63,7 +63,7 @@ bool UInteractiveGizmoManager::DeregisterGizmoType(const FString& BuilderIdentif
 {
 	if (GizmoBuilders.Contains(BuilderIdentifier) == false)
 	{
-		PostMessage(
+		DisplayMessage(
 			FText::Format(LOCTEXT("DeregisterFailedMessage", "UInteractiveGizmoManager::DeregisterGizmoType: could not find requested type {0}"), FText::FromString(BuilderIdentifier) ),
 			EToolMessageLevel::Internal);
 		return false;
@@ -79,7 +79,7 @@ UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderI
 {
 	if ( GizmoBuilders.Contains(BuilderIdentifier) == false )
 	{
-		PostMessage(
+		DisplayMessage(
 			FText::Format(LOCTEXT("CreateGizmoCannotFindFailedMessage", "UInteractiveGizmoManager::CreateGizmo: could not find requested type {0}"), FText::FromString(BuilderIdentifier) ),
 			EToolMessageLevel::Internal);
 		return nullptr;
@@ -93,7 +93,7 @@ UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderI
 		{
 			if (ActiveGizmo.InstanceIdentifier == InstanceIdentifier)
 			{
-				PostMessage(
+				DisplayMessage(
 					FText::Format(LOCTEXT("CreateGizmoExistsMessage", "UInteractiveGizmoManager::CreateGizmo: instance identifier {0} already in use!"), FText::FromString(InstanceIdentifier) ),
 					EToolMessageLevel::Internal);
 				return nullptr;
@@ -107,7 +107,7 @@ UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderI
 	UInteractiveGizmo* NewGizmo = FoundBuilder->BuildGizmo(CurrentSceneState);
 	if (NewGizmo == nullptr)
 	{
-		PostMessage(LOCTEXT("CreateGizmoReturnNullMessage", "UInteractiveGizmoManager::CreateGizmo: BuildGizmo() returned null"), EToolMessageLevel::Internal);
+		DisplayMessage(LOCTEXT("CreateGizmoReturnNullMessage", "UInteractiveGizmoManager::CreateGizmo: BuildGizmo() returned null"), EToolMessageLevel::Internal);
 		return nullptr;
 	}
 
@@ -233,9 +233,9 @@ void UInteractiveGizmoManager::Render(IToolsContextRenderAPI* RenderAPI)
 
 }
 
-void UInteractiveGizmoManager::PostMessage(const FText& Message, EToolMessageLevel Level)
+void UInteractiveGizmoManager::DisplayMessage(const FText& Message, EToolMessageLevel Level)
 {
-	TransactionsAPI->PostMessage(Message, Level);
+	TransactionsAPI->DisplayMessage(Message, Level);
 }
 
 void UInteractiveGizmoManager::PostInvalidation()

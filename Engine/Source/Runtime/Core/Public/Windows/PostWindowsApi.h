@@ -35,6 +35,7 @@ THIRD_PARTY_INCLUDES_END
 #undef CreateFont
 #undef CreateDesktop
 #undef GetMessage
+#undef PostMessage
 #undef GetCommandLine
 #undef GetProp
 #undef SetProp

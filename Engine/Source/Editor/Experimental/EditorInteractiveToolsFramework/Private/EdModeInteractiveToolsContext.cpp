@@ -240,7 +240,7 @@ public:
 	}
 
 
-	virtual void PostMessage(const FText& Message, EToolMessageLevel Level) override
+	virtual void DisplayMessage(const FText& Message, EToolMessageLevel Level) override
 	{
 		if (Level == EToolMessageLevel::UserNotification)
 		{

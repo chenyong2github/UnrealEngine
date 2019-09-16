@@ -173,7 +173,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 
 	// Tell the window to redraw when they can.
 	// @todo: For Slate viewports, it doesn't make sense to post WM_PAINT messages (we swallow those.)
-	::PostMessage( WindowHandle, WM_PAINT, 0, 0 );
+	::PostMessageW( WindowHandle, WM_PAINT, 0, 0 );
 
 	BeginInitResource(&FrameSyncEvent);
 }

@@ -141,7 +141,7 @@ public:
 	//
 	
 	/** Post a message via the Transactions API */
-	virtual void PostMessage(const FText& Message, EToolMessageLevel Level);
+	virtual void DisplayMessage(const FText& Message, EToolMessageLevel Level);
 
 	/** Request an Invalidation via the Transactions API (ie to cause a repaint, etc) */
 	virtual void PostInvalidation();

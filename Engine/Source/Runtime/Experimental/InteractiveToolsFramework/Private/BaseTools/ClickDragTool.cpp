@@ -50,7 +50,7 @@ FInputRayHit UClickDragTool::CanBeginClickDragSequence(const FInputDeviceRay& Cl
 void UClickDragTool::OnClickPress(const FInputDeviceRay& ClickPos)
 {
 	// print debug message
-	GetToolManager()->PostMessage( 
+	GetToolManager()->DisplayMessage( 
 		FText::Format(LOCTEXT("OnClickPressMessage", "UClickDragTool::OnClickPress: clicked at ({0},{1})"),
 			FText::AsNumber(ClickPos.ScreenPosition.X), FText::AsNumber(ClickPos.ScreenPosition.Y)),
 		EToolMessageLevel::Internal);
@@ -64,7 +64,7 @@ void UClickDragTool::OnClickDrag(const FInputDeviceRay& ClickPos)
 void UClickDragTool::OnClickRelease(const FInputDeviceRay& ClickPos)
 {
 	// print debug message
-	GetToolManager()->PostMessage(
+	GetToolManager()->DisplayMessage(
 		FText::Format(LOCTEXT("OnClickReleaseMessage", "UClickDragTool::OnClickRelease: released at ({0},{1})"),
 			FText::AsNumber(ClickPos.ScreenPosition.X), FText::AsNumber(ClickPos.ScreenPosition.Y)),
 		EToolMessageLevel::Internal);
