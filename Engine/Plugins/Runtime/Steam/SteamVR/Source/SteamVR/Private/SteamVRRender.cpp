@@ -25,6 +25,12 @@
 
 static TAutoConsoleVariable<int32> CUsePostPresentHandoff(TEXT("vr.SteamVR.UsePostPresentHandoff"), 0, TEXT("Whether or not to use PostPresentHandoff.  If true, more GPU time will be available, but this relies on no SceneCaptureComponent2D or WidgetComponents being active in the scene.  Otherwise, it will break async reprojection."));
 
+static TAutoConsoleVariable<int> CVarEnableDepthSubmission(
+	TEXT("vr.EnableSteamVRDepthSubmission"),
+	1,
+	TEXT("By default, depth is passed through in SteamVR for devices that support depth. Set this flag to 0 to disable depth submission."),
+	ECVF_Default);
+
 void FSteamVRHMD::DrawDistortionMesh_RenderThread(struct FRenderingCompositePassContext& Context, const FIntPoint& TextureSize)
 {
 	check(0);
@@ -177,12 +183,6 @@ FSteamVRHMD::D3D11Bridge::D3D11Bridge(FSteamVRHMD* plugin):
 {
 
 }
-
-static TAutoConsoleVariable<int> CVarEnableDepthSubmission(
-	TEXT("vr.EnableSteamVRDepthSubmission"),
-	1,
-	TEXT("By default, depth is passed through in SteamVR for devices that support depth. Set this flag to 0 to disable depth submission."),
-	ECVF_Default);
 
 void FSteamVRHMD::D3D11Bridge::FinishRendering()
 {
