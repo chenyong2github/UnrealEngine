@@ -873,8 +873,6 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		LandscapeEdMode->SetLandscapeInfo(LandscapeInfo);
 		LandscapeEdMode->CurrentToolTarget.TargetType = ELandscapeToolTargetType::Heightmap;
 		LandscapeEdMode->SetCurrentTargetLayer(NAME_None, nullptr);
-		LandscapeEdMode->UpdateTargetList();
-
 		LandscapeEdMode->SetCurrentTool("Select"); // change tool so switching back to the manage mode doesn't give "New Landscape" again
 		LandscapeEdMode->SetCurrentTool("Sculpt"); // change to sculpting mode and tool
 		LandscapeEdMode->SetCurrentLayer(0);

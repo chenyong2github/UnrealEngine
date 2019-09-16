@@ -648,4 +648,5 @@ private:
 
 	/** Delayed refresh */
 	bool bNeedsUpdateShownLayerList;
+	bool bUpdatingLandscapeInfo;
 };
