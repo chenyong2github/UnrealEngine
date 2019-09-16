@@ -2901,6 +2901,12 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 		ShaderParams.GenerateNormals = true;
 		ShaderParams.GridSize = GetRootComponent()->RelativeScale3D;
 
+		// Broadcast Event of the Full Render
+		if ((HeightmapUpdateModes & Update_Heightmap_All) == Update_Heightmap_All)
+		{
+			LandscapeFullHeightmapRenderDoneDelegate.Broadcast(LandscapeScratchRT3);
+		}
+
 		DrawHeightmapComponentsToRenderTarget(OutputDebugName ? FString::Printf(TEXT("LS Height: %s = -> CombinedNonAtlasNormals : %s"), *CombinedHeightmapNonAtlasRT->GetName(), *LandscapeScratchRT1->GetName()) : GEmptyDebugName,
 											  InLandscapeComponentsToRender, LandscapeExtent.Min, CombinedHeightmapNonAtlasRT, nullptr, LandscapeScratchRT1, ERTDrawingType::RTNonAtlas, true, ShaderParams);
 
