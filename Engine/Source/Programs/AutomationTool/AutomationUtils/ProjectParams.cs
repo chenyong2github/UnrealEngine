@@ -2059,6 +2059,12 @@ namespace AutomationTool
 					}
 				}
 
+				// If we don't have any game/client targets, don't stage any client executable
+				if (ClientCookedTargetsList.Count == 0)
+				{
+					NoClient = true;
+				}
+
 				// Validate all the settings
 				if (Client && bHasGameTarget)
 				{
