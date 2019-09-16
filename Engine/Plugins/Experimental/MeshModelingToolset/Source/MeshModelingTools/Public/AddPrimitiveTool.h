@@ -69,7 +69,7 @@ class MESHMODELINGTOOLS_API UProceduralShapeToolProperties : public UInteractive
 
 public:
 	UProceduralShapeToolProperties();
-	bool CanEditChange( const UProperty* InProperty ) const override;
+	virtual bool CanEditChange( const UProperty* InProperty ) const override;
 
 	/** Type of shape to generate */
 	UPROPERTY(EditAnywhere, Category = ShapeSettings)
