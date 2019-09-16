@@ -75,8 +75,7 @@ AActor* AssetGenerationUtil::GenerateStaticMeshActor(
 
 	// transform new component to origin
 	Builder.NewMeshComponent->SetWorldTransform((FTransform)Transform);
-	UMaterialInstance;
-	UMaterialInterface;
+
 	if (Material)
 	{
 		Builder.NewMeshComponent->SetMaterial(0, Material);
