@@ -34,7 +34,7 @@ public:
 	}
 };
 
-namespace UE4StringConv_Private
+namespace StringConv
 {
 	constexpr const uint16 HIGH_SURROGATE_START_CODEPOINT = 0xD800;
 	constexpr const uint16 HIGH_SURROGATE_END_CODEPOINT   = 0xDBFF;
@@ -42,6 +42,17 @@ namespace UE4StringConv_Private
 	constexpr const uint16 LOW_SURROGATE_END_CODEPOINT    = 0xDFFF;
 	constexpr const uint32 ENCODED_SURROGATE_START_CODEPOINT = 0x10000;
 	constexpr const uint32 ENCODED_SURROGATE_END_CODEPOINT   = 0x10FFFF;
+
+	/** Is the provided Codepoint within the range of valid codepoints? */
+	static FORCEINLINE bool IsValidCodepoint(const uint32 Codepoint)
+	{
+		if ((Codepoint > 0x10FFFF) ||						// No Unicode codepoints above 10FFFFh, (for now!)
+			(Codepoint == 0xFFFE) || (Codepoint == 0xFFFF)) // illegal values.
+		{
+			return false;
+		}
+		return true;
+	}
 
 	/** Is the provided Codepoint within the range of the high-surrogates? */
 	static FORCEINLINE bool IsHighSurrogate(const uint32 Codepoint)
@@ -55,12 +66,96 @@ namespace UE4StringConv_Private
 		return Codepoint >= LOW_SURROGATE_START_CODEPOINT && Codepoint <= LOW_SURROGATE_END_CODEPOINT;
 	}
 
+	static FORCEINLINE uint32 EncodeSurrogate(const uint16 HighSurrogate, const uint16 LowSurrogate)
+	{
+		return ((HighSurrogate - HIGH_SURROGATE_START_CODEPOINT) << 10) + (LowSurrogate - LOW_SURROGATE_START_CODEPOINT) + 0x10000;
+	}
+
+	static FORCEINLINE void DecodeSurrogate(const uint32 Codepoint, uint16& OutHighSurrogate, uint16& OutLowSurrogate)
+	{
+		const uint32 TmpCodepoint = Codepoint - 0x10000;
+		OutHighSurrogate = (TmpCodepoint >> 10) + HIGH_SURROGATE_START_CODEPOINT;
+		OutLowSurrogate = (TmpCodepoint & 0x3FF) + LOW_SURROGATE_START_CODEPOINT;
+	}
+
 	/** Is the provided Codepoint outside of the range of the basic multilingual plane, but within the valid range of UTF8/16? */
 	static FORCEINLINE bool IsEncodedSurrogate(const uint32 Codepoint)
 	{
 		return Codepoint >= ENCODED_SURROGATE_START_CODEPOINT && Codepoint <= ENCODED_SURROGATE_END_CODEPOINT;
 	}
 
+	/** Inline combine any UTF-16 surrogate pairs in the given null-terminated character buffer, returning the updated length */
+	template<typename CharType>
+	static FORCEINLINE int32 InlineCombineSurrogates_Buffer(CharType* StrBuffer, int32 StrLen)
+	{
+		static_assert(sizeof(CharType) == 4, "CharType must be 4-bytes!");
+
+		for (int32 Index = 0; Index < StrLen; ++Index)
+		{
+			CharType Codepoint = StrBuffer[Index];
+
+			// Check if this character is a high-surrogate
+			if (StringConv::IsHighSurrogate(Codepoint))
+			{
+				// Ensure our string has enough characters to read from
+				if ((Index + 1) >= StrLen)
+				{
+					// Unpaired surrogate - replace with bogus char
+					StrBuffer[Index] = UNICODE_BOGUS_CHAR_CODEPOINT;
+					break;
+				}
+
+				const uint32 HighCodepoint = Codepoint;
+				Codepoint = StrBuffer[Index + 1];
+
+				// If our High Surrogate is set, check if this character is the matching low-surrogate
+				if (StringConv::IsLowSurrogate(Codepoint))
+				{
+					const uint32 LowCodepoint = Codepoint;
+
+					// Combine our high and low surrogates together to a single Unicode codepoint
+					Codepoint = StringConv::EncodeSurrogate(HighCodepoint, LowCodepoint);
+
+					StrBuffer[Index] = Codepoint;
+					{
+						const int32 ArrayNum = StrLen + 1;
+						const int32 IndexToRemove = Index + 1;
+						const int32 NumToMove = ArrayNum - IndexToRemove - 1;
+						if (NumToMove > 0)
+						{
+							FMemory::Memmove(StrBuffer + IndexToRemove, StrBuffer + IndexToRemove + 1, NumToMove * sizeof(CharType));
+						}
+					}
+					--StrLen;
+					continue;
+				}
+
+				// Unpaired surrogate - replace with bogus char
+				StrBuffer[Index] = UNICODE_BOGUS_CHAR_CODEPOINT;
+			}
+			else if (StringConv::IsLowSurrogate(Codepoint))
+			{
+				// Unpaired surrogate - replace with bogus char
+				StrBuffer[Index] = UNICODE_BOGUS_CHAR_CODEPOINT;
+			}
+		}
+
+		return StrLen;
+	}
+
+	/** Inline combine any UTF-16 surrogate pairs in the given null-terminated TCHAR array */
+	template<typename AllocatorType>
+	static FORCEINLINE void InlineCombineSurrogates_Array(TArray<TCHAR, AllocatorType>& StrBuffer)
+	{
+#if PLATFORM_TCHAR_IS_4_BYTES
+		const int32 NewStrLen = InlineCombineSurrogates_Buffer(StrBuffer.GetData(), StrBuffer.Num() - 1);
+		StrBuffer.SetNum(NewStrLen + 1, /*bAllowShrinking*/false);
+#endif	// PLATFORM_TCHAR_IS_4_BYTES
+	}
+}
+
+namespace UE4StringConv_Private
+{
 	/**
 	 * This is a basic object which counts how many times it has been incremented
 	 */
@@ -117,15 +212,11 @@ public:
 
 		const BufferType OutputIteratorStartPosition = OutputIterator;
 
-		if (Codepoint > 0x10FFFF)   // No Unicode codepoints above 10FFFFh, (for now!)
+		if (!StringConv::IsValidCodepoint(Codepoint))
 		{
 			Codepoint = UNICODE_BOGUS_CHAR_CODEPOINT;
 		}
-		else if ((Codepoint == 0xFFFE) || (Codepoint == 0xFFFF))  // illegal values.
-		{
-			Codepoint = UNICODE_BOGUS_CHAR_CODEPOINT;
-		}
-		else if (UE4StringConv_Private::IsHighSurrogate(Codepoint) || UE4StringConv_Private::IsLowSurrogate(Codepoint)) // UTF-8 Characters are not allowed to encode codepoints in the surrogate pair range
+		else if (StringConv::IsHighSurrogate(Codepoint) || StringConv::IsLowSurrogate(Codepoint)) // UTF-8 Characters are not allowed to encode codepoints in the surrogate pair range
 		{
 			Codepoint = UNICODE_BOGUS_CHAR_CODEPOINT;
 		}
@@ -209,22 +300,34 @@ private:
 	template <typename DestBufferType>
 	static void Convert_Impl(DestBufferType& Dest, int32 DestLen, const TCHAR* Source, const int32 SourceLen)
 	{
-		uint32 HighCodepoint = MAX_uint32;
+#if PLATFORM_TCHAR_IS_4_BYTES
+		for (int32 i = 0; i < SourceLen; ++i)
+		{
+			uint32 Codepoint = static_cast<uint32>(Source[i]);
+
+			if (!WriteCodepointToBuffer(Codepoint, Dest, DestLen))
+			{
+				// Could not write data, bail out
+				return;
+			}
+		}
+#else	// PLATFORM_TCHAR_IS_4_BYTES
+		uint32 HighSurrogate = MAX_uint32;
 
 		for (int32 i = 0; i < SourceLen; ++i)
 		{
-			const bool bHighSurrogateIsSet = HighCodepoint != MAX_uint32;
+			const bool bHighSurrogateIsSet = HighSurrogate != MAX_uint32;
 			uint32 Codepoint = static_cast<uint32>(Source[i]);
 
 			// Check if this character is a high-surrogate
-			if (UE4StringConv_Private::IsHighSurrogate(Codepoint))
+			if (StringConv::IsHighSurrogate(Codepoint))
 			{
 				// Ensure we don't already have a high-surrogate set
 				if (bHighSurrogateIsSet)
 				{
 					// Already have a high-surrogate in this pair
 					// Write our stored value (will be converted into bogus character)
-					if (!WriteCodepointToBuffer(HighCodepoint, Dest, DestLen))
+					if (!WriteCodepointToBuffer(HighSurrogate, Dest, DestLen))
 					{
 						// Could not write data, bail out
 						return;
@@ -232,23 +335,23 @@ private:
 				}
 
 				// Store our code point for our next character
-				HighCodepoint = Codepoint;
+				HighSurrogate = Codepoint;
 				continue;
 			}
 
 			// If our High Surrogate is set, check if this character is the matching low-surrogate
 			if (bHighSurrogateIsSet)
 			{
-				if (UE4StringConv_Private::IsLowSurrogate(Codepoint))
+				if (StringConv::IsLowSurrogate(Codepoint))
 				{
-					const uint32 LowCodepoint = Codepoint;
+					const uint32 LowSurrogate = Codepoint;
 					// Combine our high and low surrogates together to a single Unicode codepoint
-					Codepoint = ((HighCodepoint - UE4StringConv_Private::HIGH_SURROGATE_START_CODEPOINT) << 10) + (LowCodepoint - UE4StringConv_Private::LOW_SURROGATE_START_CODEPOINT) + 0x10000;
+					Codepoint = StringConv::EncodeSurrogate(HighSurrogate, LowSurrogate);
 				}
 				else
 				{
-					// Did not find matching low-surrogate, write out a bogus character for our stored HighCodepoint
-					if (!WriteCodepointToBuffer(HighCodepoint, Dest, DestLen))
+					// Did not find matching low-surrogate, write out a bogus character for our stored HighSurrogate
+					if (!WriteCodepointToBuffer(HighSurrogate, Dest, DestLen))
 					{
 						// Could not write data, bail out
 						return;
@@ -256,7 +359,7 @@ private:
 				}
 
 				// Reset our high-surrogate now that we've used (or discarded) its value
-				HighCodepoint = MAX_uint32;
+				HighSurrogate = MAX_uint32;
 			}
 
 			if (!WriteCodepointToBuffer(Codepoint, Dest, DestLen))
@@ -265,6 +368,7 @@ private:
 				return;
 			}
 		}
+#endif	// PLATFORM_TCHAR_IS_4_BYTES
 	}
 
 	template <typename DestBufferType>
@@ -289,7 +393,7 @@ public:
 	typedef TCHAR    ToType;
 
 	/**
-	 * Converts the UTF-8 string to UTF-16.
+	 * Converts the UTF-8 string to UTF-16 or UTF-32.
 	 *
 	 * @param Dest      The destination buffer of the converted string.
 	 * @param DestLen   The length of the destination buffer.
@@ -306,7 +410,7 @@ public:
 	 *
 	 * @param Source string to read and determine amount of TCHARs to represent
 	 * @param SourceLen Length of source string; we will not read past this amount, even if the characters tell us to
-	 * @return The length of the string in UTF-16 characters.
+	 * @return The length of the string in UTF-16 or UTF-32 characters.
 	 */
 	static int32 ConvertedLength(const ANSICHAR* Source, const int32 SourceLen)
 	{
@@ -319,7 +423,7 @@ public:
 private:
 	static uint32 CodepointFromUtf8(const ANSICHAR*& SourceString, const uint32 SourceLengthRemaining)
 	{
-		checkSlow(SourceLengthRemaining > 0)
+		checkSlow(SourceLengthRemaining > 0);
 
 		const ANSICHAR* OctetPtr = SourceString;
 
@@ -392,7 +496,7 @@ private:
 			Codepoint = ( ((Octet << 12)) | ((Octet2-128) << 6) | ((Octet3-128)) );
 
 			// UTF-8 characters cannot be in the UTF-16 surrogates range
-			if (UE4StringConv_Private::IsHighSurrogate(Codepoint) || UE4StringConv_Private::IsLowSurrogate(Codepoint))
+			if (StringConv::IsHighSurrogate(Codepoint) || StringConv::IsLowSurrogate(Codepoint))
 			{
 				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
 				return UNICODE_BOGUS_CHAR_CODEPOINT;
@@ -555,17 +659,19 @@ private:
 			// Read our codepoint, advancing the source pointer
 			uint32 Codepoint = CodepointFromUtf8(Source, SourceEnd - Source);
 
+#if !PLATFORM_TCHAR_IS_4_BYTES
 			// We want to write out two chars
-			if (UE4StringConv_Private::IsEncodedSurrogate(Codepoint))
+			if (StringConv::IsEncodedSurrogate(Codepoint))
 			{
 				// We need two characters to write the surrogate pair
 				if (DestLen >= 2)
 				{
-					Codepoint -= 0x10000;
-					const TCHAR HighSurrogate = (Codepoint >> 10) + UE4StringConv_Private::HIGH_SURROGATE_START_CODEPOINT;
-					const TCHAR LowSurrogate = (Codepoint & 0x3FF) + UE4StringConv_Private::LOW_SURROGATE_START_CODEPOINT;
-					*(ConvertedBuffer++) = HighSurrogate;
-					*(ConvertedBuffer++) = LowSurrogate;
+					uint16 HighSurrogate = 0;
+					uint16 LowSurrogate = 0;
+					StringConv::DecodeSurrogate(Codepoint, HighSurrogate, LowSurrogate);
+
+					*(ConvertedBuffer++) = (TCHAR)HighSurrogate;
+					*(ConvertedBuffer++) = (TCHAR)LowSurrogate;
 					DestLen -= 2;
 					continue;
 				}
@@ -573,11 +679,248 @@ private:
 				// If we don't have space, write a bogus character instead (we should have space for it)
 				Codepoint = UNICODE_BOGUS_CHAR_CODEPOINT;
 			}
-			else if (Codepoint > UE4StringConv_Private::ENCODED_SURROGATE_END_CODEPOINT)
+			else if (Codepoint > StringConv::ENCODED_SURROGATE_END_CODEPOINT)
 			{
 				// Ignore values higher than the supplementary plane range
 				Codepoint = UNICODE_BOGUS_CHAR_CODEPOINT;
 			}
+#endif	// !PLATFORM_TCHAR_IS_4_BYTES
+
+			*(ConvertedBuffer++) = Codepoint;
+			--DestLen;
+		}
+	}
+};
+
+template<typename InFromType, typename InToType>
+class TUTF32ToUTF16_Convert
+{
+	static_assert(sizeof(InFromType) == 4, "FromType must be 4 bytes!");
+	static_assert(sizeof(InToType) == 2, "ToType must be 2 bytes!");
+
+public:
+	typedef InFromType FromType;
+	typedef InToType   ToType;
+
+	/**
+	 * Convert Codepoint into UTF-16 characters.
+	 *
+	 * @param Codepoint Codepoint to expand into UTF-16 code units
+	 * @param OutputIterator Output iterator to write UTF-16 code units into
+	 * @param OutputIteratorNumRemaining Maximum number of UTF-16 code units that can be written to OutputIterator
+	 * @return Number of characters written for Codepoint
+	 */
+	template <typename BufferType>
+	static int32 Utf16FromCodepoint(uint32 Codepoint, BufferType OutputIterator, uint32 OutputIteratorNumRemaining)
+	{
+		// Ensure we have at least one character in size to write
+		checkSlow(OutputIteratorNumRemaining >= 1);
+
+		const BufferType OutputIteratorStartPosition = OutputIterator;
+
+		if (!StringConv::IsValidCodepoint(Codepoint))
+		{
+			Codepoint = UNICODE_BOGUS_CHAR_CODEPOINT;
+		}
+		else if (StringConv::IsHighSurrogate(Codepoint) || StringConv::IsLowSurrogate(Codepoint)) // Surrogate pairs range should not be present in UTF-32
+		{
+			Codepoint = UNICODE_BOGUS_CHAR_CODEPOINT;
+		}
+
+		// We want to write out two chars
+		if (StringConv::IsEncodedSurrogate(Codepoint))
+		{
+			// We need two characters to write the surrogate pair
+			if (OutputIteratorNumRemaining >= 2)
+			{
+				uint16 HighSurrogate = 0;
+				uint16 LowSurrogate = 0;
+				StringConv::DecodeSurrogate(Codepoint, HighSurrogate, LowSurrogate);
+
+				*(OutputIterator++) = (ToType)HighSurrogate;
+				*(OutputIterator++) = (ToType)LowSurrogate;
+			}
+			else
+			{
+				// If we don't have space, write a bogus character instead (we should have space for it)
+				*(OutputIterator++) = UNICODE_BOGUS_CHAR_CODEPOINT;
+			}
+		}
+		else if (Codepoint > StringConv::ENCODED_SURROGATE_END_CODEPOINT)
+		{
+			// Ignore values higher than the supplementary plane range
+			*(OutputIterator++) = UNICODE_BOGUS_CHAR_CODEPOINT;
+		}
+		else
+		{
+			// Normal codepoint
+			*(OutputIterator++) = Codepoint;
+		}
+
+		return static_cast<int32>(OutputIterator - OutputIteratorStartPosition);
+	}
+
+	/**
+	 * Converts the string to the desired format.
+	 *
+	 * @param Dest      The destination buffer of the converted string.
+	 * @param DestLen   The length of the destination buffer.
+	 * @param Source    The source string to convert.
+	 * @param SourceLen The length of the source string.
+	 */
+	static FORCEINLINE void Convert(ToType* Dest, int32 DestLen, const FromType* Source, int32 SourceLen)
+	{
+		Convert_Impl(Dest, DestLen, Source, SourceLen);
+	}
+
+	/**
+	 * Determines the length of the converted string.
+	 *
+	 * @return The length of the string in UTF-16 code units.
+	 */
+	static FORCEINLINE int32 ConvertedLength(const FromType* Source, int32 SourceLen)
+	{
+		UE4StringConv_Private::FCountingOutputIterator Dest;
+		const int32 DestLen = SourceLen * 2;
+		Convert_Impl(Dest, DestLen, Source, SourceLen);
+
+		return Dest.GetCount();
+	}
+
+private:
+	template <typename DestBufferType>
+	static void Convert_Impl(DestBufferType& Dest, int32 DestLen, const FromType* Source, const int32 SourceLen)
+	{
+		for (int32 i = 0; i < SourceLen; ++i)
+		{
+			uint32 Codepoint = static_cast<uint32>(Source[i]);
+
+			if (!WriteCodepointToBuffer(Codepoint, Dest, DestLen))
+			{
+				// Could not write data, bail out
+				return;
+			}
+		}
+	}
+
+	template <typename DestBufferType>
+	static bool WriteCodepointToBuffer(const uint32 Codepoint, DestBufferType& Dest, int32& DestLen)
+	{
+		int32 WrittenChars = Utf16FromCodepoint(Codepoint, Dest, DestLen);
+		if (WrittenChars < 1)
+		{
+			return false;
+		}
+
+		Dest += WrittenChars;
+		DestLen -= WrittenChars;
+		return true;
+	}
+};
+
+template<typename InFromType, typename InToType>
+class TUTF16ToUTF32_Convert
+{
+	static_assert(sizeof(InFromType) == 2, "FromType must be 2 bytes!");
+	static_assert(sizeof(InToType) == 4, "ToType must be 4 bytes!");
+
+public:
+	typedef InFromType FromType;
+	typedef InToType   ToType;
+
+	/**
+	 * Converts the UTF-16 string to UTF-32.
+	 *
+	 * @param Dest      The destination buffer of the converted string.
+	 * @param DestLen   The length of the destination buffer.
+	 * @param Source    The source string to convert.
+	 * @param SourceLen The length of the source string.
+	 */
+	static FORCEINLINE void Convert(ToType* Dest, const int32 DestLen, const FromType* Source, const int32 SourceLen)
+	{
+		Convert_Impl(Dest, DestLen, Source, SourceLen);
+	}
+
+	/**
+	 * Determines the length of the converted string.
+	 *
+	 * @param Source string to read and determine amount of ToType chars to represent
+	 * @param SourceLen Length of source string; we will not read past this amount, even if the characters tell us to
+	 * @return The length of the string in UTF-32 characters.
+	 */
+	static int32 ConvertedLength(const FromType* Source, const int32 SourceLen)
+	{
+		UE4StringConv_Private::FCountingOutputIterator Dest;
+		Convert_Impl(Dest, MAX_int32, Source, SourceLen);
+
+		return Dest.GetCount();
+	}
+
+private:
+	static uint32 CodepointFromUtf16(const FromType*& SourceString, const uint32 SourceLengthRemaining)
+	{
+		checkSlow(SourceLengthRemaining > 0);
+
+		const FromType* CodeUnitPtr = SourceString;
+
+		uint32 Codepoint = *CodeUnitPtr;
+
+		// Check if this character is a high-surrogate
+		if (StringConv::IsHighSurrogate(Codepoint))
+		{
+			// Ensure our string has enough characters to read from
+			if (SourceLengthRemaining < 2)
+			{
+				// Skip to end and write out a single char (we always have room for at least 1 char)
+				SourceString += SourceLengthRemaining;
+				return UNICODE_BOGUS_CHAR_CODEPOINT;
+			}
+
+			const uint32 HighSurrogate = Codepoint;
+			Codepoint = *(++CodeUnitPtr);
+
+			// If our High Surrogate is set, check if this character is the matching low-surrogate
+			if (StringConv::IsLowSurrogate(Codepoint))
+			{
+				const uint32 LowSurrogate = Codepoint;
+
+				// Combine our high and low surrogates together to a single Unicode codepoint
+				Codepoint = StringConv::EncodeSurrogate(HighSurrogate, LowSurrogate);
+
+				SourceString += 2;  // skip to next possible start of codepoint.
+				return Codepoint;
+			}
+			else
+			{
+				++SourceString; // Did not find matching low-surrogate, write out a bogus character and continue
+				return UNICODE_BOGUS_CHAR_CODEPOINT;
+			}
+		}
+		else if (StringConv::IsLowSurrogate(Codepoint))
+		{
+			// Unpaired low surrogate
+			++SourceString;
+			return UNICODE_BOGUS_CHAR_CODEPOINT;
+		}
+		else
+		{
+			// Single codepoint
+			++SourceString;
+			return Codepoint;
+		}
+	}
+
+	/**
+	 * Read Source string, converting the data from UTF-16 into UTF-32, and placing these in the Destination
+	 */
+	template <typename DestBufferType>
+	static void Convert_Impl(DestBufferType& ConvertedBuffer, int32 DestLen, const FromType* Source, const int32 SourceLen)
+	{
+		const FromType* SourceEnd = Source + SourceLen;
+		while (Source < SourceEnd && DestLen > 0)
+		{
+			// Read our codepoint, advancing the source pointer
+			uint32 Codepoint = CodepointFromUtf16(Source, SourceEnd - Source);
 
 			*(ConvertedBuffer++) = Codepoint;
 			--DestLen;
@@ -632,7 +975,7 @@ public:
 		}
 		else
 		{
-			Ptr          = NULL;
+			Ptr = nullptr;
 			StringLength = 0;
 		}
 	}
@@ -641,11 +984,19 @@ public:
 	{
 		if (Source)
 		{
-			Init(Source, SourceLen, ENullTerminatedString::No);
+			ENullTerminatedString::Type NullTerminated = ENullTerminatedString::No;
+			if (SourceLen > 0 && Source[SourceLen-1] == 0)
+			{
+				// Given buffer is null-terminated
+				NullTerminated = ENullTerminatedString::Yes;
+				SourceLen -= 1;
+			}
+
+			Init(Source, SourceLen, NullTerminated);
 		}
 		else
 		{
-			Ptr          = NULL;
+			Ptr = nullptr;
 			StringLength = 0;
 		}
 	}
@@ -661,8 +1012,9 @@ public:
 
 	/**
 	 * Accessor for the converted string.
+	 * @note The string may not be null-terminated if constructed from an explicitly sized buffer that didn't include the null-terminator.
 	 *
-	 * @return A const pointer to the null-terminated converted string.
+	 * @return A const pointer to the converted string.
 	 */
 	FORCEINLINE const ToType* Get() const
 	{
@@ -681,11 +1033,95 @@ public:
 
 private:
 	// Non-copyable
-	TStringConversion(const TStringConversion&);
-	TStringConversion& operator=(const TStringConversion&);
+	TStringConversion(const TStringConversion&) = delete;
+	TStringConversion& operator=(const TStringConversion&) = delete;
 
 	ToType* Ptr;
 	int32   StringLength;
+};
+
+
+/**
+ * Class takes one type of string and and stores it as-is.
+ * For API compatibility with TStringConversion when the To and From types are already in the same format.
+ */
+template<typename InFromType, typename InToType = InFromType>
+class TStringPointer
+{
+	static_assert(sizeof(InFromType) == sizeof(InToType), "FromType must be the same size as ToType!");
+
+public:
+	typedef InFromType FromType;
+	typedef InToType   ToType;
+
+public:
+	explicit TStringPointer(const FromType* Source)
+	{
+		if (Source)
+		{
+			Ptr = (const ToType*)Source;
+			StringLength = -1; // Length calculated on-demand
+		}
+		else
+		{
+			Ptr = nullptr;
+			StringLength = 0;
+		}
+	}
+
+	TStringPointer(const FromType* Source, int32 SourceLen)
+	{
+		if (Source)
+		{
+			if (SourceLen > 0 && Source[SourceLen-1] == 0)
+			{
+				// Given buffer is null-terminated
+				SourceLen -= 1;
+			}
+
+			Ptr = (const ToType*)Source;
+			StringLength = SourceLen;
+		}
+		else
+		{
+			Ptr = nullptr;
+			StringLength = 0;
+		}
+	}
+
+	/**
+	 * Move constructor
+	 */
+	TStringPointer(TStringPointer&& Other) = default;
+
+	/**
+	 * Accessor for the string.
+	 * @note The string may not be null-terminated if constructed from an explicitly sized buffer that didn't include the null-terminator.
+	 *
+	 * @return A const pointer to the string.
+	 */
+	FORCEINLINE const ToType* Get() const
+	{
+		return Ptr;
+	}
+
+	/**
+	 * Length of the string.
+	 *
+	 * @return The number of characters in the string, excluding any null terminator.
+	 */
+	FORCEINLINE int32 Length() const
+	{
+		return StringLength == -1 ? TCString<ToType>::Strlen(Ptr) : StringLength;
+	}
+
+private:
+	// Non-copyable
+	TStringPointer(const TStringPointer&) = delete;
+	TStringPointer& operator=(const TStringPointer&) = delete;
+
+	const ToType* Ptr;
+	int32 StringLength;
 };
 
 
@@ -716,39 +1152,33 @@ typedef TStringConversion<FUTF8ToTCHAR_Convert> FUTF8ToTCHAR;
 #define TCHAR_TO_UTF8(str) (ANSICHAR*)FTCHARToUTF8((const TCHAR*)str).Get()
 #define UTF8_TO_TCHAR(str) (TCHAR*)FUTF8ToTCHAR((const ANSICHAR*)str).Get()
 
-// special needs handling for going from char16_t to wchar_t for third party libraries that need wchar_t
-#if PLATFORM_TCHAR_IS_CHAR16
-#define TCHAR_TO_WCHAR(str) (wchar_t*)StringCast<wchar_t>(static_cast<const TCHAR*>(str)).Get()
-#define WCHAR_TO_TCHAR(str) (TCHAR*)StringCast<TCHAR>(static_cast<const wchar_t*>(str)).Get()
+// special handling for platforms still using a 32-bit TCHAR
+#if PLATFORM_TCHAR_IS_4_BYTES
+typedef TStringConversion<TUTF32ToUTF16_Convert<TCHAR, UTF16CHAR>> FTCHARToUTF16;
+typedef TStringConversion<TUTF16ToUTF32_Convert<UTF16CHAR, TCHAR>> FUTF16ToTCHAR;
+#define TCHAR_TO_UTF16(str) (UTF16CHAR*)FTCHARToUTF16((const TCHAR*)str).Get()
+#define UTF16_TO_TCHAR(str) (TCHAR*)FUTF16ToTCHAR((const UTF16CHAR*)str).Get()
 #else
-#define TCHAR_TO_WCHAR(str) str
-#define WCHAR_TO_TCHAR(str) str
+static_assert(sizeof(TCHAR) == sizeof(UTF16CHAR), "TCHAR and UTF16CHAR are expected to be the same size for inline conversion! PLATFORM_TCHAR_IS_4_BYTES is not configured correctly for this platform.");
+typedef TStringPointer<TCHAR, UTF16CHAR> FTCHARToUTF16;
+typedef TStringPointer<UTF16CHAR, TCHAR> FUTF16ToTCHAR;
+#define TCHAR_TO_UTF16(str) (UTF16CHAR*)(str)
+#define UTF16_TO_TCHAR(str) (TCHAR*)(str)
 #endif
 
-// This seemingly-pointless class is intended to be API-compatible with TStringConversion
-// and is returned by StringCast when no string conversion is necessary.
-template <typename T>
-class TStringPointer
-{
-public:
-	FORCEINLINE explicit TStringPointer(const T* InPtr)
-		: Ptr(InPtr)
-	{
-	}
-
-	FORCEINLINE const T* Get() const
-	{
-		return Ptr;
-	}
-
-	FORCEINLINE int32 Length() const
-	{
-		return Ptr ? TCString<T>::Strlen(Ptr) : 0;
-	}
-
-private:
-	const T* Ptr;
-};
+// special handling for going from char16_t to wchar_t for third party libraries that need wchar_t
+#if PLATFORM_TCHAR_IS_CHAR16 && PLATFORM_WCHAR_IS_4_BYTES
+typedef TStringConversion<TUTF16ToUTF32_Convert<TCHAR, wchar_t>> FTCHARToWChar;
+typedef TStringConversion<TUTF32ToUTF16_Convert<wchar_t, TCHAR>> FWCharToTCHAR;
+#define TCHAR_TO_WCHAR(str) (wchar_t*)FTCHARToWChar((const TCHAR*)str).Get()
+#define WCHAR_TO_TCHAR(str) (TCHAR*)FWCharToTCHAR((const wchar_t*)str).Get()
+#else
+static_assert(sizeof(TCHAR) == sizeof(wchar_t), "TCHAR and wchar_t are expected to be the same size for inline conversion! PLATFORM_WCHAR_IS_4_BYTES is not configured correctly for this platform.");
+typedef TStringPointer<TCHAR, wchar_t> FTCHARToWChar;
+typedef TStringPointer<wchar_t, TCHAR> FWCharToTCHAR;
+#define TCHAR_TO_WCHAR(str) (wchar_t*)(str)
+#define WCHAR_TO_TCHAR(str) (TCHAR*)(str)
+#endif
 
 /**
  * StringCast example usage:
@@ -792,7 +1222,7 @@ FORCEINLINE typename TEnableIf<!FPlatformString::TAreEncodingsCompatible<To, Fro
 template <typename To, typename From>
 FORCEINLINE typename TEnableIf<FPlatformString::TAreEncodingsCompatible<To, From>::Value, TStringPointer<To>>::Type StringCast(const From* Str, int32 Len)
 {
-	return TStringPointer<To>((const To*)Str);
+	return TStringPointer<To>((const To*)Str, Len);
 }
 
 /**

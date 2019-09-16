@@ -49,3 +49,21 @@ inline void TJsonPrintPolicy<TCHAR>::WriteString( FArchive* Stream, const FStrin
 {
 	Stream->Serialize((void*)*String, String.Len() * sizeof(TCHAR));
 }
+
+
+#if !PLATFORM_TCHAR_IS_CHAR16
+
+/**
+ * Specialization for UTF16CHAR that writes FString data UTF-16.
+ */
+template <>
+inline void TJsonPrintPolicy<UTF16CHAR>::WriteString(FArchive* Stream, const FString& String)
+{
+	// Note: This is a no-op on platforms that are using a 16-bit TCHAR
+	FTCHARToUTF16 UTF16String(*String, String.Len());
+
+	Stream->Serialize((void*)UTF16String.Get(), UTF16String.Length() * sizeof(UTF16CHAR));
+}
+
+#endif
+
