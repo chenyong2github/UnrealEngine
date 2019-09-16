@@ -24,7 +24,7 @@ struct FMovieSceneEvalTemplatePtr;
 template<typename> class TArrayView;
 
 /** Enumeration specifying how to handle state when this section is no longer evaluated */
-UENUM()
+UENUM(BlueprintType)
 enum class EMovieSceneCompletionMode : uint8
 {
 	KeepState,
@@ -287,8 +287,27 @@ public:
 	MOVIESCENE_API virtual TOptional<TRange<FFrameNumber> > GetAutoSizeRange() const;
 
 	/**
+	 * Gets this section's completion mode
+	 */
+	UFUNCTION(BlueprintPure, Category = "Movie Scene Section")
+	EMovieSceneCompletionMode GetCompletionMode() const
+	{
+		return EvalOptions.CompletionMode;
+	}
+
+	/*
+	 * Sets this section's completion mode
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	void SetCompletionMode(EMovieSceneCompletionMode InCompletionMode)
+	{
+		EvalOptions.CompletionMode = InCompletionMode;
+	}
+
+	/**
 	 * Gets this section's blend type
 	 */
+	UFUNCTION(BlueprintPure, Category = "Movie Scene Section")
 	FOptionalMovieSceneBlendType GetBlendType() const
 	{
 		return BlendType;
@@ -297,6 +316,7 @@ public:
 	/**
 	 * Sets this section's blend type
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
 	MOVIESCENE_API virtual void SetBlendType(EMovieSceneBlendType InBlendType)
 	{
 		if (GetSupportedBlendTypes().Contains(InBlendType))
