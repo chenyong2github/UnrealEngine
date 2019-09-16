@@ -54,7 +54,7 @@ public:
 	URemeshMeshToolProperties();
 
 	/** Target triangle count */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bUseTargetEdgeLength == false"))
 	int TargetTriangleCount;
 
 
@@ -79,48 +79,38 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bPreserveSharpEdges;
 
-};
-
-/**
- * Advanced properties of the remesh operation
- */
-UCLASS()
-class MESHMODELINGTOOLS_API URemeshMeshAdvancedProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	URemeshMeshAdvancedProperties();
 
 	/** If true, the target count is ignored and the target edge length is used directly */
-	UPROPERTY(EditAnywhere, Category = Advanced)
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bUseTargetEdgeLength;
 
 	/** Target edge length */
-	UPROPERTY(EditAnywhere, Category = Advanced, meta = (NoSpinbox = "true"))
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (NoSpinbox = "true", EditCondition = "bUseTargetEdgeLength == true"))
 	float TargetEdgeLength;
 
+
 	/** Enable edge flips */
-	UPROPERTY(EditAnywhere, Category = Advanced)
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bFlips;
 
 	/** Enable edge splits */
-	UPROPERTY(EditAnywhere, Category = Advanced)
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bSplits;
 
 	/** Enable edge collapses */
-	UPROPERTY(EditAnywhere, Category = Advanced)
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bCollapses;
 
 	/** Enable projection back to input mesh */
-	UPROPERTY(EditAnywhere, Category = Advanced)
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bReproject;
 
 	/** Prevent normal flips */
-	UPROPERTY(EditAnywhere, Category = Advanced)
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bPreventNormalFlips;
 
 };
+
 
 /**
  * Simple Mesh Remeshing Tool
@@ -142,20 +132,12 @@ public:
 	virtual bool HasAccept() const override;
 	virtual bool CanAccept() const override;
 
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
-#endif
-
 	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
 
 public:
 
 	UPROPERTY()
 	URemeshMeshToolProperties* BasicProperties;
-
-	UPROPERTY()
-	URemeshMeshAdvancedProperties* AdvancedProperties;
 
 	UPROPERTY()
 	UMeshStatisticsProperties* MeshStatisticsProperties;

@@ -65,6 +65,51 @@ public:
 
 
 
+/**
+ * Standard properties of the Simplify operation
+ */
+UCLASS()
+class MESHMODELINGTOOLSEDITORONLY_API USimplifyMeshToolProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	USimplifyMeshToolProperties();
+
+	/** Simplification Target Type  */
+	UPROPERTY(EditAnywhere, Category = Options)
+	ESimplifyTargetType TargetMode;
+
+	/** Simplification Scheme  */
+	UPROPERTY(EditAnywhere, Category = Options)
+	ESimplifyType SimplifierType;
+
+	/** Target percentage of original triangle count */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "100", EditCondition = "TargetMode == ESimplifyTargetType::Percentage"))
+	int TargetPercentage;
+
+	/** Target edge length */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "3.0", UIMax = "10.0", ClampMin = "0.001", ClampMax = "1000.0", EditCondition = "TargetMode == ESimplifyTargetType::EdgeLength"))
+	float TargetEdgeLength;
+
+	/** Target triangle count */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "4", UIMax = "10000", ClampMin = "1", ClampMax = "9999999999", EditCondition = "TargetMode == ESimplifyTargetType::TriangleCount"))
+	int TargetCount;
+
+	/** If true, UVs and Normals are discarded  */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bDiscardAttributes;
+
+	/** Enable projection back to input mesh */
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	bool bReproject;
+
+	/** Prevent normal flips */
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	bool bPreventNormalFlips;
+
+};
+
+
 
 
 /**
@@ -76,8 +121,6 @@ class MESHMODELINGTOOLSEDITORONLY_API USimplifyMeshTool : public USingleSelectio
 	GENERATED_BODY()
 
 public:
-	USimplifyMeshTool();
-
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
@@ -87,45 +130,14 @@ public:
 	virtual bool HasAccept() const override;
 	virtual bool CanAccept() const override;
 
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
+	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
 
 protected:
 	// need to update bResultValid if these are modified, so we don't publicly expose them. 
 	// @todo setters/getters for these
 
-	/** Simplification Target Type  */
-	UPROPERTY(EditAnywhere, Category = Options)
-	ESimplifyTargetType TargetMode;
-
-	/** Simplification Scheme  */
-	UPROPERTY(EditAnywhere, Category = Options)
-	ESimplifyType SimplifierType;
-
-	/** Target percentage of original triangle count */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "100"))
-	int TargetPercentage;
-
-	/** Target edge length */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "3.0", UIMax = "10.0", ClampMin = "0.001", ClampMax = "1000.0"))
-	float TargetEdgeLength;
-
-	/** Target triangle count */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "4", UIMax = "10000", ClampMin = "1", ClampMax = "9999999999"))
-	int TargetCount;
-
-	/** If true, UVs and Normals are discarded  */
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bDiscardAttributes;
-
-	/** Enable projection back to input mesh */
-	UPROPERTY(EditAnywhere, Category = Advanced)
-	bool bReproject;
-
-	/** Prevent normal flips */
-	UPROPERTY(EditAnywhere, Category = Advanced)
-	bool bPreventNormalFlips;
+	UPROPERTY()
+	USimplifyMeshToolProperties* SimplifyProperties;
 
 	UPROPERTY()
 	UMeshStatisticsProperties* MeshStatisticsProperties;

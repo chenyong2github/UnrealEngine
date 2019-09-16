@@ -55,10 +55,7 @@ URemeshMeshToolProperties::URemeshMeshToolProperties()
 	bDiscardAttributes = false;
 	SmoothingType = ERemeshSmoothingType::MeanValue;
 	bPreserveSharpEdges = true;
-}
 
-URemeshMeshAdvancedProperties::URemeshMeshAdvancedProperties()
-{
 	TargetEdgeLength = 5.0;
 	bFlips = true;
 	bSplits = true;
@@ -67,6 +64,7 @@ URemeshMeshAdvancedProperties::URemeshMeshAdvancedProperties()
 	bPreventNormalFlips = true;
 	bUseTargetEdgeLength = false;
 }
+
 
 
 URemeshMeshTool::URemeshMeshTool()
@@ -106,16 +104,13 @@ void URemeshMeshTool::Setup()
 		InitialMeshArea += OriginalMesh.GetTriArea(tid);
 	}
 
-	BasicProperties = NewObject<URemeshMeshToolProperties>(this, TEXT("Remesh Settings"));
+	BasicProperties = NewObject<URemeshMeshToolProperties>(this);
 	// arbitrary threshold of 5000 tris seems reasonable? 
 	BasicProperties->TargetTriangleCount = (OriginalMesh.TriangleCount() < 5000) ? 5000 : OriginalMesh.TriangleCount();
-
-	AdvancedProperties = NewObject<URemeshMeshAdvancedProperties>(this, TEXT("Advanced Settings"));
-	AdvancedProperties->TargetEdgeLength = CalculateTargetEdgeLength(BasicProperties->TargetTriangleCount);
+	BasicProperties->TargetEdgeLength = CalculateTargetEdgeLength(BasicProperties->TargetTriangleCount);
 
 	// initialize our properties
 	AddToolPropertySource(BasicProperties);
-	AddToolPropertySource(AdvancedProperties);
 
 	MeshStatisticsProperties = NewObject<UMeshStatisticsProperties>(this);
 	AddToolPropertySource(MeshStatisticsProperties);
@@ -177,13 +172,6 @@ void URemeshMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
-#if WITH_EDITOR
-void URemeshMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
-	bResultValid = false;
-}
-#endif
 
 void URemeshMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
 {
@@ -216,19 +204,19 @@ void URemeshMeshTool::UpdateResult()
 	}
 
 	FRemesher Remesher(TargetMesh);
-	Remesher.bEnableSplits = AdvancedProperties->bSplits;
-	Remesher.bEnableFlips = AdvancedProperties->bFlips;
-	Remesher.bEnableCollapses = AdvancedProperties->bCollapses;
+	Remesher.bEnableSplits = BasicProperties->bSplits;
+	Remesher.bEnableFlips = BasicProperties->bFlips;
+	Remesher.bEnableCollapses = BasicProperties->bCollapses;
 
 	// recalculate target edge length
-	if (AdvancedProperties->bUseTargetEdgeLength == false)
+	if (BasicProperties->bUseTargetEdgeLength == false)
 	{
-		AdvancedProperties->TargetEdgeLength = CalculateTargetEdgeLength(BasicProperties->TargetTriangleCount);
+		BasicProperties->TargetEdgeLength = CalculateTargetEdgeLength(BasicProperties->TargetTriangleCount);
 	}
 
-	Remesher.SetTargetEdgeLength(AdvancedProperties->TargetEdgeLength);
+	Remesher.SetTargetEdgeLength(BasicProperties->TargetEdgeLength);
 
-	Remesher.ProjectionMode = (AdvancedProperties->bReproject) ? 
+	Remesher.ProjectionMode = (BasicProperties->bReproject) ? 
 		FRemesher::ETargetProjectionMode::AfterRefinement : FRemesher::ETargetProjectionMode::NoProjection;
 
 	Remesher.bEnableSmoothing = (BasicProperties->SmoothingSpeed > 0);
@@ -239,7 +227,7 @@ void URemeshMeshTool::UpdateResult()
 		(FRemesher::ESmoothTypes)(int)BasicProperties->SmoothingType;
 	bool bIsUniformSmooth = (Remesher.SmoothType == FRemesher::ESmoothTypes::Uniform);
 
-	Remesher.bPreventNormalFlips = AdvancedProperties->bPreventNormalFlips;
+	Remesher.bPreventNormalFlips = BasicProperties->bPreventNormalFlips;
 
 	Remesher.DEBUG_CHECK_LEVEL = 0;
 
@@ -266,7 +254,7 @@ void URemeshMeshTool::UpdateResult()
 		if (bIsUniformSmooth == false)
 		{
 			bool bUseFlipsThisPass = (k % 2 == 0 && k < BasicProperties->RemeshIterations/2);
-			Remesher.bEnableFlips = bUseFlipsThisPass && AdvancedProperties->bFlips;
+			Remesher.bEnableFlips = bUseFlipsThisPass && BasicProperties->bFlips;
 		}
 
 		Remesher.BasicRemeshPass();

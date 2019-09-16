@@ -55,7 +55,7 @@ UInteractiveTool* USimplifyMeshToolBuilder::BuildTool(const FToolBuilderState& S
  * Tool
  */
 
-USimplifyMeshTool::USimplifyMeshTool()
+USimplifyMeshToolProperties::USimplifyMeshToolProperties()
 {
 	SimplifierType = ESimplifyType::QEM;
 	TargetMode = ESimplifyTargetType::Percentage;
@@ -66,6 +66,8 @@ USimplifyMeshTool::USimplifyMeshTool()
 	bPreventNormalFlips = true;
 	bDiscardAttributes = false;
 }
+
+
 
 void USimplifyMeshTool::Setup()
 {
@@ -93,7 +95,8 @@ void USimplifyMeshTool::Setup()
 	ComponentTarget->SetOwnerVisibility(false);
 
 	// initialize our properties
-	ToolPropertyObjects.Add(this);
+	SimplifyProperties = NewObject<USimplifyMeshToolProperties>(this);
+	AddToolPropertySource(SimplifyProperties);
 
 	MeshStatisticsProperties = NewObject<UMeshStatisticsProperties>(this);
 	AddToolPropertySource(MeshStatisticsProperties);
@@ -156,11 +159,11 @@ void USimplifyMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-void USimplifyMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void USimplifyMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
 {
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	bResultValid = false;
 }
+
 
 template <typename SimplificationType>
 void ComputeResult(FDynamicMesh3* TargetMesh, const bool bReproject, int OriginalTriCount, FDynamicMesh3& OriginalMesh, FDynamicMeshAABBTree3& OriginalMeshSpatial, const ESimplifyTargetType TargetMode, const float TargetPercentage, const int TargetCount, const float TargetEdgeLength)
@@ -211,21 +214,22 @@ void USimplifyMeshTool::UpdateResult()
 	TargetMesh->Copy(OriginalMesh);
 	int OriginalTriCount = OriginalMesh.TriangleCount();
 
-	if (bDiscardAttributes)
+	if (SimplifyProperties->bDiscardAttributes)
 	{
 		TargetMesh->DiscardAttributes();
 	}
-	if (SimplifierType == ESimplifyType::QEM)
+	if (SimplifyProperties->SimplifierType == ESimplifyType::QEM)
 	{
-		ComputeResult<FQEMSimplification>(TargetMesh, bReproject, OriginalTriCount, OriginalMesh, OriginalMeshSpatial, TargetMode, TargetPercentage, TargetCount, TargetEdgeLength);
+		ComputeResult<FQEMSimplification>(TargetMesh, SimplifyProperties->bReproject, OriginalTriCount, OriginalMesh, OriginalMeshSpatial, 
+			SimplifyProperties->TargetMode, SimplifyProperties->TargetPercentage, SimplifyProperties->TargetCount, SimplifyProperties->TargetEdgeLength);
 	}
-	else if (SimplifierType == ESimplifyType::Attribute)
+	else if (SimplifyProperties->SimplifierType == ESimplifyType::Attribute)
 	{
-		ComputeResult<FAttrMeshSimplification>(TargetMesh, bReproject, OriginalTriCount, OriginalMesh, OriginalMeshSpatial, TargetMode, TargetPercentage, TargetCount, TargetEdgeLength);
+		ComputeResult<FAttrMeshSimplification>(TargetMesh, SimplifyProperties->bReproject, OriginalTriCount, OriginalMesh, OriginalMeshSpatial,
+			SimplifyProperties->TargetMode, SimplifyProperties->TargetPercentage, SimplifyProperties->TargetCount, SimplifyProperties->TargetEdgeLength);
 	}
 	else //if (SimplifierType == ESimplifyType::UE4Standard)
 	{
-
 
 		const FMeshDescription* SrcMeshDescription = ComponentTarget->GetMesh();
 		FMeshDescription DstMeshDescription(*SrcMeshDescription);
@@ -235,14 +239,14 @@ void USimplifyMeshTool::UpdateResult()
 		FMeshDescriptionOperations::FindOverlappingCorners(OverlappingCorners, *SrcMeshDescription, 1.e-5);
 
 		FMeshReductionSettings ReductionSettings;
-		if (TargetMode == ESimplifyTargetType::Percentage)
+		if (SimplifyProperties->TargetMode == ESimplifyTargetType::Percentage)
 		{
-			ReductionSettings.PercentTriangles = FMath::Max(TargetPercentage / 100., .001);  // Only support triangle percentage and count, but not edge length
+			ReductionSettings.PercentTriangles = FMath::Max(SimplifyProperties->TargetPercentage / 100., .001);  // Only support triangle percentage and count, but not edge length
 		}
-		else if (TargetMode == ESimplifyTargetType::TriangleCount)
+		else if (SimplifyProperties->TargetMode == ESimplifyTargetType::TriangleCount)
 		{
 			int32 NumTris = SrcMeshDescription->Polygons().Num();
-			ReductionSettings.PercentTriangles = (float)TargetCount / (float)NumTris;
+			ReductionSettings.PercentTriangles = (float)SimplifyProperties->TargetCount / (float)NumTris;
 		}
 
 		float Error;
