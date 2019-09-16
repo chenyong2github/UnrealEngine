@@ -152,8 +152,6 @@ public:
 	 * It's expected that InActor is either null (releasing the channel's reference) or
 	 * a valid actor that is not PendingKill or PendingKillPending.
 	 */
-	UE_DEPRECATED(4.23, "SetChannelActor has an additional parameter.")
-	void SetChannelActor(AActor* InActor) { SetChannelActor(InActor, ESetChannelActorFlags::None); }
 	void SetChannelActor(AActor* InActor, ESetChannelActorFlags Flags);
 
 	virtual void NotifyActorChannelOpen(AActor* InActor, FInBunch& InBunch);
@@ -309,8 +307,6 @@ public:
 protected:
 	
 	TSharedRef< FObjectReplicator > & FindOrCreateReplicator(UObject* Obj, bool* bOutCreated=nullptr);
-	UE_DEPRECATED(4.22, "Use FindOrCreateReplicator() which takes a raw UObject pointer.")
-	TSharedRef< FObjectReplicator > & FindOrCreateReplicator( const TWeakObjectPtr<UObject>& Obj);
 
 	bool ObjectHasReplicator(const TWeakObjectPtr<UObject>& Obj) const;	// returns whether we have already created a replicator for this object or not
 
