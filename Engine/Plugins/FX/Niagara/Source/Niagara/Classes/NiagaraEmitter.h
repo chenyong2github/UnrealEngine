@@ -349,9 +349,6 @@ public:
 	FString NIAGARA_API GetUniqueEmitterName()const;
 	bool NIAGARA_API SetUniqueEmitterName(const FString& InName);
 
-	/** Converts an emitter paramter "Emitter.XXXX" into it's real parameter name. */
-	FNiagaraVariable ToEmitterParameter(const FNiagaraVariable& EmitterVar)const;
-
 	const TArray<UNiagaraRendererProperties*>& GetRenderers() const { return RendererProperties; }
 
 	void NIAGARA_API AddRenderer(UNiagaraRendererProperties* Renderer);

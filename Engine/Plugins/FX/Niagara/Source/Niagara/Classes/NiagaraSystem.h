@@ -19,12 +19,32 @@ class UNiagaraEditorDataBase;
 #endif
 
 USTRUCT()
-struct FNiagaraEmitterSpawnAttributes
+struct FNiagaraEmitterCompiledData
 {
 	GENERATED_USTRUCT_BODY()
 
+	FNiagaraEmitterCompiledData();
+	
+	/** Attribute names in the data set that are driving each emitter's spawning. */
 	UPROPERTY()
 	TArray<FName> SpawnAttributes;
+
+
+	/** Explicit list of Niagara Variables to bind to Emitter instances. */
+	UPROPERTY()
+	FNiagaraVariable EmitterSpawnIntervalVar;
+
+	UPROPERTY()
+	FNiagaraVariable EmitterInterpSpawnStartDTVar;
+
+	UPROPERTY()
+	FNiagaraVariable EmitterSpawnGroupVar;
+
+	UPROPERTY()
+	FNiagaraVariable EmitterAgeVar;
+
+	UPROPERTY()
+	FNiagaraVariable EmitterRandomSeedVar;
 };
 
 
@@ -187,7 +207,7 @@ public:
 	bool ShouldAutoDeactivate() const { return bAutoDeactivate; }
 	bool IsLooping() const;
 
-	const TArray<FNiagaraEmitterSpawnAttributes>& GetEmitterSpawnAttributes()const {	return EmitterSpawnAttributes;	};
+	const TArray<FNiagaraEmitterCompiledData>& GetEmitterCompiledData()const {	return EmitterCompiledData;	};
 
 	bool UsesCollection(const UNiagaraParameterCollection* Collection)const;
 #if WITH_EDITORONLY_DATA
@@ -230,6 +250,14 @@ public:
 private:
 #if WITH_EDITORONLY_DATA
 	bool QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply = false);
+
+	void InitEmitterCompiledData();
+
+	/** Helper for filling in precomputed variable names per emitter. Converts an emitter paramter "Emitter.XXXX" into it's real parameter name. */
+	void InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& EmitterCompiledDataToInit, const UNiagaraEmitter& InAssociatedEmitter);
+
+	/** Helper for generating aliased FNiagaraVariable names for the Emitter they are associated with. */
+	const FName GetEmitterVariableAliasName(const FNiagaraVariable& InEmitterVar, const UNiagaraEmitter& InEmitter) const;
 #endif
 
 	void UpdatePostCompileDIInfo();
@@ -261,9 +289,9 @@ protected:
 	UPROPERTY()
 	UNiagaraScript* SystemUpdateScript;
 
-	/** Attribute names in the data set that are driving each emitter's spawning. */
+	//** Post compile generated data used for initializing Emitter Instances during runtime. */
 	UPROPERTY()
-	TArray<FNiagaraEmitterSpawnAttributes> EmitterSpawnAttributes;
+	TArray<FNiagaraEmitterCompiledData> EmitterCompiledData;
 
 	/** Variables exposed to the outside work for tweaking*/
 	UPROPERTY()
@@ -298,8 +326,6 @@ protected:
 	/** Delta time to use for warmup ticks. */
 	UPROPERTY(EditAnywhere, Category = Warmup)
 	float WarmupTickDelta;
-
-	void InitEmitterSpawnAttributes();
 
 	UPROPERTY()
 	bool bHasSystemScriptDIsWithPerInstanceData;
