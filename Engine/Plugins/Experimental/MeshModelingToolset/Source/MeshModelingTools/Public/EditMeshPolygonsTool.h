@@ -111,6 +111,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bSelectVertices;
 
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bRecomputePolygonGroups;
+
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition="bRecomputePolygonGroups"))
+	float PolygonGroupingAngleThreshold;
+
 	//Laplacian Deformation Options
 
 	UPROPERTY(EditAnywhere, Category = LaplacianOptions, meta = (EditCondition="DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian", DisplayName = "Laplacian Weight Scheme", ToolTip = "Laplacian weight schemes determine how the deformer will interpret the curvature at a given vertex in relation to nearby vertices in order to generate a solution."))
@@ -418,6 +424,8 @@ protected:
 	// realtime visualization
 	void OnDynamicMeshComponentChanged();
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
+
+	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property);
 	
 	// camera state at last render
 	FViewCameraState CameraState;
@@ -473,6 +481,11 @@ protected:
 	// The two deformer type options.
 	FGroupTopologyDeformer LinearDeformer;
 	FGroupTopologyLaplacianDeformer LaplacianDeformer;
+
+	// Initial polygon group info
+	TDynamicVector<int> InitialTriangleGroups;
+	void BackupTriangleGroups();
+	void RestoreTriangleGroups();
 	
 	// This is true when the spatial index needs to reflect a modification
 	bool bSpatialDirty; 

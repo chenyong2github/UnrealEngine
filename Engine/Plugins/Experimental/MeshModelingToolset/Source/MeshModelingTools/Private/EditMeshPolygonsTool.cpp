@@ -9,6 +9,7 @@
 #include "MeshNormals.h"
 #include "ToolSceneQueriesUtil.h"
 #include "Intersection/IntersectionUtil.h"
+#include "FindPolygonsAlgorithm.h"
 
 #include "Async/ParallelFor.h"
 #include "Containers/BitArray.h"
@@ -51,6 +52,8 @@ UPolyEditTransformProperties::UPolyEditTransformProperties()
 	bSelectVertices = true;
 	bSelectFaces = true;
 	bSelectEdges = true;
+	bRecomputePolygonGroups = false;
+	PolygonGroupingAngleThreshold = .5;
 }
 
 /*
@@ -638,6 +641,8 @@ void UEditMeshPolygonsTool::Setup()
 
 	// add properties
 	TransformProps = NewObject<UPolyEditTransformProperties>(this);
+	TransformProps->bRecomputePolygonGroups = !DynamicMeshComponent->GetMesh()->HasTriangleGroups();
+	BackupTriangleGroups();
 	AddToolPropertySource(TransformProps);
 
 	// set up visualizers
@@ -686,7 +691,9 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("EditMeshPolygonsToolTransactionName", "Deform Mesh"));
 			ComponentTarget->CommitMesh([=](FMeshDescription* MeshDescription)
 			{
-				DynamicMeshComponent->Bake(MeshDescription, false);
+				FConversionToMeshDescriptionOptions ConversionOptions;
+				ConversionOptions.bSetPolyGroups = false; // don't save polygroups, as we may change these temporarily in this tool just to get a different edit effect
+				DynamicMeshComponent->Bake(MeshDescription, false, ConversionOptions);
 			});
 			GetToolManager()->EndUndoTransaction();
 		}
@@ -1371,7 +1378,56 @@ void UEditMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
+void UEditMeshPolygonsTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+{
+	if (!Property) // happens on undo/redo of property modifications if object is set to be transactional
+	{
+		return;
+	}
+	if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPolyEditTransformProperties, bRecomputePolygonGroups)
+	 || (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPolyEditTransformProperties, PolygonGroupingAngleThreshold)))
+	{
+		if (TransformProps->bRecomputePolygonGroups)
+		{
+			FDynamicMesh3* SearchMesh = DynamicMeshComponent->GetMesh();
+			FFindPolygonsAlgorithm Polygons = FFindPolygonsAlgorithm(SearchMesh);
+			double DotTolerance = 1.0 - FMathd::Cos(TransformProps->PolygonGroupingAngleThreshold * FMathd::DegToRad);
+			Polygons.FindPolygons(DotTolerance);
+			Polygons.FindPolygonEdges();
+		}
+		else
+		{
+			RestoreTriangleGroups();
+		}
+		PrecomputeTopology();
+		TopoSelector.Invalidate(false, true);
+	}
+}
 
+void UEditMeshPolygonsTool::BackupTriangleGroups()
+{
+	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	if (Mesh->HasTriangleGroups())
+	{
+		InitialTriangleGroups = *Mesh->GetTriangleGroupsBuffer();
+	}
+	else
+	{
+		InitialTriangleGroups.SetNum(0);
+	}
+}
+
+void UEditMeshPolygonsTool::RestoreTriangleGroups()
+{
+	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	for (int TID = 0, MaxID = InitialTriangleGroups.Num(); TID < MaxID; TID++)
+	{
+		if (Mesh->IsTriangle(TID))
+		{
+			Mesh->SetTriangleGroup(TID, InitialTriangleGroups[TID]);
+		}
+	}
+}
 
 
 //

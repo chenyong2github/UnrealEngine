@@ -199,7 +199,7 @@ void UConvertToPolygonsTool::ConvertToPolygons(FMeshDescription* MeshIn)
 	}
 
 	FDynamicMeshToMeshDescription Converter;
-	Converter.bSetPolyGroups = true;
+	Converter.ConversionOptions.bSetPolyGroups = true;
 	Converter.Convert(&SearchMesh, *MeshIn);
 }
 

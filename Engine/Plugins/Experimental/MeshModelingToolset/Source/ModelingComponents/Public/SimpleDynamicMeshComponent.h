@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "BaseDynamicMeshComponent.h"
+#include "MeshConversionOptions.h"
 
 #include "MeshTangents.h"
 
@@ -62,9 +63,20 @@ public:
 
 	/**
 	 * Write the internal mesh to a MeshDescription
-	 * @param bHaveModifiedToplogy if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
+	 * @param bHaveModifiedTopology if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
+	 * @param ConversionOptions struct of additional options for the conversion
 	 */
-	void Bake(FMeshDescription* MeshDescription, bool bHaveModifiedToplogy);
+	void Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions);
+
+	/**
+	* Write the internal mesh to a MeshDescription with default conversion options
+	* @param bHaveModifiedTopology if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
+	*/
+	void Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology)
+	{
+		FConversionToMeshDescriptionOptions ConversionOptions;
+		Bake(MeshDescription, bHaveModifiedTopology, ConversionOptions);
+	}
 
 
 	//

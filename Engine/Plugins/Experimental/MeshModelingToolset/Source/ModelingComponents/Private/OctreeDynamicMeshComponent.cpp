@@ -94,16 +94,16 @@ void UOctreeDynamicMeshComponent::InitializeNewMesh()
 }
 
 
-void UOctreeDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool bHaveModifiedToplogy)
+void UOctreeDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions)
 {
-	if (bHaveModifiedToplogy == false)
+	if (bHaveModifiedTopology == false)
 	{
-		FDynamicMeshToMeshDescription Converter;
+		FDynamicMeshToMeshDescription Converter(ConversionOptions);
 		Converter.Update(Mesh.Get(), *MeshDescription);
 	}
 	else
 	{
-		FDynamicMeshToMeshDescription Converter;
+		FDynamicMeshToMeshDescription Converter(ConversionOptions);
 		Converter.Convert(Mesh.Get(), *MeshDescription);
 
 		//UE_LOG(LogTemp, Warning, TEXT("MeshDescription has %d instances"), MeshDescription->VertexInstances().Num());

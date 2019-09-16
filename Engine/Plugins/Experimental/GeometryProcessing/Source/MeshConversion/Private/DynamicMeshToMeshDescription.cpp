@@ -150,7 +150,7 @@ void FDynamicMeshToMeshDescription::Convert_NoAttributes(const FDynamicMesh3* Me
 	Builder.SetMeshDescription(&MeshOut);
 
 	bool bCopyGroupToPolyGroup = false;
-	if (bSetPolyGroups && MeshIn->HasTriangleGroups())
+	if (ConversionOptions.bSetPolyGroups && MeshIn->HasTriangleGroups())
 	{
 		Builder.EnablePolyGroups();
 		bCopyGroupToPolyGroup = true;
@@ -216,7 +216,7 @@ void FDynamicMeshToMeshDescription::Convert_SharedInstances(const FDynamicMesh3*
 	Builder.SetMeshDescription(&MeshOut);
 
 	bool bCopyGroupToPolyGroup = false;
-	if (bSetPolyGroups && MeshIn->HasTriangleGroups())
+	if (ConversionOptions.bSetPolyGroups && MeshIn->HasTriangleGroups())
 	{
 		Builder.EnablePolyGroups();
 		bCopyGroupToPolyGroup = true;
@@ -280,7 +280,7 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 	Builder.SetMeshDescription(&MeshOut);
 
 	bool bCopyGroupToPolyGroup = false;
-	if (bSetPolyGroups && MeshIn->HasTriangleGroups())
+	if (ConversionOptions.bSetPolyGroups && MeshIn->HasTriangleGroups())
 	{
 		Builder.EnablePolyGroups();
 		bCopyGroupToPolyGroup = true;
