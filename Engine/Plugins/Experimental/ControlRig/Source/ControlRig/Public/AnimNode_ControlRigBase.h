@@ -22,6 +22,7 @@ struct CONTROLRIG_API FAnimNode_ControlRigBase : public FAnimNode_CustomProperty
 
 	// FAnimNode_Base interface
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
+	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
