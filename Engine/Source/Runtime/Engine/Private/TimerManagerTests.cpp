@@ -26,9 +26,8 @@ void TimerTest_TickWorld(UWorld* World, float Time = 1.f)
 	}
 }
 
-class FDummy
+struct FDummy
 {
-public:
 	FDummy() { Count = 0; }
 
 	void Callback() { ++Count; }
