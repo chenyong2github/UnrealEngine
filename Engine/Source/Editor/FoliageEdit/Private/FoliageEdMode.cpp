@@ -1971,14 +1971,14 @@ void FEdModeFoliage::SelectInvalidInstances(const UFoliageType* Settings)
 		TArray<FHitResult> Hits; Hits.Reserve(16);
 
 		TArray<int32> InvalidInstances;
-
+		
 		for (int32 InstanceIdx = 0; InstanceIdx < NumInstances; ++InstanceIdx)
 		{
 			FFoliageInstance& Instance = FoliageInfo->Instances[InstanceIdx];
 			UActorComponent* CurrentInstanceBase = IFA->InstanceBaseCache.GetInstanceBasePtr(Instance.BaseId).Get();
-			bool bInvalidInstance = true;
-
-			if (CurrentInstanceBase != nullptr)
+			
+			bool bInvalidInstance = FoliageInfo->ShouldAttachToBaseComponent() || (!FoliageInfo->ShouldAttachToBaseComponent() && CurrentInstanceBase != nullptr);
+			if (FoliageInfo->ShouldAttachToBaseComponent() && CurrentInstanceBase != nullptr)
 			{
 				FVector InstanceTraceRange = Instance.GetInstanceWorldTransform().TransformVector(FVector(0.f, 0.f, 1000.f));
 				FVector Start = Instance.Location + InstanceTraceRange;
@@ -2015,6 +2015,7 @@ void FEdModeFoliage::SelectInvalidInstances(const UFoliageType* Settings)
 						if ((DistanceToGround - InstanceWorldTreshold) <= KINDA_SMALL_NUMBER)
 						{
 							bInvalidInstance = false;
+							break;
 						}
 					}
 				}
@@ -2987,9 +2988,13 @@ bool FEdModeFoliage::SnapInstanceToGround(AInstancedFoliageActor* InIFA, float A
 		}
 
 		// Set new base
-		auto NewBaseId = InIFA->InstanceBaseCache.AddInstanceBaseId(HitComponent);
+		auto NewBaseId = InIFA->InstanceBaseCache.AddInstanceBaseId(Mesh.ShouldAttachToBaseComponent() ? HitComponent : nullptr);
 		Mesh.RemoveFromBaseHash(InstanceIdx);
 		Instance.BaseId = NewBaseId;
+		if (Instance.BaseId == FFoliageInstanceBaseCache::InvalidBaseId)
+		{
+			Instance.BaseComponent = nullptr;
+		}
 		Mesh.AddToBaseHash(InstanceIdx);
 		Instance.Location = Hit.Location;
 		Instance.ZOffset = 0.f;
