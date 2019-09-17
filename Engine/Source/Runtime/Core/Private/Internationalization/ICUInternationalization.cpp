@@ -143,6 +143,7 @@ bool FICUInternationalization::Initialize()
 		UE_LOG(LogICUInternationalization, Fatal, TEXT("ICU data directory was not discovered:\n%s"), *GetPrioritizedDataDirectoriesString());
 	}
 
+	udata_setFileAccess(UDATA_FILES_FIRST, &ICUStatus); // We always need to load loose ICU data files
 	u_setDataFileFunctions(this, &FICUInternationalization::OpenDataFile, &FICUInternationalization::CloseDataFile, &ICUStatus);
 	u_init(&ICUStatus);
 	checkf(U_SUCCESS(ICUStatus), TEXT("Failed to open ICUInternationalization data file, missing or corrupt?"));
