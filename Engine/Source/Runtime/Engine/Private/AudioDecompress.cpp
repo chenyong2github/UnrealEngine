@@ -14,6 +14,7 @@ IStreamedCompressedInfo::IStreamedCompressedInfo()
 	, SrcBufferDataSize(0)
 	, SrcBufferOffset(0)
 	, AudioDataOffset(0)
+	, AudioDataChunkIndex(0)
 	, SampleRate(0)
 	, TrueSampleCount(0)
 	, CurrentSampleCount(0)
@@ -153,7 +154,20 @@ bool IStreamedCompressedInfo::StreamCompressedInfoInternal(USoundWave* Wave, str
 	bIsStreaming = true;
 	if (FirstChunk)
 	{
-		return ReadCompressedInfo(FirstChunk, ChunkSize, QualityInfo);
+		bool HeaderReadResult = ReadCompressedInfo(FirstChunk, ChunkSize, QualityInfo);
+		
+		// If we've read through the entirety of the zeroth chunk while parsing the header, move onto the next chunk.
+		if (SrcBufferOffset >= ChunkSize)
+		{
+			CurrentChunkIndex++;
+			SrcBufferData = NULL;
+			SrcBufferDataSize = 0;
+
+			AudioDataChunkIndex = CurrentChunkIndex;
+			AudioDataOffset -= ChunkSize;
+		}
+
+		return HeaderReadResult;
 	}
 
 	return false;
@@ -242,7 +256,7 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 
 					if (bLooping)
 					{
-						CurrentChunkIndex = 0;
+						CurrentChunkIndex = AudioDataChunkIndex;
 						SrcBufferOffset = AudioDataOffset;
 						CurrentSampleCount = 0;
 
