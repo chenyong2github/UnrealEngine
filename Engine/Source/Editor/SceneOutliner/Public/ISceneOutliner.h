@@ -19,6 +19,9 @@ public:
 	/** Sends a requests to the Scene Outliner to refresh itself the next chance it gets */
 	virtual void Refresh() = 0;
 
+	/** Tells the scene outliner that it should do a full refresh, which will clear the entire tree and rebuild it from scratch. */
+	virtual void FullRefresh() = 0;
+
 	/** @return Returns a string to use for highlighting results in the outliner list */
 	virtual TAttribute<FText> GetFilterHighlightText() const = 0;
 
