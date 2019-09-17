@@ -18,7 +18,7 @@ float3 TransformPosition(float3 InPosition)
 {
 	if (NiagaraRibbonVF.bLocalSpace)
 	{
-		return TransformLocalToWorld(InPosition);
+		return TransformLocalToWorld(InPosition).xyz;
 	}
 	else
 	{
