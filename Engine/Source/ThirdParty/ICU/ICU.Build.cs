@@ -16,6 +16,8 @@ public class ICU : ModuleRules
 	{
 		Type = ModuleType.External;
 
+		// Note: If you change the version of ICU used for your platform, you may also need to update the ICU data staging code inside CopyBuildToStagingDirectory.Automation.cs
+
 		bool bNeedsDlls = false;
 
 		string ICUVersion = "icu4c-53_1";
