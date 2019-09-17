@@ -242,7 +242,8 @@ void AWorldSettings::NotifyBeginPlay()
 		for (FActorIterator It(World); It; ++It)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ActorBeginPlay);
-			It->DispatchBeginPlay();
+			const bool bFromLevelLoad = true;
+			It->DispatchBeginPlay(bFromLevelLoad);
 		}
 		World->bBegunPlay = true;
 	}
