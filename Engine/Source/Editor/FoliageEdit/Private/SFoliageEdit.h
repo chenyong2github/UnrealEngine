@@ -199,7 +199,7 @@ private:	// BRUSH SETTINGS
 	FText GetSingleInstantiationPlacementModeText(EFoliageSingleInstantiationPlacementMode::Type InMode) const;
 
 	/** @return menu of all single instantiation modes */
-	TSharedRef<SWidget> GetSingleInstantiationModeMenuContent() const;
+	TSharedRef<SWidget> GetSingleInstantiationModeMenuContent();
 
 	/** @return display text for current placement type */
 	FText GetCurrentSingleInstantiationPlacementModeText() const;
