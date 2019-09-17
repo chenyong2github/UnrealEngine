@@ -4,6 +4,7 @@
 
 #include "NetworkSimulationModel.h"
 #include "BaseMovementComponent.h"
+#include "NetworkInterpolation.h"
 
 #include "ParametricMovement.generated.h"
 
@@ -71,7 +72,13 @@ namespace ParametricMovement
 			}
 		}
 
-		void VisualLog(const FVisualLoggingParameters& Parameters, IParametricMovementDriver* Driver, IParametricMovementDriver* LogDriver);
+		void VisualLog(const FVisualLoggingParameters& Parameters, IParametricMovementDriver* Driver, IParametricMovementDriver* LogDriver) const;
+
+		static void Interpolate(const FMoveState& From, const FMoveState& To, const float PCT, FMoveState& OutDest)
+		{
+			OutDest.Position = From.Position + ((To.Position - From.Position) * PCT);
+			OutDest.PlayRate = From.PlayRate + ((To.PlayRate - From.PlayRate) * PCT);
+		}
 	};
 
 	// Auxiliary state that is input into the simulation. Doesn't change during the simulation tick.
@@ -168,6 +175,9 @@ protected:
 
 	TUniquePtr<ParametricMovement::FMovementSystem> NetworkSim;	
 
+	// Temp, will be moved
+	TUniquePtr< TNetworkSimulationModelInterpolator<ParametricMovement::FMovementSystem, IParametricMovementDriver> > NetworkInterpolator;
+
 	// ------------------------------------------------------------------------
 	// Temp Parametric movement example
 	//	The essence of this movement simulation is to map some Time value to a transform. That is it.
@@ -175,6 +185,11 @@ protected:
 	//	What is below is just a simple C++ implementation to stand things up. Most likely we would 
 	//	do additional subclasses to vary the way this is implemented)
 	// ------------------------------------------------------------------------
+	
+	/** Disables starting the simulation. For development/testing ease of use */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
+	bool bDisableParametricMovementSimulation = false;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
 	FVector ParametricDelta = FVector(0.f, 0.f, 500.f);
 
@@ -183,6 +198,17 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
 	float MaxTime = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovementNetworking)
+	bool bEnableInterpolation = true;
+
+	/** Calls ForceNetUpdate every frame. Has slightly different behavior than a very high NetUpdateFrequency */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovementNetworking)
+	bool bEnableForceNetUpdate = false;
+
+	/** Sets NetUpdateFrequency on parent. This is editable on the component and really just meant for use during development/test maps */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovementNetworking)
+	float ParentNetUpdateFrequency = 0.f;
 
 	FTransform CachedStartingTransform;
 
