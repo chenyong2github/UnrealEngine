@@ -1049,13 +1049,13 @@ namespace IncludeTool
 							{
 								lock(Log)
 								{
-									Log.WriteLine("{0}({1}): warning: inconsistent preprocessor state.", File.Location.FullName, File.Markup[Idx].Location.LineIdx + 1);
-									Log.WriteLine("    First include stack ({0}):", CurrentActiveMarkup.Flags[Idx]? "active" : "inactive");
+									Log.WriteLine("{0}({1}): warning: Inconsistent preprocessor state. Every block of code in a header file should consistently be active or inactive regardless of where it is included from. Inconsistencies prevent IWYU optimization, and may be indicative of programming errors.", File.Location.FullName, File.Markup[Idx].Location.LineIdx + 1);
+									Log.WriteLine("    First include stack ({0}):", CurrentActiveMarkup.Flags[Idx]? "code is active" : "code is inactive");
 									foreach(FileReference IncludeFile in CurrentActiveMarkup.IncludeStack.Reverse())
 									{
 										Log.WriteLine("        {0}", IncludeFile);
 									}
-									Log.WriteLine("    Second include stack ({0}):", ActiveMarkup.Flags[Idx]? "active" : "inactive");
+									Log.WriteLine("    Second include stack ({0}):", ActiveMarkup.Flags[Idx]? "code is active" : "code is inactive");
 									foreach(FileReference IncludeFile in ActiveMarkup.IncludeStack.Reverse())
 									{
 										Log.WriteLine("        {0}", IncludeFile);
