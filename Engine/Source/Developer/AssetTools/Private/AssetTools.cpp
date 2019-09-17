@@ -1553,7 +1553,7 @@ void UAssetToolsImpl::MigratePackages(const TArray<FName>& PackageNamesToMigrate
 			// Open a dialog asking the user to wait while assets are being discovered
 			SDiscoveringAssetsDialog::OpenDiscoveringAssetsDialog(
 				SDiscoveringAssetsDialog::FOnAssetsDiscovered::CreateUObject(this, &UAssetToolsImpl::PerformMigratePackages, PackageNamesToMigrate)
-				);
+			);
 		}
 		else
 		{
@@ -2559,17 +2559,17 @@ void UAssetToolsImpl::PerformMigratePackages(TArray<FName> PackageNamesToMigrate
 	// Prompt the user displaying all assets that are going to be migrated
 	{
 		const FText ReportMessage = LOCTEXT("MigratePackagesReportTitle", "The following assets will be migrated to another content folder.");
-		TArray<FString> ReportPackageNames;
+		TSharedPtr<TArray<ReportPackageData>> ReportPackages = MakeShareable(new TArray<ReportPackageData>);
 		for ( auto PackageIt = AllPackageNamesToMove.CreateConstIterator(); PackageIt; ++PackageIt )
 		{
-			ReportPackageNames.Add((*PackageIt).ToString());
+			ReportPackages.Get()->Add({ (*PackageIt).ToString(), true });
 		}
-		SPackageReportDialog::FOnReportConfirmed OnReportConfirmed = SPackageReportDialog::FOnReportConfirmed::CreateUObject(this, &UAssetToolsImpl::MigratePackages_ReportConfirmed, ReportPackageNames);
-		SPackageReportDialog::OpenPackageReportDialog(ReportMessage, ReportPackageNames, OnReportConfirmed);
+		SPackageReportDialog::FOnReportConfirmed OnReportConfirmed = SPackageReportDialog::FOnReportConfirmed::CreateUObject(this, &UAssetToolsImpl::MigratePackages_ReportConfirmed, ReportPackages);
+		SPackageReportDialog::OpenPackageReportDialog(ReportMessage, *ReportPackages.Get(), OnReportConfirmed);
 	}
 }
 
-void UAssetToolsImpl::MigratePackages_ReportConfirmed(TArray<FString> ConfirmedPackageNamesToMigrate) const
+void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPackageData>> PackageDataToMigrate) const
 {
 	// Choose a destination folder
 	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
@@ -2636,14 +2636,19 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TArray<FString> ConfirmedP
 
 	SlowTask.EnterProgressFrame();
 	{
-		FScopedSlowTask LoopProgress(ConfirmedPackageNamesToMigrate.Num());
-		for ( auto PackageNameIt = ConfirmedPackageNamesToMigrate.CreateConstIterator(); PackageNameIt; ++PackageNameIt )
+		FScopedSlowTask LoopProgress(PackageDataToMigrate.Get()->Num());
+		for ( auto PackageDataIt = PackageDataToMigrate.Get()->CreateConstIterator(); PackageDataIt; ++PackageDataIt)
 		{
 			LoopProgress.EnterProgressFrame();
+			if (!PackageDataIt->bShouldMigratePackage)
+			{
+				continue;
+			}
 
-			const FString& PackageName = *PackageNameIt;
+			const FString& PackageName = PackageDataIt->Name;
 			FString SrcFilename;
-			if ( !FPackageName::DoesPackageExist(PackageName, nullptr, &SrcFilename) )
+			
+			if (!FPackageName::DoesPackageExist(PackageName, nullptr, &SrcFilename))
 			{
 				const FText ErrorMessage = FText::Format(LOCTEXT("MigratePackages_PackageMissing", "{0} does not exist on disk."), FText::FromString(PackageName));
 				UE_LOG(LogAssetTools, Warning, TEXT("%s"), *ErrorMessage.ToString());
