@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Installer/ChunkSource.h"
+#include "Installer/DownloadConnectionCount.h"
 #include "Installer/Controllable.h"
 #include "BuildPatchManifest.h"
 #include "Interfaces/IBuildInstaller.h"
@@ -18,6 +19,8 @@ namespace BuildPatchServices
 	class IMessagePump;
 	class IInstallerError;
 	class ICloudChunkSourceStat;
+	class IDownloadServiceStatistics;
+	class IBuildManifestSet;
 
 	/**
 	 * The interface for a cloud chunk source, which provides access to chunk data retrieved from provided cloud roots.
@@ -37,8 +40,6 @@ namespace BuildPatchServices
 	{
 		// An array of cloud root paths, supporting HTTP(s) and file access. HTTP(s) roots must begin with the protocol.
 		TArray<FString> CloudRoots;
-		// The number of simultaneous requests to be making.
-		int32 NumSimultaneousDownloads;
 		// The maximum number of times that a single chunk should retry, before registering a fatal error.
 		// Infinite can be specified as < 0.
 		int32 MaxRetryCount;
@@ -66,7 +67,6 @@ namespace BuildPatchServices
 		 */
 		FCloudSourceConfig(TArray<FString> InCloudRoots)
 			: CloudRoots(MoveTemp(InCloudRoots))
-			, NumSimultaneousDownloads(16)
 			, MaxRetryCount(6)
 			, PreFetchMinimum(16)
 			, PreFetchMaximum(256)
@@ -103,12 +103,13 @@ namespace BuildPatchServices
 		 * @param ChunkDataSerialization    Chunk data serialization implementation for converting downloaded bytes into chunk data.
 		 * @param MessagePump               The message pump to receive messages about source events.
 		 * @param InstallerError            Error tracker where fatal errors will be reported.
+		 * @param ConnectionCount           The class that provides an approximately optimal number of simultaneous download connections
 		 * @param CloudChunkSourceStat      The class to receive statistics and event information.
 		 * @param InstallManifest           The manifest that chunks are required for.
 		 * @param InitialDownloadSet        The initial set of chunks to be sourced from cloud.
 		 * @return the new ICloudChunkSource instance created.
 		 */
-		static ICloudChunkSource* Create(FCloudSourceConfig Configuration, IPlatform* Platform, IChunkStore* ChunkStore, IDownloadService* DownloadService, IChunkReferenceTracker* ChunkReferenceTracker, IChunkDataSerialization* ChunkDataSerialization, IMessagePump* MessagePump, IInstallerError* InstallerError, ICloudChunkSourceStat* CloudChunkSourceStat, FBuildPatchAppManifestRef InstallManifest, TSet<FGuid> InitialDownloadSet);
+		static ICloudChunkSource* Create(FCloudSourceConfig Configuration, IPlatform* Platform, IChunkStore* ChunkStore, IDownloadService* DownloadService, IChunkReferenceTracker* ChunkReferenceTracker, IChunkDataSerialization* ChunkDataSerialization, IMessagePump* MessagePump, IInstallerError* InstallerError, IDownloadConnectionCount* InConnectionCount, ICloudChunkSourceStat* CloudChunkSourceStat, IBuildManifestSet* ManifestSet, TSet<FGuid> InitialDownloadSet);
 	};
 
 	/**
@@ -188,7 +189,7 @@ namespace BuildPatchServices
 		 * Called whenever the current number of active requests updates.
 		 * @param RequestCount      The number of currently active requests, this will range between 0 and NumSimultaneousDownloads config.
 		 */
-		virtual void OnActiveRequestCountUpdated(int32 RequestCount) = 0;
+		virtual void OnActiveRequestCountUpdated(uint32 RequestCount) = 0;
 
 		/**
 		 * Called when a batch of chunks are added and accepted via IChunkSource::AddRuntimeRequirements.

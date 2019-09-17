@@ -113,10 +113,22 @@ void FSlateD3D11RenderingPolicy::InitResources()
 	BlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	BlendDesc.RenderTarget[0].BlendEnable = true;
 
-	GD3DDevice->CreateBlendState( &BlendDesc, AlphaBlendState.GetInitReference() );
+	Hr = GD3DDevice->CreateBlendState( &BlendDesc, AlphaBlendState.GetInitReference() );
+	if (FAILED(Hr))
+	{
+		LogSlateD3DRendererFailure(TEXT("FSlateD3D11RenderingPolicy::InitResources() - ID3D11Device::CreateBlendState( &BlendDesc, AlphaBlendState.GetInitReference() )"), Hr);
+		GEncounteredCriticalD3DDeviceError = true;
+		return;
+	}
 
 	BlendDesc.RenderTarget[0].BlendEnable = false;
-	GD3DDevice->CreateBlendState( &BlendDesc, NoBlendState.GetInitReference() );
+	Hr = GD3DDevice->CreateBlendState( &BlendDesc, NoBlendState.GetInitReference() );
+	if (FAILED(Hr))
+	{
+		LogSlateD3DRendererFailure(TEXT("FSlateD3D11RenderingPolicy::InitResources() - ID3D11Device::CreateBlendState( &BlendDesc, NoBlendState.GetInitReference() )"), Hr);
+		GEncounteredCriticalD3DDeviceError = true;
+		return;
+	}
 
 	D3D11_RASTERIZER_DESC RasterDesc;
 	RasterDesc.CullMode = D3D11_CULL_NONE;
@@ -129,17 +141,33 @@ void FSlateD3D11RenderingPolicy::InitResources()
 	RasterDesc.MultisampleEnable = false;
 	RasterDesc.AntialiasedLineEnable = false;
 
-	GD3DDevice->CreateRasterizerState( &RasterDesc, NormalRasterState.GetInitReference() );
+	Hr = GD3DDevice->CreateRasterizerState( &RasterDesc, NormalRasterState.GetInitReference() );
+	if (FAILED(Hr))
+	{
+		LogSlateD3DRendererFailure(TEXT("FSlateD3D11RenderingPolicy::InitResources() - ID3D11Device::CreateRasterizerState( &RasterDesc, NormalRasterState.GetInitReference() )"), Hr);
+		GEncounteredCriticalD3DDeviceError = true;
+		return;
+	}
 
 	RasterDesc.ScissorEnable = true;
-	GD3DDevice->CreateRasterizerState( &RasterDesc, ScissorRasterState.GetInitReference() );
+	Hr = GD3DDevice->CreateRasterizerState( &RasterDesc, ScissorRasterState.GetInitReference() );
+	if (FAILED(Hr))
+	{
+		LogSlateD3DRendererFailure(TEXT("FSlateD3D11RenderingPolicy::InitResources() - ID3D11Device::CreateRasterizerState( &RasterDesc, ScissorRasterState.GetInitReference())"), Hr);
+		GEncounteredCriticalD3DDeviceError = true;
+		return;
+	}
 
 	RasterDesc.AntialiasedLineEnable = false;
 	RasterDesc.ScissorEnable = false;
 	RasterDesc.FillMode = D3D11_FILL_WIREFRAME;
-	GD3DDevice->CreateRasterizerState( &RasterDesc, WireframeRasterState.GetInitReference() );
-
-
+	Hr = GD3DDevice->CreateRasterizerState( &RasterDesc, WireframeRasterState.GetInitReference() );
+	if (FAILED(Hr))
+	{
+		LogSlateD3DRendererFailure(TEXT("FSlateD3D11RenderingPolicy::InitResources() - ID3D11Device::CreateRasterizerState( &RasterDesc, WireframeRasterState.GetInitReference() )"), Hr);
+		GEncounteredCriticalD3DDeviceError = true;
+		return;
+	}
 
 	D3D11_DEPTH_STENCIL_DESC DSDesc;
 

@@ -6,6 +6,7 @@
 #include "Common/SpeedRecorder.h"
 #include "BuildPatchManifest.h"
 
+
 namespace BuildPatchServices
 {
 	class IChunkStore;
@@ -13,6 +14,7 @@ namespace BuildPatchServices
 	class IInstallerError;
 	class IInstallChunkSourceStat;
 	class IFileSystem;
+	class IBuildManifestSet;
 
 	/**
 	 * The interface for an installation chunk source, which provides access to chunk data retrieved from known local installations.
@@ -81,7 +83,7 @@ namespace BuildPatchServices
 		 * @param InstallManifest           The manifest that chunks are required for.
 		 * @return the new IInstallChunkSource instance created.
 		 */
-		static IInstallChunkSource* Create(FInstallSourceConfig Configuration, IFileSystem* FileSystem, IChunkStore* ChunkStore, IChunkReferenceTracker* ChunkReferenceTracker, IInstallerError* InstallerError, IInstallChunkSourceStat* InstallChunkSourceStat, const TMap<FString, FBuildPatchAppManifestRef>& InstallationSources, const FBuildPatchAppManifestRef& InstallManifest);
+		static IInstallChunkSource* Create(FInstallSourceConfig Configuration, IFileSystem* FileSystem, IChunkStore* ChunkStore, IChunkReferenceTracker* ChunkReferenceTracker, IInstallerError* InstallerError, IInstallChunkSourceStat* InstallChunkSourceStat, const TMultiMap<FString, FBuildPatchAppManifestRef>& InstallationSources, IBuildManifestSet* ManifestSet);
 	};
 
 	/**

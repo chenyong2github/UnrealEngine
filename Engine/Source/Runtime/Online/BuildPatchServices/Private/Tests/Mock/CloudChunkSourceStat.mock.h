@@ -69,7 +69,7 @@ namespace BuildPatchServices
 			RxSuccessRateUpdated.Emplace(FStatsCollector::GetSeconds(), SuccessRate);
 		}
 
-		virtual void OnActiveRequestCountUpdated(int32 RequestCount) override
+		virtual void OnActiveRequestCountUpdated(uint32 RequestCount) override
 		{
 			RxActiveRequestCountUpdated.Emplace(FStatsCollector::GetSeconds(), RequestCount);
 		}

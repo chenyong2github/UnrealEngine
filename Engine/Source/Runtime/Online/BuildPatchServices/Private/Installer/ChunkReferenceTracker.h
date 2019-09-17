@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "BuildPatchManifest.h"
+#include "IBuildManifestSet.h"
 
 namespace BuildPatchServices
 {
@@ -81,7 +82,7 @@ namespace BuildPatchServices
 		 * @param FilesToConstruct  The set of files to be installed, other files will not be considered.
 		 * @return the new IChunkReferenceTracker instance created.
 		 */
-		static IChunkReferenceTracker* Create(const FBuildPatchAppManifestRef& InstallManifest, const TSet<FString>& FilesToConstruct);
+		static IChunkReferenceTracker* Create(const IBuildManifestSet* Manifest, const TSet<FString>& FilesToConstruct);
 		
 		/**
 		 * This implementation takes custom chunk references to track. The array should be every chunk reference, including duplicates, in order of use.
@@ -174,16 +175,16 @@ namespace BuildPatchServices
 		 * This implementation takes the install manifest and a tagset. It generates the CustomChunkReferences needed for a chunk reference tracker based
 		 * on caching data and so using each chunk once in the order that would be required to install the build when using the same tagset provided.
 		 * @param InstallManifest   The install manifest to enumerate references from.
-		 * @param TagSet            The tagset that would be used to install the build, which will filter down required file list and thus required chunk list.
+		 * @param InstallTagSet     The tagset that would be used with install manifest, this will filter down required file list and thus required chunk list.
 		 * @return the chunk use references for FChunkReferenceTrackerFactory::Create.
 		 */
-		FORCEINLINE TArray<FGuid> OrderedUniqueReferencesTagged(const FBuildPatchAppManifestRef& InstallManifest, const TSet<FString>& TagSet)
+		FORCEINLINE TArray<FGuid> OrderedUniqueReferencesTagged(const FBuildPatchAppManifestRef& InstallManifest, const TSet<FString>& InstallTagSet)
 		{
 			TArray<FGuid> ChunkReferences;
 			// Create our full list of chunks, no dupes, just one reference per chunk in the correct order.
 			TArray<FString> TaggedFiles;
 			TSet<FGuid> TaggedChunks;
-			InstallManifest->GetTaggedFileList(TagSet, TaggedFiles);
+			InstallManifest->GetTaggedFileList(InstallTagSet, TaggedFiles);
 			for (const FString& File : TaggedFiles)
 			{
 				const FFileManifest* NewFileManifest = InstallManifest->GetFileManifest(File);
@@ -204,23 +205,31 @@ namespace BuildPatchServices
 		}
 		
 		/**
-		 * This implementation takes a new install manifest, a current manifest, and a tagset. It generates the CustomChunkReferences needed for a chunk reference tracker based
+		 * This implementation takes a new install manifest, a current manifest, and a tagset for each. It generates the CustomChunkReferences needed for a chunk reference tracker based
 		 * on caching data for a patch only, and so using the chunks in InstallManifest, which are not in CurrentManifest, once each in the order that would be required
-         * to patch the build when using the same tagset provided.
-		 * @param InstallManifest   The install manifest to enumerate references from.
-		 * @param CurrentManifest   The current manifest to exclude chunk references from.
-		 * @param TagSet            The tagset that would be used to patch the build, which will filter down required file list and thus required chunk list.
+         * to patch the build when using the tagsets provided.
+		 * @param InstallManifest   The install manifest to enumerate chunk references from.
+		 * @param InstallTagSet     The tagset that would be used with install manifest, this will filter down required file list and thus required chunk list.
+		 * @param CurrentManifest   The current manifest if considering an update, which reduces the number of chunks required.
+		 * @param CurrentTagSet     The tagset filtering files from CurrentManifest, so that chunks would not be ignored for files not present on disk. This would often be the same as InstallTagSet unless
+		 *                          InstallManifest changed the file tag names, or you are calling for purpose of adding/removing tags.
 		 * @return the chunk use references for FChunkReferenceTrackerFactory::Create.
 		 */
-		FORCEINLINE TArray<FGuid> OrderedUniquePatchReferencesTagged(const FBuildPatchAppManifestRef& InstallManifest, const FBuildPatchAppManifestRef& CurrentManifest, const TSet<FString>& TagSet)
+		FORCEINLINE TArray<FGuid> OrderedUniquePatchReferencesTagged(const FBuildPatchAppManifestRef& InstallManifest, const TSet<FString>& InstallTagSet, const FBuildPatchAppManifestRef& CurrentManifest, const TSet<FString>& CurrentTagSet)
 		{
+			// Enumerate what is available in the current build.
+			TSet<FString> FilesInstalled;
+			TSet<FGuid> ChunksRequired;
+			TSet<FGuid> ChunksInstalled;
+			CurrentManifest->GetTaggedFileList(CurrentTagSet, FilesInstalled);
+			CurrentManifest->GetChunksRequiredForFiles(FilesInstalled, ChunksRequired);
+			CurrentManifest->EnumerateProducibleChunks(CurrentTagSet, ChunksRequired, ChunksInstalled);
+
 			TArray<FGuid> ChunkReferences;
 			// Create our list of chunks, no dupes, just one reference per chunk which appears only in InstallManifest, and in the correct order of use.
-			TSet<FGuid> OldChunks;
-			CurrentManifest->GetDataList(OldChunks);
 			TArray<FString> TaggedFiles;
 			TSet<FGuid> TaggedNewChunks;
-			InstallManifest->GetTaggedFileList(TagSet, TaggedFiles);
+			InstallManifest->GetTaggedFileList(InstallTagSet, TaggedFiles);
 			for (const FString& File : TaggedFiles)
 			{
 				const FFileManifest* NewFileManifest = InstallManifest->GetFileManifest(File);
@@ -228,7 +237,7 @@ namespace BuildPatchServices
 				{
 					for (const FChunkPart& ChunkPart : NewFileManifest->ChunkParts)
 					{
-						const bool bIsNewChunk = !OldChunks.Contains(ChunkPart.Guid);
+						const bool bIsNewChunk = !ChunksInstalled.Contains(ChunkPart.Guid);
 						if (bIsNewChunk)
 						{
 							bool bWasAlreadyInSet = false;

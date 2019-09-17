@@ -7,7 +7,6 @@
 
 struct FAnalyticsEventAttribute;
 class IAnalyticsProvider;
-class FHttpServiceTracker;
 
 namespace BuildPatchServices
 {
@@ -140,9 +139,8 @@ namespace BuildPatchServices
 		/**
 		 * Creates an instance of an installer analytics handler, for use by other classes which report the events.
 		 * @param AnalyticsProvider The analytics provider interface.
-		 * @param HttpTracker       The HTTP service tracker interface.
 		 * @return the new IInstallerAnalytics instance created.
 		 */
-		static IInstallerAnalytics* Create(IAnalyticsProvider* AnalyticsProvider, FHttpServiceTracker* HttpTracker);
+		static IInstallerAnalytics* Create(IAnalyticsProvider* AnalyticsProvider);
 	};
 }

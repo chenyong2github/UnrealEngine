@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Installer/DownloadService.h"
+#include "Interfaces/IHttpResponse.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -11,9 +12,14 @@ namespace BuildPatchServices
 		: public IDownload
 	{
 	public:
-		virtual bool WasSuccessful() const override
+		virtual bool RequestSuccessful() const override
 		{
 			return bSuccess;
+		}
+
+		virtual bool ResponseSuccessful() const override
+		{
+			return bSuccess && EHttpResponseCodes::IsOk(ResponseCode);
 		}
 
 		virtual int32 GetResponseCode() const override

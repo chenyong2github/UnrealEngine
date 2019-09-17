@@ -1059,7 +1059,86 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 						// Informs Windows to use the values as we altered them.
 						return WVR_VALIDRECTS;
 					}
+					else if (wParam)
+					{
+						//////////////////////////////////////////////////////
+						// Find out the schedule of when composition takes place 
+						// so rendering events are slotted into the queue at appropriate moments.
+						// This fixes bad flicker problems when resizing.
+						//////////////////////////////////////////////////////
 
+						LARGE_INTEGER Freq;
+						QueryPerformanceFrequency(&Freq);
+
+						// Ask DWM where the vertical blank falls
+						DWM_TIMING_INFO TimingInfo;
+						memset(&TimingInfo, 0, sizeof(TimingInfo));
+						TimingInfo.cbSize = sizeof(TimingInfo);
+						if (FAILED(DwmGetCompositionTimingInfo(NULL, &TimingInfo)))
+						{
+							return 0;
+						}
+
+						LARGE_INTEGER Now;
+						QueryPerformanceCounter(&Now);
+
+						// DWM told us about SOME vertical blank,
+						// past or future, possibly many frames away.
+						// Convert that into the NEXT vertical blank
+
+						int64 Period = (int64)TimingInfo.qpcRefreshPeriod;
+
+						int64 TimeToVSync = (int64)TimingInfo.qpcVBlank - (int64)Now.QuadPart;
+
+						int64 FrameAdjustMultiplier;
+
+						if (TimeToVSync >= 0)
+						{
+							FrameAdjustMultiplier = TimeToVSync / Period;
+						}
+						else
+						{
+							// Reach back to previous period
+							// so WaitTime represents consistent position within phase
+							FrameAdjustMultiplier = -1 + TimeToVSync / Period;
+						}
+
+						int64 WaitTime = TimeToVSync - (Period * FrameAdjustMultiplier);
+
+						check(WaitTime >= 0);
+						check(WaitTime < Period);
+
+						// Wait for the indicated time using a waitable timer as it 
+						// is more accurate than a simple sleep.
+						HANDLE hTimer = CreateWaitableTimer(NULL, TRUE, NULL);
+						if (NULL != hTimer)
+						{
+							float WaitTimeMilliseconds = 0.0;
+							if (Freq.QuadPart > 0)
+							{
+								WaitTimeMilliseconds = 1000.0 * WaitTime / (float)Freq.QuadPart;
+							}
+
+							// Due time for WaitForSingleObject is in 100 nanosecond units.							
+							float WaitTime100NanoSeconds = (1000.0f * 10.0f * WaitTimeMilliseconds);
+
+							LARGE_INTEGER DueTime;
+
+							// Negative value indicates relative time in the future.
+							DueTime.QuadPart = (LONGLONG)(WaitTime100NanoSeconds) * -1;
+
+							if (SetWaitableTimer(hTimer, &DueTime, 0, NULL, NULL, 0))
+							{
+								// Timeout time (second param) is in milliseconds. Set it to a bit longer than
+								// the timer due time. If everything is working it won't be used.
+								WaitForSingleObject(hTimer, (DWORD)(WaitTimeMilliseconds) + 10);
+							}
+
+							CloseHandle(hTimer);
+						}
+
+						return 0;
+					}
 					return 0;
 				}
 			}

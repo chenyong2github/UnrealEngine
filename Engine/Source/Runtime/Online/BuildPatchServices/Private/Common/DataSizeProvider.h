@@ -10,6 +10,6 @@ namespace BuildPatchServices
 	public:
 		virtual ~IDataSizeProvider() {}
 
-		virtual int64 GetDownloadSize(const FString& Uri) const = 0;
+		virtual uint64 GetDownloadSize(const FString& Uri) const = 0;
 	};
 }

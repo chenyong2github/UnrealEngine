@@ -2830,7 +2830,11 @@ namespace AutomationTool
 			TargetFileInfo.IsReadOnly = false;
 
 			CodeSignWindows.Sign(new FileReference(TargetFileInfo), CodeSignWindows.SignatureType.SHA1);
-			CodeSignWindows.Sign(new FileReference(TargetFileInfo), CodeSignWindows.SignatureType.SHA256);
+			// MSI files can only have one signature; prefer SHA1 for compatibility, so don't run SHA256 on msi files.
+			if (!TargetFileInfo.FullName.EndsWith(".msi", StringComparison.InvariantCultureIgnoreCase))
+			{
+				CodeSignWindows.Sign(new FileReference(TargetFileInfo), CodeSignWindows.SignatureType.SHA256);
+			}
 		}
 
 		/// <summary>
