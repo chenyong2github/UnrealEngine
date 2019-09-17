@@ -28,9 +28,9 @@
 #endif
 
 // these strings are parsed by Gauntlet (AutomationLogParser) so make sure changes are replicated there!
-#define AutomationTestStarting		TEXT("Test Started. Name=(%s)")
-#define AutomationSuccessFormat		TEXT("Test Completed. Result=(Passed) Name=(%s) Path=(%s)")
-#define AutomationFailureFormat		TEXT("Test Completed. Result=(Failed) Name=(%s) Path=(%s)")
+#define AutomationTestStarting		TEXT("Test Started. Name={%s}")
+#define AutomationSuccessFormat		TEXT("Test Completed. Result={Passed} Name={%s} Path={%s}")
+#define AutomationFailureFormat		TEXT("Test Completed. Result={Failed} Name={%s} Path={%s}")
 
 #define BeginEventsFormat			TEXT("BeginEvents: %s")
 #define EndEventsFormat				TEXT("EndEvents: %s")
