@@ -5,14 +5,18 @@
 =============================================================================*/
 
 #include "Common.ush"
-#include "PostProcessCommon.ush"
 
-// how many lines of histograms should be compiled into one
+// How many lines of histograms should be compiled into one
 uint LoopSize;
-//
-float4 EyeAdapationTemporalParams;
-// the last frames eye adaptation settings
+
+// The last frames eye adaptation settings
 Texture2D EyeAdaptationTexture;
+
+Texture2D InputTexture;
+
+SamplerState InputSampler;
+
+float2 Input_ExtentInverse;
 
 void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition: SV_POSITION, out float4 OutColor : SV_Target0)
 {
@@ -22,9 +26,9 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition: 
 
 	// accumulate all histograms into a single one
 	// could be optimized using bilinear filtering (half sample count)
-	for(uint y = 0; y < LoopSize; ++y)
+	for (uint y = 0; y < LoopSize; ++y)
 	{
-		SceneColor += Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV + float2(0, y * PostprocessInput0Size.w));
+		SceneColor += Texture2DSample(InputTexture, InputSampler, UV + float2(0, y * Input_ExtentInverse.y));
 	}
 
 	if(SvPosition.y < 1.0f)

@@ -16,22 +16,15 @@ public class SourceControl : ModuleRules
 			}
 		);
 
-		if (Target.Platform == UnrealTargetPlatform.Linux && Target.Type == TargetType.Program)
-		{
-			PublicDefinitions.Add("SOURCE_CONTROL_WITH_SLATE=0");
-		}
-		else
-		{
-			PublicDefinitions.Add("SOURCE_CONTROL_WITH_SLATE=1");
+		PublicDefinitions.Add("SOURCE_CONTROL_WITH_SLATE=1");
 
-			PrivateDependencyModuleNames.AddRange(
-				new string[] {
-					"Slate",
-					"SlateCore",
-                    "EditorStyle"
-				}
-			);
-		}
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"Slate",
+				"SlateCore",
+				"EditorStyle"
+			}
+		);
 
         if (Target.bBuildEditor)
         {
@@ -47,7 +40,7 @@ public class SourceControl : ModuleRules
 					"AssetTools"
 				}
 			);
-	        
+
 			CircularlyReferencedDependentModules.Add("UnrealEd");
         }
 

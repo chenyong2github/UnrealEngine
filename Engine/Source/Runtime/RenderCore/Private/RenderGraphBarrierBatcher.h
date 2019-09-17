@@ -23,8 +23,9 @@ public:
 	 */
 	void QueueTransitionUAV(
 		FRHIUnorderedAccessView* UAV,
-		FRDGTrackedResource* UnderlyingResource,
-		FRDGResourceState::EAccess AccessAfter);
+		FRDGParentResource* ParentResource,
+		FRDGResourceState::EAccess AccessAfter,
+		FRDGResourceState::EPipeline PipelineAfter = FRDGResourceState::EPipeline::MAX);
 
 private:
 	struct FTransitionParameters
@@ -70,7 +71,7 @@ private:
 	FUAVBatch UAVUpdateMultiFrameEnds;
 	FUAVBatchMap UAVBatchMap;
 
-	void ValidateTransition(const FRDGTrackedResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter);
+	void ValidateTransition(const FRDGParentResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter);
 
 	EResourceTransitionAccess GetResourceTransitionAccess(FRDGResourceState::EAccess AccessAfter) const;
 	EResourceTransitionAccess GetResourceTransitionAccessForUAV(FRDGResourceState::EAccess AccessBefore, FRDGResourceState::EAccess AccessAfter) const;

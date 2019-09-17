@@ -113,12 +113,28 @@ struct FEmbreeFilterProcessor
 	FEmbreeFilterProcessor(FEmbreeRay& InRay, const FEmbreeGeometry& InGeo) : Ray(InRay), Geo(InGeo), bCoordsDirty(true) 
 	{
 		Desc = Geo.TriangleDescs[Ray.primID];
+		Mesh = Geo.Mesh;
+		if (Ray.instID != -1)
+		{
+			// if instancing is used, material evaluation is deferred here
+			Mesh = Geo.ParentAggregateMesh->StaticMeshInstancesToMappings[Ray.instID]->Mesh;
+			int32 ElementIndex = Desc.ElementIndex;
+			Desc.CastShadow = Mesh->IsElementCastingShadow(ElementIndex);
+			Desc.StaticAndOpaqueMask = !Mesh->IsMasked(ElementIndex) && !Mesh->IsTranslucent(ElementIndex) && !Mesh->bMovable;;
+			Desc.TwoSidedMask = Mesh->IsTwoSided(ElementIndex) || Mesh->IsCastingShadowAsTwoSided();
+			Desc.Translucent = Mesh->IsTranslucent(ElementIndex);
+			Desc.SurfaceDomain = Mesh->IsSurfaceDomain(ElementIndex);
+			Desc.IndirectlyShadowedOnly = Mesh->IsIndirectlyShadowedOnly(ElementIndex);
+			Desc.Masked = Mesh->IsMasked(ElementIndex);
+			Desc.CastShadowAsMasked = Mesh->IsCastingShadowsAsMasked(ElementIndex);
+		}
 		s = 1 - Ray.u - Ray.v;
 	}
 
 	FEmbreeRay& Ray;
 	const FEmbreeGeometry& Geo;
 	FEmbreeTriangleDesc Desc;
+	const FStaticLightingMesh* Mesh;
 
 	float s; // (s,u,v) : Barycentric Weights
 	int32 Index0;
@@ -187,7 +203,7 @@ struct FEmbreeFilterProcessor
 	EMBREE_INLINE bool HitRejectedByHLODTest() const
 	{
 		const uint32 InvalidIndex = 0xFFFF;
-		uint32 GeoHLODTreeIndex = (Geo.Mesh->GetLODIndices() & 0xFFFF0000) >> 16;
+		uint32 GeoHLODTreeIndex = (Mesh->GetLODIndices() & 0xFFFF0000) >> 16;
 		uint32 RayHLODTreeIndex = Ray.MappingMesh ? (Ray.MappingMesh->GetLODIndices() & 0xFFFF0000) >> 16 : InvalidIndex;
 
 		bool bRejectHit = false;
@@ -195,7 +211,7 @@ struct FEmbreeFilterProcessor
 		// If either Geo or Ray is a HLOD (0xFFFF being invalid HLOD)
 		if (GeoHLODTreeIndex != InvalidIndex || RayHLODTreeIndex != InvalidIndex)
 		{
-			uint32 GeoHLODRange = Geo.Mesh->GetHLODRange();
+			uint32 GeoHLODRange = Mesh->GetHLODRange();
 			uint32 GeoHLODRangeStart = GeoHLODRange & 0xFFFF;
 			uint32 GeoHLODRangeEnd = (GeoHLODRange & 0xFFFF0000) >> 16;
 
@@ -233,13 +249,13 @@ struct FEmbreeFilterProcessor
 
 	EMBREE_INLINE bool HitRejectedByLODIndexTest() const
 	{
-		uint32 GeoMeshLODIndex = Geo.Mesh->GetLODIndices() & 0xFFFF;
+		uint32 GeoMeshLODIndex = Mesh->GetLODIndices() & 0xFFFF;
 
 		// Only shadows from appropriate mesh LODs.
 		if (Ray.MappingMesh)
 		{
 			// If it is not from the same mesh, then only LOD 0 can cast shadow.
-			if (Ray.MappingMesh->MeshIndex != Geo.Mesh->MeshIndex)
+			if (Ray.MappingMesh->MeshIndex != Mesh->MeshIndex)
 			{
 				return GeoMeshLODIndex != 0;
 			}
@@ -257,9 +273,9 @@ struct FEmbreeFilterProcessor
 	EMBREE_INLINE bool HitRejectedBySelfShadowTest() const
 	{
 		// No self shadows, or only self shadow
-		if ((Geo.Mesh == Ray.ShadowMesh && ((Geo.Mesh->LightingFlags & GI_INSTANCE_SELFSHADOWDISABLE) || (Ray.TraceFlags & LIGHTRAY_SELFSHADOWDISABLE)))
+		if ((Mesh == Ray.ShadowMesh && ((Mesh->LightingFlags & GI_INSTANCE_SELFSHADOWDISABLE) || (Ray.TraceFlags & LIGHTRAY_SELFSHADOWDISABLE)))
 		|| (Ray.bDirectShadowingRay && Desc.IndirectlyShadowedOnly)
-		|| (Geo.Mesh != Ray.ShadowMesh && (Geo.Mesh->LightingFlags & GI_INSTANCE_SELFSHADOWONLY)))
+		|| (Mesh != Ray.ShadowMesh && (Mesh->LightingFlags & GI_INSTANCE_SELFSHADOWONLY)))
 		{
 			return true;
 		}
@@ -272,7 +288,7 @@ struct FEmbreeFilterProcessor
 
 		if (Desc.Masked || (Ray.bDirectShadowingRay && Desc.CastShadowAsMasked))
 		{
- 			return !Geo.Mesh->EvaluateMaskedCollision(TextureCoordinates, Desc.ElementIndex);
+ 			return !Mesh->EvaluateMaskedCollision(TextureCoordinates, Desc.ElementIndex);
 		}
 		return false;
 	}
@@ -282,7 +298,14 @@ void FEmbreeFilterProcessor::UpdateCoordinates()
 {
 	if (bCoordsDirty)
 	{
-		Geo.Mesh->GetTriangleIndices(Ray.primID, Index0, Index1, Index2);
+		if (Ray.instID == -1)
+		{
+			Mesh->GetTriangleIndices(Ray.primID, Index0, Index1, Index2);
+		}
+		else
+		{
+			Mesh->GetInstanceableStaticMesh()->GetNonTransformedTriangleIndices(Ray.primID, Index0, Index1, Index2);
+		}
 
 		const FVector2D& UV1 = Geo.UVs[Index0];
 		const FVector2D& UV2 = Geo.UVs[Index1];
@@ -315,7 +338,14 @@ void FEmbreeFilterProcessor::UpdateRay()
 	}
 	else if (bCoordsDirty)
 	{
-		Geo.Mesh->GetTriangleIndices(Ray.primID, Index0, Index1, Index2);
+		if (Ray.instID == -1)
+		{
+			Mesh->GetTriangleIndices(Ray.primID, Index0, Index1, Index2);
+		}
+		else
+		{
+			Mesh->GetInstanceableStaticMesh()->GetNonTransformedTriangleIndices(Ray.primID, Index0, Index1, Index2);
+		}
 	}
 
 	// Transmission : updated outside of this scope.
@@ -359,7 +389,7 @@ void EmbreeFilterFunc(void* UserPtr, RTCRay& InRay)
 
 			// Accumulate the total transmission along the ray
 			// The result is order independent so the intersections don't have to be strictly front to back
-			Proc.Ray.TransmissionAcc.Push(Proc.Geo.Mesh->EvaluateTransmission(Proc.TextureCoordinates, Proc.Desc.ElementIndex), Proc.Ray.tfar);
+			Proc.Ray.TransmissionAcc.Push(Proc.Mesh->EvaluateTransmission(Proc.TextureCoordinates, Proc.Desc.ElementIndex), Proc.Ray.tfar);
 
 		}
 		Proc.Invalidate();
@@ -409,7 +439,8 @@ FEmbreeGeometry::FEmbreeGeometry(
 	RTCScene EmbreeScene, 
 	const FBoxSphereBounds& ImportanceBounds,
 	const FStaticLightingMesh* InMesh,
-	const FStaticLightingMapping* InMapping
+	const FStaticLightingMapping* InMapping,
+	bool bUseForInstancing
 	) :
 	Mesh(InMesh),
 	Mapping(InMapping),
@@ -417,6 +448,11 @@ FEmbreeGeometry::FEmbreeGeometry(
 	SurfaceAreaWithinImportanceVolume(0),
 	bHasShadowCastingPrimitives(false)
 {
+	if (bUseForInstancing)
+	{
+		check(Mesh->GetInstanceableStaticMesh() != nullptr);
+	}
+
 	const FStaticLightingTextureMapping* TextureMapping = Mapping ? Mapping->GetTextureMapping() : NULL;
 
 	GeomID = rtcNewTriangleMesh(EmbreeScene, RTC_GEOMETRY_STATIC, Mesh->NumTriangles, Mesh->NumVertices);
@@ -433,8 +469,16 @@ FEmbreeGeometry::FEmbreeGeometry(
 		FStaticLightingVertex V0, V1, V2;
 		int32 ElementIndex;
 
-		Mesh->GetTriangleIndices(TriangleIndex,I0,I1,I2);
-		Mesh->GetTriangle(TriangleIndex,V0,V1,V2,ElementIndex);
+		if (bUseForInstancing)
+		{
+			Mesh->GetInstanceableStaticMesh()->GetNonTransformedTriangleIndices(TriangleIndex, I0, I1, I2);
+			Mesh->GetInstanceableStaticMesh()->GetNonTransformedTriangle(TriangleIndex, V0, V1, V2, ElementIndex);
+		}
+		else
+		{
+			Mesh->GetTriangleIndices(TriangleIndex, I0, I1, I2);
+			Mesh->GetTriangle(TriangleIndex, V0, V1, V2, ElementIndex);
+		}
 
 		// Compute the triangle's normal.
 		const FVector4 TriangleNormal = (V2.WorldPosition - V0.WorldPosition) ^ (V1.WorldPosition - V0.WorldPosition);
@@ -443,16 +487,23 @@ FEmbreeGeometry::FEmbreeGeometry(
 
 		FEmbreeTriangleDesc& Desc = TriangleDescs[TriangleIndex];
 		Desc.ElementIndex = ElementIndex;
-		Desc.CastShadow = TriangleArea > TRIANGLE_AREA_THRESHOLD && Mesh->IsElementCastingShadow(ElementIndex);
-		Desc.StaticAndOpaqueMask = !Mesh->IsMasked(ElementIndex) && !Mesh->IsTranslucent(ElementIndex) && !Mesh->bMovable;;
-		Desc.TwoSidedMask = Mesh->IsTwoSided(ElementIndex) || Mesh->IsCastingShadowAsTwoSided();
-		Desc.Translucent = Mesh->IsTranslucent(ElementIndex);
-		Desc.SurfaceDomain = Mesh->IsSurfaceDomain(ElementIndex);
-		Desc.IndirectlyShadowedOnly = Mesh->IsIndirectlyShadowedOnly(ElementIndex);
-		Desc.Masked = Mesh->IsMasked(ElementIndex);
-		Desc.CastShadowAsMasked = Mesh->IsCastingShadowsAsMasked(ElementIndex);
+		Desc.CastShadow = false;
 
-		if (Desc.CastShadow)
+		if (!bUseForInstancing)
+		{
+			// When instancing is not used, evaluate material properties here
+			// Otherwise, defer material evaluation until ray intersection
+			Desc.CastShadow = TriangleArea > TRIANGLE_AREA_THRESHOLD && Mesh->IsElementCastingShadow(ElementIndex);
+			Desc.StaticAndOpaqueMask = !Mesh->IsMasked(ElementIndex) && !Mesh->IsTranslucent(ElementIndex) && !Mesh->bMovable;;
+			Desc.TwoSidedMask = Mesh->IsTwoSided(ElementIndex) || Mesh->IsCastingShadowAsTwoSided();
+			Desc.Translucent = Mesh->IsTranslucent(ElementIndex);
+			Desc.SurfaceDomain = Mesh->IsSurfaceDomain(ElementIndex);
+			Desc.IndirectlyShadowedOnly = Mesh->IsIndirectlyShadowedOnly(ElementIndex);
+			Desc.Masked = Mesh->IsMasked(ElementIndex);
+			Desc.CastShadowAsMasked = Mesh->IsCastingShadowsAsMasked(ElementIndex);
+		}
+
+		if (TriangleArea > TRIANGLE_AREA_THRESHOLD && (bUseForInstancing || Desc.CastShadow))
 		{
 			Indices[TriangleIndex * 3 + 0] = I0;
 			Indices[TriangleIndex * 3 + 1] = I1;
@@ -480,16 +531,19 @@ FEmbreeGeometry::FEmbreeGeometry(
 			LightmapUVs[I2] = V2.TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex];
 		}
 
-		SurfaceArea += TriangleArea;
-
-		// Sum the total triangle area of everything in the aggregate mesh within the importance volume,
-		// if any vertex is contained or if there is no importance volume at all
-		if( ImportanceBounds.SphereRadius < DELTA ||
-			ImportanceBounds.GetBox().IsInside( V0.WorldPosition ) ||
-			ImportanceBounds.GetBox().IsInside( V1.WorldPosition ) ||
-			ImportanceBounds.GetBox().IsInside( V2.WorldPosition ) )
+		if (!bUseForInstancing)
 		{
-			SurfaceAreaWithinImportanceVolume += TriangleArea;
+			SurfaceArea += TriangleArea;
+
+			// Sum the total triangle area of everything in the aggregate mesh within the importance volume,
+			// if any vertex is contained or if there is no importance volume at all
+			if (ImportanceBounds.SphereRadius < DELTA ||
+				ImportanceBounds.GetBox().IsInside(V0.WorldPosition) ||
+				ImportanceBounds.GetBox().IsInside(V1.WorldPosition) ||
+				ImportanceBounds.GetBox().IsInside(V2.WorldPosition))
+			{
+				SurfaceAreaWithinImportanceVolume += TriangleArea;
+			}
 		}
 
 	}
@@ -497,6 +551,39 @@ FEmbreeGeometry::FEmbreeGeometry(
 	rtcUnmapBuffer(EmbreeScene, GeomID, RTC_INDEX_BUFFER);
 
 	check(rtcDeviceGetError(EmbreeDevice) == RTC_NO_ERROR);
+}
+
+void CalculateSurfaceArea(const FStaticLightingMesh* Mesh, const FBoxSphereBounds& ImportanceBounds, float& SurfaceArea, float& SurfaceAreaWithinImportanceVolume)
+{
+	SurfaceArea = 0.0f;
+	SurfaceAreaWithinImportanceVolume = 0.0f;
+
+	for (int32 TriangleIndex = 0; TriangleIndex < Mesh->NumTriangles; TriangleIndex++)
+	{
+		int32 I0 = 0, I1 = 0, I2 = 0;
+		FStaticLightingVertex V0, V1, V2;
+		int32 ElementIndex;
+
+		Mesh->GetTriangleIndices(TriangleIndex, I0, I1, I2);
+		Mesh->GetTriangle(TriangleIndex, V0, V1, V2, ElementIndex);
+
+		// Compute the triangle's normal.
+		const FVector4 TriangleNormal = (V2.WorldPosition - V0.WorldPosition) ^ (V1.WorldPosition - V0.WorldPosition);
+		// Compute the triangle area.
+		const float TriangleArea = TriangleNormal.Size3() * 0.5f;
+
+		SurfaceArea += TriangleArea;
+
+		// Sum the total triangle area of everything in the aggregate mesh within the importance volume,
+		// if any vertex is contained or if there is no importance volume at all
+		if (ImportanceBounds.SphereRadius < DELTA ||
+			ImportanceBounds.GetBox().IsInside(V0.WorldPosition) ||
+			ImportanceBounds.GetBox().IsInside(V1.WorldPosition) ||
+			ImportanceBounds.GetBox().IsInside(V2.WorldPosition))
+		{
+			SurfaceAreaWithinImportanceVolume += TriangleArea;
+		}
+	}
 }
 
 bool EmbreeMemoryMonitor(const ssize_t bytes, const bool post)
@@ -509,7 +596,8 @@ FEmbreeAggregateMesh::FEmbreeAggregateMesh(const FScene& InScene):
 	FStaticLightingAggregateMesh(InScene),
 	EmbreeDevice(NULL),
 	EmbreeScene(NULL),
-	TotalNumTriangles(0)
+	TotalNumTriangles(0),
+	TotalNumTrianglesInstanced(0)
 {
 	rtcDeviceSetMemoryMonitorFunction(InScene.EmbreeDevice, EmbreeMemoryMonitor);
 
@@ -548,28 +636,80 @@ FEmbreeAggregateMesh::~FEmbreeAggregateMesh()
 */
 void FEmbreeAggregateMesh::AddMesh(const FStaticLightingMesh* Mesh, const FStaticLightingMapping* Mapping)
 {
-	// Only use shadow casting meshes.
-	if( Mesh->LightingFlags&GI_INSTANCE_CASTSHADOW )
-	{
-		SceneBounds = SceneBounds + Mesh->BoundingBox;
+ 	// Only use shadow casting meshes.
+ 	if( Mesh->LightingFlags&GI_INSTANCE_CASTSHADOW )
+ 	{
+ 		SceneBounds = SceneBounds + Mesh->BoundingBox;
 
-		FEmbreeGeometry* Geo = new FEmbreeGeometry(EmbreeDevice, EmbreeScene, Scene.GetImportanceBounds(), Mesh, Mapping);
-		MeshInfos.Add(Geo);
-		
-		rtcSetUserData(EmbreeScene, Geo->GeomID, Geo);
-		rtcSetIntersectionFilterFunction(EmbreeScene, Geo->GeomID, EmbreeFilterFunc);
-		rtcSetOcclusionFilterFunction(EmbreeScene, Geo->GeomID, EmbreeFilterFunc);
+		if (Scene.GeneralSettings.bUseEmbreeInstancing && Mesh->GetInstanceableStaticMesh() != nullptr)
+		{
+			const FStaticMeshStaticLightingMesh* StaticMeshInstance = Mesh->GetInstanceableStaticMesh();
 
-		rtcSetIntersectionFilterFunction4(EmbreeScene, Geo->GeomID, EmbreeFilterFunc4);
-		rtcSetOcclusionFilterFunction4(EmbreeScene, Geo->GeomID, EmbreeFilterFunc4);
+			const FStaticMeshLOD* LOD = &StaticMeshInstance->StaticMesh->GetLOD(StaticMeshInstance->GetMeshLODIndex());
 
-		bHasShadowCastingPrimitives |= Geo->bHasShadowCastingPrimitives;
+			if (!StaticMeshGeometries.Find(LOD))
+			{
+				RTCScene MeshScene = rtcDeviceNewScene(EmbreeDevice, RTC_SCENE_STATIC, RTC_INTERSECT1);
 
-		// Sum the total triangle area of everything in the aggregate mesh
-		SceneSurfaceArea += Geo->SurfaceArea;
-		SceneSurfaceAreaWithinImportanceVolume += Geo->SurfaceAreaWithinImportanceVolume;
+				FEmbreeGeometry* Geo = new FEmbreeGeometry(EmbreeDevice, MeshScene, Scene.GetImportanceBounds(), Mesh, Mapping, true);
+				Geo->ParentAggregateMesh = this;
+				StaticMeshGeometries.Add(LOD, FEmbreeStaticMeshGeometry { MeshScene, Geo });
+				MeshInfos.Add(Geo);
 
-		TotalNumTriangles += Mesh->NumTriangles;
+				rtcSetIntersectionFilterFunction(MeshScene, Geo->GeomID, EmbreeFilterFunc);
+				rtcSetOcclusionFilterFunction(MeshScene, Geo->GeomID, EmbreeFilterFunc);
+
+				rtcSetIntersectionFilterFunction4(MeshScene, Geo->GeomID, EmbreeFilterFunc4);
+				rtcSetOcclusionFilterFunction4(MeshScene, Geo->GeomID, EmbreeFilterFunc4);
+
+				rtcSetUserData(MeshScene, Geo->GeomID, Geo);
+
+				rtcCommit(MeshScene);
+
+				bHasShadowCastingPrimitives |= Geo->bHasShadowCastingPrimitives;
+
+				TotalNumTriangles += Mesh->NumTriangles;
+			}
+			else
+			{
+				TotalNumTrianglesInstanced += Mesh->NumTriangles;
+			}
+
+			// Sum the total triangle area of everything in the aggregate mesh
+			float SurfaceArea, SurfaceAreaWithinImportanceVolume;
+			CalculateSurfaceArea(Mesh, Scene.GetImportanceBounds(), SurfaceArea, SurfaceAreaWithinImportanceVolume);
+			SceneSurfaceArea += SurfaceArea;
+			SceneSurfaceAreaWithinImportanceVolume += SurfaceAreaWithinImportanceVolume;
+
+			auto InstID = rtcNewInstance(EmbreeScene, StaticMeshGeometries[LOD].MeshScene);
+			rtcSetUserData(EmbreeScene, InstID, (void*)Mapping);
+			rtcSetTransform(EmbreeScene, InstID, RTC_MATRIX_COLUMN_MAJOR_ALIGNED16, (const float*)StaticMeshInstance->LocalToWorld.M);
+			if (StaticMeshInstancesToMappings.Num() < (int32)InstID + 1)
+			{
+				StaticMeshInstancesToMappings.SetNum(InstID + 1);
+			}
+			StaticMeshInstancesToMappings[InstID] = Mapping;
+
+		}
+		else
+		{
+			FEmbreeGeometry* Geo = new FEmbreeGeometry(EmbreeDevice, EmbreeScene, Scene.GetImportanceBounds(), Mesh, Mapping, false);
+			MeshInfos.Add(Geo);
+
+			rtcSetUserData(EmbreeScene, Geo->GeomID, Geo);
+			rtcSetIntersectionFilterFunction(EmbreeScene, Geo->GeomID, EmbreeFilterFunc);
+			rtcSetOcclusionFilterFunction(EmbreeScene, Geo->GeomID, EmbreeFilterFunc);
+
+			rtcSetIntersectionFilterFunction4(EmbreeScene, Geo->GeomID, EmbreeFilterFunc4);
+			rtcSetOcclusionFilterFunction4(EmbreeScene, Geo->GeomID, EmbreeFilterFunc4);
+
+			bHasShadowCastingPrimitives |= Geo->bHasShadowCastingPrimitives;
+
+			// Sum the total triangle area of everything in the aggregate mesh
+			SceneSurfaceArea += Geo->SurfaceArea;
+			SceneSurfaceAreaWithinImportanceVolume += Geo->SurfaceAreaWithinImportanceVolume;
+			TotalNumTriangles += Mesh->NumTriangles;
+		}
 	}
 }
 
@@ -599,7 +739,14 @@ void FEmbreeAggregateMesh::DumpStats() const
 
 	UE_LOG(LogLightmass, Log, TEXT("\n"));
 	UE_LOG(LogLightmass, Log, TEXT("Collision Mesh Overview:"));
-	UE_LOG(LogLightmass, Log, TEXT("Num Triangles         : %d"), TotalNumTriangles);
+	if (Scene.GeneralSettings.bUseEmbreeInstancing)
+	{
+		UE_LOG(LogLightmass, Log, TEXT("Num Triangles         : %d (Instanced to %d)"), TotalNumTriangles, TotalNumTriangles + TotalNumTrianglesInstanced);
+	}
+	else
+	{
+		UE_LOG(LogLightmass, Log, TEXT("Num Triangles         : %d"), TotalNumTriangles);
+	}
 	UE_LOG(LogLightmass, Log, TEXT("MeshInfos             : %7.1fMb"), MeshInfoSize / 1048576.0f);
 	UE_LOG(LogLightmass, Log, TEXT("UVs                   : %7.1fMb"), UVSize / 1048576.0f);
 	UE_LOG(LogLightmass, Log, TEXT("LightmapUVs           : %7.1fMb"), LightmapUV / 1048576.0f);
@@ -651,17 +798,25 @@ bool FEmbreeAggregateMesh::IntersectLightRay(
 
 	if (EmbreeRay.geomID != -1 && EmbreeRay.primID != -1)
 	{
-		const FEmbreeGeometry& Geo = *(FEmbreeGeometry*)rtcGetUserData(EmbreeScene, EmbreeRay.geomID);
-
 		FMinimalStaticLightingVertex EmbreeVertex;
 		EmbreeVertex.WorldPosition = LightRay.Start + LightRay.Direction * EmbreeRay.tfar;
-		EmbreeVertex.WorldTangentZ = FVector(EmbreeRay.Ng[0], EmbreeRay.Ng[1], EmbreeRay.Ng[2]).GetSafeNormal();
 
 		EmbreeVertex.TextureCoordinates[0] = EmbreeRay.TextureCoordinates;
 		EmbreeVertex.TextureCoordinates[1] = EmbreeRay.LightmapCoordinates;
 
-		ClosestIntersection = FLightRayIntersection(true, EmbreeVertex, Geo.Mesh, Geo.Mapping, EmbreeRay.ElementIndex);
-
+		if (EmbreeRay.instID == -1)
+		{
+			const FEmbreeGeometry& Geo = *(FEmbreeGeometry*)rtcGetUserData(EmbreeScene, EmbreeRay.geomID);
+			EmbreeVertex.WorldTangentZ = FVector(EmbreeRay.Ng[0], EmbreeRay.Ng[1], EmbreeRay.Ng[2]).GetSafeNormal();
+			ClosestIntersection = FLightRayIntersection(true, EmbreeVertex, Geo.Mesh, Geo.Mapping, EmbreeRay.ElementIndex);
+		}
+		else
+		{
+			FStaticLightingMapping* Mapping = (FStaticLightingMapping*)rtcGetUserData(EmbreeScene, EmbreeRay.instID);
+			FVector GeometryNormal(EmbreeRay.Ng[0], EmbreeRay.Ng[1], EmbreeRay.Ng[2]);
+			EmbreeVertex.WorldTangentZ = Mapping->Mesh->GetInstanceableStaticMesh()->LocalToWorldInverseTranspose.TransformVector(GeometryNormal).GetSafeNormal();
+			ClosestIntersection = FLightRayIntersection(true, EmbreeVertex, Mapping->Mesh, Mapping, EmbreeRay.ElementIndex);
+		}
 		EmbreeRay.TransmissionAcc.Resolve(ClosestIntersection.Transmission, EmbreeRay.tfar);
 	}
 	else

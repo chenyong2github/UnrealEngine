@@ -2546,10 +2546,10 @@ class FGenerateVulkanVisitor : public ir_visitor
 			"imageAtomicCompSwap"
 		};
 		check(scope_depth > 0);
-		const bool is_image = ir->memory_ref->as_dereference_image() != NULL;
+		ir_dereference_image* image = ir->memory_ref->as_dereference_image();
 
 		ir->lhs->accept(this);
-		if (!is_image)
+		if (!image || (image->image->type && image->image->type->shader_storage_buffer))
 		{
 			ralloc_asprintf_append(buffer, " = %s(",
 				sharedAtomicFunctions[ir->operation]);
@@ -2565,7 +2565,6 @@ class FGenerateVulkanVisitor : public ir_visitor
 		}
 		else
 		{
-			ir_dereference_image *image = ir->memory_ref->as_dereference_image();
 			ralloc_asprintf_append(buffer, " = %s(",
 				imageAtomicFunctions[ir->operation]);
 			image->image->accept(this);

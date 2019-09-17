@@ -400,7 +400,7 @@ void FNiagaraShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvir
 	GeneratedUniformBuffersInclude.Append(UniformBufferIncludes);
 
 	ERHIFeatureLevel::Type MaxFeatureLevel = GetMaxSupportedFeatureLevel(Platform);
-	if (MaxFeatureLevel >= ERHIFeatureLevel::SM4)
+	if (MaxFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		OutEnvironment.SetDefine(TEXT("PLATFORM_SUPPORTS_SRV_UB"), TEXT("1"));
 	}
@@ -420,14 +420,12 @@ FShader* FNiagaraShaderType::FinishCompileShader(
 {
 	check(CurrentJob.bSucceeded);
 
-	FShaderType* SpecificType = CurrentJob.ShaderType->LimitShaderResourceToThisType() ? CurrentJob.ShaderType : NULL;
-
 	// Reuse an existing resource with the same key or create a new one based on the compile output
 	// This allows FShaders to share compiled bytecode and RHI shader references
-	FShaderResource* Resource = FShaderResource::FindOrCreateShaderResource(CurrentJob.Output, SpecificType, /* SpecificPermutationId = */ 0);
+	TRefCountPtr<FShaderResource> Resource = FShaderResource::FindOrCreate(CurrentJob.Output, /* SpecificPermutationId = */ 0);
 
 	// Find a shader with the same key in memory
-	FShader* Shader = CurrentJob.ShaderType->FindShaderById(FShaderId(ShaderMapHash, nullptr, nullptr, CurrentJob.ShaderType, /* SpecificPermutationId = */ 0, CurrentJob.Input.Target));
+	FShader* Shader = CurrentJob.ShaderType->FindShaderByKey(FShaderKey(ShaderMapHash, nullptr, nullptr, /* SpecificPermutationId = */ 0, CurrentJob.Input.Target.GetPlatform()));
 
 	// There was no shader with the same key so create a new one with the compile output, which will bind shader parameters
 	if (!Shader)
@@ -441,7 +439,7 @@ FShader* FNiagaraShaderType::FinishCompileShader(
 			check(false);
 		}
 
-		Shader = (*ConstructCompiledRef)(FNiagaraShaderType::CompiledShaderInitializerType(this, PermutationId, CurrentJob.Output, Resource, ShaderMapHash, InDebugDescription, DIParamInfo));
+		Shader = (*ConstructCompiledRef)(FNiagaraShaderType::CompiledShaderInitializerType(this, PermutationId, CurrentJob.Output, MoveTemp(Resource), ShaderMapHash, InDebugDescription, DIParamInfo));
 		//CurrentJob.Output.ParameterMap.VerifyBindingsAreComplete(GetName(), CurrentJob.Output.Target, nullptr); // b/c we don't bind data interfaces yet...
 
 	}
@@ -621,9 +619,8 @@ void FNiagaraShaderMap::SaveForRemoteRecompile(FArchive& Ar, const TMap<FString,
 					if (ClientResourceIds.Contains(ShaderId) == false)
 					{
 						// lookup the resource by ID
-						FShaderResource* Resource = FShaderResource::FindShaderResourceById(ShaderId);
 						// add it if it's unique
-						UniqueResources.AddUnique(Resource);
+						UniqueResources.AddUnique(FShaderResource::FindById(ShaderId));
 					}
 					else
 					{
@@ -1049,8 +1046,8 @@ void FNiagaraShaderMap::LoadMissingShadersFromMemory(const FNiagaraShaderScript*
 		FNiagaraShaderType* ShaderType = ShaderTypeIt->GetNiagaraShaderType();
 		if (ShaderType && ShouldCacheNiagaraShader(ShaderType, Platform, Script) && !HasShader(ShaderType, /* PermutationId = */ 0))
 		{
-			FShaderId ShaderId(ShaderMapHash, nullptr, nullptr, ShaderType, /** PermutationId = */ 0, FShaderTarget(ShaderType->GetFrequency(), Platform));
-			FShader* FoundShader = ShaderType->FindShaderById(ShaderId);
+			FShaderKey ShaderKey(ShaderMapHash, nullptr, nullptr, /** PermutationId = */ 0, Platform);
+			FShader* FoundShader = ShaderType->FindShaderByKey(ShaderKey);
 			if (FoundShader)
 			{
 				AddShader(ShaderType, /* PermutationId = */ 0, FoundShader);

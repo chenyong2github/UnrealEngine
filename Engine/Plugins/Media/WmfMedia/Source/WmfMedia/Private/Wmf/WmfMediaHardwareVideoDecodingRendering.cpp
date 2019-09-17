@@ -29,7 +29,7 @@
 
 #include "WmfMediaHardwareVideoDecodingShaders.h"
 
-struct FRHICommandCopyResource final : public FRHICommand<FRHICommandCopyResource>
+FRHICOMMAND_MACRO(FRHICommandCopyResource)
 {
 	TComPtr<ID3D11Texture2D> SampleTexture;
 	FTexture2DRHIRef SampleDestinationTexture;

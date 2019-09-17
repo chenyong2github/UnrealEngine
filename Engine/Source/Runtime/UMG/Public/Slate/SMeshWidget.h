@@ -69,10 +69,9 @@ public:
 
 	/** Enable hardware instancing */
 	void EnableInstancing(uint32 MeshId, int32 InitialSize);
-	/** Begin an update to the per instance buffer. Automatically enables hardware instancing. */
-	TSharedPtr<FSlateInstanceBufferUpdate> BeginPerInstanceBufferUpdate(uint32 MeshId, int32 InitialSize);
-	/** Begin an update to the per instance buffer. Use */
-	TSharedPtr<FSlateInstanceBufferUpdate> BeginPerInstanceBufferUpdateConst(uint32 MeshId) const;
+
+	/** Updates the per instance buffer. Automatically enables hardware instancing. */
+	void UpdatePerInstanceBuffer(uint32 MeshId, FSlateInstanceBufferData& Data);
 
 protected:
 	// BEGIN SLeafWidget interface
@@ -86,8 +85,8 @@ protected:
 	// ~ FGCObject
 
 protected:
-	static void PushUpdate(uint32 VectorArtId, const SMeshWidget& Widget, const FVector2D& Position, float Scale, uint32 BaseAddress);
-	static void PushUpdate(uint32 VectorArtId, const SMeshWidget& Widget, const FVector2D& Position, float Scale, float OptionalFloat = 0);
+	static void PushUpdate(uint32 VectorArtId, SMeshWidget& Widget, const FVector2D& Position, float Scale, uint32 BaseAddress);
+	static void PushUpdate(uint32 VectorArtId, SMeshWidget& Widget, const FVector2D& Position, float Scale, float OptionalFloat = 0);
 
 	struct FRenderData
 	{

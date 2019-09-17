@@ -769,6 +769,15 @@ static void RenderGroupedWithHierarchy(const FGameThreadStatsData& ViewData, FVi
 	for( int32 GroupIndex = 0; GroupIndex < ViewData.ActiveStatGroups.Num(); ++GroupIndex )
 	{
 		const FActiveStatGroupInfo& StatGroup = ViewData.ActiveStatGroups[GroupIndex];
+
+		// If the stat isn't enabled for this particular viewport, skip
+		FString StatGroupName = ViewData.GroupNames[GroupIndex].ToString();
+		StatGroupName.RemoveFromStart(TEXT("STATGROUP_"), ESearchCase::CaseSensitive);
+		if (!Viewport->GetClient() || !Viewport->GetClient()->IsStatEnabled(StatGroupName))
+		{
+			continue;
+		}
+
 		const bool bBudget = StatGroup.ThreadBudgetMap.Num() > 0;
 		const int32 NumThreadsBreakdown = bBudget ? StatGroup.FlatAggregateThreadBreakdown.Num() : 1;
 		TArray<FName> ThreadNames;
@@ -776,14 +785,6 @@ static void RenderGroupedWithHierarchy(const FGameThreadStatsData& ViewData, FVi
 
 		for(int32 ThreadBreakdownIdx = 0; ThreadBreakdownIdx < NumThreadsBreakdown; ++ThreadBreakdownIdx)
 		{
-			// If the stat isn't enabled for this particular viewport, skip
-			FString StatGroupName = ViewData.GroupNames[GroupIndex].ToString();
-			StatGroupName.RemoveFromStart(TEXT("STATGROUP_"), ESearchCase::CaseSensitive);
-			if (!Viewport->GetClient() || !Viewport->GetClient()->IsStatEnabled(StatGroupName))
-			{
-				continue;
-			}
-
 			// Render header.
 			const FName& GroupName = ViewData.GroupNames[GroupIndex];
 			const FString& GroupDesc = ViewData.GroupDescriptions[GroupIndex];
@@ -833,22 +834,22 @@ static void RenderGroupedWithHierarchy(const FGameThreadStatsData& ViewData, FVi
 		}
 		
 
-			// Render memory counters.
-			if (StatGroup.MemoryAggregate.Num())
-			{
-				Y += RenderMemoryHeadings(Canvas, X, Y);
+		// Render memory counters.
+		if (StatGroup.MemoryAggregate.Num())
+		{
+			Y += RenderMemoryHeadings(Canvas, X, Y);
 			RenderArrayOfStats(Canvas, X, Y, StatGroup.MemoryAggregate, ViewData, StatGroup.BudgetIgnoreStats, -1.f, RenderMemoryCounter);
-				Y += Globals.GetFontHeight();
-			}
-
-			// Render remaining counters.
-			if (StatGroup.CountersAggregate.Num())
-			{
-				Y += RenderCounterHeadings(Canvas, X, Y);
-			RenderArrayOfStats(Canvas, X, Y, StatGroup.CountersAggregate, ViewData, StatGroup.BudgetIgnoreStats, -1.f, RenderCounter);
-				Y += Globals.GetFontHeight();
-			}
+			Y += Globals.GetFontHeight();
 		}
+
+		// Render remaining counters.
+		if (StatGroup.CountersAggregate.Num())
+		{
+			Y += RenderCounterHeadings(Canvas, X, Y);
+			RenderArrayOfStats(Canvas, X, Y, StatGroup.CountersAggregate, ViewData, StatGroup.BudgetIgnoreStats, -1.f, RenderCounter);
+			Y += Globals.GetFontHeight();
+		}
+	}
 }
 
 /**

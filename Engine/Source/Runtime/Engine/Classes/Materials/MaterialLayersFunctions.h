@@ -80,6 +80,23 @@ struct ENGINE_API FMaterialLayersFunctions
 {
 	GENERATED_USTRUCT_BODY()
 
+	/** Serializable ID structure for FMaterialLayersFunctions which allows us to deterministically recompile shaders*/
+	struct ID
+	{
+		TArray<FGuid> LayerIDs;
+		TArray<FGuid> BlendIDs;
+		TArray<bool> LayerStates;
+
+		bool operator==(const ID& Reference) const;
+
+		void SerializeForDDC(FArchive& Ar);
+
+		void UpdateHash(FSHA1& HashState) const;
+
+		//TODO: Investigate whether this is really required given it is only used by FMaterialShaderMapId AND that one also uses UpdateHash
+		void AppendKeyString(FString& KeyString) const;
+	};
+		
 	FMaterialLayersFunctions()
 	{
 		// Default to a non-blended "background" layer
@@ -113,9 +130,8 @@ struct ENGINE_API FMaterialLayersFunctions
 	UPROPERTY(EditAnywhere, Category = MaterialLayers)
 	TArray<bool> LayerStates;
 
-
 	UPROPERTY()
-	FString KeyString;
+	FString KeyString_DEPRECATED;
 
 	void AppendBlendedLayer()
 	{
@@ -128,7 +144,6 @@ struct ENGINE_API FMaterialLayersFunctions
 		RestrictToBlendRelatives.Push(false);
 #endif
 		LayerStates.Push(true);
-		KeyString = GetStaticPermutationString();
 	}
 
 	void RemoveBlendedLayerAt(int32 Index)
@@ -142,21 +157,18 @@ struct ENGINE_API FMaterialLayersFunctions
 		RestrictToLayerRelatives.RemoveAt(Index);
 		RestrictToBlendRelatives.RemoveAt(Index - 1);
 #endif
-		KeyString = GetStaticPermutationString();
 	}
 
 	void ToggleBlendedLayerVisibility(int32 Index)
 	{
 		check(LayerStates.IsValidIndex(Index));
 		LayerStates[Index] = !LayerStates[Index];
-		KeyString = GetStaticPermutationString();
 	}
 
 	void SetBlendedLayerVisibility(int32 Index, bool InNewVisibility)
 	{
 		check(LayerStates.IsValidIndex(Index));
 		LayerStates[Index] = InNewVisibility;
-		KeyString = GetStaticPermutationString();
 	}
 
 	bool GetLayerVisibility(int32 Index)
@@ -178,6 +190,8 @@ struct ENGINE_API FMaterialLayersFunctions
 
 #endif
 
+	const ID GetID() const;
+
 	/** Lists referenced function packages in a string, intended for use as a static permutation identifier. */
 	FString GetStaticPermutationString() const;
 
@@ -191,11 +205,6 @@ struct ENGINE_API FMaterialLayersFunctions
 	FORCEINLINE bool operator!=(const FMaterialLayersFunctions& Other) const
 	{
 		return Layers != Other.Layers || Blends != Other.Blends || LayerStates != Other.LayerStates;
-	}
-
-	FORCEINLINE void UpdateStaticPermutationString()
-	{
-		KeyString = GetStaticPermutationString();
 	}
 };
 

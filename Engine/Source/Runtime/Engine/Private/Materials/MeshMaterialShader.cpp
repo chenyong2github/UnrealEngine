@@ -147,11 +147,9 @@ FShader* FMeshMaterialShaderType::FinishCompileShader(
 	checkf(CurrentJob.bSucceeded, TEXT("Failed MeshMaterialType compilation job: %s"), *GetJobName(&CurrentJob, ShaderPipelineType, InDebugDescription));
 	check(CurrentJob.VFType);
 
-	FShaderType* SpecificType = CurrentJob.ShaderType->LimitShaderResourceToThisType() ? CurrentJob.ShaderType : NULL;
-
 	// Reuse an existing resource with the same key or create a new one based on the compile output
 	// This allows FShaders to share compiled bytecode and RHI shader references
-	FShaderResource* Resource = FShaderResource::FindOrCreateShaderResource(CurrentJob.Output, SpecificType, CurrentJob.PermutationId);
+	TRefCountPtr<FShaderResource> Resource = FShaderResource::FindOrCreate(CurrentJob.Output, CurrentJob.PermutationId);
 
 	if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs(CurrentJob.Input.Target.GetPlatform()))
 	{
@@ -160,12 +158,12 @@ FShader* FMeshMaterialShaderType::FinishCompileShader(
 	}
 
 	// Find a shader with the same key in memory
-	FShader* Shader = CurrentJob.ShaderType->FindShaderById(FShaderId(MaterialShaderMapHash, ShaderPipelineType, CurrentJob.VFType, CurrentJob.ShaderType, CurrentJob.PermutationId, CurrentJob.Input.Target));
+	FShader* Shader = CurrentJob.ShaderType->FindShaderByKey(FShaderKey(MaterialShaderMapHash, ShaderPipelineType, CurrentJob.VFType, CurrentJob.PermutationId, CurrentJob.Input.Target.GetPlatform()));
 
 	// There was no shader with the same key so create a new one with the compile output, which will bind shader parameters
 	if (!Shader)
 	{
-		Shader = (*ConstructCompiledRef)(CompiledShaderInitializerType(this, CurrentJob.PermutationId, CurrentJob.Output, Resource, UniformExpressionSet, MaterialShaderMapHash, InDebugDescription, ShaderPipelineType, CurrentJob.VFType));
+		Shader = (*ConstructCompiledRef)(CompiledShaderInitializerType(this, CurrentJob.PermutationId, CurrentJob.Output, MoveTemp(Resource), UniformExpressionSet, MaterialShaderMapHash, InDebugDescription, ShaderPipelineType, CurrentJob.VFType));
 		ValidateAfterBind((FMeshMaterialShader*)Shader);
 		CurrentJob.Output.ParameterMap.VerifyBindingsAreComplete(GetName(), CurrentJob.Output.Target, CurrentJob.VFType);
 	}
@@ -428,8 +426,8 @@ void FMeshMaterialShaderMap::LoadMissingShadersFromMemory(
 		{
 			if (ShouldCacheMeshShader(ShaderType, InPlatform, Material, VertexFactoryType, PermutationId) && !HasShader((FShaderType*)ShaderType, PermutationId))
 			{
-				const FShaderId ShaderId(MaterialShaderMapHash, nullptr, VertexFactoryType, (FShaderType*)ShaderType, PermutationId, FShaderTarget(ShaderType->GetFrequency(), InPlatform));
-				FShader* FoundShader = ((FShaderType*)ShaderType)->FindShaderById(ShaderId);
+				const FShaderKey ShaderKey(MaterialShaderMapHash, nullptr, VertexFactoryType, PermutationId, InPlatform);
+				FShader* FoundShader = ((FShaderType*)ShaderType)->FindShaderByKey(ShaderKey);
 
 				if (FoundShader)
 				{
@@ -469,8 +467,8 @@ void FMeshMaterialShaderMap::LoadMissingShadersFromMemory(
 					FMeshMaterialShaderType* ShaderType = (FMeshMaterialShaderType*)Shader->GetMeshMaterialShaderType();
 					if (!HasShader(ShaderType, kUniqueShaderPermutationId))
 					{
-						const FShaderId ShaderId(MaterialShaderMapHash, PipelineType->ShouldOptimizeUnusedOutputs(InPlatform) ? PipelineType : nullptr, VertexFactoryType, ShaderType, kUniqueShaderPermutationId, FShaderTarget(ShaderType->GetFrequency(), InPlatform));
-						FShader* FoundShader = ShaderType->FindShaderById(ShaderId);
+						const FShaderKey ShaderKey(MaterialShaderMapHash, PipelineType->ShouldOptimizeUnusedOutputs(InPlatform) ? PipelineType : nullptr, VertexFactoryType, kUniqueShaderPermutationId, InPlatform);
+						FShader* FoundShader = ShaderType->FindShaderByKey(ShaderKey);
 						if (FoundShader)
 						{
 							AddShader(ShaderType, kUniqueShaderPermutationId, FoundShader);

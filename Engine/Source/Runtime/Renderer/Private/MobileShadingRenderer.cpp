@@ -271,7 +271,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		// Create the directional light uniform buffers
 		CreateDirectionalLightUniformBuffers(Views[ViewIndex]);
 	}
-	
+
 	UpdateGPUScene(RHICmdList, *Scene);
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -307,6 +307,8 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 {
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneStart));
+
+	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 
 	PrepareViewRectsForRendering();
 

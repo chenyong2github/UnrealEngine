@@ -245,8 +245,16 @@ static TAutoConsoleVariable<int32> CVarD3DForceDXC(
 
 static TAutoConsoleVariable<int32> CVarMetalForceDXC(
 	TEXT("r.Metal.ForceDXC"),
-	0,
+	(PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_IOS),
 	TEXT("Forces DirectX Shader Compiler (DXC) to be used for all Metal shaders instead of hlslcc.\n")
+	TEXT(" 0: Disable\n")
+	TEXT(" 1: Use new compiler for all shaders (Default)"),
+	ECVF_ReadOnly);
+
+static TAutoConsoleVariable<int32> CVarOpenGLForceDXC(
+	TEXT("r.OpenGL.ForceDXC"),
+	0,
+	TEXT("Forces DirectX Shader Compiler (DXC) to be used for all OpenGL shaders instead of hlslcc.\n")
 	TEXT(" 0: Disable (default)\n")
 	TEXT(" 1: Force new compiler for all shaders"),
 	ECVF_ReadOnly);
@@ -348,7 +356,7 @@ namespace SCWErrorCode
 
 	void HandleOutputFileCorrupted(const TCHAR* Filename, int64 ExpectedSize, int64 ActualSize)
 	{
-		ModalErrorOrLog(FString::Printf(TEXT("Output file corrupted (expected %I64d bytes, but only got %I64d): %s"), Filename, ExpectedSize, ActualSize));
+		ModalErrorOrLog(FString::Printf(TEXT("Output file corrupted (expected %I64d bytes, but only got %I64d): %s"), ExpectedSize, ActualSize, Filename));
 	}
 }
 
@@ -1196,7 +1204,7 @@ void FShaderCompileThreadRunnable::WriteNewTasks()
 				uint64 TotalDiskSpace = 0;
 				uint64 FreeDiskSpace = 0;
 				FPlatformMisc::GetDiskTotalAndFreeSpace(TransferFileName, TotalDiskSpace, FreeDiskSpace);
-				UE_LOG(LogShaderCompilers, Fatal, TEXT("Could not write the shader compiler transfer filename to '%s' (Free Disk Space: %llu."), *TransferFileName, FreeDiskSpace);
+				UE_LOG(LogShaderCompilers, Error, TEXT("Could not write the shader compiler transfer filename to '%s' (Free Disk Space: %llu."), *TransferFileName, FreeDiskSpace);
 			}
 			delete TransferFile;
 
@@ -1207,7 +1215,7 @@ void FShaderCompileThreadRunnable::WriteNewTasks()
 				uint64 TotalDiskSpace = 0;
 				uint64 FreeDiskSpace = 0;
 				FPlatformMisc::GetDiskTotalAndFreeSpace(TransferFileName, TotalDiskSpace, FreeDiskSpace);
-				UE_LOG(LogShaderCompilers, Fatal, TEXT("Could not rename the shader compiler transfer filename to '%s' from '%s' (Free Disk Space: %llu)."), *ProperTransferFileName, *TransferFileName, FreeDiskSpace);
+				UE_LOG(LogShaderCompilers, Error, TEXT("Could not rename the shader compiler transfer filename to '%s' from '%s' (Free Disk Space: %llu)."), *ProperTransferFileName, *TransferFileName, FreeDiskSpace);
 			}
 		}
 	}
@@ -2831,6 +2839,12 @@ static void PullRootShaderParametersLayout(FShaderCompilerInput& CompileInput, c
 			// RHI don't need to care about render target bindings slot anyway.
 		}
 		else if (
+			BaseType == UBMT_RDG_BUFFER_COPY_DEST ||
+			BaseType == UBMT_RDG_TEXTURE_COPY_DEST)
+		{
+			// Shaders don't care about copy destination parameters.
+		}
+		else if (
 			BaseType == UBMT_RDG_BUFFER_UAV ||
 			BaseType == UBMT_RDG_TEXTURE_UAV)
 		{
@@ -3204,23 +3218,27 @@ void GlobalBeginCompileShader(
 			
 			FString AllowFastIntrinsics;
 			FString ForceFloats;
+			FString IndirectArgumentTier;
 			bool bEnableMathOptimisations = true;
 			if (IsPCPlatform(EShaderPlatform(Target.Platform)))
 			{
 				GConfig->GetString(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("UseFastIntrinsics"), AllowFastIntrinsics, GEngineIni);
 				GConfig->GetBool(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("EnableMathOptimisations"), bEnableMathOptimisations, GEngineIni);
 				GConfig->GetString(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("ForceFloats"), ForceFloats, GEngineIni);
+				GConfig->GetString(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("IndirectArgumentTier"), IndirectArgumentTier, GEngineIni);
 			}
 			else
 			{
 				GConfig->GetString(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("UseFastIntrinsics"), AllowFastIntrinsics, GEngineIni);
 				GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("EnableMathOptimisations"), bEnableMathOptimisations, GEngineIni);
 				GConfig->GetString(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("ForceFloats"), ForceFloats, GEngineIni);
+				GConfig->GetString(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("IndirectArgumentTier"), IndirectArgumentTier, GEngineIni);
 				// Force no development shaders on iOS
 				bAllowDevelopmentShaderCompile = false;
 			}
 			Input.Environment.SetDefine(TEXT("METAL_USE_FAST_INTRINSICS"), *AllowFastIntrinsics);
 			Input.Environment.SetDefine(TEXT("FORCE_FLOATS"), *ForceFloats);
+			Input.Environment.SetDefine(TEXT("METAL_INDIRECT_ARGUMENT_BUFFERS"), *IndirectArgumentTier);
 			
 			// Same as console-variable above, but that's global and this is per-platform, per-project
 			if (!bEnableMathOptimisations)
@@ -3234,6 +3252,15 @@ void GlobalBeginCompileShader(
 			{
 				Input.Environment.CompilerFlags.Add(CFLAG_ForceDXC);
 			}
+		}
+	}
+	
+	if (IsOpenGLPlatform((EShaderPlatform)Target.Platform))
+	{
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.OpenGL.ForceDXC"));
+		if (CVar && CVar->GetInt() != 0)
+		{
+			Input.Environment.CompilerFlags.Add(CFLAG_ForceDXC);
 		}
 	}
 
@@ -3765,17 +3792,9 @@ FShader* FGlobalShaderTypeCompiler::FinishCompileShader(FGlobalShaderType* Shade
 	FShader* Shader = nullptr;
 	if (CurrentJob.bSucceeded)
 	{
-		FShaderType* SpecificType = nullptr;
-		int32 SpecificPermutationId = 0;
-		if (CurrentJob.ShaderType->LimitShaderResourceToThisType())
-		{
-			SpecificType = CurrentJob.ShaderType;
-			SpecificPermutationId = CurrentJob.PermutationId;
-		}
-
 		// Reuse an existing resource with the same key or create a new one based on the compile output
 		// This allows FShaders to share compiled bytecode and RHI shader references
-		FShaderResource* Resource = FShaderResource::FindOrCreateShaderResource(CurrentJob.Output, SpecificType, SpecificPermutationId);
+		TRefCountPtr<FShaderResource> Resource = FShaderResource::FindOrCreate(CurrentJob.Output, 0);
 		check(Resource);
 
 		if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs(CurrentJob.Input.Target.GetPlatform()))
@@ -3796,12 +3815,12 @@ FShader* FGlobalShaderTypeCompiler::FinishCompileShader(FGlobalShaderType* Shade
 		}
 
 		// Find a shader with the same key in memory
-		Shader = CurrentJob.ShaderType->FindShaderById(FShaderId(GlobalShaderMapHash, ShaderPipelineType, nullptr, CurrentJob.ShaderType, CurrentJob.PermutationId, CurrentJob.Input.Target));
+		Shader = CurrentJob.ShaderType->FindShaderByKey(FShaderKey(GlobalShaderMapHash, ShaderPipelineType, nullptr, CurrentJob.PermutationId, CurrentJob.Input.Target.GetPlatform()));
 
 		// There was no shader with the same key so create a new one with the compile output, which will bind shader parameters
 		if (!Shader)
 		{
-			Shader = (*(ShaderType->ConstructCompiledRef))(FGlobalShaderType::CompiledShaderInitializerType(ShaderType, CurrentJob.PermutationId, CurrentJob.Output, Resource, GlobalShaderMapHash, ShaderPipelineType, nullptr));
+			Shader = (*(ShaderType->ConstructCompiledRef))(FGlobalShaderType::CompiledShaderInitializerType(ShaderType, CurrentJob.PermutationId, CurrentJob.Output, MoveTemp(Resource), GlobalShaderMapHash, ShaderPipelineType, nullptr));
 			CurrentJob.Output.ParameterMap.VerifyBindingsAreComplete(ShaderType->GetName(), CurrentJob.Output.Target, CurrentJob.VFType);
 		}
 	}
@@ -4459,7 +4478,8 @@ void RecompileShadersForRemote(
 			if (ShaderPlatform == ShaderPlatformToCompile || ShaderPlatformToCompile == SP_NumPlatforms)
 			{
 				// These platforms are deprecated and we should warn about their use
-				if (ShaderPlatform == SP_OPENGL_SM5 || ShaderPlatform == SP_PCD3D_SM4)
+				if (ShaderPlatform == SP_OPENGL_SM5 || ShaderPlatform == SP_PCD3D_SM4_DEPRECATED || ShaderPlatform == SP_OPENGL_ES2_IOS_DEPRECATED ||
+					ShaderPlatform == SP_VULKAN_SM4_DEPRECATED)
 				{
 					UE_LOG(LogShaderCompilers, Warning, TEXT("You are compiling shaders for a deprecated platform '%s'"), *LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString());
 				}

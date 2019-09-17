@@ -587,6 +587,10 @@ ir_constant_propagation_visitor::add_constant(ir_assignment *ir)
 	if (!deref->var->type->is_vector() && !deref->var->type->is_scalar())
 		return;
 
+	// Shared variables should be considered volatile
+	if (deref->var->mode == ir_var_shared)
+		return;
+
 	entry = new(this->mem_ctx) cpv_entry(deref->var, ir->write_mask, constant);
 	this->acp->add_acp(entry);
 }

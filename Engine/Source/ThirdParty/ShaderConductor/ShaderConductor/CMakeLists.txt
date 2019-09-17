@@ -49,6 +49,11 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     endforeach()
 endif()
 
+# UE4 supports macOS High Sierra (10.13.x)
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
+endif()
+
 add_subdirectory(Source)
 add_subdirectory(External)
 

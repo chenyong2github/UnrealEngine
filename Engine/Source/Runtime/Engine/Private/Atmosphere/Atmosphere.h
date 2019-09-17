@@ -138,7 +138,7 @@ public:
 	 */
 	virtual void InitRHI() override
 	{
-		if (TextureData && GetFeatureLevel() >= ERHIFeatureLevel::SM4)
+		if (TextureData && GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
 			switch(TexType)
 			{

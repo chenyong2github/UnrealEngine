@@ -364,7 +364,9 @@ void FVisualizeTexturePresent::PresentContent(FRHICommandListImmediate& RHICmdLi
 				}
 			}
 
-			Canvas.Flush_RenderThread(RHICmdList);
+			const bool bForce = false;
+			const bool bInsideRenderPass = true;
+			Canvas.Flush_RenderThread(RHICmdList, bForce, bInsideRenderPass);
 
 			GRenderTargetPool.CurrentEventRecordingTime = 0;
 			GRenderTargetPool.RenderTargetPoolEvents.Empty();
@@ -373,6 +375,7 @@ void FVisualizeTexturePresent::PresentContent(FRHICommandListImmediate& RHICmdLi
 		}
 	}
 
+	// TODO(RDG): delete this old technic of visualizing a buffer based on id that predates when render target had names.
 	if (GVisualizeTexture.Mode != 0)
 	{
 		// old mode is used, lets copy the specified texture to do it similar to the new system
@@ -383,7 +386,7 @@ void FVisualizeTexturePresent::PresentContent(FRHICommandListImmediate& RHICmdLi
 
 			TRefCountPtr<IPooledRenderTarget> ElementRefCount = Element;
 
-			GVisualizeTexture.CreateContentCapturePass(GraphBuilder, GraphBuilder.RegisterExternalTexture(ElementRefCount));
+			GVisualizeTexture.CreateContentCapturePass(GraphBuilder, GraphBuilder.RegisterExternalTexture(ElementRefCount), /* CaptureId = */ 0);
 			GraphBuilder.Execute();
 		}
 	}

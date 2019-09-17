@@ -108,7 +108,7 @@ FVertexBufferRHIRef FD3D11DynamicRHI::CreateVertexBuffer_RenderThread(
 	return RHICreateVertexBuffer(Size, InUsage, CreateInfo);
 }
 
-void* FD3D11DynamicRHI::RHILockVertexBuffer(FRHIVertexBuffer* VertexBufferRHI,uint32 Offset,uint32 Size,EResourceLockMode LockMode)
+void* FD3D11DynamicRHI::LockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI,uint32 Offset,uint32 Size,EResourceLockMode LockMode)
 {
 	check(Size > 0);
 
@@ -190,7 +190,7 @@ void* FD3D11DynamicRHI::RHILockVertexBuffer(FRHIVertexBuffer* VertexBufferRHI,ui
 	return (void*)((uint8*)LockedData.GetData() + Offset);
 }
 
-void FD3D11DynamicRHI::RHIUnlockVertexBuffer(FRHIVertexBuffer* VertexBufferRHI)
+void FD3D11DynamicRHI::UnlockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI)
 {
 	FD3D11VertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
 

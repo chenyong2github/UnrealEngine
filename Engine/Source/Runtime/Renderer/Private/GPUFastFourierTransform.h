@@ -84,16 +84,16 @@ namespace GPUFFT
 
 		typedef TShaderMap<FGlobalShaderType>  ShaderMapType;
 
-		FGPUFFTShaderContext(FRHICommandListImmediate& CmdList, const FGPUFFTShaderContext::ShaderMapType& Map)
+		FGPUFFTShaderContext(FRHICommandList& CmdList, const FGPUFFTShaderContext::ShaderMapType& Map)
 			: RHICmdList(&CmdList), ShaderMap(&Map)
 		{}
 
-		FRHICommandListImmediate& GetRHICmdList() { return *RHICmdList; }
+		FRHICommandList& GetRHICmdList() { return *RHICmdList; }
 		const ShaderMapType& GetShaderMap() const { return *ShaderMap; }
 
 	private:
 		FGPUFFTShaderContext();
-		FRHICommandListImmediate* RHICmdList;
+		FRHICommandList* RHICmdList;
 		const ShaderMapType* ShaderMap;
 	};
 
@@ -178,7 +178,7 @@ namespace GPUFFT
 		* NB: This function does not transition resources.  That must be done by the calling scope.
 		*/
 		static bool GroupShared(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-			const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture, FUnorderedAccessViewRHIRef& DstUAV);
+			const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture, FUnorderedAccessViewRHIRef DstUAV);
 
 		/**
 		* One Dimensional Fast Fourier Transform of two signals in a two dimensional buffer.
@@ -267,7 +267,7 @@ namespace GPUFFT
 		*/
 		static bool GroupShared(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
 			const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-			const FIntRect& DstWindow, FUnorderedAccessViewRHIRef& DstUAV,
+			const FIntRect& DstWindow, FUnorderedAccessViewRHIRef DstUAV,
 			const FPreFilter& PreFilter = FPreFilter(TNumericLimits<float>::Max(), TNumericLimits<float>::Lowest(), 0.f));
 
 
@@ -368,7 +368,7 @@ namespace GPUFFT
 			const FTextureRHIRef& TransformedKernel,
 			const FIntRect& SrcWindow,
 			const FTextureRHIRef& SrcTexture,
-			FUnorderedAccessViewRHIRef& DstUAV);
+			FUnorderedAccessViewRHIRef DstUAV);
 
 
 		/**
@@ -465,7 +465,7 @@ namespace GPUFFT
 		const FTextureRHIRef& TransformedKernel,
 		const FIntRect& ROIRect/*region of interest*/,
 		const FTextureRHIRef& SrcTexture, 
-		FUnorderedAccessViewRHIRef& ResultUAV,
+		FUnorderedAccessViewRHIRef ResultUAV,
 		FSceneRenderTargetItem& TmpBuffer0,
 		FSceneRenderTargetItem& TmpBuffer1,
 		const FPreFilter& PreFilter);
@@ -490,7 +490,7 @@ namespace GPUFFT
 	*/
 	void CopyImage2D(FGPUFFTShaderContext& Context,
 		const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-		const FIntRect& DstWindow, FUnorderedAccessViewRHIRef& DstUAV,
+		const FIntRect& DstWindow, FUnorderedAccessViewRHIRef DstUAV,
 		const FPreFilter& PreFilter = FPreFilter(TNumericLimits<float>::Max(), TNumericLimits<float>::Lowest(), 0.f));
 };
 
@@ -571,7 +571,7 @@ namespace GPUFFTComputeShaderUtils
 
 		// Factory method.
 		template <typename ComputeShaderT>
-		inline static FScopedUAVBind BindOutput(FRHICommandListImmediate& CmdList, ComputeShaderT* Shader, const FUnorderedAccessViewRHIRef& BufferUAV)
+		inline static FScopedUAVBind BindOutput(FRHICommandList& CmdList, ComputeShaderT* Shader, FUnorderedAccessViewRHIRef BufferUAV)
 		{
 			FRHIComputeShader* ShaderRHI = Shader->GetComputeShader();
 			const uint32 BaseIndex = Shader->DestinationResourceParameter().GetBaseIndex();
@@ -589,7 +589,7 @@ namespace GPUFFTComputeShaderUtils
 	private:
 		FScopedUAVBind();
 
-		FScopedUAVBind(FRHICommandListImmediate& CmdList, FRHIComputeShader* ShaderRHI, const uint32 BaseIndex, const FUnorderedAccessViewRHIRef& BufferUAV)
+		FScopedUAVBind(FRHICommandList& CmdList, FRHIComputeShader* ShaderRHI, const uint32 BaseIndex, FUnorderedAccessViewRHIRef BufferUAV)
 			:ComputeShader(ShaderRHI), RHICmdList(&CmdList), Index(BaseIndex)
 		{
 			RHICmdList->SetUAVParameter(ComputeShader, Index, BufferUAV);
@@ -597,7 +597,7 @@ namespace GPUFFTComputeShaderUtils
 
 
 		FRHIComputeShader* ComputeShader;
-		FRHICommandListImmediate* RHICmdList;
+		FRHICommandList* RHICmdList;
 		uint32 Index;
 	};
 

@@ -296,6 +296,10 @@ FPlayWorldCommands::FPlayWorldCommands()
 		{
 			PlayPlatformName = TEXT("LinuxNoEditor");
 		}
+		else if (RunningPlatformName == TEXT("LinuxAArch64"))
+		{
+			PlayPlatformName = TEXT("LinuxAArch64NoEditor");
+		}
 
 		if (!PlayPlatformName.IsEmpty())
 		{

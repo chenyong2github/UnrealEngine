@@ -5,12 +5,10 @@
 #include "CoreMinimal.h"
 #include "RHI.h"
 
-#define VULKAN_HAS_PHYSICAL_DEVICE_PROPERTIES2		1
 #define VULKAN_DYNAMICALLYLOADED					1
 #define VULKAN_SHOULD_DEBUG_IN_DEVELOPMENT			1
 #define VULKAN_SHOULD_ENABLE_DRAW_MARKERS			(UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT)
 #define VULKAN_SIGNAL_UNIMPLEMENTED()				checkf(false, TEXT("Unimplemented vulkan functionality: %s"), __PRETTY_FUNCTION__)
-#define	VULKAN_SUPPORTS_DEDICATED_ALLOCATION		0
 #define VULKAN_SUPPORTS_AMD_BUFFER_MARKER			1
 #define VULKAN_SUPPORTS_NV_DIAGNOSTIC_CHECKPOINT	1
 
@@ -42,7 +40,7 @@ public:
 	static void FreeVulkanLibrary();
 
 	static void GetInstanceExtensions(TArray<const ANSICHAR*>& OutExtensions);
-	static void GetDeviceExtensions(TArray<const ANSICHAR*>& OutExtensions);
+	static void GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions);
 
 	static void CreateSurface(void* WindowHandle, VkInstance Instance, VkSurfaceKHR* OutSurface);
 

@@ -64,13 +64,13 @@ inline bool IsParticleCollisionModeSupported(EShaderPlatform InPlatform, EPartic
 	case PCM_DepthBuffer:
 		// we only need to check for simple forward if we're NOT currently attempting to cache the shader
 		// since SF is a runtime change, we need to compile the shader regardless, because we could be switching to deferred at any time
-		return (IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM4))
+		return (IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5))
 			&& (bForCaching || !IsSimpleForwardShadingEnabled(InPlatform));
 	case PCM_DistanceField:
 		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
 	}
 	check(0);
-	return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM4);
+	return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
 }
 
 

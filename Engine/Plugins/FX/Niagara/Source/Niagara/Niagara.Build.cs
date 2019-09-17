@@ -14,7 +14,6 @@ public class Niagara : ModuleRules
                 "NiagaraShader",
                 "Core",
                 "Engine",
-                "UtilityShaders",
                 "TimeManagement",
                 "Renderer",
             }
@@ -30,7 +29,6 @@ public class Niagara : ModuleRules
 				"CoreUObject",
                 "VectorVM",
                 "RHI",
-                "UtilityShaders",
                 "NiagaraVertexFactories",
                 "RenderCore",
             }

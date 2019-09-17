@@ -350,19 +350,3 @@ void GlobalIlluminationRGS()
 	// For AO denoiser..
 	//RWRayDistanceUAV[DispatchThreadId] = float2(Luminance(Irradiance), HitDistance);
 }
-
-[shader("closesthit")]
-void RayTracingGlobalIlluminationCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)
-{
-	FMaterialClosestHitPayload Payload = (FMaterialClosestHitPayload)0;
-	Payload.HitT = RayTCurrent();
-
-	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(PrimitiveIndex());
-	float3 Edge0 = Triangle.LocalPositions[2] - Triangle.LocalPositions[0];
-	float3 Edge1 = Triangle.LocalPositions[1] - Triangle.LocalPositions[0];
-	float3x3 WorldToLocal = (float3x3)WorldToObject();
-	float3x3 LocalToWorldNormal = transpose(WorldToLocal);
-	Payload.WorldNormal = normalize(mul(LocalToWorldNormal, cross(Edge0, Edge1)));
-
-	PackedPayload = PackRayTracingPayload(Payload, PackedPayload.RayCone);
-}

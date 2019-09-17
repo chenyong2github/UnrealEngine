@@ -33,7 +33,7 @@ class FMeshDecalAccumulatePolicy
 public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return Parameters.Material && Parameters.Material->IsDeferredDecal() && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+		return Parameters.Material && Parameters.Material->IsDeferredDecal() && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 };
 

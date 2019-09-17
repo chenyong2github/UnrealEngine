@@ -80,11 +80,6 @@ FDynamicRHI* FVulkanDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequest
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
 		GMaxRHIShaderPlatform = PLATFORM_LUMIN ? SP_VULKAN_ES3_1_LUMIN : (PLATFORM_ANDROID ? SP_VULKAN_ES3_1_ANDROID : SP_VULKAN_PCES3_1);
 	}
-	else if (InRequestedFeatureLevel == ERHIFeatureLevel::SM4)
-	{
-		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM4;
-		GMaxRHIShaderPlatform = SP_VULKAN_SM4;
-	}
 	else
 	{
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
@@ -448,12 +443,9 @@ void FVulkanDynamicRHI::CreateInstance()
 
 #if VULKAN_HAS_DEBUGGING_ENABLED
 	SetupDebugLayerCallback();
-
-	if (GRenderDocFound)
-	{
-		EnableIdealGPUCaptureOptions(true);
-	}
 #endif
+
+	OptionalInstanceExtensions.Setup(InstanceExtensions);
 }
 
 //#todo-rco: Common RHI should handle this...
@@ -494,10 +486,8 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkEnumeratePhysicalDevices(Instance, &GpuCount, PhysicalDevices.GetData()));
 	checkf(GpuCount >= 1, TEXT("Couldn't enumerate physical devices! Make sure your drivers are up to date and that you are not pending a reboot."));
 
-#if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
 	FVulkanDevice* HmdDevice = nullptr;
 	uint32 HmdDeviceIndex = 0;
-#endif
 	struct FDeviceInfo
 	{
 		FVulkanDevice* Device;
@@ -516,7 +506,7 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	UE_LOG(LogVulkanRHI, Display, TEXT("Found %d device(s)"), GpuCount);
 	for (uint32 Index = 0; Index < GpuCount; ++Index)
 	{
-		FVulkanDevice* NewDevice = new FVulkanDevice(PhysicalDevices[Index]);
+		FVulkanDevice* NewDevice = new FVulkanDevice(this, PhysicalDevices[Index]);
 		Devices.Add(NewDevice);
 
 		bool bIsDiscrete = NewDevice->QueryGPU(Index);
@@ -543,7 +533,6 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	}
 
 	uint32 DeviceIndex = -1;
-
 #if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
 	if (HmdDevice)
 	{
@@ -560,8 +549,8 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	int32 CVarExplicitAdapterValue = CVarGraphicsAdapter ? CVarGraphicsAdapter->GetValueOnAnyThread() : -1;
 	FParse::Value(FCommandLine::Get(), TEXT("graphicsadapter="), CVarExplicitAdapterValue);
 
-	// If HMD didn't choose one...
-	if (DeviceIndex == -1)
+	// If HMD didn't choose one... (disable static analysis that DeviceIndex is always -1)
+	if (DeviceIndex == -1)	//-V547
 	{
 		if (CVarExplicitAdapterValue >= (int32)GpuCount)
 		{
@@ -616,7 +605,7 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	GRHIVendorId = Props.vendorID;
 	GRHIAdapterName = ANSI_TO_TCHAR(Props.deviceName);
 
-	FVulkanPlatform::CheckDeviceDriver(DeviceIndex, Props);
+	FVulkanPlatform::CheckDeviceDriver(DeviceIndex, Device->GetVendorId(), Props);
 
 	Device->InitGPU(DeviceIndex);
 
@@ -625,7 +614,7 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 		GRHIAdapterName.Append(TEXT(" Vulkan"));
 		GRHIAdapterInternalDriverVersion = FString::Printf(TEXT("%d.%d.%d"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion));
 	}
-	else if (IsRHIDeviceNVIDIA())
+	else if (Device->GetVendorId() == EGpuVendorId::Nvidia)
 	{
 		UNvidiaDriverVersion NvidiaVersion;
 		static_assert(sizeof(NvidiaVersion) == sizeof(Props.driverVersion), "Mismatched Nvidia pack driver version!");
@@ -662,6 +651,12 @@ void FVulkanDynamicRHI::InitInstance()
 		CreateInstance();
 		SelectAndInitDevice();
 
+#if VULKAN_HAS_DEBUGGING_ENABLED
+		if (GRenderDocFound)
+		{
+			EnableIdealGPUCaptureOptions(true);
+		}
+#endif
 		//bool bDeviceSupportsTessellation = Device->GetPhysicalFeatures().tessellationShader != 0;
 
 		const VkPhysicalDeviceProperties& Props = Device->GetDeviceProperties();
@@ -685,7 +680,7 @@ void FVulkanDynamicRHI::InitInstance()
 		GSupportsParallelRenderingTasksWithSeparateRHIThread = GRHISupportsRHIThread ? FVulkanPlatform::SupportParallelRenderingTasks() : false;
 
 		//#todo-rco: Add newer Nvidia also
-		GSupportsEfficientAsyncCompute = IsRHIDeviceAMD() && (GRHIAllowAsyncComputeCvar.GetValueOnAnyThread() > 0) && (Device->ComputeContext != Device->ImmediateContext);
+		GSupportsEfficientAsyncCompute = (Device->GetVendorId() == EGpuVendorId::Amd) && (GRHIAllowAsyncComputeCvar.GetValueOnAnyThread() > 0) && (Device->ComputeContext != Device->ImmediateContext);
 
 		GSupportsVolumeTextureRendering = true;
 
@@ -704,7 +699,7 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHISupportsBaseVertexIndex = true;
 		GSupportsSeparateRenderTargetBlendState = true;
 
-		GSupportsDepthFetchDuringDepthTest = FVulkanPlatform::SupportsDepthFetchDuringDepthTest();
+		GSupportsDepthFetchDuringDepthTest = true;
 
 		FVulkanPlatform::SetupFeatureLevels();
 
@@ -1260,11 +1255,9 @@ void FVulkanDescriptorSetsLayout::Compile(FVulkanDescriptorSetLayoutMap& DSetLay
 			<	Limits.maxDescriptorSetUniformBuffers);
 
 	// Check for maxDescriptorSetUniformBuffersDynamic
-	if (!IsRHIDeviceAMD())
-	{
-		check(LayoutTypes[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC]
+	check(Device->GetVendorId() == EGpuVendorId::Amd ||
+				LayoutTypes[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC]
 			<	Limits.maxDescriptorSetUniformBuffersDynamic);
-	}
 
 	// Check for maxDescriptorSetStorageBuffers
 	check(		LayoutTypes[VK_DESCRIPTOR_TYPE_STORAGE_BUFFER]

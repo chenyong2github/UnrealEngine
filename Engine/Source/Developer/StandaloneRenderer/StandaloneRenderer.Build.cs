@@ -31,7 +31,7 @@ public class StandaloneRenderer : ModuleRules
 		{
 			PublicFrameworks.Add("QuartzCore");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "SDL2");
 		}

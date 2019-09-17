@@ -25,6 +25,7 @@
 #include "Materials/MaterialExpressionQualitySwitch.h"
 #include "Materials/MaterialExpressionFeatureLevelSwitch.h"
 #include "Materials/MaterialExpressionShadingPathSwitch.h"
+#include "Materials/MaterialExpressionShaderStageSwitch.h"
 #include "Materials/MaterialExpressionMakeMaterialAttributes.h"
 #include "Materials/MaterialExpressionParameter.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
@@ -129,7 +130,7 @@ int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty
 	UMaterialInterface* MaterialInterface = MaterialInstance ? static_cast<UMaterialInterface*>(MaterialInstance) : Material;
 
 	int32 Ret = INDEX_NONE;
-
+	
 	switch(Property)
 	{
 		case MP_EmissiveColor:
@@ -248,9 +249,21 @@ void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShader
 
 		FStaticParameterSet CompositedStaticParameters;
 		MaterialInstance->GetStaticParameterValues(CompositedStaticParameters);
-		OutId.UpdateParameterSet(CompositedStaticParameters);		
+		OutId.UpdateFromParameterSet(CompositedStaticParameters);
 	}
 #endif // WITH_EDITOR
+}
+
+
+void FMaterialResource::GetStaticParameterSet(EShaderPlatform Platform, FStaticParameterSet& OutSet) const
+{
+	FMaterial::GetStaticParameterSet(Platform, OutSet);
+
+	// Get the set from instance
+	if (MaterialInstance)
+	{
+		MaterialInstance->GetStaticParameterValues(OutSet);
+	}
 }
 
 /**
@@ -963,10 +976,11 @@ void UMaterial::GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQuality
 				if (CurrentResource == nullptr || (FeatureLevelIndex != FeatureLevel && !bAllFeatureLevels))
 					continue;
 
-				const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[4] =
+				const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[5] =
 				{
 					&CurrentResource->GetUniform2DTextureExpressions(),
 					&CurrentResource->GetUniformCubeTextureExpressions(),
+					&CurrentResource->GetUniform2DArrayTextureExpressions(),
 					&CurrentResource->GetUniformVolumeTextureExpressions(),
 					&CurrentResource->GetUniformVirtualTextureExpressions()
 				};
@@ -1027,10 +1041,11 @@ void UMaterial::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray
 
 		if (CurrentResource)
 		{
-			const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[4] =
+			const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[5] =
 			{
 				&CurrentResource->GetUniform2DTextureExpressions(),
 				&CurrentResource->GetUniformCubeTextureExpressions(),
+				&CurrentResource->GetUniform2DArrayTextureExpressions(),
 				&CurrentResource->GetUniformVolumeTextureExpressions(),
 				&CurrentResource->GetUniformVirtualTextureExpressions()
 			};
@@ -1049,6 +1064,10 @@ void UMaterial::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray
 
 					if (Texture)
 					{
+						if (TypeIndex == 2) 
+						{
+							UE_LOG(LogTexture, Warning, TEXT("adsf"));
+						}
 						int32 InsertIndex = OutTextures.AddUnique(Texture);
 						if (InsertIndex >= OutIndices.Num())
 						{
@@ -1085,10 +1104,11 @@ void UMaterial::LogMaterialsAndTextures(FOutputDevice& Ar, int32 Indent) const
 				TArray<UTexture*> Textures;
 				// GetTextureExpressionValues(MaterialResource, Textures);
 				{
-					const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[4]= 
+					const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[5]= 
 					{
 						&MaterialResource->GetUniform2DTextureExpressions(), 
-						&MaterialResource->GetUniformCubeTextureExpressions(), 
+						&MaterialResource->GetUniformCubeTextureExpressions(),
+						&MaterialResource->GetUniform2DArrayTextureExpressions(),
 						&MaterialResource->GetUniformVolumeTextureExpressions(),
 						&MaterialResource->GetUniformVirtualTextureExpressions(),
 					};
@@ -1141,10 +1161,11 @@ void UMaterial::OverrideTexture(const UTexture* InTextureToOverride, UTexture* O
 	{
 		FMaterialResource* Resource = GetMaterialResource(FeatureLevelsToUpdate[i]);
 		// Iterate over both the 2D textures and cube texture expressions.
-		const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[4] =
+		const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[5] =
 		{
 			&Resource->GetUniform2DTextureExpressions(),
 			&Resource->GetUniformCubeTextureExpressions(),
+			&Resource->GetUniform2DArrayTextureExpressions(),
 			&Resource->GetUniformVolumeTextureExpressions(),
 			&Resource->GetUniformVirtualTextureExpressions()
 		};
@@ -5268,7 +5289,8 @@ bool UMaterial::GetExpressionsInPropertyChain(EMaterialProperty InProperty,
 	if (StartingExpression->Expression)
 	{
 		ProcessedInputs.AddUnique(StartingExpression);
-		RecursiveGetExpressionChain(StartingExpression->Expression, ProcessedInputs, OutExpressions, InStaticParameterSet, InFeatureLevel, InQuality, InShadingPath);
+		const EShaderFrequency ShaderFrequency = FMaterialAttributeDefinitionMap::GetShaderFrequency(InProperty);
+		RecursiveGetExpressionChain(StartingExpression->Expression, ProcessedInputs, OutExpressions, InStaticParameterSet, InFeatureLevel, InQuality, InShadingPath, ShaderFrequency);
 	}
 	return true;
 }
@@ -5408,7 +5430,7 @@ bool UMaterial::GetTexturesInPropertyChain(EMaterialProperty InProperty, TArray<
 
 bool UMaterial::RecursiveGetExpressionChain(UMaterialExpression* InExpression, TArray<FExpressionInput*>& InOutProcessedInputs, 
 	TArray<UMaterialExpression*>& OutExpressions, struct FStaticParameterSet* InStaticParameterSet,
-	ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQuality, ERHIShadingPath::Type InShadingPath)
+	ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQuality, ERHIShadingPath::Type InShadingPath, EShaderFrequency InShaderFrequency)
 {
 	OutExpressions.AddUnique(InExpression);
 	TArray<FExpressionInput*> Inputs;
@@ -5417,6 +5439,7 @@ bool UMaterial::RecursiveGetExpressionChain(UMaterialExpression* InExpression, T
 	UMaterialExpressionQualitySwitch* QualitySwitchExp;
 	UMaterialExpressionShadingPathSwitch* ShadingPathSwitchExp;
 	UMaterialExpressionMakeMaterialAttributes* MakeMaterialAttributesExp;
+	UMaterialExpressionShaderStageSwitch* ShaderStageSwitchExp;
 
 	if (InFeatureLevel != ERHIFeatureLevel::Num && (FeatureLevelSwitchExp = Cast<UMaterialExpressionFeatureLevelSwitch>(InExpression)) != nullptr)
 	{
@@ -5449,6 +5472,17 @@ bool UMaterial::RecursiveGetExpressionChain(UMaterialExpression* InExpression, T
 		else
 		{
 			Inputs.Add(&ShadingPathSwitchExp->Default);
+		}
+	}
+	else if (InShaderFrequency != SF_NumFrequencies && (ShaderStageSwitchExp = Cast<UMaterialExpressionShaderStageSwitch>(InExpression)) != nullptr)
+	{
+		if (UMaterialExpressionShaderStageSwitch::ShouldUsePixelShaderInput(InShaderFrequency))
+		{
+			Inputs.Add(&ShaderStageSwitchExp->PixelShader);
+		}
+		else
+		{
+			Inputs.Add(&ShaderStageSwitchExp->VertexShader);
 		}
 	}
 	else if (InFeatureLevel <= ERHIFeatureLevel::ES3_1 && (MakeMaterialAttributesExp = Cast<UMaterialExpressionMakeMaterialAttributes>(InExpression)) != nullptr)
@@ -5522,7 +5556,7 @@ bool UMaterial::RecursiveGetExpressionChain(UMaterialExpression* InExpression, T
 					if (bProcessInput == true)
 					{
 						InOutProcessedInputs.Add(InnerInput);
-						RecursiveGetExpressionChain(InnerInput->Expression, InOutProcessedInputs, OutExpressions, InStaticParameterSet, InFeatureLevel, InQuality);
+						RecursiveGetExpressionChain(InnerInput->Expression, InOutProcessedInputs, OutExpressions, InStaticParameterSet, InFeatureLevel, InQuality, InShadingPath, InShaderFrequency);
 					}
 				}
 			}

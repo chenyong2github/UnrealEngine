@@ -42,6 +42,7 @@ enum class Extension {
   AMD_shader_explicit_vertex_parameter,
   GOOGLE_hlsl_functionality1,
   NV_ray_tracing,
+  KHR_uniform_buffer_standard_layout,
   Unknown,
 };
 

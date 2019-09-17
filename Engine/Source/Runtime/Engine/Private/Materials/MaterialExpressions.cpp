@@ -34,6 +34,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/Texture2DDynamic.h"
 #include "Engine/TextureCube.h"
+#include "Engine/Texture2DArray.h"
 #include "Engine/TextureRenderTargetCube.h"
 #include "Engine/VolumeTexture.h"
 #include "Styling/CoreStyle.h"
@@ -187,12 +188,14 @@
 #include "Materials/MaterialExpressionTextureProperty.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionParticleSubUV.h"
+#include "Materials/MaterialExpressionParticleSubUVProperties.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Materials/MaterialExpressionTextureObjectParameter.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionAntialiasedTextureMask.h"
 #include "Materials/MaterialExpressionTextureSampleParameterSubUV.h"
 #include "Materials/MaterialExpressionTextureSampleParameterCube.h"
+#include "Materials/MaterialExpressionTextureSampleParameter2DArray.h"
 #include "Materials/MaterialExpressionTextureSampleParameterVolume.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTime.h"
@@ -220,6 +223,7 @@
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
 #include "Materials/MaterialExpressionMapARPassthroughCameraUV.h"
+#include "Materials/MaterialExpressionShaderStageSwitch.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "EditorSupportDelegates.h"
 #include "MaterialCompiler.h"
@@ -253,11 +257,13 @@ FUObjectAnnotationSparseBool GMaterialFunctionsThatNeedSamplerFixup;
 bool IsAllowedExpressionType(const UClass* const Class, const bool bMaterialFunction)
 {
 	static const auto AllowVolumeTextureAssetCreationVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowVolumeTextureAssetCreation"));
+	static const auto AllowTextureArrayAssetCreationVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowTexture2DArrayCreation"));
 
 	// Exclude comments from the expression list, as well as the base parameter expression, as it should not be used directly
 	const bool bSharedAllowed = Class != UMaterialExpressionComment::StaticClass() 
-		&& Class != UMaterialExpressionParameter::StaticClass()
-		&& (Class != UMaterialExpressionTextureSampleParameterVolume::StaticClass() || AllowVolumeTextureAssetCreationVar->GetValueOnGameThread() != 0);
+		&&  Class != UMaterialExpressionParameter::StaticClass()
+		&& (Class != UMaterialExpressionTextureSampleParameterVolume::StaticClass() || AllowVolumeTextureAssetCreationVar->GetValueOnGameThread() != 0)
+		&& (Class != UMaterialExpressionTextureSampleParameter2DArray::StaticClass() || AllowTextureArrayAssetCreationVar->GetValueOnGameThread() != 0);
 
 	if (bMaterialFunction)
 	{
@@ -346,6 +352,9 @@ void GetMaterialValueTypeDescriptions(const uint32 MaterialValueType, TArray<FTe
 				break;
 			case MCT_TextureCube:
 				OutDescriptions.Add(LOCTEXT("TextureCube", "Texture Cube"));
+				break;
+			case MCT_Texture2DArray:
+				OutDescriptions.Add(LOCTEXT("Texture2DArray", "Texture 2D Array"));
 				break;
 			case MCT_VolumeTexture:
 				OutDescriptions.Add(LOCTEXT("VolumeTexture", "Volume Texture"));
@@ -1792,6 +1801,10 @@ int32 UMaterialExpressionTextureSample::Compile(class FMaterialCompiler* Compile
 				{
 					return CompilerError(Compiler, TEXT("UVW input required for volume sample"));
 				}
+				else if (TextureType == MCT_Texture2DArray && !Coordinates.GetTracedInput().Expression)
+				{
+					return CompilerError(Compiler, TEXT("UVW input required for texturearray sample"));
+				}
 			}
 
 			int32 CoordinateIndex = Coordinates.GetTracedInput().Expression ? Coordinates.Compile(Compiler) : Compiler->TextureCoordinate(ConstCoordinate, false, false);
@@ -2900,6 +2913,10 @@ uint32 UMaterialExpressionTextureObject::GetOutputType(int32 OutputIndex)
 	{
 		return MCT_TextureCube;
 	}
+	else if (Cast<UTexture2DArray>(Texture) != nullptr)
+	{
+		return MCT_Texture2DArray;
+	}
 	else if (Cast<UVolumeTexture>(Texture) != nullptr)
 	{
 		return MCT_VolumeTexture;
@@ -3175,6 +3192,75 @@ bool UMaterialExpressionTextureSampleParameterCube::TextureIsValid(UTexture* InT
 void UMaterialExpressionTextureSampleParameterCube::SetDefaultTexture()
 {
 	Texture = LoadObject<UTextureCube>(nullptr, TEXT("/Engine/EngineResources/DefaultTextureCube.DefaultTextureCube"), nullptr, LOAD_None, nullptr);
+}
+
+//
+//  UMaterialExpressionTextureSampleParameter2DArray
+//
+UMaterialExpressionTextureSampleParameter2DArray::UMaterialExpressionTextureSampleParameter2DArray(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization. No default texture array added.
+	struct FConstructorStatics
+	{
+		FText NAME_Texture;
+		FText NAME_Parameters;
+		FConstructorStatics()
+			: NAME_Texture(LOCTEXT("Texture", "Texture"))
+			, NAME_Parameters(LOCTEXT("Parameters", "Parameters"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Empty();
+	MenuCategories.Add(ConstructorStatics.NAME_Texture);
+	MenuCategories.Add(ConstructorStatics.NAME_Parameters);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionTextureSampleParameter2DArray::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+#if PLATFORM_ANDROID
+	return CompilerError(Compiler, TEXT("Texture2DArrays not supported on selected platform."));
+#endif
+
+	if (!Coordinates.GetTracedInput().Expression)
+	{
+		return CompilerError(Compiler, TEXT("2D array sample needs UVW input"));
+	}
+
+	return UMaterialExpressionTextureSampleParameter::Compile(Compiler, OutputIndex);
+}
+
+void UMaterialExpressionTextureSampleParameter2DArray::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Param2DArray"));
+	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
+}
+#endif
+
+bool UMaterialExpressionTextureSampleParameter2DArray::TextureIsValid(UTexture* InTexture, FString& OutMessage)
+{
+	if (!InTexture)
+	{
+		OutMessage = TEXT("Found NULL, requires Texture2DArray");
+		return false;
+	}
+	else if (!(InTexture->GetMaterialType() & MCT_Texture2DArray))
+	{
+		OutMessage = FString::Printf(TEXT("Found %s, requires Texture2DArray"), *InTexture->GetClass()->GetName());
+		return false;
+	}
+
+	return true;
+}
+
+const TCHAR* UMaterialExpressionTextureSampleParameter2DArray::GetRequirements()
+{
+	return TEXT("Requires Texture2DArray");
 }
 
 //
@@ -8113,11 +8199,17 @@ void UMaterialExpressionFeatureLevelSwitch::Serialize(FStructuredArchive::FRecor
 {
 	Super::Serialize(Record);
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
+	UnderlyingArchive.UsingCustomVersion(FRenderingObjectVersion::GUID);
 
 	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.UE4Ver() < VER_UE4_RENAME_SM3_TO_ES3_1)
 	{
 		// Copy the ES2 input to SM3 (since SM3 will now become ES3_1 and we don't want broken content)
 		Inputs[ERHIFeatureLevel::ES3_1] = Inputs[ERHIFeatureLevel::ES2];
+	}
+
+	if (UnderlyingArchive.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::RemovedSM4)
+	{
+		Inputs[ERHIFeatureLevel::SM4_REMOVED] = UMaterialExpressionFeatureLevelSwitch::Default;
 	}
 }
 
@@ -8159,7 +8251,7 @@ int32 UMaterialExpressionShadingPathSwitch::Compile(class FMaterialCompiler* Com
 	{
 		ShadingPathToCompile = ERHIShadingPath::Forward;
 	}
-	else if (Compiler->GetFeatureLevel() < ERHIFeatureLevel::SM4)
+	else if (Compiler->GetFeatureLevel() < ERHIFeatureLevel::SM5)
 	{
 		ShadingPathToCompile = ERHIShadingPath::Mobile;
 	}
@@ -8640,6 +8732,56 @@ int32 UMaterialExpressionParticleSubUV::GetWidth() const
 void UMaterialExpressionParticleSubUV::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("Particle SubUV"));
+}
+#endif // WITH_EDITOR
+
+//
+//	MaterialExpressionParticleSubUVProperties
+//
+UMaterialExpressionParticleSubUVProperties::UMaterialExpressionParticleSubUVProperties(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Particles;
+		FText NAME_Coordinates;
+		FConstructorStatics()
+			: NAME_Particles(LOCTEXT("Particles", "Particles"))
+			, NAME_Coordinates(LOCTEXT("Coordinates", "Coordinates"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Particles);
+	MenuCategories.Add(ConstructorStatics.NAME_Coordinates);
+
+	bShaderInputData = true;
+	bShowOutputNameOnPin = true;
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("TextureCoordinate0"), 1, 1, 1, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("TextureCoordinate1"), 1, 1, 1, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Blend")));
+#endif // WITH_EDITORONLY_DATA
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionParticleSubUVProperties::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->ParticleSubUVProperty(OutputIndex);
+}
+
+void UMaterialExpressionParticleSubUVProperties::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Provides direct access to properties used to implement particle UV frame animation."), 40, OutToolTip);
+}
+
+void UMaterialExpressionParticleSubUVProperties::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Particle SubUV Properties"));
 }
 #endif // WITH_EDITOR
 
@@ -11137,7 +11279,6 @@ void UMaterialFunction::PostLoad()
 				case TC_Normalmap:
 					TextureExpression->SamplerType = SAMPLERTYPE_Normal;
 					break;
-
 				case TC_Grayscale:
 					TextureExpression->SamplerType = TextureExpression->Texture->SRGB ? SAMPLERTYPE_Grayscale : SAMPLERTYPE_LinearGrayscale;
 					break;
@@ -12191,9 +12332,85 @@ bool UMaterialFunctionInstance::OverrideNamedStaticComponentMaskParameter(const 
 	return false;
 }
 
+
+///////////////////////////////////////////////////////////////////////////////
+// FMaterialLayersFunctions::ID
+///////////////////////////////////////////////////////////////////////////////
+
+bool FMaterialLayersFunctions::ID::operator==(const ID& Reference) const
+{
+	return LayerIDs == Reference.LayerIDs && BlendIDs == Reference.BlendIDs && LayerStates == Reference.LayerStates;
+}
+
+
+void FMaterialLayersFunctions::ID::SerializeForDDC(FArchive& Ar)
+{
+	Ar << LayerIDs;
+	Ar << BlendIDs;
+	Ar << LayerStates;
+}
+
+
+void FMaterialLayersFunctions::ID::UpdateHash(FSHA1& HashState) const
+{
+	for (const FGuid &Guid : LayerIDs)
+	{
+		HashState.Update((const uint8*)&Guid, sizeof(FGuid));
+	}
+	for (const FGuid &Guid : BlendIDs)
+	{
+		HashState.Update((const uint8*)&Guid, sizeof(FGuid));
+	}
+	HashState.Update((const uint8*)LayerStates.GetData(), LayerStates.Num()*LayerStates.GetTypeSize());
+}
+
+
+void FMaterialLayersFunctions::ID::AppendKeyString(FString& KeyString) const
+{
+	for (const FGuid &Guid : LayerIDs)
+	{
+		KeyString += Guid.ToString();
+	}
+	for (const FGuid &Guid : BlendIDs)
+	{
+		KeyString += Guid.ToString();
+	}
+	for (bool State : LayerStates)
+	{
+		KeyString += FString::FromInt(State);
+	}
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // FMaterialLayersFunctions
 ///////////////////////////////////////////////////////////////////////////////
+
+const FMaterialLayersFunctions::ID FMaterialLayersFunctions::GetID() const
+{
+	FMaterialLayersFunctions::ID Result;
+
+	// Store the layer IDs in following format - stateID per function
+	Result.LayerIDs.SetNum(Layers.Num());
+	for (int i=0; i<Layers.Num(); ++i)
+	{
+		const UMaterialFunctionInterface* Layer = Layers[i];
+		Result.LayerIDs[i] = (Layer) ? Layer->StateId : FGuid();
+	}
+
+	// Store the blend IDs in following format - stateID per function
+	Result.BlendIDs.SetNum(Blends.Num());
+	for (int i = 0; i < Blends.Num(); ++i)
+	{
+		const UMaterialFunctionInterface* Blend = Blends[i];
+		Result.BlendIDs[i] = (Blend) ? Blend->StateId : FGuid();
+	}
+
+	// Store the states copy
+	Result.LayerStates = LayerStates;
+
+	return Result;
+}
 
 FString FMaterialLayersFunctions::GetStaticPermutationString() const
 {
@@ -12240,9 +12457,9 @@ void FMaterialLayersFunctions::SerializeForDDC(FArchive& Ar)
 {
 	if (!Ar.IsCooking())
 	{
-		KeyString = GetStaticPermutationString();
+		KeyString_DEPRECATED = GetStaticPermutationString();
 	}
-	Ar << KeyString;
+	Ar << KeyString_DEPRECATED;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -12420,6 +12637,7 @@ static const TCHAR* GetInputTypeName(uint8 InputType)
 		TEXT("V4"),
 		TEXT("T2d"),
 		TEXT("TCube"),
+		TEXT("T2dArr"),
 		TEXT("TVol"),
 		TEXT("B"),
 		TEXT("MA"),
@@ -12928,6 +13146,7 @@ void UMaterialExpressionFunctionInput::GetCaption(TArray<FString>& OutCaptions) 
 		TEXT("Vector4"),
 		TEXT("Texture2D"),
 		TEXT("TextureCube"),
+		TEXT("Texture2DArray"),
 		TEXT("VolumeTexture"),
 		TEXT("StaticBool"),
 		TEXT("MaterialAttributes"),
@@ -12978,6 +13197,7 @@ int32 UMaterialExpressionFunctionInput::CompilePreviewValue(FMaterialCompiler* C
 			return FMaterialAttributeDefinitionMap::CompileDefaultExpression(Compiler, AttributeID);
 		case FunctionInput_Texture2D:
 		case FunctionInput_TextureCube:
+		case FunctionInput_Texture2DArray:
 		case FunctionInput_TextureExternal:
 		case FunctionInput_StaticBool:
 			return Compiler->Errorf(TEXT("Missing Preview connection for function input '%s'"), *InputName.ToString());
@@ -12997,6 +13217,7 @@ int32 UMaterialExpressionFunctionInput::Compile(class FMaterialCompiler* Compile
 		MCT_Float4,
 		MCT_Texture2D,
 		MCT_TextureCube,
+		MCT_Texture2DArray,
 		MCT_VolumeTexture,
 		MCT_StaticBool,
 		MCT_MaterialAttributes,
@@ -13137,6 +13358,8 @@ uint32 UMaterialExpressionFunctionInput::GetInputType(int32 InputIndex)
 		return MCT_Texture2D;
 	case FunctionInput_TextureCube:
 		return MCT_TextureCube;
+	case FunctionInput_Texture2DArray:
+		return MCT_Texture2DArray;
 	case FunctionInput_TextureExternal:
 		return MCT_TextureExternal;
 	case FunctionInput_VolumeTexture:
@@ -13593,9 +13816,7 @@ int32 UMaterialExpressionLightmassReplace::Compile(class FMaterialCompiler* Comp
 	}
 	else
 	{
-		int32 Arg1 = Realtime.Compile(Compiler);
-		int32 Arg2 = Lightmass.Compile(Compiler);
-		return Compiler->LightmassReplace(Arg1, Arg2);
+		return Compiler->IsLightmassCompiler() ? Lightmass.Compile(Compiler) : Realtime.Compile(Compiler);
 	}
 }
 
@@ -13657,6 +13878,58 @@ void UMaterialExpressionShadowReplace::GetExpressionToolTip(TArray<FString>& Out
 }
 #endif // WITH_EDITOR
 
+//
+//	UMaterialExpressionShaderStageSwitch
+//
+UMaterialExpressionShaderStageSwitch::UMaterialExpressionShaderStageSwitch(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionShaderStageSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!PixelShader.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing input PixelShader"));
+	}
+	else if (!VertexShader.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing input VertexShader"));
+	}
+	else
+	{
+		const EShaderFrequency ShaderFrequency = Compiler->GetCurrentShaderFrequency();
+		return ShouldUsePixelShaderInput(ShaderFrequency) ? PixelShader.Compile(Compiler) : VertexShader.Compile(Compiler);
+	}
+}
+
+
+void UMaterialExpressionShaderStageSwitch::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Shader Stage Switch"));
+}
+
+void UMaterialExpressionShaderStageSwitch::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Allows material to define specialized behavior for certain shader stages."), 40, OutToolTip);
+}
+#endif // WITH_EDITOR
+
 
 //
 //	UMaterialExpressionMaterialProxy
@@ -13693,9 +13966,7 @@ int32 UMaterialExpressionMaterialProxyReplace::Compile(class FMaterialCompiler* 
 	}
 	else
 	{
-		int32 Arg1 = Realtime.Compile(Compiler);
-		int32 Arg2 = MaterialProxy.Compile(Compiler);
-		return Compiler->MaterialProxyReplace(Arg1, Arg2);
+		return Compiler->IsMaterialProxyCompiler() ? MaterialProxy.Compile(Compiler) : Realtime.Compile(Compiler);
 	}
 }
 
@@ -15912,7 +16183,12 @@ int32 UMaterialExpressionVertexInterpolator::Compile(class FMaterialCompiler* Co
 {
 	if (Input.GetTracedInput().Expression)
 	{
-		if (InterpolatorIndex == INDEX_NONE || CompileErrors.Num() > 0)
+		if (Compiler->IsVertexInterpolatorBypass())
+		{
+			// Certain types of compilers don't support vertex interpolators, just evaluate the input directly in that case
+			return Input.Compile(Compiler);
+		}
+		else if (InterpolatorIndex == INDEX_NONE || CompileErrors.Num() > 0)
 		{
 			// Now this node is confirmed part of the graph, append all errors from the input compilation
 			check(CompileErrors.Num() == CompileErrorExpressions.Num());
@@ -15947,6 +16223,8 @@ int32 UMaterialExpressionVertexInterpolator::CompileInput(class FMaterialCompile
 	InterpolatorIndex = INDEX_NONE;
 	InterpolatedType = MCT_Unknown;
 	InterpolatorOffset = INDEX_NONE;
+
+	ensure(!Compiler->IsVertexInterpolatorBypass());
 
 	CompileErrors.Empty();
 	CompileErrorExpressions.Empty();

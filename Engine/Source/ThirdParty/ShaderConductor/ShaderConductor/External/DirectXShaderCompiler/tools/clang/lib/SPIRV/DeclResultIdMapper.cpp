@@ -752,7 +752,7 @@ SpirvVariable *DeclResultIdMapper::createStructOrStructArrayVarOfExplicitLayout(
   // Register the <type-id> for this decl
   ctBufferPCTypes[decl] = resultType;
 
-  const auto sc = forPC ? spv::StorageClass::PushConstant
+  const auto sc = (forPC || (spirvOptions.globalsAsPushConstants && forGlobals)) ? spv::StorageClass::PushConstant
                         : forShaderRecordNV
                               ? spv::StorageClass::ShaderRecordBufferNV
                               : spv::StorageClass::Uniform;
@@ -916,6 +916,8 @@ void DeclResultIdMapper::createGlobalsCBuffer(const VarDecl *var) {
   SpirvVariable *globals = createStructOrStructArrayVarOfExplicitLayout(
       context, /*arraySize*/ 0, ContextUsageKind::Globals, "type.$Globals",
       "$Globals");
+  if (spirvOptions.ue4Layout)
+    globals->setLayoutRule(SpirvLayoutRule::RelaxedGLSLStd140);
 
   resourceVars.emplace_back(globals, SourceLocation(), nullptr, nullptr,
                             nullptr, /*isCounterVar*/ false,

@@ -5,6 +5,11 @@
 #include "RenderGraphDefinitions.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 
+
+/** Returns whether the current frame is emitting render graph events. */
+extern RENDERCORE_API bool GetEmitRDGEvents();
+
+
 /** A helper profiler class for tracking and evaluating hierarchical scopes in the context of render graph. */
 template <typename TScopeType>
 class FRDGScopeStack final
@@ -95,9 +100,12 @@ public:
 
 private:
 #if RDG_EVENTS == RDG_EVENTS_STRING_REF || RDG_EVENTS == RDG_EVENTS_STRING_COPY
-	const TCHAR* EventName;
+	// Event format kept arround to still have a clue what error might be causing the problem in error messages.
+	const TCHAR* EventFormat;
+
 #if RDG_EVENTS == RDG_EVENTS_STRING_COPY
-	FString EventNameStorage;
+	// Formated event name if GetEmitRDGEvents() == true.
+	FString FormatedEventName;
 #endif
 #endif
 };

@@ -364,11 +364,7 @@ public:
 
 	// Lighting flags
 	
-	/**
-	 * Controls whether the primitive component should cast a shadow or not.
-	 *
-	 * This flag is ignored (no shadows will be generated) if all materials on this component have an Unlit shading model.
-	 */
+	/** Controls whether the primitive component should cast a shadow or not. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Lighting)
 	uint8 CastShadow:1;
 

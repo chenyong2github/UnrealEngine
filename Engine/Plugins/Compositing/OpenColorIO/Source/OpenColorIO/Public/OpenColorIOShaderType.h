@@ -68,10 +68,9 @@ public:
 		ConstructCompiledType InConstructCompiledRef,
 		ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
 		ShouldCompilePermutationType InShouldCompilePermutationRef,
-		ValidateCompiledResultType InValidateCompiledResultRef,
-		GetStreamOutElementsType InGetStreamOutElementsRef
+		ValidateCompiledResultType InValidateCompiledResultRef
 		):
-		FShaderType(EShaderTypeForDynamicCast::OCIO, InName, InSourceFilename, InFunctionName, SF_Pixel, InTotalPermutationCount, InConstructSerializedRef, InGetStreamOutElementsRef, nullptr),
+		FShaderType(EShaderTypeForDynamicCast::OCIO, InName, InSourceFilename, InFunctionName, SF_Pixel, InTotalPermutationCount, InConstructSerializedRef, nullptr),
 		ConstructCompiledRef(InConstructCompiledRef),
 		ShouldCompilePermutationRef(InShouldCompilePermutationRef),
 		ValidateCompiledResultRef(InValidateCompiledResultRef),

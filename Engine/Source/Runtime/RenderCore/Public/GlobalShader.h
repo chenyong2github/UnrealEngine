@@ -80,10 +80,9 @@ public:
 		ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
 		ShouldCompilePermutationType InShouldCompilePermutationRef,
 		ValidateCompiledResultType InValidateCompiledResultRef,
-		GetStreamOutElementsType InGetStreamOutElementsRef,
 		const FShaderParametersMetadata* InRootParametersMetadata = nullptr
 		):
-		FShaderType(EShaderTypeForDynamicCast::Global, InName, InSourceFilename, InFunctionName, InFrequency, InTotalPermutationCount, InConstructSerializedRef, InGetStreamOutElementsRef, InRootParametersMetadata),
+		FShaderType(EShaderTypeForDynamicCast::Global, InName, InSourceFilename, InFunctionName, InFrequency, InTotalPermutationCount, InConstructSerializedRef, InRootParametersMetadata),
 		ConstructCompiledRef(InConstructCompiledRef),
 		ShouldCompilePermutationRef(InShouldCompilePermutationRef),
 		ValidateCompiledResultRef(InValidateCompiledResultRef),
@@ -274,6 +273,5 @@ inline TShaderMap<FGlobalShaderType>* GetGlobalShaderMap(ERHIFeatureLevel::Type 
 		ShaderClass::ModifyCompilationEnvironmentImpl, \
 		ShaderClass::ShouldCompilePermutation, \
 		ShaderClass::ValidateCompiledResult, \
-		ShaderClass::GetStreamOutElements, \
 		ShaderClass::GetRootParametersMetadata() \
 		)

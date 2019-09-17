@@ -34,6 +34,7 @@
 	<Option Name="WithIOS" Restrict="true|false" DefaultValue="$(DefaultWithIOS)" Description="Include the iOS target platform"/>
 	<Option Name="WithTVOS" Restrict="true|false" DefaultValue="$(DefaultWithIOS)" Description="Include the tvOS target platform"/>
 	<Option Name="WithLinux" Restrict="true|false" DefaultValue="$(DefaultWithLinux)" Description="Include the Linux target platform"/>
+	<Option Name="WithLinuxAArch64" Restrict="true|false" DefaultValue="false" Description="Include the Linux AArch64 target platform"/>
 	<Option Name="WithHTML5" Restrict="true|false" DefaultValue="$(DefaultWithPlatform)" Description="Include the HTML5 target platform"/>
 	<Option Name="WithPS4" Restrict="true|false" DefaultValue="false" Description="Include the PS4 target platform"/>
 	<Option Name="WithXboxOne" Restrict="true|false" DefaultValue="false" Description="Include the XboxOne target platform"/>
@@ -291,6 +292,21 @@
 
 			<Tag Files="#UE4Game Linux" Filter="$(LinuxStripFilter)" With="#UE4Game Linux Unstripped"/>
 			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Linux" Files="#UE4Game Linux Unstripped" Tag="#UE4Game Linux Stripped"/>
+
+		</Node>
+	</Agent>
+	<Agent Name="Target LinuxAArch64" Type="CompileWin64;Win64">
+		<Node Name="Compile UE4Game LinuxAArch64" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UE4Game LinuxAArch64;#UE4Game LinuxAArch64 Unstripped;#UE4Game LinuxAArch64 Stripped">
+
+			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget);$(OptionalServerTarget)">
+				<ForEach Name="Configuration" Values="$(GameConfigurations)">
+					<Compile Target="$(Target)" Platform="LinuxAArch64" Configuration="$(Configuration)" Tag="#UE4Game LinuxAArch64" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
+					<Compile Target="$(Target)" Platform="LinuxAArch64" Configuration="$(Configuration)" Tag="#UE4Game LinuxAArch64" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
+				</ForEach>
+			</ForEach>
+
+			<Tag Files="#UE4Game LinuxAArch64" Filter="$(LinuxStripFilter)" With="#UE4Game LinuxAArch64 Unstripped"/>
+			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="LinuxAArch64" Files="#UE4Game LinuxAArch64 Unstripped" Tag="#UE4Game LinuxAArch64 Stripped"/>
 
 		</Node>
 	</Agent>
@@ -570,6 +586,7 @@
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+IOS" If="'$(WithIOS)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+TVOS" If="'$(WithTVOS)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+LinuxNoEditor" If="'$(WithLinux)' == true"/>
+		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+LinuxAArch64NoEditor" If="'$(WithLinuxAArch64)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+HTML5" If="'$(WithHTML5)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+PS4" If="'$(WithPS4)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+XboxOne" If="'$(WithXboxOne)' == true"/>
@@ -665,6 +682,9 @@
 
 	<Property Name="DDCPlatformsLinux" Value="Linux"/>
 	<Property Name="DDCPlatformsLinux" Value="$(DDCPlatformsLinux)+LinuxNoEditor" If="'$(WithLinux)' == true"/>
+	<Do If="'$(HostPlatformDDCOnly)' == false">
+		<Property Name="DDCPlatformsLinux" Value="$(DDCPlatformsLinux)+LinuxAArch64NoEditor" If="'$(WithLinuxAArch64)' == true"/>
+	</Do>
 
 	<Agent Name="DDC Group Linux" Type="Linux;Win64">
 		<!-- Additionally require the Win64 editor binaries if building on win64 -->
@@ -724,6 +744,7 @@
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game IOS;#UE4Game IOS Unstripped;#UE4Game IOS Stripped;#Compile UnrealHeaderTool Mac" If="'$(WithIOS)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game TVOS;#UE4Game TVOS Unstripped;#UE4Game TVOS Stripped" If="'$(WithTVOS)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Linux;#UE4Game Linux Unstripped;#UE4Game Linux Stripped;#Build Tools Linux" If="'$(WithLinux)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game LinuxAArch64;#UE4Game LinuxAArch64 Unstripped;#UE4Game LinuxAArch64 Stripped" If="'$(WithLinuxAArch64)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game HTML5" If="'$(WithHTML5)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game PS4" If="'$(WithPS4)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game XboxOne" If="'$(WithXboxOne)' == true"/>
@@ -784,6 +805,12 @@
 			<Do If="'$(WithLinux)' == true">
 				<Tag Files="#UE4Game Linux;#Build Tools Linux" Except="#UE4Game Linux Unstripped" With="#Installed Win64"/>
 				<Tag Files="#UE4Game Linux Stripped" With="#Saved Output"/>
+				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilter)"/>
+				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
+			</Do>
+			<Do If="'$(WithLinuxAArch64)' == true">
+				<Tag Files="#UE4Game LinuxAArch64" Except="#UE4Game LinuxAArch64 Unstripped" With="#Installed Win64"/>
+				<Tag Files="#UE4Game LinuxAArch64 Stripped" With="#Saved Output"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
 			</Do>
@@ -1012,6 +1039,7 @@
 
 		<!-- Optional Target Platform requirements -->
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Linux;#UE4Game Linux Unstripped;#UE4Game Linux Stripped" If="'$(WithLinux)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game LinuxAArch64;#UE4Game LinuxAArch64 Unstripped;#UE4Game LinuxAArch64 Stripped" If="'$(WithLinuxAArch64)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#CompressedDDCLinux" If="'$(WithDDC)' == true"/>
 
 		<!-- Feature packs -->
@@ -1037,6 +1065,12 @@
 			<Do If="'$(WithLinux)' == true">
 				<Tag Files="#UE4Game Linux;#Build Tools Linux" Except="#UE4Game Linux Unstripped" With="#Installed Linux"/>
 				<Tag Files="#UE4Game Linux Stripped" With="#Saved Output"/>
+				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilter)"/>
+				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
+			</Do>
+			<Do If="'$(WithLinuxAArch64)' == true">
+				<Tag Files="#UE4Game LinuxAArch64" Except="#UE4Game LinuxAArch64 Unstripped" With="#Installed Linux"/>
+				<Tag Files="#UE4Game LinuxAArch64 Stripped" With="#Saved Output"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
 			</Do>

@@ -19,6 +19,13 @@ namespace Lightmass
 
 		FStaticLightingMapping* Mapping;
 
+		/** World to local transform, for box intersection w/ instances. */
+		FMatrix WorldToLocal;
+
+		virtual FStaticMeshStaticLightingMesh* GetInstanceableStaticMesh() override { return !bIsSplineMesh ? this : nullptr; }
+
+		virtual const FStaticMeshStaticLightingMesh* GetInstanceableStaticMesh() const override { return !bIsSplineMesh ? this : nullptr; }
+
 		// FStaticLightingMesh interface.
 		/**
 		 *	Returns the Guid for the object associated with this lighting mesh.
@@ -43,7 +50,9 @@ namespace Lightmass
 		}
 
 		virtual void GetTriangle(int32 TriangleIndex,FStaticLightingVertex& OutV0,FStaticLightingVertex& OutV1,FStaticLightingVertex& OutV2,int32& ElementIndex) const;
+		virtual void GetNonTransformedTriangle(int32 TriangleIndex,FStaticLightingVertex& OutV0,FStaticLightingVertex& OutV1,FStaticLightingVertex& OutV2,int32& ElementIndex) const;
 		virtual void GetTriangleIndices(int32 TriangleIndex,int32& OutI0,int32& OutI1,int32& OutI2) const;
+		virtual void GetNonTransformedTriangleIndices(int32 TriangleIndex,int32& OutI0,int32& OutI1,int32& OutI2) const;
 
 		virtual bool IsElementCastingShadow(int32 ElementIndex) const;
 
@@ -62,8 +71,6 @@ namespace Lightmass
 		virtual uint32 GetMeshHLODRangeEnd() const { return (EncodedHLODRange & 0xFFFF0000) >> 16; }
 
 		virtual void Import( class FLightmassImporter& Importer );
-
-	private:
 
 		/** The inverse transpose of the primitive's local to world transform. */
 		FMatrix LocalToWorldInverseTranspose;

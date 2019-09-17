@@ -240,10 +240,10 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Rendering, meta = (DisplayName = "Cook ASTC texture data for Metal on A8 or later devices"))
 	bool bCookASTCTextures;
 	
-	// Whether or not to add support for OpenGL ES2 (if this is false, then your game should specify minimum IOS8 version)
-	UPROPERTY(GlobalConfig)
-	bool bSupportsOpenGLES2;
-	
+    // Whether to build the iOS project as a framework.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Build project as a framework"))
+    bool bBuildAsFramework;
+
 	// Remotely compile shaders offline
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build)
 	bool EnableRemoteShaderCompile;
@@ -470,6 +470,10 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category=Rendering, meta = (DisplayName = "Enable Fast-Math optimisations", ConfigRestartRequired = true))
 	bool EnableMathOptimisations;
+	
+	/** Whether to compile shaders using a tier Indirect Argument Buffers. */
+	UPROPERTY(config, EditAnywhere, Category = Rendering, Meta = (DisplayName = "Tier of Indirect Argument Buffers to use when compiling shaders", ConfigRestartRequired = true))
+	int32 IndirectArgumentTier;
 	
 	// Whether or not the keyboard should be usable on it's own without a UITextField
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input)

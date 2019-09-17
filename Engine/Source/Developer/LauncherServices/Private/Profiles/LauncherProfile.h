@@ -1577,6 +1577,10 @@ public:
 			{
 				ClientPlatforms.Add(TEXT("Linux"));
 			}
+			else if (PlatformInfo->TargetPlatformName == FName("LinuxAArch64NoEditor"))
+			{
+				ClientPlatforms.Add(TEXT("LinuxAArch64"));
+			}
 			else if (PlatformInfo->TargetPlatformName == FName("WindowsNoEditor") || PlatformInfo->TargetPlatformName == FName("Windows"))
 			{
 				ClientPlatforms.Add(TEXT("Win64"));
