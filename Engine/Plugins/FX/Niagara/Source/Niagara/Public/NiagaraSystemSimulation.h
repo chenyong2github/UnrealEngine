@@ -191,6 +191,8 @@ public:
 	FNiagaraScriptExecutionContext& GetSpawnExecutionContext() { return SpawnExecContext; }
 	FNiagaraScriptExecutionContext& GetUpdateExecutionContext() { return UpdateExecContext; }
 
+	void AddTickGroupPromotion(FNiagaraSystemInstance* Instance);
+
 protected:
 	/** Does any prep work for system simulation such as pulling instance parameters into a dataset. */
 	void PrepareForSystemSimulate(FNiagaraSystemSimulationTickContext& Context);
@@ -273,6 +275,9 @@ protected:
 	/** System instances that are paused. */
 	TArray<FNiagaraSystemInstance*> PausedSystemInstances;
 	FNiagaraDataSet PausedInstanceData;
+
+	/** List of instances that are pending a tick group promotion. */
+	TArray<FNiagaraSystemInstance*> PendingTickGroupPromotions;
 
 	TArray<TArray<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>>> EmitterSpawnInfoAccessors;
 
