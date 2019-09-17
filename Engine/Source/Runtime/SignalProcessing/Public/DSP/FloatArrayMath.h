@@ -12,7 +12,7 @@ namespace Audio
 	 *  InData contains data to be cumulatively summed.
 	 *  OutData contains sum and is same size as InData.
 	 */
-	AUDIOMIXER_API void ArrayCumulativeSum(const TArray<float>& InData, TArray<float>& OutData);
+	SIGNALPROCESSING_API void ArrayCumulativeSum(const TArray<float>& InData, TArray<float>& OutData);
 
 	/** Mean filter of array.
 	 *
@@ -24,7 +24,7 @@ namespace Audio
 	 *  WindowOrigin describes the offset from the windows first sample to the index of OutData. For example, if WindowOrigin = WindowSize/4, then OutData[i] = Mean(InData[i - Window/4 : i + 3 * Window / 4]).
 	 *  OutData contains the produceds data.
 	 */
-	AUDIOMIXER_API void ArrayMeanFilter(const TArray<float>& InData, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData);
+	SIGNALPROCESSING_API void ArrayMeanFilter(const TArray<float>& InData, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData);
 
 	/** Max filter of array.
 	 *
@@ -35,14 +35,22 @@ namespace Audio
 	 *  WindowOrigin describes the offset from the windows first sample to the index of OutData. For example, if WindowOrigin = WindowSize/4, then OutData[i] = Max(InData[i - Window/4 : i + 3 * Window / 4]).
 	 *  OutData contains the produceds data.
 	 */
-	AUDIOMIXER_API void ArrayMaxFilter(const TArray<float>& InData, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData);
+	SIGNALPROCESSING_API void ArrayMaxFilter(const TArray<float>& InData, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData);
 
 	/** Computes the EuclideanNorm of the InArray. Same as calculating the energy in window. */
-	void ArrayGetEuclideanNorm(const TArray<float>& InArray, float& OutEuclideanNorm);
+	SIGNALPROCESSING_API void ArrayGetEuclideanNorm(const TArray<float>& InArray, float& OutEuclideanNorm);
 
 	/** Multiplies each element in InArray by InMultiplier */
-	AUDIOMIXER_API void ArrayMultiplyByConstantInPlace(TArray<float>& InArray, const float InMultiplier);
+	SIGNALPROCESSING_API void ArrayMultiplyByConstantInPlace(TArray<float>& InArray, float InMultiplier);
 
+	/** Subtract value from each element in InArray */
+	SIGNALPROCESSING_API void ArraySubtractByConstantInPlace(TArray<float>& InArray, float InSubtrahend);
+
+	/** Convert magnitude values to decibel values in place. db = 20 * log10(val) */
+	SIGNALPROCESSING_API void ArrayMagnitudeToDecibelInPlace(TArray<float>& InArray);
+
+	/** Convert power values to decibel values in place. db = 10 * log10(val) */
+	SIGNALPROCESSING_API void ArrayPowerToDecibelInPlace(TArray<float>& InArray);
 
 	/** FContiguousSparse2DKernelTransform
 	 *
@@ -55,7 +63,7 @@ namespace Audio
 	 *  It works with non-sparse and non-contiguous kernels as well, but will be more computationally 
 	 *  expensive than a naive implementation. Also, only takes advantage of sparse contiguous rows, not columns.
 	 */
-	class AUDIOMIXER_API FContiguousSparse2DKernelTransform
+	class SIGNALPROCESSING_API FContiguousSparse2DKernelTransform
 	{
 		struct FRow
 		{
