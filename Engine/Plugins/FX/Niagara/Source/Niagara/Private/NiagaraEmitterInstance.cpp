@@ -208,7 +208,11 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 	bEncounteredNaNs = false;
 #endif
 
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 	Data.Init(FNiagaraDataSetID(CachedIDName, ENiagaraDataSetType::ParticleData), CachedEmitter->SimTarget, ParentSystemInstance->GetSystem()->GetName() + TEXT("/") + CachedEmitter->GetName());
+#else
+	Data.Init(FNiagaraDataSetID(CachedIDName, ENiagaraDataSetType::ParticleData), CachedEmitter->SimTarget);
+#endif
 
 	//Init the spawn infos to the correct number for this system.
 	int32 NumEvents = CachedEmitter->GetEventHandlers().Num();
@@ -280,7 +284,11 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 	for (const FNiagaraEventGeneratorProperties &GeneratorProps : CachedEmitter->UpdateScriptProps.EventGenerators)
 	{
 		FNiagaraDataSet *Set = FNiagaraEventDataSetMgr::CreateEventDataSet(ParentSystemInstance->GetIDName(), EmitterHandle.GetIdName(), GeneratorProps.SetProps.ID.Name);
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 		Set->Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim, CachedEmitter->GetFullName() + TEXT("/") + GeneratorProps.SetProps.ID.Name.ToString());
+#else
+		Set->Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim);
+#endif
 		Set->AddVariables(GeneratorProps.SetProps.Variables);
 		Set->Finalize();
 		UpdateScriptEventDataSets.Add(Set);
@@ -295,7 +303,11 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 	for (const FNiagaraEventGeneratorProperties &GeneratorProps : CachedEmitter->SpawnScriptProps.EventGenerators)
 	{
 		FNiagaraDataSet *Set = FNiagaraEventDataSetMgr::CreateEventDataSet(ParentSystemInstance->GetIDName(), EmitterHandle.GetIdName(), GeneratorProps.SetProps.ID.Name);
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 		Set->Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim, CachedEmitter->GetFullName() + TEXT("/") + GeneratorProps.SetProps.ID.Name.ToString());
+#else
+		Set->Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim);
+#endif
 		Set->AddVariables(GeneratorProps.SetProps.Variables);
 		Set->Finalize();
 		SpawnScriptEventDataSets.Add(Set);

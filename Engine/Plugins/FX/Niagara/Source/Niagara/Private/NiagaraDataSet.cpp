@@ -87,6 +87,7 @@ FNiagaraDataSet::~FNiagaraDataSet()
 	ReleaseBuffers();
 }
 
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 void FNiagaraDataSet::Init(FNiagaraDataSetID InID, ENiagaraSimTarget InSimTarget, const FString& InDebugName)
 {
 	Reset();
@@ -94,6 +95,14 @@ void FNiagaraDataSet::Init(FNiagaraDataSetID InID, ENiagaraSimTarget InSimTarget
 	SimTarget = InSimTarget;
 	DebugName = InDebugName;
 }
+#else
+void FNiagaraDataSet::Init(FNiagaraDataSetID InID, ENiagaraSimTarget InSimTarget)
+{
+	Reset();
+	ID = InID;
+	SimTarget = InSimTarget;
+}
+#endif
 
 void FNiagaraDataSet::Reset()
 {
@@ -695,7 +704,11 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 			{
 				GPUBufferFloat.Release();
 			}
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 			GPUBufferFloat.Initialize(sizeof(float), NumElementsToAlloc * Owner->GetNumFloatComponents(), EPixelFormat::PF_R32_FLOAT, BUF_Static, *Owner->DebugName );
+#else
+			GPUBufferFloat.Initialize(sizeof(float), NumElementsToAlloc * Owner->GetNumFloatComponents(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
+#endif
 		}
 		if (Owner->GetNumInt32Components())
 		{
@@ -703,7 +716,11 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 			{
 				GPUBufferInt.Release();
 			}
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 			GPUBufferInt.Initialize(sizeof(int32), NumElementsToAlloc * Owner->GetNumInt32Components(), EPixelFormat::PF_R32_SINT, BUF_Static, *Owner->DebugName);
+#else
+			GPUBufferInt.Initialize(sizeof(int32), NumElementsToAlloc * Owner->GetNumInt32Components(), EPixelFormat::PF_R32_SINT, BUF_Static);
+#endif
 		}
 	}
 }

@@ -50,7 +50,11 @@ public:
 	{
 		if (CollisionEventDataSet)
 		{
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 			CollisionEventDataSet->Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim, TEXT("NiagaraCollisionEventDataset"));
+#else
+			CollisionEventDataSet->Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim);
+#endif
 		}
 		EmitterName = InEmitterName;
 		OwnerSystemInstanceName = InOwnerSystemInstanceName;
