@@ -5,8 +5,8 @@
 
 #if WITH_AUDIOMODULATION
 #if !UE_BUILD_SHIPPING
-#include "SoundModulatorBus.h"
-#include "SoundModulatorBusMix.h"
+#include "SoundControlBus.h"
+#include "SoundControlBusMix.h"
 #include "SoundModulatorLFO.h"
 
 
@@ -30,7 +30,7 @@ namespace AudioModulation
 		uint8 bShowRenderStatLFO : 1;
 		uint8 bShowRenderStatMix : 1;
 
-		TArray<FModulatorBusProxy>    FilteredBuses;
+		TArray<FControlBusProxy>    FilteredBuses;
 		TArray<FModulatorLFOProxy>    FilteredLFOs;
 		TArray<FModulatorBusMixProxy> FilteredMixes;
 

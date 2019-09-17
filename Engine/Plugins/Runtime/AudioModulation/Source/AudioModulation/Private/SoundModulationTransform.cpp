@@ -22,7 +22,7 @@ void FSoundModulationInputTransform::Apply(float& Value) const
 FSoundModulationOutputTransform::FSoundModulationOutputTransform()
 	: InputMin(0.0f)
 	, InputMax(1.0f)
-	, Curve(ESoundModulatorOutputCurve::Exp)
+	, Curve(ESoundModulatorOutputCurve::Linear)
 	, Scalar(2.5f)
 	, OutputMin(0.0f)
 	, OutputMax(1.0f)

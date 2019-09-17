@@ -132,6 +132,14 @@ struct FWaveInstance;
 struct FReverbSettings;
 struct FSampleLoop;
 
+namespace Audio
+{
+	/**
+	 * Typed identifier for Audio Device Id
+	 */
+	using FDeviceId = uint32;
+}
+
 enum ELoopingMode
 {
 	/** One shot sound */

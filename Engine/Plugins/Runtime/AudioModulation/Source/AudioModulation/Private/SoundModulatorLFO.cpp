@@ -8,18 +8,17 @@
 #include "Engine/World.h"
 
 
-USoundModulatorLFO::USoundModulatorLFO(const FObjectInitializer& ObjectInitializer)
+USoundBusModulatorLFO::USoundBusModulatorLFO(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Shape(ESoundModulatorLFOShape::Sine)
 	, Amplitude(0.5f)
 	, Frequency(1.0f)
 	, Offset(0.5f)
 	, bLooping(1)
-	, bAutoActivate(0)
 {
 }
 
-void USoundModulatorLFO::BeginDestroy()
+void USoundBusModulatorLFO::BeginDestroy()
 {
 	Super::BeginDestroy();
 
@@ -41,31 +40,24 @@ void USoundModulatorLFO::BeginDestroy()
 		auto ModulationImpl = static_cast<AudioModulation::FAudioModulation*>(ModulationInterface)->GetImpl();
 		check(ModulationImpl);
 
-		auto LFOId = static_cast<const AudioModulation::LFOId>(GetUniqueID());
+		auto LFOId = static_cast<const AudioModulation::FLFOId>(GetUniqueID());
 		ModulationImpl->DeactivateLFO(LFOId);
 	}
 }
 
+
 namespace AudioModulation
 {
 	FModulatorLFOProxy::FModulatorLFOProxy()
-		: Id(0)
-		, Offset(0.0f)
+		: Offset(0.0f)
 		, Value(0.0f)
-		, bAutoActivate(false)
-		, SoundRefCount(0)
 	{
 	}
 
-	FModulatorLFOProxy::FModulatorLFOProxy(const USoundModulatorLFO& InLFO)
-		: Id(static_cast<LFOId>(InLFO.GetUniqueID()))
-#if !UE_BUILD_SHIPPING
-		, Name(InLFO.GetName())
-#endif // !UE_BUILD_SHIPPING
+	FModulatorLFOProxy::FModulatorLFOProxy(const USoundBusModulatorLFO& InLFO)
+		: TModulatorProxyRefBase<FLFOId>(InLFO.GetName(), InLFO.GetUniqueID(), InLFO.bAutoActivate)
 		, Offset(InLFO.Offset)
 		, Value(0.0f)
-		, bAutoActivate(InLFO.bAutoActivate)
-		, SoundRefCount(0)
 	{
 		LFO.SetGain(InLFO.Amplitude);
 		LFO.SetFrequency(InLFO.Frequency);
@@ -77,46 +69,24 @@ namespace AudioModulation
 		LFO.Start();
 	}
 
-	float FModulatorLFOProxy::GetAmplitude() const
-	{
-		return LFO.GetGain();
-	}
-
-	bool FModulatorLFOProxy::GetAutoActivate() const
-	{
-		return bAutoActivate;
-	}
-
-	float FModulatorLFOProxy::GetFreq() const
-	{
-		return LFO.GetFrequency();
-	}
-
-#if !UE_BUILD_SHIPPING
-	const FString& FModulatorLFOProxy::GetName() const
-	{
-		return Name;
-	}
-#endif // !UE_BUILD_SHIPPING
-
-	LFOId FModulatorLFOProxy::GetId() const
-	{
-		return Id;
-	}
-
-	float FModulatorLFOProxy::GetOffset() const
-	{
-		return Offset;
-	}
-
 	float FModulatorLFOProxy::GetValue() const
 	{
 		return Value;
 	}
 
-	void FModulatorLFOProxy::SetFreq(float InFreq)
+	void FModulatorLFOProxy::OnUpdateProxy(const USoundModulatorBase& InModulatorArchetype)
 	{
-		LFO.SetFrequency(InFreq);
+		const FModulatorLFOProxy CopyProxy(*CastChecked<USoundBusModulatorLFO>(&InModulatorArchetype));
+		auto UpdateProxy = [this, CopyProxy]()
+		{
+			check(IsInAudioThread());
+
+			LFO = CopyProxy.LFO;
+			Offset = CopyProxy.Offset;
+			Value = CopyProxy.Value;
+		};
+
+		IsInAudioThread() ? UpdateProxy() : FAudioThread::RunCommandOnAudioThread(UpdateProxy);
 	}
 
 	void FModulatorLFOProxy::Update(float InElapsed)
@@ -128,19 +98,5 @@ namespace AudioModulation
 			LFO.Update();
 			Value = LFO.Generate() + Offset;
 		}
-	}
-
-	int32 FModulatorLFOProxy::DecRefSound()
-	{
-		check(SoundRefCount > 0);
-		SoundRefCount--;
-
-		return SoundRefCount;
-	}
-
-	int32 FModulatorLFOProxy::IncRefSound()
-	{
-		SoundRefCount++;
-		return SoundRefCount;
 	}
 } // namespace AudioModulation
