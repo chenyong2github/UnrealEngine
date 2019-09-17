@@ -597,7 +597,7 @@ float3 TransformPosition(float3 InPosition)
 {
 	if (NiagaraSpriteVF.bLocalSpace)
 	{
-		return TransformLocalToWorld(InPosition);
+		return TransformLocalToWorld(InPosition).xyz;
 	}
 	else
 	{
