@@ -21,14 +21,6 @@ UVisualLoggerDebugSnapshotInterface::UVisualLoggerDebugSnapshotInterface(const F
 #define VISUAL_LOGGER_MAGIC_NUMBER 0xAFAFFAFA
 
 //----------------------------------------------------------------------//
-// FVisualLogDevice 
-//----------------------------------------------------------------------//
-FVisualLogDevice::FVisualLogDevice()
-	: GUID(FGuid::NewGuid())
-{
-}
-
-//----------------------------------------------------------------------//
 // FVisualLogShapeElement 
 //----------------------------------------------------------------------//
 FVisualLogShapeElement::FVisualLogShapeElement(EVisualLoggerShapeElement InType)
