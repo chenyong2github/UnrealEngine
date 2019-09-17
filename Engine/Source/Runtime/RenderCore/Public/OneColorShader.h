@@ -15,7 +15,7 @@
 template<bool bUsingNDCPositions=true, bool bUsingVertexLayers=false>
 class TOneColorVS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(TOneColorVS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(TOneColorVS, Global, RENDERCORE_API);
 
 	/** Default constructor. */
 	TOneColorVS() {}
@@ -72,7 +72,7 @@ private:
  */
 class FOneColorPS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FOneColorPS,Global,UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FOneColorPS,Global,RENDERCORE_API);
 public:
 	
 	FOneColorPS( )	{ }
@@ -106,7 +106,7 @@ public:
 template<int32 NumOutputs>
 class TOneColorPixelShaderMRT : public FOneColorPS
 {
-	DECLARE_EXPORTED_SHADER_TYPE(TOneColorPixelShaderMRT,Global,UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(TOneColorPixelShaderMRT,Global,RENDERCORE_API);
 public:
 	TOneColorPixelShaderMRT( )	{ }
 	TOneColorPixelShaderMRT(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -135,7 +135,7 @@ public:
  */
 class FFillTextureCS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FFillTextureCS,Global,UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FFillTextureCS,Global,RENDERCORE_API);
 public:
 	FFillTextureCS( )	{ }
 	FFillTextureCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -170,7 +170,7 @@ public:
 
 class FLongGPUTaskPS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FLongGPUTaskPS,Global,UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FLongGPUTaskPS,Global,RENDERCORE_API);
 public:
 	FLongGPUTaskPS( )	{ }
 	FLongGPUTaskPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)

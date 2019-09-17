@@ -27,7 +27,7 @@ public:
 	{}
 };
 
-class UTILITYSHADERS_API FOcclusionMainRG : public FBuiltInRayTracingShader
+class RENDERCORE_API FOcclusionMainRG : public FBuiltInRayTracingShader
 {
 	DECLARE_GLOBAL_SHADER(FOcclusionMainRG);
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FOcclusionMainRG, FBuiltInRayTracingShader);
@@ -39,7 +39,7 @@ class UTILITYSHADERS_API FOcclusionMainRG : public FBuiltInRayTracingShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-class UTILITYSHADERS_API FIntersectionMainRG : public FBuiltInRayTracingShader
+class RENDERCORE_API FIntersectionMainRG : public FBuiltInRayTracingShader
 {
 	DECLARE_GLOBAL_SHADER(FIntersectionMainRG);
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FIntersectionMainRG, FBuiltInRayTracingShader);
@@ -53,7 +53,7 @@ class UTILITYSHADERS_API FIntersectionMainRG : public FBuiltInRayTracingShader
 
 class FIntersectionMainCHS : public FBuiltInRayTracingShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FIntersectionMainCHS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FIntersectionMainCHS, Global, RENDERCORE_API);
 public:
 
 	FIntersectionMainCHS() = default;
@@ -64,7 +64,7 @@ public:
 
 class FDefaultMainCHS : public FBuiltInRayTracingShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FDefaultMainCHS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FDefaultMainCHS, Global, RENDERCORE_API);
 public:
 
 	FDefaultMainCHS() = default;
@@ -76,7 +76,7 @@ public:
 
 class FDefaultMainMS : public FBuiltInRayTracingShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FDefaultMainMS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FDefaultMainMS, Global, RENDERCORE_API);
 public:
 
 	FDefaultMainMS() = default;
