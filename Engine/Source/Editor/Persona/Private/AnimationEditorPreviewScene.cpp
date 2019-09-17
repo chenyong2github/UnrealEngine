@@ -76,6 +76,13 @@ FAnimationEditorPreviewScene::FAnimationEditorPreviewScene(const ConstructionVal
 		PreviewSceneDescription->AdditionalMeshes = InEditableSkeleton->GetSkeleton().GetAdditionalPreviewSkeletalMeshes();
 	}
 
+	if(UAnimBlueprint* AnimBlueprint = InPersonaToolkit->GetAnimBlueprint())
+	{
+		PreviewSceneDescription->PreviewAnimationBlueprint = AnimBlueprint->GetPreviewAnimationBlueprint();
+		PreviewSceneDescription->ApplicationMethod = AnimBlueprint->GetPreviewAnimationBlueprintApplicationMethod();
+		PreviewSceneDescription->SubInstanceTag = AnimBlueprint->GetPreviewAnimationBlueprintTag();
+	}
+
 	// create a default additional mesh collection so we dont always have to create an asset to edit additional meshes
 	UPreviewMeshCollectionFactory* FactoryToUse = NewObject<UPreviewMeshCollectionFactory>();
 	if(InEditableSkeleton.IsValid())
@@ -167,6 +174,27 @@ void FAnimationEditorPreviewScene::SetPreviewMesh(USkeletalMesh* NewPreviewMesh,
 	RefreshAdditionalMeshes(bAllowOverrideBaseMesh);
 }
 
+void FAnimationEditorPreviewScene::SetPreviewAnimationBlueprint(UAnimBlueprint* InAnimBlueprint, UAnimBlueprint* InOverlayOrSubAnimBlueprint)
+{
+	if (InOverlayOrSubAnimBlueprint)
+	{
+		SkeletalMeshComponent->SetAnimInstanceClass(InAnimBlueprint ? InAnimBlueprint->GeneratedClass : nullptr);
+		EPreviewAnimationBlueprintApplicationMethod ApplicationMethod = InOverlayOrSubAnimBlueprint->GetPreviewAnimationBlueprintApplicationMethod();
+		if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::OverlayLayer)
+		{
+			SkeletalMeshComponent->SetLayerOverlay(InOverlayOrSubAnimBlueprint ? InOverlayOrSubAnimBlueprint->GeneratedClass.Get() : nullptr);
+		}
+		else if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::SubInstance)
+		{
+			SkeletalMeshComponent->SetSubInstanceClassByTag(InOverlayOrSubAnimBlueprint->GetPreviewAnimationBlueprintTag(), InOverlayOrSubAnimBlueprint ? InOverlayOrSubAnimBlueprint->GeneratedClass.Get() : nullptr);
+		}
+	}
+	else
+	{
+		SkeletalMeshComponent->SetAnimInstanceClass(InAnimBlueprint ? InAnimBlueprint->GeneratedClass : nullptr);
+	}
+}
+
 USkeletalMesh* FAnimationEditorPreviewScene::GetPreviewMesh() const
 {
 	return PreviewSceneDescription->PreviewMesh.Get();
@@ -246,7 +274,7 @@ void FAnimationEditorPreviewScene::SetPreviewMeshInternal(USkeletalMesh* NewPrev
 	if (DebuggedSkeletalMeshComponent)
 	{
 		UAnimBlueprint* SourceBlueprint = PersonaToolkit.Pin()->GetAnimBlueprint();
-		SourceBlueprint->SetObjectBeingDebugged(DebuggedSkeletalMeshComponent->GetAnimInstance());
+		PersonaUtils::SetObjectBeingDebugged(SourceBlueprint, DebuggedSkeletalMeshComponent->GetAnimInstance());
 	}
 
 	OnPreviewMeshChanged.Broadcast(OldPreviewMesh, NewPreviewMesh);
@@ -673,10 +701,19 @@ void FAnimationEditorPreviewScene::ShowDefaultMode()
 		{
 			SkeletalMeshComponent->EnablePreview(false, nullptr);
 
-			UAnimBlueprint* AnimBP = PersonaToolkit.Pin()->GetAnimBlueprint();
-			if (AnimBP)
+			UAnimBlueprint* AnimBlueprint = PersonaToolkit.Pin()->GetAnimBlueprint();
+			if (AnimBlueprint)
 			{
-				SkeletalMeshComponent->SetAnimInstanceClass(AnimBP->GeneratedClass);
+				UAnimBlueprint* PreviewAnimBlueprint = AnimBlueprint->GetPreviewAnimationBlueprint();
+		
+				if (PreviewAnimBlueprint)
+				{
+					SetPreviewAnimationBlueprint(PreviewAnimBlueprint, AnimBlueprint);
+				}
+				else
+				{
+					SetPreviewAnimationBlueprint(AnimBlueprint, nullptr);
+				}
 			}
 		}
 		break;

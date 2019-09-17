@@ -274,6 +274,9 @@ private:
 	/** Handle the viewport being created */
 	void HandleViewportCreated(const TSharedRef<IPersonaViewport>& InPersonaViewport);
 
+	/** Handle the preview anim blueprint being compiled */
+	void HandlePreviewAnimBlueprintCompiled(UBlueprint* InBlueprint);
+
     /**
 	 * Load editor settings from disk (docking state, window pos/size, option state, etc).
 	 */

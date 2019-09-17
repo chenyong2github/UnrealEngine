@@ -210,10 +210,92 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 			SNew(SObjectPropertyEntryBox)
 			.AllowedClass(USkeletalMesh::StaticClass())
 			.PropertyHandle(SkeletalMeshProperty)
-			.OnShouldFilterAsset(this, &FPreviewSceneDescriptionCustomization::HandleShouldFilterAsset, PersonaToolkit.Pin()->GetContext() == UPhysicsAsset::StaticClass()->GetFName())
+			.OnShouldFilterAsset(this, &FPreviewSceneDescriptionCustomization::HandleShouldFilterAsset, FName("Skeleton"), PersonaToolkit.Pin()->GetContext() == UPhysicsAsset::StaticClass()->GetFName())
 			.OnObjectChanged(this, &FPreviewSceneDescriptionCustomization::HandleMeshChanged)
 			.ThumbnailPool(DetailBuilder.GetThumbnailPool())
 		];
+
+		// Customize animation blueprint preview
+		TSharedRef<IPropertyHandle> PreviewAnimationBlueprintProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPersonaPreviewSceneDescription, PreviewAnimationBlueprint));
+		TSharedRef<IPropertyHandle> ApplicationMethodProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPersonaPreviewSceneDescription, ApplicationMethod));
+		TSharedRef<IPropertyHandle> SubInstanceTagProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPersonaPreviewSceneDescription, SubInstanceTag));
+		
+		if (PersonaToolkit.Pin()->GetContext() == UAnimBlueprint::StaticClass()->GetFName())
+		{
+			DetailBuilder.EditCategory("Animation Blueprint")
+			.AddProperty(PreviewAnimationBlueprintProperty)
+			.CustomWidget()
+			.NameContent()
+			[
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					PreviewAnimationBlueprintProperty->CreatePropertyNameWidget()
+				]
+			]
+			.ValueContent()
+			.MaxDesiredWidth(250.0f)
+			.MinDesiredWidth(250.0f)
+			[
+				SNew(SObjectPropertyEntryBox)
+				.AllowedClass(UAnimBlueprint::StaticClass())
+				.PropertyHandle(PreviewAnimationBlueprintProperty)
+				.OnShouldFilterAsset(this, &FPreviewSceneDescriptionCustomization::HandleShouldFilterAsset, FName("TargetSkeleton"), false)
+				.OnObjectChanged(this, &FPreviewSceneDescriptionCustomization::HandlePreviewAnimBlueprintChanged)
+				.ThumbnailPool(DetailBuilder.GetThumbnailPool())
+			];
+
+			ApplicationMethodProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([this]()
+			{
+				FScopedTransaction Transaction(LOCTEXT("SetAnimationBlueprintApplicationMethod", "Set Application Method"));
+
+				TSharedPtr<IPersonaToolkit> PinnedPersonaToolkit = PersonaToolkit.Pin();
+				TSharedRef<FAnimationEditorPreviewScene> PreviewScene = StaticCastSharedRef<FAnimationEditorPreviewScene>(PinnedPersonaToolkit->GetPreviewScene());
+				UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = PreviewScene->GetPreviewSceneDescription();
+				PinnedPersonaToolkit->GetAnimBlueprint()->SetPreviewAnimationBlueprintApplicationMethod(PersonaPreviewSceneDescription->ApplicationMethod);
+				PreviewScene->SetPreviewAnimationBlueprint(PersonaPreviewSceneDescription->PreviewAnimationBlueprint.Get(), PinnedPersonaToolkit->GetAnimBlueprint());
+			}));
+
+			DetailBuilder.EditCategory("Animation Blueprint")
+			.AddProperty(ApplicationMethodProperty)
+			.IsEnabled(MakeAttributeLambda([this]()
+			{
+				TSharedPtr<IPersonaToolkit> PinnedPersonaToolkit = PersonaToolkit.Pin();
+				TSharedRef<FAnimationEditorPreviewScene> PreviewScene = StaticCastSharedRef<FAnimationEditorPreviewScene>(PinnedPersonaToolkit->GetPreviewScene());
+				UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = PreviewScene->GetPreviewSceneDescription();
+				
+				return PersonaPreviewSceneDescription->PreviewAnimationBlueprint.IsValid();
+			}));
+		
+			SubInstanceTagProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([this]()
+			{
+				FScopedTransaction Transaction(LOCTEXT("SetAnimationBlueprintTag", "Set Sub Instance Tag"));
+
+				TSharedPtr<IPersonaToolkit> PinnedPersonaToolkit = PersonaToolkit.Pin();
+				TSharedRef<FAnimationEditorPreviewScene> PreviewScene = StaticCastSharedRef<FAnimationEditorPreviewScene>(PinnedPersonaToolkit->GetPreviewScene());
+				UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = PreviewScene->GetPreviewSceneDescription();
+				PinnedPersonaToolkit->GetAnimBlueprint()->SetPreviewAnimationBlueprintTag(PersonaPreviewSceneDescription->SubInstanceTag);
+				PreviewScene->SetPreviewAnimationBlueprint(PersonaPreviewSceneDescription->PreviewAnimationBlueprint.Get(), PinnedPersonaToolkit->GetAnimBlueprint());
+			}));
+
+			DetailBuilder.EditCategory("Animation Blueprint")
+			.AddProperty(SubInstanceTagProperty)
+			.IsEnabled(MakeAttributeLambda([this]()
+			{
+				TSharedPtr<IPersonaToolkit> PinnedPersonaToolkit = PersonaToolkit.Pin();
+				TSharedRef<FAnimationEditorPreviewScene> PreviewScene = StaticCastSharedRef<FAnimationEditorPreviewScene>(PinnedPersonaToolkit->GetPreviewScene());
+				UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = PreviewScene->GetPreviewSceneDescription();
+				
+				return PersonaPreviewSceneDescription->PreviewAnimationBlueprint.IsValid() && PersonaPreviewSceneDescription->ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::SubInstance;
+			}));
+		}
+		else
+		{
+			PreviewAnimationBlueprintProperty->MarkHiddenByCustomization();
+			ApplicationMethodProperty->MarkHiddenByCustomization();
+			SubInstanceTagProperty->MarkHiddenByCustomization();
+		}
 
 		// set the skeleton to use in our factory as we shouldn't be picking one here
 		FactoryToUse->CurrentSkeleton = EditableSkeleton.IsValid() ? MakeWeakObjectPtr(const_cast<USkeleton*>(&EditableSkeleton.Pin()->GetSkeleton())) : nullptr;
@@ -380,17 +462,17 @@ bool FPreviewSceneDescriptionCustomization::HandleShouldFilterAdditionalMesh(con
 		return true;
 	}
 
-	return HandleShouldFilterAsset(InAssetData, bCanUseDifferentSkeleton);
+	return HandleShouldFilterAsset(InAssetData, FName("Skeleton"), bCanUseDifferentSkeleton);
 }
 
-bool FPreviewSceneDescriptionCustomization::HandleShouldFilterAsset(const FAssetData& InAssetData, bool bCanUseDifferentSkeleton)
+bool FPreviewSceneDescriptionCustomization::HandleShouldFilterAsset(const FAssetData& InAssetData, FName InTag, bool bCanUseDifferentSkeleton)
 {
 	if (bCanUseDifferentSkeleton && GetDefault<UPersonaOptions>()->bAllowPreviewMeshCollectionsToSelectFromDifferentSkeletons)
 	{
 		return false;
 	}
 
-	FString SkeletonTag = InAssetData.GetTagValueRef<FString>("Skeleton");
+	FString SkeletonTag = InAssetData.GetTagValueRef<FString>(InTag);
 	if (SkeletonName.IsEmpty() || SkeletonTag == SkeletonName)
 	{
 		return false;
@@ -435,6 +517,12 @@ void FPreviewSceneDescriptionCustomization::HandleMeshChanged(const FAssetData& 
 {
 	USkeletalMesh* NewPreviewMesh = Cast<USkeletalMesh>(InAssetData.GetAsset());
 	PersonaToolkit.Pin()->SetPreviewMesh(NewPreviewMesh, false);
+}
+
+void FPreviewSceneDescriptionCustomization::HandlePreviewAnimBlueprintChanged(const FAssetData& InAssetData)   
+{
+	UAnimBlueprint* NewAnimBlueprint = Cast<UAnimBlueprint>(InAssetData.GetAsset());
+	PersonaToolkit.Pin()->SetPreviewAnimationBlueprint(NewAnimBlueprint);
 }
 
 void FPreviewSceneDescriptionCustomization::HandleAdditionalMeshesChanged(const FAssetData& InAssetData, IDetailLayoutBuilder* DetailLayoutBuilder)
