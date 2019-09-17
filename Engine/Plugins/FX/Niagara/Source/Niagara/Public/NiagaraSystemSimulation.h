@@ -132,7 +132,7 @@ struct FNiagaraSystemSimulationTickContext
 	bool bPendingSpawnPass;
 	FGraphEventRef MyCompletionGraphEvent;
 
-	FGraphEventRef FinalizeCompleteGraphEvent;
+	FGraphEventArray* FinalizeEvents = nullptr;
 
 	bool bTickAsync;
 	bool bTickInstancesAsync;
