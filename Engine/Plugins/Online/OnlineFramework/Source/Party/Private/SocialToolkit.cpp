@@ -222,6 +222,33 @@ void USocialToolkit::SetLocalUserOnlineState(EOnlinePresenceState::Type OnlineSt
 	}
 }
 
+void USocialToolkit::AddLocalUserOnlineProperties(FPresenceProperties OnlineProperties)
+{
+	if (IOnlineSubsystem* PrimaryOss = GetSocialOss(ESocialSubsystem::Primary))
+	{
+		IOnlinePresencePtr PresenceInterface = PrimaryOss->GetPresenceInterface();
+		FUniqueNetIdRepl LocalUserId = GetLocalUserNetId(ESocialSubsystem::Primary);
+		if (PresenceInterface.IsValid() && LocalUserId.IsValid())
+		{
+			TSharedPtr<FOnlineUserPresence> CurrentPresence;
+			PresenceInterface->GetCachedPresence(*LocalUserId, CurrentPresence);
+
+			FOnlineUserPresenceStatus NewStatus;
+			if (CurrentPresence.IsValid())
+			{
+				NewStatus = CurrentPresence->Status;
+			}
+			
+			for (TPair<FPresenceKey, FVariantData>& Pair : OnlineProperties)
+			{
+				NewStatus.Properties.Emplace(MoveTemp(Pair.Key), MoveTemp(Pair.Value));
+			}
+
+			PresenceInterface->SetPresence(*LocalUserId, NewStatus);
+		}
+	}
+}
+
 USocialManager& USocialToolkit::GetSocialManager() const
 {
 	USocialManager* OuterSocialManager = GetTypedOuter<USocialManager>();
