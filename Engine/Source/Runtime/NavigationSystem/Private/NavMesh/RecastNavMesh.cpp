@@ -1095,6 +1095,24 @@ bool ARecastNavMesh::ProjectPoint(const FVector& Point, FNavLocation& OutLocatio
 	return bSuccess;
 }
 
+bool ARecastNavMesh::IsNodeRefValid(NavNodeRef NodeRef) const
+{
+	if (NodeRef == INVALID_NAVNODEREF)
+	{
+		return false;
+	}
+	const dtNavMesh* NavMesh = RecastNavMeshImpl ? RecastNavMeshImpl->GetRecastMesh() : nullptr;
+	if (!NavMesh)
+	{
+		return false;
+	}
+	dtPoly const* Poly = 0;
+	dtMeshTile const* Tile = 0;
+	const dtStatus Status = NavMesh->getTileAndPolyByRef(NodeRef, &Tile, &Poly);
+	const bool bSuccess = dtStatusSucceed(Status);
+	return bSuccess;
+}
+
 void ARecastNavMesh::BatchProjectPoints(TArray<FNavigationProjectionWork>& Workload, const FVector& Extent, FSharedConstNavQueryFilter Filter, const UObject* Querier) const 
 {
 	if (Workload.Num() == 0 || RecastNavMeshImpl == NULL || RecastNavMeshImpl->DetourNavMesh == NULL)
