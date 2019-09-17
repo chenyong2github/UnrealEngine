@@ -1024,7 +1024,7 @@ private:
 	const uint32 Subresource;
 
 public:
-	explicit FScopeResourceBarrier(FD3D12CommandListHandle& hInCommandList, FD3D12Resource* pInResource, const D3D12_RESOURCE_STATES& InCurrent, const D3D12_RESOURCE_STATES& InDesired, const uint32 InSubresource)
+	explicit FScopeResourceBarrier(FD3D12CommandListHandle& hInCommandList, FD3D12Resource* pInResource, const D3D12_RESOURCE_STATES& InCurrent, const D3D12_RESOURCE_STATES InDesired, const uint32 InSubresource)
 		: hCommandList(hInCommandList)
 		, pResource(pInResource)
 		, Current(InCurrent)
@@ -1057,7 +1057,7 @@ private:
 	const bool bUseTracking;
 
 public:
-	explicit FConditionalScopeResourceBarrier(FD3D12CommandListHandle& hInCommandList, FD3D12Resource* pInResource, const D3D12_RESOURCE_STATES& InDesired, const uint32 InSubresource)
+	explicit FConditionalScopeResourceBarrier(FD3D12CommandListHandle& hInCommandList, FD3D12Resource* pInResource, const D3D12_RESOURCE_STATES InDesired, const uint32 InSubresource)
 		: hCommandList(hInCommandList)
 		, pResource(pInResource)
 		, Current(D3D12_RESOURCE_STATE_TBD)
