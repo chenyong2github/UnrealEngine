@@ -27,6 +27,7 @@
 #include "Widgets/Input/SComboBox.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Algo/Sort.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "PreviewSceneCustomizations"
 
