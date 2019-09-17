@@ -28,7 +28,7 @@ public:
 
 	int NumCellsX;
 	int NumCellsY;
-	float CellSize;
+	FVector2D CellSize;
 	bool SetGridFromVoxelSize;
 
 	FVector WorldBBoxMin;
@@ -132,6 +132,8 @@ public:
 	// #todo(dmp): this will eventually go away when we formalize how data makes it out of Niagara
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	virtual void FillTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *dest);
+
+	void GetCellSize(FVectorVMContext& Context);
 
 protected:
 	//~ UNiagaraDataInterface interface
