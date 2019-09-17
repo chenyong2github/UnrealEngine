@@ -63,6 +63,7 @@ void FFoliageActor::Initialize(AInstancedFoliageActor* IFA, const UFoliageType* 
 	check(!IsInitialized());
 	const UFoliageType_Actor* FoliageType_Actor = Cast<UFoliageType_Actor>(FoliageType);
 	ActorClass = FoliageType_Actor->ActorClass ? FoliageType_Actor->ActorClass.Get() : AActor::StaticClass();
+	bShouldAttachToBaseComponent = FoliageType_Actor->bShouldAttachToBaseComponent;
 }
 
 void FFoliageActor::Uninitialize()
@@ -213,6 +214,18 @@ void FFoliageActor::PostEditUndo(AInstancedFoliageActor* IFA, UFoliageType* Foli
 
 void FFoliageActor::NotifyFoliageTypeChanged(AInstancedFoliageActor* IFA, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices, bool bSourceChanged)
 {
+	if (UFoliageType_Actor* FoliageTypeActor = Cast<UFoliageType_Actor>(FoliageType))
+	{
+		if (bShouldAttachToBaseComponent != FoliageTypeActor->bShouldAttachToBaseComponent)
+		{
+			bShouldAttachToBaseComponent = FoliageTypeActor->bShouldAttachToBaseComponent;
+			if (!bShouldAttachToBaseComponent)
+			{
+				IFA->RemoveBaseComponentOnFoliageTypeInstances(FoliageType);
+			}
+		}
+	}
+
 	if (bSourceChanged)
 	{
 		Reapply(IFA, FoliageType, Instances);
@@ -263,6 +276,37 @@ void FFoliageActor::ApplySelection(bool bApply, const TSet<int32>& SelectedIndic
 void FFoliageActor::ClearSelection(const TSet<int32>& SelectedIndices)
 {
 	AInstancedFoliageActor::SelectionChanged.Broadcast(false, GetActorsFromSelectedIndices(SelectedIndices));
+}
+
+bool FFoliageActor::UpdateInstanceFromActor(AInstancedFoliageActor* IFA, AActor* InActor, FFoliageInfo& FoliageInfo)
+{
+	int32 Index = FindIndex(InActor);
+	if (Index == INDEX_NONE)
+	{
+		return false;
+	}
+
+	IFA->Modify();
+	const bool bChecked = false; // In the case of the PostEditUndo its possible that the instancehash is empty.
+	FoliageInfo.InstanceHash->RemoveInstance(FoliageInfo.Instances[Index].Location, Index, bChecked);
+	
+	FTransform ActorTransform = InActor->GetTransform();
+	FoliageInfo.Instances[Index].Location = ActorTransform.GetLocation();
+	FoliageInfo.Instances[Index].Rotation = FRotator(ActorTransform.GetRotation());
+	FoliageInfo.InstanceHash->InsertInstance(FoliageInfo.Instances[Index].Location, Index);
+	
+	return true;
+}
+
+void FFoliageActor::GetInvalidInstances(TArray<int32>& InvalidInstances)
+{
+	for (int32 Index = 0; Index < ActorInstances.Num(); ++Index)
+	{
+		if (ActorInstances[Index] == nullptr)
+		{
+			InvalidInstances.Add(Index);
+		}
+	}
 }
 
 #endif // WITH_EDITOR
