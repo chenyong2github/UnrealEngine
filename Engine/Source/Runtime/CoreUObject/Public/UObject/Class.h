@@ -1530,6 +1530,20 @@ public:
 	COREUOBJECT_API const TCHAR* ImportText(const TCHAR* Buffer, void* Value, UObject* OwnerObject, int32 PortFlags, FOutputDevice* ErrorText, const FString& StructName, bool bAllowNativeOverride = true);
 
 	/**
+	 * Sets value of script struct based on imported string
+	 *
+	 * @param	Buffer			String to read text data out of
+	 * @param	Value			Struct that will be modified
+	 * @param	OwnerObject		UObject that contains this struct
+	 * @param	PortFlags		EPropertyPortFlags controlling import behavior
+	 * @param	ErrorText		What to print import errors to
+	 * @param	StructNameGetter Function to return the struct name to avoid doing work if no error message is forthcoming
+	 * @param	bAllowNativeOverride If true, will try to run native version of export text on the struct
+	 * @return Buffer after parsing has succeeded, or NULL on failure
+	 */
+	COREUOBJECT_API const TCHAR* ImportText(const TCHAR* Buffer, void* Value, UObject* OwnerObject, int32 PortFlags, FOutputDevice* ErrorText, const TFunctionRef<FString()>& StructNameGetter, bool bAllowNativeOverride = true);
+
+	/**
 	 * Compare two script structs
 	 *
 	 * @param	Dest		Pointer to memory to a struct
