@@ -156,6 +156,32 @@ private:
 };
 
 
+/**
+ * Performs the attribute assignment and invalidates the widget minimally based on what actually changed.  So if the boundness of the attribute didn't change
+ * volatility won't need to be recalculated.  Returns true if the value changed.
+ */
+template<typename TargetValueType, typename SourceValueType>
+static bool SetWidgetAttribute(SWidget& ThisWidget, TAttribute<TargetValueType>& TargetValue, const TAttribute<SourceValueType>& SourceValue, EInvalidateWidgetReason BaseInvalidationReason)
+{
+	if (!TargetValue.IdenticalTo(SourceValue))
+	{
+		const bool bWasBound = TargetValue.IsBound();
+		const bool bBoundnessChanged = bWasBound != SourceValue.IsBound();
+		TargetValue = SourceValue;
+
+		EInvalidateWidgetReason InvalidateReason = BaseInvalidationReason;
+		if (bBoundnessChanged)
+		{
+			InvalidateReason |= EInvalidateWidgetReason::Volatility;
+		}
+
+		ThisWidget.Invalidate(InvalidateReason);
+		return true;
+	}
+
+	return false;
+}
+
 class IToolTip;
 
 /**
@@ -1489,23 +1515,7 @@ protected:
 	template<typename TargetValueType, typename SourceValueType>
 	bool SetAttribute(TAttribute<TargetValueType>& TargetValue, const TAttribute<SourceValueType>& SourceValue, EInvalidateWidgetReason BaseInvalidationReason)
 	{
-		if (!TargetValue.IdenticalTo(SourceValue))
-		{
-			const bool bWasBound = TargetValue.IsBound();
-			const bool bBoundnessChanged = bWasBound != SourceValue.IsBound();
-			TargetValue = SourceValue;
-
-			EInvalidateWidgetReason InvalidateReason = BaseInvalidationReason;
-			if (bBoundnessChanged)
-			{
-				InvalidateReason |= EInvalidateWidgetReason::Volatility;
-			}
-
-			Invalidate(InvalidateReason);
-			return true;
-		}
-
-		return false;
+		return SetWidgetAttribute(*this, TargetValue, SourceValue, BaseInvalidationReason);
 	}
 
 protected:

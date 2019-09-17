@@ -10,6 +10,7 @@
 #include "Layout/Margin.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/SlateTypes.h"
 
 class FPaintArgs;
 class FSlateWindowElementList;
@@ -135,7 +136,7 @@ protected:
 	// End SWidget overrides.
 
  protected:
-	TAttribute<const FSlateBrush*> BorderImage;
+	FInvalidatableBrushAttribute BorderImage;
 	TAttribute<FSlateColor> BorderBackgroundColor;
 	TAttribute<FVector2D> DesiredSizeScale;
 	/** Whether or not to show the disabled effect when this border is disabled */
