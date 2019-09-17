@@ -18,7 +18,7 @@
 		{
 			"Name": "SunPosition",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PostEngineInit"
 		}
 	]
 }
