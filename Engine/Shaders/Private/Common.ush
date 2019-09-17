@@ -1212,6 +1212,17 @@ float2 ScreenPosToViewportUV(float2 ScreenPos)
 	return float2(0.5 + 0.5 * ScreenPos.x, 0.5 - 0.5 * ScreenPos.y);
 }
 
+// Maps standard viewport UV to an unprojected viewpos.
+// Viewpos can then be achieved via out.xy / out.z
+float3 ScreenToViewPos(float2 ViewportUV, float SceneDepth)
+{
+	float2 ProjViewPos;
+
+	ProjViewPos.x =  ViewportUV.x * View.ScreenToViewSpace.x  + View.ScreenToViewSpace.z;
+	ProjViewPos.y =  ViewportUV.y * View.ScreenToViewSpace.y  + View.ScreenToViewSpace.w;
+	return float3(ProjViewPos * SceneDepth, SceneDepth);
+}
+
 // ----------------------------
 
 /** 

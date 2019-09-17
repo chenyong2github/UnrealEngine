@@ -392,7 +392,36 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 		}
 		RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)SSAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, false);
 			}
+	
+			{
+				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(4, 4), PF_R8G8, FClearValueBinding::None, TexCreate_HideInVisualizeTexture, TexCreate_None | TexCreate_NoFastClear, false));
+				Desc.AutoWritable = false;
+				GRenderTargetPool.FindFreeElement(RHICmdList, Desc,GTAORandomization, TEXT("GTAORandomization"), true, ERenderTargetTransience::NonTransient);
+				// Write the contents of the texture.
+				uint32 DestStride;
+				uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)GTAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
 
+				for(int32 y = 0; y < Desc.Extent.Y; ++y)
+				{
+					for(int32 x = 0; x < Desc.Extent.X; ++x)
+					{
+						uint8* Dest = (uint8*)(DestBuffer + x * sizeof(uint16) + y * DestStride);
+			
+						float Angle  = (PI/16.0f)  * ((((x + y) & 0x3) << 2) + (x & 0x3));
+						float Step	 = 0.5f + ((1.0f/8.0f) * ((y - x) & 0x3));
+
+						float ScaleCos = FMath::Cos(Angle) * Step;
+						float ScaleSin = FMath::Sin(Angle) * Step;
+			
+						Dest[0] = (uint8_t)(ScaleCos*127.5f + 127.5f);
+						Dest[1] = (uint8_t)(ScaleSin*127.5f + 127.5f);
+					}
+
+				}
+			}
+			RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)GTAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, false);
+			
+			
 		{
 			// for testing, with 128x128 R8G8 we are very close to the reference (if lower res is needed we might have to add an offset to counter the 0.5f texel shift)
 			const bool bReference = false;
@@ -581,6 +610,7 @@ void FSystemTextures::ReleaseDynamicRHI()
 	PerlinNoise3D.SafeRelease();
 	SobolSampling.SafeRelease();
 	SSAORandomization.SafeRelease();
+	GTAORandomization.SafeRelease();
 	PreintegratedGF.SafeRelease();
 	LTCMat.SafeRelease();
 	LTCAmp.SafeRelease();
