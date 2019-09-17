@@ -73,7 +73,7 @@ void UAudioModulationStatics::ActivateBusMix(const UObject* WorldContextObject, 
 	}
 }
 
-void UAudioModulationStatics::ActivateModulator(const UObject* WorldContextObject, USoundBusModulatorBase* Modulator)
+void UAudioModulationStatics::ActivateBusModulator(const UObject* WorldContextObject, USoundBusModulatorBase* Modulator)
 {
 	UWorld* World = GetAudioWorld(WorldContextObject);
 	if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
