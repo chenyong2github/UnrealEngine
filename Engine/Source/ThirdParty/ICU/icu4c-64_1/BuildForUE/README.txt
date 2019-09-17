@@ -2,7 +2,6 @@
 This is a modified version of the ICU source tree that has the following changes:
   - UProperty has been renamed to UCharProperty to avoid conflicts with the Unreal version of UProperty.
   - The u_setDataFileFunctions function has been added to allow ICU data to be loaded with the Unreal Filesystem (see urename.h, uclean.h, and umapfile.cpp).
-  - A dummy include/sys/endian.h file has been added for platforms that ICU thinks are BSD, but actually aren't.
 
 These changes must be reapplied to any new versions of ICU, then, the header files found in source/common/unicode and source/i18n/unicode should be copied to include/unicode.
 
