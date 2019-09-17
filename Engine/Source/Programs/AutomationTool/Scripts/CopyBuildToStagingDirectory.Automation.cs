@@ -551,6 +551,9 @@ public partial class Project : CommandUtils
 
 			if (!Params.CookOnTheFly && !Params.SkipCookOnTheFly) // only stage the UFS files if we are not using cook on the fly
 			{
+				// Work out which ICU data version we use for this platform
+				var ICUDataVersion = "icudt53l";
+
 				// Initialize internationalization preset.
 				string InternationalizationPreset = GetInternationalizationPreset(Params, PlatformGameConfig);
 
@@ -558,7 +561,7 @@ public partial class Project : CommandUtils
 				List<string> CulturesToStage = GetCulturesToStage(Params, PlatformGameConfig);
 
 				// Stage ICU internationalization data from Engine.
-				SC.StageFiles(StagedFileType.UFS, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Content", "Internationalization", InternationalizationPreset), StageFilesSearch.AllDirectories, new StagedDirectoryReference("Engine/Content/Internationalization"));
+				SC.StageFiles(StagedFileType.UFS, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Content", "Internationalization", InternationalizationPreset, ICUDataVersion), StageFilesSearch.AllDirectories, new StagedDirectoryReference(String.Format("Engine/Content/Internationalization/{0}", ICUDataVersion)));
 
 				// Engine ufs (content)
 				StageConfigFiles(SC, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Config"));
