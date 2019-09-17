@@ -1056,6 +1056,7 @@ bool FMovieSceneFloatChannel::Serialize(FArchive& Ar)
 	return false;
 }
 
+#if WITH_EDITORONLY_DATA
 void FMovieSceneFloatChannel::PostSerialize(const FArchive& Ar)
 {
 	if (Ar.CustomVer(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::ModifyLinearKeysForOldInterp)
@@ -1087,3 +1088,4 @@ void FMovieSceneFloatChannel::PostSerialize(const FArchive& Ar)
 		}
 	}
 }
+#endif

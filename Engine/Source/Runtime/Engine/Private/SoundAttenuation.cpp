@@ -10,9 +10,9 @@
 	USoundAttenuation implementation.
 -----------------------------------------------------------------------------*/
 
+#if WITH_EDITORONLY_DATA
 void FSoundAttenuationSettings::PostSerialize(const FArchive& Ar)
 {
-#if WITH_EDITORONLY_DATA
 	if (Ar.UE4Ver() < VER_UE4_ATTENUATION_SHAPES)
 	{
 		FalloffDistance = RadiusMax_DEPRECATED - RadiusMin_DEPRECATED;
@@ -58,8 +58,8 @@ void FSoundAttenuationSettings::PostSerialize(const FArchive& Ar)
 			PluginSettings.ReverbPluginSettingsArray.Add(ReverbPluginSettings_DEPRECATED);
 		}
 	}
-#endif
 }
+#endif
 
 float FSoundAttenuationSettings::GetFocusPriorityScale(const struct FGlobalFocusSettings& FocusSettings, float FocusFactor) const
 {

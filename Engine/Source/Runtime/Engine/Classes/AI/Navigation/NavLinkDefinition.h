@@ -36,9 +36,6 @@ struct ENGINE_API FNavigationLinkBase
 	UPROPERTY(EditAnywhere, Category=Default, meta=(ClampMin = "0.0", DisplayName="Right Project Height"))
 	float MaxFallDownLength;
 
-	UPROPERTY(EditAnywhere, Category=Default, BlueprintReadWrite)
-	TEnumAsByte<ENavLinkDirection::Type> Direction;
-
 	/** ID passed to navigation data generator */
 	int32 UserId;
 
@@ -103,44 +100,47 @@ struct ENGINE_API FNavigationLinkBase
 	FString Description;
 #endif // WITH_EDITORONLY_DATA
 
+	UPROPERTY(EditAnywhere, Category=Default, BlueprintReadWrite)
+	TEnumAsByte<ENavLinkDirection::Type> Direction;
+
 	UPROPERTY(EditAnywhere, Category=Default, meta=(InlineEditConditionToggle))
-	uint32 bUseSnapHeight : 1;
+	uint8 bUseSnapHeight : 1;
 
 	/** If set, link will try to snap to cheapest area in given radius */
 	UPROPERTY(EditAnywhere, Category = Default)
-	uint32 bSnapToCheapestArea : 1;
+	uint8 bSnapToCheapestArea : 1;
 	
 	/** custom flag, check DescribeCustomFlags for details */
 	UPROPERTY()
-	uint32 bCustomFlag0 : 1;
+	uint8 bCustomFlag0 : 1;
 
 	/** custom flag, check DescribeCustomFlags for details */
 	UPROPERTY()
-	uint32 bCustomFlag1 : 1;
+	uint8 bCustomFlag1 : 1;
 
 	/** custom flag, check DescribeCustomFlags for details */
 	UPROPERTY()
-	uint32 bCustomFlag2 : 1;
+	uint8 bCustomFlag2 : 1;
 
 	/** custom flag, check DescribeCustomFlags for details */
 	UPROPERTY()
-	uint32 bCustomFlag3 : 1;
+	uint8 bCustomFlag3 : 1;
 
 	/** custom flag, check DescribeCustomFlags for details */
 	UPROPERTY()
-	uint32 bCustomFlag4 : 1;
+	uint8 bCustomFlag4 : 1;
 
 	/** custom flag, check DescribeCustomFlags for details */
 	UPROPERTY()
-	uint32 bCustomFlag5 : 1;
+	uint8 bCustomFlag5 : 1;
 
 	/** custom flag, check DescribeCustomFlags for details */
 	UPROPERTY()
-	uint32 bCustomFlag6 : 1;
+	uint8 bCustomFlag6 : 1;
 
 	/** custom flag, check DescribeCustomFlags for details */
 	UPROPERTY()
-	uint32 bCustomFlag7 : 1;
+	uint8 bCustomFlag7 : 1;
 
 	FNavigationLinkBase();
 
@@ -149,7 +149,9 @@ struct ENGINE_API FNavigationLinkBase
 	UClass* GetAreaClass() const;
 	bool HasMetaArea() const;
 
+#if WITH_EDITORONLY_DATA
 	void PostSerialize(const FArchive& Ar);
+#endif
 
 #if WITH_EDITOR
 	/** set up bCustomFlagX properties and expose them for edit
@@ -169,10 +171,12 @@ private:
 template<>
 struct TStructOpsTypeTraits< FNavigationLinkBase > : public TStructOpsTypeTraitsBase2< FNavigationLinkBase >
 {
+#if WITH_EDITORONLY_DATA
 	enum
 	{
 		WithPostSerialize = true,
 	};
+#endif
 };
 
 USTRUCT(BlueprintType)
@@ -221,20 +225,11 @@ struct ENGINE_API FNavigationLink : public FNavigationLinkBase
 
 		return Result;
 	}
-
-	void PostSerialize(const FArchive& Ar)
-	{
-		FNavigationLinkBase::PostSerialize(Ar);
-	}
 };
 
 template<>
-struct TStructOpsTypeTraits< FNavigationLink > : public TStructOpsTypeTraitsBase2< FNavigationLink >
+struct TStructOpsTypeTraits< FNavigationLink > : public TStructOpsTypeTraits< FNavigationLinkBase >
 {
-	enum
-	{
-		WithPostSerialize = true,
-	};
 };
 
 USTRUCT()
@@ -283,20 +278,11 @@ struct ENGINE_API FNavigationSegmentLink : public FNavigationLinkBase
 
 		return Result;
 	}
-
-	void PostSerialize(const FArchive& Ar)
-	{
-		FNavigationLinkBase::PostSerialize(Ar);
-	}
 };
 
 template<>
-struct TStructOpsTypeTraits< FNavigationSegmentLink > : public TStructOpsTypeTraitsBase2< FNavigationSegmentLink >
+struct TStructOpsTypeTraits< FNavigationSegmentLink > : public TStructOpsTypeTraits< FNavigationLinkBase >
 {
-	enum
-	{
-		WithPostSerialize = true,
-	};
 };
 
 /** Class containing definition of a navigation area */
