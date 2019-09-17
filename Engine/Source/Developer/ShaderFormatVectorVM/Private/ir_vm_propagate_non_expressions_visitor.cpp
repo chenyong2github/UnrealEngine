@@ -226,6 +226,55 @@ public:
 	{
 	}
 
+	virtual ir_visitor_status visit_enter(ir_call* call)
+	{
+		bool bFoundMatrixParam = false;
+		foreach_iter(exec_list_iterator, iter, call->actual_parameters)
+		{
+			ir_rvalue* param = (ir_rvalue*)iter.get();
+			if (param->type->is_matrix())
+			{
+				bFoundMatrixParam = true;
+				break;
+			}
+		}
+
+		if (!bFoundMatrixParam)
+		{
+			return ir_rvalue_visitor::visit_enter(call);
+		}
+
+		exec_list old_params = call->actual_parameters;
+
+		call->actual_parameters.make_empty();
+
+		//Replace any matrix params with params for their vector components.
+		//This will all be full scalarized to float derefs anyway in later passes.
+		auto add_param = [&](ir_rvalue* rval)
+		{
+			if (rval->type->is_matrix())
+			{
+				MatrixVectors& mv = MatrixVectorMap.FindChecked(rval->variable_referenced());
+				call->actual_parameters.push_tail(new(parse_state) ir_dereference_variable(mv.v[0]));
+				call->actual_parameters.push_tail(new(parse_state) ir_dereference_variable(mv.v[1]));
+				call->actual_parameters.push_tail(new(parse_state) ir_dereference_variable(mv.v[2]));
+				call->actual_parameters.push_tail(new(parse_state) ir_dereference_variable(mv.v[3]));
+			}
+			else
+			{
+				call->actual_parameters.push_tail(rval);
+			}
+		};
+
+		foreach_iter(exec_list_iterator, param_iter, old_params)
+		{
+			ir_rvalue* param = (ir_rvalue*)param_iter.get();
+			add_param(param);
+		}
+
+		return visit_continue;
+	}
+
 	virtual void handle_rvalue(ir_rvalue **rvalue)
 	{
 		if (rvalue && *rvalue)
