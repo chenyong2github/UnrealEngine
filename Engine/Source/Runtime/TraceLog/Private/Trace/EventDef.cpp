@@ -1,11 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Trace/Private/EventDef.h"
+#include "Trace/Detail/EventDef.h"
 
 #if UE_TRACE_ENABLED
 
-#include "Trace/Private/Field.h"
-#include "Trace/Private/Writer.inl"
+#include "Trace/Detail/Field.h"
+#include "Trace/Detail/Writer.inl"
 
 namespace Trace
 {

@@ -4,7 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Logging/LogMacros.h"
-#include "Trace/Private/Field.h"
+#include "Trace/Detail/Field.h"
 
 #include <memory.h>
 

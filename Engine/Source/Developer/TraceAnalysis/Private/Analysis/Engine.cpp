@@ -6,7 +6,7 @@
 #include "HAL/UnrealMemory.h"
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
-#include "Trace/Private/EventDef.h"
+#include "Trace/Detail/EventDef.h"
 #include "Transport/Transport.h"
 #include "Transport/TlsTransport.h"
 
