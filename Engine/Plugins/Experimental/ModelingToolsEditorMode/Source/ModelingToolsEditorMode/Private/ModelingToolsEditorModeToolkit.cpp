@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
+#include "IDetailRootObjectCustomization.h"
 
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
@@ -18,6 +19,34 @@
 FModelingToolsEditorModeToolkit::FModelingToolsEditorModeToolkit()
 {
 }
+
+
+
+/**
+ * Customization for Tool properties multi-object DetailsView, that just hides per-object header
+ */
+class FModelingToolsDetailRootObjectCustomization : public IDetailRootObjectCustomization
+{
+public:
+	FModelingToolsDetailRootObjectCustomization()
+	{
+	}
+
+	virtual TSharedPtr<SWidget> CustomizeObjectHeader(const UObject* InRootObject) override
+	{
+		return SNew(STextBlock).Text( FText::FromString(InRootObject->GetName())  );
+	}
+
+	virtual bool IsObjectVisible(const UObject* InRootObject) const override
+	{
+		return true;
+	}
+
+	virtual bool ShouldDisplayHeader(const UObject* InRootObject) const override
+	{
+		return false;
+	}
+};
 
 
 
@@ -40,6 +69,11 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 	DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
 
 	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+
+	// add customization that hides header labels
+	TSharedPtr<FModelingToolsDetailRootObjectCustomization> RootObjectCustomization 
+		= MakeShared<FModelingToolsDetailRootObjectCustomization>();
+	DetailsView->SetRootObjectCustomizationInstance(RootObjectCustomization);
 
 
 	ToolHeaderLabel = SNew(STextBlock)
