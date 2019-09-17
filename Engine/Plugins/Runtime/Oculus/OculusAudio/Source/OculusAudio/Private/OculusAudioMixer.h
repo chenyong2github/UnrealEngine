@@ -19,6 +19,7 @@ public:
 	~OculusAudioSpatializationAudioMixer();
 
 	void SetContext(ovrAudioContext* SharedContext);
+	void ClearContext();
 	ovrAudioContext* GetContext() { return Context; }
 
 	//~ Begin IAudioSpatialization 
