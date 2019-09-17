@@ -523,6 +523,8 @@ public:
 	virtual bool IsRayTracingRelevant() const override { return true; }
 #endif
 
+	FORCEINLINE const FMatrix& GetLocalToWorldInverse() const { return LocalToWorldInverse; }
+
 private:
 	void ReleaseRenderThreadResources();
 
@@ -530,6 +532,7 @@ private:
 	virtual void CreateRenderThreadResources() override;
 
 	//virtual void OnActorPositionChanged() override;
+	virtual void OnTransformChanged() override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
@@ -559,6 +562,8 @@ private:
 
 	bool bRenderingEnabled;
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+
+	FMatrix LocalToWorldInverse;
 
 #if STATS
 	TStatId SystemStatID;

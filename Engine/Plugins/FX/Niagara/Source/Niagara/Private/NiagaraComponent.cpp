@@ -233,6 +233,11 @@ void FNiagaraSceneProxy::CreateRenderThreadResources()
 	return;
 }
 
+void FNiagaraSceneProxy::OnTransformChanged()
+{
+	LocalToWorldInverse = GetLocalToWorld().Inverse();
+}
+
 FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* View) const
 {
 	FPrimitiveViewRelevance Relevance;
