@@ -124,7 +124,7 @@ uint32 FDDCCleanup::Run()
 
 bool FDDCCleanup::ShouldStop() const
 {
-	return StopTaskCounter.GetValue() > 0 || GIsRequestingExit;
+	return StopTaskCounter.GetValue() > 0 || IsEngineExitRequested();
 }
 
 bool FDDCCleanup::CleanupFilesystemDirectory( TSharedPtr< FFilesystemInfo > FilesystemInfo )
