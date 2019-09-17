@@ -13,13 +13,20 @@ namespace VulkanRHI
 
 class FVulkanQueue;
 
+struct FVulkanSwapChainRecreateInfo
+{
+	VkSwapchainKHR SwapChain;
+	VkSurfaceKHR Surface;
+};
+
+
 class FVulkanSwapChain
 {
 public:
 	FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevice, void* WindowHandle, EPixelFormat& InOutPixelFormat, uint32 Width, uint32 Height,
-		uint32* InOutDesiredNumBackBuffers, TArray<VkImage>& OutImages, int8 bLockToVsync);
+		uint32* InOutDesiredNumBackBuffers, TArray<VkImage>& OutImages, int8 bLockToVsync, FVulkanSwapChainRecreateInfo* RecreateInfo);
 
-	void Destroy();
+	void Destroy(FVulkanSwapChainRecreateInfo* RecreateInfo);
 
 	// Has to be negative as we use this also on other callbacks as the acquired image index
 	enum class EStatus
