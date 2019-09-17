@@ -39,7 +39,6 @@ UGameInstance::UGameInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, TimerManager(new FTimerManager(this))
 	, LatentActionManager(new FLatentActionManager())
-	, SubsystemCollection(this)
 {
 }
 
@@ -97,7 +96,7 @@ void UGameInstance::Init()
 		FNetDelegates::OnReceivedNetworkEncryptionAck.BindUObject(this, &ThisClass::ReceivedNetworkEncryptionAck);
 	}
 
-	SubsystemCollection.Initialize();
+	SubsystemCollection.Initialize(this);
 }
 
 void UGameInstance::OnConsoleInput(const FString& Command)

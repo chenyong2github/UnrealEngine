@@ -38,13 +38,12 @@ FSubsystemCollectionBase::FSubsystemCollectionBase()
 {
 }
 
-FSubsystemCollectionBase::FSubsystemCollectionBase(UObject* InOuter, TSubclassOf<USubsystem> InBaseType)
+FSubsystemCollectionBase::FSubsystemCollectionBase(TSubclassOf<USubsystem> InBaseType)
 	: BaseType(InBaseType)
-	, Outer(InOuter)
+	, Outer(nullptr)
 	, bPopulating(false)
 {
 	check(BaseType);
-	check(Outer);
 }
 
 USubsystem* FSubsystemCollectionBase::GetSubsystemInternal(TSubclassOf<USubsystem> SubsystemClass) const
@@ -89,11 +88,12 @@ const TArray<USubsystem*>& FSubsystemCollectionBase::GetSubsystemArrayInternal(T
 	return List;
 }
 
-void FSubsystemCollectionBase::Initialize()
+void FSubsystemCollectionBase::Initialize(UObject* NewOuter)
 {
+	Outer = NewOuter;
+	check(Outer);
 	if (ensure(BaseType) && ensureMsgf(SubsystemMap.Num() == 0, TEXT("Currently don't support repopulation of Subsystem Collections.")))
 	{
-		check(Outer);
 		check(!bPopulating); //Populating collections on multiple threads?
 		
 		if (SubsystemCollections.Num() == 0)
