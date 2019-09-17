@@ -282,6 +282,13 @@ namespace AudioModulation
 		{
 			DeactivateBus(Input.BusId, &InSound);
 		}
+
+		if (InSound.IsPreviewSound())
+		{
+			check(&InSound == PreviewSound);
+			PreviewSound = nullptr;
+			PreviewSettings = FModulationSettingsProxy();
+		}
 	}
 
 #if !UE_BUILD_SHIPPING
