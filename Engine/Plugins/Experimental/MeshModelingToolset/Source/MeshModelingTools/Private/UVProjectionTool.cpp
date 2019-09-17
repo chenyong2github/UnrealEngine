@@ -285,7 +285,8 @@ void UUVProjectionTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 void UUVProjectionTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
 {
-	if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UUVProjectionToolProperties, CheckerDensity))
+	// if we don't know what changed, or we know checker density changed, update checker material
+	if (!Property || Property->GetFName() == GET_MEMBER_NAME_CHECKED(UUVProjectionToolProperties, CheckerDensity))
 	{
 		CheckerMaterial->SetScalarParameterValue("Density", BasicProperties->CheckerDensity);
 	}

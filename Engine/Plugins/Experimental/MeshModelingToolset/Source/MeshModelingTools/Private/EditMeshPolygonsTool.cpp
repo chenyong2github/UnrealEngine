@@ -52,7 +52,7 @@ UPolyEditTransformProperties::UPolyEditTransformProperties()
 	bSelectVertices = true;
 	bSelectFaces = true;
 	bSelectEdges = true;
-	bRecomputePolygonGroups = false;
+	PolygonMode = EPolygonGroupMode::KeepInputPolygons;
 	PolygonGroupingAngleThreshold = .5;
 }
 
@@ -618,6 +618,17 @@ void UEditMeshPolygonsTool::Setup()
 	OnDynamicMeshComponentChangedHandle = DynamicMeshComponent->OnMeshChanged.Add(
 		FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UEditMeshPolygonsTool::OnDynamicMeshComponentChanged));
 
+
+	// add properties
+	TransformProps = NewObject<UPolyEditTransformProperties>(this);
+	TransformProps->PolygonMode = DynamicMeshComponent->GetMesh()->HasTriangleGroups() && DynamicMeshComponent->GetMesh()->MaxGroupID() > 1 ? EPolygonGroupMode::KeepInputPolygons : EPolygonGroupMode::RecomputePolygonsByAngleThreshold;
+	if (TransformProps->PolygonMode == EPolygonGroupMode::RecomputePolygonsByAngleThreshold)
+	{
+		ComputePolygons(false);
+	}
+	BackupTriangleGroups();
+	AddToolPropertySource(TransformProps);
+
 	// initialize AABBTree
 	MeshSpatial.SetMesh(DynamicMeshComponent->GetMesh());
 	PrecomputeTopology();
@@ -638,12 +649,6 @@ void UEditMeshPolygonsTool::Setup()
 	// initialize snap solver
 	QuickAxisTranslater.Initialize();
 	QuickAxisRotator.Initialize();
-
-	// add properties
-	TransformProps = NewObject<UPolyEditTransformProperties>(this);
-	TransformProps->bRecomputePolygonGroups = !DynamicMeshComponent->GetMesh()->HasTriangleGroups();
-	BackupTriangleGroups();
-	AddToolPropertySource(TransformProps);
 
 	// set up visualizers
 	PolyEdgesRenderer.LineColor = FLinearColor::Red;
@@ -1284,6 +1289,43 @@ void UEditMeshPolygonsTool::Tick(float DeltaTime)
 }
 
 
+void UEditMeshPolygonsTool::ComputePolygons(bool RecomputeTopology)
+{
+	switch (TransformProps->PolygonMode)
+	{
+	case EPolygonGroupMode::KeepInputPolygons:
+		RestoreTriangleGroups();
+		break;
+	case EPolygonGroupMode::RecomputePolygonsByAngleThreshold:
+	{
+		FDynamicMesh3* SearchMesh = DynamicMeshComponent->GetMesh();
+		FFindPolygonsAlgorithm Polygons = FFindPolygonsAlgorithm(SearchMesh);
+		double DotTolerance = 1.0 - FMathd::Cos(TransformProps->PolygonGroupingAngleThreshold * FMathd::DegToRad);
+		Polygons.FindPolygons(DotTolerance);
+		Polygons.FindPolygonEdges();
+	}
+	break;
+	case EPolygonGroupMode::PolygonsAreTriangles:
+	{
+		FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+		int GID = 0;
+		for (int TID : Mesh->TriangleIndicesItr())
+		{
+			Mesh->SetTriangleGroup(TID, GID++);
+		}
+	}
+	break;
+	}
+
+	if (RecomputeTopology)
+	{
+		PrecomputeTopology();
+		TopoSelector.Invalidate(false, true);
+		HilightSelection.Clear();
+	}
+}
+
+
 
 void UEditMeshPolygonsTool::PrecomputeTopology()
 {
@@ -1380,27 +1422,13 @@ void UEditMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UEditMeshPolygonsTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
 {
-	if (!Property) // happens on undo/redo of property modifications if object is set to be transactional
+	// if anything has changed the polygon settings, recompute polygons
+	if (Property && 
+			(Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPolyEditTransformProperties, PolygonMode)
+		  || Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPolyEditTransformProperties, PolygonGroupingAngleThreshold))
+		)
 	{
-		return;
-	}
-	if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPolyEditTransformProperties, bRecomputePolygonGroups)
-	 || (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPolyEditTransformProperties, PolygonGroupingAngleThreshold)))
-	{
-		if (TransformProps->bRecomputePolygonGroups)
-		{
-			FDynamicMesh3* SearchMesh = DynamicMeshComponent->GetMesh();
-			FFindPolygonsAlgorithm Polygons = FFindPolygonsAlgorithm(SearchMesh);
-			double DotTolerance = 1.0 - FMathd::Cos(TransformProps->PolygonGroupingAngleThreshold * FMathd::DegToRad);
-			Polygons.FindPolygons(DotTolerance);
-			Polygons.FindPolygonEdges();
-		}
-		else
-		{
-			RestoreTriangleGroups();
-		}
-		PrecomputeTopology();
-		TopoSelector.Invalidate(false, true);
+		ComputePolygons(true);
 	}
 }
 

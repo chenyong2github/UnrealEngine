@@ -82,6 +82,15 @@ enum class EQuickTransformerMode : uint8
 };
 
 
+UENUM()
+enum class EPolygonGroupMode : uint8
+{
+	KeepInputPolygons						UMETA(DisplayName = "Edit Input Polygons"),
+	RecomputePolygonsByAngleThreshold		UMETA(DisplayName = "Recompute Polygons Based on Angle Threshold"),
+	PolygonsAreTriangles					UMETA(DisplayName = "Edit Triangles Directly")
+};
+
+
 
 UCLASS()
 class MESHMODELINGTOOLS_API UPolyEditTransformProperties : public UInteractiveToolPropertySet
@@ -112,9 +121,9 @@ public:
 	bool bSelectVertices;
 
 	UPROPERTY(EditAnywhere, Category = Options)
-	bool bRecomputePolygonGroups;
+	EPolygonGroupMode PolygonMode;
 
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition="bRecomputePolygonGroups"))
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition="PolygonMode == EPolygonGroupMode::RecomputePolygonsByAngleThreshold"))
 	float PolygonGroupingAngleThreshold;
 
 	//Laplacian Deformation Options
@@ -463,6 +472,7 @@ protected:
 
 	FGroupTopology Topology;
 	void PrecomputeTopology();
+	void ComputePolygons(bool RecomputeTopology = true);
 
 	FGroupTopologySelector TopoSelector;
 	
