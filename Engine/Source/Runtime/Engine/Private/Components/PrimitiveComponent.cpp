@@ -739,6 +739,12 @@ void UPrimitiveComponent::OnCreatePhysicsState()
 			{
 				BodyTransform.SetScale3D(FVector(KINDA_SMALL_NUMBER));
 			}
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			if (FMath::IsNearlyZero(BodyScale.X) || FMath::IsNearlyZero(BodyScale.Y) || FMath::IsNearlyZero(BodyScale.Z))
+			{
+				UE_LOG(LogPhysics, Warning, TEXT("Scale for %s has a component set to zero, which will result in a bad body instance. Scale:%s"), *GetPathNameSafe(this), *BodyScale.ToString());
+			}
+#endif
 
 			// Create the body.
 			BodyInstance.InitBody(BodySetup, BodyTransform, this, GetWorld()->GetPhysicsScene());		
