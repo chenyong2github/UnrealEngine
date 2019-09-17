@@ -403,6 +403,10 @@ enum EBlendFactor
 	BF_InverseDestColor,
 	BF_ConstantBlendFactor,
 	BF_InverseConstantBlendFactor,
+	BF_Source1Color,
+	BF_InverseSource1Color,
+	BF_Source1Alpha,
+	BF_InverseSource1Alpha,
 
 	EBlendFactor_Num,
 	EBlendFactor_NumBits = 4,
@@ -1209,6 +1213,11 @@ inline bool RHISupportsShaderPipelines(EShaderPlatform Platform)
 	return !IsMobilePlatform(Platform);
 }
 
+inline bool RHISupportsDualSourceBlending(EShaderPlatform Platform)
+{
+	// For now only enable support for SM5
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform, true) || IsPS4Platform(Platform) || IsVulkanPlatform(Platform) || IsMetalPlatform(Platform));
+}
 
 // Return what the expected number of samplers will be supported by a feature level
 // Note that since the Feature Level is pretty orthogonal to the RHI/HW, this is not going to be perfect

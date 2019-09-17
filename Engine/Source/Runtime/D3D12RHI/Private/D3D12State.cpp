@@ -172,6 +172,10 @@ static D3D12_BLEND TranslateBlendFactor(EBlendFactor BlendFactor)
 	case BF_InverseDestColor: return D3D12_BLEND_INV_DEST_COLOR;
 	case BF_ConstantBlendFactor: return D3D12_BLEND_BLEND_FACTOR;
 	case BF_InverseConstantBlendFactor: return D3D12_BLEND_INV_BLEND_FACTOR;
+	case BF_Source1Color: return D3D12_BLEND_SRC1_COLOR;
+	case BF_InverseSource1Color: return D3D12_BLEND_INV_SRC1_COLOR;
+	case BF_Source1Alpha: return D3D12_BLEND_SRC1_ALPHA;
+	case BF_InverseSource1Alpha: return D3D12_BLEND_INV_SRC1_ALPHA;
 	default: return D3D12_BLEND_ZERO;
 	};
 }
@@ -191,6 +195,10 @@ static EBlendFactor ReverseTranslateBlendFactor(D3D12_BLEND BlendFactor)
 	case D3D12_BLEND_INV_DEST_COLOR: return BF_InverseDestColor;
 	case D3D12_BLEND_BLEND_FACTOR: return BF_ConstantBlendFactor;
 	case D3D12_BLEND_INV_BLEND_FACTOR: return BF_InverseConstantBlendFactor;
+	case D3D12_BLEND_SRC1_COLOR: return BF_Source1Color;
+	case D3D12_BLEND_INV_SRC1_COLOR: return BF_InverseSource1Color;
+	case D3D12_BLEND_SRC1_ALPHA: return BF_Source1Alpha;
+	case D3D12_BLEND_INV_SRC1_ALPHA: return BF_InverseSource1Alpha;
 	default: return BF_Zero;
 	};
 }
