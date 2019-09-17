@@ -15,6 +15,7 @@ class IClassTypeActions;
 class UAutomatedAssetImportData;
 class UFactory;
 class UAssetImportTask;
+struct ReportPackageData;
 
 /** Parameters for importing specific set of files */
 struct FAssetImportParams
@@ -51,7 +52,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UCLASS(transient)
 class UAssetToolsImpl : public UObject, public IAssetTools
 {
-	GENERATED_BODY()
+	GENERATED_BODY() 
 public:
 	UAssetToolsImpl(const FObjectInitializer& ObjectInitializer);
 
@@ -140,7 +141,7 @@ private:
 	void PerformAdvancedCopyPackages(TArray<FName> SelectedPackageNames, FString TargetPath) const;
 
 	/** Copies files after the final list was confirmed */
-	void MigratePackages_ReportConfirmed(TArray<FString> ConfirmedPackageNamesToMigrate) const;
+	void MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPackageData>> PackageDataToMigrate) const;
 
 	/** Copies files after the final list was confirmed */
 	void AdvancedCopyPackages_ReportConfirmed(FAdvancedCopyParams CopyParam, TArray<TMap<FString, FString>> DestinationMap) const;
