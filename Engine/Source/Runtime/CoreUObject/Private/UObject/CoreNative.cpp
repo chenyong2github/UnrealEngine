@@ -2,6 +2,7 @@
 
 #include "UObject/CoreNative.h"
 #include "Misc/CoreDelegates.h"
+#include "Modules/ModuleManager.h"
 #include "UObject/Class.h"
 #include "UObject/UnrealType.h"
 #include "Misc/PackageName.h"
