@@ -2,6 +2,7 @@
 
 #include "Movement/ParametricMovement.h"
 #include "NetworkSimulationModelDebugger.h"
+#include "HAL/IConsoleManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogParametricMovement, Log, All);
 
@@ -18,10 +19,6 @@ static FAutoConsoleVariableRef CVarUseDrawDebug(TEXT("parametricmover.Debug.UseD
 static float DrawDebugDefaultLifeTime = 30.f;
 static FAutoConsoleVariableRef CVarDrawDebugDefaultLifeTime(TEXT("parametricmover.Debug.UseDrawDebug.DefaultLifeTime"),
 	DrawDebugDefaultLifeTime, TEXT("Use built in DrawDebug* functions for visual logging"), ECVF_Default);
-
-static int32 ForceNetUpdate = 0;
-static FAutoConsoleVariableRef CVarForceNetUpdate(TEXT("parametricmover.ForceNetUpdate"),
-	DrawDebugDefaultLifeTime, TEXT("Toggles calling ForceNetUpdate each tick on Parametric movers. This is only meant for testing/debugging."), ECVF_Default);
 
 }
 
@@ -64,7 +61,7 @@ namespace ParametricMovement
 		}
 	}
 
-	void FMoveState::VisualLog(const FVisualLoggingParameters& Parameters, IParametricMovementDriver* Driver, IParametricMovementDriver* LogDriver)
+	void FMoveState::VisualLog(const FVisualLoggingParameters& Parameters, IParametricMovementDriver* Driver, IParametricMovementDriver* LogDriver) const
 	{
 		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
 		IBaseMovementDriver& LogMovementDriver = LogDriver->GetBaseMovementDriver();
@@ -103,6 +100,13 @@ IReplicationProxy* UParametricMovementComponent::InstantiateNetworkSimulation()
 #if NETSIM_MODEL_DEBUG
 	FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NetworkSim.Get(), (IParametricMovementDriver*)this, GetOwner(), TEXT("ParametricMovement"));
 #endif
+
+	if (bEnableInterpolation)
+	{
+		NetworkInterpolator.Reset(new TNetworkSimulationModelInterpolator<ParametricMovement::FMovementSystem, IParametricMovementDriver>(NetworkSim.Get(), (IParametricMovementDriver*)this));
+		NetworkSim->RepProxy_Simulated.bAllowSimulatedExtrapolation = false;
+	}
+
 	return NetworkSim.Get();
 }
 
@@ -117,7 +121,7 @@ FNetworkSimulationModelInitParameters UParametricMovementComponent::GetSimulatio
 	// These are reasonable defaults but may not be right for everyone
 	FNetworkSimulationModelInitParameters InitParams;
 	InitParams.InputBufferSize = 32; //Role != ROLE_SimulatedProxy ? 32 : 32;  // Fixme.. not good
-	InitParams.SyncedBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
+	InitParams.SyncedBufferSize = Role != ROLE_AutonomousProxy ? 4 : 32;
 	InitParams.AuxBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
 	InitParams.DebugBufferSize = 32;
 	InitParams.HistoricBufferSize = 128;
@@ -194,7 +198,15 @@ void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	TickSimulation(DeltaTime); // fixme
+	if (!bDisableParametricMovementSimulation)
+	{
+		TickSimulation(DeltaTime); // fixme
+
+		if (NetworkInterpolator.IsValid() && GetOwnerRole() == ROLE_SimulatedProxy)
+		{
+			NetworkInterpolator->Tick(DeltaTime);
+		}
+	}
 }
 
 void UParametricMovementComponent::Reconcile()
@@ -216,8 +228,12 @@ void UParametricMovementComponent::TickSimulation(float DeltaTimeSeconds)
 		NetworkSim->Tick((IParametricMovementDriver*)this, Parameters);
 	}
 
-	// TEMP
-	if (ParametricMoverCVars::ForceNetUpdate)
+	if (ParentNetUpdateFrequency > 0.f)
+	{
+		GetOwner()->NetUpdateFrequency = ParentNetUpdateFrequency;
+	}
+	
+	if (bEnableForceNetUpdate)
 	{
 		GetOwner()->ForceNetUpdate();
 	}
