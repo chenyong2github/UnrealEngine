@@ -616,3 +616,6 @@ SSplineGeneratorPanel::~SSplineGeneratorPanel()
 		ActiveTransaction ->Cancel();
 	}
 }
+
+
+#undef LOCTEXT_NAMESPACE
