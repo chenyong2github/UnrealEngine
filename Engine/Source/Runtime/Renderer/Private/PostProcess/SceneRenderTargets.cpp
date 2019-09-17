@@ -287,6 +287,7 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, DefaultDepthClear(SnapshotSource.DefaultDepthClear)
 	, QuadOverdrawIndex(SnapshotSource.QuadOverdrawIndex)
 	, bHMDAllocatedDepthTarget(SnapshotSource.bHMDAllocatedDepthTarget)
+	, bKeepDepthContent(SnapshotSource.bKeepDepthContent)
 {
 	FMemory::Memcpy(LargestDesiredSizes, SnapshotSource.LargestDesiredSizes);
 #if PREVENT_RENDERTARGET_SIZE_THRASHING
@@ -2218,6 +2219,11 @@ void FSceneRenderTargets::AllocateCommonDepthTargets(FRHICommandList& RHICmdList
 		Desc.NumSamples = GetNumSceneColorMSAASamples(CurrentFeatureLevel);
 		Desc.Flags |= GFastVRamConfig.SceneDepth;
 
+		if (!bKeepDepthContent)
+		{
+			Desc.TargetableFlags |= TexCreate_Memoryless;
+		}
+
 		// Only defer texture allocation if we're an HMD-allocated target, and we're not MSAA.
 		const bool bDeferTextureAllocation = bHMDAllocatedDepthTarget && Desc.NumSamples == 1;
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneDepthZ, TEXT("SceneDepthZ"), true, ERenderTargetTransience::Transient, bDeferTextureAllocation);
@@ -2644,6 +2650,20 @@ void FSceneRenderTargets::AllocateRenderTargets(FRHICommandListImmediate& RHICmd
 		else
 		{
 			AllocateDeferredShadingPathRenderTargets(RHICmdList, NumViews);
+		}
+	}
+	else if ((EShadingPath)CurrentShadingPath == EShadingPath::Mobile && SceneDepthZ)
+	{
+		// If the render targets are already allocated, but the keep depth content flag has changed,
+		// we need to reallocate the depth buffer.
+		uint32 DepthBufferFlags = SceneDepthZ->GetRenderTargetItem().TargetableTexture->GetFlags();
+		bool bCurrentKeepDepthContent = (DepthBufferFlags & TexCreate_Memoryless) == 0;
+		if (bCurrentKeepDepthContent != bKeepDepthContent)
+		{
+			SceneDepthZ.SafeRelease();
+			// Make sure the old depth buffer is freed by flushing the target pool.
+			GRenderTargetPool.FreeUnusedResources();
+			AllocateCommonDepthTargets(RHICmdList);
 		}
 	}
 }
