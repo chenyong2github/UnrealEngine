@@ -114,6 +114,8 @@ void FLandscapeEditorCommands::RegisterCommands()
 	UI_COMMAND(DecreaseBrushFalloff, "Decrease Brush Falloff", "Press this key to decrease brush falloff by a fixed increment.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(IncreaseBrushStrength, "Increase Brush Strength", "Press this key to increase brush strength by a fixed increment.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(DecreaseBrushStrength, "Decrease Brush Strength", "Press this key to decrease brush strength by a fixed increment.", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(IncreaseAlphaBrushRotation, "Increase Alpha Brush Rotation", "Press this key to increase alpha brush rotation by a fixed increment.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(DecreaseAlphaBrushRotation, "Decrease Alpha Brush Rotation", "Press this key to decrease alpha brush rotation by a fixed increment.", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(DragBrushSize, "Change Brush Size", "Hold this key and then click and drag to increase or decrease brush size.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(DragBrushFalloff, "Change Brush Falloff", "Hold this key and then click and drag to increase or decrease brush falloff.", EUserInterfaceActionType::RadioButton, FInputChord());
