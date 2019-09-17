@@ -242,7 +242,9 @@ bool FWindowsMixedRealityHandTracking::GetControllerOrientationAndPosition(const
 	}
 	
 	// Then call super to handle a few of the default labels, for backward compatibility
-	return FXRMotionControllerBase::GetControllerOrientationAndPosition(ControllerIndex, MotionSource, OutOrientation, OutPosition, WorldToMetersScale);
+	FXRMotionControllerBase::GetControllerOrientationAndPosition(ControllerIndex, MotionSource, OutOrientation, OutPosition, WorldToMetersScale);
+
+	return false;
 }
 
 bool FWindowsMixedRealityHandTracking::GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const
