@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
 using System;
@@ -168,7 +168,7 @@ namespace IncludeTool
 			if(NameToFile == null)
 			{
 				// Add all the files in this directory
-				Dictionary<string, WorkspaceFile> NewNameToFile = new Dictionary<string, WorkspaceFile>(StringComparer.InvariantCultureIgnoreCase);
+				Dictionary<string, WorkspaceFile> NewNameToFile = new Dictionary<string, WorkspaceFile>(StringComparer.OrdinalIgnoreCase);
 				foreach (FileInfo FileInfo in Info.EnumerateFiles())
 				{
 					WorkspaceFile File = new WorkspaceFile(FileInfo.Name, this);
@@ -205,7 +205,7 @@ namespace IncludeTool
 		{
 			if(NameToDirectory == null)
 			{
-				Dictionary<string, WorkspaceDirectory> NewNameToDirectory = new Dictionary<string, WorkspaceDirectory>(StringComparer.InvariantCultureIgnoreCase);
+				Dictionary<string, WorkspaceDirectory> NewNameToDirectory = new Dictionary<string, WorkspaceDirectory>(StringComparer.OrdinalIgnoreCase);
 				foreach(DirectoryInfo DirectoryInfo in Info.EnumerateDirectories())
 				{
 					WorkspaceDirectory Directory = new WorkspaceDirectory(DirectoryInfo, this);
