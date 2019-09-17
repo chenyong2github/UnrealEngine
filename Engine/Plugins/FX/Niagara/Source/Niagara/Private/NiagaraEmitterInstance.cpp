@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraEmitterInstance.h"
+#include "Engine/Engine.h"
 #include "Materials/Material.h"
 #include "VectorVM.h"
 #include "NiagaraStats.h"
