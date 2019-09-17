@@ -59,7 +59,7 @@ private:
 		ThreadFunction();
 
 		// busy-wait till `Self` is initialized before releasing it
-		while (!bIsInitialized);
+		while (!bIsInitialized) {}
 
 		check(Self.IsValid());
 
