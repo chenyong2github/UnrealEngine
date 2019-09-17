@@ -5,7 +5,7 @@
 	=============================================================================*/
 
 #include "D3D12RHIPrivate.h"
-
+#include "RHIResources.h"
 
 int64 FD3D12GlobalStats::GDedicatedVideoMemory = 0;
 int64 FD3D12GlobalStats::GDedicatedSystemMemory = 0;
