@@ -2761,6 +2761,14 @@ void USkeletalMeshComponent::GetSubInstancesByTag(FName InTag, TArray<UAnimInsta
 	}
 }
 
+void USkeletalMeshComponent::SetSubInstanceClassByTag(FName InTag, TSubclassOf<UAnimInstance> InClass)
+{
+	if(AnimScriptInstance)
+	{
+		AnimScriptInstance->SetSubInstanceClassByTag(InTag, InClass);
+	}
+}
+
 void USkeletalMeshComponent::SetLayerOverlay(TSubclassOf<UAnimInstance> InClass)
 {
 	if(AnimScriptInstance)
