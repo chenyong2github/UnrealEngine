@@ -43,9 +43,8 @@ void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimN
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	if(InRootNode != nullptr)
 	{
-		if (FrameCounterForNodeUpdate != GFrameCounter)
+		if (InRootNode == RootNode)
 		{
-			FrameCounterForNodeUpdate = GFrameCounter;
 			UpdateCounter.Increment();
 		}
 		
@@ -265,7 +264,10 @@ void FAnimInstanceProxy::InitializeRootNode_WithRoot(FAnimNode_Base* InRootNode)
 
 	if (InRootNode != nullptr)
 	{
-		InitializationCounter.Increment();
+		if(InRootNode == RootNode)
+		{
+			InitializationCounter.Increment();
+		}
 		FAnimationInitializeContext InitContext(this);
 		InRootNode->Initialize_AnyThread(InitContext);
 	}
@@ -1281,7 +1283,10 @@ void FAnimInstanceProxy::CacheBones_WithRoot(FAnimNode_Base* InRootNode)
 	{
 		CacheBonesRecursionCounter++;
 
-		CachedBonesCounter.Increment();
+		if(InRootNode == RootNode)
+		{
+			CachedBonesCounter.Increment();
+		}
 		FAnimationCacheBonesContext Context(this);
 		InRootNode->CacheBones_AnyThread(Context);
 
@@ -1306,7 +1311,10 @@ void FAnimInstanceProxy::EvaluateAnimationNode_WithRoot(FPoseContext& Output, FA
 	if (InRootNode != NULL)
 	{
 		ANIM_MT_SCOPE_CYCLE_COUNTER(EvaluateAnimGraph, !IsInGameThread());
-		EvaluationCounter.Increment();
+		if(InRootNode == RootNode)
+		{
+			EvaluationCounter.Increment();
+		}
 		InRootNode->Evaluate_AnyThread(Output);
 	}
 	else
