@@ -41,9 +41,9 @@ uint8* FItemPropertyNode::GetValueBaseAddress( uint8* StartAddress )
 		if (OuterArrayProp != nullptr)
 		{
 			FScriptArrayHelper ArrayHelper(OuterArrayProp, ValueBaseAddress);
-			if (ValueBaseAddress != nullptr && ArrayHelper.Num() > 0)
+			if (ValueBaseAddress != nullptr && ArrayHelper.IsValidIndex(ArrayIndex))
 			{
-				return ArrayHelper.GetRawPtr() + ArrayOffset;
+				return ArrayHelper.GetRawPtr(ArrayIndex);
 			}
 		}
 		else if (OuterSetProp != nullptr)
