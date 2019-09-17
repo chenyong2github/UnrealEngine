@@ -27,6 +27,14 @@
 #include "Logging/MessageLog.h"
 #endif
 
+// these strings are parsed by Gauntlet (AutomationLogParser) so make sure changes are replicated there!
+#define AutomationTestStarting		TEXT("Test Started. Name=(%s)")
+#define AutomationSuccessFormat		TEXT("Test Completed. Result=(Passed) Name=(%s) Path=(%s)")
+#define AutomationFailureFormat		TEXT("Test Completed. Result=(Failed) Name=(%s) Path=(%s)")
+
+#define BeginEventsFormat			TEXT("BeginEvents: %s")
+#define EndEventsFormat				TEXT("EndEvents: %s")
+
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationController, Log, All)
 
 FAutomationControllerManager::FAutomationControllerManager()
@@ -485,7 +493,7 @@ void FAutomationControllerManager::ExecuteNextTask( int32 ClusterIndex, OUT bool
 						{
 							FAutomationTestResults TestResults;
 
-							UE_LOG(LogAutomationController, Display, TEXT("Running Automation: '%s' (Class Name: '%s')"), *TestsRunThisPass[AddressIndex]->GetFullTestPath(), *TestsRunThisPass[AddressIndex]->GetCommand());
+							UE_LOG(LogAutomationController, Display, AutomationTestStarting, *TestsRunThisPass[AddressIndex]->GetDisplayName(), *TestsRunThisPass[AddressIndex]->GetCommand());
 							TestResults.State = EAutomationState::InProcess;
 
 							if (CheckpointFile)
@@ -1081,11 +1089,6 @@ void FAutomationControllerManager::HandleRequestTestsReplyCompleteMessage(const 
 
 void FAutomationControllerManager::ReportAutomationResult(const TSharedPtr<IAutomationReport> InReport, int32 ClusterIndex, int32 PassIndex)
 {
-	// these strings are parsed by Gauntlet (AutomationLogParser) so make sure changes are replicated there!
-	#define AutomationSuccessFormat		TEXT("Automation Test Succeeded (%s - %s)")
-	#define AutomationFailureFormat		TEXT("Automation Test Failed (%s - %s)")
-	#define BeginEventsFormat			TEXT("BeginEvents: %s")
-	#define EndEventsFormat				TEXT("EndEvents: %s")
 
 	FName CategoryName = "LogAutomationController";
 #if WITH_EDITOR
