@@ -1371,6 +1371,10 @@ public:
 		return false;
 	}
 
+	static void HidePlatformStartupScreen()
+	{
+	}
+
 protected:
 	/** Whether the user should be prompted to allow for a remote debugger to be attached */
 	static bool bShouldPromptForRemoteDebugging;
