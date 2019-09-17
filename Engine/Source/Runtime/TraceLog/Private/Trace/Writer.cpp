@@ -7,7 +7,9 @@
 #include "Trace/Platform.h"
 #include "Trace/Private/Atomic.h"
 #include "Trace/Trace.h"
+
 #include "Misc/CString.h"
+#include "Templates/UnrealTemplate.h"
 
 #if PLATFORM_CPU_X86_FAMILY
 	#include <emmintrin.h>
