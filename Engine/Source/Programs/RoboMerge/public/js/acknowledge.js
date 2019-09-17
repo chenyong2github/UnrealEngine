@@ -1,3 +1,4 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 function acknowledge() {
     let queryParams = processQueryParameters(['bot', 'branch', 'cl'])
     if (!queryParams) return;
