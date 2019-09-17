@@ -111,7 +111,9 @@ struct FFoliageStaticMesh : public FFoliageImpl
 	virtual void PostUpdateInstances() override;
 	virtual bool IsOwnedComponent(const UPrimitiveComponent* HitComponent) const override;
 
-	virtual void SelectInstances(bool bSelect, int32 InstanceIndex, int32 Count) override;
+	virtual void SelectAllInstances(bool bSelect) override;
+	virtual void SelectInstance(bool bSelect, int32 Index) override;
+	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) override;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) override;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) override;
 
@@ -1015,10 +1017,27 @@ bool FFoliageStaticMesh::IsOwnedComponent(const UPrimitiveComponent* HitComponen
 	return Component == HitComponent;
 }
 
-void FFoliageStaticMesh::SelectInstances(bool bSelect, int32 InstanceIndex, int32 Count)
+void FFoliageStaticMesh::SelectAllInstances(bool bSelect)
 {
 	check(Component);
-	Component->SelectInstance(bSelect, InstanceIndex, Count);
+	Component->SelectInstance(bSelect, 0, Component->GetInstanceCount());
+	Component->MarkRenderStateDirty();
+}
+
+void FFoliageStaticMesh::SelectInstance(bool bSelect, int32 Index)
+{
+	check(Component);
+	Component->SelectInstance(bSelect, Index);
+	Component->MarkRenderStateDirty();
+}
+
+void FFoliageStaticMesh::SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices)
+{
+	check(Component);
+	for (int32 i : SelectedIndices)
+	{
+		Component->SelectInstance(bSelect, i);
+	}
 	Component->MarkRenderStateDirty();
 }
 
@@ -1881,6 +1900,8 @@ void FFoliageInfo::PostUpdateInstances(AInstancedFoliageActor* InIFA, const TArr
 {
 	if (InInstancesUpdated.Num())
 	{
+		TSet<int32> UpdateSelectedIndices;
+		UpdateSelectedIndices.Reserve(InInstancesUpdated.Num());
 		for (TArray<int32>::TConstIterator It(InInstancesUpdated); It; ++It)
 		{
 			int32 InstanceIndex = *It;
@@ -1899,8 +1920,13 @@ void FFoliageInfo::PostUpdateInstances(AInstancedFoliageActor* InIFA, const TArr
 			// Reselect the instance to update the render update to include selection as by default it gets removed
 			if (InUpdateSelection)
 			{
-				Implementation->SelectInstances(true, InstanceIndex, 1);
+				UpdateSelectedIndices.Add(InstanceIndex);
 			}
+		}
+
+		if (UpdateSelectedIndices.Num() > 0)
+		{
+			Implementation->SelectInstances(true, UpdateSelectedIndices);
 		}
 
 		Implementation->PostUpdateInstances();
@@ -2075,7 +2101,7 @@ void FFoliageInfo::SelectInstances(AInstancedFoliageActor* InIFA, bool bSelect)
 				SelectedIndices.Add(i);
 			}
 
-			Implementation->SelectInstances(true, 0, SelectedIndices.Num());
+			Implementation->SelectAllInstances(true);
 		}
 		else
 		{
@@ -2089,6 +2115,8 @@ void FFoliageInfo::SelectInstances(AInstancedFoliageActor* InIFA, bool bSelect, 
 {
 	if (InInstances.Num())
 	{
+		TSet<int32> ModifiedSelection;
+		ModifiedSelection.Reserve(InInstances.Num());
 		check(Implementation->IsInitialized());
 		if (bSelect)
 		{
@@ -2099,7 +2127,7 @@ void FFoliageInfo::SelectInstances(AInstancedFoliageActor* InIFA, bool bSelect, 
 			for (int32 i : InInstances)
 			{
 				SelectedIndices.Add(i);
-				Implementation->SelectInstances(true, i, 1);
+				ModifiedSelection.Add(i);
 			}
 		}
 		else
@@ -2109,13 +2137,11 @@ void FFoliageInfo::SelectInstances(AInstancedFoliageActor* InIFA, bool bSelect, 
 			for (int32 i : InInstances)
 			{
 				SelectedIndices.Remove(i);
-			}
-
-			for (int32 i : InInstances)
-			{
-				Implementation->SelectInstances(false, i, 1);
+				ModifiedSelection.Add(i);
 			}
 		}
+
+		Implementation->SelectInstances(bSelect, ModifiedSelection);
 	}
 }
 
@@ -3043,7 +3069,7 @@ void AInstancedFoliageActor::SelectInstance(AActor* InActor, bool bToggle)
 		{
 			bool bIsSelected = Info->SelectedIndices.Contains(index);
 
-			FoliageActor->SelectInstances(false, index, 1);
+			FoliageActor->SelectInstance(false, index);
 			
 			if (bIsSelected)
 			{
@@ -3053,7 +3079,7 @@ void AInstancedFoliageActor::SelectInstance(AActor* InActor, bool bToggle)
 			if (!bToggle || !bIsSelected)
 			{
 				// Add the selection
-				FoliageActor->SelectInstances(true, index, 1);
+				FoliageActor->SelectInstance(true, index);
 
 				Info->SelectedIndices.Add(index);
 			}
