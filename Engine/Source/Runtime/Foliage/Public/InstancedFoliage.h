@@ -318,6 +318,8 @@ struct FFoliageInfo
 	FOLIAGE_API void ExitEditMode();
 
 	FOLIAGE_API void RemoveBaseComponentOnInstances();
+	FOLIAGE_API void IncludeActor(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType, AActor* InActor);
+	FOLIAGE_API void ExcludeActors();
 #endif
 
 	friend FArchive& operator<<(FArchive& Ar, FFoliageInfo& MeshInfo);
