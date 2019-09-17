@@ -2211,6 +2211,18 @@ void FSceneView::SetupViewRectUniformBufferParameters(FViewUniformShaderParamete
 		ViewUniformShaderParameters.AdaptiveTessellationFactor = 0.5f * InViewMatrices.GetProjectionMatrix().M[1][1] * float(EffectiveViewRect.Height()) / TessellationAdaptivePixelsPerEdge;
 	}
 
+	// Compute coefficients which takes a screen UV and converts to Viewspace.xy / ViewZ
+	float InvTanHalfFov = InViewMatrices.GetProjectionMatrix().M[0][0];
+	float Ratio = UnscaledViewRect.Width() / (float)UnscaledViewRect.Height();
+
+	float InvFovFixX = 1.0f / (InvTanHalfFov);
+	float InvFovFixY = 1.0f / (Ratio * InvTanHalfFov);
+
+	ViewUniformShaderParameters.ScreenToViewSpace.X = BufferSize.X * ViewUniformShaderParameters.ViewSizeAndInvSize.Z * 2 * InvFovFixX;
+	ViewUniformShaderParameters.ScreenToViewSpace.Y = BufferSize.Y * ViewUniformShaderParameters.ViewSizeAndInvSize.W  * -2 * InvFovFixY;
+
+	ViewUniformShaderParameters.ScreenToViewSpace.Z = -((ViewUniformShaderParameters.ViewRectMin.X * ViewUniformShaderParameters.ViewSizeAndInvSize.Z * 2 * InvFovFixX) + InvFovFixX);
+	ViewUniformShaderParameters.ScreenToViewSpace.W = (ViewUniformShaderParameters.ViewRectMin.Y * ViewUniformShaderParameters.ViewSizeAndInvSize.W * 2 * InvFovFixY) + InvFovFixY;
 }
 
 void FSceneView::SetupCommonViewUniformBufferParameters(
