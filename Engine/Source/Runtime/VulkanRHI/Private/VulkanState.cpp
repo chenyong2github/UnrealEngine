@@ -106,6 +106,10 @@ static inline VkBlendFactor BlendFactorToVulkan(EBlendFactor InFactor)
 		case BF_InverseDestColor:			return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
 		case BF_ConstantBlendFactor:		return VK_BLEND_FACTOR_CONSTANT_COLOR;
 		case BF_InverseConstantBlendFactor:	return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
+		case BF_Source1Color:				return VK_BLEND_FACTOR_SRC1_COLOR;
+		case BF_InverseSource1Color:		return VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
+		case BF_Source1Alpha:				return VK_BLEND_FACTOR_SRC1_ALPHA;
+		case BF_InverseSource1Alpha:		return VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
 		default:
 			break;
 	}
