@@ -982,6 +982,15 @@ TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> UNiagaraComponent::Get
 	return nullptr;
 }
 
+void UNiagaraComponent::OnEndOfFrameUpdateDuringTick()
+{
+	Super::OnEndOfFrameUpdateDuringTick();
+	if ( SystemInstance )
+	{
+		SystemInstance->WaitForAsyncTick(true);
+	}
+}
+
 void UNiagaraComponent::CreateRenderState_Concurrent()
 {
 	Super::CreateRenderState_Concurrent();
