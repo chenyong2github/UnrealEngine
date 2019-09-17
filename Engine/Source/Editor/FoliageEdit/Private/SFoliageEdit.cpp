@@ -1058,7 +1058,7 @@ void SFoliageEdit::OnSingleInstantiationPlacementModeChanged(int32 InMode)
 	FoliageEditMode->UISettings.SetSingleInstantiationPlacementMode(EFoliageSingleInstantiationPlacementMode::Type(InMode));
 }
 
-TSharedRef<SWidget> SFoliageEdit::GetSingleInstantiationModeMenuContent() const
+TSharedRef<SWidget> SFoliageEdit::GetSingleInstantiationModeMenuContent()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
