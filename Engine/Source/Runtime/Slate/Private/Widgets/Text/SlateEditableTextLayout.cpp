@@ -1110,7 +1110,7 @@ FReply FSlateEditableTextLayout::HandleKeyDown(const FKeyEvent& InKeyEvent)
 
 FReply FSlateEditableTextLayout::HandleKeyUp(const FKeyEvent& InKeyEvent)
 {
-	if (FPlatformApplicationMisc::RequiresVirtualKeyboard() && FSlateApplication::Get().GetNavigationActionForKey(InKeyEvent.GetKey()) == EUINavigationAction::Accept)
+	if (FPlatformApplicationMisc::RequiresVirtualKeyboard() && FSlateApplication::Get().GetNavigationActionFromKey(InKeyEvent) == EUINavigationAction::Accept)
 	{
 		if (!OwnerWidget->IsTextReadOnly())
 		{
@@ -2485,6 +2485,29 @@ void FSlateEditableTextLayout::ScrollTo(const FTextLocation& NewLocation)
 			OwnerWidget->EnsureActiveTick();
 		}
 	}
+}
+
+void FSlateEditableTextLayout::ScrollTo(const ETextLocation NewLocation)
+{
+	const TArray< FTextLayout::FLineModel >& Lines = TextLayout->GetLineModels();
+
+	FTextLocation ResolvedTextLocation;
+	switch (NewLocation)
+	{
+	case ETextLocation::BeginningOfDocument:
+		ResolvedTextLocation = FTextLocation(0);
+		break;
+
+	case ETextLocation::EndOfDocument:
+		ResolvedTextLocation = FTextLocation(FMath::Max(0, Lines.Num() - 1));
+		break;
+
+	default:
+		checkf(false, TEXT("Unsupported ETextLocation mode passed to ScrollTo!"));
+		break;
+	}
+
+	ScrollTo(ResolvedTextLocation);
 }
 
 void FSlateEditableTextLayout::UpdateCursorHighlight()

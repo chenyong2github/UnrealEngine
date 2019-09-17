@@ -270,6 +270,7 @@ FString FChangePolygonsVertexInstancesChange::ToString() const
 }
 
 
+#if 0
 TUniquePtr<FChange> FSetEdgesVerticesChange::Execute( UObject* Object )
 {
 	UEditableMesh* EditableMesh = CastChecked<UEditableMesh>( Object );
@@ -327,6 +328,7 @@ FString FRemovePolygonPerimeterVerticesChange::ToString() const
 		Input.FirstVertexNumberToRemove,
 		Input.NumVerticesToRemove );
 }
+#endif
 
 
 TUniquePtr<FChange> FStartOrEndModificationChange::Execute( UObject* Object )

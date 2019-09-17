@@ -407,9 +407,9 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 		int32 DotIndex = INDEX_NONE;
 		if (Path.FindChar('.', DotIndex))
 		{
-			FString PackageName = FPackageName::ObjectPathToPackageName(Path);
+			FString PackageName = Path.Mid(0, DotIndex); //avoid re-searching for index inside FPackageName::ObjectPathToPackageName
 
-			PackageNames.AddUnique(PackageName);
+			PackageNames.AddUnique(MoveTemp(PackageName));
 		}
 		else
 		{
@@ -524,14 +524,15 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 			else
 			{
 				// Warn that 'Foo' conflicts with 'Bar', but only once per conflict
-				static TSet<FString> IssuedWarnings;
+				static TSet<TPair<FPrimaryAssetType, FPrimaryAssetType>> IssuedWarnings;
 
-				FString ConflictMsg = FString::Printf(TEXT("Ignoring PrimaryAssetType %s - Conflicts with %s"), *PrimaryAssetType.ToString(), *PrimaryAssetId.PrimaryAssetType.ToString());
-
-				if (!IssuedWarnings.Contains(ConflictMsg))
+				TTuple<FPrimaryAssetType, FPrimaryAssetType> ConflictPair(PrimaryAssetType, PrimaryAssetId.PrimaryAssetType);
+				if (!IssuedWarnings.Contains(ConflictPair))
 				{
+					FString ConflictMsg = FString::Printf(TEXT("Ignoring PrimaryAssetType %s - Conflicts with %s"), *PrimaryAssetType.ToString(), *PrimaryAssetId.PrimaryAssetType.ToString());
+
 					UE_LOG(LogAssetManager, Display, TEXT("%s"), *ConflictMsg);
-					IssuedWarnings.Add(ConflictMsg);
+					IssuedWarnings.Add(ConflictPair);
 				}
 			}
 			continue;
@@ -2629,6 +2630,8 @@ void UAssetManager::ScanPrimaryAssetTypesFromConfig()
 			continue;
 		}
 
+		UE_CLOG(AssetTypeMap.Find(TypeInfo.PrimaryAssetType), LogAssetManager, Error, TEXT("Found multiple \"%s\" Primary Asset Type entries in \"Primary Asset Types To Scan\" config. Only a single entry per type is supported."), *TypeInfo.PrimaryAssetType.ToString());
+
 		ScanPathsForPrimaryAssets(TypeInfo.PrimaryAssetType, TypeInfo.AssetScanPaths, TypeInfo.AssetBaseClassLoaded, TypeInfo.bHasBlueprintClasses, TypeInfo.bIsEditorOnly, false);
 
 		SetPrimaryAssetTypeRules(TypeInfo.PrimaryAssetType, TypeInfo.Rules);
@@ -2796,7 +2799,7 @@ bool UAssetManager::IsPathExcludedFromScan(const FString& Path) const
 {
 	const UAssetManagerSettings& Settings = GetSettings();
 
-	for (const FDirectoryPath& ExcludedPath : GetSettings().DirectoriesToExclude)
+	for (const FDirectoryPath& ExcludedPath : Settings.DirectoriesToExclude)
 	{
 		if (Path.Contains(ExcludedPath.Path))
 		{

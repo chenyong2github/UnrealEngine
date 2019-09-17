@@ -111,7 +111,7 @@ namespace UnrealBuildTool.Rules
             else
             {
 				// In platforms that don't support Embree, we implement no-op versions of the functions.
-                string SDKDir = Target.UEThirdPartySourceDirectory + "IntelEmbree/Embree2140/Win64/";
+                string SDKDir = Target.UEThirdPartySourceDirectory + "IntelEmbree/Embree2140/";
                 PublicIncludePaths.Add(SDKDir + "include");
                 PublicDefinitions.Add("USE_EMBREE=0");
 				PrivateDefinitions.Add("EMBREE_STATIC_LIB=1");

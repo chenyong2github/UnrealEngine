@@ -145,6 +145,9 @@ FRDGTextureRef AddLensFlaresPass(
 	{
 		FRDGTextureDesc BlurOutputDesc = Inputs.FlareTexture->Desc;
 		BlurOutputDesc.Reset();
+
+		// More precision for additive blend.
+		BlurOutputDesc.Format = PF_FloatRGBA;
 		BlurOutputDesc.ClearValue = FClearValueBinding(FLinearColor::Transparent);
 
 		BlurOutputTexture = GraphBuilder.CreateTexture(BlurOutputDesc, TEXT("LensFlareBlur"));

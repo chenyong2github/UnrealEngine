@@ -9,6 +9,8 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 
 #include "Interfaces/IBuildPatchServicesModule.h"
+#include "BuildPatchSettings.h"
+#include "BuildPatchServicesSingleton.h"
 #include "Interfaces/IHttpResponse.h"
 #include "HttpModule.h"
 #include "IPlatformFilePak.h"
@@ -241,7 +243,7 @@ float UMobilePendingContent::GetInstallProgress()
 	return 0.0f;
 }
 
-static void OnInstallComplete(bool bSuccess, IBuildManifestRef RemoteManifest, UMobilePendingContent* MobilePendingContent, FOnContentInstallSucceeded OnSucceeded, FOnContentInstallFailed OnFailed)
+static void OnInstallComplete(const IBuildInstallerRef& Installer, UMobilePendingContent* MobilePendingContent, FOnContentInstallSucceeded OnSucceeded, FOnContentInstallFailed OnFailed)
 {
 	if (MobilePendingContent == nullptr)
 	{
@@ -250,19 +252,19 @@ static void OnInstallComplete(bool bSuccess, IBuildManifestRef RemoteManifest, U
 		return;
 	}
 	
-	if (bSuccess)
+	if (Installer->CompletedSuccessfully())
 	{
 		IBuildPatchServicesModule* BuildPatchServices = GetBuildPatchServices();
 		FString ManifestFilename = FPaths::GetCleanFilename(MobilePendingContent->RemoteManifestURL);
 		FString ManifestFullFilename = MobilePendingContent->InstallDir / ManifestFilename;
 		
-		if (!BuildPatchServices->SaveManifestToFile(ManifestFullFilename, RemoteManifest))
+		if (!BuildPatchServices->SaveManifestToFile(ManifestFullFilename, MobilePendingContent->RemoteManifest.ToSharedRef()))
 		{
 			UE_LOG(LogMobilePatchingUtils, Error, TEXT("Failed to save manifest to disk. %s"), *ManifestFullFilename);
 		}
 
 		// Installed content updated
-		MobilePendingContent->InstalledManifest = RemoteManifest;
+		MobilePendingContent->InstalledManifest = MobilePendingContent->RemoteManifest;
 		OnSucceeded.ExecuteIfBound();
 	}
 	else
@@ -296,9 +298,16 @@ void UMobilePendingContent::StartInstall(FOnContentInstallSucceeded OnSucceeded,
 	UE_LOG(LogMobilePatchingUtils, Log, TEXT("Required disk space = %.2f MB"), RequiredDiskSpace);
 	UE_LOG(LogMobilePatchingUtils, Log, TEXT("Disk free space = %.2f MB"), DiskFreeSpace);
 
-	BuildPatchServices->SetCloudDirectory(CloudURL);
-	BuildPatchServices->SetStagingDirectory(StageDir);
-	Installer = BuildPatchServices->StartBuildInstall(InstalledManifest, RemoteManifest, InstallDir, FBuildPatchBoolManifestDelegate::CreateStatic(&OnInstallComplete, this, OnSucceeded, OnFailed));
+	TArray<BuildPatchServices::FInstallerAction> InstallerActions;
+	InstallerActions.Add(BuildPatchServices::FInstallerAction::MakeInstallOrUpdate(InstalledManifest, RemoteManifest.ToSharedRef(), TSet<FString>()));
+
+	BuildPatchServices::FBuildInstallerConfiguration Configuration(MoveTemp(InstallerActions));
+	Configuration.StagingDirectory = StageDir;
+	Configuration.CloudDirectories = { CloudURL };
+	Configuration.InstallDirectory = InstallDir;
+
+	Installer = BuildPatchServices->CreateBuildInstaller(Configuration, FBuildPatchInstallerDelegate::CreateStatic(OnInstallComplete, this, OnSucceeded, OnFailed));
+	Installer->StartInstallation();
 }
 
 void UMobilePendingContent::BeginDestroy()

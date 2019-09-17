@@ -1259,10 +1259,9 @@ void USceneComponent::SetRelativeRotationExact(FRotator NewRotation, bool bSweep
 	{
 		// We know the rotations are different, don't bother with the cache.
 		const FQuat NewQuat = NewRotation.Quaternion();
-     	SetRelativeLocationAndRotation(RelativeLocation, NewQuat, bSweep, OutSweepHitResult, Teleport);
-		RelativeRotation = NewRotation;
-		
+     	SetRelativeLocationAndRotation(RelativeLocation, NewQuat, bSweep, OutSweepHitResult, Teleport);		
 	}
+	RelativeRotation = NewRotation;
 }
 
 void USceneComponent::SetRelativeRotation(FRotator NewRotation, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)

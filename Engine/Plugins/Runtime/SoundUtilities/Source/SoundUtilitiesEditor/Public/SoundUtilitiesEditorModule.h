@@ -4,9 +4,6 @@
 
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "SoundWaveAssetActionExtender.h"
-
-class ISoundWaveAssetActionExtensions;
 
 class FSoundUtilitiesEditorModule : public IModuleInterface
 {
@@ -16,5 +13,6 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	TSharedPtr<ISoundWaveAssetActionExtensions> SoundWaveAssetActionExtender;
+private:
+	void RegisterMenus();
 };

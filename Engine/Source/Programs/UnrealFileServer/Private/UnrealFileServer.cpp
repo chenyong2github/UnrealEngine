@@ -41,7 +41,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 	// loop while the server does the rest
 	double LastTime = FPlatformTime::Seconds();
 	
-	while (!GIsRequestingExit)
+	while (!IsEngineExitRequested())
 	{
 		// let some time pass
 		FPlatformProcess::Sleep(1.0f);

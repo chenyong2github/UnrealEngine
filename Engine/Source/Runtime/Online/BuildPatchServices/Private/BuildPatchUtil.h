@@ -14,6 +14,7 @@ namespace BuildPatchServices
 	struct FChunkHeader;
 	class IFileSystem;
 	struct FManifestMeta;
+	class IBuildManifestSet;
 }
 
 enum class EBuildPatchDataType
@@ -23,6 +24,7 @@ enum class EBuildPatchDataType
 	// Represents data produced by the nochunks patch generation mode, which has deprecated.
 	FileData    = 1,
 };
+
 
 // A delegate taking a float. Used to receive progress.
 DECLARE_DELEGATE_OneParam(FBuildPatchFloatDelegate, float);
@@ -106,6 +108,7 @@ struct FBuildPatchUtils
 	 */
 	static FString GetDataFilename(const FBuildPatchAppManifestRef& Manifest, const FString& RootDirectory, const FGuid& DataGUID);
 	static FString GetDataFilename(const FBuildPatchAppManifest&    Manifest, const FString& RootDirectory, const FGuid& DataGUID);
+	//static FString GetDataFilename(IBuildManifestSet* ManifestSet, const FString& RootDirectory, const FGuid& DataGUID);
 
 	/**
 	 * Gets the GUID for a data file according to it's filename (new or old)

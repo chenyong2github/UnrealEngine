@@ -79,7 +79,12 @@ void UMovieSceneParticleParameterTrack::AddScalarParameterKey( FName ParameterNa
 	if ( NearestSection == nullptr )
 	{
 		NearestSection = Cast<UMovieSceneParameterSection>(CreateNewSection());
-		NearestSection->SetRange(TRange<FFrameNumber>::Inclusive(Time, Time));
+
+		UMovieScene* MovieScene = GetTypedOuter<UMovieScene>();
+		check(MovieScene);
+
+		NearestSection->SetRange(MovieScene->GetPlaybackRange());
+
 		Sections.Add( NearestSection );
 	}
 	NearestSection->AddScalarParameterKey(ParameterName, Time, Value);
@@ -91,7 +96,12 @@ void UMovieSceneParticleParameterTrack::AddVectorParameterKey( FName ParameterNa
 	if ( NearestSection == nullptr )
 	{
 		NearestSection = Cast<UMovieSceneParameterSection>( CreateNewSection() );
-		NearestSection->SetRange(TRange<FFrameNumber>::Inclusive(Time, Time));
+
+		UMovieScene* MovieScene = GetTypedOuter<UMovieScene>();
+		check(MovieScene);
+
+		NearestSection->SetRange(MovieScene->GetPlaybackRange());
+
 		Sections.Add( NearestSection );
 	}
 	NearestSection->AddVectorParameterKey( ParameterName, Time, Value );
@@ -103,7 +113,12 @@ void UMovieSceneParticleParameterTrack::AddColorParameterKey( FName ParameterNam
 	if ( NearestSection == nullptr )
 	{
 		NearestSection = Cast<UMovieSceneParameterSection>( CreateNewSection() );
-		NearestSection->SetRange(TRange<FFrameNumber>::Inclusive(Time, Time));
+
+		UMovieScene* MovieScene = GetTypedOuter<UMovieScene>();
+		check(MovieScene);
+
+		NearestSection->SetRange(MovieScene->GetPlaybackRange());
+
 		Sections.Add( NearestSection );
 	}
 	NearestSection->AddColorParameterKey( ParameterName, Time, Value );

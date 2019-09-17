@@ -2525,11 +2525,12 @@ FBoxSphereBounds USkeletalMeshComponent::CalcBounds(const FTransform& LocalToWor
 		if (bIncludeComponentLocationIntoBounds)
 		{
 			const FVector ComponentLocation = GetComponentLocation();
-			return CachedLocalBounds.TransformBy(LocalToWorld) + FBoxSphereBounds(ComponentLocation, FVector(1.0f), 1.0f);
+			return CachedWorldSpaceBounds.TransformBy(CachedWorldToLocalTransform * LocalToWorld.ToMatrixWithScale()) 
+			        + FBoxSphereBounds(ComponentLocation, FVector(1.0f), 1.0f);
 		}
 		else
 		{
-			return CachedLocalBounds.TransformBy(LocalToWorld);
+			return CachedWorldSpaceBounds.TransformBy(CachedWorldToLocalTransform * LocalToWorld.ToMatrixWithScale());
 		}
 	}
 	// Calculate new bounds
@@ -2565,7 +2566,8 @@ FBoxSphereBounds USkeletalMeshComponent::CalcBounds(const FTransform& LocalToWor
 #endif// #if WITH_APEX_CLOTHING
 
 		bCachedLocalBoundsUpToDate = true;
-		CachedLocalBounds = NewBounds.TransformBy(LocalToWorld.ToInverseMatrixWithScale());
+		CachedWorldSpaceBounds = NewBounds;
+		CachedWorldToLocalTransform = LocalToWorld.ToInverseMatrixWithScale();
 
 		return NewBounds;
 	}
@@ -2759,6 +2761,14 @@ void USkeletalMeshComponent::GetSubInstancesByTag(FName InTag, TArray<UAnimInsta
 	}
 }
 
+void USkeletalMeshComponent::SetSubInstanceClassByTag(FName InTag, TSubclassOf<UAnimInstance> InClass)
+{
+	if(AnimScriptInstance)
+	{
+		AnimScriptInstance->SetSubInstanceClassByTag(InTag, InClass);
+	}
+}
+
 void USkeletalMeshComponent::SetLayerOverlay(TSubclassOf<UAnimInstance> InClass)
 {
 	if(AnimScriptInstance)
@@ -2767,11 +2777,28 @@ void USkeletalMeshComponent::SetLayerOverlay(TSubclassOf<UAnimInstance> InClass)
 	}
 }
 
+void USkeletalMeshComponent::ClearLayerOverlay(TSubclassOf<UAnimInstance> InClass)
+{
+	if(AnimScriptInstance)
+	{
+		AnimScriptInstance->ClearLayerOverlay(InClass);
+	}
+}
+
 UAnimInstance* USkeletalMeshComponent::GetLayerSubInstanceByGroup(FName InGroup) const
 {
 	if(AnimScriptInstance)
 	{
 		return AnimScriptInstance->GetLayerSubInstanceByGroup(InGroup);
+	}
+	return nullptr;
+}
+
+UAnimInstance* USkeletalMeshComponent::GetLayerSubInstanceByClass(TSubclassOf<UAnimInstance> InClass) const
+{
+	if(AnimScriptInstance)
+	{
+		return AnimScriptInstance->GetLayerSubInstanceByClass(InClass);
 	}
 	return nullptr;
 }

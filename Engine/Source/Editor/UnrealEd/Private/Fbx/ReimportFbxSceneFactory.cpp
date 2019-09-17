@@ -48,13 +48,15 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 
 #include "ObjectTools.h"
 
 #include "AI/Navigation/NavCollisionBase.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "FBXSceneReImportFactory"
 
@@ -925,7 +927,7 @@ UBlueprint *UReimportFbxSceneFactory::UpdateOriginalBluePrint(FString &BluePrint
 		return nullptr;
 	}
 	//Close all editor that edit this blueprint
-	FAssetEditorManager::Get().CloseAllEditorsForAsset(BluePrint);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(BluePrint);
 	//Set the import status for the next reimport
 	for (TSharedPtr<FFbxNodeInfo> NodeInfo : SceneInfoPtr->HierarchyInfo)
 	{

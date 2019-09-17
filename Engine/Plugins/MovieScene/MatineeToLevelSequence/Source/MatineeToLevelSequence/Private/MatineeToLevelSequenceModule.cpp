@@ -49,7 +49,7 @@
 #include "Matinee/InterpTrackMoveAxis.h"
 #include "MatineeUtils.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "LevelEditor.h"
 #include "MovieScene.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
@@ -78,6 +78,7 @@
 #include "MovieSceneTimeHelpers.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "EngineAnalytics.h"
 #include "Interfaces/IAnalyticsProvider.h"
 
@@ -282,7 +283,7 @@ protected:
 			UObject* NewAsset = NewActors[0]->LevelSequence.TryLoad();
 			if (NewAsset)
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(NewAsset);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
 			}
 
 			FText NotificationText;
@@ -343,7 +344,7 @@ protected:
 		{
 			FolderName = TEXT("Lights");
 		}
-		else if (Actor.Get()->GetComponentsByClass(UParticleSystemComponent::StaticClass()).Num())
+		else if (Actor.Get()->FindComponentByClass<UParticleSystemComponent>())
 		{
 			FolderName = TEXT("Particles");
 		}

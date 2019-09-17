@@ -16,12 +16,26 @@
 
 float3 TransformPosition(float3 InPosition)
 {
-	return mul(float4(InPosition,1.0), NiagaraRibbonVF.LocalToWorld).xyz;
+	if (NiagaraRibbonVF.bLocalSpace)
+	{
+		return TransformLocalToWorld(InPosition).xyz;
+	}
+	else
+	{
+		return InPosition;
+	}
 }
 
 float3 TransformVector(float3 InVector)
 {
-	return mul(float4(InVector,0.0), NiagaraRibbonVF.LocalToWorldInverseTransposed).xyz;
+	if (NiagaraRibbonVF.bLocalSpace)
+	{
+		return RotateLocalToWorld(InVector);
+	}
+	else
+	{
+		return InVector;
+	}
 }
 
 float3 CubicInterp(float3 P0, float3 T0, float3 P1, float3 T1, float A, float TS)
@@ -582,6 +596,7 @@ void GetNiagaraParticleTangents(in FInterpVtxData InterpVtxData, in out FVertexF
 
 	if (NiagaraRibbonVFLooseParameters.FacingMode == 2 /* CustomSide */)
 	{
+		// Swap axis
 		const float3 Temp = Intermediates.Right;
 		Intermediates.Right = -Intermediates.Facing;
 		Intermediates.Facing = Temp;

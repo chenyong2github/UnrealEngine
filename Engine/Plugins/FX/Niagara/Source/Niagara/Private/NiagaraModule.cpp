@@ -176,13 +176,10 @@ void INiagaraModule::StartupModule()
 	FNiagaraWorldManager::OnStartup();
 
 #if WITH_EDITOR	
-	if (!GIsEditor)
-	{
-		// Loading uncooked data in a game environment, we still need to get some functionality from the NiagaraEditor module.
-		// This includes the ability to compile scripts and load WITH_EDITOR_ONLY data.
-		// Note that when loading with the Editor, the NiagaraEditor module is loaded based on the plugin description.
-		FModuleManager::Get().LoadModule(TEXT("NiagaraEditor"));
-	}
+	// Loading uncooked data in a game environment, we still need to get some functionality from the NiagaraEditor module.
+	// This includes the ability to compile scripts and load WITH_EDITOR_ONLY data.
+	// Note that when loading with the Editor, the NiagaraEditor module is loaded based on the plugin description.
+	FModuleManager::Get().LoadModule(TEXT("NiagaraEditor"));
 #endif
 
 	CVarDetailLevel.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateRaw(this, &INiagaraModule::OnChangeDetailLevel));
@@ -453,6 +450,7 @@ UScriptStruct* FNiagaraTypeDefinition::ColorStruct;
 UScriptStruct* FNiagaraTypeDefinition::QuatStruct;
 
 UClass* FNiagaraTypeDefinition::UObjectClass;
+UClass* FNiagaraTypeDefinition::UMaterialClass;
 
 UEnum* FNiagaraTypeDefinition::ExecutionStateEnum;
 UEnum* FNiagaraTypeDefinition::SimulationTargetEnum;
@@ -473,6 +471,7 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::ColorDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::QuatDef;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UObjectDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::UMaterialDef;
 
 TSet<UScriptStruct*> FNiagaraTypeDefinition::NumericStructs;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeDefinition::OrderedNumericTypes;
@@ -517,6 +516,7 @@ void FNiagaraTypeDefinition::Init()
 	FNiagaraTypeDefinition::QuatStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Quat"));
 
 	FNiagaraTypeDefinition::UObjectClass = UObject::StaticClass();
+	FNiagaraTypeDefinition::UMaterialClass = UMaterialInterface::StaticClass();
 	
 	ParameterMapDef = FNiagaraTypeDefinition(ParameterMapStruct);
 	IDDef = FNiagaraTypeDefinition(IDStruct);
@@ -532,6 +532,7 @@ void FNiagaraTypeDefinition::Init()
 	Matrix4Def = FNiagaraTypeDefinition(Matrix4Struct);
 
 	UObjectDef = FNiagaraTypeDefinition(UObjectClass);
+	UMaterialDef = FNiagaraTypeDefinition(UMaterialClass);
 
 	CollisionEventDef = FNiagaraTypeDefinition(FNiagaraCollisionEventPayload::StaticStruct());
 	NumericStructs.Add(NumericStruct);
@@ -618,6 +619,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(SpawnInfoStruct), true, false, false);
 
 	FNiagaraTypeRegistry::Register(UObjectDef, true, false, false);
+	FNiagaraTypeRegistry::Register(UMaterialDef, true, false, false);
 
 	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 	check(Settings);

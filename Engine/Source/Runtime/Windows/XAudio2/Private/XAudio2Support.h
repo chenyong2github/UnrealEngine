@@ -824,7 +824,7 @@ struct FXAudioDeviceProperties final : public IDeviceChangedListener
 
 #if PLATFORM_WINDOWS && PLATFORM_64BITS
 		// Only free the library if we're shutting down
-		if (XAudio2Dll != nullptr && GIsRequestingExit)
+		if (XAudio2Dll != nullptr && IsEngineExitRequested())
 		{
 			UE_LOG(LogAudio, Verbose, TEXT("Freeing XAudio2 dll"));
 			if (!FreeLibrary(XAudio2Dll))

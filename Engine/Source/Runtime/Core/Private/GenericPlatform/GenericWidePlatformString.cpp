@@ -692,7 +692,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 				{
 					// Convert I64 syntax to ll 
 					Src += 4;
-					Percent += 3;
+					Percent += 4;
 					CpyIdx = 3;
 					FmtBuf[0] = '%';
 					FmtBuf[1] = 'l';

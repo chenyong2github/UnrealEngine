@@ -89,9 +89,9 @@ bool FNiagaraShaderScript::IsSame(const FNiagaraShaderMapId& InId) const
 	return
 		InId.FeatureLevel == FeatureLevel &&
 		InId.BaseScriptID == BaseScriptId &&
+		InId.AdditionalDefines == AdditionalDefines &&
 		InId.BaseCompileHash == BaseCompileHash &&
 		InId.ReferencedCompileHashes == ReferencedCompileHashes &&
-		InId.ReferencedDependencyIds == ReferencedDependencyIds &&
 		InId.CompilerVersionID == CompilerVersionId;
 }
 
@@ -123,9 +123,9 @@ NIAGARASHADER_API void FNiagaraShaderScript::GetShaderMapId(EShaderPlatform Plat
 		GetDependentShaderTypes(Platform, ShaderTypes);
 		OutId.FeatureLevel = GetFeatureLevel();
 		OutId.BaseScriptID = BaseScriptId;
+		OutId.AdditionalDefines = AdditionalDefines;
 		OutId.BaseCompileHash = BaseCompileHash;
 		OutId.ReferencedCompileHashes = ReferencedCompileHashes;
-		OutId.ReferencedDependencyIds = ReferencedDependencyIds;
 		OutId.CompilerVersionID = FNiagaraCustomVersion::LatestScriptCompileVersion;
 	}
 }
@@ -224,17 +224,17 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 	}
 }
 
-void FNiagaraShaderScript::SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersionID, const FGuid& InBaseScriptID,
-	const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, const TArray<FGuid>& InReferencedDependencyIds, FString InFriendlyName)
+void FNiagaraShaderScript::SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersionID, const FGuid& InBaseScriptID, const TArray<FString>& InAdditionalDefines,
+	const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, FString InFriendlyName)
 {
 	checkf(InBaseScriptID.IsValid(), TEXT("Invalid base script id.  Script caching will fail."));
 	checkf(InBaseCompileHash.IsValid(), TEXT("Invalid base compile hash.  Script caching will fail."))
 	BaseVMScript = InScript;
 	CompilerVersionId = InCompilerVersionID;
 	BaseScriptId = InBaseScriptID;
+	AdditionalDefines = InAdditionalDefines;
 	BaseCompileHash = InBaseCompileHash;
 	ReferencedCompileHashes = InReferencedCompileHashes;
-	ReferencedDependencyIds = InReferencedDependencyIds;
 	FriendlyName = InFriendlyName;
 	SetFeatureLevel(InFeatureLevel);
 }

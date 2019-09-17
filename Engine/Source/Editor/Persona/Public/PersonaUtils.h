@@ -6,6 +6,7 @@
 
 class UAnimInstance;
 class USceneComponent;
+class UAnimBlueprint;
 
 namespace PersonaUtils
 {
@@ -53,5 +54,8 @@ struct FCopyOptions
 
 /** Copy modified properties from the specified anim instance back to its CDO */
 PERSONA_API int32 CopyPropertiesToCDO(UAnimInstance* InAnimInstance, const FCopyOptions& Options = FCopyOptions(ECopyOptions::Default));
+
+/** Set the correct object to debug depending on whether we are running a sub-layer etc. */
+PERSONA_API void SetObjectBeingDebugged(UAnimBlueprint* InAnimBlueprint, UAnimInstance* InAnimInstance);
 
 }

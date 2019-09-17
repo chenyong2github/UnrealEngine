@@ -2,6 +2,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "AssetTypeActions_Base.h"
 #include "Modules/ModuleManager.h"
 
 
@@ -15,4 +17,6 @@ public:
 
 private:
 	void SetIcon(const FString& ClassName);
+
+	TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
 };

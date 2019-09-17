@@ -460,7 +460,7 @@ protected:
 	 */
 	bool SupportsNetworkedTransport() const
 	{
-#if UE_BUILD_SHIPPING
+#if !IS_PROGRAM && UE_BUILD_SHIPPING
 		return false;
 #else
 		// disallow unsupported platforms

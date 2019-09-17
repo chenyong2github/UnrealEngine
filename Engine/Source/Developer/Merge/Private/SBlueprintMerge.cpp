@@ -28,6 +28,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "SMergeAssetPickerView.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SBlueprintMerge"
 
@@ -540,11 +541,14 @@ void SBlueprintMerge::ResolveMerge(UBlueprint* ResultantBlueprint)
 	UBlueprint* TargetBlueprint = GetTargetBlueprint();
 	if (ResultantBlueprint != TargetBlueprint)
 	{
-		if (TargetBlueprint)
+		if (GEditor)
 		{
-			FAssetEditorManager::Get().CloseAllEditorsForAsset(TargetBlueprint);
+			if (TargetBlueprint)
+			{
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(TargetBlueprint);
+			}
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ResultantBlueprint);
 		}
-		FAssetEditorManager::Get().OpenEditorForAsset(ResultantBlueprint);
 	}
 	
 	// should come before CloseMergeTool(), because CloseMergeTool() makes its

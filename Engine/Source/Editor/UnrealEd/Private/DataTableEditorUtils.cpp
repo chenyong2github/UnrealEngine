@@ -6,6 +6,7 @@
 #include "Styling/SlateTypes.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/SlateUser.h"
 #include "EditorStyleSet.h"
 #include "Engine/UserDefinedStruct.h"
 #include "ScopedTransaction.h"
@@ -351,10 +352,11 @@ void SDataTableStructComboBox::OnMenuOpenChanged(bool bOpen)
 		}
 
 		// Set focus back to ComboBox for users focusing the ListView that just closed
-		FSlateApplication::Get().ForEachUser([&](FSlateUser* User) {
-			if (FSlateApplication::Get().HasUserFocusedDescendants(AsShared(), User->GetUserIndex()))
+		TSharedRef<SWidget> ThisRef = AsShared();
+		FSlateApplication::Get().ForEachUser([&ThisRef](FSlateUser& User) {
+			if (User.HasFocusedDescendants(ThisRef))
 			{
-				FSlateApplication::Get().SetUserFocus(User->GetUserIndex(), AsShared(), EFocusCause::SetDirectly);
+				User.SetFocus(ThisRef, EFocusCause::SetDirectly);
 			}
 		});
 	}
@@ -492,6 +494,66 @@ uint8* FDataTableEditorUtils::AddRow(UDataTable* DataTable, FName RowName)
 	BroadcastPostChange(DataTable, EDataTableChangeInfo::RowList);
 	return RowData;
 }
+
+uint8* FDataTableEditorUtils::AddRowAboveOrBelowSelection(UDataTable* DataTable, const FName& RowName, const FName& NewRowName, ERowInsertionPosition InsertPosition)
+{
+	if (!DataTable || (NewRowName == NAME_None) || (DataTable->GetRowMap().Find(NewRowName) != nullptr) || !DataTable->RowStruct)
+	{
+		return nullptr;
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("AddDataTableRowAboveBelow", "Add Data Table Row Above or Below"));
+
+	TArray<FName> OrderedRowNames;
+	DataTable->GetRowMap().GenerateKeyArray(OrderedRowNames);
+
+	int32 CurrentRowIndex = OrderedRowNames.IndexOfByKey(RowName);
+	if (CurrentRowIndex == INDEX_NONE)
+	{
+		return nullptr;
+	}
+
+	if (InsertPosition == ERowInsertionPosition::Below)
+	{
+		CurrentRowIndex += 1;
+	}
+
+	OrderedRowNames.Insert(NewRowName, CurrentRowIndex);
+	
+	// Build a name -> index map as the KeySort will hit this a lot
+	TMap<FName, int32> NamesToNewIndex;
+	for (int32 NameIndex = 0; NameIndex < OrderedRowNames.Num(); ++NameIndex)
+	{
+		NamesToNewIndex.Add(OrderedRowNames[NameIndex], NameIndex);
+	}
+	
+	
+	BroadcastPreChange(DataTable, EDataTableChangeInfo::RowList);
+	
+	DataTable->Modify();
+	
+	// Allocate data to store information, using UScriptStruct to know its size
+	uint8* RowData = (uint8*)FMemory::Malloc(DataTable->RowStruct->GetStructureSize());
+
+	// And be sure to call DestroyScriptStruct later
+	DataTable->RowStruct->InitializeStruct(RowData);
+
+	// Add to row map
+	DataTable->AddRowInternal(NewRowName, RowData);
+
+	// Re-sort the map keys to match the new order
+	DataTable->GetNonConstRowMap().KeySort([&NamesToNewIndex](const FName& One, const FName& Two) -> bool
+	{
+		const int32 OneIndex = NamesToNewIndex.FindRef(One);
+		const int32 TwoIndex = NamesToNewIndex.FindRef(Two);
+		return OneIndex < TwoIndex;
+	});
+
+	BroadcastPostChange(DataTable, EDataTableChangeInfo::RowList);
+
+	return RowData;
+}
+
 
 uint8* FDataTableEditorUtils::DuplicateRow(UDataTable* DataTable, FName SourceRowName, FName RowName)
 {
@@ -766,6 +828,7 @@ void FDataTableEditorUtils::CacheDataTableForEditing(const UDataTable* DataTable
 		}
 
 		CachedRowData->DesiredRowHeight = FontMeasure->GetMaxCharacterHeight(CellTextStyle.Font);
+		CachedRowData->RowNum = Index + 1;
 
 		// Always rebuild cell data
 		{

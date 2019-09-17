@@ -79,6 +79,20 @@ extern ENGINE_API FUObjectAnnotationSparseBool GSelectedActorAnnotation;
 #endif
 
 /**
+ * TInlineComponentArray is simply a TArray that reserves a fixed amount of space on the stack
+ * to try to avoid heap allocation when there are fewer than a specified number of elements expected in the result.
+ */
+template<class T, uint32 NumElements = NumInlinedActorComponents>
+class TInlineComponentArray : public TArray<T, TInlineAllocator<NumElements>>
+{
+	typedef TArray<T, TInlineAllocator<NumElements>> Super;
+
+public:
+	TInlineComponentArray() : Super() { }
+	TInlineComponentArray(const AActor* Actor, bool bIncludeFromChildActors = false);
+};
+
+/**
  * Actor is the base class for an Object that can be placed or spawned in a level.
  * Actors may contain a collection of ActorComponents, which can be used to control how actors move, how they are rendered, etc.
  * The other main function of an Actor is the replication of properties and function calls across the network during play.
@@ -842,11 +856,24 @@ public:
 	 * @return The instigator for this actor if it is the specified type, nullptr otherwise.
 	 */
 	template <class T>
-	T* GetInstigator() const { return Cast<T>(Instigator); };
+	T* GetInstigator() const
+	{
+		return Cast<T>(GetInstigator());
+	}
 
 	/** Returns the instigator's controller for this actor, or nullptr if there is none. */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintProtected = "true"), Category="Game")
 	AController* GetInstigatorController() const;
+
+	/** 
+	 * Returns the instigator's controller, cast as a specific class.
+	 * @return The instigator's controller for this actor if it is the specified type, nullptr otherwise.
+	 * */
+	template<class T>
+	T* GetInstigatorController() const
+	{
+		return Cast<T>(GetInstigatorController());
+	}
 
 
 	//~=============================================================================
@@ -857,13 +884,13 @@ public:
 	 * @return The transform that transforms from actor space to world space.
 	 */
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "GetActorTransform", ScriptName = "GetActorTransform"), Category="Utilities|Transformation")
-	FTransform GetTransform() const
+	const FTransform& GetTransform() const
 	{
 		return ActorToWorld();
 	}
 
 	/** Get the local-to-world transform of the RootComponent. Identical to GetTransform(). */
-	FORCEINLINE FTransform ActorToWorld() const
+	FORCEINLINE const FTransform& ActorToWorld() const
 	{
 		return (RootComponent ? RootComponent->GetComponentTransform() : FTransform::Identity);
 	}
@@ -1697,7 +1724,7 @@ public:
 	bool SetRootComponent(USceneComponent* NewRootComponent);
 
 	/** Returns the transform of the RootComponent of this Actor*/ 
-	FORCEINLINE FTransform GetActorTransform() const
+	FORCEINLINE const FTransform& GetActorTransform() const
 	{
 		return TemplateGetActorTransform(RootComponent);
 	}
@@ -2302,7 +2329,7 @@ public:
 	virtual void UnregisterAllComponents(bool bForReregister = false);
 
 	/** Called after all currently registered components are cleared */
-	virtual void PostUnregisterAllComponents() {}
+	virtual void PostUnregisterAllComponents();
 
 	/** Will reregister all components on this actor. Does a lot of work - should only really be used in editor, generally use UpdateComponentTransforms or MarkComponentsRenderStateDirty. */
 	virtual void ReregisterAllComponents();
@@ -2774,13 +2801,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "ActorComponent"), meta = (DeterminesOutputType = "ComponentClass"))
 	UActorComponent* GetComponentByClass(TSubclassOf<UActorComponent> ComponentClass) const;
 
+private:
 	/**
 	 * Gets all the components that inherit from the given class.
 	 * Currently returns an array of UActorComponent which must be cast to the correct type.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "ActorComponent"), meta = (DeterminesOutputType = "ComponentClass"))
-	TArray<UActorComponent*> GetComponentsByClass(TSubclassOf<UActorComponent> ComponentClass) const;
+	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "ActorComponent", DisplayName = "GetComponentsByClass", DeterminesOutputType = "ComponentClass", AllowPrivateAccess=true))
+	TArray<UActorComponent*> K2_GetComponentsByClass(TSubclassOf<UActorComponent> ComponentClass) const;
 
+public:
 	/** Gets all the components that inherit from the given class with a given tag. */
 	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "ActorComponent"), meta = (DeterminesOutputType = "ComponentClass"))
 	TArray<UActorComponent*> GetComponentsByTag(TSubclassOf<UActorComponent> ComponentClass, FName Tag) const;
@@ -2792,6 +2821,80 @@ public:
 		static_assert(TPointerIsConvertibleFromTo<T, const UActorComponent>::Value, "'T' template parameter to FindComponentByClass must be derived from UActorComponent");
 
 		return (T*)FindComponentByClass(T::StaticClass());
+	}
+
+private:
+	/**
+	 * Internal helper function to centralize GetComponents logic. 
+	 * Use template parameter bClassIsActorComponent to avoid doing unnecessary IsA checks when the ComponentClass is exactly UActorComponent
+	 */
+	template<bool bClassIsActorComponent, class AllocatorType>
+	void GetComponents_Internal(TSubclassOf<UActorComponent> ComponentClass, TArray<UActorComponent*, AllocatorType>& OutComponents, bool bIncludeFromChildActors = false) const
+	{
+		check(bClassIsActorComponent == false || ComponentClass == UActorComponent::StaticClass());
+
+		TArray<AActor*> ChildActors;
+
+		for (UActorComponent* OwnedComponent : OwnedComponents)
+		{
+			if (OwnedComponent)
+			{
+				if (bClassIsActorComponent || OwnedComponent->IsA(ComponentClass))
+				{
+					OutComponents.Add(OwnedComponent);
+				}
+				if (bIncludeFromChildActors)
+				{
+					if (UChildActorComponent* ChildActorComponent = Cast<UChildActorComponent>(OwnedComponent))
+					{
+						if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+						{
+							ChildActors.Add(ChildActor);
+						}
+					}
+				}
+			}
+		}
+
+		for (AActor* ChildActor : ChildActors)
+		{
+			ChildActor->GetComponents_Internal<bClassIsActorComponent>(ComponentClass, OutComponents, true);
+		}
+	}
+
+public:
+
+	UE_DEPRECATED(4.24, "Use one of the GetComponents implementations as appropriate")
+	TArray<UActorComponent*> GetComponentsByClass(TSubclassOf<UActorComponent> ComponentClass) const
+	{
+		return K2_GetComponentsByClass(ComponentClass);
+	}
+
+	/**
+	 * Get all components derived from specified ComponentClass and fill in the OutComponents array with the result.
+	 * It's recommended to use TArrays with a TInlineAllocator to potentially avoid memory allocation costs.
+	 * TInlineComponentArray is defined to make this easier, for example:
+	 * {
+	 * 	   TInlineComponentArray<UPrimitiveComponent*> PrimComponents(Actor);
+	 * }
+	 *
+	 * @param ComponentClass            The component class to find all components of a class derived from
+	 * @param bIncludeFromChildActors   If true then recurse in to ChildActor components and find components of the appropriate type in those Actors as well
+	 */
+	template<class AllocatorType>
+	void GetComponents(TSubclassOf<UActorComponent> ComponentClass, TArray<UActorComponent*, AllocatorType>& OutComponents, bool bIncludeFromChildActors = false) const
+	{
+		SCOPE_CYCLE_COUNTER(STAT_GetComponentsTime);
+
+		OutComponents.Reset();
+		if (ComponentClass == UActorComponent::StaticClass())
+		{
+			GetComponents_Internal<true>(ComponentClass, OutComponents, bIncludeFromChildActors);
+		}
+		else
+		{
+			GetComponents_Internal<false>(ComponentClass, OutComponents, bIncludeFromChildActors);
+		}
 	}
 
 	/**
@@ -2807,41 +2910,11 @@ public:
 	template<class T, class AllocatorType>
 	void GetComponents(TArray<T*, AllocatorType>& OutComponents, bool bIncludeFromChildActors = false) const
 	{
-		static_assert(TPointerIsConvertibleFromTo<T, const UActorComponent>::Value, "'T' template parameter to GetComponents must be derived from UActorComponent");
 		SCOPE_CYCLE_COUNTER(STAT_GetComponentsTime);
 
-		// Empty input array, but don't affect allocated size.
-		OutComponents.Reset(0);
-
-		TArray<UChildActorComponent*> ChildActorComponents;
-
-		for (UActorComponent* OwnedComponent : OwnedComponents)
-		{
-			if (T* Component = Cast<T>(OwnedComponent))
-			{
-				OutComponents.Add(Component);
-			}
-			if (bIncludeFromChildActors)
-			{
-				if (UChildActorComponent* ChildActorComponent = Cast<UChildActorComponent>(OwnedComponent))
-				{
-					ChildActorComponents.Add(ChildActorComponent);
-				}
-			}
-		}
-
-		if (bIncludeFromChildActors)
-		{
-			TArray<T*, AllocatorType> ComponentsInChildActor;
-			for (UChildActorComponent* ChildActorComponent : ChildActorComponents)
-			{
-				if (AActor* ChildActor = ChildActorComponent->GetChildActor())
-				{
-					ChildActor->GetComponents(ComponentsInChildActor, true);
-					OutComponents.Append(MoveTemp(ComponentsInChildActor));
-				}
-			}
-		}
+		static_assert(TPointerIsConvertibleFromTo<T, const UActorComponent>::Value, "'T' template parameter to GetComponents must be derived from UActorComponent");
+		OutComponents.Reset();
+		GetComponents_Internal<false>(T::StaticClass(), *reinterpret_cast<TArray<UActorComponent*, AllocatorType>*>(&OutComponents), bIncludeFromChildActors);
 	}
 
 	/**
@@ -2860,39 +2933,8 @@ public:
 	{
 		SCOPE_CYCLE_COUNTER(STAT_GetComponentsTime);
 
-		OutComponents.Reset(OwnedComponents.Num());
-
-		TArray<UChildActorComponent*> ChildActorComponents;
-
-		for (UActorComponent* Component : OwnedComponents)
-		{
-			if (Component)
-			{
-				OutComponents.Add(Component);
-
-				if (bIncludeFromChildActors)
-				{
-					if (UChildActorComponent* ChildActorComponent = Cast<UChildActorComponent>(Component))
-					{
-						ChildActorComponents.Add(ChildActorComponent);
-					}
-				}
-			}
-		}
-
-		if (bIncludeFromChildActors)
-		{
-			TArray<UActorComponent*, AllocatorType> ComponentsInChildActor;
-			for (UChildActorComponent* ChildActorComponent : ChildActorComponents)
-			{
-				if (AActor* ChildActor = ChildActorComponent->GetChildActor())
-				{
-					ChildActor->GetComponents(ComponentsInChildActor, true);
-					OutComponents.Append(MoveTemp(ComponentsInChildActor));
-				}
-			}
-		}
-
+		OutComponents.Reset();
+		GetComponents_Internal<true>(UActorComponent::StaticClass(), OutComponents, bIncludeFromChildActors);
 	}
 
 	/**
@@ -3072,9 +3114,9 @@ private:
 	// These are templates for no other reason than to delay compilation until USceneComponent is defined.
 
 	template<class T>
-	static FORCEINLINE FTransform TemplateGetActorTransform(const T* RootComponent)
+	static FORCEINLINE const FTransform& TemplateGetActorTransform(const T* RootComponent)
 	{
-		return (RootComponent != nullptr) ? RootComponent->GetComponentTransform() : FTransform();
+		return (RootComponent != nullptr) ? RootComponent->GetComponentTransform() : FTransform::Identity;
 	}
 
 	template<class T>
@@ -3167,34 +3209,15 @@ private:
 struct FSetActorHiddenInSceneOutliner
 {
 private:
-	FSetActorHiddenInSceneOutliner(AActor* InActor)
+	FSetActorHiddenInSceneOutliner(AActor* InActor, bool bHidden = true)
 	{
-		InActor->bListedInSceneOutliner = false;
+		InActor->bListedInSceneOutliner = !bHidden;
 	}
 
 	friend UWorld;
+	friend class FFoliageHelper;
 };
 #endif
-
-/**
- * TInlineComponentArray is simply a TArray that reserves a fixed amount of space on the stack
- * to try to avoid heap allocation when there are fewer than a specified number of elements expected in the result.
- */
-template<class T, uint32 NumElements = NumInlinedActorComponents>
-class TInlineComponentArray : public TArray<T, TInlineAllocator<NumElements>>
-{
-	typedef TArray<T, TInlineAllocator<NumElements>> Super;
-
-public:
-	TInlineComponentArray() : Super() { }
-	TInlineComponentArray(const class AActor* Actor, bool bIncludeFromChildActors = false) : Super()
-	{
-		if (Actor)
-		{
-			Actor->GetComponents(*this, bIncludeFromChildActors);
-		}
-	};
-};
 
 /** Helper function for executing tick functions based on the normal conditions previous found in UActorComponent::ConditionalTick */
 template <typename ExecuteTickLambda>
@@ -3221,6 +3244,15 @@ void FActorComponentTickFunction::ExecuteTickHelper(UActorComponent* Target, boo
 	}
 }
 
+template<class T, uint32 NumElements>
+TInlineComponentArray<T, NumElements>::TInlineComponentArray(const AActor* Actor, bool bIncludeFromChildActors) 
+	: Super()
+{
+	if (Actor)
+	{
+		Actor->GetComponents(*this, bIncludeFromChildActors);
+	}
+};
 
 //////////////////////////////////////////////////////////////////////////
 // Inlines

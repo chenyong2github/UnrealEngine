@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
 #include "EditorUndoClient.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "Layers/Layer.h"
 
 class AActor;
@@ -28,9 +28,9 @@ public:
 	 *	@param	InWorldLayers	The layer management logic object
 	 *	@param	InEditor		The UEditorEngine to use
 	 */
-	static TSharedRef< FLayerViewModel > Create( const TWeakObjectPtr< ULayer >& InLayer, const TSharedRef< ILayers >& InWorldLayers, const TWeakObjectPtr< UEditorEngine >& InEditor )
+	static TSharedRef< FLayerViewModel > Create( const TWeakObjectPtr< ULayer >& InLayer, const TWeakObjectPtr< UEditorEngine >& InEditor )
 	{
-		TSharedRef< FLayerViewModel > NewLayer( new FLayerViewModel( InLayer, InWorldLayers, InEditor ) );
+		TSharedRef< FLayerViewModel > NewLayer( new FLayerViewModel( InLayer, InEditor ) );
 		NewLayer->Initialize();
 
 		return NewLayer;
@@ -191,10 +191,9 @@ private:
 	 *	FLayerViewModel Constructor
 	 *
 	 *	@param	InLayer			The Layer to represent
-	 *	@param	InWorldLayers	The layer management logic object
 	 *	@param	InEditor		The UEditorEngine to use
 	 */
-	FLayerViewModel( const TWeakObjectPtr< ULayer >& InLayer, const TSharedRef< ILayers >& InWorldLayers, const TWeakObjectPtr< UEditorEngine >& InEditor );
+	FLayerViewModel( const TWeakObjectPtr< ULayer >& InLayer, const TWeakObjectPtr< UEditorEngine >& InEditor );
 
 	/** Initializes the FLayerViewModel for use */
 	void Initialize();
@@ -218,11 +217,11 @@ private:
 	/** The Actor stats of the Layer */
 	TArray< FLayerActorStats > ActorStats;
 
-	/** The layer management logic object */
-	const TSharedRef< ILayers > WorldLayers;
-
 	/** The UEditorEngine to use */
 	const TWeakObjectPtr< UEditorEngine > Editor;
+
+	/** The layer management logic object */
+	ULayersSubsystem* WorldLayers;
 
 	/** The Layer this object represents */
 	TWeakObjectPtr< ULayer > Layer;

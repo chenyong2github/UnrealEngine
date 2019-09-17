@@ -319,9 +319,9 @@ public:
 
 			const int32 NumFontPages = InFont->Textures.Num();
 
-			// Checking GIsRequestingExit as a workaround for lighting rebuild command let crash.
-			// Happening because GIsRequestingExit is true preventing the FTextRenderComponentMIDCache from registering into the GGCObjectReferencer
-			if (!GIsRequestingExit && NumFontPages > 0)
+			// Checking IsEngineExitRequested() as a workaround for lighting rebuild command let crash.
+			// Happening because IsEngineExitRequested() is true preventing the FTextRenderComponentMIDCache from registering into the GGCObjectReferencer
+			if (!IsEngineExitRequested() && NumFontPages > 0)
 			{
 				TArray<FGuid> FontParameterIds;
 				InMaterial->GetAllFontParameterInfo(FontParameters, FontParameterIds);
@@ -463,11 +463,6 @@ public:
 				}
 			}
 		}
-	}
-
-	virtual FString GetReferencerName() const override
-	{
-		return TEXT("FTextRenderComponentMIDCache");
 	}
 
 private:
@@ -743,6 +738,7 @@ void FTextRenderSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 					Mesh.MaterialRenderProxy = TextBatch.Material->GetRenderProxy();
 					Mesh.bCanApplyViewModeOverrides = !bAlwaysRenderAsText;
 					Mesh.LODIndex = 0;
+					Mesh.bUseWireframeSelectionColoring = IsSelected() ? 1 : 0;
 
 					Collector.AddMesh(ViewIndex, Mesh);
 				}

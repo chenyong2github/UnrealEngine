@@ -6,7 +6,7 @@
 
 namespace BuildPatchServices
 {
-	struct FInstallerConfiguration;
+	struct FBuildInstallerConfiguration;
 	enum class EVerifyError : uint32;
 
 	/**
@@ -113,7 +113,7 @@ namespace BuildPatchServices
 		/**
 		 * @return the configuration used when constructing the installer.
 		 */
-		virtual const FInstallerConfiguration& GetConfiguration() const = 0;
+		virtual const FBuildInstallerConfiguration& GetConfiguration() const = 0;
 
 		/**
 		 * @return the total download size for the installation.

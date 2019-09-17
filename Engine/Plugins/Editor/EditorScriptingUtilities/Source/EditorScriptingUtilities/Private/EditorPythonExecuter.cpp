@@ -153,7 +153,7 @@ namespace InternalEditorPythonRunner
 			}
 
 			// if we are here the editor is ready.
-			if (!GIsRequestingExit && !bIsRunning && GWorld && GEngine && GEditor && DeltaTime > 0 && GLog)
+			if (!IsEngineExitRequested() && !bIsRunning && GWorld && GEngine && GEditor && DeltaTime > 0 && GLog)
 			{
 				if (!FileName.IsEmpty())
 				{

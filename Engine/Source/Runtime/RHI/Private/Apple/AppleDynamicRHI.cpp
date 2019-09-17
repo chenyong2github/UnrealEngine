@@ -27,24 +27,25 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 	IDynamicRHIModule* DynamicRHIModule = NULL;
 
 	bool const bIsMetalSupported = FPlatformMisc::HasPlatformFeature(TEXT("Metal"));
-	bool const bAllowMetal = (GAppleMetalEnabled && bIsMetalSupported);
-	bool const bAllowOpenGL = !GAppleOpenGLDisabled && !PLATFORM_MAC;
-
+	
+	// Must be Metal!
+	if(!bIsMetalSupported)
+	{
+		FText Title = NSLOCTEXT("AppleDynamicRHI", "OpenGLNotSupportedTitle","OpenGL Not Supported");
 #if PLATFORM_MAC
-	bool bForceMetal = bAllowMetal && (FParse::Param(FCommandLine::Get(),TEXT("metal")) || FParse::Param(FCommandLine::Get(),TEXT("metalsm5")));
-	bool bForceOpenGL = false; // OpenGL is no longer supported on Mac
+		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("MacPlatformCreateDynamicRHI", "OpenGLNotSupported.", "You must have a Metal compatible graphics card and be running Mac OS X 10.11.6 or later to launch this process."), &Title);
 #else
-	bool bForceMetal = bAllowMetal && (FParse::Param(FCommandLine::Get(),TEXT("metal")) || FParse::Param(FCommandLine::Get(),TEXT("metalmrt")));
-	bool bForceOpenGL = bAllowOpenGL && FParse::Param(FCommandLine::Get(),TEXT("es2"));
+		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("AppleDynamicRHI", "OpenGLNotSupported.", "You must have a Metal compatible iOS or tvOS device with iOS 8 or later to launch this app."), &Title);
 #endif
+		FPlatformMisc::RequestExit(true);
+	}
+	
+	if (FParse::Param(FCommandLine::Get(),TEXT("opengl")))
+	{
+		UE_LOG(LogRHI, Log, TEXT("OpenGL command line option ignored; Apple platforms only support Metal."));
+	}
 
 	ERHIFeatureLevel::Type RequestedFeatureLevel = ERHIFeatureLevel::Num;
-	int32 Sum = ((bForceMetal ? 1 : 0) + (bForceOpenGL ? 1 : 0));
-	if (Sum > 1)
-	{
-		UE_LOG(LogRHI, Fatal,TEXT("-metal, -metalsm5, and -opengl are mutually exclusive options, but more than one was specified on the command-line."));
-	}
-	else if (Sum == 0)
 	{
 		// Check the list of targeted shader platforms and decide an RHI based off them
 		TArray<FString> TargetedShaderFormats;
@@ -62,17 +63,14 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 #endif
 		}
 		
-		bool bSupportsMetal = false;
-		GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportsMetal"), bSupportsMetal, GEngineIni);
-		if (bSupportsMetal)
-		{
 #if PLATFORM_TVOS
-			TargetedShaderFormats.Add(LegacyShaderPlatformToShaderFormat(SP_METAL_TVOS).ToString());
+		TargetedShaderFormats.Add(LegacyShaderPlatformToShaderFormat(SP_METAL_TVOS).ToString());
 #else
-			TargetedShaderFormats.Add(LegacyShaderPlatformToShaderFormat(SP_METAL).ToString());
+		TargetedShaderFormats.Add(LegacyShaderPlatformToShaderFormat(SP_METAL).ToString());
 #endif
-		}
-#endif
+		
+#endif // else branch of PLATFORM_MAC
+		
 		// Metal is not always available, so don't assume that we can use the first platform
 		for (FString Name : TargetedShaderFormats)
 		{
@@ -80,10 +78,8 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 			EShaderPlatform TargetedPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
 			
 			// Instead use the first platform that *could* work
-			if (bAllowMetal == true || !IsMetalPlatform(TargetedPlatform))
+			if (IsMetalPlatform(TargetedPlatform))
 			{
-				bForceMetal = IsMetalPlatform(TargetedPlatform);
-				bForceOpenGL = IsOpenGLPlatform(TargetedPlatform) && !PLATFORM_MAC;
 				RequestedFeatureLevel = GetMaxSupportedFeatureLevel(TargetedPlatform);
 				break;
 			}
@@ -91,11 +87,9 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 	}
 
 	// Load the dynamic RHI module.
-	if (bForceMetal)
 	{
 		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(TEXT("MetalRHI"));
 		
-		if (Sum == 1)
 		{
 #if PLATFORM_MAC
 			if (FParse::Param(FCommandLine::Get(),TEXT("metal")))
@@ -118,29 +112,6 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 #endif
 		}
 		FApp::SetGraphicsRHI(TEXT("Metal"));
-	}
-	else if (bForceOpenGL)
-	{
-		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(TEXT("OpenGLDrv"));
-		if (Sum == 1)
-		{
-#if PLATFORM_MAC
-			RequestedFeatureLevel = ERHIFeatureLevel::ES3_1;
-#else
-			RequestedFeatureLevel = ERHIFeatureLevel::ES2;
-#endif
-		}
-		FApp::SetGraphicsRHI(TEXT("OpenGL"));
-	}
-	else
-	{
-		FText Title = NSLOCTEXT("AppleDynamicRHI", "OpenGLNotSupportedTitle","OpenGL Not Supported");
-#if PLATFORM_MAC
-		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("MacPlatformCreateDynamicRHI", "OpenGLNotSupported.", "You must have a Metal compatible graphics card and be running Mac OS X 10.11.6 or later to launch this process."), &Title);
-#else
-		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("AppleDynamicRHI", "OpenGLNotSupported.", "You must have a Metal compatible iOS or tvOS device with iOS 8 or later to launch this app."), &Title);
-#endif
-		FPlatformMisc::RequestExit(true);
 	}
 	
 	// Create the dynamic RHI.

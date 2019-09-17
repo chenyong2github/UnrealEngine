@@ -39,20 +39,20 @@ struct FPrimaryAssetRules
 	UPROPERTY(EditAnywhere, Category = Rules)
 	int32 Priority;
 
-	/** If true, this rule will apply to all referenced Secondary Assets recursively, as long as they are not managed by a higher-priority Primary Asset. */
-	UPROPERTY(EditAnywhere, Category = Rules)
-	bool bApplyRecursively;
-
 	/** Assets will be put into this Chunk ID specifically, if set to something other than -1. The default Chunk is Chunk 0. */
 	UPROPERTY(EditAnywhere, Category = Rules, meta = (DisplayName = "Chunk ID"))
 	int32 ChunkId;
+
+	/** If true, this rule will apply to all referenced Secondary Assets recursively, as long as they are not managed by a higher-priority Primary Asset. */
+	UPROPERTY(EditAnywhere, Category = Rules)
+	bool bApplyRecursively;
 
 	/** Rule describing when this asset should be cooked. */
 	UPROPERTY(EditAnywhere, Category = Rules)
 	EPrimaryAssetCookRule CookRule;
 
 	FPrimaryAssetRules() 
-		: Priority(-1), bApplyRecursively(true), ChunkId(-1), CookRule(EPrimaryAssetCookRule::Unknown)
+		: Priority(-1), ChunkId(-1), bApplyRecursively(true), CookRule(EPrimaryAssetCookRule::Unknown)
 	{
 	}
 

@@ -53,12 +53,21 @@ struct FNetSimProcessedFrameDebugInfo
 	int32 LastProcessedKeyframe; // What LastProcessedKeyframe was at the end of the frame. Does NOT mean we processed it this frame!
 	int32 HeadKeyframe; // Head keyframe of the inputbuffer when the frame ended
 
+	float RemainingAllowedSimulationTimeSeconds;
+	
+	int32 LastSentInputKeyframe;
+	int32 LastReceivedInputKeyframe;
+
 	void NetSerialize(const FNetSerializeParams& P)
 	{	
 		P.Ar << LocalGFrameNumber;
 		P.Ar << LocalDeltaTimeSeconds;
 		P.Ar << LastProcessedKeyframe;
 		P.Ar << HeadKeyframe;
+		P.Ar << RemainingAllowedSimulationTimeSeconds;
+
+		P.Ar << LastSentInputKeyframe;
+		P.Ar << LastReceivedInputKeyframe;
 
 		SafeNetSerializeTArray_Default<31>(P.Ar, ProcessedKeyframes);
 	}

@@ -675,7 +675,7 @@ void FLevelViewportLayout::FinishMaximizeTransition()
 				OwnerWindow->EndFullWindowOverlayTransition();
 			}
 			// Release overlay mouse capture to prevent situations where user is unable to get the mouse cursor back if they were holding one of the buttons down and exited immersive mode.
-			FSlateApplication::Get().ReleaseMouseCapture();
+			FSlateApplication::Get().ReleaseAllPointerCapture();
 
 			if( bIsMaximized )
 			{

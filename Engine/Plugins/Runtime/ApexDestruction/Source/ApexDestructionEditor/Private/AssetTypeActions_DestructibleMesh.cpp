@@ -6,6 +6,7 @@
 #include "Engine/StaticMesh.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -43,7 +44,7 @@ void FAssetTypeActions_DestructibleMesh::ExecuteCreateDestructibleMeshes(TArray<
 				UDestructibleMesh* DestructibleMesh = DestructibleMeshEditorModule.CreateDestructibleMeshFromStaticMesh(StaticMesh->GetOuter(), StaticMesh, NAME_None, StaticMesh->GetFlags(), ErrorMsg);
 				if (DestructibleMesh)
 				{
-					FAssetEditorManager::Get().OpenEditorForAsset(DestructibleMesh);
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(DestructibleMesh);
 					NewAssets.Add(DestructibleMesh);
 				}
 				else if (!ErrorMsg.IsEmpty())

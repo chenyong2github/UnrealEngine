@@ -37,6 +37,7 @@
 #include "Installer/Statistics/CloudChunkSourceStatistics.h"
 #include "BuildPatchHash.h"
 #include "BuildPatchUtil.h"
+#include "IBuildManifestSet.h"
 
 #include "Misc/CommandLine.h"
 
@@ -223,7 +224,7 @@ namespace DeltaStats
 		virtual void OnRequiredDataUpdated(int64 TotalBytes) override { }
 		virtual void OnDownloadHealthUpdated(EBuildPatchDownloadHealth DownloadHealth) override { }
 		virtual void OnSuccessRateUpdated(float SuccessRate) override { }
-		virtual void OnActiveRequestCountUpdated(int32 RequestCount) override { }
+		virtual void OnActiveRequestCountUpdated(uint32 RequestCount) override { }
 		virtual void OnAcceptedNewRequirements(const TSet<FGuid>& ChunkIds) override { }
 		// ICloudChunkSourceStat interface end.
 	};
@@ -253,7 +254,8 @@ namespace DeltaFactories
 		IFileSystem* FileSystem;
 		IDownloadService* DownloadService;
 		IChunkDataSerialization* ChunkDataSerialization;
-		FBuildPatchAppManifestRef Manifest;
+		IMessagePump* MessagePump;
+		IBuildManifestSet* ManifestSet;
 	};
 
 	class FCloudChunkSourceFactory : public IManifestBuildStreamer::ICloudChunkSourceFactory
@@ -263,6 +265,7 @@ namespace DeltaFactories
 		{
 			TUniquePtr<IChunkEvictionPolicy> MemoryEvictionPolicy;
 			TUniquePtr<IMemoryChunkStore> CloudChunkStore;
+			TUniquePtr<IDownloadConnectionCount> ConnectionCount;
 		};
 
 	public:
@@ -271,7 +274,6 @@ namespace DeltaFactories
 			, CloudSourceConfig({CloudDir})
 			, Platform(FPlatformFactory::Create())
 			, MemoryChunkStoreStat(new DeltaStats::FNoMemoryChunkStoreStat())
-			, MessagePump(FMessagePumpFactory::Create())
 			, InstallerError(FInstallerErrorFactory::Create())
 			, CloudChunkSourceStat(new DeltaStats::FNoCloudChunkSourceStat())
 		{
@@ -294,7 +296,7 @@ namespace DeltaFactories
 				Dependancies.MemoryEvictionPolicy.Get(),
 				nullptr,
 				MemoryChunkStoreStat.Get()));
-
+			Dependancies.ConnectionCount.Reset(BuildPatchServices::FDownloadConnectionCountFactory::Create(ConnectionCountConfig, nullptr));
 			ICloudChunkSource* CloudChunkSource = BuildPatchServices::FCloudChunkSourceFactory::Create(
 				CloudSourceConfig,
 				Platform.Get(),
@@ -302,10 +304,11 @@ namespace DeltaFactories
 				Shared.DownloadService,
 				ChunkReferenceTracker,
 				Shared.ChunkDataSerialization,
-				MessagePump.Get(),
+				Shared.MessagePump,
 				InstallerError.Get(),
+				Dependancies.ConnectionCount.Get(),
 				CloudChunkSourceStat.Get(),
-				Shared.Manifest,
+				Shared.ManifestSet,
 				ChunkReferenceTracker->GetReferencedChunks());
 
 			TFunction<void(const FGuid&)> LostChunkCallback = [CloudChunkSource](const FGuid& LostChunk)
@@ -321,9 +324,9 @@ namespace DeltaFactories
 	private:
 		FCloudChunkSourceFactoryShared Shared;
 		FCloudSourceConfig CloudSourceConfig;
+		FDownloadConnectionCountConfig ConnectionCountConfig;
 		TUniquePtr<IPlatform> Platform;
 		TUniquePtr<IMemoryChunkStoreStat> MemoryChunkStoreStat;
-		TUniquePtr<IMessagePump> MessagePump;
 		TUniquePtr<IInstallerError> InstallerError;
 		TUniquePtr<ICloudChunkSourceStat> CloudChunkSourceStat;
 		TArray<FInstanceDependancies> InstanceDependancies;
@@ -581,7 +584,9 @@ namespace BuildPatchServices
 		TUniquePtr<IInstallerAnalytics> InstallerAnalytics;
 		TUniquePtr<IDownloadServiceStatistics> DownloadServiceStatistics;
 		TUniquePtr<IDownloadService> DownloadService;
+		TUniquePtr<IMessagePump> MessagePump;
 		TUniquePtr<FStatsCollector> StatsCollector;
+		TArray<FMessageHandler*> MessageHandlers;
 		FThreadSafeBool bShouldRun;
 		FThreadSafeBool bSuccess;
 
@@ -603,9 +608,10 @@ namespace BuildPatchServices
 		, HttpManager(FHttpManagerFactory::Create())
 		, ChunkDataSizeProvider(FChunkDataSizeProviderFactory::Create())
 		, DownloadSpeedRecorder(FSpeedRecorderFactory::Create())
-		, InstallerAnalytics(FInstallerAnalyticsFactory::Create(nullptr, nullptr))
+		, InstallerAnalytics(FInstallerAnalyticsFactory::Create(nullptr))
 		, DownloadServiceStatistics(FDownloadServiceStatisticsFactory::Create(DownloadSpeedRecorder.Get(), ChunkDataSizeProvider.Get(), InstallerAnalytics.Get()))
 		, DownloadService(FDownloadServiceFactory::Create(CoreTicker, HttpManager.Get(), FileSystem.Get(), DownloadServiceStatistics.Get(), InstallerAnalytics.Get()))
+		, MessagePump(FMessagePumpFactory::Create())
 		, StatsCollector(FStatsCollectorFactory::Create())
 		, bShouldRun(true)
 		, RequestIdManifestA(INDEX_NONE)
@@ -628,7 +634,9 @@ namespace BuildPatchServices
 
 		// Setup Generation stats.
 		volatile int64* StatTotalTime = StatsCollector->CreateStat(TEXT("Generation: Total Time"), EStatFormat::Timer);
+		volatile int64* StatStreamSpeed = StatsCollector->CreateStat(TEXT("Generation: Data stream speed"), EStatFormat::DataSpeed);
 		const uint64 StartTime = FStatsCollector::GetCycles();
+		const float SpeedStatOverTime = TNumericLimits<float>::Max();
 
 		// Kick off Manifest downloads.
 		RequestIdManifestA = DownloadService->RequestFile(Configuration.ManifestAUri, DownloadCompleteDelegate, DownloadProgressDelegate);
@@ -660,9 +668,13 @@ namespace BuildPatchServices
 			FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 			FTicker::GetCoreTicker().Tick(DeltaTime);
 
+			// Message pump.
+			MessagePump->PumpMessages(MessageHandlers);
+
 			// Log collected stats.
 			GLog->FlushThreadedLogs();
 			FStatsCollector::Set(StatTotalTime, FStatsCollector::GetCycles() - StartTime);
+			FStatsCollector::Set(StatStreamSpeed, DownloadSpeedRecorder->GetAverageSpeed(SpeedStatOverTime));
 			StatsCollector->LogStats(StatsLoggerTimeSeconds);
 
 			// Control frame rate.
@@ -678,10 +690,11 @@ namespace BuildPatchServices
 		TArray<FString> FinalStatLogs = Thread.Get();
 		GLog->FlushThreadedLogs();
 		FStatsCollector::Set(StatTotalTime, FStatsCollector::GetCycles() - StartTime);
+		FStatsCollector::Set(StatStreamSpeed, DownloadSpeedRecorder->GetAverageSpeed(SpeedStatOverTime));
 		StatsCollector->LogStats();
 		for (const FString& LogLine : FinalStatLogs)
 		{
-			UE_LOG(LogChunkDeltaOptimiser, Log, TEXT("%s"), *LogLine);
+			UE_LOG(LogChunkDeltaOptimiser, Display, TEXT("%s"), *LogLine);
 		}
 
 		// Return thread success.
@@ -707,6 +720,7 @@ namespace BuildPatchServices
 		}
 		if (bSuccess)
 		{
+			UE_LOG(LogChunkDeltaOptimiser, Display, TEXT("Running optimisation for patching %s -> %s"), *ManifestA->GetVersionString(), *ManifestB->GetVersionString());
 			FProcessTimer ProcessTimer;
 			FProcessTimer ChunkingTimer;
 			FProcessTimer ScanningTimer;
@@ -717,7 +731,18 @@ namespace BuildPatchServices
 			ManifestA->GetDataList(ChunksA);
 			ManifestB->GetDataList(ChunksB);
 
-			// Check for compatibility changes
+			// Check for ManifestA -> ManifestB compatibility. We don't yet support downgrading chunk version, only upgrading.
+			const TCHAR* ManifestAChunkSubdir = ManifestVersionHelpers::GetChunkSubdir(ManifestA->ManifestMeta.FeatureLevel);
+			const TCHAR* ManifestBChunkSubdir = ManifestVersionHelpers::GetChunkSubdir(ManifestB->ManifestMeta.FeatureLevel);
+			const bool bUsingDifferentChunkSubdir = ManifestAChunkSubdir != ManifestBChunkSubdir;
+			const bool bIsDowngrade = ManifestB->ManifestMeta.FeatureLevel < ManifestA->ManifestMeta.FeatureLevel;
+			if (bUsingDifferentChunkSubdir && bIsDowngrade)
+			{
+				UE_LOG(LogChunkDeltaOptimiser, Error, TEXT("Destination manifest does not support source manifest's FeatureLevel (%s [%d] -> %s [%d])."), FeatureLevelToString(ManifestA->ManifestMeta.FeatureLevel), (int32)ManifestA->ManifestMeta.FeatureLevel, FeatureLevelToString(ManifestB->ManifestMeta.FeatureLevel), (int32)ManifestB->ManifestMeta.FeatureLevel);
+				bSuccess = false;
+			}
+
+			// Check for output chunk size compatibility changes.
 			const uint32 OutputChunkSize = ManifestB->ManifestMeta.FeatureLevel >= EFeatureLevel::VariableSizeChunks ? Configuration.OutputChunkSize : 1024*1024;
 			if (Configuration.OutputChunkSize != OutputChunkSize)
 			{
@@ -728,18 +753,52 @@ namespace BuildPatchServices
 			FBuildPatchAppManifest DeltaManifest;
 			const FString OutputDeltaFilename = Configuration.CloudDirectory / FBuildPatchUtils::GetChunkDeltaFilename(*ManifestA.Get(), *ManifestB.Get());
 			const bool bDeltaPreviouslyCompleted = FileSystem->FileExists(*OutputDeltaFilename);
-			if (bDeltaPreviouslyCompleted && DeltaManifest.LoadFromFile(OutputDeltaFilename) == false)
+			if (bDeltaPreviouslyCompleted)
 			{
-				UE_LOG(LogChunkDeltaOptimiser, Error, TEXT("Optimised delta completed previously but could not be loaded %s."), *OutputDeltaFilename);
-				bSuccess = false;
+				if (DeltaManifest.LoadFromFile(OutputDeltaFilename))
+				{
+					FinalStatLogs.Add(FString::Printf(TEXT("** Chunk delta optimisation already completed for provided manifests. **")));
+					FinalStatLogs.Add(FString::Printf(TEXT("Loaded optimised delta file %s"), *OutputDeltaFilename));
+				}
+				else
+				{
+					UE_LOG(LogChunkDeltaOptimiser, Error, TEXT("Optimised delta completed previously but could not be loaded %s."), *OutputDeltaFilename);
+					bSuccess = false;
+				}
 			}
-			if (bDeltaPreviouslyCompleted == false)
+
+			// Check for aborting if original delta is over provided threshold.
+			TSet<FString> TagsA, TagsB;
+			ManifestA->GetFileTagList(TagsA);
+			ManifestB->GetFileTagList(TagsB);
+			const uint64 OriginalUnknownCompressedBytes = (uint64)ManifestB->GetDeltaDownloadSize(TagsB, ManifestA.ToSharedRef(), TagsA);
+			const bool bOverAbortThreshold = OriginalUnknownCompressedBytes >= Configuration.DiffAbortThreshold;
+			if (!bDeltaPreviouslyCompleted && bOverAbortThreshold)
+			{
+				FinalStatLogs.Add(FString::Printf(TEXT("** Aborting delta optimisation due to original delta over threshold. **")));
+				FinalStatLogs.Add(FString::Printf(TEXT("%llu >= %llu"), OriginalUnknownCompressedBytes, Configuration.DiffAbortThreshold));
+			}
+
+			const bool bRunProcess = bSuccess && !bDeltaPreviouslyCompleted && !bOverAbortThreshold;
+			if (bRunProcess)
 			{
 				// Runtime composition.
 				TUniquePtr<IChunkDataSerialization> ChunkDataSerializationReader(FChunkDataSerializationFactory::Create(FileSystem.Get()));
 				TUniquePtr<DeltaFactories::FChunkReferenceTrackerFactory> ChunkReferenceTrackerFactory(new DeltaFactories::FChunkReferenceTrackerFactory());
-				DeltaFactories::FCloudChunkSourceFactoryShared CloudChunkSourceFactorySharedA({FileSystem.Get(), DownloadService.Get(), ChunkDataSerializationReader.Get(), ManifestA.ToSharedRef()});
-				DeltaFactories::FCloudChunkSourceFactoryShared CloudChunkSourceFactorySharedB({FileSystem.Get(), DownloadService.Get(), ChunkDataSerializationReader.Get(), ManifestB.ToSharedRef()});
+				TUniquePtr<IBuildManifestSet> SetA(FBuildManifestSetFactory::Create({ FInstallerAction::MakeInstall(ManifestA.ToSharedRef()) }));
+				TUniquePtr<IBuildManifestSet> SetB(FBuildManifestSetFactory::Create({ FInstallerAction::MakeInstall(ManifestB.ToSharedRef()) }));
+				DeltaFactories::FCloudChunkSourceFactoryShared CloudChunkSourceFactorySharedA;
+				CloudChunkSourceFactorySharedA.FileSystem = FileSystem.Get();
+				CloudChunkSourceFactorySharedA.DownloadService = DownloadService.Get();
+				CloudChunkSourceFactorySharedA.ChunkDataSerialization = ChunkDataSerializationReader.Get();
+				CloudChunkSourceFactorySharedA.MessagePump = MessagePump.Get();
+				CloudChunkSourceFactorySharedA.ManifestSet = SetA.Get();
+				DeltaFactories::FCloudChunkSourceFactoryShared CloudChunkSourceFactorySharedB;
+				CloudChunkSourceFactorySharedB.FileSystem = FileSystem.Get();
+				CloudChunkSourceFactorySharedB.DownloadService = DownloadService.Get();
+				CloudChunkSourceFactorySharedB.ChunkDataSerialization = ChunkDataSerializationReader.Get();
+				CloudChunkSourceFactorySharedB.MessagePump = MessagePump.Get();
+				CloudChunkSourceFactorySharedB.ManifestSet = SetB.Get();
 				TUniquePtr<DeltaFactories::FCloudChunkSourceFactory> CloudChunkSourceFactoryA(new DeltaFactories::FCloudChunkSourceFactory(Configuration.CloudDirectory, CloudChunkSourceFactorySharedA));
 				TUniquePtr<DeltaFactories::FCloudChunkSourceFactory> CloudChunkSourceFactoryB(new DeltaFactories::FCloudChunkSourceFactory(Configuration.CloudDirectory, CloudChunkSourceFactorySharedB));
 
@@ -955,7 +1014,6 @@ namespace BuildPatchServices
 				// For all unknown data we need to re-chunk it out and fill in the gaps we have.
 				FBlockStructure NewStreamBlocks;
 				TArray<TTuple<FBlockStructure, FChunkPart>> NewChunks;
-				NewChunks.AddDefaulted_GetRef().Get<1>().Guid = FGuid::NewGuid();
 				uint64 ByteLocation = 0;
 				for (const FFileManifest& FileManifest : FileManifestList.FileList)
 				{
@@ -967,6 +1025,12 @@ namespace BuildPatchServices
 							uint32 PartSizeRemaining = ChunkPart.Size;
 							while (PartSizeRemaining > 0)
 							{
+								// Start new chunk?
+								if (NewChunks.Num() == 0 || NewChunks.Last().Get<1>().Size >= OutputChunkSize)
+								{
+									NewChunks.AddDefaulted_GetRef().Get<1>().Guid = FGuid::NewGuid();
+								}
+
 								TTuple<FBlockStructure, FChunkPart>* LastChunkDetail = &NewChunks.Last();
 								const uint32 NewTotalSize = LastChunkDetail->Get<1>().Size + PartSizeRemaining;
 								const uint32 ChunkPartConsume = NewTotalSize > OutputChunkSize ? PartSizeRemaining - (NewTotalSize - OutputChunkSize) : PartSizeRemaining;
@@ -977,12 +1041,6 @@ namespace BuildPatchServices
 								LastChunkDetail->Get<1>().Size += ChunkPartConsume;
 								PartByteLocation += ChunkPartConsume;
 								PartSizeRemaining -= ChunkPartConsume;
-
-								// Start new chunk?
-								if (LastChunkDetail->Get<1>().Size >= OutputChunkSize)
-								{
-									NewChunks.AddDefaulted_GetRef().Get<1>().Guid = FGuid::NewGuid();
-								}
 							}
 						}
 						ByteLocation += ChunkPart.Size;
@@ -1032,6 +1090,41 @@ namespace BuildPatchServices
 					ChunkWriter->AddChunkData(StreamBuffer, NewChunkPart.Guid, NewChunkHash, NewChunkSha);
 				}
 
+				// We also need to potentially upgrade chunks from ManifestA into ManifestB feature level.
+				if (bUsingDifferentChunkSubdir)
+				{
+					// Enumerate all chunks referenced from ManifestA.
+					TSet<FGuid> SourceChunkReferences;
+					FChunkSearcher::FFileDListNode* FileNode = ManifestSearcher.GetHead();
+					while (FileNode)
+					{
+						FChunkSearcher::FChunkDListNode* ChunkNode = FileNode->GetValue().ChunkParts.GetHead();
+						while (ChunkNode)
+						{
+							if (ManifestA->GetChunkInfo(ChunkNode->GetValue().ChunkPart.Guid) != nullptr)
+							{
+								SourceChunkReferences.Add(ChunkNode->GetValue().ChunkPart.Guid);
+							}
+							ChunkNode = ChunkNode->GetNextNode();
+						}
+						FileNode = FileNode->GetNextNode();
+					}
+
+					// Load these chunks and save them out in the new format.
+					TUniquePtr<IChunkReferenceTracker> UpgradeChunkReferenceTracker(ChunkReferenceTrackerFactory->Create(SourceChunkReferences.Array()));
+					TUniquePtr<ICloudChunkSource> UpgradeCloudChunkSource(CloudChunkSourceFactoryA->Create(UpgradeChunkReferenceTracker.Get()));
+					for (const FGuid& UpgradeChunk : SourceChunkReferences)
+					{
+						const FChunkInfo* UpgradeChunkInfo = ManifestA->GetChunkInfo(UpgradeChunk);
+						IChunkDataAccess* UpgradeChunkDataAccess = UpgradeCloudChunkSource->Get(UpgradeChunk);
+						checkf(UpgradeChunkDataAccess != nullptr, TEXT("Failed to download chunk from source %s."), *FBuildPatchUtils::GetDataFilename(*ManifestA.Get(), Configuration.CloudDirectory, UpgradeChunk));
+						FScopeLockedChunkData LockedChunkData(UpgradeChunkDataAccess);
+						TArray<uint8> ChunkDataArray(LockedChunkData.GetData(), LockedChunkData.GetHeader()->DataSizeUncompressed);
+						ChunkWriter->AddChunkData(MoveTemp(ChunkDataArray), UpgradeChunk, UpgradeChunkInfo->Hash, UpgradeChunkInfo->ShaHash);
+						UpgradeChunkReferenceTracker->PopReference(UpgradeChunk);
+					}
+				}
+
 				// We always make sure padding chunks are saved out, so a legacy client could actually grab it.
 				FSHAHash PaddingChunkSha;
 				FGuid PaddingChunkId = PaddingChunk::MakePaddingGuid(0);
@@ -1053,8 +1146,17 @@ namespace BuildPatchServices
 				// Complete chunk writer.
 				FParallelChunkWriterSummaries ChunkWriterSummaries = ChunkWriter->OnProcessComplete();
 
-				// Save out the manifest for now..
+				// Produce the new stomped file manifests, but remove any that we no longer need if they don't actually change with the delta.
 				FileManifestList = ManifestSearcher.BuildNewFileManifestList();
+				for (auto FileListIterator = FileManifestList.FileList.CreateIterator(); FileListIterator; ++FileListIterator)
+				{
+					if (ManifestB->IsFileOutdated(ManifestA.ToSharedRef(), (*FileListIterator).Filename) == false)
+					{
+						FileListIterator.RemoveCurrent();
+					}
+				}
+
+				// Save out the delta file.
 				DeltaManifest.ManifestMeta = ManifestB->ManifestMeta;
 				DeltaManifest.CustomFields = ManifestB->CustomFields;
 				DeltaManifest.FileManifestList = MoveTemp(FileManifestList);
@@ -1095,20 +1197,17 @@ namespace BuildPatchServices
 				}
 				DeltaManifest.InitLookups();
 				// Currently we just save out as the first version for delta support. If we change the delta version later we'd take this as commandline selection.
-				DeltaManifest.SaveToFile(OutputDeltaFilename, EFeatureLevel::FirstOptimisedDelta);
+				const FString TmpOutputDeltaFilename = OutputDeltaFilename + TEXT("tmp");
+				DeltaManifest.SaveToFile(TmpOutputDeltaFilename, EFeatureLevel::FirstOptimisedDelta);
+				FileSystem->MoveFile(*OutputDeltaFilename, *TmpOutputDeltaFilename);
 				FinalStatLogs.Add(FString::Printf(TEXT("Saved new optimised delta file %s"), *OutputDeltaFilename));
-			}
-			else if (bSuccess)
-			{
-				FinalStatLogs.Add(FString::Printf(TEXT("** Chunk delta optimisation already completed for provided manifests. **")));
-				FinalStatLogs.Add(FString::Printf(TEXT("Loaded optimised delta file %s"), *OutputDeltaFilename));
 			}
 
 			if (bSuccess)
 			{
 				// Count stats?
 				TSet<FGuid> ChunksUnknown = ChunksB.Difference(ChunksA);
-				int64 OriginalUnknownBytes = 0;
+				uint64 OriginalUnknownBytes = 0;
 				for (const FString& ManifestBFile : ListHelpers::GetFileList(*ManifestB))
 				{
 					for (const FChunkPart& ChunkPart : ManifestB->GetFileManifest(ManifestBFile)->ChunkParts)
@@ -1119,7 +1218,7 @@ namespace BuildPatchServices
 						}
 					}
 				}
-				int64 FinalUnknownBytes = 0;
+				uint64 FinalUnknownBytes = 0;
 				for (const FFileManifest& FileManifest : DeltaManifest.FileManifestList.FileList)
 				{
 					for (const FChunkPart& ChunkPart : FileManifest.ChunkParts)
@@ -1131,11 +1230,7 @@ namespace BuildPatchServices
 						}
 					}
 				}
-				TSet<FString> TagsA, TagsB;
-				ManifestA->GetFileTagList(TagsA);
-				ManifestB->GetFileTagList(TagsB);
-				int64 OriginalUnknownCompressedBytes = ManifestB->GetDeltaDownloadSize(TagsB, ManifestA.ToSharedRef(), TagsA);
-				int64 FinalUnknownCompressedBytes = 0;
+				uint64 FinalUnknownCompressedBytes = 0;
 				TSet<FGuid> TempTest;
 				for (const FChunkInfo& DeltaChunkInfo : DeltaManifest.ChunkDataList.ChunkList)
 				{
@@ -1147,21 +1242,28 @@ namespace BuildPatchServices
 						TempTest.Add(DeltaChunkInfo.Guid);
 					}
 				}
-				int64 DeltaFileSize = -1;
-				if (!FileSystem->GetFileSize(*OutputDeltaFilename, DeltaFileSize))
+				int64 DeltaFileSize = 0;
+				if (bRunProcess && !FileSystem->GetFileSize(*OutputDeltaFilename, DeltaFileSize))
 				{
 					UE_LOG(LogChunkDeltaOptimiser, Error, TEXT("Could not save output to %s"), *OutputDeltaFilename);
 					bSuccess = false;
+					DeltaFileSize = 0;
 				}
 				ProcessTimer.Stop();
 
 				// Final improvement stat logs.
-				FinalUnknownCompressedBytes += DeltaFileSize;
-				FinalStatLogs.Add(FString::Printf(TEXT("Final unknown compressed bytes, plus meta %llu"), FinalUnknownCompressedBytes));
-				FinalStatLogs.Add(FString::Printf(TEXT("Original unknown compressed bytes         %llu"), OriginalUnknownCompressedBytes));
-				FinalStatLogs.Add(FString::Printf(TEXT("Improvement: %s"), *FText::AsPercent(1.0 - ((double)FinalUnknownCompressedBytes / (double)OriginalUnknownCompressedBytes), &PercentFormat).ToString()));
+				if (bRunProcess || bDeltaPreviouslyCompleted)
+				{
+					FinalUnknownCompressedBytes += DeltaFileSize;
+					FinalStatLogs.Add(FString::Printf(TEXT("Final unknown compressed bytes, plus meta %llu"), FinalUnknownCompressedBytes));
+					FinalStatLogs.Add(FString::Printf(TEXT("Original unknown compressed bytes         %llu"), OriginalUnknownCompressedBytes));
+					if (OriginalUnknownCompressedBytes > FinalUnknownCompressedBytes)
+					{
+						FinalStatLogs.Add(FString::Printf(TEXT("Improvement: %s"), *FText::AsPercent(1.0 - ((double)FinalUnknownCompressedBytes / (double)OriginalUnknownCompressedBytes), &PercentFormat).ToString()));
+					}
+				}
 
-				if (bDeltaPreviouslyCompleted == false)
+				if (bRunProcess)
 				{
 					const FString TempMetaFilename = OutputDeltaFilename.Replace(TEXT("Deltas/"), TEXT("DeltaMetas/")).Replace(TEXT(".delta"), TEXT(".json"));
 					FString JsonOutput;
@@ -1170,10 +1272,10 @@ namespace BuildPatchServices
 					{
 						Writer->WriteValue(TEXT("SourceBuildVersion"), ManifestA->GetVersionString());
 						Writer->WriteValue(TEXT("DestinationBuildVersion"), ManifestB->GetVersionString());
-						Writer->WriteValue(TEXT("OriginalUnknownBuildBytes"), OriginalUnknownBytes);
-						Writer->WriteValue(TEXT("FinalUnknownBuildBytes"), FinalUnknownBytes);
-						Writer->WriteValue(TEXT("OriginalUnknownCompressedBytes"), OriginalUnknownCompressedBytes);
-						Writer->WriteValue(TEXT("FinalUnknownCompressedBytes"), FinalUnknownCompressedBytes);
+						Writer->WriteValue(TEXT("OriginalUnknownBuildBytes"), (int64)OriginalUnknownBytes);
+						Writer->WriteValue(TEXT("FinalUnknownBuildBytes"), (int64)FinalUnknownBytes);
+						Writer->WriteValue(TEXT("OriginalUnknownCompressedBytes"), (int64)OriginalUnknownCompressedBytes);
+						Writer->WriteValue(TEXT("FinalUnknownCompressedBytes"), (int64)FinalUnknownCompressedBytes);
 						Writer->WriteValue(TEXT("ChunkBuildATime"), ChunkingTimer.GetSeconds());
 						Writer->WriteValue(TEXT("ScanBuildBTime"), ScanningTimer.GetSeconds());
 						Writer->WriteValue(TEXT("TotalProcessTime"), ProcessTimer.GetSeconds());
@@ -1198,7 +1300,7 @@ namespace BuildPatchServices
 		TPromise<FBuildPatchAppManifestPtr>* RelevantPromisePtr = RequestId == RequestIdManifestA ? &PromiseManifestA : RequestId == RequestIdManifestB ? &PromiseManifestB : nullptr;
 		if (RelevantPromisePtr != nullptr)
 		{
-			if (Download->WasSuccessful())
+			if (Download->ResponseSuccessful())
 			{
 				Async(EAsyncExecution::ThreadPool, [Download, RelevantPromisePtr]()
 				{

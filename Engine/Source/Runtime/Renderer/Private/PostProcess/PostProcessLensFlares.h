@@ -9,6 +9,7 @@ enum class ELensFlareQuality : uint32
 	Disabled,
 	Low,
 	High,
+	VeryHigh,
 	MAX
 };
 

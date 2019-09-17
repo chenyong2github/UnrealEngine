@@ -16,6 +16,8 @@ namespace ImmediatePhysics_PhysX
 			: UserData(nullptr)
 		{}
 
+		~FActor();
+
 		TArray<FShape> Shapes;
 		void* UserData;
 

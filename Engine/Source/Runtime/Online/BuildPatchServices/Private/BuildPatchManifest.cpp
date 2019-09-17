@@ -1,9 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	BuildPatchManifest.cpp: Implements the manifest classes.
-=============================================================================*/
-
 #include "BuildPatchManifest.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
@@ -819,9 +815,11 @@ int64 FBuildPatchAppManifest::GetDeltaDownloadSize(const TSet<FString>& InTags, 
 
 	// Enumerate what is available.
 	TSet<FString> FilesInstalled;
+	TSet<FGuid> ChunksRequired;
 	TSet<FGuid> ChunksInstalled;
 	PreviousVersion->GetTaggedFileList(PreviousTags, FilesInstalled);
-	PreviousVersion->GetChunksRequiredForFiles(FilesInstalled, ChunksInstalled);
+	PreviousVersion->GetChunksRequiredForFiles(FilesInstalled, ChunksRequired);
+	PreviousVersion->EnumerateProducibleChunks(PreviousTags, ChunksRequired, ChunksInstalled);
 
 	// Enumerate what has changed.
 	FString DummyString;
@@ -948,11 +946,16 @@ void FBuildPatchAppManifest::GetFileList(TSet<FString>& Filenames) const
 	Algo::Transform(FileManifestList.FileList, Filenames, &FFileManifest::Filename);
 }
 
+TSet<FString> FBuildPatchAppManifest::GetFileTagList() const
+{
+	TSet<FString> TagSet;
+	GetFileTagList(TagSet);
+	return TagSet;
+}
+
 void FBuildPatchAppManifest::GetFileTagList(TSet<FString>& Tags) const
 {
-	TArray<FString> TagsArray;
-	TaggedFilesLookup.GetKeys(TagsArray);
-	Tags.Append(MoveTemp(TagsArray));
+	Algo::Transform(TaggedFilesLookup, Tags, &TPair<FString, TArray<const BuildPatchServices::FFileManifest*>>::Key);
 }
 
 void FBuildPatchAppManifest::GetTaggedFileList(const TSet<FString>& Tags, TArray<FString>& TaggedFiles) const
@@ -1170,36 +1173,53 @@ void FBuildPatchAppManifest::RemoveCustomField(const FString& FieldName)
 
 int32 FBuildPatchAppManifest::EnumerateProducibleChunks(const FString& InstallDirectory, const TSet<FGuid>& ChunksRequired, TSet<FGuid>& ChunksAvailable) const
 {
-	int32 Count = 0;
-	// For each required chunk, check we have the data available.
 	TMap<FString, int64> InstallationFileSizes;
-	for (const FGuid& ChunkRequired : ChunksRequired)
+	return EnumerateProducibleChunks_Internal([&](const FString& Filename)
 	{
-		if (ChunksAvailable.Contains(ChunkRequired) == false && ChunkInfoLookup.Contains(ChunkRequired))
+		if (InstallationFileSizes.Contains(Filename) == false)
 		{
-			FBlockStructure ChunkBlocks;
-			const FChunkInfo* ChunkInfoPtr = ChunkInfoLookup[ChunkRequired];
-			TArray<FFileChunkPart> FileChunkParts = GetFilePartsForChunk(ChunkRequired);
-			bool bCanMakeChunk = false;
-			for (int32 FileChunkPartIdx = 0; FileChunkPartIdx < FileChunkParts.Num() && !bCanMakeChunk; ++FileChunkPartIdx)
+			InstallationFileSizes.Add(Filename, IFileManager::Get().FileSize(*(InstallDirectory / Filename)));
+		}
+		return GetFileSize(Filename) == InstallationFileSizes[Filename];
+	}, ChunksRequired, ChunksAvailable);
+}
+
+int32 FBuildPatchAppManifest::EnumerateProducibleChunks(const TSet<FString>& TagSet, const TSet<FGuid>& ChunksRequired, TSet<FGuid>& ChunksAvailable) const
+{
+	TSet<FString> AvailableFiles;
+	GetTaggedFileList(TagSet, AvailableFiles);
+	return EnumerateProducibleChunks_Internal([&](const FString& Filename) { return AvailableFiles.Contains(Filename); }, ChunksRequired, ChunksAvailable);
+}
+
+int32 FBuildPatchAppManifest::EnumerateProducibleChunks_Internal(const TFunction<bool(const FString&)>& FileAccessChecker, const TSet<FGuid>& ChunksRequired, TSet<FGuid>& ChunksAvailable) const
+{
+	int32 Count = 0;
+	TMap<FGuid, FBlockStructure> ChunkBlockStructures;
+	ChunkBlockStructures.Reserve(ChunksRequired.Num());
+	for (const FFileManifest& FileManifest : FileManifestList.FileList)
+	{
+		const bool bHasFile = FileAccessChecker(FileManifest.Filename);
+		if (bHasFile)
+		{
+			for (const FChunkPart& ChunkPart : FileManifest.ChunkParts)
 			{
-				const FFileChunkPart& FileChunkPart = FileChunkParts[FileChunkPartIdx];
-				if (InstallationFileSizes.Contains(FileChunkPart.Filename) == false)
+				if (ChunksRequired.Contains(ChunkPart.Guid))
 				{
-					InstallationFileSizes.Add(FileChunkPart.Filename, IFileManager::Get().FileSize(*(InstallDirectory / FileChunkPart.Filename)));
+					FBlockStructure& FoundChunkParts = ChunkBlockStructures.FindOrAdd(ChunkPart.Guid);
+					FoundChunkParts.Add(ChunkPart.Offset, ChunkPart.Size, ESearchDir::FromEnd);
 				}
-				const bool bHasFile = GetFileSize(FileChunkPart.Filename) == InstallationFileSizes[FileChunkPart.Filename];
-				if (bHasFile)
-				{
-					ChunkBlocks.Add(FileChunkPart.ChunkPart.Offset, FileChunkPart.ChunkPart.Size);
-				}
-				bCanMakeChunk = ChunkBlocks.GetHead() == ChunkBlocks.GetTail() && ChunkBlocks.GetHead() && ChunkBlocks.GetHead()->GetSize() == ChunkInfoPtr->WindowSize;
 			}
-			if (bCanMakeChunk)
-			{
-				ChunksAvailable.Add(ChunkRequired);
-				++Count;
-			}
+		}
+	}
+	for (const TPair<FGuid, FBlockStructure>& ChunkBlockStructurePair : ChunkBlockStructures)
+	{
+		const FGuid& ChunkBlockId = ChunkBlockStructurePair.Key;
+		const FBlockStructure& ChunkBlocks = ChunkBlockStructurePair.Value;
+		const FChunkInfo* ChunkInfoPtr = ChunkInfoLookup[ChunkBlockId];
+		if (ChunkBlocks.GetHead() == ChunkBlocks.GetTail() && ChunkBlocks.GetHead() && ChunkBlocks.GetHead()->GetSize() == ChunkInfoPtr->WindowSize)
+		{
+			ChunksAvailable.Add(ChunkBlockId);
+			++Count;
 		}
 	}
 	return Count;
@@ -1247,13 +1267,18 @@ bool FBuildPatchAppManifest::HasFileAttributes() const
 	return false;
 }
 
-void FBuildPatchAppManifest::GetRemovableFiles(const IBuildManifestRef& InOldManifest, TArray< FString >& RemovableFiles) const
+void FBuildPatchAppManifest::GetRemovableFiles(const IBuildManifestRef& InOldManifest, TArray<FString>& RemovableFiles) const
 {
 	// Cast manifest parameters
-	const FBuildPatchAppManifestRef OldManifest = StaticCastSharedRef< FBuildPatchAppManifest >(InOldManifest);
+	const FBuildPatchAppManifestRef OldManifest = StaticCastSharedRef<FBuildPatchAppManifest>(InOldManifest);
+	GetRemovableFiles(OldManifest.Get(), RemovableFiles);
+}
+
+void FBuildPatchAppManifest::GetRemovableFiles(const FBuildPatchAppManifest& OldManifest, TArray<FString>& RemovableFiles) const
+{
 	// Simply put, any files that exist in the OldManifest file list, but do not in this manifest's file list, are assumed
 	// to be files no longer required by the build
-	for (const FFileManifest& OldFile : OldManifest->FileManifestList.FileList)
+	for (const FFileManifest& OldFile : OldManifest.FileManifestList.FileList)
 	{
 		if (!FileManifestLookup.Contains(OldFile.Filename))
 		{
@@ -1298,32 +1323,53 @@ bool FBuildPatchAppManifest::NeedsResaving() const
 	return bNeedsResaving;
 }
 
-void FBuildPatchAppManifest::GetOutdatedFiles(const FBuildPatchAppManifestPtr& OldManifest, const FString& InstallDirectory, TSet< FString >& OutDatedFiles) const
+void FBuildPatchAppManifest::GetOutdatedFiles(const IBuildManifestRef& InOldManifest, TSet<FString>& OutdatedFiles) const
+{
+	GetOutdatedFiles(FBuildPatchAppManifestPtr(StaticCastSharedRef<FBuildPatchAppManifest>(InOldManifest)), TEXT(""), OutdatedFiles);
+}
+
+void FBuildPatchAppManifest::GetOutdatedFiles(const FBuildPatchAppManifestPtr& OldManifest, const FString& InstallDirectory, TSet<FString>& OutDatedFiles) const
+{
+	GetOutdatedFiles(OldManifest.Get(), InstallDirectory, OutDatedFiles);
+}
+
+void FBuildPatchAppManifest::GetOutdatedFiles(const FBuildPatchAppManifest* OldManifest, const FString& InstallDirectory, TSet<FString>& OutDatedFiles) const
+{
+	TSet<FString> FilesToCheck;
+	GetFileList(FilesToCheck);
+	GetOutdatedFiles(OldManifest, InstallDirectory, FilesToCheck, OutDatedFiles);
+}
+
+void FBuildPatchAppManifest::GetOutdatedFiles(const FBuildPatchAppManifest* OldManifest, const FString& InstallDirectory, const TSet<FString>& FilesToCheck, TSet<FString>& OutDatedFiles) const
 {
 	const bool bCheckExistingFile = InstallDirectory.IsEmpty() == false;
-	if (!OldManifest.IsValid())
+	if (nullptr == OldManifest)
 	{
 		// All files are outdated if no OldManifest
-		TArray<FString> Filenames;
-		FileManifestLookup.GetKeys(Filenames);
-		OutDatedFiles.Append(MoveTemp(Filenames));
+		TSet<FString> AllFiles;
+		GetFileList(AllFiles);
+		OutDatedFiles.Append(AllFiles.Intersect(FilesToCheck));
 	}
 	else
 	{
 		// Enumerate files in the this file list, that do not exist, or have different hashes in the OldManifest
 		// to be files no longer required by the build
-		for (const FFileManifest& NewFile : FileManifestList.FileList)
+		for (const FString& FileToCheck : FilesToCheck)
 		{
-			const int64 ExistingFileSize = IFileManager::Get().FileSize(*(InstallDirectory / NewFile.Filename));
-			// Check changed
-			if (IsFileOutdated(OldManifest.ToSharedRef(), NewFile.Filename))
+			const FFileManifest* NewFile = GetFileManifest(FileToCheck);
+			if (NewFile != nullptr)
 			{
-				OutDatedFiles.Add(NewFile.Filename);
-			}
-			// Double check an unchanged file is not missing (size will be -1) or is incorrect size
-			else if (bCheckExistingFile && (ExistingFileSize < 0 || ExistingFileSize != NewFile.FileSize))
-			{
-				OutDatedFiles.Add(NewFile.Filename);
+				const int64 ExistingFileSize = IFileManager::Get().FileSize(*(InstallDirectory / NewFile->Filename));
+				// Check changed
+				if (IsFileOutdated(*OldManifest, NewFile->Filename))
+				{
+					OutDatedFiles.Add(NewFile->Filename);
+				}
+				// Double check an unchanged file is not missing (size will be -1) or is incorrect size
+				else if (bCheckExistingFile && (ExistingFileSize < 0 || ExistingFileSize != NewFile->FileSize))
+				{
+					OutDatedFiles.Add(NewFile->Filename);
+				}
 			}
 		}
 	}
@@ -1331,13 +1377,18 @@ void FBuildPatchAppManifest::GetOutdatedFiles(const FBuildPatchAppManifestPtr& O
 
 bool FBuildPatchAppManifest::IsFileOutdated(const FBuildPatchAppManifestRef& OldManifest, const FString& Filename) const
 {
+	return IsFileOutdated(OldManifest.Get(), Filename);
+}
+
+bool FBuildPatchAppManifest::IsFileOutdated(const FBuildPatchAppManifest& OldManifest, const FString& Filename) const
+{
 	// If both app manifests are the same, return false as only repair would touch the file.
-	if (&OldManifest.Get() == this)
+	if (&OldManifest == this)
 	{
 		return false;
 	}
 	// Get file manifests
-	const FFileManifest* OldFile = OldManifest->GetFileManifest(Filename);
+	const FFileManifest* OldFile = OldManifest.GetFileManifest(Filename);
 	const FFileManifest* NewFile = GetFileManifest(Filename);
 	// Out of date if not in either manifest
 	if (!OldFile || !NewFile)

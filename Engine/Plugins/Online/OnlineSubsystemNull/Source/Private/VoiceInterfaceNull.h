@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "VoiceInterfaceImpl.h"
 #include "UObject/CoreOnline.h"
 #include "OnlineSubsystemTypes.h"

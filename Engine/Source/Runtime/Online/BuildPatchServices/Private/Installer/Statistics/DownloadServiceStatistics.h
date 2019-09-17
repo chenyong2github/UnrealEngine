@@ -44,6 +44,15 @@ namespace BuildPatchServices
 		 * @return an array of current request info.
 		 */
 		virtual TArray<FDownload> GetCurrentDownloads() const = 0;
+
+		/**
+		 * Calculates the average speed per request since the last time this function was called. NOT A CUMULATIVE AVERAGE
+		 * @param MinCount -- The smallest number of samples that will be used for calculating an average;
+		 *                    if the minimum count isn't met, the same value as the previous call is returned, and the samples will continue to accumulate.
+		 * @return A pair containing an average of the per-request download speed SINCE THIS FUNCTION WAS LAST CALLED
+		 *         and the count of requests completed since the last call.
+		 */
+		virtual TPair<double, uint32> GetImmediateAverageSpeedPerRequest(uint32 MinCount) = 0;
 	};
 
 	/**

@@ -40,6 +40,18 @@ void FMovieSceneActorReferenceData::DeleteKeys(TArrayView<const FKeyHandle> InHa
 	GetData().DeleteKeys(InHandles);
 }
 
+void FMovieSceneActorReferenceData::DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore)
+{
+	// Insert a key at the current time to maintain evaluation
+	if (GetData().GetTimes().Num() > 0)
+	{
+		FMovieSceneActorReferenceKey Value = Evaluate(InTime);
+		GetData().UpdateOrAddKey(InTime, Value);
+	}
+
+	GetData().DeleteKeysFrom(InTime, bDeleteKeysBefore);
+}
+
 void FMovieSceneActorReferenceData::ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate)
 {
 	GetData().ChangeFrameResolution(SourceRate, DestinationRate);

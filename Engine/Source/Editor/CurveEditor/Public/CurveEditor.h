@@ -22,6 +22,7 @@
 #include "EditorUndoClient.h"
 #include "CurveEditorScreenSpace.h"
 #include "ITimeSlider.h"
+#include "CurveEditorHelpers.h"
 
 class UCurveEditorSettings;
 class FUICommandList;
@@ -32,6 +33,7 @@ struct FGeometry;
 struct FCurveEditorSnapMetrics;
 class ICurveEditorExtension;
 class ICurveEditorToolExtension;
+class IBufferedCurveModel;
 
 DECLARE_DELEGATE_OneParam(FOnSetBoolean, bool)
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnCurveArrayChanged, FCurveModelID)
@@ -49,25 +51,13 @@ public:
 	 */
 	FCurveEditorSelection Selection;
 
-	
-protected:
-	struct FBufferedCurve
-	{
-		/** Cached Positions from original curve. */
-		TArray<FKeyPosition>	KeyPositions;
-		/** Cached Attributes from original curve. */
-		TArray<FKeyAttributes>	KeyAttributes;
-		/** The original intention of the type of curve. Can be empty. Used to try and match when pasting multiple curves. */
-		FString					IntentionName;
-	};
-
 public:
 
 	/** Attribute used to retrieve the current input snap rate (also used for display) */
 	TAttribute<FFrameRate> InputSnapRateAttribute;
 
-	/** Attribute used to retrieve the current output snap interval */
-	TAttribute<double> OutputSnapIntervalAttribute;
+	/** Attribute used to retrieve the current value-axis grid line state */
+	TAttribute<TOptional<float>> FixedGridSpacingAttribute;
 
 	/** Attribute used to determine if we should snap input values */
 	TAttribute<bool> InputSnapEnabledAttribute;
@@ -228,7 +218,13 @@ public:
 	/**
 	 * Generate a utility struct for snapping values
 	 */
-	FCurveEditorSnapMetrics GetSnapMetrics() const;
+	FCurveSnapMetrics GetCurveSnapMetrics(FCurveModelID CurveModel) const;
+
+	/**
+	 * Returns the value grid line spacing state
+	 */
+	TOptional<float> GetGridSpacing() const { return FixedGridSpacingAttribute.Get(); }
+
 	/**
 	 * Returned the cached struct for snapping editing movement to a specific axis based on user preferences.
 	 */
@@ -250,6 +246,8 @@ public:
 	bool ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToApplyTo);
 	/** Return the number of stored Buffered Curves. */
 	int32 GetNumBufferedCurves() const { return BufferedCurves.Num(); }
+	/** Return the array of buffered curves */
+	const TArray<TUniquePtr<IBufferedCurveModel>>& GetBufferedCurves() const { return BufferedCurves; }
 	// ~FCurveEditor
 
 	// FEditorUndoClient
@@ -383,7 +381,7 @@ public:
 	 * function for the Y grid lines is not provided due to the Curve Editor's ability to have multiple
 	 * views with repeated gridlines and values.
 	 */
-	virtual void GetGridLinesX(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const
+	virtual void GetGridLinesX(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels) const
 	{
 		ConstructXGridLines(MajorGridLines, MinorGridLines, MajorGridLabels);
 	}
@@ -398,7 +396,7 @@ protected:
 	/**
 	 * Construct grid lines along the current display frame rate or time-base
 	 */
-	void ConstructXGridLines(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const;
+	void ConstructXGridLines(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels) const;
 
 	/**
 	 * Internal zoom to fit implementation
@@ -411,7 +409,7 @@ protected:
 	/**
 	*	Apply a specific buffered curve to a specific target curve.
 	*/
-	void ApplyBufferedCurveToTarget(const FBufferedCurve& BufferedCurve, FCurveModel* TargetCurve);
+	void ApplyBufferedCurveToTarget(const IBufferedCurveModel* BufferedCurve, FCurveModel* TargetCurve);
 
 
 protected:
@@ -459,10 +457,8 @@ protected:
 	/** Track which axis UI movements should be snapped to (where applicable) based on limitations imposed by the UI. */
 	FCurveEditorAxisSnap AxisSnapMetrics;
 
-
-
 	/** Buffered Curves. When a curve is buffered it is copied and the new copy is uniquely owned by the Curve Editor. */
-	TArray<FBufferedCurve> BufferedCurves;
+	TArray<TUniquePtr<IBufferedCurveModel>> BufferedCurves;
 
 	/** A serial number that is incremented any time the currently active set of curves are changed */
 	uint32 ActiveCurvesSerialNumber;

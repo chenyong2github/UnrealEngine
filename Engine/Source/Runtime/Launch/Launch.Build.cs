@@ -248,12 +248,6 @@ public class Launch : ModuleRules
 				"IOSRuntimeSettings",
 			});
 
-			// no longer build GL for apps requiring iOS 12 or later
-			if (Target.IOSPlatform.RuntimeVersion < 12.0)
-			{
-				PublicFrameworks.Add("OpenGLES");
-				PrivateDependencyModuleNames.Add("OpenGLDrv");
-			}
 			// needed for Metal layer
 			PublicFrameworks.Add("QuartzCore");
 		}

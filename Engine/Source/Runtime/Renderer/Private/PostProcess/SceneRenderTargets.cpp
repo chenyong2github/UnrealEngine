@@ -128,6 +128,13 @@ static FAutoConsoleVariableRef CVarVirtualTextureFeedbackFactor(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly /*Read-only as shaders are compiled with this value*/
 );
 
+static TAutoConsoleVariable<int32> CVarMobileClearSceneColorWithMaxAlpha(
+	TEXT("r.MobileClearSceneColorWithMaxAlpha"),
+	0,
+	TEXT("Whether the scene color alpha channel on mobile should be cleared with MAX_FLT.\n")
+    TEXT(" 0: disabled (default)\n"),
+	ECVF_RenderThreadSafe);
+
 /** The global render targets used for scene rendering. */
 static TGlobalResource<FSceneRenderTargets> SceneRenderTargetsSingleton;
 
@@ -241,6 +248,7 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, DBufferC(GRenderTargetPool.MakeSnapshot(SnapshotSource.DBufferC))
 	, DBufferMask(GRenderTargetPool.MakeSnapshot(SnapshotSource.DBufferMask))
 	, ScreenSpaceAO(GRenderTargetPool.MakeSnapshot(SnapshotSource.ScreenSpaceAO))
+	, ScreenSpaceGTAOHorizons(GRenderTargetPool.MakeSnapshot(SnapshotSource.ScreenSpaceGTAOHorizons))
 	, QuadOverdrawBuffer(GRenderTargetPool.MakeSnapshot(SnapshotSource.QuadOverdrawBuffer))
 	, CustomDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.CustomDepth))
 	, MobileCustomStencil(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileCustomStencil))
@@ -286,6 +294,7 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, DefaultDepthClear(SnapshotSource.DefaultDepthClear)
 	, QuadOverdrawIndex(SnapshotSource.QuadOverdrawIndex)
 	, bHMDAllocatedDepthTarget(SnapshotSource.bHMDAllocatedDepthTarget)
+	, bKeepDepthContent(SnapshotSource.bKeepDepthContent)
 {
 	FMemory::Memcpy(LargestDesiredSizes, SnapshotSource.LargestDesiredSizes);
 #if PREVENT_RENDERTARGET_SIZE_THRASHING
@@ -560,7 +569,17 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 	int GBufferFormat = CVarGBufferFormat.GetValueOnRenderThread();
 
 	// Set default clear values
-	SetDefaultColorClear(FClearValueBinding::Black);
+	if (CurrentShadingPath == EShadingPath::Mobile &&
+		CVarMobileClearSceneColorWithMaxAlpha.GetValueOnRenderThread())
+	{
+		// On mobile the scene depth is calculated from the alpha component of the scene color
+		// Use BlackMaxAlpha to ensure un-rendered pixels have max depth...
+		SetDefaultColorClear(FClearValueBinding::BlackMaxAlpha);
+	}
+	else
+	{
+		SetDefaultColorClear(FClearValueBinding::Black);
+	}
 	SetDefaultDepthClear(FClearValueBinding::DepthFar);
 
 	int SceneColorFormat;
@@ -2191,6 +2210,11 @@ void FSceneRenderTargets::AllocateCommonDepthTargets(FRHICommandList& RHICmdList
 		Desc.NumSamples = GetNumSceneColorMSAASamples(CurrentFeatureLevel);
 		Desc.Flags |= GFastVRamConfig.SceneDepth;
 
+		if (!bKeepDepthContent)
+		{
+			Desc.TargetableFlags |= TexCreate_Memoryless;
+		}
+
 		// Only defer texture allocation if we're an HMD-allocated target, and we're not MSAA.
 		const bool bDeferTextureAllocation = bHMDAllocatedDepthTarget && Desc.NumSamples == 1;
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneDepthZ, TEXT("SceneDepthZ"), true, ERenderTargetTransience::Transient, bDeferTextureAllocation);
@@ -2317,6 +2341,19 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandLi
 			}
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ScreenSpaceAO, TEXT("ScreenSpaceAO"), true, ERenderTargetTransience::NonTransient);
 		}
+
+		// Create the screen space Horizon texture for Async GTAO
+		{
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_R8G8, FClearValueBinding::White, TexCreate_None, TexCreate_RenderTargetable, false));
+			Desc.Flags |= GFastVRamConfig.ScreenSpaceAO;
+
+			if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5)
+			{
+				Desc.TargetableFlags |= TexCreate_UAV;
+			}
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ScreenSpaceGTAOHorizons, TEXT("ScreenSpaceGTAOHorizons"), true, ERenderTargetTransience::NonTransient);
+		}
+		
 		
 		{
 			const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
@@ -2604,6 +2641,20 @@ void FSceneRenderTargets::AllocateRenderTargets(FRHICommandListImmediate& RHICmd
 		else
 		{
 			AllocateDeferredShadingPathRenderTargets(RHICmdList, NumViews);
+		}
+	}
+	else if ((EShadingPath)CurrentShadingPath == EShadingPath::Mobile && SceneDepthZ)
+	{
+		// If the render targets are already allocated, but the keep depth content flag has changed,
+		// we need to reallocate the depth buffer.
+		uint32 DepthBufferFlags = SceneDepthZ->GetRenderTargetItem().TargetableTexture->GetFlags();
+		bool bCurrentKeepDepthContent = (DepthBufferFlags & TexCreate_Memoryless) == 0;
+		if (bCurrentKeepDepthContent != bKeepDepthContent)
+		{
+			SceneDepthZ.SafeRelease();
+			// Make sure the old depth buffer is freed by flushing the target pool.
+			GRenderTargetPool.FreeUnusedResources();
+			AllocateCommonDepthTargets(RHICmdList);
 		}
 	}
 }

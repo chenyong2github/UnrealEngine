@@ -96,6 +96,29 @@ struct FExpressionOutput
 };
 #endif
 
+USTRUCT()
+struct FParameterChannelNames
+{
+	GENERATED_USTRUCT_BODY()
+
+		UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
+		FText R;
+
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
+		FText G;
+
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
+		FText B;
+
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
+		FText A;
+
+	FParameterChannelNames()
+	{
+
+	};
+};
+
 UCLASS(abstract, BlueprintType, hidecategories=Object)
 class ENGINE_API UMaterialExpression : public UObject
 {
@@ -150,7 +173,7 @@ class ENGINE_API UMaterialExpression : public UObject
 
 	/** Indicates that this is a 'parameter' type of expression and should always be loaded (ie not cooked away) because we might want the default parameter. */
 	UPROPERTY()
-	uint32 bIsParameterExpression:1;
+	uint8 bIsParameterExpression : 1;
 
 #if WITH_EDITORONLY_DATA
 	/** If true, the comment bubble will be visible in the graph editor */

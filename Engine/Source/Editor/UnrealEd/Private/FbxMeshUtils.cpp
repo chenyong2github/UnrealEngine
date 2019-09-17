@@ -34,7 +34,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 
 #include "Assets/ClothingAsset.h"
-#include "LODUtilities.h"
+#include "SkinWeightsUtilities.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogExportMeshUtils, Log, All);
 
@@ -540,7 +540,7 @@ namespace FbxMeshUtils
 
 					if (ImportOptions->bImportMorph)
 					{
-						FFbxImporter->ImportFbxMorphTarget(SkelMeshNodeArray, SelectedSkelMesh, SelectedSkelMesh->GetOutermost(), SelectedLOD, OutData);
+						FFbxImporter->ImportFbxMorphTarget(SkelMeshNodeArray, SelectedSkelMesh, SelectedLOD, OutData);
 					}
 
 					bSuccess = true;
@@ -555,7 +555,7 @@ namespace FbxMeshUtils
 					{
 						//We cannot use anymore the FFbxImporter after the cleanup
 						CleanUpScene();
-						FLODUtilities::ReimportAlternateSkinWeight(SelectedSkelMesh, SelectedLOD, false);
+						FSkinWeightsUtilities::ReimportAlternateSkinWeight(SelectedSkelMesh, SelectedLOD, false);
 					}
 
 					SelectedSkelMesh->PostEditChange();

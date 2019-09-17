@@ -57,7 +57,7 @@
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Editor/Kismet/Public/BlueprintEditorModule.h"
 #include "Editor/Kismet/Public/FindInBlueprintManager.h"
 #include "Toolkits/ToolkitManager.h"
@@ -65,7 +65,7 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "IAssetTools.h"
 #include "AssetRegistryModule.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "ScopedTransaction.h"
 #include "AssetToolsModule.h"
 #include "EngineAnalytics.h"
@@ -82,6 +82,8 @@
 #include "Engine/InheritableComponentHandler.h"
 #include "Stats/StatsHierarchical.h"
 #include "Classes/EditorStyleSettings.h"
+#include "ToolMenus.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 DECLARE_CYCLE_STAT(TEXT("Compile Blueprint"), EKismetCompilerStats_CompileBlueprint, STATGROUP_KismetCompiler);
 DECLARE_CYCLE_STAT(TEXT("Broadcast Precompile"), EKismetCompilerStats_BroadcastPrecompile, STATGROUP_KismetCompiler);
@@ -323,7 +325,7 @@ void FBlueprintUnloader::UnloadBlueprint(const bool bResetPackage)
 		FKismetEditorUtilities::OnBlueprintUnloaded.Broadcast(UnloadingBp);
 
 		// handled in FBlueprintEditor (from the OnBlueprintUnloaded event)
-// 		IAssetEditorInstance* EditorInst = FAssetEditorManager::Get().FindEditorForAsset(UnloadingBp, /*bFocusIfOpen =*/false);
+// 		IAssetEditorInstance* EditorInst = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(UnloadingBp, /*bFocusIfOpen =*/false);
 // 		if (EditorInst != nullptr)
 // 		{
 // 			EditorInst->CloseWindow();
@@ -717,7 +719,7 @@ UBlueprint* FKismetEditorUtilities::ReloadBlueprint(UBlueprint* StaleBlueprint)
 	FSoftObjectPath BlueprintAssetRef(StaleBlueprint);
 
 	// Need to close the editor now, it won't work once it's been garbage collected during the reload
-	FAssetEditorManager::Get().CloseAllEditorsForAsset(StaleBlueprint);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(StaleBlueprint);
 
 	FBlueprintUnloader Unloader(StaleBlueprint);
 	Unloader.UnloadBlueprint(/*bResetPackage =*/true);
@@ -742,7 +744,7 @@ UBlueprint* FKismetEditorUtilities::ReplaceBlueprint(UBlueprint* Target, UBluepr
 	check(BlueprintPackage != GetTransientPackage());
 	
 	// Need to close the editor now, it won't work once it's been garbage collected during the reload
-	FAssetEditorManager::Get().CloseAllEditorsForAsset(Target);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(Target);
 
 	FBlueprintUnloader Unloader(Target);
 	Unloader.UnloadBlueprint(/*bResetPackage =*/false);
@@ -1124,9 +1126,25 @@ static void ConformComponentsUtils::ConformRemovedNativeComponents(UObject* BpCd
 		{
 			// Keep track of components inherited from the native super class that are still valid.
 			NewNativeComponents.Add(Component);
-
 			continue;
 		}
+
+		// If we have overriden the class of a native component then ensure that the component still exists and that the overriden class is a valid subclass of it
+		if (const FBPComponentClassOverride* BPCO = CastChecked<UBlueprintGeneratedClass>(BlueprintClass)->ComponentClassOverrides.FindByKey(Component->GetFName()))
+		{
+			if (BPCO->ComponentClass == Component->GetClass())
+			{
+				if (UObject* OverridenComponent = (UObject*)FindObjectWithOuter(NativeCDO, UActorComponent::StaticClass(), Component->GetFName()))
+				{
+					if (Component->IsA(OverridenComponent->GetClass()))
+					{
+						NewNativeComponents.Add(Component);
+						continue;
+					}
+				}
+			}
+		}
+
 		// else, the component has been removed from our native super class
 
 		Component->DestroyComponent(/*bPromoteChildren =*/false);
@@ -1691,7 +1709,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FName Bluepri
 	if (NewBlueprint)
 	{
 		// Open the editor for the new blueprint
-		FAssetEditorManager::Get().OpenEditorForAsset(NewBlueprint);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewBlueprint);
 	}
 	return NewBlueprint;
 }
@@ -1868,7 +1886,7 @@ public:
 			}
 
 			// Open the editor for the new blueprint
-			FAssetEditorManager::Get().OpenEditorForAsset(Blueprint);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
 
 			return Blueprint;
 		}
@@ -1899,6 +1917,7 @@ AActor* FKismetEditorUtilities::CreateBlueprintInstanceFromSelection(UBlueprint*
 
 	GEditor->GetSelectedActors()->Modify();
 
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 	for(auto It(SelectedActors.CreateIterator());It;++It)
 	{
 		if (AActor* Actor = *It)
@@ -1906,13 +1925,13 @@ AActor* FKismetEditorUtilities::CreateBlueprintInstanceFromSelection(UBlueprint*
 			// Remove from active selection in editor
 			GEditor->SelectActor(Actor, /*bSelected=*/ false, /*bNotify=*/ false);
 
-			GEditor->Layers->DisassociateActorFromLayers(Actor);
+			Layers->DisassociateActorFromLayers(Actor);
 			World->EditorDestroyActor(Actor, false);
 		}
 	}
 
 	AActor* NewActor = World->SpawnActor(Blueprint->GeneratedClass, &Location, &Rotator);
-	GEditor->Layers->InitializeNewActorLayers(NewActor);
+	Layers->InitializeNewActorLayers(NewActor);
 	FActorLabelUtilities::SetActorLabelUnique(NewActor, Blueprint->GetName());
 	// Quietly ensure that no components are selected
 	USelection* ComponentSelection = GEditor->GetSelectedComponents();
@@ -2019,7 +2038,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintUsingAsset(UObject* Asset, bo
 			// Open in BP editor if desired
 			if(bOpenInEditor)
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(NewBP);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewBP);
 			}
 		}
 
@@ -2062,7 +2081,7 @@ TSharedPtr<class IBlueprintEditor> FKismetEditorUtilities::GetIBlueprintEditorFo
 		if (bOpenEditor)
 		{
 			// @todo toolkit major: Needs world-centric support
-			FAssetEditorManager::Get().OpenEditorForAsset(TargetBP);
+			 GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(TargetBP);
 		}
 
 		TSharedPtr< IToolkit > FoundAssetEditor = FToolkitManager::Get().FindEditorForAsset(TargetBP);
@@ -2146,7 +2165,7 @@ void FKismetEditorUtilities::ShowActorReferencesInLevelScript(const AActor* Acto
 		if (LSB != NULL)
 		{
 			// @todo toolkit major: Needs world-centric support.  Other spots, too?
-			FAssetEditorManager::Get().OpenEditorForAsset(LSB);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LSB);
 			TSharedPtr<IToolkit> FoundAssetEditor = FToolkitManager::Get().FindEditorForAsset(LSB);
 			if (FoundAssetEditor.IsValid())
 			{
@@ -2442,7 +2461,7 @@ bool FKismetEditorUtilities::AnyBoundLevelScriptEventForActor(AActor* Actor, boo
 	return false;
 }
 
-void FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(class FMenuBuilder& MenuBuilder, TWeakObjectPtr<AActor> ActorPtr, bool bExistingEvents, bool bNewEvents, bool bOnlyEventName)
+void FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(UToolMenu* Menu, TWeakObjectPtr<AActor> ActorPtr, bool bExistingEvents, bool bNewEvents, bool bOnlyEventName)
 {
 	struct FCreateEventForActorHelper
 	{
@@ -2512,7 +2531,7 @@ void FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(class FMenuBuild
 		// Now build the menu
 		for(FEventCategory& Category : CategorizedEvents)
 		{
-			MenuBuilder.BeginSection(NAME_None, FText::FromString(Category.CategoryName));
+			FToolMenuSection& Section = Menu->AddSection(NAME_None, FText::FromString(Category.CategoryName));
 
 			for(UProperty* Property : Category.EventProperties)
 			{
@@ -2545,15 +2564,14 @@ void FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(class FMenuBuild
 				}
 
 				// create menu entry
-				MenuBuilder.AddMenuEntry(
+				Section.AddMenuEntry(
+					NAME_None,
 					EntryText,
 					Property->GetToolTipText(),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateStatic(&FCreateEventForActorHelper::CreateEventForActor, ActorPtr, EventName))
+					FExecuteAction::CreateStatic(&FCreateEventForActorHelper::CreateEventForActor, ActorPtr, EventName)
 					);
 			}
-
-			MenuBuilder.EndSection();
 		}
 	}
 }

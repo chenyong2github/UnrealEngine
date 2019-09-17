@@ -2085,9 +2085,10 @@ UFXSystemAsset::UFXSystemAsset(const FObjectInitializer& ObjectInitializer)
 UParticleSystem::UParticleSystem(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, OcclusionBoundsMethod(EPSOBM_ParticleBounds)
+	, bAnyEmitterLoopsForever(false)
 	, HighestSignificance(EParticleSignificanceLevel::Critical)
 	, LowestSignificance(EParticleSignificanceLevel::Low)
-	, bAnyEmitterLoopsForever(false)
+	, bShouldManageSignificance(false)
 	, bIsImmortal(false)
 	, bWillBecomeZombie(false)
 {
@@ -2127,7 +2128,6 @@ UParticleSystem::UParticleSystem(const FObjectInitializer& ObjectInitializer)
 	InsignificanceDelay = 0.0f;
 	MaxSignificanceLevel = EParticleSignificanceLevel::Critical;
 	MaxPoolSize = 32;
-	bShouldManageSignificance = false;
 
 
 	bAllowManagedTicking = true;
@@ -3397,6 +3397,8 @@ UParticleSystemComponent::UParticleSystemComponent(const FObjectInitializer& Obj
 	ManagerHandle = INDEX_NONE;
 	bPendingManagerAdd = false;
 	bPendingManagerRemove = false;
+
+	bExcludeFromLightAttachmentGroup = true;
 }
 
 void UParticleSystemComponent::SetRequiredSignificance(EParticleSignificanceLevel NewRequiredSignificance)
@@ -3599,7 +3601,10 @@ void UParticleSystemComponent::ForceReset()
 {
 #if WITH_EDITOR
 	//If we're resetting in the editor, cached emitter values may now be invalid.
-	Template->UpdateAllModuleLists();
+	if (Template != nullptr)
+	{
+		Template->UpdateAllModuleLists();
+	}
 #endif
 
 	bool bOldActive = bIsActive;
@@ -4633,8 +4638,7 @@ FBoxSphereBounds UParticleSystemComponent::CalcBounds(const FTransform& LocalToW
 	}
 	else if (FXConsoleVariables::bAllowCulling == false)
 	{
-		BoundingBox.Min = FVector(-HALF_WORLD_MAX);
-		BoundingBox.Max = FVector(+HALF_WORLD_MAX);
+		BoundingBox = FBox(FVector(-HALF_WORLD_MAX), FVector(HALF_WORLD_MAX));
 	}
 	else if(Template && Template->bUseFixedRelativeBoundingBox)
 	{
@@ -4650,6 +4654,12 @@ FBoxSphereBounds UParticleSystemComponent::CalcBounds(const FTransform& LocalToW
 			{
 				BoundingBox += EmitterInstance->GetBoundingBox();
 			}
+		}
+
+		// If the bounding box is not valid at this point there were no active particles, return zero-extent/radius box at local origin.
+		if (!BoundingBox.IsValid)
+		{
+			return FBoxSphereBounds(LocalToWorld.GetTranslation(), FVector::ZeroVector, 0.0f);
 		}
 
 		// Expand the actual bounding-box slightly so it will be valid longer in the case of expanding particle systems.

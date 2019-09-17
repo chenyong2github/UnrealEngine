@@ -111,7 +111,7 @@ public:
 	UNiagaraParameterCollectionInstance* GetParameterCollection(UNiagaraParameterCollection* Collection);
 	void SetParameterCollection(UNiagaraParameterCollectionInstance* NewInstance);
 	void CleanupParameterCollections();
-	TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation(UNiagaraSystem* System);
+	TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation(ETickingGroup TickGroup, UNiagaraSystem* System);
 	void DestroySystemSimulation(UNiagaraSystem* System);
 	void DestroySystemInstance(TUniquePtr<FNiagaraSystemInstance>& InPtr);	
 
@@ -159,11 +159,11 @@ private:
 
 	UWorld* World;
 
-	FNiagaraWorldManagerTickFunction TickFunction;//TODO: Add more tick functions to kick some work earlier in frame.
+	FNiagaraWorldManagerTickFunction TickFunctions[NiagaraNumTickGroups];
 
 	TMap<UNiagaraParameterCollection*, UNiagaraParameterCollectionInstance*> ParameterCollections;
 
-	TMap<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>> SystemSimulations;
+	TMap<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>> SystemSimulations[NiagaraNumTickGroups];
 
 	int32 CachedEffectsQuality;
 

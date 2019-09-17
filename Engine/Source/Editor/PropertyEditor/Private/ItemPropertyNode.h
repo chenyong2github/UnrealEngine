@@ -32,6 +32,7 @@ public:
 	 * Overridden function to get the derived object node
 	 */
 	virtual FItemPropertyNode* AsItemPropertyNode() override { return this; }
+	virtual const FItemPropertyNode* AsItemPropertyNode() const override { return this; }
 
 	/** Display name override to use instead of the property name */
 	void SetDisplayNameOverride( const FText& InDisplayNameOverride ) override;

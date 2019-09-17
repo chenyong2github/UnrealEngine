@@ -1002,3 +1002,8 @@ IRHIComputeContext* FMetalDynamicRHI::RHIGetDefaultAsyncComputeContext()
 	return ComputeContext;
 	}
 }
+
+#if PLATFORM_USES_FIXED_RHI_CLASS
+#define INTERNAL_DECORATOR(Method) ((FMetalRHICommandContext&)CmdList.GetContext()).FMetalRHICommandContext::Method
+#include "RHICommandListCommandExecutes.inl"
+#endif

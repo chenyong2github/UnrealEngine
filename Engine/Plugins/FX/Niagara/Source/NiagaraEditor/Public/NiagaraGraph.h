@@ -63,10 +63,6 @@ public:
 	UPROPERTY()
 	FGuid UsageId;
 
-	/** The compile ID last associated with this traversal.*/
-	UPROPERTY()
-	FGuid GeneratedCompileId;
-
 	/** The hash that we calculated last traversal. */
 	UPROPERTY()
 	FNiagaraCompileHash CompileHash;
@@ -80,6 +76,9 @@ public:
 private:
 	UPROPERTY()
 	TArray<uint8> DataHash_DEPRECATED;
+
+	UPROPERTY()
+	FGuid GeneratedCompileId_DEPRECATED;
 };
 
 struct FNiagaraGraphFunctionAliasContext
@@ -182,7 +181,7 @@ class UNiagaraGraph : public UEdGraph
 	void GetAllReferencedGraphs(TArray<const UNiagaraGraph*>& Graphs) const;
 
 	/** Gather all the change ids of external references for this specific graph traversal.*/
-	void GatherExternalDependencyIDs(ENiagaraScriptUsage InUsage, const FGuid& InUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FGuid>& InReferencedIDs, TArray<UObject*>& InReferencedObjs);
+	void GatherExternalDependencyData(ENiagaraScriptUsage InUsage, const FGuid& InUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<UObject*>& InReferencedObjs);
 
 	/** Determine if there are any external dependencies wrt to scripts and ensure that those dependencies are sucked into the existing package.*/
 	void SubsumeExternalDependencies(TMap<const UObject*, UObject*>& ExistingConversions);
@@ -200,9 +199,6 @@ class UNiagaraGraph : public UEdGraph
 	value that third parties can poll to see if their cached handling of the graph needs to potentially adjust to changes. Furthermore, for script compilation we cache 
 	the changes that were produced during the traversal of each output node, which are referred to as the CompileID.*/
 	FGuid GetChangeID() { return ChangeId; }
-
-	/** Recomputes the current compile id associated with the output node traversal specified by InUsage and InUsageId. If the usage is not found, an invalid Guid is returned.*/
-	FGuid ComputeCompileID(ENiagaraScriptUsage InUsage, const FGuid& InUsageId);
 
 	/** Gets the current compile data hash associated with the output node traversal specified by InUsage and InUsageId. If the usage is not found, an invalid hash is returned.*/
 	FNiagaraCompileHash GetCompileDataHash(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const;
@@ -242,7 +238,6 @@ class UNiagaraGraph : public UEdGraph
 	/** Gets a delegate which is called whenever a contained data interfaces changes. */
 	FOnDataInterfaceChanged& OnDataInterfaceChanged();
 
-	void SynchronizeInternalCacheWithGraph(UNiagaraGraph* Other);
 	void InvalidateCachedCompileIds();
 
 	/** Add a listener for OnGraphNeedsRecompile events */

@@ -412,7 +412,7 @@ FRDGTextureRef ComputePostProcessMaterial(
 	{
 		PostProcessMaterialParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthStencilTexture,
-			ERenderTargetLoadAction::ENoAction,
+			ERenderTargetLoadAction::ELoad,
 			ERenderTargetLoadAction::ELoad,
 			FExclusiveDepthStencil::DepthRead_StencilRead);
 	}
@@ -668,7 +668,9 @@ FRenderingCompositePass* AddPostProcessMaterialPass(
 			Inputs.CustomDepthTexture = GraphBuilder.RegisterExternalTexture(CustomDepthTarget, TEXT("CustomDepth"));
 		}
 
-		FRDGTextureRef OutputTexture = ComputePostProcessMaterial(GraphBuilder, FScreenPassViewInfo(InContext.View), MaterialInterface, Inputs);
+		FScreenPassViewInfo ScreenPassView(InContext.View);
+
+		FRDGTextureRef OutputTexture = ComputePostProcessMaterial(GraphBuilder, ScreenPassView, MaterialInterface, Inputs);
 
 		Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, OutputTexture);
 

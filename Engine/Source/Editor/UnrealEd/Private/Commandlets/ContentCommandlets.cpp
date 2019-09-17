@@ -1543,7 +1543,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 			// If we are (minimally) rebuilding HLOD, set the visible streamed-in levels packages to clean (as FlushLevelStreaming will dirty their packages in this commandlet context)
 			if(bShouldBuildHLOD)
 			{
-				for (const ULevel* Level : GWorld->GetLevels())
+				for (const ULevel* Level : World->GetLevels())
 				{
 					if (Level->bIsVisible)
 					{
@@ -1569,7 +1569,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					TSubclassOf<UHierarchicalLODSetup> NewHLODSetupAsset = LoadClass<UHierarchicalLODSetup>( NULL, *ForceHLODSetupAsset, NULL, LOAD_None, NULL );
 					if( NewHLODSetupAsset != nullptr )
 					{
-						GWorld->GetWorldSettings()->HLODSetupAsset = NewHLODSetupAsset;
+						World->GetWorldSettings()->HLODSetupAsset = NewHLODSetupAsset;
 					}
 					else
 					{
@@ -1580,16 +1580,16 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				// Force HLOD support on for this level if we were asked to
 				if( bForceEnableHLODForLevel )
 				{
-					GWorld->GetWorldSettings()->bEnableHierarchicalLODSystem = true;
+					World->GetWorldSettings()->bEnableHierarchicalLODSystem = true;
 				}
 
 				// Use a single cluster for all actors in the level if we were asked to
 				if( bForceSingleClusterForLevel )
 				{
-					GWorld->GetWorldSettings()->bGenerateSingleClusterForLevel = true;
+					World->GetWorldSettings()->bGenerateSingleClusterForLevel = true;
 				}
 
-				FHierarchicalLODBuilder Builder(GWorld);
+				FHierarchicalLODBuilder Builder(World);
 
 				if (bForceClusterGeneration)
 				{
@@ -1625,7 +1625,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 
 				// Get the list of packages needs to be saved.
 				TSet<UPackage*> PackagesToSave;
-				for(ULevel* Level : GWorld->GetLevels())
+				for(ULevel* Level : World->GetLevels())
 				{
 					if(Level->bIsVisible)
 					{

@@ -36,7 +36,7 @@
 #include "FileHelpers.h"
 #include "EditorModeInterpolation.h"
 #include "UnrealEdGlobals.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "LevelEditor.h"
 #include "Matinee/MatineeActor.h"
 #include "Engine/LevelScriptBlueprint.h"
@@ -55,7 +55,7 @@
 #include "Editor/SceneOutliner/Private/SSocketChooser.h"
 #include "SnappingUtils.h"
 #include "LevelEditorViewport.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "IPlacementMode.h"
 #include "IPlacementModeModule.h"
 #include "AssetSelection.h"
@@ -95,6 +95,7 @@
 #if WITH_LIVE_CODING
 #include "ILiveCodingModule.h"
 #endif
+#include "Subsystems/AssetEditorSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LevelEditorActions, Log, All);
 
@@ -130,7 +131,7 @@ namespace LevelEditorActionsHelpers
 		{
 			// @todo Re-enable once world centric works
 			const bool bOpenWorldCentric = false;
-			FAssetEditorManager::Get().OpenEditorForAsset(
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 				Blueprint,
 				bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 				InLevelEditor.Pin()  );
@@ -1247,7 +1248,7 @@ void FLevelEditorActionCallbacks::EditAsset_Clicked( const EToolkitMode::Type To
 			{
 				for (auto Asset : ReferencedAssets)
 				{
-					FAssetEditorManager::Get().OpenEditorForAsset(Asset, ToolkitMode, LevelEditorSharedPtr);
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset, ToolkitMode, LevelEditorSharedPtr);
 				}
 			}
 		}
@@ -1549,7 +1550,7 @@ bool FLevelEditorActionCallbacks::Duplicate_CanExecute()
 
 	if (!bCanCopy)
 	{
-		TWeakPtr<class SLevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
+		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 		if (LevelEditor.IsValid())
 		{
 			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
@@ -1602,7 +1603,7 @@ bool FLevelEditorActionCallbacks::Delete_CanExecute()
 
 	if (!bCanDelete)
 	{
-		TWeakPtr<class SLevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
+		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 		if (LevelEditor.IsValid())
 		{
 			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
@@ -1629,7 +1630,7 @@ void FLevelEditorActionCallbacks::Rename_Execute()
 	}
 	else
 	{
-		TWeakPtr<class SLevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
+		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 		if (LevelEditor.IsValid())
 		{
 			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
@@ -1659,7 +1660,7 @@ bool FLevelEditorActionCallbacks::Rename_CanExecute()
 
 	if (!bCanRename)
 	{
-		TWeakPtr<class SLevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
+		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 		if (LevelEditor.IsValid())
 		{
 			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
@@ -1714,7 +1715,7 @@ bool FLevelEditorActionCallbacks::Cut_CanExecute()
 
 	if (!bCanCut)
 	{
-		TWeakPtr<class SLevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
+		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 		if (LevelEditor.IsValid())
 		{
 			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
@@ -1767,7 +1768,7 @@ bool FLevelEditorActionCallbacks::Copy_CanExecute()
 
 	if (!bCanCopy)
 	{
-		TWeakPtr<class SLevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
+		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 		if (LevelEditor.IsValid())
 		{
 			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
@@ -1818,7 +1819,7 @@ bool FLevelEditorActionCallbacks::Paste_CanExecute()
 
 	if (!bCanPaste)
 	{
-		TWeakPtr<class SLevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
+		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 		if (LevelEditor.IsValid())
 		{
 			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
@@ -2333,7 +2334,7 @@ void FLevelEditorActionCallbacks::OpenLevelBlueprint( TWeakPtr< SLevelEditor > L
 		{
 			// @todo Re-enable once world centric works
 			const bool bOpenWorldCentric = false;
-			FAssetEditorManager::Get().OpenEditorForAsset(
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 				LevelScriptBlueprint,
 				bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 				LevelEditor.Pin()  );
@@ -2361,7 +2362,7 @@ void FLevelEditorActionCallbacks::CreateBlankBlueprintClass()
 		{
 			// @todo Re-enable once world centric works
 			const bool bOpenWorldCentric = false;
-			FAssetEditorManager::Get().OpenEditorForAsset(
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 				Blueprint,
 				bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone);
 		}
@@ -2712,27 +2713,6 @@ void FLevelEditorActionCallbacks::OnAddVolume( UClass* VolumeClass )
 	GEditor->RedrawAllViewports();
 }
 
-void FLevelEditorActionCallbacks::OnAddMatinee()
-{
-	// Warn the user prior to creating our actor
-	if ( GEditor->ShouldOpenMatinee( NULL ) )
-	{
-		// Spawn a matinee actor at the origin, and either move infront of the camera or focus camera on it (depending on the viewport) and open for edit
-		UActorFactory* ActorFactory = GEditor->FindActorFactoryForActorClass( AMatineeActor::StaticClass() );
-		check( ActorFactory );
-		AMatineeActor* MatineeActor = CastChecked<AMatineeActor>( FLevelEditorActionCallbacks::AddActor( ActorFactory, FAssetData(), &FTransform::Identity ) );
-		if( GCurrentLevelEditingViewportClient->IsPerspective() )
-		{
-			GEditor->MoveActorInFrontOfCamera( *MatineeActor, GCurrentLevelEditingViewportClient->GetViewLocation(), GCurrentLevelEditingViewportClient->GetViewRotation().Vector() );
-		}
-		else
-		{
-			GEditor->MoveViewportCamerasToActor( *MatineeActor, false );
-		}
-		GEditor->OpenMatinee( MatineeActor, false );
-	}
-}
-
 void FLevelEditorActionCallbacks::SelectActorsInLayers()
 {
 	// Iterate over selected actors and make a list of all layers the selected actors belong to.
@@ -2748,9 +2728,10 @@ void FLevelEditorActionCallbacks::SelectActorsInLayers()
 		}
 	}
 
-	bool bSelect = true;
-	bool bNotify = true;
-	GEditor->Layers->SelectActorsInLayers( SelectedLayers, bSelect, bNotify );
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+	const bool bSelect = true;
+	const bool bNotify = true;
+	Layers->SelectActorsInLayers( SelectedLayers, bSelect, bNotify );
 }
 
 void FLevelEditorActionCallbacks::SetWidgetMode( FWidget::EWidgetMode WidgetMode )
@@ -3362,8 +3343,6 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( WorldProperties, "World Settings", "Displays the world settings", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( OpenContentBrowser, "Open Content Browser", "Opens the Content Browser", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control|EModifierKey::Shift, EKeys::F) );
 	UI_COMMAND( OpenMarketplace, "Open Marketplace", "Opens the Marketplace", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( AddMatinee, "Add Matinee [Legacy]", "Creates a new matinee actor to edit", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( EditMatinee, "Edit Matinee", "Selects a Matinee to edit", EUserInterfaceActionType::Button, FInputChord() );
 
 	UI_COMMAND( ToggleVR, "Toggle VR", "Toggles VR (Virtual Reality) mode", EUserInterfaceActionType::ToggleButton, FInputChord( EModifierKey::Alt, EKeys::V ) );
 

@@ -30,6 +30,7 @@ FNiagaraParameterStore::FNiagaraParameterStore()
 	: Owner(nullptr)
 	, bParametersDirty(true)
 	, bInterfacesDirty(true)
+	, bUObjectsDirty(true)
 	, LayoutVersion(0)
 {
 }
@@ -419,6 +420,56 @@ void FNiagaraParameterStore::RenameParameter(const FNiagaraVariable& Param, FNam
 	}
 }
 
+void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
+{
+	// This function exists to patch up the issue seen in FORT-208391, where we had entries for DataInterfaces in the offset array but not in the actual DataInterface array entries.
+	// Additional protections were added for safety.
+	TMap<FNiagaraVariable, int32>::TConstIterator It = ParameterOffsets.CreateConstIterator();
+	while (It)
+	{
+		FNiagaraVariable Parameter = It->Key;
+		int32 SrcIndex = It->Value;
+		++It;
+
+		if (Parameter.IsValid())
+		{
+			if (Parameter.IsDataInterface())
+			{
+				if (DataInterfaces.Num() <= SrcIndex)
+				{
+					int32 OriginalNum = DataInterfaces.Num();
+					int32 NewNum = SrcIndex - DataInterfaces.Num() + 1;
+					DataInterfaces.AddZeroed(NewNum);
+					UE_LOG(LogNiagara, Warning, TEXT("Missing data interfaces! Had to add %d data interface entries to ParameterStore on %s"), NewNum , Owner != nullptr ? *Owner->GetPathName() : TEXT("Unknown owner"));
+				}
+				if (DataInterfaces[SrcIndex] == nullptr && bInitInterfaces && Owner)
+				{
+					DataInterfaces[SrcIndex] = NewObject<UNiagaraDataInterface>(Owner, const_cast<UClass*>(Parameter.GetType().GetClass()), NAME_None, RF_Transactional | RF_Public);
+					UE_LOG(LogNiagara, Warning, TEXT("Had to initialize data interface! %s on %s"), *Parameter.GetName().ToString(), Owner != nullptr ? *Owner->GetPathName() : TEXT("Unknown owner"));
+				}
+			}
+			else if (Parameter.IsUObject())
+			{
+				if (UObjects.Num() <= SrcIndex)
+				{
+					int32 OriginalNum = UObjects.Num();
+					int32 NewNum = SrcIndex - UObjects.Num() + 1;
+					UObjects.AddZeroed(NewNum);
+					UE_LOG(LogNiagara, Warning, TEXT("Missing UObject interfaces! Had to add %d UObject entries for %s on %s"), NewNum , *Parameter.GetName().ToString(), Owner != nullptr ? *Owner->GetPathName() : TEXT("Unknown owner"));
+				}
+			}
+			else
+			{
+				int32 Size = Parameter.GetType().GetSize();
+				if (ParameterData.Num() < (SrcIndex + Size))
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("Missing parameter data! %s on %s"), *Parameter.GetName().ToString(), Owner != nullptr ? *Owner->GetPathName() : TEXT("Unknown owner"));
+				}
+			}
+		}
+	}
+}
+
 void FNiagaraParameterStore::CopyParametersTo(FNiagaraParameterStore& DestStore, bool bOnlyAdd, EDataInterfaceCopyMethod DataInterfaceCopyMethod)
 {
 	TMap<FNiagaraVariable, int32>::TConstIterator It = ParameterOffsets.CreateConstIterator();
@@ -470,6 +521,8 @@ void FNiagaraParameterStore::CopyParametersTo(FNiagaraParameterStore& DestStore,
 		{
 			if (Parameter.IsDataInterface())
 			{
+				ensure(DataInterfaces.IsValidIndex(SrcIndex));
+				ensure(DestStore.DataInterfaces.IsValidIndex(DestIndex));
 				if (DataInterfaceCopyMethod == EDataInterfaceCopyMethod::Reference)
 				{
 					DestStore.SetDataInterface(DataInterfaces[SrcIndex], DestIndex);
@@ -586,6 +639,15 @@ void FNiagaraParameterStore::Reset(bool bClearBindings)
 
 void FNiagaraParameterStore::OnLayoutChange()
 {
+	// The VM require that the parameter data we send it in FNiagaraScriptExecutionContext::Execute
+	// is aligned to VECTOR_WIDTH_BYTES *and* is padded with an additional VECTOR_WIDTH_BYTES.
+	// This is due to possible unaligned reads, e.g. an integer might be stored in the very last byte
+	// of the aligned parameter data due to the packing, which will spill 3 bytes outside the bounds
+	int32 ExpectedSlack = Align(ParameterData.Num(), VECTOR_WIDTH_BYTES) + VECTOR_WIDTH_BYTES;
+	if (ParameterData.Max() < ExpectedSlack)
+	{
+		ParameterData.Reserve(ExpectedSlack);
+	}
 	Rebind();
 	++LayoutVersion;
 

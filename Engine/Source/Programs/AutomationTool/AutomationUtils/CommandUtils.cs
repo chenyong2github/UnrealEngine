@@ -2323,27 +2323,6 @@ namespace AutomationTool
 
 			return BuildVersionPaths;
 		}
-
-		static public string GetPreviousXboxOneReleaseArchiveDir(string XboxOneReleasesArchiveDir)
-		{
-			var BuildFolders = Directory.GetDirectories(XboxOneReleasesArchiveDir);
-			if (BuildFolders.Length > 0)
-			{
-				Dictionary<Version, string> BuildVersionPathMap = GetBuildVersionPathMap(BuildFolders);
-				if (BuildVersionPathMap.Count > 0)
-				{
-					return BuildVersionPathMap.Where(archiveDir => DirectoryExists(CombinePaths(archiveDir.Value, "Paks"))).OrderByDescending(versionPathPair => versionPathPair.Key).First().Value;
-				}
-				else
-				{
-					throw new AutomationException(String.Format("No valid builds were found in %s", XboxOneReleasesArchiveDir));
-				}
-			}
-			else
-			{
-				throw new AutomationException(String.Format("No builds were found in %s", XboxOneReleasesArchiveDir));
-			}
-		}
 		
 		public static string FormatSizeString(long Size)
 		{
@@ -2899,7 +2878,11 @@ namespace AutomationTool
 			TargetFileInfo.IsReadOnly = false;
 
 			CodeSignWindows.Sign(new FileReference(TargetFileInfo), CodeSignWindows.SignatureType.SHA1);
-			CodeSignWindows.Sign(new FileReference(TargetFileInfo), CodeSignWindows.SignatureType.SHA256);
+			// MSI files can only have one signature; prefer SHA1 for compatibility, so don't run SHA256 on msi files.
+			if (!TargetFileInfo.FullName.EndsWith(".msi", StringComparison.InvariantCultureIgnoreCase))
+			{
+				CodeSignWindows.Sign(new FileReference(TargetFileInfo), CodeSignWindows.SignatureType.SHA256);
+			}
 		}
 
 		/// <summary>

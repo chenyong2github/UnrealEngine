@@ -122,11 +122,22 @@ void FNiagaraShaderMapId::Serialize(FArchive& Ar)
 
 	Ar << BaseScriptID;
 	Ar << (int32&)FeatureLevel;
-	Ar << ReferencedDependencyIds;
+
+	if (Ar.IsLoading() && NiagaraVer < FNiagaraCustomVersion::RemoveGraphUsageCompileIds)
+	{
+		// These values are no longer used, but need to be loaded from old files to keep the archive valid.
+		TArray<FGuid> ReferencedDependencyIds;
+		Ar << ReferencedDependencyIds;
+	}
+
 	if (NiagaraVer >= FNiagaraCustomVersion::UseHashesToIdentifyCompileStateOfTopLevelScripts)
 	{
 		Ar << BaseCompileHash;
 		Ar << ReferencedCompileHashes;
+	}
+	if (NiagaraVer >= FNiagaraCustomVersion::AddAdditionalDefinesProperty)
+	{
+		Ar << AdditionalDefines;
 	}
 	
 	//ParameterSet.Serialize(Ar);		// NIAGARATODO: at some point we'll need stuff for static switches here
@@ -142,14 +153,14 @@ void FNiagaraShaderMapId::GetScriptHash(FSHAHash& OutHash) const
 	HashState.Update(BaseCompileHash.GetData(), FNiagaraCompileHash::HashSize);
 	HashState.Update((const uint8*)&FeatureLevel, sizeof(FeatureLevel));
 		
+	for (int32 Index = 0; Index < AdditionalDefines.Num(); Index++)
+	{
+		HashState.UpdateWithString(*AdditionalDefines[Index], AdditionalDefines[Index].Len());
+	}
+
 	for (int32 Index = 0; Index < ReferencedCompileHashes.Num(); Index++)
 	{
 		HashState.Update(ReferencedCompileHashes[Index].GetData(), FNiagaraCompileHash::HashSize);
-	}
-
-	for (int32 Index = 0; Index < ReferencedDependencyIds.Num(); Index++)
-	{
-		HashState.Update((const uint8*)&ReferencedDependencyIds[Index], sizeof(ReferencedDependencyIds[Index]));
 	}
 
 	//ParameterSet.UpdateHash(HashState);		// will need for static switches
@@ -173,6 +184,18 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 	{
 		return false;
 	}
+	if (AdditionalDefines.Num() != ReferenceSet.AdditionalDefines.Num())
+	{
+		return false;
+	}
+
+	for (int32 i = 0; i < AdditionalDefines.Num(); i++)
+	{
+		if (AdditionalDefines[i] != ReferenceSet.AdditionalDefines[i])
+		{
+			return false;
+		}
+	}
 
 	if (ReferencedCompileHashes.Num() != ReferenceSet.ReferencedCompileHashes.Num())
 	{
@@ -187,18 +210,6 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 		}
 	}
 
-	if (ReferencedDependencyIds.Num() != ReferenceSet.ReferencedDependencyIds.Num())
-	{
-		return false;
-	}
-
-	for (int32 i = 0; i < ReferencedDependencyIds.Num(); i++)
-	{
-		if (ReferencedDependencyIds[i] != ReferenceSet.ReferencedDependencyIds[i])
-		{
-			return false;
-		}
-	}
 	/*
 	if (ParameterSet != ReferenceSet.ParameterSet
 		|| ReferencedFunctions.Num() != ReferenceSet.ReferencedFunctions.Num()
@@ -234,22 +245,21 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 	KeyString += CompilerVersionID.ToString();
 	KeyString += TEXT("_");
 
-	// Add any referenced top level compile hashes to the key so that we will recompile when they are changed
-	for (int32 HashIndex = 0; HashIndex < ReferencedCompileHashes.Num(); HashIndex++)
+	// Add additional defines
+	for (int32 DefinesIndex = 0; DefinesIndex < AdditionalDefines.Num(); DefinesIndex++)
 	{
-		KeyString += ReferencedCompileHashes[HashIndex].ToString();
-		if (HashIndex < ReferencedCompileHashes.Num() - 1)
+		KeyString += AdditionalDefines[DefinesIndex];
+		if (DefinesIndex < AdditionalDefines.Num() - 1)
 		{
 			KeyString += TEXT("_");
 		}
 	}
 
-	// Add any referenced functions to the key so that we will recompile when they are changed
-	for (int32 FunctionIndex = 0; FunctionIndex < ReferencedDependencyIds.Num(); FunctionIndex++)
+	// Add any referenced top level compile hashes to the key so that we will recompile when they are changed
+	for (int32 HashIndex = 0; HashIndex < ReferencedCompileHashes.Num(); HashIndex++)
 	{
-		KeyString += ReferencedDependencyIds[FunctionIndex].ToString();
-
-		if (FunctionIndex < ReferencedDependencyIds.Num() - 1)
+		KeyString += ReferencedCompileHashes[HashIndex].ToString();
+		if (HashIndex < ReferencedCompileHashes.Num() - 1)
 		{
 			KeyString += TEXT("_");
 		}

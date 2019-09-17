@@ -30,7 +30,7 @@ enum ERuntimeVirtualTextureMipValueMode
 
 /** Material expression for sampling from a runtime virtual texture. */
 UCLASS(collapsecategories, hidecategories=Object)
-class UMaterialExpressionRuntimeVirtualTextureSample : public UMaterialExpression
+class ENGINE_API UMaterialExpressionRuntimeVirtualTextureSample : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -67,9 +67,10 @@ protected:
 
 #if WITH_EDITOR
 	virtual void PostLoad() override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+public:
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

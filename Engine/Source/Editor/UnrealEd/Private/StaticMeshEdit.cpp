@@ -787,13 +787,6 @@ void GetBrushMesh(ABrush* Brush, UModel* Model, FMeshDescription& MeshDescriptio
 				//All edge are hard for BSP
 				EdgeHardnesses[NewEdgeID] = true;
 			}
-			int32 NewTriangleIndex = MeshDescription.GetPolygonTriangles(NewPolygonID).AddDefaulted();
-			FMeshTriangle& NewTriangle = MeshDescription.GetPolygonTriangles(NewPolygonID)[NewTriangleIndex];
-			for (int32 TriangleVertexIndex = 0; TriangleVertexIndex < 3; ++TriangleVertexIndex)
-			{
-				const FVertexInstanceID &VertexInstanceID = VertexInstanceIDs[TriangleVertexIndex];
-				NewTriangle.SetVertexInstanceID(TriangleVertexIndex, VertexInstanceID);
-			}
 		}
 	}
 }
@@ -1018,6 +1011,8 @@ struct ExistingStaticMeshData
 	bool						ExistingAllowCpuAccess;
 	FVector						ExistingPositiveBoundsExtension;
 	FVector						ExistingNegativeBoundsExtension;
+
+	UStaticMesh::FOnMeshChanged	ExistingOnMeshChanged;
 };
 
 bool IsUsingMaterialSlotNameWorkflow(UAssetImportData* AssetImportData)
@@ -1199,6 +1194,7 @@ ExistingStaticMeshData* SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, Un
 				}
 			}
 		}
+		ExistingMeshDataPtr->ExistingOnMeshChanged = ExistingMesh->OnMeshChanged;
 	}
 
 	return ExistingMeshDataPtr;
@@ -1344,6 +1340,8 @@ void RestoreExistingMeshSettings(ExistingStaticMeshData* ExistingMesh, UStaticMe
 		}
 		NewMesh->MaterialRemapIndexPerImportVersion.Add(FMaterialRemapIndex(MaterialMapKey, ImportRemapMaterial));
 	}
+	// Copy mesh changed delegate data
+	NewMesh->OnMeshChanged = ExistingMesh->ExistingOnMeshChanged;
 }
 
 void UpdateSomeLodsImportMeshData(UStaticMesh* NewMesh, TArray<int32> *ReimportLodList)

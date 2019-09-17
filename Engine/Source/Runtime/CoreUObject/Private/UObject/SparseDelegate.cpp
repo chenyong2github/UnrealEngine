@@ -13,7 +13,7 @@ TMap<TPair<FName,FName>, size_t> FSparseDelegateStorage::SparseDelegateObjectOff
 FSparseDelegateStorage::FObjectListener::~FObjectListener()
 {
 	// Destroy order might result in GUObjectArray or its critical section being invalid so don't disable since we're shutting down anyways
-	if (!GIsRequestingExit)
+	if (!IsEngineExitRequested())
 	{
 		DisableListener();
 	}
@@ -57,7 +57,7 @@ FSparseDelegate* FSparseDelegateStorage::ResolveSparseDelegate(const UObject* Ow
 	const UClass* OwningClass = OwningObject->GetClass();
 	while (OwningClass)
 	{
-		if (!OwningClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
+		if (OwningClass->HasAnyClassFlags(CLASS_Native))
 		{
 			if (size_t* DelegateOffset = SparseDelegateObjectOffsets.Find(TPair<FName, FName>(OwningClass->GetFName(), DelegateName)))
 			{

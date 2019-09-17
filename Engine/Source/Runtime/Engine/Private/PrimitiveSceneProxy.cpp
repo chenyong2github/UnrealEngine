@@ -15,6 +15,9 @@
 #include "Materials/Material.h"
 #include "SceneManagement.h"
 #include "VT/RuntimeVirtualTexture.h"
+#if WITH_EDITOR
+#include "FoliageHelper.h"
+#endif
 
 static TAutoConsoleVariable<int32> CVarForceSingleSampleShadowingFromStationary(
 	TEXT("r.Shadow.ForceSingleSampleShadowingFromStationary"),
@@ -160,6 +163,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 // by default we are always drawn
 ,	HiddenEditorViews(0)
 ,	DrawInAnyEditMode(0)
+,   bIsFoliage(false)
 #endif
 ,	VisibilityId(InComponent->VisibilityId)
 ,	MaxDrawDistance(InComponent->CachedMaxDrawDistance > 0 ? InComponent->CachedMaxDrawDistance : FLT_MAX)
@@ -209,6 +213,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 		// cache the actor's group membership
 		HiddenEditorViews = InComponent->GetHiddenEditorViews();
 		DrawInAnyEditMode = InComponent->GetOwner()->IsEditorOnly();
+		bIsFoliage = FFoliageHelper::IsOwnedByFoliage(InComponent->GetOwner());
 #endif
 	}
 	
@@ -617,6 +622,11 @@ bool FPrimitiveSceneProxy::IsShown(const FSceneView* View) const
 		{
 			return false;
 		}
+	}
+
+	if (bIsFoliage && !View->Family->EngineShowFlags.InstancedFoliage)
+	{
+		return false;
 	}
 
 	// After checking for VR/Desktop Edit mode specific actors, check for Editor vs. Game

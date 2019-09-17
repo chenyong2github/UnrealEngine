@@ -33,21 +33,21 @@
 #include "Logging/LogMacros.h"
 
 // Macro to check result code for XAudio2 failure, get the string version, log, and goto a cleanup
-#define XAUDIO2_CLEANUP_ON_FAIL(Result)						\
-	if (FAILED(Result))										\
-	{														\
-		const TCHAR* ErrorString = GetErrorString(Result);	\
-		AUDIO_PLATFORM_ERROR(ErrorString);					\
-		goto Cleanup;										\
+#define XAUDIO2_CLEANUP_ON_FAIL(Result)																\
+	if (FAILED(Result))																				\
+	{																								\
+		FString ErrorString = FString::Printf(TEXT("0x%X: %s"), Result, GetErrorString(Result));	\
+		AUDIO_PLATFORM_ERROR(*ErrorString);															\
+		goto Cleanup;																				\
 	}
 
 // Macro to check result for XAudio2 failure, get string version, log, and return false
-#define XAUDIO2_RETURN_ON_FAIL(Result)						\
-	if (FAILED(Result))										\
-	{														\
-		const TCHAR* ErrorString = GetErrorString(Result);	\
-		AUDIO_PLATFORM_ERROR(ErrorString);					\
-		return false;										\
+#define XAUDIO2_RETURN_ON_FAIL(Result)																\
+	if (FAILED(Result))																				\
+	{																								\
+		FString ErrorString = FString::Printf(TEXT("0x%X: %s"), Result, GetErrorString(Result));	\
+		AUDIO_PLATFORM_ERROR(*ErrorString);															\
+		return false;																				\
 	}
 
 
@@ -120,7 +120,7 @@ namespace Audio
 			case E_INVALIDARG:								return TEXT("E_INVALIDARG");
 			case E_OUTOFMEMORY:								return TEXT("E_OUTOFMEMORY");
 #endif
-			default:										return TEXT("UKNOWN");
+			default:										return TEXT("UNKNOWN");
 		}
 	}
 
@@ -254,7 +254,7 @@ namespace Audio
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
 #if PLATFORM_64BITS && !PLATFORM_HOLOLENS
-		if (XAudio2Dll != nullptr && GIsRequestingExit)
+		if (XAudio2Dll != nullptr && IsEngineExitRequested())
 		{
 			if (!FreeLibrary(XAudio2Dll))
 			{
@@ -540,12 +540,13 @@ namespace Audio
 
 		OpenStreamParams = Params;
 
+#if !PLATFORM_HOLOLENS
 		// On windows, default device index is 0
 		if (Params.OutputDeviceIndex == AUDIO_MIXER_DEFAULT_DEVICE_INDEX)
 		{
 			OpenStreamParams.OutputDeviceIndex = 0;
 		}
-
+#endif
 		AudioStreamInfo.Reset();
 
 		AudioStreamInfo.OutputDeviceIndex = OpenStreamParams.OutputDeviceIndex;
@@ -558,10 +559,41 @@ namespace Audio
 
 		if (GetNumOutputDevices(NumOutputDevices) && NumOutputDevices > 0)
 		{
+#if PLATFORM_HOLOLENS
+			// On windows, default device index is 0
+			// But if that device cannot be configured try to find one that can be.  This happens in the hololens emulator.
+			if (AudioStreamInfo.OutputDeviceIndex == AUDIO_MIXER_DEFAULT_DEVICE_INDEX)
+			{
+				bool bFoundUsefulDevice = false;
+				for (uint32 i = 0; i < NumOutputDevices; ++i)
+				{
+					OpenStreamParams.OutputDeviceIndex = i;
+					AudioStreamInfo.OutputDeviceIndex = OpenStreamParams.OutputDeviceIndex;
+					if (GetOutputDeviceInfo(AudioStreamInfo.OutputDeviceIndex, AudioStreamInfo.DeviceInfo))
+					{
+						bFoundUsefulDevice = true;
+						break;
+					}
+				}
+				if (!bFoundUsefulDevice)
+				{
+					return false;
+				}
+			}
+			else
+			{
+				if (!GetOutputDeviceInfo(AudioStreamInfo.OutputDeviceIndex, AudioStreamInfo.DeviceInfo))
+				{
+					return false;
+				}
+			}
+#else
 			if (!GetOutputDeviceInfo(AudioStreamInfo.OutputDeviceIndex, AudioStreamInfo.DeviceInfo))
 			{
 				return false;
 			}
+#endif
+
 
 			// Store the device ID here in case it is removed. We can switch back if the device comes back.
 			if (Params.bRestoreIfRemoved)

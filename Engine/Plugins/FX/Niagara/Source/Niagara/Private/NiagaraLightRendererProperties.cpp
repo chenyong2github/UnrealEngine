@@ -44,7 +44,7 @@ FNiagaraRenderer* UNiagaraLightRendererProperties::CreateEmitterRenderer(ERHIFea
 	return NewRenderer;
 }
 
-void UNiagaraLightRendererProperties::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials) const
+void UNiagaraLightRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
 	//OutMaterials.Add(Material);
 	//Material should live here.

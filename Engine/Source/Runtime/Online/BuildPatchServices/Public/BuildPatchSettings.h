@@ -12,6 +12,8 @@
 
 namespace BuildPatchServices
 {
+	enum class EInstallActionIntent : int32;
+
 	/**
 	 * Defines a list of all build patch services initialization settings, can be used to override default init behaviors.
 	 */
@@ -32,31 +34,210 @@ namespace BuildPatchServices
 		FString LocalMachineConfigFileName;
 	};
 
-	/**
-	 * Defines a list of all the options of an installation task.
-	 */
-	struct BUILDPATCHSERVICES_API FInstallerConfiguration
+	struct BUILDPATCHSERVICES_API FInstallerAction
 	{
+	public:
+
 		/**
-		 * Construct with install manifest, provides common defaults for other settings.
+		 * Creates an install action.
+		 * @param Manifest          The manifest for the build to be installed.
+		 * @param InstallTags       The install tags to use if selectively installing files. If empty set, all files will be installed.
+		 * @return the action setup for performing an installation.
 		 */
-		FInstallerConfiguration(const IBuildManifestRef& InInstallManifest);
+		static FInstallerAction MakeInstall(const IBuildManifestRef& Manifest, TSet<FString> InstallTags = TSet<FString>());
+
+		/**
+		 * Creates an update action.
+		 * @param CurrentManifest   The manifest for the build currently installed.
+		 * @param InstallManifest   The manifest for the build to be installed.
+		 * @param InstallTags       The install tags to use if selectively installing files. If empty set, all files will be updated, or added if missing.
+		 * @return the action setup for performing an update.
+		 */
+		static FInstallerAction MakeUpdate(const IBuildManifestRef& CurrentManifest, const IBuildManifestRef& InstallManifest, TSet<FString> InstallTags = TSet<FString>());
+
+		/**
+		 * Creates an install action.
+		 * @param Manifest          The manifest for the build to be installed.
+		 * @param InstallTags       The install tags to use if selectively installing files. If empty set, all files will be repaired.
+		 * @return the action setup forcing an SHA check, and repair of all tagged files.
+		 */
+		static FInstallerAction MakeRepair(const IBuildManifestRef& Manifest, TSet<FString> InstallTags = TSet<FString>());
+
+
+		/**
+		 * Creates an uninstall action.
+		 * @param Manifest          The manifest for the build currently installed.
+		 * @return the action setup for performing an uninstall, deleting all files referenced by the manifest.
+		 */
+		static FInstallerAction MakeUninstall(const IBuildManifestRef& Manifest);
+
+		/**
+		 * Helper for creating an install action or update action based on validity of CurrentManifest.
+		 * @param CurrentManifest   The manifest for the build currently installed, invalid if no build installed.
+		 * @param InstallManifest   The manifest for the build to be installed.
+		 * @param InstallTags       The install tags to use if selectively installing files. If empty set, all files will be installed/updated, or added if missing.
+		 * @return the action setup for performing an install or update.
+		 */
+		static FInstallerAction MakeInstallOrUpdate(const IBuildManifestPtr& CurrentManifest, const IBuildManifestRef& InstallManifest, TSet<FString> InstallTags = TSet<FString>())
+		{
+			if (!CurrentManifest.IsValid())
+			{
+				return MakeInstall(InstallManifest, MoveTemp(InstallTags));
+			}
+			else
+			{
+				return MakeUpdate(CurrentManifest.ToSharedRef(), InstallManifest, MoveTemp(InstallTags));
+			}
+		}
 
 		/**
 		 * Copy constructor.
 		 */
-		FInstallerConfiguration(const FInstallerConfiguration& CopyFrom);
+		FInstallerAction(const FInstallerAction& CopyFrom);
 
 		/**
 		 * RValue constructor to allow move semantics.
 		 */
+		FInstallerAction(FInstallerAction&& MoveFrom);
+
+	public:
+		/**
+		 * @return true if this action intent is to perform a fresh installation.
+		 */
+		bool IsInstall() const;
+
+		/**
+		 * @return true if this action intent is to update an existing installation.
+		 */
+		bool IsUpdate() const;
+
+		/**
+		 * @return true if this action intent is to repair an existing installation.
+		 */
+		bool IsRepair() const;
+
+		/**
+		 * @return true if this action intent is to uninstall an installation.
+		 */
+		bool IsUninstall() const;
+
+		/**
+		 * @return the install tags for the action.
+		 */
+		const TSet<FString>& GetInstallTags() const;
+
+		/**
+		 * @return the manifest for the current installation, this will runtime assert if called invalidly (see TryGetCurrentManifest).
+		 */
+		IBuildManifestRef GetCurrentManifest() const;
+
+		/**
+		 * @return the manifest for the desired installation, this will runtime assert if called invalidly (see TryGetInstallManifest).
+		 */
+		IBuildManifestRef GetInstallManifest() const;
+
+	public:
+		/**
+		 * Helper for getting the current manifest if nullable is preferred.
+		 * @return the manifest for the current installation, if valid.
+		 */
+		IBuildManifestPtr TryGetCurrentManifest() const
+		{
+			if (IsUpdate() || IsRepair() || IsUninstall())
+			{
+				return GetCurrentManifest();
+			}
+			return nullptr;
+		}
+
+		/**
+		 * Helper for getting the install manifest if nullable is preferred.
+		 * @return true is this action intent it to perform a fresh installation.
+		 */
+		IBuildManifestPtr TryGetInstallManifest() const
+		{
+			if (IsInstall() || IsUpdate() || IsRepair())
+			{
+				return GetInstallManifest();
+			}
+			return nullptr;
+		}
+
+		/**
+		 * Helper for getting the current manifest, or install manifest if no current manifest. One will always be valid.
+		 * @return the current, or the install manifest, based on validity respectively.
+		 */
+		IBuildManifestRef GetCurrentOrInstallManifest() const
+		{
+			return (CurrentManifest.IsValid() ? CurrentManifest : InstallManifest).ToSharedRef();
+		}
+
+		/**
+		 * Helper for getting the install manifest, or current manifest if no install manifest. One will always be valid.
+		 * @return the install, or the current manifest, based on validity respectively.
+		 */
+		IBuildManifestRef GetInstallOrCurrentManifest() const
+		{
+			return (InstallManifest.IsValid() ? InstallManifest : CurrentManifest).ToSharedRef();
+		}
+
+	private:
+		FInstallerAction();
+		IBuildManifestPtr CurrentManifest;
+		IBuildManifestPtr InstallManifest;
+		TSet<FString> InstallTags;
+		EInstallActionIntent ActionIntent;
+	};
+
+	/**
+	 * DEPRECATED STRUCT. Please use FBuildInstallerConfiguration.
+	 */
+	struct BUILDPATCHSERVICES_API FInstallerConfiguration
+	{
+		FInstallerConfiguration(const IBuildManifestRef& InInstallManifest);
+		FInstallerConfiguration(const FInstallerConfiguration& CopyFrom);
 		FInstallerConfiguration(FInstallerConfiguration&& MoveFrom);
 
 	public:
-		// The manifest that the current install was generated from (if applicable).
 		IBuildManifestPtr CurrentManifest;
-		// The manifest to be installed.
 		IBuildManifestRef InstallManifest;
+		FString InstallDirectory;
+		FString StagingDirectory;
+		FString BackupDirectory;
+		TArray<FString> ChunkDatabaseFiles;
+		TArray<FString> CloudDirectories;
+		TSet<FString> InstallTags;
+		EInstallMode InstallMode;
+		EVerifyMode VerifyMode;
+		EDeltaPolicy DeltaPolicy;
+		bool bIsRepair;
+		bool bRunRequiredPrereqs;
+		bool bAllowConcurrentExecution;
+	};
+
+	/**
+	 * Defines a list of all the options of an installation task.
+	 */
+	struct BUILDPATCHSERVICES_API FBuildInstallerConfiguration
+	{
+		/**
+		 * Construct with an array of action objects
+		 */
+		FBuildInstallerConfiguration(TArray<FInstallerAction> InstallerActions);
+
+		/**
+		 * Copy constructor.
+		 */
+		FBuildInstallerConfiguration(const FBuildInstallerConfiguration& CopyFrom);
+
+		/**
+		 * RValue constructor to allow move semantics.
+		 */
+		FBuildInstallerConfiguration(FBuildInstallerConfiguration&& MoveFrom);
+
+	public:
+		// The array of intended actions to perform.
+		TArray<FInstallerAction> InstallerActions;
 		// The directory to install to.
 		FString InstallDirectory;
 		// The directory for storing the intermediate files. This would usually be inside the InstallDirectory. Empty string will use module's global setting.
@@ -67,16 +248,12 @@ namespace BuildPatchServices
 		TArray<FString> ChunkDatabaseFiles;
 		// The list of cloud directory roots that will be used to pull patch data from. Empty array will use module's global setting.
 		TArray<FString> CloudDirectories;
-		// The set of tags that describe what to be installed. Empty set means full installation.
-		TSet<FString> InstallTags;
 		// The mode for installation.
 		EInstallMode InstallMode;
-		// The mode for verification.
+		// The mode for verification. This will be overridden for any files referenced by a repair action.
 		EVerifyMode VerifyMode;
 		// The policy to follow for requesting an optimised delta.
 		EDeltaPolicy DeltaPolicy;
-		// Whether the operation is a repair to an existing installation only.
-		bool bIsRepair;
 		// Whether to run the prerequisite installer provided if it hasn't been ran before on this machine.
 		bool bRunRequiredPrereqs;
 		// Whether to allow this installation to run concurrently with any existing installations.
@@ -137,6 +314,8 @@ namespace BuildPatchServices
 		FString CloudDirectory;
 		// The output manifest filename.
 		FString OutputFilename;
+		// Allow Manifest Creation for builds with no data
+		bool bAllowEmptyBuild;
 	};
 
 	// Temporary for use with deprecated module function.
@@ -164,6 +343,8 @@ namespace BuildPatchServices
 		uint32 ScanWindowSize;
 		// The chunk size to use for saving new diff data.
 		uint32 OutputChunkSize;
+		// A threshold for the original delta size, for which we would abort and not process.
+		uint64 DiffAbortThreshold;
 	};
 
 	/**
@@ -253,8 +434,10 @@ namespace BuildPatchServices
 		FString ManifestFilePath;
 		// A full file path to a manifest describing a previous build, which will filter out saved chunks for patch only chunkdbs.
 		FString PrevManifestFilePath;
-		// Optional list of tagsets to split chunkdb files on.Empty array will include all data as normal.
+		// Optional list of tagsets to split chunkdb files on. Empty array will include all data as normal.
 		TArray<TSet<FString>> TagSetArray;
+		// Optional tagset to filter the files used from PrevManifestFilePath, potentially increasing the number of chunks saved.
+		TSet<FString> PrevTagSet;
 		// A full file path to the chunkdb file to save. Extension of .chunkdb will be added if not present.
 		FString OutputFile;
 		// Cloud directory where chunks to be packaged can be found.
@@ -265,3 +448,4 @@ namespace BuildPatchServices
 		FString ResultDataFilePath;
 	};
 }
+

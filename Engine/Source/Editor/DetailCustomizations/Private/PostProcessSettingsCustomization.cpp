@@ -14,7 +14,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "IDetailGroup.h"
 #include "IDetailChildrenBuilder.h"
 #include "PropertyCustomizationHelpers.h"
@@ -22,6 +22,8 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "PostProcessSettingsCustomization"
 
@@ -120,8 +122,10 @@ void FPostProcessSettingsCustomization::CustomizeChildren( TSharedRef<IPropertyH
 	static const FName LegacyTonemapperName("LegacyTonemapper");
 	static const FName TonemapperCategory("Film");
 	static const FName MobileTonemapperCategory("Mobile Tonemapper");
+	const bool bDesktopTonemapperFilm = VarTonemapperFilm->GetValueOnGameThread() == 1;
 	const bool bMobileTonemapperFilm = VarMobileTonemapperFilm->GetValueOnGameThread() == 1;
-	const bool bUsingLegacyTonemapper = !bMobileTonemapperFilm;	// Are any platforms use legacy/ES2 tonemapper
+	const bool bUsingFilmTonemapper = bDesktopTonemapperFilm || bMobileTonemapperFilm;		// Are any platforms use film tonemapper
+	const bool bUsingLegacyTonemapper = !bDesktopTonemapperFilm || !bMobileTonemapperFilm;	// Are any platforms use legacy/ES2 tonemapper
 
 	static const auto VarDefaultAutoExposureExtendDefaultLuminanceRange = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"));
 	const bool bExtendedLuminanceRange = VarDefaultAutoExposureExtendDefaultLuminanceRange->GetValueOnGameThread() == 1;
@@ -149,16 +153,19 @@ void FPostProcessSettingsCustomization::CustomizeChildren( TSharedRef<IPropertyH
 
 					// Hide in case no platforms use legacy/ES2 tonemapper
 					// Hide in case no platforms use film tonemapper
-					if ((bIsLegacyTonemapperPropery && !bUsingLegacyTonemapper))
+					if ((bIsLegacyTonemapperPropery && !bUsingLegacyTonemapper) || (!bIsLegacyTonemapperPropery && !bUsingFilmTonemapper))
 					{
 						ChildHandle->MarkHiddenByCustomization();
 						continue;
 					}
 
 					// In case platforms use different tonemappers, place mobile settings into separate category
-					if (!bMobileTonemapperFilm && bIsLegacyTonemapperPropery)
+					if (bMobileTonemapperFilm != bDesktopTonemapperFilm)
 					{
-						CategoryFName = MobileTonemapperCategory;
+						if (bMobileTonemapperFilm == !bIsLegacyTonemapperPropery)
+						{
+							CategoryFName = MobileTonemapperCategory;
+						}
 					}
 				}
 				else if (CategoryFName == ExposureCategory && bExtendedLuminanceRange)
@@ -347,7 +354,7 @@ FReply FWeightedBlendableCustomization::JumpToDirectAsset(TSharedPtr<IPropertyHa
 	
 	Value->GetValue(RefObject);
 
-	FAssetEditorManager::Get().OpenEditorForAsset(RefObject);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(RefObject);
 
 	return FReply::Handled();
 }

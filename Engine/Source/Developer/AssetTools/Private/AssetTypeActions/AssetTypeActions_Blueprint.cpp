@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "GameFramework/Actor.h"
 #include "Misc/PackageName.h"
 #include "Misc/MessageDialog.h"
@@ -16,10 +16,14 @@
 #include "Logging/MessageLog.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#if WITH_EDITOR
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_Blueprint::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_Blueprint::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	TArray<TWeakObjectPtr<UBlueprint>> Blueprints = GetTypedWeakObjectPtrs<UBlueprint>(InObjects);
 	
@@ -38,16 +42,17 @@ void FAssetTypeActions_Blueprint::GetActions( const TArray<UObject*>& InObjects,
 
 		if (bCanEditSharedDefaults)
 		{
-			MenuBuilder.AddMenuEntry(
-			LOCTEXT("Blueprint_EditDefaults", "Edit Shared Defaults"),
-			LOCTEXT("Blueprint_EditDefaultsTooltip", "Edit the shared default properties of the selected blueprints."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.BlueprintDefaults"),
-			FUIAction(
-				FExecuteAction::CreateSP( this, &FAssetTypeActions_Blueprint::ExecuteEditDefaults, Blueprints ),
-				FCanExecuteAction()
-				)
-			);
-		}	
+			Section.AddMenuEntry(
+				"Blueprint_EditDefaults",
+				LOCTEXT("Blueprint_EditDefaults", "Edit Shared Defaults"),
+				LOCTEXT("Blueprint_EditDefaultsTooltip", "Edit the shared default properties of the selected blueprints."),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.BlueprintDefaults"),
+				FUIAction(
+					FExecuteAction::CreateSP( this, &FAssetTypeActions_Blueprint::ExecuteEditDefaults, Blueprints ),
+					FCanExecuteAction()
+					)
+				);
+		}
 	}
 
 	if ( Blueprints.Num() == 1 && CanCreateNewDerivedBlueprint() )
@@ -56,7 +61,8 @@ void FAssetTypeActions_Blueprint::GetActions( const TArray<UObject*>& InObjects,
 		DynamicTooltipGetter.BindSP(this, &FAssetTypeActions_Blueprint::GetNewDerivedBlueprintTooltip, Blueprints[0]);
 		TAttribute<FText> DynamicTooltipAttribute = TAttribute<FText>::Create(DynamicTooltipGetter);
 
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"Blueprint_NewDerivedBlueprint",
 			LOCTEXT("Blueprint_NewDerivedBlueprint", "Create Child Blueprint Class"),
 			DynamicTooltipAttribute,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.CreateClassBlueprint"),
@@ -103,14 +109,16 @@ void FAssetTypeActions_Blueprint::Merge(UObject* InObject)
 {
 	UBlueprint* AsBlueprint = CastChecked<UBlueprint>(InObject);
 	// Kludge to get the merge panel in the blueprint editor to show up:
-	bool Success = FAssetEditorManager::Get().OpenEditorForAsset(InObject);
+#if WITH_EDITOR
+	bool Success = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(InObject);
 	if( Success )
 	{
 		FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>( "Kismet" );
 
-		FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(FAssetEditorManager::Get().FindEditorForAsset(AsBlueprint, false));
+		FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AsBlueprint, false));
 		BlueprintEditor->CreateMergeToolTab();
 	}
+#endif
 }
 
 void FAssetTypeActions_Blueprint::Merge(UObject* BaseAsset, UObject* RemoteAsset, UObject* LocalAsset, const FOnMergeResolved& ResolutionCallback)
@@ -118,14 +126,15 @@ void FAssetTypeActions_Blueprint::Merge(UObject* BaseAsset, UObject* RemoteAsset
 	UBlueprint* AsBlueprint = CastChecked<UBlueprint>(LocalAsset);
 	check(LocalAsset->GetClass() == BaseAsset->GetClass());
 	check(LocalAsset->GetClass() == RemoteAsset->GetClass());
-	
-	if (FAssetEditorManager::Get().OpenEditorForAsset(AsBlueprint))
+#if WITH_EDITOR
+	if (GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AsBlueprint))
 	{
 		FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
 
-		FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(FAssetEditorManager::Get().FindEditorForAsset(AsBlueprint, /*bFocusIfOpen =*/false));
+		FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AsBlueprint, /*bFocusIfOpen =*/false));
 		BlueprintEditor->CreateMergeToolTab(Cast<UBlueprint>(BaseAsset), Cast<UBlueprint>(RemoteAsset), ResolutionCallback);
 	}
+#endif
 }
 
 bool FAssetTypeActions_Blueprint::CanCreateNewDerivedBlueprint() const

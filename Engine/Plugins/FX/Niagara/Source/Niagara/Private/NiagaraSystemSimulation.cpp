@@ -15,6 +15,12 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 
+// Niagara simulations async will block the tick task from completion until all async work is finished
+// If simulations are allowed to tick async we will create a FNiagaraSystemSimulationTickTask task to run on any thread
+// If instances are allowed to tick async we will create a FNiagaraSystemInstanceAsyncTask in batches to run on any thread
+// If any async is enabled we create a FNiagaraSystemInstanceFinalizeTask for each batch that will not run until FNiagaraSystemSimulationTickTask is complete (Due to contention with SystemInstances) and will run on the GameThread
+// If any async is enabled we create a FNiagaraSystemSimulationWaitAllFinalizeTask task to wait for all FNiagaraSystemInstanceFinalizeTask's to complete before allowing the tick group to advance
+
 //High level stats for system sim tick.
 DECLARE_CYCLE_STAT(TEXT("System Simulaton Tick [GT]"), STAT_NiagaraSystemSim_TickGT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Simulaton Tick [CNC]"), STAT_NiagaraSystemSim_TickCNC, STATGROUP_Niagara);
@@ -25,10 +31,8 @@ DECLARE_CYCLE_STAT(TEXT("System Sim Update [CNC]"), STAT_NiagaraSystemSim_Update
 DECLARE_CYCLE_STAT(TEXT("System Sim Spawn [CNC]"), STAT_NiagaraSystemSim_SpawnCNC, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Sim Transfer Results [CNC]"), STAT_NiagaraSystemSim_TransferResultsCNC, STATGROUP_Niagara);
 
-
 DECLARE_CYCLE_STAT(TEXT("ForcedWaitForAsync"), STAT_NiagaraSystemSim_ForceWaitForAsync, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("ForcedWait Fake Stall"), STAT_NiagaraSystemSim_ForceWaitFakeStall, STATGROUP_Niagara);
-
 
 static int32 GbDumpSystemData = 0;
 static FAutoConsoleVariableRef CVarNiagaraDumpSystemData(
@@ -78,22 +82,6 @@ static FAutoConsoleVariableRef CVarSystemSimTransferParamsParallelThreshold(
 	ECVF_Default
 );
 
-static int32 GbForceNiagaraAsyncWait = 0;
-static FAutoConsoleVariableRef CVarForceNiagaraAsyncWait(
-	TEXT("fx.ForceNiagaraAsyncWait"),
-	GbForceNiagaraAsyncWait,
-	TEXT(""),
-	ECVF_Default
-);
-
-static float GbWaitForAsyncStallMS = .5f;
-static FAutoConsoleVariableRef CVarWaitForAsyncStallMS(
-	TEXT("fx.WaitForAsyncStallMS"),
-	GbWaitForAsyncStallMS,
-	TEXT(""),
-	ECVF_Default
-);
-
 //////////////////////////////////////////////////////////////////////////
 
 FNiagaraSystemSimulationTickContext::FNiagaraSystemSimulationTickContext(FNiagaraSystemSimulation* InOwner, float InDeltaSeconds, bool bInPendingSpawnPass, const FGraphEventRef& InMyCompletionGraphEvent)
@@ -129,32 +117,52 @@ FAutoConsoleTaskPriority CPrio_NiagaraSystemSimulationTickTask(
 	ENamedThreads::HighTaskPriority // if we don't have hi pri threads, then use normal priority threads at high task priority instead
 );
 
+// This task is used to wait for all finalize tasks to complete
+class FNiagaraSystemSimulationWaitAllFinalizeTask
+{
+	FGraphEventArray EventsToWaitFor;
+public:
+	FNiagaraSystemSimulationWaitAllFinalizeTask(FGraphEventArray*& OutEventsToWaitFor)
+	{
+		OutEventsToWaitFor = &EventsToWaitFor;
+	}
+
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemSimulationWaitAllFinalizeTask, STATGROUP_TaskGraphTasks); }
+	ENamedThreads::Type GetDesiredThread() { return CPrio_NiagaraSystemSimulationTickTask.Get(); }
+	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		for ( FGraphEventRef& Event : EventsToWaitFor )
+		{
+			MyCompletionGraphEvent->DontCompleteUntil(Event);
+		}
+		EventsToWaitFor.Empty();
+	}
+};
+
 //This task performs the concurrent part of the system simulation tick.
 class FNiagaraSystemSimulationTickTask
 {
 	FNiagaraSystemSimulationTickContext Context;
+	TGraphTask<FNiagaraSystemSimulationWaitAllFinalizeTask>* WaitAllFinalizeTask;
 public:
-	FNiagaraSystemSimulationTickTask(FNiagaraSystemSimulationTickContext InContext)
+	FNiagaraSystemSimulationTickTask(FNiagaraSystemSimulationTickContext InContext, TGraphTask<FNiagaraSystemSimulationWaitAllFinalizeTask>* InWaitAllFinalizeTask)
 		: Context(InContext)
+		, WaitAllFinalizeTask(InWaitAllFinalizeTask)
 	{
 	}
 
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemSimulationTickTask, STATGROUP_TaskGraphTasks);
-	}
-
-	ENamedThreads::Type GetDesiredThread()
-	{
-		return CPrio_NiagaraSystemSimulationTickTask.Get();
-	}
-
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemSimulationTickTask, STATGROUP_TaskGraphTasks); }
+	ENamedThreads::Type GetDesiredThread() { return CPrio_NiagaraSystemSimulationTickTask.Get(); }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		Context.MyCompletionGraphEvent = MyCompletionGraphEvent;
 		Context.Owner->Tick_Concurrent(Context);
+		Context.FinalizeEvents = nullptr;
+		WaitAllFinalizeTask->Unlock();
 	}
 };
 
@@ -176,16 +184,8 @@ public:
 
 	}
 
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemInstanceFinalizeTask, STATGROUP_TaskGraphTasks);
-	}
-
-	ENamedThreads::Type GetDesiredThread()
-	{
-		return ENamedThreads::GameThread;
-	}
-
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemInstanceFinalizeTask, STATGROUP_TaskGraphTasks); }
+	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -221,19 +221,10 @@ public:
 		: SystemSim(InSystemSim)
 		, Batch(InBatch)
 	{
-
 	}
 
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemInstanceAsyncTask, STATGROUP_TaskGraphTasks);
-	}
-
-	ENamedThreads::Type GetDesiredThread()
-	{
-		return CPrio_NiagaraSystemInstanceAsyncTask.Get();
-	}
-
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemInstanceAsyncTask, STATGROUP_TaskGraphTasks); }
+	ENamedThreads::Type GetDesiredThread() 	{ return CPrio_NiagaraSystemInstanceAsyncTask.Get(); }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -242,11 +233,6 @@ public:
 		{
 			Inst->Tick_Concurrent();
 		}
-
-		//Now kick off a finalize task for this batch on the game thread.
-		FGraphEventRef FinalizeTask = TGraphTask<FNiagaraSystemInstanceFinalizeTask>::CreateTask(nullptr, CurrentThread).ConstructAndDispatchWhenReady(SystemSim, Batch);
-		MyCompletionGraphEvent->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
-		MyCompletionGraphEvent->DontCompleteUntil(FinalizeTask);
 	}
 };
 
@@ -387,6 +373,8 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 void FNiagaraSystemSimulation::Destroy()
 {
 	check(IsInGameThread());
+	WaitForSystemTickComplete();
+
 	while (SystemInstances.Num())
 	{
 		SystemInstances.Last()->Deactivate(true);
@@ -436,6 +424,9 @@ void FNiagaraSystemSimulation::TransferInstance(FNiagaraSystemSimulation* Source
 	check(!bInSpawnPhase);
 	check(!SourceSimulation->bInSpawnPhase);
 
+	WaitForInstancesTickComplete();
+	SourceSimulation->WaitForInstancesTickComplete();
+
 	int32 SystemInstIdx = SystemInst->SystemInstanceIndex;
 	if (!SystemInst->IsPendingSpawn() && SystemInst->SystemInstanceIndex != INDEX_NONE)
 	{
@@ -472,6 +463,8 @@ void FNiagaraSystemSimulation::TransferInstance(FNiagaraSystemSimulation* Source
 
 void FNiagaraSystemSimulation::DumpInstance(const FNiagaraSystemInstance* Inst)const
 {
+	ensure(Inst->bAsyncWorkInProgress == false);
+
 	UE_LOG(LogNiagara, Log, TEXT("==  %s (%d) ========"), *Inst->GetSystem()->GetFullName(), Inst->SystemInstanceIndex);
 	UE_LOG(LogNiagara, Log, TEXT(".................Spawn................."));
 	SpawnExecContext.Parameters.DumpParameters(false);
@@ -481,6 +474,13 @@ void FNiagaraSystemSimulation::DumpInstance(const FNiagaraSystemInstance* Inst)c
 	UpdateInstanceParameterDataSet.Dump(Inst->SystemInstanceIndex, 1, TEXT("Update Instance Parameters"));
 	UE_LOG(LogNiagara, Log, TEXT("................. System Instance ................."));
 	DataSet.Dump(Inst->SystemInstanceIndex, 1, TEXT("System Data"));
+}
+
+void FNiagaraSystemSimulation::AddTickGroupPromotion(FNiagaraSystemInstance* Instance)
+{
+	check(IsInGameThread());
+	check(!PendingTickGroupPromotions.Contains(Instance));
+	PendingTickGroupPromotions.Add(Instance);
 }
 
 bool FNiagaraSystemSimulation::ShouldTickAsync(const FNiagaraSystemSimulationTickContext& Context)
@@ -506,32 +506,34 @@ void FNiagaraSystemSimulation::FlushTickBatch(FNiagaraSystemSimulationTickContex
 {
 	if (TickBatch.Num() > 0)
 	{
-		if (Context.bTickInstancesAsync)
+		FGraphEventArray FinalizePrereq;
+		FinalizePrereq.Add(Context.MyCompletionGraphEvent);
+
+		// Enqueue or tick the instances
+		if ( Context.bTickInstancesAsync )
 		{
-			checkSlow(Context.MyCompletionGraphEvent.IsValid());
-			//If we're able, kick off a task to process this batch on a task thread.
-			//When this task has finished the concurrent ticks for this batch it will enqueue a finalize task for the batch on the game thread.
+			check(Context.FinalizeEvents != nullptr);
+
 			FGraphEventRef AsyncTask = TGraphTask<FNiagaraSystemInstanceAsyncTask>::CreateTask(nullptr).ConstructAndDispatchWhenReady(this, TickBatch);
-			Context.MyCompletionGraphEvent->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
-			Context.MyCompletionGraphEvent->DontCompleteUntil(AsyncTask);
+			FinalizePrereq.Add(AsyncTask);
 		}
 		else
 		{
-			//Otherwise just do directly here. This may already be on a task thread or could be on game thread.
 			for (FNiagaraSystemInstance* Inst : TickBatch)
 			{
 				Inst->Tick_Concurrent();
 			}
-
-			if (Context.bTickAsync)
-			{
-				checkSlow(Context.MyCompletionGraphEvent.IsValid());
-				//If we're ticking off the main thread then we still need to add a finalize task on the GT for this batch.
-				FGraphEventRef FinalizeTask = TGraphTask<FNiagaraSystemInstanceFinalizeTask>::CreateTask(nullptr).ConstructAndDispatchWhenReady(this, TickBatch);
-				Context.MyCompletionGraphEvent->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
-				Context.MyCompletionGraphEvent->DontCompleteUntil(FinalizeTask);
-			}
 		}
+
+		// Enqueue a finalize task?
+		if (Context.bTickAsync || Context.bTickInstancesAsync )
+		{
+			check(Context.FinalizeEvents != nullptr);
+
+			FGraphEventRef FinalizeTask = TGraphTask<FNiagaraSystemInstanceFinalizeTask>::CreateTask(&FinalizePrereq).ConstructAndDispatchWhenReady(this, TickBatch);
+			Context.FinalizeEvents->Add(FinalizeTask);
+		}
+
 		TickBatch.Reset();
 	}
 }
@@ -542,6 +544,8 @@ void FNiagaraSystemSimulation::SpawnNew_GameThread(float DeltaSeconds, const FGr
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	LLM_SCOPE(ELLMTag::Niagara);
+
+	WaitForSystemTickComplete(true);
 
 	check(SystemInstances.Num() == DataSet.GetCurrentDataChecked().GetNumInstances());
 	check(PausedSystemInstances.Num() == PausedInstanceData.GetCurrentDataChecked().GetNumInstances());
@@ -596,6 +600,7 @@ void FNiagaraSystemSimulation::SpawnNew_GameThread(float DeltaSeconds, const FGr
 			++SystemIndex;
 		}		
 
+		//-OPT: Our tick group may have changed so next frame we could end up moving the instance again
 		if (SpawningSystemInstances.Num() > 0)
 		{
 			//Lets any RemoveInstance calls inside Tick_Concurrent know that we're spawning and all our instances are in SpawningSystemInstances;
@@ -628,16 +633,39 @@ void FNiagaraSystemSimulation::SpawnNew_GameThread(float DeltaSeconds, const FGr
 			bInSpawnPhase = false;
 		}
 	}
+
+	if (PendingTickGroupPromotions.Num() > 0)
+	{
+		FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
+		check(WorldManager != nullptr);
+
+		for ( FNiagaraSystemInstance* Instance : PendingTickGroupPromotions)
+		{
+			const ETickingGroup TickGroup = Instance->CalculateTickGroup();
+			if ( TickGroup != Instance->TickGroup )
+			{
+				TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSim = WorldManager->GetSystemSimulation(TickGroup, System);
+				NewSim->TransferInstance(this, Instance);
+				Instance->TickGroup = TickGroup;
+				Instance->SystemSimulation = NewSim;
+			}
+		}
+		PendingTickGroupPromotions.Reset();
+	}
 }
 
 /** First phase of system sim tick. Must run on GameThread. */
 void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	check(IsInGameThread());
+	WaitForSystemTickComplete(true);
+
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_TickGT);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	LLM_SCOPE(ELLMTag::Niagara);
+
+	SystemTickGraphEvent = nullptr;
 
 	check(SystemInstances.Num() == DataSet.GetCurrentDataChecked().GetNumInstances());
 	check(PausedSystemInstances.Num() == PausedInstanceData.GetCurrentDataChecked().GetNumInstances());
@@ -693,48 +721,66 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 	//Now kick of the concurrent tick.
 	if (Context.bTickAsync)
 	{
-		FGraphEventRef AsyncTask = TGraphTask<FNiagaraSystemSimulationTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(Context);
+		TGraphTask<FNiagaraSystemSimulationWaitAllFinalizeTask>* WaitAllFinalizeTask = TGraphTask<FNiagaraSystemSimulationWaitAllFinalizeTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndHold(Context.FinalizeEvents);
+		FGraphEventRef FinalizeGraphEvent = WaitAllFinalizeTask->GetCompletionEvent();
+
+		TGraphTask<FNiagaraSystemSimulationTickTask>* SimulationTickTask = TGraphTask<FNiagaraSystemSimulationTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndHold(Context, WaitAllFinalizeTask);
+		SystemTickGraphEvent = SimulationTickTask->GetCompletionEvent();
+		Context.FinalizeEvents->Add(SystemTickGraphEvent);
+
 		MyCompletionGraphEvent->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
-		MyCompletionGraphEvent->DontCompleteUntil(AsyncTask);
+		MyCompletionGraphEvent->DontCompleteUntil(FinalizeGraphEvent);
+
+		SimulationTickTask->Unlock(ENamedThreads::GameThread);
 	}
 	else
 	{
-		Tick_Concurrent(Context);
-	}
-
-	//TEMPORARY DEV CODE:
-	//Test that the wait system is working
-	if (GbForceNiagaraAsyncWait)
-	{
-		WaitForTickComplete();
-
+		TGraphTask<FNiagaraSystemSimulationWaitAllFinalizeTask>* WaitAllFinalizeTask = nullptr;
+		if (Context.bTickInstancesAsync)
 		{
-			//We spin a bit here to help make sure that all the Niagara work did infact complete before we get here. Makes things easier to see in Razor.
-			SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_ForceWaitFakeStall);
+			WaitAllFinalizeTask = TGraphTask<FNiagaraSystemSimulationWaitAllFinalizeTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndHold(Context.FinalizeEvents);
+		}
 
-			float CurrTimeMS = FPlatformTime::Seconds() * 1000;
-			float WaitEnd = CurrTimeMS + GbWaitForAsyncStallMS;
-			do
-			{
-				CurrTimeMS = FPlatformTime::Seconds() * 1000;
-			} 
-			while (CurrTimeMS < WaitEnd);
+		Tick_Concurrent(Context);
+
+		if (Context.bTickInstancesAsync)
+		{
+			WaitAllFinalizeTask->Unlock(ENamedThreads::GameThread);
+			Context.FinalizeEvents = nullptr;
 		}
 	}
 }
 
-void FNiagaraSystemSimulation::WaitForTickComplete()
+void FNiagaraSystemSimulation::WaitForSystemTickComplete(bool bEnsureComplete)
 {
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_ForceWaitForAsync);
 	check(IsInGameThread());
+
+	if (SystemTickGraphEvent.IsValid() && !SystemTickGraphEvent->IsComplete())
+	{
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_ForceWaitForAsync);
+		ensureAlwaysMsgf(!bEnsureComplete, TEXT("Niagara System Simulation Tasks should be complete by now. %s"), *GetSystem()->GetPathName());
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(SystemTickGraphEvent, ENamedThreads::GameThread);
+	}
+	SystemTickGraphEvent = nullptr;
+}
+
+void FNiagaraSystemSimulation::WaitForInstancesTickComplete(bool bEnsureComplete)
+{
+	check(IsInGameThread());
+	WaitForSystemTickComplete(bEnsureComplete);
+
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_ForceWaitForAsync);
+
 	int32 SystemInstIndex = 0;
 	while (SystemInstIndex < SystemInstances.Num())
 	{
+		// If we're in a spawn phase all existing instances should be complete already.
 		FNiagaraSystemInstance* Inst = SystemInstances[SystemInstIndex];
-		Inst->WaitForAsyncTick(bInSpawnPhase);//if we're in a spawn phase all existing instances should be complete already.
-		if (!Inst->IsComplete())
+		Inst->WaitForAsyncTick(bInSpawnPhase);
+
+		// If the system completes during finalize it can be removed from instances so we don't update the index.
+		if ( SystemInstances[SystemInstIndex] == Inst)
 		{
-			//If the system completes during finalize it will be removed from instances so we don't update the index.
 			++SystemInstIndex;
 		}
 
@@ -748,9 +794,10 @@ void FNiagaraSystemSimulation::WaitForTickComplete()
 		{
 			FNiagaraSystemInstance* Inst = SpawningSystemInstances[SystemInstIndex];
 			Inst->WaitForAsyncTick();
-			if (!Inst->IsComplete())
+
+			// If the system completes during finalize it can be removed from instances so we don't update the index.
+			if (SystemInstances[SystemInstIndex] == Inst)
 			{
-				//If the system completes during finalize it will be removed from instances so we don't update the index.
 				++SystemInstIndex;
 			}
 
@@ -1164,6 +1211,8 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 			DataSet.GetCurrentDataChecked().Dump(Instance->SystemInstanceIndex, 1, TEXT("System data being removed."));
 		}
 
+		WaitForInstancesTickComplete();
+
 		int32 NumInstances = DataSet.GetCurrentDataChecked().GetNumInstances();
 		check(SystemInstances.Num() == NumInstances);
 
@@ -1192,6 +1241,7 @@ void FNiagaraSystemSimulation::AddInstance(FNiagaraSystemInstance* Instance)
 {
 	check(IsInGameThread());
 	check(Instance->SystemInstanceIndex == INDEX_NONE);
+
 	Instance->SetPendingSpawn(true);
 	Instance->SystemInstanceIndex = PendingSystemInstances.Add(Instance);
 
@@ -1209,6 +1259,8 @@ void FNiagaraSystemSimulation::AddInstance(FNiagaraSystemInstance* Instance)
 void FNiagaraSystemSimulation::PauseInstance(FNiagaraSystemInstance* Instance)
 {
 	check(IsInGameThread());
+	WaitForInstancesTickComplete();
+
 	check(!Instance->IsPaused());
 	check(!DataSet.GetDestinationData());
 	check(!PausedInstanceData.GetDestinationData());
@@ -1258,6 +1310,8 @@ void FNiagaraSystemSimulation::PauseInstance(FNiagaraSystemInstance* Instance)
 void FNiagaraSystemSimulation::UnpauseInstance(FNiagaraSystemInstance* Instance)
 {
 	check(IsInGameThread());
+	WaitForInstancesTickComplete();
+
 	check(Instance->IsPaused());
 	check(!DataSet.GetDestinationData());
 	check(!PausedInstanceData.GetDestinationData());

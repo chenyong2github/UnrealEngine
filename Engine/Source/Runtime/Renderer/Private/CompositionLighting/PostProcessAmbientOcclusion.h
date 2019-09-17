@@ -23,6 +23,23 @@ enum class ESSAOType
 	EAsyncCS,
 };
 
+
+
+enum class EGTAOType
+{
+	// Not on (use legacy if at all)
+	EOff,
+
+	// non async compute shader where the Horizon Search and Inner Integrate are in separate passes
+	ESplitNonAsync,
+
+	// Async compute shader where the Horizon Search and Inner Integrate are in separate passes
+	ESplitAsync,
+
+	// Combined version which has to be run after base pass
+	ECombinedNonAsync,
+};
+
 class FSSAOHelper
 {
 public:
@@ -47,6 +64,8 @@ public:
 
 	// @return 0:off, 0..3
 	static uint32 ComputeAmbientOcclusionPassCount(const FViewInfo& View);
+
+	static EGTAOType GetGTAOPassType(const FViewInfo& View);
 };
 
 // ePId_Input0: SceneDepth
@@ -122,4 +141,53 @@ private:
 	const EPixelFormat IntermediateFormatOverride;
 	const bool bAOSetupAsInput;
 	const bool bForceIntermediateOutput;
+};
+
+
+class FRCPassPostProcessAmbientOcclusion_HorizonSearch : public TRenderingCompositePassBase<2, 1>
+{
+public:
+
+	FRCPassPostProcessAmbientOcclusion_HorizonSearch(const FSceneView& View, const ESSAOType AOType );
+
+	// interface FRenderingCompositePass ---------
+	virtual void Process(FRenderingCompositePassContext& Context) override;
+	virtual void Release() override { delete this; }
+	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+
+private:
+	const ESSAOType AOType;
+};
+
+
+class FRCPassPostProcessAmbientOcclusion_InnerIntegrate : public TRenderingCompositePassBase<2, 1>
+{
+public:
+
+	FRCPassPostProcessAmbientOcclusion_InnerIntegrate(const FSceneView& View, bool FinalOutput);
+
+	// interface FRenderingCompositePass ---------
+	virtual void Process(FRenderingCompositePassContext& Context) override;
+	virtual void Release() override { delete this; }
+	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+
+private:
+	const bool bFinalOutput;
+};
+
+
+class FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate : public TRenderingCompositePassBase<2, 1>
+{
+public:
+
+	FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate(const FSceneView& View, bool FinalOutput);
+
+	// interface FRenderingCompositePass ---------
+	virtual void Process(FRenderingCompositePassContext& Context) override;
+	virtual void Release() override { delete this; }
+	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+
+private:
+	const bool bFinalOutput;
+
 };

@@ -26,6 +26,7 @@
 #include "AssetToolsLog.h"
 #include "AssetToolsModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "IClassTypeActions.h"
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
 #include "AssetTypeActions/AssetTypeActions_Curve.h"
@@ -129,7 +130,9 @@
 #include "SAdvancedCopyReportDialog.h"
 #include "AssetToolsSettings.h"
 #include "AssetVtConversion.h"
-
+#if WITH_EDITOR
+#include "Subsystems/AssetEditorSubsystem.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "AssetTools"
 
@@ -389,48 +392,6 @@ TWeakPtr<IClassTypeActions> UAssetToolsImpl::GetClassTypeActionsForClass( UClass
 	}
 
 	return MostDerivedClassTypeActions;
-}
-
-bool UAssetToolsImpl::GetAssetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder, bool bIncludeHeading )
-{
-	bool bAddedActions = false;
-
-	if ( InObjects.Num() )
-	{
-		// Find the most derived common class for all passed in Objects
-		UClass* CommonClass = InObjects[0]->GetClass();
-		for (int32 ObjIdx = 1; ObjIdx < InObjects.Num(); ++ObjIdx)
-		{
-			while (!InObjects[ObjIdx]->IsA(CommonClass))
-			{
-				CommonClass = CommonClass->GetSuperClass();
-			}
-		}
-
-		// Get the nearest common asset type for all the selected objects
-		TSharedPtr<IAssetTypeActions> CommonAssetTypeActions = GetAssetTypeActionsForClass(CommonClass).Pin();
-
-		// If we found a common type actions object, get actions from it
-		if ( CommonAssetTypeActions.IsValid() && CommonAssetTypeActions->HasActions(InObjects) )
-		{
-			if ( bIncludeHeading )
-			{
-				MenuBuilder.BeginSection("GetAssetActions", FText::Format( LOCTEXT("AssetSpecificOptionsMenuHeading", "{0} Actions"), CommonAssetTypeActions->GetName() ) );
-			}
-
-			// Get the actions
-			CommonAssetTypeActions->GetActions(InObjects, MenuBuilder);
-
-			if ( bIncludeHeading )
-			{
-				MenuBuilder.EndSection();
-			}
-
-			bAddedActions = true;
-		}
-	}
-
-	return bAddedActions;
 }
 
 struct FRootedOnScope
@@ -841,7 +802,7 @@ void UAssetToolsImpl::GetAllAdvancedCopySources(FName SelectedPackage, FAdvanced
 		// Folders should ALWAYS get checked for assets and subfolders
 		if ((CopyParams.bShouldCheckForDependencies && SourceAssetData.Num() > 0) || bIsFolder)
 		{
-			RecursiveGetDependenciesAdvanced(SelectedPackage, CopyParams, CurrentDependencies, DependencyMap, CopyCustomization);
+			RecursiveGetDependenciesAdvanced(SelectedPackage, CopyParams, CurrentDependencies, DependencyMap, CopyCustomization, SourceAssetData);
 		}
 		OutPackageNamesToCopy.Append(CurrentDependencies);
 	}
@@ -1594,7 +1555,7 @@ void UAssetToolsImpl::MigratePackages(const TArray<FName>& PackageNamesToMigrate
 			// Open a dialog asking the user to wait while assets are being discovered
 			SDiscoveringAssetsDialog::OpenDiscoveringAssetsDialog(
 				SDiscoveringAssetsDialog::FOnAssetsDiscovered::CreateUObject(this, &UAssetToolsImpl::PerformMigratePackages, PackageNamesToMigrate)
-				);
+			);
 		}
 		else
 		{
@@ -2600,17 +2561,17 @@ void UAssetToolsImpl::PerformMigratePackages(TArray<FName> PackageNamesToMigrate
 	// Prompt the user displaying all assets that are going to be migrated
 	{
 		const FText ReportMessage = LOCTEXT("MigratePackagesReportTitle", "The following assets will be migrated to another content folder.");
-		TArray<FString> ReportPackageNames;
+		TSharedPtr<TArray<ReportPackageData>> ReportPackages = MakeShareable(new TArray<ReportPackageData>);
 		for ( auto PackageIt = AllPackageNamesToMove.CreateConstIterator(); PackageIt; ++PackageIt )
 		{
-			ReportPackageNames.Add((*PackageIt).ToString());
+			ReportPackages.Get()->Add({ (*PackageIt).ToString(), true });
 		}
-		SPackageReportDialog::FOnReportConfirmed OnReportConfirmed = SPackageReportDialog::FOnReportConfirmed::CreateUObject(this, &UAssetToolsImpl::MigratePackages_ReportConfirmed, ReportPackageNames);
-		SPackageReportDialog::OpenPackageReportDialog(ReportMessage, ReportPackageNames, OnReportConfirmed);
+		SPackageReportDialog::FOnReportConfirmed OnReportConfirmed = SPackageReportDialog::FOnReportConfirmed::CreateUObject(this, &UAssetToolsImpl::MigratePackages_ReportConfirmed, ReportPackages);
+		SPackageReportDialog::OpenPackageReportDialog(ReportMessage, *ReportPackages.Get(), OnReportConfirmed);
 	}
 }
 
-void UAssetToolsImpl::MigratePackages_ReportConfirmed(TArray<FString> ConfirmedPackageNamesToMigrate) const
+void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPackageData>> PackageDataToMigrate) const
 {
 	// Choose a destination folder
 	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
@@ -2677,14 +2638,19 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TArray<FString> ConfirmedP
 
 	SlowTask.EnterProgressFrame();
 	{
-		FScopedSlowTask LoopProgress(ConfirmedPackageNamesToMigrate.Num());
-		for ( auto PackageNameIt = ConfirmedPackageNamesToMigrate.CreateConstIterator(); PackageNameIt; ++PackageNameIt )
+		FScopedSlowTask LoopProgress(PackageDataToMigrate.Get()->Num());
+		for ( auto PackageDataIt = PackageDataToMigrate.Get()->CreateConstIterator(); PackageDataIt; ++PackageDataIt)
 		{
 			LoopProgress.EnterProgressFrame();
+			if (!PackageDataIt->bShouldMigratePackage)
+			{
+				continue;
+			}
 
-			const FString& PackageName = *PackageNameIt;
+			const FString& PackageName = PackageDataIt->Name;
 			FString SrcFilename;
-			if ( !FPackageName::DoesPackageExist(PackageName, nullptr, &SrcFilename) )
+			
+			if (!FPackageName::DoesPackageExist(PackageName, nullptr, &SrcFilename))
 			{
 				const FText ErrorMessage = FText::Format(LOCTEXT("MigratePackages_PackageMissing", "{0} does not exist on disk."), FText::FromString(PackageName));
 				UE_LOG(LogAssetTools, Warning, TEXT("%s"), *ErrorMessage.ToString());
@@ -2859,31 +2825,31 @@ void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FN
 	}
 }
 
-void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName, FAdvancedCopyParams& CopyParams, TArray<FName>& AllDependencies, TMap<FName, FName>& DependencyMap, const UAdvancedCopyCustomization* CopyCustomization) const
+void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName, FAdvancedCopyParams& CopyParams, TArray<FName>& AllDependencies, TMap<FName, FName>& DependencyMap, const UAdvancedCopyCustomization* CopyCustomization, TArray<FAssetData>& OptionalAssetData) const
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FName> Dependencies;
-	TArray<FAssetData> PackageAssetData;
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-	AssetRegistry.GetAssetsByPackageName(PackageName, PackageAssetData);
 	// We found an asset
-	if (PackageAssetData.Num() > 0)
+	if (OptionalAssetData.Num() > 0)
 	{
 		AssetRegistryModule.Get().GetDependencies(PackageName, Dependencies);
 		for (auto DependsIt = Dependencies.CreateConstIterator(); DependsIt; ++DependsIt)
 		{
 			if (!AllDependencies.Contains(*DependsIt))
 			{
-				TArray<FAssetData> DependencyAssetData;
-				if (AssetRegistry.GetAssetsByPackageName(*DependsIt, DependencyAssetData))
+				FAssetData DependencyAsset = AssetRegistry.GetAssetByObjectPath(*DependsIt);
+				if (DependencyAsset != FAssetData())
 				{
+					TArray<FAssetData> DependencyAssetData;
+					DependencyAssetData.Add(DependencyAsset);
 					FARFilter ExclusionFilter = CopyCustomization->GetARFilter();
 					AssetRegistry.UseFilterToExcludeAssets(DependencyAssetData, ExclusionFilter);
 					if (DependencyAssetData.IsValidIndex(0))
 					{
 						AllDependencies.Add(*DependsIt);
 						DependencyMap.Add(*DependsIt, PackageName);
-						RecursiveGetDependenciesAdvanced(*DependsIt, CopyParams, AllDependencies, DependencyMap, CopyCustomization);
+						RecursiveGetDependenciesAdvanced(*DependsIt, CopyParams, AllDependencies, DependencyMap, CopyCustomization, DependencyAssetData);
 					}
 				}
 
@@ -2904,7 +2870,7 @@ void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName,
 				// If we should check the assets we found for dependencies
 				if (CopyParams.bShouldCheckForDependencies)
 				{
-					RecursiveGetDependenciesAdvanced(FName(*Asset.GetPackage()->GetName()), CopyParams, AllDependencies, DependencyMap, CopyCustomization);
+					RecursiveGetDependenciesAdvanced(FName(*Asset.GetPackage()->GetName()), CopyParams, AllDependencies, DependencyMap, CopyCustomization, PathAssetData);
 				}
 			}
 		}
@@ -2915,7 +2881,8 @@ void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName,
 			AssetRegistry.GetSubPaths(PackageName.ToString(), SubPaths, false);
 			for (const FString SubPath : SubPaths)
 			{
-				RecursiveGetDependenciesAdvanced(FName(*SubPath), CopyParams, AllDependencies, DependencyMap, CopyCustomization);
+				TArray<FAssetData> EmptyArray;
+				RecursiveGetDependenciesAdvanced(FName(*SubPath), CopyParams, AllDependencies, DependencyMap, CopyCustomization, EmptyArray);
 			}
 
 		}
@@ -2929,7 +2896,9 @@ void UAssetToolsImpl::FixupReferencers(const TArray<UObjectRedirector*>& Objects
 
 void UAssetToolsImpl::OpenEditorForAssets(const TArray<UObject*>& Assets)
 {
-	FAssetEditorManager::Get().OpenEditorForAssets(Assets);
+#if WITH_EDITOR
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(Assets);
+#endif
 }
 
 void UAssetToolsImpl::ConvertVirtualTextures(const TArray<UTexture2D *>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial *>* RelatedMaterials /* = nullptr */) const

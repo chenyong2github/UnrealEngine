@@ -133,6 +133,14 @@ public:
 	UPROPERTY(EditAnywhere, Category=Painting, meta=(UIMin=0, ClampMin=0, UIMax = 100000, ClampMax = 100000, ReapplyCondition="ReapplyRadius"))
 	float Radius;
 
+	/** Option to override radius used to detect collision with other instances when painting in single instance mode */
+	UPROPERTY(EditAnywhere, Category = Painting)
+	bool bSingleInstanceModeOverrideRadius = false;
+
+	/** The radius used in single instance mode to detect collision with other instances */
+	UPROPERTY(EditAnywhere, Category = Painting, meta = (EditCondition = "bSingleInstanceModeOverrideRadius", UIMin = 0, ClampMin = 0, UIMax = 100000, ClampMax = 100000))
+	float SingleInstanceModeRadius = 0.f;
+
 	/** Specifies foliage instance scaling behavior when painting. */
 	UPROPERTY(EditAnywhere, Category=Painting, meta=(ReapplyCondition="ReapplyScaling"))
 	EFoliageScaling Scaling;
@@ -334,10 +342,12 @@ public:
 	UPROPERTY(transient)
 	uint64 HiddenEditorViews;
 
-	UPROPERTY()
+	UPROPERTY(transient)
 	uint32 IsSelected:1;
 #endif
 public:
+	FOLIAGE_API float GetRadius(bool bInSingleInstanceMode) const { return bInSingleInstanceMode && bSingleInstanceModeOverrideRadius ? SingleInstanceModeRadius : Radius; }
+
 	// PROCEDURAL
 
 	FOLIAGE_API float GetSeedDensitySquared() const { return InitialSeedDensity * InitialSeedDensity; }

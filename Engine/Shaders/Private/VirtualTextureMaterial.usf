@@ -38,9 +38,9 @@ void MainVS(
 }
 
 // Prepare for VirtualTextureUnpackNormal() in VirtualTextureCommon.h
-float2 PackNormal( float3 N )
+float3 PackNormal( float3 N )
 {
-	return normalize(N).xy * 0.5 + 0.5;
+	return normalize(N) * 0.5f + 0.5f;
 }
 
 // Prepare for VirtualTextureUnpackHeightR16() in VirtualTextureCommon.ush
@@ -91,11 +91,12 @@ void FPixelShaderInOut_MainPS(
 	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
 #elif defined(OUT_BASECOLOR_NORMAL)
 	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
-	Out.MRT[1] = float4(PackNormal(Normal), 0.f, 1.f) * Opacity;
+	Out.MRT[1] = float4(PackNormal(Normal).xy, 0.f, 1.f) * Opacity;
 #elif defined(OUT_BASECOLOR_NORMAL_SPECULAR)
+	float3 PackedNormal = PackNormal(Normal);
 	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
-	Out.MRT[1] = float4(PackNormal(Normal), 0.f, 1.f) * Opacity;
-	Out.MRT[2] = float4(Specular, Roughness, 0.f, 1.f) * Opacity;
+	Out.MRT[1] = float4(PackedNormal.xy, 0.f, 1.f) * Opacity;
+	Out.MRT[2] = float4(Specular, Roughness, PackedNormal.z, 1.f) * Opacity;
 #elif defined(OUT_WORLDHEIGHT)
 	Out.MRT[0] = float4(PackWorldHeight(WorldHeight), 0, 0, 1);
 #endif

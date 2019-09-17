@@ -4,7 +4,7 @@
 
 #include "UObject/GCObject.h"
 
-#include "Widgets//DeclarativeSyntaxSupport.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class UMaterial;

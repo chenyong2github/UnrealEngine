@@ -108,7 +108,7 @@ namespace FNiagaraEditorUtilities
 	void GetParameterVariablesFromSystem(UNiagaraSystem& System, TArray<FNiagaraVariable>& ParameterVariables, FGetParameterVariablesFromSystemOptions Options = FGetParameterVariablesFromSystemOptions());
 
 	/** Helper to clean up copy & pasted graphs.*/
-	void FixUpPastedInputNodes(UEdGraph* Graph, TSet<UEdGraphNode*> PastedNodes);
+	void FixUpPastedNodes(UEdGraph* Graph, TSet<UEdGraphNode*> PastedNodes);
 
 	/** Helper to convert compile status to text.*/
 	FText StatusToText(ENiagaraScriptCompileStatus Status);

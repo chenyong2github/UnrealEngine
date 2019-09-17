@@ -120,7 +120,11 @@ void FD3D12PipelineStateCache::OnPSOCreated(FD3D12PipelineState* PipelineState, 
 	PipelineState->Create(GraphicsPipelineCreationArgs(&Desc, PipelineLibrary.GetReference()));
 
 	// Save this PSO to disk cache.
-	AddToDiskCache(Desc, PipelineState);
+	if (!DiskCaches[PSO_CACHE_GRAPHICS].IsInErrorState())
+	{
+		FRWScopeLock Lock(DiskCachesCS, SLT_Write);
+		AddToDiskCache(Desc, PipelineState);
+	}
 }
 
 void FD3D12PipelineStateCache::OnPSOCreated(FD3D12PipelineState* PipelineState, const FD3D12ComputePipelineStateDesc& Desc)
@@ -129,12 +133,16 @@ void FD3D12PipelineStateCache::OnPSOCreated(FD3D12PipelineState* PipelineState, 
 	PipelineState->Create(ComputePipelineCreationArgs(&Desc, PipelineLibrary.GetReference()));
 
 	// Save this PSO to disk cache.
-	AddToDiskCache(Desc, PipelineState);
+	if (!DiskCaches[PSO_CACHE_COMPUTE].IsInErrorState())
+	{
+		FRWScopeLock Lock(DiskCachesCS, SLT_Write);
+		AddToDiskCache(Desc, PipelineState);
+	}
 }
 
 void FD3D12PipelineStateCache::RebuildFromDiskCache(ID3D12RootSignature* GraphicsRootSignature, ID3D12RootSignature* ComputeRootSignature)
 {
-	FScopeLock Lock(&DiskCachesCS);
+	FRWScopeLock Lock(DiskCachesCS, SLT_Write);
 
 	UNREFERENCED_PARAMETER(GraphicsRootSignature);
 	UNREFERENCED_PARAMETER(ComputeRootSignature);
@@ -299,8 +307,6 @@ void FD3D12PipelineStateCache::RebuildFromDiskCache(ID3D12RootSignature* Graphic
 
 void FD3D12PipelineStateCache::AddToDiskCache(const FD3D12LowLevelGraphicsPipelineStateDesc& Desc, FD3D12PipelineState* PipelineState)
 {
-	FScopeLock Lock(&DiskCachesCS);
-
 	FDiskCacheInterface& DiskCache = DiskCaches[PSO_CACHE_GRAPHICS];
 	const FD3D12_GRAPHICS_PIPELINE_STATE_DESC &PsoDesc = Desc.Desc;
 
@@ -362,8 +368,6 @@ void FD3D12PipelineStateCache::AddToDiskCache(const FD3D12LowLevelGraphicsPipeli
 
 void FD3D12PipelineStateCache::AddToDiskCache(const FD3D12ComputePipelineStateDesc& Desc, FD3D12PipelineState* PipelineState)
 {
-	FScopeLock Lock(&DiskCachesCS);
-
 	FDiskCacheInterface& DiskCache = DiskCaches[PSO_CACHE_COMPUTE];
 	const FD3D12_COMPUTE_PIPELINE_STATE_DESC &PsoDesc = Desc.Desc;
 
@@ -434,7 +438,7 @@ void FD3D12PipelineStateCache::WriteOutShaderBlob(PSO_CACHE_TYPE Cache, ID3D12Pi
 
 void FD3D12PipelineStateCache::Close()
 {
-	FScopeLock Lock(&DiskCachesCS);
+	FRWScopeLock Lock(DiskCachesCS, SLT_Write);
 
 	// Write driver-optimized PSOs to the disk cache.
 	TArray<BYTE> LibraryData;
@@ -467,7 +471,7 @@ void FD3D12PipelineStateCache::Close()
 
 void FD3D12PipelineStateCache::Init(FString& GraphicsCacheFileName, FString& ComputeCacheFileName, FString& DriverBlobFileName)
 {
-	FScopeLock Lock(&DiskCachesCS);
+	FRWScopeLock Lock(DiskCachesCS, SLT_Write);
 
 	const bool bEnableGeneralPipelineStateDiskCaches = CVarPipelineStateDiskCache.GetValueOnAnyThread() != 0;
 	UE_CLOG(!bEnableGeneralPipelineStateDiskCaches, LogD3D12RHI, Display, TEXT("Not using pipeline state disk cache per r.D3D12.PSO.DiskCache=0"));

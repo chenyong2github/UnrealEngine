@@ -2,6 +2,7 @@
 
 #include "SGraphPinBoneNameValueWidget.h"
 #include "DetailLayoutBuilder.h"
+#include "Framework/Application/SlateUser.h"
 
 #define LOCTEXT_NAMESPACE "GraphPinBoneNameValueWidget"
 
@@ -147,10 +148,11 @@ void SGraphPinBoneNameValueWidget::OnMenuOpenChanged(bool bOpen)
 		}
 
 		// Set focus back to ComboBox for users focusing the ListView that just closed
-		FSlateApplication::Get().ForEachUser([&](FSlateUser* User) {
-			if (FSlateApplication::Get().HasUserFocusedDescendants(AsShared(), User->GetUserIndex()))
+		TSharedRef<SWidget> ThisRef = AsShared();
+		FSlateApplication::Get().ForEachUser([&ThisRef](FSlateUser& User) {
+			if (User.HasFocusedDescendants(ThisRef))
 			{
-				FSlateApplication::Get().SetUserFocus(User->GetUserIndex(), AsShared(), EFocusCause::SetDirectly);
+				User.SetFocus(ThisRef);
 			}
 		});
 
@@ -166,11 +168,8 @@ EActiveTimerReturnType SGraphPinBoneNameValueWidget::SetFocusPostConstruct(doubl
 	if (SearchField.IsValid())
 	{
 		bool bSucceeded = false;
-		FSlateApplication::Get().ForEachUser([&](FSlateUser* User) {
-			if (FSlateApplication::Get().SetUserFocus(User->GetUserIndex(), SearchField->AsShared(), EFocusCause::SetDirectly))
-			{
-				bSucceeded = true;
-			}
+		FSlateApplication::Get().ForEachUser([&](FSlateUser& User) {
+			bSucceeded |= User.SetFocus(SearchField.ToSharedRef());
 		});
 
 		if (bSucceeded)

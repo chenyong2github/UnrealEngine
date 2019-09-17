@@ -46,7 +46,9 @@ public:
 	}
 		SLATE_DEFAULT_SLOT(FArguments, Content)
 	SLATE_END_ARGS()
-
+	
+	SScissorRectBox();
+	
 	void Construct( const FArguments& InArgs );
 
 	/**

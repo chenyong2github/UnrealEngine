@@ -36,18 +36,11 @@ TAutoConsoleVariable<int32> CVarD3D12ZeroBufferSizeInMB(
 	ECVF_ReadOnly
 	);
 
-/// @cond DOXYGEN_WARNINGS
-
-__declspec(thread) FD3D12FastAllocator* FD3D12DynamicRHI::HelperThreadDynamicHeapAllocator = nullptr;
-
-/// @endcond
-
 FD3D12DynamicRHI* FD3D12DynamicRHI::SingleD3DRHI = nullptr;
 
 using namespace D3D12RHI;
 
 FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& ChosenAdaptersIn) :
-	NumThreadDynamicHeapAllocators(0),
 	ChosenAdapters(ChosenAdaptersIn),
 	AmdAgsContext(nullptr),
 	FlipEvent(INVALID_HANDLE_VALUE)
@@ -55,8 +48,6 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 	// The FD3D12DynamicRHI must be a singleton
 	check(SingleD3DRHI == nullptr);
 	SingleD3DRHI = this;
-
-	ThreadDynamicHeapAllocatorArray.AddZeroed(FPlatformMisc::NumberOfCoresIncludingHyperthreads());
 
 	// This should be called once at the start 
 	check(IsInGameThread());
@@ -172,6 +163,7 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 	GMaxShadowDepthBufferSizeX = GMaxTextureDimensions;
 	GMaxShadowDepthBufferSizeY = GMaxTextureDimensions;
 	GRHISupportsResolveCubemapFaces = true;
+	GRHISupportsCopyToTextureMultipleMips = true;
 
 	GRHISupportsRHIThread = true;
 #if PLATFORM_XBOXONE

@@ -1236,9 +1236,11 @@ bool FNiagaraSystemToolkit::OnRequestClose()
 				return false;
 			}
 		}
+		GEngine->ForceGarbageCollection(true);
 		return true;
 	}
 	
+	GEngine->ForceGarbageCollection(true);
 	return FAssetEditorToolkit::OnRequestClose();
 }
 

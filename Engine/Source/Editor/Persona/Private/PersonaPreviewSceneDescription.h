@@ -16,6 +16,8 @@ class UPreviewMeshCollection;
 class USkeletalMesh;
 class UDataAsset;
 class UPreviewMeshCollection;
+class UAnimBlueprint;
+enum class EPreviewAnimationBlueprintApplicationMethod : uint8;
 
 UCLASS()
 class UPersonaPreviewSceneDescription : public UObject
@@ -36,6 +38,18 @@ public:
 	/** The preview mesh to use */
 	UPROPERTY(EditAnywhere, Category = "Mesh", meta=(DisplayThumbnail=true))
 	TSoftObjectPtr<USkeletalMesh> PreviewMesh;
+
+	/** The preview anim blueprint to use */
+	UPROPERTY(EditAnywhere, Category = "Animation Blueprint", meta=(DisplayThumbnail=true))
+	TSoftObjectPtr<UAnimBlueprint> PreviewAnimationBlueprint;
+
+	/** The method by which a preview animation blueprint is applied, either as an overlay layer, or as a sub-instance */
+	UPROPERTY(EditAnywhere, Category = "Animation Blueprint")
+	EPreviewAnimationBlueprintApplicationMethod ApplicationMethod;
+
+	/** The tag to use when applying a preview animation blueprint via SetSubInstanceClassByTag */
+	UPROPERTY(EditAnywhere, Category = "Animation Blueprint")
+	FName SubInstanceTag;
 
 	UPROPERTY(EditAnywhere, Category = "Additional Meshes")
 	TSoftObjectPtr<UDataAsset> AdditionalMeshes;

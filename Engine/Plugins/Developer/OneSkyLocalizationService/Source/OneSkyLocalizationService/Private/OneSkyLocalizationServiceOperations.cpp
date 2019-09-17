@@ -1148,7 +1148,7 @@ bool FOneSkyShowImportTaskWorker::Execute(class FOneSkyLocalizationServiceComman
 
 	double ElapsedTimeInSeconds = (FDateTime::UtcNow() - InCreationTimeStamp).GetTotalSeconds();
 
-	while (!GIsRequestingExit && (ElapsedTimeInSeconds <= InExecutionDelayInSeconds))
+	while (!IsEngineExitRequested() && (ElapsedTimeInSeconds <= InExecutionDelayInSeconds))
 	{
 		ElapsedTimeInSeconds = (FDateTime::UtcNow() - InCreationTimeStamp).GetTotalSeconds();
 		FPlatformProcess::Sleep(0.05);

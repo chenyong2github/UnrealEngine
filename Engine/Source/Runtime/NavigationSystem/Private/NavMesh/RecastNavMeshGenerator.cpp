@@ -3381,11 +3381,10 @@ void FRecastNavMeshGenerator::Init()
 
 		// mark all the areas we need to update, which is the whole (known) navigable space if not restricted to active tiles
 		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-		if (NavSys)
+		if (NavSys && NavSys->IsActiveTilesGenerationEnabled() == false)
 		{
-			bRestrictBuildingToActiveTiles = NavSys->IsActiveTilesGenerationEnabled();
+			MarkNavBoundsDirty();
 		}
-		MarkNavBoundsDirty();
 	}
 	else
 	{
@@ -4653,6 +4652,39 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasks(const int32 NumTasksToP
 #endif
 	return UpdatedTiles;
 }
+
+#if !UE_BUILD_SHIPPING
+void FRecastNavMeshGenerator::GetDebugGeometry(const FNavigationRelevantData& EncodedData, FNavDebugMeshData& DebugMeshData)
+{
+	const uint8* RawMemory = EncodedData.CollisionData.GetData();
+	if (RawMemory == nullptr)
+	{
+		return;
+	}
+	const FRecastGeometryCache::FHeader* HeaderInfo = reinterpret_cast<const FRecastGeometryCache::FHeader*>(RawMemory);
+	if (HeaderInfo->NumVerts == 0 || HeaderInfo->NumFaces == 0)
+	{
+		return;
+	}
+	
+	const int32 HeaderSize = sizeof(FRecastGeometryCache);
+	const int32 IndicesCount = HeaderInfo->NumFaces * 3;
+		
+	DebugMeshData.Vertices.AddZeroed(HeaderInfo->NumVerts);
+	FDynamicMeshVertex* DebugVert = DebugMeshData.Vertices.GetData();
+	// we cannot copy verts directly since not only are the EncodedData's verts in
+	// a float[3] format, they're also in Recast coords so we need to translate it 
+	// back to Unreal coords
+	const float* VertCoord = reinterpret_cast<const float*>(RawMemory + HeaderSize);
+	for (int VertIndex = 0; VertIndex < HeaderInfo->NumVerts; ++VertIndex, ++DebugVert, VertCoord += 3)
+	{
+		new (DebugVert) FDynamicMeshVertex(Recast2UnrealPoint(VertCoord));
+	}
+
+	DebugMeshData.Indices.AddZeroed(IndicesCount);
+	FMemory::Memcpy(DebugMeshData.Indices.GetData(), RawMemory + HeaderSize + HeaderInfo->NumVerts * 3 * sizeof(float), IndicesCount * sizeof(int32));
+}
+#endif // !UE_BUILD_SHIPPING
 
 void FRecastNavMeshGenerator::ExportComponentGeometry(UActorComponent* Component, FNavigationRelevantData& Data)
 {

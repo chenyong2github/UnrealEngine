@@ -501,7 +501,6 @@ static FORCEINLINE bool CompareObject(
 	const void* 			A,
 	const void* 			B)
 {
-#if 1
 	// Until UObjectPropertyBase::Identical is made safe for GC'd objects, we need to do it manually
 	// This saves us from having to add referenced objects during GC
 	UObjectPropertyBase* ObjProperty = CastChecked<UObjectPropertyBase>(Cmd.Property);
@@ -510,9 +509,28 @@ static FORCEINLINE bool CompareObject(
 	UObject* ObjectB = ObjProperty->GetObjectPropertyValue(B);
 
 	return ObjectA == ObjectB;
-#else
+}
+
+static FORCEINLINE bool CompareSoftObject(
+	const FRepLayoutCmd& Cmd,
+	const void* A,
+	const void* B)
+{
+	// USoftObjectProperty::Identical will get the SoftObjectPath for each pointer, and compare the Path etc.
+	// It should also handle null checks, and doesn't try to dereference the object, so is GC safe.
 	return Cmd.Property->Identical(A, B);
-#endif
+}
+
+static FORCEINLINE bool CompareWeakObject(
+	const FRepLayoutCmd& Cmd,
+	const void* A,
+	const void* B)
+{
+	const UWeakObjectProperty* const WeakObjectProperty = CastChecked<UWeakObjectProperty>(Cmd.Property);
+	const FWeakObjectPtr ObjectA = WeakObjectProperty->GetPropertyValue(A);
+	const FWeakObjectPtr ObjectB = WeakObjectProperty->GetPropertyValue(B);
+
+	return ObjectA.HasSameIndexAndSerialNumber(ObjectB);
 }
 
 template<typename T>
@@ -541,6 +559,8 @@ static FORCEINLINE bool PropertiesAreIdenticalNative(
 		case ERepLayoutCmdType::PropertyInt:			return CompareValue<int32>(A, B);
 		case ERepLayoutCmdType::PropertyName:			return CompareValue<FName>(A, B);
 		case ERepLayoutCmdType::PropertyObject:			return CompareObject(Cmd, A, B);
+		case ERepLayoutCmdType::PropertySoftObject:		return CompareSoftObject(Cmd, A, B);
+		case ERepLayoutCmdType::PropertyWeakObject:		return CompareWeakObject(Cmd, A, B);
 		case ERepLayoutCmdType::PropertyUInt32:			return CompareValue<uint32>(A, B);
 		case ERepLayoutCmdType::PropertyUInt64:			return CompareValue<uint64>(A, B);
 		case ERepLayoutCmdType::PropertyVector:			return CompareValue<FVector>(A, B);
@@ -719,6 +739,44 @@ static uint32 GetRepLayoutCmdCompatibleChecksum(
 	return CompatibleChecksum;
 }
 
+FRepChangedPropertyTracker::FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording):
+		bIsReplay(InbIsReplay),
+		bIsClientReplayRecording(InbIsClientReplayRecording),
+		ExternalDataNumBits(0)
+	{}
+
+FRepChangedPropertyTracker::~FRepChangedPropertyTracker() {}
+
+void FRepChangedPropertyTracker::SetCustomIsActiveOverride(const uint16 RepIndex, const bool bIsActive)
+{
+	FRepChangedParent & Parent = Parents[RepIndex];
+
+	Parent.Active = (bIsActive || bIsClientReplayRecording) ? 1 : 0;
+	Parent.OldActive = Parent.Active;
+}
+
+void FRepChangedPropertyTracker::SetExternalData(const uint8* Src, const int32 NumBits)
+{
+	ExternalDataNumBits = NumBits;
+	const int32 NumBytes = (NumBits + 7) >> 3;
+	ExternalData.Reset(NumBytes);
+	ExternalData.AddUninitialized(NumBytes);
+	FMemory::Memcpy(ExternalData.GetData(), Src, NumBytes);
+}
+
+bool FRepChangedPropertyTracker::IsReplay() const
+{
+	return bIsReplay;
+}
+
+void FRepChangedPropertyTracker::CountBytes(FArchive& Ar) const
+{
+	// Include our size here, because the caller won't know.
+	Ar.CountBytes(sizeof(FRepChangedPropertyTracker), sizeof(FRepChangedPropertyTracker));
+	Parents.CountBytes(Ar);
+	ExternalData.CountBytes(Ar);
+
+}
 
 void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 {
@@ -934,6 +992,7 @@ struct FComparePropertiesSharedParams
 	const bool bForceFail;
 	const int16 RoleIndex;
 	const int16 RemoteRoleIndex;
+	const ERepLayoutFlags Flags;
 	const TArray<FRepParentCmd>& Parents;
 	const TArray<FRepLayoutCmd>& Cmds;
 };
@@ -955,35 +1014,34 @@ static void CompareProperties_Array_r(
 	const uint16 CmdIndex,
 	const uint16 Handle);
 
+static void CompareRoleProperty(
+	const FComparePropertiesSharedParams& SharedParams,
+	const FConstRepObjectDataBuffer Data,
+	const uint16 RoleOrRemoteRoleIndex,
+	TEnumAsByte<ENetRole>& SavedRoleOrRemoteRole,
+	TArray<uint16>& Changed)
+{
+	const FRepParentCmd& RoleOrRemoteRoleParent = SharedParams.Parents[RoleOrRemoteRoleIndex];
+	const FRepLayoutCmd& RoleOrRemoteRoleCmd = SharedParams.Cmds[RoleOrRemoteRoleParent.CmdStart];
+	const uint16 Handle = RoleOrRemoteRoleCmd.RelativeHandle;
+	const TEnumAsByte<ENetRole> ActorRoleOrRemoteRole = *(const TEnumAsByte<ENetRole>*)(Data + RoleOrRemoteRoleParent).Data;
+	if (SharedParams.bForceFail || SavedRoleOrRemoteRole != ActorRoleOrRemoteRole)
+	{
+		SavedRoleOrRemoteRole = ActorRoleOrRemoteRole;
+		Changed.Add(Handle);
+	}
+}
+
 static void CompareRoleProperties(
 	const FComparePropertiesSharedParams& SharedParams,
 	FSendingRepState* RESTRICT RepState,
 	const FConstRepObjectDataBuffer Data,
 	TArray<uint16>& Changed)
 {
-	if (RepState && SharedParams.RoleIndex != INDEX_NONE && SharedParams.RemoteRoleIndex != INDEX_NONE)
+	if (RepState && EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor))
 	{
-		const FRepParentCmd& RemoteRoleParent = SharedParams.Parents[SharedParams.RemoteRoleIndex];
-		const FRepLayoutCmd& RemoteRoleCmd = SharedParams.Cmds[RemoteRoleParent.CmdStart];
-		const uint16 RemoteRoleHandle = RemoteRoleCmd.RelativeHandle;
-
-		const TEnumAsByte<ENetRole> ObjectRemoteRole = *(const TEnumAsByte<ENetRole>*)(Data + RemoteRoleParent).Data;
-		if (SharedParams.bForceFail || RepState->SavedRemoteRole != ObjectRemoteRole)
-		{
-			RepState->SavedRemoteRole = ObjectRemoteRole;
-			Changed.Add(RemoteRoleHandle);
-		}
-
-		const FRepParentCmd& RoleParent = SharedParams.Parents[SharedParams.RoleIndex];
-		const FRepLayoutCmd& RoleCmd = SharedParams.Cmds[RoleParent.CmdStart];
-		const uint16 RoleHandle = RoleCmd.RelativeHandle;
-
-		const TEnumAsByte<ENetRole> ObjectRole = *(const TEnumAsByte<ENetRole>*)(Data + RoleParent).Data;
-		if (SharedParams.bForceFail || RepState->SavedRole != ObjectRole)
-		{
-			RepState->SavedRole = ObjectRole;
-			Changed.Add(RoleHandle);
-		}
+		CompareRoleProperty(SharedParams, Data, SharedParams.RemoteRoleIndex, RepState->SavedRemoteRole, Changed);
+		CompareRoleProperty(SharedParams, Data, SharedParams.RoleIndex, RepState->SavedRole, Changed);
 	}
 }
 
@@ -998,6 +1056,8 @@ static void CompareParentProperties(
 	check(ShadowData);
 
 	FRepChangedPropertyTracker* RepChangedPropertyTracker = (RepState ? RepState->RepChangedPropertyTracker.Get() : nullptr);
+
+	const bool bCheckForRole = EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor) && RepState != nullptr;
 
 	for (uint16 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
 	{
@@ -1018,34 +1078,24 @@ static void CompareParentProperties(
 			continue;
 		}
 
+		if (bCheckForRole)
+		{
+			if (UNLIKELY(ParentIndex == SharedParams.RoleIndex))
+			{
+				CompareRoleProperty(SharedParams, Data, SharedParams.RoleIndex, RepState->SavedRole, Changed);
+				continue;
+			}
+			else if (UNLIKELY(ParentIndex == SharedParams.RemoteRoleIndex))
+			{
+				CompareRoleProperty(SharedParams, Data, SharedParams.RemoteRoleIndex, RepState->SavedRemoteRole, Changed);
+				continue;
+			}
+		}
+		
+		// Note, Handle - 1 to account for CompareProperties_r incrementing handles.
 		const FRepLayoutCmd& Cmd = SharedParams.Cmds[Parent.CmdStart];
 		const uint16 Handle = Cmd.RelativeHandle;
-
-		// RepState may be null in the case where a deprecated version of this function is called.
-		// In that case, just allow this to fail and perform the old logic.
-		if (UNLIKELY(RepState && ParentIndex == SharedParams.RoleIndex))
-		{
-			const TEnumAsByte<ENetRole> ObjectRole = *(const TEnumAsByte<ENetRole>*)(Data + Parent).Data;
-			if (SharedParams.bForceFail || RepState->SavedRole != ObjectRole)
-			{
-				RepState->SavedRole = ObjectRole;
-				Changed.Add(Handle);
-			}
-		}
-		else if (UNLIKELY(RepState && ParentIndex == SharedParams.RemoteRoleIndex))
-		{
-			const TEnumAsByte<ENetRole> ObjectRemoteRole = *(const TEnumAsByte<ENetRole>*)(Data + Parent).Data;
-			if (SharedParams.bForceFail || RepState->SavedRemoteRole != ObjectRemoteRole)
-			{
-				RepState->SavedRemoteRole = ObjectRemoteRole;
-				Changed.Add(Handle);
-			}
-		}
-		else
-		{
-			// Note, Handle - 1 to account for CompareProperties_r incrementing handles.
-			CompareProperties_r(SharedParams, Parent.CmdStart, Parent.CmdEnd, ShadowData, Data, Changed, Handle - 1);
-		}
+		CompareProperties_r(SharedParams, Parent.CmdStart, Parent.CmdEnd, ShadowData, Data, Changed, Handle - 1);
 	}
 }
 
@@ -1170,6 +1220,7 @@ bool FRepLayout::CompareProperties(
 		/*bForceFail=*/ false,
 		RoleIndex,
 		RemoteRoleIndex,
+		Flags,
 		Parents,
 		Cmds
 	};
@@ -2027,17 +2078,6 @@ void FRepLayout::SendProperties_r(
 			WritePropertyHandle(Writer, 0, bDoChecksum);		// Signify end of dynamic array
 			continue;
 		}
-		else if (RepState)
-		{
-			if (Cmd.ParentIndex == RoleIndex)
-			{
-				Data = reinterpret_cast<const uint8*>(&(RepState->SavedRole));
-			}
-			else if (Cmd.ParentIndex == RemoteRoleIndex)
-			{
-				Data = reinterpret_cast<const uint8*>(&(RepState->SavedRemoteRole));
-			}
-		}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (GDoReplicationContextString> 0)
@@ -2356,17 +2396,6 @@ void FRepLayout::SendProperties_BackwardsCompatible_r(
 			HandleIterator.ChangelistIterator.ChangedIndex++;
 			continue;
 		}
-		else
-		{
-			if (Cmd.ParentIndex == RoleIndex)
-			{
-				Data = reinterpret_cast<const uint8*>(&(RepState->SavedRole));
-			}
-			else if (Cmd.ParentIndex == RemoteRoleIndex)
-			{
-				Data = reinterpret_cast<const uint8*>(&(RepState->SavedRemoteRole));
-			}
-		}
 
 		WriteProperty_BackwardsCompatible(Writer, Cmd, HandleIterator.CmdIndex, Owner, Data, bDoChecksum);
 	}
@@ -2434,17 +2463,6 @@ void FRepLayout::SendAllProperties_BackwardsCompatible_r(
 
 			CmdIndex = Cmd.EndCmd - 1;		// The -1 to handle the ++ in the for loop
 			continue;
-		}
-		else
-		{
-			if (Cmd.ParentIndex == RoleIndex)
-			{
-				Data = reinterpret_cast<const uint8*>(&(RepState->SavedRole));
-			}
-			else if (Cmd.ParentIndex == RemoteRoleIndex)
-			{
-				Data = reinterpret_cast<const uint8*>(&(RepState->SavedRemoteRole));
-			}
 		}
 
 		WriteProperty_BackwardsCompatible(Writer, Cmd, CmdIndex, Owner, Data, bDoChecksum);
@@ -4346,7 +4364,9 @@ static bool DiffStableProperties_r(FDiffStablePropertiesSharedParams& Params, TD
 					continue;
 				}
 
-				if (Cmd.Type == ERepLayoutCmdType::PropertyObject)
+				if (Cmd.Type == ERepLayoutCmdType::PropertyObject ||
+					Cmd.Type == ERepLayoutCmdType::PropertyWeakObject ||
+					Cmd.Type == ERepLayoutCmdType::PropertySoftObject)
 				{
 					if (UObjectPropertyBase* ObjProperty = CastChecked<UObjectPropertyBase>(Cmd.Property))
 					{
@@ -4512,7 +4532,18 @@ static uint32 AddPropertyCmd(
 	}
 	else if (UnderlyingProperty->IsA(UObjectPropertyBase::StaticClass()))
 	{
-		Cmd.Type = ERepLayoutCmdType::PropertyObject;
+		if (UnderlyingProperty->IsA(USoftObjectProperty::StaticClass()))
+		{
+			Cmd.Type = ERepLayoutCmdType::PropertySoftObject;
+		}
+		else if (UnderlyingProperty->IsA(UWeakObjectProperty::StaticClass()))
+		{
+			Cmd.Type = ERepLayoutCmdType::PropertyWeakObject;
+		}
+		else
+		{
+			Cmd.Type = ERepLayoutCmdType::PropertyObject;
+		}
 	}
 	else if (UnderlyingProperty->IsA(UNameProperty::StaticClass()))
 	{
@@ -5016,6 +5047,10 @@ void FRepLayout::InitFromClass(
 
 	// Make sure it either found both, or didn't find either
 	check((RoleIndex == INDEX_NONE) == (RemoteRoleIndex == INDEX_NONE));
+
+	// Make sure that we only find these if we're an Actor, and if we're
+	// an Actor we always find these.
+	check((RoleIndex == INDEX_NONE) == !bIsObjectActor);
 
 	// This is so the receiving side can swap these as it receives them
 	if (RoleIndex != -1)
@@ -6518,6 +6553,7 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 								/*bForceFail=*/ bIsInitial || ShadowArrayItemIsNew[IDIndexPair.Idx],
 								RoleIndex,
 								RemoteRoleIndex,
+								Flags,
 								Parents,
 								Cmds
 							};

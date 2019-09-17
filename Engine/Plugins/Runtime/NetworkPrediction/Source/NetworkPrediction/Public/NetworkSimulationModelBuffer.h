@@ -54,37 +54,27 @@ struct TReplicationBuffer
 	}
 
 	// Gets the oldest element in the buffer (or null)
+	const T* GetElementFromTail(int32 OffsetFromTail) const
+	{
+		return GetElementFromTailImpl(OffsetFromTail);
+	}
+
 	T* GetElementFromTail(int32 OffsetFromTail)
 	{
-		check(OffsetFromTail >= 0); // Must always pass in valid offset
-
-		// Out of range. This is not fatal, just don't return the wrong element.
-		if (NumValidElements <= OffsetFromTail)
-		{
-			return nullptr;
-		}
-		
-		const int32 Tail = GetTailKeyframe();
-		const int32 Position = Tail + OffsetFromTail;
-		const int32 Offset = (Position % Data.Num());
-		return &Data[Offset];
+		const T* Element = const_cast<TReplicationBuffer<T>*>(this)->GetElementFromTailImpl(OffsetFromTail);
+		return const_cast<T*>(Element);
 	}
 
 	// Gets the newest element in the buffer (or null)
+	const T* GetElementFromHead(int32 OffsetFromHead) const
+	{
+		return GetElementFromHeadImpl(OffsetFromHead);
+	}
+
 	T* GetElementFromHead(int32 OffsetFromHead)
 	{
-		check(OffsetFromHead >= 0); // Must always pass in valid offset
-
-		// Out of range. This is not fatal, just don't return the wrong element.
-		if (NumValidElements <= OffsetFromHead)
-		{
-			return nullptr;
-		}
-		
-		const int32 Position = Head - OffsetFromHead;
-		check(Position >= 0);
-		const int32 Offset = (Position % Data.Num());
-		return &Data[Offset];
+		const T* Element = const_cast<TReplicationBuffer<T>*>(this)->GetElementFromHeadImpl(OffsetFromHead);
+		return const_cast<T*>(Element);
 	}
 	
 	const T* FindElementByKeyframe(int32 Key) const
@@ -200,6 +190,34 @@ private:
 		}
 
 		return &Data[Key % Data.Num()];
+	}
+
+	const T* GetElementFromTailImpl(int32 OffsetFromTail) const
+	{
+		check(OffsetFromTail >= 0); // Must always pass in valid offset	
+		if (NumValidElements <= OffsetFromTail)
+		{
+			return nullptr;
+		}
+		
+		const int32 Tail = GetTailKeyframe();
+		const int32 Position = Tail + OffsetFromTail;
+		const int32 Offset = (Position % Data.Num());
+		return &Data[Offset];
+	}
+
+	const T* GetElementFromHeadImpl(int32 OffsetFromHead) const
+	{
+		check(OffsetFromHead >= 0); // Must always pass in valid offset
+		if (NumValidElements <= OffsetFromHead)
+		{
+			return nullptr;
+		}
+		
+		const int32 Position = Head - OffsetFromHead;
+		check(Position >= 0);
+		const int32 Offset = (Position % Data.Num());
+		return &Data[Offset];
 	}
 
 	int32 Head = INDEX_NONE;

@@ -16,6 +16,7 @@
 #include "Materials/MaterialExpressionComment.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
+#include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionFontSampleParameter.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
@@ -33,6 +34,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Templates/UniquePtr.h"
 #include "Materials/MaterialFunctionInstance.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditorUtilities"
 
@@ -407,6 +409,7 @@ void FMaterialEditorUtilities::GetVisibleMaterialParametersFromExpression(
 	// If it's a material parameter it must be visible so add it to the list
 	UMaterialExpressionParameter* Param = Cast<UMaterialExpressionParameter>( MaterialExpressionKey.Expression );
 	UMaterialExpressionTextureSampleParameter* TexParam = Cast<UMaterialExpressionTextureSampleParameter>( MaterialExpressionKey.Expression );
+	UMaterialExpressionRuntimeVirtualTextureSampleParameter* RuntimeVirtualTexParam = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(MaterialExpressionKey.Expression);
 	UMaterialExpressionFontSampleParameter* FontParam = Cast<UMaterialExpressionFontSampleParameter>( MaterialExpressionKey.Expression );
 
 	if (Param)
@@ -417,12 +420,16 @@ void FMaterialEditorUtilities::GetVisibleMaterialParametersFromExpression(
 	{
 		ParameterInfo.Name = TexParam->ParameterName;
 	}
+	else if (RuntimeVirtualTexParam)
+	{
+		ParameterInfo.Name = RuntimeVirtualTexParam->ParameterName;
+	}
 	else if (FontParam)
 	{
 		ParameterInfo.Name = FontParam->ParameterName;
 	}
 		
-	if (Param || TexParam || FontParam)
+	if (Param || TexParam || FontParam || RuntimeVirtualTexParam)
 	{
 		VisibleExpressions.AddUnique(ParameterInfo);
 	}
@@ -746,13 +753,13 @@ void FMaterialEditorUtilities::OpenSelectedParentEditor(UMaterialInterface* InMa
 		{
 			// Show material editor
 			UMaterial* Material = Cast<UMaterial>(InMaterialInterface);
-			FAssetEditorManager::Get().OpenEditorForAsset(Material);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Material);
 		}
 		else if (InMaterialInterface->IsA(UMaterialInstance::StaticClass()))
 		{
 			// Show material instance editor
 			UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(InMaterialInterface);
-			FAssetEditorManager::Get().OpenEditorForAsset(MaterialInstance);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(MaterialInstance);
 		}
 	}
 }
@@ -766,12 +773,12 @@ void FMaterialEditorUtilities::OpenSelectedParentEditor(UMaterialFunctionInterfa
 		{
 			// Show function instance editor
 			UMaterialFunctionInstance* FunctionInstance = Cast<UMaterialFunctionInstance>(InMaterialFunction);
-			FAssetEditorManager::Get().OpenEditorForAsset(FunctionInstance);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(FunctionInstance);
 		}
 		else
 		{
 			// Show function editor
-			FAssetEditorManager::Get().OpenEditorForAsset(InMaterialFunction);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(InMaterialFunction);
 		}
 	}
 }

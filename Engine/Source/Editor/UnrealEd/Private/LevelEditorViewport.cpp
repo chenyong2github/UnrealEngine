@@ -42,7 +42,7 @@
 #include "MouseDeltaTracker.h"
 #include "ScopedTransaction.h"
 #include "HModel.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "StaticLightingSystem/StaticLightingPrivate.h"
 #include "SEditorViewport.h"
 #include "LevelEditor.h"
@@ -1762,7 +1762,8 @@ FLevelEditorViewportClient::~FLevelEditorViewportClient()
 		GEngine->OnActorMoved().RemoveAll(this);
 
 		// make sure all actors have this view removed from their visibility bits
-		GEditor->Layers->RemoveViewFromActorViewVisibility(this);
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		Layers->RemoveViewFromActorViewVisibility(this);
 
 		GEditor->RemoveLevelViewportClients(this);
 
@@ -1786,7 +1787,8 @@ FLevelEditorViewportClient::~FLevelEditorViewportClient()
 void FLevelEditorViewportClient::InitializeVisibilityFlags()
 {
 	// make sure all actors know about this view for per-view layer vis
-	GEditor->Layers->UpdatePerViewVisibility(this);
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+	Layers->UpdatePerViewVisibility(this);
 
 	// Get the number of volume classes so we can initialize our bit array
 	TArray<UClass*> VolumeClasses;
@@ -3075,14 +3077,12 @@ void FLevelEditorViewportClient::TrackingStopped()
 				TInlineComponentArray<USceneComponent*> ComponentsToMove;
 				for (FSelectedEditableComponentIterator EditableComponentIt(GEditor->GetSelectedEditableComponentIterator()); EditableComponentIt; ++EditableComponentIt)
 				{
-					USceneComponent* SceneComponent = CastChecked<USceneComponent>(*EditableComponentIt);
+					USceneComponent* SceneComponent = Cast<USceneComponent>(*EditableComponentIt);
 					if (SceneComponent)
 					{
-						USceneComponent* SelectedComponent = Cast<USceneComponent>(*EditableComponentIt);
-
 						// Check to see if any parent is selected
 						bool bParentAlsoSelected = false;
-						USceneComponent* Parent = SelectedComponent->GetAttachParent();
+						USceneComponent* Parent = SceneComponent->GetAttachParent();
 						while (Parent != nullptr)
 						{
 							if (ComponentSelection->IsSelected(Parent))
@@ -3097,7 +3097,7 @@ void FLevelEditorViewportClient::TrackingStopped()
 						// If no parent of this component is also in the selection set, move it!
 						if (!bParentAlsoSelected)
 						{
-							ComponentsToMove.Add(SelectedComponent);
+							ComponentsToMove.Add(SceneComponent);
 						}
 					}
 				}
@@ -3455,6 +3455,13 @@ void FLevelEditorViewportClient::MoveLockedActorToCamera()
 			// Need to disable orbit camera before setting actor position so that the viewport camera location is converted back
 			GCurrentLevelEditingViewportClient->ToggleOrbitCamera(false);
 
+			USceneComponent* ActiveActorLockComponent = ActiveActorLock->GetRootComponent();
+			TOptional<FRotator> PreviousRotator;
+			if (ActiveActorLockComponent)
+			{
+				PreviousRotator = ActiveActorLockComponent->RelativeRotation;
+			}
+
 			// If we're locked to a camera then we're reflecting the camera view and not the actor position. We need to reflect that delta when we reposition the piloted actor
 			if (bUseControllingActorViewInfo)
 			{
@@ -3463,7 +3470,6 @@ void FLevelEditorViewportClient::MoveLockedActorToCamera()
 				{
 					const FTransform RelativeTransform = ViewComponent->GetComponentTransform().Inverse();
 					const FTransform DesiredTransform = FTransform(GCurrentLevelEditingViewportClient->GetViewRotation(), GCurrentLevelEditingViewportClient->GetViewLocation());
-
 					ActiveActorLock->SetActorTransform(ActiveActorLock->GetActorTransform() * RelativeTransform * DesiredTransform);
 				}
 			}
@@ -3471,6 +3477,20 @@ void FLevelEditorViewportClient::MoveLockedActorToCamera()
 			{
 				ActiveActorLock->SetActorLocation(GCurrentLevelEditingViewportClient->GetViewLocation(), false);
 				ActiveActorLock->SetActorRotation(GCurrentLevelEditingViewportClient->GetViewRotation());
+			}
+
+			if (ActiveActorLockComponent)
+			{
+				const FRotator Rot = PreviousRotator.GetValue();
+				FRotator ActorRotWind, ActorRotRem;
+				Rot.GetWindingAndRemainder(ActorRotWind, ActorRotRem);
+				const FQuat ActorQ = ActorRotRem.Quaternion();
+				const FQuat ResultQ = ActiveActorLockComponent->RelativeRotation.Quaternion();
+				FRotator NewActorRotRem = FRotator(ResultQ);
+				ActorRotRem.SetClosestToMe(NewActorRotRem);
+				FRotator DeltaRot = NewActorRotRem - ActorRotRem;
+				DeltaRot.Normalize();
+				ActiveActorLockComponent->SetRelativeRotationExact(Rot + DeltaRot);
 			}
 		}
 
@@ -4800,9 +4820,8 @@ void FLevelEditorViewportClient::CopyLayoutFromViewport( const FLevelEditorViewp
 UWorld* FLevelEditorViewportClient::ConditionalSetWorld()
 {
 	// Should set GWorld to the play world if we are simulating in the editor and not already in the play world (reentrant calls to this would cause the world to be the same)
-	if( bIsSimulateInEditorViewport && GEditor->PlayWorld != GWorld )
+	if( bIsSimulateInEditorViewport && GEditor->PlayWorld && GEditor->PlayWorld != GWorld )
 	{
-		check( GEditor->PlayWorld != NULL );
 		return SetPlayInEditorWorld( GEditor->PlayWorld );
 	}
 
@@ -5000,6 +5019,14 @@ void FLevelEditorViewportClient::ClearHoverFromObjects()
 void FLevelEditorViewportClient::OnEditorCleanse()
 {
 	ClearHoverFromObjects();
+
+	FSceneViewStateInterface* ViewStateInterface = ViewState.GetReference();
+	if (ViewStateInterface)
+	{
+		// The view state can reference materials from the world being cleaned up. (Example post process materials)
+		ViewStateInterface->ClearMIDPool();
+	}
+
 }
 
 void FLevelEditorViewportClient::OnPreBeginPIE(const bool bIsSimulating)

@@ -8,10 +8,8 @@ struct FSlateBrush;
 
 struct FTemplateCategory
 {
-	static FName BlueprintCategoryName, CodeCategoryName, EnterpriseCategoryName;
-
 	/** Localised name of this category */
-	FText Name;
+	FText DisplayName;
 	
 	/** A description of the templates contained within this category */
 	FText Description;
@@ -19,9 +17,12 @@ struct FTemplateCategory
 	/** A thumbnail to help identify this category (on the tab) */
 	const FSlateBrush* Icon;
 
-	/** A thumbnail to help identify this category (on the screenshot)*/
-	const FSlateBrush* Image;
+	/** A unique key for this category */
+	FName Key;
 
-	/** A unique name for this category */
-	FName Type;
+	/** Is this a major or minor category? Controls where in the UI it will show up. */
+	bool IsMajor;
+
+	/** Is this an enterprise project? Will end up including Datasmith modules if true. */
+	bool IsEnterprise;
 };

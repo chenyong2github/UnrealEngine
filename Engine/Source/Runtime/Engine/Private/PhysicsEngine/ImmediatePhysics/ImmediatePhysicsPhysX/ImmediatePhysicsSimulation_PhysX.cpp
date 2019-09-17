@@ -43,7 +43,12 @@ FSimulation::~FSimulation()
 		delete ActorHandle;
 	}
 
+	for (FJointHandle* JointHandle : JointHandles)
+	{
+		delete JointHandle;
+	}
 	ActorHandles.Empty();
+	JointHandles.Empty();
 }
 
 void FSimulation::SetPositionIterationCount(int32 InIterationCount)
@@ -351,7 +356,10 @@ void FSimulation::RemoveActor(FActorHandle* InHandle)
 	bool bStatic = !bDynamic && !bKinematic;
 
 	Actors.RemoveAt(DataIndex);
+
+	delete ActorHandles[DataIndex];
 	ActorHandles.RemoveAt(DataIndex);
+
 	RigidBodiesData.RemoveAt(DataIndex);
 	SolverBodiesData.RemoveAt(DataIndex);
 	PendingAcceleration.RemoveAt(DataIndex);

@@ -199,7 +199,7 @@ class XXXPlatform : UEBuildPlatform
 			Rules.PublicDefinitions.Add("PLATFORM_XXX=0");
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)
 		{
 			if (ModuleName == "RHI")
 			{

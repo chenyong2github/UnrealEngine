@@ -136,6 +136,12 @@ private:	// GENERAL
 
 private:	// CONTEXT MENU
 
+	/**  Finds actors with class matching foliage type and merges them into foliage instances */
+	void OnIncludeNonFoliageActors(bool bOnlyCurrentLevel);
+
+	/** Excludes actors from matching foliage type and make them regular actors. */
+	void OnExcludeFoliageActors(bool bOnlyCurrentLevel);
+
 	/** @return the SWidget containing the context menu */
 	TSharedPtr<SWidget> ConstructFoliageTypeContextMenu();
 
@@ -177,8 +183,17 @@ private:	// CONTEXT MENU
 	/** Handler for 'Select Invalid Instances' command  */
 	void OnSelectInvalidInstances();
 
+	/** Executes Function on gathered list of foliage types from the selected palette items */
+	void ExecuteOnSelectedItemFoliageTypes(TFunctionRef<void(const TArray<const UFoliageType*>&)> ExecuteFunc);
+
 	/** @return Whether selecting instances is currently possible */
 	bool CanSelectInstances() const;
+
+	/** Handler for 'Reflect Selection in Palette ' command */
+	void OnReflectSelectionInPalette();
+
+	/** Selects Foliage Type in palette */
+	void SelectFoliageTypesInPalette(const TArray<const UFoliageType*>& FoliageTypes);
 
 private:	// THUMBNAIL VIEW
 

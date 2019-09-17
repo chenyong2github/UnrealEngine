@@ -420,7 +420,7 @@ namespace IncludeTool
 				}
 
 				// Find a lookup of all the files by name
-				MultiValueDictionary<string, SourceFile> NameToFile = new MultiValueDictionary<string, SourceFile>(StringComparer.InvariantCultureIgnoreCase);
+				MultiValueDictionary<string, SourceFile> NameToFile = new MultiValueDictionary<string, SourceFile>(StringComparer.OrdinalIgnoreCase);
 				foreach(SourceFile PreprocessedFile in PreprocessedFiles)
 				{
 					NameToFile.Add(PreprocessedFile.Location.GetFileName(), PreprocessedFile);
@@ -518,7 +518,18 @@ namespace IncludeTool
 				{
 					if ((PreprocessedFile.Flags & SourceFileFlags.Inline) == 0 && (PreprocessedFile.Flags & SourceFileFlags.GeneratedHeader) == 0 && PreprocessedFile.Counterpart == null)
 					{
-						SymbolTable.AddExports(PreprocessedFile);
+						try
+						{
+							SymbolTable.AddExports(PreprocessedFile);
+						}
+						catch(UnbalancedScopeException Ex)
+						{
+							Log.WriteLine("error: {0}", Ex.Message);
+						}
+						catch(Exception Ex)
+						{
+							throw new Exception(String.Format("Error while processing {0}", PreprocessedFile.Location), Ex);
+						}
 					}
 				}
 
@@ -544,7 +555,8 @@ namespace IncludeTool
 					{
 						if (SourceFile.BodyMaxIdx > SourceFile.BodyMinIdx && SourceFile.Markup[SourceFile.BodyMinIdx].Type != PreprocessorMarkupType.Include && (SourceFile.Flags & SourceFileFlags.External) == 0)
 						{
-							Log.WriteLine("warning: Source file does not begin with an #include directive: {0}", SourceFile.Location.MakeRelativeTo(InputDir));
+							// TODO disabling for the moment
+//							Log.WriteLine("warning: Source file does not begin with an #include directive: {0}", SourceFile.Location.MakeRelativeTo(InputDir));
 						}
 					}
 
@@ -571,7 +583,7 @@ namespace IncludeTool
 					{
 						if(!PreprocessedFile.HasHeaderGuard && (PreprocessedFile.Flags & (SourceFileFlags.TranslationUnit | SourceFileFlags.Inline | SourceFileFlags.External | SourceFileFlags.GeneratedHeader)) == 0 && PreprocessedFile.Counterpart == null && PreprocessedFile.Location.HasExtension(".h"))
 						{
-							if(!PreprocessedFile.Location.GetFileName().Equals("MonolithicHeaderBoilerplate.h", StringComparison.InvariantCultureIgnoreCase))
+							if(!PreprocessedFile.Location.GetFileName().Equals("MonolithicHeaderBoilerplate.h", StringComparison.OrdinalIgnoreCase))
 							{
 								Log.WriteLine("warning: missing header guard: {0}", PreprocessedFile.Location.FullName);
 							}
@@ -848,7 +860,7 @@ namespace IncludeTool
 		/// <param name="Target">The target to compile (eg. UE4Editor Win64 Development)</param>
 		/// <param name="TaskListFile">The output file for the task list</param>
 		/// <param name="Log">Log to output messages to</param>
-		static void GenerateTaskList(DirectoryReference RootDir, string Target, TargetPlatform Platform, TargetConfiguration Configuration, bool Precompile, FileReference TaskListFile, TextWriter Log)
+		static void GenerateTaskList(DirectoryReference RootDir, string Target, TargetPlatform Platform, TargetConfiguration Configuration, bool Precompile, FileReference TaskListFile, LineBasedTextWriter Log)
 		{
 			DirectoryReference IntermediateDir = DirectoryReference.Combine(RootDir, "Engine", "Intermediate", "Build");
 			if(IntermediateDir.Exists())
@@ -881,7 +893,7 @@ namespace IncludeTool
 		/// <returns>True if the given path is to a generated cpp file</returns>
 		static bool IsGeneratedCppFile(FileReference Location)
 		{
-			return Location.FullName.EndsWith(".cpp", StringComparison.InvariantCultureIgnoreCase) && Location.FullName.IndexOf(".generated.", StringComparison.InvariantCultureIgnoreCase) != -1;
+			return Location.FullName.EndsWith(".cpp", StringComparison.OrdinalIgnoreCase) && Location.FullName.IndexOf(".generated.", StringComparison.OrdinalIgnoreCase) != -1;
 		}
 
 		/// <summary>
@@ -905,7 +917,7 @@ namespace IncludeTool
 		/// </summary>
 		/// <param name="WorkingDir">The working directory for fragments</param>
 		/// <param name="FilesToCompile">Array of files to compile, with their corresponding compile environment</param>
-		static void PreprocessFiles(DirectoryReference WorkingDir, KeyValuePair<FileReference, CompileEnvironment>[] FilesToCompile, IEnumerable<DirectoryReference> ExtraSystemIncludePaths, TextWriter Log)
+		static void PreprocessFiles(DirectoryReference WorkingDir, KeyValuePair<FileReference, CompileEnvironment>[] FilesToCompile, IEnumerable<DirectoryReference> ExtraSystemIncludePaths, LineBasedTextWriter Log)
 		{
 			if(FilesToCompile.Length > 0)
 			{
@@ -927,7 +939,7 @@ namespace IncludeTool
 		/// <param name="CompileEnvironment">Compile environment for the given file</param>
 		/// <param name="FileToActiveMarkup">Map from source file to bit array of the markup blocks that are active. Used to verify all preprocessed files parse the same way.</param>
 		/// <param name="Log">Writer for output messages</param>
-		static void PreprocessFile(FileReference Location, FileReference PreludeLocation, CompileEnvironment CompileEnvironment, IEnumerable<DirectoryReference> ExtraSystemIncludePaths, ConcurrentDictionary<SourceFile, MarkupState> FileToActiveMarkup, TextWriter Log)
+		static void PreprocessFile(FileReference Location, FileReference PreludeLocation, CompileEnvironment CompileEnvironment, IEnumerable<DirectoryReference> ExtraSystemIncludePaths, ConcurrentDictionary<SourceFile, MarkupState> FileToActiveMarkup, LineBasedTextWriter Log)
 		{
 			// Get the initial file
 			PreprocessorFile InitialFile = new PreprocessorFile(Location.FullName, Workspace.GetFile(Location));
@@ -937,7 +949,11 @@ namespace IncludeTool
 			IncludePaths.AddRange(ExtraSystemIncludePaths);
 
 			// Set up the preprocessor with the correct defines for this environment
-			Preprocessor PreprocessorInst = new Preprocessor(PreludeLocation, CompileEnvironment.Definitions, IncludePaths, CompileEnvironment.ForceIncludeFiles);
+			Preprocessor PreprocessorInst = new Preprocessor(PreludeLocation, CompileEnvironment.Definitions, IncludePaths);
+			foreach(FileReference ForceIncludedFile in CompileEnvironment.ForceIncludeFiles)
+			{
+				PreprocessIncludedFile(PreprocessorInst, new PreprocessorFile(ForceIncludedFile.FullName, Workspace.GetFile(ForceIncludedFile)), FileToActiveMarkup, Log);
+			}
 			PreprocessIncludedFile(PreprocessorInst, InitialFile, FileToActiveMarkup, Log);
 		}
 
@@ -948,7 +964,7 @@ namespace IncludeTool
 		/// <param name="IncludedFile">The file to include</param>
 		/// <param name="FileToActiveMarkup">Map from source file to bit array of the markup blocks that are active. Used to verify all preprocessed files parse the same way.</param>
 		/// <param name="Log">Writer for output messages</param>
-		static void PreprocessIncludedFile(Preprocessor Preprocessor, PreprocessorFile IncludedFile, ConcurrentDictionary<SourceFile, MarkupState> FileToActiveMarkup, TextWriter Log)
+		static void PreprocessIncludedFile(Preprocessor Preprocessor, PreprocessorFile IncludedFile, ConcurrentDictionary<SourceFile, MarkupState> FileToActiveMarkup, LineBasedTextWriter Log)
 		{
 			if(Preprocessor.PushFile(IncludedFile))
 			{
@@ -970,24 +986,32 @@ namespace IncludeTool
 					PreprocessorMarkup Markup = File.Markup[Idx];
 					try
 					{
-						if(Markup.Type != PreprocessorMarkupType.Include)
+						if (Markup.Type != PreprocessorMarkupType.Include)
 						{
 							Preprocessor.ParseMarkup(Markup.Type, Markup.Tokens, Markup.Location.LineIdx);
 						}
-						else if(Preprocessor.IsBranchActive())
+						else
 						{
-							// Figure out which file is being included
-							PreprocessorFile TargetFile = Preprocessor.ResolveInclude(Markup.Tokens, Markup.Location.LineIdx);
-							if(!Markup.SetIncludedFile(TargetFile.WorkspaceFile.ReadSourceFile()))
+							if (Markup.Tokens.Count == 1 && (Markup.Tokens[0].Type == TokenType.StringLiteral || Markup.Tokens[0].Type == TokenType.SystemInclude) && Markup.Tokens[0].Text.Contains("//"))
 							{
-								PreprocessorFile ExistingTargetFile = new PreprocessorFile(TargetFile.FileName, Workspace.GetFile(Markup.IncludedFile.Location));
-								Log.WriteLine("{0}({1}): warning: include text resolved to different locations", File.Location, Markup.Location.LineIdx + 1);
-								Log.WriteLine("    First: {0}", ExistingTargetFile.Location);
-								Log.WriteLine("    Now:   {0}", TargetFile.Location);
-								TargetFile = ExistingTargetFile;
+								Log.WriteLine("{0}({1}): warning: include path has multiple slashes ({2})", File.Location, Markup.Location.LineIdx + 1, Markup.Tokens[0].Text);
 							}
-							PreprocessIncludedFile(Preprocessor, TargetFile, FileToActiveMarkup, Log);
-							ActiveMarkup.Flags[Idx] = true;
+
+							if (Preprocessor.IsBranchActive())
+							{
+								// Figure out which file is being included
+								PreprocessorFile TargetFile = Preprocessor.ResolveInclude(Markup.Tokens, Markup.Location.LineIdx);
+								if (!Markup.SetIncludedFile(TargetFile.WorkspaceFile.ReadSourceFile()))
+								{
+									PreprocessorFile ExistingTargetFile = new PreprocessorFile(TargetFile.FileName, Workspace.GetFile(Markup.IncludedFile.Location));
+									Log.WriteLine("{0}({1}): warning: include text resolved to different locations", File.Location, Markup.Location.LineIdx + 1);
+									Log.WriteLine("    First: {0}", ExistingTargetFile.Location);
+									Log.WriteLine("    Now:   {0}", TargetFile.Location);
+									TargetFile = ExistingTargetFile;
+								}
+								PreprocessIncludedFile(Preprocessor, TargetFile, FileToActiveMarkup, Log);
+								ActiveMarkup.Flags[Idx] = true;
+							}
 						}
 					}
 					catch(PreprocessorException Ex)
@@ -1002,7 +1026,7 @@ namespace IncludeTool
 				{
 					foreach(PreprocessorMarkup Markup in File.Markup)
 					{
-						if(Markup.IncludedFile != null && (Markup.IncludedFile.Flags & SourceFileFlags.External) == 0 && !File.Location.FullName.Contains("PhyaLib") && !File.Location.GetFileName().Contains("Recast") && !File.Location.GetFileName().Contains("FramePro") && !File.Location.GetFileName().Contains("libSampleRate"))
+						if(Markup.IncludedFile != null && (Markup.IncludedFile.Flags & SourceFileFlags.External) == 0 && !File.Location.FullName.Contains("PhyaLib") && !File.Location.GetFileName().Contains("Recast") && !File.Location.GetFileName().Contains("FramePro") && !File.Location.FullName.Contains("libSampleRate"))
 						{
 							Log.WriteLine("{0}({1}): warning: external file is including non-external file ('{2}')", IncludedFile.Location.FullName, Markup.Location.LineIdx + 1, Markup.IncludedFile.Location);
 						}
@@ -1033,13 +1057,13 @@ namespace IncludeTool
 							{
 								lock(Log)
 								{
-									Log.WriteLine("{0}({1}): warning: inconsistent preprocessor state.", File.Location.FullName, File.Markup[Idx].Location.LineIdx + 1);
-									Log.WriteLine("    First include stack ({0}):", CurrentActiveMarkup.Flags[Idx]? "active" : "inactive");
+									Log.WriteLine("{0}({1}): warning: Inconsistent preprocessor state. Every block of code in a header file should consistently be active or inactive regardless of where it is included from. Inconsistencies prevent IWYU optimization, and may be indicative of programming errors.", File.Location.FullName, File.Markup[Idx].Location.LineIdx + 1);
+									Log.WriteLine("    First include stack ({0}):", CurrentActiveMarkup.Flags[Idx]? "code is active" : "code is inactive");
 									foreach(FileReference IncludeFile in CurrentActiveMarkup.IncludeStack.Reverse())
 									{
 										Log.WriteLine("        {0}", IncludeFile);
 									}
-									Log.WriteLine("    Second include stack ({0}):", ActiveMarkup.Flags[Idx]? "active" : "inactive");
+									Log.WriteLine("    Second include stack ({0}):", ActiveMarkup.Flags[Idx]? "code is active" : "code is inactive");
 									foreach(FileReference IncludeFile in ActiveMarkup.IncludeStack.Reverse())
 									{
 										Log.WriteLine("        {0}", IncludeFile);
@@ -1080,7 +1104,7 @@ namespace IncludeTool
 		/// <param name="Files">Array of files to create fragments for</param>
 		static void CreateFragments(IEnumerable<SourceFile> Files)
 		{
-			HashSet<string> UniqueNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+			HashSet<string> UniqueNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			foreach(SourceFile File in Files)
 			{
 				CreateFragmentsRecursively(File, UniqueNames);
@@ -1241,7 +1265,7 @@ namespace IncludeTool
 		/// <param name="bMultiProcess">Whether to spawn child processes to execute the search. Useful with XGE.</param>
 		/// <param name="Log">Writer for log files</param>
 		/// <returns>True on success</returns>
-		public static bool ProcessSequenceTree(SequenceProbeType Type, Dictionary<SourceFile, CompileEnvironment> SourceFileToCompileEnvironment, DirectoryReference IntermediateDir, IEnumerable<DirectoryReference> ExtraSystemIncludePaths, int MaxParallel, int ShardIdx, int NumShards, double TimeLimit, TextWriter Log)
+		public static bool ProcessSequenceTree(SequenceProbeType Type, Dictionary<SourceFile, CompileEnvironment> SourceFileToCompileEnvironment, DirectoryReference IntermediateDir, IEnumerable<DirectoryReference> ExtraSystemIncludePaths, int MaxParallel, int ShardIdx, int NumShards, double TimeLimit, LineBasedTextWriter Log)
 		{
 			Stopwatch Timer = Stopwatch.StartNew();
 			Log.WriteLine("Creating probes...");
@@ -1250,7 +1274,7 @@ namespace IncludeTool
 			Dictionary<SourceFragment, Lazy<SequenceProbe>> FragmentToLazyProbe = new Dictionary<SourceFragment, Lazy<SequenceProbe>>();
 
 			// Create all the unique probes
-			HashSet<string> UniqueProbeNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+			HashSet<string> UniqueProbeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			foreach(SourceFile SourceFile in SourceFileToCompileEnvironment.Keys)
 			{
 				// Flatten the file into a list of fragments
@@ -1477,7 +1501,7 @@ namespace IncludeTool
 		/// <param name="bWithP4">If true, read-only files will be checked out of Perforce</param>
 		/// <param name="Log">Log writer</param>
 		/// <returns>True if the files were written successfully</returns>
-		static bool WriteOptimizedFiles(DirectoryReference InputDir, DirectoryReference OutputDir, HashList<DirectoryReference> PublicIncludePaths, Dictionary<BuildModule, HashList<DirectoryReference>> PrivateIncludePaths, HashList<DirectoryReference> SystemIncludePaths, IEnumerable<SourceFile> OutputFiles, bool bWithP4, bool bWithVerboseLog, bool bRemoveForwardDeclarations, TextWriter Log)
+		static bool WriteOptimizedFiles(DirectoryReference InputDir, DirectoryReference OutputDir, HashList<DirectoryReference> PublicIncludePaths, Dictionary<BuildModule, HashList<DirectoryReference>> PrivateIncludePaths, HashList<DirectoryReference> SystemIncludePaths, IEnumerable<SourceFile> OutputFiles, bool bWithP4, bool bWithVerboseLog, bool bRemoveForwardDeclarations, LineBasedTextWriter Log)
 		{
 			// Find all the output files that need to be written
 			Dictionary<FileReference, string> OutputFileContents = new Dictionary<FileReference, string>();
@@ -1515,7 +1539,7 @@ namespace IncludeTool
 		/// <param name="bWithP4">If true, read-only files will be checked out of Perforce</param>
 		/// <param name="Log">Log writer</param>
 		/// <returns>True if the files were written successfully</returns>
-		static bool WriteOutputFiles(DirectoryReference OutputDir, Dictionary<FileReference, string> OutputFileContents, bool bWithP4, TextWriter Log)
+		static bool WriteOutputFiles(DirectoryReference OutputDir, Dictionary<FileReference, string> OutputFileContents, bool bWithP4, LineBasedTextWriter Log)
 		{
 			// Create the output directory
 			OutputDir.CreateDirectory();

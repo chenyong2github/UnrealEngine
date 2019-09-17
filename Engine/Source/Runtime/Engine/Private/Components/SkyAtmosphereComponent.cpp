@@ -68,6 +68,9 @@ USkyAtmosphereComponent::USkyAtmosphereComponent(const FObjectInitializer& Objec
 	SkyLuminanceFactor = FLinearColor(FLinearColor::White);
 	MultiScatteringFactor = 1.0f;
 	AerialPespectiveViewDistanceScale = 1.0f;
+	HeightFogContribution = 1.0f;
+
+	memset(OverrideAtmosphericLight, 0, sizeof(OverrideAtmosphericLight));
 
 	ValidateStaticLightingGUIDs();
 }
@@ -249,11 +252,21 @@ void USkyAtmosphereComponent::Serialize(FArchive& Ar)
 
 void USkyAtmosphereComponent::OverrideAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& LightDirection)
 {
-	if (AreDynamicDataChangesAllowed() && SkyAtmosphereSceneProxy)
+	check(AtmosphereLightIndex >= 0 && AtmosphereLightIndex < NUM_ATMOSPHERE_LIGHTS);
+	if (AreDynamicDataChangesAllowed() && SkyAtmosphereSceneProxy &&
+		(!OverrideAtmosphericLight[AtmosphereLightIndex] || OverrideAtmosphericLightDirection[AtmosphereLightIndex]!=LightDirection))
 	{
 		FSceneInterface* Scene = GetWorld()->Scene;
-		Scene->OverrideSkyAtmosphereLightDirection(SkyAtmosphereSceneProxy, AtmosphereLightIndex, LightDirection);
+		OverrideAtmosphericLight[AtmosphereLightIndex] = true;
+		OverrideAtmosphericLightDirection[AtmosphereLightIndex] = LightDirection;
+		MarkRenderStateDirty();
 	}
+}
+
+void USkyAtmosphereComponent::GetOverrideLightStatus(bool* OutOverrideAtmosphericLight, FVector* OutOverrideAtmosphericLightDirection) const
+{
+	memcpy(OutOverrideAtmosphericLight, OverrideAtmosphericLight, sizeof(OverrideAtmosphericLight));
+	memcpy(OutOverrideAtmosphericLightDirection, OverrideAtmosphericLightDirection, sizeof(OverrideAtmosphericLightDirection));
 }
 
 #define SKY_DECLARE_BLUEPRINT_SETFUNCTION(MemberType, MemberName) void USkyAtmosphereComponent::Set##MemberName(MemberType NewValue)\
@@ -290,6 +303,7 @@ SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(OtherAbsorption);
 
 SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(SkyLuminanceFactor);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, AerialPespectiveViewDistanceScale);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, HeightFogContribution);
 
 /*=============================================================================
 	ASkyAtmosphere implementation.
@@ -366,21 +380,15 @@ FSkyAtmosphereSceneProxy::FSkyAtmosphereSceneProxy(const USkyAtmosphereComponent
 {
 	SkyLuminanceFactor = InComponent->SkyLuminanceFactor;
 	AerialPespectiveViewDistanceScale = InComponent->AerialPespectiveViewDistanceScale;
-	memset(OverrideAtmosphericLight, 0, sizeof(OverrideAtmosphericLight));
+	HeightFogContribution = InComponent->HeightFogContribution;
+
+	InComponent->GetOverrideLightStatus(OverrideAtmosphericLight, OverrideAtmosphericLightDirection);
 
 	TransmittanceAtZenith = AtmosphereSetup.GetTransmittanceAtGroundLevel(FVector(0.0f, 0.0f, 1.0f));
 }
 
 FSkyAtmosphereSceneProxy::~FSkyAtmosphereSceneProxy()
 {
-}
-
-void FSkyAtmosphereSceneProxy::OverrideAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& LightDirection)
-{
-	check(AtmosphereLightIndex >= 0 && AtmosphereLightIndex < NUM_ATMOSPHERE_LIGHTS);
-	AtmosphereLightIndex = FMath::Clamp(AtmosphereLightIndex, 0, NUM_ATMOSPHERE_LIGHTS - 1);	// To make sure we do not crash, blueprint function cannot enforce input ranges
-	OverrideAtmosphericLight[AtmosphereLightIndex] = true;
-	OverrideAtmosphericLightDirection[AtmosphereLightIndex] = LightDirection;
 }
 
 FVector FSkyAtmosphereSceneProxy::GetAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& DefaultDirection) const

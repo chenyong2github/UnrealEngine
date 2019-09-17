@@ -99,7 +99,7 @@ struct NIAGARA_API FNiagaraParameterStore
 
 private:
 	/** Owner of this store. Used to provide an outer to data interfaces in this store. */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	UObject* Owner;
 	
 	/** Map from parameter defs to their offset in the data table or the data interface. TODO: Separate out into a layout and instance class to reduce duplicated data for this?  */
@@ -214,6 +214,8 @@ public:
 
 	FORCEINLINE void SetParameterDataArray(const TArray<uint8>& InParameterDataArray);
 
+	void SanityCheckData(bool bInitInterfaces = true);
+
 	// Called to initially set up the parameter store to *exactly* match the input store (other than any bindings and the internal name of it).
 	virtual void InitFromSource(const FNiagaraParameterStore* SrcStore, bool bNotifyAsDirty);
 
@@ -311,7 +313,7 @@ public:
 	{
 		int32 Offset = IndexOf(Parameter);
 		UObject* Obj = GetUObject(Offset);
-		checkSlow(!Obj || Parameter.GetType().GetClass() == Obj->GetClass());
+		checkSlow(!Obj || Obj->IsA(Parameter.GetType().GetClass()));
 		return Obj;
 	}
 
@@ -324,6 +326,7 @@ public:
 		{
 			if (Parameter.IsDataInterface())
 			{
+				ensure(DestStore.DataInterfaces.IsValidIndex(DestIndex));
 				DataInterfaces[SrcIndex]->CopyTo(DestStore.DataInterfaces[DestIndex]);
 				DestStore.OnInterfaceChange();
 			}
@@ -1079,7 +1082,7 @@ struct FNiagaraParameterDirectBinding<UObject*>
 			BoundVariable = DestVariable;
 			LayoutVersion = BoundStore->GetLayoutVersion();
 
-			check(BoundVariable.GetType() == FNiagaraTypeDefinition::GetUObjectDef());
+			check(BoundVariable.GetType().IsUObject());
 			UObjectOffset = BoundStore->IndexOf(DestVariable);
 			UObject* Ret = BoundStore->GetUObject(UObjectOffset);
 			return Ret;
@@ -1091,7 +1094,7 @@ struct FNiagaraParameterDirectBinding<UObject*>
 	{
 		if (UObjectOffset != INDEX_NONE)
 		{
-			checkSlow(BoundVariable.GetType() == FNiagaraTypeDefinition::GetUObjectDef());
+			checkSlow(BoundVariable.GetType().IsUObject());
 			checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 			BoundStore->SetUObject(InValue, UObjectOffset);
@@ -1102,7 +1105,7 @@ struct FNiagaraParameterDirectBinding<UObject*>
 	{
 		if (UObjectOffset != INDEX_NONE)
 		{
-			checkSlow(BoundVariable.GetType() == FNiagaraTypeDefinition::GetUObjectDef());
+			checkSlow(BoundVariable.GetType().IsUObject());
 			checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 			return BoundStore->GetUObject(UObjectOffset);

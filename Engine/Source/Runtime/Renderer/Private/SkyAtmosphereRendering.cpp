@@ -285,7 +285,6 @@ bool ShouldRenderSkyAtmosphere(const FScene* Scene, const FEngineShowFlags& Engi
 
 		const bool ShadersCompiled = ShouldPipelineCompileSkyAtmosphereShader(ShaderPlatform);
 		return FReadOnlyCVARCache::Get().bSupportSkyAtmosphere && ShadersCompiled && CVarSkyAtmosphere.GetValueOnRenderThread() > 0;
-		// TODO: Add new or reuse EngineShowFlags.AtmosphericFog? ALso take into account EngineShowFlags.Fog as previously?
 	}
 	return false;
 }
@@ -446,17 +445,6 @@ void FScene::RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereScenePro
 				Scene->SkyAtmosphere = nullptr;
 			}
 		} );
-}
-
-void FScene::OverrideSkyAtmosphereLightDirection(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, int32 AtmosphereLightIndex, const FVector& InLightDirection)
-{
-	FVector LightDirection = InLightDirection;
-	LightDirection.Normalize();
-	ENQUEUE_RENDER_COMMAND(FOverrideSkyAtmosphereLightDirection)(
-		[SkyAtmosphereSceneProxy, AtmosphereLightIndex, LightDirection](FRHICommandListImmediate& RHICmdList)
-	{
-		SkyAtmosphereSceneProxy->OverrideAtmosphereLightDirection(AtmosphereLightIndex, LightDirection);
-	});
 }
 
 void FScene::ResetAtmosphereLightsProperties()

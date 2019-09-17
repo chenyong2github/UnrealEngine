@@ -19,8 +19,14 @@ class UMG_API UWidgetSwitcherSlot : public UPanelSlot
 {
 	GENERATED_UCLASS_BODY()
 
+private:
+	//TODO UMG Slots should hold weak or shared refs to slots.
+
+	/** A raw pointer to the slot to allow us to adjust the size, padding...etc at runtime. */
+	SWidgetSwitcher::FSlot* Slot;
+
 public:
-	
+
 	/** The padding area between the slot and the content it contains. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Widget Switcher Slot")
 	FMargin Padding;
@@ -57,10 +63,4 @@ public:
 
 	/** Sets the content of this slot, removing existing content if needed. */
 	void SetContent(UWidget* NewContent);
-
-private:
-	//TODO UMG Slots should hold weak or shared refs to slots.
-
-	/** A raw pointer to the slot to allow us to adjust the size, padding...etc at runtime. */
-	SWidgetSwitcher::FSlot* Slot;
 };

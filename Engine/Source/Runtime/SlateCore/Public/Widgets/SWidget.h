@@ -156,6 +156,13 @@ private:
 };
 
 
+/**
+ * Performs the attribute assignment and invalidates the widget minimally based on what actually changed.  So if the boundness of the attribute didn't change
+ * volatility won't need to be recalculated.  Returns true if the value changed.
+ */
+template<typename TargetValueType, typename SourceValueType>
+static bool SetWidgetAttribute(SWidget& ThisWidget, TAttribute<TargetValueType>& TargetValue, const TAttribute<SourceValueType>& SourceValue, EInvalidateWidgetReason BaseInvalidationReason);
+
 class IToolTip;
 
 /**
@@ -680,7 +687,7 @@ public:
 
 protected:
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) { return false; }
-	void AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 ParentIndex, TArray<FWidgetProxy, TMemStackAllocator<>>& FastPathList, bool bParentVisible, bool bParentVolatile);
+	bool AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 ParentIndex, TArray<FWidgetProxy, TMemStackAllocator<>>& FastPathList, bool bParentVisible, bool bParentVolatile);
 
 	/**
 	 * The system calls this method. It performs a breadth-first traversal of every visible widget and asks
@@ -1489,23 +1496,7 @@ protected:
 	template<typename TargetValueType, typename SourceValueType>
 	bool SetAttribute(TAttribute<TargetValueType>& TargetValue, const TAttribute<SourceValueType>& SourceValue, EInvalidateWidgetReason BaseInvalidationReason)
 	{
-		if (!TargetValue.IdenticalTo(SourceValue))
-		{
-			const bool bWasBound = TargetValue.IsBound();
-			const bool bBoundnessChanged = bWasBound != SourceValue.IsBound();
-			TargetValue = SourceValue;
-
-			EInvalidateWidgetReason InvalidateReason = BaseInvalidationReason;
-			if (bBoundnessChanged)
-			{
-				InvalidateReason |= EInvalidateWidgetReason::Volatility;
-			}
-
-			Invalidate(InvalidateReason);
-			return true;
-		}
-
-		return false;
+		return SetWidgetAttribute(*this, TargetValue, SourceValue, BaseInvalidationReason);
 	}
 
 protected:
@@ -1714,4 +1705,27 @@ FORCEINLINE_DEBUGGABLE FArrangedWidget FGeometry::MakeChild(const TSharedRef<SWi
 	// Since ChildOffset is given as a LocalSpaceOffset, we MUST convert this offset into the space of the parent to construct a valid layout transform.
 	// The extra TransformPoint below does this by converting the local offset to an offset in parent space.
 	return MakeChild(ChildWidget, InLocalSize, FSlateLayoutTransform(ChildScale, TransformPoint(ChildScale, ChildOffset)));
+}
+
+
+template<typename TargetValueType, typename SourceValueType>
+bool SetWidgetAttribute(SWidget& ThisWidget, TAttribute<TargetValueType>& TargetValue, const TAttribute<SourceValueType>& SourceValue, EInvalidateWidgetReason BaseInvalidationReason)
+{
+	if (!TargetValue.IdenticalTo(SourceValue))
+	{
+		const bool bWasBound = TargetValue.IsBound();
+		const bool bBoundnessChanged = bWasBound != SourceValue.IsBound();
+		TargetValue = SourceValue;
+
+		EInvalidateWidgetReason InvalidateReason = BaseInvalidationReason;
+		if (bBoundnessChanged)
+		{
+			InvalidateReason |= EInvalidateWidgetReason::Volatility;
+		}
+
+		ThisWidget.Invalidate(InvalidateReason);
+		return true;
+	}
+
+	return false;
 }

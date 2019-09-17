@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
+#include "EngineDefines.h"
 #include "GameFramework/Info.h"
 #include "Misc/Guid.h"
 #include "RenderResource.h"
@@ -124,40 +125,46 @@ class USkyAtmosphereComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art direction", meta = (UIMin = 0.0, UIMax = 3.0, ClampMin = 0.0, SliderExponent = 2.0))
 	float AerialPespectiveViewDistanceScale;
 
+	/** Scale the sky and atmosphere lights contribution to the height fog when SupportSkyAtmosphereAffectsHeightFog project setting is true.*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art direction", meta = (UIMin = 0.0, UIMax = 1.0, ClampMin = 0.0, SliderExponent = 2.0))
+	float HeightFogContribution;
+
 
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void OverrideAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& LightDirection);
 	
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	void SetRayleighScatteringScale(float NewValue);
+	ENGINE_API void SetRayleighScatteringScale(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetRayleighScattering(FLinearColor NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	void SetRayleighExponentialDistribution(float NewValue);
+	ENGINE_API void SetRayleighExponentialDistribution(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	void SetMieScatteringScale(float NewValue);
+	ENGINE_API void SetMieScatteringScale(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetMieScattering(FLinearColor NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	void SetMieAbsorptionScale(float NewValue);
+	ENGINE_API void SetMieAbsorptionScale(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetMieAbsorption(FLinearColor NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	void SetMieAnisotropy(float NewValue);
+	ENGINE_API void SetMieAnisotropy(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	void SetMieExponentialDistribution(float NewValue);
+	ENGINE_API void SetMieExponentialDistribution(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (DisplayName = "Set Absorption Scale"))
-	void SetOtherAbsorptionScale(float NewValue);
+	ENGINE_API void SetOtherAbsorptionScale(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (DisplayName = "Set Absorption"))
 	ENGINE_API void SetOtherAbsorption(FLinearColor NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	void SetSkyLuminanceFactor(FLinearColor NewValue);
+	ENGINE_API void SetSkyLuminanceFactor(FLinearColor NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	void SetAerialPespectiveViewDistanceScale(float NewValue);
+	ENGINE_API void SetAerialPespectiveViewDistanceScale(float NewValue);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	ENGINE_API void SetHeightFogContribution(float NewValue);
 
 
 
@@ -189,9 +196,14 @@ public:
 
 	FGuid GetStaticLightingBuiltGuid() const { return bStaticLightingBuiltGUID; }
 
+	void GetOverrideLightStatus(bool* OverrideAtmosphericLight, FVector* OverrideAtmosphericLightDirection) const;
+
 private:
 
 	FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy;
+
+	bool OverrideAtmosphericLight[NUM_ATMOSPHERE_LIGHTS];
+	FVector OverrideAtmosphericLightDirection[NUM_ATMOSPHERE_LIGHTS];
 
 	/**
 	 * GUID used to associate a atmospheric component with precomputed lighting/shadowing information across levels.

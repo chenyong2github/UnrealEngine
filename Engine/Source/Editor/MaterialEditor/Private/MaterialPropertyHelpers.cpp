@@ -14,6 +14,7 @@
 #include "Materials/MaterialInterface.h"
 #include "MaterialEditor/DEditorFontParameterValue.h"
 #include "MaterialEditor/DEditorMaterialLayersParameterValue.h"
+#include "MaterialEditor/DEditorRuntimeVirtualTextureParameterValue.h"
 #include "MaterialEditor/DEditorScalarParameterValue.h"
 #include "MaterialEditor/DEditorStaticComponentMaskParameterValue.h"
 #include "MaterialEditor/DEditorStaticSwitchParameterValue.h"
@@ -327,6 +328,17 @@ void FMaterialPropertyHelpers::CopyMaterialToInstance(UMaterialInstanceConstant*
 							continue;
 						}
 					}
+
+					UDEditorRuntimeVirtualTextureParameterValue* RuntimeVirtualTextureParameterValue = Cast<UDEditorRuntimeVirtualTextureParameterValue>(Group.Parameters[ParameterIdx]);
+					if (RuntimeVirtualTextureParameterValue)
+					{
+						if (RuntimeVirtualTextureParameterValue->bOverride)
+						{
+							ChildInstance->SetRuntimeVirtualTextureParameterValueEditorOnly(RuntimeVirtualTextureParameterValue->ParameterInfo, RuntimeVirtualTextureParameterValue->ParameterValue);
+							continue;
+						}
+					}
+
 					UDEditorVectorParameterValue* VectorParameterValue = Cast<UDEditorVectorParameterValue>(Group.Parameters[ParameterIdx]);
 					if (VectorParameterValue)
 					{
@@ -571,6 +583,7 @@ FReply FMaterialPropertyHelpers::OnClickedSaveNewFunctionInstance(class UMateria
 					ChildInstance->ScalarParameterValues = EditedInstance->ScalarParameterValues;
 					ChildInstance->VectorParameterValues = EditedInstance->VectorParameterValues;
 					ChildInstance->TextureParameterValues = EditedInstance->TextureParameterValues;
+					ChildInstance->RuntimeVirtualTextureParameterValues = EditedInstance->RuntimeVirtualTextureParameterValues; 
 					ChildInstance->FontParameterValues = EditedInstance->FontParameterValues;
 
 					const FStaticParameterSet& StaticParameters = EditedInstance->GetStaticParameters();
@@ -661,6 +674,7 @@ FReply FMaterialPropertyHelpers::OnClickedSaveNewLayerInstance(class UMaterialFu
 					ChildInstance->ScalarParameterValues = EditedInstance->ScalarParameterValues;
 					ChildInstance->VectorParameterValues = EditedInstance->VectorParameterValues;
 					ChildInstance->TextureParameterValues = EditedInstance->TextureParameterValues;
+					ChildInstance->RuntimeVirtualTextureParameterValues = EditedInstance->RuntimeVirtualTextureParameterValues;
 					ChildInstance->FontParameterValues = EditedInstance->FontParameterValues;
 
 					const FStaticParameterSet& StaticParameters = EditedInstance->GetStaticParameters();
@@ -770,6 +784,7 @@ void FMaterialPropertyHelpers::ResetToDefault(TSharedPtr<IPropertyHandle> Proper
 	UDEditorScalarParameterValue* ScalarParam = Cast<UDEditorScalarParameterValue>(Parameter);
 	UDEditorVectorParameterValue* VectorParam = Cast<UDEditorVectorParameterValue>(Parameter);
 	UDEditorTextureParameterValue* TextureParam = Cast<UDEditorTextureParameterValue>(Parameter);
+	UDEditorRuntimeVirtualTextureParameterValue* RuntimeVirtualTextureParam = Cast<UDEditorRuntimeVirtualTextureParameterValue>(Parameter);
 	UDEditorFontParameterValue* FontParam = Cast<UDEditorFontParameterValue>(Parameter);
 	UDEditorStaticSwitchParameterValue* SwitchParam = Cast<UDEditorStaticSwitchParameterValue>(Parameter);
 	UDEditorStaticComponentMaskParameterValue* CompMaskParam = Cast<UDEditorStaticComponentMaskParameterValue>(Parameter);
@@ -799,6 +814,15 @@ void FMaterialPropertyHelpers::ResetToDefault(TSharedPtr<IPropertyHandle> Proper
 		if (MaterialEditorInstance->SourceInstance->GetTextureParameterDefaultValue(ParameterInfo, OutValue))
 		{
 			TextureParam->ParameterValue = OutValue;
+			MaterialEditorInstance->CopyToSourceInstance();
+		}
+	}
+	else if (RuntimeVirtualTextureParam)
+	{
+		URuntimeVirtualTexture* OutValue;
+		if (MaterialEditorInstance->SourceInstance->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, OutValue))
+		{
+			RuntimeVirtualTextureParam->ParameterValue = OutValue;
 			MaterialEditorInstance->CopyToSourceInstance();
 		}
 	}
@@ -951,6 +975,7 @@ bool FMaterialPropertyHelpers::ShouldShowResetToDefault(TSharedPtr<IPropertyHand
 	UDEditorStaticComponentMaskParameterValue* CompMaskParam = Cast<UDEditorStaticComponentMaskParameterValue>(InParameter);
 	UDEditorStaticSwitchParameterValue* SwitchParam = Cast<UDEditorStaticSwitchParameterValue>(InParameter);
 	UDEditorTextureParameterValue* TextureParam = Cast<UDEditorTextureParameterValue>(InParameter);
+	UDEditorRuntimeVirtualTextureParameterValue* RuntimeVirtualTextureParam = Cast<UDEditorRuntimeVirtualTextureParameterValue>(InParameter);
 	UDEditorVectorParameterValue* VectorParam = Cast<UDEditorVectorParameterValue>(InParameter);
 
 	if (ScalarParam)
@@ -983,6 +1008,17 @@ bool FMaterialPropertyHelpers::ShouldShowResetToDefault(TSharedPtr<IPropertyHand
 		if (MaterialEditorInstance->SourceInstance->GetTextureParameterDefaultValue(ParameterInfo, OutValue))
 		{
 			if (TextureParam->ParameterValue != OutValue)
+			{
+				return true;
+			}
+		}
+	}
+	else if (RuntimeVirtualTextureParam)
+	{
+		URuntimeVirtualTexture* OutValue;
+		if (MaterialEditorInstance->SourceInstance->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, OutValue))
+		{
+			if (RuntimeVirtualTextureParam->ParameterValue != OutValue)
 			{
 				return true;
 			}
@@ -1197,13 +1233,25 @@ TSharedRef<SWidget> FMaterialPropertyHelpers::MakeStackReorderHandle(TSharedPtr<
 bool FMaterialPropertyHelpers::OnShouldSetCurveAsset(const FAssetData& AssetData, TSoftObjectPtr<class UCurveLinearColorAtlas> InAtlas)
 {
 	UCurveLinearColorAtlas* Atlas = Cast<UCurveLinearColorAtlas>(InAtlas.Get());
-	UCurveLinearColor* Curve = Cast<UCurveLinearColor>(AssetData.GetAsset());
-	if (!Atlas || !Curve)
+	if (!Atlas)
 	{
 		return false;
 	}
-	int32 Index = Atlas->GradientCurves.Find(Curve);
-	return Index != INDEX_NONE;
+
+	for (UCurveLinearColor* GradientCurve : Atlas->GradientCurves)
+	{
+		if (GradientCurve->GetOutermost()->GetPathName() == AssetData.PackageName.ToString())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FMaterialPropertyHelpers::OnShouldFilterCurveAsset(const FAssetData& AssetData, TSoftObjectPtr<class UCurveLinearColorAtlas> InAtlas)
+{
+	return !OnShouldSetCurveAsset(AssetData, InAtlas);
 }
 
 void FMaterialPropertyHelpers::SetPositionFromCurveAsset(const FAssetData& AssetData, TSoftObjectPtr<class UCurveLinearColorAtlas> InAtlas, UDEditorScalarParameterValue* InParameter, TSharedPtr<IPropertyHandle> PropertyHandle, UObject* MaterialEditorInstance)
@@ -1228,8 +1276,6 @@ void FMaterialPropertyHelpers::SetPositionFromCurveAsset(const FAssetData& Asset
 		const FScopedTransaction Transaction(LOCTEXT("SetScalarAtlasPositionValue", "Set Scalar Atlas Position Value"));
 		InParameter->Modify();
 
-		PropertyHandle->NotifyPreChange();
-		
 		InParameter->AtlasData.Curve = TSoftObjectPtr<UCurveLinearColor>(FSoftObjectPath(Curve->GetPathName()));
 		InParameter->ParameterValue = NewValue;
 		UMaterialEditorInstanceConstant* MaterialInstanceEditor = Cast<UMaterialEditorInstanceConstant>(MaterialEditorInstance);
@@ -1237,8 +1283,6 @@ void FMaterialPropertyHelpers::SetPositionFromCurveAsset(const FAssetData& Asset
 		{
 			MaterialInstanceEditor->CopyToSourceInstance();
 		}
-
-		PropertyHandle->NotifyPostChange();
 	}
 }
 

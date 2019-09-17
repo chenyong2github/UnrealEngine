@@ -6,6 +6,7 @@
 #include "EditorViewportClient.h"
 #include "EditorModeManager.h"
 #include "LevelEditorViewport.h"   // for GCurrentLevelEditingViewportClient
+#include "ShowFlags.h"				// for EngineShowFlags
 #include "Engine/Selection.h"
 #include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
@@ -15,6 +16,7 @@
 
 #include "EditorToolAssetAPI.h"
 #include "EditorComponentSourceFactory.h"
+#include "InteractiveToolObjects.h"
 
 //#include "PhysicsEngine/BodySetup.h"
 //#include "Interfaces/Interface_CollisionDataProvider.h"
@@ -51,9 +53,8 @@ public:
 		StateOut.ToolManager = ToolsContext->ToolManager;
 		StateOut.GizmoManager = ToolsContext->GizmoManager;
 		StateOut.World = EditorMode->GetWorld();
-		StateOut.SelectedActors = EditorMode->GetModeManager()->GetSelectedActors();
-		StateOut.SelectedComponents = EditorMode->GetModeManager()->GetSelectedComponents();
-		StateOut.SourceBuilder = ToolsContext->GetComponentSourceFactory();
+		EditorMode->GetModeManager()->GetSelectedActors()->GetSelectedObjects(StateOut.SelectedActors);
+		EditorMode->GetModeManager()->GetSelectedComponents()->GetSelectedObjects(StateOut.SelectedComponents);
 	}
 
 
@@ -307,7 +308,6 @@ UEdModeInteractiveToolsContext::UEdModeInteractiveToolsContext()
 	QueriesAPI = nullptr;
 	TransactionAPI = nullptr;
 	AssetAPI = nullptr;
-	SourceFactory = nullptr;
 }
 
 
@@ -333,6 +333,9 @@ void UEdModeInteractiveToolsContext::Shutdown()
 	FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
 	FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldDelegateHandle);
 
+	// auto-accept any in-progress tools
+	DeactivateAllActiveTools();
+
 	UInteractiveToolsContext::Shutdown();
 }
 
@@ -346,7 +349,6 @@ void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* Editor
 	this->TransactionAPI = new FEdModeToolsContextTransactionImpl(this, EditorModeIn);
 	this->QueriesAPI = new FEdModeToolsContextQueriesImpl(this, EditorModeIn);
 	this->AssetAPI = new FEditorToolAssetAPI();
-	this->SourceFactory = new FEditorComponentSourceFactory();
 
 	Initialize(QueriesAPI, TransactionAPI);
 
@@ -382,12 +384,6 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 		AssetAPI = nullptr;
 	}
 
-	if (SourceFactory != nullptr)
-	{
-		delete SourceFactory;
-		SourceFactory = nullptr;
-	}
-
 	this->EditorMode = nullptr;
 }
 
@@ -396,33 +392,11 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 
 void UEdModeInteractiveToolsContext::TerminateActiveToolsOnPIEStart()
 {
-	if (ToolManager->HasActiveTool(EToolSide::Left))
-	{
-		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Left) ?
-			EToolShutdownType::Accept : EToolShutdownType::Cancel;
-		ToolManager->DeactivateTool(EToolSide::Left, ShutdownType);
-	}
-	if (ToolManager->HasActiveTool(EToolSide::Right))
-	{
-		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Right) ?
-			EToolShutdownType::Accept : EToolShutdownType::Cancel;
-		ToolManager->DeactivateTool(EToolSide::Right, ShutdownType);
-	}
+	DeactivateAllActiveTools();
 }
 void UEdModeInteractiveToolsContext::TerminateActiveToolsOnSaveWorld()
 {
-	if (ToolManager->HasActiveTool(EToolSide::Left))
-	{
-		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Left) ?
-			EToolShutdownType::Accept : EToolShutdownType::Cancel;
-		ToolManager->DeactivateTool(EToolSide::Left, ShutdownType);
-	}
-	if (ToolManager->HasActiveTool(EToolSide::Right))
-	{
-		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Right) ?
-			EToolShutdownType::Accept : EToolShutdownType::Cancel;
-		ToolManager->DeactivateTool(EToolSide::Right, ShutdownType);
-	}
+	DeactivateAllActiveTools();
 }
 
 
@@ -479,6 +453,32 @@ void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* V
 
 
 
+bool UEdModeInteractiveToolsContext::ProcessEditDelete()
+{
+	if (ToolManager->HasAnyActiveTool() == false)
+	{
+		return false;
+	}
+
+	bool bSkipDelete = false;
+
+	// Test if any of the selected actors are AInternalToolFrameworkActor
+	// subclasses. In this case we do not want to allow them to be deleted,
+	// as generally this will cause problems for the Tool.
+	USelection* SelectedActors = GEditor->GetSelectedActors();
+	for (int i = 0; i < SelectedActors->Num(); ++i)
+	{
+		UObject* SelectedActor = SelectedActors->GetSelectedObject(i);
+		if ( Cast<AInternalToolFrameworkActor>(SelectedActor) != nullptr) 
+		{
+			bSkipDelete = true;
+		}
+	}
+
+	return bSkipDelete;
+}
+
+
 
 bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
@@ -500,7 +500,7 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 		{
 			if (ToolManager->HasActiveTool(EToolSide::Mouse))
 			{
-				ToolManager->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Cancel);
+				DeactivateActiveTool(EToolSide::Mouse, EToolShutdownType::Cancel);
 			}
 			return true;
 		}
@@ -515,13 +515,13 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 			{
 				if (ToolManager->CanAcceptActiveTool(EToolSide::Mouse))
 				{
-					ToolManager->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Accept);
+					DeactivateActiveTool(EToolSide::Mouse, EToolShutdownType::Accept);
 					return true;
 				}
 			}
 			else
 			{
-				ToolManager->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Completed);
+				DeactivateActiveTool(EToolSide::Mouse, EToolShutdownType::Completed);
 				return true;
 			}
 		}
@@ -753,15 +753,18 @@ bool UEdModeInteractiveToolsContext::CanStartTool(const FString& ToolTypeIdentif
 	return (ToolManager->HasActiveTool(EToolSide::Mouse) == false) &&
 		(ToolManager->CanActivateTool(EToolSide::Mouse, ToolTypeIdentifier) == true);
 }
+
 bool UEdModeInteractiveToolsContext::ActiveToolHasAccept() const
 {
 	return ToolManager->HasActiveTool(EToolSide::Mouse) &&
 		ToolManager->GetActiveTool(EToolSide::Mouse)->HasAccept();
 }
+
 bool UEdModeInteractiveToolsContext::CanAcceptActiveTool() const
 {
 	return ToolManager->CanAcceptActiveTool(EToolSide::Mouse);
 }
+
 bool UEdModeInteractiveToolsContext::CanCancelActiveTool() const
 {
 	return ToolManager->CanCancelActiveTool(EToolSide::Mouse);
@@ -771,6 +774,7 @@ bool UEdModeInteractiveToolsContext::CanCompleteActiveTool() const
 {
 	return ToolManager->HasActiveTool(EToolSide::Mouse) && CanCancelActiveTool() == false;
 }
+
 void UEdModeInteractiveToolsContext::StartTool(const FString& ToolTypeIdentifier)
 {
 	if (ToolManager->SelectActiveToolType(EToolSide::Mouse, ToolTypeIdentifier) == false)
@@ -780,9 +784,58 @@ void UEdModeInteractiveToolsContext::StartTool(const FString& ToolTypeIdentifier
 	else
 	{
 		ToolManager->ActivateTool(EToolSide::Mouse);
+		SaveEditorStateAndSetForTool();
 	}
 }
+
 void UEdModeInteractiveToolsContext::EndTool(EToolShutdownType ShutdownType)
 {
-	ToolManager->DeactivateTool(EToolSide::Mouse, ShutdownType);
+	DeactivateActiveTool(EToolSide::Mouse, ShutdownType);
+}
+
+
+
+void UEdModeInteractiveToolsContext::DeactivateActiveTool(EToolSide WhichSide, EToolShutdownType ShutdownType)
+{
+	ToolManager->DeactivateTool(WhichSide, ShutdownType);
+	RestoreEditorState();
+}
+
+void UEdModeInteractiveToolsContext::DeactivateAllActiveTools()
+{
+	if (ToolManager->HasActiveTool(EToolSide::Left))
+	{
+		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Left) ?
+			EToolShutdownType::Accept : EToolShutdownType::Cancel;
+		ToolManager->DeactivateTool(EToolSide::Left, ShutdownType);
+	}
+	if (ToolManager->HasActiveTool(EToolSide::Right))
+	{
+		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Right) ?
+			EToolShutdownType::Accept : EToolShutdownType::Cancel;
+		ToolManager->DeactivateTool(EToolSide::Right, ShutdownType);
+	}
+
+	RestoreEditorState();
+}
+
+
+
+
+void UEdModeInteractiveToolsContext::SaveEditorStateAndSetForTool()
+{
+	check(bHaveSavedEditorState == false);
+	bSavedAntiAliasingState = GCurrentLevelEditingViewportClient->EngineShowFlags.AntiAliasing;
+	bHaveSavedEditorState = true;
+
+	GCurrentLevelEditingViewportClient->EngineShowFlags.SetAntiAliasing(false);
+}
+
+void UEdModeInteractiveToolsContext::RestoreEditorState()
+{
+	if (bHaveSavedEditorState && !IsEngineExitRequested())
+	{
+		GCurrentLevelEditingViewportClient->EngineShowFlags.SetAntiAliasing(bSavedAntiAliasingState);
+		bHaveSavedEditorState = false;
+	}
 }

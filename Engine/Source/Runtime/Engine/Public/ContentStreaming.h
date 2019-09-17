@@ -398,6 +398,9 @@ struct IRenderAssetStreamingManager : public IStreamingManager
 	*/
 	virtual void UpdateIndividualRenderAsset(UStreamableRenderAsset* RenderAsset) = 0;
 
+	/** Stream in non-resident mips for an asset ASAP. */
+	virtual void FastForceFullyResident(UStreamableRenderAsset* RenderAsset) = 0;
+
 	/**
 	* Temporarily boosts the streaming distance factor by the specified number.
 	* This factor is automatically reset to 1.0 after it's been used for mip-calculations.

@@ -148,7 +148,6 @@ EAppReturnType::Type MessageBoxExtImpl( EAppMsgType::Type MsgType, const TCHAR* 
 
 void FIOSPlatformApplicationMisc::LoadPreInitModules()
 {
-	FModuleManager::Get().LoadModule(TEXT("OpenGLDrv"));
 	FModuleManager::Get().LoadModule(TEXT("IOSAudio"));
 	FModuleManager::Get().LoadModule(TEXT("AudioMixerAudioUnit"));
 }

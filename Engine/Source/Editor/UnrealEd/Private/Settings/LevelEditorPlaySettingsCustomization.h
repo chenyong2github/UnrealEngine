@@ -380,12 +380,24 @@ protected:
 private:
 
 	// Handles selecting a common screen resolution.
-	void HandleCommonResolutionSelected(FPlayScreenResolution Resolution)
+	void HandleCommonResolutionSelected(const FPlayScreenResolution Resolution)
 	{
 		int32 Width = Resolution.Width;
 		int32 Height = Resolution.Height;
 		float ScaleFactor;
 		ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
+		// Maintain previous orientation (i.e., swap Width and Height if required)
+		int32 PreviousWidth;
+		int32 PreviousHeight;
+		if (WindowWidthProperty->GetValue(PreviousWidth) == FPropertyAccess::Success && WindowHeightProperty->GetValue(PreviousHeight) == FPropertyAccess::Success)
+		{
+			const bool bIsOrientationPreserved = (PreviousWidth < PreviousHeight) != (Width < Height);
+			if (bIsOrientationPreserved)
+			{
+				Width = Resolution.Height;
+				Height = Resolution.Width;
+			}
+		}
 
 		UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(Resolution.ProfileName, false);
 		if (DeviceProfile)
@@ -701,7 +713,7 @@ public:
 				.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FLevelEditorPlaySettingsCustomization::HandleCmdLineVisibility)));
 
 			NetworkCategory.AddProperty("NetworkEmulationSettings")
-				.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FLevelEditorPlaySettingsCustomization::HandleNetworkEmulationVisibility)));
+				.IsEnabled(TAttribute<bool>(this, &FLevelEditorPlaySettingsCustomization::HandleNetworkEmulationIsEnabled));
 
 			NetworkCategory.AddCustomRow(LOCTEXT("PlayInNetworkViewportSize", "Multiplayer Viewport Size"), false)
 				.NameContent()
@@ -902,9 +914,9 @@ private:
 	}
 
 	// Callback for checking if the Network Emulation can be used
-	EVisibility HandleNetworkEmulationVisibility() const
+	bool HandleNetworkEmulationIsEnabled() const
 	{
-		return GetDefault<ULevelEditorPlaySettings>()->GetNetworkEmulationVisibility();
+		return GetDefault<ULevelEditorPlaySettings>()->GetNetworkEmulationVisibility() == EVisibility::Visible;
 	}
 
 	// Callback for getting the visibility of the StandaloneServerMapName property.

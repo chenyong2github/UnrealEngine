@@ -37,19 +37,6 @@ public:
 		NiagaraParticleDataFloat.Bind(ParameterMap, TEXT("NiagaraParticleDataFloat"));
 		FloatDataOffset.Bind(ParameterMap, TEXT("NiagaraFloatDataOffset"));
 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
-		SortedIndices.Bind(ParameterMap, TEXT("SortedIndices"));
-		SortedIndicesOffset.Bind(ParameterMap, TEXT("SortedIndicesOffset"));
-		TangentsAndDistances.Bind(ParameterMap, TEXT("TangentsAndDistances"));
-		MultiRibbonIndices.Bind(ParameterMap, TEXT("MultiRibbonIndices"));
-		PackedPerRibbonDataByIndex.Bind(ParameterMap, TEXT("PackedPerRibbonDataByIndex"));
-		FacingMode.Bind(ParameterMap, TEXT("FacingMode"));
-
-		// ensure(NiagaraParticleDataFloat.IsBound());
-		// ensure(FloatDataOffset.IsBound());
-		// ensure(FloatDataStride.IsBound());
-		// ensure(SortedIndices.IsBound());
-		// ensure(SortedIndicesOffset.IsBound());
-		// ensure(FacingMode.IsBound());
 	}
 
 	virtual void Serialize(FArchive& Ar) override
@@ -57,12 +44,6 @@ public:
 		Ar << NiagaraParticleDataFloat;
 		Ar << FloatDataOffset;
 		Ar << FloatDataStride;
-		Ar << SortedIndices;
-		Ar << SortedIndicesOffset;
-		Ar << TangentsAndDistances;
-		Ar << MultiRibbonIndices;
-		Ar << PackedPerRibbonDataByIndex;
-		Ar << FacingMode;
 	}
 
 	virtual void GetElementShaderBindings(
@@ -82,26 +63,12 @@ public:
 		ShaderBindings.Add(NiagaraParticleDataFloat, RibbonVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(FloatDataOffset, RibbonVF->GetFloatDataOffset());
 		ShaderBindings.Add(FloatDataStride, RibbonVF->GetFloatDataStride());
-
-		ShaderBindings.Add(SortedIndices, RibbonVF->GetSortedIndicesSRV());
-		ShaderBindings.Add(TangentsAndDistances, RibbonVF->GetTangentAndDistancesSRV());
-		ShaderBindings.Add(MultiRibbonIndices, RibbonVF->GetMultiRibbonIndicesSRV());
-		ShaderBindings.Add(PackedPerRibbonDataByIndex, RibbonVF->GetPackedPerRibbonDataByIndexSRV());
-		ShaderBindings.Add(SortedIndicesOffset, RibbonVF->GetSortedIndicesOffset());
-		ShaderBindings.Add(FacingMode, RibbonVF->GetFacingMode());
 	}
 
 private:
 	FShaderResourceParameter NiagaraParticleDataFloat;
 	FShaderParameter FloatDataOffset;
 	FShaderParameter FloatDataStride;
-
-	FShaderResourceParameter SortedIndices;
-	FShaderResourceParameter TangentsAndDistances;
-	FShaderResourceParameter MultiRibbonIndices;
-	FShaderResourceParameter PackedPerRibbonDataByIndex;
-	FShaderParameter SortedIndicesOffset;
-	FShaderParameter FacingMode;
 };
 
 

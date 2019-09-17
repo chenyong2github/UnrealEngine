@@ -22,13 +22,20 @@ FImgMediaGlobalCache::~FImgMediaGlobalCache()
 void FImgMediaGlobalCache::Initialize()
 {
 	auto Settings = GetDefault<UImgMediaSettings>();
-	MaxSize = Settings->GlobalCacheSizeGB * 1024 * 1024 * 1024;
+#if WITH_EDITOR
+	UpdateSettingsDelegateHandle = UImgMediaSettings::OnSettingsChanged().AddThreadSafeSP(this, &FImgMediaGlobalCache::UpdateSettings);
+#endif
+	UpdateSettings(Settings);
 }
 
 void FImgMediaGlobalCache::Shutdown()
 {
 	FScopeLock Lock(&CriticalSection);
 	Empty();
+
+#if WITH_EDITOR
+	UImgMediaSettings::OnSettingsChanged().Remove(UpdateSettingsDelegateHandle);
+#endif
 }
 
 void FImgMediaGlobalCache::AddFrame(const FName& Sequence, int32 Index, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame)
@@ -40,12 +47,7 @@ void FImgMediaGlobalCache::AddFrame(const FName& Sequence, int32 Index, const TS
 	if (FrameSize <= MaxSize)
 	{
 		// Empty cache until we have enough space.
-		while (CurrentSize + FrameSize > MaxSize)
-		{
-			FName* RemoveSequencePtr = MapLeastRecentToSequence.Find(LeastRecent);
-			FName RemoveSequence = RemoveSequencePtr != nullptr ? *RemoveSequencePtr : FName();
-			Remove(RemoveSequence, *LeastRecent);
-		}
+		EnforceMaxSize(FrameSize);
 
 		// Create new entry.
 		FImgMediaGlobalCacheEntry* NewEntry = new FImgMediaGlobalCacheEntry(Index, Frame);
@@ -94,6 +96,16 @@ void FImgMediaGlobalCache::GetIndices(const FName& Sequence, TArray<int32>& OutI
 	{
 		OutIndices.Add(Current->Index);
 		Current = Current->LessRecentSequence;
+	}
+}
+
+void FImgMediaGlobalCache::EnforceMaxSize(SIZE_T Extra)
+{
+	while (CurrentSize + Extra > MaxSize)
+	{
+		FName* RemoveSequencePtr = MapLeastRecentToSequence.Find(LeastRecent);
+		FName RemoveSequence = RemoveSequencePtr != nullptr ? *RemoveSequencePtr : FName();
+		Remove(RemoveSequence, *LeastRecent);
 	}
 }
 
@@ -220,4 +232,10 @@ void FImgMediaGlobalCache::Empty()
 	MapSequenceToMostRecentEntry.Empty();
 	MapLeastRecentToSequence.Empty();
 	MapFrameToEntry.Empty();
+}
+
+void FImgMediaGlobalCache::UpdateSettings(const UImgMediaSettings* Settings)
+{
+	MaxSize = Settings->GlobalCacheSizeGB * 1024 * 1024 * 1024;
+	EnforceMaxSize(0);
 }

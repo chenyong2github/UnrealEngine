@@ -265,21 +265,11 @@ private:
 template<typename TextureType>
 static TextureType* GetIndexedTexture(const FMaterial& Material, int32 TextureIndex)
 {
-	TextureType* IndexedTexture = NULL;
-
+	UObject* IndexedTexture = nullptr;
 	const TArray<UObject*>& ReferencedTextures = Material.GetReferencedTextures();
 	if (ReferencedTextures.IsValidIndex(TextureIndex))
 	{
-		IndexedTexture = Cast<TextureType>(ReferencedTextures[TextureIndex]);
-	}
-	else
-	{
-		static bool bWarnedOnce = false;
-		if (!bWarnedOnce)
-		{
-			UE_LOG(LogMaterial, Warning, TEXT("Requesting an invalid TextureIndex! (%u / %u)"), TextureIndex, ReferencedTextures.Num());
-			bWarnedOnce = true;
-		}
+		IndexedTexture = ReferencedTextures[TextureIndex];
 	}
 
 	if (IndexedTexture == nullptr)
@@ -287,12 +277,13 @@ static TextureType* GetIndexedTexture(const FMaterial& Material, int32 TextureIn
 		static bool bWarnedOnce = false;
 		if (!bWarnedOnce)
 		{
-			UE_LOG(LogMaterial, Warning, TEXT("GetIndexedTexture returning NULL (%u)"), TextureIndex);
+			UE_LOG(LogMaterial, Warning, TEXT("%s: Requesting an invalid TextureIndex! (%u / %u)"), *Material.GetFriendlyName(), TextureIndex, ReferencedTextures.Num());
 			bWarnedOnce = true;
 		}
 	}
 
-	return IndexedTexture;
+	// Can return nullptr if TextureType doesn't match type of indexed texture
+	return Cast<TextureType>(IndexedTexture);
 }
 
 /**
@@ -306,9 +297,14 @@ public:
 
 	FMaterialUniformExpressionTextureParameter() {}
 
-	FMaterialUniformExpressionTextureParameter(const FMaterialParameterInfo& InParameterInfo, int32 InTextureIndex, EMaterialSamplerType InSamplerType, ESamplerSourceMode InSourceMode, bool InVirtualTexture) :
-		Super(InTextureIndex, InSamplerType, InSourceMode, InVirtualTexture),
-		ParameterInfo(InParameterInfo)
+	FMaterialUniformExpressionTextureParameter(const FMaterialParameterInfo& InParameterInfo, int32 InTextureIndex, EMaterialSamplerType InSamplerType, ESamplerSourceMode InSourceMode, bool InVirtualTexture)
+		: Super(InTextureIndex, InSamplerType, InSourceMode, InVirtualTexture)
+		, ParameterInfo(InParameterInfo)
+	{}
+
+	FMaterialUniformExpressionTextureParameter(const FMaterialParameterInfo& InParameterInfo, int32 InTextureIndex, int32 InLayerIndex, EMaterialSamplerType InSamplerType)
+		: Super(InTextureIndex, InLayerIndex, InSamplerType)
+		, ParameterInfo(InParameterInfo)
 	{}
 
 	// FMaterialUniformExpression interface.
@@ -319,53 +315,10 @@ public:
 		Ar << ParameterInfo;
 		Super::Serialize(Ar);
 	}
-	virtual void GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const UTexture*& OutValue) const override
-	{
-		check(IsInParallelRenderingThread());
-		if (TransientOverrideValue_RenderThread != NULL)
-		{
-			OutValue = TransientOverrideValue_RenderThread;
-		}
-		else
-		{
-			if (!Context.MaterialRenderProxy || !Context.MaterialRenderProxy->GetTextureValue(ParameterInfo, &OutValue, Context))
-			{
-				UTexture* Value = nullptr;
 
-				if (AreExperimentalMaterialLayersEnabled())
-				{
-					UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-					if (!Interface || !Interface->GetTextureParameterDefaultValue(ParameterInfo, Value))
-					{
-						Value = GetIndexedTexture<UTexture>(Material, TextureIndex);
-					}
-				}
-				else
-				{
-					Value = GetIndexedTexture<UTexture>(Material, TextureIndex);
-				}
-
-				OutValue = Value;
-			}
-		}
-	}
-	virtual void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface,const FMaterial& Material,UTexture*& OutValue,bool bAllowOverride=true) const
-	{
-		check(IsInGameThread());
-		if( bAllowOverride && TransientOverrideValue_GameThread != NULL )
-		{
-			OutValue = TransientOverrideValue_GameThread;
-		}
-		else
-		{
-			OutValue = NULL;
-			const bool bOverrideValuesOnly = !AreExperimentalMaterialLayersEnabled();
-			if (!MaterialInterface->GetTextureParameterValue(ParameterInfo, OutValue, bOverrideValuesOnly))
-			{
-				OutValue = GetIndexedTexture<UTexture>(Material, TextureIndex);
-			}
-		}
-	}
+	virtual void GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const UTexture*& OutValue) const override;
+	virtual void GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const override;
+	virtual void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue, bool bAllowOverride = true) const override;
 
 	virtual bool IsConstant() const
 	{
@@ -1765,16 +1718,18 @@ protected:
 };
 
 /**
- * A uniform expression to retrieve one of the parameters associated with a URuntimeVirtualTexture
+ * A uniform expression to retrieve one of the vector uniform parameters stored in a URuntimeVirtualTexture
  */
-class FMaterialUniformExpressionRuntimeVirtualTextureParameter : public FMaterialUniformExpression
+class FMaterialUniformExpressionRuntimeVirtualTextureUniform : public FMaterialUniformExpression
 {
-	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionRuntimeVirtualTextureParameter);
+	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionRuntimeVirtualTextureUniform);
 
 public:
-	FMaterialUniformExpressionRuntimeVirtualTextureParameter();
-	/** Construct with the index of the texture reference and the parameter index that we want to retrieve. */
-	FMaterialUniformExpressionRuntimeVirtualTextureParameter(int32 InTextureIndex, int32 InParamIndex);
+	FMaterialUniformExpressionRuntimeVirtualTextureUniform();
+	/** Construct with the index of the texture reference and the vector index that we want to retrieve. */
+	FMaterialUniformExpressionRuntimeVirtualTextureUniform(int32 InTextureIndex, int32 InVectorIndex);
+	/** Construct with a URuntimeVirtualTexture parameter and the vector index that we want to retrieve. */
+	FMaterialUniformExpressionRuntimeVirtualTextureUniform(const FMaterialParameterInfo& InParameterInfo, int32 InTextureIndex, int32 InVectorIndex);
 
 	//~ Begin FMaterialUniformExpression Interface.
 	virtual bool IsConstant() const override { return false; }
@@ -1784,8 +1739,12 @@ public:
 	//~ End FMaterialUniformExpression Interface.
 
 protected:
-	/** Index of a URuntimeVirtualTexture in the material texture references. */
+	/** Is this expression using a material instance parameter. */
+	bool bParameter;
+	/** Contains the parameter info used if bParameter is true. */
+	FMaterialParameterInfo ParameterInfo;
+	/** Index of the associated URuntimeVirtualTexture in the material texture references used if bParameter is false. */
 	int32 TextureIndex;
-	/** Index of the parameter to fetch from the URuntimeVirtualTexture. */
-	int32 ParamIndex;
+	/** Index of the uniform vector to fetch from the URuntimeVirtualTexture. */
+	int32 VectorIndex;
 };

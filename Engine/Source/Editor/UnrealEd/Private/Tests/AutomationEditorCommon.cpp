@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Tests/AutomationEditorCommon.h"
 #include "UObject/UnrealType.h"
@@ -25,7 +25,7 @@
 #include "ARFilter.h"
 #include "AssetRegistryModule.h"
 #include "Tests/AutomationCommon.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "LevelEditor.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "ShaderCompiler.h"
@@ -35,6 +35,7 @@
 #include "ILauncherWorker.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "LightingBuildOptions.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 
 #define COOK_TIMEOUT 3600
@@ -731,9 +732,9 @@ bool FOpenEditorForAssetCommand::Update()
 	UObject* Object = StaticLoadObject(UObject::StaticClass(), NULL, *AssetName);
 	if ( Object )
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(Object);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Object);
 		//This checks to see if the asset sub editor is loaded.
-		if ( FAssetEditorManager::Get().FindEditorForAsset(Object, true) != NULL )
+		if ( GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Object, true) != NULL )
 		{
 			UE_LOG(LogEditorAutomationTests, Log, TEXT("Verified asset editor for: %s."), *AssetName);
 			UE_LOG(LogEditorAutomationTests, Display, TEXT("The editor successfully loaded for: %s."), *AssetName);
@@ -752,10 +753,10 @@ bool FOpenEditorForAssetCommand::Update()
 */
 bool FCloseAllAssetEditorsCommand::Update()
 {
-	FAssetEditorManager::Get().CloseAllAssetEditors();
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllAssetEditors();
 
 	//Get all assets currently being tracked with open editors and make sure they are not still opened.
-	if ( FAssetEditorManager::Get().GetAllEditedAssets().Num() >= 1 )
+	if ( GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets().Num() >= 1 )
 	{
 		UE_LOG(LogEditorAutomationTests, Warning, TEXT("Not all of the editors were closed."));
 		return true;

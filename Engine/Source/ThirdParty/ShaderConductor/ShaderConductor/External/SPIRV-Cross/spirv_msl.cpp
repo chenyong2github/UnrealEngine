@@ -5307,13 +5307,20 @@ string CompilerMSL::to_function_args(uint32_t img, const SPIRType &imgtype, bool
 		break;
 
 	case Dim2D:
-		if (coord_type.vecsize > 2)
-			tex_coords = enclose_expression(tex_coords) + ".xy";
+		/* UE Change Begin: For emulated cube arrays, do not adjust the tex_coords. */
+		/* UE Change Comment: Note, the only thing we added was this if-check, the curly-braces and adjusted the indentation. */
+		if (!(imgtype.image.arrayed && msl_options.emulate_cube_array))
+		{
+			if (coord_type.vecsize > 2)
+				tex_coords = enclose_expression(tex_coords) + ".xy";
 
-		if (is_fetch)
-			tex_coords = "uint2(" + round_fp_tex_coords(tex_coords, coord_is_fp) + ")";
+			if (is_fetch)
+				tex_coords = "uint2(" + round_fp_tex_coords(tex_coords, coord_is_fp) + ")";
 
-		alt_coord_component = 2;
+			alt_coord_component = 2;
+		}
+		/* UE Change End: For emulated cube arrays, do not adjust the tex_coords. */
+
 		break;
 
 	case Dim3D:

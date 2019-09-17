@@ -635,14 +635,7 @@ static uint32 ComputeBytesPerPixel(DXGI_FORMAT Format)
 
 TRefCountPtr<FD3D12Resource> FD3D12DynamicRHI::GetStagingTexture(FRHITexture* TextureRHI, FIntRect InRect, FIntRect& StagingRectOUT, FReadSurfaceDataFlags InFlags, D3D12_PLACED_SUBRESOURCE_FOOTPRINT &readbackHeapDesc)
 {
-	FD3D12Device* Device = GetRHIDevice();
-	FD3D12Adapter* Adapter = Device->GetParentAdapter();
-	const FRHIGPUMask Node = Device->GetGPUMask();
-
-	FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
 	FD3D12TextureBase* Texture = GetD3D12TextureFromRHITexture(TextureRHI);
-	D3D12_RESOURCE_DESC const& SourceDesc = Texture->GetResource()->GetDesc();
-
 	// Ensure we're dealing with a Texture2D, which the rest of this function already assumes
 	check(TextureRHI->GetTexture2D());
 	FD3D12Texture2D* InTexture2D = static_cast<FD3D12Texture2D*>(Texture);
@@ -656,11 +649,17 @@ TRefCountPtr<FD3D12Resource> FD3D12DynamicRHI::GetStagingTexture(FRHITexture* Te
 
 		// Texture2Ds on the readback heap will have been flattened to 1D, so we need to retrieve pitch
 		// information from the original 2D version to correctly use sub-rects.
-		readbackHeapDesc = InTexture2D->GetReadBackHeapDesc();
+		InTexture2D->GetReadBackHeapDesc(readbackHeapDesc, InFlags.GetMip());
 		StagingRectOUT = InRect;
 
 		return (Texture->GetResource());
 	}
+
+	FD3D12Device* Device = GetRHIDevice();
+	FD3D12Adapter* Adapter = Device->GetParentAdapter();
+	const FRHIGPUMask Node = Device->GetGPUMask();
+
+	D3D12_RESOURCE_DESC const& SourceDesc = Texture->GetResource()->GetDesc();
 
 	// a temporary staging texture is needed.
 	int32 SizeX = InRect.Width();
@@ -721,6 +720,7 @@ TRefCountPtr<FD3D12Resource> FD3D12DynamicRHI::GetStagingTexture(FRHITexture* Te
 	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(TempTexture2D->GetResource(), placedTexture2D);
 	CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(Texture->GetResource()->GetResource(), Subresource);
 
+	FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
 	TransitionResource(hCommandList, Texture->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, SourceCopyLocation.SubresourceIndex);
 	hCommandList.FlushResourceBarriers();
 	// Upload heap doesn't need to transition
@@ -763,15 +763,12 @@ void FD3D12DynamicRHI::ReadSurfaceDataNoMSAARaw(FRHITexture* TextureRHI, FIntRec
 
 	uint32 BytesPerLine = BytesPerPixel * InRect.Width();
 	const uint32 XBytesAligned = Align((uint32)readBackHeapDesc.Footprint.Width * BytesPerPixel, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-	uint32 SrcStart = StagingRect.Min.X * BytesPerPixel + StagingRect.Min.Y * XBytesAligned;
-
-	// Determine the subresource index.
-	uint32 Subresource = CalcSubresource(InFlags.GetMip(), 0, TextureRHI->GetNumMips());
+	uint64 SrcStart = readBackHeapDesc.Offset + StagingRect.Min.X * BytesPerPixel + StagingRect.Min.Y * XBytesAligned;
 
 	// Lock the staging resource.
 	void* pData;
 	D3D12_RANGE ReadRange = { SrcStart, SrcStart + XBytesAligned * (SizeY - 1) + BytesPerLine };
-	VERIFYD3D12RESULT(TempTexture2D->GetResource()->Map(Subresource, &ReadRange, &pData));
+	VERIFYD3D12RESULT(TempTexture2D->GetResource()->Map(0, &ReadRange, &pData));
 
 	uint8* DestPtr = OutData.GetData();
 	uint8* SrcPtr = (uint8*)pData + SrcStart;
@@ -1446,13 +1443,14 @@ void FD3D12DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, void*& OutD
 	{
 		VERIFYD3D12RESULT_EX(Result, GetAdapter().GetD3DDevice());
 
-		const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& readBackHeapDesc = DestTexture2D->GetReadBackHeapDesc();
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT ReadBackHeapDesc;
+		DestTexture2D->GetReadBackHeapDesc(ReadBackHeapDesc, 0);
 		OutData = pData;
-		OutWidth = readBackHeapDesc.Footprint.RowPitch / BytesPerPixel;
-		OutHeight = readBackHeapDesc.Footprint.Height;
+		OutWidth = ReadBackHeapDesc.Footprint.RowPitch / BytesPerPixel;
+		OutHeight = ReadBackHeapDesc.Footprint.Height;
 
 		// MS: It seems like the second frame in some scenes comes into RHIMapStagingSurface BEFORE the copy to the staging texture, thus the readbackHeapDesc isn't set. This could be bug in UE4.
-		if (readBackHeapDesc.Footprint.Format != DXGI_FORMAT_UNKNOWN)
+		if (ReadBackHeapDesc.Footprint.Format != DXGI_FORMAT_UNKNOWN)
 		{
 			check(OutWidth != 0);
 			check(OutHeight != 0);

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "BackgroundHttp.h"
+#include "IBackgroundHttpRequest.h"
 
 typedef TSharedPtr<class IBackgroundHttpManager, ESPMode::ThreadSafe> FBackgroundHttpManagerPtr;
 

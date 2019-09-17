@@ -1038,6 +1038,7 @@ bool APlayerController::ServerShortTimeout_Validate()
 
 void APlayerController::ServerShortTimeout_Implementation()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_PC_ServerShortTimeout);
 	if (!bShortConnectTimeOut)
 	{
 		UWorld* World = GetWorld();
@@ -1055,8 +1056,8 @@ void APlayerController::ServerShortTimeout_Implementation()
 			{
 				if (NetworkObjectInfo.IsValid())
 				{
-					AActor* const A = NetworkObjectInfo->Actor;
-					if (A && !A->IsPendingKill())
+					AActor* const A = NetworkObjectInfo->WeakActor.Get();
+					if (A)
 					{
 						if (!A->bOnlyRelevantToOwner)
 						{
@@ -1068,20 +1069,14 @@ void APlayerController::ServerShortTimeout_Implementation()
 		}
 		else 
 		{
-			float NetUpdateTimeOffset = (World->GetAuthGameMode()->GetNumPlayers() < 8) ? 0.2f : 0.5f;
-			for (TSharedPtr<FNetworkObjectInfo> NetworkObjectInfo : World->GetNetDriver()->GetNetworkObjectList().GetAllObjects())
+			if (World->GetNetDriver())
 			{
-				if (NetworkObjectInfo.IsValid())
+				float NetUpdateTimeOffset = (World->GetAuthGameMode()->GetNumPlayers() < 8) ? 0.2f : 0.5f;
+				auto ValidActorTest = [](const AActor* const Actor)
 				{
-					AActor* const A = NetworkObjectInfo->Actor;
-					if (A && !A->IsPendingKill())
-					{
-						if ((A->NetUpdateFrequency < 1) && !A->bOnlyRelevantToOwner)
-						{
-							A->SetNetUpdateTime(World->TimeSeconds + NetUpdateTimeOffset * FMath::FRand());
-						}
-					}
-				}
+					return (Actor->NetUpdateFrequency < 1) && !Actor->bOnlyRelevantToOwner;
+				};
+				World->GetNetDriver()->ForceAllActorsNetUpdateTime(NetUpdateTimeOffset, ValidActorTest);
 			}
 		}
 	}

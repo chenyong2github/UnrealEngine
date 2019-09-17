@@ -397,7 +397,7 @@ public:
 	}
 	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
 	{
-		if (!GIsRequestingExit)
+		if (!IsEngineExitRequested())
 		{
 			for (auto& Phrase : ExitPhrases)
 			{
@@ -508,6 +508,26 @@ bool ParseGameProjectFromCommandLine(const TCHAR* InCmdLine, FString& OutProject
 	return false;
 }
 
+#if WITH_EDITOR
+bool ReadInstalledProjectPath(FString& OutProjFilePath)
+{
+	if(FApp::IsInstalled())
+	{
+		FString ProjFilePath;
+		if (FFileHelper::LoadFileToString(ProjFilePath, *(FPaths::RootDir() / TEXT("Engine/Build/InstalledProjectBuild.txt"))))
+		{
+			ProjFilePath.TrimStartAndEndInline();
+			if(ProjFilePath.Len() > 0)
+			{
+				OutProjFilePath = FPaths::RootDir() / ProjFilePath;
+				FPaths::NormalizeFilename(OutProjFilePath);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+#endif
 
 bool LaunchSetGameName(const TCHAR *InCmdLine, FString& OutGameProjectFilePathUnnormalized)
 {
@@ -528,6 +548,18 @@ bool LaunchSetGameName(const TCHAR *InCmdLine, FString& OutGameProjectFilePathUn
 			OutGameProjectFilePathUnnormalized = ProjFilePath;
 			FPaths::SetProjectFilePath(ProjFilePath);
 		}
+#if WITH_EDITOR
+		else if(ReadInstalledProjectPath(ProjFilePath))
+		{
+			// Only set the game name if this is NOT a program...
+			if (FPlatformProperties::IsProgram() == false)
+			{
+				FApp::SetProjectName(*FPaths::GetBaseFilename(ProjFilePath));
+			}
+			OutGameProjectFilePathUnnormalized = ProjFilePath;
+			FPaths::SetProjectFilePath(ProjFilePath);
+		}
+#endif
 #if UE_GAME
 		else
 		{
@@ -1256,7 +1288,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		// Tell Launcher to run us instead
 		ILauncherCheckModule::Get().RunLauncher(ELauncherAction::AppLaunch);
 		// We wish to exit
-		GIsRequestingExit = true;
+		RequestEngineExit(TEXT("Run outside of launcher; restarting via launcher"));
 		return 0;
 	}
 #endif
@@ -2303,7 +2335,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			LLM_SCOPE(ELLMTag::Shaders);
 			SCOPED_BOOT_TIMING("CompileGlobalShaderMap");
 			CompileGlobalShaderMap(false);
-			if (GIsRequestingExit)
+			if (IsEngineExitRequested())
 			{
 				// This means we can't continue without the global shader map.
 				return 1;
@@ -2502,6 +2534,11 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 					FPlatformMisc::PlatformHandleSplashScreen(true);
 				}
             }
+		
+			if (FCoreDelegates::OnInitialLoadingScreenShown.IsBound())
+			{
+				FCoreDelegates::OnInitialLoadingScreenShown.Broadcast();
+			}
 		}
 		else if ( IsRunningCommandlet() )
 		{
@@ -2792,7 +2829,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 					GLogConsole->Show(true);
 				}
 				UE_LOG(LogInit, Error, TEXT("%s looked like a commandlet, but we could not find the class."), *Token);
-				GIsRequestingExit = true;
+				RequestEngineExit(FString::Printf(TEXT("Failed to find commandlet class %s"), *Token));
 				return 1;
 			}
 
@@ -2825,9 +2862,9 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			// Allow commandlets to individually override those settings.
 			UCommandlet* Default = CastChecked<UCommandlet>(CommandletClass->GetDefaultObject());
 
-			if ( GIsRequestingExit )
+			if ( IsEngineExitRequested() )
 			{
-				// commandlet set GIsRequestingExit during construction
+				// commandlet set IsEngineExitRequested() during construction
 				return 1;
 			}
 
@@ -2839,7 +2876,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			if (Default->IsEditor)
 			{
 				UE_LOG(LogInit, Error, TEXT("Cannot run editor commandlet %s with game executable."), *CommandletClass->GetFullName());
-				GIsRequestingExit = true;
+				RequestEngineExit(TEXT("Tried to run commandlet in non-editor build"));
 				return 1;
 			}
 #endif
@@ -2926,7 +2963,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			int32 ErrorLevel = Commandlet->Main( CommandletCommandLine );
 			FStats::TickCommandletStats();
 
-			GIsRequestingExit = true;
+			RequestEngineExit(FString::Printf(TEXT("Commandlet %s finished execution (result %d)"), *Commandlet->GetName(), ErrorLevel));
 
 			// Log warning/ error summary.
 			if( Commandlet->ShowErrorCount )
@@ -3041,7 +3078,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	}
 
 	// exit if wanted.
-	if( GIsRequestingExit )
+	if( IsEngineExitRequested() )
 	{
 		if ( GEngine != nullptr )
 		{
@@ -3244,6 +3281,7 @@ bool FEngineLoop::LoadStartupCoreModules()
 	SlowTask.EnterProgressFrame(10);
 	if ( !IsRunningDedicatedServer() )
 	{
+		FModuleManager::Get().LoadModule("SlateCore");
 		FModuleManager::Get().LoadModule("Slate");
 
 #if !UE_BUILD_SHIPPING
@@ -3529,7 +3567,7 @@ int32 FEngineLoop::Init()
 		// Load all the post-engine init modules
 		if (!IProjectManager::Get().LoadModulesForProject(ELoadingPhase::PostEngineInit) || !IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::PostEngineInit))
 		{
-			GIsRequestingExit = true;
+			RequestEngineExit(TEXT("One or more modules failed PostEngineInit"));
 			return 1;
 		}
 	}
@@ -4678,23 +4716,47 @@ static void CheckForPrintTimesOverride()
 #if UE_EDITOR
 bool LaunchCorrectEditorExecutable(const FString& EditorTargetFileName)
 {
-	FTargetReceipt Receipt;
-	if(!FApp::IsUnattended() && FPaths::FileExists(EditorTargetFileName) && Receipt.Read(EditorTargetFileName))
+	// Don't allow relaunching the executable if we're running some unattended scripted process.
+	if(FApp::IsUnattended())
 	{
-		FString CurrentExecutableName = FPlatformProcess::ExecutablePath();
-		FPaths::MakeStandardFilename(CurrentExecutableName);
-
-		FString LaunchExecutableName = Receipt.Launch;
-		FPaths::MakeStandardFilename(LaunchExecutableName);
-
-		if(LaunchExecutableName != CurrentExecutableName)
-		{
-			UE_LOG(LogInit, Display, TEXT("Running incorrect executable for target. Launching %s..."), *LaunchExecutableName);
-			FPlatformProcess::CreateProc(*IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*LaunchExecutableName), FCommandLine::GetOriginal(), true, false, false, nullptr, 0, nullptr, nullptr, nullptr);
-			return true;
-		}
+		return false;
 	}
-	return false;
+
+	// Figure out the executable that we should be running
+	FString LaunchExecutableName;
+	if(EditorTargetFileName.Len() == 0)
+	{
+		LaunchExecutableName = FPlatformProcess::GenerateApplicationPath(TEXT("UE4Editor"), FApp::GetBuildConfiguration());
+	}
+	else
+	{
+		FTargetReceipt Receipt;
+		if(!FPaths::FileExists(EditorTargetFileName) || !Receipt.Read(EditorTargetFileName))
+		{
+			return false;
+		}
+		LaunchExecutableName = Receipt.Launch;
+	}
+	FPaths::MakeStandardFilename(LaunchExecutableName);
+
+	// Get the current executable name. Don't allow relaunching if we're running the console app.
+	FString CurrentExecutableName = FPlatformProcess::ExecutablePath();
+	if(FPaths::GetBaseFilename(CurrentExecutableName).EndsWith(TEXT("-Cmd")))
+	{
+		return false;
+	}
+	FPaths::MakeStandardFilename(CurrentExecutableName);
+
+	// Nothing to do if they're the same
+	if(LaunchExecutableName == CurrentExecutableName)
+	{
+		return false;
+	}
+
+	// Relaunch the correct executable
+	UE_LOG(LogInit, Display, TEXT("Running incorrect executable for target. Launching %s..."), *LaunchExecutableName);
+	FPlatformProcess::CreateProc(*IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*LaunchExecutableName), FCommandLine::GetOriginal(), true, false, false, nullptr, 0, nullptr, nullptr, nullptr);
+	return true;
 }
 #endif
 
@@ -4863,7 +4925,7 @@ bool FEngineLoop::AppInit( )
 
 	// Check whether the project or any of its plugins are missing or are out of date
 #if UE_EDITOR && !IS_MONOLITHIC
-	if(!GIsBuildMachine && FPaths::IsProjectFilePathSet())
+	if(!GIsBuildMachine && !FApp::IsUnattended() && FPaths::IsProjectFilePathSet())
 	{
 		// Check all the plugins are present
 		if(!PluginManager.AreRequiredPluginsAvailable())
@@ -4881,14 +4943,6 @@ bool FEngineLoop::AppInit( )
 				EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
 				break;
 			}
-		}
-
-		// If there was no editor target, use the default UE4Editor target
-		FString CompileProject = FPaths::GetProjectFilePath();
-		if(EditorTargetFileName.Len() == 0)
-		{
-			CompileProject.Empty();
-			EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::EngineDir(), TEXT("UE4Editor"), FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
 		}
 
 		// If we're not running the correct executable for the current target, and the listed executable exists, run that instead
@@ -4948,7 +5002,7 @@ bool FEngineLoop::AppInit( )
 
 				bNeedCompile = true;
 			}
-			else if(!FPaths::FileExists(EditorTargetFileName))
+			else if(EditorTargetFileName.Len() > 0 && !FPaths::FileExists(EditorTargetFileName))
 			{
 				// Prompt to compile. The target file isn't essential, but we 
 				if (FPlatformMisc::MessageBoxExt(EAppMsgType::YesNo, *FString::Printf(TEXT("The %s file does not exist. Would you like to build the editor?"), *FPaths::GetCleanFilename(EditorTargetFileName)), TEXT("Missing target file")) == EAppReturnType::Yes)
@@ -4962,6 +5016,13 @@ bool FEngineLoop::AppInit( )
 		
 		if(bNeedCompile)
 		{
+			// If there was no editor target, use the default UE4Editor target
+			FString CompileProject = FPaths::GetProjectFilePath();
+			if(EditorTargetFileName.Len() == 0)
+			{
+				CompileProject.Empty();
+			}
+
 			// Try to compile it
 			FFeedbackContext *Context = (FFeedbackContext*)FDesktopPlatformModule::Get()->GetNativeFeedbackContext();
 			Context->BeginSlowTask(FText::FromString(TEXT("Starting build...")), true, true);

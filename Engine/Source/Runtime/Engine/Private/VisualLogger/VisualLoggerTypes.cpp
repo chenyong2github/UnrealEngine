@@ -20,6 +20,9 @@ UVisualLoggerDebugSnapshotInterface::UVisualLoggerDebugSnapshotInterface(const F
 #define DEPRECATED_VISUAL_LOGGER_MAGIC_NUMBER 0xFAFAAFAF
 #define VISUAL_LOGGER_MAGIC_NUMBER 0xAFAFFAFA
 
+//----------------------------------------------------------------------//
+// FVisualLogShapeElement 
+//----------------------------------------------------------------------//
 FVisualLogShapeElement::FVisualLogShapeElement(EVisualLoggerShapeElement InType)
 	: Category(NAME_UnnamedCategory)
 	, Verbosity(ELogVerbosity::All)
@@ -493,8 +496,7 @@ FString FVisualLoggerHelpers::GenerateTemporaryFilename(const FString& FileExt)
 
 FString FVisualLoggerHelpers::GenerateFilename(const FString& TempFileName, const FString& Prefix, float StartRecordingTime, float EndTimeStamp)
 {
-	const FString TempFullFilename = FString::Printf(TEXT("%s%s"), *FPaths::ProjectLogDir(), *TempFileName);
-	const FString FullFilename = FString::Printf(TEXT("%s%s_%s"), *FPaths::ProjectLogDir(), *Prefix, *TempFileName);
+	const FString FullFilename = FString::Printf(TEXT("%s_%s"), *Prefix, *TempFileName);
 	const FString TimeFrameString = FString::Printf(TEXT("%d-%d_"), FMath::TruncToInt(StartRecordingTime), FMath::TruncToInt(EndTimeStamp));
 	return FullFilename.Replace(TEXT("VTEMP_"), *TimeFrameString, ESearchCase::CaseSensitive);
 }

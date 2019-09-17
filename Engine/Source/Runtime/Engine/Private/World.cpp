@@ -1346,6 +1346,11 @@ void UWorld::InitWorld(const InitializationValues IVS)
 		return;
 	}
 
+	if (WorldType == EWorldType::Game || WorldType == EWorldType::Editor || WorldType == EWorldType::PIE)
+	{
+		SubsystemCollection.Initialize(this);
+	}
+
 	FWorldDelegates::OnPreWorldInitialization.Broadcast(this, IVS);
 
 	AWorldSettings* WorldSettings = GetWorldSettings();
@@ -4291,6 +4296,8 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 		check(WorldToResetCleanedUpFlag->bCleanedUpWorld);
 		WorldToResetCleanedUpFlag->bCleanedUpWorld = false;
 	}
+
+	SubsystemCollection.Deinitialize();
 }
 
 UGameViewportClient* UWorld::GetGameViewport() const
@@ -4452,19 +4459,19 @@ FConstCameraActorIterator UWorld::GetAutoActivateCameraIterator() const
 }
 
 
-void UWorld::AddNetworkActor( AActor* Actor )
+void UWorld::AddNetworkActor(AActor* Actor)
 {
-	if ( Actor == nullptr )
+	if (Actor == nullptr)
 	{
 		return;
 	}
 
-	if ( Actor->IsPendingKill() ) 
+	if (Actor->IsPendingKillPending())
 	{
 		return;
 	}
 
-	if ( !ContainsLevel(Actor->GetLevel()) )
+	if (!ContainsLevel(Actor->GetLevel()))
 	{
 		return;
 	}

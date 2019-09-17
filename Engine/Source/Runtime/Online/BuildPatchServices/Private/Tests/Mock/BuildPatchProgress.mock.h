@@ -27,11 +27,6 @@ namespace BuildPatchServices
 			MOCK_FUNC_NOT_IMPLEMENTED("FMockBuildPatchProgress::Abort");
 		}
 
-		virtual void Reset() override
-		{
-			MOCK_FUNC_NOT_IMPLEMENTED("FMockBuildPatchProgress::Reset");
-		}
-
 		virtual void SetStateProgress(const EBuildPatchState& State, const float& Value) override
 		{
 			if (SetStateProgressFunc)

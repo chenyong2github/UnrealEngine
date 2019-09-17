@@ -56,8 +56,9 @@ int32 SExpanderArrow::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedG
 	//   
 	//
 
+	static const FName NAME_VerticalBarBrush = TEXT("WhiteBrush");
 	const float Indent = IndentAmount.Get(10.f);
-	const FSlateBrush* VerticalBarBrush = (StyleSet == nullptr) ? nullptr : StyleSet->GetBrush("WhiteBrush");
+	const FSlateBrush* VerticalBarBrush = (StyleSet == nullptr) ? nullptr : StyleSet->GetBrush(NAME_VerticalBarBrush);
 
 	if (ShouldDrawWires.Get() == true && VerticalBarBrush != nullptr)
 	{

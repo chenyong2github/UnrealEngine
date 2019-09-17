@@ -333,6 +333,7 @@ namespace GLTF
 		Settings.bRecomputeNormals  = false;
 		Settings.bRecomputeTangents = !bMeshHasTagents;
 		Settings.bUseMikkTSpace     = true;  // glTF spec defines that MikkTSpace algorithms should be used when tangents aren't defined
+		Settings.bComputeWeightedNormals = true;
 
 		Settings.bRemoveDegenerates        = false;
 		Settings.bBuildAdjacencyBuffer     = false;
@@ -500,10 +501,6 @@ namespace GLTF
 				EdgeHardnesses[NewEdgeID]        = false;
 				EdgeCreaseSharpnesses[NewEdgeID] = 0.0f;
 			}
-
-			// Triangulate the polygon
-			FMeshPolygon& Polygon = MeshDescription->GetPolygon(NewPolygonID);
-			MeshDescription->ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
 		}
 		return bHasDegenerateTriangles;
 	}

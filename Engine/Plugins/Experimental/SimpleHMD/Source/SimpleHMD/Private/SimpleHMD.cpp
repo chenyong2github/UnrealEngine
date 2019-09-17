@@ -287,9 +287,9 @@ void FSimpleHMD::SetupViewFamily(FSceneViewFamily& InViewFamily)
 	InViewFamily.EngineShowFlags.HMDDistortion = true;
 	InViewFamily.EngineShowFlags.StereoRendering = IsStereoEnabled();
 
-	if (GWorld)
+	if (UWorld* World = GWorld)
 	{
-		WorldToMeters = GWorld->GetWorldSettings()->WorldToMeters;
+		WorldToMeters = World->GetWorldSettings()->WorldToMeters;
 	}
 }
 

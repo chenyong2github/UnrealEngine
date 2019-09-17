@@ -9,6 +9,7 @@ class FBuildPatchAppManifest;
 
 namespace BuildPatchServices
 {
+	class IBuildManifestSet;
 	typedef TTuple<uint64, uint64> FByteRange;
 
 	/**
@@ -29,7 +30,7 @@ namespace BuildPatchServices
 		 * All subsequent state updates must refer to data from within the provided manifest.
 		 * @param Manifest  The manifest to be used to build up internal operation states.
 		 */
-		virtual void OnManifestSelection(const FBuildPatchAppManifest& Manifest) = 0;
+		virtual void OnManifestSelection(IBuildManifestSet* ManifestSet) = 0;
 
 		/**
 		 * Called when state is updated for chunk data.

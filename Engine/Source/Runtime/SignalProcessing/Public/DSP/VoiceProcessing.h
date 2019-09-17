@@ -6,7 +6,6 @@
 #include "DSP/Delay.h"
 #include "DSP/AudioFFT.h"
 #include "DSP/MultithreadedPatching.h"
-#include "DSP/VoiceProcessing.h"
 
 namespace Audio
 {

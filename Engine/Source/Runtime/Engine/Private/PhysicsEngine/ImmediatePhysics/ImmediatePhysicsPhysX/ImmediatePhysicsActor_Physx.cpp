@@ -16,6 +16,11 @@ namespace ImmediatePhysics_PhysX
 		return &FMaterial::Default;
 	}
 
+	FActor::~FActor()
+	{
+		TerminateGeometry();
+	}
+
 	void FActor::CreateGeometry(PxRigidActor* RigidActor, const PxTransform& ActorToBodyTM)
 	{
 		const uint32 NumShapes = RigidActor->getNbShapes();
@@ -110,7 +115,16 @@ namespace ImmediatePhysics_PhysX
 	{
 		for (FShape& Shape : Shapes)
 		{
-			delete Shape.Geometry;
+			switch (Shape.Geometry->getType())
+			{
+			case PxGeometryType::eSPHERE: delete static_cast<PxSphereGeometry*>(Shape.Geometry); break;
+			case PxGeometryType::eCAPSULE: delete static_cast<PxCapsuleGeometry*>(Shape.Geometry); break;
+			case PxGeometryType::eBOX: delete static_cast<PxBoxGeometry*>(Shape.Geometry); break;
+			case PxGeometryType::eCONVEXMESH: delete static_cast<PxConvexMeshGeometry*>(Shape.Geometry); break;
+			case PxGeometryType::eTRIANGLEMESH: delete static_cast<PxTriangleMeshGeometry*>(Shape.Geometry); break;
+			case PxGeometryType::eHEIGHTFIELD: delete static_cast<PxHeightFieldGeometry*>(Shape.Geometry); break;
+			default: break;
+			}
 		}
 
 		Shapes.Empty();

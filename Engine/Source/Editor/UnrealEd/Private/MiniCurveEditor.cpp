@@ -5,6 +5,8 @@
 #include "Widgets/Layout/SBorder.h"
 #include "EditorStyleSet.h"
 #include "SCurveEditor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 
 void SMiniCurveEditor::Construct(const FArguments& InArgs)
@@ -33,12 +35,12 @@ void SMiniCurveEditor::Construct(const FArguments& InArgs)
 
 	WidgetWindow = InArgs._ParentWindow;
 
-	FAssetEditorManager::Get().NotifyAssetOpened(InArgs._OwnerObject, this);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyAssetOpened(InArgs._OwnerObject, this);
 }
 
 SMiniCurveEditor::~SMiniCurveEditor()
 {
-	FAssetEditorManager::Get().NotifyEditorClosed(this);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyEditorClosed(this);
 }
 
 float SMiniCurveEditor::GetTimelineLength() const

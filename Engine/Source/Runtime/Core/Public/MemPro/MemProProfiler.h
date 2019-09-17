@@ -28,7 +28,7 @@ public:
 	static inline bool IsStarted()
 	{
 		extern int32 GMemProEnabled;
-		return (GMemProEnabled != 0) && !GIsRequestingExit;
+		return (GMemProEnabled != 0) && !IsEngineExitRequested();
 	}
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER

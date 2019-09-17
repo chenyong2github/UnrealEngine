@@ -246,22 +246,6 @@ void FVulkanDynamicRHI::PostInit()
 {
 	//work around layering violation
 	TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel))->GetPixelShader();
-
-	//#todo-rco: Remove this!
-	{
-		// Disable virtual texturing on Vulkan
-		auto* CVarVT = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VirtualTextures"));
-		if (CVarVT)
-		{
-			CVarVT->Set(0);
-		}
-
-		auto* CVarVTL = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VirtualTexturedLightmaps"));
-		if (CVarVTL)
-		{
-			CVarVTL->Set(0);
-		}
-	}
 }
 
 void FVulkanDynamicRHI::Shutdown()
@@ -502,10 +486,8 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkEnumeratePhysicalDevices(Instance, &GpuCount, PhysicalDevices.GetData()));
 	checkf(GpuCount >= 1, TEXT("Couldn't enumerate physical devices! Make sure your drivers are up to date and that you are not pending a reboot."));
 
-#if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
 	FVulkanDevice* HmdDevice = nullptr;
 	uint32 HmdDeviceIndex = 0;
-#endif
 	struct FDeviceInfo
 	{
 		FVulkanDevice* Device;
@@ -551,7 +533,6 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	}
 
 	uint32 DeviceIndex = -1;
-
 #if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
 	if (HmdDevice)
 	{
@@ -568,8 +549,8 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	int32 CVarExplicitAdapterValue = CVarGraphicsAdapter ? CVarGraphicsAdapter->GetValueOnAnyThread() : -1;
 	FParse::Value(FCommandLine::Get(), TEXT("graphicsadapter="), CVarExplicitAdapterValue);
 
-	// If HMD didn't choose one...
-	if (DeviceIndex == -1)
+	// If HMD didn't choose one... (disable static analysis that DeviceIndex is always -1)
+	if (DeviceIndex == -1)	//-V547
 	{
 		if (CVarExplicitAdapterValue >= (int32)GpuCount)
 		{

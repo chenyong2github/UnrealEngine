@@ -163,7 +163,7 @@ public:
 	// returns a suitable ULandscapeSplinesComponent to place streaming meshes into, given a location
 	// falls back to "this" if it can't find another suitable, so never returns nullptr
 	// @param bCreate whether to create a component if a suitable actor is found but it has no splines component yet
-	ULandscapeSplinesComponent* GetStreamingSplinesComponentByLocation(const FVector& LocalLocation, bool bCreate = true);
+	LANDSCAPE_API ULandscapeSplinesComponent* GetStreamingSplinesComponentByLocation(const FVector& LocalLocation, bool bCreate = true);
 
 	// returns the matching ULandscapeSplinesComponent for a given level, *can return null*
 	// @param bCreate whether to create a component if a suitable actor is found but it has no splines component yet
@@ -188,6 +188,8 @@ public:
 	void AutoFixMeshComponentErrors(UWorld* OtherWorld);
 
 	bool IsUsingEditorMesh(const USplineMeshComponent* SplineMeshComponent) const;
+
+	bool IsUsingLayerInfo(const ULandscapeLayerInfoObject* LayerInfo) const;
 #endif
 
 	//~ Begin UObject Interface

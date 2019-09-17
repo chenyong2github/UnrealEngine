@@ -4,7 +4,7 @@
 #include "MeshIndexUtil.h"
 
 
-void MeshIndexUtil::ConverTriangleToVertexIDs(const FDynamicMesh3* Mesh, const TArray<int>& TriangleIDs, TArray<int>& VertexIDsOut)
+void MeshIndexUtil::TriangleToVertexIDs(const FDynamicMesh3* Mesh, const TArray<int>& TriangleIDs, TArray<int>& VertexIDsOut)
 {
 	// if we are getting close to full mesh it is probably more efficient to use a bitmap...
 
@@ -43,6 +43,26 @@ void MeshIndexUtil::ConverTriangleToVertexIDs(const FDynamicMesh3* Mesh, const T
 		for (int VertexID : VertexSet)
 		{
 			VertexIDsOut.Add(VertexID);
+		}
+	}
+}
+
+
+
+
+
+void MeshIndexUtil::VertexToTriangleOneRing(const FDynamicMesh3* Mesh, const TArray<int>& VertexIDs, TSet<int>& TriangleIDsOut)
+{
+	int NumVerts = VertexIDs.Num();
+	TriangleIDsOut.Reserve( (NumVerts < 5) ? NumVerts*6 : NumVerts*4);
+	for (int k = 0; k < NumVerts; ++k)
+	{
+		if (Mesh->IsVertex(VertexIDs[k]))
+		{
+			for (int TriID : Mesh->VtxTrianglesItr(VertexIDs[k]))
+			{
+				TriangleIDsOut.Add(TriID);
+			}
 		}
 	}
 }

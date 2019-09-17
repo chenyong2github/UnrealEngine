@@ -122,7 +122,7 @@ void FDownloadServiceSpec::Define()
 					if (RxDownloadComplete.Num() == 1)
 					{
 						const FDownloadRef& Download = RxDownloadComplete[0].Get<2>();
-						TEST_TRUE(Download->WasSuccessful());
+						TEST_TRUE(Download->ResponseSuccessful());
 						TEST_EQUAL(Download->GetResponseCode(), EHttpResponseCodes::Ok);
 						TEST_EQUAL(Download->GetData(), FakeHttpModule->DataServed[HttpFileUrl]);
 					}
@@ -144,7 +144,7 @@ void FDownloadServiceSpec::Define()
 					if (RxDownloadComplete.Num() == 1)
 					{
 						const FDownloadRef& Download = RxDownloadComplete[0].Get<2>();
-						TEST_TRUE(Download->WasSuccessful());
+						TEST_TRUE(Download->ResponseSuccessful());
 						TEST_EQUAL(Download->GetResponseCode(), EHttpResponseCodes::Ok);
 						TEST_EQUAL(Download->GetData(), MockFileSystem->ReadFile);
 					}
@@ -172,7 +172,7 @@ void FDownloadServiceSpec::Define()
 					if (RxDownloadComplete.Num() == 1)
 					{
 						const FDownloadRef& Download = RxDownloadComplete[0].Get<2>();
-						TEST_FALSE(Download->WasSuccessful());
+						TEST_FALSE(Download->ResponseSuccessful());
 					}
 				});
 
@@ -187,7 +187,7 @@ void FDownloadServiceSpec::Define()
 					if (RxDownloadComplete.Num() == 1)
 					{
 						const FDownloadRef& Download = RxDownloadComplete[0].Get<2>();
-						TEST_FALSE(Download->WasSuccessful());
+						TEST_FALSE(Download->ResponseSuccessful());
 					}
 				});
 			});
@@ -210,7 +210,7 @@ void FDownloadServiceSpec::Define()
 					if (RxDownloadComplete.Num() == 1)
 					{
 						const FDownloadRef& Download = RxDownloadComplete[0].Get<2>();
-						TEST_FALSE(Download->WasSuccessful());
+						TEST_FALSE(Download->ResponseSuccessful());
 					}
 				});
 
@@ -225,7 +225,7 @@ void FDownloadServiceSpec::Define()
 					if (RxDownloadComplete.Num() == 1)
 					{
 						const FDownloadRef& Download = RxDownloadComplete[0].Get<2>();
-						TEST_FALSE(Download->WasSuccessful());
+						TEST_FALSE(Download->ResponseSuccessful());
 					}
 				});
 			});
@@ -247,7 +247,7 @@ void FDownloadServiceSpec::Define()
 					if (RxDownloadComplete.Num() == 1)
 					{
 						const FDownloadRef& Download = RxDownloadComplete[0].Get<2>();
-						TEST_FALSE(Download->WasSuccessful());
+						TEST_FALSE(Download->ResponseSuccessful());
 					}
 				});
 			});

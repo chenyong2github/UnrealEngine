@@ -1535,16 +1535,20 @@ static void DefaultCrashHandler(FIOSCrashContext const& Context)
 static uint32 GIOSStackIgnoreDepth = 6;
 
 // true system specific crash handler that gets called first
+static FIOSCrashContext TempCrashContext(ECrashContextType::Crash, TEXT("Temp Context"));
 static void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 {
+	// switch to crash handler malloc to avoid malloc reentrancy
+	check(FIOSApplicationInfo::CrashMalloc);
+	FIOSApplicationInfo::CrashMalloc->Enable(&TempCrashContext, FPlatformTLS::GetCurrentThreadId());
+	
     FIOSCrashContext CrashContext(ECrashContextType::Crash, TEXT("Caught signal"));
     CrashContext.IgnoreDepth = GIOSStackIgnoreDepth;
     CrashContext.InitFromSignal(Signal, Info, Context);
-    
-    // switch to crash handler malloc to avoid malloc reentrancy
-    check(FIOSApplicationInfo::CrashMalloc);
-    FIOSApplicationInfo::CrashMalloc->Enable(&CrashContext, FPlatformTLS::GetCurrentThreadId());
-    
+	
+	// switch to the crash malloc to the new context now that we have everything
+	FIOSApplicationInfo::CrashMalloc->SetContext(&CrashContext);
+	
     if (GCrashHandlerPointer)
     {
         GCrashHandlerPointer(CrashContext);
@@ -1578,9 +1582,9 @@ static void GracefulTerminationHandler(int32 Signal, siginfo_t* Info, void* Cont
         GError->Flush();
     }
     
-    if (!GIsRequestingExit)
+    if (!IsEngineExitRequested())
     {
-        GIsRequestingExit = 1;
+		RequestEngineExit(TEXT("iOS GracefulTerminationHandler"));
     }
     else
     {
@@ -1666,7 +1670,7 @@ void FIOSPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCrash
     if (!FIOSApplicationInfo::CrashReporter && !FIOSApplicationInfo::CrashMalloc)
     {
         // configure the crash handler malloc zone to reserve a little memory for itself
-        FIOSApplicationInfo::CrashMalloc = new FIOSMallocCrashHandler(128*1024);
+        FIOSApplicationInfo::CrashMalloc = new FIOSMallocCrashHandler(4*1024*1024);
         
         PLCrashReporterConfig* Config = [[[PLCrashReporterConfig alloc] initWithSignalHandlerType: PLCrashReporterSignalHandlerTypeBSD symbolicationStrategy: PLCrashReporterSymbolicationStrategyNone crashReportFolder: FIOSApplicationInfo::TemporaryCrashReportFolder().GetNSString() crashReportName: FIOSApplicationInfo::TemporaryCrashReportName().GetNSString()] autorelease];
         FIOSApplicationInfo::CrashReporter = [[PLCrashReporter alloc] initWithConfiguration: Config];

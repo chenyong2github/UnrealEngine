@@ -833,7 +833,7 @@ bool UTexture2D::UpdateStreamingStatus( bool bWaitForMipFading /*= false*/ )
 	// if resident and requested mip counts match then no pending request is in flight
 	if (PendingUpdate)
 	{
-		if (GIsRequestingExit || !Resource)
+		if (IsEngineExitRequested() || !Resource)
 		{
 			PendingUpdate->Abort();
 		}

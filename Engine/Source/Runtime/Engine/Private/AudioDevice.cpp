@@ -205,7 +205,7 @@ FAudioDevice::FAudioDevice()
 	, CommonAudioPoolSize(0)
 	, CommonAudioPool(nullptr)
 	, CommonAudioPoolFreeBytes(0)
-	, DeviceHandle(INDEX_NONE)
+	, DeviceHandle(static_cast<Audio::FDeviceId>(INDEX_NONE))
 	, SpatializationPluginInterface(nullptr)
 	, ReverbPluginInterface(nullptr)
 	, OcclusionInterface(nullptr)
@@ -590,6 +590,11 @@ int32 FAudioDevice::GetMaxChannels() const
 int32 FAudioDevice::GetMaxSources() const
 {
 	return MaxSources + NumStoppingSources;
+}
+
+TRange<float> FAudioDevice::GetGlobalPitchRange() const
+{
+	return TRange<float>(GlobalMinPitch, GlobalMaxPitch);
 }
 
 void FAudioDevice::Teardown()
@@ -2143,6 +2148,12 @@ void FAudioDevice::RecursiveApplyAdjuster(const FSoundClassAdjuster& InAdjuster,
 		Properties->Pitch *= InAdjuster.PitchAdjuster;
 		Properties->VoiceCenterChannelVolume *= InAdjuster.VoiceCenterChannelVolumeAdjuster;
 
+		// Only set the LPF frequency if the input adjuster is *less* than the sound class' property
+		if (InAdjuster.LowPassFilterFrequency < Properties->LowPassFilterFrequency)
+		{
+			Properties->LowPassFilterFrequency = InAdjuster.LowPassFilterFrequency;
+		}
+
 		// Recurse through this classes children
 		for (int32 ChildIdx = 0; ChildIdx < InSoundClass->ChildClasses.Num(); ++ChildIdx)
 		{
@@ -2508,6 +2519,12 @@ static void UpdateClassAdjustorOverrideEntry(FSoundClassAdjuster& ClassAdjustor,
 	}
 }
 
+float FAudioDevice::GetInterpolatedFrequency(const float InFrequency, const float InterpValue) const
+{
+	const float NormFrequency = InterpolateAdjuster(InFrequency / MAX_FILTER_FREQUENCY, InterpValue);
+	return Audio::GetLogFrequencyClamped(NormFrequency, FVector2D(0.0f, 1.0f), FVector2D(MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY));
+}
+
 void FAudioDevice::ApplyClassAdjusters(USoundMix* SoundMix, float InterpValue, float DeltaTime)
 {
 	if (!SoundMix)
@@ -2544,6 +2561,7 @@ void FAudioDevice::ApplyClassAdjusters(USoundMix* SoundMix, float InterpValue, f
 				Entry.VolumeAdjuster = InterpolateAdjuster(Entry.VolumeAdjuster, InterpValue);
 				Entry.PitchAdjuster = InterpolateAdjuster(Entry.PitchAdjuster, InterpValue);
 				Entry.VoiceCenterChannelVolumeAdjuster = InterpolateAdjuster(Entry.VoiceCenterChannelVolumeAdjuster, InterpValue);
+				Entry.LowPassFilterFrequency = GetInterpolatedFrequency(Entry.LowPassFilterFrequency, InterpValue);
 			}
 		}
 
@@ -2621,6 +2639,7 @@ void FAudioDevice::ApplyClassAdjusters(USoundMix* SoundMix, float InterpValue, f
 					EntryCopy.VolumeAdjuster = InterpolateAdjuster(Entry.VolumeAdjuster, InterpValue);
 					EntryCopy.PitchAdjuster = InterpolateAdjuster(Entry.PitchAdjuster, InterpValue);
 					EntryCopy.VoiceCenterChannelVolumeAdjuster = InterpolateAdjuster(Entry.VoiceCenterChannelVolumeAdjuster, InterpValue);
+					EntryCopy.LowPassFilterFrequency = GetInterpolatedFrequency(Entry.LowPassFilterFrequency, InterpValue);
 
 					RecursiveApplyAdjuster(EntryCopy, Entry.SoundClassObject);
 				}
@@ -2637,6 +2656,11 @@ void FAudioDevice::ApplyClassAdjusters(USoundMix* SoundMix, float InterpValue, f
 						Properties->Volume *= Entry.VolumeAdjuster;
 						Properties->Pitch *= Entry.PitchAdjuster;
 						Properties->VoiceCenterChannelVolume *= Entry.VoiceCenterChannelVolumeAdjuster;
+
+						if (Entry.LowPassFilterFrequency < Properties->LowPassFilterFrequency)
+						{
+							Properties->LowPassFilterFrequency = Entry.LowPassFilterFrequency;
+						}
 					}
 					// Otherwise, we need to use the "static" data and compute the adjustment interpolations now
 					else
@@ -2644,6 +2668,12 @@ void FAudioDevice::ApplyClassAdjusters(USoundMix* SoundMix, float InterpValue, f
 						Properties->Volume *= InterpolateAdjuster(Entry.VolumeAdjuster, InterpValue);
 						Properties->Pitch *= InterpolateAdjuster(Entry.PitchAdjuster, InterpValue);
 						Properties->VoiceCenterChannelVolume *= InterpolateAdjuster(Entry.VoiceCenterChannelVolumeAdjuster, InterpValue);
+
+						const float NewLPF = GetInterpolatedFrequency(Entry.LowPassFilterFrequency, InterpValue);
+						if (NewLPF < Properties->LowPassFilterFrequency)
+						{
+							Properties->LowPassFilterFrequency = NewLPF;
+						}
 					}
 				}
 				else
@@ -4127,7 +4157,7 @@ void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 {
 	DECLARE_CYCLE_STAT(TEXT("FGameThreadAudioTask.AudioSendResults"), STAT_AudioSendResults, STATGROUP_TaskGraphTasks);
 
-	const uint32 AudioDeviceID = DeviceHandle;
+	const Audio::FDeviceId AudioDeviceID = DeviceHandle;
 	UReverbEffect* ReverbEffect = Effects ? Effects->GetCurrentReverbEffect() : nullptr;
 	FAudioThread::RunCommandOnGameThread([AudioDeviceID, ReverbEffect]()
 	{
@@ -4155,10 +4185,9 @@ void FAudioDevice::StopAllSounds(bool bShouldStopUISounds)
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.StopAllSounds"), STAT_AudioStopAllSounds, STATGROUP_AudioThreadCommands);
 
-		FAudioDevice* AudioDevice = this;
-		FAudioThread::RunCommandOnAudioThread([AudioDevice, bShouldStopUISounds]()
+		FAudioThread::RunCommandOnAudioThread([this, bShouldStopUISounds]()
 		{
-			AudioDevice->StopAllSounds(bShouldStopUISounds);
+			StopAllSounds(bShouldStopUISounds);
 		}, GET_STATID(STAT_AudioStopAllSounds));
 
 		return;
@@ -4347,12 +4376,18 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		}
 	}
 
-	++Sound->CurrentPlayCount;
-	if (ModulationInterface && Sound->CurrentPlayCount == 1)
+	int32* PlayCount = Sound->CurrentPlayCount.Find(DeviceHandle);
+	if (!PlayCount)
+	{
+		PlayCount = &Sound->CurrentPlayCount.Add(DeviceHandle);
+	}
+	(*PlayCount)++;
+
+	if (ModulationInterface.IsValid())
 	{
 		if (USoundModulationPluginSourceSettingsBase* ModulationSettings = ActiveSound->FindModulationSettings())
 		{
-			ModulationInterface->OnInitSound(static_cast<ModulationSoundId>(Sound->GetUniqueID()), *ModulationSettings);
+			ModulationInterface->OnInitSound(static_cast<ISoundModulatable&>(*ActiveSound), *ModulationSettings);
 		}
 	}
 
@@ -4546,7 +4581,7 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 		}
 		else
 		{
-			ActiveSound->Stop(bForceDelete);
+			ActiveSound->MarkPendingDestroy(bForceDelete);
 
 			USoundBase* Sound = ActiveSound->GetSound();
 

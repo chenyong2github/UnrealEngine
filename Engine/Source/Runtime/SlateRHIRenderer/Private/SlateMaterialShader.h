@@ -63,10 +63,13 @@ public:
 
 	void SetAdditionalTexture( FRHICommandList& RHICmdList, FRHITexture* InTexture, const FSamplerStateRHIRef SamplerState );
 
+	void SetDrawFlags(FRHICommandList& RHICmdList, bool bDrawDisabledEffect);
+
 	virtual bool Serialize(FArchive& Ar) override;
 
 private:
 	FShaderParameter GammaAndAlphaValues;
+	FShaderParameter DrawFlags;
 	FShaderParameter ShaderParams;
 	/** Extra texture (like a font atlas) to be used in addition to any material textures */
 	FShaderResourceParameter TextureParameterSampler;
@@ -105,7 +108,7 @@ public:
 	}
 };
 
-template<ESlateShader ShaderType,bool bDrawDisabledEffect> 
+template<ESlateShader ShaderType>
 class TSlateMaterialShaderPS : public FSlateMaterialShaderPS
 {
 public:
@@ -129,7 +132,6 @@ public:
 		FSlateMaterialShaderPS::ModifyCompilationEnvironment(Parameters,OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("SHADER_TYPE"), (uint32)ShaderType);
-		OutEnvironment.SetDefine(TEXT("DRAW_DISABLED_EFFECT"), (uint32)(bDrawDisabledEffect ? 1 : 0));
 	}
 
 	virtual bool Serialize(FArchive& Ar) override

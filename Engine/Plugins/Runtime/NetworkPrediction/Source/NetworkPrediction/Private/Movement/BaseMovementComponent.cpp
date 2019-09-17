@@ -363,7 +363,7 @@ void UBaseMovementComponent::DrawDebug(const IBaseMovementDriver::FDrawDebugPara
 		if (BaseMovementCVars::UseDrawDebug)
 		{
 			static float PointSize = 3.f;
-			DrawDebugPoint(Params.DebugWorld, Params.Transform.GetLocation(), PointSize, Params.DrawColor, PersistentLines, LifetimeSeconds);
+			DrawDebugPoint(Params.DebugWorld, Params.Transform.GetLocation(), PointSize, Params.DrawColor, false, LifetimeSeconds);
 		}
 
 		if (BaseMovementCVars::UseVLogger)
@@ -385,7 +385,7 @@ void UBaseMovementComponent::DrawDebug(const IBaseMovementDriver::FDrawDebugPara
 			if (BaseMovementCVars::UseDrawDebug)
 			{
 				static const float Thickness = 2.f;
-				DrawDebugCapsule(Params.DebugWorld, Params.Transform.GetLocation(), HalfHeight, Radius, Params.Transform.GetRotation(), Params.DrawColor, PersistentLines, LifetimeSeconds, 0.f, Thickness);
+				DrawDebugCapsule(Params.DebugWorld, Params.Transform.GetLocation(), HalfHeight, Radius, Params.Transform.GetRotation(), Params.DrawColor, false, LifetimeSeconds, 0.f, Thickness);
 			}
 
 			if (BaseMovementCVars::UseVLogger)
@@ -408,7 +408,7 @@ void UBaseMovementComponent::DrawDebug(const IBaseMovementDriver::FDrawDebugPara
 				FVector ActorExtent;
 				LocalSpaceBox.GetCenterAndExtents(ActorOrigin, ActorExtent);
 				ActorExtent *= Params.Transform.GetScale3D();
-				DrawDebugBox(Params.DebugWorld, Params.Transform.GetLocation(), ActorExtent, Params.Transform.GetRotation(), Params.DrawColor, PersistentLines, LifetimeSeconds, 0, Thickness);
+				DrawDebugBox(Params.DebugWorld, Params.Transform.GetLocation(), ActorExtent, Params.Transform.GetRotation(), Params.DrawColor, false, LifetimeSeconds, 0, Thickness);
 			}
 
 			if (BaseMovementCVars::UseVLogger)

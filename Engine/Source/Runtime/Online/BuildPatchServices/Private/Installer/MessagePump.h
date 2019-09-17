@@ -30,6 +30,13 @@ namespace BuildPatchServices
 		virtual void SendMessage(FInstallationFileAction Message) = 0;
 
 		/**
+		 * Sends out a request to resolve the uri to the chunk location
+		 * @param Request   Request for the chunk location
+		 * @param OnResponse   A delegate to call with the response to chunk location
+		 */
+		virtual void SendRequest(FChunkUriRequest Request, TFunction<void(FChunkUriResponse)> OnResponse) = 0;
+
+		/**
 		 * Dequeues received messages, pushing them to the provided handlers.
 		 * @param Handlers      The array of handlers.
 		 */

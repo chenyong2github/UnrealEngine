@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Chaos/Framework/MultiBufferResource.h"
-#include "EventManager.h"
 
 namespace Chaos
 {

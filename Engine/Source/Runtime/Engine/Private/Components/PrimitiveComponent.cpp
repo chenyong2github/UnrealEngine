@@ -739,6 +739,12 @@ void UPrimitiveComponent::OnCreatePhysicsState()
 			{
 				BodyTransform.SetScale3D(FVector(KINDA_SMALL_NUMBER));
 			}
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			if ((BodyInstance.GetCollisionEnabled() != ECollisionEnabled::NoCollision) && (FMath::IsNearlyZero(BodyScale.X) || FMath::IsNearlyZero(BodyScale.Y) || FMath::IsNearlyZero(BodyScale.Z)))
+			{
+				UE_LOG(LogPhysics, Warning, TEXT("Scale for %s has a component set to zero, which will result in a bad body instance. Scale:%s"), *GetPathNameSafe(this), *BodyScale.ToString());
+			}
+#endif
 
 			// Create the body.
 			BodyInstance.InitBody(BodySetup, BodyTransform, this, GetWorld()->GetPhysicsScene());		
@@ -1395,6 +1401,15 @@ void UPrimitiveComponent::SetLightAttachmentsAsGroup(bool bInLightAttachmentsAsG
 	}
 }
 
+void UPrimitiveComponent::SetExcludeFromLightAttachmentGroup(bool bInExcludeFromLightAttachmentGroup)
+{
+	if (bExcludeFromLightAttachmentGroup != bInExcludeFromLightAttachmentGroup)
+	{
+		bExcludeFromLightAttachmentGroup = bInExcludeFromLightAttachmentGroup;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPrimitiveComponent::SetSingleSampleShadowFromStationaryLights(bool bNewSingleSampleShadowFromStationaryLights)
 {
 	if (bNewSingleSampleShadowFromStationaryLights != bSingleSampleShadowFromStationaryLights)
@@ -1937,6 +1952,7 @@ FCollisionShape UPrimitiveComponent::GetCollisionShape(float Inflation) const
 bool UPrimitiveComponent::MoveComponentImpl( const FVector& Delta, const FQuat& NewRotationQuat, bool bSweep, FHitResult* OutHit, EMoveComponentFlags MoveFlags, ETeleportType Teleport)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MoveComponentTime);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(MoveComponentTime);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && PERF_MOVECOMPONENT_STATS
 	FScopedMoveCompTimer MoveTimer(this, Delta);
@@ -3220,6 +3236,12 @@ bool UPrimitiveComponent::ComponentOverlapMultiImpl(TArray<struct FOverlapResult
 
 const UPrimitiveComponent* UPrimitiveComponent::GetLightingAttachmentRoot() const
 {
+	// Exclude  from light attachment group whatever the parent says
+	if (bExcludeFromLightAttachmentGroup)
+	{
+		return nullptr;
+	}
+
 	const USceneComponent* CurrentHead = this;
 
 	while (CurrentHead)

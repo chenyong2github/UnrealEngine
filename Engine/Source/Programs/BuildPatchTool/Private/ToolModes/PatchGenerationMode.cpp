@@ -75,7 +75,7 @@ public:
 			UE_LOG(LogBuildPatchTool, Display, TEXT("  -Custom=\"field=value\"        Adds a custom string field to the build manifest."));
 			UE_LOG(LogBuildPatchTool, Display, TEXT("  -CustomInt=\"field=number\"    Adds a custom int64 field to the build manifest."));
 			UE_LOG(LogBuildPatchTool, Display, TEXT("  -CustomFloat=\"field=number\"  Adds a custom double field to the build manifest."));
-			UE_LOG(LogBuildPatchTool, Display, TEXT("  -OutputFilename=\"\"           Specifies in quotes an override for the output manifest filename."));
+			UE_LOG(LogBuildPatchTool, Display, TEXT("  -OutputFilename=\"\"           Specifies in quotes an override for the output manifest filename. Extension of .manifest will be added if not present."));
 			UE_LOG(LogBuildPatchTool, Display, TEXT("  -ChunkWindowSize=1000000     Specifies in bytes, the data window size that should be used when saving new chunks. Default is 1048576 (1MiB)."));
 			UE_LOG(LogBuildPatchTool, Display, TEXT("  -IgnoreOtherWindowSizes      If provided, the generation code will only accept chunk matches that are the same as ChunkWindowSize."));
 			UE_LOG(LogBuildPatchTool, Display, TEXT(""));
@@ -238,7 +238,7 @@ private:
 
 	bool ProcessCommandline()
 	{
-#define PARSE_SWITCH(Switch) ParseSwitch(TEXT(#Switch L"="), Switch, Switches)
+#define PARSE_SWITCH(Switch) ParseSwitch(TEXT(#Switch "="), Switch, Switches)
 		TArray<FString> Tokens, Switches;
 		FCommandLine::Parse(FCommandLine::Get(), Tokens, Switches);
 
@@ -290,6 +290,13 @@ private:
 		NormalizeUriFile(FileAttributeList);
 		NormalizeUriFile(PrereqPath);
 		NormalizeUriFile(OutputFilename);
+
+		// Check manifest file extension.
+		const TCHAR* ManifestExtension = TEXT(".manifest");
+		if (!OutputFilename.IsEmpty() && !OutputFilename.EndsWith(ManifestExtension))
+		{
+			OutputFilename += ManifestExtension;
+		}
 
 		// Clamp ChunkWindowSize to sane range.
 		const uint32 RequestedChunkWindowSize = ChunkWindowSize;

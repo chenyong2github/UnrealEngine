@@ -617,7 +617,9 @@ FRenderingCompositeOutputRef AddGaussianBlurPass(
 		PassInputs.CrossCenterWeight = CrossCenterWeight;
 		PassInputs.KernelSizePercent = KernelSizePercent;
 
-		FRDGTextureRef OutputTexture = AddGaussianBlurPass(GraphBuilder, FScreenPassViewInfo(InContext.View), PassInputs);
+		FScreenPassViewInfo ScreenPassView(InContext.View);
+
+		FRDGTextureRef OutputTexture = AddGaussianBlurPass(GraphBuilder, ScreenPassView, PassInputs);
 
 		InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, OutputTexture);
 

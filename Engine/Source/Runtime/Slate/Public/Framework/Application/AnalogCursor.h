@@ -30,7 +30,7 @@ enum class EAnalogStick : uint8
 /**
  * A class that simulates a cursor driven by an analog stick.
  */
-class SLATE_API FAnalogCursor : public IInputProcessor
+class SLATE_API FAnalogCursor : public IInputProcessor, public TSharedFromThis<FAnalogCursor>
 {
 public:
 	FAnalogCursor();

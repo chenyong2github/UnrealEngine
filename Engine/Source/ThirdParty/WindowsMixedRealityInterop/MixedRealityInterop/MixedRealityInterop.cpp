@@ -159,8 +159,6 @@ namespace WindowsMixedReality
 	std::mutex CameraResourcesLock;
 	std::mutex StageLock;
 
-	const float defaultPlayerHeight = -1.8f;
-
 	// Hidden Area Mesh
 	std::vector<DirectX::XMFLOAT2> hiddenMesh[2];
 	std::vector<DirectX::XMFLOAT2> visibleMesh[2];
@@ -193,6 +191,7 @@ namespace WindowsMixedReality
 	// Controller pose
 	float3 ControllerPositions[2];
 	quaternion ControllerOrientations[2];
+	bool ControllerIsTracked[2];
 
 	PointerPoseInfo PointerPoses[2];
 
@@ -911,6 +910,7 @@ namespace WindowsMixedReality
 		{
 			ControllerPositions[i] = float3(0, 0, 0);
 			ControllerOrientations[i] = quaternion::identity();
+			ControllerIsTracked[i] = false;
 			HandIDs[i] = -1;
 			JointPoseValid[i] = false;
 		}
@@ -1046,6 +1046,9 @@ namespace WindowsMixedReality
 	{
 		nearPlaneDistance = nearPlane;
 		farPlaneDistance = farPlane;
+
+		LastKnownProjection.Left = winrt::Windows::Foundation::Numerics::float4x4::identity();
+		LastKnownProjection.Right = winrt::Windows::Foundation::Numerics::float4x4::identity();
 
 		if (bInitialized)
 		{
@@ -1579,9 +1582,7 @@ namespace WindowsMixedReality
 	bool MixedRealityInterop::IsActiveAndValid()
 	{
 		if (!IsInitialized()
-			|| CameraResources == nullptr
-			// Do not update the frame after we generate rendering parameters for it.
-			|| CurrentFrameResources != nullptr)
+			|| CameraResources == nullptr)
 		{
 			return false;
 		}
@@ -1666,17 +1667,6 @@ namespace WindowsMixedReality
 
 		leftView = currentFrame->leftPose;
 		rightView = currentFrame->rightPose;
-
-		// Do not add a vertical offset if we have previously used a stage as a reference frame, 
-		// since a stage reference frame uses a floor origin.
-		if (trackingOrigin == HMDTrackingOrigin::Eye)
-		{
-			// Add a vertical offset if using eye tracking so the player does not start in the floor.
-			DirectX::XMMATRIX heightOffset = DirectX::XMMatrixTranslation(0, defaultPlayerHeight, 0);
-
-			leftView = DirectX::XMMatrixMultiply(heightOffset, leftView);
-			rightView = DirectX::XMMatrixMultiply(heightOffset, rightView);
-		}
 
 		return true;
 	}
@@ -2095,11 +2085,6 @@ namespace WindowsMixedReality
 			eyeRay.origin = ToDirectXVec(gaze.Value().Origin);
 			eyeRay.direction = ToDirectXVec(gaze.Value().Direction);
 
-			if (trackingOrigin == HMDTrackingOrigin::Eye)
-			{
-				// Add a vertical offset if using eye tracking so the player does not start in the floor.
-				eyeRay.origin.y -= defaultPlayerHeight;
-			}
 			return true;
 		}
 		catch (winrt::hresult_error&)
@@ -2230,7 +2215,7 @@ namespace WindowsMixedReality
 				SpatialInteractionSourceLocation sourceLocation = prop.TryGetLocation(coordinateSystem);
 				if (sourceLocation != nullptr)
 				{
-					if (source.IsPointingSupported() && sourceLocation.SourcePointerPose() != nullptr)
+					if (!m_isHL1Remoting && source.IsPointingSupported() && sourceLocation.SourcePointerPose() != nullptr)
 					{
 						float3 pos = sourceLocation.SourcePointerPose().Position();
 						float3 forward = sourceLocation.SourcePointerPose().ForwardDirection();
@@ -2241,26 +2226,12 @@ namespace WindowsMixedReality
 						PointerPoses[(int)hand].direction = DirectX::XMFLOAT3(forward.x, forward.y, forward.z);
 						PointerPoses[(int)hand].up = DirectX::XMFLOAT3(up.x, up.y, up.z);
 						PointerPoses[(int)hand].orientation = DirectX::XMFLOAT4(rot.x, rot.y, rot.z, rot.w);
-
-						if (trackingOrigin == HMDTrackingOrigin::Eye)
-						{
-							// Add a vertical offset if using eye tracking so the player does not start in the floor.
-							PointerPoses[(int)hand].origin.y -= defaultPlayerHeight;
-						}
 					}
 
 					if (sourceLocation.Position() != nullptr)
 					{
 						ControllerPositions[(int)hand] = sourceLocation.Position().Value();
 						trackingStatus = HMDTrackingStatus::Tracked;
-
-						// Do not add a vertical offset if we have previously used a stage as a reference frame, 
-						// since a stage reference frame uses a floor origin.
-						if (trackingOrigin == HMDTrackingOrigin::Eye)
-						{
-							// Add a vertical offset if using eye tracking so the player does not start in the floor.
-							ControllerPositions[(int)hand] -= float3(0, defaultPlayerHeight, 0);
-						}
 					}
 					if (supportsSourceOrientation &&
 						(sourceLocation.Orientation() != nullptr))
@@ -2279,6 +2250,9 @@ namespace WindowsMixedReality
 				}
 			}
 		}
+
+		ControllerIsTracked[(int)hand] =
+			trackingStatus == HMDTrackingStatus::Tracked ? true : false;
 
 		return trackingStatus;
 	}
@@ -2299,7 +2273,7 @@ namespace WindowsMixedReality
 		orientation = DirectX::XMFLOAT4(rot.x, rot.y, rot.z, rot.w);
 		position = DirectX::XMFLOAT3(pos.x, pos.y, pos.z);
 
-		return true;
+		return ControllerIsTracked[(int)hand];
 	}
 
 	bool MixedRealityInterop::GetHandJointOrientationAndPosition(HMDHand hand, HMDHandJoint joint, DirectX::XMFLOAT4& orientation, DirectX::XMFLOAT3& position)
@@ -2376,12 +2350,21 @@ namespace WindowsMixedReality
 			}
 		}
 
-		if (!supportsMotionControllers || isRemoteHolographicSpace)
+		if (isRemoteHolographicSpace)
 		{
 			// Prior to motion controller support, Select was the only press
 			bool isPressed = state.IsPressed();
 			PreviousSelectState[handIndex] = CurrentSelectState[handIndex];
 			CurrentSelectState[handIndex] = PressStateFromBool(isPressed);
+
+			// HoloLens 2 supports grasp over remoting.
+			if (supportsMotionControllers)
+			{
+				// Grasp
+				isPressed = state.IsGrasped();
+				PreviousGraspState[handIndex] = CurrentGraspState[handIndex];
+				CurrentGraspState[handIndex] = PressStateFromBool(isPressed);
+			}
 		}
 		else if (supportsMotionControllers && !isRemoteHolographicSpace)
 		{
@@ -2565,6 +2548,13 @@ namespace WindowsMixedReality
 			return;
 		}
 
+		// Reset joint pose flag for both hands here, since we may not have an input source for a hand.
+		// Any sources we do have will get correctly set when retrieving joints.
+		for (int i = 0; i < 2; i++)
+		{
+			JointPoseValid[i] = false;
+		}
+
 		IVectorView<SpatialInteractionSourceState> sourceStates;
 		if (!GetInputSources(sourceStates))
 		{
@@ -2621,25 +2611,7 @@ namespace WindowsMixedReality
 							HandPose handPose = state.TryGetHandPose();
 							if (handPose != nullptr)
 							{
-								if (handPose.TryGetJoints(coordinateSystem, Joints, JointPoses[(int)hand]))
-								{
-									if (trackingOrigin == HMDTrackingOrigin::Eye)
-									{
-										for (int j = 0; j < NumHMDHandJoints; ++j)
-										{
-											JointPoses[(int)hand][j].Position -= float3(0, defaultPlayerHeight, 0);
-										}
-									}
-									JointPoseValid[(int)hand] = true;
-								}
-								else
-								{
-									JointPoseValid[(int)hand] = false;
-								}
-							}
-							else
-							{
-								JointPoseValid[(int)hand] = false;
+								JointPoseValid[(int)hand] = handPose.TryGetJoints(coordinateSystem, Joints, JointPoses[(int)hand]);
 							}
 						}
 					}
@@ -3161,7 +3133,6 @@ namespace WindowsMixedReality
 
 	void ReleaseSpatialRecognizers()
 	{
-		interactionManager = SpatialInteractionManager::GetForCurrentView();
 		{
 			std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 			for (auto&& p : gestureRecognizerMap)
@@ -3169,6 +3140,7 @@ namespace WindowsMixedReality
 				p.second = nullptr;
 			}
 		}
+		interactionManager = nullptr;
 	}
 
 	GestureRecognizerInterop::~GestureRecognizerInterop()

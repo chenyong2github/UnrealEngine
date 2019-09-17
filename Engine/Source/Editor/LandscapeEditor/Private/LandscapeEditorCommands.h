@@ -84,6 +84,8 @@ public:
 	TSharedPtr<FUICommandInfo> DecreaseBrushFalloff;
 	TSharedPtr<FUICommandInfo> IncreaseBrushStrength;
 	TSharedPtr<FUICommandInfo> DecreaseBrushStrength;
+	TSharedPtr<FUICommandInfo> IncreaseAlphaBrushRotation;
+	TSharedPtr<FUICommandInfo> DecreaseAlphaBrushRotation;
 
 	TSharedPtr<FUICommandInfo> DragBrushSize;
 	TSharedPtr<FUICommandInfo> DragBrushFalloff;

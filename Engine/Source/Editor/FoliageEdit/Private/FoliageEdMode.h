@@ -38,6 +38,17 @@ namespace EFoliagePaletteViewMode
 	};
 }
 
+/** Single instance mode */
+namespace EFoliageSingleInstantiationPlacementMode
+{
+	enum class Type
+	{
+		All,
+		CycleThrough,
+		ModeCount
+	};
+};
+
 const float SingleInstanceModeBrushSize = 20.0f;
 
 // Current user settings in Foliage UI
@@ -89,6 +100,12 @@ struct FFoliageUISettings
 	bool GetIsInQuickSingleInstantiationMode() const { return IsInQuickSingleInstantiationMode; }
 	void SetIsInQuickSingleInstantiationMode(bool InIsInQuickSingleInstantiationMode) { IsInQuickSingleInstantiationMode = InIsInQuickSingleInstantiationMode; }
 
+	EFoliageSingleInstantiationPlacementMode::Type GetSingleInstantiationPlacementMode() const { return SingleInstantiationPlacementMode; }
+	void SetSingleInstantiationPlacementMode(EFoliageSingleInstantiationPlacementMode::Type InSingleInstantiationPlacementMode) { SingleInstantiationPlacementMode = InSingleInstantiationPlacementMode; }
+
+	int32 GetSingleInstantiationCycleThroughIndex() const { return SingleInstantiationCycleThroughIndex; }
+	void IncrementSingleInstantiationCycleThroughIndex() { SingleInstantiationCycleThroughIndex++; }
+
 	bool GetIsInSpawnInCurrentLevelMode() const { return IsInSpawnInCurrentLevelMode; }
 	void SetSpawnInCurrentLevelMode(bool InSpawnInCurrentLevelMode) { IsInSpawnInCurrentLevelMode = InSpawnInCurrentLevelMode; }
 
@@ -121,6 +138,8 @@ struct FFoliageUISettings
 		, UnpaintDensity(0.f)
 		, IsInSingleInstantiationMode(false)
 		, IsInQuickSingleInstantiationMode(false)
+		, SingleInstantiationPlacementMode(EFoliageSingleInstantiationPlacementMode::Type::All)
+		, SingleInstantiationCycleThroughIndex(0)
 		, IsInSpawnInCurrentLevelMode(false)
 		, bFilterLandscape(true)
 		, bFilterStaticMesh(true)
@@ -158,6 +177,8 @@ private:
 
 	bool IsInSingleInstantiationMode;
 	bool IsInQuickSingleInstantiationMode;
+	EFoliageSingleInstantiationPlacementMode::Type SingleInstantiationPlacementMode;
+	int32 SingleInstantiationCycleThroughIndex;
 	bool IsInSpawnInCurrentLevelMode;
 
 public:
@@ -456,11 +477,24 @@ public:
 	/** Save the foliage type object. If it isn't an asset, will prompt the user for a location to save the new asset. */
 	UFoliageType* SaveFoliageTypeObject(UFoliageType* Settings);
 
+	void IncludeNonFoliageActors(const TArray<const UFoliageType*>& FoliageTypes, bool bOnlyCurrentLevel);
+
+	void ExcludeFoliageActors(const TArray<const UFoliageType*>& FoliageTypes, bool bOnlyCurrentLevel);
+
+	/** Set/Clear selection for foliage instances of a specific types */
+	void SelectInstances(const TArray<const UFoliageType*>& FoliageTypes, bool bSelect);
+
 	/** Set/Clear selection for foliage instances of specific type  */
 	void SelectInstances(const UFoliageType* Settings, bool bSelect);
 
 	/** Find and select instances that don't have valid base or 'off-ground' */
+	void SelectInvalidInstances(const TArray<const UFoliageType*>& FoliageTypes);
+
+	/** Find and select instances that don't have valid base or 'off-ground' */
 	void SelectInvalidInstances(const UFoliageType* Settings);
+
+	/** Returns selected foliage types based on selected foliage instances */
+	void GetSelectedInstanceFoliageTypes(TArray<const UFoliageType*>& OutFoliageTypes) const;
 
 	/** Adjusts the radius of the foliage brush, using the given multiplier to adjust speed */
 	void AdjustBrushRadius(float Multiplier);
@@ -524,7 +558,10 @@ private:
 	/** Add instances inside the brush to match DesiredInstanceCount */
 	void AddInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, int32 DesiredInstanceCount, float Pressure);
 
-	void AddSingleInstanceForBrush(UWorld* InWorld, const UFoliageType* Settings, float Pressure);
+	/** Add single instance inside the brush 
+	* @return true if instance was added successfully
+	*/
+	bool AddSingleInstanceForBrush(UWorld* InWorld, const UFoliageType* Settings, float Pressure);
 
 	/** Remove instances inside the brush to match DesiredInstanceCount. */
 	void RemoveInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, int32 DesiredInstanceCount, float Pressure);
@@ -535,8 +572,8 @@ private:
 
 	/** Reapply instance settings to exiting instances */
 	void ReapplyInstancesDensityForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, float Pressure);
-	void ReapplyInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, float Pressure);
-	void ReapplyInstancesForBrush(UWorld* InWorld, AInstancedFoliageActor* IFA, const UFoliageType* Settings, FFoliageInfo* MeshInfo, const FSphere& BrushSphere, float Pressure);
+	void ReapplyInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, float Pressure, bool bSingleInstanceMode);
+	void ReapplyInstancesForBrush(UWorld* InWorld, AInstancedFoliageActor* IFA, const UFoliageType* Settings, FFoliageInfo* MeshInfo, const FSphere& BrushSphere, float Pressure, bool bSingleInstanceMode);
 
 	/** Select instances inside the brush. */
 	void SelectInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, bool bSelect);
@@ -576,7 +613,7 @@ private:
 	void HandleOnFoliageTypeMeshChanged(UFoliageType* FoliageType);
 
 	/** Common code for adding instances to world based on settings */
-	static void AddInstancesImp(UWorld* InWorld, const UFoliageType* Settings, const TArray<FDesiredFoliageInstance>& DesiredInstances, const TArray<int32>& ExistingInstances = TArray<int32>(), const float Pressure = 1.f, LandscapeLayerCacheData* LandscapeLayerCaches = nullptr, const FFoliageUISettings* UISettings = nullptr, const FFoliagePaintingGeometryFilter* OverrideGeometryFilter = nullptr, bool InRebuildFoliageTree = true);
+	static bool AddInstancesImp(UWorld* InWorld, const UFoliageType* Settings, const TArray<FDesiredFoliageInstance>& DesiredInstances, const TArray<int32>& ExistingInstances = TArray<int32>(), const float Pressure = 1.f, LandscapeLayerCacheData* LandscapeLayerCaches = nullptr, const FFoliageUISettings* UISettings = nullptr, const FFoliagePaintingGeometryFilter* OverrideGeometryFilter = nullptr, bool InRebuildFoliageTree = true);
 
 	/** Logic for determining which instances can be placed in the world*/
 	static void CalculatePotentialInstances(const UWorld* InWorld, const UFoliageType* Settings, const TArray<FDesiredFoliageInstance>& DesiredInstances, TArray<FPotentialInstance> OutPotentialInstances[NUM_INSTANCE_BUCKETS], LandscapeLayerCacheData* LandscaleLayerCachesPtr, const FFoliageUISettings* UISettings, const FFoliagePaintingGeometryFilter* OverrideGeometryFilter = nullptr);
@@ -596,8 +633,16 @@ private:
 	/** Set the brush mesh opacity */
 	void SetBrushOpacity(const float InOpacity);
 
+	float GetPaintingBrushRadius() const;
+
 	/** Called if the foliage tree is outdated */
 	void RebuildFoliageTree(const UFoliageType* Settings);
+
+	/** Increments a counter that prevents sending out notifications until end selection is called  and counter reaches 0 */
+	void BeginSelectionUpdate();
+
+	/** Decrements counter and will notify editor of selection change if counter reaches 0 */
+	void EndSelectionUpdate();
 
 	bool bBrushTraceValid;
 	FVector BrushLocation;
@@ -607,6 +652,8 @@ private:
 
 	/** The dynamic material of the sphere brush. */
 	class UMaterialInstanceDynamic* BrushMID;
+	FColor BrushDefaultHighlightColor;
+	FColor BrushCurrentHighlightColor;
 
 	/** Default opacity received from the brush material to reset it when closing. */
 	float DefaultBrushOpacity;
@@ -629,5 +676,8 @@ private:
 	/** When painting in VR, this is the hand index that we're painting with.  Otherwise INDEX_NONE. */
 	class UViewportInteractor* FoliageInteractor;
 
+	int32 UpdateSelectionCounter;
+	bool bHasDeferredSelectionNotification;
+	friend class FEdModeFoliageSelectionUpdate;
 };
 

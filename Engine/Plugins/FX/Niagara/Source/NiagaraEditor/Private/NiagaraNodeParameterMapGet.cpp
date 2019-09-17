@@ -13,7 +13,7 @@
 #include "Modules/ModuleManager.h"
 #include "Templates/SharedPointer.h"
 #include "NiagaraConstants.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "EdGraph/EdGraphNode.h"
@@ -414,7 +414,7 @@ bool UNiagaraNodeParameterMapGet::CommitEditablePinName(const FText& InName, UEd
 	return false;
 }
 
-void UNiagaraNodeParameterMapGet::GatherExternalDependencyIDs(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FGuid>& InReferencedIDs, TArray<UObject*>& InReferencedObjs) const
+void UNiagaraNodeParameterMapGet::GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<UObject*>& InReferencedObjs) const
 {
 	// If we are referencing any parameter collections, we need to register them here... might want to speeed this up in the future 
 	// by caching any parameter collections locally.
@@ -433,10 +433,9 @@ void UNiagaraNodeParameterMapGet::GatherExternalDependencyIDs(ENiagaraScriptUsag
 		UNiagaraParameterCollection* Collection = Schema->VariableIsFromParameterCollection(Var);
 		if (Collection)
 		{
-			InReferencedIDs.Add(Collection->GetCompileId());
+			InReferencedCompileHashes.Add(Collection->GetCompileHash());
 			InReferencedObjs.Add(Collection);
 		}
-
 	}
 }
 
@@ -494,11 +493,11 @@ void UNiagaraNodeParameterMapGet::GetPinHoverText(const UEdGraphPin& Pin, FStrin
 	}
 }
 
-void UNiagaraNodeParameterMapGet::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UNiagaraNodeParameterMapGet::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	UNiagaraNodeParameterMapBase::GetContextMenuActions(Context);
+	Super::GetNodeContextMenuActions(Menu, Context);
 
-	UEdGraphPin* Pin = const_cast<UEdGraphPin*>(Context.Pin);
+	UEdGraphPin* Pin = const_cast<UEdGraphPin*>(Context->Pin);
 	if (Pin && Pin->Direction == EEdGraphPinDirection::EGPD_Output)
 	{
 		
@@ -507,7 +506,7 @@ void UNiagaraNodeParameterMapGet::GetContextMenuActions(const FGraphNodeContextM
 
 		if (!FNiagaraConstants::IsNiagaraConstant(Var))
 		{
-			Context.MenuBuilder->BeginSection("EdGraphSchema_NiagaraMetaDataActions", LOCTEXT("EditPinMenuHeader", "Meta-Data"));
+			FToolMenuSection& Section = Menu->AddSection("EdGraphSchema_NiagaraMetaDataActions", LOCTEXT("EditPinMenuHeader", "Meta-Data"));
 			TSharedRef<SWidget> RenameWidget =
 				SNew(SBox)
 				.WidthOverride(100)
@@ -517,8 +516,7 @@ void UNiagaraNodeParameterMapGet::GetContextMenuActions(const FGraphNodeContextM
 					.Text_UObject(this, &UNiagaraNodeParameterMapBase::GetPinDescriptionText, Pin)
 					.OnTextCommitted_UObject(const_cast<UNiagaraNodeParameterMapGet*>(this), &UNiagaraNodeParameterMapBase::PinDescriptionTextCommitted, Pin)
 				];
-			Context.MenuBuilder->AddWidget(RenameWidget, LOCTEXT("DescMenuItem", "Description"));
-			Context.MenuBuilder->EndSection();
+			Section.AddEntry(FToolMenuEntry::InitWidget("RenameWidget", RenameWidget, LOCTEXT("DescMenuItem", "Description")));
 		}
 	}
 }

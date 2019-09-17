@@ -27,7 +27,7 @@
 
 // Page protection to catch FNameEntry stomps
 #ifndef FNAME_WRITE_PROTECT_PAGES
-#define FNAME_WRITE_PROTECT_PAGES 1
+#define FNAME_WRITE_PROTECT_PAGES 0
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealNames, Log, All);
@@ -1311,6 +1311,17 @@ FString FName::NameToDisplayString( const FString& InDisplayName, const bool bIs
 		if( bLowerCase )
 		{
 			bInARun = false;
+		}
+
+		// We were running on uppercase letters before and still do, but the next character is a lowercase letter,
+		// so we should break the run here, like "3DWidget" should be "3D Widget"
+		if (bInARun && !bWasSpace && !bWasOpenParen && CharIndex < Chars.Num() - 1 && FChar::IsLower(Chars[CharIndex + 1]))
+		{
+			if (!bWasSpace && OutDisplayName.Len() > 0)
+			{
+				OutDisplayName += TEXT(' ');
+				bWasSpace = true;
+			}
 		}
 
 		// An underscore denotes a space, so replace it and continue the run

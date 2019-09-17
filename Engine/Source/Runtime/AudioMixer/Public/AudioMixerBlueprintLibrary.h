@@ -58,6 +58,16 @@ enum class EFFTWindowType : uint8
 	Blackman
 };
 
+UENUM(BlueprintType)
+enum class EAudioSpectrumType : uint8
+{
+	// Spectrum frequency values are equal to magnitude of frequency.
+	MagnitudeSpectrum,
+
+	// Spectrum frequency values are equal to magnitude squared.
+	PowerSpectrum
+};
+
 /** 
 * Called when a load request for a sound has completed.
 */

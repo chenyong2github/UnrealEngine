@@ -194,7 +194,14 @@ FString FormatTimeMs(const double InDuration, const int32 NumDigits, bool bAddTi
 	}
 	else
 	{
+#if !PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION
 		Str += FString::Printf(TEXT("%.*f"), NumDigits, Duration * 1000.0);
+#else
+		// proper resolution is tracked as UE-79534
+		TCHAR FormatString[32];
+		FCString::Snprintf(FormatString, sizeof(FormatString), TEXT("%%.%df"), NumDigits);
+		Str += FString::Printf(FormatString, Duration * 1000.0);
+#endif
 
 		if (bAddTimeUnit)
 		{
@@ -352,7 +359,14 @@ FString FormatTime(const double InTime, const double Precision)
 		{
 			Str += TEXT(" ");
 		}
+#if !PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION
 		Str += FString::Printf(TEXT("%.*fs"), Digits, Time);
+#else
+		// proper resolution is tracked as UE-79534
+		TCHAR FormatString[32];
+		FCString::Snprintf(FormatString, sizeof(FormatString), TEXT("%%.%dfs"), Digits);
+		Str += FString::Printf(FormatString, Time);
+#endif
 	}
 
 	return Str;

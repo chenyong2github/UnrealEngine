@@ -65,19 +65,20 @@ void PageTableUpdateVS(
 	OutPosition.xy = ( (float2)vCorner / PageTableSize ) * float2( 2, -2 ) + float2( -1, 1 );
 
 #if USE_16BIT
-	uint Page = vLevel;
-	Page |= pPage.x << 4;
-	Page |= pPage.y << 10;
+	// We can assume pPage fits in 6 bits and pack the final output to 16 bits
+	const uint PageCoordinateBitCount = 6;
 #else
+	const uint PageCoordinateBitCount = 8;
+#endif
+
 	// We want to store the quantity vPagesWideInLevel (computed as VIRTUALTEXTURE_MAX_PAGETABLE_SIZE >> vLevel)
 	// We then want to scale by (1/VIRTUALTEXTURE_MAX_PAGETABLE_SIZE), to avoid the need to explicitly factor this into other uniforms
 	// So scale factor becomes (VIRTUALTEXTURE_MAX_PAGETABLE_SIZE >> vLevel) / VIRTUALTEXTURE_MAX_PAGETABLE_SIZE, which simplifies to (1 / exp2(vLevel)) or (1 / (1 << vLevel))
+	// We will store vLevel in the page table and calculate (1 / (1 << vLevel)) on load
 	// Also nice that this avoids need to depend on specific value of VIRTUALTEXTURE_MAX_PAGETABLE_SIZE
-
-	uint Page = f32tof16(1.0f / float(1u << vLevel));
-	Page |= pPage.x << 16;
-	Page |= pPage.y << 24;
-#endif
+	uint Page = vLevel;
+	Page |= pPage.x << 4;
+	Page |= pPage.y << (4 + PageCoordinateBitCount);
 	
 	OutColor = Page;
 }
