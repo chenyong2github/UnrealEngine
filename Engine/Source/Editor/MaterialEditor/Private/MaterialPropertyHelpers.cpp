@@ -1235,13 +1235,25 @@ TSharedRef<SWidget> FMaterialPropertyHelpers::MakeStackReorderHandle(TSharedPtr<
 bool FMaterialPropertyHelpers::OnShouldSetCurveAsset(const FAssetData& AssetData, TSoftObjectPtr<class UCurveLinearColorAtlas> InAtlas)
 {
 	UCurveLinearColorAtlas* Atlas = Cast<UCurveLinearColorAtlas>(InAtlas.Get());
-	UCurveLinearColor* Curve = Cast<UCurveLinearColor>(AssetData.GetAsset());
-	if (!Atlas || !Curve)
+	if (!Atlas)
 	{
 		return false;
 	}
-	int32 Index = Atlas->GradientCurves.Find(Curve);
-	return Index != INDEX_NONE;
+
+	for (UCurveLinearColor* GradientCurve : Atlas->GradientCurves)
+	{
+		if (GradientCurve->GetOutermost()->GetPathName() == AssetData.PackageName.ToString())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FMaterialPropertyHelpers::OnShouldFilterCurveAsset(const FAssetData& AssetData, TSoftObjectPtr<class UCurveLinearColorAtlas> InAtlas)
+{
+	return !OnShouldSetCurveAsset(AssetData, InAtlas);
 }
 
 void FMaterialPropertyHelpers::SetPositionFromCurveAsset(const FAssetData& AssetData, TSoftObjectPtr<class UCurveLinearColorAtlas> InAtlas, UDEditorScalarParameterValue* InParameter, TSharedPtr<IPropertyHandle> PropertyHandle, UObject* MaterialEditorInstance)
