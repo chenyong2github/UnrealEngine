@@ -544,9 +544,82 @@ FUserPlatform USocialUser::GetCurrentPlatform() const
 		// We have no platform presence, but we do have primary, so get the platform from that
 		return FUserPlatform(PrimaryPresence->GetPlatform());
 	}
-	
+
+	UE_LOG(LogOnline, VeryVerbose, TEXT("*!* %s - No Presence found for user, searching Party..."), ANSI_TO_TCHAR(__FUNCTION__));
+	if (USocialParty* Party = GetOwningToolkit().GetSocialManager().GetPersistentParty())
+	{
+		if (UPartyMember* PartyMember = Party->GetPartyMember(GetUserId(ESocialSubsystem::Primary)))
+		{
+			FUserPlatform Platform = PartyMember->GetRepData().GetPlatform();
+			UE_LOG(LogOnline, VeryVerbose, TEXT("*!* %s - Party Member Found for user! RepDataPlatform: %s"), ANSI_TO_TCHAR(__FUNCTION__), *Platform.ToString());
+			if (Platform.IsValid())
+			{
+				return Platform;
+			}
+		}
+	}
+
 	// We don't have any presence for this user (or we do and they're offline) and they aren't the local player, so we really don't have any idea what their current platform is
 	return FUserPlatform();
+}
+
+FString USocialUser::GetPlatformIconMarkupTag(EPlatformIconDisplayRule DisplayRule) const
+{
+	FString DummyString;
+	return GetPlatformIconMarkupTag(DisplayRule, DummyString);
+}
+
+FString USocialUser::GetPlatformIconMarkupTag(EPlatformIconDisplayRule DisplayRule, FString& OutLegacyString) const
+{
+	const FUserPlatform UserPlatform = GetCurrentPlatform();
+	const FUserPlatform LocalPlatform = FUserPlatform(IOnlineSubsystem::GetLocalPlatformName());
+
+	OutLegacyString = UserPlatform;
+	switch (DisplayRule)
+	{
+	case EPlatformIconDisplayRule::Always:
+		UE_LOG(LogOnline, VeryVerbose, TEXT("*!*    %s - User: %s - Returning TypeName %s due to ALWAYS"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName(), *UserPlatform.GetTypeName());
+		return UserPlatform.GetTypeName();
+	case EPlatformIconDisplayRule::AlwaysIfDifferent:
+		UE_LOG(LogOnline, VeryVerbose, TEXT("*!*    %s - User: %s - CrossplayLocalPlatform? %d Returning %s due to ALWAYSIFDIFFERENT"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName(), UserPlatform.IsCrossplayWithLocalPlatform(), UserPlatform.IsCrossplayWithLocalPlatform() ? *UserPlatform.GetTypeName() : TEXT(""));
+		if (!UserPlatform.IsCrossplayWithLocalPlatform())
+		{
+			OutLegacyString = TEXT("");
+			return TEXT("");
+		}
+		return UserPlatform.GetTypeName();
+	case EPlatformIconDisplayRule::Never:
+		UE_LOG(LogOnline, VeryVerbose, TEXT("*!*    %s - User: %s - Returning nothing due to NEVER"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName());
+		OutLegacyString = TEXT("");
+		return TEXT("");
+	}
+
+	if (DisplayRule == EPlatformIconDisplayRule::AlwaysWhenInCrossplayParty ||
+		DisplayRule == EPlatformIconDisplayRule::AlwaysIfDifferentWhenInCrossplayParty)
+	{
+		if (USocialParty* Party = GetOwningToolkit().GetSocialManager().GetPersistentParty())
+		{
+			if (!Party->IsCurrentlyCrossplaying())
+			{
+				UE_LOG(LogOnline, VeryVerbose, TEXT("*!*    %s - User: %s - Returning nothing due to Not Being In Crossplay with WHENINCROSSPLAYPARTY specified"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName());
+				OutLegacyString = TEXT("");
+				return TEXT("");
+			}
+		}
+	}
+
+	const bool bIsCrossplayWithMe = UserPlatform.IsCrossplayWithLocalPlatform();
+	if (DisplayRule == EPlatformIconDisplayRule::AlwaysWhenInCrossplayParty ||
+		(DisplayRule == EPlatformIconDisplayRule::AlwaysIfDifferentWhenInCrossplayParty && bIsCrossplayWithMe))
+	{
+		FString TypeName = UserPlatform.GetTypeName();
+		UE_LOG(LogOnline, VeryVerbose, TEXT("*!*    %s - User: %s - Returning TypeName %s, DisplayRule: %d, bIsCrossplayWithMe: %d"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName(), *TypeName, (int32)DisplayRule, bIsCrossplayWithMe);
+		return TypeName;
+	}
+
+	UE_LOG(LogOnline, VeryVerbose, TEXT("*!*    %s - User: %s - Returning nothing, likely due to AlwaysIfDifferentWhenInCrossplayParty and not being different, being in a Crossplay Party, and not being Different"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName());
+	OutLegacyString = TEXT("");
+	return TEXT("");
 }
 
 void USocialUser::GetRichPresenceText(FText& OutRichPresence) const

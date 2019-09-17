@@ -163,6 +163,16 @@ private:
 	TArray<FSocialActionStep> ActionSteps;
 };
 
+UENUM()
+enum class EPlatformIconDisplayRule : uint8
+{
+	Always,									// always show the platform icon
+	AlwaysIfDifferent,						// always show the icon if it's a different platform from my own
+	AlwaysWhenInCrossplayParty,				// always show the icon if I'm in a crossplay party
+	AlwaysIfDifferentWhenInCrossplayParty,	// only show the icon if it's different from my own and I'm in a crossplay party
+	Never,									// never show the icon
+};
+
 #define DECLARE_SHARED_PTR_ALIASES(Type)	\
 class Type;	\
 using Type##Ptr = TSharedPtr<Type>;	\
