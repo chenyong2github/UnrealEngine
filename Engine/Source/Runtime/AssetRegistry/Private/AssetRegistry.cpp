@@ -703,6 +703,7 @@ bool UAssetRegistryImpl::GetAssets(const FARFilter& InFilter, TArray<FAssetData>
 
 					if (!bMatch)
 					{
+						ObjectTags.Reset();
 						return;
 					}
 				}
