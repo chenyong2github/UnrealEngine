@@ -17,6 +17,7 @@
 #include "ScopedTransaction.h"
 #include "ActorEditorUtils.h"
 #include "WorldCollision.h"
+#include "Widgets/Docking/SDockTab.h"
 
 IMPLEMENT_HIT_PROXY(HSplineVisProxy, HComponentVisProxy);
 IMPLEMENT_HIT_PROXY(HSplineKeyProxy, HSplineVisProxy);
@@ -135,6 +136,8 @@ public:
 	/** Reset this spline to its default */
 	TSharedPtr<FUICommandInfo> ResetToDefault;
 };
+
+TWeakPtr<SWindow> FSplineComponentVisualizer::WeakExistingWindow;
 
 FSplineComponentVisualizer::FSplineComponentVisualizer()
 	: FComponentVisualizer()
@@ -528,6 +531,11 @@ void FSplineComponentVisualizer::ChangeSelectionState(int32 Index, bool bIsCtrlH
 			LastKeyIndexSelected = Index;
 		}
 	}
+
+	if (SplineGeneratorPanel.IsValid())
+	{
+		SplineGeneratorPanel->OnSelectionUpdated();
+	}
 }
 
 bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InViewportClient, HComponentVisProxy* VisProxy, const FViewportClick& Click)
@@ -660,7 +668,6 @@ USplineComponent* FSplineComponentVisualizer::GetEditedSplineComponent() const
 	return Cast<USplineComponent>(SplinePropertyPath.GetComponent());
 }
 
-
 bool FSplineComponentVisualizer::GetWidgetLocation(const FEditorViewportClient* ViewportClient, FVector& OutLocation) const
 {
 	USplineComponent* SplineComp = GetEditedSplineComponent();
@@ -691,7 +698,7 @@ bool FSplineComponentVisualizer::GetWidgetLocation(const FEditorViewportClient* 
 			// Otherwise use the last key index set
 			check(LastKeyIndexSelected < Position.Points.Num());
 			check(SelectedKeys.Contains(LastKeyIndexSelected));
-			const auto& Point = Position.Points[LastKeyIndexSelected];
+			const FInterpCurvePointVector& Point = Position.Points[LastKeyIndexSelected];
 			OutLocation = SplineComp->GetComponentTransform().TransformPosition(Point.OutVal);
 			if (!DuplicateDelayAccumulatedDrag.IsZero())
 			{
@@ -2404,6 +2411,16 @@ TSharedPtr<SWidget> FSplineComponentVisualizer::GenerateContextMenu() const
 					}
 				}
 			}
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("SplineGenerate", "Spline Generation Panel"),
+				LOCTEXT("SplineGenerateTooltip", "Opens up a spline generation panel to easily create basic shapes with splines"),
+				FSlateIcon(),
+				FUIAction( 
+					FExecuteAction::CreateRaw(this, &FSplineComponentVisualizer::CreateSplineGeneratorPanel), 
+					FCanExecuteAction::CreateLambda([] { return true; })
+				)
+			);
 		}
 		MenuBuilder.EndSection();
 
@@ -2476,6 +2493,41 @@ void FSplineComponentVisualizer::GenerateLockAxisSubMenu(FMenuBuilder& MenuBuild
 	MenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().SetLockedAxisZ);
 }
 
+void FSplineComponentVisualizer::CreateSplineGeneratorPanel()
+{
+	SAssignNew(SplineGeneratorPanel, SSplineGeneratorPanel, SharedThis(this));
+
+	TSharedPtr<SWindow> ExistingWindow = WeakExistingWindow.Pin();
+	if (!ExistingWindow.IsValid())
+	{
+		ExistingWindow = SNew(SWindow)
+			.ScreenPosition(FSlateApplication::Get().GetCursorPos())
+			.Title(FText::FromString("Spline Generation"))
+			.SizingRule(ESizingRule::Autosized)
+			.AutoCenter(EAutoCenter::None);
+
+		ExistingWindow->SetOnWindowClosed(FOnWindowClosed::CreateSP(SplineGeneratorPanel.ToSharedRef(), &SSplineGeneratorPanel::OnWindowClosed));
+
+		TSharedPtr<SWindow> RootWindow = FSlateApplication::Get().GetActiveTopLevelWindow();
+
+		if (RootWindow.IsValid())
+		{
+			FSlateApplication::Get().AddWindowAsNativeChild(ExistingWindow.ToSharedRef(), RootWindow.ToSharedRef());
+		}
+		else
+		{
+			FSlateApplication::Get().AddWindow(ExistingWindow.ToSharedRef());
+		}
+
+		ExistingWindow->BringToFront();
+		WeakExistingWindow = ExistingWindow;
+	}
+	else
+	{
+		ExistingWindow->BringToFront();
+	}
+	ExistingWindow->SetContent(SplineGeneratorPanel.ToSharedRef());
+}
 
 
 #undef LOCTEXT_NAMESPACE

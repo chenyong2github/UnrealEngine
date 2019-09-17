@@ -7,6 +7,7 @@
 #include "HitProxies.h"
 #include "ComponentVisualizer.h"
 #include "Components/SplineComponent.h"
+#include "SplineGeneratorPanel.h"
 
 class AActor;
 class FEditorViewportClient;
@@ -17,6 +18,7 @@ class FUICommandList;
 class FViewport;
 class SWidget;
 class USplineComponent;
+class SSplineGeneratorPanel;
 struct FViewportClick;
 struct FConvexVolume;
 
@@ -201,6 +203,8 @@ protected:
 	/** Generate the submenu containing the lock axis types */
 	void GenerateLockAxisSubMenu(FMenuBuilder& MenuBuilder) const;
 
+	void CreateSplineGeneratorPanel();
+
 	/** Output log commands */
 	TSharedPtr<FUICommandList> SplineComponentVisualizerActions;
 
@@ -262,4 +266,7 @@ protected:
 
 private:
 	UProperty* SplineCurvesProperty;
+
+	TSharedPtr<SSplineGeneratorPanel> SplineGeneratorPanel;
+	static TWeakPtr<SWindow> WeakExistingWindow;
 };
