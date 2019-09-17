@@ -284,9 +284,12 @@ void RayTracingReflectionsRGS()
 				TopLayerRay.Direction = GenerateReflectionDirection(RandSequence, DispatchThreadId, BounceIndex, LocalSamplesPerPixel, IncidentDirection, TopLayerWorldNormal, TopLayerRoughness);
 
 				// Apply a ray bias with respect to the camera and surface normal on the first bounce, otherwise only with respect to the surface normal for subsequent bounces
-				if (BounceIndex == 0) {
+				if (BounceIndex == 0)
+				{
 					ApplyCameraRelativeDepthBias(TopLayerRay, PixelCoord, DeviceZ, TopLayerWorldNormal, ReflectionMaxNormalBias);
-				} else {
+				}
+				else
+				{
 					ApplyPositionBias(TopLayerRay, TopLayerWorldNormal, ReflectionMaxNormalBias);
 				}
 
