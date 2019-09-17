@@ -1369,9 +1369,6 @@ private:
 		return Adjuster * InterpValue + 1.0f - InterpValue;
 	}
 
-	/** Retrieve the filter frequency to use. Takes into account logarithmic nature of frequency. */
-	float GetInterpolatedFrequency(const float InFrequency, const float InterpValue) const;
-
 	/** Allow platforms to optionally specify low-level audio platform settings. */
 	virtual FAudioPlatformSettings GetPlatformSettings() const { return FAudioPlatformSettings(); }
 

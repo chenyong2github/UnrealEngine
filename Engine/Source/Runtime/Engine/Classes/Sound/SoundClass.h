@@ -4,7 +4,6 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "AudioDefines.h"
 #if WITH_EDITOR
 #include "EdGraph/EdGraph.h"
 #endif
@@ -59,10 +58,6 @@ struct FSoundClassProperties
 	/** Pitch multiplier. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=SoundClassProperties)
 	float Pitch;
-
-	/** Lowpass filter frequency */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundClassProperties)
-	float LowPassFilterFrequency;
 
 	/** The amount of stereo sounds to bleed to the rear speakers */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=SoundClassProperties)
@@ -123,7 +118,6 @@ struct FSoundClassProperties
 	FSoundClassProperties()
 		: Volume(1.0f)
 		, Pitch(1.0f)
-		, LowPassFilterFrequency(MAX_FILTER_FREQUENCY)
 		, StereoBleed(0.25f)
 		, LFEBleed(0.5f)
 		, VoiceCenterChannelVolume(0.0f)
