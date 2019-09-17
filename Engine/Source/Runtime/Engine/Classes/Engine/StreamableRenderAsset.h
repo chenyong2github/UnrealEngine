@@ -254,7 +254,7 @@ public:
 	UPROPERTY(transient)
 	uint8 bForceMiplevelsToBeResident : 1;
 
-	/** Ignores the streaming mip bias used to accommodate memory constraints. */
+	/** When forced fully resident, ignores the streaming mip bias used to accommodate memory constraints. */
 	UPROPERTY(transient)
 	uint8 bIgnoreStreamingMipBias : 1;
 
