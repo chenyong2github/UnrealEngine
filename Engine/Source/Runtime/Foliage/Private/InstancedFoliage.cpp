@@ -696,6 +696,7 @@ UFoliageType_Actor::UFoliageType_Actor(const FObjectInitializer& ObjectInitializ
 {
 	Density = 10;
 	Radius = 500;
+	bShouldAttachToBaseComponent = true;
 }
 
 #if WITH_EDITOR
@@ -1514,6 +1515,7 @@ FFoliageInfo::FFoliageInfo()
 	: Type(EFoliageImplType::StaticMesh)
 #if WITH_EDITOR
 	, InstanceHash(GIsEditor ? new FFoliageInstanceHash() : nullptr)
+	, bMovingInstances(false)
 #endif
 { }
 
@@ -1710,7 +1712,11 @@ void FFoliageInfo::AddInstanceImpl(AInstancedFoliageActor* InIFA, const FFoliage
 	int32 InstanceIndex = Instances.Add(InNewInstance);
 	FFoliageInstance& AddedInstance = Instances[InstanceIndex];
 
-	AddedInstance.BaseId = InIFA->InstanceBaseCache.AddInstanceBaseId(InNewInstance.BaseComponent);
+	AddedInstance.BaseId = InIFA->InstanceBaseCache.AddInstanceBaseId(ShouldAttachToBaseComponent()? InNewInstance.BaseComponent : nullptr);
+	if (AddedInstance.BaseId == FFoliageInstanceBaseCache::InvalidBaseId)
+	{
+		AddedInstance.BaseComponent = nullptr;
+	}
 
 	// Add the instance to the hash
 	AddToBaseHash(InstanceIndex);
@@ -1745,7 +1751,11 @@ void FFoliageInfo::AddInstances(AInstancedFoliageActor* InIFA, const UFoliageTyp
 void FFoliageInfo::AddInstance(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const FFoliageInstance& InNewInstance, UActorComponent* InBaseComponent)
 {
 	FFoliageInstance Instance = InNewInstance;
-	Instance.BaseId = InIFA->InstanceBaseCache.AddInstanceBaseId(InBaseComponent);
+	Instance.BaseId = InIFA->InstanceBaseCache.AddInstanceBaseId(ShouldAttachToBaseComponent() ? InBaseComponent : nullptr);
+	if (Instance.BaseId == FFoliageInstanceBaseCache::InvalidBaseId)
+	{
+		Instance.BaseComponent = nullptr;
+	}
 	AddInstance(InIFA, InSettings, Instance);
 }
 
@@ -1855,6 +1865,8 @@ void FFoliageInfo::RemoveInstances(AInstancedFoliageActor* InIFA, const TArray<i
 
 void FFoliageInfo::PreMoveInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesToMove)
 {
+	bMovingInstances = true;
+
 	// Remove instances from the hash
 	for (TArray<int32>::TConstIterator It(InInstancesToMove); It; ++It)
 	{
@@ -1898,6 +1910,8 @@ void FFoliageInfo::PostUpdateInstances(AInstancedFoliageActor* InIFA, const TArr
 void FFoliageInfo::PostMoveInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesMoved)
 {
 	PostUpdateInstances(InIFA, InInstancesMoved, true, true);
+
+	bMovingInstances = false;
 }
 
 void FFoliageInfo::DuplicateInstances(AInstancedFoliageActor* InIFA, UFoliageType* InSettings, const TArray<int32>& InInstancesToDuplicate)
@@ -2144,6 +2158,17 @@ void FFoliageInfo::ExitEditMode()
 	Implementation->ExitEditMode();
 }
 
+void FFoliageInfo::RemoveBaseComponentOnInstances()
+{
+	for (int32 InstanceIdx = 0; InstanceIdx < Instances.Num(); InstanceIdx++)
+	{
+		RemoveFromBaseHash(InstanceIdx);
+		Instances[InstanceIdx].BaseId = FFoliageInstanceBaseCache::InvalidBaseId;
+		Instances[InstanceIdx].BaseComponent = nullptr;
+		AddToBaseHash(InstanceIdx);
+	}
+}
+
 TArray<int32> FFoliageInfo::GetInstancesOverlappingBox(const FBox& Box) const
 {
 	return InstanceHash->GetInstancesOverlappingBox(Box);
@@ -2308,6 +2333,36 @@ const FFoliageInfo* AInstancedFoliageActor::FindInfo(const UFoliageType* InType)
 
 
 #if WITH_EDITOR
+void AInstancedFoliageActor::MoveInstancesForMovedOwnedActors(AActor* InActor)
+{
+	// We don't want to handle this case when applying level transform
+	// since it's already handled in AInstancedFoliageActor::OnApplyLevelTransform
+	if (FLevelUtils::IsApplyingLevelTransform())
+	{
+		return;
+	}
+		
+	for (auto& Pair : FoliageInfos)
+	{
+		// Source of movement is the Foliage
+		if (Pair.Value->bMovingInstances)
+		{
+			continue;
+		}
+
+		if (Pair.Key->IsA<UFoliageType_Actor>())
+		{
+			if (FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Pair.Value->Implementation.Get()))
+			{
+				if (FoliageActor->UpdateInstanceFromActor(this, InActor, *Pair.Value))
+				{
+					return;
+				}
+			}
+		}
+	}
+}
+
 void AInstancedFoliageActor::MoveInstancesForMovedComponent(UActorComponent* InComponent)
 {
 	// We don't want to handle this case when applying level transform
@@ -2316,7 +2371,7 @@ void AInstancedFoliageActor::MoveInstancesForMovedComponent(UActorComponent* InC
 	{
 		return;
 	}
-
+		
 	const auto BaseId = InstanceBaseCache.GetInstanceBaseId(InComponent);
 	if (BaseId == FFoliageInstanceBaseCache::InvalidBaseId)
 	{
@@ -3480,6 +3535,12 @@ void AInstancedFoliageActor::PostLoad()
 			Info.InstanceHash->Empty();
 			for (int32 InstanceIdx = 0; InstanceIdx < Info.Instances.Num(); InstanceIdx++)
 			{
+				// Invalidate base if we aren't supposed to be attached.
+				if (!Info.ShouldAttachToBaseComponent())
+				{
+					Info.Instances[InstanceIdx].BaseId = FFoliageInstanceBaseCache::InvalidBaseId;
+					Info.Instances[InstanceIdx].BaseComponent = nullptr;
+				}
 				Info.AddToBaseHash(InstanceIdx);
 				Info.InstanceHash->InsertInstance(Info.Instances[InstanceIdx].Location, InstanceIdx);
 			}
@@ -3746,6 +3807,16 @@ void AInstancedFoliageActor::NotifyFoliageTypeChanged(UFoliageType* FoliageType,
 	}
 }
 
+void AInstancedFoliageActor::RemoveBaseComponentOnFoliageTypeInstances(UFoliageType* FoliageType)
+{
+	FFoliageInfo* TypeInfo = FindInfo(FoliageType);
+
+	if (TypeInfo)
+	{
+		TypeInfo->RemoveBaseComponentOnInstances();
+	}
+}
+
 void AInstancedFoliageActor::NotifyFoliageTypeWillChange(UFoliageType* FoliageType)
 {
 	FFoliageInfo* TypeInfo = FindInfo(FoliageType);
@@ -3770,6 +3841,11 @@ void AInstancedFoliageActor::OnLevelActorMoved(AActor* InActor)
 				MoveInstancesForMovedComponent(Component);
 			}
 		}
+
+		if (FFoliageHelper::IsOwnedByFoliage(InActor))
+		{
+			MoveInstancesForMovedOwnedActors(InActor);
+		}
 	}
 }
 
@@ -3784,6 +3860,37 @@ void AInstancedFoliageActor::OnLevelActorDeleted(AActor* InActor)
 			if (Component)
 			{
 				DeleteInstancesForComponent(Component);
+			}
+		}
+
+		// Cleanup Foliage Instances if Actor is deleted outside of Foliage Tool
+		if (FFoliageHelper::IsOwnedByFoliage(InActor))
+		{
+			for (auto& Pair : FoliageInfos)
+			{
+				FFoliageInfo& Info = *Pair.Value;
+				UFoliageType* FoliageType = Pair.Key;
+
+				if (Info.Type == EFoliageImplType::Actor)
+				{
+					if (FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Info.Implementation.Get()))
+					{
+						TArray<int32> InstancesToRemove;
+						// Make sure we find Null pointers and Delete those instances if we can't find the actor
+						FoliageActor->GetInvalidInstances(InstancesToRemove);
+						// Find Actor
+						int32 Index = FoliageActor->FindIndex(InActor);
+						if (Index != INDEX_NONE)
+						{
+							InstancesToRemove.Add(Index);
+						}
+						
+						if(InstancesToRemove.Num() > 0)
+						{
+							Info.RemoveInstances(this, InstancesToRemove, false);
+						}
+					}
+				}
 			}
 		}
 	}
