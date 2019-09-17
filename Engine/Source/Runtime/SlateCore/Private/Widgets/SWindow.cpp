@@ -511,7 +511,7 @@ void SWindow::ConstructWindowInternals()
 		SNew( SVerticalBox )
 		.Visibility( EVisibility::SelfHitTestInvisible );
 
-	TSharedRef<SWidget> TitleBarWidget = FSlateApplicationBase::Get().MakeWindowTitleBar(SharedThis(this), nullptr, GetTitleAlignment(), TitleBar);
+	TSharedRef<SWidget> TitleBarWidget = MakeWindowTitleBar(SharedThis(this), nullptr, GetTitleAlignment());
 
 	if (bCreateTitleBar)
 	{
