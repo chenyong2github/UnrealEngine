@@ -2006,6 +2006,28 @@ void FEdModeFoliage::RemoveSelectedInstances(UWorld* InWorld)
 	GEditor->EndTransaction();
 }
 
+void FEdModeFoliage::GetSelectedInstanceFoliageTypes(TArray<const UFoliageType*>& OutFoliageTypes) const
+{
+	const UWorld* CurrentWorld = GetWorld();
+	const int32 NumLevels = CurrentWorld->GetNumLevels();
+	for (int32 LevelIdx = 0; LevelIdx < NumLevels; ++LevelIdx)
+	{
+		ULevel* Level = CurrentWorld->GetLevel(LevelIdx);
+		AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level);
+		if (IFA)
+		{
+			bool bHasSelection = false;
+			for (auto& MeshPair : IFA->FoliageInfos)
+			{
+				if (MeshPair.Value->SelectedIndices.Num())
+				{
+					OutFoliageTypes.AddUnique(MeshPair.Key);
+				}
+			}
+		}
+	}
+}
+
 TAutoConsoleVariable<float> CVarOffGroundTreshold(
 	TEXT("foliage.OffGroundThreshold"),
 	5.0f,
