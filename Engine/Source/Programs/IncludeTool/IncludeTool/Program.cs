@@ -420,7 +420,7 @@ namespace IncludeTool
 				}
 
 				// Find a lookup of all the files by name
-				MultiValueDictionary<string, SourceFile> NameToFile = new MultiValueDictionary<string, SourceFile>(StringComparer.InvariantCultureIgnoreCase);
+				MultiValueDictionary<string, SourceFile> NameToFile = new MultiValueDictionary<string, SourceFile>(StringComparer.OrdinalIgnoreCase);
 				foreach(SourceFile PreprocessedFile in PreprocessedFiles)
 				{
 					NameToFile.Add(PreprocessedFile.Location.GetFileName(), PreprocessedFile);
@@ -583,7 +583,7 @@ namespace IncludeTool
 					{
 						if(!PreprocessedFile.HasHeaderGuard && (PreprocessedFile.Flags & (SourceFileFlags.TranslationUnit | SourceFileFlags.Inline | SourceFileFlags.External | SourceFileFlags.GeneratedHeader)) == 0 && PreprocessedFile.Counterpart == null && PreprocessedFile.Location.HasExtension(".h"))
 						{
-							if(!PreprocessedFile.Location.GetFileName().Equals("MonolithicHeaderBoilerplate.h", StringComparison.InvariantCultureIgnoreCase))
+							if(!PreprocessedFile.Location.GetFileName().Equals("MonolithicHeaderBoilerplate.h", StringComparison.OrdinalIgnoreCase))
 							{
 								Log.WriteLine("warning: missing header guard: {0}", PreprocessedFile.Location.FullName);
 							}
@@ -893,7 +893,7 @@ namespace IncludeTool
 		/// <returns>True if the given path is to a generated cpp file</returns>
 		static bool IsGeneratedCppFile(FileReference Location)
 		{
-			return Location.FullName.EndsWith(".cpp", StringComparison.InvariantCultureIgnoreCase) && Location.FullName.IndexOf(".generated.", StringComparison.InvariantCultureIgnoreCase) != -1;
+			return Location.FullName.EndsWith(".cpp", StringComparison.OrdinalIgnoreCase) && Location.FullName.IndexOf(".generated.", StringComparison.OrdinalIgnoreCase) != -1;
 		}
 
 		/// <summary>
@@ -986,24 +986,32 @@ namespace IncludeTool
 					PreprocessorMarkup Markup = File.Markup[Idx];
 					try
 					{
-						if(Markup.Type != PreprocessorMarkupType.Include)
+						if (Markup.Type != PreprocessorMarkupType.Include)
 						{
 							Preprocessor.ParseMarkup(Markup.Type, Markup.Tokens, Markup.Location.LineIdx);
 						}
-						else if(Preprocessor.IsBranchActive())
+						else
 						{
-							// Figure out which file is being included
-							PreprocessorFile TargetFile = Preprocessor.ResolveInclude(Markup.Tokens, Markup.Location.LineIdx);
-							if(!Markup.SetIncludedFile(TargetFile.WorkspaceFile.ReadSourceFile()))
+							if (Markup.Tokens.Count == 1 && (Markup.Tokens[0].Type == TokenType.StringLiteral || Markup.Tokens[0].Type == TokenType.SystemInclude) && Markup.Tokens[0].Text.Contains("//"))
 							{
-								PreprocessorFile ExistingTargetFile = new PreprocessorFile(TargetFile.FileName, Workspace.GetFile(Markup.IncludedFile.Location));
-								Log.WriteLine("{0}({1}): warning: include text resolved to different locations", File.Location, Markup.Location.LineIdx + 1);
-								Log.WriteLine("    First: {0}", ExistingTargetFile.Location);
-								Log.WriteLine("    Now:   {0}", TargetFile.Location);
-								TargetFile = ExistingTargetFile;
+								Log.WriteLine("{0}({1}): warning: include path has multiple slashes ({2})", File.Location, Markup.Location.LineIdx + 1, Markup.Tokens[0].Text);
 							}
-							PreprocessIncludedFile(Preprocessor, TargetFile, FileToActiveMarkup, Log);
-							ActiveMarkup.Flags[Idx] = true;
+
+							if (Preprocessor.IsBranchActive())
+							{
+								// Figure out which file is being included
+								PreprocessorFile TargetFile = Preprocessor.ResolveInclude(Markup.Tokens, Markup.Location.LineIdx);
+								if (!Markup.SetIncludedFile(TargetFile.WorkspaceFile.ReadSourceFile()))
+								{
+									PreprocessorFile ExistingTargetFile = new PreprocessorFile(TargetFile.FileName, Workspace.GetFile(Markup.IncludedFile.Location));
+									Log.WriteLine("{0}({1}): warning: include text resolved to different locations", File.Location, Markup.Location.LineIdx + 1);
+									Log.WriteLine("    First: {0}", ExistingTargetFile.Location);
+									Log.WriteLine("    Now:   {0}", TargetFile.Location);
+									TargetFile = ExistingTargetFile;
+								}
+								PreprocessIncludedFile(Preprocessor, TargetFile, FileToActiveMarkup, Log);
+								ActiveMarkup.Flags[Idx] = true;
+							}
 						}
 					}
 					catch(PreprocessorException Ex)
@@ -1096,7 +1104,7 @@ namespace IncludeTool
 		/// <param name="Files">Array of files to create fragments for</param>
 		static void CreateFragments(IEnumerable<SourceFile> Files)
 		{
-			HashSet<string> UniqueNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+			HashSet<string> UniqueNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			foreach(SourceFile File in Files)
 			{
 				CreateFragmentsRecursively(File, UniqueNames);
@@ -1266,7 +1274,7 @@ namespace IncludeTool
 			Dictionary<SourceFragment, Lazy<SequenceProbe>> FragmentToLazyProbe = new Dictionary<SourceFragment, Lazy<SequenceProbe>>();
 
 			// Create all the unique probes
-			HashSet<string> UniqueProbeNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+			HashSet<string> UniqueProbeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			foreach(SourceFile SourceFile in SourceFileToCompileEnvironment.Keys)
 			{
 				// Flatten the file into a list of fragments
