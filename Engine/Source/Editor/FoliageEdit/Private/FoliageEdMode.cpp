@@ -72,6 +72,24 @@ namespace VREd
 	static FAutoConsoleVariable FoliageOpacity(TEXT("VREd.FoliageOpacity"), 0.02f, TEXT("The foliage brush opacity."));
 }
 
+class FEdModeFoliageSelectionUpdate
+{
+public:
+	FEdModeFoliageSelectionUpdate(FEdModeFoliage* InMode)
+		: Mode(InMode)
+	{
+		Mode->BeginSelectionUpdate();
+	}
+
+	~FEdModeFoliageSelectionUpdate()
+	{
+		Mode->EndSelectionUpdate();
+	}
+
+private:
+	FEdModeFoliage* Mode;
+};
+
 //
 // FFoliageMeshUIInfo
 //
@@ -210,6 +228,8 @@ FEdModeFoliage::FEdModeFoliage()
 	, bAdjustBrushRadius(false)
 	, FoliageMeshListSortMode(EColumnSortMode::Ascending)
 	, FoliageInteractor(nullptr)
+	, UpdateSelectionCounter(0)
+	, bHasDeferredSelectionNotification(false)
 {
 	// Load resources and construct brush component
 	UStaticMesh* StaticMesh = nullptr;
@@ -673,6 +693,7 @@ void FEdModeFoliage::OnVRAction(class FEditorViewportClient& ViewportClient, UVi
 							if (HitResult.GetActor() != nullptr)
 							{
 								// Clear all currently selected instances
+								FEdModeFoliageSelectionUpdate Scope(this);
 								SelectInstances(ViewportClient.GetWorld(), false);
 								for (auto& FoliageMeshUI : FoliageMeshList)
 								{
@@ -754,7 +775,14 @@ void FEdModeFoliage::NotifyActorSelectionChanged(bool bSelect, const TArray<AAct
 		const bool bSelectEvenIfHidden = true;
 		GEditor->SelectActor(Actor, bSelect, bNotify, bSelectEvenIfHidden);
 	}
-	GEditor->NoteSelectionChange();
+	
+	// Defer Notification if we are in a selection update scope
+	bHasDeferredSelectionNotification = UpdateSelectionCounter > 0;
+
+	if (!bHasDeferredSelectionNotification)
+	{
+		GEditor->NoteSelectionChange();
+	}
 }
 
 /** When the user changes the current tool in the UI */
@@ -1512,6 +1540,22 @@ void FEdModeFoliage::RebuildFoliageTree(const UFoliageType* Settings)
 	}
 }
 
+void FEdModeFoliage::BeginSelectionUpdate()
+{
+	UpdateSelectionCounter++;
+}
+
+void FEdModeFoliage::EndSelectionUpdate()
+{
+	check(UpdateSelectionCounter > 0);
+	UpdateSelectionCounter--;
+	if (UpdateSelectionCounter == 0 && bHasDeferredSelectionNotification)
+	{
+		GEditor->NoteSelectionChange();
+		bHasDeferredSelectionNotification = false;
+	}
+}
+
 bool FEdModeFoliage::AddInstancesImp(UWorld* InWorld, const UFoliageType* Settings, const TArray<FDesiredFoliageInstance>& DesiredInstances, const TArray<int32>& ExistingInstanceBuckets, const float Pressure, LandscapeLayerCacheData* LandscapeLayerCachesPtr, const FFoliageUISettings* UISettings, const FFoliagePaintingGeometryFilter* OverrideGeometryFilter, bool InRebuildFoliageTree)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FoliageAddInstanceImp);
@@ -1730,6 +1774,7 @@ void FEdModeFoliage::RemoveInstancesForBrush(UWorld* InWorld, const UFoliageType
 
 void FEdModeFoliage::SelectInstanceAtLocation(UWorld* InWorld, const UFoliageType* Settings, const FVector& Location, bool bSelect)
 {
+	FEdModeFoliageSelectionUpdate Scope(this);
 	for (FFoliageInfoIterator It(InWorld, Settings); It; ++It)
 	{
 		FFoliageInfo* FoliageInfo = (*It);
@@ -1749,6 +1794,7 @@ void FEdModeFoliage::SelectInstanceAtLocation(UWorld* InWorld, const UFoliageTyp
 
 void FEdModeFoliage::SelectInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, bool bSelect)
 {
+	FEdModeFoliageSelectionUpdate Scope(this);
 	for (FFoliageInfoIterator It(InWorld, Settings); It; ++It)
 	{
 		FFoliageInfo* FoliageInfo = (*It);
@@ -1765,6 +1811,15 @@ void FEdModeFoliage::SelectInstancesForBrush(UWorld* InWorld, const UFoliageType
 	}
 }
 
+void FEdModeFoliage::SelectInstances(const TArray<const UFoliageType *>& FoliageTypes, bool bSelect)
+{
+	FEdModeFoliageSelectionUpdate Scope(this);
+	for (const UFoliageType* FoliageType : FoliageTypes)
+	{
+		SelectInstances(FoliageType, bSelect);
+	}
+}
+
 void FEdModeFoliage::SelectInstances(const UFoliageType* Settings, bool bSelect)
 {
 	SelectInstances(GetWorld(), Settings, bSelect);
@@ -1772,6 +1827,7 @@ void FEdModeFoliage::SelectInstances(const UFoliageType* Settings, bool bSelect)
 
 void FEdModeFoliage::SelectInstances(UWorld* InWorld, bool bSelect)
 {
+	FEdModeFoliageSelectionUpdate Scope(this);
 	for (auto& FoliageMeshUI : FoliageMeshList)
 	{
 		UFoliageType* Settings = FoliageMeshUI->Settings;
@@ -1787,6 +1843,7 @@ void FEdModeFoliage::SelectInstances(UWorld* InWorld, bool bSelect)
 
 void FEdModeFoliage::SelectInstances(UWorld* InWorld, const UFoliageType* Settings, bool bSelect)
 {
+	FEdModeFoliageSelectionUpdate Scope(this);
 	for (FFoliageInfoIterator It(InWorld, Settings); It; ++It)
 	{
 		FFoliageInfo* FoliageInfo = (*It);
@@ -1800,6 +1857,7 @@ void FEdModeFoliage::ApplySelection(UWorld* InWorld, bool bApply)
 {
 	GEditor->SelectNone(true, true);
 	
+	FEdModeFoliageSelectionUpdate Scope(this);
 	const int32 NumLevels = InWorld->GetNumLevels();
 	for (int32 LevelIdx = 0; LevelIdx < NumLevels; ++LevelIdx)
 	{
@@ -1953,8 +2011,18 @@ TAutoConsoleVariable<float> CVarOffGroundTreshold(
 	5.0f,
 	TEXT("Maximum distance from base component (in local space) at which instance is still considered as valid"));
 
+void FEdModeFoliage::SelectInvalidInstances(const TArray<const UFoliageType *>& FoliageTypes)
+{
+	FEdModeFoliageSelectionUpdate Scope(this);
+	for (const UFoliageType* FoliageType : FoliageTypes)
+	{
+		SelectInvalidInstances(FoliageType);
+	}
+}
+
 void FEdModeFoliage::SelectInvalidInstances(const UFoliageType* Settings)
 {
+	FEdModeFoliageSelectionUpdate Scope(this);
 	UWorld* InWorld = GetWorld();
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(FoliageGroundCheck), true);
@@ -3233,6 +3301,7 @@ void FEdModeFoliage::MoveSelectedFoliageToLevel(ULevel* InTargetLevel)
 
 	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MoveSelectedFoliageToSelectedLevel", "Move Selected Foliage to Level"));
 	
+	FEdModeFoliageSelectionUpdate Scope(this);
 	// Iterate over all foliage actors in the world and move selected instances to a foliage actor in the target level
 	const int32 NumLevels = World->GetNumLevels();
 	for (int32 LevelIdx = 0; LevelIdx < NumLevels; ++LevelIdx)
