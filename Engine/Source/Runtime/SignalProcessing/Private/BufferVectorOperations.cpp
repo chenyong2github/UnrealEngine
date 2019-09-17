@@ -1850,40 +1850,4 @@ namespace Audio
 			OutPos += 4;
 		}
 	}
-
-	void BufferComplexToPowerFast(const AlignedFloatBuffer& InRealSamples, const AlignedFloatBuffer& InImaginarySamples, AlignedFloatBuffer& OutPowerSamples)
-	{
-		checkf(InRealSamples.Num() == InImaginarySamples.Num(), TEXT("Input buffers must have equal number of elements"));
-
-		const int32 Num = InRealSamples.Num();
-
-		OutPowerSamples.Reset(Num);
-		OutPowerSamples.AddUninitialized(Num);
-
-		BufferComplexToPowerFast(InRealSamples.GetData(), InImaginarySamples.GetData(), OutPowerSamples.GetData(), Num);
-	}
-
-	void BufferComplexToPowerFast(const float* RESTRICT InRealSamples, const float* RESTRICT InImaginarySamples, float* RESTRICT OutPowerSamples, const int32 InNum)
-	{
-		checkf(InNum >= 4, TEXT("Buffer must have atleast 4 elements."));
-		checkf(0 == (InNum % 4), TEXT("Buffer length be a multiple of 4."));
-
-		checkf(IsAligned<const float*>(InRealSamples, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
-		checkf(IsAligned<const float*>(InImaginarySamples, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
-		checkf(IsAligned<float*>(OutPowerSamples, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
-
-		
-		for (int32 i = 0; i < InNum; i += 4)
-		{
-			VectorRegister VInReal = VectorLoadAligned(&InRealSamples[i]);
-			VectorRegister VInRealSquared = VectorMultiply(VInReal, VInReal);
-
-			VectorRegister VInImag = VectorLoadAligned(&InImaginarySamples[i]);
-			VectorRegister VInImagSquared = VectorMultiply(VInImag, VInImag);
-
-			VectorRegister VOut = VectorAdd(VInRealSquared, VInImagSquared);
-
-			VectorStoreAligned(VOut, &OutPowerSamples[i]);
-		}
-	}
 }
