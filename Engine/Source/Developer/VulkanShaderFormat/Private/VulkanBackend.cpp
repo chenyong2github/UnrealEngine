@@ -3260,7 +3260,7 @@ class FGenerateVulkanVisitor : public ir_visitor
 		if (!ExternalSamplersList.empty())
 		{
 			ralloc_asprintf_append(buffer, "// @ExternalTextures: ");
-			for (int Index = 0; Index < ExternalSamplersList.size(); ++Index)
+			for (uint32 Index = 0; Index < ExternalSamplersList.size(); ++Index)
 			{
 				ralloc_asprintf_append(buffer, "%s%s", Index == 0 ? "" : ",", ExternalSamplersList[Index].c_str());
 			}

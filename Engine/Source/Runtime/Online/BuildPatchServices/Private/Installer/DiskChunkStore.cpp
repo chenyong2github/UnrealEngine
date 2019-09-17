@@ -41,6 +41,7 @@ namespace BuildPatchServices
 		FLoadFuture QueueLoadRequest(const FGuid& DataId);
 		void QueueSaveRequest(const FGuid& DataId, TUniquePtr<IChunkDataAccess>&& ChunkData);
 		void ExecLostChunkCallback(const FGuid& LostChunk);
+		bool IsExpectedChunk(IChunkDataAccess* ChunkDataAccess, const FGuid& ChunkId);
 
 	private:
 		IFileSystem* const FileSystem;
@@ -221,24 +222,39 @@ namespace BuildPatchServices
 					IChunkDataAccess*& ChunkDataAccess = LoadResult.Get<1>();
 					if (ChunkIdToDumpLocation.Contains(DataId))
 					{
+						const int64& ChunkStartPos = ChunkIdToDumpLocation[DataId];
 						if (bValidFileHandle && DumpReader->TotalSize() != DumpWriter->TotalSize())
 						{
 							// We have to re-open the reader when the size has not been refreshed.
 							DumpReader = FileSystem->CreateFileReader(*DumpFilename, EReadFlags::AllowWrite);
 							bValidFileHandle = DumpReader.IsValid();
 						}
-						if (bValidFileHandle)
+						if (bValidFileHandle && ChunkStartPos < DumpReader->TotalSize())
 						{
 							DumpWriter->Flush();
-							const int64& ChunkStartPos = ChunkIdToDumpLocation[DataId];
 							DumpReader->Seek(ChunkStartPos);
 							ChunkDataAccess = Serializer->LoadFromArchive(*DumpReader, ChunkLoadResult);
 							bValidFileHandle = !DumpReader->IsError() && !DumpWriter->IsError();
+							if (!bValidFileHandle || !IsExpectedChunk(ChunkDataAccess, DataId))
+							{
+								ChunkLoadResult = EChunkLoadResult::SerializationError;
+							}
 						}
 						if (ChunkLoadResult != EChunkLoadResult::Success)
 						{
 							ChunkIdToDumpLocation.Remove(DataId);
 							ExecLostChunkCallback(DataId);
+							int64 ChunkDumpFileSize = 0;
+							FileSystem->GetFileSize(*DumpFilename, ChunkDumpFileSize);
+							for (auto ChunkIdToDumpLocationIt = ChunkIdToDumpLocation.CreateIterator(); ChunkIdToDumpLocationIt; ++ChunkIdToDumpLocationIt)
+							{
+								const TPair<FGuid, int64>& LocationPair = *ChunkIdToDumpLocationIt;
+								if (LocationPair.Value >= ChunkDumpFileSize)
+								{
+									ExecLostChunkCallback(LocationPair.Key);
+									ChunkIdToDumpLocationIt.RemoveCurrent();
+								}
+							}
 						}
 					}
 					LoadPromisePtr->SetValue(LoadResult);
@@ -251,6 +267,7 @@ namespace BuildPatchServices
 					TUniquePtr<IChunkDataAccess> ChunkDataPtr(QueuedChunkSave.Get<1>());
 					if (!ChunkIdToDumpLocation.Contains(DataId))
 					{
+						bool bSuccess = false;
 						EChunkSaveResult SaveResult = EChunkSaveResult::FileCreateFail;
 						if (bValidFileHandle)
 						{
@@ -259,12 +276,13 @@ namespace BuildPatchServices
 							SaveResult = Serializer->SaveToArchive(*DumpWriter, ChunkDataPtr.Get());
 							const int64 ChunkEndPos = DumpWriter->Tell();
 							bValidFileHandle = !DumpWriter->IsError();
-							if (SaveResult == EChunkSaveResult::Success)
+							if (SaveResult == EChunkSaveResult::Success && bValidFileHandle)
 							{
 								ChunkIdToDumpLocation.Add(DataId, ChunkStartPos);
+								bSuccess = true;
 							}
 						}
-						if (SaveResult != EChunkSaveResult::Success)
+						if (bSuccess == false)
 						{
 							ExecLostChunkCallback(DataId);
 						}
@@ -355,6 +373,16 @@ namespace BuildPatchServices
 		{
 			LostChunkCallback(LostChunk);
 		}
+	}
+
+	bool FDiskChunkStore::IsExpectedChunk(IChunkDataAccess* ChunkDataAccess, const FGuid& ChunkId)
+	{
+		if (ChunkDataAccess != nullptr)
+		{
+			FScopeLockedChunkData LockedChunkData(ChunkDataAccess);
+			return LockedChunkData.GetHeader()->Guid == ChunkId;
+		}
+		return false;
 	}
 
 	IDiskChunkStore* FDiskChunkStoreFactory::Create(IFileSystem* FileSystem, IChunkDataSerialization* Serializer, IDiskChunkStoreStat* DiskChunkStoreStat, FDiskChunkStoreConfig Configuration)

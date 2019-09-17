@@ -543,7 +543,7 @@ namespace BuildPatchServices
 		{
 			return false;
 		}
-		bool bSuccess = false;
+		bool bSuccess = true;
 		// If we are saving an old format, defer to the old code!
 		if (Ar.IsSaving() && SaveFormat < EFeatureLevel::StoredAsBinaryData)
 		{
@@ -554,8 +554,13 @@ namespace BuildPatchServices
 			const int64 StartPos = Ar.Tell();
 			FManifestHeader Header;
 			Header.Version = SaveFormat;
-			Ar << Header;
-			bSuccess = !Ar.IsError();
+
+			// Load header right away.
+			if (Ar.IsLoading())
+			{
+				Ar << Header;
+				bSuccess = !Ar.IsError();
+			}
 
 			// If we are loading an old format, defer to the old code!
 			if (Ar.IsLoading() && Header.Version < EFeatureLevel::StoredAsBinaryData)
@@ -613,12 +618,12 @@ namespace BuildPatchServices
 					*RawAr << AppManifest.ChunkDataList;
 					*RawAr << AppManifest.FileManifestList;
 					*RawAr << AppManifest.CustomFields;
-					bSuccess = !Ar.IsError();
+					bSuccess = !RawAr->IsError();
 					//// Here we would check for later header versions to serialise additional structures.
 					//if (bSuccess && Header.Version >= EFeatureLevel::SomeShinyNewVersion)
 					//{
 					//	*RawAr << AppManifest.CustomFields;
-					//	bSuccess = !Ar.IsError();
+					//	bSuccess = !RawAr->IsError();
 					//}
 				}
 				// If saving, calculate the raw data SHA.
@@ -655,19 +660,13 @@ namespace BuildPatchServices
 						Header.StoredAs = EManifestStorageFlags::None;
 					}
 				}
-				// Fill the archive with created data.
+				// If saving, go back to fill out header and then write data.
 				if (bSuccess && Ar.IsSaving())
 				{
-					Ar.Serialize(ManifestRawData.GetData(), ManifestRawData.Num());
-					bSuccess = !Ar.IsError();
-				}
-				// If we were saving, go back to save correct data sizes and storage info.
-				if (bSuccess && Ar.IsSaving())
-				{
-					const int64 EndPos = Ar.Tell();
 					Ar.Seek(StartPos);
 					Ar << Header;
-					Ar.Seek(EndPos);
+					Ar.Serialize(ManifestRawData.GetData(), ManifestRawData.Num());
+					Ar.Flush();
 					bSuccess = !Ar.IsError();
 				}
 				// If loading, setup manifest internal tracking.
@@ -677,8 +676,12 @@ namespace BuildPatchServices
 					AppManifest.InitLookups();
 				}
 			}
-			// We must always make sure to seek the archive to the correct end location.
-			Ar.Seek(StartPos + Header.HeaderSize + Header.DataSizeCompressed);
+			// We must always make sure to seek the archive to the correct end location, but only seek if we must, to avoid a flush.
+			const int64 DataLocation = StartPos + Header.HeaderSize + Header.DataSizeCompressed;
+			if (bSuccess && Ar.Tell() != DataLocation)
+			{
+				Ar.Seek(DataLocation);
+			}
 		}
 		bSuccess = bSuccess && !Ar.IsError();
 		if (!bSuccess)

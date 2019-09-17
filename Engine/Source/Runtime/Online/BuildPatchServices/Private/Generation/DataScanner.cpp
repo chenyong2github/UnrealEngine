@@ -28,7 +28,7 @@ namespace BuildPatchServices
 		virtual FBlockRange Fork() override;
 	private:
 		uint32 ConsumeData(FRollingHash& RollingHash, const uint8* Data, uint32 DataLen);
-		bool FindChunkDataMatch(const TMap<uint64, TSet<FGuid>>& ChunkInventory, const TMap<FGuid, FSHAHash>& ChunkShaHashes, FRollingHash& RollingHash, FGuid& ChunkMatch, FSHAHash& ChunkSha);
+		bool FindChunkDataMatch(const FRollingHash& RollingHash, const uint32& DataStart, FGuid& OutChunkMatch, FSHAHash& OutChunkSha);
 		int32 InsertMatch(TArray<FChunkMatch>& CurrentMatches, int32 SearchIdx, const uint64& InDataOffset, const FGuid& InChunkGuid, const uint32& InWindowSize);
 		TArray<FChunkMatch> ScanData();
 
@@ -37,10 +37,22 @@ namespace BuildPatchServices
 		const TArray<uint8>& Data;
 		const ICloudEnumeration* CloudEnumeration;
 		FStatsCollector* StatsCollector;
+		const TMap<uint64, TSet<FGuid>>& ChunkInventory;
+		const TMap<FGuid, FSHAHash>& ChunkShaHashes;
+		const TMap<FSHAHash, TSet<FGuid>>& IdenticalChunks;
 		FThreadSafeBool bIsComplete;
 		FThreadSafeBool bShouldAbort;
 		TFuture<TArray<FChunkMatch>> FutureResult;
 		FProcessTimer ScanTimer;
+
+		// Fast forward tech variables.
+		const int32 MatchHistorySize;
+		TArray<FGuid> MatchHistory;
+		int32 MatchHistoryNextIdx;
+		uint32 MatchHistoryNextOffset;
+		uint32 CurrentRepeatRunLength;
+		uint32 CurrentRepeatIdx;
+
 		volatile FStatsCollector::FAtomicValue* StatCreatedScanners;
 		volatile FStatsCollector::FAtomicValue* StatRunningScanners;
 		volatile FStatsCollector::FAtomicValue* StatCompleteScanners;
@@ -61,9 +73,20 @@ namespace BuildPatchServices
 		, Data(InData)
 		, CloudEnumeration(InCloudEnumeration)
 		, StatsCollector(InStatsCollector)
+		, ChunkInventory(CloudEnumeration->GetChunkInventory())
+		, ChunkShaHashes(CloudEnumeration->GetChunkShaHashes())
+		, IdenticalChunks(CloudEnumeration->GetIdenticalChunks())
 		, bIsComplete(false)
 		, bShouldAbort(false)
+		, MatchHistorySize(100)
+		, MatchHistoryNextIdx(0)
+		, MatchHistoryNextOffset(0)
+		, CurrentRepeatRunLength(0)
+		, CurrentRepeatIdx(0)
 	{
+		MatchHistory.Reserve(MatchHistorySize);
+		MatchHistory.AddDefaulted(MatchHistorySize);
+
 		// Create statistics.
 		StatCreatedScanners = StatsCollector->CreateStat(TEXT("Scanner: Created Scanners"), EStatFormat::Value);
 		StatRunningScanners = StatsCollector->CreateStat(TEXT("Scanner: Running Scanners"), EStatFormat::Value);
@@ -136,32 +159,83 @@ namespace BuildPatchServices
 		return 0;
 	}
 
-	bool FDataScanner::FindChunkDataMatch(const TMap<uint64, TSet<FGuid>>& ChunkInventory, const TMap<FGuid, FSHAHash>& ChunkShaHashes, FRollingHash& RollingHash, FGuid& ChunkMatch, FSHAHash& ChunkSha)
+	bool FDataScanner::FindChunkDataMatch(const FRollingHash& RollingHash, const uint32& DataStart, FGuid& OutChunkMatch, FSHAHash& OutChunkSha)
 	{
-		const TSet<FGuid>* PotentialMatches = ChunkInventory.Find(RollingHash.GetWindowHash());
-		bool bFoundMatch = false;
-		if (PotentialMatches != nullptr)
+		const uint32 LastMatchIdx = MatchHistoryNextIdx > 0 ? MatchHistoryNextIdx - 1 : 0;
+		// Able to start tracking a new cyclic pattern?
+		if (DataStart == MatchHistoryNextOffset && MatchHistory[0].IsValid() && LastMatchIdx > 0 && MatchHistory[0] == MatchHistory[LastMatchIdx])
 		{
-			RollingHash.GetWindowData().GetShaHash(ChunkSha);
-			// Always return first match in list however count all collisions.
-			for (const FGuid& PotentialMatch : *PotentialMatches)
+			// We got a repeated match so we can fast forward, avoiding SHA1 calculations.
+			if (CurrentRepeatRunLength == 0)
 			{
-				const FSHAHash* PotentialMatchSha = ChunkShaHashes.Find(PotentialMatch);
-				if (PotentialMatchSha != nullptr && *PotentialMatchSha == ChunkSha)
+				CurrentRepeatRunLength = LastMatchIdx;
+				CurrentRepeatIdx = 1;
+			}
+			const uint32 LastByte = DataStart + (RollingHash.GetWindowSize() - 1);
+			const uint8* RepeatStartByte = &Data[LastByte - CurrentRepeatRunLength];
+			const uint8* RepeatEndByte = &Data[LastByte];
+			const bool bCanFastForward = *RepeatStartByte == *RepeatEndByte;
+			if (bCanFastForward)
+			{
+				// Use repeat match.
+				OutChunkMatch = MatchHistory[CurrentRepeatIdx];
+				const bool bRepeatIsChunk = OutChunkMatch.IsValid();
+				if (bRepeatIsChunk)
 				{
-					if (!bFoundMatch)
-					{
-						ChunkMatch = PotentialMatch;
-						bFoundMatch = true;
-					}
+					OutChunkSha = ChunkShaHashes[OutChunkMatch];
 				}
-				else
+				// Advance the repeat, we always count with index base 1, rather than 0, i.e. 1 up to and including CurrentRepeatRunLength;
+				++MatchHistoryNextOffset;
+				++CurrentRepeatIdx;
+				if (CurrentRepeatIdx > CurrentRepeatRunLength)
 				{
-					FStatsCollector::Accumulate(StatHashCollisions, 1);
+					CurrentRepeatIdx = 1;
 				}
+				return bRepeatIsChunk;
+			}
+			else
+			{
+				// Cause reset.
+				MatchHistoryNextOffset = 0;
 			}
 		}
-		return bFoundMatch;
+		// Reset fast forward?
+		if (DataStart != MatchHistoryNextOffset || MatchHistoryNextIdx >= MatchHistorySize)
+		{
+			MatchHistory[0].Invalidate();
+			MatchHistoryNextIdx = 0;
+			MatchHistoryNextOffset = 0;
+			CurrentRepeatRunLength = 0;
+			CurrentRepeatIdx = 0;
+		}
+
+		// Check for rolling hash match.
+		const bool bMightHaveMatch = ChunkInventory.Contains(RollingHash.GetWindowHash());
+		if (bMightHaveMatch)
+		{
+			// Check for SHA match.
+			RollingHash.GetWindowData().GetShaHash(OutChunkSha);
+			if (IdenticalChunks.Contains(OutChunkSha))
+			{
+				// Grab first match.
+				OutChunkMatch = IdenticalChunks[OutChunkSha][FSetElementId::FromInteger(0)];
+				// Set it in the history.
+				MatchHistory[MatchHistoryNextIdx++] = OutChunkMatch;
+				MatchHistoryNextOffset = DataStart + 1;
+				return true;
+			}
+			else
+			{
+				FStatsCollector::Accumulate(StatHashCollisions, 1);
+			}
+		}
+		// Set blank in the history.
+		if (MatchHistoryNextIdx > 0)
+		{
+			MatchHistory[MatchHistoryNextIdx++].Invalidate();
+			MatchHistoryNextOffset++;
+		}
+		return false;
 	}
 
 	int32 FDataScanner::InsertMatch(TArray<FChunkMatch>& CurrentMatches, int32 SearchIdx, const uint64& DataFirst, const FGuid& ChunkGuid, const uint32& DataSize)
@@ -173,7 +247,7 @@ namespace BuildPatchServices
 		// There are several places that need behavior like this, FBlockStructure should be extended to support merge-able meta, or no-merge, ignore/replace type behavior.
 
 		// Find where start sits between
-		for(int32 Idx = 0/*SearchIdx*/; Idx < CurrentMatches.Num(); ++Idx)
+		for(int32 Idx = SearchIdx; Idx < CurrentMatches.Num(); ++Idx)
 		{
 			const uint64 ThisMatchFirst = CurrentMatches[Idx].DataOffset;
 			const uint64 ThisMatchLast = (ThisMatchFirst + CurrentMatches[Idx].WindowSize) - 1;
@@ -219,10 +293,6 @@ namespace BuildPatchServices
 		// The return data.
 		TArray<FChunkMatch> DataScanResult;
 
-		// Get refs for the chunk inventory.
-		const TMap<uint64, TSet<FGuid>>& ChunkInventory = CloudEnumeration->GetChunkInventory();
-		const TMap<FGuid, FSHAHash>& ChunkShaHashes = CloudEnumeration->GetChunkShaHashes();
-
 		ScanTimer.Start();
 		for (const uint32 WindowSize : ChunkWindowSizes)
 		{
@@ -248,14 +318,15 @@ namespace BuildPatchServices
 					const uint32 DataStart = NextByte - WindowSize;
 					const bool bChunkOverlap = DataStart < (LastMatch + WindowSize);
 					// Check for a chunk match at this offset.
-					const bool bFoundChunkMatch = FindChunkDataMatch(ChunkInventory, ChunkShaHashes, RollingHash, ChunkMatch, ChunkSha);
+					const bool bFoundChunkMatch = FindChunkDataMatch(RollingHash, DataStart, ChunkMatch, ChunkSha);
 					if (bFoundChunkMatch)
 					{
 						LastMatch = DataStart;
 						TempMatchIdx = InsertMatch(DataScanResult, TempMatchIdx, DataStart, ChunkMatch, WindowSize);
 					}
 					// We can start skipping over the chunk that we matched if we have no overlap potential, i.e. we know this match will not be rejected.
-					if (bFoundChunkMatch && !bChunkOverlap)
+					const bool bCanSkipData = bFoundChunkMatch && !bChunkOverlap;
+					if (bCanSkipData)
 					{
 						RollingHash.Clear();
 						const bool bHasEnoughData = (NextByte + WindowSize - 1) < static_cast<uint32>(Data.Num());

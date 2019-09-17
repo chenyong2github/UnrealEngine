@@ -4,6 +4,7 @@
 #include "Templates/Greater.h"
 #include "Algo/Sort.h"
 #include "Misc/ScopeLock.h"
+#include "IBuildManifestSet.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogChunkReferenceTracker, Warning, All);
 DEFINE_LOG_CATEGORY(LogChunkReferenceTracker);
@@ -13,7 +14,7 @@ namespace BuildPatchServices
 	class FChunkReferenceTracker : public IChunkReferenceTracker
 	{
 	public:
-		FChunkReferenceTracker(const FBuildPatchAppManifestRef& InstallManifest, const TSet<FString>& FilesToConstruct);
+		FChunkReferenceTracker(const IBuildManifestSet* ManifestSet, const TSet<FString>& FilesToConstruct);
 		FChunkReferenceTracker(TArray<FGuid> CustomUseStack);
 
 		~FChunkReferenceTracker();
@@ -33,7 +34,7 @@ namespace BuildPatchServices
 		mutable FCriticalSection UseStackCs;
 	};
 
-	FChunkReferenceTracker::FChunkReferenceTracker(const FBuildPatchAppManifestRef& InstallManifest, const TSet<FString>& FilesToConstruct)
+	FChunkReferenceTracker::FChunkReferenceTracker(const IBuildManifestSet* ManifestSet, const TSet<FString>& FilesToConstruct)
 		: ReferenceCount()
 		, UseStack()
 		, UseStackCs()
@@ -41,7 +42,7 @@ namespace BuildPatchServices
 		// Create our full list of chunks, including dupe references, and track the reference count of each chunk.
 		for (const FString& File : FilesToConstruct)
 		{
-			const FFileManifest* NewFileManifest = InstallManifest->GetFileManifest(File);
+			const FFileManifest* NewFileManifest = ManifestSet->GetNewFileManifest(File);
 			if (NewFileManifest != nullptr)
 			{
 				for (const FChunkPart& ChunkPart : NewFileManifest->ChunkParts)
@@ -180,9 +181,9 @@ namespace BuildPatchServices
 		return false;
 	}
 
-	IChunkReferenceTracker* FChunkReferenceTrackerFactory::Create(const FBuildPatchAppManifestRef& InstallManifest, const TSet<FString>& FilesToConstruct)
+	IChunkReferenceTracker* FChunkReferenceTrackerFactory::Create(const IBuildManifestSet* ManifestSet, const TSet<FString>& FilesToConstruct)
 	{
-		return new FChunkReferenceTracker(InstallManifest, FilesToConstruct);
+		return new FChunkReferenceTracker(ManifestSet, FilesToConstruct);
 	}
 
 	IChunkReferenceTracker* FChunkReferenceTrackerFactory::Create(TArray<FGuid> CustomChunkReferences)

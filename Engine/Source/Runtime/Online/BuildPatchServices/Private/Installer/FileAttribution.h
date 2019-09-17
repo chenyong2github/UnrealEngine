@@ -5,22 +5,22 @@
 #include "Installer/Controllable.h"
 #include "BuildPatchManifest.h"
 
+
 namespace BuildPatchServices
 {
 	class IFileSystem;
 	struct FBuildPatchProgress;
+	class IBuildManifestSet;
 
 	class IFileAttribution
 		: public IControllable
 	{
 	public:
 		/**
-		 * Applies the attributes to the files in the Staging directory, or installation directory. A force param can be set true in the
-		 * case that all attributes should be set regardless of changing since previous build. This is helpful for fixing file attributes
-		 * when they are suspected incorrect.
-		 * @param bForce   Default: False. Pass in true to always set up attributes even if patch does not change them.
+		 * Applies the attributes to the files in the Staging directory, or installation directory.
+		 * @return true is successful.
 		 */
-		virtual bool ApplyAttributes(bool bForce = false) = 0;
+		virtual bool ApplyAttributes() = 0;
 	};
 
 	class FFileAttributionFactory
@@ -39,6 +39,6 @@ namespace BuildPatchServices
 		 * @param BuildProgress         The build progress class to update with progress information.
 		 * @return     Ref of an object that can be used to perform the operation.
 		 */
-		static IFileAttribution* Create(IFileSystem* FileSystem, const FBuildPatchAppManifestRef& NewManifest, const FBuildPatchAppManifestPtr& OldManifest, TSet<FString> TouchedFiles, const FString& InstallDirectory, const FString& StagedFileDirectory, FBuildPatchProgress* BuildProgress);
+		static IFileAttribution* Create(IFileSystem* FileSystem, IBuildManifestSet* ManifestSet, TSet<FString> TouchedFiles, const FString& InstallDirectory, const FString& StagedFileDirectory, FBuildPatchProgress* BuildProgress);
 	};
 }
