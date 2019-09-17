@@ -777,14 +777,18 @@ public:
 	 * Returns the a tagged sub-instance node. If no sub instances are found or none are tagged with the
 	 * supplied name, this will return NULL.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (Keywords = "AnimBlueprint"))
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Sub-Instances", meta = (Keywords = "AnimBlueprint"))
 	UAnimInstance* GetSubInstanceByTag(FName InTag) const;
 
 	/**
 	 * Returns all tagged sub-instance nodes that match the tag.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (Keywords = "AnimBlueprint"))
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Sub-Instances", meta = (Keywords = "AnimBlueprint"))
 	void GetSubInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutSubInstances) const;
+
+	/** Runs through all nodes, attempting to find sub-instance by name/tag, then sets the class of each node if the tag matches */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Sub-Instances", meta = (Keywords = "AnimBlueprint"))
+	void SetSubInstanceClassByTag(FName InTag, TSubclassOf<UAnimInstance> InClass);
 
 	/** 
 	 * Runs through all layer nodes, attempting to find layer nodes that are implemented by the specified class, then sets up a sub instance of the class for each.

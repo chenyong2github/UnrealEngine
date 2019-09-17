@@ -6,6 +6,7 @@
 #include "AdvancedPreviewScene.h"
 #include "Containers/ArrayView.h"
 #include "Types/SlateEnums.h"
+#include "Animation/AnimBlueprint.h"
 
 class UAnimationAsset;
 class UDebugSkelMeshComponent;
@@ -97,6 +98,9 @@ public:
 
 	/** Get the preview mesh for this scene (does go via skeleton/asset) */
 	virtual USkeletalMesh* GetPreviewMesh() const = 0;
+
+	/** Set the preview animation blueprint and an optional overlay (for sub-layers) */
+	virtual void SetPreviewAnimationBlueprint(UAnimBlueprint* InAnimBlueprint, UAnimBlueprint* InOverlayOrSubAnimBlueprint) = 0;
 
 	/** Show the reference pose of the displayed skeletal mesh. Otherwise display the default. Optionally reset bone transforms, if any. */
 	virtual void ShowReferencePose(bool bShowRefPose, bool bResetBoneTransforms = false) = 0;
