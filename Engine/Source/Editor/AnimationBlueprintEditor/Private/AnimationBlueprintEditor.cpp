@@ -74,6 +74,7 @@
 #include "EdGraphNode_Comment.h"
 #include "AnimStateNodeBase.h"
 #include "AnimStateEntryNode.h"
+#include "PersonaUtils.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "AnimationBlueprintEditor"
@@ -282,10 +283,19 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 
 		UDebugSkelMeshComponent* PreviewMeshComponent = PersonaToolkit->GetPreviewMeshComponent();
 		UAnimBlueprint* AnimBlueprint = PersonaToolkit->GetAnimBlueprint();
-		PreviewMeshComponent->SetAnimInstanceClass(AnimBlueprint ? AnimBlueprint->GeneratedClass : NULL);
+		UAnimBlueprint* PreviewAnimBlueprint = AnimBlueprint->GetPreviewAnimationBlueprint();
+		
+		if (PreviewAnimBlueprint)
+		{
+			PersonaToolkit->GetPreviewScene()->SetPreviewAnimationBlueprint(PreviewAnimBlueprint, AnimBlueprint);
+			PreviewAnimBlueprint->OnCompiled().AddSP(this, &FAnimationBlueprintEditor::HandlePreviewAnimBlueprintCompiled);
+		}
+		else
+		{
+			PersonaToolkit->GetPreviewScene()->SetPreviewAnimationBlueprint(AnimBlueprint, nullptr);
+		}
 
-		// Make sure the object being debugged is the preview instance
-		AnimBlueprint->SetObjectBeingDebugged(PreviewMeshComponent->GetAnimInstance());
+		PersonaUtils::SetObjectBeingDebugged(AnimBlueprint, PreviewMeshComponent->GetAnimInstance());
 
 		ExtendMenu();
 		ExtendToolbar();
@@ -1152,12 +1162,19 @@ void FAnimationBlueprintEditor::Compile()
 			DebuggedMeshComponent->InitAnim(true);
 		}
 
-		UAnimInstance* NewInstance = DebuggedMeshComponent->GetAnimInstance();
-		UBlueprint* Blueprint = GetBlueprintObj();
-
-		if(NewInstance->IsA(Blueprint->GeneratedClass))
+		// re-apply preview anim bp if needed
+		UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
+		UAnimBlueprint* PreviewAnimBlueprint = AnimBlueprint->GetPreviewAnimationBlueprint();
+		
+		if (PreviewAnimBlueprint)
 		{
-			Blueprint->SetObjectBeingDebugged(NewInstance);
+			PersonaToolkit->GetPreviewScene()->SetPreviewAnimationBlueprint(PreviewAnimBlueprint, AnimBlueprint);
+		}
+
+		UAnimInstance* NewInstance = DebuggedMeshComponent->GetAnimInstance();
+		if(AnimBlueprint && (NewInstance->IsA(AnimBlueprint->GeneratedClass) || (PreviewAnimBlueprint != nullptr && NewInstance->IsA(PreviewAnimBlueprint->GeneratedClass))))
+		{
+			PersonaUtils::SetObjectBeingDebugged(AnimBlueprint, NewInstance);
 		}
 	}
 
@@ -1268,7 +1285,23 @@ void FAnimationBlueprintEditor::GetCustomDebugObjects(TArray<FCustomDebugObject>
 	UDebugSkelMeshComponent* PreviewMeshComponent = PersonaToolkit->GetPreviewMeshComponent();
 	if (PreviewMeshComponent->IsAnimBlueprintInstanced())
 	{
-		new (DebugList) FCustomDebugObject(PreviewMeshComponent->GetAnimInstance(), LOCTEXT("PreviewObjectLabel", "Preview Instance").ToString());
+		UAnimInstance* PreviewInstance = PreviewMeshComponent->GetAnimInstance();
+		UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
+		UAnimBlueprint* PreviewAnimBlueprint = AnimBlueprint->GetPreviewAnimationBlueprint();
+		if (PreviewAnimBlueprint)
+		{
+			EPreviewAnimationBlueprintApplicationMethod ApplicationMethod = AnimBlueprint->GetPreviewAnimationBlueprintApplicationMethod();
+			if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::OverlayLayer)
+			{
+				PreviewInstance = PreviewInstance->GetLayerSubInstanceByClass(AnimBlueprint->GeneratedClass.Get());
+			}
+			else if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::SubInstance)
+			{
+				PreviewInstance = PreviewInstance->GetSubInstanceByTag(AnimBlueprint->GetPreviewAnimationBlueprintTag());
+			}
+		}
+
+		new (DebugList) FCustomDebugObject(PreviewInstance, LOCTEXT("PreviewObjectLabel", "Preview Instance").ToString());
 	}
 }
 
@@ -1767,6 +1800,16 @@ void FAnimationBlueprintEditor::SaveEditorSettings()
 	{
 		EditorOptions->bHideUnrelatedNodes = bHideUnrelatedNodes;
 		EditorOptions->SaveConfig();
+	}
+}
+
+void FAnimationBlueprintEditor::HandlePreviewAnimBlueprintCompiled(UBlueprint* InBlueprint)
+{
+	UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
+	UAnimBlueprint* PreviewAnimBlueprint = AnimBlueprint->GetPreviewAnimationBlueprint();
+	if (PreviewAnimBlueprint)
+	{
+		GetPreviewScene()->SetPreviewAnimationBlueprint(PreviewAnimBlueprint, AnimBlueprint);
 	}
 }
 
