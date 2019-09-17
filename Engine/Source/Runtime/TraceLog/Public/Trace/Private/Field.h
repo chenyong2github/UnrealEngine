@@ -4,6 +4,8 @@
 
 #include "Trace.h"
 
+#include "Templates/UnrealTemplate.h"
+
 namespace Trace
 {
 
