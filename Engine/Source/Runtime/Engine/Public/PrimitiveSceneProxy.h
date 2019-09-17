@@ -1046,8 +1046,6 @@ private:
 
 	/** Whether this should only draw in any editing mode*/
 	uint32 DrawInAnyEditMode : 1;
-
-	uint32 bIsFoliage : 1;
 #endif
 
 	/** Used for precomputed visibility */
