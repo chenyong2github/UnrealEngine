@@ -18,25 +18,39 @@ namespace UnrealBuildTool.Rules
                     "WmfMediaFactory"
                     });
 
-            PrivateDependencyModuleNames.AddRange(
+			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",
 					"CoreUObject",
                     "Engine",
                     "MediaUtils",
-                    "Projects",
-                    "RenderCore",
+					"Projects",
+					"RenderCore",
                     "RHI",
-                    "UtilityShaders",
+					"UtilityShaders",
                     "WmfMediaFactory",
                 });
 
-            if (Target.Platform != UnrealTargetPlatform.XboxOne)
+            if (Target.Platform == UnrealTargetPlatform.XboxOne)
             {
-                PrivateDependencyModuleNames.Add("D3D11RHI");
+                PrivateDependencyModuleNames.AddRange(
+				  new string[] {
+					"D3D12RHI",
+                });
+                PrivateIncludePaths.AddRange(
+                    new string[] {
+                    "../../../../Source/Runtime/D3D12RHI/Private",
+                });
+            }
+            else
+            {
+                PrivateDependencyModuleNames.AddRange(
+                  new string[] {
+                    "D3D11RHI",
+                });
             }
 
-			PrivateIncludePathModuleNames.AddRange(
+            PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"Media",
 				});
@@ -67,7 +81,7 @@ namespace UnrealBuildTool.Rules
 				PublicDelayLoadDLLs.Add("mfplat.dll");
 				PublicDelayLoadDLLs.Add("mfplay.dll");
 				PublicDelayLoadDLLs.Add("shlwapi.dll");
-            }
+			}
 		}
 	}
 }
