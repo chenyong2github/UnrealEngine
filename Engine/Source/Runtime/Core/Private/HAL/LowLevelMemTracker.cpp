@@ -208,6 +208,27 @@ extern int32 LLMGetTagParent(ELLMTag Tag)
 	}
 }
 
+#if DO_CHECK
+
+bool LLMPrivate::HandleAssert(bool bLog, const TCHAR* Format, ...)
+{
+	if (bLog)
+	{
+		TCHAR DescriptionString[4096];
+		GET_VARARGS(DescriptionString, ARRAY_COUNT(DescriptionString), ARRAY_COUNT(DescriptionString) - 1, Format, Format);
+
+		FPlatformMisc::LowLevelOutputDebugString(DescriptionString);
+
+		if (FPlatformMisc::IsDebuggerPresent())
+			FPlatformMisc::PromptForRemoteDebugging(true);
+
+		UE_DEBUG_BREAK();
+	}
+	return false;
+}
+
+#endif
+
 /**
  * FLLMCsvWriter: class for writing out the LLM stats to a csv file every few seconds
  */
