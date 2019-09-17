@@ -16069,7 +16069,16 @@ UMaterialExpressionSkyAtmosphereLightIlluminance::UMaterialExpressionSkyAtmosphe
 #if WITH_EDITOR
 int32 UMaterialExpressionSkyAtmosphereLightIlluminance::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->SkyAtmosphereLightIlluminance(LightIndex);
+	int32 WorldPositionInput;
+	if (WorldPosition.GetTracedInput().Expression)
+	{
+		WorldPositionInput = WorldPosition.Compile(Compiler);
+	}
+	else
+	{
+		WorldPositionInput = Compiler->WorldPosition(WPT_Default);
+	}
+	return Compiler->SkyAtmosphereLightIlluminance(WorldPositionInput, LightIndex);
 }
 
 void UMaterialExpressionSkyAtmosphereLightIlluminance::GetCaption(TArray<FString>& OutCaptions) const
@@ -16205,7 +16214,16 @@ UMaterialExpressionSkyAtmosphereAerialPerspective::UMaterialExpressionSkyAtmosph
 #if WITH_EDITOR
 int32 UMaterialExpressionSkyAtmosphereAerialPerspective::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->SkyAtmosphereAerialPerspective();
+	int32 WorldPositionInput;
+	if (WorldPosition.GetTracedInput().Expression)
+	{
+		WorldPositionInput = WorldPosition.Compile(Compiler);
+	}
+	else
+	{
+		WorldPositionInput = Compiler->WorldPosition(WPT_Default);
+	}
+	return Compiler->SkyAtmosphereAerialPerspective(WorldPositionInput);
 }
 
 void UMaterialExpressionSkyAtmosphereAerialPerspective::GetCaption(TArray<FString>& OutCaptions) const
