@@ -2,6 +2,7 @@
 
 #include "DSP/AlignedBlockBuffer.h"
 #include "CoreMinimal.h"
+#include "AudioMixer.h"
 #include "SignalProcessingModule.h"
 
 using namespace Audio;

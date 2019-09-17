@@ -8,13 +8,6 @@
 
 namespace Audio
 {
-	// Types of spectrums which can be directly derived from FFTFreqDomainData
-	enum class ESpectrumType : uint8
-	{
-		MagnitudeSpectrum,
-		PowerSpectrum
-	};
-
 	namespace FFTIntrinsics
 	{
 		SIGNALPROCESSING_API uint32 NextPowerOf2(uint32 Input);
@@ -214,36 +207,8 @@ namespace Audio
 		FrequencyBuffer InputFrequencies;
 		int32 BlockSize;
 
-
 		AlignedFloatBuffer TimeDomainInputBuffer;
 		AlignedFloatBuffer COLABuffer;
 	};
 
-	// Computes the power spectrum from FFTFreqDomainData. Applies a 1/(FFTSize^2) scaling to the output to 
-	// maintain equal energy between original time domain data and output spectrum.  Only the first 
-	// (FFTSize / 2 + 1) spectrum values are calculated. These represent the frequencies from 0 to Nyquist.
-	//
-	// InFrequencyData is the input frequency domain data. Generally this is created by calling PerformFFT(...)
-	// FFTSize is the number of samples used when originally calculating the FFT
-	// OutBuffer is an aligned buffer which will contain spectrum data. It will constain (FFTSize / 2 + 1) elements.
-	SIGNALPROCESSING_API void ComputePowerSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer);
-
-	// Computes the magnitude spectrum from FFTFreqDomainData. Applies a 1/FFTSize scaling to the output to 
-	// maintain equal energy between original time domain data and output spectrum.  Only the first 
-	// (FFTSize / 2 + 1) spectrum values are calculated. These represent the frequencies from 0 to Nyquist.
-	//
-	// InFrequencyData is the input frequency domain data. Generally this is created by calling PerformFFT(...)
-	// FFTSize is the number of samples used when originally calculating the FFT
-	// OutBuffer is an aligned buffer which will contain spectrum data. It will constain (FFTSize / 2 + 1) elements.
-	SIGNALPROCESSING_API void ComputeMagnitudeSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer);
-	
-	// Computes the spectrum from FFTFreqDomainData. Applies a scaling to the output to maintain equal 
-	// energy between original time domain data and output spectrum.  Only the first (FFTSize / 2 + 1)
-	// spectrum values are calculated. These represent the frequencies from 0 to Nyquist.
-	//
-	// InSpectrumType denotes which spectrum type to calculate.
-	// InFrequencyData is the input frequency domain data. Generally this is created by calling PerformFFT(...)
-	// FFTSize is the number of samples used when originally calculating the FFT
-	// OutBuffer is an aligned buffer which will contain spectrum data. It will constain (FFTSize / 2 + 1) elements.
-	SIGNALPROCESSING_API void ComputeSpectrum(ESpectrumType InSpectrumType, const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer);
 }
