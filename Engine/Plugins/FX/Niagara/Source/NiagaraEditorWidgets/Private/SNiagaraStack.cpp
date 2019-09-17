@@ -572,7 +572,24 @@ TOptional<EItemDropZone> SNiagaraStack::OnRowCanAcceptDrop(const FDragDropEvent&
 	if (DragDropOp.IsValid())
 	{
 		DragDropOp->ResetToDefaultToolTip();
-		TOptional<UNiagaraStackEntry::FDropResult> Result = InTargetEntry->CanDrop(DragDropOp->GetDraggedEntries());
+
+		UNiagaraStackEntry::EDragOptions DragOptions = UNiagaraStackEntry::EDragOptions::None;
+		if (InDragDropEvent.IsAltDown() &&
+			InDragDropEvent.IsShiftDown() == false &&
+			InDragDropEvent.IsControlDown() == false &&
+			InDragDropEvent.IsCommandDown() == false)
+		{
+			DragOptions = UNiagaraStackEntry::EDragOptions::Copy;
+		}
+		else if (InDragDropEvent.IsAltDown() == false &&
+			InDragDropEvent.IsShiftDown() == false &&
+			InDragDropEvent.IsControlDown() == false &&
+			InDragDropEvent.IsCommandDown() == false)
+		{
+			DragOptions = UNiagaraStackEntry::EDragOptions::Move;
+		}
+		
+		TOptional<UNiagaraStackEntry::FDropResult> Result = InTargetEntry->CanDrop(DragDropOp->GetDraggedEntries(), DragOptions);
 		if (Result.IsSet())
 		{
 			if (Result.GetValue().DropMessage.IsEmptyOrWhitespace() == false)
@@ -599,7 +616,23 @@ FReply SNiagaraStack::OnRowAcceptDrop(const FDragDropEvent& InDragDropEvent, EIt
 	TSharedPtr<FNiagaraStackEntryDragDropOp> DragDropOp = InDragDropEvent.GetOperationAs<FNiagaraStackEntryDragDropOp>();
 	if (DragDropOp.IsValid())
 	{
-		if (ensureMsgf(InTargetEntry->Drop(DragDropOp->GetDraggedEntries()).IsSet(), TEXT("Failed to drop stack entry when can drop returned true")))
+		UNiagaraStackEntry::EDragOptions DragOptions = UNiagaraStackEntry::EDragOptions::None;
+		if (InDragDropEvent.IsAltDown() &&
+			InDragDropEvent.IsShiftDown() == false &&
+			InDragDropEvent.IsControlDown() == false &&
+			InDragDropEvent.IsCommandDown() == false)
+		{
+			DragOptions = UNiagaraStackEntry::EDragOptions::Copy;
+		}
+		else if (InDragDropEvent.IsAltDown() == false &&
+			InDragDropEvent.IsShiftDown() == false &&
+			InDragDropEvent.IsControlDown() == false &&
+			InDragDropEvent.IsCommandDown() == false)
+		{
+			DragOptions = UNiagaraStackEntry::EDragOptions::Move;
+		}
+
+		if (ensureMsgf(InTargetEntry->Drop(DragDropOp->GetDraggedEntries(), DragOptions).IsSet(), TEXT("Failed to drop stack entry when can drop returned true")))
 		{
 			return FReply::Handled();
 		}

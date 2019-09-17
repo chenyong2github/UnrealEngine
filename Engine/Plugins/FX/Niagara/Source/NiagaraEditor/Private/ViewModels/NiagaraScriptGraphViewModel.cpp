@@ -297,7 +297,7 @@ void FNiagaraScriptGraphViewModel::PasteNodes()
 				Node->MarkNodeRequiresSynchronization(__FUNCTION__, false);
 		}
 
-		FNiagaraEditorUtilities::FixUpPastedInputNodes(Graph, PastedNodes);
+		FNiagaraEditorUtilities::FixUpPastedNodes(Graph, PastedNodes);
 
 		OnNodesPastedDelegate.Broadcast(PastedNodes);
 
