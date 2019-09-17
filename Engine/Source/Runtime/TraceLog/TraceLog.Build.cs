@@ -9,7 +9,7 @@ public class TraceLog : ModuleRules
 	public TraceLog(ReadOnlyTargetRules Target) : base(Target)
 	{
 		bRequiresImplementModule = false;
-		PrivateIncludePathModuleNames.Add("Core");
+		PublicIncludePathModuleNames.Add("Core");
 
         if (Target.Platform == UnrealTargetPlatform.PS4)
         {
