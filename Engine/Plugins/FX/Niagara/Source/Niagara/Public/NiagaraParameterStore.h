@@ -214,6 +214,8 @@ public:
 
 	FORCEINLINE void SetParameterDataArray(const TArray<uint8>& InParameterDataArray);
 
+	void SanityCheckData(bool bInitInterfaces = true);
+
 	// Called to initially set up the parameter store to *exactly* match the input store (other than any bindings and the internal name of it).
 	virtual void InitFromSource(const FNiagaraParameterStore* SrcStore, bool bNotifyAsDirty);
 
@@ -324,6 +326,7 @@ public:
 		{
 			if (Parameter.IsDataInterface())
 			{
+				ensure(DestStore.DataInterfaces.IsValidIndex(DestIndex));
 				DataInterfaces[SrcIndex]->CopyTo(DestStore.DataInterfaces[DestIndex]);
 				DestStore.OnInterfaceChange();
 			}
