@@ -128,6 +128,13 @@ static FAutoConsoleVariableRef CVarVirtualTextureFeedbackFactor(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly /*Read-only as shaders are compiled with this value*/
 );
 
+static TAutoConsoleVariable<int32> CVarMobileClearSceneColorWithMaxAlpha(
+	TEXT("r.MobileClearSceneColorWithMaxAlpha"),
+	0,
+	TEXT("Whether the scene color alpha channel on mobile should be cleared with MAX_FLT.\n")
+    TEXT(" 0: disabled (default)\n"),
+	ECVF_RenderThreadSafe);
+
 /** The global render targets used for scene rendering. */
 static TGlobalResource<FSceneRenderTargets> SceneRenderTargetsSingleton;
 
@@ -562,7 +569,17 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 	int GBufferFormat = CVarGBufferFormat.GetValueOnRenderThread();
 
 	// Set default clear values
-	SetDefaultColorClear(FClearValueBinding::Black);
+	if (CurrentShadingPath == EShadingPath::Mobile &&
+		CVarMobileClearSceneColorWithMaxAlpha.GetValueOnRenderThread())
+	{
+		// On mobile the scene depth is calculated from the alpha component of the scene color
+		// Use BlackMaxAlpha to ensure un-rendered pixels have max depth...
+		SetDefaultColorClear(FClearValueBinding::BlackMaxAlpha);
+	}
+	else
+	{
+		SetDefaultColorClear(FClearValueBinding::Black);
+	}
 	SetDefaultDepthClear(FClearValueBinding::DepthFar);
 
 	int SceneColorFormat;
