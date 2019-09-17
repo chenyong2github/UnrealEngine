@@ -89,4 +89,6 @@ protected:
 
 	/** Helper function for finding function inputs when linking/unlinking */
 	int32 FindFunctionInputIndex(const FAnimBlueprintFunction& AnimBlueprintFunction, const FName& InInputName);
+
+	friend class UAnimInstance;
 };
