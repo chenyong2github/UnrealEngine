@@ -2236,9 +2236,7 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 }
 
 
-//------------------------------------------------------- ENTRY POINTS
-
-#if COMPUTESHADER
+//------------------------------------------------------- ENTRY POINT
 
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
 void MainCS(
@@ -2288,7 +2286,7 @@ void MainCS(
 		#endif
 	}
 
-#if TAA_DOWNSAMPLE
+	#if TAA_DOWNSAMPLE
 	{
 		// This shader permutation outputs half resolution image in addition to main full-res one.
 		// It is more efficient than performing a separate downsampling pass afterwards.
@@ -2309,62 +2307,5 @@ void MainCS(
 				(OutColor0 + GroupSharedDownsampleArray[P1] + GroupSharedDownsampleArray[P2] + GroupSharedDownsampleArray[P3]) * 0.25;
 		}
 	}
-#endif //TAA_DOWNSAMPLE
+	#endif //TAA_DOWNSAMPLE
 }
-
-
-#elif PIXELSHADER // DEPRECATED.
-
-#if AA_UPSAMPLE
-	#error Up sample only available to CS.
-#endif
-
-
-void MainPS(
-	float4 SvPosition : SV_POSITION,
-	#if HISTORY_RENDER_TARGETS == 2
-		out float4 OutColor0 : SV_Target0,
-		out float4 OutColor1 : SV_Target1
-	#else
-		out float4 OutColor0 : SV_Target0
-	#endif
-	)
-{
-	float2 ViewportUV = (SvPosition.xy - OutputViewportRect.xy) * OutputViewportSize.zw;
-
-	#if AA_LOWER_RESOLUTION
-	{
-		ViewportUV = (SvPosition.xy - OutputViewportRect.xy) * MaxViewportUVAndSvPositionToViewportUV.zw;
-		ViewportUV = min(ViewportUV, MaxViewportUVAndSvPositionToViewportUV.xy);
-	}
-	#endif
-
-	uint2 GroupId = int2(0, 0);
-	uint2 GroupThreadId = int2(0, 0);
-	uint GroupThreadIndex = 0;
-	float FrameExposureScale = EyeAdaptationLookup();
-	
-	FTAAHistoryPayload OutputPayload = TemporalAASample(GroupId, GroupThreadId, GroupThreadIndex, ViewportUV, FrameExposureScale);
-
-	#if AA_HISTORY_PAYLOAD == HISTORY_PAYLOAD_RGB_COC
-	{
-		OutColor0.rgb = OutputPayload.Color.rgb;
-		OutColor0.a = OutputPayload.CocRadius;
-	}
-	#elif AA_HISTORY_PAYLOAD == HISTORY_PAYLOAD_RGB_OPACITY_COC
-	{
-		OutColor0 = OutputPayload.Color;
-		OutColor1.r = OutputPayload.CocRadius;
-	}
-	#else
-	{
-		OutColor0 = OutputPayload.Color;
-	}
-	#endif
-}
-
-
-#else
-	#error Only PS or CS.
-
-#endif

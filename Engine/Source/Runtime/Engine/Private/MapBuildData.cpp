@@ -60,6 +60,17 @@ ULevel* UWorld::GetActiveLightingScenario() const
 
 void UWorld::PropagateLightingScenarioChange()
 {
+	for (ULevel* Level : GetLevels())
+	{
+		Level->ReleaseRenderingResources();
+		Level->InitializeRenderingResources();
+
+		for (UModelComponent* ModelComponent : Level->ModelComponents)
+		{
+			ModelComponent->PropagateLightingScenarioChange();
+		}
+	}
+
 	for (FActorIterator It(this); It; ++It)
 	{
 		TInlineComponentArray<USceneComponent*> Components;
@@ -69,17 +80,6 @@ void UWorld::PropagateLightingScenarioChange()
 		{
 			USceneComponent* CurrentComponent = Components[ComponentIndex];
 			CurrentComponent->PropagateLightingScenarioChange();
-		}
-	}
-
-	for (ULevel* Level : GetLevels())
-	{
-		Level->ReleaseRenderingResources();
-		Level->InitializeRenderingResources();
-
-		for (UModelComponent* ModelComponent : Level->ModelComponents)
-		{
-			ModelComponent->PropagateLightingScenarioChange();
 		}
 	}
 
@@ -404,9 +404,9 @@ void UMapBuildDataRegistry::PostLoad()
 	{
 		// We already stripped unneeded formats during cooking, but some cooking targets require multiple formats to be stored
 		// Strip unneeded formats for the current max feature level
-		bool bRetainAllFeatureLevelData = GIsEditor && GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM4;
+		bool bRetainAllFeatureLevelData = GIsEditor && GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5;
 		bool bEncodedDataRequired = bRetainAllFeatureLevelData || (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
-		bool bFullDataRequired = GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM4;
+		bool bFullDataRequired = GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5;
 
 		for (TMap<FGuid, FReflectionCaptureMapBuildData>::TIterator It(ReflectionCaptureBuildData); It; ++It)
 		{

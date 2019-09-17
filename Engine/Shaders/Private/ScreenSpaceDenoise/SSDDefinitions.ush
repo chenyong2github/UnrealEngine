@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "/Engine/Public/Platform.ush"
+
+
 //------------------------------------------------------- COMPILER CONFIG
 
 // Generate vector truncation warnings to errors.
@@ -34,6 +37,9 @@
 /** Prefer to store normalized components in internal texture. */
 #define DEBUG_STORE_NORMALIZED_COMPONENTS 1
 
+/** Disable any VGPR compression of the signal. */
+#define DEBUG_DISABLE_SIGNAL_COMPRESSION 0
+
 
 //------------------------------------------------------- SHARED CONSTANTS
 
@@ -47,17 +53,11 @@
 
 // World bluring radius for a miss.
 #define WORLD_RADIUS_INVALID -1
-#define WORLD_RADIUS_MISS 1.#INF
+#define WORLD_RADIUS_MISS (INFINITE_FLOAT)
 
 // Mip level for sample that are invalid or missed.
 #define MIP_LEVEL_INVALID -1
 #define MIP_LEVEL_MISS 1024
-
-// Maximum number of signal that can be denoised at same time.
-#define MAX_SIGNAL_BATCH_SIZE 4
-
-// Maximum number of signal that can be multiplexed into single output.
-#define MAX_SIGNAL_MULTIPLEXING 8
 
 // Maximum number of buffer multiple signals can be encode to/decoded from.
 #define MAX_MULTIPLEXED_TEXTURES 4
@@ -94,6 +94,16 @@
 	#define SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY 11
 
 
+	/** Buffer layout input for denoising multi polychromatic penumbra. */
+	#define SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HARMONIC_INPUT 0x1000
+
+	/** Internal buffer layout for denoising multi polychromatic penumbra. */
+	#define SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HARMONIC_RECONSTRUCTION 0x1001
+
+	/** Internal buffer layout for denoising multi polychromatic penumbra. */
+	#define SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HISTORY 0x1002
+
+
 	/** Buffer layout for the reflection given by the ray generation shader. */
 	#define SIGNAL_BUFFER_LAYOUT_REFLECTIONS_INPUT 3
 
@@ -124,18 +134,28 @@
 	#define SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_HISTORY 0xD102
 
 
+	/** Buffer layout given by the ray generation shader for diffuse indirect  illumination. */
+	#define SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC 0xD200
+
+
 /** Defines how the signal is being processed. Matches C++'s ESignalProcessing. */
 	/** Shadow penumbra denoising. */
 	#define SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA 0
 
+	/** Shadow penumbra denoising. */
+	#define SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC 1
+
 	/** Reflection denoising. */
-	#define SIGNAL_PROCESSING_REFLECTIONS 1
+	#define SIGNAL_PROCESSING_REFLECTIONS 2
 
 	/** Ambient occlusion denoising. */
-	#define SIGNAL_PROCESSING_AO 2
+	#define SIGNAL_PROCESSING_AO 3
 
-	/** Global illumination denoising. */
-	#define SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO 3
+	/** Diffuse indirect and ambient occlusion. */
+	#define SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO 4
+
+	/** Diffuse indirect using spherical harmonic. */
+	#define SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC 5
 
 
 
@@ -177,6 +197,64 @@
 
 	#define SAMPLE_SET_HEXAWEB 11
 
+	#define SAMPLE_SET_STOCASTIC_HIERARCHY 12
+
+
+/** Compression of signal for VGPR occupency. */
+	/** The signal is not being compressed. */
+	#define SIGNAL_COMPRESSION_DISABLED 0
+
+	/** VGPR compression for spherical harmonic. */
+	#define SIGNAL_COMPRESSION_DIFFUSE_INDIRECT_HARMONIC 0xD200
+
+
+/** Compression of signal for VGPR occupency. */
+	/** The signal is not being compressed. */
+	#define ACCUMULATOR_COMPRESSION_DISABLED 0
+
+	/** VGPR compression for spherical harmonic. */
+	#define ACCUMULATOR_COMPRESSION_PENUMBRA_DRB 0x0001
+
+
+/** Technic used to compute the world vector betweem neighbor and reference. */
+	// Directly use FSSDKernelConfig::RefSceneMetadata.TranslatedWorldPosition. Cost 3 VGPR over entire kernel inner loop.
+	#define NEIGHBOR_TO_REF_CACHE_WORLD_POSITION 0
+
+	// Compute by deriving the information of the reference pixel last minute from kernel configuration, trading VALU to save VGPR.
+	// TODO: does not work with previous frame reprojection.
+	#define NEIGHBOR_TO_REF_LOWEST_VGPR_PRESSURE 1
+
+
+/** Type to use for texture sampling. */
+	#define SIGNAL_TEXTURE_TYPE_FLOAT4 0
+	#define SIGNAL_TEXTURE_TYPE_UINT2 1
+
+
+/** Bilateral settings bitfield. */
+	#define BILATERAL_POSITION_BASED(n) (0x0000 + (n) & 0xF)
+	#define BILATERAL_NORMAL 0x0010
+	#define BILATERAL_TOKOYASHI_LOBE 0x0020
+	#define BILATERAL_TOKOYASHI_AXES 0x0040
+	#define BILATERAL_TOKOYASHI (BILATERAL_TOKOYASHI_LOBE | BILATERAL_TOKOYASHI_AXES)
+
+/** Bilateral settings presets for spatial kernels. */
+	// No bilateral settings.
+	#define BILATERAL_PRESET_DISABLED 0x0000
+
+	#define BILATERAL_PRESET_MONOCHROMATIC_PENUMBRA 0x0011
+
+	#define BILATERAL_PRESET_POLYCHROMATIC_PENUMBRA 0x0022
+
+	#define BILATERAL_PRESET_REFLECTIONS 0x1001
+	#define BILATERAL_PRESET_REFLECTIONS_1SPP 0x1002
+	#define BILATERAL_PRESET_REFLECTIONS_TAA 0x1003
+
+	#define BILATERAL_PRESET_DIFFUSE 0x2001
+
+	#define BILATERAL_PRESET_SPHERICAL_HARMONIC 0x3001
+
+
+
 
 //------------------------------------------------------- GLOBAL CONFIGURATION OF ALL DENOISER SHADERS
 
@@ -184,8 +262,8 @@
 // TODO: the hierarchical denoiser needs that.
 #define CONFIG_NORMAL_ANISOTROPY 0
 
-/** Whether should enable VGPR optimizations. */
-#define CONFIG_VGPR_OPTIMIZATION 0
+/** Whether should enable VGPR optimizations in the entry point of the shaders. */
+#define CONFIG_VGPR_OPTIMIZATION 1
 
 /** Whether should do VALU optimizations. */
 #define CONFIG_VALU_OPTIMIZATIONS 1
@@ -193,6 +271,9 @@
 /** Whether should compile hint to the shader compiler to force shift some variable to SGPR. */
 // TODO: the shader compiler is not doing the right thing.
 #define CONFIG_SGPR_HINT_OPTIMIZATION 0
+
+/** Configures whether the world normal should be compressed in FSSDSampleSceneInfos. */
+#define CONFIG_COMPRESS_WORLD_NORMAL 1
 
 /** By default, the color space stored into intermediary buffer is linear premultiplied RGBA. */
 #define STANDARD_BUFFER_COLOR_SPACE COLOR_SPACE_RGB

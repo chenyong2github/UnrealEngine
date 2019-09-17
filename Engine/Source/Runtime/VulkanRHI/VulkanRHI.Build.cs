@@ -16,6 +16,10 @@ public class VulkanRHI : ModuleRules
 			PrivateIncludePaths.Add("Runtime/VulkanRHI/Private/Windows");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
 		}
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+		{
+			PrivateIncludePaths.Add("Runtime/VulkanRHI/Private/Linux");
+		}
 		else
 		{
 			PrivateIncludePaths.Add("Runtime/VulkanRHI/Private/" + Target.Platform);
@@ -29,7 +33,6 @@ public class VulkanRHI : ModuleRules
 				"Engine", 
 				"RHI", 
 				"RenderCore", 
-				"UtilityShaders",
 				"HeadMountedDisplay",
                 "PreLoadScreen",
 				"BuildSettings"
@@ -43,7 +46,7 @@ public class VulkanRHI : ModuleRules
         }
         else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			if (Target.Platform == UnrealTargetPlatform.Linux)
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 			{
 				PrivateDependencyModuleNames.Add("ApplicationCore");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "SDL2");

@@ -739,10 +739,10 @@ float FD3D11EventNodeFrame::GetRootTimingResults()
 
 void FD3D11EventNodeFrame::LogDisjointQuery()
 {
-	UE_LOG(LogRHI, Warning, TEXT("%s"),
-		DisjointQuery.IsResultValid()
-		? TEXT("Profiled range was continuous.")
-		: TEXT("Profiled range was disjoint!  GPU switched to doing something else while profiling."));
+	if (!DisjointQuery.IsResultValid())
+	{
+		UE_LOG(LogRHI, Warning, TEXT("%s"), TEXT("Profiled range was disjoint!  GPU switched to doing something else while profiling."));
+	}
 }
 
 void UpdateBufferStats(TRefCountPtr<ID3D11Buffer> Buffer, bool bAllocating)

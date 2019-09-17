@@ -22,6 +22,9 @@
 #ifndef MULTISCATTERING_APPROX_ENABLED 
 #define MULTISCATTERING_APPROX_ENABLED 0 
 #endif
+#ifndef HIGHQUALITY_MULTISCATTERING_APPROX_ENABLED 
+#define HIGHQUALITY_MULTISCATTERING_APPROX_ENABLED 0 
+#endif
 #ifndef FASTSKY_ENABLED 
 #define FASTSKY_ENABLED 0 
 #endif
@@ -896,6 +899,8 @@ void RenderTransmittanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
 ////////////////////////////////////////////////////////////
 
 RWTexture2D<float3> MultiScatteredLuminanceLutUAV;
+Buffer<float4> UniformSphereSamplesBuffer;
+uint UniformSphereSamplesBufferSampleCount;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void RenderMultiScatteredLuminanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
@@ -925,7 +930,26 @@ void RenderMultiScatteredLuminanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
 
 	const float SphereSolidAngle = 4.0f * PI;
 	const float IsotropicPhase = 1.0f / SphereSolidAngle;
-#if 1
+
+#if HIGHQUALITY_MULTISCATTERING_APPROX_ENABLED
+
+	float3 IntegratedIlluminance = 0.0f;
+	float3 MultiScatAs1 = 0.0f;
+	for (int s = 0; s < UniformSphereSamplesBufferSampleCount; ++s)
+	{
+		SingleScatteringResult r0 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, UniformSphereSamplesBuffer[s].xyz, Ground, Sampling, DeviceZ, MieRayPhase,
+			LightDir, NullLightDirection, OneIlluminance, NullLightIlluminance, AerialPespectiveViewDistanceScale);
+
+		IntegratedIlluminance += r0.L;
+		MultiScatAs1 += r0.MultiScatAs1;
+	}
+	const float InvCount = 1.0f / float(UniformSphereSamplesBufferSampleCount);
+	IntegratedIlluminance *= SphereSolidAngle * InvCount;
+	MultiScatAs1 *= InvCount;
+
+	float3 InScatteredLuminance = IntegratedIlluminance * IsotropicPhase;
+
+#elif 1
 
 	// Cheap and good enough approximation (but lose energy) 
 	SingleScatteringResult r0 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, WorldDir, Ground, Sampling, DeviceZ, MieRayPhase,
@@ -940,14 +964,22 @@ void RenderMultiScatteredLuminanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
 #else
 
 	// Less cheap but approximation closer to ground truth
-	SingleScatteringResult r0 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(0.70710678118f 0.0f, 0.70710678118f), LightDir, Ground, Sampling, DeviceZ, MieRayPhase, AerialPespectiveViewDistanceScale);
-	SingleScatteringResult r1 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(-0.70710678118f, 0.0f, 0.70710678118f), LightDir, Ground, Sampling, DeviceZ, MieRayPhase, AerialPespectiveViewDistanceScale);
-	SingleScatteringResult r2 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(0.0f, 0.70710678118f, 0.70710678118f), LightDir, Ground, Sampling, DeviceZ, MieRayPhase, AerialPespectiveViewDistanceScale);
-	SingleScatteringResult r3 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(0.0f, -0.70710678118f, 0.70710678118f), LightDir, Ground, Sampling, DeviceZ, MieRayPhase, AerialPespectiveViewDistanceScale);
-	SingleScatteringResult r4 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(0.70710678118f, 0.0f, -0.70710678118f), LightDir, Ground, Sampling, DeviceZ, MieRayPhase, AerialPespectiveViewDistanceScale);
-	SingleScatteringResult r5 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(-0.70710678118f, 0.0f, -0.70710678118f), LightDir, Ground, Sampling, DeviceZ, MieRayPhase, AerialPespectiveViewDistanceScale);
-	SingleScatteringResult r6 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(0.0f, 0.70710678118f, -0.70710678118f), LightDir, Ground, Sampling, DeviceZ, MieRayPhase, AerialPespectiveViewDistanceScale);
-	SingleScatteringResult r7 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(0.0f, -0.70710678118f, -0.70710678118f), LightDir, Ground, Sampling, DeviceZ, MieRayPhase, AerialPespectiveViewDistanceScale);
+	SingleScatteringResult r0 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(0.70710678118f, 0.0f, 0.70710678118f), Ground, Sampling, DeviceZ, MieRayPhase,
+		LightDir, NullLightDirection, OneIlluminance, NullLightIlluminance, AerialPespectiveViewDistanceScale);
+	SingleScatteringResult r1 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(-0.70710678118f, 0.0f, 0.70710678118f), Ground, Sampling, DeviceZ, MieRayPhase,
+		LightDir, NullLightDirection, OneIlluminance, NullLightIlluminance, AerialPespectiveViewDistanceScale);
+	SingleScatteringResult r2 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(0.0f, 0.70710678118f, 0.70710678118f), Ground, Sampling, DeviceZ, MieRayPhase,
+		LightDir, NullLightDirection, OneIlluminance, NullLightIlluminance, AerialPespectiveViewDistanceScale);
+	SingleScatteringResult r3 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(0.0f, -0.70710678118f, 0.70710678118f), Ground, Sampling, DeviceZ, MieRayPhase,
+		LightDir, NullLightDirection, OneIlluminance, NullLightIlluminance, AerialPespectiveViewDistanceScale);
+	SingleScatteringResult r4 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(0.70710678118f, 0.0f, -0.70710678118f), Ground, Sampling, DeviceZ, MieRayPhase,
+		LightDir, NullLightDirection, OneIlluminance, NullLightIlluminance, AerialPespectiveViewDistanceScale);
+	SingleScatteringResult r5 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(-0.70710678118f, 0.0f, -0.70710678118f), Ground, Sampling, DeviceZ, MieRayPhase,
+		LightDir, NullLightDirection, OneIlluminance, NullLightIlluminance, AerialPespectiveViewDistanceScale);
+	SingleScatteringResult r6 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(0.0f, 0.70710678118f, -0.70710678118f), Ground, Sampling, DeviceZ, MieRayPhase,
+		LightDir, NullLightDirection, OneIlluminance, NullLightIlluminance, AerialPespectiveViewDistanceScale);
+	SingleScatteringResult r7 = IntegrateSingleScatteredLuminance(float4(PixPos, 0.0f, 1.0f), WorldPos, float3(0.0f, -0.70710678118f, -0.70710678118f), Ground, Sampling, DeviceZ, MieRayPhase,
+		LightDir, NullLightDirection, OneIlluminance, NullLightIlluminance, AerialPespectiveViewDistanceScale);
 
 	// Integral of in-scattered Luminance (Lumen/(m2.sr)) over the sphere gives illuminance (Lumen/m2). 
 	// This is done with equal importance for each samples over the sphere. 
@@ -1054,7 +1086,7 @@ void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
 ////////////////////////////////////////////////////////////
 
 RWTexture2D<float3> DistantSkyLightLutUAV;
-Buffer<float4> UniformSphereSamplesBuffer;
+//Buffer<float4> UniformSphereSamplesBuffer;
 float4 AtmosphereLightDirection0;
 float4 AtmosphereLightDirection1;
 float4 AtmosphereLightColor0;

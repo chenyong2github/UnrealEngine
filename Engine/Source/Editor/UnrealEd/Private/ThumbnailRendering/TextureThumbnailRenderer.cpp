@@ -9,6 +9,8 @@
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "EngineGlobals.h"
 #include "Engine/TextureCube.h"
+#include "Engine/Texture2DArray.h"
+#include "Texture2DPreview.h"
 #include "Engine/TextureRenderTargetCube.h"
 
 #include "CubemapUnwrapUtils.h"
@@ -58,6 +60,7 @@ void UTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 W
 		const bool bUseTranslucentBlend = Texture2D && Texture2D->HasAlphaChannel() && ((Texture2D->LODGroup == TEXTUREGROUP_UI) || (Texture2D->LODGroup == TEXTUREGROUP_Pixels2D));
 
 		UTextureCube* TextureCube = Cast<UTextureCube>(Texture);
+		UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture);
 		UTextureRenderTargetCube* RTTextureCube = Cast<UTextureRenderTargetCube>(Texture);
 		UTextureLightProfile* TextureLightProfile = Cast<UTextureLightProfile>(Texture);
 
@@ -74,6 +77,12 @@ void UTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 W
 				Height = Width / 2;
 				Y += Height / 2;
 			}
+		}
+		else if (Texture2DArray) 
+		{
+			bool bIsNormalMap = Texture2DArray->IsNormalMap();
+			bool bIsSingleChannel = true;
+			BatchedElementParameters = new FBatchedElementTexture2DPreviewParameters(0, 0, bIsNormalMap, bIsSingleChannel, false, true);
 		}
 		else if (TextureLightProfile)
 		{

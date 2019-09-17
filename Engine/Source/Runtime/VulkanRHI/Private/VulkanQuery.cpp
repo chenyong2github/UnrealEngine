@@ -203,7 +203,7 @@ void FVulkanOcclusionQueryPool::Reset(FVulkanCmdBuffer* InCmdBuffer, uint32 InFr
 	VulkanRHI::vkCmdResetQueryPool(InCmdBuffer->GetHandle(), QueryPool, 0, MaxQueries);
 	
 	// workaround for apparent cache-flush bug in AMD driver implementation of vkCmdResetQueryPool
-	if (IsRHIDeviceAMD())
+	if (Device->GetVendorId() == EGpuVendorId::Amd)
 	{
 		VkMemoryBarrier barrier;
 		ZeroVulkanStruct(barrier, VK_STRUCTURE_TYPE_MEMORY_BARRIER);

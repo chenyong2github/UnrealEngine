@@ -11,6 +11,7 @@
 #include "ResolveShader.h"
 #include "PipelineStateCache.h"
 #include "Math/PackedVector.h"
+#include "RHISurfaceDataConversion.h"
 
 static FResolveRect GetDefaultRect(const FResolveRect& Rect, uint32 DefaultWidth, uint32 DefaultHeight)
 {
@@ -144,289 +145,68 @@ struct FMetalRGBA16
 	uint16 A;
 };
 
-// todo: this should be available for all RHI
+void FMetalDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect InRect, TArray<FLinearColor>& OutData, FReadSurfaceDataFlags InFlags)
+{
+	// Use our current surface read implementation and convert to linear - should refactor to make optimal
+	TArray<FColor> OutDataUnConverted;
+	RHIReadSurfaceData(TextureRHI, InRect, OutDataUnConverted, InFlags);
+
+	OutData.Empty();
+	OutData.AddUninitialized(OutDataUnConverted.Num());
+
+	for (uint32 i = 0; i < OutDataUnConverted.Num(); ++i)
+	{
+		OutData[i] = OutDataUnConverted[i].ReinterpretAsLinear();
+	}
+}
+
 static void ConvertSurfaceDataToFColor(EPixelFormat Format, uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, FReadSurfaceDataFlags InFlags)
 {
 	bool bLinearToGamma = InFlags.GetLinearToGamma();
-	
-	if(Format == PF_G16 || Format == PF_R16_UINT || Format == PF_R16_SINT)
+	if (Format == PF_G16 || Format == PF_R16_UINT || Format == PF_R16_SINT)
 	{
-		// e.g. shadow maps
-		for(uint32 Y = 0; Y < Height; Y++)
-		{
-			uint16* SrcPtr = (uint16*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			
-			for(uint32 X = 0; X < Width; X++)
-			{
-				uint16 Value16 = *SrcPtr;
-				float Value = Value16 / (float)(0xffff);
-				
-				*DestPtr = FLinearColor(Value, Value, Value).Quantize();
-				++SrcPtr;
-				++DestPtr;
-			}
-		}
+		ConvertRawR16DataToFColor(Width, Height, In, SrcPitch, Out);
 	}
-	else if(Format == PF_R8G8B8A8)
+	else if (Format == PF_R8G8B8A8)
 	{
-		// Read the data out of the buffer, converting it from ABGR to ARGB.
-		for(uint32 Y = 0; Y < Height; Y++)
-		{
-			FColor* SrcPtr = (FColor*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			for(uint32 X = 0; X < Width; X++)
-			{
-				*DestPtr = FColor(SrcPtr->B,SrcPtr->G,SrcPtr->R,SrcPtr->A);
-				++SrcPtr;
-				++DestPtr;
-			}
-		}
+		ConvertRawR8G8B8A8DataToFColor(Width, Height, In, SrcPitch, Out);
 	}
-	else if(Format == PF_B8G8R8A8)
+	else if (Format == PF_B8G8R8A8)
 	{
-		const auto DestPitch = sizeof(FColor) * Width;
-		if (SrcPitch == DestPitch)
-		{
-			FMemory::Memcpy(Out, In, DestPitch * Height);
-		}
-		else
-		{
-			for(uint32 Y = 0; Y < Height; Y++)
-			{
-				FColor* SrcPtr = (FColor*)(In + Y * SrcPitch);
-				FColor* DestPtr = Out + Y * Width;
-				
-				// Need to copy row wise since the Pitch might not match the Width.
-				FMemory::Memcpy(DestPtr, SrcPtr, sizeof(FColor) * Width);
-			}
-		}
+		ConvertRawB8G8R8A8DataToFColor(Width, Height, In, SrcPitch, Out);
 	}
-	else if(Format == PF_A2B10G10R10)
+	else if (Format == PF_A2B10G10R10)
 	{
-		// Read the data out of the buffer, converting it from R10G10B10A2 to FColor.
-		for(uint32 Y = 0; Y < Height; Y++)
-		{
-			FMetalR10G10B10A2* SrcPtr = (FMetalR10G10B10A2*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			for(uint32 X = 0; X < Width; X++)
-			{
-				*DestPtr = FLinearColor(
-										(float)SrcPtr->R / 1023.0f,
-										(float)SrcPtr->G / 1023.0f,
-										(float)SrcPtr->B / 1023.0f,
-										(float)SrcPtr->A / 3.0f
-										).Quantize();
-				++SrcPtr;
-				++DestPtr;
-			}
-		}
+		ConvertRawR10G10B10A2DataToFColor(Width, Height, In, SrcPitch, Out);
 	}
-	else if(Format == PF_FloatRGBA)
+	else if (Format == PF_FloatRGBA)
 	{
-		FPlane	MinValue(0.0f,0.0f,0.0f,0.0f),
-		MaxValue(1.0f,1.0f,1.0f,1.0f);
-		
-		check(sizeof(FFloat16)==sizeof(uint16));
-		
-		for(uint32 Y = 0; Y < Height; Y++)
-		{
-			FFloat16* SrcPtr = (FFloat16*)(In + Y * SrcPitch);
-			
-			for(uint32 X = 0; X < Width; X++)
-			{
-				MinValue.X = FMath::Min<float>(SrcPtr[0],MinValue.X);
-				MinValue.Y = FMath::Min<float>(SrcPtr[1],MinValue.Y);
-				MinValue.Z = FMath::Min<float>(SrcPtr[2],MinValue.Z);
-				MinValue.W = FMath::Min<float>(SrcPtr[3],MinValue.W);
-				MaxValue.X = FMath::Max<float>(SrcPtr[0],MaxValue.X);
-				MaxValue.Y = FMath::Max<float>(SrcPtr[1],MaxValue.Y);
-				MaxValue.Z = FMath::Max<float>(SrcPtr[2],MaxValue.Z);
-				MaxValue.W = FMath::Max<float>(SrcPtr[3],MaxValue.W);
-				SrcPtr += 4;
-			}
-		}
-		
-		for(uint32 Y = 0; Y < Height; Y++)
-		{
-			FFloat16* SrcPtr = (FFloat16*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			
-			for(uint32 X = 0; X < Width; X++)
-			{
-				FColor NormalizedColor =
-				FLinearColor(
-							 (SrcPtr[0] - MinValue.X) / (MaxValue.X - MinValue.X),
-							 (SrcPtr[1] - MinValue.Y) / (MaxValue.Y - MinValue.Y),
-							 (SrcPtr[2] - MinValue.Z) / (MaxValue.Z - MinValue.Z),
-							 (SrcPtr[3] - MinValue.W) / (MaxValue.W - MinValue.W)
-							 ).ToFColor(bLinearToGamma);
-				FMemory::Memcpy(DestPtr++,&NormalizedColor,sizeof(FColor));
-				SrcPtr += 4;
-			}
-		}
+		ConvertRawR16G16B16A16FDataToFColor(Width, Height, In, SrcPitch, Out, bLinearToGamma);
 	}
 	else if (Format == PF_FloatR11G11B10)
 	{
-		check(sizeof(FFloat3Packed) == sizeof(uint32));
-		
-		for(uint32 Y = 0; Y < Height; Y++)
-		{
-			FFloat3Packed* SrcPtr = (FFloat3Packed*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			
-			for(uint32 X = 0; X < Width; X++)
-			{
-				FLinearColor Value = (*SrcPtr).ToLinearColor();
-				
-				FColor NormalizedColor = Value.ToFColor(bLinearToGamma);
-				FMemory::Memcpy(DestPtr++, &NormalizedColor, sizeof(FColor));
-				++SrcPtr;
-			}
-		}
+		ConvertRawR11G11B10DataToFColor(Width, Height, In, SrcPitch, Out, bLinearToGamma);
 	}
 	else if (Format == PF_A32B32G32R32F)
 	{
-		FPlane MinValue(0.0f,0.0f,0.0f,0.0f);
-		FPlane MaxValue(1.0f,1.0f,1.0f,1.0f);
-		
-		for(uint32 Y = 0; Y < Height; Y++)
-		{
-			float* SrcPtr = (float*)(In + Y * SrcPitch);
-			
-			for(uint32 X = 0; X < Width; X++)
-			{
-				MinValue.X = FMath::Min<float>(SrcPtr[0],MinValue.X);
-				MinValue.Y = FMath::Min<float>(SrcPtr[1],MinValue.Y);
-				MinValue.Z = FMath::Min<float>(SrcPtr[2],MinValue.Z);
-				MinValue.W = FMath::Min<float>(SrcPtr[3],MinValue.W);
-				MaxValue.X = FMath::Max<float>(SrcPtr[0],MaxValue.X);
-				MaxValue.Y = FMath::Max<float>(SrcPtr[1],MaxValue.Y);
-				MaxValue.Z = FMath::Max<float>(SrcPtr[2],MaxValue.Z);
-				MaxValue.W = FMath::Max<float>(SrcPtr[3],MaxValue.W);
-				SrcPtr += 4;
-			}
-		}
-		
-		for(uint32 Y = 0; Y < Height; Y++)
-		{
-			float* SrcPtr = (float*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			
-			for(uint32 X = 0; X < Width; X++)
-			{
-				FColor NormalizedColor =
-				FLinearColor(
-							 (SrcPtr[0] - MinValue.X) / (MaxValue.X - MinValue.X),
-							 (SrcPtr[1] - MinValue.Y) / (MaxValue.Y - MinValue.Y),
-							 (SrcPtr[2] - MinValue.Z) / (MaxValue.Z - MinValue.Z),
-							 (SrcPtr[3] - MinValue.W) / (MaxValue.W - MinValue.W)
-							 ).ToFColor(bLinearToGamma);
-				FMemory::Memcpy(DestPtr++,&NormalizedColor,sizeof(FColor));
-				SrcPtr += 4;
-			}
-		}
+		ConvertRawR32G32B32A32DataToFColor(Width, Height, In, SrcPitch, Out, bLinearToGamma);
 	}
-	else if(Format == PF_A16B16G16R16)
+	else if (Format == PF_A16B16G16R16)
 	{
-		// Read the data out of the buffer, converting it to FColor.
-		for(uint32 Y = 0; Y < Height; Y++)
-		{
-			FMetalRGBA16* SrcPtr = (FMetalRGBA16*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			for(uint32 X = 0; X < Width; X++)
-			{
-				*DestPtr = FLinearColor(
-										(float)SrcPtr->R / 65535.0f,
-										(float)SrcPtr->G / 65535.0f,
-										(float)SrcPtr->B / 65535.0f,
-										(float)SrcPtr->A / 65535.0f
-										).Quantize();
-				++SrcPtr;
-				++DestPtr;
-			}
-		}
+		ConvertRawR16G16B16A16DataToFColor(Width, Height, In, SrcPitch, Out);
 	}
-	else if(Format == PF_G16R16)
+	else if (Format == PF_G16R16)
 	{
-		// Read the data out of the buffer, converting it to FColor.
-		for(uint32 Y = 0; Y < Height; Y++)
-		{
-			FMetalRG16* SrcPtr = (FMetalRG16*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			for(uint32 X = 0; X < Width; X++)
-			{
-				*DestPtr = FLinearColor(
-										(float)SrcPtr->R / 65535.0f,
-										(float)SrcPtr->G / 65535.0f,
-										0).Quantize();
-				++SrcPtr;
-				++DestPtr;
-			}
-		}
+		ConvertRawR16G16DataToFColor(Width, Height, In, SrcPitch, Out);
 	}
-	else if(Format == PF_DepthStencil)
+	else if (Format == PF_DepthStencil)
 	{
-		// Depth
-		if(!InFlags.GetOutputStencil())
-		{
-			bool const bDepth32 = ((mtlpp::PixelFormat)GPixelFormats[Format].PlatformFormat == mtlpp::PixelFormat::Depth32Float_Stencil8);
-			
-			for (uint32 Y = 0; Y < Height; Y++)
-			{
-				uint32* SrcPtr = (uint32*)(In + Y * SrcPitch);
-				FColor* DestPtr = Out + Y * Width;
-				
-				for (uint32 X = 0; X < Width; X++)
-				{
-					float DeviceZ = bDepth32 ? *SrcPtr : (*SrcPtr & 0xffffff) / (float)(1 << 24);
-					float LinearValue = FMath::Min(InFlags.ComputeNormalizedDepth(DeviceZ), 1.0f);
-					FColor NormalizedColor = FLinearColor(LinearValue, LinearValue, LinearValue, 0).ToFColor(bLinearToGamma);
-					
-					FMemory::Memcpy(DestPtr++, &NormalizedColor, sizeof(FColor));
-					++SrcPtr;
-				}
-			}
-		}
-		// Stencil
-		else
-		{
-			// Depth stencil
-			for (uint32 Y = 0; Y < Height; Y++)
-			{
-				uint8* SrcPtr = (uint8*)(In + Y * SrcPitch);
-				FColor* DestPtr = Out + Y * Width;
-				
-				for (uint32 X = 0; X < Width; X++)
-				{
-					uint8 DeviceStencil = *SrcPtr;
-					FColor NormalizedColor = FColor(DeviceStencil, DeviceStencil, DeviceStencil, 0xFF);
-					
-					FMemory::Memcpy(DestPtr++, &NormalizedColor, sizeof(FColor));
-					++SrcPtr;
-				}
-			}
-		}
+		ConvertRawD32S8DataToFColor(Width, Height, In, SrcPitch, Out, InFlags);
 	}
 	else
 	{
 		// not supported yet
 		NOT_SUPPORTED("RHIReadSurfaceData Format");
-	}
-}
-
-void FMetalDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect InRect, TArray<FLinearColor>& OutData, FReadSurfaceDataFlags InFlags)
-{
-	// Use our current surface read implemtation and convert to linear - should refactor to make optimal
-	TArray<FColor> OutDataUnConverted;
-	RHIReadSurfaceData(TextureRHI, InRect, OutDataUnConverted, InFlags);
-	
-	OutData.Empty();
-	OutData.AddUninitialized(OutDataUnConverted.Num());
-	
-	for(uint32 i = 0;i < OutDataUnConverted.Num();++i)
-	{
-		OutData[i] = OutDataUnConverted[i].ReinterpretAsLinear();
 	}
 }
 

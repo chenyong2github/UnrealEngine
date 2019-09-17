@@ -16,7 +16,7 @@
 /**
  * Implements Linux platform properties.
  */
-template<bool HAS_EDITOR_DATA, bool IS_DEDICATED_SERVER, bool IS_CLIENT_ONLY>
+template<bool HAS_EDITOR_DATA, bool IS_DEDICATED_SERVER, bool IS_CLIENT_ONLY, bool IS_AARCH64>
 struct FLinuxPlatformProperties
 	: public FGenericPlatformProperties
 {
@@ -27,6 +27,11 @@ struct FLinuxPlatformProperties
 
 	static FORCEINLINE const char* IniPlatformName( )
 	{
+		if (IS_AARCH64)
+		{
+			return "LinuxAArch64";
+		}
+
 		return "Linux";
 	}
 
@@ -60,6 +65,11 @@ struct FLinuxPlatformProperties
 		if (IS_CLIENT_ONLY)
 		{
 			return "LinuxClient";
+		}
+
+		if (IS_AARCH64)
+		{
+			return "LinuxAArch64NoEditor";
 		}
 
 		return "LinuxNoEditor";
@@ -152,5 +162,5 @@ struct FLinuxPlatformProperties
 };
 
 #ifdef PROPERTY_HEADER_SHOULD_DEFINE_TYPE
-typedef FLinuxPlatformProperties<WITH_EDITORONLY_DATA, UE_SERVER, !WITH_SERVER_CODE> FPlatformProperties;
+typedef FLinuxPlatformProperties<WITH_EDITORONLY_DATA, UE_SERVER, !WITH_SERVER_CODE, !!PLATFORM_CPU_ARM_FAMILY> FPlatformProperties;
 #endif

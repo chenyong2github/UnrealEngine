@@ -87,6 +87,8 @@ struct FTextureBuildSettings
 	uint8 MipGenSettings; // TextureMipGenSettings, opaque to avoid dependencies on engine headers.
 	/** Whether the texture being built is a cubemap. */
 	uint32 bCubemap : 1;
+	/** Whether the texture being built is a texture array. */
+	uint32 bTextureArray : 1;
 	/** Whether the texture being built is a volume. */
 	uint32 bVolume : 1;
 	/** Whether the texture being built from long/lat source to cubemap. */
@@ -129,6 +131,8 @@ struct FTextureBuildSettings
 	mutable FIntPoint TopMipSize;
 	/** The volume texture's top mip size Z without LODBias applied */
 	mutable int32 VolumeSizeZ;
+	/** The array texture's top mip size Z without LODBias applied */
+	mutable int32 ArraySlices;
 	/** Can the texture be streamed */
 	uint32 bStreamable : 1;
 	/** Is the texture streamed using the VT system */
@@ -169,6 +173,7 @@ struct FTextureBuildSettings
 		, bHDRSource(false)
 		, MipGenSettings(1 /*TMGS_SimpleAverage*/)
 		, bCubemap(false)
+		, bTextureArray(false)
 		, bVolume(false)
 		, bLongLatSource(false)
 		, bSRGB(false)
@@ -190,6 +195,7 @@ struct FTextureBuildSettings
 		, LODBiasWithCinematicMips(0)
 		, TopMipSize(0, 0)
 		, VolumeSizeZ(0)
+		, ArraySlices(0)
 		, bStreamable(false)
 		, bVirtualStreamable(false)
 		, bChromaKeyTexture(false)

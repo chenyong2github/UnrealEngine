@@ -153,12 +153,22 @@ void FVulkanLinuxPlatform::GetInstanceExtensions(TArray<const ANSICHAR*>& OutExt
 	OutExtensions.Append(CachedLinuxExtensions);
 }
 
-void FVulkanLinuxPlatform::GetDeviceExtensions(TArray<const ANSICHAR*>& OutExtensions)
+void FVulkanLinuxPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions)
 {
 #if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
 	OutExtensions.Add(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
 	OutExtensions.Add(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
 #endif
+
+	if (GGPUCrashDebuggingEnabled)
+	{
+#if VULKAN_SUPPORTS_AMD_BUFFER_MARKER
+		if (VendorId == EGpuVendorId::Amd)
+		{
+			OutExtensions.Add(VK_AMD_BUFFER_MARKER_EXTENSION_NAME);
+		}
+#endif
+	}
 }
 
 void FVulkanLinuxPlatform::CreateSurface(void* WindowHandle, VkInstance Instance, VkSurfaceKHR* OutSurface)

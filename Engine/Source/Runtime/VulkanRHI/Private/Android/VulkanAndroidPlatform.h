@@ -6,7 +6,6 @@
 
 #define VK_USE_PLATFORM_ANDROID_KHR					1
 
-#define VULKAN_HAS_PHYSICAL_DEVICE_PROPERTIES2		0
 #define VULKAN_ENABLE_DUMP_LAYER					0
 #define VULKAN_DYNAMICALLYLOADED					1
 #define VULKAN_SHOULD_ENABLE_DRAW_MARKERS			(UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG)
@@ -18,6 +17,8 @@
 #define VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING		1
 #define VULKAN_FREEPAGE_FOR_TYPE					1
 #define VULKAN_PURGE_SHADER_MODULES					0
+#define VULKAN_SUPPORTS_DEDICATED_ALLOCATION		0
+#define VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2	0
 
 
 // Android's hashes currently work fine as the problematic cases are:
@@ -50,7 +51,7 @@ public:
 	static void FreeVulkanLibrary();
 
 	static void GetInstanceExtensions(TArray<const ANSICHAR*>& OutExtensions);
-	static void GetDeviceExtensions(TArray<const ANSICHAR*>& OutExtensions);
+	static void GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions);
 
 	static void CreateSurface(void* WindowHandle, VkInstance Instance, VkSurfaceKHR* OutSurface);
 
@@ -62,14 +63,13 @@ public:
 	{
 		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_VULKAN_ES3_1_ANDROID;
 		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_VULKAN_ES3_1_ANDROID;
-		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4] = SP_NumPlatforms;
+		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_NumPlatforms;
 	}
 
 	static bool SupportsStandardSwapchain();
 	static EPixelFormat GetPixelFormatForNonDefaultSwapchain();
 
-	static bool SupportsDepthFetchDuringDepthTest() { return true; }
 	static bool SupportsTimestampRenderQueries() { return false; }
 
 	static bool RequiresMobileRenderer() { return true; }

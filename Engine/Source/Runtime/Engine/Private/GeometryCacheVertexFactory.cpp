@@ -364,7 +364,7 @@ FVertexFactoryShaderParameters* FGeometryCacheVertexVertexFactory::ConstructShad
 bool FGeometryCacheVertexVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
 {
 	// Should this be platform or mesh type based? Returning true should work in all cases, but maybe too expensive? 
-	// return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) && !IsConsolePlatform(Platform);
+	// return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && !IsConsolePlatform(Platform);
 	// TODO currently GeomCache supports only 4 UVs which could cause compilation errors when trying to compile shaders which use > 4
 	return Material->IsUsedWithGeometryCache() || Material->IsSpecialEngineMaterial();
 }

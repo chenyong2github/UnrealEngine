@@ -4,189 +4,193 @@
 	FilterPixelShader.usf: Filter pixel shader source.
 =============================================================================*/
 
+#define SCENE_TEXTURES_DISABLED 1
+
 #include "Common.ush"
+#include "ScreenPass.ush"
 #include "PostProcessCommon.ush"
 
-#ifndef NUM_SAMPLES
-#define NUM_SAMPLES 4
+#ifndef STATIC_SAMPLE_COUNT
+	#error STATIC_SAMPLE_COUNT is undefined
 #endif
 
-#define DYNAMIC_NUM_SAMPLES	(NUM_SAMPLES==0)
-#define COMBINE_WEIGHTED	(COMBINE_METHOD==0)
-#define COMBINE_ADDITIVE	(COMBINE_METHOD==1)
-#define COMBINE_MAX			(COMBINE_METHOD==2)
-#define UNPACKED_UVS		(ES2_PROFILE || ES3_1_PROFILE)
-
-// main input texture
-float4 FilteredBufferUVMinMax;
-float4 AdditiveBufferUVMinMax;
-SamplerState FilterTextureSampler;
-Texture2D FilterTexture;
-
-#if COMBINE_ADDITIVE
-// optional texture that is additively blended on top of the many samples from the filter texture
-SamplerState AdditiveTextureSampler;
-Texture2D AdditiveTexture;
+#ifndef SAMPLE_COUNT_MAX
+	#error SAMPLE_COUNT_MAX is undefined
 #endif
 
-void Combine(inout MaterialFloat4 Dest, MaterialFloat4 Src, float4 Weight)
+#if STATIC_SAMPLE_COUNT > SAMPLE_COUNT_MAX
+#error STATIC_SAMPLE_COUNT cannot be greater than SAMPLE_COUNT_MAX
+#endif
+
+#define PACKED_STATIC_SAMPLE_COUNT ((STATIC_SAMPLE_COUNT + 1) / 2)
+#define PACKED_SAMPLE_COUNT_MAX ((SAMPLE_COUNT_MAX + 1) / 2)
+
+#define USE_UNPACKED_UVS (ES2_PROFILE || ES3_1_PROFILE)
+#define USE_DYNAMIC_LOOP (STATIC_SAMPLE_COUNT == 0)
+
+SCREEN_PASS_TEXTURE_VIEWPORT(Filter)
+SamplerState Filter_Sampler;
+Texture2D Filter_Texture; 
+
+float4 SampleFilterTexture(float2 UV)
 {
-#if UNPACKED_UVS || COMBINE_WEIGHTED || COMBINE_ADDITIVE
-	// weighted additive, for bloom
-	Dest += Src * Weight;
-#else // COMBINE_MAX
-	// max magnitude of the 2d vector, for motionblur
-	float DestLen = dot(Dest.xy, Dest.xy);
-	float SrcLen = dot(Src.xy, Src.xy);
+#if USE_MANUAL_UV_BORDER
+	float2 ClampedUV = clamp(UV, Filter_UVViewportBilinearMin, Filter_UVViewportBilinearMax);
 
-	FLATTEN if(SrcLen > DestLen)
-	{
-		Dest = Src;
-	}
+	float4 Sample = Texture2DSampleLevel(Filter_Texture, Filter_Sampler, ClampedUV, 0);
+
+	float2 TexelOffset = abs(ClampedUV - UV) * Filter_Extent;
+
+	float2 BilinearWeight = saturate(1.0f - TexelOffset);
+
+	return BilinearWeight.x * BilinearWeight.y * Sample;
+#else
+	return Texture2DSampleLevel(Filter_Texture, Filter_Sampler, UV, 0);
 #endif
 }
 
+#if USE_COMBINE_ADDITIVE
 
-float4 SampleFilteredTexture(float2 BufferUV)
+SCREEN_PASS_TEXTURE_VIEWPORT(Additive)
+SamplerState Additive_Sampler;
+Texture2D Additive_Texture;
+
+float4 SampleAdditiveTexture(float2 UV)
 {
-	#if MANUALLY_CLAMP_UV
-		BufferUV = clamp(BufferUV, FilteredBufferUVMinMax.xy, FilteredBufferUVMinMax.zw);
-	#endif
-	return Texture2DSampleLevel(FilterTexture, FilterTextureSampler, BufferUV, 0);
+#if USE_MANUAL_UV_BORDER
+	UV = clamp(UV, Additive_UVViewportBilinearMin, Additive_UVViewportBilinearMax);
+#endif
+
+	return Texture2DSampleLevel(Additive_Texture, Additive_Sampler, UV, 0);
 }
 
+#endif
 
-#if DYNAMIC_NUM_SAMPLES
-float4 SampleOffsets[(MAX_NUM_SAMPLES + 1) / 2];
-float4 SampleWeights[MAX_NUM_SAMPLES];
+#if USE_DYNAMIC_LOOP
+
+float4 SampleOffsets[PACKED_SAMPLE_COUNT_MAX];
+float4 SampleWeights[SAMPLE_COUNT_MAX];
 int SampleCount;
 
-void Main(
-	noperspective float2 InUV : TEXCOORD0,
-	out MaterialFloat4 OutColor : SV_Target0
-	)
+void MainPS(noperspective float2 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
 {
-	MaterialFloat4 Dest = 0;
+	float4 Color = 0;
 
-	int SampleIndex;
-	LOOP for (SampleIndex = 0; SampleIndex < SampleCount - 1; SampleIndex += 2)
+	int SampleIndex = 0;
+
+	LOOP for (; SampleIndex < SampleCount - 1; SampleIndex += 2)
 	{
 		float4 UVUV = InUV.xyxy + SampleOffsets[SampleIndex / 2];
-		Combine(Dest, SampleFilteredTexture(UVUV.xy), SampleWeights[SampleIndex + 0]);
-		Combine(Dest, SampleFilteredTexture(UVUV.zw), SampleWeights[SampleIndex + 1]);
+		Color += SampleFilterTexture(UVUV.xy) * SampleWeights[SampleIndex + 0];
+		Color += SampleFilterTexture(UVUV.zw) * SampleWeights[SampleIndex + 1];
 	}
 
 	BRANCH if (SampleIndex < SampleCount)
 	{
 		float2 UV = InUV + SampleOffsets[SampleIndex / 2].xy;
-		Combine(Dest, SampleFilteredTexture(UV), SampleWeights[SampleIndex + 0]);
+		Color += SampleFilterTexture(UV) * SampleWeights[SampleIndex + 0];
 	}
 
-#if COMBINE_ADDITIVE
-	float2 AdditiveBufferUV = InUV;
-	#if MANUALLY_CLAMP_UV
-		AdditiveBufferUV = clamp(AdditiveBufferUV, AdditiveBufferUVMinMax.xy, AdditiveBufferUVMinMax.zw);
-	#endif
-	Dest += Texture2DSampleLevel(AdditiveTexture, AdditiveTextureSampler, AdditiveBufferUV, 0);
+#if USE_COMBINE_ADDITIVE
+	Color += SampleAdditiveTexture(InUV);
 #endif
 
-	OutColor = Dest;
+	OutColor = Color;
 }
 
-#else // DYNAMIC_NUM_SAMPLES
-float4 SampleOffsets[(NUM_SAMPLES + 1) / 2];
-float4 SampleWeights[NUM_SAMPLES];
+#else // !USE_DYNAMIC_LOOP
 
-void Main(
+float4 SampleOffsets[PACKED_STATIC_SAMPLE_COUNT];
+float4 SampleWeights[STATIC_SAMPLE_COUNT];
+
+void MainPS(
 	noperspective float2 InUV : TEXCOORD0,
-#if UNPACKED_UVS
-	noperspective float2 InOffsetUVs[NUM_SAMPLES] : TEXCOORD1,
+#if USE_UNPACKED_UVS
+	noperspective float2 InOffsetUVs[STATIC_SAMPLE_COUNT] : TEXCOORD1,
 #else
-	noperspective float4 InOffsetUVs[((NUM_SAMPLES + 1) / 2)] : TEXCOORD1,
+	noperspective float4 InOffsetUVs[PACKED_STATIC_SAMPLE_COUNT] : TEXCOORD1,
 #endif
-	out MaterialFloat4 OutColor : SV_Target0
-	)
+	out MaterialFloat4 OutColor : SV_Target0)
 {
-	MaterialFloat4 Dest = 0;
+	float4 Color = 0;
 
-#if UNPACKED_UVS
-	UNROLL for (int i = 0; i < NUM_SAMPLES; ++i)
+#if USE_UNPACKED_UVS
+	UNROLL for (int i = 0; i < STATIC_SAMPLE_COUNT; ++i)
 	{
-		Combine(Dest, SampleFilteredTexture(InOffsetUVs[i]), SampleWeights[i]);
+		Color += SampleFilterTexture(InOffsetUVs[i]) * SampleWeights[i];
 	}
 #else
 	int SampleIndex = 0;
-	UNROLL for (; SampleIndex < NUM_SAMPLES - 1; SampleIndex += 2)
+
+	UNROLL for (; SampleIndex < STATIC_SAMPLE_COUNT - 1; SampleIndex += 2)
 	{
-		float4 UVUV = InOffsetUVs[SampleIndex / 2];	
-		Combine(Dest, SampleFilteredTexture(UVUV.xy), SampleWeights[SampleIndex + 0]);
-		Combine(Dest, SampleFilteredTexture(UVUV.zw), SampleWeights[SampleIndex + 1]);
+		float4 UVUV = InOffsetUVs[SampleIndex / 2];
+		Color += SampleFilterTexture(UVUV.xy) * SampleWeights[SampleIndex + 0];
+		Color += SampleFilterTexture(UVUV.zw) * SampleWeights[SampleIndex + 1];
 	}
 
-	FLATTEN if (SampleIndex < NUM_SAMPLES)
+	FLATTEN if (SampleIndex < STATIC_SAMPLE_COUNT)
 	{
 		float2 UV = InOffsetUVs[SampleIndex / 2].xy;
-		Combine(Dest, SampleFilteredTexture(UV), SampleWeights[SampleIndex + 0]);
+		Color += SampleFilterTexture(UV) * SampleWeights[SampleIndex + 0];
 	}
 #endif
 
-#if COMBINE_ADDITIVE
-	float2 AdditiveBufferUV = InUV;
-	#if MANUALLY_CLAMP_UV
-		AdditiveBufferUV = clamp(AdditiveBufferUV, AdditiveBufferUVMinMax.xy, AdditiveBufferUVMinMax.zw );
-	#endif
-	Dest += Texture2DSampleLevel(AdditiveTexture, AdditiveTextureSampler, AdditiveBufferUV, 0);
+#if USE_COMBINE_ADDITIVE
+	Color += SampleAdditiveTexture(InUV);
 #endif
 
-	OutColor = Dest;
+	OutColor = Color;
 }
 
-#endif // DYNAMIC_NUM_SAMPLES
-
+#endif
 
 #if COMPUTESHADER
-// xy: Unused, zw: ThreadToUVScale
-float4 FilterComputeParams;
-RWTexture2D<float4> OutComputeTex;
+
+RWTexture2D<float4> RWOutputTexture;
 
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	float2 BaseUV = ((float2)DispatchThreadId + View.ViewRectMin.xy + 0.5f) * FilterComputeParams.zw;
-	float4 OutColor = 0;
-	int SampleIndex = 0;
+	float2 BaseUV = ((float2)DispatchThreadId + Filter_ViewportMin + 0.5f) * Filter_ExtentInverse;
 
 	if (IsComputeUVOutOfBounds(BaseUV))
 	{
 		return;
 	}
 
-#if DYNAMIC_NUM_SAMPLES
-	LOOP for(; SampleIndex < SampleCount - 1; SampleIndex += 2)
+	float4 Color = 0;
+	int SampleIndex = 0;
+
+#if USE_DYNAMIC_LOOP
+	LOOP for (; SampleIndex < SampleCount - 1; SampleIndex += 2)
 #else
-	UNROLL for(; SampleIndex < NUM_SAMPLES - 1; SampleIndex += 2)
+	UNROLL for (; SampleIndex < STATIC_SAMPLE_COUNT - 1; SampleIndex += 2)
 #endif
 	{
 		float4 UVUV = BaseUV.xyxy + SampleOffsets[SampleIndex / 2];
-		Combine(OutColor, SampleFilteredTexture(UVUV.xy), SampleWeights[SampleIndex + 0]);
-		Combine(OutColor, SampleFilteredTexture(UVUV.zw), SampleWeights[SampleIndex + 1]);
+		Color += SampleFilterTexture(UVUV.xy) * SampleWeights[SampleIndex + 0];
+		Color += SampleFilterTexture(UVUV.zw) * SampleWeights[SampleIndex + 1];
 	}
 
-#if DYNAMIC_NUM_SAMPLES
-	BRANCH if(SampleIndex < SampleCount)
+#if USE_DYNAMIC_LOOP
+	BRANCH if (SampleIndex < SampleCount)
 #else
-	FLATTEN if(SampleIndex < NUM_SAMPLES)
+	FLATTEN if (SampleIndex < STATIC_SAMPLE_COUNT)
 #endif
 	{
 		float2 UV = BaseUV + SampleOffsets[SampleIndex / 2].xy;
-		Combine(OutColor, SampleFilteredTexture(UV), SampleWeights[SampleIndex + 0]);
+
+		Color += SampleFilterTexture(UV) * SampleWeights[SampleIndex + 0];
 	}
 
-#if COMBINE_ADDITIVE
-	OutColor += Texture2DSampleLevel(AdditiveTexture, AdditiveTextureSampler, BaseUV, 0);
+#if USE_COMBINE_ADDITIVE
+	Color += SampleAdditiveTexture(BaseUV);
 #endif
 
-	uint2 PixelPos = DispatchThreadId + (uint2)View.ViewRectMin.xy;
-	OutComputeTex[PixelPos] = OutColor;
+	const uint2 PixelPos = DispatchThreadId + (uint2)Filter_ViewportMin;
+
+	RWOutputTexture[PixelPos] = Color;
 }
+
 #endif 

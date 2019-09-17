@@ -133,7 +133,7 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(FRHICommandL
 			PassParameters->SSProfilesTexture = RegisterExternalTextureWithFallback(GraphBuilder, GetSubsufaceProfileTexture_RT(RHICmdList), GSystemTextures.BlackDummy);
 			PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor()), ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor()), ERenderTargetLoadAction::ELoad);
 			// NOTE: if we wanted to get depth/stencil testing happening we'd need to add that here too, at the moment we don't.
 
 			GraphBuilder.AddPass(

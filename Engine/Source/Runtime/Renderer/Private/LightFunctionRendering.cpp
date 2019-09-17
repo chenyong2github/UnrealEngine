@@ -38,7 +38,7 @@ public:
 	  */
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return Parameters.Material->IsLightFunction() && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+		return Parameters.Material->IsLightFunction() && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	FLightFunctionVS( )	{ }
@@ -95,7 +95,7 @@ public:
 	  */
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return Parameters.Material->IsLightFunction() && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+		return Parameters.Material->IsLightFunction() && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	FLightFunctionPS() {}

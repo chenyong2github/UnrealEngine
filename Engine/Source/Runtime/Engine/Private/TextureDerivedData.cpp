@@ -19,6 +19,7 @@
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureCube.h"
+#include "Engine/Texture2DArray.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "TextureDerivedDataTask.h"
@@ -95,6 +96,7 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	// NOTE: bHDRSource is not stored in the key here.
 	TempByte = Settings.MipGenSettings; Ar << TempByte;
 	TempByte = Settings.bCubemap; Ar << TempByte;
+	TempByte = Settings.bTextureArray; Ar << TempByte;
 	TempByte = Settings.bSRGB ? (Settings.bSRGB | ( Settings.bUseLegacyGamma ? 0 : 0x2 )) : 0; Ar << TempByte;
 	TempByte = Settings.bPreserveBorder; Ar << TempByte;
 	TempByte = Settings.bDitherMipMapAlpha; Ar << TempByte;
@@ -349,6 +351,7 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.bReplicateRed = false;
 	OutBuildSettings.bVolume = false;
 	OutBuildSettings.bCubemap = false;
+	OutBuildSettings.bTextureArray = false;
 
 	if (Texture.MaxTextureSize > 0)
 	{
@@ -366,6 +369,12 @@ static void GetTextureBuildSettings(
 			// long/lat source use 512 as default
 			OutBuildSettings.MaxTextureResolution = 512;
 		}
+	}
+	else if (Texture.IsA(UTexture2DArray::StaticClass()))
+	{
+		OutBuildSettings.bTextureArray = true;
+		OutBuildSettings.DiffuseConvolveMipLevel = 0;
+		OutBuildSettings.bLongLatSource = false;
 	}
 	else if (Texture.IsA(UVolumeTexture::StaticClass()))
 	{
@@ -560,8 +569,8 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 
 	// Write out individual mips to the derived data cache.
 	const int32 MipCount = DerivedData->Mips.Num();
-	const bool bCubemap = (DerivedData->NumSlices == 6);
-	const int32 FirstInlineMip = bCubemap ? 0 : FMath::Max(0, MipCount - NUM_INLINE_DERIVED_MIPS);
+	const bool bIsCubemap = (DerivedData->NumSlices > 0);
+	const int32 FirstInlineMip = bIsCubemap ? 0 : FMath::Max(0, MipCount - NUM_INLINE_DERIVED_MIPS);
 	for (int32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
 	{
 		FString MipDerivedDataKey;

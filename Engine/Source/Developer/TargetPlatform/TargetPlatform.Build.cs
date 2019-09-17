@@ -87,7 +87,7 @@ public class TargetPlatform : ModuleRules
 					DynamicallyLoadedModuleNames.Add("HTML5TargetPlatform");
 				}
 			}
-			else if (Target.Platform == UnrealTargetPlatform.Linux)
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 			{
 				DynamicallyLoadedModuleNames.Add("TextureFormatDXT");
 				DynamicallyLoadedModuleNames.Add("TextureFormatPVR");

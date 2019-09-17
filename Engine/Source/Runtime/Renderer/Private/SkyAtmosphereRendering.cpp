@@ -166,6 +166,11 @@ static TAutoConsoleVariable<float> CVarSkyAtmosphereMultiScatteringLUTSampleCoun
 	TEXT("The sample count used to evaluate multi-scattering.\n"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
+static TAutoConsoleVariable<float> CVarSkyAtmosphereMultiScatteringLUTHighQuality(
+	TEXT("r.SkyAtmosphere.MultiScatteringLUT.HighQuality"), 0.0f,
+	TEXT("The when enabled, 64 samples are used instead of 2, resulting in a more accurate multi scattering approximation (but also more expenssive).\n"),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
 static TAutoConsoleVariable<int32> CVarSkyAtmosphereMultiScatteringLUTUseSmallFormat(
 	TEXT("r.SkyAtmosphere.MultiScatteringLUT.UseSmallFormat"), 0,
 	TEXT("If true, the multi-scattering LUT will use a small R8BG8B8A8 format to store data at lower quality."),
@@ -468,6 +473,7 @@ namespace
 {
 
 class FSkyPermutationMultiScatteringApprox : SHADER_PERMUTATION_BOOL("MULTISCATTERING_APPROX_ENABLED");
+class FHighQualityMultiScatteringApprox : SHADER_PERMUTATION_BOOL("HIGHQUALITY_MULTISCATTERING_APPROX_ENABLED");
 class FFastSky : SHADER_PERMUTATION_BOOL("FASTSKY_ENABLED");
 class FFastAerialPespective : SHADER_PERMUTATION_BOOL("FASTAERIALPERSPECTIVE_ENABLED");
 class FSourceDiskEnabled : SHADER_PERMUTATION_BOOL("SOURCE_DISK_ENABLED");
@@ -620,7 +626,7 @@ class FRenderMultiScatteredLuminanceLutCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FRenderMultiScatteredLuminanceLutCS);
 	SHADER_USE_PARAMETER_STRUCT(FRenderMultiScatteredLuminanceLutCS, FGlobalShader);
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	using FPermutationDomain = TShaderPermutationDomain<FHighQualityMultiScatteringApprox>;
 
 public:
 	const static uint32 GroupSize = 8;
@@ -630,7 +636,9 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FSkyAtmosphereInternalCommonParameters, SkyAtmosphere)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, MultiScatteredLuminanceLutUAV)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, TransmittanceLutTexture)
+		SHADER_PARAMETER_SRV(Buffer<float4>, UniformSphereSamplesBuffer)
 		SHADER_PARAMETER_SAMPLER(SamplerState, TransmittanceLutTextureSampler)
+		SHADER_PARAMETER(uint32, UniformSphereSamplesBufferSampleCount)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -813,18 +821,23 @@ class FUniformSphereSamplesBuffer : public FRenderResource
 public:
 	FReadBuffer UniformSphereSamplesBuffer;
 
+	uint32 GetSampletCount()
+	{
+		return FRenderDistantSkyLightLutCS::GroupSize;
+	}
+
 	virtual void InitRHI() override
 	{
-		const float GroupSize = float(FRenderDistantSkyLightLutCS::GroupSize);
-		const float GroupSizeInv = 1.0f / GroupSize;
+		const uint32 GroupSize = GetSampletCount();
+		const float GroupSizeInv = 1.0f / float(GroupSize);
 
-		UniformSphereSamplesBuffer.Initialize(sizeof(FVector4), FRenderDistantSkyLightLutCS::GroupSize * FRenderDistantSkyLightLutCS::GroupSize, EPixelFormat::PF_A32B32G32R32F, BUF_Static);
-		FVector4* Dest = (FVector4*)RHILockVertexBuffer(UniformSphereSamplesBuffer.Buffer, 0, sizeof(FVector4)*FRenderDistantSkyLightLutCS::GroupSize*FRenderDistantSkyLightLutCS::GroupSize, RLM_WriteOnly);
+		UniformSphereSamplesBuffer.Initialize(sizeof(FVector4), GroupSize * GroupSize, EPixelFormat::PF_A32B32G32R32F, BUF_Static);
+		FVector4* Dest = (FVector4*)RHILockVertexBuffer(UniformSphereSamplesBuffer.Buffer, 0, sizeof(FVector4)*GroupSize*GroupSize, RLM_WriteOnly);
 
 		FMath::SRandInit(0xDE4DC0DE);
-		for (int32 i = 0; i < FRenderDistantSkyLightLutCS::GroupSize; ++i)
+		for (uint32 i = 0; i < GroupSize; ++i)
 		{
-			for (int32 j = 0; j < FRenderDistantSkyLightLutCS::GroupSize; ++j)
+			for (uint32 j = 0; j < GroupSize; ++j)
 			{
 				const float u0 = (float(i) + FMath::SRand()) * GroupSizeInv;
 				const float u1 = (float(j) + FMath::SRand()) * GroupSizeInv;
@@ -833,7 +846,7 @@ public:
 				const float b = FMath::Sqrt(1.0f - a*a);
 				const float phi = 2 * PI * u1;
 
-				int32 idx = j * FRenderDistantSkyLightLutCS::GroupSize + i;
+				uint32 idx = j * GroupSize + i;
 				Dest[idx].X = b * FMath::Cos(phi);
 				Dest[idx].Y = b * FMath::Sin(phi);
 				Dest[idx].Z = a;
@@ -1045,6 +1058,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 	const FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxy = SkyInfo.GetSkyAtmosphereSceneProxy();
 
 	const bool bMultiScattering = SkyAtmosphereSceneProxy.IsMultiScatteringEnabled();
+	const bool bHighQualityMultiScattering = CVarSkyAtmosphereMultiScatteringLUTHighQuality.GetValueOnRenderThread() > 0;
 	const bool bFastSky = CVarSkyAtmosphereFastSkyLUT.GetValueOnRenderThread() > 0;
 	const bool bFastAerialPespective = CVarSkyAtmosphereAerialPerspectiveApplyOnOpaque.GetValueOnRenderThread() > 0;
 	const bool bSecondAtmosphereLightEnabled = IsSecondAtmosphereLightEnabled(Scene);
@@ -1081,13 +1095,17 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 	
 	// Mean Illuminance LUT
 	{
-		TShaderMapRef<FRenderMultiScatteredLuminanceLutCS> ComputeShader(GlobalShaderMap);
+		FRenderMultiScatteredLuminanceLutCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FHighQualityMultiScatteringApprox>(bHighQualityMultiScattering);
+		TShaderMapRef<FRenderMultiScatteredLuminanceLutCS> ComputeShader(GlobalShaderMap, PermutationVector);
 
 		FRenderMultiScatteredLuminanceLutCS::FParameters * PassParameters = GraphBuilder.AllocParameters<FRenderMultiScatteredLuminanceLutCS::FParameters>();
 		PassParameters->Atmosphere = Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereUniformBuffer();
 		PassParameters->SkyAtmosphere = InternalCommonParametersRef;
 		PassParameters->TransmittanceLutTextureSampler = SamplerLinearClamp;
 		PassParameters->TransmittanceLutTexture = TransmittanceLut;
+		PassParameters->UniformSphereSamplesBuffer = GUniformSphereSamplesBuffer.UniformSphereSamplesBuffer.SRV;
+		PassParameters->UniformSphereSamplesBufferSampleCount = GUniformSphereSamplesBuffer.GetSampletCount();
 		PassParameters->MultiScatteredLuminanceLutUAV = MultiScatteredLuminanceLutUAV;
 
 		FIntVector TextureSize = MultiScatteredLuminanceLut->Desc.GetSize();
@@ -1106,8 +1124,6 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 		PermutationVector.Set<FSkyPermutationMultiScatteringApprox>(bMultiScattering);
 		PermutationVector.Set<FSecondAtmosphereLight>(bSecondAtmosphereLightEnabled);
 		TShaderMapRef<FRenderDistantSkyLightLutCS> ComputeShader(GlobalShaderMap, PermutationVector);
-
-		using FPermutationDomain = TShaderPermutationDomain<FSkyPermutationMultiScatteringApprox, FSecondAtmosphereLight>;
 
 		FRenderDistantSkyLightLutCS::FParameters * PassParameters = GraphBuilder.AllocParameters<FRenderDistantSkyLightLutCS::FParameters>();
 		PassParameters->Atmosphere = Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereUniformBuffer();
@@ -1275,9 +1291,8 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 			TShaderMapRef<FRenderSkyAtmosphereVS> VertexShader(View.ShaderMap, VsPermutationVector);
 
 			FRenderTargetBindingSlots RenderTargets;
-			RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
-			RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::ENoAction,
-				ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction, FExclusiveDepthStencil::DepthRead_StencilNop);
+			RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad);
+			RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthRead_StencilNop);
 
 			FRenderSkyAtmospherePS::FParameters* PsPassParameters = GraphBuilder.AllocParameters<FRenderSkyAtmospherePS::FParameters>();
 			PsPassParameters->Atmosphere = Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereUniformBuffer();
@@ -1508,9 +1523,8 @@ void FDeferredShadingSceneRenderer::RenderDebugSkyAtmosphere(FRHICommandListImme
 				PassParameters->Atmosphere = Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereUniformBuffer();
 				PassParameters->SkyAtmosphere = InternalCommonParametersRef;
 				PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
-				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore,
-					ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad);
+				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 				PassParameters->TransmittanceLutTextureSampler = SamplerLinearClamp;
 				PassParameters->MultiScatteredLuminanceLutTextureSampler = SamplerLinearClamp;
 				PassParameters->TransmittanceLutTexture = TransmittanceLut;

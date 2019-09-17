@@ -40,9 +40,6 @@ public:
 	/** Resizes buffer, accumulates states safely on render thread */
 	void PreFillBuffer(int32 RequiredIndexCount, bool bShrinkToMinSize);
 
-	void* LockBuffer(int32 NumIndices, bool bInRenderThread);
-	void UnlockBuffer(bool bInRenderThread);
-
 	int32 GetMinBufferSize() const { return MinBufferSize; }
 
 private:

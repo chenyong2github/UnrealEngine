@@ -157,7 +157,6 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 							const int PositionBufferIndex = Section->CurrentPositionBufferIndex != -1 ? Section->CurrentPositionBufferIndex % 2 : 0;
 							Initializer.PositionVertexBuffer = Section->PositionBuffers[PositionBufferIndex].VertexBufferRHI;
 							Initializer.IndexBuffer = Section->IndexBuffer.IndexBufferRHI;
-							Initializer.BaseVertexIndex = 0;
 							Initializer.VertexBufferStride = sizeof(FVector);
 							Initializer.VertexBufferByteOffset = 0;
 							Initializer.TotalPrimitiveCount = 0;
@@ -210,7 +209,8 @@ FGeometryCacheSceneProxy::~FGeometryCacheSceneProxy()
 	Tracks.Empty();
 }
 
-struct FRHICommandUpdateGeometryCacheBuffer : public FRHICommand<FRHICommandUpdateGeometryCacheBuffer>
+#if 0
+FRHICOMMAND_MACRO(FRHICommandUpdateGeometryCacheBuffer)
 {
 	FGraphEventRef BufferGenerationCompleteFence;
 
@@ -270,6 +270,7 @@ struct FRHICommandUpdateGeometryCacheBuffer : public FRHICommand<FRHICommandUpda
 		BufferGenerationCompleteFence = nullptr;
 	}
 };
+#endif
 
 class FGeometryCacheVertexFactoryUserDataWrapper : public FOneFrameResource
 {

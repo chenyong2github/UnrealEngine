@@ -60,11 +60,6 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 		Desc.Desc.InputLayout.pInputElementDescs = InputLayout->VertexElements.GetData();
 	}
 
-	if (Initializer.BoundShaderState.GeometryShaderRHI)
-	{
-		Desc.Desc.StreamOutput = ((FD3D12GeometryShader*) Initializer.BoundShaderState.GeometryShaderRHI)->StreamOutput;
-	}
-
 #define COPY_SHADER(Initial, Name) \
 	if (FD3D12##Name##Shader* Shader = (FD3D12##Name##Shader*) Initializer.BoundShaderState.##Name##ShaderRHI) \
 	{ \
@@ -77,6 +72,23 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 	COPY_SHADER(H, Hull);
 	COPY_SHADER(G, Geometry);
 #undef COPY_SHADER
+
+#if PLATFORM_WINDOWS
+#define EXT_SHADER(Initial, Name) \
+	if (FD3D12##Name##Shader* Shader = (FD3D12##Name##Shader*) Initializer.BoundShaderState.##Name##ShaderRHI) \
+	{ \
+		if (Shader->VendorExtensions.Num() > 0) \
+		{ \
+			Desc.##Initial##SExtensions = &Shader->VendorExtensions; \
+		} \
+	}
+	EXT_SHADER(V, Vertex);
+	EXT_SHADER(P, Pixel);
+	EXT_SHADER(D, Domain);
+	EXT_SHADER(H, Hull);
+	EXT_SHADER(G, Geometry);
+#undef EXT_SHADER
+#endif
 
 #if PLATFORM_WINDOWS
 	// TODO: [PSO API] For now, keep DBT enabled, if available, until it is added as part of a member to the Initializer's DepthStencilState
@@ -96,6 +108,12 @@ FD3D12ComputePipelineStateDesc GetComputePipelineStateDesc(const FD3D12ComputeSh
 	Desc.Desc.pRootSignature = Desc.pRootSignature->GetRootSignature();
 	Desc.Desc.CS = ComputeShader->ShaderBytecode.GetShaderBytecode();
 	Desc.CSHash = ComputeShader->ShaderBytecode.GetHash();
+#if PLATFORM_WINDOWS
+	if (ComputeShader->VendorExtensions.Num() > 0)
+	{
+		Desc.Extensions = &ComputeShader->VendorExtensions;
+	}
+#endif
 
 	return Desc;
 }
@@ -187,8 +205,6 @@ SIZE_T FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12LowLevelGraphicsPip
 	Hash.Desc.DS.pShaderBytecode = nullptr;
 	Hash.Desc.GS.pShaderBytecode = nullptr;
 	Hash.Desc.InputLayout.pInputElementDescs = nullptr;
-	Hash.Desc.StreamOutput.pBufferStrides = nullptr;
-	Hash.Desc.StreamOutput.pSODeclaration = nullptr;
 	Hash.Desc.CachedPSO.pCachedBlob = nullptr;
 	Hash.Desc.CachedPSO.CachedBlobSizeInBytes = 0;
 	Hash.CombinedHash = 0;
@@ -586,7 +602,7 @@ FD3D12GraphicsPipelineState* FD3D12PipelineStateCacheBase::FindInLoadedCache(
 {
 	// TODO: For now PSOs will be created on every node of the LDA chain.
 	OutLowLevelDesc = GetLowLevelGraphicsPipelineStateDesc(Initializer, RootSignature);
-	OutLowLevelDesc.Desc.NodeMask = (uint32)FRHIGPUMask::All();
+	OutLowLevelDesc.Desc.NodeMask = FRHIGPUMask::All().GetNative();
 
 	OutLowLevelDesc.CombinedHash = FD3D12PipelineStateCacheBase::HashPSODesc(OutLowLevelDesc);
 
@@ -665,7 +681,7 @@ FD3D12ComputePipelineState* FD3D12PipelineStateCacheBase::FindInLoadedCache(FD3D
 {
 	// TODO: For now PSOs will be created on every node of the LDA chain.
 	OutLowLevelDesc = GetComputePipelineStateDesc(ComputeShader);
-	OutLowLevelDesc.Desc.NodeMask = (uint32)FRHIGPUMask::All();
+	OutLowLevelDesc.Desc.NodeMask = FRHIGPUMask::All().GetNative();
 	OutLowLevelDesc.CombinedHash = FD3D12PipelineStateCacheBase::HashPSODesc(OutLowLevelDesc);
 
 	// First try to find the PSO in the low level cache that can be populated from disk.

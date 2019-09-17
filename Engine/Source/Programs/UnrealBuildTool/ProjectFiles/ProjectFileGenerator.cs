@@ -739,6 +739,9 @@ namespace UnrealBuildTool
 						// Engine Extras files
 						AddEngineExtrasFiles(EngineProject);
 
+						// Platform Extension files
+						AddPlatformExtensionFiles(EngineProject);
+
 						// Engine localization files
 						if( bIncludeLocalizationFiles )
 						{
@@ -1257,6 +1260,19 @@ namespace UnrealBuildTool
 		/// Adds all engine extras files to the specified project
 		protected virtual void AddEngineExtrasFiles(ProjectFile EngineProject)
 		{
+		}
+
+		/// Adds additional files from the platform extensions folder
+		protected virtual void AddPlatformExtensionFiles( ProjectFile EngineProject )
+		{
+			DirectoryReference PlatformExtensionsDirectory = UnrealBuildTool.ProjectPlatformExtensionsDirectory(EngineProject.ProjectFilePath);
+			if (DirectoryReference.Exists(PlatformExtensionsDirectory))
+			{
+				List<string> SubdirectoryNamesToExclude = new List<string>();
+				SubdirectoryNamesToExclude.Add("AutomationTool"); //automation files are added separately to the AutomationTool project
+
+				EngineProject.AddFilesToProject(SourceFileSearch.FindFiles(PlatformExtensionsDirectory, SubdirectoryNamesToExclude), UnrealBuildTool.RootDirectory);
+			}
 		}
 
 		/// Adds UnrealHeaderTool config files to the specified project

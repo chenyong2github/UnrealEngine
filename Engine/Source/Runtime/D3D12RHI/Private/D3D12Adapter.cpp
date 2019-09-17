@@ -530,7 +530,7 @@ void FD3D12Adapter::CreateSignatures()
 	D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
 	commandSignatureDesc.NumArgumentDescs = 1;
 	commandSignatureDesc.ByteStride = 20;
-	commandSignatureDesc.NodeMask = (uint32)FRHIGPUMask::All();
+	commandSignatureDesc.NodeMask = FRHIGPUMask::All().GetNative();
 
 	D3D12_INDIRECT_ARGUMENT_DESC indirectParameterDesc[1] = {};
 	commandSignatureDesc.pArgumentDescs = indirectParameterDesc;
@@ -585,8 +585,6 @@ void FD3D12Adapter::Cleanup()
 	{
 		ResourceIt->ReleaseDynamicRHI();
 	}
-
-	TransientUniformBufferAllocator.Destroy();
 
 	FRHIResource::FlushPendingDeletes();
 
@@ -665,10 +663,15 @@ FD3D12TemporalEffect* FD3D12Adapter::GetTemporalEffect(const FName& EffectName)
 
 FD3D12FastConstantAllocator& FD3D12Adapter::GetTransientUniformBufferAllocator()
 {
-	// Multi-GPU support : is using device 0 always appropriate here?
-	return *TransientUniformBufferAllocator.GetObjectForThisThread([this]() -> FD3D12FastConstantAllocator*
+	class FTransientUniformBufferAllocator : public FD3D12FastConstantAllocator, public TThreadSingleton<FTransientUniformBufferAllocator>
 	{
-		FD3D12FastConstantAllocator* Alloc = new FD3D12FastConstantAllocator(Devices[0], FRHIGPUMask::All(), CVarTransientUniformBufferAllocatorSizeKB.GetValueOnAnyThread() * 1024);
+		using FD3D12FastConstantAllocator::FD3D12FastConstantAllocator;
+	};
+
+	// Multi-GPU support : is using device 0 always appropriate here?
+	return FTransientUniformBufferAllocator::Get([this]() -> FTransientUniformBufferAllocator*
+	{
+		FTransientUniformBufferAllocator* Alloc = new FTransientUniformBufferAllocator(Devices[0], FRHIGPUMask::All(), CVarTransientUniformBufferAllocatorSizeKB.GetValueOnAnyThread() * 1024);
 		Alloc->Init();
 		return Alloc;
 	});

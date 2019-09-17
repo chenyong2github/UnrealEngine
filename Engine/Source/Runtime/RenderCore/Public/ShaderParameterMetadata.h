@@ -144,11 +144,7 @@ public:
 		uint32 InSize,
 		const TArray<FMember>& InMembers);
 
-	virtual ~FShaderParametersMetadata()
-	{
-		GlobalListLink.Unlink();
-		GetNameStructMap().Remove(FName(StructTypeName, FNAME_Find));
-	}
+	virtual ~FShaderParametersMetadata();
 
 	void GetNestedStructs(TArray<const FShaderParametersMetadata*>& OutNestedStructs) const;
 

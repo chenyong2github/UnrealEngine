@@ -314,6 +314,10 @@ void CompilerGLSL::reset()
 	expression_usage_counts.clear();
 	forwarded_temporaries.clear();
 
+	/* UE Change Begin: Ensure that we declare phi-variable copies even if the original declaration isn't deferred */
+	flushed_phi_variables.clear();
+	/* UE Change End: Ensure that we declare phi-variable copies even if the original declaration isn't deferred */
+	
 	reset_name_caches();
 
 	ir.for_each_typed_id<SPIRFunction>([&](uint32_t, SPIRFunction &func) {
@@ -3220,10 +3224,18 @@ string CompilerGLSL::constant_expression(const SPIRConstant &c)
 	{
 		// Handles Arrays and structures.
 		string res;
+		/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
+		bool bTrailingBracket = false;
 		if (backend.use_initializer_list && backend.use_typed_initializer_list && type.basetype == SPIRType::Struct &&
 		    type.array.empty())
 		{
 			res = type_to_glsl_constructor(type) + "{ ";
+		}
+		else if (backend.use_initializer_list && backend.use_typed_initializer_list &&
+				 !type.array.empty())
+		{
+			res = type_to_glsl(type) + "({ ";
+			bTrailingBracket = true;
 		}
 		else if (backend.use_initializer_list)
 		{
@@ -3247,6 +3259,10 @@ string CompilerGLSL::constant_expression(const SPIRConstant &c)
 		}
 
 		res += backend.use_initializer_list ? " }" : ")";
+		if (bTrailingBracket)
+			res += ")";
+		/* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
+		
 		return res;
 	}
 	else if (c.columns() == 1)
@@ -7069,11 +7085,12 @@ void CompilerGLSL::flush_variable_declaration(uint32_t id)
 		statement(variable_decl_function_local(*var), ";");
 		var->deferred_declaration = false;
 	}
-	if (var && var->allocate_temporary_copy)
+	if (var && var->allocate_temporary_copy && flushed_phi_variables.find(id) == flushed_phi_variables.end())
 	{
 		auto &type = get<SPIRType>(var->basetype);
 		auto &flags = ir.meta[id].decoration.decoration_flags;
 		statement(flags_to_qualifiers_glsl(type, flags), variable_decl(type, join("_", id, "_copy")), ";");
+		flushed_phi_variables.insert(id);
 	}
 	/* UE Change End: Ensure that we declare phi-variable copies even if the original declaration isn't deferred */
 }
@@ -7174,7 +7191,7 @@ bool CompilerGLSL::remove_unity_swizzle(uint32_t base, string &op)
 	auto &type = expression_type(base);
 
 	// Sanity checking ...
-	assert(type.columns == 1 && type.array.empty());
+	assert(type.columns == 1); //  && type.array.empty()
 
 	if (type.vecsize == final_swiz.size())
 		op.erase(pos, string::npos);
@@ -9083,7 +9100,13 @@ void CompilerGLSL::emit_instruction(const Instruction &instruction)
 	{
 		uint32_t result_type = ops[0];
 		uint32_t id = ops[1];
-		auto &e = set<SPIRExpression>(id, join(to_expression(ops[2]), ", ", to_expression(ops[3])), result_type, true);
+
+		auto coord_expr = to_expression(ops[3]);
+		auto target_coord_type = expression_type(ops[3]);
+		target_coord_type.basetype = SPIRType::Int;
+		coord_expr = bitcast_expression(target_coord_type, expression_type(ops[3]).basetype, coord_expr);
+
+		auto &e = set<SPIRExpression>(id, join(to_expression(ops[2]), ", ", coord_expr), result_type, true);
 
 		// When using the pointer, we need to know which variable it is actually loaded from.
 		auto *var = maybe_get_backing_variable(ops[2]);

@@ -421,9 +421,14 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 			EngineShowFlags.SetBrushes(true);
 		}
 
+		if (ViewModeIndex == VMI_Unlit)
+		{
+			EngineShowFlags.SetLighting(false);
+			EngineShowFlags.Atmosphere = 0;
+		}
+
 		if( ViewModeIndex == VMI_Wireframe ||
 			ViewModeIndex == VMI_BrushWireframe ||
-			ViewModeIndex == VMI_Unlit ||
 			ViewModeIndex == VMI_StationaryLightOverlap ||
 			ViewModeIndex == VMI_ShaderComplexity ||
 			ViewModeIndex == VMI_QuadOverdraw ||
@@ -436,7 +441,7 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 		{
 			EngineShowFlags.SetLighting(false);
 			EngineShowFlags.Atmosphere = 0;
-			EngineShowFlags.Fog = (ViewModeIndex == VMI_Unlit); // Only unlit uses it 
+			EngineShowFlags.Fog = 0;
 		}
 
 		if( ViewModeIndex == VMI_Lit ||
@@ -487,7 +492,6 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 		{
 			EngineShowFlags.SetRayTracingDebug(true);
 			EngineShowFlags.SetVisualizeHDR(false);
-			EngineShowFlags.SetVisualizeBloom(false);
 			EngineShowFlags.SetVisualizeMotionBlur(false);
 			EngineShowFlags.SetDepthOfField(false);
 			EngineShowFlags.SetPostProcessMaterial(false);

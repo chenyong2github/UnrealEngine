@@ -33,7 +33,6 @@ public class Launch : ModuleRules
 				"Sockets",
 				"TraceLog",
 				"Overlay",
-				"UtilityShaders",
 				"PreLoadScreen",
 				"InstallBundleManager"
 			});
@@ -249,22 +248,13 @@ public class Launch : ModuleRules
 				"IOSRuntimeSettings",
 			});
 
-            // For 4.23 the below check fails for binary builds, re-enabling for all builds UE-77520
-            // ES support will be fully removed in 4.24
-
-            // no longer build GL for apps requiring iOS 12 or later
-            //if (Target.IOSPlatform.RuntimeVersion < 12.0)
-            {
-                PublicFrameworks.Add("OpenGLES");
-				PrivateDependencyModuleNames.Add("OpenGLDrv");
-			}
 			// needed for Metal layer
 			PublicFrameworks.Add("QuartzCore");
 		}
 
 		if ((Target.Platform == UnrealTargetPlatform.Win32) ||
 			(Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Linux && Target.Type != TargetType.Server))
+			(Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) && Target.Type != TargetType.Server))
 		{
 			// TODO: re-enable after implementing resource tables for OpenGL.
 			DynamicallyLoadedModuleNames.Add("OpenGLDrv");
