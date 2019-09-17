@@ -167,6 +167,7 @@ void UImage::SetBrushFromTexture(UTexture2D* Texture, bool bMatchSize)
 
 		if (Texture) // Since this texture is used as UI, don't allow it affected by budget.
 		{
+			Texture->bForceMiplevelsToBeResident = true;
 			Texture->bIgnoreStreamingMipBias = true;
 		}
 
