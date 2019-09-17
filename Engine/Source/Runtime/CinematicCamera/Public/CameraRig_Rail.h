@@ -35,10 +35,21 @@ public:
 	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category = "Rail Controls")
 	bool bLockOrientationToRail;
 
+#if WITH_EDITORONLY_DATA
+	/** Determines whether or not to show the rail mesh preview. */
+	UPROPERTY(Transient, EditAnywhere, Category = "Rail Controls")
+	bool bShowRailVisualization;
+
+	/** Determines the scale of the rail mesh preview */
+	UPROPERTY(Transient, EditAnywhere, Category = "Rail Controls")
+	float PreviewMeshScale;
+#endif
+
 	virtual class USceneComponent* GetDefaultAttachComponent() const override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditUndo() override;
+	virtual void PostEditMove(bool bFinished) override;
 #endif
 
 	/** Returns the spline component that defines the rail path */
