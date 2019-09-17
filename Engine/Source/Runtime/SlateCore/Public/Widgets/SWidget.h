@@ -161,26 +161,7 @@ private:
  * volatility won't need to be recalculated.  Returns true if the value changed.
  */
 template<typename TargetValueType, typename SourceValueType>
-static bool SetWidgetAttribute(SWidget& ThisWidget, TAttribute<TargetValueType>& TargetValue, const TAttribute<SourceValueType>& SourceValue, EInvalidateWidgetReason BaseInvalidationReason)
-{
-	if (!TargetValue.IdenticalTo(SourceValue))
-	{
-		const bool bWasBound = TargetValue.IsBound();
-		const bool bBoundnessChanged = bWasBound != SourceValue.IsBound();
-		TargetValue = SourceValue;
-
-		EInvalidateWidgetReason InvalidateReason = BaseInvalidationReason;
-		if (bBoundnessChanged)
-		{
-			InvalidateReason |= EInvalidateWidgetReason::Volatility;
-		}
-
-		ThisWidget.Invalidate(InvalidateReason);
-		return true;
-	}
-
-	return false;
-}
+static bool SetWidgetAttribute(SWidget& ThisWidget, TAttribute<TargetValueType>& TargetValue, const TAttribute<SourceValueType>& SourceValue, EInvalidateWidgetReason BaseInvalidationReason);
 
 class IToolTip;
 
@@ -1724,4 +1705,27 @@ FORCEINLINE_DEBUGGABLE FArrangedWidget FGeometry::MakeChild(const TSharedRef<SWi
 	// Since ChildOffset is given as a LocalSpaceOffset, we MUST convert this offset into the space of the parent to construct a valid layout transform.
 	// The extra TransformPoint below does this by converting the local offset to an offset in parent space.
 	return MakeChild(ChildWidget, InLocalSize, FSlateLayoutTransform(ChildScale, TransformPoint(ChildScale, ChildOffset)));
+}
+
+
+template<typename TargetValueType, typename SourceValueType>
+bool SetWidgetAttribute(SWidget& ThisWidget, TAttribute<TargetValueType>& TargetValue, const TAttribute<SourceValueType>& SourceValue, EInvalidateWidgetReason BaseInvalidationReason)
+{
+	if (!TargetValue.IdenticalTo(SourceValue))
+	{
+		const bool bWasBound = TargetValue.IsBound();
+		const bool bBoundnessChanged = bWasBound != SourceValue.IsBound();
+		TargetValue = SourceValue;
+
+		EInvalidateWidgetReason InvalidateReason = BaseInvalidationReason;
+		if (bBoundnessChanged)
+		{
+			InvalidateReason |= EInvalidateWidgetReason::Volatility;
+		}
+
+		ThisWidget.Invalidate(InvalidateReason);
+		return true;
+	}
+
+	return false;
 }
