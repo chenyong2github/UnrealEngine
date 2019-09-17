@@ -166,6 +166,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 					.NewAssetFactories(TArray<UFactory*>())
 					.DisplayThumbnail(true)
 					.ThumbnailPool(Tree.Pin()->GetTreeThumbnailPool())
+					.OnShouldFilterAsset(FOnShouldFilterAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldFilterCurveAsset, ScalarParam->AtlasData.Atlas))
 					.OnShouldSetAsset(FOnShouldSetAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldSetCurveAsset, ScalarParam->AtlasData.Atlas))
 					.OnObjectChanged(FOnSetObject::CreateStatic(&FMaterialPropertyHelpers::SetPositionFromCurveAsset, ScalarParam->AtlasData.Atlas, ScalarParam, StackParameterData->ParameterHandle, (UObject*)MaterialEditorInstance))
 					.DisplayCompactSize(true)
