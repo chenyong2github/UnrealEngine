@@ -11,7 +11,7 @@
 
 class FOculusVertexShader : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FOculusVertexShader, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FOculusVertexShader, Global, RENDERCORE_API);
 public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
@@ -24,7 +24,7 @@ public:
 
 class FOculusWhiteShader : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FOculusWhiteShader, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FOculusWhiteShader, Global, RENDERCORE_API);
 public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
@@ -39,7 +39,7 @@ public:
 
 class FOculusBlackShader : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FOculusBlackShader, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FOculusBlackShader, Global, RENDERCORE_API);
 public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
@@ -54,7 +54,7 @@ public:
 
 class FOculusAlphaInverseShader : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FOculusAlphaInverseShader, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FOculusAlphaInverseShader, Global, RENDERCORE_API);
 public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
@@ -67,12 +67,12 @@ public:
 	}
 	FOculusAlphaInverseShader() {}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture)
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture)
 	{
 		SetTextureParameter(RHICmdList, GetPixelShader(), InTexture, InTextureSampler, Texture);
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI)
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI)
 	{
 		SetTextureParameter(RHICmdList, GetPixelShader(), InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
 	}
@@ -96,7 +96,7 @@ private:
 */
 class FOculusCubemapPS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FOculusCubemapPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FOculusCubemapPS, Global, RENDERCORE_API);
 public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }

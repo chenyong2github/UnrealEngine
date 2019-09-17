@@ -12,7 +12,7 @@ struct FDummyResolveParameter {};
 
 class FResolveDepthPS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepthPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepthPS, Global, RENDERCORE_API);
 public:
 	
 	typedef FDummyResolveParameter FParameter;
@@ -52,7 +52,7 @@ public:
 
 class FResolveDepth2XPS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepth2XPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepth2XPS, Global, RENDERCORE_API);
 public:
 
 	typedef FDummyResolveParameter FParameter;
@@ -94,7 +94,7 @@ public:
 
 class FResolveDepth4XPS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepth4XPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepth4XPS, Global, RENDERCORE_API);
 public:
 
 	typedef FDummyResolveParameter FParameter;
@@ -136,7 +136,7 @@ public:
 
 class FResolveDepth8XPS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepth8XPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepth8XPS, Global, RENDERCORE_API);
 public:
 
 	typedef FDummyResolveParameter FParameter;
@@ -180,12 +180,12 @@ public:
 
 class FResolveDepthNonMSPS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepthNonMSPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepthNonMSPS, Global, RENDERCORE_API);
 public:
 	
 	typedef FDummyResolveParameter FParameter;
 	
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return GetMaxSupportedFeatureLevel(Parameters.Platform) <= ERHIFeatureLevel::SM4; }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return GetMaxSupportedFeatureLevel(Parameters.Platform) <= ERHIFeatureLevel::ES3_1; }
 	
 	FResolveDepthNonMSPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
 	FGlobalShader(Initializer)
@@ -210,7 +210,7 @@ public:
 
 class FResolveSingleSamplePS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FResolveSingleSamplePS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FResolveSingleSamplePS, Global, RENDERCORE_API);
 public:
 	
 	typedef uint32 FParameter;
@@ -225,7 +225,7 @@ public:
 	}
 	FResolveSingleSamplePS() {}
 	
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, uint32 SingleSampleIndexValue);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, uint32 SingleSampleIndexValue);
 	
 	virtual bool Serialize(FArchive& Ar) override
 	{
@@ -244,13 +244,40 @@ public:
  */
 class FResolveVS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FResolveVS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FResolveVS, Global, RENDERCORE_API);
 public:
 	
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
 	
-	FResolveVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-	FGlobalShader(Initializer)
-	{}
+	FResolveVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		PositionMinMax.Bind(Initializer.ParameterMap, TEXT("PositionMinMax"), SPF_Mandatory);
+		UVMinMax.Bind(Initializer.ParameterMap, TEXT("UVMinMax"), SPF_Mandatory);
+	}
 	FResolveVS() {}
+
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, FVector4 PositionMinMax, FVector4 UVMinMax);
+
+	virtual bool Serialize(FArchive& Ar) override
+	{
+		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
+		Ar << PositionMinMax;
+		Ar << UVMinMax;
+		return bShaderHasOutdatedParameters;
+	}
+
+	FShaderParameter PositionMinMax;
+	FShaderParameter UVMinMax;
 };
+
+struct FResolveVertexBuffer : public FRenderResource
+{
+	FVertexBufferRHIRef VertexBufferRHI;
+	FVertexDeclarationRHIRef VertexDeclarationRHI;
+
+	virtual void InitDynamicRHI() override;
+	virtual void ReleaseDynamicRHI() override;
+};
+
+extern RENDERCORE_API TGlobalResource<FResolveVertexBuffer> GResolveVertexBuffer;
