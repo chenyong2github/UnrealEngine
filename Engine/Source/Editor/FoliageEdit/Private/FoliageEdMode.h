@@ -477,8 +477,14 @@ public:
 	/** Save the foliage type object. If it isn't an asset, will prompt the user for a location to save the new asset. */
 	UFoliageType* SaveFoliageTypeObject(UFoliageType* Settings);
 
+	/** Set/Clear selection for foliage instances of a specific types */
+	void SelectInstances(const TArray<const UFoliageType*>& FoliageTypes, bool bSelect);
+
 	/** Set/Clear selection for foliage instances of specific type  */
 	void SelectInstances(const UFoliageType* Settings, bool bSelect);
+
+	/** Find and select instances that don't have valid base or 'off-ground' */
+	void SelectInvalidInstances(const TArray<const UFoliageType*>& FoliageTypes);
 
 	/** Find and select instances that don't have valid base or 'off-ground' */
 	void SelectInvalidInstances(const UFoliageType* Settings);
@@ -625,6 +631,12 @@ private:
 	/** Called if the foliage tree is outdated */
 	void RebuildFoliageTree(const UFoliageType* Settings);
 
+	/** Increments a counter that prevents sending out notifications until end selection is called  and counter reaches 0 */
+	void BeginSelectionUpdate();
+
+	/** Decrements counter and will notify editor of selection change if counter reaches 0 */
+	void EndSelectionUpdate();
+
 	bool bBrushTraceValid;
 	FVector BrushLocation;
 	FVector BrushNormal;
@@ -657,5 +669,8 @@ private:
 	/** When painting in VR, this is the hand index that we're painting with.  Otherwise INDEX_NONE. */
 	class UViewportInteractor* FoliageInteractor;
 
+	int32 UpdateSelectionCounter;
+	bool bHasDeferredSelectionNotification;
+	friend class FEdModeFoliageSelectionUpdate;
 };
 

@@ -192,7 +192,9 @@ struct FFoliageImpl
 	virtual bool IsOwnedComponent(const UPrimitiveComponent* Component) const = 0;
 	virtual int32 FindIndex(const UPrimitiveComponent* HitComponent) const { return INDEX_NONE; }
 
-	virtual void SelectInstances(bool bSelect, int32 InstanceIndex, int32 Count) = 0;
+	virtual void SelectAllInstances(bool bSelect) = 0;
+	virtual void SelectInstance(bool bSelect, int32 Index) = 0;
+	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) = 0;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) = 0;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) = 0;
 
