@@ -571,9 +571,9 @@ void FHoloLensARSystem::SetupMeshObserver()
 
 	// Get the settings for triangle density and mapping volume size
 	float TriangleDensity = 500.f;
-	GConfig->GetFloat(TEXT("/Script/HoloLensTargetPlatform.HoloLensTargetSettings"), TEXT("MaxTrianglesPerCubicMeter"), TriangleDensity, GEngineIni);
+	GConfig->GetFloat(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), TEXT("MaxTrianglesPerCubicMeter"), TriangleDensity, GEngineIni);
 	float VolumeSize = 1.f;
-	GConfig->GetFloat(TEXT("/Script/HoloLensTargetPlatform.HoloLensTargetSettings"), TEXT("SpatialMeshingVolumeSize"), VolumeSize, GEngineIni);
+	GConfig->GetFloat(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), TEXT("SpatialMeshingVolumeSize"), VolumeSize, GEngineIni);
 
 	WMRInterop->StartSpatialMapping(TriangleDensity, VolumeSize, &StartMeshUpdates_Raw, &AllocateMeshBuffers_Raw, &RemovedMesh_Raw, &EndMeshUpdates_Raw);
 }
@@ -599,12 +599,16 @@ void FHoloLensARSystem::AllocateMeshBuffers(MeshUpdate* InMeshUpdate)
 		MeshUpdate->Indices.AddUninitialized(InMeshUpdate->NumIndices);
 		InMeshUpdate->Indices = MeshUpdate->Indices.GetData();
 
+		const FTransform TrackingToWorldTransform = TrackingSystem->GetTrackingToWorldTransform();
+		
 		// The transform information is only updated when the vertices are updated so it needs to be captured here
 		FVector Translation(InMeshUpdate->Translation[0], InMeshUpdate->Translation[1], InMeshUpdate->Translation[2]);
+		Translation = TrackingToWorldTransform.TransformPosition(Translation);
 		MeshUpdate->Location = Translation;
 		FVector Scale(InMeshUpdate->Scale[0], InMeshUpdate->Scale[1], InMeshUpdate->Scale[2]);
 		MeshUpdate->Scale = Scale;
 		FQuat Rotation(InMeshUpdate->Rotation[0], InMeshUpdate->Rotation[1], InMeshUpdate->Rotation[2], InMeshUpdate->Rotation[3]);
+		Rotation = TrackingToWorldTransform.TransformRotation(Rotation);
 		MeshUpdate->Rotation = Rotation;
 	}
 
