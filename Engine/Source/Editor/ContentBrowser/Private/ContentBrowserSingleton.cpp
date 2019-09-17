@@ -29,6 +29,7 @@
 #include "EmptyFolderVisibilityManager.h"
 #include "CollectionAssetRegistryBridge.h"
 #include "ContentBrowserCommands.h"
+#include "CoreGlobals.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -68,6 +69,8 @@ FContentBrowserSingleton::FContentBrowserSingleton()
 	FEditorDelegates::LoadSelectedAssetsIfNeeded.AddRaw(this, &FContentBrowserSingleton::OnEditorLoadSelectedAssetsIfNeeded);
 
 	FContentBrowserCommands::Register();
+
+	PopulateConfigValues();
 }
 
 FContentBrowserSingleton::~FContentBrowserSingleton()
@@ -453,6 +456,18 @@ TSharedRef<FEmptyFolderVisibilityManager> FContentBrowserSingleton::GetEmptyFold
 	return EmptyFolderVisibilityManager;
 }
 
+const FContentBrowserPluginSettings& FContentBrowserSingleton::GetPluginSettings(FName PluginName) const
+{
+	const FContentBrowserPluginSettings* LocalSettings = PluginSettings.FindByPredicate([PluginName](const FContentBrowserPluginSettings& Setting) { return Setting.PluginName == PluginName; });
+	if (LocalSettings)
+	{
+		return *LocalSettings;
+	}
+
+	static FContentBrowserPluginSettings DefaultSettings;
+	return DefaultSettings;
+}
+
 void FContentBrowserSingleton::SharedCreateAssetDialogWindow(const TSharedRef<SAssetDialog>& AssetDialog, const FSharedAssetDialogConfig& InConfig, bool bModal) const
 {
 	const FVector2D DefaultWindowSize(1152.0f, 648.0f);
@@ -703,6 +718,27 @@ void FContentBrowserSingleton::ForceShowPluginContent(bool bEnginePlugin)
 	if (PrimaryContentBrowser.IsValid())
 	{
 		PrimaryContentBrowser.Pin()->ForceShowPluginContent(bEnginePlugin);
+	}
+}
+
+void FContentBrowserSingleton::PopulateConfigValues()
+{
+	const FString ContentBrowserSection = TEXT("ContentBrowser");
+
+	// PluginSettings
+	{
+		const FString PluginSettingsName = TEXT("PluginSettings");
+		TArray<FString> PluginSettingsStrings;
+		GConfig->GetArray(*ContentBrowserSection, *PluginSettingsName, PluginSettingsStrings, GEditorIni);
+		for (const FString& PluginSettingString : PluginSettingsStrings)
+		{
+			FContentBrowserPluginSettings PluginSetting;
+			const TCHAR* Result = FContentBrowserPluginSettings::StaticStruct()->ImportText(*PluginSettingString, &PluginSetting, nullptr, PPF_None, GLog, PluginSettingsName);
+			if (Result != nullptr)
+			{
+				PluginSettings.Emplace(PluginSetting);
+			}
+		}
 	}
 }
 
