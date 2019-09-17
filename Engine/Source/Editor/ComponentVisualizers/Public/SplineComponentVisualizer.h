@@ -7,7 +7,6 @@
 #include "HitProxies.h"
 #include "ComponentVisualizer.h"
 #include "Components/SplineComponent.h"
-#include "SplineGeneratorPanel.h"
 
 class AActor;
 class FEditorViewportClient;
