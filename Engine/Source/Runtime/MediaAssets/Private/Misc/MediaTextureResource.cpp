@@ -267,6 +267,30 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			Rotation = Sample->GetScaleRotation();
 			Offset = Sample->GetOffset();
 
+			/*
+				We need to keep any sample used for display around to avoid any player reusing it before any async tasks are done.
+
+				Two cases are to be considered:
+				a) we directly use the textures in the sample -> we need to keep it as long as the sample is visible
+				b) we copy (e.g. as part of a conversion) the sample into a local texture -> we only need it for the current rendering interval
+
+				In both cases the FTextureSampleKeeper will make sure that it is kept for the current rendering interval per FRHIResource rules
+				for delayed deletion.
+			*/
+			TRefCountPtr<FTextureSampleKeeper> NewCurrentSample = TRefCountPtr<FTextureSampleKeeper>(new FTextureSampleKeeper(Sample));
+			check(NewCurrentSample);
+//TODO: using normal sample retention at all times for now to avoid issues on some platforms
+			if (1) //RenderTargetTextureRHI != OutputTarget)
+			{
+				// We use the texture data in the sample
+				CurrentSample = NewCurrentSample;
+			}
+			else
+			{
+				// We use the internal copy, no need to hold on to the new one or keep any older one
+				CurrentSample = nullptr;
+			}
+
 			SET_FLOAT_STAT(STAT_MediaUtils_TextureSampleTime, Sample->GetTime().GetTotalMilliseconds());
 		}
 #if MEDIATEXTURERESOURCE_TRACE_RENDER
@@ -286,29 +310,6 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			);
 		}
 #endif
-
-		/*
-			We need to keep any sample used for display around to avoid any player reusing it before any async tasks are done.
-
-			Two cases are to be considered:
-			a) we directly use the textures in the sample -> we need to keep it as long as the sample is visible
-			b) we copy (e.g. as part of a conversion) the sample into a local texture -> we only need it for the current rendering interval
-
-			In both cases the FTextureSampleKeeper will make sure that it is kept for the current rendering interval per FRHIResource rules
-			for delayed deletion.
-		*/
-		TRefCountPtr<FTextureSampleKeeper> NewCurrentSample = TRefCountPtr<FTextureSampleKeeper>(new FTextureSampleKeeper(Sample));
-		check(NewCurrentSample);
-		if (RenderTargetTextureRHI != OutputTarget)
-		{
-			// We use the texture data in the sample
-			CurrentSample = NewCurrentSample;
-		}
-		else
-		{
-			// We use the internal copy
-			CurrentSample = nullptr;
-		}
 	}
 	else if (Params.CanClear)
 	{
