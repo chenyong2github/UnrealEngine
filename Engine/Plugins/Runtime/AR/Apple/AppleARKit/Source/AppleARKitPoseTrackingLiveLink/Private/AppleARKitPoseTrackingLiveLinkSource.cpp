@@ -5,6 +5,8 @@
 #include "Roles/LiveLinkAnimationTypes.h"
 #include "Roles/LiveLinkAnimationRole.h"
 
+#include "Features/IModularFeatures.h"
+
 TSharedPtr<ILiveLinkSourceARKitPoseTracking> FAppleARKitPoseTrackingLiveLinkSourceFactory::CreateLiveLinkSource()
 {
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
