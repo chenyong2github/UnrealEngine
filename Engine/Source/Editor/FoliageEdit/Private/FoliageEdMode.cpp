@@ -31,6 +31,7 @@
 #include "FoliageEditActions.h"
 
 #include "AssetRegistryModule.h"
+#include "Misc/ScopeExit.h"
 
 //Slate dependencies
 #include "ILevelViewport.h"
@@ -1494,13 +1495,13 @@ void FEdModeFoliage::RebuildFoliageTree(const UFoliageType* Settings)
 	}
 }
 
-void FEdModeFoliage::AddInstancesImp(UWorld* InWorld, const UFoliageType* Settings, const TArray<FDesiredFoliageInstance>& DesiredInstances, const TArray<int32>& ExistingInstanceBuckets, const float Pressure, LandscapeLayerCacheData* LandscapeLayerCachesPtr, const FFoliageUISettings* UISettings, const FFoliagePaintingGeometryFilter* OverrideGeometryFilter, bool InRebuildFoliageTree)
+bool FEdModeFoliage::AddInstancesImp(UWorld* InWorld, const UFoliageType* Settings, const TArray<FDesiredFoliageInstance>& DesiredInstances, const TArray<int32>& ExistingInstanceBuckets, const float Pressure, LandscapeLayerCacheData* LandscapeLayerCachesPtr, const FFoliageUISettings* UISettings, const FFoliagePaintingGeometryFilter* OverrideGeometryFilter, bool InRebuildFoliageTree)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FoliageAddInstanceImp);
 	
 	if (DesiredInstances.Num() == 0)
 	{
-		return;
+		return false;
 	}
 
 	TArray<FPotentialInstance> PotentialInstanceBuckets[NUM_INSTANCE_BUCKETS];
@@ -1533,6 +1534,8 @@ void FEdModeFoliage::AddInstancesImp(UWorld* InWorld, const UFoliageType* Settin
 		}
 	}
 
+	bool bPlacedInstances = false;
+
 	for (int32 BucketIdx = 0; BucketIdx < NUM_INSTANCE_BUCKETS; BucketIdx++)
 	{
 		TArray<FPotentialInstance>& PotentialInstances = PotentialInstanceBuckets[BucketIdx];
@@ -1558,15 +1561,18 @@ void FEdModeFoliage::AddInstancesImp(UWorld* InWorld, const UFoliageType* Settin
 					Inst.ProceduralGuid = PotentialInstance.DesiredInstance.ProceduralGuid;
 					Inst.BaseComponent = PotentialInstance.HitComponent;
 					PlacedInstances.Add(MoveTemp(Inst));
+					bPlacedInstances = true;
 				}
 			}
 
 			SpawnFoliageInstance(InWorld, Settings, UISettings, PlacedInstances, InRebuildFoliageTree);
 		}
 	}
+
+	return bPlacedInstances;
 }
 
-void FEdModeFoliage::AddSingleInstanceForBrush(UWorld* InWorld, const UFoliageType* Settings, float Pressure)
+bool FEdModeFoliage::AddSingleInstanceForBrush(UWorld* InWorld, const UFoliageType* Settings, float Pressure)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FoliageAddInstanceBrush);
 
@@ -1583,7 +1589,7 @@ void FEdModeFoliage::AddSingleInstanceForBrush(UWorld* InWorld, const UFoliageTy
 	TArray<int32> ExistingInstanceBuckets;
 	ExistingInstanceBuckets.AddZeroed(NUM_INSTANCE_BUCKETS);
 
-	AddInstancesImp(InWorld, Settings, DesiredInstances, ExistingInstanceBuckets, Pressure, &LandscapeLayerCaches, &UISettings, nullptr, false);
+	return AddInstancesImp(InWorld, Settings, DesiredInstances, ExistingInstanceBuckets, Pressure, &LandscapeLayerCaches, &UISettings, nullptr, false);
 }
 
 /** Add instances inside the brush to match DesiredInstanceCount */
@@ -2449,15 +2455,24 @@ void FEdModeFoliage::ApplyBrush(FEditorViewportClient* ViewportClient)
 
 	// Cache a copy of the world pointer
 	UWorld* World = ViewportClient->GetWorld();
-
+	int32 SelectedIndex = -1;
+	TArray<FFoliageMeshUIInfoPtr> SelectedFoliageMeshList;
+	SelectedFoliageMeshList.Reserve(FoliageMeshList.Num());
 	for (auto& FoliageMeshUI : FoliageMeshList)
 	{
-		UFoliageType* Settings = FoliageMeshUI->Settings;
-
-		if (!Settings->IsSelected)
+		if (FoliageMeshUI->Settings->IsSelected)
 		{
-			continue;
+			SelectedFoliageMeshList.Add(FoliageMeshUI);
 		}
+	}
+
+	for (int32 Index = 0; Index < SelectedFoliageMeshList.Num(); ++Index)
+	{
+		UFoliageType* Settings = SelectedFoliageMeshList[Index]->Settings;
+		ON_SCOPE_EXIT
+		{
+			OnInstanceCountUpdated(Settings);
+		};
 
 		FSphere BrushSphere(BrushLocation, UISettings.GetRadius());
 
@@ -2482,7 +2497,21 @@ void FEdModeFoliage::ApplyBrush(FEditorViewportClient* ViewportClient)
 			{
 				if (UISettings.IsInAnySingleInstantiationMode())
 				{
-					AddSingleInstanceForBrush(World, Settings, Pressure);
+					if (UISettings.GetSingleInstantiationPlacementMode() == EFoliageSingleInstantiationPlacementMode::Type::All)
+					{
+						AddSingleInstanceForBrush(World, Settings, Pressure);
+					}
+					else if (UISettings.GetSingleInstantiationPlacementMode() == EFoliageSingleInstantiationPlacementMode::Type::CycleThrough)
+					{
+						if (UISettings.GetSingleInstantiationCycleThroughIndex() % SelectedFoliageMeshList.Num() == Index)
+						{
+							if (AddSingleInstanceForBrush(World, Settings, Pressure))
+							{
+								UISettings.IncrementSingleInstantiationCycleThroughIndex();
+							}
+							return;
+						}
+					}
 				}
 				else
 				{
@@ -2495,8 +2524,6 @@ void FEdModeFoliage::ApplyBrush(FEditorViewportClient* ViewportClient)
 				}
 			}
 		}
-
-		OnInstanceCountUpdated(Settings);
 	}
 
 	if (UISettings.GetLassoSelectToolSelected())
@@ -3788,6 +3815,10 @@ void FFoliageUISettings::Load()
 
 	GConfig->GetBool(TEXT("FoliageEdit"), TEXT("IsInSingleInstantiationMode"), IsInSingleInstantiationMode, GEditorPerProjectIni);
 	GConfig->GetBool(TEXT("FoliageEdit"), TEXT("IsInSpawnInCurrentLevelMode"), IsInSpawnInCurrentLevelMode, GEditorPerProjectIni);
+
+	int32 SingleInstantiationPlacementModeAsInt = 0;
+	GConfig->GetInt(TEXT("FoliageEdit"), TEXT("SingleInstantiationPlacementMode"), SingleInstantiationPlacementModeAsInt, GEditorPerProjectIni);
+	SingleInstantiationPlacementMode = EFoliageSingleInstantiationPlacementMode::Type(SingleInstantiationPlacementModeAsInt);
 }
 
 /** Save UI settings to ini file */
@@ -3812,7 +3843,7 @@ void FFoliageUISettings::Save()
 
 	GConfig->SetBool(TEXT("FoliageEdit"), TEXT("IsInSingleInstantiationMode"), IsInSingleInstantiationMode, GEditorPerProjectIni);
 	GConfig->SetBool(TEXT("FoliageEdit"), TEXT("IsInSpawnInCurrentLevelMode"), IsInSpawnInCurrentLevelMode, GEditorPerProjectIni);
-
+	GConfig->SetInt(TEXT("FoliageEdit"), TEXT("SingleInstantiationPlacementMode"), (int32)SingleInstantiationPlacementMode, GEditorPerProjectIni);
 }
 
 #undef LOCTEXT_NAMESPACE

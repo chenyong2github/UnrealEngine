@@ -38,6 +38,17 @@ namespace EFoliagePaletteViewMode
 	};
 }
 
+/** Single instance mode */
+namespace EFoliageSingleInstantiationPlacementMode
+{
+	enum class Type
+	{
+		All,
+		CycleThrough,
+		ModeCount
+	};
+};
+
 const float SingleInstanceModeBrushSize = 20.0f;
 
 // Current user settings in Foliage UI
@@ -89,6 +100,12 @@ struct FFoliageUISettings
 	bool GetIsInQuickSingleInstantiationMode() const { return IsInQuickSingleInstantiationMode; }
 	void SetIsInQuickSingleInstantiationMode(bool InIsInQuickSingleInstantiationMode) { IsInQuickSingleInstantiationMode = InIsInQuickSingleInstantiationMode; }
 
+	EFoliageSingleInstantiationPlacementMode::Type GetSingleInstantiationPlacementMode() const { return SingleInstantiationPlacementMode; }
+	void SetSingleInstantiationPlacementMode(EFoliageSingleInstantiationPlacementMode::Type InSingleInstantiationPlacementMode) { SingleInstantiationPlacementMode = InSingleInstantiationPlacementMode; }
+
+	int32 GetSingleInstantiationCycleThroughIndex() const { return SingleInstantiationCycleThroughIndex; }
+	void IncrementSingleInstantiationCycleThroughIndex() { SingleInstantiationCycleThroughIndex++; }
+
 	bool GetIsInSpawnInCurrentLevelMode() const { return IsInSpawnInCurrentLevelMode; }
 	void SetSpawnInCurrentLevelMode(bool InSpawnInCurrentLevelMode) { IsInSpawnInCurrentLevelMode = InSpawnInCurrentLevelMode; }
 
@@ -121,6 +138,8 @@ struct FFoliageUISettings
 		, UnpaintDensity(0.f)
 		, IsInSingleInstantiationMode(false)
 		, IsInQuickSingleInstantiationMode(false)
+		, SingleInstantiationPlacementMode(EFoliageSingleInstantiationPlacementMode::Type::All)
+		, SingleInstantiationCycleThroughIndex(0)
 		, IsInSpawnInCurrentLevelMode(false)
 		, bFilterLandscape(true)
 		, bFilterStaticMesh(true)
@@ -158,6 +177,8 @@ private:
 
 	bool IsInSingleInstantiationMode;
 	bool IsInQuickSingleInstantiationMode;
+	EFoliageSingleInstantiationPlacementMode::Type SingleInstantiationPlacementMode;
+	int32 SingleInstantiationCycleThroughIndex;
 	bool IsInSpawnInCurrentLevelMode;
 
 public:
@@ -524,7 +545,10 @@ private:
 	/** Add instances inside the brush to match DesiredInstanceCount */
 	void AddInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, int32 DesiredInstanceCount, float Pressure);
 
-	void AddSingleInstanceForBrush(UWorld* InWorld, const UFoliageType* Settings, float Pressure);
+	/** Add single instance inside the brush 
+	* @return true if instance was added successfully
+	*/
+	bool AddSingleInstanceForBrush(UWorld* InWorld, const UFoliageType* Settings, float Pressure);
 
 	/** Remove instances inside the brush to match DesiredInstanceCount. */
 	void RemoveInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, int32 DesiredInstanceCount, float Pressure);
@@ -576,7 +600,7 @@ private:
 	void HandleOnFoliageTypeMeshChanged(UFoliageType* FoliageType);
 
 	/** Common code for adding instances to world based on settings */
-	static void AddInstancesImp(UWorld* InWorld, const UFoliageType* Settings, const TArray<FDesiredFoliageInstance>& DesiredInstances, const TArray<int32>& ExistingInstances = TArray<int32>(), const float Pressure = 1.f, LandscapeLayerCacheData* LandscapeLayerCaches = nullptr, const FFoliageUISettings* UISettings = nullptr, const FFoliagePaintingGeometryFilter* OverrideGeometryFilter = nullptr, bool InRebuildFoliageTree = true);
+	static bool AddInstancesImp(UWorld* InWorld, const UFoliageType* Settings, const TArray<FDesiredFoliageInstance>& DesiredInstances, const TArray<int32>& ExistingInstances = TArray<int32>(), const float Pressure = 1.f, LandscapeLayerCacheData* LandscapeLayerCaches = nullptr, const FFoliageUISettings* UISettings = nullptr, const FFoliagePaintingGeometryFilter* OverrideGeometryFilter = nullptr, bool InRebuildFoliageTree = true);
 
 	/** Logic for determining which instances can be placed in the world*/
 	static void CalculatePotentialInstances(const UWorld* InWorld, const UFoliageType* Settings, const TArray<FDesiredFoliageInstance>& DesiredInstances, TArray<FPotentialInstance> OutPotentialInstances[NUM_INSTANCE_BUCKETS], LandscapeLayerCacheData* LandscaleLayerCachesPtr, const FFoliageUISettings* UISettings, const FFoliagePaintingGeometryFilter* OverrideGeometryFilter = nullptr);
