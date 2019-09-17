@@ -149,8 +149,6 @@ void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 	FTransform Transform = ComponentTarget->GetWorldTransform();
 
-	FColor WireframeColor(40, 40, 40);
-	float WireframeThickness = LineWidthMultiplier * 0.5;
 	FColor BoundaryEdgeColor(240, 15, 15);
 	float BoundaryEdgeThickness = LineWidthMultiplier * 4.0;
 	FColor UVSeamColor(15, 240, 15);

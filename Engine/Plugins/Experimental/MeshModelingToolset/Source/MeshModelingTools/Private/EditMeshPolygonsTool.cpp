@@ -1350,6 +1350,7 @@ void UEditMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
 	GetActiveQuickTransformer()->UpdateCameraState(CameraState);
 
+	DynamicMeshComponent->bExplicitShowWireframe = TransformProps->bWireframe;
 	FDynamicMesh3* TargetMesh = DynamicMeshComponent->GetMesh();
 
 	PolyEdgesRenderer.BeginFrame(RenderAPI, CameraState);

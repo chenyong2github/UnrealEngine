@@ -68,9 +68,12 @@ namespace
 	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Sphere },
 	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Plane },
 	  { TEXT("Material"),      EMakeMeshShapeType::All },
+	  { TEXT("bWireframe"),	   EMakeMeshShapeType::All }
 	};
 };
 
+// UObject interface
+#if WITH_EDITOR
 bool
 UProceduralShapeToolProperties::CanEditChange( const UProperty* InProperty) const
 {
@@ -82,6 +85,9 @@ UProceduralShapeToolProperties::CanEditChange( const UProperty* InProperty) cons
 	checkNoEntry();
 	return false;
 }
+#endif // WITH_EDITOR	
+// End of UObject interface
+
 
 void UAddPrimitiveTool::SetWorld(UWorld* World)
 {
@@ -137,6 +143,7 @@ void UAddPrimitiveTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UAddPrimitiveTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
 {
+	PreviewMesh->EnableWireframe(ShapeSettings->bWireframe);
 	PreviewMesh->SetMaterial(ShapeSettings->Material);
 	UpdatePreviewMesh();
 }

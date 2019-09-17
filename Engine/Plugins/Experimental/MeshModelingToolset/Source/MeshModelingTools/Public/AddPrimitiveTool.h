@@ -120,6 +120,10 @@ public:
 	/** Material */
 	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Material"))
 	UMaterialInterface* Material;
+
+	/** Wireframe toggle */
+	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Show Wireframe"))
+	bool bWireframe;
 };
 
 
