@@ -629,6 +629,9 @@ bool UAssetRegistryImpl::GetAssets(const FARFilter& InFilter, TArray<FAssetData>
 		const int32 NumFilterClasses = FilterClassNames.Num();
 		const int32 NumFilterObjectPaths = FilterObjectPaths.Num();
 
+		// Reusable structures to avoid memory allocations
+		TArray<UObject::FAssetRegistryTag> ObjectTags;
+
 		auto FilterInMemoryObjectLambda = [&](const UObject* Obj)
 		{
 			if (Obj->IsAsset())
@@ -654,7 +657,7 @@ bool UAssetRegistryImpl::GetAssets(const FARFilter& InFilter, TArray<FAssetData>
 				// Object Path
 				if (NumFilterObjectPaths)
 				{
-					const FName ObjectPath = FName(*Obj->GetPathName());
+					const FName ObjectPath = FName(*Obj->GetPathName(), FNAME_Find);
 					if (!FilterObjectPaths.Contains(ObjectPath))
 					{
 						return;
@@ -669,7 +672,7 @@ bool UAssetRegistryImpl::GetAssets(const FARFilter& InFilter, TArray<FAssetData>
 				}
 
 				// Tags and values
-				TArray<UObject::FAssetRegistryTag> ObjectTags;
+				check(ObjectTags.Num() == 0);
 				Obj->GetAssetRegistryTags(ObjectTags);
 				if (Filter.TagsAndValues.Num())
 				{
@@ -713,9 +716,10 @@ bool UAssetRegistryImpl::GetAssets(const FARFilter& InFilter, TArray<FAssetData>
 						TagMap.Add(AssetRegistryTag.Name, AssetRegistryTag.Value);
 					}
 				}
+				ObjectTags.Reset();
 
 				// This asset is in memory and passes all filters
-				FAssetData* AssetData = new (OutAssetData)FAssetData(PackageName, PackagePath, Obj->GetFName(), Obj->GetClass()->GetFName(), TagMap, InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags());
+				OutAssetData.Emplace(FAssetData(PackageName, PackagePath, Obj->GetFName(), Obj->GetClass()->GetFName(), MoveTemp(TagMap), InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags()));
 			}
 		};
 
@@ -1295,6 +1299,7 @@ void UAssetRegistryImpl::ExpandRecursiveFilter(const FARFilter& InFilter, FARFil
 
 	ExpandedFilter = InFilter;
 
+	FilterPackagePaths.Reserve(NumFilterPackagePaths);
 	for (int32 PathIdx = 0; PathIdx < NumFilterPackagePaths; ++PathIdx)
 	{
 		FilterPackagePaths.Add(InFilter.PackagePaths[PathIdx]);
@@ -1331,6 +1336,7 @@ void UAssetRegistryImpl::ExpandRecursiveFilter(const FARFilter& InFilter, FARFil
 	}
 	else
 	{
+		FilterClassNames.Reserve(NumFilterClasses);
 		for (int32 ClassIdx = 0; ClassIdx < NumFilterClasses; ++ClassIdx)
 		{
 			FilterClassNames.Add(InFilter.ClassNames[ClassIdx]);
@@ -2807,11 +2813,13 @@ void UAssetRegistryImpl::GetSubClasses(const TArray<FName>& InClassNames, const 
 {
 	UpdateTemporaryCaches();
 
+	TSet<FName> ProcessedClassNames;
+
 	for (FName ClassName : InClassNames)
 	{
 		// Now find all subclass names
-		TSet<FName> ProcessedClassNames;
 		GetSubClasses_Recursive(ClassName, SubClassNames, ProcessedClassNames, TempReverseInheritanceMap, ExcludedClassNames);
+		ProcessedClassNames.Reset();
 	}
 
 	ClearTemporaryCaches();
