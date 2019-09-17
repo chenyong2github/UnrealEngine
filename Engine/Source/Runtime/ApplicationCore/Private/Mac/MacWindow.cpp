@@ -627,7 +627,7 @@ void FMacWindow::ApplySizeAndModeChanges(int32 X, int32 Y, int32 Width, int32 He
 			Height = FMath::CeilToInt(Height / DPIScaleFactor);
 
 			const FVector2D CocoaPosition = FMacApplication::ConvertSlatePositionToCocoa(X, Y);
-			NSRect Rect = NSMakeRect(CocoaPosition.X, CocoaPosition.Y - Height + 1, FMath::Max(Width, 0), FMath::Max(Height, 0));
+			NSRect Rect = NSMakeRect(CocoaPosition.X, CocoaPosition.Y - Height + 1, FMath::Max(Width, 1), FMath::Max(Height, 1));
 			if (Definition->HasOSWindowBorder)
 			{
 				Rect = [WindowHandle frameRectForContentRect:Rect];
@@ -643,6 +643,9 @@ void FMacWindow::ApplySizeAndModeChanges(int32 X, int32 Y, int32 Width, int32 He
 					{
 						[WindowHandle setFrame:Rect display:YES];
 					}
+
+					const float WindowOpacity = (Definition->TransparencySupport == EWindowTransparency::PerWindow) ? Definition->Opacity : 1.0f;
+					[WindowHandle setAlphaValue:(Width > 0 && Height > 0) ? WindowOpacity : 0.0f];
 
 					if (Definition->ShouldPreserveAspectRatio)
 					{
