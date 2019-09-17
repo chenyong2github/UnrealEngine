@@ -23,20 +23,9 @@ inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size, uint16 Extr
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size, uint8* Out)
-: bOutOfBand(true)
-{
-	*(uint32*)Out = (uint32(Size) << 16)|uint32(EventUid);
-	Ptr = Out + HeaderSize;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 inline FEventDef::FLogScope::~FLogScope()
 {
-	if (!bOutOfBand)
-	{
-		Writer_EndLog(Ptr);
-	}
+	Writer_EndLog(Ptr);
 }
 
 

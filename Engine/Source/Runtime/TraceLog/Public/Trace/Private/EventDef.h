@@ -64,10 +64,8 @@ public:
 	public:
 						FLogScope(uint16 EventUid, uint16 Size);
 						FLogScope(uint16 EventUid, uint16 Size, uint16 ExtraBytes);
-						FLogScope(uint16 EventUid, uint16 Size, uint8* Out);
 						~FLogScope();
 		uint8*			Ptr;
-		const bool		bOutOfBand = false;
 	};
 
 	void*						Handle;
