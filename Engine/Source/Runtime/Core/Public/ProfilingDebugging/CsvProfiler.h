@@ -406,10 +406,13 @@ public:
 
 	~FScopedCsvWaitConditional()
 	{
+		if (bCondition)
+		{
 #if CSV_EXCLUSIVE_TIMING_STATS_EMIT_NAMED_EVENTS
-		FPlatformMisc::EndNamedEvent();
+			FPlatformMisc::EndNamedEvent();
 #endif
-		FCsvProfiler::EndWait();
+			FCsvProfiler::EndWait();
+		}
 	}
 	bool bCondition;
 };
