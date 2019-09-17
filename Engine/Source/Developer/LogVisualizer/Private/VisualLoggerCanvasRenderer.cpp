@@ -239,6 +239,7 @@ void FVisualLoggerCanvasRenderer::DrawHistogramGraphs(class UCanvas* Canvas, cla
 		int32 CurrentColumn = 0;
 		int32 CurrentRow = 0;
 		bool bDrawExtremesOnGraphs = ULogVisualizerSettings::StaticClass()->GetDefaultObject<ULogVisualizerSettings>()->bDrawExtremesOnGraphs;
+		const bool bConstrainGraphToLocalMinMax = ULogVisualizerSettings::StaticClass()->GetDefaultObject<ULogVisualizerSettings>()->bConstrainGraphToLocalMinMax;
 		for (auto It(CollectedGraphs.CreateIterator()); It; ++It)
 		{
 			TWeakObjectPtr<UReporterGraph> HistogramGraph = Canvas->GetReporterGraph();
@@ -255,6 +256,13 @@ void FVisualLoggerCanvasRenderer::DrawHistogramGraphs(class UCanvas* Canvas, cla
 			auto& CategoriesForGraph = UsedGraphCategories.FindOrAdd(It->Key.ToString());
 
 			It->Value.GraphLines.KeySort(FNameLexicalLess());
+
+			if (bConstrainGraphToLocalMinMax)
+			{
+				It->Value.Min.Y = FLT_MAX;
+				It->Value.Max.Y = -FLT_MAX;
+			}
+
 			for (auto LinesIt(It->Value.GraphLines.CreateConstIterator()); LinesIt; ++LinesIt)
 			{
 				const FString DataName = LinesIt->Value.DataName.ToString();
@@ -280,6 +288,18 @@ void FVisualLoggerCanvasRenderer::DrawHistogramGraphs(class UCanvas* Canvas, cla
 				MaxStringSize = StringSizeX > MaxStringSize ? StringSizeX : MaxStringSize;
 
 				++LineIndex;
+
+				if (bConstrainGraphToLocalMinMax)
+				{
+					for (const FVector2D& SampleData : LinesIt->Value.Samples)
+					{
+						if (SampleData.X >= TimeStampWindow.X && SampleData.X <= TimeStampWindow.Y)
+						{
+							It->Value.Min.Y = FMath::Min<float>(It->Value.Min.Y, SampleData.Y);
+							It->Value.Max.Y = FMath::Max<float>(It->Value.Max.Y, SampleData.Y);
+						}
+					}
+				}
 			}
 
 			FVector2D GraphSpaceSize;
