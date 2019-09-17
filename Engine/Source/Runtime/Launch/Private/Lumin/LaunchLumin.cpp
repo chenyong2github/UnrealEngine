@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
 #endif
 
 	// tick until done
-	while (!GIsRequestingExit)
+	while (!IsEngineExitRequested())
 	{
 // 		FAppEventManager::GetInstance()->Tick();
 // 		if(!FAppEventManager::GetInstance()->IsGamePaused())

@@ -22,7 +22,7 @@ IMPLEMENT_APPLICATION(LiveCodingConsole, "LiveCodingConsole");
 
 static void OnRequestExit()
 {
-	GIsRequestingExit = true;
+	RequestEngineExit(TEXT("LiveCoding console closed"));
 }
 
 class FLiveCodingConsoleApp
@@ -125,7 +125,7 @@ public:
 		Slate.ClearKeyboardFocus(EFocusCause::Cleared);
 
 		// loop until the app is ready to quit
-		while (!GIsRequestingExit)
+		while (!IsEngineExitRequested())
 		{
 			Slate.PumpMessages();
 			Slate.Tick();
@@ -445,7 +445,7 @@ bool LiveCodingConsoleMain(const TCHAR* CmdLine)
 				return false;
 			}
 
-			// Set the normal UE4 GIsRequestingExit when outer frame is closed
+			// Set the normal UE4 IsEngineExitRequested() when outer frame is closed
 			Slate->SetExitRequestedHandler(FSimpleDelegate::CreateStatic(&OnRequestExit));
 
 			// Prepare the custom Slate styles

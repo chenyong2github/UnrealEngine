@@ -92,7 +92,7 @@ void DebugLeakTest()
 
 		if (GFrameCounter == 300)
 		{
-			GIsRequestingExit = true;
+			RequestEngineExit(TEXT("DebugLeakTest hit frame 300"));
 		}
 
 		// Realloc.
@@ -169,7 +169,7 @@ void DebugLeakTest()
 			delete[] IntAlloc;
 		} //-V773
 
-		if (GIsRequestingExit)
+		if (IsEngineExitRequested())
 		{
 			// If we are writing stats data, stop it now.
 			DirectStatsCommand( TEXT( "stat stopfile" ), true );

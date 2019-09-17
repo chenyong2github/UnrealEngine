@@ -885,7 +885,7 @@ void UUnrealEdEngine::CloseEditor()
 	EndPlayOnLocalPc();
 
 	// Can't use FPlatformMisc::RequestExit as it uses PostQuitMessage which is not what we want here.
-	GIsRequestingExit = 1;
+	RequestEngineExit(TEXT("UUnrealEdEngine::CloseEditor()"));
 }
 
 

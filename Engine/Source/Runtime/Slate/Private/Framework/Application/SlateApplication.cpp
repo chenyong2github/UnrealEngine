@@ -868,7 +868,7 @@ void FSlateApplication::DestroyRenderer()
  */
 static void OnRequestExit()
 {
-	GIsRequestingExit = true;
+	RequestEngineExit(TEXT("Normal Slate Window Closed"));
 }
 
 void FSlateApplication::PlaySound( const FSlateSound& SoundToPlay, int32 UserIndex ) const
@@ -6423,7 +6423,7 @@ TSharedRef<FSlateApplication> FSlateApplication::InitializeAsStandaloneApplicati
 	// initialize renderer
 	FSlateApplication::Get().InitializeRenderer(PlatformRenderer);
 
-	// set the normal UE4 GIsRequestingExit when outer frame is closed
+	// set the normal UE4 IsEngineExitRequested() when outer frame is closed
 	FSlateApplication::Get().SetExitRequestedHandler(FSimpleDelegate::CreateStatic(&OnRequestExit));
 
 	return Slate;

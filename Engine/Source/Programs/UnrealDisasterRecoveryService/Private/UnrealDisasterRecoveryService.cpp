@@ -48,7 +48,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 		if (!FPlatformProcess::IsApplicationRunning(EditorProcessId))
 		{
 			UE_LOG(LogSyncServer, Warning, TEXT("Editor process %d lost! Requesting exit."), EditorProcessId);
-			GIsRequestingExit = true;
+			FPlatformMisc::RequestExit(false);
 		}
 		return true;
 	});

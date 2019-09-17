@@ -642,7 +642,7 @@ void FEngineSessionManager::OnTerminate()
 		CurrentSession.bIsTerminating = true;
 		FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::TerminatingKey, SessionManagerDefs::TrueValueString);
 
-		if (GIsRequestingExit)
+		if (IsEngineExitRequested())
 		{
 			// Certain terminations are routine (such as closing a log window to quit the editor).
 			// In these cases, shut down the engine session so it won't send an abnormal shutdown report.

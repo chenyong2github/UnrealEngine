@@ -66,7 +66,7 @@ void FUObjectArray::CloseDisregardForGC()
 	check(OpenForDisregardForGC);
 
 	// Make sure all classes that have been loaded/created so far are properly initialized
-	if (!GIsRequestingExit)
+	if (!IsEngineExitRequested())
 	{
 		ProcessNewlyLoadedUObjects();
 

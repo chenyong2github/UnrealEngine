@@ -68,7 +68,7 @@ void EngineTick( void )
 void EngineExit( void )
 {
 	// Make sure this is set
-	GIsRequestingExit = true;
+	RequestEngineExit(TEXT("EngineExit() was called"));
 
 	GEngineLoop.Exit();
 }
@@ -131,7 +131,7 @@ int32 GuardedMain( const TCHAR* CmdLine )
 	int32 ErrorLevel = EnginePreInit( CmdLine );
 
 	// exit if PreInit failed.
-	if ( ErrorLevel != 0 || GIsRequestingExit )
+	if ( ErrorLevel != 0 || IsEngineExitRequested() )
 	{
 		return ErrorLevel;
 	}
@@ -170,7 +170,7 @@ int32 GuardedMain( const TCHAR* CmdLine )
 	BootTimingPoint("Tick loop starting");
 	DumpBootTiming();
 
-	while( !GIsRequestingExit )
+	while( !IsEngineExitRequested() )
 	{
 		EngineTick();
 	}
