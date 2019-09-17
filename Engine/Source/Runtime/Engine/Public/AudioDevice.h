@@ -564,6 +564,11 @@ public:
 	int32 GetMaxSources() const;
 
 	/**
+	 * Returns global pitch range
+	 */
+	TRange<float> GetGlobalPitchRange() const;
+
+	/**
 	* Stops any sound sources which are using the given buffer.
 	*
 	* @param	FSoundBuffer	Buffer to check against
@@ -1630,7 +1635,7 @@ public:
 	int32 CommonAudioPoolFreeBytes;
 
 	/** The handle for this audio device used in the audio device manager. */
-	uint32 DeviceHandle;
+	Audio::FDeviceId DeviceHandle;
 
 	/** 3rd party audio spatialization interface. */
 	TAudioSpatializationPtr SpatializationPluginInterface;

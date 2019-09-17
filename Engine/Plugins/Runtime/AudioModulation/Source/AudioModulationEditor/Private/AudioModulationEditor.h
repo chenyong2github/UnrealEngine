@@ -15,4 +15,6 @@ public:
 
 private:
 	void SetIcon(const FString& ClassName);
+
+	TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
 };

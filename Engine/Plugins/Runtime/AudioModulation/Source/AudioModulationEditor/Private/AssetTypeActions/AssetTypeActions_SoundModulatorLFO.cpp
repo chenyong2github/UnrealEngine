@@ -6,5 +6,5 @@
 
 UClass* FAssetTypeActions_SoundModulatorLFO::GetSupportedClass() const
 {
-	return USoundModulatorLFO::StaticClass();
+	return USoundBusModulatorLFO::StaticClass();
 }

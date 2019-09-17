@@ -24,11 +24,11 @@ struct FSoundModulationInputTransform
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Input Max", UIMin = "0", UIMax = "1"))
 	float InputMax;
 
-	/** Minimum value to clamp to map the output to. */
+	/** Minimum value to clamp the output to. */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Output Min", UIMin = "0", UIMax = "1"))
 	float OutputMin;
 
-	/** Maximum value to clamp to map the output to. */
+	/** Maximum value to clamp the output to. */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Output Max", UIMin = "0", UIMax = "1"))
 	float OutputMax;
 
@@ -80,11 +80,11 @@ struct FSoundModulationOutputTransform
 	UPROPERTY(EditAnywhere, Category = Curve, BlueprintReadWrite)
 	FRuntimeFloatCurve FloatCurve;
 
-	/** Minimum value to clamp to map the output to. */
+	/** Minimum value to clamp output to. */
 	UPROPERTY(EditAnywhere, Category = Output, BlueprintReadWrite)
 	float OutputMin;
 
-	/** Maximum value to clamp to map the output to. */
+	/** Maximum value to clamp output to. */
 	UPROPERTY(EditAnywhere, Category = Output, BlueprintReadWrite)
 	float OutputMax;
 

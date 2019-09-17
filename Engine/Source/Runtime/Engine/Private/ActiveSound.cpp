@@ -196,6 +196,21 @@ void FActiveSound::AddReferencedObjects( FReferenceCollector& Collector)
 	}
 }
 
+int32 FActiveSound::GetPlayCount() const
+{
+	if (!Sound || !AudioDevice)
+	{
+		return 0;
+	}
+
+	if (const int32* PlayCount = Sound->CurrentPlayCount.Find(AudioDevice->DeviceHandle))
+	{
+		return *PlayCount;
+	}
+
+	return 0;
+}
+
 void FActiveSound::SetPitch(float Value)
 {
 	PitchMultiplier = Value;
@@ -355,6 +370,14 @@ void FActiveSound::SetSourceBusSend(EBusSendType BusSendType, const FSoundSource
 
 	// Otherwise, add it to the source bus send overrides
 	SoundSourceBusSendsOverride[(int32)BusSendType].Add(SourceBusSendInfo);
+}
+
+void FActiveSound::Stop()
+{
+	if (AudioDevice)
+	{
+		AudioDevice->AddSoundToStop(this);
+	}
 }
 
 void FActiveSound::GetSoundSubmixSends(TArray<FSoundSubmixSendInfo>& OutSends) const
@@ -739,9 +762,17 @@ USoundModulationPluginSourceSettingsBase* FActiveSound::FindModulationSettings()
 {
 	if (UClass* PluginClass = GetAudioPluginCustomSettingsClass(EAudioPlugin::MODULATION))
 	{
-		if (Sound->Modulation.Settings.Num() > 0)
+		for (USoundModulationPluginSourceSettingsBase* Settings : Sound->Modulation.Settings)
 		{
-			for (USoundModulationPluginSourceSettingsBase* Settings : Sound->Modulation.Settings)
+			if (Settings && Settings->IsA(PluginClass))
+			{
+				return Settings;
+			}
+		}
+
+		if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
+		{
+			for (USoundModulationPluginSourceSettingsBase* Settings : AudioComponent->Modulation.Settings)
 			{
 				if (Settings && Settings->IsA(PluginClass))
 				{
@@ -749,9 +780,10 @@ USoundModulationPluginSourceSettingsBase* FActiveSound::FindModulationSettings()
 				}
 			}
 		}
-		else if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
+
+		if (USoundClass* SoundClass = Sound->GetSoundClass())
 		{
-			for (USoundModulationPluginSourceSettingsBase* Settings : AudioComponent->Modulation.Settings)
+			for (USoundModulationPluginSourceSettingsBase* Settings : SoundClass->Modulation.Settings)
 			{
 				if (Settings && Settings->IsA(PluginClass))
 				{
@@ -764,7 +796,7 @@ USoundModulationPluginSourceSettingsBase* FActiveSound::FindModulationSettings()
 	return nullptr;
 }
 
-void FActiveSound::Stop(bool bStopNow)
+void FActiveSound::MarkPendingDestroy(bool bDestroyNow)
 {
 	check(AudioDevice);
 
@@ -772,16 +804,21 @@ void FActiveSound::Stop(bool bStopNow)
 
 	if (Sound && !bIsStopping)
 	{
-		Sound->CurrentPlayCount = FMath::Max(Sound->CurrentPlayCount - 1, 0);
-		if (Sound->CurrentPlayCount == 0)
+		int32* PlayCount = AudioDevice ? Sound->CurrentPlayCount.Find(AudioDevice->DeviceHandle) : nullptr;
+		if (PlayCount)
 		{
-			if (AudioDevice->ModulationInterface)
+			*PlayCount = FMath::Max(*PlayCount - 1, 0);
+			if (*PlayCount == 0)
 			{
-				if (USoundModulationPluginSourceSettingsBase* ModulationSettings = FindModulationSettings())
-				{
-					const ModulationSoundId SoundId = static_cast<ModulationSoundId>(Sound->GetUniqueID());
- 					AudioDevice->ModulationInterface->OnReleaseSound(SoundId, *ModulationSettings);
-				}
+				Sound->CurrentPlayCount.Remove(AudioDevice->DeviceHandle);
+			}
+		}
+
+		if (AudioDevice->IsModulationPluginEnabled() && AudioDevice->ModulationInterface.IsValid())
+		{
+			if (USoundModulationPluginSourceSettingsBase* ModulationSettings = FindModulationSettings())
+			{
+				AudioDevice->ModulationInterface->OnReleaseSound(static_cast<ISoundModulatable&>(*this));
 			}
 		}
 	}
@@ -798,7 +835,7 @@ void FActiveSound::Stop(bool bStopNow)
 			bool bStopped = false;
 			if (AudioDevice->IsAudioMixerEnabled() && AudioDevice->IsStoppingVoicesEnabled())
 			{
-				if (bStopNow || !AudioDevice->GetNumFreeSources())
+				if (bDestroyNow || !AudioDevice->GetNumFreeSources())
 				{
 					Source->StopNow();
 					bStopped = true;
@@ -848,7 +885,7 @@ void FActiveSound::Stop(bool bStopNow)
 		RemoveWaveInstance(WaveInstance->WaveInstanceHash);
 	}
 
-	if (bStopNow)
+	if (bDestroyNow)
 	{
 		bIsStopping = false;
 	}
