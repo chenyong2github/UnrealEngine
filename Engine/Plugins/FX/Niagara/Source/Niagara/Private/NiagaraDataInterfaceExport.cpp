@@ -3,7 +3,6 @@
 #include "NiagaraDataInterfaceExport.h"
 #include "NiagaraTypes.h"
 #include "NiagaraCustomVersion.h"
-#include "..\Classes\NiagaraDataInterfaceExport.h"
 #include "Internationalization/Internationalization.h"
 #include "NiagaraSystemInstance.h"
 
