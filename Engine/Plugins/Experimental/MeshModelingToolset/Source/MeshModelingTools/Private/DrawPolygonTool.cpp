@@ -20,6 +20,8 @@
 #include "MeshQueries.h"
 #include "ToolSceneQueriesUtil.h"
 
+#include "DynamicMeshEditor.h"
+
 #include "PositionPlaneGizmo.h"
 #include "Drawing/MeshDebugDrawing.h"
 
@@ -985,6 +987,17 @@ void UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, FDyna
 
 		Extruder.Apply();
 	}
+
+	FDynamicMeshEditor Editor(ResultMeshOut);
+	float InitialUVScale = 1.0 / PolyMeshGen.Polygon.Bounds().MaxDim(); // this is the UV scale used by both the polymeshgen and the extruder above
+	// default global rescale -- initial scale doesn't factor in extrude distance; rescale so UVScale of 1.0 fits in the unit square texture
+	float GlobalUVRescale = PolygonProperties->UVScale / FMathf::Max(1.0f, ExtrudeDistance * InitialUVScale);
+	if (PolygonProperties->bWorldSpaceUVScale)
+	{
+		// since we know the initial uv scale, directly compute the global scale (relative to 1 meter as a standard scale)
+		GlobalUVRescale = PolygonProperties->UVScale * .01 / InitialUVScale;
+	}
+	Editor.RescaleAttributeUVs(GlobalUVRescale, false);
 }
 
 void UDrawPolygonTool::GeneratePreviewHeightTarget()

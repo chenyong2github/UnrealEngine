@@ -16,6 +16,8 @@
 #include "StaticMeshComponentBuilder.h"
 #include "Drawing/MeshDebugDrawing.h"
 
+#include "DynamicMeshEditor.h"
+
 #define LOCTEXT_NAMESPACE "UAddPrimitiveTool"
 
 
@@ -68,6 +70,8 @@ namespace
 	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Sphere },
 	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Plane },
 	  { TEXT("Material"),      EMakeMeshShapeType::All },
+	  { TEXT("bWorldSpaceUVScale"), EMakeMeshShapeType::All },
+	  { TEXT("UVScale"),	   EMakeMeshShapeType::All },
 	  { TEXT("bWireframe"),	   EMakeMeshShapeType::All }
 	};
 };
@@ -228,6 +232,13 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 	default:
 		GenerateBox(&NewMesh);
 		break;
+	}
+
+	if (ShapeSettings->UVScale != 1.0 || ShapeSettings->bWorldSpaceUVScale)
+	{
+		FDynamicMeshEditor Editor(&NewMesh);
+		float WorldUnitsInMetersFactor = ShapeSettings->bWorldSpaceUVScale ? .01f : 1.0f;
+		Editor.RescaleAttributeUVs(ShapeSettings->UVScale * WorldUnitsInMetersFactor, ShapeSettings->bWorldSpaceUVScale);
 	}
 
 	// set mesh position

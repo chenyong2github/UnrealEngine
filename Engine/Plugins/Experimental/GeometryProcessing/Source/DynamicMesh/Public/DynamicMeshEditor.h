@@ -281,6 +281,14 @@ public:
 	void SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor, int UVLayerIndex = 0);
 
 
+	/**
+	 * Rescale UVs for the whole mesh, for the given UV attribute layer
+	 * @param UVScale Scale factor to multiply into UVs.  If in world space, this is in centimeters relative to the average UV scale
+	 * @param bWorldSpace If true, UVs are rescaled relative to an absolute world scale.
+	 * @param UVLayerIndex which UV layer to operate on (must exist)
+	 */
+	void RescaleAttributeUVs(float UVScale = 1.0f, bool bWorldSpace = false, int UVLayerIndex = 0);
+
 
 	//////////////////////////////////////////////////////////////////////////
 	// mesh element copying / duplication

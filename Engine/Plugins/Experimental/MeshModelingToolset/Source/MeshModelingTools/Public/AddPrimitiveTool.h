@@ -121,6 +121,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Material"))
 	UMaterialInterface* Material;
 
+	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "UV Scale"))
+	float UVScale = 1.0;
+	
+	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "UV Scale Relative to World Space"))
+	bool bWorldSpaceUVScale = false;
+
 	/** Wireframe toggle */
 	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Show Wireframe"))
 	bool bWireframe;

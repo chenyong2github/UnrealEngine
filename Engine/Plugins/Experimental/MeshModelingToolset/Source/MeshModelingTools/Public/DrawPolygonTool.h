@@ -101,6 +101,12 @@ class MESHMODELINGTOOLS_API UDrawPolygonToolStandardProperties : public UObject
 	/** Material for new mesh*/
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (DisplayName = "Material"))
 	UMaterialInterface* Material;
+
+	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "UV Scale"))
+	float UVScale = 1.0;
+
+	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "UV Scale Relative to World Space"))
+	bool bWorldSpaceUVScale = false;
 };
 
 

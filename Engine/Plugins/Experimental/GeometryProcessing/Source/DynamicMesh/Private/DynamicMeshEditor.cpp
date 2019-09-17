@@ -574,6 +574,43 @@ void FDynamicMeshEditor::SetQuadUVsFromProjection(const FIndex2i& QuadTris, cons
 }
 
 
+void FDynamicMeshEditor::RescaleAttributeUVs(float UVScale, bool bWorldSpace, int UVLayerIndex)
+{
+	check(Mesh->HasAttributes() && Mesh->Attributes()->NumUVLayers() > UVLayerIndex );
+	FDynamicMeshUVOverlay* UVs = Mesh->Attributes()->GetUVLayer(UVLayerIndex);
+
+	if (bWorldSpace)
+	{
+		FVector2f TriUVs[3];
+		FVector3d TriVs[3];
+		float TotalEdgeUVLen = 0;
+		double TotalEdgeLen = 0;
+		for (int TID : Mesh->TriangleIndicesItr())
+		{
+			UVs->GetTriElements(TID, TriUVs[0], TriUVs[1], TriUVs[2]);
+			Mesh->GetTriVertices(TID, TriVs[0], TriVs[1], TriVs[2]);
+			for (int j = 2, i = 0; i < 3; j = i++)
+			{
+				TotalEdgeUVLen += TriUVs[j].Distance(TriUVs[i]);
+				TotalEdgeLen += TriVs[j].Distance(TriVs[i]);
+			}
+		}
+		if (TotalEdgeUVLen > KINDA_SMALL_NUMBER)
+		{
+			float AvgUVScale = TotalEdgeLen / TotalEdgeUVLen;
+			UVScale *= AvgUVScale;
+		}
+	}
+
+	for (int UVID : UVs->ElementIndicesItr())
+	{
+		FVector2f UV;
+		UVs->GetElement(UVID, UV);
+		UVs->SetElement(UVID, UV*UVScale);
+	}
+}
+
+
 
 
 
