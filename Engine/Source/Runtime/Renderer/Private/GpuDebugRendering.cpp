@@ -41,7 +41,7 @@ FGpuDebugPrimitiveBuffers AllocateGpuDebugPrimitiveBuffers(FRHICommandListImmedi
 	return Output;
 }
 
-struct FLine { FVector Start; FVector End; FLinearColor Color; };
+class FLine { public: FVector Start; FVector End; FLinearColor Color; };
 typedef TArray<FLine> FLineArray;
 static FLineArray ReadGPUDebugPrimitives(FRHICommandListImmediate& RHICmdList, FGpuDebugPrimitiveBuffers& DebugPrimitiveBuffer)
 {

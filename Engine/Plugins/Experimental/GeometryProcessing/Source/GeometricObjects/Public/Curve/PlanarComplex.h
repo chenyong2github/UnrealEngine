@@ -3,14 +3,13 @@
 // Very approximately ported from geometry3sharp's PlanarComplex
 // Convert a set of polygons into general polygon form, tracking the outer-polygon and hole-polygon indices
 
+#pragma once
+
 #include "SegmentTypes.h"
 #include "VectorTypes.h"
 #include "BoxTypes.h"
 #include "Polygon2.h"
 #include "Curve/GeneralPolygon2.h"
-
-#pragma once
-
 
 template <typename RealType>
 struct TPlanarComplex
