@@ -2238,6 +2238,18 @@ FORCEINLINE const TCHAR* ToCStr(const FString& Str)
 	return *Str;
 }
 
+namespace StringConv
+{
+	template<typename AllocatorType>
+	static void InlineCombineSurrogates_Array(TArray<TCHAR, AllocatorType>& StrBuffer);
+
+	/** Inline combine any UTF-16 surrogate pairs in the given string */
+	static FORCEINLINE void InlineCombineSurrogates(FString& Str)
+	{
+		InlineCombineSurrogates_Array(Str.GetCharArray());
+	}
+}
+
 /*----------------------------------------------------------------------------
 	Special archivers.
 ----------------------------------------------------------------------------*/
