@@ -16,6 +16,8 @@
 
 #include "SlateTypes.generated.h"
 
+class SWidget;
+
 /** Used to determine how we should handle mouse wheel input events when someone scrolls. */
 UENUM()
 enum class EConsumeMouseWheel : uint8
@@ -1755,6 +1757,34 @@ struct SLATECORE_API FWindowStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateBrush ChildBackgroundBrush;
 	FWindowStyle& SetChildBackgroundBrush( const FSlateBrush& InChildBackgroundBrush ){ ChildBackgroundBrush = InChildBackgroundBrush; return *this; }
+};
+
+
+class SLATECORE_API FInvalidatableBrushAttribute
+{
+public:
+	FInvalidatableBrushAttribute() { }
+	FInvalidatableBrushAttribute(const TAttribute< const FSlateBrush* >& InImage)
+		: Image(InImage)
+	{
+		// INFO don't call this in the ctor, users did not anticipate needing to have their accessors work.
+
+		//const FSlateBrush* ImagePtr = Image.Get();
+		//ImageCache = ImagePtr ? *ImagePtr : FSlateBrush();
+	}
+
+	bool IsBound() const { return Image.IsBound(); }
+
+	const FSlateBrush* Get() const { return Image.Get(); }
+	TAttribute< const FSlateBrush* > GetImage() const { return Image; }
+	void SetImage(SWidget& ThisWidget, const TAttribute< const FSlateBrush* >& InImage);
+
+private:
+	/** The slate brush to draw for the image, or a bound delegate to a brush. */
+	TAttribute< const FSlateBrush* > Image;
+
+	/** The copy of the image data, some users reuse the same FSlateBrush pointer, so we need to check it against the last true data to see what changed. */
+	FSlateBrush ImageCache;
 };
 
 
