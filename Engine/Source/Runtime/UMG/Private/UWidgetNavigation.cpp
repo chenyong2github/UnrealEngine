@@ -122,7 +122,7 @@ void UWidgetNavigation::UpdateMetaData(TSharedRef<FNavigationMetaData> MetaData)
 	UpdateMetaDataEntry(MetaData, Previous, EUINavigation::Previous);
 }
 
-bool UWidgetNavigation::IsDefault() const
+bool UWidgetNavigation::IsDefaultNavigation() const
 {
 	return Up.Rule == EUINavigationRule::Escape &&
 		Down.Rule == EUINavigationRule::Escape &&
