@@ -7,7 +7,7 @@
 USoundModulatorLFOFactory::USoundModulatorLFOFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SupportedClass = USoundModulatorLFO::StaticClass();
+	SupportedClass = USoundBusModulatorLFO::StaticClass();
 	bCreateNew     = true;
 	bEditorImport  = false;
 	bEditAfterNew  = true;
@@ -15,5 +15,5 @@ USoundModulatorLFOFactory::USoundModulatorLFOFactory(const FObjectInitializer& O
 
 UObject* USoundModulatorLFOFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	return NewObject<USoundModulatorLFO>(InParent, Name, Flags);
+	return NewObject<USoundBusModulatorLFO>(InParent, Name, Flags);
 }

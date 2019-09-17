@@ -205,7 +205,7 @@ FAudioDevice::FAudioDevice()
 	, CommonAudioPoolSize(0)
 	, CommonAudioPool(nullptr)
 	, CommonAudioPoolFreeBytes(0)
-	, DeviceHandle(INDEX_NONE)
+	, DeviceHandle(static_cast<Audio::FDeviceId>(INDEX_NONE))
 	, SpatializationPluginInterface(nullptr)
 	, ReverbPluginInterface(nullptr)
 	, OcclusionInterface(nullptr)
@@ -590,6 +590,11 @@ int32 FAudioDevice::GetMaxChannels() const
 int32 FAudioDevice::GetMaxSources() const
 {
 	return MaxSources + NumStoppingSources;
+}
+
+TRange<float> FAudioDevice::GetGlobalPitchRange() const
+{
+	return TRange<float>(GlobalMinPitch, GlobalMaxPitch);
 }
 
 void FAudioDevice::Teardown()
@@ -4127,7 +4132,7 @@ void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 {
 	DECLARE_CYCLE_STAT(TEXT("FGameThreadAudioTask.AudioSendResults"), STAT_AudioSendResults, STATGROUP_TaskGraphTasks);
 
-	const uint32 AudioDeviceID = DeviceHandle;
+	const Audio::FDeviceId AudioDeviceID = DeviceHandle;
 	UReverbEffect* ReverbEffect = Effects ? Effects->GetCurrentReverbEffect() : nullptr;
 	FAudioThread::RunCommandOnGameThread([AudioDeviceID, ReverbEffect]()
 	{
@@ -4155,10 +4160,9 @@ void FAudioDevice::StopAllSounds(bool bShouldStopUISounds)
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.StopAllSounds"), STAT_AudioStopAllSounds, STATGROUP_AudioThreadCommands);
 
-		FAudioDevice* AudioDevice = this;
-		FAudioThread::RunCommandOnAudioThread([AudioDevice, bShouldStopUISounds]()
+		FAudioThread::RunCommandOnAudioThread([this, bShouldStopUISounds]()
 		{
-			AudioDevice->StopAllSounds(bShouldStopUISounds);
+			StopAllSounds(bShouldStopUISounds);
 		}, GET_STATID(STAT_AudioStopAllSounds));
 
 		return;
@@ -4347,12 +4351,18 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		}
 	}
 
-	++Sound->CurrentPlayCount;
-	if (ModulationInterface && Sound->CurrentPlayCount == 1)
+	int32* PlayCount = Sound->CurrentPlayCount.Find(DeviceHandle);
+	if (!PlayCount)
+	{
+		PlayCount = &Sound->CurrentPlayCount.Add(DeviceHandle);
+	}
+	(*PlayCount)++;
+
+	if (ModulationInterface.IsValid())
 	{
 		if (USoundModulationPluginSourceSettingsBase* ModulationSettings = ActiveSound->FindModulationSettings())
 		{
-			ModulationInterface->OnInitSound(static_cast<ModulationSoundId>(Sound->GetUniqueID()), *ModulationSettings);
+			ModulationInterface->OnInitSound(static_cast<ISoundModulatable&>(*ActiveSound), *ModulationSettings);
 		}
 	}
 
@@ -4546,7 +4556,7 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 		}
 		else
 		{
-			ActiveSound->Stop(bForceDelete);
+			ActiveSound->MarkPendingDestroy(bForceDelete);
 
 			USoundBase* Sound = ActiveSound->GetSound();
 

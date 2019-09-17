@@ -2,8 +2,8 @@
 #include "AudioModulationEditor.h"
 
 #include "AssetTypeActions/AssetTypeActions_SoundModulationSettings.h"
-#include "AssetTypeActions/AssetTypeActions_SoundModulatorBus.h"
-#include "AssetTypeActions/AssetTypeActions_SoundModulatorBusMix.h"
+#include "AssetTypeActions/AssetTypeActions_SoundControlBus.h"
+#include "AssetTypeActions/AssetTypeActions_SoundControlBusMix.h"
 #include "AssetTypeActions/AssetTypeActions_SoundModulatorLFO.h"
 #include "Layouts/SoundModulationTransformLayout.h"
 #include "SoundModulationTransform.h"
@@ -12,6 +12,8 @@
 
 namespace
 {
+	static const FName AssetToolsName = TEXT("AssetTools");
+
 	TSharedPtr<FSlateStyleSet> StyleSet;
 } // namespace <>
 
@@ -37,32 +39,50 @@ void FAudioModulationEditorModule::SetIcon(const FString& ClassName)
 void FAudioModulationEditorModule::StartupModule()
 {
 	// Register the audio editor asset type actions
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(AssetToolsName).Get();
 
-	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundVolumeModulatorBus));
-	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundPitchModulatorBus));
-	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundLPFModulatorBus));
-	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundHPFModulatorBus));
-	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundModulatorBusMix));
-	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundModulatorLFO));
-	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundModulationSettings));
+	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundVolumeControlBus));
+	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundPitchControlBus));
+	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundHPFControlBus));
+	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundLPFControlBus));
+	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundControlBusMix));
+	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundModulatorLFO));
+	AssetActions.Add(MakeShareable(new FAssetTypeActions_SoundModulationSettings));
 
-	SetIcon(TEXT("SoundVolumeModulatorBus"));
-	SetIcon(TEXT("SoundPitchModulatorBus"));
-	SetIcon(TEXT("SoundLPFModulatorBus"));
-	SetIcon(TEXT("SoundHPFModulatorBus"));
-	SetIcon(TEXT("SoundModulatorBusMix"));
-	SetIcon(TEXT("SoundModulatorLFO"));
+	for (TSharedPtr<FAssetTypeActions_Base>& AssetAction : AssetActions)
+	{
+		AssetTools.RegisterAssetTypeActions(AssetAction.ToSharedRef());
+	}
+
+	SetIcon(TEXT("SoundVolumeControlBus"));
+	SetIcon(TEXT("SoundPitchControlBus"));
+	SetIcon(TEXT("SoundHPFControlBus"));
+	SetIcon(TEXT("SoundLPFControlBus"));
+	SetIcon(TEXT("SoundControlBusMix"));
+	SetIcon(TEXT("SoundBusModulatorLFO"));
 	SetIcon(TEXT("SoundModulationSettings"));
 
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.RegisterCustomPropertyTypeLayout("SoundModulationOutputTransform", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSoundModulationOutputTransformLayoutCustomization::MakeInstance));
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+	PropertyModule.RegisterCustomPropertyTypeLayout("SoundModulationOutputTransform",
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(
+			&FSoundModulationOutputTransformLayoutCustomization::MakeInstance));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 }
 
 void FAudioModulationEditorModule::ShutdownModule()
 {
+	if (FModuleManager::Get().IsModuleLoaded(AssetToolsName))
+	{
+		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>(AssetToolsName).Get();
+		for (TSharedPtr<FAssetTypeActions_Base>& AssetAction : AssetActions)
+		{
+			AssetTools.UnregisterAssetTypeActions(AssetAction.ToSharedRef());
+		}
+	}
+	AssetActions.Reset();
+
+	FSlateStyleRegistry::UnRegisterSlateStyle(*StyleSet.Get());
 }
 
 

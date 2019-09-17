@@ -9,7 +9,7 @@ class FAssetTypeActions_SoundModulatorLFO : public FAssetTypeActions_Base
 {
 public:
 	// IAssetTypeActions Implementation
-	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_SoundModulatorLFO", "Modulation LFO"); }
+	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_SoundModulatorLFO", "Modulator LFO"); }
 	virtual FColor GetTypeColor() const override { return FColor(237, 237, 0); }
 	virtual UClass* GetSupportedClass() const override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
