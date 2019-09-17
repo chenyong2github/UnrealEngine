@@ -56,6 +56,19 @@ UPolyEditTransformProperties::UPolyEditTransformProperties()
 	PolygonGroupingAngleThreshold = .5;
 }
 
+#ifdef WITH_EDITOR
+void UPolyEditTransformProperties::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// skip interactive updates for PolygonGroupingAngleThreshold
+	// TODO: thread the polygon group compute and remove this update skip
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UPolyEditTransformProperties, PolygonGroupingAngleThreshold) && PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
+	{
+		return;
+	}
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif
+
 /*
  * Asynchronous Task
  */
@@ -615,6 +628,7 @@ void UEditMeshPolygonsTool::Setup()
 	// dynamic mesh configuration settings
 	DynamicMeshComponent->TangentsType = EDynamicMeshTangentCalcType::AutoCalculated;
 	DynamicMeshComponent->InitializeMesh(ComponentTarget->GetMesh());
+	InitialMesh = MakeUnique<FDynamicMesh3>(*DynamicMeshComponent->GetMesh());
 	OnDynamicMeshComponentChangedHandle = DynamicMeshComponent->OnMeshChanged.Add(
 		FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UEditMeshPolygonsTool::OnDynamicMeshComponentChanged));
 
@@ -1294,15 +1308,15 @@ void UEditMeshPolygonsTool::ComputePolygons(bool RecomputeTopology)
 	switch (TransformProps->PolygonMode)
 	{
 	case EPolygonGroupMode::KeepInputPolygons:
-		RestoreTriangleGroups();
+		SetTriangleGroups(InitialTriangleGroups);
 		break;
 	case EPolygonGroupMode::RecomputePolygonsByAngleThreshold:
 	{
-		FDynamicMesh3* SearchMesh = DynamicMeshComponent->GetMesh();
-		FFindPolygonsAlgorithm Polygons = FFindPolygonsAlgorithm(SearchMesh);
+		FFindPolygonsAlgorithm Polygons = FFindPolygonsAlgorithm(InitialMesh.Get());
 		double DotTolerance = 1.0 - FMathd::Cos(TransformProps->PolygonGroupingAngleThreshold * FMathd::DegToRad);
 		Polygons.FindPolygons(DotTolerance);
 		Polygons.FindPolygonEdges();
+		SetTriangleGroups(*InitialMesh->GetTriangleGroupsBuffer());
 	}
 	break;
 	case EPolygonGroupMode::PolygonsAreTriangles:
@@ -1421,6 +1435,7 @@ void UEditMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
+
 void UEditMeshPolygonsTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
 {
 	// if anything has changed the polygon settings, recompute polygons
@@ -1446,14 +1461,14 @@ void UEditMeshPolygonsTool::BackupTriangleGroups()
 	}
 }
 
-void UEditMeshPolygonsTool::RestoreTriangleGroups()
+void UEditMeshPolygonsTool::SetTriangleGroups(const TDynamicVector<int>& Groups)
 {
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-	for (int TID = 0, MaxID = InitialTriangleGroups.Num(); TID < MaxID; TID++)
+	for (int TID = 0, MaxID = Groups.Num(); TID < MaxID; TID++)
 	{
 		if (Mesh->IsTriangle(TID))
 		{
-			Mesh->SetTriangleGroup(TID, InitialTriangleGroups[TID]);
+			Mesh->SetTriangleGroup(TID, Groups[TID]);
 		}
 	}
 }

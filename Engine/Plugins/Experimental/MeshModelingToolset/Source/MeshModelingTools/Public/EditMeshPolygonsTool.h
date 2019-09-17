@@ -100,6 +100,10 @@ class MESHMODELINGTOOLS_API UPolyEditTransformProperties : public UInteractiveTo
 public:
 	UPolyEditTransformProperties();
 
+#ifdef WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 	//Options
 
 	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Deformation Type", ToolTip = "Select the type of deformation you wish to employ on a polygroup."))
@@ -134,8 +138,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = LaplacianOptions, meta = (EditCondition="DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian", DisplayName = "Laplacian Weight Scheme", ToolTip = "Laplacian weight schemes determine how the deformer will interpret the curvature at a given vertex in relation to nearby vertices in order to generate a solution."))
 	EWeightScheme SelectedWeightScheme = EWeightScheme::ClampedCotangent;
 
-	UPROPERTY(EditAnywhere, Category = LaplacianOptions, meta = (EditCondition="DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian", DisplayName = "Handle Weight", UIMin = "0.0001", UIMax = "1.0", ClampMin = "0.0001", ClampMax = "100.0", ToolTip = "The handle weight describes how effective dragging the selected PolyGroup will be."))
-	double HandleWeight = 1.0;
+	UPROPERTY(EditAnywhere, Category = LaplacianOptions, meta = (EditCondition="DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian", DisplayName = "Handle Weight", UIMin = "0.0001", UIMax = "100.0", ClampMin = "0.0001", ClampMax = "1000.0", ToolTip = "The handle weight describes how effective dragging the selected PolyGroup will be."))
+	double HandleWeight = 100.0;
 
 	UPROPERTY(EditAnywhere, Category = LaplacianOptions, meta = (EditCondition="DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian", DisplayName = "Post-fix Handles", ToolTip = "Post-fixing the handles will attempt to force their vertices to arrive exactly where you wanted them. This may result\nin undesirable or choppy curvature in some scenarios."))
 	bool bPostFixHandles = false;
@@ -495,10 +499,11 @@ protected:
 	FGroupTopologyDeformer LinearDeformer;
 	FGroupTopologyLaplacianDeformer LaplacianDeformer;
 
-	// Initial polygon group info
+	// Initial polygon group and mesh info
 	TDynamicVector<int> InitialTriangleGroups;
+	TUniquePtr<FDynamicMesh3> InitialMesh;
 	void BackupTriangleGroups();
-	void RestoreTriangleGroups();
+	void SetTriangleGroups(const TDynamicVector<int>& Groups);
 	
 	// This is true when the spatial index needs to reflect a modification
 	bool bSpatialDirty; 
