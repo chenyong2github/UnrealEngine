@@ -1193,6 +1193,8 @@ static void SuspendApp_EventThread()
 		EMDoneTrigger->Trigger();
 	}));
 
+	FEmbeddedCommunication::WakeGameThread();
+
 	FPreLoadScreenManager::EnableRendering(false);
 
 	// wait for a period of time before blocking rendering
