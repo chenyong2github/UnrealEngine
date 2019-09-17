@@ -227,7 +227,6 @@ bool FLocalPlayerContext::IsFromLocalPlayer(const AActor* ActorToTest) const
 
 ULocalPlayer::ULocalPlayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, SubsystemCollection(this)
 	, SlateOperations( FReply::Unhandled() )
 {
 	PendingLevelPlayerControllerClass = APlayerController::StaticClass();
@@ -259,7 +258,7 @@ void ULocalPlayer::PlayerAdded(UGameViewportClient* InViewportClient, int32 InCo
 	ViewportClient = InViewportClient;
 	SetControllerId(InControllerID);
 
-	SubsystemCollection.Initialize();
+	SubsystemCollection.Initialize(this);
 }
 
 void ULocalPlayer::InitOnlineSession()
