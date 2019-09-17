@@ -502,7 +502,7 @@ bool FAudioDeviceManager::CreateAudioDevice(bool bCreateNewDevice, FCreateAudioD
 	return (OutResults.AudioDevice != nullptr);
 }
 
-bool FAudioDeviceManager::IsValidAudioDeviceHandle(uint32 Handle) const
+bool FAudioDeviceManager::IsValidAudioDeviceHandle(Audio::FDeviceId Handle) const
 {
 	if (AudioDeviceModule == nullptr || Handle == INDEX_NONE)
 	{
@@ -519,7 +519,7 @@ bool FAudioDeviceManager::IsValidAudioDeviceHandle(uint32 Handle) const
 	return Generations[Index] == Generation;
 }
 
-bool FAudioDeviceManager::ShutdownAudioDevice(uint32 Handle)
+bool FAudioDeviceManager::ShutdownAudioDevice(Audio::FDeviceId Handle)
 {
 	if (!IsValidAudioDeviceHandle(Handle))
 	{
@@ -597,7 +597,7 @@ bool FAudioDeviceManager::ShutdownAllAudioDevices()
 	return true;
 }
 
-FAudioDevice* FAudioDeviceManager::GetAudioDevice(uint32 Handle)
+FAudioDevice* FAudioDeviceManager::GetAudioDevice(Audio::FDeviceId Handle)
 {
 	if (!IsValidAudioDeviceHandle(Handle))
 	{
@@ -803,7 +803,7 @@ void FAudioDeviceManager::SetActiveDevice(uint32 InAudioDeviceHandle)
 	}
 }
 
-void FAudioDeviceManager::SetSoloDevice(uint32 InAudioDeviceHandle)
+void FAudioDeviceManager::SetSoloDevice(Audio::FDeviceId InAudioDeviceHandle)
 {
 	SoloDeviceHandle = InAudioDeviceHandle;
 	if (SoloDeviceHandle != INDEX_NONE)
