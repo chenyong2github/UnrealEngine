@@ -6,8 +6,10 @@
 //	Testing Fixed vs Variable tick rate struct declration
 // ------------------------------------------------------------------------------------------------------------
 
-struct FDummy { };
-using FDummyBufferTypes = TNetworkSimBufferTypes<FDummy, FDummy, FDummy>;
+
+
+struct FNetSimDummy { };
+using FDummyBufferTypes = TNetworkSimBufferTypes<FNetSimDummy, FNetSimDummy, FNetSimDummy>;
 
 template<typename TTickSettings>
 void TickSettingsTest(TTickSettings& Settings)
