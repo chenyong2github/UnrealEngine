@@ -60,7 +60,6 @@ namespace UnrealBuildTool.Rules
 					"WmfMedia/Private",
 					"WmfMedia/Private/Player",
 					"WmfMedia/Private/Wmf",
-                    "WmfMedia/Private/WmfMediaCodec",
                     "../../../../Source/Runtime/Windows/D3D11RHI/Private",
                     "../../../../Source/Runtime/Windows/D3D11RHI/Private/Windows",
                 });
