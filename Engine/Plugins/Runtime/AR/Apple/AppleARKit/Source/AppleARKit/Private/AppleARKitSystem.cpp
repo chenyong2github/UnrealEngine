@@ -26,6 +26,7 @@
 
 // To separate out the face ar library linkage from standard ar apps
 #include "AppleARKitFaceSupport.h"
+#include "AppleARKitPoseTrackingLiveLink.h"
 
 // For orientation changed
 #include "Misc/CoreDelegates.h"
@@ -93,6 +94,11 @@ public:
 		VideoOverlay.SetOverlayTexture(InCameraImage);
 	}
 	
+	void SetEnablePersonOcclusion(bool bEnable)
+    {
+        VideoOverlay.SetEnablePersonOcclusion(bEnable);
+    }
+	
 private:
 	//~ FDefaultXRCamera
 	void OverrideFOV(float& InOutFOV)
@@ -156,7 +162,7 @@ private:
 	{
 		if (ARKitSystem.RenderThreadFrame.IsValid())
 		{
-			VideoOverlay.RenderVideoOverlay_RenderThread(RHICmdList, InView, *ARKitSystem.RenderThreadFrame, ARKitSystem.DeviceOrientation);
+			VideoOverlay.RenderVideoOverlay_RenderThread(RHICmdList, InView, *ARKitSystem.RenderThreadFrame, ARKitSystem.DeviceOrientation, ARKitSystem.GetWorldToMetersScale());
 		}
 	}
 	
@@ -209,6 +215,7 @@ FAppleARKitSystem::FAppleARKitSystem()
 , CameraDepth(nullptr)
 , LastTrackedGeometry_DebugId(0)
 , FaceARSupport(nullptr)
+, PoseTrackingARLiveLink(nullptr)
 , TimecodeProvider(nullptr)
 {
 	// See Initialize(), as we need access to SharedThis()
@@ -228,6 +235,7 @@ void FAppleARKitSystem::Shutdown()
 	if (Session != nullptr)
 	{
 		FaceARSupport = nullptr;
+		PoseTrackingARLiveLink = nullptr;
 		[Session pause];
 		Session.delegate = nullptr;
 		[Session release];
@@ -236,6 +244,9 @@ void FAppleARKitSystem::Shutdown()
 #endif
 	CameraDepth = nullptr;
 	CameraImage = nullptr;
+	
+	PersonSegmentationImage = nullptr;
+	PersonSegmentationDepthImage = nullptr;
 }
 
 void FAppleARKitSystem::CheckForFaceARSupport(UARSessionConfig* InSessionConfig)
@@ -254,6 +265,26 @@ void FAppleARKitSystem::CheckForFaceARSupport(UARSessionConfig* InSessionConfig)
 		FaceARSupport = Impls[0];
 		ensureAlwaysMsgf(FaceARSupport != nullptr, TEXT("Face AR session has been requested but the face ar plugin is not enabled"));
 	}
+}
+
+void FAppleARKitSystem::CheckForPoseTrackingARLiveLink(UARSessionConfig* InSessionConfig)
+{
+#if SUPPORTS_ARKIT_3_0	
+	if (InSessionConfig->GetSessionType() != EARSessionType::PoseTracking)
+	{
+		// Clear the face ar support so we don't forward to it
+		PoseTrackingARLiveLink = nullptr;
+		return;
+	}
+
+	// We need to get the face support from the factory method, which is a modular feature to avoid dependencies
+	TArray<IAppleARKitPoseTrackingLiveLink*> Impls = IModularFeatures::Get().GetModularFeatureImplementations<IAppleARKitPoseTrackingLiveLink>("AppleARKitPoseTrackingLiveLink");
+	if (ensureAlwaysMsgf(Impls.Num() > 0, TEXT("Body Tracking AR session has been requested but the body tracking ar plugin is not enabled")))
+	{
+		PoseTrackingARLiveLink = Impls[0];
+		ensureAlwaysMsgf(PoseTrackingARLiveLink != nullptr, TEXT("Body Tracking AR session has been requested but the body tracking ar plugin is not enabled"));
+	}
+#endif
 }
 
 FName FAppleARKitSystem::GetSystemName() const
@@ -376,7 +407,32 @@ void FAppleARKitSystem::UpdateFrame()
 			if (GameThreadFrame->CameraDepth != nullptr)
 			{
 				// Reuse the UObjects because otherwise the time between GCs causes ARKit to be starved of resources
-                CameraDepth->Init(FPlatformTime::Seconds(), GameThreadFrame->CameraDepth);
+				CameraDepth->Init(FPlatformTime::Seconds(), GameThreadFrame->CameraDepth);
+			}
+#endif
+			
+#if SUPPORTS_ARKIT_3_0
+			FAppleARKitXRCamera* Camera = GetARKitXRCamera();
+			check(Camera);
+			
+			if (GameThreadFrame->SegmentationBuffer)
+			{
+				if (!PersonSegmentationImage)
+				{
+					PersonSegmentationImage = NewObject<UAppleARKitTextureCameraImage>();
+				}
+				PersonSegmentationImage->Init(FPlatformTime::Seconds(), GameThreadFrame->SegmentationBuffer);
+				PersonSegmentationImage->EnqueueNewCameraImage(GameThreadFrame->SegmentationBuffer);
+			}
+			
+			if (GameThreadFrame->EstimatedDepthData)
+			{
+				if (!PersonSegmentationDepthImage)
+				{
+					PersonSegmentationDepthImage = NewObject<UAppleARKitTextureCameraImage>();
+				}
+				PersonSegmentationDepthImage->Init(FPlatformTime::Seconds(), GameThreadFrame->EstimatedDepthData);
+				PersonSegmentationDepthImage->EnqueueNewCameraImage(GameThreadFrame->EstimatedDepthData);
 			}
 #endif
 		}
@@ -428,6 +484,11 @@ TSharedPtr<class IXRCamera, ESPMode::ThreadSafe> FAppleARKitSystem::GetXRCamera(
 	return XRCamera;
 }
 
+FAppleARKitXRCamera* FAppleARKitSystem::GetARKitXRCamera()
+{
+	return (FAppleARKitXRCamera*)GetXRCamera(0).Get();
+}
+
 float FAppleARKitSystem::GetWorldToMetersScale() const
 {
 	// @todo arkit FAppleARKitSystem::GetWorldToMetersScale needs a real scale somehow
@@ -439,6 +500,16 @@ void FAppleARKitSystem::OnBeginRendering_GameThread()
 #if PLATFORM_MAC || PLATFORM_IOS
     // Queue an update on the render thread
 	CameraImage->Init_RenderThread();
+	
+	if (PersonSegmentationImage)
+	{
+		PersonSegmentationImage->Init_RenderThread();
+	}
+	
+	if (PersonSegmentationDepthImage)
+	{
+		PersonSegmentationDepthImage->Init_RenderThread();
+	}
 #endif
 	UpdatePoses();
 }
@@ -808,6 +879,12 @@ bool FAppleARKitSystem::OnIsTrackingTypeSupported(EARSessionType SessionType) co
 			return ARObjectScanningConfiguration.isSupported == TRUE;
 		}
 #endif
+#if SUPPORTS_ARKIT_3_0
+		case EARSessionType::PoseTracking:
+		{
+			return ARBodyTrackingConfiguration.isSupported == TRUE;
+		}
+#endif
 	}
 #endif
 	return false;
@@ -1126,6 +1203,8 @@ void FAppleARKitSystem::AddReferencedObjects( FReferenceCollector& Collector )
 	Collector.AddReferencedObjects( CandidateImages );
 	Collector.AddReferencedObjects( CandidateObjects );
 	Collector.AddReferencedObject( TimecodeProvider );
+	Collector.AddReferencedObject( PersonSegmentationImage );
+	Collector.AddReferencedObject( PersonSegmentationDepthImage );
 
 	if(LightEstimate)
 	{
@@ -1174,7 +1253,8 @@ void FAppleARKitSystem::SetupCameraTextures()
 	{
 		CameraImage = NewObject<UAppleARKitTextureCameraImage>();
 		CameraImage->Init(FPlatformTime::Seconds(), nullptr);
-		FAppleARKitXRCamera* Camera = (FAppleARKitXRCamera*)XRCamera.Get();
+		FAppleARKitXRCamera* Camera = GetARKitXRCamera();
+		check(Camera);
 		Camera->SetOverlayTexture(CameraImage);
 	}
 	if (CameraDepth == nullptr)
@@ -1190,6 +1270,11 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 	TimecodeProvider = UAppleARKitSettings::GetTimecodeProvider();
 
 	SetupCameraTextures();
+	
+	if (FAppleARKitXRCamera* Camera = GetARKitXRCamera())
+    {
+        Camera->SetEnablePersonOcclusion(SessionConfig->bUsePersonSegmentationForOcclusion);
+    }
 
 	{
 		// Clear out any existing frames since they aren't valid anymore
@@ -1216,6 +1301,7 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 
 		ARConfiguration* Configuration = nullptr;
 		CheckForFaceARSupport(SessionConfig);
+		CheckForPoseTrackingARLiveLink(SessionConfig);
 		if (FaceARSupport == nullptr)
 		{
 			Configuration = FAppleARKitConversion::ToARConfiguration(SessionConfig, CandidateImages, ConvertedCandidateImages, CandidateObjects);
@@ -1228,7 +1314,7 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 		// Not all session types are supported by all devices
 		if (Configuration == nullptr)
 		{
-			UE_LOG(LogAppleARKit, Log, TEXT("The requested session type is not supported by this device"));
+			UE_LOG(LogAppleARKit, Error, TEXT("The requested session type is not supported by this device"));
 			return false;
 		}
 
@@ -1377,6 +1463,7 @@ void FAppleARKitSystem::SessionDidFailWithError_DelegateThread(const FString& Er
 
 TArray<int32> FAppleARKitAnchorData::FaceIndices;
 bool FAppleARKitAnchorData::bGenerateGeometry = false;
+TSharedPtr<FARPose3D> FAppleARKitAnchorData::BodyRefPose = TSharedPtr<FARPose3D>();
 
 static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData( ARAnchor* Anchor, double Timestamp, uint32 FrameNumber )
 {
@@ -1493,6 +1580,23 @@ static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData( ARAnchor* Anchor, doubl
 		  );
 	}
 #endif
+#if SUPPORTS_ARKIT_3_0
+	else if (FAppleARKitAvailability::SupportsARKit30() && [Anchor isKindOfClass:[ARBodyAnchor class]])
+	{
+		ARBodyAnchor* BodyAnchor = (ARBodyAnchor*)Anchor;
+
+		if (!FAppleARKitAnchorData::BodyRefPose)
+		{
+			FAppleARKitAnchorData::BodyRefPose = MakeShared<FARPose3D>(FAppleARKitConversion::ToARPose3D(BodyAnchor.skeleton.definition.neutralBodySkeleton3D, false));
+		}
+
+		NewAnchor = MakeShared<FAppleARKitAnchorData>(
+			  FAppleARKitConversion::ToFGuid(BodyAnchor.identifier),
+			  FAppleARKitConversion::ToFTransform(BodyAnchor.transform),
+			  FAppleARKitConversion::ToARPose3D(BodyAnchor)
+		  );
+	}
+#endif
 	else
 	{
 		NewAnchor = MakeShared<FAppleARKitAnchorData>(
@@ -1603,6 +1707,11 @@ void FAppleARKitSystem::SessionDidAddAnchors_Internal( TSharedRef<FAppleARKitAnc
 		FaceARSupport->PublishLiveLinkData(AnchorData);
 	}
 
+	if (PoseTrackingARLiveLink != nullptr && AnchorData->AnchorType == EAppleAnchorType::PoseAnchor)
+	{
+		PoseTrackingARLiveLink->PublishLiveLinkData(AnchorData);
+	}
+
 	FString NewAnchorDebugName;
 	UARTrackedGeometry* NewGeometry = nullptr;
 	switch (AnchorData->AnchorType)
@@ -1709,6 +1818,14 @@ void FAppleARKitSystem::SessionDidAddAnchors_Internal( TSharedRef<FAppleARKitAnc
 			NewGeometry = NewTrackedObject;
 			break;
 		}
+		case EAppleAnchorType::PoseAnchor:
+		{
+			NewAnchorDebugName = FString::Printf(TEXT("POSE-%02d"), LastTrackedGeometry_DebugId++);
+			UARTrackedPose* NewTrackedPose = NewObject<UARTrackedPose>();
+			NewTrackedPose->UpdateTrackedPose(ARComponent.ToSharedRef(), AnchorData->FrameNumber, AnchorData->Timestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), AnchorData->TrackedPose);
+			NewGeometry = NewTrackedPose;
+			break;
+		}
 	}
 	check(NewGeometry != nullptr);
 
@@ -1737,6 +1854,11 @@ void FAppleARKitSystem::SessionDidUpdateAnchors_Internal( TSharedRef<FAppleARKit
 	if (FaceARSupport != nullptr && AnchorData->AnchorType == EAppleAnchorType::FaceAnchor)
 	{
 		FaceARSupport->PublishLiveLinkData(AnchorData);
+	}
+
+	if (PoseTrackingARLiveLink != nullptr && AnchorData->AnchorType == EAppleAnchorType::PoseAnchor)
+	{
+		PoseTrackingARLiveLink->PublishLiveLinkData(AnchorData);
 	}
 
 	UARTrackedGeometry** GeometrySearchResult = TrackedGeometries.Find(AnchorData->AnchorGUID);
@@ -1835,6 +1957,21 @@ void FAppleARKitSystem::SessionDidUpdateAnchors_Internal( TSharedRef<FAppleARKit
 				{
 					// NOTE: The metal texture will be a different texture every time the cubemap is updated which requires a render resource flush
 					ProbeAnchor->UpdateEnvironmentCapture(ARComponent.ToSharedRef(), AnchorData->FrameNumber, AnchorData->Timestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), AnchorData->Extent, AnchorData->ProbeTexture);
+					for (UARPin* Pin : PinsToUpdate)
+					{
+						const FTransform Pin_LocalToTrackingTransform_PostUpdate = Pin->GetLocalToTrackingTransform_NoAlignment() * AnchorDeltaTransform;
+						Pin->OnTransformUpdated(Pin_LocalToTrackingTransform_PostUpdate);
+					}
+				}
+				break;
+			}
+			case EAppleAnchorType::PoseAnchor:
+			{
+				if (UARTrackedPose* TrackedPose = Cast<UARTrackedPose>(FoundGeometry))
+				{
+					TrackedPose->UpdateTrackedPose(ARComponent.ToSharedRef(), AnchorData->FrameNumber, AnchorData->Timestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), AnchorData->TrackedPose);
+					
+					// TODO: why is this duplicated for every anchor type??
 					for (UARPin* Pin : PinsToUpdate)
 					{
 						const FTransform Pin_LocalToTrackingTransform_PostUpdate = Pin->GetLocalToTrackingTransform_NoAlignment() * AnchorDeltaTransform;
@@ -2018,6 +2155,30 @@ void FAppleARKitSystem::WriteCameraImageToDisk(CVPixelBufferRef PixelBuffer)
 }
 #endif
 
+bool FAppleARKitSystem::OnIsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature) const
+{
+	return FAppleARKitConversion::IsSessionTrackingFeatureSupported(SessionType, SessionTrackingFeature);
+}
+
+TArray<FARPose2D> FAppleARKitSystem::OnGetTracked2DPose() const
+{
+	if (GameThreadFrame && GameThreadFrame->Tracked2DPose.SkeletonDefinition.NumJoints > 0)
+	{
+		return { GameThreadFrame->Tracked2DPose };
+	}
+	
+	return {};
+}
+
+UARTextureCameraImage* FAppleARKitSystem::OnGetPersonSegmentationImage() const
+{
+	return PersonSegmentationImage;
+}
+
+UARTextureCameraImage* FAppleARKitSystem::OnGetPersonSegmentationDepthImage() const
+{
+	return PersonSegmentationDepthImage;
+}
 
 namespace AppleARKitSupport
 {
@@ -2087,7 +2248,13 @@ FString UAppleARKitSettings::GetFaceTrackingLogDir()
 bool UAppleARKitSettings::IsLiveLinkEnabledForFaceTracking()
 {
 	FScopeLock ScopeLock(&CriticalSection);
-	return bEnableLiveLinkForFaceTracking;
+	return LivelinkTrackingType == ELivelinkTrackingType::FaceTracking;
+}
+
+bool UAppleARKitSettings::IsLiveLinkEnabledForPoseTracking()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return LivelinkTrackingType == ELivelinkTrackingType::PoseTracking;
 }
 
 bool UAppleARKitSettings::IsFaceTrackingLoggingEnabled()

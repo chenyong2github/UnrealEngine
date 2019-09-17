@@ -23,6 +23,14 @@ enum class EARFaceTrackingFileWriterType : uint8
 	JSON
 };
 
+UENUM(BlueprintType, Category="AR AugmentedReality")
+enum class ELivelinkTrackingType : uint8
+{
+	None,
+	FaceTracking,
+	PoseTracking
+};
+
 
 UCLASS(Config=Engine, defaultconfig)
 class APPLEARKIT_API UAppleARKitSettings :
@@ -33,7 +41,7 @@ class APPLEARKIT_API UAppleARKitSettings :
 
 public:
 	UAppleARKitSettings()
-		: bEnableLiveLinkForFaceTracking(false)
+		: LivelinkTrackingType(ELivelinkTrackingType::None)
 		, bFaceTrackingLogData(false)
 		, bFaceTrackingWriteEachFrame(false)
 		, FaceTrackingFileWriterType(EARFaceTrackingFileWriterType::None)
@@ -58,6 +66,7 @@ public:
 // Accessors to the properties
 	FString GetFaceTrackingLogDir();
 	bool IsLiveLinkEnabledForFaceTracking();
+	bool IsLiveLinkEnabledForPoseTracking();
 	bool IsFaceTrackingLoggingEnabled();
 	bool ShouldFaceTrackingLogPerFrame();
 	EARFaceTrackingFileWriterType GetFaceTrackingFileWriterType();
@@ -81,9 +90,9 @@ protected:
 	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="AR Settings")
 	FString FaceTrackingLogDir;
 
-	/** Whether to publish face blend shapes to LiveLink or not */
+	/** Livelink tracking type. To publish face blend shapes, or body pose data to LiveLink, or none */
 	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="AR Settings")
-	bool bEnableLiveLinkForFaceTracking;
+	ELivelinkTrackingType LivelinkTrackingType;
 
 	/** Whether file writing is enabled at all or not */
 	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="AR Settings")
