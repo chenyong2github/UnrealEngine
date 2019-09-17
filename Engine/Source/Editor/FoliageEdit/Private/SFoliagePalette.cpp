@@ -527,6 +527,10 @@ void SFoliagePalette::BindCommands()
 		FExecuteAction::CreateSP(this, &SFoliagePalette::OnShowFoliageTypeInCB));
 
 	UICommandList->MapAction(
+		Commands.ReflectSelectionInPalette,
+		FExecuteAction::CreateSP(this, &SFoliagePalette::OnReflectSelectionInPalette));
+
+	UICommandList->MapAction(
 		Commands.SelectAllInstances,
 		FExecuteAction::CreateSP(this, &SFoliagePalette::OnSelectAllInstances),
 		FCanExecuteAction::CreateSP(this, &SFoliagePalette::CanSelectInstances));
@@ -1137,6 +1141,30 @@ void SFoliagePalette::OnShowFoliageTypeInCB()
 	{
 		GEditor->SyncBrowserToObjects(SelectedAssets);
 	}
+}
+
+void SFoliagePalette::OnReflectSelectionInPalette()
+{
+	TArray<const UFoliageType*> SelectedFoliageTypes;
+	FoliageEditMode->GetSelectedInstanceFoliageTypes(SelectedFoliageTypes);
+	SelectFoliageTypesInPalette(SelectedFoliageTypes);
+}
+
+void SFoliagePalette::SelectFoliageTypesInPalette(const TArray<const UFoliageType*>& FoliageTypes)
+{
+	TArray<FFoliagePaletteItemModelPtr> SelectedItems;
+	SelectedItems.Reserve(FoliageTypes.Num());
+
+	for (FFoliagePaletteItemModelPtr& PaletteItem : FilteredItems)
+	{
+		if (FoliageTypes.Contains(PaletteItem->GetFoliageType()))
+		{
+			SelectedItems.Add(PaletteItem);
+		}
+	}
+	
+	GetActiveViewWidget()->ClearSelection();
+	GetActiveViewWidget()->SetItemSelection(SelectedItems, true);
 }
 
 void SFoliagePalette::ExecuteOnSelectedItemFoliageTypes(TFunctionRef<void(const TArray<const UFoliageType*>&)> ExecuteFunc)
