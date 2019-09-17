@@ -23,6 +23,9 @@
 #include "Particles/WorldPSCPool.h"
 #include "Containers/SortedMap.h"
 
+#include "Subsystems/WorldSubsystem.h"
+#include "Subsystems/SubsystemCollection.h"
+
 #include "World.generated.h"
 
 class ABrush;
@@ -3446,6 +3449,50 @@ public:
 		return (OwningGameInstance ? OwningGameInstance->GetLatentActionManager() : LatentActionManager);
 	}
 
+	/**
+	 * Get a Subsystem of specified type
+	 */
+	UWorldSubsystem* GetSubsystemBase(TSubclassOf<UWorldSubsystem> SubsystemClass) const
+	{
+		return SubsystemCollection.GetSubsystem<UWorldSubsystem>(SubsystemClass);
+	}
+
+	/**
+	 * Get a Subsystem of specified type
+	 */
+	template <typename TSubsystemClass>
+	TSubsystemClass* GetSubsystem() const
+	{
+		return SubsystemCollection.GetSubsystem<TSubsystemClass>(TSubsystemClass::StaticClass());
+	}
+
+	/**
+	 * Get a Subsystem of specified type from the provided GameInstance
+	 * returns nullptr if the Subsystem cannot be found or the GameInstance is null
+	 */
+	template <typename TSubsystemClass>
+	static FORCEINLINE TSubsystemClass* GetSubsystem(const UWorld* World)
+	{
+		if (World)
+		{
+			return World->GetSubsystem<TSubsystemClass>();
+		}
+		return nullptr;
+	}
+
+	/**
+	 * Get all Subsystem of specified type, this is only necessary for interfaces that can have multiple implementations instanced at a time.
+	 *
+	 * Do not hold onto this Array reference unless you are sure the lifetime is less than that of UGameInstance
+	 */
+	template <typename TSubsystemClass>
+	const TArray<TSubsystemClass*>& GetSubsystemArray() const
+	{
+		return SubsystemCollection.GetSubsystemArray<TSubsystemClass>(TSubsystemClass::StaticClass());
+	}
+
+
+
 	/** Sets the owning game instance for this world */
 	inline void SetGameInstance(UGameInstance* NewGI)
 	{
@@ -3528,6 +3575,7 @@ public:
 	FWorldPSCPool PSCPool;
 
 	//PSC Pooling END
+	FSubsystemCollection<UWorldSubsystem> SubsystemCollection;
 };
 
 /** Global UWorld pointer. Use of this pointer should be avoided whenever possible. */
