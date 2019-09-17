@@ -68,7 +68,7 @@ public:
 	void Shutdown();
 
 private:
-	void OnWorldTickStart(ELevelTick TickType, float DeltaTime);
+	void OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaTime);
 
 	//~ FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;

@@ -37,7 +37,7 @@ public:
 		FWorldDelegates::OnWorldTickStart.AddStatic(&FRuntimeAssetCacheModule::TickRuntimeAssetCache);
 	}
 
-	static void TickRuntimeAssetCache(ELevelTick TickType, float DeltaSeconds)
+	static void TickRuntimeAssetCache(UWorld* World, ELevelTick TickType, float DeltaSeconds)
 	{
 		static FRuntimeAssetCacheModuleInterface& Module = FModuleManager::LoadModuleChecked<FRuntimeAssetCacheModuleInterface>("RuntimeAssetCache");
 		static FRuntimeAssetCacheInterface& Interface = Module.GetRuntimeAssetCache();

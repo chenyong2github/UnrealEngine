@@ -140,7 +140,7 @@ void FGoogleARCoreServicesManager::OnARSessionStarted()
 }
 
 // We need to make sure this tick happens after the ARSystem tick
-void FGoogleARCoreServicesManager::OnWorldTickStart(ELevelTick TickType, float DeltaTime)
+void FGoogleARCoreServicesManager::OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaTime)
 {
 	if (!bHasValidARSystem)
 	{

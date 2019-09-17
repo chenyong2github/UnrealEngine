@@ -121,9 +121,9 @@ bool FLuminARDevice::GetStartSessionRequestFinished()
 }
 
 // Note that this function will only be registered when LuminAR is supported.
-void FLuminARDevice::OnWorldTickStart(ELevelTick TickType, float DeltaTime)
+void FLuminARDevice::OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaTime)
 {
-	WorldToMeterScale = GWorld->GetWorldSettings()->WorldToMeters;
+	WorldToMeterScale = World->GetWorldSettings()->WorldToMeters;
 	TFunction<void()> Func;
 	while (RunOnGameThreadQueue.Dequeue(Func))
 	{

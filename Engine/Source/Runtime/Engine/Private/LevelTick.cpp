@@ -1351,7 +1351,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 
 	TDrawEvent<FRHICommandList>* TickDrawEvent = BeginTickDrawEvent();
 
-	FWorldDelegates::OnWorldTickStart.Broadcast(TickType, DeltaSeconds);
+	FWorldDelegates::OnWorldTickStart.Broadcast(this, TickType, DeltaSeconds);
 
 	//Tick game and other thread trackers.
 	for (int32 Tracker = 0; Tracker < (int32)EInGamePerfTrackers::Num; ++Tracker)
