@@ -164,7 +164,7 @@ USoundBusModulatorLFO* UAudioModulationStatics::CreateLFO(const UObject* WorldCo
 	{
 		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
 		{
-			ModulationImpl->ActivateLFO(*NewLFO, false);
+			ModulationImpl->ActivateLFO(*NewLFO);
 		}
 	}
 
