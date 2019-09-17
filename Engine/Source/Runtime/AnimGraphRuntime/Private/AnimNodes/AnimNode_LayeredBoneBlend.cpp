@@ -25,10 +25,6 @@ void FAnimNode_LayeredBoneBlend::Initialize_AnyThread(const FAnimationInitialize
 		{
 			BlendPoses[ChildIndex].Initialize(Context);
 		}
-
-		// initialize mask weight now
-		check (Context.AnimInstanceProxy->GetSkeleton());
-		ReinitializeBoneBlendWeights(Context.AnimInstanceProxy->GetRequiredBones(), Context.AnimInstanceProxy->GetSkeleton());
 	}
 }
 
@@ -82,13 +78,14 @@ void FAnimNode_LayeredBoneBlend::ReinitializeBoneBlendWeights(const FBoneContain
 	FAnimationRuntime::UpdateDesiredBoneWeight(DesiredBoneBlendWeights, CurrentBoneBlendWeights, BlendWeights);
 
 	TArray<uint16> const& CurveUIDFinder = RequiredBones.GetUIDToArrayLookupTable();
+	const int32 CurveUIDCount = CurveUIDFinder.Num();
 	const int32 TotalCount = FBlendedCurve::GetValidElementCount(&CurveUIDFinder);
 	CurvePoseSourceIndices.Reset(TotalCount);
 	// initialize with FF - which is default
 	CurvePoseSourceIndices.Init(DEFAULT_SOURCEINDEX, TotalCount);
 
 	// now go through point to correct source indices. Curve only picks one source index
-	for (int32 UIDIndex = 0; UIDIndex < CurveUIDFinder.Num(); ++UIDIndex)
+	for (int32 UIDIndex = 0; UIDIndex < CurveUIDCount; ++UIDIndex)
 	{
 		int32 CurrentPoseIndex = CurveUIDFinder[UIDIndex];
 		if (CurrentPoseIndex != MAX_uint16)
@@ -96,11 +93,13 @@ void FAnimNode_LayeredBoneBlend::ReinitializeBoneBlendWeights(const FBoneContain
 			SmartName::UID_Type CurveUID = (SmartName::UID_Type)UIDIndex;
 
 			const FCurveMetaData* CurveMetaData = Skeleton->GetCurveMetaData(CurveUID);
-			if (CurveMetaData && CurveMetaData->LinkedBones.Num() > 0)
+			if (CurveMetaData)
 			{
-				for (int32 LinkedBoneIndex = 0; LinkedBoneIndex < CurveMetaData->LinkedBones.Num(); ++LinkedBoneIndex)
+				const TArray<FBoneReference>& LinkedBones = CurveMetaData->LinkedBones;
+				const int32 NumLinkedBones = LinkedBones.Num();
+				for (int32 LinkedBoneIndex = 0; LinkedBoneIndex < NumLinkedBones; ++LinkedBoneIndex)
 				{
-					FCompactPoseBoneIndex CompactPoseIndex = CurveMetaData->LinkedBones[LinkedBoneIndex].GetCompactPoseIndex(RequiredBones);
+					FCompactPoseBoneIndex CompactPoseIndex = LinkedBones[LinkedBoneIndex].GetCompactPoseIndex(RequiredBones);
 					if (CompactPoseIndex != INDEX_NONE)
 					{
 						if (DesiredBoneBlendWeights[CompactPoseIndex.GetInt()].BlendWeight > 0.f)

@@ -1026,7 +1026,8 @@ public:
 	// evaluate happens when condition is met - i.e. depending on your skeletalmeshcomponent update flag
 	// post eval happens after evaluation is done
 	// uninitialize happens when owner is unregistered
-	void InitializeAnimation();
+	// @param	bInDeferRootNodeInitialization	When set to true, defer init of the blend tree until the first Update() call
+	void InitializeAnimation(bool bInDeferRootNodeInitialization = false);
 
 	/** Update Animation code-paths, updates and advances animation state, returns whether or not the actual update should have been called immediately */
 	bool UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion, EUpdateAnimationFlag UpdateFlag = EUpdateAnimationFlag::Default );

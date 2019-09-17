@@ -690,8 +690,9 @@ struct ENGINE_API FAnimNode_Base
 
 	/**
 	 * Override this to indicate that PreUpdate() should be called on the game thread (usually to 
-	 * This is called on the game thread.
 	 * gather non-thread safe data) before Update() is called.
+	 * Note that this is called at load on the UAnimInstance CDO to avoid needing to call this at runtime.
+	 * This is called on the game thread.
 	 */
 	virtual bool HasPreUpdate() const { return false; }
 
@@ -700,7 +701,8 @@ struct ENGINE_API FAnimNode_Base
 
 	/**
 	 * For nodes that implement some kind of simulation, return true here so ResetDynamics() gets called
-	 * when things like teleports, time skips etc. occur that might require special handling
+	 * when things like teleports, time skips etc. occur that might require special handling.
+	 * Note that this is called at load on the UAnimInstance CDO to avoid needing to call this at runtime.
 	 * This is called on the game thread.
 	 */
 	virtual bool NeedsDynamicReset() const { return false; }
@@ -710,6 +712,13 @@ struct ENGINE_API FAnimNode_Base
 
 	/** Called after compilation */
 	virtual void PostCompile(const class USkeleton* InSkeleton) {}
+
+	/** 
+	 * For nodes that need some kind of initialization that is not dependent on node relevancy 
+	 * (i.e. it is insufficent or inefficent to use Initialize_AnyThread), return true here.
+	 * Note that this is called at load on the UAnimInstance CDO to avoid needing to call this at runtime.
+	 */
+	virtual bool NeedsOnInitializeAnimInstance() const { return false; }
 
 	virtual ~FAnimNode_Base() {}
 
