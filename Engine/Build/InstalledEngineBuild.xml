@@ -80,7 +80,7 @@
 	<!-- Directory for toolchains -->
 	<Property Name="ToolchainDir" Value="$(RootDir)/Engine/Extras/ThirdPartyNotUE/SDKs"/>
 
-	<!-- Architectures that we build for Android -->
+	<!-- Architectures that we build for Android. NOTE: This should match the architectures specified in BuildPluginCommand. -->
 	<Property Name="AndroidArchitectures" Value="armv7+arm64"/>
 	
 	<!-- Hololens Architectures -->

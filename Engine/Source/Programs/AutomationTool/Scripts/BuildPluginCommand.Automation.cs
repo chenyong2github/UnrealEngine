@@ -19,6 +19,8 @@ using System.Text;
 [Help("Unversioned", "Do not embed the current engine version into the descriptor")]
 class BuildPlugin : BuildCommand
 {
+	const string AndroidArchitectures = "armv7+arm64";
+
 	public override void ExecuteBuild()
 	{
 		// Get the plugin filename
@@ -197,6 +199,10 @@ class BuildPlugin : BuildCommand
 			ManifestFileNames.Add(ManifestFileName);
 			
 			string Arguments = String.Format("-plugin={0} -iwyu -noubtmakefiles -manifest={1} -nohotreload", CommandUtils.MakePathSafeToUseWithCommandLine(HostProjectPluginFile.FullName), CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFileName.FullName));
+			if (Platform == UnrealTargetPlatform.Android)
+			{
+				Arguments += String.Format(" -architectures={0}", AndroidArchitectures);
+			}
 			if(!String.IsNullOrEmpty(InAdditionalArgs))
 			{
 				Arguments += InAdditionalArgs;
