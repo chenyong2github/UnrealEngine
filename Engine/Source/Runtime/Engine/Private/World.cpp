@@ -352,6 +352,7 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 ,	TickTaskLevel(FTickTaskManagerInterface::Get().AllocateTickTaskLevel())
 ,	FlushLevelStreamingType(EFlushLevelStreamingType::None)
 ,	NextTravelType(TRAVEL_Relative)
+,	SubsystemCollection(this)
 {
 	TimerManager = new FTimerManager();
 #if WITH_EDITOR
@@ -1322,6 +1323,11 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	if (!ensure(!bIsWorldInitialized))
 	{
 		return;
+	}
+
+	if (WorldType == EWorldType::Game || WorldType == EWorldType::Editor || WorldType == EWorldType::PIE)
+	{
+		SubsystemCollection.Initialize();
 	}
 
 	FWorldDelegates::OnPreWorldInitialization.Broadcast(this, IVS);
@@ -4269,6 +4275,8 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 		check(WorldToResetCleanedUpFlag->bCleanedUpWorld);
 		WorldToResetCleanedUpFlag->bCleanedUpWorld = false;
 	}
+
+	SubsystemCollection.Deinitialize();
 }
 
 UGameViewportClient* UWorld::GetGameViewport() const
