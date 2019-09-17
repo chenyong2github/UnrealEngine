@@ -3,8 +3,7 @@
 #include "FoliageActor.h"
 #include "InstancedFoliageActor.h"
 #include "FoliageType_Actor.h"
-
-FName FoliageActorTag(TEXT("FoliageActorInstance"));
+#include "FoliageHelper.h"
 
 //
 //
@@ -87,7 +86,7 @@ AActor* FFoliageActor::Spawn(AInstancedFoliageActor* IFA, const FFoliageInstance
 	AActor* NewActor = IFA->GetWorld()->SpawnActor<AActor>(ActorClass, Instance.GetInstanceWorldTransform(), SpawnParameters);
 	if (NewActor)
 	{
-		NewActor->Tags.AddUnique(FoliageActorTag);
+		FFoliageHelper::SetIsOwnedByFoliage(NewActor);
 	}
 	return NewActor;
 }
