@@ -3048,7 +3048,11 @@ IMPLEMENT_VM_FUNCTION( EX_StringConst, execStringConst );
 
 DEFINE_FUNCTION(UObject::execUnicodeStringConst)
 {
- 	*(FString*)RESULT_PARAM = FString((UCS2CHAR*)Stack.Code);
+	FString& ResultStr = *(FString*)RESULT_PARAM;
+	ResultStr = FString((UCS2CHAR*)Stack.Code);
+
+	// Inline combine any surrogate pairs in the data when loading into a UTF-32 string
+	StringConv::InlineCombineSurrogates(ResultStr);
 
 	while( *(uint16*)Stack.Code )
 	{

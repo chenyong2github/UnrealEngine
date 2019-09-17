@@ -226,6 +226,9 @@
 #ifndef PLATFORM_TCHAR_IS_4_BYTES
 	#define PLATFORM_TCHAR_IS_4_BYTES			0
 #endif
+#ifndef PLATFORM_WCHAR_IS_4_BYTES
+	#define PLATFORM_WCHAR_IS_4_BYTES			0
+#endif
 #ifndef PLATFORM_TCHAR_IS_CHAR16
 	#define PLATFORM_TCHAR_IS_CHAR16			0
 #endif
@@ -865,6 +868,9 @@ namespace TypeTests
 
 	static_assert(!PLATFORM_TCHAR_IS_4_BYTES || sizeof(TCHAR) == 4, "TCHAR size must be 4 bytes.");
 	static_assert(PLATFORM_TCHAR_IS_4_BYTES || sizeof(TCHAR) == 2, "TCHAR size must be 2 bytes.");
+
+	static_assert(!PLATFORM_WCHAR_IS_4_BYTES || sizeof(wchar_t) == 4, "wchar_t size must be 4 bytes.");
+	static_assert(PLATFORM_WCHAR_IS_4_BYTES || sizeof(wchar_t) == 2, "wchar_t size must be 2 bytes.");
 
 	static_assert(PLATFORM_32BITS || PLATFORM_64BITS, "Type tests pointer size failed.");
 	static_assert(PLATFORM_32BITS != PLATFORM_64BITS, "Type tests pointer exclusive failed.");

@@ -243,10 +243,8 @@ FString FNativeJSScripting::ConvertStruct(UStruct* TypeInfo, const void* StructP
 
 	// Extract the result value from the serialized JSON object:
 	ReturnBuffer.Add(0);
-	ReturnBuffer.Add(0);
-	auto CastObject = StringCast<TCHAR>((UCS2CHAR*)ReturnBuffer.GetData());
-	FString ResultJS = FString(CastObject.Get(), CastObject.Length());
-	return ResultJS;
+	ReturnBuffer.Add(0); // Add two as we're dealing with UTF-16, so 2 bytes
+	return UTF16_TO_TCHAR((UTF16CHAR*)ReturnBuffer.GetData());
 }
 
 FString FNativeJSScripting::ConvertObject(UObject* Object)
@@ -432,11 +430,13 @@ bool FNativeJSScripting::HandleExecuteUObjectMethodMessage(const TArray<FString>
 		Params.AddUninitialized(ParamsSize);
 		Function->InitializeStruct(Params.GetData());
 
-		TArray<uint8> JsonData;
-		auto Convert = StringCast<UCS2CHAR>(*MessageArgs[3]);
-		JsonData.Append((uint8*)Convert.Get(), MessageArgs[3].Len() * sizeof(UCS2CHAR));
-		FMemoryReader Reader(JsonData);
+		// Note: This is a no-op on platforms that are using a 16-bit TCHAR
+		FTCHARToUTF16 UTF16String(*MessageArgs[3], MessageArgs[3].Len());
 
+		TArray<uint8> JsonData;
+		JsonData.Append((uint8*)UTF16String.Get(), UTF16String.Length() * sizeof(UTF16CHAR));
+
+		FMemoryReader Reader(JsonData);
 		FNativeJSStructDeserializerBackend Backend = FNativeJSStructDeserializerBackend(SharedThis(this), Reader);
 		FStructDeserializer::Deserialize(Params.GetData(), *Function, Backend);
 	}
@@ -468,9 +468,8 @@ bool FNativeJSScripting::HandleExecuteUObjectMethodMessage(const TArray<FString>
 
 			// Extract the result value from the serialized JSON object:
 			ReturnBuffer.Add(0);
-			ReturnBuffer.Add(0);
-			auto CastObject = StringCast<TCHAR>((UCS2CHAR*)ReturnBuffer.GetData());
-			FString ResultJS = FString(CastObject.Get(), CastObject.Length());
+			ReturnBuffer.Add(0); // Add two as we're dealing with UTF-16, so 2 bytes
+			const FString ResultJS = UTF16_TO_TCHAR((UTF16CHAR*)ReturnBuffer.GetData());
 
 			InvokeJSFunctionRaw(ResultCallbackId, ResultJS, false);
 		}
