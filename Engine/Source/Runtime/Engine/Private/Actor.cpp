@@ -998,7 +998,7 @@ void AActor::TickActor( float DeltaSeconds, ELevelTick TickType, FActorTickFunct
 
 void AActor::Tick( float DeltaSeconds )
 {
-	if (GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
+	if (!GetClass()->HasAnyClassFlags(CLASS_Native))
 	{
 		// Blueprint code outside of the construction script should not run in the editor
 		// Allow tick if we are not a dedicated server, or we allow this tick on dedicated servers
