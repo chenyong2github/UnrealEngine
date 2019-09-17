@@ -3397,6 +3397,8 @@ UParticleSystemComponent::UParticleSystemComponent(const FObjectInitializer& Obj
 	ManagerHandle = INDEX_NONE;
 	bPendingManagerAdd = false;
 	bPendingManagerRemove = false;
+
+	bExcludeFromLightAttachmentGroup = true;
 }
 
 void UParticleSystemComponent::SetRequiredSignificance(EParticleSignificanceLevel NewRequiredSignificance)
