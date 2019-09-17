@@ -68,7 +68,7 @@ void RunSymbolDebugger(const TCHAR* CommandLine)
 
 	// loop while the server does the rest
 	double LastTime = FPlatformTime::Seconds();
-	while (!GIsRequestingExit)
+	while (!IsEngineExitRequested())
 	{
 		FSlateApplication::Get().PumpMessages();
 		FSlateApplication::Get().Tick();

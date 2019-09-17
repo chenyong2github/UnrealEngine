@@ -2435,14 +2435,8 @@ UDumpBlueprintsInfoCommandlet::UDumpBlueprintsInfoCommandlet(FObjectInitializer 
 //------------------------------------------------------------------------------
 int32 UDumpBlueprintsInfoCommandlet::Main(FString const& Params)
 {
-	bool const bCachedIsRunning     = GIsRunning;
-	bool const bCachedExitRequested = GIsRequestingExit;
-	// priming the FBlueprintActionDatabase requires GIsRequestingExit to be 
-	// true; so that it registers its database entries with the GC system, via 
-	// AddReferencedObjects() (without GIsRequestingExit, the FGCObject 
-	// constructor doesn't register itself).
-	GIsRunning		  = true;
-	GIsRequestingExit = false;
+	bool const bCachedIsRunning = GIsRunning;
+	GIsRunning = true;
 
 	TArray<FString> Tokens, Switches;
 	ParseCommandLine(*Params, Tokens, Switches);
@@ -2583,8 +2577,7 @@ int32 UDumpBlueprintsInfoCommandlet::Main(FString const& Params)
 	CloseFileStream(&FileOut);
 
 	// restore the globals that we forcefully overrode
-	GIsRequestingExit = bCachedExitRequested;
-	GIsRunning        = bCachedIsRunning;
+	GIsRunning = bCachedIsRunning;
 
 	return 0;
 }

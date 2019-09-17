@@ -90,7 +90,7 @@ class COREUOBJECT_API FGCObject
 	void Init()
 	{
 		// Some objects can get created after the engine started shutting down (lazy init of singletons etc).
-		if (!GIsRequestingExit)
+		if (!IsEngineExitRequested())
 		{
 			StaticInit();
 			check(GGCObjectReferencer);

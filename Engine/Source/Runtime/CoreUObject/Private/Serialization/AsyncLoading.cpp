@@ -5100,7 +5100,7 @@ FMaxPackageSummarySize::FMaxPackageSummarySize()
 	// the editor packages may not have the AdditionalPackagesToCook array stripped so we need to allocate more memory
 #if WITH_EDITORONLY_DATA
 	const int32 MinimumPackageSummarySize = 1024;
-	check(GConfig || GIsRequestingExit);
+	check(GConfig || IsEngineExitRequested());
 	Value = 16384;
 	if (GConfig)
 	{
@@ -7549,7 +7549,7 @@ bool IsEventDrivenLoaderEnabledInCookedBuilds()
 
 		void SetEventDrivenLoaderEnabled()
 		{
-			check(GConfig || GIsRequestingExit);
+			check(GConfig || IsEngineExitRequested());
 			if (GConfig)
 			{
 				GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.EventDrivenLoaderEnabled"), bEventDrivenLoaderEnabled, GEngineIni);

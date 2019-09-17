@@ -8779,7 +8779,7 @@ void UEngine::SetMaxFPS(const float MaxFPS)
 void UEngine::EnableScreenSaver( bool bEnable )
 {
 #if PLATFORM_DESKTOP
-	if (GIsRequestingExit)
+	if (IsEngineExitRequested())
 	{
 		return;
 	}
@@ -14961,7 +14961,7 @@ static void TickAssetLoadTest(bool bInfinite = false)
 	static FRandomStream RNG(FPlatformTime::Cycles());
 	static int32 RequestsOutstanding = 0;
 	static int32 NumProcessed = 0;
-	if (!GIsRequestingExit)
+	if (!IsEngineExitRequested())
 	{
 		if (RequestsOutstanding < 100)
 		{
@@ -15453,7 +15453,7 @@ static void PakFileTest(const TArray<FString>& Args)
 
 				delete IORequestHandle;
 			}
-			if (!GIsRequestingExit)
+			if (!IsEngineExitRequested())
 			{
 				switch (RNG.RandRange(0, 2))
 				{

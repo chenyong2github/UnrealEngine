@@ -119,7 +119,7 @@ void FAndroidMisc::RequestExit( bool Force )
 	}
 	else
 	{
-		GIsRequestingExit = 1;
+		RequestEngineExit(TEXT("Android RequestExit"));
 	}
 }
 
