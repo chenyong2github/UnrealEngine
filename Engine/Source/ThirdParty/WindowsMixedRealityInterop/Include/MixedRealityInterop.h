@@ -338,7 +338,7 @@ namespace WindowsMixedReality
 		bool IsActiveAndValid();
 
 		void BlockUntilNextFrame();
-		void UpdateRenderThreadFrame();
+		bool UpdateRenderThreadFrame();
 
 		// Get the latest pose information from our tracking frame.
 		bool GetCurrentPoseRenderThread(DirectX::XMMATRIX& leftView, DirectX::XMMATRIX& rightView, HMDTrackingOrigin& trackingOrigin);
@@ -365,11 +365,12 @@ namespace WindowsMixedReality
 
 		void RemoveQuadLayer(uint32 Id);
 
-		// Use double-width stereo texture for the depth texture or nullptr to ignore.
-		bool CreateRenderingParameters(ID3D11Texture2D* depthTexture);
+		bool CreateRenderingParameters();
+		bool CommitDepthBuffer(ID3D11Texture2D* depthTexture);
 
 		// Use double-width stereo texture for the viewport texture.
-		bool Present(ID3D11DeviceContext* context, ID3D11Texture2D* viewportTexture);
+		bool CopyResources(ID3D11DeviceContext* context, ID3D11Texture2D* viewportTexture);
+		bool Present();
 
 		// Spatial Input
 		bool SupportsSpatialInput();
