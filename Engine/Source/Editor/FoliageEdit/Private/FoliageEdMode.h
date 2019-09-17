@@ -559,8 +559,8 @@ private:
 
 	/** Reapply instance settings to exiting instances */
 	void ReapplyInstancesDensityForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, float Pressure);
-	void ReapplyInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, float Pressure);
-	void ReapplyInstancesForBrush(UWorld* InWorld, AInstancedFoliageActor* IFA, const UFoliageType* Settings, FFoliageInfo* MeshInfo, const FSphere& BrushSphere, float Pressure);
+	void ReapplyInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, float Pressure, bool bSingleInstanceMode);
+	void ReapplyInstancesForBrush(UWorld* InWorld, AInstancedFoliageActor* IFA, const UFoliageType* Settings, FFoliageInfo* MeshInfo, const FSphere& BrushSphere, float Pressure, bool bSingleInstanceMode);
 
 	/** Select instances inside the brush. */
 	void SelectInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, bool bSelect);
@@ -620,6 +620,8 @@ private:
 	/** Set the brush mesh opacity */
 	void SetBrushOpacity(const float InOpacity);
 
+	float GetPaintingBrushRadius() const;
+
 	/** Called if the foliage tree is outdated */
 	void RebuildFoliageTree(const UFoliageType* Settings);
 
@@ -631,6 +633,8 @@ private:
 
 	/** The dynamic material of the sphere brush. */
 	class UMaterialInstanceDynamic* BrushMID;
+	FColor BrushDefaultHighlightColor;
+	FColor BrushCurrentHighlightColor;
 
 	/** Default opacity received from the brush material to reset it when closing. */
 	float DefaultBrushOpacity;
