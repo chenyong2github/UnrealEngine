@@ -9,14 +9,14 @@
 
 namespace AudioModulation
 {
-	using BusMixId = uint32;
-	extern const BusMixId InvalidBusMixId;
+	using FBusMixId = uint32;
+	extern const FBusMixId InvalidBusMixId;
 
-	using BusId = uint32;
-	extern const BusId InvalidBusId;
+	using FBusId = uint32;
+	extern const FBusId InvalidBusId;
 
-	using LFOId = uint32;
-	extern const LFOId InvalidLFOId;
+	using FLFOId = uint32;
+	extern const FLFOId InvalidLFOId;
 } // namespace AudioModulation
 
 USTRUCT(BlueprintType)

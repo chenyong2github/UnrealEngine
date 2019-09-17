@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IAudioExtensionPlugin.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #if WITH_EDITOR
@@ -196,6 +197,13 @@ class ENGINE_API USoundClass : public UObject
 	/** SoundMix Modifiers to activate automatically when a sound of this class is playing. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=SoundClass)
 	TArray<struct FPassiveSoundMixModifier> PassiveSoundMixModifiers;
+
+	/**
+	  * Modulation for the sound class. If not set on sound directly, settings
+	  * fall back to the modulation settings provided here.
+	  */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Modulation)
+	FSoundModulation Modulation;
 
 public:
 	UPROPERTY()
