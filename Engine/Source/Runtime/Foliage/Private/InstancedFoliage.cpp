@@ -46,6 +46,7 @@ InstancedFoliage.cpp: Instanced foliage implementation.
 #include "PreviewScene.h"
 #include "FoliageActor.h"
 #include "LevelUtils.h"
+#include "FoliageHelper.h"
 
 #define LOCTEXT_NAMESPACE "InstancedFoliage"
 
@@ -58,8 +59,6 @@ DECLARE_CYCLE_STAT(TEXT("FoliageActor_Trace"), STAT_FoliageTrace, STATGROUP_Foli
 DECLARE_CYCLE_STAT(TEXT("FoliageMeshInfo_AddInstance"), STAT_FoliageAddInstance, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("FoliageMeshInfo_RemoveInstance"), STAT_FoliageRemoveInstance, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("FoliageMeshInfo_CreateComponent"), STAT_FoliageCreateComponent, STATGROUP_Foliage);
-
-extern FName FoliageActorTag;
 
 static TAutoConsoleVariable<int32> CVarFoliageDiscardDataOnLoad(
 	TEXT("foliage.DiscardDataOnLoad"),
@@ -2168,11 +2167,6 @@ AInstancedFoliageActor::AInstancedFoliageActor(const FObjectInitializer& ObjectI
 	PrimaryActorTick.bCanEverTick = false;
 }
 
-bool AInstancedFoliageActor::IsOwnedByFoliage(const AActor* InActor)
-{
-	return InActor != nullptr && InActor->ActorHasTag(FoliageActorTag);
-}
-
 AInstancedFoliageActor* AInstancedFoliageActor::GetInstancedFoliageActorForCurrentLevel(UWorld* InWorld, bool bCreateIfNone)
 {
 	return GetInstancedFoliageActorForLevel(InWorld->GetCurrentLevel(), bCreateIfNone);
@@ -3999,7 +3993,7 @@ bool AInstancedFoliageActor::FoliageTrace(const UWorld* InWorld, FHitResult& Out
 
 		// Don't place foliage on itself
 		const AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(HitActor);
-		if (!FoliageActor && HitActor && AInstancedFoliageActor::IsOwnedByFoliage(HitActor))
+		if (!FoliageActor && HitActor && FFoliageHelper::IsOwnedByFoliage(HitActor))
 		{
 			FoliageActor = HitActor->GetLevel()->InstancedFoliageActor.Get();
 			if (FoliageActor == nullptr)

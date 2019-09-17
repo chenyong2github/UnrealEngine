@@ -29,6 +29,7 @@
 #include "LevelEditor.h"
 #include "Toolkits/ToolkitManager.h"
 #include "FoliageEditActions.h"
+#include "FoliageHelper.h"
 
 #include "AssetRegistryModule.h"
 #include "Misc/ScopeExit.h"
@@ -176,7 +177,7 @@ bool FFoliagePaintingGeometryFilter::operator() (const UPrimitiveComponent* Comp
 {
 	if (Component)
 	{
-		bool bFoliageOwned = Component->GetOwner() && AInstancedFoliageActor::IsOwnedByFoliage(Component->GetOwner());
+		bool bFoliageOwned = Component->GetOwner() && FFoliageHelper::IsOwnedByFoliage(Component->GetOwner());
 
 		// Whitelist
 		bool bAllowed =
@@ -3584,7 +3585,7 @@ void FEdModeFoliage::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* V
 /** FEdMode: Check to see if an actor can be selected in this mode - no side effects */
 bool FEdModeFoliage::IsSelectionAllowed(AActor* InActor, bool bInSelection) const
 {
-	return AInstancedFoliageActor::IsOwnedByFoliage(InActor);
+	return FFoliageHelper::IsOwnedByFoliage(InActor);
 }
 
 /** FEdMode: Handling SelectActor */
@@ -3643,7 +3644,7 @@ bool FEdModeFoliage::HandleClick(FEditorViewportClient* InViewportClient, HHitPr
 				UpdateWidgetLocationToInstanceSelection();
 			}
 		}
-		else if (HitProxy && HitProxy->IsA(HActor::StaticGetType()) && AInstancedFoliageActor::IsOwnedByFoliage(((HActor*)HitProxy)->Actor))
+		else if (HitProxy && HitProxy->IsA(HActor::StaticGetType()) && FFoliageHelper::IsOwnedByFoliage(((HActor*)HitProxy)->Actor))
 		{
 			HActor* ActorProxy = ((HActor*)HitProxy);
 			AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(ActorProxy->Actor->GetLevel());

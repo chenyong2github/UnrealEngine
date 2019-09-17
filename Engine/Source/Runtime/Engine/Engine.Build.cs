@@ -36,7 +36,7 @@ public class Engine : ModuleRules
 				"AutomationWorker",
 				"MovieSceneCapture",
 				"DesktopPlatform",
-			}
+            }
 		);
 
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
@@ -187,10 +187,15 @@ public class Engine : ModuleRules
 
 		CircularlyReferencedDependentModules.Add("GameplayTags");
 		CircularlyReferencedDependentModules.Add("Landscape");
-		CircularlyReferencedDependentModules.Add("UMG");
+        CircularlyReferencedDependentModules.Add("UMG");
 		CircularlyReferencedDependentModules.Add("MaterialShaderQualitySettings");
 		CircularlyReferencedDependentModules.Add("CinematicCamera");
 		CircularlyReferencedDependentModules.Add("AudioMixer");
+
+		if (Target.Type == TargetType.Editor)
+		{
+			PrivateIncludePathModuleNames.Add("Foliage");
+		}
 
 		// The AnimGraphRuntime module is not needed by Engine proper, but it is loaded in LaunchEngineLoop.cpp,
 		// and needs to be listed in an always-included module in order to be compiled into standalone games
