@@ -8,7 +8,6 @@
 #include "SampleBuffer.h"
 #include "Features/IModularFeature.h"
 
-
 namespace Audio
 {
 	
@@ -75,7 +74,7 @@ namespace Audio
 		 * Perform analysis of an audio stream.
 		 * This method may be called multiple times with audio from the same source.
 		 */
-		virtual void Analyze(const TSampleBuffer<float>& InAudio, IAnalyzerNRTResult* OutResult) = 0;
+		virtual void Analyze(TArrayView<const float> InAudio, IAnalyzerNRTResult* OutResult) = 0;
 
 		/** 
 		 * Called when analysis of audio asset is complete. 
