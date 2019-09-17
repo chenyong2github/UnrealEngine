@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "HAL/IConsoleManager.h"
 
 // ------------------------------------------------------------------------------------------------------------
 //	"Shipping const" cvars: cvars that should compile out to const functions in shipping/test builds
