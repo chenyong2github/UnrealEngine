@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "AssetData.h"
 #include "IContentBrowserSingleton.h"
+#include "ContentBrowserSingleton.generated.h"
 
 class FCollectionAssetRegistryBridge;
 class FEmptyFolderVisibilityManager;
@@ -17,6 +18,23 @@ class SContentBrowser;
 class UFactory;
 
 #define MAX_CONTENT_BROWSERS 4
+
+USTRUCT()
+struct FContentBrowserPluginSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName PluginName;
+
+	/** Used to control the order of plugin root folders in the path view. A higher priority sorts higher in the list. Game and Engine folders are priority 1.0 */
+	UPROPERTY()
+	float RootFolderSortPriority;
+
+	FContentBrowserPluginSettings()
+		: RootFolderSortPriority(0.f)
+	{}
+};
 
 /**
  * Content browser module singleton implementation class
@@ -65,6 +83,9 @@ public:
 
 	TSharedRef<FEmptyFolderVisibilityManager> GetEmptyFolderVisibilityManager();
 
+	/** Gets the settings for the plugin with the specified name */
+	const FContentBrowserPluginSettings& GetPluginSettings(FName PluginName) const;
+
 	/** Single storage location for content browser favorites */
 	TArray<FString> FavoriteFolderPaths;
 
@@ -102,6 +123,9 @@ private:
 	/** Returns a localized name for the tab/menu entry with index */
 	static FText GetContentBrowserLabelWithIndex( int32 BrowserIdx );
 
+	/** Populates properties that come from ini files */
+	void PopulateConfigValues();
+
 public:
 	/** The tab identifier/instance name for content browser tabs */
 	FName ContentBrowserTabIDs[MAX_CONTENT_BROWSERS];
@@ -118,6 +142,8 @@ private:
 	TSharedRef<FEmptyFolderVisibilityManager> EmptyFolderVisibilityManager;
 
 	TSharedRef<FCollectionAssetRegistryBridge> CollectionAssetRegistryBridge;
+
+	TArray<FContentBrowserPluginSettings> PluginSettings;
 
 	/** An incrementing int32 which is used when making unique settings strings */
 	int32 SettingsStringID;
