@@ -16425,7 +16425,16 @@ int32 UMaterialExpressionCurveAtlasRowParameter::Compile(class FMaterialCompiler
 			return CompilerError(Compiler, TEXT("The curve is not contained within the atlas."));
 		}
 	}
-	return CompilerError(Compiler, TEXT("Either the curve or atlas is not currently set."));
+	else if (Atlas)
+	{
+		return CompilerError(Compiler, TEXT("The curve is not currently set."));
+	}
+	else if (Curve)
+	{
+		return CompilerError(Compiler, TEXT("The atlas is not currently set."));
+	}
+
+	return CompilerError(Compiler, TEXT("The curve and atlas are not currently set."));
 }
 
 void UMaterialExpressionCurveAtlasRowParameter::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
