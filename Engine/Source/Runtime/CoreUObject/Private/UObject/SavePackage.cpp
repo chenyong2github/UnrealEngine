@@ -588,10 +588,14 @@ static void ConditionallyExcludeObjectForTarget(UObject* Obj, EObjectMark Exclud
 		MarksToModify = (EObjectMark)(MarksToModify | (ObjToCheckMarks & MarkMask));
 	};
 
-	EObjectMark CurrentMarks = OBJECTMARK_NOMARKS;
-	InheritMarks(CurrentMarks, Obj, OBJECTMARK_EditorOnly | OBJECTMARK_NotForClient | OBJECTMARK_NotForServer);
+	// MarksToProcess is a superset of marks retrieved from UPackage::GetExcludedObjectMarksForTargetPlatform
+	const uint32 MarksToProcess = OBJECTMARK_EditorOnly | OBJECTMARK_NotForClient | OBJECTMARK_NotForServer | OBJECTMARK_KeepForTargetPlatform;
+	check((ExcludedObjectMarks & ~MarksToProcess) == 0);
 
-	if ((CurrentMarks & ExcludedObjectMarks) != 0)
+	EObjectMark CurrentMarks = OBJECTMARK_NOMARKS;
+	InheritMarks(CurrentMarks, Obj, MarksToProcess);
+
+	if ((CurrentMarks & MarksToProcess) != 0)
 	{
 		// Already marked
 		return;
@@ -675,6 +679,12 @@ static void ConditionallyExcludeObjectForTarget(UObject* Obj, EObjectMark Exclud
 	if ((NewMarks & OBJECTMARK_NotForClient) && (NewMarks & OBJECTMARK_NotForServer))
 	{
 		NewMarks = (EObjectMark)(NewMarks | OBJECTMARK_EditorOnly);
+	}
+
+	// If not excluded after a full set of tests, it is implicitly a keep
+	if (NewMarks == 0)
+	{
+		NewMarks = OBJECTMARK_KeepForTargetPlatform;
 	}
 
 	// If our marks are different than original, set them on the object
@@ -3609,8 +3619,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 			
 				{
 					COOK_STAT(FScopedDurationTimer SaveTimer(SavePackageStats::TagPackageExportsTimeSec));
-					// Clear OBJECTMARK_TagExp again as we need to redo tagging below.
-					UnMarkAllObjects((EObjectMark)(OBJECTMARK_TagExp|OBJECTMARK_EditorOnly));
+					// Clear all marks (OBJECTMARK_TagExp and exclusion marks) again as we need to redo tagging below.
+					UnMarkAllObjects();
 			
 					// We need to serialize objects yet again to tag objects that were created by PreSave as OBJECTMARK_TagExp.
 					PackageExportTagger.TagPackageExports( ExportTaggerArchive, false );
