@@ -275,7 +275,7 @@ uint32 FThreadHeartBeat::Run()
 	bool InHungState = false;
 
 #if USE_HANG_DETECTION
-	while (StopTaskCounter.GetValue() == 0 && !GIsRequestingExit)
+	while (StopTaskCounter.GetValue() == 0 && !IsEngineExitRequested())
 	{
 		double HangDuration;
 		uint32 ThreadThatHung = CheckHeartBeat(HangDuration);
@@ -299,7 +299,7 @@ uint32 FThreadHeartBeat::Run()
 			}
 		}
 
-		if (StopTaskCounter.GetValue() == 0 && !GIsRequestingExit)
+		if (StopTaskCounter.GetValue() == 0 && !IsEngineExitRequested())
 		{
 			FPlatformProcess::SleepNoStats(0.5f);
 		}
@@ -407,7 +407,7 @@ uint32 FThreadHeartBeat::CheckHeartBeat(double& OutHangDuration)
 
 	bool CheckBeats = (ConfigHangDuration > 0.0 || ConfigPresentDuration > 0.0)
 		&& bReadyToCheckHeartbeat
-		&& !GIsRequestingExit
+		&& !IsEngineExitRequested()
 		&& (bForceEnabled || !FPlatformMisc::IsDebuggerPresent())
 		&& !bDisabled
 		&& !GlobalSuspendCount.GetValue();
@@ -718,9 +718,9 @@ uint32 FGameThreadHitchHeartBeatThreaded::Run()
 	}
 #endif
 
-	while (StopTaskCounter.GetValue() == 0 && !GIsRequestingExit)
+	while (StopTaskCounter.GetValue() == 0 && !IsEngineExitRequested())
 	{
-		if (!GIsRequestingExit && !GHitchDetected && UE_LOG_ACTIVE(LogCore, Error)) // && !FPlatformMisc::IsDebuggerPresent())
+		if (!IsEngineExitRequested() && !GHitchDetected && UE_LOG_ACTIVE(LogCore, Error)) // && !FPlatformMisc::IsDebuggerPresent())
 		{
 			double LocalFrameStartTime;
 			float LocalHangDuration;
@@ -787,7 +787,7 @@ uint32 FGameThreadHitchHeartBeatThreaded::Run()
 				}
 			}
 		}
-		if (StopTaskCounter.GetValue() == 0 && !GIsRequestingExit)
+		if (StopTaskCounter.GetValue() == 0 && !IsEngineExitRequested())
 		{
 			FPlatformProcess::SleepNoStats(0.008f); // check every 8ms
 		}

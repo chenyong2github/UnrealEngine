@@ -254,7 +254,7 @@ namespace Audio
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
 #if PLATFORM_64BITS && !PLATFORM_HOLOLENS
-		if (XAudio2Dll != nullptr && GIsRequestingExit)
+		if (XAudio2Dll != nullptr && IsEngineExitRequested())
 		{
 			if (!FreeLibrary(XAudio2Dll))
 			{

@@ -142,7 +142,7 @@ EReturnCode BuildPatchToolMain(const TCHAR* CommandLine)
 	}
 
 	// Shutdown
-	GIsRequestingExit = true;
+	RequestEngineExit(TEXT("BuildPatchToolMain Exiting"));
 	FCoreDelegates::OnExit.Broadcast();
 
 	return ReturnCode;

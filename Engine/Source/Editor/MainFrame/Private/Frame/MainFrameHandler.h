@@ -51,7 +51,7 @@ public:
 	 */
 	bool CanCloseTab()
 	{
-		if ( GIsRequestingExit )
+		if ( IsEngineExitRequested() )
 		{
 			UE_LOG(LogMainFrame, Warning, TEXT("MainFrame: Shutdown already in progress when CanCloseTab was queried, approve tab for closure."));
 			return true;

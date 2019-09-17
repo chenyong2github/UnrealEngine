@@ -138,7 +138,7 @@ static int32 MacOSVersionCompare(const NSOperatingSystemVersion& VersionA, const
 			{
 				if (IsRunningCommandlet())
 				{
-					GIsRequestingExit = true;
+					RequestEngineExit(TEXT("Mac RequestQuit"));
 				}
 				else
 				{
@@ -187,9 +187,9 @@ static int32 MacOSVersionCompare(const NSOperatingSystemVersion& VersionA, const
 
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)Sender;
 {
-	if(!GIsRequestingExit || ([NSThread gameThread] && [NSThread gameThread] != [NSThread mainThread]))
+	if(!IsEngineExitRequested() || ([NSThread gameThread] && [NSThread gameThread] != [NSThread mainThread]))
 	{
-		if (!GIsRequestingExit)
+		if (!IsEngineExitRequested())
 		{
 			[self requestQuit:self];
 		}

@@ -51,7 +51,7 @@ struct FMediaProfileMenuEntryImpl
 
 	~FMediaProfileMenuEntryImpl()
 	{
-		if (!GIsRequestingExit && ToolBarExtender.IsValid())
+		if (!IsEngineExitRequested() && ToolBarExtender.IsValid())
 		{
 			FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
 			if (LevelEditorModule)

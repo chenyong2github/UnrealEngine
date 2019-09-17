@@ -72,7 +72,7 @@ int RunSlateViewer( const TCHAR* CommandLine )
 #endif
 
 	// loop while the server does the rest
-	while (!GIsRequestingExit)
+	while (!IsEngineExitRequested())
 	{
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 		FStats::AdvanceFrame(false);

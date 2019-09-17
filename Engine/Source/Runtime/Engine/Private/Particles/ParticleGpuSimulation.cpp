@@ -2712,8 +2712,8 @@ public:
 	 */
 	void Destroy_RenderThread()
 	{
-		// The check for GIsRequestingExit is done because at shut down UWorld can be destroyed before particle emitters(?)
-		check(GIsRequestingExit || SimulationIndex == INDEX_NONE);
+		// The check for IsEngineExitRequested() is done because at shut down UWorld can be destroyed before particle emitters(?)
+		check(IsEngineExitRequested() || SimulationIndex == INDEX_NONE);
 		ReleaseRenderResources();
 		delete this;
 	}
@@ -4004,8 +4004,8 @@ private:
 		{
 			FXSystem->RemoveGPUSimulation( Simulation );
 
-			// The check for GIsRequestingExit is done because at shut down UWorld can be destroyed before particle emitters(?)
-			if (!GIsRequestingExit)
+			// The check for IsEngineExitRequested() is done because at shut down UWorld can be destroyed before particle emitters(?)
+			if (!IsEngineExitRequested())
 			{
 				FParticleSimulationResources* ParticleSimulationResources = FXSystem->GetParticleSimulationResources();
 				const int32 TileCount = AllocatedTiles.Num();
@@ -4022,7 +4022,7 @@ private:
 #endif // #if TRACK_TILE_ALLOCATIONS
 			}
 		}
-		else if (!GIsRequestingExit)
+		else if (!IsEngineExitRequested())
 		{
 			UE_LOG(LogParticles,Warning,
 				TEXT("%s|%s|0x%016p [ReleaseSimulationResources] LEAKING %d tiles FXSystem=0x%016x"),

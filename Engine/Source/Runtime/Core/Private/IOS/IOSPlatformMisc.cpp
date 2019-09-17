@@ -1582,9 +1582,9 @@ static void GracefulTerminationHandler(int32 Signal, siginfo_t* Info, void* Cont
         GError->Flush();
     }
     
-    if (!GIsRequestingExit)
+    if (!IsEngineExitRequested())
     {
-        GIsRequestingExit = 1;
+		RequestEngineExit(TEXT("iOS GracefulTerminationHandler"));
     }
     else
     {

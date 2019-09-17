@@ -36,7 +36,7 @@ static bool GIsUnattended;
 
 - (IBAction)requestQuit:(id)Sender
 {
-	GIsRequestingExit = true;
+	RequestEngineExit(TEXT("Mac CrashReportClient RequestQuit"));
 }
 
 - (void) runGameThread:(id)Arg
@@ -55,7 +55,7 @@ static bool GIsUnattended;
 
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)Sender;
 {
-	if(!GIsRequestingExit || ([NSThread gameThread] && [NSThread gameThread] != [NSThread mainThread]))
+	if(!IsEngineExitRequested() || ([NSThread gameThread] && [NSThread gameThread] != [NSThread mainThread]))
 	{
 		[self requestQuit:self];
 		return NSTerminateLater;

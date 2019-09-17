@@ -102,7 +102,7 @@ void FAppEventManager::Tick()
 			break;
 		case APP_EVENT_STATE_ON_DESTROY:
 			check(bHaveWindow == false);
-			check(GIsRequestingExit); //destroy immediately. Game will shutdown.
+			check(IsEngineExitRequested()); //destroy immediately. Game will shutdown.
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("APP_EVENT_STATE_ON_DESTROY"));
 			break;
 		case APP_EVENT_STATE_ON_STOP:

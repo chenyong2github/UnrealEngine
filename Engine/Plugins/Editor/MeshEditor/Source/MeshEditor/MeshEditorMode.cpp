@@ -1033,7 +1033,7 @@ void FMeshEditorMode::Exit()
 
 	// Geometry will no longer be selected, so notify that selection changed.  This makes sure that other modes are prepared
 	// to interact with whichever objects are still selected, now that mesh editing has finished
-	if( !GIsRequestingExit )
+	if( !IsEngineExitRequested() )
 	{
 		GEditor->NoteSelectionChange();
 	}

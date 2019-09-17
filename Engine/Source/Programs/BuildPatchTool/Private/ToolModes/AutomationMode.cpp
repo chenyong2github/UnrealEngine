@@ -70,11 +70,11 @@ public:
 		IAutomationControllerManagerRef AutomationControllerManager = AutomationControllerModule.GetAutomationController();
 		AutomationControllerManager->OnTestsComplete().AddLambda([]()
 		{
-			GIsRequestingExit = true;
+			FPlatformMisc::RequestExit(false);
 		});
 		StaticExec(NULL, *TestList);
 
-		while (!GIsRequestingExit)
+		while (!IsEngineExitRequested())
 		{
 			// Increment global frame counter once for each app tick.
 			GFrameCounter++;

@@ -58,8 +58,10 @@ bool FHTTPTransport::SendPayloadAndReceiveResponse(TArray<uint8>& In, TArray<uin
 
 #if !PLATFORM_HTML5
 
-	if (GIsRequestingExit) // We have already lost HTTP Module.
+	if (IsEngineExitRequested()) // We have already lost HTTP Module.
+	{
 		return false;
+	}
 
 	class HTTPRequestHandler
 	{
