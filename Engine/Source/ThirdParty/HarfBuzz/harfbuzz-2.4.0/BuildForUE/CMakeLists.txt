@@ -68,7 +68,7 @@ endif()
 	
 # Add the include directory for our own build of FreeType2
 add_definitions(-DHAVE_OT)
-include_directories("${FREETYPE2_ROOT}/Devel" "${FREETYPE2_ROOT}/Include")
+include_directories("${FREETYPE2_ROOT}/devel" "${FREETYPE2_ROOT}/include")
 
 # Add the include directory for our own build of ICU
 add_definitions(-DHAVE_ICU -DHAVE_ICU_BUILTIN)
