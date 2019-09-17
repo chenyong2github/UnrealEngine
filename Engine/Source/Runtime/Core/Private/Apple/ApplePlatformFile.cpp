@@ -553,7 +553,7 @@ IFileHandle* FApplePlatformFile::OpenWrite(const TCHAR* Filename, bool bAppend, 
 	
 	if (Handle != -1)
 	{
-#if PLATFORM_MAC && !UE_BUILD_SHIPPING
+#if PLATFORM_MAC && UE_EDITOR && !UE_BUILD_SHIPPING
 		// No blocking attempt exclusive lock, failure means we should not have opened the file for writing, protect against multiple instances and client/server versions
 		if(flock(Handle, LOCK_NB | LOCK_EX) == -1)
 		{
