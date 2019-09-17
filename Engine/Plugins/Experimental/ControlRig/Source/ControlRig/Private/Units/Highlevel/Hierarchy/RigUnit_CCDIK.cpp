@@ -3,14 +3,20 @@
 #include "RigUnit_CCDIK.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_CCDIK::Execute(const FRigUnitContext& Context)
+FRigUnit_CCDIK_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy == nullptr)
 	{
 		return;
 	}
+
+	TArray<FCCDIKChainLink>& Chain = WorkData.Chain;
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	TArray<int32>& RotationLimitIndex = WorkData.RotationLimitIndex;
+	TArray<float>& RotationLimitsPerBone = WorkData.RotationLimitsPerBone;
+	int32& EffectorIndex = WorkData.EffectorIndex;
 
 	if (Context.State == EControlRigState::Init ||
 		RotationLimits.Num() != RotationLimitIndex.Num())
@@ -27,7 +33,7 @@ void FRigUnit_CCDIK::Execute(const FRigUnitContext& Context)
 			while (CurrentIndex != INDEX_NONE)
 			{
 				// ensure the chain
-				int32 ParentIndex = Hierarchy->GetParentIndex(CurrentIndex);
+				int32 ParentIndex = (*Hierarchy)[CurrentIndex].ParentIndex;
 				if (ParentIndex != INDEX_NONE)
 				{
 					BoneIndices.Add(CurrentIndex);
@@ -45,7 +51,7 @@ void FRigUnit_CCDIK::Execute(const FRigUnitContext& Context)
 			Chain.Reserve(BoneIndices.Num());
 		}
 
-		int32 RootParentIndex = Hierarchy->GetParentIndex(RootIndex);
+		int32 RootParentIndex = (*Hierarchy)[RootIndex].ParentIndex;
 		if (RootParentIndex != INDEX_NONE)
 		{
 			BoneIndices.Add(RootParentIndex);
@@ -72,7 +78,7 @@ void FRigUnit_CCDIK::Execute(const FRigUnitContext& Context)
 			{
 				const FTransform& GlobalTransform = Hierarchy->GetGlobalTransform(BoneIndices[ChainIndex]);
 				const FTransform& LocalTransform = Hierarchy->GetLocalTransform(BoneIndices[ChainIndex]);
-				Chain.Add(CCDIKChainLink(GlobalTransform, LocalTransform, ChainIndex));
+				Chain.Add(FCCDIKChainLink(GlobalTransform, LocalTransform, ChainIndex));
 			}
 
 			for (float& Limit : RotationLimitsPerBone)
@@ -95,7 +101,7 @@ void FRigUnit_CCDIK::Execute(const FRigUnitContext& Context)
 			{
 				for (int32 LinkIndex = 0; LinkIndex < BoneIndices.Num(); LinkIndex++)
 				{
-					const CCDIKChainLink& CurrentLink = Chain[LinkIndex];
+					const FCCDIKChainLink& CurrentLink = Chain[LinkIndex];
 					Hierarchy->SetGlobalTransform(BoneIndices[LinkIndex], CurrentLink.Transform, bPropagateToChildren);
 				}
 

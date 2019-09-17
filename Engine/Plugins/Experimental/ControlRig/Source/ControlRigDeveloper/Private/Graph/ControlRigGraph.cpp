@@ -272,24 +272,13 @@ void UControlRigGraph::OnBlueprintCompiledPostLoad(UBlueprint* InCompiledBluepri
 	}
 }
 
-void UControlRigGraph::CacheBoneNameList(const FRigHierarchy& Hierarchy)
+void UControlRigGraph::CacheNameLists(const FRigHierarchyContainer* Container)
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	TArray<FString> Names;
-	const TArray<FRigBone>& Bones = Hierarchy.GetBones();
-	for (const FRigBone& Bone : Bones )
-	{
-		Names.Add(Bone.Name.ToString());
-	}
-	Names.Sort();
-
-	BoneNameList.Reset();
-	BoneNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));
-	for (const FString& Name : Names)
-	{
-		BoneNameList.Add(MakeShared<FString>(Name));
-	}
+	check(Container);
+	CacheNameList<FRigBoneHierarchy>(Container->BoneHierarchy, BoneNameList);
+	CacheNameList<FRigControlHierarchy>(Container->ControlHierarchy, ControlNameList);
+	CacheNameList<FRigSpaceHierarchy>(Container->SpaceHierarchy, SpaceNameList);
+	CacheNameList<FRigCurveContainer>(Container->CurveContainer, CurveNameList);
 }
 
 const TArray<TSharedPtr<FString>>& UControlRigGraph::GetBoneNameList() const
@@ -297,6 +286,20 @@ const TArray<TSharedPtr<FString>>& UControlRigGraph::GetBoneNameList() const
 	return BoneNameList;
 }
 
+const TArray<TSharedPtr<FString>>& UControlRigGraph::GetControlNameList() const
+{
+	return ControlNameList;
+}
+
+const TArray<TSharedPtr<FString>>& UControlRigGraph::GetSpaceNameList() const
+{
+	return SpaceNameList;
+}
+
+const TArray<TSharedPtr<FString>>& UControlRigGraph::GetCurveNameList() const
+{
+	return CurveNameList;
+}
 
 void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
 {
@@ -574,30 +577,6 @@ UEdGraphNode* UControlRigGraph::FindNodeFromPropertyName(const FName& InProperty
 	return nullptr;
 }
 
-void UControlRigGraph::CacheCurveNameList(const FRigCurveContainer& Container)
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	TArray<FString> Names;
-	const TArray<FRigCurve>& Curves = Container.GetCurves();
-	for (const FRigCurve& Curve : Curves)
-	{
-		Names.Add(Curve.Name.ToString());
-	}
-	Names.Sort();
-
-	CurveNameList.Reset();
-	CurveNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));
-	for (const FString& Name : Names)
-	{
-		CurveNameList.Add(MakeShared<FString>(Name));
-	}
-}
-
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetCurveNameList() const
-{
-	return CurveNameList;
-}
 #endif
 
 #undef LOCTEXT_NAMESPACE

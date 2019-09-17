@@ -47,6 +47,7 @@ private:
 private:
 	FText GetPreviewCornerText(bool reverse) const;
 	FSlateColor GetTransitionColor() const;
+	const FSlateBrush* GetTransitionIconImage() const;
 
 	TSharedRef<SWidget> GenerateInlineDisplayOrEditingWidget(bool bShowGraphPreview);
 	TSharedRef<SWidget> GenerateRichTooltip();

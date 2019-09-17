@@ -56,15 +56,5 @@ void UControlRigEditModeSettings::PostEditChangeProperty(struct FPropertyChanged
 				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Sequence);
 			}
 		}
-		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigEditModeSettings, bDisplayTrajectories))
-		{
-			if (Sequence)
-			{
-				if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
-				{
-					ControlRigEditMode->RefreshTrajectoryCache();
-				}
-			}
-		}
 	}
 }

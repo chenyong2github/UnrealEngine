@@ -55,6 +55,11 @@ const void* FExposedValueCopyRecord::GetSourceAddr(FAnimInstanceProxy* Proxy) co
 /////////////////////////////////////////////////////
 // FAnimationBaseContext
 
+FAnimationBaseContext::FAnimationBaseContext()
+	: AnimInstanceProxy(nullptr)
+{
+}
+
 FAnimationBaseContext::FAnimationBaseContext(FAnimInstanceProxy* InAnimInstanceProxy)
 	: AnimInstanceProxy(InAnimInstanceProxy)
 {

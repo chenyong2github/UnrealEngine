@@ -156,6 +156,8 @@ protected:
 
 	/** Whether to show options relating to physics */
 	bool bShowPhysicsMenu;
+
+	friend class SAnimationEditorViewportTabBody;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -218,6 +220,8 @@ public:
 	virtual FEditorViewportClient& GetViewportClient() const override;
 	virtual TSharedRef<IPinnedCommandList> GetPinnedCommandList() const override;
 	virtual TWeakPtr<SWidget> AddNotification(TAttribute<EMessageSeverity::Type> InSeverity, TAttribute<bool> InCanBeDismissed, const TSharedRef<SWidget>& InNotificationWidget) override;
+	virtual void AddToolbarExtender(FName MenuToExtend, FMenuExtensionDelegate MenuBuilderDelegate) override;
+	virtual FPersonaViewportKeyDownDelegate& GetKeyDownDelegate() override { return OnKeyDownDelegate; }
 	virtual void RemoveNotification(const TWeakPtr<SWidget>& InContainingWidget) override;
 
 	/** SWidget interface */
@@ -482,6 +486,8 @@ private:
 	void OnSetTurnTableSpeed(int32 SpeedIndex);
 	void OnSetTurnTableMode(int32 ModeIndex);
 	bool IsTurnTableModeSelected(int32 ModeIndex) const;
+
+	FPersonaViewportKeyDownDelegate OnKeyDownDelegate;
 
 public:
 	/** Setup the camera follow mode */

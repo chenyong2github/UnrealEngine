@@ -19,8 +19,7 @@ void FAnimNode_CopyPoseFromMesh::Initialize_AnyThread(const FAnimationInitialize
 	FAnimNode_Base::Initialize_AnyThread(Context);
 
 	// Initial update of the node, so we dont have a frame-delay on setup
-	FAnimationUpdateContext UpdateContext(Context.AnimInstanceProxy, 0.0f);
-	GetEvaluateGraphExposedInputs().Execute(UpdateContext);
+	GetEvaluateGraphExposedInputs().Execute(Context);
 
 	RefreshMeshComponent(Context.AnimInstanceProxy->GetSkelMeshComponent());
 }

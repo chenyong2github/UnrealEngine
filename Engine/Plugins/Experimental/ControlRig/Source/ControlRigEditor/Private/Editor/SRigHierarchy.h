@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Views/STreeView.h"
-#include "Hierarchy.h"
+#include "Rigs/RigHierarchyContainer.h"
 #include "EditorUndoClient.h"
 #include "DragAndDrop/GraphNodeDragDropOp.h"
 
@@ -17,20 +17,20 @@ struct FAssetData;
 class FMenuBuilder;
 class SRigHierarchyItem;
 
-DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnRenameBone, const FName& /*OldName*/, const FName& /*NewName*/);
-DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnVerifyBoneNameChanged, const FName& /*OldName*/, const FName& /*NewName*/, FText& /*OutErrorMessage*/);
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnRenameElement, const FRigElementKey& /*OldKey*/, const FName& /*NewName*/);
+DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnVerifyElementNameChanged, const FRigElementKey& /*OldKey*/, const FName& /*NewName*/, FText& /*OutErrorMessage*/);
 
 /** An item in the tree */
-class FRigTreeBone : public TSharedFromThis<FRigTreeBone>
+class FRigTreeElement : public TSharedFromThis<FRigTreeElement>
 {
 public:
-	FRigTreeBone(const FName& InBone, TWeakPtr<SRigHierarchy> InHierarchyHandler);
+	FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHierarchy> InHierarchyHandler);
 public:
-	/** Bone Data to display */
-	FName CachedBone;
-	TArray<TSharedPtr<FRigTreeBone>> Children;
+	/** Element Data to display */
+	FRigElementKey Key;
+	TArray<TSharedPtr<FRigTreeElement>> Children;
 
-	TSharedRef<ITableRow> MakeTreeRowWidget(TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigTreeBone> InRigTreeBone, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy);
+	TSharedRef<ITableRow> MakeTreeRowWidget(TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy);
 
 	void RequestRename();
 
@@ -39,55 +39,55 @@ public:
 	FOnRenameRequested OnRenameRequested;
 };
 
-class FRigHierarchyDragDropOp : public FGraphNodeDragDropOp
+class FRigElementHierarchyDragDropOp : public FGraphNodeDragDropOp
 {
 public:
-	DRAG_DROP_OPERATOR_TYPE(FRigHierarchyDragDropOp, FGraphNodeDragDropOp)
+	DRAG_DROP_OPERATOR_TYPE(FRigElementHierarchyDragDropOp, FGraphNodeDragDropOp)
 
-	static TSharedRef<FRigHierarchyDragDropOp> New(TArray<FName> InBoneNames);
+	static TSharedRef<FRigElementHierarchyDragDropOp> New(const TArray<FRigElementKey>& InElements);
 
 	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
 
 	/** @return true if this drag operation contains property paths */
-	bool HasBoneNames() const
+	bool HasElements() const
 	{
-		return BoneNames.Num() > 0;
+		return Elements.Num() > 0;
 	}
 
 	/** @return The property paths from this drag operation */
-	const TArray<FName>& GetBoneNames() const
+	const TArray<FRigElementKey>& GetElements() const
 	{
-		return BoneNames;
+		return Elements;
 	}
 
-	FString GetJoinedBoneNames() const;
+	FString GetJoinedElementNames() const;
 
 private:
 
 	/** Data for the property paths this item represents */
-	TArray<FName> BoneNames;
+	TArray<FRigElementKey> Elements;
 };
 
- class SRigHierarchyItem : public STableRow<TSharedPtr<FRigTreeBone>>
+ class SRigHierarchyItem : public STableRow<TSharedPtr<FRigTreeElement>>
 {
 	SLATE_BEGIN_ARGS(SRigHierarchyItem) {}
 		/** Callback when the text is committed. */
-		SLATE_EVENT(FOnRenameBone, OnRenameBone)
+		SLATE_EVENT(FOnRenameElement, OnRenameElement)
 		/** Called whenever the text is changed interactively by the user */
-		SLATE_EVENT(FOnVerifyBoneNameChanged, OnVerifyBoneNameChanged)
+		SLATE_EVENT(FOnVerifyElementNameChanged, OnVerifyElementNameChanged)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigTreeBone> InControlRigTreeBone, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy);
+	void Construct(const FArguments& InArgs, TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy);
 	void OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
 	bool OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage);
 
 private:
-	TWeakPtr<FRigTreeBone> WeakRigTreeBone;
+	TWeakPtr<FRigTreeElement> WeakRigTreeElement;
 	TWeakPtr<FUICommandList> WeakCommandList;
 	TWeakPtr<FControlRigEditor> ControlRigEditor;
 
-	FOnRenameBone OnRenameBone;
-	FOnVerifyBoneNameChanged OnVerifyBoneNameChanged;
+	FOnRenameElement OnRenameElement;
+	FOnVerifyElementNameChanged OnVerifyElementNameChanged;
 
 	FText GetName() const;
 };
@@ -107,14 +107,17 @@ private:
 	/** Bind commands that this widget handles */
 	void BindCommands();
 
+	/** SWidget interface */
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
+
 	/** Rebuild the tree view */
 	void RefreshTreeView();
 
 	/** Make a row widget for the table */
-	TSharedRef<ITableRow> MakeTableRowWidget(TSharedPtr<FRigTreeBone> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> MakeTableRowWidget(TSharedPtr<FRigTreeElement> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** Get children for the tree */
-	void HandleGetChildrenForTree(TSharedPtr<FRigTreeBone> InItem, TArray<TSharedPtr<FRigTreeBone>>& OutChildren);
+	void HandleGetChildrenForTree(TSharedPtr<FRigTreeElement> InItem, TArray<TSharedPtr<FRigTreeElement>>& OutChildren);
 
 	/** Check whether we can deleting the selected item(s) */
 	bool CanDeleteItem() const;
@@ -122,8 +125,8 @@ private:
 	/** Delete Item */
 	void HandleDeleteItem();
 
-	/** Delete Item */
-	void HandleNewItem();
+	/** Create a new item */
+	void HandleNewItem(ERigElementType InElementType);
 
 	/** Check whether we can deleting the selected item(s) */
 	bool CanDuplicateItem() const;
@@ -137,8 +140,15 @@ private:
 	/** Delete Item */
 	void HandleRenameItem();
 
+	bool CanPasteItems() const;
+	bool CanCopyOrPasteItems() const;
+	void HandleCopyItems();
+	void HandlePasteItems();
+	void HandlePasteLocalTransforms();
+	void HandlePasteGlobalTransforms();
+
 	/** Set Selection Changed */
-	void OnSelectionChanged(TSharedPtr<FRigTreeBone> Selection, ESelectInfo::Type SelectInfo);
+	void OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
 
 	TSharedPtr< SWidget > CreateContextMenu();
 
@@ -148,8 +158,14 @@ private:
 
 	// reply to a drag operation
 	FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	TOptional<EItemDropZone> OnCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FRigTreeElement> TargetItem);
+	FReply OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FRigTreeElement> TargetItem);
 
 private:
+
+	void FillContextMenu(class FMenuBuilder& MenuBuilder);
+	TSharedPtr<FUICommandList> GetContextMenuCommands();
+
 	/** Our owning control rig editor */
 	TWeakPtr<FControlRigEditor> ControlRigEditor;
 
@@ -160,13 +176,16 @@ private:
 	void OnFilterTextChanged(const FText& SearchText);
 
 	/** Tree view widget */
-	TSharedPtr<STreeView<TSharedPtr<FRigTreeBone>>> TreeView;
+	TSharedPtr<STreeView<TSharedPtr<FRigTreeElement>>> TreeView;
 
 	/** Backing array for tree view */
-	TArray<TSharedPtr<FRigTreeBone>> RootBones;
+	TArray<TSharedPtr<FRigTreeElement>> RootElements;
 
-	/** Backing array for tree view (filtered, displayed) */
-	TArray<TSharedPtr<FRigTreeBone>> FilteredRootBones;
+	/** A map for looking up items based on their key */
+	TMap<FRigElementKey, TSharedPtr<FRigTreeElement>> ElementMap;
+
+	/** A map for looking up a parent based on their key */
+	TMap<FRigElementKey, FRigElementKey> ParentMap;
 
 	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprint;
 	
@@ -175,23 +194,48 @@ private:
 
 	bool IsMultiSelected() const;
 	bool IsSingleSelected() const;
+	bool IsControlSelected() const;
+	bool IsControlOrSpaceSelected() const;
 
-	FRigHierarchy* GetHierarchy() const;
-	FRigHierarchy* GetInstanceHierarchy() const;
+	FRigHierarchyContainer* GetHierarchyContainer() const;
+	FRigHierarchyContainer* GetDebuggedHierarchyContainer() const;
 
 	void ImportHierarchy(const FAssetData& InAssetData);
 	void CreateImportMenu(FMenuBuilder& MenuBuilder);
+	void CreateRefreshMenu(FMenuBuilder& MenuBuilder);
 	bool ShouldFilterOnImport(const FAssetData& AssetData) const;
+	void RefreshHierarchy(const FAssetData& InAssetData);
 
-	FName CreateUniqueName(const FName& InBaseName) const;
+	void HandleResetTransform();
+	void HandleResetInitialTransform();
+	void HandleResetSpace();
+	void HandleSetInitialTransformFromCurrentTransform();
+	void HandleSetInitialTransformFromClosestBone();
+	void HandleFrameSelection();
+	bool FindClosestBone(const FVector& Point, FName& OutRigElementName, FTransform& OutGlobalTransform) const;
 
-	void SetExpansionRecursive(TSharedPtr<FRigTreeBone> InBones);
+	FName CreateUniqueName(const FName& InBaseName, ERigElementType InElementType) const;
+
+	void SetExpansionRecursive(TSharedPtr<FRigTreeElement> InElements, bool bTowardsParent);
 
 	void ClearDetailPanel() const;
-	void SelectBone(const FName& BoneName) const;
+
+	bool bIsChangingRigHierarchy;
+	void OnRigElementAdded(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
+	void OnRigElementRemoved(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
+	void OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName);
+	void OnRigElementReparented(FRigHierarchyContainer* Container, const FRigElementKey& InKey, const FName& InOldParentName, const FName& InNewParentName);
+	void OnRigElementSelected(FRigHierarchyContainer* Container, const FRigElementKey& InKey, bool bSelected);
+
+	static TSharedPtr<FRigTreeElement> FindElement(const FRigElementKey& InElementKey, TSharedPtr<FRigTreeElement> CurrentItem);
+	void AddElement(FRigElementKey InKey, FRigElementKey InParentKey = FRigElementKey());
+	void AddBoneElement(FRigBone InBone);
+	void AddControlElement(FRigControl InControl);
+	void AddSpaceElement(FRigSpace InSpace);
+
 public:
-	bool RenameBone(const FName& OldName, const FName& NewName);
-	bool OnVerifyNameChanged(const FName& OldName, const FName& NewName, FText& OutErrorMessage);
+	bool RenameElement(const FRigElementKey& OldKey, const FName& NewName);
+	bool OnVerifyNameChanged(const FRigElementKey& OldKey, const FName& NewName, FText& OutErrorMessage);
 
 	friend class SRigHierarchyItem;
 };

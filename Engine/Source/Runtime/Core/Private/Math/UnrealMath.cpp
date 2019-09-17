@@ -646,6 +646,12 @@ void FQuat::ToSwingTwist(const FVector& InTwistAxis, FQuat& OutSwing, FQuat& Out
 	OutSwing = *this * OutTwist.Inverse();
 }
 
+float FQuat::GetTwistAngle(const FVector& TwistAxis) const
+{
+	float XYZ = FVector::DotProduct(TwistAxis, FVector(X, Y, Z));
+	return FMath::UnwindRadians(2.0f * FMath::Atan2(XYZ, W));
+}
+
 FMatrix FRotationAboutPointMatrix::Make(const FQuat& Rot, const FVector& Origin)
 {
 	return FRotationAboutPointMatrix(Rot.Rotator(), Origin);

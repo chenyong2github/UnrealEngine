@@ -48,7 +48,9 @@ void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimN
 			UpdateCounter.Increment();
 		}
 		
-		InRootNode->Update_AnyThread(FAnimationUpdateContext(this, DeltaSeconds));
+		FAnimationUpdateSharedContext SharedContext;
+		FAnimationUpdateContext UpdateContext(this, DeltaSeconds, &SharedContext);
+		InRootNode->Update_AnyThread(UpdateContext);
 
 		// We've updated the graph, now update the fractured saved pose sections
 		TArray<FAnimNode_SaveCachedPose*>& SavedPoseQueue = SavedPoseQueueMap.FindChecked(InLayerName);

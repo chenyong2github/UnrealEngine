@@ -3,14 +3,19 @@
 #include "Units/Highlevel/Hierarchy/RigUnit_SpringIK.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
+FRigUnit_SpringIK_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy == nullptr)
 	{
 		return;
 	}
+
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	int32& PoleVectorIndex = WorkData.PoleVectorIndex;
+	TArray<FTransform>& Transforms = WorkData.Transforms;
+	FCRSimPointContainer& Simulation = WorkData.Simulation;
 
 	if (Context.State == EControlRigState::Init)
 	{
@@ -34,7 +39,7 @@ void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
 				{
 					break;
 				}
-				EndBoneIndex = Hierarchy->GetParentIndex(EndBoneIndex);
+				EndBoneIndex = (*Hierarchy)[EndBoneIndex].ParentIndex;
 			}
 		}
 
@@ -252,7 +257,7 @@ void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
 
 		if(bLimitLocalPosition)
 		{
-			int32 ParentIndex = Hierarchy->GetParentIndex(BoneIndices[PointIndex]);
+			int32 ParentIndex = (*Hierarchy)[BoneIndices[PointIndex]].ParentIndex;
 			if (ParentIndex != INDEX_NONE)
 			{
 				FTransform InitialTransform = Hierarchy->GetInitialTransform(BoneIndices[PointIndex]);

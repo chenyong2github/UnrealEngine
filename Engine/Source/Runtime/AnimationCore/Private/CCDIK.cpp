@@ -5,16 +5,16 @@
 namespace AnimationCore
 {
 
-	bool SolveCCDIK(TArray<CCDIKChainLink>& InOutChain, const FVector& TargetPosition, float Precision, int32 MaxIteration, bool bStartFromTail, bool bEnableRotationLimit, const TArray<float>& RotationLimitPerJoints)
+	bool SolveCCDIK(TArray<FCCDIKChainLink>& InOutChain, const FVector& TargetPosition, float Precision, int32 MaxIteration, bool bStartFromTail, bool bEnableRotationLimit, const TArray<float>& RotationLimitPerJoints)
 	{
 		struct Local
 		{
-			static bool UpdateChainLink(TArray<CCDIKChainLink>& Chain, int32 LinkIndex, const FVector& TargetPos, bool bInEnableRotationLimit, const TArray<float>& InRotationLimitPerJoints)
+			static bool UpdateChainLink(TArray<FCCDIKChainLink>& Chain, int32 LinkIndex, const FVector& TargetPos, bool bInEnableRotationLimit, const TArray<float>& InRotationLimitPerJoints)
 			{
 				int32 const TipBoneLinkIndex = Chain.Num() - 1;
 
 				ensure(Chain.IsValidIndex(TipBoneLinkIndex));
-				CCDIKChainLink& CurrentLink = Chain[LinkIndex];
+				FCCDIKChainLink& CurrentLink = Chain[LinkIndex];
 
 				// update new tip pos
 				FVector TipPos = Chain[TipBoneLinkIndex].Transform.GetLocation();
@@ -61,7 +61,7 @@ namespace AnimationCore
 						// if I have parent, make sure to refresh local transform since my current transform has changed
 						if (LinkIndex > 0)
 						{
-							CCDIKChainLink const & Parent = Chain[LinkIndex - 1];
+							FCCDIKChainLink const & Parent = Chain[LinkIndex - 1];
 							CurrentLink.LocalTransform = CurrentLinkTransform.GetRelativeTransform(Parent.Transform);
 							CurrentLink.LocalTransform.NormalizeRotation();
 						}
@@ -72,7 +72,7 @@ namespace AnimationCore
 						// now update all chain
 						for (int32 ChildLinkIndex = LinkIndex + 1; ChildLinkIndex <= TipBoneLinkIndex; ++ChildLinkIndex)
 						{
-							CCDIKChainLink& ChildIterLink = Chain[ChildLinkIndex];
+							FCCDIKChainLink& ChildIterLink = Chain[ChildLinkIndex];
 							const FTransform LocalTransform = ChildIterLink.LocalTransform;
 							ChildIterLink.Transform = LocalTransform * CurrentParentTransform;
 							ChildIterLink.Transform.NormalizeRotation();

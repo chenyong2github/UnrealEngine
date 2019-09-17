@@ -4,10 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Logging/TokenizedMessage.h"
 
 class FEditorViewportClient;
 class IPinnedCommandList;
+
+DECLARE_DELEGATE_RetVal_TwoParams(FReply, FPersonaViewportKeyDownDelegate, const FGeometry&, const FKeyEvent&);
 
 /** Opaque state interface for saving and restoring viewport state */
 struct IPersonaViewportState
@@ -38,6 +41,18 @@ public:
 	 * @return the widget containing the notification
 	 */
 	virtual TWeakPtr<SWidget> AddNotification(TAttribute<EMessageSeverity::Type> InSeverity, TAttribute<bool> InCanBeDismissed, const TSharedRef<SWidget>& InNotificationWidget) = 0;
+
+	/** 
+	 * Adds an extender to the viewport's toolbar
+	 * @param MenuToExtend        The name of the toolbar menu to extend
+	 * @param MenuBuilderDelegate The delegate to use when filling the menu
+	 */
+	virtual void AddToolbarExtender(FName MenuToExtend, FMenuExtensionDelegate MenuBuilderDelegate) = 0;
+
+	/**
+	 * Returns the delegate broadcasted two in case we have an unhandled key
+	 */
+	virtual FPersonaViewportKeyDownDelegate& GetKeyDownDelegate() = 0;
 
 	/** 
 	 * Remove a notification widget 

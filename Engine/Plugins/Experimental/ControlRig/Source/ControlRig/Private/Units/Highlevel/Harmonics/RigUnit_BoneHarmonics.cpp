@@ -3,15 +3,17 @@
 #include "Units/Highlevel/Harmonics/RigUnit_BoneHarmonics.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_BoneHarmonics::Execute(const FRigUnitContext& Context)
+FRigUnit_BoneHarmonics_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
-	FRigHierarchy* Hierarchy = HierarchyRef.Get();
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy == nullptr)
 	{
 		return;
 	}
+
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	FVector& WaveTime = WorkData.WaveTime;
 
 	if (Context.State == EControlRigState::Init ||
 		BoneIndices.Num() != Bones.Num())

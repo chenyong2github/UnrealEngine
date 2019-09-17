@@ -18,7 +18,11 @@ class UControlRigEditModeSettings : public UObject
 	GENERATED_BODY()
 
 	UControlRigEditModeSettings()
-	: bShowManipulatorsDuringPlayback(true)
+		: bDisplayHierarchy(false)
+		, bShowManipulatorsDuringPlayback(true)
+		, bHideManipulators(false)
+		, bDisplayAxesOnSelection(true)
+		, AxisScale(10.f)
 	{}
 
 	// UObject interface
@@ -46,9 +50,13 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
 	bool bHideManipulators;
 
-	/** Whether to the trajectories when animations are being played back */
+	/** Should we show axes for the selected elements */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
-	bool bDisplayTrajectories;
+	bool bDisplayAxesOnSelection;
+
+	/** The scale for axes to draw on the selection */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	float AxisScale;
 
 private:
 	/** Cache the previous actor for pre/post edit change handling */

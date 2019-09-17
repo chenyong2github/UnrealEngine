@@ -5,22 +5,23 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ScriptMacros.h"
-#include "Animation/ControlRigInterface.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Templates/SubclassOf.h"
 #include "ControlRigDefines.h"
-#include "Hierarchy.h"
-#include "CurveContainer.h"
+#include "Rigs/RigHierarchyContainer.h"
 #include "Units/RigUnitContext.h"
 #include "Animation/NodeMappingProviderInterface.h"
 #include "Units/RigUnit.h"
 #include "Units/Control/RigUnit_Control.h"
+#include "Manipulatable/IControlRigManipulatable.h"
 #include "ControlRig.generated.h"
 
 class IControlRigObjectBinding;
 class UScriptStruct;
 struct FRigUnit;
 struct FControlRigIOVariable;
+
+DECLARE_LOG_CATEGORY_EXTERN(LogControlRig, Log, All);
 
 /** Delegate used to optionally gather inputs before evaluating a ControlRig */
 DECLARE_DELEGATE_OneParam(FPreEvaluateGatherInput, UControlRig*);
@@ -30,7 +31,7 @@ DECLARE_DELEGATE_OneParam(FPostEvaluateQueryOutput, UControlRig*);
 
 /** Runs logic for mapping input data to transforms (the "Rig") */
 UCLASS(Blueprintable, Abstract, editinlinenew)
-class CONTROLRIG_API UControlRig : public UObject, public IControlRigInterface, public INodeMappingProviderInterface
+class CONTROLRIG_API UControlRig : public UObject, public INodeMappingProviderInterface, public IControlRigManipulatable
 {
 	GENERATED_BODY()
 
@@ -47,6 +48,8 @@ public:
 	static const FName MenuDescSuffixMetaName;
 	static const FName ShowVariableNameInTitleMetaName;
 	static const FName BoneNameMetaName;
+	static const FName ControlNameMetaName;
+	static const FName SpaceNameMetaName;
 	static const FName CurveNameMetaName;
 	static const FName ConstantMetaName;
 	static const FName TitleColorMetaName;
@@ -88,10 +91,8 @@ public:
 	/** Initialize things for the ControlRig */
 	virtual void Initialize(bool bInitRigUnits = true);
 
-	/** IControlRigInterface implementation */
-	virtual void PreEvaluate_GameThread() override;
-	virtual void Evaluate_AnyThread() override;
-	virtual void PostEvaluate_GameThread() override;
+	/** Evaluate at Any Thread */
+	virtual void Evaluate_AnyThread();
 
 	/** Setup bindings to a runtime object (or clear by passing in nullptr). */
 	void SetObjectBinding(TSharedPtr<IControlRigObjectBinding> InObjectBinding)
@@ -103,6 +104,31 @@ public:
 	TSharedPtr<IControlRigObjectBinding> GetObjectBinding() const
 	{
 		return ObjectBinding;
+	}
+
+	FRigHierarchyContainer* GetHierarchy()
+	{
+		return &Hierarchy;
+	}
+
+	FRigBoneHierarchy& GetBoneHierarchy()
+	{
+		return Hierarchy.BoneHierarchy;
+	}
+
+	FRigSpaceHierarchy& GetSpaceHierarchy()
+	{
+		return Hierarchy.SpaceHierarchy;
+	}
+
+	FRigControlHierarchy& GetControlHierarchy()
+	{
+		return Hierarchy.ControlHierarchy;
+	}
+
+	FRigCurveContainer& GetCurveContainer()
+	{
+		return Hierarchy.CurveContainer;
 	}
 
 	/** Evaluate another animation ControlRig */
@@ -117,12 +143,6 @@ public:
 	/** Evaluate another animation ControlRig */
 	void SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform = true) ;
 
-	/** Returns base hierarchy */
-	const FRigHierarchy& GetBaseHierarchy() const
-	{
-		return Hierarchy.BaseHierarchy;
-	}
-
 	/** Evaluate another animation ControlRig */
 	float GetCurveValue(const FName& CurveName) const;
 
@@ -134,32 +154,6 @@ public:
 
 	/** Evaluate another animation ControlRig */
 	void SetCurveValue(const int32 CurveIndex, const float CurveValue);
-
-	/** Returns base hierarchy */
-	const FRigCurveContainer& GetCurveContainer() const
-	{
-		return CurveContainer;
-	}
-
-	void SetPreEvaluateGatherInputDelegate(const FPreEvaluateGatherInput& Delegate)
-	{
-		OnPreEvaluateGatherInput = Delegate;
-	}
-
-	void ClearPreEvaluateGatherInputDelegate()
-	{
-		OnPreEvaluateGatherInput.Unbind();
-	}
-
-	void SetPostEvaluateQueryOutputDelegate(const FPostEvaluateQueryOutput& Delegate)
-	{
-		OnPostEvaluateQueryOutput = Delegate;
-	}
-
-	void ClearPostEvaluateQueryOutputDelegate()
-	{
-		OnPostEvaluateQueryOutput.Unbind();
-	}
 
 	/* 
 	 * Query input output variables
@@ -202,12 +196,6 @@ public:
 	virtual void BeginDestroy() override;
 	// END UObject interface
 
-#if WITH_EDITORONLY_DATA
-	// only editor feature that stops execution
-	// whether we're executing the graph or not
-	bool bExecutionOn;
-#endif // #if WITH_EDITORONLY_DATA
-
 	UPROPERTY(transient)
 	ERigExecutionType ExecutionType;
 
@@ -217,12 +205,26 @@ public:
 	/** INodeMappingInterface implementation */
 	virtual void GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNodeItems) const override;
 
+	// BEGIN IControlRigManipulatable interface
+	virtual const TArray<FRigSpace>& AvailableSpaces() const override;
+	virtual FRigSpace* FindSpace(const FName& InSpaceName) override;
+	virtual FTransform GetSpaceGlobalTransform(const FName& InSpaceName) override;
+	virtual bool SetSpaceGlobalTransform(const FName& InSpaceName, const FTransform& InTransform) override;
+	virtual const TArray<FRigControl>& AvailableControls() const override;
+	virtual FRigControl* FindControl(const FName& InControlName) override;
+	virtual FTransform GetControlGlobalTransform(const FName& InControlName) const override;
+	virtual FRigControlValue GetControlValueFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform) override;
+	virtual bool SetControlSpace(const FName& InControlName, const FName& InSpaceName) override;
+	virtual UControlRigGizmoLibrary* GetGizmoLibrary() const override;
+	// END IControlRigManipulatable interface
+
+	DECLARE_EVENT_TwoParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const EControlRigState);
+	FControlRigExecuteEvent& OnInitialized() { return InitializedEvent; }
+	FControlRigExecuteEvent& OnExecuted() { return ExecutedEvent; }
+
 private:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Hierarchy")
 	FRigHierarchyContainer Hierarchy;
-
-	UPROPERTY(VisibleDefaultsOnly, Category = "Curve")
-	FRigCurveContainer CurveContainer;
 
 #if WITH_EDITORONLY_DATA
 	/** The properties of source accessible <target, source local path> when source -> target
@@ -238,15 +240,11 @@ private:
 	UPROPERTY(Transient)
 	TArray<FControlRigOperator> Operators;
 
+	UPROPERTY()
+	TAssetPtr<UControlRigGizmoLibrary> GizmoLibrary;
+
 	/** Runtime object binding */
 	TSharedPtr<IControlRigObjectBinding> ObjectBinding;
-
-	FPreEvaluateGatherInput OnPreEvaluateGatherInput;
-	FPostEvaluateQueryOutput OnPostEvaluateQueryOutput;
-
-	DECLARE_EVENT_TwoParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const EControlRigState);
-	FControlRigExecuteEvent& OnInitialized() { return InitializedEvent; }
-	FControlRigExecuteEvent& OnExecuted() { return ExecutedEvent; }
 
 #if WITH_EDITOR
 	FControlRigLog* ControlRigLog;
@@ -263,6 +261,10 @@ private:
 
 	/** The draw interface for the units to use */
 	FControlRigDrawInterface* DrawInterface;
+
+	/** The registry to access data source */
+	UPROPERTY(transient)
+	UAnimationDataSourceRegistry* DataSourceRegistry;
 
 #if DEBUG_CONTROLRIG_PROPERTYCHANGE
 	// This is to debug class size when constructed and destroyed to verify match
@@ -303,8 +305,8 @@ private:
 	friend class UControlRigEditorLibrary;
 	friend class URigUnitEditor_Base;
 	friend class FControlRigEditor;
-	friend class SRigHierarchy;
 	friend class SRigCurveContainer;
+	friend class SRigHierarchy;
 	friend class UEngineTestControlRig;
  	friend class FControlRigEditMode;
 	friend class FControlRigIOHelper;

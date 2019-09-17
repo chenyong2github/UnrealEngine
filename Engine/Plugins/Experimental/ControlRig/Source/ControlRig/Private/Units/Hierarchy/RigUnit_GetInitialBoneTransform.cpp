@@ -8,11 +8,10 @@ FString FRigUnit_GetInitialBoneTransform::GetUnitLabel() const
 	return FString::Printf(TEXT("Get Initial Transform %s"), *Bone.ToString());
 }
 
-void FRigUnit_GetInitialBoneTransform::Execute(const FRigUnitContext& Context)
+FRigUnit_GetInitialBoneTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigHierarchyRef& HierarchyRef = Context.HierarchyReference;
-	const FRigHierarchy* Hierarchy = HierarchyRef.Get();
+	const FRigBoneHierarchy* Hierarchy = Context.GetBones();
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -35,7 +34,7 @@ void FRigUnit_GetInitialBoneTransform::Execute(const FRigUnitContext& Context)
 						case EBoneGetterSetterMode::LocalSpace:
 						{
 							Transform = Hierarchy->GetInitialTransform(CachedBoneIndex);
-							int32 ParentBoneIndex = Hierarchy->GetParentIndex(CachedBoneIndex);
+							int32 ParentBoneIndex = (*Hierarchy)[CachedBoneIndex].ParentIndex;
 							if (ParentBoneIndex != INDEX_NONE)
 							{
 								FTransform ParentTransform = Hierarchy->GetInitialTransform(ParentBoneIndex);
@@ -63,9 +62,9 @@ void FRigUnit_GetInitialBoneTransform::Execute(const FRigUnitContext& Context)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_GetInitialBoneTransform)
 {
-	Hierarchy.AddBone(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
-	Hierarchy.AddBone(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(1.f, 2.f, 3.f)));
-	Hierarchy.Initialize();
+	BoneHierarchy.Add(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
+	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(1.f, 2.f, 3.f)));
+	BoneHierarchy.Initialize();
 
 	Unit.Bone = TEXT("Root");
 	Unit.Space = EBoneGetterSetterMode::GlobalSpace;

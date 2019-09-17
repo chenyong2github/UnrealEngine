@@ -20,6 +20,7 @@ struct FRigUnit_GetCurveValue : public FRigUnit
 	{}
 
 	virtual FString GetUnitLabel() const override;
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/**

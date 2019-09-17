@@ -30,6 +30,7 @@ namespace ETransitionLogicType
 	enum Type
 	{
 		TLT_StandardBlend UMETA(DisplayName="Standard Blend"),
+		TLT_Inertialization UMETA(DisplayName = "Inertialization"),
 		TLT_Custom UMETA(DisplayName="Custom")
 	};
 }

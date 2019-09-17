@@ -8,7 +8,7 @@
 /**
  * BoneName is used to represent a bone name in the graph
  */
-USTRUCT(meta=(DisplayName="Bone Name", Category="Hierarchy", DocumentationPolicy = "Strict"))
+USTRUCT(meta=(DisplayName="Bone Name", Category="Hierarchy", DocumentationPolicy = "Strict", Deprecated = "4.24"))
 struct FRigUnit_BoneName : public FRigUnit
 {
 	GENERATED_BODY()

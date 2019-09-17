@@ -132,6 +132,8 @@ public:
 #define MAX_HITPROXYSIZE 200
 
 DECLARE_MULTICAST_DELEGATE(FOnScreenshotRequestProcessed);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnScreenshotCaptured, int32 /*Width*/, int32 /*Height*/, const TArray<FColor>& /*Colors*/);
+
 
 struct ENGINE_API FScreenshotRequest
 {
@@ -187,8 +189,14 @@ struct ENGINE_API FScreenshotRequest
 		return ScreenshotProcessedDelegate;
 	}
 
+	static FOnScreenshotCaptured& OnScreenshotCaptured()
+	{
+		return ScreenshotCapturedDelegate;
+	}
+
 private:
 	static FOnScreenshotRequestProcessed ScreenshotProcessedDelegate;
+	static FOnScreenshotCaptured ScreenshotCapturedDelegate;
 	static bool bIsScreenshotRequested;
 	static FString NextScreenshotName;
 	static FString Filename;

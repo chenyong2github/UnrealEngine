@@ -42,6 +42,8 @@
 #include "SceneView.h"
 #include "Engine/GameEngine.h"
 #include "Engine/LevelStreaming.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/GCObjectScopeGuard.h"
 
 #define LOCTEXT_NAMESPACE "Automation"
 
@@ -59,6 +61,22 @@ static TAutoConsoleVariable<int32> CVarAutomationScreenshotResolutionHeight(
 	0,
 	TEXT("The height of automation screenshots."),
 	ECVF_Default);
+
+
+bool UAutomationEditorTask::IsValidTask() const
+{
+	return Task.IsValid();
+}
+
+void UAutomationEditorTask::BindTask(TUniquePtr<FAutomationTaskStatusBase> inTask)
+{
+	Task = MoveTemp(inTask);
+}
+
+bool UAutomationEditorTask::IsTaskDone() const
+{
+	return IsValidTask() && Task->IsDone();
+}
 
 #if (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
 
@@ -403,29 +421,29 @@ public:
 		{
 			FAutomationScreenshotData Data = AutomationCommon::BuildScreenshotData(World->GetName(), Name, InSizeX, InSizeY);
 
-		// Copy the relevant data into the metadata for the screenshot.
-		Data.bHasComparisonRules = true;
-		Data.ToleranceRed = Options.ToleranceAmount.Red;
-		Data.ToleranceGreen = Options.ToleranceAmount.Green;
-		Data.ToleranceBlue = Options.ToleranceAmount.Blue;
-		Data.ToleranceAlpha = Options.ToleranceAmount.Alpha;
-		Data.ToleranceMinBrightness = Options.ToleranceAmount.MinBrightness;
-		Data.ToleranceMaxBrightness = Options.ToleranceAmount.MaxBrightness;
-		Data.bIgnoreAntiAliasing = Options.bIgnoreAntiAliasing;
-		Data.bIgnoreColors = Options.bIgnoreColors;
-		Data.MaximumLocalError = Options.MaximumLocalError;
-		Data.MaximumGlobalError = Options.MaximumGlobalError;
+			// Copy the relevant data into the metadata for the screenshot.
+			Data.bHasComparisonRules = true;
+			Data.ToleranceRed = Options.ToleranceAmount.Red;
+			Data.ToleranceGreen = Options.ToleranceAmount.Green;
+			Data.ToleranceBlue = Options.ToleranceAmount.Blue;
+			Data.ToleranceAlpha = Options.ToleranceAmount.Alpha;
+			Data.ToleranceMinBrightness = Options.ToleranceAmount.MinBrightness;
+			Data.ToleranceMaxBrightness = Options.ToleranceAmount.MaxBrightness;
+			Data.bIgnoreAntiAliasing = Options.bIgnoreAntiAliasing;
+			Data.bIgnoreColors = Options.bIgnoreColors;
+			Data.MaximumLocalError = Options.MaximumLocalError;
+			Data.MaximumGlobalError = Options.MaximumGlobalError;
 
 			// Record any user notes that were made to accompany this shot.
 			Data.Notes = Notes;
 
 			bool bAttemptToCompareShot = FAutomationTestFramework::Get().OnScreenshotCaptured().ExecuteIfBound(InImageData, Data);
 
-		UE_LOG(AutomationFunctionLibrary, Log, TEXT("Screenshot captured as %s"), *Data.Path);
+			UE_LOG(AutomationFunctionLibrary, Log, TEXT("Screenshot captured as %s"), *Data.Path);
 
-		if ( GIsAutomationTesting )
-		{
-			FAutomationTestFramework::Get().OnScreenshotCompared.AddRaw(this, &FAutomationScreenshotTaker::OnComparisonComplete);
+			if ( GIsAutomationTesting )
+			{
+				FAutomationTestFramework::Get().OnScreenshotCompared.AddRaw(this, &FAutomationScreenshotTaker::OnComparisonComplete);
 				FScreenshotRequest::OnScreenshotRequestProcessed().RemoveAll(this);
 				return;
 			}
@@ -478,7 +496,128 @@ private:
 	bool bNeedsViewportSizeRestore;
 };
 
+class FAutomationHighResScreenshotGrabber
+{
+public:
+	FAutomationHighResScreenshotGrabber(const FString& InContext, const FString& InName, const FString& InNotes, FAutomationScreenshotOptions InOptions)
+		: Context(InContext)
+		, Name(InName)
+		, Notes(InNotes)
+		, Options(InOptions)
+	{
+		FScreenshotRequest::OnScreenshotCaptured().AddRaw(this, &FAutomationHighResScreenshotGrabber::GrabScreenShot);
+		FWorldDelegates::LevelRemovedFromWorld.AddRaw(this, &FAutomationHighResScreenshotGrabber::WorldDestroyed);
+	}
+
+	virtual ~FAutomationHighResScreenshotGrabber()
+	{
+		FAutomationTestFramework::Get().OnScreenshotCompared.RemoveAll(this);
+		FScreenshotRequest::OnScreenshotCaptured().RemoveAll(this);
+
+		FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
+
+		FAutomationTestFramework::Get().NotifyScreenshotTakenAndCompared();
+	}
+
+	void GrabScreenShot(int32 InSizeX, int32 InSizeY, const TArray<FColor>& InImageData)
+	{
+		FScreenshotRequest::OnScreenshotCaptured().RemoveAll(this);
+
+		FAutomationScreenshotData Data = AutomationCommon::BuildScreenshotData(Context, Name, InSizeX, InSizeY);
+
+		// Copy the relevant data into the metadata for the screenshot.
+		Data.bHasComparisonRules = true;
+		Data.ToleranceRed = Options.ToleranceAmount.Red;
+		Data.ToleranceGreen = Options.ToleranceAmount.Green;
+		Data.ToleranceBlue = Options.ToleranceAmount.Blue;
+		Data.ToleranceAlpha = Options.ToleranceAmount.Alpha;
+		Data.ToleranceMinBrightness = Options.ToleranceAmount.MinBrightness;
+		Data.ToleranceMaxBrightness = Options.ToleranceAmount.MaxBrightness;
+		Data.bIgnoreAntiAliasing = Options.bIgnoreAntiAliasing;
+		Data.bIgnoreColors = Options.bIgnoreColors;
+		Data.MaximumLocalError = Options.MaximumLocalError;
+		Data.MaximumGlobalError = Options.MaximumGlobalError;
+
+		// Record any user notes that were made to accompany this shot.
+		Data.Notes = Notes;
+
+		bool bAttemptToCompareShot = FAutomationTestFramework::Get().OnScreenshotCaptured().ExecuteIfBound(InImageData, Data);
+
+		UE_LOG(AutomationFunctionLibrary, Log, TEXT("Screenshot captured as %s"), *Data.Path);
+
+		FAutomationTestFramework::Get().OnScreenshotCompared.AddRaw(this, &FAutomationHighResScreenshotGrabber::OnComparisonComplete);
+	}
+
+	void OnComparisonComplete(const FAutomationScreenshotCompareResults& CompareResults)
+	{
+		FAutomationTestFramework::Get().OnScreenshotCompared.RemoveAll(this);
+
+		if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
+		{
+			CurrentTest->AddEvent(CompareResults.ToAutomationEvent(Name));
+		}
+
+		delete this;
+	}
+
+	void WorldDestroyed(ULevel* InLevel, UWorld* InWorld)
+	{
+		// If the InLevel is null, it's a signal that the entire world is about to disappear, so
+		// go ahead and remove this widget from the viewport, it could be holding onto too many
+		// dangerous actor references that won't carry over into the next world.
+		if (InLevel == nullptr)
+		{
+			delete this;
+		}
+	}
+
+private:
+	FString	Context;
+	FString	Name;
+	FString Notes;
+	FAutomationScreenshotOptions Options;
+};
+
 #endif
+
+class FScreenshotTakenState : public FAutomationTaskStatusBase
+{
+public:
+	FScreenshotTakenState()
+	{
+		if (GIsAutomationTesting)
+		{
+			// When Automation test are running we hook to the FAutomationTestFramework::OnComparisonComplete instead of the
+			// FScreenshotRequest::OnScreenshotRequestProcessed, because with HighResScreenshot, FScreenshotRequest::OnScreenshotRequestProcessed
+			// is fired before comparison is completed.
+			FAutomationTestFramework::Get().OnScreenshotCompared.AddRaw(this, &FScreenshotTakenState::OnComparisonComplete);
+		}
+		else
+		{
+			FScreenshotRequest::OnScreenshotRequestProcessed().AddRaw(this, &FScreenshotTakenState::SetDone);
+		}
+	};
+
+	virtual ~FScreenshotTakenState()
+	{
+#if (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
+		FAutomationTestFramework::Get().OnScreenshotCompared.RemoveAll(this);
+#endif
+		FScreenshotRequest::OnScreenshotRequestProcessed().RemoveAll(this);
+	};
+
+	virtual void SetDone() override
+	{
+		FScreenshotRequest::OnScreenshotRequestProcessed().RemoveAll(this);
+		Done = true;
+	};
+
+	void OnComparisonComplete(const FAutomationScreenshotCompareResults& CompareResults)
+	{
+		FAutomationTestFramework::Get().OnScreenshotCompared.RemoveAll(this);
+		SetDone();
+	};
+};
 
 UAutomationBlueprintFunctionLibrary::UAutomationBlueprintFunctionLibrary(const class FObjectInitializer& Initializer)
 	: Super(Initializer)
@@ -905,8 +1044,11 @@ void UAutomationBlueprintFunctionLibrary::AutomationWaitForLoading(UObject* Worl
 	}
 }
 
-bool UAutomationBlueprintFunctionLibrary::TakeHighResScreenshot(int32 ResX, int32 ResY, FString Filename, ACameraActor* Camera, bool bMaskEnabled, bool bCaptureHDR)
+UAutomationEditorTask* UAutomationBlueprintFunctionLibrary::TakeHighResScreenshot(int32 ResX, int32 ResY, FString Filename, ACameraActor* Camera, bool bMaskEnabled, bool bCaptureHDR, EComparisonTolerance ComparisonTolerance, FString ComparisonNotes)
 {
+	UAutomationEditorTask* Task = NewObject<UAutomationEditorTask>();
+	FGCObjectScopeGuard TaskGuard(Task);
+
 #if WITH_EDITOR
 	if (FModuleManager::Get().IsModuleLoaded("LevelEditor"))
 	{
@@ -933,15 +1075,28 @@ bool UAutomationBlueprintFunctionLibrary::TakeHighResScreenshot(int32 ResX, int3
 
 			FinishLoadingBeforeScreenshot();
 
+#if (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
+			if (GIsAutomationTesting)
+			{
+				if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
+				{
+					FString Context = CurrentTest->GetTestContext();
+					if (Context.IsEmpty()) { Context = CurrentTest->GetTestName(); }
+					FAutomationScreenshotOptions ComparisonOptions = FAutomationScreenshotOptions(ComparisonTolerance);
+					FAutomationHighResScreenshotGrabber* TempObject = new FAutomationHighResScreenshotGrabber(Context, Filename, ComparisonNotes, ComparisonOptions);
+				} //-V773
+			}
+#endif
+			Task->BindTask(MakeUnique<FScreenshotTakenState>());
 			LevelViewport->GetActiveViewport()->TakeHighResScreenShot();
 
-			return true;
+			return Task;
 		}
 
 		UE_LOG(AutomationFunctionLibrary, Error, TEXT("Screenshot size exceeds the maximum allowed texture size (%d x %d)"), GetMax2DTextureDimension(), GetMax2DTextureDimension());
 	}
 #endif
-	return false;
+	return Task;
 }
 
 FAutomationScreenshotOptions UAutomationBlueprintFunctionLibrary::GetDefaultScreenshotOptionsForGameplay(EComparisonTolerance Tolerance, float Delay)

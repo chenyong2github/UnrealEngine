@@ -563,6 +563,11 @@ bool InvokeFunctionCall(UObject* InObj, const UFunction* InFunc, void* InBasePar
 
 bool InspectFunctionArgs(PyObject* InFunc, TArray<FString>& OutArgNames, TArray<FPyObjectPtr>* OutArgDefaults)
 {
+	if (!PyFunction_Check(InFunc) && !PyMethod_Check(InFunc))
+	{
+		return false;
+	}
+
 	FPyObjectPtr PyInspectModule = FPyObjectPtr::StealReference(PyImport_ImportModule("inspect"));
 	if (PyInspectModule)
 	{

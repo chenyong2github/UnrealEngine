@@ -23,6 +23,7 @@ struct FRigUnit_DebugBezier : public FRigUnit_DebugBaseMutable
 		bEnabled = true;
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))

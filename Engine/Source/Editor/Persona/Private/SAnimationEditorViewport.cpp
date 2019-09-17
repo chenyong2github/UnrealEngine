@@ -411,6 +411,11 @@ TWeakPtr<SWidget> SAnimationEditorViewportTabBody::AddNotification(TAttribute<EM
 	return ContainingWidget;
 }
 
+void SAnimationEditorViewportTabBody::AddToolbarExtender(FName MenuToExtend, FMenuExtensionDelegate MenuBuilderDelegate)
+{
+	return ViewportWidget->ViewportToolbar->AddMenuExtender(MenuToExtend, MenuBuilderDelegate);
+}
+
 void SAnimationEditorViewportTabBody::RemoveNotification(const TWeakPtr<SWidget>& InContainingWidget)
 {
 	if(InContainingWidget.IsValid())
@@ -435,9 +440,14 @@ FReply SAnimationEditorViewportTabBody::OnKeyDown(const FGeometry& MyGeometry, c
 	{
 		return FReply::Handled();
 	}
+
+	if (OnKeyDownDelegate.IsBound())
+	{
+		return OnKeyDownDelegate.Execute(MyGeometry, InKeyEvent);
+	}
+
 	return FReply::Unhandled();
 }
-
 
 void SAnimationEditorViewportTabBody::Construct(const FArguments& InArgs, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene, const TSharedRef<class FAssetEditorToolkit>& InAssetEditorToolkit, int32 InViewportIndex)
 {

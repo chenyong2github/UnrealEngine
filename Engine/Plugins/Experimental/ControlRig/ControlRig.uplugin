@@ -30,6 +30,11 @@
 			"Name" : "ControlRigEditor",
 			"Type" : "Editor",
 			"LoadingPhase" : "PostEngineInit"
+		},
+		{
+			"Name" : "ControlRigManipulation",
+			"Type" : "Editor",
+			"LoadingPhase" : "PostEngineInit"
 		}
 	]
 }

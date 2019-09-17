@@ -4067,10 +4067,9 @@ void FSlateEditorStyle::FStyle::SetupGraphEditorStyles()
 			// Transition node
 			{
 				FMargin TestMargin(16.f/64.f, 16.f/28.f, 16.f/64.f, 4.f/28.f);
-				Set( "Graph.TransitionNode.Body", new BOX_BRUSH( "/Persona/StateMachineEditor/Trans_Node_Body", FMargin(16.f/64.f, 12.f/28.f) ) );
 				Set( "Graph.TransitionNode.ColorSpill", new BOX_BRUSH( "/Persona/StateMachineEditor/Trans_Node_ColorSpill", TestMargin ) );
-				Set( "Graph.TransitionNode.Gloss", new BOX_BRUSH( "/Persona/StateMachineEditor/Trans_Node_Gloss", TestMargin) );
 				Set( "Graph.TransitionNode.Icon", new IMAGE_BRUSH( "/Persona/StateMachineEditor/Trans_Node_Icon", FVector2D(25,25) ) );
+				Set( "Graph.TransitionNode.Icon_Inertialization", new IMAGE_BRUSH( "/Persona/StateMachineEditor/Trans_Node_Icon_Inertialization", FVector2D(25,25) ) );
 			}
 
 			// Transition rule tooltip name 

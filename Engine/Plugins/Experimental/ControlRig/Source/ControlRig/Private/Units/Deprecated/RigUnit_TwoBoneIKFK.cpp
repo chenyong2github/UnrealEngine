@@ -8,11 +8,10 @@
 void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
 
 	if (Context.State == EControlRigState::Init)
 	{
-		const FRigHierarchy* Hierarchy = HierarchyRef.Get();
+		const FRigBoneHierarchy* Hierarchy = Context.GetBones();
 		if (Hierarchy)
 		{
 			// reset
@@ -25,10 +24,10 @@ void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 			if (StartIndex != INDEX_NONE && EndIndex != INDEX_NONE)
 			{
 				// ensure the chain
-				int32 EndParentIndex = Hierarchy->GetParentIndex(EndIndex);
+				int32 EndParentIndex = (*Hierarchy)[EndIndex].ParentIndex;
 				if (EndParentIndex != INDEX_NONE)
 				{
-					int32 MidParentIndex = Hierarchy->GetParentIndex(EndParentIndex);
+					int32 MidParentIndex = (*Hierarchy)[EndParentIndex].ParentIndex;
 					if (MidParentIndex == StartIndex)
 					{
 						StartJointIndex = StartIndex;
@@ -76,7 +75,7 @@ void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 			else if (FMath::IsNearlyEqual(IKBlend, 1.f))
 			{
 				// update transform before going through IK
-				const FRigHierarchy* Hierarchy = HierarchyRef.Get();
+				const FRigBoneHierarchy* Hierarchy = Context.GetBones();
 				check(Hierarchy);
 
 				StartJointIKTransform = Hierarchy->GetGlobalTransform(StartJointIndex);
@@ -92,7 +91,7 @@ void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 			else
 			{
 				// update transform before going through IK
-				const FRigHierarchy* Hierarchy = HierarchyRef.Get();
+				const FRigBoneHierarchy* Hierarchy = Context.GetBones();
 				check(Hierarchy);
 
 				StartJointIKTransform = Hierarchy->GetGlobalTransform(StartJointIndex);
@@ -106,7 +105,7 @@ void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 				EndJointTransform.Blend(MidJointFKTransform, EndJointIKTransform, IKBlend);
 			}
 
-			FRigHierarchy* Hierarchy = HierarchyRef.Get();
+			FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 			check(Hierarchy);
 			Hierarchy->SetGlobalTransform(StartJointIndex, StartJointTransform);
 			Hierarchy->SetGlobalTransform(MidJointIndex, MidJointTransform);

@@ -86,6 +86,7 @@ public:
 #if CONTROLRIG_UNDO
 	virtual bool OpenUndoBracket(const FString& Title);
 	virtual bool CloseUndoBracket();
+	virtual bool CancelUndoBracket();
 #endif
 
 	UControlRigModel::FModifiedEvent& OnModified();

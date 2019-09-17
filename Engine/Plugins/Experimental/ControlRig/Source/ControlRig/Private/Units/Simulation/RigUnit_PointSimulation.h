@@ -101,6 +101,18 @@ struct FRigUnit_PointSimulation_BoneTarget
 	int32 SecondaryAimPoint;
 };
 
+USTRUCT()
+struct FRigUnit_PointSimulation_WorkData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FCRSimPointContainer Simulation;
+
+	UPROPERTY()
+	TArray<int32> BoneIndices;
+};
+
 /**
  * Performs point based simulation
  * Note: Disabled for now.
@@ -123,6 +135,7 @@ struct FRigUnit_PointSimulation : public FRigUnit_SimBaseMutable
 		Bezier = FCRFourPointBezier();
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/** The points to simulate */
@@ -188,10 +201,7 @@ struct FRigUnit_PointSimulation : public FRigUnit_SimBaseMutable
 	UPROPERTY(meta = (Output))
 	FCRFourPointBezier Bezier;
 
-	UPROPERTY()
-	FCRSimPointContainer Simulation;
-
-	UPROPERTY()
-	TArray<int32> BoneIndices;
+	UPROPERTY(transient)
+	FRigUnit_PointSimulation_WorkData WorkData;
 };
 

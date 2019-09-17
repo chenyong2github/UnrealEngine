@@ -30,54 +30,61 @@ public:
 
 		// Class Icons
 		{
-			Set("ClassIcon.ControlRigSequence", new IMAGE_BRUSH("ControlRigSequence_16x", Icon16x16));
-			Set("ClassIcon.ControlRigBlueprint", new IMAGE_BRUSH("ControlRigBlueprint_16x", Icon16x16));
+			Set("ClassIcon.ControlRigSequence", new IMAGE_BRUSH("Slate/ControlRigSequence_16x", Icon16x16));
+			Set("ClassIcon.ControlRigBlueprint", new IMAGE_BRUSH("Slate/ControlRigBlueprint_16x", Icon16x16));
 		}
 
 		// Edit mode styles
 		{
-			Set("ControlRigEditMode", new IMAGE_BRUSH("ControlRigMode_40x", Icon40x40));
-			Set("ControlRigEditMode.Small", new IMAGE_BRUSH("ControlRigMode_40x", Icon20x20));
+			Set("ControlRigEditMode", new IMAGE_BRUSH("Slate/ControlRigMode_40x", Icon40x40));
+			Set("ControlRigEditMode.Small", new IMAGE_BRUSH("Slate/ControlRigMode_40x", Icon20x20));
 		}
 
 		// Sequencer styles
 		{
-			Set("ControlRig.ExportAnimSequence", new IMAGE_BRUSH("ExportAnimSequence_24x", Icon24x24));
-			Set("ControlRig.ExportAnimSequence.Small", new IMAGE_BRUSH("ExportAnimSequence_24x", Icon24x24));
-			Set("ControlRig.ReExportAnimSequence", new IMAGE_BRUSH("ExportAnimSequence_24x", Icon24x24));
-			Set("ControlRig.ReExportAnimSequence.Small", new IMAGE_BRUSH("ExportAnimSequence_24x", Icon24x24));
-			Set("ControlRig.ImportFromRigSequence", new IMAGE_BRUSH("ReImportRigSequence_16x", Icon16x16));
-			Set("ControlRig.ImportFromRigSequence.Small", new IMAGE_BRUSH("ReImportRigSequence_16x", Icon16x16));
-			Set("ControlRig.ReImportFromRigSequence", new IMAGE_BRUSH("ReImportRigSequence_16x", Icon16x16));
-			Set("ControlRig.ReImportFromRigSequence.Small", new IMAGE_BRUSH("ReImportRigSequence_16x", Icon16x16));
+			Set("ControlRig.ExportAnimSequence", new IMAGE_BRUSH("Slate/ExportAnimSequence_24x", Icon24x24));
+			Set("ControlRig.ExportAnimSequence.Small", new IMAGE_BRUSH("Slate/ExportAnimSequence_24x", Icon24x24));
+			Set("ControlRig.ReExportAnimSequence", new IMAGE_BRUSH("Slate/ExportAnimSequence_24x", Icon24x24));
+			Set("ControlRig.ReExportAnimSequence.Small", new IMAGE_BRUSH("Slate/ExportAnimSequence_24x", Icon24x24));
+			Set("ControlRig.ImportFromRigSequence", new IMAGE_BRUSH("Slate/ReImportRigSequence_16x", Icon16x16));
+			Set("ControlRig.ImportFromRigSequence.Small", new IMAGE_BRUSH("Slate/ReImportRigSequence_16x", Icon16x16));
+			Set("ControlRig.ReImportFromRigSequence", new IMAGE_BRUSH("Slate/ReImportRigSequence_16x", Icon16x16));
+			Set("ControlRig.ReImportFromRigSequence.Small", new IMAGE_BRUSH("Slate/ReImportRigSequence_16x", Icon16x16));
 		}
 
 		// Control Rig Editor styles
 		{
-			Set("ControlRig.TabIcon", new IMAGE_BRUSH("ControlRigTab_16x", Icon16x16));
-			Set("ControlRig.RigUnit", new IMAGE_BRUSH("ControlRigUnit_16x", Icon16x16));
+			Set("ControlRig.TabIcon", new IMAGE_BRUSH("Slate/ControlRigTab_16x", Icon16x16));
+			Set("ControlRig.RigUnit", new IMAGE_BRUSH("Slate/ControlRigUnit_16x", Icon16x16));
 
 			// icons for control units
-			Set("ControlRig.ControlUnitOn", new IMAGE_BRUSH(TEXT("ControlUnit_On"), Icon32x32));
-			Set("ControlRig.ControlUnitOff", new IMAGE_BRUSH(TEXT("ControlUnit_Off"), Icon32x32));
+			Set("ControlRig.ControlUnitOn", new IMAGE_BRUSH("Slate/ControlUnit_On", Icon32x32));
+			Set("ControlRig.ControlUnitOff", new IMAGE_BRUSH("Slate/ControlUnit_Off", Icon32x32));
 
-			Set("ControlRig.ExecuteGraph", new IMAGE_BRUSH("ExecuteGraph", Icon40x40));
-			Set("ControlRig.ExecuteGraph.Small", new IMAGE_BRUSH("ExecuteGraph", Icon20x20));
+			Set("ControlRig.ExecuteGraph", new IMAGE_BRUSH("Slate/ExecuteGraph", Icon40x40));
+			Set("ControlRig.ExecuteGraph.Small", new IMAGE_BRUSH("Slate/ExecuteGraph", Icon20x20));
 		}
 
 		// Graph styles
 		{
-			Set("ControlRig.Node.PinTree.Arrow_Collapsed_Left", new IMAGE_BRUSH("TreeArrow_Collapsed_Left", Icon10x10, DefaultForeground));
-			Set("ControlRig.Node.PinTree.Arrow_Collapsed_Hovered_Left", new IMAGE_BRUSH("TreeArrow_Collapsed_Hovered_Left", Icon10x10, DefaultForeground));
+			Set("ControlRig.Node.PinTree.Arrow_Collapsed_Left", new IMAGE_BRUSH("Slate/TreeArrow_Collapsed_Left", Icon10x10, DefaultForeground));
+			Set("ControlRig.Node.PinTree.Arrow_Collapsed_Hovered_Left", new IMAGE_BRUSH("Slate/TreeArrow_Collapsed_Hovered_Left", Icon10x10, DefaultForeground));
 
-			Set("ControlRig.Node.PinTree.Arrow_Expanded_Left", new IMAGE_BRUSH("TreeArrow_Expanded_Left", Icon10x10, DefaultForeground));
-			Set("ControlRig.Node.PinTree.Arrow_Expanded_Hovered_Left", new IMAGE_BRUSH("TreeArrow_Expanded_Hovered_Left", Icon10x10, DefaultForeground));
+			Set("ControlRig.Node.PinTree.Arrow_Expanded_Left", new IMAGE_BRUSH("Slate/TreeArrow_Expanded_Left", Icon10x10, DefaultForeground));
+			Set("ControlRig.Node.PinTree.Arrow_Expanded_Hovered_Left", new IMAGE_BRUSH("Slate/TreeArrow_Expanded_Hovered_Left", Icon10x10, DefaultForeground));
 
-			Set("ControlRig.Node.PinTree.Arrow_Collapsed_Right", new IMAGE_BRUSH("TreeArrow_Collapsed_Right", Icon10x10, DefaultForeground));
-			Set("ControlRig.Node.PinTree.Arrow_Collapsed_Hovered_Right", new IMAGE_BRUSH("TreeArrow_Collapsed_Hovered_Right", Icon10x10, DefaultForeground));
+			Set("ControlRig.Node.PinTree.Arrow_Collapsed_Right", new IMAGE_BRUSH("Slate/TreeArrow_Collapsed_Right", Icon10x10, DefaultForeground));
+			Set("ControlRig.Node.PinTree.Arrow_Collapsed_Hovered_Right", new IMAGE_BRUSH("Slate/TreeArrow_Collapsed_Hovered_Right", Icon10x10, DefaultForeground));
 
-			Set("ControlRig.Node.PinTree.Arrow_Expanded_Right", new IMAGE_BRUSH("TreeArrow_Expanded_Right", Icon10x10, DefaultForeground));
-			Set("ControlRig.Node.PinTree.Arrow_Expanded_Hovered_Right", new IMAGE_BRUSH("TreeArrow_Expanded_Hovered_Right", Icon10x10, DefaultForeground));
+			Set("ControlRig.Node.PinTree.Arrow_Expanded_Right", new IMAGE_BRUSH("Slate/TreeArrow_Expanded_Right", Icon10x10, DefaultForeground));
+			Set("ControlRig.Node.PinTree.Arrow_Expanded_Hovered_Right", new IMAGE_BRUSH("Slate/TreeArrow_Expanded_Hovered_Right", Icon10x10, DefaultForeground));
+		}
+
+		// Tree styles
+		{
+			Set("ControlRig.Tree.Bone", new IMAGE_BRUSH("Slate/Bone_16x", Icon16x16));
+			Set("ControlRig.Tree.Control", new IMAGE_BRUSH("Slate/Control_16x", Icon16x16));
+			Set("ControlRig.Tree.Space", new IMAGE_BRUSH("Slate/Space_16x", Icon16x16));
 		}
 
 		// Font?

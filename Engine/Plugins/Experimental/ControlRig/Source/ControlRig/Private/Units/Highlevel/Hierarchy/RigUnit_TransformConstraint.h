@@ -4,7 +4,7 @@
 
 #include "Units/RigUnit.h"
 #include "Units/Highlevel/RigUnit_HighlevelBase.h"
-#include "Hierarchy.h"
+#include "Rigs/RigHierarchyContainer.h"
 #include "Constraint.h"
 #include "ControlRigDefines.h"
 #include "RigUnit_TransformConstraint.generated.h"
@@ -36,6 +36,19 @@ struct FConstraintTarget
 	{}
 };
 
+USTRUCT()
+struct FRigUnit_TransformConstraint_WorkData
+{
+	GENERATED_BODY()
+
+	// note that Targets.Num () != ConstraintData.Num()
+	UPROPERTY()
+	TArray<FConstraintData>	ConstraintData;
+
+	UPROPERTY()
+	TMap<int32, int32> ConstraintDataToTargets;
+};
+
 USTRUCT(meta=(DisplayName="Transform Constraint", Category="Transforms"))
 struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 {
@@ -45,6 +58,7 @@ struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 		: BaseTransformSpace(ETransformSpaceMode::GlobalSpace)
 	{}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, Constant, BoneName))
@@ -65,10 +79,8 @@ struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 	TArray<FConstraintTarget> Targets;
 
 private:
-	// note that Targets.Num () != ConstraintData.Num()
-	TArray<FConstraintData>	ConstraintData;
+	static void AddConstraintData(const TArrayView<FConstraintTarget>& Targets, ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform, TArray<FConstraintData>& OutConstraintData, TMap<int32, int32>& OutConstraintDataToTargets);
 
-	void AddConstraintData(ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform);
-
-	TMap<int32, int32> ConstraintDataToTargets;
+	UPROPERTY(transient)
+	FRigUnit_TransformConstraint_WorkData WorkData;
 };

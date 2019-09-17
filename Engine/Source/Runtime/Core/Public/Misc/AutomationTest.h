@@ -1053,6 +1053,9 @@ public:
 	/** Gets the C++ name of the test. */
 	FString GetTestName() const { return TestName; }
 
+	/** Gets the parameter context of the test. */
+	FString GetTestContext() const { return TestParameterContext; }
+
 	/**
 	 * Pure virtual method; returns the number of participants for this test
 	 *
@@ -1563,6 +1566,9 @@ protected:
 	 */
 	virtual FString GetBeautifiedTestName() const = 0;
 
+	/** Sets the parameter context of the test. */
+	virtual void SetTestContext(FString Context) { TestParameterContext = Context; }
+
 protected:
 
 	//Flag to indicate if this is a complex task
@@ -1576,6 +1582,9 @@ protected:
 
 	/** Name of the test */
 	FString TestName;
+
+	/** Context of the test */
+	FString TestParameterContext;
 
 	/** Info related to the last execution of this test */
 	FAutomationTestExecutionInfo ExecutionInfo;

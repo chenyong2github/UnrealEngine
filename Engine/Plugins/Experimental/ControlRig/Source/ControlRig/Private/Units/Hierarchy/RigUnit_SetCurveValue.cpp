@@ -8,10 +8,10 @@ FString FRigUnit_SetCurveValue::GetUnitLabel() const
 	return FString::Printf(TEXT("Set Curve [%s]"), *Curve.ToString());
 }
 
-void FRigUnit_SetCurveValue::Execute(const FRigUnitContext& Context)
+FRigUnit_SetCurveValue_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigCurveContainer* CurveContainer = ExecuteContext.CurveReference.Get();
+	FRigCurveContainer* CurveContainer = ExecuteContext.GetCurves();
 	if (CurveContainer)
 	{
 		switch (Context.State)
@@ -41,10 +41,10 @@ void FRigUnit_SetCurveValue::Execute(const FRigUnitContext& Context)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetCurveValue)
 {
-	CurveContainer.AddCurve(TEXT("CurveA"));
-	CurveContainer.AddCurve(TEXT("CurveB"));
+	CurveContainer.Add(TEXT("CurveA"));
+	CurveContainer.Add(TEXT("CurveB"));
 	CurveContainer.Initialize();
-	Unit.ExecuteContext.CurveReference = CurveContainerRef;
+	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
 	
 	CurveContainer.ResetValues();
 	Unit.Curve = TEXT("CurveA");

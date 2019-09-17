@@ -16,7 +16,7 @@
 
 #define LOCTEXT_NAMESPACE "ControlRig"
 
-DEFINE_LOG_CATEGORY_STATIC(LogControlRig, Log, All);
+DEFINE_LOG_CATEGORY(LogControlRig);
 
 DECLARE_STATS_GROUP(TEXT("ControlRig"), STATGROUP_ControlRig, STATCAT_Advanced);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Control Rig Execution"), STAT_RigExecution, STATGROUP_ControlRig, );
@@ -31,6 +31,8 @@ const FName UControlRig::DisplayNameMetaName("DisplayName");
 const FName UControlRig::MenuDescSuffixMetaName("MenuDescSuffix");
 const FName UControlRig::ShowVariableNameInTitleMetaName("ShowVariableNameInTitle");
 const FName UControlRig::BoneNameMetaName("BoneName");
+const FName UControlRig::ControlNameMetaName("ControlName");
+const FName UControlRig::SpaceNameMetaName("SpaceName");
 const FName UControlRig::CurveNameMetaName("CurveName");
 const FName UControlRig::ConstantMetaName("Constant");
 const FName UControlRig::TitleColorMetaName("TitleColor");
@@ -46,14 +48,12 @@ const FName UControlRig::DefaultArraySizeMetaName("DefaultArraySize");
 
 UControlRig::UControlRig()
 	: DeltaTime(0.0f)
-#if WITH_EDITORONLY_DATA
-	, bExecutionOn (true)
-#endif // WITH_EDITORONLY_DATA
 	, ExecutionType(ERigExecutionType::Runtime)
 #if WITH_EDITOR
 	, ControlRigLog(nullptr)
 	, bEnableControlRigLogging(true)
 	, DrawInterface(nullptr)
+	, DataSourceRegistry(nullptr)
 #endif
 {
 #if DEBUG_CONTROLRIG_PROPERTYCHANGE
@@ -198,8 +198,8 @@ void UControlRig::Initialize(bool bInitRigUnits)
 #endif // WITH_EDITORONLY_DATA
 
 	// should refresh mapping 
-	Hierarchy.BaseHierarchy.Initialize();
-	CurveContainer.Initialize();
+	Hierarchy.Initialize();
+
 	// resolve IO properties
 	ResolveInputOutputProperties();
 
@@ -221,15 +221,6 @@ void UControlRig::InitializeFromCDO()
 	UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
 	// copy operation
 	Hierarchy = CDO->Hierarchy;
-	CurveContainer = CDO->CurveContainer;
-}
-
-void UControlRig::PreEvaluate_GameThread()
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	// input delegates
-	OnPreEvaluateGatherInput.ExecuteIfBound(this);
 }
 
 void UControlRig::Evaluate_AnyThread()
@@ -237,14 +228,6 @@ void UControlRig::Evaluate_AnyThread()
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	Execute(EControlRigState::Update);
-}
-
-void UControlRig::PostEvaluate_GameThread()
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	// output delgates
-	OnPostEvaluateQueryOutput.ExecuteIfBound(this);
 }
 
 #if WITH_EDITOR
@@ -307,11 +290,15 @@ void UControlRig::Execute(const EControlRigState InState)
 
 	FRigUnitContext Context;
 	Context.DrawInterface = DrawInterface;
+
+	if (InState == EControlRigState::Init)
+	{
+		Context.DataSourceRegistry = DataSourceRegistry;
+	}
+
 	Context.DeltaTime = DeltaTime;
 	Context.State = InState;
-	Context.HierarchyReference.Container = &Hierarchy;
-	Context.HierarchyReference.bUseBaseHierarchy = true;
-	Context.CurveReference = FRigCurveContainerRef(&CurveContainer);
+	Context.Hierarchy = &Hierarchy;
 
 #if WITH_EDITOR
 	Context.Log = ControlRigLog;
@@ -320,13 +307,6 @@ void UControlRig::Execute(const EControlRigState InState)
 		ControlRigLog->Entries.Reset();
 	}
 #endif
-
-#if WITH_EDITORONLY_DATA
-	if (!bExecutionOn)
-	{
-		return;
-	}
-#endif // WITH_EDITORONLY_DATA
 
 	ControlRigVM::Execute(this, Context, Operators, ExecutionType);
 
@@ -388,62 +368,62 @@ FTransform UControlRig::GetGlobalTransform(const FName& BoneName) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	int32 Index = Hierarchy.BaseHierarchy.GetIndex(BoneName);
+	int32 Index = Hierarchy.BoneHierarchy.GetIndex(BoneName);
 	if (Index != INDEX_NONE)
 	{
-		return Hierarchy.BaseHierarchy.GetGlobalTransform(Index);
+		return Hierarchy.BoneHierarchy.GetGlobalTransform(Index);
 	}
 
 	return FTransform::Identity;
 
 }
 
-void UControlRig::SetGlobalTransform(const FName& BoneName, const FTransform& InTransform, bool bPropagateTransform) 
+void UControlRig::SetGlobalTransform(const FName& BoneName, const FTransform& InTransform, bool bPropagateTransform)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	int32 Index = Hierarchy.BaseHierarchy.GetIndex(BoneName);
+	int32 Index = Hierarchy.BoneHierarchy.GetIndex(BoneName);
 	if (Index != INDEX_NONE)
 	{
-		Hierarchy.BaseHierarchy.SetGlobalTransform(Index, InTransform, bPropagateTransform);
+		return Hierarchy.BoneHierarchy.SetGlobalTransform(Index, InTransform, bPropagateTransform);
 	}
 }
 
 FTransform UControlRig::GetGlobalTransform(const int32 BoneIndex) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	return Hierarchy.BaseHierarchy.GetGlobalTransform(BoneIndex);
+	return Hierarchy.BoneHierarchy.GetGlobalTransform(BoneIndex);
 }
 
 void UControlRig::SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	Hierarchy.BaseHierarchy.SetGlobalTransform(BoneIndex, InTransform, bPropagateTransform);
+	Hierarchy.BoneHierarchy.SetGlobalTransform(BoneIndex, InTransform, bPropagateTransform);
 }
 
 float UControlRig::GetCurveValue(const FName& CurveName) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	return CurveContainer.GetValue(CurveName);
+	return Hierarchy.CurveContainer.GetValue(CurveName);
 }
 
 void UControlRig::SetCurveValue(const FName& CurveName, const float CurveValue)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	CurveContainer.SetValue(CurveName, CurveValue);
+	Hierarchy.CurveContainer.SetValue(CurveName, CurveValue);
 }
 
 float UControlRig::GetCurveValue(const int32 CurveIndex) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	return CurveContainer.GetValue(CurveIndex);
+	return Hierarchy.CurveContainer.GetValue(CurveIndex);
 }
 
 void UControlRig::SetCurveValue(const int32 CurveIndex, const float CurveValue)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	CurveContainer.SetValue(CurveIndex, CurveValue);
+	Hierarchy.CurveContainer.SetValue(CurveIndex, CurveValue);
 }
 
 void UControlRig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNodeItems) const
@@ -454,24 +434,13 @@ void UControlRig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>
 	OutNodeItems.Reset();
 
 	// now add all nodes
-	const FRigHierarchy& BaseHierarchy = Hierarchy.BaseHierarchy;
+	const FRigBoneHierarchy& BoneHierarchy = Hierarchy.BoneHierarchy;
 
-	const TArray<FRigBone>& Bones = BaseHierarchy.GetBones();
-	for (int32 Index = 0; Index < Bones.Num(); ++Index)
+	for (const FRigBone& Bone : BoneHierarchy)
 	{
-		OutNames.Add(Bones[Index].Name);
-		OutNodeItems.Add(FNodeItem(Bones[Index].ParentName, Bones[Index].InitialTransform));
+		OutNames.Add(Bone.Name);
+		OutNodeItems.Add(FNodeItem(Bone.ParentName, Bone.InitialTransform));
 	}
-
-	// have to handle curve separate because otherwise it will confuse with hierarchy
-	// we also supply curves 
-// 	const FRigCurveContainer& RigCurveContainer = CurveContainer;
-// 
-// 	for (int32 Index = 0; Index < RigCurveContainer.Curves.Num(); ++Index)
-// 	{
-// 		OutNames.Add(RigCurveContainer.Curves[Index].Name);
-// 		OutNodeItems.Add(FNodeItem(NAME_None, FTransform::Identity));
-// 	}
 }
 
 void UControlRig::ResolveInputOutputProperties()
@@ -654,4 +623,137 @@ void UControlRig::QueryIOVariables(bool bInput, TArray<FControlRigIOVariable>& O
 		OutVars.Add(NewVar);
 	}
 }
+
+// BEGIN IControlRigManipulatable interface
+const TArray<FRigSpace>& UControlRig::AvailableSpaces() const
+{
+	return Hierarchy.SpaceHierarchy.GetSpaces();
+}
+
+// do we need to return pointer? They can't save this
+FRigSpace* UControlRig::FindSpace(const FName& InSpaceName)
+{
+	const int32 SpaceIndex = Hierarchy.SpaceHierarchy.GetIndex(InSpaceName);
+	if (SpaceIndex != INDEX_NONE)
+	{
+		return &Hierarchy.SpaceHierarchy[SpaceIndex];
+	}
+
+	return nullptr;
+}
+
+FTransform UControlRig::GetSpaceGlobalTransform(const FName& InSpaceName)
+{
+	return Hierarchy.SpaceHierarchy.GetGlobalTransform(InSpaceName);
+}
+
+bool UControlRig::SetSpaceGlobalTransform(const FName& InSpaceName, const FTransform& InTransform)
+{
+	Hierarchy.SpaceHierarchy.SetGlobalTransform(InSpaceName, InTransform);
+	return true;
+}
+
+const TArray<FRigControl>& UControlRig::AvailableControls() const
+{
+	return Hierarchy.ControlHierarchy.GetControls();
+}
+
+FRigControl* UControlRig::FindControl(const FName& InControlName)
+{
+	const int32 ControlIndex = Hierarchy.ControlHierarchy.GetIndex(InControlName);
+	if (ControlIndex != INDEX_NONE)
+	{
+		return &Hierarchy.ControlHierarchy[ControlIndex];
+	}
+
+	return nullptr;
+}
+
+FTransform UControlRig::GetControlGlobalTransform(const FName& InControlName) const
+{
+	return Hierarchy.ControlHierarchy.GetGlobalTransform(InControlName);
+}
+
+FRigControlValue UControlRig::GetControlValueFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform)
+{
+	FRigControlValue RetVal;
+
+	const int32 ControlIndex = Hierarchy.ControlHierarchy.GetIndex(InControlName);
+	if (ControlIndex != INDEX_NONE)
+	{
+		FRigControl& Control = Hierarchy.ControlHierarchy[ControlIndex];
+
+		RetVal = Control.Value;
+
+		FTransform ParentTransform = Hierarchy.ControlHierarchy.GetParentTransform(ControlIndex);
+		switch (Control.ControlType)
+		{
+			case ERigControlType::Bool:
+			case ERigControlType::Float:
+			case ERigControlType::Vector2D:
+			{
+				// not sure how to extract this from global transform
+				break;
+			}
+			case ERigControlType::Position:
+			{
+				FTransform Transform = InGlobalTransform.GetRelativeTransform(ParentTransform);
+				RetVal.Set<FVector>(Transform.GetLocation());
+				break;
+			}
+			case ERigControlType::Scale:
+			{
+				FTransform Transform = InGlobalTransform.GetRelativeTransform(ParentTransform);
+				RetVal.Set<FVector>(Transform.GetScale3D());
+				break;
+			}
+			case ERigControlType::Quat:
+			{
+				FTransform Transform = InGlobalTransform.GetRelativeTransform(ParentTransform);
+				RetVal.Set<FQuat>(Transform.GetRotation());
+				break;
+			}
+			case ERigControlType::Rotator:
+			{
+				FTransform Transform = InGlobalTransform.GetRelativeTransform(ParentTransform);
+				RetVal.Set<FRotator>(Transform.GetRotation().Rotator());
+				break;
+			}
+			case ERigControlType::Transform:
+			{
+				FTransform Transform = InGlobalTransform.GetRelativeTransform(ParentTransform);
+				RetVal.Set<FTransform>(Transform);
+				break;
+			}
+		}
+	}
+
+	return RetVal;
+}
+
+bool UControlRig::SetControlSpace(const FName& InControlName, const FName& InSpaceName)
+{
+	Hierarchy.ControlHierarchy.SetSpace(InControlName, InSpaceName);
+	return true;
+}
+
+UControlRigGizmoLibrary* UControlRig::GetGizmoLibrary() const
+{
+#if WITH_EDITOR
+	if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
+	{
+		if (!CDO->GizmoLibrary.IsValid())
+		{
+			CDO->GizmoLibrary.LoadSynchronous();
+		}
+		if (CDO->GizmoLibrary.IsValid())
+		{
+			return CDO->GizmoLibrary.Get();
+		}
+	}
+#endif
+	return nullptr;
+}
+
+// END IControlRigManipulatable interface
 #undef LOCTEXT_NAMESPACE

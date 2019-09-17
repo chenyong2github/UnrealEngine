@@ -22,6 +22,7 @@ struct FRigUnit_SetBoneRotation : public FRigUnitMutable
 	{}
 
 	virtual FString GetUnitLabel() const override;
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/**

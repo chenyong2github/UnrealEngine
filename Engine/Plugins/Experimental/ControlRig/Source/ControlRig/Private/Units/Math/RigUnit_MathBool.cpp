@@ -3,37 +3,37 @@
 #include "Units/Math/RigUnit_MathBool.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_MathBoolNot::Execute(const FRigUnitContext& Context)
+FRigUnit_MathBoolNot_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = !Value;
 }
 
-void FRigUnit_MathBoolAnd::Execute(const FRigUnitContext& Context)
+FRigUnit_MathBoolAnd_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A && B;
 }
 
-void FRigUnit_MathBoolNand::Execute(const FRigUnitContext& Context)
+FRigUnit_MathBoolNand_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = (!A) && (!B);
 }
 
-void FRigUnit_MathBoolOr::Execute(const FRigUnitContext& Context)
+FRigUnit_MathBoolOr_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A || B;
 }
 
-void FRigUnit_MathBoolEquals::Execute(const FRigUnitContext& Context)
+FRigUnit_MathBoolEquals_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A == B;
 }
 
-void FRigUnit_MathBoolNotEquals::Execute(const FRigUnitContext& Context)
+FRigUnit_MathBoolNotEquals_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A != B;

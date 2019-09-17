@@ -180,7 +180,8 @@ struct FBindControlRigObjectToken : IMovieSceneExecutionToken
 				{
 					if (UControlRigSequencerAnimInstance* AnimInstance = Cast<UControlRigSequencerAnimInstance>(SkeletalMeshComponent->GetAnimInstance()))
 					{
-						bool bStructureChanged = AnimInstance->UpdateControlRig(ControlRig, Operand.SequenceID.GetInternalValue(), bAdditive, bApplyBoneFilter, *BoneFilter, Weight);
+						// @todo: let's think about the input here, I'm disabling handling of inputs but allowing it to execute when ticks
+						bool bStructureChanged = AnimInstance->UpdateControlRig(ControlRig, Operand.SequenceID.GetInternalValue(), bAdditive, bApplyBoneFilter, *BoneFilter, Weight, false, true);
 						if (bStructureChanged)
 						{
 							AnimInstance->RecalcRequiredBones();
@@ -209,7 +210,7 @@ struct FBindControlRigObjectToken : IMovieSceneExecutionToken
 						if (UControlRigSequencerAnimInstance* AnimInstance = Cast<UControlRigSequencerAnimInstance>(SkeletalMeshComponent->GetAnimInstance()))
 						{
 							// Force us to zero weight before we despawn, as the graph could persist
-							AnimInstance->UpdateControlRig(ControlRig, Operand.SequenceID.GetInternalValue(), bAdditive, bApplyBoneFilter, *BoneFilter, 0.0f);
+							AnimInstance->UpdateControlRig(ControlRig, Operand.SequenceID.GetInternalValue(), bAdditive, bApplyBoneFilter, *BoneFilter, 0.0f, true, true);
 							AnimInstance->RecalcRequiredBones();
 						}
 						UAnimSequencerInstance::UnbindFromSkeletalMeshComponent(SkeletalMeshComponent);

@@ -3,13 +3,15 @@
 #include "Units/Simulation/RigUnit_PointSimulation.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_PointSimulation::Execute(const FRigUnitContext& Context)
+FRigUnit_PointSimulation_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
-	FRigHierarchy* Hierarchy = HierarchyRef.Get();
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 
 	float DeltaTime = Context.DeltaTime;
+
+	FCRSimPointContainer& Simulation = WorkData.Simulation;
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
 
 	if (Context.State == EControlRigState::Init ||
 		Simulation.Points.Num() != Points.Num() ||
@@ -163,7 +165,7 @@ void FRigUnit_PointSimulation::Execute(const FRigUnitContext& Context)
 
 				if (bLimitLocalPosition)
 				{
-					int32 ParentIndex = Hierarchy->GetParentIndex(BoneIndices[TargetIndex]);
+					int32 ParentIndex = (*Hierarchy)[BoneIndices[TargetIndex]].ParentIndex;
 					if (ParentIndex != INDEX_NONE)
 					{
 						FTransform InitialTransform = Hierarchy->GetInitialTransform(BoneIndices[TargetIndex]);

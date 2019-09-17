@@ -3,9 +3,8 @@
 #include "RigUnit_BeginExecution.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_BeginExecution::Execute(const FRigUnitContext& Context)
+FRigUnit_BeginExecution_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	ExecuteContext.HierarchyReference = Context.HierarchyReference;
-	ExecuteContext.CurveReference = Context.CurveReference;
+	ExecuteContext.Hierarchy = (FRigHierarchyContainer*)Context.Hierarchy;
 }

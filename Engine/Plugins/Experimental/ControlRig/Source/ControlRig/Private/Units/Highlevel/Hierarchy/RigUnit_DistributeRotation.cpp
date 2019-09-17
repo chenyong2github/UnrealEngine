@@ -3,14 +3,20 @@
 #include "Units/Highlevel/Hierarchy/RigUnit_DistributeRotation.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_DistributeRotation::Execute(const FRigUnitContext& Context)
+FRigUnit_DistributeRotation_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy == nullptr)
 	{
 		return;
 	}
+
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	TArray<int32>& BoneRotationA = WorkData.BoneRotationA;
+	TArray<int32>& BoneRotationB = WorkData.BoneRotationB;
+	TArray<float>& BoneRotationT = WorkData.BoneRotationT;
+	TArray<FTransform>& BoneLocalTransforms = WorkData.BoneLocalTransforms;
 
 	if (Context.State == EControlRigState::Init)
 	{
@@ -36,7 +42,7 @@ void FRigUnit_DistributeRotation::Execute(const FRigUnitContext& Context)
 				{
 					break;
 				}
-				EndBoneIndex = Hierarchy->GetParentIndex(EndBoneIndex);
+				EndBoneIndex = (*Hierarchy)[EndBoneIndex].ParentIndex;
 			}
 		}
 
@@ -140,7 +146,7 @@ void FRigUnit_DistributeRotation::Execute(const FRigUnitContext& Context)
 	}
 
 	FTransform BaseTransform = FTransform::Identity;
-	int32 ParentIndex = Hierarchy->GetParentIndex(BoneIndices[0]);
+	int32 ParentIndex = (*Hierarchy)[BoneIndices[0]].ParentIndex;
 	if (ParentIndex != INDEX_NONE)
 	{
 		BaseTransform = Hierarchy->GetGlobalTransform(ParentIndex);
@@ -184,12 +190,13 @@ void FRigUnit_DistributeRotation::Execute(const FRigUnitContext& Context)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_DistributeRotation)
 {
-	Hierarchy.AddBone(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
-	Hierarchy.AddBone(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(2.f, 0.f, 0.f)));
-	Hierarchy.AddBone(TEXT("BoneB"), TEXT("BoneA"), FTransform(FVector(2.f, 0.f, 0.f)));
-	Hierarchy.AddBone(TEXT("BoneC"), TEXT("BoneB"), FTransform(FVector(2.f, 0.f, 0.f)));
-	Hierarchy.AddBone(TEXT("BoneD"), TEXT("BoneC"), FTransform(FVector(2.f, 0.f, 0.f)));
-	Hierarchy.Initialize();
+	BoneHierarchy.Add(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
+	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(2.f, 0.f, 0.f)));
+	BoneHierarchy.Add(TEXT("BoneB"), TEXT("BoneA"), FTransform(FVector(2.f, 0.f, 0.f)));
+	BoneHierarchy.Add(TEXT("BoneC"), TEXT("BoneB"), FTransform(FVector(2.f, 0.f, 0.f)));
+	BoneHierarchy.Add(TEXT("BoneD"), TEXT("BoneC"), FTransform(FVector(2.f, 0.f, 0.f)));
+	BoneHierarchy.Initialize();
+	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
 
 	Unit.StartBone = TEXT("Root");
 	Unit.EndBone = TEXT("BoneD");
@@ -207,34 +214,34 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_DistributeRotation)
 
 	Init();
 
-	AddErrorIfFalse(Unit.BoneRotationA[0] == 0, TEXT("unexpected bone a"));
-	AddErrorIfFalse(Unit.BoneRotationB[0] == 0, TEXT("unexpected bone b"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.BoneRotationT[0], 0.f, 0.001f), TEXT("unexpected bone t"));
-	AddErrorIfFalse(Unit.BoneRotationA[1] == 0, TEXT("unexpected bone a"));
-	AddErrorIfFalse(Unit.BoneRotationB[1] == 2, TEXT("unexpected bone b"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.BoneRotationT[1], 0.5f, 0.001f), TEXT("unexpected bone t"));
-	AddErrorIfFalse(Unit.BoneRotationA[2] == 2, TEXT("unexpected bone a"));
-	AddErrorIfFalse(Unit.BoneRotationB[2] == 2, TEXT("unexpected bone b"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.BoneRotationT[2], 0.f, 0.001f), TEXT("unexpected bone t"));
-	AddErrorIfFalse(Unit.BoneRotationA[3] == 2, TEXT("unexpected bone a"));
-	AddErrorIfFalse(Unit.BoneRotationB[3] == 1, TEXT("unexpected bone b"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.BoneRotationT[3], 0.5f, 0.001f), TEXT("unexpected bone t"));
-	AddErrorIfFalse(Unit.BoneRotationA[4] == 1, TEXT("unexpected bone a"));
-	AddErrorIfFalse(Unit.BoneRotationB[4] == 1, TEXT("unexpected bone b"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.BoneRotationT[4], 0.0f, 0.001f), TEXT("unexpected bone t"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationA[0] == 0, TEXT("unexpected bone a"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationB[0] == 0, TEXT("unexpected bone b"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.WorkData.BoneRotationT[0], 0.f, 0.001f), TEXT("unexpected bone t"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationA[1] == 0, TEXT("unexpected bone a"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationB[1] == 2, TEXT("unexpected bone b"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.WorkData.BoneRotationT[1], 0.5f, 0.001f), TEXT("unexpected bone t"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationA[2] == 2, TEXT("unexpected bone a"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationB[2] == 2, TEXT("unexpected bone b"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.WorkData.BoneRotationT[2], 0.f, 0.001f), TEXT("unexpected bone t"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationA[3] == 2, TEXT("unexpected bone a"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationB[3] == 1, TEXT("unexpected bone b"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.WorkData.BoneRotationT[3], 0.5f, 0.001f), TEXT("unexpected bone t"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationA[4] == 1, TEXT("unexpected bone a"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationB[4] == 1, TEXT("unexpected bone b"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.WorkData.BoneRotationT[4], 0.0f, 0.001f), TEXT("unexpected bone t"));
 
 	Execute();
 
 	FVector Euler = FVector::ZeroVector;
-	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy.GetLocalTransform(0).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = FControlRigMathLibrary::EulerFromQuat(BoneHierarchy.GetLocalTransform(0).GetRotation(), EControlRigRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 0.f, 0.1f), TEXT("unexpected rotation Y"));
-	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy.GetLocalTransform(1).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = FControlRigMathLibrary::EulerFromQuat(BoneHierarchy.GetLocalTransform(1).GetRotation(), EControlRigRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 45.f, 0.1f), TEXT("unexpected rotation Y"));
-	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy.GetLocalTransform(2).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = FControlRigMathLibrary::EulerFromQuat(BoneHierarchy.GetLocalTransform(2).GetRotation(), EControlRigRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 90.f, 0.1f), TEXT("unexpected rotation Y"));
-	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy.GetLocalTransform(3).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = FControlRigMathLibrary::EulerFromQuat(BoneHierarchy.GetLocalTransform(3).GetRotation(), EControlRigRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 45.f, 0.1f), TEXT("unexpected rotation Y"));
-	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy.GetLocalTransform(4).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = FControlRigMathLibrary::EulerFromQuat(BoneHierarchy.GetLocalTransform(4).GetRotation(), EControlRigRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 0.f, 0.1f), TEXT("unexpected rotation Y"));
 
 	return true;

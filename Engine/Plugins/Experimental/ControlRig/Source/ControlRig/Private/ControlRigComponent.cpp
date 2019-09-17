@@ -88,13 +88,11 @@ void UControlRigComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 
 		// Call pre-evaluation callbacks (e.g. for copying input data into the rig)
 		OnPreEvaluate();
-		ControlRig->PreEvaluate_GameThread();
 
 		// If we multi-thread rig evaluation, then this call should be made on worker threads, but pre/post evaluate should be called on the game thread
 		ControlRig->Evaluate_AnyThread();
 
 		// Call post-evaluation callbacks (e.g. for copying output data out of the rig)
-		ControlRig->PostEvaluate_GameThread();
 		OnPostEvaluate();
 	}
 }

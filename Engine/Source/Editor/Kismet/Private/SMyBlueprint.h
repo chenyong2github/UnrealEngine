@@ -170,6 +170,7 @@ private:
 	TSharedRef<SWidget> OnGetFunctionListMenu();
 	void BuildOverridableFunctionsMenu(FMenuBuilder& MenuBuilder);
 	FReply OnAddButtonClickedOnSection(int32 InSectionID);
+	bool CanAddNewElementToSection(int32 InSectionID) const;
 
 	/** Support functions for checkbox to manage displaying user variables only */
 	bool IsShowingInheritedVariables() const;

@@ -3,6 +3,8 @@
 #include "AnimNodes/AnimNode_BlendListBase.h"
 #include "AnimationRuntime.h"
 #include "Animation/BlendProfile.h"
+#include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimNode_Inertialization.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_BlendListBase
@@ -99,7 +101,29 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 			// scale by the weight difference since we want always consistency:
 			// - if you're moving from 0 to full weight 1, it will use the normal blend time
 			// - if you're moving from 0.5 to full weight 1, it will get there in half the time
-			const float RemainingBlendTime = LastChildIndexIsInvalid ? 0.0f : ( BlendTime[ChildIndex] * WeightDifference );
+			float RemainingBlendTime;
+			if (LastChildIndexIsInvalid)
+			{
+				RemainingBlendTime = 0.0f;
+			}
+			else if (TransitionType == EBlendListTransitionType::Inertialization)
+			{
+				FAnimNode_Inertialization* InertializationNode = Context.GetAncestor<FAnimNode_Inertialization>();
+				if (InertializationNode)
+				{
+					InertializationNode->Request(BlendTime[ChildIndex]);
+				}
+				else
+				{
+					UE_LOG(LogAnimation, Error, TEXT("FAnimNode_BlendListBase: No inertialization context found for transition"));
+				}
+				
+				RemainingBlendTime = 0.0f;
+			}
+			else
+			{
+				RemainingBlendTime = BlendTime[ChildIndex] * WeightDifference;
+			}
 
 			for (int32 i = 0; i < RemainingBlendTimes.Num(); ++i)
 			{

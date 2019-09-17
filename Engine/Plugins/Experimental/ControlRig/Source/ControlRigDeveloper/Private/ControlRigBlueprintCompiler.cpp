@@ -484,9 +484,10 @@ void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObjec
 	UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 	if (ControlRigBlueprint)
 	{
+		ControlRigBlueprint->CleanupBoneHierarchyDeprecated();
+
 		UControlRig* ControlRig = CastChecked<UControlRig>(DefaultObject);
-		ControlRig->Hierarchy.BaseHierarchy = ControlRigBlueprint->Hierarchy;
-		ControlRig->CurveContainer = ControlRigBlueprint->CurveContainer;
+		ControlRig->Hierarchy = ControlRigBlueprint->HierarchyContainer;
 		// copy available rig units info, so that control rig can do things with it
 		ControlRig->AllowSourceAccessProperties = ControlRigBlueprint->AllowSourceAccessProperties;
 		ControlRigBlueprint->UpdateParametersOnControlRig(ControlRig);

@@ -145,6 +145,7 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 	];
 	InputsHeaderContentWidget->AddSlot()
 	.AutoWidth()
+	.VAlign(VAlign_Center)
 	[
 		SNew(SButton)
 		.ButtonStyle(FEditorStyle::Get(), "RoundButton")

@@ -50,6 +50,7 @@
 #include "AssetRegistryModule.h"
 #include "Editor/ControlRigEditor.h"
 #include "ControlRigBlueprintActions.h"
+#include "ControlRigGizmoLibraryActions.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "Graph/ControlRigGraph.h"
 #include "Graph/NodeSpawners/ControlRigPropertyNodeSpawner.h"
@@ -69,6 +70,7 @@
 #include "Animation/AnimSequence.h"
 #include "ControlRigEditorEditMode.h"
 #include "ControlRigDetails.h"
+#include "ControlRigElementDetails.h"
 #include "Units/Deprecated/RigUnitEditor_TwoBoneIKFK.h"
 #include "Animation/AnimSequence.h"
 #include "Editor/SControlRigProfilingView.h"
@@ -123,11 +125,21 @@ void FControlRigEditorModule::StartupModule()
 	ClassesToUnregisterOnShutdown.Add(UControlRigSequenceExporterSettings::StaticClass()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigSequenceExporterSettingsDetailsCustomization::MakeInstance));
 
+	ClassesToUnregisterOnShutdown.Add(FRigBone::StaticStruct()->GetFName());
+	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigBoneDetails::MakeInstance));
+
+	ClassesToUnregisterOnShutdown.Add(FRigControl::StaticStruct()->GetFName());
+	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigControlDetails::MakeInstance));
+
+	ClassesToUnregisterOnShutdown.Add(FRigSpace::StaticStruct()->GetFName());
+	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigSpaceDetails::MakeInstance));
+
 	ClassesToUnregisterOnShutdown.Add(UControlRig::StaticClass()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigDetails::MakeInstance));
 
 	// same as ClassesToUnregisterOnShutdown but for properties, there is none right now
 	PropertiesToUnregisterOnShutdown.Reset();
+
 
 	// Register asset tools
 	auto RegisterAssetTypeAction = [this](const TSharedRef<IAssetTypeActions>& InAssetTypeAction)
@@ -139,6 +151,7 @@ void FControlRigEditorModule::StartupModule()
 
 	RegisterAssetTypeAction(MakeShareable(new FControlRigSequenceActions()));
 	RegisterAssetTypeAction(MakeShareable(new FControlRigBlueprintActions()));
+	RegisterAssetTypeAction(MakeShareable(new FControlRigGizmoLibraryActions()));
 	
 	// Register sequencer track editor
 	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
@@ -465,7 +478,7 @@ void FControlRigEditorModule::HandleSequencerCreated(TSharedRef<ISequencer> InSe
 				if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
 				{
 					ControlRigEditMode->SetSequencer(nullptr);
-					ControlRigEditMode->SetObjects(TWeakObjectPtr<>(), FGuid());
+					ControlRigEditMode->SetObjects(TWeakObjectPtr<>(), FGuid(), nullptr);
 				}
 			}
 		}
@@ -502,7 +515,7 @@ void FControlRigEditorModule::HandleSequencerCreated(TSharedRef<ISequencer> InSe
 					GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
 					if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
 					{
-						ControlRigEditMode->SetObjects(SelectedObject, ObjectBinding);
+						ControlRigEditMode->SetObjects(SelectedObject, ObjectBinding, nullptr);
 					}
 				}
 			}
@@ -520,7 +533,6 @@ void FControlRigEditorModule::HandleSequencerCreated(TSharedRef<ISequencer> InSe
 				if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
 				{
 					ControlRigEditMode->RefreshObjects();
-					ControlRigEditMode->RefreshTrajectoryCache();
 				}
 			}
 		}
@@ -547,8 +559,12 @@ void FControlRigEditorModule::HandleSequencerCreated(TSharedRef<ISequencer> InSe
 
 				if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
 				{
-					ControlRigEditMode->ClearControlSelection();
-					ControlRigEditMode->SetControlSelection(PropertyPaths, true);
+					ControlRigEditMode->ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::All));
+					for (int32 Index = 0; Index < PropertyPaths.Num(); ++Index)
+					{
+						ControlRigEditMode->SetRigElementSelection(ERigElementType::Control, FName(*PropertyPaths[Index], FNAME_Find), true);
+					}
+					
 				}
 			}
 		}
@@ -722,13 +738,14 @@ bool FControlRigEditorModule::IsTrackVisible(const UMovieSceneTrack* InTrack)
 	if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
 	{		
 		// If nothing selected, show all nodes
-		if (ControlRigEditMode->GetNumSelectedControls() == 0)
+		if (ControlRigEditMode->AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control)) == 0)
 		{
 			return true;
 		}
 
-		return ControlRigEditMode->IsControlSelected(ControlRigEditMode->GetControlFromPropertyPath(InTrack->GetTrackName().ToString()));
+		return ControlRigEditMode->SelectedRigElements.Contains(FRigElementKey(InTrack->GetTrackName(), ERigElementType::Control));
 	}
+
 	return true;
 }
 

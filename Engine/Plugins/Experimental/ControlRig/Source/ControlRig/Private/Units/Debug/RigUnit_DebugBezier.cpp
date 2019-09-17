@@ -3,7 +3,7 @@
 #include "Units/Debug/RigUnit_DebugBezier.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_DebugBezier::Execute(const FRigUnitContext& Context)
+FRigUnit_DebugBezier_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -17,11 +17,10 @@ void FRigUnit_DebugBezier::Execute(const FRigUnitContext& Context)
 	}
 
 	FTransform Transform = WorldOffset;
-	if (Space != NAME_None && Context.HierarchyReference.Get() != nullptr)
+	if (Space != NAME_None && Context.GetBones() != nullptr)
 	{
-		Transform = Transform * Context.HierarchyReference.Get()->GetGlobalTransform(Space);
+		Transform = Transform * Context.GetBones()->GetGlobalTransform(Space);
 	}
-
 
 	Context.DrawInterface->DrawBezier(Transform, Bezier, MinimumU, MaximumU, Color, Thickness, Detail);
 }

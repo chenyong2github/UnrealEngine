@@ -21,6 +21,8 @@ struct FRigUnit_SetBoneTransform : public FRigUnitMutable
 	{}
 
 	virtual FString GetUnitLabel() const override;
+
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/**
@@ -32,7 +34,7 @@ struct FRigUnit_SetBoneTransform : public FRigUnitMutable
 	/**
 	 * The transform value to set for the given Bone.
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, Output))
 	FTransform Transform;
 
 	/**

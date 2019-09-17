@@ -73,7 +73,11 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 		}
 	}
 
+	UAnimStateTransitionNode* TransNode = TransitionNode.Get();
 	IDetailCategoryBuilder& TransitionCategory = DetailBuilder.EditCategory("Transition", LOCTEXT("TransitionCategoryTitle", "Transition") );
+
+	// Added below via CreateBlendProfilePicker
+	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendProfile));
 
 	if (bTransitionToConduit)
 	{
@@ -82,6 +86,7 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, Bidirectional));
 		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, CrossfadeDuration));
 		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendMode));
+		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, CustomBlendCurve));
 		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, LogicType));
 		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, PriorityOrder));
 	}
@@ -120,7 +125,6 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 				]
 			];
 
-		UAnimStateTransitionNode* TransNode = TransitionNode.Get();
 		if (TransitionNode != NULL && SelectedObjects.Num() == 1)
 		{
 			// The sharing option for the rule
@@ -141,15 +145,6 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 					FOnClicked::CreateSP(this, &FAnimTransitionNodeDetails::OnUnshareClick, true), 
 					FOnGetContent::CreateSP(this, &FAnimTransitionNodeDetails::OnGetShareableNodesMenu, true))
 			];
-
-
-// 			TransitionCategory.AddRow()
-// 				[
-// 					SNew( STextBlock )
-// 					.Text( TEXT("Crossfade Settings") )
-// 					.Font( IDetailLayoutBuilder::GetDetailFontBold() )
-// 				];
-
 
 			// Show the rule itself
 			UEdGraphPin* CanExecPin = NULL;
@@ -195,11 +190,24 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 
 		//////////////////////////////////////////////////////////////////////////
 
+		auto BlendSettingsEnabled = [LogicTypeHandle]()
+		{
+			uint8 LogicType;
+			if (LogicTypeHandle->GetValue(LogicType) == FPropertyAccess::Result::Success)
+			{
+				return LogicType != ETransitionLogicType::TLT_Inertialization;
+			}
+			return true;
+		};
+
+		auto BlendSettingsEnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(BlendSettingsEnabled));
+
 		IDetailCategoryBuilder& CrossfadeCategory = DetailBuilder.EditCategory("BlendSettings", LOCTEXT("BlendSettingsCategoryTitle", "Blend Settings") );
 		if (TransitionNode != NULL && SelectedObjects.Num() == 1)
 		{
 			// The sharing option for the crossfade settings
 			CrossfadeCategory.AddCustomRow( LOCTEXT("TransitionCrossfadeSharingLabel", "Transition Crossfade Sharing") )
+			.IsEnabled(BlendSettingsEnabledAttribute)
 			.NameContent()
 			[
 				SNew(STextBlock)
@@ -218,12 +226,12 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 			];
 		}
 
-		//@TODO: Gate editing these on shared non-authorative ones
+		//@TODO: Gate editing these on shared non-authoritative ones
 		CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, CrossfadeDuration)).DisplayName( LOCTEXT("DurationLabel", "Duration") );
-		CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendMode)).DisplayName( LOCTEXT("ModeLabel", "Mode") );
-		CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, CustomBlendCurve)).DisplayName(LOCTEXT("CurveLabel", "Custom Blend Curve"));
+		CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendMode)).DisplayName(LOCTEXT("ModeLabel", "Mode")).IsEnabled(BlendSettingsEnabledAttribute);
+		CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, CustomBlendCurve)).DisplayName(LOCTEXT("CurveLabel", "Custom Blend Curve")).IsEnabled(BlendSettingsEnabledAttribute);
 
-		USkeleton* TargetSkeleton = TransitionNode->GetAnimBlueprint()->TargetSkeleton;
+		USkeleton* TargetSkeleton = TransNode ? TransNode->GetAnimBlueprint()->TargetSkeleton : nullptr;
 
 		if(TargetSkeleton)
 		{
@@ -241,7 +249,8 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 			Args.bAllowClear = true;
 			Args.bAllowRemove = false;
 
-			CrossfadeCategory.AddProperty(BlendProfileHandle).CustomWidget(true)
+			CrossfadeCategory.AddCustomRow(LOCTEXT("BlendProfileLabel", "Blend Profile"))
+				.IsEnabled(BlendSettingsEnabledAttribute)
 				.NameContent()
 				[
 					BlendProfileHandle->CreatePropertyNameWidget()

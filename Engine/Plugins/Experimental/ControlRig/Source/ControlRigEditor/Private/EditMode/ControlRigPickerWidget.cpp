@@ -13,7 +13,7 @@ void UControlRigPickerWidget::SelectControl(const FString& ControlPropertyPath, 
 {
 	if(EditMode)
 	{
-		EditMode->SetControlSelection(ControlPropertyPath, bSelected);
+		EditMode->SetRigElementSelection(ERigElementType::Control, FName(*ControlPropertyPath, FNAME_Find), bSelected);
 	}
 }
 
@@ -21,7 +21,7 @@ bool UControlRigPickerWidget::IsControlSelected(const FString& ControlPropertyPa
 {
 	if(EditMode)
 	{
-		return EditMode->IsControlSelected(ControlPropertyPath);
+		return EditMode->SelectedRigElements.Contains(FRigElementKey(FName(*ControlPropertyPath, FNAME_Find), ERigElementType::Control));
 	}
 
 	return false;
@@ -31,7 +31,8 @@ void UControlRigPickerWidget::EnableControl(const FString& ControlPropertyPath, 
 {
 	if(EditMode)
 	{
-		EditMode->SetControlEnabled(ControlPropertyPath, bEnabled);
+		ensure(false);
+		//EditMode->SetControlEnabled(ControlPropertyPath, bEnabled);
 	}
 }
 
@@ -39,7 +40,8 @@ bool UControlRigPickerWidget::IsControlEnabled(const FString& ControlPropertyPat
 {
 	if(EditMode)
 	{
-		return EditMode->IsControlEnabled(ControlPropertyPath);
+		ensure(false);
+		return true; //EditMode->IsControlEnabled(ControlPropertyPath);
 	}
 
 	return false;

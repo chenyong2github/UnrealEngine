@@ -74,6 +74,8 @@ bool UDelegateProperty::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* 
 
 FString UDelegateProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
 {
+	check(SignatureFunction);
+
 	FString UnmangledFunctionName = SignatureFunction->GetName().LeftChop( FString( HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX ).Len() );
 	const bool bBlueprintCppBackend = (0 != (CPPExportFlags & EPropertyExportCPPFlags::CPPF_BlueprintCppBackend));
 	const bool bNative = SignatureFunction->IsNative();

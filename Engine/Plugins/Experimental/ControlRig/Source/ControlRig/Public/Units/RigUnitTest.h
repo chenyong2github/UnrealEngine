@@ -5,32 +5,29 @@
 #include "Misc/AutomationTest.h"
 #include "RigUnit.h"
 #include "RigUnitContext.h"
-#include "Hierarchy.h"
-#include "CurveContainer.h"
+#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigCurveContainer.h"
 
 class FControlRigUnitTestBase : public FAutomationTestBase
 {
 public:
 	FControlRigUnitTestBase(const FString& InName, bool bIsComplex)
 		: FAutomationTestBase(InName, bIsComplex)
-		, HierarchyContainer(FRigHierarchyContainer())
-		, HierarchyRef(FRigHierarchyRef())
-		, Hierarchy(HierarchyContainer.BaseHierarchy)
-		, CurveContainer(FRigCurveContainer())
-		, CurveContainerRef(&CurveContainer)
+		, HierarchyContainer()
+		, BoneHierarchy(HierarchyContainer.BoneHierarchy)
+		, SpaceHierarchy(HierarchyContainer.SpaceHierarchy)
+		, ControlHierarchy(HierarchyContainer.ControlHierarchy)
+		, CurveContainer(HierarchyContainer.CurveContainer)
 	{
-		HierarchyRef.Container = &HierarchyContainer;
-		HierarchyRef.bUseBaseHierarchy = true;
-		Context.HierarchyReference = HierarchyRef;
-		ExecuteContext.HierarchyReference = HierarchyRef;
-		ExecuteContext.CurveReference = CurveContainerRef;
+		Context.Hierarchy = &HierarchyContainer;
+		ExecuteContext.Hierarchy= &HierarchyContainer;
 	}
 
 	FRigHierarchyContainer HierarchyContainer;
-	FRigHierarchyRef HierarchyRef;
-	FRigHierarchy& Hierarchy;
-	FRigCurveContainer CurveContainer;
-	FRigCurveContainerRef CurveContainerRef;
+	FRigBoneHierarchy& BoneHierarchy;
+	FRigSpaceHierarchy& SpaceHierarchy;
+	FRigControlHierarchy& ControlHierarchy;
+	FRigCurveContainer& CurveContainer;
 	FControlRigExecuteContext ExecuteContext;
 	FRigUnitContext Context;
 };
@@ -57,7 +54,7 @@ public:
 		TUnitStruct Unit; \
 		virtual bool RunTest(const FString& Parameters) override \
 		{ \
-			Hierarchy.Reset(); \
+			HierarchyContainer.Reset(); \
 			CurveContainer.Reset(); \
 			Unit = TUnitStruct(); \
 			return RunControlRigUnitTest(Parameters); \

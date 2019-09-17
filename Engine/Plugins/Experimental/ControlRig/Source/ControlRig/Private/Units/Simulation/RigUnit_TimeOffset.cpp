@@ -3,7 +3,7 @@
 #include "Units/Simulation/RigUnit_TimeOffset.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_TimeOffsetFloat::Execute(const FRigUnitContext& Context)
+FRigUnit_TimeOffsetFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value;
@@ -31,15 +31,12 @@ void FRigUnit_TimeOffsetFloat::Execute(const FRigUnitContext& Context)
 	int32 MaxSize = FMath::Clamp<int32>(BufferSize, 2, 512);
 	if (Context.State == EControlRigState::Init)
 	{
-		Buffer.Reset();
-		Buffer.Reserve(MaxSize);
-		DeltaTimes.Reset();
-		DeltaTimes.Reserve(MaxSize);
+		UpperBound = 0;
 		Result = Value;
 		return;
 	}
 
-	if (Buffer.Num() == 0)
+	if (UpperBound == 0)
 	{
 		Result = Value;
 	}
@@ -50,7 +47,7 @@ void FRigUnit_TimeOffsetFloat::Execute(const FRigUnitContext& Context)
 		float T = 0.f;
 
 		int32 Index = LastInsertIndex;
-		if (SecondsAgo < DeltaTimes[Index] || Buffer.Num() == 1)
+		if (SecondsAgo < DeltaTimes[Index] || UpperBound == 1)
 		{
 			B = Buffer[Index];
 			T = SecondsAgo / DeltaTimes[Index];
@@ -58,7 +55,7 @@ void FRigUnit_TimeOffsetFloat::Execute(const FRigUnitContext& Context)
 		else
 		{
 			float AccumulatedTime = 0.f;
-			for (int32 TimeIndex = 0; TimeIndex < DeltaTimes.Num(); TimeIndex++)
+			for (int32 TimeIndex = 0; TimeIndex < UpperBound; TimeIndex++)
 			{
 				B = Buffer[Index];
 
@@ -70,7 +67,7 @@ void FRigUnit_TimeOffsetFloat::Execute(const FRigUnitContext& Context)
 				AccumulatedTime = AccumulatedTime + DeltaTimes[Index];;
 				A = B;
 
-				Index = (Index - 1 + DeltaTimes.Num()) % DeltaTimes.Num();
+				Index = (Index - 1 + UpperBound) % UpperBound;
 			}
 		}
 
@@ -79,26 +76,26 @@ void FRigUnit_TimeOffsetFloat::Execute(const FRigUnitContext& Context)
 
 	if (Context.DeltaTime > SMALL_NUMBER)
 	{
-		if (Buffer.Num() == 0)
+		if (UpperBound == 0)
 		{
-			LastInsertIndex = Buffer.Num();
-			Buffer.Add(Value);
-			DeltaTimes.Add(Context.DeltaTime);
+			LastInsertIndex = UpperBound;
+			Buffer[UpperBound] = Value;
+			DeltaTimes[UpperBound++] = Context.DeltaTime;
 		}
 		else
 		{
 			float SecondsPerEntry = TimeRange / float(MaxSize - 1);
 			if (DeltaTimes[LastInsertIndex] > SecondsPerEntry - Context.DeltaTime * 0.5f)
 			{
-				if (Buffer.Num() < MaxSize)
+				if (UpperBound < MaxSize)
 				{
-					LastInsertIndex = Buffer.Num();
-					Buffer.Add(Value);
-					DeltaTimes.Add(Context.DeltaTime);
+					LastInsertIndex = UpperBound;
+					Buffer[UpperBound] = Value;
+					DeltaTimes[UpperBound++] = Context.DeltaTime;
 				}
 				else
 				{
-					LastInsertIndex = (LastInsertIndex + 1) % Buffer.Num();
+					LastInsertIndex = (LastInsertIndex + 1) % UpperBound;
 					Buffer[LastInsertIndex] = Value;
 					DeltaTimes[LastInsertIndex] = Context.DeltaTime;
 				}
@@ -111,7 +108,7 @@ void FRigUnit_TimeOffsetFloat::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_TimeOffsetVector::Execute(const FRigUnitContext& Context)
+FRigUnit_TimeOffsetVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value;
@@ -139,15 +136,12 @@ void FRigUnit_TimeOffsetVector::Execute(const FRigUnitContext& Context)
 	int32 MaxSize = FMath::Clamp<int32>(BufferSize, 2, 512);
 	if (Context.State == EControlRigState::Init)
 	{
-		Buffer.Reset();
-		Buffer.Reserve(MaxSize);
-		DeltaTimes.Reset();
-		DeltaTimes.Reserve(MaxSize);
+		UpperBound = 0;
 		Result = Value;
 		return;
 	}
 
-	if (Buffer.Num() == 0)
+	if (UpperBound == 0)
 	{
 		Result = Value;
 	}
@@ -158,7 +152,7 @@ void FRigUnit_TimeOffsetVector::Execute(const FRigUnitContext& Context)
 		float T = 0.f;
 
 		int32 Index = LastInsertIndex;
-		if (SecondsAgo < DeltaTimes[Index] || Buffer.Num() == 1)
+		if (SecondsAgo < DeltaTimes[Index] || UpperBound == 1)
 		{
 			B = Buffer[Index];
 			T = SecondsAgo / DeltaTimes[Index];
@@ -166,7 +160,7 @@ void FRigUnit_TimeOffsetVector::Execute(const FRigUnitContext& Context)
 		else
 		{
 			float AccumulatedTime = 0.f;
-			for (int32 TimeIndex = 0; TimeIndex < DeltaTimes.Num(); TimeIndex++)
+			for (int32 TimeIndex = 0; TimeIndex < UpperBound; TimeIndex++)
 			{
 				B = Buffer[Index];
 
@@ -178,7 +172,7 @@ void FRigUnit_TimeOffsetVector::Execute(const FRigUnitContext& Context)
 				AccumulatedTime = AccumulatedTime + DeltaTimes[Index];;
 				A = B;
 
-				Index = (Index - 1 + DeltaTimes.Num()) % DeltaTimes.Num();
+				Index = (Index - 1 + UpperBound) % UpperBound;
 			}
 		}
 
@@ -187,26 +181,26 @@ void FRigUnit_TimeOffsetVector::Execute(const FRigUnitContext& Context)
 
 	if (Context.DeltaTime > SMALL_NUMBER)
 	{
-		if (Buffer.Num() == 0)
+		if (UpperBound == 0)
 		{
-			LastInsertIndex = Buffer.Num();
-			Buffer.Add(Value);
-			DeltaTimes.Add(Context.DeltaTime);
+			LastInsertIndex = UpperBound;
+			Buffer[UpperBound] = Value;
+			DeltaTimes[UpperBound++] = Context.DeltaTime;
 		}
 		else
 		{
 			float SecondsPerEntry = TimeRange / float(MaxSize - 1);
 			if (DeltaTimes[LastInsertIndex] > SecondsPerEntry - Context.DeltaTime * 0.5f)
 			{
-				if (Buffer.Num() < MaxSize)
+				if (UpperBound < MaxSize)
 				{
-					LastInsertIndex = Buffer.Num();
-					Buffer.Add(Value);
-					DeltaTimes.Add(Context.DeltaTime);
+					LastInsertIndex = UpperBound;
+					Buffer[UpperBound] = Value;
+					DeltaTimes[UpperBound++] = Context.DeltaTime;
 				}
 				else
 				{
-					LastInsertIndex = (LastInsertIndex + 1) % Buffer.Num();
+					LastInsertIndex = (LastInsertIndex + 1) % UpperBound;
 					Buffer[LastInsertIndex] = Value;
 					DeltaTimes[LastInsertIndex] = Context.DeltaTime;
 				}
@@ -219,7 +213,7 @@ void FRigUnit_TimeOffsetVector::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_TimeOffsetTransform::Execute(const FRigUnitContext& Context)
+FRigUnit_TimeOffsetTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value;
@@ -247,15 +241,12 @@ void FRigUnit_TimeOffsetTransform::Execute(const FRigUnitContext& Context)
 	int32 MaxSize = FMath::Clamp<int32>(BufferSize, 2, 512);
 	if (Context.State == EControlRigState::Init)
 	{
-		Buffer.Reset();
-		Buffer.Reserve(MaxSize);
-		DeltaTimes.Reset();
-		DeltaTimes.Reserve(MaxSize);
+		UpperBound = 0;
 		Result = Value;
 		return;
 	}
 
-	if (Buffer.Num() == 0)
+	if (UpperBound == 0)
 	{
 		Result = Value;
 	}
@@ -266,7 +257,7 @@ void FRigUnit_TimeOffsetTransform::Execute(const FRigUnitContext& Context)
 		float T = 0.f;
 
 		int32 Index = LastInsertIndex;
-		if (SecondsAgo < DeltaTimes[Index] || Buffer.Num() == 1)
+		if (SecondsAgo < DeltaTimes[Index] || UpperBound == 1)
 		{
 			B = Buffer[Index];
 			T = SecondsAgo / DeltaTimes[Index];
@@ -274,7 +265,7 @@ void FRigUnit_TimeOffsetTransform::Execute(const FRigUnitContext& Context)
 		else
 		{
 			float AccumulatedTime = 0.f;
-			for (int32 TimeIndex = 0; TimeIndex < DeltaTimes.Num(); TimeIndex++)
+			for (int32 TimeIndex = 0; TimeIndex < UpperBound; TimeIndex++)
 			{
 				B = Buffer[Index];
 
@@ -286,7 +277,7 @@ void FRigUnit_TimeOffsetTransform::Execute(const FRigUnitContext& Context)
 				AccumulatedTime = AccumulatedTime + DeltaTimes[Index];;
 				A = B;
 
-				Index = (Index - 1 + DeltaTimes.Num()) % DeltaTimes.Num();
+				Index = (Index - 1 + UpperBound) % UpperBound;
 			}
 		}
 
@@ -297,26 +288,26 @@ void FRigUnit_TimeOffsetTransform::Execute(const FRigUnitContext& Context)
 
 	if (Context.DeltaTime > SMALL_NUMBER)
 	{
-		if (Buffer.Num() == 0)
+		if (UpperBound == 0)
 		{
-			LastInsertIndex = Buffer.Num();
-			Buffer.Add(Value);
-			DeltaTimes.Add(Context.DeltaTime);
+			LastInsertIndex = UpperBound;
+			Buffer[UpperBound] = Value;
+			DeltaTimes[UpperBound++] = Context.DeltaTime;
 		}
 		else
 		{
 			float SecondsPerEntry = TimeRange / float(MaxSize - 1);
 			if (DeltaTimes[LastInsertIndex] > SecondsPerEntry - Context.DeltaTime * 0.5f)
 			{
-				if (Buffer.Num() < MaxSize)
+				if (UpperBound < MaxSize)
 				{
-					LastInsertIndex = Buffer.Num();
-					Buffer.Add(Value);
-					DeltaTimes.Add(Context.DeltaTime);
+					LastInsertIndex = UpperBound;
+					Buffer[UpperBound] = Value;
+					DeltaTimes[UpperBound++] = Context.DeltaTime;
 				}
 				else
 				{
-					LastInsertIndex = (LastInsertIndex + 1) % Buffer.Num();
+					LastInsertIndex = (LastInsertIndex + 1) % UpperBound;
 					Buffer[LastInsertIndex] = Value;
 					DeltaTimes[LastInsertIndex] = Context.DeltaTime;
 				}

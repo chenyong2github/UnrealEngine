@@ -162,6 +162,10 @@ private:
 	/** Build the follow bone widget (as a combo button) */
 	TSharedRef<SWidget> MakeFollowBoneComboWidget() const;
 
+public:
+	/** Extend the anim menu */
+	void AddMenuExtender(FName MenuToExtend, FMenuExtensionDelegate MenuBuilderDelegate);
+
 private:
 	/** Build the main toolbar */
 	TSharedRef<SWidget> MakeViewportToolbar(TSharedPtr<class SEditorViewport> InRealViewport);

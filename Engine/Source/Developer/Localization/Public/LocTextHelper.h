@@ -129,10 +129,6 @@ public:
 	 */
 	FString GetConflictReport() const;
 
-	/** Publicly movable */
-	FLocTextConflicts(FLocTextConflicts&&) = default;
-	FLocTextConflicts& operator=(FLocTextConflicts&&) = default;
-
 private:
 	FLocTextConflicts(const FLocTextConflicts&) = delete;
 	FLocTextConflicts& operator=(const FLocTextConflicts&) = delete;

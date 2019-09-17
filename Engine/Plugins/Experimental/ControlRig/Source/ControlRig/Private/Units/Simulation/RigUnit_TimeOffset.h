@@ -20,8 +20,10 @@ struct FRigUnit_TimeOffsetFloat : public FRigUnit_SimBase
 		BufferSize = 16;
 		TimeRange = 1.f;
 		LastInsertIndex = 0;
+		UpperBound = 0;
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 	
 	/** The value to record */
@@ -43,14 +45,17 @@ struct FRigUnit_TimeOffsetFloat : public FRigUnit_SimBase
 	UPROPERTY(meta=(Output))
 	float Result;
 
-	UPROPERTY()
+	UPROPERTY(meta = (MaxArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
 	TArray<float> Buffer;
 
-	UPROPERTY()
+	UPROPERTY(meta = (MaxArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
 	TArray<float> DeltaTimes;
 
 	UPROPERTY()
 	int32 LastInsertIndex;
+
+	UPROPERTY()
+	int32 UpperBound;
 };
 
 /**
@@ -68,8 +73,10 @@ struct FRigUnit_TimeOffsetVector : public FRigUnit_SimBase
 		BufferSize = 16;
 		TimeRange = 1.f;
 		LastInsertIndex = 0;
+		UpperBound = 0;
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 	
 	/** The value to record */
@@ -91,14 +98,17 @@ struct FRigUnit_TimeOffsetVector : public FRigUnit_SimBase
 	UPROPERTY(meta=(Output))
 	FVector Result;
 
-	UPROPERTY()
+	UPROPERTY(meta = (MaxArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
 	TArray<FVector> Buffer;
 
-	UPROPERTY()
+	UPROPERTY(meta = (MaxArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
 	TArray<float> DeltaTimes;
 
 	UPROPERTY()
 	int32 LastInsertIndex;
+
+	UPROPERTY()
+	int32 UpperBound;
 };
 
 /**
@@ -116,8 +126,10 @@ struct FRigUnit_TimeOffsetTransform : public FRigUnit_SimBase
 		BufferSize = 16;
 		TimeRange = 1.f;
 		LastInsertIndex = 0;
+		UpperBound = 0;
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 	
 	/** The value to record */
@@ -139,12 +151,15 @@ struct FRigUnit_TimeOffsetTransform : public FRigUnit_SimBase
 	UPROPERTY(meta=(Output))
 	FTransform Result;
 
-	UPROPERTY()
+	UPROPERTY(meta = (MaxArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
 	TArray<FTransform> Buffer;
 
-	UPROPERTY()
+	UPROPERTY(meta = (MaxArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
 	TArray<float> DeltaTimes;
 
 	UPROPERTY()
 	int32 LastInsertIndex;
+
+	UPROPERTY()
+	int32 UpperBound;
 };

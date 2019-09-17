@@ -3,7 +3,7 @@
 #include "FABRIK.h"
 #include "BoneContainer.h"
 
-FVector FABRIKChainLink::GetDirectionToParent(const FBoneContainer& BoneContainer, FCompactPoseBoneIndex BoneIndex)
+FVector FFABRIKChainLink::GetDirectionToParent(const FBoneContainer& BoneContainer, FCompactPoseBoneIndex BoneIndex)
 {
 	const FTransform& RefTransform = BoneContainer.GetRefPoseTransform(BoneIndex);
 	return -RefTransform.GetTranslation().GetSafeNormal();
@@ -15,7 +15,7 @@ namespace AnimationCore
 	// Implementation of the FABRIK IK Algorithm
 	// Please see http://andreasaristidou.com/publications/FABRIK.pdf for more details
 
-	bool SolveFabrik(TArray<FABRIKChainLink>& InOutChain, const FVector& TargetPosition, float MaximumReach, float Precision, int32 MaxIterations)
+	bool SolveFabrik(TArray<FFABRIKChainLink>& InOutChain, const FVector& TargetPosition, float MaximumReach, float Precision, int32 MaxIterations)
 	{
 		bool bBoneLocationUpdated = false;
 		float const RootToTargetDistSq = FVector::DistSquared(InOutChain[0].Position, TargetPosition);
@@ -27,8 +27,8 @@ namespace AnimationCore
 		{
 			for (int32 LinkIndex = 1; LinkIndex < NumChainLinks; LinkIndex++)
 			{
-				FABRIKChainLink const & ParentLink = InOutChain[LinkIndex - 1];
-				FABRIKChainLink & CurrentLink = InOutChain[LinkIndex];
+				FFABRIKChainLink const & ParentLink = InOutChain[LinkIndex - 1];
+				FFABRIKChainLink & CurrentLink = InOutChain[LinkIndex];
 				CurrentLink.Position = ParentLink.Position + (TargetPosition - ParentLink.Position).GetUnsafeNormal() * CurrentLink.Length;
 			}
 			bBoneLocationUpdated = true;
@@ -50,8 +50,8 @@ namespace AnimationCore
 					// "Forward Reaching" stage - adjust bones from end effector.
 					for (int32 LinkIndex = TipBoneLinkIndex - 1; LinkIndex > 0; LinkIndex--)
 					{
-						FABRIKChainLink & CurrentLink = InOutChain[LinkIndex];
-						FABRIKChainLink const & ChildLink = InOutChain[LinkIndex + 1];
+						FFABRIKChainLink & CurrentLink = InOutChain[LinkIndex];
+						FFABRIKChainLink const & ChildLink = InOutChain[LinkIndex + 1];
 
 						CurrentLink.Position = ChildLink.Position + (CurrentLink.Position - ChildLink.Position).GetUnsafeNormal() * ChildLink.Length;
 					}
@@ -59,8 +59,8 @@ namespace AnimationCore
 					// "Backward Reaching" stage - adjust bones from root.
 					for (int32 LinkIndex = 1; LinkIndex < TipBoneLinkIndex; LinkIndex++)
 					{
-						FABRIKChainLink const & ParentLink = InOutChain[LinkIndex - 1];
-						FABRIKChainLink & CurrentLink = InOutChain[LinkIndex];
+						FFABRIKChainLink const & ParentLink = InOutChain[LinkIndex - 1];
+						FFABRIKChainLink & CurrentLink = InOutChain[LinkIndex];
 
 						CurrentLink.Position = ParentLink.Position + (CurrentLink.Position - ParentLink.Position).GetUnsafeNormal() * CurrentLink.Length;
 					}
@@ -72,8 +72,8 @@ namespace AnimationCore
 
 				// Place tip bone based on how close we got to target.
 				{
-					FABRIKChainLink const & ParentLink = InOutChain[TipBoneLinkIndex - 1];
-					FABRIKChainLink & CurrentLink = InOutChain[TipBoneLinkIndex];
+					FFABRIKChainLink const & ParentLink = InOutChain[TipBoneLinkIndex - 1];
+					FFABRIKChainLink & CurrentLink = InOutChain[TipBoneLinkIndex];
 
 					CurrentLink.Position = ParentLink.Position + (CurrentLink.Position - ParentLink.Position).GetUnsafeNormal() * CurrentLink.Length;
 				}
