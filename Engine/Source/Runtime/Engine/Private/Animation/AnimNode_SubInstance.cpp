@@ -20,7 +20,17 @@ void FAnimNode_SubInstance::Initialize_AnyThread(const FAnimationInitializeConte
 	if(InstanceToRun && LinkedRoot)
 	{
 		FAnimInstanceProxy& Proxy = InstanceToRun->GetProxyOnAnyThread<FAnimInstanceProxy>();
+		Proxy.InitializationCounter.SynchronizeWith(Context.AnimInstanceProxy->InitializationCounter);
 		Proxy.InitializeRootNode_WithRoot(LinkedRoot);
+	}
+	else
+	{
+		// If we have no valid instance (self or otherwise), we need to propagate down the graph to make sure
+		// subsequent nodes get properly initialized
+		for(FPoseLink& InputPose : InputPoses)
+		{
+			InputPose.Initialize(Context);
+		}
 	}
 }
 
@@ -30,7 +40,21 @@ void FAnimNode_SubInstance::CacheBones_AnyThread(const FAnimationCacheBonesConte
 	if(InstanceToRun && LinkedRoot)
 	{
 		FAnimInstanceProxy& Proxy = InstanceToRun->GetProxyOnAnyThread<FAnimInstanceProxy>();
-		Proxy.CacheBones_WithRoot(LinkedRoot);
+		Proxy.CachedBonesCounter.SynchronizeWith(Context.AnimInstanceProxy->CachedBonesCounter);
+
+		// Note not calling Proxy.CacheBones_WithRoot here as it is guarded by
+		// bBoneCachesInvalidated, which is handled at a higher level
+		FAnimationCacheBonesContext LinkedContext(&Proxy);
+		LinkedRoot->CacheBones_AnyThread(LinkedContext);
+	}
+	else
+	{
+		// If we have no valid instance (self or otherwise), we need to propagate down the graph to make sure
+		// subsequent nodes get properly their bones properly cached
+		for(FPoseLink& InputPose : InputPoses)
+		{
+			InputPose.CacheBones(Context);
+		}
 	}
 }
 
@@ -42,6 +66,7 @@ void FAnimNode_SubInstance::Update_AnyThread(const FAnimationUpdateContext& Cont
 	if(InstanceToRun && LinkedRoot)
 	{
 		FAnimInstanceProxy& Proxy = InstanceToRun->GetProxyOnAnyThread<FAnimInstanceProxy>();
+		Proxy.UpdateCounter.SynchronizeWith(Context.AnimInstanceProxy->UpdateCounter);
 
 		PropagateInputProperties(Context.AnimInstanceProxy->GetAnimInstanceObject());
 
@@ -51,6 +76,12 @@ void FAnimNode_SubInstance::Update_AnyThread(const FAnimationUpdateContext& Cont
 			Proxy.UpdateAnimation_WithRoot(LinkedRoot, GetDynamicLinkFunctionName());
 		}
 	}
+	else if(InputPoses.Num() > 0)
+	{
+		// If we have no valid instance (self or otherwise), we need to propagate down the graph to make sure
+		// subsequent nodes get properly updated
+		InputPoses[0].Update(Context);
+	}
 }
 
 void FAnimNode_SubInstance::Evaluate_AnyThread(FPoseContext& Output)
@@ -59,6 +90,7 @@ void FAnimNode_SubInstance::Evaluate_AnyThread(FPoseContext& Output)
 	if(InstanceToRun && LinkedRoot)
 	{
 		FAnimInstanceProxy& Proxy = InstanceToRun->GetProxyOnAnyThread<FAnimInstanceProxy>();
+		Proxy.EvaluationCounter.SynchronizeWith(Output.AnimInstanceProxy->EvaluationCounter);
 		Output.Pose.SetBoneContainer(&Proxy.GetRequiredBones());
 
 		// Create an evaluation context
@@ -71,6 +103,12 @@ void FAnimNode_SubInstance::Evaluate_AnyThread(FPoseContext& Output)
 		// Move the curves
 		Output.Curve.MoveFrom(EvaluationContext.Curve);
 		Output.Pose.MoveBonesFrom(EvaluationContext.Pose);
+	}
+	else if(InputPoses.Num() > 0)
+	{
+		// If we have no valid instance (self or otherwise), we need to propagate down the graph to make sure
+		// subsequent nodes get properly evaluated
+		InputPoses[0].Evaluate(Output);
 	}
 	else
 	{
@@ -92,6 +130,12 @@ void FAnimNode_SubInstance::GatherDebugData(FNodeDebugData& DebugData)
 	{
 		FAnimInstanceProxy& Proxy = InstanceToRun->GetProxyOnAnyThread<FAnimInstanceProxy>();
 		Proxy.GatherDebugData_WithRoot(DebugData.BranchFlow(1.0f), LinkedRoot, GetDynamicLinkFunctionName());
+	}
+	else if(InputPoses.Num() > 0)
+	{
+		// If we have no valid instance (self or otherwise), we need to propagate down the graph to make sure
+		// subsequent nodes get their debug data properly collected to reflect relevancy
+		InputPoses[0].GatherDebugData(DebugData);
 	}
 }
 
