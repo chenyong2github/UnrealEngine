@@ -20,6 +20,7 @@ class FNiagaraGPUSystemTick;
 
 class NIAGARA_API FNiagaraSystemInstance 
 {
+	friend class FNiagaraSystemSimulation;
 	friend class FNiagaraGPUSystemTick;
 
 public:
@@ -67,6 +68,8 @@ public:
 	FORCEINLINE bool IsPaused()const { return bPaused; }
 
 	void SetSolo(bool bInSolo);
+
+	void UpdatePrereqs();
 
 	//void RebindParameterCollection(UNiagaraParameterCollectionInstance* OldInstance, UNiagaraParameterCollectionInstance* NewInstance);
 	void BindParameters();
@@ -176,11 +179,6 @@ public:
 
 	bool IsReadyToRun() const;
 
-	/** Index of this instance in the system simulation. */
-	int32 SystemInstanceIndex;
-
-	TSharedPtr<class FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSimulation;
-
 	FORCEINLINE bool HasTickingEmitters()const { return bHasTickingEmitters; }
 
 	UNiagaraParameterCollectionInstance* GetParameterCollectionInstance(UNiagaraParameterCollection* Collection);
@@ -249,14 +247,24 @@ private:
 	/** Call PrepareForSImulation on each data source from the simulations and determine which need per-tick updates.*/
 	void InitDataInterfaces();	
 
-
 	void BindParameterCollections(FNiagaraScriptExecutionContext& ExecContext);
 	
 	/** Calculates the distance to use for distance based LODing / culling. */
 	float GetLODDistance();
 
+	/** Calculates which tick group the instance should be in. */
+	ETickingGroup CalculateTickGroup();
+
+	/** Index of this instance in the system simulation. */
+	int32 SystemInstanceIndex;
+
+	TSharedPtr<class FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSimulation;
+
 	UNiagaraComponent* Component;
 	FBox SystemBounds;
+
+	ETickingGroup TickGroup;
+	UActorComponent* PrereqComponent;
 
 	/** The age of the System instance. */
 	float Age;
@@ -342,7 +350,9 @@ private:
 	/** If this system is paused. When paused it will not tick and never complete etc. */
 	uint32 bPaused : 1;
 	/** If this system has emitters that will run GPU Simulations */
-	bool bHasGPUEmitters : 1;
+	uint32 bHasGPUEmitters : 1;
+	/** The system contains data interfaces that can have tick group prerequisites. */
+	uint32 bDataInterfacesHaveTickPrereqs : 1;
 
 	/* Execution state requested by external code/BPs calling Activate/Deactivate. */
 	ENiagaraExecutionState RequestedExecutionState;

@@ -29,6 +29,11 @@ const FString INTERPOLATED_PARAMETER_PREFIX = TEXT("PREV_");
 constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS = 8;
 constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS_V4 = (NIAGARA_MAX_GPU_SPAWN_INFOS + 3) / 4;
 
+/** TickGroup information for Niagara.  */
+constexpr ETickingGroup NiagaraFirstTickGroup = TG_PrePhysics;
+constexpr ETickingGroup NiagaraLastTickGroup = TG_LastDemotable;
+constexpr int NiagaraNumTickGroups = NiagaraLastTickGroup - NiagaraFirstTickGroup + 1;
+
 enum ENiagaraBaseTypes
 {
 	NBT_Float,

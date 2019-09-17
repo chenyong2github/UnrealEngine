@@ -486,6 +486,13 @@ void FNiagaraSystemSimulation::DumpInstance(const FNiagaraSystemInstance* Inst)c
 	DataSet.Dump(Inst->SystemInstanceIndex, 1, TEXT("System Data"));
 }
 
+void FNiagaraSystemSimulation::AddTickGroupPromotion(FNiagaraSystemInstance* Instance)
+{
+	check(IsInGameThread());
+	check(!PendingTickGroupPromotions.Contains(Instance));
+	PendingTickGroupPromotions.Add(Instance);
+}
+
 bool FNiagaraSystemSimulation::ShouldTickAsync(const FNiagaraSystemSimulationTickContext& Context)
 {
 	return GbParallelSystemSimTick && FApp::ShouldUseThreadingForPerformance() && !Context.bPendingSpawnPass && Context.MyCompletionGraphEvent.IsValid();
@@ -601,6 +608,7 @@ void FNiagaraSystemSimulation::SpawnNew_GameThread(float DeltaSeconds, const FGr
 			++SystemIndex;
 		}		
 
+		//-OPT: Our tick group may have changed so next frame we could end up moving the instance again
 		if (SpawningSystemInstances.Num() > 0)
 		{
 			//Lets any RemoveInstance calls inside Tick_Concurrent know that we're spawning and all our instances are in SpawningSystemInstances;
@@ -632,6 +640,25 @@ void FNiagaraSystemSimulation::SpawnNew_GameThread(float DeltaSeconds, const FGr
 			SpawningSystemInstances.Reset();
 			bInSpawnPhase = false;
 		}
+	}
+
+	if (PendingTickGroupPromotions.Num() > 0)
+	{
+		FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
+		check(WorldManager != nullptr);
+
+		for ( FNiagaraSystemInstance* Instance : PendingTickGroupPromotions)
+		{
+			const ETickingGroup TickGroup = Instance->CalculateTickGroup();
+			if ( TickGroup != Instance->TickGroup )
+			{
+				TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSim = WorldManager->GetSystemSimulation(TickGroup, System);
+				NewSim->TransferInstance(this, Instance);
+				Instance->TickGroup = TickGroup;
+				Instance->SystemSimulation = NewSim;
+			}
+		}
+		PendingTickGroupPromotions.Reset();
 	}
 }
 
