@@ -1400,6 +1400,7 @@ void UNiagaraComponent::PostLoad()
 	{
 		Asset->ConditionalPostLoad();
 #if WITH_EDITOR
+		OverrideParameters.SanityCheckData();
 		PostLoadNormalizeOverrideNames();
 		SynchronizeWithSourceSystem();
 		AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
