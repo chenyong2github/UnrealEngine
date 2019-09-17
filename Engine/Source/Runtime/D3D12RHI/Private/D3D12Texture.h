@@ -248,7 +248,6 @@ public:
 		, RawTextureMemory(InRawTextureMemory)
 #endif
 	{
-		FMemory::Memzero(ReadBackHeapDesc);
 		if (InTextureLayout == nullptr)
 		{
 			FMemory::Memzero(TextureLayout);
@@ -275,12 +274,33 @@ public:
 
 	// Accessors.
 	FD3D12Resource* GetResource() const { return (FD3D12Resource*)FD3D12TextureBase::GetResource(); }
-	const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& GetReadBackHeapDesc() const
-	{
-		// This should only be called if SetReadBackHeapDesc() was called with actual contents
-		check(ReadBackHeapDesc.Footprint.Width > 0 && ReadBackHeapDesc.Footprint.Height > 0);
 
-		return ReadBackHeapDesc;
+	void GetReadBackHeapDesc(D3D12_PLACED_SUBRESOURCE_FOOTPRINT& OutFootprint, uint32 Subresource) const
+	{
+		check((GetFlags() & TexCreate_CPUReadback) != 0);
+
+		FIntVector Size = GetSizeXYZ();
+
+		D3D12_RESOURCE_DESC Desc = {};
+		Desc.Dimension        = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		Desc.Width            = Size.X;
+		Desc.Height           = Size.Y;
+		Desc.DepthOrArraySize = Size.Z;
+		Desc.MipLevels        = GetNumMips();
+		Desc.Format           = (DXGI_FORMAT) GPixelFormats[GetFormat()].PlatformFormat;
+		Desc.SampleDesc.Count = GetNumSamples();
+
+		ID3D12Device* Device = GetParentDevice()->GetDevice();
+
+		uint64 Offset = 0;
+		if (Subresource > 0)
+		{
+			Device->GetCopyableFootprints(&Desc, 0, Subresource, 0, nullptr, nullptr, nullptr, &Offset);
+			Offset = Align(Offset, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+		}
+		Device->GetCopyableFootprints(&Desc, Subresource, 1, Offset, &OutFootprint, nullptr, nullptr, nullptr);
+
+		check(OutFootprint.Footprint.Width > 0 && OutFootprint.Footprint.Height > 0);
 	}
 
 	FD3D12CLSyncPoint GetReadBackSyncPoint() const { return ReadBackSyncPoint; }
@@ -299,7 +319,6 @@ public:
 	}
 
 	// Modifiers.
-	void SetReadBackHeapDesc(const D3D12_PLACED_SUBRESOURCE_FOOTPRINT &newReadBackHeapDesc) { ReadBackHeapDesc = newReadBackHeapDesc; }
 	void SetReadBackListHandle(FD3D12CommandListHandle listToWaitFor) { ReadBackSyncPoint = listToWaitFor; }
 
 	// IRefCountedObject interface.
@@ -337,7 +356,6 @@ private:
 	/** Unlocks a previously locked mip-map. */
 	void UnlockInternal(class FRHICommandListImmediate* RHICmdList, TD3D12Texture2D* Previous, uint32 MipIndex, uint32 ArrayIndex);
 
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT ReadBackHeapDesc;
 	FD3D12CLSyncPoint ReadBackSyncPoint;
 
 	/** Whether the texture is a cube-map. */

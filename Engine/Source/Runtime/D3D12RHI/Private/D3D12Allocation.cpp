@@ -287,6 +287,7 @@ void FD3D12BuddyAllocator::Allocate(uint32 SizeInBytes, uint32 Alignment, FD3D12
 	}
 #endif
 	const uint32 AlignedOffsetFromResourceBase = AllocationBlockOffset + Padding;
+	check((AlignedOffsetFromResourceBase % Alignment) == 0);
 
 	// Setup the info that this allocator
 	FD3D12BuddyAllocatorPrivateData& PrivateData = ResourceLocation.GetBuddyAllocatorPrivateData();
@@ -311,12 +312,6 @@ void FD3D12BuddyAllocator::Allocate(uint32 SizeInBytes, uint32 Alignment, FD3D12
 	else
 	{
 		// Place resources are intialized elsewhere
-	}
-
-	if (Alignment != 0)
-	{
-		check(uint64(ResourceLocation.GetMappedBaseAddress()) % Alignment == 0);
-		check(uint64(ResourceLocation.GetGPUVirtualAddress()) % Alignment == 0);
 	}
 
 	// track the allocation
