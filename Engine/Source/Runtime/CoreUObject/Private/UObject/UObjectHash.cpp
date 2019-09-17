@@ -512,7 +512,7 @@ static FName ExtractInnerAndOuterFromPath(FName ObjectPath, FName& OutOuter)
 
 		if (*DelimiterOrEnd == '\0')
 		{
-			return ObjectPath;
+			return Path == PathBuffer ? ObjectPath : FName(Path, ObjectPath.GetNumber());
 		}
 		else if (*DelimiterOrEnd == ':')
 		{
