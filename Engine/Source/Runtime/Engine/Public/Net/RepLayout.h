@@ -673,6 +673,8 @@ enum class ERepLayoutCmdType : uint8
 	PropertyString			= 19,
 	PropertyUInt64			= 20,
 	PropertyNativeBool		= 21,
+	PropertySoftObject		= 22,
+	PropertyWeakObject		= 23,
 };
 
 /** Various flags that describe how a Top Level Property should be handled. */
