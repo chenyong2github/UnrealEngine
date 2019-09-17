@@ -11,7 +11,7 @@ namespace Audio
 	 *  TDeinterleaveView provides iterators to access deinterleaved arrays from an interleaved array.
 	 */
 	template <typename T>
-	class AUDIOMIXER_API TDeinterleaveView
+	class TDeinterleaveView
 	{
 		friend class TChannelIterator;
 
