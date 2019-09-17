@@ -418,6 +418,7 @@ public:
 	void ChangeBrushSize(bool bIncrease);
 	void ChangeBrushFalloff(bool bIncrease);
 	void ChangeBrushStrength(bool bIncrease);
+	void ChangeAlphaBrushRotation(bool bIncrease);
 
 	/** FEdMode: Called when a key is pressed */
 	virtual bool InputKey(FEditorViewportClient* InViewportClient, FViewport* InViewport, FKey InKey, EInputEvent InEvent) override;
