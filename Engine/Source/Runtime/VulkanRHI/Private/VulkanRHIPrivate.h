@@ -629,18 +629,18 @@ static inline VkAttachmentLoadOp RenderTargetLoadActionToVulkan(ERenderTargetLoa
 	return OutLoadAction;
 }
 
-static inline VkAttachmentStoreOp RenderTargetStoreActionToVulkan(ERenderTargetStoreAction InStoreAction, bool bRealRenderPass = false)
+static inline VkAttachmentStoreOp RenderTargetStoreActionToVulkan(ERenderTargetStoreAction InStoreAction)
 {
 	VkAttachmentStoreOp OutStoreAction = VK_ATTACHMENT_STORE_OP_MAX_ENUM;
 
 	switch (InStoreAction)
 	{
-	case ERenderTargetStoreAction::EStore:		OutStoreAction = VK_ATTACHMENT_STORE_OP_STORE;
+	case ERenderTargetStoreAction::EStore:
+		OutStoreAction = VK_ATTACHMENT_STORE_OP_STORE;
 		break;
-	//#todo-rco: Temp until we have fully switched to RenderPass system
 	case ERenderTargetStoreAction::ENoAction:
 	case ERenderTargetStoreAction::EMultisampleResolve:
-		OutStoreAction = bRealRenderPass ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
+		OutStoreAction = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		break;
 	default:
 		break;
