@@ -14,7 +14,6 @@ namespace Trace
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FNewEventEvent;
-class FTransportReader;
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAnalysisEngine
@@ -51,7 +50,7 @@ private:
 	TArray<FRoute>		Routes;
 	TArray<IAnalyzer*>	Analyzers;
 	TArray<FDispatch*>	Dispatches;
-	FTransportReader*	Transport = nullptr;
+	class FTransport*	Transport = nullptr;
 };
 
 } // namespace Trace

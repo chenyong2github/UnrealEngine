@@ -7,6 +7,8 @@
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
 #include "Trace/Private/EventDef.h"
+#include "Transport/Transport.h"
+#include "Transport/TlsTransport.h"
 
 namespace Trace
 {
@@ -27,193 +29,6 @@ private:
 	// uint32: bias=0x811c9dc5			prime=0x01000193
 	// uint64: bias=0xcbf29ce484222325	prime=0x00000100000001b3;
 };
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-class FTransportReader
-{
-public:
-	virtual					~FTransportReader() {}
-	void					SetSource(FStreamReader::FData& InSource);
-	template <typename RetType>
-	RetType const*			GetPointer();
-	template <typename RetType>
-	RetType const*			GetPointer(uint32 BlockSize);
-	virtual void			Advance(uint32 BlockSize);
-
-protected:
-	virtual const uint8*	GetPointerImpl(uint32 BlockSize);
-	FStreamReader::FData*	Source;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-void FTransportReader::SetSource(FStreamReader::FData& InSource)
-{
-	Source = &InSource;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename RetType>
-RetType const* FTransportReader::GetPointer()
-{
-	return GetPointer<RetType>(sizeof(RetType));
-}
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename RetType>
-RetType const* FTransportReader::GetPointer(uint32 BlockSize)
-{
-	return (RetType const*)GetPointerImpl(BlockSize);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FTransportReader::Advance(uint32 BlockSize)
-{
-	Source->Advance(BlockSize);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-const uint8* FTransportReader::GetPointerImpl(uint32 BlockSize)
-{
-	return Source->GetPointer(BlockSize);
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-class FTlsTransportReader
-	: public FTransportReader
-{
-public:
-	virtual					~FTlsTransportReader();
-	virtual void			Advance(uint32 BlockSize) override;
-	virtual const uint8*	GetPointerImpl(uint32 BlockSize) override;
-
-private:
-	struct FPayloadNode
-	{
-		FPayloadNode*		Next;
-		uint32				Cursor;
-		uint16				Serial;
-		uint16				Size;
-		uint8				Data[];
-	};
-
-	bool					GetNextBatch();
-	static const uint32		MaxPayloadSize = 8192;
-	FPayloadNode*			ActiveList = nullptr;
-	FPayloadNode*			PendingList = nullptr;
-	FPayloadNode*			FreeList = nullptr;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-FTlsTransportReader::~FTlsTransportReader()
-{
-	for (FPayloadNode* Root : {ActiveList, PendingList, FreeList})
-	{
-		for (FPayloadNode* Node = Root; Node != nullptr;)
-		{
-			FPayloadNode* Next = Node->Next;
-			delete[] Node;
-			Node = Next;
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FTlsTransportReader::Advance(uint32 BlockSize)
-{
-	if (ActiveList != nullptr)
-	{
-		ActiveList->Cursor += BlockSize;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-const uint8* FTlsTransportReader::GetPointerImpl(uint32 BlockSize)
-{
-	if (ActiveList == nullptr && !GetNextBatch())
-	{
-		return nullptr;
-	}
-
-	uint32 NextCursor = ActiveList->Cursor + BlockSize;
-	if (NextCursor > ActiveList->Size)
-	{
-		FPayloadNode* Node = ActiveList;
-		ActiveList = ActiveList->Next;
-		Node->Next = FreeList;
-		FreeList = Node;
-		return GetPointerImpl(BlockSize);
-	}
-
-	return ActiveList->Data + ActiveList->Cursor;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-bool FTlsTransportReader::GetNextBatch()
-{
-	struct FPayload
-	{
-		int16	Serial;
-		uint16	Size;
-		uint8	Data[];
-	};
-
-	int16 LastSerial = -1;
-	if (PendingList != nullptr)
-	{
-		LastSerial = PendingList->Serial;
-	}
-
-	while (true)
-	{
-		const auto* Payload = (const FPayload*)FTransportReader::GetPointerImpl(sizeof(FPayload));
-		if (Payload == nullptr)
-		{
-			return false;
-		}
-
-		// If this new payload is part of the next event batch then we've finished
-		// building the current batch. The current batch can be activated.
-		if (LastSerial >= Payload->Serial)
-		{
-			ActiveList = PendingList;
-			PendingList = nullptr;
-			break;
-		}
-
-		if (FTransportReader::GetPointerImpl(Payload->Size) == nullptr)
-		{
-			return false;
-		}
-
-		FTransportReader::Advance(Payload->Size);
-
-		FPayloadNode* Node;
-		if (FreeList != nullptr)
-		{
-			Node = FreeList;
-			FreeList = Node->Next;
-		}
-		else
-		{
-			Node = (FPayloadNode*)GMalloc->Malloc(sizeof(FPayloadNode) + MaxPayloadSize);
-		}
-
-		Node->Serial = Payload->Serial;
-		Node->Cursor = 0;
-		Node->Size = uint16(Payload->Size - sizeof(*Payload));
-		Node->Next = PendingList;
-		FMemory::Memcpy(Node->Data, Payload->Data, Node->Size);
-
-		PendingList = Node;
-		LastSerial = Payload->Serial;
-	}
-
-	return true;
-}
 
 
 
@@ -453,7 +268,6 @@ void FAnalysisEngine::RetireAnalyzer(uint32 AnalyzerIndex)
 	Analyzer->OnAnalysisEnd();
 	Analyzers[AnalyzerIndex] = nullptr;
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
@@ -737,8 +551,8 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader::FData& Data)
 
 	switch (Header->Format)
 	{
-	case 1:		Transport = new FTransportReader(); break;
-	case 2:		Transport = new FTlsTransportReader(); break;
+	case 1:		Transport = new FTransport(); break;
+	case 2:		Transport = new FTlsTransport(); break;
 	default:	return false;
 	//case 'E':	/* See the magic above */ break;
 	//case 'T':	/* See the magic above */ break;
