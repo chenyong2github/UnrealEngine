@@ -32,14 +32,6 @@ DECLARE_CYCLE_STAT(TEXT("MediaAssets MediaTextureResource Render"), STAT_MediaAs
 /** Sample time of texture last rendered. */
 DECLARE_FLOAT_COUNTER_STAT(TEXT("MediaAssets MediaTextureResource Sample"), STAT_MediaUtils_TextureSampleTime, STATGROUP_Media);
 
-
-static int32 CachedSamplesQueueDepth = 1;
-static FAutoConsoleVariableRef CVarEncoderSaveVideoToFile(
-	TEXT("media.CachedSamplesQueueDepth"),
-	CachedSamplesQueueDepth,
-	TEXT("How many frames to hold samples before release (default = 1)."),
-	ECVF_Default);
-
 /* Local helpers
  *****************************************************************************/
 
@@ -174,11 +166,6 @@ FMediaTextureResource::FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& 
 	, OwnerDim(InOwnerDim)
 	, OwnerSize(InOwnerSize)
 {
-	// preset the CachedSamples. makes things easier in the long run
-	if (CachedSamplesQueueDepth > 0)
-	{
-		CachedSamples.AddDefaulted(CachedSamplesQueueDepth);
-	}
 }
 
 
@@ -188,8 +175,6 @@ FMediaTextureResource::FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& 
 void FMediaTextureResource::Render(const FRenderParams& Params)
 {
 	check(IsInRenderingThread());
-
-	CycleCachedSamples();
 
 	SCOPE_CYCLE_COUNTER(STAT_MediaAssets_MediaTextureResourceRender);
 
@@ -302,11 +287,27 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 		}
 #endif
 
-		// We're not done with `Sample` as rendering is asynchronous. 
-		// Hold a reference in a member to postpone recycling `Sample` until safe to release
-		if (CachedSamplesQueueDepth > 0)
+		/*
+			We need to keep any sample used for display around to avoid any player reusing it before any async tasks are done.
+
+			Two cases are to be considered:
+			a) we directly use the textures in the sample -> we need to keep it as long as the sample is visible
+			b) we copy (e.g. as part of a conversion) the sample into a local texture -> we only need it for the current rendering interval
+
+			In both cases the FTextureSampleKeeper will make sure that it is kept for the current rendering interval per FRHIResource rules
+			for delayed deletion.
+		*/
+		TRefCountPtr<FTextureSampleKeeper> NewCurrentSample = TRefCountPtr<FTextureSampleKeeper>(new FTextureSampleKeeper(Sample));
+		check(NewCurrentSample);
+		if (RenderTargetTextureRHI != OutputTarget)
 		{
-			CachedSamples[0] = Sample;
+			// We use the texture data in the sample
+			CurrentSample = NewCurrentSample;
+		}
+		else
+		{
+			// We use the internal copy
+			CurrentSample = nullptr;
 		}
 	}
 	else if (Params.CanClear)
@@ -321,6 +322,9 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 #endif
 
 			ClearTexture(Params.ClearColor, Params.SrgbOutput);
+
+			// Also get rid of any sample from previous rendering...
+			CurrentSample = nullptr;
 		}
 	}
 	
@@ -346,16 +350,6 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 	Owner.SetRenderedExternalTextureGuid(Params.CurrentGuid);
 }
 
-void FMediaTextureResource::CycleCachedSamples()
-{
-	int32 CachedSampleToChange = CachedSamplesQueueDepth - 1;
-
-	while (CachedSampleToChange > 0)
-	{
-		CachedSamples[CachedSampleToChange] = CachedSamples[CachedSampleToChange - 1];
-		CachedSampleToChange--;
-	}
-}
 
 /* FRenderTarget interface
  *****************************************************************************/
