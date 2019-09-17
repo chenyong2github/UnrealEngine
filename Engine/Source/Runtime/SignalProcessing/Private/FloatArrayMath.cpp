@@ -3,6 +3,11 @@
 #include "DSP/FloatArrayMath.h"
 #include "CoreMinimal.h"
 
+namespace
+{
+	const float LOGE10 = FMath::Loge(10.f);
+}
+
 namespace Audio
 {
 	void ArrayCumulativeSum(const TArray<float>& InData, TArray<float>& OutData)
@@ -26,9 +31,7 @@ namespace Audio
 		for (int32 i = 1; i < Num; i++)
 		{
 			float Temp = *OutDataPtr++ + *InDataPtr++;
-			//OutDataPtr++;
 			*OutDataPtr = Temp;
-			//InDataPtr++;
 		}
 	}
 
@@ -193,13 +196,43 @@ namespace Audio
 		OutEuclideanNorm = FMath::Sqrt(OutEuclideanNorm);
 	}
 
-	void ArrayMultiplyByConstantInPlace(TArray<float>& InArray, const float InMultiplier)
+	void ArrayMultiplyByConstantInPlace(TArray<float>& InArray, float InMultiplier)
 	{
 		const int32 Num = InArray.Num();
 		float* InArrayData = InArray.GetData();
 		for (int32 i = 0; i < Num; i++)
 		{
 			InArrayData[i] *= InMultiplier;
+		}
+	}
+
+	void ArraySubtractByConstantInPlace(TArray<float>& InArray, float InSubtrahend)
+	{
+		const int32 Num = InArray.Num();
+		float* InArrayData = InArray.GetData();
+		for (int32 i = 0; i < Num; i++)
+		{
+			InArrayData[i] -= InSubtrahend;
+		}
+	}
+
+	void ArrayMagnitudeToDecibelInPlace(TArray<float>& InArray)
+	{
+		const int32 Num = InArray.Num();
+		float* InArrayData = InArray.GetData();
+		for (int32 i = 0; i < Num; i++)
+		{
+			InArrayData[i] = 20.f * FMath::Loge(InArrayData[i]) / LOGE10;
+		}
+	}
+
+	void ArrayPowerToDecibelInPlace(TArray<float>& InArray)
+	{
+		const int32 Num = InArray.Num();
+		float* InArrayData = InArray.GetData();
+		for (int32 i = 0; i < Num; i++)
+		{
+			InArrayData[i] = 10.f * FMath::Loge(InArrayData[i]) / LOGE10;
 		}
 	}
 
