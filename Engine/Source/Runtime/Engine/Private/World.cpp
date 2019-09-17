@@ -1346,10 +1346,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 		return;
 	}
 
-	if (WorldType == EWorldType::Game || WorldType == EWorldType::Editor || WorldType == EWorldType::PIE)
-	{
-		SubsystemCollection.Initialize(this);
-	}
+	InitializeSubsystems();
 
 	FWorldDelegates::OnPreWorldInitialization.Broadcast(this, IVS);
 
@@ -7529,6 +7526,14 @@ void UWorld::InsertPostProcessVolume(IInterface_PostProcessVolume* InVolume)
 void UWorld::RemovePostProcessVolume(IInterface_PostProcessVolume* InVolume)
 {
 	PostProcessVolumes.RemoveSingle(InVolume);
+}
+
+void UWorld::InitializeSubsystems()
+{
+	if (WorldType == EWorldType::Game || WorldType == EWorldType::Editor || WorldType == EWorldType::PIE)
+	{
+		SubsystemCollection.Initialize(this);
+	}
 }
 
 /**
