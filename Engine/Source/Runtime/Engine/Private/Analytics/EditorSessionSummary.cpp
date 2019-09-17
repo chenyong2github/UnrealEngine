@@ -179,9 +179,10 @@ namespace EditorSessionSummaryUtils
 /* FEditorSessionSummaryWriter */
 
 FEditorSessionSummaryWriter::FEditorSessionSummaryWriter() :
-	bInitializedRecords(false)
-	, CurrentSession(nullptr)
+	CurrentSession(nullptr)
+	, LastUserInteractionTime(0.0f)
 	, HeartbeatTimeElapsed(0.0f)
+	, bInitializedRecords(false)
 	, bShutdown(false)
 {
 
@@ -249,7 +250,7 @@ void FEditorSessionSummaryWriter::UpdateTimestamps()
 	CurrentSession->Timestamp = FDateTime::UtcNow();
 	FPlatformMisc::SetStoredValue(SessionSummaryDefs::StoreId, CurrentSessionSectionName, SessionSummaryDefs::TimestampStoreKey, EditorSessionSummaryUtils::TimestampToString(CurrentSession->Timestamp));
 
-	const float IdleSeconds = FPlatformTime::Seconds() - FSlateApplication::Get().GetLastUserInteractionTime();
+	const float IdleSeconds = FPlatformTime::Seconds() - LastUserInteractionTime;
 
 	// 1 + 1 minutes
 	if (IdleSeconds > (60 + 60))
@@ -275,6 +276,14 @@ void FEditorSessionSummaryWriter::UpdateTimestamps()
 
 void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 {
+	if (bShutdown)
+	{
+		return;
+	}
+
+	// cache the last user interaction time so that during a crash we have access to it
+	LastUserInteractionTime = FSlateApplication::Get().GetLastUserInteractionTime();
+
 	HeartbeatTimeElapsed += DeltaTime;
 
 	if (HeartbeatTimeElapsed > (float) SessionSummaryDefs::HeartbeatPeriodSeconds)
@@ -337,7 +346,7 @@ void FEditorSessionSummaryWriter::Shutdown()
 	FCoreDelegates::IsVanillaProductChanged.RemoveAll(this);
 
 	// Skip Slate if terminating, since we can't guarantee which thread called us.
-	if (GIsRequestingExit) 
+	if (!CurrentSession->bIsTerminating) 
 	{
 		FSlateApplication::Get().GetOnModalLoopTickEvent().RemoveAll(this);
 	}
