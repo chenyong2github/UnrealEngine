@@ -57,7 +57,7 @@ FSparseDelegate* FSparseDelegateStorage::ResolveSparseDelegate(const UObject* Ow
 	const UClass* OwningClass = OwningObject->GetClass();
 	while (OwningClass)
 	{
-		if (!OwningClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
+		if (OwningClass->HasAnyClassFlags(CLASS_Native))
 		{
 			if (size_t* DelegateOffset = SparseDelegateObjectOffsets.Find(TPair<FName, FName>(OwningClass->GetFName(), DelegateName)))
 			{
