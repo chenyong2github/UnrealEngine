@@ -1046,7 +1046,13 @@ void FWorldContext::SetCurrentWorld(UWorld* World)
 		}
 	}
 
+	UWorld* OldWorld = ThisCurrentWorld;
 	ThisCurrentWorld = World;
+
+	if (OwningGameInstance)
+	{
+		OwningGameInstance->OnWorldChanged(OldWorld, ThisCurrentWorld);
+	}
 }
 
 void FWorldContext::AddReferencedObjects(FReferenceCollector& Collector, const UObject* ReferencingObject)
