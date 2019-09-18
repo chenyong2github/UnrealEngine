@@ -4,12 +4,15 @@
 #pragma once
 
 #include "DynamicMeshOverlay.h"
+#include "DynamicMeshTriangleAttribute.h"
 
 /** Standard UV overlay type - 2-element float */
 typedef TDynamicMeshVectorOverlay<float, 2, FVector2f> FDynamicMeshUVOverlay;
 /** Standard Normal overlay type - 3-element float */
 typedef TDynamicMeshVectorOverlay<float, 3, FVector3f> FDynamicMeshNormalOverlay;
 
+/** Standard per-triangle integer material ID */
+typedef TDynamicMeshTriangleAttribute<int32, 1> FDynamicMeshMaterialAttribute;
 
 /**
  * FDynamicMeshAttributeSet manages a set of extended attributes for a FDynamicMesh3.
@@ -38,6 +41,13 @@ public:
 	{
 		UV0.Copy(Copy.UV0);
 		Normals0.Copy(Copy.Normals0);
+
+		if (Copy.MaterialIDAttrib)
+		{
+			EnableMaterialID();
+			MaterialIDAttrib->Copy( *(Copy.MaterialIDAttrib) );
+		}
+
 		// parent mesh is *not* copied!
 	}
 
@@ -143,6 +153,29 @@ public:
 	}
 
 
+
+	//
+	// Per-Triangle Material ID
+	//
+
+	bool HasMaterialID() const
+	{
+		return !!MaterialIDAttrib;
+	}
+
+
+	void EnableMaterialID();
+
+	FDynamicMeshMaterialAttribute* GetMaterialID()
+	{
+		return MaterialIDAttrib.Get();
+	}
+
+	const FDynamicMeshMaterialAttribute* GetMaterialID() const
+	{
+		return MaterialIDAttrib.Get();
+	}
+
 protected:
 	/** Parent mesh of this attribute set */
 	FDynamicMesh3* ParentMesh;
@@ -155,6 +188,8 @@ protected:
 	TArray<FDynamicMeshUVOverlay*> UVLayers;
 	TArray<FDynamicMeshNormalOverlay*> NormalLayers;
 
+	TUniquePtr<FDynamicMeshMaterialAttribute> MaterialIDAttrib;
+	
 
 protected:
 	friend class FDynamicMesh3;

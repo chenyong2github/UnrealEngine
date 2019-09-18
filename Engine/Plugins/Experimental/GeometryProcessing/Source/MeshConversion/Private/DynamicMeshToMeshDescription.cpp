@@ -230,8 +230,35 @@ void FDynamicMeshToMeshDescription::Convert_SharedInstances(const FDynamicMesh3*
 	}
 
 
-	FPolygonGroupID AllGroupID = Builder.AppendPolygonGroup();
+	FPolygonGroupID ZeroPolygonGroupID = Builder.AppendPolygonGroup();
 
+	// check if we have per-triangle material ID
+	const FDynamicMeshMaterialAttribute* MaterialIDAttrib =
+		(MeshIn->HasAttributes() && MeshIn->Attributes()->HasMaterialID()) ?
+		MeshIn->Attributes()->GetMaterialID() : nullptr;
+
+	// need to know max material index value so we can reserve groups in MeshDescription
+	int32 MaxPolygonGroupID = 0;
+	if (MaterialIDAttrib)
+	{
+		for (int TriID : MeshIn->TriangleIndicesItr())
+		{
+			int32 MaterialID;
+			MaterialIDAttrib->GetValue(TriID, &MaterialID);
+			MaxPolygonGroupID = FMath::Max(MaterialID, MaxPolygonGroupID);
+		}
+		if (MaxPolygonGroupID == 0)
+		{
+			MaterialIDAttrib = nullptr;
+		}
+		else
+		{
+			for (int k = 0; k < MaxPolygonGroupID; ++k)
+			{
+				Builder.AppendPolygonGroup();
+			}
+		}
+	}
 
 	// create new instances when seen
 	TMap<FIndex3i, FVertexInstanceID> InstanceList;
@@ -256,7 +283,16 @@ void FDynamicMeshToMeshDescription::Convert_SharedInstances(const FDynamicMesh3*
 			InstanceTri[j] = InstanceList[InstanceElem];
 		}
 
-		FPolygonID NewPolygonID = Builder.AppendTriangle(InstanceTri[0], InstanceTri[1], InstanceTri[2], AllGroupID);
+		// transfer material index to MeshDescription polygon group (by convention)
+		FPolygonGroupID UsePolygonGroupID = ZeroPolygonGroupID;
+		if (MaterialIDAttrib)
+		{
+			int32 MaterialID;
+			MaterialIDAttrib->GetValue(TriID, &MaterialID);
+			UsePolygonGroupID = FPolygonGroupID(MaterialID);
+		}
+
+		FPolygonID NewPolygonID = Builder.AppendTriangle(InstanceTri[0], InstanceTri[1], InstanceTri[2], UsePolygonGroupID);
 
 		if (bCopyGroupToPolyGroup)
 		{
@@ -292,7 +328,36 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 		MapV[VertID] = Builder.AppendVertex(MeshIn->GetVertex(VertID));
 	}
 
-	FPolygonGroupID AllGroupID = Builder.AppendPolygonGroup();
+	FPolygonGroupID ZeroPolygonGroupID = Builder.AppendPolygonGroup();
+
+	// check if we have per-triangle material ID
+	const FDynamicMeshMaterialAttribute* MaterialIDAttrib =
+		(MeshIn->HasAttributes() && MeshIn->Attributes()->HasMaterialID()) ?
+		MeshIn->Attributes()->GetMaterialID() : nullptr;
+
+	// need to know max material index value so we can reserve groups in MeshDescription
+	int32 MaxPolygonGroupID = 0;
+	if (MaterialIDAttrib)
+	{
+		for (int TriID : MeshIn->TriangleIndicesItr())
+		{
+			int32 MaterialID;
+			MaterialIDAttrib->GetValue(TriID, &MaterialID);
+			MaxPolygonGroupID = FMath::Max(MaterialID, MaxPolygonGroupID);
+		}
+		if (MaxPolygonGroupID == 0)
+		{
+			MaterialIDAttrib = nullptr;
+		}
+		else
+		{
+			for (int k = 0; k < MaxPolygonGroupID; ++k)
+			{
+				Builder.AppendPolygonGroup();
+			}
+		}
+	}
+
 
 	FVertexID TriVertices[3];
 	FVector2D TriUVs[3];
@@ -325,7 +390,16 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 		TriVertices[1] = MapV[Triangle[1]];
 		TriVertices[2] = MapV[Triangle[2]];
 
-		FPolygonID NewPolygonID = Builder.AppendTriangle(TriVertices, AllGroupID, UseUVs, UseNormals);
+		// transfer material index to MeshDescription polygon group (by convention)
+		FPolygonGroupID UsePolygonGroupID = ZeroPolygonGroupID;
+		if (MaterialIDAttrib)
+		{
+			int32 MaterialID;
+			MaterialIDAttrib->GetValue(TriID, &MaterialID);
+			UsePolygonGroupID = FPolygonGroupID(MaterialID);
+		}
+
+		FPolygonID NewPolygonID = Builder.AppendTriangle(TriVertices, UsePolygonGroupID, UseUVs, UseNormals);
 
 		if (bCopyGroupToPolyGroup)
 		{
