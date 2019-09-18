@@ -1261,6 +1261,9 @@ public:
 	/** Creates a new FX system for this world */
 	void CreateFXSystem();
 
+	/** Initialize all world subsystems */
+	void InitializeSubsystems();
+
 #if WITH_EDITOR
 
 	/** Change the feature level that this world is current rendering with */
