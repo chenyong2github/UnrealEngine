@@ -3,6 +3,7 @@
 #include "IOculusAudioEditorPlugin.h"
 #include "OculusAudioSettings.h"
 #include "OculusAudioSourceSettingsFactory.h"
+#include "OculusAmbisonicSettingsFactory.h"
 
 #include "Modules/ModuleManager.h"
 #include "ISettingsModule.h"
@@ -12,8 +13,8 @@ void FOculusAudioEditorPlugin::StartupModule()
     // Register asset types
     IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
     {
-        TSharedRef<IAssetTypeActions> Action = MakeShareable(new FAssetTypeActions_OculusAudioSourceSettings);
-        AssetTools.RegisterAssetTypeActions(Action);
+		AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_OculusAudioSourceSettings));
+		AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_OculusAmbisonicsSettings));
 
         ISettingsModule* SettingsModule = FModuleManager::Get().GetModulePtr<ISettingsModule>("Settings");
         if (SettingsModule)

@@ -12,5 +12,6 @@ public:
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_ReverbEffect", "Reverb Effect"); }
 	virtual FColor GetTypeColor() const override { return FColor(175, 0, 0); }
 	virtual UClass* GetSupportedClass() const override;
+	virtual const TArray<FText>& GetSubMenus() const override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
 };

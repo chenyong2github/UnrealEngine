@@ -16,6 +16,7 @@ class FAssetTypeActions_TimeSynthClip : public FAssetTypeActions_Base
 public:
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_TimeSynthClip", "Time Synth Clip"); }
 	virtual FColor GetTypeColor() const override { return FColor(155, 175, 100); }
+	virtual const TArray<FText>& GetSubMenus() const override;
 	virtual UClass* GetSupportedClass() const override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
 };

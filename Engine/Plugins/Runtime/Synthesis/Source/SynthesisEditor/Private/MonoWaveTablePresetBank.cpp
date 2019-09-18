@@ -1,13 +1,26 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #include "MonoWaveTablePresetBank.h"
+
 #include "SynthComponents/SynthComponentMonoWaveTable.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
+#define LOCTEXT_NAMESPACE "AssetTypeActions"
+
+
 UClass* FAssetTypeActions_MonoWaveTableSynthPreset::GetSupportedClass() const
 {
 	return UMonoWaveTableSynthPreset::StaticClass();
+}
+
+const TArray<FText>& FAssetTypeActions_MonoWaveTableSynthPreset::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		FText(LOCTEXT("AssetSoundSynthesisSubMenu", "Synthesis"))
+	};
+
+	return SubMenus;
 }
 
 UMonoWaveTableSynthPresetFactory::UMonoWaveTableSynthPresetFactory(const FObjectInitializer& ObjectInitializer)
@@ -26,3 +39,4 @@ UObject* UMonoWaveTableSynthPresetFactory::FactoryCreateNew(UClass* Class, UObje
 
 	return NewPresetBank;
 }
+#undef LOCTEXT_NAMESPACE

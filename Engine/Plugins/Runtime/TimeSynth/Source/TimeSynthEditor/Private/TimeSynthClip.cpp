@@ -1,15 +1,27 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #include "TimeSynthClip.h"
+
 #include "TimeSynthComponent.h"
 #include "Sound/SoundWave.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
 
+#define LOCTEXT_NAMESPACE "AssetTypeActions"
+
 UClass* FAssetTypeActions_TimeSynthClip::GetSupportedClass() const
 {
 	return UTimeSynthClip::StaticClass();
+}
+
+const TArray<FText>& FAssetTypeActions_TimeSynthClip::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		FText(LOCTEXT("AssetSoundSynthesisSubMenu", "Synthesis"))
+	};
+
+	return SubMenus;
 }
 
 UTimeSynthClipFactory::UTimeSynthClipFactory(const FObjectInitializer& ObjectInitializer)
@@ -38,3 +50,5 @@ UObject* UTimeSynthClipFactory::FactoryCreateNew(UClass* Class, UObject* InParen
 	
 	return NewTimeSynthClip;
 }
+
+#undef LOCTEXT_NAMESPACE

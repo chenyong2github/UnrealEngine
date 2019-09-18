@@ -1,13 +1,26 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #include "EpicSynth1PresetBank.h"
+
 #include "SynthComponents/EpicSynth1Component.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
+
+#define LOCTEXT_NAMESPACE "AssetTypeActions"
+
 UClass* FAssetTypeActions_ModularSynthPresetBank::GetSupportedClass() const
 {
 	return UModularSynthPresetBank::StaticClass();
+}
+
+const TArray<FText>& FAssetTypeActions_ModularSynthPresetBank::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		FText(LOCTEXT("AssetSoundSynthesisSubMenu", "Synthesis"))
+	};
+
+	return SubMenus;
 }
 
 UModularSynthPresetBankFactory::UModularSynthPresetBankFactory(const FObjectInitializer& ObjectInitializer)
@@ -26,3 +39,5 @@ UObject* UModularSynthPresetBankFactory::FactoryCreateNew(UClass* Class, UObject
 
 	return NewPresetBank;
 }
+
+#undef LOCTEXT_NAMESPACE
