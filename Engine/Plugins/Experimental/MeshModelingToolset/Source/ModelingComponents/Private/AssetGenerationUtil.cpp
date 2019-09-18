@@ -51,6 +51,7 @@ AActor* AssetGenerationUtil::GenerateStaticMeshActor(
 	// @todo nothing here is specific to AStaticMeshActor...could we pass in a CDO and clone it instead of using SpawnActor?
 	AStaticMeshActor* NewActor = TargetWorld->SpawnActor<AStaticMeshActor>(FVector::ZeroVector, Rotation, SpawnInfo);
 	NewActor->Rename(*UniqueMeshName);
+	NewActor->SetActorLabel(*UniqueMeshName);
 
 	// construct new static mesh
 	FStaticMeshComponentBuilder Builder;
