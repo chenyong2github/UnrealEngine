@@ -1265,7 +1265,7 @@ static void RecordWorldCountsToCSV(UWorld* World)
 
 			TSortedMap<FName, int32, FDefaultAllocator, FNameFastLess> TickContextToCountMap;
 			int32 EnabledCount;
-			FTickTaskManagerInterface::Get().GetEnabledTickFunctionCounts(World, TickContextToCountMap, EnabledCount, bDetailed);
+			FTickTaskManagerInterface::Get().GetEnabledTickFunctionCounts(World, TickContextToCountMap, EnabledCount, bDetailed, true);
 
 			for (auto It = TickContextToCountMap.CreateConstIterator(); It; ++It)
 			{
