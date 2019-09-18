@@ -389,6 +389,9 @@ namespace AutomationTool
 					case "ForEach":
 						ReadForEach(ChildElement, x => ReadGraphBody(x, BaseDirectory, Arguments));
 						break;
+					case "Expand":
+						ReadExpand(ChildElement, x => ReadGraphBody(x, BaseDirectory, Arguments));
+						break;
 					default:
 						LogError(ChildElement, "Invalid element '{0}'", ChildElement.Name);
 						break;
@@ -910,6 +913,9 @@ namespace AutomationTool
 						break;
 					case "ForEach":
 						ReadForEach(ChildElement, x => ReadAgentBody(x, ParentAgent, ControllingTrigger));
+						break;
+					case "Expand":
+						ReadExpand(ChildElement, x => ReadAgentBody(x, ParentAgent, ControllingTrigger));
 						break;
 					default:
 						LogError(ChildElement, "Unexpected element type '{0}'", ChildElement.Name);
