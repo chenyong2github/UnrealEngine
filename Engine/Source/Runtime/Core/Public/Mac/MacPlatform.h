@@ -8,6 +8,8 @@
 
 #include "Clang/ClangPlatform.h"
 
+#define PLATFORM_MAC_USE_CHAR16 1
+
 /**
 * Mac specific types
 **/
@@ -16,7 +18,12 @@ struct FMacPlatformTypes : public FGenericPlatformTypes
 	typedef unsigned int		DWORD;
 	typedef size_t				SIZE_T;
 	typedef decltype(NULL)		TYPE_OF_NULL;
+#if PLATFORM_MAC_USE_CHAR16
+	typedef char16_t			WIDECHAR;
+	typedef WIDECHAR			TCHAR;
+#else
 	typedef char16_t			CHAR16;
+#endif
 };
 
 typedef FMacPlatformTypes FPlatformTypes;
@@ -37,7 +44,11 @@ typedef FMacPlatformTypes FPlatformTypes;
 //#define PLATFORM_USE_LS_SPEC_FOR_WIDECHAR			1
 #define PLATFORM_USE_SYSTEM_VSWPRINTF				0
 #define PLATFORM_COMPILER_DISTINGUISHES_INT_AND_LONG			1
+#if PLATFORM_MAC_USE_CHAR16
+#define PLATFORM_TCHAR_IS_CHAR16					1
+#else
 #define PLATFORM_TCHAR_IS_4_BYTES					1
+#endif
 #define PLATFORM_HAS_BSD_TIME						1
 //#define PLATFORM_USE_PTHREADS						1
 #define PLATFORM_MAX_FILEPATH_LENGTH_DEPRECATED		MAC_MAX_PATH
