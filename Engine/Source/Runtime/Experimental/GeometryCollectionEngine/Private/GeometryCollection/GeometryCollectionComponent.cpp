@@ -243,7 +243,7 @@ void UGeometryCollectionComponent::BeginPlay()
 }
 
 
-void UGeometryCollectionComponent::EndPlay(EEndPlayReason::Type ReasonEnd)
+void UGeometryCollectionComponent::EndPlay(const EEndPlayReason::Type ReasonEnd)
 {
 #if WITH_EDITOR && WITH_EDITORONLY_DATA
 	// Track our editor component if needed for syncing simulations back from PIE on shutdown
