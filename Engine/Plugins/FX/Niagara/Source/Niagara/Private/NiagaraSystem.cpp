@@ -1045,9 +1045,9 @@ bool UNiagaraSystem::RequestCompile(bool bForce)
 #if WITH_EDITORONLY_DATA
 void UNiagaraSystem::InitEmitterCompiledData()
 {
+	EmitterCompiledData.Empty();
 	if (SystemSpawnScript->GetVMExecutableData().IsValid() && SystemUpdateScript->GetVMExecutableData().IsValid())
 	{
-		EmitterCompiledData.Empty();
 		EmitterCompiledData.SetNum(EmitterHandles.Num());
 		FNiagaraTypeDefinition SpawnInfoDef = FNiagaraTypeDefinition(FNiagaraSpawnInfo::StaticStruct());
 
