@@ -110,6 +110,7 @@ public class UnrealEd : ModuleRules
 			new string[]
 			{
 				"AssetRegistry",
+				"AssetTagsEditor",
 				"LevelSequence",
 				"AnimGraph",
 				"AppFramework",
@@ -278,6 +279,7 @@ public class UnrealEd : ModuleRules
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetRegistry",
+				"AssetTagsEditor",
 				"CollectionManager",
 				"BlueprintGraph",
 				"AddContentDialog",

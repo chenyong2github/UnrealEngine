@@ -54,8 +54,12 @@ USTRUCT(BlueprintType)
 struct FAssetData
 {
 	GENERATED_BODY()
-public:
 
+public:
+	/** The prefix used for collection entries inside TagsAndValues */
+	static constexpr TCHAR CollectionTagPrefix[] = TEXT("CL_");
+
+public:
 	/** The object path for the asset in the form PackageName.AssetName. Only top level objects in a package can have AssetData */
 	UPROPERTY(BlueprintReadOnly, Category=AssetData, transient)
 	FName ObjectPath;

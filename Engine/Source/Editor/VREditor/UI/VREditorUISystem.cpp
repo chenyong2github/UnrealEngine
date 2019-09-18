@@ -953,16 +953,11 @@ void UVREditorUISystem::CreateUIs()
 			Config.ThumbnailScale = 0.4f;
 			Config.bCanShowFilters = true;
 			Config.bUsePathPicker = true;
-			Config.bShowAssetPathTree = true;
-			Config.bAlwaysShowCollections = false;
 			Config.bShowBottomToolbar = true;
 			Config.bCanShowLockButton = false;
 
 			if( GIsDemoMode )
 			{
-				Config.bShowAssetPathTree = false;
-				Config.bAlwaysShowCollections = true;
-
 				Config.SelectedCollectionName.Name = TEXT( "Demo" );
 				Config.SelectedCollectionName.Type = ECollectionShareType::CST_Shared;
 			}

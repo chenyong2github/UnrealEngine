@@ -106,6 +106,12 @@ public:
 	/** Set the GUID of the collection we are parented under */
 	FORCEINLINE void SetParentCollectionGuid(const FGuid& NewGuid) { ParentCollectionGuid = NewGuid; }
 
+	/** Get the color of the collection (if any) */
+	FORCEINLINE TOptional<FLinearColor> GetCollectionColor() const { return CollectionColor; }
+
+	/** Set the color of the collection (if any) */
+	FORCEINLINE void SetCollectionColor(const TOptional<FLinearColor>& NewColor) { CollectionColor = NewColor; }
+
 	/** Returns the file version of the collection */
 	FORCEINLINE ECollectionVersion::Type GetCollectionVersion() const { return FileVersion; }
 
@@ -149,12 +155,16 @@ private:
 		void TakeSnapshot(const FCollection& InCollection)
 		{
 			ParentCollectionGuid = InCollection.ParentCollectionGuid;
+			CollectionColor = InCollection.CollectionColor;
 			ObjectSet = InCollection.ObjectSet;
 			DynamicQueryText = InCollection.DynamicQueryText;
 		}
 
 		/** The GUID of the collection we are parented under */
 		FGuid ParentCollectionGuid;
+
+		/** The color of the collection (if set) */
+		TOptional<FLinearColor> CollectionColor;
 
 		/** The set of objects in the collection. Takes the form PackageName.AssetName. Static collections only. */
 		TSet<FName> ObjectSet;
@@ -171,6 +181,9 @@ private:
 
 	/** The GUID of the collection we are parented under */
 	FGuid ParentCollectionGuid;
+
+	/** The color of the collection (if any) */
+	TOptional<FLinearColor> CollectionColor;
 
 	/** Source control is used if true */
 	bool bUseSCC;

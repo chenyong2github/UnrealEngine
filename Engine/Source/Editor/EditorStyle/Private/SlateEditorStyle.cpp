@@ -6551,6 +6551,64 @@ void FSlateEditorStyle::FStyle::SetupContentBrowserStyle()
 		Set( "ContentBrowser.FilterNameFont", DEFAULT_FONT( "Regular", 10 ) );
 		Set( "ContentBrowser.FilterButtonBorder", new BOX_BRUSH( "Common/RoundedSelection_16x", FMargin(4.0f/16.0f) ) );
 
+		// Sources view
+		Set("ContentBrowser.Sources.Paths", new IMAGE_BRUSH("ContentBrowser/Sources_Paths_16x", Icon16x16));
+		Set("ContentBrowser.Sources.Collections", new IMAGE_BRUSH("ContentBrowser/Sources_Collections_Standard_16x", Icon16x16));
+		Set("ContentBrowser.Sources.Collections.Compact", new IMAGE_BRUSH("ContentBrowser/Sources_Collections_Compact_16x", Icon16x16));
+
+		// Asset tags (common)
+		Set("ContentBrowser.AssetTagBackground", new BOX_BRUSH("Common/RoundedSelection_16x", FMargin(4.0f/16.0f)));
+		Set("ContentBrowser.AssetTagTableRow", FTableRowStyle(NormalTableRowStyle)
+			.SetEvenRowBackgroundBrush(FSlateNoResource())
+			.SetEvenRowBackgroundHoveredBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
+			.SetOddRowBackgroundBrush(FSlateNoResource())
+			.SetOddRowBackgroundHoveredBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
+			.SetActiveBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), SelectionColor))
+			.SetActiveHoveredBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), SelectionColor))
+			.SetInactiveBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), SelectionColor_Inactive))
+			.SetInactiveHoveredBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), SelectionColor_Inactive))
+			.SetActiveHighlightedBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), HighlightColor))
+			.SetInactiveHighlightedBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), HighlightColor))
+			.SetTextColor(DefaultForeground)
+			.SetSelectedTextColor(DefaultForeground)
+			);
+
+		// Asset tags (standard)
+		Set("ContentBrowser.AssetTagButton", FCheckBoxStyle()
+			.SetUncheckedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat", FVector2D(14.0f, 28.0f)))
+			.SetUncheckedHoveredImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat", FVector2D(14.0f, 28.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+			.SetUncheckedPressedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat", FVector2D(14.0f, 28.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+			.SetUndeterminedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat", FVector2D(14.0f, 28.0f)))
+			.SetUndeterminedHoveredImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat", FVector2D(14.0f, 28.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+			.SetUndeterminedPressedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat", FVector2D(14.0f, 28.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+			.SetCheckedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat", FVector2D(14.0f, 28.0f)))
+			.SetCheckedHoveredImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat", FVector2D(14.0f, 28.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+			.SetCheckedPressedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat", FVector2D(14.0f, 28.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+			.SetPadding(0.0f)
+			);
+		Set("ContentBrowser.AssetTagNameFont", DEFAULT_FONT("Bold", 11));
+		Set("ContentBrowser.AssetTagNamePadding", FMargin(4.0f));
+		Set("ContentBrowser.AssetTagCountFont", DEFAULT_FONT("Bold", 8));
+		Set("ContentBrowser.AssetTagCountPadding", FMargin(4.0f));
+
+		// Asset tags (compact)
+		Set("ContentBrowser.AssetTagButton.Compact", FCheckBoxStyle()
+			.SetUncheckedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat_Compact", FVector2D(10.0f, 20.0f)))
+			.SetUncheckedHoveredImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat_Compact", FVector2D(10.0f, 20.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+			.SetUncheckedPressedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat_Compact", FVector2D(10.0f, 20.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+			.SetUndeterminedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat_Compact", FVector2D(10.0f, 20.0f)))
+			.SetUndeterminedHoveredImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat_Compact", FVector2D(10.0f, 20.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+			.SetUndeterminedPressedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat_Compact", FVector2D(10.0f, 20.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+			.SetCheckedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat_Compact", FVector2D(10.0f, 20.0f)))
+			.SetCheckedHoveredImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat_Compact", FVector2D(10.0f, 20.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+			.SetCheckedPressedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat_Compact", FVector2D(10.0f, 20.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+			.SetPadding(0.0f)
+			);
+		Set("ContentBrowser.AssetTagNameFont.Compact", DEFAULT_FONT("Regular", 10));
+		Set("ContentBrowser.AssetTagNamePadding.Compact", FMargin(2.0f));
+		Set("ContentBrowser.AssetTagCountFont.Compact", DEFAULT_FONT("Light", 8));
+		Set("ContentBrowser.AssetTagCountPadding.Compact", FMargin(2.0f));
+
 		// Thumbnail editing mode
 		Set( "ContentBrowser.EditModeLabelFont", FTextBlockStyle(NormalText)
 			.SetFont( DEFAULT_FONT( "Regular", 10 ) )

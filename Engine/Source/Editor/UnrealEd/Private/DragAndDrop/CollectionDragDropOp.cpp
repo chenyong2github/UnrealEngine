@@ -5,8 +5,9 @@
 #include "CollectionManagerModule.h"
 #include "AssetRegistryModule.h"
 #include "IAssetRegistry.h"
+#include "SAssetTagItem.h"
 
-TArray<FAssetData>  FCollectionDragDropOp::GetAssets() const
+TArray<FAssetData> FCollectionDragDropOp::GetAssets() const
 {
 	ICollectionManager& CollectionManager = FModuleManager::LoadModuleChecked<FCollectionManagerModule>("CollectionManager").Get();
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -32,4 +33,29 @@ TArray<FAssetData>  FCollectionDragDropOp::GetAssets() const
 	}
 	
 	return AssetDatas;
+}
+
+TSharedPtr<SWidget> FCollectionDragDropOp::GetDefaultDecorator() const
+{
+	return SNew(SBorder)
+		.Padding(0)
+		.BorderImage(FEditorStyle::GetBrush("ContentBrowser.AssetDragDropTooltipBackground"))
+		//.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		[
+			SNew(SAssetTagItem)
+			.ViewMode(AssetTagViewMode)
+			.DisplayName(this, &FCollectionDragDropOp::GetDecoratorText)
+		];
+}
+
+FText FCollectionDragDropOp::GetDecoratorText() const
+{
+	if (CurrentHoverText.IsEmpty() && Collections.Num() > 0)
+	{
+		return (Collections.Num() == 1)
+			? FText::FromName(Collections[0].Name)
+			: FText::Format(NSLOCTEXT("ContentBrowser", "CollectionDragDropDescription", "{0} and {1} {1}|plural(one=other,other=others)"), FText::FromName(Collections[0].Name), Collections.Num() - 1);
+	}
+
+	return CurrentHoverText;
 }
