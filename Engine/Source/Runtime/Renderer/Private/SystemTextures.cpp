@@ -395,13 +395,12 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 						float Angle  = (PI/16.0f)  * ((((x + y) & 0x3) << 2) + (x & 0x3));
 						float Step	 = 0.5f + ((1.0f/8.0f) * ((y - x) & 0x3));
 
-						float ScaleCos = FMath::Cos(Angle) * Step;
-						float ScaleSin = FMath::Sin(Angle) * Step;
+						float ScaleCos = FMath::Cos(Angle) ;
+						float ScaleSin = FMath::Sin(Angle) ;
 			
 						Dest[0] = (uint8_t)(ScaleCos*127.5f + 127.5f);
 						Dest[1] = (uint8_t)(ScaleSin*127.5f + 127.5f);
 					}
-
 				}
 			}
 			RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)GTAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, false);
