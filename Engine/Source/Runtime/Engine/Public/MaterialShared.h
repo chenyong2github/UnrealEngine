@@ -2634,7 +2634,7 @@ public:
 private:
 	TArray<uint8> Bytes;
 	TArray<FMaterialResourceLocOnDisk> Locs;
-	TMap<NAME_INDEX, int32> Name2Indices;
+	TMap<FNameEntryId, int32> Name2Indices;
 	FArchive* ParentAr;
 
 	void SerializeToParentArchive();

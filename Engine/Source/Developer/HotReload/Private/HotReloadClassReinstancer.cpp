@@ -146,8 +146,8 @@ void FHotReloadClassReinstancer::SerializeCDOProperties(UObject* InObject, FHotR
 		virtual FArchive& operator<<(FName& InName) override
 		{
 			FArchive& Ar = *this;
-			NAME_INDEX ComparisonIndex = InName.GetComparisonIndex();
-			NAME_INDEX DisplayIndex = InName.GetDisplayIndex();
+			FNameEntryId ComparisonIndex = InName.GetComparisonIndex();
+			FNameEntryId DisplayIndex = InName.GetDisplayIndex();
 			int32 Number = InName.GetNumber();
 			Ar << ComparisonIndex;
 			Ar << DisplayIndex;
@@ -385,8 +385,8 @@ void FHotReloadClassReinstancer::UpdateDefaultProperties()
 		virtual FArchive& operator<<(FName& InName) override
 		{
 			FArchive& Ar = *this;
-			NAME_INDEX ComparisonIndex = InName.GetComparisonIndex();
-			NAME_INDEX DisplayIndex = InName.GetDisplayIndex();
+			FNameEntryId ComparisonIndex = InName.GetComparisonIndex();
+			FNameEntryId DisplayIndex = InName.GetDisplayIndex();
 			int32 Number = InName.GetNumber();
 			Ar << ComparisonIndex;
 			Ar << DisplayIndex;
