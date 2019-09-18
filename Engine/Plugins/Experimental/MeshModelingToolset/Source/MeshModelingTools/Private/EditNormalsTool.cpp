@@ -263,9 +263,9 @@ void UEditNormalsTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResul
 		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](FMeshDescription* MeshDescription)
 		{
 			FDynamicMeshToMeshDescription Converter;
-			if (BasicProperties->bRecomputeNormalTopologyAndEdgeSharpness)
+			if (BasicProperties->bRecomputeNormalTopologyAndEdgeSharpness || BasicProperties->bInvertNormals)
 			{
-				// full conversion if normal topology changed
+				// full conversion if normal topology changed or faces were inverted
 				Converter.Convert(Results[ComponentIdx]->Mesh.Get(), *MeshDescription);
 			}
 			else

@@ -332,7 +332,7 @@ void FMeshDescriptionBuilder::RecalculateInstanceNormals()
 			FVector3d B = GetPosition(TriangleVertexInstanceIDs[1]);
 			FVector3d C = GetPosition(TriangleVertexInstanceIDs[2]);
 			double Area = 1.0;
-			FVector FaceNormal = VectorUtil::FastNormalArea(A, B, C, Area);
+			FVector FaceNormal = VectorUtil::NormalArea(A, B, C, Area);
 			if (Area > FMathf::ZeroTolerance)
 			{
 				FaceNormal *= Area;

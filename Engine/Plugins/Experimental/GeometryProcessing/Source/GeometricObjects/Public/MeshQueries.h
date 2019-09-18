@@ -65,7 +65,7 @@ public:
 		FTriangle3d Triangle;
 		Mesh.GetTriVertices(TriIdx, Triangle.V[0], Triangle.V[1], Triangle.V[2]);
 		Centroid = Triangle.Centroid();
-		Normal = VectorUtil::FastNormalArea(Triangle.V[0], Triangle.V[1], Triangle.V[2], Area);
+		Normal = VectorUtil::NormalArea(Triangle.V[0], Triangle.V[1], Triangle.V[2], Area);
 	}
 
 	static FAxisAlignedBox3d GetTriBounds(const TriangleMeshType& Mesh, int TID)

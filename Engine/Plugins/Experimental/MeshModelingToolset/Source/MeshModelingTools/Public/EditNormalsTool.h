@@ -53,27 +53,27 @@ public:
 
 
 	/** Recompute all mesh normals */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "!bRecomputeNormalTopologyAndEdgeSharpness"))
 	bool bRecomputeNormals;
 
 	/** Choose the method for computing vertex normals */
 	UPROPERTY(EditAnywhere, Category = Options)
 	ENormalCalculationMethod NormalCalculationMethod;
 
-	/** Invert (flip) all mesh normals */
+	/** Invert (flip) all mesh normals and associated triangle orientations */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bInvertNormals;
 
-	/** Choose where to create sharp edges by having multiple normals on the same vertices, using the change in normals of adjacent faces */
+	/** Choose where to create sharp edges by having multiple normals on the same vertices, using the change in normals of adjacent faces.  If enabled, normals will always be recomputed. */
 	UPROPERTY(EditAnywhere, Category = NormalsTopology)
 	bool bRecomputeNormalTopologyAndEdgeSharpness;
 
 	/** Threshold on angle of change in face normals across an edge, above which we create a sharp edge if bSplitNormals is true */
-	UPROPERTY(EditAnywhere, Category = NormalsTopology, meta = (UIMin = "0.0", UIMax = "180.0", ClampMin = "0.0", ClampMax = "180.0"))
+	UPROPERTY(EditAnywhere, Category = NormalsTopology, meta = (UIMin = "0.0", UIMax = "180.0", ClampMin = "0.0", ClampMax = "180.0", EditCondition = "bRecomputeNormalTopologyAndEdgeSharpness"))
 	float SharpEdgeAngleThreshold;
 
-	/** If split normals is enabl*/
-	UPROPERTY(EditAnywhere, Category = NormalsTopology)
+	/** Give separate normals to each triangle at 'sharp' vertices where the coincident triangle normals change (across multiple triangles) by more than the angle threshold (e.g. a cone tip) */
+	UPROPERTY(EditAnywhere, Category = NormalsTopology, meta = (EditCondition = "bRecomputeNormalTopologyAndEdgeSharpness"))
 	bool bAllowSharpVertices;
 };
 

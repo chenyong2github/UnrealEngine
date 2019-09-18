@@ -32,6 +32,28 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 		ResultMesh->EnableAttributes();
 	}
 
+	// if you split normals you must always recompute as well
+	bool bNeedsRecompute = bRecomputeNormals || bSplitNormals;
+
+	if (bInvertNormals)
+	{
+		for (int TID : ResultMesh->TriangleIndicesItr())
+		{
+			ResultMesh->ReverseTriOrientation(TID);
+		}
+
+		// also reverse the normal directions (but only if a recompute isn't going to do it for us below)
+		if (!bNeedsRecompute)
+		{
+			FDynamicMeshNormalOverlay* Normals = ResultMesh->Attributes()->PrimaryNormals();
+			for (int ElID : Normals->ElementIndicesItr())
+			{
+				auto El = Normals->GetElement(ElID);
+				Normals->SetElement(ElID, -El);
+			}
+		}
+	}
+
 	if (bSplitNormals)
 	{
 		FMeshNormals FaceNormals(ResultMesh.Get());
@@ -47,21 +69,11 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 	bool bAreaWeight = (NormalCalculationMethod == ENormalCalculationMethod::AreaWeighted || NormalCalculationMethod == ENormalCalculationMethod::AreaAngleWeighting);
 	bool bAngleWeight = (NormalCalculationMethod == ENormalCalculationMethod::AngleWeighted || NormalCalculationMethod == ENormalCalculationMethod::AreaAngleWeighting);
 
-	if (bSplitNormals || bRecomputeNormals) // split normals requires recompute, as it will nuke whatever normals were in the original overlay
+	if (bNeedsRecompute)
 	{
 		FMeshNormals MeshNormals(ResultMesh.Get());
 		MeshNormals.RecomputeOverlayNormals(ResultMesh->Attributes()->PrimaryNormals(), bAreaWeight, bAngleWeight);
-		MeshNormals.CopyToOverlay(ResultMesh->Attributes()->PrimaryNormals(), bInvertNormals);
-	}
-	else if (bInvertNormals)
-	{
-		// just invert with no recompute
-		FDynamicMeshNormalOverlay* Normals = ResultMesh->Attributes()->PrimaryNormals();
-		for (int ElID : Normals->ElementIndicesItr())
-		{
-			auto El = Normals->GetElement(ElID);
-			Normals->SetElement(ElID, -El);
-		}
+		MeshNormals.CopyToOverlay(ResultMesh->Attributes()->PrimaryNormals(), false);
 	}
 
 }

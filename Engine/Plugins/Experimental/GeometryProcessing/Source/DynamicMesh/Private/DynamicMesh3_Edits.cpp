@@ -1545,8 +1545,8 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 	// alternative that detects normal flip of triangle tcd. This is a more 
 	// robust geometric test, but fails if tri is degenerate...also more expensive
 	//FVector3d otherv = GetVertex(tcd_otherv);
-	//FVector3d Ncd = TMathUtil.FastNormalDirection(GetVertex(c), GetVertex(d), otherv);
-	//FVector3d Nab = TMathUtil.FastNormalDirection(GetVertex(a), GetVertex(b), otherv);
+	//FVector3d Ncd = VectorUtil::NormalDirection(GetVertex(c), GetVertex(d), otherv);
+	//FVector3d Nab = VectorUtil::NormalDirection(GetVertex(a), GetVertex(b), otherv);
 	//if (Ncd.Dot(Nab) < 0)
 	//return EMeshResult::Failed_SameOrientation;
 
