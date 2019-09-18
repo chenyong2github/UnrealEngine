@@ -96,8 +96,6 @@ public:
 	/** Translate the MeshDescription vertex positions */
 	void Translate(const FVector& Translation);
 
-	/** Calculate normals on the MeshDescription vertex instances, using area-weighted face average */
-	void RecalculateInstanceNormals();
 
 	/** Return the current bounding box of the mesh */
 	FBox ComputeBoundingBox() const;

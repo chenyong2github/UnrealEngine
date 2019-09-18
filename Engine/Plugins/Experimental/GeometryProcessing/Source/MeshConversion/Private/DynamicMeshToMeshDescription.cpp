@@ -5,33 +5,9 @@
 #include "DynamicMeshAttributeSet.h"
 #include "DynamicMeshOverlay.h"
 #include "MeshDescriptionBuilder.h"
-#include "MeshNormals.h"
 
 
 
-void FDynamicMeshToMeshDescription::Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bRecomputeNormals)
-{
-	FMeshDescriptionBuilder Builder;
-	Builder.SetMeshDescription(&MeshOut);
-
-	check(MeshIn->IsCompactV());
-	check(MeshIn->VertexCount() == MeshOut.Vertices().Num());
-
-	// update positions
-	for (int VertID : MeshIn->VertexIndicesItr())
-	{
-		Builder.SetPosition(FVertexID(VertID), MeshIn->GetVertex(VertID));
-	}
-
-	if (bRecomputeNormals)
-	{
-		Builder.RecalculateInstanceNormals();
-	}
-	else
-	{
-		UpdateAttributes(MeshIn, MeshOut, true, false);
-	}
-}
 
 
 namespace DynamicMeshToMeshDescriptionConversionHelper
@@ -64,6 +40,25 @@ namespace DynamicMeshToMeshDescriptionConversionHelper
 		}
 	}
 }
+
+
+void FDynamicMeshToMeshDescription::Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut)
+{
+	FMeshDescriptionBuilder Builder;
+	Builder.SetMeshDescription(&MeshOut);
+
+	check(MeshIn->IsCompactV());
+	check(MeshIn->VertexCount() == MeshOut.Vertices().Num());
+
+	// update positions
+	for (int VertID : MeshIn->VertexIndicesItr())
+	{
+		Builder.SetPosition(FVertexID(VertID), MeshIn->GetVertex(VertID));
+	}
+
+	UpdateAttributes(MeshIn, MeshOut, true, false);
+}
+
 
 
 void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bUpdateNormals, bool bUpdateUVs)
@@ -164,9 +159,6 @@ void FDynamicMeshToMeshDescription::Convert_NoAttributes(const FDynamicMesh3* Me
 		MapV[VertID] = Builder.AppendVertex(MeshIn->GetVertex(VertID));
 	}
 
-	FMeshNormals VertexNormals(MeshIn);
-	VertexNormals.ComputeVertexNormals();
-
 	FPolygonGroupID AllGroupID = Builder.AppendPolygonGroup();
 
 	// create new instances when seen
@@ -184,7 +176,9 @@ void FDynamicMeshToMeshDescription::Convert_NoAttributes(const FDynamicMesh3* Me
 			{
 				FVertexInstanceID NewInstanceID = Builder.AppendInstance(MapV[Triangle[j]]);
 				InstanceList.Add(InstanceElem, NewInstanceID);
-				Builder.SetInstance(NewInstanceID, FVector2f::Zero(), VertexNormals[Triangle[j]]);
+				FVector2D UV = MeshIn->HasVertexUVs() ? MeshIn->GetVertexUV(Triangle[j]) : FVector2D::ZeroVector;
+				FVector Normal = MeshIn->HasVertexNormals() ? MeshIn->GetVertexNormal(Triangle[j]) : FVector::UpVector;
+				Builder.SetInstance(NewInstanceID, UV, Normal);
 			}
 			InstanceTri[j] = InstanceList[InstanceElem];
 		}
@@ -195,8 +189,6 @@ void FDynamicMeshToMeshDescription::Convert_NoAttributes(const FDynamicMesh3* Me
 			Builder.SetPolyGroupID(NewPolygonID, MeshIn->GetTriangleGroup(TriID));
 		}
 	}
-
-	Builder.RecalculateInstanceNormals();
 }
 
 

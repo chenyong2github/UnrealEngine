@@ -8,6 +8,8 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAttributeSet.h"
 
+#include "MeshNormals.h"
+
 namespace ExtendedMeshAttribute
 {
 	const FName PolyTriGroups("PolyTriGroups");
@@ -312,52 +314,6 @@ void FMeshDescriptionBuilder::SetAllEdgesHardness(bool bHard)
 	}
 }
 
-
-
-void FMeshDescriptionBuilder::RecalculateInstanceNormals()
-{
-	for (int k = 0; k < InstanceNormals.GetNumElements(); ++k)
-	{
-		InstanceNormals.Set(FVertexInstanceID(k), 0, FVector::ZeroVector);
-	}
-
-	const FPolygonArray& Polygons = MeshDescription->Polygons();
-	for (const FPolygonID PolygonID : Polygons.GetElementIDs())
-	{
-		const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
-		for (const FTriangleID TriangleID : TriangleIDs)
-		{
-			TArrayView<const FVertexInstanceID> TriangleVertexInstanceIDs = MeshDescription->GetTriangleVertexInstances(TriangleID);
-			FVector3d A = GetPosition(TriangleVertexInstanceIDs[0]);
-			FVector3d B = GetPosition(TriangleVertexInstanceIDs[1]);
-			FVector3d C = GetPosition(TriangleVertexInstanceIDs[2]);
-			double Area = 1.0;
-			FVector FaceNormal = VectorUtil::NormalArea(A, B, C, Area);
-			if (Area > FMathf::ZeroTolerance)
-			{
-				FaceNormal *= Area;
-				InstanceNormals.Set(TriangleVertexInstanceIDs[0],
-					InstanceNormals.Get(TriangleVertexInstanceIDs[0], 0) + FaceNormal);
-				InstanceNormals.Set(TriangleVertexInstanceIDs[1],
-					InstanceNormals.Get(TriangleVertexInstanceIDs[1], 0) + FaceNormal);
-				InstanceNormals.Set(TriangleVertexInstanceIDs[2],
-					InstanceNormals.Get(TriangleVertexInstanceIDs[2], 0) + FaceNormal);
-			}
-		}
-	}
-
-
-	for (int k = 0; k < InstanceNormals.GetNumElements(); ++k)
-	{
-		FVector SumNormal = InstanceNormals.Get(FVertexInstanceID(k), 0);
-		SumNormal.Normalize();
-		if ( SumNormal.Size() < 0.99 )
-		{ 
-			SumNormal = FVector(1, 0, 0);
-		}
-		InstanceNormals.Set(FVertexInstanceID(k), 0, SumNormal);
-	}
-}
 
 
 
