@@ -463,7 +463,7 @@ static void GetRuntimeVirtualTextureLODRange(TArray<class FStaticMeshBatchReleva
 		}
 	}
 
-	check(OutMinLOD <= OutMaxLOD);
+	//check(OutMinLOD <= OutMaxLOD);
 }
 
 int32 FPrimitiveSceneInfo::UpdateStaticLightingBuffer()
