@@ -1362,11 +1362,6 @@ public:
 	{
 	}
 
-	static void HidePlatformStartupScreen()
-	{
-
-	}
-
 #if !UE_BUILD_SHIPPING
 	/** 
 	 * Returns any platform specific warning messages we want printed on screen
