@@ -2317,9 +2317,9 @@ IAllocatedVirtualTexture* FMaterialRenderProxy::AllocateVTStack(const FMaterialR
 
 	FAllocatedVTDescription VTDesc;
 	VTDesc.Dimensions = 2;
-	VTDesc.NumLayers = NumLayers;
+	VTDesc.NumTextureLayers = NumLayers;
 	bool bFoundValidLayer = false;
-	for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumLayers; ++LayerIndex)
+	for (uint32 LayerIndex = 0u; LayerIndex < NumLayers; ++LayerIndex)
 	{
 		const UTexture2D* Texture = LayerTextures[LayerIndex];
 		const FVirtualTexture2DResource* VirtualTextureResourceForLayer = (Texture && Texture->IsCurrentlyVirtualTextured()) ? (FVirtualTexture2DResource*)Texture->Resource : nullptr;
@@ -2333,7 +2333,7 @@ IAllocatedVirtualTexture* FMaterialRenderProxy::AllocateVTStack(const FMaterialR
 			VTDesc.TileBorderSize = VirtualTextureResourceForLayer->GetBorderSize();
 			const FVirtualTextureProducerHandle& ProducerHandle = VirtualTextureResourceForLayer->GetProducerHandle();
 			VTDesc.ProducerHandle[LayerIndex] = ProducerHandle;
-			VTDesc.LocalLayerToProduce[LayerIndex] = 0u;
+			VTDesc.ProducerLayerIndex[LayerIndex] = 0u;
 			GetRendererModule().AddVirtualTextureProducerDestroyedCallback(ProducerHandle, &OnVirtualTextureDestroyedCB, const_cast<FMaterialRenderProxy*>(this));
 			bFoundValidLayer = true;
 		}

@@ -15,32 +15,37 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 	uint32 InWidthInBlocks,
 	uint32 InHeightInBlocks,
 	uint32 InDepthInTiles)
-	: IAllocatedVirtualTexture(InDesc, InSpace->GetID(), InSpace->GetDescription().Format, InBlockWidthInTiles, InBlockHeightInTiles, InWidthInBlocks, InHeightInBlocks, InDepthInTiles)
-	, Space(InSpace)
+	: IAllocatedVirtualTexture(InDesc, InSpace->GetID(), InSpace->GetPageTableFormat(), InBlockWidthInTiles, InBlockHeightInTiles, InWidthInBlocks, InHeightInBlocks, InDepthInTiles)
 	, RefCount(1)
 	, FrameAllocated(InFrame)
-	, NumUniqueProducers(0u)
+	, Space(InSpace)
 {
 	check(IsInRenderingThread());
-	FMemory::Memzero(UniqueProducerHandles);
-	FMemory::Memzero(UniqueProducerMipBias);
+	FMemory::Memzero(TextureLayers);
 
-	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumLayers; ++LayerIndex)
+	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumTextureLayers; ++LayerIndex)
 	{
-		FVirtualTextureProducer* Producer = InProducers[LayerIndex];
+		FVirtualTextureProducer const* Producer = InProducers[LayerIndex];
 		if (Producer)
 		{
-			PhysicalSpace[LayerIndex] = Producer->GetPhysicalSpace(InDesc.LocalLayerToProduce[LayerIndex]);
-			UniqueProducerIndexForLayer[LayerIndex] = AddUniqueProducer(InDesc.ProducerHandle[LayerIndex], Producer);
-		}
-		else
-		{
-			UniqueProducerIndexForLayer[LayerIndex] = 0xff;
+			const uint32 UniqueProducerIndex = AddUniqueProducer(InDesc.ProducerHandle[LayerIndex], Producer->GetDescription());
+
+			const int32 ProducerLayerIndex = InDesc.ProducerLayerIndex[LayerIndex];
+			const uint32 ProducerPhysicalGroupIndex = Producer->GetPhysicalGroupIndexForTextureLayer(ProducerLayerIndex);
+			FVirtualTexturePhysicalSpace* PhysicalSpace = Producer->GetPhysicalSpaceForPhysicalGroup(ProducerPhysicalGroupIndex);
+			const uint32 UniquePhysicalSpaceIndex = AddUniquePhysicalSpace(PhysicalSpace, UniqueProducerIndex, ProducerPhysicalGroupIndex);
+			UniquePageTableLayers[UniquePhysicalSpaceIndex].ProducerTextureLayerMask |= 1 << ProducerLayerIndex;
+			const uint8 PageTableLayerLocalIndex = UniquePageTableLayers[UniquePhysicalSpaceIndex].TextureLayerCount++;
+			
+			TextureLayers[LayerIndex].UniquePageTableLayerIndex = UniquePhysicalSpaceIndex;
+			TextureLayers[LayerIndex].PhysicalTextureIndex = PageTableLayerLocalIndex;
 		}
 	}
 
 	// Must have at least 1 valid layer/producer
-	check(NumUniqueProducers > 0u);
+	check(UniqueProducers.Num() > 0u);
+	// Layout should match the FVirtualTextureSpace
+	check(UniquePageTableLayers.Num() == Space->GetNumPageTableLayers());
 
 	// Max level of overall allocated VT is limited by size in tiles
 	// With multiple layers of different sizes, some layers may have mips smaller than a single tile
@@ -49,13 +54,13 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 	// Lock lowest resolution mip from each producer
 	// Depending on the block dimensions of the producers that make up this allocated VT, different allocated VTs may need to lock different low resolution mips from the same producer
 	// In the common case where block dimensions match, same mip will be locked by all allocated VTs that make use of the same producer
-	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumLayers; ++LayerIndex)
+	for (int32 ProducerIndex = 0u; ProducerIndex < UniqueProducers.Num(); ++ProducerIndex)
 	{
-		FVirtualTextureProducer* Producer = InProducers[LayerIndex];
+		FVirtualTextureProducerHandle ProducerHandle = UniqueProducers[ProducerIndex].Handle;
+		FVirtualTextureProducer* Producer = InSystem->FindProducer(ProducerHandle);
 		if (Producer && Producer->GetDescription().bPersistentHighestMip)
 		{
-			const uint32 ProducerIndex = UniqueProducerIndexForLayer[LayerIndex];
-			const uint32 MipBias = UniqueProducerMipBias[ProducerIndex];
+			const uint32 MipBias = UniqueProducers[ProducerIndex].MipBias;
 			check(MipBias <= MaxLevel);
 			const uint32 Local_vLevel = MaxLevel - MipBias;
 			check(Local_vLevel <= Producer->GetMaxLevel());
@@ -67,7 +72,7 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 				for (uint32 TileX = 0u; TileX < RootWidthInTiles; ++TileX)
 				{
 					const uint32 Local_vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
-					const FVirtualTextureLocalTile TileToUnlock(InDesc.ProducerHandle[LayerIndex], Local_vAddress, Local_vLevel);
+					const FVirtualTextureLocalTile TileToUnlock(ProducerHandle, Local_vAddress, Local_vLevel);
 					InSystem->LockTile(TileToUnlock);
 				}
 			}
@@ -97,14 +102,13 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 	check(RefCount.GetValue() == 0);
 
 	// Unlock any locked tiles
-	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumLayers; ++LayerIndex)
+	for (int32 ProducerIndex = 0u; ProducerIndex < UniqueProducers.Num(); ++ProducerIndex)
 	{
-		const FVirtualTextureProducerHandle ProducerHandle = GetProducerHandle(LayerIndex);
+		const FVirtualTextureProducerHandle ProducerHandle = UniqueProducers[ProducerIndex].Handle;
 		FVirtualTextureProducer* Producer = System->FindProducer(ProducerHandle);
 		if (Producer && Producer->GetDescription().bPersistentHighestMip)
 		{
-			const uint32 ProducerIndex = UniqueProducerIndexForLayer[LayerIndex];
-			const uint32 MipBias = UniqueProducerMipBias[ProducerIndex];
+			const uint32 MipBias = UniqueProducers[ProducerIndex].MipBias;
 			check(MipBias <= MaxLevel);
 			const uint32 Local_vLevel = MaxLevel - MipBias;
 			check(Local_vLevel <= Producer->GetMaxLevel());
@@ -121,15 +125,31 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 				}
 			}
 		}
+	}
 
-		// Physical pool needs to evict all pages that belong to this VT's space
-		// TODO - could improve this to only evict pages belonging to this VT
-		if (PhysicalSpace[LayerIndex])
+	// Physical pool needs to evict all pages that belong to this VT's space
+	//todo[vt]: Could improve this to only evict pages belonging to this VT
+	{
+		TArray<FVirtualTexturePhysicalSpace*> UniquePhysicalSpaces;
+		for (int32 PageTableIndex = 0u; PageTableIndex < UniquePageTableLayers.Num(); ++PageTableIndex)
 		{
-			FTexturePageMap& PageMap = Space->GetPageMap(LayerIndex);
-			PhysicalSpace[LayerIndex]->GetPagePool().UnmapAllPagesForSpace(System, Space->GetID());
-			PageMap.VerifyPhysicalSpaceUnmapped(PhysicalSpace[LayerIndex]->GetID());
-			PhysicalSpace[LayerIndex].SafeRelease();
+			UniquePhysicalSpaces.Add(UniquePageTableLayers[PageTableIndex].PhysicalSpace);
+		}
+
+		for (FVirtualTexturePhysicalSpace* PhysicalSpace : UniquePhysicalSpaces)
+		{
+			PhysicalSpace->GetPagePool().UnmapAllPagesForSpace(System, Space->GetID());
+
+			for (int32 PageTableLayerIndex = 0u; PageTableLayerIndex < UniquePageTableLayers.Num(); ++PageTableLayerIndex)
+			{
+				FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(PageTableLayerIndex);
+				PageMap.VerifyPhysicalSpaceUnmapped(PhysicalSpace->GetID());
+			}
+		}
+
+		for (int32 PageTableIndex = 0u; PageTableIndex < UniquePageTableLayers.Num(); ++PageTableIndex)
+		{
+			UniquePageTableLayers[PageTableIndex].PhysicalSpace.SafeRelease();
 		}
 	}
 
@@ -140,38 +160,59 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 	delete this;
 }
 
-uint32 FAllocatedVirtualTexture::AddUniqueProducer(const FVirtualTextureProducerHandle& InHandle, FVirtualTextureProducer* InProducer)
+uint32 FAllocatedVirtualTexture::AddUniqueProducer(FVirtualTextureProducerHandle const& InHandle, FVTProducerDescription const& InProducerDesc)
 {
-	for (uint32 Index = 0u; Index < NumUniqueProducers; ++Index)
+	for (int32 Index = 0u; Index < UniqueProducers.Num(); ++Index)
 	{
-		if (UniqueProducerHandles[Index] == InHandle)
+		if (UniqueProducers[Index].Handle == InHandle)
 		{
 			return Index;
 		}
 	}
-	const uint32 Index = NumUniqueProducers++;
+	const uint32 Index = UniqueProducers.AddDefaulted();
 	check(Index < VIRTUALTEXTURE_SPACE_MAXLAYERS);
 	
-	const FVTProducerDescription& ProducerDesc = InProducer->GetDescription();
-
 	// maybe these values should just be set by producers, rather than also set on AllocatedVT desc
-	check(ProducerDesc.Dimensions == Description.Dimensions);
-	check(ProducerDesc.TileSize == Description.TileSize);
-	check(ProducerDesc.TileBorderSize == Description.TileBorderSize);
+	check(InProducerDesc.Dimensions == Description.Dimensions);
+	check(InProducerDesc.TileSize == Description.TileSize);
+	check(InProducerDesc.TileBorderSize == Description.TileBorderSize);
 
 	const uint32 BlockSizeInTiles = FMath::Max(BlockWidthInTiles, BlockHeightInTiles);
-	const uint32 ProducerBlockSizeInTiles = FMath::Max(ProducerDesc.BlockWidthInTiles, ProducerDesc.BlockHeightInTiles);
+	const uint32 ProducerBlockSizeInTiles = FMath::Max(InProducerDesc.BlockWidthInTiles, InProducerDesc.BlockHeightInTiles);
 	const uint32 MipBias = FMath::CeilLogTwo(BlockSizeInTiles / ProducerBlockSizeInTiles);
 
 	check((BlockSizeInTiles / ProducerBlockSizeInTiles) * ProducerBlockSizeInTiles == BlockSizeInTiles);
-	check(ProducerDesc.BlockWidthInTiles << MipBias == BlockWidthInTiles);
-	check(ProducerDesc.BlockHeightInTiles << MipBias == BlockHeightInTiles);
+	check(InProducerDesc.BlockWidthInTiles << MipBias == BlockWidthInTiles);
+	check(InProducerDesc.BlockHeightInTiles << MipBias == BlockHeightInTiles);
 
-	MaxLevel = FMath::Max<uint32>(MaxLevel, ProducerDesc.MaxLevel + MipBias);
+	MaxLevel = FMath::Max<uint32>(MaxLevel, InProducerDesc.MaxLevel + MipBias);
 
-	UniqueProducerHandles[Index] = InHandle;
-	UniqueProducerMipBias[Index] = MipBias;
+	UniqueProducers[Index].Handle = InHandle;
+	UniqueProducers[Index].MipBias = MipBias;
 	
+	return Index;
+}
+
+uint32 FAllocatedVirtualTexture::AddUniquePhysicalSpace(FVirtualTexturePhysicalSpace* InPhysicalSpace, uint32 InUniqueProducerIndex, uint32 InProducerPhysicalSpaceIndex)
+{
+	for (int32 Index = 0u; Index < UniquePageTableLayers.Num(); ++Index)
+	{
+		if (UniquePageTableLayers[Index].PhysicalSpace == InPhysicalSpace && 
+			UniquePageTableLayers[Index].UniqueProducerIndex == InUniqueProducerIndex &&
+			UniquePageTableLayers[Index].ProducerPhysicalGroupIndex == InProducerPhysicalSpaceIndex)
+		{
+			return Index;
+		}
+	}
+	const uint32 Index = UniquePageTableLayers.AddDefaulted();
+	check(Index < VIRTUALTEXTURE_SPACE_MAXLAYERS);
+
+	UniquePageTableLayers[Index].PhysicalSpace = InPhysicalSpace;
+	UniquePageTableLayers[Index].UniqueProducerIndex = InUniqueProducerIndex;
+	UniquePageTableLayers[Index].ProducerPhysicalGroupIndex = InProducerPhysicalSpaceIndex;
+	UniquePageTableLayers[Index].ProducerTextureLayerMask = 0;
+	UniquePageTableLayers[Index].TextureLayerCount = 0;
+
 	return Index;
 }
 
@@ -182,32 +223,37 @@ FRHITexture* FAllocatedVirtualTexture::GetPageTableTexture(uint32 InPageTableInd
 
 FRHITexture* FAllocatedVirtualTexture::GetPhysicalTexture(uint32 InLayerIndex) const
 {
-	if (InLayerIndex < Description.NumLayers)
+	if (InLayerIndex < Description.NumTextureLayers)
 	{
-		const FVirtualTexturePhysicalSpace* LayerSpace = PhysicalSpace[InLayerIndex];
-		return LayerSpace ? LayerSpace->GetPhysicalTexture() : nullptr;
+		const FVirtualTexturePhysicalSpace* PhysicalSpace = UniquePageTableLayers[TextureLayers[InLayerIndex].UniquePageTableLayerIndex].PhysicalSpace;
+		return PhysicalSpace ? PhysicalSpace->GetPhysicalTexture(TextureLayers[InLayerIndex].PhysicalTextureIndex) : nullptr;
 	}
 	return nullptr;
 }
 
 FRHIShaderResourceView* FAllocatedVirtualTexture::GetPhysicalTextureView(uint32 InLayerIndex, bool bSRGB) const
 {
-	if (InLayerIndex < Description.NumLayers)
+	if (InLayerIndex < Description.NumTextureLayers)
 	{
-		const FVirtualTexturePhysicalSpace* LayerSpace = PhysicalSpace[InLayerIndex];
-		return LayerSpace ? LayerSpace->GetPhysicalTextureView(bSRGB) : nullptr;
+		const FVirtualTexturePhysicalSpace* PhysicalSpace = UniquePageTableLayers[TextureLayers[InLayerIndex].UniquePageTableLayerIndex].PhysicalSpace;
+		return PhysicalSpace ? PhysicalSpace->GetPhysicalTextureView(TextureLayers[InLayerIndex].PhysicalTextureIndex, bSRGB) : nullptr;
 	}
 	return nullptr;
 }
 
 uint32 FAllocatedVirtualTexture::GetPhysicalTextureSize(uint32 InLayerIndex) const
 {
-	if (InLayerIndex < Description.NumLayers)
+	if (InLayerIndex < Description.NumTextureLayers)
 	{
-		const FVirtualTexturePhysicalSpace* LayerSpace = PhysicalSpace[InLayerIndex];
-		return LayerSpace ? LayerSpace->GetTextureSize() : 0u;
+		const FVirtualTexturePhysicalSpace* PhysicalSpace = UniquePageTableLayers[TextureLayers[InLayerIndex].UniquePageTableLayerIndex].PhysicalSpace;
+		return PhysicalSpace ? PhysicalSpace->GetTextureSize() : 0u;
 	}
 	return 0u;
+}
+
+uint32 FAllocatedVirtualTexture::GetNumPageTableTextures() const
+{
+	return Space->GetNumPageTableTextures();
 }
 
 static inline uint32 BitcastFloatToUInt32(float v)

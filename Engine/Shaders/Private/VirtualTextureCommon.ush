@@ -562,6 +562,7 @@ float3 VirtualTextureUnpackNormalBC3(in float4 PackedValue)
 /** Unpack normal from two BC3 textures. */
 float3 VirtualTextureUnpackNormalBC3BC3(in float4 PackedValue0, in float4 PackedValue1)
 {
+
 	return VirtualTextureUnpackNormal(float2(PackedValue0.a, PackedValue1.a), PackedValue1.b);
 }
 

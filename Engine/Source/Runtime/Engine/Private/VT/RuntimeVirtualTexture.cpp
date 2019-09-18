@@ -28,7 +28,8 @@ namespace
 			OutDesc.DepthInTiles = 1;
 			OutDesc.WidthInBlocks = 1;
 			OutDesc.HeightInBlocks = 1;
-			OutDesc.NumLayers = 0;
+			OutDesc.NumTextureLayers = 0;
+			OutDesc.NumPhysicalGroups = 0;
 		}
 
 		//~ Begin IVirtualTexture Interface.
@@ -89,17 +90,17 @@ public:
 	}
 
 	/** Queues up render thread work to create resources and also releases any old resources. */
-	void Init(FVTProducerDescription const& InDesc, IVirtualTexture* InVirtualTextureProducer)
+	void Init(FVTProducerDescription const& InDesc, IVirtualTexture* InVirtualTextureProducer, bool InPrivateSpace)
 	{
 		FRuntimeVirtualTextureRenderResource* Resource = this;
 		
 		ENQUEUE_RENDER_COMMAND(FRuntimeVirtualTextureRenderResource_Init)(
-			[Resource, InDesc, InVirtualTextureProducer](FRHICommandList& RHICmdList)
+			[Resource, InDesc, InVirtualTextureProducer, InPrivateSpace](FRHICommandList& RHICmdList)
 		{
 			FVirtualTextureProducerHandle OldProducerHandle = Resource->ProducerHandle;
 			ReleaseVirtualTexture(Resource->AllocatedVirtualTexture);
 			Resource->ProducerHandle = GetRendererModule().RegisterVirtualTextureProducer(InDesc, InVirtualTextureProducer);
-			Resource->AllocatedVirtualTexture = AllocateVirtualTexture(InDesc, Resource->ProducerHandle);
+			Resource->AllocatedVirtualTexture = AllocateVirtualTexture(InDesc, Resource->ProducerHandle, InPrivateSpace);
 			// Release old producer after new one is created so that any destroy callbacks can access the new producer
 			GetRendererModule().ReleaseVirtualTextureProducer(OldProducerHandle);
 		});
@@ -123,24 +124,24 @@ public:
 
 protected:
 	/** Allocate in the global virtual texture system. */
-	static IAllocatedVirtualTexture* AllocateVirtualTexture(FVTProducerDescription const& InDesc, FVirtualTextureProducerHandle const& InProducerHandle)
+	static IAllocatedVirtualTexture* AllocateVirtualTexture(FVTProducerDescription const& InDesc, FVirtualTextureProducerHandle const& InProducerHandle, bool InPrivateSpace)
 	{
 		IAllocatedVirtualTexture* OutAllocatedVirtualTexture = nullptr;
 
 		// Check for NumLayers avoids allocating for the null producer
-		if (InDesc.NumLayers > 0)
+		if (InDesc.NumTextureLayers > 0)
 		{
 			FAllocatedVTDescription VTDesc;
 			VTDesc.Dimensions = InDesc.Dimensions;
 			VTDesc.TileSize = InDesc.TileSize;
 			VTDesc.TileBorderSize = InDesc.TileBorderSize;
-			VTDesc.NumLayers = InDesc.NumLayers;
-			VTDesc.bPrivateSpace = true; // Dedicated page table allocation for runtime VTs
+			VTDesc.NumTextureLayers = InDesc.NumTextureLayers;
+			VTDesc.bPrivateSpace = InPrivateSpace;
 
-			for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumLayers; ++LayerIndex)
+			for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumTextureLayers; ++LayerIndex)
 			{
 				VTDesc.ProducerHandle[LayerIndex] = InProducerHandle;
-				VTDesc.LocalLayerToProduce[LayerIndex] = LayerIndex;
+				VTDesc.ProducerLayerIndex[LayerIndex] = LayerIndex;
 			}
 
 			OutAllocatedVirtualTexture = GetRendererModule().AllocateVirtualTexture(VTDesc);
@@ -236,10 +237,13 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 	OutDesc.BlockHeightInTiles = Height / GetTileSize();
 	OutDesc.MaxLevel = FMath::Max((int32)FMath::CeilLogTwo(FMath::Max(OutDesc.BlockWidthInTiles, OutDesc.BlockHeightInTiles)) - GetRemoveLowMips(), 0);
 
-	OutDesc.NumLayers = GetLayerCount();
-	for (int32 Layer = 0; Layer < OutDesc.NumLayers; Layer++)
+	OutDesc.NumTextureLayers = GetLayerCount();
+	OutDesc.NumPhysicalGroups = bSinglePhysicalSpace ? 1 : GetLayerCount();
+
+	for (int32 Layer = 0; Layer < OutDesc.NumTextureLayers; Layer++)
 	{
 		OutDesc.LayerFormat[Layer] = GetLayerFormat(Layer);
+		OutDesc.PhysicalGroupIndex[Layer] = bSinglePhysicalSpace ? 0 : Layer;
 	}
 }
 
@@ -383,7 +387,7 @@ void URuntimeVirtualTexture::InitResource(IVirtualTexture* InProducer, FTransfor
 {
 	FVTProducerDescription Desc;
 	GetProducerDescription(Desc, VolumeToWorld);
-	Resource->Init(Desc, InProducer);
+	Resource->Init(Desc, InProducer, bPrivateSpace);
 }
 
 void URuntimeVirtualTexture::InitNullResource()
@@ -391,7 +395,7 @@ void URuntimeVirtualTexture::InitNullResource()
 	FVTProducerDescription Desc;
 	FNullVirtualTextureProducer::GetNullProducerDescription(Desc);
 	FNullVirtualTextureProducer* Producer = new FNullVirtualTextureProducer;
-	Resource->Init(Desc, Producer);
+	Resource->Init(Desc, Producer, false);
 }
 
 void URuntimeVirtualTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
@@ -444,7 +448,7 @@ uint32 URuntimeVirtualTexture::GetStreamingTextureBuildHash() const
 		{
 			uint32 MaterialType : 3;
 			uint32 CompressTextures : 1;
-			uint32 Size : 4;
+			uint32 SinglePhysicalSpace : 1;
 			uint32 TileSize : 4;
 			uint32 TileBorderSize : 4;
 			uint32 StreamLowMips : 4;
@@ -455,7 +459,7 @@ uint32 URuntimeVirtualTexture::GetStreamingTextureBuildHash() const
 	Settings.PackedValue = 0;
 	Settings.MaterialType = (uint32)MaterialType;
 	Settings.CompressTextures = (uint32)bCompressTextures;
-	Settings.Size = (uint32)Size;
+	Settings.SinglePhysicalSpace = (uint32)bSinglePhysicalSpace;
 	Settings.TileSize = (uint32)TileSize;
 	Settings.TileBorderSize = (uint32)TileBorderSize;
 	Settings.StreamLowMips = (uint32)GetStreamLowMips();
@@ -471,7 +475,7 @@ void URuntimeVirtualTexture::InitializeStreamingTexture(uint32 InSizeX, uint32 I
 
 	StreamingTexture = NewObject<URuntimeVirtualTextureStreamingProxy>(GetOutermost(), TEXT("StreamingTexture"));
 	StreamingTexture->VirtualTextureStreaming = true;
-	StreamingTexture->MipGenSettings = TMGS_SimpleAverage;
+	StreamingTexture->bSinglePhysicalSpace = bSinglePhysicalSpace;
 
 	StreamingTexture->Settings.Init();
 	StreamingTexture->Settings.TileSize = GetTileSize();

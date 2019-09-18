@@ -13,7 +13,6 @@ class FVirtualTextureSpace;
 class FVirtualTexturePhysicalSpace;
 class FVirtualTextureProducer;
 class FVirtualTextureSystem;
-class FTexturePageLocks;
 
 class FAllocatedVirtualTexture final : public IAllocatedVirtualTexture
 {
@@ -33,35 +32,68 @@ public:
 
 	void Release(FVirtualTextureSystem* System);
 
+	inline void IncrementRefCount() { RefCount.Increment(); }
+	inline uint32 GetFrameAllocated() const { return FrameAllocated; }
+
 	// begin IAllocatedVirtualTexture
 	virtual FRHITexture* GetPageTableTexture(uint32 InPageTableIndex) const override;
 	virtual FRHITexture* GetPhysicalTexture(uint32 InLayerIndex) const override;
 	virtual FRHIShaderResourceView* GetPhysicalTextureView(uint32 InLayerIndex, bool bSRGB) const override;
 	virtual uint32 GetPhysicalTextureSize(uint32 InLayerIndex) const override;
+	virtual uint32 GetNumPageTableTextures() const override;
 	virtual void GetPackedPageTableUniform(FUintVector4* OutUniform, bool bApplyBlockScale) const override;
 	virtual void GetPackedUniform(FUintVector4* OutUniform, uint32 LayerIndex) const override;
 	virtual void Destroy(FVirtualTextureSystem* System) override;
 	// end IAllocatedVirtualTexture
 
-	inline void IncrementRefCount() { RefCount.Increment(); }
-
-	inline uint32 GetFrameAllocated() const { return FrameAllocated; }
 	inline FVirtualTextureSpace* GetSpace() const { return Space; }
-	inline FVirtualTexturePhysicalSpace* GetPhysicalSpace(uint32 InLayer) const { checkSlow(InLayer < Description.NumLayers); return PhysicalSpace[InLayer]; }
-	inline uint32 GetNumUniqueProducers() const { return NumUniqueProducers; }
-	inline uint32 GetUniqueProducerIndexForLayer(uint32 InLayer) const { return UniqueProducerIndexForLayer[InLayer]; }
-	inline const FVirtualTextureProducerHandle& GetUniqueProducerHandle(uint32 InProducerIndex) const { checkSlow(InProducerIndex < NumUniqueProducers); return UniqueProducerHandles[InProducerIndex]; }
-	inline uint8 GetUniqueProducerMipBias(uint32 InProducerIndex) const { checkSlow(InProducerIndex < NumUniqueProducers); return UniqueProducerMipBias[InProducerIndex]; }
+
+	inline uint32 GetNumUniqueProducers() const { return UniqueProducers.Num(); }
+	inline const FVirtualTextureProducerHandle& GetUniqueProducerHandle(uint32 InProducerIndex) const { return UniqueProducers[InProducerIndex].Handle; }
+	inline uint8 GetUniqueProducerMipBias(uint32 InProducerIndex) const { return UniqueProducers[InProducerIndex].MipBias; }
+
+	inline uint32 GetNumPageTableLayers() const { return UniquePageTableLayers.Num(); }
+	inline FVirtualTexturePhysicalSpace* GetPhysicalSpaceForPageTableLayer(uint32 InLayerIndex) const { return UniquePageTableLayers[InLayerIndex].PhysicalSpace; }
+	inline uint32 GetProducerIndexForPageTableLayer(uint32 InLayerIndex) const { return UniquePageTableLayers[InLayerIndex].UniqueProducerIndex; }
+	inline uint32 GetProducerTextureLayerMaskForPageTableLayer(uint32 InLayerIndex) const { return UniquePageTableLayers[InLayerIndex].ProducerTextureLayerMask; }
+	inline uint32 GetProducerPhysicalGroupIndexForPageTableLayer(uint32 InLayerIndex) const { return UniquePageTableLayers[InLayerIndex].ProducerPhysicalGroupIndex; }
 
 private:
-	uint32 AddUniqueProducer(const FVirtualTextureProducerHandle& InHandle, FVirtualTextureProducer* InProducer);
+	uint32 AddUniqueProducer(FVirtualTextureProducerHandle const& InHandle, FVTProducerDescription const& InProducerDesc);
+	uint32 AddUniquePhysicalSpace(FVirtualTexturePhysicalSpace* InPhysicalSpace, uint32 InUniqueProducerIndex, uint32 InProducerPhysicalSpaceIndex);
 
-	FVirtualTextureSpace* Space;
-	TRefCountPtr<FVirtualTexturePhysicalSpace> PhysicalSpace[VIRTUALTEXTURE_SPACE_MAXLAYERS];
-	FVirtualTextureProducerHandle UniqueProducerHandles[VIRTUALTEXTURE_SPACE_MAXLAYERS];
-	uint8 UniqueProducerIndexForLayer[VIRTUALTEXTURE_SPACE_MAXLAYERS];
-	uint8 UniqueProducerMipBias[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 	FThreadSafeCounter RefCount;
 	uint32 FrameAllocated;
-	uint8 NumUniqueProducers;
+
+	FVirtualTextureSpace* Space;
+
+	// Unique producers in this AllocatedVT.
+	struct FProducerDesc
+	{
+		FVirtualTextureProducerHandle Handle;
+		uint8 MipBias;
+	};
+	TArray<FProducerDesc> UniqueProducers;
+
+	// Unique page table layers in this AllocatedVT.
+	// We create a page table layer for each physical space group in each producer.
+	struct FPageTableLayerDesc
+	{
+		FVirtualTexturePhysicalSpace* PhysicalSpace;
+		uint8 UniqueProducerIndex;
+		uint8 ProducerPhysicalGroupIndex;
+		uint16 ProducerTextureLayerMask;
+		uint8 TextureLayerCount;
+	};
+	TArray<FPageTableLayerDesc> UniquePageTableLayers;
+
+	// Texture layers in this AllocatedVT.
+	// Each texture layer maps onto one page table layer.
+	// Each texture layer needs a unique index within the page table layer to describe the unique physical texture it references.
+	struct FTextureLayerDesc
+	{
+		uint8 UniquePageTableLayerIndex;
+		uint8 PhysicalTextureIndex;
+	};
+	FTextureLayerDesc TextureLayers[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 };

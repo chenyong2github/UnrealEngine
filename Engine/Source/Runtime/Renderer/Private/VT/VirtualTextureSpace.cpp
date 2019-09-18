@@ -58,18 +58,18 @@ FVirtualTextureSpace::FVirtualTextureSpace(FVirtualTextureSystem* InSystem, uint
 	const uint32 PhysicalTileSize = InDesc.TileSize + InDesc.TileBorderSize * 2u;
 	const uint32 MaxSizeInTiles = GetMax2DTextureDimension() / PhysicalTileSize;
 	const uint32 MaxNumTiles = MaxSizeInTiles * MaxSizeInTiles;
-	for (uint32 LayerIndex = 0u; LayerIndex < InDesc.NumLayers; ++LayerIndex)
+	for (uint32 LayerIndex = 0u; LayerIndex < InDesc.NumPageTableLayers; ++LayerIndex)
 	{
 		PhysicalPageMap[LayerIndex].Initialize(MaxNumTiles, LayerIndex, InDesc.Dimensions);
 	}
 
-	uint32 NumLayersToAllocate = InDesc.NumLayers;
+	uint32 NumLayersToAllocate = InDesc.NumPageTableLayers;
 	uint32 PageTableIndex = 0u;
 	FMemory::Memzero(TexturePixelFormat);
 	while (NumLayersToAllocate > 0u)
 	{
 		const uint32 NumLayersForTexture = FMath::Min(NumLayersToAllocate, LayersPerPageTableTexture);
-		const EPixelFormat PixelFormat = GetFormatForNumLayers(NumLayersForTexture, InDesc.Format);
+		const EPixelFormat PixelFormat = GetFormatForNumLayers(NumLayersForTexture, InDesc.PageTableFormat);
 		TexturePixelFormat[PageTableIndex] = PixelFormat;
 		NumLayersToAllocate -= NumLayersForTexture;
 		++PageTableIndex;
@@ -317,7 +317,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 {
 	static TArray<FPageTableUpdate> ExpandedUpdates[VIRTUALTEXTURE_SPACE_MAXLAYERS][16];
 
-	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumLayers; ++LayerIndex)
+	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumPageTableLayers; ++LayerIndex)
 	{
 		FTexturePageMap& PageMap = PhysicalPageMap[LayerIndex];
 		if (bForceEntireUpdate || CVarVTRefreshEntirePageTable.GetValueOnRenderThread())
@@ -345,7 +345,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 	// TODO Expand 3D updates for slices of volume texture
 
 	uint32 TotalNumUpdates = 0;
-	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumLayers; ++LayerIndex)
+	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumPageTableLayers; ++LayerIndex)
 	{
 		for (uint32 Mip = 0; Mip < NumPageTableLevels; Mip++)
 		{
@@ -380,7 +380,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 	// This flushes the RHI thread!
 	{
 		uint8* Buffer = (uint8*)RHILockVertexBuffer(UpdateBuffer, 0, TotalNumUpdates * sizeof(FPageTableUpdate), RLM_WriteOnly);
-		for (uint32 LayerIndex = 0u; LayerIndex < Description.NumLayers; ++LayerIndex)
+		for (uint32 LayerIndex = 0u; LayerIndex < Description.NumPageTableLayers; ++LayerIndex)
 		{
 			for (uint32 Mip = 0; Mip < NumPageTableLevels; Mip++)
 			{
@@ -401,7 +401,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 
 	auto ShaderMap = GetGlobalShaderMap(GetFeatureLevel());
 	FPageTableUpdateVS* VertexShader = nullptr;
-	if (Description.Format == EVTPageTableFormat::UInt16)
+	if (Description.PageTableFormat == EVTPageTableFormat::UInt16)
 	{
 		VertexShader = ShaderMap->GetShader< TPageTableUpdateVS<true> >();
 	}
@@ -412,7 +412,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 	check(VertexShader);
 
 	uint32 FirstUpdate = 0;
-	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumLayers; ++LayerIndex)
+	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumPageTableLayers; ++LayerIndex)
 	{
 		const uint32 TextureIndex = LayerIndex / LayersPerPageTableTexture;
 		const uint32 LayerInTexture = LayerIndex % LayersPerPageTableTexture;

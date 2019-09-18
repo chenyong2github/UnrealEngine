@@ -36,7 +36,7 @@ void FTexturePagePool::Initialize(uint32 InNumPages)
 	{
 		FPageMapping& Mapping = PageMapping[i];
 		Mapping.PackedValues = 0xffffffff;
-		Mapping.LayerIndex = 0xff;
+		Mapping.PageTableLayerIndex = 0xff;
 		Mapping.NextIndex = Mapping.PrevIndex = i;
 	}
 }
@@ -65,7 +65,7 @@ void FTexturePagePool::UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint
 	for (int32 MappingIndex = NumPages + 1; MappingIndex < PageMapping.Num(); ++MappingIndex)
 	{
 		struct FPageMapping& Mapping = PageMapping[MappingIndex];
-		if (Mapping.LayerIndex != 0xff && Mapping.SpaceID == SpaceID)
+		if (Mapping.PageTableLayerIndex != 0xff && Mapping.SpaceID == SpaceID)
 		{
 			// we're unmapping all pages for space, so don't try to map any ancestor pages...they'll be unmapped as well
 			UnmapPageMapping(System, MappingIndex, false);
@@ -161,13 +161,13 @@ uint16 FTexturePagePool::GetPageHash(const FPageEntry& Entry)
 	return (uint16)MurmurFinalize64(Entry.PackedValue);
 }
 
-uint32 FTexturePagePool::FindPageAddress(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerIndex, uint32 Local_vAddress, uint8 Local_vLevel) const
+uint32 FTexturePagePool::FindPageAddress(const FVirtualTextureProducerHandle& ProducerHandle, uint8 GroupIndex, uint32 Local_vAddress, uint8 Local_vLevel) const
 {
 	FPageEntry CheckPage;
 	CheckPage.PackedProducerHandle = ProducerHandle.PackedValue;
 	CheckPage.Local_vAddress = Local_vAddress;
 	CheckPage.Local_vLevel = Local_vLevel;
-	CheckPage.LayerIndex = LayerIndex;
+	CheckPage.GroupIndex = GroupIndex;
 
 	const uint16 Hash = GetPageHash(CheckPage);
 	for (uint32 PageIndex = PageHash.First(Hash); PageHash.IsValid(PageIndex); PageIndex = PageHash.Next(PageIndex))
@@ -182,11 +182,11 @@ uint32 FTexturePagePool::FindPageAddress(const FVirtualTextureProducerHandle& Pr
 	return ~0u;
 }
 
-uint32 FTexturePagePool::FindNearestPageAddress(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerIndex, uint32 Local_vAddress, uint8 Local_vLevel, uint8 MaxLevel) const
+uint32 FTexturePagePool::FindNearestPageAddress(const FVirtualTextureProducerHandle& ProducerHandle, uint8 GroupIndex, uint32 Local_vAddress, uint8 Local_vLevel, uint8 MaxLevel) const
 {
 	while (Local_vLevel <= MaxLevel)
 	{
-		const uint32 pAddress = FindPageAddress(ProducerHandle, LayerIndex, Local_vAddress, Local_vLevel);
+		const uint32 pAddress = FindPageAddress(ProducerHandle, GroupIndex, Local_vAddress, Local_vLevel);
 		if (pAddress != ~0u)
 		{
 			return pAddress;
@@ -198,11 +198,11 @@ uint32 FTexturePagePool::FindNearestPageAddress(const FVirtualTextureProducerHan
 	return ~0u;
 }
 
-uint32 FTexturePagePool::FindNearestPageLevel(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerIndex, uint32 Local_vAddress, uint8 Local_vLevel) const
+uint32 FTexturePagePool::FindNearestPageLevel(const FVirtualTextureProducerHandle& ProducerHandle, uint8 GroupIndex, uint32 Local_vAddress, uint8 Local_vLevel) const
 {
 	while (Local_vLevel < 16u)
 	{
-		const uint32 pAddress = FindPageAddress(ProducerHandle, LayerIndex, Local_vAddress, Local_vLevel);
+		const uint32 pAddress = FindPageAddress(ProducerHandle, GroupIndex, Local_vAddress, Local_vLevel);
 		if (pAddress != ~0u)
 		{
 			return Pages[pAddress].Local_vLevel;
@@ -214,11 +214,11 @@ uint32 FTexturePagePool::FindNearestPageLevel(const FVirtualTextureProducerHandl
 	return ~0u;
 }
 
-uint32 FTexturePagePool::Alloc(FVirtualTextureSystem* System, uint32 Frame, const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerIndex, uint32 Local_vAddress, uint8 Local_vLevel, bool bLock)
+uint32 FTexturePagePool::Alloc(FVirtualTextureSystem* System, uint32 Frame, const FVirtualTextureProducerHandle& ProducerHandle, uint8 GroupIndex, uint32 Local_vAddress, uint8 Local_vLevel, bool bLock)
 {
 	check(ProducerHandle.PackedValue != 0u);
 	check(AnyFreeAvailable(Frame));
-	checkSlow(FindPageAddress(ProducerHandle, LayerIndex, Local_vAddress, Local_vLevel) == ~0u);
+	checkSlow(FindPageAddress(ProducerHandle, GroupIndex, Local_vAddress, Local_vLevel) == ~0u);
 
 	// Grab the LRU free page
 	const uint16 pAddress = FreeHeap.Top();
@@ -231,7 +231,7 @@ uint32 FTexturePagePool::Alloc(FVirtualTextureSystem* System, uint32 Frame, cons
 	PageEntry.PackedProducerHandle = ProducerHandle.PackedValue;
 	PageEntry.Local_vAddress = Local_vAddress;
 	PageEntry.Local_vLevel = Local_vLevel;
-	PageEntry.LayerIndex = LayerIndex;
+	PageEntry.GroupIndex = GroupIndex;
 	PageHash.Add(GetPageHash(PageEntry), pAddress);
 
 	if (bLock)
@@ -281,10 +281,10 @@ void FTexturePagePool::UpdateUsage(uint32 Frame, uint16 pAddress)
 	}
 }
 
-void FTexturePagePool::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 Layer, uint8 vLogSize, uint32 vAddress, uint8 vLevel, uint16 pAddress)
+void FTexturePagePool::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 PageTableLayerIndex, uint8 vLogSize, uint32 vAddress, uint8 vLevel, uint16 pAddress)
 {
 	check(pAddress < NumPages);
-	FTexturePageMap& PageMap = Space->GetPageMap(Layer);
+	FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(PageTableLayerIndex);
 	PageMap.MapPage(Space, PhysicalSpace, vLogSize, vAddress, vLevel, pAddress);
 
 	++NumPagesMapped;
@@ -295,14 +295,14 @@ void FTexturePagePool::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysi
 	Mapping.SpaceID = Space->GetID();
 	Mapping.vAddress = vAddress;
 	Mapping.vLogSize = vLogSize;
-	Mapping.LayerIndex = Layer;
+	Mapping.PageTableLayerIndex = PageTableLayerIndex;
 }
 
 void FTexturePagePool::UnmapPageMapping(FVirtualTextureSystem* System, uint32 MappingIndex, bool bMapAncestorPage)
 {
 	FPageMapping& Mapping = PageMapping[MappingIndex];
 	FVirtualTextureSpace* Space = System->GetSpace(Mapping.SpaceID);
-	FTexturePageMap& PageMap = Space->GetPageMap(Mapping.LayerIndex);
+	FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(Mapping.PageTableLayerIndex);
 
 	PageMap.UnmapPage(System, Space, Mapping.vLogSize, Mapping.vAddress, bMapAncestorPage);
 
@@ -310,7 +310,7 @@ void FTexturePagePool::UnmapPageMapping(FVirtualTextureSystem* System, uint32 Ma
 	--NumPagesMapped;
 
 	Mapping.PackedValues = 0xffffffff;
-	Mapping.LayerIndex = 0xff;
+	Mapping.PageTableLayerIndex = 0xff;
 	ReleaseMapping(MappingIndex);
 }
 

@@ -14,28 +14,42 @@ class FVirtualTexturePhysicalSpace;
 class FVirtualTextureProducer
 {
 public:
-	FVirtualTextureProducer() : VirtualTexture(nullptr) {}
+	FVirtualTextureProducer() : VirtualTexture(nullptr) { }
 
 	void Release(FVirtualTextureSystem* System, const FVirtualTextureProducerHandle& HandleToSelf);
 
 	inline const FVTProducerDescription& GetDescription() const { return Description; }
 	inline IVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
 	inline const FName& GetName() const { return Description.Name; }
-	inline uint32 GetNumLayers() const { return Description.NumLayers; }
 	inline uint32 GetWidthInTiles() const { return Description.BlockWidthInTiles * Description.WidthInBlocks; }
 	inline uint32 GetHeightInTiles() const { return Description.BlockHeightInTiles * Description.HeightInBlocks; }
 	inline uint32 GetDepthInTiles() const { return Description.DepthInTiles; }
-	inline EPixelFormat GetLayerFormat(uint32 LayerIndex) const { check(LayerIndex < Description.NumLayers); return Description.LayerFormat[LayerIndex]; }
-	inline FVirtualTexturePhysicalSpace* GetPhysicalSpace(uint32 LayerIndex) const { check(LayerIndex < Description.NumLayers); return PhysicalSpace[LayerIndex]; }
 	inline uint32 GetMaxLevel() const { return Description.MaxLevel; }
+
+	inline uint32 GetNumTextureLayers() const { return Description.NumTextureLayers; }
+	inline EPixelFormat GetLayerFormat(uint32 LayerIndex) const { check(LayerIndex < Description.NumTextureLayers); return Description.LayerFormat[LayerIndex]; }
+	inline uint32 GetPhysicalGroupIndexForTextureLayer(uint32 LayerIndex) const { check(LayerIndex < Description.NumTextureLayers); return Description.PhysicalGroupIndex[LayerIndex]; }
+
+	inline uint32 GetNumPhysicalGroups() const { return Description.NumPhysicalGroups; }
+	inline FVirtualTexturePhysicalSpace* GetPhysicalSpaceForPhysicalGroup(uint32 GroupIndex) const { check(GroupIndex < Description.NumPhysicalGroups); return PhysicalGroups[GroupIndex].PhysicalSpace; }
 
 private:
 	friend class FVirtualTextureProducerCollection;
 	~FVirtualTextureProducer();
 
-	IVirtualTexture* VirtualTexture;
-	TRefCountPtr<FVirtualTexturePhysicalSpace> PhysicalSpace[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 	FVTProducerDescription Description;
+	
+	// A physical group is a physical space which multiple texture layers map to
+	// Texture layers that share a physical group will always be sampled via the same page table channel (they will have the same physical UV coordinates)
+	// More than one physical group can share the same FVirtualTexturePhysicalSpace
+	struct FPhysicalGroupDesc
+	{
+		TRefCountPtr<FVirtualTexturePhysicalSpace> PhysicalSpace;
+	};
+	TArray<FPhysicalGroupDesc> PhysicalGroups;
+
+	// The virtual texture provider implementation
+	IVirtualTexture* VirtualTexture;
 };
 
 class FVirtualTextureProducerCollection

@@ -3333,16 +3333,16 @@ IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
 		VTDesc.Dimensions = 2;
 		VTDesc.TileSize = Resource->GetTileSize();
 		VTDesc.TileBorderSize = Resource->GetBorderSize();
-		VTDesc.NumLayers = 0u;
+		VTDesc.NumTextureLayers = 0u;
 
 		for (uint32 TypeIndex = 0u; TypeIndex < (uint32)ELightMapVirtualTextureType::Count; ++TypeIndex)
 		{
 			const uint32 LayerIndex = VirtualTexture->GetLayerForType((ELightMapVirtualTextureType)TypeIndex);
 			if (LayerIndex != ~0u)
 			{
-				VTDesc.NumLayers = TypeIndex + 1u;
+				VTDesc.NumTextureLayers = TypeIndex + 1u;
 				VTDesc.ProducerHandle[TypeIndex] = ProducerHandle; // use the same producer for each layer
-				VTDesc.LocalLayerToProduce[TypeIndex] = LayerIndex;
+				VTDesc.ProducerLayerIndex[TypeIndex] = LayerIndex;
 			}
 			else
 			{
@@ -3350,8 +3350,8 @@ IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
 			}
 		}
 
-		check(VTDesc.NumLayers > 0u);
-		for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumLayers; ++LayerIndex)
+		check(VTDesc.NumTextureLayers > 0u);
+		for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumTextureLayers; ++LayerIndex)
 		{
 			if (VTDesc.ProducerHandle[LayerIndex].PackedValue == 0u)
 			{
@@ -3360,7 +3360,7 @@ IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
 				// and attempt to do some extra work before determining there's nothing else to do...this wastes CPU time
 				// By mapping to layer0, we ensure that every layer has a valid mapping, and the overhead of mapping the empty layer to layer0 is very small, since layer0 will already be resident
 				VTDesc.ProducerHandle[LayerIndex] = ProducerHandle;
-				VTDesc.LocalLayerToProduce[LayerIndex] = 0u;
+				VTDesc.ProducerLayerIndex[LayerIndex] = 0u;
 			}
 		}
 

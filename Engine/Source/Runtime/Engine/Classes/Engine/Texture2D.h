@@ -409,4 +409,10 @@ public:
 		}
 		return false;
 	}
+
+	/**
+	 * Returns true if this virtual texture uses a single physical space all of its texture layers.
+	 * This can reduce page table overhead but potentially increase the number of physical pools allocated.
+	 */
+	virtual bool IsVirtualTexturedWithSinglePhysicalSpace() const { return false;  }
 };

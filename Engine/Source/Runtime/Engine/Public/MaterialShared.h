@@ -275,14 +275,14 @@ public:
 /**
  * A texture expression.
  */
-class FMaterialUniformExpressionTexture: public FMaterialUniformExpression
+class FMaterialUniformExpressionTexture : public FMaterialUniformExpression
 {
 	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionTexture);
 
 public:
 	FMaterialUniformExpressionTexture();
 	FMaterialUniformExpressionTexture(int32 InTextureIndex, EMaterialSamplerType InSamplerType, ESamplerSourceMode InSamplerSource, bool InVirtualTexture);
-	FMaterialUniformExpressionTexture(int32 InTextureIndex, int32 InLayerIndex, EMaterialSamplerType InSamplerType);
+	FMaterialUniformExpressionTexture(int32 InTextureIndex, int16 InTextureLayerIndex, int16 InPageTableLayerIndex, EMaterialSamplerType InSamplerType);
 
 	/** Sets an override texture. */
 	void SetTransientOverrideTextureValue(UTexture* InOverrideTexture);
@@ -298,8 +298,10 @@ public:
 
 	/** Gets texture index which is the index in the full set of referenced textures for this material. */
 	int32 GetTextureIndex() const { return TextureIndex; }
-	/** Gets the layer index in the virtual texture stack if this is fixed. If we don't have a fixed layer then we will allocate during compilation (and not store here). */
-	int32 GetLayerIndex() const { return LayerIndex; }
+	/** Gets the texture layer index in the virtual texture stack if this is fixed. If we don't have a fixed layer then we will allocate during compilation (and not store here). */
+	int32 GetTextureLayerIndex() const { return TextureLayerIndex; }
+	/** Gets the page table channel index in the virtual texture stack if this is fixed. If we don't have a fixed layer then we will allocate during compilation (and not store here). */
+	int32 GetPageTableLayerIndex() const { return PageTableLayerIndex; }
 
 #if WITH_EDITORONLY_DATA
 	/** Get the sampling/decoding logic to compile in the shader for this texture. */
@@ -313,15 +315,17 @@ public:
 	virtual void GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const UTexture*& OutValue) const;
 	/** Get the URuntimeVirtualTexture referenced by this expression (can be a nullptr). */
 	virtual void GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const;
-	
+
 	/** Get the UTexture referenced by this expression including any transient override logic. */
 	virtual void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue, bool bAllowOverride = true) const;
 
 protected:
 	/** Index into FMaterial::GetReferencedTextures */
 	int32 TextureIndex;
-	/** Fixed layer in virtual texture stack if preallocated */
-	int32 LayerIndex;
+	/** Texture layer index in virtual texture stack if preallocated */
+	int16 TextureLayerIndex;
+	/** Page table layer index in virtual texture stack if preallocated */
+	int16 PageTableLayerIndex;
 #if WITH_EDITORONLY_DATA
 	/** Sampler logic for this expression */
 	EMaterialSamplerType SamplerType;

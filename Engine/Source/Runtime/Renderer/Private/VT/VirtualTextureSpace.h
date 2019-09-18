@@ -17,9 +17,9 @@ struct FVTSpaceDescription
 {
 	uint32 TileSize = 0u;
 	uint32 TileBorderSize = 0u;
-	EVTPageTableFormat Format = EVTPageTableFormat::UInt16;
 	uint8 Dimensions = 0u;
-	uint8 NumLayers = 0u;
+	EVTPageTableFormat PageTableFormat = EVTPageTableFormat::UInt16;
+	uint8 NumPageTableLayers = 0u;
 	uint8 bPrivateSpace : 1;
 };
 
@@ -28,8 +28,8 @@ inline bool operator==(const FVTSpaceDescription& Lhs, const FVTSpaceDescription
 	return Lhs.Dimensions == Rhs.Dimensions &&
 		Lhs.TileSize == Rhs.TileSize &&
 		Lhs.TileBorderSize == Rhs.TileBorderSize &&
-		Lhs.NumLayers == Rhs.NumLayers &&
-		Lhs.Format == Rhs.Format &&
+		Lhs.NumPageTableLayers == Rhs.NumPageTableLayers &&
+		Lhs.PageTableFormat == Rhs.PageTableFormat &&
 		Lhs.bPrivateSpace == Rhs.bPrivateSpace;
 }
 inline bool operator!=(const FVTSpaceDescription& Lhs, const FVTSpaceDescription& Rhs)
@@ -48,16 +48,17 @@ public:
 
 	inline const FVTSpaceDescription& GetDescription() const { return Description; }
 	inline uint32 GetPageTableSize() const { return PageTableSize; }
-	inline uint32 GetNumLayers() const { return Description.NumLayers; }
 	inline uint8 GetDimensions() const { return Description.Dimensions; }
-	inline uint32 GetNumPageTableTextures() const { return (Description.NumLayers + LayersPerPageTableTexture - 1u) / LayersPerPageTableTexture; }
+	inline EVTPageTableFormat GetPageTableFormat() const { return Description.PageTableFormat; }
+	inline uint32 GetNumPageTableLayers() const { return Description.NumPageTableLayers; }
+	inline uint32 GetNumPageTableTextures() const { return (Description.NumPageTableLayers + LayersPerPageTableTexture - 1u) / LayersPerPageTableTexture; }
 	inline uint8 GetID() const { return ID; }
 
 	inline uint32 GetNumPageTableLevels() const { return NumPageTableLevels; }
 	inline FVirtualTextureAllocator& GetAllocator() { return Allocator; }
 	inline const FVirtualTextureAllocator& GetAllocator() const { return Allocator; }
-	inline FTexturePageMap& GetPageMap(uint32 LayerIndex) { check(LayerIndex < Description.NumLayers); return PhysicalPageMap[LayerIndex]; }
-	inline const FTexturePageMap& GetPageMap(uint32 LayerIndex) const { check(LayerIndex < Description.NumLayers); return PhysicalPageMap[LayerIndex]; }
+	inline FTexturePageMap& GetPageMapForPageTableLayer(uint32 PageTableLayerIndex) { check(PageTableLayerIndex < Description.NumPageTableLayers); return PhysicalPageMap[PageTableLayerIndex]; }
+	inline const FTexturePageMap& GetPageMapForPageTableLayer(uint32 PageTableLayerIndex) const { check(PageTableLayerIndex < Description.NumPageTableLayers); return PhysicalPageMap[PageTableLayerIndex]; }
 
 	// FRenderResource interface
 	virtual void		InitRHI() override;
