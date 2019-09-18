@@ -36,11 +36,18 @@ public:
 		const FText DropMessage;
 	};
 
+	enum class EDragOptions
+	{
+		Copy,
+		Move,
+		None
+	};
+
 	DECLARE_MULTICAST_DELEGATE(FOnStructureChanged);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDataObjectModified, UObject*);
 	DECLARE_MULTICAST_DELEGATE(FOnRequestFullRefresh);
 	DECLARE_MULTICAST_DELEGATE(FOnRequestFullRefreshDeferred);
-	DECLARE_DELEGATE_RetVal_TwoParams(TOptional<FDropResult>, FOnRequestDrop, const UNiagaraStackEntry&, const TArray<UNiagaraStackEntry*>&);
+	DECLARE_DELEGATE_RetVal_ThreeParams(TOptional<FDropResult>, FOnRequestDrop, const UNiagaraStackEntry&, const TArray<UNiagaraStackEntry*>&, EDragOptions);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnFilterChild, const UNiagaraStackEntry&);
 	DECLARE_DELEGATE(FStackIssueFixDelegate);
 	DECLARE_DELEGATE(FOnRequestDeferredOperation);
@@ -243,9 +250,9 @@ public:
 
 	virtual bool CanDrag() const;
 
-	TOptional<FDropResult> CanDrop(const TArray<UNiagaraStackEntry*>& DraggedEntries);
+	TOptional<FDropResult> CanDrop(const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions);
 
-	TOptional<FDropResult> Drop(const TArray<UNiagaraStackEntry*>& DraggedEntries);
+	TOptional<FDropResult> Drop(const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions);
 
 	void SetOnRequestCanDrop(FOnRequestDrop InOnRequestCanDrop);
 
@@ -268,13 +275,13 @@ protected:
 
 	virtual int32 GetChildIndentLevel() const;
 
-	virtual TOptional<FDropResult> CanDropInternal(const TArray<UNiagaraStackEntry*>& DraggedEntries);
+	virtual TOptional<FDropResult> CanDropInternal(const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions);
 
-	virtual TOptional<FDropResult> DropInternal(const TArray<UNiagaraStackEntry*>& DraggedEntries);
+	virtual TOptional<FDropResult> DropInternal(const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions);
 
-	virtual TOptional<FDropResult> ChildRequestCanDropInternal(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries);
+	virtual TOptional<FDropResult> ChildRequestCanDropInternal(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions);
 
-	virtual TOptional<FDropResult> ChildRequestDropInternal(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries);
+	virtual TOptional<FDropResult> ChildRequestDropInternal(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions);
 
 	virtual void ChlildStructureChangedInternal();
 
@@ -289,9 +296,9 @@ private:
 
 	void ChildRequestFullRefreshDeferred();
 
-	TOptional<FDropResult> ChildRequestCanDrop(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries);
+	TOptional<FDropResult> ChildRequestCanDrop(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions);
 
-	TOptional<FDropResult> ChildRequestDrop(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries);
+	TOptional<FDropResult> ChildRequestDrop(const UNiagaraStackEntry& TargetChild, const TArray<UNiagaraStackEntry*>& DraggedEntries, EDragOptions DragOptions);
 
 	void RefreshStackErrorChildren();
 
