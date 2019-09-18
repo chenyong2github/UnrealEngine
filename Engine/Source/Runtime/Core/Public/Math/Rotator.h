@@ -537,7 +537,7 @@ FORCEINLINE FRotator FRotator::operator-=( const FRotator& R )
 
 FORCEINLINE bool FRotator::IsNearlyZero(float Tolerance) const
 {
-#if PLATFORM_ENABLE_VECTORINTRINSICS || PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+#if PLATFORM_ENABLE_VECTORINTRINSICS
 	const VectorRegister RegA = VectorLoadFloat3_W0(this);
 	const VectorRegister Norm = VectorNormalizeRotator(RegA);
 	const VectorRegister AbsNorm = VectorAbs(Norm);
@@ -559,7 +559,7 @@ FORCEINLINE bool FRotator::IsZero() const
 
 FORCEINLINE bool FRotator::Equals(const FRotator& R, float Tolerance) const
 {
-#if PLATFORM_ENABLE_VECTORINTRINSICS || PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+#if PLATFORM_ENABLE_VECTORINTRINSICS
 	const VectorRegister RegA = VectorLoadFloat3_W0(this);
 	const VectorRegister RegB = VectorLoadFloat3_W0(&R);
 	const VectorRegister NormDelta = VectorNormalizeRotator(VectorSubtract(RegA, RegB));
@@ -678,7 +678,7 @@ FORCEINLINE FRotator FRotator::GetDenormalized() const
 
 FORCEINLINE void FRotator::Normalize()
 {
-#if PLATFORM_ENABLE_VECTORINTRINSICS || PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+#if PLATFORM_ENABLE_VECTORINTRINSICS
 	VectorRegister VRotator = VectorLoadFloat3_W0(this);
 	VRotator = VectorNormalizeRotator(VRotator);
 	VectorStoreFloat3(VRotator, this);
