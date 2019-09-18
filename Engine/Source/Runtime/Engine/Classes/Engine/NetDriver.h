@@ -630,13 +630,6 @@ struct FDisconnectedClient
 		, DisconnectTime(InDisconnectTime)
 	{
 	}
-
-	UE_DEPRECATED(4.23, "This object does not update address information, and should have const addresses passed in")
-	FDisconnectedClient(TSharedRef<FInternetAddr>& InAddress, double InDisconnectTime)
-		: Address(InAddress)
-		, DisconnectTime(InDisconnectTime)
-	{
-	}
 };
 
 
@@ -796,10 +789,6 @@ public:
 	UPROPERTY(Config)
 	FName NetDriverName;
 
-	/** The UChannel classes that should be used under this net driver */
-	UE_DEPRECATED(4.22, "Use ChannelDefinitions instead")
-	UClass* ChannelClasses[CHTYPE_MAX];
-
 	/** Used to specify available channel types and their associated UClass */
 	UPROPERTY(Config)
 	TArray<FChannelDefinition> ChannelDefinitions;
@@ -807,10 +796,6 @@ public:
 	/** Used for faster lookup of channel definitions by name. */
 	UPROPERTY()
 	TMap<FName, FChannelDefinition> ChannelDefinitionMap;
-
-	/** @return true if the specified channel type exists. */
-	UE_DEPRECATED(4.22, "Use IsKnownChannelName")
-	bool IsKnownChannelType(int32 Type);
 
 	/** @return true if the specified channel definition exists. */
 	FORCEINLINE bool IsKnownChannelName(const FName& ChName)
@@ -831,10 +816,6 @@ private:
 	TArray<UChannel*> ActorChannelPool;
 
 public:
-
-	/** Creates a new channel of the specified type. If the type is pooled, it will return a pre-created channel */
-	UE_DEPRECATED(4.22, "Use GetOrCreateChannelByName")
-	UChannel* GetOrCreateChannel(EChannelType ChType);
 
 	/** Creates a new channel of the specified type name. If the type is pooled, it will return a pre-created channel */
 	UChannel* GetOrCreateChannelByName(const FName& ChName);
@@ -1264,18 +1245,6 @@ public:
 	/** PostTick actions */
 	ENGINE_API virtual void PostTickFlush();
 
-	UE_DEPRECATED(4.21, "Please use the LowLevelSend that requires packet traits for analytics and packet modifiers.")
-	ENGINE_API virtual void LowLevelSend(FString Address, void* Data, int32 CountBits)
-	{
-		FOutPacketTraits EmptyTraits;
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		LowLevelSend(Address, Data, CountBits, EmptyTraits);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	UE_DEPRECATED(4.22, "Change arguments to support FInternetAddr instead")
-	ENGINE_API virtual void LowLevelSend(FString Address, void* Data, int32 CountBits, FOutPacketTraits& Traits);
-
 	/**
 	 * Sends a 'connectionless' (not associated with a UNetConection) packet, to the specified address.
 	 * NOTE: Address is an abstract format defined by subclasses. Anything calling this, must use an address supplied by the net driver.
@@ -1548,10 +1517,6 @@ protected:
 	ENGINE_API void RegisterTickEvents(class UWorld* InWorld);
 	/** Unregister all TickDispatch, TickFlush, PostTickFlush to tick in World */
 	ENGINE_API void UnregisterTickEvents(class UWorld* InWorld);
-
-	UE_DEPRECATED(4.22, "Use InternalCreateChannelByName")
-	/** Subclasses may override this to customize channel creation. Called by GetOrCreateChannel if the pool is exhausted and a new channel must be allocated. */
-	ENGINE_API virtual UChannel* InternalCreateChannel(EChannelType ChType);
 
 	/** Subclasses may override this to customize channel creation. Called by GetOrCreateChannel if the pool is exhausted and a new channel must be allocated. */
 	ENGINE_API virtual UChannel* InternalCreateChannelByName(const FName& ChName);

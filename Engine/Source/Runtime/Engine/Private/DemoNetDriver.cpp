@@ -3358,57 +3358,6 @@ bool UDemoNetDriver::ConditionallyReadDemoFrameIntoPlaybackPackets(FArchive& Ar)
 	return true;
 }
 
-// Deprecated, DO NOT USE.
-bool UDemoNetDriver::ReadPacket(FArchive& Archive, uint8* OutReadBuffer, int32& OutBufferSize, const int32 MaxBufferSize)
-{
-	OutBufferSize = 0;
-
-	Archive << OutBufferSize;
-
-	if (Archive.IsError())
-	{
-		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::ReadPacket: Failed to read demo OutBufferSize"));
-		return false;
-	}
-
-	if (OutBufferSize == 0)
-	{
-		return true;		// Done
-	}
-
-	if (OutBufferSize > MaxBufferSize)
-	{
-		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::ReadPacket: OutBufferSize > sizeof( ReadBuffer )"));
-		return false;
-	}
-
-	// Read data from file.
-	Archive.Serialize(OutReadBuffer, OutBufferSize);
-
-	if (Archive.IsError())
-	{
-		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::ReadPacket: Failed to read demo file packet"));
-		return false;
-	}
-
-#if DEMO_CHECKSUMS == 1
-	{
-		uint32 ServerChecksum = 0;
-		Archive << ServerChecksum;
-
-		const uint32 Checksum = FCrc::MemCrc32(OutReadBuffer, OutBufferSize, 0);
-
-		if (Checksum != ServerChecksum)
-		{
-			UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::ReadPacket: Checksum != ServerChecksum"));
-			return false;
-		}
-	}
-#endif
-
-	return true;
-}
-
 const UDemoNetDriver::EReadPacketState UDemoNetDriver::ReadPacket(FArchive& Archive, TArray<uint8>& OutBuffer, const EReadPacketMode Mode)
 {
 	const bool bSkipData = (EReadPacketMode::SkipData == Mode);

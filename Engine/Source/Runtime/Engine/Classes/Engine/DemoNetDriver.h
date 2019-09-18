@@ -393,10 +393,6 @@ class ENGINE_API UDemoNetDriver : public UNetDriver
 	/** Total number of frames in the demo */
 	int32 DemoTotalFrames;
 
-	/** True if we are at the end of playing a demo */
-	UE_DEPRECATED(4.23, "bDemoPlaybackDone is no longer used.")
-	bool bDemoPlaybackDone;
-
 	/** True if as have paused all of the channels */
 	bool bChannelsArePaused;
 
@@ -438,17 +434,6 @@ class ENGINE_API UDemoNetDriver : public UNetDriver
 
 	void SaveCheckpoint();
 	void TickCheckpoint();
-
-	UE_DEPRECATED(4.22, "This method will be made private in future versions.")
-	bool LoadCheckpoint(FArchive* GotoCheckpointArchive, int64 GotoCheckpointSkipExtraTimeInMS)
-	{
-		FGotoResult Result;
-		Result.Result = EStreamingOperationResult::Success;
-		Result.ExtraTimeMS = GotoCheckpointSkipExtraTimeInMS;
-		Result.CheckpointInfo.CheckpointIndex = FReplayCheckpointInfo::NO_CHECKPOINT;
-		Result.CheckpointInfo.CheckpointStartTime = FReplayCheckpointInfo::NO_CHECKPOINT;
-		return LoadCheckpoint(Result);
-	}
 
 private:
 
@@ -718,10 +703,6 @@ public:
 	bool ConditionallyProcessPlaybackPackets();
 	void ProcessAllPlaybackPackets();
 
-
-	UE_DEPRECATED(4.22, "This method will be made private in future versions.")
-	bool ReadPacket(FArchive& Archive, uint8* OutReadBuffer, int32& OutBufferSize, const int32 MaxBufferSize);
-
 private:
 
 	// Possible values returned by ReadPacket.
@@ -921,15 +902,6 @@ public:
 	{
 		return bHasDeltaCheckpoints;
 	}
-
-	/**
-	 * Called when a new ActorChannel is opened, before the Actor is notified.
-	 *
-	 * @param Channel	The channel associated with the actor.
-	 * @param Actor		The actor that was recently serialized.
-	 */
-	UE_DEPRECATED(4.22, "Use NotifyActorChannelOpen instead")
-	void PreNotifyActorChannelOpen(UActorChannel* Channel, AActor* Actor) { NotifyActorChannelOpen(Channel, Actor);  }
 
 	/**
 	 * Gets the actively recording or playback replay (stream) name.
