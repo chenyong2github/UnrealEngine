@@ -56,7 +56,7 @@ UPolyEditTransformProperties::UPolyEditTransformProperties()
 	PolygonGroupingAngleThreshold = .5;
 }
 
-#ifdef WITH_EDITOR
+#if WITH_EDITOR
 void UPolyEditTransformProperties::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	// skip interactive updates for PolygonGroupingAngleThreshold

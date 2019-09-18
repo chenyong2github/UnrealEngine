@@ -100,8 +100,10 @@ class MESHMODELINGTOOLS_API UPolyEditTransformProperties : public UInteractiveTo
 public:
 	UPolyEditTransformProperties();
 
-#ifdef WITH_EDITOR
+#if WITH_EDITOR
+	// UObject interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	// End of UObject interface
 #endif
 
 	//Options
