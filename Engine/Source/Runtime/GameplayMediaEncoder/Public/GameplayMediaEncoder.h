@@ -81,7 +81,7 @@ private:
 	// ISubmixBufferListener interface
 	void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) override;
 
-	bool ProcessAudioFrame(const float* AudioData, int32 NumSamples, int32 NumChannels, int32 SampleRate);
+	bool ProcessAudioFrame(const float* AudioData, int32 NumSamples, int32 NumChannels, int32 SampleRate, double AudioClock);
 	bool ProcessVideoFrame(const FTexture2DRHIRef& BackBuffer);
 
 	bool ChangeVideoConfig();
@@ -105,7 +105,14 @@ private:
 
 	uint64 NumCapturedFrames = 0;
 	FTimespan StartTime = 0;
-	FTimespan LastAudioInputTimestamp = 0;
+	// For audio, we can't use anything timed with FPlatformMisc::Seconds(), because we need
+	// to follow the audio clock.
+	// In other words, the pace of the audio clock exactly depends on the amount of audio data we
+	// get.
+	// By using FPlatform::Seconds(), audio timing wouldn't exactly match the duration or timestamps of
+	// the audio buffers from the audio device perspective.
+	double AudioStartTime = 0;
+
 	FTimespan LastVideoInputTimestamp = 0;
 
 	// It is possible to suspend the processing of media samples which is
