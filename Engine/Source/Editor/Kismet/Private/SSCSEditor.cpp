@@ -5223,9 +5223,9 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 		if (ComponentTemplate)
 		{
 			// Create a duplicate of the provided template
-			UActorComponent* NewInstanceComponent = FComponentEditorUtils::DuplicateComponent(ComponentTemplate);
-			FSCSEditorTreeNodePtrType ParentNodePtr = FindParentForNewComponent(NewInstanceComponent);
-			NewComponent = AddNewNodeForInstancedComponent(MoveTemp(AddTransaction), NewInstanceComponent, ParentNodePtr, nullptr, bSetFocusToNewItem);
+			NewComponent = FComponentEditorUtils::DuplicateComponent(ComponentTemplate);
+			FSCSEditorTreeNodePtrType ParentNodePtr = FindParentForNewComponent(NewComponent);
+			AddNewNodeForInstancedComponent(MoveTemp(AddTransaction), NewComponent, ParentNodePtr, nullptr, bSetFocusToNewItem);
 		}
 		else if (AActor* ActorInstance = GetActorContext())
 		{
@@ -5295,7 +5295,12 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 			// Rerun construction scripts
 			ActorInstance->RerunConstructionScripts();
 
-			NewComponent = AddNewNodeForInstancedComponent(MoveTemp(AddTransaction), NewInstanceComponent, ParentNodePtr, Asset, bSetFocusToNewItem);
+			// If the running the construction script destroyed the new node, don't create an entry for it
+			if (!NewInstanceComponent->IsPendingKill())
+			{
+				AddNewNodeForInstancedComponent(MoveTemp(AddTransaction), NewInstanceComponent, ParentNodePtr, Asset, bSetFocusToNewItem);
+				NewComponent = NewInstanceComponent;
+			}
 		}
 	}
 
@@ -5411,7 +5416,7 @@ FSCSEditorTreeNodePtrType SSCSEditor::FindParentForNewComponent(UActorComponent*
 	}
 
 	return TargetParentNode;
-	}
+}
 
 FSCSEditorTreeNodePtrType SSCSEditor::FindParentForNewNode(USCS_Node* NewNode) const
 {
@@ -5463,7 +5468,7 @@ UActorComponent* SSCSEditor::AddNewNode(TUniquePtr<FScopedTransaction> InOngoing
 	return NewNode->ComponentTemplate;
 }
 
-UActorComponent* SSCSEditor::AddNewNodeForInstancedComponent(TUniquePtr<FScopedTransaction> InOngoingCreateTransaction, UActorComponent* NewInstanceComponent, FSCSEditorTreeNodePtrType InParentNodePtr, UObject* Asset, bool bSetFocusToNewItem)
+void SSCSEditor::AddNewNodeForInstancedComponent(TUniquePtr<FScopedTransaction> InOngoingCreateTransaction, UActorComponent* NewInstanceComponent, FSCSEditorTreeNodePtrType InParentNodePtr, UObject* Asset, bool bSetFocusToNewItem)
 {
 	check(NewInstanceComponent != nullptr);
 
@@ -5480,8 +5485,6 @@ UActorComponent* SSCSEditor::AddNewNodeForInstancedComponent(TUniquePtr<FScopedT
 	}
 
 	UpdateTree(false);
-
-	return NewInstanceComponent;
 }
 
 bool SSCSEditor::IsComponentSelected(const UPrimitiveComponent* PrimComponent) const
