@@ -108,9 +108,9 @@ private:
 	};
 	struct FCompactExportTextNoNumbers
 	{
-		NAME_INDEX Class;
-		NAME_INDEX Package;
-		NAME_INDEX Object;
+		FNameEntryId Class;
+		FNameEntryId Package;
+		FNameEntryId Object;
 
 		FString ToString() const
 		{
