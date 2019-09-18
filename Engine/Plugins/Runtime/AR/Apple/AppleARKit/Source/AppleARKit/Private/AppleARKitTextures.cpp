@@ -31,6 +31,13 @@ public:
 
 	virtual ~FARKitCameraImageResource()
 	{
+#if PLATFORM_MAC || PLATFORM_IOS
+		if (ImageContext)
+		{
+			CFRelease(ImageContext);
+			ImageContext = nullptr;
+		}
+#endif
 	}
 
 	virtual void InitRHI() override
@@ -70,7 +77,12 @@ public:
 			id<MTLTexture> UnderlyingMetalTexture = (id<MTLTexture>)DecodedTextureRef->GetNativeResource();
 
 			// Do the conversion on the GPU
-			[[CIContext context] render: RotatedImage toMTLTexture: UnderlyingMetalTexture commandBuffer: nil bounds: ImageExtent colorSpace: ColorSpaceRef];
+			if (!ImageContext)
+			{
+				ImageContext = [CIContext context];
+				CFRetain(ImageContext);
+			}
+			[ImageContext render: RotatedImage toMTLTexture: UnderlyingMetalTexture commandBuffer: nil bounds: ImageExtent colorSpace: ColorSpaceRef];
 
 			// Now that the conversion is done, we can get rid of our refs
 			[Image release];
@@ -176,6 +188,9 @@ private:
 #if PLATFORM_MAC || PLATFORM_IOS
 	/** The raw camera image from ARKit which is to be converted into a RGBA image */
 	CVPixelBufferRef CameraImage;
+	
+	/** The cached image context that's reused between frames */
+	CIContext* ImageContext = nullptr;
 #endif
 	/** The texture that we actually render with which is populated via the GPU conversion process */
 	FTexture2DRHIRef DecodedTextureRef;
@@ -442,6 +457,11 @@ public:
 	
 	virtual ~FARMetalResource()
 	{
+		if (ImageContext)
+		{
+			CFRelease(ImageContext);
+			ImageContext = nullptr;
+		}
 	}
 	
 	/**
@@ -513,9 +533,12 @@ public:
 		id<MTLTexture> UnderlyingMetalTexture = (id<MTLTexture>)Cubemap->GetNativeResource();
 		id<MTLTexture> OurCubeFaceMetalTexture = [UnderlyingMetalTexture newTextureViewWithPixelFormat: MTLPixelFormatBGRA8Unorm textureType: MTLTextureType2D levels: NSMakeRange(0, 1) slices: NSMakeRange(OurCubeIndex, 1)];
 
-		CIContext* Context = [CIContext context];
-
-		[Context render: RotatedCubefaceImage toMTLTexture: OurCubeFaceMetalTexture commandBuffer: nil bounds: CubefaceImage.extent colorSpace: CubefaceImage.colorSpace];
+		if (!ImageContext)
+		{
+			ImageContext = [CIContext context];
+			CFRetain(ImageContext);
+		}
+		[ImageContext render: RotatedCubefaceImage toMTLTexture: OurCubeFaceMetalTexture commandBuffer: nil bounds: CubefaceImage.extent colorSpace: CubefaceImage.colorSpace];
 
 		[CubefaceImage release];
 		[CubeFaceMetalTexture release];
@@ -548,6 +571,8 @@ private:
 	FTextureCubeRHIRef EnvCubemapTextureRHIRef;
 	
 	const UAppleARKitEnvironmentCaptureProbeTexture* Owner;
+	
+	CIContext* ImageContext = nullptr;
 };
 
 #endif
@@ -571,3 +596,251 @@ void UAppleARKitEnvironmentCaptureProbeTexture::BeginDestroy()
 #endif
 	Super::BeginDestroy();
 }
+
+UAppleARKitOcclusionTexture::UAppleARKitOcclusionTexture(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SRGB = false;
+}
+
+void UAppleARKitOcclusionTexture::BeginDestroy()
+{
+#if PLATFORM_MAC || PLATFORM_IOS
+	if (MetalTexture)
+	{
+		CFRelease(MetalTexture);
+		MetalTexture = nullptr;
+	}
+#endif
+	
+	Super::BeginDestroy();
+}
+
+#if PLATFORM_MAC || PLATFORM_IOS
+class FOcclusionTextureResource : public FTextureResource
+{
+public:
+	FOcclusionTextureResource(UAppleARKitOcclusionTexture* InOwner)
+		: Owner(InOwner)
+	{
+		bGreyScaleFormat = false;
+		bSRGB = InOwner->SRGB;
+	}
+	
+	virtual ~FOcclusionTextureResource()
+	{
+		if (ImageContext)
+		{
+			CFRelease(ImageContext);
+			ImageContext = nullptr;
+		}
+	}
+	
+	virtual void InitRHI() override
+	{
+		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
+		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+		
+#if PLATFORM_IOS
+		id<MTLTexture> MetalTexture = Owner->GetMetalTexture();
+		if (MetalTexture)
+		{
+			SCOPED_AUTORELEASE_POOL;
+			
+			CFRetain(MetalTexture);
+			
+			CGColorSpaceRef ColorSpaceRef = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGBLinear);
+			CIImage* Image = [[CIImage alloc] initWithMTLTexture: MetalTexture options: nil];
+
+			// Textures always need to be rotated so to a sane orientation (and mirrored because of differing coord system)
+			CIImage* RotatedImage = [Image imageByApplyingOrientation: GetRotationFromDeviceOrientation()];
+			
+			// Get the sizes from the rotated image
+			CGRect ImageExtent = RotatedImage.extent;
+			
+			FIntPoint DesiredSize(ImageExtent.size.width, ImageExtent.size.height);
+			
+			if (!TextureRHI || DesiredSize != Size)
+			{
+				// Let go of the last texture
+				RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
+				TextureRHIRef.SafeRelease();
+				
+				Size = DesiredSize;
+				
+				MTLPixelFormat MetalPixelFormat = MetalTexture.pixelFormat;
+				EPixelFormat PixelFormat = EPixelFormat::PF_Unknown;
+				if (MetalPixelFormat == MTLPixelFormatR8Unorm)
+				{
+					PixelFormat = EPixelFormat::PF_G8;
+				}
+				else if (MetalPixelFormat == MTLPixelFormatR16Float)
+				{
+					PixelFormat = EPixelFormat::PF_R16F;
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("FMetalTextureResource::InitRHI: Metal pixel format is not supported: %d"), (int32)MetalPixelFormat);
+				}
+				
+				if (PixelFormat != EPixelFormat::PF_Unknown)
+				{
+					FRHIResourceCreateInfo CreateInfo;
+					TextureRHIRef = RHICreateTexture2D(Size.X, Size.Y, PixelFormat, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+				}
+			}
+			
+			if (TextureRHIRef)
+			{
+				// Get the underlying metal texture so we can render to it
+				id<MTLTexture> UnderlyingMetalTexture = (id<MTLTexture>)TextureRHIRef->GetNativeResource();
+
+				// Do the conversion on the GPU
+				if (!ImageContext)
+				{
+					ImageContext = [CIContext context];
+					CFRetain(ImageContext);
+				}
+				[ImageContext render: RotatedImage toMTLTexture: UnderlyingMetalTexture commandBuffer: nil bounds: ImageExtent colorSpace: ColorSpaceRef];
+			}
+			
+			// Now that the conversion is done, we can get rid of our refs
+			[Image release];
+			CGColorSpaceRelease(ColorSpaceRef);
+			CFRelease(MetalTexture);
+			MetalTexture = nullptr;
+		}
+#endif
+		
+		if (!TextureRHIRef)
+		{
+			// Default to an empty 1x1 texture if we don't have a camera image
+			FRHIResourceCreateInfo CreateInfo;
+			Size.X = Size.Y = 1;
+			TextureRHIRef = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+		}
+
+		TextureRHI = TextureRHIRef;
+		TextureRHI->SetName(Owner->GetFName());
+		RHIBindDebugLabelName(TextureRHI, *Owner->GetName());
+		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
+	}
+	
+#if PLATFORM_IOS
+	/** @return the rotation to use to rotate the texture to the proper direction */
+	int32 GetRotationFromDeviceOrientation()
+	{
+		// NOTE: The texture we are reading from is in device space and mirrored, because Apple hates us
+		EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
+		switch (ScreenOrientation)
+		{
+			case EDeviceScreenOrientation::Portrait:
+			{
+				return kCGImagePropertyOrientationLeft;
+			}
+
+			case EDeviceScreenOrientation::LandscapeLeft:
+			{
+				return kCGImagePropertyOrientationDown;
+			}
+
+			case EDeviceScreenOrientation::PortraitUpsideDown:
+			{
+				return kCGImagePropertyOrientationUp;
+			}
+
+			case EDeviceScreenOrientation::LandscapeRight:
+			{
+				return kCGImagePropertyOrientationUp;
+			}
+		}
+		
+		// Don't know so don't rotate
+		return kCGImagePropertyOrientationUp;
+	}
+#endif
+	
+	virtual void ReleaseRHI() override
+	{
+		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
+		TextureRHIRef.SafeRelease();
+		FTextureResource::ReleaseRHI();
+	}
+	
+	/** Returns the width of the texture in pixels. */
+	virtual uint32 GetSizeX() const override
+	{
+		return Size.X;
+	}
+	
+	/** Returns the height of the texture in pixels. */
+	virtual uint32 GetSizeY() const override
+	{
+		return Size.Y;
+	}
+	
+private:
+	FIntPoint Size;
+	FTexture2DRHIRef TextureRHIRef;
+	const UAppleARKitOcclusionTexture* Owner = nullptr;
+	CIContext* ImageContext = nullptr;
+};
+
+void UAppleARKitOcclusionTexture::SetMetalTexture(float InTimestamp, id<MTLTexture> InMetalTexture)
+{
+	{
+		FScopeLock ScopeLock(&MetalTextureLock);
+		Timestamp = InTimestamp;
+		
+		if (MetalTexture != InMetalTexture)
+		{
+			if (MetalTexture)
+			{
+				CFRelease(MetalTexture);
+				MetalTexture = nullptr;
+			}
+			
+			MetalTexture = InMetalTexture;
+			
+			if (MetalTexture)
+			{
+				CFRetain(MetalTexture);
+				Size = FVector2D(MetalTexture.width, MetalTexture.height);
+			}
+		}
+	}
+	
+	if (Resource == nullptr)
+	{
+		UpdateResource();
+	}
+	
+	if (Resource)
+	{
+		ENQUEUE_RENDER_COMMAND(UpdateMetalTextureResource)
+		([InResource = Resource](FRHICommandListImmediate& RHICmdList)
+		{
+			InResource->InitRHI();
+		});
+	}
+}
+
+id<MTLTexture> UAppleARKitOcclusionTexture::GetMetalTexture() const
+{
+	FScopeLock ScopeLock(&MetalTextureLock);
+	return MetalTexture;
+}
+
+FTextureResource* UAppleARKitOcclusionTexture::CreateResource()
+{
+	return new FOcclusionTextureResource(this);
+}
+
+#else
+
+FTextureResource* UAppleARKitOcclusionTexture::CreateResource()
+{
+	return nullptr;
+}
+
+#endif
