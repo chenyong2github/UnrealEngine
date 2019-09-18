@@ -61,8 +61,8 @@ void FUserInterfaceCommand::Run()
 
 	// Manually load in the source code access plugins, as standalone programs don't currently support plugins.
 #if PLATFORM_MAC
-	IModuleInterface& XCodeSourceCodeAccessModule = FModuleManager::LoadModuleChecked<IModuleInterface>(FName("XCodeSourceCodeAccess"));
-	SourceCodeAccessModule.SetAccessor(FName("XCodeSourceCodeAccess"));
+	//im:TODO: IModuleInterface& XCodeSourceCodeAccessModule = FModuleManager::LoadModuleChecked<IModuleInterface>(FName("XCodeSourceCodeAccess"));
+	//im:TODO: SourceCodeAccessModule.SetAccessor(FName("XCodeSourceCodeAccess"));
 #elif PLATFORM_WINDOWS
 	//im:TODO: IModuleInterface& VisualStudioSourceCodeAccessModule = FModuleManager::LoadModuleChecked<IModuleInterface>(FName("VisualStudioSourceCodeAccess"));
 	//im:TODO: SourceCodeAccessModule.SetAccessor(FName("VisualStudioSourceCodeAccess"));
