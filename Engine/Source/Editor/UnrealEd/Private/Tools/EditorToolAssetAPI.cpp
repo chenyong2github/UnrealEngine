@@ -6,9 +6,8 @@
 
 
 #include "AssetRegistryModule.h"
+#include "AssetToolsModule.h"
 #include "FileHelpers.h"
-#include "PackageTools.h"
-#include "ObjectTools.h"
 
 // for content-browser things
 #include "ContentBrowserModule.h"
@@ -30,37 +29,17 @@ FString FEditorToolAssetAPI::GetActiveAssetFolderPath()
 
 
 
-FString FEditorToolAssetAPI::MakePackageName(const FString& AssetName, const FString& FolderPath)
+
+UPackage* FEditorToolAssetAPI::MakeNewAssetPackage(const FString& FolderPath, const FString& AssetBaseName, FString& UniqueAssetName)
 {
-	return FolderPath + TEXT("/") + AssetName;
-}
+	FString UniquePackageName;
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	AssetToolsModule.Get().CreateUniqueAssetName(
+		FolderPath + TEXT("/") + AssetBaseName, TEXT(""), UniquePackageName, UniqueAssetName);
 
-
-FString FEditorToolAssetAPI::MakeUniqueAssetName(const FString& AssetName, const FString& FolderPath)
-{
-	FString NewPackageName = MakePackageName(AssetName, FolderPath);
-	if (FPackageName::DoesPackageExist(NewPackageName) == false)
-	{
-		return AssetName;
-	}
-
-	int Counter = 1;
-	FString UniqueName = AssetName;
-	while ( FPackageName::DoesPackageExist(NewPackageName) )
-	{
-		UniqueName = AssetName + FString::Printf(TEXT("_%d"), Counter++);
-		NewPackageName = MakePackageName(UniqueName, FolderPath);
-	}
-	return UniqueName;
-}
-
-
-UPackage* FEditorToolAssetAPI::CreateNewPackage(const FString& AssetName, const FString& FolderPath)
-{
-	FString NewPackageName = MakePackageName(AssetName, FolderPath);
-	NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
-	UPackage* AssetPackage = CreatePackage(nullptr, *NewPackageName);
+	UPackage* AssetPackage = CreatePackage(nullptr, *UniquePackageName);
 	return AssetPackage;
+
 }
 
 

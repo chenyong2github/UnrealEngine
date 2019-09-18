@@ -41,21 +41,19 @@ AActor* AssetGenerationUtil::GenerateStaticMeshActor(
 	FString MeshName = ObjectName;
 
 	// create new package
-	FString UniqueMeshName = AssetAPI->MakeUniqueAssetName(MeshName, PackageFolderPath);
-	UPackage* AssetPackage = AssetAPI->CreateNewPackage(UniqueMeshName, PackageFolderPath);
-
+	FString UniqueAssetName;
+	UPackage* AssetPackage = AssetAPI->MakeNewAssetPackage(PackageFolderPath, ObjectName, UniqueAssetName);
 
 	// create new actor
 	FRotator Rotation(0.0f, 0.0f, 0.0f);
 	FActorSpawnParameters SpawnInfo;
 	// @todo nothing here is specific to AStaticMeshActor...could we pass in a CDO and clone it instead of using SpawnActor?
 	AStaticMeshActor* NewActor = TargetWorld->SpawnActor<AStaticMeshActor>(FVector::ZeroVector, Rotation, SpawnInfo);
-	NewActor->Rename(*UniqueMeshName);
-	NewActor->SetActorLabel(*UniqueMeshName);
+	NewActor->SetActorLabel(*UniqueAssetName);
 
 	// construct new static mesh
 	FStaticMeshComponentBuilder Builder;
-	Builder.Initialize(AssetPackage, FName(*UniqueMeshName));
+	Builder.Initialize(AssetPackage, FName(*UniqueAssetName));
 
 	// Populate the MeshDescription associated with the asset.
 	FMeshDescriptionBuilder MeshDescripBuilder;

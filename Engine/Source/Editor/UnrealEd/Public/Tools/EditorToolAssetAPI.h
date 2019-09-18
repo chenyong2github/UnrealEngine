@@ -14,13 +14,7 @@ class UNREALED_API FEditorToolAssetAPI : public IToolsContextAssetAPI
 public:
 	virtual FString GetActiveAssetFolderPath() override;
 
-	virtual FString MakePackageName(const FString& AssetName, const FString& FolderPath) override;
-
-	virtual FString MakeUniqueAssetName(const FString& AssetName, const FString& FolderPath) override;
-
-	// FolderPath should neither start with, nor end with, path separators
-	// Generated path will be /Game/FolderPath/AssetName
-	virtual UPackage* CreateNewPackage(const FString& AssetName, const FString& FolderPath) override;
+	virtual UPackage* MakeNewAssetPackage(const FString& FolderPath, const FString& AssetBaseName, FString& UniqueAssetName);
 
 	virtual void InteractiveSaveGeneratedAsset(UObject* Asset, UPackage* AssetPackage) override;
 

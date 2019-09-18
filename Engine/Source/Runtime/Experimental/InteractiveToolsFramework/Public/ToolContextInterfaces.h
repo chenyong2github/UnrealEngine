@@ -312,14 +312,14 @@ public:
 	/** Get default path to save assets in. For example the currently-visible path in the Editor. */
 	virtual FString GetActiveAssetFolderPath() = 0;
 
-	/** Combines folder and asset names */
-	virtual FString MakePackageName(const FString& AssetName, const FString& FolderPath) = 0;
-
-	/** return "unique" version of AssetName, created by appending _1, _2, ... if AssetName already exists */
-	virtual FString MakeUniqueAssetName(const FString& AssetName, const FString& FolderPath) = 0;
-
-	/** create a new package at the given path (calls MakePackageName) */
-	virtual UPackage* CreateNewPackage(const FString& AssetName, const FString& FolderPath) = 0;
+	/**
+	 * Creates a new package for an asset
+	 * @param FolderPath path for new package
+	 * @param AssetBaseName base name for asset
+	 * @param UniqueAssetNameOut unique name in form of AssetBaseName##, where ## is a unqiue index
+	 * @return new package
+	 */
+	virtual UPackage* MakeNewAssetPackage(const FString& FolderPath, const FString& AssetBaseName, FString& UniqueAssetNameOut) = 0;
 
 	/** Request saving of asset to persistent storage via something like an interactive popup dialog */
 	virtual void InteractiveSaveGeneratedAsset(UObject* Asset, UPackage* AssetPackage) = 0;
