@@ -70,7 +70,7 @@ public:
 	{
 		while (!Stopping)
 		{
-			if (GIsRequestingExit)
+			if (IsEngineExitRequested())
 			{
 				break;
 			}
@@ -96,7 +96,7 @@ public:
 		int RecheckCounter = RECHECK_COUNTER_RESET;
 		while (!Stopping)
 		{
-			if (GIsRequestingExit)
+			if (IsEngineExitRequested())
 			{
 				break;
 			}

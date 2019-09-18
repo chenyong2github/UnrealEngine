@@ -833,7 +833,7 @@ void UEdModeInteractiveToolsContext::SaveEditorStateAndSetForTool()
 
 void UEdModeInteractiveToolsContext::RestoreEditorState()
 {
-	if (bHaveSavedEditorState && !GIsRequestingExit)
+	if (bHaveSavedEditorState && !IsEngineExitRequested())
 	{
 		GCurrentLevelEditingViewportClient->EngineShowFlags.SetAntiAliasing(bSavedAntiAliasingState);
 		bHaveSavedEditorState = false;
