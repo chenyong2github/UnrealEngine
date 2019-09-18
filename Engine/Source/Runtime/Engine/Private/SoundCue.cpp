@@ -87,6 +87,11 @@ void USoundCue::CacheAggregateValues()
 	}
 }
 
+void USoundCue::PrimeSoundCue()
+{
+	FirstNode->PrimeChildWavePlayers(true);
+}
+
 void USoundCue::Serialize(FStructuredArchive::FRecord Record)
 {
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
@@ -153,6 +158,11 @@ void USoundCue::PostLoad()
 	}
 
 	CacheAggregateValues();
+	
+	if (bPrimeOnLoad)
+	{
+		FirstNode->PrimeChildWavePlayers(true);
+	}
 }
 
 bool USoundCue::CanBeClusterRoot() const
