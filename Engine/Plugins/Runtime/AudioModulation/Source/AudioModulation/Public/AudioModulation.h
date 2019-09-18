@@ -29,10 +29,6 @@ namespace AudioModulation
 		//~ Begin IAudioModulation implementation
 		virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) override;
 
-#if WITH_EDITOR
-		void OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& Settings);
-#endif // WITH_EDITOR
-
 		virtual void OnInitSound(ISoundModulatable& Sound, const USoundModulationPluginSourceSettingsBase& Settings) override;
 		virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings) override;
 
@@ -47,6 +43,10 @@ namespace AudioModulation
 		virtual void ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls) override;
 		virtual void ProcessModulators(const float Elapsed) override;
 		//~ End IAudioModulation implementation
+
+#if WITH_EDITOR
+		void OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& Settings);
+#endif // WITH_EDITOR
 
 		FAudioModulationImpl* GetImpl();
 
