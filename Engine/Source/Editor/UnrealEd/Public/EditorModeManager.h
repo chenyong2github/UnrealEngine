@@ -593,11 +593,15 @@ protected:
 private:
 	struct FEdModeToolbarRow
 	{
-		FEdModeToolbarRow(FName InModeID, TSharedRef<SWidget>& InToolbarWidget)
+		FEdModeToolbarRow(FName InModeID, FName InPaletteName, FText InDisplayName, TSharedRef<SWidget> InToolbarWidget)
 			: ModeID(InModeID)
+			, PaletteName(InPaletteName)
+			, DisplayName(InDisplayName)
 			, ToolbarWidget(InToolbarWidget)
 		{}
 		FName ModeID;
+		FName PaletteName;
+		FText DisplayName;
 		TSharedPtr<SWidget> ToolbarWidget;
 	};
 

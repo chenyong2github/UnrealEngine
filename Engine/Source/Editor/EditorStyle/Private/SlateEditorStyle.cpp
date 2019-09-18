@@ -2020,7 +2020,7 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "ToolBar.Block.IndentedPadding", FMargin( 18.0f, 2.0f, 4.0f, 4.0f ) );
 		Set( "ToolBar.Block.Padding", FMargin( 2.0f, 2.0f, 4.0f, 4.0f ) );
 
-		Set( "ToolBar.Separator", new BOX_BRUSH( "Old/Button", 4.0f/32.0f ) );
+		Set( "ToolBar.Separator", new FSlateColorBrush( FLinearColor(FColor(47, 47, 47)) ) );
 		Set( "ToolBar.Separator.Padding", FMargin( 0.5f ) );
 
 		Set( "ToolBar.Label", FTextBlockStyle(NormalText) .SetFont( DEFAULT_FONT( "Regular", 9 ) ) );
@@ -4908,6 +4908,22 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "LevelEditor.EditorModes", new IMAGE_BRUSH( "Icons/icon_Editor_Modes_40x", Icon40x40 ) );
 		Set( "LevelEditor.EditorModes.Small", new IMAGE_BRUSH( "Icons/icon_Editor_Modes_40x", Icon20x20 ) );
 		Set( "LevelEditor.EditorModes.Menu", new IMAGE_BRUSH( "Icons/icon_Editor_Modes_16x", Icon16x16 ) );
+
+
+		Set( "ToolPalette.DockingTab", FCheckBoxStyle()
+			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
+			.SetPadding( FMargin(16.0f, 2.0f, 16.0f, 2.0f ) )
+			.SetCheckedImage(             FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(62, 62, 62) ) )
+			.SetCheckedHoveredImage(      FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(62, 62, 62) ) )
+			.SetCheckedPressedImage(      FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(62, 62, 62) ) )
+			.SetUncheckedImage(           FSlateNoResource() )
+			.SetUncheckedHoveredImage(    FSlateNoResource() )
+			.SetUncheckedPressedImage(    FSlateNoResource() )
+			.SetUndeterminedImage(        FSlateNoResource() )
+			.SetUndeterminedHoveredImage( FSlateNoResource() )
+			.SetUndeterminedPressedImage( FSlateNoResource() )
+		);	
+		Set( "ToolPalette.DockingWell", new FSlateColorBrush(FLinearColor(FColor(34, 34, 34, 255))));
 
 		Set( "LevelEditor.PlacementMode", new IMAGE_BRUSH( "Icons/icon_Mode_Placement_40px", Icon40x40 ) );
 		Set( "LevelEditor.PlacementMode.Small", new IMAGE_BRUSH( "Icons/icon_Mode_Placement_40px", Icon20x20 ) );

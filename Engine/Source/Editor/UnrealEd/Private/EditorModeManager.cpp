@@ -16,6 +16,7 @@
 #include "Toolkits/IToolkitHost.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/Input/SButton.h"
 #include "Engine/LevelStreaming.h"
 #include "EditorWorldExtension.h"
 #include "ViewportWorldInteraction.h"
@@ -24,6 +25,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "Bookmarks/IBookmarkTypeTools.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "EditorStyleSet.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -709,9 +711,9 @@ void FEditorModeTools::DeactivateModeAtIndex(int32 InIndex)
 	// Remove the toolbar widget
 	ActiveToolBarRows.RemoveAll(
 		[&Mode](FEdModeToolbarRow& Row)
-	{
-		return Row.ModeID == Mode->GetID();
-	}
+		{
+			return Row.ModeID == Mode->GetID();
+		}
 	);
 
 	RebuildModeToolBar();
@@ -731,9 +733,9 @@ void FEditorModeTools::DeactivateScriptableModeAtIndex(int32 InIndex)
 	// Remove the toolbar widget
 	ActiveToolBarRows.RemoveAll(
 		[&Mode](FEdModeToolbarRow& Row)
-	{
-		return Row.ModeID == Mode->GetID();
-	}
+		{
+			return Row.ModeID == Mode->GetID();
+		}
 	);
 
 	RebuildModeToolBar();
@@ -750,22 +752,72 @@ void FEditorModeTools::RebuildModeToolBar()
 	{
 		ModeToolbarBoxPinned->ClearChildren();
 
-		if(ActiveToolBarRows.Num())
+		TSharedRef< SHorizontalBox > PaletteTabBox = SNew(SHorizontalBox);
+		TSharedRef< SWidgetSwitcher > PaletteSwitcher = SNew(SWidgetSwitcher);
+
+		int32 PaletteCount = ActiveToolBarRows.Num();
+		if(PaletteCount > 0)
 		{
-			for(int32 RowIdx = 0; RowIdx < ActiveToolBarRows.Num(); ++RowIdx)
+			for(int32 RowIdx = 0; RowIdx < PaletteCount; ++RowIdx)
 			{
 				const FEdModeToolbarRow& Row = ActiveToolBarRows[RowIdx];
 				if (ensure(Row.ToolbarWidget.IsValid()))
 				{
-					ModeToolbarBoxPinned->AddSlot()
-					.HAlign(HAlign_Left)
-					.AutoHeight()
-					.Padding(0.0f, RowIdx > 0 ? 5.0f : 0.0f, 0.0f, 0.0f)
+					TSharedRef<SWidget> PaletteWidget = Row.ToolbarWidget.ToSharedRef();
+
+					FEdMode* Mode = GetActiveMode(Row.ModeID);
+					TSharedPtr<FModeToolkit> RowToolkit = Mode->GetToolkit();
+
+					// Don't show Palette Tabs if there is only one
+					if (PaletteCount > 1)
+					{
+						PaletteTabBox->AddSlot()
+						.AutoWidth()
+						.Padding(FMargin(3.f, 1.0f, 3.0f, 0.0f))
+						[
+							SNew(SCheckBox)
+							.Style( FEditorStyle::Get(),  "ToolPalette.DockingTab" )
+							.OnCheckStateChanged_Lambda( [PaletteSwitcher, Row, RowToolkit] (const ECheckBoxState) { 
+									PaletteSwitcher->SetActiveWidget(Row.ToolbarWidget.ToSharedRef());
+									RowToolkit->OnToolPaletteChanged(Row.PaletteName);
+								} 
+							)
+							.IsChecked_Lambda( [PaletteSwitcher, PaletteWidget] () -> ECheckBoxState { return PaletteSwitcher->GetActiveWidget() == PaletteWidget ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+							[
+								SNew(STextBlock)
+								.Text(Row.DisplayName)
+							]
+						];
+					}
+
+					PaletteSwitcher->AddSlot()
 					[
-						Row.ToolbarWidget.ToSharedRef()
-					];
+						PaletteWidget
+					]; 
 				}
 			}
+
+			ModeToolbarBoxPinned->AddSlot()
+			.AutoHeight()
+			[
+				SNew(SOverlay)
+				+SOverlay::Slot()
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush("ToolPalette.DockingWell"))
+				]
+
+				+SOverlay::Slot()
+				[
+					PaletteTabBox
+				]
+			];
+
+			ModeToolbarBoxPinned->AddSlot()
+			.Padding(1.f)
+			[
+				PaletteSwitcher	
+			];
 		}
 		else
 		{
@@ -773,7 +825,6 @@ void FEditorModeTools::RebuildModeToolBar()
 		}
 	}
 }
-
 
 void FEditorModeTools::SpawnOrUpdateModeToolbar()
 {
@@ -876,6 +927,7 @@ TSharedRef<SDockTab> FEditorModeTools::MakeModeToolbarTab()
 		SNew(SDockTab)
 		.Label(NSLOCTEXT("EditorModes", "EditorModesToolbarTitle", "Mode Toolbar"))
 		.ShouldAutosize(true)
+		.ContentPadding(0.0f)
 		.Icon(FEditorStyle::GetBrush("ToolBar.Icon"))
 		[
 			SAssignNew(ModeToolbarBox, SVerticalBox)
@@ -985,17 +1037,25 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 			if (Toolkit.IsValid())
 			{
 				CommandList = Toolkit->GetToolkitCommands();
-			}
 
-			FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
-			Mode->BuildModeToolbar(ModeToolbarBuilder);
+				// Also build the toolkit here 
+				int32 PaletteCount = 0;
+				TArray<FName> PaletteNames;
+				Toolkit->GetToolPaletteNames(PaletteNames);
+				for(auto Palette : PaletteNames)
+				{
+					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
+					Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
-			if (ModeToolbarBuilder.GetMultiBox()->GetBlocks().Num())
-			{
-				TSharedRef<SWidget> ToolbarWidget = ModeToolbarBuilder.MakeWidget();
-				ActiveToolBarRows.Emplace(Mode->GetID(), ToolbarWidget);
+					// ActiveToolBarRows.Emplace(Mode, Toolkit->GetToolPaletteName(i), ModeToolbarBuilder.MakeWidget());
+					ActiveToolBarRows.Emplace(Mode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
+					PaletteCount++;
+				}
 
-				SpawnOrUpdateModeToolbar();
+				if (PaletteCount > 0) 
+				{
+					SpawnOrUpdateModeToolbar();
+				}
 			}
 
 		}
@@ -1049,24 +1109,28 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 			if (Toolkit.IsValid())
 			{
 				CommandList = Toolkit->GetToolkitCommands();
-			}
 
-			FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
-			Mode->BuildModeToolbar(ModeToolbarBuilder);
+				// Also build the toolkit here 
+				int32 PaletteCount = 0;
+				TArray<FName> PaletteNames;
+				Toolkit->GetToolPaletteNames(PaletteNames);
+				for(auto Palette : PaletteNames)
+				{
+					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
+					Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
-			if (ModeToolbarBuilder.GetMultiBox()->GetBlocks().Num())
-			{
-				TSharedRef<SWidget> ToolbarWidget = ModeToolbarBuilder.MakeWidget();
-				ActiveToolBarRows.Emplace(Mode->GetID(), ToolbarWidget);
+					// ActiveToolBarRows.Emplace(Mode, Toolkit->GetToolPaletteName(i), ModeToolbarBuilder.MakeWidget());
+					ActiveToolBarRows.Emplace(Mode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
+					PaletteCount++;
+				}
 
-				SpawnOrUpdateModeToolbar();
+				if (PaletteCount > 0) 
+				{
+					SpawnOrUpdateModeToolbar();
+				}
 			}
 		}
 	}
-
-
-
-
 
 	// Update the editor UI
 	FEditorSupportDelegates::UpdateUI.Broadcast();

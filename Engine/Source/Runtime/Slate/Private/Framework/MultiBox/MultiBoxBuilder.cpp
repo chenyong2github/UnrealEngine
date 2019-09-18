@@ -5,6 +5,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBox.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
 #include "Framework/MultiBox/SHeadingBlock.h"
 #include "Framework/MultiBox/SMenuEntryBlock.h"
 #include "Framework/MultiBox/SMenuSeparatorBlock.h"
@@ -414,6 +415,42 @@ void FToolBarBuilder::AddComboButton( const FUIAction& InAction, const FOnGetCon
 	NewToolBarComboButtonBlock->SetTutorialHighlightName(GenerateTutorialIdentfierName(TutorialHighlightName, InTutorialHighlightName, nullptr, MultiBox->GetBlocks().Num()));
 
 	MultiBox->AddMultiBlock( NewToolBarComboButtonBlock );
+}
+
+void FToolBarBuilder::AddToolBarWidget( TSharedRef<SWidget> InWidget, const TAttribute<FText>& InLabel, FName InTutorialHighlightName, bool bSearchable )
+{
+	ApplySectionBeginning();
+
+	// If tutorial name specified, wrap in tutorial wrapper
+	const FName WrapperName = GenerateTutorialIdentfierName(InTutorialHighlightName, NAME_None, nullptr, MultiBox->GetBlocks().Num());
+
+	TSharedRef<SWidget> ChildWidget = InWidget;
+	InWidget = 
+		SNew( SVerticalBox )
+		.AddMetaData<FTagMetaData>(FTagMetaData(InTutorialHighlightName))
+
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign( HAlign_Center )
+		[
+			ChildWidget
+		]
+
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign( HAlign_Center )
+		[
+			SNew( STextBlock )
+			// .Visibility_Lambda( [this] () -> EVisibility { return /*LabelVisibility.IsSet() ? LabelVisibility.GetValue() :*/ (bForceSmallIcons || FMultiBoxSettings::UseSmallToolBarIcons.Get()) ? EVisibility::Collapsed : EVisibility::Visible; } ) 
+			.Visibility_Lambda( [] () -> EVisibility { return FMultiBoxSettings::UseSmallToolBarIcons.Get() ? EVisibility::Collapsed : EVisibility::Visible; } ) 
+			.Text( InLabel )
+			.TextStyle( GetStyleSet(), ISlateStyle::Join( GetStyleName(), ".Label" ) )	// Smaller font for tool tip labels
+			.ShadowOffset( FVector2D::UnitVector )
+		] ;
+	
+	TSharedRef< FWidgetBlock > NewWidgetBlock( new FWidgetBlock( InWidget, FText::GetEmpty(), true ) );
+	MultiBox->AddMultiBlock( NewWidgetBlock );
+	NewWidgetBlock->SetSearchable(bSearchable);
 }
 
 void FToolBarBuilder::AddWidget( TSharedRef<SWidget> InWidget, FName InTutorialHighlightName, bool bSearchable )
