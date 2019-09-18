@@ -14,10 +14,18 @@ namespace UnrealBuildTool.Rules
 					"Projects",
                     "Slate",
 					"SlateCore",
-                    "UnrealEd",
-                    "PlacementMode",
                 }
             );
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[] {
+						"UnrealEd",
+						"PlacementMode",
+					}
+				);
+			}
 		}
 	}
 }
