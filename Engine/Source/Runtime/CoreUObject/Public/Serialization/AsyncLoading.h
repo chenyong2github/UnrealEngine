@@ -20,6 +20,7 @@
 class IAsyncReadRequest;
 struct FAsyncPackage;
 struct FFlushTree;
+class FAsyncLoadingThread;
 
 #define PERF_TRACK_DETAILED_ASYNC_STATS (0)
 
@@ -287,6 +288,7 @@ private:
 struct FEventLoadGraph
 {
 	TSet<FCheckedWeakAsyncPackagePtr> PackagesWithNodes;
+	TArray<int32> IndicesToFire;
 
 	FEventLoadNodeArray& GetArray(FEventLoadNodePtr& Node);
 
@@ -340,7 +342,7 @@ struct FAsyncPackage : public FGCObject
 	/**
 	 * Constructor
 	 */
-	FAsyncPackage(const FAsyncPackageDesc& InDesc);
+	FAsyncPackage(FAsyncLoadingThread& InThread, const FAsyncPackageDesc& InDesc);
 	~FAsyncPackage();
 
 	/**
@@ -618,7 +620,7 @@ private:
 	/** Critical section for referenced objects list */
 	FCriticalSection ReferencedObjectsCritical;
 	/** Cached async loading thread object this package was created by */
-	class FAsyncLoadingThread& AsyncLoadingThread;
+	FAsyncLoadingThread& AsyncLoadingThread;
 	/** Packages that have been imported by this async package */
 	TSet<UPackage*> ImportedPackages;
 
@@ -722,14 +724,7 @@ public:
 		return CastChecked<T>(Result);
 	}
 
-	FEventLoadNodeArray EventNodeArray;
-
-	static FEventLoadGraph GlobalEventGraph;
-
-	FORCEINLINE static FEventLoadGraph& GetEventGraph()
-	{
-		return GlobalEventGraph;
-	}
+	FEventLoadNodeArray EventNodeArray;	
 
 	FEventLoadNodePtr AddNode(EEventLoadNode Phase, FPackageIndex ImportOrExportIndex = FPackageIndex(), bool bHoldForLater = false, int32 NumImplicitPrereqs = 0);
 	void DoneAddingPrerequistesFireIfNone(EEventLoadNode Phase, FPackageIndex ImportOrExportIndex = FPackageIndex(), bool bWasHeldForLater = false);
@@ -751,6 +746,11 @@ public:
 		TimeLimit = Args.TimeLimit;
 		bUseTimeLimit = Args.bUseTimeLimit;
 		bUseFullTimeLimit = Args.bUseFullTimeLimit;
+	}
+
+	FAsyncLoadingThread& GetOwnerThread()
+	{
+		return AsyncLoadingThread;
 	}
 
 	/** [EDL] End Event driven loader specific stuff */

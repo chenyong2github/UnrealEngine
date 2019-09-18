@@ -18,6 +18,8 @@
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/LowLevelMemTracker.h"
 
+struct FPrecacheCallbackHandler;
+
 /** [EDL] Event Driven loader event */
 struct FAsyncLoadEvent
 {
@@ -248,7 +250,7 @@ private:
 	static FThreadSafeCounter BlockingCycles;
 #endif
 
-	FAsyncLoadingThread();
+	FAsyncLoadingThread(int32 InThreadIndex);
 	virtual ~FAsyncLoadingThread();
 
 public:
@@ -311,21 +313,28 @@ public:
 	}
 
 	/** Sets the current state of async loading */
-	void EnterAsyncLoadingTick()
+	static void EnterAsyncLoadingTick(int32 ThreadIndex)
 	{
-		AsyncLoadingTickCounter++;
+		AsyncLoadingTickCounter.Increment();
+		check(CurrentAsyncLoadingTickThreadIndex == INDEX_NONE || CurrentAsyncLoadingTickThreadIndex == ThreadIndex);
+		CurrentAsyncLoadingTickThreadIndex = ThreadIndex;
 	}
 
-	void LeaveAsyncLoadingTick()
+	static void LeaveAsyncLoadingTick(int32 ThreadIndex)
 	{
-		AsyncLoadingTickCounter--;
-		check(AsyncLoadingTickCounter >= 0);
+		int32 AsyncLoadingTickCounterValue = AsyncLoadingTickCounter.Decrement();
+		check(AsyncLoadingTickCounterValue >= 0);
+		check(CurrentAsyncLoadingTickThreadIndex == ThreadIndex);
+		if (AsyncLoadingTickCounterValue == 0)
+		{
+			CurrentAsyncLoadingTickThreadIndex = INDEX_NONE;
+		}
 	}
 
 	/** Gets the current state of async loading */
-	FORCEINLINE bool GetIsInAsyncLoadingTick() const
+	static bool GetIsInAsyncLoadingTick()
 	{
-		return !!AsyncLoadingTickCounter;
+		return !!AsyncLoadingTickCounter.GetValue();
 	}
 
 	/** Returns true if packages are currently being loaded on the async thread */
@@ -589,6 +598,38 @@ private:
 	void CancelAsyncLoadingInternal();
 	void FinalizeCancelAsyncLoadingInternal();
 
+	/** Event graph for EDL */
+	FEventLoadGraph EventGraph;	
+	/** ELD precache handler */
+	FPrecacheCallbackHandler* PrecacheHandler;
+	/** This Async Loading Thread Index (future use) */
+	int32 AsyncLoadingThreadIndex;
+
 	/** Number of times we re-entered the async loading tick, mostly used by singlethreaded ticking. Debug purposes only. */
-	int32 AsyncLoadingTickCounter;
+	static FThreadSafeCounter AsyncLoadingTickCounter;
+	static int32 CurrentAsyncLoadingTickThreadIndex;
+
+public:
+
+	/** Gets the EDL event graph */
+	FEventLoadGraph& GetEventGraph()
+	{
+		return EventGraph;
+	}
+
+	/** Gets the EDL precache handler */
+	FPrecacheCallbackHandler& GetPrecacheHandler()
+	{
+		return *PrecacheHandler;
+	}
+
+	/** Gets this ALT index (future use) */
+	int32 GetThreadIndex() const
+	{
+		return AsyncLoadingThreadIndex;
+	}
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	FThreadSafeCounter RecursionNotAllowed;
+#endif
 };

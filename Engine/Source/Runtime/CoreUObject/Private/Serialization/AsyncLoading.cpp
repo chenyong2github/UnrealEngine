@@ -263,6 +263,8 @@ static void NotifyAsyncLoadingStateHasMaybeChanged()
 #endif
 
 uint32 FAsyncLoadingThread::AsyncLoadingThreadID = 0;
+FThreadSafeCounter FAsyncLoadingThread::AsyncLoadingTickCounter;
+int32 FAsyncLoadingThread::CurrentAsyncLoadingTickThreadIndex = INDEX_NONE;
 
 static void IsTimeLimitExceededPrint(double InTickStartTime, double CurrentTime, double LastTestTime, float InTimeLimit, const TCHAR* InLastTypeOfWorkPerformed = nullptr, UObject* InLastObjectWorkWasPerformedOn = nullptr)
 {
@@ -363,7 +365,7 @@ FThreadSafeCounter FAsyncLoadingThread::BlockingCycles = 0;
 
 FAsyncLoadingThread& FAsyncLoadingThread::Get()
 {
-	static FAsyncLoadingThread GAsyncLoader;
+	static FAsyncLoadingThread GAsyncLoader(/** ThreadIndex = */ 0);
 	return GAsyncLoader;
 }
 
@@ -371,13 +373,15 @@ FAsyncLoadingThread& FAsyncLoadingThread::Get()
 struct FAsyncLoadingTickScope
 {
 	bool bNeedsToLeaveAsyncTick;
-	FAsyncLoadingTickScope()
+	FAsyncLoadingThread& AsyncLoadingThread;
+
+	FAsyncLoadingTickScope(FAsyncLoadingThread& InAsyncLoadingThread)
 		: bNeedsToLeaveAsyncTick(false)
+		, AsyncLoadingThread(InAsyncLoadingThread)
 	{
 		if (IsInGameThread())
 		{
-			FAsyncLoadingThread& AsyncLoadingThread = FAsyncLoadingThread::Get();
-			AsyncLoadingThread.EnterAsyncLoadingTick();
+			FAsyncLoadingThread::EnterAsyncLoadingTick(AsyncLoadingThread.GetThreadIndex());
 			bNeedsToLeaveAsyncTick = true;
 		}
 	}
@@ -385,7 +389,7 @@ struct FAsyncLoadingTickScope
 	{
 		if (bNeedsToLeaveAsyncTick)
 		{
-			FAsyncLoadingThread::Get().LeaveAsyncLoadingTick();
+			FAsyncLoadingThread::LeaveAsyncLoadingTick(AsyncLoadingThread.GetThreadIndex());
 		}
 	}
 };
@@ -504,7 +508,7 @@ void FAsyncLoadingThread::ProcessAsyncPackageRequest(FAsyncPackageDesc* InReques
 		{
 			// GC can't run in here
 			FGCScopeGuard GCGuard;
-			Package = new FAsyncPackage(*InRequest);
+			Package = new FAsyncPackage(*this, *InRequest);
 		}
 		if (InRequest->PackageLoadedDelegate.IsValid())
 		{
@@ -531,7 +535,7 @@ int32 FAsyncLoadingThread::CreateAsyncPackagesFromQueue(bool bUseTimeLimit, bool
 {
 	SCOPED_LOADTIMER(CreateAsyncPackagesFromQueueTime);
 
-	FAsyncLoadingTickScope InAsyncLoadingTick;
+	FAsyncLoadingTickScope InAsyncLoadingTick(*this);
 
 	int32 NumCreated = 0;
 	checkSlow(IsInAsyncLoadThread());
@@ -1164,7 +1168,6 @@ void FEventLoadGraph::RemoveNode(FEventLoadNodePtr& InNodeToRemove)
 	FEventLoadNodePtr NodeToRemove(InNodeToRemove); // make a copy of this so we don't end up destroying in indirectly
 	SCOPED_LOADTIMER_CNT(Graph_RemoveNode);
 	check(FAsyncLoadingThread::IsInAsyncLoadThread());
-	static TArray<int32> IndicesToFire;
 	check(!IndicesToFire.Num());
 
 	FEventLoadNode::TNodesWaitingForMeArray NodesToFire;
@@ -1631,7 +1634,6 @@ struct FPrecacheCallbackHandler
 		FPlatformFileManager::Get().GetPlatformFile().SetAsyncMinimumPriority(NewMinPriority);
 	}
 };
-TUniquePtr<FPrecacheCallbackHandler> GPrecacheCallbackHandler;
 
 int32 GRandomizeLoadOrder = 0;
 static FAutoConsoleVariableRef CVarRandomizeLoadOrder(
@@ -1707,13 +1709,13 @@ FORCEINLINE static bool FileOpenLogActive()
 #endif
 }
 
-FORCEINLINE static bool CanAddWaitingPackages()
+FORCEINLINE static bool CanAddWaitingPackages(FAsyncLoadingThread& AsyncLoadingThread)
 {
 	//for now, we're only capping off WaitingPackages with -fileopenlog, as per FORT-78563. however, problems are bound to manifest here in any case
 	//marked by pathological load time performance, and this does not cover the "excessive load times when loading deployed, uncompressed data" case.
 	//applying a sane cap in all circumstances would not be a terrible idea.
 	const int32 MaxWaitingPackageCount = 1024;
-	return !FileOpenLogActive() || GPrecacheCallbackHandler->WaitingPackages.Num() < MaxWaitingPackageCount;
+	return !FileOpenLogActive() || AsyncLoadingThread.GetPrecacheHandler().WaitingPackages.Num() < MaxWaitingPackageCount;
 }
 
 void FAsyncLoadingThread::QueueEvent_CreateLinker(FAsyncPackage* Package, int32 EventSystemPriority)
@@ -1777,8 +1779,8 @@ void FAsyncPackage::Event_CreateLinker()
 		RemoveNode(EEventLoadNode::Package_LoadSummary);
 		EventDrivenLoadingComplete();
 		AsyncPackageLoadingState = EAsyncPackageLoadingState::PostLoad_Etc;
-		check(!FAsyncLoadingThread::Get().AsyncPackagesReadyForTick.Contains(this));
-		FAsyncLoadingThread::Get().AsyncPackagesReadyForTick.Add(this);
+		check(!AsyncLoadingThread.AsyncPackagesReadyForTick.Contains(this));
+		AsyncLoadingThread.AsyncPackagesReadyForTick.Add(this);
 	}
 }
 
@@ -1926,8 +1928,8 @@ void FAsyncPackage::Event_FinishLinker()
 	{
 		EventDrivenLoadingComplete();
 		AsyncPackageLoadingState = EAsyncPackageLoadingState::PostLoad_Etc;
-		check(!FAsyncLoadingThread::Get().AsyncPackagesReadyForTick.Contains(this));
-		FAsyncLoadingThread::Get().AsyncPackagesReadyForTick.Add(this);
+		check(!AsyncLoadingThread.AsyncPackagesReadyForTick.Contains(this));
+		AsyncLoadingThread.AsyncPackagesReadyForTick.Add(this);
 	}
 }
 
@@ -2196,7 +2198,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports_Event()
 		check(!PendingPackage || !bCompiledInNotDynamic); // we should never have a pending package for something that is compiled in
 		if (!PendingPackage && !bCompiledInNotDynamic)
 		{
-			PendingPackage = FAsyncLoadingThread::Get().FindAsyncPackage(ImportPackageFName);
+			PendingPackage = AsyncLoadingThread.FindAsyncPackage(ImportPackageFName);
 		}
 		if (!PendingPackage)
 		{
@@ -2214,7 +2216,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports_Event()
 				check(!FPackageName::IsShortPackageName(Import->ObjectName));
 				UE_LOG(LogStreaming, Verbose, TEXT("FAsyncPackage::LoadImports for %s: Loading %s"), *Desc.NameToLoad.ToString(), *Import->ObjectName.ToString());
 				const FAsyncPackageDesc Info(INDEX_NONE, Import->ObjectName);
-				PendingPackage = new FAsyncPackage(Info);
+				PendingPackage = new FAsyncPackage(AsyncLoadingThread, Info);
 				PendingPackage->Desc.Priority = Desc.Priority;
 				if (bIsPrestreamRequest)
 				{
@@ -3737,7 +3739,7 @@ void FAsyncPackage::StartPrecacheRequest()
 	FAsyncArchive* AsyncLoader = Linker->GetAsyncLoader();
 	check(AsyncLoader);
 
-	IAsyncReadRequest* Precache = AsyncLoader->MakeEventDrivenPrecacheRequest(NewReq.Offset, NewReq.BytesToRead, GPrecacheCallbackHandler->GetCompletionCallback());
+	IAsyncReadRequest* Precache = AsyncLoader->MakeEventDrivenPrecacheRequest(NewReq.Offset, NewReq.BytesToRead, AsyncLoadingThread.GetPrecacheHandler().GetCompletionCallback());
 
 	NewReq.FirstExportCovered = LocalExportIndex;
 	NewReq.LastExportCovered = LastExportIndex;
@@ -3749,7 +3751,7 @@ void FAsyncPackage::StartPrecacheRequest()
 	check(!PrecacheRequests.Contains(Precache));
 	FExportIORequest& RequestInPlace = PrecacheRequests.Add(Precache);
 	Swap(RequestInPlace, NewReq);
-	GPrecacheCallbackHandler->RegisterNewPrecacheRequest(Precache, this);
+	AsyncLoadingThread.GetPrecacheHandler().RegisterNewPrecacheRequest(Precache, this);
 }
 
 int64 FAsyncPackage::PrecacheRequestReady(IAsyncReadRequest * Read)
@@ -3772,7 +3774,7 @@ void FAsyncPackage::MakeNextPrecacheRequestCurrent()
 	CurrentBlockBytes = Req.BytesToRead;
 	ExportsInThisBlock.Reset();
 
-	GPrecacheCallbackHandler->FinishRequest(Req.BytesToRead);
+	AsyncLoadingThread.GetPrecacheHandler().FinishRequest(Req.BytesToRead);
 
 	FAsyncArchive* AsyncLoader = Linker->GetAsyncLoader();
 	check(AsyncLoader);
@@ -3821,7 +3823,7 @@ EAsyncPackageState::Type FAsyncPackage::ProcessImportsAndExports_Event()
 			break; // requeue this to give other packages a chance to start IO
 		}
 		bDidSomething = false;
-		if (PrecacheRequests.Num() < GMaxPrecacheRequestsInFlight && ExportsThatCanHaveIOStarted.Num() && CanAddWaitingPackages())
+		if (PrecacheRequests.Num() < GMaxPrecacheRequestsInFlight && ExportsThatCanHaveIOStarted.Num() && CanAddWaitingPackages(AsyncLoadingThread))
 		{
 			bDidSomething = true;
 			StartPrecacheRequest();
@@ -3883,7 +3885,7 @@ EAsyncPackageState::Type FAsyncPackage::ProcessImportsAndExports_Event()
 		{
 			continue; // check time limit, and lets do the creates before the serialize checks
 		}
-		if (ExportsThatCanHaveIOStarted.Num() && CanAddWaitingPackages())
+		if (ExportsThatCanHaveIOStarted.Num() && CanAddWaitingPackages(AsyncLoadingThread))
 		{
 			bDidSomething = true;
 			StartPrecacheRequest();
@@ -4118,8 +4120,8 @@ void FAsyncPackage::Event_StartPostload()
 			}
 		}
 	}
-	check(!FAsyncLoadingThread::Get().AsyncPackagesReadyForTick.Contains(this));
-	FAsyncLoadingThread::Get().AsyncPackagesReadyForTick.Add(this);
+	check(!AsyncLoadingThread.AsyncPackagesReadyForTick.Contains(this));
+	AsyncLoadingThread.AsyncPackagesReadyForTick.Add(this);
 }
 void FAsyncPackage::EventDrivenLoadingComplete()
 {
@@ -4145,8 +4147,6 @@ void FAsyncPackage::EventDrivenLoadingComplete()
 
 }
 
-FEventLoadGraph FAsyncPackage::GlobalEventGraph;
-
 FEventLoadNodePtr FAsyncPackage::AddNode(EEventLoadNode Phase, FPackageIndex ImportOrExportIndex, bool bHoldForLater, int32 NumImplicitPrereqs)
 {
 	FEventLoadNodePtr MyNode;
@@ -4154,7 +4154,7 @@ FEventLoadNodePtr FAsyncPackage::AddNode(EEventLoadNode Phase, FPackageIndex Imp
 	MyNode.ImportOrExportIndex = ImportOrExportIndex;
 	MyNode.Phase = Phase;
 
-	GetEventGraph().AddNode(MyNode, bHoldForLater, NumImplicitPrereqs);
+	AsyncLoadingThread.GetEventGraph().AddNode(MyNode, bHoldForLater, NumImplicitPrereqs);
 	return MyNode;
 }
 
@@ -4165,7 +4165,7 @@ void FAsyncPackage::DoneAddingPrerequistesFireIfNone(EEventLoadNode Phase, FPack
 	MyNode.ImportOrExportIndex = ImportOrExportIndex;
 	MyNode.Phase = Phase;
 
-	GetEventGraph().DoneAddingPrerequistesFireIfNone(MyNode, bWasHeldForLater);
+	AsyncLoadingThread.GetEventGraph().DoneAddingPrerequistesFireIfNone(MyNode, bWasHeldForLater);
 }
 
 
@@ -4176,7 +4176,7 @@ void FAsyncPackage::RemoveNode(EEventLoadNode Phase, FPackageIndex ImportOrExpor
 	MyNode.ImportOrExportIndex = ImportOrExportIndex;
 	MyNode.Phase = Phase;
 
-	return GetEventGraph().RemoveNode(MyNode);
+	return AsyncLoadingThread.GetEventGraph().RemoveNode(MyNode);
 }
 
 void FAsyncPackage::NodeWillBeFiredExternally(EEventLoadNode Phase, FPackageIndex ImportOrExportIndex)
@@ -4186,17 +4186,17 @@ void FAsyncPackage::NodeWillBeFiredExternally(EEventLoadNode Phase, FPackageInde
 	MyNode.ImportOrExportIndex = ImportOrExportIndex;
 	MyNode.Phase = Phase;
 
-	return GetEventGraph().NodeWillBeFiredExternally(MyNode);
+	return AsyncLoadingThread.GetEventGraph().NodeWillBeFiredExternally(MyNode);
 }
 
 void FAsyncPackage::AddArc(FEventLoadNodePtr& PrereqisiteNode, FEventLoadNodePtr& DependentNode)
 {
-	GetEventGraph().AddArc(PrereqisiteNode, DependentNode);
+	AsyncLoadingThread.GetEventGraph().AddArc(PrereqisiteNode, DependentNode);
 }
 
 void FAsyncPackage::RemoveAllNodes()
 {
-	FEventLoadGraph& Graph = GetEventGraph();
+	FEventLoadGraph& Graph = AsyncLoadingThread.GetEventGraph();
 	TArray<FEventLoadNodePtr> AddedNodes;
 	EventNodeArray.GetAddedNodes(AddedNodes, this);
 	for (FEventLoadNodePtr& Ptr : AddedNodes)
@@ -4383,16 +4383,17 @@ void FAsyncLoadingThread::AddToLoadedPackages(FAsyncPackage* Package)
 }
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-static FThreadSafeCounter RecursionNotAllowed;
 struct FScopedRecursionNotAllowed
 {
-	FScopedRecursionNotAllowed()
+	FAsyncLoadingThread& AsyncLoadingThread;
+	FScopedRecursionNotAllowed(FAsyncLoadingThread& InThread)
+		: AsyncLoadingThread(InThread)
 	{
-		verify(RecursionNotAllowed.Increment() == 1);
+		verify(AsyncLoadingThread.RecursionNotAllowed.Increment() == 1);
 	}
 	~FScopedRecursionNotAllowed()
 	{
-		verify(RecursionNotAllowed.Decrement() == 0);
+		verify(AsyncLoadingThread.RecursionNotAllowed.Decrement() == 0);
 	}
 };
 #endif
@@ -4413,10 +4414,10 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FAsyncLoadingThread_ProcessAsyncLoading);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-		FScopedRecursionNotAllowed RecursionGuard;
+		FScopedRecursionNotAllowed RecursionGuard(*this);
 #endif
 
-		FAsyncLoadingTickScope InAsyncLoadingTick;
+		FAsyncLoadingTickScope InAsyncLoadingTick(*this);
 		uint32 LoopIterations = 0;
 
 		while (true)
@@ -4429,7 +4430,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 
 			bool bDidSomething = false;
 			{
-				bDidSomething = GPrecacheCallbackHandler->ProcessIncoming();
+				bDidSomething = GetPrecacheHandler().ProcessIncoming();
 				OutPackagesProcessed += (bDidSomething ? 1 : 0);
 
 				if (IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, TEXT("ProcessIncoming"), nullptr))
@@ -4531,7 +4532,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 			{
 				continue;
 			}
-			bool bAnyIOOutstanding = GPrecacheCallbackHandler->AnyIOOutstanding();
+			bool bAnyIOOutstanding = GetPrecacheHandler().AnyIOOutstanding();
 			if (bAnyIOOutstanding)
 			{
 				SCOPED_LOADTIMER(Package_EventIOWait);
@@ -4543,7 +4544,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 						const float RemainingTimeLimit = FMath::Max(0.0f, TimeLimit - (float)(FPlatformTime::Seconds() - TickStartTime));
 						if (RemainingTimeLimit > 0.0f)
 						{
-							bool bGotIO = GPrecacheCallbackHandler->WaitForIO(RemainingTimeLimit);
+							bool bGotIO = GetPrecacheHandler().WaitForIO(RemainingTimeLimit);
 							if (bGotIO)
 							{
 								OutPackagesProcessed++;
@@ -4559,7 +4560,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 				}
 				else
 				{
-					bool bGotIO = GPrecacheCallbackHandler->WaitForIO(10.0f); // wait "forever"
+					bool bGotIO = GetPrecacheHandler().WaitForIO(10.0f); // wait "forever"
 					if (!bGotIO)
 					{
 						//UE_LOG(LogStreaming, Error, TEXT("Waited for 10 seconds on IO...."));
@@ -4713,9 +4714,6 @@ bool FAsyncPackage::AreAllDependenciesFullyLoaded(TSet<UPackage*>& VisitedPackag
 EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, bool& bDidSomething, FFlushTree* FlushTree)
 {
 	EAsyncPackageState::Type Result = EAsyncPackageState::Complete;
-
-	// This is for debugging purposes only. @todo remove
-	volatile int32 CurrentAsyncLoadingCounter = AsyncLoadingTickCounter;
 
 	double TickStartTime = FPlatformTime::Seconds();
 
@@ -5034,9 +5032,11 @@ FMaxPackageSummarySize::FMaxPackageSummarySize()
 
 bool FAsyncLoadingThread::bThreadStarted = false;
 
-FAsyncLoadingThread::FAsyncLoadingThread()
+FAsyncLoadingThread::FAsyncLoadingThread(int32 InThreadIndex)
 	: Thread(nullptr)
 {
+	AsyncLoadingThreadIndex = InThreadIndex;
+
 	check(!bThreadStarted);
 	// Current these two vars are always on or off together but can be made separate
 	GEventDrivenLoaderEnabled = IsEventDrivenLoaderEnabled();
@@ -5056,6 +5056,7 @@ FAsyncLoadingThread::FAsyncLoadingThread()
 	FLoadTimeProfilerTracePrivate::Init();
 #endif
 
+	PrecacheHandler = new FPrecacheCallbackHandler();
 	QueuedRequestsEvent = FPlatformProcess::GetSynchEventFromPool();
 	CancelLoadingEvent = FPlatformProcess::GetSynchEventFromPool();
 	ThreadSuspendedEvent = FPlatformProcess::GetSynchEventFromPool();
@@ -5064,7 +5065,6 @@ FAsyncLoadingThread::FAsyncLoadingThread()
 	{
 		StartThread();
 	}
-	AsyncLoadingTickCounter = 0;
 
 #if !IS_PROGRAM && !WITH_EDITORONLY_DATA
 	UE_LOG(LogStreaming, Display, TEXT("Async Loading initialized: Event Driven Loader: %s, Async Loading Thread: %s, Async Post Load: %s"),
@@ -5199,13 +5199,13 @@ uint32 FAsyncLoadingThread::Run()
 
 void FAsyncLoadingThread::CheckForCycles()
 {
-	if (GPrecacheCallbackHandler->AnyIOOutstanding() || EventQueue.EventQueue.Num())
+	if (GetPrecacheHandler().AnyIOOutstanding() || EventQueue.EventQueue.Num())
 	{
 		// we can't check for cycles if there is stuff in flight.
 		return;
 	}
 	// no outstanding IO, nothing was done in this iteration, we are done
-	FAsyncPackage::GlobalEventGraph.CheckForCycles();
+	GetEventGraph().CheckForCycles();
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	// lets look over the postload wait stuff and see if that is bugged
@@ -5338,14 +5338,14 @@ void FAsyncLoadingThread::CancelAsyncLoading()
 
 void FAsyncLoadingThread::CancelAsyncLoadingInternal()
 {
-	FAsyncLoadingTickScope AsyncTickScope;
+	FAsyncLoadingTickScope AsyncTickScope(*this);
 
 	if (GEventDrivenLoaderEnabled)
 	{
-		while (GPrecacheCallbackHandler->AnyIOOutstanding())
+		while (GetPrecacheHandler().AnyIOOutstanding())
 		{
-			GPrecacheCallbackHandler->WaitForIO(10.0f);
-			GPrecacheCallbackHandler->ProcessIncoming();
+			GetPrecacheHandler().WaitForIO(10.0f);
+			GetPrecacheHandler().ProcessIncoming();
 		}
 	}
 
@@ -5394,7 +5394,7 @@ void FAsyncLoadingThread::CancelAsyncLoadingInternal()
 	QueuedPackagesCounter.Reset();
 
 	EventQueue.EventQueue.Empty();
-	FAsyncPackage::GetEventGraph().PackagesWithNodes.Empty();
+	GetEventGraph().PackagesWithNodes.Empty();
 
 	{
 #if THREADSAFE_UOBJECTS
@@ -5548,7 +5548,7 @@ void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject)
 /**
 * Constructor
 */
-FAsyncPackage::FAsyncPackage(const FAsyncPackageDesc& InDesc)
+FAsyncPackage::FAsyncPackage(FAsyncLoadingThread& InThread, const FAsyncPackageDesc& InDesc)
 : Desc(InDesc)
 , Linker(nullptr)
 , LinkerRoot(nullptr)
@@ -5578,7 +5578,7 @@ FAsyncPackage::FAsyncPackage(const FAsyncPackageDesc& InDesc)
 , LoadStartTime(0.0)
 , LoadPercentage(0)
 , ReentryCount(0)
-, AsyncLoadingThread(FAsyncLoadingThread::Get())
+, AsyncLoadingThread(InThread)
 // Begin EDL specific properties
 , AsyncPackageLoadingState(EAsyncPackageLoadingState::NewPackage)
 , SerialNumber(AsyncPackageSerialNumber.Increment())
@@ -5789,7 +5789,7 @@ void FAsyncPackage::BeginAsyncLoad()
 {
 	if (IsInGameThread())
 	{
-		FAsyncLoadingThread::Get().EnterAsyncLoadingTick();
+		FAsyncLoadingThread::EnterAsyncLoadingTick(AsyncLoadingThread.GetThreadIndex());
 	}
 
 	// this won't do much during async loading except increase the load count which causes IsLoading to return true
@@ -5811,7 +5811,7 @@ void FAsyncPackage::EndAsyncLoad()
 
 	if (IsInGameThread())
 	{
-		FAsyncLoadingThread::Get().LeaveAsyncLoadingTick();
+		FAsyncLoadingThread::LeaveAsyncLoadingTick(AsyncLoadingThread.GetThreadIndex());
 	}
 
 	if (!bLoadHasFailed)
@@ -6085,8 +6085,8 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 				UE_LOG(LogStreaming, Fatal, TEXT("Package %s was reloaded before it even closed the linker from a previous load. Seems like a waste of time eh?"), *Desc.Name.ToString());
 				check(Package);
 				FWeakAsyncPackagePtr WeakPtr(this);
-				GPrecacheCallbackHandler->RegisterNewSummaryRequest(this);
-				GPrecacheCallbackHandler->SummaryComplete(WeakPtr);
+				AsyncLoadingThread.GetPrecacheHandler().RegisterNewSummaryRequest(this);
+				AsyncLoadingThread.GetPrecacheHandler().SummaryComplete(WeakPtr);
 			}
 		}
 
@@ -6176,22 +6176,23 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 			if (GEventDrivenLoaderEnabled)
 			{
 				FWeakAsyncPackagePtr WeakPtr(this);
+				FPrecacheCallbackHandler* PrecacheHandler = &AsyncLoadingThread.GetPrecacheHandler();
 				check(Package);
 				Linker = FLinkerLoad::CreateLinkerAsync(LoadContext, Package, *PackageFileName, LinkerFlags
 					, TFunction<void()>(
-						[WeakPtr]()
+						[WeakPtr, PrecacheHandler]()
 				{
-					GPrecacheCallbackHandler->SummaryComplete(WeakPtr);
+					PrecacheHandler->SummaryComplete(WeakPtr);
 				}
 				));
 				if (Linker)
 				{
-					GPrecacheCallbackHandler->RegisterNewSummaryRequest(this);
+					AsyncLoadingThread.GetPrecacheHandler().RegisterNewSummaryRequest(this);
 					if (Linker->bDynamicClassLinker)
 					{
 						//native blueprint 
 						check(!Linker->GetAsyncLoader());
-						GPrecacheCallbackHandler->SummaryComplete(WeakPtr);
+						AsyncLoadingThread.GetPrecacheHandler().SummaryComplete(WeakPtr);
 					}
 				}
 			}
@@ -6277,13 +6278,13 @@ FORCEINLINE int32 ContainsDependencyPackage(TArray<FAsyncPackage*>& Dependencies
 	*/
 void FAsyncPackage::AddImportDependency(const FName& PendingImport, FFlushTree* FlushTree)
 {
-	FAsyncPackage* PackageToStream = FAsyncLoadingThread::Get().FindAsyncPackage(PendingImport);
+	FAsyncPackage* PackageToStream = AsyncLoadingThread.FindAsyncPackage(PendingImport);
 	const bool bReinsert = PackageToStream != nullptr;
 
 	if (!PackageToStream)
 	{
 		const FAsyncPackageDesc Info(INDEX_NONE, PendingImport);
-		PackageToStream = new FAsyncPackage(Info);
+		PackageToStream = new FAsyncPackage(AsyncLoadingThread, Info);
 
 		// If priority of the dependency is not set, inherit from parent.
 		if (PackageToStream->Desc.Priority == 0)
@@ -6295,7 +6296,7 @@ void FAsyncPackage::AddImportDependency(const FName& PendingImport, FFlushTree* 
 	if (!bReinsert)
 	{
 		TRACE_LOADTIME_ASYNC_PACKAGE_IMPORT_DEPENDENCY(this, PackageToStream);
-		FAsyncLoadingThread::Get().InsertPackage(PackageToStream, bReinsert);
+		AsyncLoadingThread.InsertPackage(PackageToStream, bReinsert);
 	}
 
 	if (!PackageToStream->HasFinishedLoading() && 
@@ -6421,7 +6422,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports(FFlushTree* FlushTree)
 			// we add all dependencies that don't yet have linkers created otherwise we risk that if the current package
 			// doesn't depend on any other packages that have not yet started streaming, creating imports is going
 			// to load packages blocking the main thread.
-			FAsyncPackage* PendingPackage = FAsyncLoadingThread::Get().FindAsyncPackage(ImportPackageFName);
+			FAsyncPackage* PendingPackage = AsyncLoadingThread.FindAsyncPackage(ImportPackageFName);
 			if (PendingPackage)
 			{
 				FLinkerLoad* PendingPackageLinker = PendingPackage->Linker;
@@ -6834,7 +6835,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 
 	EAsyncPackageState::Type Result = EAsyncPackageState::Complete;
 	TGuardValue<bool> GuardIsRoutingPostLoad(PackageScope.ThreadContext.IsRoutingPostLoad, true);
-	FAsyncLoadingTickScope InAsyncLoadingTick;
+	FAsyncLoadingTickScope InAsyncLoadingTick(AsyncLoadingThread);
 
 	FUObjectSerializeContext* LoadContext = GetSerializeContext();
 	TArray<UObject*>& ObjLoadedInPostLoad = LoadContext->PRIVATE_GetObjectsLoadedInternalUseOnly();
@@ -7433,14 +7434,12 @@ void InitAsyncThread()
 {
 	FCoreDelegates::OnSyncLoadPackage.AddStatic([](const FString&) { GSyncLoadCount++; });
 
-	GPrecacheCallbackHandler = MakeUnique<FPrecacheCallbackHandler>();
 	FAsyncLoadingThread::Get().InitializeAsyncThread();
 }
 
 void ShutdownAsyncThread()
 {
 	FAsyncLoadingThread::Get().Kill();
-	GPrecacheCallbackHandler.Reset();
 }
 
 bool IsInAsyncLoadingThreadCoreUObjectInternal()
