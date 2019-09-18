@@ -8,6 +8,7 @@
 #include "Core/AsyncHelpers.h"
 #include "Common/StatsCollector.h"
 #include "BuildPatchManifest.h"
+#include "IBuildManifestSet.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogFileOperationTracker, Warning, All);
 DEFINE_LOG_CATEGORY(LogFileOperationTracker);
@@ -30,7 +31,7 @@ namespace BuildPatchServices
 	public:
 		// IFileOperationTracker interface begin.
 		virtual const TArray<FFileOperation>& GetStates() const override;
-		virtual void OnManifestSelection(const FBuildPatchAppManifest& Manifest) override;
+		virtual void OnManifestSelection(IBuildManifestSet* ManifestSet) override;
 		virtual void OnDataStateUpdate(const FGuid& DataId, EFileOperationState State) override;
 		virtual void OnDataStateUpdate(const TSet<FGuid>& DataIds, EFileOperationState State) override;
 		virtual void OnDataStateUpdate(const TArray<FGuid>& DataIds, EFileOperationState State) override;
@@ -48,7 +49,7 @@ namespace BuildPatchServices
 		void ProcessMessage(FFileByteRangeState& Message);
 
 	private:
-		static FOperationInitialiser BuildOperationInitialiser(const FBuildPatchAppManifest& Manifest);
+		static FOperationInitialiser BuildOperationInitialiser(IBuildManifestSet* ManifestSet);
 
 	private:
 		FTicker& Ticker;
@@ -58,12 +59,12 @@ namespace BuildPatchServices
 		TMap<FGuid, TArray<FFileOperation*>> FileOperationStatesDataIdLookup;
 		TMap<FString, TArray<FFileOperation*>> FileOperationStatesFilenameLookup;
 		TQueue<FUpdateMessage, EQueueMode::Mpsc> UpdateMessages;
-		const FBuildPatchAppManifest* LastUsedManifest;
+		IBuildManifestSet* LastUsedManifestSet;
 	};
 
 	FFileOperationTracker::FFileOperationTracker(FTicker& InTicker)
 		: Ticker(InTicker)
-		, LastUsedManifest(nullptr)
+		, LastUsedManifestSet(nullptr)
 	{
 		check(IsInGameThread());
 
@@ -84,12 +85,12 @@ namespace BuildPatchServices
 		return FileOperationStates;
 	}
 
-	void FFileOperationTracker::OnManifestSelection(const FBuildPatchAppManifest& Manifest)
+	void FFileOperationTracker::OnManifestSelection(IBuildManifestSet* ManifestSet)
 	{
-		if (LastUsedManifest != &Manifest)
+		if (LastUsedManifestSet != ManifestSet)
 		{
-			LastUsedManifest = &Manifest;
-			UpdateMessages.Enqueue(FUpdateMessage(BuildOperationInitialiser(Manifest)));
+			LastUsedManifestSet = ManifestSet;
+			UpdateMessages.Enqueue(FUpdateMessage(BuildOperationInitialiser(ManifestSet)));
 		}
 	}
 
@@ -232,19 +233,20 @@ namespace BuildPatchServices
 		}
 	}
 
-	FOperationInitialiser FFileOperationTracker::BuildOperationInitialiser(const FBuildPatchAppManifest& Manifest)
+	FOperationInitialiser FFileOperationTracker::BuildOperationInitialiser(IBuildManifestSet* ManifestSet)
 	{
 		FOperationInitialiser Result;
 		TArray<FFileOperation>& FileOperationStates = Result.Get<0>();
 		TArray<FFileOperation>& DummyOperationStates = Result.Get<1>();
 		// Get the list of files in the build.
-		TArray<FString> Filenames;
-		Manifest.GetFileList(Filenames);
+		TSet<FString> Filenames;
+		ManifestSet->GetExpectedFiles(Filenames);
+		Filenames.Sort(TLess<FString>());
 
 		// Initialise all file operations to Unknown, use dummy operations for empty files.
 		for (const FString& Filename : Filenames)
 		{
-			const FFileManifest* FileManifest = Manifest.GetFileManifest(Filename);
+			const FFileManifest* FileManifest = ManifestSet->GetNewFileManifest(Filename);
 			uint64 FileOffset = 0;
 			for (const FChunkPart& FileChunkPart : FileManifest->ChunkParts)
 			{

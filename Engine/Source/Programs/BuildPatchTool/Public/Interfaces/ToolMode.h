@@ -139,6 +139,27 @@ namespace BuildPatchTool
 			}
 			return false;
 		}
+
+		template<typename ContainerType>
+		bool ParseValue(const FString& ValueIn, ContainerType& ValueOut)
+		{
+			TArray<FString> TempOut;
+			ValueOut.Empty();
+			FString CleanValueIn = ValueIn.TrimQuotes();
+			CleanValueIn.RemoveSpacesInline();
+			if (CleanValueIn.ParseIntoArray(TempOut, TEXT(","), false) != 0)
+			{
+				ValueOut.Append(MoveTemp(TempOut));
+			}
+			else
+			{
+				// Add a single empty element. This is what is intended if switch is present on the command
+				// line and contains no commas.
+				ValueOut.Add(TEXT(""));
+			}
+
+			return true;
+		}
 	};
 
 	typedef TSharedRef<IToolMode> IToolModeRef;

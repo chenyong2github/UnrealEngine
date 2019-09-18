@@ -108,11 +108,7 @@ struct FBuildInstallStats
 {
 	// Constructor
 	FBuildInstallStats()
-		: AppName()
-		, AppInstalledVersion()
-		, AppPatchVersion()
-		, CloudDirectory()
-		, NumFilesInBuild(0)
+		: NumFilesInBuild(0)
 		, NumFilesOutdated(0)
 		, NumFilesToRemove(0)
 		, NumChunksRequired(0)
@@ -131,6 +127,7 @@ struct FBuildInstallStats
 		, NumDriveStoreLoadFailures(0)
 		, NumChunkDbChunksFailed(0)
 		, TotalDownloadedData(0)
+		, ActiveRequestCountPeak(0)
 		, AverageDownloadSpeed(0.0)
 		, PeakDownloadSpeed(0.0)
 		, FinalDownloadSpeed(-1.0)
@@ -171,16 +168,10 @@ struct FBuildInstallStats
 		, AverageMemoryStoreRetained(0.0f)
 		, PeakMemoryStoreRetained(0)
 		, MemoryStoreSize(0)
+		, ProcessRequiredDiskSpace(0)
+		, ProcessAvailableDiskSpace(0)
 	{}
 
-	// The name of the app being installed.
-	FString AppName;
-	// The version string currently installed, or "NONE".
-	FString AppInstalledVersion;
-	// The version string patching to.
-	FString AppPatchVersion;
-	// The cloud directory used for this install.
-	FString CloudDirectory;
 	// The total number of files in the build.
 	uint32 NumFilesInBuild;
 	// The total number of files outdated.
@@ -219,6 +210,8 @@ struct FBuildInstallStats
 	uint32 NumChunkDbChunksFailed;
 	// The total number of bytes downloaded.
 	uint64 TotalDownloadedData;
+	// The peak number of simultaneous download requests
+	uint32 ActiveRequestCountPeak;
 	// The average chunk download speed.
 	double AverageDownloadSpeed;
 	// The peak chunk download speed.
@@ -299,7 +292,17 @@ struct FBuildInstallStats
 	uint32 PeakMemoryStoreRetained;
 	// MemoryStoreSize
 	uint32 MemoryStoreSize;
+	// The total number of bytes required to start the installation.
+	uint64 ProcessRequiredDiskSpace;
+	// The total number of bytes available at the time of checking ProcessRequiredDiskSpace.
+	uint64 ProcessAvailableDiskSpace;
 };
+
+namespace BuildPatchServices
+{
+	struct FBuildInstallerConfiguration;
+}
+
 
 /**
  * Interface to a Build Installer, exposes installation control, progress, and state information.
@@ -311,6 +314,12 @@ public:
 	 * Virtual destructor.
 	 */
 	virtual ~IBuildInstaller() { }
+	
+	/**
+	 * Begin the installation process.
+	 * @return true if the installation started successfully, or is already running.
+	 */
+	virtual bool StartInstallation() = 0;
 
 	/**
 	 * Get whether the install has complete
@@ -341,6 +350,12 @@ public:
 	 * @return	true if installation is an update
 	 */
 	virtual bool IsUpdate() const = 0;
+
+	/**
+	 * Get whether the process was successfully complete, meaning no errors, and was not cancelled. Only valid if complete.
+	 * @return	true if installation process completed successfully.
+	 */
+	virtual bool CompletedSuccessfully() const = 0;
 
 	/**
 	 * Get whether the install failed. Only valid if complete.
@@ -443,4 +458,11 @@ public:
 	 * @param MessageHandler    Ptr to the message handler to remove.
 	 */
 	virtual void UnregisterMessageHandler(BuildPatchServices::FMessageHandler* MessageHandler) = 0;
+
+	/**
+	 * Get the installation configuration object
+	 * 
+	 * @returns a const reference to the configuration
+	 */
+	virtual const BuildPatchServices::FBuildInstallerConfiguration& GetConfiguration() const = 0;
 };

@@ -1,9 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	BuildPatchManifest.h: Declares the manifest classes.
-=============================================================================*/
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -57,6 +53,7 @@ namespace BuildPatchServices
 	class FManifestBuilder;
 	class FManifestData;
 	class FChunkDeltaOptimiser;
+	class FBuildPatchManifestSet;
 }
 
 /**
@@ -75,6 +72,7 @@ class FBuildPatchAppManifest
 	friend class FManifestUObject;
 	friend class BuildPatchServices::FManifestData;
 	friend class BuildPatchServices::FChunkDeltaOptimiser;
+	friend class BuildPatchServices::FBuildPatchManifestSet;
 public:
 
 	/**
@@ -118,9 +116,11 @@ public:
 	virtual int64 GetFileSize(const FString& Filename) const override;
 	virtual int64 GetFileSize(const TArray<FString>& Filenames) const override;
 	virtual int64 GetFileSize(const TSet  <FString>& Filenames) const override;
+	virtual TSet<FString> GetFileTagList() const override;
 	virtual void GetFileTagList(TSet<FString>& Tags) const override;
-	virtual void GetRemovableFiles(const IBuildManifestRef& OldManifest, TArray< FString >& RemovableFiles) const override;
-	virtual void GetRemovableFiles(const TCHAR* InstallPath, TArray< FString >& RemovableFiles) const override;
+	virtual void GetOutdatedFiles(const IBuildManifestRef& OldManifest, TSet<FString>& OutdatedFiles) const override;
+	virtual void GetRemovableFiles(const IBuildManifestRef& OldManifest, TArray<FString>& RemovableFiles) const override;
+	virtual void GetRemovableFiles(const TCHAR* InstallPath, TArray<FString>& RemovableFiles) const override;
 	virtual bool NeedsResaving() const override;
 	virtual void CopyCustomFields(const IBuildManifestRef& Other, bool bClobber) override;
 	virtual const IManifestFieldPtr GetCustomField(const FString& FieldName) const override;
@@ -195,14 +195,14 @@ public:
 	/**
 	 * Returns the size of a particular data file by it's GUID.
 	 * @param DataGuid		The GUID for the data
-	 * @return		File size.
+	 * @return		File size, or 0 if this data is not in the manifest.
 	 */
 	virtual int64 GetDataSize(const FGuid& DataGuid) const;
 
 	/**
 	 * Returns the total size of all data files in it's list.
 	 * @param DataGuids		The GUID array for the data
-	 * @return		File size.
+	 * @return		Total file size, or 0 if none of this data is in the manifest.
 	 */
 	virtual int64 GetDataSize(const TArray<FGuid>& DataGuids) const;
 	virtual int64 GetDataSize(const TSet  <FGuid>& DataGuids) const;
@@ -305,12 +305,23 @@ public:
 	virtual int32 EnumerateProducibleChunks(const FString& InstallDirectory, const TSet<FGuid>& ChunksRequired, TSet<FGuid>& ChunksAvailable) const;
 
 	/**
+	 * Populates an array of chunks that should be producible from a local build, given the tagset that is expected to be installed.
+	 * @param TagSet           IN   The tagset identifying files expected to be installed.
+	 * @param ChunksRequired   IN   A list of chunks that are needed.
+	 * @param ChunksAvailable  OUT  A list to receive the chunks from ChunksRequired that could be constructed locally.
+	 * @return the number of chunks added to the ChunksAvailable set.
+	 */
+	virtual int32 EnumerateProducibleChunks(const TSet<FString>& TagSet, const TSet<FGuid>& ChunksRequired, TSet<FGuid>& ChunksAvailable) const;
+
+	/**
 	 * Gets a list of files that have changed or are new in the this manifest, compared to those in the old manifest, or are missing from disk.
 	 * @param OldManifest		IN		The Build Manifest that is currently installed. Shared Ptr - Can be invalid.
 	 * @param InstallDirectory	IN		The Build installation directory, so that it can be checked for missing files.
 	 * @param OutDatedFiles		OUT		The files that changed hash, are new, are wrong size, or missing on disk.
 	 */
 	virtual void GetOutdatedFiles(const FBuildPatchAppManifestPtr& OldManifest, const FString& InstallDirectory, TSet<FString>& OutDatedFiles) const;
+	virtual void GetOutdatedFiles(const FBuildPatchAppManifest*    OldManifest, const FString& InstallDirectory, TSet<FString>& OutDatedFiles) const;
+	virtual void GetOutdatedFiles(const FBuildPatchAppManifest*    OldManifest, const FString& InstallDirectory, const TSet<FString>& FilesToCheck, TSet<FString>& OutDatedFiles) const;
 
 	/**
 	 * Check a single file to see if it will be effected by patching from a previous version.
@@ -318,6 +329,14 @@ public:
 	 * @param Filename			The Build installation directory, so that it can be checked for missing files.
 	 */
 	virtual bool IsFileOutdated(const FBuildPatchAppManifestRef& OldManifest, const FString& Filename) const;
+	virtual bool IsFileOutdated(const FBuildPatchAppManifest&    OldManifest, const FString& Filename) const;
+
+	/**
+	 * Gets a list of files that were installed with the Old Manifest, but no longer required by this Manifest.
+	 * @param OldManifest		IN		The Build Manifest that is currently installed.
+	 * @param RemovableFiles	OUT		A list to receive the files that may be removed.
+	 */
+	virtual void GetRemovableFiles(const FBuildPatchAppManifest& OldManifest, TArray<FString>& RemovableFiles) const;
 
 	/**
 	 * Gets a list of file parts that can be used to recreate a chunk from this installation.
@@ -339,6 +358,11 @@ private:
 	 * Setups the lookup maps that optimize data access, should be called when Data changes
 	 */
 	void InitLookups();
+
+	/**
+	 * Helper for the public EnumerateProducibleChunks functions.
+	 */
+	int32 EnumerateProducibleChunks_Internal(const TFunction<bool(const FString&)>& FileAccessChecker, const TSet<FGuid>& ChunksRequired, TSet<FGuid>& ChunksAvailable) const;
 
 private:
 	/** Holds the actual manifest data. Some other variables point to the memory held by these objects */

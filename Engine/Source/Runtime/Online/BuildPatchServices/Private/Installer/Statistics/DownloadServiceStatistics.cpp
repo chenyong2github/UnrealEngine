@@ -3,12 +3,15 @@
 #include "Installer/Statistics/DownloadServiceStatistics.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/Paths.h"
+#include "Interfaces/IHttpResponse.h"
+
 #include "Core/AsyncHelpers.h"
 #include "Common/StatsCollector.h"
 #include "Installer/InstallerAnalytics.h"
 #include "BuildPatchProgress.h"
 #include "BuildPatchManifest.h"
 #include "BuildPatchUtil.h"
+#include "Containers/Queue.h"
 
 namespace BuildPatchServices
 {
@@ -31,6 +34,7 @@ namespace BuildPatchServices
 		virtual int32 GetNumFailedChunkDownloads() const override;
 		virtual int32 GetNumCurrentDownloads() const override;
 		virtual TArray<FDownload> GetCurrentDownloads() const override;
+		virtual TPair<double, uint32> GetImmediateAverageSpeedPerRequest(uint32 MinCount) override;
 		// IDownloadServiceStatistics interface end.
 
 	private:
@@ -43,6 +47,10 @@ namespace BuildPatchServices
 
 		typedef TTuple<FString, int32> FDownloadTuple;
 		TMap<int32, FDownloadTuple> Downloads;
+		double AccumulatedRequestSpeed;
+		uint32 AverageSpeedSampleCount;
+		FCriticalSection AverageSpeedCriticalSection;
+		
 	};
 
 	FDownloadServiceStatistics::FDownloadServiceStatistics(ISpeedRecorder* InSpeedRecorder, IDataSizeProvider* InDataSizeProvider, IInstallerAnalytics* InInstallerAnalytics)
@@ -52,6 +60,7 @@ namespace BuildPatchServices
 		, TotalBytesReceived(0)
 		, NumSuccessfulDownloads(0)
 		, NumFailedDownloads(0)
+		, AverageSpeedSampleCount(0U)
 	{
 	}
 
@@ -78,11 +87,16 @@ namespace BuildPatchServices
 	{
 		checkSlow(IsInGameThread());
 		Downloads.Remove(DownloadRecord.RequestId);
-		TotalBytesReceived.Add(DownloadRecord.SpeedRecord.Size);
-		if (DownloadRecord.bSuccess)
+		if (DownloadRecord.bSuccess && EHttpResponseCodes::IsOk(DownloadRecord.ResponseCode))
 		{
+			TotalBytesReceived.Add(DownloadRecord.SpeedRecord.Size);
 			NumSuccessfulDownloads.Increment();
 			SpeedRecorder->AddRecord(DownloadRecord.SpeedRecord);
+			const uint64 Cycles = DownloadRecord.SpeedRecord.CyclesEnd - DownloadRecord.SpeedRecord.CyclesStart;
+			double Speed = Cycles > 0U ? DownloadRecord.SpeedRecord.Size / FStatsCollector::CyclesToSeconds(Cycles) : 0.0;
+			FScopeLock Lock(&AverageSpeedCriticalSection);
+			AccumulatedRequestSpeed +=  Speed;
+			AverageSpeedSampleCount += 1;
 		}
 		else
 		{
@@ -127,6 +141,22 @@ namespace BuildPatchServices
 		return Result;
 	}
 
+	TPair<double, uint32> FDownloadServiceStatistics::GetImmediateAverageSpeedPerRequest(uint32 MinCount)
+	{
+		double Average = 0.0L;
+		double OverallAverage = 0.0L;
+		uint32 Count = 0U;
+		double Result = 0.0L;
+		FScopeLock Lock(&AverageSpeedCriticalSection);
+		if (AverageSpeedSampleCount >= MinCount)
+		{
+			Result = AccumulatedRequestSpeed / AverageSpeedSampleCount;
+			Count = AverageSpeedSampleCount;
+			AccumulatedRequestSpeed = 0.0L;
+			AverageSpeedSampleCount = 0;
+		}
+		return TPair<double, uint32>(Result, Count);
+	}
 	IDownloadServiceStatistics* FDownloadServiceStatisticsFactory::Create(ISpeedRecorder* SpeedRecorder, IDataSizeProvider* DataSizeProvider, IInstallerAnalytics* InstallerAnalytics)
 	{
 		check(SpeedRecorder != nullptr);

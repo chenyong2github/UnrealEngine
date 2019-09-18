@@ -28,7 +28,7 @@ namespace BuildPatchServices
 		virtual void OnRequiredDataUpdated(int64 TotalBytes) override;
 		virtual void OnDownloadHealthUpdated(EBuildPatchDownloadHealth DownloadHealth) override;
 		virtual void OnSuccessRateUpdated(float SuccessRate) override;
-		virtual void OnActiveRequestCountUpdated(int32 RequestCount) override;
+		virtual void OnActiveRequestCountUpdated(uint32 RequestCount) override;
 		virtual void OnAcceptedNewRequirements(const TSet<FGuid>& ChunkIds) override;
 		// ICloudChunkSourceStat interface end.
 
@@ -39,7 +39,8 @@ namespace BuildPatchServices
 		virtual float GetDownloadSuccessRate() const override;
 		virtual EBuildPatchDownloadHealth GetDownloadHealth() const override;
 		virtual TArray<float> GetDownloadHealthTimers() const override;
-		virtual int32 GetActiveRequestCount() const override;
+		virtual uint32 GetCurrentRequestCount() const override;
+		virtual uint32 GetPeakRequestCount() const override;
 		// ICloudChunkSourceStatistics interface end.
 
 	private:
@@ -51,7 +52,8 @@ namespace BuildPatchServices
 		FThreadSafeInt32 NumDownloadsCorrupt;
 		FThreadSafeInt32 NumDownloadsAborted;
 		FThreadSafeInt32 ChunkSuccessRate;
-		FThreadSafeInt32 ActiveRequestCount;
+		FThreadSafeInt32 CurrentRequestCount;
+		volatile uint32 PeakRequestCount;
 		mutable FCriticalSection ThreadLockCs;
 		EBuildPatchDownloadHealth CurrentHealth;
 		int64 CyclesAtLastHealthState;
@@ -67,7 +69,8 @@ namespace BuildPatchServices
 		, NumDownloadsCorrupt(0)
 		, NumDownloadsAborted(0)
 		, ChunkSuccessRate(0)
-		, ActiveRequestCount(0)
+		, CurrentRequestCount(0)
+		, PeakRequestCount(0)
 		, ThreadLockCs()
 		, CurrentHealth(EBuildPatchDownloadHealth::Excellent)
 		, CyclesAtLastHealthState(0)
@@ -144,10 +147,12 @@ namespace BuildPatchServices
 		ChunkSuccessRate.Set(SuccessRate * SuccessRateMultiplier);
 	}
 
-	void FCloudChunkSourceStatistics::OnActiveRequestCountUpdated(int32 RequestCount)
+	void FCloudChunkSourceStatistics::OnActiveRequestCountUpdated(uint32 RequestCount)
 	{
 		BuildProgress->SetIsDownloading(RequestCount > 0);
-		ActiveRequestCount.Set(RequestCount);
+		CurrentRequestCount.Set(RequestCount);
+		// Sorry for the casting. Required to get it to build.
+		AsyncHelpers::LockFreePeak<int32>((volatile int32*)&PeakRequestCount, (int32)RequestCount);
 	}
 
 	void FCloudChunkSourceStatistics::OnAcceptedNewRequirements(const TSet<FGuid>& ChunkIds)
@@ -187,9 +192,14 @@ namespace BuildPatchServices
 		return HealthStateTimes;
 	}
 
-	int32 FCloudChunkSourceStatistics::GetActiveRequestCount() const
+	uint32 FCloudChunkSourceStatistics::GetCurrentRequestCount() const
 	{
-		return ActiveRequestCount.GetValue();
+		return (uint32)CurrentRequestCount.GetValue();
+	}
+
+	uint32 FCloudChunkSourceStatistics::GetPeakRequestCount() const
+	{
+		return PeakRequestCount;
 	}
 
 	ICloudChunkSourceStatistics* FCloudChunkSourceStatisticsFactory::Create(IInstallerAnalytics* InstallerAnalytics, FBuildPatchProgress* BuildProgress, IFileOperationTracker* FileOperationTracker)

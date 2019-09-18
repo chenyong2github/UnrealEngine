@@ -89,6 +89,7 @@ namespace PatchGenerationHelpers
 bool FBuildDataGenerator::ChunkBuildDirectory(const BuildPatchServices::FChunkBuildConfiguration& Settings)
 {
 	const uint64 StartTime = FStatsCollector::GetCycles();
+	bool bIsGameThread = IsInGameThread();
 
 	// Check for the required output filename.
 	if (Settings.OutputFilename.IsEmpty())
@@ -170,9 +171,9 @@ bool FBuildDataGenerator::ChunkBuildDirectory(const BuildPatchServices::FChunkBu
 	FDirectoryBuildStreamerConfig BuildStreamConfig({Settings.RootDirectory, Settings.InputListFile, Settings.IgnoreListFile});
 	FDirectoryBuildStreamerDependencies BuildStreamDependencies({StatsCollector.Get(), FileSystem.Get()});
 	TUniquePtr<IDirectoryBuildStreamer> BuildStream(FBuildStreamerFactory::Create(MoveTemp(BuildStreamConfig), MoveTemp(BuildStreamDependencies)));
+	TArray<FString> EnumeratedFiles = BuildStream->GetAllFilenames();
 
 	// Check existence of launch exe, if specified.
-	TArray<FString> EnumeratedFiles = BuildStream->GetAllFilenames();
 	if (!Settings.LaunchExe.IsEmpty() && !EnumeratedFiles.Contains(FPaths::Combine(Settings.RootDirectory, Settings.LaunchExe)))
 	{
 		UE_LOG(LogPatchGeneration, Error, TEXT("Provided launch executable file was not found within the build root. %s"), *Settings.LaunchExe);
@@ -233,7 +234,9 @@ bool FBuildDataGenerator::ChunkBuildDirectory(const BuildPatchServices::FChunkBu
 	TMap<FGuid, uint32> OriginalWindowSizes;
 
 	// Create the manifest builder.
-	IManifestBuilderRef ManifestBuilder = FManifestBuilderFactory::Create(ManifestDetails);
+	FManifestBuilderConfig ManifestBuilderConfig;
+	ManifestBuilderConfig.bAllowEmptyBuilds = Settings.bAllowEmptyBuild;
+	IManifestBuilderRef ManifestBuilder = FManifestBuilderFactory::Create(FileSystem.Get(), ManifestBuilderConfig, ManifestDetails);
 
 	FBlockStructure AcceptedBuildSpaceMatches;
 	FBlockStructure CreatedBuildSpaceMatches;
@@ -681,7 +684,10 @@ bool FBuildDataGenerator::ChunkBuildDirectory(const BuildPatchServices::FChunkBu
 		FStatsCollector::Set(StatNumScanners, Scanners.Num());
 
 		// Log collected stats.
-		GLog->FlushThreadedLogs();
+		if (bIsGameThread)
+		{
+			GLog->FlushThreadedLogs();
+		}
 		FStatsCollector::Set(StatTotalTime, FStatsCollector::GetCycles() - StartTime);
 		StatsCollector->LogStats(StatsLoggerTimeSeconds);
 
@@ -731,6 +737,7 @@ bool FBuildDataGenerator::ChunkBuildDirectory(const BuildPatchServices::FChunkBu
 	if (ManifestBuilder->FinalizeData(BuildStream->GetAllFiles(), MoveTemp(ChunkInfoList)) == false)
 	{
 		UE_LOG(LogPatchGeneration, Error, TEXT("Finalizing manifest failed."));
+		return false;
 	}
 	uint64 NewChunkBytes = 0;
 	for (const FGuid& NewChunk : NewCreatedChunks)
@@ -741,7 +748,7 @@ bool FBuildDataGenerator::ChunkBuildDirectory(const BuildPatchServices::FChunkBu
 	UE_LOG(LogPatchGeneration, Log, TEXT("Completed in %s."), *FPlatformTime::PrettyTime(FStatsCollector::CyclesToSeconds(*StatTotalTime)));
 
 	// Save manifest out to the cloud directory.
-	FString OutputFilename = Settings.CloudDirectory / Settings.OutputFilename;
+	const FString OutputFilename = Settings.CloudDirectory / Settings.OutputFilename;
 	if (ManifestBuilder->SaveToFile(OutputFilename) == false)
 	{
 		UE_LOG(LogPatchGeneration, Error, TEXT("Saving manifest failed."));

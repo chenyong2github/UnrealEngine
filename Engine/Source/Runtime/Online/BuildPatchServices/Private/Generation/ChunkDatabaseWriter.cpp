@@ -25,34 +25,37 @@ namespace BuildPatchServices
 	struct FDataMessage
 	{
 	public:
-		FDataMessage(FString InFilename)
+		static const int64 CreateFileId = -1;
+		static const int64 RenameFileId = -2;
+
+		FDataMessage(FString InFilename, int64 MessageId)
 			: Filename(InFilename)
-			, Pos(INDEX_NONE)
+			, DataInfo(MessageId)
 		{
-			if ( Filename.IsEmpty() )
+			if (Filename.IsEmpty() || MessageId >= 0)
 			{
-				UE_LOG(LogChunkDatabaseWriter, Error, TEXT("Created data message with no filename but has INDEX_NONE, WILL TRY AND CREATE FILE"));
+				UE_LOG(LogChunkDatabaseWriter, Error, TEXT("Created action message with no filename or position as ID, WILL RESULT IN ERROR."));
 			}
 		}
 
 		FDataMessage(int64 InPos)
 			: Filename()
-			, Pos(InPos)
+			, DataInfo(InPos)
 		{
-			if ( InPos == INDEX_NONE )
+			if (InPos < 0)
 			{
-				UE_LOG(LogChunkDatabaseWriter, Error, TEXT("Created data message with no filename but has INDEX_NONE, WILL TRY AND CREATE FILE"));
+				UE_LOG(LogChunkDatabaseWriter, Error, TEXT("Created data message with message ID, WILL RESULT IN ERROR."));
 			}
 			Memory.Reset(DataMessageBufferSize);
 		}
 
 	public:
 		FString Filename;
-		int64 Pos;
+		int64 DataInfo;
 		TArray<uint8> Memory;
 
 	private:
-		FDataMessage(){}
+		FDataMessage() {}
 	};
 
 	class FChunkDatabaseWriter
@@ -124,7 +127,8 @@ namespace BuildPatchServices
 			UE_LOG(LogChunkDatabaseWriter, Log, TEXT("Start processing chunk database %s"), *ChunkDatabaseFile.DatabaseFilename);
 
 			// Send file create message.
-			DataPipe.Enqueue(MakeShareable(new FDataMessage(ChunkDatabaseFile.DatabaseFilename)));
+			const FString TmpDatabaseFilename = ChunkDatabaseFile.DatabaseFilename + TEXT("tmp");
+			DataPipe.Enqueue(MakeShareable(new FDataMessage(TmpDatabaseFilename, FDataMessage::CreateFileId)));
 			ThreadTrigger->Trigger();
 
 			// Populate header with all required entries.
@@ -202,6 +206,10 @@ namespace BuildPatchServices
 				DataPipe.Enqueue(MakeShareable(DataMessage.Release()));
 				ThreadTrigger->Trigger();
 			}
+
+			// Send file rename message.
+			DataPipe.Enqueue(MakeShareable(new FDataMessage(ChunkDatabaseFile.DatabaseFilename, FDataMessage::RenameFileId)));
+			ThreadTrigger->Trigger();
 		}
 
 		// Mark completed.
@@ -223,32 +231,49 @@ namespace BuildPatchServices
 			if (DataPipe.Dequeue(DataMessage))
 			{
 				// Process a file create message.
-				if (DataMessage->Pos == INDEX_NONE)
+				if (DataMessage->DataInfo == FDataMessage::CreateFileId)
 				{
 					UE_LOG(LogChunkDatabaseWriter, Log, TEXT("Writing chunk database %s"), *DataMessage->Filename);
 					CurrentFile = FileSystem->CreateFileWriter(*DataMessage->Filename);
 					FilesCreated.Add(DataMessage->Filename);
-					if ( CurrentFile.IsValid() == false )
+					if (CurrentFile.IsValid() == false)
 					{
 						bSuccess = false;
-						UE_LOG(LogChunkDatabaseWriter, Error, TEXT("Failed to create file with name \"%s\""));
+						UE_LOG(LogChunkDatabaseWriter, Error, TEXT("Failed to create file with name %s"), *DataMessage->Filename);
 						InstallerError->SetError(EBuildPatchInstallError::FileConstructionFail, ConstructionErrorCodes::FileCreateFail);
 					}
 				}
 				// Process a data serialize.
-				else if (CurrentFile.IsValid())
+				else if (CurrentFile.IsValid() && DataMessage->DataInfo >= 0)
 				{
-					if (CurrentFile->Tell() != DataMessage->Pos)
+					if (CurrentFile->Tell() != DataMessage->DataInfo)
 					{
-						CurrentFile->Seek(DataMessage->Pos);
+						CurrentFile->Seek(DataMessage->DataInfo);
 					}
 					CurrentFile->Serialize(DataMessage->Memory.GetData(), DataMessage->Memory.Num());
 				}
-				// An error if we do not have a file open and we were sent data.
+				// Process a file rename message.
+				else if (CurrentFile.IsValid() && DataMessage->DataInfo == FDataMessage::RenameFileId)
+				{
+					const FString OldFilename = CurrentFile->GetArchiveName();
+					bSuccess = CurrentFile->Close();
+					CurrentFile.Reset();
+					if (bSuccess)
+					{
+						FileSystem->MoveFile(*DataMessage->Filename, *OldFilename);
+						UE_LOG(LogChunkDatabaseWriter, Log, TEXT("Chunk database complete, renamed %s"), *DataMessage->Filename);
+					}
+					else
+					{
+						UE_LOG(LogChunkDatabaseWriter, Error, TEXT("Serialisation error reported on file close %s"), *OldFilename);
+						InstallerError->SetError(EBuildPatchInstallError::FileConstructionFail, ConstructionErrorCodes::SerializationError);
+					}
+				}
+				// An error if we do not have a file open and we were sent any message other than create.
 				else
 				{
 					bSuccess = false;
-					UE_LOG(LogChunkDatabaseWriter, Error, TEXT("Output fail, data message without a file"));
+					UE_LOG(LogChunkDatabaseWriter, Error, TEXT("Output fail, message without a file"));
 					InstallerError->SetError(EBuildPatchInstallError::FileConstructionFail, ConstructionErrorCodes::MissingFileInfo);
 				}
 			}

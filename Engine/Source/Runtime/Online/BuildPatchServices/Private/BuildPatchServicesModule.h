@@ -7,7 +7,6 @@
 #include "Interfaces/IBuildPatchServicesModule.h"
 #include "BuildPatchInstaller.h"
 
-class FHttpServiceTracker;
 class IAnalyticsProvider;
 
 /**
@@ -35,21 +34,19 @@ public:
 	// IModuleInterface interface end.
 
 	// IBuildPatchServicesModule interface begin.
+	virtual IBuildInstallerRef CreateBuildInstaller(BuildPatchServices::FBuildInstallerConfiguration Configuration, FBuildPatchInstallerDelegate OnComplete) const override;
 	virtual BuildPatchServices::IBuildStatisticsRef CreateBuildStatistics(const IBuildInstallerRef& Installer) const override;
+	virtual BuildPatchServices::IPatchDataEnumerationRef CreatePatchDataEnumeration(BuildPatchServices::FPatchDataEnumerationConfiguration Configuration) const override;
 	virtual IBuildManifestPtr LoadManifestFromFile(const FString& Filename) override;
 	virtual IBuildManifestPtr MakeManifestFromData(const TArray<uint8>& ManifestData) override;
 	virtual bool SaveManifestToFile(const FString& Filename, IBuildManifestRef Manifest) override;
 	virtual TSet<FString> GetInstalledPrereqIds() const override;
-	virtual IBuildInstallerPtr StartBuildInstall(IBuildManifestPtr CurrentManifest, IBuildManifestPtr InstallManifest, const FString& InstallDirectory, FBuildPatchBoolManifestDelegate OnCompleteDelegate, bool bIsRepair = false, TSet<FString> InstallTags = TSet<FString>()) override;
-	virtual IBuildInstallerPtr StartBuildInstallStageOnly(IBuildManifestPtr CurrentManifest, IBuildManifestPtr InstallManifest, const FString& InstallDirectory, FBuildPatchBoolManifestDelegate OnCompleteDelegate, bool bIsRepair = false, TSet<FString> InstallTags = TSet<FString>()) override;
-	virtual IBuildInstallerRef StartBuildInstall(BuildPatchServices::FInstallerConfiguration Configuration, FBuildPatchBoolManifestDelegate OnCompleteDelegate) override;
 	virtual const TArray<IBuildInstallerRef>& GetInstallers() const override;
 	virtual void SetStagingDirectory(const FString& StagingDir) override;
 	virtual void SetCloudDirectory(FString CloudDir) override;
 	virtual void SetCloudDirectories(TArray<FString> CloudDirs) override;
 	virtual void SetBackupDirectory(const FString& BackupDir) override;
 	virtual void SetAnalyticsProvider(TSharedPtr< IAnalyticsProvider > AnalyticsProvider) override;
-	virtual void SetHttpTracker(TSharedPtr< FHttpServiceTracker > HttpTracker) override;
 	virtual void RegisterAppInstallation(IBuildManifestRef AppManifest, const FString AppInstallDirectory) override;
 	virtual bool UnregisterAppInstallation(const FString AppInstallDirectory) override;
 	virtual void CancelAllInstallers(bool WaitForThreads) override;
@@ -117,9 +114,6 @@ private:
 	// The analytics provider interface
 	static TSharedPtr<IAnalyticsProvider> Analytics;
 
-	// The http tracker service interface
-	static TSharedPtr<FHttpServiceTracker> HttpTracker;
-
 	// Holds the cloud directories where chunks should belong
 	static TArray<FString> CloudDirectories;
 
@@ -135,17 +129,20 @@ private:
 	// A flag specifying whether prerequisites install should be skipped
 	bool bForceSkipPrereqs;
 
-	// Array of created installers
-	TArray<FBuildPatchInstallerPtr> BuildPatchInstallers;
+	// Array of running installers
+	TArray<FBuildPatchInstallerRef> BuildPatchInstallers;
 
-	// Array of created installers as exposable interface refs
+	// Array of running installers as exposable interface refs
 	TArray<IBuildInstallerRef> BuildPatchInstallerInterfaces;
 
 	// Holds available installations used for recycling install data
-	TMap<FString, FBuildPatchAppManifestRef> AvailableInstallations;
+	TMultiMap<FString, FBuildPatchAppManifestRef> AvailableInstallations;
 
 	// Handle to the registered Tick delegate
 	FDelegateHandle TickDelegateHandle;
+
+	// Delegate to give to installers so we know when they have been started.
+	FBuildPatchInstallerDelegate InstallerStartDelegate;
 
 	// Event broadcast upon a new build install
 	FSimpleEvent OnStartBuildInstallEvent;

@@ -376,7 +376,7 @@ FFreeTypeFace::FFreeTypeFace(const FFreeTypeLibrary* InFTLibrary, const FString&
 	if (Error)
 	{
 		// You can look these error codes up in the FreeType docs: https://www.freetype.org/freetype2/docs/reference/ft2-error_code_values.html
-		ensureAlwaysMsgf(0, TEXT("FT_Open_Face failed with error code %i"), Error);
+		ensureAlwaysMsgf(0, TEXT("FT_Open_Face failed with error code 0x%02X, filename '%s'"), Error, *InFilename);
 
 		// We assume the face is null if the function errored
 		ensureAlwaysMsgf(FTFace == nullptr, TEXT("FT_Open_Face failed but also returned a non-null FT_Face. This is unexpected and may leak memory!"));

@@ -90,6 +90,14 @@ void FBuildPatchServicesModule::StartupModule()
 
 	// Init Manifest serialization
 	FManifestData::Init();
+
+	// Create our installer start delegate
+	InstallerStartDelegate = FBuildPatchInstallerDelegate::CreateLambda([this](const IBuildInstallerRef& StartedInstaller)
+	{
+		BuildPatchInstallers.Add(StaticCastSharedRef<FBuildPatchInstaller>(StartedInstaller));
+		BuildPatchInstallerInterfaces.Add(StartedInstaller);
+		OnStartBuildInstallEvent.Broadcast();
+	});
 }
 
 void FBuildPatchServicesModule::ShutdownModule()
@@ -105,10 +113,27 @@ void FBuildPatchServicesModule::ShutdownModule()
 	GLog->Log(ELogVerbosity::VeryVerbose, TEXT( "BuildPatchServicesModule: Finished shutting down" ) );
 }
 
+IBuildInstallerRef FBuildPatchServicesModule::CreateBuildInstaller(BuildPatchServices::FBuildInstallerConfiguration Configuration, FBuildPatchInstallerDelegate CompleteDelegate) const
+{
+	// Override prereq install using the config/commandline value to force skip them.
+	if (bForceSkipPrereqs)
+	{
+		Configuration.bRunRequiredPrereqs = false;
+	}
+	FBuildPatchInstallerRef Installer = MakeShareable(new FBuildPatchInstaller(MoveTemp(Configuration), AvailableInstallations, LocalMachineConfigFile, Analytics, InstallerStartDelegate, MoveTemp(CompleteDelegate)));
+	return Installer;
+}
+
 IBuildStatisticsRef FBuildPatchServicesModule::CreateBuildStatistics(const IBuildInstallerRef& Installer) const
 {
 	checkSlow(IsInGameThread());
 	return MakeShareable(FBuildStatisticsFactory::Create(StaticCastSharedRef<FBuildPatchInstaller>(Installer)));
+}
+
+IPatchDataEnumerationRef FBuildPatchServicesModule::CreatePatchDataEnumeration(BuildPatchServices::FPatchDataEnumerationConfiguration Configuration) const
+{
+	using namespace BuildPatchServices;
+	return MakeShareable(FPatchDataEnumerationFactory::Create(MoveTemp(Configuration)));
 }
 
 IBuildManifestPtr FBuildPatchServicesModule::LoadManifestFromFile( const FString& Filename )
@@ -158,74 +183,6 @@ TSet<FString> FBuildPatchServicesModule::GetInstalledPrereqIds() const
 	return MachineConfig->LoadInstalledPrereqIds();
 }
 
-IBuildInstallerPtr FBuildPatchServicesModule::StartBuildInstall(IBuildManifestPtr CurrentManifest, IBuildManifestPtr InstallManifest, const FString& InstallDirectory, FBuildPatchBoolManifestDelegate OnCompleteDelegate, bool bIsRepair, TSet<FString> InstallTags)
-{
-	if (InstallManifest.IsValid())
-	{
-		// Forward call to new function
-		FInstallerConfiguration InstallerConfiguration(InstallManifest.ToSharedRef());
-		InstallerConfiguration.CurrentManifest = CurrentManifest;
-		InstallerConfiguration.InstallDirectory = InstallDirectory;
-		InstallerConfiguration.InstallTags = InstallTags;
-		InstallerConfiguration.bIsRepair = bIsRepair;
-		return StartBuildInstall(MoveTemp(InstallerConfiguration), OnCompleteDelegate);
-	}
-	else
-	{
-		return nullptr;
-	}
-}
-
-IBuildInstallerPtr FBuildPatchServicesModule::StartBuildInstallStageOnly(IBuildManifestPtr CurrentManifest, IBuildManifestPtr InstallManifest, const FString& InstallDirectory, FBuildPatchBoolManifestDelegate OnCompleteDelegate, bool bIsRepair, TSet<FString> InstallTags)
-{
-	if (InstallManifest.IsValid())
-	{
-		// Forward call to new function
-		FInstallerConfiguration InstallerConfiguration(InstallManifest.ToSharedRef());
-		InstallerConfiguration.CurrentManifest = CurrentManifest;
-		InstallerConfiguration.InstallDirectory = InstallDirectory;
-		InstallerConfiguration.InstallTags = InstallTags;
-		InstallerConfiguration.InstallMode = EInstallMode::StageFiles;
-		InstallerConfiguration.bIsRepair = bIsRepair;
-		return StartBuildInstall(MoveTemp(InstallerConfiguration), OnCompleteDelegate);
-	}
-	else
-	{
-		return nullptr;
-	}
-}
-
-IBuildInstallerRef FBuildPatchServicesModule::StartBuildInstall(BuildPatchServices::FInstallerConfiguration Configuration, FBuildPatchBoolManifestDelegate OnCompleteDelegate)
-{
-	checkSlow(IsInGameThread());
-	// Handle any of the global module overrides, while they are not yet fully deprecated.
-	if (Configuration.StagingDirectory.IsEmpty())
-	{
-		Configuration.StagingDirectory = GetStagingDirectory();
-	}
-	if (Configuration.BackupDirectory.IsEmpty())
-	{
-		Configuration.BackupDirectory = GetBackupDirectory();
-	}
-	if (Configuration.CloudDirectories.Num() == 0)
-	{
-		Configuration.CloudDirectories = GetCloudDirectories();
-	}
-	// Override prereq install using the config/commandline value to force skip them.
-	if (bForceSkipPrereqs)
-	{
-		Configuration.bRunRequiredPrereqs = false;
-	}
-	// Run the installer.
-	FBuildPatchInstallerRef Installer = MakeShareable(new FBuildPatchInstaller(MoveTemp(Configuration), AvailableInstallations, LocalMachineConfigFile, Analytics, HttpTracker, OnCompleteDelegate));
-	Installer->StartInstallation();
-	BuildPatchInstallers.Add(Installer);
-	BuildPatchInstallerInterfaces.Add(Installer);
-
-	OnStartBuildInstall().Broadcast();
-	return Installer;
-}
-
 const TArray<IBuildInstallerRef>& FBuildPatchServicesModule::GetInstallers() const
 {
 	checkSlow(IsInGameThread());
@@ -237,29 +194,24 @@ bool FBuildPatchServicesModule::Tick(float Delta)
     QUICK_SCOPE_CYCLE_COUNTER(STAT_FBuildPatchServicesModule_Tick);
 	checkSlow(IsInGameThread());
 
-	// Pump installer messages.
-	for (FBuildPatchInstallerPtr& Installer : BuildPatchInstallers)
+	// Tick running installers.
+	for (auto InstallerIter = BuildPatchInstallers.CreateIterator(); InstallerIter; ++InstallerIter)
 	{
-		if (Installer.IsValid())
+		const FBuildPatchInstallerRef& Installer = *InstallerIter;
+		if (!Installer->Tick())
 		{
-			Installer->PumpMessages();
-			// If the installer is complete, execute the delegate, and reset the ptr for cleanup.
-			if (Installer->IsComplete())
-			{
-				Installer->ExecuteCompleteDelegate();
-				Installer.Reset();
-			}
+			InstallerIter.RemoveCurrent();
 		}
 	}
-
-	// Remove invalids from the list.
-	BuildPatchInstallers.RemoveAll([](const FBuildPatchInstallerPtr& Installer){ return Installer.IsValid() == false; });
 
 	// Check for resetting the BuildPatchInstallerInterfaces array.
 	if (BuildPatchInstallers.Num() != BuildPatchInstallerInterfaces.Num())
 	{
 		BuildPatchInstallerInterfaces.Empty(BuildPatchInstallers.Num());
-		Algo::Transform(BuildPatchInstallers, BuildPatchInstallerInterfaces, &FBuildPatchInstallerPtr::ToSharedRef);
+		for (const FBuildPatchInstallerRef& Installer : BuildPatchInstallers)
+		{
+			BuildPatchInstallerInterfaces.Add(Installer);
+		}
 	}
 
 	// More ticks.
@@ -368,11 +320,6 @@ void FBuildPatchServicesModule::SetAnalyticsProvider( TSharedPtr<IAnalyticsProvi
 	Analytics = InAnalyticsProvider;
 }
 
-void FBuildPatchServicesModule::SetHttpTracker( TSharedPtr< FHttpServiceTracker > InHttpTracker)
-{
-	HttpTracker = InHttpTracker;
-}
-
 void FBuildPatchServicesModule::RegisterAppInstallation(IBuildManifestRef AppManifest, FString AppInstallDirectory)
 {
 	FPaths::NormalizeDirectoryName(AppInstallDirectory);
@@ -398,44 +345,43 @@ void FBuildPatchServicesModule::CancelAllInstallers(bool WaitForThreads)
 	const bool bIsCalledFromMainThread = IsInGameThread();
 	check(bIsCalledFromMainThread);
 
-	// Loop each installer, cancel it, and optionally wait to make completion delegate call
-	for (auto& Installer : BuildPatchInstallers)
+	// Loop each installer, cancel it.
+	for (auto InstallerIter = BuildPatchInstallers.CreateIterator(); InstallerIter; ++InstallerIter)
 	{
-		if (Installer.IsValid())
+		const FBuildPatchInstallerRef& Installer = *InstallerIter;
+		Installer->CancelInstall();
+	}
+	// Optionally wait for each installer to finish.
+	if (WaitForThreads)
+	{
+		while (BuildPatchInstallers.Num() > 0)
 		{
-			Installer->CancelInstall();
-			if (WaitForThreads)
+			FPlatformProcess::Sleep(1.0f / 60.0f);
+			for (auto InstallerIter = BuildPatchInstallers.CreateIterator(); InstallerIter; ++InstallerIter)
 			{
-				while (!Installer->IsComplete())
+				const FBuildPatchInstallerRef& Installer = *InstallerIter;
+				if (!Installer->Tick())
 				{
-					FPlatformProcess::Sleep(0);
+					InstallerIter.RemoveCurrent();
 				}
-
-				Installer->ExecuteCompleteDelegate();
-				Installer.Reset();
 			}
 		}
 	}
-
-	// Remove completed (invalids) from the list
-	BuildPatchInstallers.RemoveAll([](const FBuildPatchInstallerPtr& Installer){ return Installer.IsValid() == false; });
+	BuildPatchInstallers.Empty();
+	BuildPatchInstallerInterfaces.Empty();
 }
 
 void FBuildPatchServicesModule::PreExit()
 {
-	// Cleanup installers
-	for (auto& Installer : BuildPatchInstallers)
+	// Inform installers
+	for (auto InstallerIter = BuildPatchInstallers.CreateIterator(); InstallerIter; ++InstallerIter)
 	{
-		if (Installer.IsValid())
-		{
-			Installer->PreExit();
-		}
+		const FBuildPatchInstallerRef& Installer = *InstallerIter;
+		Installer->PreExit();
 	}
-	BuildPatchInstallers.Empty();
 
 	// Release our ptr to analytics
 	Analytics.Reset();
-	HttpTracker.Reset();
 }
 
 void FBuildPatchServicesModule::FixupLegacyConfig()
@@ -521,7 +467,6 @@ const FString& FBuildPatchServicesModule::GetBackupDirectory()
 /* Static variables
  *****************************************************************************/
 TSharedPtr<IAnalyticsProvider> FBuildPatchServicesModule::Analytics;
-TSharedPtr<FHttpServiceTracker> FBuildPatchServicesModule::HttpTracker;
 TArray<FString> FBuildPatchServicesModule::CloudDirectories;
 FString FBuildPatchServicesModule::StagingDirectory;
 FString FBuildPatchServicesModule::BackupDirectory;
