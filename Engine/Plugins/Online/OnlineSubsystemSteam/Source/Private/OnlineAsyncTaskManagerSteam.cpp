@@ -667,24 +667,26 @@ public:
 	 */
 	virtual void Finalize() override
 	{
-		FOnlineSessionSteamPtr SessionInt = StaticCastSharedPtr<FOnlineSessionSteam>(Subsystem->GetSessionInterface());
-		if (SessionInt.IsValid())
+		if (Subsystem)
 		{
-			SessionInt->bSteamworksGameServerConnected = true;
-			SessionInt->GameServerSteamId = MakeShareable(new FUniqueNetIdSteam(ServerId));
-
-			FSocketSubsystemSteam* SocketSubsystem = (FSocketSubsystemSteam*)ISocketSubsystem::Get(STEAM_SUBSYSTEM);
-			if (SocketSubsystem)
-			{			
-				SocketSubsystem->FixupSockets(*SessionInt->GameServerSteamId);
-			}
-
-			if (Subsystem)
+			FOnlineSessionSteamPtr SessionInt = StaticCastSharedPtr<FOnlineSessionSteam>(Subsystem->GetSessionInterface());
+			if (SessionInt.IsValid())
 			{
+				SessionInt->bSteamworksGameServerConnected = true;
+				SessionInt->GameServerSteamId = MakeShareable(new FUniqueNetIdSteam(ServerId));
+				if (Subsystem->IsUsingSteamNetworking())
+				{
+					FSocketSubsystemSteam* SocketSubsystem = (FSocketSubsystemSteam*)ISocketSubsystem::Get(STEAM_SUBSYSTEM);
+					if (SocketSubsystem)
+					{
+						SocketSubsystem->FixupSockets(*SessionInt->GameServerSteamId);
+					}
+				}
+
 				Subsystem->TriggerOnSteamServerLoginCompletedDelegates(true);
 			}
-		}
 
+		}
 		// log on is not finished until OnPolicyResponse() is called
 	}
 };
@@ -1012,12 +1014,15 @@ public:
 	 */
 	virtual void Finalize() override
 	{
-		FSocketSubsystemSteam* SocketSubsystem = (FSocketSubsystemSteam*)ISocketSubsystem::Get(STEAM_SUBSYSTEM);
-		if (SocketSubsystem)
+		if (Subsystem && Subsystem->IsUsingSteamNetworking())
 		{
-			if (!SocketSubsystem->AcceptP2PConnection(SteamNetworkingPtr, RemoteId))
-			{	
-				UE_LOG_ONLINE(Log, TEXT("Rejected P2P connection request from %s"), *RemoteId.ToDebugString());
+			FSocketSubsystemSteam* SocketSubsystem = (FSocketSubsystemSteam*)ISocketSubsystem::Get(STEAM_SUBSYSTEM);
+			if (SocketSubsystem)
+			{
+				if (!SocketSubsystem->AcceptP2PConnection(SteamNetworkingPtr, RemoteId))
+				{
+					UE_LOG_ONLINE(Log, TEXT("Rejected P2P connection request from %s"), *RemoteId.ToDebugString());
+				}
 			}
 		}
 	}
@@ -1067,11 +1072,14 @@ public:
 	 */
 	virtual void Finalize() override
 	{
-		// Mark the relevant sockets with this failure so they can properly notify higher level engine code
-		FSocketSubsystemSteam* SocketSubsystem = (FSocketSubsystemSteam*)ISocketSubsystem::Get(STEAM_SUBSYSTEM);
-		if (SocketSubsystem)
+		if (Subsystem && Subsystem->IsUsingSteamNetworking())
 		{
-			SocketSubsystem->ConnectFailure(RemoteId);
+			// Mark the relevant sockets with this failure so they can properly notify higher level engine code
+			FSocketSubsystemSteam* SocketSubsystem = (FSocketSubsystemSteam*)ISocketSubsystem::Get(STEAM_SUBSYSTEM);
+			if (SocketSubsystem)
+			{
+				SocketSubsystem->ConnectFailure(RemoteId);
+			}
 		}
 	}
 };

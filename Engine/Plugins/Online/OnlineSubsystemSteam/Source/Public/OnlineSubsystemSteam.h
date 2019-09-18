@@ -342,6 +342,15 @@ public:
 	}
 
 	/**
+	 *	@return if this subsystem is using SteamNetworking functionality 
+	 *			or another network layer like SteamSockets
+	 */
+	inline bool IsUsingSteamNetworking() const
+	{
+		return bUsingSteamNetworking;
+	}
+
+	/**
 	 * This delegate fires whenever a steam login has succeeded or failed its async task.
 	 * Useful for modules that need to check to see if a user is logged in before running other behavior
 	 */
