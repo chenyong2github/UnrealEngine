@@ -77,7 +77,6 @@ namespace UnrealBuildTool.Rules
 						"D3D11RHI",
 						"Slate",
 						"SlateCore",
-						"UtilityShaders",
 						"Projects",
                         "WindowsMixedRealityHandTracking",
 						"AugmentedReality",

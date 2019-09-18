@@ -57,11 +57,6 @@ void FVulkanCommandListContext::RHISetStreamSource(uint32 StreamIndex, FRHIVerte
 	}
 }
 
-void FVulkanDynamicRHI::RHISetStreamOutTargets(uint32 NumTargets, FRHIVertexBuffer* const* VertexBuffers, const uint32* Offsets)
-{
-	VULKAN_SIGNAL_UNIMPLEMENTED();
-}
-
 void FVulkanCommandListContext::RHISetComputeShader(FRHIComputeShader* ComputeShaderRHI)
 {
 	FVulkanComputeShader* ComputeShader = ResourceCast(ComputeShaderRHI);
@@ -118,7 +113,7 @@ void FVulkanCommandListContext::RHIDispatchComputeShader(uint32 ThreadGroupCount
 
 	if (FVulkanPlatform::RegisterGPUWork() && IsImmediate())
 	{
-		GpuProfiler.RegisterGPUWork(1);
+		GpuProfiler.RegisterGPUDispatch(FIntVector(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ));	
 	}
 
 	//#todo-rco: Temp workaround
@@ -149,7 +144,7 @@ void FVulkanCommandListContext::RHIDispatchIndirectComputeShader(FRHIVertexBuffe
 
 	if (FVulkanPlatform::RegisterGPUWork()/* && IsImmediate()*/)
 	{
-		GpuProfiler.RegisterGPUWork(1);
+		GpuProfiler.RegisterGPUDispatch(FIntVector(1, 1, 1));	
 	}
 
 	//#todo-rco: Temp workaround

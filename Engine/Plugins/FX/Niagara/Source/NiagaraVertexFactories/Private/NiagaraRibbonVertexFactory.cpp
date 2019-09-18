@@ -10,7 +10,8 @@
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonUniformParameters,"NiagaraRibbonVF");
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonUniformParameters, "NiagaraRibbonVF");
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonVFLooseParameters, "NiagaraRibbonVFLooseParameters");
 
 
 class FNiagaraRibbonVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
@@ -36,12 +37,6 @@ public:
 		NiagaraParticleDataFloat.Bind(ParameterMap, TEXT("NiagaraParticleDataFloat"));
 		FloatDataOffset.Bind(ParameterMap, TEXT("NiagaraFloatDataOffset"));
 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
-		SortedIndices.Bind(ParameterMap, TEXT("SortedIndices"));
-		SortedIndicesOffset.Bind(ParameterMap, TEXT("SortedIndicesOffset"));
-		TangentsAndDistances.Bind(ParameterMap, TEXT("TangentsAndDistances"));
-		MultiRibbonIndices.Bind(ParameterMap, TEXT("MultiRibbonIndices"));
-		PackedPerRibbonDataByIndex.Bind(ParameterMap, TEXT("PackedPerRibbonDataByIndex"));
-		FacingMode.Bind(ParameterMap, TEXT("FacingMode"));
 	}
 
 	virtual void Serialize(FArchive& Ar) override
@@ -49,12 +44,6 @@ public:
 		Ar << NiagaraParticleDataFloat;
 		Ar << FloatDataOffset;
 		Ar << FloatDataStride;
-		Ar << SortedIndices;
-		Ar << SortedIndicesOffset;
-		Ar << TangentsAndDistances;
-		Ar << MultiRibbonIndices;
-		Ar << PackedPerRibbonDataByIndex;
-		Ar << FacingMode;
 	}
 
 	virtual void GetElementShaderBindings(
@@ -70,29 +59,16 @@ public:
 	{
 		FNiagaraRibbonVertexFactory* RibbonVF = (FNiagaraRibbonVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraRibbonUniformParameters>(), RibbonVF->GetRibbonUniformBuffer());
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraRibbonVFLooseParameters>(), RibbonVF->LooseParameterUniformBuffer);
 		ShaderBindings.Add(NiagaraParticleDataFloat, RibbonVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(FloatDataOffset, RibbonVF->GetFloatDataOffset());
 		ShaderBindings.Add(FloatDataStride, RibbonVF->GetFloatDataStride());
-
-		ShaderBindings.Add(SortedIndices, RibbonVF->GetSortedIndicesSRV());
-		ShaderBindings.Add(TangentsAndDistances, RibbonVF->GetTangentAndDistancesSRV());
-		ShaderBindings.Add(MultiRibbonIndices, RibbonVF->GetMultiRibbonIndicesSRV());
-		ShaderBindings.Add(PackedPerRibbonDataByIndex, RibbonVF->GetPackedPerRibbonDataByIndexSRV());
-		ShaderBindings.Add(SortedIndicesOffset, RibbonVF->GetSortedIndicesOffset());
-		ShaderBindings.Add(FacingMode, RibbonVF->GetFacingMode());
 	}
 
 private:
 	FShaderResourceParameter NiagaraParticleDataFloat;
 	FShaderParameter FloatDataOffset;
 	FShaderParameter FloatDataStride;
-
-	FShaderResourceParameter SortedIndices;
-	FShaderResourceParameter TangentsAndDistances;
-	FShaderResourceParameter MultiRibbonIndices;
-	FShaderResourceParameter PackedPerRibbonDataByIndex;
-	FShaderParameter SortedIndicesOffset;
-	FShaderParameter FacingMode;
 };
 
 
@@ -178,6 +154,9 @@ bool FNiagaraRibbonVertexFactory::ShouldCompilePermutation(EShaderPlatform Platf
 void FNiagaraRibbonVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const class FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
 {
 	FNiagaraVertexFactoryBase::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+
+	OutEnvironment.SetDefine(TEXT("NiagaraVFLooseParameters"), TEXT("NiagaraRibbonVFLooseParameters"));
+	
 	OutEnvironment.SetDefine(TEXT("NIAGARA_RIBBON_FACTORY"), TEXT("1"));
 }
 
@@ -205,6 +184,16 @@ FVertexFactoryShaderParameters* FNiagaraRibbonVertexFactory::ConstructShaderPara
 	{
 		return new FNiagaraRibbonVertexFactoryShaderParametersPS();
 	}
+#if RHI_RAYTRACING
+	else if (ShaderFrequency == SF_Compute)
+	{
+		return new FNiagaraRibbonVertexFactoryShaderParametersVS();
+	}
+	else if (ShaderFrequency == SF_RayHitGroup)
+	{
+		return new FNiagaraRibbonVertexFactoryShaderParametersVS();
+	}
+#endif
 	return NULL;
 }
 

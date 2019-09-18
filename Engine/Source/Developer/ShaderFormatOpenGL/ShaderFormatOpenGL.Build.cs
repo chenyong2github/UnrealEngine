@@ -27,9 +27,22 @@ public class ShaderFormatOpenGL : ModuleRules
 			"HLSLCC"
 			);
 
-        if (Target.Platform == UnrealTargetPlatform.Linux)
+        if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
         {
             AddEngineThirdPartyPrivateStaticDependencies(Target, "SDL2");
         }
+		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
+				"ShaderConductor",
+				"SPIRVReflect"
+			);
+		}
+
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PublicDelayLoadDLLs.Add("dxcompiler_sc.dll");
+			PublicDelayLoadDLLs.Add("ShaderConductor.dll");
+		}
 	}
 }

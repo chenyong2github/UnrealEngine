@@ -996,7 +996,7 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 		// Clear the stencil buffer to 0.
 		if (!GStencilOptimization)
 		{
-			DrawClearQuad(RHICmdList, false, FLinearColor::Transparent, false, 0, true, 1);
+			DrawClearQuad(RHICmdList, false, FLinearColor::Transparent, false, 0, true, 0);
 		}
 	}
 }

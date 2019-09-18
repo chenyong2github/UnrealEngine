@@ -1095,18 +1095,19 @@ bool UMaterialInstance::GetRefractionSettings(float& OutBiasValue) const
 
 void UMaterialInstance::GetTextureExpressionValues(const FMaterialResource* MaterialResource, TArray<UTexture*>& OutTextures, TArray< TArray<int32> >* OutIndices) const
 {
-	const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[4];
+	const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[5];
 
 	check(MaterialResource);
 
 	ExpressionsByType[0] = &MaterialResource->GetUniform2DTextureExpressions();
 	ExpressionsByType[1] = &MaterialResource->GetUniformCubeTextureExpressions();
-	ExpressionsByType[2] = &MaterialResource->GetUniformVolumeTextureExpressions();
-	ExpressionsByType[3] = &MaterialResource->GetUniformVirtualTextureExpressions();
+	ExpressionsByType[2] = &MaterialResource->GetUniform2DArrayTextureExpressions();
+	ExpressionsByType[3] = &MaterialResource->GetUniformVolumeTextureExpressions();
+	ExpressionsByType[4] = &MaterialResource->GetUniformVirtualTextureExpressions();
 
 	if (OutIndices) // Try to prevent resizing since this would be expensive.
 	{
-		OutIndices->Empty(ExpressionsByType[0]->Num() + ExpressionsByType[1]->Num() + ExpressionsByType[2]->Num() + ExpressionsByType[3]->Num());
+		OutIndices->Empty(ExpressionsByType[0]->Num() + ExpressionsByType[1]->Num() + ExpressionsByType[2]->Num() + ExpressionsByType[3]->Num() + ExpressionsByType[4]->Num());
 	}
 
 	for(int32 TypeIndex = 0;TypeIndex < ARRAY_COUNT(ExpressionsByType);TypeIndex++)
@@ -1314,7 +1315,84 @@ void UMaterialInstance::LogMaterialsAndTextures(FOutputDevice& Ar, int32 Indent)
 		}
 	}
 }
-#endif
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+void UMaterialInstance::ValidateTextureOverrides(ERHIFeatureLevel::Type InFeatureLevel) const
+{
+	const UMaterial* Material = GetMaterial();
+	const FMaterialResource* CurrentResource = Material->GetMaterialResource(InFeatureLevel);
+
+	if (!CurrentResource)
+	{
+		return;
+	}
+
+	const TArray<TRefCountPtr<FMaterialUniformExpressionTexture>>* TextureExpressions[] =
+	{
+		&CurrentResource->GetUniform2DTextureExpressions(),
+		&CurrentResource->GetUniformCubeTextureExpressions(),
+		&CurrentResource->GetUniform2DArrayTextureExpressions(),
+		&CurrentResource->GetUniformVolumeTextureExpressions(),
+		&CurrentResource->GetUniformVirtualTextureExpressions(),
+	};
+
+	FString MaterialName;
+	GetName(MaterialName);
+
+	for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(TextureExpressions); ++TypeIndex)
+	{
+		for (FMaterialUniformExpressionTexture* TextureExpression : *TextureExpressions[TypeIndex])
+		{
+			FMaterialUniformExpressionTextureParameter* ParameterExpression = TextureExpression->GetTextureParameterUniformExpression();
+			if (ParameterExpression)
+			{
+				UTexture* Texture = nullptr;
+				const FMaterialParameterInfo& ParameterInfo = ParameterExpression->GetParameterInfo();
+				if (GetTextureParameterValue(ParameterInfo, Texture, true) && Texture != nullptr)
+				{
+					const EMaterialValueType TextureType = Texture->GetMaterialType();
+					switch (TypeIndex)
+					{
+					case 0:
+						if (!(TextureType & (MCT_Texture2D | MCT_TextureExternal | MCT_TextureVirtual)))
+						{
+							UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required 2D texture"), *MaterialName, *ParameterInfo.Name.ToString(), *Texture->GetName());
+						}
+						else if (TextureType & MCT_TextureVirtual)
+						{
+							UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" requires non-virtual texture"), *MaterialName, *ParameterInfo.Name.ToString(), *Texture->GetName());
+						}
+						break;
+					case 1:
+						if (!(TextureType & MCT_TextureCube))
+						{
+							UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required Cube texture"), *MaterialName, *ParameterInfo.Name.ToString(), *Texture->GetName());
+						}
+						break;
+					case 2:
+						if (!(TextureType & MCT_VolumeTexture))
+						{
+							UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required Volume texture"), *MaterialName, *ParameterInfo.Name.ToString(), *Texture->GetName());
+						}
+						break;
+					case 3:
+						if (!(TextureType & (MCT_Texture2D | MCT_TextureExternal | MCT_TextureVirtual)))
+						{
+							UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required 2D texture"), *MaterialName, *ParameterInfo.Name.ToString(), *Texture->GetName());
+						}
+						else if (!(TextureType & MCT_TextureVirtual))
+						{
+							UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" requires virtual texture"), *MaterialName, *ParameterInfo.Name.ToString(), *Texture->GetName());
+						}
+						break;
+					default:
+						checkNoEntry();
+					}
+				}
+			}
+		}
+	}
+}
 
 void UMaterialInstance::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray< TArray<int32> >& OutIndices, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel) const
 {
@@ -1362,7 +1440,7 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 #if WITH_EDITOR
 	bool bShouldRecacheMaterialExpressions = false;
 	
-	const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[4];
+	const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[5];
 
 	const FMaterialResource* SourceMaterialResource = NULL;
 	if (bHasStaticPermutationResource)
@@ -1371,8 +1449,9 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 		// Iterate over both the 2D textures and cube texture expressions.
 		ExpressionsByType[0] = &SourceMaterialResource->GetUniform2DTextureExpressions();
 		ExpressionsByType[1] = &SourceMaterialResource->GetUniformCubeTextureExpressions();
-		ExpressionsByType[2] = &SourceMaterialResource->GetUniformVolumeTextureExpressions();
-		ExpressionsByType[3] = &SourceMaterialResource->GetUniformVirtualTextureExpressions();
+		ExpressionsByType[2] = &SourceMaterialResource->GetUniform2DArrayTextureExpressions();
+		ExpressionsByType[3] = &SourceMaterialResource->GetUniformVolumeTextureExpressions();
+		ExpressionsByType[4] = &SourceMaterialResource->GetUniformVirtualTextureExpressions();
 	}
 	else
 	{
@@ -1383,8 +1462,9 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 		// Iterate over both the 2D textures and cube texture expressions.
 		ExpressionsByType[0] = &SourceMaterialResource->GetUniform2DTextureExpressions();
 		ExpressionsByType[1] = &SourceMaterialResource->GetUniformCubeTextureExpressions();
-		ExpressionsByType[2] = &SourceMaterialResource->GetUniformVolumeTextureExpressions();
-		ExpressionsByType[3] = &SourceMaterialResource->GetUniformVirtualTextureExpressions();
+		ExpressionsByType[2] = &SourceMaterialResource->GetUniform2DArrayTextureExpressions();
+		ExpressionsByType[3] = &SourceMaterialResource->GetUniformVolumeTextureExpressions();
+		ExpressionsByType[4] = &SourceMaterialResource->GetUniformVirtualTextureExpressions();
 	}
 		
 	for(int32 TypeIndex = 0;TypeIndex < ARRAY_COUNT(ExpressionsByType);TypeIndex++)
@@ -2926,10 +3006,7 @@ void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform,
 	{
 		FMaterialResource* CurrentResource = ResourcesToCache[ResourceIndex];
 
-		FMaterialShaderMapId ShaderMapId;
-		CurrentResource->GetShaderMapId(ShaderPlatform, ShaderMapId);
-
-		const bool bSuccess = CurrentResource->CacheShaders(ShaderMapId, ShaderPlatform, TargetPlatform);
+		const bool bSuccess = CurrentResource->CacheShaders(ShaderPlatform, TargetPlatform);
 
 		if (!bSuccess)
 		{
@@ -3139,7 +3216,6 @@ bool UMaterialInstance::UpdateMaterialLayersParameterValue(const FMaterialParame
 				// @TODO: This should properly respect the override state
 				Param.Value = LayersValue;
 				Param.bOverride = true;//bOverridden;
-				Param.Value.UpdateStaticPermutationString();
 				return true;
 			}
 #if WITH_EDITOR
@@ -3149,7 +3225,6 @@ bool UMaterialInstance::UpdateMaterialLayersParameterValue(const FMaterialParame
 				{
 					Param.Value = LayersValue;
 					Param.bOverride = true;//bOverridden;
-					Param.Value.UpdateStaticPermutationString();
 					return true;
 				}
 			}
@@ -3321,10 +3396,9 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 			FMaterialShaderMapId LegacyId;
 			LegacyId.Serialize(Ar, bLoadedByCookedMaterial);
 
-			const FStaticParameterSet& IdParameterSet = LegacyId.GetParameterSet();
-			StaticParameters.StaticSwitchParameters = IdParameterSet.StaticSwitchParameters;
-			StaticParameters.StaticComponentMaskParameters = IdParameterSet.StaticComponentMaskParameters;
-			StaticParameters.TerrainLayerWeightParameters = IdParameterSet.TerrainLayerWeightParameters;
+			StaticParameters.StaticSwitchParameters = LegacyId.GetStaticSwitchParameters();
+			StaticParameters.StaticComponentMaskParameters = LegacyId.GetStaticComponentMaskParameters();
+			StaticParameters.TerrainLayerWeightParameters = LegacyId.GetTerrainLayerWeightParameters();
 
 			TrimToOverriddenOnly(StaticParameters.StaticSwitchParameters);
 			TrimToOverriddenOnly(StaticParameters.StaticComponentMaskParameters);
@@ -3382,6 +3456,11 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 		SaveShaderStableKeys(Ar.CookingTarget());
 	}
 #endif
+
+	if (Ar.IsSaving() && Ar.IsCooking())
+	{
+		ValidateTextureOverrides(GMaxRHIFeatureLevel);
+	}
 }
 
 void UMaterialInstance::PostLoad()
@@ -4801,10 +4880,11 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 					}
 
 					// Textures
-					const TArray<TRefCountPtr<FMaterialUniformExpressionTexture>>* TextureExpressions[4] =
+					const TArray<TRefCountPtr<FMaterialUniformExpressionTexture>>* TextureExpressions[5] =
 					{
 						&MaterialResource->GetUniform2DTextureExpressions(),
 						&MaterialResource->GetUniformCubeTextureExpressions(),
+						&MaterialResource->GetUniform2DArrayTextureExpressions(),
 						&MaterialResource->GetUniformVolumeTextureExpressions(),
 						&MaterialResource->GetUniformVirtualTextureExpressions()
 					};

@@ -90,7 +90,6 @@ public:
 			return false;
 		}
 
-		FTargetDeviceId UATFriendlyId(TEXT("Linux"), DeviceName);
 		Device = MakeShareable(new FLinuxTargetDevice(*this, DeviceName,
 #if WITH_ENGINE
 			[&]() { SaveDevicesToConfig(); }));

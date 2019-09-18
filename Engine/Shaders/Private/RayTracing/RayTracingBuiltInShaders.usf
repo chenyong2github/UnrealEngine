@@ -29,7 +29,6 @@ void OcclusionMainRG()
 	Ray.TMax = InputRay.TFar;
 
 	uint RayFlags = 0
-	              | RAY_FLAG_CULL_BACK_FACING_TRIANGLES      // use back face culling
 	              | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH // terminate immediately upon detecting primitive intersection
 	              | RAY_FLAG_FORCE_OPAQUE                    // don't run anyhit shader
 	              | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;        // don't run closesthit shader
@@ -62,9 +61,7 @@ void IntersectionMainRG()
 	Ray.TMin = 0.0f;
 	Ray.TMax = InputRay.TFar;
 
-	uint RayFlags = 0
-	              | RAY_FLAG_CULL_BACK_FACING_TRIANGLES      // use back face culling
-	              | RAY_FLAG_FORCE_OPAQUE;                   // don't run anyhit shader
+	uint RayFlags = RAY_FLAG_FORCE_OPAQUE; // don't run anyhit shader
 
 	FIntersectionPayload Payload = (FIntersectionPayload)0;
 

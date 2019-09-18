@@ -31,12 +31,7 @@ FRDGPass::FRDGPass(
 	: Name(static_cast<FRDGEventName&&>(InName))
 	, ParameterStruct(InParameterStruct)
 	, PassFlags(InPassFlags)
-{
-	if (IsCompute())
-	{
-		ensureMsgf(ParameterStruct.GetLayout().NumRenderTargets() == 0, TEXT("Pass %s was declared as ERDGPassFlags::Compute yet has RenderTargets in its ResourceTable"), GetName());
-	}
-}
+{}
 
 void FRDGPass::Execute(FRHICommandListImmediate& RHICmdList) const
 {

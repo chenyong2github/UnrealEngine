@@ -25,6 +25,15 @@
 
 //------------------------------------------------------- SHARED CONSTANTS DEPENDING ON CONFIG OF SHADER
 
+// Maximum number of signal that can be denoised at same time.
+#ifndef MAX_SIGNAL_BATCH_SIZE
+	#define MAX_SIGNAL_BATCH_SIZE 1
+#endif
+
+// Maximum number of signal that can be multiplexed into single output.
+#define MAX_SIGNAL_MULTIPLEXING (MAX_SIGNAL_BATCH_SIZE * 2)
+
+
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
 	#define TARGETED_SAMPLE_COUNT 128
 
@@ -32,9 +41,16 @@
 	// A gray scale valued encoded into a 16bit float only have 10bits mantissa.
 	#define TARGETED_SAMPLE_COUNT 1024
 
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
+	// Polychromatic penumbra is encded into 16bit float that only have 10bits mantissa.
+	#define TARGETED_SAMPLE_COUNT 1024
+
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
 	// Indirect diffuse requires really large spatial kernel to clean the noise.
 	#define TARGETED_SAMPLE_COUNT 4096
+
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC
+	#define TARGETED_SAMPLE_COUNT 128
 
 #else
 	#error Unconfigured TARGETED_SAMPLE_COUNT
@@ -43,6 +59,10 @@
 
 
 //------------------------------------------------------- SHARED SHADER PARAMETERS
+
+uint2 ViewportMin;
+uint2 ViewportMax;
+float4 BufferBilinearUVMinMax;
 
 float4x4  PrevScreenToTranslatedWorld;
 Texture2D PrevDepthBuffer;
@@ -58,6 +78,26 @@ float SafeRcp(float x)
 		return rcp(x);
 	return 0;
 }
+
+uint CompressN(float3 N)
+{
+	// matches 8bits GBuffer A to be lossless.
+	uint3 K = uint3(saturate(N * 0.5 + 0.5) * 255.0);
+
+	// TODO: K.x is stored in << 24 instead of << 0 to work arround a shader compiler bug.
+	return uint(K.x << 24 | K.y << 8 | K.z << 16);
+}
+
+float3 DecompressN(uint EncodedN)
+{
+	uint3 K;
+	K.x = (EncodedN >> 24) & 0xFF;
+	K.y = (EncodedN >>  8) & 0xFF;
+	K.z = (EncodedN >> 16) & 0xFF;
+
+	return float3(K) * (2.0 / 255.0) - 1.0;
+}
+
 
 //------------------------------------------------------- SPHERICAL HARMONIC INTERFACE
 
@@ -86,6 +126,9 @@ struct FSSDSampleSceneInfos
 	/** Normal of the pixel in world space. */
 	float3 WorldNormal;
 
+	/** Compressed form of the world normal. */
+	uint CompressedWorldNormal;
+
 	/** The position of the pixel in the translated world frame. */
 	float3 TranslatedWorldPosition;
 
@@ -100,6 +143,7 @@ FSSDSampleSceneInfos CreateSampleSceneInfos()
 {
 	FSSDSampleSceneInfos Infos;
 	Infos.WorldNormal             = 0;
+	Infos.CompressedWorldNormal   = 0;
 	Infos.TranslatedWorldPosition = 0;
 	Infos.WorldDepth              = 0;
 	Infos.Roughness               = 0;
@@ -116,6 +160,7 @@ FSSDSampleSceneInfos InitSampleSceneInfos(
 	Infos.TranslatedWorldPosition = mul(float4(ClipPosition, WorldDepth, 1), ScreenToTranslatedWorld).xyz;
 	Infos.WorldDepth = WorldDepth;
 	Infos.WorldNormal = WorldNormal;
+	Infos.CompressedWorldNormal = CompressN(WorldNormal); // TODO: directly fetch CompressedWorldNormal from the sample 
 	Infos.Roughness = Roughness;
 	return Infos;
 }
@@ -145,6 +190,18 @@ FSSDSampleSceneInfos FetchPrevSceneInfos(float2 ScreenPosition, float2 BufferUV)
 	return OutMetadata;
 }
 
+ISOLATE
+float3 GetWorldNormal(FSSDSampleSceneInfos SceneMetadata)
+#if CONFIG_COMPRESS_WORLD_NORMAL
+{
+	return DecompressN(SceneMetadata.CompressedWorldNormal);
+}
+#else
+{
+	return SceneMetadata.WorldNormal;
+}
+#endif
+
 float ProjectWorldDistanceToScreenDistance(FSSDSampleSceneInfos SceneMetadata, float WorldDistance)
 {
 	float4 ClipDistance = mul(View.ViewToClipNoAA, float4(WorldDistance, 0, SceneMetadata.WorldDepth, 1));
@@ -164,7 +221,7 @@ float ComputeAnisotropyInvFactor(FSSDSampleSceneInfos SceneMetadata)
 		return 1;
 	}
 
-	float Anysotropy = abs(dot(SceneMetadata.WorldNormal, View.ViewForward));
+	float Anysotropy = abs(dot(GetWorldNormal(SceneMetadata), View.ViewForward));
 
 	return max(Anysotropy, rcp(8));
 }
@@ -201,7 +258,8 @@ float ComputeSignalMipLevel(FSSDSampleSceneInfos SceneMetadata, float WorldBluri
 float ComputeWorldBluringRadiusCausedByPixelSize(FSSDSampleSceneInfos SceneMetadata)
 {
 	// Should be multiplied 0.5* for the diameter to radius, and by 2.0 because GetTanHalfFieldOfView() cover only half of the pixels.
-	return (View.ViewSizeAndInvSize.z * GetTanHalfFieldOfView().x) * SceneMetadata.WorldDepth;
+	// TODO: should do shader parameter.
+	return ToScalarMemory(View.ViewSizeAndInvSize.z * GetTanHalfFieldOfView().x) * SceneMetadata.WorldDepth;
 }
 
 /** Convert to bilateral world distance. */

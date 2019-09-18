@@ -35,9 +35,9 @@ public:
 	}
 
 	uint32 IndexStride = 0; // 0 for non-indexed / implicit triangle list, 2 for uint16, 4 for uint32
+	uint32 IndexOffsetInBytes = 0;
 	uint32 VertexOffsetInBytes = 0;
 	uint32 VertexStrideInBytes = 0;
-	uint32 BaseVertexIndex = 0;
 	uint32 TotalPrimitiveCount = 0; // Combined number of primitives in all mesh segments
 
 	D3D12_RAYTRACING_GEOMETRY_TYPE GeometryType = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;

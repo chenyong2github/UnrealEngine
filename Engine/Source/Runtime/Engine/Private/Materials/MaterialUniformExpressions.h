@@ -330,6 +330,11 @@ public:
 		return ParameterInfo.Name;
 	}
 
+	const FMaterialParameterInfo& GetParameterInfo() const
+	{
+		return ParameterInfo;
+	}
+
 	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const
 	{
 		if (GetType() != OtherExpression->GetType())

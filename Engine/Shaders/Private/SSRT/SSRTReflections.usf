@@ -27,12 +27,6 @@ SamplerState SceneColorSampler;
 Texture2D HZB;
 SamplerState HZBSampler;
 
-#if COMPILER_HLSLCC || PS4_PROFILE
-#define INFINITE_WORKAROUND		3.402823e+38
-#else
-#define INFINITE_WORKAROUND		1.#INF
-#endif
-
 
 float GetRoughness(const in FGBufferData GBuffer)
 {
@@ -106,6 +100,8 @@ void ScreenSpaceReflectionsPS(
 	float2 UV = SvPosition.xy * View.BufferSizeAndInvSize.zw;
 	float2 ScreenPos = ViewportUVToScreenPos((SvPosition.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw);
 	uint2 PixelPos = (uint2)SvPosition.xy;
+	
+    bool bDebugPrint = all(PixelPos == uint2(View.ViewSizeAndInvSize.xy) / 2);
 
 	OutColor = 0;
 	
@@ -135,7 +131,7 @@ void ScreenSpaceReflectionsPS(
 	float NoV = saturate( dot( N, V ) );
 	float G_SmithV = 2 * NoV / (NoV + sqrt(NoV * (NoV - NoV * a2) + a2));
 
-	float ClosestHitDistanceSqr = INFINITE_WORKAROUND;
+	float ClosestHitDistanceSqr = INFINITE_FLOAT;
 
 #if SSR_QUALITY == 1
 	uint NumSteps = 8;
@@ -192,7 +188,7 @@ void ScreenSpaceReflectionsPS(
 			float2 E = Hammersley16( i, NumRays, Random );
 
 #if 1
-			float3 H = mul( ImportanceSampleVisibleGGX(E, a2, TangentV ).xyz, TangentBasis );
+			float3 H = mul( ImportanceSampleVisibleGGX(UniformSampleDisk(E), a2, TangentV ).xyz, TangentBasis );
 			float3 L = 2 * dot( V, H ) * H - V;
 #elif 0
 			float3 H = mul( ImportanceSampleGGX( E, a2 ).xyz, TangentBasis );
@@ -226,12 +222,13 @@ void ScreenSpaceReflectionsPS(
 			{
 				L = reflect(-V, N);
 			}
-
+			
 			bool bHit = RayCast(
 				HZB, HZBSampler,
 				PositionTranslatedWorld, L, Roughness, SceneDepth, 
 				NumSteps, StepOffset,
 				HZBUvFactorAndInvFactor,
+				bDebugPrint,
 				HitUVz,
 				Level
 			);
@@ -281,7 +278,7 @@ void ScreenSpaceReflectionsPS(
 		OutColor /= max( NumRays, 0.0001 );
 		OutColor.rgb *= rcp( 1 - Luminance(OutColor.rgb) );
 
-		if (ClosestHitDistanceSqr == INFINITE_WORKAROUND)
+		if (ClosestHitDistanceSqr == INFINITE_FLOAT)
 		{
 			ClosestHitDistanceSqr = DENOISER_MISS_HIT_DISTANCE;
 		}
@@ -302,14 +299,14 @@ void ScreenSpaceReflectionsPS(
 			
 			#if SSR_OUTPUT_FOR_DENOISER
 			{
-				E.x *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
+				E.y *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
 			}
 			#endif
 			
 			float3x3 TangentBasis = GetTangentBasis( N );
 			float3 TangentV = mul( TangentBasis, V );
 
-			float3 H = mul( ImportanceSampleVisibleGGX(E, a2, TangentV ).xyz, TangentBasis );
+			float3 H = mul( ImportanceSampleVisibleGGX(UniformSampleDisk(E), a2, TangentV ).xyz, TangentBasis );
 			L = 2 * dot( V, H ) * H - V;
 		}
 		else
@@ -324,6 +321,7 @@ void ScreenSpaceReflectionsPS(
 			PositionTranslatedWorld, L, Roughness, SceneDepth,
 			NumSteps, StepOffset,
 			HZBUvFactorAndInvFactor,
+			bDebugPrint,
 			HitUVz,
 			Level
 		);

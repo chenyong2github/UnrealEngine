@@ -368,7 +368,7 @@ class FTextureFormatPVR : public ITextureFormat
 		{
 			OutCompressedImage.SizeX = FinalSquareSize;
 			OutCompressedImage.SizeY = FinalSquareSize;
-			OutCompressedImage.SizeZ = BuildSettings.bVolume ? InImage.NumSlices : 1;
+			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? InImage.NumSlices : 1;
 			OutCompressedImage.PixelFormat = CompressedPixelFormat;
 		}
 

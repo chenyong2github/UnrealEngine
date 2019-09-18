@@ -1360,6 +1360,9 @@ static void BuildShaderOutput(
 			EShaderParameterType::Sampler
 		);
 		NEWEntryTypes.Add(Name, FVulkanShaderHeader::Global);
+
+		// Count only samplers states, not textures
+		OLDHeader.SerializedBindings.NumSamplers++;
 	}
 
 	for (auto& Sampler : CCHeader.Samplers)
@@ -1372,13 +1375,8 @@ static void BuildShaderOutput(
 			VulkanBindingIndex,
 			Sampler.Count,
 			EShaderParameterType::SRV
-			);
+		);
 		NEWEntryTypes.Add(Sampler.Name, FVulkanShaderHeader::Global);
-
-		OLDHeader.SerializedBindings.NumSamplers = FMath::Max<uint8>(
-			OLDHeader.SerializedBindings.NumSamplers,
-			Sampler.Offset + Sampler.Count
-			);
 
 		for (auto& SamplerState : Sampler.SamplerStates)
 		{
@@ -1394,6 +1392,9 @@ static void BuildShaderOutput(
 					EShaderParameterType::Sampler
 				);
 				NEWEntryTypes.Add(SamplerState, FVulkanShaderHeader::Global);
+
+				// Count compiled texture-samplers as output samplers
+				OLDHeader.SerializedBindings.NumSamplers += Sampler.Count;
 			}
 		}
 	}
@@ -1866,7 +1867,6 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 
 	const bool bHasRealUBs = HasRealUBs(Version);
 	const bool bIsSM5 = (Version == EVulkanShaderVersion::SM5 || Version == EVulkanShaderVersion::SM5_NOUB);
-	const bool bIsSM4 = (Version == EVulkanShaderVersion::SM4 || Version == EVulkanShaderVersion::SM4_NOUB);
 	const bool bIsMobile = (Version == EVulkanShaderVersion::ES3_1 || Version == EVulkanShaderVersion::ES3_1_ANDROID || Version == EVulkanShaderVersion::ES3_1_NOUB || Version == EVulkanShaderVersion::ES3_1_ANDROID_NOUB);
 
 	const EHlslShaderFrequency FrequencyTable[] =
@@ -1875,7 +1875,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		bIsSM5 ? HSF_HullShader : HSF_InvalidFrequency,
 		bIsSM5 ? HSF_DomainShader : HSF_InvalidFrequency,
 		HSF_PixelShader,
-		(bIsSM4 || bIsSM5) ? HSF_GeometryShader : HSF_InvalidFrequency,
+		bIsSM5 ? HSF_GeometryShader : HSF_InvalidFrequency,
 		RHISupportsComputeShaders(ShaderPlatform) ? HSF_ComputeShader : HSF_InvalidFrequency
 	};
 
@@ -1902,12 +1902,6 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		HlslCompilerTargetES = HCT_FeatureLevelES3_1Ext;
 		AdditionalDefines.SetDefine(TEXT("ES2_PROFILE"), 1);
 		AdditionalDefines.SetDefine(TEXT("VULKAN_PROFILE"), 1);
-	}
-	else if (bIsSM4)
-	{
-		HlslCompilerTarget = HCT_FeatureLevelSM4;
-		HlslCompilerTargetES = HCT_FeatureLevelSM4;
-		AdditionalDefines.SetDefine(TEXT("VULKAN_PROFILE_SM4"), 1);
 	}
 	else if (bIsSM5)
 	{

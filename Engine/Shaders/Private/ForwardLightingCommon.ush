@@ -346,6 +346,8 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 		float StepOffset = InterleavedGradientNoise( MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8 );
 		StepOffset -= 0.5;
 
+		bool bDebugPrint = false;
+
 		float3 HitUVz;
 		float Level = 0;
 
@@ -354,6 +356,7 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 			MaterialParameters.WorldPosition_CamRelative, RayDirection, Roughness, MaterialParameters.ScreenPosition.w,
 			12, StepOffset,
 			TranslucentBasePass.HZBUvFactorAndInvFactor,
+			bDebugPrint,
 			HitUVz,
 			Level
 		);

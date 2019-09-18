@@ -181,6 +181,20 @@ FMcppAllocator GMcppAlloc;
 
 #endif
 
+static void DumpShaderDefinesAsCommentedCode(const FShaderCompilerInput& ShaderInput, FString* OutDefines)
+{
+	const TMap<FString, FString>& Definitions = ShaderInput.Environment.GetDefinitions();
+
+	TArray<FString> Keys;
+	Definitions.GetKeys(/* out */ Keys);
+	Keys.Sort();
+
+	for (const FString& Key : Keys)
+	{
+		*OutDefines += FString::Printf(TEXT("// #define %s %s\n"), *Key, *Definitions[Key]);
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 /**
@@ -189,13 +203,15 @@ FMcppAllocator GMcppAlloc;
  * @param ShaderOutput - ShaderOutput to which errors can be added.
  * @param ShaderInput - The shader compiler input.
  * @param AdditionalDefines - Additional defines with which to preprocess the shader.
+ * @param bShaderDumpDefinesAsCommentedCode - Whether to add shader definitions as comments.
  * @returns true if the shader is preprocessed without error.
  */
 bool PreprocessShader(
 	FString& OutPreprocessedShader,
 	FShaderCompilerOutput& ShaderOutput,
 	const FShaderCompilerInput& ShaderInput,
-	const FShaderCompilerDefinitions& AdditionalDefines
+	const FShaderCompilerDefinitions& AdditionalDefines,
+	bool bShaderDumpDefinesAsCommentedCode
 	)
 {
 	// Skip the cache system and directly load the file path (used for debugging)
@@ -262,7 +278,13 @@ bool PreprocessShader(
 		return false;
 	}
 
-	OutPreprocessedShader = MoveTemp(McppOutput);
+	// List the defines used for compilation in the preprocessed shaders, especially to know witch permutation vector this shader is.
+	if (bShaderDumpDefinesAsCommentedCode)
+	{
+		DumpShaderDefinesAsCommentedCode(ShaderInput, &OutPreprocessedShader);
+	}
+
+	OutPreprocessedShader += McppOutput;
 
 	return true;
 }

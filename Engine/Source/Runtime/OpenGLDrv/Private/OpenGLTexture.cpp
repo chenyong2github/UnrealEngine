@@ -1890,7 +1890,8 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHITex
 
 				if (Format != PF_X24_G8)
 				{
-					const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Format];
+					// Choose original format when PF_Unknown is specified (as stated for FRHITextureSRVCreateInfo::Format)
+					const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Format == PF_Unknown ? Texture2D->GetFormat() : Format];
 					const bool bSRGB = (Texture2D->GetFlags()&TexCreate_SRGB) != 0;
 
 					FOpenGL::TextureView(Resource, Texture2D->Target, Texture2D->Resource, GLFormat.InternalFormat[bSRGB], MipLevel, NumMipLevels, 0, 1);
@@ -1928,7 +1929,7 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHITex
 
 				// For stencil sampling we have to use a separate single channel texture to blit stencil data into
 #if PLATFORM_DESKTOP || PLATFORM_ANDROIDESDEFERRED
-				if (FOpenGL::GetFeatureLevel() >= ERHIFeatureLevel::SM4 && Format == PF_X24_G8 && FOpenGL::SupportsPixelBuffers())
+				if (FOpenGL::GetFeatureLevel() >= ERHIFeatureLevel::SM5 && Format == PF_X24_G8 && FOpenGL::SupportsPixelBuffers())
 				{
 					check(NumMipLevels == 1 && MipLevel == 0);
 

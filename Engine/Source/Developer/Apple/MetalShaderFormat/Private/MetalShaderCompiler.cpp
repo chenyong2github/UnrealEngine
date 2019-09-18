@@ -1,5 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-// .
+// 
 
 #include "CoreMinimal.h"
 #include "MetalShaderFormat.h"
@@ -2298,11 +2298,8 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 
 
 	// This requires removing the HLSLCC_NoPreprocess flag later on!
-    if (VersionEnum < 5 || VersionEnum == 6)
-    {
-        RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShader);
-    }
-
+    RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShader);
+	
 	uint32 CCFlags = HLSLCC_NoPreprocess | HLSLCC_PackUniformsIntoUniformBufferWithNames | HLSLCC_FixAtomicReferences | HLSLCC_RetainSizes | HLSLCC_KeepSamplerAndImageNames;
 	if (!bDirectCompile || UE_BUILD_DEBUG)
 	{

@@ -382,7 +382,6 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::InitResources(FSkelMesh
 				FRayTracingGeometryInitializer Initializer;
 				Initializer.PositionVertexBuffer = VertexBufferRHI;
 				Initializer.IndexBuffer = IndexBufferRHI;
-				Initializer.BaseVertexIndex = 0;
 				Initializer.VertexBufferStride = VertexBufferStride;
 				Initializer.VertexBufferByteOffset = 0;
 				Initializer.TotalPrimitiveCount = TrianglesCount;

@@ -91,6 +91,7 @@
 #include "AssetTypeActions/AssetTypeActions_SlateWidgetStyle.h"
 #include "AssetTypeActions/AssetTypeActions_StaticMesh.h"
 #include "AssetTypeActions/AssetTypeActions_Texture2D.h"
+#include "AssetTypeActions/AssetTypeActions_Texture2DArray.h"
 #include "AssetTypeActions/AssetTypeActions_TextureCube.h"
 #include "AssetTypeActions/AssetTypeActions_VolumeTexture.h"
 #include "AssetTypeActions/AssetTypeActions_TextureRenderTargetCube.h"
@@ -234,7 +235,8 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Texture));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Texture2D));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureCube));
-	RegisterAssetTypeActions( MakeShareable(new FAssetTypeActions_VolumeTexture) );
+	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Texture2DArray));
+	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_VolumeTexture) );
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTarget));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTarget2D));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTargetCube));

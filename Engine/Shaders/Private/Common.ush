@@ -134,6 +134,14 @@ MaterialFloat4 TextureCubeSample(TextureCube Tex, SamplerState Sampler, float3 U
 	return Tex.Sample(Sampler, UV);
 #endif
 }
+MaterialFloat4 Texture2DArraySample(Texture2DArray Tex, SamplerState Sampler, float3 UV)
+{
+#if !PIXELSHADER
+	return Tex.SampleLevel(Sampler, UV, 0);
+#else
+	return Tex.Sample(Sampler, UV);
+#endif
+}
 MaterialFloat4 Texture1DSampleLevel(Texture1D Tex, SamplerState Sampler, float UV, MaterialFloat Mip)
 {
 	return Tex.SampleLevel(Sampler, UV, Mip);
@@ -237,6 +245,23 @@ MaterialFloat4 TextureCubeSample_Decal(TextureCube Tex, SamplerState Sampler, fl
 #else
 	return TextureCubeSample(Tex, Sampler, UV);
 #endif
+}
+
+MaterialFloat4 Texture2DArraySampleLevel(Texture2DArray Tex, SamplerState Sampler, float3 UV, MaterialFloat Mip)
+{
+	return Tex.SampleLevel(Sampler, UV, Mip);
+}
+MaterialFloat4 Texture2DArraySampleBias(Texture2DArray Tex, SamplerState Sampler, float3 UV, MaterialFloat MipBias)
+{
+#if !PIXELSHADER
+	return Tex.SampleLevel(Sampler, UV, 0);
+#else
+	return Tex.SampleBias(Sampler, UV, MipBias);
+#endif
+}
+MaterialFloat4 Texture2DArraySampleGrad(Texture2DArray Tex, SamplerState Sampler, float3 UV, MaterialFloat2 DDX, MaterialFloat2 DDY)
+{
+	return Tex.SampleGrad(Sampler, UV, DDX, DDY);
 }
 
 //converts an input 1d to 2d position. Useful for locating z frames that have been laid out in a 2d grid like a flipbook.
@@ -417,7 +442,6 @@ MaterialFloat4 ClampedPow(MaterialFloat4 X,MaterialFloat4 Y)
 {
 	return pow(max(abs(X),MaterialFloat4(0.000001f,0.000001f,0.000001f,0.000001f)),Y);
 } 
-
 MaterialFloat PositiveClampedPow(MaterialFloat X,MaterialFloat Y)
 {
 	return pow(max(X,0.0f),Y);
@@ -426,13 +450,25 @@ MaterialFloat2 PositiveClampedPow(MaterialFloat2 X,MaterialFloat2 Y)
 {
 	return pow(max(X,MaterialFloat2(0.0f,0.0f)),Y);
 }
+MaterialFloat2 PositiveClampedPow(MaterialFloat2 X,MaterialFloat Y)
+{
+	return pow(max(X,MaterialFloat2(0.0f,0.0f)),MaterialFloat2(Y,Y));
+}
 MaterialFloat3 PositiveClampedPow(MaterialFloat3 X,MaterialFloat3 Y)
 {
 	return pow(max(X,MaterialFloat3(0.0f,0.0f,0.0f)),Y);
-}  
+} 
+MaterialFloat3 PositiveClampedPow(MaterialFloat3 X,MaterialFloat Y)
+{
+	return pow(max(X,MaterialFloat3(0.0f,0.0f,0.0f)),MaterialFloat3(Y,Y,Y));
+}
 MaterialFloat4 PositiveClampedPow(MaterialFloat4 X,MaterialFloat4 Y)
 {
 	return pow(max(X,MaterialFloat4(0.0f,0.0f,0.0f,0.0f)),Y);
+}
+MaterialFloat4 PositiveClampedPow(MaterialFloat4 X,MaterialFloat Y)
+{
+	return pow(max(X,MaterialFloat4(0.0f,0.0f,0.0f,0.0f)),MaterialFloat4(Y,Y,Y,Y));
 } 
 
 float DDX(float Input)

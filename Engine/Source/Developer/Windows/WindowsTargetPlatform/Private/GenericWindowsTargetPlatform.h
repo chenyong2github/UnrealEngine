@@ -167,7 +167,6 @@ public:
 		GetAllTargetedShaderFormats(TargetedShaderFormats);
 
 		static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
-		static FName NAME_PCD3D_SM4(TEXT("PCD3D_SM4"));
 		static FName NAME_VULKAN_SM5(TEXT("SF_VULKAN_SM5"));
 
 		bSupportDX11TextureFormats = true;
@@ -181,10 +180,6 @@ public:
 				if (TargetedShaderFormat == NAME_PCD3D_SM5)
 				{
 					ShaderPlatform = SP_PCD3D_SM5;
-				}
-				else if (TargetedShaderFormat == NAME_PCD3D_SM4)
-				{
-					ShaderPlatform = SP_PCD3D_SM4;
 				}
 				else if (TargetedShaderFormat == NAME_VULKAN_SM5)
 				{
@@ -323,7 +318,6 @@ public:
 		if (!IS_DEDICATED_SERVER)
 		{
 			static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
-			static FName NAME_PCD3D_SM4(TEXT("PCD3D_SM4"));
 			static FName NAME_GLSL_150(TEXT("GLSL_150"));
 			static FName NAME_GLSL_430(TEXT("GLSL_430"));
 			static FName NAME_VULKAN_ES31(TEXT("SF_VULKAN_ES31"));
@@ -334,7 +328,6 @@ public:
 			static FName NAME_PCD3D_ES2(TEXT("PCD3D_ES2"));
 
 			OutFormats.AddUnique(NAME_PCD3D_SM5);
-			OutFormats.AddUnique(NAME_PCD3D_SM4);
 			OutFormats.AddUnique(NAME_GLSL_150);
 			OutFormats.AddUnique(NAME_GLSL_430);
 			OutFormats.AddUnique(NAME_VULKAN_ES31);

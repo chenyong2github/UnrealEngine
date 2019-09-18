@@ -188,7 +188,7 @@ FVector GetReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight()
 
 bool IsReflectionEnvironmentAvailable(ERHIFeatureLevel::Type InFeatureLevel)
 {
-	return (InFeatureLevel >= ERHIFeatureLevel::SM4) && (GetReflectionEnvironmentCVar() != 0);
+	return (InFeatureLevel >= ERHIFeatureLevel::SM5) && (GetReflectionEnvironmentCVar() != 0);
 }
 
 bool IsReflectionCaptureAvailable()
@@ -520,7 +520,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if (!IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4))
+		if (!IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
 		{
 			return false;
 		}
@@ -657,6 +657,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 		const bool bScreenSpaceReflections = !bRayTracedReflections && ShouldRenderScreenSpaceReflections(View);
 
+		const bool bComposePlanarReflections = !bRayTracedReflections && HasDeferredPlanarReflections(View);
+
 		FRDGTextureRef ReflectionsColor = nullptr;
 		if (bRayTracedReflections || bScreenSpaceReflections)
 		{
@@ -737,10 +739,13 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 				FTAAPassParameters TAASettings(View);
 				TAASettings.Pass = ETAAPassConfig::ScreenSpaceReflections;
 				TAASettings.SceneColorInput = DenoiserInputs.Color;
+				TAASettings.bOutputRenderTargetable = bComposePlanarReflections;
 				
-				FTAAOutputs TAAOutputs = TAASettings.AddTemporalAAPass(
+				FTAAOutputs TAAOutputs = AddTemporalAAPass(
 					GraphBuilder,
-					SceneTextures, View,
+					SceneTextures,
+					View,
+					TAASettings,
 					View.PrevViewInfo.SSRHistory,
 					&View.ViewState->PrevFrameViewInfo.SSRHistory);
 				
@@ -761,8 +766,9 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 			}
 		} // if (bRayTracedReflections || bScreenSpaceReflections)
 
-		if (!bRayTracedReflections)
+		if (bComposePlanarReflections)
 		{
+			check(!bRayTracedReflections);
 			RenderDeferredPlanarReflections(GraphBuilder, SceneTextures, View, /* inout */ ReflectionsColor);
 		}
 
@@ -849,7 +855,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 				PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 			}
 
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 
 			auto PermutationVector = FReflectionEnvironmentSkyLightingPS::BuildPermutationVector(
 				View, bHasBoxCaptures, bHasSphereCaptures, DynamicBentNormalAO != NULL, bSkyLight, bDynamicSkyLight, bApplySkyShadowing, bRayTracedReflections);

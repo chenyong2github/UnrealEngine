@@ -64,7 +64,6 @@ void Main(
 	// Isolate instructions used for world position offset
 	// As these cause the optimizer to generate different position calculating instructions in each pass, resulting in self-z-fighting.
 	// This is only necessary for shaders used in passes that have depth testing enabled.
-	ISOLATE
 	{
 		WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 	}
@@ -77,7 +76,6 @@ void Main(
 		Output.BasePassInterpolants.WorldPositionExcludingWPO = WorldPositionExcludingWPO.xyz;
 	#endif
 #else
-	ISOLATE
 	{
 		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
 	#if ODS_CAPTURE

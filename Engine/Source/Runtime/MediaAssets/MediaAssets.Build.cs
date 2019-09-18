@@ -20,8 +20,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"RenderCore",
-					"RHI",
-					"UtilityShaders",
+					"RHI"
 				});
 
 			PrivateIncludePaths.AddRange(

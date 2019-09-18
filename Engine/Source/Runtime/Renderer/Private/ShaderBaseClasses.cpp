@@ -170,8 +170,8 @@ void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* 
 			TEXT("%s shader uniform expression set mismatch for material %s/%s.\n")
 			TEXT("Shader compilation info:                %s\n")
 			TEXT("Material render proxy compilation info: %s\n")
-			TEXT("Shader uniform expression set:   %u vectors, %u scalars, %u 2D textures, %u cube textures, %u 3D textures, %u virtual textures, shader map %p\n")
-			TEXT("Material uniform expression set: %u vectors, %u scalars, %u 2D textures, %u cube textures, %u 3D textures, %u virtual textures, shader map %p\n"),
+			TEXT("Shader uniform expression set:   %u vectors, %u scalars, %u 2D textures, %u cube textures, %u array textures, %u 3D textures, %u virtual textures, shader map %p\n")
+			TEXT("Material uniform expression set: %u vectors, %u scalars, %u 2D textures, %u cube textures, %u array textures, %u 3D textures, %u virtual textures, shader map %p\n"),
 			GetType()->GetName(),
 			*MaterialRenderProxy->GetFriendlyName(),
 			*Material.GetFriendlyName(),
@@ -181,6 +181,7 @@ void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* 
 			DebugUniformExpressionSet.NumScalarExpressions,
 			DebugUniformExpressionSet.Num2DTextureExpressions,
 			DebugUniformExpressionSet.NumCubeTextureExpressions,
+			DebugUniformExpressionSet.Num2DArrayTextureExpressions,
 			DebugUniformExpressionSet.NumVolumeTextureExpressions,
 			DebugUniformExpressionSet.NumVirtualTextureExpressions,
 			UniformExpressionCache->CachedUniformExpressionShaderMap,
@@ -188,6 +189,7 @@ void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* 
 			MaterialUniformExpressionSet.UniformScalarExpressions.Num(),
 			MaterialUniformExpressionSet.Uniform2DTextureExpressions.Num(),
 			MaterialUniformExpressionSet.UniformCubeTextureExpressions.Num(),
+			MaterialUniformExpressionSet.Uniform2DArrayTextureExpressions.Num(),
 			MaterialUniformExpressionSet.UniformVolumeTextureExpressions.Num(),
 			MaterialUniformExpressionSet.UniformVirtualTextureExpressions.Num(),
 			Material.GetRenderingThreadShaderMap()
@@ -326,6 +328,38 @@ void FMaterialShader::SetParameters(
 	SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, SceneTextureSetupMode);
 }
 
+template<typename TRHIShader>
+void FMaterialShader::SetParameters(
+	FRHICommandList& RHICmdList,
+	TRHIShader* ShaderRHI,
+	const FMaterialRenderProxy* MaterialRenderProxy,
+	const FMaterial& Material,
+	const FViewInfo& View,
+	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+	ESceneTextureSetupMode SceneTextureSetupMode)
+{
+	SetViewParameters(RHICmdList, ShaderRHI, View, ViewUniformBuffer);
+	FMaterialShader::SetParametersInner(RHICmdList, ShaderRHI, MaterialRenderProxy, Material, View);
+
+	if (SceneTextureParameters.IsBound())
+	{
+		if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Deferred)
+		{
+			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+			FSceneTexturesUniformParameters UniformParameters;
+			SetupSceneTextureUniformParameters(SceneContext, View.FeatureLevel, SceneTextureSetupMode, UniformParameters);
+			UniformParameters.EyeAdaptation = GetEyeAdaptation(View);
+			TUniformBufferRef<FSceneTexturesUniformParameters> UniformBuffer = TUniformBufferRef<FSceneTexturesUniformParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_SingleDraw);
+			SetUniformBufferParameter(RHICmdList, ShaderRHI, SceneTextureParameters.GetUniformBufferParameter(), UniformBuffer);
+		}
+		else if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile)
+		{
+			TUniformBufferRef<FMobileSceneTextureUniformParameters> UniformBuffer = CreateMobileSceneTextureUniformBufferSingleDraw(RHICmdList, View.FeatureLevel);
+			SetUniformBufferParameter(RHICmdList, ShaderRHI, SceneTextureParameters.GetUniformBufferParameter(), UniformBuffer);
+		}
+	}
+}
+
 // Doxygen struggles to parse these explicit specializations. Just ignore them for now.
 #if !UE_BUILD_DOCS
 
@@ -357,6 +391,15 @@ IMPLEMENT_MATERIAL_SHADER_SetParametersInner(FRHIComputeShader);
 		const FMaterialRenderProxy* MaterialRenderProxy,\
 		const FMaterial& Material,						\
 		const FSceneView& View,							\
+		const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer, \
+		ESceneTextureSetupMode SceneTextureSetupMode		\
+	); \
+	template RENDERER_API void FMaterialShader::SetParameters< TRHIShader >( \
+		FRHICommandList& RHICmdList,					\
+		TRHIShader* ShaderRHI,							\
+		const FMaterialRenderProxy* MaterialRenderProxy,\
+		const FMaterial& Material,						\
+		const FViewInfo& View,							\
 		const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer, \
 		ESceneTextureSetupMode SceneTextureSetupMode		\
 	);

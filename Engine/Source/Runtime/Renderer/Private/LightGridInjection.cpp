@@ -73,36 +73,6 @@ FAutoConsoleVariableRef CVarLightCullingQuality(
 	ECVF_RenderThreadSafe
 );
 
-
-// TODO move to render graph utils
-BEGIN_SHADER_PARAMETER_STRUCT(FClearUAVParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(	RWTexture2D,	TextureUAV)
-	SHADER_PARAMETER_RDG_BUFFER_UAV(	RWBuffer<uint>,	BufferUAV)
-END_SHADER_PARAMETER_STRUCT()
-
-void AddPass_ClearUAV(
-	FRDGBuilder& GraphBuilder,
-	FRDGEventName&& PassName,
-	FRDGBufferUAVRef BufferUAV,
-	uint32 Value)
-{
-	FClearUAVParameters* Parameters = GraphBuilder.AllocParameters< FClearUAVParameters >();
-	Parameters->BufferUAV = BufferUAV;
-
-	GraphBuilder.AddPass(
-		Forward<FRDGEventName>(PassName),
-		Parameters,
-		ERDGPassFlags::Compute,
-		[&Parameters, BufferUAV, Value](FRHICommandList& RHICmdList)
-		{
-			BufferUAV->MarkResourceAsUsed();
-			ClearUAV( RHICmdList, BufferUAV->GetRHI(), BufferUAV->Desc.Buffer->Desc.GetTotalNumBytes(), Value );
-		} );
-}
-
-
-
-
 /** A minimal forwarding lighting setup. */
 class FMinimalDummyForwardLightingResources : public FRenderResource
 {
@@ -115,34 +85,25 @@ public:
 
 	virtual void InitRHI()
 	{
-		if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM4)
+		if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 		{
-			if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
+			ForwardLightingResources.ForwardLocalLightBuffer.Initialize(sizeof(FVector4), sizeof(FForwardLocalLightData) / sizeof(FVector4), PF_A32B32G32R32F, BUF_Dynamic);
+			ForwardLightingResources.NumCulledLightsGrid.Initialize(sizeof(uint32), 1, PF_R32_UINT);
+
+			const bool bSupportFormatConversion = RHISupportsBufferLoadTypeConversion(GMaxRHIShaderPlatform);
+
+			if (bSupportFormatConversion)
 			{
-				ForwardLightingResources.ForwardLocalLightBuffer.Initialize(sizeof(FVector4), sizeof(FForwardLocalLightData) / sizeof(FVector4), PF_A32B32G32R32F, BUF_Dynamic);
-				ForwardLightingResources.NumCulledLightsGrid.Initialize(sizeof(uint32), 1, PF_R32_UINT);
-
-				const bool bSupportFormatConversion = RHISupportsBufferLoadTypeConversion(GMaxRHIShaderPlatform);
-
-				if (bSupportFormatConversion)
-				{
-					ForwardLightingResources.CulledLightDataGrid.Initialize(sizeof(uint16), 1, PF_R16_UINT);
-				}
-				else
-				{
-					ForwardLightingResources.CulledLightDataGrid.Initialize(sizeof(uint32), 1, PF_R32_UINT);
-				}
-
-				ForwardLightingResources.ForwardLightData.ForwardLocalLightBuffer = ForwardLightingResources.ForwardLocalLightBuffer.SRV;
-				ForwardLightingResources.ForwardLightData.NumCulledLightsGrid = ForwardLightingResources.NumCulledLightsGrid.SRV;
-				ForwardLightingResources.ForwardLightData.CulledLightDataGrid = ForwardLightingResources.CulledLightDataGrid.SRV;
+				ForwardLightingResources.CulledLightDataGrid.Initialize(sizeof(uint16), 1, PF_R16_UINT);
 			}
 			else
 			{
-				ForwardLightingResources.ForwardLightData.ForwardLocalLightBuffer = GNullColorVertexBuffer.VertexBufferSRV;
-				ForwardLightingResources.ForwardLightData.NumCulledLightsGrid = GNullColorVertexBuffer.VertexBufferSRV;
-				ForwardLightingResources.ForwardLightData.CulledLightDataGrid = GNullColorVertexBuffer.VertexBufferSRV;
+				ForwardLightingResources.CulledLightDataGrid.Initialize(sizeof(uint32), 1, PF_R32_UINT);
 			}
+
+			ForwardLightingResources.ForwardLightData.ForwardLocalLightBuffer = ForwardLightingResources.ForwardLocalLightBuffer.SRV;
+			ForwardLightingResources.ForwardLightData.NumCulledLightsGrid = ForwardLightingResources.NumCulledLightsGrid.SRV;
+			ForwardLightingResources.ForwardLightData.CulledLightDataGrid = ForwardLightingResources.CulledLightDataGrid.SRV;
 
 			ForwardLightingResources.ForwardLightDataUniformBuffer = TUniformBufferRef<FForwardLightData>::CreateUniformBufferImmediate(ForwardLightingResources.ForwardLightData, UniformBuffer_MultiFrame);
 		}
@@ -698,13 +659,6 @@ void FDeferredShadingSceneRenderer::ComputeLightGrid(FRHICommandListImmediate& R
 
 			RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, OutUAVs.GetData(), OutUAVs.Num());
 			{
-				SCOPED_DRAW_EVENTF(RHICmdList, CullLights, TEXT("CullLights %ux%ux%u NumLights %u NumCaptures %u"),
-					ForwardLightData.CulledGridSize.X,
-					ForwardLightData.CulledGridSize.Y,
-					ForwardLightData.CulledGridSize.Z,
-					ForwardLightData.NumLocalLights,
-					ForwardLightData.NumReflectionCaptures);
-
 				FRDGBuilder GraphBuilder(RHICmdList);
 				{
 					RDG_EVENT_SCOPE(GraphBuilder, "CullLights %ux%ux%u NumLights %u NumCaptures %u",
@@ -754,9 +708,9 @@ void FDeferredShadingSceneRenderer::ComputeLightGrid(FRHICommandListImmediate& R
 
 					if (GLightLinkedListCulling != 0)
 					{
-						AddPass_ClearUAV(GraphBuilder, RDG_EVENT_NAME("Clear:StartOffsetGrid"), PassParameters->RWStartOffsetGrid, 0xFFFFFFFF);
-						AddPass_ClearUAV(GraphBuilder, RDG_EVENT_NAME("Clear:NextCulledLightLink"), PassParameters->RWNextCulledLightLink, 0);
-						AddPass_ClearUAV(GraphBuilder, RDG_EVENT_NAME("Clear:NextCulledLightData"), GraphBuilder.CreateUAV(NextCulledLightDataBuffer, PF_R32_UINT), 0);
+						AddClearUAVPass(GraphBuilder, PassParameters->RWStartOffsetGrid, 0xFFFFFFFF);
+						AddClearUAVPass(GraphBuilder, PassParameters->RWNextCulledLightLink, 0);
+						AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(NextCulledLightDataBuffer, PF_R32_UINT), 0);
 						FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("LightGridInject:LinkedList"), *ComputeShader, PassParameters, NumGroups);
 
 

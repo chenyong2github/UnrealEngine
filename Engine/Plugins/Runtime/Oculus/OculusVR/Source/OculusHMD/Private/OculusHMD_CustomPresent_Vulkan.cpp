@@ -71,7 +71,7 @@ bool FVulkanCustomPresent::IsUsingCorrectDisplayAdapter() const
 	FVulkanDynamicRHI* const DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
 	if (OVRP_SUCCESS(ovrp_GetDisplayAdapterId2(&luid)) &&
 		luid &&
-		DynamicRHI->GetDevice()->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
+		DynamicRHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
 	{
 		const VkPhysicalDeviceIDPropertiesKHR& vkPhysicalDeviceIDProperties = DynamicRHI->GetDevice()->GetDeviceIdProperties();
 		if (vkPhysicalDeviceIDProperties.deviceLUIDValid)

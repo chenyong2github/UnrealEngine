@@ -7,13 +7,16 @@
 #include "Common.ush"
 #include "PostProcessCommon.ush"
 #include "DeferredShadingCommon.ush"
+#include "ScreenPass.ush"
+
+SCREEN_PASS_TEXTURE_VIEWPORT(Output)
 
 uint FrameNumber;
 float FrameTime;
 
 float ComputeDistanceToViewRect(int2 PixelPos, int Border)
 {
-	return ComputeDistanceToRect(PixelPos, int2(ViewportRect.xy) + Border, int2(ViewportSize.xy) - Border * 2, false);
+	return ComputeDistanceToRect(PixelPos, int2(Output_ViewportMin) + Border, int2(Output_ViewportSize) - Border * 2, false);
 }
 
 float Quantize(float x, float Count)
@@ -33,7 +36,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	// 1/32 res
 	int2 PixelPos6 = PixelPos / 32;
 	//
-	int2 ScreenCenter = (int2)(ViewportRect + ViewportSize / 2);
+	int2 ScreenCenter = (int2)(Output_ViewportMin + Output_ViewportSize / 2);
 
 	// highest frequency dither pattern (2x2)
 	float BlackWhiteDither1 = ((uint)PixelPos.x % 2) == ((uint)PixelPos.y % 2);
@@ -45,7 +48,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	// grey panning bars on grey background to see VSync issues
 	{
 		// no antialiasing to avoid changes when upscaling
-		float Mask = saturate(1 - ComputeDistanceToRect(PixelPos, (int2)(ViewportRect.xy + ViewportSize.xy * float2(0.9f, 0.0f)), int2(ViewportSize.xy * float2(0.1f, 1.0f))));
+		float Mask = saturate(1 - ComputeDistanceToRect(PixelPos, (int2)(Output_ViewportMin + Output_ViewportSize * float2(0.9f, 0.0f)), int2(Output_ViewportSize * float2(0.1f, 1.0f))));
 
 		// speed - higher value is more useful to see VSync issues
 		const uint PixelsPerFrame = 8;
@@ -68,9 +71,9 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 		
 		// round safety border
 		{
-			float CircleSize = min(ViewportSize.x, ViewportSize.y) / 2 * 0.78f / 16;
+			float CircleSize = min(Output_ViewportSize.x, Output_ViewportSize.y) / 2 * 0.78f / 16;
 
-			float SafetyRectDist = ComputeDistanceToRect(PixelPos, (int2)(ViewportRect.xy + ViewportSize.xy * 0.1f), (int2)(ViewportSize * 0.8f));
+			float SafetyRectDist = ComputeDistanceToRect(PixelPos, (int2)(Output_ViewportMin + Output_ViewportSize * 0.1f), (int2)(Output_ViewportSize * 0.8f));
 
 			float InnerCircleThickness = 1.0f;
 			float OuterCircleThickness = 7.0f;
@@ -82,7 +85,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 
 		// medium circle
 		{
-			float CircleSize = min(ViewportSize.x, ViewportSize.y) / 2 * 0.78f / 2;
+			float CircleSize = min(Output_ViewportSize.x, Output_ViewportSize.y) / 2 * 0.78f / 2;
 
 			// we want to see good antialiasing but not too blurry so we can judge artifacts
 			float InnerCircleThickness = 1.0f;
@@ -94,7 +97,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 
 		// smallest circle
 		{
-			float CircleSize = min(ViewportSize.x, ViewportSize.y) / 2 * 0.78f / 16;
+			float CircleSize = min(Output_ViewportSize.x, Output_ViewportSize.y) / 2 * 0.78f / 16;
 
 			// we want to see good antialiasing but not too blurry so we can judge artifacts
 			float InnerCircleThickness = 1.0f;
@@ -107,9 +110,9 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 		// Red green blue
 		{
 			// no antialiasing to avoid changes when upscaling
-			int RedMask = ComputeDistanceToRect(PixelPos, (int2)(ViewportRect.xy + ViewportSize.xy * float2(0.1f, 0.45f)), (int2)(ViewportSize.xy * float2(0.04f, 0.1f)));
-			int GreenMask = ComputeDistanceToRect(PixelPos, (int2)(ViewportRect.xy + ViewportSize.xy * float2(0.15f, 0.45f)), (int2)(ViewportSize.xy * float2(0.04f, 0.1f)));
-			int BlueMask = ComputeDistanceToRect(PixelPos, (int2)(ViewportRect.xy + ViewportSize.xy * float2(0.2f, 0.45f)), (int2)(ViewportSize.xy * float2(0.04f, 0.1f)));
+			int RedMask = ComputeDistanceToRect(PixelPos, (int2)(Output_ViewportMin + Output_ViewportSize * float2(0.1f, 0.45f)), (int2)(Output_ViewportSize * float2(0.04f, 0.1f)));
+			int GreenMask = ComputeDistanceToRect(PixelPos, (int2)(Output_ViewportMin + Output_ViewportSize * float2(0.15f, 0.45f)), (int2)(Output_ViewportSize * float2(0.04f, 0.1f)));
+			int BlueMask = ComputeDistanceToRect(PixelPos, (int2)(Output_ViewportMin + Output_ViewportSize * float2(0.2f, 0.45f)), (int2)(Output_ViewportSize * float2(0.04f, 0.1f)));
 
 			OutColor = lerp(OutColor, float4(1, 0, 0, 0), (float)(RedMask < 1));
 			OutColor = lerp(OutColor, float4(0, 1, 0, 0), (float)(GreenMask < 1));
@@ -125,12 +128,12 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 		
 	// top 3 bars
 	{
-		uint2 LeftTopBars = uint2(ViewportRect.xy + ViewportSize.xy * float2(0.5f, 0.1f));
-		int2 SizeBars = (int2)(ViewportSize.xy * float2(0.4f, 0.05f));
+		uint2 LeftTopBars = uint2(Output_ViewportMin + Output_ViewportSize * float2(0.5f, 0.1f));
+		int2 SizeBars = (int2)(Output_ViewportSize * float2(0.4f, 0.05f));
 		
-		bool FirstBarMask =  ComputeDistanceToRect(PixelPos, (int2)(LeftTopBars + ViewportSize.xy * float2(0.0f, 0.00f)), SizeBars, false) == 0;
-		bool SecondBarMask = ComputeDistanceToRect(PixelPos, (int2)(LeftTopBars + ViewportSize.xy * float2(0.0f, 0.06f)), SizeBars, false) == 0;
-		bool ThirdBarMask =  ComputeDistanceToRect(PixelPos, (int2)(LeftTopBars + ViewportSize.xy * float2(0.0f, 0.12f)), SizeBars, false) == 0;
+		bool FirstBarMask =  ComputeDistanceToRect(PixelPos, (int2)(LeftTopBars + Output_ViewportSize * float2(0.0f, 0.00f)), SizeBars, false) == 0;
+		bool SecondBarMask = ComputeDistanceToRect(PixelPos, (int2)(LeftTopBars + Output_ViewportSize * float2(0.0f, 0.06f)), SizeBars, false) == 0;
+		bool ThirdBarMask =  ComputeDistanceToRect(PixelPos, (int2)(LeftTopBars + Output_ViewportSize * float2(0.0f, 0.12f)), SizeBars, false) == 0;
 
 		float Fraction = saturate((PixelPos.x - LeftTopBars.x) / (SizeBars.x - 1.0f));
 
@@ -145,12 +148,12 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 
 	// bottom 3 bars
 	{
-		uint2 LeftTopBars = uint2(ViewportRect.xy + ViewportSize.xy * float2(0.1f, 0.85f - 0.12f));
-		int2 SizeBars = (int2)(ViewportSize.xy * float2(0.8f, 0.05f));
+		uint2 LeftTopBars = uint2(Output_ViewportMin + Output_ViewportSize * float2(0.1f, 0.85f - 0.12f));
+		int2 SizeBars = (int2)(Output_ViewportSize * float2(0.8f, 0.05f));
 		
-		bool FirstBarMask =  ComputeDistanceToRect(PixelPos, (int2)(LeftTopBars + ViewportSize.xy * float2(0.0f, 0.00f)), SizeBars, false) == 0;
-		bool SecondBarMask = ComputeDistanceToRect(PixelPos, (int2)(LeftTopBars + ViewportSize.xy * float2(0.0f, 0.06f)), SizeBars, false) == 0;
-		bool ThirdBarMask =  ComputeDistanceToRect(PixelPos, (int2)(LeftTopBars + ViewportSize.xy * float2(0.0f, 0.12f)), SizeBars, false) == 0;
+		bool FirstBarMask =  ComputeDistanceToRect(PixelPos, (int2)(LeftTopBars + Output_ViewportSize * float2(0.0f, 0.00f)), SizeBars, false) == 0;
+		bool SecondBarMask = ComputeDistanceToRect(PixelPos, (int2)(LeftTopBars + Output_ViewportSize * float2(0.0f, 0.06f)), SizeBars, false) == 0;
+		bool ThirdBarMask =  ComputeDistanceToRect(PixelPos, (int2)(LeftTopBars + Output_ViewportSize * float2(0.0f, 0.12f)), SizeBars, false) == 0;
 
 		float Fraction = saturate((PixelPos.x - LeftTopBars.x) / (SizeBars.x - 1.0f));
 

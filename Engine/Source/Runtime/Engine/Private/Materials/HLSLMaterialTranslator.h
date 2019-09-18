@@ -1953,6 +1953,7 @@ protected:
 		case MCT_Float:					return TEXT("float");
 		case MCT_Texture2D:				return TEXT("texture2D");
 		case MCT_TextureCube:			return TEXT("textureCube");
+		case MCT_Texture2DArray:		return TEXT("texture2DArray");
 		case MCT_VolumeTexture:			return TEXT("volumeTexture");
 		case MCT_StaticBool:			return TEXT("static bool");
 		case MCT_MaterialAttributes:	return TEXT("MaterialAttributes");
@@ -1976,6 +1977,7 @@ protected:
 		case MCT_Float:					return TEXT("MaterialFloat");
 		case MCT_Texture2D:				return TEXT("texture2D");
 		case MCT_TextureCube:			return TEXT("textureCube");
+		case MCT_Texture2DArray:		return TEXT("texture2DArray");
 		case MCT_VolumeTexture:			return TEXT("volumeTexture");
 		case MCT_StaticBool:			return TEXT("static bool");
 		case MCT_MaterialAttributes:	return TEXT("MaterialAttributes");
@@ -2410,6 +2412,10 @@ protected:
 			case MCT_TextureCube:
 				TextureInputIndex = MaterialCompilationOutput.UniformExpressionSet.UniformCubeTextureExpressions.AddUnique(TextureUniformExpression);
 				BaseName = TEXT("TextureCube");
+				break;
+			case MCT_Texture2DArray:
+				TextureInputIndex = MaterialCompilationOutput.UniformExpressionSet.Uniform2DArrayTextureExpressions.AddUnique(TextureUniformExpression);
+				BaseName = TEXT("Texture2DArray");
 				break;
 			case MCT_VolumeTexture:
 				TextureInputIndex = MaterialCompilationOutput.UniformExpressionSet.UniformVolumeTextureExpressions.AddUnique(TextureUniformExpression);
@@ -3673,6 +3679,29 @@ protected:
 		return ParticleSubUV;
 	}
 
+	virtual int32 ParticleSubUVProperty(int32 PropertyIndex) override
+	{
+		int32 Result = INDEX_NONE;
+		switch (PropertyIndex)
+		{
+		case 0:
+			Result = AddCodeChunk(MCT_Float2, TEXT("Parameters.Particle.SubUVCoords[0].xy"));
+			break;
+		case 1:
+			Result = AddCodeChunk(MCT_Float2, TEXT("Parameters.Particle.SubUVCoords[1].xy"));
+			break;
+		case 2:
+			Result = AddCodeChunk(MCT_Float, TEXT("Parameters.Particle.SubUVLerp"));
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
+
+		bUsesParticleSubUVs = true;
+		return Result;
+	}
+
 	virtual int32 ParticleColor() override
 	{
 		if (ShaderFrequency != SF_Vertex && ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute)
@@ -4272,7 +4301,7 @@ protected:
 		}
 
 		// If mobile, then disabling AutomaticViewMipBias.
-		if (FeatureLevel < ERHIFeatureLevel::SM4)
+		if (FeatureLevel < ERHIFeatureLevel::SM5)
 		{
 			AutomaticViewMipBias = false;
 		}
@@ -4315,6 +4344,10 @@ protected:
 		{
 			SampleCode += TEXT("TextureCubeSample");
 		}
+		else if (TextureType == MCT_Texture2DArray) 
+		{
+			SampleCode += TEXT("Texture2DArraySample");
+		}
 		else if (TextureType == MCT_VolumeTexture)
 		{
 			SampleCode += TEXT("Texture3DSample");
@@ -4332,7 +4365,7 @@ protected:
 			SampleCode += TEXT("Texture2DSample");
 		}
 		
-		EMaterialValueType UVsType = (TextureType == MCT_TextureCube || TextureType == MCT_VolumeTexture) ? MCT_Float3 : MCT_Float2;
+		EMaterialValueType UVsType = (TextureType == MCT_TextureCube || TextureType == MCT_Texture2DArray || TextureType == MCT_VolumeTexture) ? MCT_Float3 : MCT_Float2;
 	
 		if (RequiresManualViewMipBias)
 		{
@@ -4487,6 +4520,10 @@ protected:
 		if (TextureType == MCT_TextureCube)
 		{
 			TextureName = CoerceParameter(TextureIndex, MCT_TextureCube);
+		}
+		else if (TextureType == MCT_Texture2DArray)
+		{
+			TextureName = CoerceParameter(TextureIndex, MCT_Texture2DArray);
 		}
 		else if (TextureType == MCT_VolumeTexture)
 		{
@@ -4805,7 +4842,7 @@ protected:
 										SceneTextureId == PPI_SceneDepth ||
 										SceneTextureId == PPI_CustomStencil;
 
-		if (!bSupportedOnMobile	&& ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+		if (!bSupportedOnMobile	&& ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 		{
 			return INDEX_NONE;
 		}
@@ -4837,7 +4874,7 @@ protected:
 
 		AddEstimatedTextureSample();
 
-		if (FeatureLevel >= ERHIFeatureLevel::SM4)
+		if (FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			return AddCodeChunk(
 				MCT_Float4,
@@ -4909,7 +4946,7 @@ protected:
 
 			if (bRequiresSM5)
 			{
-				ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4);
+				ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5);
 			}
 		}
 
@@ -4975,7 +5012,7 @@ protected:
 			Errorf(TEXT("SceneColor lookups are only available when MaterialDomain = Surface."));
 		}
 
-		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 		{
 			return INDEX_NONE;
 		}
@@ -5151,7 +5188,7 @@ protected:
 
 	virtual int32 ExternalTexture(const FGuid& ExternalTextureGuid) override
 	{
-		bool bOnlyInPixelShader = GetFeatureLevel() < ERHIFeatureLevel::SM4;
+		bool bOnlyInPixelShader = GetFeatureLevel() < ERHIFeatureLevel::SM5;
 
 		if (bOnlyInPixelShader && ShaderFrequency != SF_Pixel)
 		{
@@ -5163,7 +5200,7 @@ protected:
 
 	virtual int32 ExternalTexture(UTexture* InTexture, int32& TextureReferenceIndex) override
 	{
-		bool bOnlyInPixelShader = GetFeatureLevel() < ERHIFeatureLevel::SM4;
+		bool bOnlyInPixelShader = GetFeatureLevel() < ERHIFeatureLevel::SM5;
 
 		if (bOnlyInPixelShader && ShaderFrequency != SF_Pixel)
 		{
@@ -5178,7 +5215,7 @@ protected:
 
 	virtual int32 ExternalTextureParameter(FName ParameterName, UTexture* DefaultValue, int32& TextureReferenceIndex) override
 	{
-		bool bOnlyInPixelShader = GetFeatureLevel() < ERHIFeatureLevel::SM4;
+		bool bOnlyInPixelShader = GetFeatureLevel() < ERHIFeatureLevel::SM5;
 
 		if (bOnlyInPixelShader && ShaderFrequency != SF_Pixel)
 		{
@@ -6157,7 +6194,7 @@ protected:
 			return NonPixelShaderExpressionError();
 		}
 
-		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 		{
 			return INDEX_NONE;
 		}
@@ -6180,7 +6217,7 @@ protected:
 			return NonPixelShaderExpressionError();
 		}
 
-		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 		{
 			return INDEX_NONE;
 		}
@@ -6195,8 +6232,6 @@ protected:
 			);
 		return ResultIdx;
 	}
-
-	virtual int32 LightmassReplace(int32 Realtime, int32 Lightmass) override { return Realtime; }
 
 	virtual int32 GIReplace(int32 Direct, int32 StaticIndirect, int32 DynamicIndirect) override 
 	{ 
@@ -6231,8 +6266,6 @@ protected:
 		EMaterialValueType ResultType = GetArithmeticResultType(Normal, RayTraced);
 		return AddCodeChunk(ResultType, TEXT("(GetRayTracingQualitySwitch() ? (%s) : (%s))"), *GetParameterCode(RayTraced), *GetParameterCode(Normal));
 	}
-
-	virtual int32 MaterialProxyReplace(int32 Realtime, int32 MaterialProxy) override { return Realtime; }
 
 	virtual int32 VirtualTextureOutputReplace(int32 Default, int32 VirtualTexture) override
 	{
@@ -6360,7 +6393,7 @@ protected:
 
 	virtual int32 AntialiasedTextureMask(int32 Tex, int32 UV, float Threshold, uint8 Channel) override
 	{
-		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 		{
 			return INDEX_NONE;
 		}
@@ -6437,7 +6470,7 @@ protected:
 		// GradientTex3D uses 3D texturing, which is not available on ES2
 		if (NoiseFunction == NOISEFUNCTION_GradientTex3D)
 		{
-			if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+			if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 			{
 				Errorf(TEXT("3D textures are not supported for ES2"));
 				return INDEX_NONE;
@@ -6576,7 +6609,7 @@ protected:
 
 	virtual int32 AtmosphericFogColor( int32 WorldPosition ) override
 	{
-		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 		{
 			return INDEX_NONE;
 		}
@@ -6781,6 +6814,13 @@ protected:
 				InputParamDecl += InputNameStr;
 				InputParamDecl += TEXT("Sampler ");
 				break;
+			case MCT_Texture2DArray:
+				InputParamDecl += TEXT("Texture2DArray ");
+				InputParamDecl += InputNameStr;
+				InputParamDecl += TEXT(", SamplerState ");
+				InputParamDecl += InputNameStr;
+				InputParamDecl += TEXT("Sampler ");
+				break;
 			case MCT_TextureExternal:
 				InputParamDecl += TEXT("TextureExternal ");
 				InputParamDecl += InputNameStr;
@@ -6828,7 +6868,7 @@ protected:
 
 			CodeChunk += TEXT(",");
 			CodeChunk += *ParamCode;
-			if (ParamType == MCT_Texture2D || ParamType == MCT_TextureCube || ParamType == MCT_TextureExternal || ParamType == MCT_VolumeTexture)
+			if (ParamType == MCT_Texture2D || ParamType == MCT_TextureCube || ParamType == MCT_Texture2DArray || ParamType == MCT_TextureExternal || ParamType == MCT_VolumeTexture)
 			{
 				CodeChunk += TEXT(",");
 				CodeChunk += *ParamCode;
@@ -6899,8 +6939,17 @@ protected:
 
 	virtual int32 VirtualTextureOutput() override
 	{
-		MaterialCompilationOutput.bHasRuntimeVirtualTextureOutput = true;
-		
+		if (Material->GetMaterialDomain() == MD_RuntimeVirtualTexture)
+		{
+			// RuntimeVirtualTextureOutput would priority over the output material attributes here
+			// But that could be considered confusing for the user so we error instead
+			Errorf(TEXT("RuntimeVirtualTextureOutput nodes are not used when the Material Domain is set to 'Virtual Texture'"));
+		}
+		else
+		{
+			MaterialCompilationOutput.bHasRuntimeVirtualTextureOutput = true;
+		}
+
 		// return value is not used
 		return INDEX_NONE;
 	}
@@ -7037,7 +7086,7 @@ protected:
 	 */
 	virtual int32 TextureCoordinateOffset() override
 	{
-		if (FeatureLevel < ERHIFeatureLevel::SM4 && ShaderFrequency == SF_Vertex)
+		if (FeatureLevel < ERHIFeatureLevel::SM5 && ShaderFrequency == SF_Vertex)
 		{
 			return AddInlinedCodeChunk(MCT_Float2, TEXT("Parameters.TexCoordOffset"));
 		}
@@ -7057,7 +7106,7 @@ protected:
 
 		if( ShaderFrequency != SF_Pixel )
 		{
-			NonPixelShaderExpressionError();
+			return NonPixelShaderExpressionError();
 		}
 
 		MaterialCompilationOutput.bUsesEyeAdaptation = true;

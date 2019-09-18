@@ -9,8 +9,8 @@ RaytracingOptions.h declares ray tracing options for use in rendering
 #include "UniformBuffer.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyLightData, )
-SHADER_PARAMETER(int, SamplesPerPixel)
-SHADER_PARAMETER(int, SamplingStopLevel)
+SHADER_PARAMETER(uint32, SamplesPerPixel)
+SHADER_PARAMETER(uint32, SamplingStopLevel)
 SHADER_PARAMETER(float, MaxRayDistance)
 SHADER_PARAMETER(FVector, Color)
 SHADER_PARAMETER(FIntVector, MipDimensions)

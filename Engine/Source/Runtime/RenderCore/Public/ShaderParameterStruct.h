@@ -11,8 +11,13 @@
 #include "RHI.h"
 #include "RenderGraphResources.h"
 
+template <typename FParameterStruct>
+void BindForLegacyShaderParameters(FShader* Shader, const FShaderParameterMap& ParameterMap, bool bShouldBindEverything = false)
+{
+	Shader->Bindings.BindForLegacyShaderParameters(Shader, ParameterMap, *FParameterStruct::FTypeInfo::GetStructMetadata(), bShouldBindEverything);
+}
 
-/** Instrument a shader class to use strutured shader parameters API.
+/** Tag a shader class to use the structured shader parameters API.
  *
  * class FMyShaderClassCS : public FGlobalShader
  * {
@@ -25,22 +30,28 @@
  *		END_SHADER_PARAMETER_STRUCT()
  * };
  *
- * Notes: Long therm, this macro will be no longer be needed.
+ * Notes: Long term, this macro will no longer be needed. Instead, parameter binding will become the default behavior for shader declarations.
  */
- // TODO(RDG): would not even need ShaderParentClass anymore. And in fact should not so Bindings.Bind() is not being called twice.
-#define SHADER_USE_PARAMETER_STRUCT(ShaderClass, ShaderParentClass) \
+
+#define SHADER_USE_PARAMETER_STRUCT_INTERNAL(ShaderClass, ShaderParentClass, bShouldBindEverything) \
 	ShaderClass(const ShaderMetaType::CompiledShaderInitializerType& Initializer) \
 		: ShaderParentClass(Initializer) \
 	{ \
-		this->Bindings.BindForLegacyShaderParameters( \
-			this, \
-			Initializer.ParameterMap, \
-			*FParameters::FTypeInfo::GetStructMetadata(), \
-			true); \
+		BindForLegacyShaderParameters<FParameters>(this, Initializer.ParameterMap, bShouldBindEverything); \
 	} \
 	\
 	ShaderClass() \
 	{ } \
+
+// TODO(RDG): would not even need ShaderParentClass anymore. And in fact should not so Bindings.Bind() is not being called twice.
+#define SHADER_USE_PARAMETER_STRUCT(ShaderClass, ShaderParentClass) \
+	SHADER_USE_PARAMETER_STRUCT_INTERNAL(ShaderClass, ShaderParentClass, true)
+
+/** Use when sharing shader parameter binding with legacy parameters in the base class; i.e. FMaterialShader or FMeshMaterialShader.
+ *  Note that this disables validation that the parameter struct contains all shader bindings.
+ */
+#define SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(ShaderClass, ShaderParentClass) \
+	SHADER_USE_PARAMETER_STRUCT_INTERNAL(ShaderClass, ShaderParentClass, false)
 
 #define SHADER_USE_ROOT_PARAMETER_STRUCT(ShaderClass, ShaderParentClass) \
 	static inline const FShaderParametersMetadata* GetRootParametersMetadata() { return FParameters::FTypeInfo::GetStructMetadata(); } \

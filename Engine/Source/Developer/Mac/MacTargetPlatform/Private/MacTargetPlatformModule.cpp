@@ -83,6 +83,11 @@ public:
 			TargetSettings->ForceFloats = false;
 		}
 		
+		if (!GConfig->GetInt(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("IndirectArgumentTier"), TargetSettings->IndirectArgumentTier, GEngineIni))
+		{
+			TargetSettings->IndirectArgumentTier = 0;
+		}
+		
 		TargetSettings->AddToRoot();
 
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");

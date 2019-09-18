@@ -69,6 +69,10 @@ bool FVulkanLuminPlatform::LoadVulkanInstanceFunctions(VkInstance inInstance)
 	ENUM_VK_ENTRYPOINTS_OPTIONAL_PLATFORM_INSTANCE(GETINSTANCE_VK_ENTRYPOINTS);
 	ENUM_VK_ENTRYPOINTS_OPTIONAL_PLATFORM_INSTANCE(CHECK_VK_ENTRYPOINTS);
 
+
+	//#todo-rco: Media textures are not working properly, quick workaround
+	GValidationCvar->Set(2, ECVF_SetByCommandline);
+
 	return bFoundAllEntryPoints;
 }
 
@@ -120,7 +124,7 @@ void FVulkanLuminPlatform::GetInstanceExtensions(TArray<const ANSICHAR*>& OutExt
 	}
 }
 
-void FVulkanLuminPlatform::GetDeviceExtensions(TArray<const ANSICHAR*>& OutExtensions)
+void FVulkanLuminPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions)
 {
 	if (GFoundTegraGfxDebugger)
 	{
@@ -136,7 +140,7 @@ void FVulkanLuminPlatform::SetupFeatureLevels()
 {
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_VULKAN_ES3_1_LUMIN;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_VULKAN_ES3_1_LUMIN;
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4] = SP_NumPlatforms;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_VULKAN_SM5_LUMIN;
 }
 
