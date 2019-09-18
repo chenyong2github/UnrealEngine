@@ -810,8 +810,8 @@ struct FNiagaraVariable
 		return Name == Other.Name && (TypeDef == Other.TypeDef || (bAllowAssignableTypes && FNiagaraTypeDefinition::TypesAreAssignable(TypeDef, Other.TypeDef)));
 	}
 	
-	void SetName(FName InName) { Name = InName; }
-	FName GetName()const { return Name; }
+	FORCEINLINE void SetName(FName InName) { Name = InName; }
+	FORCEINLINE const FName& GetName() const { return Name; }
 
 	void SetType(const FNiagaraTypeDefinition& InTypeDef) { TypeDef = InTypeDef; }
 	const FNiagaraTypeDefinition& GetType()const { return TypeDef; }
