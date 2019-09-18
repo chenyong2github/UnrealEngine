@@ -79,14 +79,14 @@ struct FHmdUserProfile
 };
 
 UENUM(BlueprintType)
-enum class ETiledMultiResLevel : uint8
+enum class EFixedFoveatedRenderingLevel : uint8
 {
-	ETiledMultiResLevel_Off = 0,
-	ETiledMultiResLevel_LMSLow = 1,
-	ETiledMultiResLevel_LMSMedium = 2,
-	ETiledMultiResLevel_LMSHigh = 3,
+	FFR_Off = 0,
+	FFR_Low = 1,
+	FFR_Medium = 2,
+	FFR_High = 3,
 	// High foveation setting with more detail toward the bottom of the view and more foveation near the top (Same as High on Oculus Go)
-	ETiledMultiResLevel_LMSHighTop = 4
+	FFR_HighTop = 4
 };
 
 /* Guardian boundary types*/
@@ -373,13 +373,13 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	* Returns the current multiresolution level
 	*/
 	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
-	static ETiledMultiResLevel GetTiledMultiresLevel();
+	static EFixedFoveatedRenderingLevel GetFixedFoveatedRenderingLevel();
 
 	/**
 	* Set the requested multiresolution level for the next frame
 	*/
 	UFUNCTION(BlueprintCallable, Category = "OculusLibrary")
-	static void SetTiledMultiresLevel(ETiledMultiResLevel level);
+	static void SetFixedFoveatedRenderingLevel(EFixedFoveatedRenderingLevel level);
 
 	/**
 	* Returns the current device's name

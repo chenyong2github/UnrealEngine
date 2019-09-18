@@ -9,6 +9,69 @@
 
 #include "CoreMinimal.h"
 #include "RHI.h"
+#include "IStereoLayers.generated.h"
+
+USTRUCT(BlueprintType)
+struct FEquirectProps
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+	/** Left source texture UVRect, specifying porion of input texture corresponding to left eye. */
+	FBox2D LeftUVRect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+	/** Right source texture UVRect, specifying porion of input texture corresponding to right eye. */
+	FBox2D RightUVRect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+	/** Left eye's texture coordinate scale after mapping to 2D. */
+	FVector2D LeftScale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+	/** Right eye's texture coordinate scale after mapping to 2D. */
+	FVector2D RightScale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+	/** Left eye's texture coordinate bias after mapping to 2D. */
+	FVector2D LeftBias;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+	/** Right eye's texture coordinate bias after mapping to 2D. */
+	FVector2D RightBias;
+
+public:
+
+	FEquirectProps()
+		:	LeftUVRect(FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f)))
+		,	RightUVRect(FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f)))
+		,	LeftScale(FVector2D(1.0f, 1.0f))
+		,	RightScale(FVector2D(1.0f, 1.0f))
+		,	LeftBias(FVector2D(0.0f, 0.0f))
+		,	RightBias(FVector2D(0.0f, 0.0f))
+	{}
+
+	FEquirectProps(FBox2D InLeftUVRect, FBox2D InRightUVRect, FVector2D InLeftScale, FVector2D InRightScale, FVector2D InLeftBias, FVector2D InRightBias)
+		:	LeftUVRect(InLeftUVRect)
+		,	RightUVRect(InRightUVRect)
+		,	LeftScale(InLeftScale)
+		,	RightScale(InRightScale)
+		,	LeftBias(InLeftBias)
+		,	RightBias(InRightBias)
+	{ }
+
+	/**
+	 * Compares two FEquirectProps for equality.
+	 *
+	 * @param Other The other FEquirectProps to compare with.
+	 * @return true if the are equal, false otherwise.
+	 */
+	bool operator==(const FEquirectProps& Other) const
+	{
+		return (LeftUVRect == Other.LeftUVRect) && (RightUVRect == Other.RightUVRect) && (LeftScale == Other.LeftScale) && (RightScale == Other.RightScale) && (LeftBias == Other.LeftBias) && (RightBias == Other.RightBias);
+	}
+};
 
 class IStereoLayers
 {
@@ -25,7 +88,8 @@ public:
 	{
 		QuadLayer,
 		CylinderLayer,
-		CubemapLayer
+		CubemapLayer,
+		EquirectLayer
 	};
 
 	enum ELayerFlags
@@ -60,6 +124,14 @@ public:
 		FVector2D			QuadSize	 = FVector2D(1.0f, 1.0f);
 		// UVs of rendered quad in UE units
 		FBox2D				UVRect		 = FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f));
+		//UVs and Scale/Bias of Equirect Layers
+		FEquirectProps		EquirectProps = FEquirectProps(FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f)), FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f)), FVector2D(1.0f, 1.0f), FVector2D(1.0f, 1.0f), FVector2D(0.0f, 0.0f), FVector2D(0.0f, 0.0f));
+
+		FVector2D			LeftScale = FVector2D(1.0f, 1.0f);
+		FVector2D			LeftBias = FVector2D(0.0f, 0.0f);
+		FVector2D			RightScale = FVector2D(1.0f, 1.0f);
+		FVector2D			RightBias = FVector2D(0.0f, 0.0f);
+
 		// Size of texture that the compositor should allocate. Un-necessary if Texture is provided. The compositor will allocate a cubemap whose faces are of LayerSize if ShapeType is CubemapLayer.
 		FIntPoint			LayerSize = FIntPoint(0, 0);
 		// Render order priority, higher priority render on top of lower priority. Face-Locked layers are rendered on top of other layer types regardless of priority. 

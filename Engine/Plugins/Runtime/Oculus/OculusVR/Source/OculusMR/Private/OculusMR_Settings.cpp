@@ -12,6 +12,7 @@ UOculusMR_Settings::UOculusMR_Settings(const FObjectInitializer& ObjectInitializ
 	, WidthPerView(960)
 	, HeightPerView(540)
 	, CastingLatency(0.0f)
+	, BackdropColor(FColor::Green)
 	, HandPoseStateLatency(0.0f)
 	, ChromaKeyColor(FColor::Green)
 	, ChromaKeySimilarity(0.6f)
@@ -27,7 +28,8 @@ UOculusMR_Settings::UOculusMR_Settings(const FObjectInitializer& ObjectInitializ
 	, bUseDynamicLighting(false)
 	, DepthQuality(EOculusMR_DepthQuality::DQ_Medium)
 	, BindToTrackedCameraIndex(-1)
-{}
+{
+}
 
 void UOculusMR_Settings::SetCompositionMethod(EOculusMR_CompositionMethod val)
 {
@@ -141,6 +143,10 @@ void UOculusMR_Settings::LoadFromIni()
 	{
 		CastingLatency = f;
 	}
+	if (GConfig->GetColor(OculusMRSettings, TEXT("BackdropColor"), color, GEngineIni))
+	{
+		BackdropColor = color;
+	}
 	if (GConfig->GetFloat(OculusMRSettings, TEXT("HandPoseStateLatency"), f, GEngineIni))
 	{
 		HandPoseStateLatency = f;
@@ -209,6 +215,7 @@ void UOculusMR_Settings::SaveToIni() const
 	GConfig->SetInt(OculusMRSettings, TEXT("HeightPerView"), HeightPerView, GEngineIni);
 	GConfig->SetInt(OculusMRSettings, TEXT("CapturingCamera"), (int32)CapturingCamera, GEngineIni);
 	GConfig->SetFloat(OculusMRSettings, TEXT("CastingLatency"), CastingLatency, GEngineIni);
+	GConfig->SetColor(OculusMRSettings, TEXT("BackdropColor"), BackdropColor, GEngineIni);
 	GConfig->SetFloat(OculusMRSettings, TEXT("HandPoseStateLatency"), HandPoseStateLatency, GEngineIni);
 	GConfig->SetColor(OculusMRSettings, TEXT("ChromaKeyColor"), ChromaKeyColor, GEngineIni);
 	GConfig->SetFloat(OculusMRSettings, TEXT("ChromaKeySimilarity"), ChromaKeySimilarity, GEngineIni);

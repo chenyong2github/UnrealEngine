@@ -21,6 +21,7 @@ UStereoLayerComponent::UStereoLayerComponent(const FObjectInitializer& ObjectIni
 	, CylinderRadius(100)
 	, CylinderOverlayArc(100)
 	, CylinderHeight(50)
+	, EquirectProps()
 	, StereoLayerType(SLT_FaceLocked)
 	, StereoLayerShape(SLSH_QuadLayer)
 	, Priority(0)
@@ -94,6 +95,8 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 			LayerDsec.Priority = Priority;
 			LayerDsec.QuadSize = QuadSize;
 			LayerDsec.UVRect = UVRect;
+			LayerDsec.EquirectProps = EquirectProps;
+			
 			LayerDsec.Transform = Transform;
 			if (Texture)
 			{
@@ -139,6 +142,11 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 			case SLSH_CubemapLayer:
 				LayerDsec.ShapeType = IStereoLayers::CubemapLayer;
 				break;
+
+			case SLSH_EquirectLayer:
+				LayerDsec.ShapeType = IStereoLayers::EquirectLayer;
+				break;
+
 			default:
 				break;
 			}
@@ -205,6 +213,16 @@ void UStereoLayerComponent::SetUVRect(FBox2D InUVRect)
 	}
 
 	UVRect = InUVRect;
+	bIsDirty = true;
+}
+
+void UStereoLayerComponent::SetEquirectProps(FEquirectProps InEquirectProps)
+{
+	if (EquirectProps == InEquirectProps)
+	{
+		return;
+	}
+	EquirectProps = InEquirectProps;
 	bIsDirty = true;
 }
 

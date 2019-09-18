@@ -4,9 +4,11 @@
 	<!-- init section is always evaluated once per architecture -->
 	<init>
 		<log text="LibOVRAvatar init"/>
-		<!-- currently only support armv7 -->
 		<setBool result="bSupported" value="false"/>
 		<isArch arch="armeabi-v7a">
+			<setBool result="bSupported" value="true"/>
+		</isArch>
+		<isArch arch="arm64-v8a">
 			<setBool result="bSupported" value="true"/>
 		</isArch>
 	</init>
@@ -33,6 +35,10 @@
 		<isArch arch="armeabi-v7a">
 			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/LibOVRAvatar/LibOVRAvatar/lib/armeabi-v7a/libovravatarloader.so"
 						dst="$S(BuildDir)/libs/armeabi-v7a/libovravatarloader.so" />
+		</isArch>
+		<isArch arch="arm64-v8a">
+			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/LibOVRAvatar/LibOVRAvatar/lib/arm64-v8a/libovravatarloader.so"
+						dst="$S(BuildDir)/libs/arm64-v8a/libovravatarloader.so" />
 		</isArch>
 	</resourceCopies>
 

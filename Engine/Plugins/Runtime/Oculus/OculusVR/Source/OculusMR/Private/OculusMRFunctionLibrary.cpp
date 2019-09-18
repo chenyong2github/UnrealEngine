@@ -72,6 +72,14 @@ void UOculusMRFunctionLibrary::GetAllTrackedCamera(TArray<FTrackedCamera>& Track
 			camera.CalibratedOffset = Pose.Position;
 			camera.UserRotation = FRotator::ZeroRotator;
 			camera.UserOffset = FVector::ZeroVector;
+#if PLATFORM_ANDROID
+			ovrpPosef cameraRawPose;
+			ovrp_GetExternalCameraCalibrationRawPose(i, &cameraRawPose);
+			OculusHMD::FPose RawPose;
+			GetOculusHMD()->ConvertPose(cameraRawPose, RawPose);
+			camera.RawRotation = RawPose.Orientation.Rotator();
+			camera.RawOffset = RawPose.Position;
+#endif
 			TrackedCameras.Add(camera);
 		}
 	}
@@ -120,15 +128,33 @@ bool UOculusMRFunctionLibrary::GetTrackingReferenceLocationAndRotationInWorldSpa
 
 UOculusMR_Settings* UOculusMRFunctionLibrary::GetOculusMRSettings()
 {
-	return FOculusMRModule::Get().GetMRSettings();
+	UOculusMR_Settings* Settings = nullptr;
+	if (FOculusMRModule::IsAvailable())
+	{
+		Settings = FOculusMRModule::Get().GetMRSettings();
+	}
+	return Settings;
 }
 
 USceneComponent* UOculusMRFunctionLibrary::GetTrackingReferenceComponent()
 {
-	return FOculusMRModule::Get().GetMRState()->TrackingReferenceComponent;
+	USceneComponent * TrackingRef = nullptr;
+	if (FOculusMRModule::IsAvailable())
+	{
+		TrackingRef = FOculusMRModule::Get().GetMRState()->TrackingReferenceComponent;
+	}
+	return TrackingRef;
 }
 
 void UOculusMRFunctionLibrary::SetTrackingReferenceComponent(USceneComponent* Component)
 {
-	FOculusMRModule::Get().GetMRState()->TrackingReferenceComponent = Component;
+	if (FOculusMRModule::IsAvailable())
+	{
+		FOculusMRModule::Get().GetMRState()->TrackingReferenceComponent = Component;
+	}
+}
+
+bool UOculusMRFunctionLibrary::IsMrcActive()
+{
+	return FOculusMRModule::IsAvailable() && FOculusMRModule::Get().IsActive();
 }

@@ -49,6 +49,11 @@ public:
 	virtual bool NeedReAllocateDepthTexture(const TRefCountPtr<struct IPooledRenderTarget>& DepthTarget) { return false; }
 
 	/**
+	* Returns true, if foveation texture must be re-calculated.
+	*/
+	virtual bool NeedReAllocateFoveationTexture(const TRefCountPtr<struct IPooledRenderTarget>& FoveationTarget) { return false; }
+
+	/**
 	 * Returns number of required buffered frames.
 	 */
 	virtual uint32 GetNumberOfBufferedFrames() const { return 1; }
@@ -69,4 +74,13 @@ public:
 	 * @return				true, if texture was allocated; false, if the default texture allocation should be used.
 	 */
 	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) { return false; }
+
+	/**
+	 * Allocates a foveation texture.
+	 * The default implementation always returns false to indicate that the default texture allocation should be used instead.
+	 *
+	 * @param Index			(in) index of the buffer, changing from 0 to GetNumberOfBufferedFrames()
+	 * @return				true, if texture was allocated; false, if the default texture allocation should be used.
+	 */
+	virtual bool AllocateFoveationTexture(uint32 Index, uint32 RenderSizeX, uint32 RenderSizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTexture, FIntPoint& OutTextureSize) { return false; }
 };

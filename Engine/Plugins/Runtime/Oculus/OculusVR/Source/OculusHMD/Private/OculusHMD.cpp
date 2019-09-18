@@ -777,6 +777,7 @@ namespace OculusHMD
 
 		CachedWorldToMetersScale = InWorldContext.World()->GetWorldSettings()->WorldToMeters;
 
+		// this should have already happened in FOculusInput, so this is usually a no-op. 
 		StartGameFrame_GameThread();
 
 		bool retval = true;
@@ -920,12 +921,6 @@ namespace OculusHMD
 			}
 
 			UpdateHMDWornState();
-
-			// Update tracking
-			if (!Splash->IsShown())
-			{
-				ovrp_Update3(ovrpStep_Render, Frame->FrameNumber, 0.0);
-			}
 		}
 
 #if OCULUS_MR_SUPPORTED_PLATFORMS
@@ -1259,7 +1254,7 @@ namespace OculusHMD
 
 		const int32 ViewIndex = GetViewIndexForPass(StereoPass);
 
-		if (Settings_RenderThread.IsValid())
+		if (Settings_RenderThread.IsValid() && Settings_RenderThread->Flags.bPixelDensityAdaptive)
 		{
 			Settings_RenderThread->EyeRenderViewport[ViewIndex] = FinalViewRect;
 		}
@@ -1269,7 +1264,7 @@ namespace OculusHMD
 		{
 			CheckInRHIThread();
 
-			if (Settings_RHIThread.IsValid())
+			if (Settings_RHIThread.IsValid() && Settings_RHIThread->Flags.bPixelDensityAdaptive)
 			{
 				Settings_RHIThread->EyeRenderViewport[ViewIndex] = FinalViewRect;
 			}
@@ -1371,7 +1366,7 @@ namespace OculusHMD
 		CheckInRenderThread();
 
 		// Rift does this differently than other platforms, it already has an idea of what rectangle it wants to use stored.
-		FIntRect& EyeRect = Settings_RenderThread->EyeUnscaledRenderViewport[0];
+		FIntRect& EyeRect = Settings_RenderThread->EyeRenderViewport[0];
 
 		// But the rectangle rift specifies has corners cut off, so we will crop a little more.
 		if (ShouldDisableHiddenAndVisibileAreaMeshForSpectatorScreen_RenderThread())
@@ -1482,6 +1477,15 @@ namespace OculusHMD
 	}
 
 
+	bool FOculusHMD::NeedReAllocateFoveationTexture(const TRefCountPtr<IPooledRenderTarget>& FoveationTarget)
+	{
+		CheckInRenderThread();
+
+		return ensureMsgf(Settings_RenderThread.IsValid(), TEXT("Unexpected issue with Oculus settings on the RenderThread. This should be valid when this is called in AllocateFoveationTexture() - has the callsite changed?")) &&
+			Settings_RenderThread->IsStereoEnabled() && bNeedReAllocateFoveationTexture_RenderThread;
+	}
+
+
 	bool FOculusHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 InTargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
 	{
 		// Only called when RenderThread is suspended.  Both of these checks should pass.
@@ -1536,6 +1540,39 @@ namespace OculusHMD
 		return false;
 	}
 
+	bool FOculusHMD::AllocateFoveationTexture(uint32 Index, uint32 RenderSizeX, uint32 RenderSizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 InTargetableTextureFlags, FTexture2DRHIRef& OutTexture, FIntPoint& OutTextureSize)
+	{
+		CheckInRenderThread();
+
+		check(Index == 0);
+
+		if (EyeLayer_RenderThread.IsValid())
+		{
+			const FXRSwapChainPtr& SwapChain = EyeLayer_RenderThread->GetFoveationSwapChain();
+			
+			if (SwapChain.IsValid())
+			{
+				FTexture2DRHIRef Texture = SwapChain->GetTexture2DArray() ? SwapChain->GetTexture2DArray() : SwapChain->GetTexture2D();
+				FIntPoint TexSize = Texture->GetSizeXY();
+
+				// Only set texture and return true if we have a valid texture of compatible size
+				if (Texture->IsValid() && TexSize.X > 0 && TexSize.Y > 0 && RenderSizeX % TexSize.X == 0 && RenderSizeY % TexSize.Y == 0)
+				{
+					if (bNeedReAllocateFoveationTexture_RenderThread)
+					{
+						UE_LOG(LogHMD, Log, TEXT("Allocating Oculus %d x %d variable resolution swapchain"), TexSize.X, TexSize.Y, Index);
+						bNeedReAllocateFoveationTexture_RenderThread = false;
+					}
+
+					OutTexture = Texture;
+					OutTextureSize = TexSize;
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
 
 	void FOculusHMD::UpdateViewportWidget(bool bUseSeparateRenderTarget, const class FViewport& Viewport, class SViewport* ViewportWidget)
 	{
@@ -1917,8 +1954,8 @@ namespace OculusHMD
 		CachedWindowSize = FVector2D::ZeroVector;
 		CachedWorldToMetersScale = 100.0f;
 
-		NextFrameNumber = 1;
-		WaitFrameNumber = 0;
+		NextFrameNumber = 0;
+		WaitFrameNumber = (uint32)-1;
 		NextLayerId = 0;
 
 		Settings = CreateNewSettings();
@@ -2115,7 +2152,7 @@ namespace OculusHMD
 		}
 
 		ovrp_SetAppEngineInfo2(
-			"UnrealEngine",
+			"Unreal Engine",
 			TCHAR_TO_ANSI(*FEngineVersion::Current().ToString()),
 			GIsEditor ? ovrpBool_True : ovrpBool_False);
 
@@ -2129,20 +2166,26 @@ namespace OculusHMD
 			UE_LOG(LogHMD, Log, TEXT("OculusHMD plugin supports multiview!"));
 		}
 #endif
+		ovrpDistortionWindowFlag flag = ovrpDistortionWindowFlag_None;
 #if PLATFORM_ANDROID && USE_ANDROID_EGL_NO_ERROR_CONTEXT
-		ovrp_SetupDistortionWindow3(ovrpDistortionWindowFlag_NoErrorContext);
-#else
-		ovrp_SetupDistortionWindow3(ovrpDistortionWindowFlag_None);
+		if (AndroidEGL::GetInstance()->GetSupportsNoErrorContext())
+		{
+			flag = ovrpDistortionWindowFlag_NoErrorContext;
+		}
 #endif // PLATFORM_ANDROID && USE_ANDROID_EGL_NO_ERROR_CONTEXT
+		ovrp_SetupDistortionWindow3(flag);
 		ovrp_SetSystemCpuLevel2(Settings->CPULevel);
 		ovrp_SetSystemGpuLevel2(Settings->GPULevel);
-		ovrp_SetTiledMultiResLevel((ovrpTiledMultiResLevel)Settings->MultiResLevel);
+		ovrp_SetTiledMultiResLevel((ovrpTiledMultiResLevel)Settings->FFRLevel);
 		ovrp_SetAppCPUPriority2(ovrpBool_True);
 		ovrp_SetReorientHMDOnControllerRecenter(Settings->Flags.bRecenterHMDWithController ? ovrpBool_True : ovrpBool_False);
 
 		OCFlags.NeedSetTrackingOrigin = true;
 		bNeedReAllocateViewportRenderTarget = true;
 		bNeedReAllocateDepthTexture_RenderThread = false;
+
+		NextFrameNumber = 0;
+		WaitFrameNumber = (uint32)-1;
 
 		return true;
 	}
@@ -2532,6 +2575,13 @@ namespace OculusHMD
 				if (!EyeLayer_RenderThread.IsValid() || EyeLayer->GetDepthSwapChain() != EyeLayer_RenderThread->GetDepthSwapChain())
 				{
 					bNeedReAllocateDepthTexture_RenderThread = true;
+				}
+			}
+			if (EyeLayer->GetFoveationSwapChain().IsValid())
+			{
+				if (!EyeLayer_RenderThread.IsValid() || EyeLayer->GetFoveationSwapChain() != EyeLayer_RenderThread->GetFoveationSwapChain())
+				{
+					bNeedReAllocateFoveationTexture_RenderThread = true;
 				}
 			}
 
@@ -2947,10 +2997,10 @@ namespace OculusHMD
 	}
 
 
-	void FOculusHMD::SetTiledMultiResLevel(ETiledMultiResLevel multiresLevel)
+	void FOculusHMD::SetFixedFoveatedRenderingLevel(EFixedFoveatedRenderingLevel InFFRLevel)
 	{
 		CheckInGameThread();
-		Settings->MultiResLevel = multiresLevel;
+		Settings->FFRLevel = InFFRLevel;
 	}
 
 	void FOculusHMD::SetColorScaleAndOffset(FLinearColor ColorScale, FLinearColor ColorOffset, bool bApplyToAllLayers)
@@ -3023,9 +3073,6 @@ namespace OculusHMD
 				// Start frame
 				StartGameFrame_GameThread();
 				StartRenderFrame_GameThread();
-
-				ovrp_Update3(ovrpStep_Render, Frame->FrameNumber, 0.0);
-
 
 				// Set viewport size to Rift resolution
 				// NOTE: this can enqueue a render frame right away as a result (calling into FOculusHMD::BeginRenderViewFamily)
@@ -3101,7 +3148,7 @@ namespace OculusHMD
 		Result->WindowSize = CachedWindowSize;
 		Result->WorldToMetersScale = CachedWorldToMetersScale;
 		Result->NearClippingPlane = GNearClippingPlane;
-		Result->MultiResLevel = Settings->MultiResLevel;
+		Result->FFRLevel = Settings->FFRLevel;
 		Result->Flags.bSplashIsShown = Splash->IsShown();
 		return Result;
 	}
@@ -3136,6 +3183,8 @@ namespace OculusHMD
 						WaitFrameNumber = Frame->FrameNumber;
 					}
 				}
+
+				ovrp_Update3(ovrpStep_Render, Frame->FrameNumber, 0.0);
 			}
 
 			UpdateStereoRenderingParams();
@@ -3285,7 +3334,7 @@ namespace OculusHMD
 						else
 						{
 #if PLATFORM_ANDROID
-							ovrp_SetTiledMultiResLevel((ovrpTiledMultiResLevel)Frame_RHIThread->MultiResLevel);
+							ovrp_SetTiledMultiResLevel((ovrpTiledMultiResLevel)Frame_RHIThread->FFRLevel);
 #endif
 						}
 					}
@@ -3463,7 +3512,7 @@ namespace OculusHMD
 		Settings->Flags.bHQDistortion = HMDSettings->bHQDistortion;
 		Settings->Flags.bChromaAbCorrectionEnabled = HMDSettings->bChromaCorrection;
 		Settings->Flags.bRecenterHMDWithController = HMDSettings->bRecenterHMDWithController;
-		Settings->MultiResLevel = HMDSettings->FFRLevel;
+		Settings->FFRLevel = HMDSettings->FFRLevel;
 		Settings->CPULevel = HMDSettings->CPULevel;
 		Settings->GPULevel = HMDSettings->GPULevel;
 		Settings->PixelDensityMin = HMDSettings->PixelDensityMin;

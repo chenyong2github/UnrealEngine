@@ -28,7 +28,7 @@ public:
 
 	FTransform TrackingToWorld;		// (OnEndGameFrame)
 
-	ETiledMultiResLevel MultiResLevel; // OnStartGameFrame
+	EFixedFoveatedRenderingLevel FFRLevel; // OnStartGameFrame
 
 	union
 	{

@@ -119,12 +119,18 @@ void UStereoLayerFunctionLibrary::EnableAutoLoadingSplashScreen(bool InAutoShowE
 {
 	if (InAutoShowEnabled)
 	{
-		AutoShow = MakeShareable(new FAutoShow);
-		AutoShow->Register();
+		if (!AutoShow.IsValid())
+		{
+			AutoShow = MakeShareable(new FAutoShow);
+			AutoShow->Register();
+		}
 	}
-	else if (AutoShow.IsValid())
+	else 
 	{
-		AutoShow->Unregister();
-		AutoShow = nullptr;
+		if (AutoShow.IsValid())
+		{
+			AutoShow->Unregister();
+			AutoShow = nullptr;
+		}
 	}
 }

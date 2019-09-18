@@ -220,8 +220,14 @@ struct FOculusTouchControllerState
 	/** True if position is being tracked, otherwise false */
 	bool bIsPositionTracked;
 
+	/** True if position is valid (tracked or estimated), otherwise false */
+	bool bIsPositionValid;
+
 	/** True if orientation is being tracked, otherwise false */
 	bool bIsOrientationTracked;
+
+	/** True if orientation is valid (tracked or estimated), otherwise false */
+	bool bIsOrientationValid;
 
 	/** Analog trigger */
 	float TriggerAxis;
@@ -261,7 +267,9 @@ struct FOculusTouchControllerState
 	FOculusTouchControllerState( const EControllerHand Hand )
 		: bIsConnected( false ),
 		  bIsPositionTracked( false ),
+		  bIsPositionValid( false ),
 		  bIsOrientationTracked( false ),
+		  bIsOrientationValid( false ),
 		  TriggerAxis( 0.0f ),
 		  GripAxis( 0.0f ),
 		  ThumbstickAxes( FVector2D::ZeroVector ),

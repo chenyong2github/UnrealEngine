@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Components/SceneComponent.h"
+#include "IStereoLayers.h"
 #include "StereoLayerComponent.generated.h"
 
 class UTexture;
@@ -37,6 +38,9 @@ enum EStereoLayerShape
 
 	/** Cubemap layer */
 	SLSH_CubemapLayer	UMETA(DisplayName = "Cubemap Layer"),
+
+	/** Equirect layer */
+	SLSH_EquirectLayer	UMETA(DisplayName = "Equirect Layer"),
 
 	SLSH_MAX,
 };
@@ -103,7 +107,17 @@ public:
 	// @return the UV coordinates mapped to the quad face
 	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
 	FBox2D GetUVRect() const { return UVRect; }
-	
+
+	/**
+	 * Set Equirect layer properties: UVRect, Scale, and Bias
+	 * @param	LeftScale: Scale for left eye
+	 * @param	LeftBias: Bias for left eye
+	 * @param	RightScale: Scale for right eye
+	 * @param	RightBias: Bias for right eye
+	 */
+	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
+	void SetEquirectProps(FEquirectProps InScaleBiases);
+
 	/** 
 	 * Change the layer's render priority, higher priorities render on top of lower priorities
 	 * @param	InPriority: Priority value
@@ -165,6 +179,10 @@ protected:
 	/** Height of the stereo layer cylinder **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Cylinder Overlay Properties")
 	int CylinderHeight;
+
+	/** UVRects, scale, and biases per eye for equirect layers. UVRects are for input texture UVs per eye, and the latter 2 control scale and bias of texture coordinates after mapping to 2D.  **/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+	FEquirectProps EquirectProps;
 
 	/** Specifies how and where the quad is rendered to the screen **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category="StereoLayer")
