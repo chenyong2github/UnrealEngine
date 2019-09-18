@@ -14,6 +14,11 @@ URuntimeVirtualTextureComponent::URuntimeVirtualTextureComponent(const FObjectIn
 	bTickInEditor = true;
 }
 
+bool URuntimeVirtualTextureComponent::IsVisible() const
+{
+	return Super::IsVisible() && UseVirtualTexturing(GetScene()->GetFeatureLevel());
+}
+
 void URuntimeVirtualTextureComponent::CreateRenderState_Concurrent()
 {
 	if (ShouldRender() && VirtualTexture != nullptr)
