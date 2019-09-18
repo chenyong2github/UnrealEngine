@@ -379,6 +379,14 @@ void UAudioMixerBlueprintLibrary::PrimeSoundForPlayback(USoundWave* SoundWave, c
 	}
 }
 
+void UAudioMixerBlueprintLibrary::PrimeSoundCueForPlayback(USoundCue* SoundCue)
+{
+	if (SoundCue)
+	{
+		SoundCue->PrimeSoundCue();
+	}
+}
+
 float UAudioMixerBlueprintLibrary::TrimAudioCache(float InMegabytesToFree)
 {
 	uint64 NumBytesToFree = (uint64) (((double)InMegabytesToFree) * 1024.0 * 1024.0);

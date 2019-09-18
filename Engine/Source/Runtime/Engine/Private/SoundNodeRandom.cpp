@@ -17,6 +17,13 @@ FAutoConsoleVariableRef CVarMaxRandomBranches(
 	TEXT("0: No culling, Any other value: The amount of branches we should use as a maximum for any random node."),
 	ECVF_Default);
 
+static int32 PrimeRandomSoundNodesCVar = 0;
+FAutoConsoleVariableRef CVarPrimeRandomSoundNodes(
+	TEXT("au.streamcache.priming.PrimeRandomNodes"),
+	PrimeRandomSoundNodesCVar,
+	TEXT("When set to 1, sounds will be loaded into the cache automatically when a random node is hit.\n"),
+	ECVF_Default);
+
 /*-----------------------------------------------------------------------------
     USoundNodeRandom implementation.
 -----------------------------------------------------------------------------*/
@@ -185,6 +192,11 @@ void USoundNodeRandom::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT Node
 	// Pick a random child node and save the index.
 	if (*RequiresInitialization)
 	{
+		if (PrimeRandomSoundNodesCVar != 0)
+		{
+			PrimeChildWavePlayers(true);
+		}
+
 		NodeIndex = ChooseNodeIndex(ActiveSound);
 		*RequiresInitialization = 0;
 	}

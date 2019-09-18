@@ -5,6 +5,10 @@
 #include "EngineUtils.h"
 #include "Sound/SoundCue.h"
 #include "Misc/App.h"
+#include "Sound/SoundNodeWavePlayer.h"
+#include "ContentStreaming.h"
+#include "Sound/SoundWave.h"
+#include "AudioCompressionSettingsUtils.h"
 
 /*-----------------------------------------------------------------------------
 	USoundNode implementation.
@@ -84,6 +88,35 @@ UPTRINT USoundNode::GetNodeWaveInstanceHash(const UPTRINT ParentWaveInstanceHash
 #else
 	return ((ParentWaveInstanceHash << ChildIndex) ^ ChildNodeHash);
 #endif // USE_NEW_SOUNDCUE_NODE_HASH
+}
+
+void USoundNode::PrimeChildWavePlayers(bool bRecurse)
+{
+	if (FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
+	{
+		// Search child nodes for wave players, then prime their waves.
+		for (USoundNode* ChildNode : ChildNodes)
+		{
+			if (ChildNode)
+			{
+				ChildNode->ConditionalPostLoad();
+				if (bRecurse)
+				{
+					ChildNode->PrimeChildWavePlayers(true);
+				}
+
+				USoundNodeWavePlayer* WavePlayer = Cast<USoundNodeWavePlayer>(ChildNode);
+				if (WavePlayer != nullptr)
+				{
+					USoundWave* SoundWave = WavePlayer->GetSoundWave();
+					if (SoundWave && SoundWave->IsStreaming())
+					{
+						IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(SoundWave, 1, [](EAudioChunkLoadResult) {});
+					}
+				}
+			}
+		}
+	}
 }
 
 void USoundNode::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances )
