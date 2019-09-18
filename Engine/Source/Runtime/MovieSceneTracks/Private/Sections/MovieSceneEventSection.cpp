@@ -307,10 +307,9 @@ bool FMovieSceneEventParameters::Serialize(FArchive& Ar)
 	return true;
 }
 
-
+#if WITH_EDITORONLY_DATA
 void FMovieSceneEventSectionData::PostSerialize(const FArchive& Ar)
 {
-#if WITH_EDITORONLY_DATA
 	
 	if (KeyTimes_DEPRECATED.Num())
 	{
@@ -326,8 +325,8 @@ void FMovieSceneEventSectionData::PostSerialize(const FArchive& Ar)
 		}
 		KeyTimes_DEPRECATED.Empty();
 	}
-#endif
 }
+#endif
 
 void FMovieSceneEventSectionData::GetKeys(const TRange<FFrameNumber>& WithinRange, TArray<FFrameNumber>* OutKeyTimes, TArray<FKeyHandle>* OutKeyHandles)
 {

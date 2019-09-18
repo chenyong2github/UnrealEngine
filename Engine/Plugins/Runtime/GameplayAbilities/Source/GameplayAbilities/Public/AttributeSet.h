@@ -56,7 +56,7 @@ protected:
 	float CurrentValue;
 };
 
-/** Describes a FGameplayAttributeData or float property inside an attribute set. Using this provides editor UI and gelper functions */
+/** Describes a FGameplayAttributeData or float property inside an attribute set. Using this provides editor UI and helper functions */
 USTRUCT(BlueprintType)
 struct GAMEPLAYABILITIES_API FGameplayAttribute
 {
@@ -137,8 +137,10 @@ struct GAMEPLAYABILITIES_API FGameplayAttribute
 		return AttributeName.IsEmpty() ? *GetNameSafe(Attribute) : AttributeName;
 	}
 
+#if WITH_EDITORONLY_DATA
 	/** Custom serialization */
 	void PostSerialize(const FArchive& Ar);
+#endif
 
 	/** Name of the attribute, usually the same as property name */
 	UPROPERTY(Category = GameplayAttribute, VisibleAnywhere, BlueprintReadOnly)
@@ -157,6 +159,7 @@ private:
 	UStruct* AttributeOwner;
 };
 
+#if WITH_EDITORONLY_DATA
 template<>
 struct TStructOpsTypeTraits< FGameplayAttribute > : public TStructOpsTypeTraitsBase2< FGameplayAttribute >
 {
@@ -165,6 +168,7 @@ struct TStructOpsTypeTraits< FGameplayAttribute > : public TStructOpsTypeTraitsB
 		WithPostSerialize = true,
 	};
 };
+#endif
 
 /**
  * Defines the set of all GameplayAttributes for your game

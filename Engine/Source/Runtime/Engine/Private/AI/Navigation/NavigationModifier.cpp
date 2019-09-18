@@ -52,6 +52,7 @@ bool FNavigationLinkBase::HasMetaArea() const
 	return AreaClass && AreaClass->GetDefaultObject<UNavAreaBase>()->IsMetaArea();
 }
 
+#if WITH_EDITORONLY_DATA
 void FNavigationLinkBase::PostSerialize(const FArchive& Ar)
 {
 	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_NAVIGATION_AGENT_SELECTOR)
@@ -77,6 +78,7 @@ void FNavigationLinkBase::PostSerialize(const FArchive& Ar)
 
 	// can't initialize at this time, used UClass may not be ready yet
 }
+#endif
 
 #if WITH_EDITOR
 
