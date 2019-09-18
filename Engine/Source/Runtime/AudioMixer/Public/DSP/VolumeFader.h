@@ -6,7 +6,7 @@
 
 namespace Audio
 {
-	/** Type of fade to use when adjusting the audio component's volume. */
+	/** Type of fade to use when adjusting a fader's volume over time. */
 	enum class EFaderCurve : uint8
 	{
 		// Linear Fade
