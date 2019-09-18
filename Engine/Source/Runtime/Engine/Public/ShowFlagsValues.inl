@@ -7,6 +7,8 @@
 // Fixed in shipping builds:
 // SHOWFLAG_FIXED_IN_SHIPPING( <showflag name>, <fixed bool>, <showflag group>, <Localized TEXT stuff>)
 
+// [[ IncludeTool: Inline ]] // Markup to tell IncludeTool that this file is state changing and cannot be optimized out.
+
 #ifndef SHOWFLAG_ALWAYS_ACCESSIBLE
 #error SHOWFLAG_ALWAYS_ACCESSIBLE macro is undefined.
 #endif

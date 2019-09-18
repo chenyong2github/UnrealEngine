@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace IncludeTool
@@ -178,6 +179,11 @@ namespace IncludeTool
 		public List<string> VerboseOutput = new List<string>();
 
 		/// <summary>
+		/// Regex for additional options
+		/// </summary>
+		static Regex OptionsPattern = new Regex(@"^\s*//\s*\[\[\s*IncludeTool\s*:\s*([a-zA-Z, \t]+)\]\]", RegexOptions.IgnoreCase);
+
+		/// <summary>
 		/// Construct a SourceFile from the given arguments
 		/// </summary>
 		/// <param name="Location">Location of the file</param>
@@ -185,6 +191,37 @@ namespace IncludeTool
 		/// <param name="Flags">Properties of the file</param>
 		public SourceFile(FileReference Location, TextBuffer Text, SourceFileFlags Flags)
 		{
+			// Check for directives specifying additional flags for this file in the source text
+			if (Text != null)
+			{
+				foreach (string Line in Text.Lines)
+				{
+					Match Match = OptionsPattern.Match(Line);
+					if (Match.Success)
+					{
+						foreach (string FlagText in Match.Groups[1].Value.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0))
+						{
+							SourceFileFlags Flag;
+							if (Enum.TryParse(FlagText, true, out Flag))
+							{
+								Flags |= Flag;
+							}
+							else
+							{
+								throw new Exception(String.Format("{0}: Invalid source file flag '{1}'", Location, FlagText));
+							}
+						}
+					}
+				}
+			}
+
+			// Inline files cannot be standalone
+			if((Flags & SourceFileFlags.Inline) != 0)
+			{
+				Flags &= ~SourceFileFlags.Standalone;
+			}
+
+			// Save the parameters
 			this.Location = Location;
 			this.Text = Text;
 			this.Flags = Flags;
