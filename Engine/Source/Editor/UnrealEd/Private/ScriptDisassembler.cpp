@@ -193,6 +193,9 @@ FString FKismetBytecodeDisassembler::ReadString16(int32& ScriptIndex)
 	}
 	while ((Script[ScriptIndex-1] != 0) || (Script[ScriptIndex-2] != 0));
 
+	// Inline combine any surrogate pairs in the data when loading into a UTF-32 string
+	StringConv::InlineCombineSurrogates(Result);
+
 	return Result;
 }
 

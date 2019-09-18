@@ -1409,17 +1409,20 @@ void FString::AppendfImpl(FString& AppendToMe, const TCHAR* Fmt, ...)
 	}
 }
 
+static_assert(PLATFORM_LITTLE_ENDIAN, "FString serialization needs updating to support big-endian platforms!");
+
 FArchive& operator<<( FArchive& Ar, FString& A )
 {
-	// > 0 for ANSICHAR, < 0 for UCS2CHAR serialization
+	// > 0 for ANSICHAR, < 0 for UTF16CHAR serialization
+	static_assert(sizeof(UTF16CHAR) == sizeof(UCS2CHAR), "UTF16CHAR and UCS2CHAR are assumed to be the same size!");
 
 	if (Ar.IsLoading())
 	{
 		int32 SaveNum;
 		Ar << SaveNum;
 
-		bool LoadUCS2Char = SaveNum < 0;
-		if (LoadUCS2Char)
+		bool bLoadUnicodeChar = SaveNum < 0;
+		if (bLoadUnicodeChar)
 		{
 			// If SaveNum cannot be negated due to integer overflow, Ar is corrupted.
 			if (SaveNum == MIN_int32)
@@ -1449,16 +1452,17 @@ FArchive& operator<<( FArchive& Ar, FString& A )
 
 		if (SaveNum)
 		{
-			if (LoadUCS2Char)
+			if (bLoadUnicodeChar)
 			{
-				// read in the unicode string and byteswap it, etc
+				// read in the unicode string
 				auto Passthru = StringMemoryPassthru<UCS2CHAR>(A.Data.GetData(), SaveNum, SaveNum);
 				Ar.Serialize(Passthru.Get(), SaveNum * sizeof(UCS2CHAR));
 				// Ensure the string has a null terminator
 				Passthru.Get()[SaveNum-1] = '\0';
 				Passthru.Apply();
 
-				INTEL_ORDER_TCHARARRAY(A.Data.GetData())
+				// Inline combine any surrogate pairs in the data when loading into a UTF-32 string
+				StringConv::InlineCombineSurrogates(A);
 
 				// Since Microsoft's vsnwprintf implementation raises an invalid parameter warning
 				// with a character of 0xffff, scan for it and terminate the string there.
@@ -1488,30 +1492,31 @@ FArchive& operator<<( FArchive& Ar, FString& A )
 	}
 	else
 	{
-		bool  SaveUCS2Char = Ar.IsForcingUnicode() || !FCString::IsPureAnsi(*A);
-		int32 Num        = A.Data.Num();
-		int32 SaveNum    = SaveUCS2Char ? -Num : Num;
+		A.Data.CountBytes(Ar);
 
-		Ar << SaveNum;
-
-		A.Data.CountBytes( Ar );
-
-		if (SaveNum)
+		const bool bSaveUnicodeChar = Ar.IsForcingUnicode() || !FCString::IsPureAnsi(*A);
+		if (bSaveUnicodeChar)
 		{
-			if (SaveUCS2Char)
-			{
-				// TODO - This is creating a temporary in order to byte-swap.  Need to think about how to make this not necessary.
-				#if !PLATFORM_LITTLE_ENDIAN
-					FString  ATemp  = A;
-					FString& A      = ATemp;
-					INTEL_ORDER_TCHARARRAY(A.Data.GetData());
-				#endif
+			// Note: This is a no-op on platforms that are using a 16-bit TCHAR
+ 			FTCHARToUTF16 UTF16String(*A, A.Len() + 1); // include the null terminator
+			int32 Num = UTF16String.Length() + 1; // include the null terminator
 
-				Ar.Serialize((void*)StringCast<UCS2CHAR>(A.Data.GetData(), Num).Get(), sizeof(UCS2CHAR)* Num);
-			}
-			else
+			int32 SaveNum = -Num;
+			Ar << SaveNum;
+
+			if (Num)
 			{
-				Ar.Serialize((void*)StringCast<ANSICHAR>(A.Data.GetData(), Num).Get(), sizeof(ANSICHAR)* Num);
+				Ar.Serialize((void*)UTF16String.Get(), sizeof(UTF16CHAR) * Num);
+			}
+		}
+		else
+		{
+			int32 Num = A.Data.Num();
+			Ar << Num;
+
+			if (Num)
+			{
+				Ar.Serialize((void*)StringCast<ANSICHAR>(A.Data.GetData(), Num).Get(), sizeof(ANSICHAR) * Num);
 			}
 		}
 	}
