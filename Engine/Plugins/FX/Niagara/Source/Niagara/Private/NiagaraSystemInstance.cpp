@@ -811,7 +811,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 	InitEmitters();
 	
 	const FNiagaraSystemCompiledData& SystemCompiledData = System->GetSystemCompiledData();
-	InstanceParameters = FNiagaraParameterStore(SystemCompiledData.InstanceParamStore);
+	InstanceParameters = SystemCompiledData.InstanceParamStore;
 	const TArray<FNiagaraVariable>& NumParticleVars = SystemCompiledData.NumParticleVars;
 	const TArray<FNiagaraVariable>& TotalSpawnedParticlesVars = SystemCompiledData.TotalSpawnedParticlesVars;
 

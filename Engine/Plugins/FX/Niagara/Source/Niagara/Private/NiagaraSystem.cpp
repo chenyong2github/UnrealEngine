@@ -1096,7 +1096,7 @@ void UNiagaraSystem::InitSystemCompiledData()
 	SystemCompiledData.TotalSpawnedParticlesVars.Empty();
 	SystemCompiledData.InstanceParamStore.Empty();
 
-	SystemCompiledData.InstanceParamStore = FNiagaraParameterStore(INiagaraModule::GetFixedSystemInstanceParameterStore());
+	SystemCompiledData.InstanceParamStore = INiagaraModule::GetFixedSystemInstanceParameterStore();
 	ExposedParameters.CopyParametersTo(SystemCompiledData.InstanceParamStore, false, FNiagaraParameterStore::EDataInterfaceCopyMethod::Reference);
 
 	for (const FNiagaraEmitterHandle& PerEmitterHandle : EmitterHandles)
