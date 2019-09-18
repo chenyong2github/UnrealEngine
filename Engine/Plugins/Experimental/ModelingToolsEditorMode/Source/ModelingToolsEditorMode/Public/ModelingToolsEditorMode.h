@@ -42,8 +42,6 @@ public:
 
 	virtual bool ProcessEditDelete();
 
-	virtual void BuildModeToolbar(class FToolBarBuilder& ToolbarBuilder) override;
-
 
 	/*
 	 * focus events

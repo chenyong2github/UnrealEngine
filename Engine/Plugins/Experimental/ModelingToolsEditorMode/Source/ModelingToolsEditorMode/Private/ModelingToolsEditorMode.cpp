@@ -55,15 +55,6 @@
 //#define ENABLE_DEBUG_PRINTING
 //#define TOOLED_ENABLE_VIEWPORT_INTERACTION
 
-
-// if set to 1, then on mode initialization we include buttons for prototype modeling tools
-static TAutoConsoleVariable<int32> CVarEnablePrototypeModelingTools(
-	TEXT("modeling.EnablePrototypes"),
-	0,
-	TEXT("Enable unsupported Experimental prototype Modeling Tools"));
-
-
-
 const FEditorModeID FModelingToolsEditorMode::EM_ModelingToolsEditorModeId = TEXT("EM_ModelingToolsEditorMode");
 
 FModelingToolsEditorMode::FModelingToolsEditorMode()
@@ -83,79 +74,15 @@ FModelingToolsEditorMode::~FModelingToolsEditorMode()
 }
 
 
-
-
-void FModelingToolsEditorMode::BuildModeToolbar(FToolBarBuilder& ToolbarBuilder)
-{
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().AcceptActiveTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().CancelActiveTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().CompleteActiveTool);
-
-	ToolbarBuilder.AddSeparator();
-
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginAddPrimitiveTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginDrawPolygonTool);
-	if (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0)
-	{
-		ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginShapeSprayTool);
-	}
-
-	ToolbarBuilder.AddSeparator();
-
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginTransformMeshesTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginSculptMeshTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginPolyEditTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginSmoothMeshTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginDisplaceMeshTool);
-	if (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0)
-	{
-		ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginMeshSpaceDeformerTool);
-	}
-
-	ToolbarBuilder.AddSeparator();
-
-	if (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0)
-	{
-		ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginRemeshSculptMeshTool);
-	}
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginMeshSelectionTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginPlaneCutTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginSimplifyMeshTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginRemeshMeshTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginUVProjectionTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginVoxelMergeTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginVoxelBooleanTool);
-	if (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0)
-	{
-		ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginPolygonOnMeshTool);
-	}
-
-	ToolbarBuilder.AddSeparator();
-
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginEditNormalsTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginWeldEdgesTool);
-	ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginMeshInspectorTool);
-	if (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0)
-	{
-		ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginParameterizeMeshTool);
-		ToolbarBuilder.AddToolBarButton(FModelingToolsManagerCommands::Get().BeginPolyGroupsTool);
-	}
-
-}
-
-
-
 void FModelingToolsEditorMode::ActorSelectionChangeNotify()
 {
 }
-
 
 
 bool FModelingToolsEditorMode::ProcessEditDelete()
 {
 	return ToolsContext->ProcessEditDelete();
 }
-
 
 
 bool FModelingToolsEditorMode::AllowWidgetMove()

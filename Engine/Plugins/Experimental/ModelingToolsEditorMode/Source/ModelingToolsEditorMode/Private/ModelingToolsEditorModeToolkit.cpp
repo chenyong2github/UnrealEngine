@@ -2,8 +2,10 @@
 
 #include "ModelingToolsEditorModeToolkit.h"
 #include "ModelingToolsEditorMode.h"
+#include "ModelingToolsManagerActions.h"
 #include "Engine/Selection.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
@@ -15,6 +17,14 @@
 #include "EditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeToolkit"
+
+
+// if set to 1, then on mode initialization we include buttons for prototype modeling tools
+static TAutoConsoleVariable<int32> CVarEnablePrototypeModelingTools(
+	TEXT("modeling.EnablePrototypes"),
+	1,
+	TEXT("Enable unsupported Experimental prototype Modeling Tools"));
+
 
 FModelingToolsEditorModeToolkit::FModelingToolsEditorModeToolkit()
 {
@@ -181,5 +191,97 @@ UEdModeInteractiveToolsContext* FModelingToolsEditorModeToolkit::GetToolsContext
 {
 	return GetToolsEditorMode()->GetToolsContext();
 }
+
+
+const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames = { FName(TEXT("Modeling")) /*, FName(TEXT("Experimental")) */ };
+
+FText FModelingToolsEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) 
+{ 
+	return FText::FromName(Palette);
+}
+
+void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToolBarBuilder& ToolbarBuilder) 
+{
+
+	const FModelingToolsManagerCommands& Commands = FModelingToolsManagerCommands::Get();
+
+	if (PaletteIndex == FName(TEXT("Modeling")))
+	{
+
+		ToolbarBuilder.AddToolBarButton(Commands.AcceptActiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.CancelActiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.CompleteActiveTool);
+
+		ToolbarBuilder.AddSeparator();
+
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawPolygonTool);
+		if (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0)
+		{
+			ToolbarBuilder.AddToolBarButton(Commands.BeginShapeSprayTool);
+		}
+
+		ToolbarBuilder.AddSeparator();
+
+		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSculptMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSmoothMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginDisplaceMeshTool);
+		if (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0)
+		{
+			ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSpaceDeformerTool);
+		}
+
+		ToolbarBuilder.AddSeparator();
+
+		if (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0)
+		{
+			ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshSculptMeshTool);
+		}
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPlaneCutTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSimplifyMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginUVProjectionTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelMergeTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelBooleanTool);
+		if (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0)
+		{
+			ToolbarBuilder.AddToolBarButton(Commands.BeginPolygonOnMeshTool);
+		}
+
+		ToolbarBuilder.AddSeparator();
+
+		ToolbarBuilder.AddToolBarButton(Commands.BeginEditNormalsTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginWeldEdgesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
+		if (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0)
+		{
+			ToolbarBuilder.AddToolBarButton(Commands.BeginParameterizeMeshTool);
+			ToolbarBuilder.AddToolBarButton(Commands.BeginPolyGroupsTool);
+		}
+	}
+
+	else if (PaletteIndex == FName(TEXT("Experimental")))
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.AcceptActiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.CancelActiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.CompleteActiveTool);
+
+		ToolbarBuilder.AddToolBarButton(Commands.BeginShapeSprayTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSpaceDeformerTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshSculptMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolygonOnMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginParameterizeMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyGroupsTool);
+	}
+}
+
+
+void FModelingToolsEditorModeToolkit::OnToolPaletteChanged(FName PaletteName) 
+{
+}
+
 
 #undef LOCTEXT_NAMESPACE
