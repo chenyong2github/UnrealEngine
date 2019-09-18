@@ -5045,6 +5045,7 @@ void UCharacterMovementComponent::PhysNavWalking(float deltaTime, int32 Iteratio
 
 	const FVector OldLocation = GetActorFeetLocation();
 	const FVector DeltaMove = DesiredMove * deltaTime;
+	const bool bDeltaMoveNearlyZero = DeltaMove.IsNearlyZero();
 
 	FVector AdjustedDest = OldLocation + DeltaMove;
 	FNavLocation DestNavLocation;
@@ -5067,10 +5068,21 @@ void UCharacterMovementComponent::PhysNavWalking(float deltaTime, int32 Iteratio
 		{
 			bSameNavLocation = CachedNavLocation.Location.Equals(OldLocation);
 		}
-	}
-		
 
-	if (DeltaMove.IsNearlyZero() && bSameNavLocation)
+		if (bDeltaMoveNearlyZero && bSameNavLocation)
+		{
+			if (const INavigationDataInterface* NavData = GetNavData())
+			{
+				if (!NavData->IsNodeRefValid(CachedNavLocation.NodeRef))
+				{
+					CachedNavLocation.NodeRef = INVALID_NAVNODEREF;
+					bSameNavLocation = false;
+				}
+			}
+		}
+	}
+
+	if (bDeltaMoveNearlyZero && bSameNavLocation)
 	{
 		DestNavLocation = CachedNavLocation;
 		UE_LOG(LogNavMeshMovement, VeryVerbose, TEXT("%s using cached navmesh location! (bProjectNavMeshWalking = %d)"), *GetNameSafe(CharacterOwner), bProjectNavMeshWalking);
