@@ -4590,6 +4590,12 @@ void ALandscape::GetLandscapeComponentWeightmapsToRender(ULandscapeComponent* La
 
 void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonitorLandscapeEdModeChanges)
 {
+	// Remove this command line switch after fixes for D3D12 RHI
+	if (FParse::Param(FCommandLine::Get(), TEXT("nolandscapelayerupdate")))
+	{
+		return;
+	}
+
 	if (GetLandscapeInfo() == nullptr || !CanHaveLayersContent())
 	{
 		return;
