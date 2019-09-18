@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
  */
 
@@ -918,21 +918,37 @@ namespace iPhonePackager
 			return CommonName;
 		}
 
-		/// <summary>
-		/// Merges a certificate and private key into a single combined certificate
-		/// </summary>
-		public static X509Certificate2 CombineKeyAndCert(string CertificateFilename, string KeyFilename)
+		public static string GetFriendlyNameFromCert(X509Certificate2 Cert)
+		{
+			if (Environment.OSVersion.Platform == PlatformID.Unix || Environment.OSVersion.Platform == PlatformID.MacOSX)
+			{
+				// From Mono 6, the FriendlyName field cannot be set on Unix so we always parse it out of the Subject.
+				return GetCommonNameFromCert(Cert);
+			}
+			else
+			{
+				// Make sure we have a useful friendly name
+				string FriendlyName = Cert.FriendlyName;
+				if ((FriendlyName == "") || (FriendlyName == null))
+				{
+					FriendlyName = GetCommonNameFromCert(Cert);
+				}
+
+				return FriendlyName;
+			}
+		}
+
+	/// <summary>
+	/// Merges a certificate and private key into a single combined certificate
+	/// </summary>
+	public static X509Certificate2 CombineKeyAndCert(string CertificateFilename, string KeyFilename)
 		{
 			// Load the certificate
 			string CertificatePassword = "";
 			X509Certificate2 Cert = new X509Certificate2(CertificateFilename, CertificatePassword, X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
 
 			// Make sure we have a useful friendly name
-			string FriendlyName = Cert.FriendlyName;
-			if ((FriendlyName == "") || (FriendlyName == null))
-			{
-				FriendlyName = GetCommonNameFromCert(Cert);
-			}
+			string FriendlyName = GetFriendlyNameFromCert(Cert);
 
 			// Create a PKCS#12 store with both the certificate and the private key in it
 			Pkcs12Store Store = new Pkcs12StoreBuilder().Build();
