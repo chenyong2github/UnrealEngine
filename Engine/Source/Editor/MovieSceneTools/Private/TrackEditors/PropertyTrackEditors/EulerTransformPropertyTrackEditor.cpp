@@ -124,8 +124,8 @@ bool FEulerTransformPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(U
 	FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, GetSequencer()->GetFocusedTickResolution()));
 	EvalTrack.Interrogate(Context, InterrogationData, Object);
 
-	FVector CurrentPos; FRotator CurrentRot;
-	FVector CurrentScale;
+	FVector CurrentPos(0.f); FRotator CurrentRot(0.f);
+	FVector CurrentScale(1.f);
 	for (const FEulerTransform& Transform : InterrogationData.Iterate<FEulerTransform>(FMovieScenePropertySectionTemplate::GetEulerTransformInterrogationKey()))
 	{
 		CurrentPos = Transform.Location;
