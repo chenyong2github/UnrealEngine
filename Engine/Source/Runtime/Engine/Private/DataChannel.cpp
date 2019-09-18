@@ -3849,11 +3849,6 @@ TSharedRef< FObjectReplicator > & UActorChannel::FindOrCreateReplicator( UObject
 	return *ReplicatorRefPtr;
 }
 
-TSharedRef< FObjectReplicator > & UActorChannel::FindOrCreateReplicator(const TWeakObjectPtr<UObject>& Obj)
-{
-	return FindOrCreateReplicator(Obj.Get(), static_cast<bool*>(nullptr));
-}
-
 bool UActorChannel::ObjectHasReplicator(const TWeakObjectPtr<UObject>& Obj) const
 {
 	const TSharedRef<FObjectReplicator>* ReplicatorRefPtr = ReplicationMap.Find(Obj.Get());

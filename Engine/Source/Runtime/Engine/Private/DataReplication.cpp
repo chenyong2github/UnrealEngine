@@ -51,7 +51,6 @@ static FAutoConsoleVariableRef CVarSupportsFastArrayDelta(
 
 extern TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters;
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FNetSerializeCB : public INetSerializeCB
 {
 private:
@@ -274,9 +273,7 @@ private:
 	FCachedRequestState CachedRequestState;
 	TSharedPtr<FReplicationChangelistMgr> ChangelistMgr;
 };
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FObjectReplicator::FObjectReplicator()
 	: bLastUpdateEmpty(false)
 	, bOpenAckCalled(false)
@@ -295,60 +292,6 @@ FObjectReplicator::~FObjectReplicator()
 {
 	CleanUp();
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-bool FObjectReplicator::SerializeCustomDeltaProperty(
-	UNetConnection* Connection,
-	void* Src,
-	UProperty* Property,
-	uint32 ArrayIndex,
-	FNetBitWriter& OutBunch,
-	TSharedPtr<INetDeltaBaseState>& NewFullState,
-	TSharedPtr<INetDeltaBaseState>& OldState)
-{
-	check( NewFullState.IsValid() == false ); // NewState is passed in as nullptr and instantiated within this function if necessary
-
-	CONDITIONAL_SCOPE_CYCLE_COUNTER( STAT_NetSerializeItemDeltaTime, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0 );
-
-	UStructProperty * StructProperty = CastChecked< UStructProperty >( Property );
-
-	//------------------------------------------------
-	//	Custom NetDeltaSerialization
-	//------------------------------------------------
-	if ( !ensure( ( StructProperty->Struct->StructFlags & STRUCT_NetDeltaSerializeNative ) != 0 ) )
-	{
-		return false;
-	}
-
-	FNetSerializeCB NetSerializeCB( Connection->Driver );
-
-	FNetDeltaSerializeInfo Parms;
-	Parms.Data = Property->ContainerPtrToValuePtr<void>(Src, ArrayIndex);
-	Parms.Object = reinterpret_cast<UObject*>(Src);
-	Parms.Connection = Connection;
-	Parms.bInternalAck = Connection->InternalAck;
-	Parms.Writer = &OutBunch;
-	Parms.Map = Connection->PackageMap;
-	Parms.OldState = OldState.Get();
-	Parms.NewState = &NewFullState;
-	Parms.NetSerializeCB = &NetSerializeCB;
-	Parms.bIsWritingOnClient = (Connection->Driver && Connection->Driver->GetWorld()) ? Connection->Driver->GetWorld()->IsRecordingClientReplay() : false;
-
-	UScriptStruct::ICppStructOps * CppStructOps = StructProperty->Struct->GetCppStructOps();
-
-	check(CppStructOps); // else should not have STRUCT_NetSerializeNative
-
-	Parms.Struct = StructProperty->Struct;
-
-	if ( Property->ArrayDim != 1 )
-	{
-		OutBunch.SerializeIntPacked( ArrayIndex );
-	}
-
-	return CppStructOps->NetDeltaSerialize(Parms, Parms.Data);
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool FObjectReplicator::SendCustomDeltaProperty(UObject* InObject, UProperty* Property, uint32 ArrayIndex, FNetBitWriter& OutBunch, TSharedPtr<INetDeltaBaseState>& NewFullState, TSharedPtr<INetDeltaBaseState>& OldState)
 {
@@ -1744,15 +1687,6 @@ void FObjectReplicator::FRPCPendingLocalCall::CountBytes(FArchive& Ar) const
 {
 	Buffer.CountBytes(Ar);
 	UnmappedGuids.CountBytes(Ar);
-}
-
-
-void FObjectReplicator::Serialize(FArchive& Ar)
-{
-	if (Ar.IsCountingMemory())
-	{
-		CountBytes(Ar);
-	}
 }
 
 void FObjectReplicator::CountBytes(FArchive& Ar) const
