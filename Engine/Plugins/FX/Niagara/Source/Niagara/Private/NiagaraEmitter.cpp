@@ -1015,14 +1015,6 @@ bool UNiagaraEmitter::SetUniqueEmitterName(const FString& InName)
 	return false;
 }
 
-
-FNiagaraVariable UNiagaraEmitter::ToEmitterParameter(const FNiagaraVariable& EmitterVar)const
-{
-	FNiagaraVariable Var = EmitterVar;
-	Var.SetName(*Var.GetName().ToString().Replace(TEXT("Emitter."), *(GetUniqueEmitterName() + TEXT("."))));
-	return Var;
-}
-
 void UNiagaraEmitter::AddRenderer(UNiagaraRendererProperties* Renderer)
 {
 	Modify();

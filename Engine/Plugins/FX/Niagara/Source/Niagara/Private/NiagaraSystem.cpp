@@ -383,6 +383,11 @@ void UNiagaraSystem::PostLoad()
 		UE_LOG(LogNiagara, Log, TEXT("System %s being compiled because there were changes to an emitter script Change ID."), *GetPathName());
 	}
 
+	if (EmitterCompiledData.Num() == 0)
+	{
+		InitEmitterCompiledData();
+	}
+
 #if 0
 	UE_LOG(LogNiagara, Log, TEXT("Before"));
 	for (FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
@@ -452,7 +457,7 @@ bool UNiagaraSystem::ReferencesInstanceEmitter(UNiagaraEmitter& Emitter)
 
 void UNiagaraSystem::RefreshSystemParametersFromEmitter(const FNiagaraEmitterHandle& EmitterHandle)
 {
-	InitEmitterSpawnAttributes();
+	InitEmitterCompiledData();
 	if (ensureMsgf(EmitterHandles.ContainsByPredicate([=](const FNiagaraEmitterHandle& OwnedEmitterHandle) { return OwnedEmitterHandle.GetId() == EmitterHandle.GetId(); }),
 		TEXT("Can't refresh parameters from an emitter handle this system doesn't own.")))
 	{
@@ -465,7 +470,7 @@ void UNiagaraSystem::RefreshSystemParametersFromEmitter(const FNiagaraEmitterHan
 
 void UNiagaraSystem::RemoveSystemParametersForEmitter(const FNiagaraEmitterHandle& EmitterHandle)
 {
-	InitEmitterSpawnAttributes();
+	InitEmitterCompiledData();
 	if (ensureMsgf(EmitterHandles.ContainsByPredicate([=](const FNiagaraEmitterHandle& OwnedEmitterHandle) { return OwnedEmitterHandle.GetId() == EmitterHandle.GetId(); }),
 		TEXT("Can't remove parameters for an emitter handle this system doesn't own.")))
 	{
@@ -631,7 +636,7 @@ void UNiagaraSystem::RemoveEmitterHandlesById(const TSet<FGuid>& HandlesToRemove
 	};
 	EmitterHandles.RemoveAll(RemovePredicate);
 
-	InitEmitterSpawnAttributes();
+	InitEmitterCompiledData();
 }
 #endif
 
@@ -793,7 +798,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 			}
 		}
 
-		InitEmitterSpawnAttributes();
+		InitEmitterCompiledData();
 
 		// Prepare rapid iteration parameters for execution.
 		TArray<UNiagaraScript*> Scripts;
@@ -902,6 +907,22 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 
 	return false;
 }
+
+#if WITH_EDITORONLY_DATA
+void UNiagaraSystem::InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& EmitterCompiledDataToInit, const UNiagaraEmitter& InAssociatedEmitter)
+{
+	EmitterCompiledDataToInit.EmitterSpawnIntervalVar.SetName(GetEmitterVariableAliasName(SYS_PARAM_EMITTER_SPAWN_INTERVAL, InAssociatedEmitter));
+	EmitterCompiledDataToInit.EmitterInterpSpawnStartDTVar.SetName(GetEmitterVariableAliasName(SYS_PARAM_EMITTER_INTERP_SPAWN_START_DT, InAssociatedEmitter));
+	EmitterCompiledDataToInit.EmitterAgeVar.SetName(GetEmitterVariableAliasName(SYS_PARAM_EMITTER_AGE, InAssociatedEmitter));
+	EmitterCompiledDataToInit.EmitterSpawnGroupVar.SetName(GetEmitterVariableAliasName(SYS_PARAM_EMITTER_SPAWN_GROUP, InAssociatedEmitter));
+	EmitterCompiledDataToInit.EmitterRandomSeedVar.SetName(GetEmitterVariableAliasName(SYS_PARAM_EMITTER_RANDOM_SEED, InAssociatedEmitter));
+}
+
+const FName UNiagaraSystem::GetEmitterVariableAliasName(const FNiagaraVariable& InEmitterVar, const UNiagaraEmitter& InEmitter) const
+{
+	return FName(*InEmitterVar.GetName().ToString().Replace(TEXT("Emitter."), *(InEmitter.GetUniqueEmitterName() + TEXT("."))));
+}
+#endif
 
 bool UNiagaraSystem::RequestCompile(bool bForce)
 {
@@ -1021,13 +1042,15 @@ bool UNiagaraSystem::RequestCompile(bool bForce)
 
 #endif
 
-void UNiagaraSystem::InitEmitterSpawnAttributes()
+#if WITH_EDITORONLY_DATA
+void UNiagaraSystem::InitEmitterCompiledData()
 {
-	EmitterSpawnAttributes.Empty();
-	EmitterSpawnAttributes.SetNum(EmitterHandles.Num());
-	FNiagaraTypeDefinition SpawnInfoDef = FNiagaraTypeDefinition(FNiagaraSpawnInfo::StaticStruct());
-	if (SystemSpawnScript->GetVMExecutableData().IsValid())
+	if (SystemSpawnScript->GetVMExecutableData().IsValid() && SystemUpdateScript->GetVMExecutableData().IsValid())
 	{
+		EmitterCompiledData.Empty();
+		EmitterCompiledData.SetNum(EmitterHandles.Num());
+		FNiagaraTypeDefinition SpawnInfoDef = FNiagaraTypeDefinition(FNiagaraSpawnInfo::StaticStruct());
+
 		for (FNiagaraVariable& Var : SystemSpawnScript->GetVMExecutableData().Attributes)
 		{
 			for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
@@ -1036,13 +1059,11 @@ void UNiagaraSystem::InitEmitterSpawnAttributes()
 				FString EmitterName = Emitter->GetUniqueEmitterName() + TEXT(".");
 				if (Var.GetType() == SpawnInfoDef && Var.GetName().ToString().StartsWith(EmitterName))
 				{
-					EmitterSpawnAttributes[EmitterIdx].SpawnAttributes.AddUnique(Var.GetName());
+					EmitterCompiledData[EmitterIdx].SpawnAttributes.AddUnique(Var.GetName());
 				}
 			}
 		}
-	}
-	if (SystemUpdateScript->GetVMExecutableData().IsValid())
-	{
+
 		for (FNiagaraVariable& Var : SystemUpdateScript->GetVMExecutableData().Attributes)
 		{
 			for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
@@ -1051,12 +1072,18 @@ void UNiagaraSystem::InitEmitterSpawnAttributes()
 				FString EmitterName = Emitter->GetUniqueEmitterName() + TEXT(".");
 				if (Var.GetType() == SpawnInfoDef && Var.GetName().ToString().StartsWith(EmitterName))
 				{
-					EmitterSpawnAttributes[EmitterIdx].SpawnAttributes.AddUnique(Var.GetName());
+					EmitterCompiledData[EmitterIdx].SpawnAttributes.AddUnique(Var.GetName());
 				}
 			}
 		}
+
+		for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
+		{
+			InitEmitterVariableAliasNames(EmitterCompiledData[EmitterIdx], *EmitterHandles[EmitterIdx].GetInstance());
+		}
 	}
 }
+#endif
 
 TStatId UNiagaraSystem::GetStatID(bool bGameThread, bool bConcurrent)const
 {
@@ -1095,4 +1122,13 @@ void UNiagaraSystem::GenerateStatID()
 	StatID_RT = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraSystems>(GetPathName() + TEXT("[RT]"));
 	StatID_RT_CNC = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraSystems>(GetPathName() + TEXT("[RT_CNC]"));
 #endif
+}
+
+FNiagaraEmitterCompiledData::FNiagaraEmitterCompiledData()
+{
+	EmitterSpawnIntervalVar = SYS_PARAM_EMITTER_SPAWN_INTERVAL;
+	EmitterInterpSpawnStartDTVar = SYS_PARAM_EMITTER_INTERP_SPAWN_START_DT;
+	EmitterAgeVar = SYS_PARAM_EMITTER_AGE;
+	EmitterSpawnGroupVar = SYS_PARAM_EMITTER_SPAWN_GROUP;
+	EmitterRandomSeedVar = SYS_PARAM_EMITTER_RANDOM_SEED;
 }
