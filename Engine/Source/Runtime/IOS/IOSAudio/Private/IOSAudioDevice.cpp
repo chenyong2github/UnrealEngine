@@ -116,6 +116,7 @@ FAudioPlatformSettings FIOSAudioDevice::GetPlatformSettings() const
 
 bool FIOSAudioDevice::InitializeHardware()
 {
+    UE_LOG(LogIOSAudio, Warning, TEXT("Initializing legacy audio backend for iOS"));
 	SIZE_T SampleSize = sizeof(AudioSampleType);
 	double GraphSampleRate = 44100.0;
 
