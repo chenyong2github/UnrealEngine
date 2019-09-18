@@ -1208,12 +1208,13 @@ void FSlateUser::UpdateTooltip(const FMenuStack& MenuStack, bool bCanSpawnNewToo
 			if (NewTooltipVisualizer)
 			{
 				ActiveTooltipInfo.TooltipVisualizer = NewTooltipVisualizer;
+				ActiveTooltipInfo.Tooltip = NewTooltip;
 			}
 			else if (bCanSpawnNewTooltip && NewTooltip)
 			{
 				ShowTooltip(NewTooltip.ToSharedRef(), DesiredLocation);
 				ActiveTooltipInfo.SourceWidget = WidgetProvidingNewTooltip;
-			}
+			}	
 		}
 	}
 
