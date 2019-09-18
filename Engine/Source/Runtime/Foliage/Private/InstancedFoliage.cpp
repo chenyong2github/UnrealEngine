@@ -2195,6 +2195,52 @@ void FFoliageInfo::RemoveBaseComponentOnInstances()
 	}
 }
 
+void FFoliageInfo::IncludeActor(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType, AActor* InActor)
+{
+	if (FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Implementation.Get()))
+	{
+		if (FoliageActor->FindIndex(InActor) == INDEX_NONE)
+		{
+			FFoliageInstance NewInstance;
+			NewInstance.BaseComponent = nullptr;
+			NewInstance.BaseId = FFoliageInstanceBaseCache::InvalidBaseId;
+
+			NewInstance.DrawScale3D = InActor->GetActorScale3D();
+			FTransform Transform = InActor->GetTransform();
+			NewInstance.Location = Transform.GetLocation();
+			NewInstance.Rotation = FRotator(Transform.GetRotation());
+			NewInstance.PreAlignRotation = NewInstance.Rotation;
+
+			int32 Index = Instances.Add(NewInstance);
+			InstanceHash->InsertInstance(NewInstance.Location, Index);
+			FoliageActor->PreAddInstances(IFA, FoliageType, 1);
+			FoliageActor->ActorInstances.Add(InActor);
+			InActor->Modify();
+			FFoliageHelper::SetIsOwnedByFoliage(InActor);
+		}
+	}
+}
+
+void FFoliageInfo::ExcludeActors()
+{
+	if (FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Implementation.Get()))
+	{
+		SelectedIndices.Empty();
+		Instances.Empty();
+		InstanceHash->Empty();
+		ComponentHash.Empty();
+		for (AActor* Actor : FoliageActor->ActorInstances)
+		{
+			if (Actor != nullptr)
+			{
+				Actor->Modify();
+				FFoliageHelper::SetIsOwnedByFoliage(Actor, false);
+			}
+		}
+		FoliageActor->ActorInstances.Empty();
+	}
+}
+
 TArray<int32> FFoliageInfo::GetInstancesOverlappingBox(const FBox& Box) const
 {
 	return InstanceHash->GetInstancesOverlappingBox(Box);
@@ -3418,6 +3464,7 @@ void AInstancedFoliageActor::Serialize(FArchive& Ar)
 
 #if WITH_EDITOR
 AInstancedFoliageActor::FOnSelectionChanged AInstancedFoliageActor::SelectionChanged;
+AInstancedFoliageActor::FOnInstanceCoundChanged AInstancedFoliageActor::InstanceCountChanged;
 
 void AInstancedFoliageActor::PostInitProperties()
 {
@@ -3915,6 +3962,10 @@ void AInstancedFoliageActor::OnLevelActorDeleted(AActor* InActor)
 						if(InstancesToRemove.Num() > 0)
 						{
 							Info.RemoveInstances(this, InstancesToRemove, false);
+							if (InstanceCountChanged.IsBound())
+							{
+								InstanceCountChanged.Broadcast(FoliageType);
+							}
 						}
 					}
 				}

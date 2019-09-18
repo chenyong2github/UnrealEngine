@@ -6,6 +6,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "FoliageType.h"
+#include "FoliageType_Actor.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "StaticMeshResources.h"
 #include "FoliageInstancedStaticMeshComponent.h"
@@ -30,6 +31,7 @@
 #include "Toolkits/ToolkitManager.h"
 #include "FoliageEditActions.h"
 #include "FoliageHelper.h"
+#include "ISceneOutliner.h"
 
 #include "AssetRegistryModule.h"
 #include "Misc/ScopeExit.h"
@@ -393,6 +395,7 @@ void FEdModeFoliage::Enter()
 	FWorldDelegates::LevelAddedToWorld.AddSP(this, &FEdModeFoliage::NotifyLevelAddedToWorld);
 	FWorldDelegates::LevelRemovedFromWorld.AddSP(this, &FEdModeFoliage::NotifyLevelRemovedFromWorld);
 	AInstancedFoliageActor::SelectionChanged.AddSP(this, &FEdModeFoliage::NotifyActorSelectionChanged);
+	AInstancedFoliageActor::InstanceCountChanged.AddSP(this, &FEdModeFoliage::OnInstanceCountUpdated);
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistryModule.Get().OnAssetRemoved().AddSP(this, &FEdModeFoliage::NotifyAssetRemoved);
@@ -496,6 +499,7 @@ void FEdModeFoliage::Exit()
 	FWorldDelegates::LevelAddedToWorld.RemoveAll(this);
 	FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
 	AInstancedFoliageActor::SelectionChanged.RemoveAll(this);
+	AInstancedFoliageActor::InstanceCountChanged.RemoveAll(this);
 
 	if (FModuleManager::Get().IsModuleLoaded(TEXT("AssetRegistry")))
 	{
@@ -1809,6 +1813,120 @@ void FEdModeFoliage::SelectInstancesForBrush(UWorld* InWorld, const UFoliageType
 
 		FoliageInfo->SelectInstances(IFA, bSelect, Instances);
 	}
+}
+
+void RefreshSceneOutliner()
+{
+	// SceneOutliner Refresh
+	TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
+	if (LevelEditor.IsValid())
+	{
+		TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
+		if (SceneOutlinerPtr)
+		{
+			SceneOutlinerPtr->FullRefresh();
+		}
+	}
+}
+
+void FEdModeFoliage::ExcludeFoliageActors(const TArray<const UFoliageType *>& FoliageTypes, bool bOnlyCurrentLevel)
+{
+	FScopedTransaction Transaction(LOCTEXT("ExcludeFoliageActors", "Exclude Actors from Foliage"));
+	TMap<TSubclassOf<AActor>, const UFoliageType_Actor*> ActorFoliageTypes;
+	for (const UFoliageType* FoliageType : FoliageTypes)
+	{
+		if (const UFoliageType_Actor* ActorFoliageType = Cast<UFoliageType_Actor>(FoliageType))
+		{
+			ActorFoliageTypes.Add(ActorFoliageType->ActorClass, ActorFoliageType);
+		}
+	}
+
+	// Go through all sub-levels
+	UWorld* World = GetWorld();
+	const int32 NumLevels = World->GetNumLevels();
+	for (int32 LevelIdx = 0; LevelIdx < NumLevels; ++LevelIdx)
+	{
+		ULevel* Level = World->GetLevel(LevelIdx);
+		if (!bOnlyCurrentLevel || Level == World->GetCurrentLevel())
+		{
+			AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level, false);
+			for (auto& Pair : ActorFoliageTypes)
+			{
+				if (TUniqueObj<FFoliageInfo>* FoliageInfoPtr = IFA->FoliageInfos.Find(Pair.Value))
+				{
+					IFA->Modify();
+					(*FoliageInfoPtr)->ExcludeActors();
+					OnInstanceCountUpdated(Pair.Value);
+				}
+			}
+		}
+	}
+
+	RefreshSceneOutliner();
+}
+
+void FEdModeFoliage::IncludeNonFoliageActors(const TArray<const UFoliageType*>& FoliageTypes, bool bOnlyCurrentLevel)
+{
+	FScopedTransaction Transaction(LOCTEXT("IncludeNonFoliageActors", "Include Actors into Foliage"));
+	TMap<const UClass*, const UFoliageType_Actor*> ActorFoliageTypes;
+	for (const UFoliageType* FoliageType : FoliageTypes)
+	{
+		if (const UFoliageType_Actor* ActorFoliageType = Cast<UFoliageType_Actor>(FoliageType))
+		{
+			ActorFoliageTypes.Add(ActorFoliageType->ActorClass.Get(), ActorFoliageType);
+		}
+	}
+
+	TSet<const UFoliageType*> UpdateFoliageTypes;
+
+	// Go through all sub-levels
+	UWorld* World = GetWorld();
+	const int32 NumLevels = World->GetNumLevels();
+	for (int32 LevelIdx = 0; LevelIdx < NumLevels; ++LevelIdx)
+	{
+		ULevel* Level = World->GetLevel(LevelIdx);
+		if (!bOnlyCurrentLevel || Level == World->GetCurrentLevel())
+		{
+			AInstancedFoliageActor* IFA = nullptr;
+
+			for (auto ActorIterator = Level->Actors.CreateIterator(); ActorIterator; ++ActorIterator)
+			{
+				AActor* CurrentActor = *ActorIterator;
+				if (CurrentActor)
+				{
+					if (const UFoliageType_Actor** FoliageTypePtr = ActorFoliageTypes.Find(CurrentActor->GetClass()))
+					{
+						if (const UFoliageType* FoliageType = *FoliageTypePtr)
+						{
+							if (IFA == nullptr)
+							{
+								IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level, true);
+							}
+
+							
+
+							FFoliageInfo* FoliageInfo;
+							IFA->Modify();
+							IFA->AddFoliageType(FoliageType, &FoliageInfo);
+							if (FoliageInfo)
+							{
+
+								FoliageInfo->IncludeActor(IFA, FoliageType, CurrentActor);
+								UpdateFoliageTypes.Add(FoliageType);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for (const UFoliageType* FoliageType : UpdateFoliageTypes)
+	{
+		OnInstanceCountUpdated(FoliageType);
+	}
+
+	RefreshSceneOutliner();
 }
 
 void FEdModeFoliage::SelectInstances(const TArray<const UFoliageType *>& FoliageTypes, bool bSelect)
