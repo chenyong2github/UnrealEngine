@@ -623,6 +623,9 @@ namespace FNiagaraUtilities
 	 */
 	void NIAGARA_API PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, FString>& ScriptToEmitterNameMap);
 #endif
+
+	void NIAGARA_API DumpHLSLText(const FString& SourceCode, const FString& DebugName);
+
 };
 
 USTRUCT()
