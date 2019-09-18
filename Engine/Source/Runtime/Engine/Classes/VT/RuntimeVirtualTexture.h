@@ -41,14 +41,22 @@ protected:
 	bool bPrivateSpace = true;
 
 	/** Size of virtual texture along the largest axis. (Actual values increase in powers of 2) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Size, meta = (UIMin = "0", UIMax = "8", DisplayName = "Size of the virtual texture"))
-	int32 Size = 6; // 65536
+	UPROPERTY()
+	int32 Size_DEPRECATED = -1;
+
+	/** 
+	 * Size of virtual texture in tiles. (Actual values increase in powers of 2).
+	 * This replaces the deprecated Size property.
+	 * This is applied to the largest axis in world space and the size for any shorter axis is chosen to maintain aspect ratio.  
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Size, meta = (UIMin = "0", UIMax = "12", DisplayName = "Size of the virtual texture in tiles"))
+	int32 TileCount = 8; // 256
 
 	/** Page tile size. (Actual values increase in powers of 2) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Size, meta = (UIMin = "0", UIMax = "4", DisplayName = "Size of each virtual texture tile"))
 	int32 TileSize = 2; // 256
 
-	/** Page tile border size divided by 2 (Actual values increase in multiples of 2). */
+	/** Page tile border size divided by 2 (Actual values increase in multiples of 2). Higher values trigger a higher anisotropic sampling level. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Size, meta = (UIMin = "0", UIMax = "4", DisplayName = "Border padding for each virtual texture tile"))
 	int32 TileBorderSize = 2; // 4
 
@@ -72,7 +80,9 @@ public:
 	ERuntimeVirtualTextureMaterialType GetMaterialType() const { return MaterialType; }
 
 	/** Public getter for virtual texture size */
-	int32 GetSize() const { return 1 << FMath::Clamp(Size + 10, 10, 18); }
+	int32 GetSize() const { return GetTileCount() * GetTileSize(); }
+	/** Public getter for virtual texture tile count */
+	int32 GetTileCount() const { return 1 << FMath::Clamp(TileCount, 0, 12); }
 	/** Public getter for virtual texture tile size */
 	int32 GetTileSize() const { return 1 << FMath::Clamp(TileSize + 6, 6, 10); }
 	/** Public getter for virtual texture tile border size */
@@ -136,6 +146,7 @@ protected:
 	//~ Begin UObject Interface.
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif

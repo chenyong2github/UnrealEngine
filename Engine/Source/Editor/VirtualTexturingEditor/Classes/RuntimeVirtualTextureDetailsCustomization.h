@@ -26,10 +26,11 @@ protected:
 private:
 	class URuntimeVirtualTexture* VirtualTexture;
 
-	TSharedPtr<class STextBlock> SizeText;
+	TSharedPtr<class STextBlock> TileCountText;
 	TSharedPtr<class STextBlock> TileSizeText;
 	TSharedPtr<class STextBlock> TileBorderSizeText;
 
+	TSharedPtr<class STextBlock> SizeText;
 	TSharedPtr<class STextBlock> PageTableTextureMemoryText;
 	TSharedPtr<class STextBlock> PhysicalTextureMemoryText;
 };
