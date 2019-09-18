@@ -159,8 +159,13 @@ uint32 UNiagaraMeshRendererProperties::GetNumIndicesPerInstance() const
 void UNiagaraMeshRendererProperties::PostLoad()
 {
 	Super::PostLoad();
+#if WITH_EDITOR
+	if (GIsEditor && (ParticleMesh != nullptr))
+	{
+		ParticleMesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
+	}
+#endif
 }
-
 
 #if WITH_EDITORONLY_DATA
 bool UNiagaraMeshRendererProperties::IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage)
@@ -213,9 +218,60 @@ const TArray<FNiagaraVariable>& UNiagaraMeshRendererProperties::GetOptionalAttri
 	return Attrs;
 }
 
+void UNiagaraMeshRendererProperties::BeginDestroy()
+{
+	Super::BeginDestroy();
+#if WITH_EDITOR
+	if (GIsEditor && (ParticleMesh != nullptr))
+	{
+		ParticleMesh->GetOnMeshChanged().RemoveAll(this);
+	}
+#endif
+}
+
+void UNiagaraMeshRendererProperties::PreEditChange(class UProperty* PropertyThatWillChange)
+{
+	Super::PreEditChange(PropertyThatWillChange);
+
+	static FName ParticleMeshName(TEXT("ParticleMesh"));
+	if ( PropertyThatWillChange->GetFName() == FName(ParticleMeshName))
+	{
+		if (ParticleMesh != nullptr)
+		{
+			ParticleMesh->GetOnMeshChanged().RemoveAll(this);
+		}
+	}
+}
+
 void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (ParticleMesh && PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetName() == "ParticleMesh")
+	static FName ParticleMeshName(TEXT("ParticleMesh"));
+	if (ParticleMesh && PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == ParticleMeshName)
+	{
+		// We only need to check material usage as we will invalidate any renderers later on
+		CheckMaterialUsage();
+		ParticleMesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UNiagaraMeshRendererProperties::OnMeshChanged()
+{
+	FNiagaraSystemUpdateContext ReregisterContext;
+
+	UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(GetOuter());
+	if (Emitter != nullptr)
+	{
+		ReregisterContext.Add(Emitter, true);
+	}
+
+	CheckMaterialUsage();
+}
+
+void UNiagaraMeshRendererProperties::CheckMaterialUsage()
+{
+	if ( ParticleMesh != nullptr )
 	{
 		const FStaticMeshLODResources& LODModel = ParticleMesh->RenderData->LODResources[0];
 		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
