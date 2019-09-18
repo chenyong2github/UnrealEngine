@@ -258,6 +258,23 @@ uint32 UFactory::GetMenuCategories() const
 	return EAssetTypeCategories::Misc;
 }
 
+const TArray<FText>& UFactory::GetMenuCategorySubMenus() const
+{
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	UClass* LocalSupportedClass = GetSupportedClass();
+
+	if (LocalSupportedClass)
+	{
+		TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(LocalSupportedClass);
+		if (AssetTypeActions.IsValid())
+		{
+			return AssetTypeActions.Pin()->GetSubMenus();
+		}
+	}
+
+	const static TArray<FText> DefaultSubCategories;
+	return DefaultSubCategories;
+}
 
 FText UFactory::GetToolTip() const
 {

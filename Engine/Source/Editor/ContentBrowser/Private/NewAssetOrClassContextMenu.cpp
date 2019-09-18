@@ -26,15 +26,29 @@
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
-struct FFactoryItem
-{
-	UFactory* Factory;
-	FText DisplayName;
 
-	FFactoryItem(UFactory* InFactory, const FText& InDisplayName)
-		: Factory(InFactory), DisplayName(InDisplayName)
-	{}
-};
+void FCategorySubMenuItem::SortSubMenus(FCategorySubMenuItem* SubMenu)
+{
+	if (!SubMenu)
+	{
+		SubMenu = this;
+	}
+
+	// Sort the factories by display name
+	SubMenu->Factories.Sort([](const FFactoryItem& A, const FFactoryItem& B) -> bool
+	{
+		return A.DisplayName.CompareToCaseIgnored(B.DisplayName) < 0;
+	});
+
+	for (TPair<FString, TSharedPtr<FCategorySubMenuItem>>& Pair : SubMenu->Children)
+	{
+		if (Pair.Value.IsValid())
+		{
+			FCategorySubMenuItem* MenuData = Pair.Value.Get();
+			SortSubMenus(MenuData);
+		}
+	}
+}
 
 TArray<FFactoryItem> FindFactoriesInCategory(EAssetTypeCategories::Type AssetTypeCategory)
 {
@@ -389,30 +403,88 @@ void FNewAssetOrClassContextMenu::CreateNewAssetMenuCategory(FMenuBuilder& MenuB
 {
 	// Find UFactory classes that can create new objects in this category.
 	TArray<FFactoryItem> FactoriesInThisCategory = FindFactoriesInCategory(AssetTypeCategory);
-
-	// Sort the list
-	struct FCompareFactoryDisplayNames
+	if (FactoriesInThisCategory.Num() == 0)
 	{
-		FORCEINLINE bool operator()( const FFactoryItem& A, const FFactoryItem& B ) const
+		return;
+	}
+
+	TSharedPtr<FCategorySubMenuItem> ParentMenuData = MakeShareable(new FCategorySubMenuItem);
+	for (FFactoryItem& Item : FactoriesInThisCategory)
+	{
+		FCategorySubMenuItem* SubMenu = ParentMenuData.Get();
+		const TArray<FText>& CategoryNames = Item.Factory->GetMenuCategorySubMenus();
+		for (FText CategoryName : CategoryNames)
 		{
-			return A.DisplayName.CompareToCaseIgnored(B.DisplayName) < 0;
+			const FString SourceString = CategoryName.BuildSourceString();
+			if (TSharedPtr<FCategorySubMenuItem> SubMenuData = SubMenu->Children.FindRef(SourceString))
+			{
+				check(SubMenuData.IsValid());
+				SubMenu = SubMenuData.Get();
+			}
+			else
+			{
+				TSharedPtr<FCategorySubMenuItem> NewSubMenu = MakeShared<FCategorySubMenuItem>();
+				NewSubMenu->Name = CategoryName;
+				SubMenu->Children.Add(SourceString, NewSubMenu);
+				SubMenu = NewSubMenu.Get();
+			}
 		}
-	};
-	FactoriesInThisCategory.Sort( FCompareFactoryDisplayNames() );
+		SubMenu->Factories.Add(Item);
+	}
+	ParentMenuData->SortSubMenus();
+	CreateNewAssetMenus(MenuBuilder, ParentMenuData, InPath, InOnNewAssetRequested, InCanExecuteAction);
+}
 
-	// Add menu entries for each one
-	for ( auto FactoryIt = FactoriesInThisCategory.CreateConstIterator(); FactoryIt; ++FactoryIt )
+void FNewAssetOrClassContextMenu::CreateNewAssetMenus(FMenuBuilder& MenuBuilder, TSharedPtr<FCategorySubMenuItem> SubMenuData, FString InPath, FOnNewAssetRequested InOnNewAssetRequested, FCanExecuteAction InCanExecuteAction)
+{
+	for (const FFactoryItem& FactoryItem : SubMenuData->Factories)
 	{
-		UFactory* Factory = (*FactoryIt).Factory;
-		TWeakObjectPtr<UClass> WeakFactoryClass = Factory->GetClass();
+		TWeakObjectPtr<UClass> WeakFactoryClass = FactoryItem.Factory->GetClass();
 
 		MenuBuilder.AddMenuEntry(
 			FUIAction(
-				FExecuteAction::CreateStatic( &FNewAssetOrClassContextMenu::ExecuteNewAsset, InPath, WeakFactoryClass, InOnNewAssetRequested ),
+				FExecuteAction::CreateStatic(&FNewAssetOrClassContextMenu::ExecuteNewAsset, InPath, WeakFactoryClass, InOnNewAssetRequested),
 				InCanExecuteAction
-				),
-			SNew( SFactoryMenuEntry, Factory )
-			);
+			),
+			SNew(SFactoryMenuEntry, FactoryItem.Factory)
+		);
+	}
+
+	if (SubMenuData->Children.Num() == 0)
+	{
+		return;
+	}
+
+	MenuBuilder.AddMenuSeparator();
+
+	TArray<TSharedPtr<FCategorySubMenuItem>> SortedMenus;
+	SubMenuData->Children.GenerateValueArray(SortedMenus);
+	SortedMenus.Sort([](const TSharedPtr<FCategorySubMenuItem>& A, const TSharedPtr<FCategorySubMenuItem>& B) -> bool
+	{
+		return A->Name.CompareToCaseIgnored(B->Name) < 0;
+	});
+
+	for (TSharedPtr<FCategorySubMenuItem>& ChildMenuData : SortedMenus)
+	{
+		check(ChildMenuData.IsValid());
+
+		MenuBuilder.AddSubMenu(
+			ChildMenuData->Name,
+			FText::GetEmpty(),
+			FNewMenuDelegate::CreateStatic(
+				&FNewAssetOrClassContextMenu::CreateNewAssetMenus,
+				ChildMenuData,
+				InPath,
+				InOnNewAssetRequested,
+				InCanExecuteAction
+			),
+			FUIAction(
+				FExecuteAction(),
+				InCanExecuteAction
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
 	}
 }
 

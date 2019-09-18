@@ -124,6 +124,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return TPT_None;
 	}
 
+	virtual const TArray<FText>& GetSubMenus() const override
+	{
+		static const TArray<FText> SubMenus;
+		return SubMenus;
+	}
 
 	virtual TSharedPtr<class SWidget> GetThumbnailOverlay(const FAssetData& AssetData) const override
 	{
