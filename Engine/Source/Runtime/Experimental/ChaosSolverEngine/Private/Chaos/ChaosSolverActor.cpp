@@ -337,7 +337,7 @@ void AChaosSolverActor::BeginPlay()
 #endif  // #if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 }
 
-void AChaosSolverActor::EndPlay(EEndPlayReason::Type ReasonEnd)
+void AChaosSolverActor::EndPlay(const EEndPlayReason::Type ReasonEnd)
 {
 #if INCLUDE_CHAOS
 	Chaos::IDispatcher* PhysDispatcher = PhysScene->GetDispatcher();
