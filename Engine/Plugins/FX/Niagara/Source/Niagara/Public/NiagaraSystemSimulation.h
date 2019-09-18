@@ -164,7 +164,10 @@ public:
 	/** Second phase of system sim tick that can run on any thread. */
 	void Tick_Concurrent(FNiagaraSystemSimulationTickContext& Context);
 
-	void WaitForTickComplete();
+	/** Wait for system simulation tick to complete.  If bEnsureComplete is true we will trigger an ensure if it is not complete. */
+	void WaitForSystemTickComplete(bool bEnsureComplete = false);
+	/** Wait for instances tick to complete.  If bEnsureComplete is true we will trigger an ensure if it is not complete. */
+	void WaitForInstancesTickComplete(bool bEnsureComplete = false);
 
 	/** Old tick for AB Testing.*/
 	bool Tick_Old(float DeltaSeconds);
@@ -298,4 +301,7 @@ protected:
 
 	/** Current tick batch we're filling ready for processing, potentially in an async task. */
 	FNiagaraSystemTickBatch TickBatch;
+
+	/** Current task that is executing */
+	FGraphEventRef SystemTickGraphEvent;
 };
