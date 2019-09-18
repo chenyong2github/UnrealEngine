@@ -269,32 +269,52 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 		//TODO: Move all layout data into the System!
 
 		//Initilize the main simulation dataset.
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 		DataSet.Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim, System->GetFullName());
+#else
+		DataSet.Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim);
+#endif
 		DataSet.AddVariables(System->GetSystemSpawnScript()->GetVMExecutableData().Attributes);
 		DataSet.AddVariables(System->GetSystemUpdateScript()->GetVMExecutableData().Attributes);
 		DataSet.Finalize();
 
 		//Initialize the data set for newly spawned systems.
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 		PendingSpawnDataSet.Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim, System->GetFullName());
+#else
+		PendingSpawnDataSet.Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim);
+#endif
 		PendingSpawnDataSet.AddVariables(System->GetSystemSpawnScript()->GetVMExecutableData().Attributes);
 		PendingSpawnDataSet.AddVariables(System->GetSystemUpdateScript()->GetVMExecutableData().Attributes);
 		PendingSpawnDataSet.Finalize();
 
 		//Initialize the dataset for paused systems.
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 		PausedInstanceData.Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim, System->GetFullName());
+#else
+		PausedInstanceData.Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim);
+#endif
 		PausedInstanceData.AddVariables(System->GetSystemSpawnScript()->GetVMExecutableData().Attributes);
 		PausedInstanceData.AddVariables(System->GetSystemUpdateScript()->GetVMExecutableData().Attributes);
 		PausedInstanceData.Finalize();
 
 		{
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 			SpawnInstanceParameterDataSet.Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim, System->GetFullName());
+#else
+			SpawnInstanceParameterDataSet.Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim);
+#endif
 			FNiagaraParameters* EngineParamsSpawn = System->GetSystemSpawnScript()->GetVMExecutableData().DataSetToParameters.Find(TEXT("Engine"));
 			if (EngineParamsSpawn != nullptr)
 			{
 				SpawnInstanceParameterDataSet.AddVariables(EngineParamsSpawn->Parameters);
 			}
 			SpawnInstanceParameterDataSet.Finalize();
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 			UpdateInstanceParameterDataSet.Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim, System->GetFullName());
+#else
+			UpdateInstanceParameterDataSet.Init(FNiagaraDataSetID(), ENiagaraSimTarget::CPUSim);
+#endif
 			FNiagaraParameters* EngineParamsUpdate = System->GetSystemUpdateScript()->GetVMExecutableData().DataSetToParameters.Find(TEXT("Engine"));
 			if (EngineParamsUpdate != nullptr)
 			{
