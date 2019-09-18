@@ -368,6 +368,8 @@ namespace WindowsMixedReality
 		bool CreateRenderingParameters();
 		bool CommitDepthBuffer(ID3D11Texture2D* depthTexture);
 
+		void SetFocusPointForFrame(DirectX::XMFLOAT3 position);
+
 		// Use double-width stereo texture for the viewport texture.
 		bool CopyResources(ID3D11DeviceContext* context, ID3D11Texture2D* viewportTexture);
 		bool Present();

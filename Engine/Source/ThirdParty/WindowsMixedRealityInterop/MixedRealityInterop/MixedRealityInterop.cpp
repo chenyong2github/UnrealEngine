@@ -255,6 +255,9 @@ namespace WindowsMixedReality
 	int gestureRecognizerIndex = 0;
 	SpatialInteractionManager GestureRecognizer::m_InteractionManager = nullptr;
 
+	DirectX::XMFLOAT3 LSRPosition;
+	bool bIsLSRSetThisFrame = false;
+
 #if !PLATFORM_HOLOLENS
 	HWND stereoWindowHandle;
 
@@ -275,6 +278,9 @@ namespace WindowsMixedReality
 	Microsoft::Holographic::DisconnectedEvent^ RemotingDisconnectedEvent = nullptr;
 #endif // HOLO_STREAMING_RENDERING
 #endif // !PLATFORM_HOLOLENS
+
+	// Forward references
+	winrt::Windows::Perception::Spatial::SpatialCoordinateSystem GetReferenceCoordinateSystem(HMDTrackingOrigin& trackingOrigin);
 
 	inline DirectX::XMFLOAT3 ToDirectXVec(float3 v)
 	{
@@ -523,6 +529,24 @@ namespace WindowsMixedReality
 		HolographicFrame Frame = nullptr;
 		HolographicCameraPose Pose = nullptr;
 
+		void SetFocusPoint(const DirectX::XMFLOAT3 pos)
+		{
+			if (RenderingParameters == nullptr)
+			{
+				return;
+			}
+
+			HMDTrackingOrigin trackingOrigin;
+			winrt::Windows::Perception::Spatial::SpatialCoordinateSystem cs = GetReferenceCoordinateSystem(trackingOrigin);
+
+			if (cs == nullptr)
+			{
+				return;
+			}
+
+			RenderingParameters.SetFocusPoint(cs, winrt::Windows::Foundation::Numerics::float3(pos.x, pos.y, pos.z));
+		}
+
 		bool CreateRenderingParameters(TrackingFrame* frame, bool& succeeded)
 		{
 			succeeded = true;
@@ -586,6 +610,12 @@ namespace WindowsMixedReality
 			if (BackBufferTexture == nullptr)
 			{
 				return false;
+			}
+
+			if (bIsLSRSetThisFrame)
+			{
+				SetFocusPoint(LSRPosition);
+				bIsLSRSetThisFrame = false;
 			}
 
 			return true;
@@ -1944,6 +1974,12 @@ namespace WindowsMixedReality
 		bool renderingParamsCreated = CameraResources->CommitDepthBuffer(currentFrame.get(), depthTexture, succeeded);
 
 		return succeeded;
+	}
+
+	void MixedRealityInterop::SetFocusPointForFrame(DirectX::XMFLOAT3 position)
+	{
+		LSRPosition = position;
+		bIsLSRSetThisFrame = true;
 	}
 
 	bool QuadLayerVectorContains(HolographicQuadLayer layer)

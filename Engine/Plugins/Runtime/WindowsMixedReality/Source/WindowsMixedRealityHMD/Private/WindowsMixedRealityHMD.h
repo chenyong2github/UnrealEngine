@@ -141,6 +141,8 @@ namespace WindowsMixedReality
 
 		void CreateHMDDepthTexture(FRHICommandListImmediate& RHICmdList);
 
+		void SetFocusPointForFrame(FVector Position);
+		void SetFocustPointForFrame_RenderThread(FVector TrackingSpacePosition);
 	public:
 #if WITH_WINDOWS_MIXED_REALITY
 		FWindowsMixedRealityHMD(const FAutoRegister&, IARSystemSupport* InARSystem, MixedRealityInterop* InHMD);

@@ -115,3 +115,75 @@ FPointerPoseInfo UWindowsMixedRealityFunctionLibrary::GetPointerPoseInfo(EContro
 
 	return info;
 }
+
+	
+// Commented out stabilization plane blueprint implementation.  
+// This change violates the rules for binary compatibility in engine hotfixes.
+//
+// Uncomment this block and move it to the bottom of WindowsMixedRealityFunctionLibrary.h
+//	/**
+//	 *  Set the focus point for the current frame to stabilize your holograms.
+//	 *  When run on device, the depth buffer with be used.  Use this for remoting.
+//	 */
+//	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
+//	static void SetFocusPointForFrame(FVector position);
+
+
+// Uncomment this block and leave it here.
+//void UWindowsMixedRealityFunctionLibrary::SetFocusPointForFrame(FVector position)
+//{
+//#if WITH_WINDOWS_MIXED_REALITY
+//	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
+//	if (hmd == nullptr)
+//	{
+//		return;
+//	}
+//
+//	hmd->SetFocusPointForFrame(position);
+//#endif
+//}
+
+// Temporary CVAR api for FocusPoint
+// The blueprint function to run a ConsoleCommand can be used to issue this each frame.
+// The command string would be something like:
+// vr.SetFocusPointForFrame 102.4 -850.3 21.7
+static void SetFocusPointForFrame(const TArray<FString>& Args, UWorld*, FOutputDevice& Ar)
+{
+	const int ArgsNum = Args.Num();
+	if (ArgsNum != 3)
+	{
+		Ar.Logf(ELogVerbosity::Error, TEXT("SetFocusPointForFrame command parameter expects 3 parameters not %i.  Ignoring command."), ArgsNum);
+	}
+
+	FVector Position;
+	for (int i = 0; i < 3; ++i)
+	{
+		if (!FCString::IsNumeric(*Args[i]))
+		{
+			Ar.Logf(ELogVerbosity::Error, TEXT("SetFocusPointForFrame command parameter %i, '%s' is not numeric.  Ignoring command."), i, *Args[i]);
+			return;
+		}
+		const float Value = FCString::Atof(*Args[i]);
+
+		check(i >= 0 && i <= 2);
+		Position[i] = Value;
+	}
+
+
+	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
+	if (hmd == nullptr)
+	{
+		Ar.Logf(ELogVerbosity::Error, TEXT("SetFocusPointForFrame command called but not WindowsMixedRealityHMD found.  Ignoring command."));
+		return;
+	}
+
+	//Ar.Logf(TEXT("WindowsMixedReality SetFocusPointForFrame setting to %0.2f,%0.2f,%0.2f."), Position.X, Position.Y, Position.Z);
+	hmd->SetFocusPointForFrame(Position);
+}
+
+#define LOCTEXT_NAMESPACE "WindowsMixedReality"
+static FAutoConsoleCommand CSetFocusPointForFrameCmd(
+	TEXT("vr.SetFocusPointForFrame"),
+	*LOCTEXT("CVarText_SetFocusPointForFrame",
+		"Set the reference point for the stabilization plane on hololens 2. You must set it each frame to activate the feature for that frame.").ToString(),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(SetFocusPointForFrame));
