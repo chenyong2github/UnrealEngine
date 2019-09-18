@@ -162,28 +162,6 @@ public:
 	void SetPlaybackRange(TRange<FFrameNumber> Range);
 	
 	/**
-	 * Set the playback range's end position to the current global time.
-	 *
-	 * @see GetPlaybackRange, SetPlaybackRange, SetPlaybackRangeStart
-	 */
-	void SetPlaybackRangeEnd()
-	{
-		TRange<FFrameNumber> PlayRange = GetPlaybackRange();
-		SetPlaybackRange(TRange<FFrameNumber>(PlayRange.GetLowerBound(), TRangeBound<FFrameNumber>::Exclusive(GetLocalTime().Time.FrameNumber)));
-	}
-
-	/**
-	 * Set the playback range's start position to the current global time.
-	 *
-	 * @see GetPlaybackRange, SetPlaybackRange, SetPlaybackRangeStart
-	 */
-	void SetPlaybackRangeStart()
-	{
-		TRange<FFrameNumber> PlayRange = GetPlaybackRange();
-		SetPlaybackRange(TRange<FFrameNumber>(TRangeBound<FFrameNumber>::Inclusive(GetLocalTime().Time.FrameNumber), PlayRange.GetUpperBound()));
-	}
-
-	/**
 	 * Set the selection range to the next or previous shot's range.
 	 *
 	 */	

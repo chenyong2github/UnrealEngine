@@ -10575,7 +10575,7 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetStartPlaybackRange,
-		FExecuteAction::CreateSP( this, &FSequencer::SetPlaybackRangeStart ),
+		FExecuteAction::CreateLambda([this] { SetPlaybackStart(); }),
 		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingMasterSequence ) );
 
 	SequencerCommandBindings->MapAction(
@@ -10596,7 +10596,7 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetEndPlaybackRange,
-		FExecuteAction::CreateSP( this, &FSequencer::SetPlaybackRangeEnd ),
+		FExecuteAction::CreateLambda([this] { SetPlaybackEnd(); }),
 		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingMasterSequence ) );
 
 	SequencerCommandBindings->MapAction(
