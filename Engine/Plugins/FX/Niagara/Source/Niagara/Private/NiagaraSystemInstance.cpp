@@ -992,7 +992,7 @@ void FNiagaraSystemInstance::BindParameters()
 		// If this simulation is not solo than we have bind the source system parameters to the system simulation contexts so that
 		// the system and emitter scripts use the default shared data interfaces.
 		GetSystem()->GetExposedParameters().Bind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
-		GetSystem()->GetExposedParameters().Bind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
+		GetSystem()->GetExposedParameters().Bind(&SystemSimulation->GetUpdateExecutionContext().Parameters);
 	}
 
 	for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
