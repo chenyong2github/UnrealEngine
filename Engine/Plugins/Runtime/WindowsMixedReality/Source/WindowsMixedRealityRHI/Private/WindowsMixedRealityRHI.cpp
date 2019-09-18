@@ -72,12 +72,16 @@ void FWindowsMixedRealityRHIModule::StartupModule()
 		ComPtr <ID3D11Device> D3DDevice;
 		ComPtr <ID3D11DeviceContext> D3DDeviceContext;
 		D3D_FEATURE_LEVEL OutFeatureLevel;
+		uint32 DeviceCreationFlags = D3D11_CREATE_DEVICE_SINGLETHREADED | D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+#if UE_BUILD_DEBUG
+		DeviceCreationFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif //UE_BUILD_DEBUG
 
 		if (FAILED(D3D11CreateDevice(
 			TempAdapter.Get(),
 			D3D_DRIVER_TYPE_UNKNOWN,
 			NULL,
-			D3D11_CREATE_DEVICE_SINGLETHREADED | D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+			DeviceCreationFlags,
 			RequestedFeatureLevels,
 			ARRAY_COUNT(RequestedFeatureLevels),
 			D3D11_SDK_VERSION,

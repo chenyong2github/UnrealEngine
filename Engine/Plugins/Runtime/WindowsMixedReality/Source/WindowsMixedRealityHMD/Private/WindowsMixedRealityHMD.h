@@ -127,7 +127,7 @@ namespace WindowsMixedReality
 			FSceneView& InView) override { }
 		virtual void PreRenderViewFamily_RenderThread(
 			FRHICommandListImmediate& RHICmdList,
-			FSceneViewFamily& InViewFamily) override;
+			FSceneViewFamily& InViewFamily) override { }
 		virtual bool IsActiveThisFrame(class FViewport* InViewport) const;
 
 		void CreateHMDDepthTexture(FRHICommandListImmediate& RHICmdList);
@@ -168,6 +168,8 @@ namespace WindowsMixedReality
 		ID3D11Texture2D* stereoDepthTexture = nullptr;
 		const float farPlaneDistance = 650.0f;
 
+		bool bNeedReallocateDepthTexture = false;
+		FTexture2DRHIRef CurrentDepthBuffer;
 		void InitTrackingFrame();
 		TRefCountPtr<FWindowsMixedRealityCustomPresent> mCustomPresent = nullptr;
 
@@ -232,6 +234,20 @@ namespace WindowsMixedReality
 			FTexture2DRHIRef& outTargetableTexture,
 			FTexture2DRHIRef& outShaderResourceTexture,
 			uint32 numSamples = 1) override;
+
+		virtual bool NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderTarget>& DepthTarget) override;
+
+		virtual bool AllocateDepthTexture(
+			uint32 Index,
+			uint32 SizeX,
+			uint32 SizeY,
+			uint8 Format,
+			uint32 NumMips,
+			uint32 InTexFlags,
+			uint32 TargetableTextureFlags,
+			FTexture2DRHIRef& OutTargetableTexture,
+			FTexture2DRHIRef& OutShaderResourceTexture,
+			uint32 NumSamples = 1) override;
 
 		virtual bool GetHMDDistortionEnabled(EShadingPath ShadingPath) const override
 		{
