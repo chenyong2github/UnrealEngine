@@ -1554,6 +1554,32 @@ FString FFbxExporter::FLevelSequenceNodeNameAdapter::GetActorNodeName(const AAct
 	return NodeName;
 }
 
+void FFbxExporter::FLevelSequenceNodeNameAdapter::AddFbxNode(UObject* InObject, FbxNode* FbxNode)
+{
+	FGuid ObjectGuid = MovieScenePlayer->FindObjectId(*InObject, SequenceID);
+	if (ObjectGuid.IsValid())
+	{
+		if (!GuidToFbxNodeMap.Contains(ObjectGuid))
+		{
+			GuidToFbxNodeMap.Add(ObjectGuid);
+		}
+		GuidToFbxNodeMap[ObjectGuid] = FbxNode;
+	}
+}
+
+FbxNode* FFbxExporter::FLevelSequenceNodeNameAdapter::GetFbxNode(UObject* InObject)
+{
+	FGuid ObjectGuid = MovieScenePlayer->FindObjectId(*InObject, SequenceID);
+	if (ObjectGuid.IsValid())
+	{
+		if (GuidToFbxNodeMap.Contains(ObjectGuid))
+		{
+			return GuidToFbxNodeMap[ObjectGuid];
+		}
+	}
+	return nullptr;
+}
+
 FFbxExporter::FLevelSequenceAnimTrackAdapter::FLevelSequenceAnimTrackAdapter( IMovieScenePlayer* InMovieScenePlayer, UMovieScene* InMovieScene, const FMovieSceneSequenceTransform& InRootToLocalTransform)
 {
 	MovieScenePlayer = InMovieScenePlayer;
@@ -1613,6 +1639,7 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 	const bool bSkip3DTransformTrack = SkeletalMeshComp && GetExportOptions()->MapSkeletalMotionToRoot;
 
 	// Look for the tracks that we currently support
+	bool bExportedAnimTrack = false; // Only export the anim track once since the evaluation is already blended
 	for (UMovieSceneTrack* Track : Tracks)
 	{
 		if (Track->IsA(UMovieScene3DTransformTrack::StaticClass()) && !bSkip3DTransformTrack)
@@ -1625,10 +1652,11 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 			UMovieScenePropertyTrack* PropertyTrack = (UMovieScenePropertyTrack*)Track;
 			ExportLevelSequencePropertyTrack(FbxActor, *PropertyTrack, MovieScene->GetPlaybackRange(), RootToLocalTransform);
 		}
-		else if (Track->IsA(UMovieSceneSkeletalAnimationTrack::StaticClass()))
+		else if (Track->IsA(UMovieSceneSkeletalAnimationTrack::StaticClass()) && !bExportedAnimTrack)
 		{
 			if (SkeletalMeshComp)
 			{
+				bExportedAnimTrack = true;
 				FLevelSequenceAnimTrackAdapter AnimTrackAdapter(MovieScenePlayer, MovieScene, RootToLocalTransform);
 				ExportAnimTrack(AnimTrackAdapter, Actor, SkeletalMeshComp, 1.0 / DisplayRate.AsDecimal());
 			}
@@ -1639,7 +1667,7 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 }
 
 
-bool FFbxExporter::ExportLevelSequence( UMovieScene* MovieScene, const TArray<FGuid>& Bindings, IMovieScenePlayer* MovieScenePlayer, FMovieSceneSequenceIDRef SequenceID, const FMovieSceneSequenceTransform& RootToLocalTransform)
+bool FFbxExporter::ExportLevelSequence( UMovieScene* MovieScene, const TArray<FGuid>& Bindings, IMovieScenePlayer* MovieScenePlayer, INodeNameAdapter& NodeNameAdapter, FMovieSceneSequenceIDRef SequenceID, const FMovieSceneSequenceTransform& RootToLocalTransform)
 {
 	if ( MovieScene == nullptr || MovieScenePlayer == nullptr )
 	{
@@ -1672,7 +1700,7 @@ bool FFbxExporter::ExportLevelSequence( UMovieScene* MovieScene, const TArray<FG
 					continue;
 				}
 
-				FbxNode* FbxActor = FindActor( Actor );
+				FbxNode* FbxActor = FindActor(Actor, &NodeNameAdapter);
 
 				// now it should export everybody
 				if ( FbxActor )
@@ -1702,7 +1730,7 @@ FbxNode* FFbxExporter::ExportActor(AActor* Actor, bool bExportComponents, INodeN
 {
 	// Verify that this actor isn't already exported, create a structure for it
 	// and buffer it.
-	FbxNode* ActorNode = FindActor(Actor);
+	FbxNode* ActorNode = FindActor(Actor, &NodeNameAdapter);
 	if (ActorNode == NULL)
 	{
 		FString FbxNodeName = NodeNameAdapter.GetActorNodeName(Actor);
@@ -1711,7 +1739,7 @@ FbxNode* FFbxExporter::ExportActor(AActor* Actor, bool bExportComponents, INodeN
 
 		AActor* ParentActor = Actor->GetAttachParentActor();
 		// this doesn't work with skeletalmeshcomponent
-		FbxNode* ParentNode = FindActor(ParentActor);
+		FbxNode* ParentNode = FindActor(ParentActor, &NodeNameAdapter);
 		FVector ActorLocation, ActorRotation, ActorScale;
 
 		// For cameras and lights: always add a rotation to get the correct coordinate system.
@@ -1766,6 +1794,7 @@ FbxNode* FFbxExporter::ExportActor(AActor* Actor, bool bExportComponents, INodeN
 
 		ParentNode->AddChild(ActorNode);
 		FbxActors.Add(Actor, ActorNode);
+		NodeNameAdapter.AddFbxNode(Actor, ActorNode);
 
 		// Set the default position of the actor on the transforms
 		// The transformation is different from FBX's Z-up: invert the Y-axis for translations and the Y/Z angle values in rotations.
@@ -1887,7 +1916,7 @@ FbxNode* FFbxExporter::ExportActor(AActor* Actor, bool bExportComponents, INodeN
 				}
 				else if (SkelMeshComp && SkelMeshComp->SkeletalMesh)
 				{
-					ExportSkeletalMeshComponent(SkelMeshComp, *SkelMeshComp->GetName(), ExportNode, bSaveAnimSeq);
+					ExportSkeletalMeshComponent(SkelMeshComp, *SkelMeshComp->GetName(), ExportNode, NodeNameAdapter, bSaveAnimSeq);
 				}
 				else if (Component->IsA(UCameraComponent::StaticClass()))
 				{
@@ -1905,6 +1934,7 @@ FbxNode* FFbxExporter::ExportActor(AActor* Actor, bool bExportComponents, INodeN
 				{
 					FbxNode* ChildActorNode = ExportActor(ChildActorComp->GetChildActor(), true, NodeNameAdapter, bSaveAnimSeq);
 					FbxActors.Add(ChildActorComp->GetChildActor(), ChildActorNode);
+					NodeNameAdapter.AddFbxNode(ChildActorComp->GetChildActor(), ChildActorNode);
 				}
 			}
 		}
@@ -2790,8 +2820,18 @@ void FFbxExporter::ExportLevelSequencePropertyTrack( FbxNode* FbxNode, UMovieSce
 /**
  * Finds the given actor in the already-exported list of structures
  */
-FbxNode* FFbxExporter::FindActor(AActor* Actor)
+FbxNode* FFbxExporter::FindActor(AActor* Actor, INodeNameAdapter* NodeNameAdapter)
 {
+	if (NodeNameAdapter)
+	{
+		FbxNode* ActorNode = NodeNameAdapter->GetFbxNode(Actor);
+
+		if (ActorNode)
+		{
+			return ActorNode;
+		}
+	}
+
 	if (FbxActors.Find(Actor))
 	{
 		return *FbxActors.Find(Actor);
@@ -2809,8 +2849,20 @@ FbxNode* FFbxExporter::CreateNode(const FString& NodeName)
 	return FbxNode;
 }
 
-bool FFbxExporter::FindSkeleton(const USkeletalMeshComponent* SkelComp, TArray<FbxNode*>& BoneNodes)
+bool FFbxExporter::FindSkeleton(USkeletalMeshComponent* SkelComp, TArray<FbxNode*>& BoneNodes, INodeNameAdapter* NodeNameAdapter)
 {
+	if (NodeNameAdapter)
+	{
+		FbxNode* SkelRoot = NodeNameAdapter->GetFbxNode(SkelComp);
+		if (SkelRoot)
+		{
+			BoneNodes.Empty();
+			GetSkeleton(SkelRoot, BoneNodes);
+
+			return true;
+		}
+	}
+
 	FbxNode** SkelRoot = FbxSkeletonRoots.Find(SkelComp);
 
 	if (SkelRoot)

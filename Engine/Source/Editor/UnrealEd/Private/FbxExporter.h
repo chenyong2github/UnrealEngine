@@ -134,7 +134,7 @@ public:
 	 *
 	 * @return	true, if successful
 	 */
-	bool ExportLevelSequence(UMovieScene* MovieScene, const TArray<FGuid>& InBindings, IMovieScenePlayer* MovieScenePlayer, FMovieSceneSequenceIDRef SequenceID, const FMovieSceneSequenceTransform& RootToLocalTransform);
+	bool ExportLevelSequence(UMovieScene* MovieScene, const TArray<FGuid>& InBindings, IMovieScenePlayer* MovieScenePlayer, INodeNameAdapter& NodeNameAdapter, FMovieSceneSequenceIDRef SequenceID, const FMovieSceneSequenceTransform& RootToLocalTransform);
 
 	/**
 	 * Exports the given level sequence track information into a FBX document.
@@ -219,10 +219,13 @@ public:
 	public:
 		FLevelSequenceNodeNameAdapter( UMovieScene* InMovieScene, IMovieScenePlayer* InMovieScenePlayer, FMovieSceneSequenceIDRef InSequenceID);
 		virtual FString GetActorNodeName(const AActor* InActor) override;
+		virtual void AddFbxNode(UObject* InObject, FbxNode* InFbxNode) override;
+		virtual FbxNode* GetFbxNode(UObject* InObject) override;
 	private:
 		UMovieScene* MovieScene;
 		IMovieScenePlayer* MovieScenePlayer;
 		FMovieSceneSequenceID SequenceID;
+		TMap<FGuid, FbxNode*> GuidToFbxNodeMap;
 	};
 
 	/* Get a valid unique name from a name */
@@ -399,7 +402,7 @@ private:
 	FbxNode* ExportSkeletalMeshToFbx(const USkeletalMesh* SkelMesh, const UAnimSequence* AnimSeq, const TCHAR* MeshName, FbxNode* ActorRootNode);
 
 	/** Export SkeletalMeshComponent */
-	void ExportSkeletalMeshComponent(USkeletalMeshComponent* SkelMeshComp, const TCHAR* MeshName, FbxNode* ActorRootNode, bool bSaveAnimSeq = true);
+	void ExportSkeletalMeshComponent(USkeletalMeshComponent* SkelMeshComp, const TCHAR* MeshName, FbxNode* ActorRootNode, INodeNameAdapter& NodeNameAdapter, bool bSaveAnimSeq = true);
 
 	/** Initializing the AnimStack playrate from the AnimSequence */
 	bool SetupAnimStack(const UAnimSequence* AnimSeq);
@@ -476,7 +479,7 @@ private:
 	 * Finds the given actor in the already-exported list of structures
 	 * @return FbxNode* the FBX node created from the UE4 actor
 	 */
-	FbxNode* FindActor(AActor* Actor);
+	FbxNode* FindActor(AActor* Actor, INodeNameAdapter* NodeNameAdapter = nullptr);
 
 	/** Create fbx node with the given name */
 	FbxNode* CreateNode(const FString& NodeName);
@@ -484,7 +487,7 @@ private:
 	/**
 	 * Find bone array of FbxNOdes of the given skeletalmeshcomponent  
 	 */
-	bool FindSkeleton(const USkeletalMeshComponent* SkelComp, TArray<FbxNode*>& BoneNodes);
+	bool FindSkeleton(USkeletalMeshComponent* SkelComp, TArray<FbxNode*>& BoneNodes, INodeNameAdapter* NodeNameAdapter = nullptr);
 
 	/** recursively get skeleton */
 	void GetSkeleton(FbxNode* RootNode, TArray<FbxNode*>& BoneNodes);

@@ -2112,7 +2112,7 @@ bool MovieSceneToolHelpers::ExportFBX(UWorld* World, UMovieScene* MovieScene, IM
 		}
 	}
 
-	Exporter->ExportLevelSequence(MovieScene, Bindings, Player, Template, RootToLocalTransform);
+	Exporter->ExportLevelSequence(MovieScene, Bindings, Player, NodeNameAdapter, Template, RootToLocalTransform);
 
 	//Export all master tracks
 

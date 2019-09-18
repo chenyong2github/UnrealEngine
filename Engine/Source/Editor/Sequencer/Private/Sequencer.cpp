@@ -9716,38 +9716,74 @@ void FSequencer::ExportFBXInternal(const FString& ExportFilename, TArray<FGuid>&
 			FMovieSceneSequenceIDRef Template = GetFocusedTemplateID();
 			UnFbx::FFbxExporter::FLevelSequenceNodeNameAdapter NodeNameAdapter(MovieScene, this, Template);
 
-			bool bWasTransacted = false;
+			// Helper to make spawnables persist throughout the export process and then restore properly afterwards
+			struct FSpawnableRestoreState
 			{
-				FScopedTransaction ExportFBXTransaction(NSLOCTEXT("Sequencer", "ExportFBX", "Export FBX"));
-
-				// Temporarily spawn all spawnables so that they can be exported. This is undone after export below with UndoTransaction()
-				for (int32 SpawnableIndex = 0; SpawnableIndex < MovieScene->GetSpawnableCount(); ++SpawnableIndex)
+				FSpawnableRestoreState(FSequencer& InSequencer) :
+					bWasChanged(false)
 				{
-					FMovieSceneSpawnable& Spawnable = MovieScene->GetSpawnable(SpawnableIndex);
+					WeakMovieScene = InSequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
 
-					UMovieSceneSpawnTrack* SpawnTrack = MovieScene->FindTrack<UMovieSceneSpawnTrack>(Spawnable.GetGuid());
-
-					if (SpawnTrack)
+					for (int32 SpawnableIndex = 0; SpawnableIndex < WeakMovieScene->GetSpawnableCount(); ++SpawnableIndex)
 					{
-						bWasTransacted = true;
+						FMovieSceneSpawnable& Spawnable = WeakMovieScene->GetSpawnable(SpawnableIndex);
 
-						SpawnTrack->Modify();
-						UMovieSceneSpawnSection* SpawnSection = Cast<UMovieSceneSpawnSection>(SpawnTrack->CreateNewSection());
-						SpawnTrack->RemoveAllAnimationData();
-						SpawnSection->GetChannel().SetDefault(true);
-						SpawnTrack->AddSection(*SpawnSection);
+						UMovieSceneSpawnTrack* SpawnTrack = WeakMovieScene->FindTrack<UMovieSceneSpawnTrack>(Spawnable.GetGuid());
+
+						if (SpawnTrack)
+						{
+							bWasChanged = true;
+
+							// Spawnable could be in a subscene, so temporarily override it to persist throughout
+							SpawnOwnershipMap.Add(Spawnable.GetGuid(), Spawnable.GetSpawnOwnership());
+							Spawnable.SetSpawnOwnership(ESpawnOwnership::MasterSequence);
+
+							// Spawnable could have animated spawned state, so temporarily override it to spawn infinitely
+							UMovieSceneSpawnSection* SpawnSection = Cast<UMovieSceneSpawnSection>(SpawnTrack->CreateNewSection());
+							SpawnSection->Modify();
+							SpawnSection->GetChannel().Reset();
+							SpawnSection->GetChannel().SetDefault(true);
+						}
+					}
+
+					if (bWasChanged)
+					{
+						// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
+						InSequencer.SetLocalTimeDirectly(MovieScene::DiscreteInclusiveLower(InSequencer.GetTimeBounds()));
 					}
 				}
 
-				ForceEvaluate();
+				~FSpawnableRestoreState()
+				{
+					if (!bWasChanged || !WeakMovieScene.IsValid())
+					{
+						return;
+					}
+
+					// Restore spawnable owners
+					for (int32 SpawnableIndex = 0; SpawnableIndex < WeakMovieScene->GetSpawnableCount(); ++SpawnableIndex)
+					{
+						FMovieSceneSpawnable& Spawnable = WeakMovieScene->GetSpawnable(SpawnableIndex);
+						Spawnable.SetSpawnOwnership(SpawnOwnershipMap[Spawnable.GetGuid()]);
+					}
+
+					// Restore modified spawned sections
+					GEditor->UndoTransaction(false);
+				}
+
+				bool bWasChanged;
+				TMap<FGuid, ESpawnOwnership> SpawnOwnershipMap;
+				TWeakObjectPtr<UMovieScene> WeakMovieScene;
+			};
+
+			FScopedTransaction ExportFBXTransaction(NSLOCTEXT("Sequencer", "ExportFBX", "Export FBX"));
+
+			{
+				FSpawnableRestoreState SpawnableRestoreState(*this);
 
 				MovieSceneToolHelpers::ExportFBX(World, MovieScene, this, Bindings, NodeNameAdapter, Template, ExportFilename, RootToLocalTransform);
 			}
 
-			if (bWasTransacted)
-			{
-				GEditor->UndoTransaction(false);
-			}
 			ForceEvaluate();
 		}
 	}

@@ -14,14 +14,22 @@ class ACameraActor;
 class ALight;
 class UModel;
 class UStaticMeshComponent;
+class USkeletalMeshComponent;
+
+namespace fbxsdk
+{
+	class FbxNode;
+}
 
 /** Adapter interface which allows finding the corresponding actor node name to act on both sequencer and matinee data. */
 class INodeNameAdapter
 {
 public:
+	virtual ~INodeNameAdapter() {}
 	virtual FString GetActorNodeName(const AActor* InActor) { return InActor->GetName(); }
+	virtual void AddFbxNode(UObject* InObject, fbxsdk::FbxNode* InFbxNode) {}
+	virtual fbxsdk::FbxNode* GetFbxNode(UObject* InObject) { return nullptr; }
 };
-
 /**
  * Main Matinee Exporter class.
  * Except for CImporter, consider the other classes as private.
