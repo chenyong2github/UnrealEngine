@@ -76,7 +76,7 @@ struct FNiagaraParameterStoreBinding
 	}
 	
 	FORCEINLINE_DEBUGGABLE void Empty(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore);
-	FORCEINLINE_DEBUGGABLE void Initialize(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore);
+	FORCEINLINE_DEBUGGABLE bool Initialize(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore);
 	FORCEINLINE_DEBUGGABLE bool VerifyBinding(const FNiagaraParameterStore* DestStore, const FNiagaraParameterStore* SrcStore)const;
 	FORCEINLINE_DEBUGGABLE void Tick(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, bool bForce = false);
 	FORCEINLINE_DEBUGGABLE void Dump(const FNiagaraParameterStore* DestStore, const FNiagaraParameterStore* SrcStore)const;
@@ -84,7 +84,7 @@ struct FNiagaraParameterStoreBinding
 	//FORCEINLINE_DEBUGGABLE void Optimize();
 
 private:
-	void BindParameters(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore);
+	bool BindParameters(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore);
 };
 
 /** Base storage class for Niagara parameter values. */
@@ -571,45 +571,20 @@ FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Empty(FNiagaraParamet
 	UObjectBindings.Reset();
 }
 
-FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::BindParameters(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore)
-{
-	InterfaceBindings.Reset();
-	ParameterBindings.Reset();
-	UObjectBindings.Reset();
-	for (const TPair<FNiagaraVariable, int32>& ParamOffsetPair : DestStore->GetParameterOffsets())
-	{
-		const FNiagaraVariable& Parameter = ParamOffsetPair.Key;
-		int32 DestOffset = ParamOffsetPair.Value;
-		int32 SrcOffset = SrcStore->IndexOf(Parameter);
-
-		if (SrcOffset != INDEX_NONE && DestOffset != INDEX_NONE)
-		{
-			if (Parameter.IsDataInterface())
-			{
-				InterfaceBindings.Add(FInterfaceBinding(SrcOffset, DestOffset));
-			}
-			else if (Parameter.IsUObject())
-			{
-				UObjectBindings.Add(FUObjectBinding(SrcOffset, DestOffset));
-			}
-			else
-			{
-				ParameterBindings.Add(FParameterBinding(SrcOffset, DestOffset, Parameter.GetSizeInBytes()));
-			}
-		}
-	}
-
-	//Force an initial tick to prime our values in the destination store.
-	Tick(DestStore, SrcStore, true);
-}
-
-FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Initialize(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore)
+FORCEINLINE_DEBUGGABLE bool FNiagaraParameterStoreBinding::Initialize(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore)
 {
 	checkSlow(DestStore);
 	checkSlow(SrcStore);
-	DestStore->GetSourceParameterStores().AddUnique(SrcStore);
 
-	BindParameters(DestStore, SrcStore);
+	if (BindParameters(DestStore, SrcStore))
+	{
+		DestStore->GetSourceParameterStores().AddUnique(SrcStore);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 FORCEINLINE_DEBUGGABLE bool FNiagaraParameterStoreBinding::VerifyBinding(const FNiagaraParameterStore* DestStore, const FNiagaraParameterStore* SrcStore)const
