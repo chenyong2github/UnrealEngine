@@ -129,15 +129,6 @@ public:
 	/** Takes Data, and compares against shadow state to log differences */
 	bool ValidateAgainstState(const UObject* ObjectState);
 
-	UE_DEPRECATED(4.23, "This method will be removed in future versions. Please use SendCustomDeltaProperty instead.")
-	static bool SerializeCustomDeltaProperty(
-		UNetConnection* Connection,
-		void* Src, UProperty* Property,
-		uint32 ArrayIndex,
-		FNetBitWriter& OutBunch,
-		TSharedPtr<INetDeltaBaseState>& NewFullState,
-		TSharedPtr<INetDeltaBaseState> & OldState);
-
 	//~ Both of these should be private, IMO, but we'll leave them public for now for back compat
 	//~ in case anyone was using SerializeCustomDeltaProperty already.
 
@@ -158,9 +149,6 @@ public:
 
 	/** Packet was dropped */
 	void ReceivedNak(int32 NakPacketId);
-
-	UE_DEPRECATED(4.23, "Use CountBytes instead")
-	void Serialize(FArchive& Ar);
 
 	void CountBytes(FArchive& Ar) const;
 
