@@ -39,6 +39,7 @@ public:
 
 	/** FAnimNode_Base interface */
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
+	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
 
 	/** FAnimNode_SubInstance interface */
 	virtual FName GetDynamicLinkFunctionName() const override;

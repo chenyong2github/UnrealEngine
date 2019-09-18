@@ -942,7 +942,14 @@ void FAnimNode_StateMachine::SetState(const FAnimationBaseContext& Context, int3
 			StatePoseLinks[NewStateIndex].Initialize(InitContext);
 
 			// Also call cache bones if needed
-			ConditionallyCacheBonesForState(NewStateIndex, Context);
+			// Note dont call CacheBones here if we are in the process of whole-graph initialization as a 'never updated' counter
+			// will not perform its 'minimal update guard' duty and every call will end up getting though, performing duplicate work
+			// over Save/UseCachedPose boundaries etc.
+			// This is OK because CacheBones is actually called before updating the graph anyway after whole-graph initialization
+			if(Context.AnimInstanceProxy->GetCachedBonesCounter().HasEverBeenUpdated())
+			{
+				ConditionallyCacheBonesForState(NewStateIndex, Context);
+			}
 		}
 
 		if(CurrentState != INDEX_NONE && CurrentState < OnGraphStatesEntered.Num())

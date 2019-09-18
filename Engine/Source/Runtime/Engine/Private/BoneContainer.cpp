@@ -439,7 +439,9 @@ void FBoneContainer::RemapFromSkeleton(USkeleton const & SourceSkeleton)
 
 bool FBoneReference::Initialize(const FBoneContainer& RequiredBones)
 {
+#if WITH_EDITOR
 	BoneName = *BoneName.ToString().TrimStartAndEnd();
+#endif
 	BoneIndex = RequiredBones.GetPoseBoneIndexForBoneName(BoneName);
 
 	bUseSkeletonIndex = false;
@@ -467,7 +469,9 @@ bool FBoneReference::Initialize(const USkeleton* Skeleton)
 {
 	if (Skeleton && (BoneName != NAME_None))
 	{
+#if WITH_EDITOR
 		BoneName = *BoneName.ToString().TrimStartAndEnd();
+#endif
 		BoneIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneName);
 		bUseSkeletonIndex = true;
 	}

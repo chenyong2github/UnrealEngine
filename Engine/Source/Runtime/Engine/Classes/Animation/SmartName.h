@@ -142,6 +142,13 @@ struct ENGINE_API FSmartNameMapping
 		return CurveMetaDataMap.Find(CurveName);
 	}
 
+#if !WITH_EDITOR
+	const FCurveMetaData& GetCurveMetaData(SmartName::UID_Type CurveUID) const
+	{
+		return CurveMetaDataList[CurveUID];
+	}
+#endif
+
 	// Serialize this to the provided archive; required for TMap serialization
 	void Serialize(FArchive& Ar);
 
@@ -154,8 +161,14 @@ struct ENGINE_API FSmartNameMapping
 	SmartName::UID_Type GetMaxUID() const { return CurveNameList.Num() - 1; }
 
 private:
-	
-	TArray<FName> CurveNameList; // List of curve names, order gives UID
+	// List of curve names, indexed by UID
+	TArray<FName> CurveNameList;
+
+#if !WITH_EDITOR
+	// List of curve metadata, indexed by UID
+	TArray<FCurveMetaData> CurveMetaDataList;
+#endif
+
 	TMap<FName, FCurveMetaData> CurveMetaDataMap;
 };
 
@@ -165,7 +178,7 @@ struct ENGINE_API FSmartNameContainer
 	GENERATED_USTRUCT_BODY();
 
 	// Add a new smartname container with the provided name
-	void AddContainer(FName NewContainerName);
+	FSmartNameMapping* AddContainer(FName NewContainerName);
 
 	// Get a container by name	
 	const FSmartNameMapping* GetContainer(FName ContainerName) const;
