@@ -17,6 +17,7 @@ class FNiagaraCompileOptions;
 class FNiagaraCompileRequestDataBase;
 class INiagaraMergeManager;
 class INiagaraEditorOnlyDataUtilities;
+struct FNiagaraParameterStore;
 
 extern NIAGARA_API int32 GEnableVerboseNiagaraChangeIdLogging;
 
@@ -155,7 +156,15 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_DataInstance_Alive() { return DataInstance_Alive; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_BeginDefaults() { return Translator_BeginDefaults; }
 
+#if WITH_EDITORONLY_DATA
+	FORCEINLINE static const FNiagaraParameterStore& GetFixedSystemInstanceParameterStore() { return FixedSystemInstanceParameters; }
+#endif
 private:
+
+#if WITH_EDITORONLY_DATA
+	void InitFixedSystemInstanceParameterStore();
+#endif
+
 	FOnProcessQueue OnProcessQueue;
 
 #if WITH_EDITORONLY_DATA
@@ -251,5 +260,9 @@ private:
 	static FNiagaraVariable ScriptUsage;
 	static FNiagaraVariable DataInstance_Alive;
 	static FNiagaraVariable Translator_BeginDefaults;
+
+#if WITH_EDITORONLY_DATA
+	static FNiagaraParameterStore FixedSystemInstanceParameters;
+#endif
 };
 

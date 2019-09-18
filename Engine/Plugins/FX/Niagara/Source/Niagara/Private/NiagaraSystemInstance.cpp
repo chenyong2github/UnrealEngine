@@ -810,59 +810,10 @@ void FNiagaraSystemInstance::ReInitInternal()
 	Emitters.Reset();
 	InitEmitters();
 	
-	InstanceParameters.Reset();
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_POSITION, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_ROTATION, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_SCALE, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_VELOCITY, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_X_AXIS, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_Y_AXIS, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_Z_AXIS, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOCAL_TO_WORLD, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_WORLD_TO_LOCAL, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOCAL_TO_WORLD_TRANSPOSED, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_WORLD_TO_LOCAL_TRANSPOSED, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOCAL_TO_WORLD_NO_SCALE, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_WORLD_TO_LOCAL_NO_SCALE, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_DELTA_TIME, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_TIME, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_REAL_TIME, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_INV_DELTA_TIME, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_TIME_SINCE_RENDERED, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_EXECUTION_STATE, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOD_DISTANCE, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_AGE);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_TICK_COUNT);
-
-	// This is required for user default data interface's (like say static meshes) to be set up properly.
-	// Additionally, it must happen here for data to be properly found below.
-	const bool bOnlyAdd = false;
-	System->GetExposedParameters().CopyParametersTo(InstanceParameters, bOnlyAdd, FNiagaraParameterStore::EDataInterfaceCopyMethod::Reference);
-
-	TArray<FNiagaraVariable> NumParticleVars;
-	TArray<FNiagaraVariable> TotalSpawnedParticlesVars;
-	for (int32 i = 0; i < Emitters.Num(); i++)
-	{
-		TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation = Emitters[i];
-		FString EmitterName = Simulation->GetEmitterHandle().GetInstance()->GetUniqueEmitterName();
-		
-		{
-			FNiagaraVariable Var = SYS_PARAM_ENGINE_EMITTER_NUM_PARTICLES;
-			FString ParamName = Var.GetName().ToString().Replace(TEXT("Emitter"), *EmitterName);
-			Var.SetName(*ParamName);
-			InstanceParameters.AddParameter(Var, true, false);
-			NumParticleVars.Add(Var);
-		}
-		{
-			FNiagaraVariable Var = SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES;
-			FString ParamName = Var.GetName().ToString().Replace(TEXT("Emitter"), *EmitterName);
-			Var.SetName(*ParamName);
-			InstanceParameters.AddParameter(Var, true, false);
-			TotalSpawnedParticlesVars.Add(Var);
-		}
-	}
+	const FNiagaraSystemCompiledData& SystemCompiledData = System->GetSystemCompiledData();
+	InstanceParameters = FNiagaraParameterStore(SystemCompiledData.InstanceParamStore);
+	const TArray<FNiagaraVariable>& NumParticleVars = SystemCompiledData.NumParticleVars;
+	const TArray<FNiagaraVariable>& TotalSpawnedParticlesVars = SystemCompiledData.TotalSpawnedParticlesVars;
 
 	// Make sure all parameters are added before initializing the bindings, otherwise parameter store layout changes might invalidate the bindings.
 	OwnerPositionParam.Init(InstanceParameters, SYS_PARAM_ENGINE_POSITION);

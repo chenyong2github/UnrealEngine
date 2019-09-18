@@ -47,7 +47,20 @@ struct FNiagaraEmitterCompiledData
 	FNiagaraVariable EmitterRandomSeedVar;
 };
 
+USTRUCT()
+struct FNiagaraSystemCompiledData
+{
+	GENERATED_USTRUCT_BODY()
 
+	UPROPERTY()
+	TArray<FNiagaraVariable> NumParticleVars;
+
+	UPROPERTY()
+	TArray<FNiagaraVariable> TotalSpawnedParticlesVars;
+
+	UPROPERTY()
+	FNiagaraParameterStore InstanceParamStore;
+};
 
 USTRUCT()
 struct FEmitterCompiledScriptPair
@@ -209,6 +222,8 @@ public:
 
 	const TArray<FNiagaraEmitterCompiledData>& GetEmitterCompiledData()const {	return EmitterCompiledData;	};
 
+	const FNiagaraSystemCompiledData& GetSystemCompiledData() const { return SystemCompiledData; };
+
 	bool UsesCollection(const UNiagaraParameterCollection* Collection)const;
 #if WITH_EDITORONLY_DATA
 	bool UsesEmitter(const UNiagaraEmitter* Emitter) const;
@@ -253,6 +268,8 @@ private:
 
 	void InitEmitterCompiledData();
 
+	void InitSystemCompiledData();
+
 	/** Helper for filling in precomputed variable names per emitter. Converts an emitter paramter "Emitter.XXXX" into it's real parameter name. */
 	void InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& EmitterCompiledDataToInit, const UNiagaraEmitter& InAssociatedEmitter);
 
@@ -292,6 +309,10 @@ protected:
 	//** Post compile generated data used for initializing Emitter Instances during runtime. */
 	UPROPERTY()
 	TArray<FNiagaraEmitterCompiledData> EmitterCompiledData;
+
+	//** Post compile generated data used for initializing System Instances during runtime. */
+	UPROPERTY()
+	FNiagaraSystemCompiledData SystemCompiledData;
 
 	/** Variables exposed to the outside work for tweaking*/
 	UPROPERTY()
