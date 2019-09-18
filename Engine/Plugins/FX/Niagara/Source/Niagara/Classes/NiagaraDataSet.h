@@ -212,11 +212,7 @@ public:
 	~FNiagaraDataSet();
 	FNiagaraDataSet& operator=(const FNiagaraDataSet&) = delete;
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	void Init(FNiagaraDataSetID InID, ENiagaraSimTarget InSimTarget, const FString& InDebugName);
-#else
-	void Init(FNiagaraDataSetID InID, ENiagaraSimTarget InSimTarget);
-#endif
 
 	/** Resets current data but leaves variable/layout information etc intact. */
 	void ResetBuffers();
@@ -249,6 +245,7 @@ public:
 	FORCEINLINE int32& GetIDAcquireTag() { return IDAcquireTag; }
 	FORCEINLINE void SetIDAcquireTag(int32 InTag) { IDAcquireTag = InTag; }
 
+
 	FORCEINLINE TArray<FNiagaraVariable>& GetVariables() { return Variables; }
 	FORCEINLINE uint32 GetNumVariables()const { return Variables.Num(); }
 	FORCEINLINE bool HasVariable(const FNiagaraVariable& Var)const { return Variables.Contains(Var); }
@@ -257,7 +254,6 @@ public:
 
 	void AddVariable(FNiagaraVariable& Variable);
 	void AddVariables(const TArray<FNiagaraVariable>& Vars);
-
 	/** Finalize the addition of variables and other setup before this data set can be used. */
 	void Finalize();
 	const FNiagaraVariableLayoutInfo* GetVariableLayout(const FNiagaraVariable& Var)const;
@@ -357,9 +353,7 @@ private:
 	*/
 	TArray<FNiagaraDataBuffer*, TInlineAllocator<2>> Data;
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	FString DebugName;
-#endif
 };
 
 /**
