@@ -134,10 +134,13 @@ struct FFlushTree
 	}
 };
 
+/** Holds the maximum package summary size that can be set via ini files
+  * This is used for the initial precache and should be large enough to hold the actual Sum.TotalHeaderSize 
+  */
 struct FMaxPackageSummarySize
 {
-	int32 Value;
-	FMaxPackageSummarySize();
+	static int32 Value;
+	static void Init();
 };
 
 /**
@@ -207,8 +210,6 @@ class FAsyncLoadingThread : public FRunnable
 public:
 	/** [EDL] Async Packages that are ready for tick */
 	TArray<FAsyncPackage*> AsyncPackagesReadyForTick;
-	/* This is used for the initial precache and should be large enough to find the actual Sum.TotalHeaderSize */
-	const FMaxPackageSummarySize MaxPackageSummarySize;
 private:
 
 #if THREADSAFE_UOBJECTS
