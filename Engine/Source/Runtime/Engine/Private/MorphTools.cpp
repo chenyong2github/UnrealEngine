@@ -29,6 +29,7 @@ FMorphTargetDelta* UMorphTarget::GetMorphTargetDelta(int32 LODIndex, int32& OutN
 		return MorphModel.Vertices.GetData();
 	}
 
+	OutNumDeltas = 0;
 	return NULL;
 }
 
