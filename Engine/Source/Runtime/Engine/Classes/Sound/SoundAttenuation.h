@@ -335,7 +335,9 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	}
 
 	bool operator==(const FSoundAttenuationSettings& Other) const;
+#if WITH_EDITORONLY_DATA
 	void PostSerialize(const FArchive& Ar);
+#endif
 
 	virtual void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const override;
 	float GetFocusPriorityScale(const struct FGlobalFocusSettings& FocusSettings, float FocusFactor) const;
@@ -343,9 +345,7 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	float GetFocusDistanceScale(const struct FGlobalFocusSettings& FocusSettings, float FocusFactor) const;
 };
 
-UE_DEPRECATED(4.15, "FAttenuationSettings has been renamed FSoundAttenuationSettings")
-typedef FSoundAttenuationSettings FAttenuationSettings;
-
+#if WITH_EDITORONLY_DATA
 template<>
 struct TStructOpsTypeTraits<FSoundAttenuationSettings> : public TStructOpsTypeTraitsBase2<FSoundAttenuationSettings>
 {
@@ -354,6 +354,7 @@ struct TStructOpsTypeTraits<FSoundAttenuationSettings> : public TStructOpsTypeTr
 		WithPostSerialize = true,
 	};
 };
+#endif
 
 /** 
  * Defines how a sound changes volume with distance to the listener

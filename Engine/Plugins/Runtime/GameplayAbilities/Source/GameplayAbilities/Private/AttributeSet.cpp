@@ -205,6 +205,7 @@ bool FGameplayAttribute::IsGameplayAttributeDataProperty(const UProperty* Proper
 	return false;
 }
 
+#if WITH_EDITORONLY_DATA
 // Fill in missing attribute information
 void FGameplayAttribute::PostSerialize(const FArchive& Ar)
 {
@@ -230,6 +231,7 @@ void FGameplayAttribute::PostSerialize(const FArchive& Ar)
 		}
 	}
 }
+#endif
 
 void FGameplayAttribute::GetAllAttributeProperties(TArray<UProperty*>& OutProperties, FString FilterMetaStr, bool UseEditorOnlyData)
 {

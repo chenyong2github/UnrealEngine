@@ -259,7 +259,9 @@ public:
 public:
 
 	bool Serialize(FArchive& Ar);
+#if WITH_EDITORONLY_DATA
 	void PostSerialize(const FArchive& Ar);
+#endif
 	friend FArchive& operator<<(FArchive& Ar, FMovieSceneFloatChannel& Me)
 	{
 		Me.Serialize(Ar);
@@ -364,7 +366,9 @@ struct TStructOpsTypeTraits<FMovieSceneFloatChannel> : public TStructOpsTypeTrai
 	{ 
 		WithStructuredSerializeFromMismatchedTag = true, 
 	    WithSerializer = true,
+#if WITH_EDITORONLY_DATA
 		WithPostSerialize = true,
+#endif
     };
 };
 

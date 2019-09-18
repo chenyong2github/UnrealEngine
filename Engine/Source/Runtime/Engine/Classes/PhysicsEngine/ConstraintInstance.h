@@ -539,7 +539,9 @@ public:
 	void GetUsedMaterials(TArray<UMaterialInterface*>& Materials);
 
 	bool Serialize(FArchive& Ar);
+#if WITH_EDITORONLY_DATA
 	void PostSerialize(const FArchive& Ar);
+#endif
 
 	/** Turn on linear and angular projection */
 	void EnableProjection();
@@ -734,6 +736,8 @@ struct TStructOpsTypeTraits<FConstraintInstance> : public TStructOpsTypeTraitsBa
 	enum 
 	{
 		WithSerializer = true,
+#if WITH_EDITORONLY_DATA
 		WithPostSerialize = true
+#endif
 	};
 };
