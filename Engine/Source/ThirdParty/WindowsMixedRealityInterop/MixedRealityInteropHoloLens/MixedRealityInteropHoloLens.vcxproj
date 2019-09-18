@@ -130,7 +130,7 @@
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ProgramDataBaseFileName>$(SolutionDir)Lib\arm64\$(ProjectName).pdb</ProgramDataBaseFileName>
       <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
     </ClCompile>
@@ -154,7 +154,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
     </ClCompile>
@@ -178,7 +178,7 @@
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
     </ClCompile>
     <Link>
@@ -197,7 +197,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ProgramDataBaseFileName>$(SolutionDir)Lib\arm64\$(ProjectName)$(Configuration).pdb</ProgramDataBaseFileName>
       <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
