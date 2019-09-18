@@ -8430,7 +8430,7 @@ namespace FramePro
 		#include <winsock2.h>
 		#include <ws2tcpip.h>
 		#if FRAMEPRO_PLATFORM_UE4
-			#include "Windows//HideWindowsPlatformTypes.h"
+			#include "Windows/HideWindowsPlatformTypes.h"
 		#endif
 	#endif
 
