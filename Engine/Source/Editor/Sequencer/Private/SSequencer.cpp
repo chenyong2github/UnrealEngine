@@ -1618,8 +1618,8 @@ void SSequencer::FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder)
 				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnEnableAllLevelFilters, true)));
 
 			InMenuBarBuilder.AddMenuEntry(
-				LOCTEXT("DisableAllLevelFilters", "Disable All"),
-				LOCTEXT("DisableAllLevelFiltersToolTip", "Disable all level filters"),
+				LOCTEXT("ResetLevelFilters", "Reset Filters"),
+				LOCTEXT("ResetLevelFiltersToolTip", "Resets current level filter selection"),
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnEnableAllLevelFilters, false)));
 
