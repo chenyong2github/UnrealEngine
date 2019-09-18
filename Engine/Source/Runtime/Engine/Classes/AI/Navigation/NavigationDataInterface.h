@@ -29,4 +29,10 @@ public:
 	*	@return true if successful, false otherwise
 	*/
 	virtual bool ProjectPoint(const FVector& Point, FNavLocation& OutLocation, const FVector& Extent, FSharedConstNavQueryFilter Filter = nullptr, const UObject* Querier = nullptr) const PURE_VIRTUAL(INavigationDataInterface::ProjectPoint, return false;);
+
+	/** Determines whether the specified NavNodeRef is still valid
+	*   @param NodeRef the NavNodeRef to test for validity
+	*   @return true if valid, false otherwise
+	*/
+	virtual bool IsNodeRefValid(NavNodeRef NodeRef) const PURE_VIRTUAL(INavigationDataInterface::IsNodeRefValid, return true;);
 };
