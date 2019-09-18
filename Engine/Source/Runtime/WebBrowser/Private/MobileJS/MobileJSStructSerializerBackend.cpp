@@ -46,9 +46,8 @@ void FMobileJSStructSerializerBackend::WriteUObject(const FStructSerializerState
 FString FMobileJSStructSerializerBackend::ToString()
 {
 	ReturnBuffer.Add(0);
-	ReturnBuffer.Add(0);
-	auto CastObject = StringCast<TCHAR>((UCS2CHAR*)ReturnBuffer.GetData());
-	return FString(CastObject.Get(), CastObject.Length());
+	ReturnBuffer.Add(0); // Add two as we're dealing with UTF-16, so 2 bytes
+	return UTF16_TO_TCHAR((UTF16CHAR*)ReturnBuffer.GetData());
 }
 
 FMobileJSStructSerializerBackend::FMobileJSStructSerializerBackend(TSharedRef<class FMobileJSScripting> InScripting)
