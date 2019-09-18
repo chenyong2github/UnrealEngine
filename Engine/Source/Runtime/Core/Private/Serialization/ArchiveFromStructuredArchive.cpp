@@ -16,7 +16,7 @@ struct FArchiveFromStructuredArchiveImpl::FImpl
 
 	static constexpr int32 MaxBufferSize = 128;
 
-	bool bPendingSerialize = true;
+	bool bPendingSerialize = false;
 	bool bWasOpened        = false;
 
 	TArray<uint8> Buffer;
@@ -45,7 +45,7 @@ FArchiveFromStructuredArchiveImpl::FArchiveFromStructuredArchiveImpl(FStructured
 
 FArchiveFromStructuredArchiveImpl::~FArchiveFromStructuredArchiveImpl()
 {
-	Commit();
+	checkf(!Pimpl->bPendingSerialize, TEXT("Archive adapters must be closed before destruction"));
 }
 
 void FArchiveFromStructuredArchiveImpl::Flush()
@@ -153,29 +153,14 @@ FArchive& FArchiveFromStructuredArchiveImpl::operator<<(class UObject*& Value)
 			{
 				FStructuredArchive::FStream Stream = Pimpl->Root->EnterStream(SA_FIELD_NAME(TEXT("Objects")));
 
-				// We know exactly which stream index we want to load here, but because of the API we need to read through them
-				// in order, consuming the string name until we reach the entry we want and then load it as a uobject reference.
-				// If we are loading from a text archive, we could easily specify here which index we want, and the internal formatter
-				// can just push that single value by itself onto the value stack, but that same API couldn't be implemented for a
-				// binary archive as we can't skip over entries because we don't know how big they are. Maybe we could specify a stride
-				// or something, but at this point the API is complex and pretty formatter specific. Thought required!
-				// For now, just consume all the string names of the objects up until the one we need, then load that as an object
-				// pointer.
-
-				FString Dummy;
-				for (int32 Index = 0; Index < Pimpl->Objects.Num(); ++Index)
+				// Skip earlier elements
+				FString Str;
+				for (int32 Index = 0; Index < ObjectIdx; ++Index)
 				{
-					if (Index == ObjectIdx)
-					{
-						Stream.EnterElement() << Value;
-						Pimpl->Objects[ObjectIdx] = Value;
-					}
-					else
-					{
-						Stream.EnterElement() << Dummy;
-					}
+					Stream.EnterElement() << Str;
 				}
 
+				Stream.EnterElement() << Value;
 				Pimpl->Objects[ObjectIdx] = Value;
 				Pimpl->ObjectsValid[ObjectIdx] = true;
 			}
@@ -248,15 +233,17 @@ void FArchiveFromStructuredArchiveImpl::Commit()
 {
 	if (Pimpl->bWasOpened && InnerArchive.IsTextFormat())
 	{
-		SerializeInternal(Pimpl->Root.GetValue());
+		Finalize(Pimpl->Root.GetValue());
 	}
 }
 
-void FArchiveFromStructuredArchiveImpl::SerializeInternal(FStructuredArchive::FRecord Record)
+bool FArchiveFromStructuredArchiveImpl::Finalize(FStructuredArchive::FRecord Record)
 {
 	check(Pimpl->bWasOpened);
+	bool bShouldSerialize = Pimpl->bPendingSerialize;
+	Pimpl->bPendingSerialize = false;
 
-	if (Pimpl->bPendingSerialize)
+	if (bShouldSerialize)
 	{
 		FStructuredArchive::FSlot DataSlot = Record.EnterField(SA_FIELD_NAME(TEXT("Data")));
 		DataSlot.Serialize(Pimpl->Buffer);
@@ -291,9 +278,9 @@ void FArchiveFromStructuredArchiveImpl::SerializeInternal(FStructuredArchive::FR
 		{
 			NamesSlot.GetValue() << Pimpl->Names;
 		}
-
-		Pimpl->bPendingSerialize = false;
 	}
+
+	return bShouldSerialize;
 }
 
 void FArchiveFromStructuredArchiveImpl::OpenArchive()
@@ -304,11 +291,12 @@ void FArchiveFromStructuredArchiveImpl::OpenArchive()
 
 		if (InnerArchive.IsTextFormat())
 		{
+			Pimpl->bPendingSerialize = true;
 			Pimpl->Root = Pimpl->RootSlot.EnterRecord();
 
 			if (IsLoading())
 			{
-				SerializeInternal(Pimpl->Root.GetValue());
+				Finalize(Pimpl->Root.GetValue());
 			}
 		}
 		else

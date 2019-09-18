@@ -142,6 +142,7 @@ private:
 	FStructuredArchive* StructuredArchive;
 	FArchiveFormatterType* StructuredArchiveFormatter;
 	TOptional<FStructuredArchive::FRecord> StructuredArchiveRootRecord;
+	TArray<FStructuredArchiveChildReader*> ExportReaders;
 
 	/** The archive that actually reads the raw data from disk.																*/
 	FArchive*				Loader;
@@ -1203,6 +1204,9 @@ private:
 #if WITH_TEXT_ARCHIVE_SUPPORT
 	// Cache of the export names in a text asset. Allows us to enter those export slots by index rather than needing to reconstruct the name
 	TArray<FName> OriginalExportNames;
+
+	// Function to get a slot for a given export
+	FStructuredArchiveSlot GetExportSlot(FPackageIndex InExportIndex);
 #endif
 
 public:

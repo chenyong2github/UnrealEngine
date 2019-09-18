@@ -332,13 +332,13 @@ void FJsonArchiveOutputFormatter::Serialize(FName& Value)
 
 void FJsonArchiveOutputFormatter::Serialize(UObject*& Value)
 {
-	if (Value == nullptr)
+	if (Value != nullptr && IsObjectAllowed(Value))
 	{
-		WriteValue(TEXT("null"));
+		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value->GetFullName()));
 	}
 	else
 	{
-		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value->GetFullName()));
+		WriteValue(TEXT("null"));
 	}
 }
 
@@ -351,7 +351,7 @@ void FJsonArchiveOutputFormatter::Serialize(FText& Value)
 
 void FJsonArchiveOutputFormatter::Serialize(FWeakObjectPtr& Value)
 {
-	if (Value.IsValid())
+	if (Value.IsValid() && IsObjectAllowed(Value.Get()))
 	{
 		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value.Get()->GetFullName()));
 	}
@@ -381,7 +381,7 @@ void FJsonArchiveOutputFormatter::Serialize(FSoftObjectPath& Value)
 
 void FJsonArchiveOutputFormatter::Serialize(FLazyObjectPtr& Value)
 {
-	if (Value.IsValid())
+	if (Value.IsValid() && IsObjectAllowed(Value.Get()))
 	{
 		SerializeStringInternal(FString::Printf(TEXT("Lazy:%s"), *Value.GetUniqueID().ToString()));
 	}
@@ -586,6 +586,11 @@ void FJsonArchiveOutputFormatter::SerializeStringInternal(const FString& String)
 	Result += TEXT("\"");
 
 	WriteValue(Result);
+}
+
+bool FJsonArchiveOutputFormatter::IsObjectAllowed(UObject* InObject) const
+{
+	return ObjectIndicesMap == nullptr || ObjectIndicesMap->Contains(InObject);
 }
 
 #endif

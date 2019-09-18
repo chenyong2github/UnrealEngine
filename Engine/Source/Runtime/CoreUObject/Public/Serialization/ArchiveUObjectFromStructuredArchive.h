@@ -32,8 +32,6 @@ public:
 
 private:
 
-	bool bPendingSerialize;
-
 	TArray<FLazyObjectPtr> LazyObjectPtrs;
 	TArray<FWeakObjectPtr> WeakObjectPtrs;
 	TArray<FSoftObjectPtr> SoftObjectPtrs;
@@ -44,7 +42,7 @@ private:
 	TMap<FSoftObjectPtr, int32> SoftObjectPtrToIndex;
 	TMap<FSoftObjectPath, int32> SoftObjectPathToIndex;
 
-	virtual void SerializeInternal(FStructuredArchive::FRecord Record) override;
+	virtual bool Finalize(FStructuredArchive::FRecord Record) override;
 };
 
 class FArchiveUObjectFromStructuredArchive
@@ -57,6 +55,8 @@ public:
 
 	      FArchive& GetArchive()       { return Impl; }
 	const FArchive& GetArchive() const { return Impl; }
+
+	void Close() { Impl.Close(); }
 
 private:
 	FArchiveUObjectFromStructuredArchiveImpl Impl;

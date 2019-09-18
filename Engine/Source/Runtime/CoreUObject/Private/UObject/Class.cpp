@@ -2215,6 +2215,7 @@ void UScriptStruct::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, v
 				// The struct said that serialization succeeded but it didn't actually write anything.
 				Slot.EnterRecord();
 			}
+			Adapter.Close();
 #else
 			bItemSerialized = TheCppStructOps->Serialize(Slot.GetUnderlyingArchive(), Value);
 #endif

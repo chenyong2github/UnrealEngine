@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Serialization/StructuredArchiveFormatter.h"
+#include "UObject/ObjectResource.h"
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
@@ -75,8 +76,15 @@ public:
 	virtual void Serialize(TArray<uint8>& Value) override;
 	virtual void Serialize(void* Data, uint64 DataSize) override;
 
+	void SetObjectIndicesMap(const TMap<UObject*, FPackageIndex>* InObjectIndicesMap)
+	{
+		ObjectIndicesMap = InObjectIndicesMap;
+	}
+
 private:
 	FArchive& Inner;
+
+	const TMap<UObject*, FPackageIndex>* ObjectIndicesMap = nullptr;
 
 	TArray<ANSICHAR> Newline;
 	bool bNeedsComma   = false;
@@ -99,6 +107,8 @@ private:
 	void WriteOptionalAttributedBlockClosing();
 
 	void SerializeStringInternal(const FString& String);
+
+	bool IsObjectAllowed(UObject* InObject) const;
 };
 
 #endif

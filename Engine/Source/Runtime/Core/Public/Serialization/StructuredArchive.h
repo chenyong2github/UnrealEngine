@@ -668,7 +668,7 @@ public:
 	bool ContainsData() const;
 
 protected:
-	virtual void SerializeInternal(FStructuredArchiveRecord Record);
+	virtual bool Finalize(FStructuredArchiveRecord Record);
 	void OpenArchive();
 
 private:
@@ -689,6 +689,8 @@ public:
 	      FArchive& GetArchive()       { return Impl; }
 	const FArchive& GetArchive() const { return Impl; }
 
+	void Close() { Impl.Close(); }
+
 private:
 	FArchiveFromStructuredArchiveImpl Impl;
 };
@@ -705,6 +707,8 @@ public:
 
 	      FArchive& GetArchive()       { return Ar; }
 	const FArchive& GetArchive() const { return Ar; }
+
+	void Close() {}
 
 private:
 	FArchive& Ar;

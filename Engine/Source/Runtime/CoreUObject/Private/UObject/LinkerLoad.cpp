@@ -999,11 +999,17 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 			if (Filename.EndsWith(FPackageName::GetTextAssetPackageExtension()) || Filename.EndsWith(FPackageName::GetTextMapPackageExtension()))
 			{
 				INC_DWORD_STAT(STAT_TextAssetLinkerCount);
+				DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FLinkerLoad::CreateTextArchiveFormatter"), STAT_LinkerLoad_CreateTextArchiveFormatter, STATGROUP_LinkerLoad);
+				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FLinkerLoad::CreateTextArchiveFormatter"));
 				Loader = IFileManager::Get().CreateFileReader(*Filename);
 				StructuredArchiveFormatter = new FJsonArchiveInputFormatter(*this, [this](const FString& InFullPath)
 				{
 					FPackageIndex Index = FindOrCreateImportOrExport(InFullPath);
-					if (Index.IsImport())
+					if (Index.IsNull())
+					{
+						return (UObject*)nullptr;
+					}
+					else if (Index.IsImport())
 					{
 						return CreateImport(Index.ToImport());
 					}
@@ -1734,6 +1740,13 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeExportMap()
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
+FStructuredArchiveSlot FLinkerLoad::GetExportSlot(FPackageIndex InExportIndex)
+{
+	check(InExportIndex.IsExport());
+	int32 Index = InExportIndex.ToExport();
+	return ExportReaders[Index]->GetRoot();
+}
+
 FPackageIndex FLinkerLoad::FindOrCreateImport(const FName InObjectName, const FName InClassName, const FName InClassPackageName)
 {
 	for (int32 ImportIndex = 0; ImportIndex < ImportMap.Num(); ++ImportIndex)
@@ -1828,12 +1841,13 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::ReconstructImportAndExportMap()
 	if (!bHasReconstructedImportAndExportMap && IsTextFormat())
 	{
 		int32 NumExports = 0;
-		FStructuredArchive::FMap PackageExports = StructuredArchiveRootRecord->EnterMap(SA_FIELD_NAME(TEXT("Exports")), NumExports);
+		FStructuredArchiveMap PackageExports = StructuredArchiveRootRecord->EnterMap(SA_FIELD_NAME(TEXT("Exports")), NumExports);
 
 		TArray<FObjectTextExport> ExportRecords;
 		ExportRecords.Reserve(NumExports);
 		ExportMap.SetNum(NumExports);
 		OriginalExportNames.SetNum(NumExports);
+		ExportReaders.AddDefaulted(NumExports);
 
 		Summary.ExportCount = ExportMap.Num();
 		Summary.ImportCount = 0;
@@ -1842,9 +1856,26 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::ReconstructImportAndExportMap()
 		{
 			FObjectTextExport& TextExport = ExportRecords.Emplace_GetRef(ExportMap[ExportIndex], nullptr);
 			FString ExportName;
-			PackageExports.EnterElement(ExportName) << TextExport;
+			ExportReaders[ExportIndex] = new FStructuredArchiveChildReader(PackageExports.EnterElement(ExportName));
+			ExportReaders[ExportIndex]->GetRoot() << TextExport;
 			OriginalExportNames[ExportIndex] = *ExportName;
-			ExportMap[ExportIndex].ObjectName = *ExtractObjectName(OriginalExportNames[ExportIndex].ToString());
+			
+			if (TextExport.OuterName.Len())
+			{
+				FString Class, Package, Object, SubObject;
+				FPackageName::SplitFullObjectPath(TextExport.OuterName, Class, Package, Object, SubObject);
+				FString OuterPath = Object;
+				if (SubObject.Len())
+				{
+					OuterPath += TEXT(":") + SubObject;
+				}
+				if (ExportName.StartsWith(OuterPath))
+				{
+					ExportName = ExportName.Right(ExportName.Len() - OuterPath.Len() - 1);
+				}
+			}
+
+			ExportMap[ExportIndex].ObjectName = *ExportName;
 		}
 		
 		// Now pass over all the exports and rebuild the export/import records
@@ -3690,7 +3721,7 @@ void FLinkerLoad::Preload( UObject* Object )
 #if WITH_EDITOR && WITH_TEXT_ARCHIVE_SUPPORT
 						if (IsTextFormat())
 						{
-							FStructuredArchive::FSlot ExportSlot = StructuredArchiveRootRecord->EnterRecord(SA_FIELD_NAME(TEXT("Exports"))).EnterField(SA_FIELD_NAME(*OriginalExportNames[Export.ThisIndex.ToExport()].ToString()));
+							FStructuredArchiveSlot ExportSlot = GetExportSlot(Export.ThisIndex);
 
 							if (bClassSupportsTextFormat)
 							{
@@ -3730,7 +3761,7 @@ void FLinkerLoad::Preload( UObject* Object )
 #if WITH_EDITOR && WITH_TEXT_ARCHIVE_SUPPORT
 						if (IsTextFormat())
 						{
-							FStructuredArchive::FSlot ExportSlot = StructuredArchiveRootRecord->EnterRecord(SA_FIELD_NAME(TEXT("Exports"))).EnterField(SA_FIELD_NAME(*OriginalExportNames[Export.ThisIndex.ToExport()].ToString()));
+							FStructuredArchive::FSlot ExportSlot = GetExportSlot(Export.ThisIndex);
 
 							if (bClassSupportsTextFormat)
 							{
@@ -4862,6 +4893,11 @@ void FLinkerLoad::Detach()
 
 	delete StructuredArchive;
 	StructuredArchive = nullptr;
+	for (FStructuredArchiveChildReader* Reader : ExportReaders)
+	{
+		delete Reader;
+	}
+	ExportReaders.Empty();
 	delete StructuredArchiveFormatter;
 	StructuredArchiveFormatter = nullptr;
 

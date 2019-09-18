@@ -3726,7 +3726,9 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				if (bTextFormat)
 				{
 					TextFormatArchive = IFileManager::Get().CreateFileWriter(*TextFormatTempFilename);
-					Formatter = new FJsonArchiveOutputFormatter(*TextFormatArchive);
+					FJsonArchiveOutputFormatter* OutputFormatter = new FJsonArchiveOutputFormatter(*TextFormatArchive);
+					OutputFormatter->SetObjectIndicesMap(&Linker->ObjectIndicesMap);
+					Formatter = OutputFormatter;
 				}
 				else
 #endif
@@ -5283,6 +5285,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								{
 									FArchiveUObjectFromStructuredArchive Adapter(ExportSlot);
 									Export.Object->GetClass()->SerializeDefaultObject(Export.Object, Adapter.GetArchive());
+									Adapter.Close();
 								}
 							}
 							else
@@ -5298,6 +5301,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								{
 									FArchiveUObjectFromStructuredArchive Adapter(ExportSlot);
 									Export.Object->Serialize(Adapter.GetArchive());
+									Adapter.Close();
 								}
 
 #if WITH_EDITOR

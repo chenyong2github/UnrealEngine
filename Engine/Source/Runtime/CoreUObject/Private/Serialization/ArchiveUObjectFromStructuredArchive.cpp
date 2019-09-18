@@ -6,7 +6,6 @@
 
 FArchiveUObjectFromStructuredArchiveImpl::FArchiveUObjectFromStructuredArchiveImpl(FStructuredArchive::FSlot Slot)
 	: Super(Slot)
-	, bPendingSerialize(true)
 {
 }
 
@@ -147,11 +146,10 @@ FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FWeakObjectPtr& V
 	return *this;
 }
 
-void FArchiveUObjectFromStructuredArchiveImpl::SerializeInternal(FStructuredArchive::FRecord Record)
+bool FArchiveUObjectFromStructuredArchiveImpl::Finalize(FStructuredArchive::FRecord Record)
 {
-	Super::SerializeInternal(Record);
-
-	if (bPendingSerialize)
+	bool bShouldSerialize = Super::Finalize(Record);
+	if (bShouldSerialize)
 	{
 		TOptional<FStructuredArchive::FSlot> LazyObjectPtrsSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("LazyObjectPtrs")), LazyObjectPtrs.Num() > 0);
 		if (LazyObjectPtrsSlot.IsSet())
@@ -176,9 +174,8 @@ void FArchiveUObjectFromStructuredArchiveImpl::SerializeInternal(FStructuredArch
 		{
 			WeakObjectPtrsSlot.GetValue() << WeakObjectPtrs;
 		}
-
-		bPendingSerialize = true;
 	}
+	return bShouldSerialize;
 }
 
 #endif
