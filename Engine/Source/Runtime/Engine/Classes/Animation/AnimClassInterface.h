@@ -121,6 +121,10 @@ public:
 	virtual const TArray<UStructProperty*>& GetAnimNodeProperties() const = 0;
 	virtual const TArray<UStructProperty*>& GetSubInstanceNodeProperties() const = 0;
 	virtual const TArray<UStructProperty*>& GetLayerNodeProperties() const = 0;
+	virtual const TArray<UStructProperty*>& GetPreUpdateNodeProperties() const = 0;
+	virtual const TArray<UStructProperty*>& GetDynamicResetNodeProperties() const = 0;
+	virtual const TArray<UStructProperty*>& GetStateMachineNodeProperties() const = 0;
+	virtual const TArray<UStructProperty*>& GetInitializationNodeProperties() const = 0;
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const = 0;
 	virtual const TArray<FName>& GetSyncGroupNames() const = 0;
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const = 0;

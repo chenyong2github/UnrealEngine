@@ -649,7 +649,13 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 		// this has to be called before Initialize Animation because it will required RequiredBones list when InitializeAnimScript
 		RecalcRequiredBones(PredictedLODLevel);
 
-		const bool bInitializedAnimInstance = InitializeAnimScriptInstance(bForceReinit);
+		// In Editor, animations won't get ticked. So Update once to get accurate representation instead of T-Pose.
+		// Also allow this to be an option to support pre-4.19 games that might need it..
+		const bool bTickAnimationNow =
+			((GetWorld()->WorldType == EWorldType::Editor) && !bUseRefPoseOnInitAnim)
+			|| UAnimationSettings::Get()->bTickAnimationOnSkeletalMeshInit;
+
+		const bool bInitializedAnimInstance = InitializeAnimScriptInstance(bForceReinit, !bTickAnimationNow);
 
 		// Make sure we have a valid pose.
 		// We don't allocate transform data when using MasterPoseComponent, so we have nothing to render.
@@ -657,12 +663,6 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 		{	
 			if (bInitializedAnimInstance || (AnimScriptInstance == nullptr))
 			{ 
-				// In Editor, animations won't get ticked. So Update once to get accurate representation instead of T-Pose.
-				// Also allow this to be an option to support pre-4.19 games that might need it..
-				const bool bTickAnimationNow =
-					((GetWorld()->WorldType == EWorldType::Editor) && !bUseRefPoseOnInitAnim)
-					|| UAnimationSettings::Get()->bTickAnimationOnSkeletalMeshInit;
-
 				if (bTickAnimationNow)
 				{
 					TickAnimation(0.f, false);
@@ -690,7 +690,7 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 	}
 }
 
-bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
+bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit, bool bInDeferRootNodeInitialization)
 {
 	bool bInitializedMainInstance = false;
 	bool bInitializedPostInstance = false;
@@ -709,7 +709,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
 				// If we have any sub-instances left we need to clear them out now, we're about to have a new master instance
 				SubInstances.Empty();
 
-				AnimScriptInstance->InitializeAnimation();
+				AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 				bInitializedMainInstance = true;
 			}
 		}
@@ -730,7 +730,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
 
 				if (AnimScriptInstance)
 				{
-					AnimScriptInstance->InitializeAnimation();
+					AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 					bInitializedMainInstance = true;
 				}
 
@@ -784,7 +784,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
 
 		if (AnimScriptInstance && !bInitializedMainInstance && bForceReinit)
 		{
-			AnimScriptInstance->InitializeAnimation();
+			AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 			bInitializedMainInstance = true;
 		}
 
