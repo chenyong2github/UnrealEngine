@@ -39,10 +39,11 @@ public class ICU : ModuleRules
 		}
 
 		string ICURootPath = Target.UEThirdPartySourceDirectory + "ICU/" + ICUVersion + "/";
+		string ICUIncludePath = ICURootPath + "include/";
 		string ICULibPath = ICURootPath + ICULibSubPath;
 
 		// Includes
-		PublicSystemIncludePaths.Add(ICURootPath + "include" + "/");
+		PublicSystemIncludePaths.Add(ICUIncludePath);
 
 		// Libs
 		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
@@ -200,6 +201,8 @@ public class ICU : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
+			PublicSystemIncludePaths.Add(ICUIncludePath + "PS4/");
+
 			ICULibPath += "PS4/";
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
