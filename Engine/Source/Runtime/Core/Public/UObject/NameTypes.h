@@ -1025,7 +1025,7 @@ private:
 
 		bool IsLiteral() const
 		{
-			return LiteralFlag & Int;
+			return (LiteralFlag & Int) != 0;
 		}
 
 		FNameEntryId AsName() const
@@ -1058,7 +1058,7 @@ private:
 
 		bool IsLiteral() const
 		{
-			return LiteralFlag & Int;
+			return (LiteralFlag & Int) != 0;
 		}
 
 		FNameEntryId AsName() const
