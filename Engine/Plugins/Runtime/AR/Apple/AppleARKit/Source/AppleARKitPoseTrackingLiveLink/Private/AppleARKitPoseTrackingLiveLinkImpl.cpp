@@ -14,7 +14,7 @@ FAppleARKitPoseTrackingLiveLink::FAppleARKitPoseTrackingLiveLink() :
 FAppleARKitPoseTrackingLiveLink::~FAppleARKitPoseTrackingLiveLink()
 {
 	// Should only be called durirng shutdown
-	check(GIsRequestingExit);
+	check(IsEngineExitRequested());
 }
 
 void FAppleARKitPoseTrackingLiveLink::Init()
