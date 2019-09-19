@@ -369,6 +369,8 @@ public:
 		return Prerequisites;
 	}
 
+	float GetLastTickGameTime() const { return (InternalData ? InternalData->LastTickGameTimeSeconds : -1.f); }
+
 private:
 	/**
 	 * Queues a tick function for execution from the game thread
