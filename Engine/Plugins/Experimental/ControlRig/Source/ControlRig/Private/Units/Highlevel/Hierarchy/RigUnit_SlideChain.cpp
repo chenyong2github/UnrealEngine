@@ -4,13 +4,20 @@
 #include "Math/ControlRigMathLibrary.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_SlideChain::Execute(const FRigUnitContext& Context)
+FRigUnit_SlideChain_Execute()
 {
-	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
+
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy == nullptr)
 	{
 		return;
 	}
+
+	float& ChainLength = WorkData.ChainLength;
+	TArray<float>& BoneSegments = WorkData.BoneSegments;
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	TArray<FTransform>& Transforms = WorkData.Transforms;
+	TArray<FTransform>& BlendedTransforms = WorkData.BlendedTransforms;
 
 	if (Context.State == EControlRigState::Init)
 	{
@@ -37,7 +44,7 @@ void FRigUnit_SlideChain::Execute(const FRigUnitContext& Context)
 				{
 					break;
 				}
-				EndBoneIndex = Hierarchy->GetParentIndex(EndBoneIndex);
+				EndBoneIndex = (*Hierarchy)[EndBoneIndex].ParentIndex;
 			}
 		}
 

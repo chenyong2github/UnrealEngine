@@ -117,6 +117,239 @@ struct FIndexRange
 	int32 Count;
 };
 
+/**
+ * The FRigVMParameter represents a single parameter of a method
+ * marked up with RIGVM_METHOD.
+ * Each parameter can be marked with Constant, Input or Output
+ * metadata - this struct simplifies access to that information.
+ */
+struct FRigVMParameter
+{
+	FRigVMParameter()
+		: Name()
+		, Type()
+		, bConstant(false)
+		, bInput(false)
+		, bOutput(false)
+		, MaxArraySize()
+		, Getter()
+		, CastName()
+		, CastType()
+		, bEditorOnly(false)
+	{
+	}
+
+	FString Name;
+	FString Type;
+	bool bConstant;
+	bool bInput;
+	bool bOutput;
+	FString MaxArraySize;
+	FString Getter;
+	FString CastName;
+	FString CastType;
+	bool bEditorOnly;
+
+	const FString& NameOriginal(bool bCastName = false) const
+	{
+		return (bCastName && !CastName.IsEmpty()) ? CastName : Name;
+	}
+
+	const FString& TypeOriginal(bool bCastType = false) const
+	{
+		return (bCastType && !CastType.IsEmpty()) ? CastType : Type;
+	}
+
+	FString Declaration(bool bCastType = false, bool bCastName = false) const
+	{
+		return FString::Printf(TEXT("%s %s"), *TypeOriginal(bCastType), *NameOriginal(bCastName));
+	}
+
+	FString BaseType(bool bCastType = false) const
+	{
+		const FString& String = TypeOriginal(bCastType);
+		int32 LesserPos = 0;
+		if (String.FindChar('<', LesserPos))
+		{
+			return String.Mid(0, LesserPos);
+		}
+		return String;
+	}
+
+	FString ExtendedType(bool bCastType = false) const
+	{
+		const FString& String = TypeOriginal(bCastType);
+		int32 LesserPos = 0;
+		if(String.FindChar('<', LesserPos))
+		{
+			return String.Mid(LesserPos);
+		}
+		return String;
+	}
+
+	FString TypeConstRef(bool bCastType = false) const
+	{
+		const FString& String = TypeNoRef(bCastType);
+		if (String.StartsWith(TEXT("T"), ESearchCase::CaseSensitive) || String.StartsWith(TEXT("F"), ESearchCase::CaseSensitive))
+		{
+			return FString::Printf(TEXT("const %s&"), *String);
+		}
+		return FString::Printf(TEXT("const %s"), *String);
+	}
+
+	FString TypeRef(bool bCastType = false) const
+	{
+		const FString& String = TypeNoRef(bCastType);
+		return FString::Printf(TEXT("%s&"), *String);
+	}
+
+	FString TypeNoRef(bool bCastType = false) const
+	{
+		const FString& String = TypeOriginal(bCastType);
+		if (String.EndsWith(TEXT("&")))
+		{
+			return String.LeftChop(1);
+		}
+		return String;
+	}
+
+	FString TypeVariableRef(bool bCastType = false) const
+	{
+		return IsConst() ? TypeConstRef(bCastType) : TypeRef(bCastType);
+	}
+
+	FString Variable(bool bCastType = false, bool bCastName = false) const
+	{
+		return FString::Printf(TEXT("%s %s"), *TypeVariableRef(bCastType), *NameOriginal(bCastName));
+	}
+
+	bool IsConst() const
+	{
+		return bConstant || (bInput && !bOutput);
+	}
+
+	bool IsArray() const
+	{
+		return BaseType().Equals(TEXT("TArray"));
+	}
+
+	bool RequiresCast() const
+	{
+		return !CastType.IsEmpty() && !CastName.IsEmpty();
+	}
+};
+
+/**
+ * The FRigVMParameterArray represents the parameters in a notation
+ * of a function marked with RIGVM_METHOD. The parameter array can 
+ * produce a comma separated list of names or parameter declarations.
+ */
+struct FRigVMParameterArray
+{
+public:
+	int32 Num() const { return Parameters.Num(); }
+	const FRigVMParameter& operator[](int32 InIndex) const { return Parameters[InIndex]; }
+	FRigVMParameter& operator[](int32 InIndex) { return Parameters[InIndex]; }
+	TArray<FRigVMParameter>::RangedForConstIteratorType begin() const { return Parameters.begin(); }
+	TArray<FRigVMParameter>::RangedForConstIteratorType end() const { return Parameters.end(); }
+	TArray<FRigVMParameter>::RangedForIteratorType begin() { return Parameters.begin(); }
+	TArray<FRigVMParameter>::RangedForIteratorType end() { return Parameters.end(); }
+
+	int32 Add(const FRigVMParameter& InParameter)
+	{
+		return Parameters.Add(InParameter);
+	}
+
+	FString Names(bool bLeadingSeparator = false, const TCHAR* Separator = TEXT(", "), bool bCastType = false, bool bIncludeEditorOnly = true) const
+	{
+		if (Parameters.Num() == 0)
+		{
+			return FString();
+		}
+		TArray<FString> NameArray;
+		for (const FRigVMParameter& Parameter : Parameters)
+		{
+			if (!bIncludeEditorOnly && Parameter.bEditorOnly)
+			{
+				continue;
+			}
+			NameArray.Add(Parameter.NameOriginal(bCastType));
+		}
+
+		if (NameArray.Num() == 0)
+		{
+			return FString();
+		}
+
+		FString Joined = FString::Join(NameArray, Separator);
+		if (bLeadingSeparator)
+		{
+			return FString::Printf(TEXT("%s%s"), Separator, *Joined);
+		}
+		return Joined;
+	}
+
+	FString Declarations(bool bLeadingSeparator = false, const TCHAR* Separator = TEXT(", "), bool bCastType = false, bool bCastName = false, bool bIncludeEditorOnly = true) const
+	{
+		if (Parameters.Num() == 0)
+		{
+			return FString();
+		}
+		TArray<FString> DeclarationArray;
+		for (const FRigVMParameter& Parameter : Parameters)
+		{
+			if (!bIncludeEditorOnly && Parameter.bEditorOnly)
+			{
+				continue;
+			}
+			DeclarationArray.Add(Parameter.Variable(bCastType, bCastName));
+		}
+
+		if (DeclarationArray.Num() == 0)
+		{
+			return FString();
+		}
+
+		FString Joined = FString::Join(DeclarationArray, Separator);
+		if (bLeadingSeparator)
+		{
+			return FString::Printf(TEXT("%s%s"), Separator, *Joined);
+		}
+		return Joined;
+	}
+
+private:
+	TArray<FRigVMParameter> Parameters;
+};
+
+/**
+ * A single info dataset for a function marked with RIGVM_METHOD.
+ * This struct provides access to its name, the return type and all parameters.
+ */
+struct FRigVMMethodInfo
+{
+	FString ReturnType;
+	FString Name;
+	FRigVMParameterArray Parameters;
+
+	FString ReturnPrefix() const
+	{
+		return (ReturnType.IsEmpty() || (ReturnType == TEXT("void"))) ? TEXT("") : TEXT("return ");
+	}
+};
+
+/**
+ * An info dataset providing access to all functions marked with RIGVM_METHOD
+ * for each struct.
+ */
+struct FRigVMStructInfo
+{
+	FString Name;
+	FRigVMParameterArray Members;
+	TArray<FRigVMMethodInfo> Methods;
+};
+
+typedef TMap<UStruct*, FRigVMStructInfo> FRigVMStructMap;
 
 struct ClassDefinitionRange
 {
@@ -147,13 +380,17 @@ struct ClassDefinitionRange
 
 extern TMap<UClass*, ClassDefinitionRange> ClassDefinitionRanges;
 
+#ifndef UHT_DOCUMENTATION_POLICY_DEFAULT
+#define UHT_DOCUMENTATION_POLICY_DEFAULT false
+#endif
+
 struct FDocumentationPolicy
 {
-	bool bClassOrStructCommentRequired = false;
-	bool bFunctionToolTipsRequired = false;
-	bool bMemberToolTipsRequired = false;
-	bool bParameterToolTipsRequired = false;
-	bool bFloatRangesRequired = false;
+	bool bClassOrStructCommentRequired = UHT_DOCUMENTATION_POLICY_DEFAULT;
+	bool bFunctionToolTipsRequired = UHT_DOCUMENTATION_POLICY_DEFAULT;
+	bool bMemberToolTipsRequired = UHT_DOCUMENTATION_POLICY_DEFAULT;
+	bool bParameterToolTipsRequired = UHT_DOCUMENTATION_POLICY_DEFAULT;
+	bool bFloatRangesRequired = UHT_DOCUMENTATION_POLICY_DEFAULT;
 };
 
 /////////////////////////////////////////////////////
@@ -231,6 +468,7 @@ public:
 
 protected:
 	friend struct FScriptLocation;
+	friend struct FNativeClassHeaderGenerator;
 
 	// For compiling messages and errors.
 	FFeedbackContext* Warn;
@@ -415,6 +653,9 @@ protected:
 	// List of all net service functions with undeclared response functions 
 	TMap<int32, FString> RPCsNeedingHookup;
 
+	// List of all multiplex methods defined on structs
+	static FRigVMStructMap StructRigVMMap;
+
 	// Constructor.
 	explicit FHeaderParser(FFeedbackContext* InWarn, const FManifestModule& InModule);
 
@@ -558,6 +799,8 @@ protected:
 	void CompileFunctionDeclaration(FClasses& AllClasses);
 	void CompileVariableDeclaration (FClasses& AllClasses, UStruct* Struct);
 	void CompileInterfaceDeclaration(FClasses& AllClasses);
+	void CompileRigVMMethodDeclaration(FClasses& AllClasses, UStruct* Struct);
+	void ParseRigVMMethodParameters(UStruct* Struct);
 
 	FClass* ParseInterfaceNameDeclaration(FClasses& AllClasses, FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent);
 	bool TryParseIInterfaceClass(FClasses& AllClasses);

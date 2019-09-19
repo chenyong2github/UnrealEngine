@@ -20,30 +20,6 @@ void UControlRigSkeletalMeshComponent::InitAnim(bool bForceReinit)
 	RebuildDebugDrawSkeleton();
 }
 
-void UControlRigSkeletalMeshComponent::ShowReferencePose(bool bRefPose)
-{
-	UControlRigSequencerAnimInstance* ControlRigInstance = Cast<UControlRigSequencerAnimInstance>(GetAnimInstance());
-
-	if (ControlRigInstance && ControlRigInstance->CachedControlRig.IsValid())
-	{
-		UControlRig* ControlRig = ControlRigInstance->CachedControlRig.Get();
-		ControlRig->bExecutionOn = !bRefPose;
-		ControlRigInstance->SetAnimationAsset(nullptr);
-	}
-}
-
-bool UControlRigSkeletalMeshComponent::IsReferencePoseShown() const
-{
-	UControlRigSequencerAnimInstance* ControlRigInstance = Cast<UControlRigSequencerAnimInstance>(GetAnimInstance());
-
-	if (ControlRigInstance && ControlRigInstance->CachedControlRig.IsValid())
-	{
-		UControlRig* ControlRig = ControlRigInstance->CachedControlRig.Get();
-		return !ControlRig->bExecutionOn;
-	}
-
-	return false;
-}
 
 void UControlRigSkeletalMeshComponent::SetCustomDefaultPose()
 {
@@ -58,7 +34,7 @@ void UControlRigSkeletalMeshComponent::RebuildDebugDrawSkeleton()
 	{
 		UControlRig* ControlRig = ControlRigInstance->CachedControlRig.Get();
 		// just copy it because this is not thread safe
-		const FRigHierarchy BaseHiearchy = ControlRig->GetBaseHierarchy();
+		const FRigBoneHierarchy& BaseHiearchy = ControlRig->GetBoneHierarchy();
 
 		DebugDrawSkeleton.Empty();
 		DebugDrawBones.Reset();
@@ -66,11 +42,11 @@ void UControlRigSkeletalMeshComponent::RebuildDebugDrawSkeleton()
 		// create ref modifier
  		FReferenceSkeletonModifier RefSkelModifier(DebugDrawSkeleton, nullptr);
  
- 		for (int32 Index = 0; Index < BaseHiearchy.GetNum(); Index++)
+ 		for (int32 Index = 0; Index < BaseHiearchy.Num(); Index++)
  		{
 			FMeshBoneInfo NewMeshBoneInfo;
 			NewMeshBoneInfo.Name = BaseHiearchy.GetName(Index);
-			NewMeshBoneInfo.ParentIndex = BaseHiearchy.GetParentIndex(Index);
+			NewMeshBoneInfo.ParentIndex = BaseHiearchy[Index].ParentIndex;
 			// give ref pose here
 			RefSkelModifier.Add(NewMeshBoneInfo, BaseHiearchy.GetInitialTransform(Index));
 
@@ -87,7 +63,7 @@ FTransform UControlRigSkeletalMeshComponent::GetDrawTransform(int32 BoneIndex) c
 	{
 		UControlRig* ControlRig = ControlRigInstance->CachedControlRig.Get();
 		// just copy it because this is not thread safe
-		const FRigHierarchy& BaseHiearchy = ControlRig->GetBaseHierarchy();
+		const FRigBoneHierarchy& BaseHiearchy = ControlRig->GetBoneHierarchy();
 		return BaseHiearchy.GetGlobalTransform(BoneIndex);
 	}
 

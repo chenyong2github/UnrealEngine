@@ -5,6 +5,7 @@
 #include "Animation/AnimNode_TransitionResult.h"
 #include "Animation/AnimNode_TransitionPoseEvaluator.h"
 #include "Animation/AnimNode_AssetPlayerBase.h"
+#include "Animation/AnimNode_Inertialization.h"
 #include "Animation/BlendProfile.h"
 #include "Animation/AnimNode_Layer.h"
 #include "Animation/AnimInstance.h"
@@ -44,7 +45,7 @@ FAnimationActiveTransitionEntry::FAnimationActiveTransitionEntry(int32 NextState
 	, bActive(true)
 {
 	const float Scaler = 1.0f - ExistingWeightOfNextState;
-	CrossfadeDuration = ReferenceTransitionInfo.CrossfadeDuration * CalculateInverseAlpha(BlendOption, Scaler);
+	CrossfadeDuration = (LogicType == ETransitionLogicType::TLT_Inertialization) ? 0.0f : ReferenceTransitionInfo.CrossfadeDuration * CalculateInverseAlpha(BlendOption, Scaler);
 
 	Blend.SetBlendTime(CrossfadeDuration);
 	Blend.SetBlendOption(BlendOption);
@@ -443,6 +444,19 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 			{
 				NewTransition->InitializeCustomGraphLinks(Context, *(PotentialTransition.TransitionRule));
 
+				if (ReferenceTransition.LogicType == ETransitionLogicType::TLT_Inertialization)
+				{
+					FAnimNode_Inertialization* InertializationNode = Context.GetAncestor<FAnimNode_Inertialization>();
+					if (InertializationNode)
+					{
+						InertializationNode->Request(ReferenceTransition.CrossfadeDuration);
+					}
+					else
+					{
+						UE_LOG(LogAnimation, Error, TEXT("FAnimNode_StateMachine: No inertialization context found for transition"));
+					}
+				}
+
 #if WITH_EDITORONLY_DATA
 				NewTransition->SourceTransitionIndices = PotentialTransition.SourceTransitionIndices;
 #endif
@@ -686,6 +700,13 @@ void FAnimNode_StateMachine::UpdateTransitionStates(const FAnimationUpdateContex
 			}
 			break;
 
+		case ETransitionLogicType::TLT_Inertialization:
+			{
+				// update target state
+				UpdateState(Transition.NextState, Context);
+			}
+			break;
+
 		case ETransitionLogicType::TLT_Custom:
 			{
 				if (Transition.CustomTransitionGraph.LinkID != INDEX_NONE)
@@ -754,6 +775,9 @@ void FAnimNode_StateMachine::Evaluate_AnyThread(FPoseContext& Output)
 				{
 				case ETransitionLogicType::TLT_StandardBlend:
 					EvaluateTransitionStandardBlend(Output, ActiveTransition, bIntermediatePoseIsValid);
+					break;
+				case ETransitionLogicType::TLT_Inertialization:
+					EvaluateState(ActiveTransition.NextState, Output);
 					break;
 				case ETransitionLogicType::TLT_Custom:
 					EvaluateTransitionCustomBlend(Output, ActiveTransition, bIntermediatePoseIsValid);

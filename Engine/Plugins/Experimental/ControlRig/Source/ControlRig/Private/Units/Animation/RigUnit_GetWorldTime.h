@@ -18,6 +18,7 @@ struct FRigUnit_GetWorldTime : public FRigUnit_AnimBase
 		Year = Month = Day = WeekDay = Hours = Minutes = Seconds = OverallSeconds = 0.f;
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Output))

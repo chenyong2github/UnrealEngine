@@ -3299,6 +3299,64 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 	const FString SingletonName = GetSingletonName(Struct);
 
+	FString RigVMMacroPrefix = FString::Printf(TEXT("UE_%s"), StructNameCPP + 1);
+	TArray<FString> RigVMVirtualFuncProlog, RigVMStubProlog;
+
+	// for RigVM methods we need to generated a macro used for implementing the static method
+	// and prepare two prologs: one for the virtual function implementation, and one for the stub
+	// invoking the static method.
+	const FRigVMStructInfo* StructRigVMInfo = FHeaderParser::StructRigVMMap.Find(Struct);
+	if(StructRigVMInfo)
+	{
+		RigVMStubProlog.Add(FString::Printf(TEXT("ensure(RigVMOperands.Num() == %d);"), StructRigVMInfo->Members.Num()));
+		for (int32 ParameterIndex = 0; ParameterIndex < StructRigVMInfo->Members.Num(); ParameterIndex++)
+		{
+			const FRigVMParameter& Parameter = StructRigVMInfo->Members[ParameterIndex];
+			RigVMStubProlog.Add(FString::Printf(TEXT("const FRigVMOperand& %s_Operand = RigVMOperands[%d];"), *Parameter.Name, ParameterIndex));
+		}
+		RigVMStubProlog.Add(FString());
+
+		for (int32 ParameterIndex = 0; ParameterIndex < StructRigVMInfo->Members.Num(); ParameterIndex++)
+		{
+			const FRigVMParameter& Parameter = StructRigVMInfo->Members[ParameterIndex];
+			if(Parameter.RequiresCast())
+			{
+				if (Parameter.IsArray() && !Parameter.IsConst() && !Parameter.MaxArraySize.IsEmpty())
+				{
+					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s.SetNumUninitialized( %s );"), *Parameter.Name, *Parameter.MaxArraySize));
+				}
+				RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s %s(%s);"), *Parameter.CastType, *Parameter.CastName, *Parameter.Name));
+			}
+
+			FString VariableType = Parameter.TypeVariableRef(true);
+			FString ExtractedType = Parameter.TypeOriginal();
+			if (Parameter.TypeOriginal(true).StartsWith(TEXT("TArrayView")))
+			{
+				ExtractedType = Parameter.ExtendedType().LeftChop(1).RightChop(1);
+				VariableType = Parameter.TypeOriginal(true);
+			}
+
+			RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = RigVMMemoryContainer[%s_Operand.GetContainerIndex()]->%s<%s>(%s_Operand, true);"),
+				*VariableType,
+				*Parameter.NameOriginal(false),
+				*Parameter.NameOriginal(false),
+				*Parameter.Getter,
+				*ExtractedType,
+				*Parameter.NameOriginal(false)));
+		}
+
+		FString StructMembers = StructRigVMInfo->Members.Declarations(false, TEXT(", \\\r\n\t\t"), true, false);
+
+		OutGeneratedHeaderText.Log(TEXT("\n"));
+		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
+		{
+			FString ParameterSuffix = MethodInfo.Parameters.Declarations(true, TEXT(", \\\r\n\t\t"));
+			OutGeneratedHeaderText.Logf(TEXT("#define %s_%s() \\\r\n"), StructNameCPP, *MethodInfo.Name);
+			OutGeneratedHeaderText.Logf(TEXT("\t%s %s::Static%s( \\\r\n\t\t%s%s \\\r\n\t)\n"), *MethodInfo.ReturnType, StructNameCPP, *MethodInfo.Name, *StructMembers, *ParameterSuffix);
+		}
+		OutGeneratedHeaderText.Log(TEXT("\n"));
+	}
+
 	// Export struct.
 	if (Struct->StructFlags & STRUCT_Native)
 	{
@@ -3313,9 +3371,24 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		const FString FriendLine = FString::Printf(TEXT("\tfriend struct %s_Statics;\r\n"), *SingletonName.LeftChop(2));
 		const FString StaticClassLine = FString::Printf(TEXT("\t%sstatic class UScriptStruct* StaticStruct();\r\n"), *RequiredAPI);
 		const FString PrivatePropertiesOffset = PrivatePropertiesOffsetGetters(Struct, StructNameCPP);
+		
+		// if we have RigVM methods on this struct we need to 
+		// declare the static method as well as the stub method
+		FString RigVMMethodsDeclarations;
+		if (StructRigVMInfo)
+		{
+			FString StructMembers = StructRigVMInfo->Members.Declarations(false, TEXT(",\r\n\t\t"), true, false);
+			for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
+			{
+				FString ParameterSuffix = MethodInfo.Parameters.Declarations(true, TEXT(",\r\n\t\t"));
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s\r\n\t);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name, *StructMembers, *ParameterSuffix);
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s RigVM%s(\r\n\t\tconst FRigVMOperandArray& RigVMOperands,\r\n\t\tFRigVMMemoryContainerPtrArray& RigVMMemoryContainer,\r\n\t\tconst FRigVMUserDataArray& RigVMUserData\r\n\t);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name);
+			}
+		}
+
 		const FString SuperTypedef = BaseStruct ? FString::Printf(TEXT("\ttypedef %s Super;\r\n"), NameLookupCPP.GetNameCPP(BaseStruct)) : FString();
 
-		const FString CombinedLine = FriendLine + StaticClassLine + PrivatePropertiesOffset + SuperTypedef;
+		const FString CombinedLine = FriendLine + StaticClassLine + RigVMMethodsDeclarations + PrivatePropertiesOffset + SuperTypedef;
 		const FString MacroName = SourceFile.GetGeneratedBodyMacroName(Struct->StructMacroDeclaredLineNumber);
 
 		const FString Macroized = Macroize(*MacroName, *CombinedLine);
@@ -3346,6 +3419,17 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 		Out.Logf(TEXT("\t\tSingleton = GetStaticStruct(%s, %s, TEXT(\"%s\"), sizeof(%s), %s());\r\n"),
 			*SingletonName.LeftChop(2), *OuterName, *ActualStructName, StructNameCPP, *GetHashName);
+
+		// if this struct has RigVM methods - we need to register the method to our central
+		// registry on construction of the static struct
+		if (StructRigVMInfo)
+		{
+			for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
+			{
+				Out.Logf(TEXT("\t\tFRigVMRegistry::Get().Register(TEXT(\"%s::%s\"), &%s::RigVM%s);\r\n"),
+					StructNameCPP, *MethodInfo.Name, StructNameCPP, *MethodInfo.Name);
+			}
+		}
 
 		Out.Logf(TEXT("\t}\r\n"));
 		Out.Logf(TEXT("\treturn Singleton;\r\n"));
@@ -3518,6 +3602,70 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 	Out.Log(GeneratedStructRegisterFunctionText);
 	Out.Logf(TEXT("\tuint32 %s() { return %uU; }\r\n"), *HashFuncName, StructHash);
+
+	// if this struct has RigVM methods we need to implement both the 
+	// virtual function as well as the stub method here.
+	// The static method is implemented by the user using a macro.
+	if (StructRigVMInfo)
+	{
+		FString StructMembersForVirtualFunc = StructRigVMInfo->Members.Names(false, TEXT(",\r\n\t\t"), true);
+		FString StructMembersForStub = StructRigVMInfo->Members.Names(false, TEXT(",\r\n\t\t"), false);
+
+		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
+		{
+			Out.Log(TEXT("\r\n"));
+
+			FString ParameterDeclaration = MethodInfo.Parameters.Declarations(false, TEXT(",\r\n\t\t"));
+			FString ParameterSuffix = MethodInfo.Parameters.Names(true, TEXT(",\r\n\t\t"));
+
+			// implement the virtual function body.
+			Out.Logf(TEXT("%s %s::%s(%s)\r\n"), *MethodInfo.ReturnType, StructNameCPP, *MethodInfo.Name, *ParameterDeclaration);
+			Out.Log(TEXT("{\r\n"));
+
+			if(RigVMVirtualFuncProlog.Num() > 0)
+			{
+				for (const FString& RigVMVirtualFuncPrologLine : RigVMVirtualFuncProlog)
+				{
+					Out.Logf(TEXT("\t%s\r\n"), *RigVMVirtualFuncPrologLine);
+				}
+				Out.Log(TEXT("\t\r\n"));
+			}
+
+			Out.Logf(TEXT("    %sStatic%s(\r\n\t\t%s%s\r\n\t);\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *StructMembersForVirtualFunc, *ParameterSuffix);
+			Out.Log(TEXT("}\r\n"));
+
+			Out.Log(TEXT("\r\n"));
+
+			// implement stub method body
+			Out.Logf(TEXT("%s %s::RigVM%s(const FRigVMOperandArray& RigVMOperands, FRigVMMemoryContainerPtrArray& RigVMMemoryContainer, const FRigVMUserDataArray& RigVMUserData)\r\n"), *MethodInfo.ReturnType, StructNameCPP, *MethodInfo.Name);
+			Out.Log(TEXT("{\r\n"));
+
+			if (MethodInfo.Parameters.Num() > 0)
+			{
+				Out.Logf(TEXT("\tensure(RigVMUserData.Num() == %d);\r\n"), MethodInfo.Parameters.Num());
+				for (int32 ParameterIndex = 0; ParameterIndex < MethodInfo.Parameters.Num(); ParameterIndex++)
+				{
+					const FRigVMParameter& Parameter = MethodInfo.Parameters[ParameterIndex];
+					Out.Logf(TEXT("\t%s = *(%s*)RigVMUserData[%d];\r\n"), *Parameter.Declaration(), *Parameter.TypeNoRef(), ParameterIndex);
+				}
+				Out.Log(TEXT("\t\r\n"));
+			}
+
+			if(RigVMStubProlog.Num() > 0)
+			{
+				for (const FString& RigVMStubPrologLine : RigVMStubProlog)
+				{
+					Out.Logf(TEXT("\t%s\r\n"), *RigVMStubPrologLine);
+				}
+				Out.Log(TEXT("\t\r\n"));
+			}
+
+			Out.Logf(TEXT("\t%sStatic%s(\r\n\t\t%s%s\r\n\t);\r\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *StructMembersForStub, *ParameterSuffix);
+			Out.Log(TEXT("}\r\n"));
+		}
+
+		Out.Log(TEXT("\r\n"));
+	}
 }
 
 void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out, const FUnrealSourceFile& SourceFile, UEnum* Enum)
@@ -5471,15 +5619,18 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(const TCHAR* HeaderPath, c
 			check(i<10);
 			FString RefHeader;
 			FString Message;
-			if (!FFileHelper::LoadFileToString(RefHeader, *Ref))
 			{
-				Message = FString::Printf(TEXT("********************************* %s appears to be a new generated file."), *FPaths::GetCleanFilename(HeaderPath));
-			}
-			else
-			{
-				if (FCString::Strcmp(NewHeaderContents, *RefHeader) != 0)
+				SCOPE_SECONDS_COUNTER_UHT(LoadHeaderContentFromFile);
+				if (!FFileHelper::LoadFileToString(RefHeader, *Ref))
 				{
-					Message = FString::Printf(TEXT("********************************* %s has changed."), *FPaths::GetCleanFilename(HeaderPath));
+					Message = FString::Printf(TEXT("********************************* %s appears to be a new generated file."), *FPaths::GetCleanFilename(HeaderPath));
+				}
+				else
+				{
+					if (FCString::Strcmp(NewHeaderContents, *RefHeader) != 0)
+					{
+						Message = FString::Printf(TEXT("********************************* %s has changed."), *FPaths::GetCleanFilename(HeaderPath));
+					}
 				}
 			}
 			if (Message.Len())
@@ -5492,7 +5643,10 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(const TCHAR* HeaderPath, c
 
 
 	FString OriginalHeaderLocal;
-	FFileHelper::LoadFileToString(OriginalHeaderLocal, HeaderPath);
+	{
+		SCOPE_SECONDS_COUNTER_UHT(LoadHeaderContentFromFile);
+		FFileHelper::LoadFileToString(OriginalHeaderLocal, HeaderPath);
+	}
 
 	const bool bHasChanged = OriginalHeaderLocal.Len() == 0 || FCString::Strcmp(*OriginalHeaderLocal, NewHeaderContents);
 	if (bHasChanged)
@@ -5770,9 +5924,12 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 					const FString FullFilename = FPaths::ConvertRelativePathToFull(ModuleInfoPath, RawFilename);
 
 					FString HeaderFile;
-					if (!FFileHelper::LoadFileToString(HeaderFile, *FullFilename))
 					{
-						FError::Throwf(TEXT("UnrealHeaderTool was unable to load source file '%s'"), *FullFilename);
+						SCOPE_SECONDS_COUNTER_UHT(LoadHeaderContentFromFile);
+						if (!FFileHelper::LoadFileToString(HeaderFile, *FullFilename))
+						{
+							FError::Throwf(TEXT("UnrealHeaderTool was unable to load source file '%s'"), *FullFilename);
+						}
 					}
 
 					TSharedRef<FUnrealSourceFile> UnrealSourceFile = PerformInitialParseOnHeader(Package, *RawFilename, RF_Public | RF_Standalone, *HeaderFile);
@@ -6033,6 +6190,14 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	UE_LOG(LogCompile, Log, TEXT("Code generation took %.2f seconds"), GHeaderCodeGenTime);
 	UE_LOG(LogCompile, Log, TEXT("ScriptPlugin overhead was %.2f seconds"), GPluginOverheadTime);
 	UE_LOG(LogCompile, Log, TEXT("Macroize time was %.2f seconds"), GMacroizeTime);
+
+	FUnrealHeaderToolStats& Stats = FUnrealHeaderToolStats::Get();
+	for (const TPair<FName, double>& Pair : Stats.Counters)
+	{
+		FString CounterName = Pair.Key.ToString();
+		UE_LOG(LogCompile, Log, TEXT("%s timer was %.3f seconds"), *CounterName, Pair.Value);
+	}
+
 	UE_LOG(LogCompile, Log, TEXT("Total time was %.2f seconds"), MainTime);
 
 	if (bWriteContents)

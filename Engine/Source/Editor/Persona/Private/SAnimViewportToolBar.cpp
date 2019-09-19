@@ -1123,6 +1123,18 @@ void SAnimViewportToolBar::OnFloorOffsetChanged( float NewValue )
 	PinnedCommands->AddCustomWidget(TEXT("FloorOffsetWidget"));
 }
 
+void SAnimViewportToolBar::AddMenuExtender(FName MenuToExtend, FMenuExtensionDelegate MenuBuilderDelegate)
+{
+	TSharedRef<FExtender> Extender(new FExtender());
+	Extender->AddMenuExtension(
+		MenuToExtend,
+		EExtensionHook::After,
+		CommandList,
+		MenuBuilderDelegate
+	);
+	Extenders.Add(Extender);
+}
+
 TSharedRef<FExtender> SAnimViewportToolBar::GetViewMenuExtender(TSharedPtr<class SEditorViewport> InRealViewport)
 {
 	TSharedRef<FExtender> Extender(new FExtender());

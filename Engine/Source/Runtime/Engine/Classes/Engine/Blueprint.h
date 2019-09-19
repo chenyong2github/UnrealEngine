@@ -1003,6 +1003,14 @@ public:
 	*/
 	virtual void GetInstanceActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const {}
 
+	/**
+	 * Allows child classes to override the undo behaviour on undo / redo.
+	 * Normally blueprints are marked as dirty / structurally modified on undo,
+	 * which might not be required for specialized classes.
+	 * @return True if the blueprint should be marked as structurally modified on undo redo.
+	 */
+	virtual bool RequiresMarkAsStructurallyModifiedOnUndo() const { return true; }
+
 #if WITH_EDITOR
 private:
 
@@ -1037,6 +1045,46 @@ protected:
 	 * Blueprint can choose to load specific modules for compilation. Children are expected to call base implementation.
 	 */
 	virtual void LoadModulesRequiredForCompilation();
+#endif
+
+#if WITH_EDITOR
+
+public:
+	/**
+	 * Returns true if this blueprint supports global variables
+	 */
+	virtual bool SupportsGlobalVariables() const { return true; }
+
+	/**
+	 * Returns true if this blueprint supports lobal variables
+	 */
+	virtual bool SupportsLocalVariables() const { return true; }
+
+	/**
+	 * Returns true if this blueprint supports functions
+	 */
+	virtual bool SupportsFunctions() const { return true; }
+
+	/**
+	 * Returns true if this blueprint supports macros
+	 */
+	virtual bool SupportsMacros() const { return true; }
+
+	/**
+	 * Returns true if this blueprint supports delegates
+	 */
+	virtual bool SupportsDelegates() const { return true; }
+
+	/**
+	 * Returns true if this blueprint supports event graphs
+	 */
+	virtual bool SupportsEventGraphs() const { return true; }
+
+	/**
+	 * Returns true if this blueprint supports animation layers
+	 */
+	virtual bool SupportsAnimLayers() const { return true; }
+
 #endif
 };
 
