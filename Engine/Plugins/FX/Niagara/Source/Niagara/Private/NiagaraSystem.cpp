@@ -388,6 +388,11 @@ void UNiagaraSystem::PostLoad()
 		InitEmitterCompiledData();
 	}
 
+	if (SystemCompiledData.InstanceParamStore.GetNumParameters() == 0)
+	{
+		InitSystemCompiledData();
+	}
+
 #if 0
 	UE_LOG(LogNiagara, Log, TEXT("Before"));
 	for (FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
@@ -799,6 +804,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		}
 
 		InitEmitterCompiledData();
+		InitSystemCompiledData();
 
 		// Prepare rapid iteration parameters for execution.
 		TArray<UNiagaraScript*> Scripts;
@@ -1080,6 +1086,39 @@ void UNiagaraSystem::InitEmitterCompiledData()
 		for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
 		{
 			InitEmitterVariableAliasNames(EmitterCompiledData[EmitterIdx], *EmitterHandles[EmitterIdx].GetInstance());
+		}
+	}
+}
+
+void UNiagaraSystem::InitSystemCompiledData()
+{
+	SystemCompiledData.NumParticleVars.Empty();
+	SystemCompiledData.TotalSpawnedParticlesVars.Empty();
+	SystemCompiledData.InstanceParamStore.Empty();
+
+	SystemCompiledData.InstanceParamStore = FNiagaraParameterStore(INiagaraModule::GetFixedSystemInstanceParameterStore());
+	ExposedParameters.CopyParametersTo(SystemCompiledData.InstanceParamStore, false, FNiagaraParameterStore::EDataInterfaceCopyMethod::Reference);
+
+	for (const FNiagaraEmitterHandle& PerEmitterHandle : EmitterHandles)
+	{
+		const UNiagaraEmitter* Emitter = PerEmitterHandle.GetInstance();
+		if (ensureMsgf(Emitter != nullptr, TEXT("Failed to get Emitter Instance from Emitter Handle when post compiling Niagara System!")))
+		{
+			const FString EmitterName = Emitter->GetUniqueEmitterName();
+			{
+				FNiagaraVariable Var = SYS_PARAM_ENGINE_EMITTER_NUM_PARTICLES;
+				const FString ParamName = Var.GetName().ToString().Replace(TEXT("Emitter"), *EmitterName);
+				Var.SetName(*ParamName);
+				SystemCompiledData.InstanceParamStore.AddParameter(Var, true, false);
+				SystemCompiledData.NumParticleVars.Add(Var);
+			}
+			{
+				FNiagaraVariable Var = SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES;
+				const FString ParamName = Var.GetName().ToString().Replace(TEXT("Emitter"), *EmitterName);
+				Var.SetName(*ParamName);
+				SystemCompiledData.InstanceParamStore.AddParameter(Var, true, false);
+				SystemCompiledData.TotalSpawnedParticlesVars.Add(Var);
+			}
 		}
 	}
 }
