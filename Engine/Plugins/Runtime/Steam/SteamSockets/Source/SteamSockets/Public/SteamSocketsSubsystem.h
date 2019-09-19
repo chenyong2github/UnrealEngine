@@ -10,6 +10,7 @@
 #include "Containers/Array.h"
 #include "UObject/WeakObjectPtr.h"
 #include "SteamSocketsPackage.h"
+#include "SteamSocketsTaskManagerInterface.h"
 #include "SteamSocketsTypes.h"
 #include "SocketTypes.h"
 
@@ -58,7 +59,7 @@ public:
 	virtual ESocketErrors GetLastErrorCode() override {	return (ESocketErrors)LastSocketError; }
 	virtual ESocketErrors TranslateErrorCode(int32 Code) override {	return (ESocketErrors)Code;	}
 
-	virtual bool GetLocalAdapterAddresses(FSharedInternetAddrArray& OutAddresses) override;
+	virtual bool GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr>>& OutAddresses) override;
 	virtual TSharedRef<FInternetAddr> GetLocalBindAddr(FOutputDevice& Out) override;
 	virtual bool HasNetworkDevice() override { return true; }
 	virtual bool IsSocketWaitSupported() const override { return false; }
@@ -74,8 +75,10 @@ public:
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	//~ End FSelfRegisteringExec Interface
 
+	/** Returns if the application is using the SteamSocket relays */
 	bool IsUsingRelayNetwork() const { return bUseRelays; }
 
+	/** Basic function to determine if Steam has been initialized properly. */
 	bool IsSteamInitialized() const { return SteamAPIClientHandle.IsValid() || SteamAPIServerHandle.IsValid(); }
 
 	static class ISteamNetworkingSockets* GetSteamSocketsInterface();
@@ -167,7 +170,7 @@ protected:
 	static FSteamSocketsSubsystem* SocketSingleton;
 
 	/** Event manager for Steam tasks */
-	TUniquePtr<class FSteamSocketsTaskManager> SteamEventManager;
+	TUniquePtr<class FSteamSocketsTaskManagerInterface> SteamEventManager;
 
 	/** Determines if the connections are going to be using the relay network */
 	bool bUseRelays;
@@ -197,4 +200,3 @@ protected:
 	// Delegate handle for handling when a dedicated server logs into the Steam platform
 	FDelegateHandle SteamServerLoginDelegateHandle;
 };
-

@@ -288,7 +288,7 @@ FAddressInfoResult FSteamSocketsSubsystem::GetAddressInfo(const TCHAR* HostName,
 		return ResultData;
 	}
 
-	FSharedInternetAddrArray AddressList;
+	TArray<TSharedPtr<FInternetAddr>> AddressList;
 	// Handle binding flags or if you don't pass in a hostname
 	if (HostName == nullptr || EnumHasAnyFlags(QueryFlags, EAddressInfoFlags::BindableAddress))
 	{
@@ -398,7 +398,7 @@ const TCHAR* FSteamSocketsSubsystem::GetSocketAPIName() const
 	return TEXT("SteamSockets");
 }
 
-bool FSteamSocketsSubsystem::GetLocalAdapterAddresses(FSharedInternetAddrArray& OutAddresses)
+bool FSteamSocketsSubsystem::GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr>>& OutAddresses)
 {
 	// Add Multihome
 	TSharedRef<FInternetAddr> MultihomeAddress = CreateInternetAddr();
@@ -427,7 +427,7 @@ bool FSteamSocketsSubsystem::GetLocalAdapterAddresses(FSharedInternetAddrArray& 
 
 TSharedRef<FInternetAddr> FSteamSocketsSubsystem::GetLocalBindAddr(FOutputDevice& Out)
 {
-	FSharedInternetAddrArray Adapters;
+	TArray<TSharedPtr<FInternetAddr>> Adapters;
 	if (GetLocalAdapterAddresses(Adapters))
 	{
 		return Adapters[0].ToSharedRef();

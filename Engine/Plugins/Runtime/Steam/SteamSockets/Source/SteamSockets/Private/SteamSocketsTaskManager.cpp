@@ -3,11 +3,6 @@
 #include "SteamSocketsTaskManager.h"
 #include "SteamSocketsSubsystem.h"
 
-FSteamSocketsTaskManager::~FSteamSocketsTaskManager()
-{
-	MessageQueue.Empty();
-}
-
 void FSteamSocketsTaskManager::OnConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* SteamConnectionMessage)
 {
 	// When we are called in here, we are likely going to be on the Steam OSS's online thread.

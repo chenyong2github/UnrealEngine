@@ -126,7 +126,7 @@ bool USteamSocketsNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNoti
 	if (!bIsDelayedNetworkAccess)
 	{
 		// Set the binding address.
-		FSharedInternetAddrArray Addresses;
+		TArray<TSharedPtr<FInternetAddr>> Addresses;
 		if (SocketSub->GetLocalAdapterAddresses(Addresses))
 		{
 			// Attempt to find a binding address that matches protocol of the connection destination
