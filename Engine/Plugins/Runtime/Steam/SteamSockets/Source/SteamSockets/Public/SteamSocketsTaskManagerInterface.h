@@ -14,6 +14,8 @@ public:
 		SocketSubsystem(SocketSub)
 	{
 	}
+	
+	virtual ~FSteamSocketsTaskManagerInterface() = default;
 
 	/** A function that will be called on every update tick of the SteamSocketsSubsystem */
 	virtual void Tick() = 0;
