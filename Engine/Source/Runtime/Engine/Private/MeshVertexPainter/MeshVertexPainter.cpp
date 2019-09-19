@@ -21,9 +21,7 @@ void FMeshVertexPainter::PaintVerticesSingleColor(UStaticMeshComponent* StaticMe
 	uint32 LODIndex = 0;
 	for (FStaticMeshComponentLODInfo& LODInfo : StaticMeshComponent->LODData)
 	{
-#if WITH_EDITORONLY_DATA
 		StaticMeshComponent->RemoveInstanceVertexColorsFromLOD(LODIndex);
-#endif
 		check(LODInfo.OverrideVertexColors == nullptr);
 
 		const FStaticMeshLODResources& LODModel = StaticMeshComponent->GetStaticMesh()->RenderData->LODResources[LODIndex];
@@ -64,9 +62,7 @@ void FMeshVertexPainter::PaintVerticesLerpAlongAxis(UStaticMeshComponent* Static
 	uint32 LODIndex = 0;
 	for (FStaticMeshComponentLODInfo& LODInfo : StaticMeshComponent->LODData)
 	{
-#if WITH_EDITORONLY_DATA
 		StaticMeshComponent->RemoveInstanceVertexColorsFromLOD(LODIndex);
-#endif
 		check(LODInfo.OverrideVertexColors == nullptr);
 
 		const FStaticMeshLODResources& LODModel = StaticMeshComponent->GetStaticMesh()->RenderData->LODResources[LODIndex];
@@ -108,9 +104,7 @@ void FMeshVertexPainter::RemovePaintedVertices(UStaticMeshComponent* StaticMeshC
 	uint32 LODIndex = 0;
 	for (FStaticMeshComponentLODInfo& LODInfo : StaticMeshComponent->LODData)
 	{
-#if WITH_EDITORONLY_DATA
 		StaticMeshComponent->RemoveInstanceVertexColorsFromLOD(LODIndex);
-#endif
 		check(LODInfo.OverrideVertexColors == nullptr);
 		LODIndex++;
 	}

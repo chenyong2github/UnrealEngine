@@ -128,9 +128,7 @@ bool FStaticMeshComponentInstanceData::ApplyVertexColorData(UStaticMeshComponent
 				// that had its own vert color overrides; so before we apply
 				// the instance's color data, we need to clear the old
 				// vert colors (so we can properly call InitFromColorArray())
-#if WITH_EDITORONLY_DATA
 				StaticMeshComponent->RemoveInstanceVertexColorsFromLOD(LODIndex);
-#endif
 				// may not be null at the start (could have been initialized 
 				// from a  component template with vert coloring), but should
 				// be null at this point, after RemoveInstanceVertexColorsFromLOD()
@@ -1487,13 +1485,11 @@ void UStaticMeshComponent::ImportCustomProperties(const TCHAR* SourceText, FFeed
 		{
 			SourceText = VertColorStr;
 
-#if WITH_EDITORONLY_DATA
 			// this component could have been constructed from a template that
 			// had its own vert color overrides; so before we apply the
 			// custom color data, we need to clear the old vert colors (so
 			// we can properly call ImportText())
 			RemoveInstanceVertexColorsFromLOD(LODIndex);
-#endif
 
 			// may not be null at the start (could have been initialized 
 			// from a blueprint component template with vert coloring), but 

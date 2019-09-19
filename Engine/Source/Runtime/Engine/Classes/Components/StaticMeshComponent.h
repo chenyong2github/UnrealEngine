@@ -580,6 +580,7 @@ public:
 	 * @param SourceComponent The component to copy vertex colors from
 	 */
 	void CopyInstanceVertexColorsIfCompatible( UStaticMeshComponent* SourceComponent );
+#endif
 
 	/**
 	 * Removes instance vertex colors from the specified LOD
@@ -587,6 +588,7 @@ public:
 	 */
 	void RemoveInstanceVertexColorsFromLOD( int32 LODToRemoveColorsFrom );
 
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Removes instance vertex colors from all LODs
 	 */
