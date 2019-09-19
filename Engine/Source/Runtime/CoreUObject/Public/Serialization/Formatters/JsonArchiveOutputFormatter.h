@@ -91,6 +91,7 @@ private:
 	bool bNeedsNewline = false;
 
 	TArray<int32> NumAttributesStack;
+	TArray<int64> TextStartPosStack;
 
 	void Write(ANSICHAR Character);
 

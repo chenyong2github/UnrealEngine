@@ -40,6 +40,7 @@ void FJsonArchiveOutputFormatter::EnterRecord()
 	Write("{");
 	Newline.Add('\t');
 	bNeedsNewline = true;
+	TextStartPosStack.Push(Inner.Tell());
 }
 
 void FJsonArchiveOutputFormatter::EnterRecord_TextOnly(TArray<FString>& OutFieldNames)
@@ -51,6 +52,10 @@ void FJsonArchiveOutputFormatter::EnterRecord_TextOnly(TArray<FString>& OutField
 void FJsonArchiveOutputFormatter::LeaveRecord()
 {
 	Newline.Pop(false);
+	if (TextStartPosStack.Pop() == Inner.Tell())
+	{
+		bNeedsNewline = false;
+	}
 	WriteOptionalNewline();
 	Write("}");
 	bNeedsComma = true;
@@ -118,6 +123,7 @@ void FJsonArchiveOutputFormatter::EnterStream()
 	Write("[");
 	Newline.Add('\t');
 	bNeedsNewline = true;
+	TextStartPosStack.Push(Inner.Tell());
 }
 
 void FJsonArchiveOutputFormatter::EnterStream_TextOnly(int32& OutNumElements)
@@ -129,6 +135,10 @@ void FJsonArchiveOutputFormatter::EnterStream_TextOnly(int32& OutNumElements)
 void FJsonArchiveOutputFormatter::LeaveStream()
 {
 	Newline.Pop(false);
+	if (TextStartPosStack.Pop() == Inner.Tell())
+	{
+		bNeedsNewline = false;
+	}
 	WriteOptionalNewline();
 	Write("]");
 	bNeedsComma = true;
