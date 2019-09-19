@@ -2220,6 +2220,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
         PipelineBits &= EMetalPipelineFlagComputeMask;
     }
 	
+#if METAL_DEBUG_OPTIONS
 	if (SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
 	{
 		FMetalShaderPipeline* Pipeline = GetPipelineState();
