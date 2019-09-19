@@ -44,6 +44,9 @@ public:
 	/** Mark where the profiler should consider the frame boundary to be. */
 	virtual void FrameSync() = 0;
 
+	/** Initialize  profiler, register some delegates..*/
+	virtual void Register() {}
+
 	/** Pauses profiling. */
 	virtual void ProfilerPauseFunction() = 0;
 
