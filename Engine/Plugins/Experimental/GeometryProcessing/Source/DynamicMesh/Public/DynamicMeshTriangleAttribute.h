@@ -124,7 +124,7 @@ public:
 		int kB = ToTriangleID * AttribDimension;
 		for (int i = 0; i < AttribDimension; ++i)
 		{
-			AttribValues[kB+i] = AttribValues[kA+i];
+			AttribValues.InsertAt(AttribValues[kA+i], kB+i);
 		}
 	}
 
