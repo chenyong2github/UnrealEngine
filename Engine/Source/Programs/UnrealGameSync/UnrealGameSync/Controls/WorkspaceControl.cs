@@ -870,7 +870,7 @@ namespace UnrealGameSync
 						MessageBox.Show("There are no compiled editor binaries for this change. To sync it, you must disable syncing of precompiled editor binaries.");
 						return;
 					}
-					Context.Options &= ~WorkspaceUpdateOptions.GenerateProjectFiles;
+					Context.Options &= ~(WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.GenerateProjectFiles);
 				}
 				Context.ArchiveTypeToDepotPath.Add(EditorArchiveType, EditorArchivePath);
 			}
