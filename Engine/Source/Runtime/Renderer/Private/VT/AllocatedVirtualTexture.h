@@ -79,7 +79,7 @@ private:
 	// We create a page table layer for each physical space group in each producer.
 	struct FPageTableLayerDesc
 	{
-		FVirtualTexturePhysicalSpace* PhysicalSpace;
+		TRefCountPtr<FVirtualTexturePhysicalSpace> PhysicalSpace;
 		uint8 UniqueProducerIndex;
 		uint8 ProducerPhysicalGroupIndex;
 		uint16 ProducerTextureLayerMask;
