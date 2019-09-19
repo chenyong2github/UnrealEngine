@@ -537,9 +537,11 @@ FConfigSection* FConfigFile::FindOrAddSection(const FString& SectionName)
 
 bool FConfigFile::Combine(const FString& Filename)
 {
-	FString Text;
+	FString FinalFileName = Filename;
+	OverrideFileFromCommandline(FinalFileName);
 
-	if (LoadConfigFileWrapper(*Filename, Text))
+	FString Text;
+	if (LoadConfigFileWrapper(*FinalFileName, Text))
 	{
 		if (Text.StartsWith("#!"))
 		{
@@ -848,7 +850,10 @@ void FConfigFile::Read( const FString& Filename )
 		Empty();
 		FString Text;
 
-		if (LoadConfigFileWrapper(*Filename, Text))
+		FString FinalFileName = Filename;
+		OverrideFileFromCommandline(FinalFileName);
+	
+		if (LoadConfigFileWrapper(*FinalFileName, Text))
 		{
 			// process the contents of the string
 			ProcessInputFileContents(Text);
@@ -936,6 +941,7 @@ FString FConfigFile::GenerateExportedPropertyLine(const FString& PropertyName, c
 namespace CommandlineOverrideSpecifiers
 {
 	// -ini:IniName:[Section1]:Key1=Value1,[Section2]:Key2=Value2
+	const TCHAR	IniFileOverrideIdentifier = TEXT("-iniFile=");
 	const TCHAR IniSwitchIdentifier[]     = TEXT("-ini:");
 	const TCHAR IniNameEndIdentifier[]    = TEXT(":[");
 	const TCHAR SectionStartIdentifier[]  = TEXT("[");
@@ -944,6 +950,41 @@ namespace CommandlineOverrideSpecifiers
 }
 
 #endif
+void FConfigFile::OverrideFileFromCommandline(FString& Filename)
+{
+#if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
+	// look for this filename on the commandline in the format:
+	//		-iniFile=<hostPatFile1>,<hostPatFile2>,<hostPatFile3>
+	// for example:
+	//		-iniFile=/host/D:\FN-Main\FortniteGame\Config\PS4\PS4DeviceProfiles.ini
+	//       
+	//		Description: 
+	//          The FortniteGame\Config\PS4\PS4DeviceProfiles.ini contained in the pak file will
+	//          be replace with /host/D:\FN-Main\FortniteGame\Config\PS4\PS4DeviceProfiles.ini.
+
+	//			Note: You will need the same base file path for this to work. If you
+	//                want to override Engine/Config/BaseEngine.ini, you will need to place the override file 
+	//                under the same folder structure. 
+	//          Ex1: D:\<some_folder>\Engine\Config\BaseEngine.ini.
+	//			Ex2: D:\<some_folder>\FortniteGame\Config\PS4\PS4Engine.ini.ini.
+	FString StagedFilePaths;
+	if(FParse::Value(FCommandLine::Get(), CommandlineOverrideSpecifiers::IniFileOverrideIdentifier, StagedFilePaths, false))
+	{ 
+		FString BaseFileName = FPaths::GetBaseFilename(Filename);
+		TArray<FString> Files;
+		StagedFilePaths.ParseIntoArray(Files, TEXT(","), true);
+		for (int32 Index = 0; Index < Files.Num(); Index++)
+		{
+			if (Files[Index].Contains(BaseFileName))
+			{
+				Filename = Files[Index];
+				UE_LOG(LogConfig, Warning, TEXT("Loading override ini file: %s "), *Files[Index]);
+				break;
+			}
+		}
+	}
+#endif
+}
 /**
 * Looks for any overrides on the commandline for this file
 *
