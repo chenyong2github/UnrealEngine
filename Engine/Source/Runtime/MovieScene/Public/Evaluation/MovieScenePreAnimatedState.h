@@ -173,8 +173,7 @@ public:
 	 * Default construction
 	 */
 	FMovieScenePreAnimatedState()
-		: bLocked(false)
-		, MasterTokens(MovieSceneImpl::FNull())
+		: MasterTokens(MovieSceneImpl::FNull())
 	{
 		DefaultGlobalCaptureMode = ECapturePreAnimatedState::None;
 	}
@@ -306,11 +305,6 @@ public:
 	{
 		EntityToAnimatedObjects.FindOrAdd(EntityKey).Add(FObjectKey());
 	}
-
-public:
-
-	/** Locked during evaluation to prevent reentrant restore state */
-	bool bLocked;
 
 protected:
 
