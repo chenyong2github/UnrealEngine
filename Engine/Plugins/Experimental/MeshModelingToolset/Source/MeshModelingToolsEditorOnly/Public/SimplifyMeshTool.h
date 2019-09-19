@@ -149,5 +149,4 @@ protected:
 	bool bResultValid;
 	void UpdateResult();
 
-	void ComputeSimplifying();
 };
