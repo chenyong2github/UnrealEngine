@@ -8,6 +8,7 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraEmitterInstance.h"
+#include "NiagaraFunctionLibrary.h"
 #include "NiagaraGPUInstanceCountManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("Register Setup"), STAT_NiagaraSimRegisterSetup, STATGROUP_Niagara);
@@ -93,6 +94,14 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 			bool bSuccessfullyMapped = true;
 			for (FVMExternalFunctionBindingInfo& BindingInfo : Script->GetVMExecutableData().CalledVMExternalFunctions)
 			{
+				// First check to see if we can pull from the fast path library..
+				FVMExternalFunction FuncBind;
+				if (UNiagaraFunctionLibrary::GetVectorVMFastPathExternalFunction(BindingInfo, FuncBind) && FuncBind.IsBound())
+				{
+					FunctionTable.Add(FuncBind);
+					continue;
+				}
+
 				for (int32 i = 0; i < Script->GetVMExecutableData().DataInterfaceInfo.Num(); i++)
 				{
 					FNiagaraScriptDataInterfaceCompileInfo& ScriptInfo = Script->GetVMExecutableData().DataInterfaceInfo[i];

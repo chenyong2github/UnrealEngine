@@ -237,6 +237,9 @@ public:
 	UPROPERTY()
 	FNiagaraScriptDataUsageInfo DataUsage;
 
+	UPROPERTY()
+	TArray<FNiagaraFunctionSignature> AdditionalExternalFunctions;
+
 	/** Information about all data interfaces used by this script. */
 	UPROPERTY()
 	TArray<FNiagaraScriptDataInterfaceCompileInfo> DataInterfaceInfo;
