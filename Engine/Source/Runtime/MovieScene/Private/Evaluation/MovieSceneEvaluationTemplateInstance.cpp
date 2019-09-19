@@ -217,6 +217,8 @@ void FMovieSceneRootEvaluationTemplateInstance::Evaluate(FMovieSceneContext Cont
 {
 	SCOPE_CYCLE_COUNTER(MovieSceneEval_EntireEvaluationCost);
 
+	TGuardValue<bool> Guard(Player.PreAnimatedState.bLocked, true);
+
 	Swap(ThisFrameMetaData, LastFrameMetaData);
 	ThisFrameMetaData.Reset();
 
