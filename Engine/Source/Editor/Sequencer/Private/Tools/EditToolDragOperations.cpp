@@ -1081,6 +1081,25 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 							TargetRowIndex = ChildIndex + 1;
 						}
 					}
+				
+					if (TargetRowIndex > 0)
+					{
+						if (!ParentTrack->IsExpanded() && ParentTrack != ExpandedParentTrack)
+						{
+							if (ExpandedParentTrack.IsValid())
+							{
+								ExpandedParentTrack->SetExpansionState(false);
+								ExpandedParentTrack = nullptr;
+							}
+							ExpandedParentTrack = ParentTrack;
+							ParentTrack->SetExpansionState(true);
+						}
+					}
+					else if (ExpandedParentTrack.IsValid())
+					{
+						ExpandedParentTrack->SetExpansionState(false);
+						ExpandedParentTrack = nullptr;
+					}				
 				}
 			}
 		}
