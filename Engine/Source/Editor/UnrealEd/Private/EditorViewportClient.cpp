@@ -5524,6 +5524,19 @@ bool FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 				BitmapSize = FIntPoint(NewWidth, NewHeight);
 			}
 
+			if (GIsAutomationTesting)
+			{
+				// Under automation test, the screenshot is highjacked and sent to be compared
+				TArray<FColor> BitmapForCompare(Bitmap);
+				if (!bWriteAlpha)
+				{
+					// Set full alpha on the bitmap
+					for (FColor& Pixel : BitmapForCompare) { Pixel.A = 255; }
+				}
+
+				FScreenshotRequest::OnScreenshotCaptured().Broadcast(BitmapSize.X, BitmapSize.Y, MoveTemp(BitmapForCompare));
+			}
+
 			TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
 			ImageTask->PixelData = MakeUnique<TImagePixelData<FColor>>(BitmapSize, MoveTemp(Bitmap));
 

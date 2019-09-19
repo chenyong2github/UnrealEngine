@@ -95,13 +95,6 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, UWorld* InWor
 			]
 		]
 	];
-
-	// Bind notification when edit mode selection changes, so we can update picker
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-	if (ControlRigEditMode)
-	{
-		ControlRigEditMode->OnModified().AddSP(this, &SControlRigEditModeTools::HandleModelModified);
-	}	
 }
 
 void SControlRigEditModeTools::SetDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects)
@@ -252,7 +245,7 @@ bool SControlRigEditModeTools::IsReadOnlyPropertyOnDetailCustomization(const FPr
 
 static bool bPickerChangingSelection = false;
 
-void SControlRigEditModeTools::OnManipulatorsPicked(const TArray<FString>& Manipulators)
+void SControlRigEditModeTools::OnManipulatorsPicked(const TArray<FName>& Manipulators)
 {
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 	if (ControlRigEditMode)
@@ -260,36 +253,8 @@ void SControlRigEditModeTools::OnManipulatorsPicked(const TArray<FString>& Manip
 		if (!bPickerChangingSelection)
 		{
 			TGuardValue<bool> SelectGuard(bPickerChangingSelection, true);
-			ControlRigEditMode->ClearControlSelection();
-			ControlRigEditMode->SetControlSelection(Manipulators, true);
-		}
-	}
-}
-
-void SControlRigEditModeTools::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
-{
-	if (bPickerChangingSelection)
-	{
-		return;
-	}
-
-	TGuardValue<bool> SelectGuard(bPickerChangingSelection, true);
-	switch (InType)
-	{
-		case EControlRigModelNotifType::NodeSelected:
-		case EControlRigModelNotifType::NodeDeselected:
-		{
-			const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
-			if (Node)
-			{
-				// those are not yet implemented yet
-				// ControlPicker->SelectManipulator(Node->Name, InType == EControlRigModelNotifType::NodeSelected);
-			}
-			break;
-		}
-		default:
-		{
-			break;
+			ControlRigEditMode->ClearRigElementSelection((uint32)ERigElementType::Control);
+			ControlRigEditMode->SetRigElementSelection(ERigElementType::Control, Manipulators, true);
 		}
 	}
 }

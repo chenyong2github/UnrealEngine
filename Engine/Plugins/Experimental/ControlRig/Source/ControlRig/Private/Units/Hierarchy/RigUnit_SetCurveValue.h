@@ -9,7 +9,7 @@
 /**
  * SetCurveValue is used to perform a change in the curve container by setting a single Curve value.
  */
-USTRUCT(meta=(DisplayName="Set Curve Value", Category="Hierarchy", Keywords = "SetCurveValue"))
+USTRUCT(meta=(DisplayName="Set Curve Value", Category="Curve", Keywords = "SetCurveValue"))
 struct FRigUnit_SetCurveValue : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -20,6 +20,7 @@ struct FRigUnit_SetCurveValue : public FRigUnitMutable
 	{}
 
 	virtual FString GetUnitLabel() const override;
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/**

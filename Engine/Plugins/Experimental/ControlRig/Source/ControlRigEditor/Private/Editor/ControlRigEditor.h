@@ -8,8 +8,9 @@
 #include "DragAndDrop/GraphNodeDragDropOp.h"
 #include "ControlRigDefines.h"
 #include "ControlRigLog.h"
-#include "Drawing/ControlRigDrawInterface.h"
 #include "ControlRigModel.h"
+#include "IPersonaViewport.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 class UControlRigBlueprint;
 class IPersonaToolkit;
@@ -91,7 +92,7 @@ public:
 
 	void SetDetailObject(UObject* Obj);
 
-	void SetDetailStruct(TSharedPtr<FStructOnScope> StructToDisplay);
+	void SetDetailStruct(const FRigElementKey& InElement, TSharedPtr<FStructOnScope> StructToDisplay);
 
 	void ClearDetailObject();
 
@@ -102,20 +103,31 @@ public:
 	TSharedRef<SBorder> GetToolbox() { return Toolbox.ToSharedRef(); }
 
 	/** Get the edit mode */
-	FControlRigEditorEditMode& GetEditMode() { return *static_cast<FControlRigEditorEditMode*>(GetAssetEditorModeManager()->GetActiveMode(FControlRigEditorEditMode::ModeName)); }
+	FControlRigEditorEditMode* GetEditMode() const { return static_cast<FControlRigEditorEditMode*>(GetAssetEditorModeManager()->GetActiveMode(FControlRigEditorEditMode::ModeName)); }
 
-	void SelectBone(const FName& InBone);
 	// this changes everytime you compile, so don't cache it expecting it will last. 
 	UControlRig* GetInstanceRig() const { return ControlRig;  }
-	// restart animation 
-	void OnHierarchyChanged();
-	void OnBoneRenamed(const FName& OldName, const FName& NewName);
+
 	void OnCurveContainerChanged();
-	void OnCurveRenamed(const FName& OldName, const FName& NewName);
+
+	void OnRigElementAdded(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
+	void OnRigElementRemoved(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
+	void OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName);
+	void OnRigElementReparented(FRigHierarchyContainer* Container, const FRigElementKey& InKey, const FName& InOldParentName, const FName& InNewParentName);
+	void OnRigElementSelected(FRigHierarchyContainer* Container, const FRigElementKey& InKey, bool bSelected);
+	void OnControlUISettingChanged(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
 
 	void OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp> DragDropOp, UEdGraph* Graph, const FVector2D& NodePosition, const FVector2D& ScreenPosition);
 
+	FPersonaViewportKeyDownDelegate& GetKeyDownDelegate() { return OnKeyDownDelegate; }
+	FNewMenuDelegate& OnViewportContextMenu() { return OnViewportContextMenuDelegate; }
+	FNewMenuCommandsDelegate& OnViewportContextMenuCommands() { return OnViewportContextMenuCommandsDelegate; }
+
 protected:
+
+	void OnHierarchyChanged();
+	void OnControlsSettingsChanged();
+
 	// FBlueprintEditor Interface
 	virtual void CreateDefaultCommands() override;
 	virtual void OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> GraphEditorCommandsList);
@@ -175,18 +187,17 @@ private:
 	/** Handle preview scene setup */
 	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
 	void HandleViewportCreated(const TSharedRef<class IPersonaViewport>& InViewport);
+	TOptional<float> GetToolbarAxesScale() const;
+	void OnToolbarAxesScaleChanged(float InValue);
 
-	/** Handle switching skeletal meshes */
+		/** Handle switching skeletal meshes */
 	void HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalMesh, USkeletalMesh* InNewSkeletalMesh);
 
 	/** Push a newly compiled/opened control rig to the edit mode */
 	void UpdateControlRig();
 
-	/** Update the bone name list for use in bone name combo boxes */
-	void CacheBoneNameList();
-
-	/** Update the curve name list for use in curve name combo boxes */
-	void CacheCurveNameList();
+	/** Update the name lists for use in name combo boxes */
+	void CacheNameLists();
 
 	/** Rebind our anim instance to the preview's skeletal mesh component */
 	void RebindToSkeletalMeshComponent();
@@ -198,18 +209,18 @@ private:
 	void ToggleExecuteGraph();
 	bool IsExecuteGraphOn() const;
 
-	enum EBoneGetterSetterType
+	enum ERigElementGetterSetterType
 	{
-		EBoneGetterSetterType_Transform,
-		EBoneGetterSetterType_Rotation,
-		EBoneGetterSetterType_Translation,
-		EBoneGetterSetterType_Initial,
-		EBoneGetterSetterType_Relative,
-		EBoneGetterSetterType_Offset,
-		EBoneGetterSetterType_Name
+		ERigElementGetterSetterType_Transform,
+		ERigElementGetterSetterType_Rotation,
+		ERigElementGetterSetterType_Translation,
+		ERigElementGetterSetterType_Initial,
+		ERigElementGetterSetterType_Relative,
+		ERigElementGetterSetterType_Offset,
+		ERigElementGetterSetterType_Name
 	};
 
-	 void HandleMakeBoneGetterSetter(EBoneGetterSetterType Type, bool bIsGetter, TArray<FName> BoneNames, UEdGraph* Graph, FVector2D NodePosition);
+	 void HandleMakeElementGetterSetter(ERigElementGetterSetterType Type, bool bIsGetter, TArray<FRigElementKey> Keys, UEdGraph* Graph, FVector2D NodePosition);
 
 protected:
 
@@ -234,27 +245,34 @@ protected:
 	/** preview scene */
 	TSharedPtr<IPersonaPreviewScene> PreviewScene;
 
+	/** Delegate to deal with key down evens in the viewport / editor */
+	FPersonaViewportKeyDownDelegate OnKeyDownDelegate;
+
+	/** Delgate to build the context menu for the viewport */
+	FNewMenuDelegate OnViewportContextMenuDelegate;
+	void HandleOnViewportContextMenuDelegate(class FMenuBuilder& MenuBuilder);
+	FNewMenuCommandsDelegate OnViewportContextMenuCommandsDelegate;
+	TSharedPtr<FUICommandList> HandleOnViewportContextMenuCommandsDelegate();
+
 	/** Bone Selection related */
-	FTransform GetBoneTransform(const FName& InBone, bool bLocal) const;
-	void SetBoneTransform(const FName& InBone, const FTransform& InTransform);
-
+	FTransform GetRigElementTransform(const FRigElementKey& InElement, bool bLocal) const;
+	void SetRigElementTransform(const FRigElementKey& InElement, const FTransform& InTransform, bool bLocal);
+	
 	/** delegate for changing property */
-	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
-
-	/** Selected Bone from hierarchy tree */
-	FName SelectedBone;
+	virtual void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	bool bControlRigEditorInitialized;
 	bool bIsSelecting;
 	bool bIsSettingObjectBeingDebugged;
+	FRigElementKey RigElementInDetailPanel;
+
+	/** Currently executing ControlRig or not - later maybe this will change to enum for whatever different mode*/
+	bool bExecutionControlRig;
 
 	/** The log to use for errors resulting from the init phase of the units */
 	FControlRigLog ControlRigLog;
 	/** Once the log is collected update the graph */
 	void UpdateGraphCompilerErrors();
-
-	/** The draw interface to use for the control rig */
-	FControlRigDrawInterface DrawInterface;
 
 	/** This can be used to enable dumping of a unit test */
 	void DumpUnitTestCode();

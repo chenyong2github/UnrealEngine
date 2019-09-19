@@ -12,6 +12,7 @@
 
 #if CONTROLRIG_UNDO
 #include "ScopedTransaction.h"
+#include "Misc/ITransaction.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "ControlRigModel"

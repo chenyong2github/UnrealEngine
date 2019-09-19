@@ -8,11 +8,10 @@ FString FRigUnit_GetRelativeBoneTransform::GetUnitLabel() const
 	return FString::Printf(TEXT("Get Relative Transform %s"), *Bone.ToString());
 }
 
-void FRigUnit_GetRelativeBoneTransform::Execute(const FRigUnitContext& Context)
+FRigUnit_GetRelativeBoneTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigHierarchyRef& HierarchyRef = Context.HierarchyReference;
-	const FRigHierarchy* Hierarchy = HierarchyRef.Get();
+	const FRigBoneHierarchy* Hierarchy = Context.GetBones();
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -44,10 +43,10 @@ void FRigUnit_GetRelativeBoneTransform::Execute(const FRigUnitContext& Context)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_GetRelativeBoneTransform)
 {
-	Hierarchy.AddBone(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
-	Hierarchy.AddBone(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(1.f, 2.f, 3.f)));
-	Hierarchy.AddBone(TEXT("BoneB"), TEXT("Root"), FTransform(FVector(-4.f, 0.f, 0.f)));
-	Hierarchy.Initialize();
+	BoneHierarchy.Add(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
+	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(1.f, 2.f, 3.f)));
+	BoneHierarchy.Add(TEXT("BoneB"), TEXT("Root"), FTransform(FVector(-4.f, 0.f, 0.f)));
+	BoneHierarchy.Initialize();
 
 	Unit.Bone = TEXT("Unknown");
 	Unit.Space = TEXT("Root");

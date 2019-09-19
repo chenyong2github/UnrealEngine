@@ -4,10 +4,10 @@
 #include "Units/RigUnitContext.h"
 #include "Math/ControlRigMathLibrary.h"
 
-void FRigUnit_TwoBoneIKSimple::Execute(const FRigUnitContext& Context)
+FRigUnit_TwoBoneIKSimple_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy == nullptr)
 	{
 		return;
