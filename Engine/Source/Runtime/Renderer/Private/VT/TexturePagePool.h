@@ -73,17 +73,17 @@ public:
 	/**
 	 * Find physical address of the page allocated for the given VT address, or ~0 if not allocated
 	 */
-	uint32		FindPageAddress(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerIndex, uint32 Local_vAddress, uint8 Local_vLevel) const;
+	uint32		FindPageAddress(const FVirtualTextureProducerHandle& ProducerHandle, uint8 GroupIndex, uint32 Local_vAddress, uint8 Local_vLevel) const;
 
 	/**
 	 * Find the physical address of the allocated page that's closest to the given page, or ~0 if not found
 	 */
-	uint32		FindNearestPageAddress(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerIndex, uint32 Local_vAddress, uint8 Local_vLevel, uint8 MaxLevel) const;
+	uint32		FindNearestPageAddress(const FVirtualTextureProducerHandle& ProducerHandle, uint8 GroupIndex, uint32 Local_vAddress, uint8 Local_vLevel, uint8 MaxLevel) const;
 
 	/**
 	 * Find the level of the allocated page that's closest to the given page, or ~0 if not found
 	 */
-	uint32		FindNearestPageLevel(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerIndex, uint32 Local_vAddress, uint8 Local_vLevel) const;
+	uint32		FindNearestPageLevel(const FVirtualTextureProducerHandle& ProducerHandle, uint8 GroupIndex, uint32 Local_vAddress, uint8 Local_vLevel) const;
 	
 	/**
 	 * Allocate a physical address
@@ -91,12 +91,12 @@ public:
 	 * Assuming the pool is full, the returned physical address will first be unmapped from anything that was previously using it
 	 * @param Frame The current frame, used to manage LRU allocations
 	 * @param ProducerHandle Handle of the VT producer requesting this page
-	 * @param LayerIndex Layer in the producer
+	 * @param GroupIndex Physical group in the producer
 	 * @param Local_vAddress Virtual address relative to the given producer
 	 * @param Local_vLevel Mip level in the producer
 	 * @param bLock Should the allocation be locked; locked allocations will never be evicted
 	 */
-	uint32		Alloc(FVirtualTextureSystem* System, uint32 Frame, const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerIndex, uint32 Local_vAddress, uint8 Local_vLevel, bool bLock);
+	uint32		Alloc(FVirtualTextureSystem* System, uint32 Frame, const FVirtualTextureProducerHandle& ProducerHandle, uint8 GroupIndex, uint32 Local_vAddress, uint8 Local_vLevel, bool bLock);
 
 	/**
 	 * Marks the given physical address as free, will be unlocked if needed, moved to top of LRU list, no longer associated with any producer
@@ -122,7 +122,7 @@ public:
 	/**
 	* Map the physical address to a specific virtual address.
 	*/
-	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 Layer, uint8 vLogSize, uint32 vAddress, uint8 vLevel, uint16 pAddress);
+	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 PageTableLayerIndex, uint8 vLogSize, uint32 vAddress, uint8 vLevel, uint16 pAddress);
 
 private:
 	// Allocate 24 bits to store next/prev indices, pack layer index into 8 bits
@@ -143,7 +143,7 @@ private:
 	
 		uint32 NextIndex;
 		uint32 PrevIndex : 24;
-		uint32 LayerIndex : 8;
+		uint32 PageTableLayerIndex : 8;
 	};
 
 	union FPageEntry
@@ -154,7 +154,7 @@ private:
 			uint32 PackedProducerHandle;
 			uint32 Local_vAddress : 24;
 			uint32 Local_vLevel : 4;
-			uint32 LayerIndex : 4;
+			uint32 GroupIndex : 4;
 		};
 	};
 
