@@ -7,7 +7,7 @@
 
 #include "AudioMixer.h"
 #include "AudioMixerPlatformAudioUnit.h"
-
+#include "Modules/ModuleManager.h"
 
 class FAudioMixerModuleAudioUnit : public IAudioDeviceModule
 {
