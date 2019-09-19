@@ -279,7 +279,7 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 					ShapeControlPoints[VertIndex] = Converter.ConvertToFbxPos(Position);
 				}
 				
-				int32 NumberOfDeltas;
+				int32 NumberOfDeltas = 0;
 				FMorphTargetDelta* MorphTargetDeltas = MorphTarget->GetMorphTargetDelta(LODIndex, NumberOfDeltas);
 				for (int32 MorphTargetDeltaIndex = 0; MorphTargetDeltaIndex < NumberOfDeltas; ++MorphTargetDeltaIndex)
 				{
