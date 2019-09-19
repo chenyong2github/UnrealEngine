@@ -195,4 +195,13 @@ void FAssetTypeActions_DialogueWave::ExecuteCreateSoundCue(TArray<TWeakObjectPtr
 	}
 }
 
+const TArray<FText>& FAssetTypeActions_DialogueWave::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		FText(LOCTEXT("AssetDialogueSubMenu", "Dialogue"))
+	};
+
+	return SubMenus;
+}
 #undef LOCTEXT_NAMESPACE
