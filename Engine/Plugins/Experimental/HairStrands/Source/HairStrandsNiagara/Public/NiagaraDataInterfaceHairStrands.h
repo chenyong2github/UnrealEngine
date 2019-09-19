@@ -227,12 +227,12 @@ struct FNDIHairStrandsProxy : public FNiagaraDataInterfaceProxy
 		const float StrandDensity, const float RootThickness, const float TipThickness);
 
 	/** Destroy the proxy data if necessary */
-	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FGuid& SystemInstance);
+	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);
 
 	/** List of proxy data for each system instances*/
-	TMap<FGuid, FNDIHairStrandsData> SystemInstancesToProxyData;
+	TMap<FNiagaraSystemInstanceID, FNDIHairStrandsData> SystemInstancesToProxyData;
 
 	/** List of proxy data to destroy later */
-	TSet<FGuid> DeferredDestroyList;
+	TSet<FNiagaraSystemInstanceID> DeferredDestroyList;
 };
 
