@@ -747,7 +747,7 @@ void FAssetRegistryGenerator::UpdateCollectionAssetData()
 		TArray<FName> TmpAssetPathNames;
 		for (const FCollectionNameType& CollectionNameToTag : CollectionNamesToTag)
 		{
-			const FName CollectionTagName = *FString::Printf(TEXT("%s%s"), FAssetData::CollectionTagPrefix, *CollectionNameToTag.Name.ToString());
+			const FName CollectionTagName = *FString::Printf(TEXT("%s%s"), FAssetData::GetCollectionTagPrefix(), *CollectionNameToTag.Name.ToString());
 
 			TmpAssetPathNames.Reset();
 			CollectionManager.GetAssetsInCollection(CollectionNameToTag.Name, CollectionNameToTag.Type, TmpAssetPathNames);

@@ -57,7 +57,10 @@ struct FAssetData
 
 public:
 	/** The prefix used for collection entries inside TagsAndValues */
-	static constexpr TCHAR CollectionTagPrefix[] = TEXT("CL_");
+	static const TCHAR* GetCollectionTagPrefix()
+	{
+		return TEXT("CL_");
+	}
 
 public:
 	/** The object path for the asset in the form PackageName.AssetName. Only top level objects in a package can have AssetData */

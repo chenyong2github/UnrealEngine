@@ -324,7 +324,7 @@ bool UAssetTagsSubsystem::CollectionExists(const FName Name)
 
 		if (const FAssetRegistryState* StatePtr = AssetRegistry.GetAssetRegistryState())
 		{
-			const FString TagNameStr = FString::Printf(TEXT("%s%s"), FAssetData::CollectionTagPrefix, *Name.ToString());
+			const FString TagNameStr = FString::Printf(TEXT("%s%s"), FAssetData::GetCollectionTagPrefix(), *Name.ToString());
 			bExists = StatePtr->GetTagToAssetDatasMap().Contains(*TagNameStr);
 		}
 	}
@@ -356,12 +356,15 @@ TArray<FName> UAssetTagsSubsystem::GetCollections()
 
 		if (const FAssetRegistryState* StatePtr = AssetRegistry.GetAssetRegistryState())
 		{
+			const TCHAR* CollectionTagPrefix = FAssetData::GetCollectionTagPrefix();
+			const int32 CollectionTagPrefixLen = FCString::Strlen(CollectionTagPrefix);
+
 			for (const auto& TagAndArrayPair : StatePtr->GetTagToAssetDatasMap())
 			{
 				const FString TagNameStr = TagAndArrayPair.Key.ToString();
-				if (TagNameStr.StartsWith(FAssetData::CollectionTagPrefix))
+				if (TagNameStr.StartsWith(CollectionTagPrefix))
 				{
-					const FString TrimmedTagNameStr = TagNameStr.Mid(ARRAY_COUNT(FAssetData::CollectionTagPrefix) - 1);
+					const FString TrimmedTagNameStr = TagNameStr.Mid(CollectionTagPrefixLen);
 					CollectionNames.Add(*TrimmedTagNameStr);
 				}
 			}
@@ -401,7 +404,7 @@ TArray<FAssetData> UAssetTagsSubsystem::GetAssetsInCollection(const FName Name)
 	}
 #else	// WITH_EDITOR
 	{
-		const FString TagNameStr = FString::Printf(TEXT("%s%s"), FAssetData::CollectionTagPrefix, *Name.ToString());
+		const FString TagNameStr = FString::Printf(TEXT("%s%s"), FAssetData::GetCollectionTagPrefix(), *Name.ToString());
 
 		FARFilter Filter;
 		Filter.bIncludeOnlyOnDiskAssets = true; // Collection tags are added at cook-time, so we *must* search the on-disk version of the tags (from the asset registry)
@@ -440,12 +443,15 @@ TArray<FName> UAssetTagsSubsystem::GetCollectionsContainingAsset(const FName Ass
 		const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(AssetPathName, bIncludeOnlyOnDiskAssets);
 		if (AssetData.IsValid())
 		{
+			const TCHAR* CollectionTagPrefix = FAssetData::GetCollectionTagPrefix();
+			const int32 CollectionTagPrefixLen = FCString::Strlen(CollectionTagPrefix);
+
 			for (const auto& TagAndValuePair : AssetData.TagsAndValues)
 			{
 				const FString TagNameStr = TagAndValuePair.Key.ToString();
-				if (TagNameStr.StartsWith(FAssetData::CollectionTagPrefix))
+				if (TagNameStr.StartsWith(CollectionTagPrefix))
 				{
-					const FString TrimmedTagNameStr = TagNameStr.Mid(ARRAY_COUNT(FAssetData::CollectionTagPrefix) - 1);
+					const FString TrimmedTagNameStr = TagNameStr.Mid(CollectionTagPrefixLen);
 					CollectionNames.Add(*TrimmedTagNameStr);
 				}
 			}
