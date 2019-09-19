@@ -652,6 +652,11 @@ public class LuminPlatform : Platform
 		string UninstallBatchName = GetFinalBatchName(Params, SC, true);
 		BatchLines = GenerateUninstallBatchFile(PackageName, Params);
 		File.WriteAllLines(UninstallBatchName, BatchLines);
+		
+		// Copy mpk and .bat file to staging directory, because this is where Gauntlet looks for them to discover the build
+		File.Copy(MpkName, SC.CookSourceRuntimeRootDir + "\\" + Path.GetFileName(MpkName).ToString(), true);
+		File.Copy(BatchName, SC.CookSourceRuntimeRootDir + "\\" + Path.GetFileName(BatchName).ToString(), true);
+		File.Copy(UninstallBatchName, SC.CookSourceRuntimeRootDir + "\\" + Path.GetFileName(UninstallBatchName).ToString(), true);
 
 		// If needed, make the batch files able to execute
 		if (Utils.IsRunningOnMono)
@@ -1110,19 +1115,19 @@ public class LuminPlatform : Platform
 
 	#region Implementation Details
 
-	private string GetDeviceCommandLine(ProjectParams Params, string SerialNumber, string Args)
+	private static string GetDeviceCommandLine(ProjectParams Params, string SerialNumber, string Args)
 	{
-		if (SerialNumber != "")
+		if (SerialNumber != null && SerialNumber != "")
 		{
 			SerialNumber = "-s " + SerialNumber;
 		}
 
-		return string.Format("{0} {1}", SerialNumber, Args);
+		return string.Format("{0} {1}", SerialNumber != null ? SerialNumber : "", Args);
 	}
 
 	static string LastSpewFilename = "";
 
-	public string ADBSpewFilter(string Message)
+	public static string MLDBSpewFilter(string Message)
 	{
 		if (Message.StartsWith("[") && Message.Contains("%]"))
 		{
@@ -1143,7 +1148,7 @@ public class LuminPlatform : Platform
 		return Message;
 	}
 
-	private string DeviceCommand
+	private static string DeviceCommand
 	{
 		get
 		{
@@ -1174,12 +1179,12 @@ public class LuminPlatform : Platform
 		}
 	}
 
-	private IProcessResult RunDeviceCommand(ProjectParams Params, string SerialNumber, string Args, string Input = null, ERunOptions Options = ERunOptions.Default)
+	public static IProcessResult RunDeviceCommand(ProjectParams Params, string SerialNumber, string Args, string Input = null, ERunOptions Options = ERunOptions.Default)
 	{
 		if (Options.HasFlag(ERunOptions.AllowSpew) || Options.HasFlag(ERunOptions.SpewIsVerbose))
 		{
 			LastSpewFilename = "";
-			return Run(DeviceCommand, GetDeviceCommandLine(Params, SerialNumber, Args), Input, Options, SpewFilterCallback: new ProcessResult.SpewFilterCallbackType(ADBSpewFilter));
+			return Run(DeviceCommand, GetDeviceCommandLine(Params, SerialNumber, Args), Input, Options, SpewFilterCallback: new ProcessResult.SpewFilterCallbackType(MLDBSpewFilter));
 		}
 		return Run(DeviceCommand, GetDeviceCommandLine(Params, SerialNumber, Args), Input, Options);
 	}
@@ -1187,7 +1192,7 @@ public class LuminPlatform : Platform
 	private string RunAndLogDeviceCommand(ProjectParams Params, string SerialNumber, string Args, out int SuccessCode)
 	{
 		LastSpewFilename = "";
-		return RunAndLog(CmdEnv, DeviceCommand, GetDeviceCommandLine(Params, SerialNumber, Args), out SuccessCode, SpewFilterCallback: new ProcessResult.SpewFilterCallbackType(ADBSpewFilter));
+		return RunAndLog(CmdEnv, DeviceCommand, GetDeviceCommandLine(Params, SerialNumber, Args), out SuccessCode, SpewFilterCallback: new ProcessResult.SpewFilterCallbackType(MLDBSpewFilter));
 	}
 
 	private const int DeployMaxParallelCommands = 6;

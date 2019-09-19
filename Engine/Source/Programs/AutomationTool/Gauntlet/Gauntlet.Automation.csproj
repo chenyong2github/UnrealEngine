@@ -158,6 +158,10 @@
       <Name>Localization.Automation</Name>
       <Private>False</Private>
     </ProjectReference>
+    <ProjectReference Include="..\Lumin\Lumin.Automation.csproj">
+      <Project>{17779110-5cab-43a0-9dfb-4df67df29b42}</Project>
+      <Name>Lumin.Automation</Name>
+    </ProjectReference>
     <ProjectReference Include="..\XLocLocalization\XLocLocalization.Automation.csproj">
       <Project>{7e2d6784-c9b7-40c6-a89b-0a8afddce60d}</Project>
       <Name>XLocLocalization.Automation</Name>
@@ -219,6 +223,14 @@
       <ItemGroup>
         <Compile Include="Platform\IOS\Gauntlet.TargetDeviceIOS.cs" />
         <Compile Include="Platform\IOS\Gauntlet.IOSBuildSource.cs" />
+      </ItemGroup>
+    </When>
+  </Choose>
+  <Choose>
+    <When Condition="Exists('Platform\Lumin\Gauntlet.TargetDeviceLumin.cs')">
+      <ItemGroup>
+        <Compile Include="Platform\Lumin\Gauntlet.TargetDeviceLumin.cs" />
+        <Compile Include="Platform\Lumin\Gauntlet.LuminBuildSource.cs" />
       </ItemGroup>
     </When>
   </Choose>
