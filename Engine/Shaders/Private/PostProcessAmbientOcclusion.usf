@@ -22,10 +22,15 @@
 // Testing the GTAO Implementation between a heavy weight reference and an in game one
 #define GTAO_REF 0
 
+// Simplified optimized version of GTAO.
+// The biggest difference here is the depth map is treated as an othographic projected height map rather than a perspective one. 
+// This leads to differences in angles and fall off distances but generally the differences are minor. For extreme FOV cases this might be a problem.
+#define GTAO_OPT 0
+
 // 0: classic with weighted sample, 1: don't normalize and adjust the formula to be simpler and faster - can look better and is cheaper (Alchemy like?)
 #define OPTIMIZATION_O1 1
 
-// 1:lowest quality, 2:medium , 3:high, more doesn't give too much (maybe HZB mip computations should be adjusted)
+// 1:lowest quality, 2:medium , 3:high, more doesn't give too much (maybe HZB mip computations should `be adjusted)
 //#define SAMPLE_STEPS 3
 
 // 0:off / 1:show samples on the right side of the screen
@@ -901,21 +906,43 @@ void MainSSAOSmoothCS(
 }
 #endif
 
+#if GTAO_REF
 
-float4 GTAOParams[1];
+#define GTAO_NUMROTS  32
+#define GTAO_NUMTAPS  64
 
-#define FALLOFF_START		100.0
+#else
+
+#define GTAO_NUMROTS  1
+
+#if SHADER_QUALITY == 0
+	// very low
+	#define GTAO_NUMTAPS 5
+#elif SHADER_QUALITY == 1
+	// low
+	#define GTAO_NUMTAPS 9
+#elif SHADER_QUALITY == 2
+	// medium
+	#define GTAO_NUMTAPS 15
+#elif SHADER_QUALITY == 3
+	// high
+	#define GTAO_NUMTAPS 25
+#else // SHADER_QUALITY == 4
+	// very high
+	#define GTAO_NUMTAPS 35
+#endif
+#endif
+
+
+
+float4 GTAOParams[2];
+
+#define FALLOFF_START		50.0
+#define FALLOFF_END			250.0
 #define FALLOFF_START_SQ	(FALLOFF_START*FALLOFF_START)
-#define FALLOFF_END			150.0
 #define FALLOFF_END_SQ		(FALLOFF_END*FALLOFF_END)
 
-#if GTAO_REF
-#define NumPhi  32
-#define NumTaps  64
-#else
-#define NumPhi  1
-#define NumTaps  7
-#endif
+
 
 #define PI_HALF (PI*0.5)
 
@@ -923,38 +950,12 @@ float4 GTAOParams[1];
 RWTexture2D<float2> HorizonOutTexture;
 #endif
 
-// The following is used to help the compiler generate more optimal code.
-struct GTAO_COMMON
-{
-	float HZB_BiasX;
-	float HZB_BiasY;
-	float Falloff_Scale;
-	float Falloff_Bias;
-};
-
-
-void Fill_GTAO_Common( inout GTAO_COMMON GtaoCommon)
-{
-	GtaoCommon.HZB_BiasX = HZBRemapping.z;
-	GtaoCommon.HZB_BiasY = HZBRemapping.w;
-
-	GtaoCommon.Falloff_Scale = 1.0f / (FALLOFF_END_SQ - FALLOFF_START_SQ);
-	GtaoCommon.Falloff_Bias = -FALLOFF_START_SQ * GtaoCommon.Falloff_Scale; 
-}
-
-
-float Falloff(float distSq, GTAO_COMMON gtao_common)
-{
-	return 2.0 * saturate(distSq* gtao_common.Falloff_Scale + gtao_common.Falloff_Bias   );
-
-}
 
 float Falloff(float distSq)
 {
 	float Falloff_Scale = 1.0f / (FALLOFF_END_SQ - FALLOFF_START_SQ);
 	float Falloff_Bias = -FALLOFF_START_SQ * Falloff_Scale; 
-
-	return 2.0 * saturate(distSq* Falloff_Scale + Falloff_Bias   );
+	return  2.0 * saturate(distSq* Falloff_Scale + Falloff_Bias   );
 }
 
 
@@ -971,17 +972,50 @@ float3 GetViewSpacePosFromHZB(float2 UV, float MipLevel)
 	return ScreenToViewPos(UV, SceneDepth);
 }
 
-float3 GetViewSpacePosFromHZB(float2 UV, float MipLevel, GTAO_COMMON gtao_common)
+
+float3 GetNormal(float2 UV, float3 ViewSpacePosMid, bool bConstructFromDepth)
 {
-	float SceneDepth = GetDepthFromAOInput(UV);
+	float3 ViewSpaceNormal;
 
-	float2 HZBUV;
-	HZBUV.x = UV.x * HZBRemapping.x + gtao_common.HZB_BiasX;
-	HZBUV.y = UV.y * HZBRemapping.y + gtao_common.HZB_BiasY;
-	SceneDepth = Texture2DSampleLevel( PostprocessInput1, PostprocessInput1Sampler, HZBUV,MipLevel).r;
-	SceneDepth = ConvertFromDeviceZ(SceneDepth);
+	if(bConstructFromDepth)
+	{
+		// Get the normal derived from the depth buffer
+		float2 DeltaUV = View.BufferSizeAndInvSize.zw;
+	
+		float DeviceZ		= Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV,0).r;									
+		float DeviceZLeft	= Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV + float2(-DeltaUV.x,  0.0f),0).r;		
+		float DeviceZTop	= Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV + float2( 0.0f     , -DeltaUV.y),0).r;	
+		float DeviceZRight	= Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV + float2( DeltaUV.x,  0.0f),0).r;		
+		float DeviceZBottom = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, UV + float2( 0.0f     ,  DeltaUV.y),0).r;	
 
-	return ScreenToViewPos(UV, SceneDepth);
+		float DeviceZDdx	= TakeSmallerAbsDelta(DeviceZLeft, DeviceZ, DeviceZRight);
+		float DeviceZDdy	= TakeSmallerAbsDelta(DeviceZTop, DeviceZ, DeviceZBottom);
+
+		float ZRight		= ConvertFromDeviceZ(DeviceZ + DeviceZDdx);
+		float ZDown			= ConvertFromDeviceZ(DeviceZ + DeviceZDdy);
+
+		float3 Right		= ScreenToViewPos(UV+ float2( DeltaUV.x,      0.0f) , ZRight)-ViewSpacePosMid;
+		float3 Down			= ScreenToViewPos(UV+ float2(      0.0f, DeltaUV.y) , ZDown) -ViewSpacePosMid;
+		
+		ViewSpaceNormal = normalize(cross(Right, Down));
+
+	}
+	else
+	{
+		// Get the normal from the normal buffer
+		float3 WorldNormal		= GetGBufferData(UV, false).WorldNormal;
+		ViewSpaceNormal	= normalize(mul(WorldNormal, (float3x3)View.TranslatedWorldToView));
+
+	}
+
+	return ViewSpaceNormal;
+}
+
+
+float GetLinearDepthProj(float2 ScreenUV)
+{
+	float DeviceZ = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, ScreenUV, 0).r;
+	return  1.0f / (DeviceZ * View.InvDeviceZToWorldZTransform[2] - View.InvDeviceZToWorldZTransform[3]);
 }
 
 
@@ -990,33 +1024,66 @@ float SearchForLargestAngleRef(float2 inUV, float2 deltaUV, float3 ViewSpacePosi
 	float BiggestAngle = -1.0f;
 
 	deltaUV.y	  *=-1;
-	deltaUV	      *= 1;
+	deltaUV.y	  *=.3;
+	float2 UV	   = inUV ;
 
-	for(int i=1; i<NumTaps; i++)
+#if GTAO_OPT
+
+	// Precompute as much stuff upfront
+	float CurrDepth			= GetLinearDepthProj(UV);
+	UV						+= deltaUV;
+	float2 DeltaVS_XY	    = ScreenToViewPos(UV, CurrDepth).xy - ViewSpacePosition.xy;
+	float  DeltaVS_XYLen    = sqrt(dot( DeltaVS_XY.xy, DeltaVS_XY.xy));
+	float  CurrVS_XYLen		= DeltaVS_XYLen;
+
+	for(int i=1; i<=GTAO_NUMTAPS; i++)
 	{
-		float fi = (float) i;
-		float2 UV		= inUV +  fi*deltaUV;
+		float SceneDepth	= GetLinearDepthProj(UV);
+		float DiffDepth		= (CurrDepth - SceneDepth);
 
-		float SceneDepth	= GetDepthFromAOInput(UV);
-		float3 SampVS		= ScreenToViewPos(UV, SceneDepth);
-		float3 DiffV		= (SampVS - ViewSpacePosition) ;
-		float distSQ		= dot(DiffV, DiffV);
+		float distSQ		= (CurrVS_XYLen*CurrVS_XYLen) + (DiffDepth*DiffDepth);
+
+		UV					+= deltaUV;
+		CurrVS_XYLen		+= DeltaVS_XYLen;
 
 		// At this point we could early out if DistSQ is greater than falloff
 		BRANCH
 		if(distSQ < FALLOFF_END_SQ)
 		{
-			float ooDist    = 1.0f / sqrt(distSQ);
-			float cosh		= ooDist * dot(DiffV,ViewDir );
+			float ooDist    = rsqrt(distSQ);
+			float cosh		= ooDist * DiffDepth;
 
-			float falloff = Falloff(distSQ);
-			BiggestAngle = max(BiggestAngle, cosh - falloff);
+			float falloff	= Falloff(distSQ);
+			BiggestAngle	= max(BiggestAngle, cosh - falloff);
 		}
-	}
+
+	}	
+#else
+	for(int i=1; i<=GTAO_NUMTAPS; i++)
+	{
+		UV					+= deltaUV;
+	
+		float SceneDepth	= GetDepthFromAOInput(UV);
+		float3 SampVS		= ScreenToViewPos(UV, SceneDepth);
+	
+		float3 DiffV		= (SampVS - ViewSpacePosition) ;
+		float distSQ		= dot(DiffV, DiffV);
+	
+		// At this point we could early out if DistSQ is greater than falloff
+		BRANCH
+		if(distSQ < FALLOFF_END_SQ)
+		{
+			float ooDist    = rsqrt(distSQ);
+			float cosh		= ooDist * dot(DiffV, ViewDir );
+	
+			float falloff	= Falloff(distSQ);
+			BiggestAngle	= max(BiggestAngle, cosh - falloff);
+		}
+	}	
+#endif
 
 	return BiggestAngle;
 }
-
 
 float SearchForLargestAngle(float2 inUV, float2 deltaUV, float3 ViewSpacePosition, float3 ViewDir)
 {
@@ -1027,32 +1094,90 @@ float SearchForLargestAngle(float2 inUV, float2 deltaUV, float3 ViewSpacePositio
 	float BiggestAngle = -1.0f;
 
 	deltaUV.y	  *=-1;
-	deltaUV		  *= 2;
-
 	float2 UV	= inUV;
 
-	GTAO_COMMON GtaoCommon;
-	Fill_GTAO_Common(GtaoCommon);
+	float MipLevel = 0;
+	
 
+#if GTAO_OPT
+	// Precompute as much stuff upfront
+	float CurrDepth			= GetLinearDepthProj(UV);
+	UV						+= deltaUV;
+	float2 DeltaVS_XY	    = ScreenToViewPos(UV, CurrDepth).xy - ViewSpacePosition.xy;
+	float  DeltaVS_XYLen    = sqrt(dot( DeltaVS_XY.xy, DeltaVS_XY.xy));
+	float  CurrVS_XYLen		= DeltaVS_XYLen;
 
-	for(int i=1; i<=NumTaps; i++)
+	float2 HZB_UV  = float2( UV.x * HZBRemapping.x + HZBRemapping.z, UV.y * HZBRemapping.y + HZBRemapping.w);
+	float2 HZB_dUV = float2( deltaUV.x * HZBRemapping.x, deltaUV.y * HZBRemapping.y );
+
+	UNROLL
+	for(int i=1; i<=GTAO_NUMTAPS; i++)
 	{
-		float MipLevel = 0;
+		if(i==2)
+		{
+			HZB_dUV += HZB_dUV;
+			DeltaVS_XYLen	+= DeltaVS_XYLen;
+			MipLevel++;
+		}
 
+		if(i==GTAO_NUMTAPS/4)
+		{
+			HZB_dUV += HZB_dUV;
+			DeltaVS_XYLen	+= DeltaVS_XYLen;
+			MipLevel++;
+		}
+		else if(i==GTAO_NUMTAPS/2)
+		{
+			HZB_dUV += HZB_dUV;
+			DeltaVS_XYLen	+= DeltaVS_XYLen;
+			MipLevel++;
+		}
+
+		float DeviceZ		= Texture2DSampleLevel( PostprocessInput1, PostprocessInput1Sampler, HZB_UV, MipLevel).r;
+		float SceneDepth    = 1.0f / (DeviceZ * View.InvDeviceZToWorldZTransform[2] - View.InvDeviceZToWorldZTransform[3]);
+
+		float DiffDepth		= (CurrDepth - SceneDepth);
+		float distSQ		= (CurrVS_XYLen*CurrVS_XYLen) + (DiffDepth*DiffDepth);
+
+		HZB_UV				+= HZB_dUV;
+		CurrVS_XYLen		+= DeltaVS_XYLen;
+
+		// At this point we could early out if DistSQ is greater than falloff
+		BRANCH
+		if(distSQ < FALLOFF_END_SQ)
+		{
+			float ooDist    = rsqrt(distSQ);
+			float cosh		= ooDist * DiffDepth;
+
+			float falloff	= Falloff(distSQ);
+			BiggestAngle	= max(BiggestAngle, cosh - falloff);
+		}
+	}	
+
+
+#else
+	for(int i=1; i<=GTAO_NUMTAPS; i++)
+	{
 		if(i==3)
 		{
 			deltaUV += deltaUV;
-			MipLevel = 1;
+			MipLevel++;
 		}
-		else if(i==5)
+
+		if(i==GTAO_NUMTAPS/4)
 		{
 			deltaUV += deltaUV;
-			MipLevel = 2;
+			MipLevel++;
+		}
+		else if(i==GTAO_NUMTAPS/2)
+		{
+			deltaUV += deltaUV;
+			MipLevel++;
 		}
 
 		UV				+= deltaUV;
 		
-		float3 SampVS   = GetViewSpacePosFromHZB(UV,MipLevel, GtaoCommon);
+		float3 SampVS   = GetViewSpacePosFromHZB(UV,MipLevel);
 		float3 DiffV	= (SampVS - ViewSpacePosition) ;
 		float distSQ	= dot(DiffV, DiffV);
 
@@ -1063,11 +1188,12 @@ float SearchForLargestAngle(float2 inUV, float2 deltaUV, float3 ViewSpacePositio
 		{
 			float ooDist    = rsqrt(distSQ);
 			float cosh		= ooDist * dot(DiffV,ViewDir );
-			float falloff = Falloff(distSQ, GtaoCommon);
-			BiggestAngle = max(BiggestAngle, cosh - falloff);
+			float falloff	= Falloff(distSQ);
+			BiggestAngle	= max(BiggestAngle, cosh - falloff);
 		}
-
 	}
+#endif	
+
 
 	return BiggestAngle;
 }
@@ -1077,11 +1203,15 @@ float SearchForLargestAngle(float2 inUV, float2 deltaUV, float3 ViewSpacePositio
 float2 SearchAxisForAngles(float2 UV, float3 Dir, float3 ViewDir, float3 ViewSpacePos, float Scale)
 {
 	// TODO - Fix aspect ratio
-	float RandScale = 1.0f;//GTAOParams[0].y;
-	float2 DeltaUV	= (RandScale * Scale) * float2(View.BufferSizeAndInvSize.z * Dir.x, View.BufferSizeAndInvSize.w * Dir.y);
+	float2 DeltaUV	= Scale * float2(View.BufferSizeAndInvSize.z * Dir.x, View.BufferSizeAndInvSize.w * Dir.y);
 
-	float Ang1 = SearchForLargestAngle( UV,   DeltaUV, ViewSpacePos, ViewDir);
-	float Ang2 = SearchForLargestAngle( UV,  -DeltaUV, ViewSpacePos, ViewDir);
+	float O =  0.0f;//GTAOParams[0].z; 
+
+	float2 StartUV = UV + (DeltaUV*O);
+	float Ang1 = SearchForLargestAngle( StartUV,  DeltaUV, ViewSpacePos, ViewDir);
+
+	StartUV = UV - (DeltaUV*O);
+	float Ang2 = SearchForLargestAngle( StartUV, -DeltaUV, ViewSpacePos, ViewDir);
 
 	return float2(Ang1, Ang2);
 }
@@ -1093,20 +1223,27 @@ float ComputeInnerIntegral(float2 Angles, float3 ScreenDir, float3 ViewDir, floa
 	float3 Perp				= cross(ViewDir, PlaneNormal);
 	float3 ProjNormal		= ViewSpaceNormal - PlaneNormal * dot(ViewSpaceNormal, PlaneNormal);
 
-	float ProjNormalMagSq	= dot(ProjNormal, ProjNormal);
-	float RecipMag			= rsqrt(ProjNormalMagSq);
-	float ProjNormalMag		= 1.0f / max(RecipMag, 1e-7);
+	float LenProjNormal		= length(ProjNormal);
+	//float ProjNormalMagSq	= dot(ProjNormal, ProjNormal);
+	float RecipMag			= 1.0f / (LenProjNormal+1e-6);
 	float CosAng			= dot(ProjNormal, Perp) * RecipMag;	
 	float Gamma				= acosFast(CosAng) - PI_HALF;				
 	float CosGamma			= dot(ProjNormal, ViewDir) * RecipMag;
 	float SinGamma  		= CosAng * -2.0f;					
 
-	// clamp to normal hemisphere
-	Angles.x = Gamma + max(-Angles.x - Gamma, -PI_HALF);
-	Angles.y = Gamma + min( Angles.y - Gamma,  PI_HALF);
+	const float ANGLEBIAS = 0;// PI_HALF/4.0f;
 
-	float AO = (ProjNormalMag * 0.25 * ( (Angles.x * SinGamma + CosGamma - cos((2.0 * Angles.x) - Gamma)) +
-				  			             (Angles.y * SinGamma + CosGamma - cos((2.0 * Angles.y) - Gamma)) ));
+	// clamp to normal hemisphere 
+	Angles.x = Gamma + max(-Angles.x - Gamma, -(PI_HALF-ANGLEBIAS) );
+	Angles.y = Gamma + min( Angles.y - Gamma,  (PI_HALF-ANGLEBIAS) );
+
+	float AO = ( 0.25 * ( (Angles.x * SinGamma + CosGamma - cos((2.0 * Angles.x) - Gamma)) +
+				  	      (Angles.y * SinGamma + CosGamma - cos((2.0 * Angles.y) - Gamma)) ));
+
+	AO = saturate(AO);
+
+	//const float Bias = 0.2;
+	//AO = saturate( (AO - Bias)  *  (1.0/(1.0-Bias))  );
 
 	// Fade out based on user defined distance
 	float Mul = ScreenSpaceAOParams[4].x;
@@ -1136,36 +1273,49 @@ void HorizonSearchAndInnerIntegratePSandCS(in float2 UV, out float4 OutColor)
 	}
 	
 	float2 ViewportUVToRandomUV = ScreenSpaceAOParams[1].xy;
-	const float2 TemporalOffset = ScreenSpaceAOParams[3].xy;
-	float2 RandomVec = (Texture2DSample(RandomNormalTexture, RandomNormalTextureSampler, TemporalOffset + UV * ViewportUVToRandomUV).rg * 2 - 1) ;
+	float TemporalCos = GTAOParams[0].x;
+	float TemporalSin = GTAOParams[0].y;
+	float2 TemporalOffset = 0;// GTAOParams[1].xy;
+	float2 RandomTexVec = (Texture2DSample(RandomNormalTexture, RandomNormalTextureSampler, TemporalOffset + UV * ViewportUVToRandomUV).rg * 2 - 1) ;
+	float2 RandomVec;
+	
+	// Rotate the random Vec
+	RandomVec.x = dot(RandomTexVec.xy, float2(TemporalCos, -TemporalSin ));
+	RandomVec.y = dot(RandomTexVec.xy, float2(TemporalSin, TemporalCos ));
 
 	float3 ViewSpacePos  = ScreenToViewPos(UV,SceneDepth);
 
 	// Get Normal and transform into viewspace
-	float3 WorldNormal		= GetGBufferData(UV, false).WorldNormal;								// TAP
-	float3 ViewSpaceNormal	= normalize(mul(WorldNormal, (float3x3)View.TranslatedWorldToView));
+	float3 ViewSpaceNormal = GetNormal(UV, ViewSpacePos, false);
+#if GTAO_OPT
 	float3 ViewDir			= -normalize(ViewSpacePos.xyz);
+#else
+	float3 ViewDir			= float3(0,0,-1);
+#endif
 
 	float Sum=0.0;
 
+	// Given the depth determine how many pixels away we are guranteed to be outside of the falloff distance.
+	float InvTanHalfFov			= ScreenSpaceAOParams[3].w;
+	float ScreenPixelsToCutoff  = View.BufferSizeAndInvSize.x * ((FALLOFF_END*(1.0f/InvTanHalfFov)) / ViewSpacePos.z) ; 
+
 	// Get radius based on sampling 
 	// Get radius based on distance - TODO - Need to use FOV and aspect ratio
-	float Scale = 1000.0 / ViewSpacePos.z;
+	float Scale = ScreenPixelsToCutoff /  GTAO_NUMTAPS;
 
+	// Clamp the scale. Too small and it won't be jumping by more than 1 pixel. Too much and it'll thrash the cache
 	Scale = max(Scale, 2.0f);
 
-	// TODO - Opt - Determine how many taps we'll step before we hit the attenuation radius.
-
 #if GTAO_REF
-	for(int i=0; i<NumPhi; i++)
+	for(int i=0; i<GTAO_NUMROTS; i++)
 	{
-		float phi			= ((float)i) *  (PI / NumPhi);
+		float phi			= ((float)i) *  (PI / GTAO_NUMROTS);
 		float3 ScreenDir	= float3(cos(phi), sin(phi), 0.0);
 #else
 		float3 ScreenDir	= float3(RandomVec.x, RandomVec.y, 0.0);
 #endif
 
-		float2 Angles = SearchAxisForAngles( UV,  ScreenDir,  ViewDir,  ViewSpacePos, Scale);
+		float2 Angles = SearchAxisForAngles( UV ,  ScreenDir,  ViewDir,  ViewSpacePos, Scale);
 
 		Angles.x = acosFast(Angles.x);
 		Angles.y = acosFast(Angles.y);
@@ -1175,7 +1325,14 @@ void HorizonSearchAndInnerIntegratePSandCS(in float2 UV, out float4 OutColor)
 	}
 #endif
 
-	OutColor.r = Sum   / (float)NumPhi;
+
+	float AmbientOcclusionIntensity = ScreenSpaceAOParams[0].w;
+	float AmbientOcclusionPower = ScreenSpaceAOParams[0].x;
+	// user adjust AO
+	Sum = Sum   / (float)GTAO_NUMROTS;
+	Sum = 1 - (1 - pow(abs(Sum), AmbientOcclusionPower)) * AmbientOcclusionIntensity;
+
+	OutColor.r = Sum ;
 
 	return;
 }
@@ -1250,6 +1407,12 @@ void GTAOInnerIntegratePSandCS(in float2 UV, out float4 OutColor)
 	Angles.y = acosFast(Angles.y);
 
 	float AO = ComputeInnerIntegral(Angles, ScreenDir, ViewDir, ViewSpaceNormal, SceneDepth);
+
+	float AmbientOcclusionIntensity = ScreenSpaceAOParams[0].w;
+	float AmbientOcclusionPower		= ScreenSpaceAOParams[0].x;
+	// user adjust AO
+	AO = 1 - (1 - pow(abs(AO), AmbientOcclusionPower)) * AmbientOcclusionIntensity;
+
 	OutColor.rgb = AO ;
 
 	return;
