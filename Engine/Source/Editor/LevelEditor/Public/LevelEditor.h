@@ -15,11 +15,10 @@
 
 class AActor;
 class ILevelViewport;
-class IViewportLayoutEntity;
 class SLevelEditor;
 class UAnimSequence;
 class USkeletalMeshComponent;
-struct FViewportConstructionArgs;
+
 enum class EMapChangeType : uint8;
 
 extern const FName LevelEditorApp;
@@ -329,7 +328,7 @@ public:
 	}
 
 	/** Create an instance of a custom viewport from the specified viewport type name */
-	TSharedRef<IViewportLayoutEntity> FactoryViewport(FName InTypeName, const FViewportConstructionArgs& ConstructionArgs) const;
+	TSharedRef<ILevelViewportLayoutEntity> FactoryViewport(FName InTypeName, const FViewportConstructionArgs& ConstructionArgs) const;
 
 private:
 	/**

@@ -309,7 +309,7 @@ void FLevelViewportLayout::RequestMaximizeViewport( FName ViewportToMaximize, co
 
 void FLevelViewportLayout::MaximizeViewport( FName ViewportToMaximize, const bool bWantMaximize, const bool bWantImmersive, const bool bAllowAnimation )
 {
-	TSharedPtr<IViewportLayoutEntity> Entity = Viewports.FindRef(ViewportToMaximize);
+	TSharedPtr<ILevelViewportLayoutEntity> Entity = StaticCastSharedPtr<ILevelViewportLayoutEntity>(Viewports.FindRef(ViewportToMaximize));
 
 	// Should never get into a situation where the viewport is being maximized and there is already a maximized viewport. 
 	// I.E Maximized viewport is NULL which means this is a new maximize or MaximizeViewport is equal to the passed in one which means this is a restore of the current maximized viewport
@@ -430,7 +430,7 @@ void FLevelViewportLayout::MaximizeViewport( FName ViewportToMaximize, const boo
 				// Store the maximized viewport
 				MaximizedViewport = ViewportToMaximize;
 
-				TSharedPtr<IViewportLayoutEntity> MaximizedEntity = Viewports.FindRef(MaximizedViewport);
+				TSharedPtr<ILevelViewportLayoutEntity> MaximizedEntity = StaticCastSharedPtr<ILevelViewportLayoutEntity>(Viewports.FindRef(MaximizedViewport));
 				if (MaximizedEntity.IsValid())
 				{
 					// Replace our viewport with a dummy widget in it's place during the maximize transition.  We can't
@@ -580,7 +580,7 @@ void FLevelViewportLayout::TakeHighResScreenShot()
 {
 	if (bIsImmersive || bIsMaximized)
 	{
-		TSharedPtr<IViewportLayoutEntity> MaximizedViewportEntity = Viewports.FindRef(MaximizedViewport);
+		TSharedPtr<ILevelViewportLayoutEntity> MaximizedViewportEntity = StaticCastSharedPtr<ILevelViewportLayoutEntity>(Viewports.FindRef(MaximizedViewport));
 		check(MaximizedViewportEntity.IsValid());
 
 		MaximizedViewportEntity->TakeHighResScreenShot();
@@ -589,7 +589,8 @@ void FLevelViewportLayout::TakeHighResScreenShot()
 	{
 		for (auto& Elem : Viewports)
 		{
-			TSharedPtr<IViewportLayoutEntity> ViewportEntity = Elem.Value; 
+			TSharedPtr<ILevelViewportLayoutEntity> ViewportEntity = StaticCastSharedPtr<ILevelViewportLayoutEntity>(Elem.Value);
+
 			if (ViewportEntity.IsValid())
 			{
 				ViewportEntity->TakeHighResScreenShot();
@@ -640,7 +641,7 @@ void FLevelViewportLayout::FinishMaximizeTransition()
 {
 	if( bIsTransitioning )
 	{
-		TSharedPtr<IViewportLayoutEntity> MaximizedViewportEntity = Viewports.FindRef(MaximizedViewport);
+		TSharedPtr<ILevelViewportLayoutEntity> MaximizedViewportEntity = StaticCastSharedPtr<ILevelViewportLayoutEntity>(Viewports.FindRef(MaximizedViewport));
 		check(MaximizedViewportEntity.IsValid());
 
 		// The transition animation is complete, allow the engine to tick normally

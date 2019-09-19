@@ -3752,7 +3752,7 @@ FName SLevelViewport::GetViewportTypeWithinLayout() const
 	TSharedPtr<FLevelViewportLayout> LayoutPinned = ParentLayout.Pin();
 	if (LayoutPinned.IsValid() && !ConfigKey.IsNone())
 	{
-		TSharedPtr<IViewportLayoutEntity> Entity = LayoutPinned->GetViewports().FindRef(ConfigKey);
+		TSharedPtr<ILevelViewportLayoutEntity> Entity = StaticCastSharedPtr<ILevelViewportLayoutEntity>(LayoutPinned->GetViewports().FindRef(ConfigKey));
 		if (Entity.IsValid())
 		{
 			return Entity->GetType();

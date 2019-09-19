@@ -576,7 +576,7 @@ void FLevelEditorModule::RemoveStatusBarItem(FName InStatusBarIdentifier)
 	BroadcastNotificationBarChanged();
 }
 
-TSharedRef<IViewportLayoutEntity> FLevelEditorModule::FactoryViewport(FName InTypeName, const FViewportConstructionArgs& ConstructionArgs) const
+TSharedRef<ILevelViewportLayoutEntity> FLevelEditorModule::FactoryViewport(FName InTypeName, const FViewportConstructionArgs& ConstructionArgs) const
 {
 	const FViewportTypeDefinition* Definition = CustomViewports.Find(InTypeName);
 	if (Definition)
