@@ -27,6 +27,12 @@
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
 
+FFactoryItem::FFactoryItem(UFactory* InFactory, const FText& InDisplayName)
+	: Factory(InFactory)
+	, DisplayName(InDisplayName)
+{
+}
+
 void FCategorySubMenuItem::SortSubMenus(FCategorySubMenuItem* SubMenu)
 {
 	if (!SubMenu)
