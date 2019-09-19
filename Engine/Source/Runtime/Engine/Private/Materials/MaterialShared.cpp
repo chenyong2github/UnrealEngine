@@ -856,7 +856,7 @@ bool FMaterial::MaterialUsesSingleLayerWater_RenderThread() const
 
 bool FMaterial::MaterialUsesSingleLayerWater_GameThread() const
 {
-	check(IsInGameThread());
+	//check(IsInGameThread());
 	FMaterialShaderMap* ShaderMap = GameThreadShaderMap.GetReference();
 	return ShaderMap ? ShaderMap->UsesSingleLayerWaterMaterialOutput() : false;
 }
