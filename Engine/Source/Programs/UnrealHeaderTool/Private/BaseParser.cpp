@@ -123,6 +123,9 @@ namespace
 
 			FMetadataKeyword& DocumentationPolicy = Dictionary.Add(TEXT("DocumentationPolicy"), EMetadataValueArgument::None);
 			DocumentationPolicy.InsertAddAction(TEXT("DocumentationPolicy"), TEXT("Strict"));
+
+			FMetadataKeyword& SparseClassDataType = Dictionary.Add(TEXT("SparseClassDataType"), EMetadataValueArgument::Required);
+			SparseClassDataType.InsertAddAction(TEXT("SparseClassDataType"), TEXT(""));
 		}
 
 		return Dictionary.Find(Keyword);

@@ -1233,6 +1233,7 @@ void FBlueprintEditorUtils::RemoveStaleFunctions(UBlueprintGeneratedClass* Class
 		OrphanedClass->ClassAddReferencedObjects = Class->AddReferencedObjects;
 		OrphanedClass->ClassFlags |= CLASS_CompiledFromBlueprint;
 		OrphanedClass->ClassGeneratedBy = Class->ClassGeneratedBy;
+		OrphanedClass->SparseClassData = Class->GetOrCreateSparseClassData();
 
 		const ERenameFlags RenFlags = REN_DontCreateRedirectors | (Blueprint->bIsRegeneratingOnLoad ? REN_ForceNoResetLoaders : 0) | REN_NonTransactional | REN_DoNotDirty;
 
@@ -1541,6 +1542,7 @@ void FBlueprintEditorUtils::RecreateClassMetaData(UBlueprint* Blueprint, UClass*
 		Class->RemoveMetaData("HideFunctions");
 		Class->RemoveMetaData("AutoExpandCategories");
 		Class->RemoveMetaData("AutoCollapseCategories");
+		Class->RemoveMetaData("SparseClassDataTypes");
 		Class->RemoveMetaData("ClassGroupNames");
 		Class->RemoveMetaData("Category");
 		Class->RemoveMetaData(FBlueprintMetadata::MD_AllowableBlueprintVariableType);
@@ -1585,6 +1587,11 @@ void FBlueprintEditorUtils::RecreateClassMetaData(UBlueprint* Blueprint, UClass*
 			}
 
 			Class->SetMetaData(NAME_ClassGroupNames, *ClassGroupCategory);
+		}
+
+		if (ParentClass->HasMetaData(TEXT("SparseClassDataTypes")))
+		{
+			Class->SetMetaData(TEXT("SparseClassDataTypes"), *ParentClass->GetMetaData("SparseClassDataTypes"));
 		}
 	}
 

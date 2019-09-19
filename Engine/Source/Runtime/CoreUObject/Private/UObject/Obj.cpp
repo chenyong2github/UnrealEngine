@@ -1151,6 +1151,16 @@ void UObject::PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph/*=N
 	}
 }
 
+void* UObject::CreateSparseClassData()
+{
+	return nullptr;
+}
+
+UScriptStruct* UObject::GetSparseClassDataStruct() const
+{
+	UClass* Class = GetClass();
+	return Class ? Class->GetSparseClassDataStruct() : nullptr;
+}
 
 void UObject::ConditionalPostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph/*=NULL*/ )
 {
@@ -1405,7 +1415,7 @@ void UObject::SerializeScriptProperties( FStructuredArchive::FSlot Slot ) const
 		FArchive::FScopeAddDebugData S(UnderlyingArchive, ObjClass->GetFName());
 #endif
 
-		ObjClass->SerializeTaggedProperties(Slot, (uint8*)this, HasAnyFlags(RF_ClassDefaultObject) ? ObjClass->GetSuperClass() : ObjClass, (uint8*)DiffObject, bBreakSerializationRecursion ? this : NULL);
+		ObjClass->SerializeTaggedProperties(Slot, (uint8*)this, HasAnyFlags(RF_ClassDefaultObject) ? ObjClass->GetSuperClass() : ObjClass, (uint8*)DiffObject, bBreakSerializationRecursion ? this : nullptr);
 	}
 	else if (UnderlyingArchive.GetPortFlags() != 0 && !UnderlyingArchive.ArUseCustomPropertyList )
 	{
@@ -1422,7 +1432,7 @@ void UObject::SerializeScriptProperties( FStructuredArchive::FSlot Slot ) const
 		ObjClass->SerializeBin(Slot, const_cast<UObject *>(this));
 	}
 
-	if( HasAnyFlags(RF_ClassDefaultObject) )
+	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		UnderlyingArchive.StopSerializingDefaults();
 	}

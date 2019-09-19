@@ -1033,6 +1033,10 @@ public:
 			{
 				Writer << (Term->AssociatedVarProperty->HasAnyPropertyFlags(CPF_OutParm) ? EX_LocalOutVariable : EX_LocalVariable);
 			}
+			else if (Term->IsSparseClassDataVarTerm())
+			{
+				Writer << EX_ClassSparseDataVariable;
+			}
 			else
 			{
 				Writer << EX_InstanceVariable;

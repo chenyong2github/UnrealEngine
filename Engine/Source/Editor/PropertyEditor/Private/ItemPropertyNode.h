@@ -12,21 +12,8 @@ public:
 	FItemPropertyNode();
 	virtual ~FItemPropertyNode();
 
-	/**
-	 * Calculates the memory address for the data associated with this item's property.  This is typically the value of a UProperty or a UObject address.
-	 *
-	 * @param	StartAddress	the location to use as the starting point for the calculation; typically the address of the object that contains this property.
-	 *
-	 * @return	a pointer to a UProperty value or UObject.  (For dynamic arrays, you'd cast this value to an FArray*)
-	 */
-	virtual uint8* GetValueBaseAddress( uint8* Base ) override;
-	/**
-	 * Calculates the memory address for the data associated with this item's value.  For most properties, identical to GetValueBaseAddress.  For items corresponding
-	 * to dynamic array elements, the pointer returned will be the location for that element's data. 
-	 *
-	 * @return	a pointer to a UProperty value or UObject.  (For dynamic arrays, you'd cast this value to whatever type is the Inner for the dynamic array)
-	 */
-	virtual uint8* GetValueAddress( uint8* Base ) override;
+	virtual uint8* GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData) override;
+	virtual uint8* GetValueAddress(uint8* StartAddress, bool bIsSparseData) override;
 
 	/**
 	 * Overridden function to get the derived object node

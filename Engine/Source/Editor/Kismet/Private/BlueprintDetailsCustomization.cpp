@@ -878,7 +878,8 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 				else if (CachedVariableProperty.IsValid())
 				{
 					// Capture the non-BP class CDO so we can show the default value
-					TargetBlueprintDefaultObject = CachedVariableProperty->GetOwnerClass()->GetDefaultObject();
+					UClass* OwnerClass = CachedVariableProperty->GetOwnerClass();
+					TargetBlueprintDefaultObject = OwnerClass ? OwnerClass->GetDefaultObject() : nullptr;
 				}
 
 				if (TargetBlueprintDefaultObject != nullptr)

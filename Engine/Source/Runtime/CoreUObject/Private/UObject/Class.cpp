@@ -2995,7 +2995,7 @@ class FRestoreClassInfo: public FRestoreForUObjectOverwrite
 	UClass*			Target;
 	/** Saved ClassWithin **/
 	UClass*			Within;
-	/** Save ClassGeneratedBy */
+	/** Saved ClassGeneratedBy */
 	UObject*		GeneratedBy;
 	/** Saved ClassDefaultObject **/
 	UObject*		DefaultObject;
@@ -3674,6 +3674,7 @@ void UClass::SetSuperStruct(UStruct* NewSuperStruct)
 	UnhashObject(this);
 	ClearFunctionMapsCaches();
 	Super::SetSuperStruct(NewSuperStruct);
+	SetSparseClassDataStruct(GetSparseClassDataArchetypeStruct());
 	HashObject(this);
 }
 
@@ -3974,6 +3975,33 @@ void UClass::SerializeDefaultObject(UObject* Object, FStructuredArchive::FSlot S
 	UnderlyingArchive.StopSerializingDefaults();
 }
 
+void UClass::SerializeSparseClassData(UObject* Object, FStructuredArchive::FSlot Slot)
+{
+	if (!SparseClassDataStruct)
+	{
+		return;
+	}
+
+	// tell the archive that it's allowed to load data for transient properties
+	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
+
+	if (((UnderlyingArchive.IsLoading() || UnderlyingArchive.IsSaving()) && !UnderlyingArchive.WantBinaryPropertySerialization()))
+	{
+		// class default objects do not always have a vtable when saved
+		// so use script serialization as opposed to native serialization to
+		// guarantee that all property data is loaded into the correct location
+		SparseClassDataStruct->SerializeItem(Slot, SparseClassData, GetArchetypeForSparseClassData());
+	}
+	else if (UnderlyingArchive.GetPortFlags() != 0)
+	{
+		SparseClassDataStruct->SerializeBinEx(Slot, (uint8*)SparseClassData, SparseClassDataStruct, GetSparseClassDataArchetypeStruct());
+	}
+	else
+	{
+		SparseClassDataStruct->SerializeBin(Slot, (uint8*)SparseClassData);
+	}
+}
+
 
 FArchive& operator<<(FArchive& Ar, FImplementedInterface& A)
 {
@@ -3984,9 +4012,21 @@ FArchive& operator<<(FArchive& Ar, FImplementedInterface& A)
 	return Ar;
 }
 
+void* UClass::GetArchetypeForSparseClassData() const
+{
+	UClass* SuperClass = GetSuperClass();
+	return SuperClass ? SuperClass->GetOrCreateSparseClassData() : nullptr;
+}
+
+UScriptStruct* UClass::GetSparseClassDataArchetypeStruct() const
+{
+	UClass* SuperClass = GetSuperClass();
+	return SuperClass ? SuperClass->GetSparseClassDataStruct() : nullptr;
+}
+
 UObject* UClass::GetArchetypeForCDO() const
 {
-	auto SuperClass = GetSuperClass();
+	UClass* SuperClass = GetSuperClass();
 	return SuperClass ? SuperClass->GetDefaultObject() : nullptr;
 }
 
@@ -4094,6 +4134,8 @@ UClass::UClass(const FObjectInitializer& ObjectInitializer)
 ,	ClassWithin( UObject::StaticClass() )
 ,	ClassGeneratedBy(nullptr)
 ,	ClassDefaultObject(nullptr)
+,	SparseClassData(nullptr)
+,	SparseClassDataStruct(nullptr)
 {
 	// If you add properties here, please update the other constructors and PurgeClass()
 
@@ -4112,6 +4154,8 @@ UClass::UClass(const FObjectInitializer& ObjectInitializer, UClass* InBaseClass)
 ,	ClassWithin(UObject::StaticClass())
 ,	ClassGeneratedBy(nullptr)
 ,	ClassDefaultObject(nullptr)
+,	SparseClassData(nullptr)
+,	SparseClassDataStruct(nullptr)
 {
 	// If you add properties here, please update the other constructors and PurgeClass()
 
@@ -4167,6 +4211,8 @@ UClass::UClass
 ,	ClassConfigName			()
 ,	NetFields				()
 ,	ClassDefaultObject		( nullptr )
+,	SparseClassData			( nullptr )
+,	SparseClassDataStruct	( nullptr )
 {
 	// If you add properties here, please update the other constructors and PurgeClass()
 
@@ -4177,6 +4223,41 @@ UClass::UClass
 	// complains about this operation, but AFAIK it is safe (and we've been doing it a long time)
 	// so the warning has been disabled for now:
 	*(const TCHAR**)&ClassConfigName = InConfigName; //-V580
+}
+
+void* UClass::CreateSparseClassData()
+{
+	check(SparseClassData == nullptr);
+
+	SparseClassData = GetDefaultObject()->CreateSparseClassData();
+
+	if (SparseClassData)
+	{
+		// initialize per class data from the archetype if we have one
+		void* SparseArchetypeData = GetArchetypeForSparseClassData();
+		UStruct* SparseClassDataArchetypeStruct = GetSparseClassDataArchetypeStruct();
+
+		if (SparseArchetypeData)
+		{
+			for (UProperty* P = SparseClassDataArchetypeStruct->PropertyLink; P; P = P->PropertyLinkNext)
+			{
+				P->CopyCompleteValue_InContainer(SparseClassData, SparseArchetypeData);
+			}
+		}
+	}
+
+	return SparseClassData;
+}
+
+UScriptStruct* UClass::GetSparseClassDataStruct() const
+{
+	// this info is specified on the object via code generation so we use it instead of looking at the UClass
+	return SparseClassDataStruct;
+}
+
+void UClass::SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct)
+{ 
+	SparseClassDataStruct = InSparseClassDataStruct; 
 }
 
 #if WITH_HOT_RELOAD

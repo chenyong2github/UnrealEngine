@@ -57,6 +57,9 @@ UBlueprintGeneratedClass::UBlueprintGeneratedClass(const FObjectInitializer& Obj
 	bHasNativizedParent = false;
 	bHasCookedComponentInstancingData = false;
 	bCustomPropertyListForPostConstructionInitialized = false;
+#if WITH_EDITORONLY_DATA
+	bIsSparseClassDataSerializable = false;
+#endif
 }
 
 void UBlueprintGeneratedClass::PostInitProperties()
@@ -404,6 +407,16 @@ void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructur
 			CheckAndApplyComponentTemplateOverrides(ClassDefaultObject);
 		}
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (bIsSparseClassDataSerializable)
+#endif
+	{
+		if (Object->GetSparseClassDataStruct())
+		{
+			SerializeSparseClassData(Object, FStructuredArchiveFromArchive(UnderlyingArchive).GetSlot());
+		}
+	}
 }
 
 void UBlueprintGeneratedClass::PostLoadDefaultObject(UObject* Object)
@@ -423,6 +436,18 @@ void UBlueprintGeneratedClass::PostLoadDefaultObject(UObject* Object)
 			ClassDefaultObject->LoadConfig();
 		}
 	}
+
+#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
+	Object->MoveDataToSparseClassDataStruct();
+
+	if (Object->GetSparseClassDataStruct())
+	{
+		// now that any data has been moved into the sparse data structure we can safely serialize it
+		bIsSparseClassDataSerializable = true;
+	}
+#endif
+#endif
 }
 
 bool UBlueprintGeneratedClass::BuildCustomPropertyListForPostConstruction(FCustomPropertyListNode*& InPropertyList, UStruct* InStruct, const uint8* DataPtr, const uint8* DefaultDataPtr)

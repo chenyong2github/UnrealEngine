@@ -118,6 +118,19 @@ void FMemberReference::InvalidateScope()
 	}
 }
 
+bool FMemberReference::IsSparseClassData(const UClass* OwningClass) const
+{
+	bool bIsSparseClassData = false;
+	UScriptStruct* SparseClassDataStruct = OwningClass ? OwningClass->GetSparseClassDataStruct() : nullptr;
+	if (SparseClassDataStruct)
+	{
+		UProperty* VariableProperty = FindField<UProperty>(SparseClassDataStruct, GetMemberName());
+		bIsSparseClassData = VariableProperty != nullptr;
+	}
+
+	return bIsSparseClassData;
+}
+
 #if WITH_EDITOR
 
 FString FMemberReference::GetReferenceSearchString(UClass* InFieldOwner) const
