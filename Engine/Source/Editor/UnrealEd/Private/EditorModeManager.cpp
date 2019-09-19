@@ -31,6 +31,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Toolkits/BaseToolkit.h"
 #include "Tools/UEdMode.h"
+#include "Widgets/Images/SImage.h"
 
 /*------------------------------------------------------------------------------
 	FEditorModeTools.
