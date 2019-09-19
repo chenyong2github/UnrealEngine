@@ -1095,10 +1095,15 @@ void FViewInfo::SetupUniformBufferParameters(
 	// Mobile multi-view is not side by side
 	const FIntRect EffectiveViewRect = (bIsMobileMultiViewEnabled) ? FIntRect(0, 0, ViewRect.Width(), ViewRect.Height()) : ViewRect;
 
+	// Scene render targets may not be created yet; avoids NaNs.
+	FIntPoint EffectiveBufferSize = SceneContext.GetBufferSizeXY();
+	EffectiveBufferSize.X = FMath::Max(EffectiveBufferSize.X, 1);
+	EffectiveBufferSize.Y = FMath::Max(EffectiveBufferSize.Y, 1);
+
 	// TODO: We should use a view and previous view uniform buffer to avoid code duplication and keep consistency
 	SetupCommonViewUniformBufferParameters(
 		ViewUniformShaderParameters,
-		SceneContext.GetBufferSizeXY(),
+		EffectiveBufferSize,
 		SceneContext.GetMSAACount(),
 		EffectiveViewRect,
 		InViewMatrices,
