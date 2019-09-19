@@ -1393,6 +1393,20 @@ void FMaterialInstanceEditor::DrawSamplerWarningStrings(FCanvas* Canvas, int32& 
 
 								DrawPositionY += SpacingBetweenLines;
 							}
+							if (Expression->bSinglePhysicalSpace != RuntimeVirtualTexture->GetSinglePhysicalSpace())
+							{
+								Canvas->DrawShadowedString(
+									5, DrawPositionY,
+									*FString::Printf(TEXT("Warning: '%s' interprets the virtual texture page table packing as '%d' not '%d'"),
+										*RuntimeVirtualTextureParameterValue->ParameterInfo.Name.ToString(),
+										RuntimeVirtualTexture->GetSinglePhysicalSpace() ? 1 : 0,
+										Expression->bSinglePhysicalSpace ? 1 : 0,
+										*RuntimeVirtualTexture->GetPathName()),
+									FontToUse,
+									FLinearColor(1, 1, 0));
+
+								DrawPositionY += SpacingBetweenLines;
+							}
 						}
 					}
 				}
