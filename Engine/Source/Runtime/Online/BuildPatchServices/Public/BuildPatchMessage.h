@@ -46,6 +46,23 @@ namespace BuildPatchServices
 	};
 
 	/**
+	 * A Request for a chunk
+	 */
+	struct FChunkUriRequest
+	{
+		FString CloudDirectory;
+		FString RelativePath;
+	};
+
+	/**
+	 * A Response containing the actual location of the chunk
+	 */
+	struct FChunkUriResponse
+	{
+		FString Uri;
+	};
+
+	/**
 	 * Base class of a message handler, this should be inherited from and passed to an installer to receive messages that you want to handle.
 	 */
 	class FMessageHandler
@@ -65,5 +82,23 @@ namespace BuildPatchServices
 		 * @param Message   The message to be handled.
 		 */
 		virtual void HandleMessage(const FInstallationFileAction& Message) {}
+
+		/**
+		 * Handles responding to a chunk Uri request
+		 * @param Request   The request for a chunk
+		 * @param OnResponse   The function to callback once the chunk has been found
+		 */
+		virtual bool HandleRequest(const FChunkUriRequest& Request, TFunction<void(FChunkUriResponse)> OnResponse) { return false; }
+	};
+
+	class FDefaultMessageHandler
+		: public FMessageHandler
+	{
+	public:
+		virtual bool HandleRequest(const FChunkUriRequest& Request, TFunction<void(FChunkUriResponse)> OnResponse) override
+		{
+			OnResponse({ Request.CloudDirectory / Request.RelativePath });
+			return true;
+		}
 	};
 }

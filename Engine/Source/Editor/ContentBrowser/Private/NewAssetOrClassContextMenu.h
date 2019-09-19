@@ -5,8 +5,28 @@
 #include "CoreMinimal.h"
 #include "Framework/Commands/UIAction.h"
 #include "AssetTypeCategories.h"
+#include "Templates/SharedPointer.h"
+
 
 class FMenuBuilder;
+class UFactory;
+
+struct FFactoryItem
+{
+	UFactory* Factory;
+	FText DisplayName;
+
+	FFactoryItem(UFactory* InFactory, const FText& InDisplayName);
+};
+
+struct FCategorySubMenuItem
+{
+	FText Name;
+	TArray<FFactoryItem> Factories;
+	TMap<FString, TSharedPtr<FCategorySubMenuItem>> Children;
+
+	void SortSubMenus(FCategorySubMenuItem* NextNode = nullptr);
+};
 
 class FNewAssetOrClassContextMenu
 {
@@ -42,6 +62,8 @@ public:
 private:
 	/** Handle creating a new asset from an asset category */
 	static void CreateNewAssetMenuCategory(FMenuBuilder& MenuBuilder, EAssetTypeCategories::Type AssetTypeCategory, FString InPath, FOnNewAssetRequested InOnNewAssetRequested, FCanExecuteAction InCanExecuteAction);
+
+	static void CreateNewAssetMenus(FMenuBuilder& MenuBuilder, TSharedPtr<FCategorySubMenuItem> SubMenuData, FString InPath, FOnNewAssetRequested InOnNewAssetRequested, FCanExecuteAction InCanExecuteAction);
 
 	/** Handle when the "Import" button is clicked */
 	static void ExecuteImportAsset(FOnImportAssetRequested InOnImportAssetRequested, FString InPath);

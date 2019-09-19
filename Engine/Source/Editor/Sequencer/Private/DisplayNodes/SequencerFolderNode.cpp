@@ -116,6 +116,11 @@ FSlateColor FSequencerFolderNode::GetIconColor() const
 
 FLinearColor FSequencerFolderNode::GetDisplayNameColor() const
 {
+	if (ParentTree.IsNodeMute(this))
+	{
+		return FLinearColor(0.6f, 0.6f, 0.6f, 0.6f);
+	}
+
 	return FLinearColor::White;
 }
 

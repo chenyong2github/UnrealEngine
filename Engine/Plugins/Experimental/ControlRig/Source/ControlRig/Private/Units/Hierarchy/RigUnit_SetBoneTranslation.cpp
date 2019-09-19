@@ -8,11 +8,10 @@ FString FRigUnit_SetBoneTranslation::GetUnitLabel() const
 	return FString::Printf(TEXT("Set Translation %s"), *Bone.ToString());
 }
 
-void FRigUnit_SetBoneTranslation::Execute(const FRigUnitContext& Context)
+FRigUnit_SetBoneTranslation_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
-	FRigHierarchy* Hierarchy = HierarchyRef.Get();
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy)
 	{
 		switch (Context.State)

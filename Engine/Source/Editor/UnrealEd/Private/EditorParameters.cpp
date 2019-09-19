@@ -4,6 +4,7 @@
 #include "MaterialEditor/DEditorParameterValue.h"
 #include "MaterialEditor/DEditorFontParameterValue.h"
 #include "MaterialEditor/DEditorMaterialLayersParameterValue.h"
+#include "MaterialEditor/DEditorRuntimeVirtualTextureParameterValue.h"
 #include "MaterialEditor/DEditorScalarParameterValue.h"
 #include "MaterialEditor/DEditorStaticComponentMaskParameterValue.h"
 #include "MaterialEditor/DEditorStaticSwitchParameterValue.h"
@@ -46,6 +47,11 @@ UDEditorTextureParameterValue::UDEditorTextureParameterValue(const FObjectInitia
 }
 
 UDEditorVectorParameterValue::UDEditorVectorParameterValue(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+UDEditorRuntimeVirtualTextureParameterValue::UDEditorRuntimeVirtualTextureParameterValue(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }

@@ -127,9 +127,9 @@ void FMovieSceneEvent::CacheFunctionName()
 #endif // WITH_EDITORONLY_DATA
 
 
+#if WITH_EDITORONLY_DATA
 void FMovieSceneEvent::PostSerialize(const FArchive& Ar)
 {
-#if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading() && !Ar.HasAnyPortFlags(PPF_Duplicate | PPF_DuplicateForPIE))
 	{
 		// Re-cache the function name when loading in-editor in case of renamed function graphs and the like 
@@ -141,12 +141,10 @@ void FMovieSceneEvent::PostSerialize(const FArchive& Ar)
 			CacheFunctionName();
 		}
 	}
-#endif
 }
 
 bool FMovieSceneEvent::Serialize(FArchive& Ar)
 {
-#if WITH_EDITORONLY_DATA
 	if (Ar.IsSaving())
 	{
 		// ---------------------------------------------------------------------------------------
@@ -167,11 +165,11 @@ bool FMovieSceneEvent::Serialize(FArchive& Ar)
 			}
 		}
 	}
-#endif
 
 	// Return false to ensure that the struct receives default serialization
 	return false;
 }
+#endif
 
 bool FMovieSceneEvent::IsValidFunction(UFunction* Function)
 {

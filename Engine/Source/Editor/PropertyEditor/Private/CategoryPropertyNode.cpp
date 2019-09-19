@@ -19,7 +19,7 @@ FCategoryPropertyNode::~FCategoryPropertyNode(void)
 
 bool FCategoryPropertyNode::IsSubcategory() const
 {
-	return GetParentNode() != NULL && const_cast<FPropertyNode*>( GetParentNode() )->AsCategoryNode() != NULL;
+	return GetParentNode() != nullptr && GetParentNode()->AsCategoryNode() != nullptr;
 }
 
 FText FCategoryPropertyNode::GetDisplayName() const 
@@ -71,14 +71,9 @@ void FCategoryPropertyNode::InitChildNodes()
 
 				if (bMetaDataAllowVisible)
 				{
-					static const FName Name_InlineEditConditionToggle("InlineEditConditionToggle");
-					const bool bOnlyShowAsInlineEditCondition = (*It)->HasMetaData(Name_InlineEditConditionToggle);
-					const bool bShowIfEditableProperty = (*It)->HasAnyPropertyFlags(CPF_Edit);
-					const bool bShowIfDisableEditOnInstance = !(*It)->HasAnyPropertyFlags(CPF_DisableEditOnInstance) || bShouldShowDisableEditOnInstance;
-
 					// Add if we are showing non-editable props and this is the 'None' category, 
-					// or if this is the right category, and we are either showing non-editable
-					if (FObjectEditorUtils::GetCategoryFName(*It) == CategoryName && (bShowHiddenProperties || (bShowIfEditableProperty && !bOnlyShowAsInlineEditCondition && bShowIfDisableEditOnInstance)))
+					// or if this is the right category, and we are showing non-editable
+					if (FObjectEditorUtils::GetCategoryFName(*It) == CategoryName && PropertyEditorHelpers::ShouldBeVisible(*this, *It))
 					{
 						if (bIsSparseStruct)
 						{

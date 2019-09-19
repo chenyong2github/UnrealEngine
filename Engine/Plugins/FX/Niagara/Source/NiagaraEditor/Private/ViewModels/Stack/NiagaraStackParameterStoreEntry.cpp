@@ -159,6 +159,10 @@ void UNiagaraStackParameterStoreEntry::Reset()
 			UNiagaraDataInterface* DefaultObject = NewObject<UNiagaraDataInterface>(this, const_cast<UClass*>(InputType.GetClass()));
 			DefaultObject->CopyTo(ParameterStore->GetDataInterface(Var));
 		}
+		else if (Var.IsUObject())
+		{
+			ParameterStore->SetUObject(nullptr, Var);
+		}
 	}
 	RefreshValueAndHandle();
 	RefreshChildren();
@@ -276,6 +280,22 @@ void UNiagaraStackParameterStoreEntry::RenameInput(FString NewName)
 		DisplayName = FText::FromName(ParameterName);
 	}
 }
+
+void UNiagaraStackParameterStoreEntry::ReplaceValueObject(UObject* Obj)
+{
+	NotifyBeginValueChange();
+	FNiagaraVariable Var(InputType, ParameterName);
+	if (Obj == nullptr || Obj->GetClass()->IsChildOf(GetInputType().GetClass()))
+	{
+		ParameterStore->SetUObject(Obj, Var);
+
+		RefreshValueAndHandle();
+		RefreshChildren();
+	}
+	NotifyEndValueChange();
+	GetSystemViewModel()->ResetSystem();
+}
+
 
 void UNiagaraStackParameterStoreEntry::Delete()
 {

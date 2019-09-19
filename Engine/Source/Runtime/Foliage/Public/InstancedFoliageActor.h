@@ -90,7 +90,6 @@ public:
 	virtual void RerunConstructionScripts() override {}
 	virtual bool IsLevelBoundsRelevant() const override { return false; }
 
-	FOLIAGE_API static bool IsOwnedByFoliage(const AActor* InActor);
 protected:
 	// Default InternalTakeRadialDamage behavior finds and scales damage for the closest component which isn't appropriate for foliage.
 	virtual float InternalTakeRadialDamage(float Damage, struct FRadialDamageEvent const& RadialDamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
@@ -105,6 +104,9 @@ public:
 	// Delegate type for selection change events
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSelectionChanged, bool, const TArray<AActor*>&);
 	FOLIAGE_API static FOnSelectionChanged SelectionChanged;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnInstanceCoundChanged, const UFoliageType*);
+	FOLIAGE_API static FOnInstanceCoundChanged InstanceCountChanged;
 #endif
 	//~ End AActor Interface.
 
@@ -180,6 +182,9 @@ public:
 	
 	// Move instances based on a component that has just been moved.
 	void MoveInstancesForMovedComponent(UActorComponent* InComponent);
+
+	// Move instances that are owned by foliage actor.
+	void MoveInstancesForMovedOwnedActors(AActor* InActor);
 	
 	// Returns a map of Static Meshes and their placed instances attached to a component.
 	FOLIAGE_API TMap<UFoliageType*, TArray<const FFoliageInstancePlacementInfo*>> GetInstancesForComponent(UActorComponent* InComponent);
@@ -241,6 +246,8 @@ public:
 
 	/* Fix up a duplicate IFA */
 	void RepairDuplicateIFA(AInstancedFoliageActor* InDuplicateIFA);
+
+	void RemoveBaseComponentOnFoliageTypeInstances(UFoliageType* FoliageType);
 #endif	//WITH_EDITOR
 
 private:

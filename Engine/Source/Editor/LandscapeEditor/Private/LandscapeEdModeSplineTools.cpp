@@ -462,6 +462,7 @@ public:
 			}
 
 			NewControlPoint->Width       = FirstPoint->Width;
+			NewControlPoint->LayerWidthRatio = FirstPoint->LayerWidthRatio;
 			NewControlPoint->SideFalloff = FirstPoint->SideFalloff;
 			NewControlPoint->LeftSideFalloffFactor = FirstPoint->LeftSideFalloffFactor;
 			NewControlPoint->RightSideFalloffFactor = FirstPoint->RightSideFalloffFactor;
@@ -671,6 +672,7 @@ public:
 		}
 
 		NewControlPoint->Width = FMath::Lerp(Segment->Connections[0].ControlPoint->Width, Segment->Connections[1].ControlPoint->Width, t);
+		NewControlPoint->LayerWidthRatio = FMath::Lerp(Segment->Connections[0].ControlPoint->LayerWidthRatio, Segment->Connections[1].ControlPoint->LayerWidthRatio, t);
 		NewControlPoint->SideFalloff = FMath::Lerp(Segment->Connections[0].ControlPoint->SideFalloff, Segment->Connections[1].ControlPoint->SideFalloff, t);
 		NewControlPoint->EndFalloff = FMath::Lerp(Segment->Connections[0].ControlPoint->EndFalloff, Segment->Connections[1].ControlPoint->EndFalloff, t);
 		NewControlPoint->LeftSideFalloffFactor = FMath::Clamp(FMath::Lerp(Segment->Connections[0].ControlPoint->LeftSideFalloffFactor, Segment->Connections[1].ControlPoint->LeftSideFalloffFactor, t), 0.f, 1.f);
@@ -765,6 +767,7 @@ public:
 		// Do not update rotation during alt-drag.
 		//ControlPoint->Rotation.Roll = FMath::Lerp(UseSegment->Connections[0].ControlPoint->Rotation.Roll, UseSegment->Connections[1].ControlPoint->Rotation.Roll, tseg);
 		ControlPoint->Width = FMath::Lerp(UseSegment->Connections[0].ControlPoint->Width, UseSegment->Connections[1].ControlPoint->Width, tseg);
+		ControlPoint->LayerWidthRatio = FMath::Lerp(UseSegment->Connections[0].ControlPoint->LayerWidthRatio, UseSegment->Connections[1].ControlPoint->LayerWidthRatio, tseg);
 		ControlPoint->SideFalloff = FMath::Lerp(UseSegment->Connections[0].ControlPoint->SideFalloff, UseSegment->Connections[1].ControlPoint->SideFalloff, tseg);
 		ControlPoint->LeftSideFalloffFactor = FMath::Clamp(FMath::Lerp(UseSegment->Connections[0].ControlPoint->LeftSideFalloffFactor, UseSegment->Connections[1].ControlPoint->LeftSideFalloffFactor, tseg), 0.f, 1.f);
 		ControlPoint->RightSideFalloffFactor = FMath::Clamp(FMath::Lerp(UseSegment->Connections[0].ControlPoint->RightSideFalloffFactor, UseSegment->Connections[1].ControlPoint->RightSideFalloffFactor, tseg), 0.f, 1.f);
@@ -896,6 +899,26 @@ public:
 						FromProxy->SplineComponent->MarkRenderStateDirty();
 					}
 
+					// Delete all Mesh Components associated with the ControlPoint. (Will get recreated in UpdateSplinePoints)
+					if (ControlPoint->LocalMeshComponent)
+					{
+						ControlPoint->LocalMeshComponent->Modify();
+						ControlPoint->LocalMeshComponent->UnregisterComponent();
+						ControlPoint->LocalMeshComponent->DestroyComponent();
+						FromProxy->SplineComponent->Modify();
+						FromProxy->SplineComponent->MeshComponentLocalOwnersMap.Remove(ControlPoint->LocalMeshComponent);
+						ControlPoint->LocalMeshComponent = nullptr;
+					}
+
+					TMap<ULandscapeSplinesComponent*, UControlPointMeshComponent*> ForeignMeshComponents = ControlPoint->GetForeignMeshComponents();
+					for (auto Pair : ForeignMeshComponents)
+					{
+						Pair.Key->RemoveForeignMeshComponent(ControlPoint, Pair.Value);
+						Pair.Value->Modify();
+						Pair.Value->UnregisterComponent();
+						Pair.Value->DestroyComponent();
+					}
+					
 					// Move control point to new level
 					FromProxy->SplineComponent->ControlPoints.Remove(ControlPoint);
 					ControlPoint->Rename(nullptr, ToLandscape->SplineComponent);
@@ -905,7 +928,7 @@ public:
 
 					const bool bUpdateCollision = true; // default value
 					const bool bUpdateSegments = false; // done in next loop
-					const bool bUpdateMeshLevel = true;
+					const bool bUpdateMeshLevel = false; // no need because mesh have been deleted
 					ControlPoint->UpdateSplinePoints(bUpdateCollision, bUpdateSegments, bUpdateMeshLevel);
 				}
 			}
@@ -947,13 +970,36 @@ public:
 						FromProxy->SplineComponent->MarkRenderStateDirty();
 					}
 
+					// Delete all Mesh Components associated with the Segment. (Will get recreated in UpdateSplinePoints)
+					for (auto* MeshComponent : Segment->LocalMeshComponents)
+					{
+						MeshComponent->Modify();
+						MeshComponent->UnregisterComponent();
+						MeshComponent->DestroyComponent();
+						FromProxy->Modify();
+						FromProxy->SplineComponent->MeshComponentLocalOwnersMap.Remove(MeshComponent);
+					}
+					Segment->LocalMeshComponents.Empty();
+
+					TMap<ULandscapeSplinesComponent*, TArray<USplineMeshComponent*>> ForeignMeshComponents = Segment->GetForeignMeshComponents();
+					for (auto Pair : ForeignMeshComponents)
+					{
+						Pair.Key->RemoveAllForeignMeshComponents(Segment);
+						for (auto MeshComponent : Pair.Value)
+						{
+							MeshComponent->Modify();
+							MeshComponent->UnregisterComponent();
+							MeshComponent->DestroyComponent();
+						}
+					}
+										
 					// Move segment to new level
 					FromProxy->SplineComponent->Segments.Remove(Segment);
 					Segment->Rename(nullptr, ToLandscape->SplineComponent);
 					ToLandscape->SplineComponent->Segments.Add(Segment);
 
 					const bool bUpdateCollision = true; // default value
-					const bool bUpdateMeshLevel = true;
+					const bool bUpdateMeshLevel = false; // no need because mesh have been deleted 
 					Segment->UpdateSplinePoints(bUpdateCollision, bUpdateMeshLevel);
 				}
 			}
@@ -1400,6 +1446,8 @@ public:
 									if (ULandscapeSplineSegment* SplineSegment = Cast<ULandscapeSplineSegment>(ComponentOwner))
 									{
 										ClickedSplineSegment = SplineSegment;
+										// Find actual SplineComponent owner of the Segment (not the SplineComponent owner of the mesh)
+										SplineComponent = SplineSegment->GetTypedOuter<ULandscapeSplinesComponent>();
 										ALandscapeProxy* LandscapeProxy = CastChecked<ALandscapeProxy>(SplineComponent->GetOwner());
 										LandscapeToSpline = LandscapeProxy->LandscapeActorToWorld().GetRelativeTransform(SplineComponent->GetComponentTransform());
 									}

@@ -21,13 +21,19 @@ namespace BuildPatchServices
 		virtual ~IDownload() {}
 
 		/**
-		 * Gets whether the download was successful.
+		 * Gets whether the request was successfully made.
 		 * @return true for success.
 		 */
-		virtual bool WasSuccessful() const = 0;
+		virtual bool RequestSuccessful() const = 0;
 
 		/**
-		 * Gets the response code for the download.
+		 * Gets whether the response was received and indicated good status.
+		 * @return true for success.
+		 */
+		virtual bool ResponseSuccessful() const = 0;
+
+		/**
+		 * Gets the response code, or INDEX_NONE if response failed.
 		 * @return the response code.
 		 */
 		virtual int32 GetResponseCode() const = 0;

@@ -227,7 +227,6 @@ bool FLocalPlayerContext::IsFromLocalPlayer(const AActor* ActorToTest) const
 
 ULocalPlayer::ULocalPlayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, SubsystemCollection(this)
 	, SlateOperations( FReply::Unhandled() )
 {
 	PendingLevelPlayerControllerClass = APlayerController::StaticClass();
@@ -257,9 +256,9 @@ void ULocalPlayer::PostInitProperties()
 void ULocalPlayer::PlayerAdded(UGameViewportClient* InViewportClient, int32 InControllerID)
 {
 	ViewportClient = InViewportClient;
-	SetControllerId(InControllerID);
+	ControllerId = InControllerID;
 
-	SubsystemCollection.Initialize();
+	SubsystemCollection.Initialize(this);
 }
 
 void ULocalPlayer::InitOnlineSession()
@@ -1123,7 +1122,7 @@ bool ULocalPlayer::GetProjectionData(FViewport* Viewport, EStereoscopicPass Ster
 	if (!bNeedStereo)
 	{
 		// Create the projection matrix (and possibly constrain the view rectangle)
-		FMinimalViewInfo::CalculateProjectionMatrixGivenView(ViewInfo, AspectRatioAxisConstraint, ViewportClient->Viewport, /*inout*/ ProjectionData);
+		FMinimalViewInfo::CalculateProjectionMatrixGivenView(ViewInfo, AspectRatioAxisConstraint, Viewport, /*inout*/ ProjectionData);
 
 		for (auto& ViewExt : GEngine->ViewExtensions->GatherActiveExtensions())
         {

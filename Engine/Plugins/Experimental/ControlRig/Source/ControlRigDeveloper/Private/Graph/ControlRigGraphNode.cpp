@@ -841,10 +841,10 @@ void UControlRigGraphNode::PinConnectionListChanged(UEdGraphPin* Pin)
 
 }
 
-void UControlRigGraphNode::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UControlRigGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
 #if WITH_EDITOR
-	IControlRigEditorModule::Get().GetContextMenuActions(this, Context);
+	IControlRigEditorModule::Get().GetNodeContextMenuActions(this, Menu, Context);
 #endif
 }
 

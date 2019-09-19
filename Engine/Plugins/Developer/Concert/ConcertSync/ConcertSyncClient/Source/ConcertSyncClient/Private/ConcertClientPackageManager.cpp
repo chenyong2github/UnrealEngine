@@ -86,7 +86,7 @@ FConcertClientPackageManager::~FConcertClientPackageManager()
 		}
 	}
 
-	if (!GIsRequestingExit)
+	if (!IsEngineExitRequested())
 	{
 		// Hot reload after unregistering from most delegates to prevent events triggered by hot-reloading (such as asset deleted) to be recorded as transaction.
 		SynchronizeInMemoryPackages();

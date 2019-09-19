@@ -85,6 +85,7 @@ public:
 		}
 	}
 
+	virtual bool DoesWidgetOverrideNavigation() const { return false; }
 	virtual bool DoesWidgetOverrideFlowDirection() const { return false; }
 
 	virtual bool IsExpanded() const { return true; }
@@ -123,7 +124,7 @@ class FHierarchyRoot : public FHierarchyModel
 {
 public:
 	FHierarchyRoot(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
-	
+
 	virtual ~FHierarchyRoot() {}
 
 	virtual FName GetUniqueName() const override;
@@ -138,6 +139,7 @@ public:
 	virtual void OnSelection() override;
 
 	virtual bool DoesWidgetOverrideFlowDirection() const override;
+	virtual bool DoesWidgetOverrideNavigation() const { return false; }
 
 	virtual TOptional<EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone) override;
 	virtual FReply HandleAcceptDrop(FDragDropEvent const& DragDropEvent, EItemDropZone DropZone) override;
@@ -280,6 +282,17 @@ public:
 		if (TemplateWidget)
 		{
 			return TemplateWidget->FlowDirectionPreference != EFlowDirectionPreference::Inherit;
+		}
+
+		return false;
+	}
+
+	virtual bool DoesWidgetOverrideNavigation() const override
+	{
+		UWidget* TemplateWidget = Item.GetTemplate();
+		if (TemplateWidget)
+		{
+			return TemplateWidget->Navigation != nullptr;
 		}
 
 		return false;

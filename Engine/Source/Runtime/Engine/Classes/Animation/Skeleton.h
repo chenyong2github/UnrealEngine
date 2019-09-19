@@ -384,6 +384,9 @@ protected:
 	UPROPERTY()
 	FSmartNameContainer SmartNames;
 
+	// Cached ptr to the persistent AnimCurveMapping
+	FSmartNameMapping* AnimCurveMapping;
+
 	// this is default curve uid list used like ref pose, as default value
 	// don't use this unless you want all curves from the skeleton
 	// FBoneContainer contains only list that is used by current LOD

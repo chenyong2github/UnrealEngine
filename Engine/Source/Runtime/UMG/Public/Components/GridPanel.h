@@ -12,7 +12,7 @@ class SGridPanel;
 class UGridSlot;
 
 /**
- * A panel that evenly divides up available space between all of its children.
+ * A table-like panel that retains the width of every column throughout the table.
  * 
  * * Many Children
  */

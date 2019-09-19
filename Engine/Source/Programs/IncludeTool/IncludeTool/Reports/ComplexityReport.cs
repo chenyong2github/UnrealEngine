@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
 using System;
@@ -43,7 +43,7 @@ namespace IncludeTool.Reports
 		/// <param name="Files">The files to include in the report</param>
 		/// <param name="ReportFileLocation">Output file for the report</param>
 		/// <param name="Log">Writer for log output</param>
-		public static void Generate(FileReference ReportFileLocation, IEnumerable<SourceFile> Files, TextWriter Log)
+		public static void Generate(FileReference ReportFileLocation, IEnumerable<SourceFile> Files, LineBasedTextWriter Log)
 		{
 			Log.WriteLine("Writing {0}...", ReportFileLocation.FullName);
 

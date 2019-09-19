@@ -13,7 +13,7 @@ bool FAssetBundleData::SetFromAssetData(const FAssetData& AssetData)
 
 	if (AssetData.GetTagValue(FAssetBundleData::StaticStruct()->GetFName(), TagValue))
 	{
-		if (FAssetBundleData::StaticStruct()->ImportText(*TagValue, this, nullptr, PPF_None, (FOutputDevice*)GWarn, AssetData.AssetName.ToString()))
+		if (FAssetBundleData::StaticStruct()->ImportText(*TagValue, this, nullptr, PPF_None, (FOutputDevice*)GWarn, [&AssetData]() { return AssetData.AssetName.ToString(); }))
 		{
 			FPrimaryAssetId FoundId = AssetData.GetPrimaryAssetId();
 

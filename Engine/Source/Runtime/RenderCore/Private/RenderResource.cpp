@@ -66,7 +66,7 @@ void FRenderResource::ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel)
 			FRenderResource* Resource = *It;
 
 			// Only resources configured for a specific feature level need to be updated
-			if (Resource->HasValidFeatureLevel())
+			if (Resource->HasValidFeatureLevel() && (Resource->FeatureLevel != NewFeatureLevel))
 			{
 				Resource->ReleaseRHI();
 				Resource->ReleaseDynamicRHI();

@@ -2,6 +2,8 @@
 
 #include "HAL/Platform.h"
 
+// [[ IncludeTool: Inline ]] // Markup to tell IncludeTool that this file is state changing and cannot be optimized out.
+
 /**
  * This header contains the code for serialization of script bytecode and [eventually] tagged property values.
  * Extracted to header file to allow custom definitions of the macros used by these methods

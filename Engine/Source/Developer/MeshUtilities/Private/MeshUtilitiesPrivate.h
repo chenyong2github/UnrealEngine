@@ -109,7 +109,7 @@ private:
 	virtual bool GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int32 TextureResolution, bool bMergeIdenticalMaterials, TArray<FVector2D>& OutTexCoords) const override;
 
 	virtual bool BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel, const FReferenceSkeleton& RefSkeleton, const TArray<SkeletalMeshImportData::FVertInfluence>& Influences, const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges, const TArray<SkeletalMeshImportData::FMeshFace>& Faces, const TArray<FVector>& Points, const TArray<int32>& PointToOriginalMap, const MeshBuildOptions& BuildOptions = MeshBuildOptions(), TArray<FText> * OutWarningMessages = NULL, TArray<FName> * OutWarningNames = NULL) override;
-	bool BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel, const FReferenceSkeleton& RefSkeleton, const TArray<SkeletalMeshImportData::FVertInfluence>& Influences, const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges, const TArray<SkeletalMeshImportData::FMeshFace>& Faces, const TArray<FVector>& Points, const TArray<int32>& PointToOriginalMap, const FOverlappingThresholds& OverlappingThresholds, bool bComputeNormals = true, bool bComputeTangents = true, TArray<FText> * OutWarningMessages = NULL, TArray<FName> * OutWarningNames = NULL);
+	bool BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel, const FReferenceSkeleton& RefSkeleton, const TArray<SkeletalMeshImportData::FVertInfluence>& Influences, const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges, const TArray<SkeletalMeshImportData::FMeshFace>& Faces, const TArray<FVector>& Points, const TArray<int32>& PointToOriginalMap, const FOverlappingThresholds& OverlappingThresholds, bool bComputeNormals = true, bool bComputeTangents = true, bool bComputeWeightedNormals = true, TArray<FText> * OutWarningMessages = NULL, TArray<FName> * OutWarningNames = NULL);
 
 	virtual void CacheOptimizeIndexBuffer(TArray<uint16>& Indices) override;
 	virtual void CacheOptimizeIndexBuffer(TArray<uint32>& Indices) override;
@@ -200,7 +200,7 @@ protected:
 
 	TSharedRef<FExtender> GetLevelViewportContextMenuExtender(const TSharedRef<FUICommandList> CommandList, const TArray<AActor*> InActors);
 
-	void ConvertActorMeshesToStaticMesh(const TArray<AActor*> InActors);
+	void ConvertActorMeshesToStaticMeshUIAction(const TArray<AActor*> InActors);
 
 	FDelegateHandle ModuleLoadedDelegateHandle;
 	FDelegateHandle LevelViewportExtenderHandle;

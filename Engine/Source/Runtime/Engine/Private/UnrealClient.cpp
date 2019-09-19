@@ -291,7 +291,14 @@ void FScreenshotRequest::RequestScreenshot(const FString& InFilename, bool bInSh
 	{
 		const bool bRemovePath = false;
 		GeneratedFilename = FPaths::GetBaseFilename(GeneratedFilename, bRemovePath);
-		FFileHelper::GenerateNextBitmapFilename(GeneratedFilename, TEXT("png"), Filename);
+		if (GetHighResScreenshotConfig().bDateTimeBasedNaming)
+		{
+			FFileHelper::GenerateDateTimeBasedBitmapFilename(GeneratedFilename, TEXT("png"), Filename);
+		}
+		else
+		{
+			FFileHelper::GenerateNextBitmapFilename(GeneratedFilename, TEXT("png"), Filename);
+		}
 	}
 	else
 	{
@@ -389,6 +396,7 @@ FString GetMemoryString( const double Value, const bool bAutoType )
 }
 
 FOnScreenshotRequestProcessed FScreenshotRequest::ScreenshotProcessedDelegate;
+FOnScreenshotCaptured FScreenshotRequest::ScreenshotCapturedDelegate;
 bool FScreenshotRequest::bIsScreenshotRequested = false;
 FString FScreenshotRequest::Filename;
 FString FScreenshotRequest::NextScreenshotName;
@@ -666,7 +674,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 		}
 
 		ERHIFeatureLevel::Type FeatureLevel = InCanvas->GetFeatureLevel();
-		if (FeatureLevel >= ERHIFeatureLevel::SM4)
+		if (FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			float ResolutionFraction = DynamicResolutionStateInfos.ResolutionFractionApproximation;
 			float ScreenPercentage = ResolutionFraction * 100.0f;
@@ -2134,7 +2142,7 @@ ENGINE_API bool GetViewportScreenShot(FViewport* Viewport, TArray<FColor>& Bitma
 
 extern bool ParseResolution( const TCHAR* InResolution, uint32& OutX, uint32& OutY, int32& WindowMode );
 
-ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, uint32& OutXRes, uint32& OutYRes, float& OutResMult, FIntRect& OutCaptureRegion, bool& OutShouldEnableMask, bool& OutDumpBufferVisualizationTargets, bool& OutCaptureHDR, FString& OutFilenameOverride)
+ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, uint32& OutXRes, uint32& OutYRes, float& OutResMult, FIntRect& OutCaptureRegion, bool& OutShouldEnableMask, bool& OutDumpBufferVisualizationTargets, bool& OutCaptureHDR, FString& OutFilenameOverride, bool& OutUseDateTimeAsFileName)
 {
 	FString CmdString = Cmd;
 	int32 SeperatorPos = -1;
@@ -2205,6 +2213,8 @@ ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, u
 		OutShouldEnableMask = NumArguments > 5 ? FCString::Atoi(*Arguments[5]) != 0 : false;
 		OutDumpBufferVisualizationTargets = NumArguments > 6 ? FCString::Atoi(*Arguments[6]) != 0 : false;
 		OutCaptureHDR = NumArguments > 7 ? FCString::Atoi(*Arguments[7]) != 0 : false;
+		OutUseDateTimeAsFileName = NumArguments > 8 ? FCString::Atoi(*Arguments[8]) != 0 : false;
+
 
 		return true;
 	}

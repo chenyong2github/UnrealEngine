@@ -2,58 +2,29 @@
 
 #include "ToolBuilderUtil.h"
 #include "CoreMinimal.h"
+#include "Algo/Accumulate.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Selection.h"
 #include "Components/StaticMeshComponent.h"
 
-
-
-bool ToolBuilderUtil::IsMeshDescriptionSourceComponent(UActorComponent* ComponentObject)
-{
-	UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(ComponentObject);
-	if (StaticMeshComp != nullptr)
-	{
-		return true;
-	}
-	return false;
-}
-
-
-
 int ToolBuilderUtil::CountComponents(const FToolBuilderState& InputState, const TFunction<bool(UActorComponent*)>& Predicate)
 {
-	int nTypedComponents = 0;
+	int nTypedComponents{};
 
-	if (InputState.SelectedComponents != nullptr && InputState.SelectedComponents->Num() > 0)
+	if (InputState.SelectedComponents.Num() > 0)
 	{
-		for (FSelectionIterator Iter(*InputState.SelectedComponents); Iter; ++Iter)
-		{
-			if (UActorComponent* Component = Cast<UActorComponent>(*Iter))
-			{
-				if (Predicate(Component))
-				{
-					nTypedComponents++;
-				}
-			}
-		}
+		nTypedComponents = Algo::CountIf(InputState.SelectedComponents, Predicate);
 	}
 	else
 	{
-		for (FSelectionIterator Iter(*InputState.SelectedActors); Iter; ++Iter)
-		{
-			if (AActor* Actor = Cast<AActor>(*Iter))
-			{
-				for (UActorComponent* Component : Actor->GetComponents())
-				{
-					if (Predicate(Component))
-					{
-						nTypedComponents++;
-					}
-				}
-			}
-		}
+		nTypedComponents =
+			Algo::TransformAccumulate(InputState.SelectedActors,
+									  [&Predicate](AActor* Actor)
+									  {
+										  return Algo::CountIf(Actor->GetComponents(), Predicate);
+									  },
+									  0);
 	}
-
 	return nTypedComponents;
 }
 
@@ -62,36 +33,21 @@ int ToolBuilderUtil::CountComponents(const FToolBuilderState& InputState, const 
 
 UActorComponent* ToolBuilderUtil::FindFirstComponent(const FToolBuilderState& InputState, const TFunction<bool(UActorComponent*)>& Predicate)
 {
-	if (InputState.SelectedComponents != nullptr && InputState.SelectedComponents->Num() > 0)
+	if (InputState.SelectedComponents.Num() > 0)
 	{
-		for (FSelectionIterator Iter(*InputState.SelectedComponents); Iter; ++Iter)
-		{
-			if (UActorComponent* Component = Cast<UActorComponent>(*Iter))
-			{
-				if (Predicate(Component))
-				{
-					return Component;
-				}
-			}
-		}
+		return *InputState.SelectedComponents.FindByPredicate(Predicate);
 	}
 	else
 	{
-		for (FSelectionIterator Iter(*InputState.SelectedActors); Iter; ++Iter)
+		for ( AActor* Actor : InputState.SelectedActors )
 		{
-			if (AActor* Actor = Cast<AActor>(*Iter))
+			UActorComponent* Component = *Algo::FindByPredicate(Actor->GetComponents(), Predicate);
+			if ( Component )
 			{
-				for (UActorComponent* Component : Actor->GetComponents())
-				{
-					if (Predicate(Component))
-					{
-						return Component;
-					}
-				}
+				return Component;
 			}
 		}
 	}
-
 	return nullptr;
 }
 
@@ -100,38 +56,24 @@ UActorComponent* ToolBuilderUtil::FindFirstComponent(const FToolBuilderState& In
 
 TArray<UActorComponent*> ToolBuilderUtil::FindAllComponents(const FToolBuilderState& InputState, const TFunction<bool(UActorComponent*)>& Predicate)
 {
-	TArray<UActorComponent*> Components;
-
-	if (InputState.SelectedComponents != nullptr && InputState.SelectedComponents->Num() > 0)
+	if (InputState.SelectedComponents.Num() > 0)
 	{
-		for (FSelectionIterator Iter(*InputState.SelectedComponents); Iter; ++Iter)
-		{
-			if (UActorComponent* Component = Cast<UActorComponent>(*Iter))
-			{
-				if (Predicate(Component))
-				{
-					Components.AddUnique(Component);
-				}
-			}
-		}
+		return InputState.SelectedComponents.FilterByPredicate(Predicate);
 	}
 	else
 	{
-		for (FSelectionIterator Iter(*InputState.SelectedActors); Iter; ++Iter)
-		{
-			if (AActor* Actor = Cast<AActor>(*Iter))
-			{
-				for (UActorComponent* Component : Actor->GetComponents())
-				{
-					if (Predicate(Component))
-					{
-						Components.AddUnique(Component);
-					}
-				}
-			}
-		}
+		return Algo::TransformAccumulate(InputState.SelectedActors,
+										 [&Predicate](AActor* Actor)
+										 {
+											 TInlineComponentArray<UActorComponent*> ActorComponents;
+											 Actor->GetComponents(ActorComponents);
+											 return ActorComponents.FilterByPredicate(Predicate);
+										 },
+										 TArray<UActorComponent*>{},
+										 [](TArray<UActorComponent*> FoundComponents, TArray<UActorComponent*> ActorComponents)
+										 {
+											 FoundComponents.Insert(MoveTemp(ActorComponents), FoundComponents.Num());
+											 return FoundComponents;
+										 });
 	}
-
-	return Components;
 }
-

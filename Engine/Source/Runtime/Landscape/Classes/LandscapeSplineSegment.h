@@ -42,6 +42,14 @@ struct FLandscapeSplineInterpPoint
 	UPROPERTY()
 	FVector FalloffRight;
 
+	/** Layer Left Point */
+	UPROPERTY()
+	FVector LayerLeft;
+
+	/** Layer Right Point */
+	UPROPERTY()
+	FVector LayerRight;
+
 	/** Left Layer Falloff Point */
 	UPROPERTY()
 	FVector LayerFalloffLeft;
@@ -61,18 +69,22 @@ struct FLandscapeSplineInterpPoint
 		, Right(ForceInitToZero)
 		, FalloffLeft(ForceInitToZero)
 		, FalloffRight(ForceInitToZero)
+		, LayerLeft(ForceInitToZero)
+		, LayerRight(ForceInitToZero)
 		, LayerFalloffLeft(ForceInitToZero)
 		, LayerFalloffRight(ForceInitToZero)
 		, StartEndFalloff(0.0f)
 	{
 	}
 
-	FLandscapeSplineInterpPoint(FVector InCenter, FVector InLeft, FVector InRight, FVector InFalloffLeft, FVector InFalloffRight, FVector InLayerFalloffLeft, FVector InLayerFalloffRight, float InStartEndFalloff) :
+	FLandscapeSplineInterpPoint(FVector InCenter, FVector InLeft, FVector InRight, FVector InFalloffLeft, FVector InFalloffRight, FVector InLayerLeft, FVector InLayerRight, FVector InLayerFalloffLeft, FVector InLayerFalloffRight, float InStartEndFalloff) :
 		Center(InCenter),
 		Left(InLeft),
 		Right(InRight),
 		FalloffLeft(InFalloffLeft),
 		FalloffRight(InFalloffRight),
+		LayerLeft(InLayerLeft),
+		LayerRight(InLayerRight),
 		LayerFalloffLeft(InLayerFalloffLeft),
 		LayerFalloffRight(InLayerFalloffRight),
 		StartEndFalloff(InStartEndFalloff)
@@ -263,6 +275,10 @@ class ULandscapeSplineSegment : public UObject
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Skip Mips", UIMin = "0", UIMax = "15"))
 	int32 VirtualTextureCullMips = 0;
 
+	/** Desired cull distance in the main pass if we are rendering to both the virtual texture AND the main pass. A value of 0 has no effect. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Max Draw Distance in Main Pass"))
+	float VirtualTextureMainPassMaxDrawDistance = 0.f;
+
 	/** Render to the main pass based on the virtual texture settings. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Pass Type"))
 	ERuntimeVirtualTextureMainPassType VirtualTextureRenderPassType = ERuntimeVirtualTextureMainPassType::Exclusive;
@@ -317,7 +333,7 @@ public:
 
 	virtual void AutoFlipTangents();
 
-	TMap<ULandscapeSplinesComponent*, TArray<USplineMeshComponent*>> GetForeignMeshComponents();
+	LANDSCAPE_API TMap<ULandscapeSplinesComponent*, TArray<USplineMeshComponent*>> GetForeignMeshComponents();
 	TArray<USplineMeshComponent*> GetLocalMeshComponents() const;
 	
 	virtual void UpdateSplinePoints(bool bUpdateCollision = true, bool bUpdateMeshLevel = false);

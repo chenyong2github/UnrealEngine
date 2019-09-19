@@ -13,6 +13,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemExpansionChangedDynamic, UOb
  * Similar to ListView, but can display a hierarchical tree of elements.
  * The base items source for the tree identifies the root items, each of which can have n associated child items.
  * There is no hard limit to the nesting - child items can have children and so on
+ *
+ * To make a widget usable as an entry in a TreeView, it must inherit from the IUserObjectListEntry interface.
  */
 UCLASS()
 class UMG_API UTreeView : public UListView

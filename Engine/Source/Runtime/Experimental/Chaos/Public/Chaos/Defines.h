@@ -6,19 +6,21 @@
 #endif
 
 #include <functional>
-#if !COMPILE_WITHOUT_UNREAL_SUPPORT
-#include "CoreTypes.h"
-#include "Logging/MessageLog.h"
-#include "Misc/CoreMiscDefines.h"
-
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
+	#include <stdint.h>
 #else
-#include <stdint.h>
-#define PI 3.14159
-#define check(condition)
-
-typedef int32_t int32;
+	#include "CoreTypes.h"
+	#include "Logging/MessageLog.h"
+	#include "Misc/CoreMiscDefines.h"
 #endif
 #include "Serializable.h"
+
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
+#define PI 3.14159
+#define check(condition)
+typedef int32_t int32;
+#endif
+
 
 namespace Chaos
 {

@@ -21,10 +21,10 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "Editor.h"
 #include "Serialization/ArchiveHasReferences.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Serialization/FindObjectReferencers.h"
@@ -32,6 +32,7 @@
 #include "BlueprintEditor.h"
 #include "Engine/Selection.h"
 #include "BlueprintEditorSettings.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 extern COREUOBJECT_API bool GBlueprintUseCompilationManager;
 
@@ -1253,9 +1254,13 @@ void FActorReplacementHelper::Finalize(const TMap<UObject*, UObject*>& OldToNewI
 
 	// Destroy actor and clear references.
 	NewActor->Modify();
-	if (GEditor && GEditor->Layers.IsValid())
+	if (GEditor)
 	{
-		GEditor->Layers->InitializeNewActorLayers(NewActor);
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		if (Layers)
+		{
+			Layers->InitializeNewActorLayers(NewActor);
+		}
 	}
 }
 
@@ -1848,9 +1853,13 @@ static void ReplaceActorHelper(UObject* OldObject, UClass* OldClass, UObject*& N
 		}
 		bSelectionChanged = true;
 	}
-	if (GEditor && GEditor->Layers.IsValid())
+	if (GEditor)
 	{
-		GEditor->Layers->DisassociateActorFromLayers(OldActor);
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		if (Layers)
+		{
+			Layers->DisassociateActorFromLayers(OldActor);
+		}
 	}
 
 	World->EditorDestroyActor(OldActor, /*bShouldModifyLevel =*/true);
@@ -2196,7 +2205,7 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 		// Refresh any editors for objects that we've updated components for
 		for (UObject* BlueprintAsset : PotentialEditorsForRefreshing)
 		{
-			FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(FAssetEditorManager::Get().FindEditorForAsset(BlueprintAsset, /*bFocusIfOpen =*/false));
+			FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(BlueprintAsset, /*bFocusIfOpen =*/false));
 			if (BlueprintEditor)
 			{
 				BlueprintEditor->RefreshEditors();

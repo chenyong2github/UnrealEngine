@@ -36,10 +36,10 @@ public:
 	virtual IDetailPropertyRow& AddPropertyToCategory(TSharedPtr<IPropertyHandle> InPropertyHandle) override;
 	virtual FDetailWidgetRow& AddCustomRowToCategory(TSharedPtr<IPropertyHandle> InPropertyHandle, const FText& InCustomSearchString, bool bForAdvanced = false) override;
 	virtual IDetailPropertyRow* EditDefaultProperty(TSharedPtr<IPropertyHandle> InPropertyHandle) override;
-	virtual TSharedRef<IPropertyHandle> GetProperty(const FName PropertyPath, const UClass* ClassOutermost, FName InInstanceName) override;
+	virtual TSharedRef<IPropertyHandle> GetProperty(const FName PropertyPath, const UStruct* ClassOutermost, FName InInstanceName) override;
 	virtual FName GetTopLevelProperty() override;
 	virtual void HideProperty(const TSharedPtr<IPropertyHandle> Property) override;
-	virtual void HideProperty(FName PropertyPath, const UClass* ClassOutermost = NULL, FName InstanceName = NAME_None) override;
+	virtual void HideProperty(FName PropertyPath, const UStruct* ClassOutermost = NULL, FName InstanceName = NAME_None) override;
 	virtual void ForceRefreshDetails() override;
 	virtual TSharedPtr<FAssetThumbnailPool> GetThumbnailPool() const override;
 	virtual bool IsPropertyVisible(TSharedRef<IPropertyHandle> PropertyHandle) const override;
@@ -58,12 +58,15 @@ public:
 	 */
 	FDetailCategoryImpl& DefaultCategory(FName CategoryName);
 
-	TSharedPtr<FDetailCategoryImpl> GetSubCategoryImpl(FName CategoryName);
+	/** 
+	 * Find a subcategory with the given name, if it exists
+	 */
+	TSharedPtr<FDetailCategoryImpl> GetSubCategoryImpl(FName CategoryName) const;
 
 	/**
-	* Return true if the category exist
-	*/
-	bool HasCategory(FName CategoryName);
+	 * @returns true if a category with the given name exists
+	 */
+	bool HasCategory(FName CategoryName) const;
 
 	/**
 	 * Generates the layout for this detail builder
@@ -92,16 +95,14 @@ public:
 	 *
 	 * @param PropertyPath	The path to the property
 	 * @param ClassOutermost	The outer class of the property
-	 * @param bMarkPropertyAsCustomized	Whether or not to mark the property as customized so it does not appear in the default layout
 	 * @return The found property node
 	 */
-	TSharedPtr<FPropertyNode> GetPropertyNode(FName PropertyPath, const UClass* ClassOutermost, FName InstanceName) const;
+	TSharedPtr<FPropertyNode> GetPropertyNode(FName PropertyPath, const UStruct* ClassOutermost, FName InstanceName) const;
 
 	/**
 	 * Gets the property node from the provided handle
 	 *
 	 * @param PropertyHandle	The property handle to get the node from
-	 * @param bMarkAsCustomized	Whether or not to mark the value as customized
 	 */
 	TSharedPtr<FPropertyNode> GetPropertyNode(TSharedPtr<IPropertyHandle> PropertyHandle) const;
 
@@ -219,7 +220,7 @@ private:
 	 * @param bMarkPropertyAsCustomized	Whether or not to mark the property as customized so it does not appear in the default layout
 	 * @return The found property node
 	 */
-	TSharedPtr<FPropertyNode> GetPropertyNodeInternal( FName PropertyPath, const UClass* ClassOutermost, FName InstanceName ) const;
+	TSharedPtr<FPropertyNode> GetPropertyNodeInternal( FName PropertyPath, const UStruct* ClassOutermost, FName InstanceName ) const;
 
 	/**
 	 * Builds a list of simple and advanced categories that should be displayed

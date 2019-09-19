@@ -19,7 +19,13 @@ public:
 	{}
 	
 	/** Add Item at origin */
-	TSharedPtr< FUICommandInfo > AddItem;
+	TSharedPtr< FUICommandInfo > AddBoneItem;
+
+	/** Add Item at origin */
+	TSharedPtr< FUICommandInfo > AddControlItem;
+
+	/** Add Item at origin */
+	TSharedPtr< FUICommandInfo > AddSpaceItem;
 
 	/** Duplicate currently selected items */
 	TSharedPtr< FUICommandInfo > DuplicateItem;
@@ -29,6 +35,36 @@ public:
 
 	/** Rename selected item */
 	TSharedPtr< FUICommandInfo > RenameItem;
+
+	/** Copy the selected items. */
+	TSharedPtr< FUICommandInfo > CopyItems;
+
+	/** Paste the selected items. */
+	TSharedPtr< FUICommandInfo > PasteItems;
+
+	/** Paste Local Xfo", "Paste the local transforms. */
+	TSharedPtr< FUICommandInfo > PasteLocalTransforms;
+
+	/** Paste Global Xfo", "Paste the global transforms. */
+	TSharedPtr< FUICommandInfo > PasteGlobalTransforms;
+
+	/* Reset transform */
+	TSharedPtr<FUICommandInfo> ResetTransform;
+
+	/* Reset initial transform */
+	TSharedPtr<FUICommandInfo> ResetInitialTransform;
+
+	/* Reset space */
+	TSharedPtr<FUICommandInfo> ResetSpace;
+
+	/* Set initial transform from current */
+	TSharedPtr<FUICommandInfo> SetInitialTransformFromCurrentTransform;
+
+	/* set initial transform from closest bone */
+	TSharedPtr<FUICommandInfo> SetInitialTransformFromClosestBone;
+
+	/* frames the selection in the tree */
+	TSharedPtr<FUICommandInfo> FrameSelection;
 
 	/**
 	 * Initialize commands

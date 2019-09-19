@@ -13,7 +13,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "ILevelEditor.h"
 #include "LevelEditor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
 #include "Modules/ModuleManager.h"
@@ -30,6 +30,7 @@
 #include "LevelEditorActions.h"
 #include "UObject/UObjectIterator.h"
 #include "Factories/Factory.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "VREditorActions"
 
@@ -416,12 +417,12 @@ void FVREditorActionCallbacks::CreateNewSequence(UVREditorMode* InVRMode)
 	InVRMode->GetUISystem().SequencerOpenendFromRadialMenu(true);
 
 	// Open the Sequencer window
-	FAssetEditorManager::Get().OpenEditorForAsset(NewAsset);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
 }
 
 void FVREditorActionCallbacks::CloseSequencer(UMovieSceneSequence* OpenSequence)
 {
-	IAssetEditorInstance* SequencerEditor = FAssetEditorManager::Get().FindEditorForAsset(OpenSequence, false);
+	IAssetEditorInstance* SequencerEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(OpenSequence, false);
 	if (SequencerEditor != nullptr)
 	{
 		SequencerEditor->CloseWindow();

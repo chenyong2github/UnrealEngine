@@ -12,6 +12,7 @@
 
 class FTabManager;
 class SWindow;
+struct FToolMenuContext;
 
 /**
  * Data needed to display a Developer tools in the status bar.
@@ -43,6 +44,15 @@ public:
 	virtual void CreateDefaultMainFrame( const bool bStartImmersive, const bool bStartPIE ) = 0;
 
 	/**
+	 * Recreates the default editor main frame.
+	 * I.e., if CreateDefaultMainFrame or RecreateDefaultMainFrame were already called, it would clean the previous default main frame and create it again.
+	 *
+	 * @param bStartImmersive True to force a main frame viewport into immersive mode
+	 * @param bStartPIE True to start a PIE session right away
+	 */
+	virtual void RecreateDefaultMainFrame(const bool bStartImmersive, const bool bStartPIE) = 0;
+
+	/**
 	 * Generates a menu that includes application global commands, such as "Save All", "Exit", etc.  If you're building
 	 * a menu for your tab, you should call this function to create your menu, passing in an extender object to add your
 	 * tab-specific menu items!
@@ -52,7 +62,7 @@ public:
 	 *
 	 * @return	The newly-created menu widget
 	 */
-	virtual TSharedRef<SWidget> MakeMainMenu( const TSharedPtr<FTabManager>& TabManager, const TSharedRef< FExtender > Extender ) const = 0;
+	virtual TSharedRef<SWidget> MakeMainMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext ) const = 0;
 
 	/**
 	 * Generates a menu that's just like the "main menu" widget above, except it also includes some infrequently used commands
@@ -63,7 +73,7 @@ public:
 	 *
 	 * @return	The newly-created menu widget
 	 */
-	virtual TSharedRef<SWidget> MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const TSharedRef< FExtender > Extender ) const = 0;
+	virtual TSharedRef<SWidget> MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext ) const = 0;
 
 	/**
 	 * Generates a menu for status and developer

@@ -222,6 +222,33 @@ void USocialToolkit::SetLocalUserOnlineState(EOnlinePresenceState::Type OnlineSt
 	}
 }
 
+void USocialToolkit::AddLocalUserOnlineProperties(FPresenceProperties OnlineProperties)
+{
+	if (IOnlineSubsystem* PrimaryOss = GetSocialOss(ESocialSubsystem::Primary))
+	{
+		IOnlinePresencePtr PresenceInterface = PrimaryOss->GetPresenceInterface();
+		FUniqueNetIdRepl LocalUserId = GetLocalUserNetId(ESocialSubsystem::Primary);
+		if (PresenceInterface.IsValid() && LocalUserId.IsValid())
+		{
+			TSharedPtr<FOnlineUserPresence> CurrentPresence;
+			PresenceInterface->GetCachedPresence(*LocalUserId, CurrentPresence);
+
+			FOnlineUserPresenceStatus NewStatus;
+			if (CurrentPresence.IsValid())
+			{
+				NewStatus = CurrentPresence->Status;
+			}
+			
+			for (TPair<FPresenceKey, FVariantData>& Pair : OnlineProperties)
+			{
+				NewStatus.Properties.Emplace(MoveTemp(Pair.Key), MoveTemp(Pair.Value));
+			}
+
+			PresenceInterface->SetPresence(*LocalUserId, NewStatus);
+		}
+	}
+}
+
 USocialManager& USocialToolkit::GetSocialManager() const
 {
 	USocialManager* OuterSocialManager = GetTypedOuter<USocialManager>();
@@ -743,24 +770,7 @@ void USocialToolkit::HandlePresenceReceived(const FUniqueNetId& UserId, const TS
 	}
 	else if (SubsystemType == ESocialSubsystem::Platform)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_USocialToolkit_HandlePresenceReceived_Error);
-		FString ErrorString = TEXT("Platform presence received, but existing SocialUser could not be found.\n");
-		ErrorString += TEXT("Incoming UserId is ") + UserId.ToString() + TEXT(", as a UniqueIdRepl it's ") + FUniqueNetIdRepl(UserId).ToString();
-
-		ErrorString += TEXT("Outputting all cached platform IDs and the corresponding user: \n") + UserId.ToString();
-		for (auto IdUserPair : UsersBySubsystemIds)
-		{
-			if (IdUserPair.Key.GetType() != MCP_SUBSYSTEM)
-			{
-				ErrorString += FString::Printf(TEXT("\tUserId [%s]: SocialUser [%s]\n"), *IdUserPair.Key.ToString(), *IdUserPair.Value->ToDebugString());
-				if (IdUserPair.Key == FUniqueNetIdRepl(UserId) || !ensure(*IdUserPair.Key != UserId))
-				{
-					ErrorString += TEXT("\t\tAnd look at that, this one DOES actually match. The map has lied to us!!\n");
-				}
-			}
-		}
-
-		UE_LOG(LogParty, Error, TEXT("%s"), *ErrorString);
+		UE_LOG(LogParty, Error, TEXT("Platform presence received for UserId [%s], but existing SocialUser could not be found.\n"), *UserId.ToDebugString());
 	}
 }
 

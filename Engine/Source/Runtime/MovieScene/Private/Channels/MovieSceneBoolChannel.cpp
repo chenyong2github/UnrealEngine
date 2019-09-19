@@ -82,6 +82,21 @@ void FMovieSceneBoolChannel::DeleteKeys(TArrayView<const FKeyHandle> InHandles)
 	GetData().DeleteKeys(InHandles);
 }
 
+void FMovieSceneBoolChannel::DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore)
+{
+	// Insert a key at the current time to maintain evaluation
+	if (GetData().GetTimes().Num() > 0)
+	{
+		bool Value = false;
+		if (Evaluate(InTime, Value))
+		{
+			GetData().UpdateOrAddKey(InTime, Value);
+		}
+	}
+
+	GetData().DeleteKeysFrom(InTime, bDeleteKeysBefore);
+}
+
 void FMovieSceneBoolChannel::ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate)
 {
 	GetData().ChangeFrameResolution(SourceRate, DestinationRate);

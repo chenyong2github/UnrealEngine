@@ -111,7 +111,12 @@ void FWidgetTypeCustomization::OnSelectionChanged(TWeakObjectPtr<UWidget> InItem
 		TSharedPtr<IPropertyHandle> PropertyHandle = PropertyHandlePtr.Pin();
 		if (PropertyHandle.IsValid())
 		{
-			PropertyHandle->SetValue(InItem.Get());
+			TArray<FString> Refrences;
+			for (int32 Index = 0; Index < PropertyHandle->GetNumPerObjectValues(); Index++)
+			{
+				Refrences.Add(InItem.Get()->GetPathName());
+			}
+			PropertyHandle->SetPerObjectValues(Refrences);
 
 			WidgetListComboButton->SetIsOpen(false);
 		}

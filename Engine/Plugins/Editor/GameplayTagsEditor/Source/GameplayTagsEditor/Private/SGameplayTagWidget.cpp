@@ -16,7 +16,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "GameplayTagsEditorModule.h"
 #include "Widgets/Layout/SScaleBox.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "AssetToolsModule.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Notifications/SNotificationList.h"

@@ -11,7 +11,7 @@ set -e
 
 MAKE_ARGS=-j4
 
-ARCHES=("amd64 x86_64-unknown-linux-gnu" "i386 i686-unknown-linux-gnu" "armhf arm-unknown-linux-gnueabihf" "arm64 aarch64-unknown-linux-gnueabi")
+ARCHES=("amd64 x86_64-unknown-linux-gnu" "arm64 aarch64-unknown-linux-gnueabi")
 
 ConvertArchFormat()
 {

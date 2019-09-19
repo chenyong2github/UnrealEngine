@@ -44,6 +44,8 @@ public:
 class IStylusInputInterfaceInternal
 {
 public:
+	virtual void Tick() = 0;
+
 	virtual IStylusInputDevice* GetInputDevice(int32 Index) const = 0;
 	virtual int32 NumInputDevices() const = 0;
 };
@@ -81,4 +83,7 @@ private:
 	TArray<IStylusMessageHandler*> MessageHandlers;
 
 	TSharedRef<SDockTab> OnSpawnPluginTab(const FSpawnTabArgs& Args);
+
+	/** FTickableEditorObject must be destroyed on the main thread. */
+	virtual bool IsDestructionThreadSafe() const override { return false; }
 };

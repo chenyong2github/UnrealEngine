@@ -31,13 +31,13 @@ public class HoloLensAR : ModuleRules
 			}
             );
 
-        if (Target.Platform == UnrealTargetPlatform.Win64)
+        if (Target.Platform == UnrealTargetPlatform.Win64 || (Target.Platform == UnrealTargetPlatform.HoloLens && Target.WindowsPlatform.Architecture == WindowsArchitecture.x64))
         {
             PublicDelayLoadDLLs.Add("QRCodesTrackerPlugin.dll");
             RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "QRCodesTrackerPlugin.dll"));
             RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "QRCodesTrackerPlugin.winmd"));
         }
-        if (Target.Platform == UnrealTargetPlatform.HoloLens)
+        else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
             PublicDelayLoadDLLs.Add("QRCodesTrackerPlugin.dll");
             RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens/ARM64", "QRCodesTrackerPlugin.dll"));

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "../HAL/PreprocessorHelpers.h"
+
 
 // This file is included in some resource files, which issue a warning:
 //
@@ -115,7 +117,6 @@ typedef int32 FPlatformUserId;
 const FPlatformUserId PLATFORMUSERID_NONE = INDEX_NONE;
 #endif // RC_INVOKED
 
-#include "../HAL/PreprocessorHelpers.h"
 
 
 // When passed to pragma message will result in clickable warning in VS

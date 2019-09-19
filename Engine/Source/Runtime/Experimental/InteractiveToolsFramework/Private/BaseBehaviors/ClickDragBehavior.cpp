@@ -20,9 +20,10 @@ FInputCaptureRequest UClickDragInputBehavior::WantsCapture(const FInputDeviceSta
 {
 	if (IsPressed(Input) && (ModifierCheckFunc == nullptr || ModifierCheckFunc(Input)) )
 	{
-		if ( Target->CanBeginClickDragSequence(GetDeviceRay(Input)) )
+		FInputRayHit HitResult = Target->CanBeginClickDragSequence(GetDeviceRay(Input));
+		if (HitResult.bHit)
 		{
-			return FInputCaptureRequest::Begin(this, EInputCaptureSide::Any);
+			return FInputCaptureRequest::Begin(this, EInputCaptureSide::Any, HitResult.HitDepth);
 		}
 	}
 	return FInputCaptureRequest::Ignore();

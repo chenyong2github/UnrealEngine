@@ -15,7 +15,8 @@ class NIAGARAEDITOR_API UEdGraphSchema_NiagaraSystemOverview : public UEdGraphSc
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin EdGraphSchema Interface
-	virtual void GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, class FMenuBuilder* MenuBuilder, bool bIsDebugging) const override;
+	virtual void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
+	virtual FName GetParentContextMenuName() const override { return NAME_None; }
 	virtual const FPinConnectionResponse CanCreateConnection(const UEdGraphPin* A, const UEdGraphPin* B) const override { return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, FText()); }; //@TODO System Overview: write text response
 	virtual bool TryCreateConnection(UEdGraphPin* A, UEdGraphPin* B) const override { return false; };
 	virtual bool ShouldAlwaysPurgeOnModification() const override { return false; }

@@ -2238,6 +2238,12 @@ FORCEINLINE const TCHAR* ToCStr(const FString& Str)
 	return *Str;
 }
 
+namespace StringConv
+{
+	/** Inline combine any UTF-16 surrogate pairs in the given string */
+	CORE_API void InlineCombineSurrogates(FString& Str);
+}
+
 /*----------------------------------------------------------------------------
 	Special archivers.
 ----------------------------------------------------------------------------*/

@@ -163,14 +163,26 @@ public:
 	static UNREALED_API void SetLevelVisibilityTemporarily(ULevel* Level, bool bShouldBeVisible);
 
 	/**
-	 * Sets a level's visibility in the editor.
+	 * Sets a level's visibility in the editor. Less efficient than SetLevelsVisibility when changing the visibility of multiple levels simultaneously.
 	 *
 	 * @param	Level					The level to modify.
 	 * @param	bShouldBeVisible		The level's new visibility state.
 	 * @param	bForceLayersVisible		If true and the level is visible, force the level's layers to be visible.
+	 * @param	ModifyMode				ELevelVisibilityDirtyMode mode value.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	static UNREALED_API void SetLevelVisibility(ULevel* Level, bool bShouldBeVisible, bool bForceLayersVisible, ELevelVisibilityDirtyMode ModifyMode = ELevelVisibilityDirtyMode::ModifyOnChange);
+	static UNREALED_API void SetLevelVisibility(ULevel* Level, const bool bShouldBeVisible, const bool bForceLayersVisible, const ELevelVisibilityDirtyMode ModifyMode = ELevelVisibilityDirtyMode::ModifyOnChange);
+
+	/**
+	 * Sets a level's visibility in the editor. More efficient than SetLevelsVisibility when changing the visibility of multiple levels simultaneously.
+	 *
+	 * @param	Levels					The levels to modify.
+	 * @param	bShouldBeVisible		The level's new visibility state for each level.
+	 * @param	bForceLayersVisible		If true and the level is visible, force the level's layers to be visible.
+	 * @param	ModifyMode				ELevelVisibilityDirtyMode mode value.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	static UNREALED_API void SetLevelsVisibility(const TArray<ULevel*>& Levels, const TArray<bool>& bShouldBeVisible, const bool bForceLayersVisible, const ELevelVisibilityDirtyMode ModifyMode = ELevelVisibilityDirtyMode::ModifyOnChange);
 	
 	/** 
 	 * Deselects all BSP surfaces in this level 

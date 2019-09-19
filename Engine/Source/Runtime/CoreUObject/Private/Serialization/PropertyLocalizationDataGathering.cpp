@@ -617,6 +617,9 @@ private:
 				iCode += sizeof(uint16);
 			}
 			while (Script[iCode-1] || Script[iCode-2]);
+
+			// Inline combine any surrogate pairs in the data when loading into a UTF-32 string
+			StringConv::InlineCombineSurrogates(LastParsedString);
 		}
 		else
 		{

@@ -76,10 +76,7 @@ void ProxyLOD::MixedPolyMeshToRawMesh(const FMixedPolyMesh& SimpleMesh, FMeshDes
 		}
 
 		// Insert a polygon into the mesh
-		const FPolygonID NewPolygonID = DstRawMesh.CreatePolygon(PolygonGroupID, VertexInstanceIDs);
-		//Triangulate the polygon
-		FMeshPolygon& Polygon = DstRawMesh.GetPolygon(NewPolygonID);
-		DstRawMesh.ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
+		DstRawMesh.CreatePolygon(PolygonGroupID, VertexInstanceIDs);
 	};
 
 	{
@@ -189,10 +186,7 @@ void ProxyLOD::AOSMeshToRawMesh(const FAOSMesh& AOSMesh, FMeshDescription& OutRa
 		}
 
 		// Insert a polygon into the mesh
-		const FPolygonID NewPolygonID = OutRawMesh.CreatePolygon(PolygonGroupID, VertexInstanceIDs);
-		//Triangulate the polygon
-		FMeshPolygon& Polygon = OutRawMesh.GetPolygon(NewPolygonID);
-		OutRawMesh.ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
+		OutRawMesh.CreatePolygon(PolygonGroupID, VertexInstanceIDs);
 	};
 
 	{
@@ -326,10 +320,7 @@ void ProxyLOD::VertexDataMeshToRawMesh(const FVertexDataMesh& SrcVertexDataMesh,
 		}
 
 		// Insert a polygon into the mesh
-		const FPolygonID NewPolygonID = OutRawMesh.CreatePolygon(PolygonGroupID, VertexInstanceIDs);
-		//Triangulate the polygon
-		FMeshPolygon& Polygon = OutRawMesh.GetPolygon(NewPolygonID);
-		OutRawMesh.ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
+		OutRawMesh.CreatePolygon(PolygonGroupID, VertexInstanceIDs);
 	};
 
 	{
@@ -378,12 +369,7 @@ void ProxyLOD::RawMeshToVertexDataMesh(const FMeshDescription& SrcRawMesh, FVert
 
 	const uint32 DstNumPositions = SrcRawMesh.Vertices().Num();
 
-	uint32 DstNumIndexes = 0;
-	for (const FPolygonID& PolygonID : SrcRawMesh.Polygons().GetElementIDs())
-	{
-		const FMeshPolygon& Polygon = SrcRawMesh.GetPolygon(PolygonID);
-		DstNumIndexes += Polygon.Triangles.Num() * 3;
-	}
+	uint32 DstNumIndexes = SrcRawMesh.Triangles().Num() * 3;
 
 	// Copy the vertices over
 	TMap<FVertexID, uint32> VertexIDToDstVertexIndex;
@@ -418,14 +404,13 @@ void ProxyLOD::RawMeshToVertexDataMesh(const FMeshDescription& SrcRawMesh, FVert
 	ResizeArray(DstUVs, DstNumPositions);
 
 	//Iterate all triangle and add the indices
-	for (const FPolygonID& PolygonID : SrcRawMesh.Polygons().GetElementIDs())
+	for (const FPolygonID PolygonID : SrcRawMesh.Polygons().GetElementIDs())
 	{
-		const FMeshPolygon& Polygon = SrcRawMesh.GetPolygon(PolygonID);
-		for (const FMeshTriangle& Triangle : Polygon.Triangles)
+		for (const FTriangleID TriangleID : SrcRawMesh.GetPolygonTriangleIDs(PolygonID))
 		{
 			for (int32 Corner = 0; Corner < 3; ++Corner)
 			{
-				const FVertexInstanceID& VertexInstanceID = Triangle.GetVertexInstanceID(Corner);
+				const FVertexInstanceID& VertexInstanceID = SrcRawMesh.GetTriangleVertexInstance(TriangleID, Corner);
 				DstIndices[VertexInstanceCount] = VertexIDToDstVertexIndex[SrcRawMesh.GetVertexInstanceVertex(VertexInstanceID)];
 
 				// Copy the tangent space:

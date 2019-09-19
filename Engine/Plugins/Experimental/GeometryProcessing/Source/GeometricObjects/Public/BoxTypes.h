@@ -57,6 +57,11 @@ struct TInterval1
 		return D >= Min && D <= Max;
 	}
 
+	bool Contains(const TInterval1<RealType>& O) const
+	{
+		return Contains(O.Min) && Contains(O.Max);
+	}
+
 	bool Overlaps(const TInterval1<RealType>& O) const
 	{
 		return !(O.Min > Max || O.Max < Min);
@@ -297,6 +302,11 @@ struct TAxisAlignedBox3
 		return (Min.X <= V.X) && (Min.Y <= V.Y) && (Min.Z <= V.Z) && (Max.X >= V.X) && (Max.Y >= V.Y) && (Max.Z >= V.Z);
 	}
 
+	bool Contains(const TAxisAlignedBox3<RealType>& Box) const
+	{
+		return Contains(Box.Min) && Contains(Box.Max);
+	}
+
 	TAxisAlignedBox3<RealType> Intersect(const TAxisAlignedBox3<RealType>& Box) const
 	{
 		TAxisAlignedBox3<RealType> Intersection(
@@ -476,6 +486,11 @@ struct TAxisAlignedBox2
 	bool Contains(const FVector2<RealType>& V) const
 	{
 		return (Min.X <= V.X) && (Min.Y <= V.Y) && (Max.X >= V.X) && (Max.Y >= V.Y);
+	}
+
+	bool Contains(const TAxisAlignedBox2<RealType>& Box) const
+	{
+		return Contains(Box.Min) && Contains(Box.Max);
 	}
 
 	bool Intersects(const TAxisAlignedBox2<RealType>& Box) const

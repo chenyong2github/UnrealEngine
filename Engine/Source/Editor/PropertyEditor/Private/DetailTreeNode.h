@@ -99,7 +99,7 @@ public:
 	/**
 	 * @return The category node that this node is nested in, if any:
 	 */
-	virtual TSharedPtr<FDetailCategoryImpl> GetParentCategory() { return TSharedPtr<FDetailCategoryImpl>(); }
+	virtual TSharedPtr<FDetailCategoryImpl> GetParentCategory() const { return TSharedPtr<FDetailCategoryImpl>(); }
 
 	/**
 	 * @return The property path that this node is associate with, if any:

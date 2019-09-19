@@ -384,6 +384,7 @@ void FSoundSource::SetFilterFrequency()
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->AmbientZoneFilterFrequency);
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->AttenuationLowpassFilterFrequency);
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->SoundModulationControls.Lowpass);
+			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->SoundClassFilterFrequency);
 		}
 		break;
 	}
@@ -802,6 +803,7 @@ FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InA
 	, ReverbPluginSettings(nullptr)
 	, OutputTarget(EAudioOutputTarget::Speaker)
 	, LowPassFilterFrequency(MAX_FILTER_FREQUENCY)
+	, SoundClassFilterFrequency(MAX_FILTER_FREQUENCY)
 	, OcclusionFilterFrequency(MAX_FILTER_FREQUENCY)
 	, AmbientZoneFilterFrequency(MAX_FILTER_FREQUENCY)
 	, AttenuationLowpassFilterFrequency(MAX_FILTER_FREQUENCY)
@@ -914,17 +916,23 @@ float FWaveInstance::GetDistanceAttenuation() const
 float FWaveInstance::GetDynamicVolume() const
 {
 	float OutVolume = 1.0f;
-	if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
-	{
-		if (WaveData)
-		{
-			OutVolume *= DeviceManager->GetDynamicSoundVolume(ESoundType::Wave, WaveData->GetFName());
-		}
 
-		check(ActiveSound);
-		if (const USoundCue* Sound = Cast<USoundCue>(ActiveSound->GetSound()))
+	if (GEngine)
+	{
+		if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 		{
-			OutVolume *= DeviceManager->GetDynamicSoundVolume(ESoundType::Cue, Sound->GetFName());
+			if (WaveData)
+			{
+				OutVolume *= DeviceManager->GetDynamicSoundVolume(ESoundType::Wave, WaveData->GetFName());
+			}
+
+			if (ActiveSound)
+			{
+				if (const USoundCue* Sound = Cast<USoundCue>(ActiveSound->GetSound()))
+				{
+					OutVolume *= DeviceManager->GetDynamicSoundVolume(ESoundType::Cue, Sound->GetFName());
+				}
+			}
 		}
 	}
 

@@ -37,6 +37,19 @@ void UActorSequenceComponent::BeginPlay()
 	}
 }
 
+void UActorSequenceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (SequencePlayer)
+	{
+		// Stop the internal sequence player during EndPlay when it's safer
+		// to modify other actor's state during state restoration.
+		SequencePlayer->Stop();
+	}
+	
+	Super::EndPlay(EndPlayReason);
+}
+
+
 void UActorSequenceComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaSeconds, TickType, ThisTickFunction);

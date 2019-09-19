@@ -35,6 +35,14 @@ static TAutoConsoleVariable<int32> CVarStreamingOverlapAssetAndLevelTicks(
 	TEXT("Ticks render asset streaming info on a high priority task thread while ticking levels on GT"),
 	ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarStreamingAllowFastForceResident(
+	TEXT("r.Streaming.AllowFastForceResident"),
+	0,
+	TEXT("Whether it is allowed to load in missing mips for fast-force-resident assets ASAP. ")
+	TEXT("Useful to accelerate force-resident process but risks disturbing streaming metric calculation. ")
+	TEXT("Fast-force-resident mips can't be sacrificed even when overbudget so use with caution."),
+	ECVF_Default);
+
 bool TrackRenderAsset( const FString& AssetName );
 bool UntrackRenderAsset( const FString& AssetName );
 void ListTrackedRenderAssets( FOutputDevice& Ar, int32 NumTextures );
@@ -69,6 +77,7 @@ FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 ,	MaxEverRequired(0)
 ,	bPauseRenderAssetStreaming(false)
 ,	LastWorldUpdateTime(GIsEditor ? -FLT_MAX : 0) // In editor, visibility is not taken into consideration.
+,	LastWorldUpdateTime_MipCalcTask(LastWorldUpdateTime)
 {
 	// Read settings from ini file.
 	int32 TempInt;
@@ -335,6 +344,62 @@ void FRenderAssetStreamingManager::IncrementalUpdate(float Percentage, bool bUpd
 	SetRenderAssetsRemovedTimestamp(RemovedRenderAssets);
 }
 
+void FRenderAssetStreamingManager::TickFastResponseAssets()
+{
+	if (!CVarStreamingAllowFastForceResident.GetValueOnGameThread())
+	{
+		return;
+	}
+
+	for (TSet<UStreamableRenderAsset*>::TIterator It(FastResponseRenderAssets); It; ++It)
+	{
+		UStreamableRenderAsset* RenderAsset = *It;
+		
+		if (!RenderAsset
+			|| !RenderAsset->bIgnoreStreamingMipBias
+			|| (!RenderAsset->bForceMiplevelsToBeResident && RenderAsset->ForceMipLevelsToBeResidentTimestamp < FApp::GetCurrentTime()))
+		{
+			// No longer qualified for fast response
+			It.RemoveCurrent();
+			continue;
+		}
+
+		if (RenderAsset->GetLastRenderTimeForStreaming() < LastWorldUpdateTime_MipCalcTask)
+		{
+			// Not visible
+			continue;
+		}
+
+		const int32 StreamingIdx = RenderAsset->StreamingIndex;
+		FStreamingRenderAsset& Asset = StreamingRenderAssets[StreamingIdx];
+
+		check(RenderAsset == Asset.RenderAsset);
+
+		Asset.UpdateStreamingStatus(false);
+
+		if (!Asset.bInFlight && Asset.ResidentMips < Asset.NumNonOptionalMips)
+		{
+			RenderAsset->StreamIn(Asset.NumNonOptionalMips, true);
+			RenderAsset->bHasStreamingUpdatePending = true;
+			Asset.bHasUpdatePending = true;
+			VisibleFastResponseRenderAssetIndices.Add(StreamingIdx);
+
+			for (int32 Idx = 0; Idx < PendingMipCopyRequests.Num(); ++Idx)
+			{
+				FPendingMipCopyRequest& PendingRequest = PendingMipCopyRequests[Idx];
+
+				if (PendingRequest.RenderAsset == RenderAsset)
+				{
+					PendingRequest.RenderAsset = nullptr;
+				}
+			}
+
+			Asset.UpdateStreamingStatus(false);
+			TrackRenderAssetEvent(&Asset, RenderAsset, true, this);
+		}
+	}
+}
+
 void FRenderAssetStreamingManager::ProcessRemovedRenderAssets()
 {
 	for (int32 AssetIndex : RemovedRenderAssetIndices)
@@ -349,7 +414,14 @@ void FRenderAssetStreamingManager::ProcessRemovedRenderAssets()
 		if (StreamingRenderAssets.IsValidIndex(AssetIndex))
 		{
 			// Update the texture with its new index.
-			StreamingRenderAssets[AssetIndex].RenderAsset->StreamingIndex = AssetIndex;
+			int32& StreamingIdx = StreamingRenderAssets[AssetIndex].RenderAsset->StreamingIndex;
+
+			if (VisibleFastResponseRenderAssetIndices.Remove(StreamingIdx))
+			{
+				VisibleFastResponseRenderAssetIndices.Add(AssetIndex);
+			}
+
+			StreamingIdx = AssetIndex;
 		}
 	}
 	RemovedRenderAssetIndices.Empty();
@@ -550,6 +622,8 @@ void FRenderAssetStreamingManager::PrepareAsyncTask(bool bProcessEverything)
 		AsyncTask.Reset(0, Stats.AllocatedMemorySize, MAX_int64, MAX_int64 / 2, 0);
 	}
 	AsyncTask.StreamingData.Init(CurrentViewInfos, LastWorldUpdateTime, LevelRenderAssetManagers, DynamicComponentManager);
+
+	LastWorldUpdateTime_MipCalcTask = LastWorldUpdateTime;
 }
 
 /**
@@ -727,6 +801,9 @@ void FRenderAssetStreamingManager::RemoveStreamingRenderAsset( UStreamableRender
 	{
 		StreamingRenderAssets[Idx].RenderAsset = nullptr;
 		RemovedRenderAssetIndices.Add(Idx);
+
+		FastResponseRenderAssets.Remove(RenderAsset);
+		VisibleFastResponseRenderAssetIndices.Remove(Idx);
 	}
 
 	RenderAsset->StreamingIndex = INDEX_NONE;
@@ -1014,6 +1091,31 @@ void FRenderAssetStreamingManager::UpdateIndividualRenderAsset( UStreamableRende
 	StreamingRenderAsset->StreamWantedMips(*this);
 }
 
+void FRenderAssetStreamingManager::FastForceFullyResident(UStreamableRenderAsset* RenderAsset)
+{
+	check(IsInGameThread());
+
+	if (CVarStreamingAllowFastForceResident.GetValueOnGameThread()
+		&& IStreamingManager::Get().IsStreamingEnabled()
+		&& !bPauseRenderAssetStreaming
+		&& RenderAsset
+		&& RenderAsset->bIgnoreStreamingMipBias
+		&& (RenderAsset->bForceMiplevelsToBeResident || RenderAsset->ForceMipLevelsToBeResidentTimestamp >= FApp::GetCurrentTime())
+		&& StreamingRenderAssets.IsValidIndex(RenderAsset->StreamingIndex)
+		&& StreamingRenderAssets[RenderAsset->StreamingIndex].RenderAsset == RenderAsset)
+	{
+		const int32 StreamingIdx = RenderAsset->StreamingIndex;
+		FStreamingRenderAsset& Asset = StreamingRenderAssets[StreamingIdx];
+
+		Asset.UpdateStreamingStatus(false);
+
+		if (Asset.ResidentMips < Asset.NumNonOptionalMips)
+		{
+			FastResponseRenderAssets.Add(Asset.RenderAsset);
+		}
+	}
+}
+
 /**
  * Not thread-safe: Updates a portion (as indicated by 'StageIndex') of all streaming textures,
  * allowing their streaming state to progress.
@@ -1098,7 +1200,7 @@ void FRenderAssetStreamingManager::StreamRenderAssets( bool bProcessEverything )
 	{
 		for (int32 AssetIndex : AsyncTask.GetCancelationRequests())
 		{
-			if (StreamingRenderAssets.IsValidIndex(AssetIndex))
+			if (StreamingRenderAssets.IsValidIndex(AssetIndex) && !VisibleFastResponseRenderAssetIndices.Contains(AssetIndex))
 			{
 				StreamingRenderAssets[AssetIndex].CancelPendingMipChangeRequest();
 			}
@@ -1114,7 +1216,8 @@ void FRenderAssetStreamingManager::StreamRenderAssets( bool bProcessEverything )
 			for (int32 AssetIndex : AsyncTask.GetLoadRequests())
 			{
 				if (StreamingRenderAssets.IsValidIndex(AssetIndex)
-					&& StreamingRenderAssets[AssetIndex].RenderAsset)
+					&& StreamingRenderAssets[AssetIndex].RenderAsset
+					&& !VisibleFastResponseRenderAssetIndices.Contains(AssetIndex))
 				{
 					FStreamingRenderAsset& StreamingRenderAsset = StreamingRenderAssets[AssetIndex];
 					StreamingRenderAsset.CacheStreamingMetaData();
@@ -1126,7 +1229,7 @@ void FRenderAssetStreamingManager::StreamRenderAssets( bool bProcessEverything )
 		{
 			for (int32 AssetIndex : AsyncTask.GetLoadRequests())
 			{
-				if (StreamingRenderAssets.IsValidIndex(AssetIndex))
+				if (StreamingRenderAssets.IsValidIndex(AssetIndex) && !VisibleFastResponseRenderAssetIndices.Contains(AssetIndex))
 				{
 					StreamingRenderAssets[AssetIndex].StreamWantedMips(*this);
 				}
@@ -1136,7 +1239,7 @@ void FRenderAssetStreamingManager::StreamRenderAssets( bool bProcessEverything )
 	
 	for (int32 AssetIndex : AsyncTask.GetPendingUpdateDirties())
 	{
-		if (StreamingRenderAssets.IsValidIndex(AssetIndex))
+		if (StreamingRenderAssets.IsValidIndex(AssetIndex) && !VisibleFastResponseRenderAssetIndices.Contains(AssetIndex))
 		{
 			FStreamingRenderAsset& StreamingRenderAsset = StreamingRenderAssets[AssetIndex];
 			const bool bNewState = StreamingRenderAsset.HasUpdatePending(bPauseRenderAssetStreaming, AsyncTask.HasAnyView());
@@ -1149,6 +1252,23 @@ void FRenderAssetStreamingManager::StreamRenderAssets( bool bProcessEverything )
 			}
 		}
 	}
+
+	// Reset BudgetMipBias and MaxAllowedMips before we forget. Otherwise, new requests may stream out forced mips
+	for (TSet<int32>::TConstIterator It(VisibleFastResponseRenderAssetIndices); It; ++It)
+	{
+		const int32 Idx = *It;
+
+		if (StreamingRenderAssets.IsValidIndex(Idx))
+		{
+			FStreamingRenderAsset& Asset = StreamingRenderAssets[Idx];
+
+			Asset.BudgetMipBias = 0;
+			// If optional mips is available but not counted, they will be counted later in UpdateDynamicData
+			Asset.MaxAllowedMips = FMath::Max(Asset.MaxAllowedMips, Asset.NumNonOptionalMips);
+		}
+	}
+
+	VisibleFastResponseRenderAssetIndices.Empty();
 }
 
 void FRenderAssetStreamingManager::ProcessPendingMipCopyRequests()
@@ -1382,6 +1502,8 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 		PrepareAsyncTask(bProcessEverything || Settings.bStressTest);
 		AsyncWork->StartSynchronousTask();
 
+		TickFastResponseAssets();
+
 		StreamRenderAssets(bProcessEverything);
 
 		STAT(GatheredStats.SetupAsyncTaskCycles = 0);
@@ -1409,6 +1531,7 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 		UpdatePendingStates(false);
 		PrepareAsyncTask(bProcessEverything || Settings.bStressTest);
 		AsyncWork->StartBackgroundTask(CVarUseBackgroundThreadPool.GetValueOnGameThread() ? GBackgroundPriorityThreadPool : GThreadPool);
+		TickFastResponseAssets();
 		++ProcessingStage;
 
 		STAT(GatheredStats.SetupAsyncTaskCycles += FPlatformTime::Cycles();)
@@ -1421,6 +1544,8 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 		{
 			SetLastUpdateTime();
 		}
+
+		TickFastResponseAssets();
 
 		FEvent* SyncEvent = nullptr;
 		// Optimization: overlapping UpdateStreamingRenderAssets() and IncrementalUpdate();
@@ -1460,6 +1585,8 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 		{
 			StreamingRenderAssets[TextureIndex].UpdateStreamingStatus(DeltaTime > 0);
 		}
+
+		TickFastResponseAssets();
 
 		StreamRenderAssets(bProcessEverything);
 		// Release the old view now as the destructors can be expensive. Now only the dynamic manager holds a ref.

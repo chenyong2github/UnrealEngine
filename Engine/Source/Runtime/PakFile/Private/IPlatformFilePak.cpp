@@ -42,7 +42,9 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
 #ifndef DISABLE_NONUFS_INI_WHEN_COOKED
 #define DISABLE_NONUFS_INI_WHEN_COOKED 0
 #endif
-
+#ifndef ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
+#define ALLOW_INI_OVERRIDE_FROM_COMMANDLINE 0
+#endif
 #ifndef ALL_PAKS_WILDCARD
 #define ALL_PAKS_WILDCARD "*.pak"
 #endif 
@@ -50,6 +52,8 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
 #ifndef MOUNT_STARTUP_PAKS_WILDCARD
 #define MOUNT_STARTUP_PAKS_WILDCARD ALL_PAKS_WILDCARD
 #endif
+
+static FString GMountStartupPaksWildCard = TEXT(MOUNT_STARTUP_PAKS_WILDCARD);
 
 int32 ParseChunkIDFromFilename(const FString& InFilename)
 {
@@ -4512,10 +4516,29 @@ bool FPakPlatformFile::IsNonPakFilenameAllowed(const FString& InFilename)
 	}
 #endif
 
+	bool bIsIniFile = InFilename.EndsWith(IniFileExtension);
 #if DISABLE_NONUFS_INI_WHEN_COOKED
-	if (FPlatformProperties::RequiresCookedData() && InFilename.EndsWith(IniFileExtension) && !InFilename.EndsWith(GameUserSettingsIniFilename))
+	bool bSkipIniFile = bIsIniFile && !InFilename.EndsWith(GameUserSettingsIniFilename);
+	if (FPlatformProperties::RequiresCookedData() && bSkipIniFile)
 	{
 		bAllowed = false;
+	}
+#endif
+#if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
+	FString FileList;
+	if (bIsIniFile && FParse::Value(FCommandLine::Get(), TEXT("-iniFile="), FileList, false))
+	{
+		TArray<FString> Files;
+		FileList.ParseIntoArray(Files, TEXT(","), true);
+		for (int32 Index = 0; Index < Files.Num(); Index++)
+		{
+			if (InFilename == Files[Index])
+			{
+				bAllowed = true;
+				UE_LOG(LogPakFile, Log, TEXT(" Override -inifile: %s"), *InFilename);
+				break;
+			}
+		}
 	}
 #endif
 
@@ -5967,10 +5990,15 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 	// Signed if we have keys, and are not running with fileopenlog (currently results in a deadlock).
 	bSigned = FCoreDelegates::GetPakSigningKeysDelegate().IsBound() && !FParse::Param(FCommandLine::Get(), TEXT("fileopenlog"));
 
+	FString StartupPaksWildcard = GMountStartupPaksWildCard;
+#if !UE_BUILD_SHIPPING
+	FParse::Value(FCommandLine::Get(), TEXT("StartupPaksWildcard="), StartupPaksWildcard);
+#endif
+
 	// Find and mount pak files from the specified directories.
 	TArray<FString> PakFolders;
 	GetPakFolders(FCommandLine::Get(), PakFolders);
-	MountAllPakFiles(PakFolders, TEXT(MOUNT_STARTUP_PAKS_WILDCARD));
+	MountAllPakFiles(PakFolders, *StartupPaksWildcard);
 
 #if !UE_BUILD_SHIPPING
 	GPakExec = MakeUnique<FPakExec>(*this);
@@ -6426,8 +6454,14 @@ IFileHandle* FPakPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
 
 const TCHAR* FPakPlatformFile::GetMountStartupPaksWildCard()
 {
-	return TEXT(MOUNT_STARTUP_PAKS_WILDCARD);
+	return *GMountStartupPaksWildCard;
 }
+
+void FPakPlatformFile::SetMountStartupPaksWildCard(const FString& WildCard)
+{
+	GMountStartupPaksWildCard = WildCard;
+}
+
 
 EChunkLocation::Type FPakPlatformFile::GetPakChunkLocation(int32 InChunkID) const
 {

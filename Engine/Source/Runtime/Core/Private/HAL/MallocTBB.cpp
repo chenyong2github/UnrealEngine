@@ -48,7 +48,7 @@ void* FMallocTBB::Malloc( SIZE_T Size, uint32 Alignment )
 
 	MEM_TIME(MemTime -= FPlatformTime::Seconds());
 
-	void* NewPtr = NULL;
+	void* NewPtr = nullptr;
 #if PLATFORM_MAC
 	// macOS expects all allocations to be aligned to 16 bytes, but TBBs default alignment is 8, so on Mac we always have to use scalable_aligned_malloc.
 	// Contrary to scalable_malloc, scalable_aligned_malloc returns nullptr when trying to allocate 0 bytes, which is inconsistent with system malloc, so
@@ -109,7 +109,7 @@ void* FMallocTBB::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 		}
 	}
 #endif
-	void* NewPtr = NULL;
+	void* NewPtr = nullptr;
 #if PLATFORM_MAC
 	// macOS expects all allocations to be aligned to 16 bytes, but TBBs default alignment is 8, so on Mac we always have to use scalable_aligned_realloc
 	Alignment = AlignArbitrary(FMath::Max((uint32)16, Alignment), (uint32)16);

@@ -100,6 +100,11 @@ public:
 		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 	}
 
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
+	{
+		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+	}
+
 #if WITH_EDITOR
 	inline const UTexture* ApplyEditorOverrides(const UTexture* InTexture) const
 	{

@@ -163,6 +163,11 @@ public:
 	/** Add all the group boundary vertices of the given GroupID to the Vertices set */
 	void CollectGroupBoundaryVertices(int GroupID, TSet<int>& Vertices) const;
 
+	/** 
+	 * Calculate tangent of group edge, as direction from start to end endpoints
+	 * @return false if edge is degenerate or start == end 
+	 */
+	bool GetGroupEdgeTangent(int GroupEdgeID, FVector3d& TangentOut) const;
 
 protected:
 	const FDynamicMesh3* Mesh = nullptr;
@@ -179,11 +184,24 @@ protected:
 	FIndex2i MakeEdgeID(int MeshEdgeID)
 	{
 		FIndex2i EdgeTris = Mesh->GetEdgeT(MeshEdgeID);
-		return MakeEdgeID(GetGroupID(EdgeTris.A), GetGroupID(EdgeTris.B));
+
+		if (EdgeTris.A == FDynamicMesh3::InvalidID)
+		{
+			return FIndex2i(GetGroupID(EdgeTris.B), FDynamicMesh3::InvalidGroupID);
+		}
+		else if (EdgeTris.B == FDynamicMesh3::InvalidID)
+		{
+			return FIndex2i(GetGroupID(EdgeTris.A), FDynamicMesh3::InvalidGroupID);
+		}
+		else
+		{
+			return MakeEdgeID(GetGroupID(EdgeTris.A), GetGroupID(EdgeTris.B));
+		}
 	}
 	FIndex2i MakeEdgeID(int Group1, int Group2)
 	{
 		check(Group1 != Group2);
+		check(Group1 >= 0 && Group2 >= 0);
 		return (Group1 < Group2) ? FIndex2i(Group1, Group2) : FIndex2i(Group2, Group1);
 	}
 

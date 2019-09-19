@@ -5,12 +5,12 @@
 #include "Compilation/MovieSceneCompiler.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Compilation/MovieSceneCompilerRules.h"
-#include "MovieSceneTestsCommon.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
 #include "Evaluation/MovieSceneSequenceTemplateStore.h"
 #include "Algo/Find.h"
 #include "UObject/Package.h"
+#include "MovieSceneTimeHelpers.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

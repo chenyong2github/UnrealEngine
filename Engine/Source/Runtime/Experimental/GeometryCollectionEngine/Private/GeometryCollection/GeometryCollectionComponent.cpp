@@ -243,7 +243,7 @@ void UGeometryCollectionComponent::BeginPlay()
 }
 
 
-void UGeometryCollectionComponent::EndPlay(EEndPlayReason::Type ReasonEnd)
+void UGeometryCollectionComponent::EndPlay(const EEndPlayReason::Type ReasonEnd)
 {
 #if WITH_EDITOR && WITH_EDITORONLY_DATA
 	// Track our editor component if needed for syncing simulations back from PIE on shutdown
@@ -2144,8 +2144,9 @@ void UGeometryCollectionComponent::SwitchRenderModels(const AActor* Actor)
 		return;
 	}
 
-	TArray<UActorComponent*> PrimitiveComponents = Actor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-	for (UActorComponent* PrimitiveComponent : PrimitiveComponents)
+	TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
+	Actor->GetComponents(PrimitiveComponents);
+	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
 	{
 		bool ValidComponent = false;
 
@@ -2164,8 +2165,8 @@ void UGeometryCollectionComponent::SwitchRenderModels(const AActor* Actor)
 		}
 	}
 
-	TArray<UChildActorComponent*> ChildActorComponents;
-	Actor->GetComponents<UChildActorComponent>(ChildActorComponents);
+	TInlineComponentArray<UChildActorComponent*> ChildActorComponents;
+	Actor->GetComponents(ChildActorComponents);
 	for (UChildActorComponent* ChildComponent : ChildActorComponents)
 	{
 		AActor* ChildActor = ChildComponent->GetChildActor();

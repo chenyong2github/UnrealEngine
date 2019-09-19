@@ -41,7 +41,8 @@ class UK2Node_EaseFunction : public UK2Node
 	//~ Begin UEdGraphNode Interface.
 	virtual void AllocateDefaultPins() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
-	void GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const override;
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Contex) const override;
+	virtual bool IncludeParentNodeContextMenu() const override { return true; }
 	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
 	virtual void PinTypeChanged(UEdGraphPin* Pin) override;
 	virtual FText GetTooltipText() const override;

@@ -25,6 +25,7 @@
 #include "Misc/OutputDeviceHelper.h"
 #include "Math/Color.h"
 #include "Templates/Atomic.h"
+#include "HAL/ConsoleManager.h"
 
 /** Used by tools which include only core to disable log file creation. */
 #ifndef ALLOW_LOG_FILE
@@ -34,218 +35,241 @@
 typedef uint8 UTF8BOMType[3];
 static UTF8BOMType UTF8BOM = { 0xEF, 0xBB, 0xBF };
 
+static float GLogFlushIntervalSec = 0.2f;
+static FAutoConsoleVariableRef CVarLogFlushInterval(
+	TEXT("log.flushInterval"),
+	GLogFlushIntervalSec,
+	TEXT("Logging interval in seconds"),
+	ECVF_Default );
 
-
-	/** [WRITER THREAD] Flushes the archive and reset the flush timer. */
-	void FAsyncWriter::FlushArchiveAndResetTimer()
-	{
-		// This should be the one and only place where we flush because we want the flush to happen only on the 
-		// async writer thread (if threading is enabled)
-		Ar.Flush();
-		LastArchiveFlushTime = FPlatformTime::Seconds();
-	}
-
-	/** [WRITER THREAD] Serialize the contents of the ring buffer to disk */
-	void FAsyncWriter::SerializeBufferToArchive()
-	{
-		// Unix and PS4 use FPlatformMallocCrash during a crash, which means this function is not allowed to perform any allocations
-		// or else it will deadlock when flushing logs during crash handling. Ideally scoped named events would be disabled while crashing.
-		// GIsCriticalError is not always true when crashing (i.e. the case of a GPF) so there is no way to know to skip this behavior only when crashing
-#if PLATFORM_ALLOW_ALLOCATIONS_IN_FASYNCWRITER_SERIALIZEBUFFERTOARCHIVE
-		SCOPED_NAMED_EVENT(FAsyncWriter_SerializeBufferToArchive, FColor::Cyan);
+#if UE_BUILD_SHIPPING
+static float GLogFlushIntervalSec_Shipping = 0.0f;
+static FAutoConsoleVariableRef CVarLogFlushIntervalShipping(
+	TEXT("log.flushInterval.Shipping"),
+	GLogFlushIntervalSec_Shipping,
+	TEXT("Logging interval in shipping. If set, this overrides archive.FlushInterval"),
+	ECVF_Default);
 #endif
-		while (SerializeRequestCounter.GetValue() > 0)
-		{
-			// Grab a local copy of the end pos. It's ok if it changes on the client thread later on.
-			// We won't be modifying it anyway and will later serialize new data in the next iteration.
-			// Here we only serialize what we know exists at the beginning of this function.
-			int32 ThisThreadStartPos = BufferStartPos.Load(EMemoryOrder::Relaxed);
-			int32 ThisThreadEndPos   = BufferEndPos  .Load(EMemoryOrder::Relaxed);
 
-			if (ThisThreadEndPos >= ThisThreadStartPos)
-			{
-				Ar.Serialize(Buffer.GetData() + ThisThreadStartPos, ThisThreadEndPos - ThisThreadStartPos);
-			}
-			else
-			{
-				// Data is wrapped around the ring buffer
-				Ar.Serialize(Buffer.GetData() + ThisThreadStartPos, Buffer.Num() - ThisThreadStartPos);
-				Ar.Serialize(Buffer.GetData(), ThisThreadEndPos);
-			}
+inline double GetLogFlushIntervalSec()
+{
+#if UE_BUILD_SHIPPING
+	return double((GLogFlushIntervalSec_Shipping>0.0f) ? GLogFlushIntervalSec_Shipping : GLogFlushIntervalSec);
+#else
+	return double(GLogFlushIntervalSec);
+#endif
+}
 
-			// Modify the start pos. Only the worker thread modifies this value so it's ok to not guard it with a critical section.
-			BufferStartPos = ThisThreadEndPos;
 
-			// Decrement the request counter, we now know we serialized at least one request.
-			// We might have serialized more requests but it's irrelevant, the counter will go down to 0 eventually
-			SerializeRequestCounter.Decrement();
+/** [WRITER THREAD] Flushes the archive and reset the flush timer. */
+void FAsyncWriter::FlushArchiveAndResetTimer()
+{
+	// This should be the one and only place where we flush because we want the flush to happen only on the 
+	// async writer thread (if threading is enabled)
+	Ar.Flush();
+	LastArchiveFlushTime = FPlatformTime::Seconds();
+}
 
-			// Flush the archive periodically if running on a separate thread
-			if (Thread)
-			{
-				if ((FPlatformTime::Seconds() - LastArchiveFlushTime) > ArchiveFlushIntervalSec)
-				{
-					FlushArchiveAndResetTimer();
-				}
-			}
-			// If no threading is available or when we explicitly requested flush (see FlushBuffer), flush immediately after writing.
-			// In some rare cases we may flush twice (see above) but that's ok. We need a clear division between flushing because of the timer
-			// and force flush on demand.
-			if (WantsArchiveFlush.GetValue() > 0)
-			{
-				FlushArchiveAndResetTimer();
-				int32 FlushCount = WantsArchiveFlush.Decrement();
-				check(FlushCount >= 0);
-			}
-		}
-	}
-
-	/** [CLIENT THREAD] Flush the memory buffer (doesn't force the archive to flush). Can only be used from inside of BufferPosCritical lock. */
-	void FAsyncWriter::FlushBuffer()
+/** [WRITER THREAD] Serialize the contents of the ring buffer to disk */
+void FAsyncWriter::SerializeBufferToArchive()
+{
+	// Unix and PS4 use FPlatformMallocCrash during a crash, which means this function is not allowed to perform any allocations
+	// or else it will deadlock when flushing logs during crash handling. Ideally scoped named events would be disabled while crashing.
+	// GIsCriticalError is not always true when crashing (i.e. the case of a GPF) so there is no way to know to skip this behavior only when crashing
+#if PLATFORM_ALLOW_ALLOCATIONS_IN_FASYNCWRITER_SERIALIZEBUFFERTOARCHIVE
+	SCOPED_NAMED_EVENT(FAsyncWriter_SerializeBufferToArchive, FColor::Cyan);
+#endif
+	while (SerializeRequestCounter.GetValue() > 0)
 	{
-		SerializeRequestCounter.Increment();
-		if (!Thread)
+		// Grab a local copy of the end pos. It's ok if it changes on the client thread later on.
+		// We won't be modifying it anyway and will later serialize new data in the next iteration.
+		// Here we only serialize what we know exists at the beginning of this function.
+		int32 ThisThreadStartPos = BufferStartPos.Load(EMemoryOrder::Relaxed);
+		int32 ThisThreadEndPos   = BufferEndPos  .Load(EMemoryOrder::Relaxed);
+
+		if (ThisThreadEndPos >= ThisThreadStartPos)
 		{
-			SerializeBufferToArchive();
-		}
-		while (SerializeRequestCounter.GetValue() != 0)
-		{
-			FPlatformProcess::SleepNoStats(0);
-		}
-		// Make sure there's been no unexpected concurrency
-		check(SerializeRequestCounter.GetValue() == 0);
-	}
-
-	FAsyncWriter::FAsyncWriter(FArchive& InAr)
-		: Thread(nullptr)
-		, Ar(InAr)
-		, BufferStartPos(0)
-		, BufferEndPos(0)
-		, LastArchiveFlushTime(0.0)
-		, ArchiveFlushIntervalSec(0.2)
-	{
-		Buffer.AddUninitialized(InitialBufferSize);
-
-		float CommandLineInterval = 0.0;
-		if (FParse::Value(FCommandLine::Get(), TEXT("LOGFLUSHINTERVAL="), CommandLineInterval))
-		{
-			ArchiveFlushIntervalSec = CommandLineInterval;
-		}
-
-		if (FPlatformProcess::SupportsMultithreading())
-		{
-			FString WriterName = FString::Printf(TEXT("FAsyncWriter_%s"), *FPaths::GetBaseFilename(Ar.GetArchiveName()));
-			FPlatformAtomics::InterlockedExchangePtr((void**)&Thread, FRunnableThread::Create(this, *WriterName, 0, TPri_BelowNormal));
-		}
-	}
-
-	FAsyncWriter::~FAsyncWriter()
-	{
-		Flush();
-		delete Thread;
-		Thread = nullptr;
-	}
-
-	/** [CLIENT THREAD] Serialize data to buffer that will later be saved to disk by the async thread */
-	void FAsyncWriter::Serialize(void* InData, int64 Length)
-	{
-		if (!InData || Length <= 0)
-		{
-			return;
-		}
-
-		const uint8* Data = (uint8*)InData;
-
-		FScopeLock WriteLock(&BufferPosCritical);
-
-		const int32 ThisThreadEndPos = BufferEndPos.Load(EMemoryOrder::Relaxed);
-
-		// Store the local copy of the current buffer start pos. It may get moved by the worker thread but we don't
-		// care about it too much because we only modify BufferEndPos. Copy should be atomic enough. We only use it
-		// for checking the remaining space in the buffer so underestimating is ok.
-		{
-			const int32 ThisThreadStartPos = BufferStartPos.Load(EMemoryOrder::Relaxed);
-			// Calculate the remaining size in the ring buffer
-			const int32 BufferFreeSize = ThisThreadStartPos <= ThisThreadEndPos ? (Buffer.Num() - ThisThreadEndPos + ThisThreadStartPos) : (ThisThreadStartPos - ThisThreadEndPos);
-			// Make sure the buffer is BIGGER than we require otherwise we may calculate the wrong (0) buffer EndPos for StartPos = 0 and Length = Buffer.Num()
-			if (BufferFreeSize <= Length)
-			{
-				// Force the async thread to call SerializeBufferToArchive even if it's currently empty
-				FlushBuffer();
-
-				// Resize the buffer if needed
-				if (Length >= Buffer.Num())
-				{
-					// Keep the buffer bigger than we require so that % Buffer.Num() does not return 0 for Lengths = Buffer.Num()
-					Buffer.SetNumUninitialized(Length + 1);
-				}
-			}
-		}
-
-		// We now know there's enough space in the buffer to copy data
-		const int32 WritePos = ThisThreadEndPos;
-		if ((WritePos + Length) <= Buffer.Num())
-		{
-			// Copy straight into the ring buffer
-			FMemory::Memcpy(Buffer.GetData() + WritePos, Data, Length);
+			Ar.Serialize(Buffer.GetData() + ThisThreadStartPos, ThisThreadEndPos - ThisThreadStartPos);
 		}
 		else
 		{
-			// Wrap around the ring buffer
-			int32 BufferSizeToEnd = Buffer.Num() - WritePos;
-			FMemory::Memcpy(Buffer.GetData() + WritePos, Data, BufferSizeToEnd);
-			FMemory::Memcpy(Buffer.GetData(), Data + BufferSizeToEnd, Length - BufferSizeToEnd);
+			// Data is wrapped around the ring buffer
+			Ar.Serialize(Buffer.GetData() + ThisThreadStartPos, Buffer.Num() - ThisThreadStartPos);
+			Ar.Serialize(Buffer.GetData(), ThisThreadEndPos);
 		}
 
-		// Update the end position and let the async thread know we need to write to disk
-		BufferEndPos = (ThisThreadEndPos + Length) % Buffer.Num();
-		SerializeRequestCounter.Increment();
+		// Modify the start pos. Only the worker thread modifies this value so it's ok to not guard it with a critical section.
+		BufferStartPos = ThisThreadEndPos;
 
-		// No async thread? Serialize now.
-		if (!Thread)
+		// Decrement the request counter, we now know we serialized at least one request.
+		// We might have serialized more requests but it's irrelevant, the counter will go down to 0 eventually
+		SerializeRequestCounter.Decrement();
+
+		// Flush the archive periodically if running on a separate thread
+		if (Thread)
 		{
-			SerializeBufferToArchive();
-		}
-	}
-
-	/** Flush all buffers to disk */
-	void FAsyncWriter::Flush()
-	{
-		FScopeLock WriteLock(&BufferPosCritical);
-		WantsArchiveFlush.Increment();
-		FlushBuffer();
-	}
-
-	//~ Begin FRunnable Interface.
-	bool FAsyncWriter::Init()
-	{
-		return true;
-	}
-	
-	uint32 FAsyncWriter::Run()
-	{
-		while (StopTaskCounter.GetValue() == 0)
-		{
-			if (SerializeRequestCounter.GetValue() > 0)
-			{
-				SerializeBufferToArchive();
-			}
-			else if ((FPlatformTime::Seconds() - LastArchiveFlushTime) > ArchiveFlushIntervalSec)
+			if ((FPlatformTime::Seconds() - LastArchiveFlushTime) > GetLogFlushIntervalSec() )
 			{
 				FlushArchiveAndResetTimer();
 			}
-			else
-			{
-				FPlatformProcess::SleepNoStats(0.01f);
-			}
 		}
-		return 0;
+		// If no threading is available or when we explicitly requested flush (see FlushBuffer), flush immediately after writing.
+		// In some rare cases we may flush twice (see above) but that's ok. We need a clear division between flushing because of the timer
+		// and force flush on demand.
+		if (WantsArchiveFlush.GetValue() > 0)
+		{
+			FlushArchiveAndResetTimer();
+			int32 FlushCount = WantsArchiveFlush.Decrement();
+			check(FlushCount >= 0);
+		}
+	}
+}
+
+/** [CLIENT THREAD] Flush the memory buffer (doesn't force the archive to flush). Can only be used from inside of BufferPosCritical lock. */
+void FAsyncWriter::FlushBuffer()
+{
+	SerializeRequestCounter.Increment();
+	if (!Thread)
+	{
+		SerializeBufferToArchive();
+	}
+	while (SerializeRequestCounter.GetValue() != 0)
+	{
+		FPlatformProcess::SleepNoStats(0);
+	}
+	// Make sure there's been no unexpected concurrency
+	check(SerializeRequestCounter.GetValue() == 0);
+}
+
+FAsyncWriter::FAsyncWriter(FArchive& InAr)
+	: Thread(nullptr)
+	, Ar(InAr)
+	, BufferStartPos(0)
+	, BufferEndPos(0)
+	, LastArchiveFlushTime(0.0)
+{
+	Buffer.AddUninitialized(InitialBufferSize);
+
+	float CommandLineInterval = 0.0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("LOGFLUSHINTERVAL="), CommandLineInterval))
+	{
+		GLogFlushIntervalSec = CommandLineInterval;
 	}
 
-	void FAsyncWriter::Stop()
+	if (FPlatformProcess::SupportsMultithreading())
 	{
-		StopTaskCounter.Increment();
+		FString WriterName = FString::Printf(TEXT("FAsyncWriter_%s"), *FPaths::GetBaseFilename(Ar.GetArchiveName()));
+		FPlatformAtomics::InterlockedExchangePtr((void**)&Thread, FRunnableThread::Create(this, *WriterName, 0, TPri_BelowNormal));
 	}
+}
+
+FAsyncWriter::~FAsyncWriter()
+{
+	Flush();
+	delete Thread;
+	Thread = nullptr;
+}
+
+/** [CLIENT THREAD] Serialize data to buffer that will later be saved to disk by the async thread */
+void FAsyncWriter::Serialize(void* InData, int64 Length)
+{
+	if (!InData || Length <= 0)
+	{
+		return;
+	}
+
+	const uint8* Data = (uint8*)InData;
+
+	FScopeLock WriteLock(&BufferPosCritical);
+
+	const int32 ThisThreadEndPos = BufferEndPos.Load(EMemoryOrder::Relaxed);
+
+	// Store the local copy of the current buffer start pos. It may get moved by the worker thread but we don't
+	// care about it too much because we only modify BufferEndPos. Copy should be atomic enough. We only use it
+	// for checking the remaining space in the buffer so underestimating is ok.
+	{
+		const int32 ThisThreadStartPos = BufferStartPos.Load(EMemoryOrder::Relaxed);
+		// Calculate the remaining size in the ring buffer
+		const int32 BufferFreeSize = ThisThreadStartPos <= ThisThreadEndPos ? (Buffer.Num() - ThisThreadEndPos + ThisThreadStartPos) : (ThisThreadStartPos - ThisThreadEndPos);
+		// Make sure the buffer is BIGGER than we require otherwise we may calculate the wrong (0) buffer EndPos for StartPos = 0 and Length = Buffer.Num()
+		if (BufferFreeSize <= Length)
+		{
+			// Force the async thread to call SerializeBufferToArchive even if it's currently empty
+			FlushBuffer();
+
+			// Resize the buffer if needed
+			if (Length >= Buffer.Num())
+			{
+				// Keep the buffer bigger than we require so that % Buffer.Num() does not return 0 for Lengths = Buffer.Num()
+				Buffer.SetNumUninitialized(Length + 1);
+			}
+		}
+	}
+
+	// We now know there's enough space in the buffer to copy data
+	const int32 WritePos = ThisThreadEndPos;
+	if ((WritePos + Length) <= Buffer.Num())
+	{
+		// Copy straight into the ring buffer
+		FMemory::Memcpy(Buffer.GetData() + WritePos, Data, Length);
+	}
+	else
+	{
+		// Wrap around the ring buffer
+		int32 BufferSizeToEnd = Buffer.Num() - WritePos;
+		FMemory::Memcpy(Buffer.GetData() + WritePos, Data, BufferSizeToEnd);
+		FMemory::Memcpy(Buffer.GetData(), Data + BufferSizeToEnd, Length - BufferSizeToEnd);
+	}
+
+	// Update the end position and let the async thread know we need to write to disk
+	BufferEndPos = (ThisThreadEndPos + Length) % Buffer.Num();
+	SerializeRequestCounter.Increment();
+
+	// No async thread? Serialize now.
+	if (!Thread)
+	{
+		SerializeBufferToArchive();
+	}
+}
+
+/** Flush all buffers to disk */
+void FAsyncWriter::Flush()
+{
+	FScopeLock WriteLock(&BufferPosCritical);
+	WantsArchiveFlush.Increment();
+	FlushBuffer();
+}
+
+//~ Begin FRunnable Interface.
+bool FAsyncWriter::Init()
+{
+	return true;
+}
+	
+uint32 FAsyncWriter::Run()
+{
+	while (StopTaskCounter.GetValue() == 0)
+	{
+		if (SerializeRequestCounter.GetValue() > 0)
+		{
+			SerializeBufferToArchive();
+		}
+		else if ((FPlatformTime::Seconds() - LastArchiveFlushTime) > GetLogFlushIntervalSec() )
+		{
+			FlushArchiveAndResetTimer();
+		}
+		else
+		{
+			FPlatformProcess::SleepNoStats(0.01f);
+		}
+	}
+	return 0;
+}
+
+void FAsyncWriter::Stop()
+{
+	StopTaskCounter.Increment();
+}
 
 
 /**

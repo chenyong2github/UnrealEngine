@@ -150,6 +150,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "VisualLogger")
 	bool bDrawExtremesOnGraphs;
 
+	/** Graphs will be scaled around local Min/Max values (values being displayed) rather than all historic data */
+	UPROPERTY(EditAnywhere, config, Category = "VisualLogger")
+	bool bConstrainGraphToLocalMinMax;
+
 	/** Whether to use PlayersOnly during Pause or not */
 	UPROPERTY(EditAnywhere, config, Category = "VisualLogger")
 	bool bUsePlayersOnlyForPause;

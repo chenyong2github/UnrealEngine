@@ -1,8 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "AnimationBudgetAllocatorParameters.generated.h"
-
 #pragma once
+
+#include "AnimationBudgetAllocatorParameters.generated.h"
 
 /** Parameter block used to control the behavior of the budget allocator */
 USTRUCT(BlueprintType)

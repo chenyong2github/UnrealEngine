@@ -66,6 +66,7 @@ void SAnimationOutlinerTreeNode::Construct( const FArguments& InArgs, TSharedRef
 		.IsReadOnly(this, &SAnimationOutlinerTreeNode::IsNodeLabelReadOnly)
 		.Font(NodeFont)
 		.ColorAndOpacity(this, &SAnimationOutlinerTreeNode::GetDisplayNameColor)
+		.OnVerifyTextChanged(this, &SAnimationOutlinerTreeNode::VerifyNodeTextChanged)
 		.OnTextCommitted(this, &SAnimationOutlinerTreeNode::HandleNodeLabelTextCommitted)
 		.Text(this, &SAnimationOutlinerTreeNode::GetDisplayName)
 		.ToolTipText(this, &SAnimationOutlinerTreeNode::GetDisplayNameToolTipText)
@@ -425,6 +426,10 @@ bool SAnimationOutlinerTreeNode::IsNodeLabelReadOnly() const
 	return DisplayNode->GetSequencer().IsReadOnly() || !DisplayNode->CanRenameNode();
 }
 
+bool SAnimationOutlinerTreeNode::VerifyNodeTextChanged(const FText& NewLabel, FText& OutErrorMessage)
+{
+	return DisplayNode->ValidateDisplayName(NewLabel, OutErrorMessage);
+}
 
 void SAnimationOutlinerTreeNode::HandleNodeLabelTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType)
 {

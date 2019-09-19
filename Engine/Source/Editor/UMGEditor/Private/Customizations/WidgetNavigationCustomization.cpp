@@ -419,7 +419,7 @@ void FWidgetNavigationCustomization::SetNav(UWidget* Widget, EUINavigation Nav, 
 		DirectionNavigation->WidgetToFocus = WidgetToFocus.GetValue();
 	}
 
-	if ( WidgetNavigation->IsDefault() )
+	if ( WidgetNavigation->IsDefaultNavigation() )
 	{
 		// If the navigation rules are all set to the defaults, remove the navigation
 		// information from the widget.

@@ -33,9 +33,7 @@
 
 
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
-	#define CONFIG_SIGNAL_COLOR 0
-
-	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_MONOCHROMATIC_PENUMBRA
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
 
 	#define CONFIG_INPUT_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
@@ -62,8 +60,34 @@
 		#define CONFIG_REJECTION_SAMPLE_SET               REJECTION_SAMPLE_SET_SOBEK2018
 	#endif
 
+	#if DIM_SIGNAL_BATCH_SIZE > 1
+		#define CONFIG_CLAMP_UV_PER_SIGNAL 1
+	#endif
+
+	#define MAX_SIGNAL_BATCH_SIZE CONFIG_SIGNAL_BATCH_SIZE
+
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
+	#define COMPILE_SIGNAL_COLOR 1
+
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_POLYCHROMATIC_PENUMBRA
+	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 2
+
+	// Input and output layout.
+	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HISTORY
+	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HISTORY
+	#define CONFIG_INPUT_TEXTURE_COUNT 2
+	#define CONFIG_HISTORY_TEXTURE_COUNT 2
+
+	#undef CONFIG_SIGNAL_BATCH_SIZE
+	#define CONFIG_SIGNAL_BATCH_SIZE 2
+
+	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_VAR_BOUNDARIES
+
+	// Denoise diffuse and specular harmonics at the same time.
+	#define MAX_SIGNAL_BATCH_SIZE 2
+
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
-	#define CONFIG_SIGNAL_COLOR 1
+	#define COMPILE_SIGNAL_COLOR 1
 
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
@@ -72,10 +96,7 @@
 	#define CONFIG_INPUT_TEXTURE_COUNT 2
 	#define CONFIG_HISTORY_TEXTURE_COUNT 2
 
-	// Can only be done using tokoyashi because have more than one sample at a time.
-	#define CONFIG_TOKOYASHI_LOBE_BILATERAL 1
-	#define CONFIG_TOKOYASHI_AXES_BILATERAL 1
-	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 1
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS_TAA
 
 	// Use variance based rejection.
 	#define CONFIG_HISTORY_REJECTION             HISTORY_REJECTION_VAR_BOUNDARIES
@@ -94,8 +115,6 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
-	#define CONFIG_SIGNAL_COLOR 0
-
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_AO_HISTORY
 	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_HISTORY
@@ -105,8 +124,7 @@
 
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_VAR_BOUNDARIES
 
-	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
-	#define CONFIG_NORMAL_BASED_BILATERAL 1
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
 
 	// Use pre transformed rejection buffer that contains pre transformed momment 1 & 2.
 	#if 1
@@ -119,7 +137,7 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
-	#define CONFIG_SIGNAL_COLOR 1
+	#define COMPILE_SIGNAL_COLOR 1
 
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_RECONSTRUCTION
@@ -132,8 +150,25 @@
 	//#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_ADAPTIVE_INTEGRATION
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 3
 
-	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
-	#define CONFIG_NORMAL_BASED_BILATERAL 1
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
+
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC
+	#define COMPILE_SIGNAL_COLOR_SH 1
+
+	// Input and output layout.
+	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC
+	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC
+	#define CONFIG_SIGNAL_TEXTURE_TYPE   SIGNAL_TEXTURE_TYPE_UINT2
+
+	#define CONFIG_INPUT_TEXTURE_COUNT 4
+	#define CONFIG_HISTORY_TEXTURE_COUNT 4
+
+	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_MINMAX_BOUNDARIES
+	//#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_ADAPTIVE_INTEGRATION
+	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 4
+
+	// Given it's a spherical harmonic that store directionality, only need position based rejection.
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_SPHERICAL_HARMONIC
 
 #else
 	#error Unimplemented signal processing.
@@ -141,6 +176,11 @@
 
 
 //------------------------------------------------------- CONFIG DISABLED DEFAULTS
+
+/** Whether should clamp the UV individually per texture. */
+#ifndef CONFIG_CLAMP_UV_PER_SIGNAL
+	#define CONFIG_CLAMP_UV_PER_SIGNAL 0
+#endif
 
 /** Whether this pass make use of a tile classification. */
 #ifndef CONFIG_USE_TILE_CLASSIFICATION
@@ -197,6 +237,24 @@
 #endif
 
 
+//------------------------------------------------------- COMPILATION WHITE LISTING
+
+#define COMPILE_BOX_KERNEL 1
+
+// Moment 1 needed for previous frame sampling.
+#define COMPILE_MOMENT1_ACCUMULATOR 1
+
+#if CONFIG_HISTORY_REJECTION != HISTORY_REJECTION_DISABLED
+	#define COMPILE_MININVFREQ_ACCUMULATOR 1
+#endif
+
+#if CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_MINMAX_BOUNDARIES
+	#define COMPILE_MINMAX_ACCUMULATOR 1
+#elif CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_VAR_BOUNDARIES && CONFIG_REJECTION_INPUT_MODE == REJECTION_INPUT_MODE_1UNNORMALIZED
+	#define COMPILE_MOMENT2_ACCUMULATOR 1
+#endif
+
+
 //------------------------------------------------------- INCLUDES
 
 #include "SSDSignalFramework.ush"
@@ -210,33 +268,29 @@ int bCameraCut[MAX_SIGNAL_BATCH_SIZE];
 
 float HistoryPreExposureCorrection;
 
-static const uint iMipLevel = 0;
-static const uint iMipLevelPow2 = 1;
-static const float MipLevel = 0;
-static const float MipLevelPow2 = 1;
-static const float InvMipLevelPow2 = 1;
+float4 HistoryBufferUVMinMax[CONFIG_SIGNAL_BATCH_SIZE];
 
 
 #if !defined(CONFIG_INPUT_TEXTURE_COUNT)
 	#error Missing CONFIG_INPUT_TEXTURE_COUNT
 #endif
 
-Texture2D SignalInput_Textures_0;
+FSSDTexture2D SignalInput_Textures_0;
 
 #if CONFIG_INPUT_TEXTURE_COUNT > 1
-Texture2D SignalInput_Textures_1;
+FSSDTexture2D SignalInput_Textures_1;
 #else
 #define SignalInput_Textures_1 SignalInput_Textures_0
 #endif
 
 #if CONFIG_INPUT_TEXTURE_COUNT > 2
-Texture2D SignalInput_Textures_2;
+FSSDTexture2D SignalInput_Textures_2;
 #else
 #define SignalInput_Textures_2 SignalInput_Textures_0
 #endif
 
 #if CONFIG_INPUT_TEXTURE_COUNT > 3
-Texture2D SignalInput_Textures_3;
+FSSDTexture2D SignalInput_Textures_3;
 #else
 #define SignalInput_Textures_3 SignalInput_Textures_0
 #endif
@@ -247,22 +301,22 @@ Texture2D SignalInput_Textures_3;
 		#error Missing CONFIG_REJECTION_TEXTURE_COUNT
 	#endif
 
-	Texture2D HistoryRejectionSignal_Textures_0;
+	FSSDTexture2D HistoryRejectionSignal_Textures_0;
 
 	#if CONFIG_REJECTION_TEXTURE_COUNT > 1
-	Texture2D HistoryRejectionSignal_Textures_1;
+	FSSDTexture2D HistoryRejectionSignal_Textures_1;
 	#else
 	#define HistoryRejectionSignal_Textures_1 HistoryRejectionSignal_Textures_0
 	#endif
 
 	#if CONFIG_REJECTION_TEXTURE_COUNT > 2
-	Texture2D HistoryRejectionSignal_Textures_2;
+	FSSDTexture2D HistoryRejectionSignal_Textures_2;
 	#else
 	#define HistoryRejectionSignal_Textures_2 HistoryRejectionSignal_Textures_0
 	#endif
 
 	#if CONFIG_REJECTION_TEXTURE_COUNT > 3
-	Texture2D HistoryRejectionSignal_Textures_3;
+	FSSDTexture2D HistoryRejectionSignal_Textures_3;
 	#else
 	#define HistoryRejectionSignal_Textures_3 HistoryRejectionSignal_Textures_0
 	#endif
@@ -273,28 +327,28 @@ Texture2D SignalInput_Textures_3;
 	#error Missing CONFIG_HISTORY_TEXTURE_COUNT
 #endif
 
-Texture2D PrevHistory_Textures_0;
-RWTexture2D<float4>	SignalHistoryOutput_UAVs_0;
+FSSDTexture2D PrevHistory_Textures_0;
+FSSDRWTexture2D	SignalHistoryOutput_UAVs_0;
 
 #if CONFIG_HISTORY_TEXTURE_COUNT > 1
-Texture2D PrevHistory_Textures_1;
-RWTexture2D<float4>	SignalHistoryOutput_UAVs_1;
+FSSDTexture2D PrevHistory_Textures_1;
+FSSDRWTexture2D	SignalHistoryOutput_UAVs_1;
 #else
 #define PrevHistory_Textures_1 PrevHistory_Textures_0
 #define SignalHistoryOutput_UAVs_1 SignalHistoryOutput_UAVs_0
 #endif
 
 #if CONFIG_HISTORY_TEXTURE_COUNT > 2
-Texture2D PrevHistory_Textures_2;
-RWTexture2D<float4>	SignalHistoryOutput_UAVs_2;
+FSSDTexture2D PrevHistory_Textures_2;
+FSSDRWTexture2D	SignalHistoryOutput_UAVs_2;
 #else
 #define PrevHistory_Textures_2 PrevHistory_Textures_0
 #define SignalHistoryOutput_UAVs_2 SignalHistoryOutput_UAVs_0
 #endif
 
 #if CONFIG_HISTORY_TEXTURE_COUNT > 3
-Texture2D PrevHistory_Textures_3;
-RWTexture2D<float4>	SignalHistoryOutput_UAVs_3;
+FSSDTexture2D PrevHistory_Textures_3;
+FSSDRWTexture2D	SignalHistoryOutput_UAVs_3;
 #else
 #define PrevHistory_Textures_3 PrevHistory_Textures_0
 #define SignalHistoryOutput_UAVs_3 SignalHistoryOutput_UAVs_0
@@ -330,10 +384,10 @@ void TemporallyAccumulate(
 	uint GroupThreadIndex : SV_GroupIndex)
 {
 	// Find out scene buffer UV.
-	float2 SceneBufferUV = ((DispatchThreadId + 0.5) * MipLevelPow2 + View.ViewRectMin.xy) * View.BufferSizeAndInvSize.zw;
+	float2 SceneBufferUV = ((ViewportMin + DispatchThreadId) + 0.5) * View.BufferSizeAndInvSize.zw;
 	if (true)
 	{
-		SceneBufferUV = clamp(SceneBufferUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
+		SceneBufferUV = clamp(SceneBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 	}
 	float2 ViewportUV = BufferUVToViewportUV(SceneBufferUV);
 	float2 ScreenPosition = ViewportUVToScreenPos(ViewportUV);
@@ -380,7 +434,7 @@ void TemporallyAccumulate(
 
 
 	// Use the diameter, because that is the distance between two pixel.
-	float PixelWorldBluringRadius = MipLevelPow2 * ComputeWorldBluringRadiusCausedByPixelSize(RefSceneMetadata);
+	float PixelWorldBluringRadius = ComputeWorldBluringRadiusCausedByPixelSize(RefSceneMetadata);
 	float WorldBluringRadius = WorldBluringRadiusToBilateralWorldDistance(PixelWorldBluringRadius);
 	
 	float TargetedSampleCount = TARGETED_SAMPLE_COUNT;
@@ -404,7 +458,7 @@ void TemporallyAccumulate(
 	FSSDSignalArray HistorySamples = CreateSignalArrayFromScalarValue(0.0);
 	{
 		float2 HistoryBufferUV = HistoryScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
-		float2 ClampedHistoryBufferUV = clamp(HistoryBufferUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
+		float2 ClampedHistoryBufferUV = clamp(HistoryBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 		bool bIsPreviousFrameOffscreen = any(HistoryBufferUV != ClampedHistoryBufferUV);
 
 		// TODO: global camera cut to save perf that is going to be required for panic post filtering.
@@ -420,26 +474,43 @@ void TemporallyAccumulate(
 			KernelConfig.bUnroll = true;
 			KernelConfig.bPreviousFrameMetadata = true;
 			KernelConfig.BilateralDistanceComputation = SIGNAL_WORLD_FREQUENCY_MIN_METADATA;
+			KernelConfig.bClampUVPerMultiplexedSignal = CONFIG_CLAMP_UV_PER_SIGNAL != 0;
 			
 			if (CONFIG_USE_NEAREST_HISTORY)
 				KernelConfig.SampleSet = SAMPLE_SET_1X1;
+			
+			SetBilateralPreset(CONFIG_BILATERAL_PRESET, /* inout */ KernelConfig);
 
 			// SGPR configuration of the kernel.
 			KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
-			KernelConfig.BufferBilinearUVMinMax = View.BufferBilinearUVMinMax;
+			KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
+			
+			#if CONFIG_CLAMP_UV_PER_SIGNAL
+			{
+				UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
+				for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+				{
+					uint MultiplexId = BatchedSignalId / CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN;
+					KernelConfig.PerSignalUVMinMax[MultiplexId] = HistoryBufferUVMinMax[MultiplexId];
+				}
+			}
+			#endif
 			
 			// VGPR configuration of the kernel.
 			KernelConfig.BufferUV = HistoryBufferUV;
 			KernelConfig.RefSceneMetadata = RefSceneMetadata;
 			
 			FSSDSignalAccumulatorArray SignalAccumulators = CreateSignalAccumulatorArray();
+			FSSDCompressedSignalAccumulatorArray UnusedCompressedAccumulators = CreateUninitialisedCompressedAccumulatorArray();
+
 			AccumulateKernel(
 				KernelConfig,
 				PrevHistory_Textures_0,
 				PrevHistory_Textures_1,
 				PrevHistory_Textures_2,
 				PrevHistory_Textures_3,
-				/* inout */ SignalAccumulators);
+				/* inout */ SignalAccumulators,
+				/* inout */ UnusedCompressedAccumulators);
 		
 			// Exports the history sample from accumulator.
 			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
@@ -466,7 +537,7 @@ void TemporallyAccumulate(
 					SafeRcp(CurrentFrameSample.SampleCount));
 
 				// Applies correction when pre exposure change happen.
-				#if CONFIG_SIGNAL_COLOR
+				#if COMPILE_SIGNAL_COLOR
 					HistorySamples.Array[BatchedSignalId].SceneColor.rgb *= HistoryPreExposureCorrection;
 				#endif
 			} // for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
@@ -553,12 +624,14 @@ void TemporallyAccumulate(
 					KernelConfig.bForceAllAccumulation = CurrentFrameSamples.Array[0].SampleCount == 0;
 				}
 			}
+			
+			SetBilateralPreset(CONFIG_BILATERAL_PRESET, /* inout */ KernelConfig);
 		}
 
 		// SGPR configuration of the kernel.
 		{
 			KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
-			KernelConfig.BufferBilinearUVMinMax = View.BufferBilinearUVMinMax;
+			KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
 		}
 
 		// VGPR configuration of the kernel.
@@ -601,44 +674,50 @@ void TemporallyAccumulate(
 			}
 		}
 
-		#if CONFIG_USE_REJECTION_BUFFER
-			AccumulateKernel(
-				KernelConfig,
-				HistoryRejectionSignal_Textures_0,
-				HistoryRejectionSignal_Textures_1,
-				HistoryRejectionSignal_Textures_2,
-				HistoryRejectionSignal_Textures_3,
-				/* inout */ SignalAccumulators);
-		#else
-			AccumulateKernel(
-				KernelConfig,
-				SignalInput_Textures_0,
-				SignalInput_Textures_1,
-				SignalInput_Textures_2,
-				SignalInput_Textures_3,
-				/* inout */ SignalAccumulators);
-		#endif
+		{
+			FSSDCompressedSignalAccumulatorArray UnusedCompressedAccumulators = CreateUninitialisedCompressedAccumulatorArray();
+
+			#if CONFIG_USE_REJECTION_BUFFER
+				AccumulateKernel(
+					KernelConfig,
+					HistoryRejectionSignal_Textures_0,
+					HistoryRejectionSignal_Textures_1,
+					HistoryRejectionSignal_Textures_2,
+					HistoryRejectionSignal_Textures_3,
+					/* inout */ SignalAccumulators,
+					/* inout */ UnusedCompressedAccumulators);
+			#else
+				AccumulateKernel(
+					KernelConfig,
+					SignalInput_Textures_0,
+					SignalInput_Textures_1,
+					SignalInput_Textures_2,
+					SignalInput_Textures_3,
+					/* inout */ SignalAccumulators,
+					/* inout */ UnusedCompressedAccumulators);
+			#endif
+		}
 
 		// Clamp history
 		UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 		for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 		{
-			FSSDSignalSample NeighborMin = SignalAccumulators.Array[BatchedSignalId].Min;
-			FSSDSignalSample NeighborMax = SignalAccumulators.Array[BatchedSignalId].Max;
-		
 			FSSDSignalSample NeighborMoment1 = CreateSignalSampleFromScalarValue(0.0);
 			FSSDSignalSample NeighborMoment2 = CreateSignalSampleFromScalarValue(0.0);
 			#if CONFIG_REJECTION_INPUT_MODE == REJECTION_INPUT_MODE_1UNNORMALIZED
 			{
 				float NormalizeFactor = SafeRcp(SignalAccumulators.Array[BatchedSignalId].Moment1.SampleCount);
-				NeighborMoment1 = Mul(SignalAccumulators.Array[BatchedSignalId].Moment1, NormalizeFactor);
-				NeighborMoment2 = Mul(SignalAccumulators.Array[BatchedSignalId].Moment2, NormalizeFactor);
+				NeighborMoment1 = MulSignal(SignalAccumulators.Array[BatchedSignalId].Moment1, NormalizeFactor);
+				
+				#if COMPILE_MOMENT2_ACCUMULATOR
+					NeighborMoment2 = MulSignal(SignalAccumulators.Array[BatchedSignalId].Moment2, NormalizeFactor);
+				#endif
 			}
 			#elif CONFIG_REJECTION_INPUT_MODE == REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
 			{
 				float NormalizeFactor = SafeRcp(SignalAccumulators.Array[BatchedSignalId * 2 + 0].Moment1.SampleCount);
-				NeighborMoment1 = Mul(SignalAccumulators.Array[BatchedSignalId * 2 + 0].Moment1, NormalizeFactor);
-				NeighborMoment2 = Mul(SignalAccumulators.Array[BatchedSignalId * 2 + 1].Moment1, NormalizeFactor);
+				NeighborMoment1 = MulSignal(SignalAccumulators.Array[BatchedSignalId * 2 + 0].Moment1, NormalizeFactor);
+				NeighborMoment2 = MulSignal(SignalAccumulators.Array[BatchedSignalId * 2 + 1].Moment1, NormalizeFactor);
 			}
 			#else
 				#error NOrmalized samples. 
@@ -660,17 +739,17 @@ void TemporallyAccumulate(
 				const float StdDevMultiplier = 1.25;
 
 				// StdDev = sqrt(abs(NeighborSquareAvg - NeighborAvg * NeighborAvg));
-				FSSDSignalSample StdDev = Sqrt(Abs(Subtract(NeighborMoment2, Power(NeighborMoment1, 2))));
-				NeighborMin = Add(NeighborMoment1, Mul(StdDev, -StdDevMultiplier));
-				NeighborMax = Add(NeighborMoment1, Mul(StdDev,  StdDevMultiplier));
+				FSSDSignalSample StdDev = SqrtSignal(AbsSignal(SubtractSignal(NeighborMoment2, PowerSignal(NeighborMoment1, 2))));
+				FSSDSignalSample NeighborMin = AddSignal(NeighborMoment1, MulSignal(StdDev, -StdDevMultiplier));
+				FSSDSignalSample NeighborMax = AddSignal(NeighborMoment1, MulSignal(StdDev,  StdDevMultiplier));
 
 				if (0)
 				{
-					FSSDSignalSample QuantizationErrorMin = Mul(NeighborMoment1, 1 - SafeRcp(HistorySample.SampleCount));
-					FSSDSignalSample QuantizationErrorMax = Mul(NeighborMoment1, 1 + SafeRcp(HistorySample.SampleCount));
+					FSSDSignalSample QuantizationErrorMin = MulSignal(NeighborMoment1, 1 - SafeRcp(HistorySample.SampleCount));
+					FSSDSignalSample QuantizationErrorMax = MulSignal(NeighborMoment1, 1 + SafeRcp(HistorySample.SampleCount));
 
-					NeighborMin = Min(NeighborMin, QuantizationErrorMin);
-					NeighborMax = Max(NeighborMax, QuantizationErrorMax);
+					NeighborMin = MinSignal(NeighborMin, QuantizationErrorMin);
+					NeighborMax = MaxSignal(NeighborMax, QuantizationErrorMax);
 				}
 
 				// Transform the history so that it in correct component spaces, and normalized as the clamping box.
@@ -678,20 +757,20 @@ void TemporallyAccumulate(
 				FSSDSignalSample TransformedHistorySample = TransformInputBufferForPreRejection(NormalizedHistorySample);
 
 				// Clamp the history.
-				FSSDSignalSample ClampedTransformedHistorySample = Clamp(TransformedHistorySample, NeighborMin, NeighborMax);
+				FSSDSignalSample ClampedTransformedHistorySample = ClampSignal(TransformedHistorySample, NeighborMin, NeighborMax);
 
 				// Transform the history back to linear component spaces.
 				FSSDSignalSample ClampedHistorySample = TransformSignalForPostRejection(ClampedTransformedHistorySample);
 
 				// Reweight the anti ghosted history.
 				{
-					FSSDSignalSample RejectedDiff = Abs(Subtract(ClampedTransformedHistorySample, TransformedHistorySample));
+					FSSDSignalSample RejectedDiff = AbsSignal(SubtractSignal(ClampedTransformedHistorySample, TransformedHistorySample));
 
 					// Compute how much this history get changed.
 					float RejectionFactor = 0.0;
 					#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS && (CONFIG_HISTORY_REJECTION_COLOR_SPACE & COLOR_SPACE_LCOCG)
 					{
-						#if !CONFIG_SIGNAL_COLOR
+						#if !COMPILE_SIGNAL_COLOR
 							#error Need to compile signal color.
 						#endif
 						RejectionFactor = abs(
@@ -701,7 +780,7 @@ void TemporallyAccumulate(
 						RejectionFactor = max(RejectionFactor, 1 * max(RejectedDiff.SceneColor.y, RejectedDiff.SceneColor.z));
 						RejectionFactor = max(RejectionFactor, 1 * RejectedDiff.SceneColor.a);
 					}
-					#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
+					#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
 					{
 						RejectionFactor = abs(ClampedTransformedHistorySample.MissCount - TransformedHistorySample.MissCount);
 					}
@@ -722,14 +801,17 @@ void TemporallyAccumulate(
 					FinalHistoryWeight = max(FinalHistoryWeight, NeighborMoment1.SampleCount * 0.1);
 			
 					// Apply the history weight.
-					HistorySample = Mul(ClampedHistorySample, FinalHistoryWeight);
+					HistorySample = MulSignal(ClampedHistorySample, FinalHistoryWeight);
 					HistorySample.SampleCount = FinalHistoryWeight;
 				}
 			}
 			#elif CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_MINMAX_BOUNDARIES
 			{
+				FSSDSignalSample NeighborMin = SignalAccumulators.Array[BatchedSignalId].Min;
+				FSSDSignalSample NeighborMax = SignalAccumulators.Array[BatchedSignalId].Max;
+		
 				float RejectedSampleCount = 0;
-				HistorySample = Mul(TransformSignalForPostRejection(Clamp(TransformInputBufferForPreRejection(NormalizeToOneSample(HistorySample)), NeighborMin, NeighborMax)), HistorySample.SampleCount - RejectedSampleCount);
+				HistorySample = MulSignal(TransformSignalForPostRejection(ClampSignal(TransformInputBufferForPreRejection(NormalizeToOneSample(HistorySample)), NeighborMin, NeighborMax)), HistorySample.SampleCount - RejectedSampleCount);
 			}
 			#endif
 
@@ -761,7 +843,7 @@ void TemporallyAccumulate(
 			#error Unsupported.
 		#endif
 	
-		#if !CONFIG_SIGNAL_COLOR
+		#if !COMPILE_SIGNAL_COLOR
 			#error Need to compile signal color.
 		#endif
 
@@ -816,7 +898,7 @@ void TemporallyAccumulate(
 			float PreviousFrameWeight = min(HistorySample.SampleCount, CurrentFrameSample.SampleCount * rcp(MainHisteresiss) - CurrentFrameSample.SampleCount);
 			float PreviousFrameMultiplier = HistorySample.SampleCount > 0 ? PreviousFrameWeight / HistorySample.SampleCount : 0;
 			
-			HistorySample = Add(Mul(HistorySample, PreviousFrameMultiplier), CurrentFrameSample);
+			HistorySample = AddSignal(MulSignal(HistorySample, PreviousFrameMultiplier), CurrentFrameSample);
 		}
 		
 		HistorySamples.Array[BatchedSignalId] = HistorySample;
@@ -851,7 +933,7 @@ void TemporallyAccumulate(
 				/* DestBasis = */ CONFIG_HISTORY_BLENDING_COLOR_SPACE);
 
 			// Blending.
-			HistorySample = Add(Mul(HistorySample, PreviousFrameMultiplier), CurrentFrameSample);
+			HistorySample = AddSignal(MulSignal(HistorySample, PreviousFrameMultiplier), CurrentFrameSample);
 		
 			// Post transformation of the signal.
 			HistorySample = TransformSignal(
@@ -901,9 +983,11 @@ void TemporallyAccumulate(
 		// No need to keep DispatchThreadId, while SceneBufferUV is arround at highest VGPR peak because center of the kernel.
 		uint2 OutputPixelPostion = uint2(SceneBufferUV * View.BufferSizeAndInvSize.xy);
 	#else
-		uint2 OutputPixelPostion = DispatchThreadId;
+		uint2 OutputPixelPostion = ViewportMin + DispatchThreadId;
 	#endif
-
+		
+	BRANCH
+	if (all(OutputPixelPostion < ViewportMax))
 	{
 		OutputMultiplexedSignal(
 			SignalHistoryOutput_UAVs_0,

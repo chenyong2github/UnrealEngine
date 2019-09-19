@@ -17,26 +17,6 @@ namespace BuildPatchServices
 	*****************************************************************************/
 	FBuildPatchProgress::FBuildPatchProgress()
 	{
-		Reset();
-	}
-
-	void FBuildPatchProgress::SetPaused(bool bIsPaused)
-	{
-		FScopeLock ScopeLock(&ThreadLock);
-		if (GetPauseState() != bIsPaused)
-		{
-			TogglePauseState();
-		}
-	}
-
-	void FBuildPatchProgress::Abort()
-	{
-		bShouldAbort = true;
-	}
-
-	void FBuildPatchProgress::Reset()
-	{
-		FScopeLock ScopeLock(&ThreadLock);
 		TotalWeight = 0.0f;
 		CurrentState = EBuildPatchState::Queued;
 		CurrentProgress = 0.0f;
@@ -53,6 +33,20 @@ namespace BuildPatchServices
 		// Update for initial values
 		UpdateCachedValues();
 		UpdateProgressInfo();
+	}
+
+	void FBuildPatchProgress::SetPaused(bool bIsPaused)
+	{
+		FScopeLock ScopeLock(&ThreadLock);
+		if (GetPauseState() != bIsPaused)
+		{
+			TogglePauseState();
+		}
+	}
+
+	void FBuildPatchProgress::Abort()
+	{
+		bShouldAbort = true;
 	}
 
 	void FBuildPatchProgress::SetStateProgress(const EBuildPatchState& State, const float& Value)
@@ -159,6 +153,11 @@ namespace BuildPatchServices
 			bIsDownloading = bInIsDownloading;
 			UpdateProgressInfo();
 		}
+	}
+
+	void FBuildPatchProgress::CancelAbort()
+	{
+		bShouldAbort = false;
 	}
 
 	void FBuildPatchProgress::UpdateProgressInfo()

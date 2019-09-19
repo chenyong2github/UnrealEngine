@@ -48,6 +48,13 @@ public:
 	UPROPERTY(EditAnywhere, Category=UserInterface, meta = (ConfigRestartRequired = true, DisplayName="Enable High DPI Support"))
 	bool bEnableHighDPIAwareness;
 
+	/**
+	 * Whether to enable the Editor UI Layout configuration tools for the user.
+	 * If disabled, the "Save Layout As" and "Remove Layout" menus will be removed, as well as the "Import Layout..." sub-menu.
+	 */
+	UPROPERTY(EditAnywhere, config, Category = UserInterface)
+	bool bEnableUserEditorLayoutManagement;
+
 	/** Applies a color vision deficiency filter to the entire editor */
 	UPROPERTY(EditAnywhere, config, Category = "Accessibility")
 	EColorVisionDeficiency ColorVisionDeficiencyPreviewType;

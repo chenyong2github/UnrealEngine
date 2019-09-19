@@ -215,6 +215,7 @@ public:
 	virtual void SetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<const FFrameNumber> InKeyTimes) override;
 	virtual void DuplicateKeys(TArrayView<const FKeyHandle> InHandles, TArrayView<FKeyHandle> OutNewHandles) override;
 	virtual void DeleteKeys(TArrayView<const FKeyHandle> InHandles) override;
+	virtual void DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore) override;
 	virtual void ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate) override;
 	virtual TRange<FFrameNumber> ComputeEffectiveRange() const override;
 	virtual int32 GetNumKeys() const override;
@@ -258,7 +259,9 @@ public:
 public:
 
 	bool Serialize(FArchive& Ar);
+#if WITH_EDITORONLY_DATA
 	void PostSerialize(const FArchive& Ar);
+#endif
 	friend FArchive& operator<<(FArchive& Ar, FMovieSceneFloatChannel& Me)
 	{
 		Me.Serialize(Ar);
@@ -363,7 +366,9 @@ struct TStructOpsTypeTraits<FMovieSceneFloatChannel> : public TStructOpsTypeTrai
 	{ 
 		WithStructuredSerializeFromMismatchedTag = true, 
 	    WithSerializer = true,
+#if WITH_EDITORONLY_DATA
 		WithPostSerialize = true,
+#endif
     };
 };
 

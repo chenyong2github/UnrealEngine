@@ -60,6 +60,7 @@ public:
 	virtual bool Open(const FString& Url, const IMediaOptions* Options) override;
 	virtual bool Open(const TSharedRef<FArchive, ESPMode::ThreadSafe>& Archive, const FString& OriginalUrl, const IMediaOptions* Options) override;
 	virtual void TickInput(FTimespan DeltaTime, FTimespan Timecode) override;
+	virtual void ProcessVideoSamples() override;
 
 protected:
 
@@ -158,4 +159,7 @@ private:
 
 	/** The global cache to use. */
 	TSharedPtr<FImgMediaGlobalCache, ESPMode::ThreadSafe> GlobalCache;
+
+	/** True if we have run RequestFrame already for this frame. */
+	bool RequestFrameHasRun;
 };

@@ -11,6 +11,12 @@ float3 TransformLocalToWorld(float3 LocalPosition, uint PrimitiveId)
 	return INVARIANT((LocalToWorld[0].xyz * LocalPosition.xxx + LocalToWorld[1].xyz * LocalPosition.yyy + LocalToWorld[2].xyz * LocalPosition.zzz) + LocalToWorld[3].xyz);	
 }
 
+float4 TransformLocalToWorld(float3 LocalPosition)
+{
+	float3 RotatedPosition = Primitive.LocalToWorld[0].xyz * LocalPosition.xxx + Primitive.LocalToWorld[1].xyz * LocalPosition.yyy + Primitive.LocalToWorld[2].xyz * LocalPosition.zzz;
+	return float4(RotatedPosition + Primitive.LocalToWorld[3].xyz ,1);
+}
+
 float4 TransformLocalToTranslatedWorld(float3 LocalPosition, uint PrimitiveId)
 {
 	float4x4 LocalToWorld = GetPrimitiveData(PrimitiveId).LocalToWorld;

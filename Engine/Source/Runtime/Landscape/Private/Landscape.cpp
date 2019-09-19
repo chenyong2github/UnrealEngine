@@ -1097,6 +1097,7 @@ ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 	bLockLocation = false;
 	WasCompilingShaders = false;
 	LayerContentUpdateModes = 0;
+	bSplineLayerUpdateRequested = false;
 	CombinedLayersWeightmapAllMaterialLayersResource = nullptr;
 	CurrentLayersWeightmapAllMaterialLayersResource = nullptr;
 	WeightmapScratchExtractLayerTextureResource = nullptr;
@@ -1365,7 +1366,7 @@ FPrimitiveSceneProxy* ULandscapeComponent::CreateSceneProxy()
 {
 	const auto FeatureLevel = GetWorld()->FeatureLevel;
 	FPrimitiveSceneProxy* Proxy = nullptr;
-	if (FeatureLevel >= ERHIFeatureLevel::SM4)
+	if (FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		Proxy = new FLandscapeComponentSceneProxy(this);
 	}
@@ -3399,7 +3400,7 @@ void ALandscapeProxy::UpdateBakedTextures()
 {
 	// See if we can render
 	UWorld* World = GetWorld();
-	if (!GIsEditor || GUsingNullRHI || !World || World->IsGameWorld() || World->FeatureLevel < ERHIFeatureLevel::SM4)
+	if (!GIsEditor || GUsingNullRHI || !World || World->IsGameWorld() || World->FeatureLevel < ERHIFeatureLevel::SM5)
 	{
 		return;
 	}

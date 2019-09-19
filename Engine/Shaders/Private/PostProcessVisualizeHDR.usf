@@ -38,16 +38,10 @@ uint ComputeAdvice(float3 HDRColor)
 {
 	float Lum = max(HDRColor.r, max(HDRColor.g, HDRColor.b));
 
-	if(Lum < EyeAdaptationParams[0].z)
+	if(Lum < EyeAdaptation_MinAverageLuminance)
 	{
 		return 1;
 	}
-
-	// for some reasons HLSL compiler seems to suppress  the return 1 when we comment in this code
-//	if(Lum > EyeAdaptationParams[0].w)
-//	{
-//		return 2;
-//	}
 
 	return 0;
 }
@@ -174,29 +168,29 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 
 			// Luminance
 			int2 TopLeft = ViewportCenter + int2(11, 11);
-			if (MaxLuminance < 100.0f)
+			if (MaxLuminance < 1000.0f)
 			{
-				PrintSmallFloat(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxLuminance);
+				PrintFloat(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxLuminance);
 			}
 			else
 			{
 				PrintFloatNoFractionLarge(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxLuminance);
 			}
-			TopLeft.x += 54;
+			TopLeft.x += 60;
 			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _N_);
 			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _I_);
 			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _T_);
 			// Illuminance
 			TopLeft = ViewportCenter + int2(11, 22);
-			if (MaxIlluminance < 100.0f)
+			if (MaxIlluminance < 1000.0f)
 			{
-				PrintSmallFloat(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxIlluminance);
+				PrintFloat(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxIlluminance);
 			}
 			else
 			{
 				PrintFloatNoFractionLarge(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxIlluminance);
 			}
-			TopLeft.x += 54;
+			TopLeft.x += 60;
 			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _L_);
 			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _U_);
 			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _X_);
@@ -226,7 +220,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	}
 
 	// Compute and apply weight value at this location 
-	float WeightSlope = EyeAdaptationParams[2].w;
+	float WeightSlope = EyeAdaptation_WeightSlope;
 	float2 NdPos = ViewportSize.zw * (PixelPos.xy - ViewportRect.xy);
 	float weight = AdaptationWeight(NdPos.x, WeightSlope) * AdaptationWeight(NdPos.y, WeightSlope);
 	OutColor *= max(weight, 0.05f);  
@@ -314,12 +308,12 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 
 	float HistogramSum = ComputeHistogramSum(HistogramTexture);
 
-	if(InsetUV.x < ComputeHistogramPositionFromLuminance(EyeAdaptationParams[0].z))
+	if(InsetUV.x < ComputeHistogramPositionFromLuminance(EyeAdaptation_MinAverageLuminance))
 	{
 		// < min: grey
 		OutColor.xyz = lerp(OutColor.xyz, float3(0.5f, 0.5f, 0.5f), 0.5f);
 	}
-	else if(InsetUV.x < ComputeHistogramPositionFromLuminance(EyeAdaptationParams[0].w))
+	else if(InsetUV.x < ComputeHistogramPositionFromLuminance(EyeAdaptation_MaxAverageLuminance))
 	{
 		// >= min && < max: green
 		OutColor.xyz = lerp(OutColor.xyz, float3(0.5f, 0.8f, 0.5f), 0.5f);

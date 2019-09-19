@@ -56,7 +56,7 @@ FD3D12Device::~FD3D12Device()
 	// Cleanup the allocator near the end, as some resources may be returned to the allocator or references are shared by multiple GPUs
 	DefaultBufferAllocator.FreeDefaultBufferPools();
 
-	DefaultFastAllocator.Destroy<FD3D12ScopeLock>();
+	DefaultFastAllocator.Destroy();
 
 	TextureAllocator.CleanUpAllocations();
 	TextureAllocator.Destroy();
@@ -391,6 +391,11 @@ ID3D12CommandQueue* FD3D12Device::GetD3DCommandQueue(ED3D12CommandQueueType InQu
 void FD3D12Device::RegisterGPUWork(uint32 NumPrimitives, uint32 NumVertices)
 {
 	GetParentAdapter()->GetGPUProfiler().RegisterGPUWork(NumPrimitives, NumVertices);
+}
+
+void FD3D12Device::RegisterGPUDispatch(FIntVector GroupCount)
+{
+	GetParentAdapter()->GetGPUProfiler().RegisterGPUDispatch(GroupCount);
 }
 
 void FD3D12Device::PushGPUEvent(const TCHAR* Name, FColor Color)

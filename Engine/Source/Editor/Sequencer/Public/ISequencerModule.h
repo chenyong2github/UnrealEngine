@@ -93,6 +93,28 @@ struct FSequencerViewParams
 	{ }
 };
 
+/**
+ * Sequencer host functionality capabilities. These are no longer
+ * based on whether or not there is a Toolkit host as we may have
+ * a toolkit host outside of conditions where these are supported.
+ */
+struct FSequencerHostCapabilities
+{
+	/** Should we show the Save-As button in the toolbar? */
+	bool bSupportsSaveMovieSceneAsset;
+
+	/** Do we support discarding the changes */
+	bool bSupportsDiscardChanges;
+
+	/** Do we support the curve editor */
+	bool bSupportsCurveEditor;
+
+	FSequencerHostCapabilities()
+		: bSupportsSaveMovieSceneAsset(false)
+		, bSupportsDiscardChanges(false)
+		, bSupportsCurveEditor(false)
+	{}
+};
 
 /**
  * Sequencer initialization parameters.
@@ -107,6 +129,9 @@ struct FSequencerInitParams
 
 	/** View parameters */
 	FSequencerViewParams ViewParams;
+
+	/** Immutable capability set specified when our instance is created. Used to specify which feature set is supported. */
+	FSequencerHostCapabilities HostCapabilities;
 
 	/** Whether or not sequencer should be edited within the level editor */
 	bool bEditWithinLevelEditor;

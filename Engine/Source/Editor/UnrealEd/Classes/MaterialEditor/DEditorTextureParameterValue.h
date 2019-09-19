@@ -16,5 +16,7 @@ class UNREALED_API UDEditorTextureParameterValue : public UDEditorParameterValue
 	UPROPERTY(EditAnywhere, Category=DEditorTextureParameterValue)
 	class UTexture* ParameterValue;
 
+	UPROPERTY(Transient)
+	FParameterChannelNames ChannelNames;
 };
 

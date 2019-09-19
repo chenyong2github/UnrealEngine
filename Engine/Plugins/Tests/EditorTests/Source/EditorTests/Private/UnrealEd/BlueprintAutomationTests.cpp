@@ -34,7 +34,7 @@
 #include "ObjectTools.h"
 #include "ARFilter.h"
 #include "AssetRegistryModule.h"
-#include "Toolkits/AssetEditorManager.h"
+
 
 #include "Kismet2/KismetEditorUtilities.h"
 #include "EdGraphSchema_K2.h"
@@ -42,6 +42,7 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "DiffResults.h"
 #include "GraphDiffControl.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBlueprintAutomationTests, Log, All);
 
@@ -324,7 +325,7 @@ public:
 	 */
 	static void CloseBlueprint(UBlueprint* const BlueprintObj)
 	{
-		IAssetEditorInstance* EditorInst = FAssetEditorManager::Get().FindEditorForAsset(BlueprintObj, /*bool bFocusIfOpen =*/false);
+		IAssetEditorInstance* EditorInst = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(BlueprintObj, /*bool bFocusIfOpen =*/false);
 		if (EditorInst != nullptr)
 		{
 			UE_LOG(LogBlueprintAutomationTests, Log, TEXT("Closing '%s' so we don't invalidate the open version when unloading it."), *BlueprintObj->GetName());

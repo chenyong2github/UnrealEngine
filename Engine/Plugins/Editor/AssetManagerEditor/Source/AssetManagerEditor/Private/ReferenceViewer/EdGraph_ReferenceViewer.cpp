@@ -493,8 +493,6 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::RecursivelyConstructNodes(bool
 
 			if ( !VisitedNames.Contains(ReferenceName) && (!ReferenceName.IsPackage() || !ShouldFilterByCollection() || AllowedPackageNames.Contains(ReferenceName.PackageName)) )
 			{
-				bool bIsHardReference = HardReferenceNames.Contains(ReferenceName);
-
 				if ( !ExceedsMaxSearchBreadth(NumReferencesMade) )
 				{
 					int32 ThisNodeSizeY = ReferenceName.IsValue() ? 100 : NodeSizeY;
@@ -508,6 +506,8 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::RecursivelyConstructNodes(bool
 					NewIdentifiers.Add(ReferenceName);
 					
 					UEdGraphNode_Reference* ReferenceNode = RecursivelyConstructNodes(bReferencers, RootNode, NewIdentifiers, RefNodeLoc, NodeSizes, PackagesToAssetDataMap, AllowedPackageNames, CurrentDepth + 1, VisitedNames);
+
+					bool bIsHardReference = HardReferenceNames.Contains(ReferenceName);
 					if (bIsHardReference)
 					{
 						if (bReferencers)

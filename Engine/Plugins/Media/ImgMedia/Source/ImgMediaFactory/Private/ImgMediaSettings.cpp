@@ -18,3 +18,17 @@ UImgMediaSettings::UImgMediaSettings()
 	, DefaultProxy(TEXT("proxy"))
 	, UseDefaultProxy(false)
 { }
+
+#if WITH_EDITOR
+void UImgMediaSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	SettingsChangedDelegate.Broadcast(this);
+}
+
+UImgMediaSettings::FOnImgMediaSettingsChanged& UImgMediaSettings::OnSettingsChanged()
+{
+	return SettingsChangedDelegate;
+}
+
+UImgMediaSettings::FOnImgMediaSettingsChanged UImgMediaSettings::SettingsChangedDelegate;
+#endif

@@ -236,6 +236,60 @@ void UAnimBlueprint::SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirt
 #endif
 }
 
+void UAnimBlueprint::SetPreviewAnimationBlueprint(UAnimBlueprint* InPreviewAnimationBlueprint)
+{
+#if WITH_EDITORONLY_DATA
+	Modify();
+	PreviewAnimationBlueprint = InPreviewAnimationBlueprint;
+#endif
+}
+
+UAnimBlueprint* UAnimBlueprint::GetPreviewAnimationBlueprint() const
+{
+#if WITH_EDITORONLY_DATA
+	if (!PreviewAnimationBlueprint.IsValid())
+	{
+		PreviewAnimationBlueprint.LoadSynchronous();
+	}
+	return PreviewAnimationBlueprint.Get();
+#else
+	return nullptr;
+#endif
+}
+
+void UAnimBlueprint::SetPreviewAnimationBlueprintApplicationMethod(EPreviewAnimationBlueprintApplicationMethod InMethod) 
+{ 
+#if WITH_EDITORONLY_DATA
+	Modify();
+	PreviewAnimationBlueprintApplicationMethod = InMethod; 
+#endif
+}
+
+EPreviewAnimationBlueprintApplicationMethod UAnimBlueprint::GetPreviewAnimationBlueprintApplicationMethod() const 
+{ 
+#if WITH_EDITORONLY_DATA
+	return PreviewAnimationBlueprintApplicationMethod; 
+#else
+	return EPreviewAnimationBlueprintApplicationMethod::OverlayLayer;
+#endif
+}
+
+void UAnimBlueprint::SetPreviewAnimationBlueprintTag(FName InTag) 
+{ 
+#if WITH_EDITORONLY_DATA
+	Modify();
+	PreviewAnimationBlueprintTag = InTag; 
+#endif
+}
+
+FName UAnimBlueprint::GetPreviewAnimationBlueprintTag() const 
+{ 
+#if WITH_EDITORONLY_DATA
+	return PreviewAnimationBlueprintTag; 
+#else
+	return NAME_None;
+#endif
+}
 
 bool UAnimBlueprint::IsObjectBeingDebugged(const UObject* Object) const
 {

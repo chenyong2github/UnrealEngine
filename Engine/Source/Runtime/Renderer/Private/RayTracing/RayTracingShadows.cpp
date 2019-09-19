@@ -41,6 +41,11 @@ static TAutoConsoleVariable<int32> CVarRayTracingShadowsEnableTwoSidedGeometry(
 	ECVF_RenderThreadSafe
 );
 
+bool EnableRayTracingShadowTwoSidedGeometry()
+{
+	return CVarRayTracingShadowsEnableTwoSidedGeometry.GetValueOnRenderThread() != 0;
+}
+
 class FOcclusionRGS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FOcclusionRGS)

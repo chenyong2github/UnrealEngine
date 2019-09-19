@@ -54,20 +54,12 @@ void FMainFrameHandler::ShutDownEditor()
 	{
 		GlobalTabManager->SaveAllVisualState();
 	}
-	else
-	{
-		GConfig->EmptySection(TEXT("EditorLayouts"), *GEditorLayoutIni);
-	}
 
 	// Clear the callback for destructionfrom the main tab; otherwise it will re-enter this shutdown function.
 	if (MainTabPtr.IsValid())
 	{
 		MainTabPtr.Pin()->SetOnTabClosed(SDockTab::FOnTabClosedCallback());
 	}
-
-	// Inform the AssetEditorManager that the editor is exiting so that it may save open assets
-	// and report usage stats
-	FAssetEditorManager::Get().OnExit();
 
 	if (RootWindow.IsValid())
 	{

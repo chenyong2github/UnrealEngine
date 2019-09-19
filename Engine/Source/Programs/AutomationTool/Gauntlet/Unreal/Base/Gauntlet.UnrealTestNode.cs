@@ -938,10 +938,8 @@ namespace Gauntlet
 				}
 			}
 
-			MB.Paragraph(string.Format("FatalErrors: {0}, Ensures: {1}, Errors: {2}, Warnings: {3}",
-				FatalErrors, LogSummary.Ensures.Count(), LogSummary.Errors.Count(), LogSummary.Warnings.Count()));
-
-			MB.Paragraph(string.Format("ResultHash: {0}", GetRoleResultHash(InArtifacts)));
+			MB.Paragraph(string.Format("FatalErrors: {0}, Ensures: {1}, Errors: {2}, Warnings: {3}, Hash: {4}",
+				FatalErrors, LogSummary.Ensures.Count(), LogSummary.Errors.Count(), LogSummary.Warnings.Count(), GetRoleResultHash(InArtifacts)));
 
 			if (GetCachedConfiguration().ShowErrorsInSummary && InArtifacts.LogSummary.Errors.Count() > 0)
 			{
@@ -1156,8 +1154,7 @@ namespace Gauntlet
 			}
 			MB.Paragraph(string.Format("Context: {0}", Context.ToString()));
 			MB.Paragraph(string.Format("FatalErrors: {0}, Ensures: {1}, Errors: {2}, Warnings: {3}", FatalErrors, Ensures, Errors, Warnings));
-			MB.Paragraph(string.Format("ResultHash: {0}", GetTestResultHash()));
-			MB.Paragraph(string.Format("Result: {0}", GetTestResult()));
+			MB.Paragraph(string.Format("Result: {0}, ResultHash: {1}", GetTestResult(), GetTestResultHash()));
 			//MB.Paragraph(string.Format("Artifacts: {0}", CachedArtifactPath));
 
 			return MB.ToString();

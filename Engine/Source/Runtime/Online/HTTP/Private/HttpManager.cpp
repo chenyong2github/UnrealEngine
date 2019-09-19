@@ -148,7 +148,7 @@ void FHttpManager::Flush(bool bShutdown)
 			for (TArray<TSharedRef<IHttpRequest>>::TIterator It(Requests); It; ++It)
 			{
 				TSharedRef<IHttpRequest>& Request = *It;
-				if (GIsRequestingExit)
+				if (IsEngineExitRequested())
 				{
 					ensureMsgf(Request.IsUnique(), TEXT("Dangling HTTP request! This may cause undefined behaviour or crash during module shutdown!"));
 				}

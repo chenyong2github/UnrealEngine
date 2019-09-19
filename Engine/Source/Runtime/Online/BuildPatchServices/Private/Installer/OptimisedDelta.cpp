@@ -71,7 +71,7 @@ namespace BuildPatchServices
 	{
 		// There are some conditions in which we do not use a delta.
 		const bool bNoSourceManifest = Configuration.SourceManifest.IsValid() == false;
-		const bool bNotPatching = Configuration.InstallerConfiguration == nullptr ? false : Configuration.InstallerConfiguration->bIsRepair || Configuration.InstallerConfiguration->InstallMode == EInstallMode::PrereqOnly;
+		const bool bNotPatching = Configuration.InstallMode == EInstallMode::PrereqOnly;
 		const bool bSameBuild = bNoSourceManifest ? false : Configuration.SourceManifest->GetBuildId() == Configuration.DestinationManifest->GetBuildId();
 		const bool bNoDownload = RequiresChunkDownload() == false;
 		if (bNoSourceManifest || bNotPatching || bSameBuild || bNoDownload)
@@ -127,7 +127,7 @@ namespace BuildPatchServices
 
 	void FOptimisedDelta::OnDownloadComplete(int32 RequestId, const FDownloadRef& Download)
 	{
-		if (Download->WasSuccessful())
+		if (Download->ResponseSuccessful())
 		{
 			// Perform a merge with current manifest so that the delta can support missing out unnecessary information.
 			FBuildPatchAppManifestPtr NewManifest;
@@ -195,7 +195,7 @@ namespace BuildPatchServices
 	FOptimisedDeltaConfiguration::FOptimisedDeltaConfiguration(FBuildPatchAppManifestRef InDestinationManifest)
 		: DestinationManifest(MoveTemp(InDestinationManifest))
 		, DeltaPolicy(EDeltaPolicy::TryFetchContinueWithout)
-		, InstallerConfiguration(nullptr)
+		, InstallMode(EInstallMode::NonDestructiveInstall)
 	{
 	}
 

@@ -12,7 +12,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "AssetManagerEditorModule.h"
@@ -22,6 +22,7 @@
 #include "ICollectionManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SizeMap"
 
@@ -963,7 +964,7 @@ void SSizeMap::EditSelectedAssets() const
 		TArray<FName> AssetNames;
 		AssetNames.Add(NodeSizeMapData->AssetData.ObjectPath);
 
-		FAssetEditorManager::Get().OpenEditorsForAssets(AssetNames);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(AssetNames);
 	}
 }
 	

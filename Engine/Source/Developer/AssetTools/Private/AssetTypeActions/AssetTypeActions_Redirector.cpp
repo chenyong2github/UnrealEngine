@@ -1,16 +1,17 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_Redirector.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "AssetTools.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_Redirector::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_Redirector::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Redirectors = GetTypedWeakObjectPtrs<UObjectRedirector>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Redirector_FindTarget",
 		LOCTEXT("Redirector_FindTarget","Find Target"),
 		LOCTEXT("Redirector_FindTargetTooltip", "Finds the asset that this redirector targets in the asset tree."),
 		FSlateIcon(),
@@ -20,7 +21,8 @@ void FAssetTypeActions_Redirector::GetActions( const TArray<UObject*>& InObjects
 			)
 		);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Redirector_FixUp",
 		LOCTEXT("Redirector_FixUp","Fix Up"),
 		LOCTEXT("Redirector_FixUpTooltip", "Finds referencers to selected redirectors and resaves them if possible, then deletes any redirectors that had all their referencers fixed."),
 		FSlateIcon(),
@@ -31,7 +33,7 @@ void FAssetTypeActions_Redirector::GetActions( const TArray<UObject*>& InObjects
 		);
 }
 
-void FAssetTypeActions_Redirector::AssetsActivated( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType )
+bool FAssetTypeActions_Redirector::AssetsActivatedOverride( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType )
 {
 	if ( ActivationType == EAssetTypeActivationMethod::DoubleClicked || ActivationType == EAssetTypeActivationMethod::Opened )
 	{
@@ -49,12 +51,11 @@ void FAssetTypeActions_Redirector::AssetsActivated( const TArray<UObject*>& InOb
 		if ( Redirectors.Num() > 0 )
 		{
 			FindTargets(Redirectors);
+			return true;
 		}
 	}
-	else
-	{
-		FAssetTypeActions_Base::AssetsActivated(InObjects, ActivationType);
-	}
+
+	return false;
 }
 
 void FAssetTypeActions_Redirector::ExecuteFindTarget(TArray<TWeakObjectPtr<UObjectRedirector>> Objects)

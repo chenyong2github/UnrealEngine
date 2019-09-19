@@ -66,12 +66,12 @@ FString GetReadableResult(HRESULT Hr)
 
 void LogSlateD3DRendererFailure(const FString& Description, HRESULT Hr)
 {
-	UE_LOG(LogStandaloneRenderer, Log, TEXT("%s Result: %s [%X]"), *Description, *GetReadableResult(Hr), Hr);
+	UE_LOG(LogStandaloneRenderer, Warning, TEXT("%s Result: %s [%X]"), *Description, *GetReadableResult(Hr), Hr);
 
 	if (Hr == DXGI_ERROR_DEVICE_REMOVED && IsValidRef(GD3DDevice))
 	{
 		HRESULT ReasonHr = GD3DDevice->GetDeviceRemovedReason();
-		UE_LOG(LogStandaloneRenderer, Log, TEXT("%s Reason: %s [%X]"), *Description, *GetReadableResult(ReasonHr), ReasonHr);
+		UE_LOG(LogStandaloneRenderer, Warning, TEXT("%s Reason: %s [%X]"), *Description, *GetReadableResult(ReasonHr), ReasonHr);
 	}
 }
 
@@ -416,18 +416,23 @@ void FSlateD3DRenderer::Private_ResizeViewport( const TSharedRef<SWindow> InWind
 		Viewport->ProjectionMatrix = CreateProjectionMatrixD3D( Width, Height );
 
 		DXGI_SWAP_CHAIN_DESC Desc;
-		Viewport->D3DSwapChain->GetDesc( &Desc );
-		HRESULT Hr = Viewport->D3DSwapChain->ResizeBuffers( Desc.BufferCount, Viewport->ViewportInfo.Width, Viewport->ViewportInfo.Height, Desc.BufferDesc.Format, Desc.Flags );
-
-		if (SUCCEEDED(Hr))
+		HRESULT Hr = Viewport->D3DSwapChain->GetDesc( &Desc );
+		if (FAILED(Hr))
 		{
-			CreateBackBufferResources(Viewport->D3DSwapChain, Viewport->BackBufferTexture, Viewport->RenderTargetView);
+			LogSlateD3DRendererFailure(TEXT("FSlateD3DRenderer::Private_ResizeViewport() - FSlateD3DViewport::IDXGISwapChain::GetDesc"), Hr);
+			GEncounteredCriticalD3DDeviceError = true;
+			return;
 		}
-		else
+
+		Hr = Viewport->D3DSwapChain->ResizeBuffers(Desc.BufferCount, Viewport->ViewportInfo.Width, Viewport->ViewportInfo.Height, Desc.BufferDesc.Format, Desc.Flags);
+		if (FAILED(Hr))
 		{
 			LogSlateD3DRendererFailure(TEXT("FSlateD3DRenderer::Private_ResizeViewport() - FSlateD3DViewport::IDXGISwapChain::ResizeBuffers"), Hr);
 			GEncounteredCriticalD3DDeviceError = true;
+			return;
 		}
+
+		CreateBackBufferResources(Viewport->D3DSwapChain, Viewport->BackBufferTexture, Viewport->RenderTargetView);
 	}
 }
 
@@ -525,6 +530,11 @@ void FSlateD3DRenderer::DrawWindows(FSlateDrawBuffer& InWindowDrawBuffer)
 
 		if ( ElementList.GetRenderWindow() )
 		{
+			if (HasLostDevice())
+			{
+				break;
+			}
+
 			SWindow* WindowToDraw = ElementList.GetRenderWindow();
 
 			// Add all elements for this window to the element batcher
@@ -558,20 +568,29 @@ void FSlateD3DRenderer::DrawWindows(FSlateDrawBuffer& InWindowDrawBuffer)
 #endif
 			GD3DDeviceContext->OMSetRenderTargets( 1, &RTV, NULL );
 
+			if (HasLostDevice())
+			{
+				break;
+			}
+			else
 			{
 				RenderingPolicy->DrawElements(ViewMatrix * Viewport->ProjectionMatrix, BatchData.GetFirstRenderBatchIndex(), BatchData.GetRenderBatches());
 			}
 
 			GD3DDeviceContext->OMSetRenderTargets(0, NULL, NULL);
 
-
 			const bool bUseVSync = false;
-			Viewport->D3DSwapChain->Present( bUseVSync ? 1 : 0, 0);
+			HRESULT Hr = Viewport->D3DSwapChain->Present( bUseVSync ? 1 : 0, 0);
+			if (FAILED(Hr))
+			{
+				LogSlateD3DRendererFailure(TEXT("FSlateD3DRenderer::DrawWindows() - IDXGISwapChain::Viewport->D3DSwapChain->Present( bUseVSync ? 1 : 0, 0)"), Hr);
+				GEncounteredCriticalD3DDeviceError = true;
+				break;
+			}
 
 			// All elements have been drawn.  Reset all cached data
 			ElementBatcher->ResetBatches();
 		}
-
 	}
 
 	// flush the cache if needed

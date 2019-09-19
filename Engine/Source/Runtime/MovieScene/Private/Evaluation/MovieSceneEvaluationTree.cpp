@@ -5,7 +5,6 @@
 #include "Misc/AutomationTest.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Compilation/MovieSceneCompilerRules.h"
-#include "Tests/MovieSceneTestsCommon.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
 #include "MovieSceneCommonHelpers.h"
 #include "UObject/Package.h"

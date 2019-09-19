@@ -4,6 +4,7 @@
 
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "AssetData.h"
 
 class UNiagaraStackParameterStoreEntry;
 class SNiagaraParameterEditor;
@@ -49,6 +50,9 @@ private:
 	FText GetInputIconToolTip() const;
 
 	FSlateColor GetInputIconColor() const;
+
+	void OnAssetSelectedFromPicker(const FAssetData& InAssetData);
+	FString GetCurrentAssetPath() const;
 
 private:
 	UNiagaraStackParameterStoreEntry* StackEntry;

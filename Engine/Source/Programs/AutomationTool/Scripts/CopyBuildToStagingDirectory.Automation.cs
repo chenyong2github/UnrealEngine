@@ -442,7 +442,8 @@ public partial class Project : CommandUtils
 			// Put all of the cooked dir into the staged dir
 			SC.PlatformCookDir = String.IsNullOrEmpty(Params.CookOutputDir) ? DirectoryReference.Combine(DLCRoot, "Saved", "Cooked", SC.CookPlatform) : DirectoryReference.Combine(new DirectoryReference(Params.CookOutputDir), SC.CookPlatform);
 			DirectoryReference PlatformEngineDir = DirectoryReference.Combine(SC.PlatformCookDir, "Engine");
-			SC.MetadataDir = DirectoryReference.Combine(SC.PlatformCookDir, SC.ShortProjectName, "Metadata");
+			string RelativeDLCRootPath = DLCRoot.MakeRelativeTo(SC.LocalRoot);
+			SC.MetadataDir = DirectoryReference.Combine(SC.PlatformCookDir, RelativeDLCRootPath, "Metadata");
 
 			// Put the config files into the staged dir
 			DirectoryReference ConfigDir = DirectoryReference.Combine(DLCRoot, "Config");
@@ -552,6 +553,13 @@ public partial class Project : CommandUtils
 
 			if (!Params.CookOnTheFly && !Params.SkipCookOnTheFly) // only stage the UFS files if we are not using cook on the fly
 			{
+				// Work out which ICU data version we use for this platform
+				var ICUDataVersion = "icudt64l";
+				if (SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.HoloLens || SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.TVOS || SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.HTML5)
+				{
+					ICUDataVersion = "icudt53l";
+				}
+
 				// Initialize internationalization preset.
 				string InternationalizationPreset = GetInternationalizationPreset(Params, PlatformGameConfig);
 
@@ -559,7 +567,7 @@ public partial class Project : CommandUtils
 				List<string> CulturesToStage = GetCulturesToStage(Params, PlatformGameConfig);
 
 				// Stage ICU internationalization data from Engine.
-				SC.StageFiles(StagedFileType.UFS, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Content", "Internationalization", InternationalizationPreset), StageFilesSearch.AllDirectories, new StagedDirectoryReference("Engine/Content/Internationalization"));
+				SC.StageFiles(StagedFileType.UFS, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Content", "Internationalization", InternationalizationPreset, ICUDataVersion), StageFilesSearch.AllDirectories, new StagedDirectoryReference(String.Format("Engine/Content/Internationalization/{0}", ICUDataVersion)));
 
 				// Engine ufs (content)
 				StageConfigFiles(SC, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Config"));
@@ -1057,6 +1065,11 @@ public partial class Project : CommandUtils
 		}
 		else
 		{
+			if (NormalizedPath.StartsWith("layouts/"))
+			{
+				return true;
+			}
+
 			if (NormalizedPath.StartsWith("localization/"))
 			{
 				return false;

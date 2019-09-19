@@ -6,6 +6,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "CurveModel.h"
+#include "IBufferedCurveModel.h"
 
 struct FRichCurve;
 
@@ -39,6 +40,8 @@ public:
 	virtual void RemoveKeys(TArrayView<const FKeyHandle> InKeys) override;
 
 	virtual void CreateKeyProxies(TArrayView<const FKeyHandle> InKeyHandles, TArrayView<UObject*> OutObjects) override;
+
+	virtual TUniquePtr<IBufferedCurveModel> CreateBufferedCurveCopy() const override;
 
 private:
 

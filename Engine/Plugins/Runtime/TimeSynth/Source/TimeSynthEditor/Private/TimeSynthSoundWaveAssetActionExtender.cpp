@@ -2,12 +2,12 @@
 
 #include "TimeSynthSoundWaveAssetActionExtender.h"
 
-#include "Framework/Commands/UIAction.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "AssetTypeActions_Base.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#include "ContentBrowserMenuContexts.h"
+#include "ObjectEditorUtils.h"
 #include "EditorStyleSet.h"
 #include "Sound/SoundWave.h"
 #include "TimeSynthClip.h"
@@ -20,29 +20,56 @@ namespace
 	const FString DefaultSuffix = TEXT("_TSC");
 } // namespace <>
 
-void FTimeSynthSoundWaveAssetActionExtender::GetExtendedActions(const TArray<TWeakObjectPtr<USoundWave>>& InSounds, FMenuBuilder& MenuBuilder)
+void FTimeSynthSoundWaveAssetActionExtender::RegisterMenus()
 {
-	const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateTimeSynthClip", "Create Time Synth Clip(s)");
-	const TAttribute<FText> ToolTip = LOCTEXT("SoundWave_CreateTimeSynthClipToolTip", "Creates time synth clip per sound wave selected");
-	const FSlateIcon Icon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue");
-	const FUIAction UIAction = FUIAction(FExecuteAction::CreateSP(this, &FTimeSynthSoundWaveAssetActionExtender::ExecuteCreateTimeSyncClip, InSounds), FCanExecuteAction());
+	if (!UToolMenus::IsToolMenuUIEnabled())
+	{
+		return;
+	}
 
-	MenuBuilder.AddMenuEntry(Label, ToolTip, Icon, UIAction);
+	FToolMenuOwnerScoped MenuOwner("TimeSynth");
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.SoundWave");
+	FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
 
-	const TAttribute<FText> LabelSet = LOCTEXT("SoundWave_CreateTimeSynthClipSet", "Create Time Synth Clip Set");
-	const TAttribute<FText> ToolTipSet = LOCTEXT("SoundWave_CreateTimeSynthClipSetToolTip", "Creates time synth clip adding all selected sound waves to single clip as set.");
-	const FUIAction UIActionSet = FUIAction(FExecuteAction::CreateSP(this, &FTimeSynthSoundWaveAssetActionExtender::ExecuteCreateTimeSyncClipSet, InSounds), FCanExecuteAction());
+	Section.AddDynamicEntry("TimeSynthSoundWaveAsset", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	{
+		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
+		if (!Context || Context->SelectedObjects.Num() == 0)
+		{
+			return;
+		}
 
-	MenuBuilder.AddMenuEntry(LabelSet, ToolTipSet, Icon, UIActionSet);
+		const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateTimeSynthClip", "Create Time Synth Clip(s)");
+		const TAttribute<FText> ToolTip = LOCTEXT("SoundWave_CreateTimeSynthClipToolTip", "Creates time synth clip per sound wave selected");
+		const FSlateIcon Icon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue");
+
+		const FToolMenuExecuteAction UIExecuteAction = FToolMenuExecuteAction::CreateStatic(&FTimeSynthSoundWaveAssetActionExtender::ExecuteCreateTimeSyncClip);
+
+		InSection.AddMenuEntry("SoundWave_CreateTimeSynthClip", Label, ToolTip, Icon, UIExecuteAction);
+
+		const TAttribute<FText> LabelSet = LOCTEXT("SoundWave_CreateTimeSynthClipSet", "Create Time Synth Clip Set");
+		const TAttribute<FText> ToolTipSet = LOCTEXT("SoundWave_CreateTimeSynthClipSetToolTip", "Creates time synth clip adding all selected sound waves to single clip as set.");
+		const FToolMenuExecuteAction UIExecuteActionSet = FToolMenuExecuteAction::CreateStatic(&FTimeSynthSoundWaveAssetActionExtender::ExecuteCreateTimeSyncClipSet);
+
+		InSection.AddMenuEntry("SoundWave_CreateTimeSynthClipSet", LabelSet, ToolTipSet, Icon, UIExecuteActionSet);
+	}));
 }
 
-void FTimeSynthSoundWaveAssetActionExtender::ExecuteCreateTimeSyncClip(TArray<TWeakObjectPtr<USoundWave>> SoundWaves)
+void FTimeSynthSoundWaveAssetActionExtender::ExecuteCreateTimeSyncClip(const FToolMenuContext& MenuContext)
 {
+	UContentBrowserAssetContextMenuContext* Context = MenuContext.Find<UContentBrowserAssetContextMenuContext>();
+	if (!Context || Context->SelectedObjects.Num() == 0)
+	{
+		return;
+	}
+
 	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
 
 	UTimeSynthClipFactory* Factory = NewObject<UTimeSynthClipFactory>();
-	for (TWeakObjectPtr<USoundWave>& SoundWave : SoundWaves)
+	for (const TWeakObjectPtr<UObject>& Object : Context->SelectedObjects)
 	{
+		USoundWave* SoundWave = Cast<USoundWave>(Object);
+
 		FString Name;
 		FString PackagePath;
 
@@ -55,22 +82,28 @@ void FTimeSynthSoundWaveAssetActionExtender::ExecuteCreateTimeSyncClip(TArray<TW
 	}
 }
 
-void FTimeSynthSoundWaveAssetActionExtender::ExecuteCreateTimeSyncClipSet(TArray<TWeakObjectPtr<USoundWave>> SoundWaves)
+void FTimeSynthSoundWaveAssetActionExtender::ExecuteCreateTimeSyncClipSet(const FToolMenuContext& MenuContext)
 {
-	FString PackagePath;
-	FString Name;
-
-	if (SoundWaves.Num() == 0 || !SoundWaves[0].IsValid())
+	UContentBrowserAssetContextMenuContext* Context = MenuContext.Find<UContentBrowserAssetContextMenuContext>();
+	if (!Context || Context->SelectedObjects.Num() == 0)
 	{
 		return;
 	}
 
-	USoundWave& SoundWave = *SoundWaves[0].Get();
+	USoundWave* SoundWave = Cast<USoundWave>(Context->SelectedObjects[0]);
+	if (SoundWave == nullptr)
+	{
+		return;
+	}
+
+	FString PackagePath;
+	FString Name;
+
 	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	AssetToolsModule.Get().CreateUniqueAssetName(SoundWave.GetOutermost()->GetName(), DefaultSuffix, PackagePath, Name);
+	AssetToolsModule.Get().CreateUniqueAssetName(SoundWave->GetOutermost()->GetName(), DefaultSuffix, PackagePath, Name);
 
 	UTimeSynthClipFactory* Factory = NewObject<UTimeSynthClipFactory>();
-	Factory->SoundWaves = SoundWaves;
+	Factory->SoundWaves = FObjectEditorUtils::GetTypedWeakObjectPtrs<USoundWave>(Context->GetSelectedObjects());
 
 	AssetToolsModule.Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackagePath), UTimeSynthClip::StaticClass(), Factory);
 }

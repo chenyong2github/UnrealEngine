@@ -125,6 +125,8 @@ struct FMarginSectionEditorData
 UMovieSceneMarginSection::UMovieSceneMarginSection( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
 {
+	EvalOptions.EnableAndSetCompletionMode(EMovieSceneCompletionMode::ProjectDefault);
+
 	BlendType = EMovieSceneBlendType::Absolute;
 
 	FMovieSceneChannelProxyData Channels;

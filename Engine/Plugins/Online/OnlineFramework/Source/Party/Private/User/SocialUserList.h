@@ -21,8 +21,7 @@ public:
 	virtual FString GetListName() const override { return ListConfig.Name; }
 
 	void UpdateNow();
-	void SetAllowAutoUpdate(bool bIsEnabled) { bAllowAutoUpdate = bIsEnabled; }
-	void SetAutoUpdatePeriod(float InAutoUpdatePeriod);
+	void SetAllowAutoUpdate(bool bIsEnabled);
 	const TArray<USocialUser*>& GetUsers() const { return Users; }
 
 	bool HasPresenceFilters() const;

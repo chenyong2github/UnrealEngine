@@ -62,6 +62,13 @@ public:
 	static FString EngineConfigDir();
 
 	/**
+	 * Returns the Editor Settings directory of the engine
+	 *
+	 * @return Editor Settings directory.
+	 */
+	static FString EngineEditorSettingsDir();
+
+	/**
 	 * Returns the intermediate directory of the engine
 	 *
 	 * @return content directory
@@ -81,6 +88,20 @@ public:
 	 * @return Plugins directory.
 	 */
 	static FString EnginePluginsDir();
+
+	/**
+	 * Returns the directory for default Editor UI Layout files of the engine
+	 *
+	 * @return Directory for default Editor UI Layout files.
+	 */
+	static FString EngineDefaultLayoutDir();
+
+	/**
+	 * Returns the directory for user-generated Editor UI Layout files of the engine
+	 *
+	 * @return Directory for user-generated Editor UI Layout files.
+	 */
+	static FString EngineUserLayoutDir();
 
 	/** 
 	* Returns the base directory enterprise directory.

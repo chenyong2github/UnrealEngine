@@ -14,7 +14,6 @@ namespace VectorVM
 	/** Constants. */
 	enum
 	{
-		InstancesPerChunk = 128,
 		MaxInstanceSizeBytes = 4,
 	};
 }

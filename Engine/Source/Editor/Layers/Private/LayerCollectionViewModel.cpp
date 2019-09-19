@@ -9,14 +9,24 @@
 
 #define LOCTEXT_NAMESPACE "LayersView"
 
-FLayerCollectionViewModel::FLayerCollectionViewModel( const TSharedRef< ILayers >& InWorldLayers, const TWeakObjectPtr< UEditorEngine >& InEditor )
+DEFINE_LOG_CATEGORY_STATIC(LogLayerCollectionViewModel, Fatal, All);
+
+FLayerCollectionViewModel::FLayerCollectionViewModel( const TWeakObjectPtr< UEditorEngine >& InEditor )
 	: bIsRefreshing( false )
 	, Filters( MakeShareable( new LayerFilterCollection ) )
 	, CommandList( MakeShareable( new FUICommandList ) )
-	, WorldLayers( InWorldLayers )
 	, Editor( InEditor )
+	, WorldLayers(Editor.IsValid() ? Editor->GetEditorSubsystem<ULayersSubsystem>() : nullptr)
 {
-
+	// Sanity checks
+	if (!Editor.IsValid())
+	{
+		UE_LOG(LogLayerCollectionViewModel, Fatal, TEXT("This function requires Editor.IsValid() == true."));
+	}
+	else if (WorldLayers == nullptr)
+	{
+		UE_LOG(LogLayerCollectionViewModel, Fatal, TEXT("This function requires Editor->GetEditorSubsystem<ULayersSubsystem>() to be already loaded rather than being a nullptr."));
+	}
 }
 
 
@@ -259,7 +269,7 @@ void FLayerCollectionViewModel::OnLayerAdded( const TWeakObjectPtr< ULayer >& Ad
 		return;
 	}
 
-	const TSharedRef< FLayerViewModel > NewLayerViewModel = FLayerViewModel::Create( AddedLayer, WorldLayers, Editor );
+	const TSharedRef< FLayerViewModel > NewLayerViewModel = FLayerViewModel::Create( AddedLayer, Editor );
 	NewLayerViewModel->OnVisibilityToggled().AddSP( this, &FLayerCollectionViewModel::ToggleLayerVisibility );
 	AllLayerViewModels.Add( NewLayerViewModel );
 
@@ -301,7 +311,7 @@ void FLayerCollectionViewModel::CreateViewModels( const TArray< TWeakObjectPtr< 
 {
 	for( auto LayerIt = InLayers.CreateConstIterator(); LayerIt; ++LayerIt )
 	{
-		const TSharedRef< FLayerViewModel > NewLayerViewModel = FLayerViewModel::Create( *LayerIt, WorldLayers, Editor );
+		const TSharedRef< FLayerViewModel > NewLayerViewModel = FLayerViewModel::Create( *LayerIt, Editor );
 		NewLayerViewModel->OnVisibilityToggled().AddSP( this, &FLayerCollectionViewModel::ToggleLayerVisibility );
 		AllLayerViewModels.Add( NewLayerViewModel );
 
@@ -390,13 +400,12 @@ FName FLayerCollectionViewModel::GenerateUniqueLayerName() const
 {
 	FName DefaultName;
 	int32 LayerIndex = 0;
-	TWeakObjectPtr< ULayer > ExistingLayer;
 	do
 	{
 		++LayerIndex;
 		DefaultName = FName( *FString::Printf( TEXT("Layer%d"), LayerIndex ) );
 	} 
-	while ( WorldLayers->TryGetLayer( DefaultName, ExistingLayer) );
+	while ( WorldLayers->IsLayer( DefaultName ) );
 
 	return DefaultName;
 }

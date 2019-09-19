@@ -21,7 +21,7 @@ namespace IncludeTool
 		/// <param name="Files">The files to include in the report</param>
 		/// <param name="ReportFileLocation">Output file for the report</param>
 		/// <param name="Log">Writer for log output</param>
-		public static void Generate(FileReference ReportFileLocation, DirectoryReference InputDir, HashSet<SourceFile> PreprocessedFiles, TextWriter Log)
+		public static void Generate(FileReference ReportFileLocation, DirectoryReference InputDir, HashSet<SourceFile> PreprocessedFiles, LineBasedTextWriter Log)
 		{
 			Log.WriteLine("Writing {0}...", ReportFileLocation.FullName);
 

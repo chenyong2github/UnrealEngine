@@ -161,35 +161,35 @@ void SSlider::ResetControllerState()
 FNavigationReply SSlider::OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent)
 {
 	FNavigationReply Reply = FNavigationReply::Escape();
-		if (bControllerInputCaptured || !bRequiresControllerLock)
+	if (bControllerInputCaptured || !bRequiresControllerLock)
+	{
+		float NewValue = ValueAttribute.Get();
+		if (Orientation == EOrientation::Orient_Horizontal)
 		{
-			float NewValue = ValueAttribute.Get();
-			if (Orientation == EOrientation::Orient_Horizontal)
-			{
 			if (InNavigationEvent.GetNavigationType() == EUINavigation::Left)
-				{
-					NewValue -= StepSize.Get();
-				Reply = FNavigationReply::Stop();
-				}
-			else if (InNavigationEvent.GetNavigationType() == EUINavigation::Right)
-				{
-					NewValue += StepSize.Get();
-				Reply = FNavigationReply::Stop();
-				}
-			}
-			else
 			{
-			if (InNavigationEvent.GetNavigationType() == EUINavigation::Down)
-				{
-					NewValue -= StepSize.Get();
+				NewValue -= StepSize.Get();
 				Reply = FNavigationReply::Stop();
-				}
-			if (InNavigationEvent.GetNavigationType() == EUINavigation::Up)
-				{
-					NewValue += StepSize.Get();
-				Reply = FNavigationReply::Stop();
-				}
 			}
+			else if (InNavigationEvent.GetNavigationType() == EUINavigation::Right)
+			{
+				NewValue += StepSize.Get();
+				Reply = FNavigationReply::Stop();
+			}
+		}
+		else
+		{
+			if (InNavigationEvent.GetNavigationType() == EUINavigation::Down)
+			{
+				NewValue -= StepSize.Get();
+				Reply = FNavigationReply::Stop();
+			}
+			else if (InNavigationEvent.GetNavigationType() == EUINavigation::Up)
+			{
+				NewValue += StepSize.Get();
+				Reply = FNavigationReply::Stop();
+			}
+		}
 		if (ValueAttribute.Get() != NewValue)
 		{
 			CommitValue(FMath::Clamp(NewValue, MinValue, MaxValue));
@@ -197,7 +197,7 @@ FNavigationReply SSlider::OnNavigation(const FGeometry& MyGeometry, const FNavig
 	}
 
 	if (Reply.GetBoundaryRule() != EUINavigationRule::Escape)
-			{
+	{
 		Reply = SLeafWidget::OnNavigation(MyGeometry, InNavigationEvent);
 	}
 
@@ -207,14 +207,13 @@ FNavigationReply SSlider::OnNavigation(const FGeometry& MyGeometry, const FNavig
 FReply SSlider::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	FReply Reply = FReply::Unhandled();
-	const FKey KeyPressed = InKeyEvent.GetKey();
 
 	if (IsInteractable())
 	{
 		// The controller's bottom face button must be pressed once to begin manipulating the slider's value.
 		// Navigation away from the widget is prevented until the button has been pressed again or focus is lost.
 		// The value can be manipulated by using the game pad's directional arrows ( relative to slider orientation ).
-		if (FSlateApplication::Get().GetNavigationActionForKey(KeyPressed) == EUINavigationAction::Accept && bRequiresControllerLock)
+		if (FSlateApplication::Get().GetNavigationActionFromKey(InKeyEvent) == EUINavigationAction::Accept && bRequiresControllerLock)
 		{
 			if (bControllerInputCaptured == false)
 			{
@@ -415,7 +414,8 @@ float SSlider::PositionToValue( const FGeometry& MyGeometry, const FVector2D& Ab
 	return RelativeValue;
 }
 
-const FSlateBrush* SSlider::GetBarImage() const {
+const FSlateBrush* SSlider::GetBarImage() const
+{
 	if (!IsEnabled() || LockedAttribute.Get())
 	{
 		return &Style->DisabledBarImage;
@@ -430,7 +430,8 @@ const FSlateBrush* SSlider::GetBarImage() const {
 	}
 }
 
-const FSlateBrush* SSlider::GetThumbImage() const {
+const FSlateBrush* SSlider::GetThumbImage() const
+{
 	if (!IsEnabled() || LockedAttribute.Get())
 	{
 		return &Style->DisabledThumbImage;
@@ -464,7 +465,7 @@ float SSlider::GetNormalizedValue() const
 
 void SSlider::SetValue(const TAttribute<float>& InValueAttribute)
 {
-	ValueAttribute = InValueAttribute;
+	SetAttribute(ValueAttribute, InValueAttribute, EInvalidateWidgetReason::Paint);
 }
 
 void SSlider::SetMinAndMaxValues(float InMinValue, float InMaxValue)
@@ -479,27 +480,31 @@ void SSlider::SetMinAndMaxValues(float InMinValue, float InMaxValue)
 
 void SSlider::SetIndentHandle(const TAttribute<bool>& InIndentHandle)
 {
-	IndentHandle = InIndentHandle;
+	SetAttribute(IndentHandle, InIndentHandle, EInvalidateWidgetReason::Paint);
 }
 
 void SSlider::SetLocked(const TAttribute<bool>& InLocked)
 {
-	LockedAttribute = InLocked;
+	SetAttribute(LockedAttribute, InLocked, EInvalidateWidgetReason::Paint);
 }
 
 void SSlider::SetOrientation(EOrientation InOrientation)
 {
-	Orientation = InOrientation;
+	if (Orientation != InOrientation)
+	{
+		Orientation = InOrientation;
+		Invalidate(EInvalidateWidgetReason::Layout);
+	}
 }
 
 void SSlider::SetSliderBarColor(FSlateColor InSliderBarColor)
 {
-	SliderBarColor = InSliderBarColor;
+	SetAttribute(SliderBarColor, TAttribute<FSlateColor>(InSliderBarColor), EInvalidateWidgetReason::Paint);
 }
 
 void SSlider::SetSliderHandleColor(FSlateColor InSliderHandleColor)
 {
-	SliderHandleColor = InSliderHandleColor;
+	SetAttribute(SliderHandleColor, TAttribute<FSlateColor>(InSliderHandleColor), EInvalidateWidgetReason::Paint);
 }
 
 float SSlider::GetStepSize() const
@@ -512,11 +517,13 @@ void SSlider::SetStepSize(const TAttribute<float>& InStepSize)
 	StepSize = InStepSize;
 }
 
-void SSlider::SetMouseUsesStep(bool MouseUsesStep) {
+void SSlider::SetMouseUsesStep(bool MouseUsesStep)
+{
 	bMouseUsesStep = MouseUsesStep;
 }
 
-void SSlider::SetRequiresControllerLock(bool RequiresControllerLock) {
+void SSlider::SetRequiresControllerLock(bool RequiresControllerLock)
+{
 	bRequiresControllerLock = RequiresControllerLock;
 }
 

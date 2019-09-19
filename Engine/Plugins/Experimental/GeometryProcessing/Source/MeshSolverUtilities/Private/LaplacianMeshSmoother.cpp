@@ -58,77 +58,153 @@ double ComputeDistSqrd(const FSOAPositions& VecA, const FSOAPositions& VecB)
 }
 
 
-
 FConstrainedMeshOperator::FConstrainedMeshOperator(const FDynamicMesh3& DynamicMesh, const ELaplacianWeightScheme Scheme, const EMatrixSolverType MatrixSolverType)
 	: VertexCount(DynamicMesh.VertexCount())
 {
 
-	Laplacian = ConstructLaplacian(Scheme, DynamicMesh, VtxLinearization, &EdgeVerts);
-	FSparseMatrixD& LMatrix = *(Laplacian);
+	FSparseMatrixD LaplacianInternal;
+	FSparseMatrixD LaplacianBoundary;
+	ConstructLaplacian(Scheme, DynamicMesh, VtxLinearization, LaplacianInternal, LaplacianBoundary);
 
-	TUniquePtr<FSparseMatrixD> LTL(new FSparseMatrixD(Laplacian->rows(), Laplacian->cols()));
-	FSparseMatrixD& LTLMatrix = *(LTL);
+	// Copy the original boundary vertex locations
+	const int32 BoundaryVertexCount = VtxLinearization.NumBoundaryVerts();
+	
+	// Number of vertices in the interior of the mesh
+	InternalVertexCount = VertexCount - BoundaryVertexCount;
+
+	// Copy the original boundary vertex locations
+	{
+		const auto ToVertId = VtxLinearization.ToId();
+		BoundaryPositions.SetZero(BoundaryVertexCount);
+		for (int32 i = 0; i < BoundaryVertexCount; ++i)
+		{
+			const int32 VtxId = ToVertId[i + InternalVertexCount];
+			const FVector3d Pos = DynamicMesh.GetVertex(VtxId);
+
+			BoundaryPositions.XVector[i] = Pos.X;
+			BoundaryPositions.YVector[i] = Pos.Y;
+			BoundaryPositions.ZVector[i] = Pos.Z;
+		}
+	}
+
+	checkSlow(LaplacianInternal.rows() == LaplacianInternal.cols());
+
+	TUniquePtr<FSparseMatrixD> LTLPtr( new FSparseMatrixD(LaplacianInternal.rows(), LaplacianInternal.cols()) );
+	FSparseMatrixD& LTLMatrix = *(LTLPtr);
 
 	bool bIsLaplacianSymmetric = (Scheme == ELaplacianWeightScheme::Valence || Scheme == ELaplacianWeightScheme::Uniform);
 
 	if (bIsLaplacianSymmetric)
 	{
 		// Laplacian is symmetric, i.e. equal to its transpose
-		LTLMatrix = LMatrix * LMatrix;
-	
-		ConstrainedSolver.Reset(new FConstrainedSolver(LTL, MatrixSolverType));
+		LTLMatrix        = LaplacianInternal * LaplacianInternal;
+		BoundaryOperator = -1. * LaplacianInternal * LaplacianBoundary;
+		
+		ConstrainedSolver.Reset(new FConstrainedSolver(LTLPtr, MatrixSolverType));
 	}
 	else
 	{
 		// the laplacian 
-		LTLMatrix = LMatrix.transpose() * LMatrix;
-		ConstrainedSolver.Reset(new FConstrainedSolver(LTL, MatrixSolverType));
+		LTLMatrix        = LaplacianInternal.transpose() * LaplacianInternal;
+		BoundaryOperator = -1. * LaplacianInternal.transpose() * LaplacianBoundary;
+		
+		ConstrainedSolver.Reset(new FConstrainedSolver(LTLPtr, MatrixSolverType));
 	}
 
 }
 
 void FConstrainedMeshOperator::AddConstraint(const int32 VtxId, const double Weight, const FVector3d& Pos, const bool bPostFix)
 {
+	const auto& ToIndex = VtxLinearization.ToIndex();
+	
+	if (VtxId > ToIndex.Num())
+	{
+		return;
+	}
 
-	bConstraintPositionsDirty = true;
-	bConstraintWeightsDirty   = true;
-	int32 Index = VtxLinearization.ToIndex()[VtxId];
+	const int32 Index = ToIndex[VtxId];
 
-	ConstraintPositionMap.Add(TTuple<int32, FConstraintPosition>(Index, FConstraintPosition(Pos, bPostFix)));
-	ConstraintWeightMap.Add(TTuple<int32, double>(Index, Weight));
+	// Only add the constraint if the vertex is actually in the interior.  We aren't solving for edge vertices.
+	if (Index != FDynamicMesh3::InvalidID && Index < InternalVertexCount)
+	{
+		bConstraintPositionsDirty = true;
+		bConstraintWeightsDirty = true;
 
+
+		ConstraintPositionMap.Add(TTuple<int32, FConstraintPosition>(Index, FConstraintPosition(Pos, bPostFix)));
+		ConstraintWeightMap.Add(TTuple<int32, double>(Index, Weight));
+	}
 }
 
 
 bool FConstrainedMeshOperator::UpdateConstraintPosition(const int32 VtxId, const FVector3d& Pos, const bool bPostFix)
 {
-	bConstraintPositionsDirty = true;
-	int32 Index = VtxLinearization.ToIndex()[VtxId];
-	// Add should over-write any existing value for this key
-	ConstraintPositionMap.Add(TTuple<int32, FConstraintPosition>(Index, FConstraintPosition(Pos, bPostFix)));
+	bool Result = false;
+	const auto& ToIndex = VtxLinearization.ToIndex();
 
-	return ConstraintWeightMap.Contains(VtxId);
+	if (VtxId > ToIndex.Num())
+	{
+		return Result;
+	}
+
+	const int32 Index = ToIndex[VtxId];
+	
+
+	if (Index != FDynamicMesh3::InvalidID && Index < InternalVertexCount)
+	{
+		bConstraintPositionsDirty = true;
+
+		// Add should over-write any existing value for this key
+		ConstraintPositionMap.Add(TTuple<int32, FConstraintPosition>(Index, FConstraintPosition(Pos, bPostFix)));
+
+		Result = ConstraintWeightMap.Contains(VtxId);
+	}
+	return Result;
 }
 
 bool FConstrainedMeshOperator::UpdateConstraintWeight(const int32 VtxId, const double Weight)
 {
+	bool Result = false;
+	const auto& ToIndex = VtxLinearization.ToIndex();
 
-	bConstraintWeightsDirty = true;
-	int32 Index = VtxLinearization.ToIndex()[VtxId];
-	// Add should over-write any existing value for this key
-	ConstraintWeightMap.Add(TTuple<int32, double>(Index, Weight));
+	if (VtxId > ToIndex.Num())
+	{
+		return Result;
+	}
 
-	return ConstraintPositionMap.Contains(VtxId);
+	const int32 Index = ToIndex[VtxId];
+	if (Index != FDynamicMesh3::InvalidID && Index < InternalVertexCount)
+	{
+		bConstraintWeightsDirty = true;
+
+		// Add should over-write any existing value for this key
+		ConstraintWeightMap.Add(TTuple<int32, double>(Index, Weight));
+
+		Result = ConstraintPositionMap.Contains(VtxId);
+	}
+	return Result;
 }
 
 
 bool FConstrainedMeshOperator::IsConstrained(const int32 VtxId) const
 {
-	if (VtxId > VtxLinearization.ToIndex().Num()) return false;
+	bool Result = false;
 
-	int32 Index = VtxLinearization.ToIndex()[VtxId];
+	const auto& ToIndex = VtxLinearization.ToIndex();
 
-	return ConstraintWeightMap.Contains(Index);
+	if (VtxId > ToIndex.Num())
+	{
+		return Result;
+	}
+
+	const int32 Index = ToIndex[VtxId];
+	
+	if (Index != FDynamicMesh3::InvalidID && Index < InternalVertexCount)
+	{
+		Result = ConstraintWeightMap.Contains(Index);
+	}
+
+	return Result;
 }
 
 void FConstrainedMeshOperator::UpdateSolverConstraints()
@@ -146,7 +222,7 @@ void FConstrainedMeshOperator::UpdateSolverConstraints()
 	}	
 }
 
-bool FConstrainedMeshOperator::Linearize(const FSOAPositions& PositionalVector, TArray<FVector3d>& LinearArray) const
+bool FConstrainedMeshOperator::CopyInternalPositions(const FSOAPositions& PositionalVector, TArray<FVector3d>& LinearArray) const
 {
 	// Number of positions
 
@@ -158,18 +234,21 @@ bool FConstrainedMeshOperator::Linearize(const FSOAPositions& PositionalVector, 
 		return false;
 	}
 
+	checkSlow(Num == InternalVertexCount);
+
 	// 
-	const auto& IndexToVtxId = VtxLinearization.ToId();
-	const int32 MaxVtxId = IndexToVtxId.Num(); // NB: this is really max_used + 1 in the mesh.  See  FDynamicMesh3::MaxVertexID()
+	const auto& ToVtxId = VtxLinearization.ToId();
+	const int32 MaxVtxId = ToVtxId.Num(); // NB: this is really max_used + 1 in the mesh.  See  FDynamicMesh3::MaxVertexID()
 
-
-
-	LinearArray.Empty(MaxVtxId);
-	LinearArray.AddUninitialized(MaxVtxId);
-
-	for (int32 i = 0; i < Num; ++i)
+	if (LinearArray.Num() != MaxVtxId)
 	{
-		const int32 VtxId = IndexToVtxId[i];
+		return false;
+	}
+
+	// Update the internal positions.
+	for (int32 i = 0; i < InternalVertexCount; ++i)
+	{
+		const int32 VtxId = ToVtxId[i];
 
 		LinearArray[VtxId] = FVector3d(PositionalVector.XVector.coeff(i), PositionalVector.YVector.coeff(i), PositionalVector.ZVector.coeff(i));
 	}
@@ -177,25 +256,41 @@ bool FConstrainedMeshOperator::Linearize(const FSOAPositions& PositionalVector, 
 	return true;
 }
 
-void FConstrainedMeshOperator::ExtractVertexPositions(const FDynamicMesh3& DynamicMesh, FSOAPositions& VertexPositions) const
+bool FConstrainedMeshOperator::CopyBoundaryPositions(TArray<FVector3d>& LinearArray) const
 {
-	VertexPositions.SetZero(VertexCount);
+	const auto& ToVtxId = VtxLinearization.ToId();
+	const int32 MaxVtxId = ToVtxId.Num();
 
-
-	const TArray<int32>& ToIndex = VtxLinearization.ToIndex();
-
-
-	for (int32 VtxId : DynamicMesh.VertexIndicesItr())
+	if (LinearArray.Num() != MaxVtxId)
 	{
-		const int32 i = ToIndex[VtxId];
+		return false;
+	}
 
-		checkSlow(i != FDynamicMesh3::InvalidID);
+	int32 BoundaryVertexCount = VertexCount - InternalVertexCount;
 
-		const FVector3d& Vertex = DynamicMesh.GetVertex(VtxId);
-		// coeffRef - coeff access without range checking
-		VertexPositions.XVector.coeffRef(i) = Vertex.X;
-		VertexPositions.YVector.coeffRef(i) = Vertex.Y;
-		VertexPositions.ZVector.coeffRef(i) = Vertex.Z;
+	for (int32 i = 0; i < BoundaryVertexCount; ++i)
+	{
+		const int32 VtxId = ToVtxId[i + InternalVertexCount];
+		LinearArray[VtxId] = FVector3d(BoundaryPositions.XVector.coeff(i), BoundaryPositions.YVector.coeff(i), BoundaryPositions.ZVector.coeff(i)); //BoundaryPositions[i];
+	}
+
+	return true;
+}
+
+
+void FConstrainedMeshOperator::ExtractInteriorVertexPositions(const FDynamicMesh3& DynamicMesh, FSOAPositions& VertexPositions) const
+{
+	VertexPositions.SetZero(InternalVertexCount);
+
+	const auto& ToVtxId = VtxLinearization.ToId();
+
+	for (int32 i = 0; i < InternalVertexCount; ++i)
+	{
+		const int32 VtxId = ToVtxId[i];
+		const FVector3d& Pos = DynamicMesh.GetVertex(VtxId);
+		VertexPositions.XVector.coeffRef(i) = Pos.X;
+		VertexPositions.YVector.coeffRef(i) = Pos.Y;
+		VertexPositions.ZVector.coeffRef(i) = Pos.Z;
 	}
 }
 
@@ -205,6 +300,8 @@ void FConstrainedMeshOperator::UpdateWithPostFixConstraints(FSOAPositions& Posit
 	{
 		const int32 Index = ConstraintPosition.Key;
 		const FConstraintPosition& Constraint = ConstraintPosition.Value;
+
+		checkSlow(Index < InternalVertexCount);
 
 		// we only care about post-fix constraints
 
@@ -222,15 +319,16 @@ void FConstrainedMeshOperator::UpdateWithPostFixConstraints(FSOAPositions& Posit
 
 FConstrainedMeshDeformer::FConstrainedMeshDeformer(const FDynamicMesh3& DynamicMesh, const ELaplacianWeightScheme LaplacianType)
 	: FConstrainedMeshOperator(DynamicMesh, LaplacianType, EMatrixSolverType::LU)
-	, LaplacianVectors(FConstrainedMeshOperator::VertexCount)
+	, LaplacianVectors(FConstrainedMeshOperator::InternalVertexCount)
 {
+	
 
 	// The current vertex positions 
 	
-	// Note: the OriginalVertexPositions are being stored as member data 
+	// Note: the OriginalInteriorPositions are being stored as member data 
 	// for use if the solver is iterative.
-	// FSOAPositions OriginalVertexPositions; 
-	ExtractVertexPositions(DynamicMesh, OriginalVertexPositions);
+	// FSOAPositions OriginalInteriorPositions; 
+	ExtractInteriorVertexPositions(DynamicMesh, OriginalInteriorPositions);
 	
 	
 	// The biharmonic part of the constrained solver
@@ -241,33 +339,45 @@ FConstrainedMeshDeformer::FConstrainedMeshDeformer(const FDynamicMesh3& DynamicM
 	// Compute the Laplacian Vectors
 	//    := Biharmonic * VertexPostion
 	// In the case of the cotangent laplacian this can be identified as the mean curvature * normal.
+	checkSlow(LaplacianVectors.Num() == OriginalInteriorPositions.Num());
+
 	for (int32 i = 0; i < 3; ++i)
 	{
-		LaplacianVectors.Array(i) = Biharmonic * OriginalVertexPositions.Array(i);
+		LaplacianVectors.Array(i) = Biharmonic * OriginalInteriorPositions.Array(i);
 	}
 }
 
 bool FConstrainedMeshDeformer::Deform(TArray<FVector3d>& PositionBuffer) 
 {
-	
+
 	// Update constraints.  This only trigger solver rebuild if the weights were updated.
 	UpdateSolverConstraints();
 
 	// Allocate space for the result as a struct of arrays
-	FSOAPositions SolutionVector(VertexCount);
+	FSOAPositions SolutionVector(InternalVertexCount);
 
 	// Solve the linear system
 	// NB: the original positions will only be used if the underlying solver type is iterative	
-	bool bSuccess = ConstrainedSolver->SolveWithGuess(OriginalVertexPositions, LaplacianVectors, SolutionVector);
+	bool bSuccess = ConstrainedSolver->SolveWithGuess(OriginalInteriorPositions, LaplacianVectors, SolutionVector);
 	
 	// Move any vertices to match bPostFix constraints
 
 	UpdateWithPostFixConstraints(SolutionVector);
 
-	// Copy the result into the array of stucts form.  
+	// Allocate Position Buffer for random access writes
+	int32 MaxVtxId = VtxLinearization.ToId().Num();
+	PositionBuffer.Empty(MaxVtxId);
+	PositionBuffer.AddUninitialized(MaxVtxId);
+
+	// Export the computed internal positions:
+	// Copy the results into the array of structs form.  
 	// NB: this re-indexes so the results can be looked up using VtxId
 
-	Linearize(SolutionVector, PositionBuffer);
+	CopyInternalPositions(SolutionVector, PositionBuffer);
+
+	// Copy the boundary
+	// NB: this re-indexes so the results can be looked up using VtxId
+	CopyBoundaryPositions(PositionBuffer);
 
 	// the matrix solve state
 	return bSuccess;
@@ -280,20 +390,46 @@ bool FBiHarmonicMeshSmoother::ComputeSmoothedMeshPositions(TArray<FVector3d>& Up
 
 	UpdateSolverConstraints();
 
+	// Compute the source vector
+	FSOAPositions SourceVector(InternalVertexCount);
+
+	if (InternalVertexCount != VertexCount) // have boundary points
+	{
+		for (int32 dir = 0; dir < 3; ++dir)
+		{
+			SourceVector.Array(dir) = BoundaryOperator * BoundaryPositions.Array(dir);
+		}
+	}
+	else
+	{
+		SourceVector.SetZero(InternalVertexCount);
+	}
+
 	// Solves the constrained system and updates the mesh 
 
-	FSOAPositions SolutionVector(VertexCount);
+	FSOAPositions SolutionVector(InternalVertexCount);
 
-	bool bSuccess = ConstrainedSolver->Solve(SolutionVector);
+	bool bSuccess = ConstrainedSolver->Solve(SourceVector, SolutionVector);
 
 
 	// Move any vertices to match bPostFix constraints
 
 	UpdateWithPostFixConstraints(SolutionVector);
 
-	// Move vertices to solution positions
+	// Allocate Position Buffer for random access writes
+	int32 MaxVtxId = VtxLinearization.ToId().Num();
+	UpdatedPositions.Empty(MaxVtxId);
+	UpdatedPositions.AddUninitialized(MaxVtxId);
 
-	Linearize(SolutionVector, UpdatedPositions);
+	// Export the computed internal positions:
+	// Copy the results into the array of structs form.  
+	// NB: this re-indexes so the results can be looked up using VtxId
+
+	CopyInternalPositions(SolutionVector, UpdatedPositions);
+
+	// Copy the boundary
+	// NB: this re-indexes so the results can be looked up using VtxId
+	CopyBoundaryPositions(UpdatedPositions);
 
 	return bSuccess;
 }
@@ -303,22 +439,48 @@ bool FCGBiHarmonicMeshSmoother::ComputeSmoothedMeshPositions(TArray<FVector3d>& 
 
 	UpdateSolverConstraints();
 
+	// Compute the source vector
+	FSOAPositions SourceVector(InternalVertexCount);
+
+	if (InternalVertexCount != VertexCount) // have boundary points
+	{
+		for (int32 dir = 0; dir < 3; ++dir)
+		{
+			SourceVector.Array(dir) = BoundaryOperator * BoundaryPositions.Array(dir);
+		}
+	}
+	else
+	{
+		SourceVector.SetZero(InternalVertexCount);
+	}
+
 	// Solves the constrained system and updates the mesh 
 
 	// Solves the constrained system
 
-	FSOAPositions SolutionVector(VertexCount);
+	FSOAPositions SolutionVector(InternalVertexCount);
 
-	bool bSuccess = ConstrainedSolver->Solve(SolutionVector);
+	bool bSuccess = ConstrainedSolver->Solve(SourceVector, SolutionVector);
 
 
 	// Move any vertices to match bPostFix constraints
 
 	UpdateWithPostFixConstraints(SolutionVector);
 
-	// Move vertices to solution positions
+	// Allocate Position Buffer for random access writes
+	int32 MaxVtxId = VtxLinearization.ToId().Num();
+	UpdatedPositions.Empty(MaxVtxId);
+	UpdatedPositions.AddUninitialized(MaxVtxId);
 
-	Linearize(SolutionVector, UpdatedPositions);
+	// Export the computed internal postions:
+	// Copy the results into the array of structs form.  
+	// NB: this re-indexes so the results can be looked up using VtxId
+
+	CopyInternalPositions(SolutionVector, UpdatedPositions);
+
+	// Copy the boundary
+	// NB: this re-indexes so the results can be looked up using VtxId
+	CopyBoundaryPositions(UpdatedPositions);
 
 	return bSuccess;
 }
@@ -333,24 +495,29 @@ FDiffusionIntegrator::FDiffusionIntegrator(const FDynamicMesh3& DynamicMesh, con
 
 	VertexCount = DynamicMesh.VertexCount();
 	
-	// Allocate the buffers.
-	Tmp[0].SetZero(VertexCount);
-	Tmp[1].SetZero(VertexCount);
-
-
 }
 
 void FDiffusionIntegrator::Initialize(const FDynamicMesh3& DynamicMesh, const ELaplacianWeightScheme Scheme)
 {
 	// Construct the laplacian, and extract the mapping for vertices (VtxLinearization)
-	DiffusionOperator = ConstructDiffusionOperator(Scheme, DynamicMesh, bIsSymmetric, VtxLinearization, &EdgeVerts);
+	//DiffusionOperator = ConstructDiffusionOperator(Scheme, DynamicMesh, bIsSymmetric, VtxLinearization, &EdgeVerts);
+
+	
+	ConstructOperators(Scheme, DynamicMesh, bIsSymmetric, VtxLinearization, DiffusionOperator, BoundaryOperator);
+
+	const int32 BoundaryVertexCount = VtxLinearization.NumBoundaryVerts();
+	InternalVertexCount = VertexCount - BoundaryVertexCount;
+
+	// Allocate the double buffers.
+	Tmp[0].SetZero(InternalVertexCount);
+	Tmp[1].SetZero(InternalVertexCount);
 
 	const auto& ToVertId = VtxLinearization.ToId();
 
-	// Extract current positions.
-	for (int32 i = 0; i < VertexCount; ++i)
+	// Extract current internal positions.
+	for (int32 i = 0; i < InternalVertexCount; ++i)
 	{
-		int32 VtxId = ToVertId[i];
+		const int32 VtxId = ToVertId[i];
 
 		const FVector3d Pos = DynamicMesh.GetVertex(VtxId);
 		Tmp[0].XVector[i] = Pos.X;
@@ -358,7 +525,21 @@ void FDiffusionIntegrator::Initialize(const FDynamicMesh3& DynamicMesh, const EL
 		Tmp[0].ZVector[i] = Pos.Z;
 	}
 
-	const FSparseMatrixD&  M = *DiffusionOperator;
+	// backup the locations of the boundary verts.
+	{
+		BoundaryPositions.SetZero(BoundaryVertexCount);
+		for (int32 i = 0; i < BoundaryVertexCount; ++i)
+		{
+			const int32 VtxId = ToVertId[i + InternalVertexCount];
+			const FVector3d Pos = DynamicMesh.GetVertex(VtxId);
+
+			BoundaryPositions.XVector[i] = Pos.X;
+			BoundaryPositions.YVector[i] = Pos.Y;
+			BoundaryPositions.ZVector[i] = Pos.Z;
+		}
+	}
+
+	const FSparseMatrixD&  M = DiffusionOperator;
 
 	// Find the min diagonal entry (all should be negative).
 	int32 Rank = M.rows();
@@ -368,7 +549,8 @@ void FDiffusionIntegrator::Initialize(const FDynamicMesh3& DynamicMesh, const EL
 		auto Diag = M.coeff(i, i);
 		MinDiagonalValue = FMath::Min(Diag, MinDiagonalValue);
 	}
-
+	// The matrix should have a row for each internal vertex
+	checkSlow(Rank == InternalVertexCount);
 
 #if 0
 	// testing - how to print the matrix to debug output 
@@ -388,7 +570,6 @@ void FDiffusionIntegrator::Integrate_ForwardEuler(int32 NumSteps, double Alpha, 
 {
 	Alpha = FMath::Clamp(Alpha, 0., 1.);
 
-	const FSparseMatrixD& M = *DiffusionOperator;
 	FSparseMatrixD::Scalar TimeStep = -Alpha / MinDiagonalValue;
 	Id = 0;
 	for (int32 s = 0; s < NumSteps; ++s)
@@ -396,9 +577,9 @@ void FDiffusionIntegrator::Integrate_ForwardEuler(int32 NumSteps, double Alpha, 
 
 		int32 SrcBuffer = Id;
 		Id = 1 - Id;
-		Tmp[Id].XVector = Tmp[SrcBuffer].XVector + TimeStep * M * Tmp[SrcBuffer].XVector;
-		Tmp[Id].YVector = Tmp[SrcBuffer].YVector + TimeStep * M * Tmp[SrcBuffer].YVector;
-		Tmp[Id].ZVector = Tmp[SrcBuffer].ZVector + TimeStep * M * Tmp[SrcBuffer].ZVector;
+		Tmp[Id].XVector = Tmp[SrcBuffer].XVector + TimeStep * ( DiffusionOperator * Tmp[SrcBuffer].XVector + BoundaryOperator * BoundaryPositions.XVector );
+		Tmp[Id].YVector = Tmp[SrcBuffer].YVector + TimeStep * ( DiffusionOperator * Tmp[SrcBuffer].YVector + BoundaryOperator * BoundaryPositions.YVector );
+		Tmp[Id].ZVector = Tmp[SrcBuffer].ZVector + TimeStep * ( DiffusionOperator * Tmp[SrcBuffer].ZVector + BoundaryOperator * BoundaryPositions.ZVector ); 
 
 	}
 
@@ -412,35 +593,38 @@ void FDiffusionIntegrator::Integrate_BackwardEuler(const EMatrixSolverType Matri
 	//typedef typename TMatrixSolverTrait<EMatrixSolverType::LU>::MatrixSolverType   MatrixSolverType;
 
 	// We solve 
-	// p^{n+1} - dt * L[p^{n+1}] = p^{n}
+	// p^{n+1} - dt * L[p^{n+1}] = p^{n} + dt * B[boundaryPts]
 	// 
 	// i.e.
-	// [I - dt * L ] p^{n+1} = p^{n}
+	// [I - dt * L ] p^{n+1} = p^{n} + dt * B[boundaryPts]
 	//
 	// NB: in the case of the cotangent laplacian this would be better if we broke the L int
 	// L = (A^{-1}) H  where A is the "area matrix" (think "mass matrix"), then this would
 	// become
-	// [A - dt * H] p^{n+1} = Ap^{n}  
+	// [A - dt * H] p^{n+1} = Ap^{n}  dt * A *B[boundaryPts]
 	//  
 	// A - dt * H would be symmetric
 	//
 
 
-	const FSparseMatrixD& L = *DiffusionOperator;
+	
 	// Identity matrix
-	FSparseMatrixD Ident(L.rows(), L.cols());
+	FSparseMatrixD Ident(DiffusionOperator.rows(), DiffusionOperator.cols());
 	Ident.setIdentity();
 
 	FSparseMatrixD::Scalar TimeStep = Alpha * FMath::Min(Intensity, 1.e6);
 	
-	FSparseMatrixD M = Ident -TimeStep * L;
+	FSparseMatrixD SparseMatrix = Ident -TimeStep * DiffusionOperator;
 
 	
-	M.makeCompressed();
+	SparseMatrix.makeCompressed();
 
 	TUniquePtr<IMatrixSolverBase> MatrixSolver = ContructMatrixSolver(MatrixSolverType);
 
-	MatrixSolver->SetUp(M, bIsSymmetric);
+	MatrixSolver->SetUp(SparseMatrix, bIsSymmetric);
+
+	// We are going to solve the system 
+	FSOAPositions Source(InternalVertexCount);
 
 	if (MatrixSolver->bIsIterative())
 	{
@@ -454,8 +638,12 @@ void FDiffusionIntegrator::Integrate_BackwardEuler(const EMatrixSolverType Matri
 			int32 SrcBuffer = Id;
 			Id = 1 - Id;
 
+			for (int32 i = 0; i < 3; ++i)
+			{
+				Source.Array(i) = Tmp[SrcBuffer].Array(i) + TimeStep *  BoundaryOperator * BoundaryPositions.Array(i);
+			}
 			// Old solution is the guess.
-			IterativeSolver->SolveWithGuess(Tmp[SrcBuffer], Tmp[SrcBuffer], Tmp[Id]);
+			IterativeSolver->SolveWithGuess(Tmp[SrcBuffer], Source, Tmp[Id]);
 
 		}
 	}
@@ -469,19 +657,35 @@ void FDiffusionIntegrator::Integrate_BackwardEuler(const EMatrixSolverType Matri
 			int32 SrcBuffer = Id;
 			Id = 1 - Id;
 
-			MatrixSolver->Solve(Tmp[SrcBuffer], Tmp[Id]);
+			for (int32 i = 0; i < 3; ++i)
+			{
+				Source.Array(i) = Tmp[SrcBuffer].Array(i) + TimeStep * BoundaryOperator * BoundaryPositions.Array(i);
+			}
+
+			MatrixSolver->Solve(Source, Tmp[Id]);
 		}
 	}
 	
 
 }
 
-void FDiffusionIntegrator::GetPositions(TArray<FVector3d>& PositionArray) const
+void FDiffusionIntegrator::GetPositions(TArray<FVector3d>& PositionBuffer) const
 {
-	Linearize(Tmp[Id], PositionArray);
+	// Allocate Position Buffer for random access writes
+	int32 MaxVtxId = VtxLinearization.ToId().Num();
+	PositionBuffer.Empty(MaxVtxId);
+	PositionBuffer.AddUninitialized(MaxVtxId);
+
+	CopyInternalPositions(Tmp[Id], PositionBuffer);
+
+
+	// Copy the boundary
+	// NB: this re-indexes so the results can be looked up using VtxId
+	CopyBoundaryPositions(PositionBuffer);
+
 }
 
-bool FDiffusionIntegrator::Linearize(const FSOAPositions& PositionalVector, TArray<FVector3d>& LinearArray) const
+bool FDiffusionIntegrator::CopyInternalPositions(const FSOAPositions& PositionalVector, TArray<FVector3d>& LinearArray) const
 {
 	// Number of positions
 
@@ -494,68 +698,98 @@ bool FDiffusionIntegrator::Linearize(const FSOAPositions& PositionalVector, TArr
 	}
 
 	// 
-	const auto& IndexToVtxId = VtxLinearization.ToId();
-	const int32 MaxVtxId = IndexToVtxId.Num(); // NB: this is really max_used + 1 in the mesh.  See  FDynamicMesh3::MaxVertexID()
+	const auto& ToVtxId  = VtxLinearization.ToId();
+	const int32 MaxVtxId = ToVtxId.Num(); // NB: this is really max_used + 1 in the mesh.  See  FDynamicMesh3::MaxVertexID()
+	const int32 BoundaryVertexCount = VtxLinearization.NumBoundaryVerts();
 
-
-
-	LinearArray.Empty(MaxVtxId);
-	LinearArray.AddUninitialized(MaxVtxId);
-
-	for (int32 i = 0; i < Num; ++i)
+	if (MaxVtxId != LinearArray.Num())
 	{
-		const int32 VtxId = IndexToVtxId[i];
+		return false;
+	}
+
+	// Copy the updated internal vertex locations over
+	for (int32 i = 0; i < InternalVertexCount; ++i)
+	{
+		const int32 VtxId = ToVtxId[i];
 
 		LinearArray[VtxId] = FVector3d(PositionalVector.XVector.coeff(i), PositionalVector.YVector.coeff(i), PositionalVector.ZVector.coeff(i));
 	}
 
 	return true;
 }
+                       
+bool FDiffusionIntegrator::CopyBoundaryPositions(TArray<FVector3d>& LinearArray) const
+{
+	const auto& ToVtxId = VtxLinearization.ToId();
+	const int32 MaxVtxId = ToVtxId.Num();
+
+	if (LinearArray.Num() != MaxVtxId)
+	{
+		return false;
+	}
+
+	int32 BoundaryVertexCount = VertexCount - InternalVertexCount;
+
+	for (int32 i = 0; i < BoundaryVertexCount; ++i)
+	{
+		const int32 VtxId = ToVtxId[i + InternalVertexCount];
+		LinearArray[VtxId] = FVector3d(BoundaryPositions.XVector.coeff(i), BoundaryPositions.YVector.coeff(i), BoundaryPositions.ZVector.coeff(i));
+	}
+
+	return true;
+}
 
 
-TUniquePtr<FSparseMatrixD> FLaplacianDiffusionMeshSmoother::ConstructDiffusionOperator( const ELaplacianWeightScheme Scheme,
-																						const FDynamicMesh3& DynamicMesh,
-																						bool& bIsOperatorSymmetric,
-																						FVertexLinearization& Linearization,
-																						TArray<int32>* EdgeVtx ) 
+
+void FLaplacianDiffusionMeshSmoother::ConstructOperators( const ELaplacianWeightScheme Scheme,
+	                                                      const FDynamicMesh3& Mesh,
+	                                                      bool& bIsOperatorSymmetric,
+	                                                      FVertexLinearization& Linearization,
+	                                                      FSparseMatrixD& DiffusionOp,
+	                                                      FSparseMatrixD& BoundaryOp) 
 {
 	bIsOperatorSymmetric = bIsSymmetricLaplacian(Scheme);
+	ConstructLaplacian(Scheme, Mesh, VtxLinearization, DiffusionOp, BoundaryOp);
+}
 
 
-	// Construct the laplacian, and extract the mapping for vertices (VtxLinearization)
-	TUniquePtr<FSparseMatrixD> Laplacian = ConstructLaplacian(Scheme, DynamicMesh, VtxLinearization, &EdgeVerts);
-	Laplacian->makeCompressed();
-	return Laplacian;
-};
-
-TUniquePtr<FSparseMatrixD> FBiHarmonicDiffusionMeshSmoother::ConstructDiffusionOperator( const ELaplacianWeightScheme Scheme,
-																						 const FDynamicMesh3& DynamicMesh,
-																						 bool& bIsOperatorSymmetric,
-																						 FVertexLinearization& Linearization,
-																						 TArray<int32>* EdgeVtx ) 
+void FBiHarmonicDiffusionMeshSmoother::ConstructOperators( const ELaplacianWeightScheme Scheme,
+														   const FDynamicMesh3& Mesh,
+														   bool& bIsOperatorSymmetric,
+														   FVertexLinearization& Linearization,
+														   FSparseMatrixD& DiffusionOp,
+	                                                       FSparseMatrixD& BoundaryOp) 
 {
 	bIsOperatorSymmetric = true;
 	
-	// Construct the laplacian, and extract the mapping for vertices (VtxLinearization)
-	TUniquePtr<FSparseMatrixD> Laplacian = ConstructLaplacian(Scheme, DynamicMesh, VtxLinearization, &EdgeVerts);
-	const FSparseMatrixD& L = *Laplacian;
-	TUniquePtr<FSparseMatrixD> MatrixOperator(new FSparseMatrixD());
-	
+	FSparseMatrixD Laplacian; 
+	FSparseMatrixD BoundaryTerms;
+	ConstructLaplacian(Scheme, Mesh, VtxLinearization, Laplacian, BoundaryTerms);
+
 	bool bIsLaplacianSymmetric = bIsSymmetricLaplacian(Scheme);
+
+	// It is actually unclear the best way to approximate the boundary conditions in this case.  
+	// because we are repeatedly applying the operator ( for example thing about the way ( f(x+d)-f(x-d) )/ d will spread if you apply it twice
+	// as opposed to (f(x+d)-2f(x) + f(x-d) ) / d*d
+
+	// Anyhow here is a guess..
 
 	if (bIsLaplacianSymmetric)
 	{
-		
-		*MatrixOperator = -1. * L * L;
+		DiffusionOp = -1. * Laplacian * Laplacian;
+		BoundaryOp  = -1. * Laplacian * BoundaryTerms;
 	}
 	else
 	{
-		*MatrixOperator = -1. * L.transpose() * L;
+		FSparseMatrixD LTran = Laplacian.transpose();
+		DiffusionOp = -1. * LTran * Laplacian;
+		BoundaryOp  = -1. * LTran * BoundaryTerms;
 	}
+	
+	DiffusionOp.makeCompressed();
+	BoundaryOp.makeCompressed();
 
-	MatrixOperator->makeCompressed();
-	return MatrixOperator;
-};
+}
 
 
 void MeshSmoothingOperators::ComputeSmoothing_BiHarmonic(const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& OriginalMesh, 
@@ -588,16 +822,16 @@ void MeshSmoothingOperators::ComputeSmoothing_BiHarmonic(const ELaplacianWeightS
 #endif
 
 
+
 	FString DebugLogString = FString::Printf(TEXT("Biharmonic Smoothing of mesh with %d verts "), OriginalMesh.VertexCount()) + LaplacianSchemeName(WeightScheme) + MatrixSolverName(MatrixSolverType);
 
-	FScopedDurationTimeLogger Timmer(DebugLogString);
+	FScopedDurationTimeLogger Timer(DebugLogString);
 
 	FBiHarmonicDiffusionMeshSmoother BiHarmonicDiffusionSmoother(OriginalMesh, WeightScheme);
 
 	BiHarmonicDiffusionSmoother.Integrate_BackwardEuler(MatrixSolverType, NumIterations, Speed, Intensity);
 
 	BiHarmonicDiffusionSmoother.GetPositions(PositionArray);
-
 
 }
 
@@ -619,7 +853,7 @@ void MeshSmoothingOperators::ComputeSmoothing_ImplicitBiHarmonicPCG( const ELapl
 
 	FString DebugLogString = FString::Printf(TEXT("PCG Biharmonic Smoothing of mesh with %d verts "), OriginalMesh.VertexCount()) + LaplacianSchemeName(WeightScheme);
 
-	FScopedDurationTimeLogger Timmer(DebugLogString);
+	FScopedDurationTimeLogger Timer(DebugLogString);
 
 	if (MaxIterations < 1) return;
 
@@ -660,7 +894,7 @@ void  MeshSmoothingOperators::ComputeSmoothing_Diffusion( const ELaplacianWeight
 		DebugLogString += MatrixSolverName(MatrixSolverType);
 	}
 
-	FScopedDurationTimeLogger Timmer(DebugLogString);
+	FScopedDurationTimeLogger Timer(DebugLogString);
 
 	if (IterationCount < 1) return;
 

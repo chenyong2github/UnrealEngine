@@ -19,7 +19,7 @@
 #include "DetailCategoryBuilder.h"
 #include "PaperTileSet.h"
 #include "TileMapEditing/EdModeTileMap.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "IDetailsView.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
@@ -29,6 +29,7 @@
 #include "TileMapEditing/STileLayerList.h"
 #include "ScopedTransaction.h"
 #include "IPropertyUtilities.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "Paper2D"
 
@@ -319,7 +320,7 @@ FReply FPaperTileMapDetailsCustomization::EnterTileMapEditingMode()
 		}
 		else
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(TileMapComponent->TileMap);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(TileMapComponent->TileMap);
 		}
 	}
 	return FReply::Handled();

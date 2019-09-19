@@ -6,14 +6,26 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
+#define LOCTEXT_NAMESPACE "AssetTypeActions"
+
 FText FAssetTypeActions_OculusAmbisonicsSettings::GetName() const
 {
-    return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_OculusAmbisonicsSettings", "Oculus Audio Source Settings");
+    return LOCTEXT("AssetTypeActions_OculusAmbisonicsSettings", "Oculus Audio Source Settings");
 }
 
 FColor FAssetTypeActions_OculusAmbisonicsSettings::GetTypeColor() const
 {
     return FColor(100, 100, 100);
+}
+
+const TArray<FText>& FAssetTypeActions_OculusAmbisonicsSettings::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		LOCTEXT("AssetSoundOculusSubMenu", "Oculus")
+	};
+
+	return SubMenus;
 }
 
 UClass* FAssetTypeActions_OculusAmbisonicsSettings::GetSupportedClass() const
@@ -46,3 +58,4 @@ uint32 UOculusAmbisonicsSettingsFactory::GetMenuCategories() const
 {
     return EAssetTypeCategories::Sounds;
 }
+#undef LOCTEXT_NAMESPACE

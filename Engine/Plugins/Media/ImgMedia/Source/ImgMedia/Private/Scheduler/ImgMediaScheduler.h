@@ -4,6 +4,7 @@
 
 #include "Containers/Array.h"
 #include "CoreTypes.h"
+#include "Delegates/IDelegateInstance.h"
 #include "HAL/CriticalSection.h"
 #include "IImgMediaScheduler.h"
 #include "IMediaClockSink.h"
@@ -11,6 +12,7 @@
 
 class FImgMediaLoader;
 class FImgMediaSchedulerThread;
+class UImgMediaSettings;
 
 
 class FImgMediaScheduler
@@ -94,4 +96,17 @@ private:
 
 	/** Index of the last loader that provided a work item. */
 	int32 LoaderRoundRobin;
+
+	uint32 GetWorkerStackSize();
+	void CreateWorker(uint32 StackSize);
+
+#if WITH_EDITOR
+
+	FDelegateHandle UpdateSettingsHandle;
+	/**
+	 * Updates our settings from ImgMediaAsettings.
+	 */
+	void UpdateSettings(const UImgMediaSettings* Settings);
+
+#endif
 };

@@ -11,22 +11,6 @@ using namespace BuildPatchTool;
 IMPLEMENT_APPLICATION(BuildPatchTool, "BuildPatchTool");
 DEFINE_LOG_CATEGORY(LogBuildPatchTool);
 
-class FBuildPatchOutputDevice : public FOutputDevice
-{
-public:
-	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
-	{
-		// Only forward verbosities higher than Display as they will already be sent to stdout.
-		// For EC to get any logging, we have to forward all.
-#if PLATFORM_USE_LS_SPEC_FOR_WIDECHAR
-		printf("\n%ls", *FOutputDeviceHelper::FormatLogLine(Verbosity, Category, V, GPrintLogTimes));
-#else
-		wprintf(TEXT("\n%s"), *FOutputDeviceHelper::FormatLogLine(Verbosity, Category, V, GPrintLogTimes));
-#endif
-		fflush(stdout);
-	}
-};
-
 const TCHAR* HandleLegacyCommandline(const TCHAR* CommandLine)
 {
 	static FString CommandLineString;
@@ -36,6 +20,12 @@ const TCHAR* HandleLegacyCommandline(const TCHAR* CommandLine)
 	// Run smoke tests in debug
 	CommandLineString += TEXT(" -bForceSmokeTests ");
 #endif
+
+	// For BPT, we will interpret -stdout as all log lines go to stdout.
+	if (FParse::Param(CommandLine, TEXT("stdout")))
+	{
+		CommandLineString += TEXT(" -AllowStdOutLogVerbosity ");
+	}
 
 	// No longer supported options
 	if (CommandLineString.Contains(TEXT("-nochunks")))
@@ -114,12 +104,6 @@ void CheckAndReallocThreadPool()
 
 EReturnCode BuildPatchToolMain(const TCHAR* CommandLine)
 {
-	// Add log device for stdout
-	if (FParse::Param(CommandLine, TEXT("stdout")))
-	{
-		GLog->AddOutputDevice(new FBuildPatchOutputDevice());
-	}
-
 	// Handle legacy commandlines
 	CommandLine = HandleLegacyCommandline(CommandLine);
 	if (CommandLine == nullptr)
@@ -142,7 +126,7 @@ EReturnCode BuildPatchToolMain(const TCHAR* CommandLine)
 	}
 
 	// Shutdown
-	GIsRequestingExit = true;
+	RequestEngineExit(TEXT("BuildPatchToolMain Exiting"));
 	FCoreDelegates::OnExit.Broadcast();
 
 	return ReturnCode;

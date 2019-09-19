@@ -29,6 +29,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "LocalPlayer Subsystems", meta = (WorldContext = "ContextObject", BlueprintInternalUseOnly = "true"))
 	static ULocalPlayerSubsystem* GetLocalPlayerSubsystem(UObject* ContextObject, TSubclassOf<ULocalPlayerSubsystem> Class);
 
+	/** Get a World Subsystem from the World associated with the provided context */
+	UFUNCTION(BlueprintPure, Category = "GameInstance Subsystems", meta = (WorldContext = "ContextObject", BlueprintInternalUseOnly = "true"))
+	static UWorldSubsystem* GetWorldSubsystem(UObject* ContextObject, TSubclassOf<UWorldSubsystem> Class);
+
 	/** 
 	 * Get a Local Player Subsystem from the LocalPlayer associated with the provided context
 	 * If the player controller isn't associated to a LocalPlayer nullptr is returned

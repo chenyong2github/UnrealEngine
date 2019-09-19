@@ -7,7 +7,12 @@
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
-static int FramePaddingBeforeLayerUpdate = 5;
+#if WITH_EDITOR
+static TAutoConsoleVariable<int32> CVarLandscapeBrushPadding(
+	TEXT("landscape.BrushFramePadding"),
+	5,
+	TEXT("The number of frames to wait before pushing a full Landscape update when a brush is calling RequestLandscapeUpdate"));
+#endif
 
 ALandscapeBlueprintBrushBase::ALandscapeBlueprintBrushBase(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
@@ -59,7 +64,7 @@ void ALandscapeBlueprintBrushBase::Tick(float DeltaSeconds)
 #if WITH_EDITORONLY_DATA
 	// Avoid computing collision and client updates every frame
 	// Wait until we didn't trigger any more landscape update requests (padding of a couple of frames)
-	if (LastRequestLayersContentUpdateFrameNumber + FramePaddingBeforeLayerUpdate == GFrameNumber)
+	if (LastRequestLayersContentUpdateFrameNumber + CVarLandscapeBrushPadding.GetValueOnAnyThread() == GFrameNumber)
 	{
 		uint32 ModeMask = 0;
 		if (AffectHeightmap)
@@ -94,7 +99,7 @@ bool ALandscapeBlueprintBrushBase::ShouldTickIfViewportsOnly() const
 
 bool ALandscapeBlueprintBrushBase::IsLayerUpdatePending() const
 {
-	return GFrameNumber < LastRequestLayersContentUpdateFrameNumber + FramePaddingBeforeLayerUpdate;
+	return GFrameNumber < LastRequestLayersContentUpdateFrameNumber + CVarLandscapeBrushPadding.GetValueOnAnyThread();
 }
 
 void ALandscapeBlueprintBrushBase::SetIsVisible(bool bInIsVisible)

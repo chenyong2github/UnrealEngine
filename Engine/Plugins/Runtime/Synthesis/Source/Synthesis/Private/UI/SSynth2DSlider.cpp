@@ -119,14 +119,14 @@ void SSynth2DSlider::ResetControllerState()
 FReply SSynth2DSlider::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	FReply Reply = FReply::Unhandled();
-	const FKey KeyPressed = InKeyEvent.GetKey();
+	const EUINavigation NavDirection = FSlateApplication::Get().GetNavigationDirectionFromKey(InKeyEvent);
 
 	if (IsInteractable())
 	{
 		// The controller's bottom face button must be pressed once to begin manipulating the slider's value.
 		// Navigation away from the widget is prevented until the button has been pressed again or focus is lost.
 		// The value can be manipulated by using the game pad's directional arrows ( relative to slider orientation ).
-		if (FSlateApplication::Get().GetNavigationActionForKey(KeyPressed) == EUINavigationAction::Accept)
+		if (FSlateApplication::Get().GetNavigationActionFromKey(InKeyEvent) == EUINavigationAction::Accept)
 		{
 			if (bControllerInputCaptured == false)
 			{
@@ -149,22 +149,22 @@ FReply SSynth2DSlider::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
 
 			if (Orientation == EOrientation::Orient_Horizontal)
 			{
-				if (KeyPressed == EKeys::Left || KeyPressed == EKeys::Gamepad_DPad_Left || KeyPressed == EKeys::Gamepad_LeftStick_Left)
+				if (NavDirection == EUINavigation::Left)
 				{
 					NewValueX -= StepSize.Get();
 				}
-				else if (KeyPressed == EKeys::Right || KeyPressed == EKeys::Gamepad_DPad_Right || KeyPressed == EKeys::Gamepad_LeftStick_Right)
+				else if (NavDirection == EUINavigation::Right)
 				{
 					NewValueX += StepSize.Get();
 				}
 			}
 			else
 			{
-				if (KeyPressed == EKeys::Down || KeyPressed == EKeys::Gamepad_DPad_Down || KeyPressed == EKeys::Gamepad_LeftStick_Down)
+				if (NavDirection == EUINavigation::Down)
 				{
 					NewValueY -= StepSize.Get();
 				}
-				else if (KeyPressed == EKeys::Up || KeyPressed == EKeys::Gamepad_DPad_Up || KeyPressed == EKeys::Gamepad_LeftStick_Up)
+				else if (NavDirection == EUINavigation::Up)
 				{
 					NewValueY += StepSize.Get();
 				}

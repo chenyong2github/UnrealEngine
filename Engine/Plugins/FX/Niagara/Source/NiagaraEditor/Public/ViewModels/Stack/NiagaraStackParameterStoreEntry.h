@@ -96,6 +96,9 @@ public:
 	/** Delete the parameter from the ParameterStore and notify that the store changed. */
 	void Delete();
 
+	/** Use an external asset instead of the local value object.*/
+	void ReplaceValueObject(UObject* Obj);
+
 protected:
 	//~ UNiagaraStackEntry interface
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;

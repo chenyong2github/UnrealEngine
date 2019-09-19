@@ -7,7 +7,6 @@
 #include "UObject/GCObject.h"
 #include "ITakeRecorderModule.h"
 
-struct FLevelSequenceActionExtender;
 
 class FExtender;
 class FTakePresetActions;
@@ -56,6 +55,8 @@ private:
 
 	void UnregisterSerializedRecorder();
 
+	void RegisterMenus();
+
 private:
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnExtendSourcesMenuEvent, TSharedRef<FExtender>, UTakeRecorderSources*);
@@ -70,7 +71,6 @@ private:
 	FName ProjectSettingsName;
 
 	TSharedPtr<FTakePresetActions> TakePresetActions;
-	TSharedPtr<FLevelSequenceActionExtender> LevelSequenceAssetActionExtender;
 	TSharedPtr<FSerializedRecorder> SerializedRecorder;
 
 	USequencerSettings* SequencerSettings;

@@ -30,7 +30,7 @@ FVector2D SCurveEditorEventChannelView::ComputeDesiredSize(float LayoutScaleMult
 	return FVector2D(100.f, TrackHeight * (CurveInfoByID.Num()));
 }
 
-void SCurveEditorEventChannelView::GetGridLinesY(TSharedRef<FCurveEditor> CurveEditor, TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const
+void SCurveEditorEventChannelView::GetGridLinesY(TSharedRef<const FCurveEditor> CurveEditor, TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels) const
 {}
 
 void SCurveEditorEventChannelView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)

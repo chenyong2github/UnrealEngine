@@ -617,7 +617,8 @@ bool SActorDetails::IsPropertyReadOnly(const FPropertyAndParent& PropertyAndPare
 		{
 			TSet<const UProperty*> UCSModifiedProperties;
 			Component->GetUCSModifiedProperties(UCSModifiedProperties);
-			if (UCSModifiedProperties.Contains(&PropertyAndParent.Property) || (PropertyAndParent.ParentProperty && UCSModifiedProperties.Contains(PropertyAndParent.ParentProperty)))
+			if (UCSModifiedProperties.Contains(&PropertyAndParent.Property) || 
+				(PropertyAndParent.ParentProperties.Num() > 0 && UCSModifiedProperties.Contains(PropertyAndParent.ParentProperties[0])))
 			{
 				bIsReadOnly = true;
 				break;

@@ -110,6 +110,7 @@ public:
 	TArray<FD3D12CommandListHandle> PendingCommandLists;
 
 	void RegisterGPUWork(uint32 NumPrimitives = 0, uint32 NumVertices = 0);
+	void RegisterGPUDispatch(FIntVector GroupCount);
 	void PushGPUEvent(const TCHAR* Name, FColor Color);
 	void PopGPUEvent();
 

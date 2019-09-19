@@ -93,6 +93,12 @@ void FIOSMallocCrashHandler::Enable( FIOSCrashContext* Context, uint32 CrashedTh
 	GMalloc = this;
 }
 	
+void FIOSMallocCrashHandler::SetContext( FIOSCrashContext* Context )
+{
+	check(Context);
+	CrashContext = Context;
+}
+
 void* FIOSMallocCrashHandler::Malloc( SIZE_T Size, uint32 Alignment )
 {
 	void* Result = nullptr;

@@ -11,8 +11,8 @@ class FLevelBlueprintAssetHandler : public IBlueprintAssetHandler
 	{
 		UWorld* World = CastChecked<UWorld>(InObject);
 
-		const bool bCreateLevelScript = false;
-		return World->PersistentLevel ? World->PersistentLevel->GetLevelScriptBlueprint(bCreateLevelScript) : nullptr;
+		const bool bDontCreate = true;
+		return World->PersistentLevel ? World->PersistentLevel->GetLevelScriptBlueprint(bDontCreate) : nullptr;
 	}
 
 	virtual bool AssetContainsBlueprint(const FAssetData& InAssetData) const

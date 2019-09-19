@@ -12,7 +12,7 @@
 #include "Layout/WidgetPath.h"
 #include "WidgetInteractionComponent.generated.h"
 
-class FSlateVirtualUser;
+class FSlateVirtualUserHandle;
 class UPrimitiveComponent;
 class UWidgetComponent;
 
@@ -178,6 +178,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Interaction")
 	void SetCustomHitResult(const FHitResult& HitResult);
 
+	/**
+	 * Set the focus target of the virtual user managed by this component
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void SetFocus(UWidget* FocusWidget);
+
 private:
 	/**
 	 * Represents the virtual user in slate.  When this component is registered, it gets a handle to the 
@@ -187,7 +193,7 @@ private:
 	 * the mouse and keyboard focus input (the viewport), so that things like the player controller receive
 	 * standard hardware input.
 	 */
-	TSharedPtr<FSlateVirtualUser> VirtualUser;
+	TSharedPtr<FSlateVirtualUserHandle> VirtualUser;
 
 public:
 

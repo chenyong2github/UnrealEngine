@@ -155,6 +155,8 @@ void FPreLoadScreenManager::HandleEarlyStartupPlay()
 				bDidDisableScreensaver = FPlatformApplicationMisc::ControlScreensaver(FGenericPlatformApplicationMisc::EScreenSaverAction::Disable);
 			}
 
+			FPlatformMisc::HidePlatformStartupScreen();
+
 			{
 				SCOPED_BOOT_TIMING("FPreLoadScreenManager::EarlyPlayFrameTick()");
 

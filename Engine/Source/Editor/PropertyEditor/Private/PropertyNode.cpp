@@ -183,7 +183,7 @@ void FPropertyNode::InitNode(const FPropertyNodeInitParams& InitParams)
 		static const FName Name_MaxPropertyDepth("MaxPropertyDepth");
 		if (Property->HasMetaData(Name_MaxPropertyDepth))
 		{
-			int32 NewMaxChildDepthAllowed = Property->GetINTMetaData(Name_MaxPropertyDepth);
+			int32 NewMaxChildDepthAllowed = Property->GetIntMetaData(Name_MaxPropertyDepth);
 			//Ensure new depth is valid.  Otherwise just let the parent specified value stand
 			if (NewMaxChildDepthAllowed > 0)
 			{
@@ -1628,8 +1628,7 @@ bool FPropertyNode::GetDiffersFromDefaultForObject( FPropertyItemValueDataTracke
 			if (ValueTracker.GetPropertyDefaultBaseAddress() != nullptr)
 			{
 				FScriptSetHelper SetHelper(OuterSetProperty, ValueTracker.GetPropertyDefaultBaseAddress());
-				bool bIsValidIndex = ArrayIndex >= 0 && ArrayIndex < SetHelper.Num();
-				if (!bIsValidIndex)
+				if ( ValueTracker.GetPropertyDefaultBaseAddress() != NULL && (ArrayIndex < 0 || ArrayIndex >= SetHelper.Num()))
 				{
 					bDiffersFromDefaultForObject = true;
 				}
@@ -1640,8 +1639,7 @@ bool FPropertyNode::GetDiffersFromDefaultForObject( FPropertyItemValueDataTracke
 			if (ValueTracker.GetPropertyDefaultBaseAddress() != nullptr)
 			{
 				FScriptMapHelper MapHelper(OuterMapProperty, ValueTracker.GetPropertyDefaultBaseAddress());
-				bool bIsValidIndex = ArrayIndex >= 0 && ArrayIndex < MapHelper.Num();
-				if (!bIsValidIndex)
+				if ( ValueTracker.GetPropertyDefaultBaseAddress() != NULL && (ArrayIndex < 0 || ArrayIndex >= MapHelper.Num()))
 				{
 					bDiffersFromDefaultForObject = true;
 				}

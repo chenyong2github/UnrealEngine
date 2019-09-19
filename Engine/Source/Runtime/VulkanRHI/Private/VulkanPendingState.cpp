@@ -402,9 +402,15 @@ void FVulkanPendingComputeState::PrepareForDispatch(FVulkanCmdBuffer* InCmdBuffe
 
 FVulkanPendingGfxState::~FVulkanPendingGfxState()
 {
+	TArray<FVulkanGraphicsPipelineDescriptorState*> DescriptorStates;
+
 	for (auto& Pair : PipelineStates)
 	{
 		FVulkanGraphicsPipelineDescriptorState* State = Pair.Value;
+		DescriptorStates.Push(State);
+	}
+	for(FVulkanGraphicsPipelineDescriptorState* State : DescriptorStates)
+	{
 		delete State;
 	}
 }

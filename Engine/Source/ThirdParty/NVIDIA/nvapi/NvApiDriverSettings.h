@@ -51,11 +51,11 @@
 #define OGL_FORCE_STEREO_STRING                    L"Force Stereo shuttering"
 #define OGL_IMPLICIT_GPU_AFFINITY_STRING           L"Preferred OpenGL GPU"
 #define OGL_MAX_FRAMES_ALLOWED_STRING              L"Maximum frames allowed"
-#define OGL_MULTIMON_STRING                        L"Multi-display/mixed-GPU acceleration"
 #define OGL_OVERLAY_PIXEL_TYPE_STRING              L"Exported Overlay pixel types"
 #define OGL_OVERLAY_SUPPORT_STRING                 L"Enable overlay"
 #define OGL_QUALITY_ENHANCEMENTS_STRING            L"High level control of the rendering quality on OpenGL"
 #define OGL_SINGLE_BACKDEPTH_BUFFER_STRING         L"Unified back/depth buffer"
+#define OGL_SLI_CFR_MODE_STRING                    L"Set CFR mode"
 #define OGL_SLI_MULTICAST_STRING                   L"Enable NV_gpu_multicast extension"
 #define OGL_THREAD_CONTROL_STRING                  L"Threaded optimization"
 #define OGL_TMON_LEVEL_STRING                      L"Event Log Tmon Severity Threshold"
@@ -75,6 +75,7 @@
 #define APPLICATION_PROFILE_NOTIFICATION_TIMEOUT_STRING L"Application Profile Notification Popup Timeout"
 #define APPLICATION_STEAM_ID_STRING                L"Steam Application ID"
 #define BATTERY_BOOST_STRING                       L"Battery Boost"
+#define BATTERY_BOOST_APP_FPS_STRING               L"Battery Boost Application FPS"
 #define CPL_HIDDEN_PROFILE_STRING                  L"Do not display this profile in the Control Panel"
 #define CUDA_EXCLUDED_GPUS_STRING                  L"List of Universal GPU ids"
 #define D3DOGL_GPU_MAX_POWER_STRING                L"Maximum GPU Power"
@@ -117,7 +118,7 @@
 #define WKS_MEMORY_ALLOCATION_POLICY_STRING        L"Memory Allocation Policy"
 #define WKS_STEREO_DONGLE_SUPPORT_STRING           L"Stereo - Dongle Support"
 #define WKS_STEREO_SUPPORT_STRING                  L"Stereo - Enable"
-#define WKS_STEREO_SWAP_MODE_STRING                L"Stereo – swap mode"
+#define WKS_STEREO_SWAP_MODE_STRING                L"Stereo - swap mode"
 #define AO_MODE_STRING                             L"Ambient Occlusion"
 #define AO_MODE_ACTIVE_STRING                      L"NVIDIA Predefined Ambient Occlusion Usage"
 #define AUTO_LODBIASADJUST_STRING                  L"Texture filtering - Driver Controlled LOD Bias"
@@ -125,8 +126,6 @@
 #define ICAFE_LOGO_CONFIG_STRING                   L"ICafe Settings"
 #define LODBIASADJUST_STRING                       L"Texture filtering - LOD Bias"
 #define MAXWELL_B_SAMPLE_INTERLEAVE_STRING         L"Enable sample interleaving (MFAA)"
-#define NLS_ALLOW_STRING                           L"NVIDIA Predefined Nonlinear Scale Usage"
-#define NLS_ENABLE_STRING                          L"Enable Nonlinear Scale"
 #define PRERENDERLIMIT_STRING                      L"Maximum pre-rendered frames"
 #define PS_SHADERDISKCACHE_STRING                  L"Shader Cache"
 #define PS_TEXFILTER_ANISO_OPTS2_STRING            L"Texture filtering - Anisotropic sample optimization"
@@ -134,6 +133,7 @@
 #define PS_TEXFILTER_DISABLE_TRILIN_SLOPE_STRING   L"Texture filtering - Trilinear optimization"
 #define PS_TEXFILTER_NO_NEG_LODBIAS_STRING         L"Texture filtering - Negative LOD bias"
 #define QUALITY_ENHANCEMENTS_STRING                L"Texture filtering - Quality"
+#define QUALITY_ENHANCEMENT_SUBSTITUTION_STRING    L"Texture filtering - Quality Substitution"
 #define REFRESH_RATE_OVERRIDE_STRING               L"Preferred refresh rate"
 #define SET_POWER_THROTTLE_FOR_PCIe_COMPLIANCE_STRING L"PowerThrottle"
 #define SET_VAB_DATA_STRING                        L"VAB Default Data"
@@ -152,11 +152,11 @@ enum ESetting {
     OGL_FORCE_STEREO_ID                           = 0x204D9A0C,
     OGL_IMPLICIT_GPU_AFFINITY_ID                  = 0x20D0F3E6,
     OGL_MAX_FRAMES_ALLOWED_ID                     = 0x208E55E3,
-    OGL_MULTIMON_ID                               = 0x200AEBFC,
     OGL_OVERLAY_PIXEL_TYPE_ID                     = 0x209AE66F,
     OGL_OVERLAY_SUPPORT_ID                        = 0x206C28C4,
     OGL_QUALITY_ENHANCEMENTS_ID                   = 0x20797D6C,
     OGL_SINGLE_BACKDEPTH_BUFFER_ID                = 0x20A29055,
+    OGL_SLI_CFR_MODE_ID                           = 0x20343843,
     OGL_SLI_MULTICAST_ID                          = 0x2092D3BE,
     OGL_THREAD_CONTROL_ID                         = 0x20C1221E,
     OGL_TMON_LEVEL_ID                             = 0x202888C1,
@@ -176,6 +176,7 @@ enum ESetting {
     APPLICATION_PROFILE_NOTIFICATION_TIMEOUT_ID   = 0x104554B6,
     APPLICATION_STEAM_ID_ID                       = 0x107CDDBC,
     BATTERY_BOOST_ID                              = 0x10115C89,
+    BATTERY_BOOST_APP_FPS_ID                      = 0x10115C8C,
     CPL_HIDDEN_PROFILE_ID                         = 0x106D5CFF,
     CUDA_EXCLUDED_GPUS_ID                         = 0x10354FF8,
     D3DOGL_GPU_MAX_POWER_ID                       = 0x10D1EF29,
@@ -226,8 +227,6 @@ enum ESetting {
     ICAFE_LOGO_CONFIG_ID                          = 0x00DB1337,
     LODBIASADJUST_ID                              = 0x00738E8F,
     MAXWELL_B_SAMPLE_INTERLEAVE_ID                = 0x0098C1AC,
-    NLS_ALLOW_ID                                  = 0x00041806,
-    NLS_ENABLE_ID                                 = 0x00120618,
     PRERENDERLIMIT_ID                             = 0x007BA09E,
     PS_SHADERDISKCACHE_ID                         = 0x00198FFF,
     PS_TEXFILTER_ANISO_OPTS2_ID                   = 0x00E73211,
@@ -235,6 +234,7 @@ enum ESetting {
     PS_TEXFILTER_DISABLE_TRILIN_SLOPE_ID          = 0x002ECAF2,
     PS_TEXFILTER_NO_NEG_LODBIAS_ID                = 0x0019BB68,
     QUALITY_ENHANCEMENTS_ID                       = 0x00CE2691,
+    QUALITY_ENHANCEMENT_SUBSTITUTION_ID           = 0x00CE2692,
     REFRESH_RATE_OVERRIDE_ID                      = 0x0064B541,
     SET_POWER_THROTTLE_FOR_PCIe_COMPLIANCE_ID     = 0x00AE785C,
     SET_VAB_DATA_ID                               = 0x00AB8687,
@@ -319,19 +319,6 @@ enum EValues_OGL_FORCE_STEREO {
 #define    OGL_IMPLICIT_GPU_AFFINITY_NUM_VALUES 1
 #define    OGL_IMPLICIT_GPU_AFFINITY_DEFAULT OGL_IMPLICIT_GPU_AFFINITY_AUTOSELECT
 
-enum EValues_OGL_MULTIMON {
-    OGL_MULTIMON_SINGLE_MONITOR                          = 0,
-    OGL_MULTIMON_COMPATIBILITY_LCD                       = 1,
-    OGL_MULTIMON_COMPATIBILITY_GCD                       = 2,
-    OGL_MULTIMON_PERFORMANCE_LCD                         = 3,
-    OGL_MULTIMON_PERFORMANCE_GCD                         = 4,
-    OGL_MULTIMON_EXTENDED_SINGLE_MONITOR                 = 5,
-    OGL_MULTIMON_PERFORMANCE_QUADRO                      = 6,
-    OGL_MULTIMON_MULTIMON_BUFFER                         = 7,
-    OGL_MULTIMON_NUM_VALUES = 8,
-    OGL_MULTIMON_DEFAULT = OGL_MULTIMON_PERFORMANCE_LCD
-};
-
 enum EValues_OGL_OVERLAY_PIXEL_TYPE {
     OGL_OVERLAY_PIXEL_TYPE_NONE                          = 0x0,
     OGL_OVERLAY_PIXEL_TYPE_CI                            = 0x1,
@@ -350,7 +337,7 @@ enum EValues_OGL_OVERLAY_SUPPORT {
 };
 
 enum EValues_OGL_QUALITY_ENHANCEMENTS {
-    OGL_QUALITY_ENHANCEMENTS_HQUAL                       = -10,
+    OGL_QUALITY_ENHANCEMENTS_HQUAL                       = 0xfffffff6,
     OGL_QUALITY_ENHANCEMENTS_QUAL                        = 0,
     OGL_QUALITY_ENHANCEMENTS_PERF                        = 10,
     OGL_QUALITY_ENHANCEMENTS_HPERF                       = 20,
@@ -366,11 +353,20 @@ enum EValues_OGL_SINGLE_BACKDEPTH_BUFFER {
     OGL_SINGLE_BACKDEPTH_BUFFER_DEFAULT = OGL_SINGLE_BACKDEPTH_BUFFER_DISABLE
 };
 
+enum EValues_OGL_SLI_CFR_MODE {
+    OGL_SLI_CFR_MODE_DISABLE                             = 0x00,
+    OGL_SLI_CFR_MODE_ENABLE                              = 0x01,
+    OGL_SLI_CFR_MODE_CLASSIC_SFR                         = 0x02,
+    OGL_SLI_CFR_MODE_NUM_VALUES = 3,
+    OGL_SLI_CFR_MODE_DEFAULT = OGL_SLI_CFR_MODE_DISABLE
+};
+
 enum EValues_OGL_SLI_MULTICAST {
     OGL_SLI_MULTICAST_DISABLE                            = 0x00,
     OGL_SLI_MULTICAST_ENABLE                             = 0x01,
     OGL_SLI_MULTICAST_FORCE_DISABLE                      = 0x02,
-    OGL_SLI_MULTICAST_NUM_VALUES = 3,
+    OGL_SLI_MULTICAST_ALLOW_MOSAIC                       = 0x04,
+    OGL_SLI_MULTICAST_NUM_VALUES = 4,
     OGL_SLI_MULTICAST_DEFAULT = OGL_SLI_MULTICAST_DISABLE
 };
 
@@ -599,6 +595,14 @@ enum EValues_BATTERY_BOOST {
     BATTERY_BOOST_DEFAULT = BATTERY_BOOST_DISABLED
 };
 
+enum EValues_BATTERY_BOOST_APP_FPS {
+    BATTERY_BOOST_APP_FPS_MIN                            = 0x00000001,
+    BATTERY_BOOST_APP_FPS_MAX                            = 0x000000ff,
+    BATTERY_BOOST_APP_FPS_NO_OVERRIDE                    = 0x00000000,
+    BATTERY_BOOST_APP_FPS_NUM_VALUES = 3,
+    BATTERY_BOOST_APP_FPS_DEFAULT = BATTERY_BOOST_APP_FPS_NO_OVERRIDE
+};
+
 enum EValues_CPL_HIDDEN_PROFILE {
     CPL_HIDDEN_PROFILE_DISABLED                          = 0,
     CPL_HIDDEN_PROFILE_ENABLED                           = 1,
@@ -696,19 +700,21 @@ enum EValues_PS_FRAMERATE_LIMITER {
     PS_FRAMERATE_LIMITER_FPS_30                          = 0x0000001e,
     PS_FRAMERATE_LIMITER_FPS_40                          = 0x00000028,
     PS_FRAMERATE_LIMITER_FPSMASK                         = 0x000000ff,
-    PS_FRAMERATE_LIMITER_FRL2                            = 0x00010000,
+    PS_FRAMERATE_LIMITER_NO_ALIGN                        = 0x00004000,
+    PS_FRAMERATE_LIMITER_BB_QM                           = 0x00008000,
     PS_FRAMERATE_LIMITER_LOWER_FPS_TO_ALIGN              = 0x00020000,
     PS_FRAMERATE_LIMITER_FORCE_VSYNC_OFF                 = 0x00040000,
     PS_FRAMERATE_LIMITER_GPS_WEB                         = 0x00080000,
     PS_FRAMERATE_LIMITER_DISALLOWED                      = 0x00200000,
     PS_FRAMERATE_LIMITER_USE_CPU_WAIT                    = 0x00400000,
+    PS_FRAMERATE_LIMITER_NO_LAG_OFFSET                   = 0x00800000,
     PS_FRAMERATE_LIMITER_ACCURATE                        = 0x10000000,
     PS_FRAMERATE_LIMITER_ALLOW_WINDOWED                  = 0x20000000,
     PS_FRAMERATE_LIMITER_FORCEON                         = 0x40000000,
     PS_FRAMERATE_LIMITER_ENABLED                         = 0x80000000,
     PS_FRAMERATE_LIMITER_OPENGL_REMOTE_DESKTOP           = 0xe000003c,
-    PS_FRAMERATE_LIMITER_MASK                            = 0xf06f00ff,
-    PS_FRAMERATE_LIMITER_NUM_VALUES = 17,
+    PS_FRAMERATE_LIMITER_MASK                            = 0xf0eec0ff,
+    PS_FRAMERATE_LIMITER_NUM_VALUES = 19,
     PS_FRAMERATE_LIMITER_DEFAULT = PS_FRAMERATE_LIMITER_DISABLED
 };
 
@@ -716,14 +722,13 @@ enum EValues_PS_FRAMERATE_LIMITER_2_CONTROL {
     PS_FRAMERATE_LIMITER_2_CONTROL_DELAY_CE              = 0x00000000,
     PS_FRAMERATE_LIMITER_2_CONTROL_DELAY_3D              = 0x00000001,
     PS_FRAMERATE_LIMITER_2_CONTROL_AVOID_NOOP            = 0x00000002,
-    PS_FRAMERATE_LIMITER_2_CONTROL_DELAY_FLIP_BY_FLIPMETERING = 0x00000004,
     PS_FRAMERATE_LIMITER_2_CONTROL_DELAY_CE_PRESENT_3D   = 0x00000008,
     PS_FRAMERATE_LIMITER_2_CONTROL_ALLOW_ALL_MAXWELL     = 0x00000010,
     PS_FRAMERATE_LIMITER_2_CONTROL_ALLOW_ALL             = 0x00000020,
     PS_FRAMERATE_LIMITER_2_CONTROL_FORCE_OFF             = 0x00000040,
     PS_FRAMERATE_LIMITER_2_CONTROL_ENABLE_VCE            = 0x00000080,
     PS_FRAMERATE_LIMITER_2_CONTROL_DEFAULT_FOR_GM10X     = 0x00000011,
-    PS_FRAMERATE_LIMITER_2_CONTROL_NUM_VALUES = 10,
+    PS_FRAMERATE_LIMITER_2_CONTROL_NUM_VALUES = 9,
     PS_FRAMERATE_LIMITER_2_CONTROL_DEFAULT = 0x00000088
 };
 
@@ -752,14 +757,18 @@ enum EValues_PS_FRAMERATE_MONITOR_CTRL {
     PS_FRAMERATE_MONITOR_CTRL_ENABLE_ON_VSYNC            = 0x00800000,
     PS_FRAMERATE_MONITOR_CTRL_VSYNC_OFFSET_MASK          = 0x0000F000,
     PS_FRAMERATE_MONITOR_CTRL_VSYNC_OFFSET_SHIFT         = 12,
+    PS_FRAMERATE_MONITOR_CTRL_FRL_OFFSET_MASK            = 0x000F0000,
+    PS_FRAMERATE_MONITOR_CTRL_FRL_OFFSET_SHIFT           = 16,
     PS_FRAMERATE_MONITOR_CTRL_FPS_USE_FRL                = 0x00000000,
     PS_FRAMERATE_MONITOR_CTRL_FPS_30                     = 0x1E000000,
     PS_FRAMERATE_MONITOR_CTRL_FPS_60                     = 0x3C000000,
     PS_FRAMERATE_MONITOR_CTRL_FPS_MASK                   = 0xFF000000,
     PS_FRAMERATE_MONITOR_CTRL_FPS_SHIFT                  = 24,
     PS_FRAMERATE_MONITOR_CTRL_OPTIMAL_SETTING            = 0x00000364,
+    PS_FRAMERATE_MONITOR_CTRL_OPTIMAL_SETTING_V2         = 0x00080364,
     PS_FRAMERATE_MONITOR_CTRL_VSYNC_OPTIMAL_SETTING      = 0x0080f364,
-    PS_FRAMERATE_MONITOR_CTRL_NUM_VALUES = 15,
+    PS_FRAMERATE_MONITOR_CTRL_VSYNC_OPTIMAL_SETTING_V2   = 0x0088f364,
+    PS_FRAMERATE_MONITOR_CTRL_NUM_VALUES = 19,
     PS_FRAMERATE_MONITOR_CTRL_DEFAULT = PS_FRAMERATE_MONITOR_CTRL_DISABLED
 };
 
@@ -814,8 +823,11 @@ enum EValues_SHIM_RENDERING_OPTIONS {
     SHIM_RENDERING_OPTIONS_REGISTER_PROCESS_ENABLE_GOLD  = 0x00100000,
     SHIM_RENDERING_OPTIONS_HANDLE_WINDOWED_MODE_PERF_OPT = 0x00200000,
     SHIM_RENDERING_OPTIONS_HANDLE_WIN7_ASYNC_RUNTIME_BUG = 0x00400000,
-    SHIM_RENDERING_OPTIONS_NUM_VALUES = 24,
-    SHIM_RENDERING_OPTIONS_DEFAULT = SHIM_RENDERING_OPTIONS_DEFAULT_RENDERING_MODE
+    SHIM_RENDERING_OPTIONS_EXPLICIT_ADAPTER_OPTED_BY_APP = 0x00800000,
+    SHIM_RENDERING_OPTIONS_ALLOW_DYNAMIC_DISPLAY_MUX_SWITCH = 0x01000000,
+    SHIM_RENDERING_OPTIONS_DISALLOW_DYNAMIC_DISPLAY_MUX_SWITCH = 0x02000000,
+    SHIM_RENDERING_OPTIONS_NUM_VALUES = 27,
+    SHIM_RENDERING_OPTIONS_DEFAULT = SHIM_RENDERING_OPTIONS_DISALLOW_DYNAMIC_DISPLAY_MUX_SWITCH
 };
 
 enum EValues_SLI_GPU_COUNT {
@@ -991,9 +1003,10 @@ enum EValues_WKS_API_STEREO_MODE {
     WKS_API_STEREO_MODE_AUTODETECT_PASSIVE_MODE          = 19,
     WKS_API_STEREO_MODE_AEGIS_DT_FRAME_SEQUENTIAL        = 20,
     WKS_API_STEREO_MODE_OEM_EMITTER_FRAME_SEQUENTIAL     = 21,
+    WKS_API_STEREO_MODE_DP_INBAND                        = 22,
     WKS_API_STEREO_MODE_USE_HW_DEFAULT                   = 0xffffffff,
     WKS_API_STEREO_MODE_DEFAULT_GL                       = 3,
-    WKS_API_STEREO_MODE_NUM_VALUES = 24,
+    WKS_API_STEREO_MODE_NUM_VALUES = 25,
     WKS_API_STEREO_MODE_DEFAULT = WKS_API_STEREO_MODE_SHUTTER_GLASSES
 };
 
@@ -1010,7 +1023,7 @@ enum EValues_WKS_STEREO_DONGLE_SUPPORT {
     WKS_STEREO_DONGLE_SUPPORT_DAC                        = 1,
     WKS_STEREO_DONGLE_SUPPORT_DLP                        = 2,
     WKS_STEREO_DONGLE_SUPPORT_NUM_VALUES = 3,
-    WKS_STEREO_DONGLE_SUPPORT_DEFAULT = WKS_STEREO_DONGLE_SUPPORT_OFF
+    WKS_STEREO_DONGLE_SUPPORT_DEFAULT = WKS_STEREO_DONGLE_SUPPORT_DAC
 };
 
 enum EValues_WKS_STEREO_SUPPORT {
@@ -1074,20 +1087,6 @@ enum EValues_MAXWELL_B_SAMPLE_INTERLEAVE {
     MAXWELL_B_SAMPLE_INTERLEAVE_DEFAULT = MAXWELL_B_SAMPLE_INTERLEAVE_OFF
 };
 
-enum EValues_NLS_ALLOW {
-    NLS_ALLOW_DISALLOWED                                 = 0,
-    NLS_ALLOW_ALLOWED                                    = 1,
-    NLS_ALLOW_NUM_VALUES = 2,
-    NLS_ALLOW_DEFAULT = NLS_ALLOW_ALLOWED
-};
-
-enum EValues_NLS_ENABLE {
-    NLS_ENABLE_OFF                                       = 0,
-    NLS_ENABLE_ON                                        = 1,
-    NLS_ENABLE_NUM_VALUES = 2,
-    NLS_ENABLE_DEFAULT = NLS_ENABLE_OFF
-};
-
 enum EValues_PRERENDERLIMIT {
     PRERENDERLIMIT_MIN                                   = 0x00,
     PRERENDERLIMIT_MAX                                   = 0xff,
@@ -1138,6 +1137,13 @@ enum EValues_QUALITY_ENHANCEMENTS {
     QUALITY_ENHANCEMENTS_HIGHPERFORMANCE                 = 0x00000014,
     QUALITY_ENHANCEMENTS_NUM_VALUES = 4,
     QUALITY_ENHANCEMENTS_DEFAULT = QUALITY_ENHANCEMENTS_QUALITY
+};
+
+enum EValues_QUALITY_ENHANCEMENT_SUBSTITUTION {
+    QUALITY_ENHANCEMENT_SUBSTITUTION_NO_SUBSTITUTION     = 0x00000000,
+    QUALITY_ENHANCEMENT_SUBSTITUTION_HIGHQUALITY_BECOMES_QUALITY = 0x00000001,
+    QUALITY_ENHANCEMENT_SUBSTITUTION_NUM_VALUES = 2,
+    QUALITY_ENHANCEMENT_SUBSTITUTION_DEFAULT = QUALITY_ENHANCEMENT_SUBSTITUTION_NO_SUBSTITUTION
 };
 
 enum EValues_REFRESH_RATE_OVERRIDE {

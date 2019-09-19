@@ -60,12 +60,43 @@
  *		- Outputs information about the packet file, such as the MB amount of data recorded, per net connection channel, and data types
  *		- @todo #JohnB: Only implement, if deciding to actually capture/track this kind of data
  */
-UCLASS()
+UCLASS(config=Editor)
 class UOodleTrainerCommandlet : public UCommandlet
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 public:
+	/** Whether or not compression testing should be performed after dictionary generation (uses up some of the packets) */
+	UPROPERTY(config)
+	bool bCompressionTest;
+
+	/** Size of the hash table to use for the dictionary */
+	UPROPERTY(config)
+	int32 HashTableSize;
+
+	/** Size of the dictionary to be generated */
+	UPROPERTY(config)
+	int32 DictionarySize;
+
+	/** The number of random packet-selection trials to run, when generating the dictionary, to try and optimize the dictionary */
+	UPROPERTY(config)
+	int32 DictionaryTrials;
+
+	/** The randomness, in percent, of random packet-selection trials */
+	UPROPERTY(config)
+	int32 TrialRandomness;
+
+	/** The number of generations of random packet-selection trials  */
+	UPROPERTY(config)
+	int32 TrialGenerations;
+
+	/** Whether or not random-trials have been disabled */
+	UPROPERTY(config)
+	bool bNoTrials;
+
+public:
+	UOodleTrainerCommandlet(const FObjectInitializer& ObjectInitializer);
+
 	virtual int32 Main(const FString& Params) override;
 
 #if USE_OODLE_TRAINER_COMMANDLET
@@ -227,11 +258,11 @@ public:
 	FOodleDictionaryGenerator()
 		: OutputDictionaryFile()
 		, bCompressionTest(false)
-		, HashTableSize(19)
-		, DictionarySize(4 * 1024 * 1024)
-		, DictionaryTrials(3)
-		, TrialRandomness(200)
-		, TrialGenerations(1)
+		, HashTableSize(0)
+		, DictionarySize(0)
+		, DictionaryTrials(0)
+		, TrialRandomness(0)
+		, TrialGenerations(0)
 		, bNoTrials(false)
 		, MergeMap()
 		, DictionaryPacketBytes(0)

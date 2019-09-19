@@ -16,7 +16,7 @@
 #include "Kismet/KismetArrayLibrary.h" // for Array_Get()
 #include "SPinTypeSelector.h"
 #include "ScopedTransaction.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h" // for FMenuBuilder
+#include "ToolMenus.h" // for UToolMenu
 #include "BlueprintActionFilter.h"
 #include "Widgets/Notifications/SNotificationList.h" // for FNotificationInfo
 #include "Framework/Notifications/NotificationManager.h"
@@ -175,9 +175,9 @@ TSharedPtr<SWidget> UK2Node_GetArrayItem::CreateNodeImage() const
 	return SPinTypeSelector::ConstructPinTypeImage(GetTargetArrayPin());
 }
 
-void UK2Node_GetArrayItem::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UK2Node_GetArrayItem::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	Super::GetContextMenuActions(Context);
+	Super::GetNodeContextMenuActions(Menu, Context);
 
 	const bool bReturnIsRef = IsSetToReturnRef();
 	FText ToggleTooltip = K2Node_GetArrayItem_Impl::GetToggleTooltip(bReturnIsRef);
@@ -189,15 +189,17 @@ void UK2Node_GetArrayItem::GetContextMenuActions(const FGraphNodeContextMenuBuil
 		ToggleTooltip = FText::Format(LOCTEXT("CannotToggleTooltip", "Cannot return by ref using '{0}' pins"), UEdGraphSchema_K2::TypeToText(OutputPin->PinType));
 	}
 
-	Context.MenuBuilder->BeginSection("Array", LOCTEXT("ArrayHeader", "Array Get Node"));
-	Context.MenuBuilder->AddMenuEntry(
-		bReturnIsRef ? LOCTEXT("ChangeNodeToRef", "Change to return a copy") : LOCTEXT("ChangeNodeToVal", "Change to return a reference"),
-		ToggleTooltip,
-		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateUObject(const_cast<UK2Node_GetArrayItem*>(this), &UK2Node_GetArrayItem::ToggleReturnPin),
-			FCanExecuteAction::CreateLambda([bCannotReturnRef]()->bool { return !bCannotReturnRef; }))
+	{
+		FToolMenuSection& Section = Menu->AddSection("Array", LOCTEXT("ArrayHeader", "Array Get Node"));
+		Section.AddMenuEntry(
+			"ToggleReturnPin",
+			bReturnIsRef ? LOCTEXT("ChangeNodeToRef", "Change to return a copy") : LOCTEXT("ChangeNodeToVal", "Change to return a reference"),
+			ToggleTooltip,
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateUObject(const_cast<UK2Node_GetArrayItem*>(this), &UK2Node_GetArrayItem::ToggleReturnPin),
+				FCanExecuteAction::CreateLambda([bCannotReturnRef]()->bool { return !bCannotReturnRef; }))
 		);
-	Context.MenuBuilder->EndSection();
+	}
 }
 
 FSlateIcon UK2Node_GetArrayItem::GetIconAndTint(FLinearColor& OutColor) const

@@ -7,6 +7,7 @@
 #include "SubmixEffects/AudioMixerSubmixEffectDynamicsProcessor.h"
 #include "Sound/SoundEffectSource.h"
 #include "SampleBuffer.h"
+#include "Sound/SoundCue.h"
 #include "DSP/SpectrumAnalyzer.h"
 #include "AudioMixerBlueprintLibrary.generated.h"
 
@@ -56,6 +57,16 @@ enum class EFFTWindowType : uint8
 
 	// Mainlobe width of -3 dB and sidelobe attenuation of ~-60db. Tricky for COLA.
 	Blackman
+};
+
+UENUM(BlueprintType)
+enum class EAudioSpectrumType : uint8
+{
+	// Spectrum frequency values are equal to magnitude of frequency.
+	MagnitudeSpectrum,
+
+	// Spectrum frequency values are equal to magnitude squared.
+	PowerSpectrum
 };
 
 /** 
@@ -134,6 +145,10 @@ public:
 	/** Begin loading a sound into the cache so that it can be played immediately. */
 	UFUNCTION(BlueprintCallable, Category = "Sound")
 	static void PrimeSoundForPlayback(USoundWave* SoundWave, const FOnSoundLoadComplete OnLoadCompletion);
+
+	/** Begin loading any sounds referenced by a sound cue into the cache so that it can be played immediately. */
+	UFUNCTION(BlueprintCallable, Category = "Sound")
+	static void PrimeSoundCueForPlayback(USoundCue* SoundCue);
 
 	/** Trim memory used by the audio cache. Returns the number of megabytes freed. */
 	UFUNCTION(BlueprintCallable, Category = "Sound")

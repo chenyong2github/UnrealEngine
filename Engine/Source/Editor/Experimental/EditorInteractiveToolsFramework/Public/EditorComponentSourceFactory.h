@@ -4,51 +4,22 @@
 
 #include "CoreMinimal.h"
 #include "ComponentSourceInterfaces.h"
+#include "Components/PrimitiveComponent.h"
+#include "Components/StaticMeshComponent.h"
 
-
-
-
-/**
- * Component Source Factory for use in the Editor (ie inside FEdMode, etc)
- */
-class EDITORINTERACTIVETOOLSFRAMEWORK_API FEditorComponentSourceFactory : public IComponentSourceFactory
+class EDITORINTERACTIVETOOLSFRAMEWORK_API FStaticMeshComponentTargetFactory : public FComponentTargetFactory
 {
 public:
-	virtual ~FEditorComponentSourceFactory() {}
-
-	virtual TUniquePtr<IMeshDescriptionSource> MakeMeshDescriptionSource(UActorComponent* Component);
+	bool CanBuild( UActorComponent* Candidate ) override;
+	TUniquePtr<FPrimitiveComponentTarget> Build( UPrimitiveComponent* PrimitiveComponent ) override;
 };
 
-
-
-
-
-class UStaticMeshComponent;
-
-/**
- * This MeshDescriptionSource provides a specific LOD from a StaticMeshComponent
- */
-class EDITORINTERACTIVETOOLSFRAMEWORK_API FStaticMeshComponentMeshDescriptionSource : public IMeshDescriptionSource
+class EDITORINTERACTIVETOOLSFRAMEWORK_API FStaticMeshComponentTarget : public FPrimitiveComponentTarget
 {
 public:
-	UStaticMeshComponent* Component;
-	int LODIndex;
-
-	FStaticMeshComponentMeshDescriptionSource(
-		UStaticMeshComponent* ComponentIn,
-		int LODIndex = 0);
-	virtual ~FStaticMeshComponentMeshDescriptionSource() {}
-
-	virtual AActor* GetOwnerActor() const override;
-	virtual UActorComponent* GetOwnerComponent() const override;
-	virtual FMeshDescription* GetMeshDescription() const override;
-	virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
-	virtual FTransform GetWorldTransform() const override;
-	virtual bool HitTest(const FRay& WorldRay, FHitResult& OutHit) const override;
-
-	virtual bool IsReadOnly() const override;
-
-	virtual void SetOwnerVisibility(bool bVisible) const override;
-	virtual void CommitInPlaceModification(const TFunction<void(FMeshDescription*)>& ModifyFunction) override;
+	FStaticMeshComponentTarget( UPrimitiveComponent* Component )
+		: FPrimitiveComponentTarget( Cast<UStaticMeshComponent>(Component) ){}
+	FMeshDescription* GetMesh() override;
+	void CommitMesh( const FCommitter& ) override;
+	static const int LODIndex{0};
 };
-

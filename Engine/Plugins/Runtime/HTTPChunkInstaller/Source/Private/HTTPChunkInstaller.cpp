@@ -3,6 +3,9 @@
 #include "HTTPChunkInstaller.h"
 #include "HTTPChunkInstallerLog.h"
 #include "ChunkInstall.h"
+#include "Interfaces/IBuildManifest.h"
+#include "BuildPatchSettings.h"
+#include "BuildPatchServicesSingleton.h"
 #include "Templates/UniquePtr.h"
 #include "LocalTitleFile.h"
 #include "Misc/SecureHash.h"
@@ -1343,10 +1346,18 @@ void FHTTPChunkInstall::OSSReadFileComplete(bool bSuccess, const FString& Filena
 	InstallerState = bSuccess ? ChunkInstallState::ReadComplete : ChunkInstallState::EnterOfflineMode;
 }
 
-void FHTTPChunkInstall::OSSInstallComplete(bool bSuccess, IBuildManifestRef BuildManifest)
+void FHTTPChunkInstall::OSSInstallComplete(const IBuildInstallerRef& Installer)
 {
-	if (bSuccess)
+	if (Installer->CompletedSuccessfully())
 	{
+		if (!ensure(Installer->GetConfiguration().InstallerActions.Num() > 0))
+		{
+			EndInstall();
+			return;
+		}
+
+		IBuildManifestRef BuildManifest = Installer->GetConfiguration().InstallerActions[0].GetInstallManifest();
+
 		// Completed OK. Write the manifest. If the chunk doesn't exist, copy to the content dir.
 		// Otherwise, writing the manifest will prompt a copy on next start of the game
 		FString ManifestName;
@@ -1364,7 +1375,7 @@ void FHTTPChunkInstall::OSSInstallComplete(bool bSuccess, IBuildManifestRef Buil
 		FString HoldingManifestPath = FPaths::Combine(*HoldingDir, *ChunkFdrName, *ManifestName);
 		FString SrcDir = FPaths::Combine(*InstallDir, *ChunkFdrName);
 		FString DestDir = FPaths::Combine(*ContentDir, *ChunkFdrName);
-		bool bCopyDir = InstallDir != ContentDir; 
+		bool bCopyDir = InstallDir != ContentDir;
 		TArray<IBuildManifestPtr> FoundManifests;
 		InstalledManifests.MultiFind(ChunkID, FoundManifests);
 		for (const auto& It : FoundManifests)
@@ -1553,10 +1564,18 @@ void FHTTPChunkInstall::BeginChunkInstall(uint32 ChunkID,IBuildManifestPtr Chunk
 	{
 		PlatformFile.CreateDirectoryTree(*ChunkInstallDir);
 	}
-	BPSModule->SetCloudDirectory(CloudDir + TEXT("/") + CloudDirectory);
-	BPSModule->SetStagingDirectory(ChunkStageDir);
+
+	TArray<BuildPatchServices::FInstallerAction> InstallerActions;
+	InstallerActions.Add(BuildPatchServices::FInstallerAction::MakeInstallOrUpdate(PrevInstallChunkManifest, ChunkManifest.ToSharedRef(), TSet<FString>()));
+
+	BuildPatchServices::FBuildInstallerConfiguration Configuration(MoveTemp(InstallerActions));
+	Configuration.StagingDirectory = ChunkStageDir;
+	Configuration.CloudDirectories = { CloudDir + TEXT("/") + CloudDirectory };
+	Configuration.InstallDirectory = ChunkInstallDir;
+
 	UE_LOG(LogHTTPChunkInstaller,Log,TEXT("Starting Chunk %d install"),InstallingChunkID);
-	InstallService = BPSModule->StartBuildInstall(PrevInstallChunkManifest,ChunkManifest,ChunkInstallDir,FBuildPatchBoolManifestDelegate::CreateRaw(this,&FHTTPChunkInstall::OSSInstallComplete));
+	InstallService = BPSModule->CreateBuildInstaller(Configuration, FBuildPatchInstallerDelegate::CreateRaw(this, &FHTTPChunkInstall::OSSInstallComplete));
+	InstallService->StartInstallation();
 	if(InstallSpeed == EChunkInstallSpeed::Paused && !InstallService->IsPaused())
 	{
 		InstallService->TogglePauseInstall();

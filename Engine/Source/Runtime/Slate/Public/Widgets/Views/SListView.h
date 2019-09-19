@@ -1830,8 +1830,6 @@ protected:
 
 		if (OnIsSelectableOrNavigable.IsBound())
 		{
-			const int32 PendingItemIndex = ItemsSource->Find(ItemToSelect);
-
 			NullableItemType LastSelectedItem = nullptr;
 			if (SelectedItems.Num() == 1)
 			{
@@ -1841,6 +1839,7 @@ protected:
 			bool bSelectNextItem = true;
 			while (!OnIsSelectableOrNavigable.Execute(ItemToSelect))
 			{
+				const int32 PendingItemIndex = ItemsSource->Find(ItemToSelect);
 				if (TListTypeTraits<ItemType>::IsPtrValid(LastSelectedItem) && PendingItemIndex > 0)
 				{
 					ItemType NonNullLastSelectedItem = TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(LastSelectedItem);

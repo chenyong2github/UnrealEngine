@@ -9,7 +9,7 @@
 #include "Curves/RichCurve.h"
 #include "Serializers/MovieSceneTransformSerialization.h"
 #include "Sections/MovieScene3DTransformSection.h"
-#include "TakesCoreFwd.h"
+#include "TakesCoreLog.h"
 #include "MovieScene3DTransformTrackRecorder.generated.h"
 
 class FMovieScene3DTransformTrackRecorder;

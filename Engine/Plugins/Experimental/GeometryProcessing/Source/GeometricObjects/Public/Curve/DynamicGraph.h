@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
  
+#pragma once
+
 #include "CoreTypes.h"
 
 #include "VectorTypes.h"
@@ -12,8 +14,6 @@
 #include "Util/RefCountVector.h"
 #include "Util/SmallListSet.h"
 #include "VectorUtil.h"
-
-#pragma once
 
 class FDynamicGraph
 {

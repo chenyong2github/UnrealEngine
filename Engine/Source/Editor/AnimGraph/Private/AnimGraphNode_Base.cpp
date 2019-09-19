@@ -12,10 +12,11 @@
 #include "AnimNodeEditModes.h"
 #include "AnimationGraph.h"
 #include "EditorModeManager.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "AnimationEditorUtils.h"
 #include "UObject/UnrealType.h"
 #include "Kismet2/CompilerResultsLog.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_Base"
 
@@ -128,7 +129,7 @@ void UAnimGraphNode_Base::JumpToDefinition() const
 {
 	if (UObject* HyperlinkTarget = GetJumpTargetForDoubleClick())
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(HyperlinkTarget);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(HyperlinkTarget);
 	}
 }
 

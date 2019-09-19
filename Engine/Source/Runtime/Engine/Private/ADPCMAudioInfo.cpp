@@ -90,8 +90,8 @@ void FADPCMAudioInfo::SeekToTimeInternal(const float InSeekTime)
 	{
 		CurrentCompressedBlockIndex = 0;
 		CurrentUncompressedBlockSampleIndex = 0;
-		CurrentChunkIndex = 0;
-		CurrentChunkBufferOffset = 0;
+		CurrentChunkIndex = FirstChunkSampleDataIndex;
+		CurrentChunkBufferOffset = FirstChunkSampleDataOffset;
 		TotalSamplesStreamed = 0;
 
 		bSeekPending = false;
@@ -140,8 +140,8 @@ void FADPCMAudioInfo::SeekToTimeInternal(const float InSeekTime)
 		if (Format == WAVE_FORMAT_ADPCM)
 		{
 			CurrentCompressedBlockIndex = TotalSamplesStreamed / SamplesPerBlock; // Compute the block index that where SeekTime resides.
-			CurrentChunkIndex = 0;
-			CurrentChunkBufferOffset = HeaderOffset;
+			CurrentChunkIndex = FirstChunkSampleDataIndex;
+			CurrentChunkBufferOffset = FirstChunkSampleDataOffset;
 
 			const int32 ChannelBlockSize = BlockSize * NumChannels;
 			for (uint32 BlockIndex = 0; BlockIndex < CurrentCompressedBlockIndex; ++BlockIndex)
@@ -157,8 +157,8 @@ void FADPCMAudioInfo::SeekToTimeInternal(const float InSeekTime)
 				
 				if (CurrentChunkIndex >= TotalStreamingChunks)
 				{
-					CurrentChunkIndex = 0;
-					CurrentChunkBufferOffset = 0;
+					CurrentChunkIndex = FirstChunkSampleDataIndex;
+					CurrentChunkBufferOffset = FirstChunkSampleDataOffset;
 					break;
 				}
 			}
@@ -178,8 +178,8 @@ void FADPCMAudioInfo::SeekToTimeInternal(const float InSeekTime)
 				
 				if (CurrentChunkIndex >= TotalStreamingChunks)
 				{
-					CurrentChunkIndex = 0;
-					CurrentChunkBufferOffset = 0;
+					CurrentChunkIndex = FirstChunkSampleDataIndex;
+					CurrentChunkBufferOffset = FirstChunkSampleDataOffset;
 					break;
 				}
 			}

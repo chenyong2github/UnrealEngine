@@ -15,6 +15,7 @@
 #include "Installer/ChunkStore.h"
 #include "Installer/ChunkReferenceTracker.h"
 #include "BuildPatchHash.h"
+#include "IBuildManifestSet.h"
 
 DECLARE_LOG_CATEGORY_CLASS(LogInstallChunkSource, Warning, All);
 
@@ -23,7 +24,7 @@ namespace BuildPatchServices
 	class FInstallChunkSource : public IInstallChunkSource
 	{
 	public:
-		FInstallChunkSource(FInstallSourceConfig InConfiguration, IFileSystem* FileSystem, IChunkStore* InChunkStore, IChunkReferenceTracker* InChunkReferenceTracker, IInstallerError* InInstallerError, IInstallChunkSourceStat* InInstallChunkSourceStat, const TMap<FString, FBuildPatchAppManifestRef>& InInstallationSources, const FBuildPatchAppManifestRef& InstallManifest);
+		FInstallChunkSource(FInstallSourceConfig InConfiguration, IFileSystem* FileSystem, IChunkStore* InChunkStore, IChunkReferenceTracker* InChunkReferenceTracker, IInstallerError* InInstallerError, IInstallChunkSourceStat* InInstallChunkSourceStat, const TMultiMap<FString, FBuildPatchAppManifestRef>& InInstallationSources, IBuildManifestSet* ManifestSet);
 		~FInstallChunkSource();
 
 		// IControllable interface begin.
@@ -75,7 +76,7 @@ namespace BuildPatchServices
 		TQueue<FGuid, EQueueMode::Mpsc> RepeatRequirementMessages;
 	};
 
-	FInstallChunkSource::FInstallChunkSource(FInstallSourceConfig InConfiguration, IFileSystem* InFileSystem, IChunkStore* InChunkStore, IChunkReferenceTracker* InChunkReferenceTracker, IInstallerError* InInstallerError, IInstallChunkSourceStat* InInstallChunkSourceStat, const TMap<FString, FBuildPatchAppManifestRef>& InInstallationSources, const FBuildPatchAppManifestRef& InstallManifest)
+	FInstallChunkSource::FInstallChunkSource(FInstallSourceConfig InConfiguration, IFileSystem* InFileSystem, IChunkStore* InChunkStore, IChunkReferenceTracker* InChunkReferenceTracker, IInstallerError* InInstallerError, IInstallChunkSourceStat* InInstallChunkSourceStat, const TMultiMap<FString, FBuildPatchAppManifestRef>& InInstallationSources, IBuildManifestSet* ManifestSet)
 		: Configuration(MoveTemp(InConfiguration))
 		, FileSystem(InFileSystem)
 		, ChunkStore(InChunkStore)
@@ -87,11 +88,11 @@ namespace BuildPatchServices
 		, UnavailableChunksCallback(nullptr)
 	{
 		// Cache faster lookup information.
-		TSet<FGuid> RequiredChunks;
-		InstallManifest->GetDataList(RequiredChunks);
+		TSet<FGuid> ReferencedChunks;
+		ManifestSet->GetReferencedChunks(ReferencedChunks);
 		for (const TPair<FString, FBuildPatchAppManifestRef>& Pair : InInstallationSources)
 		{
-			if (Pair.Value->EnumerateProducibleChunks(Pair.Key, RequiredChunks, AvailableInBuilds) > 0)
+			if (Pair.Value->EnumerateProducibleChunks(Pair.Key, ReferencedChunks, AvailableInBuilds) > 0)
 			{
 				InstallationSources.Add(Pair);
 			}
@@ -421,15 +422,15 @@ namespace BuildPatchServices
 		FSHA1::HashBuffer(ChunkData, ChunkSize, ShaHashCheck.Hash);
 		return ShaHashCheck;
 	}
-
-	IInstallChunkSource* FInstallChunkSourceFactory::Create(FInstallSourceConfig Configuration, IFileSystem* FileSystem, IChunkStore* ChunkStore, IChunkReferenceTracker* ChunkReferenceTracker, IInstallerError* InstallerError, IInstallChunkSourceStat* InstallChunkSourceStat, const TMap<FString, FBuildPatchAppManifestRef>& InstallationSources, const FBuildPatchAppManifestRef& InstallManifest)
+	
+	IInstallChunkSource* FInstallChunkSourceFactory::Create(FInstallSourceConfig Configuration, IFileSystem* FileSystem, IChunkStore* ChunkStore, IChunkReferenceTracker* ChunkReferenceTracker, IInstallerError* InstallerError, IInstallChunkSourceStat* InstallChunkSourceStat, const TMultiMap<FString, FBuildPatchAppManifestRef>& InstallationSources, IBuildManifestSet* ManifestSet)
 	{
 		check(FileSystem != nullptr);
 		check(ChunkStore != nullptr);
 		check(ChunkReferenceTracker != nullptr);
 		check(InstallerError != nullptr);
 		check(InstallChunkSourceStat != nullptr);
-		return new FInstallChunkSource(MoveTemp(Configuration), FileSystem, ChunkStore, ChunkReferenceTracker, InstallerError, InstallChunkSourceStat, InstallationSources, InstallManifest);
+		return new FInstallChunkSource(MoveTemp(Configuration), FileSystem, ChunkStore, ChunkReferenceTracker, InstallerError, InstallChunkSourceStat, InstallationSources, ManifestSet);
 	}
 
 	const TCHAR* ToString(const IInstallChunkSourceStat::ELoadResult& LoadResult)

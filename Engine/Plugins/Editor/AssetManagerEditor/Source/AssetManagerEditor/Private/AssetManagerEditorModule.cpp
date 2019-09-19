@@ -33,7 +33,7 @@
 #include "Widgets/SToolTip.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Toolkits/AssetEditorToolkit.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "LevelEditor.h"
 #include "GraphEditorModule.h"
 #include "AssetData.h"
@@ -62,6 +62,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Misc/HotReloadInterface.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 
 #define LOCTEXT_NAMESPACE "AssetManagerEditor"
@@ -965,14 +966,14 @@ void FAssetManagerEditorModule::OnEditAssetIdentifiers(TArray<FAssetIdentifier> 
 	{
 		FScopedSlowTask SlowTask(0, LOCTEXT("LoadingSelectedObject", "Editing assets..."));
 		SlowTask.MakeDialogDelayed(.1f);
-		FAssetEditorManager& EditorManager = FAssetEditorManager::Get();
+		UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 
 		for (const FAssetData& AssetData : AssetsToLoad)
 		{
 			UObject* EditObject = AssetData.GetAsset();
 			if (EditObject)
 			{
-				EditorManager.OpenEditorForAsset(EditObject);
+				AssetEditorSubsystem->OpenEditorForAsset(EditObject);
 			}
 		}
 	}

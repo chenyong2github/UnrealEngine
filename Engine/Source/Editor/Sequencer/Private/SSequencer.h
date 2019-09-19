@@ -77,13 +77,18 @@ struct FSequencerBreadcrumb
 	/** The movie scene this may point to */
 	FMovieSceneSequenceID SequenceID;
 
-	FSequencerBreadcrumb(FMovieSceneSequenceIDRef InSequenceID)
+	/** The display name of this breadcrumb */
+	FText BreadcrumbName;
+
+	FSequencerBreadcrumb(FMovieSceneSequenceIDRef InSequenceID, FText CrumbName)
 		: BreadcrumbType(FSequencerBreadcrumb::MovieSceneType)
 		, SequenceID(InSequenceID)
+		, BreadcrumbName(CrumbName)
 	{ }
 
-	FSequencerBreadcrumb()
+	FSequencerBreadcrumb(FText CrumbName)
 		: BreadcrumbType(FSequencerBreadcrumb::ShotType)
+		, BreadcrumbName(CrumbName)
 	{ }
 };
 
@@ -272,8 +277,12 @@ public:
 	/** Access the tree view for this sequencer */
 	TSharedPtr<SSequencerTreeView> GetTreeView() const;
 
-	/** Generate a helper structure that can be used to transform between phsyical space and virtual space in the track area */
-	FVirtualTrackArea GetVirtualTrackArea() const;
+	/** 
+	 * Generate a helper structure that can be used to transform between phsyical space and virtual space in the track area
+	 *
+	 * @param InTrackArea	(optional) The track area to generate helper structure for, if not specified the main track area will be used.
+	 */
+	FVirtualTrackArea GetVirtualTrackArea(const SSequencerTrackArea* InTrackArea = nullptr) const;
 
 	/** Access this widget's track area widget */
 	TSharedPtr<SSequencerTrackArea> GetTrackAreaWidget() const { return TrackArea; }
@@ -389,6 +398,7 @@ public:
 private:
 
 	void OnResetFilters();
+	void OnEnableAllFilters();
 	void OnTrackFilterClicked(TSharedRef<FSequencerTrackFilter> TrackFilter);
 	bool IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const;
 
@@ -453,6 +463,11 @@ private:
 
 	/** Called when a breadcrumb is clicked on in the sequencer */
 	void OnCrumbClicked(const FSequencerBreadcrumb& Item);
+
+	void OnBreadcrumbPickerContentClicked(const FSequencerBreadcrumb& Breadcrumb);
+
+	/** Called when the user opens the breadcrumb dropdown */
+	TSharedRef<SWidget> GetBreadcrumbPickerContent();
 
 	/** Gets the root movie scene name */
 	FText GetRootAnimationName() const;
@@ -529,6 +544,9 @@ private:
 	/** Section area widget */
 	TSharedPtr<SSequencerTrackArea> TrackArea;
 
+	/** Section area widget for pinned tracks*/
+	TSharedPtr<SSequencerTrackArea> PinnedTrackArea;
+
 	/** Outliner widget */
 	TSharedPtr<SSequencerTrackOutliner> TrackOutliner;
 
@@ -555,6 +573,12 @@ private:
 
 	/** The sequencer tree view responsible for the outliner and track areas */
 	TSharedPtr<SSequencerTreeView> TreeView;
+
+	/** The sequencer tree view for pinned tracks */
+	TSharedPtr<SSequencerTreeView> PinnedTreeView;
+
+	/** Dropdown for selecting breadcrumbs */
+	TSharedPtr<class SComboButton> BreadcrumbPickerButton;
 
 	/** The main sequencer interface */
 	TWeakPtr<FSequencer> SequencerPtr;

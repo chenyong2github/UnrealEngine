@@ -145,7 +145,7 @@ public:
 	virtual const class FLevelViewportCommands& GetLevelViewportCommands() const;
 
 	/* @return The pointer to the current level Editor instance */
-	virtual TWeakPtr<class SLevelEditor> GetLevelEditorInstance() const;
+	virtual TWeakPtr<class ILevelEditor> GetLevelEditorInstance() const;
 
 	/* @return The pointer to the level editor tab */
 	virtual TWeakPtr<class SDockTab> GetLevelEditorInstanceTab() const;
@@ -240,6 +240,8 @@ public:
 	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override {return ToolBarExtensibilityManager;}
 	virtual TSharedPtr<FExtensibilityManager> GetModeBarExtensibilityManager() {return ModeBarExtensibilityManager;}
 	virtual TSharedPtr<FExtensibilityManager> GetNotificationBarExtensibilityManager() {return NotificationBarExtensibilityManager;}
+
+	virtual TSharedPtr<FExtender> AssembleExtenders(TSharedRef<FUICommandList>& InCommandList, TArray<FLevelEditorMenuExtender>& MenuExtenderDelegates) const;
 
 	DECLARE_EVENT_OneParam(ILevelEditor, FOnRegisterTabs, TSharedPtr<FTabManager>);
 	FOnRegisterTabs& OnRegisterTabs() { return RegisterTabs; }

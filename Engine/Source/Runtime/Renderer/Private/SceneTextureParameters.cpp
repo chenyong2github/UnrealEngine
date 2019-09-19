@@ -19,18 +19,18 @@ void SetupSceneTextureParameters(
 	*OutTextures = FSceneTextureParameters();
 
 	// Should always have a depth buffer around allocated, since early z-pass is first.
-	OutTextures->SceneDepthBuffer = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ);
+	OutTextures->SceneDepthBuffer = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ, TEXT("SceneDepthZ"));
 
 	// Registers all the scene texture from the scene context. No fallback is provided to catch mistake at shader parameter validation time
 	// when a pass is trying to access a resource before any other pass actually created it.
-	OutTextures->SceneVelocityBuffer = SceneContext.SceneVelocity ? GraphBuilder.RegisterExternalTexture(SceneContext.SceneVelocity) : nullptr;
-	OutTextures->SceneGBufferA = SceneContext.GBufferA ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferA) : nullptr;
-	OutTextures->SceneGBufferB = SceneContext.GBufferB ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferB) : nullptr;
-	OutTextures->SceneGBufferC = SceneContext.GBufferC ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferC) : nullptr;
-	OutTextures->SceneGBufferD = SceneContext.GBufferD ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferD) : nullptr;
-	OutTextures->SceneGBufferE = SceneContext.GBufferE ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferE) : nullptr;
+	OutTextures->SceneVelocityBuffer = GraphBuilder.TryRegisterExternalTexture(SceneContext.SceneVelocity, TEXT("VelocityBuffer"));
+	OutTextures->SceneGBufferA = GraphBuilder.TryRegisterExternalTexture(SceneContext.GBufferA, TEXT("GBufferA"));
+	OutTextures->SceneGBufferB = GraphBuilder.TryRegisterExternalTexture(SceneContext.GBufferB, TEXT("GBufferB"));
+	OutTextures->SceneGBufferC = GraphBuilder.TryRegisterExternalTexture(SceneContext.GBufferC, TEXT("GBufferC"));
+	OutTextures->SceneGBufferD = GraphBuilder.TryRegisterExternalTexture(SceneContext.GBufferD, TEXT("GBufferD"));
+	OutTextures->SceneGBufferE = GraphBuilder.TryRegisterExternalTexture(SceneContext.GBufferE, TEXT("GBufferE"));
 
-	// Ligthing channels might be disabled when all lights are on the same channel.
+	// Lighting channels might be disabled when all lights are on the same channel.
 	if (SceneContext.LightingChannels)
 	{
 		OutTextures->SceneLightingChannels = GraphBuilder.RegisterExternalTexture(SceneContext.LightingChannels, TEXT("LightingChannels"));

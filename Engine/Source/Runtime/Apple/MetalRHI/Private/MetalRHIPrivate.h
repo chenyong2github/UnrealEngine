@@ -30,6 +30,7 @@ extern bool GIsMetalInitialized;
 const uint32 BufferOffsetAlignment = 256;
 #else
 const uint32 BufferOffsetAlignment = 16;
+const uint32 BufferBackedLinearTextureOffsetAlignment = 64;
 #endif
 
 // The maximum buffer page size that can be uploaded in a set*Bytes call
@@ -153,6 +154,12 @@ struct FMetalDebugInfo
 
 // Get a compute pipeline state used to implement some debug features.
 mtlpp::ComputePipelineState GetMetalDebugComputeState();
+
+// Get the copy 32-bit indices function
+mtlpp::ComputePipelineState GetMetalCopyIndex32Function();
+
+// Get the copy 16-bit indices function
+mtlpp::ComputePipelineState GetMetalCopyIndex16Function();
 
 // Access the internal context for the device-owning DynamicRHI object
 FMetalDeviceContext& GetMetalDeviceContext();
@@ -318,6 +325,16 @@ FORCEINLINE EMetalShaderStages GetMetalShaderFrequency(EShaderFrequency Stage)
 			return EMetalShaderStages::Num;
 	}
 }
+
+@interface FMetalIAB : FApplePlatformObject<NSObject>
+{
+@public
+	FMetalBuffer IndirectArgumentBuffer;
+	FMetalBuffer IndirectArgumentBufferSideTable;
+	mtlpp::ArgumentEncoder IndirectArgumentEncoder;
+	int64 UpdateIAB;
+}
+@end
 
 #include "MetalStateCache.h"
 #include "MetalContext.h"

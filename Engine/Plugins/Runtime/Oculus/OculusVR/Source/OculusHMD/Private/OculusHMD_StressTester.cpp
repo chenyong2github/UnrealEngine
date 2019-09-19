@@ -10,7 +10,7 @@
 #include "ShaderParameterUtils.h"
 #include "RHIStaticStates.h"
 #include "PipelineStateCache.h"
-#include "Runtime/UtilityShaders/Public/OculusShaders.h"
+#include "OculusShaders.h"
 #include "SceneUtils.h" // for SCOPED_DRAW_EVENT()
 
 DECLARE_STATS_GROUP(TEXT("Oculus"), STATGROUP_Oculus, STATCAT_Advanced);

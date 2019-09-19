@@ -18,7 +18,10 @@ void UNiagaraNodeOp::AllocateDefaultPins()
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 
 	const FNiagaraOpInfo* OpInfo = FNiagaraOpInfo::GetOpInfo(OpName);
-	check(OpInfo);
+	if (!OpInfo)
+	{
+		return;
+	}
 
 	// Create input pins from the op
 	for (int32 SrcIndex = 0; SrcIndex < OpInfo->Inputs.Num(); ++SrcIndex)
@@ -92,6 +95,10 @@ void UNiagaraNodeOp::Compile(class FHlslNiagaraTranslator* Translator, TArray<in
 	const FNiagaraOpInfo* OpInfo = FNiagaraOpInfo::GetOpInfo(OpName);
 	if (!OpInfo)
 	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("OpName"), FText::FromName(OpName));
+		FText Format = LOCTEXT("Unknown opcode", "Unknown opcode on {OpName} node.");
+		Translator->Error(FText::Format(Format, Args), this, nullptr);
 		return;
 	}
 
@@ -183,8 +190,14 @@ bool UNiagaraNodeOp::RefreshFromExternalChanges()
 ENiagaraNumericOutputTypeSelectionMode UNiagaraNodeOp::GetNumericOutputTypeSelectionMode() const
 {
 	const FNiagaraOpInfo* OpInfo = FNiagaraOpInfo::GetOpInfo(OpName);
-	check(OpInfo);
-	return OpInfo->NumericOuputTypeSelectionMode;
+	if (OpInfo)
+	{
+		return OpInfo->NumericOuputTypeSelectionMode;
+	}
+	else
+	{
+		return ENiagaraNumericOutputTypeSelectionMode::Largest;
+	}
 }
 
 bool UNiagaraNodeOp::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType)

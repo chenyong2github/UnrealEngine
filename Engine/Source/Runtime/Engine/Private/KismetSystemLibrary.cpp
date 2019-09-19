@@ -381,6 +381,13 @@ void UKismetSystemLibrary::QuitGame(UObject* WorldContextObject, class APlayerCo
 	}
 }
 
+#if WITH_EDITOR
+void UKismetSystemLibrary::QuitEditor()
+{
+	GEngine->Exec(nullptr, TEXT("QUIT_EDITOR"), *GLog);
+}
+#endif	// WITH_EDITOR
+
 bool UKismetSystemLibrary::K2_IsValidTimerHandle(FTimerHandle TimerHandle)
 {
 	return TimerHandle.IsValid();

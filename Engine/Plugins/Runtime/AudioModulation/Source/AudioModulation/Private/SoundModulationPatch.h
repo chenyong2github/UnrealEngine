@@ -6,8 +6,9 @@
 #include "UObject/Object.h"
 #include "SoundModulationTransform.h"
 #include "SoundModulationValue.h"
-#include "SoundModulatorBus.h"
-#include "SoundModulatorBusMix.h"
+#include "SoundModulatorBase.h"
+#include "SoundControlBus.h"
+#include "SoundControlBusMix.h"
 
 #include "SoundModulationPatch.generated.h"
 
@@ -27,7 +28,7 @@ struct FSoundModulationOutput
 	FSoundModulationOutput();
 
 	/** Operator used when mixing input values */
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Modulation)
 	ESoundModulatorOperator Operator;
 
 	/** Final transform before passing to output */
@@ -51,7 +52,7 @@ struct FSoundModulationInputBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input, meta = (ShowOnlyInnerProperties))
 	FSoundModulationInputTransform Transform;
 
-	virtual const USoundModulatorBusBase* GetBus() const PURE_VIRTUAL(FSoundModulationInputBase::GetBus, return nullptr; );
+	virtual const USoundControlBusBase* GetBus() const PURE_VIRTUAL(FSoundModulationInputBase::GetBus, return nullptr; );
 };
 
 USTRUCT(BlueprintType)
@@ -63,9 +64,9 @@ struct FSoundVolumeModulationInput : public FSoundModulationInputBase
 
 	/** The input bus */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input)
-	USoundVolumeModulatorBus* Bus;
+	USoundVolumeControlBus* Bus;
 
-	virtual const USoundModulatorBusBase* GetBus() const { return Cast<USoundModulatorBusBase>(Bus); }
+	virtual const USoundControlBusBase* GetBus() const { return Cast<USoundControlBusBase>(Bus); }
 };
 
 USTRUCT(BlueprintType)
@@ -77,9 +78,9 @@ struct FSoundPitchModulationInput : public FSoundModulationInputBase
 
 	/** The input bus */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input)
-	USoundPitchModulatorBus* Bus;
+	USoundPitchControlBus* Bus;
 
-	virtual const USoundModulatorBusBase* GetBus() const { return Cast<USoundModulatorBusBase>(Bus); }
+	virtual const USoundControlBusBase* GetBus() const { return Cast<USoundControlBusBase>(Bus); }
 };
 
 USTRUCT(BlueprintType)
@@ -91,9 +92,9 @@ struct FSoundLPFModulationInput : public FSoundModulationInputBase
 
 	/** The input bus */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input)
-	USoundLPFModulatorBus* Bus;
+	USoundLPFControlBus* Bus;
 
-	virtual const USoundModulatorBusBase* GetBus() const { return Cast<USoundModulatorBusBase>(Bus); }
+	virtual const USoundControlBusBase* GetBus() const { return Cast<USoundControlBusBase>(Bus); }
 };
 
 USTRUCT(BlueprintType)
@@ -105,9 +106,9 @@ struct FSoundHPFModulationInput : public FSoundModulationInputBase
 
 	/** The input bus */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input)
-	USoundHPFModulatorBus* Bus;
+	USoundHPFControlBus* Bus;
 
-	virtual const USoundModulatorBusBase* GetBus() const { return Cast<USoundModulatorBusBase>(Bus); }
+	virtual const USoundControlBusBase* GetBus() const { return Cast<USoundControlBusBase>(Bus); }
 };
 
 USTRUCT(BlueprintType)
@@ -120,7 +121,7 @@ struct FSoundModulationPatchBase
 	virtual ~FSoundModulationPatchBase() = default;
 
 	/** Default value of patch (value used when all inputs are either not provided or not active) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Inputs)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Inputs, meta = (UIMin = "0", UIMax = "1"))
 	float DefaultInputValue;
 
 	/** Final modulation parameters to apply */
@@ -225,9 +226,11 @@ public:
 	// mix will be removed once all sound settings referencing mix stop. Manual
 	// mix activation is ignored if already activated by means of modulation settings.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Mixes)
-	TArray<USoundModulatorBusMix*> Mixes;
+	TArray<USoundControlBusMix*> Mixes;
 
 #if WITH_EDITOR
+	void OnPostEditChange(UWorld* World);
+
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
@@ -242,7 +245,7 @@ namespace AudioModulation
 		FModulationInputProxy();
 		FModulationInputProxy(const FSoundModulationInputBase& Patch);
 
-		BusId BusId;
+		FBusId BusId;
 		FSoundModulationInputTransform Transform;
 		uint8 bSampleAndHold : 1;
 	};
@@ -281,7 +284,7 @@ namespace AudioModulation
 		FModulationOutputProxy OutputProxy;
 	};
 
-	struct FModulationSettingsProxy
+	struct FModulationSettingsProxy : TModulatorProxyBase<uint32>
 	{
 		FModulationSettingsProxy();
 		FModulationSettingsProxy(const USoundModulationSettings& Settings);
@@ -291,10 +294,6 @@ namespace AudioModulation
 		FModulationPatchProxy Lowpass;
 		FModulationPatchProxy Highpass;
 
-		TArray<BusMixId> Mixes;
-
-#if WITH_EDITOR
-		uint32 ObjectID;
-#endif // WITH_EDITOR
+		TArray<FBusMixId> Mixes;
 	};
 } // namespace AudioModulation

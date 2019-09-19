@@ -319,7 +319,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{ 
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	FDitheredTransitionStencilPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -784,7 +784,7 @@ void FDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 		if (!bIsTranslucent
 			&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
 			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
-			&& !Material.IsSky())
+			&& ShouldIncludeMaterialInDefaultOpaquePass(Material))
 		{
 			if (BlendMode == BLEND_Opaque
 				&& MeshBatch.VertexFactory->SupportsPositionOnlyStream()

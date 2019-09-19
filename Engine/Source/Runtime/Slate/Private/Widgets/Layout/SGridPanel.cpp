@@ -344,7 +344,7 @@ SGridPanel::FSlot& SGridPanel::InsertSlot( SGridPanel::FSlot* InSlot )
 	return *InSlot;
 }
 
-void SGridPanel::NotifySlotChanged(SGridPanel::FSlot* InSlot)
+void SGridPanel::NotifySlotChanged(SGridPanel::FSlot* InSlot, bool bSlotLayerChanged /*= false*/)
 {
 	// Keep the size of the grid up to date.
 	// We need an extra cell at the end for easily figuring out the size across any number of cells
@@ -360,6 +360,14 @@ void SGridPanel::NotifySlotChanged(SGridPanel::FSlot* InSlot)
 	if ( NumRowsRequiredForThisSlot > Rows.Num() )
 	{
 		Rows.AddZeroed( NumRowsRequiredForThisSlot - Rows.Num() );
+	}
+
+	if (bSlotLayerChanged)
+	{
+		Slots.Sort([](const FSlot& LHS, const FSlot& RHS)
+		{
+			return LHS.LayerParam < RHS.LayerParam;
+		});
 	}
 }
 

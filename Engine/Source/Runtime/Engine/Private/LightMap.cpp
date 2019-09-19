@@ -3293,14 +3293,18 @@ void FLightmapResourceCluster::UpdateUniformBuffer(ERHIFeatureLevel::Type InFeat
 	});
 }
 
+bool FLightmapResourceCluster::GetUseVirtualTexturing() const
+{
+	const bool bAllowHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
+	return bAllowHighQualityLightMaps && (CVarVirtualTexturedLightMaps.GetValueOnRenderThread() != 0) && UseVirtualTexturing(FeatureLevel);
+}
+
 void FLightmapResourceCluster::UpdateUniformBuffer_RenderThread()
 {
 	check(IsInRenderingThread());
-	const bool bAllowHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
-	const bool bUseVirtualTextures = bAllowHighQualityLightMaps && (CVarVirtualTexturedLightMaps.GetValueOnRenderThread() != 0) && UseVirtualTexturing(FeatureLevel);
 
 	FLightmapResourceClusterShaderParameters Parameters;
-	GetLightmapClusterResourceParameters(FeatureLevel, Input, bUseVirtualTextures ? AcquireAllocatedVT() : nullptr, Parameters);
+	GetLightmapClusterResourceParameters(FeatureLevel, Input, GetUseVirtualTexturing() ? AcquireAllocatedVT() : nullptr, Parameters);
 
 	RHIUpdateUniformBuffer(UniformBuffer, &Parameters);
 }
@@ -3329,16 +3333,16 @@ IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
 		VTDesc.Dimensions = 2;
 		VTDesc.TileSize = Resource->GetTileSize();
 		VTDesc.TileBorderSize = Resource->GetBorderSize();
-		VTDesc.NumLayers = 0u;
+		VTDesc.NumTextureLayers = 0u;
 
 		for (uint32 TypeIndex = 0u; TypeIndex < (uint32)ELightMapVirtualTextureType::Count; ++TypeIndex)
 		{
 			const uint32 LayerIndex = VirtualTexture->GetLayerForType((ELightMapVirtualTextureType)TypeIndex);
 			if (LayerIndex != ~0u)
 			{
-				VTDesc.NumLayers = TypeIndex + 1u;
+				VTDesc.NumTextureLayers = TypeIndex + 1u;
 				VTDesc.ProducerHandle[TypeIndex] = ProducerHandle; // use the same producer for each layer
-				VTDesc.LocalLayerToProduce[TypeIndex] = LayerIndex;
+				VTDesc.ProducerLayerIndex[TypeIndex] = LayerIndex;
 			}
 			else
 			{
@@ -3346,8 +3350,8 @@ IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
 			}
 		}
 
-		check(VTDesc.NumLayers > 0u);
-		for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumLayers; ++LayerIndex)
+		check(VTDesc.NumTextureLayers > 0u);
+		for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumTextureLayers; ++LayerIndex)
 		{
 			if (VTDesc.ProducerHandle[LayerIndex].PackedValue == 0u)
 			{
@@ -3356,7 +3360,7 @@ IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
 				// and attempt to do some extra work before determining there's nothing else to do...this wastes CPU time
 				// By mapping to layer0, we ensure that every layer has a valid mapping, and the overhead of mapping the empty layer to layer0 is very small, since layer0 will already be resident
 				VTDesc.ProducerHandle[LayerIndex] = ProducerHandle;
-				VTDesc.LocalLayerToProduce[LayerIndex] = 0u;
+				VTDesc.ProducerLayerIndex[LayerIndex] = 0u;
 			}
 		}
 
@@ -3379,7 +3383,18 @@ void FLightmapResourceCluster::ReleaseAllocatedVT()
 void FLightmapResourceCluster::InitRHI()
 {
 	FLightmapResourceClusterShaderParameters Parameters;
-	GetLightmapClusterResourceParameters(GMaxRHIFeatureLevel, FLightmapClusterResourceInput(), nullptr, Parameters);
+
+	// Lightmap resources are normally created before the feature level is known, so we'll use defaults and rely on a subsequent call to UpdateUniformBuffer()
+	// to set the correct level and update things accordingly. However, when we're coming from FRenderResource::ChangeFeatureLevel(), the feature level
+	// has already been set, so we can go ahead and use the correct level and input from the start (UpdateUniformBuffer() is not being called in that case).
+	if (FeatureLevel < ERHIFeatureLevel::Num)
+	{
+		GetLightmapClusterResourceParameters(FeatureLevel, Input, GetUseVirtualTexturing() ? AcquireAllocatedVT() : nullptr, Parameters);
+	}
+	else
+	{
+		GetLightmapClusterResourceParameters(GMaxRHIFeatureLevel, FLightmapClusterResourceInput(), nullptr, Parameters);
+	}
 
 	UniformBuffer = FLightmapResourceClusterShaderParameters::CreateUniformBuffer(Parameters, UniformBuffer_MultiFrame);
 }

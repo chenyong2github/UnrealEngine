@@ -17,9 +17,9 @@ void SLayerBrowser::Construct(const FArguments& InArgs)
 	//@todo Create a proper ViewModel [7/27/2012 Justin.Sargent]
 	Mode = ELayerBrowserMode::Layers;
 
-	LayerCollectionViewModel = FLayerCollectionViewModel::Create(GEditor->Layers.ToSharedRef(), GEditor);
+	LayerCollectionViewModel = FLayerCollectionViewModel::Create(GEditor);
 	SelectedLayersFilter = MakeShareable(new FActorsAssignedToSpecificLayersFilter());
-	SelectedLayerViewModel = FLayerViewModel::Create(NULL, GEditor->Layers.ToSharedRef(), GEditor); //We'll set the datasource for this viewmodel later
+	SelectedLayerViewModel = FLayerViewModel::Create(NULL, GEditor); //We'll set the datasource for this viewmodel later
 
 	SearchBoxLayerFilter = MakeShareable(new LayerTextFilter(LayerTextFilter::FItemToStringArray::CreateSP(this, &SLayerBrowser::TransformLayerToString)));
 

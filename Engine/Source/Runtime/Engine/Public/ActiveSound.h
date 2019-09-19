@@ -11,6 +11,7 @@
 #include "AudioDynamicParameter.h"
 #include "Components/AudioComponent.h"
 #include "DSP/VolumeFader.h"
+#include "IAudioExtensionPlugin.h"
 #include "Sound/AudioVolume.h"
 #include "Sound/SoundConcurrency.h"
 #include "Sound/SoundSubmix.h"
@@ -242,7 +243,7 @@ struct FSoundParseParameters
 	}
 };
 
-struct ENGINE_API FActiveSound
+struct ENGINE_API FActiveSound : public ISoundModulatable
 {
 public:
 
@@ -267,6 +268,13 @@ private:
 
 
 public:
+	// ISoundModulatable Implementation
+	USoundModulationPluginSourceSettingsBase* FindModulationSettings() const override;
+	uint32 GetObjectId() const override { return Sound ? Sound->GetUniqueID() : INDEX_NONE; }
+	int32 GetPlayCount() const override;
+	bool IsPreviewSound() const override { return bIsPreviewSound; }
+	void Stop() override;
+
 
 	uint64 GetAudioComponentID() const { return AudioComponentID; }
 	FName GetAudioComponentUserID() const { return AudioComponentUserID; }
@@ -670,7 +678,7 @@ private:
 
 	struct FAsyncTraceDetails
 	{
-		uint32 AudioDeviceID;
+		Audio::FDeviceId AudioDeviceID;
 		FActiveSound* ActiveSound;
 	};
 
@@ -684,14 +692,14 @@ private:
 	/** This is a friend so the audio device can call Stop() on the active sound. */
 	friend class FAudioDevice;
 
-	/** Stops the active sound. Can only be called from the owning audio device. */
-	void Stop(bool bStopNow);
+	/**
+	  * Marks the active sound as pending delete and begins termination of internal resources.
+	  * Only to be called from the owning audio device.
+	  */
+	void MarkPendingDestroy (bool bDestroyNow);
 
 	/** Whether or not the active sound is stopping. */
 	bool IsStopping() const { return bIsStopping; }
-
-	/** Find the active modulation settings */
-	USoundModulationPluginSourceSettingsBase* FindModulationSettings() const;
 
 	/** Called when an active sound has been stopped but needs to update it's stopping sounds. Returns true when stopping sources have finished stopping. */
 	bool UpdateStoppingSources(uint64 CurrentTick, bool bEnsureStopped);

@@ -1058,7 +1058,7 @@ namespace VulkanRHI
 	}
 #endif
 
-	FOldResourceAllocation* FOldResourceHeap::AllocateResource(EType Type, uint32 Size, uint32 Alignment, bool bMapAllocation, const char* File, uint32 Line)
+	FOldResourceAllocation* FOldResourceHeap::AllocateResource(EType Type, uint32 Size, uint32 Alignment, bool bMapAllocation, bool bForceSeparateAllocation, const char* File, uint32 Line)
 	{
 		FScopeLock ScopeLock(&GOldResourceLock);
 
@@ -1074,6 +1074,7 @@ namespace VulkanRHI
 #endif
 		uint32 AllocationSize;
 		
+		if(!bForceSeparateAllocation)
 		{
 			if (Size < TargetDefaultPageSize)
 			{
@@ -1145,7 +1146,12 @@ namespace VulkanRHI
 				AllocationSize = FMath::Max(Size, TargetDefaultPageSize);
 			}
 		}
-#endif
+		else
+		{
+			// We get here when bForceSeparateAllocation is true, which is used for lazy allocations, since pooling those doesn't make sense.
+			AllocationSize = Size;
+		}
+#endif // VULKAN_SINGLE_ALLOCATION_PER_RESOURCE
 		FDeviceMemoryAllocation* DeviceMemoryAllocation = Owner->GetParent()->GetMemoryManager().Alloc(true, AllocationSize, MemoryTypeIndex, nullptr, VULKAN_MEMORY_HIGHEST_PRIORITY, File, Line);
 		if (!DeviceMemoryAllocation && Size != AllocationSize)
 		{
@@ -1244,14 +1250,6 @@ namespace VulkanRHI
 					}
 				}
 				InTypeBits >>= 1;
-			}
-
-			for (int32 Index = OutTypeIndices.Num() - 1; Index >= 1; --Index)
-			{
-				if (MemoryProperties.memoryTypes[Index].propertyFlags != MemoryProperties.memoryTypes[0].propertyFlags)
-				{
-					OutTypeIndices.RemoveAtSwap(Index, 1, false);
-				}
 			}
 
 			// No memory types matched, return failure

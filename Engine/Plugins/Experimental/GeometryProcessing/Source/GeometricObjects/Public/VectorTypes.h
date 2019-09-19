@@ -184,6 +184,11 @@ struct FVector3
 		return FVector3<T>(X / Scalar, Y / Scalar, Z / Scalar);
 	}
 
+	inline FVector3<T> operator/(const FVector3<T>& V2) const // component-wise
+	{
+		return FVector3<T>(X / V2.X, Y / V2.Y, Z / V2.Z);
+	}
+
 	inline FVector3<T>& operator+=(const FVector3<T>& V2)
 	{
 		X += V2.X;
@@ -487,6 +492,11 @@ struct FVector2
 		return FVector2(X / Scalar, Y / Scalar);
 	}
 
+	inline FVector2<T> operator/(const FVector2<T>& V2) const // component-wise
+	{
+		return FVector2<T>(X / V2.X, Y / V2.Y);
+	}
+
 	inline FVector2<T>& operator+=(const FVector2<T>& V2)
 	{
 		X += V2.X;
@@ -534,6 +544,23 @@ struct FVector2
 		T DotVal = Dot(V2);
 		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
 		return (T)acos(ClampedDot);
+	}
+
+	// Angle in Radians
+	T SignedAngleR(const FVector2<T>& V2) const
+	{
+		T DotVal = Dot(V2);
+		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
+		T Direction = Cross(V2);
+		if (Direction*Direction < TMathUtil<T>::ZeroTolerance)
+		{
+			return (DotVal < 0) ? TMathUtil<T>::Pi : (T)0;
+		}
+		else
+		{
+			T Sign = Direction < 0 ? (T)-1 : (T)1;
+			return Sign * TMathUtil<T>::ACos(ClampedDot);
+		}
 	}
 
 	T Normalize(const T Epsilon = 0)

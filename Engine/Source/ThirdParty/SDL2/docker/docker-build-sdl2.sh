@@ -15,7 +15,7 @@
 if [ $UID -eq 0 ]; then
   # Centos 7
   yum install -y cmake make gcc-c++
-  yum install -y libXcursor-devel libXinerama-devel libxi-dev libXrandr-devel libXScrnSaver-devel libXi-devel mesa-libGL-devel mesa-libEGL-devel pulseaudio-libs-devel wayland-protocols-devel wayland-devel libxkbcommon-devel mesa-libwayland-egl-devel
+  yum install -y libXcursor-devel libXinerama-devel libxi-dev libXrandr-devel libXScrnSaver-devel libXi-devel mesa-libGL-devel mesa-libEGL-devel pulseaudio-libs-devel wayland-protocols-devel wayland-devel libxkbcommon-devel mesa-libwayland-egl-devel alsa-lib-devel
 
   # Create non-privileged user and workspace
   adduser buildmaster
@@ -30,6 +30,8 @@ fi
 
 export VULKAN_SDK=/Vulkan
 export SDL_DIR=/SDL-gui-backend
+
+export ARCH=$(uname -m)
 
 # Get num of cores
 export CORES=$(getconf _NPROCESSORS_ONLN)
@@ -47,7 +49,16 @@ BuildWithOptions()
 	mkdir -p $BuildDir
 	pushd $BuildDir
 
+	# Building with OGL breaks SDL_CreateWindow() on embedded devices w/o proper GL libraries
+	#   http://lists.libsdl.org/pipermail/commits-libsdl.org/2017-September/001967.html
+	if [[ ${ARCH} == 'aarch64' ]]; then
+		Options+=' -DVIDEO_OPENGL=OFF'
+	fi
+
+	set -x
 	cmake $Options ${SDL_DIR}
+	set +x
+
 	make -j${CORES}
 
 	mv $StaticLibName ../$SdlLibName

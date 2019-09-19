@@ -6,6 +6,9 @@
 #define PASS_NEEDS_PRIMITIVE_VOLUME_BOUNDS 1
 
 #include "Common.ush"
+
+#define SceneTexturesStruct VoxelizeVolumePass.SceneTextures 
+
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 

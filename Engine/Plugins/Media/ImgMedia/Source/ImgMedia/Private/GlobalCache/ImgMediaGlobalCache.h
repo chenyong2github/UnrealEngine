@@ -4,16 +4,18 @@
 
 #include "CoreTypes.h"
 #include "Containers/Map.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Templates/SharedPointer.h"
 
 struct FImgMediaFrame;
+class UImgMediaSettings;
 
 /**
  * A global cache for all ImgMedia players.
  *
  * Uses Least Recently Used (LRU).
  */
-class FImgMediaGlobalCache
+class FImgMediaGlobalCache : public TSharedFromThis<FImgMediaGlobalCache, ESPMode::ThreadSafe>
 {
 public:
 	/**
@@ -111,7 +113,19 @@ private:
 
 	/** Critical section for synchronizing access to Frames. */
 	mutable FCriticalSection CriticalSection;
+
+#if WITH_EDITORONLY_DATA
+
+	/** Handle to registered UpdateSettings delegate. */
+	FDelegateHandle UpdateSettingsDelegateHandle;
+
+#endif
 	
+	/**
+	 * Empties the cache until the current size + Extra <= the max size of the cache.
+	 */
+	void EnforceMaxSize(SIZE_T Extra);
+
 	/**
 	 * Removes an entry from the cache and deletes the entry.
 	 *
@@ -141,5 +155,10 @@ private:
 	 * Empties the cache.
 	 */
 	void Empty();
+
+	/** 
+	 * Updates our settings from ImgMediaAsettings. 
+	 */
+	void UpdateSettings(const UImgMediaSettings* Settings);
 };
 

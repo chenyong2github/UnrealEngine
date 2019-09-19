@@ -80,7 +80,7 @@ void AVPCameraBase::Tick(float DeltaSeconds)
 
 void AVPCameraBase::BeginDestroy()
 {
-	if (UObjectInitialized() && !GIsRequestingExit)
+	if (UObjectInitialized() && !IsEngineExitRequested())
 	{
 		RemoveUser(true);
 	}

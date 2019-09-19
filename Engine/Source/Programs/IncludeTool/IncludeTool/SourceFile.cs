@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
 using System;
@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace IncludeTool
@@ -178,6 +179,11 @@ namespace IncludeTool
 		public List<string> VerboseOutput = new List<string>();
 
 		/// <summary>
+		/// Regex for additional options
+		/// </summary>
+		static Regex OptionsPattern = new Regex(@"^\s*//\s*\[\[\s*IncludeTool\s*:\s*([a-zA-Z, \t]+)\]\]", RegexOptions.IgnoreCase);
+
+		/// <summary>
 		/// Construct a SourceFile from the given arguments
 		/// </summary>
 		/// <param name="Location">Location of the file</param>
@@ -185,6 +191,37 @@ namespace IncludeTool
 		/// <param name="Flags">Properties of the file</param>
 		public SourceFile(FileReference Location, TextBuffer Text, SourceFileFlags Flags)
 		{
+			// Check for directives specifying additional flags for this file in the source text
+			if (Text != null)
+			{
+				foreach (string Line in Text.Lines)
+				{
+					Match Match = OptionsPattern.Match(Line);
+					if (Match.Success)
+					{
+						foreach (string FlagText in Match.Groups[1].Value.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0))
+						{
+							SourceFileFlags Flag;
+							if (Enum.TryParse(FlagText, true, out Flag))
+							{
+								Flags |= Flag;
+							}
+							else
+							{
+								throw new Exception(String.Format("{0}: Invalid source file flag '{1}'", Location, FlagText));
+							}
+						}
+					}
+				}
+			}
+
+			// Inline files cannot be standalone
+			if((Flags & SourceFileFlags.Inline) != 0)
+			{
+				Flags &= ~SourceFileFlags.Standalone;
+			}
+
+			// Save the parameters
 			this.Location = Location;
 			this.Text = Text;
 			this.Flags = Flags;
@@ -378,7 +415,7 @@ namespace IncludeTool
 		/// <param name="IncludePaths">Base directories for relative include paths</param>
 		/// <param name="SystemIncludePaths">Base directories for system include paths</param>
 		/// <param name="Writer">Writer for the output text</param>
-		public void Write(IEnumerable<DirectoryReference> IncludePaths, IEnumerable<DirectoryReference> SystemIncludePaths, TextWriter Writer, bool bRemoveForwardDeclarations, TextWriter Log)
+		public void Write(IEnumerable<DirectoryReference> IncludePaths, IEnumerable<DirectoryReference> SystemIncludePaths, TextWriter Writer, bool bRemoveForwardDeclarations, LineBasedTextWriter Log)
 		{
 			// Write the file header
 			TextLocation LastLocation = Text.Start;
@@ -451,7 +488,7 @@ namespace IncludeTool
 					while(NewLastLocation.LineIdx < Text.Lines.Length)
 					{
 						string TrimLine = Text.Lines[NewLastLocation.LineIdx].Trim();
-						if(TrimLine.Length > 0 && !TrimLine.Equals("// Forward declarations", StringComparison.InvariantCultureIgnoreCase) && !TrimLine.Equals("// Forward declarations.", StringComparison.InvariantCultureIgnoreCase))
+						if(TrimLine.Length > 0 && !TrimLine.Equals("// Forward declarations", StringComparison.OrdinalIgnoreCase) && !TrimLine.Equals("// Forward declarations.", StringComparison.OrdinalIgnoreCase))
 						{
 							// Create a token reader for the current line
 							TokenReader Reader = new TokenReader(Text, new TextLocation(NewLastLocation.LineIdx, 0), new TextLocation(NewLastLocation.LineIdx, Text.Lines[NewLastLocation.LineIdx].Length));
@@ -540,7 +577,7 @@ namespace IncludeTool
 						{
 							IncludeText = OriginalIncludeText;
 						}
-						else if(OriginalIncludeText != null && (Flags & SourceFileFlags.TranslationUnit) == 0 && OriginalIncludeText.EndsWith(IncludeText.TrimStart('\"'), StringComparison.InvariantCultureIgnoreCase) && (OriginalIncludeText.StartsWith("\"Runtime/", StringComparison.InvariantCultureIgnoreCase) || OriginalIncludeText.StartsWith("\"Developer/", StringComparison.InvariantCultureIgnoreCase) || OriginalIncludeText.StartsWith("\"Editor/", StringComparison.InvariantCultureIgnoreCase)))
+						else if(OriginalIncludeText != null && (Flags & SourceFileFlags.TranslationUnit) == 0 && OriginalIncludeText.EndsWith(IncludeText.TrimStart('\"'), StringComparison.OrdinalIgnoreCase) && (OriginalIncludeText.StartsWith("\"Runtime/", StringComparison.InvariantCultureIgnoreCase) || OriginalIncludeText.StartsWith("\"Developer/", StringComparison.InvariantCultureIgnoreCase) || OriginalIncludeText.StartsWith("\"Editor/", StringComparison.InvariantCultureIgnoreCase)))
 						{
 							IncludeText = OriginalIncludeText;
 						}
@@ -687,7 +724,7 @@ namespace IncludeTool
 		/// <param name="IncludePaths">Directories to base relative include paths from</param>
 		/// <param name="SystemIncludePaths">Directories to base system include paths from</param>
 		/// <returns>Formatted include path, with surrounding quotes</returns>
-		public static string FormatInclude(DirectoryReference FromDirectory, FileReference IncludeFile, IEnumerable<DirectoryReference> IncludePaths, IEnumerable<DirectoryReference> SystemIncludePaths, TextWriter Log)
+		public static string FormatInclude(DirectoryReference FromDirectory, FileReference IncludeFile, IEnumerable<DirectoryReference> IncludePaths, IEnumerable<DirectoryReference> SystemIncludePaths, LineBasedTextWriter Log)
 		{
 			string IncludeText;
 			if(!TryFormatInclude(FromDirectory, IncludeFile, IncludePaths, SystemIncludePaths, out IncludeText))
@@ -743,26 +780,26 @@ namespace IncludeTool
 			}
 
 			// HACK: VsPerf.h is in the compiler environment, but the include path is added directly
-			if (IncludeFile.FullName.EndsWith("\\PerfSDK\\VSPerf.h", StringComparison.InvariantCultureIgnoreCase))
+			if (IncludeFile.FullName.EndsWith("\\PerfSDK\\VSPerf.h", StringComparison.OrdinalIgnoreCase))
 			{
 				IncludeText = "\"VSPerf.h\"";
 				return true;
 			}
 
 			// HACK: public Paper2D header in classes folder including private Paper2D header
-			if(IncludeFile.FullName.IndexOf("\\Paper2D\\Private\\", StringComparison.InvariantCultureIgnoreCase) != -1)
+			if(IncludeFile.FullName.IndexOf("\\Paper2D\\Private\\", StringComparison.OrdinalIgnoreCase) != -1)
 			{
 				IncludeText = "\"" + IncludeFile.GetFileName() + "\"";
 				return true;
 			}
-			if(IncludeFile.FullName.IndexOf("\\OnlineSubsystemUtils\\Private\\", StringComparison.InvariantCultureIgnoreCase) != -1)
+			if(IncludeFile.FullName.IndexOf("\\OnlineSubsystemUtils\\Private\\", StringComparison.OrdinalIgnoreCase) != -1)
 			{
 				IncludeText = "\"" + IncludeFile.GetFileName() + "\"";
 				return true;
 			}
 
 			// HACK: including private headers from public headers in the same module
-			int PrivateIdx = IncludeFile.FullName.IndexOf("\\Private\\", StringComparison.InvariantCultureIgnoreCase);
+			int PrivateIdx = IncludeFile.FullName.IndexOf("\\Private\\", StringComparison.OrdinalIgnoreCase);
 			if(PrivateIdx != -1)
 			{
 				DirectoryReference BaseDir = new DirectoryReference(IncludeFile.FullName.Substring(0, PrivateIdx));

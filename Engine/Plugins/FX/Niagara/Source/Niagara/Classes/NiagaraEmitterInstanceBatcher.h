@@ -127,7 +127,8 @@ public:
 				const FNiagaraGpuSpawnInfo& SpawnInfo,
 				bool bCopyBeforeStart = false,
 				uint32 ShaderStageIndex = 0,
-				FNiagaraDataInterfaceProxy *IterationInterface = nullptr
+				FNiagaraDataInterfaceProxy *IterationInterface = nullptr,
+				bool HasRunParticleStage = false
 			) const;
 
 	void ResizeCurrentBuffer(FRHICommandList &RHICmdList, FNiagaraComputeExecutionContext *Context, uint32 NewNumInstances, uint32 PrevNumInstances) const;

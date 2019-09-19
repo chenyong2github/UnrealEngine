@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using Microsoft.Win32.SafeHandles;
 using System;
@@ -57,14 +57,14 @@ namespace IncludeTool.Support
 		/// </summary>
 		/// <param name="FinishedEvent">Event to set once the task is comlete</param>
 		/// <param name="Writer">Output writer for log events</param>
-		protected abstract void InternalStart(ManualResetEvent FinishedEvent, TextWriter Writer);
+		protected abstract void InternalStart(ManualResetEvent FinishedEvent, LineBasedTextWriter Writer);
 
 		/// <summary>
 		/// Waits for the task to complete and returns
 		/// </summary>
 		/// <param name="LogOutput">Receives the output text from the task</param>
 		/// <returns>The task's exit code</returns>
-		public int Join(TextWriter Writer)
+		public int Join(LineBasedTextWriter Writer)
 		{
 			FinishedEvent.WaitOne();
 
@@ -155,7 +155,7 @@ namespace IncludeTool.Support
 		/// <summary>
 		/// The action to execute
 		/// </summary>
-		Func<TextWriter, int> Action;
+		Func<LineBasedTextWriter, int> Action;
 
 		/// <summary>
 		/// Stores the result of executing the action
@@ -166,7 +166,7 @@ namespace IncludeTool.Support
 		/// Construct a managed task thread
 		/// </summary>
 		/// <param name="Action">The action to execute</param>
-		public ManagedTaskThread(Func<TextWriter, int> Action)
+		public ManagedTaskThread(Func<LineBasedTextWriter, int> Action)
 		{
 			this.Action = Action;
 		}
@@ -176,7 +176,7 @@ namespace IncludeTool.Support
 		/// </summary>
 		/// <param name="Event">Event to set when the action completes</param>
 		/// <param name="Writer">Writer for log output</param>
-		protected override void InternalStart(ManualResetEvent Event, TextWriter Writer)
+		protected override void InternalStart(ManualResetEvent Event, LineBasedTextWriter Writer)
 		{
 			Worker = new Thread(x => ExecuteAction(Event, Writer));
 			Worker.Start();
@@ -208,7 +208,7 @@ namespace IncludeTool.Support
 		/// </summary>
 		/// <param name="Event">Event to set when the action completes</param>
 		/// <param name="Writer">Writer for log output</param>
-		void ExecuteAction(ManualResetEvent Event, TextWriter Writer)
+		void ExecuteAction(ManualResetEvent Event, LineBasedTextWriter Writer)
 		{
 			Result = Action(Writer);
 			Event.Set();
@@ -251,7 +251,7 @@ namespace IncludeTool.Support
 		/// </summary>
 		/// <param name="Event">Event to set when the action completes</param>
 		/// <param name="Writer">Writer for log output</param>
-		protected override void InternalStart(ManualResetEvent Event, TextWriter Writer)
+		protected override void InternalStart(ManualResetEvent Event, LineBasedTextWriter Writer)
 		{
 			DataReceivedEventHandler OutputHandler = (Sender, Args) => { if(!String.IsNullOrEmpty(Args.Data)) { Writer.WriteLine(Args.Data); } };
 

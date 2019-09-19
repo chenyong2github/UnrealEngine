@@ -7,7 +7,7 @@
 #include "EdGraph/EdGraphSchema.h"
 #include "ReferenceViewerSchema.generated.h"
 
-class FMenuBuilder;
+class UToolMenu;
 class FSlateRect;
 class UEdGraph;
 
@@ -18,7 +18,8 @@ class UReferenceViewerSchema : public UEdGraphSchema
 
 public:
 	// UEdGraphSchema interface
-	virtual void GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, class FMenuBuilder* MenuBuilder, bool bIsDebugging) const override;
+	virtual void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
+	virtual FName GetParentContextMenuName() const override { return NAME_None; }
 	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
 	virtual void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const override;
 	virtual void BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const override;
@@ -32,9 +33,9 @@ public:
 private:
 
 	/** Constructs the sub-menu for Make Collection With */
-	void GetMakeCollectionWithSubMenu(FMenuBuilder& MenuBuilder);
+	void GetMakeCollectionWithSubMenu(UToolMenu* Menu);
 
 	/** Constructs the sub-menu for Make Collection With Referencers/Dependencies */
-	void GetMakeCollectionWithReferencersOrDependenciesSubMenu(class FMenuBuilder& MenuBuilder, bool bReferencers);
+	void GetMakeCollectionWithReferencersOrDependenciesSubMenu(UToolMenu* Menu, bool bReferencers);
 };
 

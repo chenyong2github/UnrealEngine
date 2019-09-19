@@ -175,6 +175,9 @@ public:
 		return *this;
 	}
 
+	bool GetNeedsRendering() const { return bNeedsRendering; }
+	FName GetRequester() const { return Requester;  }
+
 private:
 	FName Requester;
 	bool bNeedsRendering = false;

@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "AssetTypeActions_Base.h"
 
-class FMenuBuilder;
 class USoundMod;
 
 class FAssetTypeActions_SoundMod: public FAssetTypeActions_Base
@@ -16,8 +15,8 @@ public:
 	virtual FColor GetTypeColor() const override{ return FColor(255, 175, 0); }
 	virtual UClass* GetSupportedClass() const override;
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const override{ return true; }
-	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
-	virtual void AssetsActivated(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
+	virtual bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) override;
 	virtual uint32 GetCategories() override{ return EAssetTypeCategories::Sounds; }
 	virtual bool CanFilter() override { return false; }
 

@@ -114,10 +114,18 @@ bool FSplineMeshComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* 
 	{
 		const USplineMeshComponent* SplineMeshComp = CastChecked<const USplineMeshComponent>(VisProxy->Component.Get());
 
-		SplineMeshCompPropName = GetComponentPropertyName(SplineMeshComp);
-		if (SplineMeshCompPropName.IsValid())
+		AActor* OldSplineMeshOwningActor = SplineMeshPropertyPath.GetParentOwningActor();
+		SplineMeshPropertyPath = FComponentPropertyPath(SplineMeshComp);
+		AActor* NewSplineMeshOwningActor = SplineMeshPropertyPath.GetParentOwningActor();
+
+		if (SplineMeshPropertyPath.IsValid())
 		{
-			SplineMeshOwningActor = SplineMeshComp->GetOwner();
+			if (OldSplineMeshOwningActor != NewSplineMeshOwningActor)
+			{
+				SelectedKey = INDEX_NONE;
+				SelectedTangentHandle = INDEX_NONE;
+				SelectedTangentHandleType = ESelectedTangentHandle::None;
+			}
 
 			if (VisProxy->IsA(HSplineMeshKeyProxy::StaticGetType()))
 			{
@@ -146,7 +154,7 @@ bool FSplineMeshComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* 
 		}
 		else
 		{
-			SplineMeshOwningActor = NULL;
+			SplineMeshPropertyPath.Reset();
 		}
 	}
 
@@ -155,7 +163,7 @@ bool FSplineMeshComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* 
 
 USplineMeshComponent* FSplineMeshComponentVisualizer::GetEditedSplineMeshComponent() const
 {
-	return Cast<USplineMeshComponent>(GetComponentFromPropertyName(SplineMeshOwningActor.Get(), SplineMeshCompPropName));
+	return Cast<USplineMeshComponent>(SplineMeshPropertyPath.GetComponent());
 }
 
 
@@ -364,8 +372,7 @@ bool FSplineMeshComponentVisualizer::HandleInputKey(FEditorViewportClient* Viewp
 
 void FSplineMeshComponentVisualizer::EndEditing()
 {
-	SplineMeshOwningActor = NULL;
-	SplineMeshCompPropName.Clear();
+	SplineMeshPropertyPath.Reset();
 	SelectedKey = INDEX_NONE;
 	SelectedTangentHandle = INDEX_NONE;
 	SelectedTangentHandleType = ESelectedTangentHandle::None;
@@ -381,9 +388,9 @@ TSharedPtr<SWidget> FSplineMeshComponentVisualizer::GenerateContextMenu() const
 void FSplineMeshComponentVisualizer::NotifyComponentModified()
 {
 	// Notify of change so any CS is re-run
-	if (SplineMeshOwningActor.IsValid())
+	if (SplineMeshPropertyPath.IsValid())
 	{
-		SplineMeshOwningActor.Get()->PostEditMove(true);
+		SplineMeshPropertyPath.GetParentOwningActor()->PostEditMove(true);
 	}
 
 	GEditor->RedrawLevelEditingViewports(true);

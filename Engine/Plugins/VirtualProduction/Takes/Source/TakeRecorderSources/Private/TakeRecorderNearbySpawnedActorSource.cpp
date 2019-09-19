@@ -7,7 +7,7 @@
 #include "TakeRecorderActorSource.h"
 #include "TakeRecorderSourcesUtils.h"
 #include "TakesUtils.h"
-#include "TakesCoreFwd.h"
+#include "TakesCoreLog.h"
 
 #include "LevelSequence.h"
 #include "Engine/Engine.h"

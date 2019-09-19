@@ -11,8 +11,10 @@
 
 #if !USE_COMPACT_ASSET_REGISTRY
 
-/** Type of tag map */
-typedef TSortedMap<FName, FString, FDefaultAllocator, FNameFastLess> FAssetDataTagMap;
+/** Type of tag map. Using derived class to allow prototyping. */
+class FAssetDataTagMap : public TSortedMap<FName, FString, FDefaultAllocator, FNameFastLess>
+{
+};
 
 #else
 
@@ -106,9 +108,9 @@ private:
 	};
 	struct FCompactExportTextNoNumbers
 	{
-		NAME_INDEX Class;
-		NAME_INDEX Package;
-		NAME_INDEX Object;
+		FNameEntryId Class;
+		FNameEntryId Package;
+		FNameEntryId Object;
 
 		FString ToString() const
 		{

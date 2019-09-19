@@ -107,6 +107,7 @@ static FAutoConsoleCommandWithOutputDevice GDumpRHIMemoryCmd(
 //Static init order is undefined and you will likely end up with bad values on some platforms.
 const FClearValueBinding FClearValueBinding::None(EClearBinding::ENoneBound);
 const FClearValueBinding FClearValueBinding::Black(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+const FClearValueBinding FClearValueBinding::BlackMaxAlpha(FLinearColor(0.0f, 0.0f, 0.0f, FLT_MAX));
 const FClearValueBinding FClearValueBinding::White(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
 const FClearValueBinding FClearValueBinding::Transparent(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
 const FClearValueBinding FClearValueBinding::DepthOne(1.0f, 0);
@@ -471,6 +472,7 @@ bool GHardwareHiddenSurfaceRemoval = false;
 bool GRHISupportsAsyncTextureCreation = false;
 bool GRHISupportsQuadTopology = false;
 bool GRHISupportsRectTopology = false;
+bool GRHISupportsAtomicUInt64 = false;
 bool GSupportsParallelRenderingTasksWithSeparateRHIThread = true;
 bool GRHIThreadNeedsKicking = false;
 int32 GRHIMaximumReccommendedOustandingOcclusionQueries = MAX_int32;
@@ -576,7 +578,7 @@ FName FeatureLevelNames[] =
 {
 	FName(TEXT("ES2")),
 	FName(TEXT("ES3_1")),
-	FName(TEXT("SM4")),
+	FName(TEXT("SM4_REMOVED")),
 	FName(TEXT("SM5")),
 };
 
@@ -699,13 +701,11 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 	case SP_PCD3D_SM5:
 	case SP_OPENGL_SM4:
 	case SP_OPENGL_PCES2:
-	case SP_PCD3D_SM4:
 	case SP_OPENGL_SM5:
 	case SP_PCD3D_ES2:
 	case SP_PCD3D_ES3_1:
 	case SP_OPENGL_PCES3_1:
 	case SP_VULKAN_PCES3_1:
-	case SP_VULKAN_SM4:
 	case SP_VULKAN_SM5:
 		return NAME_PLATFORM_WINDOWS;
 	case SP_PS4:
@@ -719,7 +719,6 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 		return NAME_PLATFORM_ANDROID;
 	case SP_OPENGL_ES2_WEBGL:
 		return NAME_PLATFORM_HTML5;
-	case SP_OPENGL_ES2_IOS:
 	case SP_METAL:
 	case SP_METAL_MRT:
 		return NAME_PLATFORM_IOS;
@@ -786,6 +785,24 @@ RHI_API const TCHAR* RHIVendorIdToString()
 	case 0x8086: return TEXT("Intel");
 	default: return TEXT("Unknown");
 	}
+}
+
+RHI_API const TCHAR* RHIVendorIdToString(EGpuVendorId VendorId)
+{
+	switch (VendorId)
+	{
+	case EGpuVendorId::Amd: return TEXT("AMD");
+	case EGpuVendorId::ImgTec: return TEXT("ImgTec");
+	case EGpuVendorId::Nvidia: return TEXT("NVIDIA");
+	case EGpuVendorId::Arm: return TEXT("ARM");
+	case EGpuVendorId::Qualcomm: return TEXT("Qualcomm");
+	case EGpuVendorId::Intel: return TEXT("Intel");
+	case EGpuVendorId::NotQueried: return TEXT("Not Queried");
+	default:
+		break;
+	}
+
+	return TEXT("Unknown");
 }
 
 RHI_API uint32 RHIGetShaderLanguageVersion(const EShaderPlatform Platform)
@@ -1081,7 +1098,6 @@ FString LexToString(EShaderPlatform Platform)
 	switch (Platform)
 	{
 	case SP_PCD3D_SM5: return TEXT("PCD3D_SM5");
-	case SP_PCD3D_SM4: return TEXT("PCD3D_SM4");
 	case SP_PCD3D_ES3_1: return TEXT("PCD3D_ES3_1");
 	case SP_PCD3D_ES2: return TEXT("PCD3D_ES2");
 	case SP_OPENGL_SM4: return TEXT("OPENGL_SM4");
@@ -1090,7 +1106,6 @@ FString LexToString(EShaderPlatform Platform)
 	case SP_OPENGL_PCES3_1: return TEXT("OPENGL_PCES3_1");
 	case SP_OPENGL_ES2_ANDROID: return TEXT("OPENGL_ES2_ANDROID");
 	case SP_OPENGL_ES2_WEBGL: return TEXT("OPENGL_ES2_WEBGL");
-	case SP_OPENGL_ES2_IOS: return TEXT("OPENGL_ES2_IOS");
 	case SP_OPENGL_ES31_EXT: return TEXT("OPENGL_ES31_EXT");
 	case SP_OPENGL_ES3_1_ANDROID: return TEXT("OPENGL_ES3_1_ANDROID");
 	case SP_PS4: return TEXT("PS4");
@@ -1109,13 +1124,17 @@ FString LexToString(EShaderPlatform Platform)
 	case SP_VULKAN_ES3_1_ANDROID: return TEXT("VULKAN_ES3_1_ANDROID");
 	case SP_VULKAN_ES3_1_LUMIN: return TEXT("VULKAN_ES3_1_LUMIN");
 	case SP_VULKAN_PCES3_1: return TEXT("VULKAN_PCES3_1");
-	case SP_VULKAN_SM4:	return TEXT("VULKAN_SM4");
 	case SP_VULKAN_SM5: return TEXT("VULKAN_SM5");
 	case SP_VULKAN_SM5_LUMIN: return TEXT("VULKAN_SM5_LUMIN");
 
 #ifdef DDPI_EXTRA_SHADERPLATFORM_LEXTOSTRING
 		DDPI_EXTRA_SHADERPLATFORM_LEXTOSTRING
 #endif
+
+	case SP_OPENGL_ES2_IOS_DEPRECATED:
+	case SP_VULKAN_SM4_DEPRECATED:
+	case SP_PCD3D_SM4_DEPRECATED:
+		return TEXT("");
 
 	default:
 		checkf(0, TEXT("Unknown EShaderPlatform %d!"), (int32)Platform);
@@ -1175,7 +1194,6 @@ inline void ParseDataDrivenShaderInfo(const FConfigSection& Section, FDataDriven
 	Info.bSupportsDistanceFields = GetSectionBool(Section, "bSupportsDistanceFields");
 	Info.bSupportsDiaphragmDOF = GetSectionBool(Section, "bSupportsDiaphragmDOF");
 	Info.bSupportsRGBColorBuffer = GetSectionBool(Section, "bSupportsRGBColorBuffer");
-	Info.bSupportsByteBufferComputeShaders = GetSectionBool(Section, "bSupportsByteBufferComputeShaders");
 	Info.bSupportsCapsuleShadows = GetSectionBool(Section, "bSupportsCapsuleShadows");
 	Info.bSupportsVolumetricFog = GetSectionBool(Section, "bSupportsVolumetricFog");
 	Info.bSupportsIndexBufferUAVs = GetSectionBool(Section, "bSupportsIndexBufferUAVs");

@@ -14,6 +14,15 @@ FColor FVisualLoggingParameters::DebugColors[(int32)EVisualLoggingContext::MAX] 
 	FColor(255,81,101),	// OtherMispredicted
 	FColor(255,91,91),	// LastMispredicted
 	FColor::Purple,		// CurrentServerPIE
+
+	FColor(189, 195, 199),	// InterpolationBufferHead
+	FColor(94, 96, 99),		// InterpolationBufferTail
+	FColor(150, 150, 150),	// InterpolationFrom
+	FColor(200, 200, 200),	// InterpolationTo
+
+	FColor(0, 255, 0),	// InterpolationLatest
+	FColor(255, 0, 0),	// InterpolationWaiting
+	FColor(0, 0, 255),	// InterpolationSpeedUp
 };
 
 // -------------------------------------------------------------------------------------------------------------------------------

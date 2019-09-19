@@ -8,10 +8,11 @@
 #include "Engine/Blueprint.h"
 #include "Misc/Crc.h"
 #include "ControlRigDefines.h"
-#include "Hierarchy.h"
-#include "CurveContainer.h"
+#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigCurveContainer.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "ControlRigController.h"
+#include "ControlRigGizmoLibrary.h"
 #include "ControlRigBlueprint.generated.h"
 
 class UControlRigBlueprintGeneratedClass;
@@ -116,6 +117,7 @@ public:
 	UControlRigBlueprintGeneratedClass* GetControlRigBlueprintSkeletonClass() const;
 
 #if WITH_EDITOR
+
 	// UBlueprint interface
 	virtual UClass* GetBlueprintClass() const override;
 	virtual bool SupportedByDefaultBlueprintFactory() const override { return false; }
@@ -124,6 +126,19 @@ public:
 	virtual void GetTypeActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
 	virtual void GetInstanceActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;	
 	virtual void SetObjectBeingDebugged(UObject* NewObject) override;
+	virtual bool RequiresMarkAsStructurallyModifiedOnUndo() const override { return false; }
+	virtual void PostLoad() override;
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+
+	virtual bool SupportsGlobalVariables() const override { return false; }
+	virtual bool SupportsLocalVariables() const override { return false; }
+	virtual bool SupportsFunctions() const override { return false; }
+	virtual bool SupportsMacros() const override { return false; }
+	virtual bool SupportsDelegates() const override { return false; }
+	virtual bool SupportsEventGraphs() const override { return false; }
+	virtual bool SupportsAnimLayers() const override { return false; }
+
+
 #endif	// #if WITH_EDITOR
 
 	/** Make a property link between the specified properties - used by the compiler */
@@ -148,6 +163,11 @@ public:
 
 	UControlRigModel::FModifiedEvent& OnModified();
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, config, Category = DefaultGizmo)
+	TAssetPtr<UControlRigGizmoLibrary> GizmoLibrary;
+#endif
+
 private:
 	/** Links between the various properties we have */
 	UPROPERTY()
@@ -162,11 +182,17 @@ private:
 	UPROPERTY()
 	TMap<FName, FString> AllowSourceAccessProperties;
 
+public:
 	UPROPERTY()
-	FRigHierarchy Hierarchy;
+	FRigHierarchyContainer HierarchyContainer;
+
+private:
 
 	UPROPERTY()
-	FRigCurveContainer CurveContainer;
+	FRigBoneHierarchy Hierarchy_DEPRECATED;
+
+	UPROPERTY()
+	FRigCurveContainer CurveContainer_DEPRECATED;
 
 	/** The default skeletal mesh to use when previewing this asset */
 	UPROPERTY(DuplicateTransient, AssetRegistrySearchable)
@@ -183,10 +209,22 @@ private:
 	void HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload);
 	bool UpdateParametersOnControlRig(UControlRig* InRig = nullptr);
 	bool PerformArrayOperation(const FString& InPropertyPath, TFunctionRef<bool(FScriptArrayHelper&, int32)> InOperation, bool bCallModify, bool bPropagateToInstances);
+	void CleanupBoneHierarchyDeprecated();
+
+	void PropagatePoseFromInstanceToBP();
+	void PropagateHierarchyFromBPToInstances(bool bInitialize = true);
+#if WITH_EDITOR
+	void HandleOnElementAdded(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey);
+	void HandleOnElementRemoved(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey);
+	void HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InOldName, const FName& InNewName);
+	void HandleOnElementReparented(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, const FName& InOldParentName, const FName& InNewParentName);
+	void HandleOnElementSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected);
+#endif
 
 	friend class FControlRigBlueprintCompilerContext;
 	friend class SRigHierarchy;
 	friend class SRigCurveContainer;
 	friend class FControlRigEditor;
 	friend class UEngineTestControlRig;
+	friend class FControlRigEditMode;
 };

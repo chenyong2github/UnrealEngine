@@ -6,7 +6,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Profile/IMediaProfileManager.h"
 #include "Profile/MediaProfile.h"
-#include "Toolkits/AssetEditorManager.h"
+
 
 
 #define LOCTEXT_NAMESPACE "MediaProfileCommands"

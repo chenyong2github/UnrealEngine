@@ -44,7 +44,7 @@ void FLuminPlatformMisc::RequestExit(bool Force)
 	}
 	else
 	{
-		GIsRequestingExit = 1;
+		RequestEngineExit(TEXT("Lumin RequestExit"));
 	}
 }
 

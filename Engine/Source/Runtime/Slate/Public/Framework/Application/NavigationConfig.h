@@ -58,7 +58,10 @@ public:
 	/** Notified when navigation has caused a widget change to occur */
 	virtual void OnNavigationChangedFocus(TSharedPtr<SWidget> OldWidget, TSharedPtr<SWidget> NewWidget, FFocusEvent FocusEvent) {}
 
-	/** Returns the navigation action corresponding to this key, or Invalid if not found */
+	/** Returns the navigation action corresponding to a key event. This version will handle multiple users correctly */
+	virtual EUINavigationAction GetNavigationActionFromKey(const FKeyEvent& InKeyEvent) const;
+
+	UE_DEPRECATED(4.24, "GetNavigationActionForKey doesn't handle multiple users properly, use GetNavigationActionFromKey instead")
 	virtual EUINavigationAction GetNavigationActionForKey(const FKey& InKey) const;
 
 public:

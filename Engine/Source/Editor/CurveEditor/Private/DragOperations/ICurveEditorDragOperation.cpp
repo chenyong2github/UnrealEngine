@@ -31,6 +31,6 @@ void ICurveEditorDragOperation::CancelDrag()
 
 void ICurveEditorKeyDragOperation::Initialize(FCurveEditor* InCurveEditor, const TOptional<FCurvePointHandle>& CardinalPoint)
 {
-	SnapMetrics = InCurveEditor->GetSnapMetrics();
+	// TODO: maybe cache snap data for all selected curves?
 	OnInitialize(InCurveEditor, CardinalPoint);
 }

@@ -22,6 +22,7 @@ struct FRigUnit_SetBoneTranslation : public FRigUnitMutable
 	{}
 
 	virtual FString GetUnitLabel() const override;
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/**

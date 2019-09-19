@@ -2,7 +2,7 @@
 
 #include "EnvironmentQueryGraphNode_Option.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "EnvironmentQuery/EnvQueryGenerator.h"
 #include "EnvironmentQuery/EnvQueryTest.h"
 #include "EnvironmentQuery/EnvQueryOption.h"
@@ -93,24 +93,26 @@ FText UEnvironmentQueryGraphNode_Option::GetDescription() const
 	return OptionInstance ? OptionInstance->GetDescriptionDetails() : FText::GetEmpty();
 }
 
-void UEnvironmentQueryGraphNode_Option::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UEnvironmentQueryGraphNode_Option::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	Context.MenuBuilder->AddSubMenu(
+	FToolMenuSection& Section = Menu->AddSection("EnvironmentQueryGraphNode");
+	Section.AddSubMenu(
+		"AddTest",
 		LOCTEXT("AddTest", "Add Test..." ),
 		LOCTEXT("AddTestTooltip", "Adds new test to generator" ),
-		FNewMenuDelegate::CreateUObject( this, &UEnvironmentQueryGraphNode_Option::CreateAddTestSubMenu,(UEdGraph*)Context.Graph) 
+		FNewToolMenuDelegate::CreateUObject( this, &UEnvironmentQueryGraphNode_Option::CreateAddTestSubMenu,(UEdGraph*)Context->Graph) 
 		);
 }
 
-void UEnvironmentQueryGraphNode_Option::CreateAddTestSubMenu(class FMenuBuilder& MenuBuilder, UEdGraph* Graph) const
+void UEnvironmentQueryGraphNode_Option::CreateAddTestSubMenu(UToolMenu* Menu, UEdGraph* Graph) const
 {
-	TSharedRef<SGraphEditorActionMenuAI> Menu =	
+	TSharedRef<SGraphEditorActionMenuAI> Widget =	
 		SNew(SGraphEditorActionMenuAI)
 		.GraphObj( Graph )
 		.GraphNode((UEnvironmentQueryGraphNode_Option*)this)
 		.AutoExpandActionMenu(true);
 
-	MenuBuilder.AddWidget(Menu,FText(),true);
+	Menu->AddMenuEntry("Section", FToolMenuEntry::InitWidget("Widget", Widget, FText(), true));
 }
 
 void UEnvironmentQueryGraphNode_Option::CalculateWeights()

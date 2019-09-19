@@ -6,6 +6,7 @@
 
 #include <CoreMinimal.h>
 #include "Containers/StaticArray.h"
+#include "Containers/IndirectArray.h"
 #include "VectorTypes.h"
 #include "IndexTypes.h"
 
@@ -23,7 +24,7 @@ public:
 	{
 		CurBlock = 0;
 		CurBlockUsed = 0;
-		Blocks.Emplace();
+		Blocks.Add(new BlockType());
 	}
 
 	TDynamicVector(const TDynamicVector& Copy)
@@ -34,6 +35,23 @@ public:
 	TDynamicVector(TDynamicVector&& Moved)
 	{
 		*this = MoveTemp(Moved);
+	}
+
+	TDynamicVector(const TArray<Type>& Array)
+	{
+		SetNum(Array.Num());
+		for (int Idx = 0; Idx < Array.Num(); Idx++)
+		{
+			(*this)[Idx] = Array[Idx];
+		}
+	}
+	TDynamicVector(TArrayView<const Type> Array)
+	{
+		SetNum(Array.Num());
+		for (int Idx = 0; Idx < Array.Num(); Idx++)
+		{
+			(*this)[Idx] = Array[Idx];
+		}
 	}
 
 	~TDynamicVector() {}
@@ -86,7 +104,7 @@ protected:
 	unsigned int CurBlockUsed;
 
 	using BlockType = TStaticArray<Type, BlockSize>;
-	TArray<BlockType> Blocks;
+	TIndirectArray<BlockType> Blocks;
 
 	friend class FIterator;
 
@@ -147,6 +165,65 @@ public:
 	{
 		return FIterator(this, (int)GetLength());
 	}
+
+
+
+
+
+	/*
+	 * FConstIterator class iterates over values of vector
+	 */
+	class FConstIterator
+	{
+	public:
+		inline const Type& operator*() const
+		{
+			return (*DVector)[Idx];
+		}
+		inline FConstIterator& operator++()   // prefix
+		{
+			Idx++;
+			return *this;
+		}
+		inline FConstIterator operator++(int) // postfix
+		{
+			FConstIterator Copy(*this);
+			Idx++;
+			return Copy;
+		}
+		inline bool operator==(const FConstIterator& Itr2)
+		{
+			return DVector == Itr2.DVector && Idx == Itr2.Idx;
+		}
+		inline bool operator!=(const FConstIterator& Itr2)
+		{
+			return DVector != Itr2.DVector || Idx != Itr2.Idx;
+		}
+
+	protected:
+		const TDynamicVector<Type>* DVector;
+		int Idx;
+		inline FConstIterator(const TDynamicVector<Type>* Parent, int ICur)
+		{
+			DVector = Parent;
+			Idx = ICur;
+		}
+		friend class TDynamicVector<Type>;
+	};
+
+	/** @return iterator at beginning of vector */
+	FConstIterator begin() const
+	{
+		return IsEmpty() ? end() : FConstIterator(this, 0);
+	}
+	/** @return iterator at end of vector */
+	FConstIterator end() const
+	{
+		return FConstIterator(this, (int)GetLength());
+	}
+
+
+
 };
 
 
@@ -355,7 +432,7 @@ void TDynamicVector<Type>::Clear()
 	Blocks.Empty();
 	CurBlock = 0;
 	CurBlockUsed = 0;
-	Blocks.Add(BlockType());
+	Blocks.Add(new BlockType());
 }
 
 template <class Type>
@@ -383,21 +460,20 @@ void TDynamicVector<Type>::Resize(size_t Count)
 	int nNumSegs = 1 + (int)Count / BlockSize;
 
 	// figure out how many are currently allocated...
-	size_t nCurCount = Blocks.Num();
+	int32 nCurCount = Blocks.Num();
 
 	// resize to right number of segments
-	if (nNumSegs >= Blocks.Num())
+	if (nNumSegs >= nCurCount)
 	{
 		// allocate new segments
 		for (int i = (int)nCurCount; i < nNumSegs; ++i)
 		{
-			Blocks.Emplace();
+			Blocks.Add(new BlockType());
 		}
 	}
 	else
 	{
-		//Blocks.RemoveRange(nNumSegs, Blocks.Count - nNumSegs);
-		Blocks.SetNum(nNumSegs);
+		Blocks.RemoveAt(nNumSegs, nCurCount - nNumSegs);
 	}
 
 	// mark last segment
@@ -423,7 +499,7 @@ void TDynamicVector<Type>::Add(const Type& Value)
 	{
 		if (CurBlock == Blocks.Num() - 1)
 		{
-			Blocks.Emplace();
+			Blocks.Add(new BlockType());
 		}
 		CurBlock++;
 		CurBlockUsed = 0;

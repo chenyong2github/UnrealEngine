@@ -12,6 +12,7 @@
 #include "SlateOptMacros.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "EditorStyleSet.h"
@@ -47,9 +48,10 @@
 #include "Widgets/Layout/SWrapBox.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Engine/HLODProxy.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "HLODOutliner"
 
@@ -1468,12 +1470,6 @@ namespace HLODOutliner
 			return nullptr;
 		}
 
-		// Build up the menu for a selection
-		const bool bCloseAfterSelection = true;
-		TSharedPtr<FExtender> Extender = MakeShareable(new FExtender);
-
-		FMenuBuilder MenuBuilder(bCloseAfterSelection, TSharedPtr<FUICommandList>(), Extender);
-
 		// Multi-selection support, check if all selected items are of the same type, if so return the appropriate context menu
 		auto SelectedItems = TreeView->GetSelectedItems();
 		ITreeItem::TreeItemType Type = ITreeItem::Invalid;
@@ -1497,8 +1493,18 @@ namespace HLODOutliner
 
 		if (SelectedItems.Num() && bSameType)
 		{
-			TreeView->GetSelectedItems()[0]->GenerateContextMenu(MenuBuilder, *this);
-			return MenuBuilder.MakeWidget();
+			UToolMenus* ToolMenus = UToolMenus::Get();
+			static const FName MenuName = "HierarchicalLODOutliner.HLODOutlinerContextMenu";
+			if (!ToolMenus->IsMenuRegistered(MenuName))
+			{
+				ToolMenus->RegisterMenu(MenuName);
+			}
+
+			// Build up the menu for a selection
+			FToolMenuContext Context;
+			UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, Context);
+			TreeView->GetSelectedItems()[0]->GenerateContextMenu(Menu, *this);
+			return ToolMenus->GenerateWidget(Menu);
 		}
 
 		return TSharedPtr<SWidget>();
@@ -2128,7 +2134,7 @@ namespace HLODOutliner
 								GetObjectsWithOuter(HLODPackage, Objects);
 								for(UObject* PackageObject : Objects)
 								{
-									FAssetEditorManager::Get().CloseAllEditorsForAsset(PackageObject);
+									GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(PackageObject);
 								}
 							}
 						}

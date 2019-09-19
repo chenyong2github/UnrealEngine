@@ -28,8 +28,8 @@ MODLIBS=        $(LOCALMODLIBS) $(BASEMODLIBS)
 VERSION=	2.7
 srcdir=		.
 
-abs_srcdir=	/var/folders/fg/yssrsyhn27vb9nlw0fvscwpm0000gn/T/python-build.20190530142129.23034/Python-2.7.14
-abs_builddir=	/var/folders/fg/yssrsyhn27vb9nlw0fvscwpm0000gn/T/python-build.20190530142129.23034/Python-2.7.14
+abs_srcdir=	/var/folders/fg/yssrsyhn27vb9nlw0fvscwpm0000gn/T/python-build.20190605175505.11658/Python-2.7.14
+abs_builddir=	/var/folders/fg/yssrsyhn27vb9nlw0fvscwpm0000gn/T/python-build.20190605175505.11658/Python-2.7.14
 build=		x86_64-apple-darwin17.7.0
 host=		x86_64-apple-darwin17.7.0
 
@@ -73,19 +73,19 @@ MAKESETUP=      $(srcdir)/Modules/makesetup
 # Compiler options
 OPT=		-DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes
 BASECFLAGS=	 -fno-strict-aliasing
-CFLAGS=		$(BASECFLAGS) -g -O2 $(OPT) $(EXTRA_CFLAGS)
+CFLAGS=		$(BASECFLAGS) -I/usr/local/opt/openssl/include  $(OPT) $(EXTRA_CFLAGS)
 # Both CPPFLAGS and LDFLAGS need to contain the shell's value for setup.py to
 # be able to build extension modules using the directories specified in the
 # environment variables
-CPPFLAGS=	-I. -IInclude -I$(srcdir)/Include -I/usr/local/opt/readline/include -I/usr/local/opt/readline/include -I/usr/local/opt/openssl/include -I/Users/nshin/.pyenv/versions/2.7.14/include 
-LDFLAGS=	-L/usr/local/opt/readline/lib -L/usr/local/opt/readline/lib -L/usr/local/opt/openssl/lib -L/Users/nshin/.pyenv/versions/2.7.14/lib 
+CPPFLAGS=	-I. -IInclude -I$(srcdir)/Include -I/usr/local/opt/readline/include -I/usr/local/opt/readline/include -I/usr/local/opt/openssl/include -I/Users/nshin/.pyenv/versions/2.7.14/include -I/usr/local/opt/openssl/include
+LDFLAGS=	-L/usr/local/opt/readline/lib -L/usr/local/opt/readline/lib -L/usr/local/opt/openssl/lib -L/Users/nshin/.pyenv/versions/2.7.14/lib -L/usr/local/opt/openssl/lib
 LDLAST=		
 SGI_ABI=	
 CCSHARED=	
 LINKFORSHARED=	-u _PyMac_Error
 ARFLAGS=	rc
 # Extra C flags added for building the interpreter object files.
-CFLAGSFORSHARED=
+CFLAGSFORSHARED=$(CCSHARED)
 # C flags used for building the interpreter object files
 PY_CFLAGS=	$(CFLAGS) $(CPPFLAGS) $(CFLAGSFORSHARED) -DPy_BUILD_CORE
 
@@ -147,7 +147,7 @@ export MACOSX_DEPLOYMENT_TARGET
 OTHER_LIBTOOL_OPT=
 
 # Environment to run shared python without installed libraries
-RUNSHARED=       
+RUNSHARED=       DYLD_LIBRARY_PATH=/var/folders/fg/yssrsyhn27vb9nlw0fvscwpm0000gn/T/python-build.20190605175505.11658/Python-2.7.14
 
 # ensurepip options
 ENSUREPIP=      no
@@ -159,7 +159,7 @@ EXEMODE=	755
 FILEMODE=	644
 
 # configure script arguments
-CONFIG_ARGS=	 '--prefix=/Users/nshin/.pyenv/versions/2.7.14' '--libdir=/Users/nshin/.pyenv/versions/2.7.14/lib' 'CC=clang' 'LDFLAGS=-L/usr/local/opt/readline/lib -L/usr/local/opt/readline/lib -L/usr/local/opt/openssl/lib -L/Users/nshin/.pyenv/versions/2.7.14/lib ' 'CPPFLAGS=-I/usr/local/opt/readline/include -I/usr/local/opt/readline/include -I/usr/local/opt/openssl/include -I/Users/nshin/.pyenv/versions/2.7.14/include ' 'PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig/:'
+CONFIG_ARGS=	 '--prefix=/Users/nshin/.pyenv/versions/2.7.14' '--enable-shared' '--libdir=/Users/nshin/.pyenv/versions/2.7.14/lib' 'CC=clang' 'CFLAGS=-I/usr/local/opt/openssl/include ' 'LDFLAGS=-L/usr/local/opt/readline/lib -L/usr/local/opt/readline/lib -L/usr/local/opt/openssl/lib -L/Users/nshin/.pyenv/versions/2.7.14/lib -L/usr/local/opt/openssl/lib' 'CPPFLAGS=-I/usr/local/opt/readline/include -I/usr/local/opt/readline/include -I/usr/local/opt/openssl/include -I/Users/nshin/.pyenv/versions/2.7.14/include -I/usr/local/opt/openssl/include' 'PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig/:/usr/local/opt/openssl/lib/pkgconfig'
 
 
 # Subdirectories with code
@@ -176,8 +176,8 @@ DIST=		$(DISTFILES) $(DISTDIRS)
 
 
 LIBRARY=	libpython$(VERSION).a
-LDLIBRARY=      libpython$(VERSION).a
-BLDLIBRARY=     $(LDLIBRARY)
+LDLIBRARY=      libpython$(VERSION).dylib
+BLDLIBRARY=     -L. -lpython$(VERSION)
 DLLLIBRARY=	
 LDLIBRARYDIR=   
 INSTSONAME=	$(LDLIBRARY)

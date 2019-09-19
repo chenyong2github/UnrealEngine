@@ -204,5 +204,10 @@ private:
 	TOptional<bool> bCachedUseCustomEndFrame;
 
 	TSharedPtr<FMovieSceneTimeController_FrameStep> TimeController;
+
+	// We cache these off on initialization so we can restore to them after running an audio pass.
+	int32 CachedWarmUpFrameCount;
+	int32 CachedDelayBeforeWarmUp;
+	int32 CachedDelayBeforeShotWarmUp;
 };
 

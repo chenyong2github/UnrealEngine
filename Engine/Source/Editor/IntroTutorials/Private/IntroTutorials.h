@@ -63,8 +63,8 @@ private:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	/** Add the menu extension for summoning the tutorial */
-	void AddSummonTutorialsMenuExtension(FMenuBuilder& MenuBuilder);
+	/** Register the menu for summoning the tutorial */
+	void RegisterSummonTutorialsMenuEntries();
 
 	/** Add a menu extender to summon context-sensitive Blueprints page */
 	TSharedRef<FExtender> AddSummonBlueprintTutorialsMenuExtender(const TSharedRef<FUICommandList> CommandList, const TArray<UObject*> EditingObjects) const;

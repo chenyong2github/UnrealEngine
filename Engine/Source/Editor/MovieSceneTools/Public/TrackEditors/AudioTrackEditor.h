@@ -11,6 +11,7 @@
 #include "ISequencer.h"
 #include "ISequencerTrackEditor.h"
 #include "MovieSceneTrackEditor.h"
+#include "IContentBrowserSingleton.h"
 
 struct FAssetData;
 class FAudioThumbnail;
@@ -49,6 +50,7 @@ public:
 	// ISequencerTrackEditor interface
 
 	virtual void BuildAddTrackMenu(FMenuBuilder& MenuBuilder) override;
+	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 	virtual TSharedPtr<SWidget> BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params) override;
 	virtual bool HandleAssetAdded(UObject* Asset, const FGuid& TargetObjectGuid) override;
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding) override;
@@ -74,14 +76,23 @@ private:
 	/** Callback for executing the "Add Audio Track" menu entry. */
 	void HandleAddAudioTrackMenuEntryExecute();
 
+	/** Callback for executing the "Add Audio Track" menu entry on an actor */
+	void HandleAddAttachedAudioTrackMenuEntryExecute(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings);
+
 	/** Audio sub menu */
-	TSharedRef<SWidget> BuildAudioSubMenu(UMovieSceneTrack* Track);
+	TSharedRef<SWidget> BuildAudioSubMenu(FOnAssetSelected OnAssetSelected, FOnAssetEnterPressed OnAssetEnterPressed);
 
 	/** Audio asset selected */
 	void OnAudioAssetSelected(const FAssetData& AssetData, UMovieSceneTrack* Track);
 
 	/** Audio asset enter pressed */
 	void OnAudioAssetEnterPressed(const TArray<FAssetData>& AssetData, UMovieSceneTrack* Track);
+
+	/** Attached audio asset selected */
+	void OnAttachedAudioAssetSelected(const FAssetData& AssetData, TArray<FGuid> ObjectBindings);
+
+	/** Attached audio asset enter pressed */
+	void OnAttachedAudioEnterPressed(const TArray<FAssetData>& AssetData, TArray<FGuid> ObjectBindings);
 };
 
 

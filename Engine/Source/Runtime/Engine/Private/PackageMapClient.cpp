@@ -3465,10 +3465,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FNetFieldExport::CountBytes(FArchive& Ar) const
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Name.CountBytes(Ar);
-	Type.CountBytes(Ar);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 }
 
 void FNetFieldExportGroup::CountBytes(FArchive& Ar) const

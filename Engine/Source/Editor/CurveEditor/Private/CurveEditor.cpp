@@ -21,6 +21,8 @@
 #include "ITimeSlider.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Runtime/Core/Public/Algo/Transform.h"
+#include "SCurveEditor.h" // for access to LogCurveEditor
 
 #define LOCTEXT_NAMESPACE "CurveEditor"
 
@@ -43,7 +45,6 @@ FCurveEditor::FCurveEditor()
 
 	OutputSnapEnabledAttribute = true;
 	InputSnapEnabledAttribute  = true;
-	OutputSnapIntervalAttribute = 0.1;
 	InputSnapRateAttribute = FFrameRate(10, 1);
 
 	GridLineLabelFormatXAttribute = LOCTEXT("GridXLabelFormat", "{0}s");
@@ -53,6 +54,8 @@ FCurveEditor::FCurveEditor()
 void FCurveEditor::InitCurveEditor(const FCurveEditorInitParams& InInitParams)
 {
 	ICurveEditorModule& CurveEditorModule = FModuleManager::LoadModuleChecked<ICurveEditorModule>("CurveEditor");
+
+	Selection = FCurveEditorSelection(SharedThis(this));
 
 	// Editor Extensions can be registered in the Curve Editor module. To allow users to derive from FCurveEditor
 	// we have to manually reach out to the module and get a list of extensions to create an instance of them.
@@ -306,16 +309,33 @@ void FCurveEditor::BindCommands()
 	}
 }
 
-FCurveEditorSnapMetrics FCurveEditor::GetSnapMetrics() const
+FCurveSnapMetrics FCurveEditor::GetCurveSnapMetrics(FCurveModelID CurveModel) const
 {
-	FCurveEditorSnapMetrics Metrics;
+	FCurveSnapMetrics CurveMetrics;
 
-	Metrics.bSnapOutputValues  = OutputSnapEnabledAttribute.Get();
-	Metrics.OutputSnapInterval = OutputSnapIntervalAttribute.Get();
-	Metrics.bSnapInputValues   = InputSnapEnabledAttribute.Get();
-	Metrics.InputSnapRate      = InputSnapRateAttribute.Get();
+	const SCurveEditorView* View = FindFirstInteractiveView(CurveModel);
+	if (!View)
+	{
+		return CurveMetrics;
+	}
 
-	return Metrics;
+	// get the grid lines in view space
+	TArray<float> ViewSpaceGridLines;
+	View->GetGridLinesY(SharedThis(this), ViewSpaceGridLines, ViewSpaceGridLines);
+
+	// convert the grid lines from view space
+	TArray<double> CurveSpaceGridLines;
+	ViewSpaceGridLines.Reserve(ViewSpaceGridLines.Num());
+	FCurveEditorScreenSpace CurveSpace = View->GetCurveSpace(CurveModel);
+	Algo::Transform(ViewSpaceGridLines, CurveSpaceGridLines, [&CurveSpace](float VSVal) { return CurveSpace.ScreenToValue(VSVal); });
+	
+	// create metrics struct;
+	CurveMetrics.bSnapOutputValues = OutputSnapEnabledAttribute.Get();
+	CurveMetrics.bSnapInputValues = InputSnapEnabledAttribute.Get();
+	CurveMetrics.AllGridLines = CurveSpaceGridLines;
+	CurveMetrics.InputSnapRate = InputSnapRateAttribute.Get();
+
+	return CurveMetrics;
 }
 
 void FCurveEditor::ZoomToFit(EAxisList::Type Axes)
@@ -422,8 +442,6 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 		}
 	}
 
-	FCurveEditorSnapMetrics SnapMetrics = GetSnapMetrics();
-
 	if (Axes & EAxisList::X && InputMin != TNumericLimits<double>::Max() && InputMax != TNumericLimits<double>::Lowest())
 	{
 		// If zooming to the same (or invalid) min/max, keep the same zoom scale and center within the timeline
@@ -438,7 +456,7 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 		}
 		else
 		{
-			const double MinInputZoom = SnapMetrics.bSnapInputValues ? SnapMetrics.InputSnapRate.AsInterval() : 0.00001;
+			const double MinInputZoom = InputSnapEnabledAttribute.Get() ? InputSnapRateAttribute.Get().AsInterval() : 0.00001;
 			const double InputPadding = FMath::Max((InputMax - InputMin) * 0.1, MinInputZoom);
 			InputMax = FMath::Max(InputMin + MinInputZoom, InputMax);
 
@@ -465,7 +483,7 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 		}
 		else
 		{
-			const double MinOutputZoom = SnapMetrics.bSnapOutputValues ? SnapMetrics.OutputSnapInterval : 0.00001;
+			constexpr double MinOutputZoom = 0.00001;
 			const double OutputPadding = FMath::Max((OutputMax - OutputMin) * 0.05, MinOutputZoom);
 
 			
@@ -664,13 +682,13 @@ FCurveEditorScreenSpaceH FCurveEditor::GetPanelInputSpace() const
 	return FCurveEditorScreenSpaceH(PanelWidth, InputMin, InputMax);
 }
 
-void FCurveEditor::ConstructXGridLines(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const
+void FCurveEditor::ConstructXGridLines(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels) const
 {
 	FCurveEditorScreenSpaceH InputSpace = GetPanelInputSpace();
 
 	double MajorGridStep  = 0.0;
 	int32  MinorDivisions = 0;
-	if (GetSnapMetrics().InputSnapRate.ComputeGridSpacing(InputSpace.PixelsPerInput(), MajorGridStep, MinorDivisions))
+	if (InputSnapRateAttribute.Get().ComputeGridSpacing(InputSpace.PixelsPerInput(), MajorGridStep, MinorDivisions))
 	{
 		FText GridLineLabelFormatX = GridLineLabelFormatXAttribute.Get();
 		const double FirstMajorLine = FMath::FloorToDouble(InputSpace.GetInputMin() / MajorGridStep) * MajorGridStep;
@@ -679,7 +697,10 @@ void FCurveEditor::ConstructXGridLines(TArray<float>& MajorGridLines, TArray<flo
 		for (double CurrentMajorLine = FirstMajorLine; CurrentMajorLine < LastMajorLine; CurrentMajorLine += MajorGridStep)
 		{
 			MajorGridLines.Add( (CurrentMajorLine - InputSpace.GetInputMin()) * InputSpace.PixelsPerInput() );
-			MajorGridLabels.Add( FText::Format(GridLineLabelFormatX, FText::AsNumber(CurrentMajorLine)) );
+			if (MajorGridLabels)
+			{
+				MajorGridLabels->Add(FText::Format(GridLineLabelFormatX, FText::AsNumber(CurrentMajorLine)));
+			}
 
 			for (int32 Step = 1; Step < MinorDivisions; ++Step)
 			{
@@ -915,31 +936,29 @@ void FCurveEditor::SetBufferedCurves(const TSet<FCurveModelID>& InCurves)
 		FCurveModel* CurveModel = FindCurve(CurveID);
 		check(CurveModel);
 
-
-		// We loop through the key data on the curve and apply it to the copy, since there's no copy constructors for Curve Models (for good reason!)
-		FBufferedCurve& BufferedCurve = BufferedCurves.Emplace_GetRef();
-		
-		int32 NumKeys = CurveModel->GetNumKeys();
-		BufferedCurve.KeyPositions.SetNumUninitialized(NumKeys);
-		BufferedCurve.KeyAttributes.SetNumUninitialized(NumKeys);
-
-		// Copy all of the from the curve into our cached buffer
-		TArray<FKeyHandle> KeyHandles;
-
-		CurveModel->GetKeys(*this, TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), KeyHandles);
-		CurveModel->GetKeyPositions(KeyHandles, BufferedCurve.KeyPositions);
-		CurveModel->GetKeyAttributes(KeyHandles, BufferedCurve.KeyAttributes);
-		BufferedCurve.IntentionName = CurveModel->GetIntentionName();
+		// Add a buffered curve copy if the curve model supports buffered curves
+		TUniquePtr<IBufferedCurveModel> CurveModelCopy = CurveModel->CreateBufferedCurveCopy();
+		if (CurveModelCopy) 
+		{ 
+			BufferedCurves.Add(MoveTemp(CurveModelCopy)); 
+		}
+		else
+		{
+			UE_LOG(LogCurveEditor, Warning, TEXT("Failed to buffer curve, curve model did not provide a copy."))
+		}
 	}
 }
 
 
-void FCurveEditor::ApplyBufferedCurveToTarget(const FBufferedCurve& BufferedCurve, FCurveModel* TargetCurve)
+void FCurveEditor::ApplyBufferedCurveToTarget(const IBufferedCurveModel* BufferedCurve, FCurveModel* TargetCurve)
 {
 	check(TargetCurve);
+	check(BufferedCurve);
 
 	TArray<FKeyPosition> KeyPositions;
 	TArray<FKeyAttributes> KeyAttributes;
+	BufferedCurve->GetKeyPositions(KeyPositions);
+	BufferedCurve->GetKeyAttributes(KeyAttributes);
 
 
 	// Copy the data from the Buffered curve into the target curve. This just does wholesale replacement.
@@ -950,7 +969,7 @@ void FCurveEditor::ApplyBufferedCurveToTarget(const FBufferedCurve& BufferedCurv
 	TargetCurve->RemoveKeys(TargetKeyHandles);
 
 	// Now put our buffered keys into the target curve
-	TargetCurve->AddKeys(BufferedCurve.KeyPositions, BufferedCurve.KeyAttributes);
+	TargetCurve->AddKeys(KeyPositions, KeyAttributes);
 }
 
 bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToApplyTo)
@@ -1002,7 +1021,7 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 		int32 MatchedBufferedCurveIndex = -1;
 		for (int32 BufferedCurveIndex = BufferedCurveSearchIndexStart; BufferedCurveIndex < BufferedCurves.Num(); BufferedCurveIndex++)
 		{
-			if (BufferedCurves[BufferedCurveIndex].IntentionName == TargetIntent)
+			if (BufferedCurves[BufferedCurveIndex]->GetIntentionName() == TargetIntent)
 			{
 				MatchedBufferedCurveIndex = BufferedCurveIndex;
 
@@ -1027,7 +1046,7 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 			NumCurvesMatchedByIntent++;
 			bFoundAnyMatchedIntent = true;
 
-			const FBufferedCurve& BufferedCurve = BufferedCurves[MatchedBufferedCurveIndex];
+			const IBufferedCurveModel* BufferedCurve = BufferedCurves[MatchedBufferedCurveIndex].Get();
 			ApplyBufferedCurveToTarget(BufferedCurve, TargetCurve);
 
 		}
@@ -1079,7 +1098,7 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 		
 		for (int32 CurveIndex = 0; CurveIndex < InCurvesToApplyTo.Num(); CurveIndex++)
 		{
-			ApplyBufferedCurveToTarget(BufferedCurves[CurveIndex], FindCurve(CurvesToApplyTo[CurveIndex]));
+			ApplyBufferedCurveToTarget(BufferedCurves[CurveIndex].Get(), FindCurve(CurvesToApplyTo[CurveIndex]));
 		}
 
 		FText NotificationText;

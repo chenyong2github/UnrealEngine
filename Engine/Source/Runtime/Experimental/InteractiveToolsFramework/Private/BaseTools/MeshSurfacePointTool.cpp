@@ -4,6 +4,7 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
+#include "Components/PrimitiveComponent.h"
 
 
 /*
@@ -12,7 +13,7 @@
 
 bool UMeshSurfacePointToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, ToolBuilderUtil::IsMeshDescriptionSourceComponent) == 1;
+	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
 }
 
 UInteractiveTool* UMeshSurfacePointToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -29,23 +30,16 @@ UMeshSurfacePointTool* UMeshSurfacePointToolBuilder::CreateNewTool(const FToolBu
 
 void UMeshSurfacePointToolBuilder::InitializeNewTool(UMeshSurfacePointTool* NewTool, const FToolBuilderState& SceneState) const
 {
-	UActorComponent* MeshComponent = ToolBuilderUtil::FindFirstComponent(SceneState, ToolBuilderUtil::IsMeshDescriptionSourceComponent);
+	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, CanMakeComponentTarget);
+	UPrimitiveComponent* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
 	check(MeshComponent != nullptr);
-	NewTool->SetMeshSource(
-		SceneState.SourceBuilder->MakeMeshDescriptionSource(MeshComponent) );
+	NewTool->SetSelection( MakeComponentTarget(MeshComponent) );
 }
 
 
 /*
  * Tool
  */
-
-void UMeshSurfacePointTool::SetMeshSource(TUniquePtr<IMeshDescriptionSource> MeshSourceIn)
-{
-	this->MeshSource = TUniquePtr<IMeshDescriptionSource>(MoveTemp(MeshSourceIn));
-}
-
-
 void UMeshSurfacePointTool::Setup()
 {
 	UInteractiveTool::Setup();
@@ -65,7 +59,7 @@ void UMeshSurfacePointTool::Setup()
 
 bool UMeshSurfacePointTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 {
-	return MeshSource->HitTest(Ray, OutHit);
+	return ComponentTarget->HitTest(Ray, OutHit);
 }
 
 

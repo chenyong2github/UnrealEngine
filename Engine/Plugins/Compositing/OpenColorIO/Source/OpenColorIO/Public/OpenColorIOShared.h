@@ -55,7 +55,7 @@ public:
 
 public:
 	FOpenColorIOShaderMapId()
-		: FeatureLevel(ERHIFeatureLevel::SM4)
+		: FeatureLevel(ERHIFeatureLevel::SM5)
 	{ }
 
 	~FOpenColorIOShaderMapId()
@@ -295,7 +295,7 @@ public:
 	FOpenColorIOTransformResource() 
 		: GameThreadShaderMap(nullptr)
 		, RenderingThreadShaderMap(nullptr)
-		, FeatureLevel(ERHIFeatureLevel::SM4)
+		, FeatureLevel(ERHIFeatureLevel::SM5)
 		, bContainsInlineShaders(false)
 		, bLoadedCookedShaderMapId(false)
 	{}

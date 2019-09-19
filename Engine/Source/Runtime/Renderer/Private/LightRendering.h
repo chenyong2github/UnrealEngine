@@ -502,7 +502,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return bRadialLight ? IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4) : true;
+		return bRadialLight ? IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) : true;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

@@ -149,6 +149,35 @@ struct FEdgeID : public FElementID
 };
 
 
+USTRUCT(BlueprintType)
+struct FTriangleID : public FElementID
+{
+	GENERATED_BODY()
+
+	FTriangleID()
+	{
+	}
+
+	explicit FTriangleID(const FElementID InitElementID)
+		: FElementID(InitElementID.GetValue())
+	{
+	}
+
+	explicit FTriangleID(const int32 InitIDValue)
+		: FElementID(InitIDValue)
+	{
+	}
+
+	FORCEINLINE friend uint32 GetTypeHash(const FTriangleID& Other)
+	{
+		return GetTypeHash(Other.IDValue);
+	}
+
+	/** Invalid edge ID */
+	MESHDESCRIPTION_API static const FTriangleID Invalid;
+};
+
+
 USTRUCT( BlueprintType )
 struct FPolygonGroupID : public FElementID
 {

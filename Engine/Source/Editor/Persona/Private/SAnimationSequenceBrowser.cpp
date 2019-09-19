@@ -12,7 +12,7 @@
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimSequence.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "EditorStyleSet.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "IPersonaPreviewScene.h"
@@ -40,6 +40,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Preferences/PersonaOptions.h"
 #include "Settings/SkeletalMeshEditorSettings.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SequenceBrowser"
 
@@ -520,7 +521,7 @@ void SAnimationSequenceBrowser::RetargetAnimationHandler(USkeleton* OldSkeleton,
 		FAssetRegistryModule::AssetCreated(AssetToOpen);
 
 		// once all success, attempt to open new editor with new skeleton
-		FAssetEditorManager::Get().OpenEditorForAsset(AssetToOpen);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetToOpen);
 	}
 }
 

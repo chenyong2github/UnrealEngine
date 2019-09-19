@@ -2,17 +2,18 @@
 
 #include "AssetTypeActions/AssetTypeActions_FontFace.h"
 #include "FontEditorModule.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "EditorStyleSet.h"
 #include "EditorReimportHandler.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_FontFace::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_FontFace::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto FontFaces = GetTypedWeakObjectPtrs<UFontFace>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"ReimportFontFaceLabel",
 		LOCTEXT("ReimportFontFaceLabel", "Reimport"),
 		LOCTEXT("ReimportFontFaceTooltip", "Reimport the selected font(s)."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
@@ -27,7 +28,13 @@ void FAssetTypeActions_FontFace::OpenAssetEditor( const TArray<UObject*>& InObje
 {
 	// Load the FontEditor module to ensure that FFontFaceDetailsCustomization is registered
 	IFontEditorModule* FontEditorModule = &FModuleManager::LoadModuleChecked<IFontEditorModule>("FontEditor");
-	FSimpleAssetEditor::CreateEditor(EToolkitMode::Standalone, EditWithinLevelEditor, InObjects);
+	
+	// Open each object in turn, as the default editor would try and collapse a multi-edit together 
+	// into a single editor instance which doesn't really work for font face assets
+	for (UObject* Object : InObjects)
+	{
+		FSimpleAssetEditor::CreateEditor(EToolkitMode::Standalone, EditWithinLevelEditor, Object);
+	}
 }
 
 bool FAssetTypeActions_FontFace::CanExecuteReimport(const TArray<TWeakObjectPtr<UFontFace>> Objects) const

@@ -33,11 +33,6 @@ namespace BuildPatchServices
 		// IControllable interface end.
 
 		/**
-		 * Resets internal variables to start over
-		 */
-		virtual void Reset();
-
-		/**
 		 * Sets the progress value for a particular state
 		 * @param State		The state to set progress for
 		 * @param Value		The progress value
@@ -106,6 +101,11 @@ namespace BuildPatchServices
 		 * @param bIsDownloading	Whether the system is currently downloading data.
 		 */
 		virtual void SetIsDownloading(bool bIsDownloading);
+
+		/**
+		 * Resets an abort state, for the next installer iteration.
+		 */
+		virtual void CancelAbort();
 
 	private:
 

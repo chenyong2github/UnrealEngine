@@ -193,6 +193,11 @@ public:
 	/** Sets the snapping interval for curve values. */
 	void SetCurveValueSnapInterval(float InCurveValueSnapInterval);
 
+	/** Gets the state for spacing between grid lines */
+	TOptional<float> GetGridSpacing() const;
+	/** Sets the grid line spacing state */
+	void SetGridSpacing(TOptional<float> InGridSpacing);
+
 	/** Gets whether or not to snap curve values to the interval. */
 	bool GetSnapCurveValueToInterval() const;
 	/** Sets whether or not to snap curve values to the interval. */
@@ -278,6 +283,11 @@ public:
 	bool GetShowChannelColors() const;
 	/** Set whether to show channel colors */
 	void SetShowChannelColors(bool bInShowChannelColors);
+
+	/** @return true if deleting keys that fall beyond the section range when trimming */
+	bool GetDeleteKeysWhenTrimming() const;
+	/** Set whether to delete keys that fall beyond the section range when trimming */
+	void SetDeleteKeysWhenTrimming(bool bInDeleteKeysWhenTrimming);
 
 	/** @return Whether to activate realtime viewports when in sequencer */
 	bool ShouldActivateRealtimeViewports() const;
@@ -413,6 +423,9 @@ protected:
 	/** The curve value interval to snap to. */
 	float CurveValueSnapInterval;
 
+	/** grid line spacing state */
+	TOptional<float> GridSpacing;
+
 	/** Enable or disable snapping the curve value to the curve value interval. */
 	UPROPERTY( config, EditAnywhere, Category=Snapping )
 	bool bSnapCurveValueToInterval;
@@ -478,8 +491,12 @@ protected:
 	bool bInfiniteKeyAreas;
 
 	/** Enable or disable displaying channel bar colors for vector properties. */
-	UPROPERTY( config, EditAnywhere, Category=Timeline )
+	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bShowChannelColors;
+
+	/** Enable or disable deleting keys that fall beyond the section range when trimming. */
+	UPROPERTY(config, EditAnywhere, Category = Timeline)
+	bool bDeleteKeysWhenTrimming;
 
 	/** When enabled, sequencer will activate 'Realtime' in viewports */
 	UPROPERTY(config, EditAnywhere, Category=General)

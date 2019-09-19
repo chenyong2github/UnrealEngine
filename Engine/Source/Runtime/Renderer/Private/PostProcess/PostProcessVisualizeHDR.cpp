@@ -19,6 +19,12 @@
 #include "PipelineStateCache.h"
 #include "Curves/CurveFloat.h"
 
+extern FIntPoint GetHistogramTexelsPerGroup();
+
+extern float GetBasicAutoExposureFocus();
+
+extern bool IsExtendLuminanceRangeEnabled();
+
 /** Encapsulates the post processing eye adaptation pixel shader. */
 class FPostProcessVisualizeHDRPS : public FGlobalShader
 {
@@ -36,13 +42,16 @@ class FPostProcessVisualizeHDRPS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("USE_SHADOW_TINT"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_CONTRAST"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_APPROXIMATE_SRGB"), (uint32)0);
-		OutEnvironment.SetDefine(TEXT("EYE_ADAPTATION_PARAMS_SIZE"), (uint32)EYE_ADAPTATION_PARAMS_SIZE);
 	}
 
 	/** Default constructor. */
 	FPostProcessVisualizeHDRPS() {}
 
 public:
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
+	END_SHADER_PARAMETER_STRUCT()
+
 	FPostProcessPassParameters PostprocessParameter;
 	FShaderParameter EyeAdaptationParams;
 	FShaderResourceParameter MiniFontTexture;
@@ -65,6 +74,8 @@ public:
 	FPostProcessVisualizeHDRPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
+		BindForLegacyShaderParameters<FParameters>(this, Initializer.ParameterMap);
+
 		PostprocessParameter.Bind(Initializer.ParameterMap);
 		EyeAdaptationParams.Bind(Initializer.ParameterMap, TEXT("EyeAdaptationParams"));
 		MiniFontTexture.Bind(Initializer.ParameterMap, TEXT("MiniFontTexture"));
@@ -97,19 +108,9 @@ public:
 		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 
 		{
-			FVector4 Temp[EYE_ADAPTATION_PARAMS_SIZE];
-
-			FRCPassPostProcessEyeAdaptation::ComputeEyeAdaptationParamsValue(Context.View, Temp);
-			if (GetAutoExposureMethod(Context.View) == EAutoExposureMethod::AEM_Basic)
-			{
-				Temp[2].W = GetBasicAutoExposureFocus();
-			}
-			else
-			{
-				Temp[2].W = 0.0f;
-			}
-
-			SetShaderValueArray(Context.RHICmdList, ShaderRHI, EyeAdaptationParams, Temp, EYE_ADAPTATION_PARAMS_SIZE);
+			FParameters PassParameters;
+			PassParameters.EyeAdaptation = GetEyeAdaptationParameters(Context.View, ERHIFeatureLevel::SM5);
+			SetShaderParameters(RHICmdList, this, ShaderRHI, PassParameters);
 		}
 
 		SetTextureParameter(RHICmdList, ShaderRHI, MiniFontTexture, GEngine->MiniFontTexture ? GEngine->MiniFontTexture->Resource->TextureRHI : GSystemTextures.WhiteDummy->GetRenderTargetItem().TargetableTexture);
@@ -139,12 +140,10 @@ public:
 		}
 
 		{
-			FIntPoint GatherExtent = FRCPassPostProcessHistogram::ComputeGatherExtent(Context);
+			// we currently assume the input is half res, one full res pixel less to avoid getting bilinear filtered input
+			FIntPoint GatherExtent = (Context.SceneColorViewRect.Size() - FIntPoint(1, 1)) / 2;
 
-			uint32 TexelPerThreadGroupX = FRCPassPostProcessHistogram::ThreadGroupSizeX * FRCPassPostProcessHistogram::LoopCountX;
-			uint32 TexelPerThreadGroupY = FRCPassPostProcessHistogram::ThreadGroupSizeY * FRCPassPostProcessHistogram::LoopCountY;
-
-			FIntRect Value(GatherExtent, FIntPoint(TexelPerThreadGroupX, TexelPerThreadGroupY));
+			FIntRect Value(GatherExtent, GetHistogramTexelsPerGroup());
 
 			SetShaderValue(RHICmdList, ShaderRHI, HistogramParams, Value);
 		}
@@ -156,20 +155,20 @@ public:
 		}
 
 		{
-			FVector4 Constants[8];
-			FilmPostSetConstants(Constants, &Context.View.FinalPostProcessSettings,
-				/* bMobile = */ false,
+			const FMobileFilmTonemapParameters Parameters = GetMobileFilmTonemapParameters(
+				Context.View.FinalPostProcessSettings,
 				/* UseColorMatrix = */ true,
 				/* UseShadowTint = */ true,
 				/* UseContrast = */ true);
-			SetShaderValue(RHICmdList, ShaderRHI, ColorMatrixR_ColorCurveCd1, Constants[0]);
-			SetShaderValue(RHICmdList, ShaderRHI, ColorMatrixG_ColorCurveCd3Cm3, Constants[1]);
-			SetShaderValue(RHICmdList, ShaderRHI, ColorMatrixB_ColorCurveCm2, Constants[2]);
-			SetShaderValue(RHICmdList, ShaderRHI, ColorCurve_Cm0Cd0_Cd2_Ch0Cm1_Ch3, Constants[3]);
-			SetShaderValue(RHICmdList, ShaderRHI, ColorCurve_Ch1_Ch2, Constants[4]);
-			SetShaderValue(RHICmdList, ShaderRHI, ColorShadow_Luma, Constants[5]);
-			SetShaderValue(RHICmdList, ShaderRHI, ColorShadow_Tint1, Constants[6]);
-			SetShaderValue(RHICmdList, ShaderRHI, ColorShadow_Tint2, Constants[7]);
+
+			SetShaderValue(RHICmdList, ShaderRHI, ColorMatrixR_ColorCurveCd1, Parameters.ColorMatrixR_ColorCurveCd1);
+			SetShaderValue(RHICmdList, ShaderRHI, ColorMatrixG_ColorCurveCd3Cm3, Parameters.ColorMatrixG_ColorCurveCd3Cm3);
+			SetShaderValue(RHICmdList, ShaderRHI, ColorMatrixB_ColorCurveCm2, Parameters.ColorMatrixB_ColorCurveCm2);
+			SetShaderValue(RHICmdList, ShaderRHI, ColorCurve_Cm0Cd0_Cd2_Ch0Cm1_Ch3, Parameters.ColorCurve_Cm0Cd0_Cd2_Ch0Cm1_Ch3);
+			SetShaderValue(RHICmdList, ShaderRHI, ColorCurve_Ch1_Ch2, Parameters.ColorCurve_Ch1_Ch2);
+			SetShaderValue(RHICmdList, ShaderRHI, ColorShadow_Luma, Parameters.ColorShadow_Luma);
+			SetShaderValue(RHICmdList, ShaderRHI, ColorShadow_Tint1, Parameters.ColorShadow_Tint1);
+			SetShaderValue(RHICmdList, ShaderRHI, ColorShadow_Tint2, Parameters.ColorShadow_Tint2);
 		}
 	}
 	
@@ -209,8 +208,7 @@ void FRCPassPostProcessVisualizeHDR::Process(FRenderingCompositePassContext& Con
 		return;
 	}
 
-	static const auto VarDefaultAutoExposureExtendDefaultLuminanceRange = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"));
-	const bool bExtendedLuminanceRange = VarDefaultAutoExposureExtendDefaultLuminanceRange->GetValueOnRenderThread() == 1;
+	const bool bExtendedLuminanceRange = IsExtendLuminanceRangeEnabled();
 
 	const FViewInfo& View = Context.View;
 	const FViewInfo& ViewInfo = Context.View;
@@ -295,13 +293,20 @@ void FRCPassPostProcessVisualizeHDR::Process(FRenderingCompositePassContext& Con
 		Canvas.DrawShadowedString(MinX + XAdd - 5, MaxY + YStep, *Line, GetStatsFont(), FLinearColor(1, 0.3f, 0.3f));
 	}
 	Y += 3 * YStep;
-	if (AutoExposureMethod == EAutoExposureMethod::AEM_Basic)
+	switch (AutoExposureMethod)
 	{
+	case EAutoExposureMethod::AEM_Basic:
 		Line = FString::Printf(TEXT("Basic"));
-	}
-	else
-	{
+		break;
+	case EAutoExposureMethod::AEM_Histogram:
 		Line = FString::Printf(TEXT("Histogram"));
+		break;
+	case EAutoExposureMethod::AEM_Manual:
+		Line = FString::Printf(TEXT("Manual"));
+		break;
+	default:
+		Line = FString::Printf(TEXT("Unknown"));
+		break;
 	}
 	Canvas.DrawShadowedString(X, Y += YStep, TEXT("Auto Exposure Method:"), GetStatsFont(), FLinearColor(1, 1, 1));
 	Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 1));

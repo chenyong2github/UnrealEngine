@@ -6,7 +6,8 @@ public class Slate : ModuleRules
 {
 	public Slate(ReadOnlyTargetRules Target) : base(Target)
 	{
-		SharedPCHHeaderFile = "Public/SlateSharedPCH.h";
+        PrivateDefinitions.Add("SLATE_MODULE=1");
+        SharedPCHHeaderFile = "Public/SlateSharedPCH.h";
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
@@ -49,7 +50,7 @@ public class Slate : ModuleRules
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "XInput");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "SDL2");
 		}

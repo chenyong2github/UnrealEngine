@@ -32,7 +32,7 @@ TSharedRef< SWidget > FLayersModule::CreateLayerBrowser()
 
 TSharedRef< class SWidget> FLayersModule::CreateLayerCloud( const TArray< TWeakObjectPtr< AActor > >& Actors )
 {
-	TSharedRef< class FActorLayerCollectionViewModel > CloudViewModel( FActorLayerCollectionViewModel::Create( GEditor->Layers.ToSharedRef(), GEditor ) );
+	TSharedRef< class FActorLayerCollectionViewModel > CloudViewModel( FActorLayerCollectionViewModel::Create( GEditor ) );
 	CloudViewModel->SetActors( Actors );
 
 	return SNew( SActorLayerCloud, CloudViewModel );

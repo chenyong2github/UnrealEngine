@@ -18,7 +18,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::ClearElements()
 
 
 template<typename RealType, int ElementSize>
-int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(RealType ConstantValue, int SourceVertex)
+int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(RealType ConstantValue, int ParentVertex)
 {
 	int vid = ElementsRefCounts.Allocate();
 	int i = ElementSize * vid;
@@ -26,7 +26,7 @@ int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(RealType ConstantV
 	{
 		Elements.InsertAt(ConstantValue, i + k);
 	}
-	ParentVertices.InsertAt(SourceVertex, vid);
+	ParentVertices.InsertAt(ParentVertex, vid);
 
 	//updateTimeStamp(true);
 	return vid;
@@ -34,7 +34,7 @@ int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(RealType ConstantV
 
 
 template<typename RealType, int ElementSize>
-int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(const RealType* Value, int SourceVertex)
+int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(const RealType* Value, int ParentVertex)
 {
 	int vid = ElementsRefCounts.Allocate();
 	int i = ElementSize * vid;
@@ -45,11 +45,168 @@ int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(const RealType* Va
 		Elements.InsertAt(Value[k], i + k);
 	}
 
-	ParentVertices.InsertAt(SourceVertex, vid);
+	ParentVertices.InsertAt(ParentVertex, vid);
 
 	//updateTimeStamp(true);
 	return vid;
 }
+
+
+template<typename RealType, int ElementSize>
+EMeshResult TDynamicMeshOverlay<RealType, ElementSize>::InsertElement(int ElementID, const RealType* Value, int ParentVertex, bool bUnsafe)
+{
+	if (ElementsRefCounts.IsValid(ElementID))
+	{
+		return EMeshResult::Failed_VertexAlreadyExists;
+	}
+
+	bool bOK = (bUnsafe) ? ElementsRefCounts.AllocateAtUnsafe(ElementID) :
+		ElementsRefCounts.AllocateAt(ElementID);
+	if (bOK == false)
+	{
+		return EMeshResult::Failed_CannotAllocateVertex;
+	}
+
+	int i = ElementSize * ElementID;
+	// insert in reverse order so that Resize() is only called once
+	for (int k = ElementSize - 1; k >= 0; --k)
+	{
+		Elements.InsertAt(Value[k], i + k);
+	}
+
+	ParentVertices.InsertAt(ParentVertex, ElementID);
+
+	//UpdateTimeStamp(true, true);
+	return EMeshResult::Ok;
+}
+
+
+
+template<typename RealType, int ElementSize>
+void TDynamicMeshOverlay<RealType, ElementSize>::CreateFromPredicate(TFunctionRef<bool(int ParentVertexIdx, int TriIDA, int TriIDB)> TrisCanShareVertexPredicate, RealType InitElementValue, bool bNonTransitiveShare)
+{
+	ClearElements(); // deletes all elements and initializes triangles to be 1:1 w/ parentmesh IDs
+	TArray<int> TrisActiveSubGroup, AppendedElements;
+	TArray<int> TriangleIDs, TriangleContigGroupLens;
+	TArray<bool> GroupIsLoop;
+	for (int VertexID : ParentMesh->VertexIndicesItr())
+	{
+		
+		bool bActiveSubGroupBroken = false;
+		ParentMesh->GetVtxContiguousTriangles(VertexID, TriangleIDs, TriangleContigGroupLens, GroupIsLoop);
+		int GroupStart = 0;
+		for (int GroupIdx = 0; GroupIdx < TriangleContigGroupLens.Num(); GroupIdx++)
+		{
+			bool bIsLoop = GroupIsLoop[GroupIdx];
+			int GroupNum = TriangleContigGroupLens[GroupIdx];
+			if (!ensure(GroupNum > 0)) // sanity check; groups should always have at least one element
+			{
+				continue;
+			}
+
+			TrisActiveSubGroup.Reset();
+			AppendedElements.Reset();
+			TrisActiveSubGroup.SetNumZeroed(GroupNum, false);
+			int CurrentGroupID = 0;
+			int CurrentGroupRefSubIdx = 0;
+			bool bShouldBreakGroup = false; // tracks whether a contiguous group should be broken up (in bNonTransitiveShare mode); final value after for-loop indicates whether final group was broken
+			bool bFirstGroupWasBroken = false;
+			for (int TriSubIdx = 0; TriSubIdx+1 < GroupNum; TriSubIdx++)
+			{
+				int TriIDA = TriangleIDs[GroupStart + TriSubIdx];
+				int TriIDB = TriangleIDs[GroupStart + TriSubIdx + 1];
+				bool bCanShare = TrisCanShareVertexPredicate(VertexID, TriIDA, TriIDB);
+				if (!bShouldBreakGroup && bCanShare && bNonTransitiveShare && TriSubIdx != CurrentGroupRefSubIdx) // require the triangle match the initial triangle in the group as well as the adjacent one
+				{
+					if (!TrisCanShareVertexPredicate(VertexID, TriangleIDs[GroupStart + CurrentGroupRefSubIdx], TriIDB))
+					{
+						bShouldBreakGroup = true;
+						if (CurrentGroupRefSubIdx == 0)
+						{
+							bFirstGroupWasBroken = true;
+						}
+					}
+				}
+				if (!bCanShare)
+				{
+					if (bShouldBreakGroup)
+					{
+						for (int BreakGroupIdx = CurrentGroupRefSubIdx + 1; BreakGroupIdx <= TriSubIdx; BreakGroupIdx++)
+						{
+							TrisActiveSubGroup[BreakGroupIdx] = ++CurrentGroupID;
+						}
+					}
+					CurrentGroupID++;
+					CurrentGroupRefSubIdx = TriSubIdx + 1;
+					bShouldBreakGroup = false;
+				}
+				
+				TrisActiveSubGroup[TriSubIdx + 1] = CurrentGroupID;
+			}
+
+			// break final subgroup
+			if (bShouldBreakGroup)
+			{
+				for (int BreakGroupIdx = CurrentGroupRefSubIdx + 1; BreakGroupIdx < GroupNum; BreakGroupIdx++)
+				{
+					TrisActiveSubGroup[BreakGroupIdx] = ++CurrentGroupID;
+				}
+			}
+
+			// for loops, merge first and last group if needed
+			int NumGroupID = CurrentGroupID + 1;
+			if (bIsLoop && TrisActiveSubGroup[0] != TrisActiveSubGroup.Last())
+			{
+				// if we can merge the first and last triangles AND their groups weren't already both broken, try to merge them 
+				if ((!bShouldBreakGroup || !bFirstGroupWasBroken) && TrisCanShareVertexPredicate(VertexID, TriangleIDs[GroupStart], TriangleIDs[GroupStart + GroupNum - 1]))
+				{
+					int EndGroupID = TrisActiveSubGroup[GroupNum - 1];
+					int StartGroupID = TrisActiveSubGroup[0];
+					int TriID0 = TriangleIDs[GroupStart];
+					bool bStoppedMerge = bShouldBreakGroup || bFirstGroupWasBroken; // if either group was broken, stop the merge before it even starts
+					for (int Idx = GroupNum - 1; !bStoppedMerge && Idx >= 0 && TrisActiveSubGroup[Idx] == EndGroupID; Idx--)
+					{
+						if (Idx < GroupNum - 1 && bNonTransitiveShare && !TrisCanShareVertexPredicate(VertexID, TriID0, TriangleIDs[GroupStart + Idx]))
+						{
+							bStoppedMerge = true;
+							break;
+						}
+						TrisActiveSubGroup[Idx] = StartGroupID;
+					}
+					NumGroupID--;
+					if (bStoppedMerge)
+					{
+						// Merge failed, break apart both groups
+						for (int BreakGroupIdx = 1; BreakGroupIdx < GroupNum; BreakGroupIdx++)
+						{
+							int Group = TrisActiveSubGroup[BreakGroupIdx];
+							if (Group == StartGroupID || Group == EndGroupID)
+							{
+								TrisActiveSubGroup[BreakGroupIdx] = NumGroupID++;
+							}
+						}
+					}
+				}
+			}
+
+			for (int Idx = 0; Idx < NumGroupID; Idx++)
+			{
+				AppendedElements.Add(AppendElement(InitElementValue, VertexID));
+			}
+			for (int TriSubIdx = 0; TriSubIdx < GroupNum; TriSubIdx++)
+			{
+				int TriID = TriangleIDs[GroupStart + TriSubIdx];
+				FIndex3i TriVertIDs = ParentMesh->GetTriangle(TriID);
+				int VertSubIdx = IndexUtil::FindTriIndex(VertexID, TriVertIDs);
+				int i = 3 * TriID;
+				ElementTriangles.InsertAt(AppendedElements[TrisActiveSubGroup[TriSubIdx]], i + VertSubIdx);
+				ElementsRefCounts.Increment(AppendedElements[TrisActiveSubGroup[TriSubIdx]]);
+			}
+			GroupStart += GroupNum;
+		}
+	}
+}
+
 
 
 
@@ -237,9 +394,34 @@ int TDynamicMeshOverlay<RealType, ElementSize>::CountVertexElements(int vid, boo
 
 
 template<typename RealType, int ElementSize>
+void TDynamicMeshOverlay<RealType, ElementSize>::GetElementTriangles(int ElementID, TArray<int>& OutTriangles) const
+{
+	check(ElementsRefCounts.IsValid(ElementID));
+	int VertexID = ParentVertices[ElementID];
+
+	for (int TriangleID : ParentMesh->VtxTrianglesItr(VertexID))
+	{
+		int i = 3 * TriangleID;
+		if (ElementTriangles[i] == ElementID || ElementTriangles[i+1] == ElementID || ElementTriangles[i+2] == ElementID)
+		{
+			OutTriangles.Add(TriangleID);
+		}
+	}
+}
+
+
+
+
+template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::OnRemoveTriangle(int TriangleID, bool bRemoveIsolatedVertices)
 {
 	FIndex3i Triangle = GetTriangle(TriangleID);
+	if (Triangle.A < 0 && Triangle.B < 0 && Triangle.C < 0)
+	{
+		// if whole triangle has no overlay vertices set, that's OK, just remove nothing
+		// (if only *some* of the triangle vertices were < 0, that would be a bug / invalid overlay triangle)
+		return;
+	}
 	InitializeNewTriangle(TriangleID);
 
 	// decrement element refcounts, and free element if it is now unreferenced

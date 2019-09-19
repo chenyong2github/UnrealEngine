@@ -6,6 +6,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "CurveModel.h"
+#include "IBufferedCurveModel.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneChannelHandle.h"
 
@@ -44,6 +45,10 @@ public:
 	virtual void RemoveKeys(TArrayView<const FKeyHandle> InKeys) override;
 
 	virtual void CreateKeyProxies(TArrayView<const FKeyHandle> InKeyHandles, TArrayView<UObject*> OutObjects) override;
+
+	virtual TUniquePtr<IBufferedCurveModel> CreateBufferedCurveCopy() const override;
+
+	virtual bool IsReadOnly() const override;
 
 private:
 	void FeaturePointMethod(double StartTime, double EndTime, double StartValue, double Mu, int Depth, int MaxDepth, double& MaxV, double& MinVal) const;

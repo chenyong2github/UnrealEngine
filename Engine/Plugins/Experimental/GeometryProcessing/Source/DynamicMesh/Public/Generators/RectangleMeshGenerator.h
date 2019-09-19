@@ -8,7 +8,7 @@
  * Generate planar rectangular mesh with variable number of subdivisions along width and height.
  * By default, center of rectangle is centered at (0,0,0) origin
  */
-class DYNAMICMESH_API FRectangleMeshGenerator : FMeshShapeGenerator
+class DYNAMICMESH_API FRectangleMeshGenerator : public FMeshShapeGenerator
 {
 public:
 	/** Rectangle will be translated so that center is at this point */

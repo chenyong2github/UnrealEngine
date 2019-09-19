@@ -65,9 +65,9 @@ public:
 	/**
 	 * Test if target can begin click-drag interaction at this point
 	 * @param PressPos device position/ray at click point
-	 * @return true if target wants to begin sequence
+	 * @return hit information at this point
 	 */
-	virtual bool CanBeginClickDragSequence(const FInputDeviceRay& PressPos) = 0;
+	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) = 0;
 
 
 	/**

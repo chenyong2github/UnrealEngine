@@ -67,6 +67,9 @@ public:
 	TRefCountPtr<IPooledRenderTarget> SobolSampling;
 	/** SSAO randomization */
 	TRefCountPtr<IPooledRenderTarget> SSAORandomization;
+	/** GTAO randomization */
+	TRefCountPtr<IPooledRenderTarget> GTAORandomization;
+
 	/** Preintegrated GF for single sample IBL */
 	TRefCountPtr<IPooledRenderTarget> PreintegratedGF;
 	/** Linearly Transformed Cosines LUTs */

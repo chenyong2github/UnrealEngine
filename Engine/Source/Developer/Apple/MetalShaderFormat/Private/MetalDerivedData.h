@@ -175,6 +175,7 @@ private:
 	FSHAHash GUIDHash;
 	uint8 VersionEnum;
 	uint32 CCFlags;
+	int32 IABTier;
 	EHlslCompileTarget HlslCompilerTarget;
 	EHlslCompileTarget MetalCompilerTarget;
 	EMetalGPUSemantics Semantics;

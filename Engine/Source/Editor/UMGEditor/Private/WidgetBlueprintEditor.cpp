@@ -832,6 +832,8 @@ TSharedPtr<ISequencer>& FWidgetBlueprintEditor::GetSequencer()
 			SequencerInitParams.ToolkitHost = GetToolkitHost();
 			SequencerInitParams.PlaybackContext = TAttribute<UObject*>(this, &FWidgetBlueprintEditor::GetAnimationPlaybackContext);
 			SequencerInitParams.EventContexts = TAttribute<TArray<UObject*>>(this, &FWidgetBlueprintEditor::GetAnimationEventContexts);
+
+			SequencerInitParams.HostCapabilities.bSupportsCurveEditor = true;
 		};
 
 		Sequencer = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer").CreateSequencer(SequencerInitParams);
@@ -1007,6 +1009,16 @@ void FWidgetBlueprintEditor::UpdatePreview(UBlueprint* InBlueprint, bool bInForc
 			// The preview widget should not be transactional.
 			PreviewUserWidget->ClearFlags(RF_Transactional);
 
+			// Establish the widget as being in design time before initializing and before duplication 
+            // (so that IsDesignTime is reliable within both calls to Initialize)
+            // The preview widget is also the outer widget that will update all child flags
+			PreviewUserWidget->SetDesignerFlags(GetCurrentDesignerFlags());
+
+			if ( ULocalPlayer* Player = PreviewScene.GetWorld()->GetFirstLocalPlayerFromController() )
+			{
+				PreviewUserWidget->SetPlayerContext(FLocalPlayerContext(Player));
+			}
+
 			UWidgetTree* LatestWidgetTree = PreviewBlueprint->WidgetTree;
 
 			// If there is no RootWidget, we look for a WidgetTree in the parents classes until we find one.
@@ -1017,21 +1029,15 @@ void FWidgetBlueprintEditor::UpdatePreview(UBlueprint* InBlueprint, bool bInForc
 				{
 					LatestWidgetTree = BGClass->WidgetTree;
 				}
-			 }
+			}
 
 			// Update the widget tree directly to match the blueprint tree.  That way the preview can update
 			// without needing to do a full recompile.
 			PreviewUserWidget->DuplicateAndInitializeFromWidgetTree(LatestWidgetTree);
 
-			if ( ULocalPlayer* Player = PreviewScene.GetWorld()->GetFirstLocalPlayerFromController() )
-			{
-				PreviewUserWidget->SetPlayerContext(FLocalPlayerContext(Player));
-			}
-
 			// Establish the widget as being in design time before initializing (so that IsDesignTime is reliable within Initialize)
+            // We have to call it to make sure that all the WidgetTree had the DesignerFlags set correctly
 			PreviewUserWidget->SetDesignerFlags(GetCurrentDesignerFlags());
-
-			PreviewUserWidget->Initialize();
 		}
 
 		// Store a reference to the preview actor.

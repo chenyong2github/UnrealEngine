@@ -106,4 +106,7 @@ public:
 	* @return The Sobol result at given Index
 	*/
 	static FVector Next(int32 Index, int32 CellBits, FVector Value);
+
+	/** Return value for GSystemTextures.SobolSampling */
+	static uint16 ComputeGPUSpatialSeed(int32 x, int32 y, int32 Index);
 };

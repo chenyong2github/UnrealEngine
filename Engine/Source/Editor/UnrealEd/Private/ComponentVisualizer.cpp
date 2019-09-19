@@ -7,48 +7,151 @@
 IMPLEMENT_HIT_PROXY(HComponentVisProxy, HHitProxy);
 
 
-FComponentVisualizer::FPropertyNameAndIndex FComponentVisualizer::GetComponentPropertyName(const UActorComponent* Component)
+static TTuple<FName, int32> GetActorPropertyNameAndIndexForComponent(const AActor* Actor, const UActorComponent* Component)
 {
-	if (Component)
+	if (Actor != nullptr && Component != nullptr)
 	{
-		const AActor* CompOwner = Component->GetOwner();
-		if (CompOwner)
+		// Iterate over UObject* fields of this actor
+		UClass* ActorClass = Actor->GetClass();
+		for (TFieldIterator<UObjectProperty> It(ActorClass); It; ++It)
 		{
-			// Iterate over UObject* fields of this actor
-			UClass* ActorClass = CompOwner->GetClass();
-			for (TFieldIterator<UObjectProperty> It(ActorClass); It; ++It)
+			// See if this property points to the component in question
+			UObjectProperty* ObjectProp = *It;
+			for (int32 Index = 0; Index < ObjectProp->ArrayDim; ++Index)
 			{
-				// See if this property points to the component in question
-				UObjectProperty* ObjectProp = *It;
-				for (int32 Index = 0; Index < ObjectProp->ArrayDim; ++Index)
+				UObject* Object = ObjectProp->GetObjectPropertyValue(ObjectProp->ContainerPtrToValuePtr<void>(Actor, Index));
+				if (Object == Component)
 				{
-					UObject* Object = ObjectProp->GetObjectPropertyValue(ObjectProp->ContainerPtrToValuePtr<void>(CompOwner, Index));
-					if (Object == Component)
-					{
-						// It does! Return this name
-						return FPropertyNameAndIndex(ObjectProp->GetFName(), Index);
-					}
+					// It does! Return this name
+					return MakeTuple(ObjectProp->GetFName(), Index);
 				}
 			}
+		}
 
-			// If nothing found, look in TArray<UObject*> fields
-			for (TFieldIterator<UArrayProperty> It(ActorClass); It; ++It)
+		// If nothing found, look in TArray<UObject*> fields
+		for (TFieldIterator<UArrayProperty> It(ActorClass); It; ++It)
+		{
+			UArrayProperty* ArrayProp = *It;
+			if (UObjectProperty* InnerProp = Cast<UObjectProperty>(It->Inner))
 			{
-				UArrayProperty* ArrayProp = *It;
-				if (UObjectProperty* InnerProp = Cast<UObjectProperty>(It->Inner))
+				FScriptArrayHelper ArrayHelper(ArrayProp, ArrayProp->ContainerPtrToValuePtr<void>(Actor));
+				for (int32 Index = 0; Index < ArrayHelper.Num(); ++Index)
 				{
-					FScriptArrayHelper ArrayHelper(ArrayProp, ArrayProp->ContainerPtrToValuePtr<void>(CompOwner));
-					for (int32 Index = 0; Index < ArrayHelper.Num(); ++Index)
+					UObject* Object = InnerProp->GetObjectPropertyValue(ArrayHelper.GetRawPtr(Index));
+					if (Object == Component)
 					{
-						UObject* Object = InnerProp->GetObjectPropertyValue(ArrayHelper.GetRawPtr(Index));
-						if (Object == Component)
-						{
-							return FPropertyNameAndIndex(ArrayProp->GetFName(), Index);
-						}
+						return MakeTuple(ArrayProp->GetFName(), Index);
 					}
 				}
 			}
 		}
+	}
+
+	return MakeTuple<FName, int32>(NAME_None, INDEX_NONE);
+}
+
+
+void FComponentPropertyPath::Set(const UActorComponent* Component)
+{
+	AActor* Actor = Component->GetOwner();
+
+	UChildActorComponent* ParentComponent = Actor->GetParentComponent();
+	if (ParentComponent)
+	{
+		Set(ParentComponent);	// recurse to next parent
+	}
+	else
+	{
+		// If there are no further parents, store this one (the outermost)
+		ParentOwningActor = Actor;
+	}
+
+	// Add the next property to the chain after the recursion, so they are added outermost-first
+	PropertyChain.Add(GetActorPropertyNameAndIndexForComponent(Actor, Component));
+}
+
+
+UActorComponent* FComponentPropertyPath::GetComponent() const
+{
+	UActorComponent* Result = nullptr;
+	const AActor* Actor = ParentOwningActor.Get();
+	if (Actor)
+	{
+		int32 Level = 0;
+		for (TPair<FName, int32> PropertyNameAndIndex : PropertyChain)
+		{
+			FName PropertyName = PropertyNameAndIndex.Get<0>();
+			int32 PropertyIndex = PropertyNameAndIndex.Get<1>();
+			Result = nullptr;
+
+			if (PropertyName != NAME_None && PropertyIndex != INDEX_NONE)
+			{
+				UClass* ActorClass = Actor->GetClass();
+				UProperty* Prop = FindField<UProperty>(ActorClass, PropertyName);
+
+				if (UObjectProperty* ObjectProp = Cast<UObjectProperty>(Prop))
+				{
+					UObject* Object = ObjectProp->GetObjectPropertyValue(ObjectProp->ContainerPtrToValuePtr<void>(Actor, PropertyIndex));
+					Result = Cast<UActorComponent>(Object);
+				}
+				else if (UArrayProperty* ArrayProp = Cast<UArrayProperty>(Prop))
+				{
+					if (UObjectProperty* InnerProp = Cast<UObjectProperty>(ArrayProp->Inner))
+					{
+						FScriptArrayHelper ArrayHelper(ArrayProp, ArrayProp->ContainerPtrToValuePtr<void>(Actor));
+						UObject* Object = InnerProp->GetObjectPropertyValue(ArrayHelper.GetRawPtr(PropertyIndex));
+						Result = Cast<UActorComponent>(Object);
+					}
+				}
+			}
+
+			Level++;
+
+			if (Level < PropertyChain.Num())
+			{
+				UChildActorComponent* ChildActorComponent = Cast<UChildActorComponent>(Result);
+				if (Result == nullptr)
+				{
+					break;
+				}
+
+				Actor = ChildActorComponent->GetChildActor();
+			}
+		}
+	}
+
+	return Result;
+}
+
+
+bool FComponentPropertyPath::IsValid() const
+{
+	if (!ParentOwningActor.IsValid())
+	{
+		return false;
+	}
+
+	for (TPair<FName, int32> PropertyNameAndIndex : PropertyChain)
+	{
+		FName PropertyName = PropertyNameAndIndex.Get<0>();
+		int32 PropertyIndex = PropertyNameAndIndex.Get<1>();
+
+		if (PropertyName == NAME_None || PropertyIndex == INDEX_NONE)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+FComponentVisualizer::FPropertyNameAndIndex FComponentVisualizer::GetComponentPropertyName(const UActorComponent* Component)
+{
+	if (Component)
+	{
+		TTuple<FName, int32> Result = GetActorPropertyNameAndIndexForComponent(Component->GetOwner(), Component);
+		return FPropertyNameAndIndex(Result.Get<0>(), Result.Get<1>());
 	}
 
 	// Didn't find actor property referencing this component

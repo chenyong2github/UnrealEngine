@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "CurveEditorHelpers.h"
+#include "Fonts/FontMeasure.h"
+#include "Slate/Public/Framework/Application/SlateApplication.h"
 
 
 namespace CurveEditor
@@ -72,6 +74,47 @@ void ConstructYGridLines(const FCurveEditorScreenSpace& ViewSpace, uint8 InMinor
 		for (int32 Step = 1; Step < InMinorDivisions; ++Step)
 		{
 			OutMinorGridLines.Add(ViewSpace.ValueToScreen(CurrentMajorLine + Step * MajorGridStep / InMinorDivisions));
+		}
+	}
+}
+
+void ConstructFixedYGridLines(const FCurveEditorScreenSpace& ViewSpace, uint8 InMinorDivisions, double InMinorGridStep, TArray<float>& OutMajorGridLines, TArray<float>& OutMinorGridLines, FText GridLineLabelFormatY, 
+	TArray<FText>* OutMajorGridLabels, TOptional<double> InOutputMin, TOptional<double> InOutputMax)
+{
+	const double MajorGridStep = InMinorGridStep * InMinorDivisions;
+	const double FirstMinorLine = InOutputMin ? FMath::CeilToDouble(InOutputMin.GetValue() / InMinorGridStep) * InMinorGridStep 
+		                                      : FMath::FloorToDouble(ViewSpace.GetOutputMin() / InMinorGridStep) * InMinorGridStep;
+	const double LastMinorLine = InOutputMax ? FMath::FloorToDouble(InOutputMax.GetValue() / InMinorGridStep) * InMinorGridStep 
+		                                     : FMath::CeilToDouble(ViewSpace.GetOutputMax() / InMinorGridStep) * InMinorGridStep;
+
+	FNumberFormattingOptions FormattingOptions;
+	FormattingOptions.SetMaximumFractionalDigits(6);
+
+	// calculate min. distance between labels
+	const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("ToolTip.LargerFont");
+	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	uint16 FontHeight = FontMeasureService->GetMaxCharacterHeight(FontInfo);
+
+	const double LabelDist = (1 / ViewSpace.PixelsPerOutput()) * (FontHeight + 3.0); // 3.0 for margin
+	double LineSkip = FMath::CeilToDouble(LabelDist / MajorGridStep) * MajorGridStep;
+	LineSkip = FMath::IsNearlyZero(LineSkip) ? KINDA_SMALL_NUMBER : LineSkip; // prevent mod by zero errors
+
+	for (double CurrentMinorLine = FirstMinorLine; CurrentMinorLine <= LastMinorLine; CurrentMinorLine += InMinorGridStep)
+	{
+		// check if is major grid line
+		if (FMath::IsNearlyZero(FMath::Fmod(FMath::Abs(CurrentMinorLine), MajorGridStep)))
+		{
+			OutMajorGridLines.Add(ViewSpace.ValueToScreen(CurrentMinorLine));
+			if (OutMajorGridLabels)
+			{
+				OutMajorGridLabels->Add(FMath::IsNearlyZero(FMath::Fmod(FMath::Abs(CurrentMinorLine), LineSkip))
+					? FText::Format(GridLineLabelFormatY, FText::AsNumber(CurrentMinorLine, &FormattingOptions)) 
+					: FText());
+			}
+		}
+		else
+		{
+			OutMinorGridLines.Add(ViewSpace.ValueToScreen(CurrentMinorLine));
 		}
 	}
 }

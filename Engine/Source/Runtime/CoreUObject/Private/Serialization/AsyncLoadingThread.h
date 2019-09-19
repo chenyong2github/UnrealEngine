@@ -414,6 +414,11 @@ public:
 	void CancelAsyncLoading();
 
 	/**
+	* [GAME THREAD] Stops the async loading thread and blocks until the thread has exited.
+	*/
+	void Kill();
+
+	/**
 	* [GAME THREAD] Suspends async loading thread
 	*/
 	void SuspendLoading();

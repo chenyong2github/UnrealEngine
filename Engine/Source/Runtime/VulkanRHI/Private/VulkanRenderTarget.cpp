@@ -9,6 +9,7 @@
 #include "VulkanPendingState.h"
 #include "VulkanContext.h"
 #include "SceneUtils.h"
+#include "RHISurfaceDataConversion.h"
 
 static int32 GSubmitOnCopyToResolve = 0;
 static FAutoConsoleVariableRef CVarVulkanSubmitOnCopyToResolve(
@@ -469,6 +470,28 @@ void FTransitionAndLayoutManager::NotifyDeletedRenderTarget(FVulkanDevice& InDev
 	}
 }
 
+VkImageLayout FTransitionAndLayoutManager::FindOrAddLayout(VkImage Image, VkImageLayout LayoutIfNotFound)
+{
+	VkImageLayout* Found = Layouts.Find(Image);
+	if (Found)
+	{
+		return *Found;
+	}
+
+	Layouts.Add(Image, LayoutIfNotFound);
+	return LayoutIfNotFound;
+}
+
+VkImageLayout& FTransitionAndLayoutManager::FindOrAddLayoutRW(VkImage Image, VkImageLayout LayoutIfNotFound)
+{
+	VkImageLayout* Found = Layouts.Find(Image);
+	if (Found)
+	{
+		return *Found;
+	}
+	return Layouts.Add(Image, LayoutIfNotFound);
+}
+
 void FTransitionAndLayoutManager::TransitionResource(FVulkanCmdBuffer* CmdBuffer, FVulkanSurface& Surface, VulkanRHI::EImageLayoutBarrier DestLayout)
 {
 	VkImageLayout* FoundLayout = Layouts.Find(Surface.Image);
@@ -766,6 +789,7 @@ void FVulkanCommandListContext::RHICopyToResolveTarget(FRHITexture* SourceTextur
 	}
 }
 
+
 void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, TArray<FColor>& OutData, FReadSurfaceDataFlags InFlags)
 {
 	FRHITexture2D* TextureRHI2D = TextureRHI->GetTexture2D();
@@ -854,96 +878,38 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 
 	if (Texture2D->Surface.StorageFormat == VK_FORMAT_R16G16B16A16_SFLOAT)
 	{
-		for (int32 Row = Rect.Min.Y; Row < Rect.Max.Y; ++Row)
-		{
-			FFloat16Color* Src = (FFloat16Color*)StagingBuffer->GetMappedPointer() + Row * TextureRHI2D->GetSizeX() + Rect.Min.X;
-			for (int32 Col = Rect.Min.X; Col < Rect.Max.X; ++Col)
-			{
-				Dest->R = (uint8)(uint32)FMath::Clamp<int32>((int32)(Src->R.GetFloat() * 255.0f), 0, 255);
-				Dest->G = (uint8)(uint32)FMath::Clamp<int32>((int32)(Src->G.GetFloat() * 255.0f), 0, 255);
-				Dest->B = (uint8)(uint32)FMath::Clamp<int32>((int32)(Src->B.GetFloat() * 255.0f), 0, 255);
-				Dest->A = (uint8)(uint32)FMath::Clamp<int32>((int32)(Src->A.GetFloat() * 255.0f), 0, 255);
-				Dest++;
-				Src++;
-			}
-		}
+		uint32 PixelByteSize = 8u;
+		uint8* In = (uint8*)StagingBuffer->GetMappedPointer() + (Rect.Min.Y * TextureRHI2D->GetSizeX() + Rect.Min.X) * PixelByteSize;
+		uint32 SrcPitch = TextureRHI2D->GetSizeX() * PixelByteSize;
+		ConvertRawR16G16B16A16FDataToFColor(TextureRHI2D->GetSizeX(), TextureRHI2D->GetSizeY(), In, SrcPitch, Dest, false);
 	}
 	else if (Texture2D->Surface.StorageFormat == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
 	{
-		struct FR10G10B10A2
-		{
-			uint32 R : 10;
-			uint32 G : 10;
-			uint32 B : 10;
-			uint32 A : 2;
-		};
-		for (int32 Row = Rect.Min.Y; Row < Rect.Max.Y; ++Row)
-		{
-			FR10G10B10A2* Src = (FR10G10B10A2*)StagingBuffer->GetMappedPointer() + Row * TextureRHI2D->GetSizeX() + Rect.Min.X;
-			for (int32 Col = Rect.Min.X; Col < Rect.Max.X; ++Col)
-			{
-				*Dest = FLinearColor(
-					(float)Src->R / 1023.0f,
-					(float)Src->G / 1023.0f,
-					(float)Src->B / 1023.0f,
-					(float)Src->A / 3.0f
-				).Quantize();
-				++Dest;
-				++Src;
-			}
-		}
+		uint32 PixelByteSize = 4u;
+		uint8* In = (uint8*)StagingBuffer->GetMappedPointer() + (Rect.Min.Y * TextureRHI2D->GetSizeX() + Rect.Min.X) * PixelByteSize;
+		uint32 SrcPitch = TextureRHI2D->GetSizeX() * PixelByteSize;
+		ConvertRawR10G10B10A2DataToFColor(TextureRHI2D->GetSizeX(), TextureRHI2D->GetSizeY(), In, SrcPitch, Dest);
 	}
 	else if (Texture2D->Surface.StorageFormat == VK_FORMAT_R8G8B8A8_UNORM)
 	{
-		for (int32 Row = Rect.Min.Y; Row < Rect.Max.Y; ++Row)
-		{
-			FColor* Src = (FColor*)StagingBuffer->GetMappedPointer() + Row * TextureRHI2D->GetSizeX() + Rect.Min.X;
-			for (int32 Col = Rect.Min.X; Col < Rect.Max.X; ++Col)
-			{
-				Dest->R = Src->B;
-				Dest->G = Src->G;
-				Dest->B = Src->R;
-				Dest->A = Src->A;
-				Dest++;
-				Src++;
-			}
-		}
+		uint32 PixelByteSize = 4u;
+		uint8* In = (uint8*)StagingBuffer->GetMappedPointer() + (Rect.Min.Y * TextureRHI2D->GetSizeX() + Rect.Min.X) * PixelByteSize;
+		uint32 SrcPitch = TextureRHI2D->GetSizeX() * PixelByteSize;
+		ConvertRawR8G8B8A8DataToFColor(TextureRHI2D->GetSizeX(), TextureRHI2D->GetSizeY(), In, SrcPitch, Dest);
 	}
 	else if (Texture2D->Surface.StorageFormat == VK_FORMAT_R16G16B16A16_UNORM)
 	{
-		struct FRGBA16U
-		{
-			uint16 R;
-			uint16 G;
-			uint16 B;
-			uint16 A;
-		};
-		for (int32 Row = Rect.Min.Y; Row < Rect.Max.Y; ++Row)
-		{
-			FRGBA16U* Src = (FRGBA16U*)StagingBuffer->GetMappedPointer() + Row * TextureRHI2D->GetSizeX() + Rect.Min.X;
-			for (int32 Col = Rect.Min.X; Col < Rect.Max.X; ++Col)
-			{
-				*Dest = FLinearColor(
-					(float)Src->R / 65535.0f,
-					(float)Src->G / 65535.0f,
-					(float)Src->B / 65535.0f,
-					(float)Src->A / 65535.0f
-				).Quantize();
-				Dest++;
-				Src++;
-			}
-		}
+		uint32 PixelByteSize = 8u;
+		uint8* In = (uint8*)StagingBuffer->GetMappedPointer() + (Rect.Min.Y * TextureRHI2D->GetSizeX() + Rect.Min.X) * PixelByteSize;
+		uint32 SrcPitch = TextureRHI2D->GetSizeX() * PixelByteSize;
+		ConvertRawR16G16B16A16DataToFColor(Texture2D->GetSizeX(), Texture2D->GetSizeY(), In, SrcPitch, Dest);
 	}
 	else if (Texture2D->Surface.StorageFormat == VK_FORMAT_B8G8R8A8_UNORM)
 	{
-		FColor* Src = (FColor*)StagingBuffer->GetMappedPointer() + Rect.Min.Y * TextureRHI2D->GetSizeX() + Rect.Min.X;
-		for (int32 Row = Rect.Min.Y; Row < Rect.Max.Y; ++Row)
-		{
-			const int32 NumCols = Rect.Max.X - Rect.Min.X;
-			FMemory::Memcpy(Dest, Src, NumCols * sizeof(FColor));
-			Src += TextureRHI2D->GetSizeX();
-			Dest += NumCols;
-		}
+		uint32 PixelByteSize = 4u;
+		uint8* In = (uint8*)StagingBuffer->GetMappedPointer() + (Rect.Min.Y * TextureRHI2D->GetSizeX() + Rect.Min.X) * PixelByteSize;
+		uint32 SrcPitch = TextureRHI2D->GetSizeX() * PixelByteSize;
+		ConvertRawB8G8R8A8DataToFColor(TextureRHI2D->GetSizeX(), TextureRHI2D->GetSizeY(), In, SrcPitch, Dest);
 	}
 
 	Device->GetStagingManager().ReleaseBuffer(CmdBuffer, StagingBuffer);
@@ -1283,6 +1249,7 @@ bool FVulkanCommandListContext::FPendingTransition::GatherBarriers(FTransitionAn
 			SrcAccess = VK_ACCESS_SHADER_WRITE_BIT;
 			DestAccess = VK_ACCESS_SHADER_READ_BIT;
 			break;
+		case EResourceTransitionAccess::ERWSubResBarrier: //not optimal, but will have to do for now
 		case EResourceTransitionAccess::ERWBarrier:
 			SrcAccess = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 			DestAccess = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
@@ -1733,6 +1700,7 @@ void FVulkanCommandListContext::RHIEndRenderPass()
 		}
 	}
 	RHIPopEvent();
+	bUniformBufferUploadRenderPassDirty = true;
 }
 
 void FVulkanCommandListContext::RHINextSubpass()
@@ -1836,6 +1804,11 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 			CurrDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 			CurrDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
+			if (Texture->Surface.UEFlags & TexCreate_Memoryless)
+			{
+				ensure(CurrDesc.storeOp == VK_ATTACHMENT_STORE_OP_DONT_CARE);
+			}
+
 			// If the initial != final we need to change the FullHashInfo and use FinalLayout
 			CurrDesc.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			CurrDesc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1890,6 +1863,12 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		{
 			CurrDesc.storeOp = RenderTargetStoreActionToVulkan(RTInfo.DepthStencilRenderTarget.DepthStoreAction);
 			CurrDesc.stencilStoreOp = RenderTargetStoreActionToVulkan(RTInfo.DepthStencilRenderTarget.GetStencilStoreAction());
+
+			if (Texture->Surface.UEFlags & TexCreate_Memoryless)
+			{
+				ensure(CurrDesc.storeOp == VK_ATTACHMENT_STORE_OP_DONT_CARE);
+				ensure(CurrDesc.stencilStoreOp == VK_ATTACHMENT_STORE_OP_DONT_CARE);
+			}
 		}
 		else
 		{
@@ -2013,9 +1992,14 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		CurrDesc.format = UEToVkTextureFormat(ColorEntry.RenderTarget->GetFormat(), (Texture->Surface.UEFlags & TexCreate_SRGB) == TexCreate_SRGB);
 		CurrDesc.loadOp = RenderTargetLoadActionToVulkan(GetLoadAction(ColorEntry.Action));
 		bFoundClearOp = bFoundClearOp || (CurrDesc.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR);
-		CurrDesc.storeOp = RenderTargetStoreActionToVulkan(GetStoreAction(ColorEntry.Action), true);
+		CurrDesc.storeOp = RenderTargetStoreActionToVulkan(GetStoreAction(ColorEntry.Action));
 		CurrDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		CurrDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+		if (Texture->Surface.UEFlags & TexCreate_Memoryless)
+		{
+			ensure(CurrDesc.storeOp == VK_ATTACHMENT_STORE_OP_DONT_CARE);
+		}
 
 		// If the initial != final we need to change the FullHashInfo and use FinalLayout
 		CurrDesc.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -2070,8 +2054,14 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 			ensure(GetStoreAction(GetStencilActions(RPInfo.DepthStencilRenderTarget.Action)) != ERenderTargetStoreAction::EMultisampleResolve);
 		}
 
-		CurrDesc.storeOp = RenderTargetStoreActionToVulkan(GetStoreAction(GetDepthActions(RPInfo.DepthStencilRenderTarget.Action)), true);
-		CurrDesc.stencilStoreOp = RenderTargetStoreActionToVulkan(GetStoreAction(GetStencilActions(RPInfo.DepthStencilRenderTarget.Action)), true);
+		CurrDesc.storeOp = RenderTargetStoreActionToVulkan(GetStoreAction(GetDepthActions(RPInfo.DepthStencilRenderTarget.Action)));
+		CurrDesc.stencilStoreOp = RenderTargetStoreActionToVulkan(GetStoreAction(GetStencilActions(RPInfo.DepthStencilRenderTarget.Action)));
+
+		if (Texture->Surface.UEFlags & TexCreate_Memoryless)
+		{
+			ensure(CurrDesc.storeOp == VK_ATTACHMENT_STORE_OP_DONT_CARE);
+			ensure(CurrDesc.stencilStoreOp == VK_ATTACHMENT_STORE_OP_DONT_CARE);
+		}
 
 		DepthStencilLayout = VulkanRHI::GetDepthStencilLayout(RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil, InDevice);
 		// If the initial != final we need to change the FullHashInfo and use FinalLayout

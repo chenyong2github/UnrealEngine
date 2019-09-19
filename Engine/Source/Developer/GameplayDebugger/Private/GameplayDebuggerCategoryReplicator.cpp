@@ -8,6 +8,7 @@
 #include "GameplayDebuggerRenderingComponent.h"
 #include "GameplayDebuggerExtension.h"
 #include "Net/UnrealNetwork.h"
+#include "VisualLogger/VisualLogger.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -502,6 +503,7 @@ void AGameplayDebuggerCategoryReplicator::GetLifetimeReplicatedProps(TArray<FLif
 
 	DOREPLIFETIME(AGameplayDebuggerCategoryReplicator, OwnerPC);
 	DOREPLIFETIME(AGameplayDebuggerCategoryReplicator, DebugActor);
+	DOREPLIFETIME(AGameplayDebuggerCategoryReplicator, VisLogSync);
 	DOREPLIFETIME(AGameplayDebuggerCategoryReplicator, bIsEnabled);
 	DOREPLIFETIME(AGameplayDebuggerCategoryReplicator, ReplicatedData);
 }
@@ -644,6 +646,20 @@ void AGameplayDebuggerCategoryReplicator::PostNetReceive()
 void AGameplayDebuggerCategoryReplicator::CollectCategoryData(bool bForce)
 {
 	const float GameTime = GetWorld()->GetTimeSeconds();
+
+#if ENABLE_VISUAL_LOG
+	const FVisualLogger& VLogger = FVisualLogger::Get();
+	VisLogSync.DeviceIDs.Reset();
+	if (VLogger.IsRecordingToFile())
+	{
+		const TArray<FVisualLogDevice*>& LogDevices = VLogger.GetDevices();
+		for (const FVisualLogDevice* Device : LogDevices)
+		{
+			VisLogSync.DeviceIDs += FString::Printf(TEXT("%u, "), Device ? Device->GetShortSessionID() : 0);
+		}
+	}
+#endif // ENABLE_VISUAL_LOG
+
 	for (int32 Idx = 0; Idx < Categories.Num(); Idx++)
 	{
 		FGameplayDebuggerCategory& CategoryOb = Categories[Idx].Get();
@@ -713,12 +729,18 @@ void AGameplayDebuggerCategoryReplicator::SetReplicatorOwner(APlayerController* 
 			APlayerController* OldOwner = OwnerPC;
 			OwnerPC = InOwnerPC;
 			NotifyDebuggerOwnerChange.Broadcast(this, OldOwner);
+
+			UE_VLOG_UELOG(this, LogGameplayDebugReplication, Log, TEXT("Set OWNER PC %s / %s / %s")
+				, *GetNameSafe(InOwnerPC), InOwnerPC ? *GetNameSafe(InOwnerPC->GetPawn()) : TEXT_EMPTY
+				, InOwnerPC ? *InOwnerPC->GetHumanReadableName() : TEXT_EMPTY);
 		}
 	}
 }
 
 void AGameplayDebuggerCategoryReplicator::SetEnabled(bool bEnable)
 {
+	UE_VLOG_UELOG(this, LogGameplayDebugReplication, Log, TEXT("SetEnabled %s"), TEXT_CONDITION(bEnable));
+
 	if (bHasAuthority)
 	{
 		bIsEnabled = bEnable;
@@ -740,7 +762,7 @@ void AGameplayDebuggerCategoryReplicator::SetEnabled(bool bEnable)
 
 void AGameplayDebuggerCategoryReplicator::SetDebugActor(AActor* Actor, bool bSelectInEditor)
 {
-	UE_LOG(LogGameplayDebugReplication, Log, TEXT("SetDebugActor %s"), *GetNameSafe(Actor));
+	UE_VLOG_UELOG(this, LogGameplayDebugReplication, Log, TEXT("SetDebugActor %s"), *GetNameSafe(Actor));	
 	if (bHasAuthority)
 	{
 		if (DebugActor.Actor != Actor)
@@ -774,7 +796,7 @@ void AGameplayDebuggerCategoryReplicator::SetCategoryEnabled(int32 CategoryId, b
 	{
 		if (Categories.IsValidIndex(CategoryId))
 		{
-			UE_LOG(LogGameplayDebugReplication, Log, TEXT("SetCategoryEnabled[%d]:%d (%s)"), CategoryId, bEnable ? 1 : 0, *Categories[CategoryId]->GetCategoryName().ToString());
+			UE_VLOG_UELOG(this, LogGameplayDebugReplication, Log, TEXT("SetCategoryEnabled[%d]:%d (%s)"), CategoryId, bEnable ? 1 : 0, *Categories[CategoryId]->GetCategoryName().ToString());
 			Categories[CategoryId]->bIsEnabled = bEnable;
 		}
 	}

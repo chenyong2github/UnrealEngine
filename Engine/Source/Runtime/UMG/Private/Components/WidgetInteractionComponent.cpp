@@ -6,6 +6,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Components/ArrowComponent.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/SlateUser.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
 
@@ -93,6 +94,14 @@ bool UWidgetInteractionComponent::CanSendInput()
 void UWidgetInteractionComponent::SetCustomHitResult(const FHitResult& HitResult)
 {
 	CustomHitResult = HitResult;
+}
+
+void UWidgetInteractionComponent::SetFocus(UWidget* FocusWidget)
+{
+	if (VirtualUser.IsValid())
+	{
+		FSlateApplication::Get().SetUserFocus(VirtualUser->GetUserIndex(), FocusWidget->GetCachedWidget(), EFocusCause::SetDirectly);
+	}
 }
 
 FWidgetPath UWidgetInteractionComponent::FindHoveredWidgetPath(const FWidgetTraceResult& TraceResult) const

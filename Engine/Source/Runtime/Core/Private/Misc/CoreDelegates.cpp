@@ -48,6 +48,8 @@ FCoreDelegates::FOnActorLabelChanged FCoreDelegates::OnActorLabelChanged;
 FCoreDelegates::FRegisterMovieStreamerDelegate FCoreDelegates::RegisterMovieStreamerDelegate;
 FCoreDelegates::FUnRegisterMovieStreamerDelegate FCoreDelegates::UnRegisterMovieStreamerDelegate;
 
+FCoreDelegates::FOnInitialLoadingScreenShown FCoreDelegates::OnInitialLoadingScreenShown;
+
 FCoreDelegates::FRegisterEncryptionKeyDelegate& FCoreDelegates::GetRegisterEncryptionKeyDelegate()
 {
 	static FRegisterEncryptionKeyDelegate RegisterEncryptionKeyDelegate;

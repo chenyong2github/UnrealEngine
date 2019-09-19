@@ -70,9 +70,21 @@ bool UKismetInputLibrary::Key_IsValid(const FKey& Key)
 
 EUINavigationAction UKismetInputLibrary::Key_GetNavigationAction(const FKey& InKey)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (FSlateApplication::IsInitialized())
 	{
 		return FSlateApplication::Get().GetNavigationActionForKey(InKey);
+	}
+
+	return EUINavigationAction::Invalid;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+EUINavigationAction UKismetInputLibrary::Key_GetNavigationActionFromKey(const FKeyEvent& InKeyEvent)
+{
+	if (FSlateApplication::IsInitialized())
+	{
+		return FSlateApplication::Get().GetNavigationActionFromKey(InKeyEvent);
 	}
 
 	return EUINavigationAction::Invalid;

@@ -42,6 +42,10 @@ public:
 	UPROPERTY(config)
 	bool DisplayEmptyFolders;
 
+	/** Whether to filter recursively when a filter is applied in the asset view of the content browser. */
+	UPROPERTY(config)
+	bool FilterRecursively = true;
+
 	/** The number of objects to keep in the Content Browser Recently Opened filter */
 	UPROPERTY(EditAnywhere, config, Category = ContentBrowser, meta = (DisplayName = "Number of Assets to Keep in the Recently Opened Filter", ClampMin = "1", ClampMax = "30"))
 	int32 NumObjectsInRecentList;

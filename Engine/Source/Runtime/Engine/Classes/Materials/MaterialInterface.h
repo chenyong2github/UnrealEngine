@@ -16,11 +16,8 @@
 #include "Engine/BlendableInterface.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "Interfaces/Interface_AssetUserData.h"
+#include "MaterialSceneTextureId.h"
 #include "MaterialInterface.generated.h"
-
-#ifndef STORE_ONLY_ACTIVE_SHADERMAPS
-#define STORE_ONLY_ACTIVE_SHADERMAPS 0
-#endif
 
 class FMaterialCompiler;
 class FMaterialRenderProxy;
@@ -32,6 +29,9 @@ class UTexture;
 struct FPrimitiveViewRelevance;
 struct FMaterialParameterInfo;
 struct FMaterialResourceLocOnDisk;
+#if WITH_EDITORONLY_DATA
+struct FParameterChannelNames;
+#endif
 
 typedef TArray<FMaterialResource*> FMaterialResourceDeferredDeletionArray;
 
@@ -78,6 +78,7 @@ struct ENGINE_API FMaterialRelevance
 	uint8 bTranslucentSurfaceLighting : 1;
 	uint8 bUsesSceneDepth : 1;
 	uint8 bUsesSkyMaterial : 1;
+	uint8 bUsesSingleLayerWaterMaterial : 1;
 	uint8 bHasVolumeMaterialDomain : 1;
 	uint8 bUsesDistanceCullFade : 1;
 
@@ -489,6 +490,8 @@ public:
 		PURE_VIRTUAL(UMaterialInterface::GetAllVectorParameterInfo,return;);
 	virtual void GetAllTextureParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 		PURE_VIRTUAL(UMaterialInterface::GetAllTextureParameterInfo,return;);
+	virtual void GetAllRuntimeVirtualTextureParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
+		PURE_VIRTUAL(UMaterialInterface::GetAllRuntimeVirtualTextureParameterInfo, return;);
 	virtual void GetAllFontParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 		PURE_VIRTUAL(UMaterialInterface::GetAllFontParameterInfo,return;);
 	virtual void GetAllMaterialLayersParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
@@ -507,6 +510,8 @@ public:
 		PURE_VIRTUAL(UMaterialInterface::GetVectorParameterDefaultValue,return false;);
 	virtual bool GetTextureParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue, bool bCheckOwnedGlobalOverrides = false) const
 		PURE_VIRTUAL(UMaterialInterface::GetTextureParameterDefaultValue,return false;);
+	virtual bool GetRuntimeVirtualTextureParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture*& OutValue, bool bCheckOwnedGlobalOverrides = false) const
+		PURE_VIRTUAL(UMaterialInterface::GetRuntimeVirtualTextureParameterDefaultValue, return false;);
 	virtual bool GetFontParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, class UFont*& OutFontValue, int32& OutFontPage, bool bCheckOwnedGlobalOverrides = false) const
 		PURE_VIRTUAL(UMaterialInterface::GetFontParameterDefaultValue,return false;);
 	virtual bool GetStaticSwitchParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bCheckOwnedGlobalOverrides = false) const
@@ -702,10 +707,17 @@ public:
 	ENGINE_API virtual bool GetScalarCurveParameterValue(const FMaterialParameterInfo& ParameterInfo, FInterpCurveFloat& OutValue) const;
 	ENGINE_API virtual bool GetVectorParameterValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly = false) const;
 	ENGINE_API virtual bool IsVectorParameterUsedAsChannelMask(const FMaterialParameterInfo& ParameterInfo, bool& OutValue) const;
+#if WITH_EDITOR
+	ENGINE_API virtual bool GetVectorParameterChannelNames(const FMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const;
+#endif
 	ENGINE_API virtual bool GetVectorCurveParameterValue(const FMaterialParameterInfo& ParameterInfo, FInterpCurveVector& OutValue) const;
 	ENGINE_API virtual bool GetLinearColorParameterValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue) const;
 	ENGINE_API virtual bool GetLinearColorCurveParameterValue(const FMaterialParameterInfo& ParameterInfo, FInterpCurveLinearColor& OutValue) const;
 	ENGINE_API virtual bool GetTextureParameterValue(const FMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue, bool bOveriddenOnly = false) const;
+	ENGINE_API virtual bool GetRuntimeVirtualTextureParameterValue(const FMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly = false) const;
+#if WITH_EDITOR
+	ENGINE_API virtual bool GetTextureParameterChannelNames(const FMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const;
+#endif
 	ENGINE_API virtual bool GetFontParameterValue(const FMaterialParameterInfo& ParameterInfo,class UFont*& OutFontValue, int32& OutFontPage, bool bOveriddenOnly = false) const;
 	ENGINE_API virtual bool GetRefractionSettings(float& OutBiasValue) const;
 
@@ -735,9 +747,10 @@ public:
 	 * @param bForceMiplevelsToBeResidentValue		- true forces all mips to stream in. false lets other factors decide what to do with the mips.
 	 * @param ForceDuration							- Number of seconds to keep all mip-levels in memory, disregarding the normal priority logic. Negative value turns it off.
 	 * @param CinematicTextureGroups				- Bitfield indicating texture groups that should use extra high-resolution mips
+	 * @param bFastResponse							- USE WITH EXTREME CAUTION! Fast response textures incur sizable GT overhead and disturb streaming metric calculation. Avoid whenever possible.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
-	ENGINE_API virtual void SetForceMipLevelsToBeResident( bool OverrideForceMiplevelsToBeResident, bool bForceMiplevelsToBeResidentValue, float ForceDuration, int32 CinematicTextureGroups = 0 );
+	ENGINE_API virtual void SetForceMipLevelsToBeResident( bool OverrideForceMiplevelsToBeResident, bool bForceMiplevelsToBeResidentValue, float ForceDuration, int32 CinematicTextureGroups = 0, bool bFastResponse = false );
 
 	/**
 	 * Re-caches uniform expressions for all material interfaces

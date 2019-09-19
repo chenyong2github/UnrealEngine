@@ -9,6 +9,7 @@
 #include "DetailLayoutBuilder.h"
 #include "IDetailPropertyRow.h"
 #include "DetailWidgetRow.h"
+#include "Materials/Material.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/SToolTip.h"
 #include "PropertyCustomizationHelpers.h"
@@ -87,6 +88,33 @@ public:
 		return NiagaraComponentNodeBuilder;
 	}
 
+
+	void OnAssetSelectedFromPicker(const FAssetData& InAssetData, FNiagaraVariable InVar)
+	{
+		FScopedTransaction ScopedTransaction(LOCTEXT("ChangeAsset", "Change asset"));
+
+		UObject* Asset = InAssetData.GetAsset();
+		if (Asset == nullptr || Asset->GetClass()->IsChildOf(InVar.GetType().GetClass()))
+		{
+			check(Component.IsValid());
+			Component->Modify();
+			Component->OverrideUObjectParameter(InVar, Asset);
+		}
+	}
+
+	FString GetCurrentAssetPath(FNiagaraVariable InVar) const
+	{
+		check(Component.IsValid());
+		TArray<FNiagaraVariable> Parameters;
+		FNiagaraUserRedirectionParameterStore& ParamStore = Component->GetOverrideParameters();
+		UObject* Obj = ParamStore.GetUObject(InVar);
+		if (Obj)
+		{
+			return Obj->GetPathName();
+		}
+		return FString();
+	}
+
 	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override
 	{
 		check(Component.IsValid());
@@ -153,11 +181,27 @@ public:
 // 					FOnGetActorFilters::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnGetActorFiltersForSceneOutliner),
 // 					FOnActorSelected::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnActorSelected));
 
-				FString ValueName = DefaultValueObject ? FName::NameToDisplayString(DefaultValueObject->GetClass()->GetName(), false) : TEXT("null");
-				CustomValueWidget =
-					SNew(STextBlock)
-					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-					.Text(FText::FromString(ValueName));
+				if (Parameter.GetType().GetClass() == UMaterialInterface::StaticClass())
+				{
+									
+					CustomValueWidget = SNew(SObjectPropertyEntryBox)
+						.ObjectPath_Raw(this, &FNiagaraComponentNodeBuilder::GetCurrentAssetPath, Parameter )
+						.AllowedClass(UMaterialInterface::StaticClass())
+						.OnObjectChanged_Raw(this, &FNiagaraComponentNodeBuilder::OnAssetSelectedFromPicker, Parameter)
+						.AllowClear(false)
+						.DisplayUseSelected(true)
+						.DisplayBrowse(true)
+						.DisplayThumbnail(true)
+						.NewAssetFactories(TArray<UFactory*>());
+				}
+				else
+				{
+					FString ValueName = DefaultValueObject ? FName::NameToDisplayString(DefaultValueObject->GetClass()->GetName(), false) : TEXT("null");
+					CustomValueWidget =
+						SNew(STextBlock)
+						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+						.Text(FText::FromString(ValueName));
+				}
 			}
 			else
 			{

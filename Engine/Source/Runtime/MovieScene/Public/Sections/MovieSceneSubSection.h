@@ -138,8 +138,8 @@ public:
 
 	//~ UMovieSceneSection interface
 	virtual TOptional<TRange<FFrameNumber> > GetAutoSizeRange() const override;
-	virtual UMovieSceneSection* SplitSection( FQualifiedFrameTime SplitTime ) override;
-	virtual void TrimSection( FQualifiedFrameTime TrimTime, bool bTrimLeft ) override;
+	virtual UMovieSceneSection* SplitSection( FQualifiedFrameTime SplitTime, bool bDeleteKeys ) override;
+	virtual void TrimSection( FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys) override;
 	virtual TOptional<FFrameTime> GetOffsetTime() const override { return TOptional<FFrameTime>(FFrameTime(Parameters.StartFrameOffset)); }
 
 public:

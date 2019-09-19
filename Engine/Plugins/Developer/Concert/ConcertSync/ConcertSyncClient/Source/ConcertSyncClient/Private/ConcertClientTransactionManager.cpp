@@ -24,7 +24,6 @@
 	#include "UnrealEdGlobals.h"
 	#include "Editor/UnrealEdEngine.h"
 	#include "Editor/TransBuffer.h"
-	#include "Layers/ILayers.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "ConcertClientTransactionManager"

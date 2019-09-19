@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
 #include "EditorUndoClient.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 
 class AActor;
 class FActorLayerViewModel;
@@ -25,12 +25,11 @@ public:
 	/**  
 	 *	Factory method which creates a new FActorLayerCollectionViewModel object
 	 *
-	 *	@param	InWorldLayers	The layer management logic object
 	 *	@param	InEditor		The UEditorEngine to use
 	 */
-	static TSharedRef< FActorLayerCollectionViewModel > Create( const TSharedRef< ILayers >& InWorldLayers, const TWeakObjectPtr< UEditorEngine >& InEditor )
+	static TSharedRef< FActorLayerCollectionViewModel > Create( const TWeakObjectPtr< UEditorEngine >& InEditor )
 	{
-		const TSharedRef< FActorLayerCollectionViewModel > ViewModel( new FActorLayerCollectionViewModel( InWorldLayers, InEditor ) );
+		const TSharedRef< FActorLayerCollectionViewModel > ViewModel( new FActorLayerCollectionViewModel( InEditor ) );
 		ViewModel->Initialize();
 
 		return ViewModel;
@@ -67,7 +66,7 @@ public:
 	 ********************************************************************/
 
 	/** Broadcasts whenever the number of layers changes */
-	DECLARE_DERIVED_EVENT( FActorLayerCollectionViewModel, ILayers::FOnLayersChanged, FOnLayersChanged );
+	DECLARE_DERIVED_EVENT( FActorLayerCollectionViewModel, ULayersSubsystem::FOnLayersChanged, FOnLayersChanged );
 	FOnLayersChanged& OnLayersChanged() { return LayersChanged; }
 
 
@@ -76,10 +75,9 @@ private:
 	/**  
 	 *	 in the LayerCloud Constructor
 	 *
-	 *	@param	InWorldLayers	The layer management logic object
 	 *	@param	InEditor		The UEditorEngine to use
 	 */
-	FActorLayerCollectionViewModel( const TSharedRef< ILayers >& InWorldLayers, const TWeakObjectPtr< UEditorEngine >& InEditor );
+	FActorLayerCollectionViewModel( const TWeakObjectPtr< UEditorEngine >& InEditor );
 
 	/** Initializes the FActorLayerCollectionViewModel for use */
 	void Initialize();
@@ -118,13 +116,12 @@ private:
 	/**	All actors whose layers are being exposed */
 	TArray< TWeakObjectPtr< AActor > > Actors;
 
-	/** The layer management logic object */
-	const TSharedRef< ILayers > WorldLayers;
-
 	/** The UEditorEngine to use */
 	const TWeakObjectPtr< UEditorEngine > Editor;
+
+	/** The layer management logic object */
+	ULayersSubsystem* WorldLayers;
 
 	/**	Broadcasts whenever one or more layers changes */
 	FOnLayersChanged LayersChanged;
 };
-

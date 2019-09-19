@@ -38,6 +38,8 @@
 
 static TAutoConsoleVariable<int32> CVarPingExcludeFrameTime( TEXT( "net.PingExcludeFrameTime" ), 0, TEXT( "Calculate RTT time between NIC's of server and client." ) );
 
+static TAutoConsoleVariable<int32> CVarPingUsePacketRecvTime(TEXT("net.PingUsePacketRecvTime"), 0, TEXT("Use OS or Receive Thread packet receive time, for calculating the ping. Excludes frame time."));
+
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarPingDisplayServerTime( TEXT( "net.PingDisplayServerTime" ), 0, TEXT( "Show server frame time" ) );
 #endif
@@ -163,6 +165,8 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	TickCount			( 0 )
 ,	LastProcessedFrame	( 0 )
 ,	ConnectTime			( 0.0 )
+,	LastOSReceiveTime	()
+,	bIsOSReceiveTimeLocal(false)
 
 ,	AllowMerge			( false )
 ,	TimeSensitive		( false )
@@ -207,9 +211,6 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	InitInReliable		( 0 )
 ,	EngineNetworkProtocolVersion( FNetworkVersion::GetEngineNetworkProtocolVersion() )
 ,	GameNetworkProtocolVersion( FNetworkVersion::GetGameNetworkProtocolVersion() )
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-,	bResendAllDataSinceOpen( false )
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 ,	ResendAllDataState( EResendAllDataState::None )
 #if !UE_BUILD_SHIPPING
 ,	ReceivedRawPacketDel()
@@ -588,11 +589,6 @@ void UNetConnection::Serialize( FArchive& Ar )
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Challenge", Challenge.CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClientResponse", ClientResponse.CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RequestURL", RequestURL.CountBytes(Ar));
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CDKeyHash", CDKeyHash.CountBytes(Ar));
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CDKeyResponse", CDKeyResponse.CountBytes(Ar));
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SendBuffer", SendBuffer.CountMemory(Ar));
 
@@ -1610,6 +1606,7 @@ void UNetConnection::ReceivedNak( int32 NakPacketId )
 	// Stats
 	++OutPacketsLost;
 	++OutTotalPacketsLost;
+	++Driver->OutPacketsLost;
 	++Driver->OutTotalPacketsLost;
 }
 
@@ -1703,8 +1700,24 @@ bool UNetConnection::ReadPacketInfo(FBitReader& Reader)
 		}
 #endif
 
+		double PacketReceiveTime = 0.0;
+		FTimespan& RecvTimespan = LastOSReceiveTime.Timestamp;
+
+		if (!RecvTimespan.IsZero() && Driver != nullptr && CVarPingUsePacketRecvTime.GetValueOnAnyThread())
+		{
+			if (bIsOSReceiveTimeLocal)
+			{
+				PacketReceiveTime = RecvTimespan.GetTotalSeconds();
+			}
+			else if (ISocketSubsystem* SocketSubsystem = Driver->GetSocketSubsystem())
+			{
+				PacketReceiveTime = SocketSubsystem->TranslatePacketTimestamp(LastOSReceiveTime);
+			}
+		}
+
+
 		// use FApp's time because it is set closer to the beginning of the frame - we don't care about the time so far of the current frame to process the packet
-		const double CurrentTime = FApp::GetCurrentTime();
+		const double CurrentTime = (PacketReceiveTime != 0.0 ? PacketReceiveTime : FApp::GetCurrentTime());
 		const double GameTime	 = ServerFrameTime;
 		const double RTT		 = (CurrentTime - OutLagTime[Index] ) - ( CVarPingExcludeFrameTime.GetValueOnAnyThread() ? GameTime : 0.0 );
 		const double NewLag		 = FMath::Max( RTT, 0.0 );
@@ -2587,14 +2600,6 @@ TSharedPtr<FObjectReplicator> UNetConnection::CreateReplicatorForNewActorChannel
 	return NewReplicator;
 }
 
-void UNetConnection::PurgeAcks()
-{
-}
-
-void UNetConnection::SendAck(int32 AckPacketId, bool FirstTime/*=1*/)
-{
-}
-
 int32 UNetConnection::SendRawBunch( FOutBunch& Bunch, bool InAllowMerge )
 {
 	ValidateSendBuffer();
@@ -2682,27 +2687,6 @@ int32 UNetConnection::SendRawBunch( FOutBunch& Bunch, bool InAllowMerge )
 	}
 
 	return Bunch.PacketId;
-}
-
-UChannel* UNetConnection::CreateChannel( EChannelType Type, bool bOpenedLocally, int32 ChannelIndex )
-{
-	const EChannelCreateFlags ChannelCreateFlags = (bOpenedLocally ? EChannelCreateFlags::OpenedLocally : EChannelCreateFlags::None);
-	FName ChName = NAME_None;
-
-	switch (Type)
-	{
-	case CHTYPE_Control:
-		ChName = NAME_Control;
-		break;
-	case CHTYPE_Actor:
-		ChName = NAME_Actor;
-		break;
-	case CHTYPE_Voice:
-		ChName = NAME_Voice;
-		break;
-	}
-
-	return CreateChannelByName(ChName, ChannelCreateFlags, ChannelIndex);
 }
 
 UChannel* UNetConnection::CreateChannelByName( const FName& ChName, EChannelCreateFlags CreateFlags, int32 ChIndex )

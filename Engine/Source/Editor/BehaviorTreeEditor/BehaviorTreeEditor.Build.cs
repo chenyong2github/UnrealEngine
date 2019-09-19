@@ -45,7 +45,8 @@ public class BehaviorTreeEditor : ModuleRules
 				"BlueprintGraph",
                 "AIGraph",
                 "AIModule",
-				"ClassViewer"
+				"ClassViewer",
+				"ToolMenus",
 			}
 		);
 

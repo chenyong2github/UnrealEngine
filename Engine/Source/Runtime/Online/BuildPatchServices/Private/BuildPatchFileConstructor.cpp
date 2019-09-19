@@ -1,15 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	BuildPatchFileConstructor.cpp: Implements the BuildPatchFileConstructor class
-	that handles creating files in a manifest from the chunks that make it.
-=============================================================================*/
-
 #include "BuildPatchFileConstructor.h"
+#include "IBuildManifestSet.h"
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/FileManager.h"
 #include "HAL/RunnableThread.h"
-#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/OutputDeviceRedirector.h"
@@ -43,7 +38,7 @@ namespace FileConstructorHelpers
 		}
 	}
 
-	bool CheckAndReportRemainingDiskSpaceError(IInstallerError* InstallerError, const FString& InstallDirectory, uint64 RemainingBytesRequired, const TCHAR* SpaceErrorCode)
+	bool CheckAndReportRemainingDiskSpaceError(IInstallerError* InstallerError, const FString& InstallDirectory, uint64 RemainingBytesRequired, const TCHAR* SpaceErrorCode, uint64* OutAvailableDiskSpace = nullptr)
 	{
 		bool bContinueConstruction = true;
 		uint64 TotalSize = 0;
@@ -61,7 +56,57 @@ namespace FileConstructorHelpers
 				bContinueConstruction = false;
 			}
 		}
+		if (OutAvailableDiskSpace != nullptr)
+		{
+			*OutAvailableDiskSpace = AvailableSpace;
+		}
 		return bContinueConstruction;
+	}
+
+	uint64 CalculateRequiredDiskSpace(const FBuildPatchAppManifestPtr& CurrentManifest, const FBuildPatchAppManifestRef& BuildManifest, const EInstallMode& InstallMode, const TSet<FString>& InInstallTags)
+	{
+		// Make tags expected
+		TSet<FString> InstallTags = InInstallTags;
+		if (InstallTags.Num() == 0)
+		{
+			BuildManifest->GetFileTagList(InstallTags);
+		}
+		InstallTags.Add(TEXT(""));
+		// Calculate the files that need constructing.
+		FString DummyString;
+		TSet<FString> FilesToConstruct;
+		BuildManifest->GetOutdatedFiles(CurrentManifest, DummyString, FilesToConstruct);
+		TSet<FString> TaggedFiles;
+		BuildManifest->GetTaggedFileList(InstallTags, TaggedFiles);
+		FilesToConstruct = FilesToConstruct.Intersect(TaggedFiles);
+		// Count disk space needed by each operation.
+		int64 DiskSpaceDeltaPeak = 0;
+		const bool bCurrentManifestIsValid = CurrentManifest.IsValid();
+		if (InstallMode == EInstallMode::DestructiveInstall && bCurrentManifestIsValid)
+		{
+			// The simplest method will be to run through each high level file operation, tracking peak disk usage delta.
+			int64 DiskSpaceDelta = 0;
+
+			// Loop through all files to be made next, in order.
+			FilesToConstruct.Sort(TLess<FString>());
+			for (const FString& FileToConstruct : FilesToConstruct)
+			{
+				// First we would need to make the new file.
+				DiskSpaceDelta += BuildManifest->GetFileSize(FileToConstruct);
+				if (DiskSpaceDeltaPeak < DiskSpaceDelta)
+				{
+					DiskSpaceDeltaPeak = DiskSpaceDelta;
+				}
+				// Then we can remove the current existing file.
+				DiskSpaceDelta -= CurrentManifest->GetFileSize(FileToConstruct);
+			}
+		}
+		else
+		{
+			// When not destructive, or no CurrentManifest, we always stage all new and changed files.
+			DiskSpaceDeltaPeak = BuildManifest->GetFileSize(FilesToConstruct);
+		}
+		return FMath::Max<int64>(DiskSpaceDeltaPeak, 0);
 	}
 }
 
@@ -72,89 +117,119 @@ namespace FileConstructorHelpers
 struct FResumeData
 {
 public:
+	// File system dependency
+	const IFileSystem* const FileSystem;
+
+	// The manifests for the app we are installing
+	const IBuildManifestSet* const ManifestSet;
+
 	// Save the staging directory
 	const FString StagingDir;
 
 	// The filename to the resume data information
 	const FString ResumeDataFile;
 
-	// A string determining the app and version we are installing
-	const FString PatchVersion;
+	// The resume ids that we loaded from disk
+	TSet<FString> LoadedResumeIds;
 
 	// The set of files that were started
 	TSet<FString> FilesStarted;
 
-	// The set of files that were completed, determined by expected filesize
+	// The set of files that were completed, determined by expected file size
 	TSet<FString> FilesCompleted;
 
-	// The manifest for the app we are installing
-	FBuildPatchAppManifestRef BuildManifest;
+	// The set of files that exist but are not able to assume resumable
+	TSet<FString> FilesIncompatible;
 
-	// Whether we have resume data for this install
+	// Whether we have any resume data for this install
 	bool bHasResumeData;
 
-	// Whether we have resume data for a different install.
-	bool bHasIncompatibleResumeData;
-
 public:
-	/**
-	 * Constructor - reads in the resume data
-	 * @param InStagingDir      The install staging directory
-	 * @param InBuildManifest   The manifest we are installing from
-	 */
-	FResumeData(const FString& InStagingDir, const FBuildPatchAppManifestRef& InBuildManifest)
-		: StagingDir(InStagingDir)
+
+	FResumeData(IFileSystem* InFileSystem, IBuildManifestSet* InManifestSet, const FString& InStagingDir)
+		: FileSystem(InFileSystem)
+		, ManifestSet(InManifestSet)
+		, StagingDir(InStagingDir)
 		, ResumeDataFile(InStagingDir / TEXT("$resumeData"))
-		, PatchVersion(InBuildManifest->GetAppName() + InBuildManifest->GetVersionString())
-		, BuildManifest(InBuildManifest)
 		, bHasResumeData(false)
-		, bHasIncompatibleResumeData(false)
 	{
 		// Load data from previous resume file
-		bHasResumeData = FPlatformFileManager::Get().GetPlatformFile().FileExists(*ResumeDataFile);
-		GLog->Logf(TEXT("BuildPatchResumeData file found %d"), bHasResumeData);
+		bHasResumeData = FileSystem->FileExists(*ResumeDataFile);
+		GLog->Logf(TEXT("BuildPatchResumeData file found: %s"), bHasResumeData ? TEXT("true") : TEXT("false"));
 		if (bHasResumeData)
 		{
+			// Grab existing resume metadata.
+			const bool bCullEmptyLines = true;
 			FString PrevResumeData;
-			TArray< FString > ResumeDataLines;
-			FFileHelper::LoadFileToString(PrevResumeData, *ResumeDataFile);
-			PrevResumeData.ParseIntoArray(ResumeDataLines, TEXT("\n"), true);
-			// Line 1 will be the previously attempted version
-			FString PreviousVersion = (ResumeDataLines.Num() > 0) ? MoveTemp(ResumeDataLines[0]) : TEXT("");
-			bHasResumeData = PreviousVersion == PatchVersion;
-			bHasIncompatibleResumeData = !bHasResumeData;
-			GLog->Logf(TEXT("BuildPatchResumeData version matched %d %s == %s"), bHasResumeData, *PreviousVersion, *PatchVersion);
+			TArray<FString> PrevResumeDataLines;
+			FileSystem->LoadFileToString(*ResumeDataFile, PrevResumeData);
+			PrevResumeData.ParseIntoArrayLines(PrevResumeDataLines, bCullEmptyLines);
+			// Grab current resume ids
+			const bool bCheckLegacyIds = true;
+			TSet<FString> NewResumeIds;
+			ManifestSet->GetInstallResumeIds(NewResumeIds, bCheckLegacyIds);
+			LoadedResumeIds.Reserve(PrevResumeDataLines.Num());
+			// Check if any builds we are installing are a resume from previous run.
+			for (FString& PrevResumeDataLine : PrevResumeDataLines)
+			{
+				PrevResumeDataLine.TrimStartAndEndInline();
+				LoadedResumeIds.Add(PrevResumeDataLine);
+				if (NewResumeIds.Contains(PrevResumeDataLine))
+				{
+					bHasResumeData = true;
+					GLog->Logf(TEXT("BuildPatchResumeData version matched %s"), *PrevResumeDataLine);
+				}
+			}
 		}
 	}
 
 	/**
 	 * Saves out the resume data
 	 */
-	void SaveOut()
+	void SaveOut(const TSet<FString>& ResumeIds)
 	{
-		// Save out the patch version
-		FFileHelper::SaveStringToFile(PatchVersion + TEXT("\n"), *ResumeDataFile);
+		// Save out the patch versions
+		FileSystem->SaveStringToFile(*ResumeDataFile, FString::Join(ResumeIds, TEXT("\n")));
 	}
 
 	/**
 	 * Checks whether the file was completed during last install attempt and adds it to FilesCompleted if so
 	 * @param Filename    The filename to check
 	 */
-	void CheckFile( const FString& Filename )
+	void CheckFile(const FString& Filename)
 	{
-		// If we had resume data, check file size is correct
-		if(bHasResumeData)
+		// If we had resume data, check if this file might have been resumable
+		if (bHasResumeData)
 		{
+			int64 DiskFileSize;
 			const FString FullFilename = StagingDir / Filename;
-			const int64 DiskFileSize = IFileManager::Get().FileSize( *FullFilename );
-			const int64 CompleteFileSize = BuildManifest->GetFileSize( Filename );
-			if (DiskFileSize > 0 && DiskFileSize <= CompleteFileSize)
+			const bool bFileExists = FileSystem->GetFileSize(*FullFilename, DiskFileSize);
+			const bool bCheckLegacyIds = true;
+			TSet<FString> FileResumeIds;
+			ManifestSet->GetInstallResumeIdsForFile(Filename, FileResumeIds, bCheckLegacyIds);
+			if (LoadedResumeIds.Intersect(FileResumeIds).Num() > 0)
 			{
-				FilesStarted.Add(Filename);
+				const FFileManifest* NewFileManifest = ManifestSet->GetNewFileManifest(Filename);
+				if (NewFileManifest && bFileExists)
+				{
+					const uint64 UnsignedDiskFileSize = DiskFileSize;
+					if (UnsignedDiskFileSize > 0 && UnsignedDiskFileSize <= NewFileManifest->FileSize)
+					{
+						FilesStarted.Add(Filename);
+					}
+					if (UnsignedDiskFileSize == NewFileManifest->FileSize)
+					{
+						FilesCompleted.Add(Filename);
+					}
+					if (UnsignedDiskFileSize > NewFileManifest->FileSize)
+					{
+						FilesIncompatible.Add(Filename);
+					}
+				}
 			}
-			if( DiskFileSize == CompleteFileSize )
+			else if (bFileExists)
 			{
-				FilesCompleted.Add( Filename );
+				FilesIncompatible.Add(Filename);
 			}
 		}
 	}
@@ -182,6 +257,8 @@ FBuildPatchFileConstructor::FBuildPatchFileConstructor(FFileConstructorConfig In
 	, FileConstructorStat(InFileConstructorStat)
 	, TotalJobSize(0)
 	, ByteProcessed(0)
+	, RequiredDiskSpace(0)
+	, AvailableDiskSpace(0)
 {
 	// Count initial job size
 	const int32 ConstructListNum = Configuration.ConstructList.Num();
@@ -190,7 +267,11 @@ FBuildPatchFileConstructor::FBuildPatchFileConstructor(FFileConstructorConfig In
 	for (int32 ConstructListIdx = 0; ConstructListIdx < ConstructListNum ; ++ConstructListIdx)
 	{
 		const FString& ConstructListElem = Configuration.ConstructList[ConstructListIdx];
-		TotalJobSize += Configuration.BuildManifest->GetFileSize(ConstructListElem);
+		const FFileManifest* FileManifest = Configuration.ManifestSet->GetNewFileManifest(ConstructListElem);
+		if (FileManifest)
+		{
+			TotalJobSize += FileManifest->FileSize;
+		}
 		ConstructionStack[(ConstructListNum - 1) - ConstructListIdx] = ConstructListElem;
 	}
 	// Start thread!
@@ -224,23 +305,41 @@ bool FBuildPatchFileConstructor::Init()
 
 uint32 FBuildPatchFileConstructor::Run()
 {
+	// TODO: Remove this check, or assert on construction
+	if (Configuration.ManifestSet == nullptr)
+	{
+		UE_LOG(LogBuildPatchServices, Error, TEXT("FBuildPatchFileConstructor: ManifestSet is null."));
+		return 0;
+	}
+
 	SetRunning(true);
 	SetInited(true);
 	FileConstructorStat->OnTotalRequiredUpdated(TotalJobSize);
 
 	// Check for resume data
-	FResumeData ResumeData(Configuration.StagingDirectory, Configuration.BuildManifest);
+	FResumeData ResumeData(FileSystem, Configuration.ManifestSet, Configuration.StagingDirectory);
 
-	// If we found incompatible resume data, we need to clean out the staging folder.
-	// We don't delete the folder itself though as we should presume it was created with desired attributes.
-	if (ResumeData.bHasIncompatibleResumeData)
+	// Remove incompatible files
+	if (ResumeData.bHasResumeData)
 	{
-		GLog->Logf(TEXT("BuildPatchServices: Deleting incompatible stage files"));
-		DeleteDirectoryContents(Configuration.StagingDirectory);
+		for (const FString& FileToConstruct : Configuration.ConstructList)
+		{
+			ResumeData.CheckFile(FileToConstruct);
+			const bool bFileIncompatible = ResumeData.FilesIncompatible.Contains(FileToConstruct);
+			if (bFileIncompatible)
+			{
+				GLog->Logf(TEXT("FBuildPatchFileConstructor: Deleting incompatible stage file %s"), *FileToConstruct);
+				FileSystem->DeleteFile(*(Configuration.StagingDirectory / FileToConstruct));
+			}
+		}
 	}
 
-	// Save for started version.
-	ResumeData.SaveOut();
+	// Save for started versions
+	TSet<FString> ResumeIds;
+	const bool bCheckLegacyIds = false;
+
+	Configuration.ManifestSet->GetInstallResumeIds(ResumeIds, bCheckLegacyIds);
+	ResumeData.SaveOut(ResumeIds);
 
 	// Start resume progress at zero or one.
 	FileConstructorStat->OnResumeStarted();
@@ -249,33 +348,45 @@ uint32 FBuildPatchFileConstructor::Run()
 	FString FileToConstruct;
 	while (GetFileToConstruct(FileToConstruct) && !bShouldAbort)
 	{
-		int64 FileSize = Configuration.BuildManifest->GetFileSize(FileToConstruct);
-		FileConstructorStat->OnFileStarted(FileToConstruct, FileSize);
-		// Check resume status, currently we are only supporting sequential resume, so once we start downloading, we can't resume any more.
-		// this only comes up if the resume data has been changed externally.
-		ResumeData.CheckFile(FileToConstruct);
-		const bool bFilePreviouslyComplete = !bIsDownloadStarted && ResumeData.FilesCompleted.Contains(FileToConstruct);
-		const bool bFilePreviouslyStarted = !bIsDownloadStarted && ResumeData.FilesStarted.Contains(FileToConstruct);
-
-		// Construct or skip the file.
-		bool bFileSuccess;
-		if (bFilePreviouslyComplete)
+		// Get the file manifest.
+		const FFileManifest* FileManifest = Configuration.ManifestSet->GetNewFileManifest(FileToConstruct);
+		bool bFileSuccess = FileManifest != nullptr;
+		if (bFileSuccess)
 		{
-			bFileSuccess = true;
-			CountBytesProcessed(FileSize);
-			GLog->Logf(TEXT("FBuildPatchFileConstructor::SkipFile %s"), *FileToConstruct);
-			// Get the file manifest.
-			const FFileManifest* FileManifest = Configuration.BuildManifest->GetFileManifest(FileToConstruct);
-			// Go through each chunk part, and dereference it from the reference tracker.
-			for (const FChunkPart& ChunkPart : FileManifest->ChunkParts)
+			const int64 FileSize = FileManifest->FileSize;
+			FileConstructorStat->OnFileStarted(FileToConstruct, FileSize);
+
+			// Check resume status for this file.
+			const bool bFilePreviouslyComplete = ResumeData.FilesCompleted.Contains(FileToConstruct);
+			const bool bFilePreviouslyStarted = ResumeData.FilesStarted.Contains(FileToConstruct);
+
+			// Construct or skip the file.
+			if (bFilePreviouslyComplete)
 			{
-				bFileSuccess = ChunkReferenceTracker->PopReference(ChunkPart.Guid) && bFileSuccess;
+				bFileSuccess = true;
+				CountBytesProcessed(FileSize);
+				GLog->Logf(TEXT("FBuildPatchFileConstructor: Skipping completed file %s"), *FileToConstruct);
+				// Go through each chunk part, and dereference it from the reference tracker.
+				for (const FChunkPart& ChunkPart : FileManifest->ChunkParts)
+				{
+					bFileSuccess = ChunkReferenceTracker->PopReference(ChunkPart.Guid) && bFileSuccess;
+				}
+			}
+			else
+			{
+				bFileSuccess = ConstructFileFromChunks(FileToConstruct, bFilePreviouslyStarted);
 			}
 		}
 		else
 		{
-			GLog->Logf(TEXT("FBuildPatchFileConstructor::Building file %s"), *FileToConstruct);
-			bFileSuccess = ConstructFileFromChunks(FileToConstruct, bFilePreviouslyStarted);
+			// Only report or log if the first error
+			if (InstallerError->HasError() == false)
+			{
+				InstallerAnalytics->RecordConstructionError(FileToConstruct, INDEX_NONE, TEXT("Missing File Manifest"));
+				UE_LOG(LogBuildPatchServices, Error, TEXT("FBuildPatchFileConstructor: Missing file manifest for %s"), *FileToConstruct);
+			}
+			// Always set
+			InstallerError->SetError(EBuildPatchInstallError::FileConstructionFail, ConstructionErrorCodes::MissingFileInfo);
 		}
 
 		if (bFileSuccess)
@@ -333,6 +444,18 @@ bool FBuildPatchFileConstructor::IsComplete()
 	return ( !bIsRunning && bIsInited ) || bInitFailed;
 }
 
+uint64 FBuildPatchFileConstructor::GetRequiredDiskSpace()
+{
+	FScopeLock Lock(&ThreadLock);
+	return RequiredDiskSpace;
+}
+
+uint64 FBuildPatchFileConstructor::GetAvailableDiskSpace()
+{
+	FScopeLock Lock(&ThreadLock);
+	return AvailableDiskSpace;
+}
+
 FBuildPatchFileConstructor::FOnBeforeDeleteFile& FBuildPatchFileConstructor::OnBeforeDeleteFile()
 {
 	return BeforeDeleteFileEvent;
@@ -377,53 +500,49 @@ bool FBuildPatchFileConstructor::GetFileToConstruct(FString& Filename)
 int64 FBuildPatchFileConstructor::GetRemainingBytes()
 {
 	FScopeLock Lock(&ThreadLock);
-	return Configuration.BuildManifest->GetFileSize(ConstructionStack);
+	return Configuration.ManifestSet->GetTotalNewFileSize(ConstructionStack);
 }
 
-int64 FBuildPatchFileConstructor::CalculateRequiredDiskSpace(const FString& InProgressFile, int64 InProgressFileSize)
+uint64 FBuildPatchFileConstructor::CalculateRequiredDiskSpace(const FFileManifest& InProgressFileManifest, uint64 InProgressFileSize)
 {
 	int64 DiskSpaceDeltaPeak = InProgressFileSize;
 	if (Configuration.InstallMode == EInstallMode::DestructiveInstall)
 	{
 		// The simplest method will be to run through each high level file operation, tracking peak disk usage delta.
-		const bool bCurrentManifestIsValid = Configuration.CurrentManifest.IsValid();
 		int64 DiskSpaceDelta = InProgressFileSize;
 
 		// Can remove old in progress file.
-		if (bCurrentManifestIsValid)
-		{
-			DiskSpaceDelta -= Configuration.CurrentManifest->GetFileSize(InProgressFile);
-		}
+		DiskSpaceDelta -= InProgressFileManifest.FileSize;
 
 		// Loop through all files to be made next, in order.
 		for (int32 ConstructionStackIdx = ConstructionStack.Num() - 1; ConstructionStackIdx >= 0; --ConstructionStackIdx)
 		{
 			const FString& FileToConstruct = ConstructionStack[ConstructionStackIdx];
+			const FFileManifest* NewFileManifest = Configuration.ManifestSet->GetNewFileManifest(FileToConstruct);
+			const FFileManifest* OldFileManifest = Configuration.ManifestSet->GetCurrentFileManifest(FileToConstruct);
 			// First we would need to make the new file.
-			DiskSpaceDelta += Configuration.BuildManifest->GetFileSize(FileToConstruct);
+			DiskSpaceDelta += NewFileManifest->FileSize;
 			if (DiskSpaceDeltaPeak < DiskSpaceDelta)
 			{
 				DiskSpaceDeltaPeak = DiskSpaceDelta;
 			}
 			// Then we can remove the current existing file.
-			if (bCurrentManifestIsValid)
+			if (OldFileManifest)
 			{
-				DiskSpaceDelta -= Configuration.CurrentManifest->GetFileSize(FileToConstruct);
+				DiskSpaceDelta -= OldFileManifest->FileSize;
 			}
 		}
 	}
 	else
 	{
 		// When not destructive, we always stage all new and changed files.
-		DiskSpaceDeltaPeak += Configuration.BuildManifest->GetFileSize(ConstructionStack);
+		DiskSpaceDeltaPeak += Configuration.ManifestSet->GetTotalNewFileSize(ConstructionStack);
 	}
-	return DiskSpaceDeltaPeak;
+	return FMath::Max<int64>(DiskSpaceDeltaPeak, 0);
 }
 
 bool FBuildPatchFileConstructor::ConstructFileFromChunks( const FString& Filename, bool bResumeExisting )
 {
-	const bool bIsFileData = Configuration.BuildManifest->IsFileDataManifest();
-	bResumeExisting = bResumeExisting && !bIsFileData;
 	bool bSuccess = true;
 	FString NewFilename = Configuration.StagingDirectory / Filename;
 
@@ -432,7 +551,7 @@ bool FBuildPatchFileConstructor::ConstructFileFromChunks( const FString& Filenam
 	FSHAHash HashValue;
 
 	// First make sure we can get the file manifest
-	const FFileManifest* FileManifest = Configuration.BuildManifest->GetFileManifest(Filename);
+	const FFileManifest* FileManifest = Configuration.ManifestSet->GetNewFileManifest(Filename);
 	bSuccess = FileManifest != nullptr;
 	if( bSuccess )
 	{
@@ -512,8 +631,11 @@ bool FBuildPatchFileConstructor::ConstructFileFromChunks( const FString& Filenam
 		if (!bInitialDiskSizeCheck)
 		{
 			bInitialDiskSizeCheck = true;
-			const uint64 RequiredSpace = CalculateRequiredDiskSpace(Filename, FileManifest->FileSize - StartPosition);
-			if (!FileConstructorHelpers::CheckAndReportRemainingDiskSpaceError(InstallerError, Configuration.InstallDirectory, RequiredSpace, DiskSpaceErrorCodes::InitialSpaceCheck))
+			const uint64 RequiredSpace = CalculateRequiredDiskSpace(*FileManifest, FileManifest->FileSize - StartPosition);
+			// ThreadLock protects access to member RequiredDiskSpace and AvailableDiskSpace;
+			FScopeLock Lock(&ThreadLock);
+			RequiredDiskSpace = RequiredSpace;
+			if (!FileConstructorHelpers::CheckAndReportRemainingDiskSpaceError(InstallerError, Configuration.InstallDirectory, RequiredSpace, DiskSpaceErrorCodes::InitialSpaceCheck, &AvailableDiskSpace))
 			{
 				return false;
 			}
@@ -585,7 +707,7 @@ bool FBuildPatchFileConstructor::ConstructFileFromChunks( const FString& Filenam
 		else
 		{
 			// Check if drive space was the issue here
-			const uint64 RequiredSpace = CalculateRequiredDiskSpace(Filename, FileManifest->FileSize);
+			const uint64 RequiredSpace = CalculateRequiredDiskSpace(*FileManifest, FileManifest->FileSize);
 			bool bError = !FileConstructorHelpers::CheckAndReportRemainingDiskSpaceError(InstallerError, Configuration.InstallDirectory, RequiredSpace, DiskSpaceErrorCodes::DuringInstallation);
 
 			// Otherwise we just couldn't make the file

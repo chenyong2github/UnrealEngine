@@ -5,6 +5,7 @@
 #include "MovieScene.h"
 #include "MovieSceneFolder.h"
 #include "Algo/Find.h"
+#include "Compilation/MovieSceneCompiler.h"
 
 TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::FilterTracks(TArrayView<UMovieSceneTrack* const> InTracks, UClass* DesiredClass, bool bExactMatch)
 {
@@ -467,6 +468,28 @@ TArray<UObject*> UMovieSceneSequenceExtensions::LocateBoundObjects(UMovieSceneSe
 	}
 
 	return Result;
+}
+
+FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSceneSequence* MasterSequence, const FSequencerBindingProxy& InBinding)
+{
+	FMovieSceneSequenceID SequenceID = MovieSceneSequenceID::Root;
+
+	FMovieSceneSequenceHierarchy SequenceHierarchyCache;
+	FMovieSceneCompiler::CompileHierarchy(*MasterSequence, SequenceHierarchyCache);
+
+	for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : SequenceHierarchyCache.AllSubSequenceData())
+	{
+		if (UMovieSceneSequence* SubSequence = Pair.Value.GetSequence())
+		{
+			if (SubSequence == InBinding.Sequence)
+			{
+				SequenceID = Pair.Key;
+				break;
+			}
+		}
+	}
+
+	return FMovieSceneObjectBindingID(InBinding.BindingID, SequenceID);
 }
 
 TArray<UMovieSceneFolder*> UMovieSceneSequenceExtensions::GetRootFoldersInSequence(UMovieSceneSequence* Sequence)

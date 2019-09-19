@@ -29,6 +29,8 @@ class UCurveEditorSettings;
 class UCurveFactory;
 enum class ECheckBoxState : uint8;
 
+UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogCurveEditor, Log, All);
+
 //////////////////////////////////////////////////////////////////////////
 // FTrackScaleInfo
 

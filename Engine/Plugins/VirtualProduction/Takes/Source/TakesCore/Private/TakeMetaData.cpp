@@ -211,7 +211,6 @@ void UTakeMetaData::ExtendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) 
 	OutTags.Emplace(AssetRegistryTag_TakeNumber,  LexToString(TakeNumber),   FAssetRegistryTag::ETagType::TT_Numerical,     FAssetRegistryTag::TD_None);
 	OutTags.Emplace(AssetRegistryTag_Timestamp,   Timestamp.ToString(),      FAssetRegistryTag::ETagType::TT_Chronological, FAssetRegistryTag::TD_Date | FAssetRegistryTag::TD_Time);
 	OutTags.Emplace(AssetRegistryTag_Description, Description,               FAssetRegistryTag::ETagType::TT_Alphabetical,  FAssetRegistryTag::TD_None);
-	OutTags.Emplace(AssetRegistryTag_LevelPath, GetLevelPath(), FAssetRegistryTag::ETagType::TT_Alphabetical,  FAssetRegistryTag::TD_None);
 }
 
 void UTakeMetaData::ExtendAssetRegistryTagMetaData(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const

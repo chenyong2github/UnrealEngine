@@ -28,6 +28,7 @@
 #include "NiagaraParameterCollection.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraSystem.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
@@ -425,7 +426,7 @@ FReply SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked(const FGeo
 	UNiagaraNodeFunctionCall* DynamicInputNode = FunctionInput->GetDynamicInputNode();
 	if (DynamicInputNode->FunctionScript != nullptr && DynamicInputNode->FunctionScript->IsAsset())
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(DynamicInputNode->FunctionScript);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(DynamicInputNode->FunctionScript);
 		return FReply::Handled();
 	}
 	return FReply::Unhandled();
@@ -449,11 +450,11 @@ FReply SNiagaraStackFunctionInputValue::OnLinkedInputDoubleClicked(const FGeomet
 			if (UNiagaraParameterCollectionInstance* NPCInst = FunctionInput->GetSystemViewModel()->GetSystem().GetParameterCollectionOverride(Collection))
 			{
 				//If we override this NPC then open the instance.
-				FAssetEditorManager::Get().OpenEditorForAsset(NPCInst);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NPCInst);
 			}
 			else
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(Collection); 
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Collection); 
 			}
 			
 			return FReply::Handled();

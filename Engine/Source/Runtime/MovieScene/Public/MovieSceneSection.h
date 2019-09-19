@@ -328,17 +328,25 @@ public:
 	 * Split a section in two at the split time
 	 *
 	 * @param SplitTime The time at which to split
+	 * @param bDeleteKeys Delete keys outside the split ranges
 	 * @return The newly created split section
 	 */
-	MOVIESCENE_API virtual UMovieSceneSection* SplitSection(FQualifiedFrameTime SplitTime);
+	MOVIESCENE_API virtual UMovieSceneSection* SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys);
+
+	UE_DEPRECATED(4.23, "Please use SplitSection(SplitTime, bDeleteKeys) instead.")
+	virtual UMovieSceneSection* SplitSection(FQualifiedFrameTime SplitTime) { return SplitSection(SplitTime, false); }
 
 	/**
 	 * Trim a section at the trim time
 	 *
 	 * @param TrimTime The time at which to trim
 	 * @param bTrimLeft Whether to trim left or right
+	 * @param bDeleteKeys Delete keys outside the split ranges
 	 */
-	MOVIESCENE_API virtual void TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft);
+	MOVIESCENE_API virtual void TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys);
+
+	UE_DEPRECATED(4.23, "Please use TrimSection(SplitTime, bTrimLeft, bDeleteKeys) instead.")
+	virtual void TrimSection(FQualifiedFrameTime SplitTime, bool bTrimLeft) { TrimSection(SplitTime, bTrimLeft, false); }
 
 	/**
 	 * Get the data structure representing the specified keys.

@@ -11,6 +11,7 @@
 
 struct FCurvePointHandle;
 
+class FCurveEditor;
 
 /**
  * A set of key handles implemented as a sorted array for transparent passing to TArrayView<> APIs.
@@ -65,6 +66,12 @@ struct CURVEEDITOR_API FCurveEditorSelection
 	 * Default constructor
 	 */
 	FCurveEditorSelection();
+
+	/**
+	 * Constructor which takes a reference to the curve editor, 
+	 * which is used to find if a model is read only
+	 */
+	FCurveEditorSelection(TWeakPtr<FCurveEditor> InWeakCurveEditor);
 
 	/**
 	 * Retrieve the current type of selection
@@ -174,6 +181,9 @@ public:
 	void ChangeSelectionPointType(ECurvePointType InPointType);
 
 private:
+
+	/** Weak reference to the curve editor to check whether keys are locked or not */
+	TWeakPtr<FCurveEditor> WeakCurveEditor;
 
 	/** A serial number that increments every time a change is made to the selection */
 	uint32 SerialNumber;

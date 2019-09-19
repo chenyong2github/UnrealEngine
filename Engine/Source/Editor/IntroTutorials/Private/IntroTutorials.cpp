@@ -37,7 +37,7 @@
 #include "AssetToolsModule.h"
 #include "IClassTypeActions.h"
 #include "ClassTypeActions_EditorTutorial.h"
-
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "IntroTutorials"
 
@@ -98,10 +98,7 @@ void FIntroTutorials::StartupModule()
 		MainFrameModule.OnMainFrameSDKNotInstalled().AddRaw(this, &FIntroTutorials::HandleSDKNotInstalled);
 		
 		// Add menu option for level editor tutorial
-		MainMenuExtender = MakeShareable(new FExtender);
-		MainMenuExtender->AddMenuExtension("HelpBrowse", EExtensionHook::After, NULL, FMenuExtensionDelegate::CreateRaw(this, &FIntroTutorials::AddSummonTutorialsMenuExtension));
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>( "LevelEditor" );
-		LevelEditorModule.GetMenuExtensibilityManager()->AddExtender(MainMenuExtender);
+		RegisterSummonTutorialsMenuEntries();
 
 		// Add menu option to blueprint editor as well
 		FBlueprintEditorModule& BPEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>( "Kismet" );
@@ -167,6 +164,8 @@ void FIntroTutorials::StartupModule()
 
 void FIntroTutorials::ShutdownModule()
 {
+	UToolMenus::UnregisterOwner(this);
+
 	if (!bDisableTutorials && !IsRunningCommandlet())
 	{
 		FSourceCodeNavigation::AccessOnCompilerNotFound().RemoveAll( this );
@@ -222,15 +221,18 @@ void FIntroTutorials::ShutdownModule()
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TEXT("TutorialsBrowser"));
 }
 
-void FIntroTutorials::AddSummonTutorialsMenuExtension(FMenuBuilder& MenuBuilder)
+void FIntroTutorials::RegisterSummonTutorialsMenuEntries()
 {
-	MenuBuilder.BeginSection("Tutorials", LOCTEXT("TutorialsLabel", "Tutorials"));
-	MenuBuilder.AddMenuEntry(
+	FToolMenuOwnerScoped OwnerScoped(this);
+	UToolMenu* HelpMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Help");
+	FToolMenuSection& Section = HelpMenu->AddSection("Tutorials", LOCTEXT("TutorialsLabel", "Tutorials"), FToolMenuInsert("HelpBrowse", EToolMenuInsertType::After));
+	Section.AddEntry(FToolMenuEntry::InitMenuEntry(
+		"Tutorials",
 		LOCTEXT("TutorialsMenuEntryTitle", "Tutorials"),
 		LOCTEXT("TutorialsMenuEntryToolTip", "Opens up introductory tutorials covering the basics of using the Unreal Engine 4 Editor."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tutorials"),
-		FUIAction(FExecuteAction::CreateRaw(this, &FIntroTutorials::SummonTutorialHome)));
-	MenuBuilder.EndSection();
+		FUIAction(FExecuteAction::CreateRaw(this, &FIntroTutorials::SummonTutorialHome))
+	));
 }
 
 void FIntroTutorials::AddSummonBlueprintTutorialsMenuExtension(FMenuBuilder& MenuBuilder, UObject* PrimaryObject)

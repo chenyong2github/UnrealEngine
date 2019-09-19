@@ -619,17 +619,23 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 */
 	 virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const;
 
+	/** Returns context menu name */
+	FName GetContextMenuName() const;
+
+	/** Returns parent context menu name */
+	virtual FName GetParentContextMenuName() const;
+
+	/** Returns context menu name for a given class */
+	static FName GetContextMenuName(UClass* InClass);
+
 	/**
 	 * Gets actions that should be added to the right-click context menu for a node or pin
 	 * 
-	 * @param	CurrentGraph		The current graph.
-	 * @param	InGraphNode			The node to get the context menu for, if any.
-	 * @param	InGraphPin			The pin clicked on, if any, to provide additional context
-	 * @param	MenuBuilder			The menu builder to append actions to.
-	 * @param	bIsDebugging		Is the graph editor currently part of a debugging session (any non-debugging commands should be disabled)
+	 * @param	Menu				The menu to append actions to.
+	 * @param	Context				The menu's context.
 	 */
-	 virtual void GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, class FMenuBuilder* MenuBuilder, bool bIsDebugging) const;
-
+	virtual void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const;
+	
 	/**
 	 * Determine if a connection can be created between two pins.
 	 *

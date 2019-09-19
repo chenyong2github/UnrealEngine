@@ -132,6 +132,8 @@ public:
 #define MAX_HITPROXYSIZE 200
 
 DECLARE_MULTICAST_DELEGATE(FOnScreenshotRequestProcessed);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnScreenshotCaptured, int32 /*Width*/, int32 /*Height*/, const TArray<FColor>& /*Colors*/);
+
 
 struct ENGINE_API FScreenshotRequest
 {
@@ -187,8 +189,14 @@ struct ENGINE_API FScreenshotRequest
 		return ScreenshotProcessedDelegate;
 	}
 
+	static FOnScreenshotCaptured& OnScreenshotCaptured()
+	{
+		return ScreenshotCapturedDelegate;
+	}
+
 private:
 	static FOnScreenshotRequestProcessed ScreenshotProcessedDelegate;
+	static FOnScreenshotCaptured ScreenshotCapturedDelegate;
 	static bool bIsScreenshotRequested;
 	static FString NextScreenshotName;
 	static FString Filename;
@@ -727,7 +735,7 @@ extern ENGINE_API bool IsShiftDown(FViewport* Viewport);
 extern ENGINE_API bool IsAltDown(FViewport* Viewport);
 
 extern ENGINE_API bool GetViewportScreenShot(FViewport* Viewport, TArray<FColor>& Bitmap, const FIntRect& ViewRect = FIntRect());
-extern ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, uint32& OutXRes, uint32& OutYRes, float& OutResMult, FIntRect& OutCaptureRegion, bool& OutShouldEnableMask, bool& OutDumpBufferVisualizationTargets, bool& OutCaptureHDR, FString& OutFilenameOverride);
+extern ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, uint32& OutXRes, uint32& OutYRes, float& OutResMult, FIntRect& OutCaptureRegion, bool& OutShouldEnableMask, bool& OutDumpBufferVisualizationTargets, bool& OutCaptureHDR, FString& OutFilenameOverride, bool& OutUseDateTimeAsFileName);
 
 struct FInputKeyEventArgs
 {

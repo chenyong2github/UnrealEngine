@@ -97,6 +97,7 @@ struct FRenderAssetStreamingSettings
 	int32 FramesForFullUpdate;
 	bool bMipCalculationEnablePerLevelList;
 	bool bPrioritizeMeshLODRetention;
+	int32 VRAMPercentageClamp;
 
 	bool bStressTest;
 	static int32 ExtraIOLatency;

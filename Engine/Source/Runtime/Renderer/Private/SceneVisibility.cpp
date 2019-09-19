@@ -37,6 +37,7 @@
 #include "TranslucentRendering.h"
 #include "Async/ParallelFor.h"
 #include "RectLightSceneProxy.h"
+#include "Math/Halton.h"
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -1891,6 +1892,7 @@ struct FRelevancePacket
 	bool bTranslucentSurfaceLighting;
 	bool bUsesSceneDepth;
 	bool bSceneHasSkyMaterial;
+	bool bHasSingleLayerWaterMaterial;
 
 	FRelevancePacket(
 		FRHICommandListImmediate& InRHICmdList,
@@ -1928,6 +1930,7 @@ struct FRelevancePacket
 		, bTranslucentSurfaceLighting(false)
 		, bUsesSceneDepth(false)
 		, bSceneHasSkyMaterial(false)
+		, bHasSingleLayerWaterMaterial(false)
 	{
 	}
 
@@ -1941,6 +1944,7 @@ struct FRelevancePacket
 	{
 		CombinedShadingModelMask = 0;
 		bSceneHasSkyMaterial = 0;
+		bHasSingleLayerWaterMaterial = 0;
 		bUsesGlobalDistanceField = false;
 		bUsesLightingChannels = false;
 		bTranslucentSurfaceLighting = false;
@@ -2039,6 +2043,7 @@ struct FRelevancePacket
 			bTranslucentSurfaceLighting |= ViewRelevance.bTranslucentSurfaceLighting;
 			bUsesSceneDepth |= ViewRelevance.bUsesSceneDepth;
 			bSceneHasSkyMaterial |= ViewRelevance.bUsesSkyMaterial;
+			bHasSingleLayerWaterMaterial |= ViewRelevance.bUsesSingleLayerWaterMaterial;
 
 			if (ViewRelevance.bRenderCustomDepth)
 			{
@@ -2237,6 +2242,11 @@ struct FRelevancePacket
 									// Not needed on Mobile path as in this case everything goes into the regular base pass
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SkyPass);
 								}
+								else if(StaticMeshRelevance.bUseSingleLayerWaterMaterial)
+								{
+									// Not needed on Mobile path as in this case everything goes into the regular base pass
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SingleLayerWaterPass);
+								}
 
 								if (ViewRelevance.bRenderCustomDepth)
 								{
@@ -2374,6 +2384,7 @@ struct FRelevancePacket
 		WriteView.bTranslucentSurfaceLighting |= bTranslucentSurfaceLighting;
 		WriteView.bUsesSceneDepth |= bUsesSceneDepth;
 		WriteView.bSceneHasSkyMaterial |= bSceneHasSkyMaterial;
+		WriteView.bHasSingleLayerWaterMaterial |= bHasSingleLayerWaterMaterial;
 		VisibleDynamicPrimitivesWithSimpleLights.AppendTo(WriteView.VisibleDynamicPrimitivesWithSimpleLights);
 		WriteView.NumVisibleDynamicPrimitives += NumVisibleDynamicPrimitives;
 		WriteView.NumVisibleDynamicEditorPrimitives += NumVisibleDynamicEditorPrimitives;
@@ -2688,6 +2699,12 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 			PassMask.Set(EMeshPass::Velocity);
 			View.NumVisibleDynamicMeshElements[EMeshPass::Velocity] += NumElements;
 		}
+
+		if (ViewRelevance.bUsesSingleLayerWaterMaterial)
+		{
+			PassMask.Set(EMeshPass::SingleLayerWaterPass);
+			View.NumVisibleDynamicMeshElements[EMeshPass::SingleLayerWaterPass] += NumElements;
+		}
 	}
 
 	if (ViewRelevance.HasTranslucency()
@@ -2900,20 +2917,6 @@ static bool IsLargeCameraMovement(FSceneView& View, const FMatrix& PrevViewMatri
 		Distance.SizeSquared() > CameraTranslationThreshold * CameraTranslationThreshold;
 }
 
-float Halton( int32 Index, int32 Base )
-{
-	float Result = 0.0f;
-	float InvBase = 1.0f / Base;
-	float Fraction = InvBase;
-	while( Index > 0 )
-	{
-		Result += ( Index % Base ) * Fraction;
-		Index /= Base;
-		Fraction *= InvBase;
-	}
-	return Result;
-}
-
 void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdList)
 {
 	// Notify the RHI we are beginning to render a scene.
@@ -3040,12 +3043,12 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 		if (ViewState)
 		{
-			check(View.bViewStateIsReadOnly);
-			View.bViewStateIsReadOnly = ViewFamily.bWorldIsPaused || ViewFamily.EngineShowFlags.HitProxies || bFreezeTemporalHistories;
+			check(View.bStatePrevViewInfoIsReadOnly);
+			View.bStatePrevViewInfoIsReadOnly = ViewFamily.bWorldIsPaused || ViewFamily.EngineShowFlags.HitProxies || bFreezeTemporalHistories;
 
 			ViewState->SetupDistanceFieldTemporalOffset(ViewFamily);
 
-			if (!View.bViewStateIsReadOnly && !bFreezeTemporalSequences)
+			if (!View.bStatePrevViewInfoIsReadOnly && !bFreezeTemporalSequences)
 			{
 				ViewState->FrameIndex++;
 			}
@@ -3064,7 +3067,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			// Compute number of TAA samples.
 			int32 TemporalAASamples = CVarTemporalAASamplesValue;
 			{
-				if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM4)
+				if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM5)
 				{
 					// Only support 2 samples for mobile temporal AA.
 					TemporalAASamples = 2;
@@ -3091,14 +3094,14 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			}
 
 			// Updates view state.
-			if (!View.bViewStateIsReadOnly && !bFreezeTemporalSequences)
+			if (!View.bStatePrevViewInfoIsReadOnly && !bFreezeTemporalSequences)
 			{
 				ViewState->TemporalAASampleIndex = TemporalSampleIndex;
 			}
 
 			// Choose sub pixel sample coordinate in the temporal sequence.
 			float SampleX, SampleY;
-			if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM4)
+			if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM5)
 			{
 				float SamplesX[] = { -8.0f/16.0f, 0.0/16.0f };
 				float SamplesY[] = { /* - */ 0.0f/16.0f, 8.0/16.0f };
@@ -3273,7 +3276,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			}
 
 			// Replace previous view info of the view state with this frame, clearing out references over render target.
-			if (!View.bViewStateIsReadOnly)
+			if (!View.bStatePrevViewInfoIsReadOnly)
 			{
 				ViewState->PrevFrameViewInfo = NewPrevViewInfo;
 			}

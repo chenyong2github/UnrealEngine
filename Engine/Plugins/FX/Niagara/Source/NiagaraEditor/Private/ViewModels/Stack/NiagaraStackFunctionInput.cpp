@@ -435,9 +435,9 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 class UNiagaraStackFunctionInputUtilities
 {
 public:
-	static bool GetMaterialExpressionDynamicParameter(UNiagaraEmitter* InEmitter, TArray<UMaterialExpressionDynamicParameter*>& OutDynamicParameterExpressions)
+	static bool GetMaterialExpressionDynamicParameter(FNiagaraEmitterInstance* InEmitterInstance, TArray<UMaterialExpressionDynamicParameter*>& OutDynamicParameterExpressions)
 	{
-		TArray<UMaterial*> Materials = GetMaterialFromEmitter(InEmitter);
+		TArray<UMaterial*> Materials = GetMaterialFromEmitter(InEmitterInstance);
 		
 		OutDynamicParameterExpressions.Reset();
 
@@ -462,24 +462,28 @@ public:
 		return OutDynamicParameterExpressions.Num() > 0;
 	}
 
-	static TArray<UMaterial*> GetMaterialFromEmitter(UNiagaraEmitter* InEmitter)
+	static TArray<UMaterial*> GetMaterialFromEmitter(FNiagaraEmitterInstance* InEmitterInstance)
 	{
 		TArray<UMaterial*> ResultMaterials;
-		if (InEmitter->GetRenderers().Num() > 0)
+		if (InEmitterInstance)
 		{
-			for (UNiagaraRendererProperties* RenderProperties : InEmitter->GetRenderers())
+			UNiagaraEmitter* InEmitter = InEmitterInstance->GetCachedEmitter();
+			if (InEmitter && InEmitter->GetRenderers().Num() > 0)
 			{
-				TArray<UMaterialInterface*> UsedMaterialInteraces;
-				RenderProperties->GetUsedMaterials(UsedMaterialInteraces);
-				for (UMaterialInterface* UsedMaterialInterface : UsedMaterialInteraces)
+				for (UNiagaraRendererProperties* RenderProperties : InEmitter->GetRenderers())
 				{
-					if (UsedMaterialInterface != nullptr)
+					TArray<UMaterialInterface*> UsedMaterialInteraces;
+					RenderProperties->GetUsedMaterials(InEmitterInstance, UsedMaterialInteraces);
+					for (UMaterialInterface* UsedMaterialInterface : UsedMaterialInteraces)
 					{
-						UMaterial* UsedMaterial = UsedMaterialInterface->GetBaseMaterial();
-						if (UsedMaterial != nullptr)
+						if (UsedMaterialInterface != nullptr)
 						{
-							ResultMaterials.AddUnique(UsedMaterial);
-							break;
+							UMaterial* UsedMaterial = UsedMaterialInterface->GetBaseMaterial();
+							if (UsedMaterial != nullptr)
+							{
+								ResultMaterials.AddUnique(UsedMaterial);
+								break;
+							}
 						}
 					}
 				}
@@ -495,7 +499,8 @@ FString UNiagaraStackFunctionInput::ResolveDisplayNameArgument(const FString& In
 	{
 		TSharedPtr<FNiagaraEmitterViewModel> ThisEmitterViewModel = GetEmitterViewModel();
 		TArray<UMaterialExpressionDynamicParameter*> ExpressionParams;
-		if (ThisEmitterViewModel.IsValid() == false || !UNiagaraStackFunctionInputUtilities::GetMaterialExpressionDynamicParameter(ThisEmitterViewModel->GetEmitter(), ExpressionParams))
+		FNiagaraEmitterInstance* Instance = ThisEmitterViewModel->GetSimulation().Pin().Get();
+		if (ThisEmitterViewModel.IsValid() == false || !UNiagaraStackFunctionInputUtilities::GetMaterialExpressionDynamicParameter(Instance, ExpressionParams))
 		{
 			return InArg.Replace(TEXT("MaterialDynamic"), TEXT("")) + TEXT(" (No material found using dynamic params)");
 		}

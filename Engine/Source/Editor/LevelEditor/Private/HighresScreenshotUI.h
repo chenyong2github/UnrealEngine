@@ -119,6 +119,12 @@ private:
 		}
 	}
 
+	void OnDateTimeBasedNamingEnabledChanged(ECheckBoxState NewValue)
+	{
+		bool bEnabled = (NewValue == ECheckBoxState::Checked);
+		Config.bDateTimeBasedNaming = bEnabled;
+	}
+
 	void OnBufferVisualizationDumpEnabledChanged(ECheckBoxState NewValue)
 	{
 		bool bEnabled = (NewValue == ECheckBoxState::Checked);
@@ -170,6 +176,11 @@ private:
 	ECheckBoxState GetBufferVisualizationDumpEnabled() const
 	{
 		return Config.bDumpBufferVisualizationTargets ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+
+	ECheckBoxState GetDateTimeBasedNamingEnabled() const
+	{
+		return Config.bDateTimeBasedNaming ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	}
 
 	bool IsCaptureRegionEditingAvailable() const

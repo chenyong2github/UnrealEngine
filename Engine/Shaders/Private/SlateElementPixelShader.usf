@@ -7,8 +7,13 @@
 
 /** Display gamma x:gamma curve adjustment, y:inverse gamma (1/GEngine->DisplayGamma), z:InvertAlpha, w:Contrast */
 half4 GammaAndAlphaValues;
+/** x:DrawDisabledEffect */
 /** Per element params */
 float4 ShaderParams;
+
+#if USE_MATERIALS
+half4 DrawFlags;
+#endif
 
 /** Texture for the element */
 Texture2D ElementTexture;
@@ -259,22 +264,36 @@ half4 Main( VertexToPixelInterpolants VIn ) : SV_Target0
 #else
 	OutColor = GetLineSegmentElementColor( VIn );
 #endif
-
-#if DRAW_DISABLED_EFFECT
-    #if SOURCE_IN_LINEAR_SPACE
-        half3 LumCoeffs = half3( 0.3, 0.59, .11 );
-        half3 Grayish = half3(.1, .1, .1);
-    #else
-        // These are just the linear space values above converted to sRGB space.
-        half3 LumCoeffs = float3( 0.5843, 0.7921, 0.3647 );
-        half3 Grayish = float3(0.349, 0.349, 0.349);
-    #endif
-    
-	//desaturate
-	half Lum = dot( LumCoeffs, OutColor.rgb );
-	OutColor.rgb = lerp( OutColor.rgb, float3(Lum,Lum,Lum), .8 );
-	OutColor.rgb = lerp( OutColor.rgb, Grayish, clamp( distance( OutColor.rgb, Grayish ), 0, .8)  );
+	
+	// For standard slate which only has a few shaders, the permutation is fine here,
+	// for Engine Materials, we don't ever define this macro, so instead we fallback
+	// to looking at the shader constants.
+#if USE_MATERIALS
+	const half DrawDisabledEffect = DrawFlags.x;
+#else
+	#if DRAW_DISABLED_EFFECT
+		const half DrawDisabledEffect = 1;
+	#else
+		const half DrawDisabledEffect = 0;
+	#endif
 #endif
+
+	if (DrawDisabledEffect != 0)
+	{
+		#if SOURCE_IN_LINEAR_SPACE
+			half3 LumCoeffs = half3( 0.3, 0.59, .11 );
+			half3 Grayish = half3(.1, .1, .1);
+		#else
+			// These are just the linear space values above converted to sRGB space.
+			half3 LumCoeffs = float3( 0.5843, 0.7921, 0.3647 );
+			half3 Grayish = float3(0.349, 0.349, 0.349);
+		#endif
+    
+		//desaturate
+		half Lum = dot( LumCoeffs, OutColor.rgb );
+		OutColor.rgb = lerp( OutColor.rgb, float3(Lum,Lum,Lum), .8 );
+		OutColor.rgb = lerp( OutColor.rgb, Grayish, clamp( distance( OutColor.rgb, Grayish ), 0, .8)  );
+	}
 
     // Contrast
     OutColor = ApplyContrast(OutColor);

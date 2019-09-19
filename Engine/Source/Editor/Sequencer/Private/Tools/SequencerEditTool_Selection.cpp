@@ -13,14 +13,20 @@
 struct FSelectionPreviewVisitor final
 	: ISequencerEntityVisitor
 {
-	FSelectionPreviewVisitor(FSequencerSelectionPreview& InSelectionPreview, FSequencerSelection& InSelection, ESelectionPreviewState InSetStateTo)
+	FSelectionPreviewVisitor(FSequencerSelectionPreview& InSelectionPreview, FSequencerSelection& InSelection, ESelectionPreviewState InSetStateTo, bool bInPinned)
 		: SelectionPreview(InSelectionPreview)
 		, ExistingSelection(InSelection)
 		, SetStateTo(InSetStateTo)
+		, bPinned(bInPinned)
 	{}
 
 	virtual void VisitKey(FKeyHandle KeyHandle, FFrameNumber KeyTime, const TSharedPtr<IKeyArea>& KeyArea, UMovieSceneSection* Section, TSharedRef<FSequencerDisplayNode> Node) const override
 	{
+		if (Node->IsPinned() != bPinned)
+		{
+			return;
+		}
+
 		FSequencerSelectedKey Key(*Section, KeyArea, KeyHandle);
 
 		// Under default behavior keys have priority, so if a key is changing selection state then we remove any sections from the selection. The user can bypass this
@@ -72,6 +78,7 @@ private:
 	FSequencerSelectionPreview& SelectionPreview;
 	FSequencerSelection& ExistingSelection;
 	ESelectionPreviewState SetStateTo;
+	bool bPinned;
 };
 
 
@@ -80,8 +87,9 @@ class FMarqueeDragOperation
 {
 public:
 
-	FMarqueeDragOperation(FSequencer& InSequencer)
+	FMarqueeDragOperation(FSequencer& InSequencer, SSequencerTrackArea& InTrackArea)
 		: Sequencer(InSequencer)
+		, TrackArea(InTrackArea)
 		, SequencerWidget(StaticCastSharedRef<SSequencer>(InSequencer.GetSequencerWidget()))
 		, PreviewState(ESelectionPreviewState::Selected)
 	{}
@@ -127,16 +135,18 @@ public:
 		{
 			const float ScrollThresholdV = VirtualTrackArea.GetPhysicalSize().Y * 0.025f;
 
+			TSharedPtr<SSequencerTreeView> TreeView = TrackArea.GetTreeView().Pin();
+
 			float Difference = LocalMousePos.Y - ScrollThresholdV;
 			if (Difference < 0 && MouseDelta.Y < 0)
 			{
-				Sequencer.VerticalScroll( Difference * 0.1f );
+				TreeView->ScrollByDelta( Difference * 0.1f );
 			}
 
 			Difference = LocalMousePos.Y - (VirtualTrackArea.GetPhysicalSize().Y - ScrollThresholdV);
 			if (Difference > 0 && MouseDelta.Y > 0)
 			{
-				Sequencer.VerticalScroll( Difference * 0.1f );
+				TreeView->ScrollByDelta( Difference * 0.1f) ;
 			}
 		}
 
@@ -180,7 +190,7 @@ public:
 		VirtualKeySize.Y = SequencerSectionConstants::KeySize.Y;
 
 		// Visit everything using the preview selection primarily as well as the 
-		auto& SelectionPreview = Sequencer.GetSelectionPreview();
+		FSequencerSelectionPreview& SelectionPreview = Sequencer.GetSelectionPreview();
 
 		// Ensure the preview is empty before calculating the intersection
 		SelectionPreview.Empty();
@@ -189,7 +199,7 @@ public:
 
 		// Now walk everything within the current marquee range, setting preview selection states as we go
 		FSequencerEntityWalker Walker(FSequencerEntityRange(TopLeft(), BottomRight(), VirtualTrackArea.GetTickResolution()), VirtualKeySize);
-		Walker.Traverse(FSelectionPreviewVisitor(SelectionPreview, Sequencer.GetSelection(), PreviewState), RootNodes);
+		Walker.Traverse(FSelectionPreviewVisitor(SelectionPreview, Sequencer.GetSelection(), PreviewState, TrackArea.ShowPinned()), RootNodes);
 	}
 
 	virtual void OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea) override
@@ -263,7 +273,7 @@ public:
 	virtual int32 OnPaint(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 	{
 		// convert to physical space for rendering
-		const FVirtualTrackArea VirtualTrackArea = SequencerWidget->GetVirtualTrackArea();
+		const FVirtualTrackArea VirtualTrackArea = SequencerWidget->GetVirtualTrackArea(&TrackArea);
 
 		FVector2D SelectionTopLeft = VirtualTrackArea.VirtualToPhysical(TopLeft());
 		FVector2D SelectionBottomRight = VirtualTrackArea.VirtualToPhysical(BottomRight());
@@ -299,6 +309,8 @@ private:
 	/** The sequencer itself */
 	FSequencer& Sequencer;
 
+	SSequencerTrackArea& TrackArea;
+
 	/** Sequencer widget */
 	TSharedRef<SSequencer> SequencerWidget;
 
@@ -313,8 +325,9 @@ private:
 
 const FName FSequencerEditTool_Selection::Identifier = "Selection";
 
-FSequencerEditTool_Selection::FSequencerEditTool_Selection(FSequencer& InSequencer)
+FSequencerEditTool_Selection::FSequencerEditTool_Selection(FSequencer& InSequencer, SSequencerTrackArea& InTrackArea)
 	: FSequencerEditTool(InSequencer)
+	, TrackArea(InTrackArea)
 	, CursorDecorator(nullptr)
 { }
 
@@ -370,7 +383,7 @@ FReply FSequencerEditTool_Selection::OnMouseMove(SWidget& OwnerWidget, const FGe
 		FReply Reply = FReply::Handled();
 
 		TSharedRef<SSequencer> SequencerWidget = StaticCastSharedRef<SSequencer>(Sequencer.GetSequencerWidget());
-		const FVirtualTrackArea VirtualTrackArea = SequencerWidget->GetVirtualTrackArea();
+		const FVirtualTrackArea VirtualTrackArea = SequencerWidget->GetVirtualTrackArea(&TrackArea);
 
 		if (DragOperation.IsValid())
 		{
@@ -391,7 +404,7 @@ FReply FSequencerEditTool_Selection::OnMouseMove(SWidget& OwnerWidget, const FGe
 
 			if (!DragOperation.IsValid())
 			{
-				DragOperation = MakeShareable( new FMarqueeDragOperation(Sequencer) );
+				DragOperation = MakeShareable( new FMarqueeDragOperation(Sequencer, TrackArea) );
 			}
 
 			if (DragOperation.IsValid())
@@ -418,7 +431,7 @@ FReply FSequencerEditTool_Selection::OnMouseButtonUp(SWidget& OwnerWidget, const
 	{
 		TSharedRef<SSequencer> SequencerWidget = StaticCastSharedRef<SSequencer>(Sequencer.GetSequencerWidget());
 		FVector2D LocalPosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-		DragOperation->OnEndDrag(MouseEvent, LocalPosition, SequencerWidget->GetVirtualTrackArea() );
+		DragOperation->OnEndDrag(MouseEvent, LocalPosition, SequencerWidget->GetVirtualTrackArea(&TrackArea));
 		DragOperation = nullptr;
 
 		CursorDecorator = nullptr;

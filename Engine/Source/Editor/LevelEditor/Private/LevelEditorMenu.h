@@ -16,6 +16,8 @@ class FLevelEditorMenu
 
 public:
 
+	static void RegisterLevelEditorMenus();
+
 	/**
 	 * Static: Creates a widget for the level editor's menu
 	 *

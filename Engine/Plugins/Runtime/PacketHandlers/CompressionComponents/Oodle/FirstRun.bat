@@ -48,7 +48,7 @@ pause
 
 
 :EnableHandler
-set HandlerCommandletParms=-run=OodleHandlerComponent.OodleTrainerCommandlet enable
+set HandlerCommandletParms=-run=OodleTrainerCommandlet enable
 set FinalHandlerCmdLine=%GameName:"=% %HandlerCommandletParms% -forcelogflush
 
 

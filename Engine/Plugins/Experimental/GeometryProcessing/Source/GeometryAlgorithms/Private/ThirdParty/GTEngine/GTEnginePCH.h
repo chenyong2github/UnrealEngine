@@ -5,6 +5,8 @@
 // http://www.geometrictools.com/License/Boost/LICENSE_1_0.txt
 // File Version: 3.0.0 (2016/06/19)
 
+#pragma once
+
 // Define GTE_DISABLE_PCH to turn off the precompiled header system.
 #ifndef GTE_DISABLE_PCH
 #include <ThirdParty/GTEngine/GTEngine.h>

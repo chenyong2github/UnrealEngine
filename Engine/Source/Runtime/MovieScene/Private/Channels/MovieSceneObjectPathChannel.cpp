@@ -108,6 +108,21 @@ void FMovieSceneObjectPathChannel::DuplicateKeys(TArrayView<const FKeyHandle> In
 	GetData().DuplicateKeys(InHandles, OutNewHandles);
 }
 
+void FMovieSceneObjectPathChannel::DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore)
+{
+	// Insert a key at the current time to maintain evaluation
+	if (GetData().GetTimes().Num() > 0)
+	{
+		UObject* Value = nullptr;
+		if (Evaluate(InTime, Value))
+		{
+			GetData().UpdateOrAddKey(InTime, Value);
+		}
+	}
+
+	GetData().DeleteKeysFrom(InTime, bDeleteKeysBefore);
+}
+
 void FMovieSceneObjectPathChannel::DeleteKeys(TArrayView<const FKeyHandle> InHandles)
 {
 	GetData().DeleteKeys(InHandles);

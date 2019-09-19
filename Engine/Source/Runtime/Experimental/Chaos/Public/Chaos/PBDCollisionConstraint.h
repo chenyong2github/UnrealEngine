@@ -4,7 +4,6 @@
 #include "Chaos/BoundingVolume.h"
 #include "Chaos/PBDCollisionTypes.h"
 #include "Framework/BufferedData.h"
-#include "Chaos/PBDCollisionConstraint.h"
 
 #include <memory>
 #include <queue>

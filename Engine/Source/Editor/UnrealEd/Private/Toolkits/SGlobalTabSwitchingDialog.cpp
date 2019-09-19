@@ -16,7 +16,7 @@
 
 #include "EngineGlobals.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "LevelEditor.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
@@ -24,6 +24,7 @@
 #if PLATFORM_MAC
 #include "Mac/MacApplication.h"
 #endif
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SGlobalTabSwitchingDialog"
 
@@ -78,7 +79,7 @@ public:
 	FTabSwitchingListItem_Asset(UObject* InAsset)
 		: MyAsset(InAsset)
 	{
-		if (IAssetEditorInstance* EditorInstance = FAssetEditorManager::Get().FindEditorForAsset(MyAsset, /*bFocusIfOpen=*/ false))
+		if (IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(MyAsset, /*bFocusIfOpen=*/ false))
 		{
 			LastAccessTime = EditorInstance->GetLastActivationTime();
 		}
@@ -144,12 +145,12 @@ public:
 
 	virtual void ActivateTab() override
 	{
-		FAssetEditorManager::Get().FindEditorForAsset(MyAsset, /*bFocusIfOpen=*/ true);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(MyAsset, /*bFocusIfOpen=*/ true);
 	}
 
 	virtual TSharedPtr<FTabManager> GetAssociatedTabManager() override
 	{
-		IAssetEditorInstance* Instance = FAssetEditorManager::Get().FindEditorForAsset(MyAsset, /*bFocusIfOpen=*/ false);
+		IAssetEditorInstance* Instance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(MyAsset, /*bFocusIfOpen=*/ false);
 		if (Instance)
 		{
 			return Instance->GetAssociatedTabManager();
@@ -389,7 +390,7 @@ void SGlobalTabSwitchingDialog::Construct(const FArguments& InArgs, FVector2D In
 	AssetThumbnailPool = MakeShareable(new FAssetThumbnailPool(128));
 
 	// Populate the list with open asset editors
-	TArray<UObject*> OpenAssetList = FAssetEditorManager::Get().GetAllEditedAssets();
+	TArray<UObject*> OpenAssetList = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
 	for (UObject* OpenAsset : OpenAssetList)
 	{
 		if (OpenAsset->GetOuter() != GetTransientPackage())

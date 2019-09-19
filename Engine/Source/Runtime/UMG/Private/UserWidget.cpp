@@ -374,12 +374,16 @@ bool UUserWidget::Initialize()
 
 void UUserWidget::InitializeNamedSlots(bool bReparentToWidgetTree)
 {
-	for ( FNamedSlotBinding& Binding : NamedSlotBindings )
+	for (const FNamedSlotBinding& Binding : NamedSlotBindings )
 	{
 		if ( UWidget* BindingContent = Binding.Content )
 		{
 			UObjectPropertyBase* NamedSlotProperty = FindField<UObjectPropertyBase>(GetClass(), Binding.Name);
-			if ( ensure(NamedSlotProperty) )
+#if !WITH_EDITOR
+			// In editor, renaming a NamedSlot widget will cause this ensure in UpdatePreviewWidget of widget that use that namedslot
+			ensure(NamedSlotProperty);
+#endif
+			if ( NamedSlotProperty ) 
 			{
 				UNamedSlot* NamedSlot = Cast<UNamedSlot>(NamedSlotProperty->GetObjectPropertyValue_InContainer(this));
 				if ( ensure(NamedSlot) )
@@ -453,6 +457,14 @@ void UUserWidget::PostDuplicate(bool bDuplicateForPIE)
 	
 	if ( bInitializingFromWidgetTree )
 	{
+		// If this is a sub-widget of another UserWidget, default designer flags to match those of the owning widget before initialize.
+		if (UUserWidget* OwningUserWidget = GetTypedOuter<UUserWidget>())
+		{
+#if WITH_EDITOR
+			SetDesignerFlags(OwningUserWidget->GetDesignerFlags());	
+#endif
+			SetPlayerContext(OwningUserWidget->GetPlayerContext());
+		}
 		Initialize();
 	}
 }
@@ -623,14 +635,14 @@ void UUserWidget::Invalidate(EInvalidateWidget InvalidateReason)
 	}
 }
 
-UUMGSequencePlayer* UUserWidget::PlayAnimation(UWidgetAnimation* InAnimation, float StartAtTime, int32 NumberOfLoops, EUMGSequencePlayMode::Type PlayMode, float PlaybackSpeed)
+UUMGSequencePlayer* UUserWidget::PlayAnimation(UWidgetAnimation* InAnimation, float StartAtTime, int32 NumberOfLoops, EUMGSequencePlayMode::Type PlayMode, float PlaybackSpeed, bool bRestoreState)
 {
 	SCOPED_NAMED_EVENT_TEXT("Widget::PlayAnimation", FColor::Emerald);
 
 	UUMGSequencePlayer* Player = GetOrAddSequencePlayer(InAnimation);
 	if (Player)
 	{
-		Player->Play(StartAtTime, NumberOfLoops, PlayMode, PlaybackSpeed);
+		Player->Play(StartAtTime, NumberOfLoops, PlayMode, PlaybackSpeed, bRestoreState);
 
 		OnAnimationStartedPlaying(*Player);
 
@@ -640,14 +652,14 @@ UUMGSequencePlayer* UUserWidget::PlayAnimation(UWidgetAnimation* InAnimation, fl
 	return Player;
 }
 
-UUMGSequencePlayer* UUserWidget::PlayAnimationTimeRange(UWidgetAnimation* InAnimation, float StartAtTime, float EndAtTime, int32 NumberOfLoops, EUMGSequencePlayMode::Type PlayMode, float PlaybackSpeed)
+UUMGSequencePlayer* UUserWidget::PlayAnimationTimeRange(UWidgetAnimation* InAnimation, float StartAtTime, float EndAtTime, int32 NumberOfLoops, EUMGSequencePlayMode::Type PlayMode, float PlaybackSpeed, bool bRestoreState)
 {
 	SCOPED_NAMED_EVENT_TEXT("Widget::PlayAnimationTimeRange", FColor::Emerald);
 
 	UUMGSequencePlayer* Player = GetOrAddSequencePlayer(InAnimation);
 	if (Player)
 	{
-		Player->PlayTo(StartAtTime, EndAtTime, NumberOfLoops, PlayMode, PlaybackSpeed);
+		Player->PlayTo(StartAtTime, EndAtTime, NumberOfLoops, PlayMode, PlaybackSpeed, bRestoreState);
 
 		OnAnimationStartedPlaying(*Player);
 
@@ -657,7 +669,7 @@ UUMGSequencePlayer* UUserWidget::PlayAnimationTimeRange(UWidgetAnimation* InAnim
 	return Player;
 }
 
-UUMGSequencePlayer* UUserWidget::PlayAnimationForward(UWidgetAnimation* InAnimation, float PlaybackSpeed)
+UUMGSequencePlayer* UUserWidget::PlayAnimationForward(UWidgetAnimation* InAnimation, float PlaybackSpeed, bool bRestoreState)
 {
 	// Don't create the player, only search for it.
 	UUMGSequencePlayer* Player = GetSequencePlayer(InAnimation);
@@ -672,10 +684,10 @@ UUMGSequencePlayer* UUserWidget::PlayAnimationForward(UWidgetAnimation* InAnimat
 		return Player;
 	}
 
-	return PlayAnimation(InAnimation, 0.0f, 1.0f, EUMGSequencePlayMode::Forward, PlaybackSpeed);
+	return PlayAnimation(InAnimation, 0.0f, 1.0f, EUMGSequencePlayMode::Forward, PlaybackSpeed, bRestoreState);
 }
 
-UUMGSequencePlayer* UUserWidget::PlayAnimationReverse(UWidgetAnimation* InAnimation, float PlaybackSpeed)
+UUMGSequencePlayer* UUserWidget::PlayAnimationReverse(UWidgetAnimation* InAnimation, float PlaybackSpeed, bool bRestoreState)
 {
 	// Don't create the player, only search for it.
 	UUMGSequencePlayer* Player = GetSequencePlayer(InAnimation);
@@ -690,7 +702,7 @@ UUMGSequencePlayer* UUserWidget::PlayAnimationReverse(UWidgetAnimation* InAnimat
 		return Player;
 	}
 
-	return PlayAnimation(InAnimation, 0.0f, 1.0f, EUMGSequencePlayMode::Reverse, PlaybackSpeed);
+	return PlayAnimation(InAnimation, 0.0f, 1.0f, EUMGSequencePlayMode::Reverse, PlaybackSpeed, bRestoreState);
 }
 
 void UUserWidget::StopAnimation(const UWidgetAnimation* InAnimation)
@@ -953,12 +965,14 @@ void UUserWidget::GetSlotNames(TArray<FName>& SlotNames) const
 	else // For non-blueprint widget blueprints we have to go through the widget tree to locate the named slots dynamically.
 	{
 		TArray<FName> NamedSlots;
-		WidgetTree->ForEachWidget([&] (UWidget* Widget) {
+		WidgetTree->ForEachWidget([&NamedSlots] (UWidget* Widget) {
 			if ( Widget && Widget->IsA<UNamedSlot>() )
 			{
 				NamedSlots.Add(Widget->GetFName());
 			}
 		});
+
+		SlotNames.Append(NamedSlots);
 	}
 }
 
@@ -1136,7 +1150,7 @@ void UUserWidget::RemoveFromParent()
 		{
 			TSharedPtr<SWidget> WidgetHost = FullScreenWidget.Pin();
 
-			// If this is a game world add the widget to the current worlds viewport.
+			// If this is a game world remove the widget from the current world's viewport.
 			UWorld* World = GetWorld();
 			if (World && World->IsGameWorld())
 			{

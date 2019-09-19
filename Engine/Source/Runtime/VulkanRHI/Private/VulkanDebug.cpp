@@ -3733,7 +3733,7 @@ void FWrapLayer::QueueBindSparse(VkResult Result, VkQueue Queue, uint32_t BindIn
 	}
 }
 
-#if VULKAN_HAS_PHYSICAL_DEVICE_PROPERTIES2
+#if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 void FWrapLayer::GetPhysicalDeviceProperties2KHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties2KHR* Properties)
 {
 	if (Result == VK_RESULT_MAX_ENUM)

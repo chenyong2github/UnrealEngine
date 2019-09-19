@@ -10,7 +10,7 @@
 #include "UnrealEdGlobals.h"
 #include "ScopedTransaction.h"
 #include "LevelEditorViewport.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "ActorGroupingUtils.h"
 
 const FLinearColor BOXCOLOR_LOCKEDGROUPS( 0.0f, 1.0f, 0.0f );
@@ -826,7 +826,8 @@ void AGroupActor::PostRemove()
 				FScopedRefreshAllBrowsers LevelRefreshAllBrowsers;
 
 				// Destroy group and clear references.
-				GEditor->Layers->DisassociateActorFromLayers( this );
+				ULayersSubsystem* LayersSubsystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+				LayersSubsystem->DisassociateActorFromLayers( this );
 				MyWorld->EditorDestroyActor( this, false );			
 				
 				LevelRefreshAllBrowsers.Request();

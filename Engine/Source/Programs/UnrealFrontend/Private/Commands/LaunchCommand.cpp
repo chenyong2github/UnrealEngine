@@ -55,7 +55,7 @@ bool FLaunchCommand::Run( const FString& Params )
 		double MessageSentTime = 0.0;
 		bool bMessageSent = false;
 
-		while (!GIsRequestingExit && ((MessageSentTime > LastTime + 1.0) || (MessageSentTime <= 0.1)))
+		while (!IsEngineExitRequested() && ((MessageSentTime > LastTime + 1.0) || (MessageSentTime <= 0.1)))
 		{
 			FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 			FTicker::GetCoreTicker().Tick(DeltaTime);

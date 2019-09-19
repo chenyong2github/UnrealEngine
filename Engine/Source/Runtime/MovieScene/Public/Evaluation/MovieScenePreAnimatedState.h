@@ -277,6 +277,12 @@ public:
 	 */
 	MOVIESCENE_API void DiscardEntityTokens();
 
+	/**
+	 * Discard any tokens that relate to the requested object (ie sections or tracks) without restoring the values.
+	 * Any global pre-animated state tokens for this object will be removed.
+	 */
+	MOVIESCENE_API void DiscardAndRemoveEntityTokensForObject(UObject& Object);
+
 public:
 
 	void SetCaptureEntity(FMovieSceneEvaluationKey InEntity, EMovieSceneCompletionMode InCompletionMode)

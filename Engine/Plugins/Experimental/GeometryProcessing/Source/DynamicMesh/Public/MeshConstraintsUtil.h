@@ -24,7 +24,18 @@ public:
 	 * @param bAllowSplits should we allow constrained edges to be split
 	 * @param bAllowSmoothing should we allow constrained vertices to be smoothed
 	 */
-	static void ConstrainAllSeams(FMeshConstraints& Constraints, const FDynamicMesh3& Mesh, bool bAllowSplits, bool bAllowSmoothing);
+	static void ConstrainAllSeams(FMeshConstraints& Constraints, const FDynamicMesh3& Mesh, bool bAllowSplits, bool bAllowSmoothing, bool bParallel = true);
+
+
+	/**
+	 * Constrain all attribute seams for all overlays of a mesh, for edges in the edge array
+	 * @param Constraints the set of constraints to add to
+	 * @param Mesh the mesh to constrain
+	 * @param EdgeROI list of edges to try to constrain
+	 * @param bAllowSplits should we allow constrained edges to be split
+	 * @param bAllowSmoothing should we allow constrained vertices to be smoothed
+	 */
+	static void ConstrainEdgeROISeams(FMeshConstraints& Constraints, const FDynamicMesh3& Mesh, const TArray<int>& EdgeROI, bool bAllowSplits, bool bAllowSmoothing, bool bParallel = true);
 
 
 	/**

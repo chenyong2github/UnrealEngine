@@ -304,7 +304,7 @@ public:
 	static FORCEINLINE const ANSICHAR* GetStringIndexed(GLenum Name, GLuint Index) UGL_REQUIRED(NULL)
 	static FORCEINLINE GLuint GetMajorVersion() UGL_REQUIRED(0)
 	static FORCEINLINE GLuint GetMinorVersion() UGL_REQUIRED(0)
-	static FORCEINLINE ERHIFeatureLevel::Type GetFeatureLevel() UGL_REQUIRED(ERHIFeatureLevel::SM4)
+	static FORCEINLINE ERHIFeatureLevel::Type GetFeatureLevel() UGL_REQUIRED(ERHIFeatureLevel::SM5)
 	static FORCEINLINE EShaderPlatform GetShaderPlatform() UGL_REQUIRED(SP_OPENGL_SM4)
 	static FORCEINLINE FString GetAdapterName() UGL_REQUIRED(TEXT(""))
 	static FORCEINLINE void BlendFuncSeparatei(GLuint Buf, GLenum SrcRGB, GLenum DstRGB, GLenum SrcAlpha, GLenum DstAlpha) UGL_REQUIRED_VOID

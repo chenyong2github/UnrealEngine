@@ -195,8 +195,7 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 			}
 			else if (AActor* Owner = SimComp->GetAttachmentRootActor())
 			{
-				TArray<UActorComponent*> SourceComps = Owner->GetComponentsByClass(UStaticMeshComponent::StaticClass());
-				for (UActorComponent* ActorComp : SourceComps)
+				for (UActorComponent* ActorComp : Owner->GetComponents())
 				{
 					UStaticMeshComponent* SourceComp = Cast<UStaticMeshComponent>(ActorComp);
 					if (SourceComp)

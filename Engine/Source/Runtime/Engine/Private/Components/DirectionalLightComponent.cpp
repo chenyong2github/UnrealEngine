@@ -49,7 +49,7 @@ static TAutoConsoleVariable<int32> CVarMaxNumFarShadowCascades(
 	TEXT("r.Shadow.MaxNumFarShadowCascades"),
 	10,
 	TEXT("Max number of far shadow cascades that can be cast from a directional light"),
-	ECVF_RenderThreadSafe);
+	ECVF_RenderThreadSafe | ECVF_Scalability );
 
 /**
  * The scene info for a directional light.

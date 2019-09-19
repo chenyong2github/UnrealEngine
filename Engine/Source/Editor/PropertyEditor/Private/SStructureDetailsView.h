@@ -100,6 +100,9 @@ public:
 
 	TSharedPtr<class FComplexPropertyNode> GetRootNode();
 	const TSharedPtr<class FComplexPropertyNode> GetRootNode() const;
+
+	virtual void SetCustomName(const FText& Text) override;
+
 protected:
 
 	virtual void CustomUpdatePropertyMap(TSharedPtr<FDetailLayoutBuilderImpl>& InDetailLayout) override;

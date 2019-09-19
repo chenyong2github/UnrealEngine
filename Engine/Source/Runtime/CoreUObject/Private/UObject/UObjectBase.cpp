@@ -1136,6 +1136,9 @@ void UObjectBaseInit()
  */
 void UObjectBaseShutdown()
 {
+	void ShutdownAsyncThread();
+	ShutdownAsyncThread();
+
 	GUObjectArray.ShutdownUObjectArray();
 	Internal::GetUObjectSubsystemInitialised() = false;
 }

@@ -498,6 +498,21 @@ public:
 TAtomic<bool> GRunRenderingThreadHeartbeat;
 
 FThreadSafeCounter OutstandingHeartbeats;
+
+/** rendering tickables shouldn't be updated during a flush */
+TAtomic<int32> GSuspendRenderingTickables;
+struct FSuspendRenderingTickables
+{
+	FSuspendRenderingTickables()
+	{
+		++GSuspendRenderingTickables;
+	}
+	~FSuspendRenderingTickables()
+	{
+		--GSuspendRenderingTickables;
+	}
+};
+
 /** The rendering thread heartbeat runnable object. */
 class FRenderingThreadTickHeartbeat : public FRunnable
 {
@@ -505,7 +520,8 @@ public:
 
 	// FRunnable interface.
 	virtual bool Init(void) 
-	{ 
+	{
+		GSuspendRenderingTickables = 0;
 		OutstandingHeartbeats.Reset();
 		return true; 
 	}
@@ -531,7 +547,8 @@ public:
 					{
 						OutstandingHeartbeats.Decrement();
 						// make sure that rendering thread tickables get a chance to tick, even if the render thread is starving
-						if (!GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed))
+						// but if GSuspendRenderingTickables is != 0 a flush is happening so don't tick during it
+						if (!GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed) && !GSuspendRenderingTickables.Load(EMemoryOrder::Relaxed))
 						{
 							TickRenderingTickables();
 						}
@@ -906,7 +923,7 @@ TAutoConsoleVariable<int32> CVarGTSyncType(
 	TEXT(" 2 - Sync the game thread with the GPU swap chain flip (only on supported platforms).\n"),
 	ECVF_Default);
 
-struct FRHISyncFrameCommand final : public FRHICommand<FRHISyncFrameCommand>
+FRHICOMMAND_MACRO(FRHISyncFrameCommand)
 {
 	FGraphEventRef GraphEvent;
 	int32 GTSyncType;
@@ -1211,6 +1228,7 @@ void FlushRenderingCommands(bool bFlushDeferredDeletes)
 	{
 		return;
 	}
+	FSuspendRenderingTickables SuspendRenderingTickables;
 
 	// Need to flush GT because render commands from threads other than GT are sent to
 	// the main queue of GT when RT is disabled

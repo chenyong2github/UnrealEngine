@@ -3,14 +3,24 @@
 #include "Units/Highlevel/Harmonics/RigUnit_ChainHarmonics.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_ChainHarmonics::Execute(const FRigUnitContext& Context)
+FRigUnit_ChainHarmonics_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy == nullptr)
 	{
 		return;
 	}
+
+	FVector& Time = WorkData.Time;
+	TArray<int32>& Bones = WorkData.Bones;
+	TArray<float>& Ratio = WorkData.Ratio;
+	TArray<FVector>& LocalTip = WorkData.LocalTip;
+	TArray<FVector>& PendulumTip = WorkData.PendulumTip;
+	TArray<FVector>& PendulumPosition = WorkData.PendulumPosition;
+	TArray<FVector>& PendulumVelocity = WorkData.PendulumVelocity;
+	TArray<FVector>& HierarchyLine = WorkData.HierarchyLine;
+	TArray<FVector>& VelocityLines = WorkData.VelocityLines;
 	
 	if (Context.State == EControlRigState::Init)
 	{
@@ -74,7 +84,7 @@ void FRigUnit_ChainHarmonics::Execute(const FRigUnitContext& Context)
 	}
 
 	FTransform ParentTransform = FTransform::Identity;
-	int32 ParentIndex = Hierarchy->GetParentIndex(Bones[0]);
+	int32 ParentIndex = (*Hierarchy)[Bones[0]].ParentIndex;
 	if (ParentIndex != INDEX_NONE)
 	{
 		ParentTransform = Hierarchy->GetGlobalTransform(ParentIndex);

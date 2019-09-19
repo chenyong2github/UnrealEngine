@@ -42,6 +42,7 @@ public class EnvironmentQueryEditor : ModuleRules
 				"BlueprintGraph",
                 "AIGraph",
                 "AIModule",
+				"ToolMenus",
 			}
 		);
 

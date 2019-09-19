@@ -16,6 +16,13 @@
 #include "Tree/CurveEditorTreeFilter.h"
 #include "AnimatedPropertyKey.h"
 
+#include "ToolMenus.h"
+#include "ContentBrowserMenuContexts.h"
+#include "FileHelpers.h"
+#include "LevelSequence.h"
+#include "AssetRegistryModule.h"
+
+
 #define LOCTEXT_NAMESPACE "SequencerEditor"
 
 // Destructor defined in CPP to avoid having to #include SequencerChannelInterface.h in the main module definition
@@ -120,6 +127,85 @@ public:
 		EditorObjectBindingDelegates.RemoveAll([=](const FOnCreateEditorObjectBinding& Delegate) { return Delegate.GetHandle() == InHandle; });
 	}
 
+	void RegisterMenus()
+	{
+		UToolMenus* ToolMenus = UToolMenus::Get();
+		UToolMenu* Menu = ToolMenus->ExtendMenu("ContentBrowser.AssetContextMenu.LevelSequence");
+		if (!Menu)
+		{
+			return;
+		}
+
+		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+		Section.AddDynamicEntry("SequencerActions", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
+			if (!Context)
+			{
+				return;
+			}
+
+			ULevelSequence* LevelSequence = Context->SelectedObjects.Num() == 1 ? Cast<ULevelSequence>(Context->SelectedObjects[0]) : nullptr;
+			if (LevelSequence)
+			{
+				// if this LevelSequence has associated maps, offer to load them
+
+				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+				const FName LSMapPathName = *LevelSequence->GetOutermost()->GetPathName();
+
+				TArray<FString> AssociatedMaps;
+
+				TArray<FAssetIdentifier> AssociatedAssets;
+
+				// This makes the assumption these functions will append the array, and not clear it.
+				AssetRegistryModule.Get().GetReferencers(LSMapPathName, AssociatedAssets);
+				AssetRegistryModule.Get().GetDependencies(LSMapPathName, AssociatedAssets);
+
+				for (FAssetIdentifier& AssociatedMap : AssociatedAssets)
+				{
+					FString MapFilePath;
+					FString LevelPath = AssociatedMap.PackageName.ToString();
+					if (FEditorFileUtils::IsMapPackageAsset(LevelPath, MapFilePath))
+					{
+						AssociatedMaps.AddUnique(LevelPath);
+					}
+				}
+
+				AssociatedMaps.Sort([](const FString& One, const FString& Two){ return FPaths::GetBaseFilename(One) < FPaths::GetBaseFilename(Two); });
+
+				if(AssociatedMaps.Num()>0)
+				{
+					InSection.AddSubMenu(
+						"SequencerOpenMap_Label",
+						LOCTEXT("SequencerOpenMap_Label", "Open Map"),
+						LOCTEXT("SequencerOpenMap_Tooltip", "Open a map associated with this Level Sequence Asset"),
+						FNewMenuDelegate::CreateLambda(
+							[AssociatedMaps](FMenuBuilder& SubMenuBuilder)
+							{
+								for (const FString& AssociatedMap : AssociatedMaps)
+								{
+									SubMenuBuilder.AddMenuEntry(
+										FText::FromString(FPaths::GetBaseFilename(AssociatedMap)),
+										FText(),
+										FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Levels"),
+										FExecuteAction::CreateLambda(
+											[AssociatedMap]
+											{
+												FEditorFileUtils::LoadMap(AssociatedMap);
+											}
+										)
+									);
+								}
+							}
+						),
+						false,
+						FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Levels")
+					);
+				}
+			}
+		}));
+	}
+
 	virtual void StartupModule() override
 	{
 		if (GIsEditor)
@@ -131,6 +217,15 @@ public:
 				NSLOCTEXT("Sequencer", "SequencerEditMode", "Sequencer Mode"),
 				FSlateIcon(),
 				false);
+
+			if (UToolMenus::TryGet())
+			{
+				RegisterMenus();
+			}
+			else
+			{
+				FCoreDelegates::OnPostEngineInit.AddRaw(this, &FSequencerModule::RegisterMenus);
+			}
 		}
 
 		ObjectBindingContextMenuExtensibilityManager = MakeShareable( new FExtensibilityManager );

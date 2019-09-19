@@ -17,6 +17,7 @@
 #include "Subsystems/EditorSubsystemBlueprintLibrary.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Subsystems/WorldSubsystem.h"
 
 
 // ************************************************************************************
@@ -131,6 +132,10 @@ void UK2Node_GetSubsystem::ExpandNode(class FKismetCompilerContext& CompilerCont
 	{
 		Get_FunctionName = GET_FUNCTION_NAME_CHECKED(USubsystemBlueprintLibrary, GetGameInstanceSubsystem);
 	}
+	else if (CustomClass->IsChildOf<UWorldSubsystem>())
+	{
+		Get_FunctionName = GET_FUNCTION_NAME_CHECKED(USubsystemBlueprintLibrary, GetWorldSubsystem);
+	}
 	else if (CustomClass->IsChildOf<ULocalPlayerSubsystem>())
 	{
 		Get_FunctionName = GET_FUNCTION_NAME_CHECKED(USubsystemBlueprintLibrary, GetLocalPlayerSubsystem);
@@ -208,6 +213,7 @@ void UK2Node_GetSubsystem::GetMenuActions(FBlueprintActionDatabaseRegistrar& Act
 	static TArray<UClass*> Subclasses;
 	Subclasses.Reset();
 	GetDerivedClasses(UGameInstanceSubsystem::StaticClass(), Subclasses);
+	GetDerivedClasses(UWorldSubsystem::StaticClass(), Subclasses);
 	GetDerivedClasses(ULocalPlayerSubsystem::StaticClass(), Subclasses);
 
 	auto CustomizeCallback = [](UEdGraphNode* Node, bool bIsTemplateNode, UClass* Subclass)
@@ -240,6 +246,10 @@ FText UK2Node_GetSubsystem::GetMenuCategory() const
 	{
 		return NSLOCTEXT("K2Node", "GetSubsystem_LocalPlayerSubsystemsMenuCategory", "LocalPlayer Subsystems");
 	}
+	else if (CustomClass->IsChildOf<UWorldSubsystem>())
+	{
+		return NSLOCTEXT("K2Node", "GetSubsystem_WorldSubsystemsMenuCategory", "World Subsystems");
+	}
 
 	return NSLOCTEXT("K2Node", "GetSubsystem_InvalidSubsystemTypeMenuCategory", "Invalid Subsystem Type");
 }
@@ -252,6 +262,10 @@ FText UK2Node_GetSubsystem::GetTooltipText() const
 		if (CustomClass->IsChildOf<UGameInstanceSubsystem>())
 		{
 			SubsystemTypeText =  NSLOCTEXT("K2Node", "GetSubsystem_GameInstanceSubsystemTooltip", "GameInstance Subsystem");
+		}
+		else if (CustomClass->IsChildOf<UWorldSubsystem>())
+		{
+			SubsystemTypeText = NSLOCTEXT("K2Node", "GetSubsystem_WorldSubsystemTooltip", "World Subsystem");
 		}
 		else
 		{

@@ -834,6 +834,7 @@ FNiagaraCompileResults FHlslNiagaraCompiler::CompileScript(const FNiagaraCompile
 			check(TranslatorOutput);
 			*CompileResults.Data.Get() = TranslatorOutput->ScriptData;
 			CompileResults.Data->ByteCode = CompilationOutput.ByteCode;
+			CompileResults.Data->NumTempRegisters = CompilationOutput.MaxTempRegistersUsed + 1;
 			CompileResults.Data->LastAssemblyTranslation = CompilationOutput.AssemblyAsString;
 			CompileResults.Data->LastOpCount = CompilationOutput.NumOps;
 			//Build internal parameters
@@ -882,6 +883,15 @@ FNiagaraCompileResults FHlslNiagaraCompiler::CompileScript(const FNiagaraCompile
 					{
 						break;
 					}
+				}
+
+				if (!Sig)
+				{
+					Sig = TranslatorOutput->ScriptData.AdditionalExternalFunctions.FindByPredicate([&](const FNiagaraFunctionSignature& CheckSig)
+					{
+						FString SigSymbol = FHlslNiagaraTranslator::GetFunctionSignatureSymbol(CheckSig);
+						return SigSymbol == FuncInfo.Name;
+					});
 				}
 
 				if (Sig)

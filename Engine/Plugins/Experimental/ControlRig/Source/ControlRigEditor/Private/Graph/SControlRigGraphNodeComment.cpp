@@ -6,7 +6,7 @@
 #include "PropertyPathHelpers.h"
 #include "UObject/PropertyPortFlags.h"
 #include "ControlRigBlueprint.h"
-#include "Graph//ControlRigGraph.h"
+#include "Graph/ControlRigGraph.h"
 #include "ControlRigController.h"
 #if WITH_EDITOR
 #include "Editor.h"

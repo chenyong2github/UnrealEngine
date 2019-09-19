@@ -30,6 +30,7 @@ namespace BuildPatchServices
 		virtual bool IsChunkFeatureLevelMatch(const FGuid& ChunkId) const override;
 		virtual const uint64& GetChunkHash(const FGuid& ChunkId) const override;
 		virtual const FSHAHash& GetChunkShaHash(const FGuid& ChunkId) const override;
+		virtual const TMap<FSHAHash, TSet<FGuid>>& GetIdenticalChunks() const override;
 	private:
 		void EnumerateCloud();
 		TFuture<FBuildPatchAppManifestPtr> AsyncLoadManifest(const FString& ManifestFilename);
@@ -48,6 +49,7 @@ namespace BuildPatchServices
 		TMap<FGuid, uint32> ChunkWindowSizes;
 		TMap<uint32, TSet<FGuid>> WindowsSizeChunks;
 		TSet<FGuid> FeatureLevelMatchedChunks;
+		TMap<FSHAHash, TSet<FGuid>> IdenticalChunks;
 		FStatsCollector* StatsCollector;
 		TFuture<void> Future;
 		volatile FStatsCollector::FAtomicValue* StatManifestsLoaded;
@@ -133,6 +135,12 @@ namespace BuildPatchServices
 	{
 		Future.Wait();
 		return ChunkShaHashes[ChunkId];
+	}
+
+	const TMap<FSHAHash, TSet<FGuid>>& FCloudEnumeration::GetIdenticalChunks() const
+	{
+		Future.Wait();
+		return IdenticalChunks;
 	}
 
 	void FCloudEnumeration::EnumerateCloud()
@@ -226,6 +234,7 @@ namespace BuildPatchServices
 						FMemory::Memcpy(ChunkShaHashes.FindOrAdd(DataGuid).Hash, ChunkInfo->ShaHash.Hash, FSHA1::DigestSize);
 						UniqueWindowSizes.Add(ChunkInfo->WindowSize);
 						ChunkWindowSizes.Add(DataGuid, ChunkInfo->WindowSize);
+						IdenticalChunks.FindOrAdd(ChunkInfo->ShaHash).Add(DataGuid);
 						FStatsCollector::Accumulate(StatChunksEnumerated, 1);
 					}
 					if (bMatchingChunkSubdir)

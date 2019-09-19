@@ -96,16 +96,20 @@ UEdGraphNode::FCreatePinParams::FCreatePinParams(const FEdGraphPinType& PinType)
 #endif // WITH_EDITOR
 
 /////////////////////////////////////////////////////
-// FGraphNodeContextMenuBuilder
+// UGraphNodeContextMenuContext
 
-FGraphNodeContextMenuBuilder::FGraphNodeContextMenuBuilder(const UEdGraph* InGraph, const UEdGraphNode* InNode, const UEdGraphPin* InPin, FMenuBuilder* InMenuBuilder, bool bInDebuggingMode)
-	: Blueprint(nullptr)
-	, Graph(InGraph)
-	, Node(InNode)
-	, Pin(InPin)
-	, MenuBuilder(InMenuBuilder)
-	, bIsDebugging(bInDebuggingMode)
+UGraphNodeContextMenuContext::UGraphNodeContextMenuContext() :
+	Pin(nullptr)
 {
+}
+
+void UGraphNodeContextMenuContext::Init(const UEdGraph* InGraph, const UEdGraphNode* InNode, const UEdGraphPin* InPin, bool bInDebuggingMode)
+{
+	Graph = InGraph;
+	Node = InNode;
+	Pin = InPin;
+	bIsDebugging = bInDebuggingMode;
+
 #if WITH_EDITOR
 	Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(Graph);
 #endif

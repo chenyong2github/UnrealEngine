@@ -31,6 +31,7 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "Engine/TextureCube.h"
+#include "Engine/Texture2DArray.h"
 #include "Dialogs/Dialogs.h"
 #include "UnrealEdGlobals.h"
 #include "Editor.h"
@@ -56,6 +57,8 @@
 #include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionParticleSubUV.h"
+#include "Materials/MaterialExpressionRuntimeVirtualTextureSample.h"
+#include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionStaticComponentMaskParameter.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
@@ -63,6 +66,7 @@
 #include "Materials/MaterialExpressionTextureObject.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionTextureSampleParameterCube.h"
+#include "Materials/MaterialExpressionTextureSampleParameter2DArray.h"
 #include "Materials/MaterialExpressionTextureSampleParameterSubUV.h"
 #include "Materials/MaterialExpressionTransformPosition.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
@@ -128,6 +132,8 @@
 #include "SMaterialParametersOverviewWidget.h"
 #include "IPropertyRowGenerator.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "UObject/TextProperty.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
 
@@ -223,7 +229,7 @@ int32 FMatExpressionPreview::CompilePropertyAndSetMaterialProperty(EMaterialProp
 	}
 
 	// output should always be the right type for this property
-	return Compiler->ForceCast(Ret, FMaterialAttributeDefinitionMap::GetValueType(Property));
+	return Compiler->ForceCast(Ret, FMaterialAttributeDefinitionMap::GetValueType(Property), MFCF_ExactMatch);
 }
 
 void FMatExpressionPreview::NotifyCompilationFinished()
@@ -698,7 +704,7 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 	// Store the name of this material (for the tutorial widget meta)
 	if (OriginalMaterial != nullptr)
 	{
-	Material->MaterialGraph->OriginalMaterialFullName = OriginalMaterial->GetName();
+		Material->MaterialGraph->OriginalMaterialFullName = OriginalMaterial->GetName();
 	}
 	Material->MaterialGraph->RebuildGraph();
 	RecenterEditor();
@@ -1344,7 +1350,7 @@ bool FMaterialEditor::OnRequestClose()
 		// find out the user wants to do with this dirty material
 		EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(EAppMsgType::YesNoCancel,
 			FText::Format(
-				NSLOCTEXT("UnrealEd", "Prompt_MaterialEditorClose", "Would you like to apply changes to this material to the original material?\n{0}\n(No will lose all changes!)"),
+				NSLOCTEXT("UnrealEd", "Prompt_MaterialEditorClose", "Would you like to apply the changes of the modified material to the original material?\n{0}\n(Selecting 'No' will cause all changes to be lost!)"),
 				FText::FromString(OriginalMaterialObject->GetPathName()) ));
 
 		// act on it
@@ -1596,9 +1602,19 @@ void FMaterialEditor::SetPreviewMaterial(UMaterialInterface* InMaterialInterface
 		{
 			PreviewUIViewport->SetPreviewMaterial(InMaterialInterface);
 		}
+
+		if (PreviewViewport.IsValid())
+		{
+			PreviewViewport->SetPreviewMaterial(nullptr);
+		}
 	}
 	else
 	{
+		if (PreviewUIViewport.IsValid())
+		{
+			PreviewUIViewport->SetPreviewMaterial(nullptr);
+		}
+
 		if (PreviewViewport.IsValid())
 		{
 			PreviewViewport->SetPreviewMaterial(InMaterialInterface);
@@ -2508,11 +2524,6 @@ void FMaterialEditor::BindCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsFeaturePreviewChecked, ERHIFeatureLevel::ES3_1));
 	ToolkitCommands->MapAction(
-		Commands.FeatureLevel_SM4,
-		FExecuteAction::CreateSP(this, &FMaterialEditor::SetFeaturePreview, ERHIFeatureLevel::SM4),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsFeaturePreviewChecked, ERHIFeatureLevel::SM4));
-	ToolkitCommands->MapAction(
 		Commands.FeatureLevel_SM5,
 		FExecuteAction::CreateSP(this, &FMaterialEditor::SetFeaturePreview, ERHIFeatureLevel::SM5),
 		FCanExecuteAction(),
@@ -2657,7 +2668,7 @@ void FMaterialEditor::HideUnrelatedNodes()
 {
 	TArray<UMaterialGraphNode*> NodesToShow;
 
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 	{
@@ -2794,7 +2805,7 @@ void FMaterialEditor::OnUseCurrentTexture()
 	if ( SelectedTexture )
 	{
 		const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "UseCurrentTexture", "Use Current Texture") );
-		const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+		const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 
 		for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 		{
@@ -2819,7 +2830,7 @@ void FMaterialEditor::OnUseCurrentTexture()
 
 void FMaterialEditor::OnConvertObjects()
 {
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	if (SelectedNodes.Num() > 0)
 	{
 		const FScopedTransaction Transaction( LOCTEXT("MaterialEditorConvert", "Material Editor: Convert") );
@@ -2846,6 +2857,7 @@ void FMaterialEditor::OnConvertObjects()
 				UMaterialExpressionScalarParameter* ScalarParameterExpression = Cast<UMaterialExpressionScalarParameter>(CurrentSelectedExpression);
 				UMaterialExpressionVectorParameter* VectorParameterExpression = Cast<UMaterialExpressionVectorParameter>(CurrentSelectedExpression);
 				UMaterialExpressionTextureObjectParameter* TextureObjectParameterExpression = Cast<UMaterialExpressionTextureObjectParameter>(CurrentSelectedExpression);
+				UMaterialExpressionRuntimeVirtualTextureSample* RuntimeVirtualTextureSampleExpression = Cast<UMaterialExpressionRuntimeVirtualTextureSample>(CurrentSelectedExpression);
 
 				// Setup the class to convert to
 				UClass* ClassToCreate = NULL;
@@ -2865,6 +2877,10 @@ void FMaterialEditor::OnConvertObjects()
 				{
 					ClassToCreate = UMaterialExpressionTextureSampleParameterCube::StaticClass();
 				}
+				else if (TextureSampleExpression && TextureSampleExpression->Texture && TextureSampleExpression->Texture->IsA(UTexture2DArray::StaticClass()))
+				{
+					ClassToCreate = UMaterialExpressionTextureSampleParameter2DArray::StaticClass();
+				}
 				else if (TextureObjectExpression)
 				{
 					ClassToCreate = UMaterialExpressionTextureObjectParameter::StaticClass();
@@ -2876,6 +2892,10 @@ void FMaterialEditor::OnConvertObjects()
 				else if (TextureSampleExpression)
 				{
 					ClassToCreate = UMaterialExpressionTextureSampleParameter2D::StaticClass();
+				}
+				else if (RuntimeVirtualTextureSampleExpression)
+				{
+					ClassToCreate = UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass();
 				}
 				else if (ComponentMaskExpression)
 				{
@@ -2946,6 +2966,15 @@ void FMaterialEditor::OnConvertObjects()
 							NewTextureExpr->MipValueMode = TextureSampleExpression->MipValueMode;
 							NewGraphNode->ReconstructNode();
 						}
+						else if (RuntimeVirtualTextureSampleExpression)
+						{
+							bNeedsRefresh = true;
+							UMaterialExpressionRuntimeVirtualTextureSampleParameter* NewRuntimeVirtualTextureExpression = CastChecked<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(NewExpression);
+							NewRuntimeVirtualTextureExpression->VirtualTexture = RuntimeVirtualTextureSampleExpression->VirtualTexture;
+							NewRuntimeVirtualTextureExpression->MaterialType = RuntimeVirtualTextureSampleExpression->MaterialType;
+							NewRuntimeVirtualTextureExpression->MipValueMode = RuntimeVirtualTextureSampleExpression->MipValueMode;
+							NewGraphNode->ReconstructNode();
+						}
 						else if (ComponentMaskExpression)
 						{
 							bNeedsRefresh = true;
@@ -2998,7 +3027,7 @@ void FMaterialEditor::OnConvertObjects()
 
 void FMaterialEditor::OnConvertTextures()
 {
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	if (SelectedNodes.Num() > 0)
 	{
 		const FScopedTransaction Transaction( LOCTEXT("MaterialEditorConvertTexture", "Material Editor: Convert to Texture") );
@@ -3083,7 +3112,7 @@ void FMaterialEditor::OnConvertTextures()
 
 void FMaterialEditor::OnPreviewNode()
 {
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	if (SelectedNodes.Num() == 1)
 	{
 		for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
@@ -3100,7 +3129,7 @@ void FMaterialEditor::OnPreviewNode()
 
 void FMaterialEditor::OnToggleRealtimePreview()
 {
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	if (SelectedNodes.Num() == 1)
 	{
 		for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
@@ -3129,7 +3158,7 @@ void FMaterialEditor::OnSelectDownstreamNodes()
 	TArray<UMaterialGraphNode*> CheckedNodes;
 	TArray<UMaterialGraphNode*> NodesToSelect;
 
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 	{
@@ -3182,7 +3211,7 @@ void FMaterialEditor::OnSelectUpstreamNodes()
 	TArray<UMaterialGraphNode*> CheckedNodes;
 	TArray<UMaterialGraphNode*> NodesToSelect;
 
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 	{
@@ -3374,7 +3403,7 @@ FString FMaterialEditor::GetDocLinkForSelectedNode()
 {
 	FString DocumentationLink;
 
-	TArray<UObject*> SelectedNodes = GraphEditor->GetSelectedNodes().Array();
+	TArray<UObject*> SelectedNodes = GetSelectedNodes().Array();
 	if (SelectedNodes.Num() == 1)
 	{
 		UMaterialGraphNode* SelectedGraphNode = Cast<UMaterialGraphNode>(SelectedNodes[0]);
@@ -3927,7 +3956,7 @@ bool FMaterialEditor::CanSelectAllNodes() const
 void FMaterialEditor::DeleteSelectedNodes()
 {
 	TArray<UEdGraphNode*> NodesToDelete;
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 	{
@@ -4020,7 +4049,7 @@ void FMaterialEditor::DeleteNodes(const TArray<UEdGraphNode*>& NodesToDelete)
 
 bool FMaterialEditor::CanDeleteNodes() const
 {
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	bool bDeletableNodeExists = false;
 
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
@@ -4038,7 +4067,7 @@ bool FMaterialEditor::CanDeleteNodes() const
 void FMaterialEditor::DeleteSelectedDuplicatableNodes()
 {
 	// Cache off the old selection
-	const FGraphPanelSelectionSet OldSelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet OldSelectedNodes = GetSelectedNodes();
 
 	// Clear the selection and only select the nodes that can be duplicated
 	FGraphPanelSelectionSet RemainingNodes;
@@ -4075,7 +4104,7 @@ void FMaterialEditor::DeleteSelectedDuplicatableNodes()
 void FMaterialEditor::CopySelectedNodes()
 {
 	// Export the selected nodes and place the text on the clipboard
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 
 	FString ExportedText;
 
@@ -4107,7 +4136,7 @@ void FMaterialEditor::CopySelectedNodes()
 bool FMaterialEditor::CanCopyNodes() const
 {
 	// If any of the nodes can be duplicated then we should allow copying
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
 	{
 		UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter);
@@ -4317,6 +4346,25 @@ int32 FMaterialEditor::GetNumberOfSelectedNodes() const
 	return GraphEditor->GetSelectedNodes().Num();
 }
 
+FGraphPanelSelectionSet FMaterialEditor::GetSelectedNodes() const
+{
+	FGraphPanelSelectionSet CurrentSelection;
+	if (GraphEditor.IsValid())
+	{
+		CurrentSelection = GraphEditor->GetSelectedNodes();
+	}
+	return CurrentSelection;
+}
+
+void FMaterialEditor::GetBoundsForNode(const UEdGraphNode* InNode, class FSlateRect& OutRect, float InPadding) const
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->GetBoundsForNode(InNode, OutRect, InPadding);
+	}
+}
+
+
 FMatExpressionPreview* FMaterialEditor::GetExpressionPreview(UMaterialExpression* InExpression)
 {
 	bool bNewlyCreated;
@@ -4498,7 +4546,7 @@ void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 			UpdatePreviewViewportsVisibility();
 		}
 
-		FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+		FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 
 		for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 		{
@@ -4513,6 +4561,10 @@ void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 				else if (SelectedNode->MaterialExpression->IsA(UMaterialExpressionDynamicParameter::StaticClass()))
 				{
 					Material->UpdateExpressionDynamicParameters(SelectedNode->MaterialExpression);
+				}
+				else if (PropertyThatChanged->IsA<UTextProperty>())
+				{
+					// Do nothing to the expression if we are just changing the label
 				}
 				else
 				{
@@ -4529,7 +4581,9 @@ void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 		const FName PropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
 		if (PropertyName != GET_MEMBER_NAME_CHECKED(UMaterialExpressionComment, Text)
 		&& PropertyName != GET_MEMBER_NAME_CHECKED(UMaterialExpressionComment, CommentColor)
-		&& PropertyName != GET_MEMBER_NAME_CHECKED(UMaterialExpression, Desc))
+		&& PropertyName != GET_MEMBER_NAME_CHECKED(UMaterialExpression, Desc)
+		&& PropertyName != GET_MEMBER_NAME_CHECKED(UMaterialExpressionVectorParameter, ChannelNames)
+		&& PropertyName != GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSampleParameter, ChannelNames))
 		{
 			// Update the current preview material.
 			UpdatePreviewMaterial();
@@ -5010,7 +5064,7 @@ bool FMaterialEditor::CheckExpressionRemovalWarnings(const TArray<UEdGraphNode*>
 
 void FMaterialEditor::RemoveSelectedExpressionFromFavorites()
 {
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 
 	if (SelectedNodes.Num() == 1)
 	{
@@ -5028,7 +5082,7 @@ void FMaterialEditor::RemoveSelectedExpressionFromFavorites()
 
 void FMaterialEditor::AddSelectedExpressionToFavorites()
 {
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 
 	if (SelectedNodes.Num() == 1)
 	{
@@ -5193,7 +5247,7 @@ void FMaterialEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 		}
 		if (ObjectToEdit)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(ObjectToEdit);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ObjectToEdit);
 		}
 	}
 }

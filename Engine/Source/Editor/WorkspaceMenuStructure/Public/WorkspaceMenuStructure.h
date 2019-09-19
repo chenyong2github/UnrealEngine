@@ -41,6 +41,9 @@ public:
 	virtual TSharedRef<FWorkspaceItem> GetLevelEditorDetailsCategory() const = 0;
 
 	/** See diagram above */
+	virtual TSharedRef<FWorkspaceItem> GetLevelEditorCinematicsCategory() const = 0;
+
+	/** See diagram above */
 	virtual TSharedRef<FWorkspaceItem> GetLevelEditorModesCategory() const = 0;
 
 	/** See diagram above */

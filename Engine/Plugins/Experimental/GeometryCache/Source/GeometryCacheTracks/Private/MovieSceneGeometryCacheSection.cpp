@@ -39,7 +39,7 @@ UMovieSceneGeometryCacheSection::UMovieSceneGeometryCacheSection(const FObjectIn
 
 TOptional<FFrameTime> UMovieSceneGeometryCacheSection::GetOffsetTime() const
 {
-	return TOptional<FFrameTime>(Params.StartFrameOffset);
+	return TOptional<FFrameTime>(Params.FirstLoopStartFrameOffset);
 }
 
 void UMovieSceneGeometryCacheSection::PostLoad()
@@ -86,14 +86,17 @@ FMovieSceneEvalTemplatePtr UMovieSceneGeometryCacheSection::GenerateTemplate() c
 	return FMovieSceneGeometryCacheSectionTemplate(*this);
 }
 
-FFrameNumber GetStartOffsetAtTrimTime(FQualifiedFrameTime TrimTime, const FMovieSceneGeometryCacheParams& Params, FFrameNumber StartFrame, FFrameRate FrameRate)
+FFrameNumber GetFirstLoopStartOffsetAtTrimTime(FQualifiedFrameTime TrimTime, const FMovieSceneGeometryCacheParams& Params, FFrameNumber StartFrame, FFrameRate FrameRate)
 {
-	float AnimPlayRate = FMath::IsNearlyZero(Params.PlayRate) ? 1.0f : Params.PlayRate;
-	float AnimPosition = (TrimTime.Time - StartFrame) / TrimTime.Rate * AnimPlayRate;
-	float SeqLength = Params.GetSequenceLength() - FrameRate.AsSeconds(Params.StartFrameOffset + Params.EndFrameOffset) / AnimPlayRate;
+	const float AnimPlayRate = FMath::IsNearlyZero(Params.PlayRate) ? 1.0f : Params.PlayRate;
+	const float AnimPosition = (TrimTime.Time - StartFrame) / TrimTime.Rate * AnimPlayRate;
+	const float SeqLength = Params.GetSequenceLength() - FrameRate.AsSeconds(Params.StartFrameOffset + Params.EndFrameOffset) / AnimPlayRate;
 
 	FFrameNumber NewOffset = FrameRate.AsFrameNumber(FMath::Fmod(AnimPosition, SeqLength));
-	NewOffset += Params.StartFrameOffset;
+	NewOffset += Params.FirstLoopStartFrameOffset;
+
+	const FFrameNumber SeqLengthInFrames = FrameRate.AsFrameNumber(SeqLength);
+	NewOffset = NewOffset % SeqLengthInFrames;
 
 	return NewOffset;
 }
@@ -109,7 +112,7 @@ TOptional<TRange<FFrameNumber> > UMovieSceneGeometryCacheSection::GetAutoSizeRan
 }
 
 
-void UMovieSceneGeometryCacheSection::TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft)
+void UMovieSceneGeometryCacheSection::TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys)
 {
 	SetFlags(RF_Transactional);
 
@@ -119,25 +122,31 @@ void UMovieSceneGeometryCacheSection::TrimSection(FQualifiedFrameTime TrimTime, 
 		{
 			FFrameRate FrameRate = GetTypedOuter<UMovieScene>()->GetTickResolution();
 
-			Params.StartFrameOffset = HasStartFrame() ? GetStartOffsetAtTrimTime(TrimTime, Params, GetInclusiveStartFrame(), FrameRate) : 0;
+			Params.FirstLoopStartFrameOffset = HasStartFrame() ? GetFirstLoopStartOffsetAtTrimTime(TrimTime, Params, GetInclusiveStartFrame(), FrameRate) : 0;
 		}
 
-		Super::TrimSection(TrimTime, bTrimLeft);
+		Super::TrimSection(TrimTime, bTrimLeft, bDeleteKeys);
 	}
 }
 
-UMovieSceneSection* UMovieSceneGeometryCacheSection::SplitSection(FQualifiedFrameTime SplitTime)
+UMovieSceneSection* UMovieSceneGeometryCacheSection::SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys)
 {
+	const FFrameNumber InitialFirstLoopStartFrameOffset = Params.FirstLoopStartFrameOffset;
+
 	FFrameRate FrameRate = GetTypedOuter<UMovieScene>()->GetTickResolution();
 
-	const FFrameNumber NewOffset = HasStartFrame() ? GetStartOffsetAtTrimTime(SplitTime, Params, GetInclusiveStartFrame(), FrameRate) : 0;
+	const FFrameNumber NewOffset = HasStartFrame() ? GetFirstLoopStartOffsetAtTrimTime(SplitTime, Params, GetInclusiveStartFrame(), FrameRate) : 0;
 
-	UMovieSceneSection* NewSection = Super::SplitSection(SplitTime);
+	UMovieSceneSection* NewSection = Super::SplitSection(SplitTime, bDeleteKeys);
 	if (NewSection != nullptr)
 	{
 		UMovieSceneGeometryCacheSection* NewGeometrySection = Cast<UMovieSceneGeometryCacheSection>(NewSection);
-		NewGeometrySection->Params.StartFrameOffset = NewOffset;
+		NewGeometrySection->Params.FirstLoopStartFrameOffset = NewOffset;
 	}
+
+	// Restore original offset modified by splitting
+	Params.FirstLoopStartFrameOffset = InitialFirstLoopStartFrameOffset;
+
 	return NewSection;
 }
 
@@ -152,16 +161,27 @@ void UMovieSceneGeometryCacheSection::GetSnapTimes(TArray<FFrameNumber>& OutSnap
 
 	const float AnimPlayRate = FMath::IsNearlyZero(Params.PlayRate) ? 1.0f : Params.PlayRate;
 	const float SeqLengthSeconds = Params.GetSequenceLength() - FrameRate.AsSeconds(Params.StartFrameOffset + Params.EndFrameOffset) / AnimPlayRate;
+	const float FirstLoopSeqLengthInSeconds = SeqLengthSeconds - FrameRate.AsSeconds(Params.FirstLoopStartFrameOffset) / AnimPlayRate;
 
-	FFrameTime SequenceFrameLength = SeqLengthSeconds * FrameRate;
+	const FFrameTime SequenceFrameLength = SeqLengthSeconds * FrameRate;
+	const FFrameTime FirstLoopSequenceFrameLength = FirstLoopSeqLengthInSeconds * FrameRate;
 	if (SequenceFrameLength.FrameNumber > 1)
 	{
 		// Snap to the repeat times
+		bool IsFirstLoop = true;
 		FFrameTime CurrentTime = StartFrame;
 		while (CurrentTime < EndFrame)
 		{
 			OutSnapTimes.Add(CurrentTime.FrameNumber);
-			CurrentTime += SequenceFrameLength;
+			if (IsFirstLoop)
+			{
+				CurrentTime += FirstLoopSequenceFrameLength;
+				IsFirstLoop = false;
+			}
+			else
+			{
+				CurrentTime += SequenceFrameLength;
+			}
 		}
 	}
 }

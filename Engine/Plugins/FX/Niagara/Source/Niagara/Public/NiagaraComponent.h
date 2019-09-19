@@ -110,6 +110,7 @@ private:
 protected:
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
+	virtual void OnEndOfFrameUpdateDuringTick() override;
 	virtual void CreateRenderState_Concurrent() override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void BeginDestroy() override;
@@ -132,6 +133,8 @@ public:
 	virtual void Deactivate()override;
 	void DeactivateImmediate();
 
+	virtual void SetComponentTickEnabled(bool bEnabled) override;
+
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual const UObject* AdditionalStatObject() const override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
@@ -142,7 +145,14 @@ public:
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+
+	virtual void OnAttachmentChanged() override;
 	//~ End UPrimitiveComponent Interface
+
+	//~ Begin USceneComponent Interface
+	virtual void OnChildAttached(USceneComponent* ChildComponent) override;
+	virtual void OnChildDetached(USceneComponent* ChildComponent) override;
+	//~ Begin USceneComponent Interface
 
 	TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation();
 
@@ -292,6 +302,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Object)"))
 	void SetVariableObject(FName InVariableName, UObject* Object);
 
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Material)"))
+	void SetVariableMaterial(FName InVariableName, UMaterialInterface* Object);
+
 	/** Debug accessors for getting positions in blueprints. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Niagara Emitter Positions"))
 	TArray<FVector> GetNiagaraParticlePositions_DebugOnly(const FString& InEmitterName);
@@ -341,6 +354,8 @@ public:
 #if WITH_EDITOR
 	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	void OverrideUObjectParameter(const FNiagaraVariable& InVar, UObject* InObj);
+
 #endif
 	//~ End UObject Interface
 
@@ -509,6 +524,8 @@ public:
 	virtual bool IsRayTracingRelevant() const override { return true; }
 #endif
 
+	FORCEINLINE const FMatrix& GetLocalToWorldInverse() const { return LocalToWorldInverse; }
+
 private:
 	void ReleaseRenderThreadResources();
 
@@ -546,6 +563,8 @@ private:
 
 	bool bRenderingEnabled;
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+
+	FMatrix LocalToWorldInverse;
 
 #if STATS
 	TStatId SystemStatID;

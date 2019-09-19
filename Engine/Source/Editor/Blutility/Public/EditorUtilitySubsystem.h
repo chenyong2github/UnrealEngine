@@ -36,6 +36,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	void ReleaseInstanceOfAsset(UObject* Asset);
 
+	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	bool TryRun(UObject* Asset);
 
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")

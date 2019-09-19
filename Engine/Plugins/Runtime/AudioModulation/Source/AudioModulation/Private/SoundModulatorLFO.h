@@ -26,7 +26,7 @@ enum class ESoundModulatorLFOShape : uint8
 };
 
 UCLASS(BlueprintType, hidecategories = Object, editinlinenew, MinimalAPI)
-class USoundModulatorLFO : public USoundModulatorBase
+class USoundBusModulatorLFO : public USoundBusModulatorBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -52,48 +52,25 @@ public:
 	/** Whether or not to loop the oscillation more than once */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite)
 	uint8 bLooping : 1;
-
-	/** Automatically activates/deactivates LFO when sounds referencing LFO asset are playing */
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite)
-	uint8 bAutoActivate : 1;
 };
 
 namespace AudioModulation
 {
-	class FModulatorLFOProxy
+	class FModulatorLFOProxy : public TModulatorProxyRefBase<FLFOId>
 	{
 	public:
 		FModulatorLFOProxy();
-		FModulatorLFOProxy(const USoundModulatorLFO& InLFO);
+		FModulatorLFOProxy(const USoundBusModulatorLFO& InLFO);
 
-		float GetAmplitude() const;
-		bool GetAutoActivate() const;
-		float GetFreq() const;
-		LFOId GetId() const;
-#if !UE_BUILD_SHIPPING
-		const FString& GetName() const;
-#endif // !UE_BUILD_SHIPPING
-		float GetOffset() const;
+		void OnUpdateProxy(const USoundModulatorBase& InModulatorArchetype) override;
+
 		float GetValue() const;
-		void SetFreq(float InFreq);
 		void Update(float InElapsed);
 
-		int32 DecRefSound();
-		int32 IncRefSound();
-
 	private:
-		LFOId Id;
-
-#if !UE_BUILD_SHIPPING
-		FString Name;
-#endif // !UE_BUILD_SHIPPING
-
 		Audio::FLFO LFO;
 		float Offset;
 		float Value;
-
-		uint8 bAutoActivate : 1;
-		int32 SoundRefCount;
 	};
-	using LFOProxyMap = TMap<BusId, FModulatorLFOProxy>;
+	using LFOProxyMap = TMap<FBusId, FModulatorLFOProxy>;
 } // namespace AudioModulation

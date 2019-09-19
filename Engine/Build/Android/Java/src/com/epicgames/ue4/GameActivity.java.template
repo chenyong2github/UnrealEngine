@@ -5437,7 +5437,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			{
 				emojiExcludeFilter = new EmojiExcludeFilter();
 			}
-			setFilters(new InputFilter[]{emojiExcludeFilter});
+			//setFilters(new InputFilter[]{emojiExcludeFilter});
 		}
 
 		@Override

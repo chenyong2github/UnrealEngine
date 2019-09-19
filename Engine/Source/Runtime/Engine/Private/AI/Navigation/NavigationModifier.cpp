@@ -18,8 +18,8 @@ static const float CONVEX_HULL_POINTS_MIN_DISTANCE_SQ = 4.0f * 4.0f;
 // FNavigationLinkBase
 //----------------------------------------------------------------------//
 FNavigationLinkBase::FNavigationLinkBase() 
-	: LeftProjectHeight(0.0f), MaxFallDownLength(1000.0f), Direction(ENavLinkDirection::BothWays), UserId(0),
-	  SnapRadius(30.f), SnapHeight(50.0f), bUseSnapHeight(false), bSnapToCheapestArea(true),
+	: LeftProjectHeight(0.0f), MaxFallDownLength(1000.0f), UserId(0), SnapRadius(30.f), SnapHeight(50.0f),
+	  Direction(ENavLinkDirection::BothWays), bUseSnapHeight(false), bSnapToCheapestArea(true),
 	  bCustomFlag0(false), bCustomFlag1(false), bCustomFlag2(false), bCustomFlag3(false), bCustomFlag4(false),
 	  bCustomFlag5(false), bCustomFlag6(false), bCustomFlag7(false)
 {
@@ -52,6 +52,7 @@ bool FNavigationLinkBase::HasMetaArea() const
 	return AreaClass && AreaClass->GetDefaultObject<UNavAreaBase>()->IsMetaArea();
 }
 
+#if WITH_EDITORONLY_DATA
 void FNavigationLinkBase::PostSerialize(const FArchive& Ar)
 {
 	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_NAVIGATION_AGENT_SELECTOR)
@@ -77,6 +78,7 @@ void FNavigationLinkBase::PostSerialize(const FArchive& Ar)
 
 	// can't initialize at this time, used UClass may not be ready yet
 }
+#endif
 
 #if WITH_EDITOR
 

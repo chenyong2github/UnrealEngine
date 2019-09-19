@@ -8,7 +8,7 @@
 #include "AssetData.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimSequence.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Animation/AnimCompositeBase.h"
 
 #include "ScopedTransaction.h"
@@ -16,6 +16,8 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "AnimSegmentPanel"
 
@@ -402,7 +404,7 @@ void SAnimSegmentsPanel::OpenAsset(int32 AnimSegmentIndex)
 		UAnimSequenceBase* Asset = AnimTrack->AnimSegments[AnimSegmentIndex].AnimReference;
 		if (Asset)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(Asset);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset);
 		}
 	}
 }

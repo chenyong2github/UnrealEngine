@@ -559,6 +559,22 @@ void FBlueprintEditorToolbar::FillScriptingToolbar(FToolBarBuilder& ToolbarBuild
 
 	ToolbarBuilder.AddToolBarButton(FBlueprintEditorCommands::Get().FindInBlueprint);
 
+	ToolbarBuilder.AddToolBarButton(
+		FBlueprintEditorCommands::Get().ToggleHideUnrelatedNodes,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.ToggleHideUnrelatedNodes")
+	);
+	ToolbarBuilder.AddComboButton(
+		FUIAction(),
+		FOnGetContent::CreateSP(BlueprintEditorPtr.Get(), &FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu),
+		LOCTEXT("HideUnrelatedNodesOptions", "Focus Related Nodes Options"),
+		LOCTEXT("HideUnrelatedNodesOptionsMenu", "Focus Related Nodes options menu"),
+		TAttribute<FSlateIcon>(),
+		true
+	);
+
 	ToolbarBuilder.EndSection();
 }
 

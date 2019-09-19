@@ -26,7 +26,8 @@ class UK2Node_DynamicCast : public UK2Node
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
-	virtual void GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const override;
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
+	virtual bool IncludeParentNodeContextMenu() const override { return true; }
 	virtual void PostReconstructNode() override;
 	virtual void PostPlacedNewNode() override;
 	//~ End UEdGraphNode Interface

@@ -22,7 +22,7 @@ struct FSlateMaterialBrush : public FSlateBrush
 	 * @param InImageSize The material's dimensions.
 	 */
 	FSlateMaterialBrush( class UMaterialInterface& InMaterial, const FVector2D& InImageSize )
-		: FSlateBrush( ESlateBrushDrawType::Image, FName(TEXT("None")), FMargin(0), ESlateBrushTileType::NoTile, ESlateBrushImageType::FullColor, InImageSize, FLinearColor::White, &InMaterial )
+		: FSlateBrush( ESlateBrushDrawType::Image, NAME_None, FMargin(0), ESlateBrushTileType::NoTile, ESlateBrushImageType::FullColor, InImageSize, FLinearColor::White, &InMaterial )
 	{
 		ResourceName = FName( *InMaterial.GetFullName() );
 	}

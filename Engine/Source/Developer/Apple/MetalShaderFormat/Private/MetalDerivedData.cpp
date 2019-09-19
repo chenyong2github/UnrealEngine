@@ -320,6 +320,7 @@ FMetalShaderOutputCooker::FMetalShaderOutputCooker(const FShaderCompilerInput& _
 	, GUIDHash(_GUIDHash)
 	, VersionEnum(_VersionEnum)
 	, CCFlags(_CCFlags)
+	, IABTier(0)
 	, HlslCompilerTarget(_HlslCompilerTarget)
 	, MetalCompilerTarget(_MetalCompilerTarget)
 	, Semantics(_Semantics)
@@ -330,6 +331,14 @@ FMetalShaderOutputCooker::FMetalShaderOutputCooker(const FShaderCompilerInput& _
 	, Standard(_Standard)
 	, MinOSVersion(_MinOSVersion)
 {
+	FString const* IABVersion = Input.Environment.GetDefinitions().Find(TEXT("METAL_INDIRECT_ARGUMENT_BUFFERS"));
+	if (IABVersion && VersionEnum >= 4)
+	{
+		if(IABVersion->IsNumeric())
+		{
+			LexFromString(IABTier, *(*IABVersion));
+		}
+	}
 }
 
 FMetalShaderOutputCooker::~FMetalShaderOutputCooker()
@@ -368,7 +377,7 @@ FString FMetalShaderOutputCooker::GetPluginSpecificCacheKeySuffix() const
 			Flags |= (1llu << uint64(Flag));
 		}
 
-		CachedOutputName = FString::Printf(TEXT("%s-%s_%s-%u_%hu_%llu_%hhu_%s_%s"), *Input.ShaderFormat.GetPlainNameString(), *Input.EntryPointName, *Hash.ToString(), Len, FormatVers, Flags, VersionEnum, *GUIDHash.ToString(), *Standard);
+		CachedOutputName = FString::Printf(TEXT("%s-%s_%s-%u_%hu_%llu_%hhu_%d_%s_%s"), *Input.ShaderFormat.GetPlainNameString(), *Input.EntryPointName, *Hash.ToString(), Len, FormatVers, Flags, VersionEnum, IABTier, *GUIDHash.ToString(), *Standard);
 	}
 
 	return CachedOutputName;
@@ -427,6 +436,15 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 	uint32 CRC = 0;
 	uint32 SourceLen = 0;
 	int32 Result = 0;
+	
+	struct FMetalResourceTableEntry : FResourceTableEntry
+	{
+		FString Name;
+		uint32 Size;
+		uint32 SetIndex;
+		bool bUsed;
+	};
+	TMap<FString, TArray<FMetalResourceTableEntry>> IABs;
 	
 	FString const* UsingTessellationDefine = Input.Environment.GetDefinitions().Find(TEXT("USING_TESSELLATION"));
 	bool bUsingTessellation = ((UsingTessellationDefine != nullptr && FString("1") == *UsingTessellationDefine && Frequency == HSF_VertexShader) || Frequency == HSF_HullShader || Frequency == HSF_DomainShader);
@@ -506,6 +524,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		Options.enableDebugInfo = false;
 		Options.enable16bitTypes = false;
 		Options.disableOptimizations = false;
+		Options.enableFMAPass = (VersionEnum == 2 || VersionEnum == 3);
 		
         ShaderConductor::Compiler::SourceDesc SourceDesc;
 		
@@ -548,6 +567,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
             }
             case HSF_PixelShader:
             {
+				Options.enableFMAPass = false;
                 SourceDesc.stage = ShaderConductor::ShaderStage::PixelShader;
                 break;
             }
@@ -558,6 +578,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
             }
             case HSF_HullShader:
             {
+				Options.enableFMAPass = true;
                 SourceDesc.stage = ShaderConductor::ShaderStage::HullShader;
                 break;
             }
@@ -568,6 +589,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
             }
             case HSF_ComputeShader:
             {
+				Options.enableFMAPass = false;
                 SourceDesc.stage = ShaderConductor::ShaderStage::ComputeShader;
                 break;
             }
@@ -588,6 +610,17 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			SourceData.clear();
             SourceData.resize(RewriteBlob->Size());
 			FCStringAnsi::Strncpy(const_cast<char*>(SourceData.c_str()), (const char*)RewriteBlob->Data(), RewriteBlob->Size());
+			
+			static const std::string glFragDecl = "Texture2D<float4> gl_LastFragData;";
+			size_t glFragDeclIncludePos = SourceData.find(glFragDecl);
+			if (glFragDeclIncludePos != std::string::npos)
+				SourceData.replace(glFragDeclIncludePos, glFragDecl.length(), "[[vk::input_attachment_index(0)]] SubpassInput<float4> gl_LastFragData;");
+			
+			static const std::string glFragLoad = "gl_LastFragData.Load(uint3(0, 0, 0), 0)";
+			size_t glFragLoadIncludePos = SourceData.find(glFragLoad);
+			if (glFragLoadIncludePos != std::string::npos)
+				SourceData.replace(glFragLoadIncludePos, glFragLoad.length(), "gl_LastFragData.SubpassLoad()");
+			
 			SourceDesc.source = SourceData.c_str();
 			
             if (bDumpDebugInfo)
@@ -601,6 +634,20 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
                 }
             }
         }
+		else
+		{
+			static const std::string glFragDecl = "Texture2D<float4> gl_LastFragData;";
+			size_t glFragDeclIncludePos = SourceData.find(glFragDecl);
+			if (glFragDeclIncludePos != std::string::npos)
+				SourceData.replace(glFragDeclIncludePos, glFragDecl.length(), "[[vk::input_attachment_index(0)]] SubpassInput<float4> gl_LastFragData;");
+			
+			static const std::string glFragLoad = "gl_LastFragData.Load(uint3(0,0,0),0)";
+			size_t glFragLoadIncludePos = SourceData.find(glFragLoad);
+			if (glFragLoadIncludePos != std::string::npos)
+				SourceData.replace(glFragLoadIncludePos, glFragLoad.length(), "gl_LastFragData.SubpassLoad()");
+			
+			SourceDesc.source = SourceData.c_str();
+		}
 		
 		Options.removeUnusedGlobals = false;
 
@@ -609,6 +656,18 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		FString MetaData = FString::Printf(TEXT("// ! %s/%s.usf:%s\n"), *Input.DebugGroupName, *Input.GetSourceFilename(), *Input.EntryPointName);
 		FString EntryPoint = Input.EntryPointName;
 		EHlslShaderFrequency Freq = Frequency;
+		FString ALNString;
+		FString IABString;
+		FString UAVString;
+		FString SRVString;
+		FString SMPString;
+		FString UBOString;
+		FString GLOString;
+		FString PAKString;
+		FString INPString;
+		FString OUTString;
+		FString WKGString;
+		uint32 IABOffsetIndex = 0;
 
 		TargetDesc.language = ShaderConductor::ShadingLanguage::SpirV;
 		ShaderConductor::Compiler::ResultDesc Results = ShaderConductor::Compiler::Compile(SourceDesc, Options, TargetDesc);
@@ -627,21 +686,84 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			TSet<SpvReflectDescriptorBinding*> Counters;
 			TArray<SpvReflectInterfaceVariable*> InputVars;
 			TArray<SpvReflectInterfaceVariable*> OutputVars;
+			TArray<SpvReflectBlockVariable*> ConstantBindings;
 			TArray<SpvReflectExecutionMode*> ExecutionModes;
 			
 			uint8 UAVIndices = 0xff;
 			uint64 TextureIndices = 0xffffffffffffffff;
-			uint16 SamplerIndices = 0xffff;
+			uint32 SamplerIndices = 0xffffffff;
 			
-			FString UAVString;
-			FString SRVString;
-			FString SMPString;
-			FString UBOString;
-			FString GLOString;
-			FString PAKString;
-			FString INPString;
-			FString OUTString;
-			FString WKGString;
+			TArray<FString> TableNames;
+			TMap<FString, FMetalResourceTableEntry> ResourceTable;
+			if (IABTier >= 1)
+			{
+				for (auto Pair : Input.Environment.ResourceTableLayoutHashes)
+				{
+					TableNames.Add(*Pair.Key);
+				}
+				
+				for (auto Pair : Input.Environment.ResourceTableMap)
+				{
+					const FResourceTableEntry& Entry = Pair.Value;
+					TArray<FMetalResourceTableEntry>& Resources = IABs.FindOrAdd(Entry.UniformBufferName);
+					if ((uint32)Resources.Num() <= Entry.ResourceIndex)
+					{
+						Resources.SetNum(Entry.ResourceIndex + 1);
+					}
+					FMetalResourceTableEntry NewEntry;
+					NewEntry.UniformBufferName = Entry.UniformBufferName;
+					NewEntry.Type = Entry.Type;
+					NewEntry.ResourceIndex = Entry.ResourceIndex;
+					NewEntry.Name = Pair.Key;
+					NewEntry.Size = 1;
+					NewEntry.bUsed = false;
+					Resources[Entry.ResourceIndex] = NewEntry;
+				}
+				
+				for (uint32 i = 0; i < (uint32)TableNames.Num(); )
+				{
+					if (!IABs.Contains(TableNames[i]))
+					{
+						TableNames.RemoveAt(i);
+					}
+					else
+					{
+						i++;
+					}
+				}
+				
+				for (auto Pair : IABs)
+				{
+					uint32 Index = 0;
+					for (uint32 i = 0; i < (uint32)Pair.Value.Num(); i++)
+					{
+						FMetalResourceTableEntry& Entry = Pair.Value[i];
+						switch(Entry.Type)
+						{
+							case UBMT_UAV:
+							case UBMT_RDG_TEXTURE_UAV:
+							case UBMT_RDG_BUFFER_UAV:
+								Entry.ResourceIndex = Index;
+								Entry.Size = 1;
+								Index += 2;
+								break;
+							default:
+								Entry.ResourceIndex = Index;
+								Index++;
+								break;
+						}
+						for (uint32 j = 0; j < (uint32)TableNames.Num(); j++)
+						{
+							if (Entry.UniformBufferName == TableNames[j])
+							{
+								Entry.SetIndex = j;
+								break;
+							}
+						}
+						ResourceTable.Add(Entry.Name, Entry);
+					}
+				}
+			}
 			
 			if(Frequency == HSF_HullShader)
 			{
@@ -702,12 +824,14 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 							if (Frequency == HSF_HullShader || Frequency == HSF_DomainShader)
 							{
 								TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationDomain] = TEXT("// @TessellationDomain: tri\n");
+								Attribs.HSTFOutSize = 8; // sizeof(MTLTriangleTessellationFactorsHalf);
 							}
 							break;
 						case SpvExecutionModeQuads:
 							if (Frequency == HSF_HullShader || Frequency == HSF_DomainShader)
 							{
 								TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationDomain] = TEXT("// @TessellationDomain: quad\n");
+								Attribs.HSTFOutSize = 12; // sizeof(MTLQuadTessellationFactorsHalf);
 							}
 							break;
 						case SpvExecutionModeIsolines:
@@ -798,6 +922,8 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 			if (Count > 0)
 			{
+				TArray<SpvReflectDescriptorBinding*> ResourceBindings;
+				TArray<SpvReflectDescriptorBinding*> ArgumentBindings;
 				TArray<SpvReflectDescriptorBinding*> UniformBindings;
 				TArray<SpvReflectDescriptorBinding*> SamplerBindings;
 				TArray<SpvReflectDescriptorBinding*> TextureSRVBindings;
@@ -806,11 +932,22 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				TArray<SpvReflectDescriptorBinding*> TBufferUAVBindings;
 				TArray<SpvReflectDescriptorBinding*> SBufferSRVBindings;
 				TArray<SpvReflectDescriptorBinding*> SBufferUAVBindings;
+				TSet<FString> UsedSets;
 				
 				// Extract all the bindings first so that we process them in order - this lets us assign UAVs before other resources
 				// Which is necessary to match the D3D binding scheme.
 				for (auto const& Binding : Bindings)
 				{
+					if (Binding->resource_type != SPV_REFLECT_RESOURCE_FLAG_CBV && ResourceTable.Contains(UTF8_TO_TCHAR(Binding->name)))
+					{
+						ResourceBindings.Add(Binding);
+						
+						FMetalResourceTableEntry Entry = ResourceTable.FindRef(UTF8_TO_TCHAR(Binding->name));
+						UsedSets.Add(Entry.UniformBufferName);
+						
+						continue;
+					}
+					
 					switch(Binding->resource_type)
 					{
 						case SPV_REFLECT_RESOURCE_FLAG_CBV:
@@ -818,7 +955,14 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 							check(Binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 							if (Binding->accessed)
 							{
-								UniformBindings.Add(Binding);
+								if (TableNames.Contains(UTF8_TO_TCHAR(Binding->name)))
+								{
+									ArgumentBindings.Add(Binding);
+								}
+								else
+								{
+									UniformBindings.Add(Binding);
+								}
 							}
 							break;
 						}
@@ -910,6 +1054,61 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					}
 				}
 				
+				for (uint32 i = 0; i < (uint32)TableNames.Num(); )
+				{
+					if (UsedSets.Contains(TableNames[i]))
+					{
+						IABs.FindChecked(TableNames[i])[0].SetIndex = i;
+						i++;
+					}
+					else
+					{
+						IABs.Remove(TableNames[i]);
+						TableNames.RemoveAt(i);
+					}
+				}
+				
+				for (uint32 i = 0; i < (uint32)ArgumentBindings.Num(); )
+				{
+					FString Name = UTF8_TO_TCHAR(ArgumentBindings[i]->name);
+					if (TableNames.Contains(Name))
+					{
+						auto* ResourceArray = IABs.Find(Name);
+						auto const& LastResource = ResourceArray->Last();
+						uint32 ResIndex = LastResource.ResourceIndex + LastResource.Size;
+						uint32 SetIndex = SPV_REFLECT_SET_NUMBER_DONT_CHANGE;
+						for (uint32 j = 0; j < (uint32)TableNames.Num(); j++)
+						{
+							if (Name == TableNames[j])
+							{
+								SetIndex = j;
+								break;
+							}
+						}
+						
+						FMetalResourceTableEntry Entry;
+						Entry.UniformBufferName = LastResource.UniformBufferName;
+						Entry.Name = Name;
+						Entry.ResourceIndex = ResIndex;
+						Entry.SetIndex = SetIndex;
+						Entry.bUsed = true;
+						
+						ResourceArray->Add(Entry);
+						ResourceTable.Add(Name, Entry);
+						
+						ResourceBindings.Add(ArgumentBindings[i]);
+						
+						i++;
+					}
+					else
+					{
+						UniformBindings.Add(ArgumentBindings[i]);
+						ArgumentBindings.RemoveAt(i);
+					}
+				}
+				
+				uint32 GlobalSetId = 32;
+				
 				for (auto const& Binding : TBufferUAVBindings)
 				{
 					check(UAVIndices);
@@ -925,7 +1124,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					
 					UAVString += FString::Printf(TEXT("%s%s(%u:%u)"), UAVString.Len() ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(Binding->name), Index, 1);
 					
-					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index);
+					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
@@ -943,7 +1142,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					
 					UAVString += FString::Printf(TEXT("%s%s(%u:%u)"), UAVString.Len() ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(Binding->name), Index, 1);
 					
-					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index);
+					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
@@ -960,8 +1159,129 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					
 					UAVString += FString::Printf(TEXT("%s%s(%u:%u)"), UAVString.Len() ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(Binding->name), Index, 1);
 					
-					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index);
+					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+				}
+				
+				IABOffsetIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
+				
+				TMap<FString, uint32> IABTier1Index;
+				if (IABTier == 1)
+				{
+					for (auto const& Binding : ResourceBindings)
+					{
+						FMetalResourceTableEntry* Entry = ResourceTable.Find(UTF8_TO_TCHAR(Binding->name));
+						auto* ResourceArray = IABs.Find(Entry->UniformBufferName);
+						if (!IABTier1Index.Contains(Entry->UniformBufferName))
+						{
+							IABTier1Index.Add(Entry->UniformBufferName, 0);
+						}
+						if (Binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+						{
+							bool bFoundBufferSizes = false;
+							for (auto& Resource : *ResourceArray)
+							{
+								if (Resource.ResourceIndex == 65535)
+								{
+									bFoundBufferSizes = true;
+									break;
+								}
+							}
+							if (!bFoundBufferSizes)
+							{
+								FMetalResourceTableEntry BufferSizes;
+								BufferSizes.UniformBufferName = Entry->UniformBufferName;
+								BufferSizes.Name = TEXT("BufferSizes");
+								BufferSizes.Type = UBMT_SRV;
+								BufferSizes.ResourceIndex = 65535;
+								BufferSizes.SetIndex = Entry->SetIndex;
+								BufferSizes.Size = 1;
+								BufferSizes.bUsed = true;
+								ResourceArray->Insert(BufferSizes, 0);
+								IABTier1Index[Entry->UniformBufferName] = 1;
+							}
+						}
+					}
+				}
+				
+				for (auto const& Binding : ResourceBindings)
+				{
+					FMetalResourceTableEntry* Entry = ResourceTable.Find(UTF8_TO_TCHAR(Binding->name));
+					
+					for (uint32 j = 0; j < (uint32)TableNames.Num(); j++)
+					{
+						if (Entry->UniformBufferName == TableNames[j])
+						{
+							Entry->SetIndex = j;
+							BufferIndices &= ~(1 << (j + IABOffsetIndex));
+							TextureIndices &= ~(1llu << uint64(j + IABOffsetIndex));
+							break;
+						}
+					}
+					Entry->bUsed = true;
+					
+					auto* ResourceArray = IABs.Find(Entry->UniformBufferName);
+					uint32 ResourceIndex = Entry->ResourceIndex;
+					if (IABTier == 1)
+					{
+						for (auto& Resource : *ResourceArray)
+						{
+							Resource.SetIndex = Entry->SetIndex;
+							if (Resource.ResourceIndex == Entry->ResourceIndex)
+							{
+								uint32& Tier1Index = IABTier1Index.FindChecked(Entry->UniformBufferName);
+								ResourceIndex = Tier1Index++;
+								Resource.bUsed = true;
+								break;
+							}
+						}
+						if (Entry->ResourceIndex != 65535)
+						{
+							SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, ResourceIndex, Entry->SetIndex);
+							check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+						}
+					}
+					else
+					{
+						for (auto& Resource : *ResourceArray)
+						{
+							if (Resource.Name == Entry->Name)
+							{
+								Resource.SetIndex = Entry->SetIndex;
+								Resource.bUsed = true;
+								break;
+							}
+						}
+                        SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Entry->ResourceIndex + 1, Entry->SetIndex);
+                        check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+					}
+				}
+				
+				for (auto const& Pair : IABs)
+				{
+					FString Name = Pair.Key;
+					auto const& ResourceArray = Pair.Value;
+					if (IABString.Len())
+					{
+						IABString += TEXT(",");
+					}
+					uint32 SetIndex = ResourceArray[0].SetIndex + IABOffsetIndex;
+					IABString += FString::Printf(TEXT("%d["), SetIndex);
+					bool bComma = false;
+					for (auto const& Resource : ResourceArray)
+					{
+						if (Resource.bUsed)
+						{
+							if (bComma)
+							{
+								IABString += TEXT(",");
+							}
+							IABString += FString::Printf(TEXT("%u"), (Resource.ResourceIndex == 65535 ? 0 : Resource.ResourceIndex + 1));
+							bComma = true;
+						}
+					}
+					IABString += TEXT("]");
+					UBOString += FString::Printf(TEXT("%s%s(%u)"), UBOString.Len() ? TEXT(",") : TEXT(""), *Name, SetIndex);
 				}
 				
 				for (auto const& Binding : TBufferSRVBindings)
@@ -977,7 +1297,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					
 					SRVString += FString::Printf(TEXT("%s%s(%u:%u)"), SRVString.Len() ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(Binding->name), Index, 1);
 					
-					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index);
+					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
@@ -992,7 +1312,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					
 					SRVString += FString::Printf(TEXT("%s%s(%u:%u)"), SRVString.Len() ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(Binding->name), Index, 1);
 					
-					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index);
+					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
@@ -1017,26 +1337,17 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 							uint32 MbrOffset = member.absolute_offset / sizeof(float);
 							uint32 MbrSize = member.size / sizeof(float);
 							
-							MbrString += FString::Printf(TEXT("%s%s(%u,%u)"), MbrString.Len() ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(member.name), MbrOffset, MbrSize);
+							MbrString += FString::Printf(TEXT("%s%s(%u,%u)"), MbrString.Len() > 0 ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(member.name), MbrOffset, MbrSize);
 							
 							unsigned DestCBPrecision = TEXT('h');
-							
-//							auto const type = *member.type_description;
-//							uint32_t masked_type = type.type_flags & 0xF;
-//							
-//							switch (masked_type) {
-//								default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
-//								case SPV_REFLECT_TYPE_FLAG_BOOL  : DestCBPrecision = TEXT('u'); break;
-//								case SPV_REFLECT_TYPE_FLAG_INT   : DestCBPrecision = (type.traits.numeric.scalar.signedness ? TEXT('i') : TEXT('u')); break;
-//								case SPV_REFLECT_TYPE_FLAG_FLOAT : DestCBPrecision = (type.traits.numeric.scalar.width == 32 ? TEXT('h') : TEXT('m')); break;
-//							}
-							
 							unsigned SourceOffset = MbrOffset;
 							unsigned DestOffset = MbrOffset;
 							unsigned DestSize = MbrSize;
 							unsigned DestCBIndex = 0;
 							InsertRange(CBRanges, Index, SourceOffset, DestSize, DestCBIndex, DestCBPrecision, DestOffset);
 						}
+						
+						GLOString += MbrString;
 						
 						for (auto Iter = CBRanges.begin(); Iter != CBRanges.end(); ++Iter)
 						{
@@ -1047,8 +1358,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 								PAKString += FString::Printf(TEXT("%s%u:%u-%c:%u:%u"), PAKString.Len() ? TEXT(",") : TEXT(""), IterList->SourceCB, IterList->SourceOffset, IterList->DestCBPrecision, IterList->DestOffset, IterList->Size);
 							}
 						}
-						
-						GLOString += MbrString;
 					}
 					else
 					{
@@ -1056,7 +1365,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 						UBOString += FString::Printf(TEXT("%s%s(%u)"), UBOString.Len() ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(Binding->name), Index);
 					}
 					
-					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index);
+					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
@@ -1068,7 +1377,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					
 					SRVString += FString::Printf(TEXT("%s%s(%u:%u)"), SRVString.Len() ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(Binding->name), Index, 1);
 					
-					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index);
+					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
@@ -1080,7 +1389,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					
 					SMPString += FString::Printf(TEXT("%s%u:%s"), SMPString.Len() ? TEXT(",") : TEXT(""), Index, UTF8_TO_TCHAR(Binding->name));
 					
-					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index);
+					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 			}
@@ -1217,6 +1526,489 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				}
 			}
 			
+			if (Frequency == HSF_VertexShader && bUsingTessellation)
+			{
+				Count = 0;
+				SPVRResult = Reflection.EnumerateOutputVariables(&Count, nullptr);
+				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+				OutputVars.SetNum(Count);
+				SPVRResult = Reflection.EnumerateOutputVariables(&Count, OutputVars.GetData());
+				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+				if (Count > 0)
+				{
+					
+					OutputVars.Sort([](SpvReflectInterfaceVariable& LHS, SpvReflectInterfaceVariable& RHS)  { return LHS.location < RHS.location; });
+					uint32 Offset = 0;
+					uint32 InitialAlign = 0;
+					for (auto const& Var : OutputVars)
+					{
+						if (Var->storage_class == SpvStorageClassOutput && Var->built_in == -1)
+						{
+							unsigned Location = Var->location;
+							
+							uint32 ArrayCount = 1;
+							for (uint32 Dim = 0; Dim < Var->array.dims_count; Dim++)
+							{
+								ArrayCount *= Var->array.dims[Dim];
+							}
+							
+							auto const type = *Var->type_description;
+							uint32_t masked_type = type.type_flags & 0xF;
+							
+							for (uint32 j = 0; j < ArrayCount; j++)
+							{
+								FMetalAttribute& Attrib = Attribs.HSOut.AddDefaulted_GetRef();
+								Attrib.Index = Location + j;
+								uint32 ElementSize = 0;
+								switch (masked_type) {
+									default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
+									case SPV_REFLECT_TYPE_FLAG_BOOL  : Attrib.Type = EMetalComponentType::Bool; ElementSize = 1; break;
+									case SPV_REFLECT_TYPE_FLAG_INT   : Attrib.Type = (type.traits.numeric.scalar.signedness ? EMetalComponentType::Int : EMetalComponentType::Uint); ElementSize = 4; break;
+									case SPV_REFLECT_TYPE_FLAG_FLOAT : Attrib.Type = (type.traits.numeric.scalar.width == 32 ? EMetalComponentType::Float : EMetalComponentType::Half); if(type.traits.numeric.scalar.width == 32) { ElementSize = 4; } else { ElementSize = 2; } break;
+								}
+								if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
+								{
+									Attrib.Components = (type.traits.numeric.matrix.row_count * type.traits.numeric.matrix.column_count);
+								}
+								else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
+								{
+									Attrib.Components = (type.traits.numeric.vector.component_count);
+								}
+								else
+								{
+									Attrib.Components = 1;
+								}
+								
+								char const* NumberedSemantic = strstr(Var->name, Var->semantic);
+								FString Semantic = FString::Printf(TEXT("%s_%u"), UTF8_TO_TCHAR(NumberedSemantic), j);
+								Attrib.Semantic = GetTypeHash(Semantic);
+								
+								uint32 AlignedComponents = Attrib.Components == 3 ? 4 : Attrib.Components;
+								InitialAlign = InitialAlign == 0 ? ElementSize * AlignedComponents : InitialAlign;
+								Offset = Align(Offset, ElementSize * AlignedComponents);
+								Attrib.Offset = Offset;
+								Offset += ElementSize * AlignedComponents;
+
+								if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+									ALNString += FString::Printf(TEXT("%sHSOut.%s(%u)"), ALNString.Len() ? TEXT(",") : TEXT(""), *Semantic, Attrib.Offset);
+							}
+						}
+					}
+					Attribs.HSOutSize = Align(Offset, 16);
+					
+					if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+						ALNString += FString::Printf(TEXT(" = HSOutSize(%u)"), Attribs.HSOutSize);
+				}
+			}
+			
+			if (Frequency == HSF_HullShader)
+			{
+				Count = 0;
+				SPVRResult = Reflection.EnumerateInputVariables(&Count, nullptr);
+				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+				InputVars.SetNum(Count);
+				SPVRResult = Reflection.EnumerateInputVariables(&Count, InputVars.GetData());
+				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+				if (Count > 0)
+				{
+					
+					InputVars.Sort([](SpvReflectInterfaceVariable& LHS, SpvReflectInterfaceVariable& RHS)  { return LHS.location < RHS.location; });
+					uint32 Offset = 0;
+					for (auto const& Var : InputVars)
+					{
+						if (Var->storage_class == SpvStorageClassInput && Var->built_in == -1)
+						{
+							unsigned Location = Var->location;
+							
+							uint32 ArrayCount = 1;
+							for (uint32 Dim = 1; Dim < Var->array.dims_count; Dim++)
+							{
+								ArrayCount *= Var->array.dims[Dim];
+							}
+							
+							auto const type = *Var->type_description;
+							uint32_t masked_type = type.type_flags & 0xF;
+							
+							for (uint32 j = 0; j < ArrayCount; j++)
+							{
+								FMetalAttribute& Attrib = Attribs.HSIn.AddDefaulted_GetRef();
+								Attrib.Index = Location + j;
+								uint32 ElementSize = 0;
+								switch (masked_type) {
+									default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
+									case SPV_REFLECT_TYPE_FLAG_BOOL  : Attrib.Type = EMetalComponentType::Bool; ElementSize = 1; break;
+									case SPV_REFLECT_TYPE_FLAG_INT   : Attrib.Type = (type.traits.numeric.scalar.signedness ? EMetalComponentType::Int : EMetalComponentType::Uint); ElementSize = 4; break;
+									case SPV_REFLECT_TYPE_FLAG_FLOAT : Attrib.Type = (type.traits.numeric.scalar.width == 32 ? EMetalComponentType::Float : EMetalComponentType::Half); if(type.traits.numeric.scalar.width == 32) { ElementSize = 4; } else { ElementSize = 2; } break;
+								}
+								if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
+								{
+									Attrib.Components = (type.traits.numeric.matrix.row_count * type.traits.numeric.matrix.column_count);
+								}
+								else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
+								{
+									Attrib.Components = (type.traits.numeric.vector.component_count);
+								}
+								else
+								{
+									Attrib.Components = 1;
+								}
+								
+								char const* NumberedSemantic = strstr(Var->name, Var->semantic);
+								FString Semantic = FString::Printf(TEXT("%s_%u"), UTF8_TO_TCHAR(NumberedSemantic), j);
+								Attrib.Semantic = GetTypeHash(Semantic);
+								
+								uint32 AlignedComponents = Attrib.Components == 3 ? 4 : Attrib.Components;
+								Offset = Align(Offset, ElementSize * AlignedComponents);
+								Attrib.Offset = Offset;
+								Offset += ElementSize * AlignedComponents;
+								
+								if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+									ALNString += FString::Printf(TEXT("%sHSIn.%s(%u)"), ALNString.Len() ? TEXT(",") : TEXT(""), *Semantic, Attrib.Offset);
+							}
+						}
+					}
+				}
+				
+				Count = 0;
+				SPVRResult = Reflection.EnumerateOutputVariables(&Count, nullptr);
+				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+				OutputVars.SetNum(Count);
+				SPVRResult = Reflection.EnumerateOutputVariables(&Count, OutputVars.GetData());
+				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+				if (Count > 0)
+				{
+					uint32 HSOutOffset = 0;
+					uint32 PatchControlPointOffset = 0;
+					uint32 HSOutAlign = 0;
+					uint32 PatchControlPointAlign = 0;
+					
+					OutputVars.Sort([](SpvReflectInterfaceVariable& LHS, SpvReflectInterfaceVariable& RHS)  { return LHS.location < RHS.location; });
+					
+					for (auto const& Var : OutputVars)
+					{
+						if (Var->storage_class == SpvStorageClassOutput && Var->built_in == -1)
+						{
+							unsigned Location = Var->location;
+							uint32 ArrayCount = 1;
+							for (uint32 Dim = 1; Dim < Var->array.dims_count; Dim++)
+							{
+								ArrayCount *= Var->array.dims[Dim];
+							}
+							
+							auto const type = *Var->type_description;
+							uint32_t masked_type = type.type_flags & 0xF;
+							
+							for (uint32 j = 0; j < ArrayCount; j++)
+							{
+								FMetalAttribute& Attrib = Var->array.dims_count ? Attribs.PatchControlPointOut.AddDefaulted_GetRef() : Attribs.HSOut.AddDefaulted_GetRef();
+								Attrib.Index = Location + j;
+								uint32 ElementSize = 0;
+								switch (masked_type) {
+									default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
+									case SPV_REFLECT_TYPE_FLAG_BOOL  : Attrib.Type = EMetalComponentType::Bool; ElementSize = 1; break;
+									case SPV_REFLECT_TYPE_FLAG_INT   : Attrib.Type = (type.traits.numeric.scalar.signedness ? EMetalComponentType::Int : EMetalComponentType::Uint); ElementSize = 4; break;
+									case SPV_REFLECT_TYPE_FLAG_FLOAT : Attrib.Type = (type.traits.numeric.scalar.width == 32 ? EMetalComponentType::Float : EMetalComponentType::Half); if(type.traits.numeric.scalar.width == 32) { ElementSize = 4; } else { ElementSize = 2; } break;
+								}
+								if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
+								{
+									Attrib.Components = (type.traits.numeric.matrix.row_count * type.traits.numeric.matrix.column_count);
+								}
+								else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
+								{
+									Attrib.Components = (type.traits.numeric.vector.component_count);
+								}
+								else
+								{
+									Attrib.Components = 1;
+								}
+								
+								uint32& Offset = Var->array.dims_count ? PatchControlPointOffset : HSOutOffset;
+								uint32& InitialAlign = Var->array.dims_count ? PatchControlPointAlign : HSOutAlign;
+								TCHAR const* Name = Var->array.dims_count ? TEXT("PatchOut") : TEXT("HSOut");
+								
+								char const* NumberedSemantic = strstr(Var->name, Var->semantic);
+								FString Semantic = FString::Printf(TEXT("%s_%u"), UTF8_TO_TCHAR(NumberedSemantic), j);
+								Attrib.Semantic = GetTypeHash(Semantic);
+								
+								uint32 AlignedComponents = Attrib.Components == 3 ? 4 : Attrib.Components;
+								InitialAlign = InitialAlign == 0 ? ElementSize * AlignedComponents : InitialAlign;
+								Offset = Align(Offset, ElementSize * AlignedComponents);
+								Attrib.Offset = Offset;
+								Offset += ElementSize * AlignedComponents;
+								
+								if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+									ALNString += FString::Printf(TEXT("%s%s.%s(%u)"), ALNString.Len() ? TEXT(",") : TEXT(""), Name, *Semantic, Attrib.Offset);
+							}
+						}
+					}
+					Attribs.HSOutSize = Align(HSOutOffset, 16);
+					Attribs.PatchControlPointOutSize = Align(PatchControlPointOffset, 16);
+					
+					if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+						ALNString += FString::Printf(TEXT(" = HSOutSize(%u), PatchControlPointOutSize(%u)"), Attribs.HSOutSize, Attribs.PatchControlPointOutSize);
+				}
+			}
+			
+			if (Frequency == HSF_DomainShader)
+			{
+				Count = 0;
+				SPVRResult = Reflection.EnumerateInputVariables(&Count, nullptr);
+				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+				InputVars.SetNum(Count);
+				SPVRResult = Reflection.EnumerateInputVariables(&Count, InputVars.GetData());
+				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+				if (Count > 0)
+				{
+					uint32 HSOutOffset = 0;
+					uint32 PatchControlPointOffset = 0;
+					uint32 HSOutAlign = 0;
+					uint32 PatchControlPointAlign = 0;
+					
+					InputVars.Sort([](SpvReflectInterfaceVariable& LHS, SpvReflectInterfaceVariable& RHS)  { return LHS.location < RHS.location; });
+					for (auto const& Var : InputVars)
+					{
+						if (Var->storage_class == SpvStorageClassInput && Var->built_in == -1)
+						{
+							unsigned Location = Var->location;
+							
+							uint32 ArrayCount = 1;
+							for (uint32 Dim = 1; Dim < Var->array.dims_count; Dim++)
+							{
+								ArrayCount *= Var->array.dims[Dim];
+							}
+							
+							auto const type = *Var->type_description;
+							uint32_t masked_type = type.type_flags & 0xF;
+							
+							for (uint32 j = 0; j < ArrayCount; j++)
+							{
+								FMetalAttribute& Attrib = Var->array.dims_count ? Attribs.PatchControlPointOut.AddDefaulted_GetRef() : Attribs.HSOut.AddDefaulted_GetRef();
+								Attrib.Index = Location + j;
+								uint32 ElementSize = 0;
+								switch (masked_type) {
+									default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
+									case SPV_REFLECT_TYPE_FLAG_BOOL  : Attrib.Type = EMetalComponentType::Bool; ElementSize = 1; break;
+									case SPV_REFLECT_TYPE_FLAG_INT   : Attrib.Type = (type.traits.numeric.scalar.signedness ? EMetalComponentType::Int : EMetalComponentType::Uint); ElementSize = 4; break;
+									case SPV_REFLECT_TYPE_FLAG_FLOAT : Attrib.Type = (type.traits.numeric.scalar.width == 32 ? EMetalComponentType::Float : EMetalComponentType::Half); if(type.traits.numeric.scalar.width == 32) { ElementSize = 4; } else { ElementSize = 2; } break;
+								}
+								if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
+								{
+									Attrib.Components = (type.traits.numeric.matrix.row_count * type.traits.numeric.matrix.column_count);
+								}
+								else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
+								{
+									Attrib.Components = (type.traits.numeric.vector.component_count);
+								}
+								else
+								{
+									Attrib.Components = 1;
+								}
+								
+								uint32& Offset = Var->array.dims_count ? PatchControlPointOffset : HSOutOffset;
+								uint32& InitialAlign = Var->array.dims_count ? PatchControlPointAlign : HSOutAlign;
+								TCHAR const* Name = Var->array.dims_count ? TEXT("PatchOut") : TEXT("HSOut");
+								
+								char const* NumberedSemantic = strstr(Var->name, Var->semantic);
+								FString Semantic = FString::Printf(TEXT("%s_%u"), UTF8_TO_TCHAR(NumberedSemantic), j);
+								Attrib.Semantic = GetTypeHash(Semantic);
+								
+								uint32 AlignedComponents = Attrib.Components == 3 ? 4 : Attrib.Components;
+								InitialAlign = InitialAlign == 0 ? ElementSize * AlignedComponents : InitialAlign;
+								Offset = Align(Offset, ElementSize * AlignedComponents);
+								Attrib.Offset = Offset;
+								Offset += ElementSize * AlignedComponents;
+								
+								if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+									ALNString += FString::Printf(TEXT("%s%s.%s(%u)"), ALNString.Len() ? TEXT(",") : TEXT(""), Name, *Semantic, Attrib.Offset);
+							}
+						}
+					}
+					Attribs.HSOutSize = Align(HSOutOffset, 16);
+					Attribs.PatchControlPointOutSize = Align(PatchControlPointOffset, 16);
+					
+					if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+						ALNString += FString::Printf(TEXT(" = HSOutSize(%u), PatchControlPointOutSize(%u)"), Attribs.HSOutSize, Attribs.PatchControlPointOutSize);
+				}
+			}
+			
+			ShaderConductor::Blob* OldData = Results.target;
+			Results.target = ShaderConductor::CreateBlob(Reflection.GetCode(), Reflection.GetCodeSize());
+			
+			FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / FPaths::GetBaseFilename(Input.GetSourceFilename()) + TEXT(".dxc.spirv")));
+			if (FileWriter)
+			{
+				FileWriter->Serialize((void*)Reflection.GetCode(), Reflection.GetCodeSize());
+				FileWriter->Close();
+				delete FileWriter;
+			}
+			
+			ShaderConductor::DestroyBlob(OldData);
+		}
+		
+		uint32 SideTableIndex = 0;
+		uint32 OutputBufferIndex = 0;
+		uint32 IndirectParamsIndex = 0;
+		uint32 PatchBufferIndex = 0;
+		uint32 TessFactorBufferIndex = 0;
+		uint32 HullIndexBuffer = 0;
+		if (Result)
+		{
+			ShaderConductor::DestroyBlob(Results.errorWarningMsg);
+			Results.errorWarningMsg = nullptr;
+			
+			TargetDesc.language = ShaderConductor::ShadingLanguage::Msl;
+			
+			SideTableIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
+			char BufferIdx[3];
+			FCStringAnsi::Snprintf(BufferIdx, 3, "%d", SideTableIndex);
+			BufferIndices &= ~(1 << SideTableIndex);
+
+			ShaderConductor::MacroDefine Defines[16] = {{"texel_buffer_texture_width", "0"}, {"enforce_storge_buffer_bounds", "1"}, {"buffer_size_buffer_index", BufferIdx}, {"invariant_float_math", Options.enableFMAPass ? "1" : "0"}};
+			TargetDesc.numOptions = 4;
+			TargetDesc.options = &Defines[0];
+			switch(Semantics)
+			{
+				case EMetalGPUSemanticsImmediateDesktop:
+					TargetDesc.platform = "macOS";
+					break;
+				case EMetalGPUSemanticsTBDRDesktop:
+					TargetDesc.platform = "iOS";
+					Defines[TargetDesc.numOptions++] = { "ios_support_base_vertex_instance", "1" };
+					Defines[TargetDesc.numOptions++] = { "ios_use_framebuffer_fetch_subpasses", "1" };
+					Defines[TargetDesc.numOptions++] = { "emulate_cube_array", "1" };
+					break;
+				case EMetalGPUSemanticsMobile:
+				default:
+					TargetDesc.platform = "iOS";
+					Defines[TargetDesc.numOptions++] = { "ios_use_framebuffer_fetch_subpasses", "1" };
+					Defines[TargetDesc.numOptions++] = { "emulate_cube_array", "1" };
+					break;
+			}
+			
+			if (Frequency == HSF_VertexShader && bUsingTessellation)
+			{
+				Defines[TargetDesc.numOptions++] = { "capture_output_to_buffer", "1" };
+			}
+			
+			char OutputBufferIdx[3];
+			char IndirectParamsIdx[3];
+			if (Frequency == HSF_VertexShader && bUsingTessellation)
+			{
+				OutputBufferIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
+				BufferIndices &= ~(1 << OutputBufferIndex);
+				FCStringAnsi::Snprintf(OutputBufferIdx, 3, "%u", OutputBufferIndex);
+				Defines[TargetDesc.numOptions++] = { "shader_output_buffer_index", OutputBufferIdx };
+				
+				IndirectParamsIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
+				BufferIndices &= ~(1 << IndirectParamsIndex);
+				FCStringAnsi::Snprintf(IndirectParamsIdx, 3, "%u", IndirectParamsIndex);
+				Defines[TargetDesc.numOptions++] = { "indirect_params_buffer_index", IndirectParamsIdx };
+				
+				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationHSOutBuffer] = FString::Printf(TEXT("// @TessellationHSOutBuffer: %u\n"), OutputBufferIndex);
+				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationPatchCountBuffer] = FString::Printf(TEXT("// @TessellationPatchCountBuffer: %u\n"), IndirectParamsIndex);
+			}
+			
+			if (Frequency == HSF_DomainShader)
+			{
+				OutputBufferIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
+				BufferIndices &= ~(1 << OutputBufferIndex);
+				
+				IndirectParamsIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
+				BufferIndices &= ~(1 << IndirectParamsIndex);
+				
+				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationHSOutBuffer] = FString::Printf(TEXT("// @TessellationHSOutBuffer: %u\n"), OutputBufferIndex);
+				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationControlPointOutBuffer] = FString::Printf(TEXT("// @TessellationControlPointOutBuffer: %u\n"), IndirectParamsIndex);
+			}
+			
+			char PatchBufferIdx[3];
+			char TessFactorBufferIdx[3];
+			if (Frequency == HSF_HullShader)
+			{
+				OutputBufferIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
+				BufferIndices &= ~(1 << OutputBufferIndex);
+				FCStringAnsi::Snprintf(OutputBufferIdx, 3, "%u", OutputBufferIndex);
+				Defines[TargetDesc.numOptions++] = { "shader_output_buffer_index", OutputBufferIdx };
+				
+				IndirectParamsIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
+				BufferIndices &= ~(1 << IndirectParamsIndex);
+				FCStringAnsi::Snprintf(IndirectParamsIdx, 3, "%u", IndirectParamsIndex);
+				Defines[TargetDesc.numOptions++] = { "indirect_params_buffer_index", IndirectParamsIdx };
+				
+				PatchBufferIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
+				BufferIndices &= ~(1 << PatchBufferIndex);
+				FCStringAnsi::Snprintf(PatchBufferIdx, 3, "%u", PatchBufferIndex);
+				Defines[TargetDesc.numOptions++] = { "shader_patch_output_buffer_index", PatchBufferIdx };
+				
+				TessFactorBufferIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
+				BufferIndices &= ~(1 << TessFactorBufferIndex);
+				FCStringAnsi::Snprintf(TessFactorBufferIdx, 3, "%u", TessFactorBufferIndex);
+				Defines[TargetDesc.numOptions++] = { "shader_tess_factor_buffer_index", TessFactorBufferIdx };
+				Defines[TargetDesc.numOptions++] = { "shader_input_wg_index", "0" };
+
+				HullIndexBuffer = FPlatformMath::CountTrailingZeros(BufferIndices);
+				BufferIndices &= ~(1 << HullIndexBuffer);
+				
+				uint32 HullVertexBuffer = FPlatformMath::CountTrailingZeros(BufferIndices);
+				BufferIndices &= ~(1 << HullVertexBuffer);
+				
+				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationHSOutBuffer] = FString::Printf(TEXT("// @TessellationHSOutBuffer: %u\n"), PatchBufferIndex);
+				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationPatchCountBuffer] = FString::Printf(TEXT("// @TessellationPatchCountBuffer: %u\n"), IndirectParamsIndex);
+				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationControlPointIndexBuffer] = FString::Printf(TEXT("// @TessellationControlPointIndexBuffer: %u\n"), HullVertexBuffer);
+				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationHSTFOutBuffer] = FString::Printf(TEXT("// @TessellationHSTFOutBuffer: %u\n"), TessFactorBufferIndex);
+				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationControlPointOutBuffer] = FString::Printf(TEXT("// @TessellationControlPointOutBuffer: %u\n"), OutputBufferIndex);
+				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationIndexBuffer] = FString::Printf(TEXT("// @TessellationIndexBuffer: %u\n"), HullIndexBuffer);
+			}
+			
+			char ArgumentBufferOffset[3];
+			switch (VersionEnum)
+			{
+				case 6:
+				case 5:
+				case 4:
+				{
+					if (IABTier >= 1)
+					{
+						FCStringAnsi::Snprintf(ArgumentBufferOffset, 3, "%u", IABOffsetIndex);
+						Defines[TargetDesc.numOptions++] = { "argument_buffers", "1" };
+						Defines[TargetDesc.numOptions++] = { "argument_buffer_offset", ArgumentBufferOffset };
+					}
+					Defines[TargetDesc.numOptions++] = { "texture_buffer_native", "1" };
+					TargetDesc.version = "20100";
+					break;
+				}
+				case 3:
+				{
+					TargetDesc.version = "20000";
+					break;
+				}
+				case 2:
+				{
+					TargetDesc.version = "10200";
+					break;
+				}
+				case 1:
+				{
+					TargetDesc.version = "10100";
+					break;
+				}
+				case 0:
+				default:
+				{
+					TargetDesc.version = "10000";
+					break;
+				}
+			}
+			
+			ShaderConductor::Blob* IRBlob = Results.target;
+			
+			Results = ShaderConductor::Compiler::ConvertBinary(Results, SourceDesc, TargetDesc);
+			
+			ShaderConductor::DestroyBlob(IRBlob);
+		}
+		
+		Result = (Results.hasError) ? 0 : 1;
+		if (!Results.hasError && Results.target)
+		{
 			MetaData += TEXT("// Compiled by ShaderConductor\n");
 			if (INPString.Len())
 			{
@@ -1255,151 +2047,16 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				MetaData += FString::Printf(TEXT("// @NumThreads: %s\n"), *WKGString);
 			}
 			
-			ShaderConductor::Blob* OldData = Results.target;
-			Results.target = ShaderConductor::CreateBlob(Reflection.GetCode(), Reflection.GetCodeSize());
 			
-			FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / FPaths::GetBaseFilename(Input.GetSourceFilename()) + TEXT(".dxc.spirv")));
-			if (FileWriter)
-			{
-				FileWriter->Serialize((void*)Reflection.GetCode(), Reflection.GetCodeSize());
-				FileWriter->Close();
-				delete FileWriter;
-			}
-			
-			ShaderConductor::DestroyBlob(OldData);
-		}
-		
-		uint32 SideTableIndex = 0;
-		uint32 OutputBufferIndex = 0;
-		uint32 IndirectParamsIndex = 0;
-		uint32 PatchBufferIndex = 0;
-		uint32 TessFactorBufferIndex = 0;
-		uint32 ShaderInputWGIndex = 0;
-		if (Result)
-		{
-			ShaderConductor::DestroyBlob(Results.errorWarningMsg);
-			Results.errorWarningMsg = nullptr;
-			
-			TargetDesc.language = ShaderConductor::ShadingLanguage::Msl;
-			
-			SideTableIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
-			char BufferIdx[3];
-			FCStringAnsi::Snprintf(BufferIdx, 3, "%d", SideTableIndex);
-			BufferIndices &= ~(1 << SideTableIndex);
-
-			ShaderConductor::MacroDefine Defines[12] = {{"texel_buffer_texture_width", "0"}, {"enforce_storge_buffer_bounds", "1"}, {"buffer_size_buffer_index", BufferIdx}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}};
-			TargetDesc.numOptions = 3;
-			TargetDesc.options = &Defines[0];
-			switch(Semantics)
-			{
-				case EMetalGPUSemanticsImmediateDesktop:
-					TargetDesc.platform = "macOS";
-					break;
-				case EMetalGPUSemanticsTBDRDesktop:
-					TargetDesc.platform = "iOS";
-					Defines[TargetDesc.numOptions++] = { "ios_support_base_vertex_instance", "1" };
-					Defines[TargetDesc.numOptions++] = { "ios_use_framebuffer_fetch_subpasses", "1" };
-					break;
-				case EMetalGPUSemanticsMobile:
-				default:
-					TargetDesc.platform = "iOS";
-					Defines[TargetDesc.numOptions++] = { "ios_use_framebuffer_fetch_subpasses", "1" };
-					TargetDesc.numOptions += 1;
-					break;
-			}
-			
-			if (Frequency == HSF_VertexShader && bUsingTessellation)
-			{
-				Defines[TargetDesc.numOptions++] = { "capture_output_to_buffer", "1" };
-			}
-			
-			char OutputBufferIdx[3];
-			char IndirectParamsIdx[3];
-			if ((Frequency == HSF_VertexShader && bUsingTessellation) || Frequency == HSF_HullShader)
-			{
-				OutputBufferIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
-				BufferIndices &= ~(1 << OutputBufferIndex);
-				FCStringAnsi::Snprintf(OutputBufferIdx, 3, "%u", OutputBufferIndex);
-				Defines[TargetDesc.numOptions++] = { "shader_output_buffer_index", OutputBufferIdx };
-				
-				IndirectParamsIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
-				BufferIndices &= ~(1 << IndirectParamsIndex);
-				FCStringAnsi::Snprintf(IndirectParamsIdx, 3, "%u", IndirectParamsIndex);
-				Defines[TargetDesc.numOptions++] = { "indirect_params_buffer_index", IndirectParamsIdx };
-				
-				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationHSOutBuffer] = FString::Printf(TEXT("// @TessellationHSOutBuffer: %u\n"), OutputBufferIndex);
-				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationPatchCountBuffer] = FString::Printf(TEXT("// @TessellationPatchCountBuffer: %u\n"), IndirectParamsIndex);
-			}
-			
-			char PatchBufferIdx[3];
-			char TessFactorBufferIdx[3];
-			char ShaderInputWGIdx[3];
-			if (Frequency == HSF_HullShader)
-			{
-				PatchBufferIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
-				BufferIndices &= ~(1 << PatchBufferIndex);
-				FCStringAnsi::Snprintf(PatchBufferIdx, 3, "%u", PatchBufferIndex);
-				Defines[TargetDesc.numOptions++] = { "shader_patch_output_buffer_index", PatchBufferIdx };
-				
-				TessFactorBufferIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
-				BufferIndices &= ~(1 << TessFactorBufferIndex);
-				FCStringAnsi::Snprintf(TessFactorBufferIdx, 3, "%u", TessFactorBufferIndex);
-				Defines[TargetDesc.numOptions++] = { "shader_tess_factor_buffer_index", TessFactorBufferIdx };
-				
-				FCStringAnsi::Snprintf(ShaderInputWGIdx, 3, "%u", ShaderInputWGIndex);
-				Defines[TargetDesc.numOptions++] = { "shader_input_wg_index", ShaderInputWGIdx };
-				
-				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationHSTFOutBuffer] = FString::Printf(TEXT("// @TessellationHSTFOutBuffer: %u\n"), TessFactorBufferIndex);
-				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationControlPointOutBuffer] = FString::Printf(TEXT("// @TessellationControlPointOutBuffer: %u\n"), PatchBufferIndex);
-				TESStrings[(uint8)EMetalTessellationMetadataTags::TessellationIndexBuffer] = FString::Printf(TEXT("// @TessellationIndexBuffer: %u\n"), ShaderInputWGIndex);
-			}
-			
-			switch (VersionEnum)
-			{
-				case 6:
-				case 5:
-				case 4:
-				{
-					Defines[TargetDesc.numOptions++] = { "texture_buffer_native", "1" };
-					TargetDesc.version = "20100";
-					break;
-				}
-				case 3:
-				{
-					TargetDesc.version = "20000";
-					break;
-				}
-				case 2:
-				{
-					TargetDesc.version = "10200";
-					break;
-				}
-				case 1:
-				{
-					TargetDesc.version = "10100";
-					break;
-				}
-				case 0:
-				default:
-				{
-					TargetDesc.version = "10000";
-					break;
-				}
-			}
-			
-			ShaderConductor::Blob* IRBlob = Results.target;
-			
-			Results = ShaderConductor::Compiler::ConvertBinary(Results, SourceDesc, TargetDesc);
-			
-			ShaderConductor::DestroyBlob(IRBlob);
-		}
-		
-		Result = (Results.hasError) ? 0 : 1;
-		if (!Results.hasError && Results.target)
-		{
 			if(strstr((const char*)Results.target->Data(), "spvBufferSizeConstants"))
 			{
 				MetaData += FString::Printf(TEXT("// @SideTable: spvBufferSizeConstants(%d)\n"), SideTableIndex);
+			}
+			if (IABString.Len())
+			{
+				MetaData += TEXT("// @ArgumentBuffers: ");
+				MetaData += IABString;
+				MetaData += TEXT("\n");
 			}
 			FString TESString;
 			for (uint32 i = 0; i < (uint32)EMetalTessellationMetadataTags::Num; i++)
@@ -1410,10 +2067,100 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			{
 				MetaData += TESString;
 			}
-			MetaData += FString::Printf(TEXT("\n\n"));
+			MetaData += TEXT("\n\n");
+			if (ALNString.Len())
+			{
+				MetaData += TEXT("// Attributes: ");
+				MetaData += ALNString;
+				MetaData += TEXT("\n\n");
+			}
 			
 			MetalSource = TCHAR_TO_UTF8(*MetaData);
 			MetalSource += std::string((const char*)Results.target->Data(), Results.target->Size());
+			
+			// Tessellation vertex & hull shaders must always use FMA
+			if (Options.enableFMAPass)
+			{
+				std::string FMADefine = std::string("#include <metal_stdlib>\n\n"
+										"template<typename T> static inline __attribute__((always_inline)) T ue4_cross(T x, T y)\n"
+										"{\n"
+										"	float3 fx = float3(x);\n"
+										"	float3 fy = float3(y);\n"
+										"	return T(metal::fma(fx[1], fy[2], -metal::fma(fy[1], fx[2], 0.0)), metal::fma(fx[2], fy[0], -metal::fma(fy[2], fx[0], 0.0)), metal::fma(fx[0], fy[1], -metal::fma(fy[0], fx[1], 0.0)));\n"
+										"}\n"
+										"\t#define cross ue4_cross\n"
+										);
+				
+				std::string IncludeString = "#include <metal_stdlib>";
+				size_t IncludePos = MetalSource.find(IncludeString);
+				if (IncludePos != std::string::npos)
+					MetalSource.replace(IncludePos, IncludeString.length(), FMADefine);
+			}
+			
+			if (Frequency == HSF_DomainShader)
+			{
+				uint32 PatchSize = 0;
+				size_t ThreadSizeIdx = SourceData.find("OutputPatch<");
+				check(ThreadSizeIdx != std::string::npos);
+				char const* String = SourceData.c_str() + ThreadSizeIdx;
+				while(!isdigit((unsigned char)*String))
+				{
+					String++;
+				}
+#if !PLATFORM_WINDOWS
+				size_t Found = sscanf(String, "%u", &PatchSize);
+#else
+				size_t Found = sscanf_s(String, "%u", &PatchSize);
+#endif
+				check(Found == 1);
+				
+				std::string PatchAttr;
+				std::string PatchSearch = "[[ patch(triangle, 0) ]]";
+				size_t PatchIdx = MetalSource.find(PatchSearch);
+				if (PatchIdx != std::string::npos)
+				{
+					PatchAttr = "[[ patch(triangle, ";
+				}
+				else
+				{
+					PatchSearch = "[[ patch(quad, 0) ]]";
+					PatchIdx = MetalSource.find(PatchSearch);
+					PatchAttr = "[[ patch(quad, ";
+				}
+				if (PatchIdx != std::string::npos)
+				{
+					char BufferIdx[3];
+					FCStringAnsi::Snprintf(BufferIdx, 3, "%d", PatchSize);
+					PatchAttr += BufferIdx;
+					PatchAttr += ") ]]";
+					MetalSource.replace(PatchIdx, PatchSearch.length(), PatchAttr);
+				}
+				
+				CRCLen = MetalSource.length();
+				CRC = FCrc::MemCrc_DEPRECATED(MetalSource.c_str(), CRCLen);
+
+				std::string PatchInputName = EntryPointName + "_patchIn";
+				std::string PatchNameDefine = "#define ";
+				PatchNameDefine += PatchInputName;
+				PatchNameDefine += " ";
+				PatchNameDefine += PatchInputName;
+				PatchNameDefine += std::to_string(CRC);
+				PatchNameDefine += std::to_string(CRCLen);
+				PatchNameDefine += "\n";
+				
+				std::string PatchInput = EntryPointName + "_in";
+				std::string PatchDefine = "#define ";
+				PatchDefine += PatchInput;
+				PatchDefine += " ";
+				PatchDefine += PatchInput;
+				PatchDefine += std::to_string(CRC);
+				PatchDefine += std::to_string(CRCLen);
+				PatchDefine += "\n";
+				
+				size_t Pos = MetalSource.find("#include ");
+				MetalSource.insert(Pos, PatchNameDefine);
+				MetalSource.insert(Pos, PatchDefine);
+			}
 			
 			CRCLen = MetalSource.length();
 			CRC = FCrc::MemCrc_DEPRECATED(MetalSource.c_str(), CRCLen);
@@ -1429,6 +2176,205 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				if (Pos != std::string::npos)
 					MetalSource.replace(Pos, MainEntryPoint.length(), MainCRC);
 			} while(Pos != std::string::npos);
+		}
+		
+		// Version 6 means Tier 2 IABs for now.
+		if (IABTier >= 2)
+		{
+			char BufferIdx[3];
+			for (auto& IAB : IABs)
+			{
+				uint32 Index = IAB.Value[0].SetIndex;
+				FMemory::Memzero(BufferIdx);
+				FCStringAnsi::Snprintf(BufferIdx, 3, "%d", Index);
+				std::string find_str = "struct spvDescriptorSetBuffer";
+				find_str += BufferIdx;
+				size_t Pos = MetalSource.find(find_str);
+				if (Pos != std::string::npos)
+				{
+					size_t StartPos = MetalSource.find("{", Pos);
+					size_t EndPos = MetalSource.find("}", StartPos);
+					std::string IABName(TCHAR_TO_UTF8(*IAB.Key));
+					size_t UBPos = MetalSource.find("constant type_" + IABName + "*");
+					
+					std::string Declaration = find_str + "\n{\n\tconstant uint* spvBufferSizeConstants [[id(0)]];\n";
+					for (FMetalResourceTableEntry& Entry : IAB.Value)
+					{
+						std::string EntryString;
+						std::string Name(TCHAR_TO_UTF8(*Entry.Name));
+						switch(Entry.Type)
+						{
+							case UBMT_TEXTURE:
+							case UBMT_RDG_TEXTURE:
+							case UBMT_RDG_TEXTURE_SRV:
+							case UBMT_SRV:
+							case UBMT_SAMPLER:
+							case UBMT_RDG_BUFFER:
+							case UBMT_RDG_BUFFER_SRV:
+							case UBMT_UAV:
+							case UBMT_RDG_TEXTURE_UAV:
+							case UBMT_RDG_BUFFER_UAV:
+							{
+								size_t EntryPos = MetalSource.find(Name + " [[id(");
+								if (EntryPos != std::string::npos)
+								{
+									while(MetalSource[--EntryPos] != '\n') {}
+									while(MetalSource[++EntryPos] != '\n')
+									{
+										EntryString += MetalSource[EntryPos];
+									}
+									EntryString += "\n";
+								}
+								else
+								{
+									switch(Entry.Type)
+									{
+										case UBMT_TEXTURE:
+										case UBMT_RDG_TEXTURE:
+										case UBMT_RDG_TEXTURE_SRV:
+										case UBMT_SRV:
+										{
+											std::string typeName = "texture_buffer<float, access::read>";
+											int32 NameIndex = PreprocessedShader.Find(Entry.Name + ";");
+											int32 DeclIndex = NameIndex;
+											if (DeclIndex > 0)
+											{
+												while(PreprocessedShader[--DeclIndex] != TEXT('\n')) {}
+												FString Decl = PreprocessedShader.Mid(DeclIndex, NameIndex - DeclIndex);
+												TCHAR const* Types[] = { TEXT("ByteAddressBuffer<"), TEXT("StructuredBuffer<"), TEXT("Buffer<"), TEXT("Texture2DArray"), TEXT("TextureCubeArray"), TEXT("Texture2D"), TEXT("Texture3D"), TEXT("TextureCube") };
+												char const* NewTypes[] = { "device void*", "device void*", "texture_buffer<float, access::read>", "texture2d_array<float>", "texturecube_array<float>", "texture2d<float>", "texture3d<float>", "texturecube<float>" };
+												for (uint32 i = 0; i < 8; i++)
+												{
+													if (Decl.Contains(Types[i]))
+													{
+														typeName = NewTypes[i];
+														break;
+													}
+												}
+											}
+											
+											FCStringAnsi::Snprintf(BufferIdx, 3, "%d", Entry.ResourceIndex + 1);
+											EntryString = "\t";
+											EntryString += typeName;
+											EntryString += " ";
+											EntryString += Name;
+											EntryString += " [[id(";
+											EntryString += BufferIdx;
+											EntryString += ")]];\n";
+											break;
+										}
+										case UBMT_SAMPLER:
+										{
+											FCStringAnsi::Snprintf(BufferIdx, 3, "%d", Entry.ResourceIndex + 1);
+											EntryString = "\tsampler ";
+											EntryString += Name;
+											EntryString += " [[id(";
+											EntryString += BufferIdx;
+											EntryString += ")]];\n";
+											break;
+										}
+										case UBMT_RDG_BUFFER:
+										case UBMT_RDG_BUFFER_SRV:
+										{
+											FCStringAnsi::Snprintf(BufferIdx, 3, "%d", Entry.ResourceIndex + 1);
+											EntryString = "\tdevice void* ";
+											EntryString += Name;
+											EntryString += " [[id(";
+											EntryString += BufferIdx;
+											EntryString += ")]];\n";
+											break;
+										}
+										case UBMT_UAV:
+										case UBMT_RDG_TEXTURE_UAV:
+										{
+											std::string typeName = "texture_buffer<float, access::read_write>";
+											int32 NameIndex = PreprocessedShader.Find(Entry.Name + ";");
+											int32 DeclIndex = NameIndex;
+											if (DeclIndex > 0)
+											{
+												while(PreprocessedShader[--DeclIndex] != TEXT('\n')) {}
+												FString Decl = PreprocessedShader.Mid(DeclIndex, NameIndex - DeclIndex);
+												TCHAR const* Types[] = { TEXT("ByteAddressBuffer<"), TEXT("StructuredBuffer<"), TEXT("Buffer<"), TEXT("Texture2DArray"), TEXT("TextureCubeArray"), TEXT("Texture2D"), TEXT("Texture3D"), TEXT("TextureCube") };
+												char const* NewTypes[] = { "device void*", "device void*", "texture_buffer<float, access::read_write>", "texture2d_array<float, access::read_write>", "texturecube_array<float, access::read_write>", "texture2d<float, access::read_write>", "texture3d<float, access::read_write>", "texturecube<float, access::read_write>" };
+												for (uint32 i = 0; i < 8; i++)
+												{
+													if (Decl.Contains(Types[i]))
+													{
+														typeName = NewTypes[i];
+														break;
+													}
+												}
+											}
+											
+											FCStringAnsi::Snprintf(BufferIdx, 3, "%d", Entry.ResourceIndex + 1);
+											EntryString = "\t";
+											EntryString += typeName;
+											EntryString += " ";
+											EntryString += Name;
+											EntryString += " [[id(";
+											EntryString += BufferIdx;
+											EntryString += ")]];\n";
+											
+											FCStringAnsi::Snprintf(BufferIdx, 3, "%d", Entry.ResourceIndex + 2);
+											EntryString = "\tdevice void* ";
+											EntryString += Name;
+											EntryString += "_atomic [[id(";
+											EntryString += BufferIdx;
+											EntryString += ")]];\n";
+											break;
+										}
+										case UBMT_RDG_BUFFER_UAV:
+										{
+											FCStringAnsi::Snprintf(BufferIdx, 3, "%d", Entry.ResourceIndex + 1);
+											EntryString = "\ttexture_buffer<float, access::read_write> ";
+											EntryString += Name;
+											EntryString += " [[id(";
+											EntryString += BufferIdx;
+											EntryString += ")]];\n";
+											
+											FCStringAnsi::Snprintf(BufferIdx, 3, "%d", Entry.ResourceIndex + 2);
+											EntryString = "\tdevice void* ";
+											EntryString += Name;
+											EntryString += "_atomic [[id(";
+											EntryString += BufferIdx;
+											EntryString += ")]];\n";
+											break;
+										}
+										default:
+											break;
+									}
+								}
+								Declaration += EntryString;
+								break;
+							}
+							default:
+							{
+								break;
+							}
+						}
+					}
+					if (UBPos < EndPos)
+					{
+						size_t UBEnd = MetalSource.find(";", UBPos);
+						std::string UBStr = MetalSource.substr(UBPos, (UBEnd - UBPos));
+						Declaration += "\t";
+						Declaration += UBStr;
+						Declaration += ";\n";
+					}
+					else
+					{
+						Declaration += "\tconstant void* uniformdata [[id(";
+						FMemory::Memzero(BufferIdx);
+						FCStringAnsi::Snprintf(BufferIdx, 3, "%d", IAB.Value.Num() + 1);
+						Declaration += BufferIdx;
+						Declaration += ")]];\n";
+					}
+					
+					Declaration += "}";
+					
+ 					MetalSource.replace(Pos, (EndPos - Pos) + 1, Declaration);
+				}
+			}
 		}
 		
 		if (Results.errorWarningMsg)

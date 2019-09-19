@@ -1602,6 +1602,7 @@ FReply SAssetView::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dr
 		// Note: We don't test IsAssetPathSelected here as we need to prevent dropping assets on class paths
 		const FString DestPath = SourcesData.PackagePaths[0].ToString();
 
+		// If the DragDrop event is validated, continue trying to dock it to the Widget
 		bool bUnused = false;
 		if (DragDropHandler::ValidateDragDropOnAssetFolder(MyGeometry, DragDropEvent, DestPath, bUnused))
 		{
@@ -1621,8 +1622,15 @@ FReply SAssetView::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dr
 			{
 				OnAssetsOrPathsDragDropped(AssetDragDropOp->GetAssets(), AssetDragDropOp->GetAssetPaths(), DestPath);
 			}
+			return FReply::Handled();
 		}
-		return FReply::Handled();
+		// If the DragDropEvent is not successful, it has not been handled
+		// If it returned Handled rather than Unhandled, when a widget were dragged in there (which is not dropable nor dockable in there),
+		// that widget would disappear rather than being placed as an undocked widget
+		else
+		{
+			return FReply::Unhandled();
+		}
 	}
 	else if (HasSingleCollectionSource())
 	{
@@ -2070,6 +2078,25 @@ void SAssetView::RefreshSourceItems()
 	}
 }
 
+bool SAssetView::IsFilteringRecursively() const
+{
+	// In some cases we want to not filter recursively even if we have a backend filter (e.g. the open level window)
+	// Most of the time, bFilterRecursivelyWithBackendFilter is true
+	return bFilterRecursivelyWithBackendFilter && GetDefault<UContentBrowserSettings>()->FilterRecursively;
+}
+
+bool SAssetView::IsToggleFilteringRecursivelyAllowed() const
+{
+	return bFilterRecursivelyWithBackendFilter;
+}
+
+void SAssetView::ToggleFilteringRecursively()
+{
+	check(IsToggleFilteringRecursivelyAllowed());
+	GetMutableDefault<UContentBrowserSettings>()->FilterRecursively = !GetDefault<UContentBrowserSettings>()->FilterRecursively;
+	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
+}
+
 bool SAssetView::ShouldFilterRecursively() const
 {
 	// Quick check for conditions which force recursive filtering
@@ -2078,9 +2105,7 @@ bool SAssetView::ShouldFilterRecursively() const
 		return true;
 	}
 
-	// In some cases we want to not filter recursively even if we have a backend filter (e.g. the open level window)
-	// Most of the time, bFilterRecursivelyWithBackendFilter is true
-	if ( bFilterRecursivelyWithBackendFilter && !BackendFilter.IsEmpty() )
+	if (IsFilteringRecursively() && !BackendFilter.IsEmpty() )
 	{
 		return true;
 	}
@@ -3156,6 +3181,19 @@ TSharedRef<SWidget> SAssetView::GetViewButtonContent()
 				FExecuteAction::CreateSP(this, &SAssetView::ToggleShowFavorites),
 				FCanExecuteAction::CreateSP(this, &SAssetView::IsToggleShowFavoritesAllowed),
 				FIsActionChecked::CreateSP(this, &SAssetView::IsShowingFavorites)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("FilterRecursivelyOption", "Filter Recursively"),
+			LOCTEXT("FilterRecursivelyOptionToolTip", "Should filters apply recursively in the view?"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SAssetView::ToggleFilteringRecursively),
+				FCanExecuteAction::CreateSP(this, &SAssetView::IsToggleFilteringRecursivelyAllowed),
+				FIsActionChecked::CreateSP(this, &SAssetView::IsFilteringRecursively)
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton

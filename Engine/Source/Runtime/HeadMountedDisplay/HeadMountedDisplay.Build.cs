@@ -29,7 +29,6 @@ public class HeadMountedDisplay : ModuleRules
                 "RHI",
                 "Renderer",
                 "RenderCore",
-                "UtilityShaders",
                 "Analytics",
                 "EngineSettings",
             }

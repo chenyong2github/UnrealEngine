@@ -125,20 +125,22 @@ struct FNiagaraParameterStoreToDataSetBinding
 
 struct FNiagaraSystemSimulationTickContext
 {
-	class FNiagaraSystemSimulation* Owner;
-	UNiagaraSystem* System;
-	float DeltaSeconds;
-	/** If true, this is a pending spawn pass where we spawn and do an initial tick on newly spawned instances. Then transfer them over to the correct tick group. */
-	bool bPendingSpawnPass;
-	FGraphEventRef MyCompletionGraphEvent;
+	FNiagaraSystemSimulationTickContext(class FNiagaraSystemSimulation* Owner, TArray<FNiagaraSystemInstance*>& Instances, FNiagaraDataSet& DataSet, float DeltaSeconds, int32 SpawnNum, const FGraphEventRef& MyCompletionGraphEvent);
 
-	bool bTickAsync;
-	bool bTickInstancesAsync;
+	class FNiagaraSystemSimulation*		Owner;
+	UNiagaraSystem*						System;
 
-	FNiagaraSystemSimulationTickContext(FNiagaraSystemSimulation* InOwner, float InDeltaSeconds, bool bInPendingSpawnPass, const FGraphEventRef& InMyCompletionGraphEvent);
+	TArray<FNiagaraSystemInstance*>&	Instances;
+	FNiagaraDataSet&					DataSet;
 
-	TArray<FNiagaraSystemInstance*>& GetInstances();
-	FNiagaraDataSet& GetDataSet();
+	float								DeltaSeconds;
+	int32								SpawnNum;
+
+	FGraphEventRef						MyCompletionGraphEvent;
+	FGraphEventArray*					FinalizeEvents;
+
+	bool								bTickAsync;
+	bool								bTickInstancesAsync;
 };
 
 /** Simulation performing all system and emitter scripts for a instances of a UNiagaraSystem in a world. */
@@ -147,25 +149,28 @@ class FNiagaraSystemSimulation : public TSharedFromThis<FNiagaraSystemSimulation
 	friend FNiagaraSystemSimulationTickContext;
 public:
 	~FNiagaraSystemSimulation();
-	bool Init(UNiagaraSystem* InSystem, UWorld* InWorld, bool bInIsSolo);
+	bool Init(UNiagaraSystem* InSystem, UWorld* InWorld, bool bInIsSolo, ETickingGroup TickGroup);
 	void Destroy();
 	bool Tick(float DeltaSeconds);
 
 	bool IsValid()const { return WeakSystem.Get() != nullptr && bCanExecute && World != nullptr; }
 
-	/** At the end of the frame, we do a separate tick pass for newly spawned systems which are then pushed into the correct simulations for next frame. */
-	void SpawnNew_GameThread(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
-	
 	/** First phase of system sim tick. Must run on GameThread. */
 	void Tick_GameThread(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
-
 	/** Second phase of system sim tick that can run on any thread. */
 	void Tick_Concurrent(FNiagaraSystemSimulationTickContext& Context);
 
-	void WaitForTickComplete();
+	/** Update TickGroups for pending instances and execute tick group promotions. */
+	void UpdateTickGroups_GameThread();
+	/** Spawn any pending instances, assumes that you have update tick groups ahead of time. */
+	void Spawn_GameThread(float DeltaSeconds);
 
-	/** Old tick for AB Testing.*/
-	bool Tick_Old(float DeltaSeconds);
+	/** Promote instances that have ticked during */
+
+	/** Wait for system simulation tick to complete.  If bEnsureComplete is true we will trigger an ensure if it is not complete. */
+	void WaitForSystemTickComplete(bool bEnsureComplete = false);
+	/** Wait for instances tick to complete.  If bEnsureComplete is true we will trigger an ensure if it is not complete. */
+	void WaitForInstancesTickComplete(bool bEnsureComplete = false);
 
 	void RemoveInstance(FNiagaraSystemInstance* Instance);
 	void AddInstance(FNiagaraSystemInstance* Instance);
@@ -184,10 +189,15 @@ public:
 
 	void DumpInstance(const FNiagaraSystemInstance* Inst)const;
 
+	/** Dump information about all instances tick */
+	void DumpTickInfo(FOutputDevice& Ar);
+
 	bool GetIsSolo() const { return bIsSolo; }
 
 	FNiagaraScriptExecutionContext& GetSpawnExecutionContext() { return SpawnExecContext; }
 	FNiagaraScriptExecutionContext& GetUpdateExecutionContext() { return UpdateExecContext; }
+
+	void AddTickGroupPromotion(FNiagaraSystemInstance* Instance);
 
 protected:
 	/** Does any prep work for system simulation such as pulling instance parameters into a dataset. */
@@ -210,15 +220,19 @@ protected:
 	/** System of instances being simulated.  We use a weak object ptr here because once the last referencing object goes away this system may be come invalid at runtime. */
 	TWeakObjectPtr<UNiagaraSystem> WeakSystem;
 
+	/** Which tick group we are in, only valid when not in Solo mode. */
+	ETickingGroup SystemTickGroup = TG_MAX;
+
 	/** World this system simulation belongs to. */
 	UWorld* World;
 
 	/** Main dataset containing system instance attribute data. */
-	FNiagaraDataSet DataSet;
+	FNiagaraDataSet MainDataSet;
+	/** DataSet used if we have to spawn instances outside of their tick. */
+	FNiagaraDataSet SpawningDataSet;
+	/** DataSet used to store pausing instance data. */
+	FNiagaraDataSet PausedInstanceData;
 
-	/** Dataset containing system instance data for newly spawned systems. */
-	FNiagaraDataSet PendingSpawnDataSet;
-	
 	/**
 	As there's a 1 to 1 relationship between system instance and their execution in this simulation we must pull all that instances parameters into a dataset for simulation.
 	In some cases this might be a big waste of memory as there'll be duplicated data from a parameter store that's shared across all instances.
@@ -263,14 +277,16 @@ protected:
 
 	/** System instances that have been spawned and are now simulating. */
 	TArray<FNiagaraSystemInstance*> SystemInstances;
-	/** System instances that are pending to be spawned. */
-	TArray<FNiagaraSystemInstance*> PendingSystemInstances;
-	/** System instances that we are spawning this tick. Instances are moved here from PendingSystemInstances if they are not paused. */
-	TArray<FNiagaraSystemInstance*> SpawningSystemInstances;
-
+	/** System instances that are about to be spawned outside of regular ticking. */
+	TArray<FNiagaraSystemInstance*> SpawningInstances;
 	/** System instances that are paused. */
 	TArray<FNiagaraSystemInstance*> PausedSystemInstances;
-	FNiagaraDataSet PausedInstanceData;
+
+	/** System instances that are pending to be spawned. */
+	TArray<FNiagaraSystemInstance*> PendingSystemInstances;
+
+	/** List of instances that are pending a tick group promotion. */
+	TArray<FNiagaraSystemInstance*> PendingTickGroupPromotions;
 
 	TArray<TArray<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>>> EmitterSpawnInfoAccessors;
 
@@ -282,14 +298,17 @@ protected:
 	uint32 bCanExecute : 1;
 	uint32 bBindingsInitialized : 1;
 	uint32 bInSpawnPhase : 1;
+	uint32 bIsSolo : 1;
+	uint32 bHasEverTicked : 1;
 
 	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
 	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;
-
-	bool bIsSolo;
 
 	TOptional<float> MaxDeltaTime;
 
 	/** Current tick batch we're filling ready for processing, potentially in an async task. */
 	FNiagaraSystemTickBatch TickBatch;
+
+	/** Current task that is executing */
+	FGraphEventRef SystemTickGraphEvent;
 };

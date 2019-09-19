@@ -7,6 +7,7 @@
 #include "VectorUtil.h"
 #include "RayTypes.h"
 #include "Quaternion.h"
+#include "TransformTypes.h"
 
 /**
  * TFrame3 is an object that represents an oriented 3D coordinate frame, ie orthogonal X/Y/Z axes at a point in space.
@@ -40,7 +41,7 @@ struct TFrame3
 	/**
 	 * Construct a frame at the given Origin aligned to the unit axes
 	 */
-	TFrame3(const FVector3<RealType>& OriginIn)
+	explicit TFrame3(const FVector3<RealType>& OriginIn)
 	{
 		Origin = OriginIn;
 		Rotation = TQuaternion<RealType>::Identity();
@@ -80,7 +81,7 @@ struct TFrame3
 	}
 
 	/** Construct a Frame from an FTransform */
-	TFrame3(const FTransform& Transform)
+	explicit TFrame3(const FTransform& Transform)
 	{
 		Origin = Transform.GetTranslation();
 		Rotation = Transform.GetRotation();
@@ -131,6 +132,11 @@ struct TFrame3
 		return FTransform(Rotation, Origin);
 	}
 
+	/** @return conversion of this Frame to TTransform */
+	TTransform3<RealType> ToTransform() const
+	{
+		return TTransform3<RealType>(Rotation, Origin);
+	}
 
 	/** @return point at distances along frame axes */
 	FVector3<RealType> PointAt(RealType X, RealType Y, RealType Z) const
@@ -212,7 +218,7 @@ struct TFrame3
 	 * @param PlaneNormalAxis which plane to project onto, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
 	 * @return 2D coordinates in UV plane, relative to origin
 	 */
-	FVector2<RealType> ToPlaneUV(const FVector3<RealType>& Pos, int PlaneNormalAxis) const
+	FVector2<RealType> ToPlaneUV(const FVector3<RealType>& Pos, int PlaneNormalAxis = 2) const
 	{
 		int Axis0 = 0, Axis1 = 1;
 		if (PlaneNormalAxis == 0)
@@ -237,7 +243,7 @@ struct TFrame3
 	 * @param PlaneNormalAxis which plane to map to, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
 	 * @return 3D coordinates in frame's plane (including Origin translation)
 	 */
-	FVector3<RealType> FromPlaneUV(const FVector2<RealType>& PosUV, int PlaneNormalAxis) const
+	FVector3<RealType> FromPlaneUV(const FVector2<RealType>& PosUV, int PlaneNormalAxis = 2) const
 	{
 		FVector3<RealType> PlanePos(PosUV[0], PosUV[1], 0);
 		if (PlaneNormalAxis == 0)
@@ -259,7 +265,7 @@ struct TFrame3
 	 * @param PlaneNormalAxis which plane to project onto, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
 	 * @return 3D coordinate in the plane
 	 */
-	FVector3<RealType> ToPlane(const FVector3<RealType>& Pos, int PlaneNormalAxis) const
+	FVector3<RealType> ToPlane(const FVector3<RealType>& Pos, int PlaneNormalAxis = 2) const
 	{
 		FVector3<RealType> Normal = GetAxis(PlaneNormalAxis);
 		FVector3<RealType> LocalVec = Pos - Origin;
@@ -357,17 +363,27 @@ struct TFrame3
 	 * @param RayOrigin origin of ray
 	 * @param RayDirection direction of ray
 	 * @param PlaneNormalAxis which axis of frame to use as plane normal
-	 * @return intersection point, or FVector3::Max() if ray is parallel to plane
+	 * @param HitPointOut intersection point, or FVector3::Max() if ray does not hit plane or is parallel to plane
+	 * @return true if ray intersects plane and HitPointOut is valid
 	 */
-	FVector3<RealType> RayPlaneIntersection(const FVector3<RealType>& RayOrigin, const FVector3<RealType>& RayDirection, int PlaneNormalAxis)
+	bool RayPlaneIntersection(const FVector3<RealType>& RayOrigin, const FVector3<RealType>& RayDirection, int PlaneNormalAxis, FVector3<RealType>& HitPointOut) const
 	{
 		FVector3<RealType> Normal = GetAxis(PlaneNormalAxis);
 		RealType PlaneD = -Origin.Dot(Normal);
 		RealType NormalDot = RayDirection.Dot(Normal);
 		if (VectorUtil::EpsilonEqual(NormalDot, (RealType)0, TMathUtil<RealType>::ZeroTolerance))
-			return FVector3<RealType>::Max();
+		{
+			HitPointOut = FVector3<RealType>::Max();
+			return false;
+		}
 		RealType t = -( RayOrigin.Dot(Normal) + PlaneD) / NormalDot;
-		return RayOrigin + t * RayDirection;
+		if (t < 0)
+		{
+			HitPointOut = FVector3<RealType>::Max();
+			return false;
+		}
+		HitPointOut = RayOrigin + t * RayDirection;
+		return true;
 	}
 
 };

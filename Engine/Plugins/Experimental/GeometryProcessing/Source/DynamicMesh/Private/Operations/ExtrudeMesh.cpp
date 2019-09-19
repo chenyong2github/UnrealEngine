@@ -108,14 +108,14 @@ bool FExtrudeMesh::Apply()
 
 				// @todo is there a simpler way to construct rotation from 3 known axes (third id Normal.Cross(UnitY))
 				//  (converting from matrix might end up being more efficient due to trig in ConstrainedAlignAxis?)
-				FFrame3f ProjectFrame(FVector3f::Zero(), Normal);
-				if (FMathd::Abs(ProjectFrame.Y().Dot(FVector3f::UnitY())) < 0.01)
+				FFrame3d ProjectFrame(FVector3d::Zero(), (FVector3d)Normal);
+				if (FMathd::Abs(ProjectFrame.Y().Dot(FVector3d::UnitY())) < 0.01)
 				{
-					ProjectFrame.ConstrainedAlignAxis(0, FVector3f::UnitX(), ProjectFrame.Z());
+					ProjectFrame.ConstrainedAlignAxis(0, FVector3d::UnitX(), ProjectFrame.Z());
 				}
 				else
 				{
-					ProjectFrame.ConstrainedAlignAxis(1, FVector3f::UnitY(), ProjectFrame.Z());
+					ProjectFrame.ConstrainedAlignAxis(1, FVector3d::UnitY(), ProjectFrame.Z());
 				}
 				Editor.SetQuadUVsFromProjection(StitchResult.NewQuads[k], ProjectFrame, UVScaleFactor);
 			}

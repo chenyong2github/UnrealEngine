@@ -139,7 +139,16 @@ public:
 		}
 		return false;
 	}
-	
+
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
+	{
+		if (Expression.IsValid() && Expression->Material)
+		{
+			return Expression->Material->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
+		}
+		return false;
+	}
+
 	// Material properties.
 	/** Entry point for compiling a specific material property.  This must call SetMaterialProperty. */
 	virtual int32 CompilePropertyAndSetMaterialProperty(EMaterialProperty Property, FMaterialCompiler* Compiler, EShaderFrequency OverrideShaderFrequency, bool bUsePreviousFrameTime) const override;
@@ -378,6 +387,8 @@ public:
 	virtual bool CanPasteNodes() const override;
 	virtual void PasteNodesHere(const FVector2D& Location) override;
 	virtual int32 GetNumberOfSelectedNodes() const override;
+	virtual TSet<UObject*> GetSelectedNodes() const override;
+	virtual void GetBoundsForNode(const UEdGraphNode* InNode, class FSlateRect& OutRect, float InPadding) const override;
 	virtual FMatExpressionPreview* GetExpressionPreview(UMaterialExpression* InExpression) override;
 	virtual void DeleteNodes(const TArray<class UEdGraphNode*>& NodesToDelete) override;
 

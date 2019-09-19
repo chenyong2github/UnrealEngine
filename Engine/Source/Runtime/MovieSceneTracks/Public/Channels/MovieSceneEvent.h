@@ -33,6 +33,7 @@ struct MOVIESCENETRACKS_API FMovieSceneEvent
 	GENERATED_BODY()
 
 
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Called after this event has been serialized in order to cache the function pointer if necessary
 	 */
@@ -42,6 +43,7 @@ struct MOVIESCENETRACKS_API FMovieSceneEvent
 	 * Called to perform custom serialization logic for this struct.
 	 */
 	bool Serialize(FArchive& Ar);
+#endif
 
 	/**
 	 * Check whether the specified function is valid for a movie scene event
@@ -128,9 +130,11 @@ private:
 #endif // WITH_EDITORONLY_DATA
 };
 
+#if WITH_EDITORONLY_DATA
 template<>
 struct TStructOpsTypeTraits<FMovieSceneEvent> : TStructOpsTypeTraitsBase2<FMovieSceneEvent>
 {
 	enum { WithSerializer = true, WithPostSerialize = true };
 };
+#endif
 

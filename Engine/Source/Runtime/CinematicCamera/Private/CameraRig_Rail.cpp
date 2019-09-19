@@ -19,6 +19,11 @@ ACameraRig_Rail::ACameraRig_Rail(const FObjectInitializer& ObjectInitializer)
 	CurrentPositionOnRail = 0.f;
 	bLockOrientationToRail = false;
 
+#if WITH_EDITORONLY_DATA
+	bShowRailVisualization = true;
+	PreviewMeshScale = 1.f;
+#endif
+
 	// Create components
 	TransformComponent = CreateDefaultSubobject<USceneComponent>(TEXT("TransformComponent"));
 
@@ -120,6 +125,8 @@ void ACameraRig_Rail::UpdatePreviewMeshes()
 				USplineMeshComponent* const SplineMeshComp = PreviewRailMeshSegments[PtIdx];
 				if (SplineMeshComp)
 				{
+					SplineMeshComp->SetVisibility(bShowRailVisualization);
+					SplineMeshComp->SetWorldScale3D(FVector(1.f, PreviewMeshScale, PreviewMeshScale));
 					SplineMeshComp->SetForwardAxis(ESplineMeshAxis::Z);
 					SplineMeshComp->SetStartAndEnd(StartLoc, StartTangent, EndLoc, EndTangent, true);
 				}
@@ -136,13 +143,15 @@ void ACameraRig_Rail::UpdatePreviewMeshes()
 				}
 			}
 		}
-
+		
 		// make visualization of the mount follow the contour of the rail
 		if (PreviewMesh_Mount)
 		{
 			float const SplineLen = RailSplineComponent->GetSplineLength();
 			FQuat const RailRot = RailSplineComponent->GetQuaternionAtDistanceAlongSpline(CurrentPositionOnRail*SplineLen, ESplineCoordinateSpace::World);
 			PreviewMesh_Mount->SetWorldRotation(RailRot);
+			PreviewMesh_Mount->SetVisibility(bShowRailVisualization);
+			PreviewMesh_Mount->SetWorldScale3D(FVector(PreviewMeshScale, PreviewMeshScale, PreviewMeshScale));
 		}
 	}
 }
@@ -187,6 +196,12 @@ void ACameraRig_Rail::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 void ACameraRig_Rail::PostEditUndo()
 {
 	Super::PostEditUndo();
+	UpdateRailComponents();
+}
+
+void ACameraRig_Rail::PostEditMove(bool bFinished)
+{
+	Super::PostEditMove(bFinished);
 	UpdateRailComponents();
 }
 #endif

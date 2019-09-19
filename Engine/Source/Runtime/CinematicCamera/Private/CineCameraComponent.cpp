@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "CineCameraComponent.h"
+#include "UObject/CineCameraObjectVersion.h"
 #include "UObject/ConstructorHelpers.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
@@ -49,7 +50,7 @@ UCineCameraComponent::UCineCameraComponent()
 	if (Template)
 	{
 		// default filmback
-		SetFilmbackPresetByName(Template->DefaultFilmbackPresetName);
+		SetFilmbackPresetByName(Template->DefaultFilmbackPreset);
 		SetLensPresetByName(Template->DefaultLensPresetName);
 		// other lens defaults
 		CurrentAperture = Template->DefaultLensFStop;
@@ -74,6 +75,13 @@ UCineCameraComponent::UCineCameraComponent()
 #endif
 }
 
+void UCineCameraComponent::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FCineCameraObjectVersion::GUID);
+
+	Super::Serialize(Ar);
+}
+
 void UCineCameraComponent::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -83,6 +91,15 @@ void UCineCameraComponent::PostInitProperties()
 
 void UCineCameraComponent::PostLoad()
 {
+	UCineCameraComponent* Template = Cast<UCineCameraComponent>(GetArchetype());
+	if (Template)
+	{
+		if (GetLinkerCustomVersion(FCineCameraObjectVersion::GUID) < FCineCameraObjectVersion::ChangeDefaultFilmbackToDigitalFilm)
+		{
+			SetFilmbackPresetByName(Template->DefaultFilmbackPresetName_DEPRECATED);
+		}
+	}
+
 	RecalcDerivedData();
 	bResetInterpolation = true;
 	Super::PostLoad();

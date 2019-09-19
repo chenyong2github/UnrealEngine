@@ -504,6 +504,126 @@ namespace Audio
 		}
 	}
 
+	void ComputePowerSpectrumNoScaling(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer)
+	{
+		check((FFTSize % 2) == 0);
+
+		if (FFTSize < 1)
+		{
+			// Can't do anything with a zero sized fft.
+			OutBuffer.Reset(0);
+			return;
+		}
+
+		// Spectrum only calculates values for real positive frequencies. 
+		const int32 NumSpectrumValues = (FFTSize / 2) + 1;
+
+		// Resize output buffer
+		OutBuffer.Reset(NumSpectrumValues);
+		OutBuffer.AddUninitialized(NumSpectrumValues);
+
+		float* OutBufferData = OutBuffer.GetData();
+
+		const float* RealData = InFrequencyData.OutReal;
+		const float* ImagData = InFrequencyData.OutImag;
+
+		if (IsAligned<const float*>(RealData, AUDIO_BUFFER_ALIGNMENT) && IsAligned<const float*>(ImagData, AUDIO_BUFFER_ALIGNMENT) && (NumSpectrumValues > 5))
+		{
+			BufferComplexToPowerFast(RealData, ImagData, OutBufferData, NumSpectrumValues - 1);
+
+			// Buffer operations are on 16 byte boundaries, which excludes the location of the nyquist
+			// frequency in the fft output buffers. Here we explicitly handle data at nyquist freq.
+			const int32 NyquistIndex = NumSpectrumValues - 1;
+			const float NyquistReal = RealData[NyquistIndex];
+			const float NyquistImag = ImagData[NyquistIndex];
+			OutBufferData[NyquistIndex] = NyquistReal * NyquistReal + NyquistImag * NyquistImag;
+		}
+		else
+		{
+			for (int32 i = 0; i < NumSpectrumValues; i++)
+			{
+				OutBufferData[i] = RealData[i] * RealData[i] + ImagData[i] * ImagData[i];
+			}
+		}
+	}
+
+	void ComputePowerSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer)
+	{
+		if (FFTSize < 1)
+		{
+			OutBuffer.Reset();
+			return;
+		}
+
+		ComputePowerSpectrumNoScaling(InFrequencyData, FFTSize, OutBuffer);
+
+		const int32 NumSpectrumValues = OutBuffer.Num();
+		if (NumSpectrumValues < 1)
+		{
+			return;
+		}
+
+		const float FFTScale = 1.f / static_cast<float>(FFTSize);
+
+		float* OutBufferData = OutBuffer.GetData();
+
+		if (NumSpectrumValues > 1)
+		{
+			MultiplyBufferByConstantInPlace(OutBufferData, NumSpectrumValues - 1, FFTScale);
+		}
+		
+		OutBufferData[NumSpectrumValues - 1] *= FFTScale;
+	}
+
+	void ComputeMagnitudeSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer)
+	{
+		if (FFTSize < 1)
+		{
+			OutBuffer.Reset();
+			return;
+		}
+
+		ComputePowerSpectrumNoScaling(InFrequencyData, FFTSize, OutBuffer);
+
+		const int32 NumSpectrumValues = OutBuffer.Num();
+		if (NumSpectrumValues < 1)
+		{
+			return;
+		}
+
+		const float FFTScale = 1.f / FMath::Sqrt(static_cast<float>(FFTSize));
+
+		float* OutBufferData = OutBuffer.GetData();
+
+		for (int32 i = 0; i < NumSpectrumValues; i++)
+		{
+			// TODO: Currently no vector sqrt. utilize fmath for now.
+			OutBufferData[i] = FMath::Sqrt(OutBufferData[i]);
+		}
+
+		if (NumSpectrumValues > 1)
+		{
+			MultiplyBufferByConstantInPlace(OutBufferData, NumSpectrumValues - 1, FFTScale);
+		}
+		OutBufferData[NumSpectrumValues - 1] *= FFTScale;
+	}
+
+	void ComputeSpectrum(ESpectrumType InSpectrumType, const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer)
+	{
+		switch (InSpectrumType)
+		{
+			case ESpectrumType::MagnitudeSpectrum:
+				ComputeMagnitudeSpectrum(InFrequencyData, FFTSize, OutBuffer);
+				break;
+
+			case ESpectrumType::PowerSpectrum:
+				ComputePowerSpectrum(InFrequencyData, FFTSize, OutBuffer);
+				break;
+
+			default:
+				checkf(false, TEXT("Unhandled Audio::ESpectrumType"));
+		}
+	}
 	SIGNALPROCESSING_API void CrossCorrelate(AlignedFloatBuffer& FirstBuffer, AlignedFloatBuffer& SecondBuffer, AlignedFloatBuffer& OutCorrelation, bool bZeroPad /*= true*/)
 	{
 		FrequencyBuffer OutputCorrelationFrequencies;

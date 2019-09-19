@@ -5,7 +5,7 @@
 #include "Evaluation/MovieSceneSectionParameters.h"
 #include "Containers/ArrayView.h"
 #include "Misc/AutomationTest.h"
-#include "MovieSceneTestsCommon.h"
+#include "MovieSceneTimeHelpers.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneTransformTests"
 
@@ -26,26 +26,6 @@ bool IsEqual(TRangeBound<FFrameNumber> A, TRangeBound<FFrameNumber> B)
 bool IsEqual(TRange<FFrameNumber> A, TRange<FFrameNumber> B)
 {
 	return IsEqual(A.GetLowerBound(), B.GetLowerBound()) && IsEqual(A.GetUpperBound(), B.GetUpperBound());
-}
-
-FString LexToString(const TRange<FFrameNumber>& InRange)
-{
-	TRangeBound<FFrameNumber> SourceLower = InRange.GetLowerBound();
-	TRangeBound<FFrameNumber> SourceUpper = InRange.GetUpperBound();
-
-	return *FString::Printf(TEXT("%s-%s"),
-		SourceLower.IsOpen() ? 
-			TEXT("[...") : 
-			SourceLower.IsInclusive() ?
-				*FString::Printf(TEXT("[%i"), SourceLower.GetValue().Value) :
-				*FString::Printf(TEXT("(%i"), SourceLower.GetValue().Value),
-
-		SourceUpper.IsOpen() ? 
-			TEXT("...]") : 
-			SourceUpper.IsInclusive() ?
-				*FString::Printf(TEXT("%i]"), SourceUpper.GetValue().Value) :
-				*FString::Printf(TEXT("%i)"), SourceUpper.GetValue().Value)
-		);
 }
 
 bool TestTransform(FAutomationTestBase& Test, FMovieSceneSequenceTransform Transform, TArrayView<TRange<FFrameNumber>> InSource, TArrayView<TRange<FFrameNumber>> InExpected, const TCHAR* TestName)

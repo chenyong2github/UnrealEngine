@@ -185,16 +185,6 @@ struct FDelayedPacket
 	double SendTime;
 
 public:
-	UE_DEPRECATED(4.21, "Use the constructor that takes PacketTraits for allowing for analytics and flags")
-	FORCEINLINE FDelayedPacket(uint8* InData, int32 InSizeBytes, int32 InSizeBits)
-		: Data()
-		, SizeBits(InSizeBits)
-		, Traits()
-		, SendTime(0.0)
-	{
-		Data.AddUninitialized(InSizeBytes);
-		FMemory::Memcpy(Data.GetData(), InData, InSizeBytes);
-	}
 
 	FORCEINLINE FDelayedPacket(uint8* InData, int32 InSizeBits, FOutPacketTraits& InTraits)
 		: Data()
@@ -371,12 +361,6 @@ public:
 	EClientLoginState::Type	ClientLoginState;
 	uint8					ExpectedClientLoginMsgType;	// Used to determine what the next expected control channel msg type should be from a connecting client
 
-	// CD key authentication
-	UE_DEPRECATED(4.23, "CDKeyHash is deprecated.")
-	FString			CDKeyHash;				// Hash of client's CD key
-	UE_DEPRECATED(4.23, "CDKeyResponse is deprecated.")
-	FString			CDKeyResponse;			// Client's response to CD key challenge
-
 	// Internal.
 	UPROPERTY()
 	double			LastReceiveTime;		// Last time a packet was received, for timeout checking.
@@ -392,6 +376,11 @@ public:
 	/** Time when connection request was first initiated */
 	float			ConnectTime;
 
+private:
+	FPacketTimestamp	LastOSReceiveTime;		// Last time a packet was received at the OS/NIC layer
+	bool				bIsOSReceiveTimeLocal;	// Whether LastOSReceiveTime uses the same clock as the game, or needs translating
+
+public:
 	// Merge info.
 	FBitWriterMark  LastStart;				// Most recently sent bunch start.
 	FBitWriterMark  LastEnd;				// Most recently sent bunch end.
@@ -632,7 +621,6 @@ public:
 
 #if DO_ENABLE_NET_TEST
 
-	// For development.
 	/** Packet settings for testing lag, net errors, etc */
 	FPacketSimulationSettings PacketSimulationSettings;
 
@@ -658,15 +646,11 @@ private:
 public:
 
 	/** 
-	 * If true, will resend everything this connection has ever sent, since the connection has been open.
 	 *	This functionality is used during replay checkpoints for example, so we can re-use the existing connection and channels to record
 	 *	a version of each actor and capture all properties that have changed since the actor has been alive...
 	 *	This will also act as if it needs to re-open all the channels, etc.
 	 *   NOTE - This doesn't force all exports to happen again though, it will only export new stuff, so keep that in mind.
 	 */
-	UE_DEPRECATED(4.23, "Use ResendAllDataState instead.")
-	bool bResendAllDataSinceOpen;
-
 	EResendAllDataState ResendAllDataState;
 
 #if !UE_BUILD_SHIPPING
@@ -742,13 +726,6 @@ public:
 	/** Describe the connection. */
 	ENGINE_API virtual FString Describe();
 
-	UE_DEPRECATED(4.21, "Use the method that allows for packet traits for analytics and modification")
-	ENGINE_API virtual void LowLevelSend(void* Data, int32 CountBytes, int32 CountBits)
-	{
-		FOutPacketTraits EmptyTraits;
-		LowLevelSend(Data, CountBits, EmptyTraits);
-	}
-
 	/**
 	 * Sends a byte stream to the remote endpoint using the underlying socket
 	 *
@@ -768,10 +745,6 @@ public:
 
 	/** Make sure this connection is in a reasonable state. */
 	ENGINE_API virtual void AssertValid();
-
-	/** Send an acknowledgment. */
-	UE_DEPRECATED(4.22, "This method will be removed")
-	ENGINE_API virtual void SendAck( int32 PacketId, bool FirstTime=1);
 
 	/**
 	 * flushes any pending data, bundling it into a packet and sending it via LowLevelSend()
@@ -793,22 +766,6 @@ public:
 	 */
 	ENGINE_API virtual void HandleClientPlayer( class APlayerController* PC, class UNetConnection* NetConnection );
 
-	/** @return the address of the connection as an integer */
-	UE_DEPRECATED(4.23, "Use GetRemoteAddr as it allows direct access to the RemoteAddr and allows for dynamic address sizing.")
-	virtual int32 GetAddrAsInt(void)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (RemoteAddr.IsValid())
-		{
-			uint32 OutAddr = 0;
-			// Get the host byte order ip addr
-			RemoteAddr->GetIp(OutAddr);
-			return (int32)OutAddr;
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		return 0;
-	}
-
 	/** @return the port of the connection as an integer */
 	virtual int32 GetAddrPort(void)
 	{
@@ -818,15 +775,6 @@ public:
 		}
 		return 0;
 	}
-
-	/**
-	 * Return the platform specific FInternetAddr type, containing this connections address.
-	 * If nullptr is returned, connection is not added to MappedClientConnections, and can't receive net packets which depend on this.
-	 *
-	 * @return	The platform specific FInternetAddr containing this connections address
-	 */
-	UE_DEPRECATED(4.23, "Use GetRemoteAddr to safely get the FInternetAddr tied to this connection")
-	virtual TSharedPtr<FInternetAddr> GetInternetAddr() { return ConstCastSharedPtr<FInternetAddr>(GetRemoteAddr()); }
 
 	/**
 	 * Return the platform specific FInternetAddr type, containing this connections address.
@@ -889,12 +837,6 @@ public:
 	 * @param InConnectionSpeed Optional connection speed override
 	 */
 	ENGINE_API virtual void InitConnection(UNetDriver* InDriver, EConnectionState InState, const FURL& InURL, int32 InConnectionSpeed=0, int32 InMaxPacket=0);
-
-	UE_DEPRECATED(4.21, "Analytics providers are now handled in the NetDriver")
-	ENGINE_API virtual void InitHandler(TSharedPtr<IAnalyticsProvider> InProvider)
-	{
-		InitHandler();
-	}
 
 	/**
 	 * Initializes the PacketHandler
@@ -964,14 +906,6 @@ public:
 
 	// Functions.
 
-	/** Resend any pending acks. */
-	UE_DEPRECATED(4.22, "This method will be removed.")
-	void PurgeAcks();
-
-	/** Send package map to the remote. */
-	UE_DEPRECATED(4.23, "This method will be removed.")
-	void SendPackageMap() {}
-
 	/** 
 	 * Appends the passed in data to the SendBuffer to be sent when FlushNet is called
 	 * @param Bits Data as bits to be appended to the send buffer
@@ -1022,10 +956,6 @@ public:
 
 	/** @todo document */
 	class UControlChannel* GetControlChannel();
-
-	/** Create a channel. */
-	UE_DEPRECATED(4.22, "Use CreateChannelByName")
-	ENGINE_API UChannel* CreateChannel( EChannelType Type, bool bOpenedLocally, int32 ChannelIndex=INDEX_NONE );
 
 	/** Create a channel. */
 	ENGINE_API UChannel* CreateChannelByName( const FName& ChName, EChannelCreateFlags CreateFlags, int32 ChannelIndex=INDEX_NONE );
@@ -1143,6 +1073,18 @@ public:
 	 * @param bFlushWholeCache	Whether or not the whole cache should be flushed, or only flush up to the next missing packet
 	 */
 	void FlushPacketOrderCache(bool bFlushWholeCache=false);
+
+	/**
+	 * Sets the OS/NIC level timestamp, for the last packet that was received
+	 *
+	 * @param InOSReceiveTime			The OS/NIC level timestamp, for the last packet that was received
+	 * @param bInIsOSReceiveTimeLocal	Whether the input timestamp is based on the same clock as the game thread, or needs translating
+	 */
+	void SetPacketOSReceiveTime(const FPacketTimestamp& InOSReceiveTime, bool bInIsOSReceiveTimeLocal)
+	{
+		LastOSReceiveTime = InOSReceiveTime;
+		bIsOSReceiveTimeLocal = bInIsOSReceiveTimeLocal;
+	}
 
 	/** Called when an actor channel is open and knows its NetGUID. */
 	ENGINE_API virtual void NotifyActorNetGUID(UActorChannel* Channel) {}

@@ -20,6 +20,7 @@
 #include "Framework/Commands/UICommandList.h"
 
 class FMenuBuilder;
+class UToolMenu;
 class ISceneOutlinerColumn;
 class SComboButton;
 
@@ -163,6 +164,9 @@ namespace SceneOutliner
 		/** Returns true if clipboard contains folders only */
 		bool CanPasteFoldersOnlyFromClipboard();
 		
+		/** Tells the scene outliner that it should do a full refresh, which will clear the entire tree and rebuild it from scratch. */
+		virtual void FullRefresh() override;
+
 	private:
 		/** Methods that implement structural modification logic for the tree */
 
@@ -174,9 +178,6 @@ namespace SceneOutliner
 
 		/** Repopulates the entire tree */
 		void RepopulateEntireTree();
-
-		/** Tells the scene outliner that it should do a full refresh, which will clear the entire tree and rebuild it from scratch. */
-		void FullRefresh();
 
 		/** Tells the scene outliner that there was a change in the level actor list. */
 		void OnLevelActorListChanged();
@@ -218,6 +219,8 @@ namespace SceneOutliner
 			virtual bool Get(const FComponentTreeItem& ComponentFunction) const { return true; }
 			virtual bool Get(const FSubComponentTreeItem& CustomFunction) const { return true; }
 		};
+
+		void RegisterDefaultContextMenu();
 
 		/** Visitor that is used to set up type-specific data after tree items are added to the tree */
 		struct FOnItemAddedToTree : IMutableTreeItemVisitor
@@ -504,9 +507,9 @@ namespace SceneOutliner
 
 		/** Build a context menu for right-clicking an item in the tree */
 		TSharedPtr<SWidget> BuildDefaultContextMenu();
-		void FillFoldersSubMenu(FMenuBuilder& MenuBuilder) const;
-		void AddMoveToFolderOutliner(FMenuBuilder& MenuBuilder) const;
-		void FillSelectionSubMenu(FMenuBuilder& MenuBuilder) const;
+		void FillFoldersSubMenu(UToolMenu* Menu) const;
+		void AddMoveToFolderOutliner(UToolMenu* Menu) const;
+		void FillSelectionSubMenu(UToolMenu* Menun) const;
 		TSharedRef<TSet<FName>> GatherInvalidMoveToDestinations() const;
 
 	private:
@@ -549,6 +552,11 @@ namespace SceneOutliner
 		void ToggleShowOnlyCurrentLevel();
 		/** Enables/Disables whether the ShowOnlyActorsInCurrentLevelFilter is applied */
 		void ApplyShowOnlyCurrentLevelFilter(bool bShowOnlyActorsInCurrentLevel);
+
+		/** @return whether we are hiding Folders with hidden actors */
+		bool IsHidingFoldersContainingOnlyHiddenActors() const;
+		/** Toggles whether we are hiding Folders with hidden actors */
+		void ToggleHideFoldersContainingOnlyHiddenActors();
 
 		/** @return whether we are showing the components of the Actors */
 		bool IsShowingActorComponents();
@@ -617,6 +625,10 @@ namespace SceneOutliner
 
 		/** Updates the expansion state of parent items after a repopulate, according to the previous state */
 		void SetParentsExpansionState(const FParentsExpansionState& ExpansionStateInfo) const;
+
+		/** Pair of functions to Hide Folders in Outliner when HideFoldersContainingHiddenActors filter is active*/
+		void HideFoldersContainingOnlyHiddenActors();
+		bool HideFoldersContainingOnlyHiddenActors(FTreeItemPtr Parent, bool bIsRoot = false);
 
 	private:
 

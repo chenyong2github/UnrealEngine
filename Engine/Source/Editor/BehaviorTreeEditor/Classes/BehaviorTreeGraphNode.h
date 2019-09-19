@@ -128,14 +128,14 @@ class UBehaviorTreeGraphNode : public UAIGraphNode
 protected:
 
 	/** creates add decorator... submenu */
-	void CreateAddDecoratorSubMenu(class FMenuBuilder& MenuBuilder, UEdGraph* Graph) const;
+	void CreateAddDecoratorSubMenu(class UToolMenu* Menu, UEdGraph* Graph) const;
 
 	/** creates add service... submenu */
-	void CreateAddServiceSubMenu(class FMenuBuilder& MenuBuilder, UEdGraph* Graph) const;
+	void CreateAddServiceSubMenu(class UToolMenu* Menu, UEdGraph* Graph) const;
 
 	/** add right click menu to create subnodes: Decorators */
-	void AddContextMenuActionsDecorators(const FGraphNodeContextMenuBuilder& Context) const;
+	void AddContextMenuActionsDecorators(class UToolMenu* Menu, const FName SectionName, class UGraphNodeContextMenuContext* Context) const;
 
 	/** add right click menu to create subnodes: Services */
-	void AddContextMenuActionsServices(const FGraphNodeContextMenuBuilder& Context) const;
+	void AddContextMenuActionsServices(class UToolMenu* Menu, const FName SectionName, class UGraphNodeContextMenuContext* Context) const;
 };

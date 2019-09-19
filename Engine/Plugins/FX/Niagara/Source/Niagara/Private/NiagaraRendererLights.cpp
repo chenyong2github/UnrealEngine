@@ -54,6 +54,11 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 	const UNiagaraLightRendererProperties* Properties = CastChecked<const UNiagaraLightRendererProperties>(InProperties);
 	FNiagaraDataSet& Data = Emitter->GetData();
 	FNiagaraDataBuffer& ParticleData = Data.GetCurrentDataChecked();
+	FNiagaraDynamicDataLights* DynamicData = new FNiagaraDynamicDataLights(Emitter);
+	if (!Properties)
+	{
+		return DynamicData;
+	}
 
 	//I'm not a great fan of pulling scalar components out to a structured vert buffer like this.
 	//TODO: Experiment with a new VF that reads the data directly from the scalar layout.
@@ -63,8 +68,6 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 	FNiagaraDataSetAccessor<float> ExponentAccessor(Data, Properties->LightExponentBinding.DataSetVariable);
 	FNiagaraDataSetAccessor<float> ScatteringAccessor(Data, Properties->VolumetricScatteringBinding.DataSetVariable);
 	FNiagaraDataSetAccessor<int32> EnabledAccessor(Data, Properties->LightRenderingEnabledBinding.DataSetVariable);
-
-	FNiagaraDynamicDataLights* DynamicData = new FNiagaraDynamicDataLights(Emitter);
 
 	const FMatrix& LocalToWorldMatrix = Proxy->GetLocalToWorld();
 	FVector DefaultColor = FVector(Properties->ColorBinding.DefaultValueIfNonExistent.GetValue<FLinearColor>());

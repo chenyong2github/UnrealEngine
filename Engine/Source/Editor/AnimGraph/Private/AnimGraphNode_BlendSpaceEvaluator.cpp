@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_BlendSpaceEvaluator.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "GraphEditorActions.h"
 #include "Kismet2/CompilerResultsLog.h"
 
@@ -130,17 +130,16 @@ void UAnimGraphNode_BlendSpaceEvaluator::BakeDataDuringCompilation(class FCompil
 	Node.GroupRole = SyncGroup.GroupRole;
 }
 
-void UAnimGraphNode_BlendSpaceEvaluator::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UAnimGraphNode_BlendSpaceEvaluator::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if (!Context.bIsDebugging)
+	if (!Context->bIsDebugging)
 	{
 		// add an option to convert to single frame
-		Context.MenuBuilder->BeginSection("AnimGraphNodeBlendSpacePlayer", NSLOCTEXT("A3Nodes", "BlendSpaceHeading", "Blend Space"));
 		{
-			Context.MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().OpenRelatedAsset);
-			Context.MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().ConvertToBSPlayer);
+			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeBlendSpacePlayer", NSLOCTEXT("A3Nodes", "BlendSpaceHeading", "Blend Space"));
+			Section.AddMenuEntry(FGraphEditorCommands::Get().OpenRelatedAsset);
+			Section.AddMenuEntry(FGraphEditorCommands::Get().ConvertToBSPlayer);
 		}
-		Context.MenuBuilder->EndSection();
 	}
 }
 

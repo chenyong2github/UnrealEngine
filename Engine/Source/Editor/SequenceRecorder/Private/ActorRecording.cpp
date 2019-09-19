@@ -20,9 +20,10 @@
 #include "CameraRig_Rail.h"
 #include "SequenceRecorder.h"
 #include "Features/IModularFeatures.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 static const FName SequencerActorTag(TEXT("SequencerActor"));
 static const FName MovieSceneSectionRecorderFactoryName("MovieSceneSectionRecorderFactory");
@@ -129,7 +130,7 @@ bool UActorRecording::StartRecording(ULevelSequence* CurrentSequence, float Curr
 	{
 		if (TargetAnimation != nullptr)
 		{
-			IAssetEditorInstance* EditorInstance = FAssetEditorManager::Get().FindEditorForAsset(TargetAnimation, false);
+			IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(TargetAnimation, false);
 			if (EditorInstance)
 			{
 				UE_LOG(LogAnimation, Log, TEXT("Closing '%s' so we don't invalidate the open version when unloading it."), *TargetAnimation->GetName());

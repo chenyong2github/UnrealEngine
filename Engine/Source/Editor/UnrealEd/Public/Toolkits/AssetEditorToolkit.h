@@ -7,13 +7,14 @@
 #include "UObject/GCObject.h"
 #include "Framework/Docking/TabManager.h"
 #include "Toolkits/IToolkit.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Toolkits/IToolkitHost.h"
 #include "Toolkits/BaseToolkit.h"
 #include "UnrealEdMisc.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 class FAssetEditorModeManager;
 class FMenuBuilder;
@@ -175,12 +176,19 @@ public:
 	{
 		return TabManager;
 	}
+
+	/** Registers default tool bar */
+	static void RegisterMenus();
 	
 	/** Makes a default asset editing toolbar */
 	void GenerateToolbar();
 	
 	/** Regenerates the menubar and toolbar widgets */
 	void RegenerateMenusAndToolbars();
+
+	/** Get name used by tool menu */
+	FName GetToolMenuToolbarName() const;
+	FName GetToolMenuAppName() const;
 
 	/** Called at the end of RegenerateMenusAndToolbars() */
 	virtual void PostRegenerateMenusAndToolbars() { }

@@ -15,6 +15,7 @@
 #include "ScenePrivate.h"
 #include "DistanceFieldLightingShared.h"
 #include "MeshPassProcessor.inl"
+#include "MaterialShared.h"
 
 class FConvertToUniformMeshVS : public FMeshMaterialShader
 {
@@ -264,7 +265,9 @@ int32 FUniformMeshConverter::Convert(
 
 		uint32 Offsets[1] = {0};
 		FRHIVertexBuffer* const StreamOutTargets[1] = {GUniformMeshTemporaryBuffers.TriangleData.GetReference()};
-		RHICmdList.SetStreamOutTargets(1, StreamOutTargets, Offsets);
+		//#todo-RemoveStreamOut
+		checkf(0, TEXT("SetStreamOutTargets() is not supported"));
+		//RHICmdList.SetStreamOutTargets(1, StreamOutTargets, Offsets);
 
 		for (int32 MeshIndex = 0; MeshIndex < MeshElements.Num(); MeshIndex++)
 		{
@@ -290,7 +293,9 @@ int32 FUniformMeshConverter::Convert(
 			}
 		}
 
-		RHICmdList.SetStreamOutTargets(1, nullptr, Offsets);
+		//#todo-RemoveStreamOut
+		checkf(0, TEXT("SetStreamOutTargets() is not supported"));
+		//RHICmdList.SetStreamOutTargets(1, nullptr, Offsets);
 	}
 
 	OutUniformMeshBuffers = &GUniformMeshTemporaryBuffers;
@@ -306,7 +311,16 @@ public:
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		//@todo - lit materials only 
+		if (Parameters.Material->IsUIMaterial())
+		{
+			return false;
+		}
+
+		if (Parameters.Material->GetShadingModels().IsUnlit())
+		{
+			return false;
+		}
+
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldGI(Parameters.Platform);
 	}
 

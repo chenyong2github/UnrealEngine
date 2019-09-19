@@ -159,6 +159,7 @@
 #include "Preferences/BlueprintEditorOptions.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintEditor"
 
@@ -1847,44 +1848,6 @@ void FBlueprintEditor::InitBlueprintEditor(
 
 	InitalizeExtenders();
 
-	struct Local
-	{
-		static void FillToolbar(FToolBarBuilder& ToolbarBuilder, const TSharedRef< FUICommandList > ToolkitCommands, FBlueprintEditor* BlueprintEditor)
-		{
-			ToolbarBuilder.BeginSection("Graph");
-			{
-				ToolbarBuilder.AddToolBarButton(
-					FBlueprintEditorCommands::Get().ToggleHideUnrelatedNodes,
-					NAME_None,
-					TAttribute<FText>(),
-					TAttribute<FText>(),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.ToggleHideUnrelatedNodes")
-				);
-				ToolbarBuilder.AddComboButton(
-					FUIAction(),
-					FOnGetContent::CreateSP(BlueprintEditor, &FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu),
-					LOCTEXT("HideUnrelatedNodesOptions", "Focus Related Nodes Options"),
-					LOCTEXT("HideUnrelatedNodesOptionsMenu", "Focus Related Nodes options menu"),
-					TAttribute<FSlateIcon>(),
-					true
-				);
-			}
-			ToolbarBuilder.EndSection();
-		}
-	};
-
-	if (!bShouldOpenInDefaultsMode)
-	{
-		TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
-		ToolbarExtender->AddToolBarExtension(
-			"Asset",
-			EExtensionHook::After,
-			GetToolkitCommands(),
-			FToolBarExtensionDelegate::CreateStatic(&Local::FillToolbar, GetToolkitCommands(), this)
-		);
-		AddToolbarExtender(ToolbarExtender);
-	}
-
 	RegenerateMenusAndToolbars();
 
 	RegisterApplicationModes(InBlueprints, bShouldOpenInDefaultsMode, bNewlyCreated);
@@ -2223,7 +2186,7 @@ FReply FBlueprintEditor::OnEditParentClassClicked()
 			UBlueprintGeneratedClass* ParentBlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>( ParentClass );
 			if ( ParentBlueprintGeneratedClass != NULL )
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset( ParentBlueprintGeneratedClass->ClassGeneratedBy );
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset( ParentBlueprintGeneratedClass->ClassGeneratedBy );
 			}
 		}
 	}
@@ -3679,7 +3642,7 @@ void FBlueprintEditor::JumpToHyperlink(const UObject* ObjectReference, bool bReq
 	}
 	else if(const UBlueprintGeneratedClass* Class = Cast<const UBlueprintGeneratedClass>(ObjectReference))
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(Class->ClassGeneratedBy);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Class->ClassGeneratedBy);
 	}
 	else if (const UTimelineTemplate* Timeline = Cast<const UTimelineTemplate>(ObjectReference))
 	{
@@ -3687,7 +3650,7 @@ void FBlueprintEditor::JumpToHyperlink(const UObject* ObjectReference, bool bReq
 	}
 	else if ((ObjectReference != nullptr) && ObjectReference->IsAsset())
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(const_cast<UObject*>(ObjectReference));
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(const_cast<UObject*>(ObjectReference));
 	}
 	else
 	{
@@ -7991,7 +7954,7 @@ void FBlueprintEditor::Tick(float DeltaTime)
 
 	if (bPendingDeferredClose)
 	{
-		IAssetEditorInstance* EditorInst = FAssetEditorManager::Get().FindEditorForAsset(GetBlueprintObj(), /*bFocusIfOpen =*/false);
+		IAssetEditorInstance* EditorInst = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(GetBlueprintObj(), /*bFocusIfOpen =*/false);
 		check(EditorInst != nullptr);
 		EditorInst->CloseWindow();
 	}

@@ -11,6 +11,8 @@
 @implementation FAppleARKitSessionDelegate
 {
 	FAppleARKitSystem* _AppleARKitSystem;
+	TArray<FVector2D> PassthroughCameraUVs;
+	FCriticalSection CameraUVsLock;
 }
 
 
@@ -30,8 +32,30 @@
 
 - (void)session:(ARSession *)session didUpdateFrame:(ARFrame *)frame 
 {
+	// Update the camera UVs
+	TSharedPtr<IXRCamera, ESPMode::ThreadSafe> Camera = _AppleARKitSystem->GetXRCamera(0);
+	if (Camera)
+	{
+		ENQUEUE_RENDER_COMMAND(UpdateCameraUVsCommand)([self, Camera](FRHICommandListImmediate& RHICmdList)
+		{
+			FScopeLock ScopeLock(&CameraUVsLock);
+			Camera->GetPassthroughCameraUVs_RenderThread(PassthroughCameraUVs);
+		});
+	}
+	
+	FVector2D MinCameraUV(0.f, 0.f);
+	FVector2D MaxCameraUV(1.f, 1.f);
+	{
+		FScopeLock ScopeLock(&CameraUVsLock);
+		if (PassthroughCameraUVs.Num() == 4)
+		{
+			MinCameraUV = PassthroughCameraUVs[0];
+			MaxCameraUV = PassthroughCameraUVs[3];
+		}
+	}
+	
 	// Bundle results into FAppleARKitFrame
-	TSharedPtr< FAppleARKitFrame, ESPMode::ThreadSafe > AppleARKitFrame( new FAppleARKitFrame( frame ) );
+	TSharedPtr< FAppleARKitFrame, ESPMode::ThreadSafe > AppleARKitFrame( new FAppleARKitFrame( frame, MinCameraUV, MaxCameraUV ) );
 	
 	// Pass result to session
 	_AppleARKitSystem->SessionDidUpdateFrame_DelegateThread( AppleARKitFrame );

@@ -331,7 +331,7 @@ public:
 	static FBox GetVisibleLevelsBoundingBox(const FLevelModelList& InList, bool bIncludeChildren);
 
 	/** @return	The UICommandList supported by this collection */
-	const TSharedRef<const FUICommandList> GetCommandList() const;
+	const TSharedRef<FUICommandList> GetCommandList() const;
 
 	/**  */
 	void LoadSettings();

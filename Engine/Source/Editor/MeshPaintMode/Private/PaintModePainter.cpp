@@ -1120,7 +1120,7 @@ void FPaintModePainter::Reset()
 	ApplyForcedLODIndex(-1);
 
 	// If the user has pending changes and the editor is not exiting, we want to do the commit for all the modified textures.
-	if ((GetNumberOfPendingPaintChanges() > 0) && !GIsRequestingExit)
+	if ((GetNumberOfPendingPaintChanges() > 0) && !IsEngineExitRequested())
 	{
 		CommitAllPaintedTextures();
 	}
@@ -2361,10 +2361,11 @@ TArray<ComponentClass*> FPaintModePainter::GetSelectedComponents() const
 			AActor* SelectedActor = Cast<AActor>(ActorSelection->GetSelectedObject(SelectionIndex));
 			if (SelectedActor)
 			{
-				TArray<UActorComponent*> ActorComponents = SelectedActor->GetComponentsByClass(ComponentClass::StaticClass());
-				for (UActorComponent* Component : ActorComponents)
+				TInlineComponentArray<ComponentClass*> ActorComponents;
+				SelectedActor->GetComponents(ActorComponents);
+				for (ComponentClass* Component : ActorComponents)
 				{
-					Components.AddUnique(CastChecked<ComponentClass>(Component));
+					Components.AddUnique(Component);
 				}
 			}
 		}

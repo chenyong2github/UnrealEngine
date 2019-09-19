@@ -984,7 +984,7 @@ void SSlateFileOpenDlg::OnPathMenuItemClicked( FString ClickedPath )
 }
 
 
-TSharedPtr<SWidget> SSlateFileOpenDlg::OnGetCrumbDelimiterContent(const FString& CrumbData) const
+TSharedRef<SWidget> SSlateFileOpenDlg::OnGetCrumbDelimiterContent(const FString& CrumbData) const
 {
 	TSharedPtr<SWidget> Widget = SNullWidget::NullWidget;
 	TArray<FString> SubDirs;
@@ -1063,7 +1063,7 @@ TSharedPtr<SWidget> SSlateFileOpenDlg::OnGetCrumbDelimiterContent(const FString&
 			];
 	}
 
-	return Widget;
+	return Widget.ToSharedRef();
 }
 
 

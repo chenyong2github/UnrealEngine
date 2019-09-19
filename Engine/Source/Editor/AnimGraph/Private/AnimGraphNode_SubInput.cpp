@@ -12,7 +12,7 @@
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Animation/AnimBlueprint.h"
 #include "IAnimationBlueprintEditor.h"
 #include "AnimationGraphSchema.h"
@@ -22,6 +22,7 @@
 #include "K2Node_CallFunction.h"
 #include "Containers/Ticker.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SubInputNode"
 
@@ -146,7 +147,7 @@ void UAnimGraphNode_SubInput::HandleInputPinArrayChanged()
 
 			if(Input.Type.PinCategory == NAME_None)
 			{
-				IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(AnimBlueprint, false);
+				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AnimBlueprint, false);
 				check(AssetEditor->GetEditorName() == "AnimationBlueprintEditor");
 				IAnimationBlueprintEditor* AnimationBlueprintEditor = static_cast<IAnimationBlueprintEditor*>(AssetEditor);
 				Input.Type = AnimationBlueprintEditor->GetLastGraphPinTypeUsed();
@@ -271,7 +272,7 @@ void UAnimGraphNode_SubInput::PostPlacedNewNode()
 			if(UAnimGraphNode_SubInput* SubInputNode = WeakThis.Get())
 			{
 				// refresh the BP editor's details panel in case we are viewing the graph
-				IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(SubInputNode->GetAnimBlueprint(), false);
+				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(SubInputNode->GetAnimBlueprint(), false);
 				check(AssetEditor->GetEditorName() == "AnimationBlueprintEditor");
 				IAnimationBlueprintEditor* AnimationBlueprintEditor = static_cast<IAnimationBlueprintEditor*>(AssetEditor);
 				AnimationBlueprintEditor->RefreshInspector();

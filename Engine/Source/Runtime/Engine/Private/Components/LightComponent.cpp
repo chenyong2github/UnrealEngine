@@ -27,7 +27,7 @@
 
 void FStaticShadowDepthMap::InitRHI()
 {
-	if (FApp::CanEverRender() && Data && Data->ShadowMapSizeX > 0 && Data->ShadowMapSizeY > 0 && GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM4)
+	if (FApp::CanEverRender() && Data && Data->ShadowMapSizeX > 0 && Data->ShadowMapSizeY > 0 && GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		FRHIResourceCreateInfo CreateInfo;
 		FTexture2DRHIRef Texture2DRHI = RHICreateTexture2D(Data->ShadowMapSizeX, Data->ShadowMapSizeY, PF_R16F, 1, 1, 0, CreateInfo);
@@ -77,6 +77,16 @@ void ULightComponentBase::SetAffectReflection(bool bNewValue)
 		&& bAffectReflection != bNewValue)
 	{
 		bAffectReflection = bNewValue;
+		MarkRenderStateDirty();
+	}
+}
+
+void ULightComponentBase::SetAffectGlobalIllumination(bool bNewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& bAffectGlobalIllumination != bNewValue)
+	{
+		bAffectGlobalIllumination = bNewValue;
 		MarkRenderStateDirty();
 	}
 }
@@ -269,6 +279,7 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, bForceCachedShadowsForMovablePrimitives(InLightComponent->bForceCachedShadowsForMovablePrimitives)
 	, bCastRaytracedShadow(InLightComponent->bCastRaytracedShadow)
 	, bAffectReflection(InLightComponent->bAffectReflection)
+	, bAffectGlobalIllumination(InLightComponent->bAffectGlobalIllumination)
 	, bAffectTranslucentLighting(InLightComponent->bAffectTranslucentLighting)
 	, bUsedAsAtmosphereSunLight(InLightComponent->IsUsedAsAtmosphereSunLight())
 	, bAffectDynamicIndirectLighting(InLightComponent->bAffectDynamicIndirectLighting)
@@ -374,6 +385,7 @@ ULightComponentBase::ULightComponentBase(const FObjectInitializer& ObjectInitial
 	CastDynamicShadows = true;
 	bCastRaytracedShadow = true;
 	bAffectReflection = true;
+	bAffectGlobalIllumination = true;
 #if WITH_EDITORONLY_DATA
 	bVisualizeComponent = true;
 #endif
@@ -663,6 +675,7 @@ void ULightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bCastVolumetricShadow) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bCastRaytracedShadow) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bAffectReflection) &&
+		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bAffectGlobalIllumination) &&
 		// Point light properties that shouldn't unbuild lighting
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(UPointLightComponent, SourceRadius) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(UPointLightComponent, SoftSourceRadius) &&

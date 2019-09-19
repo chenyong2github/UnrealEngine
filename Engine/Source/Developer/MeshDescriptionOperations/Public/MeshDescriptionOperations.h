@@ -29,9 +29,10 @@ public:
 	enum ETangentOptions
 	{
 		None = 0,
-		BlendOverlappingNormals = 0x1,
-		IgnoreDegenerateTriangles = 0x2,
-		UseMikkTSpace = 0x4,
+		BlendOverlappingNormals = 0x00000001,
+		IgnoreDegenerateTriangles = 0x00000002,
+		UseMikkTSpace = 0x00000004,
+		UseWeightedAreaAndAngle = 0x00000008, //Use surface area and angle as a ratio when computing normals
 	};
 
 	/** Convert this mesh description into the old FRawMesh format. */
@@ -57,7 +58,7 @@ public:
 	/*
 	 * Check if all normals and tangents are valid, if not recompute them
 	 */
-	static void RecomputeNormalsAndTangentsIfNeeded(FMeshDescription& MeshDescription, ETangentOptions TangentOptions, bool bUseMikkTSpace, bool bForceRecomputeNormals = false, bool bForceRecomputeTangents = false);
+	static void RecomputeNormalsAndTangentsIfNeeded(FMeshDescription& MeshDescription, ETangentOptions TangentOptions, bool bForceRecomputeNormals = false, bool bForceRecomputeTangents = false);
 
 	/**
 	 * Compute normal, tangent and Bi-Normal for every polygon in the mesh description. (this do not compute Vertex NTBs)

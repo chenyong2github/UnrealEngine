@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections;
@@ -57,7 +57,7 @@ namespace IncludeTool.Support
 					if (Field.FieldType == typeof(bool))
 					{
 						string Flag = String.Format("-{0}", Name);
-						if(RemainingArgs.RemoveAll(x => x.Equals(Flag, StringComparison.InvariantCultureIgnoreCase)) > 0)
+						if(RemainingArgs.RemoveAll(x => x.Equals(Flag, StringComparison.OrdinalIgnoreCase)) > 0)
 						{
 							Field.SetValue(Options, true);
 						}
@@ -70,7 +70,7 @@ namespace IncludeTool.Support
 						List<string> Values = new List<string>();
 						for (int Idx = 0; Idx < RemainingArgs.Count; Idx++)
 						{
-							if (RemainingArgs[Idx].StartsWith(Prefix, StringComparison.InvariantCultureIgnoreCase))
+							if (RemainingArgs[Idx].StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
 							{
 								string Suffix = RemainingArgs[Idx].Substring(Prefix.Length);
 								if (OptionAttribute.Separator != 0)

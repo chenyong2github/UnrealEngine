@@ -286,7 +286,8 @@ void FHardwareTargetingSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& D
 		
 		HardwareClassCombo = HardwareTargeting.MakeHardwareClassTargetCombo(
 			FOnHardwareClassChanged::CreateStatic(SetPropertyValue, Property),
-			TAttribute<EHardwareClass::Type>::Create(TAttribute<EHardwareClass::Type>::FGetter::CreateStatic(GetPropertyValue, Property))
+			TAttribute<EHardwareClass::Type>::Create(TAttribute<EHardwareClass::Type>::FGetter::CreateStatic(GetPropertyValue, Property)),
+			Orient_Horizontal
 		);
 	}
 
@@ -306,7 +307,8 @@ void FHardwareTargetingSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& D
 		};
 		GraphicsPresetCombo = HardwareTargeting.MakeGraphicsPresetTargetCombo(
 			FOnGraphicsPresetChanged::CreateStatic(SetPropertyValue, Property),
-			TAttribute<EGraphicsPreset::Type>::Create(TAttribute<EGraphicsPreset::Type>::FGetter::CreateStatic(GetPropertyValue, Property))
+			TAttribute<EGraphicsPreset::Type>::Create(TAttribute<EGraphicsPreset::Type>::FGetter::CreateStatic(GetPropertyValue, Property)),
+			Orient_Horizontal
 		);
 	}
 

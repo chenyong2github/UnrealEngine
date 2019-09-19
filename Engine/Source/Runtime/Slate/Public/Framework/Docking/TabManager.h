@@ -55,9 +55,16 @@ struct FTabId
 
 	FString ToString() const
 	{
-		return (InstanceId == INDEX_NONE)
-			? TabType.ToString()
-			: FString::Printf( TEXT("%s : %d"), *(TabType.ToString()), InstanceId );
+		// This function is useful to allow saving the layout on disk.
+		// Alternative: We could save (InstanceId == INDEX_NONE) ? TabType.ToString() : FString::Printf( TEXT("%s : %d"), *(TabType.ToString()), InstanceId ), which would include the InstanceId.
+		// Problem: InstanceId depends on the Editor/Slate runtime session rather than the layout itself. I.e., this would lead to the exact same layout being saved differently, depending
+		// on how many tabs were opened/closed before arriving to that final layout, or in the order in which those tabs were created.
+		// Conclusion: We do not want to save the InstanceId, which is session-dependent rather than layout-dependent.
+		// More detailed explanation: When the Editor is opened, InstanceId is a static value starting in 0 and increasing every time a new FTabID is created (but not decreased when one is
+		// closed). Loading/saving layouts do not reset this number either (and there is no point in doing so given that it is a runtime variable). E.g., opening and closing the same tab
+		// multiple times will lead to higher InstanceId numbers in the final layout. In addition, creating tab A and then B would lead to A::InstanceId = 0, B::InstanceId = 1. While creating
+		// B first and A latter would lead to the opposite values. Any of these examples would wrongly make 2 exact layouts look "different" if we saved the InstanceIds.
+		return TabType.ToString();
 	}
 
 	FText ToText() const

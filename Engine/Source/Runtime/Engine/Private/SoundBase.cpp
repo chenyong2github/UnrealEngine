@@ -185,11 +185,11 @@ bool USoundBase::GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSou
 	return false;
 }
 
+#if WITH_EDITORONLY_DATA
 void USoundBase::PostLoad()
 {
 	Super::PostLoad();
 
-#if WITH_EDITORONLY_DATA
 	const int32 LinkerUE4Version = GetLinkerUE4Version();
 
 	if (LinkerUE4Version < VER_UE4_SOUND_CONCURRENCY_PACKAGE)
@@ -199,8 +199,8 @@ void USoundBase::PostLoad()
 		ConcurrencyOverrides.MaxCount = FMath::Max(MaxConcurrentPlayCount_DEPRECATED, 1);
 		ConcurrencyOverrides.ResolutionRule = MaxConcurrentResolutionRule_DEPRECATED;
 	}
-#endif
 }
+#endif
 
 bool USoundBase::CanBeClusterRoot() const
 {

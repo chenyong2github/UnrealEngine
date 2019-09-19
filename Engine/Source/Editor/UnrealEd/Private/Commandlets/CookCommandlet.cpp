@@ -462,7 +462,7 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 	FDateTime LastConnectionTime = FDateTime::UtcNow();
 	bool bHadConnection = false;
 
-	while (!GIsRequestingExit)
+	while (!IsEngineExitRequested())
 	{
 		uint32 CookedPkgCount = 0;
 		uint32 TickResults = CookOnTheFlyServer->TickCookOnTheSide(/*TimeSlice =*/10.f, CookedPkgCount, ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay);
@@ -477,7 +477,7 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 		CookOnTheFlyServer->TickRecompileShaderRequests();
 		GShaderCompilingManager->ProcessAsyncResults(true, false);
 
-		while ( (CookOnTheFlyServer->HasCookRequests() == false) && !GIsRequestingExit)
+		while ( (CookOnTheFlyServer->HasCookRequests() == false) && !IsEngineExitRequested())
 		{
 			CookOnTheFlyServer->TickRecompileShaderRequests();
 
@@ -505,12 +505,12 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 					}
 					else
 					{
-						GIsRequestingExit = true;
+						RequestEngineExit(TEXT("Cook file server idle"));
 					}
 				}
 				else if (bHadConnection && (CookOnTheFlyServer->NumConnections() == 0) && bForceClose) // immediately shut down if we previously had a connection and now do not
 				{
-					GIsRequestingExit = true;
+					RequestEngineExit(TEXT("Cook file server lost last connection"));
 				}
 			}
 

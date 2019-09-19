@@ -152,7 +152,7 @@ static void LoadValidationCache(VkDevice Device, VkValidationCacheEXT& OutValida
 #endif
 
 
-FVulkanDevice::FVulkanDevice(VkPhysicalDevice InGpu)
+FVulkanDevice::FVulkanDevice(FVulkanDynamicRHI* InRHI, VkPhysicalDevice InGpu)
 	: Device(VK_NULL_HANDLE)
 	, ResourceHeapManager(this)
 	, DeferredDeletionQueue(this)
@@ -167,8 +167,9 @@ FVulkanDevice::FVulkanDevice(VkPhysicalDevice InGpu)
 	, ComputeContext(nullptr)
 	, PipelineStateCache(nullptr)
 {
+	RHI = InRHI;
 	FMemory::Memzero(GpuProps);
-#if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
+#if VULKAN_SUPPORTS_EXTERNAL_MEMORY
 	FMemory::Memzero(GpuIdProps);
 #endif
 	FMemory::Memzero(PhysicalFeatures);
@@ -185,6 +186,29 @@ FVulkanDevice::~FVulkanDevice()
 	}
 }
 
+static inline FString GetQueueInfoString(const VkQueueFamilyProperties& Props)
+{
+	FString Info;
+	if ((Props.queueFlags & VK_QUEUE_GRAPHICS_BIT) == VK_QUEUE_GRAPHICS_BIT)
+	{
+		Info += TEXT(" Gfx");
+	}
+	if ((Props.queueFlags & VK_QUEUE_COMPUTE_BIT) == VK_QUEUE_COMPUTE_BIT)
+	{
+		Info += TEXT(" Compute");
+	}
+	if ((Props.queueFlags & VK_QUEUE_TRANSFER_BIT) == VK_QUEUE_TRANSFER_BIT)
+	{
+		Info += TEXT(" Xfer");
+	}
+	if ((Props.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) == VK_QUEUE_SPARSE_BINDING_BIT)
+	{
+		Info += TEXT(" Sparse");
+	}
+
+	return Info;
+};
+
 void FVulkanDevice::CreateDevice()
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanMisc);
@@ -193,14 +217,7 @@ void FVulkanDevice::CreateDevice()
 	// Setup extension and layer info
 	VkDeviceCreateInfo DeviceInfo;
 	ZeroVulkanStruct(DeviceInfo, VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO);
-
-	bool bDebugMarkersFound = false;
-	TArray<const ANSICHAR*> DeviceExtensions;
-	TArray<const ANSICHAR*> ValidationLayers;
-	GetDeviceExtensionsAndLayers(DeviceExtensions, ValidationLayers, bDebugMarkersFound);
-
-	ParseOptionalDeviceExtensions(DeviceExtensions);
-
+	
 	DeviceInfo.enabledExtensionCount = DeviceExtensions.Num();
 	DeviceInfo.ppEnabledExtensionNames = DeviceExtensions.GetData();
 
@@ -251,29 +268,6 @@ void FVulkanDevice::CreateDevice()
 				bIsValidQueue = true;
 			}
 		}
-
-		auto GetQueueInfoString = [](const VkQueueFamilyProperties& Props)
-		{
-			FString Info;
-			if ((Props.queueFlags & VK_QUEUE_GRAPHICS_BIT) == VK_QUEUE_GRAPHICS_BIT)
-			{
-				Info += TEXT(" Gfx");
-			}
-			if ((Props.queueFlags & VK_QUEUE_COMPUTE_BIT) == VK_QUEUE_COMPUTE_BIT)
-			{
-				Info += TEXT(" Compute");
-			}
-			if ((Props.queueFlags & VK_QUEUE_TRANSFER_BIT) == VK_QUEUE_TRANSFER_BIT)
-			{
-				Info += TEXT(" Xfer");
-			}
-			if ((Props.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) == VK_QUEUE_SPARSE_BINDING_BIT)
-			{
-				Info += TEXT(" Sparse");
-			}
-
-			return Info;
-		};
 
 		if (!bIsValidQueue)
 		{
@@ -362,6 +356,25 @@ void FVulkanDevice::CreateDevice()
 		}
 	}
 
+	UE_LOG(LogVulkanRHI, Display, TEXT("Using device layers"));
+	for (const ANSICHAR* Layer : ValidationLayers)
+	{
+		UE_LOG(LogVulkanRHI, Display, TEXT("* %s"), ANSI_TO_TCHAR(Layer));
+	}
+
+	UE_LOG(LogVulkanRHI, Display, TEXT("Using device extensions"));
+	for (const ANSICHAR* Extension : DeviceExtensions)
+	{
+		UE_LOG(LogVulkanRHI, Display, TEXT("* %s"), ANSI_TO_TCHAR(Extension));
+	}
+
+	GVulkanDelayAcquireImage = DelayAcquireBackBuffer();
+
+	SetupDrawMarkers();
+}
+
+void FVulkanDevice::SetupDrawMarkers()
+{
 #if VULKAN_ENABLE_DRAW_MARKERS
 #if 0//VULKAN_SUPPORTS_DEBUG_UTILS
 	FVulkanDynamicRHI* RHI = GVulkanRHI;
@@ -416,8 +429,6 @@ void FVulkanDevice::CreateDevice()
 #if VULKAN_ENABLE_DUMP_LAYER
 	EnableDrawMarkers();
 #endif
-	
-	GVulkanDelayAcquireImage = DelayAcquireBackBuffer();
 }
 
 void FVulkanDevice::SetupFormats()
@@ -739,19 +750,38 @@ void FVulkanDevice::MapFormatSupport(EPixelFormat UEFormat, VkFormat VulkanForma
 
 bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 {
-	bool bDiscrete = false;
+	// Always get the extensions/layers first!
+	TArray<FString> AllDeviceExtensions;
+	TArray<FString> AllValidationLayers;
+	GetDeviceExtensionsAndLayers(Gpu, VendorId, DeviceExtensions, ValidationLayers, AllDeviceExtensions, AllValidationLayers, bDebugMarkersFound);
+	OptionalDeviceExtensions.Setup(DeviceExtensions);
 
-	VulkanRHI::vkGetPhysicalDeviceProperties(Gpu, &GpuProps);
-#if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
-	if (GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
+#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
+	VkPhysicalDeviceDriverPropertiesKHR PhysicalDeviceProperties;
+	ZeroVulkanStruct(PhysicalDeviceProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR);
+#endif
+
+#if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
+	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
 	{
 		VkPhysicalDeviceProperties2KHR GpuProps2;
 		ZeroVulkanStruct(GpuProps2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR);
 		GpuProps2.pNext = &GpuIdProps;
 		ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
+
+#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
+		if (GetOptionalExtensions().HasDriverProperties)
+		{
+			GpuIdProps.pNext = &PhysicalDeviceProperties;
+		}
+#endif
+
 		VulkanRHI::vkGetPhysicalDeviceProperties2KHR(Gpu, &GpuProps2);
 	}
 #endif
+
+	VulkanRHI::vkGetPhysicalDeviceProperties(Gpu, &GpuProps);
+	bool bDiscrete = false;
 	auto GetDeviceTypeString = [&]()
 	{
 		FString Info;
@@ -784,6 +814,26 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 	UE_LOG(LogVulkanRHI, Display, TEXT("- API %d.%d.%d(0x%x) Driver 0x%x VendorId 0x%x"), VK_VERSION_MAJOR(GpuProps.apiVersion), VK_VERSION_MINOR(GpuProps.apiVersion), VK_VERSION_PATCH(GpuProps.apiVersion), GpuProps.apiVersion, GpuProps.driverVersion, GpuProps.vendorID);
 	UE_LOG(LogVulkanRHI, Display, TEXT("- DeviceID 0x%x Type %s"), GpuProps.deviceID, *GetDeviceTypeString());
 	UE_LOG(LogVulkanRHI, Display, TEXT("- Max Descriptor Sets Bound %d Timestamps %d"), GpuProps.limits.maxBoundDescriptorSets, GpuProps.limits.timestampComputeAndGraphics);
+
+	VendorId = RHIConvertToGpuVendorId(GpuProps.vendorID);
+
+#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
+	if (OptionalDeviceExtensions.HasDriverProperties)
+	{
+		UE_LOG(LogVulkanRHI, Display, TEXT("- Device Properties driverName: %s"), ANSI_TO_TCHAR(PhysicalDeviceProperties.driverName));
+		UE_LOG(LogVulkanRHI, Display, TEXT("- Device Properties driverInfo: %s"), ANSI_TO_TCHAR(PhysicalDeviceProperties.driverInfo));
+	}
+#endif
+
+	for (const FString& Name : AllValidationLayers)
+	{
+		UE_LOG(LogVulkanRHI, Display, TEXT("-    Found device layer %s"), *Name);
+	}
+
+	for (const FString& Name : AllDeviceExtensions)
+	{
+		UE_LOG(LogVulkanRHI, Display, TEXT("-    Found device extension %s"), *Name);
+	}
 
 	uint32 QueueCount = 0;
 	VulkanRHI::vkGetPhysicalDeviceQueueFamilyProperties(Gpu, &QueueCount, nullptr);

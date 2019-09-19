@@ -256,11 +256,11 @@ void FMovieSceneToolsModule::UnregisterTakeData(IMovieSceneToolsTakeData* InTake
 	TakeDatas.Remove(InTakeData);
 }
 
-bool FMovieSceneToolsModule::GatherTakes(const UMovieSceneSection* Section, TArray<uint32>& TakeNumbers, uint32& CurrentTakeNumber)
+bool FMovieSceneToolsModule::GatherTakes(const UMovieSceneSection* Section, TArray<FAssetData>& AssetData, uint32& OutCurrentTakeNumber)
 {
 	for (IMovieSceneToolsTakeData* TakeData : TakeDatas)
 	{
-		if (TakeData->GatherTakes(Section, TakeNumbers, CurrentTakeNumber))
+		if (TakeData->GatherTakes(Section, AssetData, OutCurrentTakeNumber))
 		{
 			return true;
 		}
@@ -270,17 +270,30 @@ bool FMovieSceneToolsModule::GatherTakes(const UMovieSceneSection* Section, TArr
 }
 
 
-UObject* FMovieSceneToolsModule::GetTake(const UMovieSceneSection* Section, uint32 TakeNumber)
+bool FMovieSceneToolsModule::GetTakeNumber(const UMovieSceneSection* Section, FAssetData AssetData, uint32& OutTakeNumber)
 {
 	for (IMovieSceneToolsTakeData* TakeData : TakeDatas)
 	{
-		if (UObject* TakeObject = TakeData->GetTake(Section, TakeNumber))
+		if (TakeData->GetTakeNumber(Section, AssetData, OutTakeNumber))
 		{
-			return TakeObject;
+			return true;
 		}
 	}
 
-	return nullptr;
+	return false;
+}
+
+bool FMovieSceneToolsModule::SetTakeNumber(const UMovieSceneSection* Section, uint32 InTakeNumber)
+{
+	for (IMovieSceneToolsTakeData* TakeData : TakeDatas)
+	{
+		if (TakeData->SetTakeNumber(Section, InTakeNumber))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 IMPLEMENT_MODULE( FMovieSceneToolsModule, MovieSceneTools );

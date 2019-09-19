@@ -194,6 +194,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	/*Don't allow the engine to recalculate normals*/
 	SrcModel.BuildSettings.bRecomputeNormals = false;
 	SrcModel.BuildSettings.bRecomputeTangents = false;
+	SrcModel.BuildSettings.bComputeWeightedNormals = true;
 	SrcModel.BuildSettings.bRemoveDegenerates = true;
 	SrcModel.BuildSettings.bUseHighPrecisionTangentBasis = false;
 	SrcModel.BuildSettings.bUseFullPrecisionUVs = false;

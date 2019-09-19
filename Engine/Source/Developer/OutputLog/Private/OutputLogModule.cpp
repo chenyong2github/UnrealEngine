@@ -13,6 +13,11 @@
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Misc/ConfigCacheIni.h"
+
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
 
 IMPLEMENT_MODULE( FOutputLogModule, OutputLog );
 
@@ -43,7 +48,7 @@ public:
 	}
 
 	/** Gets all captured messages */
-	const TArray< TSharedPtr<FLogMessage> >& GetMessages() const
+	const TArray< TSharedPtr<FOutputLogMessage> >& GetMessages() const
 	{
 		return Messages;
 	}
@@ -59,11 +64,14 @@ protected:
 private:
 
 	/** All log messsges since this module has been started */
-	TArray< TSharedPtr<FLogMessage> > Messages;
+	TArray< TSharedPtr<FOutputLogMessage> > Messages;
 };
 
 /** Our global output log app spawner */
 static TSharedPtr<FOutputLogHistory> OutputLogHistory;
+
+/** Our global active output log */
+static TWeakPtr<SOutputLog> OutputLog;
 
 TSharedRef<SDockTab> SpawnOutputLog( const FSpawnTabArgs& Args )
 {
@@ -72,7 +80,7 @@ TSharedRef<SDockTab> SpawnOutputLog( const FSpawnTabArgs& Args )
 		.TabRole( ETabRole::NomadTab )
 		.Label( NSLOCTEXT("OutputLog", "TabTitle", "Output Log") )
 		[
-			SNew(SOutputLog).Messages( OutputLogHistory->GetMessages() )
+			SAssignNew(OutputLog, SOutputLog).Messages( OutputLogHistory->GetMessages() )
 		];
 }
 
@@ -100,7 +108,11 @@ void FOutputLogModule::StartupModule()
 		.SetTooltipText(NSLOCTEXT("UnrealEditor", "DeviceOutputLogTooltipText", "Open the Device Output Log tab."))
 		.SetGroup( WorkspaceMenu::GetMenuStructure().GetDeveloperToolsLogCategory() )
 		.SetIcon( FSlateIcon(FEditorStyle::GetStyleSetName(), "Log.TabIcon") );
-	
+
+#if WITH_EDITOR
+	FEditorDelegates::BeginPIE.AddRaw(this, &FOutputLogModule::ClearOnPIE);
+#endif
+
 	OutputLogHistory = MakeShareable(new FOutputLogHistory);
 }
 
@@ -111,6 +123,10 @@ void FOutputLogModule::ShutdownModule()
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(OutputLogModule::OutputLogTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(OutputLogModule::DeviceOutputLogTabName);
 	}
+
+#if WITH_EDITOR
+	FEditorDelegates::BeginPIE.RemoveAll(this);
+#endif
 
 	OutputLogHistory.Reset();
 }
@@ -183,6 +199,25 @@ void FOutputLogModule::CloseDebugConsole()
 		{
 			WindowForExistingConsole->RemoveOverlaySlot( PinnedDebugConsole.ToSharedRef() );
 			DebugConsole.Reset();
+		}
+	}
+}
+
+void FOutputLogModule::ClearOnPIE(const bool bIsSimulating)
+{
+	if (OutputLog.IsValid())
+	{
+		bool bClearOnPIEEnabled = false;
+		GConfig->GetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogClearOnPIE"), bClearOnPIEEnabled, GEditorPerProjectIni);
+
+		if (bClearOnPIEEnabled)
+		{
+			TSharedPtr<SOutputLog> OutputLogShared = OutputLog.Pin();
+
+			if (OutputLogShared->CanClearLog())
+			{
+				OutputLogShared->OnClearLog();
+			}
 		}
 	}
 }

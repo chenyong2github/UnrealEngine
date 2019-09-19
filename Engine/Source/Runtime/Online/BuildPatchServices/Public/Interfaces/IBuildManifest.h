@@ -171,19 +171,30 @@ public:
 
 	/**
 	 * Returns the size of a particular file in the build
-	 * @param Filename		The file.
-	 * @return		File size.
+	 * @param Filename      The file.
+	 * @return the file size.
 	 */
 	virtual int64 GetFileSize(const FString& Filename) const = 0;
 
 	/**
 	 * Returns the total size of all files in the array
-	 * @param Filenames		The array of files.
-	 * @return		Total size of files in array.
+	 * @param Filenames     The array of files.
+	 * @return the total size of files in array.
 	 */
 	virtual int64 GetFileSize(const TArray<FString>& Filenames) const = 0;
-	virtual int64 GetFileSize(const TSet  <FString>& Filenames) const = 0;
 
+	/**
+	 * Returns the total size of all files in the set
+	 * @param Filenames     The set of files.
+	 * @return the total size of files in set.
+	 */
+	virtual int64 GetFileSize(const TSet<FString>& Filenames) const = 0;
+
+	/**
+	 * Get the list of install tags in this manifest
+	 * @return the tags referenced.
+	 */
+	virtual TSet<FString> GetFileTagList() const = 0;
 
 	/**
 	 * Get the list of install tags in this manifest
@@ -193,17 +204,24 @@ public:
 
 	/**
 	 * Gets a list of files that were installed with the Old Manifest, but no longer required by this Manifest.
-	 * @param OldManifest	IN		The Build Manifest that is currently installed.
-	 * @param RemovableFiles	OUT		A list to receive the files that may be removed.
+	 * @param OldManifest     IN    The Build Manifest that is currently installed.
+	 * @param RemovableFiles  OUT   A list to receive the files that may be removed.
 	 */
-	virtual void GetRemovableFiles(const IBuildManifestRef& OldManifest, TArray< FString >& RemovableFiles) const = 0;
+	virtual void GetOutdatedFiles(const IBuildManifestRef& OldManifest, TSet<FString>& OutdatedFiles) const = 0;
+
+	/**
+	 * Gets a list of files that were installed with the Old Manifest, but no longer required by this Manifest.
+	 * @param OldManifest     IN    The Build Manifest that is currently installed.
+	 * @param RemovableFiles  OUT   A list to receive the files that may be removed.
+	 */
+	virtual void GetRemovableFiles(const IBuildManifestRef& OldManifest, TArray<FString>& RemovableFiles) const = 0;
 
 	/**
 	 * Gets a list of files that are installed in InstallPath, but no longer required by this Manifest.
-	 * @param InstallPath	IN		The path to the currently installed files.
-	 * @param RemovableFiles	OUT		A list to receive the files that may be removed.
+	 * @param InstallPath     IN    The path to the currently installed files.
+	 * @param RemovableFiles  OUT   A list to receive the files that may be removed.
 	 */
-	virtual void GetRemovableFiles(const TCHAR* InstallPath, TArray< FString >& RemovableFiles) const = 0;
+	virtual void GetRemovableFiles(const TCHAR* InstallPath, TArray<FString>& RemovableFiles) const = 0;
 
 	/**
 	 * Checks the manifest format version to see if this manifest was loaded from latest data
@@ -248,3 +266,4 @@ public:
 	 */
 	virtual IBuildManifestRef Duplicate() const = 0;
 };
+

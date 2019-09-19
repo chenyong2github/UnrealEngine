@@ -41,10 +41,11 @@ public:
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 	virtual bool IsPrimaryEditor() const override { return true; }
+	virtual bool IsSimpleAssetEditor() const override { return true; }
 
 	/** FAssetEditorToolkit interface */
 	virtual void PostRegenerateMenusAndToolbars() override;
-
+	
 	/** Used to show or hide certain properties */
 	void SetPropertyVisibilityDelegate(FIsPropertyVisible InVisibilityDelegate);
 

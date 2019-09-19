@@ -27,7 +27,7 @@
 
 // Page protection to catch FNameEntry stomps
 #ifndef FNAME_WRITE_PROTECT_PAGES
-#define FNAME_WRITE_PROTECT_PAGES 1
+#define FNAME_WRITE_PROTECT_PAGES 0
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealNames, Log, All);
@@ -1313,6 +1313,17 @@ FString FName::NameToDisplayString( const FString& InDisplayName, const bool bIs
 			bInARun = false;
 		}
 
+		// We were running on uppercase letters before and still do, but the next character is a lowercase letter,
+		// so we should break the run here, like "3DWidget" should be "3D Widget"
+		if (bInARun && !bWasSpace && !bWasOpenParen && CharIndex < Chars.Num() - 1 && FChar::IsLower(Chars[CharIndex + 1]))
+		{
+			if (!bWasSpace && OutDisplayName.Len() > 0)
+			{
+				OutDisplayName += TEXT(' ');
+				bWasSpace = true;
+			}
+		}
+
 		// An underscore denotes a space, so replace it and continue the run
 		if( bIsUnderscore )
 		{
@@ -2132,6 +2143,8 @@ void FNameEntry::Write(FStructuredArchive::FSlot Slot) const
 	Slot << EntrySerialized;
 }
 
+static_assert(PLATFORM_LITTLE_ENDIAN, "FNameEntrySerialized serialization needs updating to support big-endian platforms!");
+
 FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 {
 	if (Ar.IsLoading())
@@ -2171,12 +2184,15 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 			// get the pointer to the wide array 
 			WIDECHAR* WideName = const_cast<WIDECHAR*>(E.GetWideName());
 
-			// read in the UCS2CHAR string and byteswap it, etc
+			// read in the UCS2CHAR string
 			auto Sink = StringMemoryPassthru<UCS2CHAR>(WideName, StringLen, StringLen);
 			Ar.Serialize(Sink.Get(), StringLen * sizeof(UCS2CHAR));
 			Sink.Apply();
 
-			INTEL_ORDER_TCHARARRAY(WideName)
+#if PLATFORM_TCHAR_IS_4_BYTES
+			// Inline combine any surrogate pairs in the data when loading into a UTF-32 string
+			StringLen = StringConv::InlineCombineSurrogates_Buffer(WideName, StringLen);
+#endif	// PLATFORM_TCHAR_IS_4_BYTES
 		}
 		else
 		{

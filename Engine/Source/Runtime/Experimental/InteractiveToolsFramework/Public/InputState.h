@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "InputCoreTypes.h"
 #include "Math/UnrealMath.h"
+#include "InputState.generated.h"
 
 
 /**
@@ -61,6 +62,49 @@ struct FInputDeviceRay
 		ScreenPosition = ScreenPositionIn;
 	}
 };
+
+
+
+/*
+ * FInputRayHit is returned by various hit-test interface functions.
+ * Generally this is intended to be returned as the result of a hit-test with a FInputDeviceRay 
+ */
+USTRUCT()
+struct INTERACTIVETOOLSFRAMEWORK_API FInputRayHit
+{
+	GENERATED_BODY()
+
+		/** true if ray hit something, false otherwise */
+		bool bHit;
+
+	/** distance along ray at which intersection occurred */
+	float HitDepth;
+
+	/** client-defined integer identifier for hit object/element/target/etc */
+	int32 HitIdentifier;
+
+	/** client-defined pointer for hit object/target */
+	void* HitOwner;
+
+	FInputRayHit()
+	{
+		bHit = false;
+		HitDepth = TNumericLimits<float>::Max();
+		HitIdentifier = 0;
+		HitOwner = nullptr;
+	}
+
+	explicit FInputRayHit(float HitDepthIn)
+	{
+		bHit = true;
+		HitDepth = HitDepthIn;
+		HitIdentifier = 0;
+		HitOwner = nullptr;
+	}
+};
+
+
+
 
 
 /**

@@ -133,10 +133,12 @@ struct MOVIESCENETRACKS_API FMovieSceneEventSectionData : public FMovieSceneChan
 {
 	GENERATED_BODY()
 
-	/**
+#if WITH_EDITORONLY_DATA
+		/**
 	 * Called after this section data has been serialized to upgrade old data
 	 */
 	void PostSerialize(const FArchive& Ar);
+#endif
 
 	/**
 	 * Access a mutable interface for this channel's data
@@ -176,6 +178,7 @@ public:
 	virtual void SetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<const FFrameNumber> InKeyTimes) override;
 	virtual void DuplicateKeys(TArrayView<const FKeyHandle> InHandles, TArrayView<FKeyHandle> OutNewHandles) override;
 	virtual void DeleteKeys(TArrayView<const FKeyHandle> InHandles) override;
+	virtual void DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore) override;
 	virtual void ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate) override;
 	virtual TRange<FFrameNumber> ComputeEffectiveRange() const override;
 	virtual int32 GetNumKeys() const override;
@@ -204,13 +207,13 @@ private:
 #endif
 };
 
-
+#if WITH_EDITORONLY_DATA
 template<>
 struct TStructOpsTypeTraits<FMovieSceneEventSectionData> : public TStructOpsTypeTraitsBase2<FMovieSceneEventSectionData>
 {
 	enum { WithPostSerialize = true };
 };
-
+#endif
 
 /**
  * Implements a section in movie scene event tracks.

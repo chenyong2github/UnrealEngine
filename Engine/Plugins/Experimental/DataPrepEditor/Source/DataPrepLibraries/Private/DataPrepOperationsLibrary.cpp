@@ -20,7 +20,7 @@
 #include "IMeshBuilderModule.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "Math/Vector2D.h"
@@ -157,6 +157,7 @@ namespace DataprepOperationsLibraryUtil
 				SourceModel.BuildSettings.bRecomputeTangents = false;
 				SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
 				SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
+				SourceModel.BuildSettings.bComputeWeightedNormals = false;
 			}
 
 			return BuildSettingsBackup;
@@ -184,6 +185,7 @@ namespace DataprepOperationsLibraryUtil
 					BuildSettings.bRecomputeTangents = CachedBuildSettings.bRecomputeTangents;
 					BuildSettings.bBuildAdjacencyBuffer = CachedBuildSettings.bBuildAdjacencyBuffer;
 					BuildSettings.bBuildReversedIndexBuffer = CachedBuildSettings.bBuildReversedIndexBuffer;
+					BuildSettings.bComputeWeightedNormals = CachedBuildSettings.bComputeWeightedNormals;
 				}
 			}
 		}
@@ -237,6 +239,7 @@ namespace DataprepOperationsLibraryUtil
 		SourceModel.BuildSettings.bRecomputeTangents = false;
 		SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
 		SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
+		SourceModel.BuildSettings.bComputeWeightedNormals = false;
 
 		FMeshDescription* StaticMeshDescription = SourceModel.MeshDescription.Get();
 		check( StaticMeshDescription );
@@ -552,6 +555,7 @@ void UDataprepOperationsLibrary::RemoveObjects(const TArray< UObject* >& Objects
 	ActorsToDelete.Sort([](const FActorAndDepth& Lhs, const FActorAndDepth& Rhs){ return Lhs.Depth > Rhs.Depth; });
 
 	bool bSelectionAffected = false;
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 	for (const FActorAndDepth& ActorInfo : ActorsToDelete)
 	{
 		AActor* Actor = ActorInfo.Actor;
@@ -581,10 +585,7 @@ void UDataprepOperationsLibrary::RemoveObjects(const TArray< UObject* >& Objects
 				bSelectionAffected = true;
 			}
 
-			if (GEditor->Layers)
-			{
-				GEditor->Layers->DisassociateActorFromLayers(Actor);
-			}
+			Layers->DisassociateActorFromLayers(Actor);
 
 			if (UWorld* World = Actor->GetWorld())
 			{

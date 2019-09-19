@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -136,6 +136,14 @@ namespace UnrealBuildTool
 		/// Maps names to config sections
 		/// </summary>
 		Dictionary<string, ConfigFileSection> Sections = new Dictionary<string, ConfigFileSection>(StringComparer.InvariantCultureIgnoreCase);
+
+		/// <summary>
+		/// Constructs a new, empty config file
+		/// </summary>
+		/// <param name="DefaultAction">The default action to take when encountering arrays without a '+' prefix</param>
+		public ConfigFile(ConfigLineAction DefaultAction = ConfigLineAction.Set)
+		{
+		}
 
 		/// <summary>
 		/// Reads config data from the given file.
@@ -341,6 +349,22 @@ namespace UnrealBuildTool
 		public IEnumerable<string> SectionNames
 		{
 			get { return Sections.Keys; }
+		}
+
+		/// <summary>
+		/// Tries to get a config section by name, or creates one if it doesn't exist
+		/// </summary>
+		/// <param name="SectionName">Name of the section to look for</param>
+		/// <returns>The config section</returns>
+		public ConfigFileSection FindOrAddSection(string SectionName)
+		{
+			ConfigFileSection Section;
+			if(!Sections.TryGetValue(SectionName, out Section))
+			{
+				Section = new ConfigFileSection(SectionName);
+				Sections.Add(SectionName, Section);
+			}
+			return Section;
 		}
 
 		/// <summary>

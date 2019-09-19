@@ -594,7 +594,7 @@ void ViewProvider::ProcessEvents()
 	PointerEventQueue.Empty();
 	Dispatching.clear(std::memory_order_release);
 
-	if (!GIsRequestingExit)
+	if (!IsEngineExitRequested())
 	{
 		for (const QueuedPointerEvent& Args : LocalPointerEvents)
 		{
@@ -1180,7 +1180,7 @@ void EngineTick( void )
 void EngineExit( void )
 {
 	// Make sure this is set
-	GIsRequestingExit = true;
+	RequestEngineExit(TEXT("EngineExit() was called"));
 	GEngineLoop.Exit();
 }
 
@@ -1221,7 +1221,7 @@ int32 GuardedMain( const TCHAR* CmdLine, HINSTANCE hInInstance, HINSTANCE hPrevI
 
 	// Call PreInit and exit if failed.
 	int32 ErrorLevel = EnginePreInit(CmdLine);
-	if ((ErrorLevel != 0) || GIsRequestingExit)
+	if ((ErrorLevel != 0) || IsEngineExitRequested())
 	{
 		return ErrorLevel;
 	}
@@ -1234,7 +1234,7 @@ int32 GuardedMain( const TCHAR* CmdLine, HINSTANCE hInInstance, HINSTANCE hPrevI
 	uint64 GameThreadAffinity = FPlatformAffinity::GetMainGameMask();
 	FPlatformProcess::SetThreadAffinityMask((DWORD_PTR)GameThreadAffinity);
 
-	while (!GIsRequestingExit)
+	while (!IsEngineExitRequested())
 	{
 		// ProcessEvents will throw if the process is exiting, allowing us to
 		// break out of the loop.  This will be cleaned up when we get proper

@@ -33,7 +33,6 @@ public class MeshUtilities : ModuleRules
 				"AnimationBlueprintEditor",
 				"AnimationEditor",
 				"SkeletalMeshEditor",
-				"SkeletonEditor",
 				"PropertyEditor",
 				"EditorStyle",
                 "GraphColor",

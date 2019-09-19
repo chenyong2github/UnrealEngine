@@ -144,10 +144,23 @@ void FAnimSequencerInstanceProxy::TermAnimTrack(int32 SequenceId)
 
 void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, float InPosition, float Weight, bool bFireNotifies)
 {
+	UpdateAnimTrack(InAnimSequence, SequenceId, TOptional<float>(), InPosition, Weight, bFireNotifies);
+}
+
+void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies)
+{
 	EnsureAnimTrack(InAnimSequence, SequenceId);
 
 	FSequencerPlayerAnimSequence* PlayerState = FindPlayer<FSequencerPlayerAnimSequence>(SequenceId);
-	PlayerState->PlayerNode.ExplicitTime = InPosition;
+	PlayerState->PlayerNode.ExplicitTime = InToPosition;
+	if (InFromPosition.IsSet())
+	{
+		// Set the internal time accumulator at the "from" time so that the player node will correctly evaluate the
+		// desired "from/to" range. We also disable the reinitialization code so it doesn't mess up that time we
+		// just set.
+		PlayerState->PlayerNode.SetExplicitPreviousTime(InFromPosition.GetValue());
+		PlayerState->PlayerNode.ReinitializationBehavior = ESequenceEvalReinit::NoReset;
+	}
 	// if no fire notifies, we can teleport to explicit time
 	PlayerState->PlayerNode.bTeleportToExplicitTime = !bFireNotifies;
 	// if moving to 0.f, we mark this to teleport. Otherwise, do not use explicit time

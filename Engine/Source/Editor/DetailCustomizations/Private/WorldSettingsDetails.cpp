@@ -12,7 +12,7 @@
 #include "GameFramework/Actor.h"
 #include "Editor.h"
 #include "Engine/Texture2D.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "DetailLayoutBuilder.h"
 #include "GameModeInfoCustomizer.h"
 #include "Settings/EditorExperimentalSettings.h"
@@ -283,7 +283,7 @@ void FLightmapCustomNodeBuilder::ExecuteViewLightmap(FString SelectedLightmapPat
 	UObject* LightMapObject = FindObject<UObject>(NULL, *SelectedLightmapPath);
 	if ( LightMapObject )
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(LightMapObject);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LightMapObject);
 	}
 }
 

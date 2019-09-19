@@ -14,12 +14,28 @@ struct FPackageReportNode;
 
 typedef STreeView< TSharedPtr<struct FPackageReportNode> > PackageReportTree;
 
+struct ReportPackageData
+{
+	FString Name;
+	bool bShouldMigratePackage;
+};
+
 struct FPackageReportNode
 {
 	/** The name of the tree node without the path */
-	FString NodeName;
+	FString NodeName; 
+	/** A user-exposed flag determining whether the content of this node and its children should be migrated or not. */
+	bool bIsChecked;
+	/** A flag determining whether this node should be migrated or not. This node is active as long as bIsChecked is true and if all the parent nodes are also checked. */
+	bool bIsActive;
+	/** A pointer to an external bool describing whether this node ultimately should be migrated or not. Is only non-null for leaf nodes.*/
+	bool* bShouldMigratePackage;
 	/** If true, this node is a folder instead of a package */
 	bool bIsFolder;
+	
+	/** The parent of this node */
+	FPackageReportNode* Parent;
+
 	/** The children of this node */
 	TArray< TSharedPtr<FPackageReportNode> > Children;
 
@@ -28,14 +44,14 @@ struct FPackageReportNode
 	FPackageReportNode(const FString& InNodeName, bool InIsFolder);
 
 	/** Adds the path to the tree relative to this node, creating nodes as needed. */
-	void AddPackage(const FString& PackageName);
+	void AddPackage(const FString& PackageName, bool* bInIsPackageIncluded);
 
 	/** Expands this node and all its children */
 	void ExpandChildrenRecursively(const TSharedRef<PackageReportTree>& Treeview);
 
 private:
 	/** Helper function for AddPackage. PathElements is the tokenized path delimited by "/" */
-	void AddPackage_Recursive(TArray<FString>& PathElements);
+	void AddPackage_Recursive(TArray<FString>& PathElements, bool* bInIsPackageIncluded);
 };
 
 class SPackageReportDialog : public SCompoundWidget
@@ -48,17 +64,26 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with InArgs */
-	void Construct( const FArguments& InArgs, const FText& InReportMessage, const TArray<FString>& InPackageNames, const FOnReportConfirmed& InOnReportConfirmed );
+	void Construct( const FArguments& InArgs, const FText& InReportMessage, TArray<ReportPackageData>& InPackageNames, const FOnReportConfirmed& InOnReportConfirmed );
 
 	/** Opens the dialog in a new window */
-	static void OpenPackageReportDialog(const FText& ReportMessage, const TArray<FString>& PackageNames, const FOnReportConfirmed& InOnReportConfirmed);
+	static void OpenPackageReportDialog(const FText& ReportMessage, TArray<ReportPackageData>& PackageNames, const FOnReportConfirmed& InOnReportConfirmed);
 
 	/** Closes the dialog. */
 	void CloseDialog();
 
 private:
+	/** Recursively sets the checked/active state of every child of this node in the tree when a checkbox is toggled. */
+	void SetStateRecursive(TSharedPtr<FPackageReportNode> TreeItem, bool bWasChecked);
+
+	/** Callback to check whether a checkbox is checked or not. */
+	ECheckBoxState GetEnabledCheckState(TSharedPtr<FPackageReportNode> TreeItem) const;
+
+	/** Callback called whenever a checkbox is toggled. */
+	void CheckBoxStateChanged(ECheckBoxState InCheckBoxState, TSharedPtr<FPackageReportNode> TreeItem, TSharedRef<STableViewBase> OwnerTable);
+
 	/** Constructs the node tree given the list of package names */
-	void ConstructNodeTree(const TArray<FString>& PackageNames);
+	void ConstructNodeTree(TArray<ReportPackageData>& PackageNames);
 
 	/** Handler to generate a row in the report tree */
 	TSharedRef<ITableRow> GenerateTreeRow( TSharedPtr<FPackageReportNode> TreeItem, const TSharedRef<STableViewBase>& OwnerTable );

@@ -1,5 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "BackgroundHttpManagerImpl.h"
+#include "PlatformBackgroundHttp.h"
 
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFilemanager.h"

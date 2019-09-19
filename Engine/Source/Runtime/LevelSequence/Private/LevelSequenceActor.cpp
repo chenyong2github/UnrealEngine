@@ -142,7 +142,15 @@ void ALevelSequenceActor::BeginPlay()
 
 void ALevelSequenceActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	GetWorld()->LevelSequenceActors.Remove(this);
+	if (SequencePlayer)
+	{
+		// Stop may modify a lot of actor state so it needs to be called
+		// during EndPlay (when Actors + World are still valid) instead
+		// of waiting for the UObject to be destroyed by GC.
+		SequencePlayer->Stop();
+	}
+
+ 	GetWorld()->LevelSequenceActors.Remove(this);
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -213,7 +221,7 @@ void ALevelSequenceActor::SetSequence(ULevelSequence* InSequence)
 		// cbb: should ideally null out the template and player when no sequence is assigned, but that's currently not possible
 		if (InSequence)
 		{
-			SequencePlayer->Initialize(InSequence, GetLevel(), PlaybackSettings);
+			SequencePlayer->Initialize(InSequence, GetLevel(), PlaybackSettings, CameraSettings);
 		}
 	}
 }
@@ -222,14 +230,14 @@ void ALevelSequenceActor::InitializePlayer()
 {
 	if (LevelSequence.IsValid() && GetWorld()->IsGameWorld())
 	{
-		// Attempt to reslove the asset without loading it
+		// Attempt to resolve the asset without loading it
 		ULevelSequence* LevelSequenceAsset = GetSequence();
 		if (LevelSequenceAsset)
 		{
 			// Level sequence is already loaded. Initialize the player if it's not already initialized with this sequence
 			if (LevelSequenceAsset != SequencePlayer->GetSequence())
 			{
-				SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), PlaybackSettings);
+				SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), PlaybackSettings, CameraSettings);
 			}
 		}
 		else if (!IsAsyncLoading())
@@ -237,7 +245,7 @@ void ALevelSequenceActor::InitializePlayer()
 			LevelSequenceAsset = LoadSequence();
 			if (LevelSequenceAsset != SequencePlayer->GetSequence())
 			{
-				SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), PlaybackSettings);
+				SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), PlaybackSettings, CameraSettings);
 			}
 		}
 		else
@@ -254,7 +262,7 @@ void ALevelSequenceActor::OnSequenceLoaded(const FName& PackageName, UPackage* P
 		ULevelSequence* LevelSequenceAsset = GetSequence();
 		if (SequencePlayer && SequencePlayer->GetSequence() != LevelSequenceAsset)
 		{
-			SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), PlaybackSettings);
+			SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), PlaybackSettings, CameraSettings);
 		}
 	}
 }

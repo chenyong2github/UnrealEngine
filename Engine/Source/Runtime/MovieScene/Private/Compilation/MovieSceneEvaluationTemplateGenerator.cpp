@@ -61,6 +61,11 @@ void FMovieSceneEvaluationTemplateGenerator::ProcessTrack(const UMovieSceneTrack
 {
 	FMovieSceneTrackSegmentBlenderPtr TrackBlender = Track.GetTrackSegmentBlender();
 
+	if (Track.IsEvalDisabled())
+	{
+		return;
+	}
+
 	// Deal with sub tracks specifically
 	if (const UMovieSceneSubTrack* SubTrack = Cast<const UMovieSceneSubTrack>(&Track))
 	{

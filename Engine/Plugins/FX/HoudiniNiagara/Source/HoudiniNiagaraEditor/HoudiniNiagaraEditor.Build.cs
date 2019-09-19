@@ -47,13 +47,12 @@ public class HoudiniNiagaraEditor : ModuleRules
 				"CoreUObject",
                 "VectorVM",
                 "RHI",
-                "UtilityShaders",
                 "NiagaraVertexFactories",
                 "RenderCore",
                 "HoudiniNiagara",
                 "UnrealEd",
 				"EditorStyle",
-            }
+			}
         );
 			
 		
@@ -66,8 +65,8 @@ public class HoudiniNiagaraEditor : ModuleRules
 				"SlateCore",
                 "Niagara",
                 "NiagaraShader",
-                "UtilityShaders",
-                "HoudiniNiagara"
+                "HoudiniNiagara",
+				"ToolMenus",
 			}
         );
 

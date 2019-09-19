@@ -196,7 +196,7 @@ FPlatformErrorReport LoadErrorReport()
 
 static void OnRequestExit()
 {
-	GIsRequestingExit = true;
+	RequestEngineExit(TEXT("OnRequestExit"));
 }
 
 #if !CRASH_REPORT_UNATTENDED_ONLY
@@ -248,7 +248,7 @@ bool RunWithUI(FPlatformErrorReport ErrorReport)
 	// Set up the main ticker
 	FMainLoopTiming MainLoop(IdealTickRate, EMainLoopOptions::UsingSlate);
 
-	// set the normal UE4 GIsRequestingExit when outer frame is closed
+	// set the normal UE4 IsEngineExitRequested() when outer frame is closed
 	FSlateApplication::Get().SetExitRequestedHandler(FSimpleDelegate::CreateStatic(&OnRequestExit));
 
 	// Prepare the custom Slate styles
@@ -281,7 +281,7 @@ bool RunWithUI(FPlatformErrorReport ErrorReport)
 	}
 
 	// loop until the app is ready to quit
-	while (!GIsRequestingExit)
+	while (!IsEngineExitRequested())
 	{
 		MainLoop.Tick();
 
@@ -342,7 +342,7 @@ void RunUnattended(FPlatformErrorReport ErrorReport)
 	}
 
 	// loop until the app is ready to quit
-	while (!GIsRequestingExit)
+	while (!IsEngineExitRequested())
 	{
 		MainLoop.Tick();
 	}
@@ -387,7 +387,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 	FPlatformErrorReport::Init();
 	FPlatformErrorReport ErrorReport = LoadErrorReport();
 
-	if (!GIsRequestingExit && ErrorReport.HasFilesToUpload() && FPrimaryCrashProperties::Get() != nullptr)
+	if (!IsEngineExitRequested() && ErrorReport.HasFilesToUpload() && FPrimaryCrashProperties::Get() != nullptr)
 	{
 		ErrorReport.SetCrashReportClientVersion(FCrashReportCoreConfig::Get().GetVersion());
 
@@ -425,7 +425,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 	else
 	{
 		// Needed to let systems that are shutting down that we are shutting down by request
-		GIsRequestingExit = true;
+		RequestEngineExit(TEXT("CrashReportClientApp RequestExit"));
 	}
 
 	FPrimaryCrashProperties::Shutdown();

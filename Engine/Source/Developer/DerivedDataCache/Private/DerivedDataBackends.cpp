@@ -488,6 +488,19 @@ public:
 				UE_LOG( LogDerivedDataCache, Log, TEXT("Found environment variable %s=%s"), *EnvPathOverride, *Path );
 			}
 		}
+
+		// Check the CommandLineOverride argument to allow redirecting in build scripts
+		FString CommandLineOverride;
+		if( FParse::Value( Entry, TEXT("CommandLineOverride="), CommandLineOverride ) )
+		{
+			FString Value;
+			if (FParse::Value(FCommandLine::Get(), *(CommandLineOverride + TEXT("=")), Value))
+			{
+				Path = Value;
+				UE_LOG(LogDerivedDataCache, Log, TEXT("Found command line override %s=%s"), *CommandLineOverride, *Path);
+			}
+		}
+
 		// Check if the Path is a real path or a special keyword
 		if (FEngineBuildSettings::IsInternalBuild())
 		{

@@ -21,10 +21,11 @@
 #include "EditorStyleSet.h"
 
 // UnrealEd includes
-#include "Toolkits/AssetEditorManager.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 // LevelSequenceEditor includes
 #include "ILevelSequenceEditorToolkit.h"
+
 
 FScopedSequencerPanel::FScopedSequencerPanel(const TAttribute<ULevelSequence*>& InLevelSequenceAttribute)
 	: LevelSequenceAttribute(InLevelSequenceAttribute)
@@ -42,14 +43,14 @@ FScopedSequencerPanel::~FScopedSequencerPanel()
 
 bool FScopedSequencerPanel::IsOpen(ULevelSequence* InSequence)
 {
-	return FAssetEditorManager::Get().FindEditorForAsset(InSequence, false) != nullptr;
+	return GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(InSequence, false) != nullptr;
 }
 
 void FScopedSequencerPanel::Open(ULevelSequence* InSequence)
 {
-	FAssetEditorManager::Get().OpenEditorForAsset(InSequence);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(InSequence);
 
-	IAssetEditorInstance*        AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(InSequence, false);
+	IAssetEditorInstance*        AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(InSequence, false);
 	ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
 
 	if (LevelSequenceEditor->GetSequencer())
@@ -62,7 +63,7 @@ void FScopedSequencerPanel::Open(ULevelSequence* InSequence)
 
 void FScopedSequencerPanel::Close(ULevelSequence* InSequence)
 {
-	FAssetEditorManager::Get().CloseAllEditorsForAsset(InSequence);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(InSequence);
 }
 
 ECheckBoxState FScopedSequencerPanel::GetToggleCheckState() const

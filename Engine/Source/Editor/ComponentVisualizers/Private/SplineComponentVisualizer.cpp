@@ -17,6 +17,8 @@
 #include "ScopedTransaction.h"
 #include "ActorEditorUtils.h"
 #include "WorldCollision.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "SplineGeneratorPanel.h"
 
 IMPLEMENT_HIT_PROXY(HSplineVisProxy, HComponentVisProxy);
 IMPLEMENT_HIT_PROXY(HSplineKeyProxy, HSplineVisProxy);
@@ -135,6 +137,8 @@ public:
 	/** Reset this spline to its default */
 	TSharedPtr<FUICommandInfo> ResetToDefault;
 };
+
+TWeakPtr<SWindow> FSplineComponentVisualizer::WeakExistingWindow;
 
 FSplineComponentVisualizer::FSplineComponentVisualizer()
 	: FComponentVisualizer()
@@ -528,6 +532,11 @@ void FSplineComponentVisualizer::ChangeSelectionState(int32 Index, bool bIsCtrlH
 			LastKeyIndexSelected = Index;
 		}
 	}
+
+	if (SplineGeneratorPanel.IsValid())
+	{
+		SplineGeneratorPanel->OnSelectionUpdated();
+	}
 }
 
 bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InViewportClient, HComponentVisProxy* VisProxy, const FViewportClick& Click)
@@ -536,13 +545,13 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 	{
 		const USplineComponent* SplineComp = CastChecked<const USplineComponent>(VisProxy->Component.Get());
 
-		SplineCompPropName = GetComponentPropertyName(SplineComp);
-		if(SplineCompPropName.IsValid())
-		{
-			AActor* OldSplineOwningActor = SplineOwningActor.Get();
-			SplineOwningActor = SplineComp->GetOwner();
+		AActor* OldSplineOwningActor = SplinePropertyPath.GetParentOwningActor();
+		SplinePropertyPath = FComponentPropertyPath(SplineComp);
+		AActor* NewSplineOwningActor = SplinePropertyPath.GetParentOwningActor();
 
-			if (OldSplineOwningActor != SplineOwningActor)
+		if (SplinePropertyPath.IsValid())
+		{
+			if (OldSplineOwningActor != NewSplineOwningActor)
 			{
 				// Reset selection state if we are selecting a different actor to the one previously selected
 				ChangeSelectionState(INDEX_NONE, false);
@@ -570,7 +579,7 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 
 				if (LastKeyIndexSelected == INDEX_NONE)
 				{
-					SplineOwningActor = nullptr;
+					SplinePropertyPath.Reset();
 					return false;
 				}
 
@@ -594,7 +603,7 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 
 				if (LastKeyIndexSelected == INDEX_NONE)
 				{
-					SplineOwningActor = nullptr;
+					SplinePropertyPath.Reset();
 					return false;
 				}
 
@@ -648,7 +657,7 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 		}
 		else
 		{
-			SplineOwningActor = nullptr;
+			SplinePropertyPath.Reset();
 		}
 	}
 
@@ -657,9 +666,8 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 
 USplineComponent* FSplineComponentVisualizer::GetEditedSplineComponent() const
 {
-	return Cast<USplineComponent>(GetComponentFromPropertyName(SplineOwningActor.Get(), SplineCompPropName));
+	return Cast<USplineComponent>(SplinePropertyPath.GetComponent());
 }
-
 
 bool FSplineComponentVisualizer::GetWidgetLocation(const FEditorViewportClient* ViewportClient, FVector& OutLocation) const
 {
@@ -691,7 +699,7 @@ bool FSplineComponentVisualizer::GetWidgetLocation(const FEditorViewportClient* 
 			// Otherwise use the last key index set
 			check(LastKeyIndexSelected < Position.Points.Num());
 			check(SelectedKeys.Contains(LastKeyIndexSelected));
-			const auto& Point = Position.Points[LastKeyIndexSelected];
+			const FInterpCurvePointVector& Point = Position.Points[LastKeyIndexSelected];
 			OutLocation = SplineComp->GetComponentTransform().TransformPosition(Point.OutVal);
 			if (!DuplicateDelayAccumulatedDrag.IsZero())
 			{
@@ -1470,8 +1478,7 @@ bool FSplineComponentVisualizer::CanSnapAll() const
 
 void FSplineComponentVisualizer::EndEditing()
 {
-	SplineOwningActor = NULL;
-	SplineCompPropName.Clear();
+	SplinePropertyPath.Reset();
 	ChangeSelectionState(INDEX_NONE, false);
 	SelectedSegmentIndex = INDEX_NONE;
 	SelectedTangentHandle = INDEX_NONE;
@@ -2298,9 +2305,9 @@ void FSplineComponentVisualizer::OnResetToDefault()
 	const FScopedTransaction Transaction(LOCTEXT("ResetToDefault", "Reset to Default"));
 
 	SplineComp->Modify();
-	if (SplineOwningActor.IsValid())
+	if (AActor* Owner = SplineComp->GetOwner())
 	{
-		SplineOwningActor.Get()->Modify();
+		Owner->Modify();
 	}
 
 	SplineComp->bSplineHasBeenEdited = false;
@@ -2311,9 +2318,9 @@ void FSplineComponentVisualizer::OnResetToDefault()
 	SelectedTangentHandle = INDEX_NONE;
 	SelectedTangentHandleType = ESelectedTangentHandle::None;
 
-	if (SplineOwningActor.IsValid())
+	if (AActor* Owner = SplineComp->GetOwner())
 	{
-		SplineOwningActor.Get()->PostEditMove(false);
+		Owner->PostEditMove(false);
 	}
 
 	GEditor->RedrawLevelEditingViewports(true);
@@ -2405,6 +2412,16 @@ TSharedPtr<SWidget> FSplineComponentVisualizer::GenerateContextMenu() const
 					}
 				}
 			}
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("SplineGenerate", "Spline Generation Panel"),
+				LOCTEXT("SplineGenerateTooltip", "Opens up a spline generation panel to easily create basic shapes with splines"),
+				FSlateIcon(),
+				FUIAction( 
+					FExecuteAction::CreateSP(const_cast<FSplineComponentVisualizer*>(this), &FSplineComponentVisualizer::CreateSplineGeneratorPanel),
+					FCanExecuteAction::CreateLambda([] { return true; })
+				)
+			);
 		}
 		MenuBuilder.EndSection();
 
@@ -2477,6 +2494,41 @@ void FSplineComponentVisualizer::GenerateLockAxisSubMenu(FMenuBuilder& MenuBuild
 	MenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().SetLockedAxisZ);
 }
 
+void FSplineComponentVisualizer::CreateSplineGeneratorPanel()
+{
+	SAssignNew(SplineGeneratorPanel, SSplineGeneratorPanel, SharedThis(this));
+
+	TSharedPtr<SWindow> ExistingWindow = WeakExistingWindow.Pin();
+	if (!ExistingWindow.IsValid())
+	{
+		ExistingWindow = SNew(SWindow)
+			.ScreenPosition(FSlateApplication::Get().GetCursorPos())
+			.Title(FText::FromString("Spline Generation"))
+			.SizingRule(ESizingRule::Autosized)
+			.AutoCenter(EAutoCenter::None);
+
+		ExistingWindow->SetOnWindowClosed(FOnWindowClosed::CreateSP(SplineGeneratorPanel.ToSharedRef(), &SSplineGeneratorPanel::OnWindowClosed));
+
+		TSharedPtr<SWindow> RootWindow = FSlateApplication::Get().GetActiveTopLevelWindow();
+
+		if (RootWindow.IsValid())
+		{
+			FSlateApplication::Get().AddWindowAsNativeChild(ExistingWindow.ToSharedRef(), RootWindow.ToSharedRef());
+		}
+		else
+		{
+			FSlateApplication::Get().AddWindow(ExistingWindow.ToSharedRef());
+		}
+
+		ExistingWindow->BringToFront();
+		WeakExistingWindow = ExistingWindow;
+	}
+	else
+	{
+		ExistingWindow->BringToFront();
+	}
+	ExistingWindow->SetContent(SplineGeneratorPanel.ToSharedRef());
+}
 
 
 #undef LOCTEXT_NAMESPACE

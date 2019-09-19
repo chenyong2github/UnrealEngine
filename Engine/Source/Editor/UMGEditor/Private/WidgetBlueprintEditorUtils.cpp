@@ -34,6 +34,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Components/Widget.h"
 #include "Blueprint/WidgetNavigation.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "UObject/ScriptInterface.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
@@ -344,7 +345,7 @@ void FWidgetBlueprintEditorUtils::ExecuteOpenSelectedWidgetsForEdit( TSet<FWidge
 {
 	for ( auto& Widget : SelectedWidgets )
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset( Widget.GetTemplate()->GetClass()->ClassGeneratedBy );
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset( Widget.GetTemplate()->GetClass()->ClassGeneratedBy );
 	}
 }
 
@@ -531,7 +532,10 @@ bool FWidgetBlueprintEditorUtils::ReplaceNamedSlotHostContent(UWidget* WidgetTem
 		{
 			if (SlotContent == WidgetTemplate)
 			{
-				NewContentWidget->Modify();
+				if (NewContentWidget)
+				{
+					NewContentWidget->Modify();
+				}
 				NamedSlotHost.GetObject()->Modify();
 				NamedSlotHost->SetContentForSlot(SlotName, NewContentWidget);
 				return true;

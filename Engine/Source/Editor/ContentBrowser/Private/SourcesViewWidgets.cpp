@@ -297,7 +297,9 @@ FText SAssetTreeItem::GetToolTipText() const
 
 const FSlateBrush* SAssetTreeItem::GetBorderImage() const
 {
-	return bDraggedOver ? FEditorStyle::GetBrush("Menu.Background") : FEditorStyle::GetBrush("NoBorder");
+	static const FName NAME_DraggedBorderImage = TEXT("Menu.Background");
+	static const FName NAME_NoBorderImage = TEXT("NoBorder");
+	return bDraggedOver ? FEditorStyle::GetBrush(NAME_DraggedBorderImage) : FEditorStyle::GetBrush(NAME_NoBorderImage);
 }
 
 

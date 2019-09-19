@@ -18,6 +18,8 @@ class RENDERCORE_API FVisualizeTexture : public FRenderResource
 public:
 	FVisualizeTexture();
 
+	static constexpr int32 kInvalidCaptureId = -1;
+
 #if WITH_ENGINE
 	virtual void ReleaseDynamicRHI() override;
 
@@ -92,9 +94,6 @@ private:
 	/** Descriptor of the texture being visualized. */
 	FPooledRenderTargetDesc VisualizeTextureDesc;
 
-	TRefCountPtr<FRHIShaderResourceView> StencilSRV;
-	FTextureRHIRef StencilSRVSrc;
-
 	// Flag to determine whether texture visualization is enabled, currently based on the feature level we are rendering with
 	bool bEnabled;
 
@@ -102,10 +101,11 @@ private:
 	ERHIFeatureLevel::Type FeatureLevel;
 
 #if WITH_ENGINE
-	bool ShouldCapture(const TCHAR* DebugName);
+	/** Determine whether a texture should be captured for debugging purpose, and return the capture id if needed, or kInvalidCaptureId otherwise. */
+	int32 ShouldCapture(const TCHAR* DebugName);
 
 	/** Create a pass capturing a texture. */
-	void CreateContentCapturePass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture);
+	void CreateContentCapturePass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, int32 CaptureId);
 #endif
 
 	friend class FRDGBuilder;

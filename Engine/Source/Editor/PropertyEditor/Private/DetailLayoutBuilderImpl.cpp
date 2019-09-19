@@ -152,7 +152,7 @@ IDetailPropertyRow* FDetailLayoutBuilderImpl::EditDefaultProperty(TSharedPtr<IPr
 	return nullptr;
 }
 
-TSharedRef<IPropertyHandle> FDetailLayoutBuilderImpl::GetProperty( const FName PropertyPath, const UClass* ClassOutermost, FName InInstanceName )
+TSharedRef<IPropertyHandle> FDetailLayoutBuilderImpl::GetProperty( const FName PropertyPath, const UStruct* ClassOutermost, FName InInstanceName )
 {	
 	TSharedPtr<FPropertyHandleBase> PropertyHandle; 
 
@@ -184,7 +184,7 @@ void FDetailLayoutBuilderImpl::HideProperty( const TSharedPtr<IPropertyHandle> P
 	}
 }
 
-void FDetailLayoutBuilderImpl::HideProperty( FName PropertyPath, const UClass* ClassOutermost, FName InstanceName )
+void FDetailLayoutBuilderImpl::HideProperty( FName PropertyPath, const UStruct* ClassOutermost, FName InstanceName )
 {
 	TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode( PropertyPath, ClassOutermost, InstanceName );
 	if( PropertyNode.IsValid() )
@@ -216,12 +216,12 @@ FDetailCategoryImpl& FDetailLayoutBuilderImpl::DefaultCategory( FName CategoryNa
 	return *CategoryImpl;
 }
 
-TSharedPtr<FDetailCategoryImpl> FDetailLayoutBuilderImpl::GetSubCategoryImpl(FName CategoryName)
+TSharedPtr<FDetailCategoryImpl> FDetailLayoutBuilderImpl::GetSubCategoryImpl(FName CategoryName) const
 {
 	return SubCategoryMap.FindRef(CategoryName);
 }
 
-bool FDetailLayoutBuilderImpl::HasCategory(FName CategoryName)
+bool FDetailLayoutBuilderImpl::HasCategory(FName CategoryName) const
 {
 	return DefaultCategoryMap.Contains(CategoryName);
 }
@@ -372,7 +372,7 @@ void FDetailLayoutBuilderImpl::SetCurrentCustomizationClass( UStruct* CurrentCla
 	CurrentCustomizationVariableName = VariableName;
 }
 
-TSharedPtr<FPropertyNode> FDetailLayoutBuilderImpl::GetPropertyNode( const FName PropertyName, const UClass* ClassOutermost, FName InstanceName ) const
+TSharedPtr<FPropertyNode> FDetailLayoutBuilderImpl::GetPropertyNode( const FName PropertyName, const UStruct* ClassOutermost, FName InstanceName ) const
 {
 	TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNodeInternal( PropertyName, ClassOutermost, InstanceName );
 	return PropertyNode;
@@ -453,7 +453,7 @@ TSharedPtr<FPropertyNode> FDetailLayoutBuilderImpl::GetPropertyNode( TSharedPtr<
  Example setup
 */
 
-TSharedPtr<FPropertyNode> FDetailLayoutBuilderImpl::GetPropertyNodeInternal( const FName PropertyPath, const UClass* ClassOutermost, FName InstanceName ) const
+TSharedPtr<FPropertyNode> FDetailLayoutBuilderImpl::GetPropertyNodeInternal( const FName PropertyPath, const UStruct* ClassOutermost, FName InstanceName ) const
 {
 	FName PropertyName;
 	TArray<FString> PathList;
@@ -523,6 +523,11 @@ TSharedPtr<FPropertyNode> FDetailLayoutBuilderImpl::GetPropertyNodeInternal( con
 					{
 						if( Index != INDEX_NONE )
 						{
+							if (Index >= PropertyNode->GetNumChildNodes())
+							{
+								return nullptr;
+							}
+
 							// The parent is the actual array, its children are array elements
 							PropertyNode = PropertyNode->GetChildNode( Index );
 						}
@@ -627,14 +632,14 @@ bool FDetailLayoutBuilderImpl::IsPropertyVisible( TSharedRef<IPropertyHandle> Pr
 	{
 		TArray<UObject*> OuterObjects;
 		PropertyHandle->GetOuterObjects(OuterObjects);
-
-		TArray<TWeakObjectPtr<UObject> > Objects;
+		
+		TArray<TWeakObjectPtr<UObject>> Objects;
 		for (auto OuterObject : OuterObjects)
 		{
 			Objects.Add(OuterObject);
 		}
 
-		FPropertyAndParent PropertyAndParent(*PropertyHandle->GetProperty(), PropertyHandle->GetParentHandle().IsValid() ? PropertyHandle->GetParentHandle()->GetProperty() : nullptr, Objects );
+		FPropertyAndParent PropertyAndParent(PropertyHandle, Objects);
 
 		return IsPropertyVisible(PropertyAndParent);
 	}

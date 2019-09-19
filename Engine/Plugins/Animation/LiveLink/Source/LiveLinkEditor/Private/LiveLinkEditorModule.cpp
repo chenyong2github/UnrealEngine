@@ -232,7 +232,7 @@ private:
 
 	void UnregisterCustomizations()
 	{
-		if (UObjectInitialized() && !GIsRequestingExit)
+		if (UObjectInitialized() && !IsEngineExitRequested())
 		{
 			FEdGraphUtilities::UnregisterVisualPinFactory(LiveLinkGraphPanelPinFactory);
 			FPropertyEditorModule* PropertyEditorModule = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");

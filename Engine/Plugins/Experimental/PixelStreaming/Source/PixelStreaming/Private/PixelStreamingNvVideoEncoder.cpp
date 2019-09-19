@@ -9,8 +9,7 @@
 #include "RendererInterface.h"
 #include "RHIStaticStates.h"
 #include "PipelineStateCache.h"
-#include "HAL/Runnable.h"
-#include "HAL/RunnableThread.h"
+#include "HAL/Thread.h"
 #include "HAL/ThreadSafeBool.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/CoreDelegates.h"
@@ -79,7 +78,7 @@ private:
 		FThreadSafeBool bEncoding = false;
 	};
 
-	struct FRHITransferRenderTargetToNvEnc final : public FRHICommand<FRHITransferRenderTargetToNvEnc>
+	FRHICOMMAND_MACRO(FRHITransferRenderTargetToNvEnc)
 	{
 		FPixelStreamingNvVideoEncoder::FPixelStreamingNvVideoEncoderImpl* Encoder;
 		FFrame* Frame;

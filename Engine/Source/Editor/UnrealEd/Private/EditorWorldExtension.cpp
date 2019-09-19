@@ -472,7 +472,7 @@ void UEditorWorldExtensionCollection::OnPreEndPIE(bool bWasSimulatingInEditor)
 {
 	if (!bWasSimulatingInEditor && LastEditorWorld.IsValid() && LastEditorWorld.Get() == GEditor->EditorWorld)
 	{
-		if (!GIsRequestingExit)
+		if (!IsEngineExitRequested())
 		{
 			// PIE to Editor 
 			// Revert back to the editor world before closing the play world, otherwise actors and objects will be destroyed.
@@ -488,7 +488,7 @@ void UEditorWorldExtensionCollection::OnEndPIE( bool bWasSimulatingInEditor )
 {
 	if( bWasSimulatingInEditor && LastEditorWorld.IsValid() && LastEditorWorld.Get() == GEditor->EditorWorld )
 	{
-		if( !GIsRequestingExit )
+		if( !IsEngineExitRequested() )
 		{
 			UWorld* SimulateWorld = Currentworld.Get();
 

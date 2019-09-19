@@ -43,19 +43,25 @@ public:
 	void ExecuteGuard(const TCHAR* Operation, const TCHAR* ResourceName);
 
 	/** Tracks and validates the creation of a new resource in the graph. */
-	void ValidateCreateResource(FRDGTrackedResourceRef Resource);
+	void ValidateCreateTexture(FRDGTextureRef Texture);
+	void ValidateCreateBuffer(FRDGBufferRef Buffer);
 
 	/** Tracks and validates the creation of a new externally registered resource. */
-	void ValidateCreateExternalResource(FRDGTrackedResourceRef Resource);
+	void ValidateCreateExternalTexture(FRDGTextureRef Texture);
+	void ValidateCreateExternalBuffer(FRDGBufferRef Buffer);
 
 	/** Tracks and validates usage of a pass parameters allocation. */
 	void ValidateAllocPassParameters(const void* Parameters);
 
 	/** Validates a resource extraction operation. */
-	void ValidateExtractResource(FRDGTrackedResourceRef Resource);
+	void ValidateExtractResource(FRDGParentResourceRef Resource);
 
-	/** Tracks and validates the addition of a new pass to the graph. */
-	void ValidateAddPass(const FRDGPass* Pass);
+	/** Tracks and validates the addition of a new pass to the graph.
+	 *  @param bSkipPassAccessMarking Skips marking the pass as a producer or incrementing the pass access. Useful when
+	 *      the builder needs to inject a pass for debugging while preserving error messages and warnings for the original
+	 *      graph structure.
+	 */
+	void ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAccessMarking);
 
 	/** Validate pass state before and after execution. */
 	void ValidateExecutePassBegin(const FRDGPass* Pass);
@@ -66,7 +72,7 @@ public:
 	void ValidateExecuteEnd();
 
 	/** Removes the 'produced but not used' warning from the requested resource. */
-	void RemoveUnusedWarning(FRDGTrackedResourceRef Resource);
+	void RemoveUnusedWarning(FRDGParentResourceRef Resource);
 
 private:
 	/** Traverses all resources in the pass and marks whether they are externally accessible by user pass implementations. */
@@ -76,7 +82,8 @@ private:
 	TSet<const void*, DefaultKeyFuncs<const void*>, SceneRenderingSetAllocator> AllocatedUnusedPassParameters;
 
 	/** List of tracked resources for validation prior to shutdown. */
-	TArray<FRDGTrackedResourceRef, SceneRenderingAllocator> TrackedResources;
+	TArray<FRDGTextureRef, SceneRenderingAllocator> TrackedTextures;
+	TArray<FRDGBufferRef, SceneRenderingAllocator> TrackedBuffers;
 
 	/** Whether the Execute() has already been called. */
 	bool bHasExecuted = false;

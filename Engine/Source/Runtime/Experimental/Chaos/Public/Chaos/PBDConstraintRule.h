@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDCollisionTypes.h"
 #include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/PBDConstraintColor.h"

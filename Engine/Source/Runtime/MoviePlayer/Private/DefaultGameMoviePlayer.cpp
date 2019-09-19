@@ -453,14 +453,12 @@ void FDefaultGameMoviePlayer::WaitForMovieToFinish(bool bAllowEngineTick)
 		// Make sure the movie player widget has user focus to accept keypresses
 		if (LoadingScreenContents.IsValid())
 		{
-			SlateApp.ForEachUser([&](FSlateUser* User) {
-				SlateApp.SetUserFocus(User->GetUserIndex(), LoadingScreenContents);
-			});
+			SlateApp.SetAllUserFocus(LoadingScreenContents);
 		}
 
 		// Continue to wait until the user calls finish (if enabled) or when loading completes or the minimum enforced time (if any) has been reached.
 		// Don't continue playing on game shutdown
-		while ( !GIsRequestingExit &&
+		while ( !IsEngineExitRequested() &&
 				((bWaitForManualStop && !bUserCalledFinish)
 			||	(!bUserCalledFinish && !bEnforceMinimumTime && !IsMovieStreamingFinished() && !bAutoCompleteWhenLoadingCompletes) 
 			||	(bEnforceMinimumTime && (FPlatformTime::Seconds() - LastPlayTime) < LoadingScreenAttributes.MinimumLoadingScreenDisplayTime)))
@@ -558,7 +556,7 @@ void FDefaultGameMoviePlayer::WaitForMovieToFinish(bool bAllowEngineTick)
 		UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
 
 		// Don't switch the window on game shutdown
-		if (GameEngine && !GIsRequestingExit)
+		if (GameEngine && !IsEngineExitRequested())
 		{
 			GameEngine->SwitchGameWindowToUseGameViewport();
 		}

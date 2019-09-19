@@ -363,7 +363,7 @@ public:
 	typedef typename FRefCountVector::IndexEnumerable edge_iterator;
 	template <typename T>
 	using value_iteration = FRefCountVector::MappedEnumerable<T>;
-	using vtx_triangles_enumerable = ExpandEnumerable<int, int, FSmallListSet::ValueIterator>;
+	using vtx_triangles_enumerable = TPairExpandEnumerable<FSmallListSet::ValueIterator>;
 
 	/** @return enumerable object for valid vertex indices suitable for use with range-based for, ie for ( int i : VertexIndicesItr() ) */
 	vertex_iterator VertexIndicesItr() const
@@ -435,9 +435,13 @@ public:
 	}
 
 	/** @return enumerable object for one-ring triangles of a vertex, suitable for use with range-based for, ie for ( int i : VtxTrianglesItr(VertexID) ) */
-	vtx_triangles_enumerable VtxTrianglesItr(int VertexID) const;
-
-
+	vtx_triangles_enumerable VtxTrianglesItr(int VertexID) const
+	{
+		check(VertexRefCounts.IsValid(VertexID));
+		return vtx_triangles_enumerable(VertexEdgeLists.Values(VertexID), [this, VertexID](int EdgeID) {
+			return GetOrderedOneRingEdgeTris(VertexID, EdgeID);
+		});
+	}
 
 	//
 	// Mesh Construction
@@ -547,6 +551,9 @@ public:
 
 	/** @return the max valence of all vertices in the mesh */
 	int GetMaxVtxEdgeCount() const;
+
+	/** adds triangles touching VertexID to the TrianglesOut list */
+	void GetVertexOneRingTriangles(int VertexID, TArray<int>& TrianglesOut) const;
 
 	/** Get triangle vertices */
 	inline FIndex3i GetTriangle(int TriangleID) const
@@ -820,6 +827,15 @@ public:
 	 */
 	EMeshResult GetVtxTriangles(int VertexID, TArray<int>& TrianglesOut, bool bUseOrientation) const;
 
+	/**
+	* Get triangles connected to vertex in contiguous order, with multiple groups if vertex is a bowtie.
+	* @param VertexID Vertex ID to search around
+	* @param TrianglesOut All triangles connected to the vertex, in contiguous order; if there are multiple contiguous groups they are packed one after another
+	* @param ContiguousGroupLengths Lengths of contiguous groups packed into TrianglesOut (if not a bowtie, this will just be a length-one array w/ {TrianglesOut.Num()})
+	* @param GroupIsLoop Indicates whether each contiguous group is a loop (first triangle connected to last) or not
+	*/
+	EMeshResult GetVtxContiguousTriangles(int VertexID, TArray<int>& TrianglesOut, TArray<int>& ContiguousGroupLengths, TArray<bool>& GroupIsLoop) const;
+
 	/** Returns true if the two triangles connected to edge have different group IDs */
 	bool IsGroupBoundaryEdge(int EdgeID) const;
 
@@ -941,7 +957,10 @@ public:
 	double GetTriSolidAngle(int TriangleID, const FVector3d& p) const;
 
 	/** Compute internal angle at vertex i of triangle (where i is 0,1,2); */
-	double GetTriInternalAngleR(int TriangleID, int i);
+	double GetTriInternalAngleR(int TriangleID, int i) const;
+
+	/** Compute internal angles at all vertices of triangle */
+	FVector3d GetTriInternalAnglesR(int TriangleID) const;
 
 	/** Returns average normal of connected face normals */
 	FVector3d GetEdgeNormal(int EdgeID) const;
@@ -1390,6 +1409,22 @@ protected:
 			TriangleEdges.InsertAt(AddEdgeInternal(v0, v1, TriangleID), 3 * TriangleID + j);
 		}
 	}
+
+	// utility function that returns one or two triangles of edge, used to enumerate vertex one-ring triangles
+	// The logic is a bit tricky to follow without drawing it out on paper, but this will only return 
+	// each triangle once, for the 'outgoing' edge from the vertex, and each triangle only has one such edge
+	// at any vertex (including boundary triangles)
+	inline FIndex2i GetOrderedOneRingEdgeTris(int VertexID, int EdgeID) const
+	{
+		int vOther = GetOtherEdgeVertex(EdgeID, VertexID);
+		int i = 4 * EdgeID;
+		int et1 = Edges[i + 3];
+		et1 = (et1 != InvalidID && TriHasSequentialVertices(et1, VertexID, vOther)) ? et1 : InvalidID;
+		int et0 = Edges[i + 2];
+		return TriHasSequentialVertices(et0, VertexID, vOther) ? 
+			FIndex2i(et0, et1) : FIndex2i(et1, InvalidID);
+	}
+
 
 	void ReverseTriOrientationInternal(int TriangleID);
 

@@ -119,6 +119,8 @@ public:
 
 	void SetSystemFixedBoundsOverride(FBox SystemFixedBounds);
 
+	bool FindBinding(const FNiagaraUserParameterBinding& InBinding, TArray<UMaterialInterface*>& OutMaterials) const;
+
 private:
 
 	void CheckForErrors();
@@ -204,14 +206,6 @@ private:
 	/** Cached fixed bounds of the parent system which override this Emitter Instances bounds if set. Whenever we initialize the owning SystemInstance we will reconstruct this
 	 ** EmitterInstance and the cached bounds will be unset. */
 	TOptional<FBox> CachedSystemFixedBounds;
-
-#if WITH_EDITORONLY_DATA
-	bool CheckAttributesForRenderer(int32 Index);
-#endif
-
-#if !UE_BUILD_SHIPPING
-	bool bEncounteredNaNs;
-#endif
 
 	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
 	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;

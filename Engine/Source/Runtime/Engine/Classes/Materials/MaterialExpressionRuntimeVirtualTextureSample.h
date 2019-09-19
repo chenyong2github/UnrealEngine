@@ -30,7 +30,7 @@ enum ERuntimeVirtualTextureMipValueMode
 
 /** Material expression for sampling from a runtime virtual texture. */
 UCLASS(collapsecategories, hidecategories=Object)
-class UMaterialExpressionRuntimeVirtualTextureSample : public UMaterialExpression
+class ENGINE_API UMaterialExpressionRuntimeVirtualTextureSample : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -50,13 +50,17 @@ class UMaterialExpressionRuntimeVirtualTextureSample : public UMaterialExpressio
 	UPROPERTY(EditAnywhere, Category = VirtualTexture, meta = (DisplayName = "Virtual texture content"))
 	ERuntimeVirtualTextureMaterialType MaterialType = ERuntimeVirtualTextureMaterialType::BaseColor;
 
+	/** Enable page table channel packing. Note that the bound Virtual Texture should have the same setting for sampling to work correctly. */
+	UPROPERTY(EditAnywhere, Category = VirtualTexture, meta = (DisplayName = "Enable packed page table"))
+	bool bSinglePhysicalSpace = true;
+
 	/** Defines how the MipValue property is applied to the virtual texture lookup. */
-	UPROPERTY(EditAnywhere, Category = VirtualTexture)
-	TEnumAsByte<enum ERuntimeVirtualTextureMipValueMode> MipValueMode;
+	UPROPERTY(EditAnywhere, Category = TextureSample)
+	TEnumAsByte<enum ERuntimeVirtualTextureMipValueMode> MipValueMode = RVTMVM_None;
 
 protected:
-	/** Init MaterialType based on the current VirtualTexture */
-	void InitMaterialType();
+	/** Init settings that affect shader compilation and need to match the current VirtualTexture */
+	void InitVirtualTextureDependentSettings();
 
 	/** Initialize the output pins. */
 	void InitOutputs();
@@ -67,9 +71,10 @@ protected:
 
 #if WITH_EDITOR
 	virtual void PostLoad() override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+public:
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

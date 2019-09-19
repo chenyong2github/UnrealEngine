@@ -292,6 +292,8 @@ private:
 	bool bAbsoluteScale;
 	/** Whether or not to preserve scale ratios */
 	bool bPreserveScaleRatio;
+	/** Scale ratio to use when we are using the sliders with bPreserveScaleRatio set. */
+	FVector SliderScaleRatio;
 	/** Flag to indicate we are currently editing the rotation in the UI, so we should rely on the cached value in objectToRelativeRotationMap, not the value from the object */
 	bool bEditingRotationInUI;
 	/** Flag to indicate we are currently performing a slider transaction */

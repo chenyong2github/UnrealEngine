@@ -854,6 +854,30 @@ mtlpp::Function TMetalBaseShader<BaseResourceType, ShaderType>::GetCompiledFunct
 		}
 	}	
 	
+	if (FMetalCommandQueue::SupportsFeature(EMetalFeaturesIABs) && Bindings.ArgumentBuffers && ArgumentEncoders.Num() == 0)
+	{
+		uint32 ArgumentBuffers = Bindings.ArgumentBuffers;
+		while(ArgumentBuffers)
+		{
+			uint32 Index = __builtin_ctz(ArgumentBuffers);
+			ArgumentBuffers &= ~(1 << Index);
+			
+			mtlpp::ArgumentEncoder ArgumentEncoder = Function.NewArgumentEncoderWithBufferIndex(Index);
+			ArgumentEncoders.Add(Index, ArgumentEncoder);
+			
+			TBitArray<> Resources;
+			for (uint8 Id : Bindings.ArgumentBufferMasks[Index])
+			{
+				if (Id >= Resources.Num())
+				{
+					Resources.Add(false, (Id + 1) - Resources.Num());
+				}
+				Resources[Id] = true;
+			}
+			ArgumentBitmasks.Add(Index, Resources);
+		}
+	}
+									
     check(Func);
 	return Func;
 }
@@ -962,6 +986,11 @@ FMetalShaderPipeline* FMetalComputeShader::GetPipeline()
 
 	return Pipeline;
 }
+									
+mtlpp::Function FMetalComputeShader::GetFunction()
+{
+	return GetCompiledFunction();
+}
 
 FMetalVertexShader::FMetalVertexShader(const TArray<uint8>& InCode)
 {
@@ -1040,12 +1069,80 @@ FMetalHullShader::FMetalHullShader(const TArray<uint8>& InCode)
 {
 	FMetalCodeHeader Header;
 	Init(InCode, Header);
+
+	if (Header.Tessellation.Num())
+	{
+		auto const& Tess = Header.Tessellation[0];
+		TessellationOutputAttribs = Tess.TessellationOutputAttribs;
+		TessellationPatchCountBuffer = Tess.TessellationPatchCountBuffer;
+		TessellationIndexBuffer = Tess.TessellationIndexBuffer;
+		TessellationHSOutBuffer = Tess.TessellationHSOutBuffer;
+		TessellationHSTFOutBuffer = Tess.TessellationHSTFOutBuffer;
+		TessellationControlPointOutBuffer = Tess.TessellationControlPointOutBuffer;
+		TessellationControlPointIndexBuffer = Tess.TessellationControlPointIndexBuffer;
+		TessellationOutputControlPoints = Tess.TessellationOutputControlPoints;
+		TessellationDomain = Tess.TessellationDomain;
+		TessellationInputControlPoints = Tess.TessellationInputControlPoints;
+		TessellationMaxTessFactor = Tess.TessellationMaxTessFactor;
+		TessellationPatchesPerThreadGroup = Tess.TessellationPatchesPerThreadGroup;
+		
+		switch (Tess.TessellationOutputWinding)
+		{
+				// NOTE: cw and ccw are flipped
+			case EMetalOutputWindingMode::Clockwise:		TessellationOutputWinding = mtlpp::Winding::CounterClockwise; break;
+			case EMetalOutputWindingMode::CounterClockwise:	TessellationOutputWinding = mtlpp::Winding::Clockwise; break;
+			default: break;
+		}
+		
+		switch (Tess.TessellationPartitioning)
+		{
+			case EMetalPartitionMode::Pow2:				TessellationPartitioning = mtlpp::TessellationPartitionMode::ModePow2; break;
+			case EMetalPartitionMode::Integer:			TessellationPartitioning = mtlpp::TessellationPartitionMode::ModeInteger; break;
+			case EMetalPartitionMode::FractionalOdd:	TessellationPartitioning = mtlpp::TessellationPartitionMode::ModeFractionalOdd; break;
+			case EMetalPartitionMode::FractionalEven:	TessellationPartitioning = mtlpp::TessellationPartitionMode::ModeFractionalEven; break;
+			default: break;
+		}
+	}
 }
 
 FMetalHullShader::FMetalHullShader(const TArray<uint8>& InCode, mtlpp::Library InLibrary)
 {
 	FMetalCodeHeader Header;
 	Init(InCode, Header, InLibrary);
+	
+	if (Header.Tessellation.Num())
+	{
+		auto const& Tess = Header.Tessellation[0];
+		TessellationOutputAttribs = Tess.TessellationOutputAttribs;
+		TessellationPatchCountBuffer = Tess.TessellationPatchCountBuffer;
+		TessellationIndexBuffer = Tess.TessellationIndexBuffer;
+		TessellationHSOutBuffer = Tess.TessellationHSOutBuffer;
+		TessellationHSTFOutBuffer = Tess.TessellationHSTFOutBuffer;
+		TessellationControlPointOutBuffer = Tess.TessellationControlPointOutBuffer;
+		TessellationControlPointIndexBuffer = Tess.TessellationControlPointIndexBuffer;
+		TessellationOutputControlPoints = Tess.TessellationOutputControlPoints;
+		TessellationDomain = Tess.TessellationDomain;
+		TessellationInputControlPoints = Tess.TessellationInputControlPoints;
+		TessellationMaxTessFactor = Tess.TessellationMaxTessFactor;
+		TessellationPatchesPerThreadGroup = Tess.TessellationPatchesPerThreadGroup;
+		
+		switch (Tess.TessellationOutputWinding)
+		{
+				// NOTE: cw and ccw are flipped
+			case EMetalOutputWindingMode::Clockwise:		TessellationOutputWinding = mtlpp::Winding::CounterClockwise; break;
+			case EMetalOutputWindingMode::CounterClockwise:	TessellationOutputWinding = mtlpp::Winding::Clockwise; break;
+			default: break;
+		}
+		
+		switch (Tess.TessellationPartitioning)
+		{
+			case EMetalPartitionMode::Pow2:				TessellationPartitioning = mtlpp::TessellationPartitionMode::ModePow2; break;
+			case EMetalPartitionMode::Integer:			TessellationPartitioning = mtlpp::TessellationPartitionMode::ModeInteger; break;
+			case EMetalPartitionMode::FractionalOdd:	TessellationPartitioning = mtlpp::TessellationPartitionMode::ModeFractionalOdd; break;
+			case EMetalPartitionMode::FractionalEven:	TessellationPartitioning = mtlpp::TessellationPartitionMode::ModeFractionalEven; break;
+			default: break;
+		}
+	}
 }
 
 mtlpp::Function FMetalHullShader::GetFunction()
@@ -1079,6 +1176,9 @@ FMetalDomainShader::FMetalDomainShader(const TArray<uint8>& InCode)
 		case EMetalPartitionMode::FractionalEven:	TessellationPartitioning = mtlpp::TessellationPartitionMode::ModeFractionalEven; break;
 		default: check(0);
 	}
+	
+	TessellationDomain = Tess.TessellationDomain;
+	TessellationOutputAttribs = Tess.TessellationOutputAttribs;
 }
 
 FMetalDomainShader::FMetalDomainShader(const TArray<uint8>& InCode, mtlpp::Library InLibrary)
@@ -1107,6 +1207,9 @@ FMetalDomainShader::FMetalDomainShader(const TArray<uint8>& InCode, mtlpp::Libra
 		case EMetalPartitionMode::FractionalEven:	TessellationPartitioning = mtlpp::TessellationPartitionMode::ModeFractionalEven; break;
 		default: check(0);
 	}
+	
+	TessellationDomain = Tess.TessellationDomain;
+	TessellationOutputAttribs = Tess.TessellationOutputAttribs;
 }
 
 mtlpp::Function FMetalDomainShader::GetFunction()
@@ -1229,26 +1332,6 @@ FGeometryShaderRHIRef FMetalDynamicRHI::RHICreateGeometryShader(FRHIShaderLibrar
 	}
 }
 
-FGeometryShaderRHIRef FMetalDynamicRHI::RHICreateGeometryShaderWithStreamOutput(const TArray<uint8>& Code, const FStreamOutElementList& ElementList,
-	uint32 NumStrides, const uint32* Strides, int32 RasterizedStream)
-{
-	checkf(0, TEXT("Not supported yet"));
-	return NULL;
-}
-
-FGeometryShaderRHIRef FMetalDynamicRHI::RHICreateGeometryShaderWithStreamOutput(const FStreamOutElementList& ElementList,
-	uint32 NumStrides, const uint32* Strides, int32 RasterizedStream, FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	@autoreleasepool {
-	
-	checkSlow(Library && Library->IsNativeLibrary() && IsMetalPlatform(Library->GetPlatform()) && Library->GetPlatform() <= GMaxRHIShaderPlatform);
-	
-	FMetalShaderLibrary* MetalLibrary = ResourceCast(Library);
-	return MetalLibrary->CreateGeometryShaderWithStreamOutput(Hash, ElementList, NumStrides, Strides, RasterizedStream);
-	
-	}
-}
-
 FComputeShaderRHIRef FMetalDynamicRHI::RHICreateComputeShader(const TArray<uint8>& Code) 
 {
 	@autoreleasepool {
@@ -1292,14 +1375,7 @@ FGeometryShaderRHIRef FMetalDynamicRHI::CreateGeometryShader_RenderThread(class 
 {
 	return RHICreateGeometryShader(Library, Hash);
 }
-FGeometryShaderRHIRef FMetalDynamicRHI::CreateGeometryShaderWithStreamOutput_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream)
-{
-	return RHICreateGeometryShaderWithStreamOutput(Code, ElementList, NumStrides, Strides, RasterizedStream);
-}
-FGeometryShaderRHIRef FMetalDynamicRHI::CreateGeometryShaderWithStreamOutput_RenderThread(class FRHICommandListImmediate& RHICmdList, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream, FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	return RHICreateGeometryShaderWithStreamOutput(ElementList, NumStrides, Strides, RasterizedStream, Library, Hash);
-}
+
 FComputeShaderRHIRef FMetalDynamicRHI::CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
 {
 	return RHICreateComputeShader(Code);
@@ -1457,12 +1533,6 @@ FDomainShaderRHIRef FMetalShaderLibrary::CreateDomainShader(const FSHAHash& Hash
 FGeometryShaderRHIRef FMetalShaderLibrary::CreateGeometryShader(const FSHAHash& Hash)
 {
 	checkf(0, TEXT("Not supported"));
-	return NULL;
-}
-
-FGeometryShaderRHIRef FMetalShaderLibrary::CreateGeometryShaderWithStreamOutput(const FSHAHash& Hash, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream)
-{
-	checkf(0, TEXT("Not supported yet"));
 	return NULL;
 }
 
@@ -1663,13 +1733,16 @@ void FMetalShaderParameterCache::MarkAllDirty()
  */
 void FMetalShaderParameterCache::Set(uint32 BufferIndexName, uint32 ByteOffset, uint32 NumBytes, const void* NewValues)
 {
-	uint32 BufferIndex = CrossCompiler::PackedTypeNameToTypeIndex(BufferIndexName);
-	check(BufferIndex < CrossCompiler::PACKED_TYPEINDEX_MAX);
-	check(PackedGlobalUniforms[BufferIndex]);
-	check(ByteOffset + NumBytes <= PackedGlobalUniformsSizes[BufferIndex]);
-	PackedGlobalUniformDirty[BufferIndex].LowVector = FMath::Min(PackedGlobalUniformDirty[BufferIndex].LowVector, ByteOffset / SizeOfFloat);
-	PackedGlobalUniformDirty[BufferIndex].HighVector = FMath::Max(PackedGlobalUniformDirty[BufferIndex].HighVector, (ByteOffset + NumBytes + SizeOfFloat - 1) / SizeOfFloat);
-	FMemory::Memcpy(PackedGlobalUniforms[BufferIndex]->Data + ByteOffset, NewValues, NumBytes);
+	if (NumBytes)
+	{
+		uint32 BufferIndex = CrossCompiler::PackedTypeNameToTypeIndex(BufferIndexName);
+		check(BufferIndex < CrossCompiler::PACKED_TYPEINDEX_MAX);
+		check(PackedGlobalUniforms[BufferIndex]);
+		check(ByteOffset + NumBytes <= PackedGlobalUniformsSizes[BufferIndex]);
+		PackedGlobalUniformDirty[BufferIndex].LowVector = FMath::Min(PackedGlobalUniformDirty[BufferIndex].LowVector, ByteOffset / SizeOfFloat);
+		PackedGlobalUniformDirty[BufferIndex].HighVector = FMath::Max(PackedGlobalUniformDirty[BufferIndex].HighVector, (ByteOffset + NumBytes + SizeOfFloat - 1) / SizeOfFloat);
+		FMemory::Memcpy(PackedGlobalUniforms[BufferIndex]->Data + ByteOffset, NewValues, NumBytes);
+	}
 }
 
 void FMetalShaderParameterCache::CommitPackedGlobals(FMetalStateCache* Cache, FMetalCommandEncoder* Encoder, uint32 Frequency, const FMetalShaderBindings& Bindings)

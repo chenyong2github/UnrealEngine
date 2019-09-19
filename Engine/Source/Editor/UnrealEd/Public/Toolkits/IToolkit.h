@@ -133,5 +133,8 @@ public:
 
 	/* Called when a toolkit has been brought to the 'front' */
 	virtual void ToolkitBroughtToFront() {};
+
+	/* Returns true if this is the default generic asset editor used by multiple classes */
+	virtual bool IsSimpleAssetEditor() const { return false; }
 };
 

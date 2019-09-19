@@ -130,6 +130,21 @@ public:
 	{
 	}
 
+	virtual ELandscapeLayerUpdateMode GetBeginToolContentUpdateFlag() const override
+	{
+		return ELandscapeLayerUpdateMode::Update_None;
+	}
+
+	virtual ELandscapeLayerUpdateMode GetTickToolContentUpdateFlag() const override
+	{
+		return ELandscapeLayerUpdateMode::Update_None;
+	}
+
+	virtual ELandscapeLayerUpdateMode GetEndToolContentUpdateFlag() const override
+	{
+		return ELandscapeLayerUpdateMode::Update_None;
+	}
+
 	virtual const TCHAR* GetToolName() override { return TEXT("Select"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_Selection", "Component Selection"); };
 	virtual void SetEditRenderType() override { GLandscapeEditRenderMode = ELandscapeEditRenderMode::SelectComponent | (GLandscapeEditRenderMode & ELandscapeEditRenderMode::BitMaskForMask); }

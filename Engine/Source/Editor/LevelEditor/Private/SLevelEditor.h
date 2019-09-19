@@ -133,7 +133,7 @@ public:
 	void AttachSequencer( TSharedPtr<SWidget> SequencerWidget, TSharedPtr<IAssetEditorInstance> NewSequencerAssetEditor );
 
 	/** Returns current scene outliner associated with level editor's scene outliner tab, if it exists */
-	TSharedPtr<ISceneOutliner> GetSceneOutliner() { return SceneOutlinerPtr.Pin();  }
+	virtual TSharedPtr<ISceneOutliner> GetSceneOutliner() const override { return SceneOutlinerPtr.Pin();  }
 
 private:
 	
@@ -147,6 +147,9 @@ private:
 	 * Binds UI commands to actions for the level editor                   
 	 */
 	void BindCommands();
+
+	/** Registers menus associated with level editor */
+	void RegisterMenus();
 
 	/**
 	 * Fills the level editor with content, using the layout string, or the default if

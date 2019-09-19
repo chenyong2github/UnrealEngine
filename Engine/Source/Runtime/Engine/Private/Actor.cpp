@@ -769,6 +769,18 @@ void AActor::ProcessEvent(UFunction* Function, void* Parameters)
 {
 	LLM_SCOPE(ELLMTag::EngineMisc);
 
+#if !UE_BUILD_SHIPPING
+	if (!ProcessEventDelegate.IsBound())
+#endif
+	{
+		// Apply UObject::ProcessEvent's early outs before doing any other work
+		// If the process event delegate is bound, we need to allow the process to play out
+		if ((Function->FunctionFlags & FUNC_Native) == 0 && (Function->Script.Num() == 0))
+		{
+			return;
+		}
+	}
+
 	#if WITH_EDITOR
 	static const FName CallInEditorMeta(TEXT("CallInEditor"));
 	const bool bAllowScriptExecution = GAllowActorScriptExecutionInEditor || Function->GetBoolMetaData(CallInEditorMeta);
@@ -986,7 +998,7 @@ void AActor::TickActor( float DeltaSeconds, ELevelTick TickType, FActorTickFunct
 
 void AActor::Tick( float DeltaSeconds )
 {
-	if (GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
+	if (GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint) || !GetClass()->HasAnyClassFlags(CLASS_Native))
 	{
 		// Blueprint code outside of the construction script should not run in the editor
 		// Allow tick if we are not a dedicated server, or we allow this tick on dedicated servers
@@ -2145,8 +2157,6 @@ void AActor::RouteEndPlay(const EEndPlayReason::Type EndPlayReason)
 		{
 			SetLifeSpan(0.f);
 		}
-
-		FNavigationSystem::OnActorUnregistered(*this);
 	}
 
 	UninitializeComponents();
@@ -2796,50 +2806,29 @@ UActorComponent* AActor::GetComponentByClass(TSubclassOf<UActorComponent> Compon
 	return FindComponentByClass(ComponentClass);
 }
 
-TArray<UActorComponent*> AActor::GetComponentsByClass(TSubclassOf<UActorComponent> ComponentClass) const
+TArray<UActorComponent*> AActor::K2_GetComponentsByClass(TSubclassOf<UActorComponent> ComponentClass) const
 {
-	TArray<UActorComponent*> ValidComponents;
-
-	// In the UActorComponent case we can skip the IsA checks for a slight performance benefit
-	if (ComponentClass == UActorComponent::StaticClass())
-	{
-		for (UActorComponent* Component : OwnedComponents)
-		{
-			if (Component)
-			{
-				ValidComponents.Add(Component);
-			}
-		}
-	}
-	else if (*ComponentClass)
-	{
-		for (UActorComponent* Component : OwnedComponents)
-		{
-			if (Component && Component->IsA(ComponentClass))
-			{
-				ValidComponents.Add(Component);
-			}
-		}
-	}
-	
-	return ValidComponents;
+	TArray<UActorComponent*> Components;
+	GetComponents(ComponentClass, Components);
+	return MoveTemp(Components);
 }
 
 TArray<UActorComponent*> AActor::GetComponentsByTag(TSubclassOf<UActorComponent> ComponentClass, FName Tag) const
 {
-	TArray<UActorComponent*> ComponentsByClass = GetComponentsByClass(ComponentClass);
+	TInlineComponentArray<UActorComponent*> ComponentsByClass;
+	GetComponents(ComponentClass, ComponentsByClass);
 
 	TArray<UActorComponent*> ComponentsByTag;
 	ComponentsByTag.Reserve(ComponentsByClass.Num());
-	for (int i = 0; i < ComponentsByClass.Num(); ++i)
+	for (UActorComponent* Component : ComponentsByClass)
 	{
-		if (ComponentsByClass[i]->ComponentHasTag(Tag))
+		if (Component->ComponentHasTag(Tag))
 		{
-			ComponentsByTag.Push(ComponentsByClass[i]);
+			ComponentsByTag.Push(Component);
 		}
 	}
 
-	return ComponentsByTag;
+	return MoveTemp(ComponentsByTag);
 }
 
 TArray<UActorComponent*> AActor::GetComponentsByInterface(TSubclassOf<UInterface> Interface) const
@@ -2873,6 +2862,7 @@ void AActor::DisableComponentsSimulatePhysics()
 
 void AActor::PreRegisterAllComponents()
 {
+	FNavigationSystem::OnActorRegistered(*this);
 }
 
 void AActor::PostRegisterAllComponents() 
@@ -4323,6 +4313,11 @@ void AActor::UnregisterAllComponents(const bool bForReregister)
 	PostUnregisterAllComponents();
 }
 
+void AActor::PostUnregisterAllComponents()
+{
+	FNavigationSystem::OnActorUnregistered(*this);
+}
+
 void AActor::RegisterAllComponents()
 {
 	PreRegisterAllComponents();
@@ -4705,8 +4700,6 @@ void AActor::PostInitializeComponents()
 	if( !IsPendingKill() )
 	{
 		bActorInitialized = true;
-
-		FNavigationSystem::OnActorRegistered(*this);
 		
 		UpdateAllReplicatedComponents();
 	}

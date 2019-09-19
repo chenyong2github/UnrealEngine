@@ -1298,7 +1298,7 @@ void FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(TArray<FNiagaraT
 	for (const FNiagaraTypeDefinition& RegisteredParameterType : FNiagaraTypeRegistry::GetRegisteredParameterTypes())
 	{
 		//Object types only allowed in user namespace at the moment.
-		if (RegisteredParameterType == FNiagaraTypeDefinition::GetUObjectDef() && Namespace != FNiagaraParameterHandle::UserNamespace)
+		if (RegisteredParameterType.IsUObject() && Namespace != FNiagaraParameterHandle::UserNamespace)
 		{
 			continue;
 		}
@@ -1768,7 +1768,7 @@ bool FNiagaraStackGraphUtilities::GetStackIssuesRecursively(const UNiagaraStackE
 	return OutIssues.Num() > 0;
 }
 
-void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiagaraNodeFunctionCall& ModuleToMove, UNiagaraSystem& TargetSystem, FGuid TargetEmitterHandleId, ENiagaraScriptUsage TargetUsage, FGuid TargetUsageId, int32 TargetModuleIndex)
+void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiagaraNodeFunctionCall& ModuleToMove, UNiagaraSystem& TargetSystem, FGuid TargetEmitterHandleId, ENiagaraScriptUsage TargetUsage, FGuid TargetUsageId, int32 TargetModuleIndex, bool bForceCopy)
 {
 	UNiagaraScript* TargetScript = FNiagaraEditorUtilities::GetScriptFromSystem(TargetSystem, TargetEmitterHandleId, TargetUsage, TargetUsageId);
 	checkf(TargetScript != nullptr, TEXT("Target script not found"));
@@ -1785,10 +1785,10 @@ void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiag
 	UNiagaraGraph* SourceGraph = ModuleToMove.GetNiagaraGraph();
 	UNiagaraGraph* TargetGraph = TargetOutputNode->GetNiagaraGraph();
 
-	// If the source and target scripts don't match we need to collect the rapid iteration parameter values for each function in the source group
+	// If the source and target scripts don't match, or we're forcing a copy we need to collect the rapid iteration parameter values for each function in the source group
 	// so we can restore them after moving.
 	TMap<FGuid, TArray<FNiagaraVariable>> SourceFunctionIdToRapidIterationParametersMap;
-	if (&SourceScript != TargetScript)
+	if (&SourceScript != TargetScript || bForceCopy)
 	{
 		TMap<FString, FGuid> FunctionCallNameToNodeIdMap;
 		for (UNiagaraNode* SourceGroupNode : SourceGroupNodes)
@@ -1824,14 +1824,14 @@ void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiag
 	FStackNodeGroup TargetGroup;
 	TArray<UNiagaraNode*> TargetGroupNodes;
 	TMap<FGuid, FGuid> OldNodeIdToNewIdMap;
-	if (SourceGraph == TargetGraph)
+	if (SourceGraph == TargetGraph && bForceCopy == false)
 	{
 		TargetGroup = SourceGroups[SourceGroupIndex];
 		TargetGroupNodes = SourceGroupNodes;
 	}
 	else 
 	{
-		// If the module is being inserted into a different graph all of the nodes need to be copied into the target graph.
+		// If the module is being inserted into a different graph, or it's being copied, all of the nodes need to be copied into the target graph.
 		FStackNodeGroup SourceGroup = SourceGroups[SourceGroupIndex];
 		
 		TSet<UObject*> NodesToCopy;
@@ -1876,6 +1876,8 @@ void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiag
 				CopiedNiagaraNode->MarkNodeRequiresSynchronization(__FUNCTION__, false);
 			}
 		}
+
+		FNiagaraEditorUtilities::FixUpPastedNodes(TargetGraph, CopiedNodesSet);
 	}
 
 	TArray<FStackNodeGroup> TargetGroups;
@@ -1885,17 +1887,21 @@ void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiag
 	// if a valid index wasn't supplied, than we insert at the end.
 	int32 TargetGroupIndex = TargetModuleIndex != INDEX_NONE ? TargetModuleIndex + 1 : TargetGroups.Num() - 1;
 
-	// Remove the source module group from it's stack, and insert the source or copied nodes into the target stack.
-	DisconnectStackNodeGroup(SourceGroups[SourceGroupIndex], SourceGroups[SourceGroupIndex - 1], SourceGroups[SourceGroupIndex + 1]);
-	if (SourceGraph != TargetGraph)
+	// If we're not forcing a copy of the moved module, remove the source module group from it's stack.
+	if (bForceCopy == false)
 	{
-		// If the graphs were different also remove the nodes from the source graph.
-		for (UNiagaraNode* SourceGroupNode : SourceGroupNodes)
+		DisconnectStackNodeGroup(SourceGroups[SourceGroupIndex], SourceGroups[SourceGroupIndex - 1], SourceGroups[SourceGroupIndex + 1]);
+		if (SourceGraph != TargetGraph)
 		{
-			SourceGraph->RemoveNode(SourceGroupNode);
+			// If the graphs were different also remove the nodes from the source graph.
+			for (UNiagaraNode* SourceGroupNode : SourceGroupNodes)
+			{
+				SourceGraph->RemoveNode(SourceGroupNode);
+			}
 		}
 	}
 
+	// Insert the source or copied nodes into the target stack.
 	ConnectStackNodeGroup(TargetGroup, TargetGroups[TargetGroupIndex - 1], TargetGroups[TargetGroupIndex]);
 
 	// Copy any rapid iteration parameters cached earlier into the target script.
@@ -1903,9 +1909,9 @@ void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiag
 	{
 		SourceScript.Modify();
 		TargetScript->Modify();
-		if (SourceGraph == TargetGraph)
+		if (SourceGraph == TargetGraph && bForceCopy == false)
 		{
-			// If the module was dropped in the same graph than neither the emitter or function call name could have changed
+			// If we're not copying and if the module was dropped in the same graph than neither the emitter or function call name could have changed
 			// so we can just add them directly to the target script.
 			for (auto It = SourceFunctionIdToRapidIterationParametersMap.CreateIterator(); It; ++It)
 			{
@@ -1919,7 +1925,7 @@ void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiag
 		}
 		else
 		{
-			// If the module was moved to a different graph it's possible that the emitter name or function call name could have
+			// If we're copying or the module was moved to a different graph it's possible that the emitter name or function call name could have
 			// changed so we need to construct new rapid iteration parameters.
 			FString EmitterName;
 			if (TargetEmitterHandleId.IsValid())
@@ -1929,34 +1935,26 @@ void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiag
 				EmitterName = TargetEmitterHandle->GetUniqueInstanceName();
 			}
 
-			TArray<FNiagaraVariable> TargetRapidIterationParameters;
 			for (auto It = SourceFunctionIdToRapidIterationParametersMap.CreateIterator(); It; ++It)
 			{
 				FGuid& FunctionId = It.Key();
 				TArray<FNiagaraVariable>& RapidIterationParameters = It.Value();
 
-				if (SourceGraph == TargetGraph)
+				FGuid TargetNodeId = OldNodeIdToNewIdMap[FunctionId];
+				UNiagaraNode** TargetFunctionNodePtr = TargetGroupNodes.FindByPredicate(
+					[TargetNodeId](UNiagaraNode* TargetGroupNode) { return TargetGroupNode->NodeGuid == TargetNodeId; });
+				checkf(TargetFunctionNodePtr != nullptr, TEXT("Target nodes not copied correctly"));
+				UNiagaraNodeFunctionCall* TargetFunctionNode = CastChecked<UNiagaraNodeFunctionCall>(*TargetFunctionNodePtr);
+				for (FNiagaraVariable& RapidIterationParameter : RapidIterationParameters)
 				{
-					TargetRapidIterationParameters.Append(RapidIterationParameters);
-				}
-				else
-				{
-					FGuid TargetNodeId = OldNodeIdToNewIdMap[FunctionId];
-					UNiagaraNode** TargetFunctionNodePtr = TargetGroupNodes.FindByPredicate(
-						[TargetNodeId](UNiagaraNode* TargetGroupNode) { return TargetGroupNode->NodeGuid == TargetNodeId; });
-					checkf(TargetFunctionNodePtr != nullptr, TEXT("Target nodes not copied correctly"));
-					UNiagaraNodeFunctionCall* TargetFunctionNode = CastChecked<UNiagaraNodeFunctionCall>(*TargetFunctionNodePtr);
-					for (FNiagaraVariable& RapidIterationParameter : RapidIterationParameters)
-					{
-						FString OldEmitterName;
-						FString OldFunctionCallName;
-						FString InputName;
-						FNiagaraParameterMapHistory::SplitRapidIterationParameterName(RapidIterationParameter, OldEmitterName, OldFunctionCallName, InputName);
-						FNiagaraParameterHandle ModuleHandle = FNiagaraParameterHandle::CreateModuleParameterHandle(*InputName);
-						FNiagaraParameterHandle AliasedModuleHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(ModuleHandle, TargetFunctionNode);
-						FNiagaraVariable TargetRapidIterationParameter = CreateRapidIterationParameter(EmitterName, TargetUsage, AliasedModuleHandle.GetParameterHandleString(), RapidIterationParameter.GetType());
-						TargetScript->RapidIterationParameters.SetParameterData(RapidIterationParameter.GetData(), TargetRapidIterationParameter, true);
-					}
+					FString OldEmitterName;
+					FString OldFunctionCallName;
+					FString InputName;
+					FNiagaraParameterMapHistory::SplitRapidIterationParameterName(RapidIterationParameter, OldEmitterName, OldFunctionCallName, InputName);
+					FNiagaraParameterHandle ModuleHandle = FNiagaraParameterHandle::CreateModuleParameterHandle(*InputName);
+					FNiagaraParameterHandle AliasedModuleHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(ModuleHandle, TargetFunctionNode);
+					FNiagaraVariable TargetRapidIterationParameter = CreateRapidIterationParameter(EmitterName, TargetUsage, AliasedModuleHandle.GetParameterHandleString(), RapidIterationParameter.GetType());
+					TargetScript->RapidIterationParameters.SetParameterData(RapidIterationParameter.GetData(), TargetRapidIterationParameter, true);
 				}
 			}
 		}

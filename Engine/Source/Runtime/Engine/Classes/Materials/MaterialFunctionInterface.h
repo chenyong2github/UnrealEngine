@@ -421,6 +421,11 @@ public:
 		return false;
 	}
 	
+	virtual bool OverrideNamedRuntimeVirtualTextureParameter(const FMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture*& OutValue)
+	{
+		return false;
+	}
+
 	virtual bool OverrideNamedFontParameter(const FMaterialParameterInfo& ParameterInfo, class UFont*& OutFontValue, int32& OutFontPage)
 	{
 		return false;

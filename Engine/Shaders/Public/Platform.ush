@@ -128,10 +128,6 @@
 #define	VULKAN_PROFILE 0
 #endif
 
-#ifndef VULKAN_PROFILE_SM4
-#define	VULKAN_PROFILE_SM4 0
-#endif
-
 #ifndef VULKAN_PROFILE_SM5
 #define	VULKAN_PROFILE_SM5 0
 #endif
@@ -221,9 +217,6 @@
 	// @todo: replace usage of ES3_1_PROFILE with FEATURE_LEVEL where appropriate
 	#undef ES3_1_PROFILE
 	#define ES3_1_PROFILE 1 
-
-#elif VULKAN_PROFILE_SM4
-	#define FEATURE_LEVEL FEATURE_LEVEL_SM4
 
 #elif VULKAN_PROFILE_SM5
 	#define FEATURE_LEVEL FEATURE_LEVEL_SM5
@@ -357,13 +350,13 @@
 // Ideally this would just be enabled for all SM4 and above feature level platforms
 // @todo metal mrt: No reason this can't work with Metal, once cross compiler is fixed
 #ifndef SUPPORTS_INDEPENDENT_SAMPLERS
-#define SUPPORTS_INDEPENDENT_SAMPLERS (PS4_PROFILE || SM5_PROFILE || SM4_PROFILE || METAL_MRT_PROFILE || METAL_SM5_NOTESS_PROFILE || METAL_SM5_PROFILE || VULKAN_PROFILE_SM5 || VULKAN_PROFILE_SM4 || VULKAN_PROFILE)
+#define SUPPORTS_INDEPENDENT_SAMPLERS (PS4_PROFILE || SM5_PROFILE || SM4_PROFILE || METAL_MRT_PROFILE || METAL_SM5_NOTESS_PROFILE || METAL_SM5_PROFILE || VULKAN_PROFILE_SM5 || VULKAN_PROFILE)
 #endif
 
 // Whether the platform supports a global clip plane through SV_ClipDistance
 // Ideally this would just be enabled for all SM4 and above feature level platforms, but not tested everywhere yet
 #ifndef PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE
-#define PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE (PS4_PROFILE || SM5_PROFILE || SM4_PROFILE || METAL_PROFILE || METAL_MRT_PROFILE || METAL_SM5_NOTESS_PROFILE || METAL_SM5_PROFILE || GL4_PROFILE || GL3_PROFILE || VULKAN_PROFILE_SM4 || VULKAN_PROFILE_SM5)
+#define PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE (PS4_PROFILE || SM5_PROFILE || SM4_PROFILE || METAL_PROFILE || METAL_MRT_PROFILE || METAL_SM5_NOTESS_PROFILE || METAL_SM5_PROFILE || GL4_PROFILE || GL3_PROFILE || VULKAN_PROFILE_SM5)
 #endif
 
 // Whether the platform support pixel coverage on MSAA targets (SV_Coverage).
@@ -433,6 +426,10 @@
 #define PLATFORM_SUPPORTS_RECT_LIST 0
 #endif
 
+// Mirrors GRHISupportsAtomicUInt64.
+#ifndef PLATFORM_SUPPORTS_ATOMIC_UINT64
+#define PLATFORM_SUPPORTS_ATOMIC_UINT64 0
+#endif
 
 // ---------------------------------------------------- Compiler attributes
 
@@ -509,6 +506,11 @@
 #ifndef StrongTypedBuffer
 #define StrongTypedBuffer Buffer
 #endif
+
+#ifndef ISOLATE
+#define ISOLATE
+#endif
+
 
 // ---------------------------------------------------- Interpolator attribute fallbacks
 
@@ -689,4 +691,10 @@ float UnpackByte3(uint v) { return float(v >> 24); }
 	#define SNORM snorm
 	#define UNORM unorm
 #endif
+#endif
+
+#if COMPILER_HLSLCC || PS4_PROFILE
+	#define INFINITE_FLOAT 3.402823e+38
+#else
+	#define INFINITE_FLOAT 1.#INF
 #endif

@@ -54,7 +54,7 @@ class FDepthConversionPS : public FGlobalShader
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4) || IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) || IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 
 	FDepthConversionPS() { }
@@ -65,19 +65,11 @@ public:
 		// Bind shader inputs.
 		InDepthTexture.Bind(Initializer.ParameterMap, TEXT("InDepthTexture"), SPF_Mandatory);
 		InTextureSampler.Bind(Initializer.ParameterMap, TEXT("InTextureSampler"));
-
-		NearPlaneM.Bind(Initializer.ParameterMap, TEXT("NearPlaneM"));
-		FarPlaneM.Bind(Initializer.ParameterMap, TEXT("FarPlaneM"));
-		WorldToMeters.Bind(Initializer.ParameterMap, TEXT("WorldToMeters"));
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, float nearPlaneM, float farPlaneM, float worldToMetersValue, FRHITexture* DepthTexture)
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* DepthTexture)
 	{
 		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
-
-		SetShaderValue(RHICmdList, PixelShaderRHI, NearPlaneM, nearPlaneM);
-		SetShaderValue(RHICmdList, PixelShaderRHI, FarPlaneM, farPlaneM);
-		SetShaderValue(RHICmdList, PixelShaderRHI, WorldToMeters, worldToMetersValue);
 
 		FRHISamplerState* SamplerStateRHI = TStaticSamplerState<SF_Point>::GetRHI();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, InDepthTexture, InTextureSampler, SamplerStateRHI, DepthTexture);
@@ -90,10 +82,6 @@ public:
 		// Serialize shader inputs.
 		Ar << InDepthTexture;
 		Ar << InTextureSampler;
-		
-		Ar << NearPlaneM;
-		Ar << FarPlaneM;
-		Ar << WorldToMeters;
 
 		return bShaderHasOutdatedParameters;
 	}
@@ -102,9 +90,6 @@ private:
 	// Shader parameters.
 	FShaderResourceParameter InDepthTexture;
 	FShaderResourceParameter InTextureSampler;
-	FShaderParameter NearPlaneM;
-	FShaderParameter FarPlaneM;
-	FShaderParameter WorldToMeters;
 };
 
 IMPLEMENT_SHADER_TYPE(, FDepthConversionPS, TEXT("/Plugin/WindowsMixedReality/Private/DepthConversion.usf"), TEXT("MainPixelShader"), SF_Pixel)
@@ -414,6 +399,12 @@ namespace WindowsMixedReality
 		return nullptr;
 	}
 
+	bool FWindowsMixedRealityHMD::HasValidTrackingPosition()
+	{
+		const Frame& TheFrame = GetFrame();
+		return TheFrame.bPositionalTrackingUsed;
+	}
+
 	FString FWindowsMixedRealityHMD::GetVersionString() const
 	{
 #if WITH_WINDOWS_MIXED_REALITY
@@ -612,6 +603,13 @@ namespace WindowsMixedReality
 		HMD->UpdateRenderThreadFrame();
 		InitTrackingFrame();
 		HMD->BlockUntilNextFrame();
+
+		if (!HMD->CreateRenderingParameters())
+		{
+			// This will happen if an exception is thrown while creating the frame's rendering parameters.
+			// Because Windows Mixed Reality can only have 2 rendering parameters in flight at any time, this is fatal.
+			this->bRequestRestart = true;
+		}
 #endif
 	}
 
@@ -656,6 +654,37 @@ namespace WindowsMixedReality
 #endif
 	}
 
+	FMatrix FetchProjectionMatrix(EStereoscopicPass StereoPassType, WindowsMixedReality::MixedRealityInterop* HMD)
+	{
+		if (StereoPassType != eSSP_LEFT_EYE &&
+			StereoPassType != eSSP_RIGHT_EYE)
+		{
+			return FMatrix::Identity;
+		}
+
+#if WITH_WINDOWS_MIXED_REALITY
+		DirectX::XMFLOAT4X4 projection = (StereoPassType == eSSP_LEFT_EYE)
+			? HMD->GetProjectionMatrix(HMDEye::Left)
+			: HMD->GetProjectionMatrix(HMDEye::Right);
+
+		auto result = WMRUtility::ToFMatrix(projection).GetTransposed();
+		// Convert from RH to LH projection matrix
+		// See PerspectiveOffCenterRH: https://msdn.microsoft.com/en-us/library/windows/desktop/ms918176.aspx
+		result.M[2][0] *= -1;
+		result.M[2][1] *= -1;
+		result.M[2][2] *= -1;
+		result.M[2][3] *= -1;
+
+		// Switch to reverse-z, replace near and far distance
+		result.M[2][2] = 0.0f;  // Must be 0 for reverse-z.
+		result.M[3][2] = GNearClippingPlane;
+
+		return result;
+#else
+		return FMatrix::Identity;
+#endif
+	}
+
 	void FWindowsMixedRealityHMD::InitTrackingFrame()
 	{
 #if WITH_WINDOWS_MIXED_REALITY
@@ -672,7 +701,7 @@ namespace WindowsMixedReality
 			{
 				trackingOrigin == WindowsMixedReality::HMDTrackingOrigin::Eye ?
 					SetTrackingOrigin(EHMDTrackingOrigin::Eye) :
-					SetTrackingOrigin(EHMDTrackingOrigin::Floor);
+					SetTrackingOrigin(EHMDTrackingOrigin::Stage);
 
 				// Convert to unreal space
 				FMatrix UPoseL = WMRUtility::ToFMatrix(leftPose);
@@ -703,6 +732,7 @@ namespace WindowsMixedReality
 
 				FVector HeadPosition = FMath::Lerp(PositionL, PositionR, 0.5f);
 
+				Frame_RenderThread.bPositionalTrackingUsed = HMD->GetTrackingState() == WindowsMixedReality::HMDSpatialLocatability::PositionalTrackingActive;
 				Frame_RenderThread.RotationL = RotationL;
 				Frame_RenderThread.RotationR = RotationR;
 				Frame_RenderThread.PositionL = PositionL;
@@ -712,7 +742,10 @@ namespace WindowsMixedReality
 				Frame_RenderThread.LeftTransform = FTransform(RotationL, PositionL, FVector::OneVector);
 				Frame_RenderThread.RightTransform = FTransform(RotationR, PositionR, FVector::OneVector);
 				Frame_RenderThread.HeadTransform = FTransform(HeadRotation, HeadPosition, FVector::OneVector);
-			
+
+				Frame_RenderThread.ProjectionMatrixL = FetchProjectionMatrix(eSSP_LEFT_EYE, HMD);
+				Frame_RenderThread.ProjectionMatrixR = FetchProjectionMatrix(eSSP_RIGHT_EYE, HMD);
+
 				{
 					FScopeLock Lock(&Frame_NextGameThreadLock);
 					Frame_NextGameThread = Frame_RenderThread;
@@ -890,33 +923,20 @@ namespace WindowsMixedReality
 
 	FMatrix FWindowsMixedRealityHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
 	{
-		if (StereoPassType != eSSP_LEFT_EYE &&
-			StereoPassType != eSSP_RIGHT_EYE)
+		check(IsInGameThread());
+
+		if (StereoPassType == eSSP_LEFT_EYE)
+		{
+			return Frame_GameThread.ProjectionMatrixL;
+		}
+		else if (StereoPassType == eSSP_RIGHT_EYE)
+		{
+			return Frame_GameThread.ProjectionMatrixR;
+		}
+		else
 		{
 			return FMatrix::Identity;
 		}
-
-#if WITH_WINDOWS_MIXED_REALITY
-		DirectX::XMFLOAT4X4 projection = (StereoPassType == eSSP_LEFT_EYE)
-			? HMD->GetProjectionMatrix(HMDEye::Left)
-			: HMD->GetProjectionMatrix(HMDEye::Right);
-
-		auto result = WMRUtility::ToFMatrix(projection).GetTransposed();
-		// Convert from RH to LH projection matrix
-		// See PerspectiveOffCenterRH: https://msdn.microsoft.com/en-us/library/windows/desktop/ms918176.aspx
-		result.M[2][0] *= -1;
-		result.M[2][1] *= -1;
-		result.M[2][2] *= -1;
-		result.M[2][3] *= -1;
-
-		// Switch to reverse-z, replace near and far distance
-		result.M[2][2] = 0.0f;  // Must be 0 for reverse-z.
-		result.M[3][2] = GNearClippingPlane;
-
-		return result;
-#else
-		return FMatrix::Identity;
-#endif
 	}
 
 	void FWindowsMixedRealityHMD::GetEyeRenderParams_RenderThread(
@@ -1060,6 +1080,12 @@ namespace WindowsMixedReality
 			EDRF_Default);
 
 		RHICmdList.EndRenderPass();
+
+		// We keep refs to the depth texture in the hmd, so this function is non-const.
+		// RenderTexture_RenderThread should perhaps be refactored or made non-const.  
+		// But to get this into a hotfix of 4.23 we shall simply cast.
+		FWindowsMixedRealityHMD* nonconstthis = const_cast<FWindowsMixedRealityHMD*>(this);
+		nonconstthis->CreateHMDDepthTexture(RHICmdList);
 	}
 
 	// Create a BGRA backbuffer for rendering.
@@ -1096,7 +1122,45 @@ namespace WindowsMixedReality
 			outTargetableTexture,
 			outShaderResourceTexture);
 
-		CurrentBackBuffer = outTargetableTexture;
+		bNeedReallocateDepthTexture = true;
+
+		return true;
+	}
+
+	bool FWindowsMixedRealityHMD::NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderTarget>& DepthTarget)
+	{
+		if (!IsStereoEnabled())
+		{
+			return false;
+		}
+
+		return bNeedReallocateDepthTexture;
+	}
+
+	bool FWindowsMixedRealityHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 TargetableTextureFlags, FTexture2DRHIRef & OutTargetableTexture, FTexture2DRHIRef & OutShaderResourceTexture, uint32 NumSamples)
+	{
+		FRHIResourceCreateInfo CreateInfo;
+		// This binding is necessary - without it there will be a runtime error.
+		// Current shader assumes far depth since scene depth uses far depth.
+		CreateInfo.ClearValueBinding = FClearValueBinding::DepthFar;
+
+		RHICreateTargetableShaderResource2D(
+			SizeX,
+			SizeY,
+			// Do not use input format - this will resolve to X32_TYPELESS_G8X24_UINT which cannot be used for a depthstencil buffer.
+			// DepthStencil will resolve to R32G8X24_TYPELESS which is usable for a depthstencil buffer!
+			PF_DepthStencil,
+			// Do not use input mips, this will resolve to 0 which will throw creating the texture.
+			1,
+			InTexFlags,
+			TargetableTextureFlags,
+			false,
+			CreateInfo,
+			OutTargetableTexture,
+			OutShaderResourceTexture);
+
+		CurrentDepthBuffer = OutTargetableTexture;
+		bNeedReallocateDepthTexture = false;
 
 		return true;
 	}
@@ -1182,9 +1246,14 @@ namespace WindowsMixedReality
 		check(IsInRenderingThread());
 
 #if WITH_WINDOWS_MIXED_REALITY
+		if (CurrentDepthBuffer == nullptr
+			|| !CurrentDepthBuffer.GetReference()->IsValid())
+		{
+			return;
+		}
+
 		// Update depth texture to match format Windows Mixed Reality platform is expecting.
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-		FRHITexture2D* depthFRHITexture = SceneContext.GetSceneDepthTexture().GetReference()->GetTexture2D();
+		FRHITexture2D* depthFRHITexture = CurrentDepthBuffer.GetReference()->GetTexture2D();
 
 		if (depthFRHITexture == nullptr || depthFRHITexture->GetNativeResource() == nullptr)
 		{
@@ -1211,7 +1280,7 @@ namespace WindowsMixedReality
 		{
 			FRHIResourceCreateInfo CreateInfo;
 			remappedDepthTexture = RHICmdList.CreateTexture2D(depthFRHITexture->GetSizeX(), depthFRHITexture->GetSizeY(),
-				PF_R32_UINT, 1, 1, ETextureCreateFlags::TexCreate_RenderTargetable | ETextureCreateFlags::TexCreate_UAV, CreateInfo);
+				PF_R32_FLOAT, 1, 1, ETextureCreateFlags::TexCreate_RenderTargetable, CreateInfo);
 		}
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -1239,7 +1308,7 @@ namespace WindowsMixedReality
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-			pixelShader->SetParameters(RHICmdList, GNearClippingPlane / GetWorldToMetersScale(), farPlaneDistance, GetWorldToMetersScale(), depthFRHITexture);
+			pixelShader->SetParameters(RHICmdList, depthFRHITexture);
 
 			RendererModule->DrawRectangle(
 				RHICmdList,
@@ -1287,27 +1356,47 @@ namespace WindowsMixedReality
 		_StereoCopy(context, ScreenScalePercentage,
 			(ID3D11Texture2D*)remappedDepthTexture->GetNativeResource(),
 			stereoDepthTexture);
+
+		HMD->CommitDepthBuffer(stereoDepthTexture);
 #endif
 	}
 
-	void FWindowsMixedRealityHMD::PreRenderViewFamily_RenderThread(
-		FRHICommandListImmediate& RHICmdList,
-		FSceneViewFamily& InViewFamily)
+	void FWindowsMixedRealityHMD::SetFocusPointForFrame(FVector Position)
 	{
 #if WITH_WINDOWS_MIXED_REALITY
-		if (!mCustomPresent || !HMD->IsInitialized() || !HMD->IsAvailable())
+		check(IsInGameThread());
+
+		if (!HMD->IsInitialized() || !HMD->IsAvailable())
 		{
 			return;
 		}
 
-		CreateHMDDepthTexture(RHICmdList);
-		if (!HMD->CreateRenderingParameters(stereoDepthTexture))
+		// Convert Unreal world position to HoloLens tracking space.
+		FVector TransformedPosition = CachedTrackingToWorld.Inverse().TransformPosition(Position) / GetWorldToMetersScale();
+
+		// Enqueue command to send to render thread
+		FWindowsMixedRealityHMD* WMRHMD = this;
+		ENQUEUE_RENDER_COMMAND(SetFocustPointForFrame)(
+			[WMRHMD, TransformedPosition](FRHICommandListImmediate& RHICmdList)
 		{
-			// This will happen if an exception is thrown while creating the frame's rendering parameters.
-			// Because Windows Mixed Reality can only have 2 rendering parameters in flight at any time, this is fatal.
-			this->bRequestRestart = true;
+			WMRHMD->SetFocustPointForFrame_RenderThread(TransformedPosition);
 		}
+		);
 #endif
+	}
+
+	void FWindowsMixedRealityHMD::SetFocustPointForFrame_RenderThread(FVector TrackingSpacePosition)
+	{
+#if WITH_WINDOWS_MIXED_REALITY
+		check(IsInRenderingThread());
+
+		if (!HMD->IsInitialized() || !HMD->IsAvailable())
+		{
+			return;
+		}
+
+		HMD->SetFocusPointForFrame(WMRUtility::ToMixedRealityVector(TrackingSpacePosition));
+#endif	
 	}
 
 	bool FWindowsMixedRealityHMD::IsActiveThisFrame(class FViewport* InViewport) const
@@ -1367,6 +1456,10 @@ namespace WindowsMixedReality
 
 		bIsStereoDesired = false;
 		bIsStereoEnabled = false;
+		
+		bNeedReallocateDepthTexture = false;
+
+		GetFrame().bPositionalTrackingUsed = false;
 
 		for (int i = 0; i < 2; i++)
 		{

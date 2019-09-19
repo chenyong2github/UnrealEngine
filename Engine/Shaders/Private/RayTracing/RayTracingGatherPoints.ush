@@ -1,0 +1,31 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+struct FGatherPoints
+{
+	float3 CreationPoint[16];
+	float3 Position[16];
+	float3 Irradiance[16];
+};
+
+struct FRejectionCriteria
+{
+	float3 CreationPoint;
+	float DistanceThreshold2;
+};
+
+FRejectionCriteria CreateRejectionCriteria(float3 CreationPoint, float DistanceThreshold)
+{
+	FRejectionCriteria RejectionCriteria;
+	RejectionCriteria.CreationPoint = CreationPoint;
+	RejectionCriteria.DistanceThreshold2 = DistanceThreshold * DistanceThreshold;
+	return RejectionCriteria;
+}
+
+void CreateRejectionMask(FRejectionCriteria RejectionCriteria, FGatherPoints GatherPoints, int SampleCount, out bool bShouldReject[16])
+{
+	for (int SampleIndex = 0; SampleIndex < SampleCount; ++SampleIndex)
+	{
+		float3 GPDistance2 = RejectionCriteria.CreationPoint - GatherPoints.CreationPoint[SampleIndex];
+		bShouldReject[SampleIndex] = dot(GPDistance2, GPDistance2) > RejectionCriteria.DistanceThreshold2;
+	}
+}

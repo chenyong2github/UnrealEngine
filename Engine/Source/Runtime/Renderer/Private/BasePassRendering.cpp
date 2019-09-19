@@ -135,8 +135,9 @@ void SetBasePassDitheredLODTransitionState(const FSceneView* SceneView, const FM
 
 		if (ViewInfo->bAllowStencilDither)
 		{
-			if (ViewInfo->StaticMeshFadeOutDitheredLODMap[StaticMeshId])
+			if (ViewInfo->StaticMeshFadeOutDitheredLODMap[StaticMeshId] || ViewInfo->StaticMeshFadeInDitheredLODMap[StaticMeshId])
 			{
+				const uint32 RestoreStencilRef = DrawRenderState.GetStencilRef();
 				DrawRenderState.SetDepthStencilState(
 					TStaticDepthStencilState<
 					false, CF_Equal,
@@ -144,16 +145,7 @@ void SetBasePassDitheredLODTransitionState(const FSceneView* SceneView, const FM
 					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
 					0xFF, GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)
 					>::GetRHI());
-			}
-			else if (ViewInfo->StaticMeshFadeInDitheredLODMap[StaticMeshId])
-			{
-				DrawRenderState.SetDepthStencilState(
-					TStaticDepthStencilState<
-					false, CF_Equal,
-					true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
-					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-					0xFF, GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)
-					>::GetRHI());
+				DrawRenderState.SetStencilRef(RestoreStencilRef);
 			}
 		}
 	}
@@ -522,7 +514,9 @@ void SetupSharedBasePassParameters(
 void CreateOpaqueBasePassUniformBuffer(
 	FRHICommandListImmediate& RHICmdList, 
 	const FViewInfo& View,
-	IPooledRenderTarget* ForwardScreenSpaceShadowMask, 
+	IPooledRenderTarget* ForwardScreenSpaceShadowMask,
+	IPooledRenderTarget* SceneLuminanceWithoutSingleLayerWater,
+	IPooledRenderTarget* SceneDepthWithoutSingleLayerWaterTexture,
 	TUniformBufferRef<FOpaqueBasePassUniformParameters>& BasePassUniformBuffer)
 {
 	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
@@ -586,6 +580,16 @@ void CreateOpaqueBasePassUniformBuffer(
 		}
 	}
 
+	// Single Layer Water
+	BasePassParameters.SceneLuminanceWithoutSingleLayerWaterTexture = (SceneLuminanceWithoutSingleLayerWater ? SceneLuminanceWithoutSingleLayerWater->GetRenderTargetItem().TargetableTexture : GSystemTextures.BlackDummy->GetRenderTargetItem().TargetableTexture);
+	BasePassParameters.SceneLuminanceWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+	BasePassParameters.SceneDepthWithoutSingleLayerWaterTexture = (SceneDepthWithoutSingleLayerWaterTexture ? SceneDepthWithoutSingleLayerWaterTexture->GetRenderTargetItem().TargetableTexture : GSystemTextures.BlackDummy->GetRenderTargetItem().TargetableTexture);
+	BasePassParameters.SceneDepthWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
+	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	BasePassParameters.SceneCustomDepthTexture = (SceneRenderTargets.CustomDepth.IsValid() ? SceneRenderTargets.CustomDepth : GSystemTextures.BlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
+	BasePassParameters.SceneCustomDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
 	// Misc
 	BasePassParameters.EyeAdaptation = GetEyeAdaptation(View);
 
@@ -644,7 +648,7 @@ bool FDeferredShadingSceneRenderer::RenderBasePass(FRHICommandListImmediate& RHI
 				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 
 				TUniformBufferRef<FOpaqueBasePassUniformParameters> BasePassUniformBuffer;
-				CreateOpaqueBasePassUniformBuffer(RHICmdList, View, ForwardScreenSpaceShadowMask, BasePassUniformBuffer);
+				CreateOpaqueBasePassUniformBuffer(RHICmdList, View, ForwardScreenSpaceShadowMask, nullptr, nullptr, BasePassUniformBuffer);
 
 				FMeshPassProcessorRenderState DrawRenderState(View, BasePassUniformBuffer);
 
@@ -685,7 +689,7 @@ bool FDeferredShadingSceneRenderer::RenderBasePass(FRHICommandListImmediate& RHI
 				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 
 				TUniformBufferRef<FOpaqueBasePassUniformParameters> BasePassUniformBuffer;
-				CreateOpaqueBasePassUniformBuffer(RHICmdList, View, ForwardScreenSpaceShadowMask, BasePassUniformBuffer);
+				CreateOpaqueBasePassUniformBuffer(RHICmdList, View, ForwardScreenSpaceShadowMask, nullptr, nullptr, BasePassUniformBuffer);
 
 				FMeshPassProcessorRenderState DrawRenderState(View, BasePassUniformBuffer);
 
@@ -1234,7 +1238,7 @@ void FBasePassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 		if (bShouldDraw
 			&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
 			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
-			&& !Material.IsSky())
+			&& ShouldIncludeMaterialInDefaultOpaquePass(Material))
 		{
 			// Check for a cached light-map.
 			const bool bIsLitMaterial = ShadingModels.IsLit();

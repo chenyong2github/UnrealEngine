@@ -153,10 +153,10 @@ class UMaterialGraphSchema : public UEdGraphSchema
 	/**
 	 * Get menu for breaking links to specific nodes
 	 *
-	 * @param	MenuBuilder	MenuBuilder we are populating
+	 * @param	Menu		Menu we are populating
 	 * @param	InGraphPin	Pin with links to break
 	 */
-	void GetBreakLinkToSubMenuActions(class FMenuBuilder& MenuBuilder, class UEdGraphPin* InGraphPin);
+	void GetBreakLinkToSubMenuActions(class UToolMenu* Menu, class UEdGraphPin* InGraphPin) const;
 
 	/**
 	 * Connect a pin to one of the Material Function's outputs
@@ -187,7 +187,7 @@ class UMaterialGraphSchema : public UEdGraphSchema
 
 	//~ Begin UEdGraphSchema Interface
 	virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const override;
-	virtual void GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, class FMenuBuilder* MenuBuilder, bool bIsDebugging) const override;
+	virtual void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual const FPinConnectionResponse CanCreateConnection(const UEdGraphPin* A, const UEdGraphPin* B) const override;
 	virtual bool TryCreateConnection(UEdGraphPin* A, UEdGraphPin* B) const override;
 	virtual bool ShouldHidePinDefaultValue(UEdGraphPin* Pin) const override { return true; }

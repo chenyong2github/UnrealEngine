@@ -32,15 +32,15 @@ namespace AudioModulation
 	}
 
 #if WITH_EDITOR
-	void FAudioModulation::OnEditSource(const USoundModulationPluginSourceSettingsBase& Settings)
+	void FAudioModulation::OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& Settings)
 	{
-		Impl->OnEditSource(Settings);
+		Impl->OnEditPluginSettings(Settings);
 	}
 #endif // WITH_EDITOR
 
-	void FAudioModulation::OnInitSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings)
+	void FAudioModulation::OnInitSound(ISoundModulatable& Sound, const USoundModulationPluginSourceSettingsBase& Settings)
 	{
-		Impl->OnInitSound(SoundId, Settings);
+		Impl->OnInitSound(Sound, Settings);
 	}
 
 	void FAudioModulation::OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings)
@@ -48,9 +48,9 @@ namespace AudioModulation
 		Impl->OnInitSource(SourceId, AudioComponentUserId, NumChannels, Settings);
 	}
 
-	void FAudioModulation::OnReleaseSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings)
+	void FAudioModulation::OnReleaseSound(ISoundModulatable& Sound)
 	{
-		Impl->OnReleaseSound(SoundId, Settings);
+		Impl->OnReleaseSound(Sound);
 	}
 
 	void FAudioModulation::OnReleaseSource(const uint32 SourceId)

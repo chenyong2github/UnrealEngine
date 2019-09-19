@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_PoseByName.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 
 #include "Kismet2/CompilerResultsLog.h"
 #include "GraphEditorActions.h"
@@ -148,16 +148,15 @@ UAnimationAsset* UAnimGraphNode_PoseByName::GetAnimationAsset() const
 	return PoseAsset;
 }
 
-void UAnimGraphNode_PoseByName::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UAnimGraphNode_PoseByName::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if (!Context.bIsDebugging)
+	if (!Context->bIsDebugging)
 	{
 		// add an option to convert to single frame
-		Context.MenuBuilder->BeginSection("AnimGraphNodePoseByName", LOCTEXT("PoseByNameHeading", "Pose By Name"));
 		{
-			Context.MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().ConvertToPoseBlender);
+			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodePoseByName", LOCTEXT("PoseByNameHeading", "Pose By Name"));
+			Section.AddMenuEntry(FGraphEditorCommands::Get().ConvertToPoseBlender);
 		}
-		Context.MenuBuilder->EndSection();
 	}
 }
 

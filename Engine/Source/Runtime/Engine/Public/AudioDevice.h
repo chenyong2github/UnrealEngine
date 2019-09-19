@@ -564,6 +564,11 @@ public:
 	int32 GetMaxSources() const;
 
 	/**
+	 * Returns global pitch range
+	 */
+	TRange<float> GetGlobalPitchRange() const;
+
+	/**
 	* Stops any sound sources which are using the given buffer.
 	*
 	* @param	FSoundBuffer	Buffer to check against
@@ -1369,6 +1374,9 @@ private:
 		return Adjuster * InterpValue + 1.0f - InterpValue;
 	}
 
+	/** Retrieve the filter frequency to use. Takes into account logarithmic nature of frequency. */
+	float GetInterpolatedFrequency(const float InFrequency, const float InterpValue) const;
+
 	/** Allow platforms to optionally specify low-level audio platform settings. */
 	virtual FAudioPlatformSettings GetPlatformSettings() const { return FAudioPlatformSettings(); }
 
@@ -1630,7 +1638,7 @@ public:
 	int32 CommonAudioPoolFreeBytes;
 
 	/** The handle for this audio device used in the audio device manager. */
-	uint32 DeviceHandle;
+	Audio::FDeviceId DeviceHandle;
 
 	/** 3rd party audio spatialization interface. */
 	TAudioSpatializationPtr SpatializationPluginInterface;

@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -441,7 +441,7 @@ namespace IncludeTool
 		/// Update the list of known dependencies to include dependencies of our already known dependencies
 		/// </summary>
 		/// <returns>True if the dependencies were updated, false if a dependency was encountered which is not available to this fragment</returns>
-		void UpdateDependencies(TextWriter Log)
+		void UpdateDependencies(LineBasedTextWriter Log)
 		{
 			// Update the task to account for any new dependencies that may have been found. Loop back through all the fragments so we include
 			// dependencies we find along the way.
@@ -493,7 +493,7 @@ namespace IncludeTool
 		/// <summary>
 		/// Start this worker
 		/// </summary>
-		public void Start(TextWriter Log)
+		public void Start(LineBasedTextWriter Log)
 		{
 			// Make sure there's not already a managed task in process
 			if(ActiveInstance != null)
@@ -534,7 +534,7 @@ namespace IncludeTool
 		/// <param name="StateFile">Path to the state file</param>
 		/// <param name="Writer">Writer for any messages</param>
 		/// <returns>Zero on success</returns>
-		static int Verify(string StateFile, TextWriter Writer)
+		static int Verify(string StateFile, LineBasedTextWriter Writer)
 		{
 			SequenceWorker Task = SequenceWorker.Deserialize(StateFile);
 			Task.Verify(Writer);
@@ -548,7 +548,7 @@ namespace IncludeTool
 		/// <param name="StateFile">Path to the state file</param>
 		/// <param name="Writer">Writer for any messages</param>
 		/// <returns>Zero on success</returns>
-		static int FindNextDependency(string StateFile, TextWriter Writer)
+		static int FindNextDependency(string StateFile, LineBasedTextWriter Writer)
 		{
 			SequenceWorker Task = SequenceWorker.Deserialize(StateFile);
 			Task.FindNextDependency(Writer);
@@ -561,7 +561,7 @@ namespace IncludeTool
 		/// </summary>
 		/// <param name="Writer">Writer for log output</param>
 		/// <returns>Return code from the thread</returns>
-		public SequenceProbeResult Join(TextWriter Writer)
+		public SequenceProbeResult Join(LineBasedTextWriter Writer)
 		{
 			// Finish the task instance
 			BufferedTextWriter BufferedWriter = new BufferedTextWriter();

@@ -211,6 +211,13 @@ void UGameplayDebuggerLocalController::DrawHeader(FGameplayDebuggerCanvasContext
 	CanvasContext.MeasureString(DebugActorDesc, DebugActorSizeX, DebugActorSizeY);
 	CanvasContext.PrintAt(CanvasContext.Canvas->SizeX - PaddingRight - DebugActorSizeX, UsePaddingTop, DebugActorDesc);
 
+	const FString VLogDesc = FString::Printf(TEXT("VLog: {cyan}%s"), CachedReplicator->GetVisLogSyncData().DeviceIDs.Len() > 0
+			? *CachedReplicator->GetVisLogSyncData().DeviceIDs
+			: TEXT("not recording to file"));
+	float VLogSizeX = 0.0f, VLogSizeY = 0.0f;
+	CanvasContext.MeasureString(VLogDesc, VLogSizeX, VLogSizeY);
+	CanvasContext.PrintAt(CanvasContext.Canvas->SizeX - PaddingRight - VLogSizeX, UsePaddingTop + LineHeight, VLogDesc);
+
 	const FString TimestampDesc = FString::Printf(TEXT("Time: %.2fs"), CachedReplicator->GetWorld()->GetTimeSeconds());
 	float TimestampSizeX = 0.0f, TimestampSizeY = 0.0f;
 	CanvasContext.MeasureString(TimestampDesc, TimestampSizeX, TimestampSizeY);

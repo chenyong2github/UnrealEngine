@@ -22,7 +22,7 @@ class FDisplayClusterMessageInterceptor : public TSharedFromThis<FDisplayCluster
 public:
 	FDisplayClusterMessageInterceptor();
 
-	void Setup(IDisplayClusterClusterManager* InClusterManager, TSharedRef<IMessageBus, ESPMode::ThreadSafe> InBus);
+	void Setup(IDisplayClusterClusterManager* InClusterManager, TSharedPtr<IMessageBus, ESPMode::ThreadSafe> InBus);
 	
 	void Start();
 	void Stop();

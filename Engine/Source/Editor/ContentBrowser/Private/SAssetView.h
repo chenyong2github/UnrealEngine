@@ -557,6 +557,15 @@ private:
 	/** Whether or not it's possible to include collection names in search criteria */
 	bool IsToggleIncludeCollectionNamesAllowed() const;
 
+	/** @return true when we are filtering recursively when we have an asset path */
+	bool IsFilteringRecursively() const;
+
+	/** Whether or not it's possible to toggle how to filtering recursively */
+	bool IsToggleFilteringRecursivelyAllowed() const;
+
+	/** Toggle whether we're filtering recursively */
+	void ToggleFilteringRecursively();
+
 	/** Sets the view type and updates lists accordingly */
 	void SetCurrentViewType(EAssetViewType::Type NewType);
 

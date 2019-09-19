@@ -51,7 +51,13 @@ void SHighResScreenshotDialog::Construct( const FArguments& InArgs )
 							.VAlign(VAlign_Center)
 							[
 								SNew( STextBlock )
-								.Text( NSLOCTEXT("HighResScreenshot", "IncludeBufferVisTargets", "Include Buffer Visualization Targets") )
+								.Text( NSLOCTEXT("HighResScreenshot", "UseDateTimeAsImageName", "Use Date & Timestamp as Image name") )
+							]
+							+ SVerticalBox::Slot()
+							.VAlign(VAlign_Center)
+							[
+								SNew(STextBlock)
+								.Text(NSLOCTEXT("HighResScreenshot", "IncludeBufferVisTargets", "Include Buffer Visualization Targets"))
 							]
 							+ SVerticalBox::Slot()
 							.VAlign(VAlign_Center)
@@ -96,6 +102,13 @@ void SHighResScreenshotDialog::Construct( const FArguments& InArgs )
 									.Value(this, &SHighResScreenshotDialog::GetResolutionMultiplierSlider)
 									.OnValueChanged(this, &SHighResScreenshotDialog::OnResolutionMultiplierSliderChanged)
 								]
+							]
+							+ SVerticalBox::Slot()
+							.VAlign(VAlign_Center)
+							[
+								SNew(SCheckBox)
+								.OnCheckStateChanged(this, &SHighResScreenshotDialog::OnDateTimeBasedNamingEnabledChanged)
+								.IsChecked(this, &SHighResScreenshotDialog::GetDateTimeBasedNamingEnabled)
 							]
 							+SVerticalBox::Slot()
 							.VAlign(VAlign_Center)

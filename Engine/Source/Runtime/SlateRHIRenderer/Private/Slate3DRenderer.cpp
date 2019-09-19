@@ -107,8 +107,13 @@ void FSlate3DRenderer::DrawWindow_GameThread(FSlateDrawBuffer& DrawBuffer)
 	}
 }
 
+struct TKeepAliveCommandString
+{
+	static const TCHAR* TStr() { return TEXT("TKeepAliveCommand"); }
+};
+
 template<typename TKeepAliveType>
-struct TKeepAliveCommand final : public FRHICommand < TKeepAliveCommand<TKeepAliveType> >
+struct TKeepAliveCommand final : public FRHICommand < TKeepAliveCommand<TKeepAliveType>, TKeepAliveCommandString >
 {
 	TKeepAliveType Value;
 	

@@ -58,6 +58,7 @@ struct FNiagaraDataInterfaceParametersCS_NeighborGrid3D : public FNiagaraDataInt
 		Ar << OutputParticleNeighborCountGridParam;		
 	}
 
+	// #todo(dmp): make resource transitions batched
 	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
 	{
 		check(IsInRenderingThread());
@@ -86,11 +87,13 @@ struct FNiagaraDataInterfaceParametersCS_NeighborGrid3D : public FNiagaraDataInt
 		{
 			if (ParticleNeighborsGridParam.IsBound())
 			{
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodBuffer.UAV);
 				RHICmdList.SetShaderResourceViewParameter(Context.Shader->GetComputeShader(), ParticleNeighborsGridParam.GetBaseIndex(), ProxyData->NeighborhoodBuffer.SRV);
 			}
 
 			if (ParticleNeighborCountGridParam.IsBound())
 			{
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodCountBuffer.UAV);
 				RHICmdList.SetShaderResourceViewParameter(Context.Shader->GetComputeShader(), ParticleNeighborCountGridParam.GetBaseIndex(), ProxyData->NeighborhoodCountBuffer.SRV);
 			}
 		}
@@ -98,11 +101,13 @@ struct FNiagaraDataInterfaceParametersCS_NeighborGrid3D : public FNiagaraDataInt
 		{
 			if (OutputParticleNeighborsGridParam.IsBound())
 			{
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodBuffer.UAV);
 				RHICmdList.SetUAVParameter(Context.Shader->GetComputeShader(), OutputParticleNeighborsGridParam.GetUAVIndex(), ProxyData->NeighborhoodBuffer.UAV);
 			}
 
 			if (OutputParticleNeighborCountGridParam.IsBound())
 			{
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodCountBuffer.UAV);
 				RHICmdList.SetUAVParameter(Context.Shader->GetComputeShader(), OutputParticleNeighborCountGridParam.GetUAVIndex(), ProxyData->NeighborhoodCountBuffer.UAV);
 			}
 		}

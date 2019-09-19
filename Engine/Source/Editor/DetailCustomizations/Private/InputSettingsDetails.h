@@ -16,7 +16,7 @@ class IDetailLayoutBuilder;
 namespace InputConstants
 {
 	const FMargin PropertyPadding(2.0f, 0.0f, 2.0f, 0.0f);
-	const float TextBoxWidth = 200.0f;
+	const float TextBoxWidth = 250.0f;
 	const float ScaleBoxWidth = 50.0f;
 }
 

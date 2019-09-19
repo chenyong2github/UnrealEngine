@@ -406,6 +406,41 @@ struct TMovieSceneChannelData : FMovieSceneChannelData
 		}
 	}
 
+
+	/**
+	 * Delete keys before or after a specified time
+	 *
+	 * @param InTime				Delete keys after this time
+	 * @param bDeleteKeysBefore     Whether to delete keys before the specified time
+	 */
+	void DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore)
+	{
+		TArray<FFrameNumber> OutKeyTimes;
+		TArray<FKeyHandle> OutKeyHandles;
+		GetKeys(TRange<FFrameNumber>::All(), &OutKeyTimes, &OutKeyHandles);
+
+		TArray<FKeyHandle> KeysToRemove;
+		for (int32 Index = 0; Index < OutKeyTimes.Num(); ++Index)
+		{
+			if (bDeleteKeysBefore)
+			{
+				if (OutKeyTimes[Index] < InTime)
+				{
+					KeysToRemove.Add(OutKeyHandles[Index]);
+				}
+			}
+			else
+			{
+				if (OutKeyTimes[Index] > InTime)
+				{
+					KeysToRemove.Add(OutKeyHandles[Index]);
+				}
+			}
+		}
+
+		DeleteKeys(KeysToRemove);
+	}
+
 	/**
 	 * Remove all the keys from this channel
 	 */

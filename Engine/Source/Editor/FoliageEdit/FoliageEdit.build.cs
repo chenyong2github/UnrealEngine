@@ -19,6 +19,7 @@ public class FoliageEdit : ModuleRules
                 "EditorStyle",
 				"RenderCore",
 				"LevelEditor",
+				"SceneOutliner",
 				"Landscape",
                 "PropertyEditor",
                 "DetailCustomizations",

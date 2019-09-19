@@ -12,13 +12,14 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Dialogs/Dialogs.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Dialogs/DlgPickAssetPath.h"
 #include "PackageTools.h"
 #include "MiniCurveEditor.h"
 #include "AssetRegistryModule.h"
 #include "SCurveEditor.h"
 #include "Engine/Selection.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "CurveStructCustomization"
 
@@ -380,7 +381,7 @@ FReply FCurveStructCustomization::OnCurvePreviewDoubleClick( const FGeometry& In
 	{
 		if (RuntimeCurve->ExternalCurve)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(RuntimeCurve->ExternalCurve);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(RuntimeCurve->ExternalCurve);
 		}
 		else
 		{

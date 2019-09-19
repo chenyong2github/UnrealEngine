@@ -15,12 +15,14 @@ const FName FDataTableEditorModule::DataTableEditorAppIdentifier( TEXT( "DataTab
 void FDataTableEditorModule::StartupModule()
 {
 	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
+	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
 }
 
 
 void FDataTableEditorModule::ShutdownModule()
 {
 	MenuExtensibilityManager.Reset();
+	ToolBarExtensibilityManager.Reset();
 }
 
 

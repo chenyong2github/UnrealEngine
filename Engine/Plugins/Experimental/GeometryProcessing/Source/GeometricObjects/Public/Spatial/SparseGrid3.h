@@ -55,6 +55,17 @@ public:
 
 
 	/**
+	 * Get the grid element at this index
+	 * @param Index integer grid index
+	 * @return pointer to ElemType instance, or nullptr if element doesn't exist
+	 */
+	const ElemType* Get(const FVector3i& Index) const
+	{
+		return Elements.FindRef(Index);
+	}
+
+
+	/**
 	 * Get the grid element at this index, and optionally allocate it if it doesn't exist
 	 * @param Index integer grid index
 	 * @param bAllocateIfMissing if the element at this index is null, allocate a new one
@@ -132,6 +143,19 @@ public:
 	FVector3i GetDimensions() const
 	{
 		return Bounds.Diagonal() + FVector3i::One();
+	}
+
+
+	/**
+	 * Iterate over existing elements and apply ElementFunc to each of them
+	 */
+	template<typename Func>
+	void AllocatedIteration(Func ElementFunc) const
+	{
+		for (auto Pair : Elements)
+		{
+			ElementFunc(Pair.Value);
+		}
 	}
 
 

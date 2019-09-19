@@ -15,12 +15,14 @@
 class UNREALED_API FBatchedElementTexture2DPreviewParameters : public FBatchedElementParameters
 {
 public:
-	FBatchedElementTexture2DPreviewParameters(float InMipLevel, float InLayerIndex, bool bInIsNormalMap, bool bInIsSingleChannel, bool bInIsVirtualTexture)
+	FBatchedElementTexture2DPreviewParameters(float InMipLevel, float InLayerIndex, bool bInIsNormalMap, bool bInIsSingleChannel, bool bInIsSingleVTPhysicalSpace, bool bInIsVirtualTexture, bool bInIsTextureArray)
 		: MipLevel(InMipLevel)
 		, LayerIndex(InLayerIndex)
 		, bIsNormalMap( bInIsNormalMap )
 		, bIsSingleChannelFormat( bInIsSingleChannel )
+		, bIsSingleVTPhysicalSpace(bInIsSingleVTPhysicalSpace)
 		, bIsVirtualTexture(bInIsVirtualTexture)
+		, bIsTextureArray(bInIsTextureArray)
 	{
 	}
 
@@ -34,7 +36,9 @@ private:
 	float LayerIndex;
 	bool bIsNormalMap;
 	bool bIsSingleChannelFormat;
+	bool bIsSingleVTPhysicalSpace;
 
 	/** Parameters that are used to select a shader permutation */
 	bool bIsVirtualTexture;
+	bool bIsTextureArray;
 };

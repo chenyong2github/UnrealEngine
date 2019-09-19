@@ -141,7 +141,7 @@ public:
 	/** Shader Resource to use with this batch.  */
 	const FSlateShaderResource* ShaderResource;
 
-	ISlateUpdatableInstanceBuffer* InstanceData;
+	ISlateUpdatableInstanceBufferRenderProxy* InstanceData;
 
 	// Source Data
 	FSlateVertexArray* SourceVertices;

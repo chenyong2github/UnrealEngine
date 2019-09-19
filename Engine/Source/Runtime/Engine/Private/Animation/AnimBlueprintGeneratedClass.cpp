@@ -17,6 +17,7 @@
 #include "Animation/AnimNode_SubInput.h"
 #include "Animation/AnimNode_Layer.h"
 #include "Animation/AnimNode_AssetPlayerBase.h"
+#include "Animation/AnimNode_StateMachine.h"
 
 /////////////////////////////////////////////////////
 // FStateMachineDebugData
@@ -256,6 +257,10 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 	AnimNodeProperties.Empty();
 	SubInstanceNodeProperties.Empty();
 	LayerNodeProperties.Empty();
+	PreUpdateNodeProperties.Empty();
+	DynamicResetNodeProperties.Empty();
+	StateMachineNodeProperties.Empty();
+	InitializationNodeProperties.Empty();
 
 #if WITH_EDITOR
 	// This relies on the entire class being fully loaded, this is not the case with EDL async-loading, in which case the functions are generated in PostLoad
@@ -276,6 +281,10 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 				else if(StructProp->Struct == FAnimNode_Layer::StaticStruct())
 				{
 					LayerNodeProperties.Add(StructProp);
+				}
+				else if(StructProp->Struct == FAnimNode_StateMachine::StaticStruct())
+				{
+					StateMachineNodeProperties.Add(StructProp);
 				}
 				AnimNodeProperties.Add(StructProp);
 			}
@@ -442,6 +451,10 @@ void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
 
 void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* DefaultObject)
 {
+	PreUpdateNodeProperties.Empty();
+	DynamicResetNodeProperties.Empty();
+	InitializationNodeProperties.Empty();
+
 	// Link functions to their nodes
 	for(int32 AnimNodeIndex = 0; AnimNodeIndex < AnimNodeProperties.Num(); ++AnimNodeIndex)
 	{
@@ -469,6 +482,24 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 						FoundFunction->InputPoseNodeProperties[InputIndex] = StructProperty;
 					}
 				}
+			}
+		}
+		else if(StructProperty->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
+		{
+			FAnimNode_Base* Node = StructProperty->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultObject);
+			if(Node->NeedsDynamicReset())
+			{
+				DynamicResetNodeProperties.Add(StructProperty);
+			}
+
+			if(Node->HasPreUpdate())
+			{
+				PreUpdateNodeProperties.Add(StructProperty);
+			}
+
+			if(Node->NeedsOnInitializeAnimInstance())
+			{
+				InitializationNodeProperties.Add(StructProperty);
 			}
 		}
 	}

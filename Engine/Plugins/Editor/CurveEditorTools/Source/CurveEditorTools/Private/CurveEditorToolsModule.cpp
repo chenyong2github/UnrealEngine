@@ -6,6 +6,7 @@
 #include "CurveEditorToolCommands.h"
 #include "Tools/CurveEditorTransformTool.h"
 #include "Tools/CurveEditorRetimeTool.h"
+#include "Tools/CurveEditorMultiScaleTool.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "CurveEditorToolsModule"
@@ -21,6 +22,7 @@ private:
 	static TSharedRef<ICurveEditorExtension> CreateFocusExtension(TWeakPtr<FCurveEditor> InCurveEditor);
 	static TUniquePtr<ICurveEditorToolExtension> CreateTransformToolExtension(TWeakPtr<FCurveEditor> InCurveEditor);
 	static TUniquePtr<ICurveEditorToolExtension> CreateRetimeToolExtension(TWeakPtr<FCurveEditor> InCurveEditor);
+	static TUniquePtr<ICurveEditorToolExtension> CreateMultiScaleToolExtension(TWeakPtr<FCurveEditor> InCurveEditor);
 
 protected:
 	TSharedRef<FExtender> ExtendCurveEditorToolbarMenu(const TSharedRef<FUICommandList> CommandList);
@@ -30,6 +32,7 @@ private:
 	FDelegateHandle FocusExtensionsHandle;
 	FDelegateHandle TransformToolHandle;
 	FDelegateHandle RetimeToolHandle;
+	FDelegateHandle MultiScaleToolHandle;
 };
 
 IMPLEMENT_MODULE(FCurveEditorToolsModule, CurveEditorTools)
@@ -46,7 +49,7 @@ void FCurveEditorToolsModule::StartupModule()
 	// Register Tool Extensions
 	TransformToolHandle = CurveEditorModule.RegisterToolExtension(FOnCreateCurveEditorToolExtension::CreateStatic(&FCurveEditorToolsModule::CreateTransformToolExtension));
 	RetimeToolHandle = CurveEditorModule.RegisterToolExtension(FOnCreateCurveEditorToolExtension::CreateStatic(&FCurveEditorToolsModule::CreateRetimeToolExtension));
-
+	MultiScaleToolHandle = CurveEditorModule.RegisterToolExtension(FOnCreateCurveEditorToolExtension::CreateStatic(&FCurveEditorToolsModule::CreateMultiScaleToolExtension));
 
 	auto ToolbarExtender = ICurveEditorModule::FCurveEditorMenuExtender::CreateRaw(this, &FCurveEditorToolsModule::ExtendCurveEditorToolbarMenu);
 	auto& MenuExtenders = CurveEditorModule.GetAllToolBarMenuExtenders();
@@ -61,6 +64,7 @@ TSharedRef<FExtender> FCurveEditorToolsModule::ExtendCurveEditorToolbarMenu(cons
 		{
 			ToolbarBuilder.AddToolBarButton(FCurveEditorToolCommands::Get().ActivateTransformTool);
 			ToolbarBuilder.AddToolBarButton(FCurveEditorToolCommands::Get().ActivateRetimeTool);
+			ToolbarBuilder.AddToolBarButton(FCurveEditorToolCommands::Get().ActivateMultiScaleTool);
 		}
 
 		static void FillToolbarFraming(FToolBarBuilder& ToolbarBuilder)
@@ -93,6 +97,7 @@ void FCurveEditorToolsModule::ShutdownModule()
 	// Unregister Tool Extensions
 	CurveEditorModule.UnregisterToolExtension(TransformToolHandle);
 	CurveEditorModule.UnregisterToolExtension(RetimeToolHandle);
+	CurveEditorModule.UnregisterEditorExtension(MultiScaleToolHandle);
 
 	FCurveEditorToolCommands::Unregister();
 }
@@ -110,6 +115,11 @@ TUniquePtr<ICurveEditorToolExtension> FCurveEditorToolsModule::CreateTransformTo
 TUniquePtr<ICurveEditorToolExtension> FCurveEditorToolsModule::CreateRetimeToolExtension(TWeakPtr<FCurveEditor> InCurveEditor)
 {
 	return MakeUnique<FCurveEditorRetimeTool>(InCurveEditor);
+}
+
+TUniquePtr<ICurveEditorToolExtension> FCurveEditorToolsModule::CreateMultiScaleToolExtension(TWeakPtr<FCurveEditor> InCurveEditor)
+{
+	return MakeUnique<FCurveEditorMultiScaleTool>(InCurveEditor);
 }
 
 #undef LOCTEXT_NAMESPACE

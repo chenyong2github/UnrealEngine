@@ -57,6 +57,9 @@ public:
 	/** Handler for when the floating add filter button was clicked */
 	TSharedRef<SWidget> ExternalMakeAddFilterMenu(EAssetTypeCategories::Type MenuExpansion = EAssetTypeCategories::Basic);
 
+	/** Enables all filters */
+	void EnableAllFilters();
+
 	/** Disables any applied filters */
 	void DisableAllFilters();
 

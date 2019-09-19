@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 /** 
  * Convenience header for working with object storage in physics code.
  * When using FPhysicsProxyStorage::ForEachPhysicsProxy a lambda in the 

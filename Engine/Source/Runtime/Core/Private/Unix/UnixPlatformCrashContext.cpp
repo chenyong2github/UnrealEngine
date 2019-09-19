@@ -139,7 +139,7 @@ void GracefulTerminationHandler(int32 Signal, siginfo_t* Info, void* Context)
 	GEnteredSignalHandler = 1;
 
 	// do not flush logs at this point; this can result in a deadlock if the signal was received while we were holding lock in the malloc (flushing allocates memory)
-	if( !GIsRequestingExit )
+	if( !IsEngineExitRequested() )
 	{
 		FPlatformMisc::RequestExitWithStatus(false, 128 + Signal);	// Keeping the established shell practice of returning 128 + signal for terminations by signal. Allows to distinguish SIGINT/SIGTERM/SIGHUP.
 	}

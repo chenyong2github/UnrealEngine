@@ -367,7 +367,7 @@ static IOSAppDelegate* CachedDelegate = nil;
 	});
 #endif
 
-    while( !GIsRequestingExit )
+    while( !IsEngineExitRequested() )
 	{
         if (self.bIsSuspended)
         {
@@ -681,15 +681,24 @@ static IOSAppDelegate* CachedDelegate = nil;
 		Category = AVAudioSessionCategoryAmbient;
 	}
 
+	
+	AVAudioSessionCategoryOptions TestOptions = Options;
+	if ([[[AVAudioSession sharedInstance] category] compare:AVAudioSessionCategoryAmbient] == NSOrderedSame)
+	{
+		// This option is implicitly set, so we need to compare the existing options with it
+		TestOptions |= AVAudioSessionCategoryOptionMixWithOthers;
+	}
 	// set the category if anything has changed
 	if ([[[AVAudioSession sharedInstance] category] compare:Category] != NSOrderedSame ||
 		[[[AVAudioSession sharedInstance] mode] compare:Mode] != NSOrderedSame ||
-		[[AVAudioSession sharedInstance] categoryOptions] != Options)
+		[[AVAudioSession sharedInstance] categoryOptions] != TestOptions)
 	{
+		UE_LOG(LogIOSAudioSession, Log, TEXT("Setting AVAudioSession category to Category:%s Mode:%s Options:%x"), *FString(Category), *FString(Mode), Options);
+
 		[[AVAudioSession sharedInstance] setCategory:Category mode:Mode options:Options error:&ActiveError];
 		if (ActiveError)
 		{
-			UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session category to Category:%s Mode:%s Options:%x! [Error = %s]"), *FString(Category), *FString(Mode), Options, *FString([ActiveError description]));
+			UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set AVAudioSession category to Category:%s Mode:%s Options:%x! [Error = %s]"), *FString(Category), *FString(Mode), Options, *FString([ActiveError description]));
 		}
 	}
 }
@@ -887,7 +896,7 @@ bool GIsSuspended = 0;
 
 - (void)ForceExit
 {
-    GIsRequestingExit = true;
+	RequestEngineExit(TEXT("IOS ForceExit"));
     bForceExit = true;
 }
 
@@ -1542,7 +1551,7 @@ extern double GCStartTime;
     
     // note that we are shutting down
     // TODO: fix the reason why we are hanging when asked to shutdown
-/*    GIsRequestingExit = true;
+/*    RequestEngineExit(TEXT("IOS applicationWillTerminate"));
     
     if (!bEngineInit)*/
     {

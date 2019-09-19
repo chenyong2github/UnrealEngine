@@ -15,11 +15,9 @@ void FCEFBrowserApp::OnBeforeChildProcessLaunch(CefRefPtr<CefCommandLine> Comman
 
 void FCEFBrowserApp::OnBeforeCommandLineProcessing(const CefString& ProcessType, CefRefPtr< CefCommandLine > CommandLine)
 {
-	CommandLine->AppendSwitch("disable-gpu");
-	CommandLine->AppendSwitch("disable-gpu-compositing");
-#if !PLATFORM_MAC
+	CommandLine->AppendSwitch("enable-gpu");
+	CommandLine->AppendSwitch("enable-gpu-compositing");
 	CommandLine->AppendSwitch("enable-begin-frame-scheduling");
-#endif
 }
 
 void FCEFBrowserApp::OnRenderProcessThreadCreated(CefRefPtr<CefListValue> ExtraInfo)

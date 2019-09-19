@@ -35,7 +35,7 @@ FNiagaraBoundsCalculator* UNiagaraRibbonRendererProperties::CreateBoundsCalculat
 	return new FNiagaraBoundsCalculatorHelper<false, false, true>();
 }
 
-void UNiagaraRibbonRendererProperties::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials) const
+void UNiagaraRibbonRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
 	OutMaterials.Add(Material);
 }

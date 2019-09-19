@@ -801,6 +801,28 @@ void UWorld::PostDuplicate(bool bDuplicateForPIE)
 			Obj->PostEditChange();
 		}
 	}
+
+	if (bDuplicateForPIE)
+	{
+		// When PIE begins, check/log any problems with textures assigned to material instances
+		for (TObjectIterator<UPrimitiveComponent> It; It; ++It)
+		{
+			UPrimitiveComponent* Component = *It;
+			AActor* Owner = Component->GetOwner();
+			if (Owner != nullptr && !Owner->HasAnyFlags(RF_ClassDefaultObject) && Owner->IsInLevel(PersistentLevel))
+			{
+				TArray<UMaterialInterface*> Materials;
+				Component->GetUsedMaterials(Materials);
+				for (UMaterialInterface* Material : Materials)
+				{
+					if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Material))
+					{
+						MaterialInstance->ValidateTextureOverrides(FeatureLevel);
+					}
+				}
+			}
+		}
+	}
 #endif // WITH_EDITOR
 }
 
@@ -1323,6 +1345,8 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	{
 		return;
 	}
+
+	InitializeSubsystems();
 
 	FWorldDelegates::OnPreWorldInitialization.Broadcast(this, IVS);
 
@@ -4269,6 +4293,8 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 		check(WorldToResetCleanedUpFlag->bCleanedUpWorld);
 		WorldToResetCleanedUpFlag->bCleanedUpWorld = false;
 	}
+
+	SubsystemCollection.Deinitialize();
 }
 
 UGameViewportClient* UWorld::GetGameViewport() const
@@ -4430,19 +4456,19 @@ FConstCameraActorIterator UWorld::GetAutoActivateCameraIterator() const
 }
 
 
-void UWorld::AddNetworkActor( AActor* Actor )
+void UWorld::AddNetworkActor(AActor* Actor)
 {
-	if ( Actor == nullptr )
+	if (Actor == nullptr)
 	{
 		return;
 	}
 
-	if ( Actor->IsPendingKill() ) 
+	if (Actor->IsPendingKillPending())
 	{
 		return;
 	}
 
-	if ( !ContainsLevel(Actor->GetLevel()) )
+	if (!ContainsLevel(Actor->GetLevel()))
 	{
 		return;
 	}
@@ -7500,6 +7526,14 @@ void UWorld::InsertPostProcessVolume(IInterface_PostProcessVolume* InVolume)
 void UWorld::RemovePostProcessVolume(IInterface_PostProcessVolume* InVolume)
 {
 	PostProcessVolumes.RemoveSingle(InVolume);
+}
+
+void UWorld::InitializeSubsystems()
+{
+	if (WorldType == EWorldType::Game || WorldType == EWorldType::Editor || WorldType == EWorldType::PIE)
+	{
+		SubsystemCollection.Initialize(this);
+	}
 }
 
 /**

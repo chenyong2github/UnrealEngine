@@ -546,7 +546,6 @@ public:
 	TSharedPtr< FUICommandInfo > WorldProperties;
 	TSharedPtr< FUICommandInfo > OpenContentBrowser;
 	TSharedPtr< FUICommandInfo > OpenMarketplace;
-	TSharedPtr< FUICommandInfo > EditMatinee;
 	TSharedPtr< FUICommandInfo > ToggleVR;
 
 	/**
@@ -585,8 +584,6 @@ public:
 
 	TSharedPtr< FUICommandInfo > ToggleHideViewportUI;
 
-	TSharedPtr< FUICommandInfo > AddMatinee;
-
 	TSharedPtr< FUICommandInfo > MaterialQualityLevel_Low;
 	TSharedPtr< FUICommandInfo > MaterialQualityLevel_Medium;
 	TSharedPtr< FUICommandInfo > MaterialQualityLevel_High;
@@ -594,7 +591,6 @@ public:
 	TSharedPtr< FUICommandInfo > ToggleFeatureLevelPreview;
 
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_SM5;
-	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_SM4;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_HTML5;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidGLES2;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidGLES31;
@@ -629,6 +625,7 @@ public:
 	TSharedPtr< FUICommandInfo > SelectActorsInLayers;
 
 	TSharedPtr< FUICommandInfo > FocusAllViewportsToSelection;
+	TSharedPtr< FUICommandInfo > FocusViewportToSelection;
 
         // Open merge actor command
 	TSharedPtr< FUICommandInfo > OpenMergeActor;
@@ -1248,8 +1245,6 @@ public:
 	static void MakeBuilderBrush( UClass* BrushBuilderClass );
 
 	static void OnAddVolume( UClass* VolumeClass );
-
-	static void OnAddMatinee();
 
 	static void SelectActorsInLayers();
 

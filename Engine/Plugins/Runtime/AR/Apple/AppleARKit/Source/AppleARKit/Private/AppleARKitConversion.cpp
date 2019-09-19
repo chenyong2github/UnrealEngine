@@ -2,6 +2,18 @@
 
 #include "AppleARKitConversion.h"
 #include "AppleARKitModule.h"
+#include "HAL/PlatformMisc.h"
+
+template<typename TEnum>
+static FString GetEnumValueAsString(const FString& Name, TEnum Value)
+{
+	if (const UEnum* EnumClass = FindObject<UEnum>(ANY_PACKAGE, *Name, true))
+	{
+		return EnumClass->GetNameByValue((int64)Value).ToString();
+	}
+
+	return FString("Invalid");
+}
 
 #if SUPPORTS_ARKIT_1_0
 ARWorldAlignment FAppleARKitConversion::ToARWorldAlignment( const EARWorldAlignment& InWorldAlignment )
@@ -343,19 +355,277 @@ ARConfiguration* FAppleARKitConversion::ToARConfiguration( UARSessionConfig* Ses
 #endif
 			break;
 		}
+		case EARSessionType::PoseTracking:
+		{
+#if SUPPORTS_ARKIT_3_0
+			if (FAppleARKitAvailability::SupportsARKit30())
+			{
+				if (ARBodyTrackingConfiguration.isSupported == FALSE)
+				{
+					return nullptr;
+				}
+				
+				ARBodyTrackingConfiguration* BodyTrackingConfiguration = [ARBodyTrackingConfiguration new];
+				BodyTrackingConfiguration.planeDetection = ARPlaneDetectionNone;
+				if (EnumHasAnyFlags(EARPlaneDetectionMode::HorizontalPlaneDetection, SessionConfig->GetPlaneDetectionMode()))
+				{
+					BodyTrackingConfiguration.planeDetection |= ARPlaneDetectionHorizontal;
+				}
+				
+				if (EnumHasAnyFlags(EARPlaneDetectionMode::VerticalPlaneDetection, SessionConfig->GetPlaneDetectionMode()) )
+				{
+					BodyTrackingConfiguration.planeDetection |= ARPlaneDetectionVertical;
+				}
+				BodyTrackingConfiguration.autoFocusEnabled = SessionConfig->ShouldEnableAutoFocus();
+				
+				// Add any images that wish to be detected
+				FAppleARKitConversion::InitImageDetection(SessionConfig, BodyTrackingConfiguration, CandidateImages, ConvertedCandidateImages);
+				
+				ARVideoFormat* Format = FAppleARKitConversion::ToARVideoFormat(SessionConfig->GetDesiredVideoFormat(), ARBodyTrackingConfiguration.supportedVideoFormats);
+				if (Format != nullptr)
+				{
+					BodyTrackingConfiguration.videoFormat = Format;
+				}
+				
+				// Check for environment capture probe types
+				BodyTrackingConfiguration.environmentTexturing = ToAREnvironmentTexturing(SessionConfig->GetEnvironmentCaptureProbeType());
+				// Load the world if requested
+				if (SessionConfig->GetWorldMapData().Num() > 0)
+				{
+					ARWorldMap* WorldMap = ToARWorldMap(SessionConfig->GetWorldMapData());
+					BodyTrackingConfiguration.initialWorldMap = WorldMap;
+					[WorldMap release];
+				}
+				
+				SessionConfiguration = BodyTrackingConfiguration;
+			}
+#endif
+			break;
+		}
 		default:
 			return nullptr;
 	}
-    if (SessionConfiguration != nullptr)
-    {
-        // Copy / convert properties
-        SessionConfiguration.lightEstimationEnabled = SessionConfig->GetLightEstimationMode() != EARLightEstimationMode::None;
-        SessionConfiguration.providesAudioData = NO;
-        SessionConfiguration.worldAlignment = FAppleARKitConversion::ToARWorldAlignment(SessionConfig->GetWorldAlignment());
-    }
-    
-    return SessionConfiguration;
+	if (SessionConfiguration != nullptr)
+	{
+		// Copy / convert properties
+		SessionConfiguration.lightEstimationEnabled = SessionConfig->GetLightEstimationMode() != EARLightEstimationMode::None;
+		SessionConfiguration.providesAudioData = NO;
+		SessionConfiguration.worldAlignment = FAppleARKitConversion::ToARWorldAlignment(SessionConfig->GetWorldAlignment());
+		
+#if SUPPORTS_ARKIT_3_0
+		// Enable additional frame semantics for ARKit 3.0
+		if (FAppleARKitAvailability::SupportsARKit30())
+		{
+			const EARSessionTrackingFeature SessionTrackingFeature = SessionConfig->GetEnabledSessionTrackingFeature();
+			if (SessionTrackingFeature != EARSessionTrackingFeature::None)
+			{
+				if (IsSessionTrackingFeatureSupported(SessionType, SessionTrackingFeature))
+				{
+					SessionConfiguration.frameSemantics = ToARFrameSemantics(SessionTrackingFeature);
+				}
+				else
+				{
+					UE_LOG(LogAppleARKit, Error, TEXT("Session type [%s] doesn't support the required session feature: [%s]!"),
+						   *GetEnumValueAsString<>(TEXT("EARSessionType"), SessionType),
+						   *GetEnumValueAsString<>(TEXT("EARSessionTrackingFeature"), SessionTrackingFeature));
+				}
+			}
+		}
+#endif
+	}
+	
+	return SessionConfiguration;
 }
+
+bool FAppleARKitConversion::IsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature)
+{
+#if SUPPORTS_ARKIT_3_0
+	if (FAppleARKitAvailability::SupportsARKit30())
+	{
+		const ARFrameSemantics Semantics = ToARFrameSemantics(SessionTrackingFeature);
+		if (Semantics != ARFrameSemanticNone)
+		{
+			switch (SessionType)
+			{
+				case EARSessionType::Orientation:
+					return [AROrientationTrackingConfiguration supportsFrameSemantics: Semantics];
+				
+				case EARSessionType::World:
+					return [ARWorldTrackingConfiguration supportsFrameSemantics: Semantics];
+				
+				case EARSessionType::Face:
+					return [ARFaceTrackingConfiguration supportsFrameSemantics: Semantics];
+				
+				case EARSessionType::Image:
+					return [ARImageTrackingConfiguration supportsFrameSemantics: Semantics];
+				
+				case EARSessionType::ObjectScanning:
+					return [ARObjectScanningConfiguration supportsFrameSemantics: Semantics];
+					
+				case EARSessionType::PoseTracking:
+					return [ARBodyTrackingConfiguration supportsFrameSemantics: Semantics];
+			}
+		}
+	}
+#endif
+	
+	return false;
+}
+
+#if SUPPORTS_ARKIT_3_0
+void FAppleARKitConversion::InitImageDetection(UARSessionConfig* SessionConfig, ARBodyTrackingConfiguration* BodyTrackingConfig, TMap< FString, UARCandidateImage* >& CandidateImages, TMap< FString, CGImageRef >& ConvertedCandidateImages)
+{
+	if (FAppleARKitAvailability::SupportsARKit15())
+	{
+		BodyTrackingConfig.detectionImages = InitImageDetection(SessionConfig, CandidateImages, ConvertedCandidateImages);
+	}
+	
+	if (FAppleARKitAvailability::SupportsARKit20())
+	{
+		BodyTrackingConfig.maximumNumberOfTrackedImages = SessionConfig->GetMaxNumSimultaneousImagesTracked();
+	}
+}
+
+ARFrameSemantics FAppleARKitConversion::ToARFrameSemantics(EARSessionTrackingFeature SessionTrackingFeature)
+{
+	static const TMap<EARSessionTrackingFeature, ARFrameSemantics> SessionTrackingFeatureToFrameSemantics =
+	{
+		{ EARSessionTrackingFeature::None, ARFrameSemanticNone },
+		{ EARSessionTrackingFeature::PoseDetection2D, ARFrameSemanticBodyDetection },
+		{ EARSessionTrackingFeature::PersonSegmentation, ARFrameSemanticPersonSegmentation },
+		{ EARSessionTrackingFeature::PersonSegmentationWithDepth, ARFrameSemanticPersonSegmentationWithDepth },
+	};
+	
+	if (SessionTrackingFeatureToFrameSemantics.Contains(SessionTrackingFeature))
+	{
+		return SessionTrackingFeatureToFrameSemantics[SessionTrackingFeature];
+	}
+	
+	return ARFrameSemanticNone;
+}
+
+void FAppleARKitConversion::ToSkeletonDefinition(const ARSkeletonDefinition* InARSkeleton, FARSkeletonDefinition& OutSkeletonDefinition)
+{
+	check(InARSkeleton);
+	
+	// TODO: these values should not change over time so they can be cached somewhere
+	
+	const int NumJoints = InARSkeleton.jointCount;
+	
+	OutSkeletonDefinition.NumJoints = NumJoints;
+	OutSkeletonDefinition.JointNames.AddUninitialized(NumJoints);
+	OutSkeletonDefinition.ParentIndices.AddUninitialized(NumJoints);
+	
+	for (int Index = 0; Index < NumJoints; ++Index)
+	{
+		OutSkeletonDefinition.JointNames[Index] = *FString(InARSkeleton.jointNames[Index]);
+		OutSkeletonDefinition.ParentIndices[Index] = InARSkeleton.parentIndices[Index].intValue;
+	}
+}
+
+FARPose2D FAppleARKitConversion::ToARPose2D(const ARBody2D* InARPose2D)
+{
+	check(InARPose2D);
+	
+    const EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
+	
+	FARPose2D Pose2D;
+	if (FAppleARKitAvailability::SupportsARKit30())
+	{
+		const ARSkeleton2D* Skeleton2D = InARPose2D.skeleton;
+		ToSkeletonDefinition(Skeleton2D.definition, Pose2D.SkeletonDefinition);
+		const int NumJoints = Pose2D.SkeletonDefinition.NumJoints;
+		
+		Pose2D.JointLocations.AddUninitialized(NumJoints);
+		Pose2D.IsJointTracked.AddUninitialized(NumJoints);
+		
+		for (int Index = 0; Index < NumJoints; ++Index)
+		{
+			const bool bIsTracked = [Skeleton2D isJointTracked: Index];
+			Pose2D.IsJointTracked[Index] = bIsTracked;
+			
+            if (bIsTracked)
+            {
+                FVector2D OriginalLandmark(Skeleton2D.jointLandmarks[Index][0], Skeleton2D.jointLandmarks[Index][1]);
+				
+                switch (ScreenOrientation)
+                {
+                    case EDeviceScreenOrientation::Portrait:
+                        Pose2D.JointLocations[Index] = FVector2D(1.f - OriginalLandmark.Y, OriginalLandmark.X);
+                        break;
+                        
+                    case EDeviceScreenOrientation::PortraitUpsideDown:
+                        Pose2D.JointLocations[Index] = FVector2D(OriginalLandmark.Y, OriginalLandmark.X);
+                        break;
+                        
+                    case EDeviceScreenOrientation::LandscapeLeft:
+                        Pose2D.JointLocations[Index] = FVector2D(1.f - OriginalLandmark.X, 1.f - OriginalLandmark.Y);
+                        break;
+                        
+                    case EDeviceScreenOrientation::LandscapeRight:
+                        Pose2D.JointLocations[Index] = OriginalLandmark;
+                        break;
+                        
+                    default:
+                        Pose2D.JointLocations[Index] = OriginalLandmark;
+                }
+            }
+            else
+            {
+                Pose2D.JointLocations[Index] = FVector2D::ZeroVector;
+            }
+		}
+	}
+	
+	return Pose2D;
+}
+
+FARPose3D FAppleARKitConversion::ToARPose3D(const ARSkeleton3D* Skeleton3D, bool bIdentityForUntracked)
+{
+	check(Skeleton3D);
+	
+	FARPose3D Pose3D;
+	if (FAppleARKitAvailability::SupportsARKit30())
+	{
+		ToSkeletonDefinition(Skeleton3D.definition, Pose3D.SkeletonDefinition);
+		const int NumJoints = Pose3D.SkeletonDefinition.NumJoints;
+		
+		Pose3D.JointTransforms.AddUninitialized(NumJoints);
+		Pose3D.IsJointTracked.AddUninitialized(NumJoints);
+		Pose3D.JointTransformSpace = EARJointTransformSpace::Model;
+		
+		for (int Index = 0; Index < NumJoints; ++Index)
+		{
+			const bool bIsTracked = [Skeleton3D isJointTracked: Index];
+			Pose3D.IsJointTracked[Index] = bIsTracked;
+			if (bIsTracked || !bIdentityForUntracked)
+			{
+				Pose3D.JointTransforms[Index] = ToFTransform(Skeleton3D.jointModelTransforms[Index]);
+			}
+			else
+			{
+				Pose3D.JointTransforms[Index] = FTransform::Identity;
+			}
+		}
+	}
+	
+	return Pose3D;
+}
+
+FARPose3D FAppleARKitConversion::ToARPose3D(const ARBodyAnchor* InARBodyAnchor)
+{
+	check(InARBodyAnchor);
+	
+	FARPose3D Pose3D;
+	if (FAppleARKitAvailability::SupportsARKit30())
+    {
+		Pose3D = ToARPose3D(InARBodyAnchor.skeleton, true);
+	}
+	
+	return Pose3D;
+}
+
+#endif
 
 #pragma clang diagnostic pop
 #endif

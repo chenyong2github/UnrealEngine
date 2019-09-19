@@ -26,14 +26,13 @@ public:
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const override;
 	virtual FNiagaraDynamicDataBase* GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const override;
 	virtual int32 GetDynamicDataSize()const override;
-	virtual void TransformChanged() override;
 	virtual bool IsMaterialValid(UMaterialInterface* Mat)const override;
 	//FNiagaraRenderer Interface END
 
 	void SetupVertexFactory(FNiagaraMeshVertexFactory *InVertexFactory, const FStaticMeshLODResources& LODResources) const;
 
 private:
-	mutable TUniformBuffer<FPrimitiveUniformShaderParameters> WorldSpacePrimitiveUniformBuffer;
+
 	class FNiagaraMeshVertexFactory* VertexFactory;
 
 	/** Render data of the static mesh we use. */

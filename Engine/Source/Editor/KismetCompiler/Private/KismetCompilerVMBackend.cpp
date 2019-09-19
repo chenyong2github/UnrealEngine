@@ -422,11 +422,14 @@ public:
 		}
 		else
 		{
+			// Note: This is a no-op on platforms that are using a 16-bit TCHAR
+			FTCHARToUTF16 UTF16String(*String, String.Len() + 1); // include the null terminator
+
 			Writer << EX_UnicodeStringConst;
 			uint16 OutCh;
-			for (const TCHAR* Ch = *String; *Ch; ++Ch)
+			for (const UTF16CHAR* Ch = UTF16String.Get(); *Ch; ++Ch)
 			{
-				OutCh = CharCast<UCS2CHAR>(*Ch);
+				OutCh = *Ch;
 				Writer << OutCh;
 			}
 

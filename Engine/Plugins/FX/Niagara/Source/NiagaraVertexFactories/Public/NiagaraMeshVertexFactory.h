@@ -28,8 +28,7 @@ struct FShaderCompilerEnvironment;
 * Uniform buffer for mesh particle vertex factories.
 */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTEXFACTORIES_API)
-	SHADER_PARAMETER_EX( FMatrix, LocalToWorld, EShaderPrecisionModifier::Half)
-	SHADER_PARAMETER_EX( FMatrix, LocalToWorldInverseTransposed, EShaderPrecisionModifier::Half)
+	SHADER_PARAMETER(bool , bLocalSpace)
 	SHADER_PARAMETER(FVector4, SubImageSize)
 	SHADER_PARAMETER(uint32, TexCoordWeightA)
 	SHADER_PARAMETER(uint32, TexCoordWeightB)

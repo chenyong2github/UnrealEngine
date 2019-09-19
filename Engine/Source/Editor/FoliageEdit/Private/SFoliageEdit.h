@@ -14,6 +14,9 @@ class SFoliagePalette;
 class UFoliageType;
 struct FFoliageMeshUIInfo;
 enum class ECheckBoxState : uint8;
+namespace EFoliageSingleInstantiationPlacementMode {
+	enum class Type;
+};
 
 typedef TSharedPtr<FFoliageMeshUIInfo> FFoliageMeshUIInfoPtr; //should match typedef in FoliageEdMode.h
 
@@ -180,8 +183,26 @@ private:	// BRUSH SETTINGS
 	/** Checks if the SingleInstantiationMode checkbox should appear. Dependant on the current tool being used. */
 	EVisibility GetVisibility_SingleInstantiationMode() const;	
 
+	/** Checks if the SingleInstantiationPlacement mode combobutton should appear. Dependant on the current tool being used. */
+	EVisibility GetVisibility_SingleInstantiationPlacementMode() const;
+
+	/** Checks if the SingleInstantiationPlacement mode combobutton should be enabled. Dependant on if single instantiation mode is enabled. */
+	bool GetIsEnabled_SingleInstantiationPlacementMode() const;
+
 	/** Checks if the SpawnInCurrentLevelMode checkbox should appear. Dependant on the current tool being used. */
 	EVisibility GetVisibility_SpawnInCurrentLevelMode() const;
+		
+	/** Sets the single instantiation placement mode */
+	void OnSingleInstantiationPlacementModeChanged(int32 InMode);
+
+	/** @return display text for the placement type */
+	FText GetSingleInstantiationPlacementModeText(EFoliageSingleInstantiationPlacementMode::Type InMode) const;
+
+	/** @return menu of all single instantiation modes */
+	TSharedRef<SWidget> GetSingleInstantiationModeMenuContent();
+
+	/** @return display text for current placement type */
+	FText GetCurrentSingleInstantiationPlacementModeText() const;
 
 private:	// SELECTION
 
@@ -203,14 +224,15 @@ private:	// SELECTION
 	/** Handler to trigger a refresh of the details view when the active tool changes */
 	void HandleOnToolChanged();
 
-	
+	void ExecuteOnAllCurrentLevelFoliageTypes(TFunctionRef<void(const TArray<const UFoliageType*>&)> ExecuteFunc);
+
 private:
 	/** Palette of available foliage types */
 	TSharedPtr<class SFoliagePalette> FoliagePalette;
 	
 	/** Current error message */	
 	TSharedPtr<class SErrorText> ErrorText;
-
+		
 	/** Pointer to the foliage edit mode. */
 	FEdModeFoliage*					FoliageEditMode;
 };

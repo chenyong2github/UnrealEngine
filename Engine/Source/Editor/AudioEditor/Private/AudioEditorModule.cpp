@@ -148,19 +148,6 @@ public:
 		}
 	}
 
-	virtual void AddSoundWaveActionExtender(TSharedPtr<ISoundWaveAssetActionExtensions> InSoundWaveAssetActionExtender) override
-	{
-		if (InSoundWaveAssetActionExtender.IsValid())
-		{
-			SoundWaveAssetActionExtensions.AddUnique(InSoundWaveAssetActionExtender);
-		}
-	}
-
-	virtual void GetSoundWaveActionExtenders(TArray<TSharedPtr<ISoundWaveAssetActionExtensions>>& OutSoundwaveActionExtensions) override
-	{
-		OutSoundwaveActionExtensions = SoundWaveAssetActionExtensions;
-	}
-
 	virtual void RegisterEffectPresetAssetActions() override
 	{
 		// Only register asset actions for the case where audio mixer data is enabled
@@ -337,7 +324,6 @@ private:
 	FExtensibilityManagers SoundCueExtensibility;
 	FExtensibilityManagers SoundClassExtensibility;
 	FExtensibilityManagers SoundSubmixExtensibility;
-	TArray<TSharedPtr<ISoundWaveAssetActionExtensions>> SoundWaveAssetActionExtensions;
 	TSet<USoundEffectPreset*> RegisteredActions;
 	TSharedPtr<FGraphPanelPinConnectionFactory> SoundCueGraphConnectionFactory;
 	TSharedPtr<FSlateStyleSet> AudioStyleSet;

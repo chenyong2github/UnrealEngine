@@ -70,7 +70,6 @@ int32 UUnitTestCommandlet::Main(const FString& Params)
 			TEXT("You must disable the externs in SlateOpenGLExtensions.cpp to hack-unblock monolithic builds."));
 
 #else
-	GIsRequestingExit = false;
 
 
 	// Load some core modules that LaunchEngineLoop.cpp no longer loads for commandlets
@@ -86,7 +85,7 @@ int32 UUnitTestCommandlet::Main(const FString& Params)
 
 	UE_LOG(LogUnitTest, Log, TEXT("NetcodeUnitTest built to target mainline CL '%i'."), TARGET_UE4_CL);
 
-	if (!GIsRequestingExit)
+	if (!IsEngineExitRequested())
 	{
 		GIsRunning = true;
 
@@ -149,7 +148,7 @@ int32 UUnitTestCommandlet::Main(const FString& Params)
 
 
 		// NOTE: This main loop is partly based off of FileServerCommandlet
-		while (GIsRunning && !GIsRequestingExit)
+		while (GIsRunning && !IsEngineExitRequested())
 		{
 			GEngine->UpdateTimeAndHandleMaxTickRate();
 			GEngine->Tick(FApp::GetDeltaTime(), false);
@@ -188,7 +187,7 @@ int32 UUnitTestCommandlet::Main(const FString& Params)
 					// Wait until the status window is closed, if it is still open, before exiting
 					if (GUnitTestManager == nullptr || !GUnitTestManager->StatusWindow.IsValid())
 					{
-						GIsRequestingExit = true;
+						FPlatformMisc::RequestExit(false);
 					}
 				}
 				else if (!ConfirmDialog.IsValid())

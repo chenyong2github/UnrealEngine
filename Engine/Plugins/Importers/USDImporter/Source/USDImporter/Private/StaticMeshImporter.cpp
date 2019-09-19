@@ -347,11 +347,6 @@ bool FUSDStaticMeshImportState::AddPolygons( FMeshDescriptionWrapper& DestMeshWr
 		{
 			MeshDescription->ReversePolygonFacing(NewPolygonID);
 		}
-		else
-		{
-			FMeshPolygon& Polygon = MeshDescription->GetPolygon(NewPolygonID);
-			MeshDescription->ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
-		}
 	}
 
 	// Vertex color
@@ -382,7 +377,7 @@ bool FUSDStaticMeshImportState::AddPolygons( FMeshDescriptionWrapper& DestMeshWr
 		{
 			for(auto VertexInstID : MeshDescription->VertexInstances().GetElementIDs())
 			{
-				FVertexID VertexID = MeshDescription->GetVertexInstance(VertexInstID).VertexID;
+				FVertexID VertexID = MeshDescription->GetVertexInstanceVertex(VertexInstID);
 				Colors[VertexInstID] = ConvertToLinear(USDColors[VertexID.GetValue()]);
 			}
 		}

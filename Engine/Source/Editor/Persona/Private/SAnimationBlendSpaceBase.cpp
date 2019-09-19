@@ -3,7 +3,7 @@
 #include "SAnimationBlendSpaceBase.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "SlateOptMacros.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"

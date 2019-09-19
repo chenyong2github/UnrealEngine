@@ -18,7 +18,7 @@
 #include "AssetRegistryModule.h"
 #include "EditorUtilityBlueprint.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "BlueprintEditorModule.h"
 #include "BlutilityMenuExtensions.h"
 

@@ -10,6 +10,7 @@
 #include "Engine/NetConnection.h"
 #include "Engine/NetDriver.h"
 #include "EngineUtils.h"
+#include "ProfilingDebugging/ScopedTimers.h"
 
 FNetworkSimulationModelDebuggerManager& FNetworkSimulationModelDebuggerManager::Get()
 {
@@ -60,10 +61,10 @@ UObject* FindReplicatedObjectOnPIEServer(UObject* ClientObject)
 }
 
 // ------------------------------------------------------------------------------------------------------------------------
-//
-//
+//	Debug functions for toggling debugger on specific actors
 // ------------------------------------------------------------------------------------------------------------------------
 
+// Debug the first locally controlled pawn
 FAutoConsoleCommandWithWorldAndArgs NetworkSimulationModelDebugCmd(TEXT("nms.Debug.LocallyControlledPawn"), TEXT(""),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& InArgs, UWorld* World) 
 {
@@ -83,12 +84,34 @@ FAutoConsoleCommandWithWorldAndArgs NetworkSimulationModelDebugCmd(TEXT("nms.Deb
 	FNetworkSimulationModelDebuggerManager::Get().ToggleDebuggerActive(Pawn);
 }));
 
+// Toggles continous updates to debugger for locally controlled player
+FAutoConsoleCommandWithWorldAndArgs NetworkSimulationModelDebugToggleContinousCmd(TEXT("nms.Debug.ToggleContinous"), TEXT(""),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& InArgs, UWorld* World) 
+{
+
+	if (!World || !World->GetFirstLocalPlayerFromController())
+	{
+		return;
+	}
+	ULocalPlayer* Player = World->GetFirstLocalPlayerFromController();
+	if (!Player || !Player->GetPlayerController(World) || !Player->GetPlayerController(World)->GetPawn())
+	{
+		UE_LOG(LogNetworkSimDebug, Error, TEXT("Could not find valid locally controlled pawn. "));
+		return;
+	}
+
+	APawn* Pawn = Player->GetPlayerController(World)->GetPawn();
+	FNetworkSimulationModelDebuggerManager::Get().SetDebuggerActive(Pawn, true);
+	FNetworkSimulationModelDebuggerManager::Get().ToggleContinousGather();
+}));
+
+// Debug actors by class filter. 2nd parameter can filter by name
 FAutoConsoleCommandWithWorldAndArgs NetworkSimulationModelDebugClassCmd(TEXT("nms.Debug.Class"), TEXT(""),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& Args, UWorld* World) 
 {
 	if (Args.Num() <= 0)
 	{
-		UE_LOG(LogNetworkSimDebug, Display, TEXT("Usage: nms.Debug.Class <Class>"));
+		UE_LOG(LogNetworkSimDebug, Display, TEXT("Usage: nms.Debug.Class <Class> <Name>"));
 		return;
 	}
 
@@ -120,31 +143,11 @@ FAutoConsoleCommandWithWorldAndArgs NetworkSimulationModelDebugClassCmd(TEXT("nm
 	{
 		if (It->GetClass()->IsChildOf(Class))
 		{
-			UE_LOG(LogNetworkSimDebug, Display, TEXT("Toggling NetworkSim debugger for %s"), *It->GetName());
-			FNetworkSimulationModelDebuggerManager::Get().ToggleDebuggerActive(*It);
-			break;
+			if (Args.Num() < 2 || It->GetName().Contains(Args[1]))
+			{
+				UE_LOG(LogNetworkSimDebug, Display, TEXT("Toggling NetworkSim debugger for %s"), *It->GetName());
+				FNetworkSimulationModelDebuggerManager::Get().ToggleDebuggerActive(*It);
+			}
 		}
 	}
-	
-}));
-
-
-FAutoConsoleCommandWithWorldAndArgs NetworkSimulationModelDebugToggleContinousCmd(TEXT("nms.Debug.ToggleContinous"), TEXT(""),
-	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& InArgs, UWorld* World) 
-{
-
-	if (!World || !World->GetFirstLocalPlayerFromController())
-	{
-		return;
-	}
-	ULocalPlayer* Player = World->GetFirstLocalPlayerFromController();
-	if (!Player || !Player->GetPlayerController(World) || !Player->GetPlayerController(World)->GetPawn())
-	{
-		UE_LOG(LogNetworkSimDebug, Error, TEXT("Could not find valid locally controlled pawn. "));
-		return;
-	}
-
-	APawn* Pawn = Player->GetPlayerController(World)->GetPawn();
-	FNetworkSimulationModelDebuggerManager::Get().SetDebuggerActive(Pawn, true);
-	FNetworkSimulationModelDebuggerManager::Get().ToggleContinousGather();
 }));

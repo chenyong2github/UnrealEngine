@@ -126,7 +126,6 @@ public:
 	virtual FHullShaderRHIRef CreateHullShader(const FSHAHash& Hash) = 0;
 	virtual FDomainShaderRHIRef CreateDomainShader(const FSHAHash& Hash) = 0;
 	virtual FGeometryShaderRHIRef CreateGeometryShader(const FSHAHash& Hash) = 0;
-	virtual FGeometryShaderRHIRef CreateGeometryShaderWithStreamOutput(const FSHAHash& Hash, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream) = 0;
 	virtual FComputeShaderRHIRef CreateComputeShader(const FSHAHash& Hash) = 0;
 };
 
@@ -158,9 +157,6 @@ struct RENDERCORE_API FShaderCodeLibrary
 	static FPixelShaderRHIRef CreatePixelShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code);
 	/** Instantiate or retrieve a geometry shader from the cache for the provided code & hash. */
 	static FGeometryShaderRHIRef CreateGeometryShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code);
-	/** Instantiate or retrieve a geometry shader from the cache for the provided code & hash. */
-	UE_DEPRECATED(4.23, "Geometry Stream out is deprecated.")
-	static FGeometryShaderRHIRef CreateGeometryShaderWithStreamOutput(EShaderPlatform Platform, FSHAHash Hash, const TArray<uint8>& Code, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream);
 	/** Instantiate or retrieve a hull shader from the cache for the provided code & hash. */
 	static FHullShaderRHIRef CreateHullShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code);
 	/** Instantiate or retrieve a domain shader from the cache for the provided code & hash. */

@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "TrackRecorders/MovieSceneVisibilityTrackRecorder.h"
-#include "TakesCoreFwd.h"
+#include "TakesCoreLog.h"
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
 #include "KeyParams.h"

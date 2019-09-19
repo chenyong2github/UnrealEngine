@@ -440,7 +440,6 @@ namespace symbols
 			FString FileContents;
 			if (!FFileHelper::LoadFileToString(FileContents, ManifestFile.c_str()))
 			{
-				LC_WARNING_USER("%S could not be read", ManifestFile.c_str());
 				return false;
 			}
 

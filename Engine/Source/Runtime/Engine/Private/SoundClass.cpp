@@ -37,6 +37,7 @@ void USoundClass::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITORONLY_DATA
 	for (int32 ChildIndex = ChildClasses.Num()-1; ChildIndex >= 0; ChildIndex--)
 	{
 		if (ChildClasses[ChildIndex] != NULL && ChildClasses[ChildIndex]->GetLinkerUE4Version() < VER_UE4_SOUND_CLASS_GRAPH_EDITOR)
@@ -54,6 +55,8 @@ void USoundClass::PostLoad()
 			}
 		}
 	}
+#endif
+
 	// Use the main/default audio device for storing and retrieving sound class properties
 	FAudioDeviceManager* AudioDeviceManager = (GEngine ? GEngine->GetAudioDeviceManager() : nullptr);
 

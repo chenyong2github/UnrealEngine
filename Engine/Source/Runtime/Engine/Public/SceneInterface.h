@@ -63,6 +63,10 @@ public:
 	virtual void RemovePrimitive(UPrimitiveComponent* Primitive) = 0;
 	/** Called when a primitive is being unregistered and will not be immediately re-registered. */
 	virtual void ReleasePrimitive(UPrimitiveComponent* Primitive) = 0;
+	/**
+	* Updates all primitive scene info additions, remobals and translation changes
+	*/
+	virtual void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList) = 0;
 	/** 
 	 * Updates the transform of a primitive which has already been added to the scene. 
 	 * 
@@ -171,7 +175,7 @@ public:
 	virtual void RemovePrecomputedLightVolume(const class FPrecomputedLightVolume* Volume) {}
 
 	virtual bool HasPrecomputedVolumetricLightmap_RenderThread() const { return false; }
-	virtual void AddPrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume) {}
+	virtual void AddPrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume, bool bIsPersistentLevel) {}
 	virtual void RemovePrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume) {}
 
 	/** Add a runtime virtual texture object to the scene. */
@@ -263,13 +267,6 @@ public:
 	 */
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() = 0;
 	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const = 0;
-	/**
-	 * Override a sky atmosphere light direction
-	 * @param SkyAtmosphereSceneProxy - the sky atmosphere proxy
-	 * @param AtmosphereLightIndex - the atmosphere light index to consider
-	 * @param LightDirection - the new light direction to override the atmosphere light with
-	 */
-	virtual void OverrideSkyAtmosphereLightDirection(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, int32 AtmosphereLightIndex, const FVector& LightDirection) = 0;
 
 	/**
 	 * Adds a wind source component to the scene.
@@ -412,7 +409,7 @@ public:
 
 	static EShadingPath GetShadingPath(ERHIFeatureLevel::Type InFeatureLevel)
 	{
-		if (InFeatureLevel >= ERHIFeatureLevel::SM4)
+		if (InFeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			return EShadingPath::Deferred;
 		}

@@ -40,6 +40,10 @@ static FAutoConsoleVariableRef CVarEnableVerboseNiagaraChangeIdLogging(
 	ECVF_Default
 );
 
+#if WITH_EDITORONLY_DATA
+FNiagaraParameterStore INiagaraModule::FixedSystemInstanceParameters = FNiagaraParameterStore();
+#endif
+
 /**
 Use Shader Stages CVar.
 Enable the custom dispatch for multiple shader stages 
@@ -176,13 +180,10 @@ void INiagaraModule::StartupModule()
 	FNiagaraWorldManager::OnStartup();
 
 #if WITH_EDITOR	
-	if (!GIsEditor)
-	{
-		// Loading uncooked data in a game environment, we still need to get some functionality from the NiagaraEditor module.
-		// This includes the ability to compile scripts and load WITH_EDITOR_ONLY data.
-		// Note that when loading with the Editor, the NiagaraEditor module is loaded based on the plugin description.
-		FModuleManager::Get().LoadModule(TEXT("NiagaraEditor"));
-	}
+	// Loading uncooked data in a game environment, we still need to get some functionality from the NiagaraEditor module.
+	// This includes the ability to compile scripts and load WITH_EDITOR_ONLY data.
+	// Note that when loading with the Editor, the NiagaraEditor module is loaded based on the plugin description.
+	FModuleManager::Get().LoadModule(TEXT("NiagaraEditor"));
 #endif
 
 	CVarDetailLevel.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateRaw(this, &INiagaraModule::OnChangeDetailLevel));
@@ -291,6 +292,10 @@ void INiagaraModule::StartupModule()
 	{
 		return new NiagaraEmitterInstanceBatcher(InFeatureLevel, InShaderPlatform);
 	}));
+
+#if WITH_EDITORONLY_DATA
+	InitFixedSystemInstanceParameterStore();
+#endif
 }
 
 void INiagaraModule::ShutdownRenderingResources()
@@ -422,6 +427,36 @@ bool INiagaraModule::IsTargetPlatformIncludedInLevelRangeForCook(const ITargetPl
 	return true;
 }
 
+#if WITH_EDITORONLY_DATA
+void INiagaraModule::InitFixedSystemInstanceParameterStore()
+{
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_POSITION, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_ROTATION, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_SCALE, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_VELOCITY, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_X_AXIS, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_Y_AXIS, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_Z_AXIS, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOCAL_TO_WORLD, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_WORLD_TO_LOCAL, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOCAL_TO_WORLD_TRANSPOSED, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_WORLD_TO_LOCAL_TRANSPOSED, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOCAL_TO_WORLD_NO_SCALE, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_WORLD_TO_LOCAL_NO_SCALE, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_DELTA_TIME, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_TIME, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_REAL_TIME, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_INV_DELTA_TIME, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_TIME_SINCE_RENDERED, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_EXECUTION_STATE, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOD_DISTANCE, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE, true, false);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_AGE);
+	FixedSystemInstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_TICK_COUNT);
+}
+#endif
+
 void INiagaraModule::OnChangeDetailLevel(class IConsoleVariable* CVar)
 {
 	//Can only change the detail level at runtime on when not cooked.
@@ -453,6 +488,7 @@ UScriptStruct* FNiagaraTypeDefinition::ColorStruct;
 UScriptStruct* FNiagaraTypeDefinition::QuatStruct;
 
 UClass* FNiagaraTypeDefinition::UObjectClass;
+UClass* FNiagaraTypeDefinition::UMaterialClass;
 
 UEnum* FNiagaraTypeDefinition::ExecutionStateEnum;
 UEnum* FNiagaraTypeDefinition::SimulationTargetEnum;
@@ -473,6 +509,7 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::ColorDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::QuatDef;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UObjectDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::UMaterialDef;
 
 TSet<UScriptStruct*> FNiagaraTypeDefinition::NumericStructs;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeDefinition::OrderedNumericTypes;
@@ -517,6 +554,7 @@ void FNiagaraTypeDefinition::Init()
 	FNiagaraTypeDefinition::QuatStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Quat"));
 
 	FNiagaraTypeDefinition::UObjectClass = UObject::StaticClass();
+	FNiagaraTypeDefinition::UMaterialClass = UMaterialInterface::StaticClass();
 	
 	ParameterMapDef = FNiagaraTypeDefinition(ParameterMapStruct);
 	IDDef = FNiagaraTypeDefinition(IDStruct);
@@ -532,6 +570,7 @@ void FNiagaraTypeDefinition::Init()
 	Matrix4Def = FNiagaraTypeDefinition(Matrix4Struct);
 
 	UObjectDef = FNiagaraTypeDefinition(UObjectClass);
+	UMaterialDef = FNiagaraTypeDefinition(UMaterialClass);
 
 	CollisionEventDef = FNiagaraTypeDefinition(FNiagaraCollisionEventPayload::StaticStruct());
 	NumericStructs.Add(NumericStruct);
@@ -618,6 +657,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(SpawnInfoStruct), true, false, false);
 
 	FNiagaraTypeRegistry::Register(UObjectDef, true, false, false);
+	FNiagaraTypeRegistry::Register(UMaterialDef, true, false, false);
 
 	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 	check(Settings);

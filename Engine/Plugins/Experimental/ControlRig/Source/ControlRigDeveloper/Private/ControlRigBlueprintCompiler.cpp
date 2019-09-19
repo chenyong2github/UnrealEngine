@@ -286,21 +286,6 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 					}
 				}
 			}
-
-			{
-				DECLARE_SCOPE_HIERARCHICAL_COUNTER(PrintGraphToConsole)
-
-				int32 SortedPropertyLinkIndex = 1;
-				for (const FControlRigDAG::FNode Node : UnitOrder)
-				{
-					UE_LOG(LogControlRigCompiler, Log, TEXT("%d. %s"), SortedPropertyLinkIndex++, *Node.Name.ToString());
-					for (const FControlRigDAG::FPin& Pin : Node.Outputs)
-					{
-						const int32 Index = Pin.Link;
-						UE_LOG(LogControlRigCompiler, Log, TEXT("%d. %s -> %s"), SortedPropertyLinkIndex++, *PropertyLinks[Index].GetSourcePropertyPath(), *PropertyLinks[Index].GetDestPropertyPath());
-					}
-				}
-			}
 #endif
 
 			{
@@ -484,9 +469,10 @@ void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObjec
 	UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 	if (ControlRigBlueprint)
 	{
+		ControlRigBlueprint->CleanupBoneHierarchyDeprecated();
+
 		UControlRig* ControlRig = CastChecked<UControlRig>(DefaultObject);
-		ControlRig->Hierarchy.BaseHierarchy = ControlRigBlueprint->Hierarchy;
-		ControlRig->CurveContainer = ControlRigBlueprint->CurveContainer;
+		ControlRig->Hierarchy = ControlRigBlueprint->HierarchyContainer;
 		// copy available rig units info, so that control rig can do things with it
 		ControlRig->AllowSourceAccessProperties = ControlRigBlueprint->AllowSourceAccessProperties;
 		ControlRigBlueprint->UpdateParametersOnControlRig(ControlRig);

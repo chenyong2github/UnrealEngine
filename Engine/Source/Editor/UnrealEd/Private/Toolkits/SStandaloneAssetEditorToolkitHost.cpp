@@ -12,6 +12,8 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "UObject/Package.h"
 
+#include "ToolMenus.h"
+
 #define LOCTEXT_NAMESPACE "StandaloneAssetEditorToolkit"
 
 void SStandaloneAssetEditorToolkitHost::Construct( const SStandaloneAssetEditorToolkitHost::FArguments& InArgs, const TSharedPtr<FTabManager>& InTabManager, const FName InitAppName )
@@ -40,7 +42,12 @@ void SStandaloneAssetEditorToolkitHost::SetupInitialContent( const TSharedRef<FT
 	//						- May need to change arrangement to allow for wider tool bars (maybe displace grid settings too)
 	//				- In standalone, just draws under the toolkit's menu
 
-	
+	const FName AssetEditorMenuName = GetMenuName();
+	if (!UToolMenus::Get()->IsMenuRegistered(AssetEditorMenuName))
+	{
+		UToolMenus::Get()->RegisterMenu(AssetEditorMenuName, "MainFrame.MainMenu");
+	}
+
 	if (bCreateDefaultStandaloneMenu)
 	{
 		struct Local
@@ -172,13 +179,29 @@ void SStandaloneAssetEditorToolkitHost::RestoreFromLayout( const TSharedRef<FTab
 	];
 }
 
+FName SStandaloneAssetEditorToolkitHost::GetMenuName() const
+{
+	FName MenuAppName;
+	if (HostedAssetEditorToolkit.IsValid())
+	{
+		MenuAppName = HostedAssetEditorToolkit->GetToolMenuAppName();
+	}
+	else
+	{
+		MenuAppName = AppName;
+	}
+
+	return *(FString(TEXT("AssetEditor.")) + MenuAppName.ToString() + TEXT(".MainMenu"));
+}
 
 void SStandaloneAssetEditorToolkitHost::GenerateMenus(bool bForceCreateMenu)
 {
 	if( bForceCreateMenu || DefaultMenuWidget != SNullWidget::NullWidget )
 	{
+		const FName AssetEditorMenuName = GetMenuName();
+		FToolMenuContext ToolMenuContext(HostedAssetEditorToolkit->GetToolkitCommands(), FExtender::Combine(MenuExtenders).ToSharedRef());
 		IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" );
-		DefaultMenuWidget = MainFrameModule.MakeMainMenu( MyTabManager, FExtender::Combine(MenuExtenders).ToSharedRef() );
+		DefaultMenuWidget = MainFrameModule.MakeMainMenu( MyTabManager, AssetEditorMenuName, ToolMenuContext );
 
 		MenuWidgetContent->SetContent(DefaultMenuWidget.ToSharedRef());
 	}

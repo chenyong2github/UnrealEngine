@@ -315,7 +315,7 @@ private:
 	{
 		FArchive* InputFile = nullptr;
 		bool bFirstOpenTry = true;
-		while(!InputFile && !GIsRequestingExit)
+		while(!InputFile && !IsEngineExitRequested())
 		{
 			// Try to open the input file that we are going to process
 			InputFile = IFileManager::Get().CreateFileReader(*InputFilePath,FILEREAD_Silent);

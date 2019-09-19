@@ -41,6 +41,7 @@ public class PhysicsAssetEditor : ModuleRules
                 "AdvancedPreviewScene",
                 "DetailCustomizations",
                 "PinnedCommandList",
+				"ToolMenus",
             }
         );
 

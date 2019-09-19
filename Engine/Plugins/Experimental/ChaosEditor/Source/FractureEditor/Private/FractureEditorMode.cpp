@@ -218,11 +218,11 @@ bool FFractureEditorMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorV
 
 				if (SelectedBonesArray.Num() > 0)
 				{
-					TArray<UActorComponent*> Components = Actor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
-					for (UActorComponent* Component : Components)
+					TInlineComponentArray<UGeometryCollectionComponent*> GeometryCollectionComponents;
+					Actor->GetComponents(GeometryCollectionComponents);
+
+					for (UGeometryCollectionComponent* GeometryCollectionComponent : GeometryCollectionComponents)
 					{
-						UPrimitiveComponent* PrimitiveComponent = CastChecked<UPrimitiveComponent>(Component);
-						UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent);
 						FScopedColorEdit ColorEdit = GeometryCollectionComponent->EditBoneSelection();
 						ColorEdit.SelectBones(GeometryCollection::ESelectionMode::None);
 						ColorEdit.SetSelectedBones(SelectedBonesArray);

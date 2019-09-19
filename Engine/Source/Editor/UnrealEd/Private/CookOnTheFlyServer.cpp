@@ -1621,7 +1621,6 @@ bool UCookOnTheFlyServer::StartNetworkFileServer( const bool BindAnyPort )
 	PackageTracker->CookRequestEvent = FPlatformProcess::GetSynchEventFromPool();
 
 	// loop while waiting for requests
-	GIsRequestingExit = false;
 	return true;
 }
 
@@ -2109,7 +2108,7 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 	// we use this in the unsolicited packages processing below
 	TArray<FName> AllTargetPlatformNames;
 
-	while (!GIsRequestingExit || CurrentCookMode == ECookMode::CookByTheBook)
+	while (!IsEngineExitRequested() || CurrentCookMode == ECookMode::CookByTheBook)
 	{
 		if (HasCookRequests())
 		{
@@ -7277,7 +7276,7 @@ bool UCookOnTheFlyServer::HandleNetworkFileServerNewConnection(const FString& Ve
 
 	if (LocalVersionInfo != VersionInfo)
 	{
-		UE_LOG(LogCook, Warning, TEXT("Connection tried to connect with incompatable version"));
+		UE_LOG(LogCook, Warning, TEXT("Connection tried to connect with incompatible version"));
 		// return false;
 	}
 	return true;

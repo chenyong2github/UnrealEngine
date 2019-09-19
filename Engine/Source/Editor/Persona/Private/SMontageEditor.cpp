@@ -6,7 +6,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/EditorCompositeSection.h"
 #include "IDocumentation.h"
@@ -22,6 +22,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Factories/AnimMontageFactory.h"
 #include "Editor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "AnimSequenceEditor"
 
@@ -244,7 +245,7 @@ FReply SMontageEditor::OnEditParentClassClicked()
 		UObject* ParentClass = MontageObj->ParentAsset;
 		if (ParentClass != NULL)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(ParentClass);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ParentClass);
 		}
 	}
 

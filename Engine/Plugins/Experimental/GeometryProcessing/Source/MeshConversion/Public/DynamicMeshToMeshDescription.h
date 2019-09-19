@@ -27,10 +27,17 @@ public:
 
 	/**
 	 * Update existing MeshDescription based on DynamicMesh. Assumes mesh topology has not changed.
-	 * Copies positions, recalculates MeshDescription normals.
+	 * Copies positions, recalculates MeshDescription normals if bRecomputeNormals is true (copies otherwise).
 	 */
-	void Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut);
+	void Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bRecomputeNormals = true);
 
+
+	/**
+	 * Update only attributes, assuming the mesh topology has not changed.  Does not touch positions.
+	 *	NOTE: assumes the order of triangles in the MeshIn correspond to the ordering you'd get by iterating over polygons, then tris-in-polygons, on MeshOut
+	 *		  This matches conversion currently used in MeshDescriptionToDynamicMesh.cpp, but if that changes we will need to change this function to match!
+	 */
+	void UpdateAttributes(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bUpdateNormals, bool bUpdateUVs);
 
 	//
 	// Internal functions that you can also call directly

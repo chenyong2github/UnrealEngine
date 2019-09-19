@@ -168,7 +168,7 @@ void FMovieSceneTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuild
 
 TSharedPtr<SWidget> FMovieSceneTrackEditor::BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params)
 {
-	if (Track->GetSupportedBlendTypes().Num() > 0)
+	if (Track && Track->GetSupportedBlendTypes().Num() > 0)
 	{
 		TWeakPtr<ISequencer> WeakSequencer = GetSequencer();
 

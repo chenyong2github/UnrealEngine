@@ -29,6 +29,7 @@ public:
 		FHandState();
 
 		FTransform KeypointTransforms[EWMRHandKeypointCount];
+		bool ReceivedJointPoses = false;
 
 		bool GetTransform(EWMRHandKeypoint KeyPoint, FTransform& OutTransform) const;
 		const FTransform& GetTransform(EWMRHandKeypoint KeyPoint) const;
@@ -95,8 +96,6 @@ private:
 	TArray<EWMRHandKeypoint> BoneKeypoints;
 
 	FHandState HandStates[2];
-
-	bool bIsHandTrackingStateValid;
 
 	// LiveLink Data
 	/** The local client to push data updates to */

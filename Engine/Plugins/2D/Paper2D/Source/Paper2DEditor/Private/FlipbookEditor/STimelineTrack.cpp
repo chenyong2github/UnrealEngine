@@ -20,7 +20,8 @@
 #include "Editor.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PaperSprite.h"
-#include "Toolkits/AssetEditorManager.h"
+
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FlipbookEditor"
 
@@ -337,7 +338,7 @@ void SFlipbookKeyframeWidget::EditKeyFrame()
 	{
 		if (KeyFrame->Sprite != nullptr)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(KeyFrame->Sprite);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(KeyFrame->Sprite);
 		}
 	}
 }

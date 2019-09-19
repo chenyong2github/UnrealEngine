@@ -17,7 +17,6 @@
 #include "DSP/BufferVectorOperations.h"
 #include "IAudioExtensionPlugin.h"
 #include "Containers/Queue.h"
-#include "AudioMixerSourceBuffer.h"
 
 
 namespace Audio

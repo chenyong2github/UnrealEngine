@@ -9,33 +9,27 @@
 #include "HardwareTargetingSettings.h"
 
 class UTemplateProjectDefs;
+class UTemplateCategories;
 struct FProjectDescriptor;
 enum class EClassDomain : uint8;
 
 struct FProjectInformation
 {
-	FProjectInformation(FString InProjectFilename, bool bInGenerateCode, bool bInCopyStarterContent, FString InTemplateFile = FString())
-		: ProjectFilename(MoveTemp(InProjectFilename))
-		, TemplateFile(MoveTemp(InTemplateFile))
-		, bShouldGenerateCode(bInGenerateCode)
-		, bCopyStarterContent(bInCopyStarterContent)
-		, bIsEnterpriseProject(false)
-		, bForceExtendedLuminanceRange(false)
-		, TargetedHardware(EHardwareClass::Desktop)
-		, DefaultGraphicsPerformance(EGraphicsPreset::Maximum)
-	{
-	}
+	FProjectInformation() = default;
 
 	FString ProjectFilename;
 	FString TemplateFile;
+	FName TemplateCategory;
 
-	bool bShouldGenerateCode;
-	bool bCopyStarterContent;
-	bool bIsEnterpriseProject;
-	bool bForceExtendedLuminanceRange; // See "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"
+	bool bShouldGenerateCode = false;
+	bool bCopyStarterContent = false;
+	
+	bool bForceExtendedLuminanceRange = false; // See "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"
+	bool bEnableVR = false;
+	bool bIsEnterpriseProject = false;
 
-	EHardwareClass::Type TargetedHardware;
-	EGraphicsPreset::Type DefaultGraphicsPerformance;
+	EHardwareClass::Type TargetedHardware = EHardwareClass::Desktop;
+	EGraphicsPreset::Type DefaultGraphicsPerformance = EGraphicsPreset::Maximum;
 };
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FProjectDescriptorModifier, FProjectDescriptor&);
@@ -134,6 +128,9 @@ public:
 
 	/** Adds new source code to the project. When returning Succeeded or FailedToHotReload, OutSyncFileAndLineNumber will be the the preferred target file to sync in the users code editing IDE, formatted for use with GenericApplication::GotoLineInSource */
 	static EAddCodeToProjectResult AddCodeToProject(const FString& NewClassName, const FString& NewClassPath, const FModuleContextInfo& ModuleInfo, const FNewClassInfo ParentClassInfo, const TSet<FString>& DisallowedHeaderNames, FString& OutHeaderFilePath, FString& OutCppFilePath, FText& OutFailReason);
+
+	/** Loads a list of template categories defined in the TemplateCategories.ini file in the specified folder */
+	static UTemplateCategories* LoadTemplateCategories(const FString& RootDir);
 
 	/** Loads a template project definitions object from the TemplateDefs.ini file in the specified project */
 	static UTemplateProjectDefs* LoadTemplateDefs(const FString& ProjectDirectory);

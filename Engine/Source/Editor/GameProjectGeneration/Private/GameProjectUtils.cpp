@@ -43,6 +43,7 @@
 #include "DefaultTemplateProjectDefs.h"
 #include "SNewClassDialog.h"
 #include "FeaturedClasses.inl"
+#include "TemplateCategory.h"
 
 #include "Features/IModularFeatures.h"
 
@@ -799,6 +800,7 @@ bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, F
 	{
 		TArray<FAnalyticsEventAttribute> EventAttributes;
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Template"), TemplateName));
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Category"), InProjectInfo.TemplateCategory.ToString()));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ProjectType"), InProjectInfo.bShouldGenerateCode ? TEXT("C++ Code") : TEXT("Content Only")));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Outcome"), bProjectCreationSuccessful ? TEXT("Successful") : TEXT("Failed")));
 
@@ -807,8 +809,7 @@ bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, F
 		Enum = StaticEnum<EGraphicsPreset::Type>();
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("GraphicsPreset"), Enum ? Enum->GetNameStringByValue(InProjectInfo.DefaultGraphicsPerformance) : FString()));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("StarterContent"), InProjectInfo.bCopyStarterContent ? TEXT("Yes") : TEXT("No")));
-		EventAttributes.Emplace(TEXT("Enterprise"), InProjectInfo.bIsEnterpriseProject);
-
+		
 		FEngineAnalytics::GetProvider().RecordEvent( TEXT( "Editor.NewProject.ProjectCreated" ), EventAttributes );
 	}
 
@@ -1217,9 +1218,33 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject(con
 	return Result;
 }
 
+UTemplateCategories* GameProjectUtils::LoadTemplateCategories(const FString& RootDir)
+{
+	UTemplateCategories* TemplateCategories = nullptr;
+
+	FString TemplateCategoriesIniFilename = RootDir / TEXT("TemplateCategories.ini");
+	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*TemplateCategoriesIniFilename))
+	{
+		TemplateCategories = NewObject<UTemplateCategories>();
+		TemplateCategories->LoadConfig(UTemplateCategories::StaticClass(), *TemplateCategoriesIniFilename);
+
+		for (FTemplateCategoryDef& Category : TemplateCategories->Categories)
+		{
+			// attempt to resolve the icon relative to the root directory
+			FString TemplateCategoryIcon = RootDir / Category.Icon;
+			if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*TemplateCategoryIcon))
+			{
+				Category.Icon = TemplateCategoryIcon;
+			}
+		}
+	}
+
+	return TemplateCategories;
+}
+
 UTemplateProjectDefs* GameProjectUtils::LoadTemplateDefs(const FString& ProjectDirectory)
 {
-	UTemplateProjectDefs* TemplateDefs = NULL;
+	UTemplateProjectDefs* TemplateDefs = nullptr;
 
 	const FString TemplateDefsIniFilename = ProjectDirectory / TEXT("Config") / GetTemplateDefsFilename();
 	if ( FPlatformFileManager::Get().GetPlatformFile().FileExists(*TemplateDefsIniFilename) )
@@ -1241,8 +1266,25 @@ UTemplateProjectDefs* GameProjectUtils::LoadTemplateDefs(const FString& ProjectD
 				UE_LOG(LogGameProjectGeneration, Error, TEXT("Failed to find template project defs class '%s', using default."), *ClassName);
 			}
 		}
+
 		TemplateDefs = NewObject<UTemplateProjectDefs>(GetTransientPackage(), ClassToConstruct);
 		TemplateDefs->LoadConfig(UTemplateProjectDefs::StaticClass(), *TemplateDefsIniFilename);
+
+		TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
+		FGameProjectGenerationModule::Get().GetAllTemplateCategories(AllTemplateCategories);
+
+		for (const FName& CategoryKey : TemplateDefs->Categories)
+		{
+			bool bCategoryExists = AllTemplateCategories.ContainsByPredicate([&CategoryKey](const TSharedPtr<FTemplateCategory>& Category)
+				{
+					return Category->Key == CategoryKey;
+				});
+
+			if (!bCategoryExists)
+			{
+				UE_LOG(LogGameProjectGeneration, Warning, TEXT("Failed to find category definition named '%s', not defined in TemplateCategories.ini."), *CategoryKey.ToString());
+			}
+		}
 	}
 
 	return TemplateDefs;

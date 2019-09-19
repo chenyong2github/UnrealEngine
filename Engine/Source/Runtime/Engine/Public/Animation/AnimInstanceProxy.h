@@ -125,6 +125,7 @@ public:
 		, bUpdatingRoot(false)
 		, bBoneCachesInvalidated(false)
 		, bShouldExtractRootMotion(false)
+		, bDeferRootNodeInitialization(false)
 #if WITH_EDITORONLY_DATA
 		, bIsBeingDebugged(false)
 #endif
@@ -148,6 +149,7 @@ public:
 		, bUpdatingRoot(false)
 		, bBoneCachesInvalidated(false)
 		, bShouldExtractRootMotion(false)
+		, bDeferRootNodeInitialization(false)
 #if WITH_EDITORONLY_DATA
 		, bIsBeingDebugged(false)
 #endif
@@ -733,7 +735,7 @@ protected:
 	void GetStateMachineIndexAndDescription(FName InMachineName, int32& OutMachineIndex, const FBakedAnimationStateMachine** OutMachineDescription);
 
 	/** Initialize the root node - split into a separate function for backwards compatibility (initialization order) reasons */
-	void InitializeRootNode();
+	void InitializeRootNode(bool bInDeferRootNodeInitialization = false);
 
 	/** Initialize the specified root node */
 	void InitializeRootNode_WithRoot(FAnimNode_Base* InRootNode);
@@ -936,6 +938,9 @@ private:
 
 	// Diplicate of bool result of ShouldExtractRootMotion()
 	uint8 bShouldExtractRootMotion : 1;
+
+	/** We can defer initialization until first update */
+	uint8 bDeferRootNodeInitialization : 1;
 
 #if WITH_EDITORONLY_DATA
 	/** Whether this UAnimInstance is currently being debugged in the editor */

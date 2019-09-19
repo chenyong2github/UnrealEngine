@@ -102,6 +102,9 @@ private:
 	/** Callback for checking whether the node label can be edited. */
 	bool IsNodeLabelReadOnly() const;
 
+	/** Callback to verify whether the text is valid for renaming */
+	bool VerifyNodeTextChanged(const FText& NewLabel, FText& OutErrorMessage);
+
 	/** Callback for when the node label text has changed. */
 	void HandleNodeLabelTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType);
 

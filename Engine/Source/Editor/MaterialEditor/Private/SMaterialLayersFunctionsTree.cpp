@@ -3,6 +3,7 @@
 #include "SMaterialLayersFunctionsTree.h"
 #include "MaterialEditor/DEditorFontParameterValue.h"
 #include "MaterialEditor/DEditorMaterialLayersParameterValue.h"
+#include "MaterialEditor/DEditorRuntimeVirtualTextureParameterValue.h"
 #include "MaterialEditor/DEditorScalarParameterValue.h"
 #include "MaterialEditor/DEditorStaticComponentMaskParameterValue.h"
 #include "MaterialEditor/DEditorStaticSwitchParameterValue.h"
@@ -33,10 +34,12 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveLinearColorAtlas.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 
 #define LOCTEXT_NAMESPACE "MaterialLayerCustomization"
@@ -242,12 +245,17 @@ FReply SMaterialLayersFunctionsInstanceTreeItem::OnLayerDrop(const FDragDropEven
 				Param->ParameterInfo.Index = GetNewParamIndex(Param->ParameterInfo.Association, Param->ParameterInfo.Index, OriginalIndex, NewIndex, OriginalBlendIndex, NewBlendIndex);
 			}
 
+			for (int32 ParamIt = 0; ParamIt < Tree->MaterialEditorInstance->SourceInstance->RuntimeVirtualTextureParameterValues.Num(); ParamIt++)
+			{
+				FRuntimeVirtualTextureParameterValue* Param = &Tree->MaterialEditorInstance->SourceInstance->RuntimeVirtualTextureParameterValues[ParamIt];
+				Param->ParameterInfo.Index = GetNewParamIndex(Param->ParameterInfo.Association, Param->ParameterInfo.Index, OriginalIndex, NewIndex, OriginalBlendIndex, NewBlendIndex);
+			}
+
 			for (int32 ParamIt = 0; ParamIt < Tree->MaterialEditorInstance->SourceInstance->FontParameterValues.Num(); ParamIt++)
 			{
 				FFontParameterValue* Param = &Tree->MaterialEditorInstance->SourceInstance->FontParameterValues[ParamIt];
 				Param->ParameterInfo.Index = GetNewParamIndex(Param->ParameterInfo.Association, Param->ParameterInfo.Index, OriginalIndex, NewIndex, OriginalBlendIndex, NewBlendIndex);
 			}
-
 
 			if (NewIndex > OriginalIndex)
 			{
@@ -276,7 +284,6 @@ FReply SMaterialLayersFunctionsInstanceTreeItem::OnLayerDrop(const FDragDropEven
 				LayerStateHandle->MoveElementTo(OriginalIndex, NewIndex);
 				BlendHandle->MoveElementTo(OriginalBlendIndex, NewBlendIndex);
 				BlendFilterHandle->MoveElementTo(OriginalBlendIndex, NewBlendIndex);
-				Tree->FunctionInstance->UpdateStaticPermutationString();
 				Tree->OnExpansionChanged(SwappablePropertyData, bOriginalSwappingExpansion);
 				Tree->OnExpansionChanged(SwappingPropertyData, bOriginalSwappableExpansion);
 				Tree->FunctionInstanceHandle->NotifyPostChange();
@@ -694,6 +701,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 					.DisplayThumbnail(true)
 					.ThumbnailPool(InArgs._InTree->GetTreeThumbnailPool())
 					.OnShouldSetAsset(FOnShouldSetAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldSetCurveAsset, ScalarParam->AtlasData.Atlas))
+					.OnShouldFilterAsset(FOnShouldFilterAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldFilterCurveAsset, ScalarParam->AtlasData.Atlas))
 					.OnObjectChanged(FOnSetObject::CreateStatic(&FMaterialPropertyHelpers::SetPositionFromCurveAsset, ScalarParam->AtlasData.Atlas, ScalarParam, StackParameterData->ParameterHandle, (UObject*)MaterialEditorInstance))
 					.DisplayCompactSize(true)
 				];
@@ -1448,7 +1456,7 @@ FReply SMaterialLayersFunctionsInstanceTree::OnThumbnailDoubleClick(const FGeome
 	}
 	if (AssetToOpen != nullptr)
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(AssetToOpen);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetToOpen);
 		return FReply::Handled();
 	}
 	return FReply::Unhandled();
@@ -1906,6 +1914,7 @@ public:
 						.DisplayThumbnail(true)
 						.ThumbnailPool(InArgs._InTree->GetTreeThumbnailPool())
 						.OnShouldSetAsset(FOnShouldSetAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldSetCurveAsset, ScalarParam->AtlasData.Atlas))
+						.OnShouldFilterAsset(FOnShouldFilterAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldFilterCurveAsset, ScalarParam->AtlasData.Atlas))
 						.OnObjectChanged(FOnSetObject::CreateStatic(&FMaterialPropertyHelpers::SetPositionFromCurveAsset, ScalarParam->AtlasData.Atlas, ScalarParam, StackParameterData->ParameterHandle, (UObject*)MaterialEditorInstance))
 						.DisplayCompactSize(true)
 					];

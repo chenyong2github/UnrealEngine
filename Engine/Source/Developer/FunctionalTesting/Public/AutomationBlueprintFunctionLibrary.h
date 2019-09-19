@@ -7,10 +7,51 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "AutomationScreenshotOptions.h"
 #include "HAL/IConsoleManager.h"
+#include "Templates/UniquePtr.h"
 
 #include "AutomationBlueprintFunctionLibrary.generated.h"
 
 class ACameraActor;
+
+/**
+ * FAutomationTaskStatusBase - abstract class for task status
+ */
+class FAutomationTaskStatusBase
+{
+public:
+	virtual ~FAutomationTaskStatusBase() = default;
+
+	bool IsDone() const { return Done; };
+	virtual void SetDone() { Done = true; };
+
+protected:
+	bool Done;
+};
+
+/**
+ * UAutomationEditorTask
+ */
+UCLASS(BlueprintType, Transient)
+class FUNCTIONALTESTING_API UAutomationEditorTask : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	virtual ~UAutomationEditorTask() = default;
+
+	/** Query if the Editor task is done  */
+	UFUNCTION(BlueprintCallable, Category = "Automation")
+	bool IsTaskDone() const;
+
+	/** Query if a task was setup */
+	UFUNCTION(BlueprintCallable, Category = "Automation")
+	bool IsValidTask() const;
+
+	void BindTask(TUniquePtr<FAutomationTaskStatusBase> inTask);
+
+private:
+	TUniquePtr<FAutomationTaskStatusBase> Task;
+};
 
 /**
  * 
@@ -80,8 +121,8 @@ public:
 	/**
 	* take high res screenshot in editor.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Automation")
-	static bool TakeHighResScreenshot(int32 ResX, int32 ResY, FString Filename, ACameraActor* Camera = nullptr, bool bMaskEnabled = false, bool bCaptureHDR = false);
+	UFUNCTION(BlueprintCallable, Category = "Automation", meta = (AdvancedDisplay="Camera, bMaskEnabled, bCaptureHDR, ComparisonTolerance, ComparisonNotes"))
+	static UAutomationEditorTask* TakeHighResScreenshot(int32 ResX, int32 ResY, FString Filename, ACameraActor* Camera = nullptr, bool bMaskEnabled = false, bool bCaptureHDR = false, EComparisonTolerance ComparisonTolerance = EComparisonTolerance::Low, FString ComparisonNotes = TEXT(""));
 
 	/**
 	 * 

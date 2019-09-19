@@ -283,13 +283,17 @@ private:
 	{
 		if (IsVisible())
 		{
-			return IsHovered() ? FEditorStyle::GetBrush( "Level.VisibleHighlightIcon16x" ) :
-				FEditorStyle::GetBrush( "Level.VisibleIcon16x" );
+			static const FName NAME_VisibleHoveredBrush = TEXT("Level.VisibleHighlightIcon16x");
+			static const FName NAME_VisibleNotHoveredBrush = TEXT("Level.VisibleIcon16x");
+			return IsHovered() ? FEditorStyle::GetBrush(NAME_VisibleHoveredBrush) :
+				FEditorStyle::GetBrush(NAME_VisibleNotHoveredBrush);
 		}
 		else
 		{
-			return IsHovered() ? FEditorStyle::GetBrush( "Level.NotVisibleHighlightIcon16x" ) :
-				FEditorStyle::GetBrush( "Level.NotVisibleIcon16x" );
+			static const FName NAME_NotVisibleHoveredBrush = TEXT("Level.NotVisibleHighlightIcon16x");
+			static const FName NAME_NotVisibleNotHoveredBrush = TEXT("Level.NotVisibleIcon16x");
+			return IsHovered() ? FEditorStyle::GetBrush(NAME_NotVisibleHoveredBrush) :
+				FEditorStyle::GetBrush(NAME_NotVisibleNotHoveredBrush);
 		}
 	}
 
@@ -308,11 +312,15 @@ private:
 	/** Set the actor this widget is responsible for to be hidden or shown */
 	void SetIsVisible(const bool bVisible)
 	{
-		auto TreeItem = WeakTreeItem.Pin();
-		if (TreeItem.IsValid() && IsVisible() != bVisible)
+		TSharedPtr<ITreeItem> TreeItem = WeakTreeItem.Pin();
+		TSharedPtr<ISceneOutliner> Outliner = WeakOutliner.Pin();
+
+		if (TreeItem.IsValid() && Outliner.IsValid() && IsVisible() != bVisible)
 		{
 			FSetVisibilityVisitor Visitor(bVisible);
 			TreeItem->Visit(Visitor);
+			
+			Outliner->Refresh();
 
 			GEditor->RedrawAllViewports();
 		}

@@ -6,9 +6,9 @@
 #include "AssetTypeActions_Base.h"
 
 struct FAssetData;
-class FMenuBuilder;
 class USoundBase;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class AUDIOEDITOR_API FAssetTypeActions_SoundBase : public FAssetTypeActions_Base
 {
 public:
@@ -17,8 +17,9 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(97, 85, 212); }
 	virtual UClass* GetSupportedClass() const override;
 	virtual bool HasActions ( const TArray<UObject*>& InObjects ) const override { return true; }
-	virtual void GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder ) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 	virtual void AssetsActivated( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType ) override;
+	virtual bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
 	virtual bool CanFilter() override { return false; }
 	virtual TSharedPtr<SWidget> GetThumbnailOverlay(const FAssetData& AssetData) const override;
@@ -46,3 +47,4 @@ private:
 	/** Returns true if only one sound is selected to play */
 	bool CanExecutePlayCommand(TArray<TWeakObjectPtr<USoundBase>> Objects) const;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

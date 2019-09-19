@@ -132,29 +132,10 @@ public:
 		return Layouts.FindChecked(Image);
 	}
 
-	VkImageLayout FindOrAddLayout(VkImage Image, VkImageLayout LayoutIfNotFound)
-	{
-		VkImageLayout* Found = Layouts.Find(Image);
-		if (Found)
-		{
-			return *Found;
-		}
 
-		Layouts.Add(Image, LayoutIfNotFound);
-		return LayoutIfNotFound;
-	}
 
-	VkImageLayout& FindOrAddLayoutRW(VkImage Image, VkImageLayout LayoutIfNotFound)
-	{
-		VkImageLayout* Found = Layouts.Find(Image);
-		if (Found)
-		{
-			return *Found;
-		}
-
-		return Layouts.Add(Image, LayoutIfNotFound);
-	}
-
+	VkImageLayout FindOrAddLayout(VkImage Image, VkImageLayout LayoutIfNotFound);
+	VULKANRHI_API VkImageLayout& FindOrAddLayoutRW(VkImage Image, VkImageLayout LayoutIfNotFound);
 	void TransitionResource(FVulkanCmdBuffer* CmdBuffer, FVulkanSurface& Surface, VulkanRHI::EImageLayoutBarrier DestLayout);
 };
 
@@ -376,6 +357,7 @@ protected:
 	FVulkanQueue* Queue;
 	bool bSubmitAtNextSafePoint;
 	bool bAutomaticFlushAfterComputeShader;
+	bool bUniformBufferUploadRenderPassDirty = true;
 	FVulkanUniformBufferUploader* UniformBufferUploader;
 
 	void BeginOcclusionQueryBatch(FVulkanCmdBuffer* CmdBuffer, uint32 NumQueriesInBatch);

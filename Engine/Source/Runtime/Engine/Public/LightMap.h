@@ -653,6 +653,7 @@ public:
 	 */
 	IAllocatedVirtualTexture* AcquireAllocatedVT() const;
 	void ReleaseAllocatedVT();
+	bool GetUseVirtualTexturing() const;
 
 	FLightmapClusterResourceInput Input;
 	mutable IAllocatedVirtualTexture* AllocatedVT;

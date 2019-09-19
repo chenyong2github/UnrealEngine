@@ -190,7 +190,7 @@ bool FIOSAudioSoundSource::Init(FWaveInstance* InWaveInstance)
 	}
 
 	// Seek into the file if we've been given a non-zero start time.
-	if (WaveInstance->StartTime > 0.0f)
+	if (WaveInstance->IsSeekable() && WaveInstance->StartTime > 0.0f)
 	{
 		IOSBuffer->DecompressionState->SeekToTime(WaveInstance->StartTime);
 	}

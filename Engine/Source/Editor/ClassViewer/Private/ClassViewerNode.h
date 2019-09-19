@@ -103,6 +103,12 @@ public:
 	/** true if the class passed the filter. */
 	bool bPassesFilter;
 
+	/** 
+	 * true if the class passed all the sub-filters of the filter (regardless of the TextFilter one).
+	 * This could be useful to verify e.g., that the parent class of a IsNodeAllowed() object is also valid (even though that parent will not likely pass the TextFilter).
+	 */
+	bool bPassesFilterRegardlessTextFilter;
+
 	/** Pointer to the parent to this object. */
 	TWeakPtr< FClassViewerNode > ParentNode;
 

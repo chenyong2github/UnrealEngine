@@ -50,6 +50,7 @@ void FRayTracingDebugVisualizationMenuCommands::CreateRayTracingDebugVisualizati
 	RayTracingDebugModeNames.Add(LOCTEXT("World Position", "World Position"));
 	RayTracingDebugModeNames.Add(LOCTEXT("HitKind", "HitKind"));
 	RayTracingDebugModeNames.Add(LOCTEXT("Barycentrics", "Barycentrics"));
+	RayTracingDebugModeNames.Add(LOCTEXT("PrimaryRays", "PrimaryRays"));
 
 	for ( int32 RayTracingDebugIndex = 0; RayTracingDebugIndex < RayTracingDebugModeNames.Num(); ++RayTracingDebugIndex)
 	{
@@ -78,6 +79,7 @@ bool FRayTracingDebugVisualizationMenuCommands::DebugModeShouldBeTonemapped(cons
 		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("DiffuseColor", "DiffuseColor").ToString());
 		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("SpecularColor", "SpecularColor").ToString());
 		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("ShadingModelID", "ShadingModelID").ToString());
+		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("PrimaryRays", "PrimaryRays").ToString());
 	}
 
 	return TonemappedRayTracingDebugVisualizationModes.Contains(RayTracingDebugModeName);

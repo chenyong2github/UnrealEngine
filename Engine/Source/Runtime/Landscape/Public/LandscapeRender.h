@@ -187,7 +187,7 @@ public:
 	{
 		// only compile landscape materials for landscape vertex factory
 		// The special engine materials must be compiled for the landscape vertex factory because they are used with it for wireframe, etc.
-		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) &&
+		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) &&
 			(Material->IsUsedWithLandscape() || Material->IsSpecialEngineMaterial());
 	}
 
@@ -861,6 +861,10 @@ public:
 			return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 		}
 	}
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+	}
 };
 
 class FLandscapeSelectMaterialRenderProxy : public FMaterialRenderProxy
@@ -908,6 +912,10 @@ public:
 			return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 		}
 	}
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+	}
 };
 
 class FLandscapeMaskMaterialRenderProxy : public FMaterialRenderProxy
@@ -953,6 +961,10 @@ public:
 		{
 			return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 		}
+	}
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 	}
 };
 
@@ -1028,6 +1040,10 @@ public:
 		return Parent->GetScalarValue(ParameterInfo, OutValue, Context);
 	}
 	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+	}
+	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
 	{
 		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 	}

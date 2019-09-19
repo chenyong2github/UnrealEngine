@@ -1048,6 +1048,7 @@ void UStaticMeshComponent::SetMaterialPreview(int32 InMaterialIndexPreview)
 		MarkRenderStateDirty();
 	}
 }
+#endif
 
 void UStaticMeshComponent::RemoveInstanceVertexColorsFromLOD( int32 LODToRemoveColorsFrom )
 {
@@ -1057,10 +1058,14 @@ void UStaticMeshComponent::RemoveInstanceVertexColorsFromLOD( int32 LODToRemoveC
 
 		CurrentLODInfo.ReleaseOverrideVertexColorsAndBlock();
 		CurrentLODInfo.PaintedVertices.Empty();
+
+#if WITH_EDITORONLY_DATA
 		StaticMeshDerivedDataKey = GetStaticMesh()->RenderData->DerivedDataKey;
+#endif
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 void UStaticMeshComponent::RemoveInstanceVertexColors()
 {
 	for ( int32 i=0; i < GetStaticMesh()->GetNumLODs(); i++ )

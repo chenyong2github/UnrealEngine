@@ -426,16 +426,13 @@ void FGroupTopology::ExtractGroupEdges(FGroup& Group)
 
 			FGroupEdge Edge = { EdgeID };
 
-			int i1 = CornerIndices[k+1];
-			check(i0 != i1);	// this case will happen on a cylinder w/ a cut side, I think...
-								// (but that case won't exist because that's wouldn't be a group boundary edge!)
+			int i1 = CornerIndices[k+1];		// note: i1 == i0 on a closed loop, ie NumSpans == 1
 			TArray<int> SpanVertices;
-			while (i0 != i1)
-			{
+			do {
 				SpanVertices.Add(Loop.Vertices[i0]);
 				i0 = (i0 + 1) % NumV;
-			}
-			SpanVertices.Add(Loop.Vertices[i0]);
+			} while (i0 != i1);
+			SpanVertices.Add(Loop.Vertices[i0]);	// add last vertex
 
 			Edge.Span = FEdgeSpan(Mesh);
 			Edge.Span.InitializeFromVertices(SpanVertices);
@@ -448,10 +445,9 @@ void FGroupTopology::ExtractGroupEdges(FGroup& Group)
 
 
 
-
-
 int FGroupTopology::FindExistingGroupEdge(int GroupID, int OtherGroupID, int FirstVertexID)
 {
+	// if this is a boundary edge, we cannot have created it already
 	if (OtherGroupID < 0)
 	{
 		return -1;
@@ -481,3 +477,21 @@ int FGroupTopology::FindExistingGroupEdge(int GroupID, int OtherGroupID, int Fir
 }
 
 
+
+bool FGroupTopology::GetGroupEdgeTangent(int GroupEdgeID, FVector3d& TangentOut) const
+{
+	check(GroupEdgeID >= 0 && GroupEdgeID < Edges.Num());
+	const FGroupEdge& Edge = Edges[GroupEdgeID];
+	FVector3d StartPos = Mesh->GetVertex(Edge.Span.Vertices[0]);
+	FVector3d EndPos = Mesh->GetVertex(Edge.Span.Vertices[Edge.Span.Vertices.Num()-1]);
+	if (StartPos.DistanceSquared(EndPos) > 100 * FMathd::ZeroTolerance)
+	{
+		TangentOut = (EndPos - StartPos).Normalized();
+		return true;
+	}
+	else
+	{
+		TangentOut = FVector3d::UnitX();
+		return false;
+	}
+}

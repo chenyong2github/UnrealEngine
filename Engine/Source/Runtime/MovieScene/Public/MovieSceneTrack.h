@@ -221,6 +221,10 @@ protected:
 	/** Intentionally not a UPROPERTY so this isn't serialized */
 	FMovieSceneBlendTypeField SupportedBlendTypes;
 
+	/** Whether evaluation of this track has been disabled via mute/solo */
+	UPROPERTY()
+	bool bIsEvalDisabled;
+
 public:
 
 	/**
@@ -254,6 +258,16 @@ public:
 	 * @return Whether or not fixes were made. 
 	 */
 	MOVIESCENE_API bool FixRowIndices();
+
+	/**
+	* @return Whether evaluation of this track should be disabled due to mute/solo settings
+	*/
+	MOVIESCENE_API bool IsEvalDisabled() const { return bIsEvalDisabled; };
+
+	/**
+	* Called by Sequencer to set whether evaluation of this track should be disabled due to mute/solo settings
+	*/
+	MOVIESCENE_API void SetEvalDisabled(bool bEvalDisabled) { bIsEvalDisabled = bEvalDisabled; }
 
 public:
 
@@ -397,5 +411,6 @@ public:
 	 * @param Section The section that moved.
 	 */
 	virtual void OnSectionMoved(UMovieSceneSection& Section) { }
+
 #endif
 };

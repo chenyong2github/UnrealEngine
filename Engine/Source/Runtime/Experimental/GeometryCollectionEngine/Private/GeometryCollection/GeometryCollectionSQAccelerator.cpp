@@ -612,7 +612,6 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::TImplicitObject<float,
 			{
 				if(LowLevelSweepSingleElement(ParticleIndex, Solver, Buffer, static_cast<FGeometryCollectionPhysicsProxy*>(ObjectWrapper.PhysicsProxy), *Implicit, CollisionParticles, StartTM, Dir, DeltaMag, i >= IntersectionSetSize, Hit))
 				{
-#if !WITH_IMMEDIATE_PHYSX && PHYSICS_INTERFACE_PHYSX
 					//todo(mlentine): This is duplicated from above and should be merged
 					//todo(ocohen):hack placeholder while we convert over to non physx API
 					UGeometryCollectionComponent* Component = Cast<UGeometryCollectionComponent>(ObjectWrapper.PhysicsProxy->GetOwner());
@@ -620,6 +619,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::TImplicitObject<float,
 
 					if (Component->IsRegistered())
 					{
+#if !WITH_IMMEDIATE_PHYSX && PHYSICS_INTERFACE_PHYSX
 						const FPhysicsActorHandle& ActorHandle = Component->DummyBodyInstance.GetPhysicsActorHandle();
 						PxRigidActor* PRigidActor = ActorHandle.SyncActor;
 						uint32 PNumShapes = PRigidActor->getNbShapes();
@@ -782,7 +782,6 @@ void FGeometryCollectionSQAccelerator::Overlap(const Chaos::TImplicitObject<floa
 			{
 				if(LowLevelOverlapSingleElement(IntersectParticleIndex, Solver, ClusterBuffer, static_cast<FGeometryCollectionPhysicsProxy*>(ObjectWrapper.PhysicsProxy), *Implicit, GeomPose, Hit))
 				{
-#if !WITH_IMMEDIATE_PHYSX && PHYSICS_INTERFACE_PHYSX
 					//todo(mlentine): This is duplicated from above and should be merged
 					//todo(ocohen):hack placeholder while we convert over to non physx API
 					UGeometryCollectionComponent* Component = Cast<UGeometryCollectionComponent>(ObjectWrapper.PhysicsProxy->GetOwner());
@@ -790,6 +789,7 @@ void FGeometryCollectionSQAccelerator::Overlap(const Chaos::TImplicitObject<floa
 
 					if (Component->IsRegistered())
 					{
+#if !WITH_IMMEDIATE_PHYSX && PHYSICS_INTERFACE_PHYSX
 						const FPhysicsActorHandle& ActorHandle = Component->DummyBodyInstance.GetPhysicsActorHandle();
 						PxRigidActor* PRigidActor = ActorHandle.SyncActor;
 						uint32 PNumShapes = PRigidActor->getNbShapes();

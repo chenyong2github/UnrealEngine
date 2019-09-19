@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "NiagaraTypes.h"
 #include "UObject/SoftObjectPath.h"
@@ -28,6 +29,11 @@ const FString INTERPOLATED_PARAMETER_PREFIX = TEXT("PREV_");
 /** The maximum number of spawn infos we can run on the GPU, modifying this will require a version update as it is used in the shader compiler  */
 constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS = 8;
 constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS_V4 = (NIAGARA_MAX_GPU_SPAWN_INFOS + 3) / 4;
+
+/** TickGroup information for Niagara.  */
+constexpr ETickingGroup NiagaraFirstTickGroup = TG_PrePhysics;
+constexpr ETickingGroup NiagaraLastTickGroup = TG_LastDemotable;
+constexpr int NiagaraNumTickGroups = NiagaraLastTickGroup - NiagaraFirstTickGroup + 1;
 
 enum ENiagaraBaseTypes
 {
@@ -580,18 +586,18 @@ namespace FNiagaraUtilities
 
 	FNiagaraVariable NIAGARA_API ConvertVariableToRapidIterationConstantName(FNiagaraVariable InVar, const TCHAR* InEmitterName, ENiagaraScriptUsage InUsage);
 
-	void CollectScriptDataInterfaceParameters(const UObject& Owner, const TArray<UNiagaraScript*>& Scripts, FNiagaraParameterStore& OutDataInterfaceParameters);
+	void CollectScriptDataInterfaceParameters(const UObject& Owner, const TArrayView<UNiagaraScript*>& Scripts, FNiagaraParameterStore& OutDataInterfaceParameters);
 
 	inline bool SupportsNiagaraRendering(ERHIFeatureLevel::Type FeatureLevel)
 	{
-		return FeatureLevel == ERHIFeatureLevel::SM4 || FeatureLevel == ERHIFeatureLevel::SM5 || FeatureLevel == ERHIFeatureLevel::ES3_1;
+		return FeatureLevel == ERHIFeatureLevel::SM5 || FeatureLevel == ERHIFeatureLevel::ES3_1;
 	}
 
 	inline bool SupportsNiagaraRendering(EShaderPlatform ShaderPlatform)
 	{
 		// Note:
-		// IsFeatureLevelSupported does a FeatureLevel < MaxFeatureLevel(ShaderPlatform) so checking ES3.1 support will return true for SM4. I added it explicitly to be clear what we are doing.
-		return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5) || IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::ES3_1) || IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM4);
+		// IsFeatureLevelSupported does a FeatureLevel < MaxFeatureLevel(ShaderPlatform) so checking ES3.1 support will return true for SM5. I added it explicitly to be clear what we are doing.
+		return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5) || IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::ES3_1);
 	}
 
 	inline bool SupportsGPUParticles(ERHIFeatureLevel::Type FeatureLevel)
@@ -617,6 +623,9 @@ namespace FNiagaraUtilities
 	 */
 	void NIAGARA_API PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, FString>& ScriptToEmitterNameMap);
 #endif
+
+	void NIAGARA_API DumpHLSLText(const FString& SourceCode, const FString& DebugName);
+
 };
 
 USTRUCT()

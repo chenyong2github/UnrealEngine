@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "TakeRecorderLevelSequenceSource.h"
-#include "TakesCoreFwd.h"
+#include "TakesCoreLog.h"
 #include "TakesUtils.h"
 #include "Editor.h"
 #include "GameFramework/Actor.h"

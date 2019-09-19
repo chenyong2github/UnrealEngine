@@ -3,6 +3,7 @@
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "Engine/SkeletalMesh.h"
 #include "UObject/Package.h"
+#include "UObject/EditorObjectVersion.h"
 
 UFbxSkeletalMeshImportData::UFbxSkeletalMeshImportData(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -12,6 +13,19 @@ UFbxSkeletalMeshImportData::UFbxSkeletalMeshImportData(const FObjectInitializer&
 	bBakePivotInVertex = false;
 	VertexColorImportOption = EVertexColorImportOption::Replace;
 	LastImportContentType = EFBXImportContentType::FBXICT_All;
+}
+
+void UFbxSkeletalMeshImportData::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+
+	//bComputeWeightedNormals default is true so old asset should have set to false.
+	if (Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::ComputeWeightedNormals)
+	{
+		//Old asset are not using weighted normals
+		bComputeWeightedNormals = false;
+	}
 }
 
 UFbxSkeletalMeshImportData* UFbxSkeletalMeshImportData::GetImportDataForSkeletalMesh(USkeletalMesh* SkeletalMesh, UFbxSkeletalMeshImportData* TemplateForCreation)

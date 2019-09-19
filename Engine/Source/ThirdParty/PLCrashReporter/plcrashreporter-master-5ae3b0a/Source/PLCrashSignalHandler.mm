@@ -284,7 +284,7 @@ static PLCrashSignalHandler *sharedHandler;
     
     /* Set up an alternate signal stack for crash dumps. Only 64k is reserved, and the
      * crash dump path must be sparing in its use of stack space. */
-    _sigstk.ss_size = MAX(MINSIGSTKSZ, 64 * 1024);
+    _sigstk.ss_size = MAX(MINSIGSTKSZ, 512 * 1024);
     _sigstk.ss_sp = malloc(_sigstk.ss_size);
     _sigstk.ss_flags = 0;
 

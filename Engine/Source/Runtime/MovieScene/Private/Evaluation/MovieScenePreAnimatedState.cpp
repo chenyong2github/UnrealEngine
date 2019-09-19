@@ -371,6 +371,25 @@ void FMovieScenePreAnimatedState::DiscardEntityTokens()
 	MasterTokens.DiscardEntityTokens();
 }
 
+void FMovieScenePreAnimatedState::DiscardAndRemoveEntityTokensForObject(UObject& Object)
+{
+	FObjectKey ObjectKey(&Object);
+
+	auto* FoundObjectTokens = ObjectTokens.Find(ObjectKey);
+	if (FoundObjectTokens)
+	{
+		FoundObjectTokens->DiscardEntityTokens();
+
+		ObjectTokens.Remove(ObjectKey);
+	}
+
+	for (auto& Pair : EntityToAnimatedObjects)
+	{
+		Pair.Value.Remove(ObjectKey);
+	}
+}
+
+
 /** Explicit, exported template instantiations */
 template struct MOVIESCENE_API TMovieSceneSavedTokens<IMovieScenePreAnimatedTokenPtr>;
 template struct MOVIESCENE_API TMovieSceneSavedTokens<IMovieScenePreAnimatedGlobalTokenPtr>;

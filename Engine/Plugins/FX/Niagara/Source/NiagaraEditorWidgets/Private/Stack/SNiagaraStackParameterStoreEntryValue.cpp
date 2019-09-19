@@ -17,6 +17,8 @@
 #include "PropertyEditorModule.h"
 #include "IStructureDetailsView.h"
 #include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "PropertyCustomizationHelpers.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackParameterStoreEntryValue"
 
@@ -118,6 +120,19 @@ FReply SNiagaraStackParameterStoreEntryValue::DeleteClicked()
 	return FReply::Handled();
 }
 
+void SNiagaraStackParameterStoreEntryValue::OnAssetSelectedFromPicker(const FAssetData& InAssetData)
+{	
+	UMaterialInterface* Mat = Cast<UMaterialInterface>(InAssetData.GetAsset());
+	StackEntry->ReplaceValueObject(Mat);
+}
+
+FString SNiagaraStackParameterStoreEntryValue::GetCurrentAssetPath() const
+{
+	UObject* Obj = StackEntry->GetValueObject();
+	return  Obj != nullptr ? Obj->GetPathName() : FString();
+}
+
+
 TSharedRef<SWidget> SNiagaraStackParameterStoreEntryValue::ConstructValueStructWidget()
 {
 	ValueStructParameterEditor.Reset();
@@ -164,8 +179,27 @@ TSharedRef<SWidget> SNiagaraStackParameterStoreEntryValue::ConstructValueStructW
 	}
 	else if (StackEntry->GetInputType().GetClass() != nullptr)
 	{
-		return SNew(STextBlock)
-			.Text(StackEntry->GetInputType().GetClass()->GetDisplayNameText());
+		if (StackEntry->GetInputType().GetClass()->IsChildOf(UMaterialInterface::StaticClass()))
+		{
+			TArray<const UClass*> AllowedClasses;
+			AllowedClasses.Add(UMaterialInterface::StaticClass());
+			
+			return SNew(SObjectPropertyEntryBox)
+				.ObjectPath_Raw(this, &SNiagaraStackParameterStoreEntryValue::GetCurrentAssetPath)
+				.AllowedClass(UMaterialInterface::StaticClass())
+				.OnObjectChanged_Raw(this, &SNiagaraStackParameterStoreEntryValue::OnAssetSelectedFromPicker)
+				.AllowClear(false)
+				.DisplayUseSelected(true)
+				.DisplayBrowse(true)
+				.DisplayThumbnail(true)
+				.NewAssetFactories(TArray<UFactory*>());
+
+		}
+		else
+		{
+			return SNew(STextBlock)
+				.Text(StackEntry->GetInputType().GetClass()->GetDisplayNameText());
+		}
 	}
 	else
 	{

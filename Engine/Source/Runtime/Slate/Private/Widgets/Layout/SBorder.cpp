@@ -131,20 +131,12 @@ FVector2D SBorder::ComputeDesiredSize(float LayoutScaleMultiplier) const
 
 void SBorder::SetBorderBackgroundColor(const TAttribute<FSlateColor>& InColorAndOpacity)
 {
-	if (!BorderBackgroundColor.IdenticalTo(InColorAndOpacity))
-	{
-		BorderBackgroundColor = InColorAndOpacity;
-		Invalidate(EInvalidateWidget::PaintAndVolatility);
-	}
+	SetAttribute(BorderBackgroundColor, InColorAndOpacity, EInvalidateWidgetReason::Paint);
 }
 
 void SBorder::SetDesiredSizeScale(const TAttribute<FVector2D>& InDesiredSizeScale)
 {
-	if (!DesiredSizeScale.IdenticalTo(InDesiredSizeScale))
-	{
-		DesiredSizeScale = InDesiredSizeScale;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
-	}
+	SetAttribute(DesiredSizeScale, InDesiredSizeScale, EInvalidateWidgetReason::Layout);
 }
 
 void SBorder::SetHAlign(EHorizontalAlignment HAlign)
@@ -167,27 +159,15 @@ void SBorder::SetVAlign(EVerticalAlignment VAlign)
 
 void SBorder::SetPadding(const TAttribute<FMargin>& InPadding)
 {
-	if (!ChildSlot.SlotPadding.IdenticalTo(InPadding))
-	{
-		ChildSlot.SlotPadding = InPadding;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
-	}
+	SetAttribute(ChildSlot.SlotPadding, InPadding, EInvalidateWidgetReason::Layout);
 }
 
 void SBorder::SetShowEffectWhenDisabled(const TAttribute<bool>& InShowEffectWhenDisabled)
 {
-	if (!ShowDisabledEffect.IdenticalTo(InShowEffectWhenDisabled))
-	{
-		ShowDisabledEffect = InShowEffectWhenDisabled;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
-	}
+	SetAttribute(ShowDisabledEffect, InShowEffectWhenDisabled, EInvalidateWidgetReason::Paint);
 }
 
 void SBorder::SetBorderImage(const TAttribute<const FSlateBrush*>& InBorderImage)
 {
-	if (!BorderImage.IdenticalTo(InBorderImage))
-	{
-		BorderImage = InBorderImage;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
-	}
+	BorderImage.SetImage(*this, InBorderImage);
 }

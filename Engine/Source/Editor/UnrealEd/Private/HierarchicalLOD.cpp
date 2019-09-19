@@ -164,11 +164,11 @@ void FHierarchicalLODBuilder::BuildClusters(ULevel* InLevel, const bool bCreateM
 		}		
 		else
 		{
-			// Handle HierachicalLOD volumes first
-			HandleHLODVolumes(InLevel);
-
 			for (int32 LODId = 0; LODId < NumHLODLevels; ++LODId)
 			{
+				// Handle HierachicalLOD volumes first
+				HandleHLODVolumes(InLevel);
+
 				// Reuse clusters from previous HLOD level (only works for HLOD level 1 and beyond)
 				if (BuildLODLevelSettings[LODId].bReusePreviousLevelClusters && LODId > 0)
 				{
@@ -347,40 +347,41 @@ void FHierarchicalLODBuilder::GenerateAsSingleCluster(const int32 NumHLODLevels,
 void FHierarchicalLODBuilder::InitializeClusters(ULevel* InLevel, const int32 LODIdx, float CullCost, const bool bPreviewBuild, bool const bVolumesOnly)
 {
 	SCOPE_LOG_TIME(TEXT("STAT_HLOD_InitializeClusters"), nullptr);
+
+	// Check whether or not this actor falls within a HierarchicalLODVolume, if so add to the Volume's cluster and exclude from normal process
+	auto ProcessVolumeClusters = [this](AActor* InActor) -> bool
+	{
+		for (TPair<AHierarchicalLODVolume*, FLODCluster>& Cluster : HLODVolumeClusters)
+		{
+			if (Cluster.Key->EncompassesPoint(InActor->GetActorLocation(), Cluster.Key->bIncludeOverlappingActors ? InActor->GetComponentsBoundingBox().GetSize().Size() : 0.0f, nullptr))
+			{
+				FBox BoundingBox = InActor->GetComponentsBoundingBox(true);
+				FBox VolumeBox = Cluster.Key->GetComponentsBoundingBox(true);
+
+				if (VolumeBox.IsInside(BoundingBox) || (Cluster.Key->bIncludeOverlappingActors && VolumeBox.Intersect(BoundingBox)))
+				{
+					FLODCluster ActorCluster(InActor);
+					Cluster.Value += ActorCluster;
+					return true;
+				}
+			}
+		}
+
+		return false;
+	};
+
+	Clusters.Empty();
+
 	if (InLevel->Actors.Num() > 0)
 	{
 		if (LODIdx == 0)
 		{
-			Clusters.Empty();
-
 			for (int32 ActorId = 0; ActorId < InLevel->Actors.Num(); ++ActorId)
 			{
 				AActor* Actor = InLevel->Actors[ActorId];
 				const bool bShouldGenerate = ShouldGenerateCluster(Actor, bPreviewBuild, LODIdx);
 				if (bShouldGenerate)
 				{
-					// Check whether or not this actor falls within a HierarchicalLODVolume, if so add to the Volume's cluster and exclude from normal process
-					auto ProcessVolumeClusters = [this](AActor* InActor) -> bool
-					{
-						for (TPair<AHierarchicalLODVolume*, FLODCluster>& Cluster : HLODVolumeClusters)
-						{
-							if (Cluster.Key->EncompassesPoint(InActor->GetActorLocation(), Cluster.Key->bIncludeOverlappingActors ? InActor->GetComponentsBoundingBox().GetSize().Size() : 0.0f, nullptr))
-							{
-								FBox BoundingBox = InActor->GetComponentsBoundingBox(true);
-								FBox VolumeBox = Cluster.Key->GetComponentsBoundingBox(true);
-
-								if (VolumeBox.IsInside(BoundingBox) || (Cluster.Key->bIncludeOverlappingActors && VolumeBox.Intersect(BoundingBox)))
-								{
-									FLODCluster ActorCluster(InActor);
-									Cluster.Value += ActorCluster;
-									return true;
-								}
-							}
-						}
-
-						return false;
-					};
-
 					if (bVolumesOnly)
 					{
 						ProcessVolumeClusters(Actor);
@@ -391,7 +392,7 @@ void FHierarchicalLODBuilder::InitializeClusters(ULevel* InLevel, const int32 LO
 						{
 							ValidStaticMeshActorsInLevel.Add(Actor);
 						}
-					}					
+					}
 				}
 				else
 				{
@@ -421,15 +422,24 @@ void FHierarchicalLODBuilder::InitializeClusters(ULevel* InLevel, const int32 LO
 				}
 			}
 		}
-		else // at this point we only care for LODActors
+		else
 		{
-			Clusters.Empty();
-
 			// we filter the LOD index first
 			TArray<AActor*> Actors;
 
 			Actors.Append(LODLevelLODActors[LODIdx - 1]);
-						
+
+			// Re-evaluate level actors
+			for (int32 Idx = 0; Idx < ValidStaticMeshActorsInLevel.Num(); ++Idx)
+			{
+				AActor* Actor = ValidStaticMeshActorsInLevel[Idx];
+				if (!ShouldGenerateCluster(Actor, bPreviewBuild, LODIdx))
+				{
+					ValidStaticMeshActorsInLevel.RemoveAt(Idx);
+					--Idx;
+				}
+			}
+
 			// Re-evaluate rejected actors
 			for (AActor* Actor : RejectedActorsInLevel)
 			{
@@ -444,6 +454,8 @@ void FHierarchicalLODBuilder::InitializeClusters(ULevel* InLevel, const int32 LO
 			});
 
 			Actors.Append(ValidStaticMeshActorsInLevel);
+
+			Actors.RemoveAll(ProcessVolumeClusters);
 
 			// first we generate graph with 2 pair nodes
 			// this is very expensive when we have so many actors
@@ -699,7 +711,6 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 			}
 
 			// If there are any available process them
-			bool bBuildSuccessful = true;
 			if (NumLODActors)
 			{
 				// Only create the outer package if we are going to save something to it (otherwise we end up with an empty HLOD folder)
@@ -723,13 +734,22 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 					for (ALODActor* Actor : LODLevel)
 					{
 						SlowTask.EnterProgressFrame(100.0f / (float)NumLODActors, FText::Format(LOCTEXT("HierarchicalLOD_BuildLODActorMeshesProgress", "Building LODActor Mesh {1} of {2} (LOD Level {0})"), FText::AsNumber(LODIndex + 1), FText::AsNumber(LODActorIndex), FText::AsNumber(LODLevelActors[CurrentLODLevel].Num())));
-						bBuildSuccessful &= Utilities->BuildStaticMeshForLODActor(Actor, AssetsOuter, BuildLODLevelSettings[CurrentLODLevel], BaseMaterial);
+
+						bool bBuildSuccessful = Utilities->BuildStaticMeshForLODActor(Actor, AssetsOuter, BuildLODLevelSettings[CurrentLODLevel], BaseMaterial);
+
+						// Report an error if the build failed
+						if (!bBuildSuccessful)
+						{
+							FMessageLog("HLODResults").Error()
+								->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildOne", "Cannot create proxy mesh for ")))
+								->AddToken(FUObjectToken::Create(Actor))
+								->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildTwo", " this could be caused by incorrect mesh components in the sub actors")));
+						}
+
 						++LODActorIndex;
 					}
 				}
 			}
-
-			check(bBuildSuccessful);
 		}
 	}
 
@@ -1001,12 +1021,9 @@ void FHierarchicalLODBuilder::MergeClustersAndBuildActors(ULevel* InLevel, const
 			}
 		}
 
-		if (LODIdx == 0)
+		for (TPair<AHierarchicalLODVolume*, FLODCluster>& Cluster : HLODVolumeClusters)
 		{
-			  for (TPair<AHierarchicalLODVolume*, FLODCluster>& Cluster : HLODVolumeClusters)
-			{
-				Clusters.Add(Cluster.Value);
-			}
+			Clusters.Add(Cluster.Value);
 		}
 
 

@@ -52,6 +52,9 @@ public:
 	/**	@return Whether the condition has been met to allow editing of this property's value */
 	bool IsEditConditionMet() const;
 
+	/**	@return Whether this property derives its visibility from its edit condition */
+	bool IsOnlyVisibleWhenEditConditionMet() const;
+
 	/**	@return The tooltip for this property editor */
 	FText GetToolTipText() const;
 

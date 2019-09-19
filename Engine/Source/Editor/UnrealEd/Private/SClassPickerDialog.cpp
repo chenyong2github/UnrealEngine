@@ -32,6 +32,7 @@
 void SClassPickerDialog::Construct(const FArguments& InArgs)
 {
 	WeakParentWindow = InArgs._ParentWindow;
+	bAllowNone = InArgs._Options.bShowNoneOption;
 
 	bPressedOk = false;
 	ChosenClass = NULL;
@@ -279,7 +280,7 @@ FReply SClassPickerDialog::OnDefaultClassPicked(UClass* InChosenClass)
 
 FReply SClassPickerDialog::OnClassPickerConfirmed()
 {
-	if (ChosenClass == NULL)
+	if (!bAllowNone && ChosenClass == NULL)
 	{
 		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("EditorFactories", "MustChooseClassWarning", "You must choose a class."));
 	}
@@ -333,7 +334,7 @@ void SClassPickerDialog::OnCustomAreaExpansionChanged(bool bExpanded)
 EVisibility SClassPickerDialog::GetSelectButtonVisibility() const
 {
 	EVisibility ButtonVisibility = EVisibility::Hidden;
-	if( ChosenClass != nullptr )
+	if(bAllowNone || ChosenClass != nullptr )
 	{
 		ButtonVisibility = EVisibility::Visible;
 	}

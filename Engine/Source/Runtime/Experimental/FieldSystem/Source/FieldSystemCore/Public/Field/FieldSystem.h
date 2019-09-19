@@ -9,8 +9,6 @@
 #include "Field/FieldSystemTypes.h"
 #include "Math/Vector.h"
 
-#include "Field/FieldSystem.h"
-
 /**
 * MetaData
 *

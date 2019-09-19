@@ -4,8 +4,9 @@
 #include "EditorModeManager.h"
 #include "ControlRigEditMode.h"
 #include "Sequencer/ControlRigSequence.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Components/SkeletalMeshComponent.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 void UControlRigEditModeSettings::PreEditChange(UProperty* PropertyAboutToChange)
 {
@@ -52,17 +53,7 @@ void UControlRigEditModeSettings::PostEditChangeProperty(struct FPropertyChanged
 		{
 			if (Sequence)
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(Sequence);
-			}
-		}
-		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigEditModeSettings, bDisplayTrajectories))
-		{
-			if (Sequence)
-			{
-				if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
-				{
-					ControlRigEditMode->RefreshTrajectoryCache();
-				}
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Sequence);
 			}
 		}
 	}

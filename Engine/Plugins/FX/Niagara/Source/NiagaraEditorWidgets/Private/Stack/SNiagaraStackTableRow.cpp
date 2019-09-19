@@ -13,8 +13,10 @@
 #include "Widgets/Layout/SBox.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Framework/Application/SlateApplication.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackTableRow"
 
@@ -441,7 +443,7 @@ void SNiagaraStackTableRow::NavigateTo(UNiagaraStackEntry* Item)
 
 void SNiagaraStackTableRow::OpenSourceAsset()
 {
-	FAssetEditorManager::Get().OpenEditorForAsset(StackEntry->GetExternalAsset());
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(StackEntry->GetExternalAsset());
 }
 
 void SNiagaraStackTableRow::ShowAssetInContentBrowser()

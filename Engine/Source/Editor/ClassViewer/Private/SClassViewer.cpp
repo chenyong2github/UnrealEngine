@@ -47,7 +47,7 @@
 
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "PackageTools.h"
 #include "Logging/MessageLog.h"
 
@@ -76,6 +76,7 @@
 #include "SListViewSelectorDropdownMenu.h"
 #include "ClassViewerProjectSettings.h"
 #include "Widgets/Layout/SScrollBorder.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SClassViewer"
 
@@ -305,20 +306,24 @@ namespace ClassViewer
 		 *	@param InInitOptions						The class viewer's options, holds the AllowedClasses and DisallowedClasses.
 		 *
 		 *	@return Returns true if the child passed the filter.
-		 */		
+		 */
 		static bool AddChildren_Tree(TSharedPtr< FClassViewerNode >& InOutRootNode, const TSharedPtr< FClassViewerNode >& InOriginalRootNode, 
 			const TSharedPtr<FClassViewerFilter>& InClassFilter, const FClassViewerInitializationOptions& InInitOptions)
 		{
-			InOutRootNode->bPassesFilter = InClassFilter->IsNodeAllowed(InInitOptions, InOutRootNode.ToSharedRef());
+			bool bCheckTextFilter = true;
+			InOutRootNode->bPassesFilter = InClassFilter->IsNodeAllowed(InInitOptions, InOutRootNode.ToSharedRef(), bCheckTextFilter);
 
 			bool bReturnPassesFilter = InOutRootNode->bPassesFilter;
+
+			bCheckTextFilter = false;
+			InOutRootNode->bPassesFilterRegardlessTextFilter = bReturnPassesFilter || InClassFilter->IsNodeAllowed(InInitOptions, InOutRootNode.ToSharedRef(), bCheckTextFilter);
 
 			TArray< TSharedPtr< FClassViewerNode > >& ChildList = InOriginalRootNode->GetChildrenList();
 			for(int32 ChildIdx = 0; ChildIdx < ChildList.Num(); ChildIdx++)
 			{
 				TSharedPtr< FClassViewerNode > NewNode = MakeShareable( new FClassViewerNode( *ChildList[ChildIdx].Get() ) );
 
-				bool bChildrenPassesFilter = AddChildren_Tree(NewNode, ChildList[ChildIdx], InClassFilter, InInitOptions);
+				const bool bChildrenPassesFilter = AddChildren_Tree(NewNode, ChildList[ChildIdx], InClassFilter, InInitOptions);
 				bReturnPassesFilter |= bChildrenPassesFilter;
 
 				if (bChildrenPassesFilter)
@@ -373,10 +378,12 @@ namespace ClassViewer
 		static void AddChildren_List(TArray< TSharedPtr< FClassViewerNode > >& InOutNodeList, const TSharedPtr< FClassViewerNode >& InOriginalRootNode, 
 			const TSharedPtr< FClassViewerFilter >& InClassFilter, const FClassViewerInitializationOptions& InInitOptions)
 		{
-			if (InClassFilter->IsNodeAllowed(InInitOptions, InOriginalRootNode.ToSharedRef()))
+			const bool bCheckTextFilter = true;
+			if (InClassFilter->IsNodeAllowed(InInitOptions, InOriginalRootNode.ToSharedRef(), bCheckTextFilter))
 			{
 				TSharedPtr< FClassViewerNode > NewNode = MakeShareable(new FClassViewerNode(*InOriginalRootNode.Get()));
 				NewNode->bPassesFilter = true;
+				NewNode->bPassesFilterRegardlessTextFilter = true;
 				NewNode->PropertyHandle = InOriginalRootNode->PropertyHandle;
 
 				InOutNodeList.Add(NewNode);
@@ -407,10 +414,12 @@ namespace ClassViewer
 			// If the option to see the object root class is set, add it to the list, proceed normally from there so the actor's only filter continues to work.
 			if (InInitOptions.bShowObjectRootClass)
 			{
-				if (InClassFilter->IsNodeAllowed(InInitOptions, ObjectClassRoot.ToSharedRef()))
+				const bool bCheckTextFilter = true;
+				if (InClassFilter->IsNodeAllowed(InInitOptions, ObjectClassRoot.ToSharedRef(), bCheckTextFilter))
 				{
 					TSharedPtr< FClassViewerNode > NewNode = MakeShareable(new FClassViewerNode(*ObjectClassRoot.Get()));
 					NewNode->bPassesFilter = true;
+					NewNode->bPassesFilterRegardlessTextFilter = true;
 					NewNode->PropertyHandle = InInitOptions.PropertyHandle;
 
 					InOutNodeList.Add(NewNode);
@@ -497,7 +506,7 @@ namespace ClassViewer
 				UBlueprint* NewBP = FKismetEditorUtilities::CreateBlueprint(InCreationClass, Package, BPName, BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), FName("ClassViewer"));
 				if(NewBP)
 				{
-					FAssetEditorManager::Get().OpenEditorForAsset(NewBP);
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewBP);
 
 					// Notify the asset registry
 					FAssetRegistryModule::AssetCreated(NewBP);
@@ -627,7 +636,7 @@ namespace ClassViewer
 		{
 			if( InBlueprint != nullptr )
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(InBlueprint);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(InBlueprint);
 			}
 		}
 
@@ -1543,7 +1552,7 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 			.DefaultLabel(NSLOCTEXT("ClassViewer", "Class", "Class"))
 		);
 
-		SAssignNew(ClassTree, STreeView<TSharedPtr< FClassViewerNode > >)
+	SAssignNew(ClassTree, STreeView<TSharedPtr< FClassViewerNode > >)
 		.SelectionMode(ESelectionMode::Single)
 		.TreeItemsSource(&RootTreeItems)
 		// Called to child items for any given parent item
@@ -1808,10 +1817,12 @@ void SClassViewer::OnClassViewerSelectionChanged( TSharedPtr<FClassViewerNode> I
 			ClassViewer::Helpers::LoadClass( Item );
 		}
 
-		// Check if the item passes the filter, parent items might be displayed but filtered out and thus not desired to be selected.
+		// Check if the item passes the filter
 		if ( ( Item->Class.IsValid() || !Class ))
 		{
-			if( Item->bPassesFilter )
+			// Parent items might be displayed but filtered out by bPassesFilter, thus bPassesFilterRegardlessTextFilter makes sure to keep them selectable.
+			// In addition, Item->bPassesFilter would be redundant here as bPassesFilterRegardlessTextFilter = true if bPassesFilter = true
+			if (Item->bPassesFilterRegardlessTextFilter || Item->bPassesFilter)
 			{
 				OnClassPicked.ExecuteIfBound( Item->Class.Get() );
 			}
@@ -2533,6 +2544,7 @@ TSharedPtr<FClassViewerNode> SClassViewer::CreateNoneOption()
 
 	// The item "passes" the filter so it does not appear grayed out.
 	NoneItem->bPassesFilter = true;
+	NoneItem->bPassesFilterRegardlessTextFilter = true;
 
 	return NoneItem;
 }

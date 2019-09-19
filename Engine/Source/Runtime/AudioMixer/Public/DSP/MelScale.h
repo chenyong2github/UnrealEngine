@@ -2,7 +2,7 @@
 
 #pragma once
 #include "CoreMinimal.h"
-#include "FloatArrayMath.h"
+#include "DSP/FloatArrayMath.h"
 
 
 namespace Audio

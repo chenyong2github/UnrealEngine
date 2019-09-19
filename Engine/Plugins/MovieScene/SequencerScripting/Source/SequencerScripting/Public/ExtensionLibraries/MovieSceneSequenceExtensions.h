@@ -361,6 +361,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
 	static TArray<UObject*> LocateBoundObjects(UMovieSceneSequence* Sequence, const FSequencerBindingProxy& InBinding, UObject* Context);
 
+
+	/**
+	 * Make a binding id for the given binding in this sequence
+	 *
+	 * @param MasterSequence  The master sequence that contains the sequence
+	 * @param Binding The binding proxy to generate the binding id from
+	 * @return The new object binding id
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static FMovieSceneObjectBindingID MakeBindingID(UMovieSceneSequence* MasterSequence, const FSequencerBindingProxy& InBinding);
+
 	/**
 	 * Get the root folders in the provided sequence
 	 *

@@ -116,6 +116,8 @@
     <Compile Include="Support\HashList.cs" />
     <Compile Include="Support\JsonObject.cs" />
     <Compile Include="Support\JsonWriter.cs" />
+    <Compile Include="Support\LineBasedTextWriter.cs" />
+    <Compile Include="Support\LineBasedTextWriterWrapper.cs" />
     <Compile Include="Support\LogWriter.cs" />
     <Compile Include="Support\ManagedTask.cs" />
     <Compile Include="Support\MultiValueDictionary.cs" />

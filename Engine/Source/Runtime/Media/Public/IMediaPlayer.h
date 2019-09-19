@@ -312,6 +312,15 @@ public:
 		return true;
 	}
 
+	/**
+	 * Any extra processing that the player should do when FMediaPlayerFacade::ProcessVideoSamples
+	 * is run should be put here.
+	 */
+	virtual void ProcessVideoSamples()
+	{
+		// Override in child class if needed.
+	}
+
 public:
 
 	/** Virtual destructor. */

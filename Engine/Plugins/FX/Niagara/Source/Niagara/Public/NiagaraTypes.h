@@ -564,6 +564,7 @@ public:
 	static const FNiagaraTypeDefinition& GetParameterMapDef() { return ParameterMapDef; }
 	static const FNiagaraTypeDefinition& GetIDDef() { return IDDef; }
 	static const FNiagaraTypeDefinition& GetUObjectDef() { return UObjectDef; }
+	static const FNiagaraTypeDefinition& GetUMaterialDef() { return UMaterialDef; }
 
 	static UScriptStruct* GetFloatStruct() { return FloatStruct; }
 	static UScriptStruct* GetBoolStruct() { return BoolStruct; }
@@ -617,6 +618,7 @@ private:
 	static FNiagaraTypeDefinition ParameterMapDef;
 	static FNiagaraTypeDefinition IDDef;
 	static FNiagaraTypeDefinition UObjectDef;
+	static FNiagaraTypeDefinition UMaterialDef;
 
 	static UScriptStruct* FloatStruct;
 	static UScriptStruct* BoolStruct;
@@ -630,6 +632,7 @@ private:
 	static UScriptStruct* NumericStruct;
 
 	static UClass* UObjectClass;
+	static UClass* UMaterialClass;
 
 	static UEnum* SimulationTargetEnum;
 	static UEnum* ScriptUsageEnum;
@@ -807,8 +810,8 @@ struct FNiagaraVariable
 		return Name == Other.Name && (TypeDef == Other.TypeDef || (bAllowAssignableTypes && FNiagaraTypeDefinition::TypesAreAssignable(TypeDef, Other.TypeDef)));
 	}
 	
-	void SetName(FName InName) { Name = InName; }
-	FName GetName()const { return Name; }
+	FORCEINLINE void SetName(FName InName) { Name = InName; }
+	FORCEINLINE const FName& GetName() const { return Name; }
 
 	void SetType(const FNiagaraTypeDefinition& InTypeDef) { TypeDef = InTypeDef; }
 	const FNiagaraTypeDefinition& GetType()const { return TypeDef; }

@@ -70,11 +70,11 @@ public:
 		IAutomationControllerManagerRef AutomationControllerManager = AutomationControllerModule.GetAutomationController();
 		AutomationControllerManager->OnTestsComplete().AddLambda([]()
 		{
-			GIsRequestingExit = true;
+			FPlatformMisc::RequestExit(false);
 		});
 		StaticExec(NULL, *TestList);
 
-		while (!GIsRequestingExit)
+		while (!IsEngineExitRequested())
 		{
 			// Increment global frame counter once for each app tick.
 			GFrameCounter++;
@@ -124,7 +124,7 @@ private:
 
 	bool ProcessCommandline()
 	{
-#define PARSE_SWITCH(Switch) ParseSwitch(TEXT(#Switch L"="), Switch, Switches)
+#define PARSE_SWITCH(Switch) ParseSwitch(TEXT(#Switch "="), Switch, Switches)
 		TArray<FString> Tokens, Switches;
 		FCommandLine::Parse(FCommandLine::Get(), Tokens, Switches);
 

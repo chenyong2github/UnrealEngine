@@ -13,7 +13,7 @@
 #include "Sound/SoundBase.h"
 #include "Sound/SoundCue.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "DetailCategoryBuilder.h"
@@ -24,6 +24,7 @@
 #include "Sound/SoundNodeDelay.h"
 #include "Sound/SoundNodeRandom.h"
 #include "Sound/SoundNodeWavePlayer.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 
 #define LOCTEXT_NAMESPACE "AmbientSoundDetails"
@@ -134,7 +135,7 @@ FReply FAmbientSoundDetails::OnEditSoundCueClicked()
 		USoundCue* SoundCue = Cast<USoundCue>(AmbientSound.Get()->GetAudioComponent()->Sound);
 		if (SoundCue)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(SoundCue);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SoundCue);
 		}
 	}
 
@@ -270,7 +271,7 @@ void FAmbientSoundDetails::CreateNewSoundCue( ESoundCueLayouts Layout )
 
 		SoundCue->LinkGraphNodesFromSoundNodes();
 
-		FAssetEditorManager::Get().OpenEditorForAsset(SoundCue);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SoundCue);
 	}
 }
 

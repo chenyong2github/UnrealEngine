@@ -2,6 +2,7 @@
 
 #include "BackgroundHttpModule.h"
 #include "BackgroundHttp.h"
+#include "PlatformBackgroundHttp.h"
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IHttpRequest.h"
 

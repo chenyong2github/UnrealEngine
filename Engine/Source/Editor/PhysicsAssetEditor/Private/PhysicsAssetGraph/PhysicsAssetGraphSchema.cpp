@@ -9,6 +9,7 @@
 #include "PhysicsAssetGraphNode_Constraint.h"
 #include "PhysicsAssetGraph.h"
 #include "PhysicsAssetEditor.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "PhysicsAssetGraphSchema"
 
@@ -17,24 +18,30 @@ UPhysicsAssetGraphSchema::UPhysicsAssetGraphSchema(const FObjectInitializer& Obj
 {
 }
 
-void UPhysicsAssetGraphSchema::GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, class FMenuBuilder* MenuBuilder, bool bIsDebugging) const
+void UPhysicsAssetGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if (MenuBuilder)
+	Menu->AddDynamicSection("PhysicsAssetGraphSchema", FNewToolMenuDelegateLegacy::CreateLambda([](FMenuBuilder& MenuBuilder, UToolMenu* InMenu)
 	{
-		const UPhysicsAssetGraph* PhysicsAssetGraph = CastChecked<const UPhysicsAssetGraph>(CurrentGraph);
+		UGraphNodeContextMenuContext* ContextObject = InMenu->FindContext<UGraphNodeContextMenuContext>();
+		if (!ContextObject)
+		{
+			return;
+		}
+
+		const UPhysicsAssetGraph* PhysicsAssetGraph = CastChecked<const UPhysicsAssetGraph>(ContextObject->Graph);
 		TSharedPtr<FPhysicsAssetEditorSharedData> SharedData = PhysicsAssetGraph->GetPhysicsAssetEditor()->GetSharedData();
 
-		if (const UPhysicsAssetGraphNode_Constraint* ConstraintNode = Cast<const UPhysicsAssetGraphNode_Constraint>(InGraphNode))
+		if (const UPhysicsAssetGraphNode_Constraint* ConstraintNode = Cast<const UPhysicsAssetGraphNode_Constraint>(ContextObject->Node))
 		{
-			PhysicsAssetGraph->GetPhysicsAssetEditor()->BuildMenuWidgetConstraint(*MenuBuilder);
+			PhysicsAssetGraph->GetPhysicsAssetEditor()->BuildMenuWidgetConstraint(MenuBuilder);
 		}
-		else if (const UPhysicsAssetGraphNode_Bone* BoneNode = Cast<const UPhysicsAssetGraphNode_Bone>(InGraphNode))
+		else if (const UPhysicsAssetGraphNode_Bone* BoneNode = Cast<const UPhysicsAssetGraphNode_Bone>(ContextObject->Node))
 		{
-			PhysicsAssetGraph->GetPhysicsAssetEditor()->BuildMenuWidgetBody(*MenuBuilder);
+			PhysicsAssetGraph->GetPhysicsAssetEditor()->BuildMenuWidgetBody(MenuBuilder);
 		}
 
-		PhysicsAssetGraph->GetPhysicsAssetEditor()->BuildMenuWidgetSelection(*MenuBuilder);
-	}
+		PhysicsAssetGraph->GetPhysicsAssetEditor()->BuildMenuWidgetSelection(MenuBuilder);
+	}));
 }
 
 FLinearColor UPhysicsAssetGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const

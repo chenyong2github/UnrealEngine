@@ -46,6 +46,7 @@ namespace LandscapeSplineRaster
 	void Pointify(const FInterpCurveVector& SplineInfo, TArray<FLandscapeSplineInterpPoint>& OutPoints, int32 NumSubdivisions,
 		float StartFalloffFraction, float EndFalloffFraction,
 		const float StartWidth, const float EndWidth,
+		const float StartLayerWidth, const float EndLayerWidth,
 		const FPointifyFalloffs& Falloffs,
 		const float StartRollDegrees, const float EndRollDegrees);
 

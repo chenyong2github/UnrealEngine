@@ -27,6 +27,7 @@ public:
 	TSharedPtr<FUICommandInfo> SetFocusPlaybackRange;
 	TSharedPtr<FUICommandInfo> ActivateTransformTool;
 	TSharedPtr<FUICommandInfo> ActivateRetimeTool;
+	TSharedPtr<FUICommandInfo> ActivateMultiScaleTool;
 
 public:
 	virtual void RegisterCommands() override;

@@ -235,13 +235,6 @@ FGeometryShaderRHIRef FVulkanDynamicRHI::RHICreateGeometryShader(const TArray<ui
 	return Device->GetShaderFactory().CreateShader<FVulkanGeometryShader>(Code, Device);
 }
 
-FGeometryShaderRHIRef FVulkanDynamicRHI::RHICreateGeometryShaderWithStreamOutput(const TArray<uint8>& Code, const FStreamOutElementList& ElementList,
-	uint32 NumStrides, const uint32* Strides, int32 RasterizedStream)
-{
-	VULKAN_SIGNAL_UNIMPLEMENTED();
-	return nullptr;
-}
-
 FComputeShaderRHIRef FVulkanDynamicRHI::RHICreateComputeShader(const TArray<uint8>& Code) 
 { 
 	return Device->GetShaderFactory().CreateShader<FVulkanComputeShader>(Code, Device);

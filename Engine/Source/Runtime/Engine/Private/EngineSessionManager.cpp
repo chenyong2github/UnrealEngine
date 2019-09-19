@@ -74,7 +74,7 @@ namespace SessionManagerDefs
 	static const FString UnknownProjectValueString(TEXT("UnknownProject"));
 }
 
-namespace
+namespace EngineSessionManagerUtils
 {
 	FString TimestampToString(FDateTime InTimestamp)
 	{
@@ -220,7 +220,7 @@ void FEngineSessionManager::Tick(float DeltaTime)
 				}
 			}
 
-			const FString TimestampString = TimestampToString(FDateTime::UtcNow());
+			const FString TimestampString = EngineSessionManagerUtils::TimestampToString(FDateTime::UtcNow());
 			FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::TimestampStoreKey, TimestampString);
 
 #if PLATFORM_SUPPORTS_WATCHDOG
@@ -260,7 +260,7 @@ void FEngineSessionManager::Shutdown()
 			{
 				const FString& ShutdownType = CurrentSession.bIsTerminating ? SessionManagerDefs::TerminatedSessionToken : SessionManagerDefs::ShutdownSessionToken;
 				FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, WatchdogSectionName, SessionManagerDefs::StatusStoreKey, ShutdownType);
-				FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, WatchdogSectionName, SessionManagerDefs::TimestampStoreKey, TimestampToString(FDateTime::UtcNow()));
+				FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, WatchdogSectionName, SessionManagerDefs::TimestampStoreKey, EngineSessionManagerUtils::TimestampToString(FDateTime::UtcNow()));
 				WatchdogSectionName.Empty();
 			}
 #endif
@@ -345,7 +345,7 @@ bool FEngineSessionManager::BeginReadWriteRecords()
 			NewRecord.Mode = ModeString == SessionManagerDefs::EditorValueString ? EEngineSessionManagerMode::Editor : EEngineSessionManagerMode::Game;
 			NewRecord.ProjectName = ProjectName;
 			NewRecord.EngineVersion = EngineVersionString;
-			NewRecord.Timestamp = StringToTimestamp(TimestampString);
+			NewRecord.Timestamp = EngineSessionManagerUtils::StringToTimestamp(TimestampString);
 			NewRecord.bCrashed = IsCrashString == SessionManagerDefs::TrueValueString;
 			NewRecord.bGPUCrashed = IsGPUCrashString == SessionManagerDefs::TrueValueString;
 			NewRecord.bIsDebugger = IsDebuggerString == SessionManagerDefs::TrueValueString;
@@ -557,7 +557,7 @@ void FEngineSessionManager::CreateAndWriteRecordForSession()
 	FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::ProjectNameStoreKey, CurrentSession.ProjectName);
 	FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::CrashStoreKey, SessionManagerDefs::FalseValueString);
 	FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::EngineVersionStoreKey, CurrentSession.EngineVersion);
-	FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::TimestampStoreKey, TimestampToString(CurrentSession.Timestamp));
+	FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::TimestampStoreKey, EngineSessionManagerUtils::TimestampToString(CurrentSession.Timestamp));
 	FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::DebuggerStoreKey, IsDebuggerString);
 	FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::WasDebuggerStoreKey, WasDebuggerString);
 	FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::DeactivatedStoreKey, IsDeactivatedString);
@@ -593,7 +593,7 @@ void FEngineSessionManager::OnCrashing()
 		if (!WatchdogSectionName.IsEmpty())
 		{
 			FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, WatchdogSectionName, SessionManagerDefs::StatusStoreKey, SessionManagerDefs::CrashSessionToken);
-			FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, WatchdogSectionName, SessionManagerDefs::TimestampStoreKey, TimestampToString(FDateTime::UtcNow()));
+			FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, WatchdogSectionName, SessionManagerDefs::TimestampStoreKey, EngineSessionManagerUtils::TimestampToString(FDateTime::UtcNow()));
 		}
 #endif
 	}
@@ -642,7 +642,7 @@ void FEngineSessionManager::OnTerminate()
 		CurrentSession.bIsTerminating = true;
 		FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::TerminatingKey, SessionManagerDefs::TrueValueString);
 
-		if (GIsRequestingExit)
+		if (IsEngineExitRequested())
 		{
 			// Certain terminations are routine (such as closing a log window to quit the editor).
 			// In these cases, shut down the engine session so it won't send an abnormal shutdown report.
@@ -652,7 +652,7 @@ void FEngineSessionManager::OnTerminate()
 		else if (!WatchdogSectionName.IsEmpty())
 		{
 			FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, WatchdogSectionName, SessionManagerDefs::StatusStoreKey, SessionManagerDefs::TerminatedSessionToken);
-			FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, WatchdogSectionName, SessionManagerDefs::TimestampStoreKey, TimestampToString(FDateTime::UtcNow()));
+			FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, WatchdogSectionName, SessionManagerDefs::TimestampStoreKey, EngineSessionManagerUtils::TimestampToString(FDateTime::UtcNow()));
 		}
 #endif
 	}
@@ -694,7 +694,7 @@ void FEngineSessionManager::OnUserActivity(const FUserActivity& UserActivity)
 		if (!WatchdogSectionName.IsEmpty())
 		{
 			FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, WatchdogSectionName, SessionManagerDefs::UserActivityStoreKey, CurrentSession.CurrentUserActivity);
-			FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, WatchdogSectionName, SessionManagerDefs::TimestampStoreKey, TimestampToString(FDateTime::UtcNow()));
+			FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, WatchdogSectionName, SessionManagerDefs::TimestampStoreKey, EngineSessionManagerUtils::TimestampToString(FDateTime::UtcNow()));
 		}
 #endif
 	}
@@ -786,7 +786,7 @@ void FEngineSessionManager::StartWatchdog(const FString& RunType, const FString&
 
 		if (WatchdogProcessHandle.IsValid())
 		{
-			FString WatchdogStartTimeString = TimestampToString(FDateTime::UtcNow());
+			FString WatchdogStartTimeString = EngineSessionManagerUtils::TimestampToString(FDateTime::UtcNow());
 			FString WasDebuggerString = CurrentSession.bWasEverDebugger ? SessionManagerDefs::TrueValueString : SessionManagerDefs::FalseValueString;
 
 			WatchdogStartedAttributes.Add(FAnalyticsEventAttribute(TEXT("Outcome"), TEXT("Succeeded")));

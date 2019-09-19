@@ -444,20 +444,8 @@ void FD3D12CommandContextBase::RHIEndFrame()
 		Device->GetTextureAllocator().CleanUpAllocations();
 		Device->GetDefaultBufferAllocator().CleanupFreeBlocks();
 
-		Device->GetDefaultFastAllocator().CleanupPages<FD3D12ScopeLock>(10);
+		Device->GetDefaultFastAllocator().CleanupPages(10);
 	}
-
-		// The Texture streaming threads
-		{
-			for (int32 i = 0; i < FD3D12DynamicRHI::GetD3DRHI()->NumThreadDynamicHeapAllocators; ++i)
-			{
-				FD3D12FastAllocator* TextureStreamingAllocator = FD3D12DynamicRHI::GetD3DRHI()->ThreadDynamicHeapAllocatorArray[i];
-				if (TextureStreamingAllocator)
-				{
-					TextureStreamingAllocator->CleanupPages<FD3D12ScopeLock>(10);
-				}
-			}
-		}
 
 	for (uint32 GPUIndex : GPUMask)
 	{
@@ -465,18 +453,18 @@ void FD3D12CommandContextBase::RHIEndFrame()
 		Device->GetCommandListManager().ReleaseResourceBarrierCommandListAllocator();
 	}
 
-		UpdateMemoryStats();
+	UpdateMemoryStats();
 
-	    // Stop Timing at the very last moment
+	// Stop Timing at the very last moment
     
-	    ParentAdapter->GetGPUProfiler().EndFrame(ParentAdapter->GetOwningRHI());
+	ParentAdapter->GetGPUProfiler().EndFrame(ParentAdapter->GetOwningRHI());
     
     
-	    // Advance frame fence
+	// Advance frame fence
     
-	    FD3D12ManualFence& FrameFence = ParentAdapter->GetFrameFence();
-	    FrameFence.Signal(ED3D12CommandQueueType::Default, FrameFence.IncrementCurrentFence());
-	}
+	FD3D12ManualFence& FrameFence = ParentAdapter->GetFrameFence();
+	FrameFence.Signal(ED3D12CommandQueueType::Default, FrameFence.IncrementCurrentFence());
+}
 
 void FD3D12CommandContextBase::UpdateMemoryStats()
 {

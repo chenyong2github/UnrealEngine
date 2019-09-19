@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_SequenceEvaluator.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 
 #include "Kismet2/CompilerResultsLog.h"
 #include "GraphEditorActions.h"
@@ -144,17 +144,16 @@ void UAnimGraphNode_SequenceEvaluator::ValidateAnimNodeDuringCompilation(class U
 	}
 }
 
-void UAnimGraphNode_SequenceEvaluator::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UAnimGraphNode_SequenceEvaluator::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if (!Context.bIsDebugging)
+	if (!Context->bIsDebugging)
 	{
 		// add an option to convert to a regular sequence player
-		Context.MenuBuilder->BeginSection("AnimGraphNodeSequenceEvaluator", NSLOCTEXT("A3Nodes", "SequenceEvaluatorHeading", "Sequence Evaluator"));
 		{
-			Context.MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().OpenRelatedAsset);
-			Context.MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().ConvertToSeqPlayer);
+			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeSequenceEvaluator", NSLOCTEXT("A3Nodes", "SequenceEvaluatorHeading", "Sequence Evaluator"));
+			Section.AddMenuEntry(FGraphEditorCommands::Get().OpenRelatedAsset);
+			Section.AddMenuEntry(FGraphEditorCommands::Get().ConvertToSeqPlayer);
 		}
-		Context.MenuBuilder->EndSection();
 	}
 }
 

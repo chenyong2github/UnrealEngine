@@ -21,7 +21,7 @@ class UCanvasPanelSlot;
  * * Absolute Layout
  * * Anchors
  */
-UCLASS()
+UCLASS(meta = (ShortTooltip = "A designer-friendly panel useful for laying out top-level widgets. Use sparingly."))
 class UMG_API UCanvasPanel : public UPanelWidget
 {
 	GENERATED_UCLASS_BODY()

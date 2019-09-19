@@ -83,7 +83,7 @@ void CacheCurrentPlatformAudioCookOverrides(FPlatformAudioCookOverrides& OutOver
 #elif PLATFORM_WINDOWS
 	const TCHAR* CategoryName = TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings");
 #elif PLATFORM_PS4
-	const TCHAR* CategoryName = TEXT("/Script/PS4TargetPlatform.PS4TargetSettings");
+	const TCHAR* CategoryName = TEXT("/Script/PS4PlatformEditor.PS4TargetSettings");
 #elif PLATFORM_XBOXONE
 	const TCHAR* CategoryName = TEXT("/Script/XboxOneTargetPlatform.XboxOneTargetSettings");
 #else

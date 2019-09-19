@@ -472,6 +472,37 @@ public:
 	TArray<USoundModulationPluginSourceSettingsBase*> Settings;
 };
 
+class ISoundModulatable
+{
+public:
+	virtual ~ISoundModulatable() = default;
+
+	/**
+	 * Returns the modulation settings of the sound
+	 */
+	virtual USoundModulationPluginSourceSettingsBase* FindModulationSettings() const = 0;
+
+	/**
+	 * Gets the object definition id of the given playing sound's instance
+	 */
+	virtual uint32 GetObjectId() const = 0;
+
+	/**
+	 * Returns number of actively instances of sound playing (including virtualized instances)
+	 */
+	virtual int32 GetPlayCount() const = 0;
+
+	/**
+	 * Returns whether or not sound is an editor preview sound
+	 */
+	virtual bool IsPreviewSound() const = 0;
+
+	/**
+	 * Stops sound.
+	 */
+	virtual void Stop() = 0;
+};
+
 /************************************************************************/
 /* IAudioModulationFactory                                              */
 /*                                                                      */
@@ -521,9 +552,6 @@ struct FSoundModulationControls
 	}
 };
 
-/** Identifier active sound types currently playing (or virtualized) */
-using ModulationSoundId = uint32;
-
 class IAudioModulation
 {
 public:
@@ -533,13 +561,8 @@ public:
 	/** Initialize the modulation plugin with the same rate and number of sources */
 	virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) { }
 
-#if WITH_EDITOR
-	/** Allows modulation plugin to respond to settings updates when client is editing settings */
-	virtual void OnEditSource(const USoundModulationPluginSourceSettingsBase& Settings) { }
-#endif // WITH_EDITOR
-
 	/** Called when a USoundBase type begins playing a sound */
-	virtual void OnInitSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings) { }
+	virtual void OnInitSound(ISoundModulatable& Sound, const USoundModulationPluginSourceSettingsBase& Settings) { }
 
 	/** Called when a source is assigned to a voice */
 	virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings) { }
@@ -548,7 +571,7 @@ public:
 	virtual void OnReleaseSource(const uint32 SourceId) { }
 
 	/** Called when a USoundBase type stops playing any sounds */
-	virtual void OnReleaseSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings) { }
+	virtual void OnReleaseSound(ISoundModulatable& Sound) { }
 
 #if !UE_BUILD_SHIPPING
 	/** Request to post help from active plugin (non-shipping builds only) */

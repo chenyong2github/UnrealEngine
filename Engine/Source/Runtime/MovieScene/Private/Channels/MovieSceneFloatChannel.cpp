@@ -896,6 +896,25 @@ void FMovieSceneFloatChannel::DeleteKeys(TArrayView<const FKeyHandle> InHandles)
 	GetData().DeleteKeys(InHandles);
 }
 
+void FMovieSceneFloatChannel::DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore)
+{
+	// Insert a key at the current time to maintain evaluation
+	if (GetData().GetTimes().Num() > 0)
+	{
+		int32 KeyHandleIndex = GetData().FindKey(InTime);
+		if (KeyHandleIndex == INDEX_NONE)
+		{
+			float Value = 0.f;
+			if (Evaluate(InTime, Value))
+			{
+				AddCubicKey(InTime, Value);
+			}
+		}
+	}
+
+	GetData().DeleteKeysFrom(InTime, bDeleteKeysBefore);
+}
+
 void FMovieSceneFloatChannel::ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate)
 {
 	check(Times.Num() == Values.Num());
@@ -1037,6 +1056,7 @@ bool FMovieSceneFloatChannel::Serialize(FArchive& Ar)
 	return false;
 }
 
+#if WITH_EDITORONLY_DATA
 void FMovieSceneFloatChannel::PostSerialize(const FArchive& Ar)
 {
 	if (Ar.CustomVer(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::ModifyLinearKeysForOldInterp)
@@ -1068,3 +1088,4 @@ void FMovieSceneFloatChannel::PostSerialize(const FArchive& Ar)
 		}
 	}
 }
+#endif

@@ -254,6 +254,11 @@ void SStructureDetailsView::SetStructureData(TSharedPtr<FStructOnScope> InStruct
 	UpdateFilteredDetails();
 }
 
+void SStructureDetailsView::SetCustomName(const FText& Text)
+{
+	CustomName = Text;
+}
+
 void SStructureDetailsView::ForceRefresh()
 {
 	SetStructureData(StructData);

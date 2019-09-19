@@ -31,13 +31,20 @@
 		#define SUPPORTS_ARKIT_2_0 0
 	#endif
 
+	// Check for ARKit 3.0
+	#ifdef __IPHONE_13_0
+		#define SUPPORTS_ARKIT_3_0 1
+	#else
+		#define SUPPORTS_ARKIT_3_0 0
+	#endif
+
 #else
 
 	// No ARKit support
 	#define SUPPORTS_ARKIT_1_0 0
 	#define SUPPORTS_ARKIT_1_5 0
 	#define SUPPORTS_ARKIT_2_0 0
-
+	#define SUPPORTS_ARKIT_3_0 0
 #endif
 
 class FAppleARKitAvailability
@@ -95,5 +102,23 @@ public:
 		}
 #endif
 		return bSupportsARKit20;
+	}
+	
+	static bool SupportsARKit30()
+	{
+		static bool bSupportsARKit30 = false;
+#if SUPPORTS_ARKIT_3_0
+		static bool bSupportChecked = false;
+		if (!bSupportChecked)
+		{
+			bSupportChecked = true;
+			// This call is slow, so cache the result
+			if (@available(iOS 13.0, *))
+			{
+				bSupportsARKit30 = true;
+			}
+		}
+#endif
+		return bSupportsARKit30;
 	}
 };

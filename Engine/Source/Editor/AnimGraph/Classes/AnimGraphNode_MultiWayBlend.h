@@ -31,7 +31,7 @@ class UAnimGraphNode_MultiWayBlend : public UAnimGraphNode_Base
 	//~ End UAnimGraphNode_Base Interface
 
 	// UK2Node interface
-	virtual void GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const override;
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	// End of UK2Node interface
 
 private:
