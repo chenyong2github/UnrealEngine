@@ -91,6 +91,9 @@ struct FStandardLoggingParameters
 UENUM()
 enum class EVisualLoggingContext: uint8
 {
+	// NOTE: Keep FVisualLoggingParameters::DebugColors in sync with this
+
+	// (Contexts used in core network sim)
 	LastPredicted,		// The last predicted state. Where the character "is now"
 	OtherPredicted,		// "Middle" states between LastComfirmed and LastPredicted. Recommend to draw small crumbs (not full model/cylinder/etc) to avoid washing out the scene.
 	LastConfirmed,		// The last confirmed state from the server
@@ -98,6 +101,17 @@ enum class EVisualLoggingContext: uint8
 	OtherMispredicted,	// subsequent mispredicted states on the client. Recommend to draw small crumbs (not full model/cylinder/etc) to avoid washing out the scene.
 	LastMispredicted,	// The latest predictive state when a misprediction was detected.
 	CurrentServerPIE,	// The current server position *right now*. Only available in PIE
+
+	// (Contexts used by interpolation)
+	InterpolationBufferHead,// Head end of sync buffer while interpolating
+	InterpolationBufferTail,// Tail end of sync buffer while interpolating
+	InterpolationFrom,		// Immediate "from" interpolation keyframe
+	InterpolationTo,		// Immediate "to" interpolation keyframe
+	
+	InterpolationLatest,	// Latest interpolation position in normal circumstances
+	InterpolationWaiting,	// Latest interpolation while waiting (overrun)
+	InterpolationSpeedUp,	// Latest interpolation while speeding up (underrun)
+
 	MAX
 };
 
