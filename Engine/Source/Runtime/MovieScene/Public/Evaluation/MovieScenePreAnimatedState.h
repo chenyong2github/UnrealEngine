@@ -173,8 +173,8 @@ public:
 	 * Default construction
 	 */
 	FMovieScenePreAnimatedState()
-		: MasterTokens(MovieSceneImpl::FNull())
-		, bLocked(false)
+		: bLocked(false)
+		, MasterTokens(MovieSceneImpl::FNull())
 	{
 		DefaultGlobalCaptureMode = ECapturePreAnimatedState::None;
 	}
