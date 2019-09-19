@@ -206,6 +206,10 @@ TAutoConsoleVariable<int32> CVarSkyAtmosphereVisualize(
 	TEXT("DRAW DEBUG"),
 	ECVF_RenderThreadSafe);
 
+DECLARE_GPU_STAT(SkyAtmosphereLUTs);
+DECLARE_GPU_STAT(SkyAtmosphere);
+DECLARE_GPU_STAT(SkyAtmosphereEditor);
+DECLARE_GPU_STAT(SkyAtmosphereDebugViz);
 
 // Extra internal constants shared between all passes.
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyAtmosphereInternalCommonParameters, )
@@ -1050,7 +1054,6 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 {
 	check(ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
 
-	DECLARE_GPU_STAT(SkyAtmosphereLUTs);
 	SCOPED_DRAW_EVENT(RHICmdList, SkyAtmosphereLUTs);
 	SCOPED_GPU_STAT(RHICmdList, SkyAtmosphereLUTs);
 
@@ -1225,7 +1228,6 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 
 	check(ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
 
-	DECLARE_GPU_STAT(SkyAtmosphere);
 	SCOPED_DRAW_EVENT(RHICmdList, SkyAtmosphere);
 	SCOPED_GPU_STAT(RHICmdList, SkyAtmosphere);
 
@@ -1422,7 +1424,6 @@ bool FSceneRenderer::ShouldRenderSkyAtmosphereEditorNotifications()
 void FSceneRenderer::RenderSkyAtmosphereEditorNotifications(FRHICommandListImmediate& RHICmdList)
 {
 #if WITH_EDITOR
-	DECLARE_GPU_STAT(SkyAtmosphereEditor);
 	SCOPED_DRAW_EVENT(RHICmdList, SkyAtmosphereEditor);
 	SCOPED_GPU_STAT(RHICmdList, SkyAtmosphereEditor);
 
@@ -1476,7 +1477,6 @@ void FDeferredShadingSceneRenderer::RenderDebugSkyAtmosphere(FRHICommandListImme
 
 	//if (!RHISupportsComputeShaders()) return;	// TODO cannot render, add a ShouldRender function. Also should PipelineShouldCook ?
 
-	DECLARE_GPU_STAT(SkyAtmosphereDebugViz);
 	SCOPED_DRAW_EVENT(RHICmdList, SkyAtmosphereDebugViz);
 	SCOPED_GPU_STAT(RHICmdList, SkyAtmosphereDebugViz);
 
