@@ -58,6 +58,11 @@ private:
 
 		ThreadFunction();
 
+		return 0;
+	}
+
+	void Exit() override
+	{
 		// busy-wait till `Self` is initialized before releasing it
 		while (!bIsInitialized) {}
 
@@ -66,8 +71,6 @@ private:
 		// we're about to exit the thread. Release the reference to self. If the thread is detached, it's the only reference
 		// and so this instance will be deleted. No member access should be performed after this point.
 		Self.Reset();
-
-		return 0;
 	}
 
 private:
@@ -126,8 +129,12 @@ uint32 FThread::GetThreadId() const
 	return Impl.IsValid() ? Impl->GetThreadId() : FThread::InvalidThreadId;
 }
 
+#if 0 // disabled as it doesn't work as intended
+
 void FThread::Detach()
 {
 	check(Impl.IsValid());
 	Impl.Reset(); // releases this reference, `FThreadImpl` instance can still be alive until the thread finishes its execution
 }
+
+#endif
