@@ -102,6 +102,17 @@ public:
 	*/
 	bool RenderBasePass(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, IPooledRenderTarget* ForwardScreenSpaceShadowMask, bool bParallelBasePass, bool bRenderLightmapDensity);
 
+
+	/**
+	* Renders the scene's single layer water base pass
+	* @return true if anything was rendered
+	*/
+	bool RenderSingleLayerWaterPass(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type WaterPassDepthStencilAccess);
+	/** Renders the water draw pass for a given View. */
+	bool RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, const FMeshPassProcessorRenderState& InDrawRenderState);
+	/** Render, denoise and composite the scene SSR and under water effect.*/
+	void RenderSingleLayerWaterSSR(FRHICommandListImmediate& RHICmdList);
+
 	/** Finishes the view family rendering. */
 	void RenderFinish(FRHICommandListImmediate& RHICmdList);
 

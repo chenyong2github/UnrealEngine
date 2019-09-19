@@ -17,6 +17,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialFunctionInstance.h"
+#include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
 #include "MaterialCompiler.h"
 #include "RenderUtils.h"
 #include "EngineGlobals.h"
@@ -948,7 +949,11 @@ public:
 			Chunk[MP_CustomData1]					= Material->CompilePropertyAndSetMaterialProperty(MP_CustomData1		,this);
 			Chunk[MP_AmbientOcclusion]				= Material->CompilePropertyAndSetMaterialProperty(MP_AmbientOcclusion	,this);
 
-			if (IsTranslucentBlendMode(BlendMode))
+			// We parse the node graph to see if a water material is used. 
+			// We cannot use output node registration from custom output node for water because CompileCustomOutputs is called below and we need to enabled some input before hand.
+			const bool bNodeGraphIsUsingSingleLayerWaterMaterialOutput = Material->IsUsingSingleLayerWaterMaterialOutput();
+
+			if (IsTranslucentBlendMode(BlendMode) || bNodeGraphIsUsingSingleLayerWaterMaterialOutput)
 			{
 				int32 UserRefraction = ForceCast(Material->CompilePropertyAndSetMaterialProperty(MP_Refraction, this), MCT_Float1);
 				int32 RefractionDepthBias = ForceCast(ScalarParameter(FName(TEXT("RefractionDepthBias")), Material->GetRefractionDepthBiasValue()), MCT_Float1);
@@ -1073,6 +1078,7 @@ ResourcesString = TEXT("");
 			MaterialCompilationOutput.bModifiesMeshPosition = bUsesPixelDepthOffset || bUsesWorldPositionOffset;
 			MaterialCompilationOutput.bUsesWorldPositionOffset = bUsesWorldPositionOffset;
 			MaterialCompilationOutput.bUsesPixelDepthOffset = bUsesPixelDepthOffset;
+			MaterialCompilationOutput.bUsesSingleLayerWaterMaterialOutput = bNodeGraphIsUsingSingleLayerWaterMaterialOutput;
 
 			// Fully rough if we have a roughness code chunk and it's constant and evaluates to 1.
 			bIsFullyRough = Chunk[MP_Roughness] != INDEX_NONE && IsMaterialPropertyUsed(MP_Roughness, Chunk[MP_Roughness], FLinearColor(1, 0, 0, 0), 1) == false;
@@ -1148,6 +1154,11 @@ ResourcesString = TEXT("");
 			if (Material->IsSky() && (!MaterialShadingModels.IsUnlit() || BlendMode!=BLEND_Opaque))
 			{
 				Errorf(TEXT("Sky materials must be opaque and unlit. They are expected to completely replace the background."));
+			}
+
+			if (bNodeGraphIsUsingSingleLayerWaterMaterialOutput && (!MaterialShadingModels.IsLit() || BlendMode != BLEND_Opaque || !MaterialShadingModels.HasOnlyShadingModel(MSM_DefaultLit)))
+			{
+				Errorf(TEXT("Water materials must be opaque and lit and they only support the DefaultLit shading model."));
 			}
 
 			bool bDBufferAllowed = IsUsingDBuffers(Platform);
@@ -1400,6 +1411,7 @@ ResourcesString = TEXT("");
 		OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_TRANSFORM"), bUsesParticleTransform);
 		OutEnvironment.SetDefine(TEXT("USES_TRANSFORM_VECTOR"), bUsesTransformVector);
 		OutEnvironment.SetDefine(TEXT("WANT_PIXEL_DEPTH_OFFSET"), bUsesPixelDepthOffset);
+		OutEnvironment.SetDefine(TEXT("MATERIAL_IS_SINGLE_LAYER_WATER"), Material->IsUsingSingleLayerWaterMaterialOutput());
 		if (IsMetalPlatform(InPlatform))
 		{
 			OutEnvironment.SetDefine(TEXT("USES_WORLD_POSITION_OFFSET"), bUsesWorldPositionOffset);

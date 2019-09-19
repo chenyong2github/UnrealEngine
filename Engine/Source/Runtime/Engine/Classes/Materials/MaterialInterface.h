@@ -78,6 +78,7 @@ struct ENGINE_API FMaterialRelevance
 	uint8 bTranslucentSurfaceLighting : 1;
 	uint8 bUsesSceneDepth : 1;
 	uint8 bUsesSkyMaterial : 1;
+	uint8 bUsesSingleLayerWaterMaterial : 1;
 	uint8 bHasVolumeMaterialDomain : 1;
 	uint8 bUsesDistanceCullFade : 1;
 
