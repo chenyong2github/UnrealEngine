@@ -15,7 +15,7 @@ float FRigUnit_Random_Helper(int32& Seed)
 	return FPlatformMath::Fractional(Result.f);
 }
 
-void FRigUnit_RandomFloat::Execute(const FRigUnitContext& Context)
+FRigUnit_RandomFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -38,7 +38,7 @@ void FRigUnit_RandomFloat::Execute(const FRigUnitContext& Context)
 	LastResult = Result;
 }
 
-void FRigUnit_RandomVector::Execute(const FRigUnitContext& Context)
+FRigUnit_RandomVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)

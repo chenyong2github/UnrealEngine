@@ -8,10 +8,10 @@ FString FRigUnit_GetCurveValue::GetUnitLabel() const
 	return FString::Printf(TEXT("Get Curve %s"), *Curve.ToString());
 }
 
-void FRigUnit_GetCurveValue::Execute(const FRigUnitContext& Context)
+FRigUnit_GetCurveValue_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigCurveContainer* CurveContainer = Context.CurveReference.Get();
+	const FRigCurveContainer* CurveContainer = Context.GetCurves();
 	if (CurveContainer)
 	{
 		switch (Context.State)

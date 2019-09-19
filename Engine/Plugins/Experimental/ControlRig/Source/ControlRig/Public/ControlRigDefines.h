@@ -3,8 +3,8 @@
 #pragma once
 
 #include "PropertyPathHelpers.h"
-#include "Hierarchy.h"
-#include "CurveContainer.h"
+#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigCurveContainer.h"
 #include "Stats/StatsHierarchical.h"
 #include "ControlRigDefines.generated.h"
 
@@ -15,9 +15,49 @@ USTRUCT()
 struct FControlRigExecuteContext
 {
 	GENERATED_BODY()
+
+	FControlRigExecuteContext()
+		: Hierarchy(nullptr)
+	{
+	}
 		
-	FRigHierarchyRef HierarchyReference;
-	FRigCurveContainerRef CurveReference;
+	FRigHierarchyContainer* Hierarchy;
+
+	FRigBoneHierarchy* GetBones()
+	{
+		if (Hierarchy != nullptr)
+		{
+			return &Hierarchy->BoneHierarchy;
+		}
+		return nullptr;
+	}
+
+	FRigSpaceHierarchy* GetSpaces()
+	{
+		if (Hierarchy != nullptr)
+		{
+			return &Hierarchy->SpaceHierarchy;
+		}
+		return nullptr;
+	}
+
+	FRigControlHierarchy* GetControls()
+	{
+		if (Hierarchy != nullptr)
+		{
+			return &Hierarchy->ControlHierarchy;
+		}
+		return nullptr;
+	}
+
+	FRigCurveContainer* GetCurves()
+	{
+		if (Hierarchy != nullptr)
+		{
+			return &Hierarchy->CurveContainer;
+		}
+		return nullptr;
+	}
 };
 
 UENUM()

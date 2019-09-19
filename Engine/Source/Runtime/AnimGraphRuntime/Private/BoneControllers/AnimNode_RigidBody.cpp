@@ -132,8 +132,7 @@ void FAnimNode_RigidBody::UpdateComponentPose_AnyThread(const FAnimationUpdateCo
 		{
 			// Create a new context with zero deltatime to freeze time in rest of the graph.
 			// This will be used to capture a frozen pose.
-			FAnimationUpdateContext FrozenContext = Context;
-			FrozenContext.FractionalWeightAndTime(1.f, 0.f);
+			FAnimationUpdateContext FrozenContext = Context.FractionalWeightAndTime(1.f, 0.f);
 
 			Super::UpdateComponentPose_AnyThread(FrozenContext);
 		}

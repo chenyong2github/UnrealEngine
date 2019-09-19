@@ -13,12 +13,12 @@ FRigHierarchyTabSummoner::FRigHierarchyTabSummoner(const TSharedRef<FControlRigE
 	: FWorkflowTabFactory(TabID, InControlRigEditor)
 	, ControlRigEditor(InControlRigEditor)
 {
-	TabLabel = LOCTEXT("RigHierarchyTabLabel", "Hierarchy");
+	TabLabel = LOCTEXT("RigHierarchyTabLabel", "Rig Hierarchy");
 	TabIcon = FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.TabIcon");
 
 	bIsSingleton = true;
 
-	ViewMenuDescription = LOCTEXT("RigHierarchy_ViewMenu_Desc", "Hierarchy");
+	ViewMenuDescription = LOCTEXT("RigHierarchy_ViewMenu_Desc", "Rig Hierarchy");
 	ViewMenuTooltip = LOCTEXT("RigHierarchy_ViewMenu_ToolTip", "Show the Rig Hierarchy tab");
 }
 

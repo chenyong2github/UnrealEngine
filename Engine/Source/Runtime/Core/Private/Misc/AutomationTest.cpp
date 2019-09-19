@@ -753,6 +753,8 @@ void FAutomationTestFramework::InternalStartTest( const FString& InTestToRun )
 			UE_LOG(LogAutomationTest, Log, TEXT("%s %s is starting at %f"), *CurrentTest->GetBeautifiedTestName(), *Parameters, StartTime);
 		}
 
+		CurrentTest->SetTestContext(Parameters);
+
 		// Run the test!
 		bTestSuccessful = CurrentTest->RunTest(Parameters);
 	}
