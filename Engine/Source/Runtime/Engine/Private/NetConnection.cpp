@@ -1606,6 +1606,7 @@ void UNetConnection::ReceivedNak( int32 NakPacketId )
 	// Stats
 	++OutPacketsLost;
 	++OutTotalPacketsLost;
+	++Driver->OutPacketsLost;
 	++Driver->OutTotalPacketsLost;
 }
 
