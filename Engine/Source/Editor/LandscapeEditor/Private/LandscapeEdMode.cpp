@@ -634,7 +634,7 @@ void FEdModeLandscape::Enter()
 			{
 				if (Landscape->GetLandscapeSplinesReservedLayer())
 				{
-					Landscape->UpdateLandscapeSplines();
+					Landscape->RequestSplineLayerUpdate();
 				}
 				Landscape->RequestLayersContentUpdateForceAll();
 			}
