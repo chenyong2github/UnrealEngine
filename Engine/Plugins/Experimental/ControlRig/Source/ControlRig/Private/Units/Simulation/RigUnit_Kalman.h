@@ -21,6 +21,7 @@ struct FRigUnit_KalmanFloat : public FRigUnit_SimBase
 		LastInsertIndex = 0;
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -32,7 +33,7 @@ struct FRigUnit_KalmanFloat : public FRigUnit_SimBase
 	UPROPERTY(meta=(Output))
 	float Result;
 
-	UPROPERTY()
+	UPROPERTY(meta=(MaxArraySize = "FMath::Clamp<int32>(BufferSize, 1, 512)"))
 	TArray<float> Buffer;
 
 	UPROPERTY()
@@ -55,6 +56,7 @@ struct FRigUnit_KalmanVector : public FRigUnit_SimBase
 		LastInsertIndex = 0;
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -66,7 +68,7 @@ struct FRigUnit_KalmanVector : public FRigUnit_SimBase
 	UPROPERTY(meta=(Output))
 	FVector Result;
 
-	UPROPERTY()
+	UPROPERTY(meta=(MaxArraySize = "FMath::Clamp<int32>(BufferSize, 1, 512)"))
 	TArray<FVector> Buffer;
 
 	UPROPERTY()
@@ -89,6 +91,7 @@ struct FRigUnit_KalmanTransform : public FRigUnit_SimBase
 		LastInsertIndex = 0;
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -100,7 +103,7 @@ struct FRigUnit_KalmanTransform : public FRigUnit_SimBase
 	UPROPERTY(meta=(Output))
 	FTransform Result;
 
-	UPROPERTY()
+	UPROPERTY(meta = (MaxArraySize = "FMath::Clamp<int32>(BufferSize, 1, 512)"))
 	TArray<FTransform> Buffer;
 
 	UPROPERTY()

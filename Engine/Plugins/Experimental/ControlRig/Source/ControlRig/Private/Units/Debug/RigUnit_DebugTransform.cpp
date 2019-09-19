@@ -3,7 +3,7 @@
 #include "Units/Debug/RigUnit_DebugTransform.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_DebugTransform::Execute(const FRigUnitContext& Context)
+FRigUnit_DebugTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -17,9 +17,9 @@ void FRigUnit_DebugTransform::Execute(const FRigUnitContext& Context)
 	}
 
 	FTransform DrawTransform = Transform;
-	if (Space != NAME_None && Context.HierarchyReference.Get() != nullptr)
+	if (Space != NAME_None && Context.GetBones() != nullptr)
 	{
-		DrawTransform = Transform * Context.HierarchyReference.Get()->GetGlobalTransform(Space);
+		DrawTransform = Transform * Context.GetBones()->GetGlobalTransform(Space);
 	}
 
 	switch (Mode)
@@ -43,7 +43,7 @@ void FRigUnit_DebugTransform::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_DebugTransformMutable::Execute(const FRigUnitContext& Context)
+FRigUnit_DebugTransformMutable_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -57,9 +57,9 @@ void FRigUnit_DebugTransformMutable::Execute(const FRigUnitContext& Context)
 	}
 
 	FTransform DrawTransform = Transform;
-	if (Space != NAME_None && Context.HierarchyReference.Get() != nullptr)
+	if (Space != NAME_None && Context.GetBones() != nullptr)
 	{
-		DrawTransform = Transform * Context.HierarchyReference.Get()->GetGlobalTransform(Space);
+		DrawTransform = Transform * Context.GetBones()->GetGlobalTransform(Space);
 	}
 
 	switch (Mode)
@@ -83,7 +83,7 @@ void FRigUnit_DebugTransformMutable::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_DebugTransformArrayMutable::Execute(const FRigUnitContext& Context)
+FRigUnit_DebugTransformArrayMutable_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -96,24 +96,24 @@ void FRigUnit_DebugTransformArrayMutable::Execute(const FRigUnitContext& Context
 		return;
 	}
 
-	DrawTransforms.SetNumUninitialized(Transforms.Num());
-	if (Space != NAME_None && Context.HierarchyReference.Get() != nullptr)
+	WorkData.DrawTransforms.SetNumUninitialized(Transforms.Num());
+	if (Space != NAME_None && Context.GetBones() != nullptr)
 	{
-		FTransform SpaceTransform = Context.HierarchyReference.Get()->GetGlobalTransform(Space);
+		FTransform SpaceTransform = Context.GetBones()->GetGlobalTransform(Space);
 		for(int32 Index=0;Index<Transforms.Num();Index++)
 		{
-			DrawTransforms[Index] = Transforms[Index] * SpaceTransform;
+			WorkData.DrawTransforms[Index] = Transforms[Index] * SpaceTransform;
 		}
 	}
 	else
 	{
 		for(int32 Index=0;Index<Transforms.Num();Index++)
 		{
-			DrawTransforms[Index] = Transforms[Index];
+			WorkData.DrawTransforms[Index] = Transforms[Index];
 		}
 	}
 
-	for(FTransform& DrawTransform : DrawTransforms)
+	for(FTransform& DrawTransform : WorkData.DrawTransforms)
 	{
 		switch (Mode)
 		{

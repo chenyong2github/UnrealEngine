@@ -137,55 +137,15 @@ struct FRigUnit_ChainHarmonics_Pendulum
 	float UnwindMaximum;
 };
 
-USTRUCT(meta=(DisplayName="ChainHarmonics"))
-struct FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMutable
+USTRUCT()
+struct FRigUnit_ChainHarmonics_WorkData
 {
 	GENERATED_BODY()
 
-	FRigUnit_ChainHarmonics()
+	FRigUnit_ChainHarmonics_WorkData()
 	{
-		ChainRoot = NAME_None;
-		Speed = FVector::OneVector;
-		
-		Reach.bEnabled = false;
-		Wave.bEnabled = true;
-		Pendulum.bEnabled = false;
-
-		WaveCurve = FRuntimeFloatCurve();
-		WaveCurve.GetRichCurve()->AddKey(0.f, 0.f);
-		WaveCurve.GetRichCurve()->AddKey(1.f, 1.f);
-
-		bDrawDebug = true;
-		DrawWorldOffset = FTransform::Identity;
-
 		Time = FVector::ZeroVector;
 	}
-
-	virtual void Execute(const FRigUnitContext& Context) override;
-
-	UPROPERTY(meta = (Input, Constant, BoneName))
-	FName ChainRoot;
-
-	UPROPERTY(meta = (Input))
-	FVector Speed;
-
-	UPROPERTY(meta = (Input))
-	FRigUnit_ChainHarmonics_Reach Reach;
-
-	UPROPERTY(meta = (Input))
-	FRigUnit_ChainHarmonics_Wave Wave;
-
-	UPROPERTY(meta = (Input, Constant))
-	FRuntimeFloatCurve WaveCurve;
-
-	UPROPERTY(meta = (Input))
-	FRigUnit_ChainHarmonics_Pendulum Pendulum;
-
-	UPROPERTY(meta = (Input))
-	bool bDrawDebug;
-
-	UPROPERTY(meta = (Input))
-	FTransform DrawWorldOffset;
 
 	UPROPERTY()
 	FVector Time;
@@ -213,4 +173,57 @@ struct FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY()
 	TArray<FVector> VelocityLines;
+};
+
+USTRUCT(meta=(DisplayName="ChainHarmonics"))
+struct FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_ChainHarmonics()
+	{
+		ChainRoot = NAME_None;
+		Speed = FVector::OneVector;
+		
+		Reach.bEnabled = false;
+		Wave.bEnabled = true;
+		Pendulum.bEnabled = false;
+
+		WaveCurve = FRuntimeFloatCurve();
+		WaveCurve.GetRichCurve()->AddKey(0.f, 0.f);
+		WaveCurve.GetRichCurve()->AddKey(1.f, 1.f);
+
+		bDrawDebug = true;
+		DrawWorldOffset = FTransform::Identity;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input, Constant, BoneName))
+	FName ChainRoot;
+
+	UPROPERTY(meta = (Input))
+	FVector Speed;
+
+	UPROPERTY(meta = (Input))
+	FRigUnit_ChainHarmonics_Reach Reach;
+
+	UPROPERTY(meta = (Input))
+	FRigUnit_ChainHarmonics_Wave Wave;
+
+	UPROPERTY(meta = (Input, Constant))
+	FRuntimeFloatCurve WaveCurve;
+
+	UPROPERTY(meta = (Input))
+	FRigUnit_ChainHarmonics_Pendulum Pendulum;
+
+	UPROPERTY(meta = (Input))
+	bool bDrawDebug;
+
+	UPROPERTY(meta = (Input))
+	FTransform DrawWorldOffset;
+
+	UPROPERTY(transient)
+	FRigUnit_ChainHarmonics_WorkData WorkData;
 };

@@ -192,23 +192,13 @@ void SGraphNodeAnimTransition::UpdateGraphNode()
 			+SOverlay::Slot()
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush("Graph.TransitionNode.Body") )
-			]
-			+SOverlay::Slot()
-			[
-				SNew(SImage)
 				.Image( FEditorStyle::GetBrush("Graph.TransitionNode.ColorSpill") )
 				.ColorAndOpacity( this, &SGraphNodeAnimTransition::GetTransitionColor )
 			]
 			+SOverlay::Slot()
 			[
 				SNew(SImage)
-				.Image( FEditorStyle::GetBrush("Graph.TransitionNode.Icon") )
-			]
-			+SOverlay::Slot()
-			[
-				SNew(SImage)
-				.Image( FEditorStyle::GetBrush("Graph.TransitionNode.Gloss") )
+				.Image( this, &SGraphNodeAnimTransition::GetTransitionIconImage )
 			]
 		];
 }
@@ -331,6 +321,14 @@ FSlateColor SGraphNodeAnimTransition::GetTransitionColor() const
 {
 	UAnimStateTransitionNode* TransNode = CastChecked<UAnimStateTransitionNode>(GraphNode);
 	return StaticGetTransitionColor(TransNode, IsHovered());
+}
+
+const FSlateBrush* SGraphNodeAnimTransition::GetTransitionIconImage() const
+{
+	UAnimStateTransitionNode* TransNode = CastChecked<UAnimStateTransitionNode>(GraphNode);
+	return (TransNode->LogicType == ETransitionLogicType::TLT_Inertialization)
+		? FEditorStyle::GetBrush("Graph.TransitionNode.Icon_Inertialization")
+		: FEditorStyle::GetBrush("Graph.TransitionNode.Icon");
 }
 
 FString SGraphNodeAnimTransition::GetCurrentDuration() const

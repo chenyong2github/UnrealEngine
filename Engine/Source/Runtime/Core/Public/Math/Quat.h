@@ -328,9 +328,18 @@ public:
 	 * @param InTwistAxis Axis to use for decomposition
 	 * @param OutSwing swing component quaternion
 	 * @param OutTwist Twist component quaternion
-	 * @warning assumes normalised quaternion and twist axis
+	 * @warning assumes normalized quaternion and twist axis
 	 */
 	CORE_API void ToSwingTwist(const FVector& InTwistAxis, FQuat& OutSwing, FQuat& OutTwist) const;
+
+	/**
+	 * Get the twist angle (in radians) for a specified axis
+	 *
+	 * @param TwistAxis Axis to use for decomposition
+	 * @return Twist angle (in radians)
+	 * @warning assumes normalized quaternion and twist axis
+	 */
+	CORE_API float GetTwistAngle(const FVector& TwistAxis) const;
 
 	/**
 	 * Rotate a vector by this quaternion.

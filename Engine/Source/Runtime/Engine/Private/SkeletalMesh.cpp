@@ -2524,7 +2524,7 @@ void USkeletalMesh::RebuildSocketMap()
 			USkeletalMeshSocket* Socket = Skeleton->Sockets[SocketIndex];
 			if (!SocketMap.Contains(Socket->SocketName))
 			{
-				SocketMap.Add(Socket->SocketName, FSocketInfo(this, Socket, SocketIndex));
+				SocketMap.Add(Socket->SocketName, FSocketInfo(this, Socket, Sockets.Num() + SocketIndex));
 			}
 		}
 	}

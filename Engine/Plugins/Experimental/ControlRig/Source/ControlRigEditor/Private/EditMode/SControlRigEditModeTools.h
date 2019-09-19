@@ -49,7 +49,5 @@ private:
 	bool IsReadOnlyPropertyOnDetailCustomization(const struct FPropertyAndParent& InPropertyAndParent) const;
 
 	/** Called when a manipulator is selected in the picker */
-	void OnManipulatorsPicked(const TArray<FString>& Manipulators);
-
-	void HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload);
+	void OnManipulatorsPicked(const TArray<FName>& Manipulators);
 };
