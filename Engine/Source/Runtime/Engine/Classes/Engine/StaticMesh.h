@@ -641,6 +641,26 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	UPROPERTY()
 	FPerPlatformInt MinLOD;
 
+	UFUNCTION(BlueprintPure, Category=StaticMesh)
+	void GetMinimumLODForPlatforms(TMap<FName, int32>& PlatformMinimumLODs) const
+	{
+#if WITH_EDITORONLY_DATA
+		PlatformMinimumLODs = MinLOD.PerPlatform;
+#endif
+	}
+
+	UFUNCTION(BlueprintPure, Category=StaticMesh)
+	int32 GetMinimumLODForPlatform(const FName& PlatformName) const
+	{
+#if WITH_EDITORONLY_DATA
+		if (const int32* Result = MinLOD.PerPlatform.Find(PlatformName))
+		{
+			return *Result;
+		}
+#endif
+		return INDEX_NONE;
+	}
+
 	/** Bias multiplier for Light Propagation Volume lighting */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=StaticMesh, meta=(UIMin = "0.0", UIMax = "3.0"))
 	float LpvBiasMultiplier;
