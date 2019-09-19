@@ -346,9 +346,8 @@ TArray<FName> FNiagaraUserParameterBindingCustomization::GetNames() const
 
 	if (BaseSystem && TargetUserParameterBinding)
 	{
-		for (auto& Pair : BaseSystem->GetExposedParameters().GetParameterOffsets())
+		for (const FNiagaraVariable& Var : BaseSystem->GetExposedParameters().GetSortedParameterOffsets())
 		{
-			const FNiagaraVariable& Var = Pair.Key;
 			if (FNiagaraParameterMapHistory::IsUserParameter(Var) && Var.GetType() == TargetUserParameterBinding->Parameter.GetType())
 			{
 				Names.AddUnique(Var.GetName());

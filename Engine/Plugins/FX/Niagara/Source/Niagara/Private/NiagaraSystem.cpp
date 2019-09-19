@@ -245,6 +245,9 @@ void UNiagaraSystem::PostLoad()
 {
 	Super::PostLoad();
 
+	ExposedParameters.PostLoad();
+	SystemCompiledData.InstanceParamStore.PostLoad();
+
 	if (GIsEditor)
 	{
 		SetFlags(RF_Transactional);
@@ -433,7 +436,7 @@ void UNiagaraSystem::PostLoad()
 		UpdateScript->RapidIterationParameters.DumpParameters();
 	}
 #endif
-#endif
+#endif // WITH_EDITORONLY_DATA
 }
 
 #if WITH_EDITORONLY_DATA
