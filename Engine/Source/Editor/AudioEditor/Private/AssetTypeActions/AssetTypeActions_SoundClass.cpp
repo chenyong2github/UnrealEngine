@@ -11,6 +11,15 @@ UClass* FAssetTypeActions_SoundClass::GetSupportedClass() const
 	return USoundClass::StaticClass();
 }
 
+const TArray<FText>& FAssetTypeActions_SoundClass::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		LOCTEXT("AssetSoundClassSubMenu", "Classes")
+	};
+	return SubMenus;
+}
+
 void FAssetTypeActions_SoundClass::OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor )
 {
 	EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
