@@ -12,6 +12,7 @@
 #include "Editor/UnrealEdTypes.h"
 #include "Application/ThrottleManager.h"
 #include "AssetViewportLayout.h"
+#include "TickableEditorObject.h"
 
 class FLevelEditorViewportClient;
 class FLevelViewportLayout;
