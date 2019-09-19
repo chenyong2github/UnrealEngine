@@ -821,7 +821,7 @@ namespace UnrealGameSync
 			{
 				Options |= WorkspaceUpdateOptions.Build;
 			}
-			if(Settings.bBuildAfterSync && Settings.bRunAfterSync)
+			if((Settings.bBuildAfterSync || ShouldSyncPrecompiledEditor) && Settings.bRunAfterSync)
 			{
 				Options |= WorkspaceUpdateOptions.RunAfterSync;
 			}
