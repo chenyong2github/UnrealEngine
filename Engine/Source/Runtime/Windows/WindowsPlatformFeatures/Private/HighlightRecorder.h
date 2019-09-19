@@ -16,39 +16,9 @@
 #include "GameplayMediaEncoder.h"
 
 class FWmfMp4Writer;
+class FThread;
 
 DECLARE_LOG_CATEGORY_EXTERN(HighlightRecorder, Log, VeryVerbose);
-
-class FThread final : public FRunnable
-{
-public:
-	using FCallback = TFunction<void()>;
-
-	explicit FThread(TCHAR const* ThreadName, const FCallback& Callback) :
-		Callback(Callback)
-	{
-		Thread.Reset(FRunnableThread::Create(this, ThreadName, TPri_BelowNormal));
-	}
-
-	void Join()
-	{
-		Thread->WaitForCompletion();
-	}
-
-	virtual uint32 Run() override
-	{
-		Callback();
-		return 0;
-	}
-
-private:
-	FCallback Callback;
-	TUniquePtr<FRunnableThread> Thread;
-
-private:
-	FThread(const FThread&) = delete;
-	FThread& operator=(const FThread&) = delete;
-};
 
 class FHighlightRecorder final : private IGameplayMediaEncoderListener
 {

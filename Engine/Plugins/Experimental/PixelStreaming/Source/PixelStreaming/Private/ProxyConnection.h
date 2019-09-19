@@ -3,6 +3,7 @@
 #pragma once
 
 #include "HAL/ThreadSafeBool.h"
+#include "HAL/Thread.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/SharedPointer.h"
 
