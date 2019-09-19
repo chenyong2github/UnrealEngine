@@ -2098,39 +2098,15 @@ namespace AutomationTool
 		/// <param name="Files">Files to include in the archive</param>
 		public static void ZipFiles(FileReference ZipFile, DirectoryReference BaseDirectory, IEnumerable<FileReference> Files)
 		{
-			// Ionic.Zip.Zip64Option.Always option produces broken archives on Mono, so we use system zip tool instead
-			if (Utils.IsRunningOnMono)
+			using(Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile(Encoding.UTF8))
 			{
-				CommandUtils.CreateDirectory(ZipFile.Directory);
- 				CommandUtils.PushDir(BaseDirectory.FullName);
- 				string FilesList = "";
+				Zip.UseZip64WhenSaving = Ionic.Zip.Zip64Option.AsNecessary;
 				foreach(FileReference File in Files)
 				{
-					FilesList += " \"" + File.MakeRelativeTo(BaseDirectory) + "\"";
-					if (FilesList.Length > 32000)
-					{
-						CommandUtils.RunAndLog(CommandUtils.CmdEnv, "zip", "-g -q \"" + ZipFile.FullName + "\"" + FilesList);
-						FilesList = "";
-					}
+					Zip.AddFile(File.FullName, Path.GetDirectoryName(File.MakeRelativeTo(BaseDirectory)));
 				}
-				if (FilesList.Length > 0)
-				{
-					CommandUtils.RunAndLog(CommandUtils.CmdEnv, "zip", "-g -q \"" + ZipFile.FullName + "\"" + FilesList);
-				}
-				CommandUtils.PopDir();
-			}
-			else
-			{
-				using(Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile(Encoding.UTF8))
-				{
-					Zip.UseZip64WhenSaving = Ionic.Zip.Zip64Option.Always;
-					foreach(FileReference File in Files)
-					{
-						Zip.AddFile(File.FullName, Path.GetDirectoryName(File.MakeRelativeTo(BaseDirectory)));
-					}
-					CommandUtils.CreateDirectory(ZipFile.Directory);
-					Zip.Save(ZipFile.FullName);
-				}
+				CommandUtils.CreateDirectory(ZipFile.Directory);
+				Zip.Save(ZipFile.FullName);
 			}
 		}
 
