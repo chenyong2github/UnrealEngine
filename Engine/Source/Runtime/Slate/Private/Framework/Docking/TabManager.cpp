@@ -2258,15 +2258,18 @@ void FProxyTabmanager::OpenUnmanagedTab(FName PlaceholderId, const FSearchPrefer
 		TSharedRef<SDockingArea> DockingArea = RestoreArea(NewAreaForTab, ParentWindowPtr, false);
 		ParentWindowPtr->SetContent(DockingArea);
 
-		const TSharedPtr<SDockTab> NewlyOpenedTab = DockingArea->GetAllChildTabs()[0];
-		check(NewlyOpenedTab.IsValid());
-		
-		NewlyOpenedTab->GetParent()->GetParentDockTabStack()->OpenTab(UnmanagedTab);
-		NewlyOpenedTab->RequestCloseTab();
+		if (DockingArea->GetAllChildTabs().Num() > 0)
+		{
+			const TSharedPtr<SDockTab> NewlyOpenedTab = DockingArea->GetAllChildTabs()[0];
+			check(NewlyOpenedTab.IsValid());
 
-		MainNonCloseableTab = UnmanagedTab;
+			NewlyOpenedTab->GetParent()->GetParentDockTabStack()->OpenTab(UnmanagedTab);
+			NewlyOpenedTab->RequestCloseTab();
 
-		OnTabOpened.Broadcast(UnmanagedTab);
+			MainNonCloseableTab = UnmanagedTab;
+
+			OnTabOpened.Broadcast(UnmanagedTab);
+		}
 	}
 }
 
