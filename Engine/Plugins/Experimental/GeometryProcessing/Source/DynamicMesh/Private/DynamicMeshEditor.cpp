@@ -465,7 +465,7 @@ void FDynamicMeshEditor::SetTriangleNormals(const TArray<int>& Triangles, const 
 }
 
 
-void FDynamicMeshEditor::SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor, int UVLayerIndex)
+void FDynamicMeshEditor::SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor, const FVector2f& UVTranslation, int UVLayerIndex)
 {
 	if (!Triangles.Num())
 	{
@@ -508,12 +508,13 @@ void FDynamicMeshEditor::SetTriangleUVsFromProjection(const TArray<int>& Triangl
 	{
 		FVector2f UV = UVs->GetElement(UVID);
 		FVector2f TransformedUV = (UV - UVBounds.Min) * UVScaleFactor;
+		TransformedUV += UVTranslation;
 		UVs->SetElement(UVID, TransformedUV);
 	}
 }
 
 
-void FDynamicMeshEditor::SetQuadUVsFromProjection(const FIndex2i& QuadTris, const FFrame3d& ProjectionFrame, float UVScaleFactor, int UVLayerIndex)
+void FDynamicMeshEditor::SetQuadUVsFromProjection(const FIndex2i& QuadTris, const FFrame3d& ProjectionFrame, float UVScaleFactor, const FVector2f& UVTranslation, int UVLayerIndex)
 {
 	check(Mesh->HasAttributes() && Mesh->Attributes()->NumUVLayers() > UVLayerIndex );
 	FDynamicMeshUVOverlay* UVs = Mesh->Attributes()->GetUVLayer(UVLayerIndex);
@@ -568,6 +569,7 @@ void FDynamicMeshEditor::SetQuadUVsFromProjection(const FIndex2i& QuadTris, cons
 		if (AllUVIndices[j] != -1)
 		{
 			FVector2f TransformedUV = (AllUVs[j] - UVBounds.Min) * UVScaleFactor;
+			TransformedUV += UVTranslation;
 			UVs->SetElement(AllUVIndices[j], TransformedUV);
 		}
 	}

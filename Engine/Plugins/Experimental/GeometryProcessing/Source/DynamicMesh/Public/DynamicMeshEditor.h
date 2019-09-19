@@ -265,20 +265,22 @@ public:
 	 * UVs are translated so that their bbox min-corner is at origin, and scaled by given scale factor
 	 * @param QuadTris pair of triangle IDs. If second ID is invalid, it is ignored
 	 * @param ProjectFrame vertices are projected into XY axes of this frame
-	 * @param UVScaleFactor UVs are scaled
+	 * @param UVScaleFactor UVs are scaled by this uniform scale factor
+	 * @param UVTranslation UVs are translated after scaling
 	 * @param UVLayerIndex which UV layer to operate on (must exist)
 	 */
-	void SetQuadUVsFromProjection(const FIndex2i& QuadTris, const FFrame3d& ProjectionFrame, float UVScaleFactor = 1.0f, int UVLayerIndex = 0);
+	void SetQuadUVsFromProjection(const FIndex2i& QuadTris, const FFrame3d& ProjectionFrame, float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), int UVLayerIndex = 0);
 
 	/**
 	* Project triangles onto a plane defined by the ProjectionFrame and use that to create/set new shared per-triangle UVs.
 	* UVs are translated so that their bbox min-corner is at origin, and scaled by given scale factor
 	* @param Triangles TArray of triangle IDs
 	* @param ProjectFrame vertices are projected into XY axes of this frame
-	* @param UVScaleFactor UVs are scaled
+	* @param UVScaleFactor UVs are scaled by this uniform scale factor
+	* @param UVTranslation UVs are translated after scaling
 	* @param UVLayerIndex which UV layer to operate on (must exist)
 	*/
-	void SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor, int UVLayerIndex = 0);
+	void SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), int UVLayerIndex = 0);
 
 
 	/**
