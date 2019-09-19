@@ -183,6 +183,8 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 	{
 		const FSlateRenderBatch& RenderBatch = RenderBatches[NextRenderBatchIndex];
 
+		NextRenderBatchIndex = RenderBatch.NextBatchIndex;
+
 		const FSlateShaderResource* ShaderResource = RenderBatch.GetShaderResource();
 
 		const ESlateBatchDrawFlag DrawFlags = RenderBatch.GetDrawFlags();
