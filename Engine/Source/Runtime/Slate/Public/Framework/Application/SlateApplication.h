@@ -1135,7 +1135,7 @@ public:
 	 * @param UserIndex			 User index that generated the event we are replying to (defaults to 0, at least for now)
 	 * @param PointerIndex		 Pointer index that generated the event we are replying to
 	 */
-	void ProcessExternalReply(const FWidgetPath& CurrentEventPath, const FReply TheReply, const uint32 UserIndex = 0, const uint32 PointerIndex = 10 /* todo: use the enum */);
+	void ProcessExternalReply(const FWidgetPath& CurrentEventPath, const FReply TheReply, const int32 UserIndex = 0, const int32 PointerIndex = 10 /* todo: use the enum */);
 
 	/**
 	 * Apply any requests from the Reply to the application. E.g. Capture mouse
