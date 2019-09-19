@@ -1361,6 +1361,44 @@ namespace WindowsMixedReality
 #endif
 	}
 
+	void FWindowsMixedRealityHMD::SetFocusPointForFrame(FVector Position)
+	{
+#if WITH_WINDOWS_MIXED_REALITY
+		check(IsInGameThread());
+
+		if (!HMD->IsInitialized() || !HMD->IsAvailable())
+		{
+			return;
+		}
+
+		// Convert Unreal world position to HoloLens tracking space.
+		FVector TransformedPosition = CachedTrackingToWorld.Inverse().TransformPosition(Position) / GetWorldToMetersScale();
+
+		// Enqueue command to send to render thread
+		FWindowsMixedRealityHMD* WMRHMD = this;
+		ENQUEUE_RENDER_COMMAND(SetFocustPointForFrame)(
+			[WMRHMD, TransformedPosition](FRHICommandListImmediate& RHICmdList)
+		{
+			WMRHMD->SetFocustPointForFrame_RenderThread(TransformedPosition);
+		}
+		);
+#endif
+	}
+
+	void FWindowsMixedRealityHMD::SetFocustPointForFrame_RenderThread(FVector TrackingSpacePosition)
+	{
+#if WITH_WINDOWS_MIXED_REALITY
+		check(IsInRenderingThread());
+
+		if (!HMD->IsInitialized() || !HMD->IsAvailable())
+		{
+			return;
+		}
+
+		HMD->SetFocusPointForFrame(WMRUtility::ToMixedRealityVector(TrackingSpacePosition));
+#endif	
+	}
+
 	bool FWindowsMixedRealityHMD::IsActiveThisFrame(class FViewport* InViewport) const
 	{
 		return GEngine && GEngine->IsStereoscopic3D(InViewport);
