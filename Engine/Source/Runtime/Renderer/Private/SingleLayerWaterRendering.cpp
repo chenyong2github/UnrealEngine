@@ -10,6 +10,7 @@
 #include "MeshPassProcessor.inl"
 #include "PixelShaderUtils.h"
 #include "PostProcess/PostProcessSubsurface.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "PostProcessTemporalAA.h"
 #include "RenderGraph.h"
 #include "ScenePrivate.h"
@@ -232,7 +233,81 @@ class FSingleLayerWaterCompositePS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FSingleLayerWaterCompositePS, "/Engine/Private/SingleLayerWaterComposite.usf", "SingleLayerWaterCompositePS", SF_Pixel);
 
-void FDeferredShadingSceneRenderer::RenderSingleLayerWaterSSR(FRHICommandListImmediate& RHICmdList)
+
+
+//////////////////////////////////////////////////////////////////////////
+
+
+
+void FDeferredShadingSceneRenderer::BeginRenderingWaterGBuffer(FRHICommandList& RHICmdList, FSingleLayerWaterPassData& PassData, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers)
+{
+	SCOPED_DRAW_EVENT(RHICmdList, BeginRenderingWaterGBuffer);
+
+	check(RHICmdList.IsOutsideRenderPass());
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+
+	const ERHIFeatureLevel::Type CurrentFeatureLevel = SceneContext.GetCurrentFeatureLevel();
+	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
+	check(CurrentFeatureLevel >= ERHIFeatureLevel::SM4);
+
+
+	// Allocate required buffers
+	{
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(SceneContext.GetBufferSizeXY(), PF_DepthStencil, SceneContext.GetDefaultDepthClear(), TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
+		Desc.NumSamples = SceneContext.GetNumSceneColorMSAASamples(CurrentFeatureLevel);
+		Desc.Flags |= GFastVRamConfig.SceneDepth;
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PassData.SceneDepthZWithoutSingleLayerWater, TEXT("SceneDepthZWithoutSingleLayerWater"), true);
+	}
+	{
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(SceneContext.GetBufferSizeXY(), SceneContext.GetSceneColorFormat(), SceneContext.GetDefaultColorClear(), TexCreate_None, TexCreate_RenderTargetable, false));
+		Desc.NumSamples = SceneContext.GetNumSceneColorMSAASamples(CurrentFeatureLevel);
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PassData.SceneColorWithoutSingleLayerWater, TEXT("SceneColorWithoutSingleLayerWater"));
+	}
+
+	// Copy and save textures without water informations for later composition operations
+	{
+		FRHICopyTextureInfo DepthCopyInfo;
+		RHICmdList.CopyTexture(SceneContext.SceneDepthZ->GetRenderTargetItem().ShaderResourceTexture, PassData.SceneDepthZWithoutSingleLayerWater->GetRenderTargetItem().ShaderResourceTexture, DepthCopyInfo);
+		RHICmdList.CopyTexture(SceneContext.GetSceneColorSurface(), PassData.SceneColorWithoutSingleLayerWater->GetRenderTargetItem().ShaderResourceTexture, DepthCopyInfo);
+	}
+
+	// Create MRT
+	int32 VelocityRTIndex = -1;
+	FRHIRenderPassInfo RPInfo;
+	SceneContext.FillGBufferRenderPassInfo(ERenderTargetLoadAction::ELoad, RPInfo, VelocityRTIndex);
+	// Set a dummy Scene color RT to avoid gbuffer to stomp HDR scene color we want to blend over
+	RPInfo.ColorRenderTargets[0].Action = MakeRenderTargetActions(ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
+	RPInfo.ColorRenderTargets[0].RenderTarget = SceneContext.GetSceneColorSurface();
+
+	// Stencil always has to be store or certain VK drivers will leave the attachment in an undefined state.
+	RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore), MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore));
+	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = (const FTexture2DRHIRef&)SceneContext.SceneDepthZ->GetRenderTargetItem().TargetableTexture;
+	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = DepthStencilAccess;
+
+	// Set other UAVs
+	const bool bClearQuadOverdrawBuffers = false;
+	SceneContext.SetQuadOverdrawUAV(RHICmdList, bBindQuadOverdrawBuffers, bClearQuadOverdrawBuffers, RPInfo);
+	if (UseVirtualTexturing(CurrentFeatureLevel) && !bBindQuadOverdrawBuffers)
+	{
+		SceneContext.BindVirtualTextureFeedbackUAV(RPInfo);
+	}
+
+	// Begin the pass
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("WaterGBuffer"));
+
+	// Needs to be called after we start a renderpass in order for the color/depth decompress/expand to be executed on the next write-to-read barrier/transition.
+	RHICmdList.BindClearMRTValues(true, true, false);
+}
+
+void FDeferredShadingSceneRenderer::FinishWaterGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList)
+{
+	// Same as the GBuffer for now (also same resolves)
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	SceneContext.FinishGBufferPassAndResolve(RHICmdList);
+}
+
+
+void FDeferredShadingSceneRenderer::RenderSingleLayerWaterSSR(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData)
 {
 	if (CVarSingleLayerWater.GetValueOnRenderThread() <= 0)
 	{
@@ -240,7 +315,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterSSR(FRHICommandListImm
 	}
 
 	FRDGBuilder GraphBuilder(RHICmdList);
-	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -309,7 +384,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterSSR(FRHICommandListImm
 				PassParameters->ScreenSpaceReflectionsSampler = TStaticSamplerState<SF_Point>::GetRHI();
 				PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
 				PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-				PassParameters->SceneNoWaterDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZWithoutSingleLayerWater ? SceneContext.SceneDepthZWithoutSingleLayerWater : GSystemTextures.BlackDummy);
+				PassParameters->SceneNoWaterDepthTexture = GraphBuilder.RegisterExternalTexture(PassData.SceneDepthZWithoutSingleLayerWater ? PassData.SceneDepthZWithoutSingleLayerWater : GSystemTextures.BlackDummy);
 				PassParameters->SceneNoWaterDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
 				PassParameters->SceneTextures = SceneTextures;
 				SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
@@ -355,7 +430,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterSSR(FRHICommandListImm
 	ResolveSceneColor(RHICmdList);
 }
 
-bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type WaterPassDepthStencilAccess)
+bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData, FExclusiveDepthStencil::Type WaterPassDepthStencilAccess)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderSingleLayerWaterPass);
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderSingleLayerWaterPass, FColor::Emerald);
@@ -380,7 +455,7 @@ bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListIm
 
 			TUniformBufferRef<FOpaqueBasePassUniformParameters> WaterPassUniformBuffer;
 			IPooledRenderTarget* WhiteForwardScreenSpaceShadowMask = GSystemTextures.WhiteDummy;
-			CreateOpaqueBasePassUniformBuffer(RHICmdList, View, WhiteForwardScreenSpaceShadowMask, WaterPassUniformBuffer);
+			CreateOpaqueBasePassUniformBuffer(RHICmdList, View, WhiteForwardScreenSpaceShadowMask, PassData.SceneColorWithoutSingleLayerWater, PassData.SceneDepthZWithoutSingleLayerWater, WaterPassUniformBuffer);
 
 			FMeshPassProcessorRenderState DrawRenderState(View, WaterPassUniformBuffer);
 			SetupBasePassState(WaterPassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity, DrawRenderState);
@@ -390,7 +465,7 @@ bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListIm
 			{
 				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 
-				bDirty |= RenderSingleLayerWaterPassView(RHICmdList, View, DrawRenderState);
+				bDirty |= RenderSingleLayerWaterPassView(RHICmdList, View, PassData, DrawRenderState);
 			}
 		}
 	}
@@ -401,7 +476,7 @@ bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListIm
 	return bDirty;
 }
 
-bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, const FMeshPassProcessorRenderState& InDrawRenderState)
+bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, FSingleLayerWaterPassData& PassData, const FMeshPassProcessorRenderState& InDrawRenderState)
 {
 	bool bDirty = false;
 	FMeshPassProcessorRenderState DrawRenderState(InDrawRenderState);
