@@ -29,6 +29,9 @@ FIOSVivoxVoiceChat::~FIOSVivoxVoiceChat()
 
 bool FIOSVivoxVoiceChat::Initialize()
 {
+	// Vivox sdk opens the microphone if we are in one of the Ambient modes and the user backgrounds the application. Set the mode to Playback to work around this
+	[[IOSAppDelegate GetDelegate] SetFeature:EAudioFeature::Playback Active:true];
+
 	bool bResult = FVivoxVoiceChat::Initialize();
 
 	if (bResult)
@@ -85,6 +88,8 @@ bool FIOSVivoxVoiceChat::Uninitialize()
 	{
 		EnableVoiceChat(false);
 	}
+
+	[[IOSAppDelegate GetDelegate] SetFeature:EAudioFeature::Playback Active:false];
 
 	return bReturn;
 }
