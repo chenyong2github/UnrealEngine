@@ -104,7 +104,7 @@ void GetPrecomputedLightingParameters(
 			check(AllocatedVT);
 
 			AllocatedVT->GetPackedPageTableUniform(&Parameters.LightmapVTPackedPageTableUniform[0], true);
-			NumLightmapVTLayers = AllocatedVT->GetNumLayers();
+			NumLightmapVTLayers = AllocatedVT->GetNumTextureLayers();
 			for (uint32 LayerIndex = 0u; LayerIndex < NumLightmapVTLayers; ++LayerIndex)
 			{
 				AllocatedVT->GetPackedUniform(&Parameters.LightmapVTPackedUniform[LayerIndex], LayerIndex);
