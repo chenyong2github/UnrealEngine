@@ -210,9 +210,21 @@ public:
 	UPROPERTY(EditAnywhere, Category=Placement, meta=(ReapplyCondition="ReapplyHeight"))
 	FFloatInterval Height;
 
-	/** If a layer name is specified, painting on landscape will limit the foliage to areas of landscape with the specified layer painted */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Placement, meta=(ReapplyCondition="ReapplyLandscapeLayers"))
+	/** If layer names are specified, painting on landscape will limit the foliage to areas of landscape with the specified layers painted */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Placement, meta=(ReapplyCondition="ReapplyLandscapeLayers", DisplayName="Inclusion Landscape Layers"))
 	TArray<FName> LandscapeLayers;
+
+	/** Specifies the minimum value above which the landscape layer weight value must be, in order for foliage instances to be placed in a specific area */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Placement, meta=(UIMin=0, ClampMin = 0, UIMax = 1, ClampMax = 1, HideBehind="LandscapeLayers", DisplayName="Minimum Inclusion Landscape Weight"))
+	float MinimumLayerWeight;
+
+	/** If layer names are specified, painting on landscape will exclude the foliage to areas of landscape without the specified layers painted */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Placement, meta = (ReapplyCondition = "ReapplyLandscapeLayers"))
+	TArray<FName> ExclusionLandscapeLayers;
+
+	/** Specifies the minimum value above which the landscape exclusion layer weight value must be, in order for foliage instances to be excluded in a specific area */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Placement, meta = (UIMin=0, ClampMin = 0, UIMax = 1, ClampMax = 1, HideBehind = "ExclusionLandscapeLayers"))
+	float MinimumExclusionLayerWeight;
 
 	UPROPERTY()
 	FName LandscapeLayer_DEPRECATED;
@@ -225,17 +237,12 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Placement, meta=(HideBehind="CollisionWithWorld"))
 	FVector CollisionScale;
 
-	/** Specifies the minimum value above which the landscape layer weight value must be, in order for foliage instances to be placed in a specific area */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Placement, meta=(HideBehind="LandscapeLayers"))
-	float MinimumLayerWeight;
-
 	UPROPERTY()
 	FBoxSphereBounds MeshBounds;
 
 	// X, Y is origin position and Z is radius...
 	UPROPERTY()
 	FVector LowBoundOriginRadius;
-
 
 public:
 	// INSTANCE SETTINGS
