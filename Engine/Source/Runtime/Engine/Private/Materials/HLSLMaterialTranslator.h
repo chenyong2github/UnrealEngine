@@ -1160,6 +1160,10 @@ ResourcesString = TEXT("");
 			{
 				Errorf(TEXT("Water materials must be opaque and lit and they only support the DefaultLit shading model."));
 			}
+			if (bNodeGraphIsUsingSingleLayerWaterMaterialOutput && Material->IsDistorted())
+			{
+				Errorf(TEXT("Water materials must not use Unreal built-in distortion."));
+			}
 
 			bool bDBufferAllowed = IsUsingDBuffers(Platform);
 			bool bDBufferBlendMode = IsDBufferDecalBlendMode((EDecalBlendMode)Material->GetDecalBlendMode());

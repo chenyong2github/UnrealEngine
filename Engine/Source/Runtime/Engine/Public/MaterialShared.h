@@ -2748,3 +2748,10 @@ bool ReloadMaterialResource(
 	ERHIFeatureLevel::Type FeatureLevel,
 	EMaterialQualityLevel::Type QualityLevel);
 #endif
+
+inline bool ShouldIncludeMaterialInDefaultOpaquePass(const FMaterial& Material)
+{
+	return !Material.IsSky()
+		&& !Material.MaterialUsesSingleLayerWater_RenderThread();
+}
+
