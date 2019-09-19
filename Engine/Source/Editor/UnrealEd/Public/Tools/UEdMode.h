@@ -9,8 +9,8 @@
 #include "EditorModeRegistry.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/Object.h"
-#include "InteractiveToolManager.h"
 #include "Math/Ray.h"
+#include "InputState.h"
 #include "UEdMode.generated.h"
 
 
@@ -26,6 +26,10 @@ class UTexture2D;
 struct FConvexVolume;
 struct FViewportClick;
 class UInteractiveToolsContext;
+class UInteractiveToolManager;
+class IToolsContextQueriesAPI;
+class IToolsContextTransactionsAPI;
+class IToolsContextAssetAPI;
 
 enum EModeTools : int8;
 class FEditorViewportClient;

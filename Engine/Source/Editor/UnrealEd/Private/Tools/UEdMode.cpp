@@ -21,6 +21,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "LevelEditorViewport.h"
+#include "InteractiveToolManager.h"
 #include "InteractiveToolObjects.h"
 
 
