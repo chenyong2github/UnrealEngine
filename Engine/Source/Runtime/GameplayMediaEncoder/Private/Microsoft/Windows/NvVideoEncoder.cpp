@@ -11,6 +11,7 @@
 #include "PipelineStateCache.h"
 #include "CommonRenderResources.h"
 #include "Modules/ModuleManager.h"
+#include "HAL/Thread.h"
 
 #include "SceneUtils.h"
 #include "EncoderDevice.h"
