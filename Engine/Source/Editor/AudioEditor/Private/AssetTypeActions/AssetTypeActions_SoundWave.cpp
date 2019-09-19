@@ -276,4 +276,13 @@ TSharedPtr<SWidget> FAssetTypeActions_SoundWave::GetThumbnailOverlay(const FAsse
 	return Box;
 }
 
+const TArray<FText>& FAssetTypeActions_SoundWave::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		FText(LOCTEXT("AssetSoundSourceSubMenu", "Source"))
+	};
+
+	return SubMenus;
+}
 #undef LOCTEXT_NAMESPACE
