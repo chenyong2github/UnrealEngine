@@ -26,7 +26,7 @@ static FAutoConsoleVariableRef CVarNiagaraDumpParticleParameterStores(
 
 //////////////////////////////////////////////////////////////////////////
 
-int32 FNiagaraVariableSearch::Find(const FNiagaraVariableWithOffset* Variables, const FNiagaraVariable& Ref, int32 Start, int32 Num, int32& CheckIndex)
+bool FNiagaraVariableSearch::Find(const FNiagaraVariableWithOffset* Variables, const FNiagaraVariable& Ref, int32 Start, int32 Num, int32& CheckIndex)
 {
 	while (Num)
 	{
