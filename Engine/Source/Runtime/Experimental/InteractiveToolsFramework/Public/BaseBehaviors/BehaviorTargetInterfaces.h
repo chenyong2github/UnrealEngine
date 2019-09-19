@@ -167,7 +167,22 @@ public:
 	virtual ~IHoverBehaviorTarget() {}
 
 	/**
-	 * Notify Target about a hover event
+	 * Do hover hit-test
 	 */
-	virtual void OnUpdateHover(const FInputDeviceRay& DevicePos) = 0;
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) = 0;
+
+	/**
+	 * Initialize hover sequence at given position
+	 */
+	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) = 0;
+
+	/**
+	 * Update active hover sequence with new input position
+	 */
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) = 0;
+
+	/**
+	 * Terminate active hover sequence
+	 */
+	virtual void OnEndHover() = 0;
 };

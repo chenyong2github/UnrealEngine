@@ -284,7 +284,7 @@ void UMeshSelectionTool::OnEndDrag(const FRay& Ray)
 }
 
 
-void UMeshSelectionTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
+bool UMeshSelectionTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	UDynamicMeshBrushTool::OnUpdateHover(DevicePos);
 
@@ -302,6 +302,8 @@ void UMeshSelectionTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 			CalculateVertexROI(LastBrushStamp, PreviewBrushROI);
 		}
 	}
+
+	return true;
 }
 
 

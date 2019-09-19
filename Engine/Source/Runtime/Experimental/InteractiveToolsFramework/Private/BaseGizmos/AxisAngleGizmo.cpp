@@ -150,18 +150,32 @@ void UAxisAngleGizmo::OnTerminateDragSequence()
 
 
 
-void UAxisAngleGizmo::OnUpdateHover(const FInputDeviceRay& DevicePos)
+
+FInputRayHit UAxisAngleGizmo::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
 {
 	FInputRayHit GizmoHit;
 	if (HitTarget)
 	{
-		GizmoHit = HitTarget->IsHit(DevicePos);
-		if (GizmoHit.bHit)
-		{
-			HitTarget->UpdateHoverState(true);
-			return;
-		}
+		GizmoHit = HitTarget->IsHit(PressPos);
 	}
+	return GizmoHit;
+}
+
+void UAxisAngleGizmo::OnBeginHover(const FInputDeviceRay& DevicePos)
+{
+	HitTarget->UpdateHoverState(true);
+}
+
+bool UAxisAngleGizmo::OnUpdateHover(const FInputDeviceRay& DevicePos)
+{
+	// not necessary...
+	HitTarget->UpdateHoverState(true);
+	return true;
+}
+
+void UAxisAngleGizmo::OnEndHover()
+{
 	HitTarget->UpdateHoverState(false);
 }
+
 

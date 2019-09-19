@@ -161,9 +161,14 @@ public:
 
 	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
 
-	virtual void OnUpdateHover(const FInputDeviceRay& DevicePos) override;
 	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
 
+
+	// IHoverBehaviorTarget interface
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
+	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override;
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	virtual void OnEndHover() override;
 
 
 protected:

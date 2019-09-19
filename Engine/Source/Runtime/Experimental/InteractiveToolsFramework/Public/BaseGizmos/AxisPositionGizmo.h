@@ -44,7 +44,11 @@ public:
 	virtual void OnTerminateDragSequence() override;
 
 	// IHoverBehaviorTarget implementation
-	virtual void OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
+	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override;
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	virtual void OnEndHover() override;
+
 
 public:
 	UPROPERTY()

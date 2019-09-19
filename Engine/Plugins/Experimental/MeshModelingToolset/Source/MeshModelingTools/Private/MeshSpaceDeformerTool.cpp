@@ -399,7 +399,7 @@ void UMeshSpaceDeformerTool::UpdateIntervalsFromDrag()
 	}
 }
 
-void UMeshSpaceDeformerTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
+bool UMeshSpaceDeformerTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	if (!bInDrag)
 	{
@@ -408,6 +408,7 @@ void UMeshSpaceDeformerTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 		};
 		Handle.UpdateHover(DevicePos, ComponentTarget->GetWorldTransform(), TFunction<bool(const FVector3d&, const FVector3d&)>{ToleranceTest});
 	}
+	return true;
 }
 
 #if WITH_EDITOR

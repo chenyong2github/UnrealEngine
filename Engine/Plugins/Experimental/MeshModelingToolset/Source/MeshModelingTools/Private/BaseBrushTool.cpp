@@ -152,7 +152,7 @@ void UBaseBrushTool::OnEndDrag(const FRay& Ray)
 }
 
 
-void UBaseBrushTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
+bool UBaseBrushTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	FHitResult OutHit;
 	if (HitTest(DevicePos.WorldRay, OutHit))
@@ -162,6 +162,7 @@ void UBaseBrushTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 		LastBrushStamp.WorldNormal = OutHit.Normal;
 		LastBrushStamp.HitResult = OutHit;
 	}
+	return true;
 }
 
 

@@ -155,10 +155,27 @@ void UAddPrimitiveTool::OnPropertyModified(UObject* PropertySet, UProperty* Prop
 
 
 
-void UAddPrimitiveTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
+FInputRayHit UAddPrimitiveTool::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
+{
+	return FInputRayHit(0.0f);		// always hit in hover 
+}
+
+void UAddPrimitiveTool::OnBeginHover(const FInputDeviceRay& DevicePos)
 {
 	UpdatePreviewPosition(DevicePos);
 }
+
+bool UAddPrimitiveTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
+{
+	UpdatePreviewPosition(DevicePos);
+	return true;
+}
+
+void UAddPrimitiveTool::OnEndHover()
+{
+	// do nothing
+}
+
 
 
 void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClickPos)

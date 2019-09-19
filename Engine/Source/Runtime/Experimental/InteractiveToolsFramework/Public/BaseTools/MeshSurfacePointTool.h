@@ -81,10 +81,15 @@ public:
 	 */
 	virtual void OnEndDrag(const FRay& Ray);
 
-	/**
-	 * This function is called each frame while the tool is active, to support hover updates
-	 */
-	virtual void OnUpdateHover(const FInputDeviceRay& DevicePos) {}
+
+
+	// IHoverBehaviorTarget implementation
+	
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
+	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override {}
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override { return true; }
+	virtual void OnEndHover() override {}
+
 
 
 

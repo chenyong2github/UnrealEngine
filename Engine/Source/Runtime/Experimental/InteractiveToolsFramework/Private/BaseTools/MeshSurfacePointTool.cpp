@@ -97,6 +97,21 @@ void UMeshSurfacePointTool::SetShiftToggle(bool bShiftDown)
 
 
 
+FInputRayHit UMeshSurfacePointTool::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
+{
+	FHitResult OutHit;
+	if (HitTest(PressPos.WorldRay, OutHit))
+	{
+		return FInputRayHit(OutHit.Distance);
+	}
+	return FInputRayHit();
+}
+
+
+
+
+
+
 /*
  * Mouse Input Behavior
  */

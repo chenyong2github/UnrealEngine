@@ -74,8 +74,8 @@ struct INTERACTIVETOOLSFRAMEWORK_API FInputRayHit
 {
 	GENERATED_BODY()
 
-		/** true if ray hit something, false otherwise */
-		bool bHit;
+	/** true if ray hit something, false otherwise */
+	bool bHit;
 
 	/** distance along ray at which intersection occurred */
 	float HitDepth;

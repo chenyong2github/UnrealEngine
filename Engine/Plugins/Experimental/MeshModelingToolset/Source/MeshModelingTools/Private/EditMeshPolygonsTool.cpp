@@ -1043,7 +1043,7 @@ void UEditMeshPolygonsTool::OnEndDrag(const FRay& Ray)
 
 
 
-void UEditMeshPolygonsTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
+bool UEditMeshPolygonsTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	//if (!bNeedEmitEndChange)
 	if (ActiveVertexChange == nullptr)
@@ -1067,6 +1067,7 @@ void UEditMeshPolygonsTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 			UpdateQuickTransformer();
 		}
 	}
+	return true;
 }
 
 

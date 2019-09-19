@@ -659,7 +659,7 @@ void UDynamicMeshSculptTool::OnEndDrag(const FRay& Ray)
 }
 
 
-void UDynamicMeshSculptTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
+bool UDynamicMeshSculptTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	if (bInDrag)
 	{
@@ -676,6 +676,7 @@ void UDynamicMeshSculptTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 			LastBrushPosNormalWorld = OutHit.Normal;
 		}
 	}
+	return true;
 }
 
 
