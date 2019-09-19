@@ -3869,7 +3869,7 @@ namespace UnrealGameSync
 			{
 				AfterSyncingLabel.Enabled = true;
 				BuildAfterSyncCheckBox.Enabled = bHasBuildSteps;
-				RunAfterSyncCheckBox.Enabled = BuildAfterSyncCheckBox.Checked;
+				RunAfterSyncCheckBox.Enabled = BuildAfterSyncCheckBox.Checked || ShouldSyncPrecompiledEditor;
 				OpenSolutionAfterSyncCheckBox.Enabled = true;
 			}
 		}
