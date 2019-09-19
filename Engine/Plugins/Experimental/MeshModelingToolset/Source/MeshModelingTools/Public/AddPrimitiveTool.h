@@ -8,6 +8,7 @@
 #include "InteractiveToolBuilder.h"
 #include "BaseTools/SingleClickTool.h"
 #include "PreviewMesh.h"
+#include "Properties/MeshMaterialProperties.h"
 #include "AddPrimitiveTool.generated.h"
 
 class FDynamicMesh3;
@@ -116,20 +117,6 @@ public:
 	/** Subdivisions */
 	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Subdivisions", UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "4000"))
 	int Subdivisions;
-
-	/** Material */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Material"))
-	UMaterialInterface* Material;
-
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "UV Scale"))
-	float UVScale = 1.0;
-	
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "UV Scale Relative to World Space"))
-	bool bWorldSpaceUVScale = false;
-
-	/** Wireframe toggle */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Show Wireframe"))
-	bool bWireframe;
 };
 
 
@@ -174,6 +161,11 @@ public:
 protected:
 	UPROPERTY()
 	UProceduralShapeToolProperties* ShapeSettings;
+
+	UPROPERTY()
+	UNewMeshMaterialProperties* MaterialProperties;
+
+
 
 	UPROPERTY()
 	UPreviewMesh* PreviewMesh;

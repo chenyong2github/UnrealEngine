@@ -11,6 +11,7 @@
 #include "ParameterizationOps/UVProjectionOp.h"
 #include "DynamicMesh3.h"
 #include "BaseTools/SingleClickTool.h"
+#include "Properties/MeshMaterialProperties.h"
 
 #include "UVProjectionTool.generated.h"
 
@@ -73,10 +74,6 @@ public:
 	/** Choose the UV offsets */
 	UPROPERTY(EditAnywhere, Category = Options)
 	FVector2D UVOffset;
-
-	/** For display only - the density of the checkerboard pattern in the viewport.*/
-	UPROPERTY(EditAnywhere, Category = Options, meta = (Default = "20", UIMin = "1.0", UIMax = "40.0", ClampMin = "0.01", ClampMax = "1000.0"))
-	float CheckerDensity = 10.f;
 
 };
 
@@ -156,6 +153,10 @@ protected:
 
 	UPROPERTY()
 	UUVProjectionAdvancedProperties* AdvancedProperties;
+
+	UPROPERTY()
+	UExistingMeshMaterialProperties* MaterialSettings = nullptr;
+
 
 
 	UPROPERTY()

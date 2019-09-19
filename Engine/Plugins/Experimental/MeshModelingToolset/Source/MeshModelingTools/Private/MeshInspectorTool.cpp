@@ -64,7 +64,6 @@ void UMeshInspectorTool::Setup()
 	{
 		DynamicMeshComponent->SetMaterial(0, DefaultMaterial);
 	}
-	ActiveMaterialMode = EInspectorMaterialMode::Default;
 
 	DynamicMeshComponent->TangentsType = EDynamicMeshTangentCalcType::ExternallyCalculated;
 	DynamicMeshComponent->InitializeMesh(ComponentTarget->GetMesh());
@@ -78,16 +77,10 @@ void UMeshInspectorTool::Setup()
 	Settings = NewObject<UMeshInspectorProperties>(this);
 	AddToolPropertySource(Settings);
 
-	UMaterial* CheckerMaterialBase = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/CheckerMaterial"));
-	if (CheckerMaterialBase != nullptr)
-	{
-		CheckerMaterial = UMaterialInstanceDynamic::Create(CheckerMaterialBase, NULL);
-		if (CheckerMaterial != nullptr)
-		{
-			CheckerMaterial->SetScalarParameterValue("Density", Settings->CheckerDensity);
-		}
-	}
-	ActiveCheckerDensity = Settings->CheckerDensity;
+	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
+	MaterialSettings->Setup();
+	AddToolPropertySource(MaterialSettings);
+
 
 	DynamicMeshComponent->bExplicitShowWireframe = Settings->bWireframe;
 
@@ -252,33 +245,12 @@ void UMeshInspectorTool::OnPropertyModified(UObject* PropertySet, UProperty* Pro
 {
 	GetToolManager()->PostInvalidation();
 	DynamicMeshComponent->bExplicitShowWireframe = Settings->bWireframe;
-
-	if (CheckerMaterial != nullptr)
+	MaterialSettings->UpdateMaterials();
+	MaterialSettings->SetMaterialIfChanged(DefaultMaterial, DynamicMeshComponent->GetMaterial(0),
+		[this](UMaterialInterface* Material)
 	{
-		CheckerMaterial->SetScalarParameterValue("Density", Settings->CheckerDensity);
-	}
-
-	if (Settings->MaterialMode != ActiveMaterialMode)
-	{
-		if (Settings->MaterialMode == EInspectorMaterialMode::Checkerboard && CheckerMaterial != nullptr)
-		{
-			DynamicMeshComponent->SetMaterial(0, CheckerMaterial);
-			ActiveMaterialMode = EInspectorMaterialMode::Checkerboard;
-			return;
-		}
-		if (Settings->MaterialMode == EInspectorMaterialMode::Override && Settings->OverrideMaterial != nullptr)
-		{
-			DynamicMeshComponent->SetMaterial(0, Settings->OverrideMaterial);
-			ActiveMaterialMode = EInspectorMaterialMode::Override;
-			return;
-		}
-		// default or fallback
-		if (DefaultMaterial != nullptr)
-		{
-			DynamicMeshComponent->SetMaterial(0, DefaultMaterial);
-		}
-		ActiveMaterialMode = EInspectorMaterialMode::Default;
-	}
+		DynamicMeshComponent->SetMaterial(0, Material);
+	});
 }
 
 

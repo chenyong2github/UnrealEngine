@@ -1,0 +1,59 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "Properties/MeshMaterialProperties.h"
+
+#include "DynamicMesh3.h"
+#include "DynamicMeshAttributeSet.h"
+#include "MeshNormals.h"
+
+#include "SimpleDynamicMeshComponent.h"
+
+#include "Materials/MaterialInstanceDynamic.h"
+
+#define LOCTEXT_NAMESPACE "UMeshMaterialProperites"
+
+UNewMeshMaterialProperties::UNewMeshMaterialProperties()
+{
+	Material = CreateDefaultSubobject<UMaterialInterface>(TEXT("MATERIAL"));
+}
+
+void UExistingMeshMaterialProperties::Setup()
+{
+	UMaterial* CheckerMaterialBase = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/CheckerMaterial"));
+	if (CheckerMaterialBase != nullptr)
+	{
+		CheckerMaterial = UMaterialInstanceDynamic::Create(CheckerMaterialBase, NULL);
+		if (CheckerMaterial != nullptr)
+		{
+			CheckerMaterial->SetScalarParameterValue("Density", CheckerDensity);
+		}
+	}
+}
+
+void UExistingMeshMaterialProperties::UpdateMaterials()
+{
+	if (CheckerMaterial != nullptr)
+	{
+		CheckerMaterial->SetScalarParameterValue("Density", CheckerDensity);
+	}
+}
+
+void UExistingMeshMaterialProperties::SetMaterialIfChanged(UMaterialInterface* OriginalMaterial, UMaterialInterface* CurrentMaterial, TFunctionRef<void(UMaterialInterface* Material)> SetMaterialFn)
+{
+	UMaterialInterface *Material = OriginalMaterial;
+	if (MaterialMode == ESetMeshMaterialMode::Checkerboard && CheckerMaterial != nullptr)
+	{
+		Material = CheckerMaterial;
+	}
+	else if (MaterialMode == ESetMeshMaterialMode::Override && OverrideMaterial != nullptr)
+	{
+		Material = OverrideMaterial;
+	}
+	if (CurrentMaterial != Material)
+	{
+		SetMaterialFn(Material);
+	}
+}
+
+
+#undef LOCTEXT_NAMESPACE

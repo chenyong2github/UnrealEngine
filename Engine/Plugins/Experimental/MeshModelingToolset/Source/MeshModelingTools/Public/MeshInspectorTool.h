@@ -8,6 +8,7 @@
 #include "InteractiveToolBuilder.h"
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
+#include "Properties/MeshMaterialProperties.h"
 #include "Properties/MeshStatisticsProperties.h"
 #include "MeshInspectorTool.generated.h"
 
@@ -29,24 +30,6 @@ public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
-
-
-
-/** Material modes for MeshInspectorTool */
-UENUM()
-enum class EInspectorMaterialMode : uint8
-{
-	/** Input material */
-	Default,
-
-	/** Checkerboard material */
-	Checkerboard,
-
-	/** Override material */
-	Override
-};
-
-
 
 
 
@@ -93,15 +76,6 @@ public:
 	float TangentLength = 5.0f;
 
 
-	/** Material that will be used on the mesh */
-	UPROPERTY(EditAnywhere, Category = Options)
-	EInspectorMaterialMode MaterialMode = EInspectorMaterialMode::Default;
-
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "1.0", UIMax = "40.0", ClampMin = "0.01", ClampMax = "1000.0", EditCondition = "MaterialMode == EInspectorMaterialMode::Checkerboard"))
-	float CheckerDensity = 20.0f;
-
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "MaterialMode == EInspectorMaterialMode::Override"))
-	UMaterialInterface* OverrideMaterial = nullptr;
 };
 
 
@@ -142,19 +116,17 @@ protected:
 	UMeshInspectorProperties* Settings = nullptr;
 
 	UPROPERTY()
-	UMaterialInterface* DefaultMaterial = nullptr;
-
-	UPROPERTY()
-	UMaterialInstanceDynamic* CheckerMaterial = nullptr;
+	UExistingMeshMaterialProperties* MaterialSettings = nullptr;
 
 
 	float LineWidthMultiplier = 1.0f;
-	EInspectorMaterialMode ActiveMaterialMode;
-	float ActiveCheckerDensity = 0.0f;
 
 protected:
 	UPROPERTY()
 	USimpleDynamicMeshComponent* DynamicMeshComponent;
+
+	UPROPERTY()
+	UMaterialInterface* DefaultMaterial = nullptr;
 
 	TArray<int> BoundaryEdges;
 	TArray<int> UVSeamEdges;

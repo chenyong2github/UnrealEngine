@@ -73,14 +73,7 @@ void UParameterizeMeshTool::Setup()
 	InputMesh = MakeShared<FMeshDescription>(*ComponentTarget->GetMesh());
 
 
-	// Set up check material
-
-	UMaterial* CheckerMaterialBase = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/CheckerMaterial"));
-	CheckerMaterial = UMaterialInstanceDynamic::Create(CheckerMaterialBase, NULL);
-	CheckerMaterial->SetScalarParameterValue("Density", CheckerDensity);
-
-	// Copy existing material if there is one
-	
+	// Copy existing material if there is one	
 	DefaultMaterial = ComponentTarget->GetMaterial(0);
 	if (DefaultMaterial == nullptr)
 	{
@@ -115,18 +108,26 @@ void UParameterizeMeshTool::Setup()
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
 
-	// Choose the material for display
-	if (MaterialMode == EParameterizeMeshMaterialMode::Checkerboard)
-	{
-		Preview->ConfigureMaterials(
-			ToolSetupUtil::GetDefaultMaterial(GetToolManager(), CheckerMaterial),
-			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
-		);
-	}
+
+	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
+	MaterialSettings->Setup();
+	AddToolPropertySource(MaterialSettings);
 
 
 	Preview->SetVisibility(true);
 	Preview->InvalidateResult();    // start compute
+}
+
+void UParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+{
+	if (PropertySet == MaterialSettings)
+	{
+		MaterialSettings->UpdateMaterials();
+		MaterialSettings->SetMaterialIfChanged(ComponentTarget->GetMaterial(0), Preview->StandardMaterial, [this](UMaterialInterface* Material)
+		{
+			Preview->ConfigureMaterials(ToolSetupUtil::GetDefaultMaterial(GetToolManager(), Material), Preview->WorkingMaterial);
+		});
+	}
 }
 
 
@@ -174,56 +175,8 @@ bool UParameterizeMeshTool::CanAccept() const
 
 void UParameterizeMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
-
-	if (PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(UParameterizeMeshTool, CheckerDensity))
-	{
-		CheckerMaterial->SetScalarParameterValue("Density", CheckerDensity);
-	}
-	else if (PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(UParameterizeMeshTool, MaterialMode))
-	{
-		if (MaterialMode == EParameterizeMeshMaterialMode::Checkerboard && CheckerMaterial != nullptr)
-		{
-			Preview->ConfigureMaterials(
-				ToolSetupUtil::GetDefaultMaterial(GetToolManager(), CheckerMaterial),
-				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
-			);
-		}
-		if (MaterialMode == EParameterizeMeshMaterialMode::Override && OverrideMaterial != nullptr)
-		{
-			Preview->ConfigureMaterials(
-				ToolSetupUtil::GetDefaultMaterial(GetToolManager(), OverrideMaterial),
-				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
-			);
-		}
-		if (MaterialMode == EParameterizeMeshMaterialMode::Default && DefaultMaterial != nullptr)
-		{
-		
-			Preview->ConfigureMaterials(
-				ToolSetupUtil::GetDefaultMaterial(GetToolManager(), DefaultMaterial),
-				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
-			);
-		}
-
-		
-
-	}
-	else if (PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(UParameterizeMeshTool, OverrideMaterial))
-	{
-		if (MaterialMode == EParameterizeMeshMaterialMode::Override && OverrideMaterial != nullptr)
-		{
-			
-			Preview->ConfigureMaterials(
-				ToolSetupUtil::GetDefaultMaterial(GetToolManager(), OverrideMaterial),
-				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
-			);
-		}
-	}
-	else
-	{
-		// One of the UV generation properties must have changed.  Dirty the result to force a recompute
-		Preview->InvalidateResult();
-	}
+	// One of the UV generation properties must have changed.  Dirty the result to force a recompute
+	Preview->InvalidateResult();
 }
 
 TSharedPtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()

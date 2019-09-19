@@ -51,7 +51,6 @@ UProceduralShapeToolProperties::UProceduralShapeToolProperties()
 	Subdivisions = 0;
 	PivotLocation = EMakeMeshPivotLocation::Base;
 	PlaceMode = EMakeMeshPlacementType::OnScene;
-    Material = CreateDefaultSubobject<UMaterialInterface>(TEXT("MATERIAL"));
 }
 
 namespace
@@ -68,11 +67,7 @@ namespace
 	  { TEXT("PlaceMode"),     EMakeMeshShapeType::All },
 	  { TEXT("PivotLocation"), EMakeMeshShapeType::All },
 	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Sphere },
-	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Plane },
-	  { TEXT("Material"),      EMakeMeshShapeType::All },
-	  { TEXT("bWorldSpaceUVScale"), EMakeMeshShapeType::All },
-	  { TEXT("UVScale"),	   EMakeMeshShapeType::All },
-	  { TEXT("bWireframe"),	   EMakeMeshShapeType::All }
+	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Plane }
 	};
 };
 
@@ -115,11 +110,14 @@ void UAddPrimitiveTool::Setup()
 	ShapeSettings = NewObject<UProceduralShapeToolProperties>(this);
 	AddToolPropertySource(ShapeSettings);
 
+	MaterialProperties = NewObject<UNewMeshMaterialProperties>(this);
+	AddToolPropertySource(MaterialProperties);
+
 	// create preview mesh object
 	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("PreviewMesh"));
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
 	PreviewMesh->SetVisible(false);
-	PreviewMesh->SetMaterial(ShapeSettings->Material);
+	PreviewMesh->SetMaterial(MaterialProperties->Material);
 
 	UpdatePreviewMesh();
 
@@ -147,8 +145,8 @@ void UAddPrimitiveTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UAddPrimitiveTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
 {
-	PreviewMesh->EnableWireframe(ShapeSettings->bWireframe);
-	PreviewMesh->SetMaterial(ShapeSettings->Material);
+	PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
+	PreviewMesh->SetMaterial(MaterialProperties->Material);
 	UpdatePreviewMesh();
 }
 
@@ -251,11 +249,11 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 		break;
 	}
 
-	if (ShapeSettings->UVScale != 1.0 || ShapeSettings->bWorldSpaceUVScale)
+	if (MaterialProperties->UVScale != 1.0 || MaterialProperties->bWorldSpaceUVScale)
 	{
 		FDynamicMeshEditor Editor(&NewMesh);
-		float WorldUnitsInMetersFactor = ShapeSettings->bWorldSpaceUVScale ? .01f : 1.0f;
-		Editor.RescaleAttributeUVs(ShapeSettings->UVScale * WorldUnitsInMetersFactor, ShapeSettings->bWorldSpaceUVScale);
+		float WorldUnitsInMetersFactor = MaterialProperties->bWorldSpaceUVScale ? .01f : 1.0f;
+		Editor.RescaleAttributeUVs(MaterialProperties->UVScale * WorldUnitsInMetersFactor, MaterialProperties->bWorldSpaceUVScale);
 	}
 
 	// set mesh position

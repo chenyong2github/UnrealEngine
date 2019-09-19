@@ -108,10 +108,9 @@ void UUVProjectionTool::Setup()
 	AddToolPropertySource(BasicProperties);
 	AddToolPropertySource(AdvancedProperties);
 
-	// Set up check material
-	UMaterial* CheckerMaterialBase = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/CheckerMaterial"));
-	CheckerMaterial = UMaterialInstanceDynamic::Create(CheckerMaterialBase, NULL);
-	CheckerMaterial->SetScalarParameterValue("Density", 10);
+	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
+	MaterialSettings->Setup();
+	AddToolPropertySource(MaterialSettings);
 
 	// initialize the PreviewMesh+BackgroundCompute object
 	UpdateNumPreviews();
@@ -166,7 +165,7 @@ void UUVProjectionTool::UpdateNumPreviews()
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
 			Preview->Setup(this->TargetWorld, OpFactory);
 			Preview->ConfigureMaterials(
-				ToolSetupUtil::GetDefaultMaterial(GetToolManager(), CheckerMaterial),//ComponentTargets[PreviewIdx]->GetMaterial(0)),
+				ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTargets[PreviewIdx]->GetMaterial(0)),
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 			);
 			Preview->SetVisibility(true);
@@ -286,10 +285,16 @@ void UUVProjectionTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 void UUVProjectionTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
 {
 	// if we don't know what changed, or we know checker density changed, update checker material
-	if (!Property || Property->GetFName() == GET_MEMBER_NAME_CHECKED(UUVProjectionToolProperties, CheckerDensity))
+	MaterialSettings->UpdateMaterials();
+	for (int PreviewIdx = 0; PreviewIdx < Previews.Num(); PreviewIdx++)
 	{
-		CheckerMaterial->SetScalarParameterValue("Density", BasicProperties->CheckerDensity);
+		UMeshOpPreviewWithBackgroundCompute* Preview = Previews[PreviewIdx];
+		MaterialSettings->SetMaterialIfChanged(ComponentTargets[PreviewIdx]->GetMaterial(0), Preview->StandardMaterial, [&Preview, this](UMaterialInterface* Material)
+		{
+			Preview->ConfigureMaterials(ToolSetupUtil::GetDefaultMaterial(GetToolManager(), Material), Preview->WorkingMaterial);
+		});
 	}
+	
 	UpdateNumPreviews();
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{

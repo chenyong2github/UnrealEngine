@@ -8,6 +8,8 @@
 #include "InteractiveToolBuilder.h"
 #include "DynamicMesh3.h"
 #include "MeshOpPreviewHelpers.h"
+#include "Properties/MeshMaterialProperties.h"
+
 #include "ParameterizeMeshTool.generated.h"
 
 
@@ -86,6 +88,8 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
+
 	// IDynamicMeshOperatorFactory API
 	virtual TSharedPtr<FDynamicMeshOperator> MakeNewOperator() override;
 
@@ -96,18 +100,9 @@ protected:
 	/** Maximum amount of stretch, from none to any.  If zero stretch is specified each triangle will likey be its own chart */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (Default = "0.166", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax= "1"))
 	float ChartStretch = 0.11f;
-	
-	/** Material that will be displayed on the mesh */
-	UPROPERTY(EditAnywhere, Category = Options)
-	EParameterizeMeshMaterialMode MaterialMode = EParameterizeMeshMaterialMode::Default;
 
-	/** The material that will be displayed on the mesh when override material mode has been selected */
-	UPROPERTY(EditAnywhere, Category = Options)
-	UMaterialInterface* OverrideMaterial = nullptr;
-	
-	/** For display only - the density of the checkerboard pattern in the viewport.*/
-	UPROPERTY(EditAnywhere, Category = Options, meta = (Default = "20", UIMin = "1.0", UIMax = "40.0", ClampMin = "0.01", ClampMax = "1000.0"))
-	float CheckerDensity = 20.f;
+	UPROPERTY()
+	UExistingMeshMaterialProperties* MaterialSettings = nullptr;
 
 protected:
 	UPROPERTY()

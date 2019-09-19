@@ -11,6 +11,7 @@
 #include "DynamicMeshAABBTree3.h"
 #include "Snapping/PointPlanarSnapSolver.h"
 #include "ToolSceneQueriesUtil.h"
+#include "Properties/MeshMaterialProperties.h"
 #include "DrawPolygonTool.generated.h"
 
 
@@ -97,16 +98,6 @@ class MESHMODELINGTOOLS_API UDrawPolygonToolStandardProperties : public UObject
 
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
 	bool bAllowSelfIntersections = false;
-
-	/** Material for new mesh*/
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (DisplayName = "Material"))
-	UMaterialInterface* Material;
-
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "UV Scale"))
-	float UVScale = 1.0;
-
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "UV Scale Relative to World Space"))
-	bool bWorldSpaceUVScale = false;
 };
 
 
@@ -213,6 +204,9 @@ protected:
 
 	UPROPERTY()
 	UDrawPolygonToolSnapProperties* SnapProperties;
+
+	UPROPERTY()
+	UNewMeshMaterialProperties* MaterialProperties;
 	
 
 	/** Origin of plane we will draw polygon on */
