@@ -1863,8 +1863,16 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			FCStringAnsi::Snprintf(BufferIdx, 3, "%d", SideTableIndex);
 			BufferIndices &= ~(1 << SideTableIndex);
 
-			ShaderConductor::MacroDefine Defines[16] = {{"texel_buffer_texture_width", "0"}, {"enforce_storge_buffer_bounds", "1"}, {"buffer_size_buffer_index", BufferIdx}, {"invariant_float_math", Options.enableFMAPass ? "1" : "0"}};
-			TargetDesc.numOptions = 4;
+			ShaderConductor::MacroDefine Defines[16] =
+			{
+				{"texel_buffer_texture_width", "0"},
+				{"enforce_storge_buffer_bounds", "1"},
+				{"buffer_size_buffer_index", BufferIdx},
+				{"invariant_float_math", Options.enableFMAPass ? "1" : "0"},
+				{"enable_decoration_binding","1"},
+			};
+			
+			TargetDesc.numOptions = 5;
 			TargetDesc.options = &Defines[0];
 			switch(Semantics)
 			{
@@ -2082,13 +2090,15 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			if (Options.enableFMAPass)
 			{
 				std::string FMADefine = std::string("#include <metal_stdlib>\n\n"
-										"template<typename T> static inline __attribute__((always_inline)) T ue4_cross(T x, T y)\n"
+										"template<typename T>\n"
+										"static inline __attribute__((always_inline))\n"
+										"T ue4_cross(T x, T y)\n"
 										"{\n"
-										"	float3 fx = float3(x);\n"
-										"	float3 fy = float3(y);\n"
-										"	return T(metal::fma(fx[1], fy[2], -metal::fma(fy[1], fx[2], 0.0)), metal::fma(fx[2], fy[0], -metal::fma(fy[2], fx[0], 0.0)), metal::fma(fx[0], fy[1], -metal::fma(fy[0], fx[1], 0.0)));\n"
+										"    float3 fx = float3(x);\n"
+										"    float3 fy = float3(y);\n"
+										"    return T(metal::fma(fx[1], fy[2], -metal::fma(fy[1], fx[2], 0.0)), metal::fma(fx[2], fy[0], -metal::fma(fy[2], fx[0], 0.0)), metal::fma(fx[0], fy[1], -metal::fma(fy[0], fx[1], 0.0)));\n"
 										"}\n"
-										"\t#define cross ue4_cross\n"
+										"#define cross ue4_cross\n"
 										);
 				
 				std::string IncludeString = "#include <metal_stdlib>";

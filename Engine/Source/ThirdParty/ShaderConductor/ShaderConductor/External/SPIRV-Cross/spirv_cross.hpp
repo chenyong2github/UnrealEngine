@@ -117,15 +117,6 @@ struct EntryPoint
 	spv::ExecutionModel execution_model;
 };
 
-enum ExtendedDecorations
-{
-	SPIRVCrossDecorationPacked,
-	SPIRVCrossDecorationPackedType,
-	SPIRVCrossDecorationInterfaceMemberIndex,
-	SPIRVCrossDecorationInterfaceOrigID,
-	SPIRVCrossDecorationArgumentBufferID
-};
-
 class Compiler
 {
 public:
@@ -255,7 +246,7 @@ public:
 	size_t get_declared_struct_size_runtime_array(const SPIRType &struct_type, size_t array_size) const;
 
 	// Returns the effective size of a buffer block struct member.
-	virtual size_t get_declared_struct_member_size(const SPIRType &struct_type, uint32_t index) const;
+	size_t get_declared_struct_member_size(const SPIRType &struct_type, uint32_t index) const;
 
 	// Returns a set of all global variables which are statically accessed
 	// by the control flow graph from the current entry point.
@@ -495,6 +486,9 @@ public:
 	// of direct decorations on the variable itself.
 	// The most common use here is to check if a buffer is readonly or writeonly.
 	Bitset get_buffer_block_flags(uint32_t id) const;
+	
+	// Returns true if the target language supports combined texture-samplers. Returns fasle by default.
+	virtual bool supports_combined_samplers() const;
 
 protected:
 	const uint32_t *stream(const Instruction &instr) const
@@ -614,6 +608,7 @@ protected:
 	bool expression_is_lvalue(uint32_t id) const;
 	bool variable_storage_is_aliased(const SPIRVariable &var);
 	SPIRVariable *maybe_get_backing_variable(uint32_t chain);
+	spv::StorageClass get_backing_variable_storage(uint32_t ptr);
 
 	void register_read(uint32_t expr, uint32_t chain, bool forwarded);
 	void register_write(uint32_t chain);
@@ -666,9 +661,9 @@ protected:
 
 	bool function_is_pure(const SPIRFunction &func);
 	bool block_is_pure(const SPIRBlock &block);
-	bool block_is_outside_flow_control_from_block(const SPIRBlock &from, const SPIRBlock &to);
 
 	bool execution_is_branchless(const SPIRBlock &from, const SPIRBlock &to) const;
+	bool execution_is_direct_branch(const SPIRBlock &from, const SPIRBlock &to) const;
 	bool execution_is_noop(const SPIRBlock &from, const SPIRBlock &to) const;
 	SPIRBlock::ContinueBlockType continue_block_type(const SPIRBlock &continue_block) const;
 
@@ -689,7 +684,7 @@ protected:
 	bool interface_variable_exists_in_entry_point(uint32_t id) const;
 
 	SmallVector<CombinedImageSampler> combined_image_samplers;
-
+	
 	void remap_variable_type_name(const SPIRType &type, const std::string &var_name, std::string &type_name) const
 	{
 		if (variable_remap_callback)
@@ -780,8 +775,8 @@ protected:
 		uint32_t remap_parameter(uint32_t id);
 		void push_remap_parameters(const SPIRFunction &func, const uint32_t *args, uint32_t length);
 		void pop_remap_parameters();
-		void register_combined_image_sampler(SPIRFunction &caller, uint32_t texture_id, uint32_t sampler_id,
-		                                     bool depth);
+		void register_combined_image_sampler(SPIRFunction &caller, uint32_t combined_id, uint32_t texture_id,
+		                                     uint32_t sampler_id, bool depth);
 	};
 
 	struct DummySamplerForCombinedImageHandler : OpcodeHandler
@@ -822,7 +817,9 @@ protected:
 
 	std::unordered_set<uint32_t> forced_temporaries;
 	std::unordered_set<uint32_t> forwarded_temporaries;
+	std::unordered_set<uint32_t> suppressed_usage_tracking;
 	std::unordered_set<uint32_t> hoisted_temporaries;
+	std::unordered_set<uint32_t> forced_invariant_temporaries;
 
 	Bitset active_input_builtins;
 	Bitset active_output_builtins;
@@ -885,10 +882,17 @@ protected:
 
 		void add_hierarchy_to_comparison_ids(uint32_t ids);
 		bool need_subpass_input = false;
+		
+		/* UE Change Begin: If the underlying resource has been used for comparison then duplicate loads of that resource must be too */
+		// Returns true if a dependent resource in the dependency hierarchy of the specified image or sampler has been used for comparison.
+		bool dependent_used_for_comparison(uint32_t id) const;
+		/* UE Change End: If the underlying resource has been used for comparison then duplicate loads of that resource must be too */
 	};
 
 	void build_function_control_flow_graphs_and_analyze();
 	std::unordered_map<uint32_t, std::unique_ptr<CFG>> function_cfgs;
+	const CFG &get_cfg_for_current_function() const;
+
 	struct CFGBuilder : OpcodeHandler
 	{
 		CFGBuilder(Compiler &compiler_);
@@ -950,6 +954,7 @@ protected:
 	void analyze_variable_scope(SPIRFunction &function, AnalyzeVariableScopeAccessHandler &handler);
 	void find_function_local_luts(SPIRFunction &function, const AnalyzeVariableScopeAccessHandler &handler,
 	                              bool single_function);
+	bool may_read_undefined_variable_in_block(const SPIRBlock &block, uint32_t var);
 
 	void make_constant_null(uint32_t id, uint32_t type);
 
@@ -977,6 +982,11 @@ protected:
 	bool type_is_array_of_pointers(const SPIRType &type) const;
 	bool type_is_block_like(const SPIRType &type) const;
 	bool type_is_opaque_value(const SPIRType &type) const;
+
+	bool reflection_ssbo_instance_name_is_significant() const;
+	std::string get_remapped_declared_block_name(uint32_t id, bool fallback_prefer_instance_name) const;
+
+	bool flush_phi_required(uint32_t from, uint32_t to) const;
 
 private:
 	// Used only to implement the old deprecated get_entry_point() interface.
