@@ -13,7 +13,7 @@ TMap<TPair<FName,FName>, size_t> FSparseDelegateStorage::SparseDelegateObjectOff
 FSparseDelegateStorage::FObjectListener::~FObjectListener()
 {
 	// Destroy order might result in GUObjectArray or its critical section being invalid so don't disable since we're shutting down anyways
-	if (!GIsRequestingExit)
+	if (!IsEngineExitRequested())
 	{
 		DisableListener();
 	}

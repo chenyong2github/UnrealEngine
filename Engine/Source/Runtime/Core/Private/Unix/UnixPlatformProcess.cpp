@@ -1254,7 +1254,7 @@ void FUnixPlatformProcess::TerminateProc( FProcHandle & ProcessHandle, bool Kill
  * WaitAndFork on Unix
  *
  * This is a function that halts execution and waits for signals to cause forked processes to be created and continue execution.
- * The parent process will return when GIsRequestingExit is true. SIGRTMIN+1 is used to cause a fork to happen.
+ * The parent process will return when IsEngineExitRequested() is true. SIGRTMIN+1 is used to cause a fork to happen.
  * Optionally, the parent process will also return if any of the children close with an exit code equal to WAIT_AND_FORK_PARENT_SHUTDOWN_EXIT_CODE if it is set to non-zero.
  * If sigqueue is used, the payload int will be split into the upper and lower uint16 values. The upper value is a "cookie" and the
  *     lower value is an "index". These two values will be used to name the process using the pattern DS-<cookie>-<index>. This name
@@ -1337,7 +1337,7 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 	};
 	TArray<FPidAndSignal> AllChildren;
 	AllChildren.Reserve(1024); // Sized to be big enough that it probably wont reallocte, but its not the end of the world if it does.
-	while (!GIsRequestingExit)
+	while (!IsEngineExitRequested())
 	{
 		int32 SignalValue = 0;
 		if (WaitAndForkSignalQueue.Dequeue(SignalValue))
@@ -1420,7 +1420,7 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 					sigaction(WAIT_AND_FORK_RESPONSE_SIGNAL, &Action, nullptr);
 
 					UE_LOG(LogHAL, Log, TEXT("[Child] WaitAndFork child waiting for signal %d to proceed."), WAIT_AND_FORK_RESPONSE_SIGNAL);
-					while (!GIsRequestingExit && !bResponseReceived)
+					while (!IsEngineExitRequested() && !bResponseReceived)
 					{
 						FPlatformProcess::Sleep(1);
 					}
@@ -1467,7 +1467,7 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 					if (ExitCode != 0 && ExitCode == WAIT_AND_FORK_PARENT_SHUTDOWN_EXIT_CODE)
 					{
 						UE_LOG(LogHAL, Log, TEXT("[Parent] WaitAndFork child %d exited with return code %d, indicating that the parent process should shut down. Shutting down..."), ChildPidAndSignal.Pid, WAIT_AND_FORK_PARENT_SHUTDOWN_EXIT_CODE);
-						GIsRequestingExit = true;
+						RequestEngineExit(TEXT("Unix Child has exited"));
 					}
 					else if (NumForks > 0 && ChildPidAndSignal.SignalValue > 0 && ChildPidAndSignal.SignalValue <= NumForks)
 					{

@@ -678,7 +678,7 @@ namespace OculusHMD
 	{
 		CheckInGameThread();
 
-		if (GIsRequestingExit)
+		if (IsEngineExitRequested())
 		{
 			return false;
 		}
@@ -929,7 +929,7 @@ namespace OculusHMD
 		}
 #endif
 
-		if (GIsRequestingExit)
+		if (IsEngineExitRequested())
 		{
 			PreShutdown();
 		}

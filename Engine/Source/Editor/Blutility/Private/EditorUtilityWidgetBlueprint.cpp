@@ -23,7 +23,7 @@ UEditorUtilityWidgetBlueprint::UEditorUtilityWidgetBlueprint(const FObjectInitia
 void UEditorUtilityWidgetBlueprint::BeginDestroy()
 {
 	// Only cleanup script if it has been registered and we're not shutdowning editor
-	if (!GIsRequestingExit && RegistrationName != NAME_None)
+	if (!IsEngineExitRequested() && RegistrationName != NAME_None)
 	{
 		IBlutilityModule* BlutilityModule = FModuleManager::GetModulePtr<IBlutilityModule>("Blutility");
 		if (BlutilityModule)

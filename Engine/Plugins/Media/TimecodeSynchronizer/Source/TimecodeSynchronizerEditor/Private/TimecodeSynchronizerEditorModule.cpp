@@ -45,7 +45,7 @@ public:
 
 	virtual void ShutdownModule() override
 	{
-		if (!IsRunningCommandlet() && UObjectInitialized() && !GIsRequestingExit)
+		if (!IsRunningCommandlet() && UObjectInitialized() && !IsEngineExitRequested())
 		{
 			// Unregister settings
 			FModuleManager::GetModulePtr<ISettingsModule>("Settings")->UnregisterSettings("Project", "Plugins", "TimecodeSynchronizer");

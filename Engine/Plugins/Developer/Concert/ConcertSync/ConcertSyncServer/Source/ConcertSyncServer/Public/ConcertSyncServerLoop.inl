@@ -130,7 +130,7 @@ int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLo
 		double LastTime = FPlatformTime::Seconds();
 		const float IdealFrameTime = 1.0f / InitArgs.IdealFramerate;
 
-		while (!GIsRequestingExit)
+		while (!IsEngineExitRequested())
 		{
 			const double CurrentTime = FPlatformTime::Seconds();
 			const double DeltaTime = CurrentTime - LastTime;

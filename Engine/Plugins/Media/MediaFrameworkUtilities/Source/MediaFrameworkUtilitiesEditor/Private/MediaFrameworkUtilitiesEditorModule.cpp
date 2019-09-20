@@ -104,7 +104,7 @@ public:
 
 	virtual void ShutdownModule() override
 	{
-		if (!GIsRequestingExit && GEditor && UObjectInitialized())
+		if (!IsEngineExitRequested() && GEditor && UObjectInitialized())
 		{
 			FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
 			if (LevelEditorModule != nullptr)

@@ -373,7 +373,7 @@ FRunnableThread::FRunnableThread()
 
 FRunnableThread::~FRunnableThread()
 {
-	if (!GIsRequestingExit)
+	if (!IsEngineExitRequested())
 	{
 		FThreadManager::Get().RemoveThread(this);
 	}

@@ -38,7 +38,7 @@ FTimecodeSynchronizerEditorLevelToolbar::FTimecodeSynchronizerEditorLevelToolbar
 
 FTimecodeSynchronizerEditorLevelToolbar::~FTimecodeSynchronizerEditorLevelToolbar()
 {
-	if (UObjectInitialized() && LevelToolbarExtender.IsValid() && !GIsRequestingExit)
+	if (UObjectInitialized() && LevelToolbarExtender.IsValid() && !IsEngineExitRequested())
 	{
 		// Add a TimecodeSynchronizer toolbar section after the settings section of the level editor
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");

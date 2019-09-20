@@ -253,6 +253,26 @@ static void appNoop()
 {
 }
 
+void CORE_API RequestEngineExit(const TCHAR* ReasonString)
+{
+	ensureMsgf(ReasonString && FCString::Strlen(ReasonString) > 4, TEXT("RequestEngineExit must be given a valid reason (reason \"%s\""), ReasonString);
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_LOG(LogCore, Log, TEXT("Engine exit requested (reason: %s%s)"), ReasonString, GIsRequestingExit ? TEXT("; note: exit was already requested") : TEXT(""));
+	GIsRequestingExit = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void CORE_API RequestEngineExit(const FString& ReasonString)
+{
+	ensureMsgf(ReasonString.Len() > 4, TEXT("RequestEngineExit must be given a valid reason (reason \"%s\""), *ReasonString);
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_LOG(LogCore, Log, TEXT("Engine exit requested (reason: %s%s)"), *ReasonString, GIsRequestingExit ? TEXT("; note: exit was already requested") : TEXT(""));
+	GIsRequestingExit = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 /** Exec handler for game debugging tool, allowing commands like "editactor", ...							*/
 FExec*					GDebugToolExec					= NULL;
 /** Whether we're currently in the async loading codepath or not											*/

@@ -321,7 +321,7 @@ struct FRHIUniformBufferLayout
 #if VALIDATE_UNIFORM_BUFFER_LAYOUT_LIFETIME
 	~FRHIUniformBufferLayout()
 	{
-		check(NumUsesForDebugging == 0 || GIsRequestingExit);
+		check(NumUsesForDebugging == 0 || IsEngineExitRequested());
 	}
 #endif
 
@@ -398,7 +398,7 @@ public:
 			check(LocalLayout->NumUsesForDebugging >= 0);
 #endif
 #if VALIDATE_UNIFORM_BUFFER_LIFETIME
-			check(LocalNumMeshCommandReferencesForDebugging == 0 || GIsRequestingExit);
+			check(LocalNumMeshCommandReferencesForDebugging == 0 || IsEngineExitRequested());
 #endif
 		}
 

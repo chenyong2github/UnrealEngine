@@ -46,7 +46,7 @@ FDDCNotifications::~FDDCNotifications()
 void FDDCNotifications::ClearSharedDDCNotification()
 {
 	// Don't call back into slate if already exiting
-	if (GIsRequestingExit)
+	if (IsEngineExitRequested())
 	{
 		return;
 	}

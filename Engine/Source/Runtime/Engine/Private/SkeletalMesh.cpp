@@ -938,7 +938,7 @@ bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 	// if resident and requested mip counts match then no pending request is in flight
 	if (PendingUpdate)
 	{
-		if (GIsRequestingExit || !SkeletalMeshRenderData)
+		if (IsEngineExitRequested() || !SkeletalMeshRenderData)
 		{
 			PendingUpdate->Abort();
 		}

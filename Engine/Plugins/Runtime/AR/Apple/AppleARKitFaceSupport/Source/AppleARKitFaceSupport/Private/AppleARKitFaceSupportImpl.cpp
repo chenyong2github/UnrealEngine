@@ -69,7 +69,7 @@ FAppleARKitFaceSupport::FAppleARKitFaceSupport() :
 FAppleARKitFaceSupport::~FAppleARKitFaceSupport()
 {
 	// Should only be called durirng shutdown
-	check(GIsRequestingExit);
+	check(IsEngineExitRequested());
 }
 
 void FAppleARKitFaceSupport::Init()

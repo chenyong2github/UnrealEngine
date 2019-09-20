@@ -367,7 +367,7 @@ static IOSAppDelegate* CachedDelegate = nil;
 	});
 #endif
 
-    while( !GIsRequestingExit )
+    while( !IsEngineExitRequested() )
 	{
         if (self.bIsSuspended)
         {
@@ -896,7 +896,7 @@ bool GIsSuspended = 0;
 
 - (void)ForceExit
 {
-    GIsRequestingExit = true;
+	RequestEngineExit(TEXT("IOS ForceExit"));
     bForceExit = true;
 }
 
@@ -1551,7 +1551,7 @@ extern double GCStartTime;
     
     // note that we are shutting down
     // TODO: fix the reason why we are hanging when asked to shutdown
-/*    GIsRequestingExit = true;
+/*    RequestEngineExit(TEXT("IOS applicationWillTerminate"));
     
     if (!bEngineInit)*/
     {

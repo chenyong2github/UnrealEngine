@@ -630,7 +630,7 @@ void FGenericPlatformMisc::RequestExit( bool Force )
 	else
 	{
 		// Tell the platform specific code we want to exit cleanly from the main loop.
-		GIsRequestingExit = 1;
+		RequestEngineExit(TEXT("GenericPlatform RequestExit"));
 	}
 }
 

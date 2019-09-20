@@ -5017,7 +5017,7 @@ bool UStaticMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 	// if resident and requested mip counts match then no pending request is in flight
 	if (PendingUpdate)
 	{
-		if (GIsRequestingExit || !RenderData)
+		if (IsEngineExitRequested() || !RenderData)
 		{
 			PendingUpdate->Abort();
 		}
