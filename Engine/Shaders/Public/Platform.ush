@@ -431,6 +431,11 @@
 #define PLATFORM_SUPPORTS_ATOMIC_UINT64 0
 #endif
 
+// Support for depth test running both before and after pixel shader
+#ifndef COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
+#define COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE 0
+#endif
+
 // ---------------------------------------------------- Compiler attributes
 
 #if SM5_PROFILE || COMPILER_SUPPORTS_ATTRIBUTES
@@ -455,10 +460,6 @@
 
 #if SM5_PROFILE || METAL_MRT_PROFILE || METAL_SM5_PROFILE || METAL_SM5_NOTESS_PROFILE
 #define EARLYDEPTHSTENCIL [earlydepthstencil]
-#endif
-
-#ifndef DEPTHSTENCIL_EARLYTEST_LATEWRITE
-#define DEPTHSTENCIL_EARLYTEST_LATEWRITE EARLYDEPTHSTENCIL
 #endif
 
 // ---------------------------------------------------- Compiler attribute fallbacks
@@ -497,6 +498,10 @@
 
 #ifndef EARLYDEPTHSTENCIL
 #define EARLYDEPTHSTENCIL
+#endif
+
+#ifndef DEPTHSTENCIL_EARLYTEST_LATEWRITE
+#define DEPTHSTENCIL_EARLYTEST_LATEWRITE
 #endif
 
 #ifndef STRONG_TYPE
