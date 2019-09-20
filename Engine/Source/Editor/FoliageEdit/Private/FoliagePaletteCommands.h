@@ -31,6 +31,7 @@ public:
 	TSharedPtr< FUICommandInfo > DeactivateFoliageType;
 	TSharedPtr< FUICommandInfo > RemoveFoliageType;
 	TSharedPtr< FUICommandInfo > ShowFoliageTypeInCB;
+	TSharedPtr< FUICommandInfo > ReflectSelectionInPalette;
 	TSharedPtr< FUICommandInfo > SelectAllInstances;
 	TSharedPtr< FUICommandInfo > DeselectAllInstances;
 	TSharedPtr< FUICommandInfo > SelectInvalidInstances;

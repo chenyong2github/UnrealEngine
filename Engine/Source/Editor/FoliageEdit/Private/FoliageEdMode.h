@@ -489,6 +489,9 @@ public:
 	/** Find and select instances that don't have valid base or 'off-ground' */
 	void SelectInvalidInstances(const UFoliageType* Settings);
 
+	/** Returns selected foliage types based on selected foliage instances */
+	void GetSelectedInstanceFoliageTypes(TArray<const UFoliageType*>& OutFoliageTypes) const;
+
 	/** Adjusts the radius of the foliage brush, using the given multiplier to adjust speed */
 	void AdjustBrushRadius(float Multiplier);
 
