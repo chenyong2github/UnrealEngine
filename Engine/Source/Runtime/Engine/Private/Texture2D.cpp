@@ -38,11 +38,6 @@
 #include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTexturePoolConfig.h"
 
-#if WITH_EDITOR
-#include "Settings/EditorExperimentalSettings.h"
-#include "Landscape/Classes/LandscapeProxy.h"
-#endif
-
 UTexture2D::UTexture2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -1254,14 +1249,6 @@ bool UTexture2D::ShouldMipLevelsBeForcedResident() const
 	{
 		return true;
 	}
-
-#if WITH_EDITOR
-	if (GIsEditor && (LODGroup == TEXTUREGROUP_Terrain_Heightmap || LODGroup == TEXTUREGROUP_Terrain_Weightmap))
-	{
-		ALandscapeProxy* Proxy = Cast<ALandscapeProxy>(GetOuter());
-		return Proxy && Proxy->HasLayersContent();
-	}
-#endif
 
 	return false;
 }
