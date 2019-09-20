@@ -1805,7 +1805,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SceneContext.ResolveSceneDepthToAuxiliaryTexture(RHICmdList);
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneDepthSurface());
 
-		RenderSingleLayerWaterSSR(RHICmdList, SingleLayerWaterPassData);
+		RenderSingleLayerWaterReflections(RHICmdList, SingleLayerWaterPassData);
 		ServiceLocalQueue();
 	}
 
