@@ -12,7 +12,7 @@
 // predeclarations
 class FDynamicMesh3;
 class UMaterialInterface;
-
+class UMaterialInstanceDynamic;
 
 
 // Standard material property settings for tools that generate new meshes
