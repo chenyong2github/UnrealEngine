@@ -6,6 +6,7 @@
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "BaseBehaviors//BehaviorTargetInterfaces.h"
+#include "Changes/TransformChange.h"
 #include "FrameTypes.h"
 #include "TransformMeshesTool.generated.h"
 
@@ -40,10 +41,7 @@ enum class ETransformMeshesTransformMode : uint8
 	SharedGizmoLocal = 1 UMETA(DisplayName = "Shared Gizmo (Local)"),
 
 	/** Per Object Gizmo */
-	PerObjectGizmo = 2 UMETA(DisplayName = "Multi-Gizmo"),
-
-	/** Quick Translate Transformer */
-	QuickTranslate = 3 UMETA(DisplayName = "QuickTranslate")
+	PerObjectGizmo = 2 UMETA(DisplayName = "Multi-Gizmo")
 };
 
 
@@ -63,6 +61,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "TransformMode == ETransformMeshesTransformMode::SharedGizmo || TransformMode == ETransformMeshesTransformMode::PerObjectGizmo"))
 	bool bSetPivot = false;
+
+
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bSetPivot == false"))
+	bool bEnableSnapDragging = false;
 };
 
 
@@ -135,7 +137,7 @@ protected:
 
 	FFrame3d StartDragFrameWorld;
 	FTransform StartDragTransform;
-
+	int ActiveSnapDragIndex = -1;
 
 	void OnParametersUpdated();
 };
