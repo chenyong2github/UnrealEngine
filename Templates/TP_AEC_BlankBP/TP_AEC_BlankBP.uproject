@@ -3,7 +3,6 @@
 	"EngineAssociation": "",
 	"Category": "",
 	"Description": "",
-	"Modules": [],
 	"Enterprise": true,
 	"Plugins": [
 		{
@@ -16,6 +15,18 @@
 		},
 		{
 			"Name": "DatasmithImporter",
+			"Enabled": true
+		},
+		{
+			"Name": "VariantManager",
+			"Enabled": True
+		},
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true
+		},
+				{
+			"Name": "HDRIBackdrop",
 			"Enabled": true
 		}
 	]
