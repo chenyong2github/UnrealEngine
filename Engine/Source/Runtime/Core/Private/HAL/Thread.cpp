@@ -29,6 +29,7 @@ public:
 	void Initialize(const TSharedPtr<FThreadImpl, ESPMode::ThreadSafe>& InSelf)
 	{
 		Self = InSelf;
+		bIsInitialized = true;
 	}
 
 	bool IsJoinable() const
@@ -57,7 +58,10 @@ private:
 
 		ThreadFunction();
 
-		while (!Self.IsValid());
+		// busy-wait till `Self` is initialized before releasing it
+		while (!bIsInitialized);
+
+		check(Self.IsValid());
 
 		// we're about to exit the thread. Release the reference to self. If the thread is detached, it's the only reference
 		// and so this instance will be deleted. No member access should be performed after this point.
@@ -74,6 +78,8 @@ private:
 	// This must be the declared before `RunnableThread` so it's already initialized when the thread is created, otherwise the thread can complete
 	// before `Self` is initialized.
 	TSharedPtr<FThreadImpl, ESPMode::ThreadSafe> Self;
+
+	TAtomic<bool> bIsInitialized = false;
 	
 	TUniqueFunction<void()> ThreadFunction;
 	TUniquePtr<FRunnableThread> RunnableThread;
