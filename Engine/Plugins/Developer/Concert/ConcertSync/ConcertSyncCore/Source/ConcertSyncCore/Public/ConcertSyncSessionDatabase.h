@@ -585,6 +585,16 @@ public:
 
 private:
 	/**
+	 * Set the active ignored state for the given activity.
+	 *
+	 * @param InActivityId				The ID of the activity to update.
+	 * @param InIsIgnored				True if this activity should be ignored, false otherwise.
+	 *
+	 * @return True if the ignored state was set, false otherwise.
+	 */
+	bool SetActivityIgnoredState(const int64 InActivityId, const bool InIsIgnored);
+
+	/**
 	 * Add a new connection event to this database, assigning it a connection event ID.
 	 *
 	 * @param InConnectionEvent			The connection event to add.

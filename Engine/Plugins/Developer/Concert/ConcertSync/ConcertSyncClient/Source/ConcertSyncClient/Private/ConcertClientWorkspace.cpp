@@ -707,13 +707,16 @@ void FConcertClientWorkspace::SetTransactionActivity(const FConcertSyncTransacti
 	if (LiveSession->GetSessionDatabase().SetTransactionActivity(InTransactionActivity))
 	{
 		PostActivityUpdated(InTransactionActivity);
-		if (TransactionManager)
+		if (!InTransactionActivity.bIgnored)
 		{
-			TransactionManager->HandleRemoteTransaction(InTransactionActivity.EndpointId, InTransactionActivity.EventId, bHasSyncedWorkspace);
-		}
-		if (LiveTransactionAuthors)
-		{
-			LiveTransactionAuthors->AddLiveTransactionActivity(InTransactionActivity.EndpointId, InTransactionActivity.EventData.Transaction.ModifiedPackages);
+			if (TransactionManager)
+			{
+				TransactionManager->HandleRemoteTransaction(InTransactionActivity.EndpointId, InTransactionActivity.EventId, bHasSyncedWorkspace);
+			}
+			if (LiveTransactionAuthors)
+			{
+				LiveTransactionAuthors->AddLiveTransactionActivity(InTransactionActivity.EndpointId, InTransactionActivity.EventData.Transaction.ModifiedPackages);
+			}
 		}
 	}
 	else
@@ -728,13 +731,16 @@ void FConcertClientWorkspace::SetPackageActivity(const FConcertSyncPackageActivi
 	if (LiveSession->GetSessionDatabase().SetPackageActivity(InPackageActivity))
 	{
 		PostActivityUpdated(InPackageActivity);
-		if (PackageManager)
+		if (!InPackageActivity.bIgnored)
 		{
-			PackageManager->HandleRemotePackage(InPackageActivity.EndpointId, InPackageActivity.EventId, bHasSyncedWorkspace);
-		}
-		if (LiveTransactionAuthors)
-		{
-			LiveTransactionAuthors->ResolveLiveTransactionAuthorsForPackage(InPackageActivity.EventData.Package.Info.PackageName);
+			if (PackageManager)
+			{
+				PackageManager->HandleRemotePackage(InPackageActivity.EndpointId, InPackageActivity.EventId, bHasSyncedWorkspace);
+			}
+			if (LiveTransactionAuthors)
+			{
+				LiveTransactionAuthors->ResolveLiveTransactionAuthorsForPackage(InPackageActivity.EventData.Package.Info.PackageName);
+			}
 		}
 	}
 	else

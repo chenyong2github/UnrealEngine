@@ -127,9 +127,12 @@ bool MigrateSessionData(const FConcertSyncSessionDatabase& InSourceDatabase, con
 				{
 					MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get connection activity '%s' from database at '%s': %s", *LexToString(InActivityId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
 				}
-				if (!DestDatabase.SetConnectionActivity(ConnectionActivity))
+				if (InDestSessionFilter.bIncludeIgnoredActivities || !ConnectionActivity.bIgnored)
 				{
-					MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set connection activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
+					if (!DestDatabase.SetConnectionActivity(ConnectionActivity))
+					{
+						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set connection activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
+					}
 				}
 			}
 			break;
@@ -141,9 +144,12 @@ bool MigrateSessionData(const FConcertSyncSessionDatabase& InSourceDatabase, con
 				{
 					MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get lock activity '%s' from database at '%s': %s", *LexToString(InActivityId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
 				}
-				if (!DestDatabase.SetLockActivity(LockActivity))
+				if (InDestSessionFilter.bIncludeIgnoredActivities || !LockActivity.bIgnored)
 				{
-					MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set lock activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
+					if (!DestDatabase.SetLockActivity(LockActivity))
+					{
+						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set lock activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
+					}
 				}
 			}
 			break;
@@ -155,7 +161,7 @@ bool MigrateSessionData(const FConcertSyncSessionDatabase& InSourceDatabase, con
 				{
 					MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get transaction activity '%s' from database at '%s': %s", *LexToString(InActivityId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
 				}
-				if (ConcertSyncSessionDatabaseFilterUtil::TransactionEventPassesFilter(TransactionActivity.EventId, InDestSessionFilter, InSourceDatabase))
+				if ((InDestSessionFilter.bIncludeIgnoredActivities || !TransactionActivity.bIgnored) && ConcertSyncSessionDatabaseFilterUtil::TransactionEventPassesFilter(TransactionActivity.EventId, InDestSessionFilter, InSourceDatabase))
 				{
 					if (!InSourceDatabase.GetTransactionEvent(TransactionActivity.EventId, TransactionActivity.EventData, InDestSessionFilter.bMetaDataOnly))
 					{
@@ -176,7 +182,7 @@ bool MigrateSessionData(const FConcertSyncSessionDatabase& InSourceDatabase, con
 				{
 					MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get package activity '%s' from database at '%s': %s", *LexToString(InActivityId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
 				}
-				if (ConcertSyncSessionDatabaseFilterUtil::PackageEventPassesFilter(PackageActivity.EventId, InDestSessionFilter, InSourceDatabase))
+				if ((InDestSessionFilter.bIncludeIgnoredActivities || !PackageActivity.bIgnored) && ConcertSyncSessionDatabaseFilterUtil::PackageEventPassesFilter(PackageActivity.EventId, InDestSessionFilter, InSourceDatabase))
 				{
 					if (!InSourceDatabase.GetPackageEvent(PackageActivity.EventId, PackageActivity.EventData, InDestSessionFilter.bMetaDataOnly))
 					{
