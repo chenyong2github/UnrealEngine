@@ -106,17 +106,25 @@ void UVoxelCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	TUniquePtr<FDynamicMeshOpResult> Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
+		GetToolManager()->BeginUndoTransaction(LOCTEXT("VoxelCSGMeshes", "Boolean Meshes"));
+
 		GenerateAsset(Result);
 
 		for (auto& ComponentTarget : ComponentTargets)
 		{
 			ComponentTarget->SetOwnerVisibility(true);
 			AActor* Actor = ComponentTarget->GetOwnerActor();
-			Actor->SetIsTemporarilyHiddenInEditor(true);
-			// NB: We could alternatly remove the actors.
-			//Actor->Destroy();
-
+			if (CSGProps->bRemoveSources)
+			{
+				Actor->Destroy();
+			}
+			else
+			{
+				Actor->SetIsTemporarilyHiddenInEditor(true);
+			}
 		}
+
+		GetToolManager()->EndUndoTransaction();
 	}
 	else
 	{
@@ -184,7 +192,7 @@ void UVoxelCSGMeshesTool::GenerateAsset(const TUniquePtr<FDynamicMeshOpResult>& 
 {
 	check(Result->Mesh.Get() != nullptr);
 
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("VoxelCSGMeshes", "Boolean Meshes"));
+	//GetToolManager()->BeginUndoTransaction(LOCTEXT("VoxelCSGMeshes", "Boolean Meshes"));
 
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
@@ -194,7 +202,7 @@ void UVoxelCSGMeshesTool::GenerateAsset(const TUniquePtr<FDynamicMeshOpResult>& 
 	// select newly-created object
 	ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
 
-	GetToolManager()->EndUndoTransaction();
+	//GetToolManager()->EndUndoTransaction();
 }
 
 #undef LOCTEXT_NAMESPACE

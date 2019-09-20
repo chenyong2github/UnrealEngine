@@ -78,6 +78,10 @@ public:
 	/** Automatically simplify the result of voxel-based merge.*/
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bAutoSimplify = true;
+
+	/** Remove the source meshes when accepting results of tool.*/
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bRemoveSources = true;
 };
 
 

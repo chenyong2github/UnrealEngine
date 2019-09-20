@@ -107,16 +107,27 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	TUniquePtr<FDynamicMeshOpResult> Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
+		GetToolManager()->BeginUndoTransaction(LOCTEXT("MergeMeshes", "Merge Meshes"));
+
 		GenerateAsset(Result);
+
 		for (auto& ComponentTarget : ComponentTargets)
 		{
 			ComponentTarget->SetOwnerVisibility(true);
 			AActor* Actor = ComponentTarget->GetOwnerActor();
-			Actor->SetIsTemporarilyHiddenInEditor(true);
-			// NB: We could alternately remove the actors.
-			//Actor->Destroy();
-
+			if (MergeProps->bRemoveSources)
+			{
+				Actor->Destroy();
+			}
+			else
+			{
+				// just hide the result.
+				Actor->SetIsTemporarilyHiddenInEditor(true);
+			}
 		}
+
+		GetToolManager()->EndUndoTransaction();
+
 	}
 	else
 	{
@@ -192,7 +203,7 @@ void UMergeMeshesTool::GenerateAsset(const TUniquePtr<FDynamicMeshOpResult>& Res
 {
 	check(Result->Mesh.Get() != nullptr);
 
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("MergeMeshes", "Merge Meshes"));
+	
 
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
@@ -202,7 +213,7 @@ void UMergeMeshesTool::GenerateAsset(const TUniquePtr<FDynamicMeshOpResult>& Res
 	// select newly-created object
 	ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
 
-	GetToolManager()->EndUndoTransaction();
+	
 }
 
 
