@@ -105,7 +105,7 @@ private:
 
 	/** Size of each font texture, width and height */
 	static const uint32 GrayscaleTextureSize = 1024;
-	static const uint32 ColorTextureSize = 256;
+	static const uint32 ColorTextureSize = 512;
 };
 
 TSharedRef<FSlateFontServices> CreateD3DFontServices()
