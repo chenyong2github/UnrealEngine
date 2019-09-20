@@ -4562,6 +4562,11 @@ void UParticleModuleTypeDataGpu::BeginDestroy()
 void UParticleModuleTypeDataGpu::Build( FParticleEmitterBuildInfo& EmitterBuildInfo )
 {
 #if WITH_EDITOR
+	if (GetOutermost()->bIsCookedForEditor)
+	{
+		return;
+	}
+
 	FVector4Distribution Curve;
 	FComposableFloatDistribution ZeroDistribution;
 	FComposableFloatDistribution OneDistribution;
