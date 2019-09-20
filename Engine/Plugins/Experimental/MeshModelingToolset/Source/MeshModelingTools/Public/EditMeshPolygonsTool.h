@@ -359,6 +359,8 @@ public:
 	/** Triggers abort on task and passes off ownership to deleter object */
 	inline void Shutdown();
 
+	const TArray<FROIFace>& GetROIFaces() const { return ROIFaces; }
+
 	/** Stores the position of the vertex constraints and corresponding weights for the entire mesh.  This is used as a form of scratch space.*/
 	TArray<FConstraintData> SrcMeshConstraintBuffer;
 
@@ -500,6 +502,8 @@ protected:
 	// The two deformer type options.
 	FGroupTopologyDeformer LinearDeformer;
 	FGroupTopologyLaplacianDeformer LaplacianDeformer;
+
+	EGroupTopologyDeformationStrategy DeformationStrategy;
 
 	// Initial polygon group and mesh info
 	TDynamicVector<int> InitialTriangleGroups;
