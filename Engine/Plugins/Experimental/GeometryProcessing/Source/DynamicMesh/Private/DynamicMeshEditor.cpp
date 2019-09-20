@@ -576,7 +576,7 @@ void FDynamicMeshEditor::SetQuadUVsFromProjection(const FIndex2i& QuadTris, cons
 }
 
 
-void FDynamicMeshEditor::RescaleAttributeUVs(float UVScale, bool bWorldSpace, int UVLayerIndex)
+void FDynamicMeshEditor::RescaleAttributeUVs(float UVScale, bool bWorldSpace, int UVLayerIndex, TOptional<FTransform3d> ToWorld)
 {
 	check(Mesh->HasAttributes() && Mesh->Attributes()->NumUVLayers() > UVLayerIndex );
 	FDynamicMeshUVOverlay* UVs = Mesh->Attributes()->GetUVLayer(UVLayerIndex);
@@ -591,6 +591,13 @@ void FDynamicMeshEditor::RescaleAttributeUVs(float UVScale, bool bWorldSpace, in
 		{
 			UVs->GetTriElements(TID, TriUVs[0], TriUVs[1], TriUVs[2]);
 			Mesh->GetTriVertices(TID, TriVs[0], TriVs[1], TriVs[2]);
+			if (ToWorld.IsSet())
+			{
+				for (int i = 0; i < 3; i++)
+				{
+					TriVs[i] = ToWorld->TransformPosition(TriVs[i]);
+				}
+			}
 			for (int j = 2, i = 0; i < 3; j = i++)
 			{
 				TotalEdgeUVLen += TriUVs[j].Distance(TriUVs[i]);

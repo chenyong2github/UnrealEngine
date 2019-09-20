@@ -31,6 +31,7 @@ public:
 	float CylinderProjectToTopOrBottomAngleThreshold;
 	FTransform ProjectionTransform;
 	FVector2D UVScale, UVOffset;
+	bool bWorldSpaceUVScale;
 
 	void SetTransform(const FTransform& Transform);
 

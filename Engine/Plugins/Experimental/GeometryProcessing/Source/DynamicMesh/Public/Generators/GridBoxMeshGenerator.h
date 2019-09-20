@@ -165,6 +165,12 @@ public:
 		for (int Dim = 0; Dim < 3; Dim++)
 		{
 			int FaceIdxBase = FaceDimOrder[Dim]*2;
+
+			// UV-specific minor axes + flips; manually set to match default ue4 cube texture arrangement
+			int Minor1Flip[3] = { -1, 1, 1 };
+			int Minor2Flip[3] = { -1, -1, 1 };
+
+			// UV scales for D0, D1
 			double FaceWidth = FMathd::Abs(Box.Extents[D[0][Dim]]) * 2.0;
 			double FaceHeight = FMathd::Abs(Box.Extents[D[1][Dim]]) * 2.0;
 			double WidthUVScale = FaceWidth * UVScale;
@@ -174,6 +180,7 @@ public:
 			for (int Side = 0; Side < 2; Side++)
 			{
 				int SideOpp = 1 - Side;
+				float SideSign = Side * 2 - 1;
 
 				FVector3f Normal(0, 0, 0);
 				Normal[Dim] = (2 * Side - 1);
@@ -181,11 +188,23 @@ public:
 
 				int FaceUVStartInd = CurrentUVIdx;
 				// set all the UVs and normals
+				FVector2f UV;
+				int UVXDim = Dim == 1 ? 1 : 0;	// which dim (of D0,D1) follows the horizontal UV coordinate
+				int UVYDim = 1 - UVXDim;		// which dim (of D0,D1) follows the vertical UV coordinate
 				for (int D0 = 0; D0 < N[D[0][Dim]]; D0++)
 				{
 					for (int D1 = 0; D1 < N[D[1][Dim]]; D1++)
 					{
-						UVs[CurrentUVIdx] = FVector2f(D0*WidthUVScale*Nscale[D[0][Dim]], D1*HeightUVScale*Nscale[D[1][Dim]]);
+						// put the grid coordinates (centered at 0,0) into the UVs
+						UV[UVXDim] = D0 * Nscale[D[0][Dim]] - .5;
+						UV[UVYDim] = D1 * Nscale[D[1][Dim]] - .5;
+						// invert axes to match the desired UV patterns & so the opp faces are not backwards
+						UV.X *= SideSign * Minor1Flip[Dim];
+						UV.Y *= Minor2Flip[Dim];
+						// recenter and scale up
+						UV[UVXDim] = (UV[UVXDim] + .5) * WidthUVScale;
+						UV[UVYDim] = (UV[UVYDim] + .5) * HeightUVScale;
+						UVs[CurrentUVIdx] = UV;
 						Normals[CurrentUVIdx] = Normal;
 						UVParentVertex[CurrentUVIdx] = FaceVertIndices[MajorFaceInd][ToFaceV(Dim, D0, D1)];
 						NormalParentVertex[CurrentUVIdx] = FaceVertIndices[MajorFaceInd][ToFaceV(Dim, D0, D1)];

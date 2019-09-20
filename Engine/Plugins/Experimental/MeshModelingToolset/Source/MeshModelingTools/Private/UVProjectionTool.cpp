@@ -223,6 +223,7 @@ TSharedPtr<FDynamicMeshOperator> UUVProjectionOperatorFactory::MakeNewOperator()
 	Op->CylinderProjectToTopOrBottomAngleThreshold = Tool->BasicProperties->CylinderProjectToTopOrBottomAngleThreshold;
 	Op->UVScale = Tool->BasicProperties->UVScale;
 	Op->UVOffset = Tool->BasicProperties->UVOffset;
+	Op->bWorldSpaceUVScale = Tool->BasicProperties->bWorldSpaceUVScale;
 
 	FTransform LocalToWorld = Tool->ComponentTargets[ComponentIndex]->GetWorldTransform();
 	Op->OriginalMesh = Tool->OriginalDynamicMeshes[ComponentIndex];

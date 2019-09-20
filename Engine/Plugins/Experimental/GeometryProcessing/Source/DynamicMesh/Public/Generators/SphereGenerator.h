@@ -129,7 +129,7 @@ public:
 
 			for (int32 t = 0; t <= NumTheta; ++t)
 			{
-				float Theta = t * DUVtheta;
+				float Theta = 1 - t * DUVtheta;
 				UVs[UVIdx] = FVector2f(Theta, Phi);
 				UVParentVertex[UVIdx] = GridInterface(t, p);
 				ensure(UVIdxLookup(t, p) == UVIdx);

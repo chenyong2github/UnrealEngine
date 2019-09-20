@@ -288,8 +288,9 @@ public:
 	 * @param UVScale Scale factor to multiply into UVs.  If in world space, this is in centimeters relative to the average UV scale
 	 * @param bWorldSpace If true, UVs are rescaled relative to an absolute world scale.
 	 * @param UVLayerIndex which UV layer to operate on (must exist)
+	 * @param ToWorld Optionally transform vertices for world space scaling
 	 */
-	void RescaleAttributeUVs(float UVScale = 1.0f, bool bWorldSpace = false, int UVLayerIndex = 0);
+	void RescaleAttributeUVs(float UVScale = 1.0f, bool bWorldSpace = false, int UVLayerIndex = 0, TOptional<FTransform3d> ToWorld = TOptional<FTransform3d>());
 
 
 	//////////////////////////////////////////////////////////////////////////

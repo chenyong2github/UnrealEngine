@@ -75,6 +75,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	FVector2D UVOffset;
 
+	/** If set, UV scales will be relative to world space so different objects created with the same UV scale should have the same average texel size */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "UV Scale Relative to World Space"))
+	bool bWorldSpaceUVScale = false;
+
 };
 
 

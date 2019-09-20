@@ -125,10 +125,11 @@ protected:
 					SetTrianglePolygon(TriIdx, PolyIdx);
 					TriIdx++;
 				}
+				float SideScale = 2 * CapIdx - 1;
 				for (int32 Idx = 0; Idx < XVerts; Idx++)
 				{
 					FVector2d CenteredVert = CrossSection.GetVertices()[Idx] * UVScale + UVOffset;
-					SetUV(CapUVStart[CapIdx] + Idx, FVector2f(CenteredVert.X, CenteredVert.Y), VertOffset + Idx);
+					SetUV(CapUVStart[CapIdx] + Idx, FVector2f(CenteredVert.X * SideScale, CenteredVert.Y), VertOffset + Idx);
 					SetNormal(CapNormalStart[CapIdx] + Idx, FVector3f::Zero(), VertOffset + Idx);
 				}
 			}
@@ -147,7 +148,7 @@ protected:
 				for (int32 XIdx = 0; XIdx < NumCrossSections; XIdx++)
 				{
 					float UVY = XIdx / float(NumCrossSections - 1);
-					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(UVX, UVY), XIdx * XVerts + VertSubIdx);
+					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY), XIdx * XVerts + VertSubIdx);
 				}
 
 				if (VertSubIdx == NextDupVertIdx)
@@ -179,7 +180,7 @@ protected:
 				for (int32 XIdx = 0; XIdx < NumCrossSections; XIdx++)
 				{
 					float UVY = XIdx / float(NumCrossSections - 1);
-					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(UVX, UVY), XIdx * XVerts + VertSubIdx);
+					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY), XIdx * XVerts + VertSubIdx);
 				}
 			}
 			NumSections = NormalSections.Num();
@@ -246,6 +247,7 @@ public:
 	float Height = 1.0f;
 	int AngleSamples = 16;
 	bool bCapped = false;
+	bool bUVScaleMatchSidesAndCaps = true;
 
 public:
 	/** Generate the mesh */
@@ -262,7 +264,7 @@ public:
 			Caps[0] = ECapType::FlatTriangulation;
 			Caps[1] = ECapType::FlatTriangulation;
 		}
-		ConstructMeshTopology(X, {}, {}, 2, Caps, FVector2d(1, 1), FVector2d(0, 0));
+		ConstructMeshTopology(X, {}, {}, 2, Caps, FVector2d(.5, .5), FVector2d(.5, .5));
 
 		for (int SubIdx = 0; SubIdx < X.VertexCount(); SubIdx++)
 		{
@@ -282,6 +284,32 @@ public:
 		for (int k = 0; k < Normals.Num(); ++k)
 		{
 			Normals[k].Normalize();
+		}
+
+		if (bUVScaleMatchSidesAndCaps)
+		{
+			float MaxAbsRad = FMathf::Max(FMathf::Abs(Radius[0]), FMathf::Abs(Radius[1]));
+			float AbsHeight = FMathf::Abs(Height);
+			float MaxAbsCircumference = MaxAbsRad * FMathf::TwoPi;
+			
+			// scales to put each differently-scaled UV coordinate into the same space
+			float ThetaScale = MaxAbsCircumference;
+			float HeightScale = AbsHeight;
+			float CapScale = MaxAbsRad*2;
+
+			float MaxScale = FMathf::Max3(ThetaScale, HeightScale, CapScale);
+			ThetaScale /= MaxScale;
+			HeightScale /= MaxScale;
+			CapScale /= MaxScale;
+			for (int UVIdx = 0; UVIdx < CapUVStart[0]; UVIdx++)
+			{
+				UVs[UVIdx].X *= ThetaScale;
+				UVs[UVIdx].Y *= HeightScale;
+			}
+			for (int UVIdx = CapUVStart[0]; UVIdx < UVs.Num(); UVIdx++)
+			{
+				UVs[UVIdx] *= CapScale;
+			}
 		}
 
 		return *this;
@@ -321,7 +349,7 @@ public:
 			Caps[1] = ECapType::FlatTriangulation;
 		}
 		int PathNum = Path.Num();
-		ConstructMeshTopology(CrossSection, {}, {}, PathNum, Caps, FVector2d(1, 1), FVector2d(0, 0));
+		ConstructMeshTopology(CrossSection, {}, {}, PathNum, Caps, FVector2d(.5, .5), FVector2d(.5, .5));
 
 		int XNum = CrossSection.VertexCount();
 		TArray<FVector2d> XNormals; XNormals.SetNum(XNum);
