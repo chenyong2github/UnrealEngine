@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/SceneComponent.h"
 #include "InteractiveGizmoManager.h"
 #include "BaseGizmos/GizmoInterfaces.h"
 #include "Changes/TransformChange.h"
