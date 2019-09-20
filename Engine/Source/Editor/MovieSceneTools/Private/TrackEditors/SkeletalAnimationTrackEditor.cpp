@@ -207,6 +207,7 @@ public:
 
 					TSharedRef<SObjectPropertyEntryBox> ContentWidget = SNew(SObjectPropertyEntryBox)
 						.PropertyHandle(ChildPropertyHandle)
+						.AllowedClass(UAnimSequenceBase::StaticClass())
 						.DisplayThumbnail(true)
 						.ThumbnailPool(PropertyUtilities.IsValid() ? PropertyUtilities->GetThumbnailPool() : nullptr)
 						.OnShouldFilterAsset(FOnShouldFilterAsset::CreateRaw(this, &FMovieSceneSkeletalAnimationParamsDetailCustomization::ShouldFilterAsset));
@@ -251,7 +252,7 @@ public:
 	}
 
 private:
-	const FSequencerSectionPropertyDetailsViewCustomizationParams& Params;
+	FSequencerSectionPropertyDetailsViewCustomizationParams Params;
 	FString SkeletonName;
 };
 
