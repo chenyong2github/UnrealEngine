@@ -21,6 +21,11 @@ class FSequencerTrackFilter_NiagaraTracks : public FSequencerTrackFilter
 	// IFilter implementation
 	virtual bool PassesFilter(FTrackFilterType InItem) const override
 	{
+		if (!InItem)
+		{
+			return false;
+		}
+
 		if (InItem->IsA(UMovieSceneNiagaraTrack::StaticClass()) || InItem->IsA(ANiagaraActor::StaticClass()) || InItem->IsA(UNiagaraComponent::StaticClass()))
 		{
 			return true;
