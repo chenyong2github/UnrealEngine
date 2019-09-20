@@ -30,7 +30,7 @@ public:
 	static const int32 AuthTagSizeInBytes = 16;
 
 	// Replace the key used for encryption with NewKey if NewKey is exactly KeySizeInBytes long.
-	virtual void SetEncryptionKey(TArrayView<const uint8> NewKey) override;
+	virtual void SetEncryptionData(const FEncryptionData& EncryptionData) override;
 
 	// After calling this, future outgoing packets will be encrypted (until a call to DisableEncryption).
 	virtual void EnableEncryption() override;

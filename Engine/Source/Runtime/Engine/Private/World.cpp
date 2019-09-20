@@ -5319,7 +5319,7 @@ void UWorld::SendChallengeControlMessage(const FEncryptionKeyResponse& Response,
 		{
 			if (Response.Response == EEncryptionResponse::Success)
 			{
-				Connection->EnableEncryptionWithKeyServer(Response.EncryptionKey);
+				Connection->EnableEncryptionServer(Response.EncryptionData);
 				SendChallengeControlMessage(Connection);
 			}
 			else

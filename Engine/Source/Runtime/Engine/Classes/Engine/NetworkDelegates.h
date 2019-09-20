@@ -131,7 +131,10 @@ struct FEncryptionKeyResponse
 	/** Error message related to the response */
 	FString ErrorMsg;
 	/** Encryption key */
+	UE_DEPRECATED(4.24, "Use EncryptionData struct instead.")
 	TArray<uint8> EncryptionKey;
+	/** Encryption data */
+	FEncryptionData EncryptionData;
 
 	FEncryptionKeyResponse()
 		: Response(EEncryptionResponse::Failure)
