@@ -71,6 +71,18 @@ float GlobalExtinctionScale;
 #define THREADGROUP_SIZE 1
 #endif
 
+#ifndef THREADGROUP_SIZE_X
+#define THREADGROUP_SIZE_X THREADGROUP_SIZE
+#endif
+
+#ifndef THREADGROUP_SIZE_Y
+#define THREADGROUP_SIZE_Y THREADGROUP_SIZE
+#endif
+
+#ifndef THREADGROUP_SIZE_Z
+#define THREADGROUP_SIZE_Z THREADGROUP_SIZE
+#endif
+
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
 void MaterialSetupCS( 
 	uint3 GroupId : SV_GroupID,
@@ -164,6 +176,10 @@ float4 FrameJitterOffsets[16];
 uint HistoryMissSuperSampleCount;
 float PhaseG;
 float InverseSquaredLightDistanceBiasScale;
+
+#ifndef HISTORY_MISS_SUPER_SAMPLE_COUNT
+#define HISTORY_MISS_SUPER_SAMPLE_COUNT 1
+#endif
 
 #ifndef INVERSE_SQUARED_FALLOFF
 #define INVERSE_SQUARED_FALLOFF 1
@@ -428,7 +444,7 @@ float UseHeightFogColors;
 float UseDirectionalLightShadowing;
 float StaticLightingScatteringIntensity;
 
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
+[numthreads(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y, THREADGROUP_SIZE_Z)]
 void LightScatteringCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
@@ -450,10 +466,10 @@ void LightScatteringCS(
 
 	// Supersample if the history was outside the camera frustum
 	// The compute shader is dispatched with extra threads, make sure those don't supersample
-	NumSuperSamples = HistoryAlpha < .001f && all(GridCoordinate < VolumetricFog.GridSizeInt) ? HistoryMissSuperSampleCount : 1;
+	NumSuperSamples = HistoryAlpha < .001f && all(GridCoordinate < VolumetricFog.GridSizeInt) ? HISTORY_MISS_SUPER_SAMPLE_COUNT : 1;
 
 #endif
-
+	UNROLL
 	for (uint SampleIndex = 0; SampleIndex < NumSuperSamples; SampleIndex++)
 	{
 		float3 CellOffset = FrameJitterOffsets[SampleIndex].xyz;
@@ -542,7 +558,18 @@ void LightScatteringCS(
 			LightScattering += (StaticLightingScatteringIntensity / PI) * max(DotSH(IrradianceSH, RotatedHGZonalHarmonic), 0);
 		}
 #endif
-		
+	}
+
+	for (uint SampleIndex = 0; SampleIndex < NumSuperSamples; SampleIndex++)
+	{
+		float3 CellOffset = FrameJitterOffsets[SampleIndex].xyz;
+		//float CellOffset = .5f;
+
+		float SceneDepth;
+		float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, CellOffset, SceneDepth);
+		float CameraVectorLength = length(WorldPosition - View.WorldCameraOrigin);
+		float3 CameraVector = (WorldPosition - View.WorldCameraOrigin) / CameraVectorLength;
+
 		uint GridIndex = ComputeLightGridCellIndex(GridCoordinate.xy * VolumetricFog.FogGridToPixelXY, SceneDepth, 0);
 		const FCulledLightsGridData CulledLightsGrid = GetCulledLightsGrid(GridIndex, 0);
 
