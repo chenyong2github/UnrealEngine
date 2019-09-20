@@ -81,7 +81,7 @@ void FSequencerEntityWalker::ConditionallyIntersectNode(const ISequencerEntityVi
 
 		if (Range.IntersectKeyArea(InNode, VirtualKeySize.Y))
 		{
-			VisitKeyAnyAreas(Visitor, InNode);
+			VisitKeyAnyAreas(Visitor, InNode, !InNode->IsExpanded());
 		}
 	}
 
@@ -99,7 +99,7 @@ void FSequencerEntityWalker::ConditionallyIntersectNode(const ISequencerEntityVi
 	}
 }
 
-void FSequencerEntityWalker::VisitKeyAnyAreas(const ISequencerEntityVisitor& Visitor, const TSharedRef<FSequencerDisplayNode>& InNode)
+void FSequencerEntityWalker::VisitKeyAnyAreas(const ISequencerEntityVisitor& Visitor, const TSharedRef<FSequencerDisplayNode>& InNode, bool bAnyParentCollapsed )
 {
 	if (!Visitor.CheckEntityMask(ESequencerEntity::Key))
 	{
@@ -129,11 +129,11 @@ void FSequencerEntityWalker::VisitKeyAnyAreas(const ISequencerEntityVisitor& Vis
 		}
 	}
 	// Otherwise it might be a collapsed node that contains key areas as children. If so we visit them as if they were a part of this track so that key groupings are visited properly.
-	else if (!InNode->IsExpanded())
+	else if (bAnyParentCollapsed)
 	{
 		for (TSharedRef<FSequencerDisplayNode> ChildNode : InNode->GetChildNodes())
 		{
-			VisitKeyAnyAreas(Visitor, ChildNode);
+			VisitKeyAnyAreas(Visitor, ChildNode, bAnyParentCollapsed || !InNode->IsExpanded());
 		}
 	}
 }
