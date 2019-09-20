@@ -99,7 +99,7 @@ struct NIAGARA_API FNiagaraParameterStore
 
 private:
 	/** Owner of this store. Used to provide an outer to data interfaces in this store. */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	UObject* Owner;
 	
 	/** Map from parameter defs to their offset in the data table or the data interface. TODO: Separate out into a layout and instance class to reduce duplicated data for this?  */
