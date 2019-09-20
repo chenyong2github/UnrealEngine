@@ -47,13 +47,20 @@ enum class EDynamicMeshSculptBrushType : uint8
 	Pull UMETA(DisplayName = "Pull"),
 
 	/** Offset brush */
-	Offset UMETA(DisplayName = "Offset"),
+	Offset UMETA(DisplayName = "Sculpt"),
+
+	/** Inflate brush */
+	Inflate UMETA(DisplayName = "Inflate"),
 
 	/** Pinch brush */
 	Pinch UMETA(DisplayName = "Pinch"),
 
 	/** Flatten brush */
 	Flatten UMETA(DisplayName = "Flatten"),
+
+	/** Plane brush */
+	Plane UMETA(DisplayName = "Plane"),
+
 };
 
 
@@ -284,14 +291,20 @@ protected:
 
 	bool UpdateBrushPositionOnActivePlane(const FRay& WorldRay);
 	bool UpdateBrushPositionOnTargetMesh(const FRay& WorldRay);
+	bool UpdateBrushPositionOnSculptMesh(const FRay& WorldRay);
+
 	void ApplySmoothBrush(const FRay& WorldRay);
 	void ApplyMoveBrush(const FRay& WorldRay);
 	void ApplyOffsetBrush(const FRay& WorldRay);
 	void ApplyPinchBrush(const FRay& WorldRay);
+	void ApplyInflateBrush(const FRay& WorldRay);
+	void ApplyPlaneBrush(const FRay& WorldRay);
 	void ApplyFlattenBrush(const FRay& WorldRay);
 
-	FFrame3d ActiveFlattenFrame;
-	void ComputeFlattenFrame();
+	double CalculateBrushFalloff(double Distance);
+
+	FFrame3d ActiveFixedBrushPlane;
+	FFrame3d ComputeROIBrushPlane(const FVector3d& BrushCenter);
 
 	TArray<int> TrianglesBuffer;
 	TArray<int> NormalsBuffer;
@@ -306,7 +319,9 @@ protected:
 	void BeginChange(bool bIsVertexChange);
 	void EndChange();
 	void SaveActiveROI();
+
 	void UpdateSavedVertex(int vid, const FVector3d& OldPosition, const FVector3d& NewPosition);
+	FCriticalSection UpdateSavedVertexLock;
 
 	double EstimateIntialSafeTargetLength(const FDynamicMesh3& Mesh, int MinTargetTriCount);
 };
