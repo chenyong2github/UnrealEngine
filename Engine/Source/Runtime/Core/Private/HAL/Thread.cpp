@@ -79,8 +79,8 @@ private:
 	// before `Self` is initialized.
 	TSharedPtr<FThreadImpl, ESPMode::ThreadSafe> Self;
 
-	TAtomic<bool> bIsInitialized = false;
-	
+	TAtomic<bool> bIsInitialized{ false };
+
 	TUniqueFunction<void()> ThreadFunction;
 	TUniquePtr<FRunnableThread> RunnableThread;
 };
