@@ -108,12 +108,23 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GenerateAsset(Result);
-	}
+		for (auto& ComponentTarget : ComponentTargets)
+		{
+			ComponentTarget->SetOwnerVisibility(true);
+			AActor* Actor = ComponentTarget->GetOwnerActor();
+			Actor->SetIsTemporarilyHiddenInEditor(true);
+			// NB: We could alternately remove the actors.
+			//Actor->Destroy();
 
-	// Restore (unhide) the source meshes
-	for (auto& ComponentTarget : ComponentTargets)
+		}
+	}
+	else
 	{
-		ComponentTarget->SetOwnerVisibility(true);
+		// Restore (unhide) the source meshes
+		for (auto& ComponentTarget : ComponentTargets)
+		{
+			ComponentTarget->SetOwnerVisibility(true);
+		}
 	}
 }
 

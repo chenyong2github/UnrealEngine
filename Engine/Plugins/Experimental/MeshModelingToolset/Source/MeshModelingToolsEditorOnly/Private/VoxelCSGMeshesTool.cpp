@@ -107,12 +107,24 @@ void UVoxelCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GenerateAsset(Result);
-	}
 
-	// Restore (unhide) the source meshes
-	for (auto& ComponentTarget : ComponentTargets)
+		for (auto& ComponentTarget : ComponentTargets)
+		{
+			ComponentTarget->SetOwnerVisibility(true);
+			AActor* Actor = ComponentTarget->GetOwnerActor();
+			Actor->SetIsTemporarilyHiddenInEditor(true);
+			// NB: We could alternatly remove the actors.
+			//Actor->Destroy();
+
+		}
+	}
+	else
 	{
-		ComponentTarget->SetOwnerVisibility(true);
+		// Restore (unhide) the source meshes
+		for (auto& ComponentTarget : ComponentTargets)
+		{
+			ComponentTarget->SetOwnerVisibility(true);
+		}
 	}
 }
 
