@@ -343,6 +343,10 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 		bInvertY = (CustomPresent->GetLayerFlags() & ovrpLayerFlag_TextureOriginAtBottomLeft) != 0;
 
 		uint32 SizeX = 0, SizeY = 0;
+		if (Desc.Flags & IStereoLayers::LAYER_FLAG_HIDDEN)
+		{
+			return;
+		}
 
 		if (Desc.Texture.IsValid())
 		{

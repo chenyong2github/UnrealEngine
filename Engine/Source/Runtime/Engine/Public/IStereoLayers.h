@@ -104,6 +104,8 @@ public:
 		LAYER_FLAG_SUPPORT_DEPTH = 0x00000008,
 		// Required on some platforms to enable rendering of external textures.
 		LAYER_FLAG_TEX_EXTERNAL = 0x00000010,
+		// When set, this layer will not be rendered.
+		LAYER_FLAG_HIDDEN = 0x00000020,
 	};
 
 	/**
@@ -113,6 +115,7 @@ public:
 	{
 		void SetLayerId(uint32 InId) { Id = InId; }
 		uint32 GetLayerId() const { return Id; }
+		bool IsVisible() const { return Texture != nullptr && !(Flags & LAYER_FLAG_HIDDEN); }
 
 		// Layer IDs must be larger than 0
 		const static uint32	INVALID_LAYER_ID = 0; 

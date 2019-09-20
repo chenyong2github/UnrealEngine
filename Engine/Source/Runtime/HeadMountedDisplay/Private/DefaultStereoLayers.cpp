@@ -95,7 +95,7 @@ void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdLis
 	for (uint32 LayerIndex : LayersToRender)
 	{
 		const FLayerDesc& Layer = RenderThreadLayers[LayerIndex];
-		check(Layer.Texture.IsValid());
+		check(Layer.IsVisible());
 		const bool bIsOpaque = (Layer.Flags & LAYER_FLAG_TEX_NO_ALPHA_CHANNEL) != 0;
 		const bool bIsExternal = (Layer.Flags & LAYER_FLAG_TEX_EXTERNAL) != 0;
 		bool bPipelineStateNeedsUpdate = false;
@@ -184,7 +184,7 @@ void FDefaultStereoLayers::PreRenderViewFamily_RenderThread(FRHICommandListImmed
 	for (uint32 LayerIndex = 0; LayerIndex < LayerCount; ++LayerIndex)
 	{
 		const auto& Layer = RenderThreadLayers[LayerIndex];
-		if (!Layer.Texture.IsValid())
+		if (!Layer.IsVisible())
 		{
 			continue;
 		}

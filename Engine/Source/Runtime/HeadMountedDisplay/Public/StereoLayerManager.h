@@ -147,7 +147,7 @@ public:
 		check(LayerId != FLayerDesc::INVALID_LAYER_ID);
 		LayerType& NewLayer = StereoLayers().Emplace(LayerId, InLayerDesc);
 		NewLayer.SetLayerId(LayerId);
-		UpdateLayer(NewLayer, LayerId, InLayerDesc.Texture != nullptr);
+		UpdateLayer(NewLayer, LayerId, InLayerDesc.IsVisible());
 		bStereoLayersDirty = true;
 		return LayerId;
 	}
@@ -195,7 +195,7 @@ public:
 			// If the layer is currently active, update layer state
 			if (FoundLevel == 0)
 			{
-				UpdateLayer(*Found, LayerId, InLayerDesc.Texture != nullptr);
+				UpdateLayer(*Found, LayerId, InLayerDesc.IsVisible());
 				bStereoLayersDirty = true;
 			}
 		}
@@ -290,7 +290,7 @@ public:
 		{
 			FLayerDesc LayerDesc;
 			GetLayerDescMember(Pair.Value, LayerDesc);
-			UpdateLayer(Pair.Value, Pair.Key, LayerDesc.Texture != nullptr);
+			UpdateLayer(Pair.Value, Pair.Key, LayerDesc.IsVisible());
 		}
 
 		bStereoLayersDirty = true;
