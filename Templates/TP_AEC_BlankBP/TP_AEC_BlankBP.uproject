@@ -28,6 +28,10 @@
 				{
 			"Name": "HDRIBackdrop",
 			"Enabled": true
+		},
+		{
+			"Name": "SequencerScripting",
+			"Enabled": false
 		}
 	]
 }
