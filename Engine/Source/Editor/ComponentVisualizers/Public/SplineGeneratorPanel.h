@@ -8,16 +8,14 @@
 #include "PropertyEditorModule.h"
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
-#include "SplineComponentVisualizer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Templates/SharedPointer.h"
-#include "Templates/SubclassOf.h"
 #include "Misc/EnumClassFlags.h"
+#include "SplineComponentVisualizer.h"
 
 #include "SplineGeneratorPanel.generated.h"
 
-class FSplineComponentVisualizer;
 
 UENUM()
 enum class EShapeAddMode : uint8
