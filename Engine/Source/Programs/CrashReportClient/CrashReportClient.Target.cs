@@ -15,6 +15,11 @@ public class CrashReportClientTarget : TargetRules
 
 		LaunchModuleName = "CrashReportClient";
 
+		AdditionalPlugins.Add("UdpMessaging");
+		AdditionalPlugins.Add("ConcertSyncServer");
+		bBuildWithEditorOnlyData = false;
+		bCompileWithPluginSupport = true; // Enable Developer plugins (like Concert!)
+
 		if (Target.Platform != UnrealTargetPlatform.Linux)
 		{
 			ExtraModuleNames.Add("EditorStyle");
@@ -22,7 +27,7 @@ public class CrashReportClientTarget : TargetRules
 
         bLegalToDistributeBinary = true;
 
-		bBuildDeveloperTools = false;
+		bBuildDeveloperTools = true;
 
 		// CrashReportClient doesn't ever compile with the engine linked in
 		bCompileAgainstEngine = false;

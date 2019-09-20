@@ -1276,20 +1276,20 @@ bool FConcertSyncSessionDatabase::SetLockActivity(const FConcertSyncLockActivity
 		);
 }
 
-bool FConcertSyncSessionDatabase::SetTransactionActivity(const FConcertSyncTransactionActivity& InTransactionActivity)
+bool FConcertSyncSessionDatabase::SetTransactionActivity(const FConcertSyncTransactionActivity& InTransactionActivity, const bool bMetaDataOnly)
 {
 	FConcertSyncSessionDatabaseScopedTransaction ScopedTransaction(*Statements);
 	return ScopedTransaction.CommitOrRollback(
-		SetTransactionEvent(InTransactionActivity.EventId, InTransactionActivity.EventData) &&
+		SetTransactionEvent(InTransactionActivity.EventId, InTransactionActivity.EventData, bMetaDataOnly) &&
 		Statements->SetActivityData(InTransactionActivity.ActivityId, InTransactionActivity.EndpointId, InTransactionActivity.EventTime, InTransactionActivity.EventType, InTransactionActivity.EventId, InTransactionActivity.EventSummary)
 		);
 }
 
-bool FConcertSyncSessionDatabase::SetPackageActivity(const FConcertSyncPackageActivity& InPackageActivity)
+bool FConcertSyncSessionDatabase::SetPackageActivity(const FConcertSyncPackageActivity& InPackageActivity, const bool bMetaDataOnly)
 {
 	FConcertSyncSessionDatabaseScopedTransaction ScopedTransaction(*Statements);
 	return ScopedTransaction.CommitOrRollback(
-		SetPackageEvent(InPackageActivity.EventId, InPackageActivity.EventData) &&
+		SetPackageEvent(InPackageActivity.EventId, InPackageActivity.EventData, bMetaDataOnly) &&
 		Statements->SetActivityData(InPackageActivity.ActivityId, InPackageActivity.EndpointId, InPackageActivity.EventTime, InPackageActivity.EventType, InPackageActivity.EventId, InPackageActivity.EventSummary)
 		);
 }
@@ -1613,15 +1613,19 @@ bool FConcertSyncSessionDatabase::AddTransactionEvent(const FConcertSyncTransact
 	return SetTransactionEvent(OutTransactionEventId, InTransactionEvent);
 }
 
-bool FConcertSyncSessionDatabase::SetTransactionEvent(const int64 InTransactionEventId, const FConcertSyncTransactionEvent& InTransactionEvent)
+bool FConcertSyncSessionDatabase::SetTransactionEvent(const int64 InTransactionEventId, const FConcertSyncTransactionEvent& InTransactionEvent, const bool bMetaDataOnly)
 {
 	// Write the data blob file
 	const FString TransactionDataFilename = TransactionDataUtil::GetDataFilename(InTransactionEventId);
 	const FString TransactionDataPathname = TransactionDataUtil::GetDataPath(SessionPath) / TransactionDataFilename;
+
 	FStructOnScope Transaction(FConcertTransactionFinalizedEvent::StaticStruct(), (uint8*)&InTransactionEvent.Transaction);
-	if (!SaveTransaction(TransactionDataPathname, Transaction))
+	if (!bMetaDataOnly)
 	{
-		return false;
+		if (!SaveTransaction(TransactionDataPathname, Transaction))
+		{
+			return false;
+		}
 	}
 
 	// Add the database entry
@@ -1832,12 +1836,12 @@ bool FConcertSyncSessionDatabase::AddPackageEvent(const FConcertSyncPackageEvent
 	return SetPackageEvent(OutPackageEventId, PackageRevision, InPackageEvent.Package);
 }
 
-bool FConcertSyncSessionDatabase::SetPackageEvent(const int64 InPackageEventId, const FConcertSyncPackageEvent& InPackageEvent)
+bool FConcertSyncSessionDatabase::SetPackageEvent(const int64 InPackageEventId, const FConcertSyncPackageEvent& InPackageEvent, const bool bMetaDataOnly)
 {
-	return SetPackageEvent(InPackageEventId, InPackageEvent.PackageRevision, InPackageEvent.Package);
+	return SetPackageEvent(InPackageEventId, InPackageEvent.PackageRevision, InPackageEvent.Package, bMetaDataOnly);
 }
 
-bool FConcertSyncSessionDatabase::SetPackageEvent(const int64 InPackageEventId, const int64 InPackageRevision, const FConcertPackage& InPackage)
+bool FConcertSyncSessionDatabase::SetPackageEvent(const int64 InPackageEventId, const int64 InPackageRevision, const FConcertPackage& InPackage, const bool bMetaDataOnly)
 {
 	if (!ensureAlwaysMsgf(InPackageRevision > 0, TEXT("Invalid package revision! Must be greater than zero.")))
 	{
@@ -1857,10 +1861,14 @@ bool FConcertSyncSessionDatabase::SetPackageEvent(const int64 InPackageEventId, 
 
 	// Write the data blob file
 	const FString PackageDataFilename = PackageDataUtil::GetDataFilename(InPackage.Info.PackageName, InPackageRevision);
-	const FString PackageDataPathname = PackageDataUtil::GetDataPath(SessionPath) / PackageDataFilename;
-	if (!SavePackage(PackageDataPathname, InPackage.Info, InPackage.PackageData))
+
+	if (!bMetaDataOnly)
 	{
-		return false;
+		const FString PackageDataPathname = PackageDataUtil::GetDataPath(SessionPath) / PackageDataFilename;
+		if (!SavePackage(PackageDataPathname, InPackage.Info, InPackage.PackageData))
+		{
+			return false;
+		}
 	}
 
 	// Add the database entry

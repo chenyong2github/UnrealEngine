@@ -157,11 +157,11 @@ bool MigrateSessionData(const FConcertSyncSessionDatabase& InSourceDatabase, con
 				}
 				if (ConcertSyncSessionDatabaseFilterUtil::TransactionEventPassesFilter(TransactionActivity.EventId, InDestSessionFilter, InSourceDatabase))
 				{
-					if (!InSourceDatabase.GetTransactionEvent(TransactionActivity.EventId, TransactionActivity.EventData))
+					if (!InSourceDatabase.GetTransactionEvent(TransactionActivity.EventId, TransactionActivity.EventData, InDestSessionFilter.bMetaDataOnly))
 					{
 						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get transaction event '%s' from database at '%s': %s", *LexToString(TransactionActivity.EventId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
 					}
-					if (!DestDatabase.SetTransactionActivity(TransactionActivity))
+					if (!DestDatabase.SetTransactionActivity(TransactionActivity, InDestSessionFilter.bMetaDataOnly))
 					{
 						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set transaction activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
 					}
@@ -178,11 +178,11 @@ bool MigrateSessionData(const FConcertSyncSessionDatabase& InSourceDatabase, con
 				}
 				if (ConcertSyncSessionDatabaseFilterUtil::PackageEventPassesFilter(PackageActivity.EventId, InDestSessionFilter, InSourceDatabase))
 				{
-					if (!InSourceDatabase.GetPackageEvent(PackageActivity.EventId, PackageActivity.EventData))
+					if (!InSourceDatabase.GetPackageEvent(PackageActivity.EventId, PackageActivity.EventData, InDestSessionFilter.bMetaDataOnly))
 					{
 						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get package event '%s' from database at '%s': %s", *LexToString(PackageActivity.EventId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
 					}
-					if (!DestDatabase.SetPackageActivity(PackageActivity))
+					if (!DestDatabase.SetPackageActivity(PackageActivity, InDestSessionFilter.bMetaDataOnly))
 					{
 						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set package activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
 					}
@@ -306,6 +306,22 @@ bool FConcertSyncServer::ArchiveSession(const IConcertServer& InServer, const FS
 
 	LiveSessionDatabase.Close();
 	return RetVal;
+}
+
+bool FConcertSyncServer::ExportSession(const IConcertServer& InServer, const FGuid& InSessionId, const FString& DestDir, const FConcertSessionFilter& InSessionFilter, bool bAnonymizeData)
+{
+	if (TSharedPtr<FConcertSyncServerLiveSession> LiveSession = LiveSessions.FindRef(InSessionId)) // If the session is live.
+	{
+		ConcertSyncServerUtils::WriteSessionInfoToDirectory(DestDir, LiveSession->GetSession().GetSessionInfo());
+		return ConcertSyncServerUtils::MigrateSessionData(LiveSession->GetSessionDatabase(), DestDir, InSessionFilter);
+	}
+	else if (TSharedPtr<FConcertSyncServerArchivedSession> ArchivedSession = ArchivedSessions.FindRef(InSessionId)) // If the session is archived.
+	{
+		ConcertSyncServerUtils::WriteSessionInfoToDirectory(DestDir, ArchivedSession->GetSessionInfo());
+		return ConcertSyncServerUtils::MigrateSessionData(ArchivedSession->GetSessionDatabase(), DestDir, InSessionFilter);
+	}
+
+	return false; // Session not found.
 }
 
 bool FConcertSyncServer::RestoreSession(const IConcertServer& InServer, const FGuid& InArchivedSessionId, const FString& InLiveSessionRoot, const FConcertSessionInfo& InLiveSessionInfo, const FConcertSessionFilter& InSessionFilter)

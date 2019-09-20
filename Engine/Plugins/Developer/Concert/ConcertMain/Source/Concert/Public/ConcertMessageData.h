@@ -222,6 +222,10 @@ struct FConcertSessionFilter
 	/** True if only live data should be included (live transactions and head package revisions) */
 	UPROPERTY()
 	bool bOnlyLiveData = false;
+
+	/** True to export the activity summaries without the package/transaction data to look at the log rather than replaying the activities. */
+	UPROPERTY()
+	bool bMetaDataOnly = false;
 };
 
 USTRUCT()

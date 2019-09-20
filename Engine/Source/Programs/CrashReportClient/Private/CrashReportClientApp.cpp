@@ -34,6 +34,7 @@
 
 #include "PlatformErrorReport.h"
 #include "XmlFile.h"
+#include "RecoveryService.h"
 
 /** Default main window size */
 const FVector2D InitialWindowDimensions(740, 560);
@@ -69,6 +70,9 @@ static void* MonitorReadPipe = nullptr;
 
 /** If in monitor mode, pipe to write data to game. */
 static void* MonitorWritePipe = nullptr;
+
+/** True to enable the disaster recovery service. */
+static bool bDisasterRecoveryServiceEnabled = false;
 
 /** Result of submission of report */
 enum SubmitCrashReportResult {
@@ -140,6 +144,11 @@ void ParseCommandLine(const TCHAR* CommandLine)
 		if (Switches.Contains(TEXT("NoAnalytics")))
 		{
 			AnalyticsEnabledFromCmd = false;
+		}
+
+		if (Params.Contains(TEXT("ConcertServer")))
+		{
+			bDisasterRecoveryServiceEnabled = true;
 		}
 
 		CrashGUIDFromCmd = Params.FindRef(TEXT("CrashGUID"));
@@ -381,7 +390,7 @@ SubmitCrashReportResult RunUnattended(FPlatformErrorReport ErrorReport)
 	return FPrimaryCrashProperties::Get()->bIsEnsure ? SuccessContinue : SuccessClosed;
 }
 
-FPlatformErrorReport CollectErrorReport(uint32 Pid, const FSharedCrashContext& SharedCrashContext, void* WritePipe) 
+FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint32 Pid, const FSharedCrashContext& SharedCrashContext, void* WritePipe)
 {
 	// @note: This API is only partially implemented on Mac OS and Linux.
 	FProcHandle ProcessHandle = FPlatformProcess::OpenProcess(Pid);
@@ -461,6 +470,11 @@ FPlatformErrorReport CollectErrorReport(uint32 Pid, const FSharedCrashContext& S
 	const FString CrashContextXMLPath = FPaths::Combine(*ReportDirectoryAbsolutePath, FPlatformCrashContext::CrashContextRuntimeXMLNameW);
 	CrashContext.SerializeAsXML(*CrashContextXMLPath);
 
+	if (RecoveryService && DirectoryExists && SharedCrashContext.bSendUsageData && SharedCrashContext.CrashType != ECrashContextType::Ensure || SharedCrashContext.CrashType == ECrashContextType::Assert)
+	{
+		RecoveryService->CollectFiles(ReportDirectoryAbsolutePath);
+	}
+
 	const TCHAR* CrachContextBuffer = *CrashContext.GetBuffer();
 	FPrimaryCrashProperties::Set(new FCrashContext(ReportDirectoryAbsolutePath / TEXT("CrashContext.runtime-xml"), CrachContextBuffer));
 
@@ -469,7 +483,6 @@ FPlatformErrorReport CollectErrorReport(uint32 Pid, const FSharedCrashContext& S
 #if CRASH_REPORT_UNATTENDED_ONLY
 	return ErrorReport;
 #else
-
 
 	FString ConfigFilename;
 	if (ErrorReport.FindFirstReportFileWithExtension(ConfigFilename, FGenericCrashContext::CrashConfigExtension))
@@ -522,21 +535,16 @@ SubmitCrashReportResult SendErrorReport(FPlatformErrorReport& ErrorReport, TOpti
 	return Failed;
 }
 
-bool WaitForCrash(uint32 WatchedProcess, FSharedCrashContext& CrashContext, void* ReadPipe)
+bool IsCrashReportAvailable(uint32 WatchedProcess, FSharedCrashContext& CrashContext, void* ReadPipe)
 {
-	TArray<uint8> Buffer;
+	static TArray<uint8> Buffer;
+	Buffer.Reserve(8 * 1024); // This allocates only once because Buffer is static.
 
-	while (FPlatformProcess::IsApplicationAlive(WatchedProcess))
+	if (FPlatformProcess::ReadPipeToArray(ReadPipe, Buffer))
 	{
-		if (FPlatformProcess::ReadPipeToArray(ReadPipe, Buffer))
-		{
-			FPlatformMemory::Memcpy(&CrashContext, Buffer.GetData(), Buffer.Num());
-			return true;
-		}
-		
-		FPlatformProcess::Sleep(1.0f);
+		FPlatformMemory::Memcpy(&CrashContext, Buffer.GetData(), Buffer.Num());
+		return true;
 	}
-
 	return false;
 }
 
@@ -548,14 +556,23 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 	// Increase the HttpSendTimeout to 5 minutes
 	GConfig->SetFloat(TEXT("HTTP"), TEXT("HttpSendTimeout"), 5 * 60.0f, GEngineIni);
 
-	// Set up the main loop
-	GEngineLoop.PreInit(CommandLine);
+	// Initialize the engine. -Messaging enables MessageBus transports required by Concert (Recovery Service).
+	FString FinalCommandLine(CommandLine);
+	FinalCommandLine += TEXT(" -Messaging");
+	GEngineLoop.PreInit(*FinalCommandLine);
+	check(GConfig && GConfig->IsReadyForUse());
 
 	// Make sure all UObject classes are registered and default properties have been initialized
 	ProcessNewlyLoadedUObjects();
 
 	// Tell the module manager is may now process newly-loaded UObjects when new C++ modules are loaded
 	FModuleManager::Get().StartProcessingNewlyLoadedObjects();
+
+	// Load internal Concert plugins in the pre-default phase
+	IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::PreDefault);
+
+	// Load Concert Sync plugins in default phase
+	IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::Default);
 
 	// Initialize config.
 	FCrashReportCoreConfig::Get();
@@ -565,53 +582,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 	FPlatformErrorReport::Init();
 
-	if (MonitorPid && MonitorWritePipe && MonitorReadPipe) 
-	{
-		while (FPlatformProcess::IsApplicationAlive(MonitorPid) && !GIsRequestingExit)
-		{
-			// Wait for parent process to signal crash
-			FSharedCrashContext CrashContext;
-			if (WaitForCrash(MonitorPid, CrashContext, MonitorReadPipe))
-			{
-				// When running in monitor mode we cannot setup analytics info on the command line (we start earlier than 
-				// config system), instead the crash context contains what the user has selected.
-				if (CrashContext.bSendUsageData)
-				{
-					FCrashReportAnalytics::Initialize();
-				}
-
-				// Build error report in memory
-				FPlatformErrorReport ErrorReport = CollectErrorReport(MonitorPid, CrashContext, MonitorWritePipe);
-				const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, CrashContext.bNoDialog && CrashContext.bSendUnattenededBugReports);
-
-				// At this point the game can continue execution. It is important this happens
-				// as soon as thread state and minidump has been created, so that ensures cause
-				// as little hitch as possible.
-				uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
-				FPlatformProcess::WritePipe(MonitorWritePipe, ResponseCode, sizeof(ResponseCode));
-
-				if (AnalyticsEnabledFromCmd)
-				{
-					// If analytics is enabled make sure they are submitted now.
-					FCrashReportAnalytics::GetProvider().BlockUntilFlushed(5.0f);
-				}
-
-				// This is ugly, but since many parts of CrashReportClient and CrashReportCoreUnattended is built
-				// using this flag to exit tick loops, this was the easiest way of making the monitor path be able to
-				// send multiple reports (e.g. ensure followed by crash).
-				if (Result == SuccessContinue)
-				{
-					GIsRequestingExit = false;
-				}
-
-				if (CrashContext.bSendUsageData)
-				{
-					FCrashReportAnalytics::Shutdown();
-				}
-			}
-		}
-	}
-	else
+	if (MonitorPid == 0) // Does not monitor any process.
 	{
 		if (AnalyticsEnabledFromCmd)
 		{
@@ -628,11 +599,104 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			FCrashReportAnalytics::Shutdown();
 		}
 	}
+	else // Launched in 'service mode - watches/serves a process'
+	{
+		const int32 IdealFramerate = 30;
+		double LastTime = FPlatformTime::Seconds();
+		const float IdealFrameTime = 1.0f / IdealFramerate;
+
+		TUniquePtr<FRecoveryService> RecoveryService;
+		if (bDisasterRecoveryServiceEnabled)
+		{
+			// Starts the disaster recovery service. This records transactions and allows users to recover from previous crashes.
+			RecoveryService = MakeUnique<FRecoveryService>(MonitorPid);
+		}
+
+		// This IsApplicationAlive() call is quite expensive, perform it at low frequency.
+		bool bApplicationAlive = FPlatformProcess::IsApplicationAlive(MonitorPid);
+		while (bApplicationAlive && !GIsRequestingExit)
+		{
+			const double CurrentTime = FPlatformTime::Seconds();
+
+			// If 'out-of-process' crash reporting was enabled.
+			if (MonitorWritePipe && MonitorReadPipe)
+			{
+				// Check if the monitored process signaled a crash or an ensure.
+				FSharedCrashContext CrashContext;
+				if (IsCrashReportAvailable(MonitorPid, CrashContext, MonitorReadPipe))
+				{
+					// When running in monitor mode we cannot setup analytics info on the command line (we start earlier than 
+					// config system), instead the crash context contains what the user has selected.
+					bool bReportCrashAnalyticInfo = CrashContext.bSendUsageData;
+					if (bReportCrashAnalyticInfo)
+					{
+						FCrashReportAnalytics::Initialize();
+					}
+
+					// Build error report in memory. (NOTE: Don't collect recovery service files, data anonymity is not implemented yet)
+					FPlatformErrorReport ErrorReport = CollectErrorReport(nullptr/*RecoveryService.Get()*/, MonitorPid, CrashContext, MonitorWritePipe);
+					const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, CrashContext.bNoDialog && CrashContext.bSendUnattenededBugReports);
+
+					// At this point the game can continue execution. It is important this happens
+					// as soon as thread state and minidump has been created, so that ensures cause
+					// as little hitch as possible.
+					uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
+					FPlatformProcess::WritePipe(MonitorWritePipe, ResponseCode, sizeof(ResponseCode));
+
+					if (bReportCrashAnalyticInfo)
+					{
+						// If analytics is enabled make sure they are submitted now.
+						FCrashReportAnalytics::GetProvider().BlockUntilFlushed(5.0f);
+					}
+
+					// This is ugly, but since many parts of CrashReportClient and CrashReportCoreUnattended is built
+					// using this flag to exit tick loops, this was the easiest way of making the monitor path be able to
+					// send multiple reports (e.g. ensure followed by crash).
+					if (Result == SuccessContinue)
+					{
+						GIsRequestingExit = false;
+					}
+
+					if (bReportCrashAnalyticInfo)
+					{
+						FCrashReportAnalytics::Shutdown();
+					}
+				}
+			}
+
+			FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
+
+			// Pump & Tick objects
+			const double DeltaTime = CurrentTime - LastTime;
+			FTicker::GetCoreTicker().Tick(DeltaTime);
+
+			GFrameCounter++;
+			FStats::AdvanceFrame(false);
+			GLog->FlushThreadedLogs();
+
+			// Run garbage collection for the UObjects for the rest of the frame or at least to 2 ms
+			IncrementalPurgeGarbage(true, FMath::Max<float>(0.002f, IdealFrameTime - (FPlatformTime::Seconds() - LastTime)));
+
+			// Throttle main thread main fps by sleeping if we still have time
+			FPlatformProcess::Sleep(FMath::Max<float>(0.0f, IdealFrameTime - (FPlatformTime::Seconds() - LastTime)));
+
+			// Check if the application is alive about every second. (This is an expensive call)
+			if (GFrameCounter % IdealFramerate == 0)
+			{
+				bApplicationAlive = FPlatformProcess::IsApplicationAlive(MonitorPid);
+			}
+
+			LastTime = CurrentTime;
+		}
+	}
 
 	FPrimaryCrashProperties::Shutdown();
 	FPlatformErrorReport::ShutDown();
 
 	RequestEngineExit(TEXT("CrashReportClientApp RequestExit"));
+
+	// Allow the game thread to finish processing any latent tasks.
+	FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 
 	FEngineLoop::AppPreExit();
 	FModuleManager::Get().UnloadModulesAtShutdown();

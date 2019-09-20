@@ -72,6 +72,15 @@ public:
 	}
 
 private:
+	constexpr bool ShouldLaunchDisasterRecoveryBackendService() const
+	{
+#if PLATFORM_WINDOWS // On windows, the service is launched by the crash analytics process.
+		return false;
+#else
+		return true;
+#endif
+	}
+
 	void RegisterSettings()
 	{
 		if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
@@ -166,11 +175,14 @@ private:
 			}
 		}
 
-		CheckDisasterRecoveryServiceHealthTickHandle = FTicker::GetCoreTicker().AddTicker(TEXT("CheckDisasterRecoveryServiceHealth"), 1.0f, [this](float)
+		if (ShouldLaunchDisasterRecoveryBackendService())
 		{
-			CheckDisasterRecoveryServiceHealth();
-			return true;
-		});
+			CheckDisasterRecoveryServiceHealthTickHandle = FTicker::GetCoreTicker().AddTicker(TEXT("CheckDisasterRecoveryServiceHealth"), 1.0f, [this](float)
+			{
+				CheckDisasterRecoveryServiceHealth();
+				return true;
+			});
+		}
 	}
 
 	/** Returns the folder where the disaster recovery service should keep the live session files (the working directory). */
@@ -271,30 +283,33 @@ private:
 			return false;
 		}
 
-		// Find the service path that will host the sync server
-		const FString DisasterRecoveryServicePath = GetDisasterRecoveryServicePath();
-		if (DisasterRecoveryServicePath.IsEmpty())
+		const FString DisasterRecoveryServerName = FString::Printf(TEXT("RecoverySvr_%d"), FPlatformProcess::GetCurrentProcessId());
+		const FString DisasterRecoverySessionName = FString::Printf(TEXT("Recovery_%d_%s_%s"), FPlatformProcess::GetCurrentProcessId(), FApp::GetProjectName(), *FDateTime::Now().ToString());
+
+		if (ShouldLaunchDisasterRecoveryBackendService())
 		{
-			UE_LOG(LogDisasterRecovery, Warning, TEXT("Disaster Recovery Service application was not found. Disaster Recovery will be disabled! Please build 'UnrealDisasterRecoveryService'."));
-			return false;
-		}
+			// Find the service path that will host the sync server
+			const FString DisasterRecoveryServicePath = GetDisasterRecoveryServicePath();
+			if (DisasterRecoveryServicePath.IsEmpty())
+			{
+				UE_LOG(LogDisasterRecovery, Warning, TEXT("Disaster Recovery Service application was not found. Disaster Recovery will be disabled! Please build 'UnrealDisasterRecoveryService'."));
+				return false;
+			}
 
-		const FString DisasterRecoveryServerName = FString::Printf(TEXT("%s_%d"), *FApp::GetInstanceId().ToString(), DisasterRecoveryServiceInstanceCount++);
-		const FString DisasterRecoverySessionName = FString::Printf(TEXT("%s_%s_%s"), FApp::GetProjectName(), *FDateTime::Now().ToString(), *DisasterRecoveryServerName);
+			FString DisasterRecoveryServiceCommandLine;
+			DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -ConcertServer=\"%s\""), *DisasterRecoveryServerName);
+			DisasterRecoveryServiceCommandLine += TEXT(" -ConcertIgnore");
+			DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -EditorPID=%d"), FPlatformProcess::GetCurrentProcessId());
+			DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -ConcertWorkingDir=\"%s\""), *GetDefaultServerWorkingDir());
+			DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -ConcertSavedDir=\"%s\""), *GetDefaultServerArchiveDir());
 
-		FString DisasterRecoveryServiceCommandLine;
-		DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -ConcertServer=\"%s\""), *DisasterRecoveryServerName);
-		DisasterRecoveryServiceCommandLine += TEXT(" -ConcertIgnore");
-		DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -EditorPID=%d"), FPlatformProcess::GetCurrentProcessId());
-		DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -ConcertWorkingDir=\"%s\""), *GetDefaultServerWorkingDir());
-		DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -ConcertSavedDir=\"%s\""), *GetDefaultServerArchiveDir());
-
-		// Create the service process that will host the sync server
-		DisasterRecoveryServiceHandle = FPlatformProcess::CreateProc(*DisasterRecoveryServicePath, *DisasterRecoveryServiceCommandLine, true, true, true, nullptr, 0, nullptr, nullptr, nullptr);
-		if (!DisasterRecoveryServiceHandle.IsValid())
-		{
-			UE_LOG(LogDisasterRecovery, Error, TEXT("Failed to launch Disaster Recovery Service application. Disaster Recovery will be disabled!"));
-			return false;
+			// Create the service process that will host the sync server
+			DisasterRecoveryServiceHandle = FPlatformProcess::CreateProc(*DisasterRecoveryServicePath, *DisasterRecoveryServiceCommandLine, true, true, true, nullptr, 0, nullptr, nullptr, nullptr);
+			if (!DisasterRecoveryServiceHandle.IsValid())
+			{
+				UE_LOG(LogDisasterRecovery, Error, TEXT("Failed to launch Disaster Recovery Service application. Disaster Recovery will be disabled!"));
+				return false;
+			}
 		}
 
 		bool bRecoveringFromCrash = InSessionInfoToRestore && InSessionInfoToRestore->bAutoRestoreLastSession;

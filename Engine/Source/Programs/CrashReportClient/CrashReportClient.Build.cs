@@ -31,9 +31,11 @@ public class CrashReportClient : ModuleRules
 				"Analytics",
 				"AnalyticsET",
 				"DesktopPlatform",
-                		"LauncherPlatform"
+				"LauncherPlatform",
+				"Concert",
+				"InputCore",
 			}
-			);
+		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] 
@@ -48,12 +50,15 @@ public class CrashReportClient : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"SlateReflector",
+				"ConcertSyncCore",
+				"ConcertSyncServer",
 			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
 				"SlateReflector",
+				"ConcertSyncServer",
 			}
 		);
 
