@@ -117,6 +117,7 @@ protected:
     void EarlyPlayRenderFrameTick();
 
 	void PlatformSpecificGameLogicFrameTick();
+	void HidePlatformSpecificStartupScreen();
 
     /*** These functions describe how everything is handled during an non-Early PreLoadPlay. Everything is handled asynchronously in this case with a standalone renderer ***/
     void HandleEngineLoadingPlay();
