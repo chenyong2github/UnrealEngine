@@ -67,7 +67,7 @@ namespace
 	  { TEXT("PlaceMode"),     EMakeMeshShapeType::All },
 	  { TEXT("PivotLocation"), EMakeMeshShapeType::All },
 	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Sphere },
-	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Plane }
+	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Plane | EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone }
 	};
 };
 
@@ -332,6 +332,7 @@ void UAddPrimitiveTool::GenerateCylinder(FDynamicMesh3* OutMesh)
 	CylGen.Radius[1] = CylGen.Radius[0];
 	CylGen.Height = ShapeSettings->Height;
 	CylGen.AngleSamples = ShapeSettings->Slices;
+	CylGen.LengthSamples = ShapeSettings->Subdivisions;
 	CylGen.bCapped = true;
 	CylGen.Generate();
 	OutMesh->Copy(&CylGen);
@@ -346,6 +347,7 @@ void UAddPrimitiveTool::GenerateCone(FDynamicMesh3* OutMesh)
 	CylGen.Radius[1] = .01;
 	CylGen.Height = ShapeSettings->Height;
 	CylGen.AngleSamples = ShapeSettings->Slices;
+	CylGen.LengthSamples = ShapeSettings->Subdivisions;
 	CylGen.bCapped = true;
 	CylGen.Generate();
 	OutMesh->Copy(&CylGen);
