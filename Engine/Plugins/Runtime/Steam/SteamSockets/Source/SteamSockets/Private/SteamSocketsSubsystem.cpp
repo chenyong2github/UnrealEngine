@@ -639,12 +639,14 @@ void FSteamSocketsSubsystem::AddSocket(const FInternetAddr& ForAddr, FSteamSocke
 		return;
 	}
 
+	STEAM_SDK_IGNORE_REDUNDANCY_START
 	// Do not attempt to add socket data for sockets that have invalid handles.
 	if (NewSocket->InternalHandle == k_HSteamListenSocket_Invalid || NewSocket->InternalHandle == k_HSteamNetConnection_Invalid)
 	{
 		UE_LOG(LogSockets, Verbose, TEXT("SteamSockets: Dropped socket tracking for socket with invalid handle."));
 		return;
 	}
+	STEAM_SDK_IGNORE_REDUNDANCY_END
 
 	FSteamSocketInformation NewSocketInfo(ForAddr.Clone(), NewSocket, ParentSocket);
 	if (SocketInformationMap.Find(NewSocket->InternalHandle) == nullptr)
@@ -706,11 +708,13 @@ void FSteamSocketsSubsystem::LinkNetDriver(FSocket* Socket, USteamSocketsNetDriv
 
 	FSteamSocket* SteamSocket = static_cast<FSteamSocket*>(Socket);
 	// Do not attempt to track netdrivers with invalid sockets.
+	STEAM_SDK_IGNORE_REDUNDANCY_START
 	if (SteamSocket->InternalHandle == k_HSteamListenSocket_Invalid || SteamSocket->InternalHandle == k_HSteamNetConnection_Invalid)
 	{
 		UE_LOG(LogSockets, Verbose, TEXT("SteamSockets: Dropped netdriver link with socket that has invalid handle."));
 		return;
 	}
+	STEAM_SDK_IGNORE_REDUNDANCY_END
 
 	// Link the netdriver to this socket.
 	FSteamSocketInformation* SocketInfo = GetSocketInfo(SteamSocket->InternalHandle);

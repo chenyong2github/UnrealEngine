@@ -37,12 +37,14 @@ bool FSteamSocket::Close()
 {
 	bool bWasSuccessful = false;
 
+	STEAM_SDK_IGNORE_REDUNDANCY_START
 	// If we're already closed, don't bother doing anything else.
 	if (InternalHandle == k_HSteamListenSocket_Invalid || InternalHandle == k_HSteamNetConnection_Invalid)
 	{
 		UE_LOG(LogSockets, VeryVerbose, TEXT("SteamSockets: Socket is already cleaned up, ready for destruction."));
 		return true;
 	}
+	STEAM_SDK_IGNORE_REDUNDANCY_END
 
 	ISteamNetworkingSockets* SocketInterface = FSteamSocketsSubsystem::GetSteamSocketsInterface();
 
@@ -348,8 +350,16 @@ bool FSteamSocket::HasPendingData(uint32& PendingDataSize)
 {
 	if (bHasPendingData)
 	{
-		PendingDataSize = PendingData->GetSize();
-		return true;
+		if (PendingData != nullptr)
+		{
+			PendingDataSize = PendingData->GetSize();
+			return true;
+		}
+		else
+		{
+			UE_LOG(LogSockets, Warning, TEXT("SteamSockets: HasPendingData flag is raised but the pendingdata object is null!"));
+			bHasPendingData = false;
+		}
 	}
 
 	int32 MessagesRead;
@@ -434,6 +444,7 @@ bool FSteamSocket::GetPeerAddress(FInternetAddr& OutAddr)
 bool FSteamSocket::SetNoDelay(bool bIsNoDelay)
 {
 	// See https://partner.steamgames.com/doc/api/steamnetworkingtypes#message_sending_flags for what all these flags mean
+	STEAM_SDK_IGNORE_REDUNDANCY_START
 	if (bIsNoDelay)
 	{
 		if (SendMode == k_nSteamNetworkingSend_Unreliable || SendMode == k_nSteamNetworkingSend_NoNagle || SendMode == k_nSteamNetworkingSend_UnreliableNoNagle)
@@ -460,7 +471,7 @@ bool FSteamSocket::SetNoDelay(bool bIsNoDelay)
 			SendMode = k_nSteamNetworkingSend_Reliable;
 		}
 	}
-
+	STEAM_SDK_IGNORE_REDUNDANCY_END
 	return true;
 }
 

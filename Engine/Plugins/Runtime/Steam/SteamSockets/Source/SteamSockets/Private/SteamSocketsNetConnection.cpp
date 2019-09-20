@@ -90,7 +90,7 @@ void USteamSocketsNetConnection::LowLevelSend(void* Data, int32 CountBits, FOutP
 		SocketSub = static_cast<FSteamSocketsSubsystem*>(GetDriver()->GetSocketSubsystem());
 	}
 
-	if (ConnectionSocket != nullptr)
+	if (ConnectionSocket != nullptr && SocketSub)
 	{
 		const uint8* SendData = reinterpret_cast<const uint8*>(Data);
 
@@ -126,10 +126,7 @@ void USteamSocketsNetConnection::LowLevelSend(void* Data, int32 CountBits, FOutP
 		{
 			if (!ConnectionSocket->Send(SendData, BytesToSend, BytesSent))
 			{
-				if(SocketSub != nullptr)
-				{
-					UE_LOG(LogNet, Warning, TEXT("SteamSockets: LowLevelSend: Could not send %d bytes of data got error %d"), BytesToSend, (int32)SocketSub->GetLastErrorCode());
-				}
+				UE_LOG(LogNet, Warning, TEXT("SteamSockets: LowLevelSend: Could not send %d bytes of data got error %d"), BytesToSend, (int32)SocketSub->GetLastErrorCode());
 			}
 		}
 	}
