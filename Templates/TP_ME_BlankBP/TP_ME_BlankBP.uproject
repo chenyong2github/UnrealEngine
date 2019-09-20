@@ -35,35 +35,35 @@
 		},
 		{
 			"Name": "SequencerScripting",
-			"Enabled": false
+			"Enabled": true
 		},
 		{
 			"Name": "Takes",
-			"Enabled": false
+			"Enabled": true
 		},
 		{
 			"Name": "VirtualProductionUtilities",
-			"Enabled": false
+			"Enabled": true
 		},
 		{
 			"Name": "VirtualCamera",
-			"Enabled": false
+			"Enabled": true
 		},
 		{
 			"Name": "LiveLink",
-			"Enabled": false
+			"Enabled": true
 		},
 		{
 			"Name": "Composure",
-			"Enabled": false
+			"Enabled": true
 		},
 		{
 			"Name": "MediaFrameworkUtilities",
-			"Enabled": false
+			"Enabled": true
 		},
 		{
 			"Name": "MediaIOFramework",
-			"Enabled": false
+			"Enabled": true
 		}
 	]
 }
