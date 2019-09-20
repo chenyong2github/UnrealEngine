@@ -4,6 +4,8 @@
 #include "NiagaraEditorModule.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraNodeInput.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraComponent.h"
 #include "Modules/ModuleManager.h"
@@ -33,6 +35,7 @@
 #include "Misc/FileHelper.h"
 #include "EdGraph/EdGraphPin.h"
 #include "NiagaraNodeWriteDataSet.h"
+#include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraParameterMapHistory.h"
@@ -141,7 +144,7 @@ void FNiagaraEditorUtilities::GetParameterVariablesFromSystem(UNiagaraSystem& Sy
 }
 
 // TODO: This is overly complicated.
-void FNiagaraEditorUtilities::FixUpPastedInputNodes(UEdGraph* Graph, TSet<UEdGraphNode*> PastedNodes)
+void FNiagaraEditorUtilities::FixUpPastedNodes(UEdGraph* Graph, TSet<UEdGraphNode*> PastedNodes)
 {
 	// Collect existing inputs.
 	TArray<UNiagaraNodeInput*> CurrentInputs;
@@ -239,6 +242,54 @@ void FNiagaraEditorUtilities::FixUpPastedInputNodes(UEdGraph* Graph, TSet<UEdGra
 			for (UNiagaraNodeInput* PastedNodeForInput : PastedNodesForInput)
 			{
 				PastedNodeForInput->CallSortPriority = NewSortOrder;
+			}
+		}
+	}
+
+	// Fix up pasted function call nodes
+	TArray<UNiagaraNodeFunctionCall*> FunctionCallNodes;
+	Graph->GetNodesOfClass<UNiagaraNodeFunctionCall>(FunctionCallNodes);
+	TSet<FName> ExistingNames;
+	for (UNiagaraNodeFunctionCall* FunctionCallNode : FunctionCallNodes)
+	{
+		if (PastedNodes.Contains(FunctionCallNode) == false)
+		{
+			ExistingNames.Add(*FunctionCallNode->GetFunctionName());
+		}
+	}
+
+	TMap<FName, FName> OldFunctionToNewFunctionNameMap;
+	for (UEdGraphNode* PastedNode : PastedNodes)
+	{
+		UNiagaraNodeFunctionCall* PastedFunctionCallNode = Cast<UNiagaraNodeFunctionCall>(PastedNode);
+		if (PastedFunctionCallNode != nullptr)
+		{
+			if (ExistingNames.Contains(*PastedFunctionCallNode->GetFunctionName()))
+			{
+				FName FunctionCallName = *PastedFunctionCallNode->GetFunctionName();
+				FName UniqueFunctionCallName = FNiagaraUtilities::GetUniqueName(FunctionCallName, ExistingNames);
+				PastedFunctionCallNode->SuggestName(UniqueFunctionCallName.ToString());
+				ExistingNames.Add(UniqueFunctionCallName);
+				OldFunctionToNewFunctionNameMap.Add(FunctionCallName, UniqueFunctionCallName);
+			}
+		}
+	}
+
+	for (UEdGraphNode* PastedNode : PastedNodes)
+	{
+		UNiagaraNodeParameterMapSet* ParameterMapSetNode = Cast<UNiagaraNodeParameterMapSet>(PastedNode);
+		if (ParameterMapSetNode != nullptr)
+		{
+			TArray<UEdGraphPin*> InputPins;
+			ParameterMapSetNode->GetInputPins(InputPins);
+			for (UEdGraphPin* InputPin : InputPins)
+			{
+				FNiagaraParameterHandle InputHandle(InputPin->PinName);
+				if (OldFunctionToNewFunctionNameMap.Contains(InputHandle.GetNamespace()))
+				{
+					// Rename any inputs pins on parameter map sets who's function calls were renamed.
+					InputPin->PinName = FNiagaraParameterHandle(OldFunctionToNewFunctionNameMap[InputHandle.GetNamespace()], InputHandle.GetName()).GetParameterHandleString();
+				}
 			}
 		}
 	}
