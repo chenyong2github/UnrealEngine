@@ -7576,6 +7576,83 @@ bool FSequencer::IsNodeLocked() const
 	return NumSections > 0;
 }
 
+void FSequencer::GroupSelectedSections()
+{
+	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+	if (MovieScene->IsReadOnly())
+	{
+		ShowReadOnlyError();
+		return;
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("GroupSelectedSections", "Group Selected Sections"));
+
+	TArray<UMovieSceneSection*> Sections;
+	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Selection.GetSelectedSections())
+	{
+		UMovieSceneSection* Section = WeakSection.Get();
+		// We do not want to group sections that are infinite, as they should not be moveable
+		if (Section && (Section->HasStartFrame() || Section->HasEndFrame()))
+		{
+			Sections.Add(Section);
+		}
+	}
+
+	MovieScene->GroupSections(Sections);
+}
+
+bool FSequencer::CanGroupSelectedSections() const
+{
+	int32 GroupableSections = 0;
+	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Selection.GetSelectedSections())
+	{
+		UMovieSceneSection* Section = WeakSection.Get();
+		// We do not want to group sections that are infinite, as they should not be moveable
+		if (Section && (Section->HasStartFrame() || Section->HasEndFrame()))
+		{
+			if (++GroupableSections >= 2)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void FSequencer::UngroupSelectedSections()
+{
+	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+	if (MovieScene->IsReadOnly())
+	{
+		ShowReadOnlyError();
+		return;
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("UngroupSelectedSections", "Ungroup Selected Sections"));
+
+	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Selection.GetSelectedSections())
+	{
+		if (WeakSection.IsValid())
+		{
+			MovieScene->UngroupSection(*WeakSection.Get());
+		}
+	}
+}
+
+bool FSequencer::CanUngroupSelectedSections() const
+{
+	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+
+	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Selection.GetSelectedSections())
+	{
+		if (WeakSection.IsValid() && MovieScene->IsSectionInGroup(*WeakSection.Get()))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void FSequencer::SaveSelectedNodesSpawnableState()
 {
 	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();

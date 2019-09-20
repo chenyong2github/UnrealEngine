@@ -506,6 +506,14 @@ public:
 	void ToggleNodeLocked();
 	bool IsNodeLocked() const;
 
+	/** Called when a user executes the Group menu item */
+	void GroupSelectedSections();
+	bool CanGroupSelectedSections() const;
+
+	/** Called when a user executes the Ungroup menu item */
+	void UngroupSelectedSections();
+	bool CanUngroupSelectedSections() const;
+
 	/** Called when a user executes the set key time for selected keys */
 	bool CanSetKeyTime() const;
 	void SetKeyTime();
