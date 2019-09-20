@@ -652,6 +652,12 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 	{
 		MTLArgument* Arg = [Arguments objectAtIndex:i];
 		check(Arg);
+
+		if (!Arg.active)
+		{
+			continue;
+		}
+
 		switch(Arg.type)
 		{
 			case MTLArgumentTypeBuffer:
