@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "InteractiveGizmoManager.h"
 #include "BaseGizmos/GizmoInterfaces.h"
+#include "Changes/TransformChange.h"
 #include "StateTargets.generated.h"
 
 
@@ -121,6 +122,98 @@ public:
 		UGizmoObjectModifyStateTarget* NewTarget = NewObject<UGizmoObjectModifyStateTarget>(Outer);
 		NewTarget->ModifyObject = ModifyObjectIn;
 		NewTarget->TransactionDescription = DescriptionIn;
+		NewTarget->GizmoManager = GizmoManagerIn;
+		return NewTarget;
+	}
+};
+
+
+
+
+
+
+
+/**
+ * UGizmoTransformChangeStateTarget is an implementation of IGizmoStateTarget that
+ * emits an FComponentWorldTransformChange on a target USceneComponent. This StateTarget
+ * also opens/closes an undo transaction via GizmoManager.
+ */
+UCLASS()
+class INTERACTIVETOOLSFRAMEWORK_API UGizmoTransformChangeStateTarget : public UObject, public IGizmoStateTarget
+{
+	GENERATED_BODY()
+public:
+	virtual void BeginUpdate()
+	{
+		if (TargetComponent.IsValid())
+		{
+			if (GizmoManager.IsValid())
+			{
+				GizmoManager->BeginUndoTransaction(ChangeDescription);
+			}
+
+			InitialTransform = TargetComponent->GetComponentTransform();
+		}
+	}
+
+	virtual void EndUpdate()
+	{
+		if (TargetComponent.IsValid())
+		{
+			FinalTransform = TargetComponent->GetComponentTransform();
+
+			if (GizmoManager.IsValid())
+			{
+				TUniquePtr<FComponentWorldTransformChange> TransformChange 
+					= MakeUnique<FComponentWorldTransformChange>(InitialTransform, FinalTransform);
+				GizmoManager->EmitObjectChange(TargetComponent.Get(), MoveTemp(TransformChange), ChangeDescription);
+
+				if (GizmoManager.IsValid())
+				{
+					GizmoManager->EndUndoTransaction();
+				}
+			}
+		}
+	}
+
+
+	/**
+	 * The object that will be changed, ie have Modify() called on it on BeginUpdate()
+	 */
+	TWeakObjectPtr<USceneComponent> TargetComponent;
+
+	/**
+	 * Localized text description of the transaction (will be visible in Editor on undo/redo)
+	 */
+	FText ChangeDescription;
+
+	/**
+	 * Pointer to the GizmoManager that is used to open/close the transaction
+	 */
+	TWeakObjectPtr<UInteractiveGizmoManager> GizmoManager;
+
+	/** Start Transform, saved on BeginUpdate() */
+	FTransform InitialTransform;
+	/** End Transform, saved on EndUpdate() */
+	FTransform FinalTransform;
+
+
+public:
+	/**
+	 * Create and initialize an standard instance of UGizmoTransformChangeStateTarget
+	 * @param TargetComponentIn the USceneComponent this StateTarget will track transform changes on
+	 * @param DescriptionIn Localized text description of the transaction
+	 * @param GizmoManagerIn pointer to the GizmoManager used to manage transactions
+	 */
+	static UGizmoTransformChangeStateTarget* Construct(
+		USceneComponent* TargetComponentIn,
+		const FText& DescriptionIn,
+		UInteractiveGizmoManager* GizmoManagerIn,
+		UObject* Outer = (UObject*)GetTransientPackage())
+	{
+		UGizmoTransformChangeStateTarget* NewTarget = NewObject<UGizmoTransformChangeStateTarget>(Outer);
+		NewTarget->TargetComponent = TargetComponentIn;
+		NewTarget->ChangeDescription = DescriptionIn;
 		NewTarget->GizmoManager = GizmoManagerIn;
 		return NewTarget;
 	}
