@@ -7,6 +7,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 #include "Engine/EngineBaseTypes.h"
+#include "UObject/CoreNet.h"
 
 class UPendingNetGame;
 
