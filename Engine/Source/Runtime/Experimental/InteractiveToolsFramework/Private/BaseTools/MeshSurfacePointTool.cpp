@@ -47,6 +47,7 @@ void UMeshSurfacePointTool::Setup()
 	UInteractiveTool::Setup();
 
 	bShiftToggle = false;
+	bCtrlToggle = false;
 
 	// add input behaviors
 	UMeshSurfacePointToolMouseBehavior* mouseBehavior = NewObject<UMeshSurfacePointToolMouseBehavior>();
@@ -94,7 +95,10 @@ void UMeshSurfacePointTool::SetShiftToggle(bool bShiftDown)
 	bShiftToggle = bShiftDown;
 }
 
-
+void UMeshSurfacePointTool::SetCtrlToggle(bool bCtrlDown)
+{
+	bCtrlToggle = bCtrlDown;
+}
 
 
 FInputRayHit UMeshSurfacePointTool::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
@@ -140,6 +144,7 @@ FInputCaptureRequest UMeshSurfacePointToolMouseBehavior::WantsCapture(const FInp
 FInputCaptureUpdate UMeshSurfacePointToolMouseBehavior::BeginCapture(const FInputDeviceState& input, EInputCaptureSide eSide)
 {
 	Tool->SetShiftToggle(input.bShiftKeyDown);
+	Tool->SetCtrlToggle(input.bCtrlKeyDown);
 	Tool->OnBeginDrag(input.Mouse.WorldRay);
 	LastWorldRay = input.Mouse.WorldRay;
 	bInDragCapture = true;

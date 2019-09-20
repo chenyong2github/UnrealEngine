@@ -221,6 +221,7 @@ bool UDynamicMeshSculptTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 void UDynamicMeshSculptTool::OnBeginDrag(const FRay& Ray)
 {
 	bSmoothing = GetShiftToggle();
+	bInvert = GetCtrlToggle();
 
 	FHitResult OutHit;
 	if (HitTest(Ray, OutHit))
@@ -456,6 +457,8 @@ void UDynamicMeshSculptTool::ApplyOffsetBrush(const FRay& WorldRay)
 	FTransform Transform = ComponentTarget->GetWorldTransform();
 	FVector NewBrushPosLocal = Transform.InverseTransformPosition(LastBrushPosWorld);
 
+	double Direction = (bInvert) ? -1.0 : 1.0;
+
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	for (int VertIdx : VertexROI)
 	{
@@ -464,7 +467,8 @@ void UDynamicMeshSculptTool::ApplyOffsetBrush(const FRay& WorldRay)
 		FVector3d BasePos, BaseNormal;
 		GetTargetMeshNearest(OrigPos, (double)(2 * CurrentBrushRadius), BasePos, BaseNormal);
 
-		FVector3d MoveVec = SculptProperties->OffsetPower*FMathd::Sqrt(CurrentBrushRadius)*BaseNormal;
+		FVector3d MoveVec = 
+			(Direction * SculptProperties->OffsetPower * FMathd::Sqrt(CurrentBrushRadius)) * BaseNormal;
 
 		double UseDist = (OrigPos - NewBrushPosLocal).Length();
 		double d = UseDist / CurrentBrushRadius;
@@ -503,6 +507,8 @@ void UDynamicMeshSculptTool::ApplyPinchBrush(const FRay& WorldRay)
 	FVector BrushNormalLocal = Transform.InverseTransformVectorNoScale(LastBrushPosNormalWorld);
 	FVector OffsetBrushPosLocal = NewBrushPosLocal - SculptProperties->Depth * CurrentBrushRadius * BrushNormalLocal;
 
+	double Direction = (bInvert) ? -1.0 : 1.0;
+
 	FVector3d MotionVec = NewBrushPosLocal - LastBrushPosLocal;
 	MotionVec.Normalize();
 
@@ -511,7 +517,7 @@ void UDynamicMeshSculptTool::ApplyPinchBrush(const FRay& WorldRay)
 	{
 		FVector3d OrigPos = Mesh->GetVertex(VertIdx);
 		FVector3d Delta = OffsetBrushPosLocal - OrigPos;
-		FVector3d MoveVec = SculptProperties->OffsetPower*Delta;
+		FVector3d MoveVec = (Direction * SculptProperties->OffsetPower)*Delta;
 
 		double UseDist = (OrigPos - NewBrushPosLocal).Length();
 		double d = UseDist / CurrentBrushRadius;

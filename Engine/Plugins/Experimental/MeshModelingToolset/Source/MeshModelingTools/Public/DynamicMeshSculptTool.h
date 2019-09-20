@@ -268,6 +268,7 @@ protected:
 	bool bTargetDirty;
 
 	bool bSmoothing;
+	bool bInvert;
 
 	bool bHaveRemeshed;
 
