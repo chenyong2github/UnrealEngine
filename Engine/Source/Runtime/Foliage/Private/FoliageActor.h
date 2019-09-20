@@ -37,7 +37,9 @@ struct FFoliageActor : public FFoliageImpl
 	int32 FindIndex(const AActor* InActor) const;
 	virtual int32 FindIndex(const UPrimitiveComponent* HitComponent) const override;
 
-	virtual void SelectInstances(bool bSelect, int32 InstanceIndex, int32 Count) override;
+	virtual void SelectAllInstances(bool bSelect) override;
+	virtual void SelectInstance(bool bSelect, int32 Index) override;
+	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) override;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) override;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) override;
 	virtual void Refresh(AInstancedFoliageActor* IFA, const TArray<FFoliageInstance>& Instances, bool Async, bool Force) override;

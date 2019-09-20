@@ -1139,31 +1139,40 @@ void SFoliagePalette::OnShowFoliageTypeInCB()
 	}
 }
 
+void SFoliagePalette::ExecuteOnSelectedItemFoliageTypes(TFunctionRef<void(const TArray<const UFoliageType*>&)> ExecuteFunc)
+{
+	TArray<FFoliagePaletteItemModelPtr> SelectedItems = GetActiveViewWidget()->GetSelectedItems();
+	TArray<const UFoliageType*> FoliageTypes;
+	FoliageTypes.Reserve(SelectedItems.Num());
+	for (FFoliagePaletteItemModelPtr& PaletteItem : SelectedItems)
+	{
+		FoliageTypes.Add(PaletteItem->GetFoliageType());
+	}
+	ExecuteFunc(FoliageTypes);
+}
+
 void SFoliagePalette::OnSelectAllInstances()
 {
-	for (FFoliagePaletteItemModelPtr& PaletteItem : GetActiveViewWidget()->GetSelectedItems())
+	ExecuteOnSelectedItemFoliageTypes([&](const TArray<const UFoliageType*>& FoliageTypes)
 	{
-		UFoliageType* FoliageType = PaletteItem->GetFoliageType();
-		FoliageEditMode->SelectInstances(FoliageType, true);
-	}
+		FoliageEditMode->SelectInstances(FoliageTypes, true);
+	});	
 }
 
 void SFoliagePalette::OnDeselectAllInstances()
 {
-	for (FFoliagePaletteItemModelPtr& PaletteItem : GetActiveViewWidget()->GetSelectedItems())
+	ExecuteOnSelectedItemFoliageTypes([&](const TArray<const UFoliageType*>& FoliageTypes)
 	{
-		UFoliageType* FoliageType = PaletteItem->GetFoliageType();
-		FoliageEditMode->SelectInstances(FoliageType, false);
-	}
+		FoliageEditMode->SelectInstances(FoliageTypes, false);
+	});
 }
 
 void SFoliagePalette::OnSelectInvalidInstances()
 {
-	for (FFoliagePaletteItemModelPtr& PaletteItem : GetActiveViewWidget()->GetSelectedItems())
+	ExecuteOnSelectedItemFoliageTypes([&](const TArray<const UFoliageType*>& FoliageTypes)
 	{
-		UFoliageType* FoliageType = PaletteItem->GetFoliageType();
-		FoliageEditMode->SelectInvalidInstances(FoliageType);
-	}
+		FoliageEditMode->SelectInvalidInstances(FoliageTypes);
+	});
 }
 
 bool SFoliagePalette::CanSelectInstances() const

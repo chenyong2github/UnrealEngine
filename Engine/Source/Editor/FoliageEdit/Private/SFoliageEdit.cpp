@@ -707,45 +707,50 @@ EVisibility SFoliageEdit::GetVisibility_SelectionOptions() const
 	return IsSelectTool() || IsLassoSelectTool() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
 }
 
-FReply SFoliageEdit::OnSelectAllInstances()
+void SFoliageEdit::ExecuteOnAllCurrentLevelFoliageTypes(TFunctionRef<void(const TArray<const UFoliageType*>&)> ExecuteFunc)
 {
-	for (FFoliageMeshUIInfoPtr& TypeInfo : FoliageEditMode->GetFoliageMeshList())
+	TArray<FFoliageMeshUIInfoPtr>& FoliageUIList = FoliageEditMode->GetFoliageMeshList();
+	TArray<const UFoliageType*> FoliageTypes;
+	FoliageTypes.Reserve(FoliageUIList.Num());
+
+	for (FFoliageMeshUIInfoPtr& TypeInfo : FoliageUIList)
 	{
 		if (TypeInfo->InstanceCountCurrentLevel > 0)
 		{
-			UFoliageType* FoliageType = TypeInfo->Settings;
-			FoliageEditMode->SelectInstances(FoliageType, true);
+			FoliageTypes.Add(TypeInfo->Settings);
 		}
 	}
+
+	ExecuteFunc(FoliageTypes);
+}
+
+FReply SFoliageEdit::OnSelectAllInstances()
+{
+	ExecuteOnAllCurrentLevelFoliageTypes([&](const TArray<const UFoliageType*>& FoliageTypes)
+	{
+		FoliageEditMode->SelectInstances(FoliageTypes, true);
+	});
 
 	return FReply::Handled();
 }
 
 FReply SFoliageEdit::OnSelectInvalidInstances()
 {
-	for (FFoliageMeshUIInfoPtr& TypeInfo : FoliageEditMode->GetFoliageMeshList())
+	ExecuteOnAllCurrentLevelFoliageTypes([&](const TArray<const UFoliageType*>& FoliageTypes)
 	{
-		if (TypeInfo->InstanceCountCurrentLevel > 0)
-		{
-			const UFoliageType* FoliageType = TypeInfo->Settings;
-			FoliageEditMode->SelectInstances(FoliageType, false);
-			FoliageEditMode->SelectInvalidInstances(FoliageType);
-		}
-	}
+		FoliageEditMode->SelectInstances(FoliageTypes, false);
+		FoliageEditMode->SelectInvalidInstances(FoliageTypes);
+	});
 
 	return FReply::Handled();
 }
 
 FReply SFoliageEdit::OnDeselectAllInstances()
 {
-	for (FFoliageMeshUIInfoPtr& TypeInfo : FoliageEditMode->GetFoliageMeshList())
+	ExecuteOnAllCurrentLevelFoliageTypes([&](const TArray<const UFoliageType*>& FoliageTypes)
 	{
-		if (TypeInfo->InstanceCountCurrentLevel > 0)
-		{
-			UFoliageType* FoliageType = TypeInfo->Settings;
-			FoliageEditMode->SelectInstances(FoliageType, false);
-		}
-	}
+		FoliageEditMode->SelectInstances(FoliageTypes, false);
+	});
 
 	return FReply::Handled();
 }

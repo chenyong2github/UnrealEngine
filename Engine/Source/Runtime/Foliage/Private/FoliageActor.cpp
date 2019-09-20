@@ -250,19 +250,21 @@ void FFoliageActor::Reapply(AInstancedFoliageActor* IFA, const UFoliageType* Fol
 	}
 }
 
-void FFoliageActor::SelectInstances(bool bSelect, int32 InstanceIndex, int32 Count)
+void FFoliageActor::SelectAllInstances(bool bSelect)
 {
-	TArray<AActor*> Selection;
-	Selection.Reserve(Count);
-	check(ActorInstances.Num() >= InstanceIndex + Count);
-	for (int32 i = InstanceIndex; i < (InstanceIndex + Count); ++i)
-	{
-		if (ActorInstances[i])
-		{
-			Selection.Add(ActorInstances[i]);
-		}
-	}
-	AInstancedFoliageActor::SelectionChanged.Broadcast(bSelect, Selection);
+	AInstancedFoliageActor::SelectionChanged.Broadcast(bSelect, ActorInstances);
+}
+
+void FFoliageActor::SelectInstance(bool bSelect, int32 Index)
+{
+	TArray<AActor*> SingleInstance;
+	SingleInstance.Add(ActorInstances[Index]);
+	AInstancedFoliageActor::SelectionChanged.Broadcast(bSelect, SingleInstance);
+}
+
+void FFoliageActor::SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices)
+{
+	AInstancedFoliageActor::SelectionChanged.Broadcast(bSelect, GetActorsFromSelectedIndices(SelectedIndices));
 }
 
 void FFoliageActor::ApplySelection(bool bApply, const TSet<int32>& SelectedIndices)
