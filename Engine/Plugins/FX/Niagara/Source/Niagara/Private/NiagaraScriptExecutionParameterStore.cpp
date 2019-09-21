@@ -267,8 +267,9 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 		}
 
 		FNiagaraVariable Var(Info.Type, ParameterName);
-		bAdded |= AddParameter(Var, false, false);
-		SetDataInterface(Info.DataInterface, IndexOf(Var));
+		int32 VarOffset = INDEX_NONE;
+		bAdded |= AddParameter(Var, false, false, &VarOffset);
+		SetDataInterface(Info.DataInterface, VarOffset);
 	}
 
 	if (bAdded && bTriggerRebind)
