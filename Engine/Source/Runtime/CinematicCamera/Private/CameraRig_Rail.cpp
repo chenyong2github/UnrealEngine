@@ -150,6 +150,11 @@ void ACameraRig_Rail::UpdatePreviewMeshes()
 
 void ACameraRig_Rail::UpdateRailComponents()
 {
+	if (!GetWorld())
+	{
+		return;
+	}
+
 	if (RailSplineComponent && RailCameraMount)
 	{
 		float const SplineLen = RailSplineComponent->GetSplineLength();
