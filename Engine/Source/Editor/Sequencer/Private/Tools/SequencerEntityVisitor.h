@@ -82,7 +82,7 @@ private:
 	/** Visit any keys within the specified track node that overlap the range's horizontal space */
 	void VisitTrackNode(const ISequencerEntityVisitor& Visitor, const TSharedRef<FSequencerTrackNode>& InNode);
 	/** Visit any keys within any key area nodes that belong to the specified node that overlap the range's horizontal space */
-	void VisitKeyAnyAreas(const ISequencerEntityVisitor& Visitor, const TSharedRef<FSequencerDisplayNode>& InNode);
+	void VisitKeyAnyAreas(const ISequencerEntityVisitor& Visitor, const TSharedRef<FSequencerDisplayNode>& InNode, bool bAnyParentCollapsed);
 	/** Visit any keys within the specified key area that overlap the range's horizontal space */
 	void VisitKeyArea(const ISequencerEntityVisitor& Visitor, const TSharedRef<IKeyArea>& KeyArea, UMovieSceneSection* Section, const TSharedRef<FSequencerDisplayNode>& InNode);
 
