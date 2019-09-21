@@ -152,6 +152,19 @@ void FRenderAssetInstanceState::AddElement(const UPrimitiveComponent* InComponen
 	if (HasCompiledElements()) 
 	{
 		CompiledRenderAssetMap.FindOrAdd(Element.RenderAsset).Add(FCompiledElement(Element));
+
+		if (Element.TexelFactor < 0.f && !InAsset->IsA<UTexture>())
+		{
+			int32* CountPtr = CompiledNumForcedLODCompMap.Find(Element.RenderAsset);
+			if (!CountPtr)
+			{
+				CompiledNumForcedLODCompMap.Add(Element.RenderAsset, 1);
+			}
+			else
+			{
+				++*CountPtr;
+			}
+		}
 	}
 }
 
@@ -167,6 +180,14 @@ void FRenderAssetInstanceState::RemoveElement(int32 ElementIndex, int32& NextCom
 	if (HasCompiledElements())
 	{
 		CompiledRenderAssetMap.FindChecked(Element.RenderAsset).RemoveSingleSwap(FCompiledElement(Element), false);
+
+		if (Element.TexelFactor < 0.f
+			&& Element.RenderAsset
+			&& !Element.RenderAsset->IsA<UTexture>()
+			&& !--CompiledNumForcedLODCompMap.FindChecked(Element.RenderAsset))
+		{
+			CompiledNumForcedLODCompMap.Remove(Element.RenderAsset);
+		}
 	}
 
 	// Unlink texutres or meshes
@@ -184,6 +205,7 @@ void FRenderAssetInstanceState::RemoveElement(int32 ElementIndex, int32& NextCom
 			{
 				RenderAssetMap.Remove(Element.RenderAsset);
 				CompiledRenderAssetMap.Remove(Element.RenderAsset);
+				check(!CompiledNumForcedLODCompMap.Find(Element.RenderAsset));
 				Asset = Element.RenderAsset;
 			}
 		}
@@ -583,12 +605,14 @@ uint32 FRenderAssetInstanceState::GetAllocatedSize() const
 		FreeElementIndices.GetAllocatedSize() +
 		RenderAssetMap.GetAllocatedSize() +
 		CompiledRenderAssetMap.GetAllocatedSize() + CompiledElementsSize +
+		CompiledNumForcedLODCompMap.GetAllocatedSize() +
 		ComponentMap.GetAllocatedSize();
 }
 
 int32 FRenderAssetInstanceState::CompileElements()
 {
 	CompiledRenderAssetMap.Empty();
+	CompiledNumForcedLODCompMap.Empty();
 	MaxTexelFactor = 0;
 
 	// First create an entry for all elements, so that there are no reallocs when inserting each compiled elements.
@@ -602,6 +626,7 @@ int32 FRenderAssetInstanceState::CompileElements()
 	for (TMap<const UStreamableRenderAsset*, TArray<FCompiledElement> >::TIterator It(CompiledRenderAssetMap); It; ++It)
 	{
 		const UStreamableRenderAsset* Asset = It.Key();
+		const bool bIsNonTexture = Asset && !Asset->IsA<UTexture>();
 		TArray<FCompiledElement>& CompiledElemements = It.Value();
 
 		int32 CompiledElementCount = 0;
@@ -615,6 +640,20 @@ int32 FRenderAssetInstanceState::CompileElements()
 		for (auto ElementIt = GetElementIterator(Asset); ElementIt; ++ElementIt)
 		{
 			const float TexelFactor = ElementIt.GetTexelFactor();
+
+			if (bIsNonTexture && TexelFactor < 0.f)
+			{
+				int32* CountPtr = CompiledNumForcedLODCompMap.Find(Asset);
+				if (!CountPtr)
+				{
+					CompiledNumForcedLODCompMap.Add(Asset, 1);
+				}
+				else
+				{
+					++*CountPtr;
+				}
+			}
+
 			// No need to care about force load as MaxTexelFactor is used to ignore far away levels.
 			MaxTexelFactor = FMath::Max(TexelFactor, MaxTexelFactor);
 

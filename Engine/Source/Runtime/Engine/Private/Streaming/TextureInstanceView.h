@@ -193,6 +193,9 @@ public:
 	// If this has compiled elements, return the array relate to a given texture or mesh.
 	const TArray<FCompiledElement>* GetCompiledElements(const UStreamableRenderAsset* Asset) const { return CompiledRenderAssetMap.Find(Asset); }
 
+	bool HasComponentWithForcedLOD(const UStreamableRenderAsset* Asset) const { return !!CompiledNumForcedLODCompMap.Find(Asset); }
+	bool HasAnyComponentWithForcedLOD() const { return !!CompiledNumForcedLODCompMap.Num(); }
+
 	static TRefCountPtr<const FRenderAssetInstanceView> CreateView(const FRenderAssetInstanceView* RefView);
 	static TRefCountPtr<FRenderAssetInstanceView> CreateViewWithUninitializedBounds(const FRenderAssetInstanceView* RefView);
 	static void SwapData(FRenderAssetInstanceView* Lfs, FRenderAssetInstanceView* Rhs);
@@ -225,6 +228,9 @@ protected:
 
 	// CompiledTextureMap is used to iterate more quickly on each elements by avoiding the linked list indirections.
 	TMap<const UStreamableRenderAsset*, TArray<FCompiledElement> > CompiledRenderAssetMap;
+
+	// If an asset has components with forced LOD levels, it will appear here after level compilation.
+	TMap<const UStreamableRenderAsset*, int32> CompiledNumForcedLODCompMap;
 
 	/** Max texel factor across all elements. Used for early culling */
 	float MaxTexelFactor;
@@ -272,6 +278,10 @@ public:
 		const TCHAR* LogPrefix) const;
 
 	bool HasRenderAssetReferences(const UStreamableRenderAsset* InAsset) const;
+
+	bool HasComponentWithForcedLOD(const UStreamableRenderAsset* InAsset) const;
+
+	bool HasAnyComponentWithForcedLOD() const;
 
 	// Release the data now as this is expensive.
 	void OnTaskDone() { BoundsViewInfo.Empty(); }
