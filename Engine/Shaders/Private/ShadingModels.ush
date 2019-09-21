@@ -414,7 +414,7 @@ FDirectLighting SubsurfaceProfileBxDF( FGBufferData GBuffer, half3 N, half3 V, h
 
 FDirectLighting ClothBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, float Falloff, float NoL, FAreaLight AreaLight, FShadowTerms Shadow )
 {
-	const float3 FuzzColor	= saturate(GBuffer.CustomData.rgb);
+	const float3 FuzzColor	= ExtractSubsurfaceColor(GBuffer);
 	const float  Cloth		= saturate(GBuffer.CustomData.a);
 
 	BxDFContext Context;
