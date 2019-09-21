@@ -18,6 +18,8 @@ public:
 	UPROPERTY(EditAnywhere, EditFixedSize, Category = "Uniform")
 	TArray<FNiagaraVariable> Parameters;
 
+#if WITH_EDITORONLY_DATA
+
 	NIAGARA_API void Empty();
 
 	/** 
@@ -75,4 +77,6 @@ public:
 	}
 
 	NIAGARA_API void DumpParameters();
+
+#endif // WITH_EDITORONLY_DATA
 };
