@@ -1012,8 +1012,6 @@ public:
 	/** Flag passed to UpdateAnimation, determines the path we follow */
 	enum class EUpdateAnimationFlag : uint8
 	{
-		/** Enforce an immediate update, regardless of state*/
-		ForceImmediateUpdate,
 		/** Enforces a parallel update, regardless of state */
 		ForceParallelUpdate,
 		/** Use state to determine whether or not to immediately or update in parallel */
@@ -1030,7 +1028,7 @@ public:
 	void InitializeAnimation(bool bInDeferRootNodeInitialization = false);
 
 	/** Update Animation code-paths, updates and advances animation state, returns whether or not the actual update should have been called immediately */
-	bool UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion, EUpdateAnimationFlag UpdateFlag = EUpdateAnimationFlag::Default );
+	void UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion, EUpdateAnimationFlag UpdateFlag = EUpdateAnimationFlag::Default );
 
 	/** Run update animation work on a worker thread */
 	void ParallelUpdateAnimation();
