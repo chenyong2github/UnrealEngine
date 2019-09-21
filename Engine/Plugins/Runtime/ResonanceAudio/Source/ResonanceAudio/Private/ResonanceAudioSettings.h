@@ -25,6 +25,6 @@ public:
 	FSoftObjectPath GlobalReverbPreset;
 
 	// Default settings for global source settings
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = General, meta = (AllowedClasses = "ResonanceAudioSourcePluginPreset"))
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = General, meta = (AllowedClasses = "ResonanceAudioSpatializationSourceSettings"))
 	FSoftObjectPath GlobalSourcePreset;
 };
