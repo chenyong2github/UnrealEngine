@@ -457,6 +457,10 @@ public:
 	 */
 	virtual const ANavigationData* GetNavDataForProps(const FNavAgentProperties& AgentProperties) const;
 
+	/** Goes through all registered NavigationData instances and retrieves the one 
+	 *	supporting agent named AgentName */
+	virtual ANavigationData* GetNavDataForAgentName(const FName AgentName) const;
+
 	/**
 	 * Looks up NavData appropriate for specified movement properties and returns it. NULL if not found;
 	 * This is the encouraged way of querying for the appropriate NavData. It makes no difference for NavigationSystemV1
@@ -709,7 +713,7 @@ public:
 	void OnPIEEnd();
 	
 	// @todo document
-	FORCEINLINE bool IsNavigationBuildingLocked() const { return NavBuildingLockFlags != 0; }
+	FORCEINLINE bool IsNavigationBuildingLocked(uint8 Flags = ~0) const { return (NavBuildingLockFlags & Flags) != 0; }
 
 	/** check if building is permanently locked to avoid showing navmesh building notify (due to queued dirty areas) */
 	FORCEINLINE bool IsNavigationBuildingPermanentlyLocked() const
