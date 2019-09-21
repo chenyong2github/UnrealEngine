@@ -240,7 +240,7 @@ namespace Audio
 		int32 OutSampleIndex = 0;
 		for (int32 i = 0; i < NumFrames && !bIsFinished; ++i)
 		{
-			float CurrentPitch = Pitch.GetValue();
+			float CurrentPitch = Pitch.GetNextValue();
 
 			// Don't let the pitch go to 0.
 			if (FMath::IsNearlyZero(CurrentPitch))

@@ -105,8 +105,8 @@ void FDynamicDelayAPF::ProcessAudioBlock(const float* InSamples, const AlignedFl
 	DelayLineInput.AddUninitialized(InNum);
 
 	// Get G values to interpolate over
-	const float LastG = G.GetValue();
-	const float CurrG = G.GetValue(InNum);
+	const float LastG = G.GetNextValue();
+	const float CurrG = G.GetNextValue(InNum - 1);
 
 	// WorkBufferA = G * WorkBufferB
 	FMemory::Memcpy(WorkBufferA.GetData(), WorkBufferB.GetData(), InNum * sizeof(float));
