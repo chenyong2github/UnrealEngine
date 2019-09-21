@@ -1794,16 +1794,18 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable,  SceneContext.GetSceneDepthSurface());
 
+		FSingleLayerWaterPassData SingleLayerWaterPassData;
+
 		const FExclusiveDepthStencil::Type WaterPassDepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite;
-		SceneContext.BeginRenderingWaterGBuffer(RHICmdList, WaterPassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity);
-		RenderSingleLayerWaterPass(RHICmdList, WaterPassDepthStencilAccess);
-		SceneContext.FinishWaterGBufferPassAndResolve(RHICmdList);
+		BeginRenderingWaterGBuffer(RHICmdList, SingleLayerWaterPassData, WaterPassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity);
+		RenderSingleLayerWaterPass(RHICmdList, SingleLayerWaterPassData, WaterPassDepthStencilAccess);
+		FinishWaterGBufferPassAndResolve(RHICmdList);
 
 		SceneContext.ResolveSceneDepthTexture(RHICmdList, FResolveRect(0, 0, FamilySize.X, FamilySize.Y));
 		SceneContext.ResolveSceneDepthToAuxiliaryTexture(RHICmdList);
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneDepthSurface());
 
-		RenderSingleLayerWaterSSR(RHICmdList);
+		RenderSingleLayerWaterSSR(RHICmdList, SingleLayerWaterPassData);
 		ServiceLocalQueue();
 	}
 
