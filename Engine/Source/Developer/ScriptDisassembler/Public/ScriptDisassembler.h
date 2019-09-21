@@ -25,14 +25,14 @@ public:
 	 *
 	 * @param	InAr	The archive to emit disassembled bytecode to.
 	 */
-	UNREALED_API FKismetBytecodeDisassembler(FOutputDevice& InAr);
+	SCRIPTDISASSEMBLER_API FKismetBytecodeDisassembler(FOutputDevice& InAr);
 
 	/**
 	 * Disassemble all of the script code in a single structure.
 	 *
 	 * @param [in,out]	Source	The structure to disassemble.
 	 */
-	UNREALED_API void DisassembleStructure(UFunction* Source);
+	SCRIPTDISASSEMBLER_API void DisassembleStructure(UFunction* Source);
 
 	/**
 	 * Disassemble all functions in any classes that have matching names.
@@ -40,7 +40,7 @@ public:
 	 * @param	InAr	The archive to emit disassembled bytecode to.
 	 * @param	ClassnameSubstring	A class must contain this substring to be disassembled.
 	 */
-	UNREALED_API static void DisassembleAllFunctionsInClasses(FOutputDevice& Ar, const FString& ClassnameSubstring);
+	SCRIPTDISASSEMBLER_API static void DisassembleAllFunctionsInClasses(FOutputDevice& Ar, const FString& ClassnameSubstring);
 private:
 
 	// Reading functions
