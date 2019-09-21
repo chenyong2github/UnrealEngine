@@ -132,7 +132,7 @@ struct FOodleCustomCompressor : ICompressionFormat
 	{
 		ConditionalInitialize();
 
-		int32 Result = (int32)OodleLZ_Decompress(CompressedBuffer, CompressedSize, UncompressedBuffer, UncompressedSize, OodleLZ_FuzzSafe_No);
+		int32 Result = (int32)OodleLZ_Decompress(CompressedBuffer, CompressedSize, UncompressedBuffer, UncompressedSize, OodleLZ_FuzzSafe_Yes);
 		if (Result > 0)
 		{
 			UncompressedSize = Result;
