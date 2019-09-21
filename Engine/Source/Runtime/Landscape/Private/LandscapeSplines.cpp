@@ -1359,6 +1359,7 @@ void ULandscapeSplinesComponent::DestroyOrphanedForeignControlPointMeshComponent
 			{
 				ControlPointData.MeshComponent->DestroyComponent();
 				ForeignWorldSplineData->ForeignControlPointData.RemoveSingle(ControlPointData);
+				MeshComponentForeignOwnersMap.Remove(ControlPointData.MeshComponent);
 			}
 		}
 
