@@ -794,7 +794,7 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 		}
 	}
 
-	FNiagaraSystemInstance::EResetMode ResetMode = bReset ? FNiagaraSystemInstance::EResetMode::ResetAll : FNiagaraSystemInstance::EResetMode::ResetSystem;
+	FNiagaraSystemInstance::EResetMode ResetMode = FNiagaraSystemInstance::EResetMode::ResetSystem;
 	if (InitializeSystem())
 	{
 		ResetMode = FNiagaraSystemInstance::EResetMode::None;//Already done a reinit sete
