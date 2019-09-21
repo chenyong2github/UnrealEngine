@@ -34,14 +34,51 @@ public:
 UENUM()
 enum class ETransformMeshesTransformMode : uint8
 {
-	/** Shared Gizmo */
+	/** Single Gizmo for all Objects */
 	SharedGizmo = 0 UMETA(DisplayName = "Shared Gizmo"),
 
-	/** Shared Gizmo, Local Transformations*/
+	/** Single Gizmo for all Objects, Rotations applied per-Object */
 	SharedGizmoLocal = 1 UMETA(DisplayName = "Shared Gizmo (Local)"),
 
-	/** Per Object Gizmo */
-	PerObjectGizmo = 2 UMETA(DisplayName = "Multi-Gizmo")
+	/** Separate Gizmo for each Object */
+	PerObjectGizmo = 2 UMETA(DisplayName = "Multi-Gizmo"),
+
+	LastValue UMETA(Hidden)
+};
+
+
+
+/** Snap-Drag Source Point */
+UENUM()
+enum class ETransformMeshesSnapDragSource : uint8
+{
+	/** Snap-Drag moves the Clicked Point to the Target Location */
+	ClickPoint = 0 UMETA(DisplayName = "Click Point"),
+
+	/** Snap-Drag moves the Gizmo/Pivot to the Target Location */
+	Pivot = 1 UMETA(DisplayName = "Pivot"),
+
+
+	LastValue UMETA(Hidden)
+
+};
+
+
+
+/** Snap-Drag Rotation Mode */
+UENUM()
+enum class ETransformMeshesSnapDragRotationMode : uint8
+{
+	/** Snap-Drag only translates, ignoring Normals */
+	Ignore = 0 UMETA(DisplayName = "Ignore"),
+
+	/** Snap-Drag aligns the Source and Target Normals to point in the same direction */
+	Align = 1 UMETA(DisplayName = "Align"),
+
+	/** Snap-Drag aligns the Source Normal to the opposite of the Target Normal direction */
+	AlignFlipped = 2 UMETA(DisplayName = "Align Flipped"),
+
+	LastValue UMETA(Hidden)
 };
 
 
@@ -63,8 +100,17 @@ public:
 	bool bSetPivot = false;
 
 
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bSetPivot == false"))
+	/** Click-drag starting on the target objects to reposition them on the rest of the scene */
+	UPROPERTY(EditAnywhere, Category = Options)
 	bool bEnableSnapDragging = false;
+
+
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bEnableSnapDragging == true"))
+	ETransformMeshesSnapDragSource SnapDragSource = ETransformMeshesSnapDragSource::ClickPoint;
+
+	/** When Snap-Dragging, align source and target normals */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bEnableSnapDragging == true"))
+	ETransformMeshesSnapDragRotationMode RotationMode = ETransformMeshesSnapDragRotationMode::AlignFlipped;
 };
 
 
@@ -91,6 +137,8 @@ class MESHMODELINGTOOLS_API UTransformMeshesTool : public UMultiSelectionTool, p
 
 public:
 	UTransformMeshesTool();
+
+	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
 	virtual void SetWorld(UWorld* World, UInteractiveGizmoManager* GizmoManager);
 
@@ -128,6 +176,7 @@ protected:
 
 	ETransformMeshesTransformMode CurTransformMode;
 	void UpdateTransformMode(ETransformMeshesTransformMode NewMode);
+	bool bCurSetPivotMode;
 	void UpdateSetPivotModes(bool bEnableSetPivot);
 
 	void SetActiveGizmos_Single(bool bLocalRotations);
