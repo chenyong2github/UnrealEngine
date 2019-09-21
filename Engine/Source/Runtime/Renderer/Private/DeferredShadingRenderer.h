@@ -21,10 +21,11 @@ enum class ERayTracingPrimaryRaysFlag : uint32;
 #endif
 
 class FSceneTextureParameters;
-
 class FDistanceFieldAOParameters;
 class UStaticMeshComponent;
 class FExponentialHeightFogSceneInfo;
+
+struct FSingleLayerWaterPassData;
 
 class FLightShaftsOutput
 {
@@ -102,16 +103,19 @@ public:
 	*/
 	bool RenderBasePass(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, IPooledRenderTarget* ForwardScreenSpaceShadowMask, bool bParallelBasePass, bool bRenderLightmapDensity);
 
-
+	/** Begin the water GBuffer rendering pass*/
+	void BeginRenderingWaterGBuffer(FRHICommandList& RHICmdList, FSingleLayerWaterPassData& PassData, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers);
+	/** End the water GBuffer rendering pass*/
+	void FinishWaterGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList);
 	/**
 	* Renders the scene's single layer water base pass
 	* @return true if anything was rendered
 	*/
-	bool RenderSingleLayerWaterPass(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type WaterPassDepthStencilAccess);
+	bool RenderSingleLayerWaterPass(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData, FExclusiveDepthStencil::Type WaterPassDepthStencilAccess);
 	/** Renders the water draw pass for a given View. */
-	bool RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, const FMeshPassProcessorRenderState& InDrawRenderState);
+	bool RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, FSingleLayerWaterPassData& PassData, const FMeshPassProcessorRenderState& InDrawRenderState);
 	/** Render, denoise and composite the scene SSR and under water effect.*/
-	void RenderSingleLayerWaterSSR(FRHICommandListImmediate& RHICmdList);
+	void RenderSingleLayerWaterSSR(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData);
 
 	/** Finishes the view family rendering. */
 	void RenderFinish(FRHICommandListImmediate& RHICmdList);
