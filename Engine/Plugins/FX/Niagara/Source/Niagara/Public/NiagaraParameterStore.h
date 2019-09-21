@@ -31,7 +31,7 @@ struct FNiagaraVariableSearch
 		}
 	}
 
-	static int32 Find(const struct FNiagaraVariableWithOffset* Variables, const FNiagaraVariable& Ref, int32 Start, int32 Num, int32& CheckIndex);
+	static bool Find(const struct FNiagaraVariableWithOffset* Variables, const FNiagaraVariable& Ref, int32 Start, int32 Num, int32& CheckIndex);
 };
 
 struct FNiagaraParameterStore;
