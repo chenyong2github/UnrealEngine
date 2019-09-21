@@ -717,11 +717,11 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 		{
 			MovieScene->SetClockSource(EUpdateClockSource::Timecode);
 			Sequencer->ResetTimeController();
+
+			// Set infinite playback range when starting recording. Playback range will be clamped to the bounds of the sections at the completion of the recording
+			MovieScene->SetPlaybackRange(MovieScene->GetPlaybackRange().GetLowerBoundValue(), TNumericLimits<int32>::Max() - 1, false);
 		}
 		Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Playing);
-
-		// Set infinite playback range when starting recording. Playback range will be clamped to the bounds of the sections at the completion of the recording
-		MovieScene->SetPlaybackRange(MovieScene->GetPlaybackRange().GetLowerBoundValue(), TNumericLimits<int32>::Max() - 1, false);
 	}
 	UTakeRecorderSources* Sources = SequenceAsset->FindMetaData<UTakeRecorderSources>();
 	check(Sources);
