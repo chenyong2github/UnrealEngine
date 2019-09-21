@@ -56,7 +56,6 @@ static FAutoConsoleVariableRef CVarSuppressNiagaraSystems(
 	ECVF_Default
 );
 
-
 void DumpNiagaraComponents(UWorld* World)
 {
 	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
@@ -1416,6 +1415,9 @@ TArray<float> UNiagaraComponent::GetNiagaraParticleValues_DebugOnly(const FStrin
 void UNiagaraComponent::PostLoad()
 {
 	Super::PostLoad();
+
+	OverrideParameters.PostLoad();
+
 	if (Asset)
 	{
 		Asset->ConditionalPostLoad();

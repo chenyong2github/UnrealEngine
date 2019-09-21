@@ -24,6 +24,9 @@ UNiagaraParameterCollectionInstance::~UNiagaraParameterCollectionInstance()
 void UNiagaraParameterCollectionInstance::PostLoad()
 {
 	Super::PostLoad();
+
+	ParameterStorage.PostLoad();
+
 	//Ensure we're synced up with our collection. TODO: Do conditionally via a version number/guid?
 	SyncWithCollection();
 }
@@ -85,14 +88,15 @@ void UNiagaraParameterCollectionInstance::SyncWithCollection()
 		if (Offset != INDEX_NONE && OverridesParameter(Param))
 		{
 			//If this parameter is in the old store and we're overriding it, use the existing value in the store.
-			ParameterStorage.AddParameter(Param, false);
+			int32 ParameterStorageOffset = INDEX_NONE;
+			ParameterStorage.AddParameter(Param, false, true, &ParameterStorageOffset);
 			if (Param.IsDataInterface())
 			{
 				ParameterStorage.SetDataInterface(OldStore.GetDataInterface(Offset), Param);
 			}
 			else
 			{
-				ParameterStorage.SetParameterData(OldStore.GetParameterData(Offset), ParameterStorage.IndexOf(Param), Param.GetSizeInBytes());
+				ParameterStorage.SetParameterData(OldStore.GetParameterData(Offset), ParameterStorageOffset, Param.GetSizeInBytes());
 			}
 		}
 		else
@@ -102,14 +106,15 @@ void UNiagaraParameterCollectionInstance::SyncWithCollection()
 			Offset = DefaultStore.IndexOf(Param);
 			check(Offset != INDEX_NONE);
 
-			ParameterStorage.AddParameter(Param, false);
+			int32 ParameterStorageOffset = INDEX_NONE;
+			ParameterStorage.AddParameter(Param, false, true, &ParameterStorageOffset);
 			if (Param.IsDataInterface())
 			{
 				ParameterStorage.SetDataInterface(CastChecked<UNiagaraDataInterface>(StaticDuplicateObject(DefaultStore.GetDataInterface(Offset), this)), Param);
 			}
 			else
 			{
-				ParameterStorage.SetParameterData(DefaultStore.GetParameterData(Offset), ParameterStorage.IndexOf(Param), Param.GetSizeInBytes());
+				ParameterStorage.SetParameterData(DefaultStore.GetParameterData(Offset), ParameterStorageOffset, Param.GetSizeInBytes());
 			}
 		}
 	}
