@@ -70,9 +70,6 @@ FNiagaraEmitterInstance::FNiagaraEmitterInstance(FNiagaraSystemInstance* InParen
 , ParentSystemInstance(InParentSystemInstance)
 , CachedEmitter(nullptr)
 , CachedSystemFixedBounds()
-#if !UE_BUILD_SHIPPING
-, bEncounteredNaNs(false)
-#endif
 , EventSpawnTotal(0)
 {
 	bDumpAfterEvent = false;
@@ -204,9 +201,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 		return;
 	}
 
-#if !UE_BUILD_SHIPPING
-	bEncounteredNaNs = false;
-#endif
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 	Data.Init(FNiagaraDataSetID(CachedIDName, ENiagaraDataSetType::ParticleData), CachedEmitter->SimTarget, ParentSystemInstance->GetSystem()->GetName() + TEXT("/") + CachedEmitter->GetName());
@@ -376,16 +370,17 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 	}
 
 	// Collect script defined data interface parameters.
-	TArray<UNiagaraScript*> Scripts;
+	TArray<UNiagaraScript*, TInlineAllocator<4>> Scripts;
 	Scripts.Add(CachedEmitter->SpawnScriptProps.Script);
 	Scripts.Add(CachedEmitter->UpdateScriptProps.Script);
 	for (const FNiagaraEventScriptProperties& EventHandler : CachedEmitter->GetEventHandlers())
 	{
 		Scripts.Add(EventHandler.Script);
 	}
-	FNiagaraUtilities::CollectScriptDataInterfaceParameters(*CachedEmitter, Scripts, ScriptDefinedDataInterfaceParameters);
+	FNiagaraUtilities::CollectScriptDataInterfaceParameters(*CachedEmitter, MakeArrayView(Scripts), ScriptDefinedDataInterfaceParameters);
 
 	// Initialize bounds calculators
+	//-OPT: Could skip creating this if we won't ever use it
 	BoundsCalculators.Reserve(CachedEmitter->GetRenderers().Num());
 	for (UNiagaraRendererProperties* RendererProperties : CachedEmitter->GetRenderers())
 	{
