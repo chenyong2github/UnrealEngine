@@ -856,6 +856,7 @@ bool FMaterial::MaterialUsesSingleLayerWater_RenderThread() const
 
 bool FMaterial::MaterialUsesSingleLayerWater_GameThread() const
 {
+	check(IsInGameThread());
 	FMaterialShaderMap* ShaderMap = GameThreadShaderMap.GetReference();
 	return ShaderMap ? ShaderMap->UsesSingleLayerWaterMaterialOutput() : false;
 }
@@ -1466,7 +1467,9 @@ UMaterialInterface* FMaterialResource::GetMaterialInterface() const
 
 bool FMaterialResource::IsUsingSingleLayerWaterMaterialOutput() const
 {
-	return GetMaterialInterface() ? GetMaterialInterface()->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSingleLayerWaterMaterialOutput>() : false;
+	// Apparently HasAnyExpressionsInMaterialAndFunctionsOfType is too heavy. So checking bUsedWithWater instead.
+	// return GetMaterialInterface() ? GetMaterialInterface()->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSingleLayerWaterMaterialOutput>() : false;
+	return GetMaterialInterface() ? GetMaterialInterface()->GetMaterial()->bUsedWithWater : false;
 }
 
 #if WITH_EDITOR
