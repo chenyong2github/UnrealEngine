@@ -836,9 +836,9 @@ namespace Gauntlet
 					}
 
 					Log.Verbose("Unzipping IPA {0} to cache at: {1}", Build.SourceIPAPath, GauntletAppCache);
-					
-					IProcessResult Result = IOSBuild.ExecuteCommand("unzip", String.Format("{0} -d {1}", Build.SourceIPAPath, GauntletAppCache));
-					if (Result.ExitCode != 0 || !Directory.Exists(PayloadDir))
+
+					string Output;
+					if (!IOSBuild.ExecuteIPAZipCommand(String.Format("{0} -d {1}", Build.SourceIPAPath, GauntletAppCache), out Output, PayloadDir))
 					{
 						throw new Exception(String.Format("Unable to extract IPA {0}", Build.SourceIPAPath));
 					}
@@ -852,8 +852,7 @@ namespace Gauntlet
 					{						
 						Log.Verbose("Unzipping Symbols {0} to cache at: {1}", SymbolsZipFile, SymbolsDir);
 
-						Result = IOSBuild.ExecuteCommand("unzip", String.Format("{0} -d {1}", SymbolsZipFile, SymbolsDir));
-						if (Result.ExitCode != 0 || !Directory.Exists(SymbolsDir))
+						if (!IOSBuild.ExecuteIPAZipCommand(String.Format("{0} -d {1}", SymbolsZipFile, SymbolsDir), out Output, SymbolsDir))
 						{
 							throw new Exception(String.Format("Unable to extract build symbols {0} -> {1}", SymbolsZipFile, SymbolsDir));
 						}
