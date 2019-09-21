@@ -15,10 +15,20 @@ AAROriginActor::AAROriginActor(const FObjectInitializer& ObjectInitializer)
 
 AAROriginActor* AAROriginActor::GetOriginActor()
 {
-	if (GWorld != nullptr)
+	// Have to find the game world, not the editor world, if we are in vr preview
+	UWorld* GameWorld = nullptr;
+	for (const FWorldContext& Context : GEngine->GetWorldContexts())
+	{
+		if (Context.WorldType == EWorldType::Game || Context.WorldType == EWorldType::PIE)
+		{
+			GameWorld = Context.World();
+		}
+	}
+
+	if (GameWorld != nullptr)
 	{
 		AAROriginActor* FoundActor = nullptr;
-		for (TActorIterator<AAROriginActor> Iter(GWorld); Iter; ++Iter)
+		for (TActorIterator<AAROriginActor> Iter(GameWorld); Iter; ++Iter)
 		{
 			if (!(*Iter)->IsPendingKill())
 			{
@@ -29,7 +39,7 @@ AAROriginActor* AAROriginActor::GetOriginActor()
 		if (FoundActor == nullptr)
 		{
 			// None spawned yet
-			FoundActor = GWorld->SpawnActor<AAROriginActor>(AAROriginActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
+			FoundActor = GameWorld->SpawnActor<AAROriginActor>(AAROriginActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
 		}
 		return FoundActor;
 	}

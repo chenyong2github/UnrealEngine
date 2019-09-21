@@ -535,10 +535,16 @@ void FHoloLensARSystem::SetupMeshObserver()
 	// Start the mesh observer. If the user says no to spatial mapping, then no updates will occur
 
 	// Get the settings for triangle density and mapping volume size
+	FString iniFile = GEngineIni;
+#if WITH_EDITOR
+	// If remoting, the default GEngineIni file will be Engine.ini whch does not have any HoloLens information.  Find HoloLensEngine.ini instead.
+	iniFile = FPaths::Combine(FPaths::ProjectConfigDir(), FString("HoloLens"), FString("HoloLensEngine.ini"));
+#endif
+
 	float TriangleDensity = 500.f;
-	GConfig->GetFloat(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), TEXT("MaxTrianglesPerCubicMeter"), TriangleDensity, GEngineIni);
+	GConfig->GetFloat(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), TEXT("MaxTrianglesPerCubicMeter"), TriangleDensity, *iniFile);
 	float VolumeSize = 1.f;
-	GConfig->GetFloat(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), TEXT("SpatialMeshingVolumeSize"), VolumeSize, GEngineIni);
+	GConfig->GetFloat(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), TEXT("SpatialMeshingVolumeSize"), VolumeSize, *iniFile);
 
 	WMRInterop->StartSpatialMapping(TriangleDensity, VolumeSize, &StartMeshUpdates_Raw, &AllocateMeshBuffers_Raw, &EndMeshUpdates_Raw);
 }
