@@ -158,7 +158,7 @@ int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty
 			// Force basic opaque surfaces to skip masked/translucent-only attributes.
 			// Some features can force the material to create a masked variant which unintentionally runs this dormant code
 			if (GetMaterialDomain() != MD_Surface || GetBlendMode() != BLEND_Opaque || (GetShadingModels().IsLit() && !GetShadingModels().HasShadingModel(MSM_DefaultLit))
-				|| MaterialInterface->GetMaterial()->bUsedWithWater )//MaterialInterface->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSingleLayerWaterMaterialOutput>())
+				|| GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
 			{
 				Ret = MaterialInterface->CompileProperty(Compiler, Property);
 			}
