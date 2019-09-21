@@ -691,9 +691,10 @@ void FDynamicMeshEditor::CopyAttributes(int FromTriangleID, int ToTriangleID, FM
 		return;
 	}
 
-	int UVLayerIndex = 0;
-	for (FDynamicMeshUVOverlay* UVOverlay : Mesh->Attributes()->GetAllUVLayers())
+	
+	for (int UVLayerIndex = 0; UVLayerIndex < Mesh->Attributes()->NumUVLayers(); UVLayerIndex++)
 	{
+		FDynamicMeshUVOverlay* UVOverlay = Mesh->Attributes()->GetUVLayer(UVLayerIndex);
 		FIndex3i FromElemTri = UVOverlay->GetTriangle(FromTriangleID);
 		FIndex3i ToElemTri = UVOverlay->GetTriangle(ToTriangleID);
 		for (int j = 0; j < 3; ++j)
@@ -705,7 +706,6 @@ void FDynamicMeshEditor::CopyAttributes(int FromTriangleID, int ToTriangleID, FM
 			}
 		}
 		UVOverlay->SetTriangle(ToTriangleID, ToElemTri);
-		UVLayerIndex++;
 	}
 
 
@@ -1030,9 +1030,8 @@ static void AppendAttributes(const FDynamicMesh3* FromMesh, int FromTriangleID, 
 		return;
 	}
 
-	// todo: copy all attribute layers
-	check(FromMesh->Attributes()->GetNumUVLayers() == 1);
-	check(FromMesh->Attributes()->GetNumNormalLayers() == 1);
+	// todo: if we ever support multiple normal layers, copy them all
+	check(FromMesh->Attributes()->NumNormalLayers() == 1);
 
 	const FDynamicMeshUVOverlay* FromUVOverlay = FromMesh->Attributes()->PrimaryUV();
 	FDynamicMeshUVOverlay* ToUVOverlay = ToMesh->Attributes()->PrimaryUV();

@@ -27,9 +27,9 @@ class DYNAMICMESH_API FDynamicMeshAttributeSet
 public:
 
 	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh) 
-		: ParentMesh(Mesh), UV0(Mesh), Normals0(Mesh)
+		: ParentMesh(Mesh), Normals0(Mesh)
 	{
-		UVLayers.Add(&UV0);
+		SetNumUVLayers(1);
 		NormalLayers.Add(&Normals0);
 	}
 
@@ -39,7 +39,11 @@ public:
 
 	void Copy(const FDynamicMeshAttributeSet& Copy)
 	{
-		UV0.Copy(Copy.UV0);
+		SetNumUVLayers(Copy.NumUVLayers());
+		for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+		{
+			UVLayers[UVIdx].Copy(Copy.UVLayers[UVIdx]);
+		}
 		Normals0.Copy(Copy.Normals0);
 
 		if (Copy.MaterialIDAttrib)
@@ -60,12 +64,33 @@ public:
 	/** @return number of UV layers */
 	virtual int NumUVLayers() const 
 	{
-		return 1;
+		return UVLayers.Num();
+	}
+
+	virtual void SetNumUVLayers(int Num)
+	{
+		if (UVLayers.Num() == Num)
+		{
+			return;
+		}
+		if (Num >= UVLayers.Num())
+		{
+			for (int i = (int)UVLayers.Num(); i < Num; ++i)
+			{
+				UVLayers.Add(new FDynamicMeshUVOverlay(ParentMesh));
+			}
+		}
+		else
+		{
+			UVLayers.RemoveAt(Num, UVLayers.Num() - Num);
+		}
+		check(UVLayers.Num() == Num);
 	}
 
 	/** @return number of Normals layers */
 	virtual int NumNormalLayers() const
 	{
+		checkSlow(NormalLayers.Num() == 1);
 		return 1;
 	}
 
@@ -77,51 +102,33 @@ public:
 	// UV Layers 
 	//
 
-	/** @return The number of UV layers in this attribute set */
-	int GetNumUVLayers() const
-	{
-		return UVLayers.Num();
-	}
-
 	/** @return the UV layer at the given Index */
 	FDynamicMeshUVOverlay* GetUVLayer(int Index)
 	{
-		return (Index == 0) ? &UV0 : nullptr;
+		return &UVLayers[Index];
 	}
 
 	/** @return the UV layer at the given Index */
 	const FDynamicMeshUVOverlay* GetUVLayer(int Index) const
 	{
-		return (Index == 0) ? &UV0 : nullptr;
-	}
-
-	/** @return list of all UV layers */
-	const TArray<FDynamicMeshUVOverlay*>& GetAllUVLayers() const
-	{
-		return UVLayers;
+		return &UVLayers[Index];
 	}
 
 	/** @return the primary UV layer (layer 0) */
 	FDynamicMeshUVOverlay* PrimaryUV() 
 	{
-		return &UV0;
+		return &UVLayers[0];
 	}
 	/** @return the primary UV layer (layer 0) */
 	const FDynamicMeshUVOverlay* PrimaryUV() const
 	{
-		return &UV0;
+		return &UVLayers[0];
 	}
 
 
 	//
 	// Normal Layers 
 	//
-
-	/** @return The number of normal layers in this attribute set */
-	int GetNumNormalLayers() const
-	{
-		return NormalLayers.Num();
-	}
 
 	/** @return the Normal layer at the given Index */
 	FDynamicMeshNormalOverlay* GetNormalLayer(int Index)
@@ -180,12 +187,10 @@ protected:
 	/** Parent mesh of this attribute set */
 	FDynamicMesh3* ParentMesh;
 
-	/** Default UV layer */
-	FDynamicMeshUVOverlay UV0;
 	/** Default Normals layer */
 	FDynamicMeshNormalOverlay Normals0;
 
-	TArray<FDynamicMeshUVOverlay*> UVLayers;
+	TIndirectArray<FDynamicMeshUVOverlay> UVLayers;
 	TArray<FDynamicMeshNormalOverlay*> NormalLayers;
 
 	TUniquePtr<FDynamicMeshMaterialAttribute> MaterialIDAttrib;
@@ -199,7 +204,10 @@ protected:
 	 */
 	void Initialize(int MaxVertexID, int MaxTriangleID)
 	{
-		UV0.InitializeTriangles(MaxTriangleID);
+		for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
+		{
+			UVLayer.InitializeTriangles(MaxTriangleID);
+		}
 		Normals0.InitializeTriangles(MaxTriangleID);
 	}
 
