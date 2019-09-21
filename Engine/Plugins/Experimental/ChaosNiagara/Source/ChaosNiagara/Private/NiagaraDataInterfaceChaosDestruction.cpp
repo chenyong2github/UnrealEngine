@@ -4085,7 +4085,7 @@ void UNiagaraDataInterfaceChaosDestruction::ProvidePerInstanceDataForRenderThrea
 	}
 }
 
-void FNiagaraDataInterfaceProxyChaosDestruction::CreatePerInstanceData(const FGuid& SystemInstance)
+void FNiagaraDataInterfaceProxyChaosDestruction::CreatePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
 	if (SystemsToGPUInstanceData.Contains(SystemInstance))
