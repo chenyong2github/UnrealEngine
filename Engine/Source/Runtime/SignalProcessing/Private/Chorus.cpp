@@ -89,7 +89,7 @@ namespace Audio
 			LFOQuadPhaseOut2 = Audio::GetUnipolar(-LFOQuadPhaseOut);
 			LFOQuadPhaseOut = Audio::GetUnipolar(LFOQuadPhaseOut);
 
-			float DepthValue = Depth[i].GetValue();
+			float DepthValue = Depth[i].GetNextValue();
 
 			if (i == EChorusDelays::Left)
 			{
