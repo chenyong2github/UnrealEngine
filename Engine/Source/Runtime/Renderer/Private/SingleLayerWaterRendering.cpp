@@ -25,7 +25,7 @@ DECLARE_GPU_STAT(SingleLayerWater);
 
 
 static TAutoConsoleVariable<int32> CVarWaterSingleLayer(
-	TEXT("r.Water.SingleLayer"), 0,
+	TEXT("r.Water.SingleLayer"), 1,
 	TEXT("Enable the single water renderring system."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
