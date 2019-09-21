@@ -2898,6 +2898,12 @@ void SAssetView::OnAssetLoaded(UObject* Asset)
 		return;
 	}
 
+	if (Asset->GetOutermost()->HasAnyPackageFlags(PKG_ForDiffing))
+	{
+		// No need to consider packages loaded for diffing purposes
+		return;
+	}
+
 	FName AssetPathName = FName(*Asset->GetPathName());
 	RecentlyLoadedOrChangedAssets.Add( FAssetData(Asset) );
 
