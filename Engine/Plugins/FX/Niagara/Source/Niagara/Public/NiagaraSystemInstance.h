@@ -148,8 +148,7 @@ public:
 	bool GetIsolateEnabled() const;
 #endif
 
-	FName GetIDName() { return IDName; }
-	FGuid GetId() { return ID; }
+	FNiagaraSystemInstanceID GetId() { return ID; }
 
 	/** Returns the instance data for a particular interface for this System. */
 	FORCEINLINE void* FindDataInterfaceInstanceData(UNiagaraDataInterface* Interface) 
@@ -291,7 +290,7 @@ private:
 	TMap<FGuid, TSharedPtr<TArray<TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>>, ESPMode::ThreadSafe> > CapturedFrames;
 #endif
 
-	FGuid ID;
+	FNiagaraSystemInstanceID ID;
 	FName IDName;
 	
 	/** Per instance data for any data interfaces requiring it. */

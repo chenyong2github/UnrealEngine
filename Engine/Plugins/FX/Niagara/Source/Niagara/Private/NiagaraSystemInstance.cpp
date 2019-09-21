@@ -62,8 +62,6 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	, PrereqComponent(nullptr)
 	, Age(0.0f)
 	, TickCount(0)
-	, ID(FGuid::NewGuid())
-	, IDName(*ID.ToString())
 	, InstanceParameters(Component)
 	, bSolo(false)
 	, bForceSolo(false)
@@ -78,6 +76,9 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	, bNeedsFinalize(false)
 	, CachedDeltaSeconds(0.0f)
 {
+	static TAtomic<uint64> IDCounter(1);
+	ID = IDCounter.IncrementExchange();
+
 	SystemBounds.Init();
 
 	if (Component)
@@ -570,6 +571,7 @@ void FNiagaraSystemInstance::SetPaused(bool bInPaused)
 void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemReset);
+	FScopeCycleCounterUObject AdditionalScope(GetSystem(), GET_STATID(STAT_NiagaraSystemReset));
 
 	if (Mode == EResetMode::None)
 	{
@@ -1481,7 +1483,7 @@ void FNiagaraSystemInstance::InitEmitters()
 		for (int32 EmitterIdx=0; EmitterIdx < GetSystem()->GetEmitterHandles().Num(); ++EmitterIdx)
 		{
 			TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Sim = MakeShared<FNiagaraEmitterInstance, ESPMode::ThreadSafe>(this);
-			Sim->Init(EmitterIdx, IDName);
+			Sim->Init(EmitterIdx, ID);
 			if (System->bFixedBounds)
 			{
 				Sim->SetSystemFixedBoundsOverride(System->GetFixedBounds());

@@ -12,14 +12,15 @@ public class NiagaraVertexFactories : ModuleRules
 				"Engine",		
 				"RenderCore",
                 "RHI",
-			}
+            }
         );
 
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
-				"Niagara",
-			}
-		);
+                "NiagaraCore",
+                "Niagara",
+            }
+        );
 
         PublicDependencyModuleNames.AddRange(
             new string[] {

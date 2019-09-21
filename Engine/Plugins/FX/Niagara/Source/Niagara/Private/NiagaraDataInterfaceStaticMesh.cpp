@@ -494,7 +494,7 @@ struct FNiagaraDataInterfaceParametersCS_StaticMesh : public FNiagaraDataInterfa
 		{
 			FNiagaraDataInterfaceProxyStaticMesh* InterfaceProxy = static_cast<FNiagaraDataInterfaceProxyStaticMesh*>(Context.DataInterface);
 			FNiagaraStaticMeshData* Data = InterfaceProxy->SystemInstancesToMeshData.Find(Context.SystemInstance);
-			ensureMsgf(Data, TEXT("Failed to find data for instance %s"), *Context.SystemInstance.ToString());
+			ensureMsgf(Data, TEXT("Failed to find data for instance %s"), *FNiagaraUtilities::SystemInstanceIDToString(Context.SystemInstance));
 			if (Data != nullptr)
 			{
 				FStaticMeshGpuSpawnBuffer* SpawnBuffer = Data->MeshGpuSpawnBuffer;
@@ -577,7 +577,7 @@ private:
 void FNiagaraDataInterfaceProxyStaticMesh::DeferredDestroy()
 {
 	//-TODO: This is incorrect, we could be destroying instance data for a batcher is yet to tick, we should only be destroying data for this batcher!
-	for (const FGuid& Sys : DeferredDestroyList)
+	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
 	{
 		SystemInstancesToMeshData.Remove(Sys);
 		//UE_LOG(LogNiagara, Log, TEXT("RT: StaticMesh DI - DeferredDestroy %s"), *Sys.ToString());
@@ -586,7 +586,7 @@ void FNiagaraDataInterfaceProxyStaticMesh::DeferredDestroy()
 	DeferredDestroyList.Empty();
 }
 
-void FNiagaraDataInterfaceProxyStaticMesh::InitializePerInstanceData(const FGuid& SystemInstance, FStaticMeshGpuSpawnBuffer* MeshGPUSpawnBuffer)
+void FNiagaraDataInterfaceProxyStaticMesh::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FStaticMeshGpuSpawnBuffer* MeshGPUSpawnBuffer)
 {
 	check(IsInRenderingThread());
 
@@ -611,7 +611,7 @@ void FNiagaraDataInterfaceProxyStaticMesh::InitializePerInstanceData(const FGuid
 	Data->MeshGpuSpawnBuffer = MeshGPUSpawnBuffer;
 }
 
-void FNiagaraDataInterfaceProxyStaticMesh::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FGuid& SystemInstance)
+void FNiagaraDataInterfaceProxyStaticMesh::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
 
@@ -623,7 +623,7 @@ void FNiagaraDataInterfaceProxyStaticMesh::DestroyPerInstanceData(NiagaraEmitter
 	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
 }
 
-void FNiagaraDataInterfaceProxyStaticMesh::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance)
+void FNiagaraDataInterfaceProxyStaticMesh::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
 {
 	FNiagaraPassedInstanceDataForRT* SourceData = static_cast<FNiagaraPassedInstanceDataForRT*>(PerInstanceData);
 	FNiagaraStaticMeshData* Data = SystemInstancesToMeshData.Find(Instance);
@@ -641,7 +641,7 @@ void FNiagaraDataInterfaceProxyStaticMesh::ConsumePerInstanceDataFromGameThread(
 	}
 	else
 	{
-		UE_LOG(LogNiagara, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %s"), *Instance.ToString());
+		UE_LOG(LogNiagara, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %s"), *FNiagaraUtilities::SystemInstanceIDToString(Instance));
 	}
 }
 
@@ -2364,7 +2364,7 @@ void UNiagaraDataInterfaceStaticMesh::GetParameterDefinitionHLSL(FNiagaraDataInt
 	OutHLSL += TEXT("uint ") + ParamNames.NumTexCoordName + TEXT(";\n");
 }
 
-void UNiagaraDataInterfaceStaticMesh::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FGuid& SystemInstance)
+void UNiagaraDataInterfaceStaticMesh::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(Proxy);
 
