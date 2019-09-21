@@ -1249,6 +1249,7 @@ bool FVulkanCommandListContext::FPendingTransition::GatherBarriers(FTransitionAn
 			SrcAccess = VK_ACCESS_SHADER_WRITE_BIT;
 			DestAccess = VK_ACCESS_SHADER_READ_BIT;
 			break;
+		case EResourceTransitionAccess::ERWSubResBarrier: //not optimal, but will have to do for now
 		case EResourceTransitionAccess::ERWBarrier:
 			SrcAccess = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 			DestAccess = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
