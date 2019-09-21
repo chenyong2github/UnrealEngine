@@ -1313,6 +1313,7 @@ struct FLandscapeIsTextureFullyStreamedIn
 	bool operator()(UTexture2D* InTexture, bool bInWaitForStreaming)
 	{
 		check(InTexture);
+		InTexture->bForceMiplevelsToBeResident = true;
 		if (bInWaitForStreaming)
 		{
 			InTexture->WaitForStreaming();
@@ -2661,6 +2662,33 @@ void ALandscape::PrintLayersDebugTextureResource(const FString& InContext, FText
 	}
 }
 
+bool ALandscape::PrepareLayersBrushTextureResources(bool bInWaitForStreaming, bool bHeightmap) const
+{
+	TSet<UTexture2D*> StreamableTextures;
+	for (const FLandscapeLayer& Layer : LandscapeLayers)
+	{
+		for (const FLandscapeLayerBrush& Brush : Layer.Brushes)
+		{
+			if (ALandscapeBlueprintBrushBase* LandscapeBrush = Brush.GetBrush())
+			{
+				if ((LandscapeBrush->IsAffectingWeightmap() && !bHeightmap) || (LandscapeBrush->IsAffectingHeightmap() && bHeightmap))
+				{
+					LandscapeBrush->GetRenderDependencies(StreamableTextures);
+				}
+			}
+		}
+	}
+
+	bool bReady = true;
+	FLandscapeIsTextureFullyStreamedIn IsTextureFullyStreamedIn;
+	for (UTexture2D* Texture : StreamableTextures)
+	{
+		bReady &= IsTextureFullyStreamedIn(Texture, bInWaitForStreaming);
+	}
+
+	return bReady;
+}
+
 bool ALandscape::PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming) const
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
@@ -2711,11 +2739,6 @@ bool ALandscape::PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming
 		}
 	});
 
-	if (bInWaitForStreaming)
-	{
-		FlushRenderingCommands();
-	}
-
 	return IsReady;
 }
 
@@ -2729,7 +2752,16 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 	const bool bForceRender = CVarOutputLayersDebugDrawCallName.GetValueOnAnyThread() == 1;
 	const bool bSkipBrush = CVarLandscapeLayerBrushOptim.GetValueOnAnyThread() == 1 && ((HeightmapUpdateModes & AllHeightmapUpdateModes) == ELandscapeLayerUpdateMode::Update_Heightmap_Editing);
 
-	if ((HeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr || !PrepareLayersHeightmapTextureResources(bInWaitForStreaming))
+	if ((HeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr)
+	{
+		return 0;
+	}
+
+	const bool bHeightmapTexturesReady = PrepareLayersHeightmapTextureResources(bInWaitForStreaming);
+	const bool bHeightmap = true;
+	const bool bBrushTexturesReady = PrepareLayersBrushTextureResources(bInWaitForStreaming, bHeightmap);
+
+	if (!(bHeightmapTexturesReady && bBrushTexturesReady))
 	{
 		return 0;
 	}
@@ -3567,11 +3599,6 @@ bool ALandscape::PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming
 		}
 	});
 
-	if (bInWaitForStreaming)
-	{
-		FlushRenderingCommands();
-	}
-
 	return IsReady;
 }
 
@@ -3585,7 +3612,16 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 	
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
-	if ((WeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr || Info->Layers.Num() == 0 || !PrepareLayersWeightmapTextureResources(bInWaitForStreaming))
+	if ((WeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr || Info->Layers.Num() == 0)
+	{
+		return 0;
+	}
+
+	const bool bWeightmapTexturesReady = PrepareLayersWeightmapTextureResources(bInWaitForStreaming);
+	const bool bHeightmap = false;
+	const bool bBrushTexturesReady = PrepareLayersBrushTextureResources(bInWaitForStreaming, bHeightmap);
+
+	if (!(bWeightmapTexturesReady && bBrushTexturesReady))
 	{
 		return 0;
 	}
