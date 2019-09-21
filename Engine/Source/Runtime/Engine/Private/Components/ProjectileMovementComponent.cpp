@@ -509,6 +509,8 @@ float UProjectileMovementComponent::GetGravityZ() const
 void UProjectileMovementComponent::StopSimulating(const FHitResult& HitResult)
 {
 	Velocity = FVector::ZeroVector;
+	PendingForce = FVector::ZeroVector;
+	PendingForceThisUpdate = FVector::ZeroVector;
 	UpdateComponentVelocity();
 	SetUpdatedComponent(NULL);
 	OnProjectileStop.Broadcast(HitResult);
