@@ -14,6 +14,7 @@
 #include "VolumeLightingCommon.ush"
 #include "VolumetricLightmapShared.ush"
 #include "ForwardShadowingCommon.ush"
+#include "ParticipatingMediaCommon.ush"
 
 RWTexture3D<float4> RWVBufferA;
 RWTexture3D<float4> RWVBufferB;
@@ -101,28 +102,6 @@ void MaterialSetupCS(
 		RWVBufferA[GridCoordinate] = float4(Scattering, Absorption);
 		RWVBufferB[GridCoordinate] = float4(GlobalEmissive, 0);
 	}
-}
-
-float IsotropicPhase()
-{
-	return 1 / (4 * PI);
-}
-
-float HenyeyGreensteinPhase(float g, float CosTheta)
-{
-	g = -g;
-	return (1 - g * g) / (4 * PI * pow(1 + g * g - 2 * g * CosTheta, 1.5f));
-}
-
-float SchlickPhase(float k, float CosTheta)
-{
-	float Inner = (1 + k * CosTheta);
-	return (1 - k * k) / (4 * PI * Inner * Inner);
-}
-
-float RaleighPhase(float CosTheta)
-{
-	return 3.0f * (1.0f + CosTheta * CosTheta) / (16.0f * PI);
 }
 
 // Positive g = forward scattering

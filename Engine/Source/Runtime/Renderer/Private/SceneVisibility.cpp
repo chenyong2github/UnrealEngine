@@ -1892,6 +1892,7 @@ struct FRelevancePacket
 	bool bTranslucentSurfaceLighting;
 	bool bUsesSceneDepth;
 	bool bSceneHasSkyMaterial;
+	bool bHasSingleLayerWaterMaterial;
 
 	FRelevancePacket(
 		FRHICommandListImmediate& InRHICmdList,
@@ -1929,6 +1930,7 @@ struct FRelevancePacket
 		, bTranslucentSurfaceLighting(false)
 		, bUsesSceneDepth(false)
 		, bSceneHasSkyMaterial(false)
+		, bHasSingleLayerWaterMaterial(false)
 	{
 	}
 
@@ -1942,6 +1944,7 @@ struct FRelevancePacket
 	{
 		CombinedShadingModelMask = 0;
 		bSceneHasSkyMaterial = 0;
+		bHasSingleLayerWaterMaterial = 0;
 		bUsesGlobalDistanceField = false;
 		bUsesLightingChannels = false;
 		bTranslucentSurfaceLighting = false;
@@ -2040,6 +2043,7 @@ struct FRelevancePacket
 			bTranslucentSurfaceLighting |= ViewRelevance.bTranslucentSurfaceLighting;
 			bUsesSceneDepth |= ViewRelevance.bUsesSceneDepth;
 			bSceneHasSkyMaterial |= ViewRelevance.bUsesSkyMaterial;
+			bHasSingleLayerWaterMaterial |= ViewRelevance.bUsesSingleLayerWaterMaterial;
 
 			if (ViewRelevance.bRenderCustomDepth)
 			{
@@ -2238,6 +2242,11 @@ struct FRelevancePacket
 									// Not needed on Mobile path as in this case everything goes into the regular base pass
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SkyPass);
 								}
+								else if(StaticMeshRelevance.bUseSingleLayerWaterMaterial)
+								{
+									// Not needed on Mobile path as in this case everything goes into the regular base pass
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SingleLayerWaterPass);
+								}
 
 								if (ViewRelevance.bRenderCustomDepth)
 								{
@@ -2375,6 +2384,7 @@ struct FRelevancePacket
 		WriteView.bTranslucentSurfaceLighting |= bTranslucentSurfaceLighting;
 		WriteView.bUsesSceneDepth |= bUsesSceneDepth;
 		WriteView.bSceneHasSkyMaterial |= bSceneHasSkyMaterial;
+		WriteView.bHasSingleLayerWaterMaterial |= bHasSingleLayerWaterMaterial;
 		VisibleDynamicPrimitivesWithSimpleLights.AppendTo(WriteView.VisibleDynamicPrimitivesWithSimpleLights);
 		WriteView.NumVisibleDynamicPrimitives += NumVisibleDynamicPrimitives;
 		WriteView.NumVisibleDynamicEditorPrimitives += NumVisibleDynamicEditorPrimitives;

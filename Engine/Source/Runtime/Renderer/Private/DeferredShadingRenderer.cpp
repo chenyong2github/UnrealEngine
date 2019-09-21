@@ -7,6 +7,7 @@
 #include "DeferredShadingRenderer.h"
 #include "VelocityRendering.h"
 #include "AtmosphereRendering.h"
+#include "SingleLayerWaterRendering.h"
 #include "SkyAtmosphereRendering.h"
 #include "ScenePrivate.h"
 #include "ScreenRendering.h"
@@ -176,6 +177,7 @@ DECLARE_GPU_STAT(SortLights);
 DECLARE_GPU_STAT(PostRenderOpsFX);
 DECLARE_GPU_STAT(HZB);
 DECLARE_GPU_STAT_NAMED(Unaccounted, TEXT("[unaccounted]"));
+DECLARE_GPU_STAT(WaterRendering);
 
 const TCHAR* GetDepthPassReason(bool bDitheredLODTransitionsUseStencil, EShaderPlatform ShaderPlatform)
 {
@@ -380,6 +382,7 @@ DECLARE_CYCLE_STAT(TEXT("BasePass"), STAT_CLM_BasePass, STATGROUP_CommandListMar
 DECLARE_CYCLE_STAT(TEXT("AfterBasePass"), STAT_CLM_AfterBasePass, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("Lighting"), STAT_CLM_Lighting, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("AfterLighting"), STAT_CLM_AfterLighting, STATGROUP_CommandListMarkers);
+DECLARE_CYCLE_STAT(TEXT("WaterPass"), STAT_CLM_WaterPass, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("Translucency"), STAT_CLM_Translucency, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("RenderDistortion"), STAT_CLM_RenderDistortion, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("AfterTranslucency"), STAT_CLM_AfterTranslucency, STATGROUP_CommandListMarkers);
@@ -1780,6 +1783,30 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
+
+	
+	const bool bShouldRenderSingleLayerWater = ShouldRenderSingleLayerWater(Views, ViewFamily.EngineShowFlags);
+	if(bShouldRenderSingleLayerWater)
+	{
+		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_WaterPass));
+		SCOPED_DRAW_EVENTF(RHICmdList, WaterRendering, TEXT("WaterRendering"));
+		SCOPED_GPU_STAT(RHICmdList, WaterRendering);
+
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable,  SceneContext.GetSceneDepthSurface());
+
+		const FExclusiveDepthStencil::Type WaterPassDepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite;
+		SceneContext.BeginRenderingWaterGBuffer(RHICmdList, WaterPassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity);
+		RenderSingleLayerWaterPass(RHICmdList, WaterPassDepthStencilAccess);
+		SceneContext.FinishWaterGBufferPassAndResolve(RHICmdList);
+
+		SceneContext.ResolveSceneDepthTexture(RHICmdList, FResolveRect(0, 0, FamilySize.X, FamilySize.Y));
+		SceneContext.ResolveSceneDepthToAuxiliaryTexture(RHICmdList);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneDepthSurface());
+
+		RenderSingleLayerWaterSSR(RHICmdList);
+		ServiceLocalQueue();
+	}
+
 
 	FLightShaftsOutput LightShaftOutput;
 
