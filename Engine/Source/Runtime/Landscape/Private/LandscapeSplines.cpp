@@ -1860,6 +1860,13 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 			MeshComponent->MarkRenderStateDirty();
 		}
 
+		if (MeshComponent->VirtualTextureMainPassMaxDrawDistance != VirtualTextureMainPassMaxDrawDistance)
+		{
+			MeshComponent->Modify();
+			MeshComponent->VirtualTextureMainPassMaxDrawDistance = VirtualTextureMainPassMaxDrawDistance;
+			MeshComponent->MarkRenderStateDirty();
+		}
+
 		if (MeshComponent->VirtualTextureRenderPassType != VirtualTextureRenderPassType)
 		{
 			MeshComponent->Modify();
@@ -2846,6 +2853,7 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 			MeshComponent->RuntimeVirtualTextures = RuntimeVirtualTextures;
 			MeshComponent->VirtualTextureLodBias = VirtualTextureLodBias;
 			MeshComponent->VirtualTextureCullMips = VirtualTextureCullMips;
+			MeshComponent->VirtualTextureMainPassMaxDrawDistance = VirtualTextureMainPassMaxDrawDistance;
 			MeshComponent->VirtualTextureRenderPassType = VirtualTextureRenderPassType;
 
 			MeshComponent->SetCastShadow(bCastShadow);
