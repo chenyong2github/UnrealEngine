@@ -626,16 +626,20 @@ void CreateTranslucentBasePassUniformBuffer(
 
 		FIntPoint ViewportOffset = View.ViewRect.Min;
 		FIntPoint ViewportExtent = View.ViewRect.Size();
-		FIntPoint BufferSize = SceneRenderTargets.GetBufferSizeXY();
+
+		// Scene render targets might not exist yet; avoids NaNs.
+		FIntPoint EffectiveBufferSize = SceneRenderTargets.GetBufferSizeXY();
+		EffectiveBufferSize.X = FMath::Max(EffectiveBufferSize.X, 1);
+		EffectiveBufferSize.Y = FMath::Max(EffectiveBufferSize.Y, 1);
 
 		if (View.PrevViewInfo.TemporalAAHistory.IsValid())
 		{
 			ViewportOffset = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Min;
 			ViewportExtent = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Size();
-			BufferSize = View.PrevViewInfo.TemporalAAHistory.RT[0]->GetDesc().Extent;
+			EffectiveBufferSize = View.PrevViewInfo.TemporalAAHistory.RT[0]->GetDesc().Extent;
 		}
 
-		FVector2D InvBufferSize(1.0f / float(BufferSize.X), 1.0f / float(BufferSize.Y));
+		FVector2D InvBufferSize(1.0f / float(EffectiveBufferSize.X), 1.0f / float(EffectiveBufferSize.Y));
 
 		FVector4 ScreenPosToPixelValue(
 			ViewportExtent.X * 0.5f * InvBufferSize.X,
