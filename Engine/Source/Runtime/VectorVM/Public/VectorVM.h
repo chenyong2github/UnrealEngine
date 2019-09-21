@@ -154,7 +154,6 @@ enum class EVectorVMOp : uint8
 //Some require RWBuffer like support.
 struct FDataSetMeta
 {
-	uint8 **InputRegisters;
 	int32 RegisterOffset;
 	int32 DataSetAccessIndex;	// index for individual elements of this set
 
@@ -180,14 +179,14 @@ struct FDataSetMeta
 	FORCEINLINE void LockFreeTable();
 	FORCEINLINE void UnlockFreeTable();
 
-	FDataSetMeta(uint8 **Data, int32 InRegisterOffset, int32 InInstanceOffset, TArray<int32>* InIDTable, TArray<int32>* InFreeIDTable, int32* InNumFreeIDs, int32* InMaxUsedID, int32 InIDAcquireTag)
-		: InputRegisters(Data), RegisterOffset(InRegisterOffset), DataSetAccessIndex(INDEX_NONE), InstanceOffset(InInstanceOffset)
+	FDataSetMeta(int32 InRegisterOffset, int32 InInstanceOffset, TArray<int32>* InIDTable, TArray<int32>* InFreeIDTable, int32* InNumFreeIDs, int32* InMaxUsedID, int32 InIDAcquireTag)
+		: RegisterOffset(InRegisterOffset), DataSetAccessIndex(INDEX_NONE), InstanceOffset(InInstanceOffset)
 		, IDTable(InIDTable), FreeIDTable(InFreeIDTable), NumFreeIDs(InNumFreeIDs), MaxUsedID(InMaxUsedID), IDAcquireTag(InIDAcquireTag)
 	{
 	}
 
 	FDataSetMeta() 
-		: InputRegisters(nullptr), RegisterOffset(0), DataSetAccessIndex(INDEX_NONE), InstanceOffset(0)
+		: RegisterOffset(0), DataSetAccessIndex(INDEX_NONE), InstanceOffset(0)
 		, IDTable(nullptr), FreeIDTable(nullptr), NumFreeIDs(nullptr), MaxUsedID(nullptr), IDAcquireTag(0)
 	{}
 
@@ -234,12 +233,18 @@ struct FDataSetThreadLocalTempData
 /**
 * Context information passed around during VM execution.
 */
-struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
+struct FVectorVMContext
 {
 	/** Pointer to the next element in the byte code. */
 	uint8 const* RESTRICT Code;
 	/** Pointer to the constant table. */
 	uint8 const* RESTRICT ConstantTable;
+	/** Num temp registers required by this script. */
+	int32 NumTempRegisters;
+	/** Num input required by this script. */
+	int32 NumInputRegisters;
+	/** Num output required by this script. */
+	int32 NumOutputRegisters;
 	/** Pointer to the data set index counter table */
 	int32* RESTRICT DataSetIndexTable;
 	int32* RESTRICT DataSetOffsetTable;
@@ -264,7 +269,7 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 #endif
 
 	TArray<uint8, TAlignedHeapAllocator<VECTOR_WIDTH_BYTES>> TempRegTable;
-	uint8 *RESTRICT RegisterTable[VectorVM::MaxRegisters];
+	uint8*RESTRICT RegisterTable[VectorVM::MaxRegisters];
 
 	/** Thread local random stream for use in external functions needing non-deterministic randoms. */
 	FRandomStream RandStream;
@@ -277,6 +282,7 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 	void PrepareForExec(
 		uint8*RESTRICT*RESTRICT InputRegisters,
 		uint8*RESTRICT*RESTRICT OutputRegisters,
+		int32 InNumTempRegisters,
 		int32 NumInputRegisters,
 		int32 NumOutputRegisters,
 		const uint8* InConstantTable,
@@ -285,7 +291,8 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 		int32 InNumSecondaryDatasets,
 		FVMExternalFunction* InExternalFunctionTable,
 		void** InUserPtrTable,
-		TArray<FDataSetMeta>& RESTRICT InDataSetMetaTable
+		TArray<FDataSetMeta>& RESTRICT InDataSetMetaTable,
+		int32 MaxNumInstances
 #if STATS
 		, const TArray<TStatId>* InStatScopes
 #endif
@@ -302,7 +309,29 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 		RandCounters.Reset();
 		RandCounters.SetNumZeroed(InNumInstances);
 	}
+
+	static TLockFreePointerListLIFO<FVectorVMContext> VMContextPool;
+	FORCEINLINE static FVectorVMContext* GetContext();
+	FORCEINLINE static void ReleaseContext(FVectorVMContext* Context);
 };
+
+FORCEINLINE FVectorVMContext* FVectorVMContext::GetContext()
+{
+	if (FVectorVMContext* Ret = VMContextPool.Pop())
+	{
+		return Ret;
+	}
+	else
+	{
+		return new FVectorVMContext();
+	}
+}
+
+FORCEINLINE void FVectorVMContext::ReleaseContext(FVectorVMContext* Context)
+{
+	checkSlow(Context);
+	VMContextPool.Push(Context);
+}
 
 namespace VectorVM
 {
@@ -321,6 +350,7 @@ namespace VectorVM
 	 */
 	VECTORVM_API void Exec(
 		uint8 const* Code,
+		int32 NumTempRegisters,
 		uint8** InputRegisters,
 		int32 NumInputRegisters,
 		uint8** OutputRegisters,

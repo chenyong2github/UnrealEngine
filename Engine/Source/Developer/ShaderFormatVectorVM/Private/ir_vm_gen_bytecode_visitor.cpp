@@ -592,7 +592,7 @@ struct op_base
 
 	}
 
-	static bool finalize_component_temporary_allocation(_mesa_glsl_parse_state* parse_state, variable_info_node* component, const unsigned num_temp_registers, unsigned *registers, unsigned op_idx)
+	static bool finalize_component_temporary_allocation(_mesa_glsl_parse_state* parse_state, FVectorVMCompilationOutput& CompilationOutput, variable_info_node* component, const unsigned num_temp_registers, unsigned *registers, unsigned op_idx)
 	{
 		check(component);
 
@@ -615,6 +615,7 @@ struct op_base
 						{
 							component->offset = VectorVM::FirstTempRegister + j;
 							registers[j] = component->last_read;
+							CompilationOutput.MaxTempRegistersUsed = FMath::Max((int32)j, CompilationOutput.MaxTempRegistersUsed);
 #if VM_VERBOSE_LOGGING
 							UE_LOG(LogVVMBackend, Log, TEXT("OP:%d | Comp:%p allocated Reg: %d | Last Read: %d |"), op_idx, component, j, component->last_read);
 #endif
@@ -769,7 +770,7 @@ struct op_standard : public op_base
 
 	virtual bool finalize(_mesa_glsl_parse_state* parse_state, FVectorVMCompilationOutput&CompilationOutput, const unsigned num_temp_registers, unsigned *registers, unsigned op_idx)
 	{
-		return finalize_component_temporary_allocation(parse_state, dest_component, num_temp_registers, registers, op_idx);
+		return finalize_component_temporary_allocation(parse_state, CompilationOutput, dest_component, num_temp_registers, registers, op_idx);
 	}
 
 	virtual void validate(_mesa_glsl_parse_state* parse_state, unsigned op_idx)override
@@ -827,7 +828,7 @@ struct op_input : public op_base
 
 	virtual bool finalize(_mesa_glsl_parse_state* parse_state, FVectorVMCompilationOutput&CompilationOutput, const unsigned num_temp_registers, unsigned *registers, unsigned op_idx)
 	{
-		return finalize_component_temporary_allocation(parse_state, dest_component, num_temp_registers, registers, op_idx);
+		return finalize_component_temporary_allocation(parse_state, CompilationOutput, dest_component, num_temp_registers, registers, op_idx);
 	}
 
 	virtual void validate(_mesa_glsl_parse_state* parse_state, unsigned op_idx)override
@@ -874,7 +875,7 @@ struct op_input_noadvance : public op_input
 
 	virtual bool finalize(_mesa_glsl_parse_state* parse_state, FVectorVMCompilationOutput&CompilationOutput, const unsigned num_temp_registers, unsigned *registers, unsigned op_idx)
 	{
-		return finalize_component_temporary_allocation(parse_state, dest_component, num_temp_registers, registers, op_idx);
+		return finalize_component_temporary_allocation(parse_state, CompilationOutput, dest_component, num_temp_registers, registers, op_idx);
 	}
 
 	virtual void validate(_mesa_glsl_parse_state* parse_state, unsigned op_idx)override
@@ -967,7 +968,7 @@ struct op_index_acquire : public op_base
 
 	virtual bool finalize(_mesa_glsl_parse_state* parse_state, FVectorVMCompilationOutput&CompilationOutput, const unsigned num_temp_registers, unsigned *registers, unsigned op_idx)
 	{
-		return finalize_component_temporary_allocation(parse_state, dest_component, num_temp_registers, registers, op_idx);
+		return finalize_component_temporary_allocation(parse_state, CompilationOutput, dest_component, num_temp_registers, registers, op_idx);
 	}
 
 	virtual void validate(_mesa_glsl_parse_state* parse_state, unsigned op_idx)override
@@ -1010,12 +1011,12 @@ struct op_id_acquire : public op_base
 
 	virtual bool finalize(_mesa_glsl_parse_state* parse_state, FVectorVMCompilationOutput&CompilationOutput, const unsigned num_temp_registers, unsigned *registers, unsigned op_idx)
 	{
-		if (!finalize_component_temporary_allocation(parse_state, id_index_component, num_temp_registers, registers, op_idx))
+		if (!finalize_component_temporary_allocation(parse_state, CompilationOutput, id_index_component, num_temp_registers, registers, op_idx))
 		{
 			_mesa_glsl_error(parse_state, "Failed to allocate temporary registers");
 			return false;
 		}
-		if (!finalize_component_temporary_allocation(parse_state, id_tag_component, num_temp_registers, registers, op_idx))
+		if (!finalize_component_temporary_allocation(parse_state, CompilationOutput, id_tag_component, num_temp_registers, registers, op_idx))
 		{
 			_mesa_glsl_error(parse_state, "Failed to allocate temporary registers");
 			return false;
@@ -1175,6 +1176,7 @@ struct op_external_func : public op_base
 	struct finalize_temp_register_ctx
 	{
 		_mesa_glsl_parse_state* parse_state;
+		FVectorVMCompilationOutput* CompilationOutput;
 		unsigned num_temp_registers;
 		unsigned *registers;
 		unsigned op_idx;
@@ -1187,7 +1189,7 @@ struct op_external_func : public op_base
 		check(node->is_scalar());
 
 		//Some outputs for an external function can have invalid locations. If the thing has *any* valid outputs then it's considered a success.
-		ctx->success |= finalize_component_temporary_allocation(ctx->parse_state, node, ctx->num_temp_registers, ctx->registers, ctx->op_idx);
+		ctx->success |= finalize_component_temporary_allocation(ctx->parse_state, *ctx->CompilationOutput, node, ctx->num_temp_registers, ctx->registers, ctx->op_idx);
 	}
 
 	virtual bool finalize(_mesa_glsl_parse_state* parse_state, FVectorVMCompilationOutput&CompilationOutput, const unsigned num_temp_registers, unsigned *registers, unsigned op_idx)
@@ -1212,6 +1214,7 @@ struct op_external_func : public op_base
 
 		finalize_temp_register_ctx ctx;
 		ctx.parse_state = parse_state;
+		ctx.CompilationOutput = &CompilationOutput;
 		ctx.num_temp_registers = num_temp_registers;
 		ctx.registers = registers;
 		ctx.op_idx = op_idx;
