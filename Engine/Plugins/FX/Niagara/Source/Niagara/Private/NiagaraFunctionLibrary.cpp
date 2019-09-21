@@ -7,7 +7,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
 #include "ContentStreaming.h"
-#include "Internationalization\Internationalization.h"
+#include "Internationalization/Internationalization.h"
 
 #include "NiagaraWorldManager.h"
 #include "NiagaraDataInterfaceStaticMesh.h"
