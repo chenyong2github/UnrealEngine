@@ -19,6 +19,7 @@ public class KismetCompiler : ModuleRules
 				"AnimGraph",
                 "MessageLog",
 				"Kismet",
+				"ScriptDisassembler",
 			}
 			);
 	}
