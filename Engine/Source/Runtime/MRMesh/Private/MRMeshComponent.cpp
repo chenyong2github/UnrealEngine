@@ -339,6 +339,12 @@ public:
 	void RenderThread_SetMaterial(UMaterialInterface* Material)
 	{
 		MaterialToUse = Material;
+#if WITH_EDITOR
+		// When changing materials in the editor we need to keep the verification
+		// materials set in sync to satisfy the internal class invariants. This also
+		// avoids validation errors when generating the mesh batches.
+		SetUsedMaterialForVerification(TArray<UMaterialInterface*>(&MaterialToUse, 1));
+#endif
 	}
 
 private:
