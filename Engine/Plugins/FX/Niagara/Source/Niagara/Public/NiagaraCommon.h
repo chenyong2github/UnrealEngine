@@ -8,6 +8,7 @@
 #include "NiagaraTypes.h"
 #include "UObject/SoftObjectPath.h"
 #include "RHI.h"
+#include "NiagaraCore.h"
 #include "NiagaraCommon.generated.h"
 
 class UNiagaraSystem;
@@ -626,6 +627,7 @@ namespace FNiagaraUtilities
 
 	void NIAGARA_API DumpHLSLText(const FString& SourceCode, const FString& DebugName);
 
+	NIAGARA_API FString SystemInstanceIDToString(FNiagaraSystemInstanceID ID);
 };
 
 USTRUCT()

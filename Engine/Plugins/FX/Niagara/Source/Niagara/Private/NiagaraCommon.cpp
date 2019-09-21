@@ -303,6 +303,21 @@ void FNiagaraUtilities::DumpHLSLText(const FString& SourceCode, const FString& D
 	UE_LOG(LogNiagara, Display, TEXT("==================================================================================="));
 }
 
+FString FNiagaraUtilities::SystemInstanceIDToString(FNiagaraSystemInstanceID ID)
+{
+	TCHAR Buffer[17];
+	uint64 Value = ID;
+	for (int i = 15; i >= 0; --i)
+	{
+		TCHAR ch = Value & 0xf;
+		Value >>= 4;
+		Buffer[i] = (ch >= 10 ? TCHAR('A' - 10) : TCHAR('0')) + ch;
+	}
+	Buffer[16] = 0;
+
+	return FString(Buffer);
+}
+
 #if WITH_EDITORONLY_DATA
 void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, FString>& ScriptToEmitterNameMap)
 {

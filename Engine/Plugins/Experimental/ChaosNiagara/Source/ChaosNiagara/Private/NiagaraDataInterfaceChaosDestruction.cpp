@@ -3948,7 +3948,7 @@ void UNiagaraDataInterfaceChaosDestruction::PushToRenderThread()
 	);
 }
 
-void UNiagaraDataInterfaceChaosDestruction::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FGuid& SystemInstance)
+void UNiagaraDataInterfaceChaosDestruction::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(Proxy);
 
@@ -4095,7 +4095,7 @@ void FNiagaraDataInterfaceProxyChaosDestruction::CreatePerInstanceData(const FGu
 	SystemsToGPUInstanceData.Add(SystemInstance, FNiagaraDIChaosDestruction_GPUData());
 }
 
-void FNiagaraDataInterfaceProxyChaosDestruction::DestroyInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FGuid& SystemInstance)
+void FNiagaraDataInterfaceProxyChaosDestruction::DestroyInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
 	// @todo-threadsafety This object contains GPU buffers. This _should_ delete them safely but would we rather do so manually?
@@ -4105,7 +4105,7 @@ void FNiagaraDataInterfaceProxyChaosDestruction::DestroyInstanceData(NiagaraEmit
 	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
 }
 
-void FNiagaraDataInterfaceProxyChaosDestruction::ConsumePerInstanceDataFromGameThread(void* PerInstanceDataFromGameThread, const FGuid& Instance) 
+void FNiagaraDataInterfaceProxyChaosDestruction::ConsumePerInstanceDataFromGameThread(void* PerInstanceDataFromGameThread, const FNiagaraSystemInstanceID& Instance)
 { 
 	FNiagaraDIChaosDestruction_GPUData* DataPtr = SystemsToGPUInstanceData.Find(Instance);
 	ensure(DataPtr);
