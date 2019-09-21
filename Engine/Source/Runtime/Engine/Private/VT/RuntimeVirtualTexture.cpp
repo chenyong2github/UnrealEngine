@@ -367,15 +367,8 @@ void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FTransform 
 	WorldToUVTransformParameters[0] = VolumeToWorld.GetTranslation();
 	WorldToUVTransformParameters[1] = VolumeToWorld.GetUnitAxis(EAxis::X) * 1.f / VolumeToWorld.GetScale3D().X;
 	WorldToUVTransformParameters[2] = VolumeToWorld.GetUnitAxis(EAxis::Y) * 1.f / VolumeToWorld.GetScale3D().Y;
-	
-	if (UseVirtualTexturing(GMaxRHIFeatureLevel))
-	{
-		InitResource(InProducer, VolumeToWorld);
-	}
-	else
-	{
-		InitNullResource();		
-	}
+
+	InitResource(InProducer, VolumeToWorld);
 }
 
 void URuntimeVirtualTexture::Release()
