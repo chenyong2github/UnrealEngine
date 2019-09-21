@@ -46,8 +46,11 @@ enum class EDynamicMeshSculptBrushType : uint8
 	/** Move brush */
 	Pull UMETA(DisplayName = "Pull"),
 
-	/** Offset brush */
+	/** Sculpt brush */
 	Offset UMETA(DisplayName = "Sculpt"),
+
+	/** SculptMax brush */
+	SculptMax UMETA(DisplayName = "Sculpt Max"),
 
 	/** Inflate brush */
 	Inflate UMETA(DisplayName = "Inflate"),
@@ -61,6 +64,9 @@ enum class EDynamicMeshSculptBrushType : uint8
 	/** Plane brush */
 	Plane UMETA(DisplayName = "Plane"),
 
+
+	LastValue UMETA(Hidden)
+
 };
 
 
@@ -69,10 +75,10 @@ enum class EDynamicMeshSculptBrushType : uint8
 UENUM()
 enum class EMeshSculptToolSmoothType : uint8
 {
-	/** Uniform smoothing */
+	/** Uniform Smoothing */
 	Uniform UMETA(DisplayName = "Uniform"),
 
-	/** Texture-preserving smoothing */
+	/** Texture-Preserving Smoothing */
 	TexturePreserving UMETA(DisplayName = "Texture Preserving"),
 };
 
@@ -115,25 +121,31 @@ class MESHMODELINGTOOLS_API UBrushSculptProperties : public UInteractiveToolProp
 public:
 	UBrushSculptProperties();
 
-	/** primary brush mode */
+	/** Primary Brush Mode */
 	UPROPERTY(EditAnywhere, Category = Options)
 	EDynamicMeshSculptBrushType PrimaryBrushType;
 
-	/** smoothing type */
-	UPROPERTY(EditAnywhere, Category = Options)
-	EMeshSculptToolSmoothType SmoothingType;
-
-	/** Smoothing speed of brush */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
-	float SmoothPower;
-
-	/** Offset speed of brush */
+	/** Power/Speed of brush */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", EditCondition = "PrimaryBrushType != EDynamicMeshSculptBrushType::Pull"))
-	float OffsetPower;
+	float BrushSpeed;
 
-	/** Depth of Brush into surface along ray */
+	/** Smoothing Speed of Smoothing brush */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float SmoothSpeed;
+
+
+	/** Depth of Brush into surface along view ray or surface normal, depending on brush */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0"))
 	float Depth;
+
+	/** Disable updating of the brush Target Surface after each stroke */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "PrimaryBrushType == EDynamicMeshSculptBrushType::Sculpt || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptMax || PrimaryBrushType == EDynamicMeshSculptBrushType::Pinch" ))
+	bool bFreezeTarget;
+
+	/** Smoothing Type */
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	EMeshSculptToolSmoothType SmoothingType;
+
 };
 
 
@@ -233,6 +245,18 @@ public:
 
 	virtual void IncreaseBrushRadiusAction();
 	virtual void DecreaseBrushRadiusAction();
+	virtual void IncreaseBrushRadiusSmallStepAction();
+	virtual void DecreaseBrushRadiusSmallStepAction();
+
+	virtual void IncreaseBrushSpeedAction();
+	virtual void DecreaseBrushSpeedAction();
+
+
+	virtual void NextBrushModeAction();
+	virtual void PreviousBrushModeAction();
+
+	virtual void NextHistoryBrushModeAction();
+	virtual void PreviousHistoryBrushModeAction();
 
 
 protected:
@@ -281,11 +305,15 @@ protected:
 
 	bool bStampPending;
 	FRay PendingStampRay;
+	int StampTimestamp = 0;
+	EDynamicMeshSculptBrushType LastStampType = EDynamicMeshSculptBrushType::LastValue;
+	EDynamicMeshSculptBrushType PendingStampType = LastStampType;
 	void ApplyStamp(const FRay& WorldRay);
 
 	FDynamicMesh3 BrushTargetMesh;
 	FDynamicMeshAABBTree3 BrushTargetMeshSpatial;
 	FMeshNormals BrushTargetNormals;
+	bool bCachedFreezeTarget = false;
 	void UpdateTarget();
 	bool GetTargetMeshNearest(const FVector3d& Position, double SearchRadius, FVector3d& TargetPosOut, FVector3d& TargetNormalOut);
 
@@ -296,6 +324,7 @@ protected:
 	void ApplySmoothBrush(const FRay& WorldRay);
 	void ApplyMoveBrush(const FRay& WorldRay);
 	void ApplyOffsetBrush(const FRay& WorldRay);
+	void ApplySculptMaxBrush(const FRay& WorldRay);
 	void ApplyPinchBrush(const FRay& WorldRay);
 	void ApplyInflateBrush(const FRay& WorldRay);
 	void ApplyPlaneBrush(const FRay& WorldRay);
@@ -324,6 +353,10 @@ protected:
 	FCriticalSection UpdateSavedVertexLock;
 
 	double EstimateIntialSafeTargetLength(const FDynamicMesh3& Mesh, int MinTargetTriCount);
+
+	TArray<EDynamicMeshSculptBrushType> BrushTypeHistory;
+	int BrushTypeHistoryIndex = 0;
+
 };
 
 
