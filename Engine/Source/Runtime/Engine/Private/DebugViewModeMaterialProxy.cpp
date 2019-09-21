@@ -60,6 +60,7 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 				bIsUsedWithSplineMeshes = Resource->IsUsedWithSplineMeshes();
 				bIsUsedWithInstancedStaticMeshes = Resource->IsUsedWithInstancedStaticMeshes();
 				bIsUsedWithAPEXCloth = Resource->IsUsedWithAPEXCloth();
+				bIsUsedWithWater = Resource->IsUsedWithWater();
 			}
 		}
 
