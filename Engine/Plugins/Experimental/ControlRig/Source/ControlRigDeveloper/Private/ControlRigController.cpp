@@ -9,7 +9,7 @@
 
 UControlRigController::UControlRigController()
 	: Model(nullptr)
-	, bSuspendLog(false)
+	, bSuspendLog(true)
 {
 }
 
