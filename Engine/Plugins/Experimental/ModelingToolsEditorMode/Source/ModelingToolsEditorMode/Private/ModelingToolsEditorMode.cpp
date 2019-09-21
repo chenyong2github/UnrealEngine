@@ -393,13 +393,11 @@ void FModelingToolsEditorMode::Enter()
 	// listen for Tool start/end events to bind/unbind any hotkeys relevant to that Tool
 	ToolsContext->ToolManager->OnToolStarted.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 	{
-		const FModelingToolActionCommands& Commands = FModelingToolActionCommands::Get();
-		Commands.BindCommandsForCurrentTool(UICommandList, Tool);
+		FModelingToolActionCommands::UpdateToolCommandBinding(Tool, UICommandList, false);
 	});
 	ToolsContext->ToolManager->OnToolEnded.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 	{
-		const FModelingToolActionCommands& Commands = FModelingToolActionCommands::Get();
-		Commands.UnbindActiveCommands(UICommandList);
+		FModelingToolActionCommands::UpdateToolCommandBinding(Tool, UICommandList, true);
 	});
 
 

@@ -18,7 +18,7 @@ void FModelingToolsEditorModeModule::ShutdownModule()
 {
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 
-	FModelingToolActionCommands::Unregister();
+	FModelingToolActionCommands::UnregisterAllToolActions();
 	FModelingToolsManagerCommands::Unregister();
 
 	// Unregister slate style overrides
@@ -42,7 +42,7 @@ void FModelingToolsEditorModeModule::OnPostEngineInit()
 		FSlateIcon(),
 		true);
 
-	FModelingToolActionCommands::Register();
+	FModelingToolActionCommands::RegisterAllToolActions();
 	FModelingToolsManagerCommands::Register();
 }
 

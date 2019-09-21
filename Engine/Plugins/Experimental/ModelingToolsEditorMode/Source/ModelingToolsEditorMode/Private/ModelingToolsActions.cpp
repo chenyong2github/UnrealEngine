@@ -29,13 +29,84 @@ FModelingToolActionCommands::FModelingToolActionCommands() :
 
 void FModelingToolActionCommands::GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs)
 {
-	ToolCDOs.Add(GetMutableDefault<UDynamicMeshSculptTool>());
 	ToolCDOs.Add(GetMutableDefault<UMeshInspectorTool>());
 	ToolCDOs.Add(GetMutableDefault<UDrawPolygonTool>());
 	ToolCDOs.Add(GetMutableDefault<UEditMeshPolygonsTool>());
 	ToolCDOs.Add(GetMutableDefault<UMeshSpaceDeformerTool>());
 	ToolCDOs.Add(GetMutableDefault<UShapeSprayTool>());
 	ToolCDOs.Add(GetMutableDefault<UMeshSelectionTool>());
+}
+
+
+
+void FModelingToolActionCommands::RegisterAllToolActions()
+{
+	FModelingToolActionCommands::Register();
+	FSculptToolActionCommands::Register();
+	FTransformToolActionCommands::Register();
+}
+
+void FModelingToolActionCommands::UnregisterAllToolActions()
+{
+	FModelingToolActionCommands::Unregister();
+	FSculptToolActionCommands::Unregister();
+	FTransformToolActionCommands::Unregister();
+}
+
+
+
+void FModelingToolActionCommands::UpdateToolCommandBinding(UInteractiveTool* Tool, TSharedPtr<FUICommandList> UICommandList, bool bUnbind)
+{
+#define UPDATE_BINDING(CommandsType)  if (!bUnbind) CommandsType::Get().BindCommandsForCurrentTool(UICommandList, Tool); else CommandsType::Get().UnbindActiveCommands(UICommandList);
+
+
+	if (Cast<UTransformMeshesTool>(Tool) != nullptr)
+	{
+		UPDATE_BINDING(FTransformToolActionCommands);
+	}
+	else if (Cast<UDynamicMeshSculptTool>(Tool) != nullptr)
+	{
+		UPDATE_BINDING(FSculptToolActionCommands);
+	}
+	else
+	{
+		UPDATE_BINDING(FModelingToolActionCommands);
+	}
+}
+
+
+
+
+
+FSculptToolActionCommands::FSculptToolActionCommands() :
+	TInteractiveToolCommands<FSculptToolActionCommands>(
+		"ModelingToolsSculptTool", // Context name for fast lookup
+		NSLOCTEXT("Contexts", "ModelingToolsSculptTool", "Modeling Tools - Sculpt Tool"), // Localized context name for displaying
+		NAME_None, // Parent
+		FEditorStyle::GetStyleSetName() // Icon Style Set
+		)
+{
+}
+
+void FSculptToolActionCommands::GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs)
+{
+	ToolCDOs.Add(GetMutableDefault<UDynamicMeshSculptTool>());
+}
+
+
+
+FTransformToolActionCommands::FTransformToolActionCommands() :
+	TInteractiveToolCommands<FTransformToolActionCommands>(
+		"ModelingToolsTransformTool", // Context name for fast lookup
+		NSLOCTEXT("Contexts", "ModelingToolsTransformTool", "Modeling Tools - Transform Tool"), // Localized context name for displaying
+		NAME_None, // Parent
+		FEditorStyle::GetStyleSetName() // Icon Style Set
+		)
+{
+}
+
+void FTransformToolActionCommands::GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs)
+{
 	ToolCDOs.Add(GetMutableDefault<UTransformMeshesTool>());
 }
 
