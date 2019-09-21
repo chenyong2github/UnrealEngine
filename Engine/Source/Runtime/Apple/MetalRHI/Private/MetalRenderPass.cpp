@@ -1126,6 +1126,7 @@ void FMetalRenderPass::DrawPatches(uint32 PrimitiveType,FMetalBuffer const& Inde
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, CurrentEncoder.GetRenderCommandEncoderDebugging().DrawPatches(boundShaderState->VertexShader->TessellationOutputControlPoints, 0, NumPrimitives * NumInstances, nil, 0, 1, 0));
 		}
 		
+#if METAL_DEBUG_OPTIONS
 		if (GMetalCommandBufferDebuggingEnabled)
 		{
 			FMetalCommandData Data;
@@ -1137,6 +1138,7 @@ void FMetalRenderPass::DrawPatches(uint32 PrimitiveType,FMetalBuffer const& Inde
 			
 			InsertDebugDraw(Data);
 		}
+#endif
 		
 		if(hullShaderOutputBufferSize)
 		{
