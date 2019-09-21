@@ -196,27 +196,15 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 
 	if (!IsAllowedToExecute())
 	{
-		//@TODO FNiagaraMessageManager Error bubbling here
+		//@todo(message manager) Error bubbling here
 		ExecutionState = ENiagaraExecutionState::Disabled;
 		return;
 	}
 
-
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
-	Data.Init(FNiagaraDataSetID(CachedIDName, ENiagaraDataSetType::ParticleData), CachedEmitter->SimTarget, ParentSystemInstance->GetSystem()->GetName() + TEXT("/") + CachedEmitter->GetName());
-#else
-	Data.Init(FNiagaraDataSetID(CachedIDName, ENiagaraDataSetType::ParticleData), CachedEmitter->SimTarget);
-#endif
-
-	//Init the spawn infos to the correct number for this system.
-	int32 NumEvents = CachedEmitter->GetEventHandlers().Num();
 	const TArray<FNiagaraEmitterCompiledData>& EmitterCompiledData = ParentSystemInstance->GetSystem()->GetEmitterCompiledData();
-	if (EmitterCompiledData.IsValidIndex(EmitterIdx))
+	if (EmitterCompiledData.IsValidIndex(EmitterIdx) == false)
 	{
-		SpawnInfos.SetNum(EmitterCompiledData[EmitterIdx].SpawnAttributes.Num());
-	}
-	else
-	{
+		//@todo(message manager) Error bubbling here
 		ExecutionState = ENiagaraExecutionState::Disabled;
 		return;
 	}
@@ -230,6 +218,16 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		return;
 	}
 
+	//Init the spawn infos to the correct number for this system.
+	int32 NumEvents = CachedEmitter->GetEventHandlers().Num();
+	SpawnInfos.SetNum(EmitterCompiledData[EmitterIdx].SpawnAttributes.Num());
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
+	Data.InitFromCompiledData(EmitterCompiledData[EmitterIdx].DataSetCompiledData, ParentSystemInstance->GetSystem()->GetName() + TEXT("/") + CachedEmitter->GetName());
+#else
+	Data.InitFromCompiledData(EmitterCompiledData[EmitterIdx].DataSetCompiledData);
+#endif
+
 	ResetSimulation();
 
 	DataSetMap.Empty();
@@ -242,6 +240,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 
 	const bool bVerboseAttributeLogging = false;
 
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 	if (bVerboseAttributeLogging)
 	{
 		for (FNiagaraVariable& Attr : CachedEmitter->UpdateScriptProps.Script->GetVMExecutableData().Attributes)
@@ -260,16 +259,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 			}
 		}
 	}
-	Data.AddVariables(CachedEmitter->UpdateScriptProps.Script->GetVMExecutableData().Attributes);
-	Data.AddVariables(CachedEmitter->SpawnScriptProps.Script->GetVMExecutableData().Attributes);
-
-	//if we use persistent IDs then add that here too.
-	if (RequiredPersistentID())
-	{
-		Data.SetNeedsPersistentIDs(true);
-	}
-
-	Data.Finalize();
+#endif
 
 	ensure(CachedEmitter->UpdateScriptProps.DataSetAccessSynchronized());
 	UpdateScriptEventDataSets.Empty();
@@ -396,7 +386,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 	}
 }
 
-void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting)
+void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 {
 	Age = 0;
 	Loops = 0;
