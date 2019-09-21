@@ -280,7 +280,6 @@ void UNiagaraSystem::PostLoad()
 	if (!GetOutermost()->bIsCookedForEditor)
 	{
 		TArray<UNiagaraScript*> AllSystemScripts;
-	
 		UNiagaraScriptSourceBase* SystemScriptSource = nullptr;
 		if (SystemSpawnScript == nullptr)
 		{
@@ -388,10 +387,10 @@ void UNiagaraSystem::PostLoad()
 			UE_LOG(LogNiagara, Log, TEXT("System %s being compiled because there were changes to an emitter script Change ID."), *GetPathName());
 		}
 
-		if (EmitterCompiledData.Num() == 0)
-		{
-			InitEmitterCompiledData();
-		}
+	if (EmitterCompiledData.Num() == 0 || EmitterCompiledData[0].DataSetCompiledData.Variables.Num() == 0)
+	{
+		InitEmitterCompiledData();
+	}
 
 		if (SystemCompiledData.InstanceParamStore.GetNumParameters() == 0)
 		{
@@ -929,7 +928,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 }
 
 #if WITH_EDITORONLY_DATA
-void UNiagaraSystem::InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& EmitterCompiledDataToInit, const UNiagaraEmitter& InAssociatedEmitter)
+void UNiagaraSystem::InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& EmitterCompiledDataToInit, const UNiagaraEmitter* InAssociatedEmitter)
 {
 	EmitterCompiledDataToInit.EmitterSpawnIntervalVar.SetName(GetEmitterVariableAliasName(SYS_PARAM_EMITTER_SPAWN_INTERVAL, InAssociatedEmitter));
 	EmitterCompiledDataToInit.EmitterInterpSpawnStartDTVar.SetName(GetEmitterVariableAliasName(SYS_PARAM_EMITTER_INTERP_SPAWN_START_DT, InAssociatedEmitter));
@@ -938,9 +937,26 @@ void UNiagaraSystem::InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& 
 	EmitterCompiledDataToInit.EmitterRandomSeedVar.SetName(GetEmitterVariableAliasName(SYS_PARAM_EMITTER_RANDOM_SEED, InAssociatedEmitter));
 }
 
-const FName UNiagaraSystem::GetEmitterVariableAliasName(const FNiagaraVariable& InEmitterVar, const UNiagaraEmitter& InEmitter) const
+const FName UNiagaraSystem::GetEmitterVariableAliasName(const FNiagaraVariable& InEmitterVar, const UNiagaraEmitter* InEmitter) const
 {
-	return FName(*InEmitterVar.GetName().ToString().Replace(TEXT("Emitter."), *(InEmitter.GetUniqueEmitterName() + TEXT("."))));
+	return FName(*InEmitterVar.GetName().ToString().Replace(TEXT("Emitter."), *(InEmitter->GetUniqueEmitterName() + TEXT("."))));
+}
+
+void UNiagaraSystem::InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const UNiagaraEmitter* InAssociatedEmitter, const FNiagaraEmitterHandle& InAssociatedEmitterHandle)
+{
+	DataSetToInit.Empty();
+
+	DataSetToInit.Variables = InAssociatedEmitter->UpdateScriptProps.Script->GetVMExecutableData().Attributes;
+	for (const FNiagaraVariable& Var : InAssociatedEmitter->SpawnScriptProps.Script->GetVMExecutableData().Attributes)
+	{
+		DataSetToInit.Variables.AddUnique(Var);
+	}
+
+	DataSetToInit.bNeedsPersistentIDs = InAssociatedEmitter->RequiresPersistantIDs() || DataSetToInit.Variables.Contains(SYS_PARAM_PARTICLES_ID);
+	DataSetToInit.ID = FNiagaraDataSetID(InAssociatedEmitterHandle.GetIdName(), ENiagaraDataSetType::ParticleData);
+	DataSetToInit.SimTarget = InAssociatedEmitter->SimTarget;
+
+	DataSetToInit.BuildLayout();
 }
 #endif
 
@@ -1076,10 +1092,13 @@ void UNiagaraSystem::InitEmitterCompiledData()
 			for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
 			{
 				UNiagaraEmitter* Emitter = EmitterHandles[EmitterIdx].GetInstance();
-				FString EmitterName = Emitter->GetUniqueEmitterName() + TEXT(".");
-				if (Var.GetType() == SpawnInfoDef && Var.GetName().ToString().StartsWith(EmitterName))
+				if ensureMsgf(Emitter != nullptr, TEXT("Failed to get Emitter Instance from Emitter Handle in post compile, please investigate."))
 				{
-					EmitterCompiledData[EmitterIdx].SpawnAttributes.AddUnique(Var.GetName());
+					FString EmitterName = Emitter->GetUniqueEmitterName() + TEXT(".");
+					if (Var.GetType() == SpawnInfoDef && Var.GetName().ToString().StartsWith(EmitterName))
+					{
+						EmitterCompiledData[EmitterIdx].SpawnAttributes.AddUnique(Var.GetName());
+					}
 				}
 			}
 		}
@@ -1089,17 +1108,27 @@ void UNiagaraSystem::InitEmitterCompiledData()
 			for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
 			{
 				UNiagaraEmitter* Emitter = EmitterHandles[EmitterIdx].GetInstance();
-				FString EmitterName = Emitter->GetUniqueEmitterName() + TEXT(".");
-				if (Var.GetType() == SpawnInfoDef && Var.GetName().ToString().StartsWith(EmitterName))
+				if ensureMsgf(Emitter != nullptr, TEXT("Failed to get Emitter Instance from Emitter Handle in post compile, please investigate."))
 				{
-					EmitterCompiledData[EmitterIdx].SpawnAttributes.AddUnique(Var.GetName());
+					FString EmitterName = Emitter->GetUniqueEmitterName() + TEXT(".");
+					if (Var.GetType() == SpawnInfoDef && Var.GetName().ToString().StartsWith(EmitterName))
+					{
+						EmitterCompiledData[EmitterIdx].SpawnAttributes.AddUnique(Var.GetName());
+					}
 				}
 				}
 			}
 
 		for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
 		{
-			InitEmitterVariableAliasNames(EmitterCompiledData[EmitterIdx], *EmitterHandles[EmitterIdx].GetInstance());
+			const FNiagaraEmitterHandle& EmitterHandle = EmitterHandles[EmitterIdx];
+			const UNiagaraEmitter* Emitter = EmitterHandle.GetInstance();
+			FNiagaraDataSetCompiledData& EmitterDataSetCompiledData = EmitterCompiledData[EmitterIdx].DataSetCompiledData;
+			if ensureMsgf(Emitter != nullptr, TEXT("Failed to get Emitter Instance from Emitter Handle in post compile, please investigate."))
+			{
+				InitEmitterVariableAliasNames(EmitterCompiledData[EmitterIdx], Emitter);
+				InitEmitterDataSetCompiledData(EmitterDataSetCompiledData, Emitter, EmitterHandle);
+			}
 		}
 	}
 }

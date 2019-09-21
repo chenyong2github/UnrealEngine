@@ -7,21 +7,29 @@
 #include "RHI.h"
 #include "VectorVM.h"
 #include "RenderingThread.h"
+#include "NiagaraDataSet.generated.h"
 
 typedef TArray<uint8*, TInlineAllocator<128>> FNiagaraRegisterTable;
 
 /** Helper class defining the layout and location of an FNiagaraVariable in an FNiagaraDataBuffer-> */
+USTRUCT()
 struct FNiagaraVariableLayoutInfo
 {
+	GENERATED_BODY()
+
 	/** Start index for the float components in the main buffer. */
+	UPROPERTY()
 	uint32 FloatComponentStart;
+
 	/** Start index for the int32 components in the main buffer. */
+	UPROPERTY()
 	uint32 Int32ComponentStart;
 
 	uint32 GetNumFloatComponents()const { return LayoutInfo.FloatComponentByteOffsets.Num(); }
 	uint32 GetNumInt32Components()const { return LayoutInfo.Int32ComponentByteOffsets.Num(); }
 
 	/** This variable's type layout info. */
+	UPROPERTY()
 	FNiagaraTypeLayoutInfo LayoutInfo;
 };
 
@@ -208,6 +216,44 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
+USTRUCT()
+struct FNiagaraDataSetCompiledData
+{
+	GENERATED_BODY()
+
+	/** Variables in the data set. */
+	UPROPERTY()
+	TArray<FNiagaraVariable> Variables;
+
+	/** Data describing the layout of variable data. */
+	UPROPERTY()
+	TArray<FNiagaraVariableLayoutInfo> VariableLayouts;
+
+	/** Total number of components of each type in the data set. */
+	UPROPERTY()
+	uint32 TotalFloatComponents;
+
+	UPROPERTY()
+	uint32 TotalInt32Components;
+
+	/** Whether or not this dataset require persistent IDs. */
+	UPROPERTY()
+	uint32 bNeedsPersistentIDs : 1;
+
+	/** Unique ID for this DataSet. Used to allow referencing from other emitters and Systems. */
+	UPROPERTY()
+	FNiagaraDataSetID ID;
+
+	/** Sim target this DataSet is targeting (CPU/GPU). */
+	UPROPERTY()
+	ENiagaraSimTarget SimTarget;
+
+	void BuildLayout();
+	void Empty();
+};
+
+//////////////////////////////////////////////////////////////////////////
+
 /**
 General storage class for all per instance simulation data in Niagara.
 */
@@ -222,8 +268,10 @@ public:
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	void Init(FNiagaraDataSetID InID, ENiagaraSimTarget InSimTarget, const FString& InDebugName);
+	void InitFromCompiledData(const FNiagaraDataSetCompiledData& InDataSetCompiledData, const FString& InDebugName);
 #else
 	void Init(FNiagaraDataSetID InID, ENiagaraSimTarget InSimTarget);
+	void InitFromCompiledData(const FNiagaraDataSetCompiledData& InDataSetCompiledData);
 #endif
 
 	/** Resets current data but leaves variable/layout information etc intact. */
@@ -266,6 +314,7 @@ public:
 
 	/** Finalize the addition of variables and other setup before this data set can be used. */
 	void Finalize();
+
 	const FNiagaraVariableLayoutInfo* GetVariableLayout(const FNiagaraVariable& Var)const;
 	bool GetVariableComponentOffsets(const FNiagaraVariable& Var, int32 &FloatStart, int32 &IntStart) const;
 

@@ -29,7 +29,6 @@ struct FNiagaraEmitterCompiledData
 	UPROPERTY()
 	TArray<FName> SpawnAttributes;
 
-
 	/** Explicit list of Niagara Variables to bind to Emitter instances. */
 	UPROPERTY()
 	FNiagaraVariable EmitterSpawnIntervalVar;
@@ -45,6 +44,10 @@ struct FNiagaraEmitterCompiledData
 
 	UPROPERTY()
 	FNiagaraVariable EmitterRandomSeedVar;
+
+	/** Per-Emitter DataSet Data. */
+	UPROPERTY()
+	FNiagaraDataSetCompiledData DataSetCompiledData;
 };
 
 USTRUCT()
@@ -271,10 +274,13 @@ private:
 	void InitSystemCompiledData();
 
 	/** Helper for filling in precomputed variable names per emitter. Converts an emitter paramter "Emitter.XXXX" into it's real parameter name. */
-	void InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& EmitterCompiledDataToInit, const UNiagaraEmitter& InAssociatedEmitter);
+	void InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& EmitterCompiledDataToInit, const UNiagaraEmitter* InAssociatedEmitter);
 
 	/** Helper for generating aliased FNiagaraVariable names for the Emitter they are associated with. */
-	const FName GetEmitterVariableAliasName(const FNiagaraVariable& InEmitterVar, const UNiagaraEmitter& InEmitter) const;
+	const FName GetEmitterVariableAliasName(const FNiagaraVariable& InEmitterVar, const UNiagaraEmitter* InEmitter) const;
+
+	/** Helper for filling in attribute datasets per emitter. */
+	void InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const UNiagaraEmitter* InAssociatedEmitter, const FNiagaraEmitterHandle& InAssociatedEmitterHandle);
 #endif
 
 	void UpdatePostCompileDIInfo();
