@@ -140,6 +140,7 @@ void FPixelInspectorDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder&
 	switch (MaterialShadingModel)
 	{
 		case MSM_DefaultLit:
+		case MSM_SingleLayerWater:
 		case MSM_Unlit:
 		{
 			DetailBuilder.HideProperty(SubSurfaceColorProp);
