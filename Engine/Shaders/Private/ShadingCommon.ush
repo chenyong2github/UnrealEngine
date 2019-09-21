@@ -13,7 +13,8 @@
 #define SHADINGMODELID_HAIR					7
 #define SHADINGMODELID_CLOTH				8
 #define SHADINGMODELID_EYE					9
-#define SHADINGMODELID_NUM					10
+#define SHADINGMODELID_SINGLELAYERWATER		10
+#define SHADINGMODELID_NUM					11
 #define SHADINGMODELID_MASK					0xF		// 4 bits reserved for ShadingModelID			
 
 // The flags are defined so that 0 value has no effect!
@@ -45,6 +46,8 @@ uint GetShadingModelID()
 	return SHADINGMODELID_CLOTH;
 #elif MATERIAL_SHADINGMODEL_EYE
 	return SHADINGMODELID_EYE;
+#elif MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	return SHADINGMODELID_SINGLELAYERWATER;
 #else
 	#if COMPILER_HLSLCC
 		// hlslcc needs a return type

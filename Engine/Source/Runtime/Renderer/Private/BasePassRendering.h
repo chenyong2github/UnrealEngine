@@ -499,7 +499,7 @@ public:
 		static const auto SupportStationarySkylight = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportStationarySkylight"));
 		static const auto SupportAllShaderPermutations = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportAllShaderPermutations"));
 
-		const bool IsSingleLayerWater = Parameters.Material->IsUsingSingleLayerWaterMaterialOutput();
+		const bool IsSingleLayerWater = Parameters.Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
 
 		const bool bTranslucent = IsTranslucentBlendMode(Parameters.Material->GetBlendMode());
 		const bool bForceAllPermutations = SupportAllShaderPermutations && SupportAllShaderPermutations->GetValueOnAnyThread() != 0;

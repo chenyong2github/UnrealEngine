@@ -233,6 +233,8 @@ namespace PixelInspector
 			return EMaterialShadingModel::MSM_Cloth;
 		case PIXEL_INSPECTOR_SHADINGMODELID_EYE:
 			return EMaterialShadingModel::MSM_Eye;
+		case PIXEL_INSPECTOR_SHADINGMODELID_SINGLELAYERWATER:
+			return EMaterialShadingModel::MSM_SingleLayerWater;
 		};
 		return EMaterialShadingModel::MSM_DefaultLit;
 	}
@@ -276,6 +278,7 @@ namespace PixelInspector
 		{
 		case EMaterialShadingModel::MSM_Unlit:
 		case EMaterialShadingModel::MSM_DefaultLit:
+		case EMaterialShadingModel::MSM_SingleLayerWater:
 		{
 			SubSurfaceColor = FVector(0.0f);
 			Opacity = 0.0f;
