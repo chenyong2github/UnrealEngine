@@ -1,5 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-// .
+// ..
 
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
@@ -2285,14 +2285,22 @@ static void CompileShaderDXC(FShaderCompilerInput const& Input, FShaderCompilerO
 		TargetDesc.numOptions = 0;
 		TSet<FString> ExternalTextures;
 		int32 Pos = 0;
+#if !PLATFORM_MAC
 		TCHAR TextureExternalName[256];
+#else
+		ANSICHAR TextureExternalName[256];
+#endif
 		do
 		{
 			Pos = PreprocessedShader.Find(TEXT("TextureExternal"), ESearchCase::CaseSensitive, ESearchDir::FromStart, Pos + 15);
 			if (Pos != INDEX_NONE)
 			{
 #if !PLATFORM_WINDOWS
+	#if !PLATFORM_MAC
 				if (swscanf(&PreprocessedShader[Pos], TEXT("TextureExternal %ls"), TextureExternalName) == 1)
+	#else
+				if (sscanf(TCHAR_TO_ANSI(&PreprocessedShader[Pos]), "TextureExternal %s", TextureExternalName) == 1)
+	#endif
 #else
 				if (swscanf_s(&PreprocessedShader[Pos], TEXT("TextureExternal %ls"), TextureExternalName, 256) == 1)
 #endif
