@@ -397,8 +397,10 @@ void FNiagaraDataSet::Finalize()
 	BuildLayout();
 
 	ResetBuffers();
-
-	GetCurrentDataChecked().BuildRegisterTable();
+	if (SimTarget == ENiagaraSimTarget::CPUSim)
+	{
+		GetCurrentDataChecked().BuildRegisterTable();
+	}
 }
 
 const FNiagaraVariableLayoutInfo* FNiagaraDataSet::GetVariableLayout(const FNiagaraVariable& Var)const
