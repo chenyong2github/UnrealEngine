@@ -29,6 +29,7 @@
 #include "OnlineAchievementsInterfaceSteam.h"
 #include "OnlineAuthInterfaceSteam.h"
 #include "OnlineAuthInterfaceUtilsSteam.h"
+#include "OnlineEncryptedAppTicketInterfaceSteam.h"
 #include "VoiceInterfaceSteam.h"
 
 #include "SteamSharedModule.h"
@@ -240,6 +241,12 @@ void FOnlineSubsystemSteam::SetPingInterface(FOnlinePingSteamPtr InPingInterface
 {
 	PingInterface = InPingInterface;
 }
+
+FOnlineEncryptedAppTicketSteamPtr FOnlineSubsystemSteam::GetEncryptedAppTicketInterface() const
+{
+	return EncryptedAppTicketInterface;
+}
+
 IOnlineSessionPtr FOnlineSubsystemSteam::GetSessionInterface() const
 {
 	return SessionInterface;
@@ -475,6 +482,7 @@ bool FOnlineSubsystemSteam::Init()
 			VoiceInterface = MakeShareable(new FOnlineVoiceSteam(this));
 			ExternalUIInterface = MakeShareable(new FOnlineExternalUISteam(this));
 			AchievementsInterface = MakeShareable(new FOnlineAchievementsSteam(this));
+			EncryptedAppTicketInterface = MakeShareable(new FOnlineEncryptedAppTicketSteam(this));
 
 			// Kick off a download/cache of the current user's stats
 			LeaderboardsInterface->CacheCurrentUsersStats();
@@ -529,6 +537,7 @@ bool FOnlineSubsystemSteam::Shutdown()
 	}
 
 	// Destruct the interfaces
+	DESTRUCT_INTERFACE(EncryptedAppTicketInterface);
 	DESTRUCT_INTERFACE(AchievementsInterface);
 	DESTRUCT_INTERFACE(ExternalUIInterface);
 	DESTRUCT_INTERFACE(VoiceInterface);

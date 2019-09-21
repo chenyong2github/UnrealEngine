@@ -20,6 +20,7 @@ class FOnlinePresenceSteam;
 class FOnlineAuthSteam;
 class FOnlineAuthUtilsSteam;
 class FOnlinePingInterfaceSteam;
+class FOnlineEncryptedAppTicketSteam;
 
 /** Forward declarations of all interface classes */
 typedef TSharedPtr<class FOnlineSessionSteam, ESPMode::ThreadSafe> FOnlineSessionSteamPtr;
@@ -35,6 +36,7 @@ typedef TSharedPtr<class FOnlinePresenceSteam, ESPMode::ThreadSafe> FOnlinePrese
 typedef TSharedPtr<class FOnlineAuthSteam, ESPMode::ThreadSafe> FOnlineAuthSteamPtr;
 typedef TSharedPtr<class FOnlineAuthUtilsSteam, ESPMode::ThreadSafe> FOnlineAuthSteamUtilsPtr;
 typedef TSharedPtr<class FOnlinePingInterfaceSteam, ESPMode::ThreadSafe> FOnlinePingSteamPtr;
+typedef TSharedPtr<class FOnlineEncryptedAppTicketSteam, ESPMode::ThreadSafe> FOnlineEncryptedAppTicketSteamPtr;
 
 /**
 * Delegate fired when a Steam Game Server has completed its login tasks with the Steam backend.
@@ -117,6 +119,9 @@ protected:
 	/** Interface for dynamically calculating SteamNetworking ping based off protocol */
 	FOnlinePingSteamPtr PingInterface;
 
+	/** Interface for Steam encrypted application tickets. */
+	FOnlineEncryptedAppTicketSteamPtr EncryptedAppTicketInterface;
+
 	/** Online async task runnable */
 	class FOnlineAsyncTaskManagerSteam* OnlineAsyncTaskThreadRunnable;
 
@@ -155,6 +160,7 @@ PACKAGE_SCOPE:
 		AuthInterface(nullptr),
 		AuthInterfaceUtils(nullptr),
 		PingInterface(nullptr),
+		EncryptedAppTicketInterface(nullptr),
 		OnlineAsyncTaskThreadRunnable(nullptr),
 		OnlineAsyncTaskThread(nullptr),
 		SteamAPIClientHandle(nullptr),
@@ -235,6 +241,8 @@ public:
 	virtual ~FOnlineSubsystemSteam()
 	{
 	}
+
+	virtual FOnlineEncryptedAppTicketSteamPtr GetEncryptedAppTicketInterface() const;
 
 	virtual FOnlineAuthSteamPtr GetAuthInterface() const;
 	virtual FOnlineAuthSteamUtilsPtr GetAuthInterfaceUtils() const;
