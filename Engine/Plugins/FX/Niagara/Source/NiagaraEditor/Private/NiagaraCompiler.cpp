@@ -884,6 +884,15 @@ FNiagaraCompileResults FHlslNiagaraCompiler::CompileScript(const FNiagaraCompile
 					}
 				}
 
+				if (!Sig)
+				{
+					Sig = TranslatorOutput->ScriptData.AdditionalExternalFunctions.FindByPredicate([&](const FNiagaraFunctionSignature& CheckSig)
+					{
+						FString SigSymbol = FHlslNiagaraTranslator::GetFunctionSignatureSymbol(CheckSig);
+						return SigSymbol == FuncInfo.Name;
+					});
+				}
+
 				if (Sig)
 				{
 					int32 NewBindingIdx = CompileResults.Data->CalledVMExternalFunctions.AddDefaulted();

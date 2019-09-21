@@ -7,6 +7,8 @@
 #include "Engine/EngineTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "NiagaraComponentPool.h"
+#include "NiagaraCommon.h"
+#include "VectorVM.h"
 #include "NiagaraFunctionLibrary.generated.h"
 
 class UNiagaraComponent;
@@ -22,6 +24,7 @@ class NIAGARA_API UNiagaraFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
+public:
 	/**
 	* Spawns a Niagara System at the specified world location/rotation
 	* @return			The spawned UNiagaraComponent
@@ -52,4 +55,11 @@ class NIAGARA_API UNiagaraFunctionLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (Keywords = "niagara parameter collection", WorldContext = "WorldContextObject"))
 	static UNiagaraParameterCollectionInstance* GetNiagaraParameterCollection(UObject* WorldContextObject, UNiagaraParameterCollection* Collection);
 
+	static const TArray<FNiagaraFunctionSignature>& GetVectorVMFastPathOps();
+
+	static bool GetVectorVMFastPathExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FVMExternalFunction &OutFunc);
+
+private:
+	static void InitVectorVMFastPathOps();
+	static TArray<FNiagaraFunctionSignature> VectorVMOps;
 };
