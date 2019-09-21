@@ -1670,10 +1670,13 @@ void UParticleEmitter::Build()
 		if (HighLODLevel->TypeDataModule != nullptr)
 		{
 			if(HighLODLevel->TypeDataModule->RequiresBuild())
-		{
-			FParticleEmitterBuildInfo EmitterBuildInfo;
+			{
+				FParticleEmitterBuildInfo EmitterBuildInfo;
 #if WITH_EDITOR
-				HighLODLevel->CompileModules( EmitterBuildInfo );
+				if(!GetOutermost()->bIsCookedForEditor)
+				{
+					HighLODLevel->CompileModules( EmitterBuildInfo );
+				}
 #endif
 				HighLODLevel->TypeDataModule->Build( EmitterBuildInfo );
 			}
