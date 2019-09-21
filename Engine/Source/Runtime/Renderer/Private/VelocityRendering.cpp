@@ -573,7 +573,8 @@ void FVelocityMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material);
 
 		if ((BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
-			&& !Material->IsSky())
+			&& !Material->IsSky()
+			&& !Material->MaterialUsesSingleLayerWater_RenderThread()) // No velocity for water as of now
 		{
 			if (Material->WritesEveryPixel() && !Material->IsTwoSided() && !Material->MaterialModifiesMeshPosition_RenderThread())
 			{
