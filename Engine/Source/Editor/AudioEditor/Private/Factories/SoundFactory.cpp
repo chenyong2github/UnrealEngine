@@ -226,6 +226,11 @@ UObject* USoundFactory::CreateObject
 			// Will block internally on audio thread completing outstanding commands
 			AudioDeviceManager->StopSoundsUsingResource(ExistingSound, &ComponentsToRestart);
 
+			// We need to clear out any stale multichannel data on the sound wave in the case this is a reimport from multichannel to mono/stereo
+			ExistingSound->ChannelOffsets.Reset();
+			ExistingSound->ChannelSizes.Reset();
+			ExistingSound->bIsAmbisonics = false;
+
 			// Resource data is required to exist, if it hasn't been loaded yet,
 			// to properly flush compressed data.  This allows the new version
 			// to be auditioned in the editor properly.
