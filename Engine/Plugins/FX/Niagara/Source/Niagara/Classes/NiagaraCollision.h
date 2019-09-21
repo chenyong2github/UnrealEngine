@@ -35,7 +35,7 @@ public:
 
 	~FNiagaraCollisionBatch()
 	{
-		FNiagaraEventDataSetMgr::Reset(OwnerSystemInstanceName, EmitterName);
+		FNiagaraEventDataSetMgr::Reset(OwnerSystemInstanceID, EmitterName);
 	}
 
 	void Reset()
@@ -46,7 +46,7 @@ public:
 		}
 	}
 
-	void Init(FName InOwnerSystemInstanceName, FName InEmitterName)
+	void Init(FNiagaraSystemInstanceID InOwnerSystemInstanceID, FName InEmitterName)
 	{
 		if (CollisionEventDataSet)
 		{
@@ -57,8 +57,8 @@ public:
 #endif
 		}
 		EmitterName = InEmitterName;
-		OwnerSystemInstanceName = InOwnerSystemInstanceName;
-		CollisionEventDataSet = FNiagaraEventDataSetMgr::CreateEventDataSet(OwnerSystemInstanceName, EmitterName, NIAGARA_BUILTIN_EVENTNAME_COLLISION);
+		OwnerSystemInstanceID = InOwnerSystemInstanceID;
+		CollisionEventDataSet = FNiagaraEventDataSetMgr::CreateEventDataSet(OwnerSystemInstanceID, EmitterName, NIAGARA_BUILTIN_EVENTNAME_COLLISION);
 		// TODO: this should go away once we can use the FNiagaraCollisionEventPayload
 		// UStruct to create the data set
 		//FNiagaraVariable ValidVar(FNiagaraTypeDefinition::GetIntDef(), "Valid");
@@ -87,7 +87,7 @@ private:
 	TArray<FNiagaraCollisionEventPayload> CollisionEvents;
 	FNiagaraDataSet *CollisionEventDataSet;
 	FName EmitterName;
-	FName OwnerSystemInstanceName;
+	FNiagaraSystemInstanceID OwnerSystemInstanceID;
 };
 
 
@@ -140,7 +140,7 @@ public:
 	}
 
 
-	void Init(FName InBatchID, UWorld *InCollisionWorld)
+	void Init(FNiagaraSystemInstanceID InBatchID, UWorld *InCollisionWorld)
 	{
 		BatchID = InBatchID;
 		CollisionWorld = InCollisionWorld;
@@ -163,7 +163,7 @@ private:
 	TArray<FNiagaraCollisionEventPayload> CollisionEvents;
 	FNiagaraDataSet *CollisionEventDataSet;
 
-	FName BatchID;
+	FNiagaraSystemInstanceID BatchID;
 	TArray<FNiagaraCollisionTrace> CollisionTraces[2];
 	TMap<uint32, int32> IdToTraceIdx[2];
 	uint32 CurrBuffer;
