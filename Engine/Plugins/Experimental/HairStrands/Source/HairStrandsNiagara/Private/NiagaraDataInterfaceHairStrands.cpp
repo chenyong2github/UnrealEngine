@@ -268,7 +268,7 @@ private:
 
 void FNDIHairStrandsProxy::DeferredDestroy()
 {
-	for (const FGuid& Sys : DeferredDestroyList)
+	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
 	{
 		SystemInstancesToProxyData.Remove(Sys);
 	}
@@ -288,7 +288,7 @@ void FNDIHairStrandsProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanc
 	}
 	else
 	{
-		UE_LOG(LogHairStrands, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %s"), *Instance.ToString());
+		UE_LOG(LogHairStrands, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %s"), *FNiagaraUtilities::SystemInstanceIDToString(Instance));
 	}
 }
 
@@ -314,7 +314,7 @@ void FNDIHairStrandsProxy::InitializePerInstanceData(const FNiagaraSystemInstanc
 	TargetData->TipThickness = TipThickness;
 }
 
-void FNDIHairStrandsProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FGuid& SystemInstance)
+void FNDIHairStrandsProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
 
