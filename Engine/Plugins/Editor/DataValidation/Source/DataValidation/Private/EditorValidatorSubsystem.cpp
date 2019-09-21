@@ -277,7 +277,7 @@ void UEditorValidatorSubsystem::ValidateOnSave(TArray<FAssetData> AssetDataList)
 		return;
 	}
 
-	FMessageLog DataValidationLog("DataValidation");
+	FMessageLog DataValidationLog("AssetCheck");
 	if (ValidateAssets(AssetDataList, true, false) > 0)
 	{
 		const FText ErrorMessageNotification = FText::Format(
