@@ -5,6 +5,7 @@
 #include "Common.ush"
 #include "ParticipatingMediaCommon.ush" 
 #include "ShadingCommon.ush" 
+#include "DistortionCommon.ush"
 
 
 #ifndef SIMPLE_SINGLE_LAYER_WATER
@@ -28,7 +29,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	Texture2D SceneLuminanceWithoutSingleLayerWaterTexture, SamplerState SceneLuminanceWithoutSingleLayerWaterSampler,
 	Texture2D SceneCustomDepthTexture, SamplerState SceneCustomDepthSampler,
 #endif // SIMPLE_SINGLE_LAYER_WATER
-	float Specular,
+	float Specular, const float4 DistortionParams,
 	float3 SunIlluminance, float3 AmbiantIlluminance, float3 EnvBrdf,
 	bool CameraIsUnderWater, float WaterVisibility)
 {
@@ -61,36 +62,18 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 #else  // !SIMPLE_SINGLE_LAYER_WATER
 
-		//////////////////////////////////////////////////////////////////////////////////////////////////// BEGIN Refration TODO make common with DistoAccumulatePS
-		float2 Refraction = GetMaterialRefraction(PixelMaterialInputs);// X = IOR, Y = Refraction Bias
-		float3 ViewNormal = normalize(TransformWorldVectorToView(MaterialParameters.WorldNormal));
-#if REFRACTION_USE_PIXEL_NORMAL_OFFSET
-		half3 ViewVertexNormal = TransformTangentVectorToView(MaterialParameters, float3(0, 0, 1));
-		// Treat Refraction of 1 as no refraction, to be consistent with IOR mode
-		float2 ViewportUVDistortion = (ViewVertexNormal.xy - ViewNormal.xy) * (Refraction.x - 1);
-#else
-		// we assume the camera is in air
-		float AirIOR = 1.0f;
-		float2 ViewportUVDistortion = ViewNormal.xy * (Refraction.x - AirIOR);
-#endif
-		float2 BufferUVDistortion = ViewportUVDistortion * ResolvedView.ViewSizeAndInvSize.xy * ResolvedView.BufferSizeAndInvSize.zw;
-		// When ISR is enabled we store two FOVs in the DistortionParams and compute the aspect ratio here
-		const float4 DistortionParams = 1.0f;
-		const float OffsetFudgeFactor = 1.0f;
-		float InvTanHalfFov = DistortionParams.x;
-		float Ratio = ResolvedView.ViewSizeAndInvSize.y * ResolvedView.ViewSizeAndInvSize.w;
-		// Fix for Fov and aspect.
-		float2 FovFix = float2(InvTanHalfFov, Ratio*InvTanHalfFov);
-		BufferUVDistortion *= 0.2 * DistortionParams.zw * float2(OffsetFudgeFactor, -OffsetFudgeFactor) * FovFix;
-		////////////////////////////////////////////////////////////////////////////////////////////////////  END Refration
+		float2 Refraction = GetMaterialRefraction(PixelMaterialInputs); // X = IOR, Y = Refraction Bias
+		float2 BufferUVDistortion = ComputeBufferUVDistortion(
+			MaterialParameters, PixelMaterialInputs, ResolvedView,
+			MaterialParameters.WorldNormal, DistortionParams, ViewportUV, Refraction, false);
+		PostProcessUVDistortion(MaterialParameters, PixelMaterialInputs, PixelSceneDepth, BufferUVDistortion, Refraction);
+		// Also reduce refraction according to water thickness
+		BufferUVDistortion *= saturate((PixelSceneDepth - WaterDepth) * 1.0 / 30.0f);// *(1 - saturate(WaterDepth * 1.0 / 2000.0f));
 
-		// TODO make distortion fading common with DistoAccumulatePS (right now 30cm to BehindWaterDeltaDepth fade out and 10m to distance fade out)
-		BufferUVDistortion *= saturate((PixelSceneDepth - WaterDepth) * 1.0 / 30.0f) * (1 - saturate(WaterDepth * 1.0 / 2000.0f));
+		// Clamp distorted UVs to not sample black outside the sub part of the buffer. Big quality increase.
+		const float2 DistortedUv = clamp(ViewportUV + BufferUVDistortion, 0.0, (ResolvedView.ViewSizeAndInvSize.xy-0.5f) * ResolvedView.BufferSizeAndInvSize.zw);
 
-
-
-
-		float SceneDeviceZ = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, saturate(ViewportUV + BufferUVDistortion), 0).r;
+		float SceneDeviceZ = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, DistortedUv, 0).r;
 		float SceneDepth = ConvertFromDeviceZ(SceneDeviceZ);
 		if (SceneDepth < WaterDepth)
 		{
@@ -98,7 +81,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		}
 		else
 		{
-			ViewportUV = saturate(ViewportUV + BufferUVDistortion);
+			ViewportUV = DistortedUv;
 		}
 
 #endif // !SIMPLE_SINGLE_LAYER_WATER
