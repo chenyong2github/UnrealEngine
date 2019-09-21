@@ -28,6 +28,21 @@ static FAutoConsoleVariableRef CVarNiagaraAllowAsyncWorkToEndOfFrame(
 	ECVF_Default
 );
 
+FAutoConsoleCommandWithWorld DumpNiagaraWorldManagerCommand(
+	TEXT("DumpNiagaraWorldManager"),
+	TEXT("Dump Information About the Niagara World Manager Contents"),
+	FConsoleCommandWithWorldDelegate::CreateLambda(
+		[](UWorld* World)
+		{
+			FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
+			if (WorldManager != nullptr && GLog != nullptr)
+			{
+				WorldManager->DumpDetails(*GLog);
+			}
+		}
+	)
+);
+
 FDelegateHandle FNiagaraWorldManager::OnWorldInitHandle;
 FDelegateHandle FNiagaraWorldManager::OnWorldCleanupHandle;
 FDelegateHandle FNiagaraWorldManager::OnPreWorldFinishDestroyHandle;
@@ -264,7 +279,7 @@ TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> FNiagaraWorldManager::
 	
 	TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> Sim = MakeShared<FNiagaraSystemSimulation, ESPMode::ThreadSafe>();
 	SystemSimulations[ActualTickGroup].Add(System, Sim);
-	Sim->Init(System, World, false);
+	Sim->Init(System, World, false, TickGroup);
 	return Sim;
 }
 
@@ -301,7 +316,6 @@ void FNiagaraWorldManager::OnBatcherDestroyed_Internal(NiagaraEmitterInstanceBat
 		}
 	}
 }
-
 
 void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResources)
 {
@@ -393,25 +407,29 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManTick);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 
-	//-TODO: This doesn't all have to happen here...
-	for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
+	// Resolve tick groups for pending spawn instances
+	for (int TG=0; TG < NiagaraNumTickGroups; ++TG)
 	{
-		TArray<UNiagaraSystem*, TInlineAllocator<4>> DeadSystems;
 		for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SystemSim : SystemSimulations[TG])
 		{
-			FNiagaraSystemSimulation*  Sim = &SystemSim.Value.Get();
-			if (Sim->IsValid())
+			FNiagaraSystemSimulation* Sim = &SystemSim.Value.Get();
+			if ( Sim->IsValid() )
 			{
-				Sim->SpawnNew_GameThread(DeltaSeconds, nullptr);
-			}
-			else
-			{
-				DeadSystems.Add(SystemSim.Key);
+				Sim->UpdateTickGroups_GameThread();
 			}
 		}
-		for (UNiagaraSystem* DeadSystem : DeadSystems)
+	}
+
+	// Execute spawn game thread
+	for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
+	{
+		for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SystemSim : SystemSimulations[TG])
 		{
-			SystemSimulations[TG].Remove(DeadSystem);
+			FNiagaraSystemSimulation* Sim = &SystemSim.Value.Get();
+			if (Sim->IsValid())
+			{
+				Sim->Spawn_GameThread(DeltaSeconds);
+			}
 		}
 	}
 
@@ -512,5 +530,34 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	for (UNiagaraSystem* DeadSystem : DeadSystems)
 	{
 		SystemSimulations[ActualTickGroup].Remove(DeadSystem);
+	}
+}
+
+void FNiagaraWorldManager::DumpDetails(FOutputDevice& Ar)
+{
+	Ar.Logf(TEXT("=== FNiagaraWorldManager Dumping Detailed Information"));
+
+	static const UEnum* TickingGroupEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ETickingGroup"));
+
+	for ( int TG=0; TG < NiagaraNumTickGroups; ++TG )
+	{
+		if (SystemSimulations[TG].Num() == 0 )
+		{
+			continue;
+		}
+
+		Ar.Logf(TEXT("TickingGroup %s"), *TickingGroupEnum->GetNameStringByIndex(TG + NiagaraFirstTickGroup));
+
+		for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SystemSim : SystemSimulations[TG])
+		{
+			FNiagaraSystemSimulation* Sim = &SystemSim.Value.Get();
+			if ( !Sim->IsValid() )
+			{
+				continue;
+			}
+
+			Ar.Logf(TEXT("\tSimulation %s"), *Sim->GetSystem()->GetFullName());
+			Sim->DumpTickInfo(Ar);
+		}
 	}
 }

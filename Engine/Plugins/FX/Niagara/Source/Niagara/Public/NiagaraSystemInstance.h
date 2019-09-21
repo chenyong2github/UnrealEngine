@@ -213,6 +213,9 @@ public:
 	/** Dumps all of this systems info to the log. */
 	void Dump()const;
 
+	/** Dumps information about the instances tick to the log */
+	void DumpTickInfo(FOutputDevice& Ar);
+
 	bool GetPerInstanceDataAndOffsets(void*& OutData, uint32& OutDataSize, TMap<TWeakObjectPtr<UNiagaraDataInterface>, int32>*& OutOffsets);
 
 	NiagaraEmitterInstanceBatcher* GetBatcher() const { return Batcher; }
@@ -246,8 +249,6 @@ private:
 
 	/** Call PrepareForSImulation on each data source from the simulations and determine which need per-tick updates.*/
 	void InitDataInterfaces();	
-
-	void BindParameterCollections(FNiagaraScriptExecutionContext& ExecContext);
 	
 	/** Calculates the distance to use for distance based LODing / culling. */
 	float GetLODDistance();
@@ -263,7 +264,6 @@ private:
 	UNiagaraComponent* Component;
 	FBox SystemBounds;
 
-	ETickingGroup TickGroup;
 	UActorComponent* PrereqComponent;
 
 	/** The age of the System instance. */
