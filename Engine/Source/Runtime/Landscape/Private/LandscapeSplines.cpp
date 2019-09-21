@@ -2130,7 +2130,15 @@ void ULandscapeSplineControlPoint::PostEditUndo()
 	Super::PostEditUndo();
 	bHackIsUndoingSplines = false;
 
-	GetOuterULandscapeSplinesComponent()->MarkRenderStateDirty();
+	ULandscapeSplinesComponent* SplineComponent = GetOuterULandscapeSplinesComponent();
+	SplineComponent->MarkRenderStateDirty();
+
+	ALandscapeProxy* OuterLandscape = Cast<ALandscapeProxy>(SplineComponent->GetOwner());
+	ALandscape* Landscape = OuterLandscape ? OuterLandscape->GetLandscapeActor() : nullptr;
+	if (Landscape)
+	{
+		Landscape->RequestSplineLayerUpdate();
+	}
 }
 
 void ULandscapeSplineControlPoint::PostDuplicate(bool bDuplicateForPIE)
@@ -3088,7 +3096,15 @@ void ULandscapeSplineSegment::PostEditUndo()
 	Super::PostEditUndo();
 	bHackIsUndoingSplines = false;
 
-	GetOuterULandscapeSplinesComponent()->MarkRenderStateDirty();
+	ULandscapeSplinesComponent* SplineComponent = GetOuterULandscapeSplinesComponent();
+	SplineComponent->MarkRenderStateDirty();
+
+	ALandscapeProxy* OuterLandscape = Cast<ALandscapeProxy>(SplineComponent->GetOwner());
+	ALandscape* Landscape = OuterLandscape ? OuterLandscape->GetLandscapeActor() : nullptr;
+	if (Landscape)
+	{
+		Landscape->RequestSplineLayerUpdate();
+	}
 }
 
 void ULandscapeSplineSegment::PostDuplicate(bool bDuplicateForPIE)
