@@ -30,6 +30,8 @@ struct FPrimitiveViewRelevance
 	uint32 bSeparateTranslucencyRelevance : 1;
 	/** The primitive has one or more elements that have normal translucency. */
 	uint32 bNormalTranslucencyRelevance : 1;
+	/** The primitive has one or more elements that have normal translucency. */
+	uint32 bUnderWaterTranslucencyRelevance : 1;
 	/** For translucent primitives reading the scene color. */
 	uint32 bUsesSceneColorCopy : 1;
 	/** For primitive that can't render in offscreen buffers (blend modulate). */
@@ -91,7 +93,7 @@ struct FPrimitiveViewRelevance
 
 	bool HasTranslucency() const 
 	{
-		return bSeparateTranslucencyRelevance || bNormalTranslucencyRelevance;
+		return bSeparateTranslucencyRelevance || bNormalTranslucencyRelevance || bUnderWaterTranslucencyRelevance;
 	}
 
 	/** Default constructor */
