@@ -179,9 +179,8 @@ struct FMovieSceneObjectBindingIDs
 	TArray<FMovieSceneObjectBindingID> IDs;
 };
 
-#if WITH_EDITORONLY_DATA
 /**
- *
+ * Structure that represents a group of sections
  */
 USTRUCT()
 struct FMovieSceneSectionGroup
@@ -233,7 +232,6 @@ public:
 	FORCEINLINE TArray<TWeakObjectPtr<UMovieSceneSection> >::RangedForIteratorType      end() { return Sections.end(); }
 	FORCEINLINE TArray<TWeakObjectPtr<UMovieSceneSection> >::RangedForConstIteratorType end() const { return Sections.end(); }
 };
-#endif
 
 /**
  * Implements a movie scene asset.
