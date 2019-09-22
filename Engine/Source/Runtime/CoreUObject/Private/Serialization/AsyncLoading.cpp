@@ -7397,7 +7397,7 @@ void CancelAsyncLoading()
 
 	FAsyncLoadingThread::Get().CancelAsyncLoading();
 
-	if (!GIsRequestingExit)
+	if (!IsEngineExitRequested())
 	{
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
 	}
