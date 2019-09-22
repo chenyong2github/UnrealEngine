@@ -136,6 +136,12 @@ private:	// GENERAL
 
 private:	// CONTEXT MENU
 
+	/**  Finds actors with class matching foliage type and merges them into foliage instances */
+	void OnIncludeNonFoliageActors(bool bOnlyCurrentLevel);
+
+	/** Excludes actors from matching foliage type and make them regular actors. */
+	void OnExcludeFoliageActors(bool bOnlyCurrentLevel);
+
 	/** @return the SWidget containing the context menu */
 	TSharedPtr<SWidget> ConstructFoliageTypeContextMenu();
 

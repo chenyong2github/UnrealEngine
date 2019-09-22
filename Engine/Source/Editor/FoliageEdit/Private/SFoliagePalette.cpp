@@ -6,6 +6,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "FoliagePaletteItem.h"
 #include "FoliageType.h"
+#include "FoliageType_Actor.h"
 #include "FoliageType_InstancedStaticMesh.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/FeedbackContext.h"
@@ -901,8 +902,14 @@ TSharedPtr<SWidget> SFoliagePalette::ConstructFoliageTypeContextMenu()
 	FMenuBuilder MenuBuilder(true, UICommandList);
 
 	auto SelectedItems = GetActiveViewWidget()->GetSelectedItems();
+	
 	if (SelectedItems.Num() > 0)
 	{
+		bool bSelectionContainsActorFoliage = SelectedItems.IndexOfByPredicate([](const FFoliagePaletteItemModelPtr& PaletteItem)
+		{
+			return Cast<const UFoliageType_Actor>(PaletteItem->GetFoliageType()) != nullptr;
+		}) != INDEX_NONE;
+		
 		const bool bShowSaveAsOption = SelectedItems.Num() == 1 && !SelectedItems[0]->IsAsset() && !SelectedItems[0]->IsBlueprint();
 		if (bShowSaveAsOption)
 		{
@@ -950,6 +957,27 @@ TSharedPtr<SWidget> SFoliagePalette::ConstructFoliageTypeContextMenu()
 				LOCTEXT("ReplaceFoliageType_ToolTip", "Replaces selected foliage type with another foliage type asset"),
 				FNewMenuDelegate::CreateSP(this, &SFoliagePalette::FillReplaceFoliageTypeSubmenu));
 
+			if (bSelectionContainsActorFoliage)
+			{
+				MenuBuilder.AddSubMenu(
+					LOCTEXT("IncludeNonFoliageActors", "Include Non Foliage Actors..."),
+					LOCTEXT("IncludeNonFoliageActors_ToolTip", "Include non foliage type actors with matching blueprint into foliage"),
+					FNewMenuDelegate::CreateLambda([&](FMenuBuilder& SubMenuBuilder)
+				{
+					SubMenuBuilder.AddMenuEntry(LOCTEXT("IncludeNonFoliageActors_CurrentLevel", "Current Level"), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &SFoliagePalette::OnIncludeNonFoliageActors, true));
+					SubMenuBuilder.AddMenuEntry(LOCTEXT("IncludeNonFoliageActors_AllLevels", "All Levels"), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &SFoliagePalette::OnIncludeNonFoliageActors, false));
+				}));
+
+				MenuBuilder.AddSubMenu(
+					LOCTEXT("ExcludeFoliageActors", "Exclude Actors..."),
+					LOCTEXT("ExcludeFoliageActors_ToolTip", "Exclude actors with foliage type from foliage"),
+					FNewMenuDelegate::CreateLambda([&](FMenuBuilder& SubMenuBuilder)
+				{
+					SubMenuBuilder.AddMenuEntry(LOCTEXT("ExcludeFoliageActors_CurrentLevel", "Current Level"), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &SFoliagePalette::OnExcludeFoliageActors, true));
+					SubMenuBuilder.AddMenuEntry(LOCTEXT("ExcludeFoliageActors_AllLevels", "All Levels"), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &SFoliagePalette::OnExcludeFoliageActors, false));
+				}));
+			}
+
 			MenuBuilder.AddMenuEntry(Commands.ShowFoliageTypeInCB);
 		}
 		MenuBuilder.EndSection();
@@ -964,6 +992,22 @@ TSharedPtr<SWidget> SFoliagePalette::ConstructFoliageTypeContextMenu()
 	}
 
 	return MenuBuilder.MakeWidget();
+}
+
+void SFoliagePalette::OnIncludeNonFoliageActors(bool bOnlyCurrentLevel)
+{
+	ExecuteOnSelectedItemFoliageTypes([&, bOnlyCurrentLevel](const TArray<const UFoliageType*>& FoliageTypes)
+	{
+		FoliageEditMode->IncludeNonFoliageActors(FoliageTypes, bOnlyCurrentLevel);
+	});
+}
+
+void SFoliagePalette::OnExcludeFoliageActors(bool bOnlyCurrentLevel)
+{
+	ExecuteOnSelectedItemFoliageTypes([&, bOnlyCurrentLevel](const TArray<const UFoliageType*>& FoliageTypes)
+	{
+		FoliageEditMode->ExcludeFoliageActors(FoliageTypes, bOnlyCurrentLevel);
+	});
 }
 
 void SFoliagePalette::OnSaveSelected()

@@ -433,7 +433,7 @@ const FLevelViewportCommands& FLevelEditorModule::GetLevelViewportCommands() con
 	return FLevelViewportCommands::Get();
 }
 
-TWeakPtr<class SLevelEditor> FLevelEditorModule::GetLevelEditorInstance() const
+TWeakPtr<class ILevelEditor> FLevelEditorModule::GetLevelEditorInstance() const
 {
 	return LevelEditorInstancePtr;
 }

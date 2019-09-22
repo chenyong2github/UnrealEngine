@@ -145,7 +145,7 @@ public:
 	virtual const class FLevelViewportCommands& GetLevelViewportCommands() const;
 
 	/* @return The pointer to the current level Editor instance */
-	virtual TWeakPtr<class SLevelEditor> GetLevelEditorInstance() const;
+	virtual TWeakPtr<class ILevelEditor> GetLevelEditorInstance() const;
 
 	/* @return The pointer to the level editor tab */
 	virtual TWeakPtr<class SDockTab> GetLevelEditorInstanceTab() const;

@@ -477,6 +477,10 @@ public:
 	/** Save the foliage type object. If it isn't an asset, will prompt the user for a location to save the new asset. */
 	UFoliageType* SaveFoliageTypeObject(UFoliageType* Settings);
 
+	void IncludeNonFoliageActors(const TArray<const UFoliageType*>& FoliageTypes, bool bOnlyCurrentLevel);
+
+	void ExcludeFoliageActors(const TArray<const UFoliageType*>& FoliageTypes, bool bOnlyCurrentLevel);
+
 	/** Set/Clear selection for foliage instances of a specific types */
 	void SelectInstances(const TArray<const UFoliageType*>& FoliageTypes, bool bSelect);
 

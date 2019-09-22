@@ -12,6 +12,7 @@
 #include "AssetThumbnail.h"
 #include "Toolkits/IToolkitHost.h"
 
+class ISceneOutliner;
 class ILevelViewport;
 class SLevelViewport;
 
@@ -60,6 +61,7 @@ public:
 	/** Spawns a level editor ToolBox widget (aka. "Modes") */
 	virtual TSharedRef<SWidget> CreateToolBox() = 0;
 
+	virtual TSharedPtr<ISceneOutliner> GetSceneOutliner() const = 0;
 };
 
 
