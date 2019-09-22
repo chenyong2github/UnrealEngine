@@ -63,8 +63,11 @@ private:
 	//~ FGCObject
 protected:
 	//~IARSystemSupport
+	/** Returns true/false based on whether AR features are available */
+	virtual bool IsARAvailable() const override;
 	virtual void OnARSystemInitialized() override;
 	virtual EARTrackingQuality OnGetTrackingQuality() const override;
+	virtual EARTrackingQualityReason OnGetTrackingQualityReason() const override;
 	virtual void OnStartARSession(UARSessionConfig* SessionConfig) override;
 	virtual void OnPauseARSession() override;
 	virtual void OnStopARSession() override;
@@ -145,7 +148,7 @@ private:
 	
 	bool bIsRunning = false;
 	
-	void SetDeviceOrientation(EDeviceScreenOrientation InOrientation);
+	void SetDeviceOrientationAndDerivedTracking(EDeviceScreenOrientation InOrientation);
 
 	/** Creates or clears the face ar support object if face ar has been requested */
 	void CheckForFaceARSupport(UARSessionConfig* InSessionConfig);
@@ -213,7 +216,7 @@ private:
 	IAppleARKitPoseTrackingLiveLink* PoseTrackingARLiveLink;
 
 	/** The time code provider to use when tagging time stamps */
-	UTimecodeProvider* TimecodeProvider;
+	UTimecodeProvider* TimecodeProvider = nullptr;
 };
 
 
