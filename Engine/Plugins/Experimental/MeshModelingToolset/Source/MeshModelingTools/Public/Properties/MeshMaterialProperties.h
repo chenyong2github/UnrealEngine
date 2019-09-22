@@ -38,6 +38,13 @@ public:
 	/** Overlay wireframe on preview */
 	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "Show Wireframe"))
 	bool bWireframe = false;
+
+
+	//
+	// save/restore support
+	//
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 

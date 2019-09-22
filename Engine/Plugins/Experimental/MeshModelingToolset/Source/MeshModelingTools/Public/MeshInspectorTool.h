@@ -76,6 +76,11 @@ public:
 	float TangentLength = 5.0f;
 
 
+	//
+	// save/restore support
+	//
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 

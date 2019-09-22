@@ -146,6 +146,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	EMeshSculptToolSmoothType SmoothingType;
 
+
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
+
 };
 
 

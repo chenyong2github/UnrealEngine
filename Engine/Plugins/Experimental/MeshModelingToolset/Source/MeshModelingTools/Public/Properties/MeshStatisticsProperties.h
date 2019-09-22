@@ -21,10 +21,13 @@ class MESHMODELINGTOOLS_API UMeshStatisticsProperties : public UInteractiveToolP
 public:
 
 	UPROPERTY(VisibleAnywhere, Category = MeshStatistics)
-	int TriangleCount = 0;
+	FString Mesh;
 
-	UPROPERTY(VisibleAnywhere, Category = MeshStatistics)
-	int VertexCount = 0;
+	UPROPERTY(VisibleAnywhere, Category = MeshStatistics, AdvancedDisplay)
+	FString UV;
+
+	UPROPERTY(VisibleAnywhere, Category = MeshStatistics, AdvancedDisplay)
+	FString Attributes;
 
 	void Update(const FDynamicMesh3& Mesh);
 };

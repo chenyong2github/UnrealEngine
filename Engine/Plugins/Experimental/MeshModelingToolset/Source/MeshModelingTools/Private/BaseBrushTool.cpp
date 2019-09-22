@@ -16,6 +16,23 @@ UBrushBaseProperties::UBrushBaseProperties()
 	BrushRadius = 0.0f;
 }
 
+void UBrushBaseProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+{
+	UBrushBaseProperties* PropertyCache = GetPropertyCache<UBrushBaseProperties>();
+	PropertyCache->BrushSize = this->BrushSize;
+	PropertyCache->bSpecifyRadius = this->bSpecifyRadius;
+	PropertyCache->BrushRadius = this->BrushRadius;
+}
+
+void UBrushBaseProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	UBrushBaseProperties* PropertyCache = GetPropertyCache<UBrushBaseProperties>();
+	this->BrushSize = PropertyCache->BrushSize;
+	this->bSpecifyRadius = PropertyCache->bSpecifyRadius;
+	this->BrushRadius = PropertyCache->BrushRadius;
+}
+
+
 
 
 UBaseBrushTool::UBaseBrushTool()

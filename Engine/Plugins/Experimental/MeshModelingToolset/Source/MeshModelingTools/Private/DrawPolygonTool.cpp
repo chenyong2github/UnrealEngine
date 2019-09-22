@@ -66,6 +66,58 @@ UDrawPolygonToolStandardProperties::UDrawPolygonToolStandardProperties()
 {
 }
 
+
+void UDrawPolygonToolStandardProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+{
+	UDrawPolygonToolStandardProperties* PropertyCache = GetPropertyCache<UDrawPolygonToolStandardProperties>();
+	PropertyCache->PolygonType = this->PolygonType;
+	PropertyCache->OutputMode = this->OutputMode;
+	PropertyCache->ExtrudeHeight = this->ExtrudeHeight;
+	PropertyCache->Steps = this->Steps;
+	PropertyCache->bAllowSelfIntersections = this->bAllowSelfIntersections;
+}
+
+void UDrawPolygonToolStandardProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	UDrawPolygonToolStandardProperties* PropertyCache = GetPropertyCache<UDrawPolygonToolStandardProperties>();
+	this->PolygonType = PropertyCache->PolygonType;
+	this->OutputMode = PropertyCache->OutputMode;
+	this->ExtrudeHeight = PropertyCache->ExtrudeHeight;
+	this->Steps = PropertyCache->Steps;
+	this->bAllowSelfIntersections = PropertyCache->bAllowSelfIntersections;
+}
+
+
+
+void UDrawPolygonToolSnapProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+{
+	UDrawPolygonToolSnapProperties* PropertyCache = GetPropertyCache<UDrawPolygonToolSnapProperties>();
+	PropertyCache->bEnableSnapping = this->bEnableSnapping;
+	PropertyCache->bSnapToVertices = this->bSnapToVertices;
+	PropertyCache->bSnapToEdges = this->bSnapToEdges;
+	PropertyCache->bSnapToAngles = this->bSnapToAngles;
+	PropertyCache->bSnapToLengths = this->bSnapToLengths;
+	PropertyCache->bHitSceneObjects = this->bHitSceneObjects;
+	//PropertyCache->SegmentLength = this->Length;		// this is purely a feedback property
+	PropertyCache->HitNormalOffset = this->HitNormalOffset;
+}
+
+void UDrawPolygonToolSnapProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	UDrawPolygonToolSnapProperties* PropertyCache = GetPropertyCache<UDrawPolygonToolSnapProperties>();
+	this->bEnableSnapping = PropertyCache->bEnableSnapping;
+	this->bSnapToVertices = PropertyCache->bSnapToVertices;
+	this->bSnapToEdges = PropertyCache->bSnapToEdges;
+	this->bSnapToAngles = PropertyCache->bSnapToAngles;
+	this->bSnapToLengths = PropertyCache->bSnapToLengths;
+	this->bHitSceneObjects = PropertyCache->bHitSceneObjects;
+	//this->SegmentLength = PropertyCache->Length;
+	this->HitNormalOffset = PropertyCache->HitNormalOffset;
+}
+
+
+
+
 /*
  * Tool
  */
@@ -115,8 +167,7 @@ void UDrawPolygonTool::Setup()
 	AddInputBehavior(AKeyBehavior);
 
 	PolygonProperties = NewObject<UDrawPolygonToolStandardProperties>(this, TEXT("Polygon Settings"));
-	PolygonProperties->OutputMode = EDrawPolygonOutputMode::ExtrudedInteractive;
-	PolygonProperties->ExtrudeHeight = 100.0f;
+	PolygonProperties->RestoreProperties(this);
 
 
 	UPositionPlaneGizmoBuilder* PositionPlaneGizmoBuilder = NewObject<UPositionPlaneGizmoBuilder>();
@@ -129,6 +180,7 @@ void UDrawPolygonTool::Setup()
 	};
 
 	MaterialProperties = NewObject<UNewMeshMaterialProperties>(this);
+	MaterialProperties->RestoreProperties(this);
 
 	// create preview mesh object
 	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("DrawPolygonPreviewMesh"));
@@ -145,10 +197,9 @@ void UDrawPolygonTool::Setup()
 
 
 	SnapProperties = NewObject<UDrawPolygonToolSnapProperties>(this, TEXT("Snapping"));
+	SnapProperties->RestoreProperties(this);
 
-	
-
-	// add self as tool props
+	// register tool properties
 	AddToolPropertySource(PolygonProperties);
 	AddToolPropertySource(SnapProperties);
 	AddToolPropertySource(MaterialProperties);
@@ -173,6 +224,10 @@ void UDrawPolygonTool::Shutdown(EToolShutdownType ShutdownType)
 	GizmoManager->DestroyGizmo(PositionPlaneGizmo);
 	PositionPlaneGizmo = nullptr;
 	GizmoManager->DeregisterGizmoType(TEXT("DrawPolygonPlaneGizmo"));
+
+	PolygonProperties->SaveProperties(this);
+	SnapProperties->SaveProperties(this);
+	MaterialProperties->SaveProperties(this);
 }
 
 void UDrawPolygonTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
@@ -424,7 +479,7 @@ void UDrawPolygonTool::UpdatePreviewVertex(const FVector& PreviewVertexIn)
 	if (PolygonVertices.Num() > 0)
 	{
 		FVector LastVertex = PolygonVertices[PolygonVertices.Num() - 1];
-		SnapProperties->Length = FVector::Distance(LastVertex, PreviewVertex);
+		SnapProperties->SegmentLength = FVector::Distance(LastVertex, PreviewVertex);
 	}
 }
 

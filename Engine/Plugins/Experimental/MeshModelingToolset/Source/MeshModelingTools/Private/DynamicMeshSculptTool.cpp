@@ -46,6 +46,26 @@ UBrushSculptProperties::UBrushSculptProperties()
 	bFreezeTarget = false;
 }
 
+void UBrushSculptProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+{
+	UBrushSculptProperties* PropertyCache = GetPropertyCache<UBrushSculptProperties>();
+	PropertyCache->SmoothSpeed = this->SmoothSpeed;
+	PropertyCache->BrushSpeed = this->BrushSpeed;
+	PropertyCache->PrimaryBrushType = this->PrimaryBrushType;
+	PropertyCache->SmoothingType = this->SmoothingType;
+	PropertyCache->Depth = this->Depth;
+}
+
+void UBrushSculptProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	UBrushSculptProperties* PropertyCache = GetPropertyCache<UBrushSculptProperties>();
+	this->SmoothSpeed = PropertyCache->SmoothSpeed;
+	this->BrushSpeed = PropertyCache->BrushSpeed;
+	this->PrimaryBrushType = PropertyCache->PrimaryBrushType;
+	this->SmoothingType = PropertyCache->SmoothingType;
+	this->Depth = PropertyCache->Depth;
+}
+
 
 
 UBrushRemeshProperties::UBrushRemeshProperties()
@@ -141,6 +161,10 @@ void UDynamicMeshSculptTool::Setup()
 		AddToolPropertySource(RemeshProperties);
 	}
 
+	BrushProperties->RestoreProperties(this);
+	CalculateBrushRadius();
+	SculptProperties->RestoreProperties(this);
+
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartSculptTool", "Shift key toggles to Smoothing Brush, Ctrl inverts Brush (where applicable). Q/A keys cycle through Brush Types, Shift+Q/A for Brush History. S/D change Size (shift to small-step), W/E change Speed."),
 		EToolMessageLevel::UserNotification);
@@ -175,6 +199,8 @@ void UDynamicMeshSculptTool::Shutdown(EToolShutdownType ShutdownType)
 		DynamicMeshComponent = nullptr;
 	}
 
+	BrushProperties->SaveProperties(this);
+	SculptProperties->SaveProperties(this);
 }
 
 

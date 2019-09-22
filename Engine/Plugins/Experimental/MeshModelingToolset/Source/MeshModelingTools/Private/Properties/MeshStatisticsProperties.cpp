@@ -11,10 +11,30 @@
 #define LOCTEXT_NAMESPACE "UMeshStatisticsProperites"
 
 
-void UMeshStatisticsProperties::Update(const FDynamicMesh3& Mesh)
+void UMeshStatisticsProperties::Update(const FDynamicMesh3& MeshIn)
 {
-	TriangleCount = Mesh.TriangleCount();
-	VertexCount = Mesh.VertexCount();
+	this->Mesh = FString::Printf(TEXT("T: %d  V: %d  E: %d"), MeshIn.TriangleCount(), MeshIn.VertexCount(), MeshIn.EdgeCount());
+
+	if (MeshIn.HasAttributes())
+	{
+		const FDynamicMeshAttributeSet* Attribs = MeshIn.Attributes();
+
+		FString UVString;
+		for ( int k = 0; k < Attribs->NumUVLayers(); k++)
+		{ 
+			const FDynamicMeshUVOverlay* UVLayer = Attribs->GetUVLayer(k);
+			UVString += FString::Printf(TEXT("UV%d: %d"), k, UVLayer->ElementCount());
+		}
+		this->UV = UVString;
+
+ 		this->Attributes = FString::Printf(TEXT("Normals: %d"), Attribs->GetNormalLayer(0)->ElementCount());
+	}
+	else
+	{
+		this->UV = FString(TEXT("none"));
+		this->Attributes = FString(TEXT("none"));
+	}
+
 }
 
 

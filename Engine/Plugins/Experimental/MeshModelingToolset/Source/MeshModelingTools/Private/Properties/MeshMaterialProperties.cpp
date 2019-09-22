@@ -17,6 +17,27 @@ UNewMeshMaterialProperties::UNewMeshMaterialProperties()
 	Material = CreateDefaultSubobject<UMaterialInterface>(TEXT("MATERIAL"));
 }
 
+
+void UNewMeshMaterialProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+{
+	UNewMeshMaterialProperties* PropertyCache = GetPropertyCache<UNewMeshMaterialProperties>();
+	PropertyCache->Material = this->Material;
+	PropertyCache->UVScale = this->UVScale;
+	PropertyCache->bWorldSpaceUVScale = this->bWorldSpaceUVScale;
+	// not bWireframe
+}
+
+void UNewMeshMaterialProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	UNewMeshMaterialProperties* PropertyCache = GetPropertyCache<UNewMeshMaterialProperties>();
+	this->Material = PropertyCache->Material;
+	this->UVScale = PropertyCache->UVScale;
+	this->bWorldSpaceUVScale = PropertyCache->bWorldSpaceUVScale;
+}
+
+
+
+
 void UExistingMeshMaterialProperties::Setup()
 {
 	UMaterial* CheckerMaterialBase = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/CheckerMaterial"));

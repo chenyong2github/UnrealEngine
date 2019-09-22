@@ -60,13 +60,13 @@ enum class EDrawPolygonDrawMode : uint8
 UENUM()
 enum class EDrawPolygonOutputMode : uint8
 {
-	/** Planar polygon mesh */
+	/** Generate a meshed planar polygon */
 	MeshedPolygon UMETA(DisplayName = "Flat Mesh"),
 
-	/** Fixed-distance Extrusion */
-	ExtrudedConstant UMETA(DisplayName = "Extruded To Distance"),
+	/** Extrude closed polygon to constant height determined by Extrude Height Property */
+	ExtrudedConstant UMETA(DisplayName = "Extrude To Height"),
 
-	/** extrusion height is set via additional mouse input after closing polygon */
+	/** Extrusion height is set via additional mouse input after closing polygon */
 	ExtrudedInteractive UMETA(DisplayName = "Interactive Extrude"),
 };
 
@@ -75,18 +75,18 @@ enum class EDrawPolygonOutputMode : uint8
 
 
 UCLASS()
-class MESHMODELINGTOOLS_API UDrawPolygonToolStandardProperties : public UObject
+class MESHMODELINGTOOLS_API UDrawPolygonToolStandardProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
-	public:
+public:
 	UDrawPolygonToolStandardProperties();
 
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
 	EDrawPolygonDrawMode PolygonType = EDrawPolygonDrawMode::Freehand;
 
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
-	EDrawPolygonOutputMode OutputMode = EDrawPolygonOutputMode::ExtrudedConstant;
+	EDrawPolygonOutputMode OutputMode = EDrawPolygonOutputMode::ExtrudedInteractive;
 
 	/** Extrusion Distance in non-interactive mode */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "-1000", UIMax = "1000", ClampMin = "-10000", ClampMax = "10000"))
@@ -98,13 +98,19 @@ class MESHMODELINGTOOLS_API UDrawPolygonToolStandardProperties : public UObject
 
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
 	bool bAllowSelfIntersections = false;
+
+	//
+	// save/restore support
+	//
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
 
 
 UCLASS()
-class MESHMODELINGTOOLS_API UDrawPolygonToolSnapProperties : public UObject
+class MESHMODELINGTOOLS_API UDrawPolygonToolSnapProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -124,14 +130,20 @@ public:
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping"))
 	bool bSnapToLengths = true;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping)
-	float Length = 0.0f;
+	UPROPERTY(VisibleAnywhere, NonTransactional, Category = Snapping)
+	float SegmentLength = 0.0f;
 
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping)
 	bool bHitSceneObjects = false;
 
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bHitSceneObjects"))
 	float HitNormalOffset = 0.0f;
+
+	//
+	// save/restore support
+	//
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 

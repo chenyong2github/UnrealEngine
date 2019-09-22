@@ -53,6 +53,30 @@ UProceduralShapeToolProperties::UProceduralShapeToolProperties()
 	PlaceMode = EMakeMeshPlacementType::OnScene;
 }
 
+void UProceduralShapeToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+{
+	UProceduralShapeToolProperties* PropertyCache = GetPropertyCache<UProceduralShapeToolProperties>();
+	PropertyCache->Shape = this->Shape;
+	PropertyCache->Width = this->Width;
+	PropertyCache->Height = this->Height;
+	PropertyCache->Slices = this->Slices;
+	PropertyCache->Subdivisions = this->Subdivisions;
+	PropertyCache->PivotLocation = this->PivotLocation;
+	PropertyCache->PlaceMode = this->PlaceMode;
+}
+
+void UProceduralShapeToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	UProceduralShapeToolProperties* PropertyCache = GetPropertyCache<UProceduralShapeToolProperties>();
+	this->Shape = PropertyCache->Shape;
+	this->Width = PropertyCache->Width;
+	this->Height = PropertyCache->Height;
+	this->Slices = PropertyCache->Slices;
+	this->Subdivisions = PropertyCache->Subdivisions;
+	this->PivotLocation = PropertyCache->PivotLocation;
+	this->PlaceMode = PropertyCache->PlaceMode;
+}
+
 namespace
 {
 	struct {
@@ -109,9 +133,11 @@ void UAddPrimitiveTool::Setup()
 
 	ShapeSettings = NewObject<UProceduralShapeToolProperties>(this);
 	AddToolPropertySource(ShapeSettings);
+	ShapeSettings->RestoreProperties(this);
 
 	MaterialProperties = NewObject<UNewMeshMaterialProperties>(this);
 	AddToolPropertySource(MaterialProperties);
+	MaterialProperties->RestoreProperties(this);
 
 	// create preview mesh object
 	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("PreviewMesh"));
@@ -132,6 +158,9 @@ void UAddPrimitiveTool::Shutdown(EToolShutdownType ShutdownType)
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->Disconnect();
 	PreviewMesh = nullptr;
+
+	ShapeSettings->SaveProperties(this);
+	MaterialProperties->SaveProperties(this);	
 }
 
 
