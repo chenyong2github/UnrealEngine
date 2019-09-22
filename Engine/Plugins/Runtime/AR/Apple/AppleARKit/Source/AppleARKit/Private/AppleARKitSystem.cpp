@@ -18,6 +18,7 @@
 #include "ARPin.h"
 #include "Async/Async.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
 
 // For mesh occlusion
@@ -32,11 +33,16 @@
 #include "Misc/CoreDelegates.h"
 
 #if PLATFORM_IOS
-	#include "IOSRuntimeSettings.h"
-
 	#pragma clang diagnostic push
 	#pragma clang diagnostic ignored "-Wpartial-availability"
 #endif
+
+// This flag might belong in UARSessionConfig, if Apple couldn't fix the bug where
+// ARKit stops tracking surfaces after the back camera gets used by some other code
+static TAutoConsoleVariable<int32> CVarReleaseSessionWhenStopped(
+    TEXT("ar.ARKit.ReleaseSessionWhenStopped"),
+    0,
+	TEXT("Whether to release the ARKit session object when the AR session is stopped."));
 
 DECLARE_CYCLE_STAT(TEXT("SessionDidUpdateFrame_DelegateThread"), STAT_FAppleARKitSystem_SessionUpdateFrame, STATGROUP_ARKIT);
 DECLARE_CYCLE_STAT(TEXT("SessionDidAddAnchors_DelegateThread"), STAT_FAppleARKitSystem_SessionDidAddAnchors, STATGROUP_ARKIT);
@@ -44,6 +50,8 @@ DECLARE_CYCLE_STAT(TEXT("SessionDidUpdateAnchors_DelegateThread"), STAT_FAppleAR
 DECLARE_CYCLE_STAT(TEXT("SessionDidRemoveAnchors_DelegateThread"), STAT_FAppleARKitSystem_SessionDidRemoveAnchors, STATGROUP_ARKIT);
 DECLARE_CYCLE_STAT(TEXT("UpdateARKitPerf"), STAT_FAppleARKitSystem_UpdateARKitPerf, STATGROUP_ARKIT);
 DECLARE_DWORD_COUNTER_STAT(TEXT("ARKit CPU %"), STAT_ARKitThreads, STATGROUP_ARKIT);
+
+DECLARE_FLOAT_COUNTER_STAT(TEXT("ARKit Frame to Delegate Delay (ms)"), STAT_ARKitFrameToDelegateDelay, STATGROUP_ARKIT);
 
 // Copied from IOSPlatformProcess because it's not accessible by external code
 #define GAME_THREAD_PRIORITY 47
@@ -247,6 +255,15 @@ void FAppleARKitSystem::Shutdown()
 	
 	PersonSegmentationImage = nullptr;
 	PersonSegmentationDepthImage = nullptr;
+}
+
+bool FAppleARKitSystem::IsARAvailable() const
+{
+#if SUPPORTS_ARKIT_1_0
+	return FAppleARKitAvailability::SupportsARKit10();
+#else
+	return false;
+#endif
 }
 
 void FAppleARKitSystem::CheckForFaceARSupport(UARSessionConfig* InSessionConfig)
@@ -580,6 +597,13 @@ EARTrackingQuality FAppleARKitSystem::OnGetTrackingQuality() const
 	return GameThreadFrame.IsValid()
 		? GameThreadFrame->Camera.TrackingQuality
 		: EARTrackingQuality::NotTracking;
+}
+
+EARTrackingQualityReason FAppleARKitSystem::OnGetTrackingQualityReason() const
+{
+	return GameThreadFrame.IsValid()
+	? GameThreadFrame->Camera.TrackingQualityReason
+	: EARTrackingQualityReason::None;
 }
 
 void FAppleARKitSystem::OnStartARSession(UARSessionConfig* SessionConfig)
@@ -1218,7 +1242,7 @@ bool FAppleARKitSystem::HitTestAtScreenPosition(const FVector2D ScreenPosition, 
 	return false;
 }
 
-void FAppleARKitSystem::SetDeviceOrientation(EDeviceScreenOrientation InOrientation)
+void FAppleARKitSystem::SetDeviceOrientationAndDerivedTracking(EDeviceScreenOrientation InOrientation)
 {
 	ensureAlwaysMsgf(InOrientation != EDeviceScreenOrientation::Unknown, TEXT("statusBarOrientation should only ever return valid orientations"));
 	if (InOrientation == EDeviceScreenOrientation::Unknown)
@@ -1227,11 +1251,11 @@ void FAppleARKitSystem::SetDeviceOrientation(EDeviceScreenOrientation InOrientat
 		InOrientation = EDeviceScreenOrientation::LandscapeLeft;
 	}
 
-	if (DeviceOrientation != InOrientation)
-	{
-		DeviceOrientation = InOrientation;
-		CalcTrackingToWorldRotation();
-	}
+	// even if this didn't change, we need to call CalcTrackingToWorldRotation because the camera mode may have changed (from Gravity to non-Gravity, etc)
+
+	DeviceOrientation = InOrientation;
+	CalcTrackingToWorldRotation();
+	
 }
 
 void FAppleARKitSystem::ClearTrackedGeometries()
@@ -1287,7 +1311,7 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 	if (DeviceOrientation == EDeviceScreenOrientation::Unknown)
 	{
 		EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
-		SetDeviceOrientation( ScreenOrientation );
+		SetDeviceOrientationAndDerivedTracking( ScreenOrientation );
 	}
 
 
@@ -1401,6 +1425,12 @@ bool FAppleARKitSystem::Pause()
 	{
 		// Suspend the session
 		[Session pause];
+		
+		if (CVarReleaseSessionWhenStopped.GetValueOnAnyThread())
+		{
+			[Session release];
+			Session = nullptr;
+		}
 	}
 	
 #if PLATFORM_IOS && !PLATFORM_TVOS
@@ -1429,11 +1459,16 @@ bool FAppleARKitSystem::Pause()
 void FAppleARKitSystem::OrientationChanged(const int32 NewOrientationRaw)
 {
 	const EDeviceScreenOrientation NewOrientation = static_cast<EDeviceScreenOrientation>(NewOrientationRaw);
-	SetDeviceOrientation(NewOrientation);
+	SetDeviceOrientationAndDerivedTracking(NewOrientation);
 }
 						
 void FAppleARKitSystem::SessionDidUpdateFrame_DelegateThread(TSharedPtr< FAppleARKitFrame, ESPMode::ThreadSafe > Frame)
 {
+#if STATS && SUPPORTS_ARKIT_1_0
+	const auto DelayMS = ([[NSProcessInfo processInfo] systemUptime] - Frame->Timestamp) * 1000.0;
+	SET_FLOAT_STAT(STAT_ARKitFrameToDelegateDelay, DelayMS);
+#endif
+	
 	{
 		auto UpdateFrameTask = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP( this, &FAppleARKitSystem::SessionDidUpdateFrame_Internal, Frame.ToSharedRef() );
 		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(UpdateFrameTask, GET_STATID(STAT_FAppleARKitSystem_SessionUpdateFrame), nullptr, ENamedThreads::GameThread);
