@@ -455,7 +455,7 @@ void FEditorSessionSummaryWriter::OnTerminate()
 		CurrentSession->bIsTerminating = true;
 		FPlatformMisc::SetStoredValue(SessionSummaryDefs::StoreId, CurrentSessionSectionName, SessionSummaryDefs::IsTerminatingKey, SessionSummaryDefs::TrueValueString);
 
-		if (GIsRequestingExit)
+		if (IsEngineExitRequested())
 		{
 			Shutdown();
 		}
