@@ -1730,6 +1730,15 @@ void UAssetRegistryImpl::AppendState(const FAssetRegistryState& InState)
 {
 	State.InitializeFromExisting(InState, SerializationOptions, FAssetRegistryState::EInitializationMode::Append);
 	CachePathsFromState(InState);
+
+	TArray<FAssetData> Assets;
+	InState.GetAllAssets(TSet<FName>(), Assets);
+	for (const FAssetData& Asset : Assets)
+	{
+		// Let subscribers know that the new asset was added to the registry
+		AssetAddedEvent.Broadcast(Asset);
+	}
+
 }
 
 void UAssetRegistryImpl::CachePathsFromState(const FAssetRegistryState& InState)
