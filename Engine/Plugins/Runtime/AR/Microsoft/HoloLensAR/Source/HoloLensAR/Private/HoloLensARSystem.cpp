@@ -109,7 +109,7 @@ void FHoloLensARSystem::OnARSystemInitialized()
 	UE_LOG(LogHoloLensAR, Log, TEXT("HoloLens AR system has been initialized"));
 }
 
-bool FHoloLensARSystem::IsARAvailable() const override
+bool FHoloLensARSystem::IsARAvailable() const
 {
 	return true;
 }
