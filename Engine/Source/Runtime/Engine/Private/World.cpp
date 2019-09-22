@@ -337,6 +337,8 @@ FWorldDelegates::FRefreshLevelScriptActionsEvent FWorldDelegates::RefreshLevelSc
 
 UWorld::FOnWorldInitializedActors FWorldDelegates::OnWorldInitializedActors;
 
+uint32 UWorld::CleanupWorldGlobalTag = 0;
+
 UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 : UObject(ObjectInitializer)
 , FeatureLevel(GMaxRHIFeatureLevel)
@@ -352,6 +354,7 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 ,	TickTaskLevel(FTickTaskManagerInterface::Get().AllocateTickTaskLevel())
 ,	FlushLevelStreamingType(EFlushLevelStreamingType::None)
 ,	NextTravelType(TRAVEL_Relative)
+,	CleanupWorldTag(0)
 {
 	TimerManager = new FTimerManager();
 #if WITH_EDITOR
@@ -4120,22 +4123,25 @@ bool UWorld::IsNavigationRebuilt() const
 	return GetNavigationSystem() == NULL || GetNavigationSystem()->IsNavigationBuilt(GetWorldSettings());
 }
 
-void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld, bool bResetCleanedUpFlag)
+void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld)
 {
-	UE_LOG(LogWorld, Log, TEXT("UWorld::CleanupWorld for %s, bSessionEnded=%s, bCleanupResources=%s"), *GetName(), bSessionEnded ? TEXT("true") : TEXT("false"), bCleanupResources ? TEXT("true") : TEXT("false"));
+    CleanupWorldGlobalTag++;
+	CleanupWorldInternal(bSessionEnded, bCleanupResources, NewWorld);
+}
 
-	TArray<UWorld*> WorldsToResetCleanedUpFlag;
+void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld)
+{
+	if(CleanupWorldTag == CleanupWorldGlobalTag)
+	{
+		return;
+	}
+
+	CleanupWorldTag = CleanupWorldGlobalTag;
+
+	UE_LOG(LogWorld, Log, TEXT("UWorld::CleanupWorld for %s, bSessionEnded=%s, bCleanupResources=%s"), *GetName(), bSessionEnded ? TEXT("true") : TEXT("false"), bCleanupResources ? TEXT("true") : TEXT("false"));
 
 	check(IsVisibilityRequestPending() == false);
 	
-	check(!bCleanedUpWorld);
-	bCleanedUpWorld = true;
-
-	if (bResetCleanedUpFlag)
-	{
-		WorldsToResetCleanedUpFlag.Add(this);
-	}
-
 	// Wait on current physics scenes if they are processing
 	if(FPhysScene* CurrPhysicsScene = GetPhysicsScene())
 	{
@@ -4232,15 +4238,7 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 	for (int32 LevelIndex = 0; LevelIndex < GetNumLevels(); ++LevelIndex)
 	{
 		UWorld* World = CastChecked<UWorld>(GetLevel(LevelIndex)->GetOuter());
-		if (!World->bCleanedUpWorld)
-		{
-			World->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld, false);
-
-			if (bResetCleanedUpFlag)
-			{
-				WorldsToResetCleanedUpFlag.Add(World);
-			}
-		}
+		World->CleanupWorldInternal(bSessionEnded, bCleanupResources, NewWorld);
 	}
 
 	for (ULevelStreaming* StreamingLevel : GetStreamingLevels())
@@ -4248,15 +4246,7 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 		if (ULevel* Level = StreamingLevel->GetLoadedLevel())
 		{
 			UWorld* World = CastChecked<UWorld>(Level->GetOuter());
-			if (!World->bCleanedUpWorld)
-			{
-				World->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld, false);
-
-				if (bResetCleanedUpFlag)
-				{
-					WorldsToResetCleanedUpFlag.Add(World);
-				}
-			}
+			World->CleanupWorldInternal(bSessionEnded, bCleanupResources, NewWorld);
 		}
 	}
 
@@ -4266,20 +4256,10 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 	{
 		for (const ULevel* Level : DuplicateCollection->GetLevels())
 		{
-			if (!Level)
+			if (Level)
 			{
-				continue;
-			}
-
-			UWorld* const LevelWorld = CastChecked<UWorld>(Level->GetOuter());
-			if (!LevelWorld->bCleanedUpWorld)
-			{
-				LevelWorld->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld, false);
-
-				if (bResetCleanedUpFlag)
-				{
-					WorldsToResetCleanedUpFlag.Add(LevelWorld);
-				}
+				UWorld* const LevelWorld = CastChecked<UWorld>(Level->GetOuter());
+				LevelWorld->CleanupWorldInternal(bSessionEnded, bCleanupResources, NewWorld);
 			}
 		}
 	}
@@ -4287,12 +4267,6 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 	PSCPool.Cleanup();
 
 	FWorldDelegates::OnPostWorldCleanup.Broadcast(this, bSessionEnded, bCleanupResources);
-
-	for (UWorld* WorldToResetCleanedUpFlag: WorldsToResetCleanedUpFlag)
-	{
-		check(WorldToResetCleanedUpFlag->bCleanedUpWorld);
-		WorldToResetCleanedUpFlag->bCleanedUpWorld = false;
-	}
 
 	SubsystemCollection.Deinitialize();
 }
