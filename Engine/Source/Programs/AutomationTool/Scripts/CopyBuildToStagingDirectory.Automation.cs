@@ -554,7 +554,11 @@ public partial class Project : CommandUtils
 			if (!Params.CookOnTheFly && !Params.SkipCookOnTheFly) // only stage the UFS files if we are not using cook on the fly
 			{
 				// Work out which ICU data version we use for this platform
-				var ICUDataVersion = "icudt53l";
+				var ICUDataVersion = "icudt64l";
+				if (SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.HoloLens || SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.TVOS || SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.HTML5)
+				{
+					ICUDataVersion = "icudt53l";
+				}
 
 				// Initialize internationalization preset.
 				string InternationalizationPreset = GetInternationalizationPreset(Params, PlatformGameConfig);
