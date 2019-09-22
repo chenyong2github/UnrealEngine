@@ -109,9 +109,19 @@ void FHoloLensARSystem::OnARSystemInitialized()
 	UE_LOG(LogHoloLensAR, Log, TEXT("HoloLens AR system has been initialized"));
 }
 
+bool FHoloLensARSystem::IsARAvailable() const override
+{
+	return true;
+}
+
 EARTrackingQuality FHoloLensARSystem::OnGetTrackingQuality() const
 {
 	return TrackingQuality;
+}
+
+EARTrackingQualityReason FHoloLensARSystem::OnGetTrackingQualityReason() const
+{
+	return EARTrackingQualityReason::None;
 }
 
 void OnTrackingChanged_Raw(WindowsMixedReality::HMDSpatialLocatability InTrackingState)
