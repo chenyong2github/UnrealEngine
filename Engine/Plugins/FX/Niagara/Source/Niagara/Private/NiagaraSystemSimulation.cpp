@@ -1142,7 +1142,7 @@ void FNiagaraSystemSimulation::SpawnSystemInstances(FNiagaraSystemSimulationTick
 	SpawnExecContext.Tick(SoloSystemInstance);//We can't require a specific instance here as these are for all instances.
 	SpawnExecContext.BindData(0, Context.DataSet, OrigNum, false);
 	SpawnExecContext.BindData(1, SpawnInstanceParameterDataSet, OrigNum, false);
-	SpawnExecContext.Execute(Context.SpawnNum);
+	SpawnExecContext.Execute(SpawnNum);
 
 	if (GbDumpSystemData || Context.System->bDumpDebugSystemInfo)
 	{
@@ -1150,6 +1150,8 @@ void FNiagaraSystemSimulation::SpawnSystemInstances(FNiagaraSystemSimulationTick
 		Context.DataSet.GetDestinationDataChecked().Dump(0, NumInstances, TEXT("System Dataset - Post Spawn"));
 		SpawnInstanceParameterDataSet.GetCurrentDataChecked().Dump(0, NumInstances, TEXT("Spawn Instance Parameter Data"));
 	}
+
+	Context.DataSet.EndSimulate();
 
 #if WITH_EDITORONLY_DATA
 	if (SoloSystemInstance && SoloSystemInstance->ShouldCaptureThisFrame())
@@ -1163,8 +1165,6 @@ void FNiagaraSystemSimulation::SpawnSystemInstances(FNiagaraSystemSimulationTick
 		}
 	}
 #endif
-
-	Context.DataSet.EndSimulate();
 
 	check(Context.DataSet.GetCurrentDataChecked().GetNumInstances() == Context.Instances.Num());
 }
@@ -1186,10 +1186,13 @@ void FNiagaraSystemSimulation::UpdateSystemInstances(FNiagaraSystemSimulationTic
 		DestinationData.SetNumInstances(NumInstances);
 
 		//Run update.
-		UpdateExecContext.Tick(Context.Instances[0]);
-		UpdateExecContext.BindData(0, Context.DataSet, 0, false);
-		UpdateExecContext.BindData(1, UpdateInstanceParameterDataSet, 0, false);
-		UpdateExecContext.Execute(OrigNum);
+		if (OrigNum > 0)
+		{
+			UpdateExecContext.Tick(Context.Instances[0]);
+			UpdateExecContext.BindData(0, Context.DataSet, 0, false);
+			UpdateExecContext.BindData(1, UpdateInstanceParameterDataSet, 0, false);
+			UpdateExecContext.Execute(OrigNum);
+		}
 
 		if (GbDumpSystemData || Context.System->bDumpDebugSystemInfo)
 		{
