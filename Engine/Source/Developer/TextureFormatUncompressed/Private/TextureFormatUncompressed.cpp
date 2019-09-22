@@ -17,6 +17,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatUncompressed, Log, All);
 #define ENUM_SUPPORTED_FORMATS(op) \
 	op(BGRA8) \
 	op(G8) \
+	op(G16) \
 	op(VU8) \
 	op(RGBA16F) \
 	op(XGXR8) \
@@ -83,6 +84,19 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
 			OutCompressedImage.PixelFormat = PF_G8;
+			OutCompressedImage.RawData = Image.RawData;
+
+			return true;
+		}
+		else if (BuildSettings.TextureFormatName == GTextureFormatNameG16)
+		{
+			FImage Image;
+			InImage.CopyTo(Image, ERawImageFormat::G16, EGammaSpace::Linear);
+
+			OutCompressedImage.SizeX = Image.SizeX;
+			OutCompressedImage.SizeY = Image.SizeY;
+			OutCompressedImage.SizeZ = BuildSettings.bVolume ? Image.NumSlices : 1;
+			OutCompressedImage.PixelFormat = PF_G16;
 			OutCompressedImage.RawData = Image.RawData;
 
 			return true;
