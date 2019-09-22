@@ -8,7 +8,8 @@
 #include "Engine/TimecodeProvider.h"
 
 #include "AppleImageUtilsTypes.h"
-#include "AppleARKitTimecodeProvider.h"
+// MERGE-TODO - this now seems to be private
+#include "../Private/AppleARKitTimecodeProvider.h"
 
 #include "AppleARKitSettings.generated.h"
 
