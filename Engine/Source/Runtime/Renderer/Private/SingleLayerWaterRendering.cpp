@@ -245,17 +245,11 @@ IMPLEMENT_GLOBAL_SHADER(FSingleLayerWaterCompositePS, "/Engine/Private/SingleLay
 
 
 
-void FDeferredShadingSceneRenderer::BeginRenderingWaterGBuffer(FRHICommandList& RHICmdList, FSingleLayerWaterPassData& PassData, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers)
+void FDeferredShadingSceneRenderer::CopySingleLayerWaterTextures(FRHICommandList& RHICmdList, FSingleLayerWaterPassData& PassData)
 {
-	SCOPED_DRAW_EVENT(RHICmdList, BeginRenderingWaterGBuffer);
-
 	check(RHICmdList.IsOutsideRenderPass());
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
 	const ERHIFeatureLevel::Type CurrentFeatureLevel = SceneContext.GetCurrentFeatureLevel();
-	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
-	check(CurrentFeatureLevel >= ERHIFeatureLevel::SM5);
-
 
 	// Allocate required buffers
 	{
@@ -276,6 +270,18 @@ void FDeferredShadingSceneRenderer::BeginRenderingWaterGBuffer(FRHICommandList& 
 		RHICmdList.CopyTexture(SceneContext.SceneDepthZ->GetRenderTargetItem().ShaderResourceTexture, PassData.SceneDepthZWithoutSingleLayerWater->GetRenderTargetItem().ShaderResourceTexture, DepthCopyInfo);
 		RHICmdList.CopyTexture(SceneContext.GetSceneColorSurface(), PassData.SceneColorWithoutSingleLayerWater->GetRenderTargetItem().ShaderResourceTexture, DepthCopyInfo);
 	}
+}
+
+void FDeferredShadingSceneRenderer::BeginRenderingWaterGBuffer(FRHICommandList& RHICmdList, FSingleLayerWaterPassData& PassData, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers)
+{
+	SCOPED_DRAW_EVENT(RHICmdList, BeginRenderingWaterGBuffer);
+
+	check(RHICmdList.IsOutsideRenderPass());
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+
+	const ERHIFeatureLevel::Type CurrentFeatureLevel = SceneContext.GetCurrentFeatureLevel();
+	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
+	check(CurrentFeatureLevel >= ERHIFeatureLevel::SM5);
 
 	// Create MRT
 	int32 VelocityRTIndex = -1;
