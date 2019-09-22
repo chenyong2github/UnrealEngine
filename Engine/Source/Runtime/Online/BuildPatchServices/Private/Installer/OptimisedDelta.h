@@ -49,8 +49,8 @@ namespace BuildPatchServices
 		TArray<FString> CloudDirectories;
 		// The policy to follow for requesting an optimised delta.
 		EDeltaPolicy DeltaPolicy;
-		// Optional ptr to an Installer configuration for additional logic based on installer setup.
-		const FInstallerConfiguration* InstallerConfiguration;
+		// The mode for installation.
+		EInstallMode InstallMode;
 	};
 
 	/**

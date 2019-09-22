@@ -1800,8 +1800,16 @@ namespace UnrealBuildTool
 			Action LinkAction = new Action(ActionType.Link);
 			LinkAction.CommandDescription = "Link";
 			LinkAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-			LinkAction.CommandPath = bIsBuildingLibraryOrImportLibrary ? EnvVars.LibraryManagerPath : EnvVars.LinkerPath;
-			LinkAction.CommandArguments = String.Format("@\"{0}\"", ResponseFileName);
+			if(bIsBuildingLibraryOrImportLibrary)
+			{
+				LinkAction.CommandPath = EnvVars.LibraryManagerPath;
+				LinkAction.CommandArguments = String.Format("@\"{0}\"", ResponseFileName);
+			}
+			else
+			{
+				LinkAction.CommandPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "link-filter", "link-filter.exe");
+				LinkAction.CommandArguments = String.Format("-- \"{0}\" @\"{1}\"", EnvVars.LinkerPath, ResponseFileName);
+			}
 			LinkAction.ProducedItems.AddRange(ProducedItems);
 			LinkAction.PrerequisiteItems.AddRange(PrerequisiteItems);
 			LinkAction.StatusDescription = Path.GetFileName(OutputFile.AbsolutePath);

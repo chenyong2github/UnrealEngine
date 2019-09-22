@@ -25,27 +25,29 @@ bool FBuildPatchServicesPreLoadManagerBase::IsDone() const
     return bPatchingFinished;
 }
 
-void FBuildPatchServicesPreLoadManagerBase::StartBuildPatchServices(BuildPatchServices::FInstallerConfiguration Settings)
+void FBuildPatchServicesPreLoadManagerBase::StartBuildPatchServices(BuildPatchServices::FBuildInstallerConfiguration Settings)
 {
-    bPatchingStarted = true;
+	bPatchingStarted = true;
 
-    if (ensureAlwaysMsgf(BuildPatchServicesModule, TEXT("FBuildPatchServicesPreLoadManager not initialized before install!")))
-    {
-        // Start the installer
-        FBuildPatchBoolManifestDelegate BuildPatchBoolManifestDelegate = FBuildPatchBoolManifestDelegate::CreateRaw(this, &FBuildPatchServicesPreLoadManagerBase::OnContentBuildInstallerComplete);
-        ContentBuildInstaller = BuildPatchServicesModule->StartBuildInstall(MoveTemp(Settings), MoveTemp(BuildPatchBoolManifestDelegate));
-    }
-    //If possible, at least try to still send the OnContentBuildInstallerComplete event if we ensured above
-    else
-    {
-        OnContentBuildInstallerComplete(false, Settings.InstallManifest);
-    }
+	if (ensureAlwaysMsgf(BuildPatchServicesModule, TEXT("FBuildPatchServicesPreLoadManager not initialized before install!")))
+	{
+		// Start the installer
+		FBuildPatchInstallerDelegate BuildPatchInstallerDelegate = FBuildPatchInstallerDelegate::CreateRaw(this, &FBuildPatchServicesPreLoadManagerBase::OnContentBuildInstallerComplete);
+		ContentBuildInstaller = BuildPatchServicesModule->CreateBuildInstaller(MoveTemp(Settings), MoveTemp(BuildPatchInstallerDelegate));
+		ContentBuildInstaller->StartInstallation();
+	}
+	//If possible, at least try to still send the OnContentBuildInstallerComplete event if we ensured above
+	else
+	{
+		bPatchingFinished = true;
+		OnBuildPatchCompletedDelegate.Broadcast(false);
+	}
 }
 
-void FBuildPatchServicesPreLoadManagerBase::OnContentBuildInstallerComplete(bool bInstallSuccess, IBuildManifestRef InstallationManifest)
+void FBuildPatchServicesPreLoadManagerBase::OnContentBuildInstallerComplete(const IBuildInstallerRef& Installer)
 {
     bPatchingFinished = true;
-    OnBuildPatchCompletedDelegate.Broadcast(bInstallSuccess);
+    OnBuildPatchCompletedDelegate.Broadcast(Installer->CompletedSuccessfully());
 }
 
 void FBuildPatchServicesPreLoadManagerBase::PauseBuildPatchInstall()

@@ -80,7 +80,7 @@ private:
 	bool BuildChunkFolderName(IBuildManifestRef Manifest, FString& ChunkFdrName, FString& ManifestName, uint32& ChunkID, bool& bIsPatch);
 	void OSSEnumerateFilesComplete(bool bSuccess);
 	void OSSReadFileComplete(bool bSuccess, const FString& Filename);
-	void OSSInstallComplete(bool, IBuildManifestRef);
+	void OSSInstallComplete(const IBuildInstallerRef& Installer);
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPlatformChunkInstallCompleteMultiDelegate, uint32);
 

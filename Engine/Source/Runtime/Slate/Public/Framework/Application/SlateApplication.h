@@ -1190,6 +1190,9 @@ public:
 	/** Sets the handler for otherwise unhandled key down events. This is used by the editor to provide a global action list, if the key was not consumed by any widget. */
 	void SetUnhandledKeyDownEventHandler( const FOnKeyEvent& NewHandler );
 
+	/** Sets the handler for otherwise unhandled key down events. This is used by the editor to provide a global action list, if the key was not consumed by any widget. */
+	void SetUnhandledKeyUpEventHandler(const FOnKeyEvent& NewHandler);
+
 	/** @return the last time a user interacted with a keyboard, mouse, touch device, or controller */
 	double GetLastUserInteractionTime() const { return LastUserInteractionTime; }
 
@@ -1710,6 +1713,9 @@ private:
 
 	/** Delegate for when a key down event occurred but was not handled in any other way by ProcessKeyDownMessage */
 	FOnKeyEvent UnhandledKeyDownEventHandler;
+
+	/** Delegate for when a key down event occurred but was not handled in any other way by ProcessKeyDownMessage */
+	FOnKeyEvent UnhandledKeyUpEventHandler;
 
 	/** controls whether unhandled touch events fall back to sending mouse events */
 	bool bTouchFallbackToMouse;

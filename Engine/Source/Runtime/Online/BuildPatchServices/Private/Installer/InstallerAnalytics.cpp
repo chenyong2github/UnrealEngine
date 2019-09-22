@@ -1,7 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Installer/InstallerAnalytics.h"
-#include "HttpServiceTracker.h"
+#include "CoreMinimal.h"
+#include "Containers/Ticker.h"
 #include "AnalyticsEventAttribute.h"
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Misc/Guid.h"
@@ -37,7 +38,7 @@ namespace BuildPatchServices
 		: public IInstallerAnalytics
 	{
 	public:
-		FInstallerAnalytics(IAnalyticsProvider* InAnalyticsProvider, FHttpServiceTracker* InHttpTracker);
+		FInstallerAnalytics(IAnalyticsProvider* InAnalyticsProvider);
 		~FInstallerAnalytics();
 
 		// IInstallerAnalytics interface begin.
@@ -56,7 +57,6 @@ namespace BuildPatchServices
 
 	private:
 		IAnalyticsProvider* Analytics;
-		FHttpServiceTracker* HttpTracker;
 		FThreadSafeCounter DownloadErrors;
 		FThreadSafeCounter CacheErrors;
 		FThreadSafeCounter ConstructionErrors;
@@ -65,9 +65,8 @@ namespace BuildPatchServices
 		FDelegateHandle TickerHandle;
 	};
 
-	FInstallerAnalytics::FInstallerAnalytics(IAnalyticsProvider* InAnalyticsProvider, FHttpServiceTracker* InHttpTracker)
+	FInstallerAnalytics::FInstallerAnalytics(IAnalyticsProvider* InAnalyticsProvider)
 		: Analytics(InAnalyticsProvider)
-		, HttpTracker(InHttpTracker)
 		, DownloadErrors(0)
 		, CacheErrors(0)
 		, ConstructionErrors(0)
@@ -147,10 +146,6 @@ namespace BuildPatchServices
 	void FInstallerAnalytics::TrackRequest(const FHttpRequestPtr& Request)
 	{
 		static const FName EndpointName = TEXT("CDN.Chunk");
-		if (HttpTracker != nullptr)
-		{
-			HttpTracker->TrackRequest(Request, EndpointName);
-		}
 	}
 
 	void FInstallerAnalytics::Flush()
@@ -183,8 +178,8 @@ namespace BuildPatchServices
 		return true;
 	}
 
-	IInstallerAnalytics* FInstallerAnalyticsFactory::Create(IAnalyticsProvider* AnalyticsProvider, FHttpServiceTracker* HttpTracker)
+	IInstallerAnalytics* FInstallerAnalyticsFactory::Create(IAnalyticsProvider* AnalyticsProvider)
 	{
-		return new FInstallerAnalytics(AnalyticsProvider, HttpTracker);
+		return new FInstallerAnalytics(AnalyticsProvider);
 	}
 }

@@ -142,6 +142,11 @@ public:
 	virtual void OnTitleChange(CefRefPtr<CefBrowser> Browser, const CefString& Title) override;
 	virtual void OnAddressChange(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, const CefString& Url) override;
 	virtual bool OnTooltip(CefRefPtr<CefBrowser> Browser, CefString& Text) override;
+	virtual bool OnConsoleMessage(
+		CefRefPtr<CefBrowser> Browser, 
+		const CefString& Message, 
+		const CefString& Source, 
+		int Line) override;
 
 public:
 
@@ -236,6 +241,12 @@ public:
 		CefRefPtr<CefFrame> Frame,
 		CefRefPtr<CefRequest> Request,
 		CefRefPtr<CefRequestCallback> Callback) override;
+	virtual void OnResourceLoadComplete(CefRefPtr<CefBrowser> Browser,
+		CefRefPtr<CefFrame> Frame,
+		CefRefPtr<CefRequest> Request,
+		CefRefPtr<CefResponse> Response,
+		URLRequestStatus Status,
+		int64 Received_content_length) override;
 	virtual void OnRenderProcessTerminated(CefRefPtr<CefBrowser> Browser, TerminationStatus Status) override;
 	virtual bool OnBeforeBrowse(CefRefPtr<CefBrowser> Browser,
 		CefRefPtr<CefFrame> Frame,
@@ -313,6 +324,25 @@ public:
 		return CreateWindowDelegate;
 	}
 
+	typedef TMap<FString, FString> FRequestHeaders;
+	DECLARE_DELEGATE_ThreeParams(FOnBeforeResourceLoadDelegate, const CefString& /*URL*/, CefRequest::ResourceType /*Type*/, FRequestHeaders& /*AdditionalHeaders*/);
+	FOnBeforeResourceLoadDelegate& OnBeforeResourceLoad()
+	{
+		return BeforeResourceLoadDelegate;
+	}
+
+	DECLARE_DELEGATE_FourParams(FOnResourceLoadCompleteDelegate, const CefString& /*URL*/, CefRequest::ResourceType /*Type*/, CefRequestHandler::URLRequestStatus /*Status*/, int64 /*ContentLength*/);
+	FOnResourceLoadCompleteDelegate& OnResourceLoadComplete()
+	{
+		return ResourceLoadCompleteDelegate;
+	}
+
+	DECLARE_DELEGATE_FourParams(FOnConsoleMessageDelegate, CefRefPtr<CefBrowser> /*Browser*/, const CefString& /*Message*/, const CefString& /*Source*/, int /*Line*/);
+	FOnConsoleMessageDelegate& OnConsoleMessage()
+	{
+		return ConsoleMessageDelegate;
+	}
+
 private:
 
 	bool ShowDevTools(const CefRefPtr<CefBrowser>& Browser);
@@ -327,6 +357,15 @@ private:
 	
 	/** Delegate for handling requests to create new windows. */
 	IWebBrowserWindow::FOnCreateWindow CreateWindowDelegate;
+
+	/** Delegate for handling adding additional headers to requests */
+	FOnBeforeResourceLoadDelegate BeforeResourceLoadDelegate;
+
+	/** Delegate that allows response to the status of resource loads */
+	FOnResourceLoadCompleteDelegate ResourceLoadCompleteDelegate;
+
+	/** Delegate that allows for response to console logs.  Typically used to capture and mirror web logs in client application logs. */
+	FOnConsoleMessageDelegate ConsoleMessageDelegate;
 
 	/** Weak Pointer to our Web Browser window so that events can be passed on while it's valid.*/
 	TWeakPtr<FCEFWebBrowserWindow> BrowserWindowPtr;

@@ -65,6 +65,7 @@ void FDiskChunkStoreSpec::Define()
 		MockChunkDataSerialization->SaveToArchiveFunc = [](FArchive& Ar, const IChunkDataAccess* ChunkPtr)
 		{
 			const FFakeChunkDataAccess* FakeChunkDataAccess = static_cast<const FFakeChunkDataAccess*>(ChunkPtr);
+			Ar << *const_cast<FChunkHeader*>(&FakeChunkDataAccess->ChunkHeader);
 			Ar.Serialize(FakeChunkDataAccess->ChunkData, FakeChunkDataAccess->ChunkHeader.DataSizeUncompressed);
 			return BuildPatchServices::EChunkSaveResult::Success;
 		};
@@ -261,7 +262,9 @@ void FDiskChunkStoreSpec::Define()
 			{
 				BeforeEach([this]()
 				{
-					DiskChunkStore->Put(SomeChunk, TUniquePtr<IChunkDataAccess>(new FFakeChunkDataAccess()));
+					FFakeChunkDataAccess* FakeSomeChunk = new FFakeChunkDataAccess();
+					FakeSomeChunk->ChunkHeader.Guid = SomeChunk;
+					DiskChunkStore->Put(SomeChunk, TUniquePtr<IChunkDataAccess>(FakeSomeChunk));
 				});
 
 				It("should load some chunk from the chunkdump.", [this]()
@@ -274,6 +277,7 @@ void FDiskChunkStoreSpec::Define()
 				{
 					BeforeEach([this]()
 					{
+						FakeChunkDataAccessOne->ChunkHeader.Guid = SomeChunk;
 						MockChunkDataSerialization->TxLoadFromArchive.Emplace(FakeChunkDataAccessOne.Release(), EChunkLoadResult::Success);
 						FakeChunkDataAccessOne.Reset(new FFakeChunkDataAccess());
 					});

@@ -22,6 +22,10 @@ namespace BuildPatchServices
 		virtual void PumpMessages(const TArray<FMessageHandler*>& Handlers) override
 		{
 		}
+
+		virtual void SendRequest(FChunkUriRequest Request, TFunction<void(FChunkUriResponse)> OnResponse) override
+		{
+		}
 	};
 }
 

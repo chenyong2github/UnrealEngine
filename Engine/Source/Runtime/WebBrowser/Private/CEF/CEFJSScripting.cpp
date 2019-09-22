@@ -105,7 +105,10 @@ void FCEFJSScripting::SendProcessMessage(CefRefPtr<CefProcessMessage> Message)
 CefRefPtr<CefDictionaryValue> FCEFJSScripting::GetPermanentBindings()
 {
 	CefRefPtr<CefDictionaryValue> Result = CefDictionaryValue::Create();
-	for(auto& Entry : PermanentUObjectsByName)
+
+	TMap<FString, UObject*> CachedPermanentUObjectsByName = PermanentUObjectsByName;
+
+	for(auto& Entry : CachedPermanentUObjectsByName)
 	{
 		Result->SetDictionary(TCHAR_TO_WCHAR(*Entry.Key), ConvertObject(Entry.Value));
 	}
@@ -246,7 +249,7 @@ bool FCEFJSScripting::HandleExecuteUObjectMethodMessage(CefRefPtr<CefListValue> 
 	}
 	// Coerce arguments to function arguments.
 	uint16 ParamsSize = Function->ParmsSize;
-	TArray<uint8> Params;
+	uint8* Params  = nullptr;
 	UProperty* ReturnParam = nullptr;
 	UProperty* PromiseParam = nullptr;
 
@@ -282,22 +285,23 @@ bool FCEFJSScripting::HandleExecuteUObjectMethodMessage(CefRefPtr<CefListValue> 
 		}
 
 		// UFunction is a subclass of UStruct, so we can treat the arguments as a struct for deserialization
-		Params.AddUninitialized(Function->GetStructureSize());
-		Function->InitializeStruct(Params.GetData());
+		check(nullptr == Params);
+		Params = (uint8*)FMemory::Malloc(Function->GetStructureSize());
+		Function->InitializeStruct(Params);
 		FCEFJSStructDeserializerBackend Backend = FCEFJSStructDeserializerBackend(SharedThis(this), NamedArgs);
-		FStructDeserializer::Deserialize(Params.GetData(), *Function, Backend);
+		FStructDeserializer::Deserialize(Params, *Function, Backend);
 	}
 
 	if (PromiseParam)
 	{
-		FWebJSResponse* PromisePtr = PromiseParam->ContainerPtrToValuePtr<FWebJSResponse>(Params.GetData());
+		FWebJSResponse* PromisePtr = PromiseParam->ContainerPtrToValuePtr<FWebJSResponse>(Params);
 		if (PromisePtr)
 		{
 			*PromisePtr = FWebJSResponse(SharedThis(this), ResultCallbackId);
 		}
 	}
 
-	Object->ProcessEvent(Function, Params.GetData());
+	Object->ProcessEvent(Function, Params);
 	CefRefPtr<CefListValue> Results = CefListValue::Create();
 
 	if ( ! PromiseParam ) // If PromiseParam is set, we assume that the UFunction will ensure it is called with the result
@@ -310,7 +314,7 @@ bool FCEFJSScripting::HandleExecuteUObjectMethodMessage(CefRefPtr<CefListValue> 
 				return ParentProperty != nullptr || CandidateProperty == ReturnParam;
 			};
 			FCEFJSStructSerializerBackend ReturnBackend(SharedThis(this));
-			FStructSerializer::Serialize(Params.GetData(), *Function, ReturnBackend, ReturnPolicies);
+			FStructSerializer::Serialize(Params, *Function, ReturnBackend, ReturnPolicies);
 			CefRefPtr<CefDictionaryValue> ResultDict = ReturnBackend.GetResult();
 
 			// Extract the single return value from the serialized dictionary to an array
@@ -318,6 +322,14 @@ bool FCEFJSScripting::HandleExecuteUObjectMethodMessage(CefRefPtr<CefListValue> 
 		}
 		InvokeJSFunction(ResultCallbackId, Results, false);
 	}
+
+	if (Params)
+	{
+		Function->DestroyStruct(Params);
+		FMemory::Free(Params);
+		Params = nullptr;
+	}
+
 	return true;
 }
 

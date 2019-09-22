@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Async/Async.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/UniquePtr.h"
 
@@ -130,6 +131,22 @@ namespace BuildPatchServices
 		virtual TUniquePtr<FArchive> CreateFileWriter(const TCHAR* Filename, EWriteFlags WriteFlags = EWriteFlags::None) const = 0;
 
 		/**
+		 * Load a file on disk into string.
+		 * @param Filename          The filename for the request.
+		 * @param Contents          The contents of the file if successful.
+		 * @return true if successful.
+		 */
+		virtual bool LoadFileToString(const TCHAR* Filename, FString& Contents) const = 0;
+
+		/**
+		 * Save a string to file on disk.
+		 * @param Filename          The filename for the request.
+		 * @param Contents          The string to save.
+		 * @return true if successful.
+		 */
+		virtual bool SaveStringToFile(const TCHAR* Filename, const FString& Contents) const = 0;
+
+		/**
 		 * Delete a file.
 		 * @param Filename          The file to delete.
 		 * @return true if the file was deleted or did not exist.
@@ -174,6 +191,16 @@ namespace BuildPatchServices
 		 * @param FileExtension     The extension to filter by, in the form of TEXT(".ext"). If null or empty string, all files are found.
 		 */
 		virtual void FindFilesRecursively(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension = nullptr) const = 0;
+
+		/**
+		 * Finds all the files within the given directory tree, with optional file extension filter. This version places each directory found
+		 * on separate threads to improve large enumeration times.
+		 * @param FoundFiles        Receives the files that matched the optional FileExtension filter, or all files if none was specified.
+		 * @param Directory         The directory to iterate the contents of. This function explores subdirectories.
+		 * @param FileExtension     The extension to filter by, in the form of TEXT(".ext"). If null or empty string, all files are found.
+		 * @param AsyncExecution    The threaded execution method to use, i.e. on Task Graph, Thread Pool, or a new thread per directory.
+		 */
+		virtual void ParallelFindFilesRecursively(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension = nullptr, EAsyncExecution AsyncExecution = EAsyncExecution::ThreadPool) const = 0;
 	};
 
 	/**

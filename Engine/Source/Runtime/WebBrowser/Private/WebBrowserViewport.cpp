@@ -26,14 +26,16 @@ void FWebBrowserViewport::Tick( const FGeometry& AllottedGeometry, double InCurr
 {
 	if (!bIsPopup)
 	{
-		const float DPIScale = AllottedGeometry.Scale / (WebBrowserWindow->GetParentWindow().IsValid() ? WebBrowserWindow->GetParentWindow()->GetNativeWindow()->GetDPIScaleFactor() : 1.0f);
+		const float DPI = (WebBrowserWindow->GetParentWindow().IsValid() ? WebBrowserWindow->GetParentWindow()->GetNativeWindow()->GetDPIScaleFactor() : 1.0f);
+		const float DPIScale = AllottedGeometry.Scale / DPI;
 		FVector2D AbsoluteSize = AllottedGeometry.GetLocalSize() * DPIScale;
-		WebBrowserWindow->SetViewportSize(AbsoluteSize.IntPoint());
+		WebBrowserWindow->SetViewportSize(AbsoluteSize.IntPoint(), AllottedGeometry.GetAbsolutePosition().IntPoint());
 
 #if WITH_CEF3
 		// Forward the AllottedGeometry to the WebBrowserWindow so the IME implementation can use it
 		TSharedPtr<FCEFWebBrowserWindow> CefWebBrowserWindow = StaticCastSharedPtr<FCEFWebBrowserWindow>(WebBrowserWindow);
 		CefWebBrowserWindow->UpdateCachedGeometry(AllottedGeometry);
+		CefWebBrowserWindow->SetZoomLevelByPercentage(DPI);
 #endif
 	}
 }

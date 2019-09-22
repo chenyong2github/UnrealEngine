@@ -3,13 +3,14 @@
 #include "Installer/FileAttribution.h"
 #include "Common/FileSystem.h"
 #include "BuildPatchProgress.h"
+#include "IBuildManifestSet.h"
 
 namespace BuildPatchServices
 {
 	class FFileAttribution : public IFileAttribution
 	{
 	public:
-		FFileAttribution(IFileSystem* FileSystem, const FBuildPatchAppManifestRef& NewManifest, const FBuildPatchAppManifestPtr& OldManifest, TSet<FString> TouchedFiles, const FString& InstallDirectory, const FString& StagedFileDirectory, bool bUseStageDirectory, FBuildPatchProgress* BuildProgress);
+		FFileAttribution(IFileSystem* FileSystem, IBuildManifestSet* ManifestSet, TSet<FString> TouchedFiles, const FString& InstallDirectory, const FString& StagedFileDirectory, bool bUseStageDirectory, FBuildPatchProgress* BuildProgress);
 
 		virtual ~FFileAttribution() {}
 
@@ -19,7 +20,7 @@ namespace BuildPatchServices
 		// IControllable interface end.
 
 		// IFileAttribution interface begin.
-		virtual bool ApplyAttributes(bool bForce) override;
+		virtual bool ApplyAttributes() override;
 		// IFileAttribution interface end.
 
 	private:
@@ -29,8 +30,7 @@ namespace BuildPatchServices
 
 	private:
 		IFileSystem* FileSystem;
-		FBuildPatchAppManifestRef NewManifest;
-		FBuildPatchAppManifestPtr OldManifest;
+		IBuildManifestSet* ManifestSet;
 		TSet<FString> TouchedFiles;
 		const FString InstallDirectory;
 		const FString StagedFileDirectory;
@@ -40,10 +40,9 @@ namespace BuildPatchServices
 		FThreadSafeBool bShouldAbort;
 	};
 
-	FFileAttribution::FFileAttribution(IFileSystem* InFileSystem, const FBuildPatchAppManifestRef& InNewManifest, const FBuildPatchAppManifestPtr& InOldManifest, TSet<FString> InTouchedFiles, const FString& InInstallDirectory, const FString& InStagedFileDirectory, bool bInUseStageDirectory, FBuildPatchProgress* InBuildProgress)
+	FFileAttribution::FFileAttribution(IFileSystem* InFileSystem, IBuildManifestSet* InManifestSet, TSet<FString> InTouchedFiles, const FString& InInstallDirectory, const FString& InStagedFileDirectory, bool bInUseStageDirectory, FBuildPatchProgress* InBuildProgress)
 		: FileSystem(InFileSystem)
-		, NewManifest(InNewManifest)
-		, OldManifest(InOldManifest)
+		, ManifestSet(InManifestSet)
 		, TouchedFiles(MoveTemp(InTouchedFiles))
 		, InstallDirectory(InInstallDirectory)
 		, StagedFileDirectory(InStagedFileDirectory)
@@ -65,16 +64,24 @@ namespace BuildPatchServices
 		bShouldAbort = true;
 	}
 
-	bool FFileAttribution::ApplyAttributes(bool bForce)
+	bool FFileAttribution::ApplyAttributes()
 	{
 		// We need to set attributes for all files in the new build that require it
-		TArray<FString> BuildFileList = NewManifest->GetBuildFileList();
+		TSet<FString> BuildFileList;
+		ManifestSet->GetExpectedFiles(BuildFileList);
 		BuildProgress->SetStateProgress(EBuildPatchState::SettingAttributes, 0.0f);
-		for (int32 BuildFileIdx = 0; BuildFileIdx < BuildFileList.Num() && !bShouldAbort; ++BuildFileIdx)
+		BuildFileList.Sort(TLess<FString>());
+		int32 BuildFileIdx = INDEX_NONE;
+		for (const FString& BuildFile : BuildFileList)
 		{
-			const FString& BuildFile = BuildFileList[BuildFileIdx];
-			const FFileManifest* NewFileManifest = NewManifest->GetFileManifest(BuildFile);
-			const FFileManifest* OldFileManifest = OldManifest.IsValid() ? OldManifest->GetFileManifest(BuildFile) : nullptr;
+			++BuildFileIdx;
+			if (bShouldAbort)
+			{
+				break;
+			}
+			const FFileManifest* NewFileManifest = ManifestSet->GetNewFileManifest(BuildFile);
+			const FFileManifest* OldFileManifest = ManifestSet->GetCurrentFileManifest(BuildFile);
+			const bool bForce = ManifestSet->IsFileRepairAction(BuildFile);
 			bool bHasChanged = bForce || (TouchedFiles.Contains(BuildFile) && !HasSameAttributes(NewFileManifest, OldFileManifest));
 			if (NewFileManifest != nullptr && bHasChanged)
 			{
@@ -179,9 +186,9 @@ namespace BuildPatchServices
 		}
 	}
 
-	IFileAttribution* FFileAttributionFactory::Create(IFileSystem* FileSystem, const FBuildPatchAppManifestRef& NewManifest, const FBuildPatchAppManifestPtr& OldManifest, TSet<FString> TouchedFiles, const FString& InstallDirectory, const FString& StagedFileDirectory, FBuildPatchProgress* BuildProgress)
+	IFileAttribution* FFileAttributionFactory::Create(IFileSystem* FileSystem, IBuildManifestSet* ManifestSet, TSet<FString> TouchedFiles, const FString& InstallDirectory, const FString& StagedFileDirectory, FBuildPatchProgress* BuildProgress)
 	{
 		check(BuildProgress != nullptr);
-		return new FFileAttribution(FileSystem, NewManifest, OldManifest, MoveTemp(TouchedFiles), InstallDirectory, StagedFileDirectory, !StagedFileDirectory.IsEmpty(), BuildProgress);
+		return new FFileAttribution(FileSystem, ManifestSet, MoveTemp(TouchedFiles), InstallDirectory, StagedFileDirectory, !StagedFileDirectory.IsEmpty(), BuildProgress);
 	}
 }

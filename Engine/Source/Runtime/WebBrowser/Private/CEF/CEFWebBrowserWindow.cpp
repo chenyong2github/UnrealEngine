@@ -27,6 +27,7 @@
 typedef FWindowsCursor FPlatformCursor;
 #elif PLATFORM_MAC
 #include "Mac/MacCursor.h"
+#include "Mac/CocoaThread.h"
 typedef FMacCursor FPlatformCursor;
 #else
 #endif
@@ -495,6 +496,9 @@ FCEFWebBrowserWindow::~FCEFWebBrowserWindow()
 {
 	WebBrowserHandler->OnCreateWindow().Unbind();
 	WebBrowserHandler->OnBeforePopup().Unbind();
+	WebBrowserHandler->OnBeforeResourceLoad().Unbind();
+	WebBrowserHandler->OnResourceLoadComplete().Unbind();
+	WebBrowserHandler->OnConsoleMessage().Unbind();
 	CloseBrowser(true);
 
 	ReleaseTextures();
@@ -558,26 +562,10 @@ void FCEFWebBrowserWindow::SetViewportSize(FIntPoint WindowSize, FIntPoint Windo
 				{
 					::GetWindowRect(Parent, &ParentRect);
 				}
-				// allow resizing the window by nudging the edges of the viewport by a pixel if the content extends all the way to the edge
-				if (WindowPos.X == ParentRect.left)
-				{
-					WindowPos.X++;
-					WindowSize.X--;
-				}
-				if (WindowPos.Y == ParentRect.top)
-				{
-					WindowPos.Y++;
-					WindowSize.Y--;
-				}
-				if (WindowPos.X + WindowSize.X == ParentRect.right)
-				{
-					WindowSize.X--;
-				}
-				if (WindowPos.Y + WindowSize.Y == ParentRect.bottom)
-				{
-					WindowSize.Y--;
-				}
-				::SetWindowPos(NativeHandle, 0, WindowPos.X - ParentRect.left, WindowPos.Y - ParentRect.top, WindowSize.X, WindowSize.Y, 0);
+
+				FIntPoint WindowSizeScaled = (FVector2D(WindowSize) * WindowDPIScaleFactor).IntPoint();
+
+				::SetWindowPos(NativeHandle, 0, WindowPos.X - ParentRect.left, WindowPos.Y - ParentRect.top, WindowSizeScaled.X, WindowSizeScaled.Y, 0);
 			}
 #endif
 
@@ -1021,6 +1009,13 @@ bool FCEFWebBrowserWindow::OnKeyDown(const FKeyEvent& InKeyEvent)
 {
 	if (IsValid() && !bIgnoreKeyDownEvent)
 	{
+#if PLATFORM_MAC
+		// Special case for Mac - make sure Cmd+~ is always passed back to the OS
+		if (InKeyEvent.GetKey() == EKeys::Tilde && InKeyEvent.IsControlDown())
+		{
+			return false;
+		}
+#endif
 		PreviousKeyDownEvent = InKeyEvent;
 		CefKeyEvent KeyEvent;
 		PopulateCefKeyEvent(InKeyEvent, KeyEvent);
@@ -1035,6 +1030,13 @@ bool FCEFWebBrowserWindow::OnKeyUp(const FKeyEvent& InKeyEvent)
 {
 	if (IsValid() && !bIgnoreKeyUpEvent)
 	{
+#if PLATFORM_MAC
+		// Special case for Mac - make sure Cmd+~ is always passed back to the OS
+		if (InKeyEvent.GetKey() == EKeys::Tilde && InKeyEvent.IsControlDown())
+		{
+			return false;
+		}
+#endif
 		PreviousKeyUpEvent = InKeyEvent;
 		CefKeyEvent KeyEvent;
 		PopulateCefKeyEvent(InKeyEvent, KeyEvent);
@@ -1065,6 +1067,19 @@ bool FCEFWebBrowserWindow::OnKeyChar(const FCharacterEvent& InCharacterEvent)
 	return false;
 }
 
+FModifierKeysState FCEFWebBrowserWindow::SlateModifiersFromCefModifiers(const CefKeyEvent& CefEvent)
+{
+	return FModifierKeysState((CefEvent.modifiers & EVENTFLAG_SHIFT_DOWN) != 0,
+		(CefEvent.modifiers & EVENTFLAG_SHIFT_DOWN)   != 0,
+		(CefEvent.modifiers & EVENTFLAG_CONTROL_DOWN) != 0,
+		(CefEvent.modifiers & EVENTFLAG_CONTROL_DOWN) != 0,
+		(CefEvent.modifiers & EVENTFLAG_ALT_DOWN)     != 0,
+		(CefEvent.modifiers & EVENTFLAG_ALT_DOWN)     != 0,
+		(CefEvent.modifiers & EVENTFLAG_COMMAND_DOWN) != 0,
+		(CefEvent.modifiers & EVENTFLAG_COMMAND_DOWN) != 0,
+		(CefEvent.modifiers & EVENTFLAG_CAPS_LOCK_ON) != 0);
+}
+
 /* This is an ugly hack to inject unhandled key events back into Slate.
    During processing of the initial keyboard event, we don't know whether it is handled by the Web browser or not.
    Not until after CEF calls OnKeyEvent in our CefKeyboardHandler implementation, which is after our own keyboard event handler
@@ -1076,53 +1091,87 @@ bool FCEFWebBrowserWindow::OnUnhandledKeyEvent(const CefKeyEvent& CefEvent)
 	bool bWasHandled = false;
 	if (IsValid())
 	{
-		switch (CefEvent.type) {
-			case KEYEVENT_RAWKEYDOWN:
-			case KEYEVENT_KEYDOWN:
-				if (PreviousKeyDownEvent.IsSet())
+		CefWindowHandle NativeHandle = InternalCefBrowser->GetHost()->GetWindowHandle();
+
+		switch (CefEvent.type) 
+		{
+		case KEYEVENT_RAWKEYDOWN:
+		case KEYEVENT_KEYDOWN:
+			if (PreviousKeyDownEvent.IsSet())
+			{
+				bWasHandled = OnUnhandledKeyDown().IsBound() && OnUnhandledKeyDown().Execute(PreviousKeyDownEvent.GetValue());
+				if (!bWasHandled)
 				{
-					bWasHandled = OnUnhandledKeyDown().IsBound() && OnUnhandledKeyDown().Execute(PreviousKeyDownEvent.GetValue());
-					if (!bWasHandled)
-					{
-						// If the keydown handler is not bound or if the handler returns false, indicating the key is unhandled, we bubble it up.
-						bIgnoreKeyDownEvent = true;
-						bWasHandled = FSlateApplication::Get().ProcessKeyDownEvent(PreviousKeyDownEvent.GetValue());
-						bIgnoreKeyDownEvent = false;
-					}
-					PreviousKeyDownEvent.Reset();
+					// If the keydown handler is not bound or if the handler returns false, indicating the key is unhandled, we bubble it up.
+					bIgnoreKeyDownEvent = true;
+					bWasHandled = FSlateApplication::Get().ProcessKeyDownEvent(PreviousKeyDownEvent.GetValue());
+					bIgnoreKeyDownEvent = false;
 				}
-				break;
-			case KEYEVENT_KEYUP:
-				if (PreviousKeyUpEvent.IsSet())
+				PreviousKeyDownEvent.Reset();
+			}
+			else if (NativeHandle)
+			{
+				FKey const Key = FInputKeyManager::Get().GetKeyFromCodes(CefEvent.windows_key_code, 0);
+
+				if (Key.IsValid())
 				{
-					bWasHandled = OnUnhandledKeyUp().IsBound() && OnUnhandledKeyUp().Execute(PreviousKeyUpEvent.GetValue());
-					if (!bWasHandled)
-					{
-						// If the keyup handler is not bound or if the handler returns false, indicating the key is unhandled, we bubble it up.
-						bIgnoreKeyUpEvent = true;
-						bWasHandled = FSlateApplication::Get().ProcessKeyUpEvent(PreviousKeyUpEvent.GetValue());
-						bIgnoreKeyUpEvent = false;
-					}
-					PreviousKeyUpEvent.Reset();
+					FKeyEvent KeyEvent(Key, SlateModifiersFromCefModifiers(CefEvent), FSlateApplication::Get().GetUserIndexForKeyboard(), false, 0, CefEvent.windows_key_code);
+
+					bIgnoreKeyDownEvent = true;
+					bWasHandled = FSlateApplication::Get().ProcessKeyDownEvent(KeyEvent);
+					bIgnoreKeyDownEvent = false;
 				}
-				break;
-			case KEYEVENT_CHAR:
-				if (PreviousCharacterEvent.IsSet())
-				{
-					bWasHandled = OnUnhandledKeyChar().IsBound() && OnUnhandledKeyChar().Execute(PreviousCharacterEvent.GetValue());
-					if (!bWasHandled)
-					{
-						// If the keychar handler is not bound or if the handler returns false, indicating the key is unhandled, we bubble it up.
-						bIgnoreCharacterEvent = true;
-						bWasHandled = FSlateApplication::Get().ProcessKeyCharEvent(PreviousCharacterEvent.GetValue());
-						bIgnoreCharacterEvent = false;
-					}
-					PreviousCharacterEvent.Reset();
-				}
-				break;
-		  default:
+			}
 			break;
-	}
+		case KEYEVENT_KEYUP:
+			if (PreviousKeyUpEvent.IsSet())
+			{
+				bWasHandled = OnUnhandledKeyUp().IsBound() && OnUnhandledKeyUp().Execute(PreviousKeyUpEvent.GetValue());
+				if (!bWasHandled)
+				{
+					// If the keyup handler is not bound or if the handler returns false, indicating the key is unhandled, we bubble it up.
+					bIgnoreKeyUpEvent = true;
+					bWasHandled = FSlateApplication::Get().ProcessKeyUpEvent(PreviousKeyUpEvent.GetValue());
+					bIgnoreKeyUpEvent = false;
+				}
+				PreviousKeyUpEvent.Reset();
+			}
+			else if (NativeHandle)
+			{
+				FKey const Key = FInputKeyManager::Get().GetKeyFromCodes(CefEvent.windows_key_code, 0);
+				FKeyEvent KeyEvent(Key, SlateModifiersFromCefModifiers(CefEvent), FSlateApplication::Get().GetUserIndexForKeyboard(), false, 0, CefEvent.windows_key_code);
+
+				bIgnoreKeyUpEvent = true;
+				bWasHandled = FSlateApplication::Get().ProcessKeyUpEvent(KeyEvent);
+				bIgnoreKeyUpEvent = false;
+			}
+
+			break;
+		case KEYEVENT_CHAR:
+			if (PreviousCharacterEvent.IsSet())
+			{
+				bWasHandled = OnUnhandledKeyChar().IsBound() && OnUnhandledKeyChar().Execute(PreviousCharacterEvent.GetValue());
+				if (!bWasHandled)
+				{
+					// If the keychar handler is not bound or if the handler returns false, indicating the key is unhandled, we bubble it up.
+					bIgnoreCharacterEvent = true;
+					bWasHandled = FSlateApplication::Get().ProcessKeyCharEvent(PreviousCharacterEvent.GetValue());
+					bIgnoreCharacterEvent = false;
+				}
+				PreviousCharacterEvent.Reset();
+			}
+			else if (NativeHandle)
+			{
+				FCharacterEvent CharacterEvent(CefEvent.character, SlateModifiersFromCefModifiers(CefEvent), FSlateApplication::Get().GetUserIndexForKeyboard(), false);
+
+				bIgnoreCharacterEvent = true;
+				bWasHandled = FSlateApplication::Get().ProcessKeyCharEvent(CharacterEvent);
+				bIgnoreCharacterEvent = false;
+			}
+			break;
+		default:
+			break;
+		}
 	}
 	return bWasHandled;
 }
@@ -1345,6 +1394,13 @@ void FCEFWebBrowserWindow::OnMouseLeave(const FPointerEvent& MouseEvent)
 {
 	// Ensure we clear any tooltips if the mouse leaves the window.
 	SetToolTip(CefString());
+	// We have no geometry here to convert our mouse event to local space so we just make a dummy event and set the moueLeave param to true
+	CefMouseEvent DummyEvent;
+	if (IsValid())
+	{
+		InternalCefBrowser->GetHost()->SendMouseMoveEvent(DummyEvent, true);
+	}
+
 }
 
 void FCEFWebBrowserWindow::SetSupportsMouseWheel(bool bValue)
@@ -1511,6 +1567,15 @@ void FCEFWebBrowserWindow::SetToolTip(const CefString& CefToolTip)
 	{
 		ToolTipText = NewToolTipText;
 		OnToolTip().Broadcast(ToolTipText);
+	}
+}
+
+void FCEFWebBrowserWindow::SetZoomLevelByPercentage(float Percentage)
+{
+	if (InternalCefBrowser != nullptr && InternalCefBrowser->GetHost()->GetWindowHandle())
+	{
+		double ZoomLevel = (double((Percentage * 100) - 100)) / 25.0;
+		InternalCefBrowser->GetHost()->SetZoomLevel(ZoomLevel);
 	}
 }
 
@@ -1806,6 +1871,7 @@ bool FCEFWebBrowserWindow::OnBeforeBrowse( CefRefPtr<CefBrowser> Browser, CefRef
 				FWebNavigationRequest RequestDetails;
 				RequestDetails.bIsRedirect = bIsRedirect;
 				RequestDetails.bIsMainFrame = bIsMainFrame;
+				RequestDetails.bIsExplicitTransition = Request->GetTransitionType() == TT_EXPLICIT;
 
 				if (bIsMainFrame)
 				{
@@ -1832,6 +1898,141 @@ bool FCEFWebBrowserWindow::OnBeforeBrowse( CefRefPtr<CefBrowser> Browser, CefRef
 		}
 	}
 	return false;
+}
+
+
+FString ResourceTypeToString(const CefRequest::ResourceType& Type)
+{
+	const static FString ResourceType_MainFrame(TEXT("MAIN_FRAME"));
+	const static FString ResourceType_SubFrame(TEXT("SUB_FRAME"));
+	const static FString ResourceType_StyleSheet(TEXT("STYLESHEET"));
+	const static FString ResourceType_Script(TEXT("SCRIPT"));
+	const static FString ResourceType_Image(TEXT("IMAGE"));
+	const static FString ResourceType_FontResource(TEXT("FONT_RESOURCE"));
+	const static FString ResourceType_SubResource(TEXT("SUB_RESOURCE"));
+	const static FString ResourceType_Object(TEXT("OBJECT"));
+	const static FString ResourceType_Media(TEXT("MEDIA"));
+	const static FString ResourceType_Worker(TEXT("WORKER"));
+	const static FString ResourceType_SharedWorker(TEXT("SHARED_WORKER"));
+	const static FString ResourceType_Prefetch(TEXT("PREFETCH"));
+	const static FString ResourceType_Favicon(TEXT("FAVICON"));
+	const static FString ResourceType_XHR(TEXT("XHR"));
+	const static FString ResourceType_Ping(TEXT("PING"));
+	const static FString ResourceType_ServiceWorker(TEXT("SERVICE_WORKER"));
+	const static FString ResourceType_CspReport(TEXT("CSP_REPORT"));
+	const static FString ResourceType_PluginResource(TEXT("PLUGIN_RESOURCE"));
+	const static FString ResourceType_Unknown(TEXT("UNKNOWN"));
+
+	FString TypeStr;
+	switch (Type)
+	{
+	case CefRequest::ResourceType::RT_MAIN_FRAME:
+		TypeStr = ResourceType_MainFrame;
+		break;
+	case CefRequest::ResourceType::RT_SUB_FRAME:
+		TypeStr = ResourceType_SubFrame;
+		break;
+	case CefRequest::ResourceType::RT_STYLESHEET:
+		TypeStr = ResourceType_StyleSheet;
+		break;
+	case CefRequest::ResourceType::RT_SCRIPT:
+		TypeStr = ResourceType_Script;
+		break;
+	case CefRequest::ResourceType::RT_IMAGE:
+		TypeStr = ResourceType_Image;
+		break;
+	case CefRequest::ResourceType::RT_FONT_RESOURCE:
+		TypeStr = ResourceType_FontResource;
+		break;
+	case CefRequest::ResourceType::RT_SUB_RESOURCE:
+		TypeStr = ResourceType_SubResource;
+		break;
+	case CefRequest::ResourceType::RT_OBJECT:
+		TypeStr = ResourceType_Object;
+		break;
+	case CefRequest::ResourceType::RT_MEDIA:
+		TypeStr = ResourceType_Media;
+		break;
+	case CefRequest::ResourceType::RT_WORKER:
+		TypeStr = ResourceType_Worker;
+		break;
+	case CefRequest::ResourceType::RT_SHARED_WORKER:
+		TypeStr = ResourceType_SharedWorker;
+		break;
+	case CefRequest::ResourceType::RT_PREFETCH:
+		TypeStr = ResourceType_Prefetch;
+		break;
+	case CefRequest::ResourceType::RT_FAVICON:
+		TypeStr = ResourceType_Favicon;
+		break;
+	case CefRequest::ResourceType::RT_XHR:
+		TypeStr = ResourceType_XHR;
+		break;
+	case CefRequest::ResourceType::RT_PING:
+		TypeStr = ResourceType_Ping;
+		break;
+	case CefRequest::ResourceType::RT_SERVICE_WORKER:
+		TypeStr = ResourceType_ServiceWorker;
+		break;
+	case CefRequest::ResourceType::RT_CSP_REPORT:
+		TypeStr = ResourceType_CspReport;
+		break;
+	case CefRequest::ResourceType::RT_PLUGIN_RESOURCE:
+		TypeStr = ResourceType_PluginResource;
+		break;
+	default:
+		TypeStr = ResourceType_Unknown;
+		break;
+	}
+	return TypeStr;
+}
+
+FString URLRequestSTatusToString(const CefRequestHandler::URLRequestStatus& Status)
+{
+	const static FString URLRequestStatus_Success(TEXT("SUCCESS"));
+	const static FString URLRequestStatus_IoPending(TEXT("IO_PENDING"));
+	const static FString URLRequestStatus_Canceled(TEXT("CANCELED"));
+	const static FString URLRequestStatus_Failed(TEXT("FAILED"));
+	const static FString URLRequestStatus_Unknown(TEXT("UNKNOWN"));
+
+	FString StatusStr;
+	switch (Status)
+	{
+	case CefRequestHandler::URLRequestStatus::UR_SUCCESS:
+		StatusStr = URLRequestStatus_Success;
+		break;
+	case CefRequestHandler::URLRequestStatus::UR_IO_PENDING:
+		StatusStr = URLRequestStatus_IoPending;
+		break;
+	case CefRequestHandler::URLRequestStatus::UR_CANCELED:
+		StatusStr = URLRequestStatus_Canceled;
+		break;
+	case CefRequestHandler::URLRequestStatus::UR_FAILED:
+		StatusStr = URLRequestStatus_Failed;
+		break;
+	case CefRequestHandler::URLRequestStatus::UR_UNKNOWN:
+		StatusStr = URLRequestStatus_Unknown;
+		break;
+	default:
+		StatusStr = URLRequestStatus_Unknown;
+		break;
+	}
+	return StatusStr;
+}
+
+void FCEFWebBrowserWindow::HandleOnBeforeResourceLoad(const CefString& URL, CefRequest::ResourceType Type, FRequestHeaders& AdditionalHeaders)
+{
+	BeforeResourceLoadDelegate.ExecuteIfBound(WCHAR_TO_TCHAR(URL.ToWString().c_str()), ResourceTypeToString(Type), AdditionalHeaders);
+}
+
+void FCEFWebBrowserWindow::HandleOnResourceLoadComplete(const CefString& URL, CefRequest::ResourceType Type, CefRequestHandler::URLRequestStatus Status, int64 ContentLength)
+{
+	ResourceLoadCompleteDelegate.ExecuteIfBound(WCHAR_TO_TCHAR(URL.ToWString().c_str()), ResourceTypeToString(Type), URLRequestSTatusToString(Status), ContentLength);
+}
+
+void FCEFWebBrowserWindow::HandleOnConsoleMessage(CefRefPtr<CefBrowser> Browser, const CefString& Message, const CefString& Source, int Line)
+{
+	ConsoleMessageDelegate.ExecuteIfBound(WCHAR_TO_TCHAR(Message.ToWString().c_str()), WCHAR_TO_TCHAR(Source.ToWString().c_str()), Line);
 }
 
 TOptional<FString> FCEFWebBrowserWindow::GetResourceContent( CefRefPtr< CefFrame > Frame, CefRefPtr< CefRequest > Request)
@@ -2047,7 +2248,13 @@ void FCEFWebBrowserWindow::ProcessPendingNavigation()
 	{
 		CefString Url = TCHAR_TO_WCHAR(*PendingLoadUrl);
 		PendingLoadUrl.Empty();
+#if PLATFORM_MAC
+		MainThreadCall(^{
 		MainFrame->LoadURL(Url);
+		}, NSDefaultRunLoopMode, true);
+#else
+		MainFrame->LoadURL(Url);
+#endif
 	}
 }
 
@@ -2069,6 +2276,14 @@ void FCEFWebBrowserWindow::SetIsHidden(bool bValue)
 		{
 			// When rendering directly into a subwindow, we must hide the native window when fully obscured
 			::ShowWindow(NativeWindowHandle, bIsHidden ? SW_HIDE : SW_SHOW);
+
+			if (bIsHidden )
+			{
+				if (::IsWindowEnabled(NativeWindowHandle) && ParentWindow.IsValid())
+				{
+					::SetFocus((HWND)ParentWindow->GetNativeWindow()->GetOSWindowHandle());
+				}
+			}
 		}
 #endif
 	}
