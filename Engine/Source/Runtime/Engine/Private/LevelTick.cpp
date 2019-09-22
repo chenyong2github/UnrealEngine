@@ -1080,6 +1080,24 @@ void UWorld::SendAllEndOfFrameUpdates()
 	EndSendEndOfFrameUpdatesDrawEvent(SendAllEndOfFrameUpdates);
 }
 
+/**
+ * Flush any pending parameter collection updates to the render thrad.
+ */
+void UWorld::FlushDeferredParameterCollectionInstanceUpdates()
+{
+	if ( bMaterialParameterCollectionInstanceNeedsDeferredUpdate )
+	{
+		for (UMaterialParameterCollectionInstance* ParameterCollectionInstance : ParameterCollectionInstances)
+		{
+			if (ParameterCollectionInstance)
+			{
+				ParameterCollectionInstance->DeferredUpdateRenderState(false);
+			}
+		}
+
+		bMaterialParameterCollectionInstanceNeedsDeferredUpdate = false;
+	}
+}
 
 #if !UE_BUILD_SHIPPING
 static class FFileProfileWrapperExec: private FSelfRegisteringExec
