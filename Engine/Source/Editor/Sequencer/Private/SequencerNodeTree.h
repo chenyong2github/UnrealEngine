@@ -120,6 +120,22 @@ public:
 	bool GetDefaultExpansionState( const FSequencerDisplayNode& Node ) const;
 
 	/**
+	 * Saves the pinned state of a display node
+	 *
+	 * @param Node		The node whose pinned state should be saved
+	 * @param bPinned	The new pinned state of the node
+	 */
+	void SavePinnedState( const FSequencerDisplayNode& Node, bool bPinned );
+
+	/**
+	 * Gets the saved pinned state of a display node
+	 *
+	 * @param Node	The node whose pinned state may have been saved
+	 * @return true if the node should be pinned, false otherwise	
+	 */
+	bool GetSavedPinnedState( const FSequencerDisplayNode& Node ) const;
+
+	/**
 	 * Set the single hovered node in the tree
 	 */
 	void SetHoveredNode(const TSharedPtr<FSequencerDisplayNode>& InHoveredNode);

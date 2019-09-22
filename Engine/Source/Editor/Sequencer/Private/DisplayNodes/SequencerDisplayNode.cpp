@@ -446,6 +446,12 @@ void FSequencerDisplayNode::SetParent(TSharedPtr<FSequencerDisplayNode> InParent
 			}
 
 			bExpanded = ParentTree.GetSavedExpansionState( *this );
+
+			if (InParent != ParentTree.GetRootNode())
+			{
+				bPinned = false;
+				ParentTree.SavePinnedState(*this, false);
+			}
 		}
 	}
 
@@ -479,6 +485,10 @@ void FSequencerDisplayNode::OnTreeRefreshed(float InVirtualTop, float InVirtualB
 	{
 		// Assign the saved expansion state when this node is initialized for the first time
 		bExpanded = ParentTree.GetSavedExpansionState( *this );
+		if (IsRootNode())
+		{
+			bPinned = ParentTree.GetSavedPinnedState(*this);
+		}
 	}
 
 	VirtualTop = InVirtualTop;
@@ -1189,7 +1199,10 @@ void FSequencerDisplayNode::TogglePinned()
 	FSequencerDisplayNode* BaseNode = GetBaseNode();
 	bool bShouldPin = !BaseNode->bPinned;
 	ParentTree.UnpinAllNodes();
+
 	BaseNode->bPinned = bShouldPin;
+	ParentTree.SavePinnedState(*this, bShouldPin);
+	
 	ParentTree.GetSequencer().RefreshTree();
 }
 
@@ -1199,6 +1212,8 @@ void FSequencerDisplayNode::Unpin()
 	if (BaseNode->bPinned)
 	{
 		BaseNode->bPinned = false;
+		ParentTree.SavePinnedState(*this, false);
+	
 		ParentTree.GetSequencer().RefreshTree();
 	}
 }

@@ -120,6 +120,10 @@ struct FMovieSceneEditorData
 	UPROPERTY()
 	TMap<FString, FMovieSceneExpansionState> ExpansionStates;
 
+	/** List of Pinned nodes. */
+	UPROPERTY()
+	TArray<FString> PinnedNodes;
+
 	/** The last view-range start that the user was observing */
 	UPROPERTY()
 	double ViewStart;
