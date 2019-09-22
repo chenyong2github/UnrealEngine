@@ -36,7 +36,7 @@ EARWorldMappingState ToEARWorldMappingState(ARWorldMappingStatus MapStatus)
 
 #if SUPPORTS_ARKIT_1_0
 
-FAppleARKitFrame::FAppleARKitFrame( ARFrame* InARFrame )
+FAppleARKitFrame::FAppleARKitFrame( ARFrame* InARFrame, const FVector2D MinCameraUV, const FVector2D MaxCameraUV )
 	: Camera( InARFrame.camera )
 	, LightEstimate( InARFrame.lightEstimate )
 	, WorldMappingState(EARWorldMappingState::NotAvailable)
@@ -70,6 +70,39 @@ FAppleARKitFrame::FAppleARKitFrame( ARFrame* InARFrame )
 		WorldMappingState = ToEARWorldMappingState(InARFrame.worldMappingStatus);
 	}
 #endif
+
+#if SUPPORTS_ARKIT_3_0
+	if (FAppleARKitAvailability::SupportsARKit30())
+	{
+		if (InARFrame.detectedBody)
+		{
+			Tracked2DPose = FAppleARKitConversion::ToARPose2D(InARFrame.detectedBody);
+			
+			// Convert the joint location from the normalized arkit camera space to UE4's normalized screen space
+			const FVector2D UVSize = MaxCameraUV - MinCameraUV;
+			for (int Index = 0; Index < Tracked2DPose.JointLocations.Num(); ++Index)
+			{
+				if (Tracked2DPose.IsJointTracked[Index])
+				{
+					FVector2D& JointLocation = Tracked2DPose.JointLocations[Index];
+					JointLocation = (JointLocation - MinCameraUV) / UVSize;
+				}
+			}
+		}
+		
+		if (InARFrame.segmentationBuffer)
+		{
+			SegmentationBuffer = InARFrame.segmentationBuffer;
+			CFRetain(SegmentationBuffer);
+		}
+		
+		if (InARFrame.estimatedDepthData)
+		{
+			EstimatedDepthData = InARFrame.estimatedDepthData;
+			CFRetain(EstimatedDepthData);
+		}
+	}
+#endif
 }
 
 FAppleARKitFrame::FAppleARKitFrame( const FAppleARKitFrame& Other )
@@ -79,6 +112,7 @@ FAppleARKitFrame::FAppleARKitFrame( const FAppleARKitFrame& Other )
 	, Camera( Other.Camera )
 	, LightEstimate( Other.LightEstimate )
 	, WorldMappingState(Other.WorldMappingState)
+	, Tracked2DPose(Other.Tracked2DPose)
 {
 	if(Other.NativeFrame != nullptr)
 	{
@@ -101,6 +135,17 @@ FAppleARKitFrame::~FAppleARKitFrame()
 	{
 		CFRelease((CFTypeRef)NativeFrame);
 	}
+#if SUPPORTS_ARKIT_3_0
+	if (SegmentationBuffer)
+	{
+		CFRelease(SegmentationBuffer);
+	}
+	
+	if (EstimatedDepthData)
+	{
+		CFRelease(EstimatedDepthData);
+	}
+#endif
 }
 
 FAppleARKitFrame& FAppleARKitFrame::operator=( const FAppleARKitFrame& Other )
@@ -132,6 +177,20 @@ FAppleARKitFrame& FAppleARKitFrame::operator=( const FAppleARKitFrame& Other )
 		NativeFrame = (void*)CFRetain((CFTypeRef)Other.NativeFrame);
 	}
 	
+#if SUPPORTS_ARKIT_3_0
+	if (SegmentationBuffer)
+	{
+		CFRelease(SegmentationBuffer);
+		SegmentationBuffer = nullptr;
+	}
+	
+	if (EstimatedDepthData)
+	{
+		CFRelease(EstimatedDepthData);
+		EstimatedDepthData = nullptr;
+	}
+#endif
+	
 	// Member-wise copy
 	Timestamp = Other.Timestamp;
 	Camera = Other.Camera;
@@ -139,6 +198,8 @@ FAppleARKitFrame& FAppleARKitFrame::operator=( const FAppleARKitFrame& Other )
 	WorldMappingState = Other.WorldMappingState;
 
 	NativeFrame = Other.NativeFrame;
+	
+	Tracked2DPose = Other.Tracked2DPose;
 
 	return *this;
 }
