@@ -176,13 +176,10 @@ void INiagaraModule::StartupModule()
 	FNiagaraWorldManager::OnStartup();
 
 #if WITH_EDITOR	
-	if (!GIsEditor)
-	{
-		// Loading uncooked data in a game environment, we still need to get some functionality from the NiagaraEditor module.
-		// This includes the ability to compile scripts and load WITH_EDITOR_ONLY data.
-		// Note that when loading with the Editor, the NiagaraEditor module is loaded based on the plugin description.
-		FModuleManager::Get().LoadModule(TEXT("NiagaraEditor"));
-	}
+	// Loading uncooked data in a game environment, we still need to get some functionality from the NiagaraEditor module.
+	// This includes the ability to compile scripts and load WITH_EDITOR_ONLY data.
+	// Note that when loading with the Editor, the NiagaraEditor module is loaded based on the plugin description.
+	FModuleManager::Get().LoadModule(TEXT("NiagaraEditor"));
 #endif
 
 	CVarDetailLevel.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateRaw(this, &INiagaraModule::OnChangeDetailLevel));
