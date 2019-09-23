@@ -364,7 +364,7 @@ FAppleARKitLiveLinkRemoteListener::~FAppleARKitLiveLinkRemoteListener()
 	{
 		RecvSocket->Close();
 
-		if (!GIsRequestingExit)
+		if (!IsEngineExitRequested())
 		{
 			ISocketSubsystem* SocketSub = ISocketSubsystem::Get();
 			SocketSub->DestroySocket(RecvSocket);
