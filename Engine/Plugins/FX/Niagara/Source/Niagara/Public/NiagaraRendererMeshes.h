@@ -33,8 +33,6 @@ public:
 
 private:
 
-	class FNiagaraMeshVertexFactory* VertexFactory;
-
 	/** Render data of the static mesh we use. */
 	FStaticMeshRenderData* MeshRenderData;
 

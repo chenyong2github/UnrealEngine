@@ -150,8 +150,6 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	, NormalizedAgeDataOffset(INDEX_NONE)
 	, MaterialRandomDataOffset(INDEX_NONE)
 {
-	VertexFactory = new FNiagaraRibbonVertexFactory(NVFT_Ribbon, FeatureLevel);
-
 	const UNiagaraRibbonRendererProperties* Properties = CastChecked<const UNiagaraRibbonRendererProperties>(InProps);
 	const FNiagaraDataSet& Data = Emitter->GetData();
 
@@ -199,17 +197,11 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 
 FNiagaraRendererRibbons::~FNiagaraRendererRibbons()
 {
-	if (VertexFactory != nullptr)
-	{
-		delete VertexFactory;
-		VertexFactory = nullptr;
-	}
 }
 
 void FNiagaraRendererRibbons::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
 {
 	FNiagaraRenderer::ReleaseRenderThreadResources(Batcher);
-	VertexFactory->ReleaseResource();
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
@@ -223,7 +215,6 @@ void FNiagaraRendererRibbons::ReleaseRenderThreadResources(NiagaraEmitterInstanc
 void FNiagaraRendererRibbons::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
 {
 	FNiagaraRenderer::CreateRenderThreadResources(Batcher);
-	VertexFactory->InitResource();
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
