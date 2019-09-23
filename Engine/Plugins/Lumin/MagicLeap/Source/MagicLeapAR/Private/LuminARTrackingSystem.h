@@ -32,7 +32,13 @@ protected:
 	virtual void OnARSystemInitialized() override;
 	virtual bool OnStartARGameFrame(FWorldContext& WorldContext) override;
 
+	/** Returns true/false based on whether AR features are available */
+	virtual bool IsARAvailable() const override;
+
 	virtual EARTrackingQuality OnGetTrackingQuality() const override;
+
+	virtual EARTrackingQualityReason OnGetTrackingQualityReason() const override;
+
 	virtual void OnStartARSession(UARSessionConfig* SessionConfig) override;
 	virtual void OnPauseARSession() override;
 	virtual void OnStopARSession() override;
