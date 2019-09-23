@@ -290,7 +290,7 @@ void USimplifyMeshTool::UpdateResult()
 		}
 	}
 
-	UE_LOG(LogMeshSimplification, Log, TEXT("Mesh simplified to %d triangles"), TargetMesh->TriangleCount());
+	//UE_LOG(LogMeshSimplification, Log, TEXT("Mesh simplified to %d triangles"), TargetMesh->TriangleCount());
 
 	DynamicMeshComponent->NotifyMeshUpdated();
 	GetToolManager()->PostInvalidation();
