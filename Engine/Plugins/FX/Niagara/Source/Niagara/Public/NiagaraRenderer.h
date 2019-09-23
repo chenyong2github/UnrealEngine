@@ -51,29 +51,6 @@ protected:
 	}Data;
 };
 
-
-
-class SimpleTimer
-{
-public:
-	SimpleTimer()
-	{
-		StartTime = FPlatformTime::Seconds() * 1000.0;
-	}
-
-	double GetElapsedMilliseconds()
-	{
-		return (FPlatformTime::Seconds()*1000.0) - StartTime;
-	}
-
-	~SimpleTimer()
-	{
-	}
-
-private:
-	double StartTime;
-};
-
 //////////////////////////////////////////////////////////////////////////
 
 /**
@@ -106,7 +83,6 @@ public:
 	void SetDynamicData_RenderThread(FNiagaraDynamicDataBase* NewDynamicData);
 	FORCEINLINE FNiagaraDynamicDataBase *GetDynamicData()const { return DynamicDataRender; }
 	FORCEINLINE bool HasDynamicData()const { return DynamicDataRender != nullptr; }
-	FORCEINLINE float GetCPUTimeMS() const { return CPUTimeMS; }
 	FORCEINLINE bool HasLights()const { return bHasLights; }
 
 #if RHI_RAYTRACING
@@ -128,8 +104,6 @@ protected:
 	FRWBuffer RayTracingDynamicVertexBuffer;
 	FRayTracingGeometry RayTracingGeometry;
 #endif
-
-	mutable float CPUTimeMS;
 
 	uint32 bLocalSpace : 1;
 	uint32 bHasLights : 1;
