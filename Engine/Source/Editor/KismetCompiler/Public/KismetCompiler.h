@@ -93,6 +93,7 @@ protected:
 public:
 	UBlueprint* Blueprint;
 	UBlueprintGeneratedClass* NewClass;
+	UBlueprintGeneratedClass* OldClass;
 
 	// The ubergraph; valid from roughly the start of CreateAndProcessEventGraph
 	UEdGraph* ConsolidatedEventGraph;

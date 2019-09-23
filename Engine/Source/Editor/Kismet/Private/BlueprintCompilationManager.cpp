@@ -1026,6 +1026,11 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 					)
 				);
 
+				if(CompilerData.Compiler.IsValid())
+				{
+					CompilerData.Compiler->OldClass = Cast<UBlueprintGeneratedClass>(CompilerData.Reinstancer->DuplicatedClass);
+				}
+
 				if(BP->GeneratedClass)
 				{
 					BP->GeneratedClass->ClassFlags |= CLASS_LayoutChanging;
@@ -1707,14 +1712,29 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 			continue;
 		}
 
-		InOutOldToNewClassMap.Add(OldClass, ReinstancingJob.OldToNew.Value);
+		UClass* NewClass = ReinstancingJob.OldToNew.Value;
+
+		InOutOldToNewClassMap.Add(OldClass, NewClass);
 
 		if(!HasChildren(OldClass))
 		{
 			continue;
 		}
 
-		bool bParentLayoutChanged = !FStructUtils::TheSameLayout(OldClass, ReinstancingJob.OldToNew.Value);
+		bool bParentLayoutChanged = !FStructUtils::TheSameLayout(OldClass, NewClass);
+
+		if(!bParentLayoutChanged)
+		{
+			// make sure uber graph didn't change, if present:
+			UBlueprintGeneratedClass* OldParent = Cast<UBlueprintGeneratedClass>(OldClass);
+			UBlueprintGeneratedClass* NewBPGC = Cast<UBlueprintGeneratedClass>(NewClass);
+
+			if(OldParent && NewBPGC && OldParent->UberGraphFunction)
+			{
+				bParentLayoutChanged = !FStructUtils::TheSameLayout(OldParent->UberGraphFunction, NewBPGC->UberGraphFunction);
+			}
+		}
+
 		if(bParentLayoutChanged)
 		{
 			// we need *all* derived types:

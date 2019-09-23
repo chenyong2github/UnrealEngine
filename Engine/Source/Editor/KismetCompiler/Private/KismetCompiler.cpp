@@ -130,6 +130,7 @@ FKismetCompilerContext::FKismetCompilerContext(UBlueprint* SourceSketch, FCompil
 	, CompileOptions(InCompilerOptions)
 	, Blueprint(SourceSketch)
 	, NewClass(NULL)
+	, OldClass(nullptr)
 	, ConsolidatedEventGraph(NULL)
 	, UbergraphContext(NULL)
 	, bIsFullCompile(false)
@@ -2210,6 +2211,17 @@ void FKismetCompilerContext::FinishCompilingFunction(FKismetFunctionContext& Con
 	if( NewClass->UberGraphFunction == Context.Function )
 	{
 		NewClass->UberGraphFunctionKey = IncrementUberGraphSerialNumber();
+
+		// if the old class uber graph function matches, just reuse that ID, this check means
+		// that if child types aren't reinstanced we can still validate their uber graph:
+		if(NewClass->UberGraphFunction && OldClass)
+		{
+			bool bSameLayout = FStructUtils::TheSameLayout(OldClass->UberGraphFunction, NewClass->UberGraphFunction);
+			if(bSameLayout)
+			{
+				NewClass->UberGraphFunctionKey = OldClass->UberGraphFunctionKey;
+			}
+		}
 	}
 #endif//VALIDATE_UBER_GRAPH_PERSISTENT_FRAME
 }

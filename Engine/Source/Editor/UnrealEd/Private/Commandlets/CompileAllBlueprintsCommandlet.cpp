@@ -302,6 +302,8 @@ void UCompileAllBlueprintsCommandlet::CompileBlueprint(UBlueprint* Blueprint)
 		{
 			MessageLog.bAnnotateMentionedNodes = true;
 		}
+		MessageLog.SetSourcePath(Blueprint->GetPathName());
+		MessageLog.BeginEvent(TEXT("Compile"));
 	
 		FKismetCompilerOptions CompileOptions;
 		//Defaults to use for CompileOptions
@@ -315,8 +317,10 @@ void UCompileAllBlueprintsCommandlet::CompileBlueprint(UBlueprint* Blueprint)
 		{
 			CompileOptions.CompileType = EKismetCompileType::SkeletonOnly;
 		}
-		
-		KismetBlueprintCompilerModule->CompileBlueprint(Blueprint, CompileOptions, MessageLog);
+
+		FKismetEditorUtilities::CompileBlueprint(Blueprint, EBlueprintCompileOptions::SkipGarbageCollection, &MessageLog);
+
+		MessageLog.EndEvent();
 
 		if ((MessageLog.NumErrors + MessageLog.NumWarnings) > 0)
 		{
