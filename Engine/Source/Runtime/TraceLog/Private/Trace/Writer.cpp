@@ -6,7 +6,6 @@
 
 #include "Trace/Platform.h"
 #include "Trace/Detail/Atomic.h"
-#include "Trace/Detail/Protocol.h"
 #include "Trace/Trace.h"
 
 #include "Misc/CString.h"
