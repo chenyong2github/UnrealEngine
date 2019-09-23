@@ -270,29 +270,23 @@ void ALODActor::PostLoad()
 
 #if !WITH_EDITOR
 	// Invalid runtime LOD actor with null static mesh is invalid, look for a possible way to patch this up
-	if (GetStaticMeshComponent()->GetStaticMesh() == nullptr)
+	if (GetStaticMeshComponent() && GetStaticMeshComponent()->GetStaticMesh() == nullptr && GetStaticMeshComponent()->GetLODParentPrimitive())
 	{
-		if (GetStaticMeshComponent() && GetStaticMeshComponent()->GetLODParentPrimitive())
+ 		if (ALODActor* ParentLODActor = Cast<ALODActor>(GetStaticMeshComponent()->GetLODParentPrimitive()->GetOwner()))
 		{
- 			if (ALODActor* ParentLODActor = Cast<ALODActor>(GetStaticMeshComponent()->GetLODParentPrimitive()->GetOwner()))
+			// Make the parent HLOD
+			ParentLODActor->SubActors.Remove(this);
+			ParentLODActor->SubActors.Append(SubActors);
+			for (AActor* Actor : SubActors)
 			{
-				if ( ParentLODActor->GetStaticMeshComponent()->GetStaticMesh() != nullptr )
-				{				
-					// Make the parent HLOD 			
-					ParentLODActor->SubActors.Remove(this);
-					ParentLODActor->SubActors.Append(SubActors);			
-					for (AActor* Actor : SubActors)
-					{
-						if (Actor)
-						{
-							Actor->SetLODParent(ParentLODActor->GetStaticMeshComponent(), ParentLODActor->GetDrawDistance());
-						}
-					}
-  
-					SubActors.Empty();
-					bHasPatchedUpParent = true;
+				if (Actor)
+				{
+					Actor->SetLODParent(ParentLODActor->GetStaticMeshComponent(), ParentLODActor->GetDrawDistance());
 				}
 			}
+  
+			SubActors.Empty();
+			bHasPatchedUpParent = true;
 		}
 	}
 #endif // !WITH_EDITOR
@@ -342,6 +336,13 @@ void ALODActor::SetComponentsMinDrawDistance(float InMinDrawDistance, bool bInMa
 			Component.Value->MarkRenderStateDirty();
 		}
 	}
+}
+
+/** Returns an array of distances that are used to override individual LOD actors min draw distances. */
+const TArray<float>& ALODActor::GetHLODDistanceOverride()
+{
+	ParseOverrideDistancesCVar();
+	return HLODDistances;
 }
 
 void ALODActor::UpdateOverrideTransitionDistance()
