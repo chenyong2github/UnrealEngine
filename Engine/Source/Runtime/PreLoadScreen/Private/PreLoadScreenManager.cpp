@@ -23,10 +23,6 @@
 #endif
 #endif
 
-#if PLATFORM_SWITCH
-#include <nn/oe.h>
-#endif
-
 IMPLEMENT_MODULE(FDefaultModuleImpl, PreLoadScreen);
 
 DEFINE_LOG_CATEGORY_STATIC(LogPreLoadScreenManager, Log, All);
@@ -159,7 +155,7 @@ void FPreLoadScreenManager::HandleEarlyStartupPlay()
 				bDidDisableScreensaver = FPlatformApplicationMisc::ControlScreensaver(FGenericPlatformApplicationMisc::EScreenSaverAction::Disable);
 			}
 
-			HidePlatformSpecificStartupScreen();
+			FPlatformMisc::HidePlatformStartupScreen();
 
 			{
 				SCOPED_BOOT_TIMING("FPreLoadScreenManager::EarlyPlayFrameTick()");
@@ -335,14 +331,6 @@ void FPreLoadScreenManager::PlatformSpecificGameLogicFrameTick()
 #if PLATFORM_IOS
 	IOS_PlatformSpecificGameLogicFrameTick();
 #endif //PLATFORM_IOS
-}
-
-void FPreLoadScreenManager::HidePlatformSpecificStartupScreen()
-{
-#if PLATFORM_SWITCH
-	// hide the "Licensed by Nintendo" type logos, if the project had manual hide set
-	nn::oe::FinishStartupLogo();
-#endif // PLATFORM_SWITCH
 }
 
 bool FPreLoadScreenManager::ShouldRender()
