@@ -269,29 +269,16 @@ void IoClose(UPTRINT Handle)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-UPTRINT FileOpen(const ANSICHAR* Path, const ANSICHAR* Mode)
+UPTRINT FileOpen(const ANSICHAR* Path)
 {
-	DWORD Access = GENERIC_READ;
-	DWORD Disposition = OPEN_EXISTING;
-	switch (*Mode)
-	{
-	case 'a':
-	case 'w':
-		Access |= GENERIC_WRITE;
-		Disposition = (*Mode == 'a') ? OPEN_ALWAYS : CREATE_ALWAYS;
-		break;
-	}
-
+	DWORD Access = GENERIC_WRITE;
+	DWORD Share = FILE_SHARE_READ;
+	DWORD Disposition = CREATE_ALWAYS;
 	DWORD Flags = FILE_ATTRIBUTE_NORMAL;
-	HANDLE Out = CreateFileA(Path, Access, FILE_SHARE_READ|FILE_SHARE_WRITE, nullptr, Disposition, Flags, nullptr);
+	HANDLE Out = CreateFileA(Path, Access, Share, nullptr, Disposition, Flags, nullptr);
 	if (Out == INVALID_HANDLE_VALUE)
 	{
 		return 0;
-	}
-
-	if (*Mode == 'a')
-	{
-		SetFilePointer(Out, 0, nullptr, FILE_END);
 	}
 
 	return UPTRINT(Out) + 1;

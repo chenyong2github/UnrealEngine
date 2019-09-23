@@ -327,20 +327,14 @@ void IoClose(UPTRINT Handle)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-UPTRINT FileOpen(const ANSICHAR* Path, const ANSICHAR* Mode)
+UPTRINT FileOpen(const ANSICHAR* Path)
 {
-	int Flags = O_CREAT | O_APPEND | O_RDWR | O_SHLOCK | O_NONBLOCK;
-
-	if ((*Mode) == 'w')
+	int Flags = O_CREAT|O_WRONLY|O_TRUNC|O_SHLOCK;
+	int Mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
+	int Out = open(Path, Flags, Mode);
+	if (Out < 0)
 	{
-		Flags |= O_TRUNC;
-	}
-
-	int Out = open(Path, Flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-
-	if (((*Mode) == 'a') && (Out != -1))
-	{
-		lseek(Out, 0, SEEK_END);
+		return 0;
 	}
 
 	return EncodeHandle(UPTRINT(Out), HandleType_File);

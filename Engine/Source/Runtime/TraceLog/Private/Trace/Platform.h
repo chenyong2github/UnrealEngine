@@ -37,7 +37,7 @@ bool	IoWrite(UPTRINT Handle, const void* Data, uint32 Size);
 void	IoClose(UPTRINT Handle);
 
 ////////////////////////////////////////////////////////////////////////////////
-UPTRINT	FileOpen(const ANSICHAR* Path, const ANSICHAR* Mode);
+UPTRINT	FileOpen(const ANSICHAR* Path);
 
 } // namespace Private
 } // namespace Trace

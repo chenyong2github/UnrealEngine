@@ -6,6 +6,7 @@
 
 #include "Trace/Platform.h"
 #include "Trace/Detail/Atomic.h"
+#include "Trace/Detail/Protocol.h"
 #include "Trace/Trace.h"
 
 #include "Misc/CString.h"
@@ -913,7 +914,7 @@ bool Writer_Open(const ANSICHAR* Path)
 {
 	Writer_Initialize();
 
-	UPTRINT DataHandle = FileOpen(Path, "w");
+	UPTRINT DataHandle = FileOpen(Path);
 	if (!DataHandle)
 	{
 		return false;
