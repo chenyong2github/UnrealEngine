@@ -2514,7 +2514,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 	{
 		CompilerContext.NewClass = Ret;
 		TGuardValue<bool> GuardAssignDelegateSignatureFunction( CompilerContext.bAssignDelegateSignatureFunction, true);
-		TGuardValue<bool> GuardGenerateSubInstanceVariables( CompilerContext.bGenerateSubInstanceVariables, true);
+		TGuardValue<bool> GuardGenerateLinkedAnimGraphVariables( CompilerContext.bGenerateLinkedAnimGraphVariables, true);
 		CompilerContext.CreateClassVariablesFromBlueprint();
 		CompilerContext.NewClass = OriginalNewClass;
 	}

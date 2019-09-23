@@ -7,7 +7,7 @@
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/BlendProfile.h"
-#include "Animation/AnimNode_Layer.h"
+#include "Animation/AnimNode_LinkedAnimLayer.h"
 #include "Animation/AnimInstance.h"
 
 DECLARE_CYCLE_STAT(TEXT("StateMachine SetState"), Stat_StateMachineSetState, STATGROUP_Anim);
@@ -563,7 +563,7 @@ FAnimNode_AssetPlayerBase* FAnimNode_StateMachine::GetRelevantAssetPlayerFromSta
 	for (const int32& LayerIdx : StateInfo.LayerNodeIndices)
 	{
 		// Try and retrieve the actual node object
-		if (FAnimNode_Layer* Layer = Context.AnimInstanceProxy->GetNodeFromIndex<FAnimNode_Layer>(LayerIdx))
+		if (FAnimNode_LinkedAnimLayer* Layer = Context.AnimInstanceProxy->GetNodeFromIndex<FAnimNode_LinkedAnimLayer>(LayerIdx))
 		{
 			// Retrieve the AnimInstance running for this layer
 			if (UAnimInstance* CurrentTarget = Layer->GetTargetInstance<UAnimInstance>())

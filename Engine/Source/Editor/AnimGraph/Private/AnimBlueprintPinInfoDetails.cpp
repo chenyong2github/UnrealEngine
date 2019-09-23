@@ -4,7 +4,7 @@
 #include "SPinTypeSelector.h"
 #include "EdGraphSchema_K2.h"
 #include "PropertyHandle.h"
-#include "AnimGraphNode_SubInput.h"
+#include "AnimGraphNode_LinkedInputPose.h"
 #include "DetailLayoutBuilder.h"
 #include "Widgets/SBoxPanel.h"
 #include "DetailWidgetRow.h"
@@ -28,7 +28,7 @@ void FAnimBlueprintFunctionPinInfoDetails::CustomizeHeader(TSharedRef<IPropertyH
 	}
 
 	// skip if we cant edit this node as it is an interface graph
-	UAnimGraphNode_SubInput* Node = CastChecked<UAnimGraphNode_SubInput>(OuterObjects[0]);
+	UAnimGraphNode_LinkedInputPose* Node = CastChecked<UAnimGraphNode_LinkedInputPose>(OuterObjects[0]);
 	if(!Node->CanUserDeleteNode())
 	{
 		return;
@@ -126,13 +126,13 @@ bool FAnimBlueprintFunctionPinInfoDetails::IsNameValid(const FString& InNewName)
 		{
 			if(Graph->Schema->IsChildOf(UAnimationGraphSchema::StaticClass()))
 			{
-				TArray<UAnimGraphNode_SubInput*> SubInputNodes;
-				Graph->GetNodesOfClass(SubInputNodes);
+				TArray<UAnimGraphNode_LinkedInputPose*> LinkedInputPoseNodes;
+				Graph->GetNodesOfClass(LinkedInputPoseNodes);
 
-				for(UAnimGraphNode_SubInput* SubInput : SubInputNodes)
+				for(UAnimGraphNode_LinkedInputPose* LinkedInputPose : LinkedInputPoseNodes)
 				{
-					const TArray<FAnimBlueprintFunctionPinInfo>& Inputs = SubInput->Inputs;
-					if(SubInput == WeakOuterNode.Get())
+					const TArray<FAnimBlueprintFunctionPinInfo>& Inputs = LinkedInputPose->Inputs;
+					if(LinkedInputPose == WeakOuterNode.Get())
 					{
 						const int32 CurrentIndex = StructPropertyHandle->GetIndexInArray();
 						for(int32 InputIndex = 0; InputIndex < Inputs.Num(); ++InputIndex)

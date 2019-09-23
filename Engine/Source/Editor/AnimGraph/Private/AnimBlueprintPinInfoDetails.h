@@ -6,7 +6,7 @@
 #include "Types/SlateEnums.h"
 
 struct FEdGraphPinType;
-class UAnimGraphNode_SubInput;
+class UAnimGraphNode_LinkedInputPose;
 class SEditableTextBox;
 
 class FAnimBlueprintFunctionPinInfoDetails : public IPropertyTypeCustomization
@@ -41,5 +41,5 @@ private:
 	TSharedPtr<SEditableTextBox> NameTextBox;
 
 	/** The node we are editing on */
-	TWeakObjectPtr<UAnimGraphNode_SubInput> WeakOuterNode;
+	TWeakObjectPtr<UAnimGraphNode_LinkedInputPose> WeakOuterNode;
 };

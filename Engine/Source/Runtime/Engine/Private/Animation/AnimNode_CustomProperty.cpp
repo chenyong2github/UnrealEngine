@@ -3,7 +3,7 @@
 #include "Animation/AnimNode_CustomProperty.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimInstanceProxy.h"
-#include "Animation/AnimNode_SubInput.h"
+#include "Animation/AnimNode_LinkedInputPose.h"
 
 FAnimNode_CustomProperty::FAnimNode_CustomProperty()
 	: TargetInstance(nullptr)

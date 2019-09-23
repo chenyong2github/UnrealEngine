@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "AnimGraphNode_SubInstanceBase.h"
+#include "AnimGraphNode_LinkedAnimGraphBase.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "EdGraphSchema_K2.h"
@@ -9,45 +9,45 @@
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
-#include "Animation/AnimNode_SubInput.h"
+#include "Animation/AnimNode_LinkedInputPose.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 #include "AnimationGraphSchema.h"
 #include "Widgets/Layout/SBox.h"
 #include "UObject/CoreRedirects.h"
-#include "Animation/AnimNode_SubInstance.h"
+#include "Animation/AnimNode_LinkedAnimGraph.h"
 
-#define LOCTEXT_NAMESPACE "SubInstanceNode"
+#define LOCTEXT_NAMESPACE "LinkedAnimGraph"
 
-namespace SubInstanceGraphNodeConstants
+namespace LinkedAnimGraphGraphNodeConstants
 {
 	FLinearColor TitleColor(0.2f, 0.2f, 0.8f);
 }
 
-FLinearColor UAnimGraphNode_SubInstanceBase::GetNodeTitleColor() const
+FLinearColor UAnimGraphNode_LinkedAnimGraphBase::GetNodeTitleColor() const
 {
-	return SubInstanceGraphNodeConstants::TitleColor;
+	return LinkedAnimGraphGraphNodeConstants::TitleColor;
 }
 
-FText UAnimGraphNode_SubInstanceBase::GetTooltipText() const
+FText UAnimGraphNode_LinkedAnimGraphBase::GetTooltipText() const
 {
-	return LOCTEXT("ToolTip", "Runs a sub-anim instance to process animation");
+	return LOCTEXT("ToolTip", "Runs a linked anim graph in another instance to process animation");
 }
 
-FText UAnimGraphNode_SubInstanceBase::GetNodeTitle(ENodeTitleType::Type TitleType) const
+FText UAnimGraphNode_LinkedAnimGraphBase::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	UClass* TargetClass = GetTargetClass();
 	UAnimBlueprint* TargetAnimBlueprint = TargetClass ? CastChecked<UAnimBlueprint>(TargetClass->ClassGeneratedBy) : nullptr;
 
-	const FAnimNode_SubInstance& Node = *GetSubInstanceNode();
+	const FAnimNode_LinkedAnimGraph& Node = *GetLinkedAnimGraphNode();
 
 	FFormatNamedArguments Args;
-	Args.Add(TEXT("NodeTitle"), LOCTEXT("Title", "Sub Anim Instance"));
+	Args.Add(TEXT("NodeTitle"), LOCTEXT("Title", "Linked Anim Graph"));
 	Args.Add(TEXT("TargetClass"), TargetAnimBlueprint ? FText::FromString(TargetAnimBlueprint->GetName()) : LOCTEXT("ClassNone", "None"));
 
 	if(TitleType == ENodeTitleType::MenuTitle)
 	{
-		return LOCTEXT("NodeTitle", "Sub Anim Instance");
+		return LOCTEXT("NodeTitle", "Linked Anim Graph");
 	}
 	if(TitleType == ENodeTitleType::ListView)
 	{
@@ -76,7 +76,7 @@ FText UAnimGraphNode_SubInstanceBase::GetNodeTitle(ENodeTitleType::Type TitleTyp
 	}
 }
 
-void UAnimGraphNode_SubInstanceBase::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
+void UAnimGraphNode_LinkedAnimGraphBase::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
@@ -86,33 +86,33 @@ void UAnimGraphNode_SubInstanceBase::ValidateAnimNodeDuringCompilation(USkeleton
 
 	if(HasInstanceLoop())
 	{
-		MessageLog.Error(TEXT("Detected loop in sub instance chain starting at @@ inside class @@"), this, AnimBP->GetAnimBlueprintGeneratedClass());
+		MessageLog.Error(TEXT("Detected loop in linked instance chain starting at @@ inside class @@"), this, AnimBP->GetAnimBlueprintGeneratedClass());
 	}
 
-	// Check for cycles from other sub instance nodes
+	// Check for cycles from other linked instance nodes
 	TArray<UEdGraph*> Graphs;
 	AnimBP->GetAllGraphs(Graphs);
 
-	const FAnimNode_SubInstance& Node = *GetSubInstanceNode();
+	const FAnimNode_LinkedAnimGraph& Node = *GetLinkedAnimGraphNode();
 
 	// Check for duplicate tags in this anim blueprint
 	for(UEdGraph* Graph : Graphs)
 	{
-		TArray<UAnimGraphNode_SubInstanceBase*> SubInstanceNodes;
-		Graph->GetNodesOfClass(SubInstanceNodes);
+		TArray<UAnimGraphNode_LinkedAnimGraphBase*> LinkedAnimGraphNodes;
+		Graph->GetNodesOfClass(LinkedAnimGraphNodes);
 
-		for(UAnimGraphNode_SubInstanceBase* SubInstanceNode : SubInstanceNodes)
+		for(UAnimGraphNode_LinkedAnimGraphBase* LinkedAnimGraphNode : LinkedAnimGraphNodes)
 		{
-			if(SubInstanceNode == OriginalNode)
+			if(LinkedAnimGraphNode == OriginalNode)
 			{
 				continue;
 			}
 
-			FAnimNode_SubInstance& InnerNode = *SubInstanceNode->GetSubInstanceNode();
+			FAnimNode_LinkedAnimGraph& InnerNode = *LinkedAnimGraphNode->GetLinkedAnimGraphNode();
 
 			if(InnerNode.Tag != NAME_None && InnerNode.Tag == Node.Tag)
 			{
-				MessageLog.Error(*FText::Format(LOCTEXT("DuplicateTagErrorFormat", "Node @@ and node @@ both have the same tag '{0}'."), FText::FromName(Node.Tag)).ToString(), this, SubInstanceNode);
+				MessageLog.Error(*FText::Format(LOCTEXT("DuplicateTagErrorFormat", "Node @@ and node @@ both have the same tag '{0}'."), FText::FromName(Node.Tag)).ToString(), this, LinkedAnimGraphNode);
 			}
 		}
 	}
@@ -120,11 +120,11 @@ void UAnimGraphNode_SubInstanceBase::ValidateAnimNodeDuringCompilation(USkeleton
 	// Check we don't try to spawn our own blueprint
 	if(GetTargetClass() == AnimBP->GetAnimBlueprintGeneratedClass())
 	{
-		MessageLog.Error(TEXT("Sub instance node @@ targets instance class @@ which it is inside, this would cause a loop."), this, AnimBP->GetAnimBlueprintGeneratedClass());
+		MessageLog.Error(TEXT("Linked instance node @@ targets instance class @@ which it is inside, this would cause a loop."), this, AnimBP->GetAnimBlueprintGeneratedClass());
 	}
 }
 
-void UAnimGraphNode_SubInstanceBase::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins)
+void UAnimGraphNode_LinkedAnimGraphBase::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins)
 {
 	// Grab the SKELETON class here as when we are reconstructed during during BP compilation
 	// the full generated class is not yet present built.
@@ -138,7 +138,7 @@ void UAnimGraphNode_SubInstanceBase::ReallocatePinsDuringReconstruction(TArray<U
 
 	IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(TargetClass);
 
-	const FAnimNode_SubInstance& Node = *GetSubInstanceNode();
+	const FAnimNode_LinkedAnimGraph& Node = *GetLinkedAnimGraphNode();
 
 	// Add any pose pins
 	for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimClassInterface->GetAnimBlueprintFunctions())
@@ -160,7 +160,7 @@ void UAnimGraphNode_SubInstanceBase::ReallocatePinsDuringReconstruction(TArray<U
 	Super::ReallocatePinsDuringReconstruction(OldPins);
 }
 
-void UAnimGraphNode_SubInstanceBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UAnimGraphNode_LinkedAnimGraphBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
@@ -182,14 +182,14 @@ void UAnimGraphNode_SubInstanceBase::PostEditChangeProperty(FPropertyChangedEven
 	}
 }
 
-bool UAnimGraphNode_SubInstanceBase::HasInstanceLoop()
+bool UAnimGraphNode_LinkedAnimGraphBase::HasInstanceLoop()
 {
 	TArray<FGuid> VisitedList;
 	TArray<FGuid> CurrentStack;
 	return HasInstanceLoop_Recursive(this, VisitedList, CurrentStack);
 }
 
-bool UAnimGraphNode_SubInstanceBase::HasInstanceLoop_Recursive(UAnimGraphNode_SubInstanceBase* CurrNode, TArray<FGuid>& VisitedNodes, TArray<FGuid>& NodeStack)
+bool UAnimGraphNode_LinkedAnimGraphBase::HasInstanceLoop_Recursive(UAnimGraphNode_LinkedAnimGraphBase* CurrNode, TArray<FGuid>& VisitedNodes, TArray<FGuid>& NodeStack)
 {
 	if(!VisitedNodes.Contains(CurrNode->NodeGuid))
 	{
@@ -198,19 +198,19 @@ bool UAnimGraphNode_SubInstanceBase::HasInstanceLoop_Recursive(UAnimGraphNode_Su
 
 		if(UAnimBlueprint* AnimBP = Cast<UAnimBlueprint>(UBlueprint::GetBlueprintFromClass(CurrNode->GetTargetClass())))
 		{
-			// Check for cycles from other sub instance nodes
+			// Check for cycles from other linked instance nodes
 			TArray<UEdGraph*> Graphs;
 			AnimBP->GetAllGraphs(Graphs);
 
 			for(UEdGraph* Graph : Graphs)
 			{
-				TArray<UAnimGraphNode_SubInstanceBase*> SubInstanceNodes;
-				Graph->GetNodesOfClass(SubInstanceNodes);
+				TArray<UAnimGraphNode_LinkedAnimGraphBase*> LinkedInstanceNodes;
+				Graph->GetNodesOfClass(LinkedInstanceNodes);
 
-				for(UAnimGraphNode_SubInstanceBase* SubInstanceNode : SubInstanceNodes)
+				for(UAnimGraphNode_LinkedAnimGraphBase* LinkedInstanceNode : LinkedInstanceNodes)
 				{
 					// If we haven't visited this node, then check it for loops, otherwise if we're pointing to a previously visited node that is in the current instance stack we have a loop
-					if((!VisitedNodes.Contains(SubInstanceNode->NodeGuid) && HasInstanceLoop_Recursive(SubInstanceNode, VisitedNodes, NodeStack)) || NodeStack.Contains(SubInstanceNode->NodeGuid))
+					if((!VisitedNodes.Contains(LinkedInstanceNode->NodeGuid) && HasInstanceLoop_Recursive(LinkedInstanceNode, VisitedNodes, NodeStack)) || NodeStack.Contains(LinkedInstanceNode->NodeGuid))
 					{
 						return true;
 					}
@@ -223,7 +223,7 @@ bool UAnimGraphNode_SubInstanceBase::HasInstanceLoop_Recursive(UAnimGraphNode_Su
 	return false;
 }
 
-void UAnimGraphNode_SubInstanceBase::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+void UAnimGraphNode_LinkedAnimGraphBase::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	Super::CustomizeDetails(DetailBuilder);
 
@@ -245,16 +245,16 @@ void UAnimGraphNode_SubInstanceBase::CustomizeDetails(IDetailLayoutBuilder& Deta
 		.MinDesiredWidth(250.0f)
 		[
 			SNew(SObjectPropertyEntryBox)
-			.ObjectPath_UObject(this, &UAnimGraphNode_SubInstanceBase::GetCurrentInstanceBlueprintPath)
+			.ObjectPath_UObject(this, &UAnimGraphNode_LinkedAnimGraphBase::GetCurrentInstanceBlueprintPath)
 			.AllowedClass(UAnimBlueprint::StaticClass())
 			.NewAssetFactories(TArray<UFactory*>())
-			.OnShouldFilterAsset(FOnShouldFilterAsset::CreateUObject(this, &UAnimGraphNode_SubInstanceBase::OnShouldFilterInstanceBlueprint))
-			.OnObjectChanged(FOnSetObject::CreateUObject(this, &UAnimGraphNode_SubInstanceBase::OnSetInstanceBlueprint, &DetailBuilder))
+			.OnShouldFilterAsset(FOnShouldFilterAsset::CreateUObject(this, &UAnimGraphNode_LinkedAnimGraphBase::OnShouldFilterInstanceBlueprint))
+			.OnObjectChanged(FOnSetObject::CreateUObject(this, &UAnimGraphNode_LinkedAnimGraphBase::OnSetInstanceBlueprint, &DetailBuilder))
 		];
 	}
 }
 
-void UAnimGraphNode_SubInstanceBase::GenerateExposedPinsDetails(IDetailLayoutBuilder &DetailBuilder)
+void UAnimGraphNode_LinkedAnimGraphBase::GenerateExposedPinsDetails(IDetailLayoutBuilder &DetailBuilder)
 {
 	// We dont allow multi-select here
 	if(DetailBuilder.GetSelectedObjects().Num() > 1)
@@ -354,12 +354,12 @@ void UAnimGraphNode_SubInstanceBase::GenerateExposedPinsDetails(IDetailLayoutBui
 	}
 }
 
-bool UAnimGraphNode_SubInstanceBase::IsStructuralProperty(UProperty* InProperty) const
+bool UAnimGraphNode_LinkedAnimGraphBase::IsStructuralProperty(UProperty* InProperty) const
 {
-	return InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(FAnimNode_SubInstance, InstanceClass);
+	return InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(FAnimNode_LinkedAnimGraph, InstanceClass);
 }
 
-FString UAnimGraphNode_SubInstanceBase::GetCurrentInstanceBlueprintPath() const
+FString UAnimGraphNode_LinkedAnimGraphBase::GetCurrentInstanceBlueprintPath() const
 {
 	UClass* InstanceClass = GetTargetClass();
 
@@ -376,7 +376,7 @@ FString UAnimGraphNode_SubInstanceBase::GetCurrentInstanceBlueprintPath() const
 	return FString();
 }
 
-bool UAnimGraphNode_SubInstanceBase::OnShouldFilterInstanceBlueprint(const FAssetData& AssetData) const
+bool UAnimGraphNode_LinkedAnimGraphBase::OnShouldFilterInstanceBlueprint(const FAssetData& AssetData) const
 {
 	// Check recursion
 	if(AssetData.IsAssetLoaded() && Cast<UBlueprint>(AssetData.GetAsset()) == GetBlueprint())
@@ -401,9 +401,9 @@ bool UAnimGraphNode_SubInstanceBase::OnShouldFilterInstanceBlueprint(const FAsse
 	return false;
 }
 
-void UAnimGraphNode_SubInstanceBase::OnSetInstanceBlueprint(const FAssetData& AssetData, IDetailLayoutBuilder* InDetailBuilder)
+void UAnimGraphNode_LinkedAnimGraphBase::OnSetInstanceBlueprint(const FAssetData& AssetData, IDetailLayoutBuilder* InDetailBuilder)
 {
-	FScopedTransaction Transaction(LOCTEXT("SetInstanceBlueprint", "Set Instance Blueprint"));
+	FScopedTransaction Transaction(LOCTEXT("SetInstanceBlueprint", "Set Linked Blueprint"));
 
 	Modify();
 	
@@ -418,7 +418,7 @@ void UAnimGraphNode_SubInstanceBase::OnSetInstanceBlueprint(const FAssetData& As
 	}
 }
 
-FPoseLinkMappingRecord UAnimGraphNode_SubInstanceBase::GetLinkIDLocation(const UScriptStruct* NodeType, UEdGraphPin* SourcePin)
+FPoseLinkMappingRecord UAnimGraphNode_LinkedAnimGraphBase::GetLinkIDLocation(const UScriptStruct* NodeType, UEdGraphPin* SourcePin)
 {
 	FPoseLinkMappingRecord Record = Super::GetLinkIDLocation(NodeType, SourcePin);
 	if(Record.IsValid())
@@ -427,14 +427,14 @@ FPoseLinkMappingRecord UAnimGraphNode_SubInstanceBase::GetLinkIDLocation(const U
 	}
 	else if(SourcePin->LinkedTo.Num() > 0 && SourcePin->Direction == EGPD_Input)
 	{
-		const FAnimNode_SubInstance& Node = *GetSubInstanceNode();
+		const FAnimNode_LinkedAnimGraph& Node = *GetLinkedAnimGraphNode();
 
 		check(Node.InputPoses.Num() == Node.InputPoseNames.Num());
 
 		// perform name-based logic for input pose pins
 		if (UAnimGraphNode_Base* LinkedNode = Cast<UAnimGraphNode_Base>(FBlueprintEditorUtils::FindFirstCompilerRelevantNode(SourcePin->LinkedTo[0])))
 		{
-			UArrayProperty* ArrayProperty = FindFieldChecked<UArrayProperty>(NodeType, GET_MEMBER_NAME_CHECKED(FAnimNode_SubInstance, InputPoses));
+			UArrayProperty* ArrayProperty = FindFieldChecked<UArrayProperty>(NodeType, GET_MEMBER_NAME_CHECKED(FAnimNode_LinkedAnimGraph, InputPoses));
 			int32 ArrayIndex = INDEX_NONE;
 			if(Node.InputPoseNames.Find(SourcePin->GetFName(), ArrayIndex))
 			{
