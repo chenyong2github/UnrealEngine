@@ -5,27 +5,13 @@
 Texture2D InDepthTexture;
 SamplerState InTextureSampler;
 
-float NearPlaneM;
-float FarPlaneM;
-float WorldToMeters;
-
 void MainPixelShader(
 	in float2 uv : TEXCOORD0,
 	out float OutColor : SV_Target0
 	)
 {
-	float MaxZ = 65000.0f;
-
-	// Convert to Unreal units.
-	float MinZ = NearPlaneM * WorldToMeters;
-
-	float zNonLinear = Texture2DSample(InDepthTexture, InTextureSampler, uv).r;
-	// Find linear depth from reverse-z projected depth.
-	float zLinear = -MaxZ / (zNonLinear / (MinZ / (MinZ - MaxZ)) - 1);
-
-	// Convert to meters.
-	zLinear = zLinear / WorldToMeters;
-
-	// Project to non-linear space relative to the holographic camera's clipping planes.
-	OutColor = (FarPlaneM / (FarPlaneM - NearPlaneM)) * (1 - (NearPlaneM / zLinear));
+	// Treat this as a passthrough for now since source texture is a depth resource which needs the entire frame to be copied
+	// CopySubresourceRegion will not work unless we copy the entire texture an intermediate texture, which hurts performance significantly.
+	// We are no longer reversing the projection in this shader since we are setting reverse near/far in the plugin.
+	OutColor = Texture2DSample(InDepthTexture, InTextureSampler, uv).r;
 }
