@@ -142,6 +142,14 @@ enum class EStandardToolContextMaterials
 };
 
 
+/** Types of coordinate systems that a Tool/Gizmo might use */
+UENUM()
+enum class EToolContextCoordinateSystem
+{
+	World = 0,
+	Local = 1
+};
+
 
 /**
  * Users of the Tools Framework need to implement IToolsContextQueriesAPI to provide
@@ -164,6 +172,12 @@ public:
 	 * @param StateOut this structure is populated with available state information
 	 */
 	virtual void GetCurrentViewState(FViewCameraState& StateOut) const = 0;
+
+
+	/**
+	 * Request current external coordinate-system setting
+	 */
+	virtual EToolContextCoordinateSystem GetCurrentCoordinateSystem() const = 0;	
 
 
 	/**

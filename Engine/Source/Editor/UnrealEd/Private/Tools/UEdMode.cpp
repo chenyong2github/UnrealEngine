@@ -63,6 +63,13 @@ public:
 	}
 
 
+	virtual EToolContextCoordinateSystem GetCurrentCoordinateSystem() const override
+	{
+		ECoordSystem CoordSys = EdMode->GetModeManager()->GetCoordSystem();
+		return (CoordSys == COORD_World) ? EToolContextCoordinateSystem::World : EToolContextCoordinateSystem::Local;
+	}
+
+
 	virtual bool ExecuteSceneSnapQuery(const FSceneSnapQueryRequest& Request, TArray<FSceneSnapQueryResult>& Results) const override
 	{
 		if (Request.RequestType != ESceneSnapQueryType::Position)
