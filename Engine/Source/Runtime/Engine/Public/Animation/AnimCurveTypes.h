@@ -383,7 +383,8 @@ struct FBaseBlendedCurve
 		int32 Count = 0;
 		if (InUIDToArrayIndexLUT)
 		{
-			for (int32 Index = 0; Index<InUIDToArrayIndexLUT->Num(); ++Index)
+			const int32 ArraySize = InUIDToArrayIndexLUT->Num();
+			for (int32 Index = 0; Index < ArraySize; ++Index)
 			{
 				if ((*InUIDToArrayIndexLUT)[Index] != MAX_uint16)
 				{
