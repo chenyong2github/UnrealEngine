@@ -4564,7 +4564,25 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 	ActiveHistoryForFunctionCalls.ExitFunction(FunctionNode->GetFunctionName(), FunctionNode->FunctionScript, FunctionNode);
 }
 
+void FHlslNiagaraTranslator::EnterFunctionCallNode(const TSet<FName>& UnusedInputs)
+{
+	FunctionNodeStack.Add(UnusedInputs);
+}
 
+void FHlslNiagaraTranslator::ExitFunctionCallNode()
+{
+	ensure(FunctionNodeStack.Num() > 0);
+	FunctionNodeStack.Pop(false);
+}
+
+bool FHlslNiagaraTranslator::IsFunctionVariableCulledFromCompilation(const FName& InputName) const
+{
+	if (FunctionNodeStack.Num() == 0)
+	{
+		return false;
+	}
+	return FunctionNodeStack.Last().Contains(InputName);
+}
 
 // From a valid list of namespaces, resolve any aliased tokens and promote namespaced variables without a master namespace to the input parameter map instance namespace
 void FHlslNiagaraTranslator::FinalResolveNamespacedTokens(const FString& ParameterMapInstanceNamespace, TArray<FString>& Tokens, TArray<FString>& ValidChildNamespaces, FNiagaraParameterMapHistoryBuilder& Builder, TArray<FNiagaraVariable>& UniqueParameterMapEntriesAliasesIntact, TArray<FNiagaraVariable>& UniqueParameterMapEntries, int32 ParamMapHistoryIdx)
