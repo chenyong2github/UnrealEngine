@@ -384,9 +384,17 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 		// Use class's default actor as a template.
 		Template = Class->GetDefaultObject<AActor>();
 	}
-	else if (NewActorName.IsNone() && !Template->HasAnyFlags(RF_ClassDefaultObject))
+	else if (!Template->HasAnyFlags(RF_ClassDefaultObject))
 	{
-		NewActorName = MakeUniqueObjectName(LevelToSpawnIn, Template->GetClass(), *Template->GetFName().GetPlainNameString());
+		if (NewActorName.IsNone())
+		{
+			NewActorName = MakeUniqueObjectName(LevelToSpawnIn, Template->GetClass(), *Template->GetFName().GetPlainNameString());
+		}
+		else if (StaticFindObjectFast(nullptr, LevelToSpawnIn, NewActorName))
+		{
+			UE_LOG(LogSpawn, Fatal, TEXT("An actor of name '%s' already exists in level '%s'."), *NewActorName.ToString(), *LevelToSpawnIn->GetFullName());
+			return nullptr;
+		}
 	}
 	check(Template);
 
