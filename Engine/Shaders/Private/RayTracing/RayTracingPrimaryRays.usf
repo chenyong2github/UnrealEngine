@@ -33,20 +33,27 @@
 #include "RayTracingSpotLight.ush"
 #include "RayTracingPointLight.ush"
 
-uint SamplesPerPixel;
-uint MaxRefractionRays;
-uint HeightFog;
-uint ReflectedShadowsType;
-uint ShouldDoDirectLighting;
-uint ShouldDoEmissiveAndIndirectLighting;
-uint UpscaleFactor;
+#define	ERayTracingPrimaryRaysFlag_None                               0
+#define	ERayTracingPrimaryRaysFlag_UseGBufferForMaxDistance    (1u << 0)
+#define	ERayTracingPrimaryRaysFlag_ConsiderSurfaceScatter	   (1u << 1)
+#define	ERayTracingPrimaryRaysFlag_AllowSkipSkySample		   (1u << 2)
+
+
+int SamplesPerPixel;
+int MaxRefractionRays;
+int HeightFog;
+int ReflectedShadowsType;
+int ShouldDoDirectLighting;
+int ShouldDoEmissiveAndIndirectLighting;
+int UpscaleFactor;
+int ShouldUsePreExposure;
+uint PrimaryRayFlags;
 
 float TranslucencyMinRayDistance;
 float TranslucencyMaxRayDistance;
 float TranslucencyMaxRoughness;
-uint  TranslucencyRefraction;
+int  TranslucencyRefraction;
 float MaxNormalBias;
-float PrimaryRayBias;
 
 Texture2D SceneColorTexture;
 
@@ -99,12 +106,12 @@ float3 GetSkyRadiance(float3 Direction, float Roughness)
 }
 
 [shader("raygeneration")]
-void RayTracingTranslucencyRGS()
+void RayTracingPrimaryRaysRGS()
 {
 	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin;
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor);
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO: PixelCoord or DispatchThreadId
-
+	
 	RandomSequence RandSequence;
 	RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
 
@@ -113,16 +120,31 @@ void RayTracingTranslucencyRGS()
 	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
 	float Depth = GBufferData.Depth;
 	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
-	float WorldSpaceDistance = length(WorldPosition - View.WorldCameraOrigin);
+	float WorldSpaceDistance = length(WorldPosition - View.WorldViewOrigin);
 
 	// Trace rays from camera origin to (Gbuffer - epsilon) to only intersect translucent objects
 	RayDesc Ray = CreatePrimaryRay(UV);
-	Ray.TMax = WorldSpaceDistance - PrimaryRayBias;
 	FRayCone RayCone = (FRayCone)0;
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
-	// Sky is only sampled when infinite reflection rays are used.
-	const bool bAllowSkySampling = TranslucencyMaxRayDistance < 0;
+	if((ERayTracingPrimaryRaysFlag_UseGBufferForMaxDistance & PrimaryRayFlags) != 0) 
+	{
+		Ray.TMax = WorldSpaceDistance - 0.1;
+	}
+
+	bool bAllowSkySampling;
+	if((ERayTracingPrimaryRaysFlag_AllowSkipSkySample & PrimaryRayFlags) != 0) 
+	{
+		// Sky is only sampled when infinite reflection rays are used.
+		bAllowSkySampling =  TranslucencyMaxRayDistance < 0;
+	} 
+	else 
+	{
+		bAllowSkySampling = true;
+	}
+	
+	bool bHasScattered = (ERayTracingPrimaryRaysFlag_ConsiderSurfaceScatter & PrimaryRayFlags) != 0;
+
 	const bool bRefractionBackFaceCulling = false;
 	const bool bReflectionBackFaceCulling = true;
 
@@ -132,7 +154,6 @@ void RayTracingTranslucencyRGS()
 	float LastRoughness = 0.0;
 	float LastIor = 1.0f;
 	float HitDistance = 0.0f;
-	bool bHasScattered = false;
 
 	for (uint RefractionRayIndex = 0; RefractionRayIndex < MaxRefractionRays; ++RefractionRayIndex)
 	{
@@ -145,7 +166,7 @@ void RayTracingTranslucencyRGS()
 		//
 		// Handle no hit condition
 		//
-		if (Payload.IsMiss() || RefractionRayIndex == 0 && Payload.BlendingMode == RAY_TRACING_BLEND_MODE_OPAQUE)
+		if (Payload.IsMiss())
 		{
 			if (bHasScattered && bAllowSkySampling)
 			{
@@ -260,31 +281,12 @@ void RayTracingTranslucencyRGS()
 		PathRadiance += PathThroughput * SceneColorTexture.SampleLevel(GlobalPointClampedSampler, UV, 0).xyz / View.PreExposure;
 	}
 
-#if USE_PREEXPOSURE
-	PathRadiance.rgb *= View.PreExposure;
-#endif
+	if(ShouldUsePreExposure) 
+	{
+		PathRadiance.rgb *= View.PreExposure;
+	}
 
 	PathRadiance = ClampToHalfFloatRange(PathRadiance);
 	ColorOutput[DispatchThreadId] = float4(PathRadiance, 0.0f);
 	RayHitDistanceOutput[DispatchThreadId] = HitDistance;
 }
-
-
-[shader("closesthit")]
-void RayTracingTranslucencyMainCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)
-{
-	FMaterialClosestHitPayload Payload = (FMaterialClosestHitPayload)0;
-
-	Payload.HitT = RayTCurrent();
-	Payload.BaseColor = float3(0.2, 0.3, 0.4);
-
-	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(PrimitiveIndex());
-	float3 Edge0 = Triangle.LocalPositions[2] - Triangle.LocalPositions[0];
-	float3 Edge1 = Triangle.LocalPositions[1] - Triangle.LocalPositions[0];
-	float3x3 WorldToLocal = (float3x3)WorldToObject();
-	float3x3 LocalToWorldNormal = transpose(WorldToLocal);
-	Payload.WorldNormal = normalize(mul(LocalToWorldNormal, cross(Edge0, Edge1)));
-
-	PackedPayload = PackRayTracingPayload(Payload, PackedPayload.RayCone);
-}
-
