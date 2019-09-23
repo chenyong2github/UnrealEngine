@@ -7,28 +7,28 @@
 #include "Animation/AnimCurveTypes.h"
 #include "BonePose.h"
 #include "Animation/AnimNodeBase.h"
-#include "AnimNode_SubInput.generated.h"
+#include "AnimNode_LinkedInputPose.generated.h"
 
 USTRUCT()
-struct ENGINE_API FAnimNode_SubInput : public FAnimNode_Base
+struct ENGINE_API FAnimNode_LinkedInputPose : public FAnimNode_Base
 {
 	GENERATED_BODY()
 
 	/** The default name of this input pose */
 	static const FName DefaultInputPoseName;
 
-	FAnimNode_SubInput()
+	FAnimNode_LinkedInputPose()
 		: Name(DefaultInputPoseName)
 		, Graph(NAME_None)
 		, InputProxy(nullptr)
 	{
 	}
 
-	/** The name of this sub input node's pose, used to identify the input of this graph. */
+	/** The name of this linked input pose node's pose, used to identify the input of this graph. */
 	UPROPERTY(EditAnywhere, Category = "Inputs", meta = (NeverAsPin))
 	FName Name;
 
-	/** The graph that this sub-input node is in, filled in by the compiler */
+	/** The graph that this linked input pose node is in, filled in by the compiler */
 	UPROPERTY()
 	FName Graph;
 
@@ -37,8 +37,8 @@ struct ENGINE_API FAnimNode_SubInput : public FAnimNode_Base
 	FPoseLink InputPose;
 
 	/** 
-	 * If this sub-input is not dynamically linked, this cached data will be populated by the calling 
-	 * sub-instance node before this graph is processed.
+	 * If this linked input pose is not dynamically linked, this cached data will be populated by the calling 
+	 * linked instance node before this graph is processed.
 	 */
 	FCompactHeapPose CachedInputPose;
 	FBlendedHeapCurve CachedInputCurve;
@@ -51,13 +51,16 @@ struct ENGINE_API FAnimNode_SubInput : public FAnimNode_Base
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
-	/** Called by sub-instance nodes to dynamically link this to an outer graph */
+	/** Called by linked instance nodes to dynamically link this to an outer graph */
 	void DynamicLink(FAnimInstanceProxy* InInputProxy, FPoseLinkBase* InPoseLink);
 
-	/** Called by sub-instance nodes to dynamically unlink this to an outer graph */
+	/** Called by linked instance nodes to dynamically unlink this to an outer graph */
 	void DynamicUnlink();
 
 private:
 	/** The proxy to use when getting inputs, set when dynamically linked */
 	FAnimInstanceProxy* InputProxy;
 };
+
+UE_DEPRECATED(4.24, "FAnimNode_SubInput has been renamed to FAnimNode_LinkedInputPose")
+typedef FAnimNode_LinkedInputPose FAnimNode_SubInput;

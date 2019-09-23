@@ -6,11 +6,11 @@
 #include "UObject/ObjectMacros.h"
 #include "Templates/SubclassOf.h"
 #include "Animation/AnimCurveTypes.h"
-#include "Animation/AnimNode_SubInstance.h"
+#include "Animation/AnimNode_LinkedAnimGraph.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimLayerInterface.h"
 
-#include "AnimNode_Layer.generated.h"
+#include "AnimNode_LinkedAnimLayer.generated.h"
 
 struct FAnimInstanceProxy;
 class UUserDefinedStruct;
@@ -18,7 +18,7 @@ struct FAnimBlueprintFunction;
 class IAnimClassInterface;
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_Layer : public FAnimNode_SubInstance
+struct ENGINE_API FAnimNode_LinkedAnimLayer : public FAnimNode_LinkedAnimGraph
 {
 	GENERATED_BODY()
 
@@ -34,14 +34,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FName Layer;
 
-	/** Set the layer's 'overlay' externally managed sub instance. */
-	void SetLayerOverlaySubInstance(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InNewSubInstance);
+	/** Set the layer's 'overlay' externally managed linked instance. */
+	void SetLinkedLayerInstance(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InNewLinkedInstance);
 
 	/** FAnimNode_Base interface */
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
 
-	/** FAnimNode_SubInstance interface */
+	/** FAnimNode_LinkedAnimGraph interface */
 	virtual FName GetDynamicLinkFunctionName() const override;
 	virtual UAnimInstance* GetDynamicLinkTarget(UAnimInstance* InOwningAnimInstance) const override;
 	virtual UClass* GetTargetClass() const override 
@@ -52,3 +52,6 @@ public:
 protected:
 	void InitializeSelfLayer(const UAnimInstance* SelfAnimInstance);
 };
+
+UE_DEPRECATED(4.24, "FAnimNode_Layer has been renamed to FAnimNode_LinkedAnimLayer")
+typedef FAnimNode_LinkedAnimLayer FAnimNode_Layer;

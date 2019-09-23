@@ -13,7 +13,7 @@ class UAnimGraphNode_SaveCachedPose;
 class UAnimGraphNode_StateMachineBase;
 class UAnimGraphNode_StateResult;
 class UAnimGraphNode_CustomProperty;
-class UAnimGraphNode_SubInstance;
+
 class UAnimGraphNode_UseCachedPose;
 class UAnimStateTransitionNode;
 class UK2Node_CallFunction;
@@ -23,9 +23,9 @@ class UK2Node_CallFunction;
 //
 class UAnimGraphNode_SaveCachedPose;
 class UAnimGraphNode_UseCachedPose;
-class UAnimGraphNode_SubInput;
-class UAnimGraphNode_SubInstance;
-class UAnimGraphNode_SubInstanceBase;
+class UAnimGraphNode_LinkedInputPose;
+class UAnimGraphNode_LinkedAnimGraphBase;
+class UAnimGraphNode_LinkedAnimGraph;
 class UAnimGraphNode_Root;
 
 class UStructProperty;
@@ -316,18 +316,18 @@ private:
 	// Compiles one custom property node
 	void ProcessCustomPropertyNode(UAnimGraphNode_CustomProperty* CustomPropNode);
 
-	// Compiles one sub instance node
-	void ProcessSubInstance(UAnimGraphNode_SubInstanceBase* SubInstance, bool bCheckForCycles);
+	// Compiles one linked anim graph node
+	void ProcessLinkedAnimGraph(UAnimGraphNode_LinkedAnimGraphBase* InLinkedAnimGraph, bool bCheckForCycles);
 
-	// Compiles one sub input
-	void ProcessSubInput(UAnimGraphNode_SubInput* InSubInput);
+	// Compiles one linked input pose
+	void ProcessLinkedInputPose(UAnimGraphNode_LinkedInputPose* InLinkedInputPose);
 
 	// Compiles one root node
 	void ProcessRoot(UAnimGraphNode_Root* Root);
 
-	// Traverses subinstance links looking for slot names and state machine names, returning their count in a name map
+	// Traverses linked anim graph links looking for slot names and state machine names, returning their count in a name map
 	typedef TMap<FName, int32> NameToCountMap;
-	void GetDuplicatedSlotAndStateNames(UAnimGraphNode_SubInstanceBase* InSubInstance, NameToCountMap& OutStateMachineNameToCountMap, NameToCountMap& OutSlotNameToCountMap);
+	void GetDuplicatedSlotAndStateNames(UAnimGraphNode_LinkedAnimGraphBase* InLinkedAnimGraph, NameToCountMap& OutStateMachineNameToCountMap, NameToCountMap& OutSlotNameToCountMap);
 
 	// Compiles an entire animation graph
 	void ProcessAllAnimationNodes();

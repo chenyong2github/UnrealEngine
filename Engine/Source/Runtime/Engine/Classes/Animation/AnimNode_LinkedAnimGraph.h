@@ -10,7 +10,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimLayerInterface.h"
 
-#include "AnimNode_SubInstance.generated.h"
+#include "AnimNode_LinkedAnimGraph.generated.h"
 
 struct FAnimInstanceProxy;
 class UUserDefinedStruct;
@@ -18,13 +18,13 @@ struct FAnimBlueprintFunction;
 class IAnimClassInterface;
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_SubInstance : public FAnimNode_CustomProperty
+struct ENGINE_API FAnimNode_LinkedAnimGraph : public FAnimNode_CustomProperty
 {
 	GENERATED_BODY()
 
 public:
 
-	FAnimNode_SubInstance();
+	FAnimNode_LinkedAnimGraph();
 
 	/** 
 	 *  Input poses for the node, intentionally not accessible because if there's no input
@@ -37,18 +37,18 @@ public:
 	UPROPERTY()
 	TArray<FName> InputPoseNames;
 
-	/** The class spawned for this sub-instance */
+	/** The class spawned for this linked instance */
 	UPROPERTY(EditAnywhere, Category = Settings)
 	TSubclassOf<UAnimInstance> InstanceClass;
 
-	/** Optional tag used to identify this sub-instance */
+	/** Optional tag used to identify this linked instance */
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FName Tag;
 
 	// The root node of the dynamically-linked graph
 	FAnimNode_Base* LinkedRoot;
 
-	/** Dynamically set the anim class of this sub-instance */
+	/** Dynamically set the anim class of this linked instance */
 	void SetAnimClass(TSubclassOf<UAnimInstance> InClass, const UAnimInstance* InOwningAnimInstance);
 
 	/** Get the function name we should be linking with when we call DynamicLink/Unlink */
@@ -69,8 +69,8 @@ protected:
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
 	// End of FAnimNode_Base interface
 
-	// Re-create the sub instances for this node
-	void ReinitializeSubAnimInstance(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InNewAnimInstance = nullptr);
+	// Re-create the linked instances for this node
+	void ReinitializeLinkedAnimInstance(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InNewAnimInstance = nullptr);
 
 	// Shutdown the currently running instance
 	void TeardownInstance();
@@ -81,10 +81,10 @@ protected:
 		return *InstanceClass;
 	}
 
-	/** Link up pose links dynamically with sub-instance */
+	/** Link up pose links dynamically with linked instance */
 	void DynamicLink(UAnimInstance* InOwningAnimInstance);
 
-	/** Break any pose links dynamically with sub-instance */
+	/** Break any pose links dynamically with linked instance */
 	void DynamicUnlink(UAnimInstance* InOwningAnimInstance);
 
 	/** Helper function for finding function inputs when linking/unlinking */
@@ -92,3 +92,6 @@ protected:
 
 	friend class UAnimInstance;
 };
+
+UE_DEPRECATED(4.24, "FAnimNode_SubInstance has been renamed to FAnimNode_LinkedAnimGraph")
+typedef FAnimNode_LinkedAnimGraph FAnimNode_SubInstance;
