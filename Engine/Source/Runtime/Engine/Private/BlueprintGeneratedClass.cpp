@@ -1592,6 +1592,7 @@ void UBlueprintGeneratedClass::PurgeClass(bool bRecompilingOnLoad)
 #if UE_BLUEPRINT_EVENTGRAPH_FASTCALLS
 	FastCallPairs_DEPRECATED.Empty();
 #endif
+	CalledFunctions.Empty();
 #endif //WITH_EDITOR
 }
 

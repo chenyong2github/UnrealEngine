@@ -745,9 +745,9 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 
 			// if any function signatures have changed in this skeleton class we will need to recompile all dependencies, but if not
 			// then we can avoid dependency recompilation:
-			TSet<UBlueprint*> BlueprintsWithSignatureChanges;
 			const UBlueprintEditorProjectSettings* EditorProjectSettings = GetDefault<UBlueprintEditorProjectSettings>();
 			bool bSkipUnneededDependencyCompilation = !EditorProjectSettings->bForceAllDependenciesToRecompile;
+			TSet<UObject*> OldFunctionsWithSignatureChanges;
 
 			for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
 			{
@@ -770,21 +770,25 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 						{
 							for (TFieldIterator<UFunction> FuncIt(AuthoritativeClass, EFieldIteratorFlags::ExcludeSuper); FuncIt; ++FuncIt)
 							{
+								UFunction* OldFunction = *FuncIt;
+
+								if(!OldFunction->HasAnyFunctionFlags(EFunctionFlags::FUNC_BlueprintCallable))
+								{
+									continue;
+								}
+
 								// We assume that if the func is FUNC_BlueprintCallable that it will be present in the Skeleton class.
 								// If it is not in the skeleton class we will always think that this blueprints public interface has 
 								// changed. Not a huge deal, but will mean we recompile dependencies more often than necessary.
-								if(FuncIt->HasAnyFunctionFlags(EFunctionFlags::FUNC_BlueprintCallable))
+								UFunction* NewFunction = BP->SkeletonGeneratedClass->FindFunctionByName((OldFunction)->GetFName());
+								if(	NewFunction == nullptr || 
+									!NewFunction->IsSignatureCompatibleWith(OldFunction) || 
+									// If a function changes its net flags, callers may now need to do a full EX_FinalFunction/EX_VirtualFunction 
+									// instead of a EX_LocalFinalFunction/EX_LocalVirtualFunction:
+									NewFunction->HasAnyFunctionFlags(FUNC_NetFuncFlags) != OldFunction->HasAnyFunctionFlags(FUNC_NetFuncFlags))
 								{
-									UFunction* NewFunction = BP->SkeletonGeneratedClass->FindFunctionByName((*FuncIt)->GetFName());
-									if(	NewFunction == nullptr || 
-										!NewFunction->IsSignatureCompatibleWith(*FuncIt) || 
-										// If a function changes its net flags, callers may now need to do a full EX_FinalFunction/EX_VirtualFunction 
-										// instead of a EX_LocalFinalFunction/EX_LocalVirtualFunction:
-										NewFunction->HasAnyFunctionFlags(FUNC_NetFuncFlags) != FuncIt->HasAnyFunctionFlags(FUNC_NetFuncFlags))
-									{
-										BlueprintsWithSignatureChanges.Add(BP);
-										break;
-									}
+									OldFunctionsWithSignatureChanges.Add(OldFunction);
+									break;
 								}
 							}
 						}
@@ -847,61 +851,52 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 
 			// Skip further compilation for blueprints that are being bytecode compiled as a dependency of something that has
 			// not had a change in its function parameters:
-			auto DependenciesAreCompiled = [&BlueprintsWithSignatureChanges](FCompilerData& Data)
-			{
-				if(Data.ShouldSkipIfDependenciesAreUnchanged())
-				{
-					DECLARE_SCOPE_HIERARCHICAL_COUNTER(SkipIfDependenciesAreUnchanged)
-
-					// if our parent is still being compiled, then we still need to be compiled:
-					UClass* Iter = Data.BP->ParentClass;
-					while(Iter)
-					{
-						if(UBlueprint* BP = Cast<UBlueprint>(Iter->ClassGeneratedBy))
-						{
-							if(BP->bBeingCompiled)
-							{
-								return false;
-							}
-						}
-						Iter = Iter->GetSuperClass();
-					}
-
-					// otherwise if we're dependent on a blueprint that had a function signature change, we still need to be compiled:
-					ensure(Data.BP->bCachedDependenciesUpToDate);
-					ensure(Data.BP->CachedDependencies.Num() > 0); // why are we bytecode compiling a blueprint with no dependencies?
-					for(const TWeakObjectPtr<UBlueprint>& Dependency : Data.BP->CachedDependencies)
-					{
-						if (UBlueprint* DependencyBP = Dependency.Get())
-						{
-							if(DependencyBP->bBeingCompiled && BlueprintsWithSignatureChanges.Contains(DependencyBP))
-							{
-								return false;
-							}
-						}
-					}
-					
-					Data.BP->bBeingCompiled = false;
-					Data.BP->CurrentMessageLog = nullptr;
-					if(UPackage* Package = Data.BP->GetOutermost())
-					{
-						Package->SetDirtyFlag(Data.bPackageWasDirty);
-					}
-					if(Data.ResultsLog)
-					{
-						Data.ResultsLog->EndEvent();
-					}
-					Data.BP->bQueuedForCompilation = false;
-					return true;
-				}
-			
-				return false;
-			};
-
 			if(bSkipUnneededDependencyCompilation)
 			{
+				const auto HasNoReferencesToChangedFunctions = [&OldFunctionsWithSignatureChanges](FCompilerData& Data)
+				{
+					if(!Data.ShouldSkipIfDependenciesAreUnchanged())
+					{
+						return false;
+					}
+
+					// look for references to a function with a signature change
+					// in the old class, if it has none, we can skip bytecode recompile:
+					bool bHasNoReferencesToChangedFunctions = true;
+					UBlueprintGeneratedClass* BPGC = Cast<UBlueprintGeneratedClass>(Data.BP->GeneratedClass);
+					if(BPGC)
+					{
+						for(UFunction* CalledFunction : BPGC->CalledFunctions)
+						{
+							if(OldFunctionsWithSignatureChanges.Contains(CalledFunction))
+							{
+								bHasNoReferencesToChangedFunctions = false;
+								break;
+							}
+						}
+					}
+
+					if(bHasNoReferencesToChangedFunctions)
+					{
+						// This BP is not actually going to be compiled, clean it up:
+						Data.BP->bBeingCompiled = false;
+						Data.BP->CurrentMessageLog = nullptr;
+						if(UPackage* Package = Data.BP->GetOutermost())
+						{
+							Package->SetDirtyFlag(Data.bPackageWasDirty);
+						}
+						if(Data.ResultsLog)
+						{
+							Data.ResultsLog->EndEvent();
+						}
+						Data.BP->bQueuedForCompilation = false;
+					}
+
+					return bHasNoReferencesToChangedFunctions;
+				};
+
 				// Order very much matters, but we could RemoveAllSwap and re-sort:
-				CurrentlyCompilingBPs.RemoveAll(DependenciesAreCompiled);
+				CurrentlyCompilingBPs.RemoveAll(HasNoReferencesToChangedFunctions);
 			}
 		}
 
