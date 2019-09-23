@@ -1554,3 +1554,8 @@ void FTextRange::CalculateLineRangesFromString(const FString& Input, TArray<FTex
 		LineRanges.Emplace(FTextRange(LineBeginIndex, Input.Len()));
 	}
 }
+
+void StringConv::InlineCombineSurrogates(FString& Str)
+{
+	InlineCombineSurrogates_Array(Str.GetCharArray());
+}
