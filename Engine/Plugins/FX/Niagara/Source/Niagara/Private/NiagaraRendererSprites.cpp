@@ -93,8 +93,6 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 {
 	check(InProps && Emitter);
 
-	VertexFactory = new FNiagaraSpriteVertexFactory(NVFT_Sprite, FeatureLevel);
-
 	const UNiagaraSpriteRendererProperties* Properties = CastChecked<const UNiagaraSpriteRendererProperties>(InProps);
 	
 	Alignment = Properties->Alignment;
@@ -140,17 +138,11 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 
 FNiagaraRendererSprites::~FNiagaraRendererSprites()
 {
-	if ( VertexFactory != nullptr )
-	{
-		delete VertexFactory;
-		VertexFactory = nullptr;
-	}
 }
 
 void FNiagaraRendererSprites::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
 {
 	FNiagaraRenderer::ReleaseRenderThreadResources(Batcher);
-	VertexFactory->ReleaseResource();
 
 	CutoutVertexBuffer.ReleaseResource();
 #if RHI_RAYTRACING
@@ -166,7 +158,6 @@ void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstance
 {
 	FNiagaraRenderer::CreateRenderThreadResources(Batcher);
 	CutoutVertexBuffer.InitResource();
-	VertexFactory->InitResource();
 
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
@@ -325,7 +316,7 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 
 		FMaterialRenderProxy* MaterialRenderProxy = DynamicDataSprites->Material;
 		check(MaterialRenderProxy);
-		EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(VertexFactory->GetFeatureLevel())->GetBlendMode();
+		EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(View->FeatureLevel)->GetBlendMode();
 		OutVertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
 
 		int32 NumInstances = SourceParticleData->GetNumInstances();
