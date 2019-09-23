@@ -974,14 +974,14 @@ void FNiagaraSystemInstance::BindParameters()
 		return;
 	}
 
-	Component->GetOverrideParameters().Bind(&InstanceParameters);
+	Component->GetOverrideParameters().Bind(&InstanceParameters, true);
 
 	if (SystemSimulation->GetIsSolo())
 	{
 		// If this simulation is solo than we can bind the instance parameters to the system simulation contexts so that
 		// the system and emitter scripts use the per-instance data interfaces.
-		Component->GetOverrideParameters().Bind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
-		Component->GetOverrideParameters().Bind(&SystemSimulation->GetUpdateExecutionContext().Parameters);
+		Component->GetOverrideParameters().Bind(&SystemSimulation->GetSpawnExecutionContext().Parameters, true);
+		Component->GetOverrideParameters().Bind(&SystemSimulation->GetUpdateExecutionContext().Parameters, true);
 	}
 	else 
 	{
