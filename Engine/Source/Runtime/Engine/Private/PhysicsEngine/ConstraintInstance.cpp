@@ -892,9 +892,9 @@ bool FConstraintInstance::Serialize(FArchive& Ar)
 	return false;	//We only have this function to mark custom GUID. Still want serialize tagged properties
 }
 
+#if WITH_EDITORONLY_DATA
 void FConstraintInstance::PostSerialize(const FArchive& Ar)
 {
-#if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_FIXUP_STIFFNESS_AND_DAMPING_SCALE)
 	{
 		LinearLimitStiffness_DEPRECATED		/= CVarConstraintAngularStiffnessScale.GetValueOnGameThread();
@@ -1026,8 +1026,8 @@ void FConstraintInstance::PostSerialize(const FArchive& Ar)
 			ProfileInstance.LinearLimit.Damping *= CVarConstraintAngularDampingScale.GetValueOnGameThread() / CVarConstraintLinearDampingScale.GetValueOnGameThread();
 		}
 	}
-#endif
 }
+#endif
 
 //Hacks to easily get zeroed memory for special case when we don't use GC
 void FConstraintInstance::Free(FConstraintInstance * Ptr)
