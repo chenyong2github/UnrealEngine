@@ -463,7 +463,7 @@ void UGameUserSettings::ApplyNonResolutionSettings()
 
 	IConsoleManager::Get().CallAllConsoleVariableSinks();
 
-	EnableHeadphoneMode(true /*bUseHeadphoneMode*/);
+	EnableHeadphoneMode(bUseHeadphoneMode);
 
 	bool bWithEditor = false;
 #if WITH_EDITOR
