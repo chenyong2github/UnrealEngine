@@ -958,14 +958,15 @@ FArchive& operator << (FArchive& Ar, FVulkanPipelineStateCacheManager::FGfxPipel
 
 void FVulkanPipelineStateCacheManager::FGfxPipelineEntry::FRenderTargets::ReadFrom(const FVulkanRenderTargetLayout& RTLayout)
 {
-	NumAttachments =			RTLayout.NumAttachmentDescriptions;
-	NumColorAttachments =		RTLayout.NumColorAttachments;
+	NumAttachments =				RTLayout.NumAttachmentDescriptions;
+	NumColorAttachments =			RTLayout.NumColorAttachments;
 
-	bHasDepthStencil =			RTLayout.bHasDepthStencil != 0;
-	bHasResolveAttachments =	RTLayout.bHasResolveAttachments != 0;
-	NumUsedClearValues =		RTLayout.NumUsedClearValues;
+	bHasDepthStencil =				RTLayout.bHasDepthStencil != 0;
+	bHasResolveAttachments =		RTLayout.bHasResolveAttachments != 0;
+	bHasFragmentDensityAttachment =	RTLayout.bHasFragmentDensityAttachment != 0;
+	NumUsedClearValues =			RTLayout.NumUsedClearValues;
 
-	RenderPassCompatibleHash =	RTLayout.GetRenderPassCompatibleHash();
+	RenderPassCompatibleHash =		RTLayout.GetRenderPassCompatibleHash();
 
 	Extent3D.X = RTLayout.Extent.Extent3D.width;
 	Extent3D.Y = RTLayout.Extent.Extent3D.height;
@@ -982,6 +983,7 @@ void FVulkanPipelineStateCacheManager::FGfxPipelineEntry::FRenderTargets::ReadFr
 	CopyAttachmentRefs(ColorAttachments, RTLayout.ColorReferences, ARRAY_COUNT(RTLayout.ColorReferences));
 	CopyAttachmentRefs(ResolveAttachments, RTLayout.ResolveReferences, ARRAY_COUNT(RTLayout.ResolveReferences));
 	DepthStencil.ReadFrom(RTLayout.DepthStencilReference);
+	FragmentDensity.ReadFrom(RTLayout.FragmentDensityReference);
 
 	Descriptions.AddZeroed(ARRAY_COUNT(RTLayout.Desc));
 	for (int32 Index = 0; Index < ARRAY_COUNT(RTLayout.Desc); ++Index)
@@ -992,19 +994,20 @@ void FVulkanPipelineStateCacheManager::FGfxPipelineEntry::FRenderTargets::ReadFr
 
 void FVulkanPipelineStateCacheManager::FGfxPipelineEntry::FRenderTargets::WriteInto(FVulkanRenderTargetLayout& Out) const
 {
-	Out.NumAttachmentDescriptions =	NumAttachments;
-	Out.NumColorAttachments =		NumColorAttachments;
+	Out.NumAttachmentDescriptions =		NumAttachments;
+	Out.NumColorAttachments =			NumColorAttachments;
 
-	Out.bHasDepthStencil =			bHasDepthStencil;
-	Out.bHasResolveAttachments =	bHasResolveAttachments;
-	Out.NumUsedClearValues =		NumUsedClearValues;
+	Out.bHasDepthStencil =				bHasDepthStencil;
+	Out.bHasResolveAttachments =		bHasResolveAttachments;
+	Out.bHasFragmentDensityAttachment =	bHasFragmentDensityAttachment;
+	Out.NumUsedClearValues =			NumUsedClearValues;
 
 	ensure(0);
-	Out.RenderPassCompatibleHash =	RenderPassCompatibleHash;
+	Out.RenderPassCompatibleHash =		RenderPassCompatibleHash;
 
-	Out.Extent.Extent3D.width =		Extent3D.X;
-	Out.Extent.Extent3D.height =	Extent3D.Y;
-	Out.Extent.Extent3D.depth =		Extent3D.Z;
+	Out.Extent.Extent3D.width =			Extent3D.X;
+	Out.Extent.Extent3D.height =		Extent3D.Y;
+	Out.Extent.Extent3D.depth =			Extent3D.Z;
 
 	auto CopyAttachmentRefs = [&](const TArray<FGfxPipelineEntry::FRenderTargets::FAttachmentRef>& Source, VkAttachmentReference* Dest, uint32 Count)
 	{
@@ -1016,6 +1019,7 @@ void FVulkanPipelineStateCacheManager::FGfxPipelineEntry::FRenderTargets::WriteI
 	CopyAttachmentRefs(ColorAttachments, Out.ColorReferences, ARRAY_COUNT(Out.ColorReferences));
 	CopyAttachmentRefs(ResolveAttachments, Out.ResolveReferences, ARRAY_COUNT(Out.ResolveReferences));
 	DepthStencil.WriteInto(Out.DepthStencilReference);
+	FragmentDensity.WriteInto(Out.FragmentDensityReference);
 
 	for (int32 Index = 0; Index < ARRAY_COUNT(Out.Desc); ++Index)
 	{
@@ -1032,6 +1036,7 @@ FArchive& operator << (FArchive& Ar, FVulkanPipelineStateCacheManager::FGfxPipel
 	Ar << RTs.ColorAttachments;
 	Ar << RTs.ResolveAttachments;
 	Ar << RTs.DepthStencil;
+	Ar << RTs.FragmentDensity;
 
 	Ar << RTs.Descriptions;
 
@@ -1736,6 +1741,7 @@ FVulkanRHIGraphicsPipelineState* FVulkanPipelineStateCacheManager::FindInRuntime
 					bool bSRGB = (PSI.RenderTargetFlags[Index] & TexCreate_SRGB) == TexCreate_SRGB;
 					TempEnumValue = UEToVkTextureFormat(PixelFormat, bSRGB);
 					Ar << TempEnumValue;
+					Ar << PSI.RenderTargetFlags[Index];
 				}
 				Ar << BlendState.bUseIndependentRenderTargetBlendStates;
 			}

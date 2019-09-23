@@ -35,6 +35,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasYcbcrSampler : 1;
 			uint32 HasMemoryPriority : 1;
 			uint32 HasDriverProperties : 1;
+			uint32 HasEXTFragmentDensityMap : 1;
 		};
 		uint32 Packed;
 	};

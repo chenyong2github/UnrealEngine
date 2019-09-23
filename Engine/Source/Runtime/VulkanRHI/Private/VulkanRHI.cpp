@@ -1534,6 +1534,18 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 		CreateInfo.pNext = &MultiviewInfo;
 	}
 	
+	VkRenderPassFragmentDensityMapCreateInfoEXT FragDensityCreateInfo;
+	if (InDevice.GetOptionalExtensions().HasEXTFragmentDensityMap && RTLayout.GetHasFragmentDensityAttachment())
+	{
+		ZeroVulkanStruct(FragDensityCreateInfo, VK_STRUCTURE_TYPE_RENDER_PASS_FRAGMENT_DENSITY_MAP_CREATE_INFO_EXT);
+		FragDensityCreateInfo.fragmentDensityMapAttachment = *RTLayout.GetFragmentDensityAttachmentReference();
+
+		// Chain fragment density info onto create info and the rest of the pNexts
+		// onto the fragment density info
+		FragDensityCreateInfo.pNext = CreateInfo.pNext;
+		CreateInfo.pNext = &FragDensityCreateInfo;
+	}
+
 	VkRenderPass RenderPassHandle;
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateRenderPass(InDevice.GetInstanceHandle(), &CreateInfo, VULKAN_CPU_ALLOCATOR, &RenderPassHandle));
 	return RenderPassHandle;
