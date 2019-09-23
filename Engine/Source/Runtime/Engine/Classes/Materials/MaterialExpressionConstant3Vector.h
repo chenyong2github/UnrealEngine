@@ -13,7 +13,7 @@ class UMaterialExpressionConstant3Vector
 {
 	GENERATED_UCLASS_BODY()
 
- 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionConstant3Vector, meta=(DontUpdateWhileEditing, HideAlphaChannel))
+ 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionConstant3Vector, meta=(OnlyUpdateOnInteractionEnd, HideAlphaChannel))
 	FLinearColor Constant;
 
 public:
