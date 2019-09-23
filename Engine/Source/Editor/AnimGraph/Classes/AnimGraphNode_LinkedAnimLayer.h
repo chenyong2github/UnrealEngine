@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
-#include "AnimGraphNode_SubInstanceBase.h"
-#include "Animation/AnimNode_Layer.h"
+#include "AnimGraphNode_LinkedAnimGraphBase.h"
+#include "Animation/AnimNode_LinkedAnimLayer.h"
 
-#include "AnimGraphNode_Layer.generated.h"
+#include "AnimGraphNode_LinkedAnimLayer.generated.h"
 
 class FCompilerResultsLog;
 class IDetailLayoutBuilder;
@@ -16,14 +16,14 @@ class IPropertyHandle;
 class SToolTip;
 
 UCLASS(MinimalAPI, Experimental)
-class UAnimGraphNode_Layer : public UAnimGraphNode_SubInstanceBase
+class UAnimGraphNode_LinkedAnimLayer : public UAnimGraphNode_LinkedAnimGraphBase
 {
 	GENERATED_BODY()
 
 public:
 
 	UPROPERTY(EditAnywhere, Category = Settings)
-	FAnimNode_Layer Node;
+	FAnimNode_LinkedAnimLayer Node;
 
 	//~ Begin UEdGraphNode Interface.
 	virtual FText GetTooltipText() const override;
@@ -54,9 +54,9 @@ protected:
 	virtual bool NeedsToSpecifyValidTargetClass() const override { return false; }
 	virtual UClass* GetTargetSkeletonClass() const override;
 
-	// Begin UAnimGraphNode_SubInstanceBase
-	virtual FAnimNode_SubInstance* GetSubInstanceNode() override { return &Node;  }
-	virtual const FAnimNode_SubInstance* GetSubInstanceNode() const override { return &Node; }
+	// Begin UAnimGraphNode_LinkedAnimGraphBase
+	virtual FAnimNode_LinkedAnimLayer* GetLinkedAnimGraphNode() override { return &Node;  }
+	virtual const FAnimNode_LinkedAnimLayer* GetLinkedAnimGraphNode() const override { return &Node; }
 	virtual bool OnShouldFilterInstanceBlueprint(const FAssetData& AssetData) const override;
 	virtual FString GetCurrentInstanceBlueprintPath() const override;
 	virtual bool IsStructuralProperty(UProperty* InProperty) const override;
@@ -64,3 +64,6 @@ protected:
 	// Helper function to get the interface currently in use by the selected layer
 	TSubclassOf<UInterface> GetInterfaceForLayer() const;
 };
+
+UE_DEPRECATED(4.24, "UAnimGraphNode_Layer has been renamed to UAnimGraphNode_LinkedAnimLayer")
+typedef UAnimGraphNode_LinkedAnimLayer UAnimGraphNode_Layer;

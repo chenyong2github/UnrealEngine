@@ -12,10 +12,10 @@
 #include "Animation/AnimInstance.h"
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
-#include "Animation/AnimNode_SubInstance.h"
+#include "Animation/AnimNode_LinkedAnimGraph.h"
 #include "Animation/AnimNode_Root.h"
-#include "Animation/AnimNode_SubInput.h"
-#include "Animation/AnimNode_Layer.h"
+#include "Animation/AnimNode_LinkedInputPose.h"
+#include "Animation/AnimNode_LinkedAnimLayer.h"
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimNode_StateMachine.h"
 
@@ -255,8 +255,8 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 
 	// @TODO: Shouldn't be necessary to clear these, but currently the class gets linked twice during compilation
 	AnimNodeProperties.Empty();
-	SubInstanceNodeProperties.Empty();
-	LayerNodeProperties.Empty();
+	LinkedAnimGraphNodeProperties.Empty();
+	LinkedAnimLayerNodeProperties.Empty();
 	PreUpdateNodeProperties.Empty();
 	DynamicResetNodeProperties.Empty();
 	StateMachineNodeProperties.Empty();
@@ -274,13 +274,13 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 		{
 			if (StructProp->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
 			{
-				if(StructProp->Struct == FAnimNode_SubInstance::StaticStruct())
+				if(StructProp->Struct == FAnimNode_LinkedAnimGraph::StaticStruct())
 				{
-					SubInstanceNodeProperties.Add(StructProp);
+					LinkedAnimGraphNodeProperties.Add(StructProp);
 				}
-				else if(StructProp->Struct == FAnimNode_Layer::StaticStruct())
+				else if(StructProp->Struct == FAnimNode_LinkedAnimLayer::StaticStruct())
 				{
-					LayerNodeProperties.Add(StructProp);
+					LinkedAnimLayerNodeProperties.Add(StructProp);
 				}
 				else if(StructProp->Struct == FAnimNode_StateMachine::StaticStruct())
 				{
@@ -469,14 +469,14 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 				FoundFunction->OutputPoseNodeProperty = StructProperty;
 			}
 		}
-		else if(StructProperty->Struct->IsChildOf(FAnimNode_SubInput::StaticStruct()))
+		else if(StructProperty->Struct->IsChildOf(FAnimNode_LinkedInputPose::StaticStruct()))
 		{
-			FAnimNode_SubInput* SubInputNode = StructProperty->ContainerPtrToValuePtr<FAnimNode_SubInput>(DefaultObject);
-			if(FAnimBlueprintFunction* FoundFunction = AnimBlueprintFunctions.FindByPredicate([SubInputNode](const FAnimBlueprintFunction& InFunction){ return InFunction.Name == SubInputNode->Graph; }))
+			FAnimNode_LinkedInputPose* LinkedInputPoseNode = StructProperty->ContainerPtrToValuePtr<FAnimNode_LinkedInputPose>(DefaultObject);
+			if(FAnimBlueprintFunction* FoundFunction = AnimBlueprintFunctions.FindByPredicate([LinkedInputPoseNode](const FAnimBlueprintFunction& InFunction){ return InFunction.Name == LinkedInputPoseNode->Graph; }))
 			{
 				for(int32 InputIndex = 0; InputIndex < FoundFunction->InputPoseNames.Num(); ++InputIndex)
 				{
-					if(FoundFunction->InputPoseNames[InputIndex] == SubInputNode->Name)
+					if(FoundFunction->InputPoseNames[InputIndex] == LinkedInputPoseNode->Name)
 					{
 						FoundFunction->InputPoseNodeIndices[InputIndex] = AnimNodeIndex;
 						FoundFunction->InputPoseNodeProperties[InputIndex] = StructProperty;
