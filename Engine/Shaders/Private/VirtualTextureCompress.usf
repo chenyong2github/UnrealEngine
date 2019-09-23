@@ -250,3 +250,18 @@ void CopyNormalSpecularExCS(
 	OutCopyTexture0[ThreadId.xy + DestRect.xy] = float4(BaseColor, NormalXY.x);
 	OutCopyTexture1[ThreadId.xy + DestRect.xy] = float4(RoughnessSpecularNormalZ, NormalXY.y);
 }
+
+/** Copy world height (without compression)
+  * This path is used when want to copy the world height data into a thumbnail. */
+[numthreads(8,8,1)]
+void CopyWorldHeightCS(
+	uint3 ThreadId : SV_DispatchThreadID 
+	)
+{
+	uint2 SamplePos = ThreadId.xy;
+	if (any(ThreadId.xy >= DestRect.zw))
+		return;
+
+	float WorldHeight = RenderTexture0[SamplePos].r;
+	OutCopyTexture0[ThreadId.xy + DestRect.xy] = float4(WorldHeight.xxx, 1.f);
+}

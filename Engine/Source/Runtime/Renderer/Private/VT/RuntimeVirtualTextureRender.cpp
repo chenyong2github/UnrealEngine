@@ -492,6 +492,9 @@ namespace RuntimeVirtualTexture
 	typedef FShader_VirtualTextureCompress_CS< ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex, true > FShader_VirtualTextureCompress_BaseColorNormalSpecularEx_CopyOnly_CS;
 	IMPLEMENT_SHADER_TYPE(template<>, FShader_VirtualTextureCompress_BaseColorNormalSpecularEx_CopyOnly_CS, TEXT("/Engine/Private/VirtualTextureCompress.usf"), TEXT("CopyNormalSpecularExCS"), SF_Compute);
 
+	typedef FShader_VirtualTextureCompress_CS< ERuntimeVirtualTextureMaterialType::WorldHeight, true > FShader_VirtualTextureCompress_WorldHeight_CopyOnly_CS;
+	IMPLEMENT_SHADER_TYPE(template<>, FShader_VirtualTextureCompress_WorldHeight_CopyOnly_CS, TEXT("/Engine/Private/VirtualTextureCompress.usf"), TEXT("CopyWorldHeightCS"), SF_Compute);
+
 
 	/** Set up the BC compression pass for the specific MaterialType. */
 	template< ERuntimeVirtualTextureMaterialType MaterialType, bool CopyOnly = false >
@@ -534,7 +537,8 @@ namespace RuntimeVirtualTexture
 	{
 		const FIntVector GroupCount((TextureSize.X + 7) / 8, (TextureSize.Y + 7) / 8, 1);
 
-		// Only needed for BaseColor_Normal_Specular where we need to pack normal and specular into one VT layer
+		// Needed for BaseColor_Normal_Specular where we need to pack normal and specular into one VT layer
+		// Needed for WorldHeight thumbnails where we need to copy G16 to the RGBA8 thumbnail
 		switch (MaterialType)
 		{
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
@@ -542,6 +546,9 @@ namespace RuntimeVirtualTexture
 			break;
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:
 			AddCompressOrCopyPass<ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex, true>(GraphBuilder, FeatureLevel, Parameters, GroupCount);
+			break;
+		case ERuntimeVirtualTextureMaterialType::WorldHeight:
+			AddCompressOrCopyPass<ERuntimeVirtualTextureMaterialType::WorldHeight, true>(GraphBuilder, FeatureLevel, Parameters, GroupCount);
 			break;
 		}
 	}
@@ -556,6 +563,7 @@ namespace RuntimeVirtualTexture
 			bRenderPass = OutputTexture0 != nullptr;
 			bCompressPass = bRenderPass && (OutputTexture0->GetFormat() == PF_DXT1 || OutputTexture0->GetFormat() == PF_DXT5 || OutputTexture0->GetFormat() == PF_BC5);
 			bCopyPass = bRenderPass && !bCompressPass && (MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular || MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex);
+			bCopyPass |= bRenderPass && MaterialType == ERuntimeVirtualTextureMaterialType::WorldHeight && OutputTexture0->GetFormat() == PF_B8G8R8A8;
 		
 			switch (MaterialType)
 			{
@@ -620,6 +628,10 @@ namespace RuntimeVirtualTexture
 				if (bRenderPass)
 				{
 					OutputAlias0 = RenderTexture0 = GraphBuilder.CreateTexture(FPooledRenderTargetDesc::Create2DDesc(TextureSize, PF_G16, FClearValueBinding::Black, TexCreate_None, TexCreate_RenderTargetable, false), TEXT("RenderTexture0"));
+				}
+				if (bCopyPass)
+				{
+					OutputAlias0 = CopyTexture0 = GraphBuilder.CreateTexture(FPooledRenderTargetDesc::Create2DDesc(TextureSize, PF_B8G8R8A8, FClearValueBinding::None, TexCreate_None, TexCreate_UAV, false), TEXT("CopyTexture0"));
 				}
 				break;
 			}
