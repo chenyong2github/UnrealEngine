@@ -33,7 +33,7 @@ public:
 	bool bDumpAfterEvent;
 	virtual ~FNiagaraEmitterInstance();
 
-	void Init(int32 InEmitterIdx, FName SystemInstanceName);
+	void Init(int32 InEmitterIdx, FNiagaraSystemInstanceID SystemInstanceID);
 
 	void ResetSimulation(bool bKillExisting=true);
 
@@ -201,19 +201,11 @@ private:
 	TArray<bool> UpdateEventGeneratorIsSharedByIndex;
 	TArray<bool> SpawnEventGeneratorIsSharedByIndex;
 
-	FName OwnerSystemInstanceName;
+	FNiagaraSystemInstanceID OwnerSystemInstanceID;
 
 	/** Cached fixed bounds of the parent system which override this Emitter Instances bounds if set. Whenever we initialize the owning SystemInstance we will reconstruct this
 	 ** EmitterInstance and the cached bounds will be unset. */
 	TOptional<FBox> CachedSystemFixedBounds;
-
-#if WITH_EDITORONLY_DATA
-	bool CheckAttributesForRenderer(int32 Index);
-#endif
-
-#if !UE_BUILD_SHIPPING
-	bool bEncounteredNaNs;
-#endif
 
 	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
 	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;

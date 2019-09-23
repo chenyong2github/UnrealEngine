@@ -8,6 +8,7 @@
 #include "NiagaraTypes.h"
 #include "UObject/SoftObjectPath.h"
 #include "RHI.h"
+#include "NiagaraCore.h"
 #include "NiagaraCommon.generated.h"
 
 class UNiagaraSystem;
@@ -586,7 +587,7 @@ namespace FNiagaraUtilities
 
 	FNiagaraVariable NIAGARA_API ConvertVariableToRapidIterationConstantName(FNiagaraVariable InVar, const TCHAR* InEmitterName, ENiagaraScriptUsage InUsage);
 
-	void CollectScriptDataInterfaceParameters(const UObject& Owner, const TArray<UNiagaraScript*>& Scripts, FNiagaraParameterStore& OutDataInterfaceParameters);
+	void CollectScriptDataInterfaceParameters(const UObject& Owner, const TArrayView<UNiagaraScript*>& Scripts, FNiagaraParameterStore& OutDataInterfaceParameters);
 
 	inline bool SupportsNiagaraRendering(ERHIFeatureLevel::Type FeatureLevel)
 	{
@@ -623,6 +624,10 @@ namespace FNiagaraUtilities
 	 */
 	void NIAGARA_API PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, FString>& ScriptToEmitterNameMap);
 #endif
+
+	void NIAGARA_API DumpHLSLText(const FString& SourceCode, const FString& DebugName);
+
+	NIAGARA_API FString SystemInstanceIDToString(FNiagaraSystemInstanceID ID);
 };
 
 USTRUCT()

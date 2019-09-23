@@ -7,6 +7,7 @@
 #include "DeferredShadingRenderer.h"
 #include "VelocityRendering.h"
 #include "AtmosphereRendering.h"
+#include "SingleLayerWaterRendering.h"
 #include "SkyAtmosphereRendering.h"
 #include "ScenePrivate.h"
 #include "ScreenRendering.h"
@@ -176,6 +177,7 @@ DECLARE_GPU_STAT(SortLights);
 DECLARE_GPU_STAT(PostRenderOpsFX);
 DECLARE_GPU_STAT(HZB);
 DECLARE_GPU_STAT_NAMED(Unaccounted, TEXT("[unaccounted]"));
+DECLARE_GPU_STAT(WaterRendering);
 
 const TCHAR* GetDepthPassReason(bool bDitheredLODTransitionsUseStencil, EShaderPlatform ShaderPlatform)
 {
@@ -380,6 +382,7 @@ DECLARE_CYCLE_STAT(TEXT("BasePass"), STAT_CLM_BasePass, STATGROUP_CommandListMar
 DECLARE_CYCLE_STAT(TEXT("AfterBasePass"), STAT_CLM_AfterBasePass, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("Lighting"), STAT_CLM_Lighting, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("AfterLighting"), STAT_CLM_AfterLighting, STATGROUP_CommandListMarkers);
+DECLARE_CYCLE_STAT(TEXT("WaterPass"), STAT_CLM_WaterPass, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("Translucency"), STAT_CLM_Translucency, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("RenderDistortion"), STAT_CLM_RenderDistortion, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("AfterTranslucency"), STAT_CLM_AfterTranslucency, STATGROUP_CommandListMarkers);
@@ -1781,6 +1784,43 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
+	
+	const bool bShouldRenderSingleLayerWater = ShouldRenderSingleLayerWater(Views, ViewFamily.EngineShowFlags);
+	if(bShouldRenderSingleLayerWater)
+	{
+		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_WaterPass));
+		SCOPED_DRAW_EVENTF(RHICmdList, WaterRendering, TEXT("WaterRendering"));
+		SCOPED_GPU_STAT(RHICmdList, WaterRendering);
+
+		// First render the under water particles. We only support a black readable scene color for now.
+		// TODO: this should be done after the water GBuffer pass when the camera is under water.
+		IPooledRenderTarget* DummyReadBackSceneTexture = GSystemTextures.BlackDummy;
+		RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_TranslucencyUnderWater, DummyReadBackSceneTexture);
+
+		// Copy the texture to be available for the water surface to refrace
+		FSingleLayerWaterPassData SingleLayerWaterPassData;
+		CopySingleLayerWaterTextures(RHICmdList, SingleLayerWaterPassData);
+
+		// Make the Depth texture writable since the water GBuffer pass will update it
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable,  SceneContext.GetSceneDepthSurface());
+
+		// Render the GBuffer pass, updating the GBuffer and also writing lit water in the scene.
+		const FExclusiveDepthStencil::Type WaterPassDepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite;
+		BeginRenderingWaterGBuffer(RHICmdList, SingleLayerWaterPassData, WaterPassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity);
+		RenderSingleLayerWaterPass(RHICmdList, SingleLayerWaterPassData, WaterPassDepthStencilAccess);
+		FinishWaterGBufferPassAndResolve(RHICmdList);
+
+		// Resolves the depth texture back to readable for SSR and later passes.1
+		SceneContext.ResolveSceneDepthTexture(RHICmdList, FResolveRect(0, 0, FamilySize.X, FamilySize.Y));
+		SceneContext.ResolveSceneDepthToAuxiliaryTexture(RHICmdList);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneDepthSurface());
+
+		// If supported render SSR, the composite pass in non deferred and/or under water effect.
+		RenderSingleLayerWaterReflections(RHICmdList, SingleLayerWaterPassData);
+		ServiceLocalQueue();
+	}
+
+
 	FLightShaftsOutput LightShaftOutput;
 
 	// Draw Lightshafts
@@ -1926,6 +1966,18 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 			// Disable UAV cache flushing so we have optimal VT feedback performance.
 			RHICmdList.AutomaticCacheFlushAfterComputeShader(false);
+
+			if (!bShouldRenderSingleLayerWater)
+			{
+				// We render under water transparent separately even when water is disabled (simple, and avoid checking if water is enabled everywhere)
+				// This translucency pass is cheap and fast to render but could be improved 
+				//  - it is always full screen todya.
+				//  - particles do not have correct under water fog apply on them. it is the backgroung fog that is applied on them.
+				//  - particle are not cut out by the top part of the depth layer
+				// This could be resolved by rendering particles in an offscreenbuffer with corret fog and applied in the SingleLayerWater gbuffer pass.
+				// A depth buffer from previous frame could also be sampled to clip particle.
+				RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_TranslucencyUnderWater, SceneColorCopy);
+			}
 
 			if (ViewFamily.AllowTranslucencyAfterDOF())
 			{

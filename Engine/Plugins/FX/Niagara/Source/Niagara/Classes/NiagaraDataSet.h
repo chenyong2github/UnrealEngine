@@ -7,20 +7,29 @@
 #include "RHI.h"
 #include "VectorVM.h"
 #include "RenderingThread.h"
+#include "NiagaraDataSet.generated.h"
 
+typedef TArray<uint8*, TInlineAllocator<128>> FNiagaraRegisterTable;
 
 /** Helper class defining the layout and location of an FNiagaraVariable in an FNiagaraDataBuffer-> */
+USTRUCT()
 struct FNiagaraVariableLayoutInfo
 {
+	GENERATED_BODY()
+
 	/** Start index for the float components in the main buffer. */
+	UPROPERTY()
 	uint32 FloatComponentStart;
+
 	/** Start index for the int32 components in the main buffer. */
+	UPROPERTY()
 	uint32 Int32ComponentStart;
 
 	uint32 GetNumFloatComponents()const { return LayoutInfo.FloatComponentByteOffsets.Num(); }
 	uint32 GetNumInt32Components()const { return LayoutInfo.Int32ComponentByteOffsets.Num(); }
 
 	/** This variable's type layout info. */
+	UPROPERTY()
 	FNiagaraTypeLayoutInfo LayoutInfo;
 };
 
@@ -104,7 +113,8 @@ public:
 	void GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx, int32 NumInstances, uint32 InSrcFloatStride, uint32 InSrcIntStride);
 	void Dump(int32 StartIndex, int32 NumInstances, const FString& Label)const;
 
-	bool AppendToRegisterTable(uint8** Registers, int32& NumRegisters, int32 StartInstance);
+	FORCEINLINE_DEBUGGABLE void AppendToRegisterTable(FNiagaraRegisterTable& Registers, int32 StartInstance);
+	FORCEINLINE void ClearRegisterTable(FNiagaraRegisterTable& Registers);
 
 	const TArray<uint8>& GetFloatBuffer()const { return FloatData; }
 	const TArray<uint8>& GetInt32Buffer()const { return Int32Data; }
@@ -151,9 +161,12 @@ public:
 
 	void ReleaseGPUInstanceCount(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager);
 
+	FORCEINLINE const TArray<uint8*>& GetRegisterTable()const { return RegisterTable; }
+
+	void BuildRegisterTable();
 private:
 
-	void CheckUsage(bool bReadOnly)const;
+	FORCEINLINE void CheckUsage(bool bReadOnly)const;
 
 	FORCEINLINE int32 GetSafeComponentBufferSize(int32 RequiredSize) const
 	{
@@ -196,6 +209,47 @@ private:
 	uint32 FloatStride;
 	/** Stride between components in the int32 buffer. */
 	uint32 Int32Stride;
+
+	/** Table containing current base locations for all registers in this dataset. */
+	TArray<uint8*> RegisterTable;//TODO: Should make inline? Feels like a useful size to keep local would be too big.
+};
+
+//////////////////////////////////////////////////////////////////////////
+
+USTRUCT()
+struct FNiagaraDataSetCompiledData
+{
+	GENERATED_BODY()
+
+	/** Variables in the data set. */
+	UPROPERTY()
+	TArray<FNiagaraVariable> Variables;
+
+	/** Data describing the layout of variable data. */
+	UPROPERTY()
+	TArray<FNiagaraVariableLayoutInfo> VariableLayouts;
+
+	/** Total number of components of each type in the data set. */
+	UPROPERTY()
+	uint32 TotalFloatComponents;
+
+	UPROPERTY()
+	uint32 TotalInt32Components;
+
+	/** Whether or not this dataset require persistent IDs. */
+	UPROPERTY()
+	uint32 bNeedsPersistentIDs : 1;
+
+	/** Unique ID for this DataSet. Used to allow referencing from other emitters and Systems. */
+	UPROPERTY()
+	FNiagaraDataSetID ID;
+
+	/** Sim target this DataSet is targeting (CPU/GPU). */
+	UPROPERTY()
+	ENiagaraSimTarget SimTarget;
+
+	void BuildLayout();
+	void Empty();
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -212,7 +266,13 @@ public:
 	~FNiagaraDataSet();
 	FNiagaraDataSet& operator=(const FNiagaraDataSet&) = delete;
 
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	void Init(FNiagaraDataSetID InID, ENiagaraSimTarget InSimTarget, const FString& InDebugName);
+	void InitFromCompiledData(const FNiagaraDataSetCompiledData& InDataSetCompiledData, const FString& InDebugName);
+#else
+	void Init(FNiagaraDataSetID InID, ENiagaraSimTarget InSimTarget);
+	void InitFromCompiledData(const FNiagaraDataSetCompiledData& InDataSetCompiledData);
+#endif
 
 	/** Resets current data but leaves variable/layout information etc intact. */
 	void ResetBuffers();
@@ -229,8 +289,6 @@ public:
 	/** Returns size in bytes for all data buffers currently allocated by this dataset. */
 	uint32 GetSizeBytes()const;
 
-	void ClearRegisterTable(uint8** Registers, int32& NumRegisters);
-
 	FORCEINLINE bool IsInitialized()const { return bFinalized; }
 	FORCEINLINE ENiagaraSimTarget GetSimTarget()const { return SimTarget; }
 	FORCEINLINE FNiagaraDataSetID GetID()const { return ID; }
@@ -245,7 +303,6 @@ public:
 	FORCEINLINE int32& GetIDAcquireTag() { return IDAcquireTag; }
 	FORCEINLINE void SetIDAcquireTag(int32 InTag) { IDAcquireTag = InTag; }
 
-
 	FORCEINLINE TArray<FNiagaraVariable>& GetVariables() { return Variables; }
 	FORCEINLINE uint32 GetNumVariables()const { return Variables.Num(); }
 	FORCEINLINE bool HasVariable(const FNiagaraVariable& Var)const { return Variables.Contains(Var); }
@@ -254,8 +311,10 @@ public:
 
 	void AddVariable(FNiagaraVariable& Variable);
 	void AddVariables(const TArray<FNiagaraVariable>& Vars);
+
 	/** Finalize the addition of variables and other setup before this data set can be used. */
 	void Finalize();
+
 	const FNiagaraVariableLayoutInfo* GetVariableLayout(const FNiagaraVariable& Var)const;
 	bool GetVariableComponentOffsets(const FNiagaraVariable& Var, int32 &FloatStart, int32 &IntStart) const;
 
@@ -353,7 +412,9 @@ private:
 	*/
 	TArray<FNiagaraDataBuffer*, TInlineAllocator<2>> Data;
 
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	FString DebugName;
+#endif
 };
 
 /**
@@ -382,9 +443,16 @@ struct FNiagaraDataSetAccessorBase
 
 	void SetDataSet(FNiagaraDataSet& InDataSet)
 	{
-		ensure(Var.IsValid());
-		DataSet = &InDataSet;
-		VarLayout = InDataSet.GetVariableLayout(Var);
+		if (Var.IsValid())
+		{
+			DataSet = &InDataSet;
+			VarLayout = InDataSet.GetVariableLayout(Var);
+		}
+		else
+		{
+			DataSet = nullptr;
+			VarLayout = nullptr;
+		}
 	}
 
 	FORCEINLINE bool IsValid()const { return DataSet && VarLayout != nullptr; }
@@ -556,16 +624,19 @@ struct FNiagaraDataSetAccessor<int32> : public FNiagaraDataSetAccessorBase
 	{
 		SrcBase = nullptr;
 		DestBase = nullptr;
-		FNiagaraDataBuffer* SrcBuffer = DataSet->GetCurrentData();
-		if (IsValid() && SrcBuffer)
+		if (IsValid())
 		{
-			SrcBase = (int32*)SrcBuffer->GetComponentPtrInt32(VarLayout->Int32ComponentStart);
-
-			//Writes are only valid if we're during a simulation pass.
-			FNiagaraDataBuffer* DestBuffer = DataSet->GetDestinationData();
-			if (DestBuffer)
+			FNiagaraDataBuffer* SrcBuffer = DataSet->GetCurrentData();
+			if (SrcBuffer)
 			{
-				DestBase = (int32*)DestBuffer->GetComponentPtrInt32(VarLayout->Int32ComponentStart);
+				SrcBase = (int32*)SrcBuffer->GetComponentPtrInt32(VarLayout->Int32ComponentStart);
+
+				//Writes are only valid if we're during a simulation pass.
+				FNiagaraDataBuffer* DestBuffer = DataSet->GetDestinationData();
+				if (DestBuffer)
+				{
+					DestBase = (int32*)DestBuffer->GetComponentPtrInt32(VarLayout->Int32ComponentStart);
+				}
 			}
 		}
 	}
@@ -1481,3 +1552,51 @@ private:
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
 	uint32				NumInstances = 0;
 };
+
+
+//////////////////////////////////////////////////////////////////////////
+
+FORCEINLINE void FNiagaraDataBuffer::CheckUsage(bool bReadOnly)const
+{
+	checkSlow(Owner);
+
+	//We can read on the RT but any modifications must be GT (or GT Task).
+	//For GPU sims we must be on the RT.
+	checkSlow((Owner->SimTarget == ENiagaraSimTarget::CPUSim  && (IsInGameThread() || (bReadOnly || !IsInRenderingThread()))) ||
+		(Owner->SimTarget == ENiagaraSimTarget::GPUComputeSim) && IsInRenderingThread());
+}
+
+FORCEINLINE_DEBUGGABLE void FNiagaraDataBuffer::AppendToRegisterTable(FNiagaraRegisterTable& Registers, int32 StartInstance)
+{
+	checkSlow(Owner && Owner->IsInitialized());
+	checkSlow(Owner->GetSimTarget() == ENiagaraSimTarget::CPUSim);
+	CheckUsage(true);
+
+	if (!ensure(RegisterTable.Num() != 0))
+	{
+		BuildRegisterTable();
+	}
+
+	int32 RegisterCount = RegisterTable.Num();
+	int32 NumRegisters = Registers.Num();
+	Registers.AddUninitialized(RegisterCount);
+
+	if (StartInstance == 0)
+	{
+		FMemory::Memcpy(&Registers[NumRegisters], RegisterTable.GetData(), sizeof(uint8*) * RegisterCount);
+	}
+	else
+	{
+		int32 StartOffset = sizeof(float) * StartInstance;
+		for (int32 i = 0; i < RegisterCount; ++i)
+		{
+			Registers[NumRegisters + i] = RegisterTable[i] + StartOffset;
+		}
+	}
+}
+
+FORCEINLINE void FNiagaraDataBuffer::ClearRegisterTable(FNiagaraRegisterTable& Registers)
+{
+	int32 RegisterCount = RegisterTable.Num();
+	Registers.AddZeroed(RegisterCount);
+}

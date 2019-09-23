@@ -275,14 +275,14 @@ public:
 /**
  * A texture expression.
  */
-class FMaterialUniformExpressionTexture: public FMaterialUniformExpression
+class FMaterialUniformExpressionTexture : public FMaterialUniformExpression
 {
 	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionTexture);
 
 public:
 	FMaterialUniformExpressionTexture();
 	FMaterialUniformExpressionTexture(int32 InTextureIndex, EMaterialSamplerType InSamplerType, ESamplerSourceMode InSamplerSource, bool InVirtualTexture);
-	FMaterialUniformExpressionTexture(int32 InTextureIndex, int32 InLayerIndex, EMaterialSamplerType InSamplerType);
+	FMaterialUniformExpressionTexture(int32 InTextureIndex, int16 InTextureLayerIndex, int16 InPageTableLayerIndex, EMaterialSamplerType InSamplerType);
 
 	/** Sets an override texture. */
 	void SetTransientOverrideTextureValue(UTexture* InOverrideTexture);
@@ -298,8 +298,10 @@ public:
 
 	/** Gets texture index which is the index in the full set of referenced textures for this material. */
 	int32 GetTextureIndex() const { return TextureIndex; }
-	/** Gets the layer index in the virtual texture stack if this is fixed. If we don't have a fixed layer then we will allocate during compilation (and not store here). */
-	int32 GetLayerIndex() const { return LayerIndex; }
+	/** Gets the texture layer index in the virtual texture stack if this is fixed. If we don't have a fixed layer then we will allocate during compilation (and not store here). */
+	int32 GetTextureLayerIndex() const { return TextureLayerIndex; }
+	/** Gets the page table channel index in the virtual texture stack if this is fixed. If we don't have a fixed layer then we will allocate during compilation (and not store here). */
+	int32 GetPageTableLayerIndex() const { return PageTableLayerIndex; }
 
 #if WITH_EDITORONLY_DATA
 	/** Get the sampling/decoding logic to compile in the shader for this texture. */
@@ -313,15 +315,17 @@ public:
 	virtual void GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const UTexture*& OutValue) const;
 	/** Get the URuntimeVirtualTexture referenced by this expression (can be a nullptr). */
 	virtual void GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const;
-	
+
 	/** Get the UTexture referenced by this expression including any transient override logic. */
 	virtual void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue, bool bAllowOverride = true) const;
 
 protected:
 	/** Index into FMaterial::GetReferencedTextures */
 	int32 TextureIndex;
-	/** Fixed layer in virtual texture stack if preallocated */
-	int32 LayerIndex;
+	/** Texture layer index in virtual texture stack if preallocated */
+	int16 TextureLayerIndex;
+	/** Page table layer index in virtual texture stack if preallocated */
+	int16 PageTableLayerIndex;
 #if WITH_EDITORONLY_DATA
 	/** Sampler logic for this expression */
 	EMaterialSamplerType SamplerType;
@@ -1489,6 +1493,7 @@ public:
 	virtual float GetTranslucentSelfShadowSecondOpacity() const { return 1.0f; }
 	virtual float GetTranslucentBackscatteringExponent() const { return 1.0f; }
 	virtual bool IsTranslucencyAfterDOFEnabled() const { return false; }
+	virtual bool IsTranslucencyUnderWaterEnabled() const { return false; }
 	virtual bool IsMobileSeparateTranslucencyEnabled() const { return false; }
 	virtual FLinearColor GetTranslucentMultipleScatteringExtinction() const { return FLinearColor::White; }
 	virtual float GetTranslucentShadowStartOffset() const { return 0.0f; }
@@ -2246,6 +2251,7 @@ public:
 	ENGINE_API virtual float GetTranslucentSelfShadowSecondOpacity() const override;
 	ENGINE_API virtual float GetTranslucentBackscatteringExponent() const override;
 	ENGINE_API virtual bool IsTranslucencyAfterDOFEnabled() const override;
+	ENGINE_API virtual bool IsTranslucencyUnderWaterEnabled() const override;
 	ENGINE_API virtual bool IsMobileSeparateTranslucencyEnabled() const override;
 	ENGINE_API virtual FLinearColor GetTranslucentMultipleScatteringExtinction() const override;
 	ENGINE_API virtual float GetTranslucentShadowStartOffset() const override;
@@ -2268,7 +2274,7 @@ public:
 	ENGINE_API virtual bool ComputeFogPerPixel() const override;
 	ENGINE_API virtual bool HasRuntimeVirtualTextureOutput() const override;
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;
-	ENGINE_API virtual UMaterialInterface* GetMaterialInterface() const override;
+	ENGINE_API  virtual UMaterialInterface* GetMaterialInterface() const override;
 	/**
 	 * Should shaders compiled for this material be saved to disk?
 	 */
@@ -2634,7 +2640,7 @@ public:
 private:
 	TArray<uint8> Bytes;
 	TArray<FMaterialResourceLocOnDisk> Locs;
-	TMap<NAME_INDEX, int32> Name2Indices;
+	TMap<FNameEntryId, int32> Name2Indices;
 	FArchive* ParentAr;
 
 	void SerializeToParentArchive();
@@ -2733,3 +2739,10 @@ bool ReloadMaterialResource(
 	ERHIFeatureLevel::Type FeatureLevel,
 	EMaterialQualityLevel::Type QualityLevel);
 #endif
+
+inline bool ShouldIncludeMaterialInDefaultOpaquePass(const FMaterial& Material)
+{
+	return !Material.IsSky()
+		&& !Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
+}
+

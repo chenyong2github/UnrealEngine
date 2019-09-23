@@ -561,11 +561,11 @@ void UNavigationSystemV1::PostInitProperties()
 		}
 
 		ApplySupportedAgentsFilter();
-			for (int32 AgentIndex = 0; AgentIndex < SupportedAgents.Num(); ++AgentIndex)
-			{
-				FNavDataConfig& SupportedAgentConfig = SupportedAgents[AgentIndex];
-				SetSupportedAgentsNavigationClass(AgentIndex, SupportedAgentConfig.GetNavDataClass<ANavigationData>());
-			}
+		for (int32 AgentIndex = 0; AgentIndex < SupportedAgents.Num(); ++AgentIndex)
+		{
+			FNavDataConfig& SupportedAgentConfig = SupportedAgents[AgentIndex];
+			SetSupportedAgentsNavigationClass(AgentIndex, SupportedAgentConfig.GetNavDataClass<ANavigationData>());
+		}
 	
 		if (bInitialBuildingLocked)
 		{
@@ -1542,6 +1542,22 @@ const ANavigationData* UNavigationSystemV1::GetNavDataForProps(const FNavAgentPr
 	}
 
 	return NavDataInstance ? NavDataInstance : MainNavData;
+}
+
+ANavigationData* UNavigationSystemV1::GetNavDataForAgentName(const FName AgentName) const
+{
+	ANavigationData* Result = nullptr;
+
+	for (ANavigationData* NavData : NavDataSet)
+	{
+		if (NavData && !NavData->IsPendingKill() && NavData->GetConfig().Name == AgentName)
+		{
+			Result = NavData;
+			break;
+		}
+	}
+
+	return Result;
 }
 
 ANavigationData* UNavigationSystemV1::GetDefaultNavDataInstance(FNavigationSystem::ECreateIfMissing CreateNewIfNoneFound)
@@ -4335,6 +4351,25 @@ void UNavigationSystemV1::Configure(const UNavigationSystemConfig& Config)
 		DefaultAgentName = Config.DefaultAgentName;
 	}
 	SetSupportedAgentsMask(Config.SupportedAgentsMask);
+
+	if (DefaultAgentName == NAME_None)
+	{
+		if (SupportedAgents.Num() == 1)
+		{
+			DefaultAgentName = SupportedAgents[0].Name;
+		}
+		else // pick the first available one
+		{
+			for (int32 AgentIndex = 0; AgentIndex < SupportedAgents.Num(); ++AgentIndex)
+			{
+				if (SupportedAgents[AgentIndex].IsValid())
+				{
+					DefaultAgentName = SupportedAgents[AgentIndex].Name;
+					break;
+				}
+			}
+		}
+	}
 }
 
 void UNavigationSystemV1::AppendConfig(const UNavigationSystemConfig& NewConfig)

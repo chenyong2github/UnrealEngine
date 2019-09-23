@@ -140,6 +140,11 @@ void UProjectileMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 		TickInterpolation(DeltaTime);
 	}
 
+	// Consume PendingForce and reset to zero.
+	// At this point, any calls to AddForce() will apply to the next frame.
+	PendingForceThisUpdate = PendingForce;
+	ClearPendingForce();
+
 	// skip if don't want component updated when not rendered or updated component can't move
 	if (HasStoppedSimulation() || ShouldSkipUpdate(DeltaTime))
 	{
@@ -466,6 +471,8 @@ FVector UProjectileMovementComponent::ComputeAcceleration(const FVector& InVeloc
 
 	Acceleration.Z += GetGravityZ();
 
+	Acceleration += PendingForceThisUpdate;
+
 	if (bIsHomingProjectile && HomingTargetComponent.IsValid())
 	{
 		Acceleration += ComputeHomingAcceleration(InVelocity, DeltaTime);
@@ -482,6 +489,16 @@ FVector UProjectileMovementComponent::ComputeHomingAcceleration(const FVector& I
 }
 
 
+void UProjectileMovementComponent::AddForce(FVector Force)
+{
+	PendingForce += Force;
+}
+
+void UProjectileMovementComponent::ClearPendingForce()
+{
+	PendingForce = FVector::ZeroVector;
+}
+
 float UProjectileMovementComponent::GetGravityZ() const
 {
 	// TODO: apply buoyancy if in water
@@ -492,6 +509,8 @@ float UProjectileMovementComponent::GetGravityZ() const
 void UProjectileMovementComponent::StopSimulating(const FHitResult& HitResult)
 {
 	Velocity = FVector::ZeroVector;
+	PendingForce = FVector::ZeroVector;
+	PendingForceThisUpdate = FVector::ZeroVector;
 	UpdateComponentVelocity();
 	SetUpdatedComponent(NULL);
 	OnProjectileStop.Broadcast(HitResult);

@@ -56,7 +56,7 @@ struct FNiagaraDataInterfaceProxyCurlNoise : public FNiagaraDataInterfaceProxy
 		OffsetFromSeed = InOffset;
 	}
 
-	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance) override { check(false); }
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { check(false); }
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
 	{
 		return 0;

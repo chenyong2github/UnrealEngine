@@ -17,6 +17,7 @@ class FOnlineUserCloudSteam;
 class FOnlineVoiceSteam;
 class FOnlinePresenceSteam;
 class FOnlineAuthSteam;
+class FOnlineEncryptedAppTicketSteam;
 
 /** Forward declarations of all interface classes */
 typedef TSharedPtr<class FOnlineSessionSteam, ESPMode::ThreadSafe> FOnlineSessionSteamPtr;
@@ -30,6 +31,7 @@ typedef TSharedPtr<class FOnlineExternalUISteam, ESPMode::ThreadSafe> FOnlineExt
 typedef TSharedPtr<class FOnlineAchievementsSteam, ESPMode::ThreadSafe> FOnlineAchievementsSteamPtr;
 typedef TSharedPtr<class FOnlinePresenceSteam, ESPMode::ThreadSafe> FOnlinePresenceSteamPtr;
 typedef TSharedPtr<class FOnlineAuthSteam, ESPMode::ThreadSafe> FOnlineAuthSteamPtr;
+typedef TSharedPtr<class FOnlineEncryptedAppTicketSteam, ESPMode::ThreadSafe> FOnlineEncryptedAppTicketSteamPtr;
 
 /**
  *	OnlineSubsystemSteam - Implementation of the online subsystem for STEAM services
@@ -96,6 +98,9 @@ protected:
 	/** Interface for Steam Session Auth */
 	FOnlineAuthSteamPtr AuthInterface;
 
+	/** Interface for Steam encrypted application tickets. */
+	FOnlineEncryptedAppTicketSteamPtr EncryptedAppTicketInterface;
+
 	/** Online async task runnable */
 	class FOnlineAsyncTaskManagerSteam* OnlineAsyncTaskThreadRunnable;
 
@@ -125,6 +130,7 @@ PACKAGE_SCOPE:
 		ExternalUIInterface(nullptr),
 		PresenceInterface(nullptr),
 		AuthInterface(nullptr),
+		EncryptedAppTicketInterface(nullptr),
 		OnlineAsyncTaskThreadRunnable(nullptr),
 		OnlineAsyncTaskThread(nullptr)
 	{}
@@ -205,6 +211,7 @@ public:
 	}
 
 	virtual FOnlineAuthSteamPtr GetAuthInterface() const;
+	virtual FOnlineEncryptedAppTicketSteamPtr GetEncryptedAppTicketInterface() const;
 
 	// IOnlineSubsystem
 

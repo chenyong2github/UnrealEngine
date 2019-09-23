@@ -755,7 +755,7 @@ TSharedRef<SWidget> SMyBlueprint::CreateAddToSectionButton(int32 InSectionID, TW
 		.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
 		.ContentPadding(FMargin(2, 0))
 		.OnClicked(this, &SMyBlueprint::OnAddButtonClickedOnSection, InSectionID)
-		.IsEnabled(this, &SMyBlueprint::IsEditingMode)
+		.IsEnabled(this, &SMyBlueprint::CanAddNewElementToSection, InSectionID)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		.AddMetaData<FTagMetaData>(FTagMetaData(MetaDataTag))
@@ -814,6 +814,39 @@ FReply SMyBlueprint::OnAddButtonClickedOnSection(int32 InSectionID)
 	}
 
 	return FReply::Handled();
+}
+
+bool SMyBlueprint::CanAddNewElementToSection(int32 InSectionID) const
+{
+	if (!IsEditingMode())
+	{
+		return false;
+	}
+
+	if (UBlueprint* CurrentBlueprint = GetBlueprintObj())
+	{
+		switch (InSectionID)
+		{
+		case NodeSectionID::VARIABLE:
+			return CurrentBlueprint->SupportsGlobalVariables();
+		case NodeSectionID::FUNCTION:
+			return CurrentBlueprint->SupportsFunctions();
+		case NodeSectionID::MACRO:
+			return CurrentBlueprint->SupportsMacros();
+		case NodeSectionID::DELEGATE:
+			return CurrentBlueprint->SupportsDelegates();
+		case NodeSectionID::GRAPH:
+			return CurrentBlueprint->SupportsEventGraphs();
+		case NodeSectionID::ANIMLAYER:
+			return CurrentBlueprint->SupportsAnimLayers();
+		case NodeSectionID::LOCAL_VARIABLE:
+			return CurrentBlueprint->SupportsLocalVariables();
+		default:
+			break;
+		}
+	}
+
+	return false;
 }
 
 EVisibility SMyBlueprint::OnGetSectionTextVisibility(TWeakPtr<SWidget> RowWidget, int32 InSectionID) const
@@ -2073,25 +2106,45 @@ TSharedRef<SWidget> SMyBlueprint::CreateAddNewMenuWidget()
 void SMyBlueprint::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection("AddNewItem", LOCTEXT("AddOperations", "Add New"));
-	{
-		MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewVariable);
-		MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewLocalVariable);
-		MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewFunction);
 
-		// If we cannot handle Function Graphs, we cannot handle function overrides
-		if ( OverridableFunctionActions.Num() > 0 && BlueprintEditorPtr.Pin()->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewFunctionGraph) )
+	if(UBlueprint* CurrentBlueprint = GetBlueprintObj())
+	{
+		if (CurrentBlueprint->SupportsGlobalVariables())
 		{
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("OverrideFunction", "Override Function"),
-				FText::GetEmpty(),
-				FNewMenuDelegate::CreateSP(this, &SMyBlueprint::BuildOverridableFunctionsMenu),
-				false,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintEditor.AddNewFunction.Small"));
+			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewVariable);
+		}
+		if (CurrentBlueprint->SupportsLocalVariables())
+		{
+			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewLocalVariable);
+		}
+		if (CurrentBlueprint->SupportsFunctions())
+		{
+			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewFunction);
+
+			// If we cannot handle Function Graphs, we cannot handle function overrides
+			if (OverridableFunctionActions.Num() > 0 && BlueprintEditorPtr.Pin()->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewFunctionGraph))
+			{
+				MenuBuilder.AddSubMenu(
+					LOCTEXT("OverrideFunction", "Override Function"),
+					FText::GetEmpty(),
+					FNewMenuDelegate::CreateSP(this, &SMyBlueprint::BuildOverridableFunctionsMenu),
+					false,
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintEditor.AddNewFunction.Small"));
+			}
 		}
 
-		MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewMacroDeclaration);
-		MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewEventGraph);
-		MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewDelegate);
+		if (CurrentBlueprint->SupportsMacros())
+		{
+			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewMacroDeclaration);
+		}
+		if (CurrentBlueprint->SupportsEventGraphs())
+		{
+			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewEventGraph);
+		}
+		if (CurrentBlueprint->SupportsDelegates())
+		{
+			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewDelegate);
+		}
 	}
 	MenuBuilder.EndSection();
 }

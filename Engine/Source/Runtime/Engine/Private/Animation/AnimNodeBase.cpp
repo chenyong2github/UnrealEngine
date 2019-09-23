@@ -55,6 +55,11 @@ const void* FExposedValueCopyRecord::GetSourceAddr(FAnimInstanceProxy* Proxy) co
 /////////////////////////////////////////////////////
 // FAnimationBaseContext
 
+FAnimationBaseContext::FAnimationBaseContext()
+	: AnimInstanceProxy(nullptr)
+{
+}
+
 FAnimationBaseContext::FAnimationBaseContext(FAnimInstanceProxy* InAnimInstanceProxy)
 	: AnimInstanceProxy(InAnimInstanceProxy)
 {
@@ -187,9 +192,10 @@ void FPoseLinkBase::AttemptRelink(const FAnimationBaseContext& Context)
 		check(AnimBlueprintClass);
 
 		// adding ensure. We had a crash on here
-		if ( ensure(AnimBlueprintClass->GetAnimNodeProperties().IsValidIndex(LinkID)) )
+		const TArray<UStructProperty*> AnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties();
+		if ( ensure(AnimNodeProperties.IsValidIndex(LinkID)) )
 		{
-			UProperty* LinkedProperty = AnimBlueprintClass->GetAnimNodeProperties()[LinkID];
+			UProperty* LinkedProperty = AnimNodeProperties[LinkID];
 			void* LinkedNodePtr = LinkedProperty->ContainerPtrToValuePtr<void>(Context.AnimInstanceProxy->GetAnimInstanceObject());
 			LinkedNode = (FAnimNode_Base*)LinkedNodePtr;
 		}

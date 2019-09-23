@@ -3,8 +3,9 @@
 #include "NiagaraParameters.h"
 #include "NiagaraEmitter.h"
 
-
 //////////////////////////////////////////////////////////////////////////
+
+#if WITH_EDITORONLY_DATA
 
 void FNiagaraParameters::Empty()
 {
@@ -18,7 +19,6 @@ void FNiagaraParameters::DumpParameters()
 		UE_LOG(LogNiagara, Log, TEXT("Param: %s Type : %s"), *Var.ToString(), *Var.GetType().GetName());
 	}
 }
-
 
 void FNiagaraParameters::AppendToConstantsTable(uint8* ConstantsTable, const FNiagaraParameters& Externals)const
 {
@@ -78,5 +78,6 @@ const FNiagaraVariable* FNiagaraParameters::FindParameter(FNiagaraVariable InPar
 }
 
 
+#endif // WITH_EDITORONLY_DATA
 
 //////////////////////////////////////////////////////////////////////////

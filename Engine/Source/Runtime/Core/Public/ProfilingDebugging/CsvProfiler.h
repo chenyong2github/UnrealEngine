@@ -272,6 +272,12 @@ public:
 
 	CORE_API FString GetOutputFilename() const { return OutputFilename; }
 
+	DECLARE_MULTICAST_DELEGATE(FOnCSVProfileStart);
+	FOnCSVProfileStart& OnCSVProfileStart() { return OnCSVProfileStartDelegate; }
+
+	DECLARE_MULTICAST_DELEGATE(FOnCSVProfileEnd);
+	FOnCSVProfileEnd& OnCSVProfileEnd() { return OnCSVProfileEndDelegate; }
+	
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnCSVProfileFinished, const FString& /*Filename */);
 	FOnCSVProfileFinished& OnCSVProfileFinished() { return OnCSVProfileFinishedDelegate; }
 
@@ -310,6 +316,9 @@ private:
 
 	ECsvProfilerFlags CurrentFlags;
 
+	FOnCSVProfileStart OnCSVProfileStartDelegate;
+	FOnCSVProfileEnd OnCSVProfileEndDelegate;
+	
 	FOnCSVProfileFinished OnCSVProfileFinishedDelegate;
 };
 

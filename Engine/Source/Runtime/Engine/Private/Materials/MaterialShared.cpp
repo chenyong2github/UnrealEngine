@@ -23,6 +23,7 @@
 #include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionReroute.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureOutput.h"
+#include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
 #include "ShaderCompiler.h"
 #include "MaterialCompiler.h"
 #include "MeshMaterialShaderType.h"
@@ -515,7 +516,7 @@ void FMaterialCompilationOutput::Serialize(FArchive& Ar)
 	PackedFlags |= (bUsesGlobalDistanceField		<< 3);
 	PackedFlags |= (bUsesPixelDepthOffset			<< 4);
 	PackedFlags |= (bUsesDistanceCullFade			<< 5);
-	PackedFlags |= (bHasRuntimeVirtualTextureOutput	<< 6);
+	PackedFlags |= (bHasRuntimeVirtualTextureOutput << 6);
 
 	Ar << PackedFlags;
 
@@ -525,7 +526,7 @@ void FMaterialCompilationOutput::Serialize(FArchive& Ar)
 	bUsesGlobalDistanceField		= (PackedFlags >> 3) & 1;
 	bUsesPixelDepthOffset			= (PackedFlags >> 4) & 1;
 	bUsesDistanceCullFade			= (PackedFlags >> 5) & 1;
-	bHasRuntimeVirtualTextureOutput	= (PackedFlags >> 6) & 1;
+	bHasRuntimeVirtualTextureOutput = (PackedFlags >> 6) & 1;
 }
 
 void FMaterial::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
@@ -1213,6 +1214,11 @@ bool FMaterialResource::IsCrackFreeDisplacementEnabled() const
 bool FMaterialResource::IsTranslucencyAfterDOFEnabled() const 
 { 
 	return Material->bEnableSeparateTranslucency && !IsUIMaterial() && !IsDeferredDecal();
+}
+
+bool FMaterialResource::IsTranslucencyUnderWaterEnabled() const
+{
+	return Material->bEnableRenderUnderWater && !IsUIMaterial() && !IsDeferredDecal();
 }
 
 bool FMaterialResource::IsMobileSeparateTranslucencyEnabled() const
@@ -2128,7 +2134,6 @@ FShaderPipeline* FMaterial::GetShaderPipeline(class FShaderPipelineType* ShaderP
 		UE_LOG(LogMaterial, Fatal,
 			TEXT("		With VF=%s, Platform=%s\n")
 			TEXT("		MaterialUsageDesc: %s"),
-			ShaderPipelineType->GetName(), *GetFriendlyName(),
 			VertexFactoryType->GetName(), *LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString(),
 			*MaterialUsage
 			);
@@ -2317,9 +2322,9 @@ IAllocatedVirtualTexture* FMaterialRenderProxy::AllocateVTStack(const FMaterialR
 
 	FAllocatedVTDescription VTDesc;
 	VTDesc.Dimensions = 2;
-	VTDesc.NumLayers = NumLayers;
+	VTDesc.NumTextureLayers = NumLayers;
 	bool bFoundValidLayer = false;
-	for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumLayers; ++LayerIndex)
+	for (uint32 LayerIndex = 0u; LayerIndex < NumLayers; ++LayerIndex)
 	{
 		const UTexture2D* Texture = LayerTextures[LayerIndex];
 		const FVirtualTexture2DResource* VirtualTextureResourceForLayer = (Texture && Texture->IsCurrentlyVirtualTextured()) ? (FVirtualTexture2DResource*)Texture->Resource : nullptr;
@@ -2333,7 +2338,7 @@ IAllocatedVirtualTexture* FMaterialRenderProxy::AllocateVTStack(const FMaterialR
 			VTDesc.TileBorderSize = VirtualTextureResourceForLayer->GetBorderSize();
 			const FVirtualTextureProducerHandle& ProducerHandle = VirtualTextureResourceForLayer->GetProducerHandle();
 			VTDesc.ProducerHandle[LayerIndex] = ProducerHandle;
-			VTDesc.LocalLayerToProduce[LayerIndex] = 0u;
+			VTDesc.ProducerLayerIndex[LayerIndex] = 0u;
 			GetRendererModule().AddVirtualTextureProducerDestroyedCallback(ProducerHandle, &OnVirtualTextureDestroyedCB, const_cast<FMaterialRenderProxy*>(this));
 			bFoundValidLayer = true;
 		}
@@ -3805,7 +3810,7 @@ void FMaterialResourceMemoryWriter::SerializeToParentArchive()
 	check(Ar.IsSaving() && this->IsByteSwapping() == Ar.IsByteSwapping());
 
 	// Make a array of unique names used by the shader map
-	TArray<NAME_INDEX> DisplayIndices;
+	TArray<FNameEntryId> DisplayIndices;
 	auto NumNames = Name2Indices.Num();
 	DisplayIndices.Empty(NumNames);
 	DisplayIndices.AddDefaulted(NumNames);
@@ -3815,7 +3820,7 @@ void FMaterialResourceMemoryWriter::SerializeToParentArchive()
 	}
 
 	Ar << NumNames;
-	for (NAME_INDEX DisplayIdx : DisplayIndices)
+	for (FNameEntryId DisplayIdx : DisplayIndices)
 	{
 		FName::GetEntry(DisplayIdx)->Write(Ar);
 	}

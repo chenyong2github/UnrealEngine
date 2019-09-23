@@ -40,7 +40,7 @@ void FAnimNode_Slot::Update_AnyThread(const FAnimationUpdateContext& Context)
 	const bool bUpdateSource = bAlwaysUpdateSourcePose || FAnimWeight::IsRelevant(WeightData.SourceWeight);
 	if (bUpdateSource)
 	{
-		const float SourceWeight = bAlwaysUpdateSourcePose ? FAnimWeight::GetSmallestRelevantWeight() : WeightData.SourceWeight;
+		const float SourceWeight = FMath::Max(FAnimWeight::GetSmallestRelevantWeight(), WeightData.SourceWeight);
 		Source.Update(Context.FractionalWeight(SourceWeight));
 	}
 }

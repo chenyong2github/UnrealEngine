@@ -5,6 +5,8 @@
 #include "Features/IModularFeatures.h"
 #include "AppleARKitPoseTrackingLiveLink.h"
 
+#include "BonePose.h"
+
 UAppleARKitPoseTrackingLiveLinkRemapAsset::UAppleARKitPoseTrackingLiveLinkRemapAsset(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {

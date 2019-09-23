@@ -900,10 +900,18 @@ namespace ShaderConductor
 				{
 					mslOpts.invariant_float_math = (std::stoi(Define.value) != 0);
 				}
+				/* UE Change Begin: Emulate texturecube_array with texture2d_array for iOS where this type is not available */
 				if (!strcmp(Define.name, "emulate_cube_array"))
 				{
 					mslOpts.emulate_cube_array = (std::stoi(Define.value) != 0);
 				}
+				/* UE Change End: Emulate texturecube_array with texture2d_array for iOS where this type is not available */
+				/* UE Change Begin: Allow user to enable decoration binding */
+				if (!strcmp(Define.name, "enable_decoration_binding"))
+				{
+					mslOpts.enable_decoration_binding = (std::stoi(Define.value) != 0);
+				}
+				/* UE Change End: Allow user to enable decoration binding */
 			}
 			
 			mslCompiler->set_msl_options(mslOpts);

@@ -222,7 +222,8 @@ int32 FNiagaraDICollisionQueryBatch::SubmitQuery(FVector StartPos, FVector EndPo
 	}
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(NiagaraAsync));
-	QueryParams.OwnerTag = "Niagara";
+	static FName NiagaraName("Niagara");
+	QueryParams.OwnerTag = NiagaraName;
 	QueryParams.bFindInitialOverlaps = false;
 	QueryParams.bReturnFaceIndex = false;
 	QueryParams.bReturnPhysicalMaterial = true;

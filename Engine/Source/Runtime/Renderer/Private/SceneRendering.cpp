@@ -55,6 +55,7 @@
 #include "IXRCamera.h"
 #include "IXRCamera.h"
 #include "DiaphragmDOF.h" 
+#include "SingleLayerWaterRendering.h" 
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -813,6 +814,7 @@ void FViewInfo::Init()
 	bDisableDistanceBasedFadeTransitions = false;	
 	ShadingModelMaskInView = 0;
 	bSceneHasSkyMaterial = 0;
+	bHasSingleLayerWaterMaterial = 0;
 
 	NumVisibleStaticMeshElements = 0;
 	PrecomputedVisibilityData = 0;
@@ -1093,10 +1095,15 @@ void FViewInfo::SetupUniformBufferParameters(
 	// Mobile multi-view is not side by side
 	const FIntRect EffectiveViewRect = (bIsMobileMultiViewEnabled) ? FIntRect(0, 0, ViewRect.Width(), ViewRect.Height()) : ViewRect;
 
+	// Scene render targets may not be created yet; avoids NaNs.
+	FIntPoint EffectiveBufferSize = SceneContext.GetBufferSizeXY();
+	EffectiveBufferSize.X = FMath::Max(EffectiveBufferSize.X, 1);
+	EffectiveBufferSize.Y = FMath::Max(EffectiveBufferSize.Y, 1);
+
 	// TODO: We should use a view and previous view uniform buffer to avoid code duplication and keep consistency
 	SetupCommonViewUniformBufferParameters(
 		ViewUniformShaderParameters,
-		SceneContext.GetBufferSizeXY(),
+		EffectiveBufferSize,
 		SceneContext.GetMSAACount(),
 		EffectiveViewRect,
 		InViewMatrices,
@@ -1133,7 +1140,8 @@ void FViewInfo::SetupUniformBufferParameters(
 	{
 		if (Scene->SimpleDirectionalLight)
 		{
-			ViewUniformShaderParameters.DirectionalLightColor = Scene->SimpleDirectionalLight->Proxy->GetColor() / PI;
+			
+			ViewUniformShaderParameters.DirectionalLightColor = Scene->SimpleDirectionalLight->Proxy->GetTransmittanceFactor() * Scene->SimpleDirectionalLight->Proxy->GetColor() / PI;
 			ViewUniformShaderParameters.DirectionalLightDirection = -Scene->SimpleDirectionalLight->Proxy->GetDirection();
 		}
 		else
@@ -2639,8 +2647,12 @@ void FSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICmdList)
 				bMobileShowVertexFogWarning = true;
 			}
 		}
+
+		const bool bSingleLayerWaterWarning = ShouldRenderSingleLayerWaterSkippedRenderEditorNotification(Views);
 		
-		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowGlobalClipPlaneWarning || bShowAtmosphericFogWarning || bShowSkylightWarning || bShowPointLightWarning || bShowDFAODisabledWarning || bShowShadowedLightOverflowWarning || bShowMobileDynamicCSMWarning || bShowMobileLowQualityLightmapWarning || bShowMobileMovableDirectionalLightWarning || bMobileShowVertexFogWarning || bShowSkinCacheOOM;
+		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowGlobalClipPlaneWarning || bShowAtmosphericFogWarning || bShowSkylightWarning || bShowPointLightWarning 
+			|| bShowDFAODisabledWarning || bShowShadowedLightOverflowWarning || bShowMobileDynamicCSMWarning || bShowMobileLowQualityLightmapWarning || bShowMobileMovableDirectionalLightWarning
+			|| bMobileShowVertexFogWarning || bShowSkinCacheOOM || bSingleLayerWaterWarning;
 
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
@@ -2768,6 +2780,14 @@ void FSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICmdList)
 						Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(0.8, 1.0, 0.2, 1.0));
 						Y += 14;
 					}
+
+					if (bSingleLayerWaterWarning)
+					{
+						static const FText Message = NSLOCTEXT("Renderer", "SingleLayerWater", "r.Water.SingleLayer rendering is disabled with a view containing meshe(s) using water material. Meshes are not visible.");
+						Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
+						Y += 14;
+					}
+
 					Canvas.Flush_RenderThread(RHICmdList);
 				}
 				

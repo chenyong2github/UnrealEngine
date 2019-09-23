@@ -248,7 +248,7 @@ FNiagaraVariable FNiagaraUtilities::ConvertVariableToRapidIterationConstantName(
 	return Var;
 }
 
-void FNiagaraUtilities::CollectScriptDataInterfaceParameters(const UObject& Owner, const TArray<UNiagaraScript*>& Scripts, FNiagaraParameterStore& OutDataInterfaceParameters)
+void FNiagaraUtilities::CollectScriptDataInterfaceParameters(const UObject& Owner, const TArrayView<UNiagaraScript*>& Scripts, FNiagaraParameterStore& OutDataInterfaceParameters)
 {
 	for (UNiagaraScript* Script : Scripts)
 	{
@@ -288,6 +288,34 @@ UNiagaraDataInterface* FNiagaraScriptDataInterfaceCompileInfo::GetDefaultDataInt
 	// Note that this can be called on non-game threads. We ensure that the data interface CDO object is already in existence at application init time, so we don't allow this to be auto-created.
 	UNiagaraDataInterface* Obj = CastChecked<UNiagaraDataInterface>(const_cast<UClass*>(Type.GetClass())->GetDefaultObject(false));
 	return Obj;
+}
+
+void FNiagaraUtilities::DumpHLSLText(const FString& SourceCode, const FString& DebugName)
+{
+	UE_LOG(LogNiagara, Display, TEXT("Compile output as text: %s"), *DebugName);
+	UE_LOG(LogNiagara, Display, TEXT("==================================================================================="));
+	TArray<FString> OutputByLines;
+	SourceCode.ParseIntoArrayLines(OutputByLines, false);
+	for (int32 i = 0; i < OutputByLines.Num(); i++)
+	{
+		UE_LOG(LogNiagara, Display, TEXT("/*%04d*/\t\t%s"), i + 1, *OutputByLines[i]);
+	}
+	UE_LOG(LogNiagara, Display, TEXT("==================================================================================="));
+}
+
+FString FNiagaraUtilities::SystemInstanceIDToString(FNiagaraSystemInstanceID ID)
+{
+	TCHAR Buffer[17];
+	uint64 Value = ID;
+	for (int i = 15; i >= 0; --i)
+	{
+		TCHAR ch = Value & 0xf;
+		Value >>= 4;
+		Buffer[i] = (ch >= 10 ? TCHAR('A' - 10) : TCHAR('0')) + ch;
+	}
+	Buffer[16] = 0;
+
+	return FString(Buffer);
 }
 
 #if WITH_EDITORONLY_DATA
@@ -335,11 +363,10 @@ void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScr
 		}
 		else
 		{
-			const TMap<FNiagaraVariable, int32>& SourceParameterOffsets = Script->RapidIterationParameters.GetParameterOffsets();
-			for (auto ParameterOffsetIt = SourceParameterOffsets.CreateConstIterator(); ParameterOffsetIt; ++ParameterOffsetIt)
+			for (const FNiagaraVariableWithOffset& ParamWithOffset : Script->RapidIterationParameters.GetSortedParameterOffsets())
 			{
-				const FNiagaraVariable& SourceParameter = ParameterOffsetIt.Key();
-				int32 SourceOffset = ParameterOffsetIt.Value();
+				const FNiagaraVariable& SourceParameter = ParamWithOffset;
+				const int32 SourceOffset = ParamWithOffset.Offset;
 
 				int32 PreparedOffset = PreparedParameterStore.IndexOf(SourceParameter);
 				if (PreparedOffset == INDEX_NONE)

@@ -227,7 +227,6 @@ char* FVectorVMCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* 
 	}
 
 	{
-
 		SCOPE_CYCLE_COUNTER(STAT_VVMScalarize);
 		vm_debug_print("== Scalarize ==\n");
 		vm_scalarize_ops(ir, state);
@@ -237,6 +236,17 @@ char* FVectorVMCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* 
 		if (state->error) return nullptr;
 	}
 
+	{
+		SCOPE_CYCLE_COUNTER(STAT_VVMScalarize);
+		vm_debug_print("== Scalar Optimization ==\n");
+		progress = false;
+		do
+		{
+			progress = do_algebraic(state, ir);
+		} while (progress);
+		vm_debug_dump(ir, state);
+		if (state->error) return nullptr;
+	}
 	{
 		SCOPE_CYCLE_COUNTER(STAT_VVMMergeOps);
 		vm_debug_print("== Merge Ops ==\n");

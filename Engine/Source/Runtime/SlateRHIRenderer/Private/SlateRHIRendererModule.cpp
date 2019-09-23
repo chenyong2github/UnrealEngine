@@ -21,20 +21,26 @@ class FSlateRHIFontAtlasFactory : public ISlateFontAtlasFactory
 public:
 	FSlateRHIFontAtlasFactory()
 	{
-		if (GIsEditor)
+		auto GetAtlasSizeFromConfig = [](const TCHAR* InConfigKey, const FString& InConfigFilename, int32& OutAtlasSize)
 		{
-			GrayscaleAtlasSize = 2048;
-		}
-		else
-		{
-			GrayscaleAtlasSize = 1024;
 			if (GConfig)
 			{
-				GConfig->GetInt(TEXT("SlateRenderer"), TEXT("FontAtlasSize"), GrayscaleAtlasSize, GEngineIni);
-				GrayscaleAtlasSize = FMath::Clamp(GrayscaleAtlasSize, 0, 2048);
+				GConfig->GetInt(TEXT("SlateRenderer"), InConfigKey, OutAtlasSize, InConfigFilename);
+				if (GConfig->GetInt(TEXT("SlateRenderer"), TEXT("FontAtlasSize"), OutAtlasSize, InConfigFilename))
+				{
+					UE_LOG(LogCore, Warning, TEXT("The 'FontAtlasSize' setting for 'SlateRenderer' is deprecated. Use '%s' instead."), InConfigKey);
+				}
 			}
+			OutAtlasSize = FMath::Clamp(OutAtlasSize, 128, 2048);
+		};
+
+		GrayscaleAtlasSize = GIsEditor ? 2048 : 1024;
+		ColorAtlasSize = 512;
+		{
+			const FString& ConfigFilename = GIsEditor ? GEditorIni : GEngineIni;
+			GetAtlasSizeFromConfig(TEXT("GrayscaleFontAtlasSize"), ConfigFilename, GrayscaleAtlasSize);
+			GetAtlasSizeFromConfig(TEXT("ColorFontAtlasSize"), ConfigFilename, ColorAtlasSize);
 		}
-		ColorAtlasSize = GrayscaleAtlasSize / 4;
 	}
 
 	virtual ~FSlateRHIFontAtlasFactory()

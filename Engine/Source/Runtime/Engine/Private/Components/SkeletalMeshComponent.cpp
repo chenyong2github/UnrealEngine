@@ -649,7 +649,13 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 		// this has to be called before Initialize Animation because it will required RequiredBones list when InitializeAnimScript
 		RecalcRequiredBones(PredictedLODLevel);
 
-		const bool bInitializedAnimInstance = InitializeAnimScriptInstance(bForceReinit);
+		// In Editor, animations won't get ticked. So Update once to get accurate representation instead of T-Pose.
+		// Also allow this to be an option to support pre-4.19 games that might need it..
+		const bool bTickAnimationNow =
+			((GetWorld()->WorldType == EWorldType::Editor) && !bUseRefPoseOnInitAnim)
+			|| UAnimationSettings::Get()->bTickAnimationOnSkeletalMeshInit;
+
+		const bool bInitializedAnimInstance = InitializeAnimScriptInstance(bForceReinit, !bTickAnimationNow);
 
 		// Make sure we have a valid pose.
 		// We don't allocate transform data when using MasterPoseComponent, so we have nothing to render.
@@ -657,12 +663,6 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 		{	
 			if (bInitializedAnimInstance || (AnimScriptInstance == nullptr))
 			{ 
-				// In Editor, animations won't get ticked. So Update once to get accurate representation instead of T-Pose.
-				// Also allow this to be an option to support pre-4.19 games that might need it..
-				const bool bTickAnimationNow =
-					((GetWorld()->WorldType == EWorldType::Editor) && !bUseRefPoseOnInitAnim)
-					|| UAnimationSettings::Get()->bTickAnimationOnSkeletalMeshInit;
-
 				if (bTickAnimationNow)
 				{
 					TickAnimation(0.f, false);
@@ -690,7 +690,7 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 	}
 }
 
-bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
+bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit, bool bInDeferRootNodeInitialization)
 {
 	bool bInitializedMainInstance = false;
 	bool bInitializedPostInstance = false;
@@ -709,7 +709,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
 				// If we have any sub-instances left we need to clear them out now, we're about to have a new master instance
 				SubInstances.Empty();
 
-				AnimScriptInstance->InitializeAnimation();
+				AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 				bInitializedMainInstance = true;
 			}
 		}
@@ -730,7 +730,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
 
 				if (AnimScriptInstance)
 				{
-					AnimScriptInstance->InitializeAnimation();
+					AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 					bInitializedMainInstance = true;
 				}
 
@@ -784,7 +784,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
 
 		if (AnimScriptInstance && !bInitializedMainInstance && bForceReinit)
 		{
-			AnimScriptInstance->InitializeAnimation();
+			AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 			bInitializedMainInstance = true;
 		}
 
@@ -1016,31 +1016,16 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 
 		// We update sub instances first incase we're using either root motion or non-threaded update.
 		// This ensures that we go through the pre update process and initialize the proxies correctly.
-
-		// Accumulate whether or not any of the sub-instances wanted to do an immediate Animation Update
-		bool bWantsImmediateUpdate = false;
 		for(UAnimInstance* SubInstance : SubInstances)
 		{
 			// Sub anim instances are always forced to do a parallel update 
-			bWantsImmediateUpdate |= SubInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
+			SubInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
 		}
 
 		if (AnimScriptInstance != nullptr)
 		{
-			// In case any of the sub-instances required an immediate animation update, make sure we immediately do so for the main anim instance
-			const UAnimInstance::EUpdateAnimationFlag UpdateFlag = bWantsImmediateUpdate ? UAnimInstance::EUpdateAnimationFlag::ForceImmediateUpdate : UAnimInstance::EUpdateAnimationFlag::Default;
-
 			// Tick the animation
-			bWantsImmediateUpdate |= AnimScriptInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, bNeedsValidRootMotion, UpdateFlag);
-		}
-
-		// Make sure PostUpdateAnimation is called on the subinstances if they, or the main instance did an immediate Animation Update
-		if (bWantsImmediateUpdate)
-		{
-			for (UAnimInstance* SubInstance : SubInstances)
-			{
-				SubInstance->PostUpdateAnimation();
-			}
+			AnimScriptInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, bNeedsValidRootMotion);
 		}
 
 		if(ShouldUpdatePostProcessInstance())
@@ -2092,10 +2077,6 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 			if (AnimScriptInstance && !AnimScriptInstance->NeedsUpdate())
 			{
 				bShouldTickAnimation = bShouldTickAnimation || !AnimScriptInstance->GetUpdateCounter().HasEverBeenUpdated();
-				for (const UAnimInstance* SubInstance : SubInstances)
-				{
-					bShouldTickAnimation = bShouldTickAnimation || (SubInstance && !SubInstance->GetUpdateCounter().HasEverBeenUpdated());
-				}
 			}
 
 			bShouldTickAnimation = bShouldTickAnimation || (ShouldPostUpdatePostProcessInstance() && !PostProcessAnimInstance->GetUpdateCounter().HasEverBeenUpdated());

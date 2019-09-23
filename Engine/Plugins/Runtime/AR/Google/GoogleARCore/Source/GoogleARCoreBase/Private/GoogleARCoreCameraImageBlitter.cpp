@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "GoogleARCoreCameraImageBlitter.h"
+#include "GoogleARCoreBaseModule.h"
 #include "Engine/Texture2D.h"
 #include "Engine/Texture2DDynamic.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -14,6 +15,49 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGoogleARCoreImageBlitter, Log, All);
 
+#define NUM_CAMERA_COPIES 5
+
+DECLARE_CYCLE_STAT(TEXT("DoBlit"), STAT_DoBlit, STATGROUP_ARCore);
+DECLARE_CYCLE_STAT(TEXT("  Copy Texture To Vulkan"), STAT_CopyTextureToVulkan, STATGROUP_ARCore);
+DECLARE_CYCLE_STAT(TEXT("    Read Pixels"), STAT_ReadPixels, STATGROUP_ARCore);
+DECLARE_CYCLE_STAT(TEXT("    Update Resource"), STAT_UpdateResource, STATGROUP_ARCore);
+
+
+float GCameraImageScale = 1.f;
+static FAutoConsoleVariableRef CVarCameraImageScale(
+	TEXT("r.ARCore.CameraImageScale"),
+	GCameraImageScale,
+	TEXT("Size scale of the camera image from ARCore.\n")
+	TEXT(" Default: 1.0"),
+	ECVF_Default);
+
+#if PLATFORM_ANDROID
+void CheckGLError()
+{
+	auto Error = glGetError();
+	if (!ensure(Error == GL_NO_ERROR))
+	{
+		UE_LOG(LogGoogleARCoreImageBlitter, Error, TEXT("glGetError: 0x%x"), Error);
+	}
+}
+#endif
+
+static void UpdateOverlayMaterialTexture(UTexture2D* NewTexture)
+{
+	if (auto MaterialInstance = Cast<UMaterialInstanceDynamic>(GetDefault<UGoogleARCoreCameraOverlayMaterialLoader>()->DefaultCameraOverlayMaterial))
+	{
+		if (NewTexture)
+		{
+			static const FName ParamName("CameraTexture");
+			MaterialInstance->SetTextureParameterValue(ParamName, NewTexture);
+		}
+		else
+		{
+			MaterialInstance->ClearParameterValues();
+		}
+	}
+}
+
 FGoogleARCoreDeviceCameraBlitter::FGoogleARCoreDeviceCameraBlitter()
   : CurrentCameraCopy(0)
   , BlitShaderProgram(0)
@@ -26,18 +70,37 @@ FGoogleARCoreDeviceCameraBlitter::FGoogleARCoreDeviceCameraBlitter()
 
 FGoogleARCoreDeviceCameraBlitter::~FGoogleARCoreDeviceCameraBlitter()
 {
-	for(int32 i = 0; i < CameraCopies.Num(); i++)
+#if PLATFORM_ANDROID
+	DeleteOpenGLTextures();
+#endif
+	
+	UpdateOverlayMaterialTexture(nullptr);
+	
+	for (auto Texture : CameraCopies)
 	{
-		delete CameraCopies[i];
+		if (Texture)
+		{
+			Texture->RemoveFromRoot();
+		}
 	}
+	CameraCopies = {};
+	
+	for (auto TextureId : CameraCopyIds)
+	{
+		if (TextureId)
+		{
+			delete TextureId;
+		}
+	}
+	CameraCopyIds = {};
 }
 
-UTexture *FGoogleARCoreDeviceCameraBlitter::GetLastCameraImageTexture()
+UTexture2D* FGoogleARCoreDeviceCameraBlitter::GetLastCameraImageTexture()
 {
-	if(CameraCopies.Num())
+	if (CameraCopies.Num())
 	{
 		int32 LastCameraImage = static_cast<int32>(CurrentCameraCopy) - 1;
-		if(LastCameraImage < 0)
+		if (LastCameraImage < 0)
 		{
 			LastCameraImage = CameraCopies.Num() - 1;
 		}
@@ -49,19 +112,24 @@ UTexture *FGoogleARCoreDeviceCameraBlitter::GetLastCameraImageTexture()
 void FGoogleARCoreDeviceCameraBlitter::LateInit(FIntPoint ImageSize)
 {
 #if PLATFORM_ANDROID
-	FIntPoint CameraSize = ImageSize;
-
+	const auto bUseVulkan = FAndroidMisc::ShouldUseVulkan();
+	
 	// Create a ring buffer of UTexture2Ds to store snapshots of
 	// the camera texture, if we don't already have them.
-	if(!CameraCopies.Num())
+	if (!CameraCopies.Num())
 	{
-		for(uint32 i = 0; i < 5; i++)
+		CameraCopySize.X = (float)ImageSize.X * GCameraImageScale;
+		CameraCopySize.Y = (float)ImageSize.Y * GCameraImageScale;
+		
+		UE_LOG(LogGoogleARCoreImageBlitter, Log, TEXT("Using CameraCopySize (%d x %d), from original image size (%d x %d) and scale factor %.2f"),
+			   CameraCopySize.X, CameraCopySize.Y, ImageSize.X, ImageSize.Y, GCameraImageScale);
+		
+		for (uint32 i = 0; i < NUM_CAMERA_COPIES; i++)
 		{
 			// Make the texture itself.
-			UTexture *CameraCopy = UTexture2D::CreateTransient(CameraSize.X, CameraSize.Y, PF_R8G8B8A8);
+			auto CameraCopy = UTexture2D::CreateTransient(CameraCopySize.X, CameraCopySize.Y, PF_R8G8B8A8);
 			check(CameraCopy);
 			CameraCopy->AddToRoot();
-			FTextureResource *resource = CameraCopy->CreateResource();
 			CameraCopy->Filter = TextureFilter::TF_Nearest;
 			// The camera texture is in SRGB space, so we need to set this flag to true.
 			// Note that in GLES3.1, textures have the SRGB flag set to true will have be converted to 
@@ -74,23 +142,51 @@ void FGoogleARCoreDeviceCameraBlitter::LateInit(FIntPoint ImageSize)
 
 			// Make a place to store the OpenGL texture ID, read
 			// back from the RHI within the render thread.
-			uint32 *TextureId = new uint32;
+			uint32* TextureId = new uint32;
 			*TextureId = 0;
 			CameraCopyIds.Add(TextureId);
-
-			// We have to get the OpenGL texture ID on the render
-			// thread, after the native resource has been
-			// initialized.
-			FTexture2DResource* Resource = ((FTexture2DResource *)resource);
-			ENQUEUE_RENDER_COMMAND(InitCameraBlitter)(
-				[Resource, TextureId, CameraSize](FRHICommandListImmediate& RHICmdList)
-				{
-					Resource->InitRHI();
-					*TextureId = *reinterpret_cast<uint32*>(Resource->GetTexture2DRHI()->GetNativeResource());
-				});
+		}
+		
+		if (bUseVulkan)
+		{
+			for (auto TextureId : CameraCopyIds)
+			{
+				glGenTextures(1, TextureId);
+				glBindTexture(GL_TEXTURE_2D, *TextureId);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, CameraCopySize.X, CameraCopySize.Y, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glBindTexture(GL_TEXTURE_2D, 0);
+			}
+			
+			CheckGLError();
 		}
 	}
-
+	
+	check(CameraCopies.Num() == CameraCopyIds.Num());
+	
+	if (!bUseVulkan)
+	{
+		// We may not be able to get a valid texture ID back immediately in the next frame
+		// so keep trying until we get a valid one
+		for (auto Index = 0; Index < CameraCopies.Num(); ++Index)
+		{
+			auto Texture = CameraCopies[Index];
+			auto TextureIdPtr = CameraCopyIds[Index];
+			auto Resource = ((FTexture2DResource*)Texture->Resource);
+			if (Texture && TextureIdPtr && !*TextureIdPtr)
+			{
+				ENQUEUE_RENDER_COMMAND(InitCameraBlitter)([Resource, TextureIdPtr](FRHICommandListImmediate& RHICmdList)
+				{
+					if (Resource && TextureIdPtr)
+					{
+						*TextureIdPtr = *reinterpret_cast<uint32*>(Resource->GetTexture2DRHI()->GetNativeResource());
+					}
+				});
+			}
+		}
+	}
+	
 	// Compile and link the shader program.
 	if(!BlitShaderProgram)
 	{
@@ -197,11 +293,56 @@ void FGoogleARCoreDeviceCameraBlitter::LateInit(FIntPoint ImageSize)
 #endif
 }
 
+#if PLATFORM_ANDROID
+void FGoogleARCoreDeviceCameraBlitter::DeleteOpenGLTextures()
+{
+	if (FAndroidMisc::ShouldUseVulkan())
+	{
+		for (auto TextureId : CameraCopyIds)
+		{
+			if (TextureId && *TextureId)
+			{
+				glDeleteTextures(1, TextureId);
+				*TextureId = 0;
+			}
+		}
+	}
+}
+
+void FGoogleARCoreDeviceCameraBlitter::CopyTextureToVulkan(UTexture2D* TargetTexture)
+{
+	SCOPE_CYCLE_COUNTER(STAT_CopyTextureToVulkan);
+	
+	check(TargetTexture);
+	check(CameraCopySize.X == TargetTexture->GetSizeX());
+	check(CameraCopySize.Y == TargetTexture->GetSizeY());
+	
+	if (TargetTexture->PlatformData)
+	{
+		auto& BulkData = TargetTexture->PlatformData->Mips[0].BulkData;
+		if (auto WriteBuffer = BulkData.Lock(LOCK_READ_WRITE))
+		{
+			{
+				SCOPE_CYCLE_COUNTER(STAT_ReadPixels);
+				glReadPixels(0, 0, CameraCopySize.X, CameraCopySize.Y, GL_RGBA, GL_UNSIGNED_BYTE, WriteBuffer);
+			}
+			
+			BulkData.Unlock();
+			
+			{
+				SCOPE_CYCLE_COUNTER(STAT_UpdateResource);
+				TargetTexture->UpdateResource();
+			}
+		}
+	}
+}
+#endif
+
 void FGoogleARCoreDeviceCameraBlitter::DoBlit(uint32_t CameraTextureId, FIntPoint ImageSize)
 {
 #if PLATFORM_ANDROID
-	FIntPoint CameraSize = ImageSize;
-
+	SCOPE_CYCLE_COUNTER(STAT_DoBlit);
+	
 	LateInit(ImageSize);
 
 	if (CameraCopyIds.Num())
@@ -213,7 +354,7 @@ void FGoogleARCoreDeviceCameraBlitter::DoBlit(uint32_t CameraTextureId, FIntPoin
 			glBindFramebuffer(GL_FRAMEBUFFER, FrameBufferObject);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, TextureId, 0);
 
-			glViewport(0, 0, CameraSize.X, CameraSize.Y);
+			glViewport(0, 0, CameraCopySize.X, CameraCopySize.Y);
 
 			glDisable(GL_DEPTH_TEST);
 			glDisable(GL_BLEND);
@@ -243,22 +384,23 @@ void FGoogleARCoreDeviceCameraBlitter::DoBlit(uint32_t CameraTextureId, FIntPoin
 			glUniform1i(BlitShaderProgram_Uniform_CameraTexture, 0);
 
 			glDrawArrays(GL_TRIANGLES, 0, 6);
-
+			
+			if (FAndroidMisc::ShouldUseVulkan())
+			{
+				CopyTextureToVulkan(CameraCopies[CurrentCameraCopy]);
+			}
+			
 			glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
 			glDisableVertexAttribArray(BlitShaderProgram_Attribute_InPos);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 			glFlush();
-
 		}
-
-		// Update the dynamic material instance with the newest
-		// texture.
-		UMaterialInstanceDynamic *DynMat = Cast<UMaterialInstanceDynamic>(
-			GetDefault<UGoogleARCoreCameraOverlayMaterialLoader>()->DefaultCameraOverlayMaterial);
-		DynMat->SetTextureParameterValue(FName("CameraTexture"), CameraCopies[CurrentCameraCopy]);
-
+		
+		// Update the dynamic material instance with the newest texture.
+		UpdateOverlayMaterialTexture(CameraCopies[CurrentCameraCopy]);
+		
 		CurrentCameraCopy++;
 		CurrentCameraCopy %= CameraCopies.Num();
 	}

@@ -9,7 +9,7 @@
 
 UControlRigController::UControlRigController()
 	: Model(nullptr)
-	, bSuspendLog(false)
+	, bSuspendLog(true)
 {
 }
 
@@ -84,6 +84,25 @@ bool UControlRigController::CloseUndoBracket()
 	Model->CurrentActions.Pop();
 	TSharedPtr<UControlRigModel::FAction> Action = _UndoBrackets.Pop();
 	Model->PushAction(*Action);
+	return true;
+}
+
+bool UControlRigController::CancelUndoBracket()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	if (!EnsureModel())
+	{
+		return false;
+	}
+
+	if (_UndoBrackets.Num() == 0)
+	{
+		return false;
+	}
+
+	Model->CurrentActions.Pop();
+	_UndoBrackets.Pop();
 	return true;
 }
 

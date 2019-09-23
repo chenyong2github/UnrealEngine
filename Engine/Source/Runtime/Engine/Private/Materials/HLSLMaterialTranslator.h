@@ -17,6 +17,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialFunctionInstance.h"
+#include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
 #include "MaterialCompiler.h"
 #include "RenderUtils.h"
 #include "EngineGlobals.h"
@@ -948,7 +949,7 @@ public:
 			Chunk[MP_CustomData1]					= Material->CompilePropertyAndSetMaterialProperty(MP_CustomData1		,this);
 			Chunk[MP_AmbientOcclusion]				= Material->CompilePropertyAndSetMaterialProperty(MP_AmbientOcclusion	,this);
 
-			if (IsTranslucentBlendMode(BlendMode))
+			if (IsTranslucentBlendMode(BlendMode) || MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
 			{
 				int32 UserRefraction = ForceCast(Material->CompilePropertyAndSetMaterialProperty(MP_Refraction, this), MCT_Float1);
 				int32 RefractionDepthBias = ForceCast(ScalarParameter(FName(TEXT("RefractionDepthBias")), Material->GetRefractionDepthBiasValue()), MCT_Float1);
@@ -1148,6 +1149,27 @@ ResourcesString = TEXT("");
 			if (Material->IsSky() && (!MaterialShadingModels.IsUnlit() || BlendMode!=BLEND_Opaque))
 			{
 				Errorf(TEXT("Sky materials must be opaque and unlit. They are expected to completely replace the background."));
+			}
+
+			if (MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
+			{
+				if (BlendMode != BLEND_Opaque)
+				{
+					Errorf(TEXT("SingleLayerWater materials must be opaque."));
+				}
+				if (!MaterialShadingModels.HasOnlyShadingModel(MSM_SingleLayerWater))
+				{
+					Errorf(TEXT("SingleLayerWater materials cannot be combined with other shading models.")); // Simply untested for now
+				}
+				if (Material->GetMaterialInterface() && !Material->GetMaterialInterface()->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSingleLayerWaterMaterialOutput>())
+				{
+					Errorf(TEXT("SingleLayerWater materials requires the use of SingleLayerWaterMaterial output node."));
+				}
+			}
+
+			if (IsTranslucentBlendMode(BlendMode) && Material->IsTranslucencyUnderWaterEnabled() && (Material->IsMobileSeparateTranslucencyEnabled() || Material->IsTranslucencyAfterDOFEnabled()))
+			{
+				Errorf(TEXT("A material cannot be sent to a separate translucent pass and under water at the same time."));
 			}
 
 			bool bDBufferAllowed = IsUsingDBuffers(Platform);
@@ -1498,6 +1520,11 @@ ResourcesString = TEXT("");
 			if (ShadingModels.HasShadingModel(MSM_Eye))
 			{
 				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_EYE"), TEXT("1"));
+				NumSetMaterials++;
+			}
+			if (ShadingModels.HasShadingModel(MSM_SingleLayerWater))
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_SINGLELAYERWATER"), TEXT("1"));
 				NumSetMaterials++;
 			}
 
@@ -4582,6 +4609,7 @@ protected:
 
 		int32 VTStackIndex = INDEX_NONE;
 		int32 VTLayerIndex = INDEX_NONE;
+		int32 VTPageTableIndex = INDEX_NONE;
 		if (bVirtualTexture)
 		{
 			check(VirtualTextureIndex >= 0);
@@ -4628,12 +4656,13 @@ protected:
 			//todo[vt]: Support feedback from other shader types
 			const bool bGenerateFeedback = ShaderFrequency == SF_Pixel;
 
-			VTLayerIndex = MaterialCompilationOutput.UniformExpressionSet.UniformVirtualTextureExpressions[VirtualTextureIndex]->GetLayerIndex();
+			VTLayerIndex = MaterialCompilationOutput.UniformExpressionSet.UniformVirtualTextureExpressions[VirtualTextureIndex]->GetTextureLayerIndex();
 			if (VTLayerIndex != INDEX_NONE)
 			{
 				// The layer index in the virtual texture stack is already known
 				// Create a page table sample for each new combination of virtual texture and sample parameters
 				VTStackIndex = AcquireVTStackIndex(MipValueMode, AddressU, AddressV, 1.0f, CoordinateIndex, MipValue0Index, MipValue1Index, TextureReferenceIndex, bGenerateFeedback);
+				VTPageTableIndex = MaterialCompilationOutput.UniformExpressionSet.UniformVirtualTextureExpressions[VirtualTextureIndex]->GetPageTableLayerIndex();
 			}
 			else
 			{
@@ -4651,6 +4680,7 @@ protected:
 				VTStackIndex = AcquireVTStackIndex(MipValueMode, AddressU, AddressV, TextureAspectRatio, CoordinateIndex, MipValue0Index, MipValue1Index, INDEX_NONE, bGenerateFeedback);
 				// Allocate a layer in the virtual texture stack for this physical sample
 				VTLayerIndex = MaterialCompilationOutput.UniformExpressionSet.VTStacks[VTStackIndex].AddLayer();
+				VTPageTableIndex = VTLayerIndex;
 			}
 
 			MaterialCompilationOutput.UniformExpressionSet.VTStacks[VTStackIndex].SetLayer(VTLayerIndex, VirtualTextureIndex);
@@ -4667,7 +4697,7 @@ protected:
 				*SampleCode,
 				*TextureName,
 				*VTPageTableResult,
-				VTLayerIndex,
+				VTPageTableIndex,
 				VirtualTextureIndex);
 
 			// TODO
@@ -5095,9 +5125,9 @@ protected:
 		FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
 		ParameterInfo.Name = ParameterName;
 
-		const bool bVirtualTexturesEnabeled = UseVirtualTexturing(FeatureLevel, TargetPlatform);
+		const bool bVirtualTexturesEnabled = UseVirtualTexturing(FeatureLevel, TargetPlatform);
 		bool bVirtual = ShaderType == MCT_TextureVirtual;
-		if (bVirtualTexturesEnabeled == false && ShaderType == MCT_TextureVirtual)
+		if (bVirtualTexturesEnabled == false && ShaderType == MCT_TextureVirtual)
 		{
 			bVirtual = false;
 			ShaderType = MCT_Texture2D;
@@ -5105,7 +5135,7 @@ protected:
 		return AddUniformExpression(new FMaterialUniformExpressionTextureParameter(ParameterInfo, TextureReferenceIndex, SamplerType, SamplerSource, bVirtual),ShaderType,TEXT(""));
 	}
 
-	virtual int32 VirtualTexture(URuntimeVirtualTexture* InTexture, int32 LayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) override
+	virtual int32 VirtualTexture(URuntimeVirtualTexture* InTexture, int32 TextureLayerIndex, int32 PageTableLayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) override
 	{
 		if (!UseVirtualTexturing(FeatureLevel, TargetPlatform))
 		{
@@ -5115,10 +5145,10 @@ protected:
 		TextureReferenceIndex = Material->GetReferencedTextures().Find(InTexture);
 		checkf(TextureReferenceIndex != INDEX_NONE, TEXT("Material expression called Compiler->VirtualTexture() without implementing UMaterialExpression::GetReferencedTexture properly"));
 
-		return AddUniformExpression(new FMaterialUniformExpressionTexture(TextureReferenceIndex, LayerIndex, SamplerType), MCT_TextureVirtual, TEXT(""));
+		return AddUniformExpression(new FMaterialUniformExpressionTexture(TextureReferenceIndex, TextureLayerIndex, PageTableLayerIndex, SamplerType), MCT_TextureVirtual, TEXT(""));
 	}
 
-	virtual int32 VirtualTextureParameter(FName ParameterName, URuntimeVirtualTexture* DefaultValue, int32 LayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) override
+	virtual int32 VirtualTextureParameter(FName ParameterName, URuntimeVirtualTexture* DefaultValue, int32 TextureLayerIndex, int32 PageTableLayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) override
 	{
 		if (!UseVirtualTexturing(FeatureLevel, TargetPlatform))
 		{
@@ -5131,7 +5161,7 @@ protected:
 		FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
 		ParameterInfo.Name = ParameterName;
 
-		return AddUniformExpression(new FMaterialUniformExpressionTextureParameter(ParameterInfo, TextureReferenceIndex, LayerIndex, SamplerType), MCT_TextureVirtual, TEXT(""));
+		return AddUniformExpression(new FMaterialUniformExpressionTextureParameter(ParameterInfo, TextureReferenceIndex, TextureLayerIndex, PageTableLayerIndex, SamplerType), MCT_TextureVirtual, TEXT(""));
 	}
 
 	virtual int32 VirtualTextureUniform(int32 TextureIndex, int32 VectorIndex) override

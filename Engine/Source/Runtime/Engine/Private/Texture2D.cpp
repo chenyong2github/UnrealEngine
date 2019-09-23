@@ -38,11 +38,6 @@
 #include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTexturePoolConfig.h"
 
-#if WITH_EDITOR
-#include "Settings/EditorExperimentalSettings.h"
-#include "Landscape/Classes/LandscapeProxy.h"
-#endif
-
 UTexture2D::UTexture2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -1255,14 +1250,6 @@ bool UTexture2D::ShouldMipLevelsBeForcedResident() const
 		return true;
 	}
 
-#if WITH_EDITOR
-	if (GIsEditor && (LODGroup == TEXTUREGROUP_Terrain_Heightmap || LODGroup == TEXTUREGROUP_Terrain_Weightmap))
-	{
-		ALandscapeProxy* Proxy = Cast<ALandscapeProxy>(GetOuter());
-		return Proxy && Proxy->HasLayersContent();
-	}
-#endif
-
 	return false;
 }
 
@@ -1889,6 +1876,8 @@ void FVirtualTexture2DResource::InitRHI()
 	const int32 MaxLevel = VTData->GetNumMips() - FirstMipToUse - 1;
 	check(MaxLevel >= 0);
 
+	const bool bSinglePhysicalSpace = TextureOwner->IsVirtualTexturedWithSinglePhysicalSpace();
+
 	FVTProducerDescription ProducerDesc;
 	ProducerDesc.Name = TextureOwner->GetFName();
 	ProducerDesc.Dimensions = 2;
@@ -1900,10 +1889,12 @@ void FVirtualTexture2DResource::InitRHI()
 	ProducerDesc.HeightInBlocks = VTData->HeightInBlocks;
 	ProducerDesc.DepthInTiles = 1u;
 	ProducerDesc.MaxLevel = MaxLevel;
-	ProducerDesc.NumLayers = VTData->GetNumLayers();
-	for (uint32 LayerIndex = 0u; LayerIndex < ProducerDesc.NumLayers; ++LayerIndex)
+	ProducerDesc.NumTextureLayers = VTData->GetNumLayers();
+	ProducerDesc.NumPhysicalGroups = bSinglePhysicalSpace ? 1 : VTData->GetNumLayers();
+	for (uint32 LayerIndex = 0u; LayerIndex < VTData->GetNumLayers(); ++LayerIndex)
 	{
 		ProducerDesc.LayerFormat[LayerIndex] = VTData->LayerTypes[LayerIndex];
+		ProducerDesc.PhysicalGroupIndex[LayerIndex] = bSinglePhysicalSpace ? 0 : LayerIndex;
 	}
 
 	FUploadingVirtualTexture* VirtualTexture = new FUploadingVirtualTexture(VTData, FirstMipToUse);
@@ -2043,11 +2034,11 @@ class IAllocatedVirtualTexture* FVirtualTexture2DResource::AcquireAllocatedVT()
 		VTDesc.Dimensions = 2;
 		VTDesc.TileSize = VTData->TileSize;
 		VTDesc.TileBorderSize = VTData->TileBorderSize;
-		VTDesc.NumLayers = VTData->GetNumLayers();
-		for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumLayers; ++LayerIndex)
+		VTDesc.NumTextureLayers = VTData->GetNumLayers();
+		for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumTextureLayers; ++LayerIndex)
 		{
 			VTDesc.ProducerHandle[LayerIndex] = ProducerHandle; // use the same producer for each layer
-			VTDesc.LocalLayerToProduce[LayerIndex] = LayerIndex;
+			VTDesc.ProducerLayerIndex[LayerIndex] = LayerIndex;
 		}
 		AllocatedVT = GetRendererModule().AllocateVirtualTexture(VTDesc);
 	}

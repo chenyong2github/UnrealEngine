@@ -133,10 +133,12 @@ struct MOVIESCENETRACKS_API FMovieSceneEventSectionData : public FMovieSceneChan
 {
 	GENERATED_BODY()
 
-	/**
+#if WITH_EDITORONLY_DATA
+		/**
 	 * Called after this section data has been serialized to upgrade old data
 	 */
 	void PostSerialize(const FArchive& Ar);
+#endif
 
 	/**
 	 * Access a mutable interface for this channel's data
@@ -205,13 +207,13 @@ private:
 #endif
 };
 
-
+#if WITH_EDITORONLY_DATA
 template<>
 struct TStructOpsTypeTraits<FMovieSceneEventSectionData> : public TStructOpsTypeTraitsBase2<FMovieSceneEventSectionData>
 {
 	enum { WithPostSerialize = true };
 };
-
+#endif
 
 /**
  * Implements a section in movie scene event tracks.

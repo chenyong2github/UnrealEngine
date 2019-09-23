@@ -282,12 +282,17 @@ public:
 		DefaultColorClear = ColorClear;
 	}
 
+	FClearValueBinding GetDefaultColorClear() const
+	{
+		return DefaultColorClear;
+	}
+
 	void SetDefaultDepthClear(const FClearValueBinding DepthClear)
 	{
 		DefaultDepthClear = DepthClear;
 	}
 
-	FClearValueBinding GetDefaultDepthClear()
+	FClearValueBinding GetDefaultDepthClear() const
 	{
 		return DefaultDepthClear;
 	}
@@ -631,6 +636,9 @@ public:
 	/** Allocates render targets for use with the deferred shading path. */
 	// Temporarily Public to call from DefferedShaderRenderer to attempt recovery from a crash until cause is found.
 	void AllocateDeferredShadingPathRenderTargets(FRHICommandListImmediate& RHICmdList, const int32 NumViews = 1);
+
+	/** Fills the given FRenderPassInfo with the current GBuffer */
+	int32 FillGBufferRenderPassInfo(ERenderTargetLoadAction ColorLoadAction, FRHIRenderPassInfo& OutRenderPassInfo, int32& OutVelocityRTIndex);
 private:
 
 	/** Allocates render targets for use with the current shading path. */
@@ -674,9 +682,6 @@ private:
 
 	/** Gets all GBuffers to use.  Returns the number actually used. */
 	int32 GetGBufferRenderTargets(ERenderTargetLoadAction ColorLoadAction, FRHIRenderTargetView OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex);
-
-	/** Fills the given FRenderPassInfo with the current GBuffer */
-	int32 FillGBufferRenderPassInfo(ERenderTargetLoadAction ColorLoadAction, FRHIRenderPassInfo& OutRenderPassInfo, int32& OutVelocityRTIndex);
 
 	ESceneColorFormatType GetSceneColorFormatType() const
 	{

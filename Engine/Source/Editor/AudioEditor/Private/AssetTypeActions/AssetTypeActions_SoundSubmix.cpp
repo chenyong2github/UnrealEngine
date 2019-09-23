@@ -26,4 +26,13 @@ void FAssetTypeActions_SoundSubmix::OpenAssetEditor( const TArray<UObject*>& InO
 	}
 }
 
+const TArray<FText>& FAssetTypeActions_SoundSubmix::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		FText(LOCTEXT("AssetSoundMixSubMenu", "Mix"))
+	};
+
+	return SubMenus;
+}
 #undef LOCTEXT_NAMESPACE

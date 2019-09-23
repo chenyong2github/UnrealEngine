@@ -637,7 +637,8 @@ void ULandscapeSplinesComponent::AutoFixMeshComponentErrors(UWorld* OtherWorld)
 
 	if (StreamingSplinesComponent)
 	{
-		StreamingSplinesComponent->DestroyOrphanedForeignMeshComponents(ThisOuterWorld);
+		StreamingSplinesComponent->DestroyOrphanedForeignSplineMeshComponents(ThisOuterWorld);
+		StreamingSplinesComponent->DestroyOrphanedForeignControlPointMeshComponents(ThisOuterWorld);
 	}
 }
 
@@ -765,14 +766,50 @@ void ULandscapeSplinesComponent::CheckForErrors()
 
 				FMessageLog("MapCheck").Error()
 					->AddToken(FUObjectToken::Create(GetOwner()))
-					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_OrphanedMeshes", "{MeshMap} contains orphaned meshes due to mismatch with landscape splines in {SplineMap}"), Arguments)))
-					->AddToken(FActionToken::Create(LOCTEXT("MapCheck_ActionName_OrphanedMeshes", "Clean up orphaned meshes"), FText(),
-					FOnActionTokenExecuted::CreateUObject(this, &ULandscapeSplinesComponent::DestroyOrphanedForeignMeshComponents, ForeignWorld), true));
+					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_OrphanedSplineMeshes", "{MeshMap} contains orphaned spline meshes due to mismatch with landscape splines in {SplineMap}"), Arguments)))
+					->AddToken(FActionToken::Create(LOCTEXT("MapCheck_ActionName_OrphanedSplineMeshes", "Clean up orphaned spline meshes"), FText(),
+						FOnActionTokenExecuted::CreateUObject(this, &ULandscapeSplinesComponent::DestroyOrphanedForeignSplineMeshComponents, ForeignWorld), true));
+
+				break;
+			}
+		}
+
+		for (auto& ForeignControlPointData : ForeignWorldSplineData.ForeignControlPointData)
+		{
+			const ULandscapeSplineControlPoint* ForeignControlPoint = ForeignControlPointData.Identifier.Get();
+
+			// No such control point
+			if (!ForeignControlPoint)
+			{
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("MeshMap"), FText::FromName(ThisOuterWorld->GetFName()));
+				Arguments.Add(TEXT("SplineMap"), FText::FromName(ForeignWorld->GetFName()));
+
+				FMessageLog("MapCheck").Error()
+					->AddToken(FUObjectToken::Create(GetOwner()))
+					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_OrphanedControlPointMeshes", "{MeshMap} contains orphaned control point meshes due to mismatch with landscape control points in {SplineMap}"), Arguments)))
+					->AddToken(FActionToken::Create(LOCTEXT("MapCheck_ActionName_OrphanedControlPointMeshes", "Clean up orphaned control point meshes"), FText(),
+						FOnActionTokenExecuted::CreateUObject(this, &ULandscapeSplinesComponent::DestroyOrphanedForeignControlPointMeshComponents, ForeignWorld), true));
 
 				break;
 			}
 		}
 	}
+
+	// Find Unreferenced Foreign Mesh Components
+	ForEachUnreferencedForeignMeshComponent([this, ThisOuterWorld](ULandscapeSplineSegment*, USplineMeshComponent*, ULandscapeSplineControlPoint*, UControlPointMeshComponent*)
+	{
+		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("MeshMap"), FText::FromName(ThisOuterWorld->GetFName()));
+
+		FMessageLog("MapCheck").Error()
+			->AddToken(FUObjectToken::Create(GetOwner()))
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_UnreferencedMeshes", "{MeshMap} contains meshes with no owners"), Arguments)))
+			->AddToken(FActionToken::Create(LOCTEXT("MapCheck_ActionName_UnreferencedMeshes", "Clean up meshes that are not referenced by their owner segments/control points"), FText(),
+				FOnActionTokenExecuted::CreateUObject(this, &ULandscapeSplinesComponent::DestroyUnreferencedForeignMeshComponents), true));
+
+		return true;
+	});
 }
 #endif
 
@@ -1156,7 +1193,126 @@ void ULandscapeSplinesComponent::RemoveForeignMeshComponent(ULandscapeSplineCont
 	}
 }
 
-void ULandscapeSplinesComponent::DestroyOrphanedForeignMeshComponents(UWorld* OwnerWorld)
+void ULandscapeSplinesComponent::ForEachUnreferencedForeignMeshComponent(TFunctionRef<bool(ULandscapeSplineSegment*, USplineMeshComponent*, ULandscapeSplineControlPoint*, UControlPointMeshComponent*)> Func)
+{
+	TArray<UObject*> ObjectsWithOuter;
+	GetObjectsWithOuter(GetOwner(), ObjectsWithOuter);
+	for (UObject* Obj : ObjectsWithOuter)
+	{
+		if (USplineMeshComponent* SplineMeshComponent = Cast<USplineMeshComponent>(Obj))
+		{
+            // Find Mesh in the Spline Component local map
+			if (TLazyObjectPtr<UObject>* ForeignOwner = MeshComponentForeignOwnersMap.Find(SplineMeshComponent))
+			{
+				if (ULandscapeSplineSegment* OwnerForMesh = Cast<ULandscapeSplineSegment>(ForeignOwner->Get()))
+				{
+                    // Try to find the mesh through the global map from the owner we found in local map
+					TArray<USplineMeshComponent*> SplineMeshComponents = GetForeignMeshComponents(OwnerForMesh);     
+					if (!SplineMeshComponents.Contains(SplineMeshComponent))
+					{
+						// It wasn't found. Link is broken, cleanup is needed.
+						if (Func(OwnerForMesh, SplineMeshComponent, nullptr, nullptr))
+						{
+							break;
+						}
+					}
+				}
+			} 
+		}
+		else if (UControlPointMeshComponent* ControlPointMeshComponent = Cast<UControlPointMeshComponent>(Obj))
+		{
+			if (TLazyObjectPtr<UObject>* ForeignOwner = MeshComponentForeignOwnersMap.Find(SplineMeshComponent))
+			{
+				if (ULandscapeSplineControlPoint* OwnerForMesh = Cast<ULandscapeSplineControlPoint>(ForeignOwner->Get()))
+				{
+					UControlPointMeshComponent* ForeignControlPointMeshComponent = GetForeignMeshComponent(OwnerForMesh);
+					if (ControlPointMeshComponent != ForeignControlPointMeshComponent)
+					{
+						if (Func(nullptr, nullptr, OwnerForMesh, ControlPointMeshComponent))
+						{
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void ULandscapeSplinesComponent::DestroyUnreferencedForeignMeshComponents()
+{
+	ForEachUnreferencedForeignMeshComponent([this](ULandscapeSplineSegment* Segment, USplineMeshComponent* SplineMeshComponent, ULandscapeSplineControlPoint* ControlPoint, UControlPointMeshComponent* ControlPointMeshComponent)
+	{
+		TArray<UWorld*> EmptyWorlds;
+
+		if (SplineMeshComponent != nullptr)
+		{
+			SplineMeshComponent->DestroyComponent();
+			
+			// We should be removing something here
+			verify(MeshComponentForeignOwnersMap.Remove(SplineMeshComponent));
+
+			for (auto Pair : ForeignWorldSplineDataMap)
+			{
+				for (int32 i = Pair.Value.ForeignSplineSegmentData.Num() - 1; i >= 0; --i)
+				{
+					FForeignSplineSegmentData& SegmentData = Pair.Value.ForeignSplineSegmentData[i];
+					if (SegmentData.Identifier == Segment)
+					{
+						int32 RemoveCount = SegmentData.MeshComponents.Remove(SplineMeshComponent);
+						// if remove count is not 0, then we are expecting worlds not to match.
+						check(RemoveCount == 0 || Segment->GetTypedOuter<UWorld>() != Pair.Key.Get());
+					}
+
+					if (SegmentData.MeshComponents.Num() == 0)
+					{
+						Pair.Value.ForeignSplineSegmentData.RemoveSingle(SegmentData);
+					}
+
+					if (Pair.Value.IsEmpty())
+					{
+						EmptyWorlds.Add(Pair.Key.Get());
+					}
+				}
+			}
+		}
+
+		if (ControlPointMeshComponent != nullptr)
+		{
+			ControlPointMeshComponent->DestroyComponent();
+			
+			// We should be removing something here
+			verify(MeshComponentForeignOwnersMap.Remove(ControlPointMeshComponent));
+
+			for (auto Pair : ForeignWorldSplineDataMap)
+			{
+				for (int32 i = Pair.Value.ForeignControlPointData.Num() - 1; i >= 0; --i)
+				{
+					FForeignControlPointData& ControlPointData = Pair.Value.ForeignControlPointData[i];
+					if (ControlPointData.Identifier == ControlPoint && ControlPointData.MeshComponent == ControlPointMeshComponent)
+					{
+						check(ControlPoint->GetTypedOuter<UWorld>() != Pair.Key.Get());
+						Pair.Value.ForeignControlPointData.RemoveSingle(ControlPointData);
+					}
+
+					if (Pair.Value.IsEmpty())
+					{
+						EmptyWorlds.Add(Pair.Key.Get());
+					}
+				}
+			}
+		}
+
+		for (UWorld* EmptyWorld : EmptyWorlds)
+		{
+			ForeignWorldSplineDataMap.Remove(EmptyWorld);
+		}
+
+		return false;
+	});
+}
+
+void ULandscapeSplinesComponent::DestroyOrphanedForeignSplineMeshComponents(UWorld* OwnerWorld)
 {
 	auto* ForeignWorldSplineData = ForeignWorldSplineDataMap.Find(OwnerWorld);
 
@@ -1171,13 +1327,42 @@ void ULandscapeSplinesComponent::DestroyOrphanedForeignMeshComponents(UWorld* Ow
 			{
 				for (auto* MeshComponent : SegmentData.MeshComponents)
 				{
-					checkSlow(!MeshComponentForeignOwnersMap.FindRef(MeshComponent).IsValid());
-					verifySlow(MeshComponentForeignOwnersMap.Remove(MeshComponent) == 1);
-					MeshComponent->DestroyComponent();
+					if (MeshComponent)
+					{
+						checkSlow(!MeshComponentForeignOwnersMap.FindRef(MeshComponent).IsValid());
+						verifySlow(MeshComponentForeignOwnersMap.Remove(MeshComponent) == 1);
+						MeshComponent->DestroyComponent();
+					}
 				}
 				SegmentData.MeshComponents.Empty();
 
 				ForeignWorldSplineData->ForeignSplineSegmentData.RemoveSingle(SegmentData);
+			}
+		}
+
+		if (ForeignWorldSplineData->IsEmpty())
+		{
+			verifySlow(ForeignWorldSplineDataMap.Remove(OwnerWorld) == 1);
+		}
+	}
+}
+
+void ULandscapeSplinesComponent::DestroyOrphanedForeignControlPointMeshComponents(UWorld* OwnerWorld)
+{
+	auto* ForeignWorldSplineData = ForeignWorldSplineDataMap.Find(OwnerWorld);
+
+	if (ForeignWorldSplineData)
+	{
+		for (int32 i = ForeignWorldSplineData->ForeignControlPointData.Num() - 1; i >= 0; --i)
+		{
+			FForeignControlPointData& ControlPointData = ForeignWorldSplineData->ForeignControlPointData[i];
+			const auto& ForeignControlPoint = ControlPointData.Identifier;
+
+			if (!ForeignControlPoint && ControlPointData.MeshComponent)
+			{
+				ControlPointData.MeshComponent->DestroyComponent();
+				ForeignWorldSplineData->ForeignControlPointData.RemoveSingle(ControlPointData);
+				MeshComponentForeignOwnersMap.Remove(ControlPointData.MeshComponent);
 			}
 		}
 
@@ -1775,6 +1960,13 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 			MeshComponent->MarkRenderStateDirty();
 		}
 
+		if (MeshComponent->VirtualTextureMainPassMaxDrawDistance != VirtualTextureMainPassMaxDrawDistance)
+		{
+			MeshComponent->Modify();
+			MeshComponent->VirtualTextureMainPassMaxDrawDistance = VirtualTextureMainPassMaxDrawDistance;
+			MeshComponent->MarkRenderStateDirty();
+		}
+
 		if (MeshComponent->VirtualTextureRenderPassType != VirtualTextureRenderPassType)
 		{
 			MeshComponent->Modify();
@@ -1942,7 +2134,15 @@ void ULandscapeSplineControlPoint::PostEditUndo()
 	Super::PostEditUndo();
 	bHackIsUndoingSplines = false;
 
-	GetOuterULandscapeSplinesComponent()->MarkRenderStateDirty();
+	ULandscapeSplinesComponent* SplineComponent = GetOuterULandscapeSplinesComponent();
+	SplineComponent->MarkRenderStateDirty();
+
+	ALandscapeProxy* OuterLandscape = Cast<ALandscapeProxy>(SplineComponent->GetOwner());
+	ALandscape* Landscape = OuterLandscape ? OuterLandscape->GetLandscapeActor() : nullptr;
+	if (Landscape)
+	{
+		Landscape->RequestSplineLayerUpdate();
+	}
 }
 
 void ULandscapeSplineControlPoint::PostDuplicate(bool bDuplicateForPIE)
@@ -2761,6 +2961,7 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 			MeshComponent->RuntimeVirtualTextures = RuntimeVirtualTextures;
 			MeshComponent->VirtualTextureLodBias = VirtualTextureLodBias;
 			MeshComponent->VirtualTextureCullMips = VirtualTextureCullMips;
+			MeshComponent->VirtualTextureMainPassMaxDrawDistance = VirtualTextureMainPassMaxDrawDistance;
 			MeshComponent->VirtualTextureRenderPassType = VirtualTextureRenderPassType;
 
 			MeshComponent->SetCastShadow(bCastShadow);
@@ -2899,7 +3100,15 @@ void ULandscapeSplineSegment::PostEditUndo()
 	Super::PostEditUndo();
 	bHackIsUndoingSplines = false;
 
-	GetOuterULandscapeSplinesComponent()->MarkRenderStateDirty();
+	ULandscapeSplinesComponent* SplineComponent = GetOuterULandscapeSplinesComponent();
+	SplineComponent->MarkRenderStateDirty();
+
+	ALandscapeProxy* OuterLandscape = Cast<ALandscapeProxy>(SplineComponent->GetOwner());
+	ALandscape* Landscape = OuterLandscape ? OuterLandscape->GetLandscapeActor() : nullptr;
+	if (Landscape)
+	{
+		Landscape->RequestSplineLayerUpdate();
+	}
 }
 
 void ULandscapeSplineSegment::PostDuplicate(bool bDuplicateForPIE)

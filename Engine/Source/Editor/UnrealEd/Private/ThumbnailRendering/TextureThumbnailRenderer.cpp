@@ -82,7 +82,7 @@ void UTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 W
 		{
 			bool bIsNormalMap = Texture2DArray->IsNormalMap();
 			bool bIsSingleChannel = true;
-			BatchedElementParameters = new FBatchedElementTexture2DPreviewParameters(0, 0, bIsNormalMap, bIsSingleChannel, false, true);
+			BatchedElementParameters = new FBatchedElementTexture2DPreviewParameters(0, 0, bIsNormalMap, bIsSingleChannel, false, false, true);
 		}
 		else if (TextureLightProfile)
 		{

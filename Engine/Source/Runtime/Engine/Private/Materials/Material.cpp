@@ -43,6 +43,7 @@
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
+#include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
 #include "SceneManagement.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "Engine/SubsurfaceProfile.h"
@@ -156,7 +157,8 @@ int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty
 		case MP_OpacityMask:
 			// Force basic opaque surfaces to skip masked/translucent-only attributes.
 			// Some features can force the material to create a masked variant which unintentionally runs this dormant code
-			if (GetMaterialDomain() != MD_Surface || GetBlendMode() != BLEND_Opaque || (GetShadingModels().IsLit() && !GetShadingModels().HasShadingModel(MSM_DefaultLit)))
+			if (GetMaterialDomain() != MD_Surface || GetBlendMode() != BLEND_Opaque || (GetShadingModels().IsLit() && !GetShadingModels().HasShadingModel(MSM_DefaultLit))
+				|| GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
 			{
 				Ret = MaterialInterface->CompileProperty(Compiler, Property);
 			}
@@ -902,6 +904,7 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	bCastRayTracedShadows = true;
 	bUseTranslucencyVertexFog = true;
 	bIsSky = false;
+	bUsedWithWater = false;
 	BlendableLocation = BL_AfterTonemapping;
 	BlendablePriority = 0;
 	BlendableOutputAlpha = false;
@@ -4284,6 +4287,7 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bEnableSeparateTranslucency)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bEnableRenderUnderWater)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bEnableResponsiveAA)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bScreenSpaceReflections)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bContactShadows)
@@ -5952,7 +5956,8 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	bool bBlendableOutputAlpha,
 	bool bHasTessellation,
 	bool bHasRefraction,
-	bool bUsesShadingModelFromMaterialExpression)
+	bool bUsesShadingModelFromMaterialExpression,
+	bool bIsSingleLayerWater)
 {
 	if (Domain == MD_PostProcess)
 	{
@@ -6137,10 +6142,10 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		Active = false;
 		break;
 	case MP_Refraction:
-		Active = bIsTranslucentBlendMode && BlendMode != BLEND_AlphaHoldout && BlendMode != BLEND_Modulate;
+		Active = (bIsTranslucentBlendMode && BlendMode != BLEND_AlphaHoldout && BlendMode != BLEND_Modulate) || bIsSingleLayerWater;
 		break;
 	case MP_Opacity:
-		Active = bIsTranslucentBlendMode && BlendMode != BLEND_Modulate;
+		Active = (bIsTranslucentBlendMode && BlendMode != BLEND_Modulate) || bIsSingleLayerWater;
 		if (IsSubsurfaceShadingModel(ShadingModels))
 		{
 			Active = true;
@@ -6207,6 +6212,7 @@ bool UMaterial::IsPropertyActive(EMaterialProperty InProperty) const
 #if WITH_EDITOR
 bool UMaterial::IsPropertyActiveInEditor(EMaterialProperty InProperty) const
 {
+	bool bUsesSingleLayerWaterMaterial = bUsedWithWater; // HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSingleLayerWaterMaterialOutput>();
 	// explicitly DON'T use getters for BlendMode/ShadingModel...these getters may return an optimized value
 	// we want the actual value that's been set by the user in the material editor
 	return IsPropertyActive_Internal(InProperty,
@@ -6218,12 +6224,14 @@ bool UMaterial::IsPropertyActiveInEditor(EMaterialProperty InProperty) const
 		BlendableOutputAlpha,
 		D3D11TessellationMode != MTM_NoTessellation,
 		Refraction.IsConnected(),
-		IsShadingModelFromMaterialExpression());
+		IsShadingModelFromMaterialExpression(),
+		bUsesSingleLayerWaterMaterial);
 }
 #endif // WITH_EDITOR
 
 bool UMaterial::IsPropertyActiveInDerived(EMaterialProperty InProperty, const UMaterialInterface* DerivedMaterial) const
 {
+	bool bUsesSingleLayerWaterMaterial = DerivedMaterial->GetMaterial()->bUsedWithWater; //HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSingleLayerWaterMaterialOutput>();
 	return IsPropertyActive_Internal(InProperty,
 		MaterialDomain,
 		DerivedMaterial->GetBlendMode(),
@@ -6233,7 +6241,8 @@ bool UMaterial::IsPropertyActiveInDerived(EMaterialProperty InProperty, const UM
 		BlendableOutputAlpha,
 		D3D11TessellationMode != MTM_NoTessellation,
 		Refraction.IsConnected(),
-		DerivedMaterial->IsShadingModelFromMaterialExpression());
+		DerivedMaterial->IsShadingModelFromMaterialExpression(),
+		bUsesSingleLayerWaterMaterial);
 }
 
 #if WITH_EDITORONLY_DATA

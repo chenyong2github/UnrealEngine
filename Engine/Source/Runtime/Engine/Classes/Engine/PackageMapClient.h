@@ -33,24 +33,10 @@
 class UNetConnection;
 class UNetDriver;
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS	// 4.22, Name, Type
 class ENGINE_API FNetFieldExport
 {
 public:
 	FNetFieldExport() : Handle( 0 ), CompatibleChecksum( 0 ), bExported( false ), bDirtyForReplay( true ), bIncompatible( false )
-	{
-	}
-
-	UE_DEPRECATED(4.22, "Type is no longer required, please use other constructor.")
-	FNetFieldExport( const uint32 InHandle, const uint32 InCompatibleChecksum, const FString InName, FString InType ) :
-		Handle( InHandle ),
-		CompatibleChecksum( InCompatibleChecksum ),
-		ExportName( *InName ),
-		Name( InName ),
-		Type( InType ),
-		bExported( false ),
-		bDirtyForReplay( true ),
-		bIncompatible( false )
 	{
 	}
 
@@ -82,10 +68,13 @@ public:
 
 			if (Ar.IsLoading() && Ar.EngineNetVer() < HISTORY_NETEXPORT_SERIALIZATION)
 			{
-				Ar << C.Name;
-				Ar << C.Type;
+				FName TempName;
+				FString TempType;
 
-				C.ExportName = FName(*C.Name);
+				Ar << TempName;
+				Ar << TempType;
+
+				C.ExportName = TempName;
 			}
 			else
 			{
@@ -96,11 +85,6 @@ public:
 				else
 				{
 					UPackageMap::StaticSerializeName(Ar, C.ExportName);
-				}
-
-				if (Ar.IsLoading())
-				{
-					C.Name = C.ExportName.ToString();
 				}
 			}
 		}
@@ -113,17 +97,12 @@ public:
 	uint32			Handle;
 	uint32			CompatibleChecksum;
 	FName			ExportName;
-	UE_DEPRECATED(4.22, "Name is deprecated.")
-	FString			Name;
-	UE_DEPRECATED(4.22, "Type is deprecated.")
-	FString			Type;
 	bool			bExported;
 	bool			bDirtyForReplay;
 
 	// Transient properties
 	mutable bool	bIncompatible;		// If true, we've already determined that this property isn't compatible. We use this to curb warning spam.
 };
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 class ENGINE_API FNetFieldExportGroup
 {
@@ -295,9 +274,6 @@ public:
 
 	UNetDriver *									Driver;
 
-	UE_DEPRECATED(4.23, "This member will be made private in future versions")
-	TMap< FName, FNetworkGUID >						PendingAsyncPackages;
-
 	ENetworkChecksumMode							NetworkChecksumMode;
 	EAsyncLoadMode									AsyncLoadMode;
 
@@ -306,6 +282,8 @@ public:
 private:
 
 	friend class UPackageMapClient;
+
+	TMap<FName, FNetworkGUID> PendingAsyncPackages;
 
 	/** Maps net field export group name to the respective FNetFieldExportGroup */
 	TMap < FString, TSharedPtr< FNetFieldExportGroup > >	NetFieldExportGroupMap;

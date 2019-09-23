@@ -56,7 +56,6 @@ static FAutoConsoleVariableRef CVarSuppressNiagaraSystems(
 	ECVF_Default
 );
 
-
 void DumpNiagaraComponents(UWorld* World)
 {
 	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
@@ -795,7 +794,7 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 		}
 	}
 
-	FNiagaraSystemInstance::EResetMode ResetMode = bReset ? FNiagaraSystemInstance::EResetMode::ResetAll : FNiagaraSystemInstance::EResetMode::ResetSystem;
+	FNiagaraSystemInstance::EResetMode ResetMode = FNiagaraSystemInstance::EResetMode::ResetSystem;
 	if (InitializeSystem())
 	{
 		ResetMode = FNiagaraSystemInstance::EResetMode::None;//Already done a reinit sete
@@ -1021,6 +1020,9 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 	LLM_SCOPE(ELLMTag::Niagara);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentSendRenderData);
+
+	Super::SendRenderDynamicData_Concurrent();
+
 	if (SystemInstance.IsValid() && SceneProxy)
 	{
 #if STATS
@@ -1413,6 +1415,9 @@ TArray<float> UNiagaraComponent::GetNiagaraParticleValues_DebugOnly(const FStrin
 void UNiagaraComponent::PostLoad()
 {
 	Super::PostLoad();
+
+	OverrideParameters.PostLoad();
+
 	if (Asset)
 	{
 		Asset->ConditionalPostLoad();

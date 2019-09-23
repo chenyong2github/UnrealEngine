@@ -17,6 +17,13 @@ class UControlPointMeshComponent : public UStaticMeshComponent
 	uint32 bSelected:1;
 #endif
 
+	/** 
+	 * The max draw distance to use in the main pass when also rendering to a runtime virtual texture. 
+	 * This is only exposed to the user through the same setting on ULandscapeSplineControlPoint. 
+	 */
+	UPROPERTY()
+	float VirtualTextureMainPassMaxDrawDistance = 0.f;
+
 	//Begin UPrimitiveComponent Interface
 #if WITH_EDITOR
 	virtual bool ShouldRenderSelected() const override
@@ -24,5 +31,6 @@ class UControlPointMeshComponent : public UStaticMeshComponent
 		return Super::ShouldRenderSelected() || bSelected;
 	}
 #endif
+	virtual float GetVirtualTextureMainPassMaxDrawDistance() const override { return VirtualTextureMainPassMaxDrawDistance; }
 	//End UPrimitiveComponent Interface
 };

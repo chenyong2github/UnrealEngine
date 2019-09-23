@@ -999,7 +999,7 @@ void NiagaraEmitterInstanceBatcher::SetDataInterfaceParameters(const TArray<FNia
 	//
 
 	// @todo-threadsafety This is a bit gross. Need to rethink this api.
-	const FGuid& SystemInstance = Tick.SystemInstanceID;
+	const FNiagaraSystemInstanceID& SystemInstance = Tick.SystemInstanceID;
 
 	uint32 InterfaceIndex = 0;
 	for (FNiagaraDataInterfaceProxy* Interface : DataInterfaceProxies)
@@ -1027,7 +1027,7 @@ void NiagaraEmitterInstanceBatcher::UnsetDataInterfaceParameters(const TArray<FN
 	//
 
 	// @todo-threadsafety This is a bit gross. Need to rethink this api.
-	const FGuid& SystemInstance = Tick.SystemInstanceID;
+	const FNiagaraSystemInstanceID& SystemInstance = Tick.SystemInstanceID;
 
 	uint32 InterfaceIndex = 0;
 	for (FNiagaraDataInterfaceProxy* Interface : DataInterfaceProxies)

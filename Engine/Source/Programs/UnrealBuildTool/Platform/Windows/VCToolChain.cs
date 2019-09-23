@@ -898,7 +898,9 @@ namespace UnrealBuildTool
 
 			if (CompileEnvironment.bPrintTimingInfo || Target.WindowsPlatform.bCompilerTrace)
 			{
-				if(Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED || Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2017)
+				if (Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED ||
+					Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2017 ||
+					Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2019)
 				{
 					if (CompileEnvironment.bPrintTimingInfo)
 					{

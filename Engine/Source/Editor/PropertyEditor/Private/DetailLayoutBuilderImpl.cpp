@@ -152,7 +152,7 @@ IDetailPropertyRow* FDetailLayoutBuilderImpl::EditDefaultProperty(TSharedPtr<IPr
 	return nullptr;
 }
 
-TSharedRef<IPropertyHandle> FDetailLayoutBuilderImpl::GetProperty( const FName PropertyPath, const UClass* ClassOutermost, FName InInstanceName )
+TSharedRef<IPropertyHandle> FDetailLayoutBuilderImpl::GetProperty( const FName PropertyPath, const UStruct* ClassOutermost, FName InInstanceName )
 {	
 	TSharedPtr<FPropertyHandleBase> PropertyHandle; 
 
@@ -184,7 +184,7 @@ void FDetailLayoutBuilderImpl::HideProperty( const TSharedPtr<IPropertyHandle> P
 	}
 }
 
-void FDetailLayoutBuilderImpl::HideProperty( FName PropertyPath, const UClass* ClassOutermost, FName InstanceName )
+void FDetailLayoutBuilderImpl::HideProperty( FName PropertyPath, const UStruct* ClassOutermost, FName InstanceName )
 {
 	TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode( PropertyPath, ClassOutermost, InstanceName );
 	if( PropertyNode.IsValid() )
@@ -372,7 +372,7 @@ void FDetailLayoutBuilderImpl::SetCurrentCustomizationClass( UStruct* CurrentCla
 	CurrentCustomizationVariableName = VariableName;
 }
 
-TSharedPtr<FPropertyNode> FDetailLayoutBuilderImpl::GetPropertyNode( const FName PropertyName, const UClass* ClassOutermost, FName InstanceName ) const
+TSharedPtr<FPropertyNode> FDetailLayoutBuilderImpl::GetPropertyNode( const FName PropertyName, const UStruct* ClassOutermost, FName InstanceName ) const
 {
 	TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNodeInternal( PropertyName, ClassOutermost, InstanceName );
 	return PropertyNode;
@@ -453,7 +453,7 @@ TSharedPtr<FPropertyNode> FDetailLayoutBuilderImpl::GetPropertyNode( TSharedPtr<
  Example setup
 */
 
-TSharedPtr<FPropertyNode> FDetailLayoutBuilderImpl::GetPropertyNodeInternal( const FName PropertyPath, const UClass* ClassOutermost, FName InstanceName ) const
+TSharedPtr<FPropertyNode> FDetailLayoutBuilderImpl::GetPropertyNodeInternal( const FName PropertyPath, const UStruct* ClassOutermost, FName InstanceName ) const
 {
 	FName PropertyName;
 	TArray<FString> PathList;

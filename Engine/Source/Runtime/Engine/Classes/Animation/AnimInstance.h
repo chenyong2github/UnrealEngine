@@ -1012,8 +1012,6 @@ public:
 	/** Flag passed to UpdateAnimation, determines the path we follow */
 	enum class EUpdateAnimationFlag : uint8
 	{
-		/** Enforce an immediate update, regardless of state*/
-		ForceImmediateUpdate,
 		/** Enforces a parallel update, regardless of state */
 		ForceParallelUpdate,
 		/** Use state to determine whether or not to immediately or update in parallel */
@@ -1026,10 +1024,11 @@ public:
 	// evaluate happens when condition is met - i.e. depending on your skeletalmeshcomponent update flag
 	// post eval happens after evaluation is done
 	// uninitialize happens when owner is unregistered
-	void InitializeAnimation();
+	// @param	bInDeferRootNodeInitialization	When set to true, defer init of the blend tree until the first Update() call
+	void InitializeAnimation(bool bInDeferRootNodeInitialization = false);
 
 	/** Update Animation code-paths, updates and advances animation state, returns whether or not the actual update should have been called immediately */
-	bool UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion, EUpdateAnimationFlag UpdateFlag = EUpdateAnimationFlag::Default );
+	void UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion, EUpdateAnimationFlag UpdateFlag = EUpdateAnimationFlag::Default );
 
 	/** Run update animation work on a worker thread */
 	void ParallelUpdateAnimation();

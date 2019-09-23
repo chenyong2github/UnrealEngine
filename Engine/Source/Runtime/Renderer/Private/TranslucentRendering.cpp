@@ -91,6 +91,7 @@ EMeshPass::Type TranslucencyPassToMeshPass(ETranslucencyPass::Type TranslucencyP
 	{
 	case ETranslucencyPass::TPT_StandardTranslucency: TranslucencyMeshPass = EMeshPass::TranslucencyStandard; break;
 	case ETranslucencyPass::TPT_TranslucencyAfterDOF: TranslucencyMeshPass = EMeshPass::TranslucencyAfterDOF; break;
+	case ETranslucencyPass::TPT_TranslucencyUnderWater: TranslucencyMeshPass = EMeshPass::TranslucencyUnderWater; break;
 	case ETranslucencyPass::TPT_AllTranslucency: TranslucencyMeshPass = EMeshPass::TranslucencyAll; break;
 	}
 
@@ -626,16 +627,20 @@ void CreateTranslucentBasePassUniformBuffer(
 
 		FIntPoint ViewportOffset = View.ViewRect.Min;
 		FIntPoint ViewportExtent = View.ViewRect.Size();
-		FIntPoint BufferSize = SceneRenderTargets.GetBufferSizeXY();
+
+		// Scene render targets might not exist yet; avoids NaNs.
+		FIntPoint EffectiveBufferSize = SceneRenderTargets.GetBufferSizeXY();
+		EffectiveBufferSize.X = FMath::Max(EffectiveBufferSize.X, 1);
+		EffectiveBufferSize.Y = FMath::Max(EffectiveBufferSize.Y, 1);
 
 		if (View.PrevViewInfo.TemporalAAHistory.IsValid())
 		{
 			ViewportOffset = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Min;
 			ViewportExtent = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Size();
-			BufferSize = View.PrevViewInfo.TemporalAAHistory.RT[0]->GetDesc().Extent;
+			EffectiveBufferSize = View.PrevViewInfo.TemporalAAHistory.RT[0]->GetDesc().Extent;
 		}
 
-		FVector2D InvBufferSize(1.0f / float(BufferSize.X), 1.0f / float(BufferSize.Y));
+		FVector2D InvBufferSize(1.0f / float(EffectiveBufferSize.X), 1.0f / float(EffectiveBufferSize.Y));
 
 		FVector4 ScreenPosToPixelValue(
 			ViewportExtent.X * 0.5f * InvBufferSize.X,
@@ -960,7 +965,8 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate&
 		}
 		else
 		{
-			SceneContext.BeginRenderingTranslucency(RHICmdList, View, *this, ViewIndex == 0 || View.Family->bMultiGPUForkAndJoin);
+			bool bAllowBufferClear = TranslucencyPass != ETranslucencyPass::TPT_TranslucencyUnderWater; // We render in an existing scene color in this case so do not clear.
+			SceneContext.BeginRenderingTranslucency(RHICmdList, View, *this, (ViewIndex == 0 || View.Family->bMultiGPUForkAndJoin) && bAllowBufferClear);
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
 
 			if (bUseParallel && !ViewFamily.UseDebugViewPS())

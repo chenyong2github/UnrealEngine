@@ -84,7 +84,7 @@ void SConfigEditor::CreateDisplayObjectForSelectedTargetPlatform()
 	FConfigFile PlatformIniFile;
 	LocalConfigCache->LoadLocalIniFile(PlatformIniFile, *ClassConfigName, true, *SelectedTargetPlatform);
 
-	for (auto& IniFile : PlatformIniFile.SourceIniHierarchy)
+	for (const auto& IniFile : PlatformIniFile.SourceIniHierarchy)
 	{
 		UPropertyConfigFileDisplayRow* ConfigFilePropertyObj = NewObject<UPropertyConfigFileDisplayRow>(GetTransientPackage(), *IniFile.Value.Filename);
 		ConfigFilePropertyObj->InitWithConfigAndProperty(IniFile.Value.Filename, PropHelper->EditProperty.Get());

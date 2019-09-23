@@ -1892,6 +1892,7 @@ struct FRelevancePacket
 	bool bTranslucentSurfaceLighting;
 	bool bUsesSceneDepth;
 	bool bSceneHasSkyMaterial;
+	bool bHasSingleLayerWaterMaterial;
 
 	FRelevancePacket(
 		FRHICommandListImmediate& InRHICmdList,
@@ -1929,6 +1930,7 @@ struct FRelevancePacket
 		, bTranslucentSurfaceLighting(false)
 		, bUsesSceneDepth(false)
 		, bSceneHasSkyMaterial(false)
+		, bHasSingleLayerWaterMaterial(false)
 	{
 	}
 
@@ -1942,6 +1944,7 @@ struct FRelevancePacket
 	{
 		CombinedShadingModelMask = 0;
 		bSceneHasSkyMaterial = 0;
+		bHasSingleLayerWaterMaterial = 0;
 		bUsesGlobalDistanceField = false;
 		bUsesLightingChannels = false;
 		bTranslucentSurfaceLighting = false;
@@ -2010,7 +2013,14 @@ struct FRelevancePacket
 
 			if (bTranslucentRelevance && !bEditorRelevance && ViewRelevance.bRenderInMainPass)
 			{
-				if (View.Family->AllowTranslucencyAfterDOF())
+				if (ViewRelevance.bUnderWaterTranslucencyRelevance)
+				{
+					// Translucency under water do not need to use scene color resolve (a black texture is provided) and we do not need to render to another off-screen buffer.
+					const bool bUsesSceneColorCopy = false;
+					const bool bDisableOffscreenRendering = true;
+					TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyUnderWater, bUsesSceneColorCopy, bDisableOffscreenRendering);
+				}
+				else if (View.Family->AllowTranslucencyAfterDOF())
 				{
 					if (ViewRelevance.bNormalTranslucencyRelevance)
 					{
@@ -2040,6 +2050,7 @@ struct FRelevancePacket
 			bTranslucentSurfaceLighting |= ViewRelevance.bTranslucentSurfaceLighting;
 			bUsesSceneDepth |= ViewRelevance.bUsesSceneDepth;
 			bSceneHasSkyMaterial |= ViewRelevance.bUsesSkyMaterial;
+			bHasSingleLayerWaterMaterial |= ViewRelevance.bUsesSingleLayerWaterMaterial;
 
 			if (ViewRelevance.bRenderCustomDepth)
 			{
@@ -2238,6 +2249,11 @@ struct FRelevancePacket
 									// Not needed on Mobile path as in this case everything goes into the regular base pass
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SkyPass);
 								}
+								else if(StaticMeshRelevance.bUseSingleLayerWaterMaterial)
+								{
+									// Not needed on Mobile path as in this case everything goes into the regular base pass
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SingleLayerWaterPass);
+								}
 
 								if (ViewRelevance.bRenderCustomDepth)
 								{
@@ -2297,6 +2313,11 @@ struct FRelevancePacket
 								if (ViewRelevance.bSeparateTranslucencyRelevance)
 								{
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyAfterDOF);
+								}
+
+								if (ViewRelevance.bUnderWaterTranslucencyRelevance)
+								{
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyUnderWater);
 								}
 							}
 							else
@@ -2375,6 +2396,7 @@ struct FRelevancePacket
 		WriteView.bTranslucentSurfaceLighting |= bTranslucentSurfaceLighting;
 		WriteView.bUsesSceneDepth |= bUsesSceneDepth;
 		WriteView.bSceneHasSkyMaterial |= bSceneHasSkyMaterial;
+		WriteView.bHasSingleLayerWaterMaterial |= bHasSingleLayerWaterMaterial;
 		VisibleDynamicPrimitivesWithSimpleLights.AppendTo(WriteView.VisibleDynamicPrimitivesWithSimpleLights);
 		WriteView.NumVisibleDynamicPrimitives += NumVisibleDynamicPrimitives;
 		WriteView.NumVisibleDynamicEditorPrimitives += NumVisibleDynamicEditorPrimitives;
@@ -2689,6 +2711,12 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 			PassMask.Set(EMeshPass::Velocity);
 			View.NumVisibleDynamicMeshElements[EMeshPass::Velocity] += NumElements;
 		}
+
+		if (ViewRelevance.bUsesSingleLayerWaterMaterial)
+		{
+			PassMask.Set(EMeshPass::SingleLayerWaterPass);
+			View.NumVisibleDynamicMeshElements[EMeshPass::SingleLayerWaterPass] += NumElements;
+		}
 	}
 
 	if (ViewRelevance.HasTranslucency()
@@ -2707,6 +2735,12 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 			{
 				PassMask.Set(EMeshPass::TranslucencyAfterDOF);
 				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyAfterDOF] += NumElements;
+			}
+
+			if (ViewRelevance.bUnderWaterTranslucencyRelevance)
+			{
+				PassMask.Set(EMeshPass::TranslucencyUnderWater);
+				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyUnderWater] += NumElements;
 			}
 		}
 		else

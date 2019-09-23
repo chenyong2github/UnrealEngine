@@ -93,7 +93,7 @@ class ir_scalarize_visitor2 : public ir_hierarchical_visitor
 
 	virtual ir_visitor_status visit(ir_constant *ir)
 	{
-		check(ir->type->is_numeric());
+		check(ir->type->is_numeric() || ir->type->is_boolean());
 
 		unsigned use_component = FMath::Min(ir->type->components(), dest_component);
 
@@ -517,7 +517,7 @@ class ir_scalarize_visitor2 : public ir_hierarchical_visitor
 		}
 		else
 		{
-			check(deref->type->is_numeric());
+			check(deref->type->is_numeric() || deref->type->is_boolean());
 			//check(type->components() >= dest_component || type->is_scalar());
 			unsigned use_component = FMath::Min(type->components(), dest_component);
 
@@ -544,7 +544,7 @@ class ir_scalarize_visitor2 : public ir_hierarchical_visitor
 		{
 			if (!type->is_scalar())
 			{
-				check(var->type->is_numeric());
+				check(var->type->is_numeric() || var->type->is_boolean());
 				//check(type->components() > dest_component);
 				unsigned use_component = FMath::Min(type->components(), dest_component);
 

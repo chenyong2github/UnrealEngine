@@ -67,6 +67,7 @@ struct ENGINE_API FMaterialRelevance
 	uint8 bMasked : 1;
 	uint8 bDistortion : 1;
 	uint8 bSeparateTranslucency : 1; // Translucency After DOF
+	uint8 bUnderWaterTranslucency : 1;
 	uint8 bNormalTranslucency : 1;
 	uint8 bUsesSceneColorCopy : 1;
 	uint8 bDisableOffscreenRendering : 1; // Blend Modulate
@@ -78,6 +79,7 @@ struct ENGINE_API FMaterialRelevance
 	uint8 bTranslucentSurfaceLighting : 1;
 	uint8 bUsesSceneDepth : 1;
 	uint8 bUsesSkyMaterial : 1;
+	uint8 bUsesSingleLayerWaterMaterial : 1;
 	uint8 bHasVolumeMaterialDomain : 1;
 	uint8 bUsesDistanceCullFade : 1;
 

@@ -44,9 +44,9 @@ class ENGINE_API USplineMetadata : public UObject
 
 public:
 	/** Insert point before index, lerping metadata between previous and next key values */
-	virtual void InsertPoint(int32 Index, float t) PURE_VIRTUAL(USplineMetadata::InsertPoint, );
+	virtual void InsertPoint(int32 Index, float t, bool bClosedLoop) PURE_VIRTUAL(USplineMetadata::InsertPoint, );
 	/** Update point at index by lerping metadata between previous and next key values */
-	virtual void UpdatePoint(int32 Index, float t) PURE_VIRTUAL(USplineMetadata::UpdatePoint, );
+	virtual void UpdatePoint(int32 Index, float t, bool bClosedLoop) PURE_VIRTUAL(USplineMetadata::UpdatePoint, );
 	virtual void AddPoint(float InputKey) PURE_VIRTUAL(USplineMetadata::AddPoint, );
 	virtual void RemovePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::RemovePoint, );
 	virtual void DuplicatePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::DuplicatePoint, );
@@ -461,6 +461,10 @@ public:
 	/** Get the number of points that make up this spline */
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	int32 GetNumberOfSplinePoints() const;
+
+	/** Get the number of segments that make up this spline */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	int32 GetNumberOfSplineSegments() const;
 
 	/** Get the location at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)

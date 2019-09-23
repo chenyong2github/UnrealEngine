@@ -19,3 +19,5 @@
 
 // Example:
 // enum { VER_UE4_SOMETHING_ADDED = 0xFFFFFFFF };
+
+// [[ IncludeTool: Inline ]] // Markup to tell IncludeTool that this file is state changing and should be excluded from optimization.

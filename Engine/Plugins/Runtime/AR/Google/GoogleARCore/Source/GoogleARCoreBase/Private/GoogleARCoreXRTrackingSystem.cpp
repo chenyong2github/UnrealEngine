@@ -195,7 +195,7 @@ EARTrackingQuality FGoogleARCoreXRTrackingSystem::OnGetTrackingQuality() const
 	return EARTrackingQuality::OrientationAndPosition;
 }
 
-/*
+
 EARTrackingQualityReason FGoogleARCoreXRTrackingSystem::OnGetTrackingQualityReason() const
 {
 	// Dont return EARTrackingQualityReason::None, which means that the tracking quality is not limited
@@ -206,7 +206,7 @@ bool FGoogleARCoreXRTrackingSystem::IsARAvailable() const
 {
 	return FGoogleARCoreDevice::GetInstance()->CheckARCoreAPKAvailability() == EGoogleARCoreAvailability::SupportedInstalled;
 }
-*/
+
 
 void FGoogleARCoreXRTrackingSystem::OnStartARSession(UARSessionConfig* SessionConfig)
 {

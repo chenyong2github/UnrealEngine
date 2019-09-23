@@ -172,8 +172,9 @@ public class UnrealEd : ModuleRules
 				"TimeManagement",
                 "LandscapeEditorUtilities",
                 "DerivedDataCache",
+				"ScriptDisassembler",
 				"ToolMenus",
-            }
+			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(

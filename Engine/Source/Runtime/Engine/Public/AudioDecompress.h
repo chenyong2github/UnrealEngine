@@ -278,6 +278,8 @@ protected:
 	uint32 SrcBufferOffset;
 	/** Where the actual audio data starts in the current streamed chunk. Accounts for header offset. */
 	uint32 AudioDataOffset;
+	/** The chunk index where the actual audio data starts. */
+	uint32 AudioDataChunkIndex;
 	/** Sample rate of the source file */
 	uint16 SampleRate;
 	/** The total sample count of the source file. */

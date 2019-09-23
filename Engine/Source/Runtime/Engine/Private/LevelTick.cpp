@@ -1080,6 +1080,24 @@ void UWorld::SendAllEndOfFrameUpdates()
 	EndSendEndOfFrameUpdatesDrawEvent(SendAllEndOfFrameUpdates);
 }
 
+/**
+ * Flush any pending parameter collection updates to the render thrad.
+ */
+void UWorld::FlushDeferredParameterCollectionInstanceUpdates()
+{
+	if ( bMaterialParameterCollectionInstanceNeedsDeferredUpdate )
+	{
+		for (UMaterialParameterCollectionInstance* ParameterCollectionInstance : ParameterCollectionInstances)
+		{
+			if (ParameterCollectionInstance)
+			{
+				ParameterCollectionInstance->DeferredUpdateRenderState(false);
+			}
+		}
+
+		bMaterialParameterCollectionInstanceNeedsDeferredUpdate = false;
+	}
+}
 
 #if !UE_BUILD_SHIPPING
 static class FFileProfileWrapperExec: private FSelfRegisteringExec
@@ -1265,7 +1283,7 @@ static void RecordWorldCountsToCSV(UWorld* World)
 
 			TSortedMap<FName, int32, FDefaultAllocator, FNameFastLess> TickContextToCountMap;
 			int32 EnabledCount;
-			FTickTaskManagerInterface::Get().GetEnabledTickFunctionCounts(World, TickContextToCountMap, EnabledCount, bDetailed);
+			FTickTaskManagerInterface::Get().GetEnabledTickFunctionCounts(World, TickContextToCountMap, EnabledCount, bDetailed, true);
 
 			for (auto It = TickContextToCountMap.CreateConstIterator(); It; ++It)
 			{

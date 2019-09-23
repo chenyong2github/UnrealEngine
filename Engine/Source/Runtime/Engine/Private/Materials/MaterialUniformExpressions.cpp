@@ -518,7 +518,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				UniformVirtualTextureExpressions[ExpressionIndex]->GetTextureValue(MaterialRenderContext, MaterialRenderContext.Material, Texture);
 				if (Texture != nullptr)
 				{
-					int32 LayerIndex = UniformVirtualTextureExpressions[ExpressionIndex]->GetLayerIndex();
+					int32 LayerIndex = UniformVirtualTextureExpressions[ExpressionIndex]->GetTextureLayerIndex();
 					IAllocatedVirtualTexture const* AllocatedVT = Texture->GetAllocatedVirtualTexture();
 					if (AllocatedVT)
 					{
@@ -579,7 +579,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 		// Cache 2D texture uniform expressions.
 		for(int32 ExpressionIndex = 0;ExpressionIndex < Uniform2DTextureExpressions.Num();ExpressionIndex++)
 		{
-			const UTexture* Value;
+			const UTexture* Value = nullptr;
 			Uniform2DTextureExpressions[ExpressionIndex]->GetTextureValue(MaterialRenderContext,MaterialRenderContext.Material,Value);
 			if (Value)
 			{
@@ -654,7 +654,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 		// Cache cube texture uniform expressions.
 		for(int32 ExpressionIndex = 0;ExpressionIndex < UniformCubeTextureExpressions.Num();ExpressionIndex++)
 		{
-			const UTexture* Value;
+			const UTexture* Value = nullptr;
 			UniformCubeTextureExpressions[ExpressionIndex]->GetTextureValue(MaterialRenderContext,MaterialRenderContext.Material,Value);
 
 			void** ResourceTableTexturePtr = (void**)((uint8*)BufferCursor + 0 * SHADER_PARAMETER_POINTER_ALIGNMENT);
@@ -731,7 +731,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 		// Cache volume texture uniform expressions.
 		for (int32 ExpressionIndex = 0;ExpressionIndex < UniformVolumeTextureExpressions.Num();ExpressionIndex++)
 		{
-			const UTexture* Value;
+			const UTexture* Value = nullptr;
 			UniformVolumeTextureExpressions[ExpressionIndex]->GetTextureValue(MaterialRenderContext,MaterialRenderContext.Material,Value);
 
 			void** ResourceTableTexturePtr = (void**)((uint8*)BufferCursor + 0 * SHADER_PARAMETER_POINTER_ALIGNMENT);
@@ -852,7 +852,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			// Check for streaming virtual texture
 			if (!bValidResources)
 			{
-				const UTexture* Texture;
+				const UTexture* Texture = nullptr;
 				UniformVirtualTextureExpressions[ExpressionIndex]->GetTextureValue(MaterialRenderContext, MaterialRenderContext.Material, Texture);
 				if (Texture && Texture->Resource)
 				{
@@ -877,14 +877,14 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			// Now check for runtime virtual texture
 			if (!bValidResources)
 			{
-				const URuntimeVirtualTexture* Texture;
+				const URuntimeVirtualTexture* Texture = nullptr;
 				UniformVirtualTextureExpressions[ExpressionIndex]->GetTextureValue(MaterialRenderContext, MaterialRenderContext.Material, Texture);
 				if (Texture != nullptr)
 				{
 					IAllocatedVirtualTexture const* AllocatedVT = Texture->GetAllocatedVirtualTexture();
 					if (AllocatedVT != nullptr)
 					{
-						const int32 LayerIndex = UniformVirtualTextureExpressions[ExpressionIndex]->GetLayerIndex();
+						const int32 LayerIndex = UniformVirtualTextureExpressions[ExpressionIndex]->GetTextureLayerIndex();
 						FRHIShaderResourceView* PhysicalViewRHI = AllocatedVT->GetPhysicalTextureView(LayerIndex, Texture->IsLayerSRGB(LayerIndex));
 						if (PhysicalViewRHI != nullptr)
 						{
@@ -942,7 +942,8 @@ uint32 FUniformExpressionSet::GetReferencedTexture2DRHIHash(const FMaterialRende
 
 FMaterialUniformExpressionTexture::FMaterialUniformExpressionTexture() :
 	TextureIndex(INDEX_NONE),
-	LayerIndex(INDEX_NONE),
+	TextureLayerIndex(INDEX_NONE),
+	PageTableLayerIndex(INDEX_NONE),
 #if WITH_EDITORONLY_DATA
 	SamplerType(SAMPLERTYPE_Color),
 #endif
@@ -954,7 +955,8 @@ FMaterialUniformExpressionTexture::FMaterialUniformExpressionTexture() :
 
 FMaterialUniformExpressionTexture::FMaterialUniformExpressionTexture(int32 InTextureIndex, EMaterialSamplerType InSamplerType, ESamplerSourceMode InSamplerSource, bool InVirtualTexture) :
 	TextureIndex(InTextureIndex),
-	LayerIndex(INDEX_NONE),
+	TextureLayerIndex(INDEX_NONE),
+	PageTableLayerIndex(INDEX_NONE),
 #if WITH_EDITORONLY_DATA
 	SamplerType(InSamplerType),
 #endif
@@ -965,9 +967,10 @@ FMaterialUniformExpressionTexture::FMaterialUniformExpressionTexture(int32 InTex
 {
 }
 
-FMaterialUniformExpressionTexture::FMaterialUniformExpressionTexture(int32 InTextureIndex, int32 InLayerIndex, EMaterialSamplerType InSamplerType)
+FMaterialUniformExpressionTexture::FMaterialUniformExpressionTexture(int32 InTextureIndex, int16 InTextureLayerIndex, int16 InPageTableLayerIndex, EMaterialSamplerType InSamplerType)
 	: TextureIndex(InTextureIndex)
-	, LayerIndex(InLayerIndex)
+	, TextureLayerIndex(InTextureLayerIndex)
+	, PageTableLayerIndex(InPageTableLayerIndex)
 #if WITH_EDITORONLY_DATA
 	, SamplerType(InSamplerType)
 #endif
@@ -981,7 +984,7 @@ FMaterialUniformExpressionTexture::FMaterialUniformExpressionTexture(int32 InTex
 void FMaterialUniformExpressionTexture::Serialize(FArchive& Ar)
 {
 	int32 SamplerSourceInt = (int32)SamplerSource;
-	Ar << TextureIndex << LayerIndex << SamplerSourceInt << bVirtualTexture;
+	Ar << TextureIndex << TextureLayerIndex << PageTableLayerIndex << SamplerSourceInt << bVirtualTexture;
 	SamplerSource = (ESamplerSourceMode)SamplerSourceInt;
 }
 
@@ -1036,7 +1039,10 @@ bool FMaterialUniformExpressionTexture::IsIdentical(const FMaterialUniformExpres
 	}
 	FMaterialUniformExpressionTexture* OtherTextureExpression = (FMaterialUniformExpressionTexture*)OtherExpression;
 
-	return TextureIndex == OtherTextureExpression->TextureIndex && LayerIndex == OtherTextureExpression->LayerIndex && bVirtualTexture == OtherTextureExpression->bVirtualTexture;
+	return TextureIndex == OtherTextureExpression->TextureIndex && 
+		TextureLayerIndex == OtherTextureExpression->TextureLayerIndex &&
+		PageTableLayerIndex == OtherTextureExpression->PageTableLayerIndex &&
+		bVirtualTexture == OtherTextureExpression->bVirtualTexture;
 }
 
 void FMaterialUniformExpressionTextureParameter::GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const UTexture*& OutValue) const

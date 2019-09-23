@@ -47,7 +47,9 @@ namespace WindowsMixedReality
 				return false;
 			}
 
-			return hmd->Present(D3D11Context, ViewportTexture);
+			hmd->CopyResources(D3D11Context, ViewportTexture);
+			
+			return hmd->Present();
 #else
 			return false;
 #endif

@@ -168,7 +168,7 @@ UWorld* UAnimInstance::GetWorld() const
 	return (HasAnyFlags(RF_ClassDefaultObject) ? nullptr : GetSkelMeshComponent()->GetWorld());
 }
 
-void UAnimInstance::InitializeAnimation()
+void UAnimInstance::InitializeAnimation(bool bInDeferRootNodeInitialization)
 {
 	FScopeCycleCounterUObject ContextScope(this);
 	SCOPE_CYCLE_COUNTER(STAT_AnimInitTime);
@@ -213,7 +213,7 @@ void UAnimInstance::InitializeAnimation()
 	NativeInitializeAnimation();
 	BlueprintInitializeAnimation();
 
-	GetProxyOnGameThread<FAnimInstanceProxy>().InitializeRootNode();
+	GetProxyOnGameThread<FAnimInstanceProxy>().InitializeRootNode(bInDeferRootNodeInitialization);
 
 	// we can bind rules & events now the graph has been initialized
 	GetProxyOnGameThread<FAnimInstanceProxy>().BindNativeDelegates();
@@ -337,7 +337,7 @@ void UAnimInstance::UpdateMontageSyncGroup()
 	}
 }
 
-bool UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion, EUpdateAnimationFlag UpdateFlag)
+void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion, EUpdateAnimationFlag UpdateFlag)
 {
 	LLM_SCOPE(ELLMTag::Animation);
 
@@ -401,7 +401,7 @@ bool UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 				when we also update the AnimGraph as well.
 				This means that calls to 'Evaluation' without a call to 'Update' prior will render stale data, but that's to be expected.
 			*/
-			return false;
+			return;
 		}
 	}
 
@@ -427,7 +427,7 @@ bool UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 
 		if (UpdateSnapshotAndSkipRemainingUpdate())
 		{
-			return false;
+			return;
 		}
 	}
 #endif
@@ -468,11 +468,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bool bShouldImmediateUpdate = bWantsImmediateUpdate;
 	switch (UpdateFlag)
 	{
-		case EUpdateAnimationFlag::ForceImmediateUpdate:
-		{
-			bShouldImmediateUpdate = true;
-			break;
-		}
 		case EUpdateAnimationFlag::ForceParallelUpdate:
 		{
 			bShouldImmediateUpdate = false;
@@ -486,8 +481,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ParallelUpdateAnimation();
 		PostUpdateAnimation();
 	}
-
-	return bWantsImmediateUpdate;
 }
 
 void UAnimInstance::PreUpdateAnimation(float DeltaSeconds)
@@ -2570,6 +2563,16 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 
 		USkeletalMeshComponent* MeshComp = GetSkelMeshComponent();
 
+		auto UnlinkLayerNodesInInstance = [](UAnimInstance* InAnimInstance)
+		{
+			const IAnimClassInterface* NewSubInstanceClass = IAnimClassInterface::GetFromClass(InAnimInstance->GetClass());
+			for(const UStructProperty* LayerNodeProperty : NewSubInstanceClass->GetLayerNodeProperties())
+			{
+				FAnimNode_Layer* SubInstanceLayerNode = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_Layer>(InAnimInstance);
+				SubInstanceLayerNode->DynamicUnlink(InAnimInstance);
+			}
+		};
+
 		for(TPair<FName, TArray<FAnimNode_Layer*, TInlineAllocator<4>>> LayerPair : LayerNodesToSet)
 		{
 			if (LayerPair.Key == NAME_None)
@@ -2588,20 +2591,24 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 						if (TargetInstance == nullptr || ClassToSet != TargetInstance->GetClass())
 						{
 							UAnimInstance* NewSubInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
+							NewSubInstance->InitializeAnimation();
+
+							// Unlink any layer nodes in the new sub instance, as they may have been hooked up to self in InitializeAnimation above.
+							UnlinkLayerNodesInInstance(NewSubInstance);
 
 							LayerNode->SetLayerOverlaySubInstance(this, NewSubInstance);
-
-							// Init after we link in the new graph segments, so propagation happens correctly
-							NewSubInstance->InitializeAnimation();
 
 							// Initialize the correct parts of the sub instance
 							if(LayerNode->LinkedRoot)
 							{
-								FAnimInstanceProxy& Proxy = NewSubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
-								Proxy.InitializeObjects(NewSubInstance);
-								Proxy.InitializeRootNode_WithRoot(LayerNode->LinkedRoot);
-								Proxy.CacheBones_WithRoot(LayerNode->LinkedRoot);
-								Proxy.ClearObjects();
+								FAnimInstanceProxy& ThisProxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
+								FAnimInstanceProxy& LinkedProxy = NewSubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+								LinkedProxy.InitializeObjects(NewSubInstance);
+								FAnimationInitializeContext InitContext(&ThisProxy);
+								LayerNode->Initialize_AnyThread(InitContext);
+								FAnimationCacheBonesContext CacheBonesContext(&ThisProxy);
+								LayerNode->CacheBones_AnyThread(CacheBonesContext);
+								LinkedProxy.ClearObjects();
 							}
 
 							MeshComp->SubInstances.Add(NewSubInstance);
@@ -2630,26 +2637,30 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 					{
 						// Create and add one sub-instance for this group
 						UAnimInstance* NewSubInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
+						NewSubInstance->InitializeAnimation();
+
+						// Unlink any layer nodes in the new sub instance, as they may have been hooked up to self in InitializeAnimation above.
+						UnlinkLayerNodesInInstance(NewSubInstance);
 
 						for(FAnimNode_Layer* LayerNode : LayerPair.Value)
 						{
 							LayerNode->SetLayerOverlaySubInstance(this, NewSubInstance);
 						}
 
-						// Init after we link in the new graph segments, so propagation happens correctly
-						NewSubInstance->InitializeAnimation();
-
-						FAnimInstanceProxy& Proxy = NewSubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+						FAnimInstanceProxy& ThisProxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
+						FAnimInstanceProxy& LinkedProxy = NewSubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
 
 						// Initialize the correct parts of the sub instance
 						for(FAnimNode_Layer* LayerNode : LayerPair.Value)
 						{
 							if(LayerNode->LinkedRoot)
 							{
-								Proxy.InitializeObjects(NewSubInstance);
-								Proxy.InitializeRootNode_WithRoot(LayerNode->LinkedRoot);
-								Proxy.CacheBones_WithRoot(LayerNode->LinkedRoot);
-								Proxy.ClearObjects();
+								LinkedProxy.InitializeObjects(NewSubInstance);
+								FAnimationInitializeContext InitContext(&ThisProxy);
+								LayerNode->Initialize_AnyThread(InitContext);
+								FAnimationCacheBonesContext CacheBonesContext(&ThisProxy);
+								LayerNode->CacheBones_AnyThread(CacheBonesContext);
+								LinkedProxy.ClearObjects();
 							}
 						}
 

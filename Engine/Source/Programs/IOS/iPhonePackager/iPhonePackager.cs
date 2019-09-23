@@ -1000,7 +1000,7 @@ namespace iPhonePackager
                             if (CodeSignatureBuilder.FindRequiredFiles(out Provision, out Cert, out bHasOverrideFile, out bNameMatch) && Cert != null)
                             {
                                 // print out the provision and cert name
-                                Program.LogVerbose("CERTIFICATE-{0},PROVISION-{1}", Cert.FriendlyName, Provision.FileName);
+                                Program.LogVerbose("CERTIFICATE-{0},PROVISION-{1}", CryptoAdapter.GetFriendlyNameFromCert(Cert), Provision.FileName);
                             }
                             else
                             {

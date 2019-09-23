@@ -1064,7 +1064,7 @@ public:
 	virtual void SkelMeshCompOnParticleSystemFinished( class UParticleSystemComponent* PSC );
 
 	class UAnimSingleNodeInstance * GetSingleNodeInstance() const;
-	bool InitializeAnimScriptInstance(bool bForceReinit=true);
+	bool InitializeAnimScriptInstance(bool bForceReinit = true, bool bInDeferRootNodeInitialization = false);
 
 	/** @return true if wind is enabled */
 	virtual bool IsWindEnabled() const;

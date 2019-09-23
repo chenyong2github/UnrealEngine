@@ -254,7 +254,7 @@ void FLightmapDensityMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 		const bool bAllowLowQualityLightMaps = (!SupportLowQualityLightmapsVar) || (SupportLowQualityLightmapsVar->GetValueOnAnyThread() != 0);
 
 		if ((!bTranslucentBlendMode || ViewIfDynamicMeshCommand->Family->EngineShowFlags.Wireframe)
-			&& !Material->IsSky())
+			&& ShouldIncludeMaterialInDefaultOpaquePass(*Material))
 		{
 			if (!bMaterialMasked && !Material->MaterialModifiesMeshPosition_RenderThread())
 			{
