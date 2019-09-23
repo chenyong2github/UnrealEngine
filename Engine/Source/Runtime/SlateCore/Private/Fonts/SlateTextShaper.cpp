@@ -9,26 +9,6 @@
 DECLARE_CYCLE_STAT(TEXT("Shape Bidirectional Text"), STAT_SlateShapeBidirectionalText, STATGROUP_Slate);
 DECLARE_CYCLE_STAT(TEXT("Shape Unidirectional Text"), STAT_SlateShapeUnidirectionalText, STATGROUP_Slate);
 
-namespace SurrogatePairUtil
-{
-	template <bool IsUnicode, size_t TCHARSize>
-	bool IsSurrogatePairImpl(const TCHAR InHighChar, const TCHAR InLowChar)
-	{
-		return false;
-	}
-
-	template <>
-	bool IsSurrogatePairImpl<true, 2>(const TCHAR InHighChar, const TCHAR InLowChar)
-	{
-		return (InHighChar >= 0xD800 && InHighChar <= 0xDBFF) && (InLowChar >= 0xDC00 && InLowChar <= 0xDFFF);
-	}
-
-	bool IsSurrogatePair(const TCHAR InHighChar, const TCHAR InLowChar)
-	{
-		return IsSurrogatePairImpl<FPlatformString::IsUnicodeEncoded, sizeof(TCHAR)>(InHighChar, InLowChar);
-	}
-}
-
 namespace
 {
 
@@ -228,13 +208,15 @@ void FSlateTextShaper::PerformTextShaping(const TCHAR* InText, const int32 InTex
 						return true;
 					}
 
+#if !PLATFORM_TCHAR_IS_4_BYTES
 					{
 						const int32 NextTextIndex = RunningTextIndex + 1;
-						if (NextTextIndex < TextEndIndex && SurrogatePairUtil::IsSurrogatePair(Char, InText[NextTextIndex]))
+						if (NextTextIndex < TextEndIndex && StringConv::IsHighSurrogate(Char) && StringConv::IsLowSurrogate(InText[NextTextIndex]))
 						{
 							return true;
 						}
 					}
+#endif	// !PLATFORM_TCHAR_IS_4_BYTES
 				}
 			}
 
@@ -483,14 +465,16 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 			
 			// Combine any surrogate pairs into a complete codepoint
 			UTF32CHAR CurrentCodepoint = InText[RunningTextIndex];
+#if !PLATFORM_TCHAR_IS_4_BYTES
 			if (ClusterSize > 1)
 			{
 				const int32 NextTextIndex = RunningTextIndex + 1;
-				if (SurrogatePairUtil::IsSurrogatePair(InText[RunningTextIndex], InText[NextTextIndex]))
+				if (StringConv::IsHighSurrogate(InText[RunningTextIndex]) && StringConv::IsLowSurrogate(InText[NextTextIndex]))
 				{
-					CurrentCodepoint = ((InText[RunningTextIndex] - 0xD800) << 10) + (InText[NextTextIndex] - 0xDC00) + 0x10000;
+					CurrentCodepoint = StringConv::EncodeSurrogate(InText[RunningTextIndex], InText[NextTextIndex]);
 				}
 			}
+#endif	// !PLATFORM_TCHAR_IS_4_BYTES
 
 			// Substitute whitespace characters with spaces since not all fonts support all kinds of whitespace characters (but we don't care since we don't render them anyway)
 			if (FText::IsWhitespace(CurrentCodepoint))

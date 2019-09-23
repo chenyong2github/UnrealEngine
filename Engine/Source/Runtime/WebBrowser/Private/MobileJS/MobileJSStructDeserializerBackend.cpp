@@ -99,8 +99,10 @@ FMobileJSStructDeserializerBackend::FMobileJSStructDeserializerBackend(FMobileJS
 	, JsonData()
 	, Reader(JsonData)
 {
-	auto Convert = StringCast<UCS2CHAR>(*JsonString);
-	JsonData.Append((uint8*)Convert.Get(), JsonString.Len() * sizeof(UCS2CHAR));
+	// Note: This is a no-op on platforms that are using a 16-bit TCHAR
+	FTCHARToUTF16 UTF16String(*JsonString, JsonString.Len());
+
+	JsonData.Append((uint8*)UTF16String.Get(), UTF16String.Length() * sizeof(UTF16CHAR));
 }
 
 #endif // PLATFORM_ANDROID || PLATFORM_IOS
