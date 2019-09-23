@@ -96,14 +96,6 @@ UPTRINT ThreadCreate(const ANSICHAR* Name, void (*Entry)())
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-uint32 ThreadGetCurrentId()
-{
-	uint64_t ThreadId = 0;
-	pthread_threadid_np(nullptr, &ThreadId);
-	return static_cast<uint32>(ThreadId);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 void ThreadSleep(uint32 Milliseconds)
 {
 	usleep(Milliseconds * 1000U);
