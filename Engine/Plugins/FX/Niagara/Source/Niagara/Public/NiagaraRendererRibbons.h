@@ -61,8 +61,6 @@ private:
 
 	FCPUSimParticleDataAllocation AllocateParticleDataIfCPUSim(struct FNiagaraDynamicDataRibbon* DynamicDataRibbon, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
 
-	class FNiagaraRibbonVertexFactory *VertexFactory;
-
 	ENiagaraRibbonFacingMode FacingMode;
 	float UV0TilingDistance;
 	FVector2D UV0Scale;
