@@ -64,9 +64,10 @@ UMaterialStatsOptions::UMaterialStatsOptions(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer)
 {
 #if PLATFORM_WINDOWS
-	bPlatformUsed[GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5 ? SP_PCD3D_SM5 : SP_PCD3D_SM4] = 1;
+	//#todo-sm6
+	bPlatformUsed[/*GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5 ? */SP_PCD3D_SM5/* : SP_PCD3D_SM4*/] = 1;
 #elif PLATFORM_IOS
-	bPlatformUsed[SP_OPENGL_ES2_IOS] = 1;
+	bPlatformUsed[SP_METAL] = 1;
 #endif
 
 	bMaterialQualityUsed[EMaterialQualityLevel::High] = 1;

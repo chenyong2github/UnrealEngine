@@ -71,7 +71,7 @@ void FRawIndexBuffer16or32::CacheOptimize()
 
 void FRawIndexBuffer16or32::ComputeIndexWidth()
 {
-	if (GetFeatureLevel() < ERHIFeatureLevel::SM4)
+	if (GetFeatureLevel() < ERHIFeatureLevel::SM5)
 	{
 		const int32 NumIndices = Indices.Num();
 		bool bShouldUse32Bit = false;

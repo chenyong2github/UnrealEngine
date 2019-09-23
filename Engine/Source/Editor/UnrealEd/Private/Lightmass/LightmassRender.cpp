@@ -206,11 +206,9 @@ struct FLightmassMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->Constant(0.0f);
 	}
 
-	virtual int32 LightmassReplace(int32 Realtime, int32 Lightmass) override { return Lightmass; }
-
 	virtual int32 GIReplace(int32 Direct, int32 StaticIndirect, int32 DynamicIndirect) override { return StaticIndirect; }
 
-	virtual int32 MaterialProxyReplace(int32 Realtime, int32 MaterialProxy) override { return Realtime; }
+	virtual EMaterialCompilerType GetCompilerType() const override { return EMaterialCompilerType::Lightmass; }
 
 #if WITH_EDITOR
 	virtual int32 MaterialBakingWorldPosition() override
@@ -249,6 +247,9 @@ public:
 				FMaterialShaderMapId ResourceId;
 				Resource->GetShaderMapId(GMaxRHIShaderPlatform, ResourceId);
 
+				FStaticParameterSet StaticParamSet;
+				Resource->GetStaticParameterSet(GMaxRHIShaderPlatform, StaticParamSet);
+
 				{
 					TArray<FShaderType*> ShaderTypes;
 					TArray<FVertexFactoryType*> VFTypes;
@@ -262,7 +263,7 @@ public:
 
 				// Override with a special usage so we won't re-use the shader map used by the material for rendering
 				ResourceId.Usage = GetShaderMapUsage();
-				CacheShaders(ResourceId, GMaxRHIShaderPlatform);
+				CacheShaders(ResourceId, StaticParamSet, GMaxRHIShaderPlatform);
 			}
 		}
 	}

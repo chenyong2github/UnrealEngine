@@ -161,8 +161,7 @@ void SRetainerWidget::Construct(const FArguments& InArgs)
 
 	UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
 	RenderTarget->ClearColor = FLinearColor::Transparent;
-	RenderTarget->OverrideFormat = PF_B8G8R8A8;
-	RenderTarget->bForceLinearGamma = false;
+	RenderTarget->RenderTargetFormat = RTF_RGBA8_SRGB;
 
 	RenderingResources->RenderTarget = RenderTarget;
 	SurfaceBrush.SetResourceObject(RenderTarget);

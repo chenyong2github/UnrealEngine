@@ -67,7 +67,13 @@ struct FShaderParameterStructBindingContext
 				BaseType == UBMT_SRV ||
 				BaseType == UBMT_UAV ||
 				BaseType == UBMT_SAMPLER);
-			const bool bIsRDGResource = IsRDGResourceReferenceShaderParameterType(BaseType) && BaseType != UBMT_RDG_BUFFER;
+
+			const bool bIsRDGResource =
+				IsRDGResourceReferenceShaderParameterType(BaseType) &&
+				BaseType != UBMT_RDG_BUFFER &&
+				BaseType != UBMT_RDG_BUFFER_COPY_DEST &&
+				BaseType != UBMT_RDG_TEXTURE_COPY_DEST;
+
 			const bool bIsVariableNativeType = (
 				BaseType == UBMT_BOOL ||
 				BaseType == UBMT_INT32 ||
@@ -337,16 +343,10 @@ void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader
 
 bool FRenderTargetBinding::Validate() const
 {
-	if (Texture)
+	if (!Texture)
 	{
-		checkf(StoreAction != ERenderTargetStoreAction::ENoAction,
-			TEXT("You must specify a store action for non-null render target %s."),
-			Texture->Name);
-	}
-	else
-	{
-		checkf(LoadAction == ERenderTargetLoadAction::ENoAction && StoreAction == ERenderTargetStoreAction::ENoAction,
-			TEXT("Can't have a load or store action when no texture is bound."));
+		checkf(LoadAction == ERenderTargetLoadAction::ENoAction,
+			TEXT("Can't have a load action when no texture is bound."));
 	}
 	
 	return true;
@@ -371,7 +371,7 @@ bool FDepthStencilBinding::Validate() const
 		bool bHasStencil = PixelFormat == PF_DepthStencil;
 		if (!bHasStencil)
 		{
-			checkf(StencilLoadAction == ERenderTargetLoadAction::ENoAction && StencilStoreAction == ERenderTargetStoreAction::ENoAction,
+			checkf(StencilLoadAction == ERenderTargetLoadAction::ENoAction,
 				TEXT("Unable to load stencil of texture %s that have a pixel format %s that does not support stencil."),
 				Texture->Name, FormatString);
 		
@@ -379,13 +379,24 @@ bool FDepthStencilBinding::Validate() const
 				TEXT("Unable to have stencil access on texture %s that have a pixel format %s that does not support stencil."),
 				Texture->Name, FormatString);
 		}
+
+		bool bReadDepth = DepthStencilAccess.IsUsingDepth() && !DepthStencilAccess.IsDepthWrite();
+		bool bReadStencil = DepthStencilAccess.IsUsingStencil() && !DepthStencilAccess.IsStencilWrite();
+
+		checkf(!(bReadDepth && DepthLoadAction != ERenderTargetLoadAction::ELoad),
+			TEXT("Depth read access, but without depth load action on texture %s doesn't make any sens."),
+			Texture->Name);
+
+		checkf(!(bReadStencil && StencilLoadAction != ERenderTargetLoadAction::ELoad),
+			TEXT("Stencil read access, but without stencil load action on texture %s doesn't make any sens."),
+			Texture->Name);
 	}
 	else
 	{
-		checkf(DepthLoadAction == ERenderTargetLoadAction::ENoAction && DepthStoreAction == ERenderTargetStoreAction::ENoAction,
-			TEXT("Can't have a depth load or store action when no texture are bound."));
-		checkf(StencilLoadAction == ERenderTargetLoadAction::ENoAction && StencilStoreAction == ERenderTargetStoreAction::ENoAction,
-			TEXT("Can't have a stencil load or store action when no texture are bound."));
+		checkf(DepthLoadAction == ERenderTargetLoadAction::ENoAction,
+			TEXT("Can't have a depth load action when no texture are bound."));
+		checkf(StencilLoadAction == ERenderTargetLoadAction::ENoAction,
+			TEXT("Can't have a stencil load action when no texture are bound."));
 		checkf(DepthStencilAccess == FExclusiveDepthStencil::DepthNop_StencilNop,
 			TEXT("Can't have a depth stencil access when no texture are bound."));
 	}

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
  */
 
@@ -9,6 +9,7 @@ using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
 using Ionic.Zip;
@@ -25,7 +26,7 @@ namespace iPhonePackager
 		/// List of files being inserted or updated in the Zip
 		/// </summary>
 		static private HashSet<string> FilesBeingModifiedToPrintOut = new HashSet<string>();
-		
+
 		/**
 		 * Create and open a work IPA file
 		 */
@@ -35,7 +36,7 @@ namespace iPhonePackager
 			string WorkIPA = Config.GetIPAPath(".ipa");
 			return CreateWorkingIPA(ReferenceZipPath, WorkIPA);
 		}
-		
+
 		/// <summary>
 		/// Creates a copy of a source IPA to a working path and opens it up as a Zip for further modifications
 		/// </summary>
@@ -75,9 +76,9 @@ namespace iPhonePackager
 				Program.ReturnCode = (int)ErrorCodes.Error_StubNotSignedCorrectly;
 			}
 
-            // Set encoding to support unicode filenames
-            Stub.AlternateEncodingUsage = ZipOption.Always;
-            Stub.AlternateEncoding = Encoding.UTF8;
+			// Set encoding to support unicode filenames
+			Stub.AlternateEncodingUsage = ZipOption.Always;
+			Stub.AlternateEncoding = Encoding.UTF8;
 
 			return Stub;
 		}
@@ -132,7 +133,7 @@ namespace iPhonePackager
 					FileOperations.CopyRequiredFile(GameFilename, DestFilename);
 				}
 			}
-			
+
 			// look for matching engine files that weren't in game
 			foreach (string EngineFilename in EngineFiles)
 			{
@@ -171,7 +172,7 @@ namespace iPhonePackager
 		/**
 		 * Callback for setting progress when saving zip file
 		 */
-		static private void UpdateSaveProgress( object Sender, SaveProgressEventArgs Event )
+		static private void UpdateSaveProgress(object Sender, SaveProgressEventArgs Event)
 		{
 			if (Event.EventType == ZipProgressEventType.Saving_BeforeWriteEntry)
 			{
@@ -305,6 +306,7 @@ namespace iPhonePackager
 			{
 				string SourceDir = Path.GetFullPath(ZipSourceDir);
 				string[] PayloadFiles = Directory.GetFiles(SourceDir, "*.*", Config.bIterate ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories);
+
 				foreach (string Filename in PayloadFiles)
 				{
 					// Get the relative path to the file (this implementation only works because we know the files are all

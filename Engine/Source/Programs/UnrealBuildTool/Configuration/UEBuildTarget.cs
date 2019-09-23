@@ -241,6 +241,11 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform Linux = FindOrAddByName("Linux");
 
 		/// <summary>
+		/// LinuxAArch64
+		/// </summary>
+		public static UnrealTargetPlatform LinuxAArch64 = FindOrAddByName("LinuxAArch64");
+
+		/// <summary>
 		/// All desktop platforms
 		/// </summary>
 		public static UnrealTargetPlatform AllDesktop = FindOrAddByName("AllDesktop");
@@ -452,6 +457,11 @@ namespace UnrealBuildTool
 		/// Unix platforms
 		/// </summary>
 		public static UnrealPlatformGroup Unix = FindOrAddByName("Unix");
+
+		/// <summary>
+		/// Linux platforms
+		/// </summary>
+		public static UnrealPlatformGroup Linux = FindOrAddByName("Linux");
 
 		/// <summary>
 		/// Android platforms

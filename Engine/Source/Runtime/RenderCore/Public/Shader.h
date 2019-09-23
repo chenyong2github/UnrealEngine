@@ -106,13 +106,13 @@ public:
 
 	FShaderResourceId() {}
 
-	FShaderResourceId(const FShaderTarget& InTarget, const FSHAHash& InOutputHash, const TCHAR* InSpecificShaderTypeName, int32 InSpecificPermutationId) :
+	//#todo-RemoveStreamOut
+	FShaderResourceId(const FShaderTarget& InTarget, const FSHAHash& InOutputHash, int32 InSpecificPermutationId) :
 		OutputHash(InOutputHash),
 		Target(InTarget),
-		SpecificShaderTypeName(InSpecificShaderTypeName),
 		SpecificPermutationId(InSpecificPermutationId)
 	{
-		check(!(SpecificShaderTypeName == nullptr && InSpecificPermutationId != 0));
+		check(InSpecificPermutationId == 0);
 	}
 
 	friend inline uint32 GetTypeHash( const FShaderResourceId& Id )
@@ -124,9 +124,7 @@ public:
 	{
 		return X.Target == Y.Target 
 			&& X.OutputHash == Y.OutputHash 
-			&& X.SpecificPermutationId == Y.SpecificPermutationId
-			&& ((X.SpecificShaderTypeName == NULL && Y.SpecificShaderTypeName == NULL)
-				|| (FCString::Strcmp(X.SpecificShaderTypeName, Y.SpecificShaderTypeName) == 0));
+			&& X.SpecificPermutationId == Y.SpecificPermutationId;
 	}
 
 	friend bool operator!=(const FShaderResourceId& X, const FShaderResourceId& Y)
@@ -140,27 +138,13 @@ public:
 
 		Ar << Id.Target << Id.OutputHash;
 
-		if (Ar.IsSaving())
-		{
-			Id.SpecificShaderTypeStorage = Id.SpecificShaderTypeName ? Id.SpecificShaderTypeName : TEXT("");
-		}
-
-		Ar << Id.SpecificShaderTypeStorage;
+		//#todo-RemoveStreamOut
+		FString SpecificShaderTypeStorage = TEXT("");
+		Ar << SpecificShaderTypeStorage;
 
 		if (Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::ShaderPermutationId)
 		{
 			Ar << Id.SpecificPermutationId;
-		}
-
-		if (Ar.IsLoading())
-		{
-			Id.SpecificShaderTypeName = *Id.SpecificShaderTypeStorage;
-
-			if (FCString::Strcmp(Id.SpecificShaderTypeName, TEXT("")) == 0)
-			{
-				// Store NULL for empty string to be consistent with FShaderResourceId's created at compile time
-				Id.SpecificShaderTypeName = NULL;
-			}
 		}
 
 		return Ar;
@@ -169,11 +153,6 @@ public:
 	/** Copy string data that belongs to FShaderResource for cases where this id can outlive the resource. */
 	void MakeSelfContained()
 	{
-		if (SpecificShaderTypeName && SpecificShaderTypeName != *SpecificShaderTypeStorage)
-		{
-			SpecificShaderTypeStorage = SpecificShaderTypeName;
-			SpecificShaderTypeName = *SpecificShaderTypeStorage;
-		}
 	}
 
 	/** Hash of the compiled shader output, which is used to create the FShaderResource. */
@@ -182,13 +161,8 @@ public:
 	/** Target platform and frequency. */
 	FShaderTarget Target;
 
-	/** Stores the memory for SpecificShaderTypeName if this is a standalone Id, otherwise is empty and SpecificShaderTypeName points to an FShaderType name. */
-	FString SpecificShaderTypeStorage;
-
-	/** NULL if type doesn't matter, otherwise the name of the type that this was created specifically for, which is used with geometry shader stream out. */
-	const TCHAR* SpecificShaderTypeName;
-
 	/** Specific permutation identifier of the shader when SpecificShaderTypeName is non null, ignored otherwise. */
+	//#todo-RemoveStreamOut
 	int32 SpecificPermutationId;
 };
 
@@ -294,7 +268,8 @@ public:
 	FShaderResource(FShaderResource&&) = default;
 
 	/** Constructor used when creating a new shader resource from compiled output. */
-	FShaderResource(const FShaderCompilerOutput& Output, FShaderType* InSpecificType, int32 InSpecificPermutationId);
+	//#todo-RemoveStreamOut
+	FShaderResource(const FShaderCompilerOutput& Output, int32 InSpecificPermutationId);
 
 	RENDERCORE_API ~FShaderResource();
 
@@ -434,8 +409,9 @@ public:
 	/** Finds a matching shader resource in memory or clone the temporary and register the new resource */
 	RENDERCORE_API static TRefCountPtr<FShaderResource> FindOrClone(FShaderResource&& Temp);
 
+	//#todo-RemoveStreamOut
 	template<class T>
-	static FShaderResource* FindOrCreateShaderResource(const FShaderCompilerOutput& Output, class FShaderType* SpecificType, T SpecificPermutationId)
+	static FShaderResource* FindOrCreateShaderResource(const FShaderCompilerOutput& Output, T SpecificPermutationId)
 	{
 		static_assert(sizeof(T) == 0, "Deprecated. Please save return value as TRefCountPtr<FShaderResource> and switch to FindById().");
 		return nullptr;
@@ -443,9 +419,9 @@ public:
 
 	/** 
 	 * Finds a matching shader resource in memory or creates a new one with the given compiler output.  
-	 * SpecificType can be NULL
 	 */
-	RENDERCORE_API static TRefCountPtr<FShaderResource> FindOrCreate(const FShaderCompilerOutput& Output, class FShaderType* SpecificType, int32 SpecificPermutationId);
+	 //#todo-RemoveStreamOut
+	RENDERCORE_API static TRefCountPtr<FShaderResource> FindOrCreate(const FShaderCompilerOutput& Output, int32 SpecificPermutationId);
 
 	/** Return a list of all shader Ids currently known */
 	RENDERCORE_API static void GetAllShaderResourceId(TArray<FShaderResourceId>& Ids);
@@ -506,9 +482,7 @@ private:
 	/** Original bytecode size, before compression */
 	uint32 UncompressedCodeSize = 0;
 
-	/** If not NULL, the shader type this resource must be used with. */
-	class FShaderType* SpecificType;
-
+	//#todo-RemoveStreamOut
 	/** Specific permutation identifier of the shader when SpecificType is non null, ignored otherwise. */
 	int32 SpecificPermutationId;
 
@@ -611,6 +585,43 @@ public:
 	}
 };
 
+class FShaderKey
+{
+public:
+	inline FShaderKey(const FSHAHash& InMaterialShaderMapHash, const FShaderPipelineType* InShaderPipeline, FVertexFactoryType* InVertexFactoryType, int32 PermutationId, EShaderPlatform InPlatform)
+		: VertexFactoryType(InVertexFactoryType)
+		, ShaderPipeline(InShaderPipeline)
+		, MaterialShaderMapHash(InMaterialShaderMapHash)
+		, PermutationId(PermutationId)
+		, Platform(InPlatform)
+	{}
+
+	friend inline uint32 GetTypeHash(const FShaderKey& Id)
+	{
+		return
+			HashCombine(
+				HashCombine(*(uint32*)&Id.MaterialShaderMapHash, GetTypeHash(Id.Platform)),
+				HashCombine(GetTypeHash(Id.VertexFactoryType), uint32(Id.PermutationId)));
+	}
+
+	friend bool operator==(const FShaderKey& X, const FShaderKey& Y)
+	{
+		return X.MaterialShaderMapHash == Y.MaterialShaderMapHash
+			&& X.ShaderPipeline == Y.ShaderPipeline
+			&& X.VertexFactoryType == Y.VertexFactoryType
+			&& X.PermutationId == Y.PermutationId
+			&& X.Platform == Y.Platform;
+	}
+
+	RENDERCORE_API friend FArchive& operator<<(FArchive& Ar, FShaderKey& Ref);
+
+	FVertexFactoryType* VertexFactoryType;
+	const FShaderPipelineType* ShaderPipeline;
+	FSHAHash MaterialShaderMapHash;
+	int32 PermutationId;
+	uint32 Platform : SP_NumBits;
+};
+
 /** 
  * Uniquely identifies an FShader instance.  
  * Used to link FMaterialShaderMaps and FShaders on load. 
@@ -618,6 +629,18 @@ public:
 class FShaderId
 {
 public:
+	/** Shader type */
+	FShaderType* ShaderType;
+
+	/**
+	 * Vertex factory type that the shader was created for,
+	 * This is needed in the Id since a single shader type will be compiled for multiple vertex factories within a material shader map.
+	 * Will be NULL for global shaders.
+	 */
+	FVertexFactoryType* VertexFactoryType;
+
+	/** Shader Pipeline linked to this shader, needed since a single shader might be used on different Pipelines. */
+	const FShaderPipelineType* ShaderPipeline;
 
 	/** 
 	 * Hash of the material shader map Id, since this shader depends on the generated material code from that shader map.
@@ -636,36 +659,11 @@ public:
 	/** Shader platform and frequency. */
 	FShaderTarget Target;
 
-	/** Shader Pipeline linked to this shader, needed since a single shader might be used on different Pipelines. */
-	const FShaderPipelineType* ShaderPipeline;
-
-	/** 
-	 * Vertex factory type that the shader was created for, 
-	 * This is needed in the Id since a single shader type will be compiled for multiple vertex factories within a material shader map.
-	 * Will be NULL for global shaders.
-	 */
-	FVertexFactoryType* VertexFactoryType;
-
-	/** 
-	 * Used to detect changes to the vertex factory parameter class serialization, or NULL for global shaders. 
-	 * Note: This is referencing memory in the VF Type, since it is the same for all shaders using that VF Type.
-	 */
-	const FSerializationHistory* VFSerializationHistory;
-
-	/** Shader type */
-	FShaderType* ShaderType;
-
 	/** Unique permutation identifier within the ShaderType. */
 	int32 PermutationId;
 
-	/** Used to detect changes to the shader serialization.  Note: this is referencing memory in the FShaderType. */
-	const FSerializationHistory& SerializationHistory;
-
-	/** Create a minimally initialized Id.  Members will have to be assigned individually. */
-	FShaderId(const FSerializationHistory& InSerializationHistory)
-		: PermutationId(0)
-		, SerializationHistory(InSerializationHistory)
-	{}
+	/** Creates empty Id */
+	inline FShaderId() : ShaderType(nullptr), VertexFactoryType(nullptr), ShaderPipeline(nullptr), PermutationId(0) {}
 
 	/** Creates an Id for the given material, vertex factory, shader type and target. */
 	RENDERCORE_API FShaderId(const FSHAHash& InMaterialShaderMapHash, const FShaderPipelineType* InShaderPipeline, FVertexFactoryType* InVertexFactoryType, FShaderType* InShaderType, int32 PermutationId, FShaderTarget InTarget);
@@ -683,16 +681,12 @@ public:
 		return X.MaterialShaderMapHash == Y.MaterialShaderMapHash
 			&& X.ShaderPipeline == Y.ShaderPipeline
 			&& X.VertexFactoryType == Y.VertexFactoryType
-			&& ((X.VFSerializationHistory == NULL && Y.VFSerializationHistory == NULL)
-				|| (X.VFSerializationHistory != NULL && Y.VFSerializationHistory != NULL &&
-					*X.VFSerializationHistory == *Y.VFSerializationHistory))
 			&& X.ShaderType == Y.ShaderType
 			&& X.PermutationId == Y.PermutationId 
 #if KEEP_SHADER_SOURCE_HASHES
 			&& X.SourceHash == Y.SourceHash 
 			&& X.VFSourceHash == Y.VFSourceHash
 #endif
-			&& X.SerializationHistory == Y.SerializationHistory
 			&& X.Target == Y.Target;
 	}
 
@@ -901,7 +895,7 @@ public:
 
 	virtual bool Serialize(FArchive& Ar) { return false; }
 
-	// Thread-safe reference counting.
+	// Reference counting.
 	void AddRef();
 	void Release();
 
@@ -983,6 +977,7 @@ public:
 #endif
 	}
 	FShaderId GetId() const;
+	inline FShaderKey GetKey() const { return FShaderKey(MaterialShaderMapHash, ShaderPipeline, VFType, PermutationId, Target.GetPlatform()); }
 	inline FVertexFactoryType* GetVertexFactoryType() const { return VFType; }
 	inline int32 GetNumRefs() const { return NumRefs; }
 	const FShaderParameterMapInfo& GetParameterMapInfo() const { return Resource->ParameterMapInfo; }
@@ -1016,9 +1011,6 @@ public:
 
 	void SetResource(FShaderResource* InResource);
 
-	/** Implement for geometry shaders that want to use stream out. */
-	static void GetStreamOutElements(FStreamOutElementList& ElementList, TArray<uint32>& StreamStrides, int32& RasterizedStream) {}
-
 	void BeginInitializeResources()
 	{
 		BeginInitResource(Resource);
@@ -1028,43 +1020,42 @@ public:
 	template<typename UniformBufferStructType>
 	FORCEINLINE_DEBUGGABLE const TShaderUniformBufferParameter<UniformBufferStructType>& GetUniformBufferParameter() const
 	{
-		const FShaderParametersMetadata* SearchStruct = &UniformBufferStructType::StaticStructMetadata;
-
-		for (int32 StructIndex = 0, Count = UniformBufferParameterStructs.Num(); StructIndex < Count; StructIndex++)
-		{
-			if (UniformBufferParameterStructs[StructIndex] == SearchStruct)
-			{
-				return static_cast<const TShaderUniformBufferParameter<UniformBufferStructType>&>(UniformBufferParameters[StructIndex]);
-			}
-		}
-
-		// This can happen if the uniform buffer was not bound
-		// There's no good way to distinguish not being bound due to temporary debugging / compiler optimizations or an actual code bug,
-		// Hence failing silently instead of an error message
-		static TShaderUniformBufferParameter<UniformBufferStructType> UnboundParameter;
-		UnboundParameter.SetInitialized();
-		return UnboundParameter;
+		const FShaderUniformBufferParameter& FoundParameter = GetUniformBufferParameter(&UniformBufferStructType::StaticStructMetadata);
+		return static_cast<const TShaderUniformBufferParameter<UniformBufferStructType>&>(FoundParameter);
 	}
 
 	/** Finds an automatically bound uniform buffer matching the given uniform buffer struct if one exists, or returns an unbound parameter. */
-	const FShaderUniformBufferParameter& GetUniformBufferParameter(const FShaderParametersMetadata* SearchStruct) const
+	FORCEINLINE_DEBUGGABLE const FShaderUniformBufferParameter& GetUniformBufferParameter(const FShaderParametersMetadata* SearchStruct) const
 	{
+		int32 FoundIndex = INDEX_NONE;
 		for (int32 StructIndex = 0, Count = UniformBufferParameterStructs.Num(); StructIndex < Count; StructIndex++)
 		{
 			if (UniformBufferParameterStructs[StructIndex] == SearchStruct)
 			{
-				return UniformBufferParameters[StructIndex];
+				FoundIndex = StructIndex;
+				break;
 			}
 		}
 
-		static FShaderUniformBufferParameter UnboundParameter;
-		UnboundParameter.SetInitialized();
-		return UnboundParameter;
+		if (FoundIndex != INDEX_NONE)
+		{
+			const FShaderUniformBufferParameter& FoundParameter = UniformBufferParameters[FoundIndex];
+			return FoundParameter;
+		}
+		else
+		{
+			// This can happen if the uniform buffer was not bound
+			// There's no good way to distinguish not being bound due to temporary debugging / compiler optimizations or an actual code bug,
+			// Hence failing silently instead of an error message
+			static FShaderUniformBufferParameter UnboundParameter;
+			UnboundParameter.SetInitialized();
+			return UnboundParameter;
+		}
 	}
 
 	const FShaderParametersMetadata* FindAutomaticallyBoundUniformBufferStruct(int32 BaseIndex) const
 	{
-		for (int32 i = 0, Num = UniformBufferParameters.Num(); i < Num; i++)
+		for (int32 i = 0; i < UniformBufferParameters.Num(); i++)
 		{
 			if (UniformBufferParameters[i].GetBaseIndex() == BaseIndex)
 			{
@@ -1159,7 +1150,6 @@ public:
 	};
 
 	typedef class FShader* (*ConstructSerializedType)();
-	typedef void (*GetStreamOutElementsType)(FStreamOutElementList& ElementList, TArray<uint32>& StreamStrides, int32& RasterizedStream);
 
 	/** @return The global shader factory list. */
 	static TLinkedList<FShaderType*>*& GetTypeList();
@@ -1191,16 +1181,15 @@ public:
 		uint32 InFrequency,
 		int32 TotalPermutationCount,
 		ConstructSerializedType InConstructSerializedRef,
-		GetStreamOutElementsType InGetStreamOutElementsRef,
 		const FShaderParametersMetadata* InRootParametersMetadata);
 
 	virtual ~FShaderType();
 
 	/**
-	 * Finds a shader of this type by ID.
-	 * @return NULL if no shader with the specified ID was found.
+	 * Finds a shader of this type by Key.
+	 * @return NULL if no shader with the specified Key was found.
 	 */
-	FShader* FindShaderById(const FShaderId& Id);
+	FShader* FindShaderByKey(const FShaderKey& Key);
 
 	/** Constructs a new instance of the shader type for deserialization. */
 	FShader* ConstructForDeserialization() const;
@@ -1316,26 +1305,16 @@ public:
 		bCachedUniformBufferStructDeclarations = false;
 	}
 
-	void AddToShaderIdMap(FShaderId Id, FShader* Shader)
+	void AddToShaderMap(const FShaderKey& Key, FShader* Shader)
 	{
 		check(IsInGameThread());
-		ShaderIdMap.Add(Id, Shader);
+		ShaderIdMap.Add(Key, Shader);
 	}
 
-	inline void RemoveFromShaderIdMap(FShaderId Id)
+	inline void RemoveFromShaderMap(const FShaderKey& Key)
 	{
 		check(IsInGameThread());
-		ShaderIdMap.Remove(Id);
-	}
-
-	bool LimitShaderResourceToThisType() const
-	{
-		return GetStreamOutElementsRef != &FShader::GetStreamOutElements;
-	}
-
-	void GetStreamOutElements(FStreamOutElementList& ElementList, TArray<uint32>& StreamStrides, int32& RasterizedStream) 
-	{
-		(*GetStreamOutElementsRef)(ElementList, StreamStrides, RasterizedStream);
+		ShaderIdMap.Remove(Key);
 	}
 
 	void DumpDebugInfo();
@@ -1352,11 +1331,10 @@ private:
 	int32 TotalPermutationCount;
 
 	ConstructSerializedType ConstructSerializedRef;
-	GetStreamOutElementsType GetStreamOutElementsRef;
 	const FShaderParametersMetadata* const RootParametersMetadata;
 
 	/** A map from shader ID to shader.  A shader will be removed from it when deleted, so this doesn't need to use a TRefCountPtr. */
-	TMap<FShaderId,FShader*> ShaderIdMap;
+	TMap<FShaderKey,FShader*> ShaderIdMap;
 
 	TLinkedList<FShaderType*> GlobalListLink;
 
@@ -1422,8 +1400,7 @@ protected:
 		ShaderClass::ConstructCompiledInstance, \
 		ShaderClass::ModifyCompilationEnvironment, \
 		ShaderClass::ShouldCompilePermutation, \
-		ShaderClass::ValidateCompiledResult, \
-		ShaderClass::GetStreamOutElements \
+		ShaderClass::ValidateCompiledResult \
 		);
 
 /** A macro to implement a shader type. Shader name is got from GetDebugName(), which is helpful for templated shaders. */
@@ -1439,8 +1416,7 @@ protected:
 		ShaderClass::ConstructCompiledInstance, \
 		ShaderClass::ModifyCompilationEnvironment, \
 		ShaderClass::ShouldCompilePermutation, \
-		ShaderClass::ValidateCompiledResult, \
-		ShaderClass::GetStreamOutElements \
+		ShaderClass::ValidateCompiledResult \
 		);
 
 /** A macro to implement a templated shader type, the function name and the source filename comes from the class. */
@@ -1456,8 +1432,7 @@ protected:
 	ShaderClass::ConstructCompiledInstance, \
 	ShaderClass::ModifyCompilationEnvironment, \
 	ShaderClass::ShouldCompilePermutation, \
-	ShaderClass::ValidateCompiledResult, \
-	ShaderClass::GetStreamOutElements \
+	ShaderClass::ValidateCompiledResult \
 	);
 
 #define IMPLEMENT_SHADER_TYPE2(ShaderClass,Frequency) \
@@ -1475,8 +1450,7 @@ protected:
 	ShaderClass::ConstructCompiledInstance, \
 	ShaderClass::ModifyCompilationEnvironment, \
 	ShaderClass::ShouldCompilePermutation, \
-	ShaderClass::ValidateCompiledResult, \
-	ShaderClass::GetStreamOutElements \
+	ShaderClass::ValidateCompiledResult \
 	);
 #endif
 
@@ -2292,16 +2266,18 @@ public:
 		for (FShader* Shader : SerializedShaders)
 		{
 			FShaderType* Type = Shader->GetType();
-			FShader* ExistingShader = Type->FindShaderById(Shader->GetId());
+			FShader* ExistingShader = Type->FindShaderByKey(Shader->GetKey());
 
 			if (ExistingShader != nullptr)
 			{
+				INC_DWORD_STAT(STAT_Shaders_NumShadersDuplicated);
 				delete Shader;
 				Shader = ExistingShader;
 			}
 			else
 			{
 				// Register the shader now that it is valid, so that it can be reused
+				INC_DWORD_STAT(STAT_Shaders_NumShadersRegistered);
 				Shader->Register(bCookedMaterial);
 			}
 			AddShader(Shader->GetType(), Shader->GetPermutationId(), Shader);

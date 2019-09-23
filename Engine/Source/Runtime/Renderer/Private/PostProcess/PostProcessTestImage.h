@@ -1,26 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessTestImage.h: Post processing TestImage implementation.
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
+#include "ScreenPass.h"
 #include "PostProcess/RenderingCompositionGraph.h"
 
-// derives from TRenderingCompositePassBase<InputCount, OutputCount>
-class FRCPassPostProcessTestImage : public TRenderingCompositePassBase<1, 1>
-{
-public:
-	// constructor
-	FRCPassPostProcessTestImage();
+void AddTestImagePass(FRDGBuilder& GraphBuilder, const FScreenPassViewInfo& ScreenPassView, FRDGTextureRef OutputTexture, FIntRect OutputViewRect);
 
-	// interface FRenderingCompositePass ---------
-
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-};
-
+FRenderingCompositeOutputRef AddTestImagePass(FRenderingCompositionGraph& Graph, FRenderingCompositeOutputRef Input);

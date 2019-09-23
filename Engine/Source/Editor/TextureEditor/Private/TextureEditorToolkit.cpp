@@ -20,6 +20,7 @@
 #include "Engine/ShadowMapTexture2D.h"
 #include "Engine/Texture2DDynamic.h"
 #include "Engine/TextureCube.h"
+#include "Engine/Texture2DArray.h"
 #include "Engine/VolumeTexture.h"
 #include "Engine/TextureRenderTarget.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -322,7 +323,7 @@ void FTextureEditorToolkit::CalculateTextureDimensions( uint32& Width, uint32& H
 
 ESimpleElementBlendMode FTextureEditorToolkit::GetColourChannelBlendMode( ) const
 {
-	if (Texture && (Texture->CompressionSettings == TC_Grayscale || Texture->CompressionSettings == TC_Alpha)) 
+	if (Texture && (Texture->CompressionSettings == TC_Grayscale || Texture->CompressionSettings == TC_Alpha))
 	{
 		return SE_BLEND_Opaque;
 	}
@@ -402,6 +403,7 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	UTextureRenderTarget2D* Texture2DRT = Cast<UTextureRenderTarget2D>(Texture);
 	UTextureRenderTargetCube* TextureCubeRT = Cast<UTextureRenderTargetCube>(Texture);
 	UTextureCube* TextureCube = Cast<UTextureCube>(Texture);
+	UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture);
 	UTexture2DDynamic* Texture2DDynamic = Cast<UTexture2DDynamic>(Texture);
 	UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
 
@@ -497,6 +499,10 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	{
 		TextureFormatIndex = TextureCube->GetPixelFormat();
 	}
+	else if (Texture2DArray) 
+	{
+		TextureFormatIndex = Texture2DArray->GetPixelFormat();
+	}
 	else if (Texture2DRT)
 	{
 		TextureFormatIndex = Texture2DRT->GetFormat();
@@ -523,6 +529,10 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	else if (TextureCube)
 	{
 		NumMips = TextureCube->GetNumMips();
+	}
+	else if (Texture2DArray) 
+	{
+		NumMips = Texture2DArray->GetNumMips();
 	}
 	else if (Texture2DRT)
 	{
@@ -1063,6 +1073,7 @@ TOptional<int32> FTextureEditorToolkit::GetMaxMipLevel( ) const
 {
 	const UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
 	const UTextureCube* TextureCube = Cast<UTextureCube>(Texture);
+	const UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture);
 	const UTextureRenderTargetCube* RTTextureCube = Cast<UTextureRenderTargetCube>(Texture);
 	const UTextureRenderTarget2D* RTTexture2D = Cast<UTextureRenderTarget2D>(Texture);
 	const UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
@@ -1075,6 +1086,11 @@ TOptional<int32> FTextureEditorToolkit::GetMaxMipLevel( ) const
 	if (TextureCube)
 	{
 		return TextureCube->GetNumMips() - 1;
+	}
+
+	if (Texture2DArray) 
+	{
+		return Texture2DArray->GetNumMips() - 1;
 	}
 
 	if (RTTextureCube)

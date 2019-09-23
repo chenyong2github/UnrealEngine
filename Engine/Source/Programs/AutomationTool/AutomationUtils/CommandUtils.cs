@@ -2112,6 +2112,10 @@ namespace AutomationTool
 			{
 				return "Windows";
 			}
+			else if(Platform == UnrealTargetPlatform.Linux || Platform == UnrealTargetPlatform.LinuxAArch64)
+			{
+				return "Linux";
+			}
 			else
 			{
 				return Platform.ToString();

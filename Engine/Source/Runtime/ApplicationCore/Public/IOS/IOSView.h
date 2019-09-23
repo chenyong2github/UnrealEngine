@@ -51,15 +51,6 @@ APPLICATIONCORE_API
 	bool HasMoved[10];
 
 
-#if HAS_OPENGL_ES
-	//// GL MEMBERS
-	// the GL context
-	EAGLContext* Context;
-
-	// the internal MSAA FBO used to resolve the color buffer at present-time
-	GLuint ResolveFrameBuffer;
-#endif
-
 	//// METAL MEMBERS
 #if HAS_METAL
 	// global metal device

@@ -22,9 +22,33 @@ public:
 		return IsRDGResourceReferenceShaderParameterType(MemberType);
 	}
 
-	bool IsTrackedResource() const
+	bool IsSRV() const
 	{
-		return MemberType == UBMT_RDG_TEXTURE || MemberType == UBMT_RDG_BUFFER;
+		return MemberType == UBMT_RDG_TEXTURE_SRV || MemberType == UBMT_RDG_BUFFER_SRV;
+	}
+
+	bool IsUAV() const
+	{
+		return MemberType == UBMT_RDG_TEXTURE_UAV || MemberType == UBMT_RDG_BUFFER_UAV;
+	}
+
+	bool IsParentResource() const
+	{
+		return
+			MemberType == UBMT_RDG_TEXTURE ||
+			MemberType == UBMT_RDG_TEXTURE_COPY_DEST ||
+			MemberType == UBMT_RDG_BUFFER ||
+			MemberType == UBMT_RDG_BUFFER_COPY_DEST;
+	}
+
+	bool IsChildResource() const
+	{
+		return IsSRV() || IsUAV();
+	}
+
+	bool IsRenderTargetBindingSlots() const
+	{
+		return MemberType == UBMT_RENDER_TARGET_BINDING_SLOTS;
 	}
 
 	EUniformBufferBaseType GetType() const
@@ -38,21 +62,39 @@ public:
 		return *GetAs<FRDGResourceRef>();
 	}
 
-	FRDGTrackedResourceRef GetAsTrackedResource() const
+	FRDGParentResourceRef GetAsParentResource() const
 	{
-		check(IsTrackedResource());
-		return *GetAs<FRDGTrackedResourceRef>();
+		check(IsParentResource());
+		return *GetAs<FRDGParentResourceRef>();
+	}
+
+	FRDGChildResourceRef GetAsChildResource() const
+	{
+		check(IsChildResource());
+		return *GetAs<FRDGChildResourceRef>();
+	}
+
+	FRDGShaderResourceViewRef GetAsSRV() const
+	{
+		check(IsSRV());
+		return *GetAs<FRDGShaderResourceViewRef>();
+	}
+
+	FRDGUnorderedAccessViewRef GetAsUAV() const
+	{
+		check(IsUAV());
+		return *GetAs<FRDGUnorderedAccessViewRef>();
 	}
 
 	FRDGTextureRef GetAsTexture() const
 	{
-		check(MemberType == UBMT_RDG_TEXTURE);
+		check(MemberType == UBMT_RDG_TEXTURE || MemberType == UBMT_RDG_TEXTURE_COPY_DEST);
 		return *GetAs<FRDGTextureRef>();
 	}
 
 	FRDGBufferRef GetAsBuffer() const
 	{
-		check(MemberType == UBMT_RDG_BUFFER);
+		check(MemberType == UBMT_RDG_BUFFER || MemberType == UBMT_RDG_BUFFER_COPY_DEST);
 		return *GetAs<FRDGBufferRef>();
 	}
 
@@ -82,7 +124,7 @@ public:
 
 	const FRenderTargetBindingSlots& GetAsRenderTargetBindingSlots() const
 	{
-		check(MemberType == UBMT_RENDER_TARGET_BINDING_SLOTS);
+		check(IsRenderTargetBindingSlots());
 		return *GetAs<FRenderTargetBindingSlots>();
 	}
 
@@ -153,7 +195,7 @@ private:
 };
 
 /** Flags to annotate passes. */
-enum class ERDGPassFlags
+enum class ERDGPassFlags : uint8
 {
 	/** Pass uses raster pipeline. */
 	Raster = 0x1,
@@ -161,11 +203,14 @@ enum class ERDGPassFlags
 	/** Pass uses compute only */
 	Compute = 0x2,
 
+	/** Pass uses RHI copy commands only. */
+	Copy = 0x4,
+
 	//#todo-rco: Remove this when we can do split/per mip layout transitions.
 	/** Hint to some RHIs this pass will be generating mips to optimize transitions. */
-	GenerateMips = 0x8,
+	GenerateMips = 0x8
 };
-ENUM_CLASS_FLAGS(ERDGPassFlags)
+ENUM_CLASS_FLAGS(ERDGPassFlags);
 
 /** Base class of a render graph pass. */
 class RENDERCORE_API FRDGPass
@@ -198,6 +243,11 @@ public:
 	bool IsCompute() const
 	{
 		return (PassFlags & ERDGPassFlags::Compute) == ERDGPassFlags::Compute;
+	}
+
+	bool IsCopy() const
+	{
+		return (PassFlags & ERDGPassFlags::Copy) == ERDGPassFlags::Copy;
 	}
 
 	bool IsGenerateMips() const

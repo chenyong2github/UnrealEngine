@@ -906,7 +906,7 @@ TAutoConsoleVariable<int32> CVarGTSyncType(
 	TEXT(" 2 - Sync the game thread with the GPU swap chain flip (only on supported platforms).\n"),
 	ECVF_Default);
 
-struct FRHISyncFrameCommand final : public FRHICommand<FRHISyncFrameCommand>
+FRHICOMMAND_MACRO(FRHISyncFrameCommand)
 {
 	FGraphEventRef GraphEvent;
 	int32 GTSyncType;

@@ -177,6 +177,7 @@ private:
 	NSUInteger CommitHead;
 	NSUInteger SubmitHead;
 	NSUInteger WriteHead;
+	NSUInteger BufferSize;
 	mtlpp::ResourceOptions Options;
 	mtlpp::StorageMode Storage;
 	TSharedPtr<FMetalRingBufferRef, ESPMode::ThreadSafe> Buffer;

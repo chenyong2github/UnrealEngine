@@ -66,6 +66,9 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 		FMaterialShaderMapId ResourceId;
 		Resource->GetShaderMapId(ShaderPlatform, ResourceId);
 
+		FStaticParameterSet StaticParamSet;
+		Resource->GetStaticParameterSet(ShaderPlatform, StaticParamSet);
+
 		{
 			TArray<FShaderType*> ShaderTypes;
 			TArray<FVertexFactoryType*> VFTypes;
@@ -79,7 +82,7 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 
 		ResourceId.Usage = Usage;
 
-		CacheShaders(ResourceId, ShaderPlatform);
+		CacheShaders(ResourceId, StaticParamSet, ShaderPlatform);
 	}
 	else
 	{

@@ -18,7 +18,6 @@
 #include "Interfaces/IShaderFormatModule.h"
 #include "RHIShaderFormatDefinitions.inl"
 #if WITH_EDITOR
-#include "RenderUtils.h"
 #include "Misc/CoreMisc.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
@@ -93,6 +92,9 @@ DEFINE_STAT(STAT_Shaders_ShaderMemory);
 DEFINE_STAT(STAT_Shaders_ShaderResourceMemory);
 DEFINE_STAT(STAT_Shaders_ShaderMapMemory);
 
+DEFINE_STAT(STAT_Shaders_NumShadersRegistered);
+DEFINE_STAT(STAT_Shaders_NumShadersDuplicated);
+
 /** Protects GShaderFileCache from simultaneous access by multiple threads. */
 FCriticalSection FileCacheCriticalSection;
 
@@ -157,7 +159,7 @@ public:
 
 	FSHAHash* FindHash(EShaderPlatform ShaderPlatform, const FString& VirtualFilePath)
 	{
-		check(ShaderPlatform < UE_ARRAY_COUNT(Platforms));
+		check(ShaderPlatform < ARRAY_COUNT(Platforms));
 		checkf(bInitialized, TEXT("GShaderHashCache::Initialize needs to be called before GShaderHashCache::FindHash."));
 
 		return Platforms[ShaderPlatform].ShaderHashCache.Find(VirtualFilePath);
@@ -165,7 +167,7 @@ public:
 
 	FSHAHash& AddHash(EShaderPlatform ShaderPlatform, const FString& VirtualFilePath)
 	{
-		check(ShaderPlatform < UE_ARRAY_COUNT(Platforms));
+		check(ShaderPlatform < ARRAY_COUNT(Platforms));
 		checkf(bInitialized, TEXT("GShaderHashCache::Initialize needs to be called before GShaderHashCache::AddHash."));
 
 		return Platforms[ShaderPlatform].ShaderHashCache.Add(VirtualFilePath, FSHAHash());
@@ -260,7 +262,8 @@ bool AllowDebugViewmodes(EShaderPlatform Platform)
 	const int32 ForceDebugViewValue = CVarForceDebugViewModes.GetValueOnAnyThread();
 	bool bForceEnable = ForceDebugViewValue == 1;
 	bool bForceDisable = ForceDebugViewValue == 2;
-	return (!bForceDisable) && (bForceEnable || !RequiresCookedData(Platform));
+	ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(ShaderPlatformToPlatformName(Platform).ToString());
+	return (!bForceDisable) && (bForceEnable || !TargetPlatform || !TargetPlatform->RequiresCookedData());
 #else
 	return AllowDebugViewmodes();
 #endif

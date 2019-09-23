@@ -10,6 +10,8 @@ IMPLEMENT_SHADER_TYPE(,FCopyTexture2DCS,TEXT("/Engine/Private/UpdateTextureShade
 IMPLEMENT_SHADER_TYPE(template<>, TCopyTexture2DCS<1u>, TEXT("/Engine/Private/UpdateTextureShaders.usf"), TEXT("TCopyTexture2DCS"), SF_Compute);
 IMPLEMENT_SHADER_TYPE(template<>, TCopyTexture2DCS<2u>, TEXT("/Engine/Private/UpdateTextureShaders.usf"), TEXT("TCopyTexture2DCS"), SF_Compute);
 IMPLEMENT_SHADER_TYPE(template<>, TCopyTexture2DCS<4u>, TEXT("/Engine/Private/UpdateTextureShaders.usf"), TEXT("TCopyTexture2DCS"), SF_Compute);
+typedef TCopyTexture2DCS< 3u, float > FCopyTexture2DCS_Float3;
+IMPLEMENT_SHADER_TYPE(template<>, FCopyTexture2DCS_Float3, TEXT("/Engine/Private/UpdateTextureShaders.usf"), TEXT("TCopyTexture2DCS"), SF_Compute);
 
 IMPLEMENT_SHADER_TYPE(template<>, TUpdateTexture2DSubresouceCS<1u>, TEXT("/Engine/Private/UpdateTextureShaders.usf"), TEXT("TUpdateTexture2DSubresourceCS"), SF_Compute);
 IMPLEMENT_SHADER_TYPE(template<>, TUpdateTexture2DSubresouceCS<2u>, TEXT("/Engine/Private/UpdateTextureShaders.usf"), TEXT("TUpdateTexture2DSubresourceCS"), SF_Compute);

@@ -937,7 +937,7 @@ void FVulkanDevice::SetupPresentQueue(VkSurfaceKHR Surface)
 		if (GAllowPresentOnComputeQueue.GetValueOnAnyThread() != 0 && ComputeQueue->GetFamilyIndex() != GfxQueue->GetFamilyIndex() && bCompute)
 		{
 			//#todo-rco: Do other IHVs have a fast path here?
-			bPresentOnComputeQueue = IsRHIDeviceAMD();
+			bPresentOnComputeQueue = (VendorId == EGpuVendorId::Amd);
 			PresentQueue = ComputeQueue;
 		}
 		else

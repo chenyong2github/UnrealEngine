@@ -39,7 +39,6 @@ void Main(
 
 	float4 WorldPos = VertexFactoryGetWorldPosition(Input);
 
-	ISOLATE
 	{
 	#if ODS_CAPTURE
 		float3 ODS = OffsetODS(WorldPos.xyz, ResolvedView.TranslatedWorldCameraOrigin.xyz, ResolvedView.StereoIPD);

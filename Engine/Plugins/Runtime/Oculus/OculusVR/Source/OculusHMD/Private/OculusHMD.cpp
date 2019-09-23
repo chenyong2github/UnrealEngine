@@ -37,7 +37,7 @@
 #include "Android/AndroidApplication.h"
 #include "HAL/IConsoleManager.h"
 #endif
-#include "Runtime/UtilityShaders/Public/OculusShaders.h"
+#include "OculusShaders.h"
 #include "PipelineStateCache.h"
 
 #include "IOculusMRModule.h"

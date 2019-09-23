@@ -27,8 +27,8 @@ float MaxRayDistanceForGI;
 float NextEventEstimationSamples;
 float DiffuseThreshold;
 float MaxNormalBias;
-bool EvalSkyLight;
-bool UseRussianRoulette;
+uint EvalSkyLight;
+uint UseRussianRoulette;
 
 int2 GatherPointsResolution;
 RWStructuredBuffer<FGatherPoints> RWGatherPointsBuffer;
@@ -115,6 +115,7 @@ void RayTracingCreateGatherPointsRGS()
 
 	FQuasiRandom QuasiRandom;
 	QuasiRandom_Initialize(QuasiRandom, PixelCoord, 0, SamplesPerPixel);
+	//QuasiRandom_Initialize(QuasiRandom, DispatchThreadId, 0, SamplesPerPixel);
 
 	for (uint Index = 0; Index < SamplesPerPixel; ++Index)
 	{
@@ -161,6 +162,7 @@ void RayTracingCreateGatherPointsRGS()
 				RayCone
 			);
 
+			// TODO: impossible based on formulation
 			if (Payload.HitT > MaxRayDistanceForGI) continue;
 
 			// Update intersection

@@ -4,6 +4,11 @@
 
 #if RDG_ENABLE_DEBUG
 
+/** Validates that we are only executing a single render graph instance in the callstack. Used to catch if a
+ *  user creates a second FRDGBuilder instance inside of a pass that is executing.
+ */
+static bool GRDGInExecutePassScope = false;
+
 /** This utility class tracks read / write events on individual resources within a pass in order to ensure
  *  that sub-resources are not being simultaneously bound for read / write. The RHI currently only supports
  *  disjoint read-write access on a texture for mip-map generation purposes.
@@ -18,21 +23,57 @@ public:
 		, bIsGenerateMips(InPass.IsGenerateMips())
 	{}
 
+	~FRDGPassResourceValidator()
+	{
+		for (const auto& KeyValue : BufferAccessMap)
+		{
+			const FRDGBufferRef Buffer = KeyValue.Key;
+			const FBufferAccess& BufferAccess = KeyValue.Value;
+	
+			ensureMsgf(!(BufferAccess.Bits.Read && BufferAccess.Bits.Write),
+				TEXT("Attempting to use buffer '%s' for both SRV and UAV access in pass '%s'. Only one usage at a time is allowed."),
+				Buffer->Name, Pass.GetName());
+		}
+
+		for (const auto& KeyValue : TextureAccessMap)
+		{
+			const FRDGTextureRef Texture = KeyValue.Key;
+			const FTextureAccess& TextureAccess = KeyValue.Value;
+
+			// A generate mips pass requires both read / write access to the same texture for barriers to work correctly.
+			if (bIsGenerateMips)
+			{
+				const bool bReadWithoutWrite = TextureAccess.IsAnyRead() && !TextureAccess.IsAnyWrite();
+				ensureMsgf(!bReadWithoutWrite,
+					TEXT("Attempting to use texture '%s' for read but not write access in pass '%s' which is marked with 'GenerateMips'. This kind of pass only supports textures for simultaneous read and write."),
+					Texture->Name, Pass.GetName());
+
+				const bool bWriteWithoutRead = TextureAccess.IsAnyWrite() && !TextureAccess.IsAnyRead();
+				ensureMsgf(!bWriteWithoutRead,
+					TEXT("Attempting to use texture '%s' for write but not read access in pass '%s' which is marked with 'GenerateMips'. This kind of pass only supports textures for simultaneous read and write."),
+					Texture->Name, Pass.GetName());
+			}
+			// A normal pass requires only read OR write access to the same resource for barriers to work correctly.
+			else
+			{
+				const bool bReadAndWrite = TextureAccess.IsAnyRead() && TextureAccess.IsAnyWrite();
+				ensureMsgf(!bReadAndWrite,
+					TEXT("Attempting to use texture '%s' for both read and write access in pass '%s' which is NOT marked with 'GenerateMips'. You must specify GenerateMips in your pass flags for this to be valid."),
+					Texture->Name, Pass.GetName());
+			}
+		}
+	}
+
 	void Read(FRDGBufferRef Buffer)
 	{
 		check(Buffer);
 
 		ensureMsgf(!bIsGenerateMips,
-			TEXT("Attempting to read from Buffer %s on Pass %s which is marked as 'GenerateMips'. Only a single texture is supported on this type of pass."),
+			TEXT("Attempting to read from Buffer %s on Pass %s which is marked as 'GenerateMips'. Only textures are supported on this type of pass."),
 			Buffer->Name, Pass.GetName());
 
 		FBufferAccess& BufferAccess = BufferAccessMap.FindOrAdd(Buffer);
-
-		ensureMsgf(BufferAccess.Access != FRDGResourceState::EAccess::Write,
-			TEXT("Buffer %s is being used for both read and write access on Pass %s. This is not supported."),
-			Buffer->Name, Pass.GetName());
-
-		BufferAccess.Access = FRDGResourceState::EAccess::Read;
+		BufferAccess.Bits.Read = 1;
 	}
 
 	void Write(FRDGBufferRef Buffer)
@@ -40,16 +81,11 @@ public:
 		check(Buffer);
 
 		ensureMsgf(!bIsGenerateMips,
-			TEXT("Attempting to write to Buffer %s on Pass %s which is marked as 'GenerateMips'. Only a single texture is supported on this type of pass."),
+			TEXT("Attempting to write to Buffer %s on Pass %s which is marked as 'GenerateMips'. Only textures are supported on this type of pass."),
 			Buffer->Name, Pass.GetName());
 
 		FBufferAccess& BufferAccess = BufferAccessMap.FindOrAdd(Buffer);
-
-		ensureMsgf(BufferAccess.Access != FRDGResourceState::EAccess::Read,
-			TEXT("Attempting to simultaneously read and write from Buffer %s on Pass %s. This is not supported."),
-			Buffer->Name, Pass.GetName());
-
-		BufferAccess.Access = FRDGResourceState::EAccess::Read;
+		BufferAccess.Bits.Write = 1;
 	}
 
 	void Read(FRDGTextureRef Texture, uint32 MipLevel = AllMipLevels)
@@ -60,26 +96,9 @@ public:
 
 		FTextureAccess& TextureAccess = TextureAccessMap.FindOrAdd(Texture);
 		TextureAccess.SetAllRead(MipMask);
-
-		ensureMsgf(!TextureAccess.IsAnyWrite(MipMask),
-			TEXT("Attempting to access mips of Texture %s for both read and write access on Pass %s. This is not supported."),
-			MipLevel, Texture->Name, Pass.GetName());
-
-		if (bIsGenerateMips)
-		{
-			ensureMsgf(TextureAccessMap.Num() == 1,
-				TEXT("Attempting to access more than one texture in Pass %s when 'GenerateMips' is set. Only a single texture is supported on this type of pass."),
-				Pass.GetName());
-		}
-		else
-		{
-			ensureMsgf(!TextureAccess.Mips.Write,
-				TEXT("Texture %s is being used for both read and write access on the same Pass %s. This is only supported via the 'GenerateMips' flag."),
-				Pass.GetName());
-		}
 	}
 
-	void Write(FRDGTextureRef Texture, uint32 MipLevel)
+	void Write(FRDGTextureRef Texture, uint32 MipLevel = AllMipLevels)
 	{
 		check(Texture);
 
@@ -87,38 +106,30 @@ public:
 
 		FTextureAccess& TextureAccess = TextureAccessMap.FindOrAdd(Texture);
 		TextureAccess.SetAllWrite(MipMask);
-
-		ensureMsgf(!TextureAccess.IsAnyRead(MipMask),
-			TEXT("Attempting to use Mip %d of Texture %s for both read and write access on Pass %s. This is not supported."),
-			MipLevel, Texture->Name, Pass.GetName());
-
-		if (bIsGenerateMips)
-		{
-			ensureMsgf(TextureAccessMap.Num() == 1,
-				TEXT("Attempting to access more than one texture in Pass %s when 'GenerateMips' is set. Only a single texture is supported on this type of pass."),
-				Pass.GetName());
-		}
-		else
-		{
-			ensureMsgf(!TextureAccess.Mips.Read,
-				TEXT("Texture %s is being used for both read and write access on the same Pass %s. This is only supported via the 'GenerateMips' flag."),
-				Texture->Name, Pass.GetName());
-		}
 	}
 
 private:
 	struct FBufferAccess
 	{
-		FRDGResourceState::EAccess Access = FRDGResourceState::EAccess::Unknown;
+		union
+		{
+			uint8 PackedData = 0;
+
+			struct
+			{
+				uint8 Read : 1;
+				uint8 Write : 1;
+			} Bits;
+		};
 
 		FORCEINLINE bool operator!= (FBufferAccess Other) const
 		{
-			return Access != Other.Access;
+			return PackedData != Other.PackedData;
 		}
 
 		FORCEINLINE bool operator< (FBufferAccess Other) const
 		{
-			return Access < Other.Access;
+			return PackedData < Other.PackedData;
 		}
 	};
 
@@ -137,22 +148,22 @@ private:
 			} Mips;
 		};
 
-		FORCEINLINE bool IsAnyRead(uint32 MipMask) const
+		FORCEINLINE bool IsAnyRead(uint32 MipMask = AllMipLevels) const
 		{
 			return (Mips.Read & MipMask) != 0;
 		}
 
-		FORCEINLINE bool IsAnyWrite(uint32 MipMask) const
+		FORCEINLINE bool IsAnyWrite(uint32 MipMask = AllMipLevels) const
 		{
 			return (Mips.Write & MipMask) != 0;
 		}
 
-		FORCEINLINE void SetAllRead(uint32 MipMask)
+		FORCEINLINE void SetAllRead(uint32 MipMask = AllMipLevels)
 		{
 			Mips.Read |= MipMask;
 		}
 
-		FORCEINLINE void SetAllWrite(uint32 MipMask)
+		FORCEINLINE void SetAllWrite(uint32 MipMask = AllMipLevels)
 		{
 			Mips.Write |= MipMask;
 		}
@@ -184,19 +195,37 @@ void FRDGUserValidation::ExecuteGuard(const TCHAR* Operation, const TCHAR* Resou
 	checkf(!bHasExecuted, TEXT("Render graph operation '%s' with resource '%s' must be performed prior to graph execution."), Operation, ResourceName);
 }
 
-void FRDGUserValidation::ValidateCreateResource(FRDGTrackedResourceRef Resource)
+void FRDGUserValidation::ValidateCreateTexture(FRDGTextureRef Texture)
 {
-	check(Resource);
-	TrackedResources.Add(Resource);
+	check(Texture);
+	if (IsRDGDebugEnabled())
+	{
+		TrackedTextures.Add(Texture);
+	}
 }
 
-void FRDGUserValidation::ValidateCreateExternalResource(FRDGTrackedResourceRef Resource)
+void FRDGUserValidation::ValidateCreateBuffer(FRDGBufferRef Buffer)
 {
-	ValidateCreateResource(Resource);
-	Resource->MarkAsExternal();
+	check(Buffer);
+	if (IsRDGDebugEnabled())
+	{
+		TrackedBuffers.Add(Buffer);
+	}
 }
 
-void FRDGUserValidation::ValidateExtractResource(FRDGTrackedResourceRef Resource)
+void FRDGUserValidation::ValidateCreateExternalTexture(FRDGTextureRef Texture)
+{
+	ValidateCreateTexture(Texture);
+	Texture->MarkAsExternal();
+}
+
+void FRDGUserValidation::ValidateCreateExternalBuffer(FRDGBufferRef Buffer)
+{
+	ValidateCreateBuffer(Buffer);
+	Buffer->MarkAsExternal();
+}
+
+void FRDGUserValidation::ValidateExtractResource(FRDGParentResourceRef Resource)
 {
 	check(Resource);
 
@@ -208,14 +237,18 @@ void FRDGUserValidation::ValidateExtractResource(FRDGTrackedResourceRef Resource
 	 *  emitting a 'produced but never used' warning. We don't have the history of registered
 	 *  resources to be able to emit a proper warning.
 	 */
-
 	Resource->PassAccessCount++;
 }
 
-void FRDGUserValidation::RemoveUnusedWarning(FRDGTrackedResourceRef Resource)
+void FRDGUserValidation::RemoveUnusedWarning(FRDGParentResourceRef Resource)
 {
 	check(Resource);
+
+	// Removes 'produced but not used' warning.
 	Resource->PassAccessCount++;
+
+	// Removes 'not used' warning.
+	Resource->bIsActuallyUsedByPass = true;
 }
 
 void FRDGUserValidation::ValidateAllocPassParameters(const void* Parameters)
@@ -224,7 +257,7 @@ void FRDGUserValidation::ValidateAllocPassParameters(const void* Parameters)
 	AllocatedUnusedPassParameters.Add(Parameters);
 }
 
-void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
+void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAccessMarking)
 {
 	checkf(!bHasExecuted, TEXT("Render graph pass %s needs to be added before the builder execution."), Pass->GetName());
 
@@ -244,12 +277,48 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 		AllocatedUnusedPassParameters.Remove(ParameterStructData);
 	}
 
+	const auto MarkAsProduced = [Pass, bSkipPassAccessMarking] (FRDGParentResourceRef Resource)
+	{
+		if (!bSkipPassAccessMarking)
+		{
+			Resource->MarkAsProducedBy(Pass);
+			Resource->PassAccessCount++;
+		}
+	};
+
+	const auto MarkAsConsumed = [Pass, bSkipPassAccessMarking] (FRDGParentResourceRef Resource)
+	{
+		if (!bSkipPassAccessMarking)
+		{
+			Resource->PassAccessCount++;
+		}
+	};
+
 	const FRenderTargetBindingSlots* RenderTargetBindingSlots = nullptr;
 
 	const TCHAR* PassName = Pass->GetName();
+	const bool bIsRaster = Pass->IsRaster();
 	const bool bIsCompute = Pass->IsCompute();
+	const bool bIsCopy = Pass->IsCopy();
 	const bool bIsGeneratingMips = Pass->IsGenerateMips();
-	const bool bRenderTargetSlotsRequired = !bIsCompute;
+
+	/** Validate that the user set the correct pass flags. */
+	{
+		uint32 Count = 0;
+		Count += bIsRaster ? 1 : 0;
+		Count += bIsCompute ? 1 : 0;
+		Count += bIsCopy ? 1 : 0;
+		checkf(Count == 1,
+			TEXT("Pass %s must be declared as either Raster, Compute, or Copy. These flags cannot be combined."),
+			PassName);
+
+		if (bIsGeneratingMips)
+		{
+			checkf(bIsRaster || bIsCompute,
+				TEXT("Pass %s is declared as generating mips. This is only supported by Raster or Compute passes."),
+				PassName);
+		}
+	}
 
 	FRDGPassResourceValidator PassResourceValidator(*Pass);
 
@@ -269,11 +338,11 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 			{
 				PassResourceValidator.Read(Texture);
 
-				checkf(Texture->HasBeenProduced(),
-					TEXT("Pass %s has a dependency over the texture %s that has never been produced."),
+				ensureMsgf(Texture->HasBeenProduced(),
+					TEXT("Pass %s has a dependency on the texture %s that has never been produced."),
 					PassName, Texture->Name);
 
-				Texture->PassAccessCount++;
+				MarkAsConsumed(Texture);
 			}
 		}
 		break;
@@ -281,15 +350,15 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 		{
 			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
 			{
-				FRDGTextureRef Texture = SRV->Desc.Texture;
+				FRDGTextureRef Texture = SRV->GetParent();
 
 				PassResourceValidator.Read(Texture, SRV->Desc.MipLevel);
 
-				checkf(Texture->HasBeenProduced(),
-					TEXT("Pass %s has a dependency over the texture %s that has never been produced."),
+				ensureMsgf(Texture->HasBeenProduced(),
+					TEXT("Pass %s has a dependency on the texture %s that has never been produced."),
 					PassName, Texture->Name);
 
-				Texture->PassAccessCount++;
+				MarkAsConsumed(Texture);
 			}
 		}
 		break;
@@ -297,12 +366,11 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 		{
 			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 			{
-				FRDGTextureRef Texture = UAV->Desc.Texture;
+				FRDGTextureRef Texture = UAV->GetParent();
 
 				PassResourceValidator.Write(Texture, UAV->Desc.MipLevel);
 
-				Texture->MarkAsProducedBy(Pass);
-				Texture->PassAccessCount++;
+				MarkAsProduced(Texture);
 			}
 		}
 		break;
@@ -312,11 +380,11 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 			{
 				PassResourceValidator.Read(Buffer);
 
-				checkf(Buffer->HasBeenProduced(),
-					TEXT("Pass %s has a dependency over the buffer %s that has never been produced."),
+				ensureMsgf(Buffer->HasBeenProduced(),
+					TEXT("Pass %s has a dependency on the buffer %s that has never been produced."),
 					PassName, Buffer->Name);
 
-				Buffer->PassAccessCount++;
+				MarkAsConsumed(Buffer);
 			}
 		}
 		break;
@@ -324,15 +392,15 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 		{
 			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
 			{
-				FRDGBufferRef Buffer = SRV->Desc.Buffer;
+				FRDGBufferRef Buffer = SRV->GetParent();
 
 				PassResourceValidator.Read(Buffer);
 
-				checkf(Buffer->HasBeenProduced(),
-					TEXT("Pass %s has a dependency over the buffer %s that has never been produced."),
+				ensureMsgf(Buffer->HasBeenProduced(),
+					TEXT("Pass %s has a dependency on the buffer %s that has never been produced."),
 					PassName, SRV->Desc.Buffer->Name);
 
-				Buffer->PassAccessCount++;
+				MarkAsConsumed(Buffer);
 			}
 		}
 		break;
@@ -340,12 +408,31 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 		{
 			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
 			{
-				FRDGBufferRef Buffer = UAV->Desc.Buffer;
+				FRDGBufferRef Buffer = UAV->GetParent();
 
 				PassResourceValidator.Write(Buffer);
 
-				Buffer->MarkAsProducedBy(Pass);
-				Buffer->PassAccessCount++;
+				MarkAsProduced(Buffer);
+			}
+		}
+		break;
+		case UBMT_RDG_TEXTURE_COPY_DEST:
+		{
+			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
+			{
+				PassResourceValidator.Write(Texture);
+
+				MarkAsProduced(Texture);
+			}
+		}
+		break;
+		case UBMT_RDG_BUFFER_COPY_DEST:
+		{
+			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
+			{
+				PassResourceValidator.Write(Buffer);
+
+				MarkAsProduced(Buffer);
 			}
 		}
 		break;
@@ -357,25 +444,21 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 			}
 			else if (IsRDGDebugEnabled())
 			{
-				EmitRDGWarningf(
-					TEXT("Pass %s have duplicated render target binding slots."),
-					PassName);
+				EmitRDGWarningf(TEXT("Pass %s have duplicated render target binding slots."), PassName);
 			}
 		}
 		break;
-		default:
-			break;
 		}
 	}
 
 	/** Validate that raster passes have render target binding slots and compute passes don't. */
 	if (RenderTargetBindingSlots)
 	{
-		checkf(!bIsCompute, TEXT("Pass '%s' has render target binding slots but is flagged as 'Compute'."), PassName);
+		checkf(bIsRaster, TEXT("Pass '%s' has render target binding slots but is flagged as 'Compute'."), PassName);
 	}
 	else
 	{
-		checkf(bIsCompute, TEXT("Pass '%s' is missing render target binding slots. Add the 'Compute' flag if render targets are not required."), PassName);
+		checkf(!bIsRaster, TEXT("Pass '%s' is missing render target binding slots. Set the 'Compute' or 'Copy' flag if render targets are not required."), PassName);
 	}
 
 	/** Validate render target / depth stencil binding usage. */
@@ -396,6 +479,11 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 					TEXT("Pass '%s' is marked to generate mips but has a depth stencil texture. This is not supported."),
 					Pass->GetName());
 
+				checkf(
+					Texture->Desc.TargetableFlags & TexCreate_DepthStencilTargetable,
+					TEXT("Pass '%s' attempted to bind texture '%s' as a depth stencil render target, but the texture has not been created with TexCreate_DepthStencilTargetable."),
+					PassName, Texture->Name);
+
 				// Depth stencil only supports one mip, since there isn't actually a way to select the mip level.
 				const uint32 MipLevel = 0;
 				check(Texture->Desc.NumMips == 1);
@@ -403,14 +491,13 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 				if (DepthStencil.GetDepthStencilAccess().IsAnyWrite())
 				{
 					PassResourceValidator.Write(Texture, MipLevel);
-					Texture->MarkAsProducedBy(Pass);
+					MarkAsProduced(Texture);
 				}
 				else
 				{
 					PassResourceValidator.Read(Texture, MipLevel);
+					MarkAsConsumed(Texture);
 				}
-
-				Texture->PassAccessCount++;
 			}
 		}
 
@@ -452,8 +539,11 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 					 *  which are not actually managed by the render target pool and likely represent the frame buffer.
 					 */
 					{
+						// Ignore external textures which are always marked as produced. We don't need to enforce this warning on them.
+						const bool bHasBeenProduced = Texture->HasBeenProduced() && !Texture->IsExternal();
+
 						// We only validate single-mip textures since we don't track production at the subresource level.
-						const bool bFailedToLoadProducedContent = !bIsLoadAction && Texture->HasBeenProduced() && Texture->Desc.NumMips == 1;
+						const bool bFailedToLoadProducedContent = !bIsLoadAction && bHasBeenProduced && Texture->Desc.NumMips == 1;
 
 						// Untracked render targets aren't actually managed by the render target pool.
 						const bool bIsUntrackedRenderTarget = Texture->PooledRenderTarget && !Texture->PooledRenderTarget->IsTracked();
@@ -465,13 +555,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 					}
 
 					/** Mark the pass as a producer for render targets with a store action. */
-					{
-						const bool bIsStoreAction = RenderTarget.GetStoreAction() != ERenderTargetStoreAction::ENoAction;
-						check(bIsStoreAction); // already been validated in FRenderTargetBinding::Validate()
-						Texture->MarkAsProducedBy(Pass);
-					}
-
-					Texture->PassAccessCount++;
+					MarkAsProduced(Texture);
 				}
 				else
 				{
@@ -510,30 +594,109 @@ void FRDGUserValidation::ValidateExecuteEnd()
 {
 	bHasExecuted = true;
 
-	const bool bEmitWarnings = IsRDGDebugEnabled();
-
-	for (const FRDGTrackedResourceRef Resource : TrackedResources)
+	if (IsRDGDebugEnabled())
 	{
-		check(Resource->ReferenceCount == 0);
-
-		const bool bProducedButNeverUsed = Resource->PassAccessCount == 1 && Resource->FirstProducer;
-
-		if (bEmitWarnings && bProducedButNeverUsed)
+		auto ValidateResourceAtExecuteEnd = [](const FRDGParentResourceRef Resource)
 		{
-			check(Resource->HasBeenProduced());
+			check(Resource->ReferenceCount == 0);
 
-			EmitRDGWarningf(
-				TEXT("Resources %s has been produced by the pass %s, but never used by another pass."),
-				Resource->Name, Resource->FirstProducer->GetName());
+			const bool bProducedButNeverUsed = Resource->PassAccessCount == 1 && Resource->FirstProducer;
+
+			if (bProducedButNeverUsed)
+			{
+				check(Resource->HasBeenProduced());
+
+				EmitRDGWarningf(
+					TEXT("Resource %s has been produced by the pass %s, but never used by another pass."),
+					Resource->Name, Resource->FirstProducer->GetName());
+			}
+		};
+
+		for (const FRDGTextureRef Texture : TrackedTextures)
+		{
+			ValidateResourceAtExecuteEnd(Texture);
+
+			bool bHasBeenProducedByGraph = !Texture->IsExternal() && Texture->PassAccessCount > 0;
+
+			if (bHasBeenProducedByGraph && !Texture->bHasNeededUAV && (Texture->Desc.TargetableFlags & TexCreate_UAV))
+			{
+				EmitRDGWarningf(
+					TEXT("Resource %s first produced by the pass %s had the TexCreate_UAV flag, but no UAV has been used."),
+					Texture->Name, Texture->FirstProducer->GetName());
+			}
+
+			if (bHasBeenProducedByGraph && !Texture->bHasBeenBoundAsRenderTarget && (Texture->Desc.TargetableFlags & TexCreate_RenderTargetable))
+			{
+				EmitRDGWarningf(
+					TEXT("Resource %s first produced by the pass %s had the TexCreate_RenderTargetable flag, but has never been bound as a render target of a pass."),
+					Texture->Name, Texture->FirstProducer->GetName());
+			}
+		}
+
+		for (const FRDGBufferRef Buffer : TrackedBuffers)
+		{
+			ValidateResourceAtExecuteEnd(Buffer);
 		}
 	}
 
-	TrackedResources.Empty();
+	TrackedTextures.Empty();
+	TrackedBuffers.Empty();
 }
 
 void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 {
+	checkf(!GRDGInExecutePassScope, TEXT("Render graph is being executed recursively. This usually means a separate FRDGBuilder instance was created inside of an executing pass."));
+
+	GRDGInExecutePassScope = true;
+
 	SetAllowRHIAccess(Pass, true);
+
+	if (IsRDGDebugEnabled())
+	{
+		FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
+
+		const uint32 ParameterCount = ParameterStruct.GetParameterCount();
+
+		for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+		{
+			FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
+
+			if (Parameter.GetType() == UBMT_RDG_TEXTURE_UAV)
+			{
+				if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
+				{
+					FRDGTextureRef Texture = UAV->Desc.Texture;
+					Texture->bHasNeededUAV = true;
+				}
+			}
+			else if (Parameter.GetType() == UBMT_RENDER_TARGET_BINDING_SLOTS)
+			{
+				const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
+				const auto& RenderTargets = RenderTargetBindingSlots.Output;
+				const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
+				const uint32 RenderTargetCount = RenderTargets.Num();
+
+				for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; RenderTargetIndex++)
+				{
+					const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+
+					if (FRDGTextureRef Texture = RenderTarget.GetTexture())
+					{
+						Texture->bHasBeenBoundAsRenderTarget = true;
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				if (FRDGTextureRef Texture = DepthStencil.GetTexture())
+				{
+					Texture->bHasBeenBoundAsRenderTarget = true;
+				}
+			}
+		}
+	} 
 }
 
 void FRDGUserValidation::ValidateExecutePassEnd(const FRDGPass* Pass)
@@ -566,7 +729,7 @@ void FRDGUserValidation::ValidateExecutePassEnd(const FRDGPass* Pass)
 		if (TrackedResourceCount != UsedResourceCount)
 		{
 			FString WarningMessage = FString::Printf(
-				TEXT("'%d' of the '%d' resources of the pass '%s' where not actually used."),
+				TEXT("'%d' of the '%d' resources of the pass '%s' were not actually used."),
 				TrackedResourceCount - UsedResourceCount, TrackedResourceCount, Pass->GetName());
 
 			for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
@@ -601,6 +764,8 @@ void FRDGUserValidation::ValidateExecutePassEnd(const FRDGPass* Pass)
 			}
 		}
 	}
+
+	GRDGInExecutePassScope = false;
 }
 
 void FRDGUserValidation::SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAccess)
@@ -620,7 +785,7 @@ void FRDGUserValidation::SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAcce
 				Resource->bAllowRHIAccess = bAllowAccess;
 			}
 		}
-		else if (Parameter.GetType() == UBMT_RENDER_TARGET_BINDING_SLOTS)
+		else if (Parameter.IsRenderTargetBindingSlots())
 		{
 			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
 			const auto& RenderTargets = RenderTargetBindingSlots.Output;

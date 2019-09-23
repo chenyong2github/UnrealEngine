@@ -7265,7 +7265,7 @@ bool UCookOnTheFlyServer::HandleNetworkFileServerNewConnection(const FString& Ve
 
 	if (LocalVersionInfo != VersionInfo)
 	{
-		UE_LOG(LogCook, Warning, TEXT("Connection tried to connect with incompatable version"));
+		UE_LOG(LogCook, Warning, TEXT("Connection tried to connect with incompatible version"));
 		// return false;
 	}
 	return true;

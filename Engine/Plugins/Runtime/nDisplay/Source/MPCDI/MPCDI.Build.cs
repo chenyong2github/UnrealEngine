@@ -23,8 +23,7 @@ public class MPCDI : ModuleRules
 			{
 				"DisplayCluster",
 				"RenderCore",
-				"RHI",
-				"UtilityShaders"
+				"RHI"
 			}
 		);
 

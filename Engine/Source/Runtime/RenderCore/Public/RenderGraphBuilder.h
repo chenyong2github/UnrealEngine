@@ -23,12 +23,32 @@ public:
 	/** Register a external texture to be tracked by the render graph. */
 	FRDGTextureRef RegisterExternalTexture(
 		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-		const TCHAR* Name = TEXT("External"));
+		const TCHAR* Name = TEXT("External"),
+		ERDGResourceFlags Flags = ERDGResourceFlags::None);
+
+	/** Variant of RegisterExternalTexture which will returns null (rather than assert) if the external texture is null. */
+	inline FRDGTextureRef TryRegisterExternalTexture(
+		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+		const TCHAR* Name = TEXT("External"),
+		ERDGResourceFlags Flags = ERDGResourceFlags::None)
+	{
+		return ExternalPooledTexture ? RegisterExternalTexture(ExternalPooledTexture, Name, Flags) : nullptr;
+	}
 
 	/** Register a external buffer to be tracked by the render graph. */
 	FRDGBufferRef RegisterExternalBuffer(
 		const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer,
-		const TCHAR* Name = TEXT("External"));
+		const TCHAR* Name = TEXT("External"),
+		ERDGResourceFlags Flags = ERDGResourceFlags::None);
+
+	/** Variant of RegisterExternalBuffer which will return null (rather than assert) if the external buffer is null. */
+	inline FRDGBufferRef TryRegisterExternalBuffer(
+		const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer,
+		const TCHAR* Name = TEXT("External"),
+		ERDGResourceFlags Flags = ERDGResourceFlags::None)
+	{
+		return ExternalPooledBuffer ? RegisterExternalBuffer(ExternalPooledBuffer, Name, Flags) : nullptr;
+	}
 
 	/** Create graph tracked resource from a descriptor with a debug name.
 	 *
@@ -116,7 +136,7 @@ public:
 	 *  Note: even when the render graph uses the immediate debugging mode (executing passes as they get added), the buffer extractions
 	 *  will still happen in the Execute(), to ensure there is no bug caused in code outside the render graph on whether this mode is used or not.
 	 */
-	void QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FPooledRDGBuffer>* OutBufferPtr);
+	void QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FPooledRDGBuffer>* OutBufferPtr, FRDGResourceState::EAccess DestinationAccess, FRDGResourceState::EPipeline DestinationPipeline);
 
 	/** Flag a texture that is produced by a pass but never used or extracted to not emit an 'unused' warning. */
 	void RemoveUnusedTextureWarning(FRDGTextureRef Texture);
@@ -176,6 +196,8 @@ private:
 	{
 		FRDGBuffer* Buffer;
 		TRefCountPtr<FPooledRDGBuffer>* OutBufferPtr;
+		FRDGResourceState::EAccess DestinationAccess;
+		FRDGResourceState::EPipeline DestinationPipeline;
 	};
 	TArray<FDeferredInternalBufferQuery, SceneRenderingAllocator> DeferredInternalBufferQueries;
 
@@ -184,9 +206,13 @@ private:
 
 #if RDG_ENABLE_DEBUG
 	FRDGUserValidation Validation;
+
+	/** Tracks whether we are in a scope of adding passes to the builder. Used to avoid recursion. */
+	bool bInDebugPassScope = false;
 #endif
 
 	void VisualizePassOutputs(const FRDGPass* Pass);
+	void ClobberPassOutputs(const FRDGPass* Pass);
 
 	void WalkGraphDependencies();
 	
@@ -196,13 +222,14 @@ private:
 	void AddPassInternal(FRDGPass* Pass);
 
 	void AllocateRHITextureIfNeeded(FRDGTexture* Texture);
+	void AllocateRHITextureSRVIfNeeded(FRDGTextureSRV* SRV);
 	void AllocateRHITextureUAVIfNeeded(FRDGTextureUAV* UAV);
 	void AllocateRHIBufferIfNeeded(FRDGBuffer* Buffer);
 	void AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV);
 	void AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV);
 
 	void ExecutePass(const FRDGPass* Pass);
-	void PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasRenderTargets);
+	void PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasGraphicsOutputs);
 
 	void ReleaseRHITextureIfUnreferenced(FRDGTexture* Texture);
 	void ReleaseRHIBufferIfUnreferenced(FRDGBuffer* Buffer);

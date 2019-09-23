@@ -7,23 +7,44 @@
 class FRDGPass;
 class FRDGBuilder;
 class FRDGEventName;
-class FRDGResource;
-class FRDGTrackedResource;
-class FRDGTexture;
-class FRDGTextureSRV;
-class FRDGTextureUAV;
-class FRDGBuffer;
-class FRDGBufferSRV;
-class FRDGBufferUAV;
 
-/** Defines the RDG resource references for user code not forgetting the const every time. */
+class FRDGResource;
 using FRDGResourceRef = FRDGResource*;
-using FRDGTrackedResourceRef = FRDGTrackedResource*;
+
+class FRDGParentResource;
+using FRDGParentResourceRef = FRDGParentResource*;
+
+UE_DEPRECATED(4.24, "FRDGTrackedResource typedef is deprecated; use FRDGParentResource instead.")
+typedef FRDGParentResource FRDGTrackedResource;
+
+UE_DEPRECATED(4.24, "FRDGTrackedResourceRef typedef is deprecated; use FRDGParentResourceRef instead.")
+typedef FRDGParentResource* FRDGTrackedResourceRef;
+
+class FRDGChildResource;
+using FRDGChildResourceRef = FRDGChildResource*;
+
+class FRDGShaderResourceView;
+using FRDGShaderResourceViewRef = FRDGShaderResourceView*;
+
+class FRDGUnorderedAccessView;
+using FRDGUnorderedAccessViewRef = FRDGUnorderedAccessView*;
+
+class FRDGTexture;
 using FRDGTextureRef = FRDGTexture*;
+
+class FRDGTextureSRV;
 using FRDGTextureSRVRef = FRDGTextureSRV*;
+
+class FRDGTextureUAV;
 using FRDGTextureUAVRef = FRDGTextureUAV*;
+
+class FRDGBuffer;
 using FRDGBufferRef = FRDGBuffer*;
+
+class FRDGBufferSRV;
 using FRDGBufferSRVRef = FRDGBufferSRV*;
+
+class FRDGBufferUAV;
 using FRDGBufferUAVRef = FRDGBufferUAV*;
 
 /** Used for tracking resource state during execution. */
@@ -122,6 +143,9 @@ protected:
 		: Name(InName)
 	{}
 
+	// IMPORTANT: This is never actually called. RDG resources are allocated via MemStack. This is necessary to force a vtable.
+	virtual ~FRDGResource() = default;
+
 	/** Verify that the RHI resource can be accessed at a pass execution. */
 	void ValidateRHIAccess() const
 	{
@@ -155,8 +179,8 @@ private:
 	friend class FRDGUserValidation;
 };
 
-/** A render graph resource with an allocation lifetime tracked by the graph. */
-class RENDERCORE_API FRDGTrackedResource
+/** A render graph resource with an allocation lifetime tracked by the graph. May have child resources which reference it (e.g. views). */
+class RENDERCORE_API FRDGParentResource
 	: public FRDGResource
 {
 public:
@@ -164,7 +188,7 @@ public:
 	const ERDGResourceFlags Flags;
 
 protected:
-	FRDGTrackedResource(const TCHAR* InName, const ERDGResourceFlags InFlags)
+	FRDGParentResource(const TCHAR* InName, const ERDGResourceFlags InFlags)
 		: FRDGResource(InName)
 		, Flags(InFlags)
 	{}
@@ -206,8 +230,11 @@ private:
 	/** Count the number of times it has been used by a pass. */
 	int32 PassAccessCount = 0;
 
-	/** Boolean to track at wiring time if a resource has ever been produced by a pass, to error out early if accessing a resource that has not been produced. */
+	/** Tracks at wiring time if a resource has ever been produced by a pass, to error out early if accessing a resource that has not been produced. */
 	bool bHasBeenProduced = false;
+
+	/** Tracks whether this resource was clobbered by the builder prior to use. */
+	bool bHasBeenClobbered = false;
 
 	/** Tracks whether this resource is an externally imported resource. */
 	bool bIsExternal = false;
@@ -220,12 +247,25 @@ private:
 	friend class FRDGBarrierBatcher;
 };
 
+/** A render graph resource (e.g. a view) which references a single parent resource (e.g. a texture / buffer). Provides an abstract way to access the parent resource. */
+class FRDGChildResource
+	: public FRDGResource
+{
+public:
+	FRDGChildResource(const TCHAR* Name)
+		: FRDGResource(Name)
+	{}
+
+	/** Returns the referenced parent render graph resource. */
+	virtual FRDGParentResourceRef GetParent() const = 0;
+};
+
 /** Descriptor of a graph tracked texture. */
 using FRDGTextureDesc = FPooledRenderTargetDesc;
 
 /** Render graph tracked Texture. */
 class RENDERCORE_API FRDGTexture final
-	: public FRDGTrackedResource
+	: public FRDGParentResource
 {
 public:
 	/** Descriptor of the graph tracked texture. */
@@ -255,7 +295,7 @@ private:
 		const TCHAR* InName,
 		const FPooledRenderTargetDesc& InDesc,
 		ERDGResourceFlags InFlags)
-		: FRDGTrackedResource(InName, InFlags)
+		: FRDGParentResource(InName, InFlags)
 		, Desc(InDesc)
 	{}
 
@@ -270,6 +310,14 @@ private:
 	 */
 	IPooledRenderTarget* PooledRenderTarget = nullptr;
 
+#if RDG_ENABLE_DEBUG
+	/** Tracks whether a UAV has ever been allocated to catch when TexCreate_UAV was unneeded. */
+	bool bHasNeededUAV = false;
+
+	/** Tracks whether has ever been bound as a render target to catch when TexCreate_RenderTargetable was unneeded. */
+	bool bHasBeenBoundAsRenderTarget = false;
+#endif 
+
 	friend class FRDGBuilder;
 	friend class FRDGUserValidation;
 	friend class FRDGBarrierBatcher;
@@ -277,7 +325,7 @@ private:
 
 /** Render graph tracked SRV. */
 class FRDGShaderResourceView
-	: public FRDGResource
+	: public FRDGChildResource
 {
 public:
 	/** Returns the allocated RHI SRV. */
@@ -288,7 +336,7 @@ public:
 
 protected:
 	FRDGShaderResourceView(const TCHAR* Name)
-		: FRDGResource(Name)
+		: FRDGChildResource(Name)
 	{}
 
 	/** Returns the allocated RHI SRV without access checks. */
@@ -300,7 +348,7 @@ protected:
 
 /** Render graph tracked UAV. */
 class FRDGUnorderedAccessView
-	: public FRDGResource
+	: public FRDGChildResource
 {
 public:
 	/** Returns the allocated RHI UAV. */
@@ -311,7 +359,7 @@ public:
 
 protected:
 	FRDGUnorderedAccessView(const TCHAR* Name)
-		: FRDGResource(Name)
+		: FRDGChildResource(Name)
 	{}
 
 	/** Returns the allocated RHI UAV without access checks. */
@@ -322,27 +370,61 @@ protected:
 };
 
 /** Descriptor for render graph tracked SRV. */
-class RENDERCORE_API FRDGTextureSRVDesc final
+class FRDGTextureSRVDesc final : public FRHITextureSRVCreateInfo
 {
 public:
 	FRDGTextureSRVDesc() = default;
-
-	FRDGTextureSRVDesc(FRDGTextureRef InTexture, uint8 InMipLevel)
-		: Texture(InTexture)
-		, MipLevel(InMipLevel)
-	{}
-
+	
 	FRDGTextureRef Texture = nullptr;
-	uint8 MipLevel = 0;
+
+	/** Create SRV that access all sub resources of texture. */
+	static FRDGTextureSRVDesc Create(FRDGTextureRef Texture)
+	{
+		FRDGTextureSRVDesc Desc;
+		Desc.Texture = Texture;
+		Desc.NumMipLevels = Texture->Desc.NumMips;
+		if (Texture->Desc.bIsArray)
+		{
+			Desc.NumArraySlices = Texture->Desc.Depth;
+		}
+		return Desc;
+	}
+
+	/** Create SRV that access one specific mip level. */
+	static FRDGTextureSRVDesc CreateForMipLevel(FRDGTextureRef Texture, int32 MipLevel)
+	{
+		FRDGTextureSRVDesc Desc;
+		Desc.Texture = Texture;
+		Desc.MipLevel = MipLevel;
+		Desc.NumMipLevels = 1;
+		if (Texture->Desc.bIsArray)
+		{
+			Desc.NumArraySlices = Texture->Desc.Depth;
+		}
+		return Desc;
+	}
+
+	/** Create SRV that access one specific mip level. */
+	static FRDGTextureSRVDesc CreateWithPixelFormat(FRDGTextureRef Texture, EPixelFormat PixelFormat)
+	{
+		FRDGTextureSRVDesc Desc = FRDGTextureSRVDesc::Create(Texture);
+		Desc.Format = PixelFormat;
+		return Desc;
+	}
 };
 
 /** Render graph tracked SRV. */
-class RENDERCORE_API FRDGTextureSRV final
+class FRDGTextureSRV final
 	: public FRDGShaderResourceView
 {
 public:
 	/** Descriptor of the graph tracked SRV. */
 	const FRDGTextureSRVDesc Desc;
+
+	FRDGTextureRef GetParent() const override
+	{
+		return Desc.Texture;
+	}
 
 private:
 	FRDGTextureSRV(
@@ -356,7 +438,7 @@ private:
 };
 
 /** Descriptor for render graph tracked UAV. */
-class RENDERCORE_API FRDGTextureUAVDesc
+class FRDGTextureUAVDesc
 {
 public:
 	FRDGTextureUAVDesc() = default;
@@ -373,12 +455,17 @@ public:
 };
 
 /** Render graph tracked texture UAV. */
-class RENDERCORE_API FRDGTextureUAV final
+class FRDGTextureUAV final
 	: public FRDGUnorderedAccessView
 {
 public:
 	/** Descriptor of the graph tracked UAV. */
 	const FRDGTextureUAVDesc Desc;
+
+	FRDGTextureRef GetParent() const override
+	{
+		return Desc.Texture;
+	}
 
 private:
 	FRDGTextureUAV(
@@ -392,7 +479,7 @@ private:
 };
 
 /** Descriptor for render graph tracked Buffer. */
-struct RENDERCORE_API FRDGBufferDesc
+struct FRDGBufferDesc
 {
 	// Type of buffers to the RHI
 	// TODO(RDG): refactor RHI to only have one FRHIBuffer.
@@ -451,6 +538,27 @@ struct RENDERCORE_API FRDGBufferDesc
 		return Desc;
 	}
 
+	static FRDGBufferDesc CreateByteAddressDesc(uint32 NumBytes)
+	{
+		check(NumBytes % 4 == 0);
+		FRDGBufferDesc Desc;
+		Desc.UnderlyingType = EUnderlyingType::StructuredBuffer;
+		Desc.Usage = EBufferUsageFlags(BUF_UnorderedAccess | BUF_ShaderResource | BUF_ByteAddressBuffer);
+		Desc.BytesPerElement = 4;
+		Desc.NumElements = NumBytes / 4;
+		return Desc;
+	}
+
+	static FRDGBufferDesc CreateUploadDesc(uint32 BytesPerElement, uint32 NumElements)
+	{
+		FRDGBufferDesc Desc;
+		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
+		Desc.Usage = EBufferUsageFlags(BUF_Static | BUF_ShaderResource);
+		Desc.BytesPerElement = BytesPerElement;
+		Desc.NumElements = NumElements;
+		return Desc;
+	}
+
 	/** Returns the total number of bytes allocated for a such buffer. */
 	uint32 GetTotalNumBytes() const
 	{
@@ -484,7 +592,7 @@ struct RENDERCORE_API FRDGBufferDesc
 	EUnderlyingType UnderlyingType = EUnderlyingType::VertexBuffer;
 };
 
-struct RENDERCORE_API FRDGBufferSRVDesc
+struct FRDGBufferSRVDesc
 {
 	FRDGBufferSRVDesc() = default;
 
@@ -506,7 +614,7 @@ struct RENDERCORE_API FRDGBufferSRVDesc
 	EPixelFormat Format = PF_Unknown;
 };
 
-struct RENDERCORE_API FRDGBufferUAVDesc
+struct FRDGBufferUAVDesc
 {
 	FRDGBufferUAVDesc() = default;
 
@@ -619,8 +727,8 @@ private:
 };
 
 /** Render graph tracked buffers. */
-class RENDERCORE_API FRDGBuffer final
-	: public FRDGTrackedResource
+class FRDGBuffer final
+	: public FRDGParentResource
 {
 public:
 	/** Descriptor of the graph. */
@@ -640,6 +748,16 @@ public:
 		return PooledBuffer->VertexBuffer;
 	}
 
+	/** Returns the buffer to use for RHI calls, eg RHILockVertexBuffer. */
+	FRHIVertexBuffer* GetRHIVertexBuffer() const
+	{
+		ValidateRHIAccess();
+		checkf(PooledBuffer, TEXT("RDG buffer had null PooledBuffer.  Make sure your pass's shader parameter table has a SHADER_PARAMETER_RDG_BUFFER_UPLOAD() entry for this buffer so the graph knows to allocate it."));
+		checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("This function only works on underlying vertex buffer."));
+		check(PooledBuffer->VertexBuffer.IsValid());
+		return PooledBuffer->VertexBuffer;
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 
 private:
@@ -647,7 +765,7 @@ private:
 		const TCHAR* InName,
 		const FRDGBufferDesc& InDesc,
 		ERDGResourceFlags InFlags)
-		: FRDGTrackedResource(InName, InFlags)
+		: FRDGParentResource(InName, InFlags)
 		, Desc(InDesc)
 	{}
 
@@ -660,12 +778,17 @@ private:
 };
 
 /** Render graph tracked buffer SRV. */
-class RENDERCORE_API FRDGBufferSRV final
+class FRDGBufferSRV final
 	: public FRDGShaderResourceView
 {
 public:
 	/** Descriptor of the graph tracked SRV. */
 	const FRDGBufferSRVDesc Desc;
+
+	FRDGBufferRef GetParent() const override
+	{
+		return Desc.Buffer;
+	}
 
 private:
 	FRDGBufferSRV(const TCHAR* InName, const FRDGBufferSRVDesc& InDesc)
@@ -677,12 +800,17 @@ private:
 };
 
 /** Render graph tracked buffer UAV. */
-class RENDERCORE_API FRDGBufferUAV final
+class FRDGBufferUAV final
 	: public FRDGUnorderedAccessView
 {
 public:
 	/** Descriptor of the graph tracked UAV. */
 	const FRDGBufferUAVDesc Desc;
+
+	FRDGBufferRef GetParent() const override
+	{
+		return Desc.Buffer;
+	}
 
 private:
 	FRDGBufferUAV(const TCHAR* InName, const FRDGBufferUAVDesc& InDesc)

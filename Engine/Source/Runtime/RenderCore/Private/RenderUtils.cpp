@@ -153,7 +153,7 @@ static struct FValidatePixelFormats
 {
 	FValidatePixelFormats()
 	{
-		for (int32 X = 0; X < UE_ARRAY_COUNT(GPixelFormats); ++X)
+		for (int32 X = 0; X < ARRAY_COUNT(GPixelFormats); ++X)
 		{
 			// Make sure GPixelFormats has an entry for every unreal format
 			check(X == GPixelFormats[X].UnrealFormat);
@@ -344,7 +344,7 @@ public:
 	// FResource interface.
 	virtual void InitRHI() override
 	{
-		if (GetFeatureLevel() >= ERHIFeatureLevel::SM4)
+		if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
 			// Create the texture RHI.
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(0);
@@ -957,40 +957,35 @@ static_assert(SP_NumPlatforms <= sizeof(GSelectiveBasePassOutputsPlatformMask) *
 RENDERCORE_API uint64 GDistanceFieldsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GDistanceFieldsPlatformMask) * 8, "GDistanceFieldsPlatformMask must be large enough to support all shader platforms");
 
-#if WITH_EDITOR
-RENDERCORE_API uint64 GRequiresCookedDataPlatformMask = 0;
-static_assert(SP_NumPlatforms <= sizeof(GRequiresCookedDataPlatformMask) * 8, "GRequiresCookedDataPlatformMask must be large enough to support all shader platforms");
-#endif
-
 RENDERCORE_API void RenderUtilsInit()
 {
 	if (GUseForwardShading)
 	{
-		GForwardShadingPlatformMask = ~0u;
+		GForwardShadingPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* DBufferVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DBuffer"));
 	if (DBufferVar && DBufferVar->GetInt())
 	{
-		GDBufferPlatformMask = ~0u;
+		GDBufferPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* BasePassVelocityCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BasePassOutputsVelocity"));
 	if (BasePassVelocityCVar && BasePassVelocityCVar->GetInt())
 	{
-		GBasePassVelocityPlatformMask = ~0u;
+		GBasePassVelocityPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* SelectiveBasePassOutputsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SelectiveBasePassOutputs"));
 	if (SelectiveBasePassOutputsCVar && SelectiveBasePassOutputsCVar->GetInt())
 	{
-		GSelectiveBasePassOutputsPlatformMask = ~0u;
+		GSelectiveBasePassOutputsPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* DistanceFieldsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DistanceFields")); 
 	if (DistanceFieldsCVar && DistanceFieldsCVar->GetInt())
 	{
-		GDistanceFieldsPlatformMask = ~0u;
+		GDistanceFieldsPlatformMask = ~0ull;
 	}
 
 #if WITH_EDITOR
@@ -1050,15 +1045,6 @@ RENDERCORE_API void RenderUtilsInit()
 				{
 					GDistanceFieldsPlatformMask &= ~Mask;
 				}
-
-				if (TargetPlatform->RequiresCookedData())
-				{
-					GRequiresCookedDataPlatformMask |= Mask;
-				}
-				else
-				{
-					GRequiresCookedDataPlatformMask &= ~Mask;
-				}
 			}
 		}
 	}
@@ -1113,7 +1099,7 @@ public:
 	{
 		TResourceArray<uint16, INDEXBUFFER_ALIGNMENT> Indices;
 		
-		int32 NumIndices = UE_ARRAY_COUNT(GCubeIndices);
+		int32 NumIndices = ARRAY_COUNT(GCubeIndices);
 		Indices.AddUninitialized(NumIndices);
 		FMemory::Memcpy(Indices.GetData(), GCubeIndices, NumIndices * sizeof(uint16));
 

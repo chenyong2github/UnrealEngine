@@ -109,6 +109,9 @@ RHI_API bool IsRHIDeviceNVIDIA();
 // helper to convert GRHIVendorId into a printable string, or "Unknown" if unknown.
 RHI_API const TCHAR* RHIVendorIdToString();
 
+// helper to convert VendorId into a printable string, or "Unknown" if unknown.
+RHI_API const TCHAR* RHIVendorIdToString(EGpuVendorId VendorId);
+
 // helper to return the shader language version for the given shader platform.
 RHI_API uint32 RHIGetShaderLanguageVersion(const EShaderPlatform Platform);
 
@@ -141,10 +144,9 @@ inline bool RHISupportsMultiView(const EShaderPlatform Platform)
 inline bool RHISupportsMSAA(EShaderPlatform Platform)
 {
 	return 
-		//@todo-rco: Fix when iOS OpenGL supports MSAA
-		(Platform != SP_OPENGL_ES2_IOS
+		(
 		// @todo optimise MSAA for XboxOne, currently uses significant eRAM.
-		&& Platform != SP_XBOXONE_D3D12)
+		Platform != SP_XBOXONE_D3D12)
 		// @todo platplug: Maybe this should become bDisallowMSAA to default of 0 is a better default (since now MSAA is opt-out more than opt-in) 
 		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsMSAA;
 }
@@ -157,12 +159,22 @@ inline bool RHISupportsBufferLoadTypeConversion(EShaderPlatform Platform)
 /** Whether the platform supports reading from volume textures (does not cover rendering to volume textures). */
 inline bool RHISupportsVolumeTextures(ERHIFeatureLevel::Type FeatureLevel)
 {
-	return FeatureLevel >= ERHIFeatureLevel::SM4;
+	return FeatureLevel >= ERHIFeatureLevel::SM5;
 }
 
 inline bool RHISupportsVertexShaderLayer(const EShaderPlatform Platform)
 {
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) && IsMetalPlatform(Platform) && (IsPCPlatform(Platform) || (Platform == SP_METAL_MRT && RHIGetShaderLanguageVersion(Platform) >= 4));
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && IsMetalPlatform(Platform) && (IsPCPlatform(Platform) || (Platform == SP_METAL_MRT && RHIGetShaderLanguageVersion(Platform) >= 4));
+}
+
+/** Return true if and only if the GPU support rendering to volume textures (2D Array, 3D) is guaranteed supported for a target platform.
+	if PipelineVolumeTextureLUTSupportGuaranteedAtRuntime is true then it is guaranteed that GSupportsVolumeTextureRendering is true at runtime.
+*/
+inline bool RHIVolumeTextureRenderingSupportGuaranteed(const EShaderPlatform Platform)
+{
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5)
+		&& (!IsMetalPlatform(Platform) || RHISupportsVertexShaderLayer(Platform)) // For Metal only shader platforms & versions that support vertex-shader-layer can render to volume textures - this is a compile/cook time check.
+		&& !IsOpenGLPlatform(Platform);		// Apparently, some OpenGL 3.3 cards support SM4 but can't render to volume textures
 }
 
 inline bool RHISupports4ComponentUAVReadWrite(EShaderPlatform Platform)
@@ -291,6 +303,9 @@ extern RHI_API bool GRHISupportsQuadTopology;
 
 /** true if the RHI supports rectangular topology (PT_RectList). */
 extern RHI_API bool GRHISupportsRectTopology;
+
+/** true if the RHI supports 64 bit uint atomics. */
+extern RHI_API bool GRHISupportsAtomicUInt64;
 
 /** Temporary. When OpenGL is running in a separate thread, it cannot yet do things like initialize shaders that are first discovered in a rendering task. It is doable, it just isn't done. */
 extern RHI_API bool GSupportsParallelRenderingTasksWithSeparateRHIThread;
@@ -726,6 +741,7 @@ struct FVertexElement
 typedef TArray<FVertexElement,TFixedAllocator<MaxVertexElementCount> > FVertexDeclarationElementList;
 
 /** RHI representation of a single stream out element. */
+//#todo-RemoveStreamOut
 struct FStreamOutElement
 {
 	/** Index of the output stream from the geometry shader. */
@@ -757,6 +773,7 @@ struct FStreamOutElement
 	{}
 };
 
+//#todo-RemoveStreamOut
 typedef TArray<FStreamOutElement,TFixedAllocator<MaxVertexElementCount> > FStreamOutElementList;
 
 struct FSamplerStateInitializerRHI
@@ -1299,7 +1316,31 @@ struct FRHITextureSRVCreateInfo
 
 	/** Specify number of array slices. If FirstArraySlice and NumArraySlices are both zero, the SRV is created for all array slices. By default 0. */
 	uint32 NumArraySlices;
+
+
+	FORCEINLINE bool operator==(const FRHITextureSRVCreateInfo& Other)const
+	{
+		return (
+			Format == Other.Format &&
+			SRGBOverride == Other.SRGBOverride &&
+			MipLevel == Other.MipLevel &&
+			NumMipLevels == Other.NumMipLevels &&
+			FirstArraySlice == Other.FirstArraySlice &&
+			NumArraySlices == Other.NumArraySlices);
+	}
+
+	FORCEINLINE bool operator!=(const FRHITextureSRVCreateInfo& Other)const
+	{
+		return !(*this == Other);
+	}
 };
+
+FORCEINLINE uint32 GetTypeHash(const FRHITextureSRVCreateInfo& Var)
+{
+	uint32 Hash0 = uint32(Var.Format) | uint32(Var.MipLevel) << 8 | uint32(Var.NumMipLevels) << 16 | uint32(Var.SRGBOverride) << 24;
+	return HashCombine(HashCombine(GetTypeHash(Hash0), GetTypeHash(Var.FirstArraySlice)), GetTypeHash(Var.NumArraySlices));
+}
+
 
 // Forward-declaration.
 struct FResolveParams;

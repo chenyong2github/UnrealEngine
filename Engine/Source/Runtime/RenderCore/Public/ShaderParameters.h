@@ -139,13 +139,13 @@ public:
 	}
 
 	template<typename TShaderRHIRef, typename TRHICmdList>
-	inline void SetBuffer(TRHICmdList& RHICmdList, TShaderRHIRef Shader, const FRWBuffer& RWBuffer) const;
+	inline void SetBuffer(TRHICmdList& RHICmdList, const TShaderRHIRef& Shader, const FRWBuffer& RWBuffer) const;
 
 	template<typename TShaderRHIRef, typename TRHICmdList>
-	inline void SetBuffer(TRHICmdList& RHICmdList, TShaderRHIRef Shader, const FRWBufferStructured& RWBuffer) const;
+	inline void SetBuffer(TRHICmdList& RHICmdList, const TShaderRHIRef& Shader, const FRWBufferStructured& RWBuffer) const;
 
 	template<typename TShaderRHIRef, typename TRHICmdList>
-	inline void SetTexture(TRHICmdList& RHICmdList, TShaderRHIRef Shader, FRHITexture* Texture, FRHIUnorderedAccessView* UAV) const;
+	inline void SetTexture(TRHICmdList& RHICmdList, const TShaderRHIRef& Shader, FRHITexture* Texture, FRHIUnorderedAccessView* UAV) const;
 
 	template<typename TRHICmdList>
 	inline void UnsetUAV(TRHICmdList& RHICmdList, FRHIComputeShader* ComputeShader) const;
@@ -286,31 +286,31 @@ struct FRayTracingShaderBindingsWriter : FRayTracingShaderBindings
 
 	void SetTexture(uint16 BaseIndex, FRHITexture* Value)
 	{
-		checkSlow(BaseIndex < UE_ARRAY_COUNT(Textures));
+		checkSlow(BaseIndex < ARRAY_COUNT(Textures));
 		Textures[BaseIndex] = Value;
 	}
 
 	void SetSRV(uint16 BaseIndex, FRHIShaderResourceView* Value)
 	{
-		checkSlow(BaseIndex < UE_ARRAY_COUNT(SRVs));
+		checkSlow(BaseIndex < ARRAY_COUNT(SRVs));
 		SRVs[BaseIndex] = Value;
 	}
 
 	void SetSampler(uint16 BaseIndex, FRHISamplerState* Value)
 	{
-		checkSlow(BaseIndex < UE_ARRAY_COUNT(Samplers));
+		checkSlow(BaseIndex < ARRAY_COUNT(Samplers));
 		Samplers[BaseIndex] = Value;
 	}
 
 	void SetUAV(uint16 BaseIndex, FRHIUnorderedAccessView* Value)
 	{
-		checkSlow(BaseIndex < UE_ARRAY_COUNT(UAVs));
+		checkSlow(BaseIndex < ARRAY_COUNT(UAVs));
 		UAVs[BaseIndex] = Value;
 	}
 
 	void SetUniformBuffer(uint16 BaseIndex, FRHIUniformBuffer* Value)
 	{
-		checkSlow(BaseIndex < UE_ARRAY_COUNT(UniformBuffers));
+		checkSlow(BaseIndex < ARRAY_COUNT(UniformBuffers));
 		UniformBuffers[BaseIndex] = Value;
 	}
 };

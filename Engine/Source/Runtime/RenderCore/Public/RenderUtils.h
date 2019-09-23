@@ -486,15 +486,6 @@ inline bool IsUsingDistanceFields(EShaderPlatform Platform)
 	return !!(GDistanceFieldsPlatformMask & (1ull << Platform));
 }
 
-#if WITH_EDITOR
-/** Returns whether cooked data is required for a given shader platform */
-inline bool RequiresCookedData(EShaderPlatform Platform)
-{
-	extern RENDERCORE_API uint64 GRequiresCookedDataPlatformMask;
-	return !!(GRequiresCookedDataPlatformMask & (1ull << Platform));
-}
-#endif
-
 inline bool IsUsingPerPixelDBufferMask(EShaderPlatform Platform)
 {
 	switch (Platform)

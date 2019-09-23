@@ -393,6 +393,11 @@ void FD3D12Device::RegisterGPUWork(uint32 NumPrimitives, uint32 NumVertices)
 	GetParentAdapter()->GetGPUProfiler().RegisterGPUWork(NumPrimitives, NumVertices);
 }
 
+void FD3D12Device::RegisterGPUDispatch(FIntVector GroupCount)
+{
+	GetParentAdapter()->GetGPUProfiler().RegisterGPUDispatch(GroupCount);
+}
+
 void FD3D12Device::PushGPUEvent(const TCHAR* Name, FColor Color)
 {
 	GetParentAdapter()->GetGPUProfiler().PushEvent(Name, Color);

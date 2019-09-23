@@ -22,6 +22,7 @@ public:
 	static void Execute(FRHICommandListImmediate& RHICmdList, FRHITexture* InTexture,
 		const FGenerateMipsParams& InParams = FGenerateMipsParams());
 
+	static void Execute(class FRDGBuilder* GraphBuilder, class FRDGTexture* InGraphTexture, FRHISamplerState* InSampler);
 private:
 	static void Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture* InTexture);
 	static FGenerateMipsStruct* SetupTexture(FRHITexture* InTexture,
