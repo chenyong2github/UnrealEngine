@@ -71,7 +71,22 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 				});
 			}
 			break;
-		
+
+		case ERawImageFormat::G16:
+		{
+			uint16* DestLum = DestImage.AsG16();
+			ParallelFor(NumJobs, [NumJobs, DestLum, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int32 JobIndex)
+			{
+				const int32 StartIndex = JobIndex * TexelsPerJob;
+				const int32 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
+				for (int32 TexelIndex = StartIndex; TexelIndex < EndIndex; ++TexelIndex)
+				{
+					DestLum[TexelIndex] = FMath::Clamp(FMath::FloorToInt(SrcColors[TexelIndex].R * 65535.999f), 0, 65535);
+				}
+			});
+		}
+		break;
+
 		case ERawImageFormat::BGRA8:
 			{
 				FColor* DestColors = DestImage.AsBGRA8();
@@ -155,6 +170,16 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 				}
 			}
 			break;
+
+		case ERawImageFormat::G16:
+		{
+			const uint16* SrcLum = SrcImage.AsG16();
+			for (int32 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+			{
+				DestColors[TexelIndex] = FLinearColor(SrcLum[TexelIndex] / 65535.0f, SrcLum[TexelIndex] / 65535.0f, SrcLum[TexelIndex] / 65535.0f, 1.0f);
+			}
+		}
+		break;
 
 		case ERawImageFormat::BGRA8:
 			{
@@ -386,6 +411,10 @@ int32 FImage::GetBytesPerPixel() const
 	{
 	case ERawImageFormat::G8:
 		BytesPerPixel = 1;
+		break;
+	
+	case ERawImageFormat::G16:
+		BytesPerPixel = 2;
 		break;
 
 	case ERawImageFormat::BGRA8:

@@ -189,6 +189,7 @@ return TSuper::SupportsFeature(Feature);
 		static FName NameBGRA8(TEXT("BGRA8"));
 		static FName NameXGXR8(TEXT("XGXR8"));
 		static FName NameG8(TEXT("G8"));
+		static FName NameG16(TEXT("G16"));
 		static FName NameVU8(TEXT("VU8"));
 		static FName NameRGBA16F(TEXT("RGBA16F"));
 		static FName NameBC6H(TEXT("BC6H"));
@@ -211,6 +212,10 @@ return TSuper::SupportsFeature(Feature);
 			if (SourceFormat == TSF_RGBA16F)
 			{
 				TextureFormatName = NameRGBA16F;
+			}
+			else if (SourceFormat == TSF_G16)
+			{
+				TextureFormatName = NameG16;
 			}
 			else if (SourceFormat == TSF_G8 || Settings == TC_Grayscale)
 			{
