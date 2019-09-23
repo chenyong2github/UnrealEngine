@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
 #include "InteractiveGizmoManager.h"
+#include "InteractiveToolManager.h"
 #include "BaseGizmos/GizmoInterfaces.h"
 #include "Changes/TransformChange.h"
 #include "StateTargets.generated.h"
@@ -148,9 +149,9 @@ public:
 	{
 		if (TargetComponent.IsValid())
 		{
-			if (GizmoManager.IsValid())
+			if (TransactionManager)
 			{
-				GizmoManager->BeginUndoTransaction(ChangeDescription);
+				TransactionManager->BeginUndoTransaction(ChangeDescription);
 			}
 
 			InitialTransform = TargetComponent->GetComponentTransform();
@@ -163,16 +164,12 @@ public:
 		{
 			FinalTransform = TargetComponent->GetComponentTransform();
 
-			if (GizmoManager.IsValid())
+			if (TransactionManager)
 			{
 				TUniquePtr<FComponentWorldTransformChange> TransformChange 
 					= MakeUnique<FComponentWorldTransformChange>(InitialTransform, FinalTransform);
-				GizmoManager->EmitObjectChange(TargetComponent.Get(), MoveTemp(TransformChange), ChangeDescription);
-
-				if (GizmoManager.IsValid())
-				{
-					GizmoManager->EndUndoTransaction();
-				}
+				TransactionManager->EmitObjectChange(TargetComponent.Get(), MoveTemp(TransformChange), ChangeDescription);
+				TransactionManager->EndUndoTransaction();
 			}
 		}
 	}
@@ -189,9 +186,10 @@ public:
 	FText ChangeDescription;
 
 	/**
-	 * Pointer to the GizmoManager that is used to open/close the transaction
+	 * Pointer to the GizmoManager or ToolManager that is used to open/close the transaction
 	 */
-	TWeakObjectPtr<UInteractiveGizmoManager> GizmoManager;
+	UPROPERTY()
+	TScriptInterface<IToolContextTransactionProvider> TransactionManager;
 
 	/** Start Transform, saved on BeginUpdate() */
 	FTransform InitialTransform;
@@ -200,22 +198,29 @@ public:
 
 
 public:
+
 	/**
 	 * Create and initialize an standard instance of UGizmoTransformChangeStateTarget
 	 * @param TargetComponentIn the USceneComponent this StateTarget will track transform changes on
 	 * @param DescriptionIn Localized text description of the transaction
-	 * @param GizmoManagerIn pointer to the GizmoManager used to manage transactions
+	 * @param TransactionManagerIn pointer to the GizmoManager or ToolManager used to manage transactions
 	 */
 	static UGizmoTransformChangeStateTarget* Construct(
 		USceneComponent* TargetComponentIn,
 		const FText& DescriptionIn,
-		UInteractiveGizmoManager* GizmoManagerIn,
+		IToolContextTransactionProvider* TransactionManagerIn,
 		UObject* Outer = (UObject*)GetTransientPackage())
 	{
 		UGizmoTransformChangeStateTarget* NewTarget = NewObject<UGizmoTransformChangeStateTarget>(Outer);
 		NewTarget->TargetComponent = TargetComponentIn;
 		NewTarget->ChangeDescription = DescriptionIn;
-		NewTarget->GizmoManager = GizmoManagerIn;
+
+		// have to explicitly configure this because we only have IToolContextTransactionProvider pointer
+		NewTarget->TransactionManager.SetInterface(TransactionManagerIn);
+		NewTarget->TransactionManager.SetObject(CastChecked<UObject>(TransactionManagerIn));
+		
 		return NewTarget;
 	}
+
+
 };

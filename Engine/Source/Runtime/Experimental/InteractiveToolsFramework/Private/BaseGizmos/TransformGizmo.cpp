@@ -227,7 +227,7 @@ void UTransformGizmo::Tick(float DeltaTime)
 
 
 
-void UTransformGizmo::SetActiveTarget(UTransformProxy* Target)
+void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider)
 {
 	if (ActiveTarget != nullptr)
 	{
@@ -257,8 +257,12 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target)
 
 	// This state target emits an explicit FChange that moves the GizmoActor root component during undo/redo.
 	// It also opens/closes the Transaction that saves/restores the target object locations.
+	if (TransactionProvider == nullptr)
+	{
+		TransactionProvider = GetGizmoManager();
+	}
 	UGizmoTransformChangeStateTarget* StateTarget = UGizmoTransformChangeStateTarget::Construct(GizmoComponent,
-		LOCTEXT("UTransformGizmoTransaction", "Transform"), GetGizmoManager(), this);
+		LOCTEXT("UTransformGizmoTransaction", "Transform"), TransactionProvider, this);
 
 	UGizmoComponentWorldTransformSource* TransformSource = 
 		UGizmoComponentWorldTransformSource::Construct(GizmoComponent, this);

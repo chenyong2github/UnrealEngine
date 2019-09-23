@@ -204,8 +204,9 @@ public:
 	/**
 	 * Set the active target object for the Gizmo
 	 * @param Target active target
+	 * @param TransactionProvider optional IToolContextTransactionProvider implementation to use - by default uses GizmoManager
 	 */
-	virtual void SetActiveTarget(UTransformProxy* Target);
+	virtual void SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider = nullptr);
 
 	/**
 	 * Clear the active target object for the Gizmo

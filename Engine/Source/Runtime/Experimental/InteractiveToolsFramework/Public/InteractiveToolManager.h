@@ -41,7 +41,7 @@ enum class EToolSide
  *
  */
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveToolManager : public UObject
+class INTERACTIVETOOLSFRAMEWORK_API UInteractiveToolManager : public UObject, public IToolContextTransactionProvider
 {
 	GENERATED_BODY()
 

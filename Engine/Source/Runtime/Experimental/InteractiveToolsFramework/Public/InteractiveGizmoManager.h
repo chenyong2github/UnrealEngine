@@ -33,7 +33,7 @@ struct FActiveGizmo
  * 
  */
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveGizmoManager : public UObject
+class INTERACTIVETOOLSFRAMEWORK_API UInteractiveGizmoManager : public UObject, public IToolContextTransactionProvider
 {
 	GENERATED_BODY()
 
