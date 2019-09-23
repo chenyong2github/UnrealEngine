@@ -137,8 +137,8 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 #ifdef TILE_CATERGORISATION_SHADER
 
 
-unsigned int TiledViewWidth;
-unsigned int TiledViewHeight;
+uint TiledViewWidth;
+uint TiledViewHeight;
 float TiledViewWidthInv;
 float TiledViewHeightInv;
 
@@ -241,8 +241,8 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 
 
 
-unsigned int TiledViewWidth;
-unsigned int TiledViewHeight;
+uint TiledViewWidth;
+uint TiledViewHeight;
 
 Buffer<uint> WaterTileListData;
 
