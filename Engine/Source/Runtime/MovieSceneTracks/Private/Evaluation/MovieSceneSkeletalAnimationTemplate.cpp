@@ -101,6 +101,8 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 					SequencerInst->ResetNodes();
 				}
 
+				UAnimSequencerInstance::UnbindFromSkeletalMeshComponent(Component);
+
 				// Reset the mesh component update flag and animation mode to what they were before we animated the object
 				Component->VisibilityBasedAnimTickOption = VisibilityBasedAnimTickOption;
 				if (Component->GetAnimationMode() != AnimationMode)
@@ -129,8 +131,11 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 #if WITH_EDITOR
 				Component->SetUpdateAnimationInEditor(bUpdateAnimationInEditor);
 #endif
-
-				UAnimSequencerInstance::UnbindFromSkeletalMeshComponent(Component);
+				// if not game world, don't clean this up
+				if (Component->GetWorld() != nullptr && Component->GetWorld()->IsGameWorld() == false)
+				{
+					Component->ClearMotionVector();
+				}
 			}
 
 			EVisibilityBasedAnimTickOption VisibilityBasedAnimTickOption;
