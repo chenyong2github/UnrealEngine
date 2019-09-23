@@ -147,13 +147,13 @@ namespace Gauntlet
 			// where we may be running parallel tests on multiple platforms
 			if (InPlatform == UnrealTargetPlatform.Android || InPlatform == UnrealTargetPlatform.IOS)
 			{
-				if (Globals.Params.ParseParam("notbulk"))
-				{
-					RequiredBuildFlags |= BuildFlags.NotBulk;
-				}
-				else if (Globals.Params.ParseParam("bulk"))
+				if (Globals.Params.ParseParam("bulk"))
 				{
 					RequiredBuildFlags |= BuildFlags.Bulk;
+				}
+				else
+				{
+					RequiredBuildFlags |= BuildFlags.NotBulk;
 				}
 			}
 
