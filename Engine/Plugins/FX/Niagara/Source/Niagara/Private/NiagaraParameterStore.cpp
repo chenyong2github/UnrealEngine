@@ -92,8 +92,84 @@ void FNiagaraParameterStore::Bind(FNiagaraParameterStore* DestStore)
 {
 	check(DestStore);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreBind);
-	FNiagaraParameterStoreBinding& Binding = Bindings.FindOrAdd(DestStore);
-	Binding.Initialize(DestStore, this);
+	if (!Bindings.Contains(DestStore))
+	{
+		// Bind the parameter stores only if they have variables in common.
+		FNiagaraParameterStoreBinding HeapBinding;
+		if  (HeapBinding.Initialize(DestStore, this))
+		{
+			FNiagaraParameterStoreBinding& Binding = Bindings.FindOrAdd(DestStore);
+			FMemory::Memswap(&Binding, &HeapBinding, sizeof(FNiagaraParameterStoreBinding));
+			return;
+		}
+	}
+}
+
+bool FNiagaraParameterStoreBinding::BindParameters(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore)
+{
+	InterfaceBindings.Reset();
+	ParameterBindings.Reset();
+	UObjectBindings.Reset();
+
+	bool bAnyBinding = false;
+
+	int32 DestOffset = INDEX_NONE;
+	int32 SrcOffset = INDEX_NONE;
+
+	auto BindVariable = [&](const FNiagaraVariable& InParameter)
+	{
+		bAnyBinding = true;
+
+		if (InParameter.IsDataInterface())
+		{
+			InterfaceBindings.Add(FInterfaceBinding(SrcOffset, DestOffset));
+		}
+		else if (InParameter.IsUObject())
+		{
+			UObjectBindings.Add(FUObjectBinding(SrcOffset, DestOffset));
+		}
+		else
+		{
+			ParameterBindings.Add(FParameterBinding(SrcOffset, DestOffset, InParameter.GetSizeInBytes()));
+		}
+	};
+
+	// Process the smaller parameter store the get the least amount of iterations when it is small (often empty).
+	if (DestStore->GetParameterOffsets().Num() <= SrcStore->GetParameterOffsets().Num())
+	{
+		for (const TPair<FNiagaraVariable, int32>& ParamOffsetPair : DestStore->GetParameterOffsets())
+		{
+			const FNiagaraVariable& Parameter = ParamOffsetPair.Key;
+			DestOffset = ParamOffsetPair.Value;
+			SrcOffset = SrcStore->IndexOf(Parameter);
+
+			if (SrcOffset != INDEX_NONE && DestOffset != INDEX_NONE)
+			{
+				BindVariable(Parameter);
+			}
+		}
+	}
+	else
+	{
+		for (const TPair<FNiagaraVariable, int32>& ParamOffsetPair : SrcStore->GetParameterOffsets())
+		{
+			const FNiagaraVariable& Parameter = ParamOffsetPair.Key;
+			SrcOffset = ParamOffsetPair.Value;
+			DestOffset = DestStore->IndexOf(Parameter);
+
+			if (SrcOffset != INDEX_NONE && DestOffset != INDEX_NONE)
+			{
+				BindVariable(Parameter);
+			}
+		}
+	}
+
+	if (bAnyBinding)
+	{
+		//Force an initial tick to prime our values in the destination store.
+		Tick(DestStore, SrcStore, true);
+	}
+	return bAnyBinding;
 }
 
 void FNiagaraParameterStore::Unbind(FNiagaraParameterStore* DestStore)
