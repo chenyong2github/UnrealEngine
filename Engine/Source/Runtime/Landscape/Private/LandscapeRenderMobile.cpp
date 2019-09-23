@@ -34,6 +34,27 @@ void FLandscapeVertexFactoryMobile::InitRHI()
 	InitDeclaration(Elements);
 }
 
+void FLandscapeFixedGridVertexFactoryMobile::InitRHI()
+{
+	// list of declaration items
+	FVertexDeclarationElementList Elements;
+
+	// position decls
+	Elements.Add(AccessStreamComponent(MobileData.PositionComponent, 0));
+
+	if (MobileData.LODHeightsComponent.Num())
+	{
+		const int32 BaseAttribute = 1;
+		for (int32 Index = 0; Index < MobileData.LODHeightsComponent.Num(); Index++)
+		{
+			Elements.Add(AccessStreamComponent(MobileData.LODHeightsComponent[Index], BaseAttribute + Index));
+		}
+	}
+
+	// create the actual device decls
+	InitDeclaration(Elements);
+}
+
 /** Shader parameters for use with FLandscapeVertexFactory */
 class FLandscapeVertexFactoryMobileVertexShaderParameters : public FVertexFactoryShaderParameters
 {
@@ -172,6 +193,108 @@ protected:
 	TShaderUniformBufferParameter<FLandscapeUniformShaderParameters> LandscapeShaderParameters;
 };
 
+
+/** Shader parameters for use with FLandscapeVertexFactory */
+class FLandscapeFixedGridVertexFactoryMobileVertexShaderParameters : public FVertexFactoryShaderParameters
+{
+public:
+	/**
+	* Bind shader constants by name
+	* @param	ParameterMap - mapping of named shader constants to indices
+	*/
+	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	{
+		LodValuesParameter.Bind(ParameterMap, TEXT("LodValues"));
+		LodTessellationParameter.Bind(ParameterMap, TEXT("LodTessellationParams"));
+		NeighborSectionLodParameter.Bind(ParameterMap, TEXT("NeighborSectionLod"));
+		LodBiasParameter.Bind(ParameterMap, TEXT("LodBias"));
+		SectionLodsParameter.Bind(ParameterMap, TEXT("SectionLods"));
+	}
+
+	/**
+	* Serialize shader params to an archive
+	* @param	Ar - archive to serialize to
+	*/
+	virtual void Serialize(FArchive& Ar) override
+	{
+		Ar << LodValuesParameter;
+		Ar << LodTessellationParameter;
+		Ar << NeighborSectionLodParameter;
+		Ar << LodBiasParameter;
+		Ar << SectionLodsParameter;
+	}
+
+	virtual void GetElementShaderBindings(
+		const class FSceneInterface* Scene,
+		const FSceneView* InView,
+		const class FMeshMaterialShader* Shader,
+		const EVertexInputStreamType InputStreamType,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams
+	) const override
+	{
+		SCOPE_CYCLE_COUNTER(STAT_LandscapeVFDrawTimeVS);
+
+		const FLandscapeBatchElementParams* BatchElementParams = (const FLandscapeBatchElementParams*)BatchElement.UserData;
+		check(BatchElementParams);
+
+		const FLandscapeComponentSceneProxyMobile* SceneProxy = (const FLandscapeComponentSceneProxyMobile*)BatchElementParams->SceneProxy;
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(), *BatchElementParams->LandscapeUniformShaderParametersResource);
+
+		if (LodValuesParameter.IsBound())
+		{
+			FVector4 LodValues(
+				0.0f, // this is the mesh's LOD, ES2 always uses the LOD0 mesh
+				0.0f, // unused
+				(float)SceneProxy->SubsectionSizeQuads,
+				1.f / (float)SceneProxy->SubsectionSizeQuads);
+
+			ShaderBindings.Add(LodValuesParameter, LodValues);
+		}
+
+		if (LodBiasParameter.IsBound())
+		{
+			FVector CameraLocalPos3D = SceneProxy->WorldToLocal.TransformPosition(InView->ViewMatrices.GetViewOrigin());
+
+			FVector4 LodBias(
+				0.0f, // unused
+				0.0f, // unused
+				CameraLocalPos3D.X + SceneProxy->SectionBase.X,
+				CameraLocalPos3D.Y + SceneProxy->SectionBase.Y
+			);
+			ShaderBindings.Add(LodBiasParameter, LodBias);
+		}
+
+		if (LodTessellationParameter.IsBound())
+		{
+			FVector4 LodTessellationParams(ForceInitToZero);
+			ShaderBindings.Add(LodTessellationParameter, LodTessellationParams);
+		}
+
+		if (SectionLodsParameter.IsBound())
+		{
+			FVector4 ShaderCurrentLOD(ForceInitToZero);
+			ShaderBindings.Add(SectionLodsParameter, ShaderCurrentLOD);
+		}
+
+		if (NeighborSectionLodParameter.IsBound())
+		{
+			FVector4 ShaderCurrentNeighborLOD[FLandscapeComponentSceneProxy::NEIGHBOR_COUNT] = { FVector4(ForceInitToZero), FVector4(ForceInitToZero), FVector4(ForceInitToZero), FVector4(ForceInitToZero) };
+			ShaderBindings.Add(NeighborSectionLodParameter, ShaderCurrentNeighborLOD);
+		}
+	}
+protected:
+	FShaderParameter LodValuesParameter;
+	FShaderParameter LodTessellationParameter;
+	FShaderParameter NeighborSectionLodParameter;
+	FShaderParameter LodBiasParameter;
+	FShaderParameter SectionLodsParameter;
+	TShaderUniformBufferParameter<FLandscapeUniformShaderParameters> LandscapeShaderParameters;
+};
+
 /** Shader parameters for use with FLandscapeVertexFactory */
 class FLandscapeVertexFactoryMobilePixelShaderParameters : public FLandscapeVertexFactoryPixelShaderParameters
 {
@@ -243,7 +366,21 @@ FVertexFactoryShaderParameters* FLandscapeVertexFactoryMobile::ConstructShaderPa
 	}
 }
 
+FVertexFactoryShaderParameters* FLandscapeFixedGridVertexFactoryMobile::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
+{
+	switch (ShaderFrequency)
+	{
+	case SF_Vertex:
+		return new FLandscapeFixedGridVertexFactoryMobileVertexShaderParameters();
+	case SF_Pixel:
+		return new FLandscapeVertexFactoryMobilePixelShaderParameters();
+	default:
+		return NULL;
+	}
+}
+
 IMPLEMENT_VERTEX_FACTORY_TYPE(FLandscapeVertexFactoryMobile, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeFixedGridVertexFactoryMobile, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false, true, false);
 
 /**
 * Initialize the RHI for this rendering resource
@@ -369,6 +506,12 @@ FLandscapeComponentSceneProxyMobile::~FLandscapeComponentSceneProxyMobile()
 		delete VertexFactory;
 		VertexFactory = NULL;
 	}
+
+	if (FixedGridVertexFactory)
+	{
+		delete FixedGridVertexFactory;
+		FixedGridVertexFactory = NULL;
+	}
 }
 
 SIZE_T FLandscapeComponentSceneProxyMobile::GetTypeHash() const
@@ -406,16 +549,31 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 	check(MobileRenderData->VertexBuffer);
 	MobileRenderData->VertexBuffer->InitResource();
 
-	FLandscapeVertexFactoryMobile* LandscapeVertexFactory = new FLandscapeVertexFactoryMobile(FeatureLevel);
-	LandscapeVertexFactory->MobileData.PositionComponent = FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex,Position), sizeof(FLandscapeMobileVertex), VET_UByte4N);
-	for( uint32 Index = 0; Index < LANDSCAPE_MAX_ES_LOD_COMP; ++Index )
 	{
-		LandscapeVertexFactory->MobileData.LODHeightsComponent.Add
-			(FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex,LODHeights) + sizeof(uint8) * 4 * Index, sizeof(FLandscapeMobileVertex), VET_UByte4N));
+		FLandscapeVertexFactoryMobile* LandscapeVertexFactory = new FLandscapeVertexFactoryMobile(FeatureLevel);
+		LandscapeVertexFactory->MobileData.PositionComponent = FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex, Position), sizeof(FLandscapeMobileVertex), VET_UByte4N);
+		for (uint32 Index = 0; Index < LANDSCAPE_MAX_ES_LOD_COMP; ++Index)
+		{
+			LandscapeVertexFactory->MobileData.LODHeightsComponent.Add
+			(FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex, LODHeights) + sizeof(uint8) * 4 * Index, sizeof(FLandscapeMobileVertex), VET_UByte4N));
+		}
+
+		LandscapeVertexFactory->InitResource();
+		VertexFactory = LandscapeVertexFactory;
 	}
 
-	LandscapeVertexFactory->InitResource();
-	VertexFactory = LandscapeVertexFactory;
+	{
+		FLandscapeFixedGridVertexFactoryMobile* LandscapeVertexFactory = new FLandscapeFixedGridVertexFactoryMobile(FeatureLevel);
+		LandscapeVertexFactory->MobileData.PositionComponent = FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex, Position), sizeof(FLandscapeMobileVertex), VET_UByte4N);
+		for (uint32 Index = 0; Index < LANDSCAPE_MAX_ES_LOD_COMP; ++Index)
+		{
+			LandscapeVertexFactory->MobileData.LODHeightsComponent.Add
+			(FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex, LODHeights) + sizeof(uint8) * 4 * Index, sizeof(FLandscapeMobileVertex), VET_UByte4N));
+		}
+
+		LandscapeVertexFactory->InitResource();
+		FixedGridVertexFactory = LandscapeVertexFactory;
+	}
 
 	// Assign LandscapeUniformShaderParameters
 	LandscapeUniformShaderParameters.InitResource();

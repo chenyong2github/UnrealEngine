@@ -4184,7 +4184,9 @@ void ALandscape::UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*
 				if (NeedToCreateMIC)
 				{
 					// Create the instance for this component, that will use the layer combination instance.
-					MaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(this);
+					ULandscapeMaterialInstanceConstant* LandscapeMIC = NewObject<ULandscapeMaterialInstanceConstant>(this);
+					LandscapeMIC->bUseDiscreteLOD = this->bUseDiscreteLOD;
+					MaterialInstance = LandscapeMIC;
 					Component->MaterialInstances[MaterialIndex] = MaterialInstance;
 				}
 

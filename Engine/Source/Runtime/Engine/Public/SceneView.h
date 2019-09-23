@@ -722,6 +722,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix, WorldToVirtualTexture) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, VirtualTextureParams) \
 	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector4, XRPassthroughCameraUVs, [2]) \
+	VIEW_UNIFORM_BUFFER_MEMBER(int32, FarShadowStaticMeshLODBias) \
 
 #define VIEW_UNIFORM_BUFFER_MEMBER(type, identifier) \
 	SHADER_PARAMETER(type, identifier)
@@ -816,10 +817,11 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 namespace EDrawDynamicFlags
 {
-	enum Type
+	enum Type : int32
 	{
 		None = 0,
-		ForceLowestLOD = 0x1
+		ForceLowestLOD = 0x1,
+		FarShadowCascade = 0x2,
 	};
 }
 

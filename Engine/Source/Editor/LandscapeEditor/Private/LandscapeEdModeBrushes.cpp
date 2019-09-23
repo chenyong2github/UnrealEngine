@@ -12,7 +12,7 @@
 #include "LandscapeGizmoActor.h"
 #include "LandscapeEdMode.h"
 #include "LandscapeEditorObject.h"
-
+#include "LandscapeMaterialInstanceConstant.h"
 #include "LandscapeRender.h"
 
 #include "LevelUtils.h"
@@ -52,6 +52,7 @@ class FLandscapeBrushCircle : public FLandscapeBrush
 protected:
 	FVector2D LastMousePosition;
 	UMaterialInterface* BrushMaterial;
+	UMaterialInterface* BrushMaterial_DiscreteLOD;
 	TMap<ULandscapeComponent*, UMaterialInstanceDynamic*> BrushMaterialInstanceMap;
 
 	virtual float CalculateFalloff(float Distance, float Radius, float Falloff) = 0;
@@ -59,7 +60,8 @@ protected:
 	/** Protected so that only subclasses can create instances of this class. */
 	FLandscapeBrushCircle(FEdModeLandscape* InEdMode, UMaterialInterface* InBrushMaterial)
 		: LastMousePosition(0, 0)
-		, BrushMaterial(LandscapeTool::CreateMaterialInstance(InBrushMaterial))
+		, BrushMaterial(LandscapeTool::CreateMaterialInstance(InBrushMaterial, false))
+		, BrushMaterial_DiscreteLOD(LandscapeTool::CreateMaterialInstance(InBrushMaterial, true))
 		, EdMode(InEdMode)
 	{
 	}
@@ -71,6 +73,7 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
 	{
 		Collector.AddReferencedObject(BrushMaterial);
+		Collector.AddReferencedObject(BrushMaterial_DiscreteLOD);
 
 		// Allow any currently unused material instances to be GC'd
 		BrushMaterialFreeInstances.Empty();
@@ -160,14 +163,26 @@ public:
 		for (ULandscapeComponent* AddedComponent : AddedComponents)
 		{
 			UMaterialInstanceDynamic* BrushMaterialInstance = nullptr;
+
 			if (BrushMaterialFreeInstances.Num() > 0)
 			{
-				BrushMaterialInstance = BrushMaterialFreeInstances.Pop();
+				for (auto Iter = BrushMaterialFreeInstances.CreateIterator(); Iter; Iter++)
+				{
+					ULandscapeMaterialInstanceConstant* LandscapeMIC = Cast<ULandscapeMaterialInstanceConstant>((*Iter)->Parent);
+					if (LandscapeMIC->bUseDiscreteLOD == AddedComponent->GetLandscapeProxy()->bUseDiscreteLOD)
+					{
+						BrushMaterialInstance = *Iter;
+						Iter.RemoveCurrent();
+						break;
+					}
+				}
 			}
-			else
+			
+			if (BrushMaterialInstance == nullptr)
 			{
-				BrushMaterialInstance = UMaterialInstanceDynamic::Create(BrushMaterial, nullptr);
+				BrushMaterialInstance = UMaterialInstanceDynamic::Create(AddedComponent->GetLandscapeProxy()->bUseDiscreteLOD ? BrushMaterial_DiscreteLOD : BrushMaterial, nullptr);
 			}
+
 			BrushMaterialInstanceMap.Add(AddedComponent, BrushMaterialInstance);
 			AddedComponent->EditToolRenderData.ToolMaterial = BrushMaterialInstance;
 			AddedComponent->UpdateEditToolRenderData();
@@ -358,15 +373,18 @@ class FLandscapeBrushComponent : public FLandscapeBrush
 protected:
 	FVector2D LastMousePosition;
 	UMaterialInterface* BrushMaterial;
+	UMaterialInterface* BrushMaterial_DiscreteLOD;
 public:
 	FEdModeLandscape* EdMode;
 
 	FLandscapeBrushComponent(FEdModeLandscape* InEdMode)
 		: BrushMaterial(nullptr)
+		, BrushMaterial_DiscreteLOD(nullptr)
 		, EdMode(InEdMode)
 	{
 		UMaterial* BaseBrushMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorLandscapeResources/SelectBrushMaterial.SelectBrushMaterial"));
-		BrushMaterial = LandscapeTool::CreateMaterialInstance(BaseBrushMaterial);
+		BrushMaterial = LandscapeTool::CreateMaterialInstance(BaseBrushMaterial, false);
+		BrushMaterial_DiscreteLOD = LandscapeTool::CreateMaterialInstance(BaseBrushMaterial, true);
 	}
 
 	// FGCObject interface
@@ -374,6 +392,7 @@ public:
 	{
 		Collector.AddReferencedObjects(BrushMaterialComponents);
 		Collector.AddReferencedObject(BrushMaterial);
+		Collector.AddReferencedObject(BrushMaterial_DiscreteLOD);
 	}
 
 	virtual ELandscapeBrushType GetBrushType() override { return ELandscapeBrushType::Component; }
@@ -440,7 +459,7 @@ public:
 				// Set brush material for components in new region
 				for (ULandscapeComponent* NewComponent : NewComponents)
 				{
-					NewComponent->EditToolRenderData.ToolMaterial = BrushMaterial;
+					NewComponent->EditToolRenderData.ToolMaterial = NewComponent->GetLandscapeProxy()->bUseDiscreteLOD ? BrushMaterial_DiscreteLOD : BrushMaterial;
 					NewComponent->UpdateEditToolRenderData();
 				}
 			}
@@ -554,15 +573,18 @@ class FLandscapeBrushGizmo : public FLandscapeBrush
 
 protected:
 	UMaterialInstanceDynamic* BrushMaterial;
+	UMaterialInstanceDynamic* BrushMaterial_DiscreteLOD;
 public:
 	FEdModeLandscape* EdMode;
 
 	FLandscapeBrushGizmo(FEdModeLandscape* InEdMode)
 		: BrushMaterial(nullptr)
+		, BrushMaterial_DiscreteLOD(nullptr)
 		, EdMode(InEdMode)
 	{
 		UMaterialInterface* GizmoMaterial = LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/MaskBrushMaterial_Gizmo.MaskBrushMaterial_Gizmo"));
-		BrushMaterial = UMaterialInstanceDynamic::Create(LandscapeTool::CreateMaterialInstance(GizmoMaterial), nullptr);
+		BrushMaterial = UMaterialInstanceDynamic::Create(LandscapeTool::CreateMaterialInstance(GizmoMaterial, false), nullptr);
+		BrushMaterial_DiscreteLOD = UMaterialInstanceDynamic::Create(LandscapeTool::CreateMaterialInstance(GizmoMaterial, true), nullptr);
 	}
 
 	// FGCObject interface
@@ -570,6 +592,7 @@ public:
 	{
 		Collector.AddReferencedObjects(BrushMaterialComponents);
 		Collector.AddReferencedObject(BrushMaterial);
+		Collector.AddReferencedObject(BrushMaterial_DiscreteLOD);
 	}
 
 	virtual ELandscapeBrushType GetBrushType() override { return ELandscapeBrushType::Gizmo; }
@@ -639,16 +662,19 @@ public:
 						Gizmo->TextureScale.Y
 						);
 					BrushMaterial->SetVectorParameterValue(FName(TEXT("AlphaScaleBias")), AlphaScaleBias);
+					BrushMaterial_DiscreteLOD->SetVectorParameterValue(FName(TEXT("AlphaScaleBias")), AlphaScaleBias);
 
 					float Angle = (-EdMode->CurrentGizmoActor->GetActorRotation().Euler().Z) * PI / 180.0f;
 					FLinearColor LandscapeLocation(EdMode->CurrentGizmoActor->GetActorLocation().X, EdMode->CurrentGizmoActor->GetActorLocation().Y, EdMode->CurrentGizmoActor->GetActorLocation().Z, Angle);
 					BrushMaterial->SetVectorParameterValue(FName(TEXT("LandscapeLocation")), LandscapeLocation);
+					BrushMaterial_DiscreteLOD->SetVectorParameterValue(FName(TEXT("LandscapeLocation")), LandscapeLocation);
 					BrushMaterial->SetTextureParameterValue(FName(TEXT("AlphaTexture")), DataTexture);
+					BrushMaterial_DiscreteLOD->SetTextureParameterValue(FName(TEXT("AlphaTexture")), DataTexture);
 
 					// Set brush material for components in new region
 					for (ULandscapeComponent* NewComponent : NewComponents)
 					{
-						NewComponent->EditToolRenderData.GizmoMaterial = ((Gizmo->DataType != LGT_None) && (GLandscapeEditRenderMode & ELandscapeEditRenderMode::Gizmo) ? BrushMaterial : nullptr);
+						NewComponent->EditToolRenderData.GizmoMaterial = ((Gizmo->DataType != LGT_None) && (GLandscapeEditRenderMode & ELandscapeEditRenderMode::Gizmo) ? (NewComponent->GetLandscapeProxy()->bUseDiscreteLOD ? BrushMaterial_DiscreteLOD : BrushMaterial) : nullptr);
 						NewComponent->UpdateEditToolRenderData();
 					}
 
