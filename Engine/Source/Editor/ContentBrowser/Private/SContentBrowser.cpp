@@ -61,6 +61,10 @@
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+
+#include "Brushes/SlateColorBrush.h"
+
+
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
 const FString SContentBrowser::SettingsIniSection = TEXT("ContentBrowser");
@@ -152,7 +156,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 				[
 					SNew( SBorder )
 					.Padding( FMargin( 3 ) )
-					.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+					.BorderImage( FEditorStyle::GetBrush( "ContentBrowser.TopBar.GroupBorder" ) )
 					[
 						SNew( SHorizontalBox )
 
@@ -300,7 +304,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 			[
 				SNew(SBorder)
 				.Padding(FMargin(3))
-				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+				.BorderImage( FEditorStyle::GetBrush("ContentBrowser.TopBar.GroupBorder") )
 				[
 					SNew(SHorizontalBox)
 
@@ -438,6 +442,18 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 			]
 		]
 
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0,0,0,0)
+		[
+			SNew(SBox)
+			.HeightOverride(2.0f)
+			[
+				SNew(SImage)
+				.Image(new FSlateColorBrush(FLinearColor( FColor( 34, 34, 34) ) ) )
+			]
+		]
+
 		// Assets/tree
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
@@ -445,13 +461,16 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 		[
 			// The tree/assets splitter
 			SAssignNew(PathAssetSplitterPtr, SSplitter)
+			.Style(FEditorStyle::Get(), "ContentBrowser.Splitter")
+			.PhysicalSplitterHandleSize(2.0f)
+
 			// Sources View
 			+ SSplitter::Slot()
 			.Value(0.25f)
 			[
 				SNew(SBorder)
 				.Padding(FMargin(3))
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TopBar.GroupBorder"))
 				.Visibility(this, &SContentBrowser::GetSourcesViewVisibility)
 				[
 					SNew(SVerticalBox)
@@ -611,7 +630,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 			[
 				SNew(SBorder)
 				.Padding(FMargin(3))
-				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+				.BorderImage( FEditorStyle::GetBrush("ContentBrowser.TopBar.GroupBorder") )
 				[
 					SNew(SVerticalBox)
 
