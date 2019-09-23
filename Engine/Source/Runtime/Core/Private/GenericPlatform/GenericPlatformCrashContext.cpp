@@ -1056,5 +1056,9 @@ FProgramCounterSymbolInfoEx::FProgramCounterSymbolInfoEx( FString InModuleName, 
 	OffsetInModule( InOffsetInModule ),
 	ProgramCounter( InProgramCounter )
 {
+}
 
+FString RecoveryService::GetRecoveryServerName()
+{
+	return FString::Printf(TEXT("RecoverySvr_%d"), FPlatformProcess::GetCurrentProcessId());
 }

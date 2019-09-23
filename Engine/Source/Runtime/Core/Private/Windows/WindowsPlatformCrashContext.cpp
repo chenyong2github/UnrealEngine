@@ -45,7 +45,7 @@
 #define CR_CLIENT_MAX_PATH_LEN 265
 #define CR_CLIENT_MAX_ARGS_LEN 256
 // Enable to use a non shipping version of the crash report client
-#define CR_USE_DEVELOPMENT_CLIENT 0
+#define CR_USE_DEVELOPMENT_CLIENT 1
 
 #pragma comment( lib, "version.lib" )
 #pragma comment( lib, "Shlwapi.lib" )
@@ -399,10 +399,8 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe)
 #if WITH_EDITOR // Disaster recovery is only enabled for the Editor. Start the server even if in -game, -server, commandlet, the client-side will not connect (its too soon here to query this executable config).
 	{
 		// Disaster recovery service command line.
-		const FString DisasterRecoveryServerName = FString::Printf(TEXT("RecoverySvr_%d"), FPlatformProcess::GetCurrentProcessId());
-
 		FString DisasterRecoveryServiceCommandLine;
-		DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -ConcertServer=\"%s\""), *DisasterRecoveryServerName); // Must be in-sync with disaster recovery client module.
+		DisasterRecoveryServiceCommandLine += FString::Printf(TEXT(" -ConcertServer=\"%s\""), *RecoveryService::GetRecoveryServerName()); // Must be in-sync with disaster recovery client module.
 
 		FCString::Strncat(CrashReporterClientArgs, *DisasterRecoveryServiceCommandLine, CR_CLIENT_MAX_ARGS_LEN);
 	}

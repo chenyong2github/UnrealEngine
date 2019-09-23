@@ -450,3 +450,9 @@ private:
 
 struct CORE_API FGenericMemoryWarningContext
 {};
+
+namespace RecoveryService
+{
+	/** Generates a name for the disaster recovery service embedded in the CrashReporterClient. */
+	CORE_API FString GetRecoveryServerName();
+}
