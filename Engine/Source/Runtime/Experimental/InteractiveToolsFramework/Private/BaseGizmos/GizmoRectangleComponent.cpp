@@ -45,7 +45,7 @@ public:
 		ViewDirection.Normalize();
 
 		bool bWorldAxis = (bExternalWorldLocalState) ? (*bExternalWorldLocalState) : false;
-		FVector UseDirectionX = (bWorldAxis) ? DirectionX : LocalToWorldMatrix.TransformVector(DirectionX);
+		FVector UseDirectionX = (bWorldAxis) ? DirectionX : FVector{ LocalToWorldMatrix.TransformVector(DirectionX) };
 		bool bFlippedX = (FVector::DotProduct(ViewDirection, UseDirectionX) > 0);
 		UseDirectionX = (bFlippedX) ? -UseDirectionX : UseDirectionX;
 		if (bFlippedXExternal)
@@ -53,7 +53,7 @@ public:
 			*bFlippedXExternal = bFlippedX;
 		}
 
-		FVector UseDirectionY = (bWorldAxis) ? DirectionY : LocalToWorldMatrix.TransformVector(DirectionY);
+		FVector UseDirectionY = (bWorldAxis) ? DirectionY : FVector{ LocalToWorldMatrix.TransformVector(DirectionY) };
 		bool bFlippedY = (FVector::DotProduct(ViewDirection, UseDirectionY) > 0);
 		UseDirectionY = (bFlippedY) ? -UseDirectionY : UseDirectionY;
 		if (bFlippedYExternal)

@@ -95,8 +95,8 @@ public:
 				{
 					FVector WorldOrigin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
 					bool bWorldAxis = (bExternalWorldLocalState) ? (*bExternalWorldLocalState) : false;
-					FVector WorldPlaneX = (bWorldAxis) ? PlaneX : LocalToWorldMatrix.TransformVector(PlaneX);
-					FVector WorldPlaneY = (bWorldAxis) ? PlaneY : LocalToWorldMatrix.TransformVector(PlaneY);
+					FVector WorldPlaneX = (bWorldAxis) ? PlaneX : FVector{ LocalToWorldMatrix.TransformVector(PlaneX) };
+					FVector WorldPlaneY = (bWorldAxis) ? PlaneY : FVector{ LocalToWorldMatrix.TransformVector(PlaneY) };
 
 					FVector	LastVertex = WorldOrigin + WorldPlaneX * UseRadius;
 					bool bLastVisible = FVector::DotProduct(WorldPlaneX, GizmoViewDirection) < 0;

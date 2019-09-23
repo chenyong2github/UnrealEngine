@@ -45,7 +45,7 @@ public:
 		ViewDirection.Normalize();
 
 		bool bWorldAxis = (bExternalWorldLocalState) ? (*bExternalWorldLocalState) : false;
-		FVector ArrowDirection = (bWorldAxis) ? Direction : LocalToWorldMatrix.TransformVector(Direction);
+		FVector ArrowDirection = (bWorldAxis) ? Direction : FVector{ LocalToWorldMatrix.TransformVector(Direction) };
 		bool bFlipped = (FVector::DotProduct(ViewDirection, ArrowDirection) > 0);
 		ArrowDirection = (bFlipped) ? -ArrowDirection : ArrowDirection;
 		if (bFlippedExternal != nullptr)
