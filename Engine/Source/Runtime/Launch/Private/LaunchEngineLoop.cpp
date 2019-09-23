@@ -3877,6 +3877,7 @@ void DumpEarlyReads(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, boo
 
 	if (bForceQuitAfterEarlyReads)
 	{
+		GLog->Flush();
 		GEngine->DeferredCommands.Emplace(TEXT("Quit force"));
 	}
 }
