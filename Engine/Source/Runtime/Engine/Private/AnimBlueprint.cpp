@@ -270,7 +270,7 @@ EPreviewAnimationBlueprintApplicationMethod UAnimBlueprint::GetPreviewAnimationB
 #if WITH_EDITORONLY_DATA
 	return PreviewAnimationBlueprintApplicationMethod; 
 #else
-	return EPreviewAnimationBlueprintApplicationMethod::OverlayLayer;
+	return EPreviewAnimationBlueprintApplicationMethod::LinkedLayers;
 #endif
 }
 

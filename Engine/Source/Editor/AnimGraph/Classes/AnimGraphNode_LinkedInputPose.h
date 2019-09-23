@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "AnimGraphNode_Base.h"
-#include "Animation/AnimNode_SubInput.h"
+#include "Animation/AnimNode_LinkedInputPose.h"
 #include "Engine/MemberReference.h"
-#include "AnimGraphNode_SubInput.generated.h"
+#include "AnimGraphNode_LinkedInputPose.generated.h"
 
 class SEditableTextBox;
 
@@ -39,13 +39,13 @@ struct FAnimBlueprintFunctionPinInfo
 };
 
 UCLASS()
-class ANIMGRAPH_API UAnimGraphNode_SubInput : public UAnimGraphNode_Base
+class ANIMGRAPH_API UAnimGraphNode_LinkedInputPose : public UAnimGraphNode_Base
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Inputs")
-	FAnimNode_SubInput Node;
+	FAnimNode_LinkedInputPose Node;
 
 	UPROPERTY(EditAnywhere, Category = "Inputs")
 	TArray<FAnimBlueprintFunctionPinInfo> Inputs;
@@ -58,7 +58,7 @@ public:
 	UPROPERTY()
 	int32 InputPoseIndex;
 
-	UAnimGraphNode_SubInput();
+	UAnimGraphNode_LinkedInputPose();
 
 	/** UObject interface */
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -79,7 +79,7 @@ public:
 	/** UAnimGraphNode_Base interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
-	/** Make a name widget for this sub-input node */
+	/** Make a name widget for this linked input pose node */
 	TSharedRef<SWidget> MakeNameWidget(IDetailLayoutBuilder& DetailBuilder);
 
 	/** @return whether this node is editable. Non-editable nodes are implemented from function interfaces */
@@ -115,3 +115,6 @@ private:
 	void HandleInputPoseArrayChanged();
 	void HandleInputPinArrayChanged();
 };
+
+UE_DEPRECATED(4.24, "UAnimGraphNode_SubInput has been renamed to UAnimGraphNode_LinkedInputPose")
+typedef UAnimGraphNode_LinkedInputPose UAnimGraphNode_SubInput;

@@ -105,15 +105,15 @@ void SetObjectBeingDebugged(UAnimBlueprint* InAnimBlueprint, UAnimInstance* InAn
 	if (PreviewAnimBlueprint)
 	{
 		EPreviewAnimationBlueprintApplicationMethod ApplicationMethod = InAnimBlueprint->GetPreviewAnimationBlueprintApplicationMethod();
-		if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::OverlayLayer)
+		if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::LinkedLayers)
 		{
-			// Make sure the object being debugged is the overlay instance
-			InAnimBlueprint->SetObjectBeingDebugged(InAnimInstance->GetLayerSubInstanceByClass(InAnimBlueprint->GeneratedClass.Get()));
+			// Make sure the object being debugged is the linked layer instance
+			InAnimBlueprint->SetObjectBeingDebugged(InAnimInstance->GetLinkedAnimLayerInstanceByClass(InAnimBlueprint->GeneratedClass.Get()));
 		}
-		else if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::SubInstance)
+		else if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::LinkedAnimGraph)
 		{
-			// Make sure the object being debugged is the sub instance
-			InAnimBlueprint->SetObjectBeingDebugged(InAnimInstance->GetSubInstanceByTag(InAnimBlueprint->GetPreviewAnimationBlueprintTag()));
+			// Make sure the object being debugged is the linked instance
+			InAnimBlueprint->SetObjectBeingDebugged(InAnimInstance->GetLinkedAnimGraphInstanceByTag(InAnimBlueprint->GetPreviewAnimationBlueprintTag()));
 		}
 	}
 	else

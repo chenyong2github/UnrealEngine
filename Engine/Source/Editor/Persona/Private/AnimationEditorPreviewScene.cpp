@@ -80,7 +80,7 @@ FAnimationEditorPreviewScene::FAnimationEditorPreviewScene(const ConstructionVal
 	{
 		PreviewSceneDescription->PreviewAnimationBlueprint = AnimBlueprint->GetPreviewAnimationBlueprint();
 		PreviewSceneDescription->ApplicationMethod = AnimBlueprint->GetPreviewAnimationBlueprintApplicationMethod();
-		PreviewSceneDescription->SubInstanceTag = AnimBlueprint->GetPreviewAnimationBlueprintTag();
+		PreviewSceneDescription->LinkedAnimGraphTag = AnimBlueprint->GetPreviewAnimationBlueprintTag();
 	}
 
 	// create a default additional mesh collection so we dont always have to create an asset to edit additional meshes
@@ -180,13 +180,13 @@ void FAnimationEditorPreviewScene::SetPreviewAnimationBlueprint(UAnimBlueprint* 
 	{
 		SkeletalMeshComponent->SetAnimInstanceClass(InAnimBlueprint ? InAnimBlueprint->GeneratedClass : nullptr);
 		EPreviewAnimationBlueprintApplicationMethod ApplicationMethod = InOverlayOrSubAnimBlueprint->GetPreviewAnimationBlueprintApplicationMethod();
-		if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::OverlayLayer)
+		if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::LinkedLayers)
 		{
-			SkeletalMeshComponent->SetLayerOverlay(InOverlayOrSubAnimBlueprint ? InOverlayOrSubAnimBlueprint->GeneratedClass.Get() : nullptr);
+			SkeletalMeshComponent->LinkAnimClassLayers(InOverlayOrSubAnimBlueprint ? InOverlayOrSubAnimBlueprint->GeneratedClass.Get() : nullptr);
 		}
-		else if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::SubInstance)
+		else if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::LinkedAnimGraph)
 		{
-			SkeletalMeshComponent->SetSubInstanceClassByTag(InOverlayOrSubAnimBlueprint->GetPreviewAnimationBlueprintTag(), InOverlayOrSubAnimBlueprint ? InOverlayOrSubAnimBlueprint->GeneratedClass.Get() : nullptr);
+			SkeletalMeshComponent->LinkAnimGraphByTag(InOverlayOrSubAnimBlueprint->GetPreviewAnimationBlueprintTag(), InOverlayOrSubAnimBlueprint ? InOverlayOrSubAnimBlueprint->GeneratedClass.Get() : nullptr);
 		}
 	}
 	else

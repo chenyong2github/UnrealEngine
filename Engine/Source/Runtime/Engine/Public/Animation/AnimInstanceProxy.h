@@ -25,7 +25,7 @@ struct FAnimNode_AssetPlayerBase;
 struct FAnimNode_Base;
 struct FAnimNode_SaveCachedPose;
 struct FAnimNode_StateMachine;
-struct FAnimNode_SubInput;
+struct FAnimNode_LinkedInputPose;
 struct FNodeDebugData;
 struct FPoseContext;
 
@@ -116,7 +116,7 @@ public:
 		, CurrentDeltaSeconds(0.0f)
 		, CurrentTimeDilation(1.0f)
 		, RootNode(nullptr)
-		, DefaultSubInstanceInputNode(nullptr)
+		, DefaultLinkedInstanceInputNode(nullptr)
 		, SyncGroupWriteIndex(0)
 		, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
 		, FrameCounterForUpdate(0)
@@ -140,7 +140,7 @@ public:
 		, CurrentDeltaSeconds(0.0f)
 		, CurrentTimeDilation(1.0f)
 		, RootNode(nullptr)
-		, DefaultSubInstanceInputNode(nullptr)
+		, DefaultLinkedInstanceInputNode(nullptr)
 		, SyncGroupWriteIndex(0)
 		, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
 		, FrameCounterForUpdate(0)
@@ -461,7 +461,7 @@ public:
 	friend class UAnimInstance;
 	friend class UAnimSingleNodeInstance;
 	friend class USkeletalMeshComponent;
-	friend struct FAnimNode_SubInstance;
+	friend struct FAnimNode_LinkedAnimGraph;
 	friend struct FAnimationBaseContext;
 
 protected:
@@ -815,8 +815,8 @@ private:
 	/** Anim graph */
 	FAnimNode_Base* RootNode;
 
-	/** Default sub-instance input node if available */
-	FAnimNode_SubInput* DefaultSubInstanceInputNode;
+	/** Default linked instance input node if available */
+	FAnimNode_LinkedInputPose* DefaultLinkedInstanceInputNode;
 
 	/** Map of layer name to saved pose nodes to process after the graph has been updated */
 	TMap<FName, TArray<FAnimNode_SaveCachedPose*>> SavedPoseQueueMap;

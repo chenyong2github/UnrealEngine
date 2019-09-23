@@ -42,13 +42,13 @@ public:
 	UPROPERTY()
 	TArray<UStructProperty*> AnimNodeProperties;
 
-	// The array of sub instance nodes
+	// The array of linked anim graph nodes
 	UPROPERTY()
-	TArray<UStructProperty*> SubInstanceNodeProperties;
+	TArray<UStructProperty*> LinkedAnimGraphNodeProperties;
 
-	// The array of layer nodes
+	// The array of linked anim layer nodes
 	UPROPERTY()
-	TArray<UStructProperty*> LayerNodeProperties;
+	TArray<UStructProperty*> LinkedAnimLayerNodeProperties;
 
 	// Array of nodes that need a PreUpdate() call
 	UPROPERTY()
@@ -86,8 +86,8 @@ public:
 	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const override { return AnimBlueprintFunctions; }
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const override { return OrderedSavedPoseIndicesMap; }
 	virtual const TArray<UStructProperty*>& GetAnimNodeProperties() const override { return AnimNodeProperties; }
-	virtual const TArray<UStructProperty*>& GetSubInstanceNodeProperties() const override { return SubInstanceNodeProperties; }
-	virtual const TArray<UStructProperty*>& GetLayerNodeProperties() const override { return LayerNodeProperties; }
+	virtual const TArray<UStructProperty*>& GetLinkedAnimGraphNodeProperties() const override { return LinkedAnimGraphNodeProperties; }
+	virtual const TArray<UStructProperty*>& GetLinkedAnimLayerNodeProperties() const override { return LinkedAnimLayerNodeProperties; }
 	virtual const TArray<UStructProperty*>& GetPreUpdateNodeProperties() const override { return PreUpdateNodeProperties; }
 	virtual const TArray<UStructProperty*>& GetDynamicResetNodeProperties() const override { return DynamicResetNodeProperties; }
 	virtual const TArray<UStructProperty*>& GetStateMachineNodeProperties() const override { return StateMachineNodeProperties; }
@@ -107,8 +107,8 @@ public:
 		AnimBlueprintFunctions = AnimClass->GetAnimBlueprintFunctions();
 		OrderedSavedPoseIndicesMap = AnimClass->GetOrderedSavedPoseNodeIndicesMap();
 		AnimNodeProperties = AnimClass->GetAnimNodeProperties();
-		SubInstanceNodeProperties = AnimClass->GetSubInstanceNodeProperties();
-		LayerNodeProperties = AnimClass->GetLayerNodeProperties();
+		LinkedAnimGraphNodeProperties = AnimClass->GetLinkedAnimGraphNodeProperties();
+		LinkedAnimLayerNodeProperties = AnimClass->GetLinkedAnimLayerNodeProperties();
 		PreUpdateNodeProperties = AnimClass->GetPreUpdateNodeProperties();
 		DynamicResetNodeProperties = AnimClass->GetDynamicResetNodeProperties();
 		StateMachineNodeProperties = AnimClass->GetStateMachineNodeProperties();
