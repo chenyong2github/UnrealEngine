@@ -42,7 +42,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UMergeMeshesToolProperties : public UInter
 public:
 
 	/** The size of the geometry bounding box major axis measured in voxels.*/
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "16", UIMax = "2048", ClampMin = "16", ClampMax = "2048"))
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "8", UIMax = "512", ClampMin = "8", ClampMax = "512"))
 	int32 VoxelCount = 128;
 
 	/** Remeshing adaptivity */
@@ -103,7 +103,11 @@ protected:
 	IToolsContextAssetAPI* AssetAPI;
 
 	TSharedPtr<TArray<IVoxelBasedCSG::FPlacedMesh>> InputMeshes;
+	/** stash copies of the transforms and pointers to the meshes for consumption by merge Op*/
 	void CacheInputMeshes();
+
+	/** quickly generate a low-quality result for display while the actual result is being computed. */
+	void CreateLowQualityPreview();
 
 	void GenerateAsset(const TUniquePtr<FDynamicMeshOpResult>& Result);
 };

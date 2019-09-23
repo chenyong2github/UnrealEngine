@@ -91,12 +91,15 @@ void UVoxelCSGMeshesTool::Setup()
 	// initialize the PreviewMesh+BackgroundCompute object
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
+
+	CreateLowQualityPreview();
+
 	Preview->ConfigureMaterials(
 		// TODO : Probably multi-select bug - MCD
 		ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTargets[0]->GetMaterial(0)),
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
-	Preview->SetVisibility(false);
+	
 	Preview->InvalidateResult();    // start compute
 }
 
@@ -186,6 +189,27 @@ void UVoxelCSGMeshesTool::CacheInputMeshes()
 		PlacedMesh.Transform = ComponentTarget->GetWorldTransform();
 		InputMeshes->Add(PlacedMesh);
 	}
+}
+
+void UVoxelCSGMeshesTool::CreateLowQualityPreview()
+{
+
+	FProgressCancel NullInterrupter;
+	FVoxelBooleanMeshesOp BooleanOp;
+
+	BooleanOp.Operation = (FVoxelBooleanMeshesOp::EBooleanOperation)(int)CSGProps->Operation;
+	BooleanOp.VoxelCount = 12;
+	BooleanOp.AdaptivityD = 0.01;
+	BooleanOp.bAutoSimplify = true;
+	BooleanOp.InputMeshArray = InputMeshes;
+	
+	BooleanOp.CalculateResult(&NullInterrupter);
+	TUniquePtr<FDynamicMesh3> FastPreviewMesh = BooleanOp.ExtractResult();
+
+
+	Preview->PreviewMesh->SetTransform((FTransform)BooleanOp.GetResultTransform());
+	Preview->PreviewMesh->UpdatePreview(FastPreviewMesh.Get());  // copies the mesh @todo we could just give ownership to the Preview!
+	Preview->SetVisibility(true);
 }
 
 void UVoxelCSGMeshesTool::GenerateAsset(const TUniquePtr<FDynamicMeshOpResult>& Result)

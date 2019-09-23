@@ -32,9 +32,6 @@ public:
 	bool   bAutoSimplify = false;
 	EBooleanOperation Operation = EBooleanOperation::DifferenceBA;
 
-	double FastCollapseVoxelSizeMultipler = 1.2;
-	int NumFastCollapsePasses = 10;
-
 	//
 	// FDynamicMeshOperator implementation
 	// 

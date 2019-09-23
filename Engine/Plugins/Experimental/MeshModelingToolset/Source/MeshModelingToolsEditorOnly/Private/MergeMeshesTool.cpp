@@ -92,12 +92,15 @@ void UMergeMeshesTool::Setup()
 	// initialize the PreviewMesh+BackgroundCompute object
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
+
+	CreateLowQualityPreview(); // update the preview with a low-quality result
+	
 	Preview->ConfigureMaterials(
 		// TODO: This is is very likely a bug waiting to happen
 		ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTargets[0]->GetMaterial(0)),
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
-	Preview->SetVisibility(false);
+
 	Preview->InvalidateResult();    // start compute
 }
 
@@ -197,6 +200,25 @@ void UMergeMeshesTool::CacheInputMeshes()
 	}
 }
 
+void UMergeMeshesTool::CreateLowQualityPreview()
+{
+
+	FProgressCancel NullInterrupter;
+	FVoxelMergeMeshesOp MergeMeshesOp;
+
+	MergeMeshesOp.VoxelCount = 12;
+	MergeMeshesOp.AdaptivityD = 0.001;
+	MergeMeshesOp.bAutoSimplify = true;
+	MergeMeshesOp.InputMeshArray = InputMeshes;
+	
+	MergeMeshesOp.CalculateResult(&NullInterrupter);
+	TUniquePtr<FDynamicMesh3> FastPreviewMesh = MergeMeshesOp.ExtractResult();
+
+
+	Preview->PreviewMesh->SetTransform((FTransform)MergeMeshesOp.GetResultTransform());
+	Preview->PreviewMesh->UpdatePreview(FastPreviewMesh.Get());  // copies the mesh @todo we could just give ownership to the Preview!
+	Preview->SetVisibility(true);
+}
 
 
 void UMergeMeshesTool::GenerateAsset(const TUniquePtr<FDynamicMeshOpResult>& Result)
