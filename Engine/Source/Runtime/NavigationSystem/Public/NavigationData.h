@@ -625,6 +625,16 @@ public:
 
 	/** Request navigation data update after changes in nav octree */
 	virtual void RebuildDirtyAreas(const TArray<FNavigationDirtyArea>& DirtyAreas);
+
+	/** Configures this NavData instance's navigation generation to be suspended 
+	 *	or active. It's active by default. If Suspended then all calls to 
+	 *	RebuildDirtyAreas will result in caching the request in SuspendedDirtyAreas 
+	 *	until SetRebuildingSuspended(false) gets call at which time all the contents 
+	 *	of SuspendedDirtyAreas will get pushed to the nav generator and SuspendedDirtyAreas 
+	 *	will be cleaned out. 
+	 *	Note that calling SetRebuildingSuspended(true) won't suspend the nav generation 
+	 *	already in progress. */
+	virtual void SetRebuildingSuspended(const bool bNewSuspend);
 	
 	/** releases navigation generator if any has been created */
 protected:
@@ -917,6 +927,13 @@ protected:
 
 protected:
 	TSharedPtr<FNavDataGenerator, ESPMode::ThreadSafe> NavDataGenerator;
+
+	/** caches requests to rebuild dirty areas while nav rebuilding is suspended 
+	 *	via SetRebuildingSuspended(true) call. Calling SetRebuildingSuspended(false) 
+	 *	will result in pushing SuspendedDirtyAreas contents to the nav generator 
+	 *	and clearing out of SuspendedDirtyAreas */
+	TArray<FNavigationDirtyArea> SuspendedDirtyAreas;
+
 	/** 
 	 *	Container for all path objects generated with this Navigation Data instance. 
 	 *	Is meant to be added to only on GameThread, and in fact should user should never 
@@ -953,6 +970,11 @@ protected:
 
 	/** was it generated for default agent (SupportedAgents[0]) */
 	uint32 bSupportsDefaultAgent : 1;
+
+	/** Set via SetRebuildingSuspended and controlling if RebuildDirtyAreas get 
+	 *	passed over to the generator instantly or cached in SuspendedDirtyAreas 
+	 *	to be applied at later date with SetRebuildingSuspended(false) call */
+	uint32 bRebuildingSuspended : 1;
 
 private:
 	uint16 NavDataUniqueID;
