@@ -112,9 +112,6 @@ public:
 	EGroupTopologyDeformationStrategy DeformationStrategy;
 
 	UPROPERTY(EditAnywhere, Category = Options)
-	bool bUseLocalAxis;
-
-	UPROPERTY(EditAnywhere, Category = Options)
 	EQuickTransformerMode TransformMode;
 
 	UPROPERTY(EditAnywhere, Category = Options)
@@ -428,7 +425,6 @@ public:
 	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
 
 public:
-	virtual void ToggleLocalTransformFrameAction();
 	virtual void NextTransformTypeAction();
 
 	//

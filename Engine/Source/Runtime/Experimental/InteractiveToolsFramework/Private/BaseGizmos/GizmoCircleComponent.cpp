@@ -94,8 +94,9 @@ public:
 				else
 				{
 					FVector WorldOrigin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
-					FVector WorldPlaneX = LocalToWorldMatrix.TransformVector(PlaneX);
-					FVector WorldPlaneY = LocalToWorldMatrix.TransformVector(PlaneY);
+					bool bWorldAxis = (bExternalWorldLocalState) ? (*bExternalWorldLocalState) : false;
+					FVector WorldPlaneX = (bWorldAxis) ? PlaneX : LocalToWorldMatrix.TransformVector(PlaneX);
+					FVector WorldPlaneY = (bWorldAxis) ? PlaneY : LocalToWorldMatrix.TransformVector(PlaneY);
 
 					FVector	LastVertex = WorldOrigin + WorldPlaneX * UseRadius;
 					bool bLastVisible = FVector::DotProduct(WorldPlaneX, GizmoViewDirection) < 0;
@@ -152,6 +153,12 @@ public:
 		bExternalHoverState = HoverState;
 	}
 
+	void SetExternalWorldLocalState(bool* bWorldLocalState)
+	{
+		bExternalWorldLocalState = bWorldLocalState;
+	}
+
+
 private:
 	FLinearColor Color;
 	FVector Normal;
@@ -163,6 +170,7 @@ private:
 
 	float* ExternalDynamicPixelToWorldScale = nullptr;
 	bool* bExternalHoverState = nullptr;
+	bool* bExternalWorldLocalState = nullptr;
 };
 
 
@@ -173,6 +181,7 @@ FPrimitiveSceneProxy* UGizmoCircleComponent::CreateSceneProxy()
 	FGizmoCircleComponentSceneProxy* NewProxy = new FGizmoCircleComponentSceneProxy(this);
 	NewProxy->SetExternalDynamicPixelToWorldScale(&DynamicPixelToWorldScale);
 	NewProxy->SetExternalHoverState(&bHovering);
+	NewProxy->SetExternalWorldLocalState(&bWorld);
 	return NewProxy;
 }
 
@@ -187,7 +196,7 @@ bool UGizmoCircleComponent::LineTraceComponent(FHitResult& OutHit, const FVector
 	double UseRadius = LengthScale * Radius;
 
 	const FTransform& Transform = this->GetComponentToWorld();
-	FVector WorldNormal = Transform.TransformVector(Normal);
+	FVector WorldNormal = (bWorld) ? Normal : Transform.TransformVector(Normal);
 	FVector WorldOrigin = Transform.TransformPosition(FVector::ZeroVector);
 	FPlane CirclePlane(WorldOrigin, WorldNormal);
 

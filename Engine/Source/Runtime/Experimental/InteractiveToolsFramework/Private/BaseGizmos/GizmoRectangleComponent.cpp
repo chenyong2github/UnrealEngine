@@ -44,7 +44,8 @@ public:
 		FVector ViewDirection = Origin - GizmoControlView->ViewLocation;
 		ViewDirection.Normalize();
 
-		FVector UseDirectionX = LocalToWorldMatrix.TransformVector(DirectionX);
+		bool bWorldAxis = (bExternalWorldLocalState) ? (*bExternalWorldLocalState) : false;
+		FVector UseDirectionX = (bWorldAxis) ? DirectionX : LocalToWorldMatrix.TransformVector(DirectionX);
 		bool bFlippedX = (FVector::DotProduct(ViewDirection, UseDirectionX) > 0);
 		UseDirectionX = (bFlippedX) ? -UseDirectionX : UseDirectionX;
 		if (bFlippedXExternal)
@@ -52,7 +53,7 @@ public:
 			*bFlippedXExternal = bFlippedX;
 		}
 
-		FVector UseDirectionY = LocalToWorldMatrix.TransformVector(DirectionY);
+		FVector UseDirectionY = (bWorldAxis) ? DirectionY : LocalToWorldMatrix.TransformVector(DirectionY);
 		bool bFlippedY = (FVector::DotProduct(ViewDirection, UseDirectionY) > 0);
 		UseDirectionY = (bFlippedY) ? -UseDirectionY : UseDirectionY;
 		if (bFlippedYExternal)
@@ -165,6 +166,12 @@ public:
 		bExternalHoverState = HoverState;
 	}
 
+	void SetExternalWorldLocalState(bool* bWorldLocalState)
+	{
+		bExternalWorldLocalState = bWorldLocalState;
+	}
+
+
 private:
 	FLinearColor Color;
 	FVector DirectionX, DirectionY;
@@ -178,6 +185,7 @@ private:
 	float* ExternalDynamicPixelToWorldScale = nullptr;
 	bool* bExternalRenderVisibility = nullptr;
 	bool* bExternalHoverState = nullptr;
+	bool* bExternalWorldLocalState = nullptr;
 };
 
 
@@ -189,6 +197,7 @@ FPrimitiveSceneProxy* UGizmoRectangleComponent::CreateSceneProxy()
 	NewProxy->SetExternalDynamicPixelToWorldScale(&DynamicPixelToWorldScale);
 	NewProxy->SetExternalRenderVisibility(&bRenderVisibility);
 	NewProxy->SetExternalHoverState(&bHovering);
+	NewProxy->SetExternalWorldLocalState(&bWorld);
 	return NewProxy;
 }
 
@@ -209,7 +218,10 @@ bool UGizmoRectangleComponent::LineTraceComponent(FHitResult& OutHit, const FVec
 	const FTransform& Transform = this->GetComponentToWorld();
 
 	FVector UseDirectionX = (bFlippedX) ? -DirectionX : DirectionX;
+	UseDirectionX = (bWorld) ? UseDirectionX : Transform.TransformVector(UseDirectionX);
 	FVector UseDirectionY = (bFlippedY) ? -DirectionY : DirectionY;
+	UseDirectionY = (bWorld) ? DirectionY : Transform.TransformVector(UseDirectionY);
+	FVector UseOrigin = Transform.TransformPosition(FVector::ZeroVector);
 
 	float LengthScale = DynamicPixelToWorldScale;
 	double UseOffsetX = LengthScale * OffsetX;
@@ -218,10 +230,10 @@ bool UGizmoRectangleComponent::LineTraceComponent(FHitResult& OutHit, const FVec
 	double UseOffsetLengthY = LengthScale * (OffsetY + LengthY);
 
 	FVector Points[4] = {
-		Transform.TransformPosition(UseOffsetX*UseDirectionX + UseOffsetY *UseDirectionY),
-		Transform.TransformPosition(UseOffsetLengthX*UseDirectionX + UseOffsetY *UseDirectionY),
-		Transform.TransformPosition(UseOffsetLengthX*UseDirectionX + UseOffsetLengthY *UseDirectionY),
-		Transform.TransformPosition(UseOffsetX*UseDirectionX + UseOffsetLengthY *UseDirectionY)
+		UseOrigin + UseOffsetX*UseDirectionX + UseOffsetY*UseDirectionY,
+		UseOrigin + UseOffsetLengthX*UseDirectionX + UseOffsetY*UseDirectionY,
+		UseOrigin + UseOffsetLengthX*UseDirectionX + UseOffsetLengthY*UseDirectionY,
+		UseOrigin + UseOffsetX*UseDirectionX + UseOffsetLengthY*UseDirectionY
 	};
 	static const int Triangles[2][3] = { {0,1,2}, {0,2,3} };
 

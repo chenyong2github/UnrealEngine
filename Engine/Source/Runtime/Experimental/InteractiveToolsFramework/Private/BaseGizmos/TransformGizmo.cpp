@@ -134,6 +134,11 @@ UInteractiveGizmo* UTransformGizmoBuilder::BuildGizmo(const FToolBuilderState& S
 		NewGizmo->SetUpdateHoverFunction(UpdateHoverFunction);
 	}
 
+	if (UpdateCoordSystemFunction)
+	{
+		NewGizmo->SetUpdateCoordSystemFunction(UpdateCoordSystemFunction);
+	}
+
 	return NewGizmo;
 }
 
@@ -155,6 +160,11 @@ void UTransformGizmo::SetUpdateHoverFunction(TFunction<void(UPrimitiveComponent*
 	UpdateHoverFunction = HoverFunction;
 }
 
+void UTransformGizmo::SetUpdateCoordSystemFunction(TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> CoordSysFunction)
+{
+	UpdateCoordSystemFunction = CoordSysFunction;
+}
+
 
 void UTransformGizmo::Setup()
 {
@@ -165,6 +175,14 @@ void UTransformGizmo::Setup()
 		if (Cast<UGizmoBaseComponent>(Component) != nullptr)
 		{
 			Cast<UGizmoBaseComponent>(Component)->UpdateHoverState(bHovering);
+		}
+	};
+
+	UpdateCoordSystemFunction = [](UPrimitiveComponent* Component, EToolContextCoordinateSystem CoordSystem)
+	{
+		if (Cast<UGizmoBaseComponent>(Component) != nullptr)
+		{
+			Cast<UGizmoBaseComponent>(Component)->UpdateWorldLocalState(CoordSystem == EToolContextCoordinateSystem::World);
 		}
 	};
 
@@ -183,6 +201,30 @@ void UTransformGizmo::Shutdown()
 		GizmoActor = nullptr;
 	}
 }
+
+
+
+void UTransformGizmo::Tick(float DeltaTime)
+{	
+	EToolContextCoordinateSystem CoordSystem = GetGizmoManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem();
+	check(CoordSystem == EToolContextCoordinateSystem::World || CoordSystem == EToolContextCoordinateSystem::Local)
+	bool bUseLocalAxes =
+		(GetGizmoManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::Local);
+	if (AxisXSource != nullptr && AxisYSource != nullptr && AxisZSource != nullptr)
+	{
+		AxisXSource->bLocalAxes = bUseLocalAxes;
+		AxisYSource->bLocalAxes = bUseLocalAxes;
+		AxisZSource->bLocalAxes = bUseLocalAxes;
+	}
+	if (UpdateCoordSystemFunction)
+	{
+		for (UPrimitiveComponent* Component : ActiveComponents)
+		{
+			UpdateCoordSystemFunction(Component, CoordSystem);
+		}
+	}
+}
+
 
 
 void UTransformGizmo::SetActiveTarget(UTransformProxy* Target)
@@ -230,41 +272,50 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target)
 	if (GizmoActor->TranslateX != nullptr)
 	{
 		AddAxisTranslationGizmo(GizmoActor->TranslateX, GizmoComponent, AxisXSource, TransformSource, StateTarget);
+		ActiveComponents.Add(GizmoActor->TranslateX);
 	}
 	if (GizmoActor->TranslateY != nullptr)
 	{
 		AddAxisTranslationGizmo(GizmoActor->TranslateY, GizmoComponent, AxisYSource, TransformSource, StateTarget);
+		ActiveComponents.Add(GizmoActor->TranslateY);
 	}
 	if (GizmoActor->TranslateZ != nullptr)
 	{
 		AddAxisTranslationGizmo(GizmoActor->TranslateZ, GizmoComponent, AxisZSource, TransformSource, StateTarget);
+		ActiveComponents.Add(GizmoActor->TranslateZ);
 	}
 
 
 	if (GizmoActor->TranslateYZ != nullptr)
 	{
 		AddPlaneTranslationGizmo(GizmoActor->TranslateYZ, GizmoComponent, AxisXSource, TransformSource, StateTarget);
+		ActiveComponents.Add(GizmoActor->TranslateYZ);
 	}
 	if (GizmoActor->TranslateXZ != nullptr)
 	{
 		AddPlaneTranslationGizmo(GizmoActor->TranslateXZ, GizmoComponent, AxisYSource, TransformSource, StateTarget);
+		ActiveComponents.Add(GizmoActor->TranslateXZ);
 	}
 	if (GizmoActor->TranslateXY != nullptr)
 	{
 		AddPlaneTranslationGizmo(GizmoActor->TranslateXY, GizmoComponent, AxisZSource, TransformSource, StateTarget);
+		ActiveComponents.Add(GizmoActor->TranslateXY);
 	}
 
 	if (GizmoActor->RotateX != nullptr)
 	{
 		AddAxisRotationGizmo(GizmoActor->RotateX, GizmoComponent, AxisXSource, TransformSource, StateTarget);
+		ActiveComponents.Add(GizmoActor->RotateX);
 	}
 	if (GizmoActor->RotateY != nullptr)
 	{
 		AddAxisRotationGizmo(GizmoActor->RotateY, GizmoComponent, AxisYSource, TransformSource, StateTarget);
+		ActiveComponents.Add(GizmoActor->RotateY);
 	}
 	if (GizmoActor->RotateZ != nullptr)
 	{
 		AddAxisRotationGizmo(GizmoActor->RotateZ, GizmoComponent, AxisZSource, TransformSource, StateTarget);
+		ActiveComponents.Add(GizmoActor->RotateZ);
 	}
 }
 
@@ -381,6 +432,7 @@ void UTransformGizmo::ClearActiveTarget()
 		GetGizmoManager()->DestroyGizmo(Gizmo);
 	}
 	ActiveGizmos.SetNum(0);
+	ActiveComponents.SetNum(0);
 
 	ActiveTarget = nullptr;
 }

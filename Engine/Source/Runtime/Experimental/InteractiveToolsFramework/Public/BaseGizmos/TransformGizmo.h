@@ -153,6 +153,17 @@ public:
 	 */
 	TFunction<void(UPrimitiveComponent*, bool)> UpdateHoverFunction;
 
+	/**
+	 * If set, this coord-system function will be passed to UTransformGizmo instances to use instead
+	 * of the default UpdateCoordSystemFunction. By default the UTransformGizmo will query the external Context
+	 * to ask whether it should be using world or local coordinate system. Then the default UpdateCoordSystemFunction
+	 * will try casting to UGizmoBaseCmponent and passing that info on via UpdateWorldLocalState();
+	 * If you are using different Components that do not subclass UGizmoBaseComponent, and you want the coord system
+	 * to be configurable, you will need to provide a different update function.
+	 */
+	TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> UpdateCoordSystemFunction;
+
+
 	virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
 };
 
@@ -182,10 +193,12 @@ public:
 	virtual void SetWorld(UWorld* World);
 	virtual void SetGizmoActorBuilder(TSharedPtr<FTransformGizmoActorFactory> Builder);
 	virtual void SetUpdateHoverFunction(TFunction<void(UPrimitiveComponent*, bool)> HoverFunction);
+	virtual void SetUpdateCoordSystemFunction(TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> CoordSysFunction);
 
 	// UInteractiveGizmo overrides
 	virtual void Setup() override;
 	virtual void Shutdown() override;
+	virtual void Tick(float DeltaTime) override;
 
 
 	/**
@@ -210,12 +223,28 @@ public:
 protected:
 	TSharedPtr<FTransformGizmoActorFactory> GizmoActorBuilder;
 
+	// This function is called on each active GizmoActor Component to update it's hover state.
+	// If the Component is not a UGizmoBaseCmponent, the client needs to provide a different implementation
+	// of this function via the ToolBuilder
 	TFunction<void(UPrimitiveComponent*, bool)> UpdateHoverFunction;
 
+	// This function is called on each active GizmoActor Component to update it's coordinate system (eg world/local).
+	// If the Component is not a UGizmoBaseCmponent, the client needs to provide a different implementation
+	// of this function via the ToolBuilder
+	TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> UpdateCoordSystemFunction;
+
+	/** list of current-active child components */
+	UPROPERTY()
+	TArray<UPrimitiveComponent*> ActiveComponents;
+
+	/** list of currently-active child gizmos */
 	UPROPERTY()
 	TArray<UInteractiveGizmo*> ActiveGizmos;
 
+	/** GizmoActors will be spawned in this World */
 	UWorld* World;
+
+	/** Current active GizmoActor that was spawned by this Gizmo. Will be destroyed when Gizmo is. */
 	ATransformGizmoActor* GizmoActor;
 
 	/** X-axis source is shared across Gizmos, and created internally during SetActiveTarget() */

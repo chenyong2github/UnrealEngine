@@ -47,6 +47,15 @@ public:
 		}
 	}
 
+	UFUNCTION()
+	void UpdateWorldLocalState(bool bWorldIn)
+	{
+		if (bWorldIn != bWorld)
+		{
+			bWorld = bWorldIn;
+		}
+	}
+
 
 protected:
 	// scale factor between pixel distances and world distances at Gizmo origin
@@ -54,4 +63,7 @@ protected:
 
 	// hover state
 	bool bHovering = false;
+
+	// world/local coordinates state
+	bool bWorld = false;
 };

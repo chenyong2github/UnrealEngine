@@ -44,7 +44,8 @@ public:
 		FVector ViewDirection = Origin - GizmoControlView->ViewLocation;
 		ViewDirection.Normalize();
 
-		FVector ArrowDirection = LocalToWorldMatrix.TransformVector(Direction);
+		bool bWorldAxis = (bExternalWorldLocalState) ? (*bExternalWorldLocalState) : false;
+		FVector ArrowDirection = (bWorldAxis) ? Direction : LocalToWorldMatrix.TransformVector(Direction);
 		bool bFlipped = (FVector::DotProduct(ViewDirection, ArrowDirection) > 0);
 		ArrowDirection = (bFlipped) ? -ArrowDirection : ArrowDirection;
 		if (bFlippedExternal != nullptr)
@@ -131,6 +132,10 @@ public:
 		bExternalHoverState = HoverState;
 	}
 
+	void SetExternalWorldLocalState(bool* bWorldLocalState)
+	{
+		bExternalWorldLocalState = bWorldLocalState;
+	}
 
 private:
 	FLinearColor Color;
@@ -144,6 +149,7 @@ private:
 	float* ExternalDynamicPixelToWorldScale = nullptr;
 	bool* bExternalRenderVisibility = nullptr;
 	bool* bExternalHoverState = nullptr;
+	bool* bExternalWorldLocalState = nullptr;
 };
 
 
@@ -154,6 +160,7 @@ FPrimitiveSceneProxy* UGizmoArrowComponent::CreateSceneProxy()
 	NewProxy->SetExternalDynamicPixelToWorldScale(&DynamicPixelToWorldScale);
 	NewProxy->SetExternalRenderVisibility(&bRenderVisibility);
 	NewProxy->SetExternalHoverState(&bHovering);
+	NewProxy->SetExternalWorldLocalState(&bWorld);
 	return NewProxy;
 }
 
@@ -176,8 +183,10 @@ bool UGizmoArrowComponent::LineTraceComponent(FHitResult& OutHit, const FVector 
 	double StartDist = LengthScale * Gap;
 	double EndDist = LengthScale * (Gap + Length);
 
-	FVector Point0 = Transform.TransformPosition( StartDist * UseDirection);
-	FVector Point1 = Transform.TransformPosition( EndDist * UseDirection);
+	UseDirection = (bWorld) ? UseDirection : Transform.TransformVector(UseDirection);
+	FVector UseOrigin = Transform.TransformPosition(FVector::ZeroVector);
+	FVector Point0 = UseOrigin + StartDist * UseDirection;
+	FVector Point1 = UseOrigin + EndDist * UseDirection;
 
 	FVector NearestArrow, NearestLine;
 	FMath::SegmentDistToSegmentSafe(Point0, Point1, Start, End, NearestArrow, NearestLine);

@@ -47,7 +47,6 @@ UMeshSurfacePointTool* UEditMeshPolygonsToolBuilder::CreateNewTool(const FToolBu
  */
 UPolyEditTransformProperties::UPolyEditTransformProperties()
 {
-	bUseLocalAxis = true;
 	TransformMode = EQuickTransformerMode::AxisTranslation;
 	bSelectVertices = true;
 	bSelectFaces = true;
@@ -732,14 +731,6 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 
 
 
-void UEditMeshPolygonsTool::ToggleLocalTransformFrameAction()
-{
-	TransformProps->bUseLocalAxis = !TransformProps->bUseLocalAxis;
-	if (bInDrag)
-	{
-		UpdateQuickTransformer();
-	}
-}
 
 void UEditMeshPolygonsTool::NextTransformTypeAction()
 {
@@ -761,14 +752,6 @@ void UEditMeshPolygonsTool::NextTransformTypeAction()
 
 void UEditMeshPolygonsTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 {
-	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 1,
-		TEXT("ToggleFrame"),
-		LOCTEXT("ToggleFrame", "Toggle World/Local Frame"),
-		LOCTEXT("ToggleFrameTooltip", "Toggle between World and Local transformation frames"),
-		EModifierKey::None, EKeys::A,
-		[this]() { ToggleLocalTransformFrameAction(); });
-
-
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 2,
 		TEXT("NextTransformType"),
 		LOCTEXT("NextTransformType", "Next Transform Type"),
@@ -1015,7 +998,9 @@ FQuickTransformer* UEditMeshPolygonsTool::GetActiveQuickTransformer()
 
 void UEditMeshPolygonsTool::UpdateQuickTransformer()
 {
-	if (TransformProps->bUseLocalAxis)
+	bool bUseLocalAxes =
+		(GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::Local);
+	if (bUseLocalAxes)
 	{
 		GetActiveQuickTransformer()->SetActiveWorldFrame(ActiveSurfaceFrame);
 	}
