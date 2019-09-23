@@ -31,6 +31,11 @@ public:
 	FDisasterRecoveryFSM(TSharedRef<IConcertSyncClient> InSyncClient, const FString& InSessionNameToRecover, bool bInLiveDataOnly);
 	~FDisasterRecoveryFSM();
 
+	bool IsDone() const
+	{
+		return CurrentState == &ExitState;
+	}
+
 private:
 	struct FState
 	{
@@ -435,9 +440,16 @@ void DisasterRecoveryUtil::StartRecovery(TSharedRef<IConcertSyncClient> SyncClie
 	}
 }
 
-void DisasterRecoveryUtil::EndRecovery()
+bool DisasterRecoveryUtil::EndRecovery()
 {
-	RecoveryFSM.Reset();
+	bool bDone = true;
+	if (RecoveryFSM)
+	{
+		bDone = RecoveryFSM->IsDone();
+		RecoveryFSM.Reset();
+	}
+
+	return bDone;
 }
 
 #undef LOCTEXT_NAMESPACE
