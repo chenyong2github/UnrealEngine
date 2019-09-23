@@ -307,12 +307,6 @@ UNetDriver::UNetDriver(const FObjectInitializer& ObjectInitializer)
 ,	PacketLossBurstEndTime(-1.0f)
 ,	OutTotalNotifiedPackets(0u)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	ChannelClasses[CHTYPE_Control]	= UControlChannel::StaticClass();
-	ChannelClasses[CHTYPE_Actor]	= UActorChannel::StaticClass();
-	ChannelClasses[CHTYPE_Voice]	= UVoiceChannel::StaticClass();
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	UpdateDelayRandomStream.Initialize(FApp::bUseFixedSeed ? GetFName() : NAME_None);
 }
 
@@ -1371,22 +1365,6 @@ void UNetDriver::PostTickFlush()
 		UOnlineEngineInterface::Get()->ClearVoicePackets(World);
 	}
 }
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-void UNetDriver::LowLevelSend(FString Address, void* Data, int32 CountBits, FOutPacketTraits& Traits)
-{
-	if (GetSocketSubsystem() != nullptr)
-	{
-		TSharedPtr<FInternetAddr> NetAddress = GetSocketSubsystem()->GetAddressFromString(*Address);
-		if (NetAddress.IsValid())
-		{
-			LowLevelSend(NetAddress, Data, CountBits, Traits);
-			return;
-		}
-	}
-	UE_LOG(LogNet, Warning, TEXT("Could not infer the address to use for LowLevelSend, please use the one that takes an FInternetAddr to avoid this problem"));
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UNetDriver::InitConnectionClass(void)
 {
@@ -4658,46 +4636,6 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 #endif // WITH_SERVER_CODE
 }
 
-bool UNetDriver::IsKnownChannelType(int32 Type)
-{
-	FName ChName = NAME_None;
-
-	switch (Type)
-	{
-	case CHTYPE_Control:
-		ChName = NAME_Control;
-		break;
-	case CHTYPE_Actor:
-		ChName = NAME_Actor;
-		break;
-	case CHTYPE_Voice:
-		ChName = NAME_Voice;
-		break;
-	}
-
-	return IsKnownChannelName(ChName);
-}
-
-UChannel* UNetDriver::GetOrCreateChannel(EChannelType ChType)
-{
-	FName ChName = NAME_None;
-
-	switch (ChType)
-	{
-	case CHTYPE_Control:
-		ChName = NAME_Control;
-		break;
-	case CHTYPE_Actor:
-		ChName = NAME_Actor;
-		break;
-	case CHTYPE_Voice:
-		ChName = NAME_Voice;
-		break;
-	}
-
-	return GetOrCreateChannelByName(ChName);
-}
-
 UChannel* UNetDriver::GetOrCreateChannelByName(const FName& ChName)
 {
 	UChannel* RetVal = nullptr;
@@ -4727,26 +4665,6 @@ UChannel* UNetDriver::GetOrCreateChannelByName(const FName& ChName)
 	}
 
 	return RetVal;
-}
-
-UChannel* UNetDriver::InternalCreateChannel(EChannelType Type)
-{
-	FName ChName = NAME_None;
-
-	switch (Type)
-	{
-	case CHTYPE_Control:
-		ChName = NAME_Control;
-		break;
-	case CHTYPE_Actor:
-		ChName = NAME_Actor;
-		break;
-	case CHTYPE_Voice:
-		ChName = NAME_Voice;
-		break;
-	}
-
-	return InternalCreateChannelByName(ChName);
 }
 
 UChannel* UNetDriver::InternalCreateChannelByName(const FName& ChName)

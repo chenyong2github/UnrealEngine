@@ -218,9 +218,14 @@ int32 GetClientPeerIp(FName InstanceName, const FUniqueNetId& UserId)
 				if (ClientConnection && 
 					ClientConnection->PlayerId.ToString() == UserId.ToString())
 				{
-					PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					PeerIp = ClientConnection->GetAddrAsInt();
-					PRAGMA_ENABLE_DEPRECATION_WARNINGS
+					TSharedPtr<const FInternetAddr> ClientAddr = ClientConnection->GetRemoteAddr();
+					if (ClientAddr.IsValid())
+					{
+						uint32 TempAddr = 0;
+						ClientAddr->GetIp(TempAddr);
+						PeerIp = static_cast<int32>(TempAddr);
+					}
+
 					break;
 				}
 			}
