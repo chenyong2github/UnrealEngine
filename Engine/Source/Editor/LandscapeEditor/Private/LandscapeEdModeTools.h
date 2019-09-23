@@ -922,6 +922,10 @@ public:
 				TSet<ULandscapeComponent*> AffectedComponents;
 				LandscapeInfo->GetComponentsInRegion(Bounds.Min.X, Bounds.Min.Y, Bounds.Max.X, Bounds.Max.Y, AffectedComponents);
 				SynchronousUpdateComponentVisibilityForHeight(AffectedComponents, NewLayerVisibility);
+				if (bVisibilityChanged)
+				{
+					VisibilityChangedComponents.Append(AffectedComponents);
+				}
 				return Bounds;
 			});
 			// Release Texture Mips that will be Locked by the next SynchronousUpdateComponentVisibilityForHeight
@@ -933,6 +937,10 @@ public:
 				TSet<ULandscapeComponent*> AffectedComponents;
 				LandscapeInfo->GetComponentsInRegion(Bounds.Min.X, Bounds.Min.Y, Bounds.Max.X, Bounds.Max.Y, AffectedComponents);
 				SynchronousUpdateComponentVisibilityForHeight(AffectedComponents, NewLayerVisibility);
+				if (bVisibilityChanged)
+				{
+					VisibilityChangedComponents.Append(AffectedComponents);
+				}
 				return Bounds;
 			});
 			// Do the same here for consistency
@@ -972,11 +980,10 @@ public:
 			CacheUpToEditingLayer.DataAccess.Flush();
 			if (bVisibilityChanged)
 			{
-				TSet<ULandscapeComponent*> AffectedComponents;
-				LandscapeInfo->GetComponentsInRegion(X1, Y1, X2, Y2, AffectedComponents);
-                const bool bUpdateCollision = true;
+				const bool bUpdateCollision = true;
 				const bool bIntermediateRender = false;
-				SynchronousUpdateHeightmapForComponents(AffectedComponents, bUpdateCollision, bIntermediateRender);
+				SynchronousUpdateHeightmapForComponents(VisibilityChangedComponents, bUpdateCollision, bIntermediateRender);
+				VisibilityChangedComponents.Empty();
 				bVisibilityChanged = false;
 			}
 		}
@@ -1034,6 +1041,7 @@ private:
 	bool bCombinedLayerOperation;
 	bool bVisibilityChanged;
 	bool bTargetIsHeightmap;
+	TSet<ULandscapeComponent*> VisibilityChangedComponents;
 
 	typename ToolTarget::CacheClass& CacheUpToEditingLayer;
 	typename ToolTarget::CacheClass CacheBottomLayers;
