@@ -25,6 +25,7 @@ class SGraphTrack;
 class SLogView;
 class SStatsView;
 class STimersView;
+class STimerTreeView;
 class STimingView;
 class SVerticalBox;
 
@@ -38,6 +39,8 @@ struct FTimingProfilerTabs
 	static const FName GraphTrackID;
 	static const FName TimingViewID;
 	static const FName TimersID;
+	static const FName CallersID;
+	static const FName CalleesID;
 	static const FName StatsCountersID;
 	static const FName LogViewID;
 };
@@ -70,6 +73,8 @@ public:
 
 	TSharedPtr<STimingView> GetTimingView() const { return TimingView; }
 	TSharedPtr<STimersView> GetTimersView() const { return TimersView; }
+	TSharedPtr<STimerTreeView> GetCallersTreeView() const { return CallersTreeView; }
+	TSharedPtr<STimerTreeView> GetCalleesTreeView() const { return CalleesTreeView; }
 	TSharedPtr<SStatsView> GetStatsView() const { return StatsView; }
 	TSharedPtr<SLogView> GetLogView() const { return LogView; }
 
@@ -88,6 +93,12 @@ private:
 
 	TSharedRef<SDockTab> SpawnTab_Timers(const FSpawnTabArgs& Args);
 	void OnTimersTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	TSharedRef<SDockTab> SpawnTab_Callers(const FSpawnTabArgs& Args);
+	void OnCallersTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	TSharedRef<SDockTab> SpawnTab_Callees(const FSpawnTabArgs& Args);
+	void OnCalleesTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
 	TSharedRef<SDockTab> SpawnTab_StatsCounters(const FSpawnTabArgs& Args);
 	void OnStatsCountersTabClosed(TSharedRef<SDockTab> TabBeingClosed);
@@ -178,6 +189,12 @@ private:
 
 	/** The Timers view widget */
 	TSharedPtr<STimersView> TimersView;
+
+	/** The Callers tree view widget */
+	TSharedPtr<STimerTreeView> CallersTreeView;
+
+	/** The Callees tree view widget */
+	TSharedPtr<STimerTreeView> CalleesTreeView;
 
 	/** The Stats (Counters) view widget */
 	TSharedPtr<SStatsView> StatsView;

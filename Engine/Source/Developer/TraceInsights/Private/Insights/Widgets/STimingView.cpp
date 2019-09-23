@@ -391,6 +391,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		}
 	}
 
+	//TODO: Move this check into STimersView/SStatsView or in STimingProfilerWindow or in FTimingProfilerManager.
 	// We need to check if TimersView or StatsView needs to update their lists of timers / counters.
 	// But, ensure we do not check too often.
 	static uint64 NextTimestamp = 0;
@@ -1165,7 +1166,7 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		SelectionStartTime = Viewport.SlateUnitsToTime(MousePositionOnButtonDown.X);
 		SelectionEndTime = SelectionStartTime;
 		LastSelectionType = ESelectionType::None;
-		//TODO: SelectionChangingEvent.Broadcast(SelectionStartTime, SelectionEndTime);
+		RaiseSelectionChanging();
 	}
 
 	return Reply;
@@ -1194,13 +1195,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 			else if (bIsSelecting)
 			{
-				//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-
-				if (SelectionEndTime > SelectionStartTime)
-				{
-					UpdateAggregatedStats();
-				}
-
+				RaiseSelectionChanged();
 				bIsSelecting = false;
 			}
 
@@ -1216,7 +1211,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 					// ...reset selection.
 					SelectionEndTime = SelectionStartTime = 0.0;
 					LastSelectionType = ESelectionType::None;
-					//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
+					RaiseSelectionChanged();
 				}
 			}
 
@@ -1240,13 +1235,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 			else if (bIsSelecting)
 			{
-				//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-
-				if (SelectionEndTime > SelectionStartTime)
-				{
-					UpdateAggregatedStats();
-				}
-
+				RaiseSelectionChanged();
 				bIsSelecting = false;
 			}
 
@@ -1335,7 +1324,7 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 					SelectionEndTime = Temp;
 				}
 				LastSelectionType = ESelectionType::TimeRange;
-				//TODO: SelectionChangingEvent.Broadcast(SelectionStartTime, SelectionEndTime);
+				RaiseSelectionChanging();
 			}
 		}
 		else
@@ -2012,81 +2001,81 @@ void STimingView::SelectTimeInterval(double IntervalStartTime, double IntervalDu
 	SelectionStartTime = IntervalStartTime;
 	SelectionEndTime = IntervalStartTime + IntervalDuration;
 	LastSelectionType = ESelectionType::TimeRange;
+	RaiseSelectionChanged();
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::RaiseSelectionChanging()
+{
+	//TODO: SelectionChangingEvent.Broadcast(SelectionStartTime, SelectionEndTime);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::RaiseSelectionChanged()
+{
 	//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-	UpdateAggregatedStats();
+
+	FTimingProfilerManager::Get()->SetSelectedTimeRange(SelectionStartTime, SelectionEndTime);
+
+	if (SelectionStartTime < SelectionEndTime)
+	{
+		UpdateAggregatedStats();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::UpdateAggregatedStats()
 {
-	TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-	if (Wnd)
-	{
-		TSharedPtr<STimersView> TimersView = Wnd->GetTimersView();
-		if (TimersView)
-		{
-			TimersView->UpdateStats(SelectionStartTime, SelectionEndTime);
-		}
-		TSharedPtr<SStatsView> StatsView = Wnd->GetStatsView();
-		if (StatsView)
-		{
-			StatsView->UpdateStats(SelectionStartTime, SelectionEndTime);
-		}
-	}
-
 	if (bAssetLoadingMode)
 	{
-		TSharedPtr<Insights::STableTreeView> EventAggregationTreeView;
-		TSharedPtr<Insights::STableTreeView> ObjectTypeAggregationTreeView;
-		TSharedPtr<Insights::STableTreeView> PackageDetailsTreeView;
-		TSharedPtr<Insights::STableTreeView> ExportDetailsTreeView;
 		TSharedPtr<SLoadingProfilerWindow> LoadingProfilerWnd = FLoadingProfilerManager::Get()->GetProfilerWindow();
-		if (LoadingProfilerWnd)
+		if (LoadingProfilerWnd.IsValid())
 		{
-			EventAggregationTreeView = LoadingProfilerWnd->GetEventAggregationTreeView();
-			ObjectTypeAggregationTreeView = LoadingProfilerWnd->GetObjectTypeAggregationTreeView();
-			PackageDetailsTreeView = LoadingProfilerWnd->GetPackageDetailsTreeView();
-			ExportDetailsTreeView = LoadingProfilerWnd->GetExportDetailsTreeView();
-		}
+			TSharedPtr<Insights::STableTreeView> EventAggregationTreeView = LoadingProfilerWnd->GetEventAggregationTreeView();
+			TSharedPtr<Insights::STableTreeView> ObjectTypeAggregationTreeView = LoadingProfilerWnd->GetObjectTypeAggregationTreeView();
+			TSharedPtr<Insights::STableTreeView> PackageDetailsTreeView = LoadingProfilerWnd->GetPackageDetailsTreeView();
+			TSharedPtr<Insights::STableTreeView> ExportDetailsTreeView = LoadingProfilerWnd->GetExportDetailsTreeView();
 
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
-		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
-
+			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+			if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
 			{
-				//TODO: LoadTimeProfilerProvider.UpdateEventAggregation(EventAggregationTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
-				Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* EventAggregationTable = LoadTimeProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
-				EventAggregationTreeView->GetTable()->UpdateSourceTable(MakeShareable(EventAggregationTable));
-				EventAggregationTreeView->RebuildTree(true);
-				//delete EventAggregationTable;
-			}
+				Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+				const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
 
-			{
-				//TODO: LoadTimeProfilerProvider.UpdateObjectTypeAggregation(ObjectTypeAggregationTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
-				Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* ObjectTypeAggregationTable = LoadTimeProfilerProvider.CreateObjectTypeAggregation(SelectionStartTime, SelectionEndTime);
-				ObjectTypeAggregationTreeView->GetTable()->UpdateSourceTable(MakeShareable(ObjectTypeAggregationTable));
-				ObjectTypeAggregationTreeView->RebuildTree(true);
-				//delete ObjectTypeAggregationTable;
-			}
+				if (EventAggregationTreeView.IsValid())
+				{
+					//TODO: LoadTimeProfilerProvider.UpdateEventAggregation(EventAggregationTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
+					Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* EventAggregationTable = LoadTimeProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
+					EventAggregationTreeView->GetTable()->UpdateSourceTable(MakeShareable(EventAggregationTable));
+					EventAggregationTreeView->RebuildTree(true);
+				}
 
-			{
-				//TODO: LoadTimeProfilerProvider.UpdatePackageDetails(PackageDetailsTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
-				Trace::ITable<Trace::FPackagesTableRow>* PackageDetailsTable = LoadTimeProfilerProvider.CreatePackageDetailsTable(SelectionStartTime, SelectionEndTime);
-				PackageDetailsTreeView->GetTable()->UpdateSourceTable(MakeShareable(PackageDetailsTable));
-				PackageDetailsTreeView->RebuildTree(true);
-				//delete PackageDetailsTable;
-			}
+				if (ObjectTypeAggregationTreeView.IsValid())
+				{
+					//TODO: LoadTimeProfilerProvider.UpdateObjectTypeAggregation(ObjectTypeAggregationTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
+					Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* ObjectTypeAggregationTable = LoadTimeProfilerProvider.CreateObjectTypeAggregation(SelectionStartTime, SelectionEndTime);
+					ObjectTypeAggregationTreeView->GetTable()->UpdateSourceTable(MakeShareable(ObjectTypeAggregationTable));
+					ObjectTypeAggregationTreeView->RebuildTree(true);
+				}
 
-			{
-				//TODO: LoadTimeProfilerProvider.UpdateExportDetails(ExportDetailsTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
-				Trace::ITable<Trace::FExportsTableRow>* ExportDetailsTable = LoadTimeProfilerProvider.CreateExportDetailsTable(SelectionStartTime, SelectionEndTime);
-				ExportDetailsTreeView->GetTable()->UpdateSourceTable(MakeShareable(ExportDetailsTable));
-				ExportDetailsTreeView->RebuildTree(true);
-				//delete ExportDetailsTable;
+				if (PackageDetailsTreeView.IsValid())
+				{
+					//TODO: LoadTimeProfilerProvider.UpdatePackageDetails(PackageDetailsTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
+					Trace::ITable<Trace::FPackagesTableRow>* PackageDetailsTable = LoadTimeProfilerProvider.CreatePackageDetailsTable(SelectionStartTime, SelectionEndTime);
+					PackageDetailsTreeView->GetTable()->UpdateSourceTable(MakeShareable(PackageDetailsTable));
+					PackageDetailsTreeView->RebuildTree(true);
+				}
+
+				if (ExportDetailsTreeView.IsValid())
+				{
+					//TODO: LoadTimeProfilerProvider.UpdateExportDetails(ExportDetailsTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
+					Trace::ITable<Trace::FExportsTableRow>* ExportDetailsTable = LoadTimeProfilerProvider.CreateExportDetailsTable(SelectionStartTime, SelectionEndTime);
+					ExportDetailsTreeView->GetTable()->UpdateSourceTable(MakeShareable(ExportDetailsTable));
+					ExportDetailsTreeView->RebuildTree(true);
+				}
 			}
 		}
 	}
@@ -2237,20 +2226,13 @@ void STimingView::UpdateHoveredTimingEvent(float MX, float MY)
 
 void STimingView::OnSelectedTimingEventChanged()
 {
-	// Select the timer node coresponding to timing event type of selected timing event.
-	if (!bAssetLoadingMode &&
-		SelectedTimingEvent.IsValid() &&
-		(SelectedTimingEvent.Track->GetType() == FName(TEXT("Thread"))))
+	if (!bAssetLoadingMode)
 	{
-		//TODO: make this more generic
-		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-		if (Wnd)
+		if (SelectedTimingEvent.IsValid() &&
+			SelectedTimingEvent.Track->GetType() == FName(TEXT("Thread")))
 		{
-			TSharedPtr<STimersView> TimersView = Wnd->GetTimersView();
-			if (TimersView)
-			{
-				TimersView->SelectTimerNode(SelectedTimingEvent.TypeId);
-			}
+			// Select the timer node coresponding to timing event type of selected timing event.
+			FTimingProfilerManager::Get()->SetSelectedTimer(SelectedTimingEvent.TypeId);
 		}
 	}
 }
@@ -2821,7 +2803,14 @@ void STimingView::OnTimingEventsTrackVisibilityChanged()
 	SelectedTimingEvent.Reset();
 	Tooltip.SetDesiredOpacity(0.0f);
 
-	UpdateAggregatedStats();
+	//TODO: ThreadFilterChangedEvent.Broadcast();
+
+	FTimingProfilerManager::Get()->OnThreadFilterChanged();
+
+	if (SelectionStartTime < SelectionEndTime)
+	{
+		UpdateAggregatedStats();
+	}
 
 	bAreTimingEventsTracksDirty = true;
 }

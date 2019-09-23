@@ -307,6 +307,8 @@ protected:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	void RaiseSelectionChanging();
+	void RaiseSelectionChanged();
 	void UpdateAggregatedStats();
 
 	void UpdateHoveredTimingEvent(float MX, float MY);

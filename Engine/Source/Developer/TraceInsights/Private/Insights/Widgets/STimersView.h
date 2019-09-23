@@ -176,8 +176,6 @@ protected:
 	void SetSortModeForColumn(const FName& ColumnId, EColumnSortMode::Type SortMode);
 	void OnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type SortMode);
 
-	//void TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder);
-
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting actions
 
@@ -220,6 +218,8 @@ protected:
 	bool ContextMenu_ResetColumns_CanExecute() const;
 	void ContextMenu_ResetColumns_Execute();
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+
 protected:
 	/** A weak pointer to the profiler session used to populate this widget. */
 	TSharedPtr<const Trace::IAnalysisSession>/*Weak*/ Session;
@@ -230,7 +230,7 @@ protected:
 	/** The tree widget which holds the list of groups and timers corresponding with each group. */
 	TSharedPtr<STreeView<FTimerNodePtr>> TreeView;
 
-	/** Column metadata used to initialize column arguments, stored as PropertyName -> FEventGraphColumn. */
+	/** Column metadata used to initialize column arguments, stored as PropertyName -> FTimersViewColumn. */
 	TMap<FName, FTimersViewColumn> TreeViewHeaderColumns;
 
 	/** Column arguments used to initialize a new header column in the tree view, stored as column name to column arguments mapping. */
@@ -281,6 +281,8 @@ protected:
 	//////////////////////////////////////////////////
 	// Search box and filters
 
+	//bool bUseFiltering;
+
 	/** The search box widget used to filter items displayed in the stats and groups tree. */
 	TSharedPtr<SSearchBox> SearchBox;
 
@@ -296,6 +298,8 @@ protected:
 	//////////////////////////////////////////////////
 	// Grouping
 
+	//bool bUseGrouping;
+
 	TArray<TSharedPtr<ETimerGroupingMode>> GroupByOptionsSource;
 
 	TSharedPtr<SComboBox<TSharedPtr<ETimerGroupingMode>>> GroupByComboBox;
@@ -305,6 +309,8 @@ protected:
 
 	//////////////////////////////////////////////////
 	// Sorting
+
+	//bool bUseSorting;
 
 	/** How we sort the timers? */
 	EColumnSortMode::Type ColumnSortMode;

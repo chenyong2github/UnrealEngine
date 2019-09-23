@@ -9,7 +9,7 @@ class FTimingEventsTrack;
 
 struct FTimingEvent
 {
-	static const uint64 InvalidTypeId = -1;
+	static const uint64 InvalidTypeId = uint64(-1);
 
 	const FTimingEventsTrack* Track;
 	uint64 TypeId;

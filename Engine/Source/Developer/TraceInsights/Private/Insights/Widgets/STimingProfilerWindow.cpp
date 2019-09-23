@@ -32,6 +32,7 @@
 #include "Insights/Widgets/SLogView.h"
 #include "Insights/Widgets/SStatsView.h"
 #include "Insights/Widgets/STimersView.h"
+#include "Insights/Widgets/STimerTreeView.h"
 #include "Insights/Widgets/STimingProfilerToolbar.h"
 #include "Insights/Widgets/STimingView.h"
 
@@ -46,6 +47,8 @@ const FName FTimingProfilerTabs::FramesTrackID(TEXT("Frames"));
 const FName FTimingProfilerTabs::GraphTrackID(TEXT("Graph"));
 const FName FTimingProfilerTabs::TimingViewID(TEXT("TimingView"));
 const FName FTimingProfilerTabs::TimersID(TEXT("Timers"));
+const FName FTimingProfilerTabs::CallersID(TEXT("Callers"));
+const FName FTimingProfilerTabs::CalleesID(TEXT("Callees"));
 const FName FTimingProfilerTabs::StatsCountersID(TEXT("StasCounters"));
 const FName FTimingProfilerTabs::LogViewID(TEXT("LogView"));
 
@@ -87,6 +90,14 @@ void STimingProfilerWindow::Reset()
 	if (TimersView)
 	{
 		TimersView->RebuildTree(true);
+	}
+	if (CallersTreeView)
+	{
+		CallersTreeView->Reset();
+	}
+	if (CalleesTreeView)
+	{
+		CalleesTreeView->Reset();
 	}
 	if (StatsView)
 	{
@@ -228,6 +239,58 @@ void STimingProfilerWindow::OnTimersTabClosed(TSharedRef<SDockTab> TabBeingClose
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_Callers(const FSpawnTabArgs& Args)
+{
+	FTimingProfilerManager::Get()->SetCallersTreeViewVisible(true);
+
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.ShouldAutosize(false)
+		.TabRole(ETabRole::PanelTab)
+		[
+			SAssignNew(CallersTreeView, STimerTreeView, LOCTEXT("CallersTreeViewName", "Callers"))
+		];
+
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnCallersTabClosed));
+
+	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingProfilerWindow::OnCallersTabClosed(TSharedRef<SDockTab> TabBeingClosed)
+{
+	FTimingProfilerManager::Get()->SetCallersTreeViewVisible(false);
+	CallersTreeView = nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_Callees(const FSpawnTabArgs& Args)
+{
+	FTimingProfilerManager::Get()->SetCalleesTreeViewVisible(true);
+
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.ShouldAutosize(false)
+		.TabRole(ETabRole::PanelTab)
+		[
+			SAssignNew(CalleesTreeView, STimerTreeView, LOCTEXT("CalleesTreeViewName", "Callees"))
+		];
+
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnCalleesTabClosed));
+
+	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingProfilerWindow::OnCalleesTabClosed(TSharedRef<SDockTab> TabBeingClosed)
+{
+	FTimingProfilerManager::Get()->SetCalleesTreeViewVisible(false);
+	CalleesTreeView = nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_StatsCounters(const FSpawnTabArgs& Args)
 {
 	FTimingProfilerManager::Get()->SetStatsCountersViewVisible(true);
@@ -311,6 +374,16 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimersView.Icon.Small"))
 		.SetGroup(AppMenuGroup);
 
+	TabManager->RegisterTabSpawner(FTimingProfilerTabs::CallersID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_Callers))
+		.SetDisplayName(LOCTEXT("CallersTabTitle", "Callers"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimersView.Icon.Small")) // TODO
+		.SetGroup(AppMenuGroup);
+
+	TabManager->RegisterTabSpawner(FTimingProfilerTabs::CalleesID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_Callees))
+		.SetDisplayName(LOCTEXT("CalleesTabTitle", "Callees"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimersView.Icon.Small")) // TODO
+		.SetGroup(AppMenuGroup);
+
 	TabManager->RegisterTabSpawner(FTimingProfilerTabs::StatsCountersID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_StatsCounters))
 		.SetDisplayName(LOCTEXT("StatsCountersTabTitle", "Stats Counters"))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "StatsCountersView.Icon.Small"))
@@ -377,11 +450,31 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 				)
 				->Split
 				(
-					FTabManager::NewStack()
+					FTabManager::NewSplitter()
+					->SetOrientation(Orient_Vertical)
 					->SetSizeCoefficient(0.35f)
-					->AddTab(FTimingProfilerTabs::TimersID, TimingProfilerManager->IsTimersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
-					->AddTab(FTimingProfilerTabs::StatsCountersID, TimingProfilerManager->IsStatsCountersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
-					->SetForegroundTab(FTimingProfilerTabs::TimersID)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.67f)
+						->AddTab(FTimingProfilerTabs::TimersID, TimingProfilerManager->IsTimersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+						->AddTab(FTimingProfilerTabs::StatsCountersID, TimingProfilerManager->IsStatsCountersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+						->SetForegroundTab(FTimingProfilerTabs::TimersID)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.165f)
+						->SetHideTabWell(true)
+						->AddTab(FTimingProfilerTabs::CallersID, TimingProfilerManager->IsCallersTreeViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.165f)
+						->SetHideTabWell(true)
+						->AddTab(FTimingProfilerTabs::CalleesID, TimingProfilerManager->IsCalleesTreeViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+					)
 				)
 			)
 		);

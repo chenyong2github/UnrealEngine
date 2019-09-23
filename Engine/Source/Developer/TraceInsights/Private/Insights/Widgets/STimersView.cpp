@@ -49,6 +49,8 @@ STimersView::STimersView()
 	, GroupingMode(ETimerGroupingMode::ByType)
 	, ColumnSortMode(GetDefaultColumnSortMode())
 	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
+	, StatsStartTime(0.0)
+	, StatsEndTime(0.0)
 {
 	FMemory::Memset(bTimerNodeIsVisible, 1);
 }
@@ -606,12 +608,12 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const FTim
 			MenuBuilder.EndSection();
 		}
 
-		if (Column.bCanBeFiltered())
-		{
-			MenuBuilder.BeginSection("FilterMode", LOCTEXT("ContextMenu_Header_Misc_Filter_FilterMode", "Filter Mode"));
-			bIsMenuVisible = true;
-			MenuBuilder.EndSection();
-		}
+		//if (Column.CanBeFiltered())
+		//{
+		//	MenuBuilder.BeginSection("FilterMode", LOCTEXT("ContextMenu_Header_Misc_Filter_FilterMode", "Filter Mode"));
+		//	bIsMenuVisible = true;
+		//	MenuBuilder.EndSection();
+		//}
 	}
 
 	/*
@@ -804,11 +806,7 @@ void STimersView::TreeView_OnSelectionChanged(FTimerNodePtr SelectedItem, ESelec
 		TArray<FTimerNodePtr> SelectedItems = TreeView->GetSelectedItems();
 		if (SelectedItems.Num() == 1)
 		{
-			//HighlightedNodeName = SelectedItems[0]->GetName();
-		}
-		else
-		{
-			//HighlightedNodeName = NAME_None;
+			FTimingProfilerManager::Get()->SetSelectedTimer(SelectedItems[0]->GetId());
 		}
 	}
 }
@@ -827,26 +825,26 @@ void STimersView::TreeView_OnGetChildren(FTimerNodePtr InParent, TArray<FTimerNo
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::TreeView_OnMouseButtonDoubleClick(FTimerNodePtr TimerNode)
+void STimersView::TreeView_OnMouseButtonDoubleClick(FTimerNodePtr TimerNodePtr)
 {
-	if (!TimerNode->IsGroup())
+	if (TimerNodePtr->IsGroup())
 	{
-		//im:TODO: const bool bIsTracked = FTimingProfilerManager::Get()->IsTimerTracked(TimerNode->GetId());
+		const bool bIsGroupExpanded = TreeView->IsItemExpanded(TimerNodePtr);
+		TreeView->SetItemExpansion(TimerNodePtr, !bIsGroupExpanded);
+	}
+	else
+	{
+		//im:TODO: const bool bIsTracked = FTimingProfilerManager::Get()->IsTimerTracked(TimerNodePtr->GetId());
 	//	if (!bIsTracked)
 	//	{
 	//		// Add a new graph series.
-	//		FTimingProfilerManager::Get()->TrackTimer(TimerNode->GetId());
+	//		FTimingProfilerManager::Get()->TrackTimer(TimerNodePtr->GetId());
 	//	}
 	//	else
 	//	{
 	//		// Remove the corresponding graph series.
-	//		FTimingProfilerManager::Get()->UntrackTimer(TimerNode->GetId());
+	//		FTimingProfilerManager::Get()->UntrackTimer(TimerNodePtr->GetId());
 	//	}
-	}
-	else
-	{
-		const bool bIsGroupExpanded = TreeView->IsItemExpanded(TimerNode);
-		TreeView->SetItemExpansion(TimerNode, !bIsGroupExpanded);
 	}
 }
 
@@ -871,6 +869,13 @@ TSharedRef<ITableRow> STimersView::TreeView_OnGenerateRow(FTimerNodePtr TimerNod
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool STimersView::TableRow_ShouldBeEnabled(const uint32 TimerId) const
+{
+	return true;//im:TODO: Session->GetAggregatedStat(TimerId) != nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool STimersView::TableRow_IsColumnVisible(const FName ColumnId) const
 {
 	bool bResult = false;
@@ -889,8 +894,6 @@ void STimersView::TableRow_SetHoveredTableCell(const FName ColumnId, const FTime
 	{
 		HoveredTimerNodePtr = TimerNodePtr;
 	}
-
-	//UE_LOG(TimingProfiler, Log, TEXT("%s -> %s"), *HoveredColumnId.GetPlainNameString(), TimerNodePtr.IsValid() ? *TimerNodePtr->GetName().GetPlainNameString() : TEXT("nullptr"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -928,13 +931,6 @@ FText STimersView::TableRow_GetHighlightText() const
 FName STimersView::TableRow_GetHighlightedNodeName() const
 {
 	return HighlightedNodeName;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STimersView::TableRow_ShouldBeEnabled(const uint32 TimerId) const
-{
-	return true;//im:TODO: Session->GetAggregatedStat(TimerId) != nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1437,7 +1433,6 @@ void STimersView::RebuildTree(bool bResync)
 	{
 		const int32 PreviousNodeCount = TimerNodes.Num();
 		TimerNodes.Empty(PreviousNodeCount);
-		//TimerNodesMap.Empty(PreviousNodeCount);
 		TimerNodesIdMap.Empty(PreviousNodeCount);
 		bListHasChanged = true;
 	}
@@ -1462,7 +1457,6 @@ void STimersView::RebuildTree(bool bResync)
 
 				const int32 PreviousNodeCount = TimerNodes.Num();
 				TimerNodes.Empty(PreviousNodeCount);
-				//TimerNodesMap.Empty(PreviousNodeCount);
 				TimerNodesIdMap.Empty(PreviousNodeCount);
 				bListHasChanged = true;
 
@@ -1474,7 +1468,6 @@ void STimersView::RebuildTree(bool bResync)
 					ETimerNodeType Type = Timer.IsGpuTimer ? ETimerNodeType::GpuScope : ETimerNodeType::CpuScope;
 					FTimerNodePtr TimerNodePtr = MakeShareable(new FTimerNode(Timer.Id, Name, Group, Type));
 					TimerNodes.Add(TimerNodePtr);
-					//TimerNodesMap.Add(Name, TimerNodePtr);
 					TimerNodesIdMap.Add(Timer.Id, TimerNodePtr);
 				}
 			}
@@ -1572,12 +1565,13 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 
 void STimersView::SelectTimerNode(uint64 Id)
 {
-	FTimerNodePtr* TimerNodePtrPtr = TimerNodesIdMap.Find(Id);
-	if (TimerNodePtrPtr != nullptr)
+	FTimerNodePtr* NodePtrPtr = TimerNodesIdMap.Find(Id);
+	if (NodePtrPtr != nullptr)
 	{
-		//UE_LOG(TimingProfiler, Log, TEXT("Select and RequestScrollIntoView %s"), *(*TimerNodePtrPtr)->GetName().ToString());
-		TreeView->SetSelection(*TimerNodePtrPtr);
-		TreeView->RequestScrollIntoView(*TimerNodePtrPtr);
+		FTimerNodePtr NodePtr = *NodePtrPtr;
+
+		TreeView->SetSelection(NodePtr);
+		TreeView->RequestScrollIntoView(NodePtr);
 	}
 }
 
