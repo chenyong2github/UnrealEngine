@@ -2,6 +2,7 @@
 
 #include "DynamicMeshSculptTool.h"
 #include "InteractiveToolManager.h"
+#include "InteractiveGizmoManager.h"
 #include "ToolBuilderUtil.h"
 
 #include "SubRegionRemesher.h"
@@ -88,6 +89,9 @@ UDynamicMeshSculptTool::UDynamicMeshSculptTool()
 }
 
 
+const FString BrushIndicatorGizmoType = TEXT("BrushIndicatorGizmoType");
+
+
 void UDynamicMeshSculptTool::Setup()
 {
 	UMeshSurfacePointTool::Setup();
@@ -146,17 +150,9 @@ void UDynamicMeshSculptTool::Setup()
 	bStampPending = false;
 	ActiveVertexChange = nullptr;
 
-	// create indicators
-	Indicators = NewObject<UToolIndicatorSet>(this, "Indicators");
-	Indicators->Connect(this);
-
-	UBrushStampSizeIndicator* StampIndicator = NewObject<UBrushStampSizeIndicator>(this, "Brush Circle");
-	StampIndicator->bDrawSecondaryLines = true;
-	StampIndicator->DepthLayer = 1;
-	StampIndicator->BrushRadius = MakeAttributeLambda([this] { return (float)this->CurrentBrushRadius; });
-	StampIndicator->BrushPosition = MakeAttributeLambda([this] { return this->LastBrushPosWorld; });
-	StampIndicator->BrushNormal = MakeAttributeLambda([this] { return this->LastBrushPosNormalWorld; });
-	Indicators->AddIndicator(StampIndicator);
+	// register and spawn brush indicator gizmo
+	GetToolManager()->GetPairedGizmoManager()->RegisterGizmoType(BrushIndicatorGizmoType, NewObject<UBrushStampIndicatorBuilder>());
+	BrushIndicator = GetToolManager()->GetPairedGizmoManager()->CreateGizmo<UBrushStampIndicator>(BrushIndicatorGizmoType, FString(), this);
 
 	// initialize our properties
 	AddToolPropertySource(SculptProperties);
@@ -205,7 +201,9 @@ void UDynamicMeshSculptTool::Setup()
 
 void UDynamicMeshSculptTool::Shutdown(EToolShutdownType ShutdownType)
 {
-	Indicators->Disconnect();
+	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
+	BrushIndicator = nullptr;
+	GetToolManager()->GetPairedGizmoManager()->DeregisterGizmoType(BrushIndicatorGizmoType);
 
 	if (DynamicMeshComponent != nullptr)
 	{
@@ -935,12 +933,10 @@ bool UDynamicMeshSculptTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 void UDynamicMeshSculptTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	UMeshSurfacePointTool::Render(RenderAPI);
-	Indicators->Render(RenderAPI);
+
+	BrushIndicator->Update( (float)this->CurrentBrushRadius, this->LastBrushPosWorld, this->LastBrushPosNormalWorld );
 
 	ShowWireframeWatcher.CheckAndUpdate();
-
-	//MeshDebugDraw::DrawNormals(DynamicMeshComponent->GetMesh()->Attributes()->PrimaryNormals(),
-	//	25.0f, FColor::Red, 5.0f, true, RenderAPI->GetPrimitiveDrawInterface(), .GetWorldTransform() );
 }
 
 
@@ -949,7 +945,6 @@ void UDynamicMeshSculptTool::Tick(float DeltaTime)
 	SCOPE_CYCLE_COUNTER(STAT_SculptToolTick);
 
 	UMeshSurfacePointTool::Tick(DeltaTime);
-	Indicators->Tick(DeltaTime);
 
 	// if user changed to not-frozen, we need to update the target
 	if (bCachedFreezeTarget != SculptProperties->bFreezeTarget)

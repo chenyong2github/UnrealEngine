@@ -375,8 +375,6 @@ void UMeshSelectionTool::Render(IToolsContextRenderAPI* RenderAPI)
 void UMeshSelectionTool::Tick(float DeltaTime)
 {
 	UDynamicMeshBrushTool::Tick(DeltaTime);
-	Indicators->Tick(DeltaTime);
-
 
 	if (bStampPending)
 	{

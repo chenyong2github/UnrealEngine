@@ -8,11 +8,11 @@
 #include "OctreeDynamicMeshComponent.h"
 #include "DynamicMeshAABBTree3.h"
 #include "DynamicMeshOctree3.h"
-#include "BrushToolIndicator.h"
 #include "MeshNormals.h"
 #include "BaseBrushTool.h"
 #include "Drawing/ToolDataVisualizer.h"
 #include "Changes/ValueWatcher.h"
+#include "Gizmos/BrushStampIndicator.h"
 #include "DynamicMeshSculptTool.generated.h"
 
 
@@ -234,7 +234,6 @@ public:
 	UBrushRemeshProperties* RemeshProperties;
 
 
-
 public:
 
 	virtual void IncreaseBrushRadiusAction();
@@ -256,7 +255,7 @@ public:
 protected:
 
 	UPROPERTY()
-	UToolIndicatorSet* Indicators;
+	UBrushStampIndicator* BrushIndicator;
 
 	UPROPERTY()
 	UOctreeDynamicMeshComponent* DynamicMeshComponent;

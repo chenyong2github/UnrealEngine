@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "BaseTools/MeshSurfacePointTool.h"
 #include "BoxTypes.h"
-#include "ToolIndicatorSet.h"
+#include "Gizmos/BrushStampIndicator.h"
 #include "BaseBrushTool.generated.h"
 
 
@@ -103,10 +103,6 @@ public:
 	UPROPERTY()
 	UBrushBaseProperties* BrushProperties;
 
-	/** Brush indicator */
-	UPROPERTY()
-	UToolIndicatorSet* Indicators;
-
 	/** Set to true by Tool if user is currently in an active brush stroke*/
 	UPROPERTY()
 	bool bInBrushStroke = false;
@@ -120,7 +116,6 @@ public:
 	virtual void IncreaseBrushSizeAction();
 	virtual void DecreaseBrushSizeAction();
 
-
 	virtual bool IsInBrushStroke() const { return bInBrushStroke; }
 
 protected:
@@ -130,13 +125,22 @@ protected:
 	 */
 	virtual double EstimateMaximumTargetDimension() { return 100.0; }
 
-	// creates brush indicator widget
-	virtual IToolIndicator* MakeBrushIndicator();
-
-
 protected:
 	FInterval1d BrushRelativeSizeRange;
 	double CurrentBrushRadius;
 	void RecalculateBrushRadius();
 
+
+
+	//
+	// Brush Indicator support
+	//
+protected:
+
+	UPROPERTY()
+	UBrushStampIndicator* BrushStampIndicator;
+
+	virtual void SetupBrushStampIndicator();
+	virtual void UpdateBrushStampIndicator();
+	virtual void ShutdownBrushStampIndicator();
 };

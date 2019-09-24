@@ -2,8 +2,8 @@
 
 #include "BaseBrushTool.h"
 #include "InteractiveToolManager.h"
+#include "InteractiveGizmoManager.h"
 #include "ToolBuilderUtil.h"
-#include "BrushToolIndicator.h"
 
 #define LOCTEXT_NAMESPACE "UBaseBrushTool"
 
@@ -40,7 +40,6 @@ UBaseBrushTool::UBaseBrushTool()
 }
 
 
-
 void UBaseBrushTool::Setup()
 {
 	UMeshSurfacePointTool::Setup();
@@ -50,21 +49,16 @@ void UBaseBrushTool::Setup()
 	BrushProperties = NewObject<UBrushBaseProperties>(this, TEXT("Brush"));
 	RecalculateBrushRadius();
 
-
-	// create brush stamp indicator
-	Indicators = NewObject<UToolIndicatorSet>(this, "Indicators");
-	Indicators->Connect(this);
-	Indicators->AddIndicator(MakeBrushIndicator());
-
-
 	// initialize our properties
 	AddToolPropertySource(BrushProperties);
+
+	SetupBrushStampIndicator();
 }
 
 
 void UBaseBrushTool::Shutdown(EToolShutdownType ShutdownType)
 {
-	Indicators->Disconnect();
+	ShutdownBrushStampIndicator();
 }
 
 
@@ -75,19 +69,6 @@ void UBaseBrushTool::OnPropertyModified(UObject* PropertySet, UProperty* Propert
 		RecalculateBrushRadius();
 	}
 }
-
-
-IToolIndicator* UBaseBrushTool::MakeBrushIndicator()
-{
-	UBrushStampSizeIndicator* StampIndicator = NewObject<UBrushStampSizeIndicator>(this, "Brush Circle");
-	StampIndicator->bDrawSecondaryLines = true;
-	StampIndicator->DepthLayer = 1;
-	StampIndicator->BrushRadius = MakeAttributeLambda([this] { return this->LastBrushStamp.Radius; });
-	StampIndicator->BrushPosition = MakeAttributeLambda([this] { return this->LastBrushStamp.WorldPosition; });
-	StampIndicator->BrushNormal = MakeAttributeLambda([this] { return this->LastBrushStamp.WorldNormal; });
-	return StampIndicator;
-}
-
 
 
 
@@ -187,15 +168,38 @@ bool UBaseBrushTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 void UBaseBrushTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	UMeshSurfacePointTool::Render(RenderAPI);
-	Indicators->Render(RenderAPI);
+
+	UpdateBrushStampIndicator();
 }
 
 void UBaseBrushTool::Tick(float DeltaTime)
 {
 	UMeshSurfacePointTool::Tick(DeltaTime);
-	Indicators->Tick(DeltaTime);
 }
 
+
+
+
+const FString BrushIndicatorGizmoType = TEXT("BrushIndicatorGizmoType");
+
+void UBaseBrushTool::SetupBrushStampIndicator()
+{
+	// register and spawn brush indicator gizmo
+	GetToolManager()->GetPairedGizmoManager()->RegisterGizmoType(BrushIndicatorGizmoType, NewObject<UBrushStampIndicatorBuilder>());
+	BrushStampIndicator = GetToolManager()->GetPairedGizmoManager()->CreateGizmo<UBrushStampIndicator>(BrushIndicatorGizmoType, FString(), this);
+}
+
+void UBaseBrushTool::UpdateBrushStampIndicator()
+{
+	BrushStampIndicator->Update(LastBrushStamp.Radius, LastBrushStamp.WorldPosition, LastBrushStamp.WorldNormal);
+}
+
+void UBaseBrushTool::ShutdownBrushStampIndicator()
+{
+	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
+	BrushStampIndicator = nullptr;
+	GetToolManager()->GetPairedGizmoManager()->DeregisterGizmoType(BrushIndicatorGizmoType);
+}
 
 
 #undef LOCTEXT_NAMESPACE
