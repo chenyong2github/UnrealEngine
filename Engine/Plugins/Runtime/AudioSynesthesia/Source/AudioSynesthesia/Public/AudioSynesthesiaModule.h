@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "LoudnessNRTFactory.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAudioSynesthesia, Log, All);
 
@@ -20,6 +19,5 @@ namespace Audio
 		virtual void ShutdownModule() override;
 
 	private:
-		FLoudnessNRTFactory LoudnessFactory;
 	};
 }
