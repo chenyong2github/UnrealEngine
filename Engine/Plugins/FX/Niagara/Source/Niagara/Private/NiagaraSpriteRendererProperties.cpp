@@ -93,7 +93,7 @@ void UNiagaraSpriteRendererProperties::Serialize(FStructuredArchive::FRecord Rec
 	Super::Serialize(Record);
 
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
-	if (UnderlyingArchive.IsCooking() || (FPlatformProperties::RequiresCookedData() && UnderlyingArchive.IsLoading()))
+	if (UnderlyingArchive.IsCooking() || (FPlatformProperties::RequiresCookedData() && UnderlyingArchive.IsLoading()) || GetOutermost()->bIsCookedForEditor)
 	{
 		DerivedData.Serialize(Record.EnterField(SA_FIELD_NAME(TEXT("DerivedData"))));
 	}
