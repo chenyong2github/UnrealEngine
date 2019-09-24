@@ -31,7 +31,7 @@ DECLARE_CYCLE_STAT(TEXT("System Instance Tick [CNC]"), STAT_NiagaraSystemInst_Ti
 DECLARE_CYCLE_STAT(TEXT("System Instance Finalize [GT]"), STAT_NiagaraSystemInst_FinalizeGT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Instance WaitForAsyncTick [GT]"), STAT_NiagaraSystemWaitForAsyncTick, STATGROUP_Niagara);
 
-static float GWaitForAsyncStallWarnThresholdMS = 0.01f;
+static float GWaitForAsyncStallWarnThresholdMS = 0.2f;
 static FAutoConsoleVariableRef CVarWaitForAsyncStallWarnThresholdMS(
 	TEXT("fx.WaitForAsyncStallWarnThresholdMS"),
 	GWaitForAsyncStallWarnThresholdMS,
@@ -59,7 +59,6 @@ static FAutoConsoleVariableRef CVarNiagaraForceLastTickGroup(
 FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	: SystemInstanceIndex(INDEX_NONE)
 	, Component(InComponent)
-	, TickGroup(TG_MAX)
 	, PrereqComponent(nullptr)
 	, Age(0.0f)
 	, TickCount(0)
@@ -223,6 +222,34 @@ void FNiagaraSystemInstance::Dump()const
 	}
 }
 
+void FNiagaraSystemInstance::DumpTickInfo(FOutputDevice& Ar)
+{
+	WaitForAsyncTick();
+
+	static const UEnum* TickingGroupEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ETickingGroup"));
+
+	FString PrereqInfo;
+	if (PrereqComponent != nullptr)
+	{
+		ETickingGroup PrereqTG = FMath::Max(PrereqComponent->PrimaryComponentTick.TickGroup, PrereqComponent->PrimaryComponentTick.EndTickGroup);
+		PrereqInfo.Appendf(TEXT(" PreReq(%s = %s)"), *PrereqComponent->GetFullName(), *TickingGroupEnum->GetNameStringByIndex(PrereqTG));
+	}
+
+	if (bDataInterfacesHaveTickPrereqs)
+	{
+		for (TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair : DataInterfaceInstanceDataOffsets)
+		{
+			if (UNiagaraDataInterface* Interface = Pair.Key.Get())
+			{
+				ETickingGroup PrereqTG = Interface->CalculateTickGroup(&DataInterfaceInstanceData[Pair.Value]);
+				PrereqInfo.Appendf(TEXT(" DataInterface(%s = %s)"), *Interface->GetFullName(), *TickingGroupEnum->GetNameStringByIndex(PrereqTG));
+			}
+		}
+	}
+
+	Ar.Logf(TEXT("\t\t\tInstance%s"), *PrereqInfo);
+}
+
 #if WITH_EDITORONLY_DATA
 bool FNiagaraSystemInstance::RequestCapture(const FGuid& RequestId)
 {
@@ -364,13 +391,11 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 
 	WaitForAsyncTick();
 
-	TickGroup = TG_MAX;
-
 	UNiagaraSystem* System = GetSystem();
 	if (bInSolo)
 	{
 		TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSoloSim = MakeShared<FNiagaraSystemSimulation, ESPMode::ThreadSafe>();
-		NewSoloSim->Init(System, Component->GetWorld(), true);
+		NewSoloSim->Init(System, Component->GetWorld(), true, TG_MAX);
 
 		NewSoloSim->TransferInstance(SystemSimulation.Get(), this);	
 
@@ -380,7 +405,7 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 	else
 	{
 		UpdatePrereqs();
-		TickGroup = CalculateTickGroup();
+		const ETickingGroup TickGroup = CalculateTickGroup();
 		TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSim = GetWorldManager()->GetSystemSimulation(TickGroup, System);
 
 		NewSim->TransferInstance(SystemSimulation.Get(), this);
@@ -568,6 +593,7 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 	if (SystemSimulation.IsValid())
 	{
 		SystemSimulation->RemoveInstance(this);
+		bNeedsFinalize = false;
 	}
 	else
 	{
@@ -789,20 +815,19 @@ void FNiagaraSystemInstance::ReInitInternal()
 	}
 
 	/** Do we need to run in solo mode? */
-	TickGroup = TG_MAX;
 	bSolo = bForceSolo || DoSystemDataInterfacesRequireSolo(*System, *Component);
 	if (bSolo)
 	{
 		if (!SystemSimulation.IsValid())
 		{
 			SystemSimulation = MakeShared<FNiagaraSystemSimulation, ESPMode::ThreadSafe>();
-			SystemSimulation->Init(System, Component->GetWorld(), true);
+			SystemSimulation->Init(System, Component->GetWorld(), true, TG_MAX);
 		}
 	}
 	else
 	{
 		UpdatePrereqs();
-		TickGroup = CalculateTickGroup();
+		const ETickingGroup TickGroup = CalculateTickGroup();
 		SystemSimulation = GetWorldManager()->GetSystemSimulation(TickGroup, System);
 	}
 
@@ -1491,14 +1516,7 @@ void FNiagaraSystemInstance::ComponentTick(float DeltaSeconds, const FGraphEvent
 	check(bSolo);
 	check(Component);
 
-	if (IsPendingSpawn())
-	{
-		SystemSim->SpawnNew_GameThread(DeltaSeconds, MyCompletionGraphEvent);
-	}
-	else
-	{
-		SystemSim->Tick_GameThread(DeltaSeconds, MyCompletionGraphEvent);
-	}
+	SystemSim->Tick_GameThread(DeltaSeconds, MyCompletionGraphEvent);
 }
 
 void FNiagaraSystemInstance::WaitForAsyncTick(bool bEnsureComplete)
@@ -1560,32 +1578,6 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	UNiagaraSystem* System = GetSystem();
 	FScopeCycleCounter SystemStat(System->GetStatID(true, true));
 
-	// Update tick group, this can cause our Tick_GameThread to exit early due to a demotion
-	// When not in solo mode we need to deal with tick groups potentially changing due to attachments or data interfaces having prereqs
-	if ( !bSolo && !bPendingSpawn )
-	{
-		ETickingGroup NewTickGroup = CalculateTickGroup();
-		if ( NewTickGroup != TickGroup )
-		{
-			// Tick demotion we need to do this now to ensure we complete in the correct group
-			if ( NewTickGroup > TickGroup )
-			{
-				TickGroup = NewTickGroup;
-
-				TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSim = GetWorldManager()->GetSystemSimulation(TickGroup, System);
-				NewSim->TransferInstance(SystemSimulation.Get(), this);
-				SystemSimulation = NewSim;
-				return;
-			}
-			// Tick promotions must be deferred as the tick group has already been processed
-			// Note: We still tick in this group and will be transfered later on
-			else
-			{
-				SystemSimulation->AddTickGroupPromotion(this);
-			}
-		}
-	}
-
 	WaitForAsyncTick(true);
 
 	CachedDeltaSeconds = DeltaSeconds;
@@ -1607,6 +1599,7 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT_CNC);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	LLM_SCOPE(ELLMTag::Niagara);
+	FScopeCycleCounterUObject AdditionalScope(GetSystem(), GET_STATID(STAT_NiagaraOverview_GT_CNC));
 
 	// Reset values that will be accumulated during emitter tick.
 	TotalParamSize = 0;
