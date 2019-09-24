@@ -491,20 +491,24 @@ void URuntimeVirtualTexture::InitializeStreamingTexture(uint32 InSizeX, uint32 I
 
 	StreamingTexture->BuildHash = GetStreamingTextureBuildHash();
 
+	enum { MAX_RVT_LAYERS = 2 };
 	const int32 LayerCount = GetLayerCount();
+	check(LayerCount <= MAX_RVT_LAYERS);
+	ETextureSourceFormat LayerFormats[MAX_RVT_LAYERS];
+
 	for (int32 Layer = 0; Layer < LayerCount; Layer++)
 	{
 		EPixelFormat LayerFormat = GetLayerFormat(Layer);
+		LayerFormats[Layer] = LayerFormat == PF_G16 ? TSF_G16 : TSF_BGRA8;
 
 		FTextureFormatSettings FormatSettings;
 		FormatSettings.SRGB = IsLayerSRGB(Layer);
-		FormatSettings.CompressionNone = !bCompressTextures;
+		FormatSettings.CompressionNone = LayerFormat == PF_B8G8R8A8 ||LayerFormat == PF_G16;
 		FormatSettings.CompressionNoAlpha = LayerFormat == PF_DXT1 || LayerFormat == PF_BC5;
 		FormatSettings.CompressionSettings = LayerFormat == PF_BC5 ? TC_Normalmap : TC_Default;
 		StreamingTexture->SetLayerFormatSettings(Layer, FormatSettings);
 	}
 
-	const ETextureSourceFormat LayerFormats[] = { TSF_BGRA8, TSF_BGRA8 };
 	StreamingTexture->Source.InitLayered(InSizeX, InSizeY, 1, LayerCount, 1, LayerFormats, InData);
 
 	StreamingTexture->PostEditChange();
@@ -519,9 +523,15 @@ IVirtualTexture* URuntimeVirtualTexture::CreateStreamingTextureProducer(IVirtual
 		FTexturePlatformData** StreamingTextureData = StreamingTexture->GetRunningPlatformData();
 		if (StreamingTextureData != nullptr && *StreamingTextureData != nullptr)
 		{
-			int32 NumStreamMips = FMath::Min(GetStreamLowMips(), (*StreamingTextureData)->GetNumVTMips()); // Min() is a hack while we fix crash due to data breakage
+			FVirtualTextureBuiltData* VTData = (*StreamingTextureData)->VTData;
+			check(GetTileSize() == VTData->TileSize);
+			check(GetTileBorderSize() == VTData->TileBorderSize);
+
+			// Streaming data may have mips removed during cook
+			const int32 NumStreamMips = FMath::Min(GetStreamLowMips(), (*StreamingTextureData)->GetNumVTMips());
+
 			OutTransitionLevel = FMath::Max(InMaxLevel - NumStreamMips + 1, 0);
-			IVirtualTexture* StreamingProducer = new FUploadingVirtualTexture((*StreamingTextureData)->VTData, 0);
+			IVirtualTexture* StreamingProducer = new FUploadingVirtualTexture(VTData, 0);
 			return new FVirtualTextureLevelRedirector(InProducer, StreamingProducer, OutTransitionLevel);
 		}
 	}
