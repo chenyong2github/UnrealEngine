@@ -120,12 +120,12 @@ struct TMaterialTrackExecutionToken : IMovieSceneExecutionToken
 				continue;
 			}
 
+			// Save the old instance
+			Player.SavePreAnimatedState(*Object, Accessor.GetAnimTypeID(), FPreAnimatedTokenProducer(Accessor));
+
 			UMaterialInstanceDynamic* DynamicMaterialInstance = Cast<UMaterialInstanceDynamic>(Material);
 			if (!DynamicMaterialInstance)
 			{
-				// Save the old instance
-				Player.SavePreAnimatedState(*Object, Accessor.GetAnimTypeID(), FPreAnimatedTokenProducer(Accessor));
-
 				FString DynamicName = Material->GetName() + "_Animated";
 				FName UniqueDynamicName = MakeUniqueObjectName( Object, UMaterialInstanceDynamic::StaticClass() , *DynamicName );
 				DynamicMaterialInstance = UMaterialInstanceDynamic::Create( Material, Object, UniqueDynamicName );
