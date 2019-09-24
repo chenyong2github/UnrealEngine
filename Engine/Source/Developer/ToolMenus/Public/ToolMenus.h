@@ -259,6 +259,12 @@ public:
 	/** Remove customization for a menu */
 	void RemoveCustomization(const FName InName);
 
+	/** Remove all menu customizations for all menus */
+	void RemoveAllCustomizations();
+
+	/** Save menu customizations to ini files */
+	void SaveCustomizations();
+
 	/** Find customization settings for a menu */
 	FCustomizedToolMenu* FindMenuCustomization(const FName InName);
 
@@ -288,14 +294,14 @@ public:
 	/** Icon to display in menus for command to open menu editor */
 	FSlateIcon EditMenuIcon;
 
+	/** Icon to display in toolbars for command to open menu editor */
+	FSlateIcon EditToolbarIcon;
+
 	/** Join two paths together */
 	static FName JoinMenuPaths(const FName Base, const FName Child);
 
 	/** Break apart a menu path into components */
 	static bool SplitMenuPath(const FName MenuPath, FName& OutLeft, FName& OutRight);
-
-	/** Save menu customizations to ini files */
-	void SaveCustomizations();
 
 	friend struct FToolMenuOwnerScoped;
 	friend struct FToolMenuStringCommand;

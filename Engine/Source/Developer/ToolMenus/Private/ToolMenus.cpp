@@ -919,7 +919,8 @@ void UToolMenus::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilder, UToolMe
 			}), 
 			"MenuName",
 			LOCTEXT("EditMenu", "Edit Menu"),
-			LOCTEXT("EditMenu_ToolTip", "Open menu editor")
+			LOCTEXT("EditMenu_ToolTip", "Open menu editor"),
+			EditToolbarIcon
 		);
 		ToolBarBuilder.EndSection();
 	}
@@ -1782,3 +1783,7 @@ void UToolMenus::SaveCustomizations()
 	SaveConfig();
 }
 
+void UToolMenus::RemoveAllCustomizations()
+{
+	CustomizedMenus.Reset();
+}

@@ -74,7 +74,9 @@ public:
 			.Title(WindowTitle)
 			.ClientSize(WindowSize)
 			.SupportsMinimize(true)
-			.SupportsMaximize(true);
+			.SupportsMaximize(true)
+			.MinWidth(620)
+			.MinHeight(260);
 
 		TSharedRef<SEditToolMenuDialog> NewDialog =
 			SNew(SEditToolMenuDialog)

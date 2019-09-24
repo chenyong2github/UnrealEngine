@@ -57,6 +57,7 @@ private:
 
 	FReply Refresh();
 	FReply HandleResetClicked();
+	FReply HandleResetAllClicked();
 	FReply UndoAllChanges();
 
 	void SaveSettingsToDisk();
