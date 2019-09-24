@@ -5040,7 +5040,6 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_RegisterFunctionCall_Signature);
 
 		check(InSignature.IsValid());
-		check(InSignature.bMemberFunction || bIsCustomHlsl);
 		check(Inputs.Num() > 0);
 
 		OutSignature = InSignature;
@@ -5065,6 +5064,14 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 
 				ExitFunction();
 			}
+		}
+		else if (!InSignature.bMemberFunction) // Fastpath or other provided function
+		{
+			if (INDEX_NONE == CompilationOutput.ScriptData.AdditionalExternalFunctions.Find(OutSignature))
+			{
+				CompilationOutput.ScriptData.AdditionalExternalFunctions.Add(OutSignature);
+			}
+			Functions.FindOrAdd(OutSignature);
 		}
 		else
 		{
