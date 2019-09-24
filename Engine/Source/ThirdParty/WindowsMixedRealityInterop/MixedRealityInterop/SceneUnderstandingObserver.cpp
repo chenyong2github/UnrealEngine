@@ -183,8 +183,10 @@ void SceneUnderstandingObserver::StartSceneUnderstandingObserver(
 		{
 			if (AccessStatus == SceneObserverAccessStatus::Allowed)
 			{
-				std::lock_guard<std::mutex> lock(RefsLock);
-				bIsRunning = true;
+				{
+					std::lock_guard<std::mutex> lock(RefsLock);
+					bIsRunning = true;
+				}
 				RequestAsyncUpdate();
 			}
 			else
