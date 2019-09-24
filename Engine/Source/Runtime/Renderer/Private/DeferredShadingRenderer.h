@@ -115,7 +115,7 @@ public:
 	/** Renders the water draw pass for a given View. */
 	bool RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, FSingleLayerWaterPassData& PassData, const FMeshPassProcessorRenderState& InDrawRenderState);
 	/** Render, denoise and composite the scene SSR and under water effect.*/
-	void RenderSingleLayerWaterSSR(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData);
+	void RenderSingleLayerWaterReflections(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData);
 
 	/** Finishes the view family rendering. */
 	void RenderFinish(FRHICommandListImmediate& RHICmdList);
