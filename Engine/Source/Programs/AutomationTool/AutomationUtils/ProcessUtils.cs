@@ -206,8 +206,6 @@ namespace AutomationTool
 		}
 	}
 
-	#region ProcessResult Helper Class
-
 	public interface IProcessResult : IProcess
 	{
 		void OnProcessExited();
@@ -693,12 +691,8 @@ namespace AutomationTool
 		}
 	}
 
-	#endregion
-
 	public partial class CommandUtils
 	{
-		#region Statistics
-
 		private static Dictionary<string, int> ExeToTimeInMs = new Dictionary<string, int>();
 
 		public static void AddRunTime(string Exe, int TimeInMs)
@@ -728,8 +722,6 @@ namespace AutomationTool
 				ExeToTimeInMs.Clear();
 			}
 		}
-
-		#endregion
 
 		[Flags]
 		public enum ERunOptions

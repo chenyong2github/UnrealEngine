@@ -10,7 +10,8 @@ public class Toolbox : ModuleRules
 			new string[] {
 				"GammaUI",
 				"MainFrame",
-				"ModuleUI"
+				"ModuleUI",
+				"SourceCodeAccess"
 			}
 		);
 

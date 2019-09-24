@@ -23,7 +23,7 @@
         },
         {
 			"Name" : "HTNTestSuite",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "PreDefault"
 		}
 	]

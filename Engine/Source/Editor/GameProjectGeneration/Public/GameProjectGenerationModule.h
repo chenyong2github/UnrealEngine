@@ -115,9 +115,6 @@ public:
 	/** Clear the list of supported target platforms */
 	virtual void ClearSupportedTargetPlatforms();
 
-	/** Check to see if the project requires a code build */
-	virtual bool ProjectRequiresBuild(const FName InPlatformInfoName);
-
 public:
 
 	// Non DLL-exposed access to template categories

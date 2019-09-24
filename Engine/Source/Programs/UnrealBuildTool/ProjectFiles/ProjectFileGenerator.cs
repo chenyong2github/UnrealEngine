@@ -429,6 +429,10 @@ namespace UnrealBuildTool
 			string[] UnsupportedPlatformNames = Utils.MakeListOfUnsupportedPlatforms(SupportedPlatforms).ToArray();
 
 			List<FileReference> FoundProjects = new List<FileReference>();
+
+			DirectoryReference EngineExtras = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Extras");
+			DiscoverCSharpProgramProjectsRecursively(EngineExtras, FoundProjects);
+
 			DirectoryReference EngineProgramsSource = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Source", "Programs");
 			DiscoverCSharpProgramProjectsRecursively(EngineProgramsSource, FoundProjects);
 
@@ -644,6 +648,11 @@ namespace UnrealBuildTool
 					MasterProjectName += SortedPlatform;
 					IntermediateProjectFilesPath = new DirectoryReference(IntermediateProjectFilesPath.FullName + SortedPlatform);
 				}
+
+				// the master project name is always read from our intermediate directory and not the overriden one for this set of platforms
+				FileReference MasterProjectNameLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "ProjectFiles", "MasterProjectName.txt");
+				DirectoryReference.CreateDirectory(MasterProjectNameLocation.Directory);
+				FileReference.WriteAllText(MasterProjectNameLocation, MasterProjectName);
 			}
 
 			bool bCleanProjectFiles = Arguments.Any(x => x.Equals("-CleanProjects", StringComparison.InvariantCultureIgnoreCase));

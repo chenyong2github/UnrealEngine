@@ -188,23 +188,34 @@ namespace Ionic.Zip
             bytes[i++] = (byte)(commentLength & 0x00FF);
             bytes[i++] = (byte)((commentLength & 0xFF00) >> 8);
 
-            // Disk number start
-            bool segmented = (this._container.ZipFile != null) &&
-                (this._container.ZipFile.MaxOutputSegmentSize != 0);
-            if (segmented) // workitem 13915
-            {
-                // Emit nonzero disknumber only if saving segmented archive.
-                bytes[i++] = (byte)(_diskNumber & 0x00FF);
-                bytes[i++] = (byte)((_diskNumber & 0xFF00) >> 8);
-            }
-            else
-            {
-                // If reading a segmneted archive and saving to a regular archive,
-                // ZipEntry._diskNumber will be non-zero but it should be saved as
-                // zero.
-                bytes[i++] = 0;
-                bytes[i++] = 0;
-            }
+			// BEGIN EPIC MOD - 7-zip produces a warning if we write a Zip64 extra field due to ROLH > 4GB and don't put 0xff in EACH corresponding field 
+			// of the regular header (ie. including the disk number)
+			if (_RelativeOffsetOfLocalHeader > 0xFFFFFFFFL || _OutputUsesZip64.Value)
+			{
+				bytes[i++] = 0xff;
+				bytes[i++] = 0xff;
+			}
+			else
+			{
+				// Disk number start
+				bool segmented = (this._container.ZipFile != null) &&
+					(this._container.ZipFile.MaxOutputSegmentSize != 0);
+				if (segmented) // workitem 13915
+				{
+					// Emit nonzero disknumber only if saving segmented archive.
+					bytes[i++] = (byte)(_diskNumber & 0x00FF);
+					bytes[i++] = (byte)((_diskNumber & 0xFF00) >> 8);
+				}
+				else
+				{
+					// If reading a segmneted archive and saving to a regular archive,
+					// ZipEntry._diskNumber will be non-zero but it should be saved as
+					// zero.
+					bytes[i++] = 0;
+					bytes[i++] = 0;
+				}
+			}
+			// END EPIC MOD
 
             // internal file attrs
             // workitem 7801
@@ -227,7 +238,9 @@ namespace Ionic.Zip
             // Even if zip64 is required for other reasons - number of the entry
             // > 65534, or uncompressed size of the entry > MAX_INT32, the ROLH
             // need not be stored in a 64-bit field .
-            if (_RelativeOffsetOfLocalHeader > 0xFFFFFFFFL) // _OutputUsesZip64.Value
+
+			// BEGIN EPIC MOD - Despite the comment above, this doesn't seem to be backed up by section 4.5.3 of the appnote, and causes errors with 7-zip.
+            if (_RelativeOffsetOfLocalHeader > 0xFFFFFFFFL || _OutputUsesZip64.Value) // _OutputUsesZip64.Value
             {
                 bytes[i++] = 0xFF;
                 bytes[i++] = 0xFF;
@@ -241,6 +254,7 @@ namespace Ionic.Zip
                 bytes[i++] = (byte)((_RelativeOffsetOfLocalHeader & 0x00FF0000) >> 16);
                 bytes[i++] = (byte)((_RelativeOffsetOfLocalHeader & 0xFF000000) >> 24);
             }
+			// END EPIC MOD
 
             // actual filename
             Buffer.BlockCopy(fileNameBytes, 0, bytes, i, filenameLength);
@@ -1059,25 +1073,25 @@ namespace Ionic.Zip
             block[i++] = (byte)((_Crc32 & 0xFF000000) >> 24);
 
             if (_presumeZip64)
-            {
-                // (i==18) CompressedSize (Int32) and UncompressedSize - all 0xFF for now
+			{
+				// (i==18) CompressedSize (Int32) and UncompressedSize - all 0xFF for now
                 for (j = 0; j < 8; j++)
-                    block[i++] = 0xFF;
-            }
-            else
-            {
-                // (i==18) CompressedSize (Int32) - this value may or may not be
-                // bonafide.  if source == filesystem, then it is zero, and we'll
-                // learn it after we compress.  if source == archive, then it is
-                // bonafide data.
-                block[i++] = (byte)(_CompressedSize & 0x000000FF);
-                block[i++] = (byte)((_CompressedSize & 0x0000FF00) >> 8);
-                block[i++] = (byte)((_CompressedSize & 0x00FF0000) >> 16);
-                block[i++] = (byte)((_CompressedSize & 0xFF000000) >> 24);
+					block[i++] = 0xFF;
+			}
+			else
+			{
+				// (i==18) CompressedSize (Int32) - this value may or may not be
+				// bonafide.  if source == filesystem, then it is zero, and we'll
+				// learn it after we compress.  if source == archive, then it is
+				// bonafide data.
+				block[i++] = (byte)(_CompressedSize & 0x000000FF);
+				block[i++] = (byte)((_CompressedSize & 0x0000FF00) >> 8);
+				block[i++] = (byte)((_CompressedSize & 0x00FF0000) >> 16);
+				block[i++] = (byte)((_CompressedSize & 0xFF000000) >> 24);
 
-                // (i==22) UncompressedSize (Int32) - this value may or may not be
-                // bonafide.
-                block[i++] = (byte)(_UncompressedSize & 0x000000FF);
+				// (i==22) UncompressedSize (Int32) - this value may or may not be
+				// bonafide.
+				block[i++] = (byte)(_UncompressedSize & 0x000000FF);
                 block[i++] = (byte)((_UncompressedSize & 0x0000FF00) >> 8);
                 block[i++] = (byte)((_UncompressedSize & 0x00FF0000) >> 16);
                 block[i++] = (byte)((_UncompressedSize & 0xFF000000) >> 24);

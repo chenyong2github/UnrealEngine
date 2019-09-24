@@ -26,7 +26,7 @@
 		},
     {
 			"Name" : "ApexDestructionEditor",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "PreDefault"
 		}
 	]

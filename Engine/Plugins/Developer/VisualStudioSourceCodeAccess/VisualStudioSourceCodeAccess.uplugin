@@ -19,7 +19,7 @@
 	[
 		{
 			"Name" : "VisualStudioSourceCodeAccess",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default",
 			"WhitelistPlatforms" :
 			[

@@ -81,16 +81,27 @@ namespace EHostType
 		
 		// Loads only in cooked games.
 		CookedOnly,
-		
-		// Only loads in development runtime or editor builds. Does not load in shipping builds.
+
+		// Only loads in uncooked games.
+		UncookedOnly,
+
+		// Deprecated due to ambiguities. Only loads in editor and program targets, but loads in any editor mode (eg. -game, -server).
+		// Use UncookedOnly for the same behavior (eg. for editor blueprint nodes needed in uncooked games), or DeveloperTool for modules
+		// that can also be loaded in cooked games but should not be shipped (eg. debugging utilities).
 		Developer,
-		
+
+		// Loads on any targets where bBuildDeveloperTools is enabled.
+		DeveloperTool,
+
 		// Loads only when the editor is starting up.
 		Editor,
 		
 		// Loads only when the editor is starting up, but not in commandlet mode.
 		EditorNoCommandlet,
-		
+
+		// Loads only on editor and program targets
+		EditorAndProgram,
+
 		// Only loads on program targets.
 		Program,
 		
@@ -145,16 +156,16 @@ struct PROJECTS_API FModuleDescriptor
 	TArray<FString> BlacklistPlatforms;
 
 	/** List of allowed targets */
-	TArray<FString> WhitelistTargets;
+	TArray<EBuildTargetType> WhitelistTargets;
 
 	/** List of disallowed targets */
-	TArray<FString> BlacklistTargets;
+	TArray<EBuildTargetType> BlacklistTargets;
 
 	/** List of allowed target configurations */
-	TArray<FString> WhitelistTargetConfigurations;
+	TArray<EBuildConfiguration> WhitelistTargetConfigurations;
 
 	/** List of disallowed target configurations */
-	TArray<FString> BlacklistTargetConfigurations;
+	TArray<EBuildConfiguration> BlacklistTargetConfigurations;
 
 	/** List of allowed programs */
 	TArray<FString> WhitelistPrograms;
@@ -179,6 +190,9 @@ struct PROJECTS_API FModuleDescriptor
 
 	/** Writes an array of modules to JSON */
 	static void WriteArray(TJsonWriter<>& Writer, const TCHAR* Name, const TArray<FModuleDescriptor>& Modules);
+
+	/** Tests whether the module should be built for the given target */
+	bool IsCompiledInConfiguration(const FString& Platform, EBuildConfiguration Configuration, const FString& TargetName, EBuildTargetType TargetType, bool bBuildDeveloperTools, bool bBuildRequiresCookedData) const;
 
 	/** Tests whether the module should be built for the current engine configuration */
 	bool IsCompiledInCurrentConfiguration() const;

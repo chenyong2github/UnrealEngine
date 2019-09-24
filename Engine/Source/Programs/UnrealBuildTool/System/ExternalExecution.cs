@@ -120,14 +120,17 @@ namespace UnrealBuildTool
 				case ModuleHostType.RuntimeNoCommandlet:
 				case ModuleHostType.RuntimeAndProgram:
 				case ModuleHostType.CookedOnly:
+				case ModuleHostType.UncookedOnly:
 				case ModuleHostType.ServerOnly:
 				case ModuleHostType.ClientOnly:
 				case ModuleHostType.ClientOnlyNoCommandlet:
 					return UHTModuleType.EngineRuntime;
 				case ModuleHostType.Developer:
+				case ModuleHostType.DeveloperTool:
 					return UHTModuleType.EngineDeveloper;
 				case ModuleHostType.Editor:
 				case ModuleHostType.EditorNoCommandlet:
+				case ModuleHostType.EditorAndProgram:
 					return UHTModuleType.EngineEditor;
 				default:
 					return null;
@@ -143,14 +146,17 @@ namespace UnrealBuildTool
 				case ModuleHostType.RuntimeNoCommandlet:
 				case ModuleHostType.RuntimeAndProgram:
 				case ModuleHostType.CookedOnly:
+				case ModuleHostType.UncookedOnly:
 				case ModuleHostType.ServerOnly:
 				case ModuleHostType.ClientOnly:
 				case ModuleHostType.ClientOnlyNoCommandlet:
 					return UHTModuleType.GameRuntime;
 				case ModuleHostType.Developer:
+				case ModuleHostType.DeveloperTool:
 					return UHTModuleType.GameDeveloper;
 				case ModuleHostType.Editor:
 				case ModuleHostType.EditorNoCommandlet:
+				case ModuleHostType.EditorAndProgram:
 					return UHTModuleType.GameEditor;
 				default:
 					return null;
@@ -1111,12 +1117,12 @@ namespace UnrealBuildTool
 						}
 
 						// Create the target descriptor
-						List<TargetDescriptor> TargetDescriptors = new List<TargetDescriptor>();
-						TargetDescriptors.Add(new TargetDescriptor(ScriptProjectFile, "UnrealHeaderTool", Platform, Configuration, Architecture, null));
+						TargetDescriptor TargetDescriptor = new TargetDescriptor(ScriptProjectFile, "UnrealHeaderTool", Platform, Configuration, Architecture, null);
+						TargetDescriptor.bQuiet = true;
 
 						using(Timeline.ScopeEvent("Buildng UnrealHeaderTool"))
 						{
-							BuildMode.Build(TargetDescriptors, BuildConfiguration, WorkingSet, BuildOptions.Quiet, null);
+							BuildMode.Build(new List<TargetDescriptor>{ TargetDescriptor }, BuildConfiguration, WorkingSet, BuildOptions.None, null);
 						}
 					}
 

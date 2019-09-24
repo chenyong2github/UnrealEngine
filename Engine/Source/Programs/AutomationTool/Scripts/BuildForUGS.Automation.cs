@@ -85,7 +85,7 @@ namespace AutomationTool
 				string ZipFileName = Path.Combine(OutputFolder, "Archive.zip");
 				using (Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile())
 				{
-					Zip.UseZip64WhenSaving = Ionic.Zip.Zip64Option.Always;
+					Zip.UseZip64WhenSaving = Ionic.Zip.Zip64Option.AsNecessary;
 					foreach(string BuildProduct in Builder.BuildProductFiles)
 					{
 						if(!File.Exists(BuildProduct))
