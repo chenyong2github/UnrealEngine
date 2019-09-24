@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Change.h"
+#include "InteractiveToolChange.h"
 #include "SelectionSet.h"
 
 
@@ -12,7 +12,7 @@
 /**
  * FMeshSelectionChange represents an reversible change to a UMeshSelectionSet
  */
-class MODELINGCOMPONENTS_API FMeshSelectionChange : public FCommandChange
+class MODELINGCOMPONENTS_API FMeshSelectionChange : public FToolCommandChange
 {
 public:
 	EMeshSelectionElementType ElementType = EMeshSelectionElementType::Vertex;

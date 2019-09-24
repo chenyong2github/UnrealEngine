@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Misc/Change.h"
+#include "InteractiveToolChange.h"
 #include "VectorTypes.h"
 #include "DynamicMeshChangeTracker.h"
 #include "MeshChange.generated.h"
@@ -18,7 +18,7 @@
  * FMeshChange represents an undoable change to a FDynamicMesh3.
  * Currently only valid to call Apply/Revert when the Object is a USimpleDynamicMeshComponent
  */
-class MODELINGCOMPONENTS_API FMeshChange : public FCommandChange
+class MODELINGCOMPONENTS_API FMeshChange : public FToolCommandChange
 {
 public:
 	FMeshChange();

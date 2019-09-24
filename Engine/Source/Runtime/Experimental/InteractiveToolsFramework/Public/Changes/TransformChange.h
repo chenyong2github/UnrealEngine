@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Change.h"
+#include "InteractiveToolChange.h"
 
 
 /**
  * FComponentWorldTransformChange represents an undoable change to the world transform of a USceneComponent.
  */
-class INTERACTIVETOOLSFRAMEWORK_API FComponentWorldTransformChange : public FCommandChange
+class INTERACTIVETOOLSFRAMEWORK_API FComponentWorldTransformChange : public FToolCommandChange
 {
 public:
 	FComponentWorldTransformChange();

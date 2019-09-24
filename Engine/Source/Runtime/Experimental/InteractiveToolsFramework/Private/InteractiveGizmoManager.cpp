@@ -256,7 +256,7 @@ void UInteractiveGizmoManager::EndUndoTransaction()
 
 
 
-void UInteractiveGizmoManager::EmitObjectChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description)
+void UInteractiveGizmoManager::EmitObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description)
 {
 	TransactionsAPI->AppendChange(TargetObject, MoveTemp(Change), Description );
 }

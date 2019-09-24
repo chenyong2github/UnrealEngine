@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "Misc/Change.h"
 #include "InteractiveGizmo.h"
 #include "InteractiveGizmoBuilder.h"
 #include "InputRouter.h"
+#include "InteractiveToolChange.h"
 #include "ToolContextInterfaces.h"
 #include "InteractiveGizmoManager.generated.h"
 
@@ -142,7 +142,7 @@ public:
 	 * @param Change the change object that the Context should insert into the transaction history
 	 * @param Description text description of this change (this is the string that appears on undo/redo in the UE Editor)
 	 */
-	virtual void EmitObjectChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description );
+	virtual void EmitObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description );
 
 
 	//

@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "Misc/Change.h"
 #include "InteractiveTool.h"
 #include "InteractiveToolBuilder.h"
 #include "InputRouter.h"
+#include "InteractiveToolChange.h"
 #include "ToolContextInterfaces.h"
 #include "InteractiveToolManager.generated.h"
 
@@ -161,7 +161,7 @@ public:
 	 * @param Change the change object that the Context should insert into the transaction history
 	 * @param Description text description of this change (this is the string that appears on undo/redo in the UE Editor)
 	 */
-	virtual void EmitObjectChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description );
+	virtual void EmitObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description );
 
 
 	/**
@@ -239,7 +239,7 @@ protected:
  * FBeginToolChange is used by UInteractiveToolManager to back out of a Tool on Undo.
  * No action is taken on Redo, ie we do not re-start the Tool on Redo.
  */
-class INTERACTIVETOOLSFRAMEWORK_API FBeginToolChange : public FCommandChange
+class INTERACTIVETOOLSFRAMEWORK_API FBeginToolChange : public FToolCommandChange
 {
 public:
 	virtual void Apply(UObject* Object) override;
@@ -257,12 +257,12 @@ public:
  * FToolChangeWrapperChange wraps an FChange emitted by an InteractiveTool, allowing
  * us to Expire the change without each FChange implementation needing to handle this explicitly.
  */
-class INTERACTIVETOOLSFRAMEWORK_API FToolChangeWrapperChange : public FCommandChange
+class INTERACTIVETOOLSFRAMEWORK_API FToolChangeWrapperChange : public FToolCommandChange
 {
 public:
 	TWeakObjectPtr<UInteractiveToolManager> ToolManager;
 	TWeakObjectPtr<UInteractiveTool> ActiveTool;
-	TUniquePtr<FChange> ToolChange;
+	TUniquePtr<FToolCommandChange> ToolChange;
 
 	virtual void Apply(UObject* Object) override;
 

@@ -265,7 +265,7 @@ public:
 		GEditor->EndTransaction();
 	}
 
-	virtual void AppendChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description) override
+	virtual void AppendChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description) override
 	{
 		FScopedTransaction Transaction(Description);
 		check(GUndo != nullptr);

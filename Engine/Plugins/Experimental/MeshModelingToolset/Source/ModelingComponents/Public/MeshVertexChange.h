@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Misc/Change.h"
+#include "InteractiveToolChange.h"
 #include "VectorTypes.h"
 #include "MeshVertexChange.generated.h"
 
@@ -17,7 +17,7 @@ class FDynamicMesh3;
  * @todo support optionally storing old/new normals and tangents
  * @todo support applying to a StaticMeshComponent/MeshDescription ?
  */
-class MODELINGCOMPONENTS_API FMeshVertexChange : public FCommandChange
+class MODELINGCOMPONENTS_API FMeshVertexChange : public FToolCommandChange
 {
 public:
 	TArray<int> Vertices;

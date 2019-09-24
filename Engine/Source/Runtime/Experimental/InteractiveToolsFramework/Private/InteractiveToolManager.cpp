@@ -263,7 +263,7 @@ void UInteractiveToolManager::EndUndoTransaction()
 
 
 
-void UInteractiveToolManager::EmitObjectChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description)
+void UInteractiveToolManager::EmitObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description)
 {
 	// wrap change 
 	check(HasActiveTool(EToolSide::Left));

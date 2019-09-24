@@ -6,6 +6,7 @@
 #include "Drawing/MeshDebugDrawing.h"
 #include "DynamicMeshEditor.h"
 #include "DynamicMeshChangeTracker.h"
+#include "Changes/ToolCommandChangeSequence.h"
 #include "Changes/MeshChange.h"
 #include "AssetGenerationUtil.h"
 
@@ -415,75 +416,6 @@ TUniquePtr<FMeshSelectionChange> UMeshSelectionTool::EndChange()
 	return TUniquePtr<FMeshSelectionChange>();
 }
 
-/**
- * FCommandChangeSequence contains a list of FCommandChanges and associated target UObjects.
- * The sequence of changes is applied atomically.
- * @warning if the target weak UObject pointers become invalid, those changes are skipped. This likely leaves this in an undefined state.
- */
-class FCommandChangeSequence : public FCommandChange
-{
-protected:
-	struct FChangeElem
-	{
-		TWeakObjectPtr<UObject> TargetObject;
-		TUniquePtr<FCommandChange> Change;
-	};
-
-	TArray<TSharedPtr<FChangeElem>> Sequence;
-
-public:
-	FCommandChangeSequence()
-	{
-	}
-
-	/** Add a change to the sequence */
-	void AppendChange(UObject* Target, TUniquePtr<FCommandChange> Change)
-	{
-		TSharedPtr<FChangeElem> Elem = MakeShared<FChangeElem>();
-		Elem->TargetObject = Target;
-		Elem->Change = MoveTemp(Change);
-		Sequence.Add(Elem);
-	}
-	
-	/** Apply sequence of changes in-order */
-	virtual void Apply(UObject* Object) override
-	{
-		for (int k = 0; k < Sequence.Num(); ++k)
-		{
-			TSharedPtr<FChangeElem> Elem = Sequence[k];
-			check(Elem->TargetObject.IsValid());
-			if (Elem->TargetObject.IsValid())
-			{
-				Elem->Change->Apply(Elem->TargetObject.Get());
-			}
-		}
-	}
-
-	/** Reverts sequence of changes in reverse-order */
-	virtual void Revert(UObject* Object) override
-	{
-		for (int k = Sequence.Num()-1; k >= 0; --k)
-		{
-			TSharedPtr<FChangeElem> Elem = Sequence[k];
-			check(Elem->TargetObject.IsValid());
-			if (Elem->TargetObject.IsValid())
-			{
-				Elem->Change->Revert(Elem->TargetObject.Get());
-			}
-		}
-	}
-
-	/** @return string describing this change sequenece */
-	virtual FString ToString() const override
-	{
-		FString Result = TEXT("FCommandChangeSequence: ");
-		for (int k = 0; k < Sequence.Num(); ++k)
-		{
-			Result = Result + Sequence[k]->Change->ToString() + TEXT(" ");
-		}
-		return Result;
-	}
-};
 
 
 
@@ -496,7 +428,7 @@ void UMeshSelectionTool::DeleteSelectedTriangles()
 		return;
 	}
 
-	TUniquePtr<FCommandChangeSequence> ChangeSeq = MakeUnique<FCommandChangeSequence>();
+	TUniquePtr<FToolCommandChangeSequence> ChangeSeq = MakeUnique<FToolCommandChangeSequence>();
 
 	// clear current selection
 	BeginChange(false);
