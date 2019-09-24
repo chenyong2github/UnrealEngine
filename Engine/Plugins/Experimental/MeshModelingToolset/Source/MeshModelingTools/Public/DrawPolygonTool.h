@@ -12,6 +12,7 @@
 #include "Snapping/PointPlanarSnapSolver.h"
 #include "ToolSceneQueriesUtil.h"
 #include "Properties/MeshMaterialProperties.h"
+#include "Changes/ValueWatcher.h"
 #include "DrawPolygonTool.generated.h"
 
 
@@ -102,6 +103,9 @@ public:
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
 	bool bAllowSelfIntersections = false;
 
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
+	bool bShowGizmo = true;
+
 	//
 	// save/restore support
 	//
@@ -148,6 +152,7 @@ public:
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
+
 
 
 
@@ -199,8 +204,6 @@ public:
 	virtual void EndInteractiveExtrude();
 	virtual float FindInteractiveHeightDistance(const FInputDeviceRay& ClickPos);
 
-	virtual void SetDrawPlaneFromWorldPos(const FVector& Position, const FVector& Normal);
-
 
 public:
 	virtual void PopLastVertexAction();
@@ -249,7 +252,8 @@ protected:
 	UPROPERTY()
 	UPreviewMesh* PreviewMesh;
 
-	// drawing plane control
+	
+	// drawing plane gizmo
 
 	UPROPERTY()
 	UTransformGizmo* PlaneTransformGizmo;
@@ -257,9 +261,17 @@ protected:
 	UPROPERTY()
 	UTransformProxy* PlaneTransformProxy;
 
+	// called on PlaneTransformProxy.OnTransformChanged
 	void PlaneTransformChanged(UTransformProxy* Proxy, FTransform Transform);
 
+	// calls SetDrawPlaneFromWorldPos when user ctrl+clicks on scene
 	IClickBehaviorTarget* SetPointInWorldConnector = nullptr;
+
+	// updates plane and gizmo position
+	virtual void SetDrawPlaneFromWorldPos(const FVector& Position, const FVector& Normal);
+
+	TValueWatcher<bool> ShowGizmoWatcher;
+	void UpdateShowGizmoState(bool bNewVisibility);
 
 
 	// polygon drawing
@@ -304,6 +316,11 @@ protected:
 
 	// we use this to generate extruded meshes
 	void GeneratePolygonMesh(const TArray<FVector>& Polygon, FDynamicMesh3* ResultMeshOut, FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric);
+
+
+	// user feedback messages
+	void ShowStartupMessage();
+	void ShowExtrudeMessage();
 };
 
 

@@ -77,6 +77,7 @@ void UDrawPolygonToolStandardProperties::SaveProperties(UInteractiveTool* SaveFr
 	PropertyCache->ExtrudeHeight = this->ExtrudeHeight;
 	PropertyCache->Steps = this->Steps;
 	PropertyCache->bAllowSelfIntersections = this->bAllowSelfIntersections;
+	PropertyCache->bShowGizmo = this->bShowGizmo;
 }
 
 void UDrawPolygonToolStandardProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
@@ -87,6 +88,7 @@ void UDrawPolygonToolStandardProperties::RestoreProperties(UInteractiveTool* Res
 	this->ExtrudeHeight = PropertyCache->ExtrudeHeight;
 	this->Steps = PropertyCache->Steps;
 	this->bAllowSelfIntersections = PropertyCache->bAllowSelfIntersections;
+	this->bShowGizmo = PropertyCache->bShowGizmo;
 }
 
 
@@ -172,7 +174,10 @@ void UDrawPolygonTool::Setup()
 
 	PolygonProperties = NewObject<UDrawPolygonToolStandardProperties>(this, TEXT("Polygon Settings"));
 	PolygonProperties->RestoreProperties(this);
-
+	ShowGizmoWatcher.Initialize(
+		[this]() { return this->PolygonProperties->bShowGizmo; }, 
+		[this](bool bNewValue) { this->UpdateShowGizmoState(bNewValue); },
+		true);
 
 	// Create a new TransformGizmo and associated TransformProxy. The TransformProxy will not be the
 	// parent of any Components in this case, we just use it's transform and change delegate.
@@ -209,9 +214,7 @@ void UDrawPolygonTool::Setup()
 	AddToolPropertySource(SnapProperties);
 	AddToolPropertySource(MaterialProperties);
 
-	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartDrawPolygonTool", "Left-click to place points on the Drawing Plane. Ctrl-click on the scene to reposition the Plane, and click-drag on the gizmo to move it."),
-		EToolMessageLevel::UserNotification);
+	ShowStartupMessage();
 }
 
 
@@ -240,7 +243,18 @@ void UDrawPolygonTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		LOCTEXT("PopLastVertexTooltip", "Pop last vertex added to polygon"),
 		EModifierKey::None, EKeys::BackSpace,
 		[this]() { PopLastVertexAction(); });
+
+
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 2,
+		TEXT("ToggleGizmo"),
+		LOCTEXT("ToggleGizmo", "Toggle Gizmo"),
+		LOCTEXT("ToggleGizmoTooltip", "Toggle visibility of the transformation Gizmo"),
+		EModifierKey::None, EKeys::A,
+		[this]() { PolygonProperties->bShowGizmo = !PolygonProperties->bShowGizmo; });
+
 }
+
+
 
 void UDrawPolygonTool::PopLastVertexAction()
 {
@@ -463,7 +477,11 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 			PreviewOrigin + PolygonProperties->ExtrudeHeight*DrawPlaneNormal, HitPosFrameWorld.Origin,
 			HeightPosColor, 1, 1.0f, 0.0f, true);
 	}
+
+
+	ShowGizmoWatcher.CheckAndUpdate();
 }
+
 
 void UDrawPolygonTool::ResetPolygon()
 {
@@ -828,6 +846,8 @@ void UDrawPolygonTool::BeginInteractiveExtrude()
 	bInInteractiveExtrude = true;
 
 	GeneratePreviewHeightTarget();
+
+	ShowExtrudeMessage();
 }
 
 void UDrawPolygonTool::EndInteractiveExtrude()
@@ -838,6 +858,8 @@ void UDrawPolygonTool::EndInteractiveExtrude()
 	PreviewMesh->SetVisible(false);
 
 	bInInteractiveExtrude = false;
+
+	ShowStartupMessage();
 }
 
 float UDrawPolygonTool::FindInteractiveHeightDistance(const FInputDeviceRay& ClickPos)
@@ -918,6 +940,19 @@ void UDrawPolygonTool::PlaneTransformChanged(UTransformProxy* Proxy, FTransform 
 	DrawPlaneOrientation = Transform.GetRotation();
 	DrawPlaneOrigin = Transform.GetLocation();
 	SnapEngine.Plane = FFrame3d((FVector3d)DrawPlaneOrigin, (FQuaterniond)DrawPlaneOrientation);
+}
+
+void UDrawPolygonTool::UpdateShowGizmoState(bool bNewVisibility)
+{
+	if (bNewVisibility == false)
+	{
+		GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
+	}
+	else
+	{
+		PlaneTransformGizmo = GetToolManager()->GetPairedGizmoManager()->Create3AxisTransformGizmo(this);
+		PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());
+	}
 }
 
 
@@ -1060,5 +1095,23 @@ void UDrawPolygonTool::GeneratePreviewHeightTarget()
 	GeneratePolygonMesh(PolygonVertices, &PreviewHeightTarget, PreviewHeightFrame, false, 99999, true);
 	PreviewHeightTargetAABB.SetMesh(&PreviewHeightTarget);
 }
+
+
+
+
+void UDrawPolygonTool::ShowStartupMessage()
+{
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartDraw", "Left-click to place points on the Drawing Plane. Hold Shift to ignore Snapping. Ctrl-click on the scene to reposition the Plane (Shift+Ctrl-click to only Translate). Backspace to discard last vertex. A key toggles Gizmo."),
+		EToolMessageLevel::UserNotification);
+}
+
+void UDrawPolygonTool::ShowExtrudeMessage()
+{
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartExtrude", "Set the height of the Extrusion by positioning the mouse over the extrusion volume, or over the scene to snap to relative heights."),
+		EToolMessageLevel::UserNotification);
+}
+
 
 #undef LOCTEXT_NAMESPACE

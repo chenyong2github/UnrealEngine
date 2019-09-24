@@ -60,3 +60,12 @@ public:
 	FTransformToolActionCommands();
 	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) override;
 };
+
+
+
+class FDrawPolygonToolActionCommands : public TInteractiveToolCommands<FDrawPolygonToolActionCommands>
+{
+public:
+	FDrawPolygonToolActionCommands();
+	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) override;
+};

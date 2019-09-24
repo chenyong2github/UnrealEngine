@@ -43,6 +43,7 @@ void FModelingToolActionCommands::RegisterAllToolActions()
 {
 	FModelingToolActionCommands::Register();
 	FSculptToolActionCommands::Register();
+	FDrawPolygonToolActionCommands::Register();
 	FTransformToolActionCommands::Register();
 }
 
@@ -50,6 +51,7 @@ void FModelingToolActionCommands::UnregisterAllToolActions()
 {
 	FModelingToolActionCommands::Unregister();
 	FSculptToolActionCommands::Unregister();
+	FDrawPolygonToolActionCommands::Unregister();
 	FTransformToolActionCommands::Unregister();
 }
 
@@ -67,6 +69,10 @@ void FModelingToolActionCommands::UpdateToolCommandBinding(UInteractiveTool* Too
 	else if (Cast<UDynamicMeshSculptTool>(Tool) != nullptr)
 	{
 		UPDATE_BINDING(FSculptToolActionCommands);
+	}
+	else if (Cast<UDrawPolygonTool>(Tool) != nullptr)
+	{
+		UPDATE_BINDING(FDrawPolygonToolActionCommands);
 	}
 	else
 	{
@@ -109,6 +115,24 @@ void FTransformToolActionCommands::GetToolDefaultObjectList(TArray<UInteractiveT
 {
 	ToolCDOs.Add(GetMutableDefault<UTransformMeshesTool>());
 }
+
+
+
+FDrawPolygonToolActionCommands::FDrawPolygonToolActionCommands() :
+	TInteractiveToolCommands<FDrawPolygonToolActionCommands>(
+		"ModelingToolsDrawPolygonTool", // Context name for fast lookup
+		NSLOCTEXT("Contexts", "ModelingToolsDrawPolygonTool", "Modeling Tools - Draw Polygon Tool"), // Localized context name for displaying
+		NAME_None, // Parent
+		FEditorStyle::GetStyleSetName() // Icon Style Set
+		)
+{
+}
+
+void FDrawPolygonToolActionCommands::GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs)
+{
+	ToolCDOs.Add(GetMutableDefault<UDrawPolygonTool>());
+}
+
 
 
 
