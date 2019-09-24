@@ -4761,8 +4761,9 @@ void FSkeletalMeshSceneProxy::UpdateMorphMaterialUsage_GameThread(TArray<UMateri
 			UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 			ERHIFeatureLevel::Type InFeatureLevel = GetScene().GetFeatureLevel();
 			FSkeletalMeshSceneProxy* SkelMeshSceneProxy = this;
+			FMaterialRelevance DefaultRelevance = DefaultMaterial->GetRelevance(InFeatureLevel);
 			ENQUEUE_RENDER_COMMAND(UpdateSkelProxyLODSectionElementsCmd)(
-				[InMaterialsToSwap, DefaultMaterial, InFeatureLevel, SkelMeshSceneProxy](FRHICommandList& RHICmdList)
+				[InMaterialsToSwap, DefaultMaterial, DefaultRelevance, InFeatureLevel, SkelMeshSceneProxy](FRHICommandList& RHICmdList)
 				{
 					for( int32 LodIdx=0; LodIdx < SkelMeshSceneProxy->LODSections.Num(); LodIdx++ )
 					{
@@ -4777,7 +4778,7 @@ void FSkeletalMeshSceneProxy::UpdateMorphMaterialUsage_GameThread(TArray<UMateri
 							}
 						}
 					}
-					SkelMeshSceneProxy->MaterialRelevance |= DefaultMaterial->GetRelevance(InFeatureLevel);
+					SkelMeshSceneProxy->MaterialRelevance |= DefaultRelevance;
 				});
 		}
 	}
