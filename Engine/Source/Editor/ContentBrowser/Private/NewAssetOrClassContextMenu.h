@@ -9,15 +9,14 @@
 
 
 class FMenuBuilder;
+class UFactory;
 
 struct FFactoryItem
 {
 	UFactory* Factory;
 	FText DisplayName;
 
-	FFactoryItem(UFactory* InFactory, const FText& InDisplayName)
-		: Factory(InFactory), DisplayName(InDisplayName)
-	{}
+	FFactoryItem(UFactory* InFactory, const FText& InDisplayName);
 };
 
 struct FCategorySubMenuItem
