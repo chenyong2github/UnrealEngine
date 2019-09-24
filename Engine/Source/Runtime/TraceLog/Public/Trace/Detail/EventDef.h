@@ -51,8 +51,6 @@ struct FLiteralName;
 class FEventDef
 {
 public:
-	enum { HeaderSize = sizeof(uint32), }; // I'll just dump this here for now.
-
 	enum
 	{
 		Flag_Always		= 1 << 0,
