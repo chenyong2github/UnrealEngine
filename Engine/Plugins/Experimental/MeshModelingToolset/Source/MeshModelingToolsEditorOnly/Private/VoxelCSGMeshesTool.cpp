@@ -75,9 +75,12 @@ void UVoxelCSGMeshesTool::Setup()
 
 	CSGProps = NewObject<UVoxelCSGMeshesToolProperties>();
 	CSGProps->VoxelCount = 128;
-	CSGProps->Adaptivity = 0.01f;
-	CSGProps->IsoSurface = 0.0f;
+	CSGProps->MeshAdaptivity = 0.01f;
+	CSGProps->OffsetDistance = 0.0f;
 	AddToolPropertySource(CSGProps);
+
+	MeshStatisticsProperties = NewObject<UMeshStatisticsProperties>(this);
+	AddToolPropertySource(MeshStatisticsProperties);
 
 	// Hide the source meshes
 	for (auto& ComponentTarget : ComponentTargets)
@@ -91,6 +94,9 @@ void UVoxelCSGMeshesTool::Setup()
 	// initialize the PreviewMesh+BackgroundCompute object
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
+	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute) {
+		MeshStatisticsProperties->Update(*Compute->PreviewMesh->GetPreviewDynamicMesh());
+	});
 
 	CreateLowQualityPreview();
 
@@ -117,7 +123,7 @@ void UVoxelCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 		{
 			ComponentTarget->SetOwnerVisibility(true);
 			AActor* Actor = ComponentTarget->GetOwnerActor();
-			if (CSGProps->bRemoveSources)
+			if (CSGProps->bDeleteInputActors)
 			{
 				Actor->Destroy();
 			}
@@ -170,8 +176,8 @@ TSharedPtr<FDynamicMeshOperator> UVoxelCSGMeshesTool::MakeNewOperator()
 	TSharedPtr<FVoxelBooleanMeshesOp> CSGOp = MakeShared<FVoxelBooleanMeshesOp>();
 	CSGOp->Operation      = (FVoxelBooleanMeshesOp::EBooleanOperation)(int)CSGProps->Operation;
 	CSGOp->VoxelCount     = CSGProps->VoxelCount;
-	CSGOp->AdaptivityD    = CSGProps->Adaptivity;
-	CSGOp->IsoSurfaceD    = CSGProps->IsoSurface;
+	CSGOp->AdaptivityD    = CSGProps->MeshAdaptivity;
+	CSGOp->IsoSurfaceD    = CSGProps->OffsetDistance;
 	CSGOp->bAutoSimplify  = CSGProps->bAutoSimplify;
 	CSGOp->InputMeshArray = InputMeshes;
 	return CSGOp;

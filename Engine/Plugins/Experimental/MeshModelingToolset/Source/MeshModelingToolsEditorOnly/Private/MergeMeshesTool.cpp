@@ -80,6 +80,9 @@ void UMergeMeshesTool::Setup()
 	MergeProps = NewObject<UMergeMeshesToolProperties>();
 	AddToolPropertySource(MergeProps);
 
+	MeshStatisticsProperties = NewObject<UMeshStatisticsProperties>(this);
+	AddToolPropertySource(MeshStatisticsProperties);
+
 	// Hide the source meshes
 	for (auto& ComponentTarget : ComponentTargets)
 	{
@@ -92,6 +95,9 @@ void UMergeMeshesTool::Setup()
 	// initialize the PreviewMesh+BackgroundCompute object
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
+	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute) {
+		MeshStatisticsProperties->Update(*Compute->PreviewMesh->GetPreviewDynamicMesh());
+	});
 
 	CreateLowQualityPreview(); // update the preview with a low-quality result
 	
@@ -102,6 +108,7 @@ void UMergeMeshesTool::Setup()
 	);
 
 	Preview->InvalidateResult();    // start compute
+
 }
 
 
@@ -118,7 +125,7 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 		{
 			ComponentTarget->SetOwnerVisibility(true);
 			AActor* Actor = ComponentTarget->GetOwnerActor();
-			if (MergeProps->bRemoveSources)
+			if (MergeProps->bDeleteInputActors)
 			{
 				Actor->Destroy();
 			}
@@ -177,8 +184,8 @@ TSharedPtr<FDynamicMeshOperator> UMergeMeshesTool::MakeNewOperator()
 {
 	TSharedPtr<FVoxelMergeMeshesOp> MergeOp = MakeShared<FVoxelMergeMeshesOp>();
 	MergeOp->VoxelCount     = MergeProps->VoxelCount;
-	MergeOp->AdaptivityD    = MergeProps->Adaptivity;
-	MergeOp->IsoSurfaceD    = MergeProps->IsoSurface;
+	MergeOp->AdaptivityD    = MergeProps->MeshAdaptivity;
+	MergeOp->IsoSurfaceD    = MergeProps->OffsetDistance;
 	MergeOp->bAutoSimplify  = MergeProps->bAutoSimplify;
 	MergeOp->InputMeshArray = InputMeshes;
 	return MergeOp;
