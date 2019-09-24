@@ -19,6 +19,7 @@
 #include "NiagaraDataInterfaceSkeletalMesh.h"
 #include "SNiagaraGraphNodeFunctionCallWithSpecifiers.h"
 #include "Misc/SecureHash.h"
+#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"
 
@@ -452,6 +453,24 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 		Options.bFilterDuplicates = true;
 		FunctionGraph->FindInputNodes(FunctionInputNodes, Options);
 
+		// We check which module inputs are not used so we can later remove them from the compilation of the
+		// parameter map that sets the input values for our function. This is mainly done to prevent data interfaces being
+		// initialized as parameter when they are not used in the function or module.
+		TArray<const UEdGraphPin*> OutInputPins;
+		TSet<const UEdGraphPin*> HiddenPins;
+		TSet<FName> HiddenPinNames;
+		FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*this, OutInputPins, HiddenPins, FCompileConstantResolver(Translator));
+		for (const UEdGraphPin* Pin : HiddenPins)
+		{
+			FString PinNameString = Pin->PinName.ToString();
+			if (PinNameString.RemoveFromStart(TEXT("Module.")))
+			{
+				PinNameString = FunctionScript->GetFName().ToString() + TEXT(".") + PinNameString;
+				HiddenPinNames.Add(FName(*PinNameString));
+			}
+		}
+		Translator->EnterFunctionCallNode(HiddenPinNames);
+
 		for (UNiagaraNodeInput* FunctionInputNode : FunctionInputNodes)
 		{
 			//Finds the matching Pin in the caller.
@@ -534,6 +553,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 
 		FCompileConstantResolver ConstantResolver(Translator);
 		FNiagaraEditorUtilities::SetStaticSwitchConstants(GetCalledGraph(), CallerInputPins, ConstantResolver);
+		Translator->ExitFunctionCallNode();
 	}
 	else if (Signature.IsValid())
 	{
@@ -561,8 +581,10 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 				}
 			}
 		}
+		Translator->EnterFunctionCallNode(TSet<FName>());
 		Signature.FunctionSpecifiers = FunctionSpecifiers;
 		bError = CompileInputPins(Translator, Inputs);
+		Translator->ExitFunctionCallNode();
 	}		
 	else
 	{

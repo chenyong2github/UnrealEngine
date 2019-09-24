@@ -166,6 +166,12 @@ void UNiagaraNodeParameterMapSet::Compile(class FHlslNiagaraTranslator* Translat
 			continue;
 		}
 
+		if (Translator->IsFunctionVariableCulledFromCompilation(InputPin->PinName))
+		{
+			CompileInputs.Add(INDEX_NONE);
+			continue;
+		}
+
 		if (IsNodeEnabled() == false && Schema->PinToTypeDefinition(InputPin) != FNiagaraTypeDefinition::GetParameterMapDef())
 		{
 			continue;
