@@ -168,7 +168,13 @@ void UMovieSceneLiveLinkTrackRecorder::FinalizeTrackImpl()
 		FKeyDataOptimizationParams Params;
 		Params.bAutoSetInterpolation = true;
 		MovieSceneSection->FinalizeSection(bReduceKeys, Params);
-		
+
+		TOptional<TRange<FFrameNumber> > DefaultSectionLength = MovieSceneSection->GetAutoSizeRange();
+		if (DefaultSectionLength.IsSet())
+		{
+			MovieSceneSection->SetRange(DefaultSectionLength.GetValue());
+		}
+
 		MovieSceneSection->SetIsActive(true);
 	}
 }
