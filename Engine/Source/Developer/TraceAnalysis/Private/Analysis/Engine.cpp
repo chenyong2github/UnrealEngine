@@ -41,8 +41,7 @@ struct FAnalysisEngine::FDispatch
 		uint16		Offset;
 		uint16		Size;
 		uint16		NameOffset;			// From FField ptr
-		uint8		TypeInfo;
-		uint8		_Unused0;
+		int16		SizeAndType;		// value == byte_size, sign == float < 0 < int
 	};
 
 	uint16			Uid;
@@ -123,18 +122,23 @@ uint32 IAnalyzer::FEventFieldInfo::GetOffset() const
 uint32 IAnalyzer::FEventFieldInfo::GetSize() const
 {
 	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
-	return 1 << (Inner->TypeInfo & _Field_Pow2SizeMask);
+	return (Inner->SizeAndType < 0) ? -(Inner->SizeAndType) : Inner->SizeAndType;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 IAnalyzer::FEventFieldInfo::EType IAnalyzer::FEventFieldInfo::GetType() const
 {
 	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
-	switch (Inner->TypeInfo & _Field_CategoryMask)
+	if (Inner->SizeAndType > 0)
 	{
-	case _Field_Integer:	return EType::Integer;
-	case _Field_Float:		return EType::Float;
+		return EType::Integer;
 	}
+
+	if (Inner->SizeAndType < 0)
+	{
+		return EType::Float;
+	}
+
 	return EType::None;
 }
 
@@ -156,7 +160,7 @@ const IAnalyzer::FEventTypeInfo& IAnalyzer::FEventData::GetTypeInfo() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const void* IAnalyzer::FEventData::GetValueImpl(const ANSICHAR* FieldName, uint16& Type) const
+const void* IAnalyzer::FEventData::GetValueImpl(const ANSICHAR* FieldName, int16& SizeAndType) const
 {
 	const auto& Info = *(const FAnalysisEngine::FEventDataInfo*)this;
 
@@ -169,7 +173,7 @@ const void* IAnalyzer::FEventData::GetValueImpl(const ANSICHAR* FieldName, uint1
 		const auto& Field = Info.Dispatch.Fields[i];
 		if (Field.Hash == NameHash)
 		{
-			Type = Field.TypeInfo;
+			SizeAndType = Field.SizeAndType;
 			return (Info.Ptr + Field.Offset);
 		}
 	}
@@ -428,7 +432,12 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 		Out.Hash = FieldHash.Get();
 		Out.Offset = In.Offset;
 		Out.Size = In.Size;
-		Out.TypeInfo = In.TypeInfo;
+
+		Out.SizeAndType = 1 << (In.TypeInfo & Protocol0::Field_Pow2SizeMask);
+		if ((In.TypeInfo & Protocol0::Field_CategoryMask) == Protocol0::Field_Float)
+		{
+			Out.SizeAndType = -Out.SizeAndType;
+		}
 	}
 
 	// Write out names with null terminators.

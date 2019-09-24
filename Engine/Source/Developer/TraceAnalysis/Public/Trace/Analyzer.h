@@ -117,7 +117,7 @@ public:
 		const uint8* GetRawPointer() const;
 
 	private:
-		const void* GetValueImpl(const ANSICHAR* FieldName, uint16& Type) const;
+		const void* GetValueImpl(const ANSICHAR* FieldName, int16& SizeAndType) const;
 	};
 
 	struct FOnEventContext
@@ -166,33 +166,21 @@ public:
 template <typename ValueType>
 ValueType IAnalyzer::FEventData::GetValue(const ANSICHAR* FieldName) const
 {
-	uint16 FieldTypeId;
-	const void* Addr = GetValueImpl(FieldName, FieldTypeId);
+	int16 FieldSizeAndType;
+	const void* Addr = GetValueImpl(FieldName, FieldSizeAndType);
 	if (Addr == nullptr)
 	{
 		return ValueType(0);
 	}
 
-	uint32 Pow2Size = (FieldTypeId & _Field_Pow2SizeMask);
-	uint32 Category = (FieldTypeId & _Field_CategoryMask);
-
-	if (Category == _Field_Float)
+	switch (FieldSizeAndType)
 	{
-		switch (Pow2Size)
-		{
-		case _Field_32: return ValueType(*(const float*)(Addr));
-		case _Field_64: return ValueType(*(const double*)(Addr));
-		}
-	}
-	else if (Category == _Field_Integer)
-	{
-		switch (Pow2Size)
-		{
-		case _Field_8:  return ValueType(*(const uint8*)(Addr));
-		case _Field_16: return ValueType(*(const uint16*)(Addr));
-		case _Field_32: return ValueType(*(const uint32*)(Addr));
-		case _Field_64: return ValueType(*(const uint64*)(Addr));
-		}
+	case -4: return ValueType(*(const float*)(Addr));
+	case -8: return ValueType(*(const double*)(Addr));
+	case  1: return ValueType(*(const uint8*)(Addr));
+	case  2: return ValueType(*(const uint16*)(Addr));
+	case  4: return ValueType(*(const uint32*)(Addr));
+	case  8: return ValueType(*(const uint64*)(Addr));
 	}
 
 	return ValueType(0);
