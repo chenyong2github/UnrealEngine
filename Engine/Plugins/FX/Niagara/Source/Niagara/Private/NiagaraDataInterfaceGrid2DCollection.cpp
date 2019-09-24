@@ -402,7 +402,7 @@ void UNiagaraDataInterfaceGrid2DCollection::FillTexture2D(const UNiagaraComponen
 	{
 		return;
 	}
-	FGuid InstanceID = SystemInstance->GetId();
+	FNiagaraSystemInstanceID InstanceID = SystemInstance->GetId();
 
 	ENQUEUE_RENDER_COMMAND(FUpdateDIColorCurve)(
 		[Dest, TProxy, InstanceID](FRHICommandListImmediate& RHICmdList)
@@ -431,7 +431,7 @@ void UNiagaraDataInterfaceGrid2DCollection::GetCellSize(FVectorVMContext& Contex
 }
 
 // #todo(dmp): move these to super class
-void FNiagaraDataInterfaceProxyGrid2DCollection::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FGuid& SystemInstance)
+void FNiagaraDataInterfaceProxyGrid2DCollection::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
 
@@ -442,7 +442,7 @@ void FNiagaraDataInterfaceProxyGrid2DCollection::DestroyPerInstanceData(NiagaraE
 // #todo(dmp): move these to super class
 void FNiagaraDataInterfaceProxyGrid2DCollection::DeferredDestroy()
 {
-	for (const FGuid& Sys : DeferredDestroyList)
+	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
 	{
 		SystemInstancesToProxyData.Remove(Sys);
 	}

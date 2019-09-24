@@ -535,7 +535,7 @@ public:
 	virtual void GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
 
-	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FGuid& SystemInstance) override;
+	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 	static const FString MeshIndexBufferName;
 	static const FString MeshVertexBufferName;
@@ -752,7 +752,7 @@ struct FNiagaraDataInterfaceProxySkeletalMesh : public FNiagaraDataInterfaceProx
 		return sizeof(FNiagaraDISkeletalMeshPassedDataToRT);
 	}
 
-	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance) override;
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
 
-	TMap<FGuid, FNiagaraDataInterfaceProxySkeletalMeshData> SystemInstancesToData;
+	TMap<FNiagaraSystemInstanceID, FNiagaraDataInterfaceProxySkeletalMeshData> SystemInstancesToData;
 };
