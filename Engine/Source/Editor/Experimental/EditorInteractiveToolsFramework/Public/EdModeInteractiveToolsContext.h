@@ -73,9 +73,11 @@ public:
 public:
 	// forwards message to OnToolNotificationMessage delegate
 	virtual void PostToolNotificationMessage(const FText& Message);
+	virtual void PostToolWarningMessage(const FText& Message);
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FEdModeToolsContextToolNotification, const FText&);
 	FEdModeToolsContextToolNotification OnToolNotificationMessage;
+	FEdModeToolsContextToolNotification OnToolWarningMessage;
 
 
 protected:

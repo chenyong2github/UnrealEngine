@@ -100,6 +100,15 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 		.ColorAndOpacity(FSlateColor(FLinearColor::White * 0.7f));
 	ToolMessageArea->SetText(LOCTEXT("ToolMessageLabel", ""));
 
+	ToolWarningArea = SNew(STextBlock)
+		.AutoWrapText(true)
+		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+		.ColorAndOpacity(FSlateColor(FLinearColor(0.9f, 0.15f, 0.15f)));
+	ToolWarningArea->SetText(LOCTEXT("ToolMessageLabel", ""));
+
+
+	
+
 	SAssignNew(ToolkitWidget, SBorder)
 		.HAlign(HAlign_Fill)
 		.Padding(4)
@@ -111,9 +120,14 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 					ToolHeaderLabel->AsShared()
 				]
 
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).AutoHeight().Padding(10, 10, 10, 20)
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).AutoHeight().Padding(10, 10, 10, 15)
 				[
 					ToolMessageArea->AsShared()
+				]
+
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).AutoHeight().Padding(10, 5, 10, 15)
+				[
+					ToolWarningArea->AsShared()
 				]
 
 			+ SVerticalBox::Slot().HAlign(HAlign_Fill).FillHeight(1.f)
@@ -125,6 +139,8 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 		
 	FModeToolkit::Init(InitToolkitHost);
 
+	ClearNotification();
+	ClearWarning();
 
 
 	GetToolsEditorMode()->GetToolManager()->OnToolStarted.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
@@ -141,6 +157,7 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 		DetailsView->SetObject(nullptr);
 		ToolHeaderLabel->SetText(LOCTEXT("SelectToolLabel", "Select a Tool from the Toolbar"));
 		ClearNotification();
+		ClearWarning();
 	});
 
 
@@ -148,8 +165,10 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 	{
 		PostNotification(Message);
 	});
-
-
+	GetToolsEditorMode()->OnToolWarningMessage.AddLambda([this](const FText& Message)
+	{
+		PostWarning(Message);
+	});
 }
 
 
@@ -157,11 +176,26 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 void FModelingToolsEditorModeToolkit::PostNotification(const FText& Message)
 {
 	ToolMessageArea->SetText(Message);
+	ToolMessageArea->SetVisibility(EVisibility::Visible);
 }
 
 void FModelingToolsEditorModeToolkit::ClearNotification()
 {
 	ToolMessageArea->SetText(FText());
+	ToolMessageArea->SetVisibility(EVisibility::Collapsed);
+}
+
+
+void FModelingToolsEditorModeToolkit::PostWarning(const FText& Message)
+{
+	ToolWarningArea->SetText(Message);
+	ToolWarningArea->SetVisibility(EVisibility::Visible);
+}
+
+void FModelingToolsEditorModeToolkit::ClearWarning()
+{
+	ToolWarningArea->SetText(FText());
+	ToolWarningArea->SetVisibility(EVisibility::Collapsed);
 }
 
 
@@ -241,10 +275,14 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 		ToolbarBuilder.AddSeparator();
 
 		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSculptMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSmoothMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDisplaceMeshTool);
+
+		ToolbarBuilder.AddSeparator();
+
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSculptMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshSculptMeshTool);
 
 		ToolbarBuilder.AddSeparator();
 

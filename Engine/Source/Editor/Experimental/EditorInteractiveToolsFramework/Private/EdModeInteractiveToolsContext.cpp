@@ -253,6 +253,10 @@ public:
 		{
 			ToolsContext->PostToolNotificationMessage(Message);
 		}
+		if (Level == EToolMessageLevel::UserWarning)
+		{
+			ToolsContext->PostToolWarningMessage(Message);
+		}
 		else
 		{
 			UE_LOG(LogTemp, Warning, TEXT("%s"), *Message.ToString());
@@ -413,6 +417,11 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 void UEdModeInteractiveToolsContext::PostToolNotificationMessage(const FText& Message)
 {
 	OnToolNotificationMessage.Broadcast(Message);
+}
+
+void UEdModeInteractiveToolsContext::PostToolWarningMessage(const FText& Message)
+{
+	OnToolWarningMessage.Broadcast(Message);
 }
 
 

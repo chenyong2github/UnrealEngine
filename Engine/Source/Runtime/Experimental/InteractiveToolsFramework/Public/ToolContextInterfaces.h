@@ -214,8 +214,10 @@ enum class EToolMessageLevel
 	UserMessage = 1,
 	/** Notification message should be shown in a non-modal notification window */
 	UserNotification = 2,
+	/** Warning message should be shown in a non-modal notification window with panache */
+	UserWarning = 3,
 	/** Error message should be shown in a modal notification window */
-	UserError = 3
+	UserError = 4
 };
 
 

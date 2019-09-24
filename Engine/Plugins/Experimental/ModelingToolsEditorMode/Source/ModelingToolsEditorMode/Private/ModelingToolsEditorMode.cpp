@@ -253,7 +253,10 @@ void FModelingToolsEditorMode::Enter()
 	{
 		this->OnToolNotificationMessage.Broadcast(Message);
 	});
-
+	ToolsContext->OnToolWarningMessage.AddLambda([this](const FText& Message)
+	{
+		this->OnToolWarningMessage.Broadcast(Message);
+	});
 
 	if (!Toolkit.IsValid() && UsesToolkits())
 	{

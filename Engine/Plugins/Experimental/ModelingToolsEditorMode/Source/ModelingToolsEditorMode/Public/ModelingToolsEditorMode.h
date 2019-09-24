@@ -135,6 +135,7 @@ public:
 public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnModelingModeToolNotification, const FText&);
 	FOnModelingModeToolNotification OnToolNotificationMessage;
+	FOnModelingModeToolNotification OnToolWarningMessage;
 
 
 public:

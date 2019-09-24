@@ -35,6 +35,10 @@ public:
 	virtual void PostNotification(const FText& Message);
 	virtual void ClearNotification();
 
+	// set/clear warning message area
+	virtual void PostWarning(const FText& Message);
+	virtual void ClearWarning();
+
 	/** Returns the Mode specific tabs in the mode toolbar **/ 
 	virtual void GetToolPaletteNames(TArray<FName>& InPaletteName) const;
 	virtual FText GetToolPaletteDisplayName(FName PaletteName); 
@@ -54,6 +58,7 @@ private:
 
 	TSharedPtr<STextBlock> ToolHeaderLabel;
 	TSharedPtr<STextBlock> ToolMessageArea;
+	TSharedPtr<STextBlock> ToolWarningArea;
 	TSharedPtr<SButton> AcceptButton;
 	TSharedPtr<SButton> CancelButton;
 	TSharedPtr<SButton> CompletedButton;
