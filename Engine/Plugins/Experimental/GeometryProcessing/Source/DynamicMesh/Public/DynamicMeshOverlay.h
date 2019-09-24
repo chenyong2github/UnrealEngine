@@ -232,6 +232,9 @@ public:
 	/** find the triangles connected to an element */
 	void GetElementTriangles(int ElementID, TArray<int>& OutTriangles) const;
 
+	/** Currently an iteration every time */
+	bool HasInteriorSeamEdges() const;
+
 	/**
 	 * Checks that the overlay mesh is well-formed, ie all internal data structures are consistent
 	 */
