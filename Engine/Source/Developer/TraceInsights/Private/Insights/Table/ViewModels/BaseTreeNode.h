@@ -7,7 +7,7 @@
 namespace Insights
 {
 
-class ITreeNodeSorting;
+class ITableCellValueSorter;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -46,6 +46,8 @@ public:
 	{
 	}
 
+	virtual const FName& GetTypeName() const = 0;
+
 	/**
 	 * @return an id of this node.
 	 */
@@ -63,15 +65,7 @@ public:
 	}
 
 	/**
-	 * @return a type id of this node.
-	 */
-	const FName& GetTypeId() const
-	{
-		return TypeId;
-	}
-
-	/**
-	 * @return a name of this node to display in tree view.  Ex.: group nodes may include additional info, like the number of visible/total children.
+	 * @return a name of this node to display in tree view. Ex.: group nodes may include additional info, like the number of visible/total children.
 	 */
 	virtual const FText GetDisplayName() const;
 
@@ -120,8 +114,8 @@ public:
 		return false;
 	}
 
-	void SortChildrenAscending(const ITreeNodeSorting* Sorter);
-	void SortChildrenDescending(const ITreeNodeSorting* Sorter);
+	void SortChildrenAscending(const ITableCellValueSorter& Sorter);
+	void SortChildrenDescending(const ITableCellValueSorter& Sorter);
 
 	/** Adds specified child to the children and sets group for it. */
 	FORCEINLINE_DEBUGGABLE void AddChildAndSetGroupPtr(const FBaseTreeNodePtr& ChildPtr)
@@ -170,9 +164,6 @@ private:
 
 	/** The name of this node. */
 	const FName Name;
-
-	/** The type id of this node (like a category name). */
-	const FName TypeId;
 
 	/** Children of this node. */
 	TArray<FBaseTreeNodePtr> Children;

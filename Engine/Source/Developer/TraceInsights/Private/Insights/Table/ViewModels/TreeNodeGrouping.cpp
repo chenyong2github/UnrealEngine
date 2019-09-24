@@ -57,8 +57,7 @@ FTreeNodeGroupingByUniqueValue::FTreeNodeGroupingByUniqueValue(TSharedRef<FTable
 FTreeNodeGroupInfo FTreeNodeGroupingByUniqueValue::GetGroupForNode(const FBaseTreeNodePtr InNode) const
 {
 	FTableTreeNodePtr TableTreeNodePtr = StaticCastSharedPtr<FTableTreeNode>(InNode);
-	return { FName(*ColumnRef->GetValueFormatter()->FormatValue(TableTreeNodePtr->GetValue(*ColumnRef)).ToString()), false };
-	//return { FName(*ColumnRef->GetValueAsText(TableTreeNodePtr->GetRowId()).ToString()), false };
+	return { FName(*ColumnRef->GetValueAsText(*TableTreeNodePtr).ToString()), false };
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -84,9 +83,9 @@ FTreeNodeGroupInfo FTreeNodeGroupingByNameFirstLetter::GetGroupForNode(const FBa
 
 FTreeNodeGroupingByType::FTreeNodeGroupingByType()
 	: FTreeNodeGrouping(
-		LOCTEXT("Grouping_ByType_ShortName", "Type"),
-		LOCTEXT("Grouping_ByType_TitleName", "Type"),
-		LOCTEXT("Grouping_ByType_Desc", "Creates a group for each type."),
+		LOCTEXT("Grouping_ByTypeName_ShortName", "TypeName"),
+		LOCTEXT("Grouping_ByTypeName_TitleName", "TypeName"),
+		LOCTEXT("Grouping_ByTypeName_Desc", "Creates a group for each node type."),
 		TEXT("Profiler.FiltersAndPresets.StatTypeIcon"), //TODO
 		nullptr)
 {
@@ -96,7 +95,7 @@ FTreeNodeGroupingByType::FTreeNodeGroupingByType()
 
 FTreeNodeGroupInfo FTreeNodeGroupingByType::GetGroupForNode(const FBaseTreeNodePtr InNode) const
 {
-	return { InNode->GetTypeId(), true };
+	return { InNode->GetTypeName(), true };
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

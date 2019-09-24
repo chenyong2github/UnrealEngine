@@ -411,7 +411,7 @@ void FTimingProfilerManager::UpdateCallersAndCallees()
 					CallersTreeView->SetTree(Callers);
 				}
 
-				if (CallersTreeView.IsValid())
+				if (CalleesTreeView.IsValid())
 				{
 					const Trace::FTimingProfilerButterflyNode& Callees = TimingProfilerButterfly->GenerateCalleesTree(TimerId);
 					CalleesTreeView->SetTree(Callees);

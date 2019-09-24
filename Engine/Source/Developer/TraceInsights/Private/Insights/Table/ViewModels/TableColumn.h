@@ -6,12 +6,16 @@
 #include "Types/SlateEnums.h"
 #include "Misc/EnumClassFlags.h"
 
+#include "Insights/Table/ViewModels/TableCellValue.h"
+
 namespace Insights
 {
 
+class FBaseTreeNode;
 class FTable;
-class FTableColumn;
-struct FTableRowId;
+class ITableCellValueGetter;
+class ITableCellValueFormatter;
+class ITableCellValueSorter;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -21,63 +25,10 @@ enum class ETableColumnFlags : uint32
 
 	ShouldBeVisible = (1 << 0),
 	CanBeHidden     = (1 << 1),
-	CanBeSorted     = (1 << 2),
-	CanBeFiltered   = (1 << 3),
-	IsHierarchy     = (1 << 4),
+	CanBeFiltered   = (1 << 2),
+	IsHierarchy     = (1 << 3),
 };
 ENUM_CLASS_FLAGS(ETableColumnFlags);
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-enum class ETableCellDataType : uint32
-{
-	Unknown,
-
-	Bool,
-	Int64,
-	Float,
-	Double,
-	CString,
-
-	/** Invalid enum type, may be used as a number of enumerations. */
-	InvalidOrMax,
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct FTableCellValue
-{
-	FTableCellValue() = default;
-	FTableCellValue(bool Value) : Bool(Value) {}
-	FTableCellValue(int64 Value) : Int64(Value) {}
-	FTableCellValue(float Value) : Float(Value) {}
-	FTableCellValue(double Value) : Double(Value) {}
-	FTableCellValue(const TCHAR* Value) : CString(Value) {}
-
-	union
-	{
-		bool Bool;
-		int64 Int64;
-		float Float;
-		double Double;
-		const TCHAR* CString;
-	};
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FTableCellValueFormatter
-{
-public:
-	FTableCellValueFormatter() {}
-	virtual ~FTableCellValueFormatter() {}
-
-	virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) { return FText::GetEmpty(); }
-	virtual FText FormatValueForTooltip(const TOptional<FTableCellValue>& InValue) { return FormatValue(InValue); }
-
-	virtual FText FormatValue(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) { return FText::GetEmpty(); }
-	virtual FText FormatValueForTooltip(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) { return FormatValue(Table, Column, RowId); }
-};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -99,62 +50,53 @@ enum class ETableColumnAggregation : uint32
 class FTableColumn
 {
 public:
-	typedef TFunction<FText(const FTableCellValue& Value)> FGetCellValueAsTextFunction;
-	typedef TFunction<FText(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId)> FGetValueAsTextFunction;
-
-public:
 	/** No default constructor. */
 	FTableColumn() = delete;
 
 	/** Initialization constructor. */
-	FTableColumn
-	(
-		int32 InOrder,
-		int32 InIndex,
-		const FName InId,
-		FText InShortName,
-		FText InTitleName,
-		FText InDescription,
-		const ETableColumnFlags InFlags,
-		const ETableCellDataType InDataType,
-		const ETableColumnAggregation InAggregation,
-		const EHorizontalAlignment InHorizontalAlignment,
-		const float InInitialWidth,
-		const float InMinWidth,
-		const float InMaxWidth,
-		TSharedRef<FTableCellValueFormatter> InValueFormatter
-	)
-		: Order(InOrder)
-		, Index(InIndex)
-		, Id(InId)
-		, ShortName(MoveTemp(InShortName))
-		, TitleName(MoveTemp(InTitleName))
-		, Description(MoveTemp(InDescription))
+	FTableColumn(const FName InId)
+		: Id(InId)
+		, Order(0)
+		, Index(-1)
+		, ShortName()
+		, TitleName()
+		, Description()
 		, bIsVisible(false)
-		, Flags(InFlags)
-		, DataType(InDataType)
-		, Aggregation(InAggregation)
-		, HorizontalAlignment(InHorizontalAlignment)
-		, InitialWidth(InInitialWidth)
-		, MinWidth(InMinWidth)
-		, MaxWidth(InMaxWidth)
-		, ValueFormatter(InValueFormatter)
+		, Flags(ETableColumnFlags::None)
+		, HorizontalAlignment(HAlign_Left)
+		, InitialWidth(60.0f)
+		, MinWidth(0.0f)
+		, MaxWidth(FLT_MAX)
+		, DataType(ETableCellDataType::Unknown)
+		, Aggregation(ETableColumnAggregation::None)
+		, ValueGetter(GetDefaultValueGetter())
+		, ValueFormatter(GetDefaultValueFormatter())
+		, ValueSorter(nullptr)
 		, ParentTable(nullptr)
 	{
 	}
 
-	int32 GetOrder() const { return Order; }
-	int32 GetIndex() const { return Index; }
+	//////////////////////////////////////////////////
 
 	const FName& GetId() const { return Id; }
 
-	const FText& GetShortName() const { return ShortName; }
-	const FText& GetTitleName() const { return TitleName; }
-	const FText& GetDescription() const { return Description; }
+	int32 GetIndex() const { return Index; }
+	void SetIndex(int32 InIndex) { Index = InIndex; }
 
+	//////////////////////////////////////////////////
+	// Name and Description
+
+	const FText& GetShortName() const { return ShortName; }
 	void SetShortName(const FText& InShortName) { ShortName = InShortName; }
+
+	const FText& GetTitleName() const { return TitleName; }
 	void SetTitleName(const FText& InTitleName) { TitleName = InTitleName; }
+
+	const FText& GetDescription() const { return Description; }
 	void SetDescription(const FText& InDescription) { Description = InDescription; }
+
+	//////////////////////////////////////////////////
+	// Visibility and other Flags
 
 	bool IsVisible() const { return bIsVisible; }
 	void Show() { bIsVisible = true; OnVisibilityChanged(); }
@@ -169,52 +111,91 @@ public:
 	/** Whether this column can be hidden. */
 	bool CanBeHidden() const { return EnumHasAnyFlags(Flags, ETableColumnFlags::CanBeHidden); }
 
-	/** Whether this column can be used for sorting. */
-	bool CanBeSorted() const { return EnumHasAnyFlags(Flags, ETableColumnFlags::CanBeSorted); }
-
 	/** Whether this column can be used for filtering displayed results. */
 	bool CanBeFiltered() const { return EnumHasAnyFlags(Flags, ETableColumnFlags::CanBeFiltered); }
 
 	/** Whether this column is the hierarcy (name) column, in a tree view. */
 	bool IsHierarchy() const { return EnumHasAnyFlags(Flags, ETableColumnFlags::IsHierarchy); }
 
-	ETableCellDataType GetDataType() const { return DataType; }
-	ETableColumnAggregation GetAggregation() const { return Aggregation; }
+	void SetFlags(ETableColumnFlags InFlags) { Flags = InFlags; }
+
+	//////////////////////////////////////////////////
+	// Alignment and Width
 
 	EHorizontalAlignment GetHorizontalAlignment() const { return HorizontalAlignment; }
+	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment) { HorizontalAlignment = InHorizontalAlignment; }
 
 	float GetInitialWidth() const { return InitialWidth; }
+	void SetInitialWidth(float InWidth) { InitialWidth = InWidth; }
+
 	float GetMinWidth() const { return MinWidth; }
+	void SetMinWidth(float InWidth) { MinWidth = InWidth; }
+
 	float GetMaxWidth() const { return MaxWidth; }
+	void SetMaxWidth(float InWidth) { MaxWidth = InWidth; }
+
 	//float GetWidth() const { return Width; }
+	//void SetWidth(float InWidth) { Width = InWidth; }
 
 	/** If MinWidth == MaxWidth, this column has fixed width and cannot be resized. */
 	bool IsFixedWidth() const { return MinWidth == MaxWidth; }
 
-	TSharedRef<FTableCellValueFormatter> GetValueFormatter() const { return ValueFormatter; }
+	//////////////////////////////////////////////////
+	// Data Type
 
-	FText GetValueAsText(const FTableRowId& InRowId) const
-	{
-		return ValueFormatter->FormatValue(*ParentTable.Pin(), *this, InRowId);
-	}
+	ETableCellDataType GetDataType() const { return DataType; }
+	void SetDataType(ETableCellDataType InDataType) { DataType = InDataType; }
 
-	FText GetValueAsTooltipText(const FTableRowId& InRowId) const
-	{
-		return ValueFormatter->FormatValueForTooltip(*ParentTable.Pin(), *this, InRowId);
-	}
+	//////////////////////////////////////////////////
+	// Aggregation
+
+	ETableColumnAggregation GetAggregation() const { return Aggregation; }
+	void SetAggregation(ETableColumnAggregation InAggregation) { Aggregation = InAggregation; }
+
+	//////////////////////////////////////////////////
+	// Value Getter
+
+	static TSharedRef<ITableCellValueGetter> GetDefaultValueGetter();
+
+	TSharedRef<ITableCellValueGetter> GetValueGetter() const { return ValueGetter; }
+	void SetValueGetter(TSharedRef<ITableCellValueGetter> InValueGetter) { ValueGetter = InValueGetter; }
+
+	const TOptional<FTableCellValue> GetValue(const FBaseTreeNode& InNode) const;
+
+	//////////////////////////////////////////////////
+	// Value Formatter
+
+	static TSharedRef<ITableCellValueFormatter> GetDefaultValueFormatter();
+
+	TSharedRef<ITableCellValueFormatter> GetValueFormatter() const { return ValueFormatter; }
+	void SetValueFormatter(TSharedRef<ITableCellValueFormatter> InValueFormatter) { ValueFormatter = InValueFormatter; }
+
+	FText GetValueAsText(const FBaseTreeNode& InNode) const;
+	FText GetValueAsTooltipText(const FBaseTreeNode& InNode) const;
+
+	//////////////////////////////////////////////////
+	// Value Sorter (can be nullptr)
+
+	TSharedPtr<ITableCellValueSorter> GetValueSorter() const { return ValueSorter; }
+	void SetValueSorter(TSharedPtr<ITableCellValueSorter> InValueSorter) { ValueSorter = InValueSorter; }
+
+	/** Whether this column can be used for sorting. */
+	bool CanBeSorted() const { return ValueSorter.IsValid(); }
+
+	//////////////////////////////////////////////////
 
 	TWeakPtr<FTable> GetParentTable() const { return ParentTable; }
 	void SetParentTable(TWeakPtr<FTable> InParentTable) { ParentTable = InParentTable; }
 
 private:
+	/** Id of the column. */
+	FName Id;
+
 	/** Order value, to sort columns in the list/tree view. */
 	int32 Order;
 
 	/** Column index in source table. */
 	int32 Index;
-
-	/** Id of the column. */
-	FName Id;
 
 	/** Short name of the column, displayed in the column header. */
 	FText ShortName;
@@ -231,12 +212,6 @@ private:
 	/** Other on/off switches. */
 	ETableColumnFlags Flags;
 
-	/** Data type for this column. */
-	ETableCellDataType DataType;
-
-	/** Aggregation for values in this column, when grouped. */
-	ETableColumnAggregation Aggregation; // TODO: make this an object (Aggregator)
-
 	/** Horizontal alignment of the content in this column. */
 	EHorizontalAlignment HorizontalAlignment;
 
@@ -245,8 +220,20 @@ private:
 	float MaxWidth; /**< Maximum column width. */
 	//float Width; /**< Current column width. */
 
-	/** Custom formater for the value displayed by this column. */
-	TSharedRef<FTableCellValueFormatter> ValueFormatter;
+	/** Data type for this column. */
+	ETableCellDataType DataType;
+
+	/** Aggregation for values in this column, when grouped. */
+	ETableColumnAggregation Aggregation; // TODO: make this an object (Aggregator)
+
+	/** Custom getter for values identified by this column. */
+	TSharedRef<ITableCellValueGetter> ValueGetter;
+
+	/** Custom formater for values displayed by this column. */
+	TSharedRef<ITableCellValueFormatter> ValueFormatter;
+
+	/** Custom sorter for values displayed by this column. */
+	TSharedPtr<ITableCellValueSorter> ValueSorter;
 
 	/* Parent table. Only one table instance can own this column. */
 	TWeakPtr<FTable> ParentTable;

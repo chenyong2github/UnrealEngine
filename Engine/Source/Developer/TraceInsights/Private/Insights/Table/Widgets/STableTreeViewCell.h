@@ -17,7 +17,7 @@ namespace Insights
 class FTable;
 class FTableColumn;
 
-DECLARE_DELEGATE_ThreeParams(FSetHoveredTableTreeViewCell, TSharedPtr<FTable> /*TablePtr*/, TSharedPtr<FTableColumn> /*ColumnPtr*/, const FTableTreeNodePtr /*NodePtr*/);
+DECLARE_DELEGATE_ThreeParams(FSetHoveredTableTreeViewCell, TSharedPtr<FTable> /*TablePtr*/, TSharedPtr<FTableColumn> /*ColumnPtr*/, const FTableTreeNodePtr /*TableTreeNodePtr*/);
 
 class STableTreeViewCell : public SCompoundWidget
 {
@@ -119,9 +119,9 @@ protected:
 		const FLinearColor TextColor =
 			TableTreeNodePtr->IsGroup() ?
 				FLinearColor(0.7f, 0.7f, 0.7f, 1.0f) :
-				TableTreeNodePtr->IsFiltered() ?
-					FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
-					FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+			TableTreeNodePtr->IsFiltered() ?
+				FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
+				FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		return TextColor;
 	}
 

@@ -52,16 +52,12 @@ public:
 	FText GetDisplayName() const { return FText::FromName(Name); }
 	const FText& GetDescription() const { return Description; }
 
-	TSharedPtr<Trace::IUntypedTable> GetSourceTable() const { return SourceTable; }
-	TSharedPtr<Trace::IUntypedTableReader> GetTableReader() const { return TableReader; }
-
-	void Reset();
-	void Init(TSharedPtr<Trace::IUntypedTable> InSourceTable);
-	void UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> InSourceTable);
+	virtual void Reset();
 
 	bool IsValid() const { return Columns.Num() > 0; }
 
 	const TArray<TSharedPtr<FTableColumn>>& GetColumns() const { return Columns; }
+	void SetColumns(const TArray<TSharedPtr<Insights::FTableColumn>>& InColumns);
 
 	TSharedPtr<FTableColumn> FindColumnChecked(const FName& ColumnId) const
 	{
@@ -74,26 +70,32 @@ public:
 		return (ColumnPtrPtr != nullptr) ? *ColumnPtrPtr : nullptr;
 	}
 
+	int32 GetColumnPositionIndex(const FName& ColumnId) const;
+
+	TSharedPtr<Trace::IUntypedTable> GetSourceTable() const { return SourceTable; }
+	TSharedPtr<Trace::IUntypedTableReader> GetTableReader() const { return TableReader; }
+
+	/* Init this table to use the IUntypedTable source table. It will create new Columns array based on table layout. */
+	void Init(TSharedPtr<Trace::IUntypedTable> InSourceTable);
+	void UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> InSourceTable);
+
 private:
-	void CreateHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName);
 	void AddColumn(TSharedPtr<FTableColumn> ColumnPtr);
-	void CreateColumns();
+	void CreateHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName);
+	void CreateColumnsFromTableLayout();
 
 private:
 	FName Name;
 	FText Description;
 
-	TSharedPtr<Trace::IUntypedTable> SourceTable;
-	TSharedPtr<Trace::IUntypedTableReader> TableReader;
-
 	/** All available columns. */
 	TArray<TSharedPtr<FTableColumn>> Columns;
 
-	/** The visible columns. */
-	TArray<TSharedPtr<FTableColumn>> VisibleColumns;
-
 	/** Mapping between column Ids and FTableColumn shared pointers. */
 	TMap<FName, TSharedPtr<FTableColumn>> ColumnIdToPtrMapping;
+
+	TSharedPtr<Trace::IUntypedTable> SourceTable;
+	TSharedPtr<Trace::IUntypedTableReader> TableReader;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

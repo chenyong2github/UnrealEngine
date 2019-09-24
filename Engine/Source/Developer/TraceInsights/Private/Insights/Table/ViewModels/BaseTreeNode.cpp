@@ -3,7 +3,7 @@
 #include "BaseTreeNode.h"
 
 // Insights
-#include "Insights/Table/ViewModels/TreeNodeSorting.h"
+#include "Insights/Table/ViewModels/TableCellValueSorter.h"
 
 #define LOCTEXT_NAMESPACE "Insights_TreeNode"
 
@@ -40,16 +40,16 @@ const FText FBaseTreeNode::GetDisplayName() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FBaseTreeNode::SortChildrenAscending(const ITreeNodeSorting* Sorter)
+void FBaseTreeNode::SortChildrenAscending(const ITableCellValueSorter& Sorter)
 {
-	Sorter->SortAscending(Children);
+	Sorter.Sort(Children, ESortMode::Ascending);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FBaseTreeNode::SortChildrenDescending(const ITreeNodeSorting* Sorter)
+void FBaseTreeNode::SortChildrenDescending(const ITableCellValueSorter& Sorter)
 {
-	Sorter->SortDescending(Children);
+	Sorter.Sort(Children, ESortMode::Descending);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

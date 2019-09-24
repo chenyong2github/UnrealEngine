@@ -10,40 +10,27 @@
 class SToolTip;
 class SGridPanel;
 
-namespace Trace { class IAnalysisSession; }
+namespace Insights
+{
+	class FTable;
+	class FTableColumn;
+}
 
-// Insights
 class FTimerNode;
-class FTimersViewColumn;
 
 #define LOCTEXT_NAMESPACE "STimersView"
 
 /** Timers View Tooltip */
 class STimersViewTooltip
 {
-	const uint32 TimerId;
-	TSharedPtr<const Trace::IAnalysisSession> Session;
-
 public:
-	STimersViewTooltip(const uint32 InTimerId)
-		: TimerId(InTimerId)
-	{
-		Session = FInsightsManager::Get()->GetSession();
-	}
+	STimersViewTooltip() = delete;
 
-	TSharedRef<SToolTip> GetTooltip();
+	static TSharedPtr<SToolTip> GetTableTooltip(const Insights::FTable& Table);
+	static TSharedPtr<SToolTip> GetColumnTooltip(const Insights::FTableColumn& Column);
+	static TSharedPtr<SToolTip> GetCellTooltip(const TSharedPtr<FTimerNode> TreeNodePtr, const TSharedPtr<Insights::FTableColumn> ColumnPtr);
 
-protected:
-	void AddNoDataInformation(const TSharedRef<SGridPanel>& Grid, int32& RowPos);
-	void AddHeader(const TSharedRef<SGridPanel>& Grid, int32& RowPos);
-	void AddDescription(const TSharedRef<SGridPanel>& Grid, int32& RowPos);
-	void AddSeparator(const TSharedRef<SGridPanel>& Grid, int32& RowPos);
-
-public:
-	static TSharedPtr<SToolTip> GetColumnTooltip(const FTimersViewColumn& Column);
-	static TSharedPtr<SToolTip> GetTableCellTooltip(const TSharedPtr<FTimerNode> TimerNodePtr);
-
-protected:
+private:
 	static void AddStatsRow(TSharedPtr<SGridPanel> Grid, int32& Row, const FText& Name, const FText& Value1, const FText& Value2);
 };
 

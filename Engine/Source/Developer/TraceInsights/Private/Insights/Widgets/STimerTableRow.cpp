@@ -9,8 +9,8 @@
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
-#include "Insights/ViewModels/TimersViewColumnFactory.h"
-#include "Insights/Widgets/STimersViewTooltip.h"
+#include "Insights/Table/ViewModels/Table.h"
+#include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Widgets/STimerTableCell.h"
 
 #define LOCTEXT_NAMESPACE "STimersView"
@@ -23,12 +23,13 @@ void STimerTableRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 {
 	OnShouldBeEnabled = InArgs._OnShouldBeEnabled;
 	IsColumnVisibleDelegate = InArgs._OnIsColumnVisible;
-	SetHoveredTableCellDelegate = InArgs._OnSetHoveredTableCell;
+	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 	GetColumnOutlineHAlignmentDelegate = InArgs._OnGetColumnOutlineHAlignmentDelegate;
 
 	HighlightText = InArgs._HighlightText;
 	HighlightedNodeName = InArgs._HighlightedNodeName;
 
+	TablePtr = InArgs._TablePtr;
 	TimerNodePtr = InArgs._TimerNodePtr;
 
 	SetEnabled(TAttribute<bool>(this, &STimerTableRow::HandleShouldBeEnabled));
@@ -40,6 +41,8 @@ void STimerTableRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 
 TSharedRef<SWidget> STimerTableRow::GenerateWidgetForColumn(const FName& ColumnId)
 {
+	TSharedPtr<Insights::FTableColumn> ColumnPtr = TablePtr->FindColumnChecked(ColumnId);
+
 	return
 		SNew(SOverlay)
 		.Visibility(EVisibility::SelfHitTestInvisible)
@@ -64,11 +67,12 @@ TSharedRef<SWidget> STimerTableRow::GenerateWidgetForColumn(const FName& ColumnI
 		[
 			SNew(STimerTableCell, SharedThis(this))
 			.Visibility(this, &STimerTableRow::IsColumnVisible, ColumnId)
+			.TablePtr(TablePtr)
+			.ColumnPtr(ColumnPtr)
 			.TimerNodePtr(TimerNodePtr)
-			.ColumnId(ColumnId)
 			.HighlightText(HighlightText)
-			.IsNameColumn(ColumnId == FTimersViewColumnFactory::Get().Collection[0]->Id) // name column
-			.OnSetHoveredTableCell(this, &STimerTableRow::OnSetHoveredTableCell)
+			.IsNameColumn(ColumnPtr->IsHierarchy())
+			.OnSetHoveredCell(this, &STimerTableRow::OnSetHoveredCell)
 		];
 }
 
@@ -197,9 +201,9 @@ EVisibility STimerTableRow::IsColumnVisible(const FName ColumnId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimerTableRow::OnSetHoveredTableCell(const FName InColumnId, const FTimerNodePtr InSamplePtr)
+void STimerTableRow::OnSetHoveredCell(TSharedPtr<Insights::FTable> InTablePtr, TSharedPtr<Insights::FTableColumn> InColumnPtr, const FTimerNodePtr InTimerNodePtr)
 {
-	SetHoveredTableCellDelegate.ExecuteIfBound(InColumnId, InSamplePtr);
+	SetHoveredCellDelegate.ExecuteIfBound(InTablePtr, InColumnPtr, InTimerNodePtr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

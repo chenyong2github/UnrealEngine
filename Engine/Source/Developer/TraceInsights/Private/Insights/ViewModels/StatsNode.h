@@ -90,6 +90,7 @@ typedef TWeakPtr<class FStatsNode> FStatsNodeWeak;
 class FStatsNode : public Insights::FBaseTreeNode
 {
 public:
+	static const FName TypeName;
 	static const uint64 InvalidId = -1;
 
 public:
@@ -118,6 +119,8 @@ public:
 	{
 		ResetAggregatedStats();
 	}
+
+	virtual const FName& GetTypeName() const override { return TypeName; }
 
 	/**
 	 * @return a name of the meta group that this stats node belongs to, taken from the metadata.

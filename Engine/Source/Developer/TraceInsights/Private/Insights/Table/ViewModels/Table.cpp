@@ -5,7 +5,11 @@
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/Table/ViewModels/TableCellValueFormatter.h"
+#include "Insights/Table/ViewModels/TableCellValueGetter.h"
+#include "Insights/Table/ViewModels/TableCellValueSorter.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
+#include "Insights/Table/ViewModels/TableTreeNode.h"
 
 #define LOCTEXT_NAMESPACE "Insights_Table"
 
@@ -13,316 +17,58 @@ namespace Insights
 {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// FTableCellValueFormatter
+// FTableTreeNodeValueGetter
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FBoolValueFormatter : public FTableCellValueFormatter
+class FTableTreeNodeValueGetter : public FTableCellValueGetter
 {
 public:
-	virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) override
-	{
-		if (InValue.IsSet())
-		{
-			return FormatBoolValue(InValue.GetValue().Bool);
-		}
-		return FText::GetEmpty();
-	}
+	FTableTreeNodeValueGetter(ETableCellDataType InDataType) : FTableCellValueGetter(), DataType(InDataType) {}
 
-	virtual FText FormatValue(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) override
+	virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
 	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table.GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
+		ensure(Node.GetTypeName() == FTableTreeNode::TypeName);
+		const FTableTreeNode& TableTreeNode = static_cast<const FTableTreeNode&>(Node);
+
+		if (!Node.IsGroup()) // Table Row Node
 		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			const bool Value = Reader->GetValueBool(Column.GetIndex());
-			return FormatBoolValue(Value);
+			const TSharedPtr<FTable> TablePtr = Column.GetParentTable().Pin();
+			if (TablePtr.IsValid())
+			{
+				TSharedPtr<Trace::IUntypedTableReader> Reader = TablePtr->GetTableReader();
+				if (Reader.IsValid() && TableTreeNode.GetRowId().HasValidIndex())
+				{
+					Reader->SetRowIndex(TableTreeNode.GetRowId().RowIndex);
+					const int32 ColumnIndex = Column.GetIndex();
+					switch (DataType)
+					{
+						case ETableCellDataType::Bool:    return TOptional<FTableCellValue>(Reader->GetValueBool(ColumnIndex));
+						case ETableCellDataType::Int64:   return TOptional<FTableCellValue>(Reader->GetValueInt(ColumnIndex));
+						case ETableCellDataType::Float:   return TOptional<FTableCellValue>(Reader->GetValueFloat(ColumnIndex));
+						case ETableCellDataType::Double:  return TOptional<FTableCellValue>(Reader->GetValueDouble(ColumnIndex));
+						case ETableCellDataType::CString: return TOptional<FTableCellValue>(Reader->GetValueCString(ColumnIndex));
+					}
+				}
+			}
 		}
-		return FText::GetEmpty();
+		else // Aggregated Group Node
+		{
+			if (Column.GetAggregation() != ETableColumnAggregation::None)
+			{
+				const FTableCellValue* ValuePtr = TableTreeNode.FindAggregatedValue(Column.GetId());
+				if (ValuePtr != nullptr)
+				{
+					ensure(ValuePtr->DataType == DataType);
+					return TOptional<FTableCellValue>(*ValuePtr);
+				}
+			}
+		}
+
+		return TOptional<FTableCellValue>();
 	}
 
 private:
-	FText FormatBoolValue(bool Value)
-	{
-		return FText::FromString(Value ? TEXT("True") : TEXT("False"));
-	}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FInt64ValueFormatter : public FTableCellValueFormatter
-{
-public:
-	virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) override
-	{
-		if (InValue.IsSet())
-		{
-			return FormatInt64Value(InValue.GetValue().Int64);
-		}
-		return FText::GetEmpty();
-	}
-
-	virtual FText FormatValue(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) override
-	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table.GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
-		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			const int64 Value = Reader->GetValueInt(Column.GetIndex());
-			return FormatInt64Value(Value);
-		}
-		return FText::GetEmpty();
-	}
-
-private:
-	FText FormatInt64Value(int64 Value)
-	{
-		return FText::AsNumber(Value);
-	}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FFloatValueFormatter : public FTableCellValueFormatter
-{
-public:
-	virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) override
-	{
-		if (InValue.IsSet())
-		{
-			return FormatFloatValue(InValue.GetValue().Float);
-		}
-		return FText::GetEmpty();
-	}
-
-	virtual FText FormatValue(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) override
-	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table.GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
-		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			const float Value = Reader->GetValueFloat(Column.GetIndex());
-			return FormatFloatValue(Value);
-		}
-		return FText::GetEmpty();
-	}
-
-private:
-	FText FormatFloatValue(float Value)
-	{
-		if (Value == 0.0f)
-		{
-			return FText::FromString(TEXT("0"));
-		}
-		else
-		{
-			return FText::FromString(FString::Printf(TEXT("%f"), Value));
-		}
-	}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FFloatTimeValueFormatter : public FTableCellValueFormatter
-{
-public:
-	virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) override
-	{
-		if (InValue.IsSet())
-		{
-			return FormatFloatValue(InValue.GetValue().Float);
-		}
-		return FText::GetEmpty();
-	}
-
-	virtual FText FormatValue(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) override
-	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table.GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
-		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			const float Value = Reader->GetValueFloat(Column.GetIndex());
-			return FormatFloatValue(Value);
-		}
-		return FText::GetEmpty();
-	}
-
-	virtual FText FormatValueForTooltip(const TOptional<FTableCellValue>& InValue) override
-	{
-		if (InValue.IsSet())
-		{
-			return FormatFloatValueForTooltip(InValue.GetValue().Float);
-		}
-		return FText::GetEmpty();
-	}
-
-	virtual FText FormatValueForTooltip(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) override
-	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table.GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
-		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			const float Value = Reader->GetValueFloat(Column.GetIndex());
-			return FormatFloatValueForTooltip(Value);
-		}
-		return FText::GetEmpty();
-	}
-
-private:
-	FText FormatFloatValue(float Value)
-	{
-		return FText::FromString(TimeUtils::FormatTimeAuto(static_cast<double>(Value)));
-	}
-
-	FText FormatFloatValueForTooltip(float Value)
-	{
-		if (Value == 0.0f)
-		{
-			return FText::FromString(TEXT("0"));
-		}
-		else
-		{
-			return FText::FromString(FString::Printf(TEXT("%f (%s)"), Value, *TimeUtils::FormatTimeAuto(static_cast<double>(Value))));
-		}
-	}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FDoubleValueFormatter : public FTableCellValueFormatter
-{
-public:
-	virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) override
-	{
-		if (InValue.IsSet())
-		{
-			return FormatDoubleValue(InValue.GetValue().Double);
-		}
-		return FText::GetEmpty();
-	}
-
-	virtual FText FormatValue(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) override
-	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table.GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
-		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			const double Value = Reader->GetValueDouble(Column.GetIndex());
-			return FormatDoubleValue(Value);
-		}
-		return FText::GetEmpty();
-	}
-
-private:
-	FText FormatDoubleValue(double Value)
-	{
-		if (Value == 0.0)
-		{
-			return FText::FromString(TEXT("0"));
-		}
-		else
-		{
-			return FText::FromString(FString::Printf(TEXT("%f"), Value));
-		}
-	}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FDoubleTimeValueFormatter : public FTableCellValueFormatter
-{
-public:
-	virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) override
-	{
-		if (InValue.IsSet())
-		{
-			return FormatDoubleValue(InValue.GetValue().Double);
-		}
-		return FText::GetEmpty();
-	}
-
-	virtual FText FormatValue(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) override
-	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table.GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
-		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			const double Value = Reader->GetValueDouble(Column.GetIndex());
-			return FormatDoubleValue(Value);
-		}
-		return FText::GetEmpty();
-	}
-
-	virtual FText FormatValueForTooltip(const TOptional<FTableCellValue>& InValue) override
-	{
-		if (InValue.IsSet())
-		{
-			return FormatDoubleValueForTooltip(InValue.GetValue().Double);
-		}
-		return FText::GetEmpty();
-	}
-
-	virtual FText FormatValueForTooltip(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) override
-	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table.GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
-		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			const double Value = Reader->GetValueDouble(Column.GetIndex());
-			return FormatDoubleValueForTooltip(Value);
-		}
-		return FText::GetEmpty();
-	}
-
-private:
-	FText FormatDoubleValue(double Value)
-	{
-		return FText::FromString(TimeUtils::FormatTimeAuto(Value));
-	}
-
-	FText FormatDoubleValueForTooltip(double Value)
-	{
-		if (Value == 0.0)
-		{
-			return FText::FromString(TEXT("0"));
-		}
-		else
-		{
-			return FText::FromString(FString::Printf(TEXT("%f (%s)"), Value, *TimeUtils::FormatTimeAuto(Value)));
-		}
-	}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FCStringValueFormatter : public FTableCellValueFormatter
-{
-public:
-	virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) override
-	{
-		if (InValue.IsSet())
-		{
-			return FormatCStringValue(InValue.GetValue().CString);
-		}
-		return FText::GetEmpty();
-	}
-
-	virtual FText FormatValue(const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) override
-	{
-		TSharedPtr<Trace::IUntypedTableReader> Reader = Table.GetTableReader();
-		if (Reader.IsValid() && RowId.HasValidIndex())
-		{
-			Reader->SetRowIndex(RowId.RowIndex);
-			const TCHAR* Value = Reader->GetValueCString(Column.GetIndex());
-			return FormatCStringValue(Value);
-		}
-		return FText::GetEmpty();
-	}
-
-private:
-	FText FormatCStringValue(const TCHAR* Value)
-	{
-		return FText::FromString(Value);
-	}
+	ETableCellDataType DataType;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -332,11 +78,10 @@ private:
 FTable::FTable()
 	: Name()
 	, Description()
+	, Columns()
+	, ColumnIdToPtrMapping()
 	, SourceTable()
 	, TableReader()
-	, Columns()
-	, VisibleColumns()
-	, ColumnIdToPtrMapping()
 {
 }
 
@@ -351,12 +96,18 @@ FTable::~FTable()
 
 void FTable::Reset()
 {
+	Columns.Reset();
+	ColumnIdToPtrMapping.Reset();
+
 	SourceTable.Reset();
 	TableReader.Reset();
+}
 
-	Columns.Reset();
-	VisibleColumns.Reset();
-	ColumnIdToPtrMapping.Reset();
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int32 FTable::GetColumnPositionIndex(const FName& ColumnId) const
+{
+	return Columns.IndexOfByPredicate([&ColumnId](const TSharedPtr<FTableColumn>& ColumnPtr) -> bool { return ColumnPtr->GetId() == ColumnId; });
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -370,7 +121,7 @@ void FTable::Init(TSharedPtr<Trace::IUntypedTable> InSourceTable)
 	if (SourceTable)
 	{
 		TableReader = MakeShareable(SourceTable->CreateReader());
-		CreateColumns();
+		CreateColumnsFromTableLayout();
 	}
 }
 
@@ -411,42 +162,14 @@ void FTable::UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> InSourceTable)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTable::CreateHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName)
+void FTable::SetColumns(const TArray<TSharedPtr<Insights::FTableColumn>>& InColumns)
 {
-	const FString ColumnNameStr = ColumnName ? FString::Printf(TEXT("Hierarchy (%s)"), ColumnName) : TEXT("Hierarchy");
-	const FText ColumnNameText = FText::FromString(ColumnNameStr);
-
-	constexpr EHorizontalAlignment HorizontalAlignment = HAlign_Left;
-	constexpr ETableColumnFlags ColumnFlags = ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeSorted | ETableColumnFlags::CanBeFiltered | ETableColumnFlags::IsHierarchy;
-
-	constexpr ETableCellDataType DataType = ETableCellDataType::CString;
-	constexpr ETableColumnAggregation Aggregation = ETableColumnAggregation::None;
-
-	constexpr float InitialColumnWidth = 90.0f;
-	constexpr float MinColumnWidth = 0.0f;
-	constexpr float MaxColumnWidth = FLT_MAX;
-
-	TSharedPtr<FTableCellValueFormatter> FormatterPtr = MakeShareable(new FTableCellValueFormatter());
-
-	TSharedPtr<FTableColumn> ColumnPtr = MakeShareable(new FTableColumn
-	(
-		-1, // Order
-		ColumnIndex,
-		FName(TEXT("_Hierarchy")), // Id
-		ColumnNameText, // Short Name
-		ColumnNameText, // Title Name
-		FText::GetEmpty(), // Description
-		ColumnFlags,
-		DataType,
-		Aggregation,
-		HorizontalAlignment,
-		InitialColumnWidth,
-		MinColumnWidth,
-		MaxColumnWidth,
-		FormatterPtr.ToSharedRef()
-	));
-
-	AddColumn(ColumnPtr);
+	Columns.Reset(InColumns.Num());
+	ColumnIdToPtrMapping.Reset();
+	for (TSharedPtr<Insights::FTableColumn> ColumnPtr : InColumns)
+	{
+		AddColumn(ColumnPtr);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -454,20 +177,50 @@ void FTable::CreateHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName)
 void FTable::AddColumn(TSharedPtr<FTableColumn> ColumnPtr)
 {
 	ColumnPtr->SetParentTable(SharedThis(this));
-
 	Columns.Add(ColumnPtr);
-
-	if (ColumnPtr->IsVisible())
-	{
-		VisibleColumns.Add(ColumnPtr);
-	}
-
 	ColumnIdToPtrMapping.Add(ColumnPtr->GetId(), ColumnPtr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTable::CreateColumns()
+void FTable::CreateHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName)
+{
+	const FName HierarchyColumnId(TEXT("_Hierarchy"));
+
+	TSharedPtr<FTableColumn> ColumnPtr = MakeShareable(new FTableColumn(HierarchyColumnId));
+	FTableColumn& Column = *ColumnPtr;
+	
+	Column.SetIndex(ColumnIndex);
+
+	const FString ColumnNameStr = ColumnName ? FString::Printf(TEXT("Hierarchy (%s)"), ColumnName) : TEXT("Hierarchy");
+	const FText ColumnNameText = FText::FromString(ColumnNameStr);
+
+	Column.SetShortName(ColumnNameText);
+	Column.SetTitleName(ColumnNameText);
+	//TODO: Column.SetDescription(...);
+
+	Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeFiltered | ETableColumnFlags::IsHierarchy);
+
+	Column.SetHorizontalAlignment(HAlign_Left);
+	Column.SetInitialWidth(90.0f);
+
+	Column.SetDataType(ETableCellDataType::CString);
+
+	TSharedPtr<ITableCellValueGetter> GetterPtr = MakeShareable(new FDisplayNameValueGetter());
+	Column.SetValueGetter(GetterPtr.ToSharedRef());
+
+	TSharedPtr<ITableCellValueFormatter> FormatterPtr = MakeShareable(new FTextValueFormatter());
+	Column.SetValueFormatter(FormatterPtr.ToSharedRef());
+
+	TSharedPtr<ITableCellValueSorter> SorterPtr = MakeShareable(new FSorterByName(ColumnPtr.ToSharedRef()));
+	Column.SetValueSorter(SorterPtr);
+
+	AddColumn(ColumnPtr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTable::CreateColumnsFromTableLayout()
 {
 	ensure(TableReader.IsValid());
 	ensure(Columns.Num() == 0);
@@ -502,85 +255,105 @@ void FTable::CreateColumns()
 		Trace::ETableColumnType ColumnType = TableLayout.GetColumnType(ColumnIndex);
 		const TCHAR* ColumnName = TableLayout.GetColumnName(ColumnIndex);
 
+		TSharedPtr<FTableColumn> ColumnPtr = MakeShareable(new FTableColumn(FName(ColumnName)));
+		FTableColumn& Column = *ColumnPtr;
+
 		const FString ColumnNameStr(ColumnName);
 		const FText ColumnNameText = FText::FromString(ColumnNameStr);
 
-		EHorizontalAlignment HorizontalAlignment = HAlign_Left;
-
-		ETableColumnFlags ColumnFlags = ETableColumnFlags::CanBeSorted | ETableColumnFlags::CanBeFiltered | ETableColumnFlags::CanBeHidden;
+		ETableColumnFlags ColumnFlags = ETableColumnFlags::CanBeFiltered | ETableColumnFlags::CanBeHidden;
 		if (ColumnIndex != HierarchyColumnIndex)
 		{
 			ColumnFlags |= ETableColumnFlags::ShouldBeVisible;
 		}
 
-		ETableCellDataType DataType = ETableCellDataType::Unknown;
+		EHorizontalAlignment HorizontalAlignment = HAlign_Left;
+		float InitialColumnWidth = 60.0f;
+
 		ETableColumnAggregation Aggregation = ETableColumnAggregation::None;
 
-		float InitialColumnWidth = 60.0f;
-		float MinColumnWidth = 0.0f;
-		float MaxColumnWidth = FLT_MAX;
-
-		TSharedPtr<FTableCellValueFormatter> FormatterPtr;
+		TSharedPtr<ITableCellValueFormatter> FormatterPtr;
+		TSharedPtr<ITableCellValueSorter> SorterPtr;
 
 		switch (ColumnType)
 		{
 		case Trace::TableColumnType_Bool:
-			DataType = ETableCellDataType::Bool;
+			Column.SetDataType(ETableCellDataType::Bool);
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 40.0f;
-			FormatterPtr = MakeShareable(new FBoolValueFormatter());
+			//TODO: if (Hint == AsOnOff)
+			//else // if (Hint == AsTrueFalse)
+			FormatterPtr = MakeShareable(new FBoolValueFormatterAsTrueFalse());
+			SorterPtr = MakeShareable(new FSorterByBoolValue(ColumnPtr.ToSharedRef()));
 			break;
+
 		case Trace::TableColumnType_Int:
-			DataType = ETableCellDataType::Int64;
+			Column.SetDataType(ETableCellDataType::Int64);
 			Aggregation = ETableColumnAggregation::Sum;
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 60.0f;
-			FormatterPtr = MakeShareable(new FInt64ValueFormatter());
+			//TODO: if (Hint == AsMemory)
+			//{
+			//	FormatterPtr = MakeShareable(new FInt64ValueFormatterAsMemory());
+			//}
+			//else // AsNumber
+			FormatterPtr = MakeShareable(new FInt64ValueFormatterAsNumber());
+			SorterPtr = MakeShareable(new FSorterByInt64Value(ColumnPtr.ToSharedRef()));
 			break;
+
 		case Trace::TableColumnType_Float:
-			DataType = ETableCellDataType::Float;
+			Column.SetDataType(ETableCellDataType::Float);
 			Aggregation = ETableColumnAggregation::Sum;
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 60.0f;
-			FormatterPtr = MakeShareable(new FFloatTimeValueFormatter());
+			//TODO: if (Hint == AsTimeMs)
+			//else // if (Hint == AsTimeAuto)
+			FormatterPtr = MakeShareable(new FFloatValueFormatterAsTimeAuto());
+			SorterPtr = MakeShareable(new FSorterByFloatValue(ColumnPtr.ToSharedRef()));
 			break;
+
 		case Trace::TableColumnType_Double:
-			DataType = ETableCellDataType::Double;
+			Column.SetDataType(ETableCellDataType::Double);
 			Aggregation = ETableColumnAggregation::Sum;
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 80.0f;
-			FormatterPtr = MakeShareable(new FDoubleTimeValueFormatter());
+			//TODO: if (Hint == AsTimeMs)
+			//else // if (Hint == AsTimeAuto)
+			FormatterPtr = MakeShareable(new FDoubleValueFormatterAsTimeAuto());
+			SorterPtr = MakeShareable(new FSorterByDoubleValue(ColumnPtr.ToSharedRef()));
 			break;
+
 		case Trace::TableColumnType_CString:
-			DataType = ETableCellDataType::CString;
+			Column.SetDataType(ETableCellDataType::CString);
 			HorizontalAlignment = HAlign_Left;
 			InitialColumnWidth = FMath::Max(120.0f, 6.0f * ColumnNameStr.Len());
-			FormatterPtr = MakeShareable(new FCStringValueFormatter());
+			FormatterPtr = MakeShareable(new FCStringValueFormatterAsText());
+			SorterPtr = MakeShareable(new FSorterByCStringValue(ColumnPtr.ToSharedRef()));
 			break;
 		}
 
-		if (!FormatterPtr.IsValid())
+		Column.SetIndex(ColumnIndex);
+
+		Column.SetShortName(ColumnNameText);
+		Column.SetTitleName(ColumnNameText);
+
+		//TODO: Column.SetDescription(...);
+
+		Column.SetFlags(ColumnFlags);
+
+		Column.SetHorizontalAlignment(HorizontalAlignment);
+		Column.SetInitialWidth(InitialColumnWidth);
+
+		Column.SetAggregation(Aggregation);
+
+		Column.SetValueGetter(MakeShareable(new FTableTreeNodeValueGetter(Column.GetDataType())));
+
+		if (FormatterPtr.IsValid())
 		{
-			FormatterPtr = MakeShareable(new FTableCellValueFormatter());
+			Column.SetValueFormatter(FormatterPtr.ToSharedRef());
 		}
 
-		TSharedPtr<FTableColumn> ColumnPtr = MakeShareable(new FTableColumn
-		(
-			ColumnIndex, // Order
-			ColumnIndex,
-			FName(ColumnName), // Id
-			ColumnNameText, // Short Name
-			ColumnNameText, // Title Name
-			FText::GetEmpty(), // Description
-			ColumnFlags,
-			DataType,
-			Aggregation,
-			HorizontalAlignment,
-			InitialColumnWidth,
-			MinColumnWidth,
-			MaxColumnWidth,
-			FormatterPtr.ToSharedRef()
-		));
+		Column.SetValueSorter(SorterPtr);
 
 		AddColumn(ColumnPtr);
 	}

@@ -32,10 +32,6 @@
 namespace Insights
 {
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-const FName STableTreeView::DefaultColumnBeingSorted;
-const EColumnSortMode::Type STableTreeView::DefaultColumnSortMode(EColumnSortMode::Descending);
 const FName STableTreeView::RootNodeName(TEXT("Root"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,7 +40,6 @@ STableTreeView::STableTreeView()
 	: Table()
 	, Session(FInsightsManager::Get()->GetSession())
 	, TreeView(nullptr)
-	, TreeViewHeaderColumnArgs()
 	, TreeViewHeaderRow(nullptr)
 	, ExternalScrollbar(nullptr)
 	, HoveredColumnId()
@@ -62,11 +57,10 @@ STableTreeView::STableTreeView()
 	, AvailableGroupings()
 	, CurrentGroupings()
 	, GroupingBreadcrumbTrail(nullptr)
-	, AvailableSortings()
-	, ColumnToSortingMap()
-	, CurrentSorting(nullptr)
-	, ColumnBeingSorted(DefaultColumnBeingSorted)
-	, ColumnSortMode(DefaultColumnSortMode)
+	, AvailableSorters()
+	, CurrentSorter(nullptr)
+	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
+	, ColumnSortMode(GetDefaultColumnSortMode())
 	, StatsStartTime(0.0)
 	, StatsEndTime(0.0)
 {
@@ -247,7 +241,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 		if (HoveredColumnPtr != nullptr)
 		{
 			PropertyName = HoveredColumnPtr->GetShortName();
-			PropertyValue = HoveredColumnPtr->GetValueAsText(SelectedNode->GetRowId());
+			PropertyValue = HoveredColumnPtr->GetValueAsTooltipText(*SelectedNode);
 		}
 		SelectionStr = FText::FromName(SelectedNode->GetName());
 	}
@@ -446,8 +440,6 @@ void STableTreeView::InitializeAndShowHeaderColumns()
 {
 	for (const TSharedPtr<FTableColumn>& ColumnPtr : Table->GetColumns())
 	{
-		TreeViewHeaderRow_CreateColumnArgs(*ColumnPtr);
-
 		if (ColumnPtr->ShouldBeVisible())
 		{
 			ShowColumn(ColumnPtr->GetId());
@@ -457,47 +449,9 @@ void STableTreeView::InitializeAndShowHeaderColumns()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::TreeViewHeaderRow_CreateColumnArgs(const FTableColumn& Column)
+FText STableTreeView::GetColumnHeaderText(const FName ColumnId) const
 {
-	SHeaderRow::FColumn::FArguments ColumnArgs;
-
-	ColumnArgs
-		.ColumnId(Column.GetId())
-		.DefaultLabel(Column.GetShortName())
-		.SortMode(EColumnSortMode::None)
-		.HAlignHeader(HAlign_Fill)
-		.VAlignHeader(VAlign_Fill)
-		.HeaderContentPadding(FMargin(2.0f))
-		.HAlignCell(HAlign_Fill)
-		.VAlignCell(VAlign_Fill)
-		.SortMode(this, &STableTreeView::GetSortModeForColumn, Column.GetId())
-		.OnSort(this, &STableTreeView::OnSortModeChanged)
-		.ManualWidth(Column.GetInitialWidth())
-		.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
-		.HeaderContent()
-		[
-			SNew(SBox)
-			.ToolTip(STableTreeViewTooltip::GetColumnTooltip(Column))
-			.HAlign(Column.GetHorizontalAlignment())
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(this, &STableTreeView::OnGetHeaderText, Column.GetId())
-			]
-		]
-		.MenuContent()
-		[
-			TreeViewHeaderRow_GenerateColumnMenu(Column)
-		];
-
-	TreeViewHeaderColumnArgs.Add(Column.GetId(), ColumnArgs);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FText STableTreeView::OnGetHeaderText(const FName ColumnId) const
-{
-	FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	const FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	return Column.GetShortName();
 }
 
@@ -565,12 +519,12 @@ TSharedRef<SWidget> STableTreeView::TreeViewHeaderRow_GenerateColumnMenu(const F
 			MenuBuilder.EndSection();
 		}
 
-		if (Column.CanBeFiltered())
-		{
-			MenuBuilder.BeginSection("FilterMode", LOCTEXT("ContextMenu_Header_Misc_Filter_FilterMode", "Filter Mode"));
-			bIsMenuVisible = true;
-			MenuBuilder.EndSection();
-		}
+		//if (Column.CanBeFiltered())
+		//{
+		//	MenuBuilder.BeginSection("FilterMode", LOCTEXT("ContextMenu_Header_Misc_Filter_FilterMode", "Filter Mode"));
+		//	bIsMenuVisible = true;
+		//	MenuBuilder.EndSection();
+		//}
 	}
 
 	return bIsMenuVisible ? MenuBuilder.MakeWidget() : (TSharedRef<SWidget>)SNullWidget::NullWidget;
@@ -724,18 +678,6 @@ void STableTreeView::TreeView_Refresh()
 
 void STableTreeView::TreeView_OnSelectionChanged(FTableTreeNodePtr SelectedItem, ESelectInfo::Type SelectInfo)
 {
-	if (SelectInfo != ESelectInfo::Direct)
-	{
-		TArray<FTableTreeNodePtr> SelectedItems = TreeView->GetSelectedItems();
-		if (SelectedItems.Num() == 1)
-		{
-			//HighlightedNodeName = SelectedItems[0]->GetName();
-		}
-		else
-		{
-			//HighlightedNodeName = NAME_None;
-		}
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -751,26 +693,12 @@ void STableTreeView::TreeView_OnGetChildren(FTableTreeNodePtr InParent, TArray<F
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::TreeView_OnMouseButtonDoubleClick(FTableTreeNodePtr TimerNode)
+void STableTreeView::TreeView_OnMouseButtonDoubleClick(FTableTreeNodePtr NodePtr)
 {
-	if (!TimerNode->IsGroup())
+	if (NodePtr->IsGroup())
 	{
-		//im:TODO: const bool bIsStatTracked = FTimingProfilerManager::Get()->IsStatTracked(TimerNode->GetId());
-	//	if (!bIsStatTracked)
-	//	{
-	//		// Add a new graph.
-	//		FTimingProfilerManager::Get()->TrackStat(TimerNode->GetId());
-	//	}
-	//	else
-	//	{
-	//		// Remove a graph
-	//		FTimingProfilerManager::Get()->UntrackStat(TimerNode->GetId());
-	//	}
-	}
-	else
-	{
-		const bool bIsGroupExpanded = TreeView->IsItemExpanded(TimerNode);
-		TreeView->SetItemExpansion(TimerNode, !bIsGroupExpanded);
+		const bool bIsGroupExpanded = TreeView->IsItemExpanded(NodePtr);
+		TreeView->SetItemExpansion(NodePtr, !bIsGroupExpanded);
 	}
 }
 
@@ -796,17 +724,15 @@ TSharedRef<ITableRow> STableTreeView::TreeView_OnGenerateRow(FTableTreeNodePtr N
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::TableRow_SetHoveredCell(TSharedPtr<FTable> TablePtr, TSharedPtr<FTableColumn> ColumnPtr, const FTableTreeNodePtr NodePtr)
+void STableTreeView::TableRow_SetHoveredCell(TSharedPtr<FTable> InTablePtr, TSharedPtr<FTableColumn> InColumnPtr, const FTableTreeNodePtr InNodePtr)
 {
-	HoveredColumnId = ColumnPtr ? ColumnPtr->GetId() : FName();
+	HoveredColumnId = InColumnPtr ? InColumnPtr->GetId() : FName();
 
 	const bool bIsAnyMenusVisible = FSlateApplication::Get().AnyMenusVisible();
 	if (!HasMouseCapture() && !bIsAnyMenusVisible)
 	{
-		HoveredNodePtr = NodePtr;
+		HoveredNodePtr = InNodePtr;
 	}
-
-	//UE_LOG(TimingProfiler, Log, TEXT("%s -> %s"), *HoveredColumnId.GetPlainNameString(), NodePtr.IsValid() ? *NodePtr->GetName().GetPlainNameString() : TEXT("nullptr"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -908,7 +834,7 @@ void STableTreeView::CreateGroups()
 void STableTreeView::GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, int32 GroupingDepth)
 {
 	ensure(CurrentGroupings.Num() > 0);
-	
+
 	FTreeNodeGrouping& Grouping = *CurrentGroupings[GroupingDepth];
 
 	TMap<FName, FTableTreeNodePtr> GroupMap;
@@ -993,8 +919,12 @@ void STableTreeView::UpdateInt64SumAggregationRec(FTableColumn& Column, FTableTr
 			UpdateInt64SumAggregationRec(Column, TableNode);
 		}
 
-		FTableCellValue Value = TableNode.GetValue(Column);
-		AggregatedValue += Value.Int64;
+		const TOptional<FTableCellValue> OptionalValue = Column.GetValue(TableNode);
+		if (OptionalValue.IsSet())
+		{
+			ensure(OptionalValue.GetValue().DataType == ETableCellDataType::Int64);
+			AggregatedValue += OptionalValue.GetValue().Int64;
+		}
 	}
 
 	GroupNode.AddAggregatedValue(Column.GetId(), FTableCellValue(AggregatedValue));
@@ -1014,8 +944,12 @@ void STableTreeView::UpdateFloatSumAggregationRec(FTableColumn& Column, FTableTr
 			UpdateFloatSumAggregationRec(Column, TableNode);
 		}
 
-		FTableCellValue Value = TableNode.GetValue(Column);
-		AggregatedValue += Value.Float;
+		const TOptional<FTableCellValue> OptionalValue = Column.GetValue(TableNode);
+		if (OptionalValue.IsSet())
+		{
+			ensure(OptionalValue.GetValue().DataType == ETableCellDataType::Float);
+			AggregatedValue += OptionalValue.GetValue().Float;
+		}
 	}
 
 	GroupNode.AddAggregatedValue(Column.GetId(), FTableCellValue(AggregatedValue));
@@ -1034,9 +968,13 @@ void STableTreeView::UpdateDoubleSumAggregationRec(FTableColumn& Column, FTableT
 		{
 			UpdateDoubleSumAggregationRec(Column, TableNode);
 		}
-							
-		FTableCellValue Value = TableNode.GetValue(Column);
-		AggregatedValue += Value.Double;
+
+		const TOptional<FTableCellValue> OptionalValue = Column.GetValue(TableNode);
+		if (OptionalValue.IsSet())
+		{
+			ensure(OptionalValue.GetValue().DataType == ETableCellDataType::Double);
+			AggregatedValue += OptionalValue.GetValue().Double;
+		}
 	}
 
 	GroupNode.AddAggregatedValue(Column.GetId(), FTableCellValue(AggregatedValue));
@@ -1517,56 +1455,35 @@ bool STableTreeView::GroupingCrumbMenu_Add_CanExecute(const TSharedPtr<FTreeNode
 // Sorting
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const EColumnSortMode::Type STableTreeView::GetDefaultColumnSortMode()
+{
+	return EColumnSortMode::Descending;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FName STableTreeView::GetDefaultColumnBeingSorted()
+{
+	return NAME_None;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STableTreeView::CreateSortings()
 {
-	AvailableSortings.Reset();
-	ColumnToSortingMap.Reset();
-	CurrentSorting = nullptr;
-
-	TSharedPtr<FTreeNodeSorting> SortingByName = MakeShareable(new FTreeNodeSortingByName());
-	AvailableSortings.Add(SortingByName);
-
-	TSharedPtr<FTreeNodeSorting> SortingByType = MakeShareable(new FTreeNodeSortingByType());
-	AvailableSortings.Add(SortingByType);
-
-	const Trace::ITableLayout& TableLayout = Table->GetSourceTable()->GetLayout();
+	AvailableSorters.Reset();
+	CurrentSorter = nullptr;
 
 	for (const TSharedPtr<FTableColumn> ColumnPtr : Table->GetColumns())
 	{
 		if (ColumnPtr->CanBeSorted())
 		{
-			if (ColumnPtr->IsHierarchy())
+			TSharedPtr<Insights::ITableCellValueSorter> SorterPtr = ColumnPtr->GetValueSorter();
+			if (ensure(SorterPtr.IsValid()))
 			{
-				ColumnToSortingMap.Add(ColumnPtr->GetId(), SortingByName);
-			}
-			else
-			{
-				TSharedPtr<FTreeNodeSorting> Sorting = nullptr;
-
-				switch (TableLayout.GetColumnType(ColumnPtr->GetIndex()))
-				{
-				case Trace::TableColumnType_Bool:
-					Sorting = MakeShareable(new FTreeNodeSortingByBoolValue(ColumnPtr.ToSharedRef()));
-					break;
-				case Trace::TableColumnType_Int:
-					Sorting = MakeShareable(new FTreeNodeSortingByIntValue(ColumnPtr.ToSharedRef()));
-					break;
-				case Trace::TableColumnType_Float:
-					Sorting = MakeShareable(new FTreeNodeSortingByFloatValue(ColumnPtr.ToSharedRef()));
-					break;
-				case Trace::TableColumnType_Double:
-					Sorting = MakeShareable(new FTreeNodeSortingByDoubleValue(ColumnPtr.ToSharedRef()));
-					break;
-				case Trace::TableColumnType_CString:
-					Sorting = MakeShareable(new FTreeNodeSortingByCStringValue(ColumnPtr.ToSharedRef()));
-					break;
-				}
-
-				if (Sorting)
-				{
-					AvailableSortings.Add(Sorting);
-					ColumnToSortingMap.Add(ColumnPtr->GetId(), Sorting);
-				}
+				AvailableSorters.Add(SorterPtr);
 			}
 		}
 	}
@@ -1576,30 +1493,29 @@ void STableTreeView::CreateSortings()
 
 void STableTreeView::UpdateCurrentSortingByColumn()
 {
-	TSharedPtr<FTreeNodeSorting>* SorterPtrPtr = ColumnToSortingMap.Find(ColumnBeingSorted);
-	CurrentSorting = SorterPtrPtr ? *SorterPtrPtr : nullptr;
+	TSharedPtr<Insights::FTableColumn> ColumnPtr = Table->FindColumn(ColumnBeingSorted);
+	CurrentSorter = ColumnPtr.IsValid() ? ColumnPtr->GetValueSorter() : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STableTreeView::SortTreeNodes()
 {
-	if (CurrentSorting.IsValid())
+	if (CurrentSorter.IsValid())
 	{
-		const Insights::ITreeNodeSorting* Sorter = CurrentSorting.Get();
-		SortTreeNodesRec(*Root, Sorter);
+		SortTreeNodesRec(*Root, *CurrentSorter);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::SortTreeNodesRec(FTableTreeNode& GroupNode, const Insights::ITreeNodeSorting* Sorter)
+void STableTreeView::SortTreeNodesRec(FTableTreeNode& GroupNode, const ITableCellValueSorter& Sorter)
 {
 	if (ColumnSortMode == EColumnSortMode::Type::Descending)
 	{
 		GroupNode.SortChildrenDescending(Sorter);
 	}
-	else
+	else // if (ColumnSortMode == EColumnSortMode::Type::Ascending)
 	{
 		GroupNode.SortChildrenAscending(Sorter);
 	}
@@ -1658,13 +1574,8 @@ bool STableTreeView::HeaderMenu_SortMode_IsChecked(const FName ColumnId, const E
 
 bool STableTreeView::HeaderMenu_SortMode_CanExecute(const FName ColumnId, const EColumnSortMode::Type InSortMode) const
 {
-	FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
-	const bool bIsValid = Column.CanBeSorted();
-
-	bool bCanExecute = ColumnBeingSorted != ColumnId ? true : ColumnSortMode != InSortMode;
-	bCanExecute = bCanExecute && bIsValid;
-
-	return bCanExecute;
+	const FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	return Column.CanBeSorted();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1739,15 +1650,43 @@ void STableTreeView::ShowColumn(const FName ColumnId)
 	FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	Column.Show();
 
-	SHeaderRow::FColumn::FArguments& ColumnArgs = TreeViewHeaderColumnArgs.FindChecked(ColumnId);
+	SHeaderRow::FColumn::FArguments ColumnArgs;
+	ColumnArgs
+		.ColumnId(Column.GetId())
+		.DefaultLabel(Column.GetShortName())
+		.HAlignHeader(HAlign_Fill)
+		.VAlignHeader(VAlign_Fill)
+		.HeaderContentPadding(FMargin(2.0f))
+		.HAlignCell(HAlign_Fill)
+		.VAlignCell(VAlign_Fill)
+		.SortMode(this, &STableTreeView::GetSortModeForColumn, Column.GetId())
+		.OnSort(this, &STableTreeView::OnSortModeChanged)
+		.ManualWidth(Column.GetInitialWidth())
+		.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
+		.HeaderContent()
+		[
+			SNew(SBox)
+			.ToolTip(STableTreeViewTooltip::GetColumnTooltip(Column))
+			.HAlign(Column.GetHorizontalAlignment())
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(this, &STableTreeView::GetColumnHeaderText, Column.GetId())
+			]
+		]
+		.MenuContent()
+		[
+			TreeViewHeaderRow_GenerateColumnMenu(Column)
+		];
 
-	const int32 NumColumns = TreeViewHeaderRow->GetColumns().Num();
 	int32 ColumnIndex = 0;
+	const int32 NewColumnPosition = Table->GetColumnPositionIndex(ColumnId);
+	const int32 NumColumns = TreeViewHeaderRow->GetColumns().Num();
 	for (; ColumnIndex < NumColumns; ColumnIndex++)
 	{
 		const SHeaderRow::FColumn& CurrentColumn = TreeViewHeaderRow->GetColumns()[ColumnIndex];
-		const FTableColumn& CurrentTableColumn = *Table->FindColumnChecked(CurrentColumn.ColumnId);
-		if (Column.GetOrder() < CurrentTableColumn.GetOrder())
+		const int32 CurrentColumnPosition = Table->GetColumnPositionIndex(CurrentColumn.ColumnId);
+		if (NewColumnPosition < CurrentColumnPosition)
 		{
 			break;
 		}
@@ -1762,7 +1701,7 @@ void STableTreeView::ShowColumn(const FName ColumnId)
 
 bool STableTreeView::CanHideColumn(const FName ColumnId) const
 {
-	FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	const FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	return Column.CanBeHidden();
 }
 
@@ -1782,7 +1721,7 @@ void STableTreeView::HideColumn(const FName ColumnId)
 
 bool STableTreeView::IsColumnVisible(const FName ColumnId)
 {
-	FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	const FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	return Column.IsVisible();
 }
 
@@ -1790,7 +1729,7 @@ bool STableTreeView::IsColumnVisible(const FName ColumnId)
 
 bool STableTreeView::CanToggleColumnVisibility(const FName ColumnId) const
 {
-	FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	const FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	return !Column.IsVisible() || Column.CanBeHidden();
 }
 
@@ -1798,7 +1737,7 @@ bool STableTreeView::CanToggleColumnVisibility(const FName ColumnId) const
 
 void STableTreeView::ToggleColumnVisibility(const FName ColumnId)
 {
-	FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	const FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	if (Column.IsVisible())
 	{
 		HideColumn(ColumnId);
@@ -1822,8 +1761,8 @@ bool STableTreeView::ContextMenu_ShowAllColumns_CanExecute() const
 
 void STableTreeView::ContextMenu_ShowAllColumns_Execute()
 {
-	ColumnBeingSorted = DefaultColumnBeingSorted;
-	ColumnSortMode = DefaultColumnSortMode;
+	ColumnBeingSorted = GetDefaultColumnBeingSorted();
+	ColumnSortMode = GetDefaultColumnSortMode();
 	UpdateCurrentSortingByColumn();
 
 	for (const TSharedPtr<FTableColumn>& ColumnPtr : Table->GetColumns())
@@ -1850,8 +1789,8 @@ bool STableTreeView::ContextMenu_ResetColumns_CanExecute() const
 
 void STableTreeView::ContextMenu_ResetColumns_Execute()
 {
-	ColumnBeingSorted = DefaultColumnBeingSorted;
-	ColumnSortMode = DefaultColumnSortMode;
+	ColumnBeingSorted = GetDefaultColumnBeingSorted();
+	ColumnSortMode = GetDefaultColumnSortMode();
 	UpdateCurrentSortingByColumn();
 
 	for (const TSharedPtr<FTableColumn>& ColumnPtr : Table->GetColumns())
@@ -1879,7 +1818,6 @@ void STableTreeView::RebuildTree(bool bResync)
 	{
 		const int32 PreviousNodeCount = TableTreeNodes.Num();
 		TableTreeNodes.Empty(PreviousNodeCount);
-		//TableTreeNodesMap.Empty(PreviousNodeCount);
 		TableTreeNodesIdMap.Empty(PreviousNodeCount);
 		bListHasChanged = true;
 	}
@@ -1900,51 +1838,8 @@ void STableTreeView::RebuildTree(bool bResync)
 		{
 			const int32 PreviousNodeCount = TableTreeNodes.Num();
 			TableTreeNodes.Empty(PreviousNodeCount);
-			//TableTreeNodesMap.Empty(PreviousNodeCount);
 			TableTreeNodesIdMap.Empty(PreviousNodeCount);
 			bListHasChanged = true;
-
-			/*
-			const Trace::ITableLayout& TableLayout = SourceTable->GetLayout();
-			const int32 ColumnCount = TableLayout.GetColumnCount();
-
-			for (; TableReader->IsValid(); TableReader->NextRow())
-			{
-				FString Line;
-				for (int32 ColumnIndex = 0; ColumnIndex < ColumnCount; ++ColumnIndex)
-				{
-					switch (TableLayout.GetColumnType(ColumnIndex))
-					{
-					case Trace::TableColumnType_Bool:
-						Line += TableReader->GetValueBool(ColumnIndex) ? "true" : "false";
-						break;
-					case Trace::TableColumnType_Int:
-						Line += FString::Printf(TEXT("%lld"), TableReader->GetValueInt(ColumnIndex));
-						break;
-					case Trace::TableColumnType_Float:
-						Line += FString::Printf(TEXT("%f"), TableReader->GetValueFloat(ColumnIndex));
-						break;
-					case Trace::TableColumnType_Double:
-						Line += FString::Printf(TEXT("%f"), TableReader->GetValueDouble(ColumnIndex));
-						break;
-					case Trace::TableColumnType_CString:
-						FString ValueString = TableReader->GetValueCString(ColumnIndex);
-						ValueString.ReplaceInline(TEXT(","), TEXT(" "));
-						Line += ValueString;
-						break;
-					}
-					if (ColumnIndex < ColumnCount - 1)
-					{
-						Line += TEXT(",");
-					}
-					else
-					{
-						Line += TEXT("\n");
-					}
-				}
-				//UE_LOG(TimingProfiler, Log, TEXT("%s"), *Line.ToString());
-			}
-			*/
 
 			for (int32 RowIndex = 0; RowIndex < TotalRowCount; ++RowIndex)
 			{
@@ -1953,7 +1848,6 @@ void STableTreeView::RebuildTree(bool bResync)
 				FName NodeName(*FString::Printf(TEXT("row %d"), RowIndex));
 				FTableTreeNodePtr NodePtr = MakeShareable(new FTableTreeNode(NodeId, NodeName, Table, RowIndex));
 				TableTreeNodes.Add(NodePtr);
-				//TableTreeNodesMap.Add(Name, NodePtr);
 				TableTreeNodesIdMap.Add(NodeId, NodePtr);
 			}
 		}
@@ -1974,7 +1868,6 @@ void STableTreeView::SelectNodeByNodeId(uint64 Id)
 	{
 		FTableTreeNodePtr NodePtr = *NodePtrPtr;
 
-		//UE_LOG(TimingProfiler, Log, TEXT("Select and RequestScrollIntoView %s"), *(*TimerNodePtrPtr)->GetName().ToString());
 		TreeView->SetSelection(NodePtr);
 		TreeView->RequestScrollIntoView(NodePtr);
 	}
@@ -1988,7 +1881,6 @@ void STableTreeView::SelectNodeByTableRowIndex(int32 RowIndex)
 	{
 		FTableTreeNodePtr NodePtr = TableTreeNodes[RowIndex];
 
-		//UE_LOG(TimingProfiler, Log, TEXT("Select and RequestScrollIntoView %s"), *(*TimerNodePtrPtr)->GetName().ToString());
 		TreeView->SetSelection(NodePtr);
 		TreeView->RequestScrollIntoView(NodePtr);
 	}

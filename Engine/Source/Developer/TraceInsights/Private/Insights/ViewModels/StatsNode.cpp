@@ -7,6 +7,8 @@
 
 #define LOCTEXT_NAMESPACE "StatsNode"
 
+const FName FStatsNode::TypeName(TEXT("FStatsNode"));
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FStatsNode::ResetAggregatedStats()

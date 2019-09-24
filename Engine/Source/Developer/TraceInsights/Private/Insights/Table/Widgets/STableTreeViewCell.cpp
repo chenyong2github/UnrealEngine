@@ -31,6 +31,10 @@ void STableTreeViewCell::Construct(const FArguments& InArgs, const TSharedRef<IT
 	ColumnPtr = InArgs._ColumnPtr;
 	TableTreeNodePtr = InArgs._TableTreeNodePtr;
 
+	ensure(TablePtr.IsValid());
+	ensure(ColumnPtr.IsValid());
+	ensure(TableTreeNodePtr.IsValid());
+
 	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 
 	ChildSlot
@@ -101,18 +105,7 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArgum
 
 TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
-	FText FormattedValue = FText::GetEmpty();
-	if (TableTreeNodePtr->IsGroup())
-	{
-		if (ColumnPtr->GetAggregation() != ETableColumnAggregation::None)
-		{
-			FormattedValue = ColumnPtr->GetValueFormatter()->FormatValue(TableTreeNodePtr->GetValue(*ColumnPtr));
-		}
-	}
-	else
-	{
-		FormattedValue = ColumnPtr->GetValueAsText(TableTreeNodePtr->GetRowId());
-	}
+	const FText CellText = ColumnPtr->GetValueAsText(*TableTreeNodePtr);
 
 	return
 		SNew(SHorizontalBox)
@@ -125,7 +118,7 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArgu
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
-			.Text(FormattedValue)
+			.Text(CellText)
 			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 			.ColorAndOpacity(this, &STableTreeViewCell::GetStatsColorAndOpacity)
 			.ShadowColorAndOpacity(this, &STableTreeViewCell::GetShadowColorAndOpacity)

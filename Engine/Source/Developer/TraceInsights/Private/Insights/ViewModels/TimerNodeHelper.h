@@ -19,7 +19,7 @@ struct TimerNodeTypeHelper
 	 *
 	 * @return text representation of the specified ETimerNodeType value.
 	 */
-	static FText ToName(const ETimerNodeType Type);
+	static FText ToText(const ETimerNodeType Type);
 
 	/**
 	 * @param Type - The value to get the text for.
@@ -49,7 +49,7 @@ struct TimerNodeGroupingHelper
 	 *
 	 * @return text representation of the specified ETimerGroupingMode value.
 	 */
-	static FText ToName(const ETimerGroupingMode TimerGroupingMode);
+	static FText ToText(const ETimerGroupingMode TimerGroupingMode);
 
 	/**
 	 * @param TimerGroupingMode - The value to get the text for.

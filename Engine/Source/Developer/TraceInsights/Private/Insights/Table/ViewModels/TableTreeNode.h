@@ -7,11 +7,14 @@
 
 // Insights
 #include "Insights/Table/ViewModels/BaseTreeNode.h"
-#include "Insights/Table/ViewModels/Table.h"
-#include "Insights/Table/ViewModels/TableColumn.h"
+#include "Insights/Table/ViewModels/Table.h" // for FTableRowId
+#include "Insights/Table/ViewModels/TableCellValue.h"
 
 namespace Insights
 {
+
+//class FTable;
+//class FTableColumn;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -37,6 +40,9 @@ typedef TWeakPtr<class FTableTreeNode> FTableTreeNodeWeak;
 class FTableTreeNode : public FBaseTreeNode
 {
 public:
+	static const FName TypeName;
+
+public:
 	/** Initialization constructor for a table record node. */
 	FTableTreeNode(uint64 InId, const FName InName, TWeakPtr<FTable> InParentTable, int32 InRowIndex)
 		: FBaseTreeNode(InId, InName, false)
@@ -53,21 +59,16 @@ public:
 	{
 	}
 
+	virtual const FName& GetTypeName() const override { return TypeName; }
+
 	TWeakPtr<FTable> GetParentTable() { return ParentTable; }
 	FTableRowId GetRowId() const { return RowId; }
 	int32 GetRowIndex() const { return RowId.RowIndex; }
 
-	FTableCellValue GetValue(const FTableColumn& Column) const;
-
-	bool GetValueBool(const FTableColumn& Column) const;
-	int64 GetValueInt64(const FTableColumn& Column) const;
-	float GetValueFloat(const FTableColumn& Column) const;
-	double GetValueDouble(const FTableColumn& Column) const;
-	const TCHAR* GetValueCString(const FTableColumn& Column) const;
-
 	void ResetAggregatedValues() { AggregatedValues.Reset(); }
 	bool HasAggregatedValue(const FName& ColumnId) const { return AggregatedValues.Contains(ColumnId); }
-	const FTableCellValue& GetAggregatedValue(const FName& ColumnId) { return AggregatedValues.FindChecked(ColumnId); }
+	const FTableCellValue* FindAggregatedValue(const FName& ColumnId) const { return AggregatedValues.Find(ColumnId); }
+	const FTableCellValue& GetAggregatedValue(const FName& ColumnId) const { return AggregatedValues.FindChecked(ColumnId); }
 	void AddAggregatedValue(const FName& ColumnId, const FTableCellValue& Value) { AggregatedValues.Add(ColumnId, Value); }
 	void SetAggregatedValue(const FName& ColumnId, const FTableCellValue& Value) { AggregatedValues[ColumnId] = Value; }
 

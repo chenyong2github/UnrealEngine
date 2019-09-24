@@ -16,8 +16,6 @@
 #include "Widgets/Views/STreeView.h"
 
 // Insights
-#include "Insights/Table/ViewModels/Table.h"
-#include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/ViewModels/TableTreeNode.h"
 
 class FMenuBuilder;
@@ -31,8 +29,10 @@ namespace Trace
 namespace Insights
 {
 
-class FTreeNodeSorting;
+class FTable;
+class FTableColumn;
 class FTreeNodeGrouping;
+class ITableCellValueSorter;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -103,9 +103,8 @@ protected:
 	// Tree View - Columns' Header
 
 	void InitializeAndShowHeaderColumns();
-	void TreeViewHeaderRow_CreateColumnArgs(const FTableColumn& Column);
 
-	FText OnGetHeaderText(const FName ColumnId) const;
+	FText GetColumnHeaderText(const FName ColumnId) const;
 
 	TSharedRef<SWidget> TreeViewHeaderRow_GenerateColumnMenu(const FTableColumn& Column);
 
@@ -187,11 +186,14 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting
 
+	static const EColumnSortMode::Type GetDefaultColumnSortMode();
+	static const FName GetDefaultColumnBeingSorted();
+
 	void CreateSortings();
 
 	void UpdateCurrentSortingByColumn();
 	void SortTreeNodes();
-	void SortTreeNodesRec(FTableTreeNode& GroupNode, const Insights::ITreeNodeSorting* Sorter);
+	void SortTreeNodesRec(FTableTreeNode& GroupNode, const ITableCellValueSorter& Sorter);
 
 	EColumnSortMode::Type GetSortModeForColumn(const FName ColumnId) const;
 	void SetSortModeForColumn(const FName& ColumnId, EColumnSortMode::Type SortMode);
@@ -253,9 +255,6 @@ protected:
 
 	/** The child STreeView widget. */
 	TSharedPtr<STreeView<FTableTreeNodePtr>> TreeView;
-
-	/** Column arguments used to initialize a new header column in the tree view, stored as column name to column arguments mapping. */
-	TMap<FName, SHeaderRow::FColumn::FArguments> TreeViewHeaderColumnArgs;
 
 	/** Holds the tree view header row widget which display all columns in the tree view. */
 	TSharedPtr<SHeaderRow> TreeViewHeaderRow;
@@ -323,23 +322,17 @@ protected:
 	//////////////////////////////////////////////////
 	// Sorting
 
-	/** All available sortings. */
-	TArray<TSharedPtr<FTreeNodeSorting>> AvailableSortings;
+	/** All available sorters. */
+	TArray<TSharedPtr<ITableCellValueSorter>> AvailableSorters;
 
-	/** Sortings associated with a column. */
-	TMap<FName, TSharedPtr<FTreeNodeSorting>> ColumnToSortingMap;
-
-	/** Current sorting. It is nullptr if sorting is disabled. */
-	TSharedPtr<FTreeNodeSorting> CurrentSorting;
+	/** Current sorter. It is nullptr if sorting is disabled. */
+	TSharedPtr<ITableCellValueSorter> CurrentSorter;
 
 	/** Name of the column currently being sorted. Can be NAME_None if sorting is disabled (CurrentSorting == nullptr) or if a complex sorting is used (CurrentSorting != nullptr). */
 	FName ColumnBeingSorted;
 
 	/** How we sort the nodes? Ascending or Descending. */
 	EColumnSortMode::Type ColumnSortMode;
-
-	static const FName DefaultColumnBeingSorted;
-	static const EColumnSortMode::Type DefaultColumnSortMode;
 
 	//////////////////////////////////////////////////
 

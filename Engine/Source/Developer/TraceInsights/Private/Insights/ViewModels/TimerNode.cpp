@@ -2,7 +2,13 @@
 
 #include "TimerNode.h"
 
+// Insights
+#include "Insights/Table/ViewModels/TableColumn.h"
+#include "Insights/ViewModels/TimersViewColumnFactory.h"
+
 #define LOCTEXT_NAMESPACE "TimerNode"
+
+const FName FTimerNode::TypeName(TEXT("FTimerNode"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

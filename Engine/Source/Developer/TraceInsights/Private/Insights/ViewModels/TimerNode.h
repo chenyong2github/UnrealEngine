@@ -51,7 +51,8 @@ typedef TWeakPtr<class FTimerNode> FTimerNodeWeak;
 class FTimerNode : public Insights::FBaseTreeNode
 {
 public:
-	static const uint64 InvalidId = -1;
+	static const FName TypeName;
+	//static constexpr uint64 InvalidTimerId = -1;
 
 public:
 	/** Initialization constructor for the timer node. */
@@ -59,6 +60,7 @@ public:
 		: FBaseTreeNode(InId, InName, InType == ETimerNodeType::Group)
 		, MetaGroupName(InMetaGroupName)
 		, Type(InType)
+		, bIsHotPath(false)
 	{
 		ResetAggregatedStats();
 	}
@@ -67,9 +69,12 @@ public:
 	FTimerNode(const FName InGroupName)
 		: FBaseTreeNode(0, InGroupName, true)
 		, Type(ETimerNodeType::Group)
+		, bIsHotPath(false)
 	{
 		ResetAggregatedStats();
 	}
+
+	virtual const FName& GetTypeName() const override { return TypeName; }
 
 	/**
 	 * @return a name of the meta group that this timer node belongs to, taken from the metadata.
@@ -110,6 +115,9 @@ public:
 		Algo::SortBy(GetChildrenMutable(), Projection, Instance);
 	}
 
+	bool IsHotPath() const { return bIsHotPath; }
+	void SetIsHotPath(bool bOnOff) { bIsHotPath = bOnOff; }
+
 private:
 	/** The name of the meta group that this timer belongs to, based on the timer's metadata; only valid for timer nodes. */
 	const FName MetaGroupName;
@@ -119,6 +127,9 @@ private:
 
 	/** Aggregated stats. */
 	Trace::FAggregatedTimingStats AggregatedStats;
+
+	/** True if this tree node is on the hot path. */
+	bool bIsHotPath;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
