@@ -1191,6 +1191,11 @@ void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FVie
 
 	FoundView->ViewMatrices.HackRemoveTemporalAAProjectionJitter();
 
+	if (CascadeSettings.bFarShadowCascade)
+	{
+		(int32&)FoundView->DrawDynamicFlags |= (int32)EDrawDynamicFlags::FarShadowCascade;
+	}
+
 	// Don't do material texture mip biasing in shadow maps.
 	FoundView->MaterialTextureMipBias = 0;
 
@@ -1223,7 +1228,7 @@ void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FVie
 
 	if (bPreShadow && GPreshadowsForceLowestLOD)
 	{
-		FoundView->DrawDynamicFlags = EDrawDynamicFlags::ForceLowestLOD;
+		(int32&)FoundView->DrawDynamicFlags |= EDrawDynamicFlags::ForceLowestLOD;
 	}
 }
 

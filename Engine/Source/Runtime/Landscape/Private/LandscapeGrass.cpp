@@ -205,7 +205,11 @@ static bool ShouldCacheLandscapeGrassShaders(EShaderPlatform Platform, const FMa
 	// We only need grass weight shaders for Landscape vertex factories on desktop platforms
 	return (Material->IsUsedWithLandscape() || Material->IsSpecialEngineMaterial()) &&
 		IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) &&
-		((VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeVertexFactory"), FNAME_Find))) || (VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeXYOffsetVertexFactory"), FNAME_Find))))
+		(
+			(VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeVertexFactory"), FNAME_Find))) || 
+			(VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeFixedGridVertexFactory"), FNAME_Find))) || 
+			(VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeXYOffsetVertexFactory"), FNAME_Find)))
+		)
 		&& !IsConsolePlatform(Platform);
 }
 

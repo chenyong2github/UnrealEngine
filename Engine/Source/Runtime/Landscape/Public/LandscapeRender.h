@@ -75,19 +75,28 @@ namespace ELandscapeEditRenderMode
 
 LANDSCAPE_API extern bool GLandscapeEditModeActive;
 LANDSCAPE_API extern int32 GLandscapeEditRenderMode;
+
 LANDSCAPE_API extern UMaterialInterface* GLayerDebugColorMaterial;
 LANDSCAPE_API extern UMaterialInterface* GSelectionColorMaterial;
 LANDSCAPE_API extern UMaterialInterface* GSelectionRegionMaterial;
 LANDSCAPE_API extern UMaterialInterface* GMaskRegionMaterial;
 LANDSCAPE_API extern UMaterialInterface* GColorMaskRegionMaterial;
-LANDSCAPE_API extern UTexture2D* GLandscapeBlackTexture;
 LANDSCAPE_API extern UMaterialInterface* GLandscapeLayerUsageMaterial;
+
+LANDSCAPE_API extern UMaterialInterface* GLayerDebugColorMaterial_DiscreteLOD;
+LANDSCAPE_API extern UMaterialInterface* GSelectionColorMaterial_DiscreteLOD;
+LANDSCAPE_API extern UMaterialInterface* GSelectionRegionMaterial_DiscreteLOD;
+LANDSCAPE_API extern UMaterialInterface* GMaskRegionMaterial_DiscreteLOD;
+LANDSCAPE_API extern UMaterialInterface* GColorMaskRegionMaterial_DiscreteLOD;
+LANDSCAPE_API extern UMaterialInterface* GLandscapeLayerUsageMaterial_DiscreteLOD;
+LANDSCAPE_API extern UTexture2D* GLandscapeBlackTexture;
 #endif
 
 
 /** The uniform shader parameters for a landscape draw call. */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, LANDSCAPE_API)
 /** vertex shader parameters */
+SHADER_PARAMETER(int32, LastLOD)
 SHADER_PARAMETER(FVector4, HeightmapUVScaleBias)
 SHADER_PARAMETER(FVector4, WeightmapUVScaleBias)
 SHADER_PARAMETER(FVector4, LandscapeLightmapScaleBias)
@@ -573,6 +582,7 @@ public:
 
 protected:
 	int8						MaxLOD;		// Maximum LOD level, user override possible
+	bool						bUseDiscreteLOD : 1;
 	bool						UseTessellationComponentScreenSizeFalloff:1;	// Tell if we should apply a Tessellation falloff
 	bool						bRequiresAdjacencyInformation:1;
 	int8						NumWeightmapLayerAllocations;
@@ -718,7 +728,7 @@ protected:
 
 	bool GetMeshElement(bool UseSeperateBatchForShadow, bool ShadowOnly, bool HasTessellation, int8 InLODIndex, UMaterialInterface* InMaterialInterface, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams>& OutStaticBatchParamArray) const;
 	bool GetMeshElementForVirtualTexture(int32 InLodIndex, ERuntimeVirtualTextureMaterialType MaterialType, UMaterialInterface* InMaterialInterface, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams>& OutStaticBatchParamArray) const;
-	void BuildDynamicMeshElement(const FViewCustomDataLOD* InPrimitiveCustomData, bool InToolMesh, bool InHasTessellation, bool InDisableTessellation, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams, SceneRenderingAllocator>& OutStaticBatchParamArray) const;
+	void BuildDynamicMeshElement(const FSceneView* View, const FViewCustomDataLOD* InPrimitiveCustomData, bool InToolMesh, bool InHasTessellation, bool InDisableTessellation, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams, SceneRenderingAllocator>& OutStaticBatchParamArray) const;
 
 	float GetComponentScreenSize(const class FSceneView* View, const FVector& Origin,  float MaxExtend, float ElementRadius) const;
 
@@ -753,6 +763,7 @@ public:
 	friend class FLandscapeVertexFactoryMobileVertexShaderParameters;
 	friend class FLandscapeVertexFactoryMobilePixelShaderParameters;
 	friend class FLandscapeFixedGridVertexFactoryVertexShaderParameters;
+	friend class FLandscapeFixedGridVertexFactoryMobileVertexShaderParameters;
 
 	// FLandscapeComponentSceneProxy interface.
 	uint64 GetStaticBatchElementVisibility(const FSceneView& InView, const FMeshBatch* InBatch, const void* InViewCustomData) const;

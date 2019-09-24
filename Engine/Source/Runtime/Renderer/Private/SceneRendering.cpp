@@ -1612,6 +1612,16 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 	}
 
+	if (DrawDynamicFlags & EDrawDynamicFlags::FarShadowCascade)
+	{
+		extern ENGINE_API int32 GFarShadowStaticMeshLODBias;
+		ViewUniformShaderParameters.FarShadowStaticMeshLODBias = GFarShadowStaticMeshLODBias;
+	}
+	else
+	{
+		ViewUniformShaderParameters.FarShadowStaticMeshLODBias = 0;
+	}
+
 	ViewUniformShaderParameters.PreIntegratedBRDF = GEngine->PreIntegratedSkinBRDFTexture->Resource->TextureRHI;
 
 	if (UseGPUScene(GMaxRHIShaderPlatform, RHIFeatureLevel))
