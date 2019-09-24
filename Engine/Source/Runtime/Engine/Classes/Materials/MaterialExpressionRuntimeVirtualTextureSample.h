@@ -58,10 +58,10 @@ class ENGINE_API UMaterialExpressionRuntimeVirtualTextureSample : public UMateri
 	UPROPERTY(EditAnywhere, Category = TextureSample)
 	TEnumAsByte<enum ERuntimeVirtualTextureMipValueMode> MipValueMode = RVTMVM_None;
 
-protected:
 	/** Init settings that affect shader compilation and need to match the current VirtualTexture */
-	void InitVirtualTextureDependentSettings();
+	bool InitVirtualTextureDependentSettings();
 
+protected:
 	/** Initialize the output pins. */
 	void InitOutputs();
 
