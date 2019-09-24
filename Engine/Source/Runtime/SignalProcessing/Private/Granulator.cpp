@@ -843,7 +843,7 @@ namespace Audio
 				// If we're lerping to a new seek playhead time frame
 				if (!SeekingPlayheadTimeFrame.IsDone())
 				{
-					const float NewPlayheadFrame = SeekingPlayheadTimeFrame.GetValue();
+					const float NewPlayheadFrame = SeekingPlayheadTimeFrame.GetNextValue();
 
 					CurrentPlayHeadFrame = GetWrappedPlayheadPosition(NewPlayheadFrame);
 				}

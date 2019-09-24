@@ -426,7 +426,7 @@ void FTapDelayInterpolationInfo::SetGainValue(float Value, float InterpolationTi
 
 float FTapDelayInterpolationInfo::GetGainValue()
 {
-	return GainParam.GetValue();
+	return GainParam.GetNextValue();
 }
 
 void FTapDelayInterpolationInfo::SetLengthValue(float Value, float InterpolationTime)
@@ -436,5 +436,5 @@ void FTapDelayInterpolationInfo::SetLengthValue(float Value, float Interpolation
 
 float FTapDelayInterpolationInfo::GetLengthValue()
 {
-	return LengthParam.GetValue();
+	return LengthParam.GetNextValue();
 }
