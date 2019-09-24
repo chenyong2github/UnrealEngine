@@ -85,12 +85,16 @@ public:
 	 */
 	uint32 GetThreadId() const;
 
+#if 0 // disabled as it doesn't work as intended
+
 	/**
 	 * Separates the thread of execution from the thread object, allowing execution to continue independently. 
 	 * Any allocated resources will be freed once the thread exits.
 	 * After calling detach `this` no longer owns any thread.
 	 */
 	void Detach();
+
+#endif
 
 private:
 	TSharedPtr<class FThreadImpl, ESPMode::ThreadSafe> Impl; // "shared" with `FThreadImpl::Self`
