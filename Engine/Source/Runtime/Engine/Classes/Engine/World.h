@@ -2718,6 +2718,11 @@ public:
 	 */
 	void SendAllEndOfFrameUpdates();
 
+	/**
+	 * Flush any pending parameter collection updates to the render thrad.
+	 */
+	void FlushDeferredParameterCollectionInstanceUpdates();
+
 	/** Do per frame tick behaviors related to the network driver */
 	void TickNetClient( float DeltaSeconds );
 
