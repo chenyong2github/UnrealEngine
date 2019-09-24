@@ -141,6 +141,13 @@ class ENGINE_API USplineMeshComponent : public UStaticMeshComponent, public IInt
 	UPROPERTY(EditAnywhere, Category=SplineMesh)
 	TEnumAsByte<ESplineMeshAxis::Type> ForwardAxis;
 
+	/** 
+	 * The max draw distance to use in the main pass when also rendering to a runtime virtual texture. 
+	 * This is only exposed to the user through the same setting on ULandscapeSplineSegment. 
+	 */
+	UPROPERTY()
+	float VirtualTextureMainPassMaxDrawDistance = 0.f;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
 	uint8 bSelected:1;
@@ -178,6 +185,7 @@ public:
 	}
 #endif
 	virtual bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
+	virtual float GetVirtualTextureMainPassMaxDrawDistance() const override { return VirtualTextureMainPassMaxDrawDistance; }
 	//End UPrimitiveComponent Interface
 
 	//Begin UStaticMeshComponent Interface
