@@ -202,6 +202,7 @@ namespace RuntimeVirtualTexture
 						true,
 						RenderTileResources.GetRenderTarget(0), TileBox,
 						RenderTileResources.GetRenderTarget(1), TileBox,
+						RenderTileResources.GetRenderTarget(2), TileBox,
 						Transform,
 						UVRange,
 						RenderLevel,
