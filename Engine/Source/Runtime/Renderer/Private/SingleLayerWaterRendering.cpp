@@ -333,7 +333,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterSSR(FRHICommandListImm
 		SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
 		{
-			const bool bEnableSSR = CVarSingleLayerWaterSSR.GetValueOnRenderThread();
+			const bool bEnableSSR = CVarSingleLayerWaterSSR.GetValueOnRenderThread() != 0;
 			if (bEnableSSR)
 			{
 				// RUN SSR
