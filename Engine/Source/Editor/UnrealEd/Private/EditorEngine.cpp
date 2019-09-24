@@ -214,6 +214,7 @@
 #include "RenderTargetPool.h"
 #include "RenderGraphBuilder.h"
 #include "ToolMenus.h"
+#include "IToolMenusEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 
@@ -785,7 +786,9 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 
 	if (FSlateApplication::IsInitialized() && UToolMenus::IsToolMenuUIEnabled())
 	{
-		TWeakPtr<FTimerManager> WeakTimerManager;
+		UToolMenus::Get()->EditMenuIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor");
+
+		TWeakPtr<FTimerManager> WeakTimerManager = TimerManager;
 		UToolMenus::Get()->AssignSetTimerForNextTickDelegate(FSimpleDelegate::CreateLambda([WeakTimerManager]()
 		{
 			if (WeakTimerManager.IsValid())
@@ -793,6 +796,18 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 				WeakTimerManager.Pin()->SetTimerForNextTick(UToolMenus::Get(), &UToolMenus::HandleNextTick);
 			}
 		}));
+
+		bool bShowEditMenusModeCheckbox = false;
+		GConfig->GetBool(TEXT("/Script/UnrealEd.EditorExperimentalSettings"), TEXT("bShowEditMenusModeCheckbox"), bShowEditMenusModeCheckbox, GEditorPerProjectIni);
+		if (bShowEditMenusModeCheckbox)
+		{
+			IToolMenusEditorModule::Get().RegisterShowEditMenusModeCheckbox();
+
+			UToolMenus::Get()->EditMenuDelegate.BindLambda([](UToolMenu* InMenu)
+			{
+				IToolMenusEditorModule::Get().OpenEditToolMenuDialog(InMenu);
+			});
+		}
 
 		UToolMenus::Get()->ShouldDisplayExtensionPoints.BindStatic(&GetDisplayMultiboxHooks);
 

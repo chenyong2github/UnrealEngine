@@ -102,7 +102,8 @@ public class UnrealEd : ModuleRules
                 "MeshBuilder",
                 "MaterialShaderQualitySettings",
                 "EditorSubsystem",
-                "InteractiveToolsFramework"
+                "InteractiveToolsFramework",
+				"ToolMenusEditor",
             }
 		);
 

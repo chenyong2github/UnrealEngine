@@ -52,7 +52,7 @@ struct FGeneratedToolMenuWidgets
 	TArray<FGeneratedToolMenuWidget> Instances;
 };
 
-UCLASS()
+UCLASS(config=EditorPerProjectUserSettings)
 class TOOLMENUS_API UToolMenus : public UObject
 {
 	GENERATED_BODY()
@@ -92,7 +92,7 @@ public:
 	 */
 	static bool IsToolMenuUIEnabled();
 
-	static void RegisterStartupCallback(const FSimpleMulticastDelegate::FDelegate& Delegate)
+	static FDelegateHandle RegisterStartupCallback(const FSimpleMulticastDelegate::FDelegate& Delegate)
 	{
 		if (IsToolMenuUIEnabled())
 		{
@@ -103,14 +103,21 @@ public:
 			else
 			{
 				// Wait until UToolMenus has been initialized
-				FCoreDelegates::OnPostEngineInit.Add(Delegate);
+				return FCoreDelegates::OnPostEngineInit.Add(Delegate);
 			}
 		}
+
+		return FDelegateHandle();
 	}
 
 	static void UnRegisterStartupCallback(const void* UserPointer)
 	{
 		FCoreDelegates::OnPostEngineInit.RemoveAll(UserPointer);
+	}
+
+	static void UnRegisterStartupCallback(FDelegateHandle InHandle)
+	{
+		FCoreDelegates::OnPostEngineInit.Remove(InHandle);
 	}
 
 	/**
@@ -222,11 +229,11 @@ public:
 	/** Create a finalized menu that combines all parents used to generate a widget. Advanced special use cases only. */
 	UToolMenu* GenerateMenu(const FName Name, const FToolMenuContext& InMenuContext);
 
-	/** Create a finalized menu that combines given hierarchy array that will generate a widget. Advanced special use cases only. */
-	UToolMenu* GenerateMenu(const TArray<UToolMenu*>& Hierarchy, const FToolMenuContext& InMenuContext);
-
 	/** Create a finalized menu based on a custom crafted menu. Advanced special use cases only. */
 	UToolMenu* GenerateMenuAsBuilder(const UToolMenu* InMenu, const FToolMenuContext& InMenuContext);
+
+	/* Generate either a menu or submenu ready for editing */
+	UToolMenu* GenerateMenuOrSubMenuForEdit(const UToolMenu* InMenu);
 
 	/** Bake final menu including calls to construction delegates, sorting, and customization */
 	void AssembleMenuHierarchy(UToolMenu* GeneratedMenu, const TArray<UToolMenu*>& Hierarchy);
@@ -261,11 +268,34 @@ public:
 	/** Find index of customization settings for a menu */
 	int32 FindMenuCustomizationIndex(const FName InName);
 
+	/** Generates sub menu by entry name in the given generated menu parent */
+	UToolMenu* GenerateSubMenu(const UToolMenu* InGeneratedParent, const FName InBlockName);
+
+	/** When true, adds command to open edit menu dialog to each menu */
+	bool GetEditMenusMode() const;
+
+	/** Enables adding command to open edit menu dialog to each menu */
+	void SetEditMenusMode(bool bEnable);
+
 	/** Displaying extension points is for debugging menus */
 	DECLARE_DELEGATE_RetVal(bool, FShouldDisplayExtensionPoints);
 	FShouldDisplayExtensionPoints ShouldDisplayExtensionPoints;
 
+	/* Delegate that opens a menu editor */
+	DECLARE_DELEGATE_OneParam(FEditMenuDelegate, class UToolMenu*);
+	FEditMenuDelegate EditMenuDelegate;
+
+	/** Icon to display in menus for command to open menu editor */
+	FSlateIcon EditMenuIcon;
+
+	/** Join two paths together */
 	static FName JoinMenuPaths(const FName Base, const FName Child);
+
+	/** Break apart a menu path into components */
+	static bool SplitMenuPath(const FName MenuPath, FName& OutLeft, FName& OutRight);
+
+	/** Save menu customizations to ini files */
+	void SaveCustomizations();
 
 	friend struct FToolMenuOwnerScoped;
 	friend struct FToolMenuStringCommand;
@@ -276,9 +306,10 @@ public:
 	virtual bool IsDestructionThreadSafe() const override { return false; }
 	//~ End UObject Interface
 
-	FSlateIcon EditMenuIcon;
-
 private:
+
+	/** Create a finalized menu that combines given hierarchy array that will generate a widget. Advanced special use cases only. */
+	UToolMenu* GenerateMenuFromHierarchy(const TArray<UToolMenu*>& Hierarchy, const FToolMenuContext& InMenuContext);
 
 	/** Sets a timer to be called next engine tick so that multiple repeated actions can be combined together. */
 	void SetNextTickTimer();
@@ -300,7 +331,6 @@ private:
 
 	UToolMenu* FindSubMenuToGenerateWith(const FName InParentName, const FName InChildName);
 
-	void FillMenu(FMenuBuilder& MenuBuilder, FName InMenuName, FToolMenuContext InMenuContext);
 	void FillMenuBarDropDown(FMenuBuilder& MenuBuilder, FName InParentName, FName InChildName, FToolMenuContext InMenuContext);
 	void PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UToolMenu* MenuData);
 	void PopulateMenuBarBuilder(FMenuBarBuilder& MenuBarBuilder, UToolMenu* MenuData);
@@ -319,7 +349,7 @@ private:
 
 	static void ExecuteStringCommand(const FToolMenuStringCommand StringCommand, const FToolMenuContext Context);
 
-	void FillMenuDynamic(FMenuBuilder& Builder, const FName SubMenuFullName, FNewToolMenuDelegate InConstructMenu, const FToolMenuContext Context);
+	void PopulateSubMenu(FMenuBuilder& Builder, TWeakObjectPtr<UToolMenu> InParent, const FName InBlockName);
 
 	void ListAllParents(const FName Name, TArray<FName>& AllParents);
 
@@ -340,7 +370,7 @@ private:
 
 private:
 
-	UPROPERTY(EditAnywhere, Category = Misc)
+	UPROPERTY(config, EditAnywhere, Category = Misc)
 	TArray<FCustomizedToolMenu> CustomizedMenus;
 
 	UPROPERTY()
@@ -360,8 +390,8 @@ private:
 	bool bNextTickTimerIsSet;
 	bool bRefreshWidgetsNextTick;
 	bool bCleanupStaleWidgetsNextTick;
+	bool bEditMenusMode;
 
-	
 	static UToolMenus* Singleton;
 	static bool bHasShutDown;
 };

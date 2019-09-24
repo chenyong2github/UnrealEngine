@@ -2016,6 +2016,17 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
+	// Menu editor
+	{
+		Set("MultiBox.DragAbove", new BOX_BRUSH("Common/DropZoneIndicator_Above", FMargin(10.0f / 16.0f, 10.0f / 16.0f, 0, 0), SelectionColor));
+		Set("MultiBox.DragBelow", new BOX_BRUSH("Common/DropZoneIndicator_Below", FMargin(10.0f / 16.0f, 0, 0, 10.0f / 16.0f), SelectionColor));
+
+		Set("MultiBox.VisibleIcon16x", new IMAGE_BRUSH("Icons/icon_visible_16px", Icon16x16));
+		Set("MultiBox.VisibleHighlightIcon16x", new IMAGE_BRUSH("Icons/icon_visible_hi_16px", Icon16x16));
+		Set("MultiBox.NotVisibleIcon16x", new IMAGE_BRUSH("Icons/icon_invisible_16px", Icon16x16));
+		Set("MultiBox.NotVisibleHighlightIcon16x", new IMAGE_BRUSH("Icons/icon_invisible_hi_16px", Icon16x16));
+	}
+
 	// ToolBar
 	{
 		Set( "ToolBar.Background", new BOX_BRUSH( "Common/GroupBorder", FMargin(4.0f/16.0f) ) );
