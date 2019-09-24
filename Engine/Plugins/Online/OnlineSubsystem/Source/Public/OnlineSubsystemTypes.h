@@ -1167,7 +1167,6 @@ struct FCloudFile
 #define USER_ATTR_PREFERRED_DISPLAYNAME TEXT("prefDisplayName")
 #define USER_ATTR_ID TEXT("id")
 #define USER_ATTR_EMAIL TEXT("email")
-#define USER_ATTR_ALIAS TEXT("alias")
 
 /**
  * Base for all online user info
