@@ -369,8 +369,6 @@ void SEditToolMenuDialog::InitMenu(UToolMenu* InMenu)
 
 void SEditToolMenuDialog::Construct( const FArguments& InArgs )
 {
-	bClosedWithOk = false;
-
 	InitMenu(InArgs._SourceMenu);
 
 	SetSelectedItem(NAME_None, ESelectedEditMenuEntryType::Menu);
@@ -843,7 +841,11 @@ void SEditToolMenuDialog::OnToggleVisibleClicked(TSharedRef<const FMultiBlock> I
 		MenuCustomization->AddEntry(ItemName)->Visibility = bHidden ? ECustomizedToolMenuVisibility::Visible : ECustomizedToolMenuVisibility::Hidden;
 	}
 
-	// Update details panel
+	LoadSelectedObjectState();
+}
+
+void SEditToolMenuDialog::LoadSelectedObjectState()
+{
 	if (SelectedObject.IsValid())
 	{
 		SelectedObject->LoadState();
@@ -858,8 +860,7 @@ void SEditToolMenuDialog::OnToggleVisibleClicked(TSharedRef<const FMultiBlock> I
 void SEditToolMenuDialog::CloseContainingWindow()
 {
 	TSharedPtr<SWindow> ContainingWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
-
-	if ( ContainingWindow.IsValid() )
+	if (ContainingWindow.IsValid())
 	{
 		ContainingWindow->RequestDestroyWindow();
 	}
@@ -874,7 +875,9 @@ FReply SEditToolMenuDialog::Refresh()
 	}
 
 	BuildWidget();
-	
+
+	LoadSelectedObjectState();
+
 	return FReply::Handled();
 }
 

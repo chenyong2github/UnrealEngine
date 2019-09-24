@@ -60,6 +60,7 @@ private:
 	FReply HandleResetAllClicked();
 	FReply UndoAllChanges();
 
+	void LoadSelectedObjectState();
 	void SaveSettingsToDisk();
 
 	TSharedRef<SWidget> BuildMenuPropertiesWidget();
@@ -69,8 +70,6 @@ private:
 	void OnSelectedEntryChanged(TSharedRef<const FMultiBlock> InBlock);
 
 	void SetSelectedItem(const FName InName, ESelectedEditMenuEntryType InType);
-
-	bool bClosedWithOk;
 
 	TWeakObjectPtr<UToolMenu> MenuDialogOpenedWith;
 	TWeakObjectPtr<UToolMenu> CurrentGeneratedMenu;
