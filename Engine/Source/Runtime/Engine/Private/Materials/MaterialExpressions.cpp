@@ -2074,11 +2074,12 @@ UMaterialExpressionRuntimeVirtualTextureSample::UMaterialExpressionRuntimeVirtua
 #endif
 }
 
-void UMaterialExpressionRuntimeVirtualTextureSample::InitMaterialType()
+void UMaterialExpressionRuntimeVirtualTextureSample::InitVirtualTextureDependentSettings()
 {
 	if (VirtualTexture != nullptr)
 	{
 		MaterialType = VirtualTexture->GetMaterialType();
+		bSinglePhysicalSpace = VirtualTexture->GetSinglePhysicalSpace();
 	}
 }
 
@@ -2115,7 +2116,7 @@ void UMaterialExpressionRuntimeVirtualTextureSample::PostEditChangeProperty(FPro
 	{
 		if (VirtualTexture != nullptr)
 		{
-			InitMaterialType();
+			InitVirtualTextureDependentSettings();
 			FEditorSupportDelegates::ForcePropertyWindowRebuild.Broadcast(this);
 		}
 	}
@@ -2146,6 +2147,15 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		Compiler->Errorf(TEXT("%Material type is '%s', should be '%s' to match %s"),
 			*MaterialTypeDisplayName,
 			*TextureTypeDisplayName,
+			*VirtualTexture->GetName());
+
+		bIsVirtualTextureValid = false;
+	}
+	else if (VirtualTexture->GetSinglePhysicalSpace() != bSinglePhysicalSpace)
+	{
+		Compiler->Errorf(TEXT("%Page table packing is '%d', should be '%d' to match %s"),
+			bSinglePhysicalSpace ? 1 : 0,
+			VirtualTexture->GetSinglePhysicalSpace() ? 1 : 0,
 			*VirtualTexture->GetName());
 
 		bIsVirtualTextureValid = false;
@@ -2236,20 +2246,22 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	
 	// Compile the texture object references
 	enum { MAX_RVT_LAYERS = 2 };
-	const int32 LayerCount = URuntimeVirtualTexture::GetLayerCount(MaterialType);
-	check(LayerCount <= MAX_RVT_LAYERS);
+	const int32 TextureLayerCount = URuntimeVirtualTexture::GetLayerCount(MaterialType);
+	check(TextureLayerCount <= MAX_RVT_LAYERS);
 
 	int32 TextureCodeIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
 	int32 TextureReferenceIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
-	for (int32 Layer = 0; Layer < LayerCount; Layer++)
+	for (int32 TexureLayerIndex = 0; TexureLayerIndex < TextureLayerCount; TexureLayerIndex++)
 	{
+		const int32 PageTableLayerIndex = bSinglePhysicalSpace ? 0 : TexureLayerIndex;
+
 		if (bIsParameter)
 		{
-			TextureCodeIndex[Layer] = Compiler->VirtualTextureParameter(GetParameterName(), VirtualTexture, Layer, TextureReferenceIndex[Layer], SAMPLERTYPE_VirtualMasks);
+			TextureCodeIndex[TexureLayerIndex] = Compiler->VirtualTextureParameter(GetParameterName(), VirtualTexture, TexureLayerIndex, PageTableLayerIndex, TextureReferenceIndex[TexureLayerIndex], SAMPLERTYPE_VirtualMasks);
 		}
 		else
 		{
-			TextureCodeIndex[Layer] = Compiler->VirtualTexture(VirtualTexture, Layer, TextureReferenceIndex[Layer], SAMPLERTYPE_VirtualMasks);
+			TextureCodeIndex[TexureLayerIndex] = Compiler->VirtualTexture(VirtualTexture, TexureLayerIndex, PageTableLayerIndex, TextureReferenceIndex[TexureLayerIndex], SAMPLERTYPE_VirtualMasks);
 		}
 	}
 
@@ -2297,14 +2309,14 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 
 	// Compile the texture sample code
 	int32 SampleCodeIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
-	for (int32 Layer = 0; Layer < LayerCount; Layer++)
+	for (int32 TexureLayerIndex = 0; TexureLayerIndex < TextureLayerCount; TexureLayerIndex++)
 	{
-		SampleCodeIndex[Layer] = Compiler->TextureSample(
-			TextureCodeIndex[Layer],
+		SampleCodeIndex[TexureLayerIndex] = Compiler->TextureSample(
+			TextureCodeIndex[TexureLayerIndex],
 			CoordinateIndex, 
 			SAMPLERTYPE_VirtualMasks,
 			MipValueIndex, INDEX_NONE, TextureMipLevelMode, SSM_Wrap_WorldGroupSettings,
-			TextureReferenceIndex[Layer], 
+			TextureReferenceIndex[TexureLayerIndex],
 			false);
 	}
 
