@@ -127,6 +127,7 @@ ANavigationData::ANavigationData(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bEnableDrawing(false)
 	, bForceRebuildOnLoad(false)
+	, bAutoDestroyWhenNoNavigation(true)
 	, bCanBeMainNavData(true)
 	, bCanSpawnOnRebuild(true)
 	, RuntimeGeneration(ERuntimeGenerationType::LegacyGeneration) //TODO: set to a valid value once bRebuildAtRuntime_DEPRECATED is removed
@@ -187,9 +188,9 @@ void ANavigationData::PostInitializeComponents()
 	UWorld* MyWorld = GetWorld();
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(MyWorld);
 
-	if (MyWorld == nullptr ||
+	if (bAutoDestroyWhenNoNavigation && (MyWorld == nullptr ||
 		(MyWorld->GetNetMode() != NM_Client && NavSys == nullptr) ||
-		(MyWorld->GetNetMode() == NM_Client && !bNetLoadOnClient))
+		(MyWorld->GetNetMode() == NM_Client && !bNetLoadOnClient)))
 	{
 		UE_VLOG_UELOG(this, LogNavigation, Log, TEXT("Marking %s as PendingKill due to %s"), *GetName()
 			, !MyWorld ? TEXT("No World") : (MyWorld->GetNetMode() == NM_Client ? TEXT("not creating navigation on clients") : TEXT("missing navigation system")));

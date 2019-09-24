@@ -515,6 +515,11 @@ protected:
 	UPROPERTY(config, EditAnywhere, Category = Runtime)
 	uint32 bForceRebuildOnLoad : 1;
 
+	/** Should this instance auto-destroy when there's no navigation system on
+	 *	world when it gets created/loaded */
+	UPROPERTY(config, EditAnywhere, Category = Runtime)
+	uint32 bAutoDestroyWhenNoNavigation : 1;
+
 	/** If set, navigation data can act as default one in navigation system's queries */
 	UPROPERTY(config, EditAnywhere, Category = Runtime, AdvancedDisplay)
 	uint32 bCanBeMainNavData : 1;
@@ -633,7 +638,10 @@ public:
 	 *	of SuspendedDirtyAreas will get pushed to the nav generator and SuspendedDirtyAreas 
 	 *	will be cleaned out. 
 	 *	Note that calling SetRebuildingSuspended(true) won't suspend the nav generation 
-	 *	already in progress. */
+	 *	already in progress.
+	 *	Note2: due to all areas dirtied during generation suspension ending up in 
+	 *	SuspendedDirtyAreas care needs to be taken to not use this feature for 
+	 *	extended periods of time - otherwise SuspendedDirtyAreas can get very large. */
 	virtual void SetRebuildingSuspended(const bool bNewSuspend);
 	
 	/** releases navigation generator if any has been created */
