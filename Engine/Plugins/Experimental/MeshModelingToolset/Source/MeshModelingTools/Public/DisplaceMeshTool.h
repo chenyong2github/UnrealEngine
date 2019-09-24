@@ -86,7 +86,7 @@ protected:
 	float DisplaceIntensity;
 
 	/** Seed for randomization */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "DisplacementType == EDisplaceMeshToolDisplaceType::RandomNoise"))
 	int RandomSeed;
 
 	/** Subdivision iterations for mesh */
