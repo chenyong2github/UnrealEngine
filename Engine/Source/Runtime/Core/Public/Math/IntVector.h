@@ -275,6 +275,7 @@ public:
 	 * @return A new divided int point.
 	 */
 	static FIntVector DivideAndRoundUp( FIntVector lhs, int32 Divisor );
+	static FIntVector DivideAndRoundUp( FIntVector lhs, FIntVector Divisor );
 
 	/**
 	 * Gets the number of components a point has.
@@ -477,6 +478,12 @@ FORCEINLINE FIntVector FIntVector::DivideAndRoundUp( FIntVector lhs, int32 Divis
 {
 	return FIntVector(FMath::DivideAndRoundUp(lhs.X, Divisor), FMath::DivideAndRoundUp(lhs.Y, Divisor), FMath::DivideAndRoundUp(lhs.Z, Divisor));
 }
+
+FORCEINLINE FIntVector FIntVector::DivideAndRoundUp(FIntVector lhs, FIntVector Divisor)
+{
+	return FIntVector(FMath::DivideAndRoundUp(lhs.X, Divisor.X), FMath::DivideAndRoundUp(lhs.Y, Divisor.Y), FMath::DivideAndRoundUp(lhs.Z, Divisor.Z));
+}
+
 
 FORCEINLINE int32 FIntVector::GetMax() const
 {
