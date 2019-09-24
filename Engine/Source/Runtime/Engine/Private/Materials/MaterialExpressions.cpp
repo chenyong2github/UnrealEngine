@@ -2075,13 +2075,17 @@ UMaterialExpressionRuntimeVirtualTextureSample::UMaterialExpressionRuntimeVirtua
 #endif
 }
 
-void UMaterialExpressionRuntimeVirtualTextureSample::InitVirtualTextureDependentSettings()
+bool UMaterialExpressionRuntimeVirtualTextureSample::InitVirtualTextureDependentSettings()
 {
+	bool bChanged = false;
 	if (VirtualTexture != nullptr)
 	{
+		bChanged |= MaterialType != VirtualTexture->GetMaterialType();
 		MaterialType = VirtualTexture->GetMaterialType();
+		bChanged |= bSinglePhysicalSpace != VirtualTexture->GetSinglePhysicalSpace();
 		bSinglePhysicalSpace = VirtualTexture->GetSinglePhysicalSpace();
 	}
+	return bChanged;
 }
 
 void UMaterialExpressionRuntimeVirtualTextureSample::InitOutputs()
@@ -2164,6 +2168,8 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 
 	// Calculate the virtual texture layer and sampling/unpacking functions for this output
 	// Fallback to a sensible default value if the output isn't valid for the bound virtual texture
+	uint32 UnpackTarget = 0;
+	uint32 UnpackMask = 0;
 	EVirtualTextureUnpackType UnpackType = EVirtualTextureUnpackType::None;
 
 	bool bIsBaseColorValid = false;
@@ -2177,6 +2183,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal: bIsBaseColorValid = bIsNormalValid = true; break;
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex: bIsBaseColorValid = bIsNormalValid = bIsSpecularValid = true; break;
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg: bIsBaseColorValid = bIsNormalValid = bIsSpecularValid = true; break;
 	case ERuntimeVirtualTextureMaterialType::WorldHeight: bIsWorldHeightValid = true; break;
 	}
 
@@ -2185,7 +2192,11 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	case 0: 
 		if ((bIsParameter || bIsVirtualTextureValid) && bIsBaseColorValid)
 		{
-			UnpackType = EVirtualTextureUnpackType::BaseColor;
+			switch (MaterialType)
+			{
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg: UnpackType = EVirtualTextureUnpackType::BaseColorYCoCg; break;
+			default: UnpackTarget = 0; UnpackMask = 0x7; break;
+			}
 		}
 		else
 		{
@@ -2195,7 +2206,12 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	case 1:
 		if ((bIsParameter || bIsVirtualTextureValid) && bIsSpecularValid)
 		{
-			UnpackType = EVirtualTextureUnpackType::SpecularR8;
+			switch (MaterialType)
+			{
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:  UnpackTarget = 1; UnpackMask = 0x1; break;
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg: UnpackTarget = 2; UnpackMask = 0x1; break;
+			}
 		}
 		else
 		{
@@ -2207,8 +2223,9 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		{
 			switch (MaterialType)
 			{
-			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular: UnpackType = EVirtualTextureUnpackType::RoughnessB8; break;
-			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex: UnpackType = EVirtualTextureUnpackType::RoughnessG8; break;
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular: UnpackTarget = 1; UnpackMask = 0x4; break;
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex: UnpackTarget = 1; UnpackMask = 0x2; break;
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg: UnpackTarget = 2; UnpackMask = 0x2; break;
 			}
 		}
 		else
@@ -2224,6 +2241,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal: UnpackType = EVirtualTextureUnpackType::NormalBC5; break;
 			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular: UnpackType = EVirtualTextureUnpackType::NormalBC3; break;
 			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex: UnpackType = EVirtualTextureUnpackType::NormalBC3BC3; break;
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg: UnpackType = EVirtualTextureUnpackType::NormalBC5BC1; break;
 			}
 		}
 		else
@@ -2246,7 +2264,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	}
 	
 	// Compile the texture object references
-	enum { MAX_RVT_LAYERS = 2 };
+	enum { MAX_RVT_LAYERS = 3 };
 	const int32 TextureLayerCount = URuntimeVirtualTexture::GetLayerCount(MaterialType);
 	check(TextureLayerCount <= MAX_RVT_LAYERS);
 
@@ -2322,7 +2340,15 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	}
 
 	// Compile any unpacking code
-	const int32 UnpackCodeIndex = Compiler->VirtualTextureUnpack(SampleCodeIndex[0], SampleCodeIndex[1], UnpackType);
+	int32 UnpackCodeIndex = INDEX_NONE;
+	if (UnpackType != EVirtualTextureUnpackType::None)
+	{
+		UnpackCodeIndex = Compiler->VirtualTextureUnpack(SampleCodeIndex[0], SampleCodeIndex[1], SampleCodeIndex[2], UnpackType);
+	}
+	else
+	{
+		UnpackCodeIndex = SampleCodeIndex[UnpackTarget] == INDEX_NONE ? INDEX_NONE : Compiler->ComponentMask(SampleCodeIndex[UnpackTarget], UnpackMask & 1, (UnpackMask >> 1) & 1, (UnpackMask >> 2) & 1, (UnpackMask >> 3) & 1);
+	}
 	return UnpackCodeIndex;
 }
 
@@ -13981,6 +14007,18 @@ int32 UMaterialExpressionMaterialProxyReplace::Compile(class FMaterialCompiler* 
 	{
 		return Compiler->IsMaterialProxyCompiler() ? MaterialProxy.Compile(Compiler) : Realtime.Compile(Compiler);
 	}
+}
+
+bool UMaterialExpressionMaterialProxyReplace::IsResultMaterialAttributes(int32 OutputIndex)
+{
+	for (FExpressionInput* ExpressionInput : GetInputs())
+	{
+		if (ExpressionInput->GetTracedInput().Expression && !ExpressionInput->Expression->ContainsInputLoop() && ExpressionInput->Expression->IsResultMaterialAttributes(ExpressionInput->OutputIndex))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 void UMaterialExpressionMaterialProxyReplace::GetCaption(TArray<FString>& OutCaptions) const

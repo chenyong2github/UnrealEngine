@@ -293,29 +293,6 @@ void ALODActor::PostLoad()
 
 	ParseOverrideDistancesCVar();
 	UpdateOverrideTransitionDistance();
-
-#if WITH_EDITOR
-	bool bMarkRenderStateDirty = false;
-	for (const TPair<const UMaterialInterface*, UInstancedStaticMeshComponent*>& Component : ImpostersStaticMeshComponents)
-	{
-		for (int32 i=0; i<Component.Value->PerInstanceSMData.Num() - 1; i++)
-		{
-			for (int32 j=i + 1; j<Component.Value->PerInstanceSMData.Num(); j++)
-			{
-				if (Component.Value->PerInstanceSMData[i].Transform == Component.Value->PerInstanceSMData[j].Transform)
-				{
-					Component.Value->PerInstanceSMData.RemoveAtSwap(j--);
-					bMarkRenderStateDirty = true;
-				}
-			}
-		}
-
-		if (bMarkRenderStateDirty)
-		{
-			Component.Value->MarkRenderStateDirty();
-		}
-	}
-#endif
 }
 
 void ALODActor::SetComponentsMinDrawDistance(float InMinDrawDistance, bool bInMarkRenderStateDirty)
@@ -907,41 +884,19 @@ void ALODActor::DetermineShadowingFlags()
 
 const bool ALODActor::HasValidSubActors() const
 {
-#if WITH_EDITOR
-	FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
-	IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
-#endif
+	TArray<UStaticMeshComponent*> Components;
+	UHLODProxy::ExtractStaticMeshComponentsFromLODActor(this, Components);
 
-	int32 NumMeshes = 0;
-
-	// Make sure there is at least one mesh in the subactors
-	for (AActor* SubActor : SubActors)
+	UStaticMeshComponent** ValidComponent = Components.FindByPredicate([&](const UStaticMeshComponent* Component)
 	{
-		if (SubActor)
-		{
-			for (UActorComponent* Comp : SubActor->GetComponents())
-			{
-				if (UStaticMeshComponent* Component = Cast<UStaticMeshComponent>(Comp))
-				{
 #if WITH_EDITOR
-					if (!Component->bHiddenInGame && Component->ShouldGenerateAutoLOD(LODLevel - 1))
-					{
-						++NumMeshes;
-					}
+		return !Component->bHiddenInGame && Component->GetStaticMesh() != nullptr && Component->ShouldGenerateAutoLOD(LODLevel - 1);
 #else
-					++NumMeshes;
+		return true;
 #endif
-				}
-			}
+	});
 
-			if (NumMeshes > 0)
-			{
-				break;
-			}
-		}
-	}
-
-	return NumMeshes > 0;
+	return ValidComponent != nullptr;
 }
 
 const bool ALODActor::HasAnySubActors() const

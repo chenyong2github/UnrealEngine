@@ -1812,6 +1812,17 @@ public:
 	{
 		return 0;
 	}
+
+	virtual bool IsLayered() const
+	{
+		return false;
+	}
+
+	virtual GLint GetLayer() const
+	{
+		return 0;
+	}
+
 };
 
 class FOpenGLTextureUnorderedAccessView : public FOpenGLUnorderedAccessView
@@ -1821,6 +1832,12 @@ public:
 	FOpenGLTextureUnorderedAccessView(FRHITexture* InTexture);
 
 	FTextureRHIRef TextureRHI; // to keep the texture alive
+	bool bLayered;
+
+	virtual bool IsLayered() const override
+	{
+		return bLayered;
+	}
 };
 
 

@@ -126,6 +126,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attachment)
 	uint32 bAutoManageAttachment : 1;
 
+	/**
+	 * Time between forced UpdateTransforms for systems that use dynamically calculated bounds,
+	 * Which is effectively how often the bounds are shrunk.
+	 */
+	UPROPERTY()
+	float MaxTimeBeforeForceUpdateTransform;
+
 	/** How to handle pooling for this component instance. */
 	ENCPoolMethod PoolingMethod;
 

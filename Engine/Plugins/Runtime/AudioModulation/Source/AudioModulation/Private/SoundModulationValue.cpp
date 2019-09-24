@@ -11,8 +11,8 @@ namespace AudioModulation
 
 FSoundModulationValue::FSoundModulationValue()
 	: TargetValue(1.0f)
-	, AttackTime(0.0f)
-	, ReleaseTime(0.0f)
+	, AttackTime(0.1f)
+	, ReleaseTime(0.1f)
 	, Value(1.0f)
 {
 }

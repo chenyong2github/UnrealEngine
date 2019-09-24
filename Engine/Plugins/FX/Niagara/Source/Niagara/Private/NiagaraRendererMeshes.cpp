@@ -137,8 +137,6 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderMeshes);
 	check(SceneProxy);
 
-	SimpleTimer MeshElementsTimer;
-
 	NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
 	FNiagaraDynamicDataMesh *DynamicDataMesh = (static_cast<FNiagaraDynamicDataMesh*>(DynamicDataRender));
 	if (!DynamicDataMesh || !Batcher)
@@ -236,7 +234,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				CollectorResources.VertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
 
 				FNiagaraGPUSortInfo SortInfo;
-				if (View && SortMode != ENiagaraSortMode::None && (bHasTranslucentMaterials || !bSortOnlyWhenTranslucent))
+				if (SortMode != ENiagaraSortMode::None && (bHasTranslucentMaterials || !bSortOnlyWhenTranslucent))
 				{
 					SortInfo.ParticleCount = NumInstances;
 					SortInfo.SortMode = SortMode;
@@ -404,8 +402,6 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 			}
 		}
 	}
-
-	CPUTimeMS += MeshElementsTimer.GetElapsedMilliseconds();
 }
 
 FNiagaraDynamicDataBase *FNiagaraRendererMeshes::GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const
@@ -419,8 +415,6 @@ FNiagaraDynamicDataBase *FNiagaraRendererMeshes::GenerateDynamicData(const FNiag
 	{
 		return nullptr;
 	}
-
-	SimpleTimer VertexDataTimer;
 
 	FNiagaraDynamicDataMesh *DynamicData = nullptr;
 
@@ -454,7 +448,6 @@ FNiagaraDynamicDataBase *FNiagaraRendererMeshes::GenerateDynamicData(const FNiag
 		}
 	}
 
-	CPUTimeMS = VertexDataTimer.GetElapsedMilliseconds();
 	return DynamicData;  
 }
 

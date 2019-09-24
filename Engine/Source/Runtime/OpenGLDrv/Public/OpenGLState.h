@@ -220,10 +220,14 @@ struct FUAVStage
 {
 	GLenum Format;
 	GLuint Resource;
+	GLint Layer;
+	bool bLayered;
 	
 	FUAVStage()
 	:	Format(GL_NONE)
 	,	Resource(0)
+	,	Layer(0)
+	,	bLayered(false)
 	{
 	}
 };

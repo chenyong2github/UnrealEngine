@@ -1014,6 +1014,19 @@ namespace UnrealBuildTool
 					FileArguments.Add(String.Format("/FI\"{0}\"", ForceIncludeFile.Location));
 				}
 
+				if (CompileEnvironment.bPreprocessOnly)
+				{
+					FileItem PreprocessedFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".i"));
+
+					FileArguments.Add("/P"); // Preprocess
+					FileArguments.Add("/C"); // Preserve comments when preprocessing
+					FileArguments.Add(String.Format("/Fi\"{0}\"", PreprocessedFile)); // Preprocess to a file
+
+					CompileAction.ProducedItems.Add(PreprocessedFile);
+
+					bEmitsObjectFile = false;
+				}
+
 				if (bEmitsObjectFile)
 				{
 					// Add the object file to the produced item list.

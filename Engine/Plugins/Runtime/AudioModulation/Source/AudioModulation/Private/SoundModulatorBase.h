@@ -6,10 +6,10 @@
 
 #include "SoundModulatorBase.generated.h"
 
-namespace AudioModulation
-{
-	class FAudioModulationImpl;
-}
+
+// Forward Declarations
+class ISoundModulatable;
+
 
 /**
  * Base class for all modulators
@@ -26,25 +26,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite)
 	uint8 bAutoActivate : 1;
 
-	bool CanAutoActivate(const ISoundModulatable* InSound) const
-	{
-		if (bAutoActivate)
-		{
-			if (InSound)
-			{
-				return true;
-			}
-		}
-		else
-		{
-			if (!InSound || InSound->IsPreviewSound())
-			{
-				return true;
-			}
-		}
-		
-		return false;
-	}
+	bool CanAutoActivate(const ISoundModulatable* InSound) const;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -124,8 +106,6 @@ namespace AudioModulation
 		{
 			return !bAutoActivate || (bAutoActivate && RefSounds.Num() == 0);
 		}
-
-		virtual void OnUpdateProxy(const USoundModulatorBase& InModulatorArchetype) { }
 
 		int32 OnReleaseSound(const ISoundModulatable& Sound)
 		{

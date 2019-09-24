@@ -87,7 +87,7 @@ public:
 
 	FNiagaraSystemInstance* GetParentSystemInstance()const	{ return ParentSystemInstance; }
 
-	float NIAGARA_API GetTotalCPUTime();
+	float NIAGARA_API GetTotalCPUTimeMS();
 	int	NIAGARA_API GetTotalBytesUsed();
 	
 	ENiagaraExecutionState NIAGARA_API GetExecutionState()	{ return ExecutionState; }
@@ -140,8 +140,8 @@ private:
 	/** Typical resets must be deferred until the tick as the RT could still be using the current buffer. */
 	uint32 bResetPending : 1;
 
-	/* Seconds taken to process everything (including rendering) */
-	float CPUTimeMS;
+	/* Cycles taken to process the tick. */
+	uint32 CPUTimeCycles;
 	/* Emitter tick state */
 	ENiagaraExecutionState ExecutionState;
 	/* Emitter bounds */

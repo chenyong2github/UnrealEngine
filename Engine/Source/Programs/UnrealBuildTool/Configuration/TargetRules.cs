@@ -899,6 +899,12 @@ namespace UnrealBuildTool
 		public bool bUsePCHFiles = true;
 
 		/// <summary>
+		/// Whether to just preprocess source files for this target, and skip compilation
+		/// </summary>
+		[CommandLine("-Preprocess")]
+		public bool bPreprocessOnly = false;
+
+		/// <summary>
 		/// The minimum number of files that must use a pre-compiled header before it will be created and used.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
@@ -2223,6 +2229,11 @@ namespace UnrealBuildTool
 		public bool bUsePCHFiles
 		{
 			get { return Inner.bUsePCHFiles; }
+		}
+
+		public bool bPreprocessOnly
+		{
+			get { return Inner.bPreprocessOnly; }
 		}
 
 		public int MinFilesUsingPrecompiledHeader

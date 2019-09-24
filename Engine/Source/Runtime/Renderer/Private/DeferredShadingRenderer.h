@@ -104,7 +104,7 @@ public:
 	bool RenderBasePass(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, IPooledRenderTarget* ForwardScreenSpaceShadowMask, bool bParallelBasePass, bool bRenderLightmapDensity);
 
 	/** Copy the scene color and depth buffer for water refraction*/
-	void CopySingleLayerWaterTextures(FRHICommandList& RHICmdList, FSingleLayerWaterPassData& PassData);
+	void CopySingleLayerWaterTextures(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData);
 	/** Begin the water GBuffer rendering pass*/
 	void BeginRenderingWaterGBuffer(FRHICommandList& RHICmdList, FSingleLayerWaterPassData& PassData, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers);
 	/** End the water GBuffer rendering pass*/

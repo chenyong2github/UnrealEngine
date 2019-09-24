@@ -704,6 +704,12 @@ namespace UnrealBuildTool
 				RulesObject.bUseSharedPCHs = false;
 			}
 
+			// Don't link if we're just preprocessing
+			if (RulesObject.bPreprocessOnly)
+			{
+				RulesObject.bDisableLinking = true;
+			}
+
 			// Include generated code plugin if not building an editor target and project is configured for nativization
 			FileReference NativizedPluginFile = RulesObject.GetNativizedPlugin();
 			if(NativizedPluginFile != null)
@@ -3300,6 +3306,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bOmitFramePointers = Rules.bOmitFramePointers;
 			GlobalCompileEnvironment.bUsePDBFiles = Rules.bUsePDBFiles;
 			GlobalCompileEnvironment.bSupportEditAndContinue = Rules.bSupportEditAndContinue;
+			GlobalCompileEnvironment.bPreprocessOnly = Rules.bPreprocessOnly;
 			GlobalCompileEnvironment.bUseIncrementalLinking = Rules.bUseIncrementalLinking;
 			GlobalCompileEnvironment.bAllowLTCG = Rules.bAllowLTCG;
 			GlobalCompileEnvironment.bPGOOptimize = Rules.bPGOOptimize;

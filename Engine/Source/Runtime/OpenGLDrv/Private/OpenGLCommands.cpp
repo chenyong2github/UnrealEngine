@@ -448,11 +448,13 @@ void FOpenGLDynamicRHI::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRHI,u
 	if(UnorderedAccessViewRHI)
 	{
 		FOpenGLUnorderedAccessView* UnorderedAccessView = ResourceCast(UnorderedAccessViewRHI);
-		InternalSetShaderUAV(FOpenGL::GetFirstComputeUAVUnit() + UAVIndex, UnorderedAccessView->Format , UnorderedAccessView->Resource);
+		bool bLayered = UnorderedAccessView->IsLayered();
+		GLint Layer = UnorderedAccessView->GetLayer();
+		InternalSetShaderUAV(FOpenGL::GetFirstComputeUAVUnit() + UAVIndex, UnorderedAccessView->Format, UnorderedAccessView->Resource, bLayered, Layer);
 	}
 	else
 	{
-		InternalSetShaderUAV(FOpenGL::GetFirstComputeUAVUnit() + UAVIndex, GL_R32F, 0);
+		InternalSetShaderUAV(FOpenGL::GetFirstComputeUAVUnit() + UAVIndex, GL_R32F, 0, false, 0);
 	}
 }
 
@@ -745,11 +747,13 @@ void FOpenGLDynamicRHI::SetupTexturesForDraw( FOpenGLContextState& ContextState 
 	SetupTexturesForDraw(ContextState, PendingState.BoundShaderState, FOpenGL::GetMaxCombinedTextureImageUnits());
 }
 
-void FOpenGLDynamicRHI::InternalSetShaderUAV(GLint UAVIndex, GLenum Format, GLuint Resource)
+void FOpenGLDynamicRHI::InternalSetShaderUAV(GLint UAVIndex, GLenum Format, GLuint Resource, bool bLayered, GLint Layer)
 {
 	VERIFY_GL_SCOPE();
 	PendingState.UAVs[UAVIndex].Format = Format;
 	PendingState.UAVs[UAVIndex].Resource = Resource;
+	PendingState.UAVs[UAVIndex].Layer = Layer;
+	PendingState.UAVs[UAVIndex].bLayered = bLayered;
 }
 
 void FOpenGLDynamicRHI::SetupUAVsForDraw( FOpenGLContextState& ContextState, const FOpenGLComputeShader* ComputeShader, int32 MaxUAVsNeeded )
@@ -760,29 +764,35 @@ void FOpenGLDynamicRHI::SetupUAVsForDraw( FOpenGLContextState& ContextState, con
 	{
 		if (!ComputeShader->NeedsUAVStage(UAVStageIndex))
 		{
-			CachedSetupUAVStage(ContextState, UAVStageIndex, GL_R32F, 0 );
+			CachedSetupUAVStage(ContextState, UAVStageIndex, GL_R32F, 0, false, 0);
 		}
 		else
 		{
-			CachedSetupUAVStage(ContextState, UAVStageIndex, PendingState.UAVs[UAVStageIndex].Format, PendingState.UAVs[UAVStageIndex].Resource );
+			const FUAVStage& UAVStage = PendingState.UAVs[UAVStageIndex];
+			CachedSetupUAVStage(ContextState, UAVStageIndex, UAVStage.Format, UAVStage.Resource, UAVStage.bLayered, UAVStage.Layer);
 		}
 	}
 	
 }
 
 
-void FOpenGLDynamicRHI::CachedSetupUAVStage( FOpenGLContextState& ContextState, GLint UAVIndex, GLenum Format, GLuint Resource)
+void FOpenGLDynamicRHI::CachedSetupUAVStage( FOpenGLContextState& ContextState, GLint UAVIndex, GLenum Format, GLuint Resource, bool bLayered, GLint Layer)
 {
-	if( ContextState.UAVs[UAVIndex].Format == Format && ContextState.UAVs[UAVIndex].Resource == Resource)
+	if (ContextState.UAVs[UAVIndex].Format == Format && 
+		ContextState.UAVs[UAVIndex].Resource == Resource &&
+		ContextState.UAVs[UAVIndex].Layer == Layer &&
+		ContextState.UAVs[UAVIndex].bLayered == bLayered)
 	{
 		// Nothing's changed, no need to update
 		return;
 	}
 
-	FOpenGL::BindImageTexture(UAVIndex, Resource, 0, GL_FALSE, 0, GL_READ_WRITE, Format);
+	FOpenGL::BindImageTexture(UAVIndex, Resource, 0, bLayered ? GL_TRUE : GL_FALSE, Layer, GL_READ_WRITE, Format);
 	
 	ContextState.UAVs[UAVIndex].Format = Format;
 	ContextState.UAVs[UAVIndex].Resource = Resource;
+	ContextState.UAVs[UAVIndex].Layer = Layer;
+	ContextState.UAVs[UAVIndex].bLayered = bLayered;
 }
 
 void FOpenGLDynamicRHI::UpdateSRV(FOpenGLShaderResourceView* SRV)

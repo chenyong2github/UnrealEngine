@@ -12,11 +12,45 @@
 
 USoundControlBusBase::USoundControlBusBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bOverrideAddress(false)
 	, DefaultValue(1.0f)
 	, Min(0.0f)
 	, Max(1.0f)
 {
 }
+
+#if WITH_EDITOR
+void USoundControlBusBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (UProperty* Property = PropertyChangedEvent.Property)
+	{
+		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, bOverrideAddress) && !bOverrideAddress)
+		{
+			Address = GetName();
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void USoundControlBusBase::PostInitProperties()
+{
+	if (!bOverrideAddress)
+	{
+		Address = GetName();
+	}
+
+	Super::PostInitProperties();
+}
+
+void USoundControlBusBase::PostRename(UObject* OldOuter, const FName OldName)
+{
+	if (!bOverrideAddress)
+	{
+		Address = GetName();
+	}
+}
+#endif // WITH_EDITOR
 
 USoundVolumeControlBus::USoundVolumeControlBus(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -195,18 +229,11 @@ namespace AudioModulation
 		}
 	}
 
-	void FControlBusProxy::OnUpdateProxy(const USoundModulatorBase& InModulatorArchetype)
+	void FControlBusProxy::OnUpdateProxy(const FControlBusProxy& InBusProxy)
 	{
-		const FControlBusProxy CopyProxy(*CastChecked<USoundControlBusBase>(&InModulatorArchetype));
-		auto UpdateProxy = [this, CopyProxy]()
-		{
-			// LFOIds cannot be updated as this would swap sounds subscribing to LFOs if set to AutoActivate
-			DefaultValue = FMath::Clamp(CopyProxy.DefaultValue, CopyProxy.Range.GetMin(), CopyProxy.Range.GetMax());
-			Operator = CopyProxy.Operator;
-			Range = CopyProxy.Range;
-		};
-
-		IsInAudioThread() ? UpdateProxy() : FAudioThread::RunCommandOnAudioThread(UpdateProxy);
+		DefaultValue = FMath::Clamp(InBusProxy.DefaultValue, InBusProxy.Range.GetMin(), InBusProxy.Range.GetMax());
+		Operator = InBusProxy.Operator;
+		Range = InBusProxy.Range;
 	}
 
 	void FControlBusProxy::Reset()

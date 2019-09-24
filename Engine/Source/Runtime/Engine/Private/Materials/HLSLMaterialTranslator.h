@@ -5174,11 +5174,12 @@ protected:
 		return AddInlinedCodeChunk(MCT_Float2, *SampleCode, *GetParameterCode(WorldPositionIndex), *GetParameterCode(P0), *GetParameterCode(P1), *GetParameterCode(P2));
 	}
 
-	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, EVirtualTextureUnpackType UnpackType) override
+	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, int32 CodeIndex2, EVirtualTextureUnpackType UnpackType) override
 	{
-		if (UnpackType == EVirtualTextureUnpackType::BaseColor)
+		if (UnpackType == EVirtualTextureUnpackType::BaseColorYCoCg)
 		{
-			return CodeIndex0 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex0, 1, 1, 1, 0);
+			FString	SampleCode(TEXT("VirtualTextureUnpackBaseColorYCoCg(%s)"));
+			return CodeIndex0 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex0));
 		}
 		else if (UnpackType == EVirtualTextureUnpackType::NormalBC3)
 		{
@@ -5195,17 +5196,10 @@ protected:
 			FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC3BC3(%s, %s)"));
 			return CodeIndex0 == INDEX_NONE || CodeIndex1 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex0), *GetParameterCode(CodeIndex1));
 		}
-		else if (UnpackType == EVirtualTextureUnpackType::SpecularR8)
+		else if (UnpackType == EVirtualTextureUnpackType::NormalBC5BC1)
 		{
-			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 1, 0, 0, 0);
-		}
-		else if (UnpackType == EVirtualTextureUnpackType::RoughnessG8)
-		{
-			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 0, 1, 0, 0);
-		}
-		else if (UnpackType == EVirtualTextureUnpackType::RoughnessB8)
-		{
-			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 0, 0, 1, 0);
+			FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC5BC1(%s, %s)"));
+			return CodeIndex0 == INDEX_NONE || CodeIndex1 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex1), *GetParameterCode(CodeIndex2));
 		}
 		else if (UnpackType == EVirtualTextureUnpackType::HeightR16)
 		{
