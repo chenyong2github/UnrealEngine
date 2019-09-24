@@ -117,7 +117,9 @@ extern void SetupSharedBasePassParameters(
 extern void CreateOpaqueBasePassUniformBuffer(
 	FRHICommandListImmediate& RHICmdList, 
 	const FViewInfo& View,
-	IPooledRenderTarget* ForwardScreenSpaceShadowMask, 
+	IPooledRenderTarget* ForwardScreenSpaceShadowMask,
+	IPooledRenderTarget* SceneLuminanceWithoutSingleLayerWater,
+	IPooledRenderTarget* SceneDepthWithoutSingleLayerWaterTexture,
 	TUniformBufferRef<FOpaqueBasePassUniformParameters>& BasePassUniformBuffer);
 
 extern void CreateTranslucentBasePassUniformBuffer(
