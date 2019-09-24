@@ -7,6 +7,7 @@
 #include "IToolMenusEditorModule.h"
 #include "SEditToolMenuDialog.h"
 #include "ToolMenus.h"
+#include "Framework/Docking/TabManager.h"
 
 #define LOCTEXT_NAMESPACE "ToolMenusEditor"
 
