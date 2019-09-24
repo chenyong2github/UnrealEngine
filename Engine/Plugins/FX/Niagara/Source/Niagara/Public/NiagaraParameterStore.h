@@ -213,8 +213,12 @@ public:
 
 	FORCEINLINE uint32 GetLayoutVersion() const { return LayoutVersion; }
 
-	/** Binds this parameter store to another. During Tick the values of this store will be pushed into all bound stores */
-	void Bind(FNiagaraParameterStore* DestStore);
+	/**
+	  * Binds this parameter store to another, by default if we find no matching parameters we will not maintain a pointer to the store.
+	  * Set bAlwaysAddToBindings to true to always add to the list of ParameterStore bindings, regardless of no matching bindings.
+	  * During Tick the values of this store will be pushed into all bound stores
+	  */
+	void Bind(FNiagaraParameterStore* DestStore, bool bAlwaysAddToBindings = false);
 	/** Unbinds this store form one it's bound to. */
 	void Unbind(FNiagaraParameterStore* DestStore);
 	/** Recreates any bindings to reflect a layout change etc. */
