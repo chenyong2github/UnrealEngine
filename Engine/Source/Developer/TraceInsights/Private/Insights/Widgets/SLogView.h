@@ -79,6 +79,8 @@ protected:
 	/** Generate a new list view row. */
 	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FLogMessage> InLogMessage, const TSharedRef<STableViewBase>& OwnerTable);
 
+	void SelectLogMessage(TSharedPtr<FLogMessage> LogMessage);
+	void OnMouseButtonClick(TSharedPtr<FLogMessage> LogMessage);
 	void OnSelectionChanged(TSharedPtr<FLogMessage> LogMessage, ESelectInfo::Type SelectInfo);
 
 	void FilterTextBox_OnTextChanged(const FText& InFilterText);

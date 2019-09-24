@@ -633,6 +633,7 @@ void SLogView::Construct(const FArguments& InArgs)
 							.ExternalScrollbar(ExternalScrollbar)
 							.ItemHeight(20.0f)
 							.SelectionMode(ESelectionMode::Single)
+							.OnMouseButtonClick(this, &SLogView::OnMouseButtonClick)
 							.OnSelectionChanged(this, &SLogView::OnSelectionChanged)
 							.ListItemsSource(&Messages)
 							.OnGenerateRow(this, &SLogView::OnGenerateRow)
@@ -934,32 +935,46 @@ void SLogView::SelectedLogMessageByLogIndex(int32 LogIndex)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SLogView::OnSelectionChanged(TSharedPtr<FLogMessage> LogMessage, ESelectInfo::Type SelectInfo)
+void SLogView::SelectLogMessage(TSharedPtr<FLogMessage> LogMessage)
 {
-	if (SelectInfo != ESelectInfo::Direct)
+	if (LogMessage.IsValid())
 	{
-		// Single item selection.
-		if (LogMessage.IsValid())
+		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (Window)
 		{
-			TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-			if (Window)
+			TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+			if (TimingView)
 			{
-				TSharedPtr<STimingView> TimingView = Window->GetTimingView();
-				if (TimingView)
-				{
-					const double Time = Cache.Get(LogMessage->GetIndex()).Time;
+				const double Time = Cache.Get(LogMessage->GetIndex()).Time;
 
-					if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
-					{
-						TimingView->SelectToTimeMarker(Time);
-					}
-					else
-					{
-						TimingView->SetAndCenterOnTimeMarker(Time);
-					}
+				if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
+				{
+					TimingView->SelectToTimeMarker(Time);
+				}
+				else
+				{
+					TimingView->SetAndCenterOnTimeMarker(Time);
 				}
 			}
 		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SLogView::OnMouseButtonClick(TSharedPtr<FLogMessage> LogMessage)
+{
+	SelectLogMessage(LogMessage);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SLogView::OnSelectionChanged(TSharedPtr<FLogMessage> LogMessage, ESelectInfo::Type SelectInfo)
+{
+	if (SelectInfo != ESelectInfo::Direct &&
+		SelectInfo != ESelectInfo::OnMouseClick)
+	{
+		SelectLogMessage(LogMessage);
 	}
 }
 
