@@ -43,7 +43,7 @@ namespace ResonanceAudio
 		ResonanceAudioApi = CreateResonanceAudioApi(ResonanceAudioModule->GetResonanceAudioDynamicLibraryHandle(), 2 /* num channels */, FramesPerBuffer, SampleRate);
 		if (ResonanceAudioApi == nullptr)
 		{
-			UE_LOG(LogResonanceAudio, Error, TEXT("Failed to initialize Resonance Audio API"));
+			UE_LOG(LogResonanceAudio, Log, TEXT("Failed to initialize Resonance Audio API"));
 			return;
 		}
 
@@ -74,7 +74,7 @@ namespace ResonanceAudio
 	void FResonanceAudioPluginListener::OnListenerUpdated(FAudioDevice* AudioDevice, const int32 ViewportIndex, const FTransform& ListenerTransform, const float InDeltaSeconds)
 	{
 		if (ResonanceAudioApi == nullptr) {
-			UE_LOG(LogResonanceAudio, Error, TEXT("Resonance Audio API found"));
+			UE_LOG(LogResonanceAudio, Error, TEXT("Resonance Audio API not loaded"));
 			return;
 		}
 		else
