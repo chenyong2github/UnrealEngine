@@ -12,6 +12,7 @@
 #include "MeshNormals.h"
 #include "BaseBrushTool.h"
 #include "Drawing/ToolDataVisualizer.h"
+#include "Changes/ValueWatcher.h"
 #include "DynamicMeshSculptTool.generated.h"
 
 
@@ -39,49 +40,35 @@ class FMeshVertexChangeBuilder;
 class FDynamicMeshChangeTracker;
 
 
-/** Mesh sculpting brush types */
+/** Mesh Sculpting Brush Types */
 UENUM()
 enum class EDynamicMeshSculptBrushType : uint8
 {
-	/** Move brush */
-	Pull UMETA(DisplayName = "Pull"),
+	/** Move Brush moves vertices parallel to the view plane  */
+	Move UMETA(DisplayName = "Move"),
 
-	/** Sculpt brush */
+	/** Sculpt Brush displaces vertices from the surface */
 	Offset UMETA(DisplayName = "Sculpt"),
 
-	/** SculptMax brush */
+	/** SculptMax Brush displaces vertices to a maximum offset height */
 	SculptMax UMETA(DisplayName = "Sculpt Max"),
 
-	/** Inflate brush */
+	/** Inflate brush displaces vertices along their vertex normals */
 	Inflate UMETA(DisplayName = "Inflate"),
 
-	/** Pinch brush */
+	/** Pinch Brush pulls vertices towards the center of the brush*/
 	Pinch UMETA(DisplayName = "Pinch"),
 
-	/** Flatten brush */
+	/** Flatten Brush pulls vertices towards the average plane of the brush stamp */
 	Flatten UMETA(DisplayName = "Flatten"),
 
-	/** Plane brush */
+	/** Plane Brush pulls vertices to a plane defined by the initial brush position  */
 	Plane UMETA(DisplayName = "Plane"),
 
 
 	LastValue UMETA(Hidden)
 
 };
-
-
-
-/** Smooth type for sculpting brush */
-UENUM()
-enum class EMeshSculptToolSmoothType : uint8
-{
-	/** Uniform Smoothing */
-	Uniform UMETA(DisplayName = "Uniform"),
-
-	/** Texture-Preserving Smoothing */
-	TexturePreserving UMETA(DisplayName = "Texture Preserving"),
-};
-
 
 
 
@@ -122,30 +109,33 @@ public:
 	UBrushSculptProperties();
 
 	/** Primary Brush Mode */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Sculpting)
 	EDynamicMeshSculptBrushType PrimaryBrushType;
 
-	/** Power/Speed of brush */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", EditCondition = "PrimaryBrushType != EDynamicMeshSculptBrushType::Pull"))
+	/** Power/Speed of Brush */
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", EditCondition = "PrimaryBrushType != EDynamicMeshSculptBrushType::Pull"))
 	float BrushSpeed;
 
 	/** Smoothing Speed of Smoothing brush */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float SmoothSpeed;
+
+	/** If true, try to preserve the shape of the UV/3D mapping. This will prevent smoothing in some cases */
+	UPROPERTY(EditAnywhere, Category = Sculpting)
+	bool bPreserveUVFlow;
 
 
 	/** Depth of Brush into surface along view ray or surface normal, depending on brush */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0"))
-	float Depth;
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0"))
+	float BrushDepth;
 
 	/** Disable updating of the brush Target Surface after each stroke */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "PrimaryBrushType == EDynamicMeshSculptBrushType::Sculpt || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptMax || PrimaryBrushType == EDynamicMeshSculptBrushType::Pinch" ))
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EDynamicMeshSculptBrushType::Sculpt || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptMax || PrimaryBrushType == EDynamicMeshSculptBrushType::Pinch" ))
 	bool bFreezeTarget;
 
-	/** Smoothing Type */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
-	EMeshSculptToolSmoothType SmoothingType;
 
+	UPROPERTY(EditAnywhere, Category = Sculpting)
+	bool bShowWireframe;
 
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
@@ -165,28 +155,28 @@ public:
 	UBrushRemeshProperties();
 
 	/** Target Relative Triangle Sizefor Dynamic Meshing */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0.5", UIMax = "2.0", ClampMin = "0.1", ClampMax = "100.0"))
+	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0.5", UIMax = "2.0", ClampMin = "0.1", ClampMax = "100.0"))
 	float RelativeSize;
 
 	/** Smoothing speed for dynamic meshing */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float Smoothing;
 
 
 	/** Enable edge flips */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
 	bool bFlips = true;
 
 	/** Enable edge splits */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
 	bool bSplits = true;
 
 	/** Enable edge collapses */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
 	bool bCollapses = true;
 
 	/** Prevent normal flips */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
 	bool bPreventNormalFlips = false;
 
 };
@@ -274,6 +264,9 @@ protected:
 	// realtime visualization
 	void OnDynamicMeshComponentChanged();
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
+
+	TValueWatcher<bool> ShowWireframeWatcher;
+
 
 	FInterval1d BrushRelativeSizeRange;
 	double CurrentBrushRadius;
