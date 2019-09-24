@@ -232,7 +232,7 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	: LightAttenuation(GRenderTargetPool.MakeSnapshot(SnapshotSource.LightAttenuation))
 	, LightAccumulation(GRenderTargetPool.MakeSnapshot(SnapshotSource.LightAccumulation))
 	, DirectionalOcclusion(GRenderTargetPool.MakeSnapshot(SnapshotSource.DirectionalOcclusion))
-	, SceneDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneDepthZ))	
+	, SceneDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneDepthZ))
 	, SceneVelocity(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneVelocity))
 	, LightingChannels(GRenderTargetPool.MakeSnapshot(SnapshotSource.LightingChannels))
 	, SceneAlphaCopy(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneAlphaCopy))
@@ -243,6 +243,8 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, GBufferC(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferC))
 	, GBufferD(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferD))
 	, GBufferE(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferE))
+	, SceneColorWithoutSingleLayerWater(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneColorWithoutSingleLayerWater))
+	, SceneDepthZWithoutSingleLayerWater(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneDepthZWithoutSingleLayerWater))
 	, DBufferA(GRenderTargetPool.MakeSnapshot(SnapshotSource.DBufferA))
 	, DBufferB(GRenderTargetPool.MakeSnapshot(SnapshotSource.DBufferB))
 	, DBufferC(GRenderTargetPool.MakeSnapshot(SnapshotSource.DBufferC))
@@ -998,6 +1000,70 @@ void FSceneRenderTargets::FinishGBufferPassAndResolve(FRHICommandListImmediate& 
 	}
 
 	QuadOverdrawIndex = INDEX_NONE;
+}
+
+void FSceneRenderTargets::BeginRenderingWaterGBuffer(FRHICommandList& RHICmdList, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers)
+{
+	check(RHICmdList.IsOutsideRenderPass());
+
+	SCOPED_DRAW_EVENT(RHICmdList, BeginRenderingWaterGBuffer);
+	check(CurrentFeatureLevel >= ERHIFeatureLevel::SM4)
+
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
+
+	// Allocate required buffers
+	{
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_DepthStencil, DefaultDepthClear, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
+		Desc.NumSamples = GetNumSceneColorMSAASamples(CurrentFeatureLevel);
+		Desc.Flags |= GFastVRamConfig.SceneDepth;
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneDepthZWithoutSingleLayerWater, TEXT("SceneDepthZWithoutSingleLayerWater"), true);
+	}
+	{
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetSceneColorFormat() , DefaultColorClear, TexCreate_None, TexCreate_RenderTargetable, false));
+		Desc.NumSamples = GetNumSceneColorMSAASamples(CurrentFeatureLevel);
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneColorWithoutSingleLayerWater, TEXT("SceneColorWithoutSingleLayerWater"));
+	}
+
+	// Copy and save textures without water informations for later composition operations
+	{
+		FRHICopyTextureInfo DepthCopyInfo;
+		RHICmdList.CopyTexture(SceneDepthZ->GetRenderTargetItem().ShaderResourceTexture, SceneDepthZWithoutSingleLayerWater->GetRenderTargetItem().ShaderResourceTexture, DepthCopyInfo);
+		RHICmdList.CopyTexture(GetSceneColorSurface(), SceneColorWithoutSingleLayerWater->GetRenderTargetItem().ShaderResourceTexture, DepthCopyInfo);
+	}
+
+	// Create MRT
+	int32 VelocityRTIndex = -1;
+	FRHIRenderPassInfo RPInfo;
+	FillGBufferRenderPassInfo(ERenderTargetLoadAction::ELoad, RPInfo, VelocityRTIndex);
+	// Set a dummy Scene color RT to avoid gbuffer to stomp HDR scene color we want to blend over
+	RPInfo.ColorRenderTargets[0].Action = MakeRenderTargetActions(ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
+	RPInfo.ColorRenderTargets[0].RenderTarget = GetSceneColorSurface();
+
+	// Stencil always has to be store or certain VK drivers will leave the attachment in an undefined state.
+	RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore), MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore));
+	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = (const FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().TargetableTexture;
+	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = DepthStencilAccess;
+
+	// Set other UAVs
+	const bool bClearQuadOverdrawBuffers = false;
+	SetQuadOverdrawUAV(RHICmdList, bBindQuadOverdrawBuffers, bClearQuadOverdrawBuffers, RPInfo);
+	if (UseVirtualTexturing(CurrentFeatureLevel) && !bBindQuadOverdrawBuffers)
+	{
+		BindVirtualTextureFeedbackUAV(RPInfo);
+	}
+
+	// Begin the pass
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("WaterGBuffer"));
+
+	// Needs to be called after we start a renderpass in order for the color/depth decompress/expand to be executed on the next write-to-read barrier/transition.
+	RHICmdList.BindClearMRTValues(true, true, false);
+}
+
+void FSceneRenderTargets::FinishWaterGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList)
+{
+	// Same as the GBuffer for now (also same resolves)
+	FinishGBufferPassAndResolve(RHICmdList);
 }
 
 int32 FSceneRenderTargets::GetNumGBufferTargets() const
@@ -2695,6 +2761,9 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	CustomDepth.SafeRelease();
 	MobileCustomStencil.SafeRelease();
 	CustomStencilSRV.SafeRelease();
+
+	SceneColorWithoutSingleLayerWater.SafeRelease();
+	SceneDepthZWithoutSingleLayerWater.SafeRelease();
 
 	for (int32 i = 0; i < UE_ARRAY_COUNT(OptionalShadowDepthColor); i++)
 	{

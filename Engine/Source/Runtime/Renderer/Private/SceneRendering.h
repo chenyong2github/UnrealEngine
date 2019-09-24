@@ -1024,6 +1024,10 @@ public:
 	 * This is used to skip the sky rendering part during the SkyAtmosphere pass on non mobile platforms.
 	 */
 	uint32 bSceneHasSkyMaterial : 1;
+	/**
+	 * true if the scene has at least one mesh with a material tagged as water visible in a view.
+	 */
+	uint32 bHasSingleLayerWaterMaterial : 1;
 	/** Bitmask of all shading models used by primitives in this view */
 	uint16 ShadingModelMaskInView;
 

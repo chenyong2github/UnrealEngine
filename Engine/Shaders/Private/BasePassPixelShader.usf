@@ -14,6 +14,12 @@
 	#define EyeAdaptationStruct OpaqueBasePass
 #endif
 
+#if MATERIAL_IS_SINGLE_LAYER_WATER
+#define PreIntegratedGF			OpaqueBasePass.PreIntegratedGFTexture
+#define PreIntegratedGFSampler	OpaqueBasePass.PreIntegratedGFSampler
+#include "ParticipatingMediaCommon.ush" 
+#endif
+
 #include "SHCommon.ush"
 #include "/Engine/Generated/Material.ush"
 #include "BasePassCommon.ush"
@@ -63,7 +69,7 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #endif
 
 #include "ShadingModelsMaterial.ush"
-#if MATERIAL_SHADINGMODEL_HAIR || SIMPLE_FORWARD_DIRECTIONAL_LIGHT
+#if MATERIAL_SHADINGMODEL_HAIR || SIMPLE_FORWARD_DIRECTIONAL_LIGHT || MATERIAL_IS_SINGLE_LAYER_WATER
 #include "ShadingModels.ush"
 #endif
 
@@ -75,8 +81,8 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #define EDITOR_ALPHA2COVERAGE (USE_EDITOR_COMPOSITING && SUPPORTS_PIXEL_COVERAGE)
 #define POST_PROCESS_SUBSURFACE ((MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_EYE) && USES_GBUFFER)
 
-#if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING
-#include "ForwardLightingCommon.ush" 
+#if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING || MATERIAL_IS_SINGLE_LAYER_WATER
+#include "ForwardLightingCommon.ush"
 #endif
 
 #if !FORWARD_SHADING
@@ -519,7 +525,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	#endif
 }
 
-#if SIMPLE_FORWARD_DIRECTIONAL_LIGHT
+#if SIMPLE_FORWARD_DIRECTIONAL_LIGHT || MATERIAL_IS_SINGLE_LAYER_WATER
 
 float3 GetSimpleForwardLightingDirectionalLight(FGBufferData GBuffer, float3 DiffuseColor, float3 SpecularColor, float Roughness, float3 WorldNormal, float3 CameraVector)
 {
@@ -883,6 +889,8 @@ void FPixelShaderInOut_MainPS(
 #endif
 
 	half Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	const float BaseMaterialCoverageOverWater = Opacity;
+	const float WaterVisibility = 1.0 - BaseMaterialCoverageOverWater;
 
 	float3 VolumetricLightmapBrickTextureUVs;
 
@@ -1059,11 +1067,20 @@ ShadingModel);
 
 		DiffuseColor += (DiffuseIndirectLighting * DiffuseColorForIndirect + SubsurfaceIndirectLighting * SubsurfaceColor) * AOMultiBounce( GBuffer.BaseColor, DiffOcclusion );
 
+#if MATERIAL_IS_SINGLE_LAYER_WATER
+		// Fade out diffuse as this will be hanlded by the single scattering lighting. when over the water surface.
+		// We do this after the just above GetPrecomputedIndirectLightingAndSkyLight to keep ambient lighting avialable.
+		// We also keep the SpecularColor for sun/water interactions
+		const float3 WaterIndirectDiffuse = DiffuseIndirectLighting;	// Raw unaffected illuminance
+		GBuffer.DiffuseColor *= BaseMaterialCoverageOverWater;
+		DiffuseColor *= BaseMaterialCoverageOverWater;
+#endif
+
 		#if TRANSLUCENCY_PERVERTEX_FORWARD_SHADING
 
 			Color += BasePassInterpolants.VertexDiffuseLighting * GBuffer.DiffuseColor;
 
-		#elif FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME
+		#elif FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || MATERIAL_IS_SINGLE_LAYER_WATER
 			uint GridIndex = 0;
 
 			#if INSTANCED_STEREO
@@ -1075,12 +1092,14 @@ ShadingModel);
 			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 				GridIndex = ComputeLightGridCellIndex((uint2)(MaterialParameters.SvPosition.xy - ResolvedView.ViewRectMin.xy), MaterialParameters.SvPosition.w, EyeIndex);
 
-				#if FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING
+				#if FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_IS_SINGLE_LAYER_WATER
 					const float Dither = InterleavedGradientNoise(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
-					Color += GetForwardDirectLighting(GridIndex, MaterialParameters.AbsoluteWorldPosition, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither);
+					float3 ForwardDirectLighting = GetForwardDirectLighting(GridIndex, MaterialParameters.AbsoluteWorldPosition, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither);
+					Color += ForwardDirectLighting;
 				#endif
 			#endif
-			#if !(MATERIAL_SINGLE_SHADINGMODEL && MATERIAL_SHADINGMODEL_HAIR)
+				// No IBL for water in deferred: that is skipped because it is done in the water composite pass. It should however be applied when using forward shading in order to get reflection without the water composite pass.
+			#if !(MATERIAL_SINGLE_SHADINGMODEL && MATERIAL_SHADINGMODEL_HAIR) && (!MATERIAL_IS_SINGLE_LAYER_WATER || FORWARD_SHADING) 
 				if (GBuffer.ShadingModelID != SHADINGMODELID_HAIR)
 				{
 					int SingleCaptureIndex = GetPrimitiveData(MaterialParameters.PrimitiveId).SingleCaptureIndex;
@@ -1190,6 +1209,143 @@ ShadingModel);
 	Color += DiffuseColor;
 #endif
 	Color += Emissive;
+
+
+
+#if MATERIAL_IS_SINGLE_LAYER_WATER
+	// Fade out the material contribution over to water contribution according to alpha.
+	const bool CameraIsUnderWater = false;
+	
+	float2 WaterNDC = MaterialParameters.ScreenPosition.xy / MaterialParameters.ScreenPosition.w;
+	float2 ViewportUV = WaterNDC * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz;
+	float SceneCustomDepth = OpaqueBasePass.SceneCustomDepthTexture.SampleLevel(OpaqueBasePass.SceneCustomDepthSampler, ViewportUV, 0).r;
+	if (SceneCustomDepth > MaterialParameters.SvPosition.z)
+	{
+		clip(-1); // Custom depth Z is used to clip water to avoid it being visible inside boats for instance.
+	}
+
+	float WaterDepth = ConvertFromDeviceZ(MaterialParameters.SvPosition.z);
+	if (WaterVisibility > 0.0f) // DeltaDepth > 0.0f should not be needed as we ARE on a water surface TODO simplify that
+	{
+
+		float PixelSceneDepth = ConvertFromDeviceZ(OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(OpaqueBasePass.SceneDepthWithoutSingleLayerWaterSampler, ViewportUV, 0).r);
+		float DeltaDepth = CameraIsUnderWater ? WaterDepth : PixelSceneDepth - WaterDepth;
+
+#if 1
+		//////////////////////////////////////////////////////////////////////////////////////////////////// BEGIN Refration TODO make common with DistoAccumulatePS
+		float2 Refraction = GetMaterialRefraction(PixelMaterialInputs);// X = IOR, Y = Refraction Bias
+		float3 ViewNormal = normalize(TransformWorldVectorToView(MaterialParameters.WorldNormal));
+#if REFRACTION_USE_PIXEL_NORMAL_OFFSET
+		half3 ViewVertexNormal = TransformTangentVectorToView(MaterialParameters, float3(0, 0, 1));
+		// Treat Refraction of 1 as no refraction, to be consistent with IOR mode
+		float2 ViewportUVDistortion = (ViewVertexNormal.xy - ViewNormal.xy) * (Refraction.x - 1);
+#else
+		// we assume the camera is in air
+		float AirIOR = 1.0f;
+		float2 ViewportUVDistortion = ViewNormal.xy * (Refraction.x - AirIOR);
+#endif
+		float2 BufferUVDistortion = ViewportUVDistortion * ResolvedView.ViewSizeAndInvSize.xy * ResolvedView.BufferSizeAndInvSize.zw;
+		// When ISR is enabled we store two FOVs in the DistortionParams and compute the aspect ratio here
+		const float4 DistortionParams = 1.0f;
+		const float OffsetFudgeFactor = 1.0f;
+		float InvTanHalfFov = DistortionParams.x;
+		float Ratio = ResolvedView.ViewSizeAndInvSize.y * ResolvedView.ViewSizeAndInvSize.w;
+		// Fix for Fov and aspect.
+		float2 FovFix = float2(InvTanHalfFov, Ratio*InvTanHalfFov);
+		BufferUVDistortion *= 0.2 * DistortionParams.zw * float2(OffsetFudgeFactor, -OffsetFudgeFactor) * FovFix;
+		////////////////////////////////////////////////////////////////////////////////////////////////////  END Refration
+
+		// TODO make distortion fading common with DistoAccumulatePS (right now 30cm to deltadepth fade out and 10m to distance fade out)
+		BufferUVDistortion *= saturate(DeltaDepth * 1.0 / 30.0f) * (1 - saturate(WaterDepth * 1.0 / 2000.0f)); 
+
+		float SceneDeviceZ = OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(OpaqueBasePass.SceneDepthWithoutSingleLayerWaterSampler, saturate(ViewportUV + BufferUVDistortion), 0).r;
+		float SceneDepth = ConvertFromDeviceZ(SceneDeviceZ);
+		if (SceneDepth < WaterDepth)
+		{
+			SceneDepth = PixelSceneDepth;
+		}
+		else
+		{
+			ViewportUV = saturate(ViewportUV + BufferUVDistortion);
+		}
+		DeltaDepth = CameraIsUnderWater ? WaterDepth : SceneDepth - WaterDepth;
+#endif
+
+		const float3 ScatteringCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput0(MaterialParameters));
+		const float3 AbsorptionCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput1(MaterialParameters));
+		const float PhaseG = clamp(GetSingleLayerWaterMaterialOutput2(MaterialParameters), -1.0f, 1.0f);
+		const float PhaseValue = SchlickPhase(PhaseG, dot(ResolvedView.DirectionalLightDirection.xyz, MaterialParameters.CameraVector));
+		const float3 ExtinctionCoeff = ScatteringCoeff + AbsorptionCoeff;
+
+		// We also apply transmittance from light to under water surface. However, the scene has been lit by many sources already.
+		// So the transmittance toabove surface is simply approximated using the travel distance from the scene pixel to the water top, assuming a flat water surface.
+		// We also use the pixel SvPosition instead of the scene one pre refraction/distortion to avoid those extra ALUs.
+		// We cannot combine this transmittance with the transmittance from view because this would change the behavior of the analytical integration of light scattering integration.
+		const float3 SceneWorldPos = SvPositionToWorld(float4(MaterialParameters.SvPosition.xy, SceneDeviceZ, 1.0));
+		const float DistanceFromScenePixelToWaterTop = max(0.0, MaterialParameters.AbsoluteWorldPosition.z - SceneWorldPos.z);
+		const float3 SceneColor = exp(-DistanceFromScenePixelToWaterTop * ExtinctionCoeff) * (USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f)
+			* OpaqueBasePass.SceneLuminanceWithoutSingleLayerWaterTexture.SampleLevel(OpaqueBasePass.SceneLuminanceWithoutSingleLayerWaterSampler, ViewportUV, 0).rgb;
+
+		float3 SunEi = ResolvedView.DirectionalLightColor.rgb * PI;	// times PI because it is divided by PI on CPU (=luminance) and we want illuminance here.  
+		float3 SunScattLi = PhaseValue * SunEi;
+		float3 AmbScattLi = PhaseValue * WaterIndirectDiffuse * PI;	// WaterIndirectDiffuse is luminance? So we need to multiply by PI to get illuminance. That we can then get through the phase function.
+#if 1
+		float DirectionalLightShadow = ComputeDirectionalLightDynamicShadowing(MaterialParameters.AbsoluteWorldPosition, GBuffer.Depth);
+
+		const float3 OpticalDepth = ExtinctionCoeff * DeltaDepth;
+		float3 Transmittance = exp(-OpticalDepth);
+		float3 ScatteredLuminance = ScatteringCoeff * (AmbScattLi + SunScattLi * DirectionalLightShadow);
+		ScatteredLuminance = (ScatteredLuminance - ScatteredLuminance * Transmittance) / ExtinctionCoeff;
+#else
+		float3 Transmittance = 1.0f;
+		float3 ScatteredLuminance = 0.0f;
+		const float RayMarchMaxDistance = min(DeltaDepth, 200.0f);  // 20 meters
+		const float RayMarchStepSize = RayMarchMaxDistance / 10.0f; // Less samples wil lresult in a bit brighter look due to TransmittanceToLightThroughWater being 1 on a longer first sample. Would need it part of analiytical integration
+		const float ShadowDither = RayMarchStepSize * GBufferDither;
+		for (float s = 0.0f; s < RayMarchMaxDistance; s += RayMarchStepSize)
+		{
+			// Only jitter shadow map sampling to not lose energy on first sample
+			float Shadow = ComputeDirectionalLightDynamicShadowing(MaterialParameters.AbsoluteWorldPosition - (s + ShadowDither)*MaterialParameters.CameraVector, GBuffer.Depth);
+
+			float3 WP = MaterialParameters.AbsoluteWorldPosition - s * MaterialParameters.CameraVector;
+			float WaterHeightAboveSample = max(0.0, MaterialParameters.AbsoluteWorldPosition.z - WP.z);
+			float3 TransmittanceToLightThroughWater = 1.0;												// no self shadow, same energy as above analytical solution
+			//float3 TransmittanceToLightThroughWater = exp(-ExtinctionCoeff * WaterHeightAboveSample);	// self shadow as transmittance to water level, close to reference, depends a bit on sample count due to first sample being critical for dense medium
+
+			float3 SampleTransmittance = exp(-ExtinctionCoeff * RayMarchStepSize); // Constant
+			float3 SS = (ScatteringCoeff * TransmittanceToLightThroughWater * (SunScattLi * Shadow + AmbScattLi));
+			ScatteredLuminance += Transmittance * (SS - SS * SampleTransmittance) / ExtinctionCoeff;
+			Transmittance *= SampleTransmittance;
+		}
+
+		// The rest of the medium
+		const float3 OpticalDepth2 = ExtinctionCoeff * max(0.0, DeltaDepth - RayMarchMaxDistance);
+		if (any(OpticalDepth2 > 0.0f))
+		{
+			float3 Transmittance2 = exp(-OpticalDepth2);
+			float3 ScatteredLuminance2 = ScatteringCoeff * (SunScattLi + AmbScattLi);
+			ScatteredLuminance += Transmittance * (ScatteredLuminance2 - ScatteredLuminance2 * Transmittance2) / ExtinctionCoeff;
+			Transmittance *= Transmittance2;
+		}
+#endif
+
+		// Apply Fresnel effect
+		const float3 N = MaterialParameters.WorldNormal;
+		const float3 V = MaterialParameters.CameraVector;
+		const float NoV = max(0.0, dot(N, V));
+		float3 EnvBrdf = EnvBRDF(GBuffer.SpecularColor, GBuffer.Roughness, NoV);
+		ScatteredLuminance *= CameraIsUnderWater ? 1.0 : (1.0 - EnvBrdf); // Under water is less visibule due to Frensel effect
+		Transmittance      *= CameraIsUnderWater ? (1.0 - EnvBrdf) : 1.0; // Above	"		"		"		"		"
+
+		// Add single in-scattering apply colored transmittance to scene color
+		Color += ScatteredLuminance * WaterVisibility;
+		Color += SceneColor * Transmittance * WaterVisibility ;
+	}
+
+
+#endif // MATERIAL_IS_SINGLE_LAYER_WATER
+
+
 
 	#if MATERIAL_DOMAIN_POSTPROCESS
 		#if MATERIAL_OUTPUT_OPACITY_AS_ALPHA

@@ -578,6 +578,16 @@ void CreateOpaqueBasePassUniformBuffer(
 		}
 	}
 
+	// Single Layer Water
+	BasePassParameters.SceneLuminanceWithoutSingleLayerWaterTexture = (SceneRenderTargets.SceneColorWithoutSingleLayerWater.IsValid() ? SceneRenderTargets.SceneColorWithoutSingleLayerWater : GSystemTextures.BlackDummy)->GetRenderTargetItem().TargetableTexture;
+	BasePassParameters.SceneLuminanceWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+	BasePassParameters.SceneDepthWithoutSingleLayerWaterTexture = (SceneRenderTargets.SceneDepthZWithoutSingleLayerWater.IsValid() ? SceneRenderTargets.SceneDepthZWithoutSingleLayerWater : GSystemTextures.BlackDummy)->GetRenderTargetItem().TargetableTexture;
+	BasePassParameters.SceneDepthWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
+	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	BasePassParameters.SceneCustomDepthTexture = (SceneRenderTargets.CustomDepth.IsValid() ? SceneRenderTargets.CustomDepth : GSystemTextures.BlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
+	BasePassParameters.SceneCustomDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
 	// Misc
 	BasePassParameters.EyeAdaptation = GetEyeAdaptation(View);
 
@@ -1226,7 +1236,8 @@ void FBasePassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 		if (bShouldDraw
 			&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
 			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
-			&& !Material.IsSky())
+			&& !Material.IsSky()
+			&& !Material.MaterialUsesSingleLayerWater_RenderThread())
 		{
 			// Check for a cached light-map.
 			const bool bIsLitMaterial = ShadingModels.IsLit();

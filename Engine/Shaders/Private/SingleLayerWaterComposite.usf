@@ -1,0 +1,139 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	WaterComposite - functionality to apply local cubemaps.
+=============================================================================*/
+
+#include "Common.ush"
+#include "DeferredShadingCommon.ush"  
+#include "BRDF.ush"
+#include "ReflectionEnvironmentShared.ush"
+#include "ShadingModels.ush"
+#include "SceneTextureParameters.ush"
+
+
+#define ENABLE_SKY_LIGHT 1
+
+#define REFLECTION_COMPOSITE_USE_BLENDED_REFLECTION_CAPTURES 0
+#define REFLECTION_COMPOSITE_SUPPORT_SKYLIGHT_BLEND 0
+#include "ReflectionEnvironmentComposite.ush"
+
+
+
+Texture2D ScreenSpaceReflectionsTexture;
+SamplerState ScreenSpaceReflectionsSampler;
+
+Texture2D SceneNoWaterDepthTexture;
+SamplerState SceneNoWaterDepthSampler;
+
+
+
+void SingleLayerWaterCompositePS(
+	in float4 SvPosition : SV_Position,
+	out float4 OutColor : SV_Target0)
+{
+	float2 BufferUV = SvPositionToBufferUV(SvPosition);
+	float2 ScreenPosition = SvPositionToScreenPosition(SvPosition).xy;
+
+
+	// Sample scene textures.
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+	uint ShadingModelID = GBuffer.ShadingModelID;
+	// No AO or DFAO
+
+	const float3 OneThird3 = float3(1.0 / 3.0f, 1.0 / 3.0f, 1.0 / 3.0f);
+
+	float3 WorldPos = SvPositionToWorld(float4(SvPosition.xy, 1.0, SvPosition.w));
+	const bool CameraIsUnderWater = false;
+
+	float4 LuminanceTransmittance = float4(0, 0, 0, 1);
+	float3 TransmittanceToScene = 1.0f;
+
+#if USE_PREEXPOSURE
+	const float PreExposure = View.PreExposure;
+#else
+	const float PreExposure = 1.f;
+#endif
+	if (ShadingModelID != SHADINGMODELID_UNLIT)
+	{
+		const float OpaqueDepth = ConvertFromDeviceZ(SceneNoWaterDepthTexture.SampleLevel(SceneNoWaterDepthSampler, BufferUV, 0).r);
+		const float WaterDepth = GBuffer.Depth;
+		float DeltaDepth = CameraIsUnderWater ? WaterDepth :  OpaqueDepth - WaterDepth;	// Inverted depth
+		if (DeltaDepth > 0.0)
+		{
+			// Compute the sky reflection contribution
+			float3 Reflection = 0.0f;
+
+			// TODO MAKE COMMON WITH ReflectionEnvironment?
+			float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
+			float3 CameraToPixel = normalize(WorldPosition - View.WorldCameraOrigin);
+			float3 ReflectionVector = reflect(CameraToPixel, GBuffer.WorldNormal);
+			float IndirectIrradiance = 0.0;// GBuffer.IndirectIrradiance;
+			float IndirectSpecularOcclusion = 1.0f;
+			float3 ExtraIndirectSpecular = 0;
+			uint CaptureDataStartIndex = 0;
+			uint NumCulledReflectionCaptures = 0;
+			//
+			float3 N = GBuffer.WorldNormal;
+			float3 V = -CameraToPixel;
+			float3 R = 2 * dot(V, N) * N - V;
+			float NoV = saturate(dot(N, V));
+			// Point lobe in off-specular peak direction
+			R = GetOffSpecularPeakReflectionDir(N, R, GBuffer.Roughness);
+			Reflection += PreExposure * CompositeReflectionCapturesAndSkylight(
+				1,
+				WorldPosition,
+				R,
+				GBuffer.Roughness,
+				IndirectIrradiance,
+				IndirectSpecularOcclusion,
+				ExtraIndirectSpecular,
+				NumCulledReflectionCaptures,
+				CaptureDataStartIndex,
+				0);
+
+			// Then combine reflection with SSR
+			float4 SSR = Texture2DSample(ScreenSpaceReflectionsTexture, ScreenSpaceReflectionsSampler, BufferUV);
+			Reflection = SSR.rgb + Reflection * (1 - SSR.a);
+
+			// Apply the BRDF reflection integral to reflection. 
+			// BRDF/Fresnel is already applied for the under water part in the scene.
+			float3 EnvBrdf = EnvBRDF(GBuffer.SpecularColor, GBuffer.Roughness, NoV);
+			Reflection *= EnvBrdf;
+
+			// Soft fading near shor to avoid seeing triangles.
+			const float ShoreOpacity = saturate(DeltaDepth * 0.02);
+			Reflection.rgb *= ShoreOpacity;
+
+			// Apply transmittance to reflection if under water
+			if (CameraIsUnderWater)
+			{
+				TransmittanceToScene *= 1.0 - EnvBrdf;
+
+				// Using default under water material: compute transmittance and scattering
+				float3 WaterMediumScattering = 0.0f;
+				float3 WaterMediumTransmittance = float3(0.1, 0.1, 0.8);
+
+				Reflection *= WaterMediumTransmittance;
+				TransmittanceToScene *= WaterMediumTransmittance;
+			}
+
+			LuminanceTransmittance = float4(Reflection, dot(OneThird3, TransmittanceToScene));
+		}
+		else
+		{
+			clip(-1); // Since this shader does not write to depth or stencil it should still benefit from EarlyZ (See AMD depth-in-depth documentation)
+		}
+	}
+	else
+	{
+		clip(-1); // Since this shader does not write to depth or stencil it should still benefit from EarlyZ (See AMD depth-in-depth documentation)
+	}
+
+	// TODO use dual source blending to apply TransmittanceToScene
+	OutColor = LuminanceTransmittance;
+}
+
+
+
+

@@ -172,6 +172,7 @@
 #include "Materials/MaterialExpressionScreenPosition.h"
 #include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionSine.h"
+#include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
 #include "Materials/MaterialExpressionSobol.h"
 #include "Materials/MaterialExpressionSpeedTree.h"
 #include "Materials/MaterialExpressionSphereMask.h"
@@ -16844,4 +16845,86 @@ uint32 UMaterialExpressionShadingModel::GetOutputType(int32 OutputIndex)
 	return MCT_ShadingModel;
 }
 #endif // WITH_EDITOR
+
+UMaterialExpressionSingleLayerWaterMaterialOutput::UMaterialExpressionSingleLayerWaterMaterialOutput(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Water;
+		FConstructorStatics()
+			: NAME_Water(LOCTEXT("Water", "Water"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Water);
+#endif
+
+#if WITH_EDITOR
+	Outputs.Reset();
+#endif
+}
+
+#if WITH_EDITOR
+
+int32 UMaterialExpressionSingleLayerWaterMaterialOutput::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 CodeInput = INDEX_NONE;
+
+	if (!ScatteringCoefficients.IsConnected() && !AbsorptionCoefficients.IsConnected() && !PhaseG.IsConnected())
+	{
+		Compiler->Error(TEXT("No inputs to Single Layer Water Material."));
+	}
+
+	// Generates function names GetSingleLayerWaterMaterialOutput{index} used in BasePixelShader.usf.
+	if (OutputIndex == 0)
+	{
+		CodeInput = ScatteringCoefficients.IsConnected() ? ScatteringCoefficients.Compile(Compiler) : Compiler->Constant3(0.f, 0.f, 0.f);
+	}
+	else if (OutputIndex == 1)
+	{
+		CodeInput = AbsorptionCoefficients.IsConnected() ? AbsorptionCoefficients.Compile(Compiler) : Compiler->Constant3(0.f, 0.f, 0.f);
+	}
+	else if (OutputIndex == 2)
+	{
+		CodeInput = PhaseG.IsConnected() ? PhaseG.Compile(Compiler) : Compiler->Constant(0.f);
+	}
+
+	return Compiler->CustomOutput(this, OutputIndex, CodeInput);
+}
+
+void UMaterialExpressionSingleLayerWaterMaterialOutput::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString(TEXT("Single Layer Water Material")));
+}
+
+#endif // WITH_EDITOR
+
+int32 UMaterialExpressionSingleLayerWaterMaterialOutput::GetNumOutputs() const
+{
+	return 3;
+}
+
+FString UMaterialExpressionSingleLayerWaterMaterialOutput::GetFunctionName() const
+{
+	return TEXT("GetSingleLayerWaterMaterialOutput");
+}
+
+FString UMaterialExpressionSingleLayerWaterMaterialOutput::GetDisplayName() const
+{
+	return TEXT("Single Layer Water Material");
+}
+
+
+
+
+
+
+
+
+
 #undef LOCTEXT_NAMESPACE
