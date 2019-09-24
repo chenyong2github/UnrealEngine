@@ -6,15 +6,15 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "SGraphPin.h"
-#include "SGraphPinNameListValueWidget.h"
+#include "SControlRigGraphPinNameListValueWidget.h"
 
-class SGraphPinNameList : public SGraphPin
+class SControlRigGraphPinNameList : public SGraphPin
 {
 public:
 
 	DECLARE_DELEGATE_RetVal( const TArray<TSharedPtr<FString>>&, FOnGetNameListContent );
 
-	SLATE_BEGIN_ARGS(SGraphPinNameList){}
+	SLATE_BEGIN_ARGS(SControlRigGraphPinNameList){}
 
 		SLATE_EVENT(FOnGetNameListContent, OnGetNameListContent)
 
@@ -36,7 +36,7 @@ protected:
 	void OnNameListComboBox();
 
 	FOnGetNameListContent OnGetNameListContent;
-	TSharedPtr<SGraphPinNameListValueWidget> NameListComboBox;
+	TSharedPtr<SControlRigGraphPinNameListValueWidget> NameListComboBox;
 	TArray<TSharedPtr<FString>> EmptyList;
 
 };

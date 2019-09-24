@@ -6,7 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Layout/SBox.h"
-#include "Graph/SGraphPinNameListValueWidget.h"
+#include "Graph/SControlRigGraphPinNameListValueWidget.h"
 #include "Rigs/RigHierarchyContainer.h"
 #include "ControlRigBlueprint.h"
 
@@ -35,7 +35,7 @@ protected:
 	void OnNameListComboBox();
 
 	FOnGetNameListContent OnGetNameListContent;
-	TSharedPtr<SGraphPinNameListValueWidget> NameListComboBox;
+	TSharedPtr<SControlRigGraphPinNameListValueWidget> NameListComboBox;
 	TArray<TSharedPtr<FString>> EmptyList;
 
 	FRigElementKey ControlKey;
