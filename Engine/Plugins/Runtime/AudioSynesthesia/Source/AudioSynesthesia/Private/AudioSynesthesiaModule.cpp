@@ -4,7 +4,6 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Features/IModularFeatures.h"
-#include "LoudnessNRTFactory.h"
 
 DEFINE_LOG_CATEGORY(LogAudioSynesthesia);
 
@@ -14,13 +13,9 @@ namespace Audio
 {
 	void FAudioSynesthesiaModule::StartupModule()
 	{
-		// Register factories on startup
-		IModularFeatures::Get().RegisterModularFeature(FLoudnessNRTFactory::GetModularFeatureName(), &LoudnessFactory);
 	}
 
 	void FAudioSynesthesiaModule::ShutdownModule()
 	{
-		// Unregister factories on shutdown
-		IModularFeatures::Get().UnregisterModularFeature(FLoudnessNRTFactory::GetModularFeatureName(), &LoudnessFactory);
 	}
 }

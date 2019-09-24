@@ -400,7 +400,7 @@ namespace Audio
 			 * bDoFlush Controls whether zeros to the final output windows until all possible windows with data from InNewBuffer have been covered.
 			 */
 			TScopedSlidingWindow(TSlidingBuffer<InSampleType>& InSlidingBuffer, TArrayView<const InSampleType> InNewBuffer, bool bDoFlush = false)
-			:	TSlidingWindow<InSampleType>(InSlidingBuffer, InNewBuffer, bDoFlush)
+			:	TSlidingWindow(InSlidingBuffer, InNewBuffer, bDoFlush)
 			,	SlidingBuffer(InSlidingBuffer)
 			{}
 
@@ -409,7 +409,7 @@ namespace Audio
 			 */
 			virtual ~TScopedSlidingWindow()
 			{
-				SlidingBuffer.StoreForFutureWindows(TSlidingWindow<InSampleType>::NewBuffer);
+				SlidingBuffer.StoreForFutureWindows(NewBuffer);
 			}
 	};
 
@@ -460,7 +460,7 @@ namespace Audio
 			 * bDoFlush Controls whether zeros to the final output windows until all possible windows with data from InNewBuffer have been covered.
 			 */
 			TAutoSlidingWindow(TSlidingBuffer<InSampleType>& InBuffer, TArrayView<const InSampleType> InNewBuffer, TArray<InSampleType, InAllocator>& OutWindow, bool bDoFlush = false)
-			:	TScopedSlidingWindow<InSampleType>(InBuffer, InNewBuffer, bDoFlush)
+			:	TScopedSlidingWindow(InBuffer, InNewBuffer, bDoFlush)
 			,	WindowBuffer(OutWindow)
 			{}
 
@@ -471,7 +471,7 @@ namespace Audio
 			 */
 			TSlidingWindow<InSampleType>::TSlidingWindowIterator<InAllocator> begin() 
 			{
-				return TSlidingWindow<InSampleType>::template begin<InAllocator>(WindowBuffer);
+				return TSlidingWindow<InSampleType>::begin<InAllocator>(WindowBuffer);
 			}
 
 			/**
@@ -481,7 +481,7 @@ namespace Audio
 			 */
 			TSlidingWindow<InSampleType>::TSlidingWindowIterator<InAllocator> end()
 			{
-				return TSlidingWindow<InSampleType>::template end<InAllocator>(WindowBuffer);
+				return TSlidingWindow<InSampleType>::end<InAllocator>(WindowBuffer);
 			}
 	};
 }
