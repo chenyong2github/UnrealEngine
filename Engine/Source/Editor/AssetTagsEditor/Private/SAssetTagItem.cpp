@@ -145,7 +145,7 @@ void SAssetTagItem::Construct(const FArguments& InArgs)
 		.DisplayName(InArgs._DisplayName)
 		.OnBuildToolTipInfo(InArgs._OnBuildToolTipInfo);
 
-	ANSICHAR* StyleSpecifier = nullptr;
+	const ANSICHAR* StyleSpecifier = nullptr;
 	if (InArgs._ViewMode == EAssetTagItemViewMode::Compact)
 	{
 		StyleSpecifier = ".Compact";
