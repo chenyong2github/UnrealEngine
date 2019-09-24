@@ -6,6 +6,7 @@
 #include "InteractiveGizmo.h"
 #include "InteractiveGizmoBuilder.h"
 #include "InteractiveToolObjects.h"
+#include "InteractiveToolChange.h"
 #include "BaseGizmos/GizmoActor.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "TransformGizmo.generated.h"
@@ -15,6 +16,7 @@ class IGizmoAxisSource;
 class IGizmoTransformSource;
 class IGizmoStateTarget;
 class UGizmoComponentAxisSource;
+class UGizmoTransformChangeStateTarget;
 
 
 /**
@@ -217,8 +219,16 @@ public:
 	UPROPERTY()
 	UTransformProxy* ActiveTarget;
 
-
+	/**
+	 * @return the internal GizmoActor used by the Gizmo
+	 */
 	ATransformGizmoActor* GetGizmoActor() const { return GizmoActor; }
+
+	/**
+	 * Set a new position for the Gizmo. This is done via the same mechanisms as the sub-gizmos,
+	 * so it generates the same Change/Modify() events, and hence works with Undo/Redo
+	 */
+	virtual void SetNewGizmoTransform(const FTransform& NewTransform);
 
 
 protected:
@@ -259,6 +269,10 @@ protected:
 	/** Z-axis source is shared across Gizmos, and created internally during SetActiveTarget() */
 	UPROPERTY()
 	UGizmoComponentAxisSource* AxisZSource;
+
+	/** State target is shared across gizmos, and created internally during SetActiveTarget() */
+	UPROPERTY()
+	UGizmoTransformChangeStateTarget* StateTarget;
 
 	/** @return a new instance of the standard axis-translation Gizmo */
 	virtual UInteractiveGizmo* AddAxisTranslationGizmo(

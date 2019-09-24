@@ -261,8 +261,9 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 	{
 		TransactionProvider = GetGizmoManager();
 	}
-	UGizmoTransformChangeStateTarget* StateTarget = UGizmoTransformChangeStateTarget::Construct(GizmoComponent,
+	StateTarget = UGizmoTransformChangeStateTarget::Construct(GizmoComponent,
 		LOCTEXT("UTransformGizmoTransaction", "Transform"), TransactionProvider, this);
+	StateTarget->DependentChangeSources.Add(MakeUnique<FTransformProxyChangeSource>(Target));
 
 	UGizmoComponentWorldTransformSource* TransformSource = 
 		UGizmoComponentWorldTransformSource::Construct(GizmoComponent, this);
@@ -325,11 +326,25 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 
 
 
+void UTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransform)
+{
+	check(ActiveTarget != nullptr);
+
+	StateTarget->BeginUpdate();
+
+	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
+	GizmoComponent->SetWorldTransform(NewTransform);
+	//ActiveTarget->SetTransform(NewTransform);		// this will happen in the GizmoComponent.TransformUpdated delegate handler above
+
+	StateTarget->EndUpdate();
+}
+
+
 UInteractiveGizmo* UTransformGizmo::AddAxisTranslationGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 	IGizmoAxisSource* AxisSource,
 	IGizmoTransformSource* TransformSource,
-	IGizmoStateTarget* StateTarget)
+	IGizmoStateTarget* StateTargetIn)
 {
 	// create axis-position gizmo, axis-position parameter will drive translation
 	UAxisPositionGizmo* TranslateGizmo = Cast<UAxisPositionGizmo>(GetGizmoManager()->CreateGizmo(
@@ -350,7 +365,7 @@ UInteractiveGizmo* UTransformGizmo::AddAxisTranslationGizmo(
 	}
 	TranslateGizmo->HitTarget = HitTarget;
 
-	TranslateGizmo->StateTarget = Cast<UObject>(StateTarget);
+	TranslateGizmo->StateTarget = Cast<UObject>(StateTargetIn);
 
 	ActiveGizmos.Add(TranslateGizmo);
 	return TranslateGizmo;
@@ -362,7 +377,7 @@ UInteractiveGizmo* UTransformGizmo::AddPlaneTranslationGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 	IGizmoAxisSource* AxisSource,
 	IGizmoTransformSource* TransformSource,
-	IGizmoStateTarget* StateTarget)
+	IGizmoStateTarget* StateTargetIn)
 {
 	// create axis-position gizmo, axis-position parameter will drive translation
 	UPlanePositionGizmo* TranslateGizmo = Cast<UPlanePositionGizmo>(GetGizmoManager()->CreateGizmo(
@@ -383,7 +398,7 @@ UInteractiveGizmo* UTransformGizmo::AddPlaneTranslationGizmo(
 	}
 	TranslateGizmo->HitTarget = HitTarget;
 
-	TranslateGizmo->StateTarget = Cast<UObject>(StateTarget);
+	TranslateGizmo->StateTarget = Cast<UObject>(StateTargetIn);
 
 	ActiveGizmos.Add(TranslateGizmo);
 	return TranslateGizmo;
@@ -397,7 +412,7 @@ UInteractiveGizmo* UTransformGizmo::AddAxisRotationGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 	IGizmoAxisSource* AxisSource,
 	IGizmoTransformSource* TransformSource,
-	IGizmoStateTarget* StateTarget)
+	IGizmoStateTarget* StateTargetIn)
 {
 	// create axis-angle gizmo, angle will drive axis-rotation
 	UAxisAngleGizmo* RotateGizmo = Cast<UAxisAngleGizmo>(GetGizmoManager()->CreateGizmo(
@@ -418,7 +433,7 @@ UInteractiveGizmo* UTransformGizmo::AddAxisRotationGizmo(
 	}
 	RotateGizmo->HitTarget = HitTarget;
 
-	RotateGizmo->StateTarget = Cast<UObject>(StateTarget);
+	RotateGizmo->StateTarget = Cast<UObject>(StateTargetIn);
 
 	ActiveGizmos.Add(RotateGizmo);
 
@@ -437,6 +452,11 @@ void UTransformGizmo::ClearActiveTarget()
 	}
 	ActiveGizmos.SetNum(0);
 	ActiveComponents.SetNum(0);
+
+	AxisXSource = nullptr;
+	AxisYSource = nullptr;
+	AxisZSource = nullptr;
+	StateTarget = nullptr;
 
 	ActiveTarget = nullptr;
 }

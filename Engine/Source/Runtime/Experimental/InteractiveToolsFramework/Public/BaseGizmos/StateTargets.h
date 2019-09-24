@@ -155,6 +155,11 @@ public:
 			}
 
 			InitialTransform = TargetComponent->GetComponentTransform();
+
+			for (TUniquePtr<IToolCommandChangeSource>& Source : DependentChangeSources)
+			{
+				Source->BeginChange();
+			}
 		}
 	}
 
@@ -169,6 +174,17 @@ public:
 				TUniquePtr<FComponentWorldTransformChange> TransformChange 
 					= MakeUnique<FComponentWorldTransformChange>(InitialTransform, FinalTransform);
 				TransactionManager->EmitObjectChange(TargetComponent.Get(), MoveTemp(TransformChange), ChangeDescription);
+
+				for (TUniquePtr<IToolCommandChangeSource>& Source : DependentChangeSources)
+				{
+					TUniquePtr<FToolCommandChange> Change = Source->EndChange();
+					if (Change)
+					{
+						UObject* Target = Source->GetChangeTarget();
+						TransactionManager->EmitObjectChange(Target, MoveTemp(Change), Source->GetChangeDescription());
+					}
+				}
+
 				TransactionManager->EndUndoTransaction();
 			}
 		}
@@ -196,6 +212,12 @@ public:
 	/** End Transform, saved on EndUpdate() */
 	FTransform FinalTransform;
 
+
+	/** 
+	 * Dependent-change generators. This will be told about update start/end, and any generated changes will also be emitted. 
+	 * This allows (eg) TransformProxy change events to be collected at the same time as changes to a gizmo target component.
+	 */
+	TArray<TUniquePtr<IToolCommandChangeSource>> DependentChangeSources;
 
 public:
 

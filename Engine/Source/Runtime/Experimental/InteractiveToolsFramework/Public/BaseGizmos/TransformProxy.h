@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "BaseGizmos/StateTargets.h"
 #include "TransformProxy.generated.h"
 
 class USceneComponent;
@@ -97,4 +98,44 @@ protected:
 
 	/** Propagate a transform update to the sub-objects */
 	virtual void UpdateObjects();
+};
+
+
+
+/**
+ * FTransformProxyChange tracks a change to the base transform for a TransformProxy
+ */
+class INTERACTIVETOOLSFRAMEWORK_API FTransformProxyChange : public FToolCommandChange
+{
+public:
+	FTransform From;
+	FTransform To;
+
+	virtual void Apply(UObject* Object) override;
+	virtual void Revert(UObject* Object) override;
+
+	virtual FString ToString() const override { return TEXT("FTransformProxyChange"); }
+};
+
+/**
+ * FTransformProxyChangeSource generates FTransformProxyChange instances on Begin/End.
+ * Instances of this class can (for example) be attached to a UGizmoTransformChangeStateTarget for use TransformGizmo change tracking.
+ */
+class INTERACTIVETOOLSFRAMEWORK_API FTransformProxyChangeSource : public IToolCommandChangeSource
+{
+public:
+	FTransformProxyChangeSource(UTransformProxy* ProxyIn)
+	{
+		Proxy = ProxyIn;
+	}
+
+	virtual ~FTransformProxyChangeSource() {}
+
+	TWeakObjectPtr<UTransformProxy> Proxy;
+	TUniquePtr<FTransformProxyChange> ActiveChange;
+
+	virtual void BeginChange() override;
+	virtual TUniquePtr<FToolCommandChange> EndChange() override;
+	virtual UObject* GetChangeTarget() override;
+	virtual FText GetChangeDescription() override;
 };

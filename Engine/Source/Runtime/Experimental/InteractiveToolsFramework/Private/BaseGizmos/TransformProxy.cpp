@@ -4,6 +4,9 @@
 #include "Components/SceneComponent.h"
 
 
+#define LOCTEXT_NAMESPACE "UTransformProxy"
+
+
 void UTransformProxy::AddComponent(USceneComponent* Component, bool bModifyComponentOnTransform)
 {
 	check(Component);
@@ -18,6 +21,7 @@ void UTransformProxy::AddComponent(USceneComponent* Component, bool bModifyCompo
 	UpdateSharedTransform();
 	OnTransformChanged.Broadcast(this, SharedTransform);
 }
+
 
 
 FTransform UTransformProxy::GetTransform() const
@@ -123,3 +127,52 @@ void UTransformProxy::UpdateObjectTransforms()
 		Obj.RelativeTransform.SetToRelativeTransform(SharedTransform);
 	}
 }
+
+
+
+
+
+void FTransformProxyChange::Apply(UObject* Object)
+{
+	UTransformProxy* Proxy = CastChecked<UTransformProxy>(Object);
+	Proxy->SetTransform(To);
+}
+
+void FTransformProxyChange::Revert(UObject* Object)
+{
+	UTransformProxy* Proxy = CastChecked<UTransformProxy>(Object);
+	Proxy->SetTransform(From);
+}
+
+
+void FTransformProxyChangeSource::BeginChange()
+{
+	if (Proxy.IsValid())
+	{
+		ActiveChange = MakeUnique<FTransformProxyChange>();
+		ActiveChange->From = Proxy->GetTransform();
+	}
+}
+
+TUniquePtr<FToolCommandChange> FTransformProxyChangeSource::EndChange()
+{
+	if (Proxy.IsValid())
+	{
+		ActiveChange->To = Proxy->GetTransform();
+		return MoveTemp(ActiveChange);
+	}
+	return TUniquePtr<FToolCommandChange>();
+}
+
+UObject* FTransformProxyChangeSource::GetChangeTarget()
+{
+	return Proxy.Get();
+}
+
+FText FTransformProxyChangeSource::GetChangeDescription()
+{
+	return LOCTEXT("FTransformProxyChangeDescription", "TransformProxyChange");
+}
+
+
+#undef LOCTEXT_NAMESPACE
