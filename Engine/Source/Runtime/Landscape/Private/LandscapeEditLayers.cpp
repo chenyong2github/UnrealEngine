@@ -2964,7 +2964,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 		// Copy back all Mips to original heightmap data
 		{
 			TArray<FHeightmapTopLeft> Heightmaps;
-			GetUniqueHeightmaps(InLandscapeComponentsToRender, Heightmaps, LandscapeExtent.Min);
+			GetUniqueHeightmaps(InLandscapeComponentsToResolve, Heightmaps, LandscapeExtent.Min);
 			for (const FHeightmapTopLeft& Heightmap : Heightmaps)
 			{
 				FIntPoint TextureTopLeftSectionBase = Heightmap.TopLeftSectionBase;
