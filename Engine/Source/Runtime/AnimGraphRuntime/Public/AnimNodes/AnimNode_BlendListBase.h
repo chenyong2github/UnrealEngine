@@ -12,6 +12,13 @@
 class UBlendProfile;
 class UCurveFloat;
 
+UENUM()
+enum class EBlendListTransitionType : uint8
+{
+	StandardBlend,
+	Inertialization
+};
+
 // Blend list node; has many children
 USTRUCT(BlueprintInternalUseOnly)
 struct ANIMGRAPHRUNTIME_API FAnimNode_BlendListBase : public FAnimNode_Base
@@ -23,6 +30,9 @@ public:
 
 	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category=Config, meta=(PinShownByDefault))
 	TArray<float> BlendTime;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Config)
+	EBlendListTransitionType TransitionType;
 
 	UPROPERTY(EditAnywhere, Category=BlendType)
 	EAlphaBlendOption BlendType;
@@ -55,7 +65,8 @@ protected:
 
 public:	
 	FAnimNode_BlendListBase()
-		: BlendType(EAlphaBlendOption::Linear)
+		: TransitionType(EBlendListTransitionType::StandardBlend)
+		, BlendType(EAlphaBlendOption::Linear)
 		, bResetChildOnActivation(false)
 		, LastActiveChildIndex(0)
 		, CustomBlendCurve(nullptr)

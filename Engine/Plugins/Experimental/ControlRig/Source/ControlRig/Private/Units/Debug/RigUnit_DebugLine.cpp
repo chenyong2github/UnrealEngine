@@ -3,7 +3,7 @@
 #include "Units/Debug/RigUnit_DebugLine.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_DebugLine::Execute(const FRigUnitContext& Context)
+FRigUnit_DebugLine_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -17,9 +17,9 @@ void FRigUnit_DebugLine::Execute(const FRigUnitContext& Context)
 	}
 
 	FVector DrawA = A, DrawB = B;
-	if (Space != NAME_None && Context.HierarchyReference.Get() != nullptr)
+	if (Space != NAME_None && Context.GetBones() != nullptr)
 	{
-		FTransform Transform = Context.HierarchyReference.Get()->GetGlobalTransform(Space);
+		FTransform Transform = Context.GetBones()->GetGlobalTransform(Space);
 		DrawA = Transform.TransformPosition(DrawA);
 		DrawB = Transform.TransformPosition(DrawB);
 	}

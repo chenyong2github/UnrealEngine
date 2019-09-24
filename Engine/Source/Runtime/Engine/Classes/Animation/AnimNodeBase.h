@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectKey.h"
 #include "UObject/Class.h"
 #include "Engine/EngineTypes.h"
 #include "Animation/AnimTypes.h"
@@ -22,11 +23,113 @@ class UAnimInstance;
 struct FAnimInstanceProxy;
 struct FAnimNode_Base;
 
+/**
+ * Utility container for tracking a stack of ancestor nodes by node type during graph traversal
+ * This is not an exhaustive list of all visited ancestors. During Update nodes must call
+ * FAnimationUpdateContext::TrackAncestor() to appear in the tracker.
+ */
+struct FAnimNodeTracker
+{
+	using FKey = FObjectKey;
+	using FNodeStack = TArray<FAnimNode_Base*, TInlineAllocator<4>>;
+	using FMap = TMap<FKey, FNodeStack, TInlineSetAllocator<4>>;
+
+	FMap Map;
+
+	template<typename NodeType>
+	static FKey GetKey()
+	{
+		return FKey(NodeType::StaticStruct());
+	}
+
+	template<typename NodeType>
+	FKey Push(NodeType* Node)
+	{
+		FKey Key(GetKey<NodeType>());
+		FNodeStack& Stack = Map.FindOrAdd(Key);
+		Stack.Push(Node);
+		return Key;
+	}
+
+	template<typename NodeType>
+	NodeType* Pop()
+	{
+		FNodeStack* Stack = Map.Find(GetKey<NodeType>());
+		return Stack ? static_cast<NodeType*>(Stack->Pop()) : nullptr;
+	}
+
+	FAnimNode_Base* Pop(FKey Key)
+	{
+		FNodeStack* Stack = Map.Find(Key);
+		return Stack ? Stack->Pop() : nullptr;
+	}
+
+	template<typename NodeType>
+	NodeType* Top() const
+	{
+		const FNodeStack* Stack = Map.Find(GetKey<NodeType>());
+		return Stack ? static_cast<NodeType*>(Stack->Top()) : nullptr;
+	}
+
+	void CopyTopsOnly(const FAnimNodeTracker& Source)
+	{
+		Map.Reset();
+		Map.Reserve(Source.Map.Num());
+		for (const auto& Iter : Source.Map)
+		{
+			if (Iter.Value.Top())
+			{
+				FNodeStack& Stack = Map.Add(Iter.Key);
+				Stack.Push(Iter.Value.Top());
+			}
+		}
+	}
+};
+
+
+/** Helper RAII object to cleanup a node added to the node tracker */
+class FScopedAnimNodeTracker
+{
+public:
+	FScopedAnimNodeTracker() = default;
+
+	FScopedAnimNodeTracker(FAnimNodeTracker* InTracker, FAnimNodeTracker::FKey InKey)
+		: Tracker(InTracker)
+		, TrackedKey(InKey)
+	{}
+
+	~FScopedAnimNodeTracker()
+	{
+		if (Tracker && TrackedKey != FAnimNodeTracker::FKey())
+		{
+			Tracker->Pop(TrackedKey);
+		}
+	}
+
+private:
+	FAnimNodeTracker* Tracker = nullptr;
+	FAnimNodeTracker::FKey TrackedKey;
+};
+
+
+/** Persistent state shared during animation tree update  */
+struct FAnimationUpdateSharedContext
+{
+	FAnimNodeTracker AncestorTracker;
+
+	void CopyForCachedUpdate(const FAnimationUpdateSharedContext& Source)
+	{
+		AncestorTracker.CopyTopsOnly(Source.AncestorTracker);
+	}
+};
+
 /** Base class for update/evaluate contexts */
 struct FAnimationBaseContext
 {
 public:
 	FAnimInstanceProxy* AnimInstanceProxy;
+
+	FAnimationBaseContext();
 
 protected:
 	// DEPRECATED - Please use constructor that uses an FAnimInstanceProxy*
@@ -83,39 +186,67 @@ public:
 struct FAnimationUpdateContext : public FAnimationBaseContext
 {
 private:
+	FAnimationUpdateSharedContext* SharedContext;
+
 	float CurrentWeight;
 	float RootMotionWeightModifier;
 
 	float DeltaTime;
+
 public:
-	FAnimationUpdateContext(FAnimInstanceProxy* InAnimInstanceProxy, float InDeltaTime)
+	FAnimationUpdateContext(FAnimInstanceProxy* InAnimInstanceProxy = nullptr)
 		: FAnimationBaseContext(InAnimInstanceProxy)
+		, SharedContext(nullptr)
 		, CurrentWeight(1.0f)
-		, RootMotionWeightModifier(1.f)
-		, DeltaTime(InDeltaTime)
+		, RootMotionWeightModifier(1.0f)
+		, DeltaTime(0.0f)
+	{
+	}
+
+	FAnimationUpdateContext(FAnimInstanceProxy* InAnimInstanceProxy, float InDeltaTime, FAnimationUpdateSharedContext* InSharedContext = nullptr)
+		: FAnimationUpdateContext(InAnimInstanceProxy)
+	{
+		SharedContext = InSharedContext;
+		DeltaTime = InDeltaTime;
+	}
+
+
+	FAnimationUpdateContext(const FAnimationUpdateContext& Copy) = default;
+
+	FAnimationUpdateContext(const FAnimationUpdateContext& Copy, FAnimInstanceProxy* InAnimInstanceProxy)
+		: FAnimationBaseContext(InAnimInstanceProxy)
+		, SharedContext(Copy.SharedContext)
+		, CurrentWeight(Copy.CurrentWeight)
+		, RootMotionWeightModifier(Copy.RootMotionWeightModifier)
+		, DeltaTime(Copy.DeltaTime)
 	{
 	}
 
 public:
 	FAnimationUpdateContext WithOtherProxy(FAnimInstanceProxy* InAnimInstanceProxy) const
 	{
-		FAnimationUpdateContext Result(InAnimInstanceProxy, DeltaTime);
-		Result.CurrentWeight = CurrentWeight;
-		Result.RootMotionWeightModifier = RootMotionWeightModifier;
+		return FAnimationUpdateContext(*this, InAnimInstanceProxy);
+	}
+
+	FAnimationUpdateContext WithOtherSharedContext(FAnimationUpdateSharedContext* InSharedContext) const
+	{
+		FAnimationUpdateContext Result(*this);
+		Result.SharedContext = InSharedContext;
+
 		return Result;
 	}
 
-	FAnimationUpdateContext FractionalWeight(float Multiplier) const
+	FAnimationUpdateContext FractionalWeight(float WeightMultiplier) const
 	{
-		FAnimationUpdateContext Result(AnimInstanceProxy, DeltaTime);
-		Result.CurrentWeight = CurrentWeight * Multiplier;
-		Result.RootMotionWeightModifier = RootMotionWeightModifier;
+		FAnimationUpdateContext Result(*this);
+		Result.CurrentWeight = CurrentWeight * WeightMultiplier;
+
 		return Result;
 	}
 
 	FAnimationUpdateContext FractionalWeightAndRootMotion(float WeightMultiplier, float RootMotionMultiplier) const
 	{
-		FAnimationUpdateContext Result(AnimInstanceProxy, DeltaTime);
+		FAnimationUpdateContext Result(*this);
 		Result.CurrentWeight = CurrentWeight * WeightMultiplier;
 		Result.RootMotionWeightModifier = RootMotionWeightModifier * RootMotionMultiplier;
 
@@ -124,19 +255,52 @@ public:
 
 	FAnimationUpdateContext FractionalWeightAndTime(float WeightMultiplier, float TimeMultiplier) const
 	{
-		FAnimationUpdateContext Result(AnimInstanceProxy, DeltaTime * TimeMultiplier);
+		FAnimationUpdateContext Result(*this);
+		Result.DeltaTime = DeltaTime * TimeMultiplier;
 		Result.CurrentWeight = CurrentWeight * WeightMultiplier;
-		Result.RootMotionWeightModifier = RootMotionWeightModifier;
 		return Result;
 	}
 
 	FAnimationUpdateContext FractionalWeightTimeAndRootMotion(float WeightMultiplier, float TimeMultiplier, float RootMotionMultiplier) const
 	{
-		FAnimationUpdateContext Result(AnimInstanceProxy, DeltaTime * TimeMultiplier);
+		FAnimationUpdateContext Result(*this);
+		Result.DeltaTime = DeltaTime * TimeMultiplier;
 		Result.CurrentWeight = CurrentWeight * WeightMultiplier;
 		Result.RootMotionWeightModifier = RootMotionWeightModifier * RootMotionMultiplier;
 
 		return Result;
+	}
+
+	// Add a node to the list of tracked ancestors
+	template<typename NodeType>
+	FScopedAnimNodeTracker TrackAncestor(NodeType* Node) const
+	{
+		if (ensure(SharedContext != nullptr))
+		{
+			FAnimNodeTracker::FKey Key = SharedContext->AncestorTracker.Push<NodeType>(Node);
+			return FScopedAnimNodeTracker(&SharedContext->AncestorTracker, Key);
+		}
+
+		return FScopedAnimNodeTracker();
+	}
+
+	// Returns the nearest ancestor node of a particular type
+	template<typename NodeType>
+	NodeType* GetAncestor() const
+	{
+		if (ensure(SharedContext != nullptr))
+		{
+			FAnimNode_Base* Node = SharedContext->AncestorTracker.Top<NodeType>();
+			return static_cast<NodeType*>(Node);
+		}
+		
+		return nullptr;
+	}
+
+	// Returns persistent state that is tracked through animation tree update
+	FAnimationUpdateSharedContext* GetSharedContext() const
+	{
+		return SharedContext;
 	}
 
 	// Returns the final blend weight contribution for this stage
@@ -709,6 +873,18 @@ struct ENGINE_API FAnimNode_Base
 
 	/** Called to help dynamics-based updates to recover correctly from large movements/teleports */
 	virtual void ResetDynamics(ETeleportType InTeleportType);
+
+	/**
+	 * Override this if your node uses ancestor tracking and wants to be informed of Update() calls
+	 * that were skipped due to pose caching.
+	 */
+	virtual bool WantsSkippedUpdates() const { return false; }
+	
+	/**
+	 * Called on a tracked ancestor node when there are Update() calls that were skipped due to pose 
+	 * caching. Your node must implement WantsSkippedUpdates to receive this callback.
+	 */
+	virtual void OnUpdatesSkipped(TArrayView<const FAnimationUpdateContext*> SkippedUpdateContexts) {}
 
 	/** Called after compilation */
 	virtual void PostCompile(const class USkeleton* InSkeleton) {}

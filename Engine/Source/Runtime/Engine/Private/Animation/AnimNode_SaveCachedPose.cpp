@@ -40,8 +40,16 @@ void FAnimNode_SaveCachedPose::CacheBones_AnyThread(const FAnimationCacheBonesCo
 
 void FAnimNode_SaveCachedPose::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
+	FCachedUpdateContext& CachedUpdate = CachedUpdateContexts.AddDefaulted_GetRef();
+
+	// Make a minimal copy of the shared context for cached updates
+	if (FAnimationUpdateSharedContext* SharedContext = Context.GetSharedContext())
+	{
+		CachedUpdate.SharedContext.CopyForCachedUpdate(*SharedContext);
+	}
+
 	// Store this context for the post update
-	CachedUpdateContexts.Add(Context);
+	CachedUpdate.Context = Context.WithOtherSharedContext(&CachedUpdate.SharedContext);
 }
 
 void FAnimNode_SaveCachedPose::Evaluate_AnyThread(FPoseContext& Output)
@@ -79,21 +87,62 @@ void FAnimNode_SaveCachedPose::PostGraphUpdate()
 
 	// Update GlobalWeight based on highest weight calling us.
 	const int32 NumContexts = CachedUpdateContexts.Num();
-	if(NumContexts > 0)
+	if (NumContexts > 0)
 	{
-		GlobalWeight = CachedUpdateContexts[0].GetFinalBlendWeight();
+		GlobalWeight = CachedUpdateContexts[0].Context.GetFinalBlendWeight();
 		int32 MaxWeightIdx = 0;
-		for(int32 CurrIdx = 1; CurrIdx < NumContexts; ++CurrIdx)
+		for (int32 CurrIdx = 1; CurrIdx < NumContexts; ++CurrIdx)
 		{
-			const float BlendWeight = CachedUpdateContexts[CurrIdx].GetFinalBlendWeight();
-			if(BlendWeight > GlobalWeight)
+			const float BlendWeight = CachedUpdateContexts[CurrIdx].Context.GetFinalBlendWeight();
+			if (BlendWeight > GlobalWeight)
 			{
 				GlobalWeight = BlendWeight;
 				MaxWeightIdx = CurrIdx;
 			}
 		}
 
-		Pose.Update(CachedUpdateContexts[MaxWeightIdx]);
+		// Update the max weighted pose node
+		Pose.Update(CachedUpdateContexts[MaxWeightIdx].Context);
+
+		// Determine if any ancestors are interested in the other updates we'll be skipping
+		TArray<FAnimNode_Base*, TInlineAllocator<4>> AncestorsWithSkippedUpdateHandlers;
+		if (NumContexts > 1)
+		{
+			FAnimationUpdateSharedContext* SharedContext = CachedUpdateContexts[MaxWeightIdx].Context.GetSharedContext();
+			FAnimNodeTracker* AncestorTracker = SharedContext ? &SharedContext->AncestorTracker : nullptr;
+
+			if (AncestorTracker)
+			{
+				for (auto Iter : AncestorTracker->Map)
+				{
+					FAnimNode_Base* AncestorNode = Iter.Value.Top();
+					if (AncestorNode && AncestorNode->WantsSkippedUpdates())
+					{
+						AncestorsWithSkippedUpdateHandlers.Add(AncestorNode);
+					}
+				}
+			}
+		}
+
+		if (AncestorsWithSkippedUpdateHandlers.Num() > 0)
+		{
+			// Build a list of skipped updates
+			TArray<const FAnimationUpdateContext *, TInlineAllocator<4>> SkippedUpdateContexts;
+			for (int32 CurrIdx = 0; CurrIdx < NumContexts; ++CurrIdx)
+			{
+				if (CurrIdx != MaxWeightIdx)
+				{
+					SkippedUpdateContexts.Add(&CachedUpdateContexts[CurrIdx].Context);
+				}
+			}
+
+			// Inform any interested ancestors about the skipped updates
+			for (FAnimNode_Base* AncestorNode : AncestorsWithSkippedUpdateHandlers)
+			{
+				AncestorNode->OnUpdatesSkipped(SkippedUpdateContexts);
+			}
+		}
+
 	}
 
 	CachedUpdateContexts.Reset();

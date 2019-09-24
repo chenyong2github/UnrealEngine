@@ -87,6 +87,25 @@ bool UControlRigController::CloseUndoBracket()
 	return true;
 }
 
+bool UControlRigController::CancelUndoBracket()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	if (!EnsureModel())
+	{
+		return false;
+	}
+
+	if (_UndoBrackets.Num() == 0)
+	{
+		return false;
+	}
+
+	Model->CurrentActions.Pop();
+	_UndoBrackets.Pop();
+	return true;
+}
+
 #endif
 
 

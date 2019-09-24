@@ -106,6 +106,7 @@ struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 		SecondaryCachedSpaceIndex = INDEX_NONE;
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/** 

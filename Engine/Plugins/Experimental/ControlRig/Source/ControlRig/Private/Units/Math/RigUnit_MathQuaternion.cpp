@@ -3,7 +3,7 @@
 #include "Units/Math/RigUnit_MathQuaternion.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_MathQuaternionFromAxisAndAngle::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionFromAxisAndAngle_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Axis.IsNearlyZero())
@@ -15,19 +15,19 @@ void FRigUnit_MathQuaternionFromAxisAndAngle::Execute(const FRigUnitContext& Con
 	Result = FQuat(Axis.GetUnsafeNormal(), Angle);
 }
 
-void FRigUnit_MathQuaternionFromEuler::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionFromEuler_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FControlRigMathLibrary::QuatFromEuler(Euler, RotationOrder);
 }
 
-void FRigUnit_MathQuaternionFromRotator::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionFromRotator_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FQuat(Rotator);
 }
 
-void FRigUnit_MathQuaternionFromTwoVectors::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionFromTwoVectors_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (A.IsNearlyZero() || B.IsNearlyZero())
@@ -46,79 +46,79 @@ void FRigUnit_MathQuaternionFromTwoVectors::Execute(const FRigUnitContext& Conte
 	Result = FQuat::FindBetweenVectors(A, B).GetNormalized();
 }
 
-void FRigUnit_MathQuaternionToAxisAndAngle::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionToAxisAndAngle_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Value.ToAxisAndAngle(Axis, Angle);
 }
 
-void FRigUnit_MathQuaternionToEuler::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionToEuler_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FControlRigMathLibrary::EulerFromQuat(Value, RotationOrder);
 }
 
-void FRigUnit_MathQuaternionToRotator::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionToRotator_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value.Rotator();
 }
 
-void FRigUnit_MathQuaternionMul::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionMul_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A * B;
 }
 
-void FRigUnit_MathQuaternionInverse::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionInverse_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value.Inverse();
 }
 
-void FRigUnit_MathQuaternionSlerp::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionSlerp_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FQuat::Slerp(A, B, T);
 }
 
-void FRigUnit_MathQuaternionEquals::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionEquals_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A == B;
 }
 
-void FRigUnit_MathQuaternionNotEquals::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionNotEquals_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A != B;
 }
 
-void FRigUnit_MathQuaternionSelectBool::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionSelectBool_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Condition ? IfTrue : IfFalse;
 }
 
-void FRigUnit_MathQuaternionDot::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionDot_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A | B;
 }
 
-void FRigUnit_MathQuaternionUnit::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionUnit_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value.GetNormalized();
 }
 
-void FRigUnit_MathQuaternionRotateVector::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionRotateVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Quaternion.RotateVector(Vector);
 }
 
-void FRigUnit_MathQuaternionGetAxis::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionGetAxis_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	switch (Axis)
@@ -143,7 +143,7 @@ void FRigUnit_MathQuaternionGetAxis::Execute(const FRigUnitContext& Context)
 }
 
 
-void FRigUnit_MathQuaternionSwingTwist::Execute(const FRigUnitContext& Context)
+FRigUnit_MathQuaternionSwingTwist_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (TwistAxis.IsNearlyZero())

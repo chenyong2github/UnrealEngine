@@ -3,7 +3,7 @@
 #include "Units/Debug/RigUnit_DebugHierarchy.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_DebugHierarchy::Execute(const FRigUnitContext& Context)
+FRigUnit_DebugHierarchy_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -16,7 +16,7 @@ void FRigUnit_DebugHierarchy::Execute(const FRigUnitContext& Context)
 		return;
 	}
 
-	const FRigHierarchy* Hierarchy = Context.HierarchyReference.Get();
+	const FRigBoneHierarchy* Hierarchy = Context.GetBones();
 	if (Hierarchy)
 	{
 		Context.DrawInterface->DrawHierarchy(WorldOffset, *Hierarchy, Mode, Scale, Color, Thickness);

@@ -140,7 +140,14 @@ void FixSubObjectReferencesPostUndoRedo(const FTransaction* Transaction)
 	{
 		FixSubObjectReferencesPostUndoRedo(Blueprint->GeneratedClass->GetDefaultObject());
 		// Will cause a call to RefreshEditors()
-		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+		if (Blueprint->RequiresMarkAsStructurallyModifiedOnUndo())
+		{
+			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+		}
+		else
+		{
+			Blueprint->MarkPackageDirty();
+		}
 	}
 }
 

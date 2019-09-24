@@ -18,6 +18,7 @@ struct FRigUnit_DeltaFromPreviousFloat : public FRigUnit_SimBase
 		Value = Delta = PreviousValue = Cache = 0.f;
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -46,6 +47,7 @@ struct FRigUnit_DeltaFromPreviousVector : public FRigUnit_SimBase
 		Value = Delta = PreviousValue = Cache = FVector::ZeroVector;
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -74,6 +76,7 @@ struct FRigUnit_DeltaFromPreviousQuat : public FRigUnit_SimBase
 		Value = Delta = PreviousValue = Cache = FQuat::Identity;
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -102,6 +105,7 @@ struct FRigUnit_DeltaFromPreviousTransform : public FRigUnit_SimBase
 		Value = Delta = PreviousValue = Cache = FTransform::Identity;
 	}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))

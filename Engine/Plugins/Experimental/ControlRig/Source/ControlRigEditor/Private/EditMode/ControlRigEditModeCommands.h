@@ -25,8 +25,6 @@ public:
 	/** Toggles hiding all manipulators in the viewport */
 	TSharedPtr< FUICommandInfo > ToggleManipulators;
 
-	/** Toggles hiding all trajectories in the viewport */
-	TSharedPtr< FUICommandInfo > ToggleTrajectories;
 
 	/** Export this sequence to an optimized skeleton-specific animation sequence */
 	TSharedPtr< FUICommandInfo > ExportAnimSequence;

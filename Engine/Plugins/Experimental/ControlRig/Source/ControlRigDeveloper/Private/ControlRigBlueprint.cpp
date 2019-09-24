@@ -10,11 +10,13 @@
 #include "ControlRig.h"
 #include "Graph/ControlRigGraph.h"
 #include "Graph/ControlRigGraphNode.h"
+#include "UObject/UObjectGlobals.h"
 
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ControlRigBlueprintUtils.h"
+#include "Settings/ControlRigSettings.h"
 #endif//WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprint"
@@ -25,6 +27,10 @@ UControlRigBlueprint::UControlRigBlueprint()
 	bSuspendModelNotificationsForOthers = false;
 	Model = nullptr;
 	ModelController = nullptr;
+
+#if WITH_EDITORONLY_DATA
+	GizmoLibrary = UControlRigSettings::Get()->DefaultGizmoLibrary;
+#endif
 }
 
 void UControlRigBlueprint::InitializeModel()
@@ -45,6 +51,12 @@ void UControlRigBlueprint::InitializeModel()
 				Graph->Initialize(this);
 			}
 		}
+
+		HierarchyContainer.OnElementAdded.AddUObject(this, &UControlRigBlueprint::HandleOnElementAdded);
+		HierarchyContainer.OnElementRemoved.AddUObject(this, &UControlRigBlueprint::HandleOnElementRemoved);
+		HierarchyContainer.OnElementRenamed.AddUObject(this, &UControlRigBlueprint::HandleOnElementRenamed);
+		HierarchyContainer.OnElementReparented.AddUObject(this, &UControlRigBlueprint::HandleOnElementReparented);
+		HierarchyContainer.OnElementSelected.AddUObject(this, &UControlRigBlueprint::HandleOnElementSelected);
 	}
 }
 
@@ -59,6 +71,7 @@ UControlRigBlueprintGeneratedClass* UControlRigBlueprint::GetControlRigBlueprint
 	UControlRigBlueprintGeneratedClass* Result = Cast<UControlRigBlueprintGeneratedClass>(*SkeletonGeneratedClass);
 	return Result;
 }
+
 UClass* UControlRigBlueprint::GetBlueprintClass() const
 {
 	return UControlRigBlueprintGeneratedClass::StaticClass();
@@ -122,6 +135,57 @@ void UControlRigBlueprint::SetObjectBeingDebugged(UObject* NewObject)
 
 	Super::SetObjectBeingDebugged(NewObject);
 }
+
+void UControlRigBlueprint::PostLoad()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	Super::PostLoad();
+
+	// remove all non-controlrig-graphs
+	TArray<UEdGraph*> NewUberGraphPages;
+	for (UEdGraph* Graph : UbergraphPages)
+	{
+		UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+		if (RigGraph)
+		{
+			NewUberGraphPages.Add(RigGraph);
+		}
+		else
+		{
+			Graph->MarkPendingKill();
+			Graph->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
+		}
+	}
+	UbergraphPages = NewUberGraphPages;
+}
+
+void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	Super::PostTransacted(TransactionEvent);
+
+	if (TransactionEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
+	{
+		if (TransactionEvent.GetChangedProperties().Contains(TEXT("HierarchyContainer")))
+		{
+			PropagateHierarchyFromBPToInstances(true);
+			HierarchyContainer.OnElementChanged.Broadcast(&HierarchyContainer, FRigElementKey());
+
+			// make sure the bone name list is up 2 date for the editor graph
+			for (UEdGraph* Graph : UbergraphPages)
+			{
+				UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+				if (RigGraph == nullptr)
+				{
+					continue;
+				}
+				RigGraph->CacheNameLists(&HierarchyContainer);
+			}
+		}
+	}
+}
+
 
 UControlRigModel::FModifiedEvent& UControlRigBlueprint::OnModified()
 {
@@ -251,7 +315,6 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 	check(ModelController);
 	ModelController->ResendAllNotifications();
 }
-
 
 void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
 {
@@ -597,6 +660,88 @@ bool UControlRigBlueprint::PerformArrayOperation(const FString& InPropertyPath, 
 
 	return false;
 }
+
+void UControlRigBlueprint::CleanupBoneHierarchyDeprecated()
+{
+	if (Hierarchy_DEPRECATED.Num() > 0)
+	{
+		HierarchyContainer.BoneHierarchy = Hierarchy_DEPRECATED;
+		Hierarchy_DEPRECATED.Reset();
+	}
+
+	if (CurveContainer_DEPRECATED.Num() > 0)
+	{
+		HierarchyContainer.CurveContainer = CurveContainer_DEPRECATED;
+		CurveContainer_DEPRECATED.Reset();
+	}
+
+}
+
+void UControlRigBlueprint::PropagatePoseFromInstanceToBP()
+{
+	if (UClass* MyControlRigClass = GeneratedClass)
+	{
+		if (UControlRig* DebuggedRig = Cast<UControlRig>(GetObjectBeingDebugged()))
+		{
+			/* todo */
+		}
+	}
+}
+
+void UControlRigBlueprint::PropagateHierarchyFromBPToInstances(bool bInitialize)
+{
+	if (UClass* MyControlRigClass = GeneratedClass)
+	{
+		if (UControlRig* DefaultObject = Cast<UControlRig>(MyControlRigClass->GetDefaultObject(false)))
+		{
+			if (bInitialize)
+			{
+				HierarchyContainer.Initialize();
+				HierarchyContainer.ResetTransforms();
+			}
+
+			DefaultObject->Hierarchy = HierarchyContainer;
+
+			TArray<UObject*> ArchetypeInstances;
+			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
+			for (UObject* ArchetypeInstance : ArchetypeInstances)
+			{
+				if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
+				{
+					InstanceRig->Hierarchy = HierarchyContainer;
+				}
+			}
+		}
+	}
+}
+
+#if WITH_EDITOR
+
+void UControlRigBlueprint::HandleOnElementAdded(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey)
+{
+	PropagateHierarchyFromBPToInstances();
+}
+
+void UControlRigBlueprint::HandleOnElementRemoved(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey)
+{
+	PropagateHierarchyFromBPToInstances();
+}
+
+void UControlRigBlueprint::HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InOldName, const FName& InNewName)
+{
+	PropagateHierarchyFromBPToInstances();
+}
+
+void UControlRigBlueprint::HandleOnElementReparented(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, const FName& InOldParentName, const FName& InNewParentName)
+{
+	PropagateHierarchyFromBPToInstances();
+}
+
+void UControlRigBlueprint::HandleOnElementSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected)
+{
+}
+
+#endif
 
 #undef LOCTEXT_NAMESPACE
 

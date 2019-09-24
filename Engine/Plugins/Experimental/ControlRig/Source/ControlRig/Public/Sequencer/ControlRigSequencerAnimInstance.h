@@ -15,7 +15,7 @@ class CONTROLRIG_API UControlRigSequencerAnimInstance : public UAnimSequencerIns
 
 public:
 	/** Update an animation ControlRig in this sequence */
-	bool UpdateControlRig(UControlRig* InControlRig, uint32 SequenceId, bool bAdditive, bool bApplyBoneFilter, const FInputBlendPose& BoneFilter, float Weight, bool bExternalSource = false);
+	bool UpdateControlRig(UControlRig* InControlRig, uint32 SequenceId, bool bAdditive, bool bApplyBoneFilter, const FInputBlendPose& BoneFilter, float Weight, bool bUpdateInput, bool bExecute);
 
 	virtual bool SetAnimationAsset(class UAnimationAsset* NewAsset);
 
