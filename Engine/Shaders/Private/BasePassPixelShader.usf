@@ -14,7 +14,7 @@
 	#define EyeAdaptationStruct OpaqueBasePass
 #endif
 
-#if MATERIAL_IS_SINGLE_LAYER_WATER
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 #define PreIntegratedGF			OpaqueBasePass.PreIntegratedGFTexture
 #define PreIntegratedGFSampler	OpaqueBasePass.PreIntegratedGFSampler
 #endif
@@ -68,7 +68,7 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #endif
 
 #include "ShadingModelsMaterial.ush"
-#if MATERIAL_SHADINGMODEL_HAIR || SIMPLE_FORWARD_DIRECTIONAL_LIGHT || MATERIAL_IS_SINGLE_LAYER_WATER
+#if MATERIAL_SHADINGMODEL_HAIR || SIMPLE_FORWARD_DIRECTIONAL_LIGHT || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 #include "ShadingModels.ush"
 #endif
 
@@ -80,11 +80,11 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #define EDITOR_ALPHA2COVERAGE (USE_EDITOR_COMPOSITING && SUPPORTS_PIXEL_COVERAGE)
 #define POST_PROCESS_SUBSURFACE ((MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_EYE) && USES_GBUFFER)
 
-#if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING || MATERIAL_IS_SINGLE_LAYER_WATER
+#if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 #include "ForwardLightingCommon.ush"
 #endif
 
-#if  MATERIAL_IS_SINGLE_LAYER_WATER
+#if  MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 #include "SingleLayerWaterCommon.ush"
 #endif
 
@@ -528,7 +528,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	#endif
 }
 
-#if SIMPLE_FORWARD_DIRECTIONAL_LIGHT || MATERIAL_IS_SINGLE_LAYER_WATER
+#if SIMPLE_FORWARD_DIRECTIONAL_LIGHT || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
 float3 GetSimpleForwardLightingDirectionalLight(FGBufferData GBuffer, float3 DiffuseColor, float3 SpecularColor, float Roughness, float3 WorldNormal, float3 CameraVector)
 {
@@ -1070,7 +1070,7 @@ ShadingModel);
 
 		DiffuseColor += (DiffuseIndirectLighting * DiffuseColorForIndirect + SubsurfaceIndirectLighting * SubsurfaceColor) * AOMultiBounce( GBuffer.BaseColor, DiffOcclusion );
 
-#if MATERIAL_IS_SINGLE_LAYER_WATER
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 		// Fade out diffuse as this will be handled by the single scattering lighting in water material.
 		// We do this after the just above GetPrecomputedIndirectLightingAndSkyLight to keep ambiant lighting avialable.
 		// We also keep the SpecularColor for sun/water interactions.
@@ -1082,7 +1082,7 @@ ShadingModel);
 
 			Color += BasePassInterpolants.VertexDiffuseLighting * GBuffer.DiffuseColor;
 
-		#elif FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || MATERIAL_IS_SINGLE_LAYER_WATER
+		#elif FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 			uint GridIndex = 0;
 
 			#if INSTANCED_STEREO
@@ -1094,14 +1094,14 @@ ShadingModel);
 			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 				GridIndex = ComputeLightGridCellIndex((uint2)(MaterialParameters.SvPosition.xy - ResolvedView.ViewRectMin.xy), MaterialParameters.SvPosition.w, EyeIndex);
 
-				#if FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_IS_SINGLE_LAYER_WATER
+				#if FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 					const float Dither = InterleavedGradientNoise(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
 					float3 ForwardDirectLighting = GetForwardDirectLighting(GridIndex, MaterialParameters.AbsoluteWorldPosition, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither);
 					Color += ForwardDirectLighting;
 				#endif
 			#endif
 				// No IBL for water in deferred: that is skipped because it is done in the water composite pass. It should however be applied when using forward shading in order to get reflection without the water composite pass.
-			#if !(MATERIAL_SINGLE_SHADINGMODEL && MATERIAL_SHADINGMODEL_HAIR) && (!MATERIAL_IS_SINGLE_LAYER_WATER || FORWARD_SHADING) 
+			#if !(MATERIAL_SINGLE_SHADINGMODEL && MATERIAL_SHADINGMODEL_HAIR) && (!MATERIAL_SHADINGMODEL_SINGLELAYERWATER || FORWARD_SHADING) 
 				if (GBuffer.ShadingModelID != SHADINGMODELID_HAIR)
 				{
 					int SingleCaptureIndex = GetPrimitiveData(MaterialParameters.PrimitiveId).SingleCaptureIndex;
@@ -1212,7 +1212,7 @@ ShadingModel);
 #endif
 	Color += Emissive;
 
-#if MATERIAL_IS_SINGLE_LAYER_WATER
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	{
 		const bool CameraIsUnderWater = false;	// Fade out the material contribution over to water contribution according to material opacity.
 		const float3 SunIlluminance = ResolvedView.DirectionalLightColor.rgb * PI;	// times PI because it is divided by PI on CPU (=luminance) and we want illuminance here. 
@@ -1231,7 +1231,7 @@ ShadingModel);
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility).Luminance;
 	}
-#endif // MATERIAL_IS_SINGLE_LAYER_WATER
+#endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
 	#if MATERIAL_DOMAIN_POSTPROCESS
 		#if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
