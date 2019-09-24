@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 
-#include "Graph/SGraphPinCurveFloat.h"
+#include "Graph/SControlRigGraphPinCurveFloat.h"
 #include "Graph/ControlRigGraph.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -12,12 +12,12 @@
 
 #include "IControlRigEditorModule.h"
 
-void SGraphPinCurveFloat::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
+void SControlRigGraphPinCurveFloat::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {
 	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
 }
 
-TSharedRef<SWidget>	SGraphPinCurveFloat::GetDefaultValueWidget()
+TSharedRef<SWidget>	SControlRigGraphPinCurveFloat::GetDefaultValueWidget()
 {
 	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GraphPinObj->GetOwningNode()->GetGraph());
 
@@ -43,21 +43,21 @@ TSharedRef<SWidget>	SGraphPinCurveFloat::GetDefaultValueWidget()
 	return Widget;
 }
 
-TArray<FRichCurveEditInfoConst> SGraphPinCurveFloat::GetCurves() const
+TArray<FRichCurveEditInfoConst> SControlRigGraphPinCurveFloat::GetCurves() const
 {
 	TArray<FRichCurveEditInfoConst> Curves;
 	Curves.Add(Curve.GetRichCurveConst());
 	return Curves;
 }
 
-TArray<FRichCurveEditInfo> SGraphPinCurveFloat::GetCurves()
+TArray<FRichCurveEditInfo> SControlRigGraphPinCurveFloat::GetCurves()
 {
 	TArray<FRichCurveEditInfo> Curves;
 	Curves.Add(UpdateAndGetCurve().GetRichCurve());
 	return Curves;
 }
 
-FRuntimeFloatCurve& SGraphPinCurveFloat::UpdateAndGetCurve()
+FRuntimeFloatCurve& SControlRigGraphPinCurveFloat::UpdateAndGetCurve()
 {
 	if (UEdGraphPin* Pin = GetPinObj())
 	{
@@ -67,7 +67,7 @@ FRuntimeFloatCurve& SGraphPinCurveFloat::UpdateAndGetCurve()
 }
 
 
-void SGraphPinCurveFloat::ModifyOwner()
+void SControlRigGraphPinCurveFloat::ModifyOwner()
 {
 	if (UEdGraphPin* Pin = GetPinObj())
 	{
@@ -75,7 +75,7 @@ void SGraphPinCurveFloat::ModifyOwner()
 	}
 }
 
-TArray<const UObject*> SGraphPinCurveFloat::GetOwners() const
+TArray<const UObject*> SControlRigGraphPinCurveFloat::GetOwners() const
 {
 	TArray<const UObject*> Owners;
 	if (UEdGraphPin* Pin = GetPinObj())
@@ -88,11 +88,11 @@ TArray<const UObject*> SGraphPinCurveFloat::GetOwners() const
 	return Owners;
 }
 
-void SGraphPinCurveFloat::MakeTransactional()
+void SControlRigGraphPinCurveFloat::MakeTransactional()
 {
 }
 
-bool SGraphPinCurveFloat::IsValidCurve(FRichCurveEditInfo CurveInfo)
+bool SControlRigGraphPinCurveFloat::IsValidCurve(FRichCurveEditInfo CurveInfo)
 {
 	if (UEdGraphPin* Pin = GetPinObj())
 	{
@@ -113,7 +113,7 @@ bool SGraphPinCurveFloat::IsValidCurve(FRichCurveEditInfo CurveInfo)
 	return false;
 }
 
-void SGraphPinCurveFloat::OnCurveChanged(const TArray<FRichCurveEditInfo>& ChangedCurveEditInfos)
+void SControlRigGraphPinCurveFloat::OnCurveChanged(const TArray<FRichCurveEditInfo>& ChangedCurveEditInfos)
 {
 	if (UEdGraphPin* Pin = GetPinObj())
 	{
