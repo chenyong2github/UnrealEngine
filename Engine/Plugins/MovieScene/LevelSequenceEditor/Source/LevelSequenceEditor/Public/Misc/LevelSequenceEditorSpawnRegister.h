@@ -16,7 +16,7 @@ class UMovieScene;
 /**
  * Spawn register used in the editor to add some usability features like maintaining selection states, and projecting spawned state onto spawnable defaults
  */
-class FLevelSequenceEditorSpawnRegister
+class LEVELSEQUENCEEDITOR_API FLevelSequenceEditorSpawnRegister
 	: public FLevelSequenceSpawnRegister
 {
 public:
