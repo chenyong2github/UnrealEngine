@@ -981,8 +981,6 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderRibbons);
 	check(SceneProxy);
 
-	SimpleTimer MeshElementsTimer;
-
 	FNiagaraDynamicDataRibbon *DynamicDataRibbon = static_cast<FNiagaraDynamicDataRibbon*>(DynamicDataRender);
 	NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
 	if (!DynamicDataRibbon || !Batcher)
@@ -1052,7 +1050,5 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	RayTracingInstance.BuildInstanceMaskAndFlags();
 
 	OutRayTracingInstances.Add(RayTracingInstance);
-
-	CPUTimeMS += MeshElementsTimer.GetElapsedMilliseconds();
 }
 #endif
