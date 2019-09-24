@@ -111,6 +111,17 @@ void FControlClient::SendSendTo(const TCHAR* Host)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void FControlClient::SendWriteTo(const TCHAR* Path)
+{
+    if (!IsConnected())
+    {
+        return;
+    }
+
+    FormatAndSend(TEXT("WriteTo %s"), Path);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FControlClient::SendToggleEvent(const TCHAR* EventSpec, bool bState)
 {
     FormatAndSend(TEXT("ToggleEvent %s %d"), EventSpec, bState);

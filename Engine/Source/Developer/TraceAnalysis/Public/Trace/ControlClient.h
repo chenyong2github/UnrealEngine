@@ -40,6 +40,10 @@ public:
 	 * @param Host Host IP address that the runtime should send events to. */
     void SendSendTo(const TCHAR* Host);
 
+	/** Tells the runtime to attempt to record its trace event log to a file.
+	 * @param Path File system path that the runtime should write events to. */
+    void SendWriteTo(const TCHAR* Path);
+
 	/** Toggles events on and off. Events can be specified in two forms; either
 	 * by logger to address a logger's events as a whole (EventSpec="LoggerName")
 	 * or individually (EventSpec="LoggerName.EventName").
