@@ -667,7 +667,6 @@ void Main(
 		const float4 NullDistortionParams = 1.0f;
 		WaterVolumeLightingOutput WaterLighting = EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
-			MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler,
 			Shadow, Specular, NullDistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility);
