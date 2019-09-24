@@ -514,6 +514,7 @@ public:
 	FORCEINLINE const TArray<FNavDataConfig>& GetSupportedAgents() const { return SupportedAgents; }
 	void OverrideSupportedAgents(const TArray<FNavDataConfig>& NewSupportedAgents);
 	void SetSupportedAgentsMask(const FNavAgentSelector& InSupportedAgentsMask);
+	FNavAgentSelector GetSupportedAgentsMask() const { return SupportedAgentsMask; }
 
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 
