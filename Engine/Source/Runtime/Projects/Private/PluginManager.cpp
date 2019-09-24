@@ -679,13 +679,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 						{
 							UE_LOG(LogPluginManager, Log, TEXT("Found config from plugin[%s] %s"), *Plugin.GetName(), *PluginConfigFilename);
 
-							FString PluginConfigContent;
-							if (FFileHelper::LoadFileToString(PluginConfigContent, *FPaths::Combine(PluginConfigDir, ConfigFile)))
-							{
-								FoundConfig->CombineFromBuffer(PluginConfigContent);
-								// if plugin config overrides are applied then don't save
-								FoundConfig->NoSave = true;
-							}
+							FoundConfig->AddDynamicLayerToHeirarchy(FPaths::Combine(PluginConfigDir, ConfigFile));
 
 #if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
 							// Don't allow plugins to stomp command line overrides
