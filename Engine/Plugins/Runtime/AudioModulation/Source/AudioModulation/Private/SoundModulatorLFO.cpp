@@ -74,19 +74,11 @@ namespace AudioModulation
 		return Value;
 	}
 
-	void FModulatorLFOProxy::OnUpdateProxy(const USoundModulatorBase& InModulatorArchetype)
+	void FModulatorLFOProxy::OnUpdateProxy(const FModulatorLFOProxy& InLFOProxy)
 	{
-		const FModulatorLFOProxy CopyProxy(*CastChecked<USoundBusModulatorLFO>(&InModulatorArchetype));
-		auto UpdateProxy = [this, CopyProxy]()
-		{
-			check(IsInAudioThread());
-
-			LFO = CopyProxy.LFO;
-			Offset = CopyProxy.Offset;
-			Value = CopyProxy.Value;
-		};
-
-		IsInAudioThread() ? UpdateProxy() : FAudioThread::RunCommandOnAudioThread(UpdateProxy);
+		LFO = InLFOProxy.LFO;
+		Offset = InLFOProxy.Offset;
+		Value = InLFOProxy.Value;
 	}
 
 	void FModulatorLFOProxy::Update(float InElapsed)

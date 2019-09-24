@@ -33,6 +33,16 @@ class USoundControlBusBase : public USoundModulatorBase
 	GENERATED_UCLASS_BODY()
 
 public:
+#if WITH_EDITORONLY_DATA
+	/** If true, Address field is used in place of object name for address used when applying mix changes using filtering. */
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite)
+	bool bOverrideAddress;
+#endif // WITH_EDITORONLY_DATA
+
+	/** Address to use when applying mix changes. */
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite, meta = (EditCondition = "bOverrideAddress"))
+	FString Address;
+
 	/** Default value of modulator (when no mix is applied). */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "1"))
 	float DefaultValue;
@@ -48,8 +58,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite)
 	TArray<USoundBusModulatorBase*> Modulators;
 
-	virtual void BeginDestroy() override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostInitProperties() override;
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+#endif // WITH_EDITOR
 
+	virtual void BeginDestroy() override;
 	virtual ESoundModulatorOperator GetOperator() const { return ESoundModulatorOperator::Multiply; }
 };
 
@@ -91,7 +106,7 @@ namespace AudioModulation
 		FControlBusProxy();
 		FControlBusProxy(const USoundControlBusBase& Bus);
 
-		void OnUpdateProxy(const USoundModulatorBase& InModulatorArchetype) override;
+		void OnUpdateProxy(const FControlBusProxy& InBusProxy);
 
 		float GetDefaultValue() const;
 		const TArray<FLFOId>& GetLFOIds() const;
