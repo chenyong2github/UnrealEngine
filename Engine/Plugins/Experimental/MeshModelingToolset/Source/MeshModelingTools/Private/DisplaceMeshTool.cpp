@@ -282,22 +282,23 @@ void UDisplaceMeshTool::UpdateMap(bool bForceUpdate)
 	if (FormatedImageData == nullptr)
 	{
 		DisplaceField = FSampledScalarField2f();
-		return;
 	}
-
-	int TextureWidth = DisplacementMap->GetSizeX();
-	int TextureHeight = DisplacementMap->GetSizeY();
-
-	DisplaceField.Resize(TextureWidth, TextureHeight, 0.0f);
-	DisplaceField.SetCellSize(1.0f / (float)TextureWidth);
-
-	for (int y = 0; y < TextureHeight; ++y)
+	else
 	{
-		for (int x = 0; x < TextureWidth; ++x)
+		int TextureWidth = DisplacementMap->GetSizeX();
+		int TextureHeight = DisplacementMap->GetSizeY();
+
+		DisplaceField.Resize(TextureWidth, TextureHeight, 0.0f);
+		DisplaceField.SetCellSize(1.0f / (float)TextureWidth);
+
+		for (int y = 0; y < TextureHeight; ++y)
 		{
-			FColor PixelColor = FormatedImageData[y*TextureWidth + x];
-			float Value = PixelColor.R / 255.0;
-			DisplaceField.GridValues[y*TextureWidth + x] = Value;
+			for (int x = 0; x < TextureWidth; ++x)
+			{
+				FColor PixelColor = FormatedImageData[y*TextureWidth + x];
+				float Value = PixelColor.R / 255.0;
+				DisplaceField.GridValues[y*TextureWidth + x] = Value;
+			}
 		}
 	}
 
