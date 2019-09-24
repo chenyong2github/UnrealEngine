@@ -215,6 +215,10 @@ public:
 	UPROPERTY()
 	TArray<uint8> ByteCode;
 
+	/** Number of temp registers used by this script. */
+	UPROPERTY()
+	int32 NumTempRegisters;
+
 	/** Number of user pointers we must pass to the VM. */
 	UPROPERTY()
 	int32 NumUserPtrs;
