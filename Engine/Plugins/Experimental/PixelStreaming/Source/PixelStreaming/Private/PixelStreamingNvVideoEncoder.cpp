@@ -470,7 +470,6 @@ void FPixelStreamingNvVideoEncoder::FPixelStreamingNvVideoEncoderImpl::CopyBackB
 				EDRF_Default);
 		}
 		RHICmdList.EndRenderPass();
-		RHICmdList.SetRenderTargets(0, nullptr, nullptr, 0, nullptr);
 	}
 }
 
