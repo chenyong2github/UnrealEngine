@@ -9,7 +9,7 @@
 #include "Drawing/ToolDataVisualizer.h"
 #include "Transforms/QuickAxisTranslater.h"
 #include "Transforms/QuickAxisRotator.h"
-#include "MeshVertexChange.h"
+#include "Changes/MeshVertexChange.h"
 #include "GroupTopology.h"
 #include "Spatial/GeometrySet3.h"
 #include "Selection/GroupTopologySelector.h"

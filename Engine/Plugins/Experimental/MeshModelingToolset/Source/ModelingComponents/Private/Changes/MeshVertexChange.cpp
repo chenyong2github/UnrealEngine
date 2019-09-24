@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "MeshVertexChange.h"
+#include "Changes/MeshVertexChange.h"
 #include "DynamicMesh3.h"
 
 #include "BaseDynamicMeshComponent.h"

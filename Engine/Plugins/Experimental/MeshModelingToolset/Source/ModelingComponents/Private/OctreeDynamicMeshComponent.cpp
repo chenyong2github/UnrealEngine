@@ -24,7 +24,7 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 
-#include "MeshVertexChange.h"
+#include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
 #include "DynamicMeshChangeTracker.h"
 

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "DynamicMeshBrushTool.h"
 #include "SelectionSet.h"
-#include "MeshSelectionChange.h"
+#include "Changes/MeshSelectionChange.h"
 #include "MeshSelectionTool.generated.h"
 
 

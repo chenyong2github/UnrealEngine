@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Components/MeshComponent.h"
-#include "MeshVertexChange.h"
+#include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
 
 #include "DynamicMesh3.h"

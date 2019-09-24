@@ -6,7 +6,7 @@
 #include "SimpleDynamicMeshComponent.h"
 #include "DynamicMeshAABBTree3.h"
 #include "InteractiveToolObjects.h"
-#include "MeshVertexChange.h"
+#include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
 #include "PreviewMesh.generated.h"
 

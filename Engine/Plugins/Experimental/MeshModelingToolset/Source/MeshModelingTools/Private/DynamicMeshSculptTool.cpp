@@ -8,13 +8,12 @@
 #include "ProjectionTargets.h"
 #include "MeshConstraints.h"
 #include "MeshConstraintsUtil.h"
-#include "MeshVertexChange.h"
 #include "MeshWeights.h"
 #include "MeshNormals.h"
 #include "MeshIndexUtil.h"
 #include "Drawing/MeshDebugDrawing.h"
 
-#include "MeshVertexChange.h"
+#include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
 #include "DynamicMeshChangeTracker.h"
 
