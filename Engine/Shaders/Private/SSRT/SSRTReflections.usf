@@ -73,6 +73,7 @@ void ScreenSpaceReflectionsStencilPS(
 	const float Roughness = GetRoughness(GBuffer);
 	const float RoughnessFade = GetRoughnessFade(Roughness);
 	
+#if !defined(TILE_COMPUTE_SSR)
 	if (RoughnessFade > 0.0 && GBuffer.ShadingModelID != 0)
 	{
 		// we are going to compute SSR for this pixel, so we discard this
@@ -80,6 +81,7 @@ void ScreenSpaceReflectionsStencilPS(
 		// tehrefore execute ScreenSpaceReflectionsPS() for this pixel. 
 		discard;
 	}
+#endif
 	
 	// we are not going to compute SSR for this pixel, so we clear the color
 	// since ScreenSpaceReflectionsPS() won't be executed in this pixel.
