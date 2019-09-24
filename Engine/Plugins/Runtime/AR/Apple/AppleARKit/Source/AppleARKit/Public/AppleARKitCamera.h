@@ -42,6 +42,7 @@ struct APPLEARKIT_API FAppleARKitCamera
 	// Default constructor
 	FAppleARKitCamera()
 		: TrackingQuality(EARTrackingQuality::NotTracking)
+		, TrackingQualityReason(EARTrackingQualityReason::None)
 		, Orientation(ForceInit)
 		, Translation(ForceInitToZero)
 		, ImageResolution(ForceInitToZero)
@@ -64,6 +65,12 @@ struct APPLEARKIT_API FAppleARKitCamera
 	 */
 	UPROPERTY( BlueprintReadOnly, Category="AppleARKit|Camera" )
 	EARTrackingQuality TrackingQuality;
+	
+	/**
+	 * The reason for the current tracking quality of the camera.
+	 */
+	UPROPERTY( BlueprintReadOnly, Category="AppleARKit|Camera" )
+	EARTrackingQualityReason TrackingQualityReason;
 
 	/**
 	 * The transformation matrix that defines the camera's rotation and translation in world coordinates.

@@ -23,7 +23,13 @@ public:
 	static void Destroy();
 
 	// ~IARSystemSupport
+	
+	/** Returns true/false based on whether AR features are available */
+	virtual bool IsARAvailable() const override;
+	
 	virtual EARTrackingQuality OnGetTrackingQuality() const override;
+	/** @return the reason of limited tracking quality; if the state is not limited, return EARTrackingQualityReason::None */
+	virtual EARTrackingQualityReason OnGetTrackingQualityReason() const override;
 	virtual FARSessionStatus OnGetARSessionStatus() const override;
 	virtual TArray<UARTrackedGeometry*> OnGetAllTrackedGeometries() const override;
 	virtual bool OnIsTrackingTypeSupported(EARSessionType SessionType) const override;

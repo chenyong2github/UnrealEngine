@@ -57,10 +57,21 @@ void FARSystemProxy::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObjects(TrackedGeometries);
 }
 
+/** Returns true/false based on whether AR features are available */
+bool FARSystemProxy::IsARAvailable() const
+{
+	return true;
+}
+
 EARTrackingQuality FARSystemProxy::OnGetTrackingQuality() const
 {
 	// @todo JoeG - Added a delegate for tracking quality so we can send that
 	return EARTrackingQuality::NotTracking;
+}
+
+EARTrackingQualityReason FARSystemProxy::OnGetTrackingQualityReason() const
+{
+	return EARTrackingQualityReason::InsufficientFeatures;
 }
 
 FARSessionStatus FARSystemProxy::OnGetARSessionStatus() const
