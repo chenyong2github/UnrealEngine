@@ -2,40 +2,7 @@
 
 #pragma once
 
-#include "HAL/Runnable.h"
-#include "HAL/RunnableThread.h"
 #include <chrono>
-
-class FThread final : public FRunnable
-{
-public:
-	using FCallback = TFunction<void()>;
-
-	explicit FThread(TCHAR const* ThreadName, const FCallback& Callback) :
-		Callback(Callback)
-	{
-		Thread = FRunnableThread::Create(this, ThreadName);
-	}
-
-	void Join()
-	{
-		Thread->WaitForCompletion();
-	}
-
-	virtual uint32 Run() override
-	{
-		Callback();
-		return 0;
-	}
-
-private:
-	FCallback Callback;
-	FRunnableThread* Thread;
-
-private:
-	FThread(const FThread&) = delete;
-	FThread& operator=(const FThread&) = delete;
-};
 
 // uses chrono library to have comparable timestamps between UE4 and webrtc app
 inline uint64 NowMs()
