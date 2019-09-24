@@ -70,7 +70,7 @@ namespace ResonanceAudio
 
 	IAudioPluginFactory* FResonanceAudioModule::GetPluginFactory(EAudioPlugin PluginType)
 	{
-#if !RESONANCE_SPAT_ENABLED
+#if RESONANCE_SPAT_ENABLED
 		switch (PluginType)
 		{
 		case EAudioPlugin::SPATIALIZATION:
@@ -81,7 +81,7 @@ namespace ResonanceAudio
 			break;
 		default:
 			return nullptr;
-	}
+		}
 #else
 		return nullptr;
 #endif // #if RESONANCE_SPAT_ENABLED
