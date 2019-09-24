@@ -15,6 +15,9 @@
 #include "DrawPolygonTool.generated.h"
 
 
+class UTransformGizmo;
+class UTransformProxy;
+
 /**
  *
  */
@@ -249,9 +252,12 @@ protected:
 	// drawing plane control
 
 	UPROPERTY()
-	UInteractiveGizmo* PositionPlaneGizmo;
+	UTransformGizmo* PlaneTransformGizmo;
 
-	void UpdateDrawPlaneFromGizmo(const FFrame3d& WorldPosition);
+	UPROPERTY()
+	UTransformProxy* PlaneTransformProxy;
+
+	void PlaneTransformChanged(UTransformProxy* Proxy, FTransform Transform);
 
 	IClickBehaviorTarget* SetPointInWorldConnector = nullptr;
 
