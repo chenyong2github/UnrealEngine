@@ -9,6 +9,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Engine/Engine.h"
+#include "Kismet2/KismetEditorUtilities.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCompileAllBlueprintsCommandlet, Log, All);
 
