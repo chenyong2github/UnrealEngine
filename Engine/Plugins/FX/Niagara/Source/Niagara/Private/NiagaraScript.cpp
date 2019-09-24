@@ -19,13 +19,11 @@
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 
-
 #if WITH_EDITOR
 	#include "NiagaraScriptDerivedData.h"
 	#include "DerivedDataCacheInterface.h"
 	#include "Interfaces/ITargetPlatform.h"
 #endif
-
 
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/RenderingObjectVersion.h"
@@ -442,6 +440,8 @@ void UNiagaraScript::PostLoad()
 {
 	Super::PostLoad();
 	
+	RapidIterationParameters.PostLoad();
+
 	bool bNeedsRecompile = false;
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
@@ -505,7 +505,6 @@ void UNiagaraScript::PostLoad()
 #endif
 
 }
-
 
 bool UNiagaraScript::IsReadyToRun(ENiagaraSimTarget SimTarget) const
 {
