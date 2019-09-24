@@ -132,17 +132,17 @@ public:
 
 	virtual ELandscapeLayerUpdateMode GetBeginToolContentUpdateFlag() const override
 	{
-		return ELandscapeLayerUpdateMode::None;
+		return ELandscapeLayerUpdateMode::Update_None;
 	}
 
 	virtual ELandscapeLayerUpdateMode GetTickToolContentUpdateFlag() const override
 	{
-		return ELandscapeLayerUpdateMode::None;
+		return ELandscapeLayerUpdateMode::Update_None;
 	}
 
 	virtual ELandscapeLayerUpdateMode GetEndToolContentUpdateFlag() const override
 	{
-		return ELandscapeLayerUpdateMode::None;
+		return ELandscapeLayerUpdateMode::Update_None;
 	}
 
 	virtual const TCHAR* GetToolName() override { return TEXT("Select"); }
