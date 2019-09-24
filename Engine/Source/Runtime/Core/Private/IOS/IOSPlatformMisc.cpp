@@ -488,6 +488,10 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 			{
 				DeviceType = IOS_IPad6;
 			}
+			else if (Minor == 7 || Minor == 8)
+			{
+				DeviceType = IOS_IPad7;
+			}
 			else
 			{
 				DeviceType = IOS_IPadPro2_129;
@@ -612,17 +616,32 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
                 DeviceType = IOS_IPhoneXR;
             }
         }
-		else if (Major >= 12)
+		else if (Major == 12)
+		{
+			if (Minor < 3)
+			{
+				DeviceType = IOS_IPhone11;
+			}
+			else if (Minor < 5)
+			{
+				DeviceType = IOS_IPhone11Pro;
+			}
+			else if (Minor < 7)
+			{
+				DeviceType = IOS_IPhone11ProMax;
+			}
+		}
+		else if (Major >= 13)
 		{
 			// for going forward into unknown devices (like 8/8+?), we can't use Minor,
 			// so treat devices with a scale > 2.5 to be 6SPlus type devices, < 2.5 to be 6S type devices
 			if ([UIScreen mainScreen].scale > 2.5f)
 			{
-				DeviceType = IOS_IPhoneXSMax;
+				DeviceType = IOS_IPhone11ProMax;
 			}
 			else
 			{
-				DeviceType = IOS_IPhoneXS;
+				DeviceType = IOS_IPhone11Pro;
 			}
 		}
 	}
