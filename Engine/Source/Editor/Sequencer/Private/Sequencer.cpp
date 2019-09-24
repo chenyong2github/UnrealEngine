@@ -420,6 +420,10 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		.OnGetAddMenuContent(InitParams.ViewParams.OnGetAddMenuContent)
 		.OnBuildCustomContextMenuForGuid(InitParams.ViewParams.OnBuildCustomContextMenuForGuid)
 		.OnReceivedFocus(InitParams.ViewParams.OnReceivedFocus)
+		.OnReceivedDragOver(InitParams.ViewParams.OnReceivedDragOver)
+		.OnAssetsDrop(InitParams.ViewParams.OnAssetsDrop)
+		.OnClassesDrop(InitParams.ViewParams.OnClassesDrop)
+		.OnActorsDrop(InitParams.ViewParams.OnActorsDrop)
 		.AddMenuExtender(InitParams.ViewParams.AddMenuExtender)
 		.ToolbarExtender(InitParams.ViewParams.ToolbarExtender);
 

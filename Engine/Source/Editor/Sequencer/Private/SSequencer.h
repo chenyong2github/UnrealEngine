@@ -223,6 +223,21 @@ public:
 		/** Called when any widget contained within sequencer has received focus */
 		SLATE_EVENT( FSimpleDelegate, OnReceivedFocus )
 
+		/** Called when something is dragged over the sequencer. */
+		SLATE_EVENT( FOptionalOnDragDrop, OnReceivedDragOver )
+
+		/** Called when something is dropped onto the sequencer. */
+		SLATE_EVENT( FOptionalOnDragDrop, OnReceivedDrop )
+
+		/** Called when an asset is dropped on the sequencer. Not called if OnReceivedDrop is bound and returned true. */
+		SLATE_EVENT( FOnAssetsDrop, OnAssetsDrop )
+
+		/** Called when a class is dropped on the sequencer. Not called if OnReceivedDrop is bound and returned true. */
+		SLATE_EVENT( FOnClassesDrop, OnClassesDrop )
+		
+		/** Called when an actor is dropped on the sequencer. Not called if OnReceivedDrop is bound and returned true. */
+		SLATE_EVENT( FOnActorsDrop, OnActorsDrop )
+
 		/** Extender to use for the add menu. */
 		SLATE_ARGUMENT( TSharedPtr<FExtender>, AddMenuExtender )
 
@@ -650,6 +665,21 @@ private:
 
 	/** Called when any widget contained within sequencer has received focus */
 	FSimpleDelegate OnReceivedFocus;
+
+	/** Called when something is dragged over the sequencer. */
+	FOptionalOnDragDrop OnReceivedDragOver;
+
+	/** Called when something is dropped onto the sequencer. */
+	FOptionalOnDragDrop OnReceivedDrop;
+
+	/** Called when an asset is dropped on the sequencer. */
+	FOnAssetsDrop OnAssetsDrop;
+
+	/** Called when a class is dropped on the sequencer. */
+	FOnClassesDrop OnClassesDrop;
+	
+	/** Called when an actor is dropped on the sequencer. */
+	FOnActorsDrop OnActorsDrop;
 
 	/** Cached clamp and view range for unlinking the curve editor time range */
 	TRange<double> CachedClampRange;

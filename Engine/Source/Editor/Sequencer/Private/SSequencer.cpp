@@ -292,6 +292,12 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	OnReceivedFocus = InArgs._OnReceivedFocus;
 
+	OnReceivedDragOver = InArgs._OnReceivedDragOver;
+	OnReceivedDrop = InArgs._OnReceivedDrop;
+	OnAssetsDrop = InArgs._OnAssetsDrop;
+	OnClassesDrop = InArgs._OnClassesDrop;
+	OnActorsDrop = InArgs._OnActorsDrop;
+
 	USequencerSettings* SequencerSettings = Settings;
 
 	// Get the desired display format from the user's settings each time.
@@ -2503,6 +2509,15 @@ void SSequencer::OnDragLeave( const FDragDropEvent& DragDropEvent )
 
 FReply SSequencer::OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
 {
+	if (OnReceivedDragOver.IsBound())
+	{
+		FReply DelegateReply = FReply::Unhandled();
+		if (OnReceivedDragOver.Execute(MyGeometry, DragDropEvent, DelegateReply))
+		{
+			return DelegateReply;
+		}
+	}
+
 	bool bIsDragSupported = false;
 
 	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
@@ -2520,6 +2535,15 @@ FReply SSequencer::OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent
 
 FReply SSequencer::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
 {
+	if (OnReceivedDrop.IsBound())
+	{
+		FReply DelegateReply = FReply::Unhandled();
+		if (OnReceivedDrop.Execute(MyGeometry, DragDropEvent, DelegateReply))
+		{
+			return DelegateReply;
+		}
+	}
+
 	bool bWasDropHandled = false;
 
 	// @todo sequencer: Get rid of hard-code assumptions about dealing with ACTORS at this level?
@@ -2643,33 +2667,40 @@ void SSequencer::OnAssetsDropped( const FAssetDragDropOp& DragDropOp )
 		}
 	}
 
-	for( auto CurObjectIter = DroppedObjects.CreateConstIterator(); CurObjectIter; ++CurObjectIter )
+	if (OnAssetsDrop.IsBound())
 	{
-		UObject* CurObject = *CurObjectIter;
-
-		if (!SequencerRef.OnHandleAssetDropped(CurObject, TargetObjectGuid))
+		bObjectAdded = OnAssetsDrop.Execute(DroppedObjects, DragDropOp);
+	}
+	else
+	{
+		for (TArray<UObject*>::TConstIterator CurObjectIter = DroppedObjects.CreateConstIterator(); CurObjectIter; ++CurObjectIter)
 		{
-			// Doesn't make sense to drop a level sequence asset into sequencer as a spawnable actor
-			if (CurObject->IsA<ULevelSequence>())
+			UObject* CurObject = *CurObjectIter;
+
+			if (!SequencerRef.OnHandleAssetDropped(CurObject, TargetObjectGuid))
 			{
-				UE_LOG(LogSequencer, Warning, TEXT("Can't add '%s' as a spawnable"), *CurObject->GetName());
-				continue;
-			}
-
-			FGuid NewGuid = SequencerRef.MakeNewSpawnable( *CurObject, DragDropOp.GetActorFactory() );
-
-			UMovieScene* MovieScene = SequencerRef.GetFocusedMovieSceneSequence()->GetMovieScene();
-			if (MovieScene)
-			{
-				FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(NewGuid);
-
-				if (Spawnable && Spawnable->GetObjectTemplate()->IsA<ACameraActor>())
+				// Doesn't make sense to drop a level sequence asset into sequencer as a spawnable actor
+				if (CurObject->IsA<ULevelSequence>())
 				{
-					SequencerRef.NewCameraAdded(NewGuid);
+					UE_LOG(LogSequencer, Warning, TEXT("Can't add '%s' as a spawnable"), *CurObject->GetName());
+					continue;
+				}
+
+				FGuid NewGuid = SequencerRef.MakeNewSpawnable(*CurObject, DragDropOp.GetActorFactory());
+
+				UMovieScene* MovieScene = SequencerRef.GetFocusedMovieSceneSequence()->GetMovieScene();
+				if (MovieScene)
+				{
+					FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(NewGuid);
+
+					if (Spawnable && Spawnable->GetObjectTemplate()->IsA<ACameraActor>())
+					{
+						SequencerRef.NewCameraAdded(NewGuid);
+					}
 				}
 			}
+			bObjectAdded = true;
 		}
-		bObjectAdded = true;
 	}
 
 	if( bObjectAdded )
@@ -2687,23 +2718,37 @@ void SSequencer::OnAssetsDropped( const FAssetDragDropOp& DragDropOp )
 
 void SSequencer::OnClassesDropped( const FClassDragDropOp& DragDropOp )
 {
-	FSequencer& SequencerRef = *SequencerPtr.Pin();
-
-	for( auto ClassIter = DragDropOp.ClassesToDrop.CreateConstIterator(); ClassIter; ++ClassIter )
+	if (OnClassesDrop.IsBound())
 	{
-		UClass* Class = ( *ClassIter ).Get();
-		if( Class != nullptr )
-		{
-			UObject* Object = Class->GetDefaultObject();
+		OnClassesDrop.Execute(DragDropOp.ClassesToDrop, DragDropOp);
+	}
+	else
+	{
+		FSequencer& SequencerRef = *SequencerPtr.Pin();
 
-			FGuid NewGuid = SequencerRef.MakeNewSpawnable( *Object );
+		for (auto ClassIter = DragDropOp.ClassesToDrop.CreateConstIterator(); ClassIter; ++ClassIter)
+		{
+			UClass* Class = (*ClassIter).Get();
+			if (Class != nullptr)
+			{
+				UObject* Object = Class->GetDefaultObject();
+
+				FGuid NewGuid = SequencerRef.MakeNewSpawnable(*Object);
+			}
 		}
 	}
 }
 
 void SSequencer::OnActorsDropped( FActorDragDropGraphEdOp& DragDropOp )
 {
-	SequencerPtr.Pin()->OnActorsDropped( DragDropOp.Actors );
+	if (OnActorsDrop.IsBound())
+	{
+		OnActorsDrop.Execute(DragDropOp.Actors, DragDropOp);
+	}
+	else
+	{
+		SequencerPtr.Pin()->OnActorsDropped(DragDropOp.Actors);
+	}
 }
 
 void SSequencer::OnCrumbClicked(const FSequencerBreadcrumb& Item)
