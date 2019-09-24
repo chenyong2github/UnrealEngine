@@ -387,6 +387,9 @@ public:
 	/** Checks the command line for any overridden config settings */
 	CORE_API static void OverrideFromCommandline(FConfigFile* File, const FString& Filename);
 
+	/** Checks the command line for any overridden config file settings */
+	CORE_API static void OverrideFileFromCommandline(FString& Filename);
+
 private:
 
 	// This holds per-object config class names, with their ArrayOfStructKeys. Since the POC sections are all unique,
