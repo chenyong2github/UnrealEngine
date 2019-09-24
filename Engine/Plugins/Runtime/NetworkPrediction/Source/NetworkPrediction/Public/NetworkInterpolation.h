@@ -5,6 +5,7 @@
 #include "VisualLogger/VisualLogger.h"
 #include "GameFramework/Actor.h"
 #include "NetworkPredictionTypes.h"
+#include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNetInterpolation, Log, All);
 
