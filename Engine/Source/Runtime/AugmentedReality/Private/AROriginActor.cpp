@@ -2,6 +2,7 @@
 
 #include "AROriginActor.h"
 #include "EngineUtils.h"
+#include "Engine/Engine.h"
 
 AAROriginActor::AAROriginActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
