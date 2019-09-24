@@ -20,6 +20,11 @@ static float DrawDebugDefaultLifeTime = 30.f;
 static FAutoConsoleVariableRef CVarDrawDebugDefaultLifeTime(TEXT("parametricmover.Debug.UseDrawDebug.DefaultLifeTime"),
 	DrawDebugDefaultLifeTime, TEXT("Use built in DrawDebug* functions for visual logging"), ECVF_Default);
 
+
+static int32 SimulatedProxyBufferSize = 4;
+static FAutoConsoleVariableRef CVarSimulatedProxyBufferSize(TEXT("parametricmover.SimulatedProxyBufferSize"),
+	DrawDebugDefaultLifeTime, TEXT(""), ECVF_Default);
+
 }
 
 // -------------------------------------------------------------------------------------------------------------------------------
@@ -121,7 +126,7 @@ FNetworkSimulationModelInitParameters UParametricMovementComponent::GetSimulatio
 	// These are reasonable defaults but may not be right for everyone
 	FNetworkSimulationModelInitParameters InitParams;
 	InitParams.InputBufferSize = 32; //Role != ROLE_SimulatedProxy ? 32 : 32;  // Fixme.. not good
-	InitParams.SyncedBufferSize = Role != ROLE_AutonomousProxy ? 4 : 32;
+	InitParams.SyncedBufferSize = Role != ROLE_AutonomousProxy ? ParametricMoverCVars::SimulatedProxyBufferSize : 32;
 	InitParams.AuxBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
 	InitParams.DebugBufferSize = 32;
 	InitParams.HistoricBufferSize = 128;
@@ -204,7 +209,7 @@ void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 
 		if (NetworkInterpolator.IsValid() && GetOwnerRole() == ROLE_SimulatedProxy)
 		{
-			NetworkInterpolator->Tick(DeltaTime);
+			NetworkInterpolator->Tick(DeltaTime, GetOwner());
 		}
 	}
 }
