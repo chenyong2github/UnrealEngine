@@ -943,9 +943,7 @@ void SMultiBoxWidget::UpdateDropAreaPreviewBlock( TSharedRef<const FMultiBlock> 
 		// Check that the command does not already exist and that we can create it or that we are dragging an existing block in this box
 		if( !ExistingBlock.IsValid() || ( ExistingBlock.IsValid() && OriginMultiBox == MultiBox->GetCustomizationName() ) )
 		{
-
 			TSharedPtr<const FMultiBlock> NewBlock = ExistingBlock;
-
 
 			if( NewBlock.IsValid() )
 			{
@@ -961,8 +959,6 @@ void SMultiBoxWidget::UpdateDropAreaPreviewBlock( TSharedRef<const FMultiBlock> 
 
 				bAddedNewBlock = true;
 			}
-
-
 		}
 		else
 		{
@@ -1004,7 +1000,6 @@ void SMultiBoxWidget::UpdateDropAreaPreviewBlock( TSharedRef<const FMultiBlock> 
 			}
 		}
 
-
 		int32 CurrentIndex = DragPreview.InsertIndex;
 		DragPreview.InsertIndex = INDEX_NONE;
 		// Find the index of the multiblock being dragged over. This is where we will insert the new block
@@ -1029,9 +1024,9 @@ void SMultiBoxWidget::UpdateDropAreaPreviewBlock( TSharedRef<const FMultiBlock> 
 			}
 			else if (HoverIndex != INDEX_NONE)
 			{
-				if (Blocks[HoverIndex]->IsPartOfHeading())
+				if (MultiBlock->IsPartOfHeading())
 				{
-					if (Blocks[HoverIndex]->IsSeparator())
+					if (MultiBlock->IsSeparator())
 					{
 						// Move insert index above separator of heading
 						DragPreview.InsertIndex = HoverIndex;
@@ -1056,7 +1051,6 @@ void SMultiBoxWidget::UpdateDropAreaPreviewBlock( TSharedRef<const FMultiBlock> 
 			}
 		}
 	}
-
 }
 
 EVisibility SMultiBoxWidget::GetCustomizationVisibility( TWeakPtr<const FMultiBlock> BlockWeakPtr, TWeakPtr<SWidget> BlockWidgetWeakPtr ) const

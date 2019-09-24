@@ -753,7 +753,10 @@ void UToolMenus::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UToolMenu* MenuD
 		FToolMenuSection& Section = MenuData->Sections[i];
 		if (Section.Construct.NewToolMenuDelegateLegacy.IsBound())
 		{
-			Section.Construct.NewToolMenuDelegateLegacy.Execute(MenuBuilder, MenuData);
+			if (!bIsEditing)
+			{
+				Section.Construct.NewToolMenuDelegateLegacy.Execute(MenuBuilder, MenuData);
+			}
 			continue;
 		}
 
@@ -776,7 +779,10 @@ void UToolMenus::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UToolMenu* MenuD
 		{
 			if (Block.ConstructLegacy.IsBound())
 			{
-				Block.ConstructLegacy.Execute(MenuBuilder, MenuData);
+				if (!bIsEditing)
+				{
+					Block.ConstructLegacy.Execute(MenuBuilder, MenuData);
+				}
 				continue;
 			}
 

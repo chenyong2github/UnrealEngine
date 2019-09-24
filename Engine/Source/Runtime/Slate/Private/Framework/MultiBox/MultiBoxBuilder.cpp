@@ -308,7 +308,10 @@ void FMenuBuilder::ApplyHook(FName InExtensionHook, EExtensionHook::Position Hoo
 	auto& Extender = ExtenderStack.Top();
 	if (InExtensionHook != NAME_None && Extender.IsValid())
 	{
-		Extender->Apply(InExtensionHook, HookPosition, *this);
+		if (!MultiBox->IsInEditMode())
+		{
+			Extender->Apply(InExtensionHook, HookPosition, *this);
+		}
 	}
 }
 

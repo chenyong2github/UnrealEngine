@@ -16,7 +16,6 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "Dialogs/Dialogs.h"
 
 #include "Framework/Docking/TabManager.h"
 #include "EditorStyleSet.h"
@@ -643,7 +642,7 @@ void SEditToolMenuDialog::BuildWidget()
 				[
 					SNew(SButton)
 					.Text(LOCTEXT("ResetAllDefaultsButtonText", "Reset all to Defaults"))
-					.ToolTipText(LOCTEXT("ResetAllDefaultsButtonTooltip", "Reset all settings for all menus menu to default values"))
+					.ToolTipText(LOCTEXT("ResetAllDefaultsButtonTooltip", "Reset all settings for all menus to default values"))
 					.OnClicked(this, &SEditToolMenuDialog::HandleResetAllClicked)
 				]
 
@@ -892,9 +891,8 @@ FReply SEditToolMenuDialog::HandleResetClicked()
 
 FReply SEditToolMenuDialog::HandleResetAllClicked()
 {
-	if (OpenMsgDlgInt(EAppMsgType::YesNo,
-		LOCTEXT("ResetAllQuestion", "Remove all menu customizations for all menus?"),
-		LOCTEXT("ResetAllQuestion_Question", "Question")) == EAppReturnType::Yes)
+	FText Title = LOCTEXT("ResetAllQuestion_Question", "Question");
+	if (FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, LOCTEXT("ResetAllQuestion", "Remove all menu customizations for all menus?"), &Title) == EAppReturnType::Yes)
 	{
 		UToolMenus::Get()->RemoveAllCustomizations();
 		OriginalSettings.Reset();
