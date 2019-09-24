@@ -137,35 +137,34 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 #ifdef TILE_CATERGORISATION_SHADER
 
 
-uint TiledViewWidth;
-uint TiledViewHeight;
-float TiledViewWidthInv;
-float TiledViewHeightInv;
+uint VertexCountPerInstanceIndirect;
 
 RWStructuredBuffer<uint> DispatchIndirectDataUAV;
 RWStructuredBuffer<uint> WaterTileListDataUAV;
 
-groupshared bool ContainsWater[WATER_TILE_SIZE*WATER_TILE_SIZE];
+groupshared bool ContainsWater[WORK_TILE_SIZE*WORK_TILE_SIZE];
 
-[numthreads(WATER_TILE_SIZE, WATER_TILE_SIZE, 1)]
+[numthreads(WORK_TILE_SIZE, WORK_TILE_SIZE, 1)]
 void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupThreadID)
 {
 	if (ThreadId.x == 0 && ThreadId.y == 0 && GroupThreadId.x == 0 && GroupThreadId.y == 0)
 	{
 		// TODO compute clear myself
-		DispatchIndirectDataUAV[1] = 1;
-		DispatchIndirectDataUAV[2] = 1;
+		DispatchIndirectDataUAV[0] = VertexCountPerInstanceIndirect;		// VertexCountPerInstance
+		//DispatchIndirectDataUAV[1]		// InstanceCount			already cleared to 0
+		//DispatchIndirectDataUAV[2] = 0;	// StartVertexLocation			"			"
+		//DispatchIndirectDataUAV[3] = 0;	// StartInstanceLocation		"			"
 	}
 
 #if 0
 	// Slow reference path
-	const int LinearIndex = GroupThreadId.y * WATER_TILE_SIZE + GroupThreadId.x;
+	const int LinearIndex = GroupThreadId.y * WORK_TILE_SIZE + GroupThreadId.x;
 	if (LinearIndex < 1)
 	{
 		bool bContainsWater = false;
-		for (uint i = 0; i < WATER_TILE_SIZE; ++i)
+		for (uint i = 0; i < WORK_TILE_SIZE; ++i)
 		{
-			for (uint j = 0; j < WATER_TILE_SIZE; ++j)
+			for (uint j = 0; j < WORK_TILE_SIZE; ++j)
 			{
 				uint2 PixelPos = (ThreadId.xy + uint2(i, j)) + View.ViewRectMin.xy;
 				float2 BufferUV = (PixelPos + 0.5f) * View.BufferSizeAndInvSize.zw;
@@ -193,7 +192,7 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 		bContainsWater = GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER;
 	}
 
-	const int LinearIndex = GroupThreadId.y * WATER_TILE_SIZE + GroupThreadId.x;
+	const int LinearIndex = GroupThreadId.y * WORK_TILE_SIZE + GroupThreadId.x;
 	ContainsWater[LinearIndex] = bContainsWater;
 	GroupMemoryBarrierWithGroupSync();
 
@@ -229,7 +228,7 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 	if (LinearIndex < 1 && (ContainsWater[LinearIndex] || ContainsWater[LinearIndex + 1]))
 	{
 		uint WriteToIndex;  
-		InterlockedAdd(DispatchIndirectDataUAV[0], 1, WriteToIndex);
+		InterlockedAdd(DispatchIndirectDataUAV[1], 1, WriteToIndex);
 		WaterTileListDataUAV[WriteToIndex] = GroupId.x | (GroupId.y << 16); // assumes 16bit is enought to represent a tiled resolution up to 65,535 :)
 	}
 #endif
@@ -237,42 +236,26 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 
 
 
-#elif defined(TILED_COMPOSITE_SHADER)
+#elif defined(TILE_VERTEX_SHADER)
 
 
+StructuredBuffer<uint> TileListData; 
 
-uint TiledViewWidth;
-uint TiledViewHeight;
-
-Buffer<uint> WaterTileListData;
-
-RWTexture2D<float3> SceneColorUAV;
-
-[numthreads(WATER_TILE_SIZE, WATER_TILE_SIZE, 1)]
-void WaterTiledCategorisationCS(/*uint3 ThreadId : SV_DispatchThreadID,*/ uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupThreadID)
+void WaterTileVS(
+	in uint InstanceId : SV_InstanceID,
+	in uint VertexId : SV_VertexID,
+	out float4 Position : SV_POSITION) 
 {
-	uint TileData = WaterTileListData[GroupId.x];
-	uint3 ThreadId = uint3((TileData & 0x0000FFFF)*WATER_TILE_SIZE + GroupThreadId.x, (TileData >> 16)*WATER_TILE_SIZE + GroupThreadId.y, 0);
+	uint TileData = TileListData[InstanceId.x];
+	uint2 TileOrigin = uint2((TileData & 0x0000FFFF) * WORK_TILE_SIZE, (TileData >> 16) * WORK_TILE_SIZE);
 
-	if (int(ThreadId.x) < View.ViewSizeAndInvSize.x && int(ThreadId.y) < View.ViewSizeAndInvSize.y)
-	{
-		uint2 PixelPos = ThreadId.xy + View.ViewRectMin.xy;
-		float2 BufferUV = (PixelPos + 0.5) * View.BufferSizeAndInvSize.zw;
-		float2 ScreenPosition = ViewportUVToScreenPos((ThreadId.xy + 0.5f) * View.ViewSizeAndInvSize.zw);
+	uint2 TileVertex = TileOrigin + View.ViewRectMin.xy;
+	TileVertex.x += VertexId == 1 || VertexId == 2 || VertexId == 4 ? WORK_TILE_SIZE : 0;
+	TileVertex.y += VertexId == 2 || VertexId == 4 || VertexId == 5 ? WORK_TILE_SIZE : 0;
 
-		SingleLayerWaterCompositeOutput Result = SingleLayerWaterComposite(BufferUV, ScreenPosition);
-
-		if (Result.Clip >= 0)
-		{
-			// TODO colored transmittance when we have a under water medium to apply
-			float3 SceneColor = SceneColorUAV[PixelPos];
-			//SceneColor = Result.LuminanceTransmittance.rgb + Result.LuminanceTransmittance.a * SceneColor  +0.2*float3(sin((TileData & 0x0000FFFF)*WATER_TILE_SIZE), sin((TileData >> 16)*WATER_TILE_SIZE), 0.0f);
-			SceneColor = Result.LuminanceTransmittance.rgb + Result.LuminanceTransmittance.a * SceneColor;
-			SceneColorUAV[PixelPos] = SceneColor;
-		}
-	}
+	// View port is set on the view rect. So no offset are needed.
+	Position = float4(float2(TileVertex) * View.ViewSizeAndInvSize.zw * float2(2.0f, -2.0f) + float2(-1.0, 1.0f), 0.5f, 1.0f);
 }
-
 
 
 #else
