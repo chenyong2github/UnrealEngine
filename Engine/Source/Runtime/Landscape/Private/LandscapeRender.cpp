@@ -3250,12 +3250,27 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 
 	FMemStackBase& PrimitiveCustomDataMemStack = FMemStack::Get();
 
-	float MeshScreenSizeSquared = 0;
-	int32 ForcedLODLevel = (Context.ReferenceView->Family->EngineShowFlags.LOD) ? GetCVarForceLOD() : 0;
+	FViewCustomDataLOD* InPrimitiveCustomData;
 
-	FLODMask LODToRender = GetCustomLOD(*Context.ReferenceView, Context.ReferenceView->LODDistanceFactor, ForcedLODLevel, MeshScreenSizeSquared);
-	FViewCustomDataLOD* InPrimitiveCustomData = (FViewCustomDataLOD*)InitViewCustomData(*Context.ReferenceView, Context.ReferenceView->LODDistanceFactor, PrimitiveCustomDataMemStack, false, false, &LODToRender, MeshScreenSizeSquared);
-	PostInitViewCustomData(*Context.ReferenceView, InPrimitiveCustomData);
+	if (!bUseDiscreteLOD)
+	{
+		float MeshScreenSizeSquared = 0;
+		int32 ForcedLODLevel = (Context.ReferenceView->Family->EngineShowFlags.LOD) ? GetCVarForceLOD() : 0;
+
+		FLODMask LODToRender = GetCustomLOD(*Context.ReferenceView, Context.ReferenceView->LODDistanceFactor, ForcedLODLevel, MeshScreenSizeSquared);
+		InPrimitiveCustomData = (FViewCustomDataLOD*)InitViewCustomData(*Context.ReferenceView, Context.ReferenceView->LODDistanceFactor, PrimitiveCustomDataMemStack, false, false, &LODToRender, MeshScreenSizeSquared);
+		PostInitViewCustomData(*Context.ReferenceView, InPrimitiveCustomData);
+	}
+	else
+	{
+		float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, *Context.ReferenceView);
+		int32 ForcedLODLevel = (Context.ReferenceView->Family->EngineShowFlags.LOD) ? GetCVarForceLOD() : 0;
+
+		FLODMask LODToRender;
+		LODToRender.SetLOD(GetLODFromScreenSize(MeshScreenSizeSquared, Context.ReferenceView->LODDistanceFactor));
+		InPrimitiveCustomData = (FViewCustomDataLOD*)InitViewCustomData(*Context.ReferenceView, Context.ReferenceView->LODDistanceFactor, PrimitiveCustomDataMemStack, false, false, &LODToRender, MeshScreenSizeSquared);
+		PostInitViewCustomData(*Context.ReferenceView, InPrimitiveCustomData);
+	}
 
 	FLandscapeElementParamArray& ParameterArray = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FLandscapeElementParamArray>();
 	ParameterArray.ElementParams.AddDefaulted(NumSubsections * NumSubsections);
@@ -3276,7 +3291,7 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 	}
 
 	FMeshBatch BaseMeshBatch;
-	BaseMeshBatch.VertexFactory = VertexFactory;
+	BaseMeshBatch.VertexFactory = bUseDiscreteLOD ? FixedGridVertexFactory : VertexFactory;
 	BaseMeshBatch.MaterialRenderProxy = SelectedMaterial->GetRenderProxy();
 	BaseMeshBatch.LCI = ComponentLightInfo.Get();
 	BaseMeshBatch.CastShadow = true;
@@ -4228,6 +4243,13 @@ public:
 
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(), *BatchElementParams->LandscapeUniformShaderParametersResource);
 
+#if RHI_RAYTRACING
+		if (IsRayTracingEnabled())
+		{
+			ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeVertexFactoryMVFParameters>(), BatchElementParams->LandscapeVertexFactoryMVFUniformBuffer);
+		}
+#endif
+
 		int32 CurrentLOD = BatchElementParams->CurrentLOD;
 #if WITH_EDITOR
 		if (InView && InView->Family->LandscapeLODOverride >= 0)
@@ -4366,6 +4388,10 @@ FVertexFactoryShaderParameters* FLandscapeFixedGridVertexFactory::ConstructShade
 	switch (ShaderFrequency)
 	{
 	case SF_Vertex:
+#if RHI_RAYTRACING
+	case SF_Compute:
+	case SF_RayHitGroup:
+#endif
 		return new FLandscapeFixedGridVertexFactoryVertexShaderParameters();
 		break;
 	case SF_Pixel:
