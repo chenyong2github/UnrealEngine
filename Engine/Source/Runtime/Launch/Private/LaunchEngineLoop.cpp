@@ -3663,6 +3663,14 @@ int32 FEngineLoop::Init()
 	FEmbeddedCommunication::AllowSleep(TEXT("Startup"));
 	FEmbeddedCommunication::KeepAwake(TEXT("FirstTicks"), true);
 #endif
+	
+#if UE_EXTERNAL_PROFILING_ENABLED
+	FExternalProfiler* ActiveProfiler = FActiveExternalProfilerBase::GetActiveProfiler();
+	if (ActiveProfiler)
+	{
+		ActiveProfiler->Register();
+	}
+#endif		// UE_EXTERNAL_PROFILING_ENABLED
 
 	return 0;
 }

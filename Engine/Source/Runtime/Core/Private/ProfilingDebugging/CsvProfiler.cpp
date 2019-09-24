@@ -2502,6 +2502,9 @@ void FCsvProfiler::BeginFrame()
 			else
 			{
 				UE_LOG(LogCsvProfiler, Display, TEXT("Capture Starting"));
+				
+				// signal external profiler that we are capturing
+				OnCSVProfileStartDelegate.Broadcast();
 
 				// Latch the cvars when we start a capture
 				int32 BufferSize = FMath::Max(CVarCsvWriteBufferSize.GetValueOnAnyThread(), 0);
@@ -2655,6 +2658,9 @@ void FCsvProfiler::EndFrame()
 			}
 			else
 			{
+				// signal external profiler that we are done
+				OnCSVProfileEndDelegate.Broadcast();
+
 				// Signal to the processing thread to write the file out (if we have one).
 				GCsvProfilerIsWritingFile = true;
 				GCsvProfilerIsCapturing = false;
