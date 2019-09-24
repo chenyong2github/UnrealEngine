@@ -74,6 +74,15 @@ bool FLuminARImplementation::OnStartARGameFrame(FWorldContext& WorldContext)
 	return true;
 }
 
+bool FLuminARImplementation::IsARAvailable() const
+{
+	return true;
+}
+
+EARTrackingQualityReason FLuminARImplementation::OnGetTrackingQualityReason() const
+{
+	return EARTrackingQualityReason::None;
+}
 
 EARTrackingQuality FLuminARImplementation::OnGetTrackingQuality() const
 {
