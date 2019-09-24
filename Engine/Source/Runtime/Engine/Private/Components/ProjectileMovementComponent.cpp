@@ -494,9 +494,13 @@ void UProjectileMovementComponent::AddForce(FVector Force)
 	PendingForce += Force;
 }
 
-void UProjectileMovementComponent::ClearPendingForce()
+void UProjectileMovementComponent::ClearPendingForce(bool bClearImmediateForce)
 {
 	PendingForce = FVector::ZeroVector;
+	if (bClearImmediateForce)
+	{
+		PendingForceThisUpdate = FVector::ZeroVector;
+	}
 }
 
 float UProjectileMovementComponent::GetGravityZ() const
