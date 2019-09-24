@@ -553,8 +553,8 @@ UPartyMember* USocialParty::GetOrCreatePartyMember(const FUniqueNetId& MemberId)
 		}
 		else
 		{
-			//@todo DanH Splitscreen: Multiple members in the party can still be local players #future
-			TSubclassOf<UPartyMember> PartyMemberClass = GetDesiredMemberClass(MemberId == *OwningLocalUserId);
+			const bool bIsLocalUser = GetSocialManager().IsLocalUser(MemberId, ESocialSubsystem::Primary);
+			TSubclassOf<UPartyMember> PartyMemberClass = GetDesiredMemberClass(bIsLocalUser);
 			if (ensure(PartyMemberClass))
 			{
 				const FOnlinePartyId& PartyId = GetPartyId();
