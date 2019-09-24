@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "AnimGraphNode_SubInput.h"
+#include "AnimGraphNode_LinkedInputPose.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "GraphEditorSettings.h"
 #include "BlueprintActionFilter.h"
@@ -24,21 +24,21 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
-#define LOCTEXT_NAMESPACE "SubInputNode"
+#define LOCTEXT_NAMESPACE "LinkedInputPose"
 
-UAnimGraphNode_SubInput::UAnimGraphNode_SubInput()
+UAnimGraphNode_LinkedInputPose::UAnimGraphNode_LinkedInputPose()
 	: InputPoseIndex(INDEX_NONE)
 {
 }
 
-void UAnimGraphNode_SubInput::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UAnimGraphNode_LinkedInputPose::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	if(PropertyChangedEvent.Property)
 	{
-		if( PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_SubInput, Inputs) ||
-			PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_SubInput, Node.Name) ||
+		if( PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_LinkedInputPose, Inputs) ||
+			PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_LinkedInputPose, Node.Name) ||
 			PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FAnimBlueprintFunctionPinInfo, Name) ||
 			PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FAnimBlueprintFunctionPinInfo, Type))
 		{
@@ -50,17 +50,17 @@ void UAnimGraphNode_SubInput::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	}
 }
 
-FLinearColor UAnimGraphNode_SubInput::GetNodeTitleColor() const
+FLinearColor UAnimGraphNode_LinkedInputPose::GetNodeTitleColor() const
 {
 	return GetDefault<UGraphEditorSettings>()->ResultNodeTitleColor;
 }
 
-FText UAnimGraphNode_SubInput::GetTooltipText() const
+FText UAnimGraphNode_LinkedInputPose::GetTooltipText() const
 {
 	return LOCTEXT("ToolTip", "Inputs to a sub-animation graph from a parent instance.");
 }
 
-FText UAnimGraphNode_SubInput::GetNodeTitle(ENodeTitleType::Type TitleType) const
+FText UAnimGraphNode_LinkedInputPose::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	FText DefaultTitle = LOCTEXT("Title", "Input Pose");
 
@@ -84,14 +84,14 @@ FText UAnimGraphNode_SubInput::GetNodeTitle(ENodeTitleType::Type TitleType) cons
 	}
 }
 
-bool UAnimGraphNode_SubInput::CanUserDeleteNode() const
+bool UAnimGraphNode_LinkedInputPose::CanUserDeleteNode() const
 {
-	// Only allow sub-inputs to be deleted if their parent graph is mutable
+	// Only allow linked input poses to be deleted if their parent graph is mutable
 	// Also allow anim graphs to delete these nodes even theough they are 'read-only'
 	return GetGraph()->bAllowDeletion || GetGraph()->GetFName() == UEdGraphSchema_K2::GN_AnimGraph;
 }
 
-bool UAnimGraphNode_SubInput::CanDuplicateNode() const
+bool UAnimGraphNode_LinkedInputPose::CanDuplicateNode() const
 {
 	return false;
 }
@@ -111,17 +111,17 @@ static FName CreateUniqueName(const FName& InBaseName, Predicate IsUnique)
 	return CurrentName;
 }
 
-void UAnimGraphNode_SubInput::HandleInputPinArrayChanged()
+void UAnimGraphNode_LinkedInputPose::HandleInputPinArrayChanged()
 {
-	TArray<UAnimGraphNode_SubInput*> SubInputNodes;
+	TArray<UAnimGraphNode_LinkedInputPose*> LinkedInputPoseNodes;
 	UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
 
 	for(UEdGraph* Graph : AnimBlueprint->FunctionGraphs)
 	{
 		if(Graph->Schema->IsChildOf(UAnimationGraphSchema::StaticClass()))
 		{
-			// Create a unique name for this new sub-input
-			Graph->GetNodesOfClass(SubInputNodes);
+			// Create a unique name for this new linked input pose
+			Graph->GetNodesOfClass(LinkedInputPoseNodes);
 		}
 	}
 
@@ -130,11 +130,11 @@ void UAnimGraphNode_SubInput::HandleInputPinArrayChanged()
 		// New names are created empty, so assign a unique name
 		if(Input.Name == NAME_None)
 		{
-			Input.Name = CreateUniqueName(TEXT("InputParam"), [&SubInputNodes](FName InName)
+			Input.Name = CreateUniqueName(TEXT("InputParam"), [&LinkedInputPoseNodes](FName InName)
 			{
-				for(UAnimGraphNode_SubInput* SubInputNode : SubInputNodes)
+				for(UAnimGraphNode_LinkedInputPose* LinkedInputPoseNode : LinkedInputPoseNodes)
 				{
-					for(const FAnimBlueprintFunctionPinInfo& Input : SubInputNode->Inputs)
+					for(const FAnimBlueprintFunctionPinInfo& Input : LinkedInputPoseNode->Inputs)
 					{
 						if(Input.Name == InName)
 						{
@@ -162,7 +162,7 @@ void UAnimGraphNode_SubInput::HandleInputPinArrayChanged()
 	}
 }
 
-void UAnimGraphNode_SubInput::AllocatePinsInternal()
+void UAnimGraphNode_LinkedInputPose::AllocatePinsInternal()
 {
 	// use member reference if valid
 	if (UFunction* Function = FunctionReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
@@ -177,21 +177,21 @@ void UAnimGraphNode_SubInput::AllocatePinsInternal()
 	}
 }
 
-void UAnimGraphNode_SubInput::AllocateDefaultPins()
+void UAnimGraphNode_LinkedInputPose::AllocateDefaultPins()
 {
 	Super::AllocateDefaultPins();
 
 	AllocatePinsInternal();
 }
 
-void UAnimGraphNode_SubInput::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins)
+void UAnimGraphNode_LinkedInputPose::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins)
 {
 	Super::ReallocatePinsDuringReconstruction(OldPins);
 
 	AllocatePinsInternal();
 }
 
-void UAnimGraphNode_SubInput::CreateUserDefinedPins()
+void UAnimGraphNode_LinkedInputPose::CreateUserDefinedPins()
 {
 	for(FAnimBlueprintFunctionPinInfo& PinInfo : Inputs)
 	{
@@ -200,7 +200,7 @@ void UAnimGraphNode_SubInput::CreateUserDefinedPins()
 	}
 }
 
-void UAnimGraphNode_SubInput::CreatePinsFromStubFunction(const UFunction* Function)
+void UAnimGraphNode_LinkedInputPose::CreatePinsFromStubFunction(const UFunction* Function)
 {
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
@@ -216,7 +216,7 @@ void UAnimGraphNode_SubInput::CreatePinsFromStubFunction(const UFunction* Functi
 	});
 }
 
-void UAnimGraphNode_SubInput::ConformInputPoseName()
+void UAnimGraphNode_LinkedInputPose::ConformInputPoseName()
 {
 	IterateFunctionParameters([this](const FName& InName, const FEdGraphPinType& InPinType)
 	{
@@ -227,7 +227,7 @@ void UAnimGraphNode_SubInput::ConformInputPoseName()
 	});
 }
 
-bool UAnimGraphNode_SubInput::ValidateAgainstFunctionReference() const
+bool UAnimGraphNode_LinkedInputPose::ValidateAgainstFunctionReference() const
 {
 	bool bValid = false;
 
@@ -239,26 +239,26 @@ bool UAnimGraphNode_SubInput::ValidateAgainstFunctionReference() const
 	return bValid;
 }
 
-void UAnimGraphNode_SubInput::PostPlacedNewNode()
+void UAnimGraphNode_LinkedInputPose::PostPlacedNewNode()
 {
 	if(IsEditable())
 	{
-		TArray<UAnimGraphNode_SubInput*> SubInputNodes;
+		TArray<UAnimGraphNode_LinkedInputPose*> LinkedInputPoseNodes;
 		UAnimBlueprint* AnimBlueprint = CastChecked<UAnimBlueprint>(GetGraph()->GetOuter());
 		for(UEdGraph* Graph : AnimBlueprint->FunctionGraphs)
 		{
 			if(Graph->Schema->IsChildOf(UAnimationGraphSchema::StaticClass()))
 			{
-				// Create a unique name for this new sub-input
-				Graph->GetNodesOfClass(SubInputNodes);
+				// Create a unique name for this new linked input pose
+				Graph->GetNodesOfClass(LinkedInputPoseNodes);
 			}
 		}
 
-		Node.Name = CreateUniqueName(FAnimNode_SubInput::DefaultInputPoseName, [this, &SubInputNodes](const FName& InNameToCheck)
+		Node.Name = CreateUniqueName(FAnimNode_LinkedInputPose::DefaultInputPoseName, [this, &LinkedInputPoseNodes](const FName& InNameToCheck)
 		{
-			for(UAnimGraphNode_SubInput* SubInput : SubInputNodes)
+			for(UAnimGraphNode_LinkedInputPose* LinkedInputPoseNode : LinkedInputPoseNodes)
 			{
-				if(SubInput != this && SubInput->Node.Name == InNameToCheck)
+				if(LinkedInputPoseNode != this && LinkedInputPoseNode->Node.Name == InNameToCheck)
 				{
 					return false;
 				}
@@ -267,12 +267,12 @@ void UAnimGraphNode_SubInput::PostPlacedNewNode()
 			return true;
 		});
 
-		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_SubInput>(this)](float InDeltaTime)
+		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_LinkedInputPose>(this)](float InDeltaTime)
 		{
-			if(UAnimGraphNode_SubInput* SubInputNode = WeakThis.Get())
+			if(UAnimGraphNode_LinkedInputPose* LinkedInputPoseNode = WeakThis.Get())
 			{
 				// refresh the BP editor's details panel in case we are viewing the graph
-				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(SubInputNode->GetAnimBlueprint(), false);
+				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(LinkedInputPoseNode->GetAnimBlueprint(), false);
 				check(AssetEditor->GetEditorName() == "AnimationBlueprintEditor");
 				IAnimationBlueprintEditor* AnimationBlueprintEditor = static_cast<IAnimationBlueprintEditor*>(AssetEditor);
 				AnimationBlueprintEditor->RefreshInspector();
@@ -282,59 +282,59 @@ void UAnimGraphNode_SubInput::PostPlacedNewNode()
 	}
 }
 
-class SSubInputNodeLabelWidget : public SCompoundWidget
+class SLinkedInputPoseNodeLabelWidget : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SSubInputNodeLabelWidget) {}
+	SLATE_BEGIN_ARGS(SLinkedInputPoseNodeLabelWidget) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedPtr<IPropertyHandle> InNamePropertyHandle, UAnimGraphNode_SubInput* InSubInputNode)
+	void Construct(const FArguments& InArgs, TSharedPtr<IPropertyHandle> InNamePropertyHandle, UAnimGraphNode_LinkedInputPose* InLinkedInputPoseNode)
 	{
 		NamePropertyHandle = InNamePropertyHandle;
-		WeakSubInputNode = InSubInputNode;
+		WeakLinkedInputPoseNode = InLinkedInputPoseNode;
 
 		ChildSlot
 		[
 			SAssignNew(NameTextBox, SEditableTextBox)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(this, &SSubInputNodeLabelWidget::HandleGetNameText)
-			.OnTextChanged(this, &SSubInputNodeLabelWidget::HandleTextChanged)
-			.OnTextCommitted(this, &SSubInputNodeLabelWidget::HandleTextCommitted)
+			.Text(this, &SLinkedInputPoseNodeLabelWidget::HandleGetNameText)
+			.OnTextChanged(this, &SLinkedInputPoseNodeLabelWidget::HandleTextChanged)
+			.OnTextCommitted(this, &SLinkedInputPoseNodeLabelWidget::HandleTextCommitted)
 		];
 	}
 
 	FText HandleGetNameText() const
 	{
-		return FText::FromName(WeakSubInputNode->Node.Name);
+		return FText::FromName(WeakLinkedInputPoseNode->Node.Name);
 	}
 
 	bool IsNameValid(const FString& InNewName, FText& OutReason)
 	{
 		if(InNewName.Len() == 0)
 		{
-			OutReason = LOCTEXT("ZeroSizeSubInputError", "A name must be specified.");
+			OutReason = LOCTEXT("ZeroSizeLinkedInputPoseError", "A name must be specified.");
 			return false;
 		}
 		else if(InNewName.Equals(TEXT("None"), ESearchCase::IgnoreCase))
 		{
-			OutReason = LOCTEXT("SubInputInvalidName", "This name is invalid.");
+			OutReason = LOCTEXT("LinkedInputPoseInvalidName", "This name is invalid.");
 			return false;
 		}
 		else
 		{
-			UAnimBlueprint* AnimBlueprint = CastChecked<UAnimBlueprint>(WeakSubInputNode->GetGraph()->GetOuter());
+			UAnimBlueprint* AnimBlueprint = CastChecked<UAnimBlueprint>(WeakLinkedInputPoseNode->GetGraph()->GetOuter());
 			for(UEdGraph* Graph : AnimBlueprint->FunctionGraphs)
 			{
 				if(Graph->Schema->IsChildOf(UAnimationGraphSchema::StaticClass()))
 				{
-					TArray<UAnimGraphNode_SubInput*> SubInputNodes;
-					Graph->GetNodesOfClass(SubInputNodes);
+					TArray<UAnimGraphNode_LinkedInputPose*> LinkedInputPoseNodes;
+					Graph->GetNodesOfClass(LinkedInputPoseNodes);
 
-					for(UAnimGraphNode_SubInput* SubInput : SubInputNodes)
+					for(UAnimGraphNode_LinkedInputPose* LinkedInputPoseNode : LinkedInputPoseNodes)
 					{
-						if(SubInput != WeakSubInputNode.Get() && SubInput->Node.Name.ToString().Equals(InNewName, ESearchCase::IgnoreCase))
+						if(LinkedInputPoseNode != WeakLinkedInputPoseNode.Get() && LinkedInputPoseNode->Node.Name.ToString().Equals(InNewName, ESearchCase::IgnoreCase))
 						{
-							OutReason = LOCTEXT("DuplicateSubInputError", "This input pose name already exists in this blueprint.");
+							OutReason = LOCTEXT("DuplicateLinkedInputPoseError", "This linked input pose name already exists in this blueprint.");
 							return false;
 						}
 					}
@@ -375,10 +375,10 @@ public:
 
 	TSharedPtr<SEditableTextBox> NameTextBox;
 	TSharedPtr<IPropertyHandle> NamePropertyHandle;
-	TWeakObjectPtr<UAnimGraphNode_SubInput> WeakSubInputNode;
+	TWeakObjectPtr<UAnimGraphNode_LinkedInputPose> WeakLinkedInputPoseNode;
 };
 
-void UAnimGraphNode_SubInput::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+void UAnimGraphNode_LinkedInputPose::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	IDetailCategoryBuilder& InputsCategoryBuilder = DetailBuilder.EditCategory("Inputs");
 
@@ -391,7 +391,7 @@ void UAnimGraphNode_SubInput::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	}
 
 	// skip if we cant edit this node as it is an interface graph
-	UAnimGraphNode_SubInput* OuterNode = CastChecked<UAnimGraphNode_SubInput>(OuterObjects[0].Get());
+	UAnimGraphNode_LinkedInputPose* OuterNode = CastChecked<UAnimGraphNode_LinkedInputPose>(OuterObjects[0].Get());
 	if(!OuterNode->CanUserDeleteNode())
 	{
 		FText ReadOnlyWarning = LOCTEXT("ReadOnlyWarning", "This input pose is read-only and cannot be edited");
@@ -410,7 +410,7 @@ void UAnimGraphNode_SubInput::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 		return;
 	}
 
-	TSharedPtr<IPropertyHandle> NamePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_SubInput, Node.Name), GetClass());
+	TSharedPtr<IPropertyHandle> NamePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_LinkedInputPose, Node.Name), GetClass());
 	InputsCategoryBuilder.AddProperty(NamePropertyHandle)
 	.OverrideResetToDefault(FResetToDefaultOverride::Hide())
 	.CustomWidget()
@@ -423,17 +423,17 @@ void UAnimGraphNode_SubInput::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 		MakeNameWidget(DetailBuilder)
 	];
 
-	InputsCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_SubInput, Inputs), GetClass())
+	InputsCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_LinkedInputPose, Inputs), GetClass())
 		.ShouldAutoExpand(true);
 }
 
-TSharedRef<SWidget> UAnimGraphNode_SubInput::MakeNameWidget(IDetailLayoutBuilder& DetailBuilder)
+TSharedRef<SWidget> UAnimGraphNode_LinkedInputPose::MakeNameWidget(IDetailLayoutBuilder& DetailBuilder)
 {
-	TSharedPtr<IPropertyHandle> NamePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_SubInput, Node.Name), GetClass());
-	return SNew(SSubInputNodeLabelWidget, NamePropertyHandle, this);
+	TSharedPtr<IPropertyHandle> NamePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_LinkedInputPose, Node.Name), GetClass());
+	return SNew(SLinkedInputPoseNodeLabelWidget, NamePropertyHandle, this);
 }
 
-bool UAnimGraphNode_SubInput::HasExternalDependencies(TArray<UStruct*>* OptionalOutput) const
+bool UAnimGraphNode_LinkedInputPose::HasExternalDependencies(TArray<UStruct*>* OptionalOutput) const
 {
 	const UBlueprint* SourceBlueprint = GetBlueprint();
 
@@ -448,7 +448,7 @@ bool UAnimGraphNode_SubInput::HasExternalDependencies(TArray<UStruct*>* Optional
 	return bSuperResult || bResult;
 }
 
-int32 UAnimGraphNode_SubInput::GetNumInputs() const
+int32 UAnimGraphNode_LinkedInputPose::GetNumInputs() const
 {
 	if (UFunction* Function = FunctionReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
 	{
@@ -471,7 +471,7 @@ int32 UAnimGraphNode_SubInput::GetNumInputs() const
 	}
 }
 
-void UAnimGraphNode_SubInput::PromoteFromInterfaceOverride()
+void UAnimGraphNode_LinkedInputPose::PromoteFromInterfaceOverride()
 {
 	if (UFunction* Function = FunctionReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
 	{
@@ -489,7 +489,7 @@ void UAnimGraphNode_SubInput::PromoteFromInterfaceOverride()
 	}
 }
 
-void UAnimGraphNode_SubInput::IterateFunctionParameters(TFunctionRef<void(const FName&, const FEdGraphPinType&)> InFunc) const
+void UAnimGraphNode_LinkedInputPose::IterateFunctionParameters(TFunctionRef<void(const FName&, const FEdGraphPinType&)> InFunc) const
 {
 	if (UFunction* Function = FunctionReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
 	{

@@ -1,11 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Animation/AnimNode_SubInput.h"
+#include "Animation/AnimNode_LinkedInputPose.h"
 #include "Animation/AnimInstanceProxy.h"
 
-const FName FAnimNode_SubInput::DefaultInputPoseName("InPose");
+const FName FAnimNode_LinkedInputPose::DefaultInputPoseName("InPose");
 
-void FAnimNode_SubInput::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+void FAnimNode_LinkedInputPose::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	if(InputProxy)
 	{
@@ -14,7 +14,7 @@ void FAnimNode_SubInput::Initialize_AnyThread(const FAnimationInitializeContext&
 	}
 }
 
-void FAnimNode_SubInput::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
+void FAnimNode_LinkedInputPose::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
 	if(InputProxy)
 	{
@@ -23,7 +23,7 @@ void FAnimNode_SubInput::CacheBones_AnyThread(const FAnimationCacheBonesContext&
 	}
 }
 
-void FAnimNode_SubInput::Update_AnyThread(const FAnimationUpdateContext& Context)
+void FAnimNode_LinkedInputPose::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
 	if(InputProxy)
 	{
@@ -32,7 +32,7 @@ void FAnimNode_SubInput::Update_AnyThread(const FAnimationUpdateContext& Context
 	}
 }
 
-void FAnimNode_SubInput::Evaluate_AnyThread(FPoseContext& Output)
+void FAnimNode_LinkedInputPose::Evaluate_AnyThread(FPoseContext& Output)
 {
 	if(InputProxy)
 	{
@@ -55,7 +55,7 @@ void FAnimNode_SubInput::Evaluate_AnyThread(FPoseContext& Output)
 	}
 }
 
-void FAnimNode_SubInput::GatherDebugData(FNodeDebugData& DebugData)
+void FAnimNode_LinkedInputPose::GatherDebugData(FNodeDebugData& DebugData)
 {
 	FString DebugLine = DebugData.GetNodeName(this);
 	DebugData.AddDebugItem(DebugLine);
@@ -66,7 +66,7 @@ void FAnimNode_SubInput::GatherDebugData(FNodeDebugData& DebugData)
 	}
 }
 
-void FAnimNode_SubInput::DynamicLink(FAnimInstanceProxy* InInputProxy, FPoseLinkBase* InPoseLink)
+void FAnimNode_LinkedInputPose::DynamicLink(FAnimInstanceProxy* InInputProxy, FPoseLinkBase* InPoseLink)
 {
 	check(InputProxy == nullptr);	// Must be unlinked before re-linking
 
@@ -74,7 +74,7 @@ void FAnimNode_SubInput::DynamicLink(FAnimInstanceProxy* InInputProxy, FPoseLink
 	InputPose.SetDynamicLinkNode(InPoseLink);
 }
 
-void FAnimNode_SubInput::DynamicUnlink()
+void FAnimNode_LinkedInputPose::DynamicUnlink()
 {
 	check(InputProxy != nullptr);	// Must be linked before unlinking
 

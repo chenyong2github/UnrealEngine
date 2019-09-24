@@ -15,7 +15,7 @@ struct EVisibility;
 class SWidget;
 class UAnimGraphNode_Base;
 class UAnimGraphNode_Root;
-class UAnimGraphNode_SubInput;
+class UAnimGraphNode_LinkedInputPose;
 class ITableRow;
 class SComboButton;
 
@@ -41,7 +41,7 @@ private:
 	/** UI handlers */
 	FReply OnAddNewInputPoseClicked();
 	EVisibility OnGetNewInputPoseTextVisibility(TWeakPtr<SWidget> WeakInputsHeaderWidget) const;
-	FReply OnRemoveInputPoseClicked(UAnimGraphNode_SubInput* InSubInput);
+	FReply OnRemoveInputPoseClicked(UAnimGraphNode_LinkedInputPose* InLinkedInputPose);
 	FText OnGetGroupText() const;
 	void OnGroupTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
 	void OnGroupSelectionChanged(TSharedPtr<FText> ProposedSelection, ESelectInfo::Type SelectInfo);

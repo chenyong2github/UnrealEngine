@@ -7,16 +7,16 @@
 #include "Misc/Guid.h"
 #include "AnimGraphNode_CustomProperty.h"
 
-#include "AnimGraphNode_SubInstanceBase.generated.h"
+#include "AnimGraphNode_LinkedAnimGraphBase.generated.h"
 
 class FCompilerResultsLog;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 class SToolTip;
-struct FAnimNode_SubInstance;
+struct FAnimNode_LinkedAnimGraph;
 
 UCLASS(MinimalAPI, Abstract)
-class UAnimGraphNode_SubInstanceBase : public UAnimGraphNode_CustomProperty
+class UAnimGraphNode_LinkedAnimGraphBase : public UAnimGraphNode_CustomProperty
 {
 	GENERATED_BODY()
 
@@ -39,21 +39,21 @@ public:
 	virtual bool IsStructuralProperty(UProperty* InProperty) const override;
 
 	// Node accessor
-	virtual FAnimNode_SubInstance* GetSubInstanceNode() PURE_VIRTUAL(UAnimGraphNode_SubInstanceBase::GetSubInstanceNode, return nullptr;);
-	virtual const FAnimNode_SubInstance* GetSubInstanceNode() const PURE_VIRTUAL(UAnimGraphNode_SubInstanceBase::GetSubInstanceNode, return nullptr;);
+	virtual FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() PURE_VIRTUAL(UAnimGraphNode_LinkedAnimGraphBase::GetLinkedAnimGraphNode, return nullptr;);
+	virtual const FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() const PURE_VIRTUAL(UAnimGraphNode_LinkedAnimGraphBase::GetLinkedAnimGraphNode, return nullptr;);
 
 protected:
-	// Finds out whether there is a loop in the graph formed by sub instances from this node
+	// Finds out whether there is a loop in the graph formed by linked instances from this node
 	bool HasInstanceLoop();
 	
-	/** Generates widgets for exposing/hiding Pins for this node using the rpovided detail builder */
+	/** Generates widgets for exposing/hiding Pins for this node using the provided detail builder */
 	void GenerateExposedPinsDetails(IDetailLayoutBuilder &DetailBuilder);
 
-	// Finds out whether there is a loop in the graph formed by sub instances from CurrNode, used by HasInstanceLoop. VisitedNodes and NodeStack are required
+	// Finds out whether there is a loop in the graph formed by linked instances from CurrNode, used by HasInstanceLoop. VisitedNodes and NodeStack are required
 	// to track the graph links
 	// VisitedNodes - Node we have searched the links of, so we don't do it twice
 	// NodeStack - The currently considered chain of nodes. If a loop is detected this will contain the chain that causes the loop
-	static bool HasInstanceLoop_Recursive(UAnimGraphNode_SubInstanceBase* CurrNode, TArray<FGuid>& VisitedNodes, TArray<FGuid>& NodeStack);
+	static bool HasInstanceLoop_Recursive(UAnimGraphNode_LinkedAnimGraphBase* CurrNode, TArray<FGuid>& VisitedNodes, TArray<FGuid>& NodeStack);
 
 	// ----- UI CALLBACKS ----- //
 
@@ -65,3 +65,6 @@ protected:
 	void OnSetInstanceBlueprint(const FAssetData& AssetData, IDetailLayoutBuilder* InDetailBuilder);
 	// ----- END UI CALLBACKS ----- //
 };
+
+UE_DEPRECATED(4.24, "UAnimGraphNode_SubInstanceBase has been renamed to UAnimGraphNode_LinkedAnimGraphBase")
+typedef UAnimGraphNode_LinkedAnimGraphBase UAnimGraphNode_SubInstanceBase;
