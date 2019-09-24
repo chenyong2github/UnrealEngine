@@ -1551,7 +1551,9 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 					mtlpp::AutoReleasedComputePipelineReflection Reflection;
 					ComputeOption = mtlpp::PipelineOption::ArgumentInfo|mtlpp::PipelineOption::BufferTypeInfo METAL_STATISTICS_ONLY(|NSUInteger(EMTLPipelineStats));
 					Pipeline->ComputePipelineState = Device.NewComputePipelineState(ComputePipelineDesc, (mtlpp::PipelineOption)ComputeOption, &Reflection, &AutoError);
+#if METAL_DEBUG_OPTIONS
 					Pipeline->ComputePipelineReflection = Reflection;
+#endif
 				}
 				else
 				{
