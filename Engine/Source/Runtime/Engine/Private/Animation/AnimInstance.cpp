@@ -337,7 +337,7 @@ void UAnimInstance::UpdateMontageSyncGroup()
 	}
 }
 
-bool UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion, EUpdateAnimationFlag UpdateFlag)
+void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion, EUpdateAnimationFlag UpdateFlag)
 {
 	LLM_SCOPE(ELLMTag::Animation);
 
@@ -401,7 +401,7 @@ bool UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 				when we also update the AnimGraph as well.
 				This means that calls to 'Evaluation' without a call to 'Update' prior will render stale data, but that's to be expected.
 			*/
-			return false;
+			return;
 		}
 	}
 
@@ -427,7 +427,7 @@ bool UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 
 		if (UpdateSnapshotAndSkipRemainingUpdate())
 		{
-			return false;
+			return;
 		}
 	}
 #endif
@@ -468,11 +468,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bool bShouldImmediateUpdate = bWantsImmediateUpdate;
 	switch (UpdateFlag)
 	{
-		case EUpdateAnimationFlag::ForceImmediateUpdate:
-		{
-			bShouldImmediateUpdate = true;
-			break;
-		}
 		case EUpdateAnimationFlag::ForceParallelUpdate:
 		{
 			bShouldImmediateUpdate = false;
@@ -486,8 +481,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ParallelUpdateAnimation();
 		PostUpdateAnimation();
 	}
-
-	return bWantsImmediateUpdate;
 }
 
 void UAnimInstance::PreUpdateAnimation(float DeltaSeconds)
