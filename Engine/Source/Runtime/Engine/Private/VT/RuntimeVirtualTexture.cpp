@@ -403,6 +403,7 @@ void URuntimeVirtualTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& Out
 	Super::GetAssetRegistryTags(OutTags);
 
 	OutTags.Add(FAssetRegistryTag("Size", FString::FromInt(GetSize()), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("TileCount", FString::FromInt(GetTileCount()), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("TileSize", FString::FromInt(GetTileSize()), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("TileBorderSize", FString::FromInt(GetTileBorderSize()), FAssetRegistryTag::TT_Numerical));
 }
@@ -421,6 +422,20 @@ void URuntimeVirtualTexture::Serialize(FArchive& Ar)
 	{
 		Super::Serialize(Ar);
 	}
+}
+
+void URuntimeVirtualTexture::PostLoad()
+{
+	// Convert Size_DEPRECATED to TileCount
+	if (Size_DEPRECATED >= 0)
+	{
+		int32 OldSize = 1 << FMath::Clamp(Size_DEPRECATED + 10, 10, 18);
+		int32 TileCountFromSize = FMath::Max(OldSize / GetTileSize(), 1);
+		TileCount = FMath::FloorLog2(TileCountFromSize);
+		Size_DEPRECATED = -1;
+	}
+
+	Super::PostLoad();
 }
 
 #if WITH_EDITOR
