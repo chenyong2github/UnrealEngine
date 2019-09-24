@@ -85,7 +85,6 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 		= MakeShared<FModelingToolsDetailRootObjectCustomization>();
 	DetailsView->SetRootObjectCustomizationInstance(RootObjectCustomization);
 
-
 	ToolHeaderLabel = SNew(STextBlock)
 		.AutoWrapText(true)
 		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 12));
@@ -117,7 +116,7 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 					ToolMessageArea->AsShared()
 				]
 
-			+ SVerticalBox::Slot().HAlign(HAlign_Fill).AutoHeight().MaxHeight(500.0f)
+			+ SVerticalBox::Slot().HAlign(HAlign_Fill).FillHeight(1.f)
 				[
 					DetailsView->AsShared()
 				]
