@@ -1544,6 +1544,22 @@ const ANavigationData* UNavigationSystemV1::GetNavDataForProps(const FNavAgentPr
 	return NavDataInstance ? NavDataInstance : MainNavData;
 }
 
+ANavigationData* UNavigationSystemV1::GetNavDataForAgentName(const FName AgentName) const
+{
+	ANavigationData* Result = nullptr;
+
+	for (ANavigationData* NavData : NavDataSet)
+	{
+		if (NavData && !NavData->IsPendingKill() && NavData->GetConfig().Name == AgentName)
+		{
+			Result = NavData;
+			break;
+		}
+	}
+
+	return Result;
+}
+
 ANavigationData* UNavigationSystemV1::GetDefaultNavDataInstance(FNavigationSystem::ECreateIfMissing CreateNewIfNoneFound)
 {
 	checkSlow(IsInGameThread() == true);
