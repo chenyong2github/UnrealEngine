@@ -74,6 +74,8 @@ void UMeshOpPreviewWithBackgroundCompute::UpdateResults()
 		PreviewMesh->UpdatePreview(ResultMesh.Get());  // copies the mesh @todo we could just give ownership to the Preview!
 		PreviewMesh->SetVisible(true);
 		bResultValid = true;
+
+		OnMeshUpdated.Broadcast(this);
 	}
 }
 

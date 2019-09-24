@@ -121,6 +121,16 @@ public:
 
 
 
+	//
+	// Change notification
+	//
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMeshUpdated, UMeshOpPreviewWithBackgroundCompute*);
+	/** This delegate is broadcast whenever the embedded preview mesh is updated */
+	FOnMeshUpdated OnMeshUpdated;
+
+
+
 public:
 	// preview of MeshOperator result
 	UPROPERTY()
