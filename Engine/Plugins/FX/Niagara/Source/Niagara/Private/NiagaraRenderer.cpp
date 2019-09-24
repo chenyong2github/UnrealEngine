@@ -192,7 +192,6 @@ FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender()const
 
 FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
 	: DynamicDataRender(nullptr)
-	, CPUTimeMS(0.0f)
 	, bLocalSpace(Emitter->GetCachedEmitter()->bLocalSpace)
 	, bHasLights(false)
 	, SimTarget(Emitter->GetCachedEmitter()->SimTarget)
