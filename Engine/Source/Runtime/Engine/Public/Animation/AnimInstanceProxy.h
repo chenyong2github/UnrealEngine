@@ -480,11 +480,25 @@ protected:
 	/** Update override point */
 	virtual void Update(float DeltaSeconds) {}
 
+	UE_DEPRECATED(4.24, "Please use the overload that takes an FAnimationUpdateContext")
+	virtual void UpdateAnimationNode(float DeltaSeconds)
+	{
+		FAnimationUpdateContext Context(this, DeltaSeconds);
+		UpdateAnimationNode(Context);
+	}
+
 	/** Updates the anim graph */
-	virtual void UpdateAnimationNode(float DeltaSeconds);
+	virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext);
+
+	UE_DEPRECATED(4.24, "Please use the overload that takes an FAnimationUpdateContext")
+	virtual void UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimNode_Base* InRootNode, FName InLayerName) 
+	{
+		FAnimationUpdateContext Context(this, DeltaSeconds);
+		UpdateAnimationNode_WithRoot(Context, InRootNode, InLayerName);
+	}
 
 	/** Updates the anim graph using a specified root node */
-	virtual void UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimNode_Base* InRootNode, FName InLayerName);
+	virtual void UpdateAnimationNode_WithRoot(const FAnimationUpdateContext& InContext, FAnimNode_Base* InRootNode, FName InLayerName);
 
 	/** Called on the game thread pre-evaluate. */
 	virtual void PreEvaluateAnimation(UAnimInstance* InAnimInstance);
@@ -547,8 +561,15 @@ protected:
 	/** Calls Update(), updates the anim graph, ticks asset players */
 	void UpdateAnimation();
 
+	UE_DEPRECATED(4.24, "Please use the overload that takes an FAnimationUpdateContext")
+	void UpdateAnimation_WithRoot(FAnimNode_Base* InRootNode, FName InLayerName)
+	{
+		FAnimationUpdateContext Context(this, CurrentDeltaSeconds);
+		UpdateAnimation_WithRoot(Context, InRootNode, InLayerName);
+	}
+
 	/** Calls Update(), updates the anim graph from the specified root, ticks asset players */
-	void UpdateAnimation_WithRoot(FAnimNode_Base* InRootNode, FName InLayerName);
+	void UpdateAnimation_WithRoot(const FAnimationUpdateContext& InContext, FAnimNode_Base* InRootNode, FName InLayerName);
 
 	/** Evaluates the anim graph if Evaluate() returns false */
 	void EvaluateAnimation(FPoseContext& Output);

@@ -80,7 +80,7 @@ public:
 
 	virtual void Initialize(UAnimInstance* InAnimInstance) override;
 	virtual bool Evaluate(FPoseContext& Output) override;
-	virtual void UpdateAnimationNode(float DeltaSeconds) override;
+	virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
 	virtual void PostUpdate(UAnimInstance* InAnimInstance) const override;
 	virtual void PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds) override;
 	virtual void InitializeObjects(UAnimInstance* InAnimInstance) override;
