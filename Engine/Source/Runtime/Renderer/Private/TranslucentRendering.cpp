@@ -91,6 +91,7 @@ EMeshPass::Type TranslucencyPassToMeshPass(ETranslucencyPass::Type TranslucencyP
 	{
 	case ETranslucencyPass::TPT_StandardTranslucency: TranslucencyMeshPass = EMeshPass::TranslucencyStandard; break;
 	case ETranslucencyPass::TPT_TranslucencyAfterDOF: TranslucencyMeshPass = EMeshPass::TranslucencyAfterDOF; break;
+	case ETranslucencyPass::TPT_TranslucencyUnderWater: TranslucencyMeshPass = EMeshPass::TranslucencyUnderWater; break;
 	case ETranslucencyPass::TPT_AllTranslucency: TranslucencyMeshPass = EMeshPass::TranslucencyAll; break;
 	}
 
@@ -964,7 +965,8 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate&
 		}
 		else
 		{
-			SceneContext.BeginRenderingTranslucency(RHICmdList, View, *this, ViewIndex == 0 || View.Family->bMultiGPUForkAndJoin);
+			bool bAllowBufferClear = TranslucencyPass != ETranslucencyPass::TPT_TranslucencyUnderWater; // We render in an existing scene color in this case so do not clear.
+			SceneContext.BeginRenderingTranslucency(RHICmdList, View, *this, (ViewIndex == 0 || View.Family->bMultiGPUForkAndJoin) && bAllowBufferClear);
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
 
 			if (bUseParallel && !ViewFamily.UseDebugViewPS())
