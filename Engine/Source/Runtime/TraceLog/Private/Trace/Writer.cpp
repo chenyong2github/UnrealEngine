@@ -530,8 +530,8 @@ struct FControlCommands
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-bool	Writer_Connect(const ANSICHAR*);
-bool	Writer_Open(const ANSICHAR*);
+bool	Writer_SendTo(const ANSICHAR*);
+bool	Writer_WriteTo(const ANSICHAR*);
 uint32	Writer_EventToggle(const ANSICHAR*, bool);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -750,22 +750,22 @@ static void Writer_InitializeControl()
 	return;
 #endif
 
-	Writer_ControlAddCommand("Connect", nullptr,
+	Writer_ControlAddCommand("SendTo", nullptr,
 		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV)
 		{
 			if (ArgC > 0)
 			{
-				Writer_Connect(ArgV[0]);
+				Writer_SendTo(ArgV[0]);
 			}
 		}
 	);
 
-	Writer_ControlAddCommand("Open", nullptr,
+	Writer_ControlAddCommand("WriteTo", nullptr,
 		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV)
 		{
 			if (ArgC > 0)
 			{
-				Writer_Open(ArgV[0]);
+				Writer_WriteTo(ArgV[0]);
 			}
 		}
 	);
@@ -899,7 +899,7 @@ void Writer_Initialize()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Writer_Connect(const ANSICHAR* Host)
+bool Writer_SendTo(const ANSICHAR* Host)
 {
 	Writer_Initialize();
 
@@ -914,7 +914,7 @@ bool Writer_Connect(const ANSICHAR* Host)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Writer_Open(const ANSICHAR* Path)
+bool Writer_WriteTo(const ANSICHAR* Path)
 {
 	Writer_Initialize();
 

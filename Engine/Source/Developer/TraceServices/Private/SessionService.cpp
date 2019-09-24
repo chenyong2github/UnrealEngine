@@ -217,7 +217,7 @@ bool FSessionService::ConnectSession(const TCHAR* ControlClientAddress)
 	{
 		return false;
 	}
-	ControlClient.SendConnect(*RecorderAddr->ToString(false));
+	ControlClient.SendSendTo(*RecorderAddr->ToString(false));
 	ControlClient.Disconnect();
 	return true;
 }

@@ -100,14 +100,14 @@ bool FControlClient::IsConnected() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FControlClient::SendConnect(const TCHAR* Path)
+void FControlClient::SendSendTo(const TCHAR* Host)
 {
     if (!IsConnected())
     {
         return;
     }
 
-    FormatAndSend(TEXT("Connect %s"), Path);
+    FormatAndSend(TEXT("SendTo %s"), Host);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

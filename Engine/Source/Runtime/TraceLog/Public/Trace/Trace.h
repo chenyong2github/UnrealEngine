@@ -9,8 +9,8 @@
 namespace Trace
 {
 
-UE_TRACE_API bool	Connect(const TCHAR* Host) UE_TRACE_IMPL(false);
-UE_TRACE_API bool	Open(const TCHAR* Path) UE_TRACE_IMPL(false);
+UE_TRACE_API bool	SendTo(const TCHAR* Host) UE_TRACE_IMPL(false);
+UE_TRACE_API bool	WriteTo(const TCHAR* Path) UE_TRACE_IMPL(false);
 UE_TRACE_API uint32 ToggleEvent(const TCHAR* Wildcard, bool bState) UE_TRACE_IMPL(false);
 
 } // namespace Trace

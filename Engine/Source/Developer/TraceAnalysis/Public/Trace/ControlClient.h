@@ -36,9 +36,9 @@ public:
 	/** Returns true if the client is currently connected to a runtime */
     bool IsConnected() const;
 
-	/** Tells the runtime to attempt to record its trace event log.
-	 * @param Path Path that the runtime should send events to. */
-    void SendConnect(const TCHAR* Path);
+	/** Tells the runtime to attempt to record its trace event log to a socket.
+	 * @param Host Host IP address that the runtime should send events to. */
+    void SendSendTo(const TCHAR* Host);
 
 	/** Toggles events on and off. Events can be specified in two forms; either
 	 * by logger to address a logger's events as a whole (EventSpec="LoggerName")

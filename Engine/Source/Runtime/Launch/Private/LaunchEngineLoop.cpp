@@ -1262,12 +1262,12 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		FString Parameter;
 		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
 		{
-			Trace::Connect(*Parameter);
+			Trace::SendTo(*Parameter);
 		}
 
 		else if (FParse::Value(CmdLine, TEXT("-tracefile="), Parameter))
 		{
-			Trace::Open(*Parameter);
+			Trace::WriteTo(*Parameter);
 		}
 
 #if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
@@ -1277,7 +1277,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
 			if (KnownEvent != nullptr)
 			{
-				Trace::Connect(TEXT("127.0.0.1"));
+				Trace::SendTo(TEXT("127.0.0.1"));
 				::CloseHandle(KnownEvent);
 			}
 		}
