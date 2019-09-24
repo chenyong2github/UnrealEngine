@@ -20,6 +20,7 @@ struct FSingleLayerWaterPassData
 {
 	TRefCountPtr<IPooledRenderTarget> SceneColorWithoutSingleLayerWater;
 	TRefCountPtr<IPooledRenderTarget> SceneDepthZWithoutSingleLayerWater;
+	FVector4 SceneWithoutSingleLayerWaterValidUVRect;
 };
 
 
