@@ -29,6 +29,18 @@ bool FDynamicMeshAttributeSet::IsSeamEdge(int eid) const
 }
 
 
+bool FDynamicMeshAttributeSet::IsSeamVertex(int VID, bool bBoundaryIsSeam) const
+{
+	for (const FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		if (UVLayer.IsSeamVertex(VID, bBoundaryIsSeam))
+		{
+			return true;
+		}
+	}
+	return Normals0.IsSeamVertex(VID, bBoundaryIsSeam);
+}
+
 
 void FDynamicMeshAttributeSet::OnNewTriangle(int TriangleID, bool bInserted)
 {
@@ -45,13 +57,14 @@ void FDynamicMeshAttributeSet::OnNewTriangle(int TriangleID, bool bInserted)
 	}
 }
 
-void FDynamicMeshAttributeSet::OnRemoveTriangle(int TriangleID, bool bRemoveIsolatedVertices)
+
+void FDynamicMeshAttributeSet::OnRemoveTriangle(int TriangleID)
 {
-	for (FDynamicMeshUVOverlay UVLayer : UVLayers)
+	for (FDynamicMeshUVOverlay& UVLayer : UVLayers)
 	{
-		UVLayer.OnRemoveTriangle(TriangleID, bRemoveIsolatedVertices);
+		UVLayer.OnRemoveTriangle(TriangleID);
 	}
-	Normals0.OnRemoveTriangle(TriangleID, bRemoveIsolatedVertices);
+	Normals0.OnRemoveTriangle(TriangleID);
 
 	// has no effect on MaterialIDAttrib
 }

@@ -97,6 +97,9 @@ public:
 	/** @return true if the given edge is a seam edge in any overlay */
 	virtual bool IsSeamEdge(int EdgeID) const;
 
+	/** @return true if the given vertex is a seam vertex in any overlay */
+	virtual bool IsSeamVertex(int VertexID, bool bBoundaryIsSeam = true) const;
+
 	
 	//
 	// UV Layers 
@@ -214,7 +217,7 @@ protected:
 	// These functions are called by the FDynamicMesh3 to update the various
 	// attributes when the parent mesh topology has been modified.
 	virtual void OnNewTriangle(int TriangleID, bool bInserted);
-	virtual void OnRemoveTriangle(int TriangleID, bool bRemoveIsolatedVertices);
+	virtual void OnRemoveTriangle(int TriangleID);
 	virtual void OnReverseTriOrientation(int TriangleID);
 	virtual void OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo & splitInfo);
 	virtual void OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo & flipInfo);

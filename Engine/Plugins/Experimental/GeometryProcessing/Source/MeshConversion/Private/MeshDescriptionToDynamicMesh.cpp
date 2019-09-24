@@ -139,9 +139,11 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	TVertexInstanceAttributesConstRef<FVector> InstanceNormals =
 		MeshIn->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
 
+	int NumUVLayers = InstanceUVs.GetNumIndices();
+
 	// enable attributes on output mesh
 	MeshOut.EnableAttributes();
-	FDynamicMeshUVOverlay* UVOverlay = MeshOut.Attributes()->PrimaryUV();
+	MeshOut.Attributes()->SetNumUVLayers(NumUVLayers);
 	FDynamicMeshNormalOverlay* NormalOverlay = MeshOut.Attributes()->PrimaryNormals();
 
 	TPolygonAttributesConstRef<int> PolyGroups =
@@ -164,7 +166,11 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	// reserve space in MeshOut?
 
 	// used to merge coincident elements so that we get actual topology
-	FUVWelder UVWelder(UVOverlay);
+	TArray<FUVWelder> UVWelders;
+	for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
+	{
+		UVWelders.Emplace(MeshOut.Attributes()->GetUVLayer(UVLayerIndex));
+	}
 	FNormalWelder NormalWelder(NormalOverlay);
 
 	// only enable material ID if we have more than one material
@@ -271,13 +277,14 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 				TriToPolyTriMap.Insert(FIndex2i(PolygonID.GetValue(), TriIdx), NewTriangleID);
 			}
 
-			if (UVOverlay != nullptr)
+			for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
 			{
+				FDynamicMeshUVOverlay* UVOverlay = MeshOut.Attributes()->GetUVLayer(UVLayerIndex);
 				FIndex3i TriUV;
 				for (int j = 0; j < 3; ++j)
 				{
-					FVector2D UV = InstanceUVs.Get(InstanceTri[j]);
-					TriUV[j] = UVWelder.FindOrAddUnique(UV, Tri[j]);
+					FVector2D UV = InstanceUVs.Get(InstanceTri[j], UVLayerIndex);
+					TriUV[j] = UVWelders[UVLayerIndex].FindOrAddUnique(UV, Tri[j]);
 				}
 				UVOverlay->SetTriangle(NewTriangleID, TriUV);
 			}
@@ -304,9 +311,9 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 
 	if (bPrintDebugMessages)
 	{
-		int NumUVs = (UVOverlay != nullptr) ? UVOverlay->MaxElementID() : 0;
+		int NumUVs = (NumUVLayers > 0) ? MeshOut.Attributes()->PrimaryUV()->MaxElementID() : 0;
 		int NumNormals = (NormalOverlay != nullptr) ? NormalOverlay->MaxElementID() : 0;
-		UE_LOG(LogTemp, Warning, TEXT("FMeshDescriptionToDynamicMesh:  FDynamicMesh verts %d triangles %d uvs %d normals %d"), MeshOut.MaxVertexID(), MeshOut.MaxTriangleID(), NumUVs, NumNormals);
+		UE_LOG(LogTemp, Warning, TEXT("FMeshDescriptionToDynamicMesh:  FDynamicMesh verts %d triangles %d (primary) uvs %d normals %d"), MeshOut.MaxVertexID(), MeshOut.MaxTriangleID(), NumUVs, NumNormals);
 	}
 
 }

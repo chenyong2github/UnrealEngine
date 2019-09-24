@@ -116,6 +116,24 @@ void FMeshDescriptionBuilder::SetInstanceNormal(const FVertexInstanceID& Instanc
 }
 
 
+void FMeshDescriptionBuilder::SetInstanceUV(const FVertexInstanceID& InstanceID, const FVector2D& InstanceUV, int32 UVLayerIndex)
+{
+	if (InstanceUVs.IsValid() && ensure(UVLayerIndex < InstanceUVs.GetNumIndices()))
+	{
+		InstanceUVs.Set(InstanceID, UVLayerIndex, InstanceUV); 
+	}
+}
+
+
+void FMeshDescriptionBuilder::SetNumUVLayers(int32 NumUVLayers)
+{
+	if (ensure(InstanceUVs.IsValid()))
+	{
+		InstanceUVs.SetNumIndices(NumUVLayers);
+	}
+}
+
+
 void FMeshDescriptionBuilder::SetInstanceColor(const FVertexInstanceID& InstanceID, const FVector4& Color)
 {
 	if (InstanceColors.IsValid())
@@ -214,6 +232,8 @@ void FMeshDescriptionBuilder::SetPolyGroupID(const FPolygonID& PolygonID, int Gr
 
 void FMeshDescriptionBuilder::AppendMesh(const FDynamicMesh3* Mesh, bool bSetPolyGroups)
 {
+	// TODO: update to support multiple UV layers; & combine w/ extremely similar code in DynamicMeshToMeshDescription.cpp
+
 	// create vertices
 	TArray<FVertexID> MapV;
 	MapV.SetNum(Mesh->MaxVertexID());

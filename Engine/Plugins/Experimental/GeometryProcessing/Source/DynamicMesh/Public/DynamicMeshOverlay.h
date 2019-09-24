@@ -222,7 +222,7 @@ public:
 	/** Returns true if the parent-mesh edge is a "Seam" in this overlay */
 	bool IsSeamEdge(int EdgeID) const;
 	/** Returns true if the parent-mesh vertex is connected to any seam edges */
-	bool IsSeamVertex(int VertexID) const;
+	bool IsSeamVertex(int VertexID, bool bBoundaryIsSeam = true) const;
 
 	/** find the elements associated with a given parent-mesh vertex */
 	void GetVertexElements(int VertexID, TArray<int>& OutElements) const;
@@ -242,7 +242,7 @@ public:
 	/** Set a triangle's element indices to InvalidID */
 	void InitializeNewTriangle(int TriangleID);
 	/** Remove a triangle from the overlay */
-	void OnRemoveTriangle(int TriangleID, bool bRemoveIsolatedVertices);
+	void OnRemoveTriangle(int TriangleID);
 	/** Reverse the orientation of a triangle's elements */
 	void OnReverseTriOrientation(int TriangleID);
 	/** Update the overlay to reflect an edge split in the parent mesh */

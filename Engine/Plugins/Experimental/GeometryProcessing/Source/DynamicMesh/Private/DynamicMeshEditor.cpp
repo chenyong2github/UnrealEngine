@@ -887,14 +887,19 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 				VertexMap, TriangleMap, NormalTransform, NormalMap);
 		}
 
-		const FDynamicMeshUVOverlay* FromUVs = AppendMesh->Attributes()->PrimaryUV();
-		FDynamicMeshUVOverlay* ToUVs = Mesh->Attributes()->PrimaryUV();
-		if (FromUVs != nullptr && ToUVs != nullptr)
+
+		int NumUVLayers = FMath::Min(Mesh->Attributes()->NumUVLayers(), AppendMesh->Attributes()->NumUVLayers());
+		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
 		{
-			FIndexMapi& UVMap = IndexMapsOut.GetUVMap(0);
-			UVMap.Reserve(FromUVs->ElementCount());
-			AppendUVs(AppendMesh, FromUVs, ToUVs,
-				VertexMap, TriangleMap, UVMap);
+			const FDynamicMeshUVOverlay* FromUVs = AppendMesh->Attributes()->GetUVLayer(UVLayerIndex);
+			FDynamicMeshUVOverlay* ToUVs = Mesh->Attributes()->GetUVLayer(UVLayerIndex);
+			if (FromUVs != nullptr && ToUVs != nullptr)
+			{
+				FIndexMapi& UVMap = IndexMapsOut.GetUVMap(0);
+				UVMap.Reserve(FromUVs->ElementCount());
+				AppendUVs(AppendMesh, FromUVs, ToUVs,
+					VertexMap, TriangleMap, UVMap);
+			}
 		}
 	}
 }
@@ -1033,10 +1038,10 @@ static void AppendAttributes(const FDynamicMesh3* FromMesh, int FromTriangleID, 
 	// todo: if we ever support multiple normal layers, copy them all
 	check(FromMesh->Attributes()->NumNormalLayers() == 1);
 
-	const FDynamicMeshUVOverlay* FromUVOverlay = FromMesh->Attributes()->PrimaryUV();
-	FDynamicMeshUVOverlay* ToUVOverlay = ToMesh->Attributes()->PrimaryUV();
-
+	for (int UVLayerIndex = 0; UVLayerIndex < FMath::Min(FromMesh->Attributes()->NumUVLayers(), ToMesh->Attributes()->NumUVLayers()); UVLayerIndex++)
 	{
+		const FDynamicMeshUVOverlay* FromUVOverlay = FromMesh->Attributes()->GetUVLayer(UVLayerIndex);
+		FDynamicMeshUVOverlay* ToUVOverlay = ToMesh->Attributes()->GetUVLayer(UVLayerIndex);
 		FIndex3i FromElemTri = FromUVOverlay->GetTriangle(FromTriangleID);
 		FIndex3i ToElemTri = ToUVOverlay->GetTriangle(ToTriangleID);
 		for (int j = 0; j < 3; ++j)

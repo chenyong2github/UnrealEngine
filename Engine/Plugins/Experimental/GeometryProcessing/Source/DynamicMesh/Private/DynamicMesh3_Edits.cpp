@@ -698,7 +698,7 @@ EMeshResult FDynamicMesh3::RemoveTriangle(int tID, bool bRemoveIsolatedVertices,
 
 	if (HasAttributes())
 	{
-		Attributes()->OnRemoveTriangle(tID, bRemoveIsolatedVertices);
+		Attributes()->OnRemoveTriangle(tID);
 	}
 
 	UpdateTimeStamp(true, true);
@@ -1177,6 +1177,7 @@ EMeshResult FDynamicMesh3::FlipEdge(int vA, int vB, FEdgeFlipInfo& FlipInfo)
 
 EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_t, FEdgeCollapseInfo& CollapseInfo)
 {
+	checkSlow(!HasAttributes() || !Attributes()->IsSeamVertex(vRemove, false));
 	CollapseInfo = FEdgeCollapseInfo();
 
 	if (IsVertex(vKeep) == false || IsVertex(vRemove) == false)

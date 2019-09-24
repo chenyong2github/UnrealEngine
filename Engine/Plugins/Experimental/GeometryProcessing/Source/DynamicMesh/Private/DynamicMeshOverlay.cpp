@@ -321,11 +321,15 @@ bool TDynamicMeshOverlay<RealType,ElementSize>::IsSeamEdge(int eid) const
 
 
 template<typename RealType, int ElementSize>
-bool TDynamicMeshOverlay<RealType, ElementSize>::IsSeamVertex(int vid) const
+bool TDynamicMeshOverlay<RealType, ElementSize>::IsSeamVertex(int vid, bool bBoundaryIsSeam) const
 {
 	// @todo can we do this more efficiently? At minimum we are looking up each triangle twice...
 	for (int edgeid : ParentMesh->VtxEdgesItr(vid))
 	{
+		if (!bBoundaryIsSeam && ParentMesh->IsBoundaryEdge(edgeid))
+		{
+			continue;
+		}
 		if (IsSeamEdge(edgeid))
 		{
 			return true;
@@ -410,10 +414,8 @@ void TDynamicMeshOverlay<RealType, ElementSize>::GetElementTriangles(int Element
 }
 
 
-
-
 template<typename RealType, int ElementSize>
-void TDynamicMeshOverlay<RealType, ElementSize>::OnRemoveTriangle(int TriangleID, bool bRemoveIsolatedVertices)
+void TDynamicMeshOverlay<RealType, ElementSize>::OnRemoveTriangle(int TriangleID)
 {
 	FIndex3i Triangle = GetTriangle(TriangleID);
 	if (Triangle.A < 0 && Triangle.B < 0 && Triangle.C < 0)
@@ -429,7 +431,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnRemoveTriangle(int TriangleID
 	{
 		int elemid = Triangle[j];
 		ElementsRefCounts.Decrement(elemid);
-		if (bRemoveIsolatedVertices && ElementsRefCounts.GetRefCount(elemid) == 1) 
+		if (ElementsRefCounts.GetRefCount(elemid) == 1) 
 		{
 			ElementsRefCounts.Decrement(elemid);
 			ParentVertices[elemid] = FDynamicMesh3::InvalidID;
