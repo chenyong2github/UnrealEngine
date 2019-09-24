@@ -672,8 +672,17 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 
 void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 {
+	check(SystemInstanceIndex == INDEX_NONE);
+	ensure(bPendingSpawn == false);
+	ensure(bPaused == false);
+	ensure(bAsyncWorkInProgress == false);
+	ensure(bNeedsFinalize == false);
+
 	Age = 0;
 	TickCount = 0;
+	bHasTickingEmitters = true;
+	CachedDeltaSeconds = 0.0f;
+
 	UNiagaraSystem* System = GetSystem();
 	if (System == nullptr || Component == nullptr || IsDisabled())
 	{
@@ -784,6 +793,12 @@ bool DoSystemDataInterfacesRequireSolo(const UNiagaraSystem& System, const UNiag
 
 void FNiagaraSystemInstance::ReInitInternal()
 {
+	check(SystemInstanceIndex == INDEX_NONE);
+	ensure(bPendingSpawn == false);
+	ensure(bPaused == false);
+	ensure(bAsyncWorkInProgress == false);
+	ensure(bNeedsFinalize == false);
+
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemReinit);
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
@@ -792,6 +807,9 @@ void FNiagaraSystemInstance::ReInitInternal()
 
 	Age = 0;
 	TickCount = 0;
+	bHasTickingEmitters = true;
+	CachedDeltaSeconds = 0.0f;
+
 	UNiagaraSystem* System = GetSystem();
 	if (System == nullptr || Component == nullptr)
 	{
