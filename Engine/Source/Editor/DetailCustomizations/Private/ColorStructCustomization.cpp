@@ -199,11 +199,12 @@ void FColorStructCustomization::CreateColorPicker(bool bUseAlpha)
 	GetColorAsLinear(InitialColor);
 
 	const bool bRefreshOnlyOnOk = bDontUpdateWhileEditing || StructPropertyHandle->HasMetaData("DontUpdateWhileEditing");
+	const bool bOnlyRefreshOnMouseUp = StructPropertyHandle->HasMetaData("OnlyUpdateOnInteractionEnd");
 
 	FColorPickerArgs PickerArgs;
 	{
 		PickerArgs.bUseAlpha = !bIgnoreAlpha;
-		PickerArgs.bOnlyRefreshOnMouseUp = false;
+		PickerArgs.bOnlyRefreshOnMouseUp = bOnlyRefreshOnMouseUp;
 		PickerArgs.bOnlyRefreshOnOk = bRefreshOnlyOnOk;
 		PickerArgs.sRGBOverride = sRGBOverride;
 		PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
@@ -253,10 +254,11 @@ TSharedRef<SColorPicker> FColorStructCustomization::CreateInlineColorPicker(TWea
 	GetColorAsLinear(InitialColor);
 
 	const bool bRefreshOnlyOnOk = /*bDontUpdateWhileEditing ||*/ StructPropertyHandle->HasMetaData("DontUpdateWhileEditing");
-	
+	const bool bOnlyRefreshOnMouseUp = StructPropertyHandle->HasMetaData("OnlyUpdateOnInteractionEnd");
+
 	return SNew(SColorPicker)
 		.DisplayInlineVersion(true)
-		.OnlyRefreshOnMouseUp(false)
+		.OnlyRefreshOnMouseUp(bOnlyRefreshOnMouseUp)
 		.OnlyRefreshOnOk(bRefreshOnlyOnOk)
 		.DisplayGamma(TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma)))
 		.OnColorCommitted(FOnLinearColorValueChanged::CreateSP(this, &FColorStructCustomization::OnSetColorFromColorPicker))
