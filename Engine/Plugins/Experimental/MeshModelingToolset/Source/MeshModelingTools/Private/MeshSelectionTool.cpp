@@ -10,7 +10,6 @@
 #include "Changes/MeshChange.h"
 #include "MeshIndexUtil.h"
 #include "AssetGenerationUtil.h"
-#include "DynamicMeshOctree3.h"
 
 #define LOCTEXT_NAMESPACE "UMeshSelectionTool"
 

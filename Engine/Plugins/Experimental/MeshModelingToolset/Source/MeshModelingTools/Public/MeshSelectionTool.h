@@ -7,9 +7,8 @@
 #include "SelectionSet.h"
 #include "Changes/MeshSelectionChange.h"
 #include "Changes/ValueWatcher.h"
+#include "DynamicMeshOctree3.h"
 #include "MeshSelectionTool.generated.h"
-
-class FDynamicMeshOctree3;
 
 /**
  *
