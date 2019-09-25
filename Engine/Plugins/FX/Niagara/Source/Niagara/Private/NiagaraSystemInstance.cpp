@@ -285,14 +285,17 @@ bool FNiagaraSystemInstance::RequestCapture(const FGuid& RequestId)
 	for (const FNiagaraEmitterHandle& Handle : GetSystem()->GetEmitterHandles())
 	{
 		TArray<UNiagaraScript*> Scripts;
-		Handle.GetInstance()->GetScripts(Scripts, false);
-
-		for (UNiagaraScript* Script : Scripts)
+		if (Handle.GetInstance())
 		{
-			TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfoPtr = MakeShared<FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>(Handle.GetIdName(), Script->GetUsage(), Script->GetUsageId());
-			DebugInfoPtr->bWritten = false;
+			Handle.GetInstance()->GetScripts(Scripts, false);
 
-			TempCaptureHolder->Add(DebugInfoPtr);
+			for (UNiagaraScript* Script : Scripts)
+			{
+				TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfoPtr = MakeShared<FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>(Handle.GetIdName(), Script->GetUsage(), Script->GetUsageId());
+				DebugInfoPtr->bWritten = false;
+
+				TempCaptureHolder->Add(DebugInfoPtr);
+			}
 		}
 	}
 	CapturedFrames.Add(RequestId, TempCaptureHolder);
@@ -1552,20 +1555,25 @@ void FNiagaraSystemInstance::InitEmitters()
 		const TArray<FNiagaraEmitterHandle>& EmitterHandles = System->GetEmitterHandles();
 		for (int32 EmitterIdx=0; EmitterIdx < System->GetEmitterHandles().Num(); ++EmitterIdx)
 		{
-			TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Sim = MakeShared<FNiagaraEmitterInstance, ESPMode::ThreadSafe>(this);
-			Sim->Init(EmitterIdx, ID);
-			if (System->bFixedBounds)
 			{
-				Sim->SetSystemFixedBoundsOverride(System->GetFixedBounds());
+				TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Sim = MakeShared<FNiagaraEmitterInstance, ESPMode::ThreadSafe>(this);
+				Sim->Init(EmitterIdx, ID);
+				if (System->bFixedBounds)
+				{
+					Sim->SetSystemFixedBoundsOverride(System->GetFixedBounds());
+				}
+				Emitters.Add(Sim);
 			}
-			Emitters.Add(Sim);
 		}
 
 		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
 		{
-			bHasGPUEmitters |= Simulation->GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+			if (Simulation->GetCachedEmitter() != nullptr)
+			{
+				bHasGPUEmitters |= Simulation->GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim;
 
-			Simulation->PostInitSimulation();
+				Simulation->PostInitSimulation();
+			}
 		}
 
 		if (System->bFixedBounds)
@@ -1703,7 +1711,7 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 		FNiagaraEmitterInstance& Inst = Emitters[EmitterIdx].Get();
 		Inst.Tick(CachedDeltaSeconds);
 
-		if (Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Inst.GetGPUContext() != nullptr && (Inst.GetExecutionState() != ENiagaraExecutionState::Complete))
+		if (Inst.GetCachedEmitter() && Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Inst.GetGPUContext() != nullptr && (Inst.GetExecutionState() != ENiagaraExecutionState::Complete))
 		{
 			TotalParamSize += Inst.GetGPUContext()->CombinedParamStore.GetPaddedParameterSizeInBytes();
 			ActiveGPUEmitterCount++;

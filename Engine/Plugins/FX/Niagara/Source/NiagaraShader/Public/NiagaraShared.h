@@ -172,6 +172,13 @@ public:
 	/** The compile hashes of the top level scripts the script is dependent on. */
 	TArray<FNiagaraCompileHash> ReferencedCompileHashes;
 
+	
+	/** Bitfield of supported detail levels in this compile.*/
+	uint32 DetailLevelMask = 0xFFFFFFFF;
+
+	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/
+	bool bUsesRapidIterationParams = true;
+	
 	FNiagaraShaderMapId()
 		: CompilerVersionID()
 		, FeatureLevel(GMaxRHIFeatureLevel)
@@ -667,7 +674,8 @@ public:
 
 
 	NIAGARASHADER_API void SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersion, const FGuid& InBaseScriptID, const TArray<FString>& InAdditionalDefines,
-		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, FString InFriendlyName);
+		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
+		bool bInUsesRapidIterationParams, uint32 InDetailLevelMask, FString InFriendlyName);
 
 	UNiagaraScript *GetBaseVMScript()
 	{
@@ -744,6 +752,12 @@ private:
 
 	/** Configuration options */
 	TArray<FString> AdditionalDefines;
+	
+	/** Bitfield of supported detail levels in this compile.*/
+	uint32 DetailLevelMask = 0xFFFFFFFF;
+
+	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/
+	bool bUsesRapidIterationParams = true;
 
 	/** Compile hash for the base script. */
 	FNiagaraCompileHash BaseCompileHash;

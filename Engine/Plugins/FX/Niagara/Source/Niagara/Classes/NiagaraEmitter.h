@@ -291,6 +291,10 @@ public:
 	UPROPERTY()
 	class UNiagaraScriptSourceBase*	GraphSource;
 
+	/** Should we enable rapid iteration removal if the system is also set to remove rapid iteration parameters on compile? This value defaults to true.*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	uint32 bBakeOutRapidIteration : 1;
+
 	bool NIAGARA_API AreAllScriptAndSourcesSynchronized() const;
 	void NIAGARA_API OnPostCompile();
 
