@@ -260,6 +260,11 @@ void URemeshMeshTool::UpdateResult()
 		Remesher.BasicRemeshPass();
 	}
 
+	if (!TargetMesh->HasAttributes() && !TargetMesh->HasVertexNormals())
+	{
+		FMeshNormals::QuickComputeVertexNormals(*TargetMesh);
+	}
+
 	DynamicMeshComponent->NotifyMeshUpdated();
 	GetToolManager()->PostInvalidation();
 	MeshStatisticsProperties->Update(*DynamicMeshComponent->GetMesh());
