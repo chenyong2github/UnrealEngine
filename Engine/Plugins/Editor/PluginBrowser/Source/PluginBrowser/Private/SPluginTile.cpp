@@ -329,6 +329,7 @@ void SPluginTile::RecreateWidgets()
 											[
 												SNew(STextBlock)
 													.Text(FText::FromString(PluginDescriptor.Description))
+													.HighlightText_Raw(&OwnerWeak.Pin()->GetOwner().GetPluginTextFilter(), &FPluginTextFilter::GetRawFilterText)
 													.AutoWrapText(true)
 											]
 

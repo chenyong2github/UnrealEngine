@@ -14,8 +14,6 @@ namespace AutomationTool
 	[Help("servertargetplatform=PlatformName", "target platform for building, cooking and deployment of the dedicated server (also -ServerPlatform)")]
 	public class ProjectParams
 	{
-		#region Constructors
-
 		/// <summary>
 		/// Gets a parameter from the command line if it hasn't been specified in the constructor. 
 		/// If the command line is not available, default value will be used.
@@ -258,8 +256,7 @@ namespace AutomationTool
 			this.ServerCookedTargets = InParams.ServerCookedTargets;
 			this.EditorTargets = InParams.EditorTargets;
 			this.ProgramTargets = InParams.ProgramTargets;
-			this.SpecifiedClientTarget = InParams.SpecifiedClientTarget;
-			this.SpecifiedServerTarget = InParams.SpecifiedServerTarget;
+			this.TargetNames = new List<string>(InParams.TargetNames);
 			this.ClientTargetPlatforms = InParams.ClientTargetPlatforms;
             this.ClientDependentPlatformMap = InParams.ClientDependentPlatformMap;
 			this.ServerTargetPlatforms = InParams.ServerTargetPlatforms;
@@ -678,8 +675,19 @@ namespace AutomationTool
 				this.DedicatedServer = true;
 			}*/
 			this.NoClient = GetParamValueIfNotSpecified(Command, NoClient, this.NoClient, "noclient");
-			this.SpecifiedClientTarget = ParseParamValueIfNotSpecified(Command, SpecifiedClientTarget, "client", "", true);
-			this.SpecifiedServerTarget = ParseParamValueIfNotSpecified(Command, SpecifiedServerTarget, "server", "", true);
+
+			if(Command != null)
+			{
+				if(TargetNames == null)
+				{
+					TargetNames = new List<string>();
+				}
+				foreach(string TargetParam in Command.ParseParamValues("target"))
+				{
+					TargetNames.AddRange(TargetParam.Split('+'));
+				}
+			}
+
 			this.LogWindow = GetParamValueIfNotSpecified(Command, LogWindow, this.LogWindow, "logwindow");
 			this.Stage = GetParamValueIfNotSpecified(Command, Stage, this.Stage, "stage");
 			this.SkipStage = GetParamValueIfNotSpecified(Command, SkipStage, this.SkipStage, "skipstage");
@@ -1092,10 +1100,6 @@ namespace AutomationTool
 			return ConfigValue;
 		}
 
-		#endregion
-
-		#region Shared
-
 		/// <summary>
 		/// Shared: Full path to the .uproject file
 		/// </summary>
@@ -1339,10 +1343,6 @@ namespace AutomationTool
 		/// </summary>
 		public List<string> ConfigOverrideParams = new List<string>();
 
-        #endregion
-
-        #region Build
-
         /// <summary>
         /// Build: True if build step should be executed, command: -build
         /// </summary>
@@ -1448,18 +1448,9 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Build: If more than one client target is found, build this one.
+		/// Build: Specifies the names of targets to build
 		/// </summary>
-		private string SpecifiedClientTarget;
-
-		/// <summary>
-		/// Build: If more than one server target is found, build this one.
-		/// </summary>
-		private string SpecifiedServerTarget;
-
-		#endregion
-
-		#region Cook
+		private List<string> TargetNames;
 
 		/// <summary>
 		/// Cook: List of maps to cook.
@@ -1657,10 +1648,6 @@ namespace AutomationTool
 		[Help("IgnoreCookErrors", "Ignores cook errors and continues with packaging etc")]
 		public bool IgnoreCookErrors { private set; get; }
 
-		#endregion
-
-		#region Stage
-
 		/// <summary>
 		/// Stage: Commandline: -nodebuginfo
 		/// </summary>
@@ -1743,10 +1730,6 @@ namespace AutomationTool
 		/// If true, use chunk manifest files generated for extra flavor
 		/// </summary>
 		public bool bUseExtraFlavor = false;
-
-		#endregion
-
-		#region Run
 
 		/// <summary>
 		/// Run: True if the Run step should be executed, command: -run
@@ -1913,10 +1896,6 @@ namespace AutomationTool
         /// </summary>
         public string ServerDeviceAddress;
 
-        #endregion
-
-		#region Package
-
 		[Help("package", "package the project for the target platform")]
 		public bool Package { get; set; }
 
@@ -1947,26 +1926,14 @@ namespace AutomationTool
 		[Help("AdditionalPackageOptions", "extra options to pass to the platform's packager")]
 		public string AdditionalPackageOptions { get; set; }
 
-#endregion
-
-#region Deploy
-
-[Help("deploy", "deploy the project for the target platform")]
+		[Help("deploy", "deploy the project for the target platform")]
 		public bool Deploy { get; set; }
 
 		[Help("deploy", "Location to deploy to on the target platform")]
 		public string DeployFolder { get; set; }
 
-		#endregion
-
-		#region GetFile
-
 		[Help("getfile", "download file from target after successful run")]
 		public string GetFile { get; set; }
-
-		#endregion
-
-		#region Misc
 
 		[Help("MapsToRebuildLightMaps", "List of maps that need light maps rebuilding")]
 		public ParamList<string> MapsToRebuildLightMaps = new ParamList<string>();
@@ -1977,10 +1944,6 @@ namespace AutomationTool
         [Help("IgnoreLightMapErrors", "Whether Light Map errors should be treated as critical")]
 		public bool IgnoreLightMapErrors { get; set; }
 
-		#endregion
-
-		#region Initialization
-
 		private List<SingleTargetProperties> DetectedTargets;
 		private Dictionary<UnrealTargetPlatform, ConfigHierarchy> LoadedEngineConfigs;
 		private Dictionary<UnrealTargetPlatform, ConfigHierarchy> LoadedGameConfigs;
@@ -1990,30 +1953,16 @@ namespace AutomationTool
 			return DetectedTargets.FindAll(Target => Target.Rules.Type == DesiredType).ConvertAll(Target => Target.TargetName);
 		}
 
-		private String ChooseTarget(List<String> Targets, TargetType Type, string SpecifiedTargetName)
+		private String ChooseTarget(List<String> Targets, TargetType Type)
 		{
-			if (String.IsNullOrEmpty(SpecifiedTargetName))
+			switch (Targets.Count)
 			{
-				switch (Targets.Count)
-				{
-					case 1:
-						return Targets.First();
-					case 0:
-						throw new AutomationException("{0} target not found!", Type);
-					default:
-						throw new AutomationException("More than one {0} target found. Specify which one to use with the -{1}= option.", Type, Type);
-				}
-			}
-			else
-			{
-				if (Targets.Contains(SpecifiedTargetName))
-				{
-					return SpecifiedTargetName;
-				}
-				else
-				{
-					throw new AutomationException("Could not find {0} target named {1}.", Type, SpecifiedTargetName);
-				}
+				case 1:
+					return Targets.First();
+				case 0:
+					throw new AutomationException("{0} target not found!", Type);
+				default:
+					throw new AutomationException("More than one {0} target found. Specify which one to use with the -{1}= option.", Type, Type);
 			}
 		}
 
@@ -2050,12 +1999,92 @@ namespace AutomationTool
 				EditorTarget = "UE4Editor";
 				ServerTarget = "UE4Server";
 			}
-			else if (!CommandUtils.CmdEnv.HasCapabilityToCompile)
+			else if (TargetNames.Count > 0)
 			{
-				var ShortName = ProjectUtils.GetShortProjectName(RawProjectPath);
-				GameTarget = Client ? (ShortName + "Client") : ShortName;
-				EditorTarget = ShortName + "Editor";
-				ServerTarget = ShortName + "Server";
+				// Resolve all the targets that need to be built
+				List<SingleTargetProperties> Targets = new List<SingleTargetProperties>();
+				foreach (string TargetName in TargetNames)
+				{
+					SingleTargetProperties Target = DetectedTargets.FirstOrDefault(x => String.Equals(x.TargetName, TargetName, StringComparison.OrdinalIgnoreCase));
+					if(Target == null)
+					{
+						throw new AutomationException("Unable to find target '{0}'", TargetName);
+					}
+					Targets.Add(Target);
+				}
+
+				// Make sure we haven't specified game and clients together
+				if (Targets.Any(x => x.Rules.Type == TargetType.Client) && Targets.Any(x => x.Rules.Type == TargetType.Game))
+				{
+					throw new AutomationException("Cannot specify client ang game targets to be built together");
+				}
+
+				// Create the lists to receive all the target types
+				if (ClientCookedTargetsList == null)
+				{
+					ClientCookedTargetsList = new ParamList<string>();
+				}
+				if (ServerCookedTargetsList == null)
+				{
+					ServerCookedTargetsList = new ParamList<string>();
+				}
+				if (ProgramTargetsList == null)
+				{
+					ProgramTargetsList = new ParamList<string>();
+				}
+
+				// Add them to the appropriate lists
+				bool bHasGameTarget = false;
+				foreach (SingleTargetProperties Target in Targets)
+				{
+					if (Target.Rules.Type == TargetType.Game)
+					{
+						ClientCookedTargetsList.Add(Target.TargetName);
+						bHasGameTarget = true;
+					}
+					else if (Target.Rules.Type == TargetType.Client)
+					{
+						ClientCookedTargetsList.Add(Target.TargetName);
+						Client = true;
+					}
+					else if (Target.Rules.Type == TargetType.Server)
+					{
+						ServerCookedTargetsList.Add(Target.TargetName);
+						DedicatedServer = true;
+					}
+					else
+					{
+						ProgramTargetsList.Add(Target.TargetName);
+						ProjectType = TargetType.Program;
+					}
+				}
+
+				// If we don't have any game/client targets, don't stage any client executable
+				if (ClientCookedTargetsList.Count == 0)
+				{
+					NoClient = true;
+				}
+				else
+				{
+					GameTarget = ClientCookedTargetsList[0];
+				}
+
+				// Validate all the settings
+				if (Client && bHasGameTarget)
+				{
+					throw new AutomationException("Cannot mix game and client targets");
+				}
+
+				// Find the editor target name
+				List<SingleTargetProperties> EditorTargets = Properties.Targets.Where(x => x.Rules.Type == TargetType.Editor).ToList();
+				if (EditorTargets.Count == 1)
+				{
+					EditorTarget = EditorTargets[0].TargetName;
+				}
+				else if (EditorTargets.Count > 1)
+				{
+					throw new AutomationException("There can be only one Editor target per project.");
+				}
 			}
 			else if (!CommandUtils.IsNullOrEmpty(Properties.Targets))
 			{
@@ -2069,7 +2098,7 @@ namespace AutomationTool
 
 				if (Client)
 				{
-					GameTarget = ChooseTarget(AvailableClientTargets, TargetType.Client, SpecifiedClientTarget);
+					GameTarget = ChooseTarget(AvailableClientTargets, TargetType.Client);
 					ProjectType = TargetType.Client;
 				}
 				else if (AvailableGameTargets.Count > 0)
@@ -2094,7 +2123,7 @@ namespace AutomationTool
 
 				if (AvailableServerTargets.Count > 0 && (DedicatedServer || Cook || CookOnTheFly)) // only if server is needed
 				{
-					ServerTarget = ChooseTarget(AvailableServerTargets, TargetType.Server, SpecifiedServerTarget);
+					ServerTarget = ChooseTarget(AvailableServerTargets, TargetType.Server);
 				}
 			}
 			else if (!CommandUtils.IsNullOrEmpty(Properties.Programs))
@@ -2209,10 +2238,6 @@ namespace AutomationTool
 				}
 			}
 		}
-
-		#endregion
-
-		#region Utilities
 
 		public bool HasEditorTargets
 		{
@@ -2688,14 +2713,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("SkipBuildEditor={0}", SkipBuildEditor);
 				CommandUtils.LogLog("Cook={0}", Cook);
 				CommandUtils.LogLog("Clean={0}", Clean);
-				if (String.IsNullOrEmpty(SpecifiedClientTarget))
-				{
-					CommandUtils.LogLog("Client={0}", Client);
-				}
-				else
-				{
-					CommandUtils.LogLog("Client='{0}'", SpecifiedClientTarget);
-				}
+				CommandUtils.LogLog("Client={0}", Client);
 				CommandUtils.LogLog("ClientConfigsToBuild={0}", string.Join(",", ClientConfigsToBuild));
 				CommandUtils.LogLog("ClientCookedTargets={0}", ClientCookedTargets.ToString());
 				CommandUtils.LogLog("ClientTargetPlatform={0}", string.Join(",", ClientTargetPlatforms));
@@ -2718,14 +2736,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("DLCPakPluginFile={0}", DLCPakPluginFile);
                 CommandUtils.LogLog("DiffCookedContentPath={0}", DiffCookedContentPath);
                 CommandUtils.LogLog("AdditionalCookerOptions={0}", AdditionalCookerOptions);
-				if (String.IsNullOrEmpty(SpecifiedServerTarget))
-				{
-					CommandUtils.LogLog("DedicatedServer={0}", DedicatedServer);
-				}
-				else
-				{
-					CommandUtils.LogLog("DedicatedServer='{0}'", SpecifiedServerTarget);
-				}
+				CommandUtils.LogLog("DedicatedServer={0}", DedicatedServer);
 				CommandUtils.LogLog("DirectoriesToCook={0}", DirectoriesToCook.ToString());
                 CommandUtils.LogLog("CulturesToCook={0}", CommandUtils.IsNullOrEmpty(CulturesToCook) ? "<Not Specified> (Use Defaults)" : CulturesToCook.ToString());
 				CommandUtils.LogLog("EditorTargets={0}", EditorTargets.ToString());
@@ -2797,7 +2808,5 @@ namespace AutomationTool
 
 			Validate();
 		}
-
-		#endregion
 	}
 }

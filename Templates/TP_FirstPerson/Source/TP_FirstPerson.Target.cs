@@ -8,6 +8,7 @@ public class TP_FirstPersonTarget : TargetRules
 	public TP_FirstPersonTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
+		DefaultBuildSettings = BuildSettingsVersion.Latest;
 		ExtraModuleNames.Add("TP_FirstPerson");
 	}
 }

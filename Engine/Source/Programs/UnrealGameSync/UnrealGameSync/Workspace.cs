@@ -255,11 +255,11 @@ namespace UnrealGameSync
 			SelectedLocalFileName = InSelectedLocalFileName;
 			ClientRootPath = InClientRootPath;
 			SelectedClientFileName = InSelectedClientFileName;
+			TelemetryProjectPath = InTelemetryProjectPath;
 			CurrentChangeNumber = InInitialChangeNumber;
 			CurrentSyncFilterHash = InInitialSyncFilterHash;
 			PendingChangeNumber = InInitialChangeNumber;
 			LastBuiltChangeNumber = InLastBuiltChangeNumber;
-			TelemetryProjectPath = InTelemetryProjectPath;
 			bIsEnterpriseProject = bInIsEnterpriseProject;
 			Log = InLog;
 

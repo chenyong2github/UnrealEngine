@@ -19,7 +19,7 @@
 	"Modules": [
 		{
 			"Name": "ConcertSyncTest",
-			"Type": "Developer",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "PreDefault",
 			"WhitelistPrograms": []
 		}

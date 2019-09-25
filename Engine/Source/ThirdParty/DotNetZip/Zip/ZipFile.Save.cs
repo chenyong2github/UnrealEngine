@@ -790,8 +790,10 @@ namespace Ionic.Zip
             bytes[i++] = 0;
             bytes[i++] = 0;
 
+			// BEGIN EPIC MOD - Only store 0xffff ZIP64 entries if they overflow the size of these fields
+
             // handle ZIP64 extensions for the end-of-central-directory
-            if (entryCount >= 0xFFFF || zip64 == Zip64Option.Always)
+            if (entryCount >= 0xFFFF)
             {
                 // the ZIP64 version.
                 for (j = 0; j < 4; j++)
@@ -811,21 +813,29 @@ namespace Ionic.Zip
 
             // size of the central directory
             Int64 SizeOfCentralDirectory = EndOfCentralDirectory - StartOfCentralDirectory;
+			if (SizeOfCentralDirectory >= 0xFFFFFFFF)
+			{
+				// The actual data is in the ZIP64 central directory structure
+				for (j = 0; j < 4; j++)
+					bytes[i++] = 0xFF;
+			}
+			else
+			{
+				// size of the central directory (we just get the low 4 bytes)
+				bytes[i++] = (byte)(SizeOfCentralDirectory & 0x000000FF);
+				bytes[i++] = (byte)((SizeOfCentralDirectory & 0x0000FF00) >> 8);
+				bytes[i++] = (byte)((SizeOfCentralDirectory & 0x00FF0000) >> 16);
+				bytes[i++] = (byte)((SizeOfCentralDirectory & 0xFF000000) >> 24);
+			}
 
-            if (SizeOfCentralDirectory >= 0xFFFFFFFF || StartOfCentralDirectory >= 0xFFFFFFFF)
+			if (StartOfCentralDirectory >= 0xFFFFFFFF)
             {
                 // The actual data is in the ZIP64 central directory structure
-                for (j = 0; j < 8; j++)
+                for (j = 0; j < 4; j++)
                     bytes[i++] = 0xFF;
             }
             else
             {
-                // size of the central directory (we just get the low 4 bytes)
-                bytes[i++] = (byte)(SizeOfCentralDirectory & 0x000000FF);
-                bytes[i++] = (byte)((SizeOfCentralDirectory & 0x0000FF00) >> 8);
-                bytes[i++] = (byte)((SizeOfCentralDirectory & 0x00FF0000) >> 16);
-                bytes[i++] = (byte)((SizeOfCentralDirectory & 0xFF000000) >> 24);
-
                 // offset of the start of the central directory (we just get the low 4 bytes)
                 bytes[i++] = (byte)(StartOfCentralDirectory & 0x000000FF);
                 bytes[i++] = (byte)((StartOfCentralDirectory & 0x0000FF00) >> 8);
@@ -833,9 +843,10 @@ namespace Ionic.Zip
                 bytes[i++] = (byte)((StartOfCentralDirectory & 0xFF000000) >> 24);
             }
 
+			// END EPIC MOD - Only store 0xffff ZIP64 entries if they overflow the size of these fields
 
-            // zip archive comment
-            if ((comment == null) || (comment.Length == 0))
+			// zip archive comment
+			if ((comment == null) || (comment.Length == 0))
             {
                 // no comment!
                 bytes[i++] = (byte)0;

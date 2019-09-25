@@ -23,7 +23,7 @@
 		},
 		{
 			"Name" : "ControlRigDeveloper",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "PreDefault"
 		},
 		{

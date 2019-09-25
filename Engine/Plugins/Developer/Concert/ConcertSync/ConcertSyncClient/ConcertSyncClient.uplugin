@@ -18,12 +18,12 @@
 	"Modules": [
 		{
 			"Name": "ConcertSyncClient",
-			"Type": "Developer",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "ConcertSyncUI",
-			"Type": "Developer",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		}
 	],

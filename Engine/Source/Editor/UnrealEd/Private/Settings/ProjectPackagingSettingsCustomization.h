@@ -27,6 +27,7 @@
 #include "Settings/ProjectPackagingSettings.h"
 #include "PropertyRestriction.h"
 #include "Widgets/Views/SMultipleOptionTable.h"
+#include "DesktopPlatformModule.h"
 
 #define LOCTEXT_NAMESPACE "FProjectPackagingSettingsCustomization"
 
@@ -144,40 +145,22 @@ protected:
 	 */
 	void CustomizeProjectCategory( IDetailLayoutBuilder& LayoutBuilder )
 	{
-		// Hide the DebugGame configurations for content-only games
-		TArray<FString> TargetFileNames;
-		IFileManager::Get().FindFiles(TargetFileNames, *(FPaths::GameSourceDir() / TEXT("*.target.cs")), true, false);
+		TArray<EProjectPackagingBuildConfigurations> PackagingConfigurations = UProjectPackagingSettings::GetValidPackageConfigurations();
 
-		if (TargetFileNames.Num() == 0)
+		TSharedRef<FPropertyRestriction> BuildConfigurationRestriction = MakeShareable(new FPropertyRestriction(LOCTEXT("ConfigurationRestrictionReason", "This configuration is not valid for this project. DebugGame configurations require a code project, and client/server configurations require the appropriate targets.")));
+
+		const UEnum* const ProjectPackagingBuildConfigurationsEnum = StaticEnum<EProjectPackagingBuildConfigurations>();
+		for (int Idx = 0; Idx < PPBC_MAX; Idx++)
 		{
-			IDetailCategoryBuilder& ProjectCategory = LayoutBuilder.EditCategory("Project");
+			EProjectPackagingBuildConfigurations Configuration = (EProjectPackagingBuildConfigurations)Idx;
+			if (!PackagingConfigurations.Contains(Configuration))
 			{
-				TSharedRef<FPropertyRestriction> BuildConfigurationRestriction = MakeShareable(new FPropertyRestriction(LOCTEXT("ContentOnlyRestrictionReason", "The DebugGame and Client build configurations are not available in content-only projects.")));
-				const UEnum* const ProjectPackagingBuildConfigurationsEnum = StaticEnum<EProjectPackagingBuildConfigurations>();		
-				BuildConfigurationRestriction->AddDisabledValue(ProjectPackagingBuildConfigurationsEnum->GetNameStringByValue((uint8)EProjectPackagingBuildConfigurations::PPBC_DebugGame));
-				BuildConfigurationRestriction->AddDisabledValue(ProjectPackagingBuildConfigurationsEnum->GetNameStringByValue((uint8)EProjectPackagingBuildConfigurations::PPBC_DebugGameClient));
-
-				TSharedRef<IPropertyHandle> BuildConfigurationHandle = LayoutBuilder.GetProperty("BuildConfiguration");
-				BuildConfigurationHandle->AddRestriction(BuildConfigurationRestriction);
+				BuildConfigurationRestriction->AddDisabledValue(ProjectPackagingBuildConfigurationsEnum->GetNameStringByValue(Idx));
 			}
 		}
-		else
-		{
-			// Hide the Client configurations if there is no {ProjectName}Client.Target.cs
-			TArray<FString> ClientTargetFileNames;
-			IFileManager::Get().FindFiles(ClientTargetFileNames, *(FPaths::GameSourceDir() / TEXT("*client.target.cs")), true, false);
-			if (ClientTargetFileNames.Num() == 0)
-			{
-				TSharedRef<FPropertyRestriction> BuildConfigurationRestriction = MakeShareable(new FPropertyRestriction(LOCTEXT("ClientRestrictionReason", "The Client build configurations require a {ProjectName}Client.Target.cs file in your Project/Source folder.")));
-				const UEnum* const ProjectPackagingBuildConfigurationsEnum = StaticEnum<EProjectPackagingBuildConfigurations>();
-				BuildConfigurationRestriction->AddDisabledValue(ProjectPackagingBuildConfigurationsEnum->GetNameStringByValue((uint8)EProjectPackagingBuildConfigurations::PPBC_DebugGameClient));
-				BuildConfigurationRestriction->AddDisabledValue(ProjectPackagingBuildConfigurationsEnum->GetNameStringByValue((uint8)EProjectPackagingBuildConfigurations::PPBC_DevelopmentClient));
-				BuildConfigurationRestriction->AddDisabledValue(ProjectPackagingBuildConfigurationsEnum->GetNameStringByValue((uint8)EProjectPackagingBuildConfigurations::PPBC_ShippingClient));
 
-				TSharedRef<IPropertyHandle> BuildConfigurationHandle = LayoutBuilder.GetProperty("BuildConfiguration");
-				BuildConfigurationHandle->AddRestriction(BuildConfigurationRestriction);
-			}
-		}
+		TSharedRef<IPropertyHandle> BuildConfigurationHandle = LayoutBuilder.GetProperty("BuildConfiguration");
+		BuildConfigurationHandle->AddRestriction(BuildConfigurationRestriction);
 	}
 
 	/**
