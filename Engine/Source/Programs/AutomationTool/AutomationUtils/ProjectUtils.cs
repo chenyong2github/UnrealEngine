@@ -12,7 +12,7 @@ using System.Reflection;
 
 namespace AutomationTool
 {
-	public struct SingleTargetProperties
+	public class SingleTargetProperties
 	{
 		public string TargetName;
 		public TargetRules Rules;
@@ -124,142 +124,111 @@ namespace AutomationTool
 			return ProjectClientBinariesPath;
 		}
 
-		private static bool RequiresTempTarget(FileReference RawProjectPath, List<UnrealTargetPlatform> ClientTargetPlatforms, List<UnrealTargetConfiguration> ClientTargetConfigurations, bool AssetNativizationRequested)
-		{
-			string Reason;
-			if(RequiresTempTarget(RawProjectPath, ClientTargetPlatforms, ClientTargetConfigurations, AssetNativizationRequested, out Reason))
-			{
-				Log.TraceInformation("{0} requires a temporary target.cs to be generated ({1})", RawProjectPath.GetFileName(), Reason);
-				return true;
-			}
-			return false;
-		}
-
-		private static bool RequiresTempTarget(FileReference RawProjectPath, List<UnrealTargetPlatform> ClientTargetPlatforms, List<UnrealTargetConfiguration> ClientTargetConfigurations, bool AssetNativizationRequested, out string Reason)
+		private static bool ProjectHasCode(FileReference RawProjectPath)
 		{
 			// check to see if we already have a Target.cs file
-			if (File.Exists (Path.Combine (Path.GetDirectoryName (RawProjectPath.FullName), "Source", RawProjectPath.GetFileNameWithoutExtension() + ".Target.cs")))
+			if (File.Exists(Path.Combine(Path.GetDirectoryName(RawProjectPath.FullName), "Source", RawProjectPath.GetFileNameWithoutExtension() + ".Target.cs")))
 			{
-				Reason = null;
-				return false;
+				return true;
 			}
 			else if (Directory.Exists(Path.Combine(Path.GetDirectoryName(RawProjectPath.FullName), "Source")))
 			{
 				// wasn't one in the main Source directory, let's check all sub-directories
 				//@todo: may want to read each target.cs to see if it has a target corresponding to the project name as a final check
-				FileInfo[] Files = (new DirectoryInfo( Path.Combine (Path.GetDirectoryName (RawProjectPath.FullName), "Source")).GetFiles ("*.Target.cs", SearchOption.AllDirectories));
+				FileInfo[] Files = (new DirectoryInfo(Path.Combine(Path.GetDirectoryName(RawProjectPath.FullName), "Source")).GetFiles("*.Target.cs", SearchOption.AllDirectories));
 				if (Files.Length > 0)
 				{
-					Reason = null;
-					return false;
+					return true;
 				}
 			}
+			return false;
+		}
 
-            //
-            // once we reach this point, we can surmise that this is an asset-
-            // only (code free) project
+		private static bool RequiresTempTarget(FileReference RawProjectPath, List<UnrealTargetPlatform> Platforms, List<UnrealTargetConfiguration> Configurations, bool AssetNativizationRequested)
+		{
+			bool bHasCode = ProjectHasCode(RawProjectPath);
+			foreach (UnrealTargetPlatform Platform in Platforms)
+			{
+				foreach(UnrealTargetConfiguration Configuration in Configurations)
+				{
+					string Reason;
+					if(RequiresTempTarget(RawProjectPath, bHasCode, Platform, Configuration, TargetType.Game, AssetNativizationRequested, true, out Reason))
+					{
+						Log.TraceInformation("{0} requires a temporary target.cs to be generated ({1})", RawProjectPath.GetFileName(), Reason);
+						return true;
+					}
+				}
+			}
+			return false;
+		}
 
-            if (AssetNativizationRequested)
+		private static bool RequiresTempTarget(FileReference RawProjectPath, bool bProjectHasCode, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, bool bRequiresAssetNativization, bool bRequiresCookedData, out string OutReason)
+		{
+			// check to see if we already have a Target.cs file
+			if (bProjectHasCode)
+			{
+				OutReason = null;
+				return false;
+			}
+
+			// check if asset nativization is enabled
+			if (bRequiresAssetNativization)
             {
-                // we're going to be converting some of the project's assets 
-                // into native code, so we require a distinct target (executable) 
-                // be generated for this project
-				Reason = "asset nativization is enabled";
+				OutReason = "asset nativization is enabled";
                 return true;
             }
 
-			if (ClientTargetPlatforms != null)
+			// Check if encryption or signing is enabled
+			EncryptionAndSigning.CryptoSettings Settings = EncryptionAndSigning.ParseCryptoSettings(RawProjectPath.Directory, Platform);
+			if (Settings.IsAnyEncryptionEnabled() || Settings.IsPakSigningEnabled())
 			{
-				foreach (UnrealTargetPlatform ClientPlatform in ClientTargetPlatforms)
+				OutReason = "encryption/signing is enabled";
+				return true;
+			}
+
+			// check the target platforms for any differences in build settings or additional plugins
+			if(!CommandUtils.IsEngineInstalled() && !PlatformExports.HasDefaultBuildConfig(RawProjectPath, Platform))
+			{
+				OutReason = "project has non-default build configuration";
+				return true;
+			}
+			if(PlatformExports.RequiresBuild(RawProjectPath, Platform))
+			{
+				OutReason = "overriden by target platform";
+				return true;
+			}
+
+			// Read the project descriptor, and find all the plugins available to this project
+			ProjectDescriptor Project = ProjectDescriptor.FromFile(RawProjectPath);
+
+			// find if there are any plugins enabled or disabled which differ from the default
+			List<PluginInfo> Plugins = UnrealBuildTool.Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, RawProjectPath, Project.AdditionalPluginDirectories);
+			foreach (PluginInfo Plugin in Plugins)
+			{
+				bool bPluginEnabledForTarget = UnrealBuildTool.Plugins.IsPluginCompiledForTarget(Plugin, Project, Platform, Configuration, TargetType, bRequiresCookedData);
+
+				bool bPluginEnabledForBaseTarget = false;
+				if(!Plugin.Descriptor.bInstalled)
 				{
-					EncryptionAndSigning.CryptoSettings Settings = EncryptionAndSigning.ParseCryptoSettings(RawProjectPath.Directory, ClientPlatform);
-					if (Settings.IsAnyEncryptionEnabled() || Settings.IsPakSigningEnabled())
+					bPluginEnabledForBaseTarget |= UnrealBuildTool.Plugins.IsPluginCompiledForTarget(Plugin, null, Platform, Configuration, TargetType, bRequiresCookedData);
+				}
+
+				if (bPluginEnabledForTarget != bPluginEnabledForBaseTarget)
+				{
+					if(bPluginEnabledForTarget)
 					{
-						Reason = "encryption/signing is enabled";
+						OutReason = String.Format("{0} plugin is enabled", Plugin.Name);
+						return true;
+					}
+					else
+					{
+						OutReason = String.Format("{0} plugin is disabled", Plugin.Name);
 						return true;
 					}
 				}
 			}
 
-			// no Target file, now check to see if build settings have changed
-			List<UnrealTargetPlatform> TargetPlatforms = ClientTargetPlatforms;
-			if (ClientTargetPlatforms == null || ClientTargetPlatforms.Count < 1)
-			{
-				// No client target platforms, add all in
-				TargetPlatforms = new List<UnrealTargetPlatform>();
-				foreach (UnrealTargetPlatform TargetPlatformType in UnrealTargetPlatform.GetValidPlatforms())
-				{
-					TargetPlatforms.Add(TargetPlatformType);
-				}
-			}
-
-			List<UnrealTargetConfiguration> TargetConfigurations = ClientTargetConfigurations;
-			if (TargetConfigurations == null || TargetConfigurations.Count < 1)
-			{
-				// No client target configurations, add all in
-				TargetConfigurations = new List<UnrealTargetConfiguration>();
-				foreach (UnrealTargetConfiguration TargetConfigurationType in Enum.GetValues(typeof(UnrealTargetConfiguration)))
-				{
-					if (TargetConfigurationType != UnrealTargetConfiguration.Unknown)
-					{
-						TargetConfigurations.Add(TargetConfigurationType);
-					}
-				}
-			}
-
-			// Read the project descriptor, and find all the plugins available to this project
-			ProjectDescriptor Project = ProjectDescriptor.FromFile(RawProjectPath);
-			List<PluginInfo> AvailablePlugins = Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, RawProjectPath, Project.AdditionalPluginDirectories);
-
-			// check the target platforms for any differences in build settings or additional plugins
-			foreach (UnrealTargetPlatform TargetPlatformType in TargetPlatforms)
-			{
-				if(!CommandUtils.IsEngineInstalled() && !PlatformExports.HasDefaultBuildConfig(RawProjectPath, TargetPlatformType))
-				{
-					Reason = "project has non-default build configuration";
-					return true;
-				}
-				if(PlatformExports.RequiresBuild(RawProjectPath, TargetPlatformType))
-				{
-					Reason = "overriden by target platform";
-					return true;
-				}
-
-				// find if there are any plugins enabled or disabled which differ from the default
-				foreach(PluginInfo Plugin in AvailablePlugins)
-				{
-					bool bPluginEnabledForTarget = false;
-					foreach (UnrealTargetConfiguration TargetConfigType in TargetConfigurations)
-					{
-						bPluginEnabledForTarget |= Plugins.IsPluginEnabledForProject(Plugin, Project, TargetPlatformType, TargetConfigType, TargetRules.TargetType.Game);
-					}
-
-					bool bPluginEnabledForBaseTarget = false;
-					if(!Plugin.Descriptor.bInstalled)
-					{
-						foreach (UnrealTargetConfiguration TargetConfigType in TargetConfigurations)
-						{
-							bPluginEnabledForBaseTarget |= Plugins.IsPluginEnabledForProject(Plugin, null, TargetPlatformType, TargetConfigType, TargetRules.TargetType.Game);
-						}
-					}
-
-					if (bPluginEnabledForTarget != bPluginEnabledForBaseTarget)
-					{
-						if(bPluginEnabledForTarget)
-						{
-							Reason = String.Format("{0} plugin is enabled", Plugin.Name);
-							return true;
-						}
-						else
-						{
-							Reason = String.Format("{0} plugin is disabled", Plugin.Name);
-							return true;
-						}
-					}
-				}
-			}
-
-			Reason = null;
+			OutReason = null;
 			return false;
 		}
 
@@ -336,8 +305,34 @@ namespace AutomationTool
 			List<string> ExtraSearchPaths = null;
 			if (RawProjectPath != null)
 			{
-                string TempTargetDir = CommandUtils.CombinePaths(Path.GetDirectoryName(RawProjectPath.FullName), "Intermediate", "Source");
-                if (RequiresTempTarget(RawProjectPath, ClientTargetPlatforms, ClientTargetConfigurations, AssetNativizationRequested))
+				// no Target file, now check to see if build settings have changed
+				List<UnrealTargetPlatform> TargetPlatforms = ClientTargetPlatforms;
+				if (ClientTargetPlatforms == null || ClientTargetPlatforms.Count < 1)
+				{
+					// No client target platforms, add all in
+					TargetPlatforms = new List<UnrealTargetPlatform>();
+					foreach (UnrealTargetPlatform TargetPlatformType in UnrealTargetPlatform.GetValidPlatforms())
+					{
+						TargetPlatforms.Add(TargetPlatformType);
+					}
+				}
+
+				List<UnrealTargetConfiguration> TargetConfigurations = ClientTargetConfigurations;
+				if (TargetConfigurations == null || TargetConfigurations.Count < 1)
+				{
+					// No client target configurations, add all in
+					TargetConfigurations = new List<UnrealTargetConfiguration>();
+					foreach (UnrealTargetConfiguration TargetConfigurationType in Enum.GetValues(typeof(UnrealTargetConfiguration)))
+					{
+						if (TargetConfigurationType != UnrealTargetConfiguration.Unknown)
+						{
+							TargetConfigurations.Add(TargetConfigurationType);
+						}
+					}
+				}
+
+				string TempTargetDir = CommandUtils.CombinePaths(Path.GetDirectoryName(RawProjectPath.FullName), "Intermediate", "Source");
+                if (RequiresTempTarget(RawProjectPath, TargetPlatforms, TargetConfigurations, AssetNativizationRequested))
 				{
 					GenerateTempTarget(RawProjectPath);
 					Properties.bWasGenerated = true;
@@ -573,7 +568,7 @@ namespace AutomationTool
 					TargetRules Rules = Activator.CreateInstance(TargetType, DummyTargetInfo) as TargetRules;
 					CommandUtils.LogVerbose("Adding target: {0} ({1})", TargetType.Name, Rules.Type);
 
-					SingleTargetProperties TargetData;
+					SingleTargetProperties TargetData = new SingleTargetProperties();
 					TargetData.TargetName = GetTargetName(TargetType);
 					TargetData.Rules = Rules;
 					if (Rules.Type == global::UnrealBuildTool.TargetType.Program)
@@ -895,7 +890,7 @@ namespace AutomationTool
 				}
 			}
 
-            SingleTargetProperties Result;
+            SingleTargetProperties Result = new SingleTargetProperties();
             Result.TargetName = ProgramName;
             Result.Rules = null;
             return Result;

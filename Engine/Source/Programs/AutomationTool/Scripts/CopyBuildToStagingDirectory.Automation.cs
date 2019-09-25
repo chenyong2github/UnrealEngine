@@ -24,8 +24,6 @@ using System.Diagnostics;
 public partial class Project : CommandUtils
 {
 
-	#region Utilities
-
 	private static readonly object SyncLock = new object();
 
 	/// <returns>The path for the BuildPatchTool executable depending on host platform.</returns>
@@ -3174,10 +3172,6 @@ public partial class Project : CommandUtils
 		FileReference.WriteAllLines(ManifestFile, DeltaFiles);
 	}
 
-	#endregion
-
-	#region Stage Command
-
 	//@todo move this
 	public static List<DeploymentContext> CreateDeploymentContext(ProjectParams Params, bool InDedicatedServer, bool DoCleanStage = false)
 	{
@@ -3402,6 +3396,4 @@ public partial class Project : CommandUtils
 			LogInformation("********** STAGE COMMAND COMPLETED **********");
 		}
 	}
-
-	#endregion
 }

@@ -8,6 +8,7 @@ public class TP_TopDownTarget : TargetRules
 	public TP_TopDownTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
+		DefaultBuildSettings = BuildSettingsVersion.Latest;
 		ExtraModuleNames.Add("TP_TopDown");
 	}
 }

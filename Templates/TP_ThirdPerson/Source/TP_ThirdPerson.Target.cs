@@ -8,6 +8,7 @@ public class TP_ThirdPersonTarget : TargetRules
 	public TP_ThirdPersonTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
+		DefaultBuildSettings = BuildSettingsVersion.Latest;
 		ExtraModuleNames.Add("TP_ThirdPerson");
 	}
 }

@@ -7,6 +7,11 @@ public class UnrealEd : ModuleRules
 {
 	public UnrealEd(ReadOnlyTargetRules Target) : base(Target)
 	{
+		if(Target.Type != TargetType.Editor)
+		{
+			throw new BuildException("Unable to instantiate UnrealEd module for non-editor targets.");
+		}
+
 		PrivatePCHHeaderFile = "Private/UnrealEdPrivatePCH.h";
 
 		SharedPCHHeaderFile = "Public/UnrealEdSharedPCH.h";

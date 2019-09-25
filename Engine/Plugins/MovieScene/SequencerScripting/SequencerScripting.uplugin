@@ -22,7 +22,7 @@
 	"Modules": [
 		{
 			"Name": "SequencerScripting",
-			"Type": "Developer",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		},
 		{

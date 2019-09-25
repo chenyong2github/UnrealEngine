@@ -20,6 +20,8 @@
 #include "Widgets/Testing/STestSuite.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
+#include "ISourceCodeAccessor.h"
+#include "ISourceCodeAccessModule.h"
 
 #if !UE_BUILD_SHIPPING
 #include "ISlateReflectorModule.h"
@@ -30,8 +32,8 @@ static bool bTabsRegistered = false;
 
 static bool CanShowModulesTab()
 {
-	FString SolutionPath;
-	return FDesktopPlatformModule::Get()->GetSolutionPath(SolutionPath);
+	ISourceCodeAccessModule* SourceCodeAccessModule = FModuleManager::GetModulePtr<ISourceCodeAccessModule>("SourceCodeAccess");
+	return SourceCodeAccessModule != nullptr && SourceCodeAccessModule->GetAccessor().CanAccessSourceCode();
 }
 
 class SDebugPanel : public SCompoundWidget

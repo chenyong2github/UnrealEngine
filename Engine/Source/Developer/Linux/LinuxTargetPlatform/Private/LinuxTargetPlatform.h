@@ -201,9 +201,9 @@ public:
 		return true;
 	}
 
-	virtual int32 CheckRequirements(const FString& ProjectPath, bool bProjectHasCode, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const override
+	virtual int32 CheckRequirements(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const override
 	{
-		int32 ReadyToBuild = TSuper::CheckRequirements(ProjectPath, bProjectHasCode, OutTutorialPath, OutDocumentationPath, CustomizedLogMessage);
+		int32 ReadyToBuild = TSuper::CheckRequirements(bProjectHasCode, Configuration, bRequiresAssetNativization, OutTutorialPath, OutDocumentationPath, CustomizedLogMessage);
 
 		// do not support code/plugins in Installed builds if the required libs aren't bundled (on Windows/Mac)
 		if (!PLATFORM_LINUX && !FInstalledPlatformInfo::Get().IsValidPlatform(TSuper::GetPlatformInfo().BinaryFolderName, EProjectType::Code))
@@ -213,7 +213,8 @@ public:
 				ReadyToBuild |= ETargetPlatformReadyStatus::CodeUnsupported;
 			}
 
-			if (!IProjectManager::Get().HasDefaultPluginSettings())
+			FText Reason;
+			if (this->RequiresTempTarget(bProjectHasCode, Configuration, bRequiresAssetNativization, Reason))
 			{
 				ReadyToBuild |= ETargetPlatformReadyStatus::PluginsUnsupported;
 			}

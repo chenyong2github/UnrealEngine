@@ -145,6 +145,28 @@ public:
 	/** Get the field named FieldName as an array of strings. Returns false if it doesn't exist or any member cannot be converted. */
 	bool TryGetStringArrayField(const FString& FieldName, TArray<FString>& OutArray) const;
 
+	/** Get the field named FieldName as an array of enums. Returns false if it doesn't exist or any member is not a string. */
+	template<typename TEnum>
+	bool TryGetEnumArrayField(const FString& FieldName, TArray<TEnum>& OutArray) const
+	{
+		TArray<FString> Strings;
+		if (!TryGetStringArrayField(FieldName, Strings))
+		{
+			return false;
+		}
+
+		OutArray.Empty();
+		for (const FString& String : Strings)
+		{
+			TEnum Value;
+			if (LexTryParseString(Value, *String))
+			{
+				OutArray.Add(Value);
+			}
+		}
+		return true;
+	}
+
 	/** Add a field named FieldName with value of StringValue */
 	void SetStringField( const FString& FieldName, const FString& StringValue );
 

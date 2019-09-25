@@ -19,7 +19,7 @@
 	[
 		{
 			"Name" : "AssetManagerEditor",
-			"Type": "Developer",
+			"Type": "UncookedOnly" ,
 			"LoadingPhase" : "PreDefault"
 		}
 	]

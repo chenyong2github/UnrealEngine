@@ -8,6 +8,7 @@ public class TP_VehicleAdvEditorTarget : TargetRules
 	public TP_VehicleAdvEditorTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Editor;
+		DefaultBuildSettings = BuildSettingsVersion.Latest;
 		ExtraModuleNames.Add("TP_VehicleAdv");
 	}
 }

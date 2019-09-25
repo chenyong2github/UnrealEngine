@@ -13,8 +13,6 @@ using Tools.DotNETCommon;
 
 namespace AutomationTool
 {
-	#region UAT Internal Utils
-
 	/// <summary>
 	/// AutomationTool internal Utilities.
 	/// </summary>
@@ -870,11 +868,6 @@ namespace AutomationTool
 
 	}
 
-	#endregion
-
-
-	#region VersionFileReader
-
 
 	/// <summary>
 	/// This is to ensure that UAT can produce version strings precisely compatible
@@ -1045,10 +1038,6 @@ namespace AutomationTool
             }
         }
     }
-
-    #endregion
-
-    #region VersionFileUpdater
 
     /// <summary>
 	/// VersionFileUpdater.
@@ -1250,6 +1239,4 @@ namespace AutomationTool
 		/// </summary>
 		protected List<string> OriginalLines;
 	}
-
-	#endregion
 }
