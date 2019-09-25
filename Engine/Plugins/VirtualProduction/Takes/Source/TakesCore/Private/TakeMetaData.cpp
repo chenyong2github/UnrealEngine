@@ -10,7 +10,9 @@
 
 const FName UTakeMetaData::AssetRegistryTag_Slate       = "TakeMetaData_Slate";
 const FName UTakeMetaData::AssetRegistryTag_TakeNumber  = "TakeMetaData_TakeNumber";
-const FName UTakeMetaData::AssetRegistryTag_Timestamp   = "TakeMetaData_Timestamp";
+const FName UTakeMetaData::AssetRegistryTag_Timestamp = "TakeMetaData_Timestamp";
+const FName UTakeMetaData::AssetRegistryTag_TimecodeIn = "TakeMetaData_TimecodeIn";
+const FName UTakeMetaData::AssetRegistryTag_TimecodeOut = "TakeMetaData_TimecodeOut";
 const FName UTakeMetaData::AssetRegistryTag_Description = "TakeMetaData_Description";
 const FName UTakeMetaData::AssetRegistryTag_LevelPath   = "TakeMetaData_LevelPath";
 
@@ -101,6 +103,16 @@ FDateTime UTakeMetaData::GetTimestamp() const
 	return Timestamp;
 }
 
+FTimecode UTakeMetaData::GetTimecodeIn() const
+{
+	return TimecodeIn;
+}
+
+FTimecode UTakeMetaData::GetTimecodeOut() const
+{
+	return TimecodeOut;
+}
+
 FFrameTime UTakeMetaData::GetDuration() const
 {
 	return Duration;
@@ -165,6 +177,22 @@ void UTakeMetaData::SetTimestamp(FDateTime InTimestamp)
 	}
 }
 
+void UTakeMetaData::SetTimecodeIn(FTimecode InTimecodeIn)
+{
+	if (!bIsLocked)
+	{
+		TimecodeIn = InTimecodeIn;
+	}
+}
+
+void UTakeMetaData::SetTimecodeOut(FTimecode InTimecodeOut)
+{
+	if (!bIsLocked)
+	{
+		TimecodeOut = InTimecodeOut;
+	}
+}
+
 void UTakeMetaData::SetDuration(FFrameTime InDuration)
 {
 	if (!bIsLocked)
@@ -209,7 +237,9 @@ void UTakeMetaData::ExtendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) 
 {
 	OutTags.Emplace(AssetRegistryTag_Slate,       Slate,                     FAssetRegistryTag::ETagType::TT_Alphabetical,  FAssetRegistryTag::TD_None);
 	OutTags.Emplace(AssetRegistryTag_TakeNumber,  LexToString(TakeNumber),   FAssetRegistryTag::ETagType::TT_Numerical,     FAssetRegistryTag::TD_None);
-	OutTags.Emplace(AssetRegistryTag_Timestamp,   Timestamp.ToString(),      FAssetRegistryTag::ETagType::TT_Chronological, FAssetRegistryTag::TD_Date | FAssetRegistryTag::TD_Time);
+	OutTags.Emplace(AssetRegistryTag_Timestamp, Timestamp.ToString(), FAssetRegistryTag::ETagType::TT_Chronological, FAssetRegistryTag::TD_Date | FAssetRegistryTag::TD_Time);
+	OutTags.Emplace(AssetRegistryTag_TimecodeIn, TimecodeIn.ToString(), FAssetRegistryTag::ETagType::TT_Numerical, FAssetRegistryTag::TD_None);
+	OutTags.Emplace(AssetRegistryTag_TimecodeOut, TimecodeOut.ToString(), FAssetRegistryTag::ETagType::TT_Numerical, FAssetRegistryTag::TD_None);
 	OutTags.Emplace(AssetRegistryTag_Description, Description,               FAssetRegistryTag::ETagType::TT_Alphabetical,  FAssetRegistryTag::TD_None);
 }
 
@@ -227,7 +257,17 @@ void UTakeMetaData::ExtendAssetRegistryTagMetaData(TMap<FName, FAssetRegistryTag
 
 	OutMetadata.Add(AssetRegistryTag_Timestamp, FAssetRegistryTagMetadata()
 		.SetDisplayName(NSLOCTEXT("TakeMetaData", "Timestamp_Label", "Timestamp"))
-		.SetTooltip(    NSLOCTEXT("TakeMetaData", "Timestamp_Tip",   "The time that this take was started"))
+		.SetTooltip(NSLOCTEXT("TakeMetaData", "Timestamp_Tip", "The time that this take was started"))
+	);
+
+	OutMetadata.Add(AssetRegistryTag_TimecodeIn, FAssetRegistryTagMetadata()
+		.SetDisplayName(NSLOCTEXT("TakeMetaData", "TimecodeIn_Label", "Timecode In"))
+		.SetTooltip(NSLOCTEXT("TakeMetaData", "TimecodeIn_Tip", "The timecode when this recording was started"))
+	);
+
+	OutMetadata.Add(AssetRegistryTag_TimecodeOut, FAssetRegistryTagMetadata()
+		.SetDisplayName(NSLOCTEXT("TakeMetaData", "TimecodeOut_Label", "Timecode Out"))
+		.SetTooltip(NSLOCTEXT("TakeMetaData", "TimecodeOut_Tip", "The timecode when this recording was stopped"))
 	);
 
 	OutMetadata.Add(AssetRegistryTag_Description, FAssetRegistryTagMetadata()

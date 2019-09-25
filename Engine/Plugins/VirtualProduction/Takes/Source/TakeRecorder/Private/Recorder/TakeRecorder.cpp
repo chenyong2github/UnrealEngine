@@ -163,7 +163,7 @@ private:
 		{
 			ETakeRecorderState NewTakeRecorderState = Recorder->GetState();
 
-			if (NewTakeRecorderState == ETakeRecorderState::CountingDown)
+			if (NewTakeRecorderState == ETakeRecorderState::CountingDown || NewTakeRecorderState == ETakeRecorderState::Started)
 			{
 				// When counting down the text may change on tick
 				TextBlock->SetText(GetDetailText());
@@ -222,6 +222,22 @@ private:
 			else if (Recorder->GetState() == ETakeRecorderState::Cancelled)
 			{
 				return LOCTEXT("CancelledText", "Recording Cancelled");
+			}
+
+			ULevelSequence* LevelSequence = Recorder->GetSequence();
+
+			UTakeMetaData* TakeMetaData = LevelSequence ? LevelSequence->FindMetaData<UTakeMetaData>() : nullptr;
+
+			if (TakeMetaData)
+			{
+				FFrameRate FrameRate = TakeMetaData->GetFrameRate();
+				FTimespan RecordingDuration = FDateTime::UtcNow() - TakeMetaData->GetTimestamp();
+
+				FFrameNumber TotalFrames = FFrameNumber(static_cast<int32>(FrameRate.AsDecimal() * RecordingDuration.GetTotalSeconds()));
+
+				FTimecode Timecode = FTimecode::FromFrameNumber(TotalFrames, FrameRate, FTimecode::IsDropFormatTimecodeSupported(FrameRate));
+
+				return FText::Format(LOCTEXT("RecordingText", "Recording...{0}"), FText::FromString(Timecode.ToString()));
 			}
 		}
 
@@ -509,6 +525,7 @@ bool UTakeRecorder::CreateDestinationAsset(const TCHAR* AssetPathFormat, ULevelS
 
 	FDateTime UtcNow = FDateTime::UtcNow();
 	AssetMetaData->SetTimestamp(UtcNow);
+	AssetMetaData->SetFrameRate(FApp::GetTimecodeFrameRate());
 
 	// @todo: duration / tick resolution / sample rate / frame rate needs some clarification between sync clocks, template sequences and meta data
 	if (AssetMetaData->GetDuration() > 0)
@@ -729,6 +746,7 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 	UTakeMetaData* AssetMetaData = SequenceAsset->FindMetaData<UTakeMetaData>();
 	FDateTime UtcNow = FDateTime::UtcNow();
 	AssetMetaData->SetTimestamp(UtcNow);
+	AssetMetaData->SetTimecodeIn(InTimecodeSource);
 
 	Sources->StartRecording(SequenceAsset, InTimecodeSource, Parameters.User.bAutoSerialize ? &ManifestSerializer : nullptr);
 
@@ -739,6 +757,7 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 
 void UTakeRecorder::Stop()
 {
+	FTimecode TimecodeOut = FApp::GetTimecode();
 	USequencerSettings* SequencerSettings = USequencerSettingsContainer::GetOrCreate<USequencerSettings>(TEXT("TakeRecorderSequenceEditor"));
 
 	SequencerSettings->SetAllowEditsMode(CachedAllowEditsMode);
@@ -796,6 +815,8 @@ void UTakeRecorder::Stop()
 
 		UTakeMetaData* AssetMetaData = SequenceAsset->FindMetaData<UTakeMetaData>();
 		check(AssetMetaData);
+
+		AssetMetaData->SetTimecodeOut(TimecodeOut);
 
 		if (GEditor && GEditor->GetEditorWorldContext().World())
 		{
