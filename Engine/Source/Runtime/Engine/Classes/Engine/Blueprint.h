@@ -20,6 +20,7 @@ class FCompilerResultsLog;
 class ITargetPlatform;
 class UActorComponent;
 class UEdGraph;
+class FKismetCompilerContext;
 class UInheritableComponentHandler;
 class FBlueprintActionDatabaseRegistrar;
 struct FDiffResults;
@@ -138,6 +139,18 @@ struct FBlueprintMacroCosmeticInfo
 	{
 	}
 };
+
+/** Structure that is passed to UBlueprint::GenerateFunctionGraphsEvent in order to generate procedural blueprint functions */
+USTRUCT()
+struct FGenerateBlueprintFunctionParams
+{
+	GENERATED_BODY()
+
+	/** The kismet compiler being used for compilation */
+	FKismetCompilerContext* CompilerContext;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGenerateBlueprintFunctionsEvent, const FGenerateBlueprintFunctionParams&, Params);
 
 struct FKismetCompilerOptions
 {
@@ -547,6 +560,11 @@ public:
 	/** Guid key for finding searchable data for Blueprint in the DDC */
 	UPROPERTY()
 	FGuid SearchGuid;
+
+	/** Persistent, serialized event that is triggered after skeleton class generation, but before functions are created for the class layout to give external subscribers an opportunity to generate function graphs on the compiler context */
+	UPROPERTY()
+	FGenerateBlueprintFunctionsEvent GenerateFunctionGraphsEvent;
+
 #endif //WITH_EDITORONLY_DATA
 
 	/** The version of the blueprint system that was used to  create this blueprint */
