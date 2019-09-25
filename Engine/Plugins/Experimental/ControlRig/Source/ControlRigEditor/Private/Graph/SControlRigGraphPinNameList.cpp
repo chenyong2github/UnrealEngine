@@ -1,22 +1,22 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 
-#include "Graph/SGraphPinNameList.h"
-#include "Graph/SGraphPinNameListValueWidget.h"
+#include "Graph/SControlRigGraphPinNameList.h"
+#include "Graph/SControlRigGraphPinNameListValueWidget.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "EdGraphSchema_K2.h"
 #include "ScopedTransaction.h"
 #include "DetailLayoutBuilder.h"
 
-void SGraphPinNameList::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
+void SControlRigGraphPinNameList::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {
 	this->OnGetNameListContent = InArgs._OnGetNameListContent;
 
 	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
 }
 
-TSharedRef<SWidget>	SGraphPinNameList::GetDefaultValueWidget()
+TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 {
 	TSharedPtr<FString> InitialSelected;
 	for (TSharedPtr<FString> Item : GetNameList())
@@ -31,22 +31,22 @@ TSharedRef<SWidget>	SGraphPinNameList::GetDefaultValueWidget()
 		.MinDesiredWidth(150)
 		.MaxDesiredWidth(400)
 		[
-			SAssignNew(NameListComboBox, SGraphPinNameListValueWidget)
+			SAssignNew(NameListComboBox, SControlRigGraphPinNameListValueWidget)
 				.Visibility(this, &SGraphPin::GetDefaultValueVisibility)
 				.OptionsSource(&GetNameList())
-				.OnGenerateWidget(this, &SGraphPinNameList::MakeNameListItemWidget)
-				.OnSelectionChanged(this, &SGraphPinNameList::OnNameListChanged)
-				.OnComboBoxOpening(this, &SGraphPinNameList::OnNameListComboBox)
+				.OnGenerateWidget(this, &SControlRigGraphPinNameList::MakeNameListItemWidget)
+				.OnSelectionChanged(this, &SControlRigGraphPinNameList::OnNameListChanged)
+				.OnComboBoxOpening(this, &SControlRigGraphPinNameList::OnNameListComboBox)
 				.InitiallySelectedItem(InitialSelected)
 				.Content()
 				[
 					SNew(STextBlock)
-					.Text(this, &SGraphPinNameList::GetNameListText)
+					.Text(this, &SControlRigGraphPinNameList::GetNameListText)
 				]
 		];
 }
 
-const TArray<TSharedPtr<FString>>& SGraphPinNameList::GetNameList() const
+const TArray<TSharedPtr<FString>>& SControlRigGraphPinNameList::GetNameList() const
 {
 	if (OnGetNameListContent.IsBound())
 	{
@@ -55,12 +55,12 @@ const TArray<TSharedPtr<FString>>& SGraphPinNameList::GetNameList() const
 	return EmptyList;
 }
 
-FText SGraphPinNameList::GetNameListText() const
+FText SControlRigGraphPinNameList::GetNameListText() const
 {
 	return FText::FromString( GraphPinObj->GetDefaultAsString() );
 }
 
-void SGraphPinNameList::SetNameListText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/)
+void SControlRigGraphPinNameList::SetNameListText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/)
 {
 	if(!GraphPinObj->GetDefaultAsString().Equals(NewTypeInValue.ToString()))
 	{
@@ -70,12 +70,12 @@ void SGraphPinNameList::SetNameListText(const FText& NewTypeInValue, ETextCommit
 	}
 }
 
-TSharedRef<SWidget> SGraphPinNameList::MakeNameListItemWidget(TSharedPtr<FString> InItem)
+TSharedRef<SWidget> SControlRigGraphPinNameList::MakeNameListItemWidget(TSharedPtr<FString> InItem)
 {
 	return 	SNew(STextBlock).Text(FText::FromString(*InItem));// .Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 
-void SGraphPinNameList::OnNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
+void SControlRigGraphPinNameList::OnNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
@@ -84,7 +84,7 @@ void SGraphPinNameList::OnNameListChanged(TSharedPtr<FString> NewSelection, ESel
 	}
 }
 
-void SGraphPinNameList::OnNameListComboBox()
+void SControlRigGraphPinNameList::OnNameListComboBox()
 {
 	TSharedPtr<FString> CurrentlySelected;
 	for (TSharedPtr<FString> Item : GetNameList())

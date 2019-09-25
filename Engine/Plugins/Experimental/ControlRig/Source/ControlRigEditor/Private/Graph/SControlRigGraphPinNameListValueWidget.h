@@ -13,7 +13,7 @@
 /**
  * A searchable text combo box
  */
-class SGraphPinNameListValueWidget : public SComboButton
+class SControlRigGraphPinNameListValueWidget : public SComboButton
 {
 public:
 	/** Type of list used for showing menu options. */
@@ -22,7 +22,7 @@ public:
 	typedef typename TSlateDelegates< TSharedPtr<FString> >::FOnGenerateWidget FOnGenerateWidget;
 	typedef typename TSlateDelegates< TSharedPtr<FString> >::FOnSelectionChanged FOnSelectionChanged;
 
-	SLATE_BEGIN_ARGS(SGraphPinNameListValueWidget)
+	SLATE_BEGIN_ARGS(SControlRigGraphPinNameListValueWidget)
 		: _Content()
 		, _ContentPadding(FMargin(3.0, 3.0))
 		, _OptionsSource()
