@@ -233,7 +233,7 @@ struct FDataSetThreadLocalTempData
 /**
 * Context information passed around during VM execution.
 */
-struct FVectorVMContext
+struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 {
 	/** Pointer to the next element in the byte code. */
 	uint8 const* RESTRICT Code;
@@ -309,29 +309,7 @@ struct FVectorVMContext
 		RandCounters.Reset();
 		RandCounters.SetNumZeroed(InNumInstances);
 	}
-
-	static TLockFreePointerListLIFO<FVectorVMContext> VMContextPool;
-	FORCEINLINE static FVectorVMContext* GetContext();
-	FORCEINLINE static void ReleaseContext(FVectorVMContext* Context);
 };
-
-FORCEINLINE FVectorVMContext* FVectorVMContext::GetContext()
-{
-	if (FVectorVMContext* Ret = VMContextPool.Pop())
-	{
-		return Ret;
-	}
-	else
-	{
-		return new FVectorVMContext();
-	}
-}
-
-FORCEINLINE void FVectorVMContext::ReleaseContext(FVectorVMContext* Context)
-{
-	checkSlow(Context);
-	VMContextPool.Push(Context);
-}
 
 namespace VectorVM
 {
