@@ -1181,7 +1181,8 @@ void FAnimInstanceProxy::UpdateAnimation()
 	UpdatedNodesThisFrame.Reset();
 #endif
 
-	FAnimationUpdateContext Context(this, CurrentDeltaSeconds);
+	FAnimationUpdateSharedContext SharedContext;
+	FAnimationUpdateContext Context(this, CurrentDeltaSeconds, &SharedContext);
 	UpdateAnimation_WithRoot(Context, RootNode, NAME_AnimGraph);
 }
 
