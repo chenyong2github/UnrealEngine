@@ -105,6 +105,8 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 			ViewportUV = DistortedUV;
 		}
 
+		const float SceneDeviceZ = ConvertToDeviceZ(SceneDepth);
+
 #endif // !SIMPLE_SINGLE_LAYER_WATER
 
 		const float BehindWaterDeltaDepth = CameraIsUnderWater ? WaterDepth : max(0.0f, SceneDepth - WaterDepth);
@@ -133,7 +135,6 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		// We also apply transmittance from light to under water surface. However, the scene has been lit by many sources already.
 		// So the transmittance toabove surface is simply approximated using the travel distance from the scene pixel to the water top, assuming a flat water surface.
 		// We cannot combine this transmittance with the transmittance from view because this would change the behavior of the analytical integration of light scattering integration.
-		const float SceneDeviceZ = ConvertToDeviceZ(SceneDepth);
 		const float3 BehindWaterSceneWorldPos = SvPositionToWorld(float4(MaterialParameters.SvPosition.xy, SceneDeviceZ, 1.0));
 		const float DistanceFromScenePixelToWaterTop = max(0.0, MaterialParameters.AbsoluteWorldPosition.z - BehindWaterSceneWorldPos.z);
 		const float3 MeanTransmittanceToLightSources = exp(-DistanceFromScenePixelToWaterTop * ExtinctionCoeff);
