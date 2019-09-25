@@ -438,7 +438,7 @@ void FConcertServer::RecoverSessions()
 			// Keep the most recent sessions
 			TArray<FConcertSessionInfo> ArchivedSessionsToKeep;
 			{
-				const int32 FirstSortedSessionIndexToKeep = SortedSessions.Num() - Settings->NumSessionsToKeep - 1;
+				const int32 FirstSortedSessionIndexToKeep = SortedSessions.Num() - Settings->NumSessionsToKeep;
 				for (int32 SortedSessionIndex = FirstSortedSessionIndexToKeep; SortedSessionIndex < SortedSessions.Num(); ++SortedSessionIndex)
 				{
 					ArchivedSessionsToKeep.Add(ArchivedSessionInfos[SortedSessions[SortedSessionIndex].Key]);
