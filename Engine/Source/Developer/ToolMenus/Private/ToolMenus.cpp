@@ -1315,6 +1315,28 @@ void UToolMenus::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 		}
 	}
 
+	for (auto WidgetsForMenuNameIt = This->GeneratedMenuWidgets.CreateIterator(); WidgetsForMenuNameIt; ++WidgetsForMenuNameIt)
+	{
+		FGeneratedToolMenuWidgets& WidgetsForMenuName = WidgetsForMenuNameIt->Value;
+
+		for (auto Instance = WidgetsForMenuName.Instances.CreateIterator(); Instance; ++Instance)
+		{
+			if (Instance->Widget.IsValid())
+			{
+				Collector.AddReferencedObject(Instance->GeneratedMenu, InThis);
+			}
+			else
+			{
+				Instance.RemoveCurrent();
+			}
+		}
+
+		if (WidgetsForMenuName.Instances.Num() == 0)
+		{
+			WidgetsForMenuNameIt.RemoveCurrent();
+		}
+	}
+
 	Super::AddReferencedObjects(InThis, Collector);
 }
 
