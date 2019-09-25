@@ -29,6 +29,7 @@ namespace AudioModulation
 
 #if WITH_EDITOR
 		void OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& Settings);
+		void OnExitPIE(bool bSimulating);
 #endif // WITH_EDITOR
 
 		void OnInitSound(ISoundModulatable& InSound, const USoundModulationPluginSourceSettingsBase& Settings);
@@ -55,10 +56,13 @@ namespace AudioModulation
 		void ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls);
 		void ProcessModulators(const float Elapsed);
 
+		void UpdateMix(const USoundControlBusMix& InMix, const TArray<FSoundControlBusMixChannel>& InChannels);
+		void UpdateMixByFilter(const USoundControlBusMix& InMix, const FString& InAddressFilter, const TSubclassOf<USoundControlBusBase>& InClassFilter, const FSoundModulationValue& InValue);
 		void UpdateModulator(const USoundModulatorBase& InModulator);
 
 	private:
 		float CalculateModulationValue(FModulationPatchProxy& Proxy) const;
+		void RunCommandOnAudioThread(TFunction<void()> Cmd);
 
 		BusMixProxyMap ActiveBusMixes;
 		BusProxyMap    ActiveBuses;
@@ -96,6 +100,7 @@ namespace AudioModulation
 
 #if WITH_EDITOR
 		void OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& Settings) { }
+		void OnExitPIE(bool bSimulating) { }
 #endif // WITH_EDITOR
 
 		void OnInitSound(ISoundModulatable* InSound, const USoundModulationPluginSourceSettingsBase& Settings) { }
@@ -119,6 +124,10 @@ namespace AudioModulation
 		void ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData) { }
 		void ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls) { }
 		void ProcessModulators(const float Elapsed) { }
+
+		void UpdateMix(const USoundControlBusMix& InMix, const TArray<FSoundControlBusMixChannel>& InChannels) { }
+		void UpdateMixByFilter(const USoundControlBusMix& InMix, const FString& InAddressFilter, const TSubclassOf<USoundControlBusBase>& InClassFilter, const FSoundModulationValue& InValue) { }
+		void UpdateModulator(const USoundModulatorBase& InModulator) { }
 
 		void SetBusDefault(const USoundControlBusBase& InBus, const float Value) { }
 		void SetBusMin(const USoundControlBusBase& InBus, const float Value) { }
