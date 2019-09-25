@@ -517,7 +517,8 @@ void CreateOpaqueBasePassUniformBuffer(
 	const FViewInfo& View,
 	IPooledRenderTarget* ForwardScreenSpaceShadowMask,
 	FVector4* SceneWithoutSingleLayerWaterValidUVRect,
-	IPooledRenderTarget* SceneColorAndDepthWithoutSingleLayerWater,
+	IPooledRenderTarget* SceneColorWithoutSingleLayerWater,
+	IPooledRenderTarget* SceneDepthWithoutSingleLayerWater,
 	TUniformBufferRef<FOpaqueBasePassUniformParameters>& BasePassUniformBuffer)
 {
 	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
@@ -583,8 +584,10 @@ void CreateOpaqueBasePassUniformBuffer(
 
 	// Single Layer Water
 	BasePassParameters.SceneWithoutSingleLayerWaterValidUVRect = SceneWithoutSingleLayerWaterValidUVRect ? *SceneWithoutSingleLayerWaterValidUVRect : FVector4(0.0f, 0.0f, 1.0f, 1.0f);
-	BasePassParameters.SceneColorAndDepthWithoutSingleLayerWaterTexture = (SceneColorAndDepthWithoutSingleLayerWater ? SceneColorAndDepthWithoutSingleLayerWater->GetRenderTargetItem().TargetableTexture : GSystemTextures.BlackDummy->GetRenderTargetItem().TargetableTexture);
-	BasePassParameters.SceneColorAndDepthWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+	BasePassParameters.SceneColorWithoutSingleLayerWaterTexture = (SceneColorWithoutSingleLayerWater ? SceneColorWithoutSingleLayerWater->GetRenderTargetItem().TargetableTexture : GSystemTextures.BlackDummy->GetRenderTargetItem().TargetableTexture);
+	BasePassParameters.SceneColorWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+	BasePassParameters.SceneDepthWithoutSingleLayerWaterTexture = (SceneDepthWithoutSingleLayerWater ? SceneDepthWithoutSingleLayerWater->GetRenderTargetItem().TargetableTexture : GSystemTextures.BlackDummy->GetRenderTargetItem().TargetableTexture);
+	BasePassParameters.SceneDepthWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
 	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	BasePassParameters.SceneCustomDepthTexture = (SceneRenderTargets.CustomDepth.IsValid() ? SceneRenderTargets.CustomDepth : GSystemTextures.BlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
@@ -649,7 +652,7 @@ bool FDeferredShadingSceneRenderer::RenderBasePass(FRHICommandListImmediate& RHI
 				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 
 				TUniformBufferRef<FOpaqueBasePassUniformParameters> BasePassUniformBuffer;
-				CreateOpaqueBasePassUniformBuffer(RHICmdList, View, ForwardScreenSpaceShadowMask, nullptr, nullptr, BasePassUniformBuffer);
+				CreateOpaqueBasePassUniformBuffer(RHICmdList, View, ForwardScreenSpaceShadowMask, nullptr, nullptr, nullptr, BasePassUniformBuffer);
 
 				FMeshPassProcessorRenderState DrawRenderState(View, BasePassUniformBuffer);
 
@@ -690,7 +693,7 @@ bool FDeferredShadingSceneRenderer::RenderBasePass(FRHICommandListImmediate& RHI
 				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 
 				TUniformBufferRef<FOpaqueBasePassUniformParameters> BasePassUniformBuffer;
-				CreateOpaqueBasePassUniformBuffer(RHICmdList, View, ForwardScreenSpaceShadowMask, nullptr, nullptr, BasePassUniformBuffer);
+				CreateOpaqueBasePassUniformBuffer(RHICmdList, View, ForwardScreenSpaceShadowMask, nullptr, nullptr, nullptr, BasePassUniformBuffer);
 
 				FMeshPassProcessorRenderState DrawRenderState(View, BasePassUniformBuffer);
 
