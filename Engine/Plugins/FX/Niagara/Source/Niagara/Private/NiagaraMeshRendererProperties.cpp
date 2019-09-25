@@ -234,7 +234,7 @@ void UNiagaraMeshRendererProperties::PreEditChange(class UProperty* PropertyThat
 	Super::PreEditChange(PropertyThatWillChange);
 
 	static FName ParticleMeshName(TEXT("ParticleMesh"));
-	if ( PropertyThatWillChange->GetFName() == FName(ParticleMeshName))
+	if ((PropertyThatWillChange != nullptr) && (PropertyThatWillChange->GetFName() == FName(ParticleMeshName)))
 	{
 		if (ParticleMesh != nullptr)
 		{
