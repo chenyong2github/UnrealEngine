@@ -4,10 +4,9 @@
 
 #include "Common.ush"
 
-
 float2 ComputeBufferUVDistortion(
 	in FMaterialPixelParameters MaterialParameters, in FPixelMaterialInputs PixelMaterialInputs, in ViewState ResolvedView,
-	in half3 Normal, in float4 DistortionParams, in float2 ScreenUV, in float2 RefractionIORAndBias, in bool TryToClip)
+	in half3 Normal, in float4 DistortionParameters, in float2 ScreenUV, in float2 RefractionIORAndBias, in bool TryToClip)
 {
 #if MATERIAL_TANGENTSPACENORMAL
 	half3 ViewNormal = normalize(TransformTangentVectorToView(MaterialParameters, Normal));
@@ -34,20 +33,20 @@ float2 ComputeBufferUVDistortion(
 		clip(dot(BufferUVDistortion, BufferUVDistortion) - .00001);
 	}
 
-	// When ISR is enabled we store two FOVs in the DistortionParams and compute the aspect ratio here
+	// When ISR is enabled we store two FOVs in the DistortionParameters and compute the aspect ratio here
 #if INSTANCED_STEREO
-	float InvTanHalfFov = DistortionParams[Interpolants.EyeIndex];
-	float Ratio = DistortionParams.z / DistortionParams.w;
+	float InvTanHalfFov = DistortionParameters[Interpolants.EyeIndex];
+	float Ratio = DistortionParameters.z / DistortionParameters.w;
 #else
-	float InvTanHalfFov = DistortionParams.x;
-	float Ratio = DistortionParams.y;
+	float InvTanHalfFov = DistortionParameters.x;
+	float Ratio = DistortionParameters.y;
 #endif
 
 	// Fix for Fov and aspect.
 	float2 FovFix = float2(InvTanHalfFov, Ratio*InvTanHalfFov);
 	//A fudge factor scale to bring values close to what they would have been under usual circumstances prior to this change.
 	const float OffsetFudgeFactor = 0.00023;
-	BufferUVDistortion *= DistortionParams.zw * float2(OffsetFudgeFactor, -OffsetFudgeFactor) * FovFix;
+	BufferUVDistortion *= DistortionParameters.zw * float2(OffsetFudgeFactor, -OffsetFudgeFactor) * FovFix;
 
 	return BufferUVDistortion;
 }
