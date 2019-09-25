@@ -70,5 +70,5 @@ void UFractureToolAutoCluster::ExecuteFracture(const FFractureContext& FractureC
 	}
 }
 
-
+#undef LOCTEXT_NAMESPACE
 
