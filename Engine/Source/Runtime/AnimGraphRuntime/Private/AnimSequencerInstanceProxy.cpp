@@ -18,11 +18,11 @@ bool FAnimSequencerInstanceProxy::Evaluate(FPoseContext& Output)
 	return true;
 }
 
-void FAnimSequencerInstanceProxy::UpdateAnimationNode(float DeltaSeconds)
+void FAnimSequencerInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
 {
 	UpdateCounter.Increment();
 
-	SequencerRootNode.Update_AnyThread(FAnimationUpdateContext(this, DeltaSeconds));
+	SequencerRootNode.Update_AnyThread(InContext);
 }
 
 void FAnimSequencerInstanceProxy::ConstructNodes()
