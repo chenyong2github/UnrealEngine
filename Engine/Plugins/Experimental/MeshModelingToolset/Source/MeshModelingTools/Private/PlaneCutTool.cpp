@@ -63,12 +63,9 @@ UPlaneCutToolProperties::UPlaneCutToolProperties()
 	bFillCutHole = true;
 	SpacingBetweenHalves = 1;
 	bShowPreview = true;
-}
-
-UPlaneCutAdvancedProperties::UPlaneCutAdvancedProperties()
-{
 	bFillSpans = false;
 }
+
 
 
 UPlaneCutTool::UPlaneCutTool()
@@ -112,13 +109,9 @@ void UPlaneCutTool::Setup()
 	PlaneTransformProxy = NewObject<UTransformProxy>(this);
 	PlaneTransformGizmo = GizmoManager->Create3AxisTransformGizmo(this);
 
-	BasicProperties = NewObject<UPlaneCutToolProperties>(this, TEXT("Plane Cut Settings"));
-	AdvancedProperties = NewObject<UPlaneCutAdvancedProperties>(this, TEXT("Advanced Settings"));
-
 	// initialize our properties
+	BasicProperties = NewObject<UPlaneCutToolProperties>(this, TEXT("Plane Cut Settings"));
 	AddToolPropertySource(BasicProperties);
-	AddToolPropertySource(AdvancedProperties);
-
 
 	// initialize the PreviewMesh+BackgroundCompute object
 	UpdateNumPreviews();
@@ -209,7 +202,7 @@ TSharedPtr<FDynamicMeshOperator> UPlaneCutOperatorFactory::MakeNewOperator()
 	TSharedPtr<FPlaneCutOp> CutOp = MakeShared<FPlaneCutOp>();
 	CutOp->bDiscardAttributes = CutTool->BasicProperties->bDiscardAttributes;
 	CutOp->bFillCutHole = CutTool->BasicProperties->bFillCutHole;
-	CutOp->bFillSpans = CutTool->AdvancedProperties->bFillSpans;
+	CutOp->bFillSpans = CutTool->BasicProperties->bFillSpans;
 
 	FTransform LocalToWorld = CutTool->ComponentTarget->GetWorldTransform();
 	FTransform WorldToLocal = LocalToWorld.Inverse();

@@ -62,40 +62,21 @@ public:
 	bool bKeepBothHalves;
 
 	/** If keeping both halves, separate the two pieces by this amount */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bKeepBothHalves == true") )
 	float SpacingBetweenHalves;
 
-
 	/** If true, the cut surface is filled with simple planar hole fill surface(s) */
-	UPROPERTY(EditAnywhere, Category = Advanced)
+	UPROPERTY(EditAnywhere, Category = Options)
 	bool bFillCutHole;
 
-	UPROPERTY(EditAnywhere, Category = Preview)
+	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowPreview;
-};
 
-
-
-
-/**
- * Advanced properties of the plane cut operation
- */
-UCLASS()
-class MESHMODELINGTOOLS_API UPlaneCutAdvancedProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	UPlaneCutAdvancedProperties();
-
-	/** 
-	 *  If true, try to treat open edge spans as fillable loops
-	 *  TODO: add some tolerance-based span joining code to try to turn open spans into loops instead?
-	 */
-	UPROPERTY(EditAnywhere, Category = Advanced)
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bFillSpans;
-
 };
+
+
 
 
 UCLASS()
@@ -151,9 +132,6 @@ protected:
 
 	UPROPERTY()
 	UPlaneCutToolProperties* BasicProperties;
-
-	UPROPERTY()
-	UPlaneCutAdvancedProperties* AdvancedProperties;
 
 	/** Origin of cutting plane */
 	UPROPERTY()

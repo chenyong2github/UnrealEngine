@@ -60,7 +60,7 @@ protected:
 	float Tolerance;
 
 	/** Enable edge flips */
-	UPROPERTY(EditAnywhere, Category = Advanced)
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bOnlyUnique;
 
 protected:

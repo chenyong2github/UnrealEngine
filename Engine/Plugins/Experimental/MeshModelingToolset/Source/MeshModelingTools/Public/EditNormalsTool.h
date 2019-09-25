@@ -53,15 +53,15 @@ public:
 
 
 	/** Recompute all mesh normals */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "!bRecomputeNormalTopologyAndEdgeSharpness"))
+	UPROPERTY(EditAnywhere, Category = NormalsCalculation, meta = (EditCondition = "!bRecomputeNormalTopologyAndEdgeSharpness"))
 	bool bRecomputeNormals;
 
 	/** Choose the method for computing vertex normals */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = NormalsCalculation)
 	ENormalCalculationMethod NormalCalculationMethod;
 
 	/** Invert (flip) all mesh normals and associated triangle orientations */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = NormalsCalculation)
 	bool bInvertNormals;
 
 	/** Choose where to create sharp edges by having multiple normals on the same vertices, using the change in normals of adjacent faces.  If enabled, normals will always be recomputed. */

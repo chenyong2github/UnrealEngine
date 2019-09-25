@@ -71,13 +71,13 @@ class MESHMODELINGTOOLS_API UExistingMeshMaterialProperties : public UInteractiv
 public:
 
 	/** Material that will be used on the mesh */
-	UPROPERTY(EditAnywhere, Category = Material)
+	UPROPERTY(EditAnywhere, Category = MaterialPreview)
 	ESetMeshMaterialMode MaterialMode = ESetMeshMaterialMode::KeepOriginal;
 
-	UPROPERTY(EditAnywhere, Category = Material, meta = (UIMin = "1.0", UIMax = "40.0", ClampMin = "0.01", ClampMax = "1000.0", EditCondition = "MaterialMode == ESetMeshMaterialMode::Checkerboard"))
+	UPROPERTY(EditAnywhere, Category = MaterialPreview, meta = (UIMin = "1.0", UIMax = "40.0", ClampMin = "0.01", ClampMax = "1000.0", EditCondition = "MaterialMode == ESetMeshMaterialMode::Checkerboard"))
 	float CheckerDensity = 20.0f;
 
-	UPROPERTY(EditAnywhere, Category = Material, meta = (EditCondition = "MaterialMode == ESetMeshMaterialMode::Override"))
+	UPROPERTY(EditAnywhere, Category = MaterialPreview, meta = (EditCondition = "MaterialMode == ESetMeshMaterialMode::Override"))
 	UMaterialInterface* OverrideMaterial = nullptr;
 
 	UPROPERTY()

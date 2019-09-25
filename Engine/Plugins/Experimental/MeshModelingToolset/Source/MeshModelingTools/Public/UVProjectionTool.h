@@ -56,27 +56,27 @@ public:
 
 
 	/** Choose the UV projection method (cube, cylinder, plane) */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = ProjectionSettings)
 	EUVProjectionMethod UVProjectionMethod;
 
 	/** Per-axis scaling of projection primitive */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = ProjectionSettings)
 	FVector ProjectionPrimitiveScale;
 
 	/** If triangle normal direction is within this threshold degrees of the cylinder top/bottom plane direction, project UVs to the top/bottom plane instead of the sides */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (Default = "1", UIMin = "0", UIMax = "20", ClampMin = "0.0", ClampMax = "90.0", EditCondition = "UVProjectionMethod == EUVProjectionMethod::Cylinder"))
+	UPROPERTY(EditAnywhere, Category = ProjectionSettings, meta = (Default = "1", UIMin = "0", UIMax = "20", ClampMin = "0.0", ClampMax = "90.0", EditCondition = "UVProjectionMethod == EUVProjectionMethod::Cylinder"))
 	float CylinderProjectToTopOrBottomAngleThreshold;
 
 	/** Choose the UV scale factors */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = ProjectionSettings)
 	FVector2D UVScale;
 
 	/** Choose the UV offsets */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = ProjectionSettings)
 	FVector2D UVOffset;
 
 	/** If set, UV scales will be relative to world space so different objects created with the same UV scale should have the same average texel size */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "UV Scale Relative to World Space"))
+	UPROPERTY(EditAnywhere, Category = ProjectionSettings, meta = (DisplayName = "UV Scale Relative to World Space"))
 	bool bWorldSpaceUVScale = false;
 
 };
