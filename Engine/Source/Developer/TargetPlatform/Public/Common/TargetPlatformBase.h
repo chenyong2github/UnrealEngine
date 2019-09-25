@@ -73,7 +73,7 @@ public:
 		return true;
 	}
 
-	virtual int32 CheckRequirements(const FString& ProjectPath, bool bProjectHasCode, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const override
+	virtual int32 CheckRequirements(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const override
 	{
 		int32 bReadyToBuild = ETargetPlatformReadyStatus::Ready; // @todo How do we check that the iOS SDK is installed when building from Windows? Is that even possible?
 		if (!IsSdkInstalled(bProjectHasCode, OutTutorialPath))
@@ -82,6 +82,8 @@ public:
 		}
 		return bReadyToBuild;
 	}
+
+	TARGETPLATFORM_API virtual bool RequiresTempTarget(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FText& OutReason) const override;
 
 	virtual bool SupportsVariants() const override
 	{
@@ -137,6 +139,10 @@ protected:
 	/** Information about this platform */
 	const PlatformInfo::FPlatformInfo *PlatformInfo;
 	int32 PlatformOrdinal;
+
+private:
+	bool HasDefaultBuildSettings() const;
+	static bool DoProjectSettingsMatchDefault(const FString& InPlatformName, const FString& InSection, const TArray<FString>* InBoolKeys, const TArray<FString>* InIntKeys, const TArray<FString>* InStringKeys);
 };
 
 

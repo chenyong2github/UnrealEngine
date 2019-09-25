@@ -821,7 +821,7 @@ namespace UnrealGameSync
 			{
 				Options |= WorkspaceUpdateOptions.Build;
 			}
-			if(Settings.bBuildAfterSync && Settings.bRunAfterSync)
+			if((Settings.bBuildAfterSync || ShouldSyncPrecompiledEditor) && Settings.bRunAfterSync)
 			{
 				Options |= WorkspaceUpdateOptions.RunAfterSync;
 			}
@@ -870,7 +870,7 @@ namespace UnrealGameSync
 						MessageBox.Show("There are no compiled editor binaries for this change. To sync it, you must disable syncing of precompiled editor binaries.");
 						return;
 					}
-					Context.Options &= ~WorkspaceUpdateOptions.GenerateProjectFiles;
+					Context.Options &= ~(WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.GenerateProjectFiles);
 				}
 				Context.ArchiveTypeToDepotPath.Add(EditorArchiveType, EditorArchivePath);
 			}
@@ -3869,7 +3869,7 @@ namespace UnrealGameSync
 			{
 				AfterSyncingLabel.Enabled = true;
 				BuildAfterSyncCheckBox.Enabled = bHasBuildSteps;
-				RunAfterSyncCheckBox.Enabled = BuildAfterSyncCheckBox.Checked;
+				RunAfterSyncCheckBox.Enabled = BuildAfterSyncCheckBox.Checked || ShouldSyncPrecompiledEditor;
 				OpenSolutionAfterSyncCheckBox.Enabled = true;
 			}
 		}

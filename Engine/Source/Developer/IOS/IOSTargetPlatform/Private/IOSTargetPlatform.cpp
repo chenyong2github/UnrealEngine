@@ -209,7 +209,7 @@ bool FIOSTargetPlatform::IsSdkInstalled(bool bProjectHasCode, FString& OutTutori
 	return biOSSDKInstalled;
 }
 
-int32 FIOSTargetPlatform::CheckRequirements(const FString& ProjectPath, bool bProjectHasCode, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const
+int32 FIOSTargetPlatform::CheckRequirements(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const
 {
 	OutDocumentationPath = TEXT("Platforms/iOS/QuickStart/6");
 
@@ -229,7 +229,9 @@ int32 FIOSTargetPlatform::CheckRequirements(const FString& ProjectPath, bool bPr
 			OutTutorialPath = FString("/Engine/Tutorial/Mobile/iOSonPCRestrictions.iOSonPCRestrictions");
 			bReadyToBuild |= ETargetPlatformReadyStatus::CodeUnsupported;
 		}
-		if (!IProjectManager::Get().HasDefaultPluginSettings())
+
+		FText Reason;
+		if (RequiresTempTarget(bProjectHasCode, Configuration, bRequiresAssetNativization, Reason))
 		{
 			OutTutorialPath = FString("/Engine/Tutorial/Mobile/iOSonPCValidPlugins.iOSonPCValidPlugins");
 			bReadyToBuild |= ETargetPlatformReadyStatus::PluginsUnsupported;
@@ -253,6 +255,7 @@ int32 FIOSTargetPlatform::CheckRequirements(const FString& ProjectPath, bool bPr
 	FString TeamID;
 	GConfig->GetString(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("IOSTeamID"), TeamID, GEngineIni);
 
+	FString ProjectPath = FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath());
 #if PLATFORM_MAC
     FString CmdExe = TEXT("/bin/sh");
     FString ScriptPath = FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / TEXT("Build/BatchFiles/Mac/RunMono.sh"));

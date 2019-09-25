@@ -23,7 +23,7 @@
 		},
 		{
 			"Name" : "PhysXVehiclesEditor",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "PreDefault"
 		}
 	]

@@ -3314,12 +3314,14 @@ bool FEngineLoop::LoadStartupCoreModules()
 	{
 #if WITH_UNREAL_DEVELOPER_TOOLS
 		FModuleManager::Get().LoadModule("MessageLog");
+#endif	// WITH_UNREAL_DEVELOPER_TOOLS
+#if WITH_EDITOR
 		FModuleManager::Get().LoadModule("CollisionAnalyzer");
-#endif	//WITH_UNREAL_DEVELOPER_TOOLS
+#endif	// WITH_EDITOR
 	}
 
 #if WITH_UNREAL_DEVELOPER_TOOLS
-		FModuleManager::Get().LoadModule("FunctionalTesting");
+	FModuleManager::Get().LoadModule("FunctionalTesting");
 #endif	//WITH_UNREAL_DEVELOPER_TOOLS
 
 	SlowTask.EnterProgressFrame(30);

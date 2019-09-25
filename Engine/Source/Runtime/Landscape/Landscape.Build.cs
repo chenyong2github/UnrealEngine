@@ -43,7 +43,7 @@ public class Landscape : ModuleRules
 			DynamicallyLoadedModuleNames.Add("PhysXCooking");
 		}
 
-		if (Target.bBuildDeveloperTools && Target.Type != TargetType.Server)
+		if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {

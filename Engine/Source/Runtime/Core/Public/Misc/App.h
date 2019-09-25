@@ -41,6 +41,13 @@ public:
 	 */
 	static EBuildConfiguration GetBuildConfiguration();
 
+	/**
+	 * Gets the target type of the current application (eg. client, server, etc...)
+	 *
+	 * @return The build target type
+	 */
+	static EBuildTargetType GetBuildTargetType();
+
 #if UE_BUILD_DEVELOPMENT
 	/**
 	 * For development configurations, sets whether the application should load DebugGame game modules.

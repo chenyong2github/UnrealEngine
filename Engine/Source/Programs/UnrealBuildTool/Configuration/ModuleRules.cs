@@ -485,7 +485,34 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Precompiled header usage for this module
 		/// </summary>
-		public PCHUsageMode PCHUsage = PCHUsageMode.Default;
+		public PCHUsageMode PCHUsage
+		{
+			get
+			{
+				if (PCHUsagePrivate.HasValue)
+				{
+					// Use the override
+					return PCHUsagePrivate.Value;
+				}
+				else if(Target.bIWYU || DefaultBuildSettings >= BuildSettingsVersion.V2)
+				{
+					// Use shared or explicit PCHs, and enable IWYU
+					return PCHUsageMode.UseExplicitOrSharedPCHs;
+				}
+				else if(Plugin != null)
+				{
+					// Older plugins use shared PCHs by default, since they aren't typically large enough to warrant their own PCH.
+					return PCHUsageMode.UseSharedPCHs;
+				}
+				else
+				{
+					// Older game modules do not enable shared PCHs by default, because games usually have a large precompiled header of their own.
+					return PCHUsageMode.NoSharedPCHs;
+				}
+			}
+			set { PCHUsagePrivate = value; }
+		}
+		private PCHUsageMode? PCHUsagePrivate;
 
 		/// <summary>
 		/// Whether this module should be treated as an engine module (eg. using engine definitions, PCHs, compiled with optimizations enabled in DebugGame configurations, etc...).
@@ -494,10 +521,25 @@ namespace UnrealBuildTool
 		public bool bTreatAsEngineModule;
 
 		/// <summary>
+		/// Which engine version's build settings to use by default. 
+		/// </summary>
+		public BuildSettingsVersion DefaultBuildSettings
+		{
+			get { return DefaultBuildSettingsPrivate ?? Target.DefaultBuildSettings; }
+			set { DefaultBuildSettingsPrivate = value; }
+		}
+		private BuildSettingsVersion? DefaultBuildSettingsPrivate;
+
+		/// <summary>
 		/// Whether to use backwards compatible defaults for this module. By default, engine modules always use the latest default settings, while project modules do not (to support
 		/// an easier migration path).
 		/// </summary>
-		public bool bUseBackwardsCompatibleDefaults;
+		[Obsolete("Set DefaultBuildSettings to the appropriate engine version instead")]
+		public bool bUseBackwardsCompatibleDefaults
+		{
+			get { return DefaultBuildSettings != BuildSettingsVersion.Latest; }
+			set { DefaultBuildSettings = bUseBackwardsCompatibleDefaults? BuildSettingsVersion.V1 : BuildSettingsVersion.Latest; }
+		}
 
 		/// <summary>
 		/// Use run time type information
@@ -836,7 +878,7 @@ namespace UnrealBuildTool
 		public bool bLegacyPublicIncludePaths
 		{
 			set { bLegacyPublicIncludePathsPrivate = value; }
-			get { return bLegacyPublicIncludePathsPrivate ?? (bUseBackwardsCompatibleDefaults? Target.bLegacyPublicIncludePaths : false); }
+			get { return bLegacyPublicIncludePathsPrivate ?? ((DefaultBuildSettings < BuildSettingsVersion.V2)? Target.bLegacyPublicIncludePaths : false); }
 		}
 		private bool? bLegacyPublicIncludePathsPrivate;
 
