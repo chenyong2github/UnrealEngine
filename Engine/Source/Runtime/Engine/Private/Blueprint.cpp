@@ -2010,8 +2010,11 @@ UEdGraph* UBlueprint::GetLastEditedUberGraph() const
 #if WITH_EDITORONLY_DATA
 void UBlueprint::LoadModulesRequiredForCompilation()
 {
-	static const FName ModuleName(TEXT("KismetCompiler"));
-	FModuleManager::Get().LoadModule(ModuleName);
+	static const FName KismetCompilerModuleName("KismetCompiler");
+	static const FName MovieSceneToolsModuleName("MovieSceneTools");
+
+	FModuleManager::Get().LoadModule(KismetCompilerModuleName);
+	FModuleManager::Get().LoadModule(MovieSceneToolsModuleName);
 }
 #endif //WITH_EDITORONLY_DATA
 

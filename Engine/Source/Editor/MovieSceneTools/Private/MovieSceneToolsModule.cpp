@@ -8,6 +8,12 @@
 #include "ISequencerModule.h"
 #include "ICurveEditorModule.h"
 #include "MovieSceneToolsProjectSettingsCustomization.h"
+#include "Engine/Blueprint.h"
+#include "EdGraph/EdGraph.h"
+#include "K2Node_CustomEvent.h"
+#include "K2Node_FunctionEntry.h"
+#include "KismetCompiler.h"
+#include "Sections/MovieSceneEventSectionBase.h"
 
 #include "TrackEditors/PropertyTrackEditors/BoolPropertyTrackEditor.h"
 #include "TrackEditors/PropertyTrackEditors/BytePropertyTrackEditor.h"
@@ -61,6 +67,8 @@
 #include "Channels/EventChannelCurveModel.h"
 #include "Channels/SCurveEditorEventChannelView.h"
 #include "Sections/MovieSceneEventSection.h"
+
+#include "MovieSceneEventUtils.h"
 
 
 #define LOCTEXT_NAMESPACE "FMovieSceneToolsModule"
@@ -143,10 +151,17 @@ void FMovieSceneToolsModule::StartupModule()
 			return SNew(SCurveEditorEventChannelView, WeakCurveEditor);
 		}
 	));
+
+	GenerateEventEntryPointsHandle = UMovieSceneEventSectionBase::GenerateEventEntryPointsEvent.AddStatic(HandleGenerateEventEntryPoints);
+	FixupPayloadParameterNameHandle = UMovieSceneEventSectionBase::FixupPayloadParameterNameEvent.AddStatic(FixupPayloadParameterNameForSection);
+	UpgradeLegacyEventEndpointHandle = UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint.AddStatic(UpgradeLegacyEventEndpointForSection);
 }
 
 void FMovieSceneToolsModule::ShutdownModule()
 {
+	UMovieSceneEventSectionBase::GenerateEventEntryPointsEvent.Remove(GenerateEventEntryPointsHandle);
+	UMovieSceneEventSectionBase::FixupPayloadParameterNameEvent.Remove(FixupPayloadParameterNameHandle);
+
 	if (ICurveEditorModule* CurveEditorModule = FModuleManager::GetModulePtr<ICurveEditorModule>("CurveEditor"))
 	{
 		CurveEditorModule->UnregisterView(FEventChannelCurveModel::EventView);
@@ -208,6 +223,101 @@ void FMovieSceneToolsModule::ShutdownModule()
 		PropertyModule.UnregisterCustomPropertyTypeLayout("MovieSceneObjectBindingID");
 		PropertyModule.UnregisterCustomPropertyTypeLayout("MovieSceneEvent");
 	}
+}
+
+void FMovieSceneToolsModule::UpgradeLegacyEventEndpointForSection(UMovieSceneEventSectionBase* Section, UBlueprint* Blueprint)
+{
+	for (FMovieSceneEvent& EntryPoint : Section->GetAllEntryPoints())
+	{
+		UK2Node* Endpoint = FMovieSceneEventUtils::FindEndpoint(&EntryPoint, Section, Blueprint);
+		if (!Endpoint)
+		{
+			continue;
+		}
+
+		// Discover its bound object pin name from the node
+		for (UEdGraphPin* Pin : Endpoint->Pins)
+		{
+			if (Pin->Direction == EGPD_Output && (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object || Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface) )
+			{
+				EntryPoint.BoundObjectPinName = Pin->PinName;
+				break;
+			}
+		}
+
+		// Set the compiled function name so that any immediate PostCompile steps find the correct function name
+		EntryPoint.CompiledFunctionName = Endpoint->GetGraph()->GetFName();
+	}
+}
+
+void FMovieSceneToolsModule::FixupPayloadParameterNameForSection(UMovieSceneEventSectionBase* Section, UK2Node* InNode, FName OldPinName, FName NewPinName)
+{
+	check(Section && InNode);
+
+	UEdGraph* Graph = InNode->GetGraph();
+
+	const bool bCheckNodeGuid = InNode->IsA<UK2Node_CustomEvent>();
+
+	for (FMovieSceneEvent& EntryPoint : Section->GetAllEntryPoints())
+	{
+		if (EntryPoint.GraphGuid != Graph->GraphGuid)
+		{
+			continue;
+		}
+
+		if (bCheckNodeGuid && EntryPoint.NodeGuid != InNode->NodeGuid)
+		{
+			continue;
+		}
+
+		if (EntryPoint.BoundObjectPinName == OldPinName)
+		{
+			EntryPoint.BoundObjectPinName = NewPinName;
+		}
+
+		if (FMovieSceneEventPayloadVariable* Variable = EntryPoint.PayloadVariables.Find(OldPinName))
+		{
+			EntryPoint.PayloadVariables.Add(NewPinName, MoveTemp(*Variable));
+			EntryPoint.PayloadVariables.Remove(OldPinName);
+		}
+	}
+}
+
+void FMovieSceneToolsModule::HandleGenerateEventEntryPoints(UMovieSceneEventSectionBase* EventSection, const FGenerateBlueprintFunctionParams& Params)
+{
+	if (EventSection->HasAnyFlags(RF_NeedLoad))
+	{
+		FLinkerLoad* Linker = EventSection->GetLinker();
+		Linker->Preload(EventSection);
+	}
+	for (FMovieSceneEvent& EntryPoint : EventSection->GetAllEntryPoints())
+	{
+		UEdGraphNode* Endpoint = FMovieSceneEventUtils::FindEndpoint(&EntryPoint, EventSection, Params.CompilerContext->Blueprint);
+		if (Endpoint)
+		{
+			UK2Node_FunctionEntry* FunctionEntry = FMovieSceneEventUtils::GenerateEntryPoint(EventSection, &EntryPoint, Params.CompilerContext, Endpoint);
+			if (FunctionEntry)
+			{
+				EntryPoint.CompiledFunctionName = FunctionEntry->GetGraph()->GetFName();
+			}
+			else
+			{
+				EntryPoint.CompiledFunctionName = NAME_None;
+			}
+		}
+	}
+
+
+	auto OnFunctionListGenerated = [WeakEventSection = MakeWeakObjectPtr(EventSection)](FKismetCompilerContext* CompilerContext)
+	{
+		UMovieSceneEventSectionBase* PinnedSection = WeakEventSection.Get();
+		if (ensureMsgf(PinnedSection, TEXT("Event section has been collected during blueprint compilation.")))
+		{
+			PinnedSection->OnPostCompile(CompilerContext->Blueprint);
+		}
+	};
+
+	Params.CompilerContext->OnFunctionListCompiled().AddLambda(OnFunctionListGenerated);
 }
 
 void FMovieSceneToolsModule::RegisterClipboardConversions()

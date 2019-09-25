@@ -18,6 +18,7 @@
 #include "Engine/Engine.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Editor.h"
+#include "BlueprintActionDatabase.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "MovieScenePossessable.h"
 #include "MovieScene.h"
@@ -469,6 +470,16 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 
 	BindCommands();
 
+	// Ensure that the director BP is registered with the action database
+	if (FMovieSceneSequenceEditor* SequenceEditor = FMovieSceneSequenceEditor::Find(InitParams.RootSequence))
+	{
+		UBlueprint* Blueprint = SequenceEditor->FindDirectorBlueprint(InitParams.RootSequence);
+		if (Blueprint)
+		{
+			FBlueprintActionDatabase::Get().RefreshAssetActions(Blueprint);
+		}
+	}
+
 	for (auto TrackEditor : TrackEditors)
 	{
 		TrackEditor->OnInitialize();
@@ -788,6 +799,16 @@ void FSequencer::ResetToNewRootSequence(UMovieSceneSequence& NewSequence)
 	RootSequence = &NewSequence;
 	RestorePreAnimatedState();
 
+	// Ensure that the director BP is registered with the action database
+	if (FMovieSceneSequenceEditor* SequenceEditor = FMovieSceneSequenceEditor::Find(&NewSequence))
+	{
+		UBlueprint* Blueprint = SequenceEditor->FindDirectorBlueprint(&NewSequence);
+		if (Blueprint)
+		{
+			FBlueprintActionDatabase::Get().RefreshAssetActions(Blueprint);
+		}
+	}
+
 	RootTemplateInstance.Finish(*this);
 
 	TemplateStore->Reset();
@@ -842,9 +863,21 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 	ResetPerMovieSceneData();
 	SequencerWidget->UpdateBreadcrumbs();
 
+	UMovieSceneSequence* FocusedSequence = GetFocusedMovieSceneSequence();
+
 	if (!State.FindSequence(SequenceID))
 	{
-		State.AssignSequence(SequenceID, *GetFocusedMovieSceneSequence(), *this);
+		State.AssignSequence(SequenceID, *FocusedSequence, *this);
+	}
+
+	// Ensure that the director BP is registered with the action database
+	if (FMovieSceneSequenceEditor* SequenceEditor = FMovieSceneSequenceEditor::Find(FocusedSequence))
+	{
+		UBlueprint* Blueprint = SequenceEditor->FindDirectorBlueprint(FocusedSequence);
+		if (Blueprint)
+		{
+			FBlueprintActionDatabase::Get().RefreshAssetActions(Blueprint);
+		}
 	}
 
 	OnActivateSequenceEvent.Broadcast(ActiveTemplateIDs.Top());
@@ -10880,7 +10913,7 @@ void FSequencer::RecompileDirtyDirectors()
 	for (UMovieSceneSequence* Sequence : AllSequences)
 	{
 		FMovieSceneSequenceEditor* SequenceEditor = SequencerModule.FindSequenceEditor(Sequence->GetClass());
-		UBlueprint*                DirectorBP     = SequenceEditor ? SequenceEditor->GetDirectorBlueprint(Sequence) : nullptr;
+		UBlueprint*                DirectorBP     = SequenceEditor ? SequenceEditor->FindDirectorBlueprint(Sequence) : nullptr;
 
 		if (DirectorBP && (DirectorBP->Status == BS_Unknown || DirectorBP->Status == BS_Dirty))
 		{
