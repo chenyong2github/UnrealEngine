@@ -372,7 +372,7 @@ void FMovieSceneEventCustomization::CustomizeChildren(TSharedRef<IPropertyHandle
 
 			for (UProperty* Field : TFieldRange<UProperty>(CommonFunction))
 			{
-				if (Field->HasAnyPropertyFlags(CPF_OutParm | CPF_ReturnParm | CPF_OutParm | CPF_ReferenceParm) || Field->GetFName() == EntryPoint->BoundObjectPinName)
+				if (Field->HasAnyPropertyFlags(CPF_OutParm | CPF_ReturnParm | CPF_ReferenceParm) || Field->GetFName() == EntryPoint->BoundObjectPinName)
 				{
 					continue;
 				}
