@@ -22,7 +22,7 @@ public:
 	UBrushBaseProperties();
 
 	/** Relative size of brush */
-	UPROPERTY(EditAnywhere, Category = BrushSize, meta = (DisplayName = "Size", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, Category = BrushSize, meta = (DisplayName = "Size", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0"))
 	float BrushSize;
 
 	/** If true, ignore relative Brush Size and use explicit World Radius */

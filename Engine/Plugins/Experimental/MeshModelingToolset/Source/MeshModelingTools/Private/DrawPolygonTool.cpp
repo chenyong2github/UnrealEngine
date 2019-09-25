@@ -24,7 +24,6 @@
 
 #include "BaseGizmos/GizmoComponents.h"
 #include "BaseGizmos/TransformGizmo.h"
-#include "PositionPlaneGizmo.h"
 #include "Drawing/MeshDebugDrawing.h"
 
 #include "Selection/SelectClickedAction.h"

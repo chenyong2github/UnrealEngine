@@ -165,7 +165,7 @@ public:
 
 	/** Enable edge flips */
 	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
-	bool bFlips = true;
+	bool bFlips = false;
 
 	/** Enable edge splits */
 	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
@@ -343,6 +343,10 @@ protected:
 	void RecalculateNormals_PerVertex();
 	void RecalculateNormals_Overlay();
 
+	bool bHaveMeshBoundaries;
+	bool bHaveUVSeams;
+	bool bHaveNormalSeams;
+	void PrecomputeRemeshInfo();
 	void RemeshROIPass();
 
 	FMeshVertexChangeBuilder* ActiveVertexChange = nullptr;
