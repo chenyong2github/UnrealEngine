@@ -31,7 +31,7 @@ protected:
 	struct FCachedUpdateContext
 	{
 		FAnimationUpdateContext Context;
-		FAnimationUpdateSharedContext SharedContext;
+		TSharedPtr<FAnimationUpdateSharedContext> SharedContext;
 	};
 
 	TArray<FCachedUpdateContext> CachedUpdateContexts;
