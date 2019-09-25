@@ -118,4 +118,6 @@ protected:
 	IToolsContextAssetAPI* AssetAPI;
 
 	FViewCameraState CameraState;
+
+	void GenerateAssets();
 };

@@ -117,6 +117,14 @@ void UAttributeEditorTool::Setup()
 
 void UAttributeEditorTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	if (ShutdownType == EToolShutdownType::Accept)
+	{
+		GenerateAssets();
+	}
+}
+
+void UAttributeEditorTool::GenerateAssets()
+{
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("AttributeEditorToolTransactionName", "Attribute Editor Tool Transaction"));
 
 	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
