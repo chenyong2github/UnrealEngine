@@ -613,7 +613,7 @@ void SMediaFrameworkCaptureCurrentViewportWidget::StartOutput()
 					LevelViewport = ViewportInterface;
 					SceneViewport = ViewportInterface->GetSharedActiveViewport();
 
-					FLevelEditorViewportClient& ViewportClient = ViewportInterface->GetViewportClient();
+					FEditorViewportClient& ViewportClient = ViewportInterface->GetViewportClient();
 
 					// Save settings
 					ViewportClientFlags.bRealTime = ViewportClient.IsRealtime();
