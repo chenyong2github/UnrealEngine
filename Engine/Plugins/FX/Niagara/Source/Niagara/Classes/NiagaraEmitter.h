@@ -9,6 +9,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraCollision.h"
 #include "INiagaraMergeManager.h"
+#include "NiagaraSystemFastPath.h"
 #include "NiagaraEmitter.generated.h"
 
 class UMaterial;
@@ -373,6 +374,29 @@ public:
 	NIAGARA_API UNiagaraEmitter* GetParent() const;
 
 	NIAGARA_API void RemoveParent();
+
+	void InitFastPathAttributeNames();
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	FNiagaraFastPath_Module_EmitterScalability EmitterScalability;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	FNiagaraFastPath_Module_EmitterLifeCycle EmitterLifeCycle;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	TArray<FNiagaraFastPath_Module_SpawnRate> SpawnRate;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	TArray<FNiagaraFastPath_Module_SpawnPerUnit> SpawnPerUnit;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	TArray<FNiagaraFastPath_Module_SpawnBurstInstantaneous> SpawnBurstInstantaneous;
+
+	UPROPERTY()
+	FNiagaraFastPathAttributeNames SpawnFastPathAttributeNames;
+
+	UPROPERTY()
+	FNiagaraFastPathAttributeNames UpdateFastPathAttributeNames;
 
 protected:
 	virtual void BeginDestroy() override;
