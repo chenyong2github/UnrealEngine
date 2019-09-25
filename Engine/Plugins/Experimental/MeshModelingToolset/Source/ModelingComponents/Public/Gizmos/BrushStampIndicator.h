@@ -6,7 +6,8 @@
 #include "InteractiveGizmoBuilder.h"
 #include "BrushStampIndicator.generated.h"
 
-
+class UPrimitiveComponent;
+class UPreviewMesh;
 
 UCLASS()
 class MODELINGCOMPONENTS_API UBrushStampIndicatorBuilder : public UInteractiveGizmoBuilder
@@ -28,15 +29,26 @@ class MODELINGCOMPONENTS_API UBrushStampIndicator : public UInteractiveGizmo
 
 public:
 
+	// UInteractiveGizmo interface/implementation
+
 	virtual void Setup() override;
 	virtual void Shutdown() override;
-
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-
 	virtual void Tick(float DeltaTime) override;
 
 
+	/**
+	 * Update the Radius, Position, and Normal of the stamp indicator
+	 */
 	virtual void Update(float Radius, const FVector& Position, const FVector& Normal);
+
+
+	/**
+	 * Generate a mesh that is intended to be set as the AttachedComponent of a UBrushStampIndicator
+	 * Material is set to a default transparent material.
+	 * @warning Calling code must manage the returned UPreviewMesh! (keep it alive, Disconnect it, etc)
+	 */
+	static UPreviewMesh* MakeDefaultSphereMesh(UObject* Parent, UWorld* World, int Resolution = 32);
 
 
 public:
@@ -51,6 +63,11 @@ public:
 	FVector BrushNormal = FVector(0, 0, 1);;
 
 
+
+	UPROPERTY()
+	bool bDrawIndicatorLines = true;
+
+
 	UPROPERTY()
 	int SampleStepCount = 32;
 
@@ -63,11 +80,6 @@ public:
 	UPROPERTY()
 	bool bDepthTested = false;
 
-	UPROPERTY()
-	bool IsPixelThickness = true;
-
-	UPROPERTY()
-	int DepthLayer = 0;
 
 
 	UPROPERTY()
@@ -80,5 +92,13 @@ public:
 	FLinearColor SecondaryLineColor = FLinearColor(0.5f, 0.5f, 0.5f, 0.5f);
 
 
+	/**
+	 * Optional Component that will be transformed such that it tracks the Radius/Position/Normal
+	 */
+	UPROPERTY()
+	UPrimitiveComponent* AttachedComponent;
 
+protected:
+	UPrimitiveComponent* ScaleInitializedComponent = nullptr;		// we are just using this as a key, never calling any functions on it
+	FVector InitialComponentScale;
 };

@@ -38,7 +38,7 @@ DECLARE_CYCLE_STAT(TEXT("SculptTool_Remesh_6Finish"), STAT_SculptTool_Remesh_Fin
 
 class FMeshVertexChangeBuilder;
 class FDynamicMeshChangeTracker;
-
+class UPreviewMesh;
 
 /** Mesh Sculpting Brush Types */
 UENUM()
@@ -194,6 +194,7 @@ class MESHMODELINGTOOLS_API UDynamicMeshSculptTool : public UMeshSurfacePointToo
 public:
 	UDynamicMeshSculptTool();
 
+	virtual void SetWorld(UWorld* World);
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
 	virtual void Setup() override;
@@ -254,8 +255,13 @@ public:
 
 protected:
 
+	UWorld* TargetWorld;		// required to spawn UPreviewMesh/etc
+
 	UPROPERTY()
 	UBrushStampIndicator* BrushIndicator;
+
+	UPROPERTY()
+	UPreviewMesh* BrushIndicatorMesh;
 
 	UPROPERTY()
 	UOctreeDynamicMeshComponent* DynamicMeshComponent;

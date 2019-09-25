@@ -13,6 +13,7 @@
 #include "MeshNormals.h"
 #include "MeshIndexUtil.h"
 #include "Drawing/MeshDebugDrawing.h"
+#include "PreviewMesh.h"
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
@@ -31,6 +32,7 @@ UMeshSurfacePointTool* UDynamicMeshSculptToolBuilder::CreateNewTool(const FToolB
 {
 	UDynamicMeshSculptTool* SculptTool = NewObject<UDynamicMeshSculptTool>(SceneState.ToolManager);
 	SculptTool->SetEnableRemeshing(this->bEnableRemeshing);
+	SculptTool->SetWorld(SceneState.World);
 	return SculptTool;
 }
 
@@ -89,8 +91,13 @@ UDynamicMeshSculptTool::UDynamicMeshSculptTool()
 }
 
 
-const FString BrushIndicatorGizmoType = TEXT("BrushIndicatorGizmoType");
+void UDynamicMeshSculptTool::SetWorld(UWorld* World)
+{
+	this->TargetWorld = World;
+}
 
+
+const FString BrushIndicatorGizmoType = TEXT("BrushIndicatorGizmoType");
 
 void UDynamicMeshSculptTool::Setup()
 {
@@ -153,6 +160,9 @@ void UDynamicMeshSculptTool::Setup()
 	// register and spawn brush indicator gizmo
 	GetToolManager()->GetPairedGizmoManager()->RegisterGizmoType(BrushIndicatorGizmoType, NewObject<UBrushStampIndicatorBuilder>());
 	BrushIndicator = GetToolManager()->GetPairedGizmoManager()->CreateGizmo<UBrushStampIndicator>(BrushIndicatorGizmoType, FString(), this);
+	BrushIndicatorMesh = UBrushStampIndicator::MakeDefaultSphereMesh(this, TargetWorld);
+	BrushIndicator->AttachedComponent = BrushIndicatorMesh->GetRootComponent();
+	BrushIndicator->bDrawIndicatorLines = false;
 
 	// initialize our properties
 	AddToolPropertySource(SculptProperties);
@@ -201,6 +211,9 @@ void UDynamicMeshSculptTool::Setup()
 
 void UDynamicMeshSculptTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	BrushIndicatorMesh->Disconnect();
+	BrushIndicatorMesh = nullptr;
+
 	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
 	BrushIndicator = nullptr;
 	GetToolManager()->GetPairedGizmoManager()->DeregisterGizmoType(BrushIndicatorGizmoType);
@@ -462,10 +475,7 @@ double UDynamicMeshSculptTool::CalculateBrushFalloff(double Distance)
 
 void UDynamicMeshSculptTool::ApplySmoothBrush(const FRay& WorldRay)
 {
-	// both these are useful...
-
-	//bool bHit = UpdateBrushPositionOnActivePlane(WorldRay);
-	bool bHit = UpdateBrushPositionOnTargetMesh(WorldRay);
+	bool bHit = UpdateBrushPositionOnSculptMesh(WorldRay);
 	if (bHit == false)
 	{
 		return;
