@@ -39,8 +39,7 @@ bool SendTo(const TCHAR* InHost)
 {
 	char Host[32];
 	ToAnsiCheap(Host, InHost);
-
-	return Private::Writer_WriteTo(Host);
+	return Private::Writer_SendTo(Host);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
