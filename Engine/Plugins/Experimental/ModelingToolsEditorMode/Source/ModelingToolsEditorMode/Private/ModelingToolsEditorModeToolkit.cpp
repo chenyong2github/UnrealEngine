@@ -226,7 +226,7 @@ UEdModeInteractiveToolsContext* FModelingToolsEditorModeToolkit::GetToolsContext
 }
 
 
-const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { FName(TEXT("Modeling")) };
+const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { FName(TEXT("Modeling")), FName(TEXT("Utilities")) };
 const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { FName(TEXT("Create")), FName(TEXT("Edit")), FName(TEXT("UVs/Normals")), FName(TEXT("Utilities")) };
 
 
@@ -261,14 +261,15 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteIndex, class FToolBarBuilder& ToolbarBuilder)
 {
 	const FModelingToolsManagerCommands& Commands = FModelingToolsManagerCommands::Get();
+
+	ToolbarBuilder.AddToolBarButton(Commands.AcceptActiveTool);
+	ToolbarBuilder.AddToolBarButton(Commands.CancelActiveTool);
+	ToolbarBuilder.AddToolBarButton(Commands.CompleteActiveTool);
+
+	ToolbarBuilder.AddSeparator();
+
 	if (PaletteIndex == FName(TEXT("Modeling")))
 	{
-		ToolbarBuilder.AddToolBarButton(Commands.AcceptActiveTool);
-		ToolbarBuilder.AddToolBarButton(Commands.CancelActiveTool);
-		ToolbarBuilder.AddToolBarButton(Commands.CompleteActiveTool);
-
-		ToolbarBuilder.AddSeparator();
-
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPrimitiveTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawPolygonTool);
 
@@ -290,12 +291,13 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPlaneCutTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSimplifyMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshMeshTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginUVProjectionTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelMergeTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelBooleanTool);
 
-		ToolbarBuilder.AddSeparator();
-
+	}
+	else if (PaletteIndex == FName(TEXT("Utilities")))
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginUVProjectionTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginEditNormalsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginWeldEdgesTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);

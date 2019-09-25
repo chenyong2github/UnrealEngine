@@ -445,6 +445,7 @@ void FModelingToolsEditorMode::Enter()
 void FModelingToolsEditorMode::Exit()
 {
 	OnToolNotificationMessage.Clear();
+	OnToolWarningMessage.Clear();
 
 	ToolsContext->ShutdownContext();
 	ToolsContext = nullptr;
