@@ -364,7 +364,7 @@ private:
 
 	void CopyMenuSettings(UToolMenu* GeneratedMenu, const UToolMenu* Other);
 
-	void AddReferencedContextObjects(const TSharedRef<FMultiBox>& InMultiBox, const FToolMenuContext& InMenuContext);
+	void AddReferencedContextObjects(const TSharedRef<FMultiBox>& InMultiBox, const UToolMenu* InMenu);
 
 	void ApplyCustomization(UToolMenu* GeneratedMenu);
 
@@ -385,7 +385,7 @@ private:
 	UPROPERTY()
 	TMap<FName, FGeneratedToolMenuWidgets> GeneratedMenuWidgets;
 
-	TMap<TWeakPtr<FMultiBox>, TArray<UObject*>> WidgetObjectReferences;
+	TMap<TWeakPtr<FMultiBox>, TArray<const UObject*>> WidgetObjectReferences;
 
 	TArray<FToolMenuOwner> OwnerStack;
 
