@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "SoundControlBusMix.h"
 
+#include "Audio/AudioAddressPattern.h"
 #include "AudioDevice.h"
 #include "AudioModulation.h"
 #include "AudioModulationInternal.h"
@@ -55,6 +56,8 @@ namespace AudioModulation
 {
 	FModulatorBusMixChannelProxy::FModulatorBusMixChannelProxy(const FSoundControlBusMixChannel& Channel)
 		: TModulatorProxyBase<FBusId>(Channel.Bus->GetName(), Channel.Bus->GetUniqueID())
+		, Address(Channel.Bus->Address)
+		, ClassId(Channel.Bus->GetClass()->GetUniqueID())
 		, Value(Channel.Value)
 	{
 	}
@@ -98,17 +101,57 @@ namespace AudioModulation
 		return TModulatorProxyRefBase<FBusMixId>::CanDestroy();
 	}
 
-	void FModulatorBusMixProxy::OnUpdateProxy(const USoundModulatorBase& InModulatorArchetype)
+	void FModulatorBusMixProxy::OnUpdateProxy(const FModulatorBusMixProxy& InBusMixProxy)
 	{
-		const FModulatorBusMixProxy CopyProxy(*CastChecked<USoundControlBusMix>(&InModulatorArchetype));
-		auto UpdateProxy = [this, CopyProxy]()
+		Channels = InBusMixProxy.Channels;
+	}
+
+	void FModulatorBusMixProxy::SetMix(const TArray<FSoundControlBusMixChannel>& InChannels)
+	{
+		for (const FSoundControlBusMixChannel& NewChannel : InChannels)
 		{
-			check(IsInAudioThread());
+			if(NewChannel.Bus)
+			{
+				FBusId BusId = static_cast<FBusId>(NewChannel.Bus->GetUniqueID());
+				if (FModulatorBusMixChannelProxy* ChannelProxy = Channels.Find(BusId))
+				{
+					ChannelProxy->Value.TargetValue = NewChannel.Value.TargetValue;
+					ChannelProxy->Value.AttackTime = NewChannel.Value.AttackTime;
+					ChannelProxy->Value.ReleaseTime = NewChannel.Value.ReleaseTime;
+				}
+			}
+		}
+	}
 
-			Channels = CopyProxy.Channels;
-		};
+	void FModulatorBusMixProxy::SetMixByFilter(const FString& InAddressFilter, uint32 InFilterClassId, const FSoundModulationValue& InValue)
+	{
+		static const uint32 BaseClassId = USoundControlBusBase::StaticClass()->GetUniqueID();
 
-		IsInAudioThread() ? UpdateProxy() : FAudioThread::RunCommandOnAudioThread(UpdateProxy);
+		for (TPair<FBusId, FModulatorBusMixChannelProxy>& IdProxyPair : Channels)
+		{
+			FModulatorBusMixChannelProxy& ChannelProxy = IdProxyPair.Value;
+			if (InFilterClassId != BaseClassId && ChannelProxy.ClassId != InFilterClassId)
+			{
+				continue;
+			}
+
+			if (!FAudioAddressPattern::PartsMatch(InAddressFilter, ChannelProxy.Address))
+			{
+				continue;
+			}
+
+			ChannelProxy.Value.TargetValue = InValue.TargetValue;
+
+			if (InValue.AttackTime >= 0.0f)
+			{
+				ChannelProxy.Value.AttackTime = InValue.AttackTime;
+			}
+
+			if (InValue.ReleaseTime >= 0.0f)
+			{
+				ChannelProxy.Value.ReleaseTime = InValue.ReleaseTime;
+			}
+		}
 	}
 
 	void FModulatorBusMixProxy::SetEnabled()
