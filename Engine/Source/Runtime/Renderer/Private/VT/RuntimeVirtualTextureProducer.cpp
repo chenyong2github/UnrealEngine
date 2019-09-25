@@ -65,6 +65,9 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 		const FVector2D DestinationBoxStart1(Entry.DestX1 * TileSize, Entry.DestY1 * TileSize);
 		const FBox2D DestinationBox1(DestinationBoxStart1, DestinationBoxStart1 + FVector2D(TileSize, TileSize));
 
+		const FVector2D DestinationBoxStart2(Entry.DestX2 * TileSize, Entry.DestY2 * TileSize);
+		const FBox2D DestinationBox2(DestinationBoxStart2, DestinationBoxStart2 + FVector2D(TileSize, TileSize));
+
 		const float X = (float)FMath::ReverseMortonCode2(Entry.vAddress);
 		const float Y = (float)FMath::ReverseMortonCode2(Entry.vAddress >> 1);
 		const float DivisorX = (float)Desc.BlockWidthInTiles / (float)(1 << Entry.vLevel);
@@ -85,6 +88,8 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 			DestinationBox0, 
 			Entry.Texture1,
 			DestinationBox1,
+			Entry.Texture2,
+			DestinationBox2,
 			UVToWorld,
 			UVRange, 
 			Entry.vLevel,
@@ -138,7 +143,7 @@ IVirtualTextureFinalizer* FRuntimeVirtualTextureProducer::ProducePageData(
 	// This can be almost always be avoided by setting up the physical pools correctly for the application's needs.
 	// If we can't avoid partial layer masks then we could look at ways to handle it more efficiently (right now we render all layers even for these partial requests).
 
-	//todo[vt]: Add support for more than two layers
+	//todo[vt]: Tidy up logic now we have 3 layers
 	if (TargetLayers[0].TextureRHI != nullptr)
 	{
 		Tile.Texture0 = TargetLayers[0].TextureRHI->GetTexture2D();
@@ -151,6 +156,13 @@ IVirtualTextureFinalizer* FRuntimeVirtualTextureProducer::ProducePageData(
 		Tile.Texture1 = TargetLayers[1].TextureRHI->GetTexture2D();
 		Tile.DestX1 = TargetLayers[1].pPageLocation.X;
 		Tile.DestY1 = TargetLayers[1].pPageLocation.Y;
+	}
+
+	if (TargetLayers[2].TextureRHI != nullptr)
+	{
+		Tile.Texture2 = TargetLayers[2].TextureRHI->GetTexture2D();
+		Tile.DestX2 = TargetLayers[2].pPageLocation.X;
+		Tile.DestY2 = TargetLayers[2].pPageLocation.Y;
 	}
 
 	Finalizer.InitProducer(ProducerHandle);

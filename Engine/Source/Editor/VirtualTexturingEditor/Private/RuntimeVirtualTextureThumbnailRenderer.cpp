@@ -83,6 +83,7 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 			true,
 			RenderTarget->GetRenderTargetTexture(), DestRect,
 			nullptr, DestRect,
+			nullptr, DestRect,
 			Transform,
 			FBox2D(FVector2D(0, 0), FVector2D(1, 1)),
 			MaxLevel,
