@@ -133,7 +133,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EDynamicMeshSculptBrushType::Sculpt || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptMax || PrimaryBrushType == EDynamicMeshSculptBrushType::Pinch" ))
 	bool bFreezeTarget;
 
-
+	/** Toggle drawing of wireframe overlay on/off */
 	UPROPERTY(EditAnywhere, Category = Sculpting)
 	bool bShowWireframe;
 

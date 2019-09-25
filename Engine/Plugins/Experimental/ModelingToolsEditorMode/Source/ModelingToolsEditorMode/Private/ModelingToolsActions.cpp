@@ -34,7 +34,6 @@ void FModelingToolActionCommands::GetToolDefaultObjectList(TArray<UInteractiveTo
 	ToolCDOs.Add(GetMutableDefault<UEditMeshPolygonsTool>());
 	ToolCDOs.Add(GetMutableDefault<UMeshSpaceDeformerTool>());
 	ToolCDOs.Add(GetMutableDefault<UShapeSprayTool>());
-	ToolCDOs.Add(GetMutableDefault<UMeshSelectionTool>());
 }
 
 
@@ -45,6 +44,7 @@ void FModelingToolActionCommands::RegisterAllToolActions()
 	FSculptToolActionCommands::Register();
 	FDrawPolygonToolActionCommands::Register();
 	FTransformToolActionCommands::Register();
+	FMeshSelectionToolActionCommands::Register();
 }
 
 void FModelingToolActionCommands::UnregisterAllToolActions()
@@ -53,6 +53,7 @@ void FModelingToolActionCommands::UnregisterAllToolActions()
 	FSculptToolActionCommands::Unregister();
 	FDrawPolygonToolActionCommands::Unregister();
 	FTransformToolActionCommands::Unregister();
+	FMeshSelectionToolActionCommands::Unregister();
 }
 
 
@@ -73,6 +74,10 @@ void FModelingToolActionCommands::UpdateToolCommandBinding(UInteractiveTool* Too
 	else if (Cast<UDrawPolygonTool>(Tool) != nullptr)
 	{
 		UPDATE_BINDING(FDrawPolygonToolActionCommands);
+	}
+	else if (Cast<UMeshSelectionTool>(Tool) != nullptr)
+	{
+		UPDATE_BINDING(FMeshSelectionToolActionCommands);
 	}
 	else
 	{
@@ -131,6 +136,22 @@ FDrawPolygonToolActionCommands::FDrawPolygonToolActionCommands() :
 void FDrawPolygonToolActionCommands::GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs)
 {
 	ToolCDOs.Add(GetMutableDefault<UDrawPolygonTool>());
+}
+
+
+FMeshSelectionToolActionCommands::FMeshSelectionToolActionCommands() :
+	TInteractiveToolCommands<FMeshSelectionToolActionCommands>(
+		"ModelingToolsMeshSelectionTool", // Context name for fast lookup
+		NSLOCTEXT("Contexts", "ModelingToolsMeshSelectionTool", "Modeling Tools - Mesh Selection Tool"), // Localized context name for displaying
+		NAME_None, // Parent
+		FEditorStyle::GetStyleSetName() // Icon Style Set
+		)
+{
+}
+
+void FMeshSelectionToolActionCommands::GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs)
+{
+	ToolCDOs.Add(GetMutableDefault<UMeshSelectionTool>());
 }
 
 

@@ -1567,7 +1567,7 @@ void UDynamicMeshSculptTool::RegisterActions(FInteractiveToolActionSet& ActionSe
 
 
 
-	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 100,
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::ToggleWireframe,
 		TEXT("ToggleWireframe"),
 		LOCTEXT("ToggleWireframe", "Toggle Wireframe"),
 		LOCTEXT("ToggleWireframeTooltip", "Toggle visibility of wireframe overlay"),

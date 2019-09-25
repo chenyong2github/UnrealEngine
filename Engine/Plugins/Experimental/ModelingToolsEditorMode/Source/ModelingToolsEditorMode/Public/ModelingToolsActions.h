@@ -62,10 +62,17 @@ public:
 };
 
 
-
 class FDrawPolygonToolActionCommands : public TInteractiveToolCommands<FDrawPolygonToolActionCommands>
 {
 public:
 	FDrawPolygonToolActionCommands();
+	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) override;
+};
+
+
+class FMeshSelectionToolActionCommands : public TInteractiveToolCommands<FMeshSelectionToolActionCommands>
+{
+public:
+	FMeshSelectionToolActionCommands();
 	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) override;
 };
