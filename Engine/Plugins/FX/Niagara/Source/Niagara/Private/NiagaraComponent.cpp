@@ -1700,6 +1700,30 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 		{
 			AssetExposedParametersChangedHandle.Reset();
 		}
+#else
+		// We need to populate the override parameters here
+		{
+			TArray<FNiagaraVariable> SourceVars;
+			Asset->GetExposedParameters().GetParameters(SourceVars);
+			for (FNiagaraVariable& Param : SourceVars)
+			{
+				OverrideParameters.AddParameter(Param, true);
+			}
+
+			TArray<FNiagaraVariable> ExistingVars;
+			OverrideParameters.GetUserParameters(ExistingVars);
+			Asset->GetExposedParameters().GetUserParameters(SourceVars);
+
+			for (FNiagaraVariable ExistingVar : ExistingVars)
+			{
+				if (!SourceVars.Contains(ExistingVar))
+				{
+					OverrideParameters.RemoveParameter(ExistingVar);
+				}
+			}
+
+			OverrideParameters.Rebind();
+		}
 #endif
 
 		//Force a reinit.
