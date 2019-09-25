@@ -34,6 +34,7 @@ static bool IsSupportedVertexFactoryType(const FVertexFactoryType* VertexFactory
 	static FName NiagaraSpriteVfFname = FName(TEXT("FNiagaraSpriteVertexFactory"), FNAME_Find);
 	static FName GeometryCacheVfFname = FName(TEXT("FGeometryCacheVertexVertexFactory"), FNAME_Find);
 	static FName LandscapeVfFname = FName(TEXT("FLandscapeVertexFactory"), FNAME_Find);
+	static FName LandscapeFixedGridVfFname = FName(TEXT("FLandscapeFixedGridVertexFactory"), FNAME_Find);
 	static FName LandscapeXYOffsetVfFname = FName(TEXT("FLandscapeXYOffsetVertexFactory"), FNAME_Find);
 
 	return VertexFactoryType == FindVertexFactoryType(LocalVfFname)
@@ -42,6 +43,7 @@ static bool IsSupportedVertexFactoryType(const FVertexFactoryType* VertexFactory
 		|| VertexFactoryType == FindVertexFactoryType(NiagaraSpriteVfFname)
 		|| VertexFactoryType == FindVertexFactoryType(GeometryCacheVfFname)
 		|| VertexFactoryType == FindVertexFactoryType(LandscapeVfFname)
+		|| VertexFactoryType == FindVertexFactoryType(LandscapeFixedGridVfFname)
 		|| VertexFactoryType == FindVertexFactoryType(LandscapeXYOffsetVfFname);
 }
 
