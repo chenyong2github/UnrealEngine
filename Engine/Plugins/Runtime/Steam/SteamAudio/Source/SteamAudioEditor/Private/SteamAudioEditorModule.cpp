@@ -23,14 +23,18 @@
 #include "TickableNotification.h"
 #include "PhononScene.h"
 #include "SteamAudioSettings.h"
+#include "IAssetTools.h"
+#include "PhononOcclusionSettingsFactory.h"
 #include "PhononProbeVolume.h"
 #include "PhononProbeVolumeDetails.h"
-#include "PhononScene.h"
 #include "PhononProbeComponent.h"
 #include "PhononProbeComponentVisualizer.h"
+#include "PhononReverbSettingsFactory.h"
+#include "PhononScene.h"
 #include "PhononSourceComponent.h"
 #include "PhononSourceComponentDetails.h"
 #include "PhononSourceComponentVisualizer.h"
+#include "PhononSpatializationSettingsFactory.h"
 #include "PhononCommon.h"
 #include "SteamAudioEdMode.h"
 
@@ -46,6 +50,21 @@
 DEFINE_LOG_CATEGORY(LogSteamAudioEditor);
 
 IMPLEMENT_MODULE(SteamAudio::FSteamAudioEditorModule, SteamAudioEditor)
+
+
+namespace
+{
+	static const FName AssetToolsName = TEXT("AssetTools");
+
+	template <typename T>
+	void AddAssetAction(IAssetTools& AssetTools, TArray<TSharedPtr<FAssetTypeActions_Base>>& AssetActions)
+	{
+		TSharedPtr<T> AssetAction = MakeShared<T>();
+		TSharedPtr<FAssetTypeActions_Base> AssetActionBase = StaticCastSharedPtr<FAssetTypeActions_Base>(AssetAction);
+		AssetTools.RegisterAssetTypeActions(AssetAction.ToSharedRef());
+		AssetActions.Add(AssetActionBase);
+	}
+} // namespace <>
 
 namespace SteamAudio
 {
@@ -127,6 +146,11 @@ namespace SteamAudio
 		SteamAudioStyleSet->Set("LevelEditor.SteamAudioMode", new FSlateImageBrush(SteamAudioContent + "/SteamAudio_EdMode_40.png", Vec40));
 		SteamAudioStyleSet->Set("LevelEditor.SteamAudioMode.Small", new FSlateImageBrush(SteamAudioContent + "/SteamAudio_EdMode_16.png", Vec16));
 
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(AssetToolsName).Get();
+		AddAssetAction<FAssetTypeActions_PhononReverbSettings>(AssetTools, AssetActions);
+		AddAssetAction<FAssetTypeActions_PhononOcclusionSettings>(AssetTools, AssetActions);
+		AddAssetAction<FAssetTypeActions_PhononSpatializationSettings>(AssetTools, AssetActions);
+
 		FSlateStyleRegistry::RegisterSlateStyle(*SteamAudioStyleSet.Get());
 
 		// Register the ed mode
@@ -151,6 +175,8 @@ namespace SteamAudio
 				GUnrealEd->UnregisterComponentVisualizer(ClassName);
 			}
 		}
+
+		AssetActions.Reset();
 
 		FSlateStyleRegistry::UnRegisterSlateStyle(*SteamAudioStyleSet.Get());
 	}

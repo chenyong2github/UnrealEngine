@@ -16,6 +16,8 @@ public:
 	virtual FColor GetTypeColor() const override;
 	virtual UClass* GetSupportedClass() const override;
 	virtual uint32 GetCategories() override;
+
+	virtual const TArray<FText>& GetSubMenus() const override;
 };
 
 UCLASS(MinimalAPI, hidecategories = Object)
