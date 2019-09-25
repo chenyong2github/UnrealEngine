@@ -539,8 +539,7 @@ public:
 
 	virtual bool ReduceSkeletalMesh(
 		USkeletalMesh* SkeletalMesh,
-		int32 LODIndex,
-		bool bReregisterComponent = true
+		int32 LODIndex
 		) override
 	{
 		return false;

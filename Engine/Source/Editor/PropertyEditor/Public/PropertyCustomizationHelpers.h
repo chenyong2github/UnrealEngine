@@ -576,7 +576,7 @@ public:
 	* @param Section		The Section being used
 	* @param bCanBeReplced	Whether or not the Section can be replaced by a user
 	*/
-	virtual void AddSection(int32 LodIndex, int32 SectionIndex, FName InMaterialSlotName, int32 InMaterialSlotIndex, FName InOriginalMaterialSlotName, const TMap<int32, FName> &InAvailableMaterialSlotName, const UMaterialInterface* Material, bool IsSectionUsingCloth) = 0;
+	virtual void AddSection(int32 LodIndex, int32 SectionIndex, FName InMaterialSlotName, int32 InMaterialSlotIndex, FName InOriginalMaterialSlotName, const TMap<int32, FName> &InAvailableMaterialSlotName, const UMaterialInterface* Material, bool IsSectionUsingCloth, bool bIsChunkSection) = 0;
 };
 
 
@@ -607,8 +607,10 @@ struct FSectionListItem
 	/* Available material slot name*/
 	TMap<int32, FName> AvailableMaterialSlotName;
 
+	bool bIsChunkSection;
 
-	FSectionListItem(int32 InLodIndex, int32 InSectionIndex, FName InMaterialSlotName, int32 InMaterialSlotIndex, FName InOriginalMaterialSlotName, const TMap<int32, FName> &InAvailableMaterialSlotName, const UMaterialInterface* InMaterial, bool InIsSectionUsingCloth, int32 InThumbnailSize)
+
+	FSectionListItem(int32 InLodIndex, int32 InSectionIndex, FName InMaterialSlotName, int32 InMaterialSlotIndex, FName InOriginalMaterialSlotName, const TMap<int32, FName> &InAvailableMaterialSlotName, const UMaterialInterface* InMaterial, bool InIsSectionUsingCloth, int32 InThumbnailSize, bool InIsChunkSection)
 		: LodIndex(InLodIndex)
 		, SectionIndex(InSectionIndex)
 		, IsSectionUsingCloth(InIsSectionUsingCloth)
@@ -618,6 +620,7 @@ struct FSectionListItem
 		, MaterialSlotIndex(InMaterialSlotIndex)
 		, OriginalMaterialSlotName(InOriginalMaterialSlotName)
 		, AvailableMaterialSlotName(InAvailableMaterialSlotName)
+		, bIsChunkSection(InIsChunkSection)
 	{}
 
 	bool operator==(const FSectionListItem& Other) const

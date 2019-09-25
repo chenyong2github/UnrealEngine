@@ -20,7 +20,11 @@ namespace UnrealBuildTool.Rules
                     "MeshDescriptionOperations",
                     "MeshReductionInterface",
                     "RawMesh",
+					"MeshUtilities",
                     "MeshUtilitiesCommon",
+                    "ClothingSystemRuntime",
+                    "MeshBoneReduction",
+                    "SkeletalMeshUtilitiesCommon",
                 }
 			);
 

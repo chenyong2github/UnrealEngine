@@ -8,9 +8,9 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
-#include "Rendering/SkeletalMeshLODImporterData.h"
 
 #if WITH_EDITOR
+#include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #endif
 

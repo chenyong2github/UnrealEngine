@@ -1364,7 +1364,7 @@ void UOvrAvatar::LoadMesh(USkeletalMesh* SkeletalMesh, const ovrAvatarMeshAssetD
 	LodInfo.LODHysteresis = 0.2f;
 
 	SkeletalMesh->RefSkeleton.Empty(data->skinnedBindPose.jointCount);
-	SkeletalMesh->bUseFullPrecisionUVs = true;
+	LodInfo.BuildSettings.bUseFullPrecisionUVs = true;
 	SkeletalMesh->bHasBeenSimplified = false;
 	SkeletalMesh->bHasVertexColors = true;
 
@@ -2128,7 +2128,7 @@ void UOvrAvatar::LoadCombinedMesh(USkeletalMesh* SkeletalMesh, const ovrAvatarMe
 	LodInfo.LODHysteresis = 0.2f;
 	SkeletalMesh->RefSkeleton.Empty(data->skinnedBindPose.jointCount);
 
-	SkeletalMesh->bUseFullPrecisionUVs = true;
+	LodInfo.BuildSettings.bUseFullPrecisionUVs = true;
 	SkeletalMesh->bHasBeenSimplified = false;
 	SkeletalMesh->bHasVertexColors = true;
 

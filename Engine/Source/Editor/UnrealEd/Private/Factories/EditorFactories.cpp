@@ -6125,6 +6125,7 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 		ImportOptions->SkeletonForAnimation = SkeletalMesh->Skeleton;
 		ImportOptions->bCreatePhysicsAsset = false;
 		ImportOptions->PhysicsAsset = SkeletalMesh->PhysicsAsset;
+		
 
 		ImportOptions = GetImportOptions( FFbxImporter, ReimportUI, bShowOptionDialog, bIsAutomated, Obj->GetPathName(), bOperationCanceled, bOutImportAll, bIsObjFormat, Filename, bForceImportType, FBXIT_SkeletalMesh);
 
@@ -6135,11 +6136,32 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 		}
 	}
 
+	//Set the build option to reflect the user choice in the dialog
+	UFbxSkeletalMeshImportData* SKImportData = UFbxSkeletalMeshImportData::GetImportDataForSkeletalMesh(SkeletalMesh, ReimportUI->SkeletalMeshImportData);
+	if (SKImportData)
+	{
+		FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(0);
+		if (LODInfo && SkeletalMesh->GetImportedModel() && SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(0))
+		{
+			const FSkeletalMeshLODModel& LODModel = SkeletalMesh->GetImportedModel()->LODModels[0];
+			if (LODModel.RawSkeletalMeshBulkData.IsBuildDataAvailable())
+			{
+				//Set the build settings
+				LODInfo->BuildSettings.bComputeWeightedNormals = SKImportData->bComputeWeightedNormals;
+				LODInfo->BuildSettings.bRecomputeNormals = SKImportData->NormalImportMethod == EFBXNormalImportMethod::FBXNIM_ComputeNormals;
+				LODInfo->BuildSettings.bRecomputeTangents = SKImportData->NormalImportMethod != EFBXNormalImportMethod::FBXNIM_ImportNormalsAndTangents;
+				LODInfo->BuildSettings.bUseMikkTSpace = SKImportData->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace;
+			}
+		}
+	}
+
 	UE_LOG(LogEditorFactories, Log, TEXT("Performing atomic reimport of [%s]"), *Filename);
 	CurrentFilename = Filename;
 
 	if( !bOperationCanceled )
 	{
+		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
+
 		ImportOptions->bCanShowDialog = !IsUnattended;
 
 		if (ImportOptions->bImportAsSkeletalSkinning)
@@ -6197,7 +6219,7 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 			//Restore skin weight profile infos, then reimport affected LODs
 			TArray<FSkinWeightProfileInfo>&SkinWeightsProfile = SkeletalMesh->GetSkinWeightProfiles();
 			SkinWeightsProfile = ExistingSkinWeightProfileInfos;
-			FSkinWeightsUtilities::ReimportAlternateSkinWeight(SkeletalMesh, 0, true);
+			FSkinWeightsUtilities::ReimportAlternateSkinWeight(SkeletalMesh, 0);
 		}
 
 		// Reimporting can have dangerous effects if the mesh is still in the transaction buffer.  Reset the transaction buffer if this is the case

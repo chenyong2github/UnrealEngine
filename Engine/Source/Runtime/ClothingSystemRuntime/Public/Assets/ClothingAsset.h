@@ -525,7 +525,7 @@ public:
 	// UClothingAssetBase Interface ////////////////////////////////////////////
 	virtual void RefreshBoneMapping(USkeletalMesh* InSkelMesh) override;
 #if WITH_EDITOR
-	virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, int32 InMeshLodIndex, int32 InSectionIndex, int32 InAssetLodIndex, bool bCallPostEditChange=true) override;
+	virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, int32 InMeshLodIndex, int32 InSectionIndex, int32 InAssetLodIndex) override;
 	virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh) override;
 	virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh, int32 InMeshLodIndex) override;
 	virtual void InvalidateCachedData() override;
