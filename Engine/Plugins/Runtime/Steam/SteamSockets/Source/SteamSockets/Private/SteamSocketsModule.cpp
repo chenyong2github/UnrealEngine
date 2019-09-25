@@ -15,8 +15,8 @@ IMPLEMENT_MODULE(FSteamSocketsModule, SteamSockets);
 
 namespace FNetworkProtocolTypes
 {
-	const FName SteamSocketsP2P(TEXT("SteamSocketsP2P"));
-	const FName SteamSocketsIP(TEXT("SteamSocketsIP"));
+	const FLazyName SteamSocketsP2P(TEXT("SteamSocketsP2P"));
+	const FLazyName SteamSocketsIP(TEXT("SteamSocketsIP"));
 }
 
 void FSteamSocketsModule::StartupModule()

@@ -11,8 +11,8 @@
 // Add our two new protocol types
 namespace FNetworkProtocolTypes
 {
-	STEAMSOCKETS_API extern const FName SteamSocketsP2P;
-	STEAMSOCKETS_API extern const FName SteamSocketsIP;
+	STEAMSOCKETS_API extern const FLazyName SteamSocketsP2P;
+	STEAMSOCKETS_API extern const FLazyName SteamSocketsIP;
 }
 
 typedef uint32 SteamSocketHandles;
