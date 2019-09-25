@@ -1152,7 +1152,7 @@ namespace Gauntlet
 
 			Thread = Threads.SingleOrDefault(T => T.Current == true);
 
-			if (Thread == null)
+			if (Threads.Count > 0 && Thread == null)
 			{
 				Log.Warning("Unable to parse full crash callstack");				
 			}
