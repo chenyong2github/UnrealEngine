@@ -4,6 +4,8 @@
 #include "Interfaces/IPluginManager.h"
 #include "ShaderCore.h"
 
+IMPLEMENT_MODULE(FHairStrandsNiagara, HairStrandsNiagara);
+
 void FHairStrandsNiagara::StartupModule()
 {
 	// Maps virtual shader source directory /Plugin/FX/Niagara to the plugin's actual Shaders directory.

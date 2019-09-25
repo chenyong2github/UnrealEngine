@@ -7,6 +7,6 @@ namespace GeometryCollectionExample
 {	
 
 	template<class T>
-	bool TestImplicitBoneHierarchy(ExampleResponse&& R);
+	void TestImplicitBoneHierarchy();
 	
 }

@@ -1,0 +1,67 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+
+float3 HairWorldOffset;
+uint VertexCount;
+uint IterationCount;
+
+Buffer<uint4> SimRestPosePositionBuffer;
+Buffer<uint>  SimRootIndexBuffer;
+RWBuffer<uint4> OutSimDeformedPositionBuffer;
+
+#if PERMUTATION_GROUP_SIZE == 0
+	#define GROUP_SIZE 64
+#elif PERMUTATION_GROUP_SIZE == 1
+	#define GROUP_SIZE 32
+#else
+	#error Unknown group size	
+#endif
+
+float3 Displacement(uint VertexIndex, float3 Pos, float Seed)
+{
+// By pass
+#if PERMUTATION_DEFORMATION == 0
+	return 0;
+#endif
+
+// Wave
+#if PERMUTATION_DEFORMATION == 1
+	const float Scale = 100.f;
+	Pos *= Scale;
+	//	return float3(0, cos(Pos.y + Seed / 16.f), cos(Pos.z + Seed / 32.f)) / Scale;
+	return float3(0, cos(Pos.y + Seed / 16.f), cos(Pos.z + Seed / 32.f));
+#endif
+
+// Align with some normal
+#if PERMUTATION_DEFORMATION == 2
+	const uint RootIndex = SimRootIndexBuffer[VertexIndex];
+	const float3 V0 = f16tof32(SimRestPosePositionBuffer[RootIndex]);
+	const float3 V1 = f16tof32(SimRestPosePositionBuffer[RootIndex+1]);
+	const float3 T = normalize(V1 - V0);
+	const float D = length(Pos-V0);
+
+	const float3 Offset = V0 + D*T - Pos;
+
+	float Time = 0.5f * cos(Seed / 64.f) + 0.5f; // [0..1]
+	return lerp(0, Offset, Time);
+#endif
+}
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint VertexIndex = DispatchThreadId.x;
+	if (VertexIndex < VertexCount)
+	{
+		const uint4  Data 			= SimRestPosePositionBuffer[VertexIndex];
+		const float3 ControlPoint	= f16tof32(Data.xyz);
+
+		float3 PreviousOffset = 0;
+		{
+			const float3 Offset = Displacement(VertexIndex, ControlPoint, IterationCount);
+			OutSimDeformedPositionBuffer[VertexIndex] = uint4(f32tof16(ControlPoint + Offset), Data.w);
+			PreviousOffset = Offset;
+		}
+	}
+}

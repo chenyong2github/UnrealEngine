@@ -358,10 +358,36 @@ bool TTriangleMeshImplicitObject<T>::SweepGeom(const TImplicitObject<T, 3>& Quer
 }
 
 template <typename T>
-int32 TTriangleMeshImplicitObject<T>::FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex) const
+int32 TTriangleMeshImplicitObject<T>::FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDist) const
 {
 	ensure(HintFaceIndex != INDEX_NONE);
 	return HintFaceIndex;	//for now we just return what they gave us. todo: use adjacency information to compute this
+}
+
+template <typename T>
+TVector<T, 3> TTriangleMeshImplicitObject<T>::FindGeometryOpposingNormal(const TVector<T, 3>& DenormDir, int32 FaceIndex, const TVector<T, 3>& OriginalNormal) const
+{
+	return GetFaceNormal(FaceIndex);
+}
+
+template <typename T>
+TVector<T, 3> TTriangleMeshImplicitObject<T>::GetFaceNormal(const int32 FaceIdx) const
+{
+	if (ensure(FaceIdx != INDEX_NONE))
+	{
+		const TVector<T, 3>& A = MParticles.X(MElements[FaceIdx][0]);
+		const TVector<T, 3>& B = MParticles.X(MElements[FaceIdx][1]);
+		const TVector<T, 3>& C = MParticles.X(MElements[FaceIdx][2]);
+
+		const TVector<T, 3> AB = B - A;
+		const TVector<T, 3> AC = C - A;
+		TVector<T, 3> Normal = TVector<T, 3>::CrossProduct(AB, AC);
+		const T Length = Normal.SafeNormalize();
+		ensure(Length);
+		return Normal;
+	}
+
+	return TVector<T, 3>(0, 0, 1);
 }
 
 

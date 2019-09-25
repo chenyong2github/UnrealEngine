@@ -4,6 +4,11 @@
 #include "PhysXPublicCore.h"
 #include "PhysicsInterfaceTypesCore.h"
 
+#if INCLUDE_CHAOS
+#include "Chaos/GeometryParticles.h"
+#include "Chaos/ParticleHandle.h"
+#endif
+
 #if WITH_PHYSX
 
 PxShapeFlags BuildPhysXShapeFlags(FBodyCollisionFlags BodyCollisionFlags, bool bPhysicsStatic, bool bIsTriangleMesh)
@@ -264,7 +269,9 @@ uint32 FindFaceIndex(const FHitLocation& PHit, const FVector& UnitDir)
 	}
 
 	return PHit.faceIndex;	//If no custom logic just return whatever face index they initially had
+#else
+	const FTransform WorldTM(PHit.Actor->R(), PHit.Actor->X());
+	const FVector LocalPosition = WorldTM.InverseTransformPositionNoScale(PHit.WorldPosition);
+	return PHit.Shape->Geometry->FindMostOpposingFace(LocalPosition, UnitDir, PHit.FaceIndex, 1);	//todo:this number matches the one above, but is it right?
 #endif
-	ensure(false);
-	return 0;
 }

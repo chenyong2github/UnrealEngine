@@ -14,12 +14,15 @@ namespace ImmediatePhysics_Chaos
 	struct ENGINE_API FJointHandle
 	{
 	public:
-		FJointHandle(Chaos::TPBDJointConstraints<FReal, Dimensions>* InConstraints, FConstraintInstance* ConstraintInstance, FActorHandle* Actor1, FActorHandle* Actor2);
+		using FChaosConstraintContainer = Chaos::TPBD6DJointConstraints<FReal, Dimensions>;
+		using FChaosConstraintHandle = typename Chaos::TPBD6DJointConstraintHandle<FReal, Dimensions>;
+
+		FJointHandle(FChaosConstraintContainer* InConstraints, FConstraintInstance* ConstraintInstance, FActorHandle* Actor1, FActorHandle* Actor2);
 		~FJointHandle();
 
 	private:
-		Chaos::TPBDJointConstraints<FReal, Dimensions>* Constraints;
-		int32 ConstraintIndex;
+		FChaosConstraintContainer* Constraints;
+		FChaosConstraintHandle* ConstraintHandle;
 	};
 }
 #endif

@@ -105,6 +105,21 @@ public:
 		return false;
 	}
 
+	virtual int32 FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDistance) const override
+	{
+		const TVector<T, d> LocalPosition = MTransform.InverseTransformPositionNoScale(Position);
+		const TVector<T, d> LocalDir = MTransform.InverseTransformVectorNoScale(UnitDir);
+		return MObject->FindMostOpposingFace(LocalPosition, LocalDir, HintFaceIndex, SearchDistance);
+	}
+
+	virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T, d>& OriginalNormal) const override
+	{
+		const TVector<T, d> LocalDenormDir = MTransform.InverseTransformVectorNoScale(DenormDir);
+		const TVector<T, d> LocalOriginalNormal = MTransform.InverseTransformVectorNoScale(OriginalNormal);
+		const TVector<T, d> LocalNormal = MObject->FindGeometryOpposingNormal(LocalDenormDir, FaceIndex, LocalOriginalNormal);
+		return MTransform.TransformVectorNoScale(LocalNormal);
+	}
+
 	virtual bool Overlap(const TVector<T, d>& Point, const T Thickness) const override
 	{
 		const TVector<T, d> LocalPoint = MTransform.InverseTransformPosition(Point);

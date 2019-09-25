@@ -24,7 +24,7 @@
 namespace GeometryCollectionExample
 {
 	template<class T>
-	bool RigidBodies_Streaming_StartSolverEmpty(ExampleResponse&& R)
+	void RigidBodies_Streaming_StartSolverEmpty()
 	{
 #if INCLUDE_CHAOS
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
@@ -48,9 +48,9 @@ namespace GeometryCollectionExample
 			}
 		}
 
-		R.ExpectTrue(Particles.Size() == 9);
+		EXPECT_EQ(Particles.Size(), 9);
 		for (uint32 i = 0; i < Particles.Size() - 1; i++)
-			R.ExpectTrue(Particles.X(i).Z < Particles.X(i + 1).Z);
+			EXPECT_LT(Particles.X(i).Z, Particles.X(i + 1).Z);
 
 		// cleanup
 		for (auto Obj : Collections)
@@ -58,13 +58,12 @@ namespace GeometryCollectionExample
 #endif
 		delete Solver;
 #endif
-		return !R.HasError();
 	}
-	template bool RigidBodies_Streaming_StartSolverEmpty<float>(ExampleResponse&& R);
+	template void RigidBodies_Streaming_StartSolverEmpty<float>();
 
 
 	template<class T>
-	bool RigidBodies_Streaming_BulkInitialization(ExampleResponse&& R)
+	void RigidBodies_Streaming_BulkInitialization()
 	{
 #if INCLUDE_CHAOS
 		typename SimulationObjects<T>::FParameters P;
@@ -96,9 +95,9 @@ namespace GeometryCollectionExample
 			Solver->AdvanceSolverBy(1 / 24.);
 		}
 
-		R.ExpectTrue(Particles.Size() == 9);
+		EXPECT_EQ(Particles.Size(), 9);
 		for (uint32 i = 0; i < Particles.Size() - 1; i++)
-			R.ExpectTrue( FMath::Abs(Particles.X(i).Z - Particles.X(i + 1).Z)<KINDA_SMALL_NUMBER );
+			EXPECT_LT( FMath::Abs(Particles.X(i).Z - Particles.X(i + 1).Z), KINDA_SMALL_NUMBER );
 
 
 		// cleanup
@@ -107,14 +106,13 @@ namespace GeometryCollectionExample
 #endif
 		delete Solver;
 #endif
-		return !R.HasError();
 	}
-	template bool RigidBodies_Streaming_BulkInitialization<float>(ExampleResponse&& R); 
+	template void RigidBodies_Streaming_BulkInitialization<float>(); 
 
 
 
 	template<class T>
-	bool RigidBodies_Streaming_DeferedClusteringInitialization(ExampleResponse&& R)
+	void RigidBodies_Streaming_DeferedClusteringInitialization()
 	{
 #if INCLUDE_CHAOS
 		typename SimulationObjects<T>::FParameters P;
@@ -142,20 +140,20 @@ namespace GeometryCollectionExample
 		}
 
 		// all particles should be disabled
-		R.ExpectTrue(Particles.Size() == 9);
+		EXPECT_EQ(Particles.Size(), 9);
 		for (uint32 i = 0; i < Particles.Size(); i++)
 		{
-			R.ExpectTrue(Particles.Disabled(i) == true);
+			EXPECT_EQ(Particles.Disabled(i), true);
 		}
 
 		for (auto Obj : Collections)
 			Obj->PhysicsProxy->ActivateBodies();
 
 		// all particles should be enabled
-		R.ExpectTrue(Particles.Size() == 9);
+		EXPECT_EQ(Particles.Size(), 9);
 		for (uint32 i = 0; i < Particles.Size(); i++)
 		{
-			R.ExpectTrue(Particles.Disabled(i) == false);
+			EXPECT_EQ(Particles.Disabled(i), false);
 		}
 
 		for (int32 Frame = 1; Frame < 100; Frame++)
@@ -164,13 +162,13 @@ namespace GeometryCollectionExample
 		}
 
 		// new cluster parent should be falling
-		R.ExpectTrue(Particles.Size() == 10);
+		EXPECT_EQ(Particles.Size(), 10);
 		for (uint32 i = 0; i < Particles.Size()-1; i++)
 		{
-			R.ExpectTrue(Particles.Disabled(i) == true);
+			EXPECT_EQ(Particles.Disabled(i), true);
 		}
-		R.ExpectTrue(Particles.Disabled(Particles.Size()-1) == false);
-		R.ExpectTrue(Particles.X(Particles.Size() - 1).Z < -1.f);
+		EXPECT_EQ(Particles.Disabled(Particles.Size()-1), false);
+		EXPECT_LT(Particles.X(Particles.Size() - 1).Z, -1.f);
 
 		// cleanup
 		for (auto Obj : Collections)
@@ -178,9 +176,8 @@ namespace GeometryCollectionExample
 #endif
 		delete Solver;
 #endif
-		return !R.HasError();
 	}
-	template bool RigidBodies_Streaming_DeferedClusteringInitialization<float>(ExampleResponse&& R);
+	template void RigidBodies_Streaming_DeferedClusteringInitialization<float>();
 
 
 }

@@ -13,7 +13,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
 #include "PropertyCustomizationHelpers.h"
-#include "ClothingAssetInterface.h"
+#include "ClothingAssetBase.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -152,11 +152,12 @@ TSharedRef<SWidget> FClothCreateSettingsCustomization::OnGetTargetAssetMenu()
 			const int32 NumCloths = Mesh->MeshClothingAssets.Num();
 			for(int32 ClothIndex = 0 ; ClothIndex < NumCloths ; ++ClothIndex)
 			{
-				UClothingAssetBase* ClothingAsset = Mesh->MeshClothingAssets[ClothIndex];
-
-				FUIAction Action;
-				Action.ExecuteAction = FExecuteAction::CreateSP(this, &FClothCreateSettingsCustomization::OnAssetSelected, ClothIndex);
-				Builder.AddMenuEntry(FText::FromString(ClothingAsset->GetName()), LOCTEXT("TargetAsset_Tooltip", "Select this clothing as the target to import to."), FSlateIcon(), Action);
+				if (UClothingAssetBase* ClothingAsset = Mesh->MeshClothingAssets[ClothIndex])
+				{
+					FUIAction Action;
+					Action.ExecuteAction = FExecuteAction::CreateSP(this, &FClothCreateSettingsCustomization::OnAssetSelected, ClothIndex);
+					Builder.AddMenuEntry(FText::FromString(ClothingAsset->GetName()), LOCTEXT("TargetAsset_Tooltip", "Select this clothing as the target to import to."), FSlateIcon(), Action);
+				}
 			}
 		}
 	}
@@ -185,7 +186,8 @@ void FClothCreateSettingsCustomization::OnAssetSelected(int32 InMeshClothingInde
 
 	if(USkeletalMesh* Mesh = MeshPtr.Get())
 	{
-		if(Mesh->MeshClothingAssets.IsValidIndex(InMeshClothingIndex))
+		if(Mesh->MeshClothingAssets.IsValidIndex(InMeshClothingIndex) && 
+		   Mesh->MeshClothingAssets[InMeshClothingIndex])
 		{
 			if(ParamsStruct->TargetAsset != Mesh->MeshClothingAssets[InMeshClothingIndex])
 			{

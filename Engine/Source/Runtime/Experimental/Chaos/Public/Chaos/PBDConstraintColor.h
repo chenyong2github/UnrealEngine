@@ -20,7 +20,7 @@ namespace Chaos
 	public:
 		typedef TPBDConstraintGraph<T, d> FConstraintGraph;
 		typedef TSet<int32> FColorSet;
-		typedef TArray<int32> FConstraintList;
+		typedef TArray<TConstraintHandle<T, d>*> FConstraintList;
 		typedef TMap<int32, FConstraintList> FColorToConstraintListMap;
 		typedef TArray<FColorToConstraintListMap> FLevelToColorToConstraintListMap;
 

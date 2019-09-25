@@ -1,12 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDConstraintColor.h"
+
+#include "Chaos/ConstraintHandle.h"
+#include "Chaos/Framework/Parallel.h"
 #include "Chaos/ParticleHandle.h"
+#include "Chaos/PBDRigidParticles.h"
 
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "ChaosStats.h"
-#include "Chaos/Framework/Parallel.h"
-#include "Chaos/PBDRigidParticles.h"
 #include "Containers/Queue.h"
 
 #include <memory>
@@ -136,7 +138,7 @@ void TPBDConstraintColor<T, d>::ComputeIslandColoring(const int32 Island, const 
 					LevelToColorToConstraintListMap[Level].Add(ColorEdge.Color, {});
 				}
 
-				LevelToColorToConstraintListMap[Level][ColorEdge.Color].Add(GraphEdge.Data.ConstraintIndex);
+				LevelToColorToConstraintListMap[Level][ColorEdge.Color].Add(GraphEdge.Data.ConstraintHandle);
 
 				if (OtherNodeIndex != INDEX_NONE)
 				{

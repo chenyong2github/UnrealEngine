@@ -7,6 +7,6 @@ namespace GeometryCollectionExample
 {	
 
 	template<class T>
-	bool TestGeometryDecimation(ExampleResponse&& R);
+	void TestGeometryDecimation();
 	
 }

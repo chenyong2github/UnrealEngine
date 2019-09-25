@@ -8,6 +8,7 @@
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
+#include "Chaos/PerParticleExternalForces.h"
 
 namespace Chaos
 {
@@ -30,9 +31,11 @@ public:
 	using Base::SetParticleUpdateVelocityFunction;
 	using Base::SetParticleUpdatePositionFunction;
 	using Base::AddConstraintRule;
+    using Base::AddForceFunction;
 	using Base::Clustering;
 	using typename Base::FForceRule;
 	using FCollisionConstraints = TPBDCollisionConstraint<T, d>;
+	using FExternalForces = TPerParticleExternalForces<T, d>;
 	using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints, T, d>;
 
 	static constexpr int32 DefaultNumIterations = 1;
@@ -49,6 +52,20 @@ public:
 
 	FCollisionConstraints& GetCollisionConstraints() { return CollisionConstraints; }
 	const FCollisionConstraints& GetCollisionConstraints() const { return CollisionConstraints; }
+
+	FExternalForces& GetExternalForces() { return ExternalForces; }
+	const FExternalForces& GetExternalForces() const { return ExternalForces; }
+
+
+	CHAOS_API inline void EndFrame(T Dt)
+	{
+		Particles.GetNonDisabledDynamicView().ParallelFor([&](auto& Particle, int32 Index)
+		{
+			Particle.ExternalForce() = TVector<T, 3>(0);
+			Particle.ExternalTorque() = TVector<T, 3>(0);
+		});
+	}
+
 
 	template <typename TParticleView>
 	void Integrate(const TParticleView& InParticles, T Dt)
@@ -115,6 +132,7 @@ protected:
 	using Base::ParticleDisableCount;
 	using Base::Collided;
 
+	FExternalForces ExternalForces;
 	FCollisionConstraints CollisionConstraints;
 	FCollisionConstraintRule CollisionRule;
 };

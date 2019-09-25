@@ -6,17 +6,17 @@
 namespace GeometryCollectionExample
 {	
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API TestDeleteCoincidentVertices(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API TestDeleteCoincidentVertices();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API TestDeleteCoincidentVertices2(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API TestDeleteCoincidentVertices2();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API TestDeleteZeroAreaFaces(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API TestDeleteZeroAreaFaces();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API TestDeleteHiddenFaces(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API TestDeleteHiddenFaces();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API TestFillHoles(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API TestFillHoles();
 }

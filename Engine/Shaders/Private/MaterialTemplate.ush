@@ -287,6 +287,15 @@ struct FMaterialPixelParameters
 	// Index into View.PrimitiveSceneData
 	uint PrimitiveId;
 
+	// Actual primitive Id
+#if VF_STRAND_HAIR
+	uint HairPrimitiveId;
+	float2 HairUV;			// U: parametric coord along the length V: parametric coord along the width)
+	float2 HairDimensions;  // X: Length, Y: Radius
+	float  HairSeed;		// [0,1] quantized on 8bits
+	float2 HairRootUV;		// [0,1]^2	8bits
+#endif
+
 	/** Per-particle properties. Only valid for particle vertex factories. */
 	FMaterialParticleParameters Particle;
 
@@ -988,6 +997,47 @@ float3 MaterialExpressionBlackBody( float Temp )
 	};
 
 	return mul( XYZtoRGB, float3( X, Y, Z ) ) * pow( 0.0004 * Temp, 4 );
+}
+
+float2 MaterialExpressionGetHairRootUV(FMaterialPixelParameters Parameters)
+{
+#if VF_STRAND_HAIR
+	return Parameters.HairRootUV;
+#else
+	return float2(0, 0);
+#endif
+}
+
+float2 MaterialExpressionGetHairUV(FMaterialPixelParameters Parameters)
+{	
+#if VF_STRAND_HAIR
+	return Parameters.HairUV;
+#else
+	return float2(0,0);
+#endif
+}
+
+float2 MaterialExpressionGetHairDimensions(FMaterialPixelParameters Parameters)
+{
+#if VF_STRAND_HAIR
+	return Parameters.HairDimensions; // Length | Radius
+#else
+	return float2(0, 0);
+#endif
+}
+
+float MaterialExpressionGetHairSeed(FMaterialPixelParameters Parameters)
+{
+#if VF_STRAND_HAIR
+	return Parameters.HairSeed;
+#else
+	return 0;
+#endif
+}
+
+float3 MaterialExpressionGetHairTangent(FMaterialPixelParameters Parameters)
+{
+	return Parameters.TangentToWorld[2];
 }
 
 float4 MaterialExpressionAtmosphericFog(FMaterialPixelParameters Parameters, float3 AbsoluteWorldPosition)

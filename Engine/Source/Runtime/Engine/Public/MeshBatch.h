@@ -145,6 +145,22 @@ struct FMeshBatchElement
 	}
 };
 
+FORCEINLINE bool IsCompatibleWithHairStrands(const FMaterial* Material, const ERHIFeatureLevel::Type FeatureLevel)
+{
+	return
+		ERHIFeatureLevel::SM5 == FeatureLevel &&
+		Material && Material->IsUsedWithHairStrands() && Material->GetShadingModels().HasShadingModel(MSM_Hair) &&
+		(Material->GetBlendMode() == BLEND_Opaque || Material->GetBlendMode() == BLEND_Masked);
+}
+
+FORCEINLINE bool IsCompatibleWithHairStrands(const FMaterial* Material, const EShaderPlatform Platform)
+{
+	return
+		IsPCPlatform(Platform) && GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5 &&
+		Material && Material->IsUsedWithHairStrands() && Material->GetShadingModels().HasShadingModel(MSM_Hair) &&
+		(Material->GetBlendMode() == BLEND_Opaque || Material->GetBlendMode() == BLEND_Masked);
+}
+
 /**
  * A batch of mesh elements, all with the same material and vertex buffer
  */
@@ -247,10 +263,13 @@ struct FMeshBatch
 		return Mat->IsDeferredDecal();
 	}
 
-	FORCEINLINE bool CastsDeepShadow(/*ERHIFeatureLevel::Type InFeatureLevel*/) const
+	FORCEINLINE bool UseForHairStrands(ERHIFeatureLevel::Type InFeatureLevel) const
 	{
-		const FMaterial* Mat = MaterialRenderProxy->GetMaterial(ERHIFeatureLevel::SM5);
-		return Mat->GetShadingModels().HasOnlyShadingModel(EMaterialShadingModel::MSM_Hair);
+		if (ERHIFeatureLevel::SM5 != InFeatureLevel)
+			return false;
+
+		const FMaterial* Mat = MaterialRenderProxy->GetMaterial(InFeatureLevel);
+		return IsCompatibleWithHairStrands(Mat, InFeatureLevel);
 	}
 
 	FORCEINLINE bool IsMasked(ERHIFeatureLevel::Type InFeatureLevel) const

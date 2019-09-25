@@ -102,6 +102,7 @@
 #include "Materials/MaterialExpressionGIReplace.h"
 #include "Materials/MaterialExpressionRayTracingQualitySwitch.h"
 #include "Materials/MaterialExpressionGetMaterialAttributes.h"
+#include "Materials/MaterialExpressionHairAttributes.h"
 #include "Materials/MaterialExpressionIf.h"
 #include "Materials/MaterialExpressionLightmapUVs.h"
 #include "Materials/MaterialExpressionPrecomputedAOMask.h"
@@ -16798,6 +16799,77 @@ void UMaterialExpressionCurveAtlasRowParameter::PostEditChangeProperty(FProperty
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
+
+
+//
+// Hair attributes
+//
+
+UMaterialExpressionHairAttributes::UMaterialExpressionHairAttributes(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Hair Attributes", "Hair Attributes"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+
+#endif
+
+#if WITH_EDITORONLY_DATA
+	bShowOutputNameOnPin = true;
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("U"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("V"), 1, 0, 1, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Length"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Radius"), 1, 0, 1, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Seed")));
+	Outputs.Add(FExpressionOutput(TEXT("World Tangent"), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Root UV"), 1, 1, 1, 0, 0));
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionHairAttributes::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (OutputIndex == 0 || OutputIndex == 1)
+	{
+		return Compiler->GetHairUV();
+	}
+	else if (OutputIndex == 2 || OutputIndex == 3)
+	{
+		return Compiler->GetHairDimensions();
+	}
+	else if (OutputIndex == 4)
+	{
+		return Compiler->GetHairSeed();
+	}
+	else if (OutputIndex == 5)
+	{
+		return Compiler->GetHairTangent();
+	}
+	else if (OutputIndex == 6)
+	{
+		return Compiler->GetHairRootUV();
+	}
+
+	return Compiler->Errorf(TEXT("Invalid input parameter"));
+}
+
+void UMaterialExpressionHairAttributes::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Hair Attributes"));
+}
+#endif // WITH_EDITOR
+
 
 //
 //  UMaterialExpressionARPassthroughCameraUVs

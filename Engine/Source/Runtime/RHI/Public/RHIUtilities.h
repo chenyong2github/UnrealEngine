@@ -55,40 +55,37 @@ static inline bool IsStencilFormat(EPixelFormat Format)
 	return false;
 }
 
-/** Encapsulates a GPU read/write texture with its UAV and SRV. */
-struct FTextureRWBuffer
+/** Encapsulates a GPU read/write texture 2D with its UAV and SRV. */
+struct FTextureRWBuffer2D
 {
 	FTexture2DRHIRef Buffer;
 	FUnorderedAccessViewRHIRef UAV;
 	FShaderResourceViewRHIRef SRV;
 	uint32 NumBytes;
 
-	FTextureRWBuffer()
+	FTextureRWBuffer2D()
 		: NumBytes(0)
 	{}
 
-	~FTextureRWBuffer()
+	~FTextureRWBuffer2D()
 	{
 		Release();
 	}
 
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
-	void Initialize(uint32 SizeX, uint32 SizeY)
+	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format)
 	{
 		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5
 			|| IsVulkanPlatform(GMaxRHIShaderPlatform)
 			|| IsMetalPlatform(GMaxRHIShaderPlatform)
 			|| (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && GSupportsResourceView)
 		);		
-				
-		// #todo(dmp): hardcoded for now...
-		uint32 BlockBytes = 4;
 
-		NumBytes = SizeX * SizeY * BlockBytes;
+		NumBytes = SizeX * SizeY * BytesPerElement;
 
 		FRHIResourceCreateInfo CreateInfo;
 		Buffer = RHICreateTexture2D(
-			SizeX, SizeY, PF_R32_FLOAT,
+			SizeX, SizeY, Format, //PF_R32_FLOAT,
 			/*NumMips=*/ 1,
 			1,
 			/*Flags=*/ TexCreate_ShaderResource | TexCreate_UAV,
@@ -124,6 +121,69 @@ struct FTextureRWBuffer
 	}
 };
 
+/** Encapsulates a GPU read/write texture 3d with its UAV and SRV. */
+struct FTextureRWBuffer3D
+{
+	FTexture3DRHIRef Buffer;
+	FUnorderedAccessViewRHIRef UAV;
+	FShaderResourceViewRHIRef SRV;
+	uint32 NumBytes;
+
+	FTextureRWBuffer3D()
+		: NumBytes(0)
+	{}
+
+	~FTextureRWBuffer3D()
+	{
+		Release();
+	}
+
+	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
+	void Initialize(uint32 BytesPerElement, uint32 SizeX, uint32 SizeY, uint32 SizeZ, EPixelFormat Format)
+	{
+		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5
+			|| IsVulkanPlatform(GMaxRHIShaderPlatform)
+			|| IsMetalPlatform(GMaxRHIShaderPlatform)
+			|| (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && GSupportsResourceView)
+		);
+
+		NumBytes = SizeX * SizeY * SizeZ * BytesPerElement;
+
+		FRHIResourceCreateInfo CreateInfo;
+		Buffer = RHICreateTexture3D(
+			SizeX, SizeY, SizeZ, Format,
+			/*NumMips=*/ 1,
+			/*Flags=*/ TexCreate_ShaderResource | TexCreate_UAV,
+			/*BulkData=*/ CreateInfo);
+
+		UAV = RHICreateUnorderedAccessView(Buffer, 0);
+		SRV = RHICreateShaderResourceView(Buffer, 0);
+	}
+
+	void AcquireTransientResource()
+	{
+		RHIAcquireTransientResource(Buffer);
+	}
+	void DiscardTransientResource()
+	{
+		RHIDiscardTransientResource(Buffer);
+	}
+
+	void Release()
+	{
+		int32 BufferRefCount = Buffer ? Buffer->GetRefCount() : -1;
+
+		if (BufferRefCount == 1)
+		{
+			DiscardTransientResource();
+		}
+
+		NumBytes = 0;
+		Buffer.SafeRelease();
+		UAV.SafeRelease();
+		SRV.SafeRelease();
+	}
+};
 
 /** Encapsulates a GPU read/write buffer with its UAV and SRV. */
 struct FRWBuffer

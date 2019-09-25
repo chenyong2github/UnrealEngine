@@ -155,12 +155,6 @@ void ClearUAV(FRHICommandList& RHICmdList, const FRWBufferStructured& Structured
 	}
 }
 
-
-void ClearUAV(FRHICommandList& RHICmdList, const FTextureRWBuffer& Buffer, FLinearColor Value)
-{
-	ClearTexture2DUAV(RHICmdList, Buffer.UAV, Buffer.Buffer->GetSizeX(), Buffer.Buffer->GetSizeY(), Value);	
-}
-
 void ClearUAV(FRHICommandList& RHICmdList, const FRWBuffer& Buffer, uint32 Value, bool bBarriers)
 {
 	if (Buffer.NumBytes <= uint32(CVarFastClearUAVMaxSize.GetValueOnRenderThread()))
@@ -246,7 +240,7 @@ inline void ClearUAV_T(FRHICommandList& RHICmdList, FRHITexture* Texture, FRHIUn
 	}
 }
 
-void ClearTexture2DUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, int32 Width, int32 Height, const FLinearColor& ClearColor)
+void ClearUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, int32 Width, int32 Height, const FLinearColor& ClearColor)
 {
 	TShaderMapRef< FClearTexture2DReplacementCS<float> > ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 	FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
@@ -256,6 +250,16 @@ void ClearTexture2DUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV
 	uint32 y = (Height + 7) / 8;
 	RHICmdList.DispatchComputeShader(x, y, 1);
 	ComputeShader->FinalizeParameters(RHICmdList, UAV);
+}
+
+void ClearUAV(FRHICommandList& RHICmdList, const FTextureRWBuffer2D& Buffer, FLinearColor Value)
+{
+	ClearUAV_T(RHICmdList, Buffer.Buffer, Buffer.UAV, reinterpret_cast<const float(&)[4]>(Value));
+}
+
+void ClearUAV(FRHICommandList& RHICmdList, const FTextureRWBuffer3D& Buffer, FLinearColor Value)
+{
+	ClearUAV_T(RHICmdList, Buffer.Buffer, Buffer.UAV, reinterpret_cast<const float(&)[4]>(Value));
 }
 
 void ClearUAV(FRHICommandList& RHICmdList, const FSceneRenderTargetItem& RenderTargetItem, const float(&ClearValues)[4])

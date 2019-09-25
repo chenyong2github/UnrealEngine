@@ -22,7 +22,7 @@ namespace Chaos
 
 		friend class FCommandList;
 
-		template<enum Chaos::EThreadingMode>
+		template<Chaos::EThreadingMode>
 		friend class FDispatcher;
 		
 		// Element type for solver command storage

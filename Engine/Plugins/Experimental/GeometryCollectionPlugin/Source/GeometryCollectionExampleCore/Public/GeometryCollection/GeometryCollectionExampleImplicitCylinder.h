@@ -7,6 +7,6 @@ namespace GeometryCollectionExample
 {	
 
 	template<class T>
-	bool TestImplicitCylinder(ExampleResponse&& R);
+	void TestImplicitCylinder();
 	
 }

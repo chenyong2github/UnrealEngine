@@ -66,6 +66,7 @@ enum class ECollisionShapeType : uint8
 	Convex,
 	Trimesh,
 	Heightfield,
+	Scaled,
 	None
 };
 
