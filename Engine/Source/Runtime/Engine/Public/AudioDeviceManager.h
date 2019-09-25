@@ -184,33 +184,6 @@ public:
 	/** Toggles 3d visualization of 3d sounds on/off */
 	void ToggleVisualize3dDebug();
 
-	/** Debug solos the given sound class name. Sounds that play with this sound class will be solo'd */
-	void SetDebugSoloSoundClass(const TCHAR* SoundClassName);
-
-	/** Debug solos the given sound name. Sounds that play with this name will be solo'd */
-	void SetDebugSoloSoundWave(const TCHAR* SoundClassName);
-
-	void SetDebugSoloSoundCue(const TCHAR* SoundClassName);
-
-	/** Enables debug logging and soloing of sounds that substring match the given sound name. Only works if built with AUDIO_MIXER_ENABLE_DEBUG_MODE is turned on. */
-	void SetAudioMixerDebugSound(const TCHAR* SoundName);
-	void SetAudioDebugSound(const TCHAR* SoundName);
-
-	/** Gets the solo sound class used for debugging sounds */
-	const FString& GetDebugSoloSoundClass() const;
-
-	/** Gets the solo sound name used for debugging sound waves */
-	const FString& GetDebugSoloSoundWave() const;
-
-	/** Gets the solo sound name used for debugging sound cues */
-	const FString& GetDebugSoloSoundCue() const;
-
-	/** Gets the audio mixer debug sound name. Returns empty string if AUDIO_MIXER_ENABLE_DEBUG_MODE is not enabled. */
-	const FString& GetAudioMixerDebugSoundName() const;
-
-	/** Gets the debug sound string, returns true if one has been set. */
-	bool GetAudioDebugSound(FString& OutDebugSound);
-
 	/** Reset all sound cue trims */
 	void ResetAllDynamicSoundVolumes();
 
@@ -234,28 +207,13 @@ public:
 
 	/** Returns all the audio devices managed by device manager. */
 	TArray<FAudioDevice*>& GetAudioDevices() { return Devices; }
-
-
+	
 private:
+
 #if ENABLE_AUDIO_DEBUG
 	/** Instance of audio debugger shared across audio devices */
 	FAudioDebugger AudioDebugger;
 #endif // ENABLE_AUDIO_DEBUG
-
-	/** Struct which contains debug names for run-time debugging of sounds. */
-	struct FDebugNames
-	{
-		FString DebugSoloSoundClass;
-		FString DebugSoloSoundWave;
-		FString DebugSoloSoundCue;
-		FString DebugAudioMixerSoundName;
-		FString DebugSoundName;
-		bool bDebugSoundName;
-
-		FDebugNames()
-			: bDebugSoundName(false)
-		{}
-	};
 
 	/** Returns index of the given handle */
 	uint32 GetIndex(uint32 Handle) const;
@@ -316,9 +274,6 @@ private:
 
 	/** Which audio device is currently active */
 	Audio::FDeviceId ActiveAudioDeviceHandle;
-
-	/** Instance of the debug names struct. */
-	FDebugNames DebugNames;
 
 	/** Dynamic volume map */
 	TMap<TTuple<ESoundType, FName>, float> DynamicSoundVolumes;

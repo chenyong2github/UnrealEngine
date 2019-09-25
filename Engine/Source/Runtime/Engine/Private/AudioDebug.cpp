@@ -25,6 +25,9 @@
 #include "Sound/SoundWave.h"
 #include "UnrealEngine.h"
 
+#ifndef ENABLE_AUDIO_DEBUG
+#error "Please define ENABLE_AUDIO_DEBUG"
+#endif //ENABLE_AUDIO_DEBUG
 
 #if ENABLE_AUDIO_DEBUG
 
@@ -108,6 +111,7 @@ namespace
 
 		struct FStatWaveInstanceInfo
 		{
+			TSharedPtr<FSoundSource::FDebugInfo, ESPMode::ThreadSafe> DebugInfo;
 			FString Description;
 			float Volume;
 			int32 InstanceIndex;
@@ -165,8 +169,18 @@ namespace
 			GEngine->GetAudioDeviceManager()->GetDebugger().DumpActiveSounds();
 		}
 	}
+	
+	void HandleClearMutesAndSolos(UWorld* World)
+	{
+		if (GEngine)
+		{
+			GEngine->GetAudioDeviceManager()->GetDebugger().ClearMutesAndSolos();
+		}
+	}
 
 	FAutoConsoleCommandWithWorld DumpActiveSounds(TEXT("Audio.DumpActiveSounds"), TEXT("Outputs data about all the currently active sounds."), FConsoleCommandWithWorldDelegate::CreateStatic(&HandleDumpActiveSounds), ECVF_Cheat);
+	FAutoConsoleCommandWithWorld ClearMutesAndSolos(TEXT("Audio.ClearMutesAndSolos"), TEXT("Clears any solo-ing/mute-ing sounds"), FConsoleCommandWithWorldDelegate::CreateStatic(&HandleClearMutesAndSolos), ECVF_Cheat);
+
 } // namespace <>
 
 
@@ -186,6 +200,132 @@ bool FAudioDebugger::IsVisualizeDebug3dEnabled() const
 void FAudioDebugger::ToggleVisualizeDebug3dEnabled()
 {
 	bVisualize3dDebug = !bVisualize3dDebug;
+}
+
+void FAudioDebugger::QuerySoloMuteSoundClass(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const
+{
+	GetDebugSoloMuteStateX(Name, DebugNames.SoloSoundClass, DebugNames.MuteSoundClass, bOutIsSoloed, bOutIsMuted, OutReason);
+}
+
+void FAudioDebugger::QuerySoloMuteSoundWave(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const
+{
+	GetDebugSoloMuteStateX(Name, DebugNames.SoloSoundWave, DebugNames.MuteSoundWave, bOutIsSoloed, bOutIsMuted, OutReason);
+}
+
+void FAudioDebugger::QuerySoloMuteSoundCue(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const
+{
+	GetDebugSoloMuteStateX(Name, DebugNames.SoloSoundCue, DebugNames.MuteSoundCue, bOutIsSoloed, bOutIsMuted, OutReason);
+}
+
+void FAudioDebugger::SetNameArray(FName InName, TArray<FName>& InNameArray, bool bOnOff)
+{
+	ExecuteCmdOnAudioThread([InName, &InNameArray, bOnOff]
+	{
+		if (bOnOff)
+		{
+			InNameArray.AddUnique(InName);
+		}
+		else
+		{
+			InNameArray.Remove(InName);
+		}
+	});
+}
+
+void FAudioDebugger::ToggleNameArray(FName InName, TArray<FName>& InNameArray )
+{
+	ExecuteCmdOnAudioThread([InName, &InNameArray]
+	{ 
+		// On already?
+		int32 IndexOf = InNameArray.IndexOfByKey(InName);
+		if (IndexOf != INDEX_NONE)
+		{
+			InNameArray.RemoveAtSwap(IndexOf);
+		}			
+		else // Add it.
+		{
+			InNameArray.Add(InName);
+		}
+	});
+}
+
+void FAudioDebugger::SetAudioMixerDebugSound(const TCHAR* SoundName)
+{
+	ExecuteCmdOnAudioThread([Name = FString(SoundName), this]{ DebugNames.DebugAudioMixerSoundName = Name; });
+}
+
+void FAudioDebugger::SetAudioDebugSound(const TCHAR* SoundName)
+{
+	ExecuteCmdOnAudioThread([Name = FString(SoundName), this]{ 
+		DebugNames.DebugSoundName = Name;
+		DebugNames.bDebugSoundName = DebugNames.DebugSoundName != TEXT("");
+	});	
+}
+
+const FString& FAudioDebugger::GetAudioMixerDebugSoundName() const
+{
+	check(IsInAudioThread());
+	return DebugNames.DebugAudioMixerSoundName;
+}
+
+bool FAudioDebugger::GetAudioDebugSound(FString& OutDebugSound)
+{
+	check(IsInAudioThread());
+	if (DebugNames.bDebugSoundName)
+	{
+		OutDebugSound = DebugNames.DebugSoundName;
+		return true;
+	}
+	return false;
+}
+
+void FAudioDebugger::ExecuteCmdOnAudioThread(TFunction<void()> Cmd)
+{
+	// If not on audio thread, queue it.
+	if (!IsInAudioThread())
+	{
+		FAudioThread::RunCommandOnAudioThread(Cmd);
+		return;
+	}
+
+	// Otherwise, do it inline.
+	Cmd();
+}
+
+void FAudioDebugger::GetDebugSoloMuteStateX(
+	const FString& Name, 
+	const TArray<FName>& Solos,
+	const TArray<FName>& Mutes,	
+	bool& bOutIsSoloed, 
+	bool& bOutIsMuted, 
+	FString& OutReason) const
+{
+	check(IsInAudioThread());
+	
+	// Allow for partial matches of the name.
+	auto MatchesPartOfName = [&Name](FName i) -> bool { return Name.Contains(i.GetPlainNameString()); };
+
+	// Solo active?
+	if (Solos.Num() > 0)
+	{
+		if (Solos.ContainsByPredicate(MatchesPartOfName))
+		{
+			bOutIsSoloed = true;
+			OutReason = FString::Printf(TEXT("Sound is soloed explicitly."));
+		}
+		else
+		{
+			// Something else is soloed (record the first item in the solo list for debug reason).
+			bOutIsMuted = true;
+			OutReason = FString::Printf(TEXT("Sound is muted due to [%s] being soloed"), *Solos[0].ToString() );
+		}
+	}
+	// Are we explicitly muted?
+	else if (Mutes.ContainsByPredicate(MatchesPartOfName))
+	{
+		bOutIsMuted = true;
+		OutReason = FString::Printf(TEXT("Sound is explicitly muted"));
+	}
 }
 
 void FAudioDebugger::DrawDebugInfo(const FSoundSource& SoundSource)
@@ -549,8 +689,19 @@ int32 FAudioDebugger::RenderStatCues(UWorld* World, FViewport* Viewport, FCanvas
 		{
 			if (WaveInstanceInfo.Volume >= MinDisplayVolume)
 			{
-				const FString TheString = FString::Printf(TEXT("%4i. %s %s"), ActiveSoundCount++, *StatSoundInfo.SoundName, *StatSoundInfo.SoundClassName.ToString());
-				Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), FColor::White);
+				FColor Color = FColor::White;
+				FString MuteSoloReason;
+				
+				if (FSoundSource::FDebugInfo* DebugInfo = WaveInstanceInfo.DebugInfo.Get())
+				{
+					// Color code same as icons. Orange (mute), Solo (red), Normal (white).					
+					FScopeLock Lock(&DebugInfo->CS);
+					Color = DebugInfo->bIsMuted ? FColor::Orange : DebugInfo->bIsSoloed ? FColor::Red : FColor::White;
+					MuteSoloReason = !DebugInfo->MuteSoloReason.IsEmpty() ? FString::Printf(TEXT(" - %s"), *DebugInfo->MuteSoloReason) : TEXT("");
+				}
+
+				const FString TheString = FString::Printf(TEXT("%4i. %s %s %s"), ActiveSoundCount++, *StatSoundInfo.SoundName, *StatSoundInfo.SoundClassName.ToString(), *MuteSoloReason );
+				Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), Color);
 				Y += FontHeight;
 				break;
 			}
@@ -1168,6 +1319,8 @@ void FAudioDebugger::SendUpdateResultsToGameThread(const FAudioDevice& AudioDevi
 	const uint8 RequestedStats = Stats_AudioThread->RequestedStats;
 	TMap<FActiveSound*, int32> ActiveSoundToInfoIndex;
 
+	FAudioDebugger& Debugger = GEngine->GetAudioDeviceManager()->GetDebugger();
+	
 	const bool bDebug = (RequestedStats & ERequestedAudioStats::DebugSounds) != 0;
 
 	static const uint8 SoundMask = ERequestedAudioStats::Sounds | ERequestedAudioStats::SoundCues | ERequestedAudioStats::SoundWaves;
@@ -1176,7 +1329,7 @@ void FAudioDebugger::SendUpdateResultsToGameThread(const FAudioDevice& AudioDevi
 		for (FActiveSound* ActiveSound : AudioDevice.GetActiveSounds())
 		{
 			if (USoundBase* SoundBase = ActiveSound->GetSound())
-			{
+			{				
 				if (!bDebug || ActiveSound->GetSound()->bDebug)
 				{
 					ActiveSoundToInfoIndex.Add(ActiveSound, StatSoundInfos.AddDefaulted());
@@ -1187,6 +1340,7 @@ void FAudioDebugger::SendUpdateResultsToGameThread(const FAudioDevice& AudioDevi
 					if (USoundClass* SoundClass = ActiveSound->GetSoundClass())
 					{
 						StatSoundInfo.SoundClassName = SoundClass->GetFName();
+
 					}
 					else
 					{
@@ -1194,15 +1348,14 @@ void FAudioDebugger::SendUpdateResultsToGameThread(const FAudioDevice& AudioDevi
 					}
 					StatSoundInfo.Transform = ActiveSound->Transform;
 					StatSoundInfo.AudioComponentID = ActiveSound->GetAudioComponentID();
-
+										
 					if (bDebug && ActiveSound->GetSound()->bDebug)
 					{
 						ActiveSound->CollectAttenuationShapesForVisualization(StatSoundInfo.ShapeDetailsMap);
-					}
+					}										
 				}
 			}
 		}
-
 
 		// Iterate through all wave instances.
 		const TArray<FWaveInstance*>& WaveInstances = AudioDevice.GetActiveWaveInstances();
@@ -1220,6 +1373,7 @@ void FAudioDebugger::SendUpdateResultsToGameThread(const FAudioDevice& AudioDevi
 				WaveInstanceInfo.InstanceIndex = InstanceIndex;
 				WaveInstanceInfo.WaveInstanceName = *WaveInstance->GetName();
 				WaveInstanceInfo.bPlayWhenSilent = WaveInstance->ActiveSound->IsPlayWhenSilent() ? 1 : 0;
+				WaveInstanceInfo.DebugInfo = Source ? Source->DebugInfo : WaveInstanceInfo.DebugInfo;
 				StatSoundInfos[*SoundInfoIndex].WaveInstanceInfos.Add(MoveTemp(WaveInstanceInfo));
 			}
 		}
@@ -1278,4 +1432,15 @@ void FAudioDebugger::UpdateAudibleInactiveSounds(const uint32 FirstActiveIndex, 
 	SET_DWORD_STAT(STAT_AudibleWavesDroppedDueToPriority, AudibleInactiveSounds);
 #endif
 }
+
+void FAudioDebugger::ClearMutesAndSolos()
+{
+	DebugNames.MuteSoundClass.Empty();
+	DebugNames.MuteSoundCue.Empty();
+	DebugNames.MuteSoundWave.Empty();
+	DebugNames.SoloSoundClass.Empty();
+	DebugNames.SoloSoundCue.Empty();
+	DebugNames.SoloSoundWave.Empty();
+}
+
 #endif // ENABLE_AUDIO_DEBUG
