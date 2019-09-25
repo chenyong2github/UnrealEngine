@@ -68,7 +68,7 @@ static TAutoConsoleVariable<int32> CVarRHICmdSingleLayerWaterDeferredContexts(
 
 
 static TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasksSingleLayerWater(
-	TEXT("r.RHICmdFlushRenderThreadTasksBasePass"),
+	TEXT("r.RHICmdFlushRenderThreadTasksSingleLayerWater"),
 	0,
 	TEXT("Wait for completion of parallel render thread tasks at the end of Single layer water. A more granular version of r.RHICmdFlushRenderThreadTasks. If either r.RHICmdFlushRenderThreadTasks or r.RHICmdFlushRenderThreadTasksSingleLayerWater is > 0 we will flush."));
 
