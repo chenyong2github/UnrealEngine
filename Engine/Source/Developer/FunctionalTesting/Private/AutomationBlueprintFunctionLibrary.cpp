@@ -16,7 +16,7 @@
 #include "Editor.h"
 #include "HighResScreenshot.h"
 #include "LevelEditor.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 #include "LevelEditorViewport.h"
 #endif
 #include "Tests/AutomationCommon.h"
@@ -42,6 +42,7 @@
 #include "SceneView.h"
 #include "Engine/GameEngine.h"
 #include "Engine/LevelStreaming.h"
+#include "SLevelViewport.h"
 
 #define LOCTEXT_NAMESPACE "Automation"
 
@@ -918,7 +919,7 @@ bool UAutomationBlueprintFunctionLibrary::TakeHighResScreenshot(int32 ResX, int3
 			HighResScreenshotConfig.SetHDRCapture(bCaptureHDR);
 
 			FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-			ILevelViewport* LevelViewport = LevelEditor.GetFirstActiveViewport().Get();
+			SLevelViewport* LevelViewport = LevelEditor.GetFirstActiveLevelViewport().Get();
 
 			// Move Viewport to Camera
 			if (Camera)

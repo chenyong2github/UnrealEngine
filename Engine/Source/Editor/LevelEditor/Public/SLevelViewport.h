@@ -17,7 +17,8 @@
 #include "Settings/LevelEditorViewportSettings.h"
 #include "SEditorViewport.h"
 #include "EditorModeManager.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
+#include "LevelEditorViewport.h"
 
 class FLevelEditorViewportClient;
 class FLevelViewportLayout;
@@ -33,7 +34,7 @@ enum class EMapChangeType : uint8;
 /**
  * Encapsulates an SViewport and an SLevelViewportToolBar
  */
-class LEVELEDITOR_API SLevelViewport : public SEditorViewport, public ILevelViewport
+class LEVELEDITOR_API SLevelViewport : public SEditorViewport, public IAssetViewport
 {
 public:
 	SLATE_BEGIN_ARGS( SLevelViewport )
@@ -88,8 +89,13 @@ public:
 		return *LevelViewportClient;
 	}
 
-	virtual FLevelEditorViewportClient& GetLevelViewportClient() override
+	FLevelEditorViewportClient& GetLevelViewportClient() 
 	{		
+		return *LevelViewportClient;
+	}
+
+	virtual FEditorViewportClient& GetViewportClient() override
+	{
 		return *LevelViewportClient;
 	}
 
@@ -106,7 +112,7 @@ public:
 	/** Saves this viewport's config to ULevelEditorViewportSettings */
 	void SaveConfig(const FString& ConfigName) const;
 
-	/** ILevelViewport Interface */
+	/** IAssetViewport Interface */
 	virtual void StartPlayInEditorSession( UGameViewportClient* PlayClient, const bool bInSimulateInEditor ) override;
 	virtual void EndPlayInEditorSession() override;
 	virtual void SwapViewportsForSimulateInEditor() override;

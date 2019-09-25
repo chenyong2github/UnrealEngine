@@ -46,7 +46,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Materials/Material.h"
 #include "Components/PrimitiveComponent.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 #include "SLevelViewport.h"
 #include "MeshEditorSelectionModifiers.h"
 #include "Algo/Find.h"
@@ -963,7 +963,7 @@ void FMeshEditorMode::Enter()
 		// Do we have an active perspective viewport that is valid for VR?  If so, go ahead and use that.
 		TSharedPtr<FEditorViewportClient> ViewportClient;
 		{
-			TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface();
+			TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface();
 			if (ActiveLevelViewport.IsValid())
 			{
 				ViewportClient = StaticCastSharedRef<SLevelViewport>(ActiveLevelViewport->AsWidget())->GetViewportClient();

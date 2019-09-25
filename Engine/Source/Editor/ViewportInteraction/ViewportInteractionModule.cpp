@@ -75,12 +75,13 @@ void FViewportInteractionModule::ToggleMode()
 				const TSharedRef< ILevelEditor >& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor").GetFirstLevelEditor().ToSharedRef();
 
 				// Do we have an active perspective viewport that is valid for VR?  If so, go ahead and use that.
-				TSharedPtr<FEditorViewportClient> ViewportClient;
+ 				TSharedPtr<FEditorViewportClient> ViewportClient;
 				{
-					TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface();
+					TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface();
 					if (ActiveLevelViewport.IsValid())
 					{
-						ViewportClient = StaticCastSharedRef<SLevelViewport>(ActiveLevelViewport->AsWidget())->GetViewportClient();
+ 						const TSharedRef<SLevelViewport> LevelViewportWidget = StaticCastSharedRef<SLevelViewport>(ActiveLevelViewport->AsWidget());
+						ViewportClient = MakeShareable(&LevelViewportWidget->GetViewportClient());
 					}
 				}
 

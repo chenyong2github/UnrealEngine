@@ -26,7 +26,7 @@
 #include "Widgets/Text/STextBlock.h"
 
 #include "Editor.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 #include "LevelEditor.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionTextureSample.h"
@@ -607,7 +607,7 @@ void SMediaFrameworkCaptureCurrentViewportWidget::StartOutput()
 			{
 				// Find a editor viewport
 				FLevelEditorModule& LevelEditorModule = FModuleManager::Get().GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-				TSharedPtr<ILevelViewport> LevelViewportInterface = LevelEditorModule.GetFirstActiveViewport();
+				TSharedPtr<IAssetViewport> LevelViewportInterface = LevelEditorModule.GetFirstActiveViewport();
 				if (LevelViewportInterface.IsValid())
 				{
 					LevelViewport = LevelViewportInterface;
@@ -706,7 +706,7 @@ void SMediaFrameworkCaptureCurrentViewportWidget::ShutdownViewport()
 	GEditor->OnLevelViewportClientListChanged().RemoveAll(this);
 
 	TSharedPtr<FSceneViewport> EditorSceneViewportPin = EditorSceneViewport.Pin();
-	TSharedPtr<ILevelViewport> LevelViewportPin = LevelViewport.Pin();
+	TSharedPtr<IAssetViewport> LevelViewportPin = LevelViewport.Pin();
 	if (LevelViewportPin.IsValid() && LevelViewportPin->GetSharedActiveViewport() == EditorSceneViewportPin)
 	{
 		FLevelEditorViewportClient& ViewportClient = LevelViewportPin->GetLevelViewportClient();

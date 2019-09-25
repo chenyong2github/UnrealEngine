@@ -14,7 +14,7 @@
 #include "ViewportTypeDefinition.h"
 
 class AActor;
-class ILevelViewport;
+class IAssetViewport;
 class SLevelEditor;
 class UAnimSequence;
 class USkeletalMeshComponent;
@@ -111,7 +111,14 @@ public:
 	 *
 	 * @todo This only works with the first level editor. Fix it.
 	 */
-	virtual TSharedPtr<class ILevelViewport> GetFirstActiveViewport();
+	virtual TSharedPtr<class IAssetViewport> GetFirstActiveViewport();
+
+	/**
+	* Gets the first active viewport of all the viewports.
+	*
+	* @todo This only works with the first level editor. Fix it.
+	*/
+	virtual TSharedPtr<class SLevelViewport> GetFirstActiveLevelViewport();
 
 	/**
 	 * Called to focus the level editor that has a play in editor viewport

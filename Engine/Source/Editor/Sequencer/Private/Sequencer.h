@@ -48,7 +48,7 @@ class FSequencerObjectBindingNode;
 class FSequencerTrackNode;
 class FViewportClient;
 class IDetailKeyframeHandler;
-class ILevelViewport;
+class IAssetViewport;
 class IMenu;
 class FCurveEditor;
 class ISequencerEditTool;

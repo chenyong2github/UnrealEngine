@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,14 +6,14 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/SViewport.h"
 
-class FLevelEditorViewportClient;
+class FEditorViewportClient;
 class FViewport;
 class FSceneViewport;
 
 /**
  * Public interface to SLevelViewport
  */
-class UE_DEPRECATED(4.24, "Moved to IAssetViewport") ILevelViewport
+class IAssetViewport
 {
 
 public:
@@ -62,7 +62,7 @@ public:
 	/**
 	 * @return The editor client for this viewport
 	 */
-	virtual FLevelEditorViewportClient& GetLevelViewportClient() = 0;
+	virtual FEditorViewportClient& GetViewportClient() = 0;
 
 	/**
 	 * Gets the active viewport.

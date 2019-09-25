@@ -28,8 +28,9 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"UnrealEd",
                     "SkeletalMeshUtilitiesCommon",
-				}
-			);
+                    "LevelEditor",
+                }
+            );
 		}
 	}
 }

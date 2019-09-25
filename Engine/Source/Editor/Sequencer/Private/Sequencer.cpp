@@ -58,7 +58,7 @@
 #include "MovieSceneFolder.h"
 #include "PropertyEditorModule.h"
 #include "EditorWidgetsModule.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 #include "EditorSupportDelegates.h"
 #include "SSequencerTreeView.h"
 #include "ScopedTransaction.h"

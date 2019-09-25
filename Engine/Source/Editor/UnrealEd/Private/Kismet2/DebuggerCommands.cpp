@@ -49,7 +49,7 @@
 //@TODO: Remove this dependency
 #include "EngineGlobals.h"
 #include "LevelEditor.h"
-#include "ILevelViewport.h"
+#include "IAssetViewport.h"
 
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
@@ -1347,14 +1347,14 @@ void FPlayWorldCommandCallbacks::StartPlayFromHere()
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor");
 
-	TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 
 	const bool bSimulateInEditor = false;
 	if( ActiveLevelViewport.IsValid() )
 	{
-		if( ActiveLevelViewport->GetLevelViewportClient().IsPerspective() )
+		if( ActiveLevelViewport->GetViewportClient().IsPerspective() )
 		{
-			StartRotation = ActiveLevelViewport->GetLevelViewportClient().GetViewRotation();
+			StartRotation = ActiveLevelViewport->GetViewportClient().GetViewRotation();
 		}
 
 		// If there is an active level view port, play the game in it.
@@ -1537,7 +1537,7 @@ void FInternalPlayWorldCommandCallbacks::Simulate_Clicked()
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
 
-	TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 	if( ActiveLevelViewport.IsValid())
 	{
 		// Start a new simulation session!
@@ -1753,7 +1753,7 @@ void FInternalPlayWorldCommandCallbacks::PlayInViewport_Clicked( )
 
 	RecordLastExecutedPlayMode();
 
-	TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 
 	const bool bAtPlayerStart = (GetPlayModeLocation() == PlayLocation_DefaultPlayerStart);
 	const bool bSimulateInEditor = false;
@@ -1768,8 +1768,8 @@ void FInternalPlayWorldCommandCallbacks::PlayInViewport_Clicked( )
 		if( !bAtPlayerStart )
 		{
 			// Start the player where the camera is if not forcing from player start
-			StartLoc = &ActiveLevelViewport->GetLevelViewportClient().GetViewLocation();
-			StartRot = &ActiveLevelViewport->GetLevelViewportClient().GetViewRotation();
+			StartLoc = &ActiveLevelViewport->GetViewportClient().GetViewLocation();
+			StartRot = &ActiveLevelViewport->GetViewportClient().GetViewRotation();
 		}
 
 		// @todo UE4: Not supported yet
@@ -1828,7 +1828,7 @@ void FInternalPlayWorldCommandCallbacks::PlayInEditorFloating_Clicked( )
 
 		if ( !bAtPlayerStart )
 		{
-			TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+			TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 
 			// Make sure we can find a path to the view port.  This will fail in cases where the view port widget
 			// is in a backgrounded tab, etc.  We can't currently support starting PIE in a backgrounded tab
@@ -1837,8 +1837,8 @@ void FInternalPlayWorldCommandCallbacks::PlayInEditorFloating_Clicked( )
 				FSlateApplication::Get().FindWidgetWindow( ActiveLevelViewport->AsWidget() ).IsValid() )
 			{
 				// Start the player where the camera is if not forcing from player start
-				StartLoc = &ActiveLevelViewport->GetLevelViewportClient().GetViewLocation();
-				StartRot = &ActiveLevelViewport->GetLevelViewportClient().GetViewRotation();
+				StartLoc = &ActiveLevelViewport->GetViewportClient().GetViewLocation();
+				StartRot = &ActiveLevelViewport->GetViewportClient().GetViewRotation();
 			}
 		}
 
@@ -1877,7 +1877,7 @@ void FInternalPlayWorldCommandCallbacks::PlayInVR_Clicked()
 
 		if (!bAtPlayerStart)
 		{
-			TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+			TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 
 			// Make sure we can find a path to the view port.  This will fail in cases where the view port widget
 			// is in a backgrounded tab, etc.  We can't currently support starting PIE in a backgrounded tab
@@ -1886,8 +1886,8 @@ void FInternalPlayWorldCommandCallbacks::PlayInVR_Clicked()
 				FSlateApplication::Get().FindWidgetWindow(ActiveLevelViewport->AsWidget()).IsValid())
 			{
 				// Start the player where the camera is if not forcing from player start
-				StartLoc = &ActiveLevelViewport->GetLevelViewportClient().GetViewLocation();
-				StartRot = &ActiveLevelViewport->GetLevelViewportClient().GetViewRotation();
+				StartLoc = &ActiveLevelViewport->GetViewportClient().GetViewLocation();
+				StartRot = &ActiveLevelViewport->GetViewportClient().GetViewRotation();
 			}
 		}
 
@@ -1937,12 +1937,12 @@ void FInternalPlayWorldCommandCallbacks::PlayInNewProcess_Clicked(EPlayModeType 
 		if (!bAtPlayerStart)
 		{
 			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-			TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+			TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 
 			if ( ActiveLevelViewport.IsValid() && FSlateApplication::Get().FindWidgetWindow( ActiveLevelViewport->AsWidget() ).IsValid() )
 			{
-				StartLoc = &ActiveLevelViewport->GetLevelViewportClient().GetViewLocation();
-				StartRot = &ActiveLevelViewport->GetLevelViewportClient().GetViewRotation();
+				StartLoc = &ActiveLevelViewport->GetViewportClient().GetViewLocation();
+				StartRot = &ActiveLevelViewport->GetViewportClient().GetViewRotation();
 			}
 		}
 
