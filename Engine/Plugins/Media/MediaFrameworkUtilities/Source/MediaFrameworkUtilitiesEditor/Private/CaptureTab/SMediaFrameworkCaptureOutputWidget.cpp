@@ -607,7 +607,7 @@ void SMediaFrameworkCaptureCurrentViewportWidget::StartOutput()
 			{
 				// Find a editor viewport
 				FLevelEditorModule& LevelEditorModule = FModuleManager::Get().GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-				TSharedPtr<IAssetViewport> LevelViewportInterface = LevelEditorModule.GetFirstActiveViewport();
+				TSharedPtr<SLevelViewport> LevelViewportInterface = LevelEditorModule.GetFirstActiveLevelViewport();
 				if (LevelViewportInterface.IsValid())
 				{
 					LevelViewport = LevelViewportInterface;
@@ -709,7 +709,7 @@ void SMediaFrameworkCaptureCurrentViewportWidget::ShutdownViewport()
 	TSharedPtr<IAssetViewport> LevelViewportPin = LevelViewport.Pin();
 	if (LevelViewportPin.IsValid() && LevelViewportPin->GetSharedActiveViewport() == EditorSceneViewportPin)
 	{
-		FLevelEditorViewportClient& ViewportClient = LevelViewportPin->GetLevelViewportClient();
+		FEditorViewportClient& ViewportClient = LevelViewportPin->GetViewportClient();
 
 		// Reset settings
 		ViewportClient.SetRealtime(ViewportClientFlags.bRealTime);

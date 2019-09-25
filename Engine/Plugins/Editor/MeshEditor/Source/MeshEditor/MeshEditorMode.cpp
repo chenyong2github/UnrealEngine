@@ -960,13 +960,15 @@ void FMeshEditorMode::Enter()
 	{
 		const TSharedRef<ILevelEditor>& LevelEditor = LevelEditorModule.GetFirstLevelEditor().ToSharedRef();
 
+
 		// Do we have an active perspective viewport that is valid for VR?  If so, go ahead and use that.
 		TSharedPtr<FEditorViewportClient> ViewportClient;
 		{
 			TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface();
 			if (ActiveLevelViewport.IsValid())
 			{
-				ViewportClient = StaticCastSharedRef<SLevelViewport>(ActiveLevelViewport->AsWidget())->GetViewportClient();
+				const TSharedRef<SLevelViewport> LevelViewportWidget = StaticCastSharedRef<SLevelViewport>(ActiveLevelViewport->AsWidget());
+				ViewportClient = MakeShareable(&LevelViewportWidget->GetViewportClient());
 			}
 		}
 
