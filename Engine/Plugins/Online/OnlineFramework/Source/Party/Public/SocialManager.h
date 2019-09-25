@@ -52,6 +52,7 @@ public:
 	USocialToolkit& GetSocialToolkit(ULocalPlayer& LocalPlayer) const;
 	USocialToolkit* GetFirstLocalUserToolkit() const;
 	FUniqueNetIdRepl GetFirstLocalUserId(ESocialSubsystem SubsystemType) const;
+	bool IsLocalUser(const FUniqueNetIdRepl& LocalUserId, ESocialSubsystem SubsystemType) const;
 	int32 GetFirstLocalUserNum() const;
 	USocialDebugTools* GetDebugTools() const;
 
@@ -94,6 +95,13 @@ public:
 
 	void HandlePartyDisconnected(USocialParty* LeavingParty);
 
+	/**
+	 * Makes an attempt for the target local player to join the primary local player's party
+	 * @param LocalPlayerNum - ControllerId of the Secondary player that wants to join the party
+	 * @param Delegate - Delegate run when the join process is finished
+	 */
+	void RegisterSecondaryPlayer(int32 LocalPlayerNum, const FOnJoinPartyComplete& Delegate = FOnJoinPartyComplete());
+
 PARTY_SCOPE:
 	/** Validates that the target user has valid join info for us to use and that we can join any party of the given type */
 	FJoinPartyResult ValidateJoinTarget(const USocialUser& UserToJoin, const FOnlinePartyTypeId& PartyTypeId) const;
@@ -103,7 +111,7 @@ PARTY_SCOPE:
 
 	void NotifyPartyInitialized(USocialParty& Party);
 	USocialToolkit* GetSocialToolkit(int32 LocalPlayerNum) const;
-	
+
 protected:
 	struct PARTY_API FRejoinableParty : public TSharedFromThis<FRejoinableParty>
 	{
