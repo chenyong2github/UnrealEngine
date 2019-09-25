@@ -23,4 +23,9 @@ namespace ToolSetupUtil
 	 * @return default material to use for "Working"/In-Progress animations
 	 */
 	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultWorkingMaterial(UInteractiveToolManager* ToolManager);
+
+	/**
+	 * @return default material to use for brush volume indicators
+	 */
+	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultBrushVolumeMaterial(UInteractiveToolManager* ToolManager);
 }

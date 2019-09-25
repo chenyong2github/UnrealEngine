@@ -75,6 +75,12 @@ public:
 	void Disconnect();
 
 
+	/**
+	 * @return internal Root Component of internal Actor
+	 */
+	UPrimitiveComponent* GetRootComponent() { return DynamicMeshComponent; }
+
+
 	//
 	// visualization parameters
 	// 
@@ -230,9 +236,6 @@ public:
 
 	/** @return delegate that is broadcast whenever the internal mesh component is changed */
 	FSimpleMulticastDelegate& GetOnMeshChanged();
-
-
-
 
 
 
