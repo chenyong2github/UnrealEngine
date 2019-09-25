@@ -62,7 +62,7 @@ namespace AudioModulation
 		FModulatorLFOProxy();
 		FModulatorLFOProxy(const USoundBusModulatorLFO& InLFO);
 
-		void OnUpdateProxy(const USoundModulatorBase& InModulatorArchetype) override;
+		void OnUpdateProxy(const FModulatorLFOProxy& InLFOProxy);
 
 		float GetValue() const;
 		void Update(float InElapsed);
