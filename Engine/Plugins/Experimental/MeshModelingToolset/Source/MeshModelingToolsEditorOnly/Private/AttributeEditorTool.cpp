@@ -7,6 +7,8 @@
 #include "ToolSetupUtil.h"
 #include "MathUtil.h"
 
+#include "MeshDescription.h"
+#include "MeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
 
