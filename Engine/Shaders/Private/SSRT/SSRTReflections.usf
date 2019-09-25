@@ -89,11 +89,11 @@ void ScreenSpaceReflectionsStencilPS(
 	#endif
 }
 
-void ScreenSpaceReflectionsPS(
-	float4 SvPosition : SV_POSITION
-	, out float4 OutColor : SV_Target0
+void ScreenSpaceReflections(
+	float4 SvPosition
+	, out float4 OutColor
 #if SSR_OUTPUT_FOR_DENOISER
-	, out float4 OutClosestHitDistance : SV_Target1
+	, out float4 OutClosestHitDistance
 #endif
 )
 {
@@ -356,3 +356,58 @@ void ScreenSpaceReflectionsPS(
 	}
 	#endif
 }
+
+void ScreenSpaceReflectionsPS(
+	float4 SvPosition : SV_POSITION
+	, out float4 OutColor : SV_Target0
+#if SSR_OUTPUT_FOR_DENOISER
+	, out float4 OutClosestHitDistance : SV_Target1
+#endif
+)
+{
+	ScreenSpaceReflections(SvPosition, OutColor
+#if SSR_OUTPUT_FOR_DENOISER
+		,OutClosestHitDistance
+#endif
+	);
+}
+
+
+
+#if defined(TILE_COMPUTE_SSR)
+
+Buffer<uint> TileListDataBuffer;
+
+RWTexture2D<float4> OutColorUAV;
+RWTexture2D<float4> OutClosestHitDistanceUAV;
+
+#define WATER_TILE_SIZE 8
+[numthreads(WATER_TILE_SIZE, WATER_TILE_SIZE, 1)]
+void ScreenSpaceReflectionsCS(/*uint3 ThreadId : SV_DispatchThreadID,*/ uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint TileData = TileListDataBuffer[GroupId.x];
+	uint3 ThreadId = uint3((TileData & 0x0000FFFF)*WATER_TILE_SIZE + GroupThreadId.x, (TileData >> 16)*WATER_TILE_SIZE + GroupThreadId.y, 0);
+
+	if (int(ThreadId.x) < View.ViewSizeAndInvSize.x && int(ThreadId.y) < View.ViewSizeAndInvSize.y)
+	{
+		uint2 PixelPos = ThreadId.xy + View.ViewRectMin.xy;
+		float4 SvPosition = float4(float2(PixelPos) + 0.5f, 0.5, 1.0f);
+
+		float4 OutColorVar; 
+		float4 OutClosestHitDistanceVar;
+		ScreenSpaceReflections(SvPosition, OutColorVar
+#if SSR_OUTPUT_FOR_DENOISER
+			,OutClosestHitDistanceVar 
+#endif
+		);
+
+		OutColorUAV[PixelPos] = OutColorVar;
+#if SSR_OUTPUT_FOR_DENOISER
+		OutClosestHitDistanceUAV[PixelPos] = OutClosestHitDistanceVar;
+#endif
+	}
+}
+
+#endif
+
+
