@@ -133,6 +133,8 @@ public:
 	void AllowToBeContacted_OnCheckStateChanged( ECheckBoxState NewRadioState );
 	void SendLogFile_OnCheckStateChanged( ECheckBoxState NewRadioState );
 
+	bool IsUploadComplete() const { return bIsUploadComplete; }
+
 private:
 	/**
 	 * Write the user's comment to the report and begin uploading the entire report 
@@ -188,6 +190,9 @@ private:
 
 	/** Store if user has elected to restart crashing process, and if it was a success.*/
 	bool bIsSuccesfullRestart;
+
+	/** Is the uploading complete. */
+	bool bIsUploadComplete;
 
 };
 

@@ -38,6 +38,7 @@ FCrashReportClient::FCrashReportClient(const FPlatformErrorReport& InErrorReport
 	, bShouldWindowBeHidden(false)
 	, bSendData(false)
 	, bIsSuccesfullRestart(false)
+	, bIsUploadComplete(false)
 {
 	if (FPrimaryCrashProperties::Get()->IsValid())
 	{
@@ -286,7 +287,7 @@ bool FCrashReportClient::Tick(float UnusedDeltaTime)
 		FCrashUploadBase::StaticShutdown();
 	}
 
-	FPlatformMisc::RequestExit(false);
+	bIsUploadComplete = true;
 	return false;
 }
 

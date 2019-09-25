@@ -376,7 +376,7 @@ SubmitCrashReportResult RunUnattended(FPlatformErrorReport ErrorReport)
 	}
 
 	// loop until the app is ready to quit
-	while (!IsEngineExitRequested())
+	while (!(IsEngineExitRequested() || CrashReportClient.IsUploadComplete()))
 	{
 		MainLoop.Tick();
 	}
@@ -470,7 +470,7 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	const FString CrashContextXMLPath = FPaths::Combine(*ReportDirectoryAbsolutePath, FPlatformCrashContext::CrashContextRuntimeXMLNameW);
 	CrashContext.SerializeAsXML(*CrashContextXMLPath);
 
-	if (RecoveryService && DirectoryExists && SharedCrashContext.bSendUsageData && SharedCrashContext.CrashType != ECrashContextType::Ensure || SharedCrashContext.CrashType == ECrashContextType::Assert)
+	if (RecoveryService && DirectoryExists && SharedCrashContext.bSendUsageData && (SharedCrashContext.CrashType != ECrashContextType::Ensure || SharedCrashContext.CrashType == ECrashContextType::Assert))
 	{
 		RecoveryService->CollectFiles(ReportDirectoryAbsolutePath);
 	}
@@ -614,7 +614,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 		// This IsApplicationAlive() call is quite expensive, perform it at low frequency.
 		bool bApplicationAlive = FPlatformProcess::IsApplicationAlive(MonitorPid);
-		while (bApplicationAlive && !GIsRequestingExit)
+		while (bApplicationAlive && !IsEngineExitRequested())
 		{
 			const double CurrentTime = FPlatformTime::Seconds();
 
@@ -652,10 +652,10 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					// This is ugly, but since many parts of CrashReportClient and CrashReportCoreUnattended is built
 					// using this flag to exit tick loops, this was the easiest way of making the monitor path be able to
 					// send multiple reports (e.g. ensure followed by crash).
-					if (Result == SuccessContinue)
+					/*if (Result == SuccessContinue)
 					{
 						GIsRequestingExit = false;
-					}
+					}*/
 
 					if (bReportCrashAnalyticInfo)
 					{
