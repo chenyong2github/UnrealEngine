@@ -83,6 +83,68 @@ private:
 	friend class FLandscapeComponentSceneProxyMobile;
 };
 
+/** vertex factory for VTF-heightmap terrain  */
+class FLandscapeFixedGridVertexFactoryMobile : public FLandscapeVertexFactory
+{
+	DECLARE_VERTEX_FACTORY_TYPE(FLandscapeFixedGridVertexFactoryMobile);
+
+	typedef FLandscapeVertexFactory Super;
+public:
+
+	struct FDataType : FLandscapeVertexFactory::FDataType
+	{
+		/** stream which has heights of each LOD levels */
+		TArray<FVertexStreamComponent, TFixedAllocator<LANDSCAPE_MAX_ES_LOD_COMP> > LODHeightsComponent;
+	};
+
+	FLandscapeFixedGridVertexFactoryMobile(ERHIFeatureLevel::Type InFeatureLevel)
+		: FLandscapeVertexFactory(InFeatureLevel)
+	{
+	}
+
+	virtual ~FLandscapeFixedGridVertexFactoryMobile()
+	{
+		ReleaseResource();
+	}
+
+	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
+
+	/**
+	* Should we cache the material's shadertype on this platform with this vertex factory?
+	*/
+	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+	{
+		auto FeatureLevel = GetMaxSupportedFeatureLevel(Platform);
+		return (FeatureLevel == ERHIFeatureLevel::ES2 || FeatureLevel == ERHIFeatureLevel::ES3_1) &&
+			(Material->IsUsedWithLandscape() || Material->IsSpecialEngineMaterial());
+	}
+
+	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("NUM_VF_PACKED_INTERPOLANTS"), TEXT("1"));
+		OutEnvironment.SetDefine(TEXT("FIXED_GRID"), TEXT("1"));
+	}
+
+	// FRenderResource interface.
+	virtual void InitRHI() override;
+
+	/**
+	 * An implementation of the interface used by TSynchronizedResource to update the resource with new data from the game thread.
+	 */
+	void SetData(const FDataType& InData)
+	{
+		MobileData = InData;
+		UpdateRHI();
+	}
+
+private:
+	/** stream component data bound to this vertex factory */
+	FDataType MobileData;
+
+	friend class FLandscapeComponentSceneProxyMobile;
+};
+
 //
 // FLandscapeVertexBuffer
 //
