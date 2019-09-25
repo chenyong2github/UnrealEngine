@@ -11,20 +11,22 @@ Texture2DStreamIn_DDC.h: Stream in helper for 2D textures loading DDC files.
 
 #if WITH_EDITORONLY_DATA
 
+extern int32 GStreamingUseAsyncRequestsForDDC;
+
 class FTexture2DStreamIn_DDC : public FTexture2DStreamIn
 {
 public:
 
-	FTexture2DStreamIn_DDC(UTexture2D* InTexture, int32 InRequestedMips)
-	: FTexture2DStreamIn(InTexture, InRequestedMips)
-	, bDDCIsInvalid(false)
-	{
-	}
+	FTexture2DStreamIn_DDC(UTexture2D* InTexture, int32 InRequestedMips);
+	~FTexture2DStreamIn_DDC();
 
 	/** Returns whether DDC of this texture needs to be regenerated.  */
 	bool DDCIsInvalid() const override { return bDDCIsInvalid; }
 
 protected:
+
+	// StreamIn_Default : Locked mips of the intermediate textures, used as disk load destination.
+	uint32 DDCHandles[MAX_TEXTURE_MIP_COUNT];
 
 	// Whether the DDC data was compatible or not.
 	bool bDDCIsInvalid;
@@ -32,6 +34,12 @@ protected:
 	// ****************************
 	// ********* Helpers **********
 	// ****************************
+
+	// Create DDC load requests (into DDCHandles)
+	void DoCreateAsyncDDCRequests(const FContext& Context);
+
+	// Create DDC load requests (into DDCHandles)
+	bool DoPoolDDCRequests(const FContext& Context);
 
 	// Load from DDC into MipData
 	void DoLoadNewMipsFromDDC(const FContext& Context);
