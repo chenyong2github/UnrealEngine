@@ -907,41 +907,19 @@ void ALODActor::DetermineShadowingFlags()
 
 const bool ALODActor::HasValidSubActors() const
 {
-#if WITH_EDITOR
-	FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
-	IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
-#endif
+	TArray<UStaticMeshComponent*> Components;
+	UHLODProxy::ExtractStaticMeshComponentsFromLODActor(this, Components);
 
-	int32 NumMeshes = 0;
-
-	// Make sure there is at least one mesh in the subactors
-	for (AActor* SubActor : SubActors)
+	UStaticMeshComponent** ValidComponent = Components.FindByPredicate([&](const UStaticMeshComponent* Component)
 	{
-		if (SubActor)
-		{
-			for (UActorComponent* Comp : SubActor->GetComponents())
-			{
-				if (UStaticMeshComponent* Component = Cast<UStaticMeshComponent>(Comp))
-				{
 #if WITH_EDITOR
-					if (!Component->bHiddenInGame && Component->ShouldGenerateAutoLOD(LODLevel - 1))
-					{
-						++NumMeshes;
-					}
+		return !Component->bHiddenInGame && Component->GetStaticMesh() != nullptr && Component->ShouldGenerateAutoLOD(LODLevel - 1);
 #else
-					++NumMeshes;
+		return true;
 #endif
-				}
-			}
+	});
 
-			if (NumMeshes > 0)
-			{
-				break;
-			}
-		}
-	}
-
-	return NumMeshes > 0;
+	return ValidComponent != nullptr;
 }
 
 const bool ALODActor::HasAnySubActors() const
