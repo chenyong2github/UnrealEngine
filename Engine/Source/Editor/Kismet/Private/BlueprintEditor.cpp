@@ -9117,9 +9117,15 @@ bool FBlueprintEditor::IsEditingAnimGraph() const
 
 UEdGraph* FBlueprintEditor::GetFocusedGraph() const
 {
-	if(FocusedGraphEdPtr.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
-		return FocusedGraphEdPtr.Pin()->GetCurrentGraph();
+		if (UEdGraph* Graph = FocusedGraphEdPtr.Pin()->GetCurrentGraph())
+		{
+			if (!Graph->IsPendingKill())
+			{
+				return Graph;
+			}
+		}
 	}
 	return nullptr;
 }
