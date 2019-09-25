@@ -189,6 +189,7 @@ public:
 		Result.bOpaqueRelevance = true;
 		Result.bUsesSceneDepth = false;
 		Result.bUsesSkyMaterial = false;
+		Result.bUsesSingleLayerWaterMaterial = false;
 		Result.bRenderCustomDepth = false;
 		return Result;
 	}

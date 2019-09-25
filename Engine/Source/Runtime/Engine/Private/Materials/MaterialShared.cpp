@@ -23,6 +23,7 @@
 #include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionReroute.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureOutput.h"
+#include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
 #include "ShaderCompiler.h"
 #include "MaterialCompiler.h"
 #include "MeshMaterialShaderType.h"
@@ -515,7 +516,8 @@ void FMaterialCompilationOutput::Serialize(FArchive& Ar)
 	PackedFlags |= (bUsesGlobalDistanceField		<< 3);
 	PackedFlags |= (bUsesPixelDepthOffset			<< 4);
 	PackedFlags |= (bUsesDistanceCullFade			<< 5);
-	PackedFlags |= (bHasRuntimeVirtualTextureOutput	<< 6);
+	PackedFlags |= (bHasRuntimeVirtualTextureOutput << 6);
+	PackedFlags |= (bUsesSingleLayerWaterMaterialOutput << 7);
 
 	Ar << PackedFlags;
 
@@ -525,7 +527,8 @@ void FMaterialCompilationOutput::Serialize(FArchive& Ar)
 	bUsesGlobalDistanceField		= (PackedFlags >> 3) & 1;
 	bUsesPixelDepthOffset			= (PackedFlags >> 4) & 1;
 	bUsesDistanceCullFade			= (PackedFlags >> 5) & 1;
-	bHasRuntimeVirtualTextureOutput	= (PackedFlags >> 6) & 1;
+	bHasRuntimeVirtualTextureOutput = (PackedFlags >> 6) & 1;
+	bUsesSingleLayerWaterMaterialOutput = (PackedFlags >> 7) & 1;
 }
 
 void FMaterial::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
@@ -843,6 +846,19 @@ bool FMaterial::MaterialModifiesMeshPosition_GameThread() const
 	bool bUsesWPO = ShaderMap ? ShaderMap->ModifiesMeshPosition() : false;
 
 	return bUsesWPO || GetTessellationMode() != MTM_NoTessellation;
+}
+
+bool FMaterial::MaterialUsesSingleLayerWater_RenderThread() const
+{
+	check(IsInParallelRenderingThread());
+	return RenderingThreadShaderMap ? RenderingThreadShaderMap->UsesSingleLayerWaterMaterialOutput() : false;
+}
+
+bool FMaterial::MaterialUsesSingleLayerWater_GameThread() const
+{
+	check(IsInGameThread());
+	FMaterialShaderMap* ShaderMap = GameThreadShaderMap.GetReference();
+	return ShaderMap ? ShaderMap->UsesSingleLayerWaterMaterialOutput() : false;
 }
 
 bool FMaterial::MaterialMayModifyMeshPosition() const
@@ -1447,6 +1463,11 @@ bool FMaterialResource::CastsRayTracedShadows() const
 UMaterialInterface* FMaterialResource::GetMaterialInterface() const 
 { 
 	return MaterialInstance ? (UMaterialInterface*)MaterialInstance : (UMaterialInterface*)Material;
+}
+
+bool FMaterialResource::IsUsingSingleLayerWaterMaterialOutput() const
+{
+	return GetMaterialInterface() ? GetMaterialInterface()->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSingleLayerWaterMaterialOutput>() : false;
 }
 
 #if WITH_EDITOR

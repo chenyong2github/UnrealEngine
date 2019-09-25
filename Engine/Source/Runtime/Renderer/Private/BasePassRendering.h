@@ -31,6 +31,7 @@ class FScene;
 template<typename TBufferStruct> class TUniformBufferRef;
 
 class FViewInfo;
+class UMaterialExpressionSingleLayerWaterMaterialOutput;
 
 /** Whether to allow the indirect lighting cache to be applied to dynamic objects. */
 extern int32 GIndirectLightingCache;
@@ -71,6 +72,15 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FOpaqueBasePassUniformParameters,)
 	SHADER_PARAMETER_TEXTURE(Texture2D, DBufferCTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, DBufferCTextureSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D<uint>, DBufferRenderMask)
+	// Single Layer Water
+	SHADER_PARAMETER_TEXTURE(Texture2D, SceneLuminanceWithoutSingleLayerWaterTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneLuminanceWithoutSingleLayerWaterSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D, SceneDepthWithoutSingleLayerWaterTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthWithoutSingleLayerWaterSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGFTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D, SceneCustomDepthTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneCustomDepthSampler)
 	// Misc
 	SHADER_PARAMETER_TEXTURE(Texture2D, EyeAdaptation)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -488,6 +498,8 @@ public:
 		static const auto SupportStationarySkylight = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportStationarySkylight"));
 		static const auto SupportAllShaderPermutations = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportAllShaderPermutations"));
 
+		const bool IsSingleLayerWater = Parameters.Material->IsUsingSingleLayerWaterMaterialOutput();
+
 		const bool bTranslucent = IsTranslucentBlendMode(Parameters.Material->GetBlendMode());
 		const bool bForceAllPermutations = SupportAllShaderPermutations && SupportAllShaderPermutations->GetValueOnAnyThread() != 0;
 		const bool bProjectSupportsStationarySkylight = !SupportStationarySkylight || SupportStationarySkylight->GetValueOnAnyThread() != 0 || bForceAllPermutations;
@@ -496,6 +508,7 @@ public:
 			//translucent materials need to compile skylight support to support MOVABLE skylights also.
 			|| bTranslucent
 			// Some lightmap policies (eg Simple Forward) always require skylight support
+			|| IsSingleLayerWater
 			|| LightMapPolicyType::RequiresSkylight()
 			|| ((bProjectSupportsStationarySkylight || IsForwardShadingEnabled(Parameters.Platform)) && Parameters.Material->GetShadingModels().IsLit());
 		return bCacheShaders
@@ -661,3 +674,4 @@ ENUM_CLASS_FLAGS(FBasePassMeshProcessor::EFlags);
 extern void SetDepthStencilStateForBasePass(FMeshPassProcessorRenderState& DrawRenderState, ERHIFeatureLevel::Type FeatureLevel, const FMeshBatch& Mesh, const FPrimitiveSceneProxy* PrimitiveSceneProxy, bool bEnableReceiveDecalOutput, bool bUseDebugViewPS, FRHIDepthStencilState* LodFadeOverrideDepthStencilState);
 extern void SetupBasePassState(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, const bool bShaderComplexity, FMeshPassProcessorRenderState& DrawRenderState);
 extern FMeshDrawCommandSortKey CalculateTranslucentMeshStaticSortKey(const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, uint16 MeshIdInPrimitive);
+

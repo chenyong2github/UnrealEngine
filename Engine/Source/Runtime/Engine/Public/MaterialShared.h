@@ -554,6 +554,7 @@ public:
 		bUsesWorldPositionOffset(false),
 		bUsesGlobalDistanceField(false),
 		bUsesPixelDepthOffset(false),
+		bUsesSingleLayerWaterMaterialOutput(false),
 		bUsesDistanceCullFade(false),
 		bHasRuntimeVirtualTextureOutput(false)
 	{}
@@ -600,6 +601,9 @@ public:
 
 	/** true if the material writes a pixel depth offset */
 	uint8 bUsesPixelDepthOffset : 1;
+
+	/** true if the material writes a pixel depth offset */
+	uint8 bUsesSingleLayerWaterMaterialOutput : 1;
 
 	/** true if the material uses distance cull fade */
 	uint8 bUsesDistanceCullFade : 1;
@@ -1108,6 +1112,7 @@ public:
 	bool UsesVelocitySceneTexture() const { return MaterialCompilationOutput.UsesVelocitySceneTexture(); }
 	bool UsesDistanceCullFade() const { return MaterialCompilationOutput.bUsesDistanceCullFade; }
 	bool HasRuntimeVirtualTextureOutput() const { return MaterialCompilationOutput.bHasRuntimeVirtualTextureOutput; }
+	bool UsesSingleLayerWaterMaterialOutput() const { return MaterialCompilationOutput.bUsesSingleLayerWaterMaterialOutput; }
 #if WITH_EDITOR
 	uint32 GetNumUsedUVScalars() const { return MaterialCompilationOutput.NumUsedUVScalars; }
 	uint32 GetNumUsedCustomInterpolatorScalars() const { return MaterialCompilationOutput.NumUsedCustomInterpolatorScalars; }
@@ -1519,6 +1524,7 @@ public:
 	virtual uint32 GetStencilCompare() const { return 0; }
 	virtual bool HasRuntimeVirtualTextureOutput() const { return false; }
 	virtual bool CastsRayTracedShadows() const { return true; }
+	virtual bool IsUsingSingleLayerWaterMaterialOutput() const { return false; };
 
 	/**
 	 * Should shaders compiled for this material be saved to disk?
@@ -1604,6 +1610,10 @@ public:
 	/** Does the material modify the mesh position. */
 	ENGINE_API bool MaterialModifiesMeshPosition_RenderThread() const;
 	ENGINE_API bool MaterialModifiesMeshPosition_GameThread() const;
+
+	/** Does the material use a single layer water. */
+	ENGINE_API bool MaterialUsesSingleLayerWater_RenderThread() const;
+	ENGINE_API bool MaterialUsesSingleLayerWater_GameThread() const;
 
 	/** Does the material use a pixel depth offset. */
 	ENGINE_API bool MaterialUsesPixelDepthOffset() const;
@@ -2272,7 +2282,8 @@ public:
 	ENGINE_API virtual bool ComputeFogPerPixel() const override;
 	ENGINE_API virtual bool HasRuntimeVirtualTextureOutput() const override;
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;
-	ENGINE_API virtual UMaterialInterface* GetMaterialInterface() const override;
+	ENGINE_API virtual bool IsUsingSingleLayerWaterMaterialOutput() const override;
+	ENGINE_API  virtual UMaterialInterface* GetMaterialInterface() const override;
 	/**
 	 * Should shaders compiled for this material be saved to disk?
 	 */
