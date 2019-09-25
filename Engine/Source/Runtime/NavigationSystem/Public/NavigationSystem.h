@@ -547,6 +547,11 @@ public:
 	// @todo document
 	virtual void UnregisterNavData(ANavigationData* NavData);
 
+	/** Traverses SupportedAgents and for all agents not supported (i.e. filtered
+	 *	out by SupportedAgentsMask) checks if there's a currently registered
+	 *	NavigationData instance for that agent, and if so it unregisters that agent */
+	virtual void UnregisterUnusedNavData();
+
 	/** Adds NavData to registration candidates queue - NavDataRegistrationQueue*/
 	virtual void RequestRegistrationDeferred(ANavigationData& NavData);
 	UE_DEPRECATED(4.24, "This version of RequestRegistration is deprecated. Please use the RequestRegistrationDeferred as the registration request is always queued now.")
