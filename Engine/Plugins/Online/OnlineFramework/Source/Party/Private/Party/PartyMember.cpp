@@ -180,7 +180,7 @@ bool UPartyMember::IsPartyLeader() const
 
 bool UPartyMember::IsLocalPlayer() const
 {
-	return GetPrimaryNetId() == GetParty().GetOwningLocalUserId();
+	return GetParty().GetSocialManager().IsLocalUser(GetPrimaryNetId(), ESocialSubsystem::Primary);
 }
 
 void UPartyMember::NotifyMemberDataReceived(const FOnlinePartyData& MemberData)
