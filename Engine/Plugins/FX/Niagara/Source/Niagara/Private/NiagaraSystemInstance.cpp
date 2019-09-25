@@ -56,6 +56,14 @@ static FAutoConsoleVariableRef CVarNiagaraForceLastTickGroup(
 	ECVF_Default
 );
 
+static float GNiagaraBoundsExpandByPercent = 0.1f;
+static FAutoConsoleVariableRef CVarNiagaraBoundsExpandByPercent(
+	TEXT("fx.Niagara.BoundsExpandByPercent"),
+	GNiagaraBoundsExpandByPercent,
+	TEXT("The percentage we expand the bounds to avoid updating every frame."),
+	ECVF_Default
+);
+
 FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	: SystemInstanceIndex(INDEX_NONE)
 	, Component(InComponent)
@@ -69,17 +77,18 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	, bHasTickingEmitters(true)
 	, bPaused(false)
 	, bDataInterfacesHaveTickPrereqs(false)
-	, RequestedExecutionState(ENiagaraExecutionState::Complete)
-	, ActualExecutionState(ENiagaraExecutionState::Complete)
+	, bIsTransformDirty(true)
+	, bNeedsFinalize(false)
 	, bDataInterfacesInitialized(false)
 	, bAsyncWorkInProgress(false)
-	, bNeedsFinalize(false)
 	, CachedDeltaSeconds(0.0f)
+	, RequestedExecutionState(ENiagaraExecutionState::Complete)
+	, ActualExecutionState(ENiagaraExecutionState::Complete)
 {
 	static TAtomic<uint64> IDCounter(1);
 	ID = IDCounter.IncrementExchange();
 
-	SystemBounds.Init();
+	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 
 	if (Component)
 	{
@@ -683,6 +692,7 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 	TickCount = 0;
 	bHasTickingEmitters = true;
 	CachedDeltaSeconds = 0.0f;
+	// Note: We do not need to update our bounds here as they are still valid
 
 	UNiagaraSystem* System = GetSystem();
 	if (System == nullptr || Component == nullptr || IsDisabled())
@@ -809,6 +819,9 @@ void FNiagaraSystemInstance::ReInitInternal()
 	Age = 0;
 	TickCount = 0;
 	bHasTickingEmitters = true;
+	bIsTransformDirty = true;
+	TimeSinceLastForceUpdateTransform = 0.0f;
+	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 	CachedDeltaSeconds = 0.0f;
 
 	UNiagaraSystem* System = GetSystem();
@@ -1517,6 +1530,15 @@ void FNiagaraSystemInstance::InitEmitters()
 			Simulation->PostInitSimulation();
 		}
 	}
+
+	if ( System->bFixedBounds )
+	{
+		LocalBounds = System->GetFixedBounds();
+	}
+	else
+	{
+		LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
+	}
 }
 
 void FNiagaraSystemInstance::ComponentTick(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent)
@@ -1654,6 +1676,35 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 		}
 	}
 
+	// Update local bounds
+	if ( System->bFixedBounds )
+	{
+		LocalBounds = System->GetFixedBounds();
+	}
+	else
+	{
+		FBox NewLocalBounds(EForceInit::ForceInit);
+		for ( const auto& Emitter : Emitters )
+		{
+			NewLocalBounds += Emitter->GetBounds();
+		}
+
+		if ( NewLocalBounds.IsValid )
+		{
+			TimeSinceLastForceUpdateTransform += CachedDeltaSeconds;
+			if ((TimeSinceLastForceUpdateTransform > Component->MaxTimeBeforeForceUpdateTransform) || !LocalBounds.IsInsideOrOn(NewLocalBounds.Min) || !LocalBounds.IsInsideOrOn(NewLocalBounds.Max))
+			{
+				bIsTransformDirty = true;
+				LocalBounds = NewLocalBounds.ExpandBy(NewLocalBounds.GetExtent() * GNiagaraBoundsExpandByPercent);
+				TimeSinceLastForceUpdateTransform = 0.0f;
+			}
+		}
+		else
+		{
+			LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
+		}
+	}
+
 	bAsyncWorkInProgress = false;
 }
 
@@ -1675,7 +1726,11 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread()
 			bool bIsRegistered = true;
 			if (Component)
 			{
-				Component->UpdateComponentToWorld();//Needed for bounds updates. Can probably skip if using fixed bounds
+				if ( bIsTransformDirty )
+				{
+					bIsTransformDirty = false;
+					Component->UpdateComponentToWorld();
+				}
 				Component->MarkRenderDynamicDataDirty();
 				bIsRegistered = Component->IsRegistered();
 			}
