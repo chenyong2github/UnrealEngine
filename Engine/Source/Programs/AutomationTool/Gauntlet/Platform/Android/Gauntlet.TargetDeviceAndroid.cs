@@ -228,7 +228,14 @@ namespace Gauntlet
 			}
 
 			// mark it as a temp dir (will also create it)
-			Utils.SystemHelpers.MarkDirectoryForCleanup(Install.AndroidDevice.LocalCachePath);
+			try
+			{
+				Utils.SystemHelpers.MarkDirectoryForCleanup(Install.AndroidDevice.LocalCachePath);
+			}
+			catch (Exception Ex)
+			{
+				Log.Warning("Exception marking directory for cleanup {0}", Ex.Message);
+			}
 
 			string LocalSaved = Path.Combine(Install.AndroidDevice.LocalCachePath, "Saved");
 			Directory.CreateDirectory(LocalSaved);
