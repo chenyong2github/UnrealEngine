@@ -82,6 +82,7 @@ LANDSCAPE_API extern UMaterialInterface* GMaskRegionMaterial;
 LANDSCAPE_API extern UMaterialInterface* GColorMaskRegionMaterial;
 LANDSCAPE_API extern UTexture2D* GLandscapeBlackTexture;
 LANDSCAPE_API extern UMaterialInterface* GLandscapeLayerUsageMaterial;
+LANDSCAPE_API extern UMaterialInterface* GLandscapeDirtyMaterial;
 #endif
 
 
