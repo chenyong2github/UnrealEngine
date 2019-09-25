@@ -642,14 +642,14 @@ bool FSequencerDisplayNode::TraverseVisible_ParentFirst(const TFunctionRef<bool(
 	return true;
 }
 
-FLinearColor FSequencerDisplayNode::GetDisplayNameColor() const
+bool FSequencerDisplayNode::IsDimmed() const
 {
 	auto FindInActiveSection = [](FSequencerDisplayNode& InNode, bool EmptyNotActive = true)
 	{
 		if (InNode.GetType() == ESequencerNode::KeyArea)
 		{
 			const FSequencerSectionKeyAreaNode& KeyAreaNode = static_cast<FSequencerSectionKeyAreaNode&>(InNode);
-			auto KeyAreaNodes=  KeyAreaNode.GetAllKeyAreas();
+			auto KeyAreaNodes = KeyAreaNode.GetAllKeyAreas();
 			if (KeyAreaNodes.Num() > 0)
 			{
 				for (const TSharedRef<IKeyArea>& KeyArea : KeyAreaNodes)
@@ -715,7 +715,7 @@ FLinearColor FSequencerDisplayNode::GetDisplayNameColor() const
 	//find first child with active section, then it's active, else inactive.
 	bool bDimLabel = ChildNodes.Num() > 0 ? This->Traverse_ParentFirst(FindInActiveSection) :
 		((this->GetType() == ESequencerNode::Track || this->GetType() == ESequencerNode::KeyArea) && FindInActiveSection(*(This), false))
-		||false;
+		|| false;
 
 	if (!bDimLabel)
 	{
@@ -735,10 +735,14 @@ FLinearColor FSequencerDisplayNode::GetDisplayNameColor() const
 				bDimLabel = true;
 			}
 		}
-
 	}
 
-	return bDimLabel ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	return bDimLabel;
+}
+
+FLinearColor FSequencerDisplayNode::GetDisplayNameColor() const
+{
+	return IsDimmed() ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 FText FSequencerDisplayNode::GetDisplayNameToolTipText() const
@@ -788,7 +792,7 @@ const FSlateBrush* FSequencerDisplayNode::GetIconOverlayBrush() const
 
 FSlateColor FSequencerDisplayNode::GetIconColor() const
 {
-	return FSlateColor( FLinearColor::White );
+	return GetDisplayNameColor();
 }
 
 FText FSequencerDisplayNode::GetIconToolTipText() const
