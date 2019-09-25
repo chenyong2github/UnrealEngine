@@ -295,8 +295,8 @@ void UPlaneCutTool::SetCutPlaneFromWorldPos(const FVector& Position, const FVect
 	FFrame3f CutPlane(Position, Normal);
 	CutPlaneOrientation = CutPlane.Rotation;
 
-	PlaneTransformProxy->SetTransform(CutPlane.ToFTransform());
 	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy);
+	PlaneTransformGizmo->SetNewGizmoTransform(CutPlane.ToFTransform());
 }
 
 
