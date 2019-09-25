@@ -43,7 +43,7 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("FindObjectFast"),STAT_FindObjectFast,STA
 /** Set while in SavePackage() to detect certain operations that are illegal while saving */
 extern COREUOBJECT_API bool					GIsSavingPackage;
 /** This allows loading unversioned cooked content in the editor */
-extern COREUOBJECT_API bool					GAllowUnversionedContentInEditor;
+extern COREUOBJECT_API int32				GAllowUnversionedContentInEditor;
 /** This allows loading cooked content in the editor */
 extern COREUOBJECT_API int32				GAllowCookedDataInEditorBuilds;
 
