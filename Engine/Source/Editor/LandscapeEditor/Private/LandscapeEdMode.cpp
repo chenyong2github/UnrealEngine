@@ -274,11 +274,10 @@ void FLandscapeTool::SetEditRenderType()
 
 namespace LandscapeTool
 {
-	UMaterialInstance* CreateMaterialInstance(UMaterialInterface* BaseMaterial, bool bUseDiscreteLOD)
+	UMaterialInstance* CreateMaterialInstance(UMaterialInterface* BaseMaterial)
 	{
 		ULandscapeMaterialInstanceConstant* MaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(GetTransientPackage());
 		MaterialInstance->bEditorToolUsage = true;
-		MaterialInstance->bUseDiscreteLOD = bUseDiscreteLOD;
 		MaterialInstance->SetParentEditorOnly(BaseMaterial);
 		MaterialInstance->PostEditChange();
 		return MaterialInstance;
@@ -313,19 +312,13 @@ FEdModeLandscape::FEdModeLandscape()
 	, bNeedsUpdateShownLayerList(false)
 	, bUpdatingLandscapeInfo(false)
 {
-	GLayerDebugColorMaterial     = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorLandscapeResources/LayerVisMaterial.LayerVisMaterial")),                                                       false);
-	GSelectionColorMaterial      = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/SelectBrushMaterial_Selected.SelectBrushMaterial_Selected")),               false);
-	GSelectionRegionMaterial     = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/SelectBrushMaterial_SelectedRegion.SelectBrushMaterial_SelectedRegion")),   false);
-	GMaskRegionMaterial          = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/MaskBrushMaterial_MaskedRegion.MaskBrushMaterial_MaskedRegion")),           false);
-	GColorMaskRegionMaterial     = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/ColorMaskBrushMaterial_MaskedRegion.ColorMaskBrushMaterial_MaskedRegion")), false);
-	GLandscapeLayerUsageMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorLandscapeResources/LandscapeLayerUsageMaterial.LandscapeLayerUsageMaterial")),                                 false);
-	GLayerDebugColorMaterial_DiscreteLOD     = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorLandscapeResources/LayerVisMaterial.LayerVisMaterial")),                                                       true);
-	GSelectionColorMaterial_DiscreteLOD      = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/SelectBrushMaterial_Selected.SelectBrushMaterial_Selected")),               true);
-	GSelectionRegionMaterial_DiscreteLOD     = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/SelectBrushMaterial_SelectedRegion.SelectBrushMaterial_SelectedRegion")),   true);
-	GMaskRegionMaterial_DiscreteLOD          = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/MaskBrushMaterial_MaskedRegion.MaskBrushMaterial_MaskedRegion")),           true);
-	GColorMaskRegionMaterial_DiscreteLOD     = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/ColorMaskBrushMaterial_MaskedRegion.ColorMaskBrushMaterial_MaskedRegion")), true);
-	GLandscapeLayerUsageMaterial_DiscreteLOD = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorLandscapeResources/LandscapeLayerUsageMaterial.LandscapeLayerUsageMaterial")),                                 true);
+	GLayerDebugColorMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorLandscapeResources/LayerVisMaterial.LayerVisMaterial")));
+	GSelectionColorMaterial  = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/SelectBrushMaterial_Selected.SelectBrushMaterial_Selected")));
+	GSelectionRegionMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/SelectBrushMaterial_SelectedRegion.SelectBrushMaterial_SelectedRegion")));
+	GMaskRegionMaterial      = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/MaskBrushMaterial_MaskedRegion.MaskBrushMaterial_MaskedRegion")));
+	GColorMaskRegionMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/ColorMaskBrushMaterial_MaskedRegion.ColorMaskBrushMaterial_MaskedRegion")));
 	GLandscapeBlackTexture   = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/Black.Black"));
+	GLandscapeLayerUsageMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorLandscapeResources/LandscapeLayerUsageMaterial.LandscapeLayerUsageMaterial")));
 	
 	// Initialize modes
 	UpdateToolModes();
@@ -397,13 +390,6 @@ FEdModeLandscape::~FEdModeLandscape()
 	GLandscapeBlackTexture = NULL;
 	GLandscapeLayerUsageMaterial = NULL;
 
-	GLayerDebugColorMaterial_DiscreteLOD = NULL;
-	GSelectionColorMaterial_DiscreteLOD = NULL;
-	GSelectionRegionMaterial_DiscreteLOD = NULL;
-	GMaskRegionMaterial_DiscreteLOD = NULL;
-	GColorMaskRegionMaterial_DiscreteLOD = NULL;
-	GLandscapeLayerUsageMaterial_DiscreteLOD = NULL;
-
 	InteractorPainting = nullptr;
 }
 
@@ -420,16 +406,8 @@ void FEdModeLandscape::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject(GSelectionRegionMaterial);
 	Collector.AddReferencedObject(GMaskRegionMaterial);
 	Collector.AddReferencedObject(GColorMaskRegionMaterial);
-	Collector.AddReferencedObject(GLandscapeLayerUsageMaterial);
-
-	Collector.AddReferencedObject(GLayerDebugColorMaterial_DiscreteLOD);
-	Collector.AddReferencedObject(GSelectionColorMaterial_DiscreteLOD);
-	Collector.AddReferencedObject(GSelectionRegionMaterial_DiscreteLOD);
-	Collector.AddReferencedObject(GMaskRegionMaterial_DiscreteLOD);
-	Collector.AddReferencedObject(GColorMaskRegionMaterial_DiscreteLOD);
-	Collector.AddReferencedObject(GLandscapeLayerUsageMaterial_DiscreteLOD);
-
 	Collector.AddReferencedObject(GLandscapeBlackTexture);
+	Collector.AddReferencedObject(GLandscapeLayerUsageMaterial);
 }
 
 void FEdModeLandscape::UpdateToolModes()
