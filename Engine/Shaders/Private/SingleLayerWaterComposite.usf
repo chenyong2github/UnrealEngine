@@ -297,4 +297,20 @@ void SingleLayerWaterCompositePS(
 
 #endif
 
+Texture2D<float4> SceneColorCopyDownsampleTexture;
+SamplerState      SceneColorCopyDownsampleSampler;
+Texture2D<float4> SceneDepthCopyDownsampleTexture;
+SamplerState      SceneDepthCopyDownsampleSampler;
+float2 SVPositionToSourceTextureUV;
 
+void WaterRefractionCopyPS(
+	in float4 SVPosition : SV_Position,
+	out float4 OutColor : SV_Target0,
+	out float OutDepth : SV_DEPTH)
+{
+	float2 BufferUV = SVPosition.xy * SVPositionToSourceTextureUV;
+
+	// Downsample and average all 2x2 quads
+	OutColor = Texture2DSampleLevel(SceneColorCopyDownsampleTexture, SceneColorCopyDownsampleSampler, BufferUV, 0);
+	OutDepth = Texture2DSampleLevel(SceneDepthCopyDownsampleTexture, SceneDepthCopyDownsampleSampler, BufferUV, 0).r;
+}
