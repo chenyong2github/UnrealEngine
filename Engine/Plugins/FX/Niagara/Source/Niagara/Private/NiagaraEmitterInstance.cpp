@@ -62,8 +62,40 @@ static FAutoConsoleVariableRef CVarMaxNiagaraCPUParticlesPerEmitter(
 );
 //////////////////////////////////////////////////////////////////////////
 
+template<bool bAccumulate>
+struct FNiagaraEditorOnlyCycleTimer
+{
+	FORCEINLINE FNiagaraEditorOnlyCycleTimer(uint32& InCyclesOut)
+#if WITH_EDITOR
+		: CyclesOut(InCyclesOut)
+		, StartCycles(FPlatformTime::Cycles())
+#endif
+	{
+	}
+
+#if WITH_EDITOR
+	FORCEINLINE ~FNiagaraEditorOnlyCycleTimer()
+	{
+		uint32 DeltaCycles = FPlatformTime::Cycles() - StartCycles;
+		if (bAccumulate)
+		{
+			CyclesOut += DeltaCycles;
+		}
+		else
+		{
+			CyclesOut = DeltaCycles;
+		}
+	}
+
+	uint32& CyclesOut;
+	uint32 StartCycles;
+#endif
+};
+
+//////////////////////////////////////////////////////////////////////////
+
 FNiagaraEmitterInstance::FNiagaraEmitterInstance(FNiagaraSystemInstance* InParentSystemInstance)
-: CPUTimeMS(0.0f)
+: CPUTimeCycles(0)
 , ExecutionState(ENiagaraExecutionState::Inactive)
 , CachedBounds(ForceInit)
 , GPUExecContext(nullptr)
@@ -659,9 +691,9 @@ const FNiagaraEmitterHandle& FNiagaraEmitterInstance::GetEmitterHandle() const
 	return Sys->GetEmitterHandles()[EmitterIdx];
 }
 
-float FNiagaraEmitterInstance::GetTotalCPUTime()
+float FNiagaraEmitterInstance::GetTotalCPUTimeMS()
 {
-	float Total = CPUTimeMS;
+	uint32 TotalCycles = CPUTimeCycles;
 
 	//TODO: Find some way to include the RT cost here?
 	//Possibly have the proxy write back it's most recent frame time during EOF updates?
@@ -673,7 +705,7 @@ float FNiagaraEmitterInstance::GetTotalCPUTime()
 // 		}
 // 	}
 
-	return Total;
+	return FPlatformTime::ToMilliseconds(TotalCycles);
 }
 
 int FNiagaraEmitterInstance::GetTotalBytesUsed()
@@ -963,7 +995,7 @@ void FNiagaraEmitterInstance::SetSystemFixedBoundsOverride(FBox SystemFixedBound
 void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraTick);
-	SimpleTimer TickTime;
+	FNiagaraEditorOnlyCycleTimer<false> TickTime(CPUTimeCycles);
 
 #if STATS
 	FScopeCycleCounter SystemStatCounter(CachedEmitter->GetStatID(true, true));
@@ -971,7 +1003,6 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 
 	if (HandleCompletion())
 	{
-		CPUTimeMS = TickTime.GetElapsedMilliseconds();
 		return;
 	}
 
@@ -985,14 +1016,12 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	{
 		Data.ResetBuffers();
 		ExecutionState = ENiagaraExecutionState::Inactive;
-		CPUTimeMS = TickTime.GetElapsedMilliseconds();
 		return;
 	}
 
 	if (CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim && Data.GetCurrentDataChecked().GetNumInstances() == 0 && ExecutionState != ENiagaraExecutionState::Active)
 	{
 		Data.ResetBuffers();
-		CPUTimeMS = TickTime.GetElapsedMilliseconds();
 		return;
 	}
 
@@ -1154,8 +1183,6 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		}
 
 		CachedBounds = CachedEmitter->FixedBounds;
-
-		CPUTimeMS = TickTime.GetElapsedMilliseconds();
 
 		/*if (CachedEmitter->SpawnScriptProps.Script->GetComputedVMCompilationId().HasInterpolatedParameters())
 		{
@@ -1578,8 +1605,6 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	{
 		EventContext.PostTick();
 	}
-
-	CPUTimeMS = TickTime.GetElapsedMilliseconds();
 
 	if (GbDumpParticleData || System->bDumpDebugEmitterInfo)
 	{
