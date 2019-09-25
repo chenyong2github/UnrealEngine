@@ -41,6 +41,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginParameterizeMeshTool;
 	TSharedPtr<FUICommandInfo> BeginWeldEdgesTool;
 	TSharedPtr<FUICommandInfo> BeginPolyGroupsTool;
+	TSharedPtr<FUICommandInfo> BeginAttributeEditorTool;
 
 	TSharedPtr<FUICommandInfo> AcceptActiveTool;
 	TSharedPtr<FUICommandInfo> CancelActiveTool;

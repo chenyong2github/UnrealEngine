@@ -29,6 +29,7 @@
 #include "DisplaceMeshTool.h"
 #include "MeshSpaceDeformerTool.h"
 #include "EditNormalsTool.h"
+#include "AttributeEditorTool.h"
 #include "TransformMeshesTool.h"
 #include "MeshSelectionTool.h"
 #include "UVProjectionTool.h"
@@ -388,6 +389,7 @@ void FModelingToolsEditorMode::Enter()
 	RegisterToolFunc(ToolManagerCommands.BeginMeshInspectorTool, TEXT("MeshInspectorTool"), NewObject<UMeshInspectorToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginWeldEdgesTool, TEXT("WeldMeshEdgesTool"), NewObject<UWeldMeshEdgesToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginPolyGroupsTool, TEXT("ConvertToPolygonsTool"), NewObject<UConvertToPolygonsToolBuilder>());
+	RegisterToolFunc(ToolManagerCommands.BeginAttributeEditorTool, TEXT("AttributeEditorTool"), NewObject<UAttributeEditorToolBuilder>());
 
 
 

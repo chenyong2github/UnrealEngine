@@ -126,6 +126,9 @@ void FModelingToolsEditorModeStyle::Initialize()
 		StyleSet->Set("ModelingToolsManagerCommands.BeginWeldEdgesTool.Small", new IMAGE_PLUGIN_BRUSH("Icons/icon_Tool_WeldEdges_40x", Icon28x28));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginPolyGroupsTool", new IMAGE_PLUGIN_BRUSH("Icons/icon_Tool_PolyGroups_40x", Icon28x28));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginPolyGroupsTool.Small", new IMAGE_PLUGIN_BRUSH("Icons/icon_Tool_PolyGroups_40x", Icon28x28));
+		StyleSet->Set("ModelingToolsManagerCommands.BeginAttributeEditorTool", new IMAGE_PLUGIN_BRUSH("Icons/icon_Tool_AttributeEditor_40x", Icon28x28));
+		StyleSet->Set("ModelingToolsManagerCommands.BeginAttributeEditorTool.Small", new IMAGE_PLUGIN_BRUSH("Icons/icon_Tool_AttributeEditor_40x", Icon28x28));
+
 
 
 		//StyleSet->Set("ModelingToolsManagerCommands.CancelActiveTool", new IMAGE_PLUGIN_BRUSH("Icons/icon_ActiveTool_Cancel_40x", Icon40x40));
