@@ -24,7 +24,9 @@ public class OculusEditor : ModuleRules
 				"OVRPlugin",
 				"HTTP",
 				"DesktopPlatform",
-			}
+                "LauncherServices",
+                "GameProjectGeneration",
+            }
 			);
 
 		PrivateIncludePaths.AddRange(
