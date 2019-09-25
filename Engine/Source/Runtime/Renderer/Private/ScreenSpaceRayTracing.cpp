@@ -333,36 +333,38 @@ class FScreenSpaceReflectionsPS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRCommonParameters, CommonParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRPassCommonParameters, SSRPassCommonParameter)
+		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectDrawParameter)			// FScreenSpaceReflectionsTileVS
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, TileListData)		// FScreenSpaceReflectionsTileVS
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-class FScreenSpaceReflectionsCS : public FGlobalShader
+// This is duplicated from FWaterTileVS because vertex shader should share Parameters structure for everything to be registered correctly in a RDG pass.
+class FScreenSpaceReflectionsTileVS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FScreenSpaceReflectionsCS);
-	SHADER_USE_PARAMETER_STRUCT(FScreenSpaceReflectionsCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FScreenSpaceReflectionsTileVS);
+	SHADER_USE_PARAMETER_STRUCT(FScreenSpaceReflectionsTileVS, FGlobalShader);
 
-	using FPermutationDomain = FScreenSpaceReflectionsPS::FPermutationDomain;
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	using FParameters = FScreenSpaceReflectionsPS::FParameters; // Sharing parameters for proper registration with RDG
+
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		return PermutationVector;
+	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return FScreenSpaceReflectionsPS::ShouldCompilePermutation(Parameters);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		OutEnvironment.SetDefine(TEXT("TILE_COMPUTE_SSR"), 1.0f);
+		OutEnvironment.SetDefine(TEXT("TILE_VERTEX_SHADER"), 1.0f);
+		OutEnvironment.SetDefine(TEXT("WORK_TILE_SIZE"), 8);
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRCommonParameters, CommonParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRPassCommonParameters, SSRPassCommonParameter)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListDataBuffer)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, OutColorUAV)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, OutClosestHitDistanceUAV)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectDispatchParameters)	// Not used in shader but need to be reference in the parameter list
-	END_SHADER_PARAMETER_STRUCT()
 };
 
 class FScreenSpaceDiffuseIndirectCS : public FGlobalShader
@@ -408,7 +410,7 @@ class FScreenSpaceDiffuseIndirectCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FSSRTPrevFrameReductionCS, "/Engine/Private/SSRT/SSRTPrevFrameReduction.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FSSRTDiffuseTileClassificationCS, "/Engine/Private/SSRT/SSRTTileClassification.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FScreenSpaceReflectionsPS,        "/Engine/Private/SSRT/SSRTReflections.usf", "ScreenSpaceReflectionsPS", SF_Pixel);
-IMPLEMENT_GLOBAL_SHADER(FScreenSpaceReflectionsCS,        "/Engine/Private/SSRT/SSRTReflections.usf", "ScreenSpaceReflectionsCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FScreenSpaceReflectionsTileVS,    "/Engine/Private/SingleLayerWaterComposite.usf", "WaterTileVS", SF_Vertex);
 IMPLEMENT_GLOBAL_SHADER(FScreenSpaceReflectionsStencilPS, "/Engine/Private/SSRT/SSRTReflections.usf", "ScreenSpaceReflectionsStencilPS", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FScreenSpaceDiffuseIndirectCS, "/Engine/Private/SSRT/SSRTDiffuseIndirect.usf", "MainCS", SF_Compute);
 
@@ -684,18 +686,19 @@ void RenderScreenSpaceReflections(
 		PassParameters->HZBSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	};
 
+	FScreenSpaceReflectionsPS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FSSRQualityDim>(SSRQuality);
+	PermutationVector.Set<FSSROutputForDenoiser>(bDenoiser);
+
+	FScreenSpaceReflectionsPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceReflectionsPS::FParameters>();
+	PassParameters->CommonParameters = CommonParameters;
+	SetSSRParameters(&PassParameters->SSRPassCommonParameter);
+	PassParameters->RenderTargets = RenderTargets;
+
+	TShaderMapRef<FScreenSpaceReflectionsPS> PixelShader(View.ShaderMap, PermutationVector);
+
 	if (TiledScreenSpaceReflection == nullptr)
 	{
-		FScreenSpaceReflectionsPS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FSSRQualityDim>(SSRQuality);
-		PermutationVector.Set<FSSROutputForDenoiser>(bDenoiser);
-
-		FScreenSpaceReflectionsPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceReflectionsPS::FParameters>();
-		PassParameters->CommonParameters = CommonParameters;
-		SetSSRParameters(&PassParameters->SSRPassCommonParameter);
-		PassParameters->RenderTargets = RenderTargets;
-
-		TShaderMapRef<FScreenSpaceReflectionsPS> PixelShader(View.ShaderMap, PermutationVector);
 		ClearUnusedGraphResources(*PixelShader, PassParameters);
 
 		GraphBuilder.AddPass(
@@ -726,30 +729,48 @@ void RenderScreenSpaceReflections(
 	}
 	else
 	{
-		check(TiledScreenSpaceReflection->TileSize == 8);
-		FScreenSpaceReflectionsCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FSSRQualityDim>(SSRQuality);
-		PermutationVector.Set<FSSROutputForDenoiser>(bDenoiser);
+		check(TiledScreenSpaceReflection->TileSize == 8); // WORK_TILE_SIZE
 
-		FScreenSpaceReflectionsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceReflectionsCS::FParameters>();
-		PassParameters->CommonParameters = CommonParameters;
-		SetSSRParameters(&PassParameters->SSRPassCommonParameter);
-		PassParameters->TileListDataBuffer = TiledScreenSpaceReflection->TileListStructureBufferSRV;
-		PassParameters->IndirectDispatchParameters = TiledScreenSpaceReflection->DispatchIndirectParametersBuffer;
-		PassParameters->OutColorUAV = GraphBuilder.CreateUAV(DenoiserInputs->Color);
-		if (bDenoiser)
-		{
-			PassParameters->OutClosestHitDistanceUAV = GraphBuilder.CreateUAV(DenoiserInputs->RayHitDistance);
-		}
+		FScreenSpaceReflectionsTileVS::FPermutationDomain VsPermutationVector;
+		TShaderMapRef<FScreenSpaceReflectionsTileVS> VertexShader(View.ShaderMap, VsPermutationVector);
 
-		TShaderMapRef<FScreenSpaceReflectionsCS> ComputeShader(View.ShaderMap, PermutationVector);
-		ClearUnusedGraphResources(*ComputeShader, PassParameters);
+		PassParameters->TileListData = TiledScreenSpaceReflection->TileListStructureBufferSRV;
+		PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection->DispatchIndirectParametersBuffer;
 
-		FComputeShaderUtils::AddPass(GraphBuilder,
+		ValidateShaderParameters(*VertexShader, *PassParameters);
+		ValidateShaderParameters(*PixelShader, *PassParameters);
+
+		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SSR RayMarch(Quality=%d RayPerPixel=%d%s) %dx%d",
 				SSRQuality, RayTracingConfigs.RayCountPerPixel, bDenoiser ? TEXT(" DenoiserOutput") : TEXT(""),
 				View.ViewRect.Width(), View.ViewRect.Height()),
-			*ComputeShader, PassParameters, TiledScreenSpaceReflection->DispatchIndirectParametersBuffer, 0);
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[PassParameters, &View, VertexShader, PixelShader, SSRStencilPrePass](FRHICommandList& RHICmdList)
+		{
+			SCOPED_GPU_STAT(RHICmdList, ScreenSpaceReflections);
+			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+			RHICmdList.SetStencilRef(0x80);
+
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, *PixelShader, /* out */ GraphicsPSOInit);
+			if (SSRStencilPrePass)
+			{
+				// Clobers the stencil to pixel that should not compute SSR
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep>::GetRHI();
+			}
+			GraphicsPSOInit.PrimitiveType = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader->GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader->GetPixelShader();
+
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), *PassParameters);
+			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+
+			PassParameters->IndirectDrawParameter->MarkResourceAsUsed();
+			RHICmdList.DrawPrimitiveIndirect(PassParameters->IndirectDrawParameter->GetIndirectRHICallBuffer(), 0);
+		});
 	}
 } // RenderScreenSpaceReflections()
 
