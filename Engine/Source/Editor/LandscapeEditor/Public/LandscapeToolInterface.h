@@ -257,5 +257,5 @@ public:
 
 namespace LandscapeTool
 {
-	UMaterialInstance* CreateMaterialInstance(UMaterialInterface* BaseMaterial, bool bUseDiscreteLOD);
+	UMaterialInstance* CreateMaterialInstance(UMaterialInterface* BaseMaterial);
 }
