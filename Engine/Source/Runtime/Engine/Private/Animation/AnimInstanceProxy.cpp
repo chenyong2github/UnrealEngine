@@ -33,12 +33,12 @@ const FName NAME_Evaluate(TEXT("Evaluate"));
 const FName NAME_Update(TEXT("Update"));
 const FName NAME_AnimGraph(TEXT("AnimGraph"));
 
-void FAnimInstanceProxy::UpdateAnimationNode(float DeltaSeconds)
+void FAnimInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
 {
-	UpdateAnimationNode_WithRoot(DeltaSeconds, RootNode, NAME_AnimGraph);
+	UpdateAnimationNode_WithRoot(InContext, RootNode, NAME_AnimGraph);
 }
 
-void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimNode_Base* InRootNode, FName InLayerName)
+void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(const FAnimationUpdateContext& InContext, FAnimNode_Base* InRootNode, FName InLayerName)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	if(InRootNode != nullptr)
@@ -48,9 +48,7 @@ void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimN
 			UpdateCounter.Increment();
 		}
 		
-		FAnimationUpdateSharedContext SharedContext;
-		FAnimationUpdateContext UpdateContext(this, DeltaSeconds, &SharedContext);
-		InRootNode->Update_AnyThread(UpdateContext);
+		InRootNode->Update_AnyThread(InContext);
 
 		// We've updated the graph, now update the fractured saved pose sections
 		TArray<FAnimNode_SaveCachedPose*>& SavedPoseQueue = SavedPoseQueueMap.FindChecked(InLayerName);
@@ -1183,10 +1181,11 @@ void FAnimInstanceProxy::UpdateAnimation()
 	UpdatedNodesThisFrame.Reset();
 #endif
 
-	UpdateAnimation_WithRoot(RootNode, NAME_AnimGraph);
+	FAnimationUpdateContext Context(this, CurrentDeltaSeconds);
+	UpdateAnimation_WithRoot(Context, RootNode, NAME_AnimGraph);
 }
 
-void FAnimInstanceProxy::UpdateAnimation_WithRoot(FAnimNode_Base* InRootNode, FName InLayerName)
+void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext& InContext, FAnimNode_Base* InRootNode, FName InLayerName)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -1233,11 +1232,11 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(FAnimNode_Base* InRootNode, FN
 		if(InRootNode == RootNode)
 		{
 			// Call the correct override point if this is the root node
-			UpdateAnimationNode(CurrentDeltaSeconds);
+			UpdateAnimationNode(InContext);
 		}
 		else
 		{
-			UpdateAnimationNode_WithRoot(CurrentDeltaSeconds, InRootNode, InLayerName);
+			UpdateAnimationNode_WithRoot(InContext, InRootNode, InLayerName);
 		}
 	}
 }
