@@ -304,52 +304,52 @@ bool FJsonArchiveInputFormatter::TryEnterAttribute(FArchiveFieldName AttributeNa
 
 void FJsonArchiveInputFormatter::Serialize(uint8& Value)
 {
-	ValueStack.Top()->TryGetNumber(Value);
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(uint16& Value)
 {
-	ValueStack.Top()->TryGetNumber(Value);
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(uint32& Value)
 {
-	ValueStack.Top()->TryGetNumber(Value);
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(uint64& Value)
 {
-	ValueStack.Top()->TryGetNumber(Value);
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(int8& Value)
 {
-	ValueStack.Top()->TryGetNumber(Value);
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(int16& Value)
 {
-	ValueStack.Top()->TryGetNumber(Value);;
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(int32& Value)
 {
-	ValueStack.Top()->TryGetNumber(Value);
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(int64& Value)
 {
-	ValueStack.Top()->TryGetNumber(Value);
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(float& Value)
 {
-	ValueStack.Top()->TryGetNumber(Value);
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(double& Value)
 {
-	ValueStack.Top()->TryGetNumber(Value);
+	verify(ValueStack.Top()->TryGetNumber(Value));
 }
 
 void FJsonArchiveInputFormatter::Serialize(bool& Value)
