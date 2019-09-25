@@ -178,9 +178,12 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromCellSize"))
 	int32 NumCellsY;
-
+	
 	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "SetGridFromCellSize"))
 	float CellSize;
+
+	UPROPERTY(EditAnywhere, Category = "Grid")
+	int32 NumAttributes;
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	bool SetGridFromCellSize;
