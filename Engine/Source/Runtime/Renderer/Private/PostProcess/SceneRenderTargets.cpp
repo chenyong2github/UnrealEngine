@@ -2342,6 +2342,19 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandLi
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ScreenSpaceAO, TEXT("ScreenSpaceAO"), true, ERenderTargetTransience::NonTransient);
 		}
 
+		// Create the screen space Horizon texture for Async GTAO
+		{
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_R8G8, FClearValueBinding::White, TexCreate_None, TexCreate_RenderTargetable, false));
+			Desc.Flags |= GFastVRamConfig.ScreenSpaceAO;
+
+			if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5)
+			{
+				Desc.TargetableFlags |= TexCreate_UAV;
+			}
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ScreenSpaceGTAOHorizons, TEXT("ScreenSpaceGTAOHorizons"), true, ERenderTargetTransience::NonTransient);
+		}
+		
+		
 		{
 			const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
 
@@ -2675,7 +2688,6 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	DBufferB.SafeRelease();
 	DBufferC.SafeRelease();
 	ScreenSpaceAO.SafeRelease();
-	ScreenSpaceGTAOHorizons.SafeRelease();
 	QuadOverdrawBuffer.SafeRelease();
 	LightAttenuation.SafeRelease();
 	LightAccumulation.SafeRelease();
