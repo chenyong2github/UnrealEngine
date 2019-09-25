@@ -360,6 +360,9 @@ public:
 	/** Motion Vector Simulation */
 	TInlineValue<IMovieSceneMotionVectorSimulation> MotionVectorSimulation;
 
+	/** List of binding overrides to use for the sequence */
+	TMap<FMovieSceneEvaluationOperand, FMovieSceneEvaluationOperand> BindingOverrides;
+
 private:
 
 	/** Null register that asserts on use */
