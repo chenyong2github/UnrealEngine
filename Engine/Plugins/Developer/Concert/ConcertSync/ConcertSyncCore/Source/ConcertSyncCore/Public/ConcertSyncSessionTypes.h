@@ -132,7 +132,7 @@ struct FConcertSyncActivity
 	UPROPERTY()
 	int64 ActivityId = 0;
 
-	/** True if this activity is included for tracking purposes only, and should be ignored when applying an activity feed */
+	/** True if this activity is included for tracking purposes only, and can be ignored when migrating a database */
 	UPROPERTY()
 	bool bIgnored = false;
 

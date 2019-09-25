@@ -213,8 +213,8 @@ bool MigrateSessionData(const FConcertSyncSessionDatabase& InSourceDatabase, con
 
 } // namespace ConcertSyncServerUtils
 
-FConcertSyncServer::FConcertSyncServer(const FString& InRole)
-	: ConcertServer(IConcertModule::Get().CreateServer(InRole, this))
+FConcertSyncServer::FConcertSyncServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter)
+	: ConcertServer(IConcertModule::Get().CreateServer(InRole, InAutoArchiveSessionFilter, this))
 	, SessionFlags(EConcertSyncSessionFlags::None)
 {
 }

@@ -76,8 +76,11 @@ bool FRecoveryService::Startup()
 	ServerConfig->WorkingDir = GetRecoveryServiceWorkingDir();
 	ServerConfig->ArchiveDir = GetRecoveryServiceArchivedDir();
 
+	FConcertSessionFilter AutoArchiveSessionFilter;
+	AutoArchiveSessionFilter.bIncludeIgnoredActivities = true;
+
 	// Start disaster recovery server.
-	Server = IConcertSyncServerModule::Get().CreateServer(TEXT("DisasterRecovery"));
+	Server = IConcertSyncServerModule::Get().CreateServer(TEXT("DisasterRecovery"), AutoArchiveSessionFilter);
 	Server->Startup(ServerConfig, EConcertSyncSessionFlags::Default_DisasterRecoverySession);
 
 	UE_LOG(CrashReportClientLog, Display, TEXT("%s Initialized (Name: %s, Version: %d.%d, Role: %s)"), RecoveryServiceName, *Server->GetConcertServer()->GetServerInfo().ServerName, ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION, *Server->GetConcertServer()->GetRole());

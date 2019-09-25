@@ -105,8 +105,9 @@ FConcertServerPaths::FConcertServerPaths(const FString& InRole, const FString& I
 {
 }
 
-FConcertServer::FConcertServer(const FString& InRole, IConcertServerEventSink* InEventSink, const TSharedPtr<IConcertEndpointProvider>& InEndpointProvider)
+FConcertServer::FConcertServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter, IConcertServerEventSink* InEventSink, const TSharedPtr<IConcertEndpointProvider>& InEndpointProvider)
 	: Role(InRole)
+	, AutoArchiveSessionFilter(InAutoArchiveSessionFilter)
 	, EventSink(InEventSink)
 	, EndpointProvider(InEndpointProvider)
 {
@@ -268,7 +269,7 @@ void FConcertServer::Shutdown()
 			bool bDeleteSessionData = true;
 			if (bAutoArchiveOnShutdown)
 			{
-				bDeleteSessionData = ArchiveLiveSession(LiveSessionId, FString(), FConcertSessionFilter()).IsValid();
+				bDeleteSessionData = ArchiveLiveSession(LiveSessionId, FString(), AutoArchiveSessionFilter).IsValid();
 			}
 			DestroyLiveSession(LiveSessionId, bDeleteSessionData);
 		}
@@ -484,7 +485,7 @@ void FConcertServer::ArchiveOfflineSessions()
 		ArchivedSessionInfo.SessionId = FGuid::NewGuid();
 		ArchivedSessionInfo.SessionName = ConcertServerUtil::GetArchiveName(LiveSessionInfo.SessionName, LiveSessionInfo.Settings);
 
-		if (EventSink->ArchiveSession(*this, Paths->GetSessionWorkingDir(LiveSessionInfo.SessionId), Paths->GetSessionSavedDir(ArchivedSessionInfo.SessionId), ArchivedSessionInfo, FConcertSessionFilter()))
+		if (EventSink->ArchiveSession(*this, Paths->GetSessionWorkingDir(LiveSessionInfo.SessionId), Paths->GetSessionSavedDir(ArchivedSessionInfo.SessionId), ArchivedSessionInfo, AutoArchiveSessionFilter))
 		{
 			UE_LOG(LogConcert, Display, TEXT("Deleting %s"), *Paths->GetSessionWorkingDir(LiveSessionInfo.SessionId));
 			ConcertUtil::DeleteDirectoryTree(*Paths->GetSessionWorkingDir(LiveSessionInfo.SessionId), *Paths->GetBaseWorkingDir());

@@ -12,13 +12,15 @@ class FConcertSyncServerLiveSession;
 class FConcertSyncServerArchivedSession;
 class FConcertSyncSessionDatabase;
 
+struct FConcertSessionFilter;
+
 /**
  * Implementation for a Concert Sync Server.
  */
 class FConcertSyncServer : public IConcertSyncServer, public IConcertServerEventSink
 {
 public:
-	explicit FConcertSyncServer(const FString& InRole);
+	FConcertSyncServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter);
 	virtual ~FConcertSyncServer();
 
 	//~ IConcertSyncServer interface

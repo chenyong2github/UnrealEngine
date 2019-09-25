@@ -77,7 +77,7 @@ private:
 class FConcertServer : public IConcertServer
 {
 public: 
-	FConcertServer(const FString& InRole, IConcertServerEventSink* InEventSink, const TSharedPtr<IConcertEndpointProvider>& InEndpointProvider);
+	FConcertServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter, IConcertServerEventSink* InEventSink, const TSharedPtr<IConcertEndpointProvider>& InEndpointProvider);
 	virtual ~FConcertServer();
 
 	virtual const FString& GetRole() const override;
@@ -189,6 +189,9 @@ private:
 
 	/** Cached root paths used by this server */
 	TUniquePtr<const FConcertServerPaths> Paths;
+
+	/** The session filter to apply when auto-archiving sessions */
+	FConcertSessionFilter AutoArchiveSessionFilter;
 
 	/** Sink functions for events that this server can emit */
 	IConcertServerEventSink* EventSink;

@@ -229,7 +229,7 @@ struct FConcertSessionFilter
 
 	/** True to include ignored activities */
 	UPROPERTY()
-	bool bIncludeIgnoredActivities = true;
+	bool bIncludeIgnoredActivities = false;
 };
 
 USTRUCT()
