@@ -95,7 +95,7 @@ static TAutoConsoleVariable<int32> CVarAmbientOcclusionDepthBoundsTest(
 
 static TAutoConsoleVariable<int32> CVarAmbientOcclusionMethod(
 	TEXT("r.AmbientOcclusion.Method"),
-	1,
+	0,
 	TEXT("Select between SSAO methods \n ")
 	TEXT("0: SSAO (default)\n ")
 	TEXT("1: GTAO\n "),
