@@ -238,6 +238,9 @@ public:
 
 	/** Will tell if the landscape actor can have some content related to the layer system */
 	LANDSCAPE_API bool CanHaveLayersContent() const;
+
+	/** Will clear all component dirty data */
+	LANDSCAPE_API void ClearDirtyData();
 #endif
 	/** Associates passed actor with this info object
  *  @param	Proxy		Landscape actor to register

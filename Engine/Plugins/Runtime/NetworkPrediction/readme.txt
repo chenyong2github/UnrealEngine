@@ -65,7 +65,7 @@ TODO: Major missing elements
 -No optimizations (bandwidth, cpu) have been done.
 -[Movement specific]: must lock down SetActorLocation/Rotation API so that movement state can be changed out from underneath the system.
  
-Short term road map:
+High level focus:
 -The focus right now is on the generalized prediction system, rather than actual movement code.
 -We are exploring "forward predicting non autonomous proxies" with the parametric mover. Unclear how deep we will go with this.
 -Then Aux buffer and "events"
@@ -75,6 +75,14 @@ Short term road map:
 -E.g, We don't intend all users of the engine to write their own network simulation model movement system.
 -We hope to provide a generalized movement system that is easy to extend in itself without knowing all the details of the NetworkPrediction plugin.
 -We intend to support RootMotion (Animation) / RootMotionSources (non anim) in the new movement system.
+
+Road Map:
+-Interpolation/smoothing layer
+-Dependent simulations
+-Aux Buffer
+-Event System
+-Ability System integration
+-New Movement System
  
  
 // ----------------------------------------------------------------------------------------------------------

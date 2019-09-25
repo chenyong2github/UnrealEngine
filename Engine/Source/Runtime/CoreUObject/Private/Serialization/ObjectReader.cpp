@@ -9,8 +9,8 @@
 
 FArchive& FObjectReader::operator<<(FName& N)
 {
-	NAME_INDEX ComparisonIndex;
-	NAME_INDEX DisplayIndex;
+	FNameEntryId ComparisonIndex;
+	FNameEntryId DisplayIndex;
 	int32 Number;
 	ByteOrderSerialize(&ComparisonIndex, sizeof(ComparisonIndex));
 	ByteOrderSerialize(&DisplayIndex, sizeof(DisplayIndex));

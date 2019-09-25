@@ -7,7 +7,6 @@
 #include "Interfaces/IShaderFormatModule.h"
 
 static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
-static FName NAME_PCD3D_SM4(TEXT("PCD3D_SM4"));
 static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
 static FName NAME_PCD3D_ES2(TEXT("PCD3D_ES2"));
 
@@ -17,14 +16,13 @@ class FShaderFormatD3D : public IShaderFormat
 	{
 		/** Version for shader format, this becomes part of the DDC key. */
 		UE_SHADER_PCD3D_SM5_VER = 8,
-		UE_SHADER_PCD3D_SM4_VER = 8,
 		UE_SHADER_PCD3D_ES2_VER = 8,
 		UE_SHADER_PCD3D_ES3_1_VER = 8,
 	};
 
 	void CheckFormat(FName Format) const
 	{
-		check(Format == NAME_PCD3D_SM5 ||  Format == NAME_PCD3D_SM4 ||  Format == NAME_PCD3D_ES2 || Format == NAME_PCD3D_ES3_1);
+		check(Format == NAME_PCD3D_SM5 ||  Format == NAME_PCD3D_ES2 || Format == NAME_PCD3D_ES3_1);
 	}
 
 public:
@@ -34,10 +32,6 @@ public:
 		if (Format == NAME_PCD3D_SM5) 
 		{
 			return UE_SHADER_PCD3D_SM5_VER;
-		}
-		else if (Format == NAME_PCD3D_SM4) 
-		{
-			return UE_SHADER_PCD3D_SM4_VER;
 		}
 		else if (Format == NAME_PCD3D_ES3_1) 
 		{
@@ -53,7 +47,6 @@ public:
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const
 	{
 		OutFormats.Add(NAME_PCD3D_SM5);
-		OutFormats.Add(NAME_PCD3D_SM4);
 		OutFormats.Add(NAME_PCD3D_ES3_1);
 		OutFormats.Add(NAME_PCD3D_ES2);
 	}
@@ -63,10 +56,6 @@ public:
 		if (Format == NAME_PCD3D_SM5)
 		{
 			CompileShader_Windows_SM5(Input, Output, WorkingDirectory);
-		}
-		else if (Format == NAME_PCD3D_SM4)
-		{
-			CompileShader_Windows_SM4(Input, Output, WorkingDirectory);
 		}
 		else if (Format == NAME_PCD3D_ES2)
 		{

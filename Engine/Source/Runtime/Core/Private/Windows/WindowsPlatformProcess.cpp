@@ -661,6 +661,7 @@ FString FWindowsPlatformProcess::GetApplicationName( uint32 ProcessId )
 #endif
 
 		Output = ProcessNameBuffer;
+		::CloseHandle(ProcessHandle);
 	}
 
 	return Output;
@@ -735,8 +736,17 @@ bool FWindowsPlatformProcess::ExecProcess(const TCHAR* URL, const TCHAR* Params,
 		CommandLine = FString::Printf(TEXT("%s %s"), URL, Params);
 	}
 
+	// We only want to add the EXTENDED_STARTUPINFO_PRESENT flag if StartupInfoEx.lpAttributeList is actually setup.
+	// If StartupInfoEx.lpAttributeList is NULL when the EXTENDED_STARTUPINFO_PRESENT flag is used, then CreateProcess causes an Access Violation crash on some Win32 configurations.
+	// This is specific to when the call is redirected to APIHook_CreateProcessW in AcLayers.dll rather than the standard CreateProcessW implementation in kernel32.dll.
+	uint32 CreateFlags = NORMAL_PRIORITY_CLASS | DETACHED_PROCESS;
+	if (StartupInfoEx.lpAttributeList != NULL)
+	{
+		CreateFlags |= EXTENDED_STARTUPINFO_PRESENT;
+	}
+
 	PROCESS_INFORMATION ProcInfo;
-	if (CreateProcess(NULL, CommandLine.GetCharArray().GetData(), NULL, NULL, TRUE, NORMAL_PRIORITY_CLASS | DETACHED_PROCESS | EXTENDED_STARTUPINFO_PRESENT, NULL, OptionalWorkingDirectory, &StartupInfoEx.StartupInfo, &ProcInfo))
+	if (CreateProcess(NULL, CommandLine.GetCharArray().GetData(), NULL, NULL, TRUE, CreateFlags, NULL, OptionalWorkingDirectory, &StartupInfoEx.StartupInfo, &ProcInfo))
 	{
 		if (hStdOutRead != NULL)
 		{

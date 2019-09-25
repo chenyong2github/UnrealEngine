@@ -124,11 +124,10 @@ struct FReferencePose
 	 * Serializes the bones
 	 *
 	 * @param Ar - The archive to serialize into.
-	 * @param Rect - The bone container to serialize.
-	 *
-	 * @return Reference to the Archive after serialization.
+	 * @param P - The FReferencePose to serialize
+	 * @param Outer - The object containing this instance. Used to determine if we're loading cooked data.
 	 */
-	friend FArchive& operator<<(FArchive& Ar, FReferencePose & P);
+	friend void SerializeReferencePose(FArchive& Ar, FReferencePose& P, UObject* Outer);
 };
 
 USTRUCT()
@@ -383,6 +382,9 @@ protected:
 	// Container for smart name mappings
 	UPROPERTY()
 	FSmartNameContainer SmartNames;
+
+	// Cached ptr to the persistent AnimCurveMapping
+	FSmartNameMapping* AnimCurveMapping;
 
 	// this is default curve uid list used like ref pose, as default value
 	// don't use this unless you want all curves from the skeleton

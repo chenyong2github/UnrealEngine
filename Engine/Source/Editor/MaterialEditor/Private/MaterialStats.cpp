@@ -181,9 +181,7 @@ bool FShaderPlatformSettings::CheckShaders()
 					MaterialInstance->AppendReferencedTextures(MaterialInstance->PermutationTextureReferences);
 				}
 
-				FMaterialShaderMapId ShaderMapId;
-				Data.MaterialResourcesStats->GetShaderMapId(PlatformShaderID, ShaderMapId);
-				Data.MaterialResourcesStats->CacheShaders(ShaderMapId, PlatformShaderID);
+				Data.MaterialResourcesStats->CacheShaders(PlatformShaderID);
 
 				Data.bCompilingShaders = true;
 				Data.bUpdateShaderCode = true;
@@ -412,12 +410,10 @@ void FMaterialStats::BuildShaderPlatformDB()
 #if PLATFORM_WINDOWS
 	// DirectX
 	AddShaderPlatform(EPlatformCategoryType::Desktop, SP_PCD3D_SM5, TEXT("DirectX SM5"), true, true, TEXT("Desktop, DirectX, Shader Model 5"));
-	AddShaderPlatform(EPlatformCategoryType::Desktop, SP_PCD3D_SM4, TEXT("DirectX SM4"), true, true, TEXT("Desktop, DirectX, Shader Model 4"));
 #endif
 
 	// Vulkan
 	AddShaderPlatform(EPlatformCategoryType::Desktop, SP_VULKAN_SM5, TEXT("Vulkan SM5"), false, true, TEXT("Desktop, Vulkan, Shader Model 5"));
-	AddShaderPlatform(EPlatformCategoryType::Desktop, SP_VULKAN_SM4, TEXT("Vulkan SM4"), false, true, TEXT("Desktop, Vulkan, Shader Model 4"));
 
 	// OpenGL
 	AddShaderPlatform(EPlatformCategoryType::Desktop, SP_OPENGL_SM5, TEXT("OpenGL SM5"), false, true, TEXT("Desktop, OpenGL, Shader Model 5"));

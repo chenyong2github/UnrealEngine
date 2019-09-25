@@ -133,6 +133,14 @@ public:
 	UPROPERTY()
 	TArray<FString> AdditionalDefines;
 
+	/** Bitfield of supported detail levels in this compile.*/
+	UPROPERTY()
+	uint32 DetailLevelMask;
+
+	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/
+	UPROPERTY()
+	bool bUsesRapidIterationParams;
+
 	/**
 	* The GUID of the subgraph this shader primarily represents.
 	*/
@@ -157,6 +165,8 @@ public:
 	FNiagaraVMExecutableDataId()
 		: CompilerVersionID()
 		, ScriptUsageType(ENiagaraScriptUsage::Function)
+		, DetailLevelMask(0xFFFFFFFF)
+		, bUsesRapidIterationParams(true)
 		, BaseScriptID(0, 0, 0, 0)
 	{ }
 
@@ -215,6 +225,10 @@ public:
 	UPROPERTY()
 	TArray<uint8> ByteCode;
 
+	/** Number of temp registers used by this script. */
+	UPROPERTY()
+	int32 NumTempRegisters;
+
 	/** Number of user pointers we must pass to the VM. */
 	UPROPERTY()
 	int32 NumUserPtrs;
@@ -236,6 +250,9 @@ public:
 	/** Contains various usage information for this script. */
 	UPROPERTY()
 	FNiagaraScriptDataUsageInfo DataUsage;
+
+	UPROPERTY()
+	TArray<FNiagaraFunctionSignature> AdditionalExternalFunctions;
 
 	/** Information about all data interfaces used by this script. */
 	UPROPERTY()
@@ -633,4 +650,6 @@ private:
 
 	UPROPERTY()
 	TArray<FNiagaraScriptDataInterfaceInfo> CachedDefaultDataInterfaces;
+
+	static UNiagaraDataInterface* CopyDataInterface(UNiagaraDataInterface* Src, UObject* Owner);
 };

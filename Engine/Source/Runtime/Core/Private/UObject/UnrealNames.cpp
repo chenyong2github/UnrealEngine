@@ -27,7 +27,7 @@
 
 // Page protection to catch FNameEntry stomps
 #ifndef FNAME_WRITE_PROTECT_PAGES
-#define FNAME_WRITE_PROTECT_PAGES 1
+#define FNAME_WRITE_PROTECT_PAGES 0
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealNames, Log, All);
@@ -2132,6 +2132,8 @@ void FNameEntry::Write(FStructuredArchive::FSlot Slot) const
 	Slot << EntrySerialized;
 }
 
+static_assert(PLATFORM_LITTLE_ENDIAN, "FNameEntrySerialized serialization needs updating to support big-endian platforms!");
+
 FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 {
 	if (Ar.IsLoading())
@@ -2171,12 +2173,15 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 			// get the pointer to the wide array 
 			WIDECHAR* WideName = const_cast<WIDECHAR*>(E.GetWideName());
 
-			// read in the UCS2CHAR string and byteswap it, etc
+			// read in the UCS2CHAR string
 			auto Sink = StringMemoryPassthru<UCS2CHAR>(WideName, StringLen, StringLen);
 			Ar.Serialize(Sink.Get(), StringLen * sizeof(UCS2CHAR));
 			Sink.Apply();
 
-			INTEL_ORDER_TCHARARRAY(WideName)
+#if PLATFORM_TCHAR_IS_4_BYTES
+			// Inline combine any surrogate pairs in the data when loading into a UTF-32 string
+			StringLen = StringConv::InlineCombineSurrogates_Buffer(WideName, StringLen);
+#endif	// PLATFORM_TCHAR_IS_4_BYTES
 		}
 		else
 		{

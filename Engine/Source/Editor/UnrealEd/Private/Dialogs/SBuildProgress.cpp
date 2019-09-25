@@ -20,7 +20,8 @@ SBuildProgressWidget::~SBuildProgressWidget()
 
 void SBuildProgressWidget::Construct( const FArguments& InArgs )
 {
-	BorderImage = FEditorStyle::GetBrush("Menu.Background");
+	BorderImage = FInvalidatableBrushAttribute(FEditorStyle::GetBrush("Menu.Background"));
+
 	this->ChildSlot
 	.VAlign(VAlign_Center)
 	[

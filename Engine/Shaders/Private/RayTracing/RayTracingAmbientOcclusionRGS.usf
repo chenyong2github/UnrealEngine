@@ -61,7 +61,7 @@ void AmbientOcclusionRGS()
 
 	float RayCount = 0.0;
 	float Visibility = 0.0;
-	float ClosestRayHitDistance = 1.#INF;
+	float ClosestRayHitDistance = INFINITE_FLOAT;
 	// Declaring intensity as a local variable is a workaround for a shader compiler bug with NV drivers 430.39 and 430.64.
 	const float IntensityLocal = Intensity;
 	uint SamplesPerPixelLocal = SamplesPerPixel;
@@ -95,11 +95,12 @@ void AmbientOcclusionRGS()
 
 		FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
 		Payload.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.
-
+		
+		const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW;
 		TraceRay(
 			TLAS,
 			RayFlags,
-			RAY_TRACING_MASK_SHADOW,          // InstanceInclusionMask
+			InstanceInclusionMask,
 			RAY_TRACING_SHADER_SLOT_SHADOW,   // RayContributionToHitGroupIndex
 			RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
 			0,    // MissShaderIndex

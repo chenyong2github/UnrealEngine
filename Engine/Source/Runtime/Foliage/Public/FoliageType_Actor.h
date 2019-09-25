@@ -13,6 +13,9 @@ class UFoliageType_Actor : public UFoliageType
 	UPROPERTY(EditAnywhere, Category = Actor)
 	TSubclassOf<AActor> ActorClass;
 			
+	UPROPERTY(EditAnywhere, Category = Actor)
+	bool bShouldAttachToBaseComponent;
+
 	virtual UObject* GetSource() const override { return ActorClass; }
 
 #if WITH_EDITOR

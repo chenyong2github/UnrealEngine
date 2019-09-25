@@ -168,36 +168,37 @@ namespace TextKeyUtil
 static const int32 InlineStringSize = 128;
 typedef TArray<TCHAR, TInlineAllocator<InlineStringSize>> FInlineStringBuffer;
 
+static_assert(PLATFORM_LITTLE_ENDIAN, "FTextKey serialization needs updating to support big-endian platforms!");
+
 bool SaveKeyString(FArchive& Ar, const TCHAR* InStrPtr)
 {
 	// Note: This serialization should be compatible with the FString serialization, but avoids creating an FString if the FTextKey is already cached
-	// > 0 for ANSICHAR, < 0 for UCS2CHAR serialization
+	// > 0 for ANSICHAR, < 0 for UTF16CHAR serialization
 	check(!Ar.IsLoading());
 
-	const bool SaveUCS2Char = Ar.IsForcingUnicode() || !FCString::IsPureAnsi(InStrPtr);
-	const int32 Num = FCString::Strlen(InStrPtr) + 1; // include the null terminator
-
-	int32 SaveNum = SaveUCS2Char ? -Num : Num;
-	Ar << SaveNum;
-
-	if (SaveNum)
+	const bool bSaveUnicodeChar = Ar.IsForcingUnicode() || !FCString::IsPureAnsi(InStrPtr);
+	if (bSaveUnicodeChar)
 	{
-		if (SaveUCS2Char)
+		// Note: This is a no-op on platforms that are using a 16-bit TCHAR
+		FTCHARToUTF16 UTF16String(InStrPtr);
+		const int32 Num = UTF16String.Length() + 1; // include the null terminator
+
+		int32 SaveNum = -Num;
+		Ar << SaveNum;
+
+		if (Num)
 		{
-			const TCHAR* LittleEndianStrPtr = InStrPtr;
-
-			// TODO - This is creating a temporary in order to byte-swap.  Need to think about how to make this not necessary.
-#if !PLATFORM_LITTLE_ENDIAN
-			FString LittleEndianStr = FString(Num - 1, LittleEndianStrPtr);
-			INTEL_ORDER_TCHARARRAY(LittleEndianStr.GetData());
-			LittleEndianStrPtr = *LittleEndianStr;
-#endif
-
-			Ar.Serialize((void*)StringCast<UCS2CHAR>(LittleEndianStrPtr, Num).Get(), sizeof(UCS2CHAR)* Num);
+			Ar.Serialize((void*)UTF16String.Get(), sizeof(UTF16CHAR) * Num);
 		}
-		else
+	}
+	else
+	{
+		int32 Num = FCString::Strlen(InStrPtr) + 1; // include the null terminator
+		Ar << Num;
+
+		if (Num)
 		{
-			Ar.Serialize((void*)StringCast<ANSICHAR>(InStrPtr, Num).Get(), sizeof(ANSICHAR)* Num);
+			Ar.Serialize((void*)StringCast<ANSICHAR>(InStrPtr, Num).Get(), sizeof(ANSICHAR) * Num);
 		}
 	}
 
@@ -207,14 +208,14 @@ bool SaveKeyString(FArchive& Ar, const TCHAR* InStrPtr)
 bool LoadKeyString(FArchive& Ar, FInlineStringBuffer& OutStrBuffer)
 {
 	// Note: This serialization should be compatible with the FString serialization, but avoids creating an FString if the FTextKey is already cached
-	// > 0 for ANSICHAR, < 0 for UCS2CHAR serialization
+	// > 0 for ANSICHAR, < 0 for UTF16CHAR serialization
 	check(Ar.IsLoading());
 
 	int32 SaveNum = 0;
 	Ar << SaveNum;
 
-	const bool LoadUCS2Char = SaveNum < 0;
-	if (LoadUCS2Char)
+	const bool bLoadUnicodeChar = SaveNum < 0;
+	if (bLoadUnicodeChar)
 	{
 		SaveNum = -SaveNum;
 	}
@@ -241,15 +242,16 @@ bool LoadKeyString(FArchive& Ar, FInlineStringBuffer& OutStrBuffer)
 
 	if (SaveNum)
 	{
-		if (LoadUCS2Char)
+		if (bLoadUnicodeChar)
 		{
-			// Read in the Unicode string and byte-swap it
+			// Read in the Unicode string
 			auto Passthru = StringMemoryPassthru<UCS2CHAR, TCHAR, InlineStringSize>(OutStrBuffer.GetData(), SaveNum, SaveNum);
 			Ar.Serialize(Passthru.Get(), SaveNum * sizeof(UCS2CHAR));
 			Passthru.Get()[SaveNum - 1] = 0; // Ensure the string has a null terminator
 			Passthru.Apply();
 
-			INTEL_ORDER_TCHARARRAY(StrBuffer.GetData())
+			// Inline combine any surrogate pairs in the data when loading into a UTF-32 string
+			StringConv::InlineCombineSurrogates_Array(OutStrBuffer);
 		}
 		else
 		{

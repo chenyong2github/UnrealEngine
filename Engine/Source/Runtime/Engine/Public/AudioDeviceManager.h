@@ -1,11 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Audio.h"
 #include "Audio/AudioDebug.h"
 #include "AudioThread.h"
 #include "Containers/Queue.h"
 #include "CoreMinimal.h"
-#include "Sound/SoundEffectSource.h"
 
 
 #if ENABLE_AUDIO_DEBUG
@@ -53,7 +53,7 @@ public:
 	bool Initialize();
 
 	/** Returns the handle to the main audio device. */
-	uint32 GetMainAudioDeviceHandle() const { return MainAudioDeviceHandle; }
+	Audio::FDeviceId GetMainAudioDeviceHandle() const { return MainAudioDeviceHandle; }
 
 	/** Returns true if we're currently using the audio mixer. */
 	bool IsUsingAudioMixer() const;
@@ -78,13 +78,13 @@ public:
 	* Returns whether the audio device handle is valid (i.e. points to
 	* an actual audio device instance)
 	*/
-	bool IsValidAudioDeviceHandle(uint32 Handle) const;
+	bool IsValidAudioDeviceHandle(Audio::FDeviceId Handle) const;
 
 	/**
 	* Shutsdown the audio device associated with the handle. The handle
 	* will become invalid after the audio device is shut down.
 	*/
-	bool ShutdownAudioDevice(uint32 Handle);
+	bool ShutdownAudioDevice(Audio::FDeviceId Handle);
 
 	/**
 	* Shuts down all active audio devices
@@ -95,7 +95,7 @@ public:
 	* Returns a ptr to the audio device associated with the handle. If the
 	* handle is invalid then a NULL device ptr will be returned.
 	*/
-	FAudioDevice* GetAudioDevice(uint32 Handle);
+	FAudioDevice* GetAudioDevice(Audio::FDeviceId Handle);
 
 	/**
 	* Returns a ptr to the active audio device. If there is no active
@@ -149,7 +149,7 @@ public:
 	void SetActiveDevice(uint32 InAudioDeviceHandle);
 
 	/** Sets an audio device to be solo'd */
-	void SetSoloDevice(uint32 InAudioDeviceHandle);
+	void SetSoloDevice(Audio::FDeviceId InAudioDeviceHandle);
 
 	/** Links up the resource data indices for looking up and cleaning up. */
 	void TrackResource(USoundWave* SoundWave, FSoundBuffer* Buffer);
@@ -184,33 +184,6 @@ public:
 	/** Toggles 3d visualization of 3d sounds on/off */
 	void ToggleVisualize3dDebug();
 
-	/** Debug solos the given sound class name. Sounds that play with this sound class will be solo'd */
-	void SetDebugSoloSoundClass(const TCHAR* SoundClassName);
-
-	/** Debug solos the given sound name. Sounds that play with this name will be solo'd */
-	void SetDebugSoloSoundWave(const TCHAR* SoundClassName);
-
-	void SetDebugSoloSoundCue(const TCHAR* SoundClassName);
-
-	/** Enables debug logging and soloing of sounds that substring match the given sound name. Only works if built with AUDIO_MIXER_ENABLE_DEBUG_MODE is turned on. */
-	void SetAudioMixerDebugSound(const TCHAR* SoundName);
-	void SetAudioDebugSound(const TCHAR* SoundName);
-
-	/** Gets the solo sound class used for debugging sounds */
-	const FString& GetDebugSoloSoundClass() const;
-
-	/** Gets the solo sound name used for debugging sound waves */
-	const FString& GetDebugSoloSoundWave() const;
-
-	/** Gets the solo sound name used for debugging sound cues */
-	const FString& GetDebugSoloSoundCue() const;
-
-	/** Gets the audio mixer debug sound name. Returns empty string if AUDIO_MIXER_ENABLE_DEBUG_MODE is not enabled. */
-	const FString& GetAudioMixerDebugSoundName() const;
-
-	/** Gets the debug sound string, returns true if one has been set. */
-	bool GetAudioDebugSound(FString& OutDebugSound);
-
 	/** Reset all sound cue trims */
 	void ResetAllDynamicSoundVolumes();
 
@@ -234,28 +207,13 @@ public:
 
 	/** Returns all the audio devices managed by device manager. */
 	TArray<FAudioDevice*>& GetAudioDevices() { return Devices; }
-
-
+	
 private:
+
 #if ENABLE_AUDIO_DEBUG
 	/** Instance of audio debugger shared across audio devices */
 	FAudioDebugger AudioDebugger;
 #endif // ENABLE_AUDIO_DEBUG
-
-	/** Struct which contains debug names for run-time debugging of sounds. */
-	struct FDebugNames
-	{
-		FString DebugSoloSoundClass;
-		FString DebugSoloSoundWave;
-		FString DebugSoloSoundCue;
-		FString DebugAudioMixerSoundName;
-		FString DebugSoundName;
-		bool bDebugSoundName;
-
-		FDebugNames()
-			: bDebugSoundName(false)
-		{}
-	};
 
 	/** Returns index of the given handle */
 	uint32 GetIndex(uint32 Handle) const;
@@ -288,7 +246,7 @@ private:
 	FString AudioMixerModuleName;
 
 	/** Handle to the main audio device. */
-	uint32 MainAudioDeviceHandle;
+	Audio::FDeviceId MainAudioDeviceHandle;
 
 	/** Count of the number of free slots in the audio device array. */
 	uint32 FreeIndicesSize;
@@ -306,19 +264,16 @@ private:
 	* Array of audio device pointers. If the device has been free, then
 	* the device ptr at the array index will be null.
 	*/
-	TArray<FAudioDevice* > Devices;
+	TArray<FAudioDevice*> Devices;
 
 	/** Next resource ID to assign out to a wave/buffer */
 	int32 NextResourceID;
 
 	/** Which audio device is solo'd */
-	uint32 SoloDeviceHandle;
+	Audio::FDeviceId SoloDeviceHandle;
 
 	/** Which audio device is currently active */
-	uint32 ActiveAudioDeviceHandle;
-
-	/** Instance of the debug names struct. */
-	FDebugNames DebugNames;
+	Audio::FDeviceId ActiveAudioDeviceHandle;
 
 	/** Dynamic volume map */
 	TMap<TTuple<ESoundType, FName>, float> DynamicSoundVolumes;

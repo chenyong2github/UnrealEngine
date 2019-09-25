@@ -36,7 +36,9 @@
 #include "GPUScene.h"
 #include "TranslucentRendering.h"
 #include "Async/ParallelFor.h"
+#include "HairStrands/HairStrandsRendering.h"
 #include "RectLightSceneProxy.h"
+#include "Math/Halton.h"
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -1891,6 +1893,7 @@ struct FRelevancePacket
 	bool bTranslucentSurfaceLighting;
 	bool bUsesSceneDepth;
 	bool bSceneHasSkyMaterial;
+	bool bHasSingleLayerWaterMaterial;
 
 	FRelevancePacket(
 		FRHICommandListImmediate& InRHICmdList,
@@ -1928,6 +1931,7 @@ struct FRelevancePacket
 		, bTranslucentSurfaceLighting(false)
 		, bUsesSceneDepth(false)
 		, bSceneHasSkyMaterial(false)
+		, bHasSingleLayerWaterMaterial(false)
 	{
 	}
 
@@ -1941,6 +1945,7 @@ struct FRelevancePacket
 	{
 		CombinedShadingModelMask = 0;
 		bSceneHasSkyMaterial = 0;
+		bHasSingleLayerWaterMaterial = 0;
 		bUsesGlobalDistanceField = false;
 		bUsesLightingChannels = false;
 		bTranslucentSurfaceLighting = false;
@@ -1963,6 +1968,13 @@ struct FRelevancePacket
 			const bool bEditorRelevance = ViewRelevance.bEditorPrimitiveRelevance;
 			const bool bEditorSelectionRelevance = ViewRelevance.bEditorStaticSelectionRelevance;
 			const bool bTranslucentRelevance = ViewRelevance.HasTranslucency();
+
+			const bool bHairStrandsEnabled = ViewRelevance.bHairStrandsRelevance && IsHairStrandsEnable(Scene->GetShaderPlatform());
+			if (!bEditorRelevance && bHairStrandsEnabled)
+			{
+				++NumVisibleDynamicPrimitives;
+				OutHasDynamicMeshElementsMasks[BitIndex] |= ViewBit;
+			}
 
 			if (View.bIsReflectionCapture && !PrimitiveSceneInfo->Proxy->IsVisibleInReflectionCaptures())
 			{
@@ -2009,7 +2021,14 @@ struct FRelevancePacket
 
 			if (bTranslucentRelevance && !bEditorRelevance && ViewRelevance.bRenderInMainPass)
 			{
-				if (View.Family->AllowTranslucencyAfterDOF())
+				if (ViewRelevance.bUnderWaterTranslucencyRelevance)
+				{
+					// Translucency under water do not need to use scene color resolve (a black texture is provided) and we do not need to render to another off-screen buffer.
+					const bool bUsesSceneColorCopy = false;
+					const bool bDisableOffscreenRendering = true;
+					TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyUnderWater, bUsesSceneColorCopy, bDisableOffscreenRendering);
+				}
+				else if (View.Family->AllowTranslucencyAfterDOF())
 				{
 					if (ViewRelevance.bNormalTranslucencyRelevance)
 					{
@@ -2032,13 +2051,14 @@ struct FRelevancePacket
 					bHasDistortionPrimitives = true;
 				}
 			}
-
+			
 			CombinedShadingModelMask |= ViewRelevance.ShadingModelMaskRelevance;
 			bUsesGlobalDistanceField |= ViewRelevance.bUsesGlobalDistanceField;
 			bUsesLightingChannels |= ViewRelevance.bUsesLightingChannels;
 			bTranslucentSurfaceLighting |= ViewRelevance.bTranslucentSurfaceLighting;
 			bUsesSceneDepth |= ViewRelevance.bUsesSceneDepth;
 			bSceneHasSkyMaterial |= ViewRelevance.bUsesSkyMaterial;
+			bHasSingleLayerWaterMaterial |= ViewRelevance.bUsesSingleLayerWaterMaterial;
 
 			if (ViewRelevance.bRenderCustomDepth)
 			{
@@ -2237,6 +2257,11 @@ struct FRelevancePacket
 									// Not needed on Mobile path as in this case everything goes into the regular base pass
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SkyPass);
 								}
+								else if(StaticMeshRelevance.bUseSingleLayerWaterMaterial)
+								{
+									// Not needed on Mobile path as in this case everything goes into the regular base pass
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SingleLayerWaterPass);
+								}
 
 								if (ViewRelevance.bRenderCustomDepth)
 								{
@@ -2296,6 +2321,11 @@ struct FRelevancePacket
 								if (ViewRelevance.bSeparateTranslucencyRelevance)
 								{
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyAfterDOF);
+								}
+
+								if (ViewRelevance.bUnderWaterTranslucencyRelevance)
+								{
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyUnderWater);
 								}
 							}
 							else
@@ -2374,6 +2404,7 @@ struct FRelevancePacket
 		WriteView.bTranslucentSurfaceLighting |= bTranslucentSurfaceLighting;
 		WriteView.bUsesSceneDepth |= bUsesSceneDepth;
 		WriteView.bSceneHasSkyMaterial |= bSceneHasSkyMaterial;
+		WriteView.bHasSingleLayerWaterMaterial |= bHasSingleLayerWaterMaterial;
 		VisibleDynamicPrimitivesWithSimpleLights.AppendTo(WriteView.VisibleDynamicPrimitivesWithSimpleLights);
 		WriteView.NumVisibleDynamicPrimitives += NumVisibleDynamicPrimitives;
 		WriteView.NumVisibleDynamicEditorPrimitives += NumVisibleDynamicEditorPrimitives;
@@ -2688,6 +2719,12 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 			PassMask.Set(EMeshPass::Velocity);
 			View.NumVisibleDynamicMeshElements[EMeshPass::Velocity] += NumElements;
 		}
+
+		if (ViewRelevance.bUsesSingleLayerWaterMaterial)
+		{
+			PassMask.Set(EMeshPass::SingleLayerWaterPass);
+			View.NumVisibleDynamicMeshElements[EMeshPass::SingleLayerWaterPass] += NumElements;
+		}
 	}
 
 	if (ViewRelevance.HasTranslucency()
@@ -2706,6 +2743,12 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 			{
 				PassMask.Set(EMeshPass::TranslucencyAfterDOF);
 				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyAfterDOF] += NumElements;
+			}
+
+			if (ViewRelevance.bUnderWaterTranslucencyRelevance)
+			{
+				PassMask.Set(EMeshPass::TranslucencyUnderWater);
+				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyUnderWater] += NumElements;
 			}
 		}
 		else
@@ -2733,6 +2776,14 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 		PassMask.Set(EMeshPass::EditorSelection);
 		View.NumVisibleDynamicMeshElements[EMeshPass::EditorSelection] += NumElements;
 	}
+
+	// Hair strands are not rendered into the base pass (bRenderInMainPass=0) and so this 
+	// adds a special pass for allowing hair strands to be selectable.
+	if (View.bAllowTranslucentPrimitivesInHitProxy && ViewRelevance.bHairStrandsRelevance)
+	{
+		PassMask.Set(EMeshPass::HitProxy);
+		View.NumVisibleDynamicMeshElements[EMeshPass::HitProxy] += NumElements;
+	}
 #endif
 
 	if (ViewRelevance.bHasVolumeMaterialDomain)
@@ -2750,6 +2801,14 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 		BatchAndProxy.Mesh = MeshBatch.Mesh;
 		BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
 		BatchAndProxy.SortKey = MeshBatch.PrimitiveSceneProxy->GetTranslucencySortPriority();
+	}
+	
+	const bool bIsHairStrandsCompatible = ViewRelevance.bHairStrandsRelevance && IsHairStrandsEnable(View.GetShaderPlatform());
+	if (bIsHairStrandsCompatible)
+	{
+		View.HairStrandsMeshElements.AddUninitialized(1);
+		FMeshBatchAndRelevance& BatchAndProxy = View.HairStrandsMeshElements.Last();
+		BatchAndProxy = MeshBatch;
 	}
 }
 
@@ -2900,20 +2959,6 @@ static bool IsLargeCameraMovement(FSceneView& View, const FMatrix& PrevViewMatri
 		Distance.SizeSquared() > CameraTranslationThreshold * CameraTranslationThreshold;
 }
 
-float Halton( int32 Index, int32 Base )
-{
-	float Result = 0.0f;
-	float InvBase = 1.0f / Base;
-	float Fraction = InvBase;
-	while( Index > 0 )
-	{
-		Result += ( Index % Base ) * Fraction;
-		Index /= Base;
-		Fraction *= InvBase;
-	}
-	return Result;
-}
-
 void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdList)
 {
 	// Notify the RHI we are beginning to render a scene.
@@ -3040,12 +3085,12 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 		if (ViewState)
 		{
-			check(View.bViewStateIsReadOnly);
-			View.bViewStateIsReadOnly = ViewFamily.bWorldIsPaused || ViewFamily.EngineShowFlags.HitProxies || bFreezeTemporalHistories;
+			check(View.bStatePrevViewInfoIsReadOnly);
+			View.bStatePrevViewInfoIsReadOnly = ViewFamily.bWorldIsPaused || ViewFamily.EngineShowFlags.HitProxies || bFreezeTemporalHistories;
 
 			ViewState->SetupDistanceFieldTemporalOffset(ViewFamily);
 
-			if (!View.bViewStateIsReadOnly && !bFreezeTemporalSequences)
+			if (!View.bStatePrevViewInfoIsReadOnly && !bFreezeTemporalSequences)
 			{
 				ViewState->FrameIndex++;
 			}
@@ -3064,7 +3109,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			// Compute number of TAA samples.
 			int32 TemporalAASamples = CVarTemporalAASamplesValue;
 			{
-				if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM4)
+				if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM5)
 				{
 					// Only support 2 samples for mobile temporal AA.
 					TemporalAASamples = 2;
@@ -3091,14 +3136,14 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			}
 
 			// Updates view state.
-			if (!View.bViewStateIsReadOnly && !bFreezeTemporalSequences)
+			if (!View.bStatePrevViewInfoIsReadOnly && !bFreezeTemporalSequences)
 			{
 				ViewState->TemporalAASampleIndex = TemporalSampleIndex;
 			}
 
 			// Choose sub pixel sample coordinate in the temporal sequence.
 			float SampleX, SampleY;
-			if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM4)
+			if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM5)
 			{
 				float SamplesX[] = { -8.0f/16.0f, 0.0/16.0f };
 				float SamplesY[] = { /* - */ 0.0f/16.0f, 8.0/16.0f };
@@ -3273,7 +3318,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			}
 
 			// Replace previous view info of the view state with this frame, clearing out references over render target.
-			if (!View.bViewStateIsReadOnly)
+			if (!View.bStatePrevViewInfoIsReadOnly)
 			{
 				ViewState->PrevFrameViewInfo = NewPrevViewInfo;
 			}

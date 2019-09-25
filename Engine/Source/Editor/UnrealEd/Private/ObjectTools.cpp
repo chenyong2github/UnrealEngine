@@ -72,7 +72,6 @@
 #include "ReferencedAssetsUtils.h"
 #include "AssetRegistryModule.h"
 #include "PackagesDialog.h"
-
 #include "PropertyEditorModule.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
@@ -923,7 +922,7 @@ namespace ObjectTools
 		if ( ObjectToConsolidateTo )
 		{
 			// Close all editors to avoid changing references to temporary objects used by the editor
-			if ( !GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllAssetEditors() )
+			if (!GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllAssetEditors())
 			{
 				// Failed to close at least one editor. It is possible that this editor has in-memory object references
 				// which are not prepared to be changed dynamically so it is not safe to continue

@@ -384,7 +384,6 @@ private:
 		SetVisualizeDistanceFieldGI(false);
 		SetVisualizeSSR(false);
 		SetVisualizeSSS(false);
-		SetVisualizeBloom(false);
 		SetPrimitiveDistanceAccuracy(false);
 		SetMeshUVDensityAccuracy(false);
 		SetMaterialTextureScaleAccuracy(false);

@@ -17,7 +17,7 @@
   "Modules": [
     {
       "Name": "VirtualCamera",
-      "Type": "Runtime",
+      "Type": "UncookedOnly",
       "LoadingPhase": "PostDefault",
       "WhitelistPlatforms" :
 			[

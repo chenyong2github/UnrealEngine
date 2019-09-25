@@ -67,8 +67,14 @@ public:
 	TRefCountPtr<IPooledRenderTarget> SobolSampling;
 	/** SSAO randomization */
 	TRefCountPtr<IPooledRenderTarget> SSAORandomization;
+	/** GTAO randomization */
+	TRefCountPtr<IPooledRenderTarget> GTAORandomization;
+
 	/** Preintegrated GF for single sample IBL */
 	TRefCountPtr<IPooledRenderTarget> PreintegratedGF;
+	/** Hair BSDF LUT texture */
+	TRefCountPtr<IPooledRenderTarget> HairLUT0;
+	TRefCountPtr<IPooledRenderTarget> HairLUT1;
 	/** Linearly Transformed Cosines LUTs */
 	TRefCountPtr<IPooledRenderTarget> LTCMat;
 	TRefCountPtr<IPooledRenderTarget> LTCAmp;

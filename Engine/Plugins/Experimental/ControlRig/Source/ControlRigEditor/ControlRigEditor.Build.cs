@@ -53,6 +53,7 @@ namespace UnrealBuildTool.Rules
 					"Json",
 					"DesktopPlatform",
 					"ToolMenus",
+					"ControlRigManipulation"
                 }
             );
         }

@@ -1135,7 +1135,7 @@ public:
 	 * @param UserIndex			 User index that generated the event we are replying to (defaults to 0, at least for now)
 	 * @param PointerIndex		 Pointer index that generated the event we are replying to
 	 */
-	void ProcessExternalReply(const FWidgetPath& CurrentEventPath, const FReply TheReply, const uint32 UserIndex = 0, const uint32 PointerIndex = 10 /* todo: use the enum */);
+	void ProcessExternalReply(const FWidgetPath& CurrentEventPath, const FReply TheReply, const int32 UserIndex = 0, const int32 PointerIndex = 10 /* todo: use the enum */);
 
 	/**
 	 * Apply any requests from the Reply to the application. E.g. Capture mouse
@@ -1189,6 +1189,9 @@ public:
 
 	/** Sets the handler for otherwise unhandled key down events. This is used by the editor to provide a global action list, if the key was not consumed by any widget. */
 	void SetUnhandledKeyDownEventHandler( const FOnKeyEvent& NewHandler );
+
+	/** Sets the handler for otherwise unhandled key down events. This is used by the editor to provide a global action list, if the key was not consumed by any widget. */
+	void SetUnhandledKeyUpEventHandler(const FOnKeyEvent& NewHandler);
 
 	/** @return the last time a user interacted with a keyboard, mouse, touch device, or controller */
 	double GetLastUserInteractionTime() const { return LastUserInteractionTime; }
@@ -1710,6 +1713,9 @@ private:
 
 	/** Delegate for when a key down event occurred but was not handled in any other way by ProcessKeyDownMessage */
 	FOnKeyEvent UnhandledKeyDownEventHandler;
+
+	/** Delegate for when a key down event occurred but was not handled in any other way by ProcessKeyDownMessage */
+	FOnKeyEvent UnhandledKeyUpEventHandler;
 
 	/** controls whether unhandled touch events fall back to sending mouse events */
 	bool bTouchFallbackToMouse;

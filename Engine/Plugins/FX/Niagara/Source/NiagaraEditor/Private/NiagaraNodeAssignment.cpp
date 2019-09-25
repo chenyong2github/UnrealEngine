@@ -142,6 +142,11 @@ void UNiagaraNodeAssignment::PostLoad()
 
 			for (UNiagaraScript* Script : Scripts)
 			{
+				check(Script);
+				if (Script->HasAnyFlags(RF_NeedPostLoad))
+				{
+					Script->RapidIterationParameters.PostLoad();
+				}
 				if (Script->HandleVariableRenames(Converted, Emitter ? Emitter->GetUniqueEmitterName() : FString()))
 				{
 					bConvertedAnything = true;

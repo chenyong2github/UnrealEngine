@@ -11,11 +11,11 @@ namespace BuildPatchServices
 	{
 	public:
 		// Begin IDataSizeProvider
-		virtual int64 GetDownloadSize(const FString& Identifier) const override
+		virtual uint64 GetDownloadSize(const FString& Identifier) const override
 		{
 			checkSlow(IsInGameThread());
-			int64 DownloadSize = INDEX_NONE;
-			const int64* DownloadSizePtr = DownloadSizes.Find(Identifier);
+			uint64 DownloadSize = INDEX_NONE;
+			const uint64* DownloadSizePtr = DownloadSizes.Find(Identifier);
 			if (DownloadSizePtr != nullptr)
 			{
 				DownloadSize = *DownloadSizePtr;
@@ -42,7 +42,7 @@ namespace BuildPatchServices
 		// End IChunkDataSizeProvider
 
 	private:
-		TMap<FString, int64> DownloadSizes;
+		TMap<FString, uint64> DownloadSizes;
 	};
 	
 	IChunkDataSizeProvider* FChunkDataSizeProviderFactory::Create()

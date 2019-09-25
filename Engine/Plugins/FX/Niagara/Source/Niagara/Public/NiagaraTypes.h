@@ -188,19 +188,28 @@ FORCEINLINE uint32 GetTypeHash(const FNiagaraID& ID)
 }
 
 /** Information about how this type should be laid out in an FNiagaraDataSet */
+USTRUCT()
 struct FNiagaraTypeLayoutInfo
 {
+	GENERATED_BODY()
+
 	FNiagaraTypeLayoutInfo()
 	{}
 
 	/** Byte offset of each float component in a structured layout. */
+	UPROPERTY()
 	TArray<uint32> FloatComponentByteOffsets;
+
 	/** Offset into register table for each float component. */
+	UPROPERTY()
 	TArray<uint32> FloatComponentRegisterOffsets;
 
 	/** Byte offset of each int32 component in a structured layout. */
+	UPROPERTY()
 	TArray<uint32> Int32ComponentByteOffsets;
+
 	/** Offset into register table for each int32 component. */
+	UPROPERTY()
 	TArray<uint32> Int32ComponentRegisterOffsets;
 
 	FORCEINLINE uint32 GetNumComponents()const { return FloatComponentByteOffsets.Num() + Int32ComponentByteOffsets.Num(); }
@@ -580,6 +589,7 @@ public:
 	static UScriptStruct* GetIDStruct() { return IDStruct; }
 
 	static UEnum* GetExecutionStateEnum() { return ExecutionStateEnum; }
+	static UEnum* GetExecutionStateSouceEnum() { return ExecutionStateSourceEnum; }
 	static UEnum* GetSimulationTargetEnum() { return SimulationTargetEnum; }
 	static UEnum* GetScriptUsageEnum() { return ScriptUsageEnum; }
 
@@ -810,8 +820,8 @@ struct FNiagaraVariable
 		return Name == Other.Name && (TypeDef == Other.TypeDef || (bAllowAssignableTypes && FNiagaraTypeDefinition::TypesAreAssignable(TypeDef, Other.TypeDef)));
 	}
 	
-	void SetName(FName InName) { Name = InName; }
-	FName GetName()const { return Name; }
+	FORCEINLINE void SetName(FName InName) { Name = InName; }
+	FORCEINLINE const FName& GetName() const { return Name; }
 
 	void SetType(const FNiagaraTypeDefinition& InTypeDef) { TypeDef = InTypeDef; }
 	const FNiagaraTypeDefinition& GetType()const { return TypeDef; }

@@ -187,12 +187,15 @@ void UNiagaraDataInterfaceChaosDestruction::BeginDestroy()
 	Super::BeginDestroy();
 
 #if WITH_CHAOS
-	FPhysScene* Scene = GetWorld()->GetPhysicsScene();
-	if (Scene)
+	if (GetWorld())
 	{
-		Scene->UnregisterEventHandler(Chaos::EEventType::Collision, this);
-		Scene->UnregisterEventHandler(Chaos::EEventType::Breaking, this);
-		Scene->UnregisterEventHandler(Chaos::EEventType::Trailing, this);
+		FPhysScene* Scene = GetWorld()->GetPhysicsScene();
+		if (Scene)
+		{
+			Scene->UnregisterEventHandler(Chaos::EEventType::Collision, this);
+			Scene->UnregisterEventHandler(Chaos::EEventType::Breaking, this);
+			Scene->UnregisterEventHandler(Chaos::EEventType::Trailing, this);
+		}
 	}
 #endif
 }
@@ -3948,7 +3951,7 @@ void UNiagaraDataInterfaceChaosDestruction::PushToRenderThread()
 	);
 }
 
-void UNiagaraDataInterfaceChaosDestruction::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FGuid& SystemInstance)
+void UNiagaraDataInterfaceChaosDestruction::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(Proxy);
 
@@ -4085,7 +4088,7 @@ void UNiagaraDataInterfaceChaosDestruction::ProvidePerInstanceDataForRenderThrea
 	}
 }
 
-void FNiagaraDataInterfaceProxyChaosDestruction::CreatePerInstanceData(const FGuid& SystemInstance)
+void FNiagaraDataInterfaceProxyChaosDestruction::CreatePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
 	if (SystemsToGPUInstanceData.Contains(SystemInstance))
@@ -4095,7 +4098,7 @@ void FNiagaraDataInterfaceProxyChaosDestruction::CreatePerInstanceData(const FGu
 	SystemsToGPUInstanceData.Add(SystemInstance, FNiagaraDIChaosDestruction_GPUData());
 }
 
-void FNiagaraDataInterfaceProxyChaosDestruction::DestroyInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FGuid& SystemInstance)
+void FNiagaraDataInterfaceProxyChaosDestruction::DestroyInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
 	// @todo-threadsafety This object contains GPU buffers. This _should_ delete them safely but would we rather do so manually?
@@ -4105,7 +4108,7 @@ void FNiagaraDataInterfaceProxyChaosDestruction::DestroyInstanceData(NiagaraEmit
 	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
 }
 
-void FNiagaraDataInterfaceProxyChaosDestruction::ConsumePerInstanceDataFromGameThread(void* PerInstanceDataFromGameThread, const FGuid& Instance) 
+void FNiagaraDataInterfaceProxyChaosDestruction::ConsumePerInstanceDataFromGameThread(void* PerInstanceDataFromGameThread, const FNiagaraSystemInstanceID& Instance)
 { 
 	FNiagaraDIChaosDestruction_GPUData* DataPtr = SystemsToGPUInstanceData.Find(Instance);
 	ensure(DataPtr);

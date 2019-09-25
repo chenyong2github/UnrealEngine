@@ -2007,7 +2007,7 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 	checkf(ConfigClass->PropertyLink != nullptr
 		|| (ConfigClass->GetSuperStruct() && HaveSameProperties(ConfigClass, ConfigClass->GetSuperStruct()))
 		|| ConfigClass->PropertiesSize == 0
-		|| GIsRequestingExit, // Ignore this check when exiting as we may have requested exit during init when not everything is initialized
+		|| IsEngineExitRequested(), // Ignore this check when exiting as we may have requested exit during init when not everything is initialized
 		TEXT("class %s has uninitialized properties. Accessed too early?"), *ConfigClass->GetName());
 #endif
 

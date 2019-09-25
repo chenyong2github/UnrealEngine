@@ -1,4 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// .
 
 #include "CoreMinimal.h"
 #include "MetalShaderFormat.h"
@@ -34,6 +35,15 @@ THIRD_PARTY_INCLUDES_END
 
 // The Metal standard library extensions we need for UE4.
 #include "ue4_stdlib.h"
+
+#if !PLATFORM_WINDOWS
+#if PLATFORM_TCHAR_IS_CHAR16
+#define FP_TEXT_PASTE(x) L ## x
+#define WTEXT(x) FP_TEXT_PASTE(x)
+#else
+#define WTEXT TEXT
+#endif
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogMetalShaderCompiler, Log, All); 
 
@@ -334,11 +344,11 @@ FString GetMetalCompilerVers(FString const& PlatformPath)
 	bOK = ExecRemoteProcess(*PlatformPath, TEXT("-v"), nullptr, &Result, &Result);
 	if (bOK && Result.Len() > 0)
 	{
-		TCHAR Buffer[256];
+		ANSICHAR Buffer[256];
 #if !PLATFORM_WINDOWS
-		if(swscanf(*Result, TEXT("Apple LLVM version %*ls (%ls)"), Buffer))
+		if(sscanf(TCHAR_TO_ANSI(*Result), "Apple LLVM version %*s (%s)", Buffer))
 #else
-		if(swscanf_s(*Result, TEXT("Apple LLVM version %*ls (%ls)"), Buffer, 256))
+		if(sscanf_s(TCHAR_TO_ANSI(*Result), "Apple LLVM version %*s (%s)", Buffer, 256))
 #endif
 		{
 			Result = (&Buffer[0]);
@@ -572,7 +582,7 @@ uint16 GetXcodeVersion(uint64& BuildVersion)
 				uint32 Patch = 0;
 				int32 NumResults = 0;
 	#if !PLATFORM_WINDOWS
-				NumResults = swscanf(*Result, TEXT("Xcode %u.%u.%u"), &Major, &Minor, &Patch);
+				NumResults = swscanf(TCHAR_TO_WCHAR(*Result), WTEXT("Xcode %u.%u.%u"), &Major, &Minor, &Patch);
 	#else
 				NumResults = swscanf_s(*Result, TEXT("Xcode %u.%u.%u"), &Major, &Minor, &Patch);
 	#endif
@@ -611,7 +621,7 @@ bool ChecksumRemoteFile(FString const& RemotePath, uint32* CRC, uint32* Len)
 	if (bOK)
 	{
 #if !PLATFORM_WINDOWS
-		if(swscanf(*Output, TEXT("%u %u"), CRC, Len) != 2)
+		if(swscanf(TCHAR_TO_WCHAR(*Output), WTEXT("%u %u"), CRC, Len) != 2)
 #else
 		if(swscanf_s(*Output, TEXT("%u %u"), CRC, Len) != 2)
 #endif
@@ -2297,11 +2307,8 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 
 
 	// This requires removing the HLSLCC_NoPreprocess flag later on!
-    if (VersionEnum < 5 || VersionEnum == 6)
-    {
-        RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShader);
-    }
-
+    RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShader);
+	
 	uint32 CCFlags = HLSLCC_NoPreprocess | HLSLCC_PackUniformsIntoUniformBufferWithNames | HLSLCC_FixAtomicReferences | HLSLCC_RetainSizes | HLSLCC_KeepSamplerAndImageNames;
 	if (!bDirectCompile || UE_BUILD_DEBUG)
 	{

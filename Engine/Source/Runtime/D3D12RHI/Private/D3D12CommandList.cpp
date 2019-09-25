@@ -6,10 +6,17 @@
 void FD3D12CommandListHandle::AddTransitionBarrier(FD3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
 {
 	check(CommandListData);
-	int32 NumAdded = CommandListData->ResourceBarrierBatcher.AddTransition(pResource->GetResource(), Before, After, Subresource);
-	CommandListData->CurrentOwningContext->numBarriers += NumAdded;
+	if (Before != After)
+	{
+		int32 NumAdded = CommandListData->ResourceBarrierBatcher.AddTransition(pResource->GetResource(), Before, After, Subresource);
+		CommandListData->CurrentOwningContext->numBarriers += NumAdded;
 
-	pResource->UpdateResidency(*this);
+		pResource->UpdateResidency(*this);
+	}
+	else
+	{
+		ensureMsgf(0, TEXT("AddTransitionBarrier: Before == After (%d)"), (uint32)Before);
+	}
 }
 
 void FD3D12CommandListHandle::AddUAVBarrier()
@@ -52,7 +59,7 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 	, StartTimeQueryIdx(INDEX_NONE)
 #endif
 {
-	VERIFYD3D12RESULT(ParentDevice->GetDevice()->CreateCommandList((uint32)GetGPUMask(), CommandListType, CommandAllocator, nullptr, IID_PPV_ARGS(CommandList.GetInitReference())));
+	VERIFYD3D12RESULT(ParentDevice->GetDevice()->CreateCommandList(GetGPUMask().GetNative(), CommandListType, CommandAllocator, nullptr, IID_PPV_ARGS(CommandList.GetInitReference())));
 	INC_DWORD_STAT(STAT_D3D12NumCommandLists);
 
 #if PLATFORM_WINDOWS

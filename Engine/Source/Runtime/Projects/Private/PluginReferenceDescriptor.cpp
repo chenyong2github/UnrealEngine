@@ -38,7 +38,7 @@ bool FPluginReferenceDescriptor::IsEnabledForPlatform( const FString& Platform )
 	return true;
 }
 
-bool FPluginReferenceDescriptor::IsEnabledForTarget(const FString& Target) const
+bool FPluginReferenceDescriptor::IsEnabledForTarget(EBuildTargetType TargetType) const
 {
     // If it's not enabled at all, return false
     if (!bEnabled)
@@ -47,13 +47,13 @@ bool FPluginReferenceDescriptor::IsEnabledForTarget(const FString& Target) const
     }
 
     // If there is a list of whitelisted platforms, and this isn't one of them, return false
-    if (WhitelistTargets.Num() > 0 && !WhitelistTargets.Contains(Target))
+    if (WhitelistTargets.Num() > 0 && !WhitelistTargets.Contains(TargetType))
     {
         return false;
     }
 
     // If this platform is blacklisted, also return false
-    if (BlacklistTargets.Contains(Target))
+    if (BlacklistTargets.Contains(TargetType))
     {
         return false;
     }
@@ -61,7 +61,7 @@ bool FPluginReferenceDescriptor::IsEnabledForTarget(const FString& Target) const
     return true;
 }
 
-bool FPluginReferenceDescriptor::IsEnabledForTargetConfiguration(const FString& TargetConfiguration) const
+bool FPluginReferenceDescriptor::IsEnabledForTargetConfiguration(EBuildConfiguration Configuration) const
 {
 	// If it's not enabled at all, return false
 	if (!bEnabled)
@@ -70,13 +70,13 @@ bool FPluginReferenceDescriptor::IsEnabledForTargetConfiguration(const FString& 
 	}
 
 	// If there is a list of whitelisted target configurations, and this isn't one of them, return false
-	if (WhitelistTargetConfigurations.Num() > 0 && !WhitelistTargetConfigurations.Contains(TargetConfiguration))
+	if (WhitelistTargetConfigurations.Num() > 0 && !WhitelistTargetConfigurations.Contains(Configuration))
 	{
 		return false;
 	}
 
 	// If this target configuration is blacklisted, also return false
-	if (BlacklistTargetConfigurations.Contains(TargetConfiguration))
+	if (BlacklistTargetConfigurations.Contains(Configuration))
 	{
 		return false;
 	}
@@ -117,12 +117,12 @@ bool FPluginReferenceDescriptor::Read( const FJsonObject& Object, FText& OutFail
 	Object.TryGetStringArrayField(TEXT("BlacklistPlatforms"), BlacklistPlatforms);
 
 	// Get the target configuration lists
-	Object.TryGetStringArrayField(TEXT("WhitelistTargetConfigurations"), WhitelistTargetConfigurations);
-	Object.TryGetStringArrayField(TEXT("BlacklistTargetConfigurations"), BlacklistTargetConfigurations);
+	Object.TryGetEnumArrayField(TEXT("WhitelistTargetConfigurations"), WhitelistTargetConfigurations);
+	Object.TryGetEnumArrayField(TEXT("BlacklistTargetConfigurations"), BlacklistTargetConfigurations);
 
 	// Get the target lists
-	Object.TryGetStringArrayField(TEXT("WhitelistTargets"), WhitelistTargets);
-	Object.TryGetStringArrayField(TEXT("BlacklistTargets"), BlacklistTargets);
+	Object.TryGetEnumArrayField(TEXT("WhitelistTargets"), WhitelistTargets);
+	Object.TryGetEnumArrayField(TEXT("BlacklistTargets"), BlacklistTargets);
 
 	// Get the supported platform list
 	Object.TryGetStringArrayField(TEXT("SupportedTargetPlatforms"), SupportedTargetPlatforms);
@@ -210,7 +210,7 @@ void FPluginReferenceDescriptor::Write( TJsonWriter<>& Writer ) const
 
 		for (int Idx = 0; Idx < WhitelistTargetConfigurations.Num(); Idx++)
 		{
-			Writer.WriteValue(WhitelistTargetConfigurations[Idx]);
+			Writer.WriteValue(LexToString(WhitelistTargetConfigurations[Idx]));
 		}
 
 		Writer.WriteArrayEnd();
@@ -222,7 +222,7 @@ void FPluginReferenceDescriptor::Write( TJsonWriter<>& Writer ) const
 
 		for (int Idx = 0; Idx < BlacklistTargetConfigurations.Num(); Idx++)
 		{
-			Writer.WriteValue(BlacklistTargetConfigurations[Idx]);
+			Writer.WriteValue(LexToString(BlacklistTargetConfigurations[Idx]));
 		}
 
 		Writer.WriteArrayEnd();
@@ -234,7 +234,7 @@ void FPluginReferenceDescriptor::Write( TJsonWriter<>& Writer ) const
 
 		for (int Idx = 0; Idx < WhitelistTargets.Num(); Idx++)
 		{
-			Writer.WriteValue(WhitelistTargets[Idx]);
+			Writer.WriteValue(LexToString(WhitelistTargets[Idx]));
 		}
 
 		Writer.WriteArrayEnd();
@@ -246,7 +246,7 @@ void FPluginReferenceDescriptor::Write( TJsonWriter<>& Writer ) const
 
 		for (int Idx = 0; Idx < BlacklistTargets.Num(); Idx++)
 		{
-			Writer.WriteValue(BlacklistTargets[Idx]);
+			Writer.WriteValue(LexToString(BlacklistTargets[Idx]));
 		}
 
 		Writer.WriteArrayEnd();

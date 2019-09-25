@@ -22,10 +22,13 @@ public:
 	{
 		FRHITexture2D* Texture0 = nullptr;
 		FRHITexture2D* Texture1 = nullptr;
+		FRHITexture2D* Texture2 = nullptr;
 		int32 DestX0 = 0;
 		int32 DestY0 = 0;
 		int32 DestX1 = 0;
 		int32 DestY1 = 0;
+		int32 DestX2 = 0;
+		int32 DestY2 = 0;
 		uint32 vAddress = 0;
 		uint8 vLevel = 0;
 	};

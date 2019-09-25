@@ -6,7 +6,7 @@
 
 void SSpinningImage::Construct(const FArguments& InArgs)
 {
-	Image = InArgs._Image;
+	Image = FInvalidatableBrushAttribute(InArgs._Image);
 	ColorAndOpacity = InArgs._ColorAndOpacity;
 
 	if (InArgs._OnMouseButtonDown.IsBound())

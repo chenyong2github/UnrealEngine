@@ -14,7 +14,7 @@
 
 static const uint32 WindowsDefaultNumBackBuffers = 3;
 
-extern FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFormat, IDXGISwapChain* SwapChain, uint32 BackBufferIndex);
+extern FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFormat, uint32 SizeX, uint32 SizeY, IDXGISwapChain* SwapChain, uint32 BackBufferIndex);
 
 FD3D12Viewport::FD3D12Viewport(class FD3D12Adapter* InParent, HWND InWindowHandle, uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat) :
 	FD3D12AdapterChild(InParent),
@@ -122,6 +122,11 @@ void FD3D12Viewport::Init()
 	}
 #else
 // : END HoloLens support
+
+	extern bool bNeedSwapChain;
+
+	bNeedSwapChain = !FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
+	if (bNeedSwapChain)
 	{
 		if (Adapter->GetOwningRHI()->IsQuadBufferStereoEnabled())
 		{
@@ -277,12 +282,15 @@ void FD3D12Viewport::ResizeInternal()
 			FD3D12Device* Device = Adapter->GetDevice(GPUIndex);
 
 			CommandQueues.Add(Device->GetD3DCommandQueue());
-			NodeMasks.Add((uint32)Device->GetGPUMask());
+			NodeMasks.Add(Device->GetGPUMask().GetNative());
 		}
 
-		TRefCountPtr<IDXGISwapChain3> SwapChain3;
-		VERIFYD3D12RESULT(SwapChain1->QueryInterface(IID_PPV_ARGS(SwapChain3.GetInitReference())));
-		VERIFYD3D12RESULT_EX(SwapChain3->ResizeBuffers1(NumBackBuffers, SizeX, SizeY, GetRenderTargetFormat(PixelFormat), SwapChainFlags, NodeMasks.GetData(), (IUnknown**)CommandQueues.GetData()), Adapter->GetD3DDevice());
+		if (SwapChain1)
+		{
+			TRefCountPtr<IDXGISwapChain3> SwapChain3;
+			VERIFYD3D12RESULT(SwapChain1->QueryInterface(IID_PPV_ARGS(SwapChain3.GetInitReference())));
+			VERIFYD3D12RESULT_EX(SwapChain3->ResizeBuffers1(NumBackBuffers, SizeX, SizeY, GetRenderTargetFormat(PixelFormat), SwapChainFlags, NodeMasks.GetData(), (IUnknown**)CommandQueues.GetData()), Adapter->GetD3DDevice());
+		}
 
 		for (uint32 i = 0; i < NumBackBuffers; ++i)
 		{
@@ -290,19 +298,22 @@ void FD3D12Viewport::ResizeInternal()
 			FD3D12Device* Device = Adapter->GetDevice(GPUIndex);
 
 			check(BackBuffers[i].GetReference() == nullptr);
-			BackBuffers[i] = GetSwapChainSurface(Device, PixelFormat, SwapChain1, i);
+			BackBuffers[i] = GetSwapChainSurface(Device, PixelFormat, SizeX, SizeY, SwapChain1, i);
 		}
 	}
 	else
 #endif // WITH_MGPU
 	{
-		VERIFYD3D12RESULT_EX(SwapChain1->ResizeBuffers(NumBackBuffers, SizeX, SizeY, GetRenderTargetFormat(PixelFormat), SwapChainFlags), Adapter->GetD3DDevice());
+		if (SwapChain1)
+		{
+			VERIFYD3D12RESULT_EX(SwapChain1->ResizeBuffers(NumBackBuffers, SizeX, SizeY, GetRenderTargetFormat(PixelFormat), SwapChainFlags), Adapter->GetD3DDevice());
+		}
 
 		FD3D12Device* Device = Adapter->GetDevice(0);
 		for (uint32 i = 0; i < NumBackBuffers; ++i)
 		{
 			check(BackBuffers[i].GetReference() == nullptr);
-			BackBuffers[i] = GetSwapChainSurface(Device, PixelFormat, SwapChain1, i);
+			BackBuffers[i] = GetSwapChainSurface(Device, PixelFormat, SizeX, SizeY, SwapChain1, i);
 		}
 	}
 
@@ -326,7 +337,12 @@ HRESULT FD3D12Viewport::PresentInternal(int32 SyncInterval)
 
 	FThreadHeartBeat::Get().PresentFrame();
 
-	return SwapChain1->Present(SyncInterval, Flags);
+	if (SwapChain1)
+	{
+		return SwapChain1->Present(SyncInterval, Flags);
+	}
+
+	return S_OK;
 }
 
 void FD3D12Viewport::EnableHDR()

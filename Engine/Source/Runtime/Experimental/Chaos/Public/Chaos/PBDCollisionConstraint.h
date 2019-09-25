@@ -2,7 +2,9 @@
 #pragma once
 
 #include "Chaos/BoundingVolume.h"
+#include "Chaos/ConstraintHandle.h"
 #include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/PBDConstraintContainer.h"
 #include "Framework/BufferedData.h"
 
 #include <memory>
@@ -14,6 +16,9 @@ namespace Chaos
 {
 template<typename T, int d>
 class TPBDCollisionConstraintAccessor;
+
+template<typename T, int d>
+class TPBDCollisionConstraint;
 
 template <typename T, int d>
 class TRigidTransform;
@@ -41,48 +46,162 @@ enum class ECollisionUpdateType
 };
 
 
+template<class T, int d>
+class CHAOS_API TPBDCollisionConstraintHandle : public TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>
+{
+public:
+	using Base = TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>;
+	using FConstraintContainer = TPBDCollisionConstraint<T, d>;
+
+	TPBDCollisionConstraintHandle() {}
+	TPBDCollisionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>(InConstraintContainer, InConstraintIndex) {}
+
+protected:
+	using Base::ConstraintIndex;
+	using Base::ConstraintContainer;
+};
+
+/** Wrapper that holds both physics thread data and GT data. It's possible that the physics handle is null if we're doing operations entirely on external threads*/
+template <typename T, int d>
+class CHAOS_API TAccelerationStructureHandle
+{
+public:
+	TAccelerationStructureHandle(TGeometryParticleHandle<T, d>* InHandle)
+		: ExternalGeometryParticle(InHandle->GTGeometryParticle())
+		, GeometryParticleHandle(InHandle)
+	{
+	}
+
+	TAccelerationStructureHandle(TGeometryParticle<T, d>* InGeometryParticle)
+		: ExternalGeometryParticle(InGeometryParticle)
+		, GeometryParticleHandle(nullptr)
+	{
+	}
+
+	//Should only be used by GT and scene query threads where an appropriate lock has been acquired
+	TGeometryParticle<T, d>* GetExternalGeometryParticle_ExternalThread() const { return ExternalGeometryParticle; }
+
+	//Should only be used by PT
+	TGeometryParticleHandle<T, d>* GetGeometryParticleHandle_PhysicsThread() const { return GeometryParticleHandle; }
+
+	bool operator==(const TAccelerationStructureHandle<T, d>& Rhs) const
+	{
+		return ExternalGeometryParticle == Rhs.ExternalGeometryParticle;
+	}
+
+	bool operator<(const TAccelerationStructureHandle<T, d>& Rhs) const
+	{
+		return  ExternalGeometryParticle < Rhs.ExternalGeometryParticle;
+	}
+
+	uint32 GetTypeHash() const
+	{
+		return ::GetTypeHash((void*)ExternalGeometryParticle);
+	}
+
+private:
+	TGeometryParticle<T, d>* ExternalGeometryParticle;
+	TGeometryParticleHandle<T, d>* GeometryParticleHandle;
+};
+
+template <typename T, int d>
+uint32 GetTypeHash(const TAccelerationStructureHandle<T,d>& A)
+{
+	return A.GetTypeHash();
+}
+
 /**
  * Manages a set of contact constraints:
  *	- Performs collision detection to generate constraints.
  *	- Responsible for applying corrections to particles affected by the constraints.
  * @todo(ccaulfield): rename to TPBDCollisionConstraints
+ * @todo(ccaulfield): remove TPBDCollisionConstraintAccessor
+ * @todo(ccaulfield): separate collision detection from constraint container
  */
 template<typename T, int d>
-class CHAOS_API TPBDCollisionConstraint
+class CHAOS_API TPBDCollisionConstraint : public TPBDConstraintContainer<T, d>
 {
-  public:
+public:
+	using Base = TPBDConstraintContainer<T, d>;
 	friend class TPBDCollisionConstraintAccessor<T, d>;
-
-	typedef TRigidBodyContactConstraint<T, d> FRigidBodyContactConstraint;
+	using FReal = T;
+	static const int Dimensions = d;
+	using FConstraintHandle = TPBDCollisionConstraintHandle<T, d>;
+	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraint<T, d>>;
+	using FRigidBodyContactConstraint = TRigidBodyContactConstraint<T, d>;
 
 	TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& PerParticleMaterials, const int32 PairIterations = 1, const T Thickness = (T)0);
 	virtual ~TPBDCollisionConstraint() {}
+
+	//
+	// Constraint Container API
+	//
+
+	/**
+	 * Get the number of constraints.
+	 */
+	int32 NumConstraints() const
+	{
+		return Constraints.Num();
+	}
+
+	const FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex) const
+	{
+		return Handles[ConstraintIndex];
+	}
+
+	FConstraintHandle* GetConstraintHandle(int32 ConstraintIndex)
+	{
+		return Handles[ConstraintIndex];
+	}
+
+	// @todo(ccaulfield): rename/remove
+	void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles);
+
+	//
+	// Constraint API
+	//
+
+	/**
+	 * Get the particles that are affected by the specified constraint.
+	 */
+	TVector<TGeometryParticleHandle<T, d>*, 2> GetConstrainedParticles(int32 ConstraintIndex) const
+	{
+		return { Constraints[ConstraintIndex].Particle, Constraints[ConstraintIndex].Levelset };
+	}
+
+
+	//
+	// Island Rule API
+	//
+
+	/**
+	 * Apply corrections for the specified list of constraints.
+	 */
+	 // @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
+	void Apply(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles);
 
 	/**
 	 * Generate all contact constraints.
 	 */
 	void UpdatePositionBasedState(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ const T Dt);
 
-	/**
-	 * Apply corrections for the specified list of constraints.
-	 */
-	// @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
-	void Apply(const T Dt, const TArray<int32>& InConstraintIndices);
-
 	/** 
 	 * Apply push out for the specified list of constraints.
 	 * Return true if we need another iteration 
 	 */
 	 // @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
-	bool ApplyPushOut(const T Dt, const TArray<int32>& InConstraintIndices, const TSet<TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations);
+	bool ApplyPushOut(const T Dt, const TArray<FConstraintHandle*>& InConstraintHandles, const TSet<TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations);
 
-	void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles);
+
+
+
 	void UpdateConstraints(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ T Dt, const TSet<TGeometryParticleHandle<T, d>*>& AddedParticles);
 
 	static bool NearestPoint(TArray<Pair<TVector<T, d>, TVector<T, d>>>& Points, TVector<T, d>& Direction, TVector<T, d>& ClosestPoint);
 
 	const TArray<FRigidBodyContactConstraint>& GetAllConstraints() const { return Constraints; }
-	const ISpatialAcceleration<TGeometryParticleHandle<T, d>*, T, d>& GetSpatialAcceleration() const { return SpatialAccelerationResource.GetRead(); }
+	const ISpatialAcceleration<TAccelerationStructureHandle<T, d>, T, d>& GetSpatialAcceleration() const { return SpatialAccelerationResource.GetRead(); }
 	void ReleaseSpatialAcceleration() const;
 	void SwapSpatialAcceleration();
 
@@ -93,15 +212,19 @@ class CHAOS_API TPBDCollisionConstraint
 	template<ECollisionUpdateType>
 	static void UpdateLevelsetConstraintGJK(const T Thickness, FRigidBodyContactConstraint& Constraint);
 
-
-	int32 NumConstraints() const { return Constraints.Num(); }
-
 	/**
 	 * Get the particles that are affected by the specified constraint.
 	 */
 	TVector<TGeometryParticleHandle<T, d>*, 2> ConstraintParticles(int32 ContactIndex) const { return { Constraints[ContactIndex].Particle, Constraints[ContactIndex].Levelset }; }
 
 	void SetPushOutPairIterations(int32 InPushOutPairIterations) { MPairIterations = InPushOutPairIterations; }
+
+	/** Make a copy of the acceleration structure to allow for external modification. This is needed for supporting sync operations on SQ structure from game thread */
+	TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<T, d>, T, d>> CreateExternalAccelerationStructure();
+	
+protected:
+	using Base::GetConstraintIndex;
+	using Base::SetConstraintIndex;
 
 private:
 	void Reset(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices*/);
@@ -130,7 +253,7 @@ private:
 #endif
 
 	const TPBDRigidsSOAs<T,d>& Particles;
-	TChaosReadWriteResource<TBoundingVolume<TGeometryParticles<T, d>, TGeometryParticleHandle<T,d>*, T, d>> SpatialAccelerationResource;
+	TChaosReadWriteResource<TBoundingVolume<TGeometryParticles<T, d>, TAccelerationStructureHandle<T,d>, T, d>> SpatialAccelerationResource;
 
 	TArray<FRigidBodyContactConstraint> Constraints;
 	TArrayCollectionArray<bool>& MCollided;
@@ -139,6 +262,9 @@ private:
 	T MThickness;
 	T MAngularFriction;
 	bool bUseCCD;
+
+	TArray<FConstraintHandle*> Handles;
+	FConstraintHandleAllocator HandleAllocator;
 };
 
 extern template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Any>(const float Thickness, FRigidBodyContactConstraint& Constraint);

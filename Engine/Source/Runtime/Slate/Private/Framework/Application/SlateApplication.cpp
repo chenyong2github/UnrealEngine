@@ -868,7 +868,7 @@ void FSlateApplication::DestroyRenderer()
  */
 static void OnRequestExit()
 {
-	GIsRequestingExit = true;
+	RequestEngineExit(TEXT("Normal Slate Window Closed"));
 }
 
 void FSlateApplication::PlaySound( const FSlateSound& SoundToPlay, int32 UserIndex ) const
@@ -2292,22 +2292,21 @@ void FSlateApplication::ActivateGameViewport()
 
 bool FSlateApplication::SetUserFocus(uint32 UserIndex, const TSharedPtr<SWidget>& WidgetToFocus, EFocusCause ReasonFocusIsChanging /* = EFocusCause::SetDirectly*/)
 {
-	const bool bValidWidget = WidgetToFocus.IsValid();
-	ensureMsgf(bValidWidget, TEXT("Attempting to focus an invalid widget. If your intent is to clear focus use ClearUserFocus()"));
-	if (bValidWidget)
+	TSharedPtr<FSlateUser> CurrentUser = GetUser(UserIndex);
+	if (ensureMsgf(WidgetToFocus.IsValid(), TEXT("Attempting to focus an invalid widget. If your intent is to clear focus use ClearUserFocus()")) && CurrentUser)
 	{
 		FWidgetPath PathToWidget;
 		const bool bFound = FSlateWindowHelper::FindPathToWidget(SlateWindows, WidgetToFocus.ToSharedRef(), /*OUT*/ PathToWidget);
 		if (bFound)
 		{
-			return SetUserFocus(*GetOrCreateUser(UserIndex), PathToWidget, ReasonFocusIsChanging);
+			return SetUserFocus(*CurrentUser, PathToWidget, ReasonFocusIsChanging);
 		}
 		else
 		{
 			const bool bFoundVirtual = FSlateWindowHelper::FindPathToWidget(SlateVirtualWindows, WidgetToFocus.ToSharedRef(), /*OUT*/ PathToWidget);
 			if (bFoundVirtual)
 			{
-				return SetUserFocus(*GetOrCreateUser(UserIndex), PathToWidget, ReasonFocusIsChanging);
+				return SetUserFocus(*CurrentUser, PathToWidget, ReasonFocusIsChanging);
 			}
 		}
 	}
@@ -2835,15 +2834,16 @@ TSharedPtr<SWindow> FSlateApplication::FindWidgetWindow( TSharedRef<const SWidge
 	return OutWidgetPath.TopLevelWindow;
 }
 
-void FSlateApplication::ProcessExternalReply(const FWidgetPath& CurrentEventPath, const FReply TheReply, const uint32 UserIndex, const uint32 PointerIndex)
+void FSlateApplication::ProcessExternalReply(const FWidgetPath& CurrentEventPath, const FReply TheReply, const int32 UserIndex, const int32 PointerIndex)
 {
+	const int32 ValidatedUserIndex = (UserIndex >= 0) ?  UserIndex : 0;
 	if (PointerIndex == CursorPointerIndex)
 	{
-		TSharedRef<FSlateUser> SlateUser = GetOrCreateUser(UserIndex);
-		const bool bIsPrimaryUser = UserIndex == CursorUserIndex;
+		TSharedRef<FSlateUser> SlateUser = GetOrCreateUser(ValidatedUserIndex);
+		const bool bIsPrimaryUser = ValidatedUserIndex == CursorUserIndex;
 
 		FPointerEvent MouseEvent(
-			UserIndex,
+			ValidatedUserIndex,
 			PointerIndex,
 			SlateUser->GetCursorPosition(),
 			SlateUser->GetPreviousCursorPosition(),
@@ -2862,11 +2862,11 @@ void FSlateApplication::ProcessExternalReply(const FWidgetPath& CurrentEventPath
 			PathToWidgetPtr = &PathToWidget;
 		}
 
-		ProcessReply(CurrentEventPath, TheReply, PathToWidgetPtr, &MouseEvent, UserIndex);
+		ProcessReply(CurrentEventPath, TheReply, PathToWidgetPtr, &MouseEvent, ValidatedUserIndex);
 	}
 	else
 	{
-		ProcessReply(CurrentEventPath, TheReply, nullptr, nullptr, UserIndex);
+		ProcessReply(CurrentEventPath, TheReply, nullptr, nullptr, ValidatedUserIndex);
 	}
 }
 
@@ -3330,6 +3330,11 @@ void FSlateApplication::SetUnhandledKeyDownEventHandler( const FOnKeyEvent& NewH
 	UnhandledKeyDownEventHandler = NewHandler;
 }
 
+void FSlateApplication::SetUnhandledKeyUpEventHandler(const FOnKeyEvent& NewHandler)
+{
+	UnhandledKeyUpEventHandler = NewHandler;
+}
+
 float FSlateApplication::GetDragTriggerDistance() const
 {
 	return DragTriggerDistance;
@@ -3710,12 +3715,6 @@ TSharedRef<FSlateVirtualUserHandle> FSlateApplication::FindOrCreateVirtualUser(i
 
 TSharedRef<FSlateUser> FSlateApplication::GetOrCreateUser(int32 UserIndex)
 {
-	// @todo For now we are allowing a little shenanigans since we are crashing in automation
-	if ( UserIndex < 0 )
-	{
-		UserIndex = 0;
-	}
-	
 	if (TSharedPtr<FSlateUser> FoundUser = GetUser(UserIndex))
 	{
 		return FoundUser.ToSharedRef();
@@ -4209,6 +4208,12 @@ bool FSlateApplication::ProcessKeyUpEvent( const FKeyEvent& InKeyEvent )
 
 			return FReply::Unhandled();
 		});
+
+		// If the key event was not processed by any widget...
+		if (!Reply.IsEventHandled() && UnhandledKeyUpEventHandler.IsBound())
+		{
+			Reply = UnhandledKeyUpEventHandler.Execute(InKeyEvent);
+		}
 
 	return Reply.IsEventHandled();
 }
@@ -6417,13 +6422,18 @@ TSharedRef<FSlateApplication> FSlateApplication::InitializeAsStandaloneApplicati
 
 TSharedRef<FSlateApplication> FSlateApplication::InitializeAsStandaloneApplication(const TSharedRef< class FSlateRenderer >& PlatformRenderer, const TSharedRef<class GenericApplication>& InPlatformApplication)
 {
+	// Initialise High DPI mode. This must be called before any window (including the splash screen is created).
+	// We don't need to use the force flag which was added for PIE.
+	const bool bForceEnable = false;
+	FSlateApplication::InitHighDPI(bForceEnable);
+
 	// create the platform slate application (what FSlateApplication::Get() returns)
 	TSharedRef<FSlateApplication> Slate = FSlateApplication::Create(InPlatformApplication);
 
 	// initialize renderer
 	FSlateApplication::Get().InitializeRenderer(PlatformRenderer);
 
-	// set the normal UE4 GIsRequestingExit when outer frame is closed
+	// set the normal UE4 IsEngineExitRequested() when outer frame is closed
 	FSlateApplication::Get().SetExitRequestedHandler(FSimpleDelegate::CreateStatic(&OnRequestExit));
 
 	return Slate;

@@ -33,7 +33,7 @@ namespace BuildPatchServices
 
 	public:
 		// IBuildStatistics interface begin.
-		virtual const FInstallerConfiguration& GetConfiguration() const override;
+		virtual const FBuildInstallerConfiguration& GetConfiguration() const override;
 		virtual int64 GetDownloadSize() const override;
 		virtual int64 GetBuildSize() const override;
 		virtual int32 GetMemoryChunkStoreSize() const override;
@@ -65,7 +65,7 @@ namespace BuildPatchServices
 	{
 	}
 
-	const FInstallerConfiguration& FBuildStatistics::GetConfiguration() const
+	const FBuildInstallerConfiguration& FBuildStatistics::GetConfiguration() const
 	{
 		return Installer->GetConfiguration();
 	}

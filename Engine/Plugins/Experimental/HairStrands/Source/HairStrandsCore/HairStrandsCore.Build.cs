@@ -4,23 +4,25 @@ namespace UnrealBuildTool.Rules
 {
 	public class HairStrandsCore : ModuleRules
 	{
-        public HairStrandsCore(ReadOnlyTargetRules Target) : base(Target)
+		public HairStrandsCore(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PrivateIncludePaths.Add(ModuleDirectory + "/Private");
-            PublicIncludePaths.Add(ModuleDirectory + "/Public");
+			PublicIncludePaths.Add(ModuleDirectory + "/Public");
 
-            PrivateDependencyModuleNames.AddRange(
-                new string[]
-                {
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
 					"Core",
 					"CoreUObject",
 					"Engine",
-                    "RenderCore",
-                    "Renderer",
-                    "RHI",
+					"MeshDescription",
+					"Niagara",
+					"RenderCore",
+					"Renderer",
+					"RHI",
 					"ChaosCore",
-                    "Chaos"
-                });
-        }
+					"Chaos"
+				});
+		}
 	}
 }

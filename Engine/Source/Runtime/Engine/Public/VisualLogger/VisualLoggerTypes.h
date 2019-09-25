@@ -275,6 +275,10 @@ public:
 	virtual void SetFileName(const FString& InFileName) { /* Empty */ }
 	virtual void GetRecordedLogs(TArray<FVisualLogDevice::FVisualLogEntryItem>& OutLogs)  const { /* Empty */ }
 	virtual bool HasFlags(int32 InFlags) const { return false; }
+	FGuid GetSessionGUID() const { return SessionGUID; }
+	uint32 GetShortSessionID() const { return SessionGUID[0]; }
+protected:
+	FGuid SessionGUID;
 };
 
 struct ENGINE_API FVisualLoggerCategoryVerbosityPair

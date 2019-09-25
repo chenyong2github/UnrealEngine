@@ -11,6 +11,7 @@
 #include "HAL/ThreadSafeCounter.h"
 #include "HAL/Event.h"
 #include "Containers/Queue.h"
+#include "Containers/StringConv.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FThreadTest, "System.Core.HAL.Thread", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 
@@ -18,38 +19,62 @@ namespace
 {
 	void TestIsJoinableAfterCreation(FThreadTest& This)
 	{
-		FThread Thread(TEXT("Test.Thread"), []() { /*NOOP*/ });
+		FThread Thread(TEXT("Test.Thread.TestIsJoinableAfterCreation"), []() { /*NOOP*/ });
 		This.TestTrue(TEXT("FThread must be joinable after construction"), Thread.IsJoinable());
 		Thread.Join();
+		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 
 	void TestIsJoinableAfterCompletion(FThreadTest& This)
 	{
 		FThreadSafeBool bDone = false;
-		FThread Thread(TEXT("Test.Thread"), [&bDone]() { bDone = true; });
+		FThread Thread(TEXT("Test.Thread.TestIsJoinableAfterCompletion"), [&bDone]() { bDone = true; });
 		while (!bDone); // wait for completion //-V529
 		This.TestTrue(TEXT("FThread must still be joinable after completion"), Thread.IsJoinable());
 		Thread.Join();
+		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 
 	void TestIsNotJoinableAfterJoining(FThreadTest& This)
 	{
-		FThread Thread(TEXT("Test.Thread"), []() { /*NOOP*/ });
+		FThread Thread(TEXT("Test.Thread.TestIsNotJoinableAfterJoining"), []() { /*NOOP*/ });
 		Thread.Join();
 		This.TestFalse(TEXT("FThread must not be joinable after joining"), Thread.IsJoinable());
+		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 
+#if 0 // detaching is not implemented
 	void TestIsNotJoinableAfterDetaching(FThreadTest& This)
 	{
-		FThread Thread(TEXT("Test.Thread"), []() { /*NOOP*/ });
-		Thread.Detach();
-		This.TestFalse(TEXT("FThread must not be joinable after detaching"), Thread.IsJoinable());
+		// two cases: it's either the calling thread detaches from the thread before the thread is completed
+		{
+			TAtomic<bool> bReady{ false };
+			FThread Thread(TEXT("Test.Thread"), [&bReady]()
+				{
+					while (!bReady) {}
+				});
+			Thread.Detach();
+			bReady = true; // make sure `Detach` is called before thread function exit
+			This.TestFalse(TEXT("FThread must not be joinable after detaching"), Thread.IsJoinable());
+		}
+		// or thread function is completed fast and `FThreadImpl` releases the reference to itself before
+		// `Detach` call
+		{
+			TAtomic<bool> bReady{ false };
+			FThread Thread(TEXT("Test.Thread"), [&bReady]() { /*NOOP*/});
+			FPlatformProcess::Sleep(0.1); // let the thread exit before detaching
+			Thread.Detach();
+			bReady = true; // make sure `Detach` is called before thread function exit
+			This.TestFalse(TEXT("FThread must not be joinable after detaching"), Thread.IsJoinable());
+		}
+		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
+#endif
 
 	void TestAssertIfNotJoinedOrDetached(FThreadTest& This)
 	{
 		// this does fails the `check`, but it seems there's no way to test this by UE4 Automation Testing, so commented out
-		//FThread Thread(TEXT("Test.Thread"), []() { /*NOOP*/ });
+		FThread Thread(TEXT("Test.Thread.TestAssertIfNotJoinedOrDetached"), []() { /*NOOP*/ });
 		// should assert in the destructor
 	}
 
@@ -61,10 +86,11 @@ namespace
 		}
 		{	// check that default constructed thread can be "upgraded" to joinable thread
 			FThread Thread;
-			Thread = FThread(TEXT("Test.Thread"), []() { /* NOOP */ });
+			Thread = FThread(TEXT("Test.Thread.TestDefaultConstruction"), []() { /* NOOP */ });
 			This.TestTrue(TEXT("Move-constructed FThread from joinable thread must be joinable"), Thread.IsJoinable());
 			Thread.Join();
 		}
+		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 
 	void TestMovability(FThreadTest& This)
@@ -76,14 +102,14 @@ namespace
 			This.TestFalse(TEXT("Move-constructed thread from not joinable thread must be not joinable"), Dst.IsJoinable());
 		}
 		{	// move constructor with joinable thread
-			FThread Src(TEXT("Test.Thread"), []() { /* NOOP */ });
+			FThread Src(TEXT("Test.Thread.TestMovability.1"), []() { /* NOOP */ });
 			FThread Dst(MoveTemp(Src));
 			This.TestFalse(TEXT("Moved out thread must be not joinable"), Src.IsJoinable());
 			This.TestTrue(TEXT("Move-constructed thread from joinable thread must be joinable"), Dst.IsJoinable());
 			Dst.Join();
 		}
 		{	// move assignment operator
-			FThread Src(TEXT("Test.Thread"), []() { /* NOOP */ });
+			FThread Src(TEXT("Test.Thread.TestMovability.2"), []() { /* NOOP */ });
 			FThread Dst;
 			Dst = MoveTemp(Src);
 			This.TestFalse(TEXT("Moved out thread must be not joinable"), Src.IsJoinable());
@@ -97,12 +123,13 @@ namespace
 			//Dst.Join();
 		}
 		{	// Move assignment operator of thread that has been joined
-			FThread Src(TEXT("Test.Thread"), []() { /* NOOP */ });
-			FThread Dst(TEXT("Test.Thread"), []() { /* NOOP */ });
+			FThread Src(TEXT("Test.Thread.TestMovability.3"), []() { /* NOOP */ });
+			FThread Dst(TEXT("Test.Thread.TestMovability.4"), []() { /* NOOP */ });
 			Dst.Join();
 			Dst = MoveTemp(Src);
 			Dst.Join();
 		}
+		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 
 	// An example of possible implementation of Consumer/Producer idiom
@@ -113,7 +140,7 @@ namespace
 		TQueue<FWork> WorkQueue;
 		FEvent* WorkQueuedEvent = FPlatformProcess::GetSynchEventFromPool();
 
-		FThread WorkerThread(TEXT("Test.Thread"), [&bQuitRequested, &WorkQueue, WorkQueuedEvent]() 
+		FThread WorkerThread(TEXT("Test.Thread.TestTypicalUseCase"), [&bQuitRequested, &WorkQueue, WorkQueuedEvent]() 
 		{
 			while (!bQuitRequested)
 			{
@@ -160,17 +187,24 @@ namespace
 		//	Request to quit
 		//	The thread 0x96e0 has exited with code 0 (0x0).
 		//	Quit
+	
+		UE_LOG(LogTemp, Log, TEXT("%s completed"), StringCast<TCHAR>(__FUNCTION__).Get());
 	}
 }
 
 bool FThreadTest::RunTest(const FString& Parameters)
 {
+	UE_LOG(LogTemp, Log, TEXT("%s"), StringCast<TCHAR>(__FUNCTION__).Get());
+
 	TestIsJoinableAfterCreation(*this);
 	TestIsJoinableAfterCompletion(*this);
 	TestIsNotJoinableAfterJoining(*this);
+	
+#if 0 // detaching is not implemented
 	TestIsNotJoinableAfterDetaching(*this);
+#endif
 
-	TestAssertIfNotJoinedOrDetached(*this);
+	//TestAssertIfNotJoinedOrDetached(*this);
 
 	TestDefaultConstruction(*this);
 	TestMovability(*this);

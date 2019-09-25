@@ -49,6 +49,15 @@
 	return nullptr;
 }
 
+UWorldSubsystem* USubsystemBlueprintLibrary::GetWorldSubsystem(UObject* ContextObject, TSubclassOf<UWorldSubsystem> Class)
+{
+	if (const UWorld* World = ThisClass::GetWorldFrom(ContextObject))
+	{
+		return World->GetSubsystemBase(Class);
+	}
+	return nullptr;
+}
+
 /*static*/ ULocalPlayerSubsystem* USubsystemBlueprintLibrary::GetLocalPlayerSubSystemFromPlayerController(APlayerController* PlayerController, TSubclassOf<ULocalPlayerSubsystem> Class)
 {
 	if (PlayerController)

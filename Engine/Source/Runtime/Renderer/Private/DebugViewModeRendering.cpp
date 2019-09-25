@@ -29,7 +29,6 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDebugViewModePassPassUniformParameters
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-
 void SetupDebugViewModePassUniformBuffer(FSceneRenderTargets& SceneContext, ERHIFeatureLevel::Type FeatureLevel, FDebugViewModePassPassUniformParameters& PassParameters)
 {
 	SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::None, PassParameters.SceneTextures);
@@ -52,6 +51,27 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(,FDebugViewModeHS,TEXT("/Engine/Private/DebugView
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FDebugViewModeDS,TEXT("/Engine/Private/DebugViewModeVertexShader.usf"),TEXT("MainDomain"),SF_Domain);
 
 ENGINE_API bool GetDebugViewMaterial(const UMaterialInterface* InMaterialInterface, EDebugViewShaderMode InDebugViewMode, ERHIFeatureLevel::Type InFeatureLevel,const FMaterialRenderProxy*& OutMaterialRenderProxy, const FMaterial*& OutMaterial);
+
+
+bool FDebugViewModeVS::ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
+{
+	if (AllowDebugViewVSDSHS(Parameters.Platform))
+	{
+		// If it comes from FDebugViewModeMaterialProxy, compile it.
+		if (Parameters.Material->GetFriendlyName().Contains(TEXT("DebugViewMode")))
+		{
+			return true;
+		}
+		// Otherwise we only cache it if this for the shader complexity.
+		else if (GCacheShaderComplexityShaders)
+		{
+			return !FDebugViewModeInterface::AllowFallbackToDefaultMaterial(Parameters.Material) || Parameters.Material->IsDefaultMaterial();
+		}
+	}
+	return false;
+}
+
+extern FRenderingCompositeOutputRef AddTemporalAADebugViewPass(FPostprocessContext& Context);
 
 void FDeferredShadingSceneRenderer::DoDebugViewModePostProcessing(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& VelocityRT)
 {
@@ -109,24 +129,7 @@ void FDeferredShadingSceneRenderer::DoDebugViewModePostProcessing(FRHICommandLis
 		}
 		case DVSM_RayTracingDebug:
 		{
-			FSceneViewState* ViewState = (FSceneViewState*)Context.View.State;
-			FTAAPassParameters Parameters(Context.View);
-			FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessTemporalAA(
-				Context, 
-				Parameters, 
-				Context.View.PrevViewInfo.TemporalAAHistory, 
-				&ViewState->PrevFrameViewInfo.TemporalAAHistory));
-
-			FRenderingCompositePass* VelocityNode = VelocityRT
-				? Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(VelocityRT))
-				: Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(GSystemTextures.BlackDummy));
-
-			FRenderingCompositeOutputRef VelocityRef(VelocityNode);
-
-			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-			Node->SetInput(ePId_Input2, VelocityRef);
-
-			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
+			Context.FinalOutput = AddTemporalAADebugViewPass(Context);
 
 			if (View.Family->EngineShowFlags.Tonemapper)
 			{
@@ -321,8 +324,6 @@ FDebugViewModeMeshProcessor::FDebugViewModeMeshProcessor(
 
 void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
 {
-	const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
-	const FMaterial* Material = nullptr;
 	const FMaterial* BatchMaterial = MeshBatch.MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
 
 	if (!DebugViewModeInterface || !BatchMaterial)
@@ -335,7 +336,21 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 	{
 		ResolvedMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 	}
-	if (!GetDebugViewMaterial(ResolvedMaterial, DebugViewMode, FeatureLevel, MaterialRenderProxy, Material))
+
+	const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
+	const FMaterial* Material = nullptr;
+
+	if (DebugViewMode == DVSM_ShaderComplexity && GCacheShaderComplexityShaders)
+	{
+		Material = ResolvedMaterial->GetMaterialResource(FeatureLevel);
+		MaterialRenderProxy  = ResolvedMaterial->GetRenderProxy();
+
+		if (!Material || !MaterialRenderProxy || !Material->HasValidGameThreadShaderMap() ||  !Material->GetRenderingThreadShaderMap())
+		{
+			return;
+		}
+	}
+	else if (!GetDebugViewMaterial(ResolvedMaterial, DebugViewMode, FeatureLevel, MaterialRenderProxy, Material))
 	{
 		return;
 	}

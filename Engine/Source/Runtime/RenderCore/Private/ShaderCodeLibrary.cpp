@@ -727,29 +727,6 @@ public:
 		return Shader;
 	}
 
-	FGeometryShaderRHIRef CreateGeometryShaderWithStreamOutput(const FSHAHash& Hash, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream) override final
-	{
-		FGeometryShaderRHIRef Shader;
-
-		int32 Size = 0;
-		bool bWasSync = false;
-		TArray<uint8>* Code = LookupShaderCode(Hash, Size, bWasSync);
-		if (Code)
-		{
-			TArray<uint8> UCode;
-			TArray<uint8>& UncompressedCode = FShaderLibraryHelperUncompressCode(Platform, Size, *Code, UCode);
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			Shader = RHICreateGeometryShaderWithStreamOutput(UncompressedCode, ElementList, NumStrides, Strides, RasterizedStream);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			CheckShaderCreation(Shader.GetReference(), Hash);
-			if (bWasSync)
-			{
-				ReleaseShaderCode(Hash);
-			}
-		}
-		return Shader;
-	}
-
 	FComputeShaderRHIRef CreateComputeShader(const FSHAHash& Hash) override final
 	{
 		FComputeShaderRHIRef Shader;
@@ -1831,28 +1808,6 @@ public:
 		return Result;
 	}
 
-	FGeometryShaderRHIRef CreateGeometryShaderWithStreamOutput(EShaderPlatform Platform, FSHAHash Hash, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream)
-	{
-		checkSlow(Platform == GetRuntimeShaderPlatform());
-
-		FGeometryShaderRHIRef Result;
-		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
-		if (ShaderCodeArchive)
-		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			if (bNativeFormat || GRHILazyShaderCodeLoading)
-			{
-				Result = RHICreateGeometryShaderWithStreamOutput(ElementList, NumStrides, Strides, RasterizedStream, ShaderCodeArchive, Hash);
-			}
-			else
-			{
-				Result = ((FShaderCodeArchive*)ShaderCodeArchive)->CreateGeometryShaderWithStreamOutput(Hash, ElementList, NumStrides, Strides, RasterizedStream);
-			}
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		}
-		return Result;
-	}
-
 	FHullShaderRHIRef CreateHullShader(EShaderPlatform Platform, FSHAHash Hash)
 	{
 		checkSlow(Platform == GetRuntimeShaderPlatform());
@@ -1942,19 +1897,16 @@ public:
 	FRHIShaderLibrary* FindShaderLibrary(const FSHAHash& Hash)
 	{
 		FRWScopeLock(LibraryMutex, SLT_ReadOnly);
-		FRHIShaderLibrary* Result = nullptr;
 
 		// Search in library opened order
-		for (int32 i = 0; i < ShaderCodeArchiveStack.Num(); ++i)
+		for (FRHIShaderLibrary* ShaderCodeArchive : ShaderCodeArchiveStack)
 		{
-			FRHIShaderLibrary* ShaderCodeArchive = ShaderCodeArchiveStack[i];
 			if (ShaderCodeArchive->ContainsEntry(Hash))
 			{
-				Result = ShaderCodeArchive;
-				break;
+				return ShaderCodeArchive;
 			}
 		}
-		return Result;
+		return nullptr;
 	}
 
 	bool ContainsShaderCode(const FSHAHash& Hash)
@@ -2197,8 +2149,6 @@ static void FShaderCodeLibraryPluginMountedCallback(IPlugin& Plugin)
 
 void FShaderCodeLibrary::InitForRuntime(EShaderPlatform ShaderPlatform)
 {
-	check(FPlatformProperties::RequiresCookedData());
-
 	if (FShaderCodeLibraryImpl::Impl != nullptr)
 	{
 		//cooked, can't change shader platform on the fly
@@ -2325,7 +2275,7 @@ void FShaderCodeLibrary::LazyReleaseShaderCode(const FSHAHash& Hash)
 FVertexShaderRHIRef FShaderCodeLibrary::CreateVertexShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code)
 {
 	FVertexShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Shader = FShaderCodeLibraryImpl::Impl->CreateVertexShader(Platform, Hash);
 	}
@@ -2340,7 +2290,7 @@ FVertexShaderRHIRef FShaderCodeLibrary::CreateVertexShader(EShaderPlatform Platf
 FPixelShaderRHIRef FShaderCodeLibrary::CreatePixelShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code)
 {
 	FPixelShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Shader = FShaderCodeLibraryImpl::Impl->CreatePixelShader(Platform, Hash);
 	}
@@ -2355,7 +2305,7 @@ FPixelShaderRHIRef FShaderCodeLibrary::CreatePixelShader(EShaderPlatform Platfor
 FGeometryShaderRHIRef FShaderCodeLibrary::CreateGeometryShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code)
 {
 	FGeometryShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Shader = FShaderCodeLibraryImpl::Impl->CreateGeometryShader(Platform, Hash);
 	}
@@ -2367,27 +2317,10 @@ FGeometryShaderRHIRef FShaderCodeLibrary::CreateGeometryShader(EShaderPlatform P
 	return Shader;
 }
 
-FGeometryShaderRHIRef FShaderCodeLibrary::CreateGeometryShaderWithStreamOutput(EShaderPlatform Platform, FSHAHash Hash, const TArray<uint8>& Code, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream)
-{
-	FGeometryShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
-	{
-		Shader = FShaderCodeLibraryImpl::Impl->CreateGeometryShaderWithStreamOutput(Platform, Hash, ElementList, NumStrides, Strides, RasterizedStream);
-	}
-	if (!IsValidRef(Shader))
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Shader = RHICreateGeometryShaderWithStreamOutput(Code, ElementList, NumStrides, Strides, RasterizedStream);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-	SafeAssignHash(Shader, Hash);
-	return Shader;
-}
-
 FHullShaderRHIRef FShaderCodeLibrary::CreateHullShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code)
 {
 	FHullShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Shader = FShaderCodeLibraryImpl::Impl->CreateHullShader(Platform, Hash);
 	}
@@ -2402,7 +2335,7 @@ FHullShaderRHIRef FShaderCodeLibrary::CreateHullShader(EShaderPlatform Platform,
 FDomainShaderRHIRef FShaderCodeLibrary::CreateDomainShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code)
 {
 	FDomainShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Shader = FShaderCodeLibraryImpl::Impl->CreateDomainShader(Platform, Hash);
 	}
@@ -2417,7 +2350,7 @@ FDomainShaderRHIRef FShaderCodeLibrary::CreateDomainShader(EShaderPlatform Platf
 FComputeShaderRHIRef FShaderCodeLibrary::CreateComputeShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code)
 {
 	FComputeShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Shader = FShaderCodeLibraryImpl::Impl->CreateComputeShader(Platform, Hash);
 	}
@@ -2434,7 +2367,7 @@ FComputeShaderRHIRef FShaderCodeLibrary::CreateComputeShader(EShaderPlatform Pla
 TRefCountPtr<FRHIShaderLibrary::FShaderLibraryIterator> FShaderCodeLibrary::CreateIterator(void)
 {
 	TRefCountPtr<FRHIShaderLibrary::FShaderLibraryIterator> It;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		It = FShaderCodeLibraryImpl::Impl->CreateIterator();
 	}
@@ -2444,7 +2377,7 @@ TRefCountPtr<FRHIShaderLibrary::FShaderLibraryIterator> FShaderCodeLibrary::Crea
 uint32 FShaderCodeLibrary::GetShaderCount(void)
 {
 	uint32 Num = 0;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Num = FShaderCodeLibraryImpl::Impl->GetShaderCount();
 	}
@@ -2454,7 +2387,7 @@ uint32 FShaderCodeLibrary::GetShaderCount(void)
 TSet<FShaderCodeLibraryPipeline> const* FShaderCodeLibrary::GetShaderPipelines(EShaderPlatform Platform)
 {
 	TSet<FShaderCodeLibraryPipeline> const* Pipelines = nullptr;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Pipelines = FShaderCodeLibraryImpl::Impl->GetShaderPipelines(Platform);
 	}
@@ -2464,7 +2397,7 @@ TSet<FShaderCodeLibraryPipeline> const* FShaderCodeLibrary::GetShaderPipelines(E
 EShaderPlatform FShaderCodeLibrary::GetRuntimeShaderPlatform(void)
 {
 	EShaderPlatform Platform = SP_NumPlatforms;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Platform = FShaderCodeLibraryImpl::Impl->GetRuntimeShaderPlatform();
 	}

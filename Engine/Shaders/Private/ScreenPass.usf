@@ -2,8 +2,8 @@
 
 #include "Common.ush"
 
-Texture2D SrcTexture;
-SamplerState SrcSampler;
+Texture2D InputTexture;
+SamplerState InputSampler;
 
 void ScreenPassVS(
 	in float4 InPosition : ATTRIBUTE0,
@@ -16,8 +16,8 @@ void ScreenPassVS(
 
 float4 CopyRectPS(
 	noperspective float4 UVAndScreenPos : TEXCOORD0
-    ) : SV_Target0
+	) : SV_Target0
 {
-    float2 UV = UVAndScreenPos.xy;
-    return Texture2DSample(SrcTexture, SrcSampler, UV);
+	float2 UV = UVAndScreenPos.xy;
+	return Texture2DSample(InputTexture, InputSampler, UV);
 }

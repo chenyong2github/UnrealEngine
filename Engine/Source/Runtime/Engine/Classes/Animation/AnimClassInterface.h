@@ -119,8 +119,16 @@ public:
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines() const = 0;
 	virtual const TArray<FAnimNotifyEvent>& GetAnimNotifies() const = 0;
 	virtual const TArray<UStructProperty*>& GetAnimNodeProperties() const = 0;
-	virtual const TArray<UStructProperty*>& GetSubInstanceNodeProperties() const = 0;
-	virtual const TArray<UStructProperty*>& GetLayerNodeProperties() const = 0;
+	UE_DEPRECATED(4.24, "Function has been renamed, please use GetLinkedAnimGraphNodeProperties")
+	virtual const TArray<UStructProperty*>& GetSubInstanceNodeProperties() const { return GetLinkedAnimGraphNodeProperties(); }
+	virtual const TArray<UStructProperty*>& GetLinkedAnimGraphNodeProperties() const = 0;
+	UE_DEPRECATED(4.24, "Function has been renamed, please use GetLinkedLayerNodeProperties")
+	virtual const TArray<UStructProperty*>& GetLayerNodeProperties() const { return GetLinkedAnimLayerNodeProperties(); }
+	virtual const TArray<UStructProperty*>& GetLinkedAnimLayerNodeProperties() const = 0;
+	virtual const TArray<UStructProperty*>& GetPreUpdateNodeProperties() const = 0;
+	virtual const TArray<UStructProperty*>& GetDynamicResetNodeProperties() const = 0;
+	virtual const TArray<UStructProperty*>& GetStateMachineNodeProperties() const = 0;
+	virtual const TArray<UStructProperty*>& GetInitializationNodeProperties() const = 0;
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const = 0;
 	virtual const TArray<FName>& GetSyncGroupNames() const = 0;
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const = 0;

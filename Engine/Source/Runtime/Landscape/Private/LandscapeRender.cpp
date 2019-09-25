@@ -81,6 +81,10 @@ static FAutoConsoleVariableRef CVarAllowLandscapeShadows(
 	TEXT("Allow Landscape Shadows")
 );
 
+#if WITH_EDITOR
+extern TAutoConsoleVariable<int32> CVarLandscapeShowDirty;
+#endif
+
 #if !UE_BUILD_SHIPPING
 static void OnLODDistributionScaleChanged(IConsoleVariable* CVar)
 {
@@ -573,6 +577,7 @@ UMaterialInterface* GMaskRegionMaterial = nullptr;
 UMaterialInterface* GColorMaskRegionMaterial = nullptr;
 UTexture2D* GLandscapeBlackTexture = nullptr;
 UMaterialInterface* GLandscapeLayerUsageMaterial = nullptr;
+UMaterialInterface* GLandscapeDirtyMaterial = nullptr;
 #endif
 
 void ULandscapeComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
@@ -623,6 +628,7 @@ void ULandscapeComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 		OutMaterials.Add(GMaskRegionMaterial);
 		OutMaterials.Add(GColorMaskRegionMaterial);
 		OutMaterials.Add(GLandscapeLayerUsageMaterial);
+		OutMaterials.Add(GLandscapeDirtyMaterial);
 	}
 #endif
 }
@@ -696,7 +702,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 	const auto FeatureLevel = GetScene().GetFeatureLevel();
 
-	if (FeatureLevel >= ERHIFeatureLevel::SM4)
+	if (FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		if (InComponent->GetLandscapeProxy()->bUseDynamicMaterialInstance)
 		{
@@ -847,7 +853,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 			bool HasTessellationEnabled = false;
 
-			if (FeatureLevel >= ERHIFeatureLevel::SM4)
+			if (FeatureLevel >= ERHIFeatureLevel::SM5)
 			{
 				HasTessellationEnabled = LandscapeMaterial->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation;
 			}
@@ -1056,7 +1062,6 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 				FRHIResourceCreateInfo CreateInfo;
 				Initializer.PositionVertexBuffer = RHICreateVertexBuffer(sizeof(FVector4) * NumPrimitives * 3, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
 				Initializer.IndexBuffer = nullptr;
-				Initializer.BaseVertexIndex = 0;
 				Initializer.VertexBufferStride = sizeof(FVector);
 				Initializer.TotalPrimitiveCount = NumPrimitives;
 				Initializer.VertexBufferElementType = VET_Float3;
@@ -1194,6 +1199,12 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 				ToolRelevance |= GColorMaskRegionMaterial->GetRelevance_Concurrent(FeatureLevel);
 			}
 
+			if (CVarLandscapeShowDirty.GetValueOnRenderThread())
+			{
+				Result.bDynamicRelevance = true;
+				ToolRelevance |= GLandscapeDirtyMaterial->GetRelevance_Concurrent(FeatureLevel);
+			}
+
 			ToolRelevance.SetPrimitiveViewRelevance(Result);
 		}
 	}
@@ -1220,6 +1231,7 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 #if WITH_EDITOR
 		(IsSelected() && !GLandscapeEditModeActive) ||
 		(GLandscapeViewMode != ELandscapeViewMode::Normal) ||
+		CVarLandscapeShowDirty.GetValueOnRenderThread() ||
 #else
 		IsSelected() ||
 #endif
@@ -1807,7 +1819,7 @@ void FLandscapeComponentSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInter
 
 		UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(AvailableMaterials[i]);
 
-		bool HasTessellationEnabled = (FeatureLevel >= ERHIFeatureLevel::SM4) ? MaterialInstance != nullptr && MaterialInstance->GetMaterial()->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation && MaterialIndexToDisabledTessellationMaterial[i] != INDEX_NONE : false;
+		bool HasTessellationEnabled = (FeatureLevel >= ERHIFeatureLevel::SM5) ? MaterialInstance != nullptr && MaterialInstance->GetMaterial()->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation && MaterialIndexToDisabledTessellationMaterial[i] != INDEX_NONE : false;
 
 		// Only add normal batch index (for each material)
 		MaterialIndexToStaticMeshBatchLOD[i] = CurrentLODIndex;
@@ -1952,7 +1964,7 @@ uint64 FLandscapeComponentSceneProxy::GetStaticBatchElementVisibility(const FSce
 		const FViewCustomDataLOD* CurrentLODData = (const FViewCustomDataLOD*)ViewCustomData;
 		const auto FeatureLevel = InView.GetFeatureLevel();
 
-		if (FeatureLevel >= ERHIFeatureLevel::SM4)
+		if (FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			const int8 CurrentLODIndex = CurrentLODData->SubSections[0].BatchElementCurrentLOD;
 			ULandscapeMaterialInstanceConstant* LandscapeMIC = Cast<ULandscapeMaterialInstanceConstant>(AvailableMaterials[LODIndexToMaterialIndex[CurrentLODIndex]]);
@@ -2206,7 +2218,7 @@ void* FLandscapeComponentSceneProxy::InitViewCustomData(const FSceneView& InView
 	LODData->IsShadowOnly = InIsShadowOnly;
 
 	// Mobile use a different way of calculating the Bias
-	if (GetScene().GetFeatureLevel() >= ERHIFeatureLevel::SM4)
+	if (GetScene().GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 	{
 		LODData->LodBias = GetShaderLODBias();
 	}
@@ -2225,7 +2237,7 @@ void FLandscapeComponentSceneProxy::ComputeTessellationFalloffShaderValues(const
 	const auto FeatureLevel = GetScene().GetFeatureLevel();
 	bool HasTessellationEnabled = false;
 
-	if (FeatureLevel >= ERHIFeatureLevel::SM4)
+	if (FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		const int8 CurrentLODIndex = InLODData.SubSections[0].BatchElementCurrentLOD;
 		ULandscapeMaterialInstanceConstant* LandscapeMIC = Cast<ULandscapeMaterialInstanceConstant>(AvailableMaterials[LODIndexToMaterialIndex[CurrentLODIndex]]);
@@ -2550,7 +2562,7 @@ FLODMask FLandscapeComponentSceneProxy::GetCustomLOD(const FSceneView& InView, f
 		const auto FeatureLevel = InView.GetFeatureLevel();
 		bool HasTessellationEnabled = false;
 
-		if (FeatureLevel >= ERHIFeatureLevel::SM4)
+		if (FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			ULandscapeMaterialInstanceConstant* LandscapeMIC = Cast<ULandscapeMaterialInstanceConstant>(AvailableMaterials[LODIndexToMaterialIndex[PotentialLOD]]);
 
@@ -2639,7 +2651,7 @@ FLODMask FLandscapeComponentSceneProxy::GetCustomWholeSceneShadowLOD(const FScen
 		const auto FeatureLevel = InView.GetFeatureLevel();
 		bool HasTessellationEnabled = false;
 
-		if (FeatureLevel >= ERHIFeatureLevel::SM4)
+		if (FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			ULandscapeMaterialInstanceConstant* LandscapeMIC = Cast<ULandscapeMaterialInstanceConstant>(AvailableMaterials[LODIndexToMaterialIndex[PotentialLOD]]);
 
@@ -2745,7 +2757,7 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 			const auto FeatureLevel = View->GetFeatureLevel();
 			bool HasTessellationEnabled = false;
 
-			if (FeatureLevel >= ERHIFeatureLevel::SM4)
+			if (FeatureLevel >= ERHIFeatureLevel::SM5)
 			{
 				const int8 CurrentLODIndex = PrimitiveCustomData->SubSections[0].BatchElementCurrentLOD;
 				ULandscapeMaterialInstanceConstant* LandscapeMIC = Cast<ULandscapeMaterialInstanceConstant>(AvailableMaterials[LODIndexToMaterialIndex[CurrentLODIndex]]);
@@ -2962,6 +2974,27 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 						NumDrawCalls += Mesh.Elements.Num();
 					}
 				}
+#if WITH_EDITOR
+				else if (CVarLandscapeShowDirty.GetValueOnRenderThread())
+				{
+					Mesh.bCanApplyViewModeOverrides = false;
+					Collector.AddMesh(ViewIndex, Mesh);
+					NumPasses++;
+					NumTriangles += Mesh.GetNumPrimitives();
+					NumDrawCalls += Mesh.Elements.Num();
+
+					FMeshBatch& MaskMesh = Collector.AllocateMesh();
+					MaskMesh = MeshTools;
+										
+					auto DirtyMaterialInstance = new FLandscapeMaskMaterialRenderProxy(GLandscapeDirtyMaterial->GetRenderProxy(), EditToolRenderData.DirtyTexture ? EditToolRenderData.DirtyTexture : GLandscapeBlackTexture, true);
+					MaskMesh.MaterialRenderProxy = DirtyMaterialInstance;
+					Collector.RegisterOneFrameMaterialProxy(DirtyMaterialInstance);
+					Collector.AddMesh(ViewIndex, MaskMesh);
+					NumPasses++;
+					NumTriangles += MaskMesh.GetNumPrimitives();
+					NumDrawCalls += MaskMesh.Elements.Num();
+				}
+#endif
 				else
 #endif
 					// Regular Landscape rendering. Only use the dynamic path if we're rendering a rich view or we've disabled the static path for debugging.
@@ -3103,13 +3136,15 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 
 	FMemStackBase& PrimitiveCustomDataMemStack = FMemStack::Get();
 
+	FViewCustomDataLOD* InPrimitiveCustomData;
+
 	float MeshScreenSizeSquared = 0;
 	int32 ForcedLODLevel = (Context.ReferenceView->Family->EngineShowFlags.LOD) ? GetCVarForceLOD() : 0;
 
 	FLODMask LODToRender = GetCustomLOD(*Context.ReferenceView, Context.ReferenceView->LODDistanceFactor, ForcedLODLevel, MeshScreenSizeSquared);
-	FViewCustomDataLOD* InPrimitiveCustomData = (FViewCustomDataLOD*)InitViewCustomData(*Context.ReferenceView, Context.ReferenceView->LODDistanceFactor, PrimitiveCustomDataMemStack, false, false, &LODToRender, MeshScreenSizeSquared);
+	InPrimitiveCustomData = (FViewCustomDataLOD*)InitViewCustomData(*Context.ReferenceView, Context.ReferenceView->LODDistanceFactor, PrimitiveCustomDataMemStack, false, false, &LODToRender, MeshScreenSizeSquared);
 	PostInitViewCustomData(*Context.ReferenceView, InPrimitiveCustomData);
-
+	
 	FLandscapeElementParamArray& ParameterArray = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FLandscapeElementParamArray>();
 	ParameterArray.ElementParams.AddDefaulted(NumSubsections * NumSubsections);
 
@@ -4186,6 +4221,10 @@ FVertexFactoryShaderParameters* FLandscapeFixedGridVertexFactory::ConstructShade
 	switch (ShaderFrequency)
 	{
 	case SF_Vertex:
+#if RHI_RAYTRACING
+	case SF_Compute:
+	case SF_RayHitGroup:
+#endif
 		return new FLandscapeFixedGridVertexFactoryVertexShaderParameters();
 		break;
 	case SF_Pixel:
@@ -4651,11 +4690,11 @@ void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 	}
 
 	ERHIFeatureLevel::Type FeatureLevel = LevelContext.GetFeatureLevel();
-	int32 MaterialInstanceCount = FeatureLevel >= ERHIFeatureLevel::SM4 ? GetMaterialInstanceCount() : MobileMaterialInterfaces.Num();
+	int32 MaterialInstanceCount = FeatureLevel >= ERHIFeatureLevel::SM5 ? GetMaterialInstanceCount() : MobileMaterialInterfaces.Num();
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialInstanceCount; ++MaterialIndex)
 	{
-		const UMaterialInterface* MaterialInterface = FeatureLevel >= ERHIFeatureLevel::SM4 ? GetMaterialInstance(MaterialIndex) : MobileMaterialInterfaces[MaterialIndex];
+		const UMaterialInterface* MaterialInterface = FeatureLevel >= ERHIFeatureLevel::SM5 ? GetMaterialInstance(MaterialIndex) : MobileMaterialInterfaces[MaterialIndex];
 
 		// Normal usage...
 		// Enumerate the textures used by the material.

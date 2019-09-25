@@ -5,7 +5,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "EdGraph/EdGraph.h"
-#include "AnimGraphNode_SubInput.h"
+#include "AnimGraphNode_LinkedInputPose.h"
 #include "Algo/Transform.h"
 #include "DetailWidgetRow.h"
 #include "Widgets/Text/STextBlock.h"
@@ -48,7 +48,7 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 
 	if(Objects.Num() > 1 || bIsStateMachine)
 	{
-		IDetailCategoryBuilder& InputsCategory = DetailLayout.EditCategory("Inputs", LOCTEXT("SubInputsCategory", "Inputs"));
+		IDetailCategoryBuilder& InputsCategory = DetailLayout.EditCategory("Inputs", LOCTEXT("LinkedInputPoseInputsCategory", "Inputs"));
 		InputsCategory.SetCategoryVisibility(false);
 		return;
 	}
@@ -60,7 +60,7 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 	{
 		FText ReadOnlyWarning = LOCTEXT("ReadOnlyWarning", "This graph's inputs are read-only and cannot be edited");
 
-		IDetailCategoryBuilder& InputsCategory = DetailLayout.EditCategory("Inputs", LOCTEXT("SubInputsCategory", "Inputs"));
+		IDetailCategoryBuilder& InputsCategory = DetailLayout.EditCategory("Inputs", LOCTEXT("LinkedInputPoseInputsCategory", "Inputs"));
 		InputsCategory.SetCategoryVisibility(false);
 
 		IDetailCategoryBuilder& WarningCategoryBuilder = DetailLayout.EditCategory("GraphInputs", LOCTEXT("GraphInputsCategory", "Graph Inputs"));
@@ -129,13 +129,13 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 		}
 	}
 
-	IDetailCategoryBuilder& InputsCategory = DetailLayout.EditCategory("Inputs", LOCTEXT("SubInputsCategory", "Inputs"));
+	IDetailCategoryBuilder& InputsCategory = DetailLayout.EditCategory("Inputs", LOCTEXT("LinkedInputPoseInputsCategory", "Inputs"));
 
 	DetailLayoutBuilder = &DetailLayout;
 
 	// Gather inputs, if any
-	TArray<UAnimGraphNode_SubInput*> SubInputs;
-	Graph->GetNodesOfClass<UAnimGraphNode_SubInput>(SubInputs);
+	TArray<UAnimGraphNode_LinkedInputPose*> LinkedInputPoseInputs;
+	Graph->GetNodesOfClass<UAnimGraphNode_LinkedInputPose>(LinkedInputPoseInputs);
 
 	TSharedRef<SHorizontalBox> InputsHeaderContentWidget = SNew(SHorizontalBox);
 	TWeakPtr<SWidget> WeakInputsHeaderWidget = InputsHeaderContentWidget;
@@ -145,6 +145,7 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 	];
 	InputsHeaderContentWidget->AddSlot()
 	.AutoWidth()
+	.VAlign(VAlign_Center)
 	[
 		SNew(SButton)
 		.ButtonStyle(FEditorStyle::Get(), "RoundButton")
@@ -178,26 +179,26 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 	];
 	InputsCategory.HeaderContent(InputsHeaderContentWidget);
 
-	if(SubInputs.Num())
+	if(LinkedInputPoseInputs.Num())
 	{
-		for(UAnimGraphNode_SubInput* SubInput : SubInputs)
+		for(UAnimGraphNode_LinkedInputPose* LinkedInputPoseNode : LinkedInputPoseInputs)
 		{
-			auto GetSubInputLabel = [WeakSubInput = TWeakObjectPtr<UAnimGraphNode_SubInput>(SubInput)]()
+			auto GetLinkedInputPoseLabel = [WeakLinkedInputPoseNode = TWeakObjectPtr<UAnimGraphNode_LinkedInputPose>(LinkedInputPoseNode)]()
 			{
-				if(WeakSubInput.IsValid())
+				if(WeakLinkedInputPoseNode.IsValid())
 				{
-					return FText::FromName(WeakSubInput->Node.Name);
+					return FText::FromName(WeakLinkedInputPoseNode->Node.Name);
 				}
 
 				return FText::GetEmpty();
 			};
 
 			TArray<UObject*> ExternalObjects;
-			ExternalObjects.Add(SubInput);
-			if(IDetailPropertyRow* SubInputRow = InputsCategory.AddExternalObjects(ExternalObjects))
+			ExternalObjects.Add(LinkedInputPoseNode);
+			if(IDetailPropertyRow* LinkedInputPoseRow = InputsCategory.AddExternalObjects(ExternalObjects))
 			{
-				SubInputRow->ShouldAutoExpand(true);
-				SubInputRow->CustomWidget()
+				LinkedInputPoseRow->ShouldAutoExpand(true);
+				LinkedInputPoseRow->CustomWidget()
 				.NameContent()
 				[
 					SNew(SBox)
@@ -220,7 +221,7 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 						.FillWidth(1.0f)
 						[
 							SNew(STextBlock)
-							.Text_Lambda(GetSubInputLabel)
+							.Text_Lambda(GetLinkedInputPoseLabel)
 							.Font(IDetailLayoutBuilder::GetDetailFont())
 						]
 						+SHorizontalBox::Slot()
@@ -233,7 +234,7 @@ void FAnimGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 							.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 							.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
 							.ContentPadding(FMargin(2, 2))
-							.OnClicked(this, &FAnimGraphDetails::OnRemoveInputPoseClicked, SubInput)
+							.OnClicked(this, &FAnimGraphDetails::OnRemoveInputPoseClicked, LinkedInputPoseNode)
 							.ToolTipText(LOCTEXT("RemoveInputPoseTooltip", "Remove this input pose"))
 							[
 								SNew(SImage)
@@ -282,10 +283,10 @@ FReply FAnimGraphDetails::OnAddNewInputPoseClicked()
 	bool bIsInterface = AnimBlueprintEditor->GetBlueprintObj()->BlueprintType == BPTYPE_Interface;
 	if(!bIsInterface)
 	{
-		NewNodePosition = UAnimationGraphSchema::GetPositionForNewSubInputNode(*Graph);
+		NewNodePosition = UAnimationGraphSchema::GetPositionForNewLinkedInputPoseNode(*Graph);
 	}
 
-	FEdGraphSchemaAction_K2NewNode::SpawnNode<UAnimGraphNode_SubInput>(Graph, NewNodePosition, EK2NewNodeFlags::None);
+	FEdGraphSchemaAction_K2NewNode::SpawnNode<UAnimGraphNode_LinkedInputPose>(Graph, NewNodePosition, EK2NewNodeFlags::None);
 
 	DetailLayoutBuilder->ForceRefreshDetails();
 	
@@ -297,11 +298,11 @@ EVisibility FAnimGraphDetails::OnGetNewInputPoseTextVisibility(TWeakPtr<SWidget>
 	return WeakInputsHeaderWidget.Pin()->IsHovered() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-FReply FAnimGraphDetails::OnRemoveInputPoseClicked(UAnimGraphNode_SubInput* InSubInput)
+FReply FAnimGraphDetails::OnRemoveInputPoseClicked(UAnimGraphNode_LinkedInputPose* InLinkedInputPose)
 {
 	{
-		FScopedTransaction Transaction(LOCTEXT("RemoveInputPose", "Remove Input Pose"));
-		Graph->RemoveNode(InSubInput);
+		FScopedTransaction Transaction(LOCTEXT("RemoveInputPose", "Remove Linked Input Pose"));
+		Graph->RemoveNode(InLinkedInputPose);
 	}
 
 	TSharedPtr<IAnimationBlueprintEditor> AnimBlueprintEditor = AnimBlueprintEditorPtr.Pin();

@@ -26,7 +26,7 @@
 #include "LODUtilities.h"
 #include "UObject/Package.h"
 #include "MeshUtilities.h"
-#include "ClothingAssetInterface.h"
+#include "ClothingAssetBase.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "IMeshReductionManagerModule.h"
 #include "Rendering/SkeletalMeshModel.h"
@@ -943,7 +943,8 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 
 		for (UClothingAssetBase* ClothingAsset : SkeletalMesh->MeshClothingAssets)
 		{
-			ClothingAsset->RefreshBoneMapping(SkeletalMesh);
+			if(ClothingAsset)
+				ClothingAsset->RefreshBoneMapping(SkeletalMesh);
 		}
 
 		SkeletalMesh->SetSamplingInfo(MeshData->ExistingSamplingInfo);

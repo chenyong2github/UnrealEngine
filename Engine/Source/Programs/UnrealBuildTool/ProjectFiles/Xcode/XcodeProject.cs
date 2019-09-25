@@ -748,7 +748,7 @@ namespace UnrealBuildTool
 			// @todo: Cache this kind of things since every target will re-do this work!
 			foreach (PluginInfo PI in AvailablePlugins)
 			{
-				if (!Plugins.IsPluginEnabledForProject(PI, Project, UnrealTargetPlatform.IOS, UnrealTargetConfiguration.Development, TargetRules.TargetType.Game))
+				if (!Plugins.IsPluginEnabledForTarget(PI, Project, UnrealTargetPlatform.IOS, UnrealTargetConfiguration.Development, TargetRules.TargetType.Game))
 				{
 					continue;
 				}

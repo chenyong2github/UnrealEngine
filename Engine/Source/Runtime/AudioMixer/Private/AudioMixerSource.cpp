@@ -1,14 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerSource.h"
+#include "ActiveSound.h"
 #include "AudioMixerSourceBuffer.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
-#include "ActiveSound.h"
-#include "IAudioExtensionPlugin.h"
-#include "Sound/AudioSettings.h"
 #include "ContentStreaming.h"
+#include "IAudioExtensionPlugin.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Sound/AudioSettings.h"
 
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
@@ -295,7 +295,7 @@ namespace Audio
 
 			bool bIsDebug = false;
 			FString WaveInstanceName = WaveInstance->GetName(); //-V595
-			FString TestName = GEngine->GetAudioDeviceManager()->GetAudioMixerDebugSoundName();
+			FString TestName = GEngine->GetAudioDeviceManager()->GetDebugger().GetAudioMixerDebugSoundName();
 			if (WaveInstanceName.Contains(TestName))
 			{
 				bDebugMode = true;

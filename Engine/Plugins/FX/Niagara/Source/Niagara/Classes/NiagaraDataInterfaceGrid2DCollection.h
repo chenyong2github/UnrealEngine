@@ -15,11 +15,11 @@ class Grid2DBuffer
 {
 public:
 	Grid2DBuffer(int NumX, int NumY)
-	{
-		GridBuffer.Initialize(NumX, NumY);
+	{		
+		GridBuffer.Initialize(16, NumX, NumY, EPixelFormat::PF_A32B32G32R32F);
 	}
 
-	FTextureRWBuffer GridBuffer;	
+	FTextureRWBuffer2D GridBuffer;	
 };
 
 class Grid2DCollectionRWInstanceData
@@ -28,7 +28,11 @@ public:
 
 	int NumCellsX;
 	int NumCellsY;
-	float CellSize;
+	int NumAttributes;
+	int NumTilesX;
+	int NumTilesY;
+
+	FVector2D CellSize;
 	bool SetGridFromVoxelSize;
 
 	FVector WorldBBoxMin;
@@ -66,7 +70,7 @@ public:
 
 		if (DestinationData == nullptr)
 		{
-			DestinationData = new Grid2DBuffer(NumCellsX, NumCellsY);
+			DestinationData = new Grid2DBuffer(NumCellsX * NumTilesX, NumCellsY * NumTilesY);
 			Buffers.Add(DestinationData);
 		}
 
@@ -89,15 +93,15 @@ struct FNiagaraDataInterfaceProxyGrid2DCollection : public FNiagaraDataInterface
 	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) override;
 
 	virtual void DeferredDestroy() override;		
-	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FGuid& SystemInstance);
+	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);
 
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code
-	TMap<FGuid, Grid2DCollectionRWInstanceData> SystemInstancesToProxyData;
+	TMap<FNiagaraSystemInstanceID, Grid2DCollectionRWInstanceData> SystemInstancesToProxyData;
 
 	/* List of proxy data to destroy later */
 	// #todo(dmp): this should all be refactored to avoid duplicate code
-	TSet<FGuid> DeferredDestroyList;
+	TSet<FNiagaraSystemInstanceID> DeferredDestroyList;
 };
 
 UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Grid2D Collection"), Blueprintable, BlueprintType)
@@ -121,7 +125,7 @@ public:
 	virtual bool GetFunctionHLSL(const FName&  DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
 	
-	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FGuid& SystemInstance) override {}
+	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override {}
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override { return false; }
@@ -131,7 +135,9 @@ public:
 	// Fills a texture render target 2d with the current data from the simulation
 	// #todo(dmp): this will eventually go away when we formalize how data makes it out of Niagara
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	virtual void FillTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *dest);
+	virtual void FillTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *dest, int AttributeIndex);
+
+	void GetCellSize(FVectorVMContext& Context);
 
 protected:
 	//~ UNiagaraDataInterface interface

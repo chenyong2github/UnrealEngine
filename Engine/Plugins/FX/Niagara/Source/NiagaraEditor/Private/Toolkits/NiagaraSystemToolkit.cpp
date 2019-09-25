@@ -51,6 +51,7 @@
 #include "Misc/FileHelper.h"
 #include "NiagaraMessageLogViewModel.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
+#include "NiagaraScriptSourceBase.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemEditor"
 
@@ -1236,9 +1237,11 @@ bool FNiagaraSystemToolkit::OnRequestClose()
 				return false;
 			}
 		}
+		GEngine->ForceGarbageCollection(true);
 		return true;
 	}
 	
+	GEngine->ForceGarbageCollection(true);
 	return FAssetEditorToolkit::OnRequestClose();
 }
 

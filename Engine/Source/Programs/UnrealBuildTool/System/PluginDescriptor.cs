@@ -303,7 +303,15 @@ namespace UnrealBuildTool
 			JsonObject RawObject = JsonObject.Read(FileName);
 			try
 			{
-				return new PluginDescriptor(RawObject);
+				PluginDescriptor Descriptor = new PluginDescriptor(RawObject);
+				if (Descriptor.Modules != null)
+				{
+					foreach (ModuleDescriptor Module in Descriptor.Modules)
+					{
+						Module.Validate(FileName);
+					}
+				}
+				return Descriptor;
 			}
 			catch (JsonParseException ParseException)
 			{

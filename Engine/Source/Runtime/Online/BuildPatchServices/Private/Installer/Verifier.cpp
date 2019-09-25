@@ -6,6 +6,7 @@
 #include "Common/FileSystem.h"
 #include "BuildPatchVerify.h"
 #include "BuildPatchUtil.h"
+#include "IBuildManifestSet.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVerifier, Warning, All);
 DEFINE_LOG_CATEGORY(LogVerifier);
@@ -42,7 +43,7 @@ namespace BuildPatchServices
 	class FVerifier : public IVerifier
 	{
 	public:
-		FVerifier(IFileSystem* FileSystem, IVerifierStat* InVerificationStat, EVerifyMode InVerifyMode, TSet<FString> InTouchedFiles, TSet<FString> InInstallTags, FBuildPatchAppManifestRef InManifest, FString InVerifyDirectory, FString InStagedFileDirectory);
+		FVerifier(IFileSystem* FileSystem, IVerifierStat* InVerificationStat, EVerifyMode InVerifyMode, IBuildManifestSet* InManifestSet, FString InVerifyDirectory, FString InStagedFileDirectory);
 		~FVerifier() {}
 
 		// IControllable interface begin.
@@ -51,42 +52,43 @@ namespace BuildPatchServices
 		// IControllable interface end.
 
 		// IVerifier interface begin.
-		virtual EVerifyResult Verify(TArray<FString>& OutDatedFiles) override;
+		virtual EVerifyResult Verify(TArray<FString>& CorruptFiles) override;
+		virtual void AddTouchedFiles(const TSet<FString>& TouchedFiles) override;
 		// IVerifier interface end.
 
 	private:
 		FString SelectFullFilePath(const FString& BuildFile);
-		EVerifyResult VerfiyFileSha(const FString& BuildFile, int64 BuildFileSize);
-		EVerifyResult VerfiyFileSize(const FString& BuildFile, int64 BuildFileSize);
+		EVerifyResult VerfiyFileSha(const FString& BuildFile, const FFileManifest& BuildFileManifest);
+		EVerifyResult VerfiyFileSize(const FString& BuildFile, const FFileManifest& BuildFileManifest);
 
 	private:
-		TArray<uint8> FileReadBuffer;
-		IFileSystem* FileSystem;
-		IVerifierStat* VerifierStat;
-		EVerifyMode VerifyMode;
-		TSet<FString> RequiredFiles;
-		TSet<FString> InstallTags;
-		FBuildPatchAppManifestRef Manifest;
 		const FString VerifyDirectory;
 		const FString StagedFileDirectory;
+		IFileSystem* const FileSystem;
+		IVerifierStat* const VerifierStat;
+		IBuildManifestSet* const ManifestSet;
+
+		TArray<uint8> FileReadBuffer;
+		EVerifyMode VerifyMode;
+		TSet<FString> FilesToVerify;
+		TSet<FString> FilesPassedVerify;
 		FThreadSafeBool bIsPaused;
 		FThreadSafeBool bShouldAbort;
 		int64 ProcessedBytes;
 	};
 
-	FVerifier::FVerifier(IFileSystem* InFileSystem, IVerifierStat* InVerificationStat, EVerifyMode InVerifyMode, TSet<FString> InTouchedFiles, TSet<FString> InInstallTags, FBuildPatchAppManifestRef InManifest, FString InVerifyDirectory, FString InStagedFileDirectory)
-		: FileSystem(InFileSystem)
-		, VerifierStat(InVerificationStat)
-		, VerifyMode(InVerifyMode)
-		, RequiredFiles(MoveTemp(InTouchedFiles))
-		, InstallTags(MoveTemp(InInstallTags))
-		, Manifest(MoveTemp(InManifest))
-		, VerifyDirectory(MoveTemp(InVerifyDirectory))
+	FVerifier::FVerifier(IFileSystem* InFileSystem, IVerifierStat* InVerificationStat, EVerifyMode InVerifyMode, IBuildManifestSet* InManifestSet, FString InVerifyDirectory, FString InStagedFileDirectory)
+		: VerifyDirectory(MoveTemp(InVerifyDirectory))
 		, StagedFileDirectory(MoveTemp(InStagedFileDirectory))
+		, FileSystem(InFileSystem)
+		, VerifierStat(InVerificationStat)
+		, ManifestSet(InManifestSet)
+		, VerifyMode(InVerifyMode)
 		, bIsPaused(false)
 		, bShouldAbort(false)
 		, ProcessedBytes(0)
 	{
+		ManifestSet->GetFilesTaggedForRepair(FilesToVerify);
 		FileReadBuffer.Reserve(VerifyBufferSize);
 		FileReadBuffer.AddUninitialized(VerifyBufferSize);
 	}
@@ -101,25 +103,29 @@ namespace BuildPatchServices
 		bShouldAbort = true;
 	}
 
-	EVerifyResult FVerifier::Verify(TArray<FString>& OutDatedFiles)
+	EVerifyResult FVerifier::Verify(TArray<FString>& CorruptFiles)
 	{
+		bShouldAbort = false;
 		EVerifyResult VerifyResult = EVerifyResult::Success;
-		OutDatedFiles.Empty();
+		CorruptFiles.Empty();
+
+		// If we check all files, grab them all now.
 		if (VerifyMode == EVerifyMode::FileSizeCheckAllFiles || VerifyMode == EVerifyMode::ShaVerifyAllFiles)
 		{
-			Manifest->GetTaggedFileList(InstallTags, RequiredFiles);
+			ManifestSet->GetExpectedFiles(FilesToVerify);
 		}
 
 		// Setup progress tracking.
+		TSet<FString> VerifyList = FilesToVerify.Difference(FilesPassedVerify);
 		VerifierStat->OnProcessedDataUpdated(0);
-		VerifierStat->OnTotalRequiredUpdated(Manifest->GetFileSize(RequiredFiles));
+		VerifierStat->OnTotalRequiredUpdated(ManifestSet->GetTotalNewFileSize(VerifyList));
 
 		// Select verify function.
-		bool bVerifySha = VerifyMode == EVerifyMode::ShaVerifyAllFiles || VerifyMode == EVerifyMode::ShaVerifyTouchedFiles;
+		const bool bVerifyShaMode = VerifyMode == EVerifyMode::ShaVerifyAllFiles || VerifyMode == EVerifyMode::ShaVerifyTouchedFiles;
 
 		// For each required file, perform the selected verification.
 		ProcessedBytes = 0;
-		for (const FString& BuildFile : RequiredFiles)
+		for (const FString& BuildFile : VerifyList)
 		{
 			// Break if quitting
 			if (bShouldAbort)
@@ -128,19 +134,25 @@ namespace BuildPatchServices
 			}
 
 			// Get file details.
-			int64 BuildFileSize = Manifest->GetFileSize(BuildFile);
+			const FFileManifest* BuildFileManifest = ManifestSet->GetNewFileManifest(BuildFile);
 
 			// Verify the file.
-			VerifierStat->OnFileStarted(BuildFile, BuildFileSize);
-			EVerifyResult FileVerifyResult = bVerifySha ? VerfiyFileSha(BuildFile, BuildFileSize) : VerfiyFileSize(BuildFile, BuildFileSize);
+			const bool bVerifySha = bVerifyShaMode || ManifestSet->IsFileRepairAction(BuildFile);
+			VerifierStat->OnFileStarted(BuildFile, BuildFileManifest->FileSize);
+			EVerifyResult FileVerifyResult = bVerifySha ? VerfiyFileSha(BuildFile, *BuildFileManifest) : VerfiyFileSize(BuildFile, *BuildFileManifest);
 			VerifierStat->OnFileCompleted(BuildFile, FileVerifyResult);
 			if (FileVerifyResult != EVerifyResult::Success)
 			{
-				OutDatedFiles.Add(BuildFile);
+				CorruptFiles.Add(BuildFile);
 				if (VerifyResult == EVerifyResult::Success)
 				{
 					VerifyResult = FileVerifyResult;
 				}
+			}
+			// If success, and it was an SHA verify, cache the result so we don't repeat an SHA verify.
+			else if (bVerifySha)
+			{
+				FilesPassedVerify.Add(BuildFile);
 			}
 		}
 
@@ -150,6 +162,12 @@ namespace BuildPatchServices
 		}
 
 		return VerifyResult;
+	}
+
+	void FVerifier::AddTouchedFiles(const TSet<FString>& TouchedFiles)
+	{
+		FilesToVerify.Append(TouchedFiles);
+		FilesPassedVerify = FilesPassedVerify.Difference(TouchedFiles);
 	}
 
 	FString FVerifier::SelectFullFilePath(const FString& BuildFile)
@@ -168,13 +186,10 @@ namespace BuildPatchServices
 		return FullFilePath;
 	}
 
-	EVerifyResult FVerifier::VerfiyFileSha(const FString& BuildFile, int64 BuildFileSize)
+	EVerifyResult FVerifier::VerfiyFileSha(const FString& BuildFile, const FFileManifest& BuildFileManifest)
 	{
-		FSHAHash BuildFileHash;
 		ISpeedRecorder::FRecord ActivityRecord;
 		const int64 PrevProcessedBytes = ProcessedBytes;
-		bool bFoundHash = Manifest->GetFileHash(BuildFile, BuildFileHash);
-		checkf(bFoundHash, TEXT("Missing file hash from manifest."));
 		EVerifyResult VerifyResult;
 		const FString FileToVerify = SelectFullFilePath(BuildFile);
 		uint8 ReturnValue = 0;
@@ -183,7 +198,7 @@ namespace BuildPatchServices
 		if (FileReader.IsValid())
 		{
 			const int64 FileSize = FileReader->TotalSize();
-			if (FileSize != Manifest->GetFileSize(BuildFile))
+			if (FileSize != BuildFileManifest.FileSize)
 			{
 				VerifyResult = EVerifyResult::FileSizeFailed;
 			}
@@ -212,7 +227,7 @@ namespace BuildPatchServices
 				}
 				HashState.Final();
 				HashState.GetHash(HashValue.Hash);
-				if (HashValue == BuildFileHash)
+				if (HashValue == BuildFileManifest.FileHash)
 				{
 					VerifyResult = EVerifyResult::Success;
 				}
@@ -235,17 +250,17 @@ namespace BuildPatchServices
 		{
 			VerifyResult = EVerifyResult::FileMissing;
 		}
-		ProcessedBytes = PrevProcessedBytes + BuildFileSize;
+		ProcessedBytes = PrevProcessedBytes + BuildFileManifest.FileSize;
 		if (VerifyResult != EVerifyResult::Success)
 		{
-			VerifierStat->OnFileProgress(BuildFile, BuildFileSize);
+			VerifierStat->OnFileProgress(BuildFile, BuildFileManifest.FileSize);
 			VerifierStat->OnProcessedDataUpdated(ProcessedBytes);
 		}
 
 		return VerifyResult;
 	}
 
-	EVerifyResult FVerifier::VerfiyFileSize(const FString& BuildFile, int64 BuildFileSize)
+	EVerifyResult FVerifier::VerfiyFileSize(const FString& BuildFile, const FFileManifest& BuildFileManifest)
 	{
 		// Pause if necessary.
 		const double PrePauseTime = FStatsCollector::GetSeconds();
@@ -260,7 +275,7 @@ namespace BuildPatchServices
 		EVerifyResult VerifyResult;
 		if (FileSystem->GetFileSize(*SelectFullFilePath(BuildFile), FileSize))
 		{
-			if (FileSize == BuildFileSize)
+			if (FileSize == BuildFileManifest.FileSize)
 			{
 				VerifyResult = EVerifyResult::Success;
 			}
@@ -273,16 +288,16 @@ namespace BuildPatchServices
 		{
 			VerifyResult = EVerifyResult::FileMissing;
 		}
-		VerifierStat->OnFileProgress(BuildFile, BuildFileSize);
-		ProcessedBytes += BuildFileSize;
+		VerifierStat->OnFileProgress(BuildFile, BuildFileManifest.FileSize);
+		ProcessedBytes += BuildFileManifest.FileSize;
 		VerifierStat->OnProcessedDataUpdated(ProcessedBytes);
 		return VerifyResult;
 	}
 
-	IVerifier* FVerifierFactory::Create(IFileSystem* FileSystem, IVerifierStat* VerifierStat, EVerifyMode VerifyMode, TSet<FString> TouchedFiles, TSet<FString> InstallTags, FBuildPatchAppManifestRef Manifest, FString VerifyDirectory, FString StagedFileDirectory)
+	IVerifier* FVerifierFactory::Create(IFileSystem* FileSystem, IVerifierStat* VerifierStat, EVerifyMode VerifyMode, IBuildManifestSet* ManifestSet, FString VerifyDirectory, FString StagedFileDirectory)
 	{
 		check(FileSystem != nullptr);
 		check(VerifierStat != nullptr);
-		return new FVerifier(FileSystem, VerifierStat, VerifyMode, MoveTemp(TouchedFiles), MoveTemp(InstallTags), MoveTemp(Manifest), MoveTemp(VerifyDirectory), MoveTemp(StagedFileDirectory));
+		return new FVerifier(FileSystem, VerifierStat, VerifyMode, ManifestSet, MoveTemp(VerifyDirectory), MoveTemp(StagedFileDirectory));
 	}
 }

@@ -246,9 +246,13 @@ namespace EpicGame
 					AppConfig.CommandLine += " -ini:Engine:[VoiceChat.Vivox]:bEnabled=false";
 				}
 
+				// turn off crashlytics so we get symbolicated tombstone crashes on Android
+				if (ConfigRole.Platform == UnrealTargetPlatform.Android)
+				{
+					AppConfig.CommandLine += " -nocrashlytics";
+				}
 			}
-		}
-		
+		}		
 	}
 	
 	/// <summary>

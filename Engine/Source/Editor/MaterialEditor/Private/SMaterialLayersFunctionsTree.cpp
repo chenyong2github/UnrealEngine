@@ -284,7 +284,6 @@ FReply SMaterialLayersFunctionsInstanceTreeItem::OnLayerDrop(const FDragDropEven
 				LayerStateHandle->MoveElementTo(OriginalIndex, NewIndex);
 				BlendHandle->MoveElementTo(OriginalBlendIndex, NewBlendIndex);
 				BlendFilterHandle->MoveElementTo(OriginalBlendIndex, NewBlendIndex);
-				Tree->FunctionInstance->UpdateStaticPermutationString();
 				Tree->OnExpansionChanged(SwappablePropertyData, bOriginalSwappingExpansion);
 				Tree->OnExpansionChanged(SwappingPropertyData, bOriginalSwappableExpansion);
 				Tree->FunctionInstanceHandle->NotifyPostChange();
@@ -703,6 +702,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 					.DisplayThumbnail(true)
 					.ThumbnailPool(InArgs._InTree->GetTreeThumbnailPool())
 					.OnShouldSetAsset(FOnShouldSetAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldSetCurveAsset, ScalarParam->AtlasData.Atlas))
+					.OnShouldFilterAsset(FOnShouldFilterAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldFilterCurveAsset, ScalarParam->AtlasData.Atlas))
 					.OnObjectChanged(FOnSetObject::CreateStatic(&FMaterialPropertyHelpers::SetPositionFromCurveAsset, ScalarParam->AtlasData.Atlas, ScalarParam, StackParameterData->ParameterHandle, (UObject*)MaterialEditorInstance))
 					.DisplayCompactSize(true)
 				];
@@ -2068,6 +2068,7 @@ public:
 						.DisplayThumbnail(true)
 						.ThumbnailPool(InArgs._InTree->GetTreeThumbnailPool())
 						.OnShouldSetAsset(FOnShouldSetAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldSetCurveAsset, ScalarParam->AtlasData.Atlas))
+						.OnShouldFilterAsset(FOnShouldFilterAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldFilterCurveAsset, ScalarParam->AtlasData.Atlas))
 						.OnObjectChanged(FOnSetObject::CreateStatic(&FMaterialPropertyHelpers::SetPositionFromCurveAsset, ScalarParam->AtlasData.Atlas, ScalarParam, StackParameterData->ParameterHandle, (UObject*)MaterialEditorInstance))
 						.DisplayCompactSize(true)
 					];

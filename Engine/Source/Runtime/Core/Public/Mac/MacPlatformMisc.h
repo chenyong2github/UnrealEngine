@@ -53,7 +53,7 @@ struct CORE_API FMacPlatformMisc : public FApplePlatformMisc
 	 */
 	FORCEINLINE static const TCHAR* GetNullRHIShaderFormat() 
 	{ 
-		return TEXT("GLSL_150"); 
+		return TEXT("SF_METAL"); 
 	}
 
 	/**

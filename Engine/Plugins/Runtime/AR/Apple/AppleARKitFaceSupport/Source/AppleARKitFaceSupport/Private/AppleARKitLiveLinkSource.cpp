@@ -19,6 +19,10 @@
 #include "AppleARKitSettings.h"
 #include "ARTrackable.h"
 
+#include "LiveLinkClient.h"
+
+#include "Animation/PoseAsset.h"
+
 #include "AppleARKitFaceSupportModule.h"
 
 #include "Roles/LiveLinkBasicRole.h"
@@ -359,8 +363,12 @@ FAppleARKitLiveLinkRemoteListener::~FAppleARKitLiveLinkRemoteListener()
 	if (RecvSocket != nullptr)
 	{
 		RecvSocket->Close();
-		ISocketSubsystem* SocketSub = ISocketSubsystem::Get();
-		SocketSub->DestroySocket(RecvSocket);
+
+		if (!IsEngineExitRequested())
+		{
+			ISocketSubsystem* SocketSub = ISocketSubsystem::Get();
+			SocketSub->DestroySocket(RecvSocket);
+		}
 	}
 }
 

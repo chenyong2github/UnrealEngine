@@ -19,6 +19,7 @@ ULogVisualizerSettings::ULogVisualizerSettings(const FObjectInitializer& ObjectI
 	bResetDataWithNewSession = false;
 	bDrawExtremesOnGraphs = false;
 	bUsePlayersOnlyForPause = true;
+	bConstrainGraphToLocalMinMax = false;
 }
 
 class UMaterial* ULogVisualizerSettings::GetDebugMeshMaterial()

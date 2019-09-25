@@ -81,7 +81,7 @@
 #include "Streaming/UVChannelDensity.h"
 #include "Misc/Paths.h"
 
-#include "ClothingAssetInterface.h"
+#include "ClothingAssetBase.h"
 
 #if WITH_EDITOR
 #include "ClothingAssetFactoryInterface.h"
@@ -496,13 +496,10 @@ void USkeletalMesh::AddClothingAsset(UClothingAssetBase* InNewAsset)
 #if WITH_EDITOR
 void USkeletalMesh::RemoveClothingAsset(int32 InLodIndex, int32 InSectionIndex)
 {
-	UClothingAssetBase* Asset = GetSectionClothingAsset(InLodIndex, InSectionIndex);
-
-	if(Asset)
+	if(UClothingAssetBase* Asset = GetSectionClothingAsset(InLodIndex, InSectionIndex))
 	{
 		Asset->UnbindFromSkeletalMesh(this, InLodIndex);
 		MeshClothingAssets.Remove(Asset);
-
 		OnClothingChange.Broadcast();
 	}
 }
@@ -525,9 +522,9 @@ UClothingAssetBase* USkeletalMesh::GetSectionClothingAsset(int32 InLodIndex, int
 				{
 					UClothingAssetBase** FoundAsset = MeshClothingAssets.FindByPredicate([&](UClothingAssetBase* InAsset)
 					{
-						return InAsset->GetAssetGuid() == ClothingAssetGuid;
+						return InAsset && InAsset->GetAssetGuid() == ClothingAssetGuid;
 					});
-					
+
 					return FoundAsset ? *FoundAsset : nullptr;
 				}
 			}
@@ -554,7 +551,7 @@ const UClothingAssetBase* USkeletalMesh::GetSectionClothingAsset(int32 InLodInde
 				{
 					UClothingAssetBase* const* FoundAsset = MeshClothingAssets.FindByPredicate([&](UClothingAssetBase* InAsset)
 					{
-						return InAsset->GetAssetGuid() == ClothingAssetGuid;
+						return InAsset && InAsset->GetAssetGuid() == ClothingAssetGuid;
 					});
 
 					return FoundAsset ? *FoundAsset : nullptr;
@@ -575,7 +572,7 @@ UClothingAssetBase* USkeletalMesh::GetClothingAsset(const FGuid& InAssetGuid) co
 
 	UClothingAssetBase* const* FoundAsset = MeshClothingAssets.FindByPredicate([&](UClothingAssetBase* CurrAsset)
 	{
-		return CurrAsset->GetAssetGuid() == InAssetGuid;
+		return CurrAsset && CurrAsset->GetAssetGuid() == InAssetGuid;
 	});
 
 	return FoundAsset ? *FoundAsset : nullptr;
@@ -583,12 +580,7 @@ UClothingAssetBase* USkeletalMesh::GetClothingAsset(const FGuid& InAssetGuid) co
 
 int32 USkeletalMesh::GetClothingAssetIndex(UClothingAssetBase* InAsset) const
 {
-	if(!InAsset)
-	{
-		return INDEX_NONE;
-	}
-
-	return GetClothingAssetIndex(InAsset->GetAssetGuid());
+	return InAsset ? GetClothingAssetIndex(InAsset->GetAssetGuid()) : INDEX_NONE;
 }
 
 int32 USkeletalMesh::GetClothingAssetIndex(const FGuid& InAssetGuid) const
@@ -596,12 +588,12 @@ int32 USkeletalMesh::GetClothingAssetIndex(const FGuid& InAssetGuid) const
 	const int32 NumAssets = MeshClothingAssets.Num();
 	for(int32 SearchIndex = 0; SearchIndex < NumAssets; ++SearchIndex)
 	{
-		if(MeshClothingAssets[SearchIndex]->GetAssetGuid() == InAssetGuid)
+		if(MeshClothingAssets[SearchIndex] && 
+		   MeshClothingAssets[SearchIndex]->GetAssetGuid() == InAssetGuid)
 		{
 			return SearchIndex;
 		}
 	}
-
 	return INDEX_NONE;
 }
 
@@ -671,12 +663,9 @@ void USkeletalMesh::GetClothingAssetsInUse(TArray<UClothingAssetBase*>& OutCloth
 			for(int32 SectionIdx = 0; SectionIdx < NumSections; ++SectionIdx)
 			{
 				FSkelMeshRenderSection& Section = LodData.RenderSections[SectionIdx];
-
 				if(Section.ClothingData.AssetGuid.IsValid())
 				{
-					UClothingAssetBase* Asset = GetClothingAsset(Section.ClothingData.AssetGuid);
-					
-					if(Asset)
+					if(UClothingAssetBase* Asset = GetClothingAsset(Section.ClothingData.AssetGuid))
 					{
 						OutClothingAssets.AddUnique(Asset);
 					}
@@ -1053,7 +1042,7 @@ bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 	// if resident and requested mip counts match then no pending request is in flight
 	if (PendingUpdate)
 	{
-		if (GIsRequestingExit || !SkeletalMeshRenderData)
+		if (IsEngineExitRequested() || !SkeletalMeshRenderData)
 		{
 			PendingUpdate->Abort();
 		}
@@ -1967,7 +1956,7 @@ void USkeletalMesh::RemoveLegacyClothingSections()
 
 						Section.CorrespondClothAssetIndex = MeshClothingAssets.IndexOfByPredicate([&Section](const UClothingAssetBase* CurrAsset) 
 						{
-							return CurrAsset->GetAssetGuid() == Section.ClothingData.AssetGuid;
+							return CurrAsset && CurrAsset->GetAssetGuid() == Section.ClothingData.AssetGuid;
 						});
 
 						Section.BoneMap = DuplicatedSection.BoneMap;
@@ -2260,7 +2249,8 @@ void USkeletalMesh::PostLoad()
 	{
 		for(UClothingAssetBase* ClothingAsset : MeshClothingAssets)
 		{
-			ClothingAsset->InvalidateCachedData();
+			if(ClothingAsset) 
+				ClothingAsset->InvalidateCachedData();
 		}
 	}
 
@@ -2727,7 +2717,7 @@ void USkeletalMesh::RebuildSocketMap()
 			USkeletalMeshSocket* Socket = Skeleton->Sockets[SocketIndex];
 			if (!SocketMap.Contains(Socket->SocketName))
 			{
-				SocketMap.Add(Socket->SocketName, FSocketInfo(this, Socket, SocketIndex));
+				SocketMap.Add(Socket->SocketName, FSocketInfo(this, Socket, Sockets.Num() + SocketIndex));
 			}
 		}
 	}
@@ -5080,8 +5070,9 @@ void FSkeletalMeshSceneProxy::UpdateMorphMaterialUsage_GameThread(TArray<UMateri
 			UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 			ERHIFeatureLevel::Type InFeatureLevel = GetScene().GetFeatureLevel();
 			FSkeletalMeshSceneProxy* SkelMeshSceneProxy = this;
+			FMaterialRelevance DefaultRelevance = DefaultMaterial->GetRelevance(InFeatureLevel);
 			ENQUEUE_RENDER_COMMAND(UpdateSkelProxyLODSectionElementsCmd)(
-				[InMaterialsToSwap, DefaultMaterial, InFeatureLevel, SkelMeshSceneProxy](FRHICommandList& RHICmdList)
+				[InMaterialsToSwap, DefaultMaterial, DefaultRelevance, InFeatureLevel, SkelMeshSceneProxy](FRHICommandList& RHICmdList)
 				{
 					for( int32 LodIdx=0; LodIdx < SkelMeshSceneProxy->LODSections.Num(); LodIdx++ )
 					{
@@ -5096,7 +5087,7 @@ void FSkeletalMeshSceneProxy::UpdateMorphMaterialUsage_GameThread(TArray<UMateri
 							}
 						}
 					}
-					SkelMeshSceneProxy->MaterialRelevance |= DefaultMaterial->GetRelevance(InFeatureLevel);
+					SkelMeshSceneProxy->MaterialRelevance |= DefaultRelevance;
 				});
 		}
 	}

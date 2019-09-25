@@ -41,8 +41,6 @@ namespace AutomationTool
 	/// </summary>
 	public class Platform : CommandUtils
 	{
-		#region Intialization
-
 		private static Dictionary<TargetPlatformDescriptor, Platform> AllPlatforms = new Dictionary<TargetPlatformDescriptor, Platform>();
 		internal static void InitializePlatforms(Assembly[] AssembliesWithPlatforms = null)
 		{
@@ -119,8 +117,6 @@ namespace AutomationTool
 				}
 			}
 		}
-
-		#endregion
 
 		protected UnrealTargetPlatform TargetPlatformType;
 		protected UnrealTargetPlatform TargetIniPlatformType;
@@ -559,8 +555,6 @@ namespace AutomationTool
 			get { return true; }
 		}
 
-		#region Hooks
-
 		public virtual void PreBuildAgenda(UE4Build Build, UE4Build.BuildAgenda Agenda, ProjectParams Params)
 		{
 
@@ -617,10 +611,6 @@ namespace AutomationTool
 			return new UnrealTargetPlatform[] { PlatformType };
 		}
 
-		#endregion
-
-		#region Utilities
-
 		// let the platform set the exe extension if it chooses (otherwise, use
 		// the switch statement in GetExeExtension below)
 		protected virtual string GetPlatformExeExtension()
@@ -649,7 +639,7 @@ namespace AutomationTool
 			{
 				return ".stub";
 			}
-			if (Target == UnrealTargetPlatform.Linux)
+			if (Target == UnrealTargetPlatform.Linux || Target == UnrealTargetPlatform.LinuxAArch64)
 			{
 				return "";
 			}
@@ -714,7 +704,5 @@ namespace AutomationTool
 
 			return ValidPlatforms;
 		}
-
-		#endregion
 	}
 }

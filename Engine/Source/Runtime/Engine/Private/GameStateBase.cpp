@@ -30,7 +30,7 @@ AGameStateBase::AGameStateBase(const FObjectInitializer& ObjectInitializer)
 	bNetLoadOnClient = false;
 
 	// Default to every few seconds.
-	ServerWorldTimeSecondsUpdateFrequency = 5.f;
+	ServerWorldTimeSecondsUpdateFrequency = 0.1f;
 }
 
 const AGameModeBase* AGameStateBase::GetDefaultGameMode() const

@@ -220,6 +220,9 @@ public:
 	struct FWorldContext* GetWorldContext() const { return WorldContext; };
 	class UGameViewportClient* GetGameViewportClient() const;
 
+	/** Callback from the world context when the world changes */
+	virtual void OnWorldChanged(UWorld* OldWorld, UWorld* NewWorld) {}
+
 	/** Starts the GameInstance state machine running */
 	virtual void StartGameInstance();
 	virtual bool JoinSession(ULocalPlayer* LocalPlayer, int32 SessionIndexInSearchResults) { return false; }

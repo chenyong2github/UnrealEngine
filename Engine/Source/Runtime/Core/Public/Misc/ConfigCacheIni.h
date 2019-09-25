@@ -260,11 +260,11 @@ struct FIniFilename
 	/** Ini filename */
 	FString Filename;
 	/** If true this ini file is required to generate the output ini. */
-	bool bRequired;
+	bool bRequired = false;
 	/** Used as ID for looking up an INI Hierarchy */
 	FString CacheKey;
 
-	FIniFilename(const FString& InFilename, bool InIsRequired, FString InCacheKey=FString(TEXT("")))
+	explicit FIniFilename(const FString& InFilename, bool InIsRequired=false, FString InCacheKey=FString(TEXT("")))
 		: Filename(InFilename)
 		, bRequired(InIsRequired) 
 		, CacheKey(InCacheKey)
@@ -281,14 +281,30 @@ struct FConfigCommandlineOverride
 #endif // ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
 
 
-typedef TMap<int32, FIniFilename> FConfigFileHierarchy;
+class FConfigFileHierarchy : public TMap<int32, FIniFilename>
+{
+private:
+	int32 KeyGen = 0;
+
+public:
+	FConfigFileHierarchy();
+
+private:
+	int32 GenerateDynamicKey();
+
+	int32 AddStaticLayer(FIniFilename Filename, int32 LayerIndex, int32 LayerExpansionIndex = 0, int32 PlatformIndex = 0);
+	int32 AddDynamicLayer(FIniFilename Filename);
+
+	friend class FConfigFile;
+};
 
 // One config file.
 
 class FConfigFile : public TMap<FString,FConfigSection>
 {
 public:
-	bool Dirty, NoSave;
+	bool Dirty;
+	bool NoSave;
 
 	/** The name of this config file */	
 	FName Name;
@@ -387,6 +403,12 @@ public:
 	/** Checks the command line for any overridden config settings */
 	CORE_API static void OverrideFromCommandline(FConfigFile* File, const FString& Filename);
 
+	/** Checks the command line for any overridden config file settings */
+	CORE_API static void OverrideFileFromCommandline(FString& Filename);
+
+	/** Appends a new INI file to the SourceIniHierarchy and combines it */
+	CORE_API void AddDynamicLayerToHeirarchy(const FString& Filename);
+
 private:
 
 	// This holds per-object config class names, with their ArrayOfStructKeys. Since the POC sections are all unique,
@@ -410,6 +432,17 @@ private:
 	 */
 	void ProcessPropertyAndWriteForDefaults(int32 IniCombineThreshold, const TArray<FConfigValue>& InCompletePropertyToProcess, FString& OutText, const FString& SectionName, const FString& PropertyName);
 
+	/**
+	 * Creates a chain of ini filenames to load and combine.
+	 *
+	 * @param InBaseIniName Ini name.
+	 * @param InPlatformName Platform name, nullptr means to use the current platform
+	 * @param OutHierarchy An array which is to receive the generated hierachy of ini filenames.
+	 */
+	void AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const TCHAR* InPlatformName, const TCHAR* EngineConfigDir, const TCHAR* SourceConfigDir);
+
+	// for AddStaticLayersToHierarchy
+	friend class FConfigCacheIni;
 };
 
 /**

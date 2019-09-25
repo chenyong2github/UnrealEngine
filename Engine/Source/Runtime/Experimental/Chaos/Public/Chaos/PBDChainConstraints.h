@@ -10,7 +10,7 @@ namespace Chaos
 template<class T, int d>
 class TPBDChainConstraints : public TPBDConstraintContainer<T, d>
 {
-  public:
+public:
 	TPBDChainConstraints(const TDynamicParticles<T, d>& InParticles, TArray<TArray<int32>>&& Constraints, const T Coefficient = (T)1)
 	    : MConstraints(Constraints), MCoefficient(Coefficient)
 	{
@@ -70,7 +70,10 @@ class TPBDChainConstraints : public TPBDConstraintContainer<T, d>
 		});
 	}
 
-  private:
+private:
+	using Base::GetConstraintIndex;
+	using Base::SetConstraintIndex;
+	  
 	TArray<TArray<int32>> MConstraints;
 	TArray<TArray<T>> MDists;
 	T MCoefficient;

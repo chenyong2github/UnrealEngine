@@ -7,9 +7,9 @@
 	#include "K2Node_FunctionEntry.h"
 #endif
 
+#if WITH_EDITORONLY_DATA
 void FMovieSceneEvent::PostSerialize(const FArchive& Ar)
 {
-#if WITH_EDITORONLY_DATA
 
 	UK2Node_FunctionEntry* FunctionEntry = Cast<UK2Node_FunctionEntry>(FunctionEntry_DEPRECATED.Get());
 	if (FunctionEntry)

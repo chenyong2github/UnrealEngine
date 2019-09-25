@@ -30,6 +30,8 @@ struct FPrimitiveViewRelevance
 	uint32 bSeparateTranslucencyRelevance : 1;
 	/** The primitive has one or more elements that have normal translucency. */
 	uint32 bNormalTranslucencyRelevance : 1;
+	/** The primitive has one or more elements that have normal translucency. */
+	uint32 bUnderWaterTranslucencyRelevance : 1;
 	/** For translucent primitives reading the scene color. */
 	uint32 bUsesSceneColorCopy : 1;
 	/** For primitive that can't render in offscreen buffers (blend modulate). */
@@ -47,6 +49,8 @@ struct FPrimitiveViewRelevance
 	uint32 bDrawRelevance : 1;
 	/** The primitive is casting a shadow. */
 	uint32 bShadowRelevance : 1;
+	/** The primitive is hair strands geometry. */
+	uint32 bHairStrandsRelevance : 1;
 	/** The primitive should render velocity. */
 	uint32 bVelocityRelevance : 1;
 	/** The primitive should render to the custom depth pass. */
@@ -77,6 +81,8 @@ struct FPrimitiveViewRelevance
 	uint32 bUsesSceneDepth : 1;
 	/** Whether the primitive has materials that read the scene depth. */
 	uint32 bUsesSkyMaterial : 1;
+	/** Whether the primitive uses a single layer water material. */
+	uint32 bUsesSingleLayerWaterMaterial : 1;
 	/** Whether the view use custom data. */
 	uint32 bUseCustomViewData : 1;
 
@@ -89,7 +95,7 @@ struct FPrimitiveViewRelevance
 
 	bool HasTranslucency() const 
 	{
-		return bSeparateTranslucencyRelevance || bNormalTranslucencyRelevance;
+		return bSeparateTranslucencyRelevance || bNormalTranslucencyRelevance || bUnderWaterTranslucencyRelevance;
 	}
 
 	/** Default constructor */

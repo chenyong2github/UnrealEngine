@@ -116,6 +116,8 @@ enum ETextureSourceFormat
 	//@todo: Deprecated!
 	TSF_RGBE8,
 
+	TSF_G16,
+
 	TSF_MAX
 };
 
@@ -183,7 +185,7 @@ struct FTextureSource
 #if WITH_EDITOR
 
 	ENGINE_API static int32 GetBytesPerPixel(ETextureSourceFormat Format);
-	FORCEINLINE static bool IsHDR(ETextureSourceFormat Format) { return Format == TSF_BGRE8 || Format == TSF_RGBA16F; }
+	FORCEINLINE static bool IsHDR(ETextureSourceFormat Format) { return (Format == TSF_BGRE8 || Format == TSF_RGBA16F); }
 
 	ENGINE_API void InitBlocked(const ETextureSourceFormat* InLayerFormats,
 		const FTextureSourceBlock* InBlocks,
@@ -325,6 +327,7 @@ private:
 	friend class UTexture2D;
 	friend class UTextureCube;
 	friend class UVolumeTexture;
+	friend class UTexture2DArray;
 
 	/** The bulk source data. */
 	FByteBulkData BulkData;

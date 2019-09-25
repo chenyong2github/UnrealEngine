@@ -70,7 +70,4 @@ public:
 
 	/** Give external overwrite to disable list auto update for perf */
 	virtual void SetAllowAutoUpdate(bool bIsEnabled) = 0;
-
-	/** Sets the period at which to update the list with all users that  */
-	virtual void SetAutoUpdatePeriod(float InAutoUpdatePeriod) = 0;
 };

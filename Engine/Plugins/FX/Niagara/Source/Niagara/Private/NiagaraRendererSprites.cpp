@@ -93,8 +93,6 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 {
 	check(InProps && Emitter);
 
-	VertexFactory = new FNiagaraSpriteVertexFactory(NVFT_Sprite, FeatureLevel);
-
 	const UNiagaraSpriteRendererProperties* Properties = CastChecked<const UNiagaraSpriteRendererProperties>(InProps);
 	
 	Alignment = Properties->Alignment;
@@ -140,17 +138,11 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 
 FNiagaraRendererSprites::~FNiagaraRendererSprites()
 {
-	if ( VertexFactory != nullptr )
-	{
-		delete VertexFactory;
-		VertexFactory = nullptr;
-	}
 }
 
 void FNiagaraRendererSprites::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
 {
 	FNiagaraRenderer::ReleaseRenderThreadResources(Batcher);
-	VertexFactory->ReleaseResource();
 
 	CutoutVertexBuffer.ReleaseResource();
 #if RHI_RAYTRACING
@@ -166,7 +158,6 @@ void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstance
 {
 	FNiagaraRenderer::CreateRenderThreadResources(Batcher);
 	CutoutVertexBuffer.InitResource();
-	VertexFactory->InitResource();
 
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
@@ -176,7 +167,6 @@ void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstance
 		FRayTracingGeometryInitializer Initializer;
 		Initializer.PositionVertexBuffer = nullptr;
 		Initializer.IndexBuffer = nullptr;
-		Initializer.BaseVertexIndex = 0;
 		Initializer.VertexBufferStride = 12;
 		Initializer.VertexBufferByteOffset = 0;
 		Initializer.TotalPrimitiveCount = 0;
@@ -326,23 +316,31 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 
 		FMaterialRenderProxy* MaterialRenderProxy = DynamicDataSprites->Material;
 		check(MaterialRenderProxy);
-		EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(VertexFactory->GetFeatureLevel())->GetBlendMode();
+		EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(View->FeatureLevel)->GetBlendMode();
 		OutVertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
 
 		int32 NumInstances = SourceParticleData->GetNumInstances();
 		FNiagaraGPUSortInfo SortInfo;
-		if (View && SortMode != ENiagaraSortMode::None && (BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_AlphaHoldout|| BlendMode == BLEND_Translucent || !bSortOnlyWhenTranslucent))
+		if (SortMode != ENiagaraSortMode::None && (BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_AlphaHoldout|| BlendMode == BLEND_Translucent || !bSortOnlyWhenTranslucent))
 		{
 			SortInfo.ParticleCount = NumInstances;
 			SortInfo.SortMode = SortMode;
-			SortInfo.SortAttributeOffset = (SortInfo.SortMode == ENiagaraSortMode::CustomAscending || SortInfo.SortMode == ENiagaraSortMode::CustomDecending) ? CustomSortingOffset : PositionOffset;
-			SortInfo.ViewOrigin = View->ViewMatrices.GetViewOrigin();
-			SortInfo.ViewDirection = View->GetViewDirection();
-			if (bLocalSpace)
+			if (SortInfo.SortMode == ENiagaraSortMode::CustomAscending || SortInfo.SortMode == ENiagaraSortMode::CustomDecending)
 			{
-				FMatrix InvTransform = SceneProxy->GetLocalToWorld().InverseFast();
-				SortInfo.ViewOrigin = InvTransform.TransformPosition(SortInfo.ViewOrigin);
-				SortInfo.ViewDirection = InvTransform.TransformVector(SortInfo.ViewDirection);
+				SortInfo.SortAttributeOffset = CustomSortingOffset;
+				SortInfo.ViewOrigin.Set(0, 0, 0);
+				SortInfo.ViewDirection.Set(0, 0, 1);
+			}
+			else
+			{
+				SortInfo.SortAttributeOffset = PositionOffset;
+				SortInfo.ViewOrigin = View->ViewMatrices.GetViewOrigin();
+				SortInfo.ViewDirection = View->GetViewDirection();
+				if (bLocalSpace)
+				{
+					SortInfo.ViewOrigin = SceneProxy->GetLocalToWorldInverse().TransformPosition(SortInfo.ViewOrigin);
+					SortInfo.ViewDirection = SceneProxy->GetLocalToWorld().GetTransposed().TransformVector(SortInfo.ViewDirection);
+				}
 			}
 		};
 
@@ -371,7 +369,7 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 
 					FGlobalDynamicReadBuffer::FAllocation SortedIndices;
 					SortedIndices = CPUSimParticleDataAllocation.DynamicReadBuffer.AllocateInt32(NumInstances);
-					SortIndices(SortInfo.SortMode, SortInfo.SortAttributeOffset, *SourceParticleData, SceneProxy->GetLocalToWorld(), View, SortedIndices);
+					SortIndices(SortInfo, *SourceParticleData, SortedIndices);
 					OutVertexFactory.SetSortedIndices(SortedIndices.ReadBuffer->SRV, SortedIndices.FirstIndex / sizeof(float));
 				}
 			}
@@ -522,8 +520,6 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
 	check(SceneProxy);
 
-	SimpleTimer MeshElementsTimer;
-
 	//check(DynamicDataRender)
 	FNiagaraDynamicDataSprites *DynamicDataSprites = static_cast<FNiagaraDynamicDataSprites*>(DynamicDataRender);
 	NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
@@ -568,8 +564,6 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 			Collector.AddMesh(ViewIndex, MeshBatch);
 		}
 	}
-
-	CPUTimeMS += MeshElementsTimer.GetElapsedMilliseconds();
 }
 
 #if RHI_RAYTRACING
@@ -578,8 +572,6 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRender);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
 	check(SceneProxy);
-
-	SimpleTimer MeshElementsTimer;
 
 	FNiagaraDynamicDataSprites *DynamicDataSprites = static_cast<FNiagaraDynamicDataSprites*>(DynamicDataRender);
 	NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
@@ -640,8 +632,6 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	RayTracingInstance.BuildInstanceMaskAndFlags();
 
 	OutRayTracingInstances.Add(RayTracingInstance);
-
-	CPUTimeMS += MeshElementsTimer.GetElapsedMilliseconds();
 }
 #endif
 
@@ -653,8 +643,6 @@ FNiagaraDynamicDataBase *FNiagaraRendererSprites::GenerateDynamicData(const FNia
 
 	if (Properties)
 	{
-		SimpleTimer VertexDataTimer;
-
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraGenSpriteDynamicData);
 
 		FNiagaraDataSet& Data = Emitter->GetData();
@@ -671,8 +659,6 @@ FNiagaraDynamicDataBase *FNiagaraRendererSprites::GenerateDynamicData(const FNia
 			DynamicData->Material = BaseMaterials_GT[0]->GetRenderProxy();
 			DynamicData->SetMaterialRelevance(BaseMaterialRelevance_GT);
 		}
-
-		CPUTimeMS = VertexDataTimer.GetElapsedMilliseconds();
 	}
 
 	return DynamicData;  // for VF that can fetch from particle data directly

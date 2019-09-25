@@ -54,6 +54,15 @@ struct FRenderAssetStreamingManager final : public IRenderAssetStreamingManager
 	virtual void UpdateIndividualRenderAsset( UStreamableRenderAsset* RenderAsset ) override;
 
 	/**
+	 * Register an asset whose non-resident mips need to be loaded ASAP when visible.
+	 * bIgnoreStreamingMipBias must be set on the asset.
+	 * Either bForceMiplevelsToBeResident or ForceMipLevelsToBeResidentTimestamp need to be set on the asset.
+	 *
+	 * @param RenderAsset The asset to register
+	 */
+	virtual void FastForceFullyResident(UStreamableRenderAsset* RenderAsset) override;
+
+	/**
 	 * Blocks till all pending requests are fulfilled.
 	 *
 	 * @param TimeLimit		Optional time limit for processing, in seconds. Specifying 0 means infinite time limit.
@@ -186,6 +195,9 @@ private:
 		 * @param NumUpdateStages	Number of texture/mesh update stages
 		 */
 		void UpdateStreamingRenderAssets( int32 StageIndex, int32 NumStages, bool bWaitForMipFading );
+
+		/** Check visibility of fast response assets and initiate stream-in requests if necessary. */
+		void TickFastResponseAssets();
 
 		void ProcessRemovedRenderAssets();
 		void ProcessAddedRenderAssets();
@@ -333,6 +345,12 @@ private:
 	/** The list of indices with null render asset in StreamingRenderAssets. */
 	TArray<int32>	RemovedRenderAssetIndices;
 
+	/** [Game Thread] Forced fully resident assets that need to be loaded ASAP when visible. */
+	TSet<UStreamableRenderAsset*> FastResponseRenderAssets;
+
+	/** [Game Thread] Fast response assets detected visible before the end of full streaming update. */
+	TSet<int32> VisibleFastResponseRenderAssetIndices;
+
 	// Represent a pending request to stream in/out mips to/from GPU for a texture or mesh
 	struct FPendingMipCopyRequest
 	{
@@ -384,6 +402,9 @@ private:
 
 	/** Last time all data were fully updated. Instances are considered visible if they were rendered between that last time and the current time. */
 	float LastWorldUpdateTime;
+
+	/** LastWorldUpdateTime seen by the async task. */
+	float LastWorldUpdateTime_MipCalcTask;
 
 	FRenderAssetStreamingStats DisplayedStats;
 	FRenderAssetStreamingStats GatheredStats;

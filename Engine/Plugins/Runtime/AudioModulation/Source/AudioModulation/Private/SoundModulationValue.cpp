@@ -4,15 +4,15 @@
 
 namespace AudioModulation
 {
-	const BusMixId InvalidBusMixId = TNumericLimits<uint32>::Max();
-	const BusId    InvalidBusId    = TNumericLimits<uint32>::Max();
-	const BusId    InvalidLFOId    = TNumericLimits<uint32>::Max();
+	const FBusMixId InvalidBusMixId = INDEX_NONE;
+	const FBusId    InvalidBusId    = INDEX_NONE;
+	const FBusId    InvalidLFOId    = INDEX_NONE;
 } // namespace AudioModulation
 
 FSoundModulationValue::FSoundModulationValue()
 	: TargetValue(1.0f)
-	, AttackTime(0.0f)
-	, ReleaseTime(0.0f)
+	, AttackTime(0.1f)
+	, ReleaseTime(0.1f)
 	, Value(1.0f)
 {
 }

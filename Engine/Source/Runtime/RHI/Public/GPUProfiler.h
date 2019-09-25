@@ -18,6 +18,9 @@ public:
 		NumDraws(0),
 		NumPrimitives(0),
 		NumVertices(0),
+		NumDispatches(0),
+		GroupCount(FIntVector(0, 0, 0)),
+		NumTotalDispatches(0),
 		NumTotalDraws(0),
 		NumTotalPrimitives(0),
 		NumTotalVertices(0),
@@ -34,6 +37,11 @@ public:
 
 	/** Exclusive number of vertices rendered in this event. */
 	uint32 NumVertices;
+
+	/** Compute stats */
+	uint32 NumDispatches;
+	FIntVector GroupCount;
+	uint32 NumTotalDispatches;
 
 	/** Inclusive number of draw calls rendered in this event and children. */
 	uint32 NumTotalDraws;
@@ -55,6 +63,8 @@ public:
 		NumDraws += rhs.NumDraws;
 		NumPrimitives += rhs.NumPrimitives;
 		NumVertices += rhs.NumVertices;
+		NumDispatches += rhs.NumDispatches;
+		NumTotalDispatches += rhs.NumTotalDispatches;
 		NumTotalDraws += rhs.NumDraws;
 		NumTotalPrimitives += rhs.NumPrimitives;
 		NumTotalVertices += rhs.NumVertices;
@@ -266,6 +276,16 @@ struct RHI_API FGPUProfiler
 			CurrentEventNode->NumDraws++;
 			CurrentEventNode->NumPrimitives += NumPrimitives;
 			CurrentEventNode->NumVertices += NumVertices;
+		}
+	}
+
+	void RegisterGPUDispatch(FIntVector GroupCount)
+	{
+		if (bTrackingEvents && CurrentEventNode)
+		{
+			check(IsInRenderingThread() || IsInRHIThread());
+			CurrentEventNode->NumDispatches++;
+			CurrentEventNode->GroupCount = GroupCount;
 		}
 	}
 

@@ -12,6 +12,8 @@
 #include "PersonaModule.h"
 #include "SBlueprintEditorToolbar.h"
 #include "IPersonaPreviewScene.h"
+#include "PersonaUtils.h"
+
 /////////////////////////////////////////////////////
 // FAnimationBlueprintEditorMode
 
@@ -173,7 +175,7 @@ void FAnimationBlueprintEditorMode::PostActivateMode()
 		UDebugSkelMeshComponent* PreviewComponent = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
 		if ((AnimBlueprint->GetObjectBeingDebugged() == NULL) && (PreviewComponent->IsAnimBlueprintInstanced()))
 		{
-			AnimBlueprint->SetObjectBeingDebugged(PreviewComponent->GetAnimInstance());
+			PersonaUtils::SetObjectBeingDebugged(AnimBlueprint, PreviewComponent->GetAnimInstance());
 		}
 
 		// If we are a derived anim blueprint always show the overrides tab

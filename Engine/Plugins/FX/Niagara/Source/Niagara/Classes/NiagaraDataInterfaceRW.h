@@ -23,6 +23,7 @@ static const FName NumCellsFunctionName("GetNumCells");
 static const FName CellSizeFunctionName("GetCellSize");
 
 static const FName WorldToUnitFunctionName("WorldToUnit");
+static const FName UnitToWorldFunctionName("UnitToWorld");
 static const FName UnitToIndexFunctionName("UnitToIndex");
 static const FName IndexToUnitFunctionName("IndexToUnit");
 static const FName IndexToUnitStaggeredXFunctionName("IndexToUnitStaggeredX");
@@ -38,7 +39,7 @@ struct FNiagaraDataInterfaceProxyRW : public FNiagaraDataInterfaceProxy
 {
 public:
 
-	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance) override { check(false); }
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { check(false); }
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
 	{
 		return 0;
@@ -177,9 +178,12 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromCellSize"))
 	int32 NumCellsY;
-
+	
 	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "SetGridFromCellSize"))
 	float CellSize;
+
+	UPROPERTY(EditAnywhere, Category = "Grid")
+	int32 NumAttributes;
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	bool SetGridFromCellSize;

@@ -759,11 +759,11 @@ struct FOpenGL3 : public FOpenGLBase
 		case 2:
 			return ERHIFeatureLevel::ES2;
 		case 3:
-			return ERHIFeatureLevel::SM4;
+			return ERHIFeatureLevel::ES3_1;
 		case 4:
-			return GetMinorVersion() > 2 ? ERHIFeatureLevel::SM5 : ERHIFeatureLevel::SM4;
+			return GetMinorVersion() > 2 ? ERHIFeatureLevel::SM5 : ERHIFeatureLevel::ES3_1;
 		default:
-			return ERHIFeatureLevel::SM4;
+			return ERHIFeatureLevel::ES3_1;
 		}
 	}
 

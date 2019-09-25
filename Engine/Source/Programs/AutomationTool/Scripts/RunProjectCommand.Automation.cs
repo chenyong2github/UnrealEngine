@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -26,8 +26,6 @@ using Tools.DotNETCommon;
 /// </remarks>
 public partial class Project : CommandUtils
 {
-	#region Fields
-
 	/// <summary>
 	/// Thread used to read client log file.
 	/// </summary>
@@ -37,10 +35,6 @@ public partial class Project : CommandUtils
 	/// Process for the server, can be set by the cook command when a cook on the fly server is used
 	/// </summary>
 	public static IProcessResult ServerProcess;
-
-	#endregion
-
-	#region Run Command
 
 	// debug commands for the engine to crash
 	public static string[] CrashCommands = 
@@ -183,10 +177,6 @@ public partial class Project : CommandUtils
 			}
 		}
 	}
-
-	#endregion
-
-	#region Client
 
 	private static void RunStandaloneClient(List<DeploymentContext> DeployContextList, string ClientLogFile, ERunOptions ClientRunFlags, string ClientApp, string ClientCmdLine, ProjectParams Params)
 	{
@@ -910,10 +900,6 @@ public partial class Project : CommandUtils
 		}
 	}
 
-	#endregion
-
-	#region Client Thread
-
 	private static void ClientLogReaderProc(object ArgsContainer)
 	{
 		var Args = ArgsContainer as object[];
@@ -928,10 +914,6 @@ public partial class Project : CommandUtils
 			return true;
 		});
 	}
-
-	#endregion
-
-	#region Servers
 
 	private static IProcessResult RunDedicatedServer(ProjectParams Params, string ServerLogFile, string AdditionalCommandLine)
 	{
@@ -1089,6 +1071,4 @@ public partial class Project : CommandUtils
 		PopDir();
 		return Result;
 	}
-
-	#endregion
 }

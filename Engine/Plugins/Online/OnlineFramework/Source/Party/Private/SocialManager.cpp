@@ -325,6 +325,20 @@ FUniqueNetIdRepl USocialManager::GetFirstLocalUserId(ESocialSubsystem SubsystemT
 	return FUniqueNetIdRepl();
 }
 
+
+bool USocialManager::IsLocalUser(const FUniqueNetIdRepl& LocalUserId, ESocialSubsystem SubsystemType) const
+{
+	for(USocialToolkit* SocialToolkit : SocialToolkits)
+	{
+		if (SocialToolkit->GetLocalUserNetId(SubsystemType) == LocalUserId)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 int32 USocialManager::GetFirstLocalUserNum() const
 {
 	if (SocialToolkits.Num() > 0)
@@ -647,6 +661,30 @@ USocialToolkit& USocialManager::CreateSocialToolkit(ULocalPlayer& OwningLocalPla
 	OnToolkitCreatedInternal(*NewToolkit);
 	NewToolkit->OnToolkitReset().AddUObject(this, &USocialManager::HandleToolkitReset, NewToolkit->GetLocalUserNum());
 	return *NewToolkit;
+}
+
+void USocialManager::RegisterSecondaryPlayer(int32 LocalPlayerNum, const FOnJoinPartyComplete& Delegate)
+{
+	USocialToolkit* SocialToolkit = GetSocialToolkit(LocalPlayerNum);
+	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
+	USocialParty* PersistentParty = GetPersistentParty();
+
+	if (PartyInterface != nullptr && PersistentParty != nullptr)
+	{
+		FUniqueNetIdRepl PrimaryUserId = GetFirstLocalUserId(ESocialSubsystem::Primary);
+		FUniqueNetIdRepl SecondaryUserId = SocialToolkit->GetLocalUser().GetUserId(ESocialSubsystem::Primary);
+
+		if (PrimaryUserId.IsValid() && SecondaryUserId.IsValid())
+		{
+			FString JoinInfoStr = PartyInterface->MakeJoinInfoJson(*PrimaryUserId, PersistentParty->GetPartyId());
+			IOnlinePartyJoinInfoConstPtr JoinInfo = PartyInterface->MakeJoinInfoFromJson(JoinInfoStr);
+
+			if (JoinInfo->IsValid())
+			{
+				PartyInterface->JoinParty(*SecondaryUserId, *JoinInfo, Delegate);
+			}
+		}
+	}
 }
 
 void USocialManager::QueryPartyJoinabilityInternal(FJoinPartyAttempt& JoinAttempt)

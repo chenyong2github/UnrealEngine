@@ -122,6 +122,10 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta = (ClampMin = "0", EditCondition = "bSpatialize", DisplayName = "Spatialization Method"))
 	TEnumAsByte<enum ESoundSpatializationAlgorithm> SpatializationAlgorithm;
 
+	/** What min radius to use to swap to non-binaural audio when a sound starts playing. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta = (ClampMin = "0", EditCondition = "bSpatialize"))
+	float BinauralRadius;
+
 	/** What method to use to map distance values to frequency absorption values. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAirAbsorption)
 	EAirAbsorptionMethod AbsorptionMethod;
@@ -290,6 +294,7 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 		, bApplyNormalizationToStereoSounds(false)
 		, bEnableLogFrequencyScaling(false)
 		, SpatializationAlgorithm(ESoundSpatializationAlgorithm::SPATIALIZATION_Default)
+		, BinauralRadius(0.0f)
 		, AbsorptionMethod(EAirAbsorptionMethod::Linear)
 		, OcclusionTraceChannel(ECC_Visibility)
 		, ReverbSendMethod(EReverbSendMethod::Linear)
@@ -335,7 +340,9 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	}
 
 	bool operator==(const FSoundAttenuationSettings& Other) const;
+#if WITH_EDITORONLY_DATA
 	void PostSerialize(const FArchive& Ar);
+#endif
 
 	virtual void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const override;
 	float GetFocusPriorityScale(const struct FGlobalFocusSettings& FocusSettings, float FocusFactor) const;
@@ -343,9 +350,7 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	float GetFocusDistanceScale(const struct FGlobalFocusSettings& FocusSettings, float FocusFactor) const;
 };
 
-UE_DEPRECATED(4.15, "FAttenuationSettings has been renamed FSoundAttenuationSettings")
-typedef FSoundAttenuationSettings FAttenuationSettings;
-
+#if WITH_EDITORONLY_DATA
 template<>
 struct TStructOpsTypeTraits<FSoundAttenuationSettings> : public TStructOpsTypeTraitsBase2<FSoundAttenuationSettings>
 {
@@ -354,6 +359,7 @@ struct TStructOpsTypeTraits<FSoundAttenuationSettings> : public TStructOpsTypeTr
 		WithPostSerialize = true,
 	};
 };
+#endif
 
 /** 
  * Defines how a sound changes volume with distance to the listener

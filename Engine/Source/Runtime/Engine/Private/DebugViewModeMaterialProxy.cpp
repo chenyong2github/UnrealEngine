@@ -60,11 +60,15 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 				bIsUsedWithSplineMeshes = Resource->IsUsedWithSplineMeshes();
 				bIsUsedWithInstancedStaticMeshes = Resource->IsUsedWithInstancedStaticMeshes();
 				bIsUsedWithAPEXCloth = Resource->IsUsedWithAPEXCloth();
+				bIsUsedWithWater = Resource->IsUsedWithWater();
 			}
 		}
 
 		FMaterialShaderMapId ResourceId;
 		Resource->GetShaderMapId(ShaderPlatform, ResourceId);
+
+		FStaticParameterSet StaticParamSet;
+		Resource->GetStaticParameterSet(ShaderPlatform, StaticParamSet);
 
 		{
 			TArray<FShaderType*> ShaderTypes;
@@ -79,7 +83,7 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 
 		ResourceId.Usage = Usage;
 
-		CacheShaders(ResourceId, ShaderPlatform);
+		CacheShaders(ResourceId, StaticParamSet, ShaderPlatform);
 	}
 	else
 	{

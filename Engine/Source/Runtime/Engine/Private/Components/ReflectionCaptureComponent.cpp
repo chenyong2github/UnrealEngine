@@ -968,6 +968,13 @@ bool UReflectionCaptureComponent::CanEditChange(const UProperty* Property) const
 
 void UReflectionCaptureComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UReflectionCaptureComponent, Cubemap) ||
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UReflectionCaptureComponent, SourceCubemapAngle) ||
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UReflectionCaptureComponent, ReflectionSourceType))
+	{
+		MarkDirtyForRecapture();
+	}
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 

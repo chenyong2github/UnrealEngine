@@ -4,6 +4,8 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/AssertionMacros.h"
 #include "Containers/UnrealString.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -82,6 +84,53 @@ bool FStringAppendIntTest::RunTest(const FString& Parameters)
 		AppendMultipleInts.AppendInt(3);
 		DoTest(TEXT("AppendInt(1);AppendInt(-2);AppendInt(3)"), AppendMultipleInts, TEXT("1-23"));
 	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringUnicodeTest, "System.Core.String.Unicode", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FStringUnicodeTest::RunTest(const FString& Parameters)
+{
+	auto DoTest = [this](const TCHAR* Call, const FString& Result, const TCHAR* InExpected)
+	{
+		if (!Result.Equals(InExpected, ESearchCase::CaseSensitive))
+		{
+			AddError(FString::Printf(TEXT("'%s' failure: result '%s' (expected '%s')"), Call, *Result, InExpected));
+		}
+	};
+
+	// Test data used to verify basic processing of a Unicode character outside the BMP
+	FString TestStr;
+	if (FUnicodeChar::CodepointToString(128512, TestStr))
+	{
+		// Verify that the string can be serialized and deserialized without losing any data
+		{
+			TArray<uint8> StringData;
+			FString FromArchive = TestStr;
+
+			FMemoryWriter Writer(StringData);
+			Writer << FromArchive;
+
+			FromArchive.Reset();
+			FMemoryReader Reader(StringData);
+			Reader << FromArchive;
+
+			DoTest(TEXT("FromArchive"), FromArchive, *TestStr);
+		}
+
+		// Verify that the string can be converted from/to UTF-8 without losing any data
+		{
+			const FString FromUtf8 = UTF8_TO_TCHAR(TCHAR_TO_UTF8(*TestStr));
+			DoTest(TEXT("FromUtf8"), FromUtf8, *TestStr);
+		}
+
+		// Verify that the string can be converted from/to UTF-16 without losing any data
+		{
+			const FString FromUtf16 = UTF16_TO_TCHAR(TCHAR_TO_UTF16(*TestStr));
+			DoTest(TEXT("FromUtf16"), FromUtf16, *TestStr);
+		}
+	}
+
 
 	return true;
 }

@@ -344,7 +344,7 @@ public:
 	// FResource interface.
 	virtual void InitRHI() override
 	{
-		if (GetFeatureLevel() >= ERHIFeatureLevel::SM4)
+		if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
 			// Create the texture RHI.
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(0);
@@ -961,31 +961,31 @@ RENDERCORE_API void RenderUtilsInit()
 {
 	if (GUseForwardShading)
 	{
-		GForwardShadingPlatformMask = ~0u;
+		GForwardShadingPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* DBufferVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DBuffer"));
 	if (DBufferVar && DBufferVar->GetInt())
 	{
-		GDBufferPlatformMask = ~0u;
+		GDBufferPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* BasePassVelocityCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BasePassOutputsVelocity"));
 	if (BasePassVelocityCVar && BasePassVelocityCVar->GetInt())
 	{
-		GBasePassVelocityPlatformMask = ~0u;
+		GBasePassVelocityPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* SelectiveBasePassOutputsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SelectiveBasePassOutputs"));
 	if (SelectiveBasePassOutputsCVar && SelectiveBasePassOutputsCVar->GetInt())
 	{
-		GSelectiveBasePassOutputsPlatformMask = ~0u;
+		GSelectiveBasePassOutputsPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* DistanceFieldsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DistanceFields")); 
 	if (DistanceFieldsCVar && DistanceFieldsCVar->GetInt())
 	{
-		GDistanceFieldsPlatformMask = ~0u;
+		GDistanceFieldsPlatformMask = ~0ull;
 	}
 
 #if WITH_EDITOR
@@ -1169,6 +1169,13 @@ RENDERCORE_API bool UseVirtualTexturing(ERHIFeatureLevel::Type InFeatureLevel, c
 			return false;
 		}
 #endif
+
+		// Remove this when UE-80097 is implemented
+		static bool bIsVulkanRHI = FCString::Strcmp(GDynamicRHI->GetName(), TEXT("Vulkan")) == 0;
+		if (bIsVulkanRHI)
+		{
+			return false;
+		}
 
 		// does the project has it enabled ?
 		static const auto CVarVirtualTexture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));

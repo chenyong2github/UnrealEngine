@@ -26,6 +26,7 @@ public:
 	virtual UAnimationAsset* GetPreviewAnimationAsset() const override;
 	virtual void SetPreviewMesh(USkeletalMesh* NewPreviewMesh, bool bAllowOverrideBaseMesh = true) override;
 	virtual USkeletalMesh* GetPreviewMesh() const override;
+	virtual void SetPreviewAnimationBlueprint(UAnimBlueprint* InAnimBlueprint, UAnimBlueprint* InOverlayOrSubAnimBlueprint) override;
 	virtual bool AttachObjectToPreviewComponent(UObject* Object, FName AttachTo) override;
 	virtual void RemoveAttachedObjectFromPreviewComponent(UObject* Object, FName AttachedTo) override;
 	virtual void InvalidateViews() override;

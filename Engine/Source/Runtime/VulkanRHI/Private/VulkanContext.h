@@ -357,6 +357,7 @@ protected:
 	FVulkanQueue* Queue;
 	bool bSubmitAtNextSafePoint;
 	bool bAutomaticFlushAfterComputeShader;
+	bool bUniformBufferUploadRenderPassDirty = true;
 	FVulkanUniformBufferUploader* UniformBufferUploader;
 
 	void BeginOcclusionQueryBatch(FVulkanCmdBuffer* CmdBuffer, uint32 NumQueriesInBatch);

@@ -13,6 +13,7 @@
 #include "ScenePrivate.h"
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
+#include "HairStrands/HairStrandsRendering.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Directional light
@@ -225,37 +226,43 @@ IMPLEMENT_SHADER_TYPE(,FShadowVolumeBoundProjectionVS,TEXT("/Engine/Private/Shad
  * Implementations for TShadowProjectionPS.  
  */
 #if !UE_BUILD_DOCS
-#define IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(Quality,UseFadePlane,UseTransmission) \
-	typedef TShadowProjectionPS<Quality, UseFadePlane, false, UseTransmission> FShadowProjectionPS##Quality##UseFadePlane##UseTransmission; \
-	IMPLEMENT_SHADER_TYPE(template<>,FShadowProjectionPS##Quality##UseFadePlane##UseTransmission,TEXT("/Engine/Private/ShadowProjectionPixelShader.usf"),TEXT("Main"),SF_Pixel);
+#define IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(Quality,UseFadePlane,UseTransmission, SupportSubPixel) \
+	typedef TShadowProjectionPS<Quality, UseFadePlane, false, UseTransmission, SupportSubPixel> FShadowProjectionPS##Quality##UseFadePlane##UseTransmission##SupportSubPixel; \
+	IMPLEMENT_SHADER_TYPE(template<>,FShadowProjectionPS##Quality##UseFadePlane##UseTransmission##SupportSubPixel,TEXT("/Engine/Private/ShadowProjectionPixelShader.usf"),TEXT("Main"),SF_Pixel);
 
 // Projection shaders without the distance fade, with different quality levels.
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(1,false,false);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(2,false,false);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(3,false,false);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(4,false,false);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(5,false,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(1,false,false,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(2,false,false,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(3,false,false,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(4,false,false,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(5,false,false,false);
 
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(1,false,true);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(2,false,true);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(3,false,true);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(4,false,true);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(5,false,true);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(1,false,true,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(2,false,true,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(3,false,true,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(4,false,true,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(5,false,true,false);
 
 // Projection shaders with the distance fade, with different quality levels.
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(1,true,false);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(2,true,false);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(3,true,false);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(4,true,false);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(5,true,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(1,true,false,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(2,true,false,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(3,true,false,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(4,true,false,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(5,true,false,false);
 
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(1,true,true);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(2,true,true);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(3,true,true);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(4,true,true);
-IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(5,true,true);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(1,true,true,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(2,true,true,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(3,true,true,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(4,true,true,false);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(5,true,true,false);
 
-
+// Projection shaders without the distance fade, without transmission, with Sub-PixelSupport with different quality levels
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(1, false, false, true);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(2, false, false, true);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(3, false, false, true);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(4, false, false, true);
+IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(5, false, false, true);
+													   
 #undef IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER
 #endif
 
@@ -307,11 +314,33 @@ IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(5, true);
 #undef IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER
 
 static void GetShadowProjectionShaders(
-	int32 Quality, const FViewInfo& View, const FProjectedShadowInfo* ShadowInfo, bool bMobileModulatedProjections,
+	int32 Quality, const FViewInfo& View, const FProjectedShadowInfo* ShadowInfo, bool bMobileModulatedProjections, bool bSubPixelSupport,
 	FShadowProjectionVertexShaderInterface** OutShadowProjVS, FShadowProjectionPixelShaderInterface** OutShadowProjPS)
 {
 	check(!*OutShadowProjVS);
 	check(!*OutShadowProjPS);
+
+	if (bSubPixelSupport)
+	{
+		check(!bMobileModulatedProjections);
+
+		if (ShadowInfo->IsWholeSceneDirectionalShadow())
+			*OutShadowProjVS = View.ShaderMap->GetShader<FShadowProjectionNoTransformVS>();
+		else
+			*OutShadowProjVS = View.ShaderMap->GetShader<FShadowVolumeBoundProjectionVS>();
+
+		switch (Quality)
+		{
+		case 1: *OutShadowProjPS = View.ShaderMap->GetShader<TShadowProjectionPS<1, false, false, false, true> >(); break;
+		case 2: *OutShadowProjPS = View.ShaderMap->GetShader<TShadowProjectionPS<2, false, false, false, true> >(); break;
+		case 3: *OutShadowProjPS = View.ShaderMap->GetShader<TShadowProjectionPS<3, false, false, false, true> >(); break;
+		case 4: *OutShadowProjPS = View.ShaderMap->GetShader<TShadowProjectionPS<4, false, false, false, true> >(); break;
+		case 5: *OutShadowProjPS = View.ShaderMap->GetShader<TShadowProjectionPS<5, false, false, false, true> >(); break;
+		default:
+			check(0);
+		}
+		return;
+	}
 
 	if (ShadowInfo->bTranslucentShadow)
 	{
@@ -837,7 +866,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 	}
 }
 
-void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo* View, const FSceneRenderer* SceneRender, bool bProjectingForForwardShading, bool bMobileModulatedProjections) const
+void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo* View, const FSceneRenderer* SceneRender, bool bProjectingForForwardShading, bool bMobileModulatedProjections, const FHairStrandsVisibilityData* HairVisibilityData) const
 {
 #if WANTS_DRAW_MESH_EVENTS
 	FString EventName;
@@ -953,7 +982,8 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 		FShadowProjectionVertexShaderInterface* ShadowProjVS = nullptr;
 		FShadowProjectionPixelShaderInterface* ShadowProjPS = nullptr;
 
-		GetShadowProjectionShaders(LocalQuality, *View, this, bMobileModulatedProjections, &ShadowProjVS, &ShadowProjPS);
+		const bool bSubPixelSupport = HairVisibilityData != nullptr;
+		GetShadowProjectionShaders(LocalQuality, *View, this, bMobileModulatedProjections, bSubPixelSupport, &ShadowProjVS, &ShadowProjPS);
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
 		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(ShadowProjVS);
@@ -969,7 +999,7 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 		RHICmdList.SetStencilRef(0);
 
 		ShadowProjVS->SetParameters(RHICmdList, *View, this);
-		ShadowProjPS->SetParameters(RHICmdList, ViewIndex, *View, this);
+		ShadowProjPS->SetParameters(RHICmdList, ViewIndex, *View, HairVisibilityData, this);
 	}
 
 	if (IsWholeSceneDirectionalShadow())
@@ -996,7 +1026,7 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 		// Clear the stencil buffer to 0.
 		if (!GStencilOptimization)
 		{
-			DrawClearQuad(RHICmdList, false, FLinearColor::Transparent, false, 0, true, 1);
+			DrawClearQuad(RHICmdList, false, FLinearColor::Transparent, false, 0, true, 0);
 		}
 	}
 }
@@ -1015,7 +1045,7 @@ static void SetPointLightShaderTempl(FRHICommandList& RHICmdList, FGraphicsPipel
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 	
 	VertexShader->SetParameters(RHICmdList, View, ShadowInfo);
-	PixelShader->SetParameters(RHICmdList, ViewIndex, View, ShadowInfo);
+	PixelShader->SetParameters(RHICmdList, ViewIndex, View, nullptr, ShadowInfo);
 }
 
 /** Render one pass point light shadow projections. */
@@ -1432,7 +1462,7 @@ bool FDeferredShadingSceneRenderer::InjectReflectiveShadowMaps(FRHICommandListIm
 	return true;
 }
 
-bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, bool bProjectingForForwardShading, bool bMobileModulatedProjections)
+bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, IPooledRenderTarget* ScreenShadowMaskSubPixelTexture, bool bProjectingForForwardShading, bool bMobileModulatedProjections, const FHairStrandsVisibilityViews* InHairVisibilityViews)
 {
 	FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
@@ -1457,11 +1487,60 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 
 	if (NormalShadows.Num() > 0)
 	{
+		auto RenderShadowMask = [&](const FHairStrandsVisibilityViews* HairVisibilityViews)
+		{
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			{
+				SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
+
+				const FViewInfo& View = Views[ViewIndex];
+
+				const FHairStrandsVisibilityData* HairVisibilityData = nullptr;
+				if (HairVisibilityViews)
+				{
+					HairVisibilityData = &(HairVisibilityViews->HairDatas[ViewIndex]);
+				}
+
+				// Set the device viewport for the view.
+				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+				// Set the light's scissor rectangle.
+				LightSceneInfo->Proxy->SetScissorRect(RHICmdList, View, View.ViewRect);
+
+				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+
+				// Project the shadow depth buffers onto the scene.
+				for (int32 ShadowIndex = 0; ShadowIndex < NormalShadows.Num(); ShadowIndex++)
+				{
+					FProjectedShadowInfo* ProjectedShadowInfo = NormalShadows[ShadowIndex];
+
+					if (ProjectedShadowInfo->bAllocated)
+					{
+						// Only project the shadow if it's large enough in this particular view (split screen, etc... may have shadows that are large in one view but irrelevantly small in others)
+						if (ProjectedShadowInfo->FadeAlphas[ViewIndex] > 1.0f / 256.0f)
+						{
+							if (ProjectedShadowInfo->bOnePassPointLightShadow)
+							{
+								ProjectedShadowInfo->RenderOnePassPointLightProjection(RHICmdList, ViewIndex, View, bProjectingForForwardShading);
+							}
+							else
+							{
+								ProjectedShadowInfo->RenderProjection(RHICmdList, ViewIndex, &View, this, bProjectingForForwardShading, bMobileModulatedProjections, HairVisibilityData);
+							}
+						}
+					}
+				}
+			}
+		};
+
 		// Render normal shadows
 		if (bMobileModulatedProjections)
 		{
 			// part of scene color rendering pass
 			check(RHICmdList.IsInsideRenderPass());
+			RenderShadowMask(nullptr);
+			// Reset the scissor rectangle.
+			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 		}
 		else
 		{
@@ -1474,55 +1553,25 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 
 			TransitionRenderPassTargets(RHICmdList, RPInfo);
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderShadowProjection"));
+			RenderShadowMask(nullptr);
+			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+			RHICmdList.EndRenderPass();
 		}
 
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
+		// SubPixelShadow
+		if (!bMobileModulatedProjections && ScreenShadowMaskSubPixelTexture && InHairVisibilityViews)
+		{			
+			check(RHICmdList.IsOutsideRenderPass());
+			// Normal deferred shadows render to the shadow mask
+			FRHIRenderPassInfo RPInfo(ScreenShadowMaskSubPixelTexture->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
+			RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_DontStore, ERenderTargetActions::Load_Store);
+			RPInfo.DepthStencilRenderTarget.DepthStencilTarget = SceneContext.GetSceneDepthSurface();
+			RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilWrite;
 
-			const FViewInfo& View = Views[ViewIndex];
-
-			// Set the device viewport for the view.
-			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-
-			// Set the light's scissor rectangle.
-			LightSceneInfo->Proxy->SetScissorRect(RHICmdList, View, View.ViewRect);
-
-			Scene->UniformBuffers.UpdateViewUniformBuffer(View);
-
-			// Project the shadow depth buffers onto the scene.
-			for (int32 ShadowIndex = 0; ShadowIndex < NormalShadows.Num(); ShadowIndex++)
-			{
-				FProjectedShadowInfo* ProjectedShadowInfo = NormalShadows[ShadowIndex];
-
-				if (ProjectedShadowInfo->bAllocated)
-				{
-					// Only project the shadow if it's large enough in this particular view (split screen, etc... may have shadows that are large in one view but irrelevantly small in others)
-					if (ProjectedShadowInfo->FadeAlphas[ViewIndex] > 1.0f / 256.0f)
-					{
-						if (ProjectedShadowInfo->bOnePassPointLightShadow)
-						{
-							ProjectedShadowInfo->RenderOnePassPointLightProjection(RHICmdList, ViewIndex, View, bProjectingForForwardShading);
-						}
-						else
-						{
-							ProjectedShadowInfo->RenderProjection(RHICmdList, ViewIndex, &View, this, bProjectingForForwardShading, bMobileModulatedProjections);
-						}
-					}
-				}
-			}
-		}
-
-		// Reset the scissor rectangle.
-		RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
-
-		if (bMobileModulatedProjections)
-		{
-			// part of scene color rendering pass
-			check(RHICmdList.IsInsideRenderPass());
-		}
-		else
-		{
+			TransitionRenderPassTargets(RHICmdList, RPInfo);
+			RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderShadowProjectionSubPixel"));
+			RenderShadowMask(InHairVisibilityViews);
+			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 			RHICmdList.EndRenderPass();
 		}
 	}
@@ -1564,7 +1613,7 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 	return true;
 }
 	
-bool FDeferredShadingSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, bool& bInjectedTranslucentVolume)
+bool FDeferredShadingSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, IPooledRenderTarget* ScreenShadowMaskSubPixelTexture, const FHairStrandsDatas* HairDatas, bool& bInjectedTranslucentVolume)
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderShadowProjections, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_ProjectedShadowDrawTime);
@@ -1575,7 +1624,7 @@ bool FDeferredShadingSceneRenderer::RenderShadowProjections(FRHICommandListImmed
 
 	FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 
-	FSceneRenderer::RenderShadowProjections(RHICmdList, LightSceneInfo, ScreenShadowMaskTexture, false, false);
+	FSceneRenderer::RenderShadowProjections(RHICmdList, LightSceneInfo, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, false, false, HairDatas ? &HairDatas->HairVisibilityViews : nullptr);
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 	for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
@@ -1637,6 +1686,12 @@ bool FDeferredShadingSceneRenderer::RenderShadowProjections(FRHICommandListImmed
 		}
 	}
 
+	// Inject deep shadow mask
+	if (HairDatas)
+	{
+		RenderHairStrandsShadowMask(RHICmdList, Views, LightSceneInfo, ScreenShadowMaskTexture, HairDatas);
+	}
+
 	return true;
 }
 
@@ -1657,7 +1712,7 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmed
 		{
 			TArray<FProjectedShadowInfo*, SceneRenderingAllocator> Shadows;
 			SCOPE_CYCLE_COUNTER(STAT_ProjectedShadowDrawTime);
-			FSceneRenderer::RenderShadowProjections(RHICmdList, LightSceneInfo, NULL, false, true);
+			FSceneRenderer::RenderShadowProjections(RHICmdList, LightSceneInfo, nullptr, nullptr, false, true, nullptr);
 		}
 	}
 }

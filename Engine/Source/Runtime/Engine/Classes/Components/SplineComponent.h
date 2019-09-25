@@ -44,9 +44,9 @@ class ENGINE_API USplineMetadata : public UObject
 
 public:
 	/** Insert point before index, lerping metadata between previous and next key values */
-	virtual void InsertPoint(int32 Index, float t) PURE_VIRTUAL(USplineMetadata::InsertPoint, );
+	virtual void InsertPoint(int32 Index, float t, bool bClosedLoop) PURE_VIRTUAL(USplineMetadata::InsertPoint, );
 	/** Update point at index by lerping metadata between previous and next key values */
-	virtual void UpdatePoint(int32 Index, float t) PURE_VIRTUAL(USplineMetadata::UpdatePoint, );
+	virtual void UpdatePoint(int32 Index, float t, bool bClosedLoop) PURE_VIRTUAL(USplineMetadata::UpdatePoint, );
 	virtual void AddPoint(float InputKey) PURE_VIRTUAL(USplineMetadata::AddPoint, );
 	virtual void RemovePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::RemovePoint, );
 	virtual void DuplicatePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::DuplicatePoint, );
@@ -327,39 +327,50 @@ public:
 	void UpdateSpline();
 
 	/** Get location along spline at the provided input key value */
+	UFUNCTION(BlueprintCallable, Category = Spline)
 	FVector GetLocationAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get tangent along spline at the provided input key value */
+	UFUNCTION(BlueprintCallable, Category = Spline)
 	FVector GetTangentAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get unit direction along spline at the provided input key value */
+	UFUNCTION(BlueprintCallable, Category = Spline)
 	FVector GetDirectionAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get rotator corresponding to rotation along spline at the provided input key value */
+	UFUNCTION(BlueprintCallable, Category = Spline)
 	FRotator GetRotationAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get quaternion corresponding to rotation along spline at the provided input key value */
 	FQuat GetQuaternionAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get up vector at the provided input key value */
+	UFUNCTION(BlueprintCallable, Category = Spline)
 	FVector GetUpVectorAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get up vector at the provided input key value */
+	UFUNCTION(BlueprintCallable, Category = Spline)
 	FVector GetRightVectorAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get transform at the provided input key value */
+	UFUNCTION(BlueprintCallable, Category = Spline)
 	FTransform GetTransformAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseScale = false) const;
 
 	/** Get roll in degrees at the provided input key value */
+	UFUNCTION(BlueprintCallable, Category = Spline)
 	float GetRollAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get scale at the provided input key value */
+	UFUNCTION(BlueprintCallable, Category = Spline)
 	FVector GetScaleAtSplineInputKey(float InKey) const;
 
 	/** Get a metadata property float value along the spline at spline input key */
+	UFUNCTION(BlueprintCallable, Category = Spline)
 	float GetFloatPropertyAtSplineInputKey(float InKey, FName PropertyName) const;
 
 	/** Get a metadata property vector value along the spline at spline input key */
+	UFUNCTION(BlueprintCallable, Category = Spline)
 	FVector GetVectorPropertyAtSplineInputKey(float InKey, FName PropertyName) const;
 
 	/** Specify unselected spline component segment color in the editor */
@@ -461,6 +472,10 @@ public:
 	/** Get the number of points that make up this spline */
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	int32 GetNumberOfSplinePoints() const;
+
+	/** Get the number of segments that make up this spline */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	int32 GetNumberOfSplineSegments() const;
 
 	/** Get the location at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)

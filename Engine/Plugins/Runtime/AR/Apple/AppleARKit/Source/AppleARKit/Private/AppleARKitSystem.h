@@ -8,6 +8,7 @@
 #include "AppleARKitTextures.h"
 #include "Kismet/BlueprintPlatformLibrary.h"
 #include "AppleARKitFaceSupport.h"
+#include "AppleARKitPoseTrackingLiveLink.h"
 
 // ARKit
 #if SUPPORTS_ARKIT_1_0
@@ -62,8 +63,11 @@ private:
 	//~ FGCObject
 protected:
 	//~IARSystemSupport
+	/** Returns true/false based on whether AR features are available */
+	virtual bool IsARAvailable() const override;
 	virtual void OnARSystemInitialized() override;
 	virtual EARTrackingQuality OnGetTrackingQuality() const override;
+	virtual EARTrackingQualityReason OnGetTrackingQualityReason() const override;
 	virtual void OnStartARSession(UARSessionConfig* SessionConfig) override;
 	virtual void OnPauseARSession() override;
 	virtual void OnStopARSession() override;
@@ -86,7 +90,11 @@ protected:
 	virtual TArray<FARVideoFormat> OnGetSupportedVideoFormats(EARSessionType SessionType) const override;
 	virtual TArray<FVector> OnGetPointCloud() const override;
 	virtual bool OnAddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth) override { return true; };
-
+	
+	virtual bool OnIsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature) const override;
+	virtual TArray<FARPose2D> OnGetTracked2DPose() const override;
+	virtual UARTextureCameraImage* OnGetPersonSegmentationImage() const override;
+	virtual UARTextureCameraImage* OnGetPersonSegmentationDepthImage() const override;
 	//~IARSystemSupport
 
 private:
@@ -101,7 +109,8 @@ private:
 	/** Asynchronously writes a JPEG to disk */
 	void WriteCameraImageToDisk(CVPixelBufferRef PixelBuffer);
 #endif
-
+	class FAppleARKitXRCamera* GetARKitXRCamera();
+	
 public:
 	// Session delegate callbacks
 	void SessionDidUpdateFrame_DelegateThread( TSharedPtr< FAppleARKitFrame, ESPMode::ThreadSafe > Frame );
@@ -139,10 +148,13 @@ private:
 	
 	bool bIsRunning = false;
 	
-	void SetDeviceOrientation(EDeviceScreenOrientation InOrientation);
+	void SetDeviceOrientationAndDerivedTracking(EDeviceScreenOrientation InOrientation);
 
 	/** Creates or clears the face ar support object if face ar has been requested */
 	void CheckForFaceARSupport(UARSessionConfig* InSessionConfig);
+
+	/** Creates or clears the pose tracking ar support object if face ar has been requested */
+	void CheckForPoseTrackingARLiveLink(UARSessionConfig* InSessionConfig);
 	
 	/** Updates the ARKit perf counters */
 	void UpdateARKitPerfStats();
@@ -179,6 +191,8 @@ private:
 	UAppleARKitTextureCameraDepth* CameraDepth;
 	TMap< FString, UARCandidateImage* > CandidateImages;
 	TMap< FString, UARCandidateObject* > CandidateObjects;
+	UAppleARKitTextureCameraImage* PersonSegmentationImage = nullptr;
+	UAppleARKitTextureCameraImage* PersonSegmentationDepthImage = nullptr;
 	// ...
 	// PROPERTIES REPORTED TO FGCObject
 	//
@@ -198,8 +212,11 @@ private:
 	// The object that is handling face support if present
 	IAppleARKitFaceSupport* FaceARSupport;
 
+	// The object that is handling pose tracking livelink if present
+	IAppleARKitPoseTrackingLiveLink* PoseTrackingARLiveLink;
+
 	/** The time code provider to use when tagging time stamps */
-	UTimecodeProvider* TimecodeProvider;
+	UTimecodeProvider* TimecodeProvider = nullptr;
 };
 
 

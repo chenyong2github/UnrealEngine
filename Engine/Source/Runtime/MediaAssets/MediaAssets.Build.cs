@@ -10,7 +10,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"SignalProcessing",
 					"AudioMixer",
-					"Core",
+                    "Core",
 					"CoreUObject",
 					"Engine",
 					"Media",
@@ -20,8 +20,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"RenderCore",
-					"RHI",
-					"UtilityShaders",
+					"RHI"
 				});
 
 			PrivateIncludePaths.AddRange(

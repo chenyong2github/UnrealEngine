@@ -21,7 +21,7 @@ namespace UnrealBuildTool.Rules
                     "MovieScene",
                     "MovieSceneTracks",
                     "PropertyPath",
-					"TimeManagement"
+					"TimeManagement",
                 }
             );
 
@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
                 {
                     "AnimationCore",
                     "LevelSequence",
+                    "RigVM",
                 }
             );
 

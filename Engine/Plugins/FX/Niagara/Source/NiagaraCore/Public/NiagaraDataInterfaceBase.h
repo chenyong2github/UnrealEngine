@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "NiagaraCore.h"
 #include "NiagaraMergeable.h"
 #include "NiagaraDataInterfaceBase.generated.h"
 
@@ -20,7 +21,7 @@ struct FNiagaraDataInterfaceSetArgs
 {
 	FNiagaraShader* Shader;
 	FNiagaraDataInterfaceProxy* DataInterface;
-	FGuid SystemInstance;
+	FNiagaraSystemInstanceID SystemInstance;
 	const NiagaraEmitterInstanceBatcher* Batcher;
 	uint32 ShaderStageIndex;
 	bool IsOutputStage;

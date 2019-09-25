@@ -3,7 +3,8 @@
 #include "Styling/SlateTypes.h"
 #include "Brushes/SlateNoResource.h"
 #include "Styling/StyleDefaults.h"
-
+#include "Widgets/InvalidateWidgetReason.h"
+#include "Widgets/SWidget.h"
 
 namespace SlateTypeDefs
 {
@@ -672,4 +673,22 @@ const FWindowStyle& FWindowStyle::GetDefault()
 	return Default;
 }
 
+void FInvalidatableBrushAttribute::SetImage(SWidget& ThisWidget, const TAttribute< const FSlateBrush* >& InImage)
+{
+	const bool bImagePointerChanged = SetWidgetAttribute(ThisWidget, Image, InImage, EInvalidateWidgetReason::Layout);
 
+	const FSlateBrush* ImagePtr = Image.Get();
+	const FSlateBrush NewImageToCache = ImagePtr ? *ImagePtr : FSlateBrush();
+
+	// If the slate brush pointer didn't change, that may not mean nothing changed.  We
+	// sometimes reuse the slate brush memory address and change out the texture.  In those
+	// circumstances we need to actually look at the data the brush has compared to what it had
+	// previously.
+	if (!bImagePointerChanged && ImageCache != NewImageToCache)
+	{
+		ThisWidget.Invalidate(EInvalidateWidgetReason::Layout);
+	}
+
+	// Cache the new image's value in case the memory changes later.
+	ImageCache = NewImageToCache;
+}

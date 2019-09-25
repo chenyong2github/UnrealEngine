@@ -36,6 +36,8 @@
 #include "Curves/CurveLinearColor.h"
 #include "IPropertyUtilities.h"
 #include "Engine/Texture.h"
+#include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
+#include "Curves/CurveLinearColorAtlas.h"
 
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
@@ -67,6 +69,7 @@ void FMaterialExpressionParameterDetails::CustomizeDetails( IDetailLayoutBuilder
 	ScalarParameterObjects.Reset();
 
 	const FName MaterialExpressionCategory = TEXT("MaterialExpression");
+	IDetailCategoryBuilder& ExpressionCategory = DetailLayout.EditCategory(MaterialExpressionCategory);
 
 	for (const auto& WeakObjectPtr : Objects)
 	{
@@ -107,6 +110,51 @@ void FMaterialExpressionParameterDetails::CustomizeDetails( IDetailLayoutBuilder
 				{
 					DetailLayout.ForceRefreshDetails();
 				}));
+			}
+
+			if (ScalarParameter->IsUsedAsAtlasPosition())
+			{
+				UMaterialExpressionCurveAtlasRowParameter* ColorCurveParameter = Cast<UMaterialExpressionCurveAtlasRowParameter>(ScalarParameter);
+				TSharedPtr<IPropertyHandle> CurveHandle = DetailLayout.GetProperty("Curve", UMaterialExpressionCurveAtlasRowParameter::StaticClass());
+				if (CurveHandle.IsValid() && CurveHandle->IsValidHandle())
+				{
+					const FName AtlasCategoryName = TEXT("MaterialExpressionCurveAtlasRowParameter");
+					IDetailCategoryBuilder& AtlasCategory = DetailLayout.EditCategory(AtlasCategoryName);
+					TSoftObjectPtr<UCurveLinearColorAtlas> Atlas = TSoftObjectPtr<UCurveLinearColorAtlas>(FSoftObjectPath(ColorCurveParameter->Atlas->GetPathName()));
+					CurveHandle->MarkHiddenByCustomization();
+					AtlasCategory.AddCustomRow(CurveHandle->GetPropertyDisplayName())
+						.NameContent()
+						[
+							SNew(STextBlock)
+							.Text(CurveHandle->GetPropertyDisplayName())
+							.Font(IDetailLayoutBuilder::GetDetailFont())
+						]
+						.ValueContent()
+						.HAlign(HAlign_Fill)
+						.MaxDesiredWidth(400.0f)
+						[
+							SNew(SObjectPropertyEntryBox)
+							.PropertyHandle(CurveHandle)
+							.AllowedClass(UCurveLinearColor::StaticClass())
+							.NewAssetFactories(TArray<UFactory*>())
+							.DisplayThumbnail(true)
+							.ThumbnailPool(DetailLayout.GetThumbnailPool())
+							.OnShouldFilterAsset(FOnShouldFilterAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldFilterCurveAsset, Atlas))
+							.OnShouldSetAsset(FOnShouldSetAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldSetCurveAsset, Atlas))
+						];
+
+
+						TSharedPtr<IPropertyHandle> AtlasHandle = DetailLayout.GetProperty("Atlas", UMaterialExpressionCurveAtlasRowParameter::StaticClass());
+						if (AtlasHandle.IsValid() && AtlasHandle->IsValidHandle())
+						{
+							// Rebuild the layout when the bUseCustomPrimitiveData property changes
+							AtlasHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+							{
+								DetailLayout.ForceRefreshDetails();
+							}));
+						}
+
+				}
 			}
 
 			if (ScalarParameter->bUseCustomPrimitiveData)
@@ -365,7 +413,7 @@ void FMaterialExpressionParameterDetails::CustomizeDetails( IDetailLayoutBuilder
 	
 	Category.AddProperty("ParameterName");
 
-	IDetailCategoryBuilder& ExpressionCategory = DetailLayout.EditCategory(MaterialExpressionCategory);
+
 
 	// Get a handle to the property we are about to edit
 	GroupPropertyHandle = DetailLayout.GetProperty( "Group" );

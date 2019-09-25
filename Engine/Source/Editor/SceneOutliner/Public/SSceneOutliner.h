@@ -164,6 +164,9 @@ namespace SceneOutliner
 		/** Returns true if clipboard contains folders only */
 		bool CanPasteFoldersOnlyFromClipboard();
 		
+		/** Tells the scene outliner that it should do a full refresh, which will clear the entire tree and rebuild it from scratch. */
+		virtual void FullRefresh() override;
+
 	private:
 		/** Methods that implement structural modification logic for the tree */
 
@@ -175,9 +178,6 @@ namespace SceneOutliner
 
 		/** Repopulates the entire tree */
 		void RepopulateEntireTree();
-
-		/** Tells the scene outliner that it should do a full refresh, which will clear the entire tree and rebuild it from scratch. */
-		void FullRefresh();
 
 		/** Tells the scene outliner that there was a change in the level actor list. */
 		void OnLevelActorListChanged();

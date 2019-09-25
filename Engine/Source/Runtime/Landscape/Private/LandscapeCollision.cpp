@@ -317,7 +317,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 					if (LandscapeComponentGeomEd.isValid())
 					{
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-                        ensure(false);
+						UE_LOG(LogLandscape, Warning, TEXT("Failed to create editor shapes, currently unimplemented for Chaos"));
 #else
 						FPhysicsMaterialHandle_PhysX MaterialHandle = GEngine->DefaultPhysMaterial->GetPhysicsMaterial();
 						PxMaterial* PDefaultMat = MaterialHandle.Material;
@@ -349,6 +349,10 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				// Set body instance data
 				BodyInstance.PhysicsUserData = FPhysicsUserData(&BodyInstance);
 				BodyInstance.OwnerComponent = this;
+
+#if WITH_CHAOS
+				PhysHandle->SetUserData(&BodyInstance.PhysicsUserData);
+#endif
 
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
 				TArray<FPhysicsActorHandle> Actors;
@@ -440,7 +444,10 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 				for (UPhysicalMaterial* PhysicalMaterial : CookedPhysicalMaterials)
 				{
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-                    ensure(false);
+#if WITH_PHYSX
+					//todo: total hack until we get landscape fully converted to chaos
+					HeightfieldRef->UsedPhysicalMaterialArray.Add(GPhysXSDK->createMaterial(1,1,1));
+#endif
 #else
 					const FPhysicsMaterialHandle_PhysX& MaterialHandle = PhysicalMaterial->GetPhysicsMaterial();
 					HeightfieldRef->UsedPhysicalMaterialArray.Add(MaterialHandle.Material);
@@ -1325,7 +1332,6 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 				float TraceExtentSize = Bounds.SphereRadius * 2.f + 10.f; // extend a little
 				FVector TraceVector = GetOwner()->GetRootComponent()->GetComponentTransform().GetUnitAxis(EAxis::Z) * TraceExtentSize;
 
-				bool bFirst = true;
 				TArray<int32> InstancesToRemove;
 				TSet<UHierarchicalInstancedStaticMeshComponent*> AffectedFoliageComponents;
 
@@ -1340,12 +1346,6 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 
 					if (InInstanceBox.IsInside(TestLocation))
 					{
-						if (bFirst)
-						{
-							bFirst = false;
-							Modify();
-						}
-
 						FVector Start = TestLocation + TraceVector;
 						FVector End = TestLocation - TraceVector;
 

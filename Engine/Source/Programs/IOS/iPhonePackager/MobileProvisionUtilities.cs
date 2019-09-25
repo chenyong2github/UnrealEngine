@@ -245,7 +245,7 @@ namespace iPhonePackager
 						bPassesHasMatchingCertCheck = (Cert != null);
 						if (bPassesHasMatchingCertCheck && Config.bCert)
 						{
-							bPassesHasMatchingCertCheck &= (Cert.FriendlyName == Config.Certificate);
+							bPassesHasMatchingCertCheck &= (CryptoAdapter.GetFriendlyNameFromCert(Cert) == Config.Certificate);
 						}
 					}
 					else

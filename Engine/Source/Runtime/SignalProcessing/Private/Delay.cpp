@@ -180,7 +180,7 @@ namespace Audio
 			// If we're easing, then get the delay based on the current value of the ease
 			if (!EaseDelayMsec.IsDone())
 			{
-				DelayInSamples = EaseDelayMsec.GetValue() * SampleRate * 0.001f;
+				DelayInSamples = EaseDelayMsec.GetNextValue() * SampleRate * 0.001f;
 			}
 
 			DelayInSamples = FMath::Clamp(DelayInSamples, 0.0f, (float)(AudioBufferSize - 1));

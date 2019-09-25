@@ -22,7 +22,7 @@ bool UWindowsMixedRealityHandTrackingFunctionLibrary::GetHandJointTransform(ECon
 
 		if (bSuccess)
 		{
-			OutTransform = KeyPointTransform;
+			OutTransform = KeyPointTransform * UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(GWorld);
 			return true;
 		}
 	}

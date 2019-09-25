@@ -9,6 +9,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraCollision.h"
 #include "INiagaraMergeManager.h"
+#include "NiagaraSystemFastPath.h"
 #include "NiagaraEmitter.generated.h"
 
 class UMaterial;
@@ -290,6 +291,10 @@ public:
 	UPROPERTY()
 	class UNiagaraScriptSourceBase*	GraphSource;
 
+	/** Should we enable rapid iteration removal if the system is also set to remove rapid iteration parameters on compile? This value defaults to true.*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	uint32 bBakeOutRapidIteration : 1;
+
 	bool NIAGARA_API AreAllScriptAndSourcesSynchronized() const;
 	void NIAGARA_API OnPostCompile();
 
@@ -349,9 +354,6 @@ public:
 	FString NIAGARA_API GetUniqueEmitterName()const;
 	bool NIAGARA_API SetUniqueEmitterName(const FString& InName);
 
-	/** Converts an emitter paramter "Emitter.XXXX" into it's real parameter name. */
-	FNiagaraVariable ToEmitterParameter(const FNiagaraVariable& EmitterVar)const;
-
 	const TArray<UNiagaraRendererProperties*>& GetRenderers() const { return RendererProperties; }
 
 	void NIAGARA_API AddRenderer(UNiagaraRendererProperties* Renderer);
@@ -376,6 +378,29 @@ public:
 	NIAGARA_API UNiagaraEmitter* GetParent() const;
 
 	NIAGARA_API void RemoveParent();
+
+	void InitFastPathAttributeNames();
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	FNiagaraFastPath_Module_EmitterScalability EmitterScalability;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	FNiagaraFastPath_Module_EmitterLifeCycle EmitterLifeCycle;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	TArray<FNiagaraFastPath_Module_SpawnRate> SpawnRate;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	TArray<FNiagaraFastPath_Module_SpawnPerUnit> SpawnPerUnit;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	TArray<FNiagaraFastPath_Module_SpawnBurstInstantaneous> SpawnBurstInstantaneous;
+
+	UPROPERTY()
+	FNiagaraFastPathAttributeNames SpawnFastPathAttributeNames;
+
+	UPROPERTY()
+	FNiagaraFastPathAttributeNames UpdateFastPathAttributeNames;
 
 protected:
 	virtual void BeginDestroy() override;

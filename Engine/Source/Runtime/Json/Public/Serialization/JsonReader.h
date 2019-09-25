@@ -591,6 +591,10 @@ private:
 		}
 
 		StringValue = MoveTemp(String);
+
+		// Inline combine any surrogate pairs in the data when loading into a UTF-32 string
+		StringConv::InlineCombineSurrogates(StringValue);
+
 		return true;
 	}
 

@@ -132,7 +132,8 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 		// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
 		LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(DirectionalLightData.DirectionalLightShadowMapChannelMask);
 
-		#if MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED
+		// We want to force the directional light shadow when using water material to see shadow on the water. This could be an option later.
+		#if ((MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 			float4 PreviewShadowMapChannelMask = UnpackShadowMapChannelMask(DirectionalLightData.DirectionalLightShadowMapChannelMask >> 4);
 			float DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
 
@@ -346,6 +347,8 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 		float StepOffset = InterleavedGradientNoise( MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8 );
 		StepOffset -= 0.5;
 
+		bool bDebugPrint = false;
+
 		float3 HitUVz;
 		float Level = 0;
 
@@ -354,6 +357,7 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 			MaterialParameters.WorldPosition_CamRelative, RayDirection, Roughness, MaterialParameters.ScreenPosition.w,
 			12, StepOffset,
 			TranslucentBasePass.HZBUvFactorAndInvFactor,
+			bDebugPrint,
 			HitUVz,
 			Level
 		);

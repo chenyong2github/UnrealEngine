@@ -23,7 +23,7 @@ UEditorUtilityWidgetBlueprint::UEditorUtilityWidgetBlueprint(const FObjectInitia
 void UEditorUtilityWidgetBlueprint::BeginDestroy()
 {
 	// Only cleanup script if it has been registered and we're not shutdowning editor
-	if (!GIsRequestingExit && RegistrationName != NAME_None)
+	if (!IsEngineExitRequested() && RegistrationName != NAME_None)
 	{
 		IBlutilityModule* BlutilityModule = FModuleManager::GetModulePtr<IBlutilityModule>("Blutility");
 		if (BlutilityModule)
@@ -112,8 +112,8 @@ void UEditorUtilityWidgetBlueprint::ChangeTabWorld(UWorld* World, EMapChangeType
 		if (CreatedUMGWidget)
 		{
 			CreatedUMGWidget->Rename(nullptr, GetTransientPackage());
+			CreatedUMGWidget = nullptr;
 		}
-		CreatedUMGWidget = nullptr;
 	}
 	else if (MapChangeType != EMapChangeType::SaveMap)
 	{

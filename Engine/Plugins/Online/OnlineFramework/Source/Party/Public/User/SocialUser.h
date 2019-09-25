@@ -13,6 +13,7 @@
 class IOnlinePartyJoinInfo;
 class FOnlineUserPresence;
 class UPartyMember;
+enum class EPlatformIconDisplayRule : uint8;
 
 namespace EOnlinePresenceState { enum Type : uint8; }
 
@@ -51,7 +52,10 @@ public:
 	const FOnlineUserPresence* GetFriendPresenceInfo(ESocialSubsystem SubsystemType) const;
 	FDateTime GetFriendshipCreationDate() const;
 	FText GetSocialName() const;
-	FUserPlatform GetCurrentPlatform() const;
+	virtual FUserPlatform GetCurrentPlatform() const;
+
+	FString GetPlatformIconMarkupTag(EPlatformIconDisplayRule DisplayRule) const;
+	virtual FString GetPlatformIconMarkupTag(EPlatformIconDisplayRule DisplayRule, FString& OutLegacyString) const;
 
 	virtual void GetRichPresenceText(FText& OutRichPresence) const;
 

@@ -439,7 +439,7 @@ const FLevelViewportCommands& FLevelEditorModule::GetLevelViewportCommands() con
 	return FLevelViewportCommands::Get();
 }
 
-TWeakPtr<class SLevelEditor> FLevelEditorModule::GetLevelEditorInstance() const
+TWeakPtr<class ILevelEditor> FLevelEditorModule::GetLevelEditorInstance() const
 {
 	return LevelEditorInstancePtr;
 }
@@ -1779,12 +1779,6 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::SM5, NAME_None, false)),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::SM5, NAME_None)));
-
-	ActionList.MapAction(
-		Commands.PreviewPlatformOverride_SM4,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::SM4, NAME_None, true)),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::SM4, NAME_None)));
 
 	ActionList.MapAction(
 		Commands.PreviewPlatformOverride_HTML5,

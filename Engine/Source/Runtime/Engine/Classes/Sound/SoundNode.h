@@ -189,5 +189,15 @@ public:
 	 */
 	static UPTRINT GetNodeWaveInstanceHash(const UPTRINT ParentWaveInstanceHash, const USoundNode* ChildNode, const uint32 ChildIndex);
 	static UPTRINT GetNodeWaveInstanceHash(const UPTRINT ParentWaveInstanceHash, const UPTRINT ChildNodeHash, const uint32 ChildIndex);
+
+
+	/**
+	 * When this is called and stream caching is enabled,
+	 * any wave player sound nodes childed off of this node
+	 * will have their audio loaded into the cache.
+	 *
+	 * @param bRecurse when true, this will cause all children of child nodes to be primed as well.
+	 */
+	void PrimeChildWavePlayers(bool bRecurse);
 };
 

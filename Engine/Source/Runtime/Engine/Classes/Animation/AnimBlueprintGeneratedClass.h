@@ -199,8 +199,12 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 
 	// The arrays of anim nodes; this is transient generated data (created during Link)
 	TArray<UStructProperty*> AnimNodeProperties;
-	TArray<UStructProperty*> SubInstanceNodeProperties;
-	TArray<UStructProperty*> LayerNodeProperties;
+	TArray<UStructProperty*> LinkedAnimGraphNodeProperties;
+	TArray<UStructProperty*> LinkedAnimLayerNodeProperties;
+	TArray<UStructProperty*> PreUpdateNodeProperties;
+	TArray<UStructProperty*> DynamicResetNodeProperties;
+	TArray<UStructProperty*> StateMachineNodeProperties;
+	TArray<UStructProperty*> InitializationNodeProperties;
 
 	// Array of sync group names in the order that they are requested during compile
 	UPROPERTY()
@@ -220,8 +224,12 @@ public:
 	virtual USkeleton* GetTargetSkeleton() const override { return TargetSkeleton; }
 	virtual const TArray<FAnimNotifyEvent>& GetAnimNotifies() const override { return AnimNotifies; }
 	virtual const TArray<UStructProperty*>& GetAnimNodeProperties() const override { return AnimNodeProperties; }
-	virtual const TArray<UStructProperty*>& GetSubInstanceNodeProperties() const override { return SubInstanceNodeProperties; }
-	virtual const TArray<UStructProperty*>& GetLayerNodeProperties() const override { return LayerNodeProperties; }
+	virtual const TArray<UStructProperty*>& GetLinkedAnimGraphNodeProperties() const override { return LinkedAnimGraphNodeProperties; }
+	virtual const TArray<UStructProperty*>& GetLinkedAnimLayerNodeProperties() const override { return LinkedAnimLayerNodeProperties; }
+	virtual const TArray<UStructProperty*>& GetPreUpdateNodeProperties() const override { return PreUpdateNodeProperties; }
+	virtual const TArray<UStructProperty*>& GetDynamicResetNodeProperties() const override { return DynamicResetNodeProperties; }
+	virtual const TArray<UStructProperty*>& GetStateMachineNodeProperties() const override { return StateMachineNodeProperties; }
+	virtual const TArray<UStructProperty*>& GetInitializationNodeProperties() const override { return InitializationNodeProperties; }
 	virtual const TArray<FName>& GetSyncGroupNames() const override { return SyncGroupNames; }
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const override { return OrderedSavedPoseIndicesMap; }
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return SyncGroupNames.IndexOfByKey(SyncGroupName); }

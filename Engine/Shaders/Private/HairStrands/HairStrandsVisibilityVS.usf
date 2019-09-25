@@ -1,0 +1,141 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../VelocityCommon.ush"
+#include "/Engine/Generated/Material.ush"
+#include "/Engine/Generated/VertexFactory.ush"
+
+struct FHairVisibilityAccumulateVSToPS
+{
+	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
+	float4 Position : SV_POSITION;
+	float4 PixelPosition : TEXCOORD6;
+	float WorldStrandRadius : TEXCOORD8;
+	float4 PackedVelocityA : TEXCOORD9;
+	float4 PackedVelocityC : TEXCOORD12;
+};
+
+#if USING_TESSELLATION	
+	struct FHairVisibilityAccumulateVSToDS
+	{
+		FVertexFactoryInterpolantsVSToDS FactoryInterpolants;
+		float4 Position : VS_To_DS_Position;
+		OPTIONAL_VertexID_VS_To_DS
+	};
+	
+	#define VS_OUTPUT_TYPE FHairVisibilityAccumulateVSToDS
+#else
+	#define VS_OUTPUT_TYPE FHairVisibilityAccumulateVSToPS
+#endif
+
+#if USING_TESSELLATION	
+	#define FPassSpecificVSToDS FHairVisibilityAccumulateVSToDS
+	#define FPassSpecificVSToPS FHairVisibilityAccumulateVSToPS
+	#define INTERPOLATE_MEMBER(member) O.member = a.member * aInterp + b.member * bInterp
+
+	FHairVisibilityAccumulateVSToDS PassInterpolate(FHairVisibilityAccumulateVSToDS a, float aInterp, FHairVisibilityAccumulateVSToDS b, float bInterp)
+	{
+		FHairVisibilityAccumulateVSToDS O;
+		
+		O.FactoryInterpolants = VertexFactoryInterpolate(a.FactoryInterpolants, aInterp, b.FactoryInterpolants, bInterp);
+
+		return O;
+	}
+
+	#undef INTERPOLATE_MEMBER
+	
+	FHairVisibilityAccumulateVSToPS PassFinalizeTessellationOutput(FHairVisibilityAccumulateVSToDS Interpolants, float4 WorldPosition, FMaterialTessellationParameters MaterialParameters)
+	{
+		FHairVisibilityAccumulateVSToPS O;
+		
+		O.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
+		
+		// Finally, transform position to clip-space
+		O.Position = mul(WorldPosition, HairVisibilityPass.WorldToClipMatrix); // mul(WorldPosition, View.TranslatedWorldToClip);
+			
+		O.PixelPosition = WorldPosition;
+		
+		return O;
+	}
+	
+#include "Tessellation.ush"
+#endif
+
+#if VERTEXSHADER
+
+/** transform mesh as normal */
+void Main(
+	FVertexFactoryInput Input,
+	OPTIONAL_VertexID
+	out VS_OUTPUT_TYPE Output
+	)
+{
+	ResolvedView = ResolveView();
+
+	// #hair_todo: This is a hack/quick term solution, in order to generate valide light/view direction in the case of hair strand factory, as this is used for alighning the strand with the view.
+	//ResolvedView.TranslatedWorldCameraOrigin = -HairVisibilityPass.LightDirection * 1000; // Hack for strand rendering which use the camera position for deriving the view vector for forcing strand view facing
+	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+#if VF_STRAND_HAIR
+	// Use a raw position (rather than quad facing position) as the pre-position is not expanded into quad (for perf. reason)
+	float4 WorldPositionRaw = VertexFactoryGetWorldPositionRaw(Input, VFIntermediates);
+#else
+	float4 WorldPositionRaw = VertexFactoryGetWorldPosition(Input, VFIntermediates);
+#endif
+	float4 PrevWorldPosition = VertexFactoryGetPreviousWorldPosition(Input, VFIntermediates);
+	
+	// Velocity computation
+	// The velocity is used to adapt/increase the minimum rasterization size in order to avoid aliasing under heavy-motion.
+	// The higher the velocity, the larger a strand becomes.
+	float VelocityScale = 0;
+	{
+		const float4 ScreenPos			= mul(float4(WorldPositionRaw.xyz, 1), ResolvedView.TranslatedWorldToClip);
+		const float4 PrevScreenPosObj	= mul(float4(PrevWorldPosition.xyz, 1), ResolvedView.PrevTranslatedWorldToClip);
+		Output.PackedVelocityA			= INVARIANT(ScreenPos);
+		Output.PackedVelocityC			= INVARIANT(PrevScreenPosObj);
+
+		const float2 ScreenVelocity = Calculate2DVelocity(Output.PackedVelocityA, Output.PackedVelocityC);
+		VelocityScale = saturate(max(abs(ScreenVelocity.x), abs(ScreenVelocity.y)) / HairVisibilityPass.HairStrandsVelocityScale);
+	}
+
+#if VF_STRAND_HAIR
+	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates, VelocityScale);
+#else
+	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
+#endif
+
+	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
+
+	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
+	// Isolate instructions used for world position offset on xbox 360, 
+	// As these cause the optimizer to generate different position calculating instructions in each pass, resulting in self-z-fighting.
+	// This is only necessary for shaders used in passes that have depth testing enabled.
+	//ISOLATE
+	//{
+	//	WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+	//	WorldPositionRaw.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+	//	PrevWorldPosition.xyz += GetMaterialPreviousWorldPositionOffset(VertexParameters); 
+	//}
+
+#if USING_TESSELLATION
+	Output.Position = WorldPosition;
+	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
+	
+#else // !USING_TESSELLATION
+
+//	Output.Position = mul(WorldPosition, HairVisibilityPass.WorldToClipMatrix);
+	Output.Position = mul(WorldPosition, View.TranslatedWorldToClip);
+	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
+	Output.PixelPosition = WorldPosition;
+
+#endif // USING_TESSELLATION
+
+#ifdef VF_STRAND_HAIR
+	Output.WorldStrandRadius = VFIntermediates.HairDimensions.y;
+#else
+	Output.WorldStrandRadius = 1;
+#endif
+	
+	OutputVertexID( Output );
+}
+
+#endif // VERTEXSHADER

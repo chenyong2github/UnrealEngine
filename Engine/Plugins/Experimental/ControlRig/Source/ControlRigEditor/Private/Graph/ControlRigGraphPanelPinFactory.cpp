@@ -3,9 +3,9 @@
 #include "ControlRigGraphPanelPinFactory.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "Graph/ControlRigGraphNode.h"
-#include "Graph/SGraphPinBoneName.h"
-#include "Graph/SGraphPinCurveName.h"
-#include "Graph/SGraphPinCurveFloat.h"
+#include "Graph/ControlRigGraph.h"
+#include "Graph/SControlRigGraphPinNameList.h"
+#include "Graph/SControlRigGraphPinCurveFloat.h"
 #include "KismetPins/SGraphPinExec.h"
 #include "ControlRig.h"
 #include "NodeFactory.h"
@@ -19,6 +19,8 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 		UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(InPin->GetOwningNode());
 		if (RigNode)
 		{
+			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(RigNode->GetGraph());
+
 			// use a bone name widget in case we are looking at a name with appropriate metadata
 			if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Name)
 			{
@@ -41,11 +43,23 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 						{
 							if (Property->HasMetaData(UControlRig::BoneNameMetaName))
 							{
-								return SNew(SGraphPinBoneName, InPin);
+								return SNew(SControlRigGraphPinNameList, InPin)
+									.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetBoneNameList);
+							}
+							if (Property->HasMetaData(UControlRig::ControlNameMetaName))
+							{
+								return SNew(SControlRigGraphPinNameList, InPin)
+									.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetControlNameList);
+							}
+							if (Property->HasMetaData(UControlRig::SpaceNameMetaName))
+							{
+								return SNew(SControlRigGraphPinNameList, InPin)
+									.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetSpaceNameList);
 							}
 							else if (Property->HasMetaData(UControlRig::CurveNameMetaName))
 							{
-								return SNew(SGraphPinCurveName, InPin);
+								return SNew(SControlRigGraphPinNameList, InPin)
+									.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetCurveNameList);
 							}
 						}
 					}
@@ -60,7 +74,7 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 				}
 				else if (InPin->PinType.PinSubCategoryObject == FRuntimeFloatCurve::StaticStruct())
 				{
-					return SNew(SGraphPinCurveFloat, InPin);
+					return SNew(SControlRigGraphPinCurveFloat, InPin);
 				}
 			}
 		}

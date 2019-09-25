@@ -747,6 +747,7 @@ void FMaterialInstanceParameterDetails::CreateScalarAtlasPositionParameterValueW
 				.NewAssetFactories(TArray<UFactory*>())
 				.DisplayThumbnail(true)
 				.ThumbnailPool(PropertyUtilities.Pin()->GetThumbnailPool())
+				.OnShouldFilterAsset(FOnShouldFilterAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldFilterCurveAsset, AtlasParameter->AtlasData.Atlas))
 				.OnShouldSetAsset(FOnShouldSetAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldSetCurveAsset, AtlasParameter->AtlasData.Atlas))
 				.OnObjectChanged(FOnSetObject::CreateStatic(&FMaterialPropertyHelpers::SetPositionFromCurveAsset, AtlasParameter->AtlasData.Atlas, AtlasParameter, ParameterProperty, (UObject*)MaterialEditorInstance))
 				.DisplayCompactSize(true)

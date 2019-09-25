@@ -29,9 +29,6 @@ FIOSVivoxVoiceChat::~FIOSVivoxVoiceChat()
 
 bool FIOSVivoxVoiceChat::Initialize()
 {
-	// Vivox sdk opens the microphone if we are in one of the Ambient modes and the user backgrounds the application. Set the mode to Playback to work around this
-	[[IOSAppDelegate GetDelegate] SetFeature:EAudioFeature::Playback Active:true];
-
 	bool bResult = FVivoxVoiceChat::Initialize();
 
 	if (bResult)
@@ -89,8 +86,6 @@ bool FIOSVivoxVoiceChat::Uninitialize()
 		EnableVoiceChat(false);
 	}
 
-	[[IOSAppDelegate GetDelegate] SetFeature:EAudioFeature::Playback Active:false];
-
 	return bReturn;
 }
 
@@ -125,6 +120,23 @@ FString FIOSVivoxVoiceChat::GetSetting(const FString& Name)
 	return FVivoxVoiceChat::GetSetting(Name);
 }
 
+void FIOSVivoxVoiceChat::JoinChannel(const FString& ChannelName, const FString& ChannelCredentials, EVoiceChatChannelType ChannelType, const FOnVoiceChatChannelJoinCompleteDelegate& Delegate, TOptional<FVoiceChatChannel3dProperties> Channel3dProperties)
+{
+	EnableVoiceChat(true);
+
+	FOnVoiceChatChannelJoinCompleteDelegate DelegateWrapper = FOnVoiceChatChannelJoinCompleteDelegate::CreateLambda(
+		[this, Delegate](const FString& ChannelName, const FVoiceChatResult& Result)
+		{
+			if (!Result.bSuccess)
+			{
+				EnableVoiceChat(false);
+			}
+			Delegate.ExecuteIfBound(ChannelName, Result);
+		});
+
+	FVivoxVoiceChat::JoinChannel(ChannelName, ChannelCredentials, ChannelType, DelegateWrapper, Channel3dProperties);
+}
+
 FDelegateHandle FIOSVivoxVoiceChat::StartRecording(const FOnVoiceChatRecordSamplesAvailableDelegate::FDelegate& Delegate)
 {
 	bIsRecording = true;
@@ -155,7 +167,6 @@ void FIOSVivoxVoiceChat::InvokeOnUIThread(void (Func)(void* Arg0), void* Arg0)
 
 void FIOSVivoxVoiceChat::onChannelJoined(const VivoxClientApi::AccountName& AccountName, const VivoxClientApi::Uri& ChannelUri)
 {
-	EnableVoiceChat(true);
 	FVivoxVoiceChat::onChannelJoined(AccountName, ChannelUri);
 }
 

@@ -170,7 +170,7 @@ class ENGINE_API ULocalPlayer : public UPlayer
 public:
 
 	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
-	ULocalPlayer(FVTableHelper& Helper) : Super(Helper), SubsystemCollection(this), SlateOperations(FReply::Unhandled()) {}
+	ULocalPlayer(FVTableHelper& Helper) : Super(Helper), SlateOperations(FReply::Unhandled()) {}
 
 	/** The FUniqueNetId which this player is associated with. */
 	FUniqueNetIdRepl CachedUniqueNetId;

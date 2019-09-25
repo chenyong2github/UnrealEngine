@@ -82,12 +82,12 @@ public:
 
 	// call this to allocate a data set for a specific emitter and event
 	// if the data set already exists, returns the existing one
-	static FNiagaraDataSet *CreateEventDataSet(FName OwnerSystemInstanceName, FName EmitterName, FName EventName)
+	static FNiagaraDataSet *CreateEventDataSet(FNiagaraSystemInstanceID OwnerSystemInstanceID, FName EmitterName, FName EventName)
 	{
-		PerSystemInstanceDataSetMap *SystemInstanceMap = EmitterEventDataSets.Find(OwnerSystemInstanceName);
+		PerSystemInstanceDataSetMap *SystemInstanceMap = EmitterEventDataSets.Find(OwnerSystemInstanceID);
 		if (!SystemInstanceMap)
 		{
-			SystemInstanceMap = &EmitterEventDataSets.Add(OwnerSystemInstanceName);
+			SystemInstanceMap = &EmitterEventDataSets.Add(OwnerSystemInstanceID);
 		}
 
 		// find the emitter's map
@@ -116,9 +116,9 @@ public:
 
 	// deletes and cleans up all event data sets for an emitter
 	//  should be called when the emitter is destroyed
-	static void Reset(FName OwnerSystemInstanceName, FName EmitterName)
+	static void Reset(FNiagaraSystemInstanceID OwnerSystemInstanceID, FName EmitterName)
 	{
-		PerSystemInstanceDataSetMap *SystemInstanceMap = EmitterEventDataSets.Find(OwnerSystemInstanceName);
+		PerSystemInstanceDataSetMap *SystemInstanceMap = EmitterEventDataSets.Find(OwnerSystemInstanceID);
 		if (SystemInstanceMap)
 		{
 			PerEmitterEventDataSetMap *Map = SystemInstanceMap->Find(EmitterName);
@@ -133,7 +133,7 @@ public:
 			}
 			if (SystemInstanceMap->Num() == 0)
 			{
-				EmitterEventDataSets.Remove(OwnerSystemInstanceName);
+				EmitterEventDataSets.Remove(OwnerSystemInstanceID);
 			}
 		}
 	}
@@ -159,9 +159,9 @@ public:
 	}
 	*/
 
-	static PerEmitterEventDataSetMap * GetEmitterMap(FName OwnerSystemInstanceName, FName EmitterName)
+	static PerEmitterEventDataSetMap * GetEmitterMap(FNiagaraSystemInstanceID OwnerSystemInstanceID, FName EmitterName)
 	{
-		TMap<FName, PerEmitterEventDataSetMap> *SystemMap = EmitterEventDataSets.Find(OwnerSystemInstanceName);
+		TMap<FName, PerEmitterEventDataSetMap> *SystemMap = EmitterEventDataSets.Find(OwnerSystemInstanceID);
 		if (SystemMap)
 		{
 			return SystemMap->Find(EmitterName);
@@ -170,9 +170,9 @@ public:
 		return nullptr;
 	}
 
-	static FNiagaraDataSet * GetEventDataSet(FName OwnerSystemInstanceName, FName EmitterName, FName EventName)
+	static FNiagaraDataSet * GetEventDataSet(FNiagaraSystemInstanceID OwnerSystemInstanceID, FName EmitterName, FName EventName)
 	{
-		PerEmitterEventDataSetMap *SetMap = GetEmitterMap(OwnerSystemInstanceName, EmitterName);
+		PerEmitterEventDataSetMap *SetMap = GetEmitterMap(OwnerSystemInstanceID, EmitterName);
 		if (!SetMap)
 		{
 			return nullptr;
@@ -188,5 +188,5 @@ public:
 	}
 
 private:
-	static TMap<FName, TMap<FName, PerEmitterEventDataSetMap>> EmitterEventDataSets;
+	static TMap<FNiagaraSystemInstanceID, TMap<FName, PerEmitterEventDataSetMap>> EmitterEventDataSets;
 };

@@ -9,7 +9,7 @@
 
 #include "ClothPainter.h"
 #include "ComponentReregisterContext.h"
-#include "ClothingAssetInterface.h"
+#include "ClothingAssetBase.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "IPersonaToolkit.h"
 #include "Assets/ClothingAsset.h"

@@ -22,7 +22,7 @@ namespace UnrealBuildTool.Rules
                     "RawMesh",
 					"MeshUtilities",
                     "MeshUtilitiesCommon",
-                    "ClothingSystemRuntime",
+                    "ClothingSystemRuntimeNv",
                     "MeshBoneReduction",
                     "SkeletalMeshUtilitiesCommon",
                 }

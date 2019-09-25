@@ -53,6 +53,7 @@ enum EMaterialUsage
 	MATUSAGE_NiagaraMeshParticles,
 	MATUSAGE_GeometryCache,
 	MATUSAGE_Water,
+	MATUSAGE_HairStrands,
 
 	MATUSAGE_MAX,
 };
@@ -66,7 +67,9 @@ struct ENGINE_API FMaterialRelevance
 	uint8 bOpaque : 1;
 	uint8 bMasked : 1;
 	uint8 bDistortion : 1;
+	uint8 bHairStrands : 1;
 	uint8 bSeparateTranslucency : 1; // Translucency After DOF
+	uint8 bUnderWaterTranslucency : 1;
 	uint8 bNormalTranslucency : 1;
 	uint8 bUsesSceneColorCopy : 1;
 	uint8 bDisableOffscreenRendering : 1; // Blend Modulate
@@ -78,6 +81,7 @@ struct ENGINE_API FMaterialRelevance
 	uint8 bTranslucentSurfaceLighting : 1;
 	uint8 bUsesSceneDepth : 1;
 	uint8 bUsesSkyMaterial : 1;
+	uint8 bUsesSingleLayerWaterMaterial : 1;
 	uint8 bHasVolumeMaterialDomain : 1;
 	uint8 bUsesDistanceCullFade : 1;
 
@@ -746,9 +750,10 @@ public:
 	 * @param bForceMiplevelsToBeResidentValue		- true forces all mips to stream in. false lets other factors decide what to do with the mips.
 	 * @param ForceDuration							- Number of seconds to keep all mip-levels in memory, disregarding the normal priority logic. Negative value turns it off.
 	 * @param CinematicTextureGroups				- Bitfield indicating texture groups that should use extra high-resolution mips
+	 * @param bFastResponse							- USE WITH EXTREME CAUTION! Fast response textures incur sizable GT overhead and disturb streaming metric calculation. Avoid whenever possible.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
-	ENGINE_API virtual void SetForceMipLevelsToBeResident( bool OverrideForceMiplevelsToBeResident, bool bForceMiplevelsToBeResidentValue, float ForceDuration, int32 CinematicTextureGroups = 0 );
+	ENGINE_API virtual void SetForceMipLevelsToBeResident( bool OverrideForceMiplevelsToBeResident, bool bForceMiplevelsToBeResidentValue, float ForceDuration, int32 CinematicTextureGroups = 0, bool bFastResponse = false );
 
 	/**
 	 * Re-caches uniform expressions for all material interfaces

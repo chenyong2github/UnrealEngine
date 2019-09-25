@@ -122,6 +122,9 @@ public:
 	/** When shown in menus, this is the category containing this factory. Return type is a BitFlag mask using EAssetTypeCategories. */
 	virtual uint32 GetMenuCategories() const;
 
+	/** Branch of sub-menus containing factory under each provided category. */
+	virtual const TArray<FText>& GetMenuCategorySubMenus() const;
+
 	/** Returns the tooltip text description of this factory */
 	virtual FText GetToolTip() const;
 
@@ -157,7 +160,7 @@ public:
 	virtual bool ImportUntypedBulkDataFromText(const TCHAR*& Buffer, FUntypedBulkData& BulkData);
 
 	/** Creates a list of file extensions supported by this factory */
-	void GetSupportedFileExtensions(TArray<FString>& OutExtensions) const;
+	virtual void GetSupportedFileExtensions(TArray<FString>& OutExtensions) const;
 
 	/** Do clean up after importing is done. Will be called once for multi batch import. */
 	virtual void CleanUp() {}

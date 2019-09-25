@@ -42,7 +42,9 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
 #ifndef DISABLE_NONUFS_INI_WHEN_COOKED
 #define DISABLE_NONUFS_INI_WHEN_COOKED 0
 #endif
-
+#ifndef ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
+#define ALLOW_INI_OVERRIDE_FROM_COMMANDLINE 0
+#endif
 #ifndef ALL_PAKS_WILDCARD
 #define ALL_PAKS_WILDCARD "*.pak"
 #endif 
@@ -4514,10 +4516,29 @@ bool FPakPlatformFile::IsNonPakFilenameAllowed(const FString& InFilename)
 	}
 #endif
 
+	bool bIsIniFile = InFilename.EndsWith(IniFileExtension);
 #if DISABLE_NONUFS_INI_WHEN_COOKED
-	if (FPlatformProperties::RequiresCookedData() && InFilename.EndsWith(IniFileExtension) && !InFilename.EndsWith(GameUserSettingsIniFilename))
+	bool bSkipIniFile = bIsIniFile && !InFilename.EndsWith(GameUserSettingsIniFilename);
+	if (FPlatformProperties::RequiresCookedData() && bSkipIniFile)
 	{
 		bAllowed = false;
+	}
+#endif
+#if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
+	FString FileList;
+	if (bIsIniFile && FParse::Value(FCommandLine::Get(), TEXT("-iniFile="), FileList, false))
+	{
+		TArray<FString> Files;
+		FileList.ParseIntoArray(Files, TEXT(","), true);
+		for (int32 Index = 0; Index < Files.Num(); Index++)
+		{
+			if (InFilename == Files[Index])
+			{
+				bAllowed = true;
+				UE_LOG(LogPakFile, Log, TEXT(" Override -inifile: %s"), *InFilename);
+				break;
+			}
+		}
 	}
 #endif
 

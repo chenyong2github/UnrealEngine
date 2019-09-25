@@ -473,9 +473,10 @@ public:
 		SetResource(Resource);
 		SetSize(BufferSize);
 
-		if (IsCPUWritable(Resource->GetHeapType()))
+		if (!IsCPUInaccessible(Resource->GetHeapType()))
 		{
-			SetMappedBaseAddress(Resource->Map());
+			D3D12_RANGE range = { 0, IsCPUWritable(Resource->GetHeapType())? 0 : BufferSize };
+			SetMappedBaseAddress(Resource->Map(&range));
 		}
 		SetGPUVirtualAddress(Resource->GetGPUVirtualAddress());
 		SetTransient(bInIsTransient);
@@ -489,7 +490,8 @@ public:
 
 		if (IsCPUWritable(Resource->GetHeapType()))
 		{
-			SetMappedBaseAddress(Resource->Map());
+			D3D12_RANGE range = { 0, 0 };
+			SetMappedBaseAddress(Resource->Map(&range));
 		}
 		SetGPUVirtualAddress(Resource->GetGPUVirtualAddress());
 	}

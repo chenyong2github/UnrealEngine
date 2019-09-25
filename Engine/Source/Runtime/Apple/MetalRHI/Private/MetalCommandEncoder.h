@@ -102,6 +102,17 @@ public:
 };
 
 /**
+ * EMetalCommandEncoderType:
+ *   EMetalCommandEncoderCurrent: The primary encoder that is used for draw calls & dispatches
+ *   EMetalCommandEncoderPrologue: A secondary encoder that is used for blits & dispatches that setup resources & state for the current encoder.
+ */
+enum EMetalCommandEncoderType
+{
+	EMetalCommandEncoderCurrent,
+	EMetalCommandEncoderPrologue
+};
+
+/**
  * FMetalCommandEncoder:
  *	Wraps the details of switching between different command encoders on the command-buffer, allowing for restoration of the render encoder if needed.
  * 	UE4 expects the API to serialise commands in-order, but Metal expects applications to work with command-buffers directly so we need to implement 
@@ -114,7 +125,7 @@ public:
 #pragma mark - Public C++ Boilerplate -
 
 	/** Default constructor */
-	FMetalCommandEncoder(FMetalCommandList& CmdList);
+	FMetalCommandEncoder(FMetalCommandList& CmdList, EMetalCommandEncoderType Type);
 	
 	/** Destructor */
 	~FMetalCommandEncoder(void);
@@ -573,4 +584,5 @@ private:
 	mtlpp::RenderStages FenceStage;
 	uint32 EncoderNum;
 	uint32 CmdBufIndex;
+	EMetalCommandEncoderType Type;
 };

@@ -1995,7 +1995,7 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 					Actor->Role = ROLE_Authority;
 					Actor->SetReplicates(false);
 					bTornOff = true;
-					if (Actor->GetWorld() != NULL && !GIsRequestingExit)
+					if (Actor->GetWorld() != NULL && !IsEngineExitRequested())
 					{
 						Actor->TornOff();
 					}
@@ -2008,7 +2008,7 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 				Connection->Driver->NotifyActorFullyDormantForConnection(Actor, Connection);
 				bWasDormant = true;
 			}
-			else if (!Actor->bNetTemporary && Actor->GetWorld() != NULL && !GIsRequestingExit && Connection->Driver->ShouldClientDestroyActor(Actor))
+			else if (!Actor->bNetTemporary && Actor->GetWorld() != NULL && !IsEngineExitRequested() && Connection->Driver->ShouldClientDestroyActor(Actor))
 			{
 				UE_LOG(LogNetDormancy, Verbose, TEXT("UActorChannel::CleanUp: Destroying Actor. %s"), *Describe() );
 
@@ -3843,11 +3843,6 @@ TSharedRef< FObjectReplicator > & UActorChannel::FindOrCreateReplicator( UObject
 	}
 
 	return *ReplicatorRefPtr;
-}
-
-TSharedRef< FObjectReplicator > & UActorChannel::FindOrCreateReplicator(const TWeakObjectPtr<UObject>& Obj)
-{
-	return FindOrCreateReplicator(Obj.Get(), static_cast<bool*>(nullptr));
 }
 
 bool UActorChannel::ObjectHasReplicator(const TWeakObjectPtr<UObject>& Obj) const

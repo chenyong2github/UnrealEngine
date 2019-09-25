@@ -28,7 +28,13 @@ protected:
 	FCompactPose CachedPose;
 	FBlendedCurve CachedCurve;
 
-	TArray<FAnimationUpdateContext> CachedUpdateContexts;
+	struct FCachedUpdateContext
+	{
+		FAnimationUpdateContext Context;
+		TSharedPtr<FAnimationUpdateSharedContext> SharedContext;
+	};
+
+	TArray<FCachedUpdateContext> CachedUpdateContexts;
 
 	FGraphTraversalCounter InitializationCounter;
 	FGraphTraversalCounter CachedBonesCounter;

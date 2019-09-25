@@ -1608,6 +1608,7 @@ void UMaterialEditorInstanceConstant::UpdateSourceInstanceParent()
 	}
 
 	SourceInstance->SetParentEditorOnly( Parent );
+	SourceInstance->PostEditChange();
 }
 
 

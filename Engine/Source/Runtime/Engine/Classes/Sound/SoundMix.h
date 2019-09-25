@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "AudioDefines.h"
 #include "SoundMix.generated.h"
 
 class USoundClass;
@@ -107,25 +108,30 @@ struct FSoundClassAdjuster
 	USoundClass* SoundClassObject;
 
 	/* A multiplier applied to the volume. */
-	UPROPERTY(EditAnywhere, Category=SoundClassAdjuster )
+	UPROPERTY(EditAnywhere, Category=SoundClassAdjuster, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "4.0"))
 	float VolumeAdjuster;
 
 	/* A multiplier applied to the pitch. */
-	UPROPERTY(EditAnywhere, Category=SoundClassAdjuster )
+	UPROPERTY(EditAnywhere, Category=SoundClassAdjuster, meta = (ClampMin = "0.0", ClampMax = "8.0", UIMin = "0.0", UIMax = "8.0"))
 	float PitchAdjuster;
+
+	/* Lowpass filter cutoff frequency to apply to sound sources. */
+	UPROPERTY(EditAnywhere, Category = SoundClassAdjuster, meta = (ClampMin = "0.0", ClampMax = "20000.0", UIMin = "0.0", UIMax = "20000.0"))
+	float LowPassFilterFrequency;
 
 	/* Set to true to apply this adjuster to all children of the sound class. */
 	UPROPERTY(EditAnywhere, Category=SoundClassAdjuster )
 	uint32 bApplyToChildren:1;
 
 	/* A multiplier applied to VoiceCenterChannelVolume. */
-	UPROPERTY(EditAnywhere, Category=SoundClassAdjuster )
+	UPROPERTY(EditAnywhere, Category=SoundClassAdjuster, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "4.0"))
 	float VoiceCenterChannelVolumeAdjuster;
 
 	FSoundClassAdjuster()
 		: SoundClassObject(NULL)
 		, VolumeAdjuster(1)
 		, PitchAdjuster(1)
+		, LowPassFilterFrequency(MAX_FILTER_FREQUENCY)
 		, bApplyToChildren(false)
 		, VoiceCenterChannelVolumeAdjuster(1)
 		{

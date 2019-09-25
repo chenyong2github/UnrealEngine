@@ -17,10 +17,11 @@ limitations under the License.
 #include "hrtf_assets.h"
 
 namespace sadie {
-
 std::unique_ptr<std::string> HrtfAssets::GetFile(
-    const std::string& filename) const {
-  AssetDataMap::const_iterator map_entry_itr = kAssetMap.find(filename);
+    const std::string& filename) const
+{
+#if RESONANCE_SPAT_ENABLED
+	AssetDataMap::const_iterator map_entry_itr = kAssetMap.find(filename);
   if (map_entry_itr == kAssetMap.end()) {
     return nullptr;
   }
@@ -28,8 +29,12 @@ std::unique_ptr<std::string> HrtfAssets::GetFile(
       reinterpret_cast<const char*>(map_entry_itr->second.data());
   const size_t data_size = map_entry_itr->second.size();
   return std::unique_ptr<std::string>(new std::string(data, data_size));
+#else
+  return {};
+#endif // #if RESONANCE_SPAT_ENABLED
 }
 
+#if RESONANCE_SPAT_ENABLED
 const HrtfAssets::AssetDataMap HrtfAssets::kAssetMap = {
     {"WAV/Subject_002/SH/sh_hrir_order_1.wav",
      {0x52, 0x49, 0x46, 0x46, 0x24, 0x8, 0x0, 0x0, 0x57, 0x41, 0x56, 0x45, 0x66,
@@ -1196,5 +1201,6 @@ const HrtfAssets::AssetDataMap HrtfAssets::kAssetMap = {
       0x0, 0x0, 0x0, 0xff, 0xff, 0xf5, 0xff, 0xff, 0xff, 0xff, 0xff, 0x0, 0x0,
       0x0, 0x0, 0xff, 0xff, 0x0, 0x0, 0xff, 0xff, 0x0, 0x0, 0xff, 0xff, 0xff,
       0xff, 0xff, 0xff, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xff}}};
+#endif // #if RESONANCE_SPAT_ENABLED
 
 }  // namespace sadie

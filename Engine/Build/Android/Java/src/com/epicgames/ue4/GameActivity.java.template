@@ -4053,6 +4053,13 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return null;
 	}
 
+	public String AndroidThunkJava_GetFunnelId()
+	{
+		String funnelId = "";
+		//$${gameActivityGetFunnelIdAdditions}$$
+		return funnelId;
+	}
+
 	public String AndroidThunkJava_GetLoginId()
 	{
 		String loginId = null;
@@ -5437,7 +5444,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			{
 				emojiExcludeFilter = new EmojiExcludeFilter();
 			}
-			setFilters(new InputFilter[]{emojiExcludeFilter});
+			//setFilters(new InputFilter[]{emojiExcludeFilter});
 		}
 
 		@Override

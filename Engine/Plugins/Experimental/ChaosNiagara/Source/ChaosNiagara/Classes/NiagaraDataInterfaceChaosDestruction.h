@@ -680,7 +680,7 @@ public:
 		return SolverTime;
 	}
 
-	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FGuid& SystemInstance) override;
+	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
@@ -766,19 +766,19 @@ protected:
 
 struct FNiagaraDataInterfaceProxyChaosDestruction : public FNiagaraDataInterfaceProxy
 {
-	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance) override;
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
 	{
 		return sizeof(FNiagaraDIChaosDestruction_InstanceDataToPassToRT);
 	}
 
-	void CreatePerInstanceData(const FGuid& SystemInstance);
+	void CreatePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance);
 
-	void DestroyInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FGuid& SystemInstance);
+	void DestroyInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);
 
 	virtual void DeferredDestroy()
 	{
-		for (const FGuid& SystemInstance : InstancesToDestroy)
+		for (const FNiagaraSystemInstanceID& SystemInstance : InstancesToDestroy)
 		{
 			SystemsToGPUInstanceData.Remove(SystemInstance);
 		}
@@ -789,6 +789,6 @@ struct FNiagaraDataInterfaceProxyChaosDestruction : public FNiagaraDataInterface
 	float SolverTime;
 	int32 LastSpawnedPointID;
 
-	TMap<FGuid, FNiagaraDIChaosDestruction_GPUData> SystemsToGPUInstanceData;
-	TSet<FGuid> InstancesToDestroy;
+	TMap<FNiagaraSystemInstanceID, FNiagaraDIChaosDestruction_GPUData> SystemsToGPUInstanceData;
+	TSet<FNiagaraSystemInstanceID> InstancesToDestroy;
 };

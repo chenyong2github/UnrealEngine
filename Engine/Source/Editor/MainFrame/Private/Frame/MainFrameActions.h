@@ -206,6 +206,12 @@ public:
 	/** Determines whether the specified build configuration option is checked. */
 	static bool PackageBuildConfigurationIsChecked( EProjectPackagingBuildConfigurations BuildConfiguration );
 
+	/** Sets the project packaging build configuration. */
+	static void PackageBuildTarget( FString TargetName );
+
+	/** Determines whether the specified build configuration option is checked. */
+	static bool PackageBuildTargetIsChecked( FString TargetName );
+
 	/** Packages the project for the specified platform. */
 	static void PackageProject( const FName InPlatformInfoName );
 

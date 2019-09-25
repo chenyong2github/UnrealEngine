@@ -212,6 +212,9 @@ struct FPixelDataRectangle
 		case TSF_G8:
 			ImageWrapper->SetRaw(Data, BytesPerPixel * Width * Height, Width, Height, ERGBFormat::Gray, 8);
 			break;
+		case TSF_G16:
+			ImageWrapper->SetRaw(Data, BytesPerPixel * Width * Height, Width, Height, ERGBFormat::Gray, 16);
+			break;
 		case TSF_BGRA8:
 			ImageWrapper->SetRaw(Data, BytesPerPixel * Width * Height, Width, Height, ERGBFormat::BGRA, 8);
 			break;
@@ -794,15 +797,12 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 		const FTextureBuildSettings& BuildSettingsForLayer = SettingsPerLayer[LayerIndex];
 		FVirtualTextureSourceLayerData& LayerData = SourceLayers[LayerIndex];
 
-		const FName TextureFormatName = BuildSettingsForLayer.TextureFormatName;
-		const bool bIsHdr = BuildSettingsForLayer.bHDRSource || TextureFormatName == "BC6H" || TextureFormatName == "RGBA16F";
-
-		LayerData.FormatName = "BGRA8";
-		LayerData.PixelFormat = PF_B8G8R8A8;
-		LayerData.SourceFormat = TSF_BGRA8;
-		LayerData.ImageFormat = ERawImageFormat::BGRA8;
 		LayerData.GammaSpace = BuildSettingsForLayer.GetGammaSpace();
 		LayerData.bHasAlpha = false;
+
+		const FName TextureFormatName = BuildSettingsForLayer.TextureFormatName;
+		const bool bIsHdr = BuildSettingsForLayer.bHDRSource || TextureFormatName == "BC6H" || TextureFormatName == "RGBA16F";
+		const bool bIsG16 = TextureFormatName == "G16";
 
 		if (bIsHdr)
 		{
@@ -810,6 +810,20 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 			LayerData.PixelFormat = PF_FloatRGBA;
 			LayerData.SourceFormat = TSF_RGBA16F;
 			LayerData.ImageFormat = ERawImageFormat::RGBA16F;
+		}
+		else if (bIsG16)
+		{
+			LayerData.FormatName = "G16";
+			LayerData.PixelFormat = PF_G16;
+			LayerData.SourceFormat = TSF_G16;
+			LayerData.ImageFormat = ERawImageFormat::G16;
+		}
+		else
+		{
+			LayerData.FormatName = "BGRA8";
+			LayerData.PixelFormat = PF_B8G8R8A8;
+			LayerData.SourceFormat = TSF_BGRA8;
+			LayerData.ImageFormat = ERawImageFormat::BGRA8;
 		}
 	}
 
@@ -1204,6 +1218,10 @@ bool FVirtualTextureDataBuilder::DetectAlphaChannel(const FImage &Image)
 			}
 			++SrcColors;
 		}
+		return false;
+	}
+	else if (Image.Format == ERawImageFormat::G16)
+	{
 		return false;
 	}
 	else

@@ -110,6 +110,7 @@ private:
 protected:
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
+	virtual void OnEndOfFrameUpdateDuringTick() override;
 	virtual void CreateRenderState_Concurrent() override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void BeginDestroy() override;
@@ -125,12 +126,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attachment)
 	uint32 bAutoManageAttachment : 1;
 
+	/**
+	 * Time between forced UpdateTransforms for systems that use dynamically calculated bounds,
+	 * Which is effectively how often the bounds are shrunk.
+	 */
+	UPROPERTY()
+	float MaxTimeBeforeForceUpdateTransform;
+
 	/** How to handle pooling for this component instance. */
 	ENCPoolMethod PoolingMethod;
 
 	virtual void Activate(bool bReset = false)override;
 	virtual void Deactivate()override;
 	void DeactivateImmediate();
+
+	virtual void SetComponentTickEnabled(bool bEnabled) override;
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual const UObject* AdditionalStatObject() const override;
@@ -142,7 +152,14 @@ public:
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+
+	virtual void OnAttachmentChanged() override;
 	//~ End UPrimitiveComponent Interface
+
+	//~ Begin USceneComponent Interface
+	virtual void OnChildAttached(USceneComponent* ChildComponent) override;
+	virtual void OnChildDetached(USceneComponent* ChildComponent) override;
+	//~ Begin USceneComponent Interface
 
 	TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation();
 
@@ -514,6 +531,8 @@ public:
 	virtual bool IsRayTracingRelevant() const override { return true; }
 #endif
 
+	FORCEINLINE const FMatrix& GetLocalToWorldInverse() const { return LocalToWorldInverse; }
+
 private:
 	void ReleaseRenderThreadResources();
 
@@ -521,6 +540,7 @@ private:
 	virtual void CreateRenderThreadResources() override;
 
 	//virtual void OnActorPositionChanged() override;
+	virtual void OnTransformChanged() override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
@@ -550,6 +570,8 @@ private:
 
 	bool bRenderingEnabled;
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+
+	FMatrix LocalToWorldInverse;
 
 #if STATS
 	TStatId SystemStatID;

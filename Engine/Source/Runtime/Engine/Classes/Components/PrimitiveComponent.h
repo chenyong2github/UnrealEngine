@@ -364,11 +364,7 @@ public:
 
 	// Lighting flags
 	
-	/**
-	 * Controls whether the primitive component should cast a shadow or not.
-	 *
-	 * This flag is ignored (no shadows will be generated) if all materials on this component have an Unlit shading model.
-	 */
+	/** Controls whether the primitive component should cast a shadow or not. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Lighting)
 	uint8 CastShadow:1;
 
@@ -446,6 +442,12 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Lighting)
 	uint8 bLightAttachmentsAsGroup:1;
+
+	/** 
+	 * If set, then it overrides any bLightAttachmentsAsGroup set in a parent.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Lighting)
+	uint8 bExcludeFromLightAttachmentGroup :1;
 
 	/**
 	* Mobile only:
@@ -597,6 +599,8 @@ public:
 	virtual TArray<URuntimeVirtualTexture*> const& GetRuntimeVirtualTextures() const { return RuntimeVirtualTextures; }
 	/** Get the runtime virtual texture pass settings. */
 	virtual ERuntimeVirtualTextureMainPassType GetVirtualTextureRenderPassType() const { return VirtualTextureRenderPassType; }
+	/** Get the max draw distance to use in the main pass when also rendering to a runtime virtual texture. This is combined with the other max draw distance settings. */
+	virtual float GetVirtualTextureMainPassMaxDrawDistance() const { return 0.f; }
 
 	/** Used by the renderer, to identify a component across re-registers. */
 	FPrimitiveComponentId ComponentId;
@@ -1436,6 +1440,10 @@ public:
 	/** Changes the value of LightAttachmentsAsGroup. */
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void SetLightAttachmentsAsGroup(UPARAM(DisplayName="LightAttachmentsAsGroup") bool bInLightAttachmentsAsGroup);
+
+	/** Changes the value of ExcludeFromLightAttachmentGroup. */
+	UFUNCTION(BlueprintCallable, Category="Rendering")
+	void SetExcludeFromLightAttachmentGroup(UPARAM(DisplayName = "ExcludeFromLightAttachmentGroup") bool bInExcludeFromLightAttachmentGroup);
 
 	/** Changes the value of bSingleSampleShadowFromStationaryLights. */
 	UFUNCTION(BlueprintCallable, Category="Rendering")

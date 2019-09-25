@@ -8,28 +8,28 @@ namespace GeometryCollectionExample
 {	
 	
 	template<class T>
-	bool RigidBodiesFallingUnderGravity(ExampleResponse&& R);
+	void RigidBodiesFallingUnderGravity();
 
 	template<class T>
-	bool RigidBodiesCollidingWithSolverFloor(ExampleResponse&& R);
+	void RigidBodiesCollidingWithSolverFloor();
 
 	template<class T>
-	bool RigidBodiesSingleSphereCollidingWithSolverFloor(ExampleResponse&& R);
+	void RigidBodiesSingleSphereCollidingWithSolverFloor();
 
 	template<class T>
-	bool RigidBodiesSingleSphereIntersectingWithSolverFloor(ExampleResponse&& R);
+	void RigidBodiesSingleSphereIntersectingWithSolverFloor();
 
 	template<class T>
-	bool RigidBodiesKinematic(ExampleResponse&& R);
+	void RigidBodiesKinematic();
 
 	template<class T>
-	bool RigidBodiesSleepingActivation(ExampleResponse&& R);
+	void RigidBodiesSleepingActivation();
 
 	template<class T>
-	bool RigidBodies_CollisionGroup(ExampleResponse&& R);
+	void RigidBodies_CollisionGroup();
 
 	template<class T>
-	bool RigidBodies_Initialize_ParticleImplicitCollisionGeometry(ExampleResponse&& R);
+	void RigidBodies_Initialize_ParticleImplicitCollisionGeometry();
 
 	
 }

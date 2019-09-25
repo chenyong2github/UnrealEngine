@@ -285,6 +285,11 @@ float UKismetMathLibrary::MakePulsatingValue(float InCurrentTime, float InPulses
 	return FMath::MakePulsatingValue((double)InCurrentTime, InPulsesPerSecond, InPhase);
 }
 
+float UKismetMathLibrary::SafeDivide(float A, float B)
+{
+	return (B != 0.0f) ? (A / B) : 0.0f;
+}
+
 void UKismetMathLibrary::MaxOfIntArray(const TArray<int32>& IntArray, int32& IndexOfMaxValue, int32& MaxValue)
 {
 	MaxValue = FMath::Max(IntArray, &IndexOfMaxValue);

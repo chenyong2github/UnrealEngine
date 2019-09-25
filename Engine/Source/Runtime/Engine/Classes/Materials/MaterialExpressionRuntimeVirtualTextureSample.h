@@ -50,14 +50,18 @@ class ENGINE_API UMaterialExpressionRuntimeVirtualTextureSample : public UMateri
 	UPROPERTY(EditAnywhere, Category = VirtualTexture, meta = (DisplayName = "Virtual texture content"))
 	ERuntimeVirtualTextureMaterialType MaterialType = ERuntimeVirtualTextureMaterialType::BaseColor;
 
+	/** Enable page table channel packing. Note that the bound Virtual Texture should have the same setting for sampling to work correctly. */
+	UPROPERTY(EditAnywhere, Category = VirtualTexture, meta = (DisplayName = "Enable packed page table"))
+	bool bSinglePhysicalSpace = true;
+
 	/** Defines how the MipValue property is applied to the virtual texture lookup. */
-	UPROPERTY(EditAnywhere, Category = VirtualTexture)
-	TEnumAsByte<enum ERuntimeVirtualTextureMipValueMode> MipValueMode;
+	UPROPERTY(EditAnywhere, Category = TextureSample)
+	TEnumAsByte<enum ERuntimeVirtualTextureMipValueMode> MipValueMode = RVTMVM_None;
+
+	/** Init settings that affect shader compilation and need to match the current VirtualTexture */
+	bool InitVirtualTextureDependentSettings();
 
 protected:
-	/** Init MaterialType based on the current VirtualTexture */
-	void InitMaterialType();
-
 	/** Initialize the output pins. */
 	void InitOutputs();
 

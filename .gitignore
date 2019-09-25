@@ -64,6 +64,7 @@
 !*.pl
 !*.py
 !*.js
+!*.ts
 !*.command
 
 # Other configuration and markup files

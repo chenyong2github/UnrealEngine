@@ -58,15 +58,15 @@ namespace UnrealBuildTool
 		/// Returns the version info for the toolchain. This will be output before building.
 		/// </summary>
 		/// <returns>String describing the current toolchain</returns>
-		public override string GetVersionInfo()
+		public override void GetVersionInfo(List<string> Lines)
 		{
 			if(EnvVars.Compiler == EnvVars.ToolChain)
 			{
-				return String.Format("Using {0} {1} toolchain ({2}) and Windows {3} SDK ({4}).", WindowsPlatform.GetCompilerName(EnvVars.Compiler), EnvVars.ToolChainVersion, EnvVars.ToolChainDir, EnvVars.WindowsSdkVersion, EnvVars.WindowsSdkDir);
+				Lines.Add(String.Format("Using {0} {1} toolchain ({2}) and Windows {3} SDK ({4}).", WindowsPlatform.GetCompilerName(EnvVars.Compiler), EnvVars.ToolChainVersion, EnvVars.ToolChainDir, EnvVars.WindowsSdkVersion, EnvVars.WindowsSdkDir));
 			}
 			else
 			{
-				return String.Format("Using {0} {1} compiler ({2}) with {3} {4} runtime ({5}) and Windows {6} SDK ({7}).", WindowsPlatform.GetCompilerName(EnvVars.Compiler), EnvVars.CompilerVersion, EnvVars.CompilerDir, WindowsPlatform.GetCompilerName(EnvVars.ToolChain), EnvVars.ToolChainVersion, EnvVars.ToolChainDir, EnvVars.WindowsSdkVersion, EnvVars.WindowsSdkDir);
+				Lines.Add(String.Format("Using {0} {1} compiler ({2}) with {3} {4} runtime ({5}) and Windows {6} SDK ({7}).", WindowsPlatform.GetCompilerName(EnvVars.Compiler), EnvVars.CompilerVersion, EnvVars.CompilerDir, WindowsPlatform.GetCompilerName(EnvVars.ToolChain), EnvVars.ToolChainVersion, EnvVars.ToolChainDir, EnvVars.WindowsSdkVersion, EnvVars.WindowsSdkDir));
 			}
 		}
 
@@ -820,6 +820,7 @@ namespace UnrealBuildTool
 			if (LinkEnvironment.bUseIncrementalLinking)
 			{
 				Arguments.Add("/INCREMENTAL");
+				Arguments.Add("/verbose:incr");
 			}
 			else
 			{
@@ -898,7 +899,9 @@ namespace UnrealBuildTool
 
 			if (CompileEnvironment.bPrintTimingInfo || Target.WindowsPlatform.bCompilerTrace)
 			{
-				if(Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED || Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2017)
+				if (Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED ||
+					Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2017 ||
+					Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2019)
 				{
 					if (CompileEnvironment.bPrintTimingInfo)
 					{
@@ -1010,6 +1013,19 @@ namespace UnrealBuildTool
 				foreach(FileItem ForceIncludeFile in CompileEnvironment.ForceIncludeFiles)
 				{
 					FileArguments.Add(String.Format("/FI\"{0}\"", ForceIncludeFile.Location));
+				}
+
+				if (CompileEnvironment.bPreprocessOnly)
+				{
+					FileItem PreprocessedFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".i"));
+
+					FileArguments.Add("/P"); // Preprocess
+					FileArguments.Add("/C"); // Preserve comments when preprocessing
+					FileArguments.Add(String.Format("/Fi\"{0}\"", PreprocessedFile)); // Preprocess to a file
+
+					CompileAction.ProducedItems.Add(PreprocessedFile);
+
+					bEmitsObjectFile = false;
 				}
 
 				if (bEmitsObjectFile)
@@ -1231,7 +1247,6 @@ namespace UnrealBuildTool
 					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
 					AggregateTimingInfoAction.bCanExecuteRemotely = false;
 					AggregateTimingInfoAction.bCanExecuteRemotelyWithSNDBS = false;
-					AggregateTimingInfoAction.PrerequisiteItems.AddRange(ParseTimingActions.SelectMany(a => a.PrerequisiteItems));
 					AggregateTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
 
 					FileItem AggregateOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.timing.bin"));
@@ -1800,8 +1815,16 @@ namespace UnrealBuildTool
 			Action LinkAction = new Action(ActionType.Link);
 			LinkAction.CommandDescription = "Link";
 			LinkAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-			LinkAction.CommandPath = bIsBuildingLibraryOrImportLibrary ? EnvVars.LibraryManagerPath : EnvVars.LinkerPath;
-			LinkAction.CommandArguments = String.Format("@\"{0}\"", ResponseFileName);
+			if(bIsBuildingLibraryOrImportLibrary)
+			{
+				LinkAction.CommandPath = EnvVars.LibraryManagerPath;
+				LinkAction.CommandArguments = String.Format("@\"{0}\"", ResponseFileName);
+			}
+			else
+			{
+				LinkAction.CommandPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "link-filter", "link-filter.exe");
+				LinkAction.CommandArguments = String.Format("-- \"{0}\" @\"{1}\"", EnvVars.LinkerPath, ResponseFileName);
+			}
 			LinkAction.ProducedItems.AddRange(ProducedItems);
 			LinkAction.PrerequisiteItems.AddRange(PrerequisiteItems);
 			LinkAction.StatusDescription = Path.GetFileName(OutputFile.AbsolutePath);

@@ -36,7 +36,7 @@ public class Engine : ModuleRules
 				"AutomationWorker",
 				"MovieSceneCapture",
 				"DesktopPlatform",
-			}
+            }
 		);
 
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
@@ -73,7 +73,6 @@ public class Engine : ModuleRules
 				"RenderCore",
 				"RHI",
 				"Sockets",
-				"UtilityShaders",
 				"AssetRegistry", // Here until FAssetData is moved to engine
 				"EngineMessages",
 				"EngineSettings",
@@ -187,10 +186,15 @@ public class Engine : ModuleRules
 
 		CircularlyReferencedDependentModules.Add("GameplayTags");
 		CircularlyReferencedDependentModules.Add("Landscape");
-		CircularlyReferencedDependentModules.Add("UMG");
+        CircularlyReferencedDependentModules.Add("UMG");
 		CircularlyReferencedDependentModules.Add("MaterialShaderQualitySettings");
 		CircularlyReferencedDependentModules.Add("CinematicCamera");
 		CircularlyReferencedDependentModules.Add("AudioMixer");
+
+		if (Target.Type == TargetType.Editor)
+		{
+			PrivateIncludePathModuleNames.Add("Foliage");
+		}
 
 		// The AnimGraphRuntime module is not needed by Engine proper, but it is loaded in LaunchEngineLoop.cpp,
 		// and needs to be listed in an always-included module in order to be compiled into standalone games
@@ -233,35 +237,25 @@ public class Engine : ModuleRules
 			PrivateDependencyModuleNames.Add("PerfCounters");
 		}
 
-		if (Target.bBuildDeveloperTools)
+		if (Target.Type == TargetType.Editor)
 		{
-			// Add "BlankModule" so that it gets compiled as an example and will be maintained and tested.  This can be removed
-			// at any time if needed.  The module isn't actually loaded by the engine so there is no runtime cost.
-			DynamicallyLoadedModuleNames.Add("BlankModule");
+			PrivateIncludePathModuleNames.Add("MeshUtilities");
+			PrivateIncludePathModuleNames.Add("MeshUtilitiesCommon");
 
-			if (Target.Type != TargetType.Server)
-			{
-				PrivateIncludePathModuleNames.Add("MeshUtilities");
-				PrivateIncludePathModuleNames.Add("MeshUtilitiesCommon");
+			DynamicallyLoadedModuleNames.Add("MeshUtilities");
 
-				DynamicallyLoadedModuleNames.Add("MeshUtilities");
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"ImageCore",
+					"RawMesh"
+				}
+			);
 
-				PrivateDependencyModuleNames.AddRange(
-					new string[] {
-						"ImageCore",
-						"RawMesh"
-					}
-				);
-			}
+			PrivateDependencyModuleNames.Add("CollisionAnalyzer");
+			CircularlyReferencedDependentModules.Add("CollisionAnalyzer");
 
-			if (Target.Configuration != UnrealTargetConfiguration.Shipping && Target.Configuration != UnrealTargetConfiguration.Test && Target.Type != TargetType.Server)
-			{
-				PrivateDependencyModuleNames.Add("CollisionAnalyzer");
-				CircularlyReferencedDependentModules.Add("CollisionAnalyzer");
-
-				PrivateDependencyModuleNames.Add("LogVisualizer");
-				CircularlyReferencedDependentModules.Add("LogVisualizer");
-			}
+			PrivateDependencyModuleNames.Add("LogVisualizer");
+			CircularlyReferencedDependentModules.Add("LogVisualizer");
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
@@ -295,6 +289,7 @@ public class Engine : ModuleRules
 					new string[] {
 						"LinuxTargetPlatform",
 						"LinuxNoEditorTargetPlatform",
+						"LinuxAArch64NoEditorTargetPlatform",
 						"LinuxServerTargetPlatform",
 						"LinuxClientTargetPlatform",
 						"AllDesktopTargetPlatform",

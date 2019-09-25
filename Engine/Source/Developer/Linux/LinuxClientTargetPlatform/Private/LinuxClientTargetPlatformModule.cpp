@@ -34,9 +34,9 @@ public:
 
 	virtual ITargetPlatform* GetTargetPlatform( )
 	{
-		if (Singleton == NULL && TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true> >::IsUsable())
+		if (Singleton == NULL && TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true, false> >::IsUsable())
 		{
- 			Singleton = new TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true> >();
+ 			Singleton = new TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true, false> >();
 		}
 
 		return Singleton;

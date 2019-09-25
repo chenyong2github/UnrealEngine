@@ -61,6 +61,7 @@ APawn::APawn(const FObjectInitializer& ObjectInitializer)
 	BlendedReplayViewPitch = 0.0f;
 	bCollideWhenPlacing = true;
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+	bGenerateOverlapEventsDuringLevelStreaming = true;
 	bProcessingOutsideWorldBounds = false;
 
 	bUseControllerRotationPitch = false;

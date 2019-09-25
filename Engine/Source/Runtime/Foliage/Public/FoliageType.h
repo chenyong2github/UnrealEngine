@@ -133,6 +133,14 @@ public:
 	UPROPERTY(EditAnywhere, Category=Painting, meta=(UIMin=0, ClampMin=0, UIMax = 100000, ClampMax = 100000, ReapplyCondition="ReapplyRadius"))
 	float Radius;
 
+	/** Option to override radius used to detect collision with other instances when painting in single instance mode */
+	UPROPERTY(EditAnywhere, Category = Painting)
+	bool bSingleInstanceModeOverrideRadius = false;
+
+	/** The radius used in single instance mode to detect collision with other instances */
+	UPROPERTY(EditAnywhere, Category = Painting, meta = (EditCondition = "bSingleInstanceModeOverrideRadius", UIMin = 0, ClampMin = 0, UIMax = 100000, ClampMax = 100000))
+	float SingleInstanceModeRadius = 0.f;
+
 	/** Specifies foliage instance scaling behavior when painting. */
 	UPROPERTY(EditAnywhere, Category=Painting, meta=(ReapplyCondition="ReapplyScaling"))
 	EFoliageScaling Scaling;
@@ -202,9 +210,21 @@ public:
 	UPROPERTY(EditAnywhere, Category=Placement, meta=(ReapplyCondition="ReapplyHeight"))
 	FFloatInterval Height;
 
-	/** If a layer name is specified, painting on landscape will limit the foliage to areas of landscape with the specified layer painted */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Placement, meta=(ReapplyCondition="ReapplyLandscapeLayers"))
+	/** If layer names are specified, painting on landscape will limit the foliage to areas of landscape with the specified layers painted */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Placement, meta=(ReapplyCondition="ReapplyLandscapeLayers", DisplayName="Inclusion Landscape Layers"))
 	TArray<FName> LandscapeLayers;
+
+	/** Specifies the minimum value above which the landscape layer weight value must be, in order for foliage instances to be placed in a specific area */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Placement, meta=(UIMin=0, ClampMin = 0, UIMax = 1, ClampMax = 1, HideBehind="LandscapeLayers", DisplayName="Minimum Inclusion Landscape Weight"))
+	float MinimumLayerWeight;
+
+	/** If layer names are specified, painting on landscape will exclude the foliage to areas of landscape without the specified layers painted */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Placement, meta = (ReapplyCondition = "ReapplyLandscapeLayers"))
+	TArray<FName> ExclusionLandscapeLayers;
+
+	/** Specifies the minimum value above which the landscape exclusion layer weight value must be, in order for foliage instances to be excluded in a specific area */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Placement, meta = (UIMin=0, ClampMin = 0, UIMax = 1, ClampMax = 1, HideBehind = "ExclusionLandscapeLayers"))
+	float MinimumExclusionLayerWeight;
 
 	UPROPERTY()
 	FName LandscapeLayer_DEPRECATED;
@@ -217,17 +237,12 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Placement, meta=(HideBehind="CollisionWithWorld"))
 	FVector CollisionScale;
 
-	/** Specifies the minimum value above which the landscape layer weight value must be, in order for foliage instances to be placed in a specific area */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Placement, meta=(HideBehind="LandscapeLayers"))
-	float MinimumLayerWeight;
-
 	UPROPERTY()
 	FBoxSphereBounds MeshBounds;
 
 	// X, Y is origin position and Z is radius...
 	UPROPERTY()
 	FVector LowBoundOriginRadius;
-
 
 public:
 	// INSTANCE SETTINGS
@@ -338,6 +353,8 @@ public:
 	uint32 IsSelected:1;
 #endif
 public:
+	FOLIAGE_API float GetRadius(bool bInSingleInstanceMode) const { return bInSingleInstanceMode && bSingleInstanceModeOverrideRadius ? SingleInstanceModeRadius : Radius; }
+
 	// PROCEDURAL
 
 	FOLIAGE_API float GetSeedDensitySquared() const { return InitialSeedDensity * InitialSeedDensity; }

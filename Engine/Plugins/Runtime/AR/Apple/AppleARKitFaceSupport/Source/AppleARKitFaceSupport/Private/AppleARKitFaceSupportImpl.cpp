@@ -13,6 +13,9 @@
 
 DECLARE_CYCLE_STAT(TEXT("Conversion"), STAT_FaceAR_Conversion, STATGROUP_FaceAR);
 
+// MERGE-todo
+//bool FAppleARKitFaceSupport::bNeedsInit = true;
+
 #if SUPPORTS_ARKIT_1_0
 
 static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData(bool bFaceMirrored, ARAnchor* Anchor, const FRotator& AdjustBy, EARFaceTrackingUpdate UpdateSetting, const FTimecode& Timecode, uint32 FrameRate)
@@ -69,7 +72,7 @@ FAppleARKitFaceSupport::FAppleARKitFaceSupport() :
 FAppleARKitFaceSupport::~FAppleARKitFaceSupport()
 {
 	// Should only be called durirng shutdown
-	check(GIsRequestingExit);
+	check(IsEngineExitRequested());
 }
 
 void FAppleARKitFaceSupport::Init()

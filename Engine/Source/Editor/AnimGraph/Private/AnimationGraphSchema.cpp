@@ -33,7 +33,7 @@
 #include "K2Node_Knot.h"
 #include "ScopedTransaction.h"
 #include "Animation/AnimMontage.h"
-#include "AnimGraphNode_SubInput.h"
+#include "AnimGraphNode_LinkedInputPose.h"
 
 #define LOCTEXT_NAMESPACE "AnimationGraphSchema"
 
@@ -287,18 +287,18 @@ void UAnimationGraphSchema::CreateFunctionGraphTerminators(UEdGraph& Graph, UCla
 					FEdGraphPinType PinType;
 					if(Schema->ConvertPropertyToPinType(Param, PinType))
 					{
-						// Create sub-input for each pose pin type
+						// Create linked input pose for each pose pin type
 						if(UAnimationGraphSchema::IsPosePin(PinType))
 						{
-							FGraphNodeCreator<UAnimGraphNode_SubInput> SubInputNodeCreator(Graph);
-							UAnimGraphNode_SubInput* SubInputNode = SubInputNodeCreator.CreateNode();
-							SubInputNode->FunctionReference.SetExternalMember(GraphName, Class, GraphGuid);
-							SubInputNode->Node.Name = Param->GetFName();
-							SubInputNode->InputPoseIndex = CurrentPoseIndex;
+							FGraphNodeCreator<UAnimGraphNode_LinkedInputPose> LinkedInputNodeCreator(Graph);
+							UAnimGraphNode_LinkedInputPose* LinkedInputNode = LinkedInputNodeCreator.CreateNode();
+							LinkedInputNode->FunctionReference.SetExternalMember(GraphName, Class, GraphGuid);
+							LinkedInputNode->Node.Name = Param->GetFName();
+							LinkedInputNode->InputPoseIndex = CurrentPoseIndex;
 
-							SubInputNode->ReconstructNode();
-							SetNodeMetaData(SubInputNode, FNodeMetadata::DefaultGraphNode);
-							SubInputNodeCreator.Finalize();
+							LinkedInputNode->ReconstructNode();
+							SetNodeMetaData(LinkedInputNode, FNodeMetadata::DefaultGraphNode);
+							LinkedInputNodeCreator.Finalize();
 
 							CurrentPoseIndex++;
 						}
@@ -636,8 +636,8 @@ void UAnimationGraphSchema::AutoArrangeInterfaceGraph(UEdGraph& Graph)
 	check(RootNodes.Num() == 1);
 	UAnimGraphNode_Root* Root = RootNodes[0];
 				
-	TArray<UAnimGraphNode_SubInput*> SubInputNodes;
-	Graph.GetNodesOfClass<UAnimGraphNode_SubInput>(SubInputNodes);
+	TArray<UAnimGraphNode_LinkedInputPose*> LinkedInputPoseNodes;
+	Graph.GetNodesOfClass<UAnimGraphNode_LinkedInputPose>(LinkedInputPoseNodes);
 
 	FBox2D RootBounds(FVector2D(Root->NodePosX, Root->NodePosY), FVector2D(Root->NodePosX + 130, Root->NodePosY + 200));
 
@@ -645,31 +645,31 @@ void UAnimationGraphSchema::AutoArrangeInterfaceGraph(UEdGraph& Graph)
 	float MaxWidth = 0.0f;
 	const int32 HeightPerProperty = 30;
 
-	for(UAnimGraphNode_SubInput* Node : SubInputNodes)
+	for(UAnimGraphNode_LinkedInputPose* Node : LinkedInputPoseNodes)
 	{
-		FBox2D SubInputBounds(
+		FBox2D LinkedInputPoseBounds(
 			FVector2D(Node->NodePosX, Node->NodePosY),
 			FVector2D(Node->NodePosX + 400, Node->NodePosY + 100 + (Node->GetNumInputs() * HeightPerProperty))
 		);
 
-		FVector2D BoundsSize = SubInputBounds.GetSize();
+		FVector2D BoundsSize = LinkedInputPoseBounds.GetSize();
 		TotalHeight += BoundsSize.Y + 10.0f;
 		MaxWidth = FMath::Max(BoundsSize.X, MaxWidth);
 	}
 
 	float NodeOffset = RootBounds.GetCenter().Y - (TotalHeight * 0.5f);
 	float NodePosX = RootBounds.Min.X - (MaxWidth + 100.0f);
-	for(UAnimGraphNode_SubInput* Node : SubInputNodes)
+	for(UAnimGraphNode_LinkedInputPose* Node : LinkedInputPoseNodes)
 	{
 		Node->NodePosX = NodePosX;
 		Node->NodePosY = NodeOffset;
 
-		FBox2D SubInputBounds(
+		FBox2D LinkedInputPoseBounds(
 			FVector2D(Node->NodePosX, Node->NodePosY),
 			FVector2D(Node->NodePosX + 400, Node->NodePosY + 100 + (Node->GetNumInputs() * HeightPerProperty))
 		);
 
-		NodeOffset += SubInputBounds.GetSize().Y + 10.0f;
+		NodeOffset += LinkedInputPoseBounds.GetSize().Y + 10.0f;
 	}
 }
 
@@ -684,18 +684,18 @@ void UAnimationGraphSchema::ConformAnimGraphToInterface(UBlueprint* InBlueprint,
 		check(RootNodes.Num() == 1);
 		RootNodes[0]->Node.Group = *InFunction->GetMetaDataText(TEXT("Category"), TEXT("UObjectCategory"), InFunction->GetFullGroupName(false)).ToString();
 
-		TArray<UAnimGraphNode_SubInput*> SubInputNodes;
-		InGraph.GetNodesOfClass<UAnimGraphNode_SubInput>(SubInputNodes);
+		TArray<UAnimGraphNode_LinkedInputPose*> LinkedInputPoseNodes;
+		InGraph.GetNodesOfClass<UAnimGraphNode_LinkedInputPose>(LinkedInputPoseNodes);
 
-		for(UAnimGraphNode_SubInput* SubInputNode : SubInputNodes)
+		for(UAnimGraphNode_LinkedInputPose* LinkedInputPoseNode : LinkedInputPoseNodes)
 		{
 			// Sync pose names in case they have changed
-			SubInputNode->ConformInputPoseName();
+			LinkedInputPoseNode->ConformInputPoseName();
 
-			// Clean up any old sub-inputs that no longer exist
-			if(!SubInputNode->ValidateAgainstFunctionReference())
+			// Clean up any old linked input poses that no longer exist
+			if(!LinkedInputPoseNode->ValidateAgainstFunctionReference())
 			{
-				InGraph.RemoveNode(SubInputNode);
+				InGraph.RemoveNode(LinkedInputPoseNode);
 			}
 		}
 
@@ -714,13 +714,13 @@ void UAnimationGraphSchema::ConformAnimGraphToInterface(UBlueprint* InBlueprint,
 				FEdGraphPinType PinType;
 				if(Schema->ConvertPropertyToPinType(Param, PinType))
 				{
-					// Create sub-input for each pose pin type
+					// Create linked input pose for each pose pin type
 					if(UAnimationGraphSchema::IsPosePin(PinType))
 					{
-						UAnimGraphNode_SubInput** MatchingNode = SubInputNodes.FindByPredicate(
-							[CurrentPoseIndex](UAnimGraphNode_SubInput* InSubInput)
+						UAnimGraphNode_LinkedInputPose** MatchingNode = LinkedInputPoseNodes.FindByPredicate(
+							[CurrentPoseIndex](UAnimGraphNode_LinkedInputPose* InLinkedInputPoseNode)
 							{
-								return InSubInput->InputPoseIndex == CurrentPoseIndex; 
+								return InLinkedInputPoseNode->InputPoseIndex == CurrentPoseIndex;
 							});
 
 						if(MatchingNode == nullptr)
@@ -732,19 +732,19 @@ void UAnimationGraphSchema::ConformAnimGraphToInterface(UBlueprint* InBlueprint,
 							FBlueprintEditorUtils::GetFunctionGuidFromClassByFieldName(FBlueprintEditorUtils::GetMostUpToDateClass(InterfaceClass), GraphName, GraphGuid);
 
 							// not found, add this node
-							FGraphNodeCreator<UAnimGraphNode_SubInput> SubInputNodeCreator(InGraph);
-							UAnimGraphNode_SubInput* SubInputNode = SubInputNodeCreator.CreateNode();
-							SubInputNode->FunctionReference.SetExternalMember(GraphName, InterfaceClass, GraphGuid);
-							SubInputNode->Node.Name = Param->GetFName();
-							SubInputNode->InputPoseIndex = CurrentPoseIndex;
+							FGraphNodeCreator<UAnimGraphNode_LinkedInputPose> LinkedInputPoseNodeCreator(InGraph);
+							UAnimGraphNode_LinkedInputPose* LinkedInputPoseNode = LinkedInputPoseNodeCreator.CreateNode();
+							LinkedInputPoseNode->FunctionReference.SetExternalMember(GraphName, InterfaceClass, GraphGuid);
+							LinkedInputPoseNode->Node.Name = Param->GetFName();
+							LinkedInputPoseNode->InputPoseIndex = CurrentPoseIndex;
 
-							SubInputNode->ReconstructNode();
-							SetNodeMetaData(SubInputNode, FNodeMetadata::DefaultGraphNode);
-							SubInputNodeCreator.Finalize();
+							LinkedInputPoseNode->ReconstructNode();
+							SetNodeMetaData(LinkedInputPoseNode, FNodeMetadata::DefaultGraphNode);
+							LinkedInputPoseNodeCreator.Finalize();
 
-							FVector2D NewPosition = GetPositionForNewSubInputNode(InGraph);
-							SubInputNode->NodePosX = NewPosition.X;
-							SubInputNode->NodePosY = NewPosition.Y;
+							FVector2D NewPosition = GetPositionForNewLinkedInputPoseNode(InGraph);
+							LinkedInputPoseNode->NodePosX = NewPosition.X;
+							LinkedInputPoseNode->NodePosY = NewPosition.Y;
 						}
 
 						CurrentPoseIndex++;
@@ -755,12 +755,12 @@ void UAnimationGraphSchema::ConformAnimGraphToInterface(UBlueprint* InBlueprint,
 	}
 }
 
-FVector2D UAnimationGraphSchema::GetPositionForNewSubInputNode(UEdGraph& InGraph)
+FVector2D UAnimationGraphSchema::GetPositionForNewLinkedInputPoseNode(UEdGraph& InGraph)
 {
-	TArray<UAnimGraphNode_SubInput*> SubInputNodes;
-	InGraph.GetNodesOfClass<UAnimGraphNode_SubInput>(SubInputNodes);
+	TArray<UAnimGraphNode_LinkedInputPose*> LinkedInputPoseNodes;
+	InGraph.GetNodesOfClass<UAnimGraphNode_LinkedInputPose>(LinkedInputPoseNodes);
 
-	if(SubInputNodes.Num() == 0)
+	if(LinkedInputPoseNodes.Num() == 0)
 	{
 		TArray<UAnimGraphNode_Base*> AllNodes;
 		InGraph.GetNodesOfClass<UAnimGraphNode_Base>(AllNodes);
@@ -783,30 +783,30 @@ FVector2D UAnimationGraphSchema::GetPositionForNewSubInputNode(UEdGraph& InGraph
 	{
 		const int32 HeightPerProperty = 30;
 
-		// Some existing sub-inputs. Insert below the bottom-most one.
-		UAnimGraphNode_SubInput* Node = SubInputNodes[0];
+		// Some existing linked input poses. Insert below the bottom-most one.
+		UAnimGraphNode_LinkedInputPose* Node = LinkedInputPoseNodes[0];
 
-		FBox2D BottomMostSubInputBounds(
+		FBox2D BottomMostLinkedInputPoseBounds(
 			FVector2D(Node->NodePosX, Node->NodePosY),
 			FVector2D(Node->NodePosX + 400, Node->NodePosY + 100 + (Node->GetNumInputs() * HeightPerProperty))
 		);
 
-		for(int32 SubInputIndex = 1; SubInputIndex < SubInputNodes.Num(); ++SubInputIndex)
+		for(int32 LinkedInputPoseIndex = 1; LinkedInputPoseIndex < LinkedInputPoseNodes.Num(); ++LinkedInputPoseIndex)
 		{
-			Node = SubInputNodes[SubInputIndex];
+			Node = LinkedInputPoseNodes[LinkedInputPoseIndex];
 
-			FBox2D SubInputBounds(
+			FBox2D LinkedInputPoseBounds(
 				FVector2D(Node->NodePosX, Node->NodePosY),
 				FVector2D(Node->NodePosX + 400, Node->NodePosY + 100 + (Node->GetNumInputs() * HeightPerProperty))
 			);
 
-			if(SubInputBounds.Min.Y > BottomMostSubInputBounds.Min.Y)
+			if(LinkedInputPoseBounds.Min.Y > BottomMostLinkedInputPoseBounds.Min.Y)
 			{
-				BottomMostSubInputBounds = SubInputBounds;
+				BottomMostLinkedInputPoseBounds = LinkedInputPoseBounds;
 			}
 		}
 
-		return FVector2D(BottomMostSubInputBounds.Min.X, BottomMostSubInputBounds.Max.Y + 10.0f);
+		return FVector2D(BottomMostLinkedInputPoseBounds.Min.X, BottomMostLinkedInputPoseBounds.Max.Y + 10.0f);
 	}
 }
 

@@ -2597,6 +2597,9 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					// Inactive worlds are already initialized but lack these two objects for memory reasons.
 					World->ClearWorldComponents();
 
+					// If the world was inactive subsystems would not have been initialized.  When we transition to the editor world initialize them
+					World->InitializeSubsystems();
+
 					if (World->FeatureLevel == FeatureLevelIndex)
 					{
 						if (World->GetPhysicsScene() == nullptr)
@@ -5455,6 +5458,7 @@ void ListMapPackageDependencies(const TCHAR* InStr)
 	{
 		FName CheckTexture2DName(TEXT("Texture2D"));
 		FName CheckCubeTextureName(TEXT("TextureCube"));
+		FName CheckTexture2DArrayName(TEXT("Texture2DArray"));
 		FName CheckLightmap2DName(TEXT("Lightmap2D"));
 		FName CheckShadowmap2DName(TEXT("Shadowmap2D"));
 		

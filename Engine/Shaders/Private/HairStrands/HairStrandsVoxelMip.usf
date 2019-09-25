@@ -1,0 +1,38 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+uint VoxelResolution;
+uint SourceMip;
+uint TargetMip;
+
+Texture3D<uint> InDensityTexture;
+RWTexture3D<uint> OutDensityTexture;
+
+// #hair_todo: do two mips at a time through LDS?
+[numthreads(4, 4, 4)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint3 OutVoxelCoord = DispatchThreadId;
+
+	const uint3 InVoxelCoord0 = uint3(OutVoxelCoord.x << 1, OutVoxelCoord.y << 1, OutVoxelCoord.z << 1);
+	const uint3 InVoxelCoord1 = InVoxelCoord0 + uint3(1,0,0);
+	const uint3 InVoxelCoord2 = InVoxelCoord0 + uint3(0,1,0);
+	const uint3 InVoxelCoord3 = InVoxelCoord0 + uint3(1,1,0);
+
+	const uint3 InVoxelCoord4 = InVoxelCoord0 + uint3(0,0,1);
+	const uint3 InVoxelCoord5 = InVoxelCoord0 + uint3(1,0,1);
+	const uint3 InVoxelCoord6 = InVoxelCoord0 + uint3(0,1,1);
+	const uint3 InVoxelCoord7 = InVoxelCoord0 + uint3(1,1,1);
+
+	const uint Total =
+		InDensityTexture[InVoxelCoord0] +
+		InDensityTexture[InVoxelCoord1] +
+		InDensityTexture[InVoxelCoord2] +
+		InDensityTexture[InVoxelCoord3] +
+
+		InDensityTexture[InVoxelCoord4] +
+		InDensityTexture[InVoxelCoord5] +
+		InDensityTexture[InVoxelCoord6] +
+		InDensityTexture[InVoxelCoord7];
+
+	OutDensityTexture[OutVoxelCoord] = Total;
+}

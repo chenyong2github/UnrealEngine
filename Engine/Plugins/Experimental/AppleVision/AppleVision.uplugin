@@ -27,7 +27,7 @@
 		},
 		{
 			"Name" : "AppleVisionBlueprintSupport",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default",
 			"WhitelistPlatforms" :
 			[

@@ -3,14 +3,25 @@
 #include "Units/Highlevel/Hierarchy/RigUnit_FitChainToCurve.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_FitChainToCurve::Execute(const FRigUnitContext& Context)
+FRigUnit_FitChainToCurve_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy == nullptr)
 	{
 		return;
 	}
+
+	float& ChainLength = WorkData.ChainLength;
+	TArray<FVector>& BonePositions = WorkData.BonePositions;
+	TArray<float>& BoneSegments = WorkData.BoneSegments;
+	TArray<FVector>& CurvePositions = WorkData.CurvePositions;
+	TArray<float>& CurveSegments = WorkData.CurveSegments;
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	TArray<int32>& BoneRotationA = WorkData.BoneRotationA;
+	TArray<int32>& BoneRotationB = WorkData.BoneRotationB;
+	TArray<float>& BoneRotationT = WorkData.BoneRotationT;
+	TArray<FTransform>& BoneLocalTransforms = WorkData.BoneLocalTransforms;
 
 	if (Context.State == EControlRigState::Init)
 	{
@@ -42,7 +53,7 @@ void FRigUnit_FitChainToCurve::Execute(const FRigUnitContext& Context)
 				{
 					break;
 				}
-				EndBoneIndex = Hierarchy->GetParentIndex(EndBoneIndex);
+				EndBoneIndex = (*Hierarchy)[EndBoneIndex].ParentIndex;
 			}
 		}
 
@@ -324,7 +335,7 @@ void FRigUnit_FitChainToCurve::Execute(const FRigUnitContext& Context)
 	if (Rotations.Num() > 0)
 	{
 		FTransform BaseTransform = FTransform::Identity;
-		int32 ParentIndex = Hierarchy->GetParentIndex(BoneIndices[0]);
+		int32 ParentIndex = (*Hierarchy)[BoneIndices[0]].ParentIndex;
 		if (ParentIndex != INDEX_NONE)
 		{
 			BaseTransform = Hierarchy->GetGlobalTransform(ParentIndex);

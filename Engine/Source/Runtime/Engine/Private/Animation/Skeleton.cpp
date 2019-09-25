@@ -50,7 +50,7 @@ const FName USkeleton::AnimTrackCurveMappingName = FName(TEXT("AnimationTrackCur
 const FName FAnimSlotGroup::DefaultGroupName = FName(TEXT("DefaultGroup"));
 const FName FAnimSlotGroup::DefaultSlotName = FName(TEXT("DefaultSlot"));
 
-FArchive& operator<<(FArchive& Ar, FReferencePose & P)
+void SerializeReferencePose(FArchive& Ar, FReferencePose& P, UObject* Outer)
 {
 	Ar.UsingCustomVersion(FAnimPhysObjectVersion::GUID);
 
@@ -58,7 +58,7 @@ FArchive& operator<<(FArchive& Ar, FReferencePose & P)
 	Ar << P.ReferencePose;
 #if WITH_EDITORONLY_DATA
 	//TODO: we should use strip flags but we need to rev the serialization version
-	if (!Ar.IsCooking())
+	if (!Ar.IsCooking() && (!Ar.IsLoading() || !Outer->GetOutermost()->bIsCookedForEditor))
 	{
 		if (Ar.IsLoading() && Ar.CustomVer(FAnimPhysObjectVersion::GUID) < FAnimPhysObjectVersion::ChangeRetargetSourceReferenceToSoftObjectPtr)
 		{
@@ -80,7 +80,6 @@ FArchive& operator<<(FArchive& Ar, FReferencePose & P)
 		}
 	}
 #endif
-	return Ar;
 }
 
 const TCHAR* SkipPrefix(const FString& InName)
@@ -104,7 +103,7 @@ USkeleton::USkeleton(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Make sure we have somewhere for curve names.
-	SmartNames.AddContainer(AnimCurveMappingName);
+	AnimCurveMapping = SmartNames.AddContainer(AnimCurveMappingName);
 
 	AnimCurveUidVersion = 0;
 }
@@ -188,7 +187,7 @@ void USkeleton::Serialize( FArchive& Ar )
 			for (int32 Index=0; Index<NumOfRetargetSources; ++Index)
 			{
 				Ar << RetargetSourceName;
-				Ar << RetargetSource;
+				SerializeReferencePose(Ar, RetargetSource, this);
 
 				AnimRetargetSources.Add(RetargetSourceName, RetargetSource);
 			}
@@ -201,7 +200,7 @@ void USkeleton::Serialize( FArchive& Ar )
 			for (auto Iter = AnimRetargetSources.CreateIterator(); Iter; ++Iter)
 			{
 				Ar << Iter.Key();
-				Ar << Iter.Value();
+				SerializeReferencePose(Ar, Iter.Value(), this);
 			}
 		}
 	}
@@ -211,7 +210,7 @@ void USkeleton::Serialize( FArchive& Ar )
 		for (auto Iter = AnimRetargetSources.CreateIterator(); Iter; ++Iter)
 		{
 			Ar << Iter.Key();
-			Ar << Iter.Value();
+			SerializeReferencePose(Ar, Iter.Value(), this);
 		}
 	}
 
@@ -229,6 +228,8 @@ void USkeleton::Serialize( FArchive& Ar )
 	if(Ar.UE4Ver() >= VER_UE4_SKELETON_ADD_SMARTNAMES)
 	{
 		SmartNames.Serialize(Ar);
+
+		AnimCurveMapping = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
 	}
 
 	// Build look up table between Slot nodes and their Group.
@@ -1423,6 +1424,7 @@ FSmartNameMapping* USkeleton::GetOrAddSmartNameContainer(const FName& ContainerN
 		Modify();
 		IncreaseAnimCurveUidVersion();
 		SmartNames.AddContainer(ContainerName);
+		AnimCurveMapping = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
 		Mapping = SmartNames.GetContainerInternal(ContainerName);		
 	}
 
@@ -1452,8 +1454,8 @@ void USkeleton::IncreaseAnimCurveUidVersion()
 	++AnimCurveUidVersion;
 
 	// update default uid list
-	const FSmartNameMapping* Mapping = GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-	if (Mapping != nullptr)
+	const FSmartNameMapping* Mapping = AnimCurveMapping;
+	if (ensureAlways(Mapping))
 	{
 		DefaultCurveUIDList.Reset();
 		// this should exactly work with what current index is
@@ -1463,7 +1465,7 @@ void USkeleton::IncreaseAnimCurveUidVersion()
 
 FCurveMetaData* USkeleton::GetCurveMetaData(const FName& CurveName)
 {
-	FSmartNameMapping* Mapping = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
+	FSmartNameMapping* Mapping = AnimCurveMapping;
 	if (ensureAlways(Mapping))
 	{
 		return Mapping->GetCurveMetaData(CurveName);
@@ -1474,7 +1476,7 @@ FCurveMetaData* USkeleton::GetCurveMetaData(const FName& CurveName)
 
 const FCurveMetaData* USkeleton::GetCurveMetaData(const FName& CurveName) const
 {
-	const FSmartNameMapping* Mapping = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
+	const FSmartNameMapping* Mapping = AnimCurveMapping;
 	if (ensureAlways(Mapping))
 	{
 		return Mapping->GetCurveMetaData(CurveName);
@@ -1485,14 +1487,18 @@ const FCurveMetaData* USkeleton::GetCurveMetaData(const FName& CurveName) const
 
 const FCurveMetaData* USkeleton::GetCurveMetaData(const SmartName::UID_Type CurveUID) const
 {
-	const FSmartNameMapping* Mapping = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
+	const FSmartNameMapping* Mapping = AnimCurveMapping;
 	if (ensureAlways(Mapping))
 	{
+#if WITH_EDITOR
 		FSmartName SmartName;
 		if (Mapping->FindSmartNameByUID(CurveUID, SmartName))
 		{
 			return Mapping->GetCurveMetaData(SmartName.DisplayName);
 		}
+#else
+		return &Mapping->GetCurveMetaData(CurveUID);
+#endif
 	}
 
 	return nullptr;
@@ -1500,7 +1506,7 @@ const FCurveMetaData* USkeleton::GetCurveMetaData(const SmartName::UID_Type Curv
 
 FCurveMetaData* USkeleton::GetCurveMetaData(const FSmartName& CurveName)
 {
-	FSmartNameMapping* Mapping = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
+	FSmartNameMapping* Mapping = AnimCurveMapping;
 	if (ensureAlways(Mapping))
 	{
 		// the name might have changed, make sure it's up-to-date
@@ -1514,7 +1520,7 @@ FCurveMetaData* USkeleton::GetCurveMetaData(const FSmartName& CurveName)
 
 const FCurveMetaData* USkeleton::GetCurveMetaData(const FSmartName& CurveName) const
 {
-	const FSmartNameMapping* Mapping = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
+	const FSmartNameMapping* Mapping = AnimCurveMapping;
 	if (ensureAlways(Mapping))
 	{
 		// the name might have changed, make sure it's up-to-date
@@ -1531,7 +1537,7 @@ void USkeleton::AccumulateCurveMetaData(FName CurveName, bool bMaterialSet, bool
 {
 	if (bMaterialSet || bMorphtargetSet)
 	{
-		const FSmartNameMapping* Mapping = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
+		const FSmartNameMapping* Mapping = AnimCurveMapping;
 		if (ensureAlways(Mapping))
 		{
 			// if we don't have name, add one

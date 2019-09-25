@@ -57,8 +57,6 @@ private:
 		FMeshBatch& OutMeshBatch,
 		class FNiagaraMeshCollectorResourcesSprite& OutCollectorResources) const;
 
-	class FNiagaraSpriteVertexFactory* VertexFactory;
-
 	//Cached data from the properties struct.
 	ENiagaraSpriteAlignment Alignment;
 	ENiagaraSpriteFacingMode FacingMode;

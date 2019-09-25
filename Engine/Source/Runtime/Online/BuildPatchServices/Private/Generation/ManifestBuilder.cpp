@@ -4,12 +4,18 @@
 #include "Misc/Paths.h"
 #include "Algo/Accumulate.h"
 #include "Data/ManifestData.h"
+#include "Common/FileSystem.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogManifestBuilder, Log, All);
 DEFINE_LOG_CATEGORY(LogManifestBuilder);
 
 namespace BuildPatchServices
 {
+	FManifestBuilderConfig::FManifestBuilderConfig()
+		: bAllowEmptyBuilds(false)
+	{
+	}
+
 	struct FFileBlock
 	{
 	public:
@@ -31,7 +37,7 @@ namespace BuildPatchServices
 		: public IManifestBuilder
 	{
 	public:
-		FManifestBuilder(const FManifestDetails& Details);
+		FManifestBuilder(IFileSystem* FileSystem, const FManifestBuilderConfig& Config, const FManifestDetails& Details);
 		virtual ~FManifestBuilder();
 
 		virtual void AddChunkMatch(const FGuid& ChunkGuid, const FBlockStructure& Structure) override;
@@ -41,16 +47,25 @@ namespace BuildPatchServices
 	private:
 		TArray<FChunkPart> GetChunkPartsForFile(uint64 StartIdx, uint64 Size, TSet<FGuid>& ReferencedChunks);
 
+	private:
+		IFileSystem* FileSystem;
+		const FManifestBuilderConfig Config;
+
 		FBuildPatchAppManifestRef Manifest;
 		TMap<FString, FFileAttributes> FileAttributesMap;
 		FBlockStructure BuildStructureAdded;
 
 		TMap<FGuid, TArray<FBlockStructure>> AllMatches;
+
+		bool bFinalizationSucceeded;
 	};
 
-	FManifestBuilder::FManifestBuilder(const FManifestDetails& InDetails)
-		: Manifest(MakeShareable(new FBuildPatchAppManifest()))
+	FManifestBuilder::FManifestBuilder(IFileSystem* InFileSystem, const FManifestBuilderConfig& InConfig, const FManifestDetails& InDetails)
+		: FileSystem(InFileSystem)
+		, Config(InConfig)
+		, Manifest(MakeShareable(new FBuildPatchAppManifest()))
 		, FileAttributesMap(InDetails.FileAttributesMap)
+		, bFinalizationSucceeded(false)
 	{
 		Manifest->ManifestMeta.FeatureLevel = InDetails.FeatureLevel;
 		Manifest->ManifestMeta.bIsFileData = false;
@@ -170,28 +185,46 @@ namespace BuildPatchServices
 		}
 
 		// Some sanity checks for build integrity.
-		if (BuildStructureAdded.GetHead() == nullptr || BuildStructureAdded.GetHead()->GetNext() != nullptr)
+		// We allow an empty build only if config said to, but always require a whole one if not empty.
+		const int64 BuildStructureSize = BuildStructureAdded.GetHead() == nullptr ? 0 : BuildStructureAdded.GetHead()->GetSize();
+		// A structure is considered whole if there is either 0 or 1 block.
+		const bool bBuildStructureIsWhole = BuildStructureAdded.GetHead() == nullptr ? true : BuildStructureAdded.GetHead()->GetNext() == nullptr;
+		if (BuildStructureSize == 0 && !Config.bAllowEmptyBuilds)
+		{
+			UE_LOG(LogManifestBuilder, Error, TEXT("Build structure is empty and was not explicitly allowed."));
+			return false;
+		}
+		if (!bBuildStructureIsWhole)
 		{
 			UE_LOG(LogManifestBuilder, Error, TEXT("Build structure added was not whole or complete."));
 			return false;
 		}
-		if (BuildStructureAdded.GetHead()->GetSize() != Manifest->GetBuildSize())
+		if (BuildStructureSize != Manifest->GetBuildSize())
 		{
 			UE_LOG(LogManifestBuilder, Error, TEXT("Generated manifest build size did not equal build structure added."));
 			return false;
 		}
 
 		// Everything seems fine.
+		bFinalizationSucceeded = true;
 		return true;
 	}
 
 	bool FManifestBuilder::SaveToFile(const FString& Filename)
 	{
-		// Previous validation from FinaliseData, but this time we assert if fail as the error should have been picked up.
-		checkf(BuildStructureAdded.GetHead() != nullptr && BuildStructureAdded.GetHead()->GetNext() == nullptr, TEXT("Build integrity check failed. No structure was added."));
-		checkf(BuildStructureAdded.GetHead()->GetSize() == Manifest->GetBuildSize(), TEXT("Build integrity check failed. Structure added is not the same size as the manifest data setup; did you call FinalizeData?"));
-
-		return Manifest->SaveToFile(Filename, Manifest->ManifestMeta.FeatureLevel);
+		// Check that previous validation from FinalizeData succeeded, the error should have been picked up.
+		bool bSuccess = false;
+		if (bFinalizationSucceeded)
+		{
+			const FString TmpFilename = Filename + TEXT("tmp");
+			bSuccess = Manifest->SaveToFile(TmpFilename, Manifest->ManifestMeta.FeatureLevel);
+			bSuccess = FileSystem->MoveFile(*Filename, *TmpFilename) && bSuccess;
+		}
+		else
+		{
+			UE_LOG(LogManifestBuilder, Error, TEXT("Cannot save manifest when build integrity check did not succeed."));
+		}
+		return bSuccess;
 	}
 
 	TArray<FChunkPart> FManifestBuilder::GetChunkPartsForFile(uint64 FileStart, uint64 FileSize, TSet<FGuid>& ReferencedChunks)
@@ -254,8 +287,8 @@ namespace BuildPatchServices
 		return FileChunkParts;
 	}
 
-	IManifestBuilderRef FManifestBuilderFactory::Create(const FManifestDetails& Details)
+	IManifestBuilderRef FManifestBuilderFactory::Create(IFileSystem* FileSystem, const FManifestBuilderConfig& Config, const FManifestDetails& Details)
 	{
-		return MakeShareable(new FManifestBuilder(Details));
+		return MakeShareable(new FManifestBuilder(FileSystem, Config, Details));
 	}
 }

@@ -13,7 +13,7 @@ class ENGINE_API FSubsystemCollectionBase : public FGCObject
 {
 public:
 	/** Initialize the collection of systems, systems will be created and initialized */
-	void Initialize();
+	void Initialize(UObject* NewOuter);
 
 	/* Clears the collection, while deinitializing the systems */
 	void Deinitialize();
@@ -30,7 +30,7 @@ public:
 
 protected:
 	/** protected constructor - for use by the template only(FSubsystemCollection<TBaseType>) */
-	FSubsystemCollectionBase(UObject* InOuter, TSubclassOf<USubsystem> InBaseType);
+	FSubsystemCollectionBase(TSubclassOf<USubsystem> InBaseType);
 
 	/** protected constructor - Use the FSubsystemCollection<TBaseType> class */
 	FSubsystemCollectionBase();
@@ -99,12 +99,9 @@ public:
 public:
 
 	/** Construct a FSubsystemCollection, pass in the owning object almost certainly (this). */
-	FSubsystemCollection(UObject* InOuter)
-		: FSubsystemCollectionBase(InOuter, TBaseType::StaticClass())
+	FSubsystemCollection()
+		: FSubsystemCollectionBase(TBaseType::StaticClass())
 	{
 	}
-
-	/** DO NOT USE - required for default UObject default constructors unfortunately. */
-	FSubsystemCollection() {}
 };
 

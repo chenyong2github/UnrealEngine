@@ -396,6 +396,7 @@ FString GetMemoryString( const double Value, const bool bAutoType )
 }
 
 FOnScreenshotRequestProcessed FScreenshotRequest::ScreenshotProcessedDelegate;
+FOnScreenshotCaptured FScreenshotRequest::ScreenshotCapturedDelegate;
 bool FScreenshotRequest::bIsScreenshotRequested = false;
 FString FScreenshotRequest::Filename;
 FString FScreenshotRequest::NextScreenshotName;
@@ -673,7 +674,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 		}
 
 		ERHIFeatureLevel::Type FeatureLevel = InCanvas->GetFeatureLevel();
-		if (FeatureLevel >= ERHIFeatureLevel::SM4)
+		if (FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			float ResolutionFraction = DynamicResolutionStateInfos.ResolutionFractionApproximation;
 			float ScreenPercentage = ResolutionFraction * 100.0f;

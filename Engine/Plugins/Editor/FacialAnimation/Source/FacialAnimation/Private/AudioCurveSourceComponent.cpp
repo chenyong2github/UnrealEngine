@@ -55,7 +55,7 @@ void UAudioCurveSourceComponent::CacheCurveData()
 	}
 }
 
-void UAudioCurveSourceComponent::FadeIn(float FadeInDuration, float FadeVolumeLevel, float StartTime, EAudioFaderCurve FadeType)
+void UAudioCurveSourceComponent::FadeIn(float FadeInDuration, float FadeVolumeLevel, float StartTime, const EAudioFaderCurve FadeType)
 {
 	CacheCurveData();
 
@@ -73,7 +73,7 @@ void UAudioCurveSourceComponent::FadeIn(float FadeInDuration, float FadeVolumeLe
 	}
 }
 
-void UAudioCurveSourceComponent::FadeOut(float FadeOutDuration, float FadeVolumeLevel, EAudioFaderCurve FadeType)
+void UAudioCurveSourceComponent::FadeOut(float FadeOutDuration, float FadeVolumeLevel, const EAudioFaderCurve FadeType)
 {
 	if (Delay < CachedSyncPreRoll)
 	{

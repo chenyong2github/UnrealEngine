@@ -302,8 +302,8 @@ public:
 		, ParameterInfo(InParameterInfo)
 	{}
 
-	FMaterialUniformExpressionTextureParameter(const FMaterialParameterInfo& InParameterInfo, int32 InTextureIndex, int32 InLayerIndex, EMaterialSamplerType InSamplerType)
-		: Super(InTextureIndex, InLayerIndex, InSamplerType)
+	FMaterialUniformExpressionTextureParameter(const FMaterialParameterInfo& InParameterInfo, int32 InTextureIndex, int32 InTextureLayerIndex, int32 InPageTableLayerIndex, EMaterialSamplerType InSamplerType)
+		: Super(InTextureIndex, InTextureLayerIndex, InPageTableLayerIndex, InSamplerType)
 		, ParameterInfo(InParameterInfo)
 	{}
 
@@ -328,6 +328,11 @@ public:
 	FName GetParameterName() const
 	{
 		return ParameterInfo.Name;
+	}
+
+	const FMaterialParameterInfo& GetParameterInfo() const
+	{
+		return ParameterInfo;
 	}
 
 	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const

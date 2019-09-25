@@ -211,34 +211,31 @@ FVectorVMContext::FVectorVMContext()
 	, StatScopes(nullptr)
 #endif
 {
-	uint32 TempRegisterSize = Align((GParallelVVMInstancesPerChunk) * VectorVM::MaxInstanceSizeBytes, VECTOR_WIDTH_BYTES) + VECTOR_WIDTH_BYTES;
-	TempRegTable.SetNumUninitialized(TempRegisterSize * VectorVM::NumTempRegisters);
-	// Map temporary registers.
-	for (int32 i = 0; i < VectorVM::NumTempRegisters; ++i)
-	{
-		RegisterTable[i] = TempRegTable.GetData() + TempRegisterSize * i;
-	}
-
 	RandStream.GenerateNewSeed();
 }
 
 void FVectorVMContext::PrepareForExec(
 	uint8*RESTRICT*RESTRICT InputRegisters,
 	uint8*RESTRICT*RESTRICT OutputRegisters,
-	int32 NumInputRegisters,
-	int32 NumOutputRegisters,
+	int32 InNumTempRegisters,
+	int32 InNumInputRegisters,
+	int32 InNumOutputRegisters,
 	const uint8* InConstantTable,
 	int32 *InDataSetIndexTable,
 	int32 *InDataSetOffsetTable,
 	int32 InNumSecondaryDatasets,
 	FVMExternalFunction* InExternalFunctionTable,
 	void** InUserPtrTable,
-	TArray<FDataSetMeta>& RESTRICT InDataSetMetaTable
+	TArray<FDataSetMeta>& RESTRICT InDataSetMetaTable,
+	int32 MaxNumInstances
 #if STATS
 	, const TArray<TStatId>* InStatScopes
 #endif
 )
 {
+	NumTempRegisters = InNumTempRegisters;
+	NumInputRegisters = InNumInputRegisters;
+	NumOutputRegisters = InNumOutputRegisters;
 	ConstantTable = InConstantTable;
 	DataSetIndexTable = InDataSetIndexTable;
 	DataSetOffsetTable = InDataSetOffsetTable;
@@ -250,6 +247,15 @@ void FVectorVMContext::PrepareForExec(
 	StatScopes = InStatScopes;
 	StatCounterStack.Reserve(StatScopes->Num());
 #endif
+
+	int32 TempRegisterSize = Align(MaxNumInstances * VectorVM::MaxInstanceSizeBytes, PLATFORM_CACHE_LINE_SIZE);
+	int32 TempBufferSize = TempRegisterSize * NumTempRegisters;
+	TempRegTable.SetNumUninitialized(TempBufferSize, false);
+	// Attempt to map temp registers more tightly packed for low instance counts to reduce cache misses.
+	for (int32 i = 0; i < NumTempRegisters; ++i)
+	{
+		RegisterTable[i] = TempRegTable.GetData() + TempRegisterSize * i;
+	}
 
 	//Map IO Registers
 	for (int32 i = 0; i < NumInputRegisters; ++i)
@@ -1813,6 +1819,7 @@ void VectorVM::Init()
 
 void VectorVM::Exec(
 	uint8 const* Code,
+	int32 NumTempRegisters,
 	uint8** InputRegisters,
 	int32 NumInputRegisters,
 	uint8** OutputRegisters,
@@ -1827,6 +1834,7 @@ void VectorVM::Exec(
 #endif
 	)
 {
+	//TRACE_CPUPROFILER_EVENT_SCOPE("VMExec");
 	SCOPE_CYCLE_COUNTER(STAT_VVMExec);
 
 	// table of index counters, one for each data set
@@ -1842,6 +1850,7 @@ void VectorVM::Exec(
 		DataSetIndexTable.Add(DataSetMetaTable[Idx].DataSetAccessIndex);	// prime counter index table with the data set offset; will be incremented with every write for each instance
 	}
 
+	int32 MaxInstances = FMath::Min(GParallelVVMInstancesPerChunk, NumInstances);
 	int32 NumChunks = (NumInstances / GParallelVVMInstancesPerChunk) + 1;
 	int32 ChunksPerBatch = (GbParallelVVM != 0 && FApp::ShouldUseThreadingForPerformance()) ? GParallelVVMChunksPerBatch : NumChunks;
 	int32 NumBatches = FMath::DivideAndRoundUp(NumChunks, ChunksPerBatch);
@@ -1852,8 +1861,8 @@ void VectorVM::Exec(
 		//SCOPE_CYCLE_COUNTER(STAT_VVMExecChunk);
 
 		FVectorVMContext& Context = FVectorVMContext::Get();
-		Context.PrepareForExec(InputRegisters, OutputRegisters, NumInputRegisters, NumOutputRegisters, ConstantTable, DataSetIndexTable.GetData(), DataSetOffsetTable.GetData(), DataSetOffsetTable.Num(),
-			ExternalFunctionTable, UserPtrTable, DataSetMetaTable
+		Context.PrepareForExec(InputRegisters, OutputRegisters, NumTempRegisters, NumInputRegisters, NumOutputRegisters, ConstantTable, DataSetIndexTable.GetData(), DataSetOffsetTable.GetData(), DataSetOffsetTable.Num(),
+			ExternalFunctionTable, UserPtrTable, DataSetMetaTable, MaxInstances
 #if STATS
 			, &StatScopes
 #endif

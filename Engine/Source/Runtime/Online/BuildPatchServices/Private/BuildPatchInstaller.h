@@ -7,17 +7,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HAL/Runnable.h"
-#include "BuildPatchManifest.h"
+#include "HAL/ThreadSafeBool.h"
+#include "Templates/SharedPointer.h"
+#include "CoreMinimal.h"
+
 #include "Interfaces/IBuildInstaller.h"
 #include "Interfaces/IBuildPatchServicesModule.h"
-#include "HAL/ThreadSafeBool.h"
-#include "BuildPatchProgress.h"
+#include "BuildPatchSettings.h"
+
+#include "Common/HttpManager.h"
+#include "Core/AsyncHelpers.h"
 #include "Core/Platform.h"
 #include "Core/ProcessTimer.h"
-#include "Core/AsyncHelpers.h"
-#include "Common/HttpManager.h"
+#include "BuildPatchManifest.h"
+#include "BuildPatchProgress.h"
+#include "IBuildManifestSet.h"
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
@@ -25,6 +30,7 @@ namespace BuildPatchServices
 {
 	struct FChunkDbSourceConfig;
 	struct FCloudSourceConfig;
+	struct FDownloadConnectionCountConfig;
 	struct FInstallSourceConfig;
 	class IInstallerError;
 	class IFileOperationTracker;
@@ -42,6 +48,8 @@ namespace BuildPatchServices
 	class IDownloadService;
 	class IOptimisedDelta;
 	class IMessagePump;
+	class IVerifier;
+	class IBuildManifestSet;
 
 	/**
 	 * FBuildPatchInstaller
@@ -50,25 +58,26 @@ namespace BuildPatchServices
 	class FBuildPatchInstaller
 		: public IBuildInstaller
 		, public FRunnable
+		, public TSharedFromThis<FBuildPatchInstaller, ESPMode::ThreadSafe>
 	{
 	private:
+		// Simple unique installer guid to help logging functions have context.
+		FGuid SessionId;
+
 		// Hold a pointer to my thread for easier deleting.
 		FRunnableThread* Thread;
 
-		// The delegates that we will be calling.
-		FBuildPatchBoolManifestDelegate OnCompleteDelegate;
+		// The delegates that we will be calling when started.
+		const FBuildPatchInstallerDelegate StartDelegate;
+
+		// The delegates that we will be calling on complete.
+		const FBuildPatchInstallerDelegate CompleteDelegate;
 
 		// The installer configuration.
-		FInstallerConfiguration Configuration;
+		const FBuildInstallerConfiguration Configuration;
 
-		// The manifest for the build we have installed (if applicable).
-		FBuildPatchAppManifestPtr CurrentBuildManifest;
-
-		// The manifest for the build we want to install.
-		FBuildPatchAppManifestRef NewBuildManifest;
-
-		// If available, the chunk delta optimised manifest, otherwise the manifest we should be using as destination.
-		FBuildPatchAppManifestPtr DestinationManifest;
+		// The Configuration.InstallerActions array converted into private class type.
+		TArray<FBuildPatchInstallerAction> InstallerActions;
 
 		// The directory created in staging, to store local patch data.
 		FString DataStagingDir;
@@ -81,12 +90,6 @@ namespace BuildPatchServices
 
 		// A critical section to protect variables.
 		mutable FCriticalSection ThreadLock;
-
-		// A flag to store if we are installing file data.
-		const bool bIsFileData;
-
-		// A flag to store if we are installing chunk data (to help readability).
-		const bool bIsChunkData;
 
 		// A flag storing whether the process was a success.
 		FThreadSafeBool bSuccess;
@@ -121,6 +124,9 @@ namespace BuildPatchServices
 		// Holds the files which are all required.
 		TSet<FString> TaggedFiles;
 
+		// Holds the files which are outdated.
+		TSet<FString> OutdatedFiles;
+
 		// The files to be constructed in the current install attempt.
 		TSet<FString> FilesToConstruct;
 
@@ -128,7 +134,7 @@ namespace BuildPatchServices
 		TSet<FString> OldFilesRemovedBySystem;
 
 		// Map of registered installations.
-		TMap<FString, FBuildPatchAppManifestRef> InstallationInfo;
+		TMultiMap<FString, FBuildPatchAppManifestRef> InstallationInfo;
 
 		// The file which contains per machine configuration information.
 		FString LocalMachineConfigFile;
@@ -147,9 +153,6 @@ namespace BuildPatchServices
 
 		// The analytics provider interface.
 		TSharedPtr<IAnalyticsProvider> Analytics;
-
-		// The HTTP tracker service interface.
-		TSharedPtr<FHttpServiceTracker> HttpTracker;
 
 		// Installer analytics handler.
 		TUniquePtr<IInstallerAnalytics> InstallerAnalytics;
@@ -173,11 +176,14 @@ namespace BuildPatchServices
 		// Download service.
 		TUniquePtr<IDownloadService> DownloadService;
 
-		// Optimised delta support.
-		TUniquePtr<IOptimisedDelta> OptimisedDelta;
-
 		// The message pump controller.
 		TUniquePtr<IMessagePump> MessagePump;
+
+		// The interface for manifest data aggregation.
+		TUniquePtr<IBuildManifestSet> ManifestSet;
+
+		// The interface for verification of files built.
+		TUniquePtr<IVerifier> Verifier;
 
 		// List of controllable classes that have been constructed.
 		TArray<IControllable*> Controllables;
@@ -207,10 +213,10 @@ namespace BuildPatchServices
 		 * @param InstallationInfo          Map of locally installed apps for use as chunk sources.
 		 * @param LocalMachineConfigFile    Filename for the local machine's config. This is used for per-machine configuration rather than shipped or user config.
 		 * @param Analytics                 Optionally valid ptr to an analytics provider for sending events.
-		 * @param HttpTracker               Optionally valid ptr to HTTP tracker to collect HTTP requests.
-		 * @param OnCompleteDelegate        Delegate for when the process has completed.
+		 * @param StartDelegate             Delegate for when the process has started.
+		 * @param CompleteDelegate          Delegate for when the process has completed.
 		 */
-		FBuildPatchInstaller(FInstallerConfiguration Configuration, TMap<FString, FBuildPatchAppManifestRef> InstallationInfo, const FString& LocalMachineConfigFile, TSharedPtr<IAnalyticsProvider> Analytics, TSharedPtr<FHttpServiceTracker> HttpTracker, FBuildPatchBoolManifestDelegate OnCompleteDelegate);
+		FBuildPatchInstaller(FBuildInstallerConfiguration Configuration, TMultiMap<FString, FBuildPatchAppManifestRef> InstallationInfo, const FString& LocalMachineConfigFile, TSharedPtr<IAnalyticsProvider> Analytics, FBuildPatchInstallerDelegate StartDelegate, FBuildPatchInstallerDelegate CompleteDelegate);
 
 		/**
 		 * Default Destructor, will delete the allocated Thread.
@@ -222,11 +228,13 @@ namespace BuildPatchServices
 		// FRunnable interface end.
 
 		// IBuildInstaller interface begin.
+		virtual bool StartInstallation() override;
 		virtual bool IsComplete() const override;
 		virtual bool IsCanceled() const override;
 		virtual bool IsPaused() const override;
 		virtual bool IsResumable() const override;
 		virtual bool IsUpdate() const override;
+		virtual bool CompletedSuccessfully() const override;
 		virtual bool HasError() const override;
 		virtual EBuildPatchInstallError GetErrorType() const override;
 		virtual FString GetErrorCode() const override;
@@ -247,24 +255,13 @@ namespace BuildPatchServices
 		virtual bool TogglePauseInstall() override;
 		virtual void RegisterMessageHandler(FMessageHandler* MessageHandler) override;
 		virtual void UnregisterMessageHandler(FMessageHandler* MessageHandler) override;
+		virtual const FBuildInstallerConfiguration& GetConfiguration() const override;
 		// IBuildInstaller interface end.
 
 		/**
-		 * Begin the installation process.
-		 * @return true if the installation started successfully, or is already running.
+		 * Tick function called from the module to give us game thread time.
 		 */
-		bool StartInstallation();
-
-		/**
-		 * Executes the on complete delegate. This should only be called when completed, and is separated out
-		 * to allow control to make this call on the main thread.
-		 */
-		void ExecuteCompleteDelegate();
-
-		/**
-		 * Pumps all queued messages to registered handlers.
-		 */
-		void PumpMessages();
+		bool Tick();
 
 		/**
 		 * Only returns once the thread has finished running.
@@ -336,11 +333,6 @@ namespace BuildPatchServices
 		 */
 		const IDiskChunkStoreStatistics* GetDiskChunkStoreStatistics() const;
 
-		/**
-		 * @return the configuration being used by the installer.
-		 */
-		const FInstallerConfiguration& GetConfiguration() const;
-
 	private:
 
 		/**
@@ -350,12 +342,24 @@ namespace BuildPatchServices
 		bool Initialize();
 
 		/**
+		 * Executes the on complete delegate. This should only be called when completed, and is separated out
+		 * to allow control to make this call on the main thread.
+		 */
+		void ExecuteCompleteDelegate();
+
+		/**
+		 * Pumps all queued messages to registered handlers.
+		 */
+		void PumpMessages();
+
+		/**
 		 * Checks the installation directory for any already existing files of the correct size, with may account for manual
 		 * installation. Should be used for new installation detecting existing files.
 		 * NB: Not useful for patches, where we'd expect existing files anyway.
+		 * @param FilesToCheck      The list of files that we would expect to not exist yet.
 		 * @return    Returns true if there were potentially already installed files.
 		 */
-		bool CheckForExternallyInstalledFiles();
+		bool CheckForExternallyInstalledFiles(const TSet<FString>& FilesToCheck);
 
 		/**
 		 * Runs the installation process.
@@ -377,10 +381,9 @@ namespace BuildPatchServices
 
 		/**
 		 * Runs the process to setup all file attributes required.
-		 * @param bForce            Set true if also removing attributes to force the API calls to be made.
 		 * @return    Returns true if there were no errors.
 		 */
-		bool RunFileAttributes(bool bForce = false);
+		bool RunFileAttributes();
 
 		/**
 		 * Runs the verification process.
@@ -404,6 +407,31 @@ namespace BuildPatchServices
 		void CleanupEmptyDirectories(const FString& RootDirectory);
 
 		/**
+		 * Remove from the set any files that do not exist.
+		 * @param RootDirectory     Root Directory for search.
+		 * @param Files             Set of fles to filter.
+		 */
+		void FilterToExistingFiles(const FString& RootDirectory, TSet<FString>& Files);
+
+		/**
+		 * Attempt to remove a file, using configured retries.
+		 * @param FullFilename      The full filename to remove.
+		 * @param ErrorCode     OUT The error code if failed.
+		 * @return true if the file was removed.
+		 */
+		bool RemoveFileWithRetries(const FString& FullFilename, uint32& ErrorCode);
+
+		/**
+		 * Attempt to relocate a file by move or copy, using configured retries
+		 * @param ToFullFilename          The full filename of the destination.
+		 * @param FromFullFilename        The full filename of the source.
+		 * @param RenameErrorCode     OUT The move/rename error code if failed.
+		 * @param CopyErrorCode       OUT The copy error code if failed.
+		 * @return true if the file was relocated.
+		 */
+		bool RelocateFileWithRetries(const FString& ToFullFilename, const FString& FromFullFilename, uint32& RenameErrorCode, uint32& CopyErrorCode);
+
+		/**
 		 * Builds the chunkdb source configuration struct.
 		 */
 		FChunkDbSourceConfig BuildChunkDbSourceConfig();
@@ -418,6 +446,11 @@ namespace BuildPatchServices
 		 * Builds the cloud source configuration struct.
 		 */
 		FCloudSourceConfig BuildCloudSourceConfig();
+
+		/**
+		 * Builds the cloud source configuration struct.
+		 */
+		FDownloadConnectionCountConfig BuildConnectionCountConfig();
 	};
 }
 

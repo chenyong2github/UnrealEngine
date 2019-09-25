@@ -18,7 +18,7 @@
 	[
 		{
 			"Name" : "ActorLayerUtilities",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default"
 		},
 

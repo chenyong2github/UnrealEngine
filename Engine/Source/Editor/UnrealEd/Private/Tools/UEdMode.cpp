@@ -976,7 +976,7 @@ void UEdMode::PostInvalidation()
 
 void UEdMode::RestoreEditorState()
 {
-	if (bHaveSavedEditorState && !GIsRequestingExit)
+	if (bHaveSavedEditorState && !IsEngineExitRequested())
 	{
 		GCurrentLevelEditingViewportClient->EngineShowFlags.SetAntiAliasing(bSavedAntiAliasingState);
 		bHaveSavedEditorState = false;

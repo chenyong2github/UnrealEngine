@@ -6,6 +6,7 @@
 #include "SocialTypes.h"
 #include "User/ISocialUserList.h"
 #include "OnlineSubsystem.h"
+#include "Interfaces/OnlinePresenceInterface.h"
 
 #include "SocialToolkit.generated.h"
 
@@ -26,8 +27,6 @@ namespace FriendInviteFailureReason
 	const FString InviteFailReason_AddingBlockedFail = TEXT("AddingBlockedFail");
 	const FString InviteFailReason_AlreadyFriends = TEXT("AlreadyFriends");
 }
-
-namespace EOnlinePresenceState { enum Type : uint8; }
 
 DECLARE_DELEGATE_OneParam(FUserDependentAction, USocialUser&);
 
@@ -63,6 +62,7 @@ public:
 
 	const FOnlineUserPresence* GetPresenceInfo(ESocialSubsystem SubsystemType) const;
 	void SetLocalUserOnlineState(EOnlinePresenceState::Type OnlineState);
+	void AddLocalUserOnlineProperties(FPresenceProperties OnlineProperties);
 
 	USocialManager& GetSocialManager() const;
 	ULocalPlayer& GetOwningLocalPlayer() const;

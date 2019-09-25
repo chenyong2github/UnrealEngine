@@ -128,7 +128,10 @@ public class Core : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
-			PublicIncludePaths.Add(string.Format("Runtime/Core/Public/{0}", Target.Platform.ToString()));
+			string PlatformName = Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) ?
+				"Linux" : Target.Platform.ToString();
+
+			PublicIncludePaths.Add(string.Format("Runtime/Core/Public/{0}", PlatformName));
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"zlib",
 				"jemalloc"
@@ -199,13 +202,26 @@ public class Core : ModuleRules
             PublicDefinitions.Add("WITH_DIRECTXMATH=0");
         }
 
-        // Decide if validating memory allocator (aka MallocStomp) can be used on the current platform.
-        // Run-time validation must be enabled through '-stompmalloc' command line argument.
+		// Set a macro to allow FApp::GetBuildTargetType() to detect client targts
+		if(Target.Type == TargetRules.TargetType.Client)
+		{
+			PrivateDefinitions.Add("IS_CLIENT_TARGET=1");
+		}
+		else
+		{
+			PrivateDefinitions.Add("IS_CLIENT_TARGET=0");
+		}
 
-        bool bWithMallocStomp = false;
+		// Decide if validating memory allocator (aka MallocStomp) can be used on the current platform.
+		// Run-time validation must be enabled through '-stompmalloc' command line argument.
+
+		bool bWithMallocStomp = false;
         if (Target.Configuration != UnrealTargetConfiguration.Shipping)
         {
-			if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Mac ||
+				Target.Platform == UnrealTargetPlatform.Linux ||
+				Target.Platform == UnrealTargetPlatform.LinuxAArch64 ||
+				Target.Platform == UnrealTargetPlatform.Win64)
 			// Target.Platform == UnrealTargetPlatform.Win32: // 32-bit windows can technically be supported, but will likely run out of virtual memory space quickly
 			// Target.Platform == UnrealTargetPlatform.XboxOne: // XboxOne could be supported, as it's similar enough to Win64
 			{

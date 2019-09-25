@@ -764,7 +764,7 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 	virtual void RemoveSequenceRecorderExtender(TSharedPtr<ISequenceRecorderExtender> SequenceRecorderExternder) override
 	{
 		FSequenceRecorder::Get().GetSequenceRecorderExtenders().Remove(SequenceRecorderExternder);
-		if (!GIsRequestingExit)
+		if (!IsEngineExitRequested())
 		{
 			// Rebuild the UI
 			TSharedPtr<SDockTab> SequenceRecorderTabPtr = SequenceRecorderTab.Pin();

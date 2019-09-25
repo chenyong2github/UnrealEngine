@@ -3209,12 +3209,13 @@ private:
 struct FSetActorHiddenInSceneOutliner
 {
 private:
-	FSetActorHiddenInSceneOutliner(AActor* InActor)
+	FSetActorHiddenInSceneOutliner(AActor* InActor, bool bHidden = true)
 	{
-		InActor->bListedInSceneOutliner = false;
+		InActor->bListedInSceneOutliner = !bHidden;
 	}
 
 	friend UWorld;
+	friend class FFoliageHelper;
 };
 #endif
 

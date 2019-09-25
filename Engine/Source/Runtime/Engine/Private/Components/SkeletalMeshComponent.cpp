@@ -28,10 +28,10 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 
 #include "Logging/MessageLog.h"
-#include "Animation/AnimNode_SubInput.h"
+#include "Animation/AnimNode_LinkedInputPose.h"
 
 #include "PhysXIncludes.h"
-#include "ClothingSimulationFactoryInterface.h"
+#include "ClothingSimulationFactory.h"
 #include "ClothingSimulationInterface.h"
 #include "ClothingSimulationInteractor.h"
 #include "Features/IModularFeatures.h"
@@ -516,9 +516,9 @@ void USkeletalMeshComponent::OnRegister()
 
 	Super::OnRegister();
 
-	// Ensure we have an empty list of subinstances on registration. Ready for the initialization below 
+	// Ensure we have an empty list of linked instances on registration. Ready for the initialization below 
 	// to correctly populate that list.
-	SubInstances.Reset();
+	LinkedInstances.Reset();
 
 	// We force an initialization here because we're in one of two cases.
 	// 1) First register, no spawned instance, need to initialize
@@ -571,11 +571,11 @@ void USkeletalMeshComponent::OnUnregister()
 		AnimScriptInstance->UninitializeAnimation();
 	}
 
-	for(UAnimInstance* SubInstance : SubInstances)
+	for(UAnimInstance* LinkedInstance : LinkedInstances)
 	{
-		SubInstance->UninitializeAnimation();
+		LinkedInstance->UninitializeAnimation();
 	}
-	SubInstances.Reset();
+	LinkedInstances.Reset();
 
 	if(PostProcessAnimInstance)
 	{
@@ -649,7 +649,13 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 		// this has to be called before Initialize Animation because it will required RequiredBones list when InitializeAnimScript
 		RecalcRequiredBones(PredictedLODLevel);
 
-		const bool bInitializedAnimInstance = InitializeAnimScriptInstance(bForceReinit);
+		// In Editor, animations won't get ticked. So Update once to get accurate representation instead of T-Pose.
+		// Also allow this to be an option to support pre-4.19 games that might need it..
+		const bool bTickAnimationNow =
+			((GetWorld()->WorldType == EWorldType::Editor) && !bUseRefPoseOnInitAnim)
+			|| UAnimationSettings::Get()->bTickAnimationOnSkeletalMeshInit;
+
+		const bool bInitializedAnimInstance = InitializeAnimScriptInstance(bForceReinit, !bTickAnimationNow);
 
 		// Make sure we have a valid pose.
 		// We don't allocate transform data when using MasterPoseComponent, so we have nothing to render.
@@ -657,12 +663,6 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 		{	
 			if (bInitializedAnimInstance || (AnimScriptInstance == nullptr))
 			{ 
-				// In Editor, animations won't get ticked. So Update once to get accurate representation instead of T-Pose.
-				// Also allow this to be an option to support pre-4.19 games that might need it..
-				const bool bTickAnimationNow =
-					((GetWorld()->WorldType == EWorldType::Editor) && !bUseRefPoseOnInitAnim)
-					|| UAnimationSettings::Get()->bTickAnimationOnSkeletalMeshInit;
-
 				if (bTickAnimationNow)
 				{
 					TickAnimation(0.f, false);
@@ -690,7 +690,7 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 	}
 }
 
-bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
+bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit, bool bInDeferRootNodeInitialization)
 {
 	bool bInitializedMainInstance = false;
 	bool bInitializedPostInstance = false;
@@ -706,10 +706,10 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
 
 			if (AnimScriptInstance)
 			{
-				// If we have any sub-instances left we need to clear them out now, we're about to have a new master instance
-				SubInstances.Empty();
+				// If we have any linked instances left we need to clear them out now, we're about to have a new master instance
+				LinkedInstances.Empty();
 
-				AnimScriptInstance->InitializeAnimation();
+				AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 				bInitializedMainInstance = true;
 			}
 		}
@@ -730,7 +730,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
 
 				if (AnimScriptInstance)
 				{
-					AnimScriptInstance->InitializeAnimation();
+					AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 					bInitializedMainInstance = true;
 				}
 
@@ -769,7 +769,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
 			{
 				PostProcessAnimInstance->InitializeAnimation();
 
-				if(FAnimNode_SubInput* InputNode = PostProcessAnimInstance->GetSubInputNode())
+				if(FAnimNode_LinkedInputPose* InputNode = PostProcessAnimInstance->GetLinkedInputPoseNode())
 				{
 					InputNode->CachedInputPose.SetBoneContainer(&PostProcessAnimInstance->GetRequiredBones());
 				}
@@ -784,7 +784,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
 
 		if (AnimScriptInstance && !bInitializedMainInstance && bForceReinit)
 		{
-			AnimScriptInstance->InitializeAnimation();
+			AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 			bInitializedMainInstance = true;
 		}
 
@@ -824,7 +824,7 @@ void USkeletalMeshComponent::ClearAnimScriptInstance()
 		AnimScriptInstance->EndNotifyStates();
 	}
 	AnimScriptInstance = nullptr;
-	SubInstances.Empty();
+	LinkedInstances.Empty();
 }
 
 
@@ -1014,33 +1014,18 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 		// We're about to UpdateAnimation, this will potentially queue events that we'll need to dispatch.
 		bNeedsQueuedAnimEventsDispatched = true;
 
-		// We update sub instances first incase we're using either root motion or non-threaded update.
+		// We update linked instances first incase we're using either root motion or non-threaded update.
 		// This ensures that we go through the pre update process and initialize the proxies correctly.
-
-		// Accumulate whether or not any of the sub-instances wanted to do an immediate Animation Update
-		bool bWantsImmediateUpdate = false;
-		for(UAnimInstance* SubInstance : SubInstances)
+		for(UAnimInstance* LinkedInstance : LinkedInstances)
 		{
 			// Sub anim instances are always forced to do a parallel update 
-			bWantsImmediateUpdate |= SubInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
+			LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
 		}
 
 		if (AnimScriptInstance != nullptr)
 		{
-			// In case any of the sub-instances required an immediate animation update, make sure we immediately do so for the main anim instance
-			const UAnimInstance::EUpdateAnimationFlag UpdateFlag = bWantsImmediateUpdate ? UAnimInstance::EUpdateAnimationFlag::ForceImmediateUpdate : UAnimInstance::EUpdateAnimationFlag::Default;
-
 			// Tick the animation
-			bWantsImmediateUpdate |= AnimScriptInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, bNeedsValidRootMotion, UpdateFlag);
-		}
-
-		// Make sure PostUpdateAnimation is called on the subinstances if they, or the main instance did an immediate Animation Update
-		if (bWantsImmediateUpdate)
-		{
-			for (UAnimInstance* SubInstance : SubInstances)
-			{
-				SubInstance->PostUpdateAnimation();
-			}
+			AnimScriptInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, bNeedsValidRootMotion);
 		}
 
 		if(ShouldUpdatePostProcessInstance())
@@ -1205,9 +1190,9 @@ void USkeletalMeshComponent::TickPose(float DeltaTime, bool bNeedsValidRootMotio
 			AnimScriptInstance->OnUROSkipTickAnimation();
 		}
 
-		for(UAnimInstance* SubInstance : SubInstances)
+		for(UAnimInstance* LinkedInstance : LinkedInstances)
 		{
-			SubInstance->OnUROSkipTickAnimation();
+			LinkedInstance->OnUROSkipTickAnimation();
 		}
 
 		if(PostProcessAnimInstance)
@@ -1327,9 +1312,9 @@ void USkeletalMeshComponent::ConditionallyDispatchQueuedAnimEvents()
 	{
 		bNeedsQueuedAnimEventsDispatched = false;
 
-		for (UAnimInstance* SubInstance : SubInstances)
+		for (UAnimInstance* LinkedInstance : LinkedInstances)
 		{
-			SubInstance->DispatchQueuedAnimEvents();
+			LinkedInstance->DispatchQueuedAnimEvents();
 		}
 
 		if (AnimScriptInstance)
@@ -1515,9 +1500,9 @@ void USkeletalMeshComponent::RecalcRequiredCurves()
 		AnimScriptInstance->RecalcRequiredCurves(CurveEvalOption);
 	}
 
-	for(UAnimInstance* SubInstance : SubInstances)
+	for(UAnimInstance* LinkedInstance : LinkedInstances)
 	{
-		SubInstance->RecalcRequiredCurves(CurveEvalOption);
+		LinkedInstance->RecalcRequiredCurves(CurveEvalOption);
 	}
 
 	if(PostProcessAnimInstance)
@@ -1601,31 +1586,31 @@ void USkeletalMeshComponent::ComputeRequiredBones(TArray<FBoneIndexType>& OutReq
 	{
 		const TArray<uint8>& EditableBoneVisibilityStates = GetEditableBoneVisibilityStates();
 		check(EditableBoneVisibilityStates.Num() == GetNumComponentSpaceTransforms());
-        
+		
 		if (ensureMsgf(EditableBoneVisibilityStates.Num() >= OutRequiredBones.Num(), 
 			TEXT("Skeletal Mesh asset '%s' has incorrect BoneVisibilityStates. # of BoneVisibilityStatese (%d), # of OutRequiredBones (%d)"), 
 			*SkeletalMesh->GetName(), EditableBoneVisibilityStates.Num(), OutRequiredBones.Num()))
-        {
-            int32 VisibleBoneWriteIndex = 0;
-            for (int32 i = 0; i < OutRequiredBones.Num(); ++i)
-            {
-                FBoneIndexType CurBoneIndex = OutRequiredBones[i];
+		{
+			int32 VisibleBoneWriteIndex = 0;
+			for (int32 i = 0; i < OutRequiredBones.Num(); ++i)
+			{
+				FBoneIndexType CurBoneIndex = OutRequiredBones[i];
 
-                // Current bone visible?
-                if (EditableBoneVisibilityStates[CurBoneIndex] == BVS_Visible)
-                {
-                    OutRequiredBones[VisibleBoneWriteIndex++] = CurBoneIndex;
-                }
-            }
+				// Current bone visible?
+				if (EditableBoneVisibilityStates[CurBoneIndex] == BVS_Visible)
+				{
+					OutRequiredBones[VisibleBoneWriteIndex++] = CurBoneIndex;
+				}
+			}
 
-            // Remove any trailing junk in the OutRequiredBones array
-            const int32 NumBonesHidden = OutRequiredBones.Num() - VisibleBoneWriteIndex;
-            if (NumBonesHidden > 0)
-            {
-                OutRequiredBones.RemoveAt(VisibleBoneWriteIndex, NumBonesHidden);
-            }
-        }
- 	}
+			// Remove any trailing junk in the OutRequiredBones array
+			const int32 NumBonesHidden = OutRequiredBones.Num() - VisibleBoneWriteIndex;
+			if (NumBonesHidden > 0)
+			{
+				OutRequiredBones.RemoveAt(VisibleBoneWriteIndex, NumBonesHidden);
+			}
+		}
+	}
 
 	// Add in any bones that may be required when mirroring.
 	// JTODO: This is only required if there are mirroring nodes in the tree, but hard to know...
@@ -1717,9 +1702,9 @@ void USkeletalMeshComponent::RecalcRequiredBones(int32 LODIndex)
 		AnimScriptInstance->RecalcRequiredBones();
 	}
 
-	for (UAnimInstance* SubInstance : SubInstances)
+	for (UAnimInstance* LinkedInstance : LinkedInstances)
 	{
-		SubInstance->RecalcRequiredBones();
+		LinkedInstance->RecalcRequiredBones();
 	}
 
 	if (PostProcessAnimInstance)
@@ -1865,7 +1850,7 @@ void USkeletalMeshComponent::EvaluatePostProcessMeshInstance(TArray<FTransform>&
 	if (ShouldEvaluatePostProcessInstance())
 	{
 		// Push the previous pose to any input nodes required
-		if (FAnimNode_SubInput* InputNode = PostProcessAnimInstance->GetSubInputNode())
+		if (FAnimNode_LinkedInputPose* InputNode = PostProcessAnimInstance->GetLinkedInputPoseNode())
 		{
 			if (InOutPose.IsValid())
 			{
@@ -2092,10 +2077,6 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 			if (AnimScriptInstance && !AnimScriptInstance->NeedsUpdate())
 			{
 				bShouldTickAnimation = bShouldTickAnimation || !AnimScriptInstance->GetUpdateCounter().HasEverBeenUpdated();
-				for (const UAnimInstance* SubInstance : SubInstances)
-				{
-					bShouldTickAnimation = bShouldTickAnimation || (SubInstance && !SubInstance->GetUpdateCounter().HasEverBeenUpdated());
-				}
 			}
 
 			bShouldTickAnimation = bShouldTickAnimation || (ShouldPostUpdatePostProcessInstance() && !PostProcessAnimInstance->GetUpdateCounter().HasEverBeenUpdated());
@@ -2113,9 +2094,9 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 			{
 				AnimScriptInstance->PreEvaluateAnimation();
 
-				for (UAnimInstance* SubInstance : SubInstances)
+				for (UAnimInstance* LinkedInstance : LinkedInstances)
 				{
-					SubInstance->PreEvaluateAnimation();
+					LinkedInstance->PreEvaluateAnimation();
 				}
 			}
 
@@ -2298,9 +2279,9 @@ void USkeletalMeshComponent::PostAnimEvaluation(FAnimationEvaluationContext& Eva
 	{
 		EvaluationContext.AnimInstance->PostUpdateAnimation();
 
-		for (UAnimInstance* SubInstance : SubInstances)
+		for (UAnimInstance* LinkedInstance : LinkedInstances)
 		{
-			SubInstance->PostUpdateAnimation();
+			LinkedInstance->PostUpdateAnimation();
 		}
 	}
 
@@ -2346,9 +2327,9 @@ void USkeletalMeshComponent::PostAnimEvaluation(FAnimationEvaluationContext& Eva
 					AnimScriptInstance->OnUROPreInterpolation();
 				}
 
-				for(UAnimInstance* SubInstance : SubInstances)
+				for(UAnimInstance* LinkedInstance : LinkedInstances)
 				{
-					SubInstance->OnUROPreInterpolation();
+					LinkedInstance->OnUROPreInterpolation();
 				}
 
 				if(PostProcessAnimInstance)
@@ -2391,9 +2372,9 @@ void USkeletalMeshComponent::PostAnimEvaluation(FAnimationEvaluationContext& Eva
 
 			// this is same curves, and we don't have to process same for everything. 
 			// we just copy curves from main for the case where GetCurveValue works in that instance
-			for(UAnimInstance* SubInstance : SubInstances)
+			for(UAnimInstance* LinkedInstance : LinkedInstances)
 			{
-				SubInstance->CopyCurveValues(*AnimScriptInstance);
+				LinkedInstance->CopyCurveValues(*AnimScriptInstance);
 			}
 		}
 
@@ -2422,9 +2403,9 @@ void USkeletalMeshComponent::PostAnimEvaluation(FAnimationEvaluationContext& Eva
 			{
 				AnimScriptInstance->PostEvaluateAnimation();
 
-				for (UAnimInstance* SubInstance : SubInstances)
+				for (UAnimInstance* LinkedInstance : LinkedInstances)
 				{
-					SubInstance->PostEvaluateAnimation();
+					LinkedInstance->PostEvaluateAnimation();
 				}
 			}
 
@@ -2526,7 +2507,7 @@ FBoxSphereBounds USkeletalMeshComponent::CalcBounds(const FTransform& LocalToWor
 		{
 			const FVector ComponentLocation = GetComponentLocation();
 			return CachedWorldSpaceBounds.TransformBy(CachedWorldToLocalTransform * LocalToWorld.ToMatrixWithScale()) 
-			        + FBoxSphereBounds(ComponentLocation, FVector(1.0f), 1.0f);
+					+ FBoxSphereBounds(ComponentLocation, FVector(1.0f), 1.0f);
 		}
 		else
 		{
@@ -2744,53 +2725,61 @@ UAnimInstance* USkeletalMeshComponent::GetPostProcessInstance() const
 	return PostProcessAnimInstance;
 }
 
-UAnimInstance* USkeletalMeshComponent::GetSubInstanceByTag(FName InName) const
+UAnimInstance* USkeletalMeshComponent::GetLinkedAnimGraphInstanceByTag(FName InName) const
 {
 	if(AnimScriptInstance)
 	{
-		return AnimScriptInstance->GetSubInstanceByTag(InName);
+		return AnimScriptInstance->GetLinkedAnimGraphInstanceByTag(InName);
 	}
 	return nullptr;
 }
 
-void USkeletalMeshComponent::GetSubInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutSubInstances) const
+void USkeletalMeshComponent::GetLinkedAnimGraphInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutLinkedInstances) const
 {
 	if(AnimScriptInstance)
 	{
-		AnimScriptInstance->GetSubInstancesByTag(InTag, OutSubInstances);
+		AnimScriptInstance->GetLinkedAnimGraphInstancesByTag(InTag, OutLinkedInstances);
 	}
 }
 
-void USkeletalMeshComponent::SetLayerOverlay(TSubclassOf<UAnimInstance> InClass)
+void USkeletalMeshComponent::LinkAnimGraphByTag(FName InTag, TSubclassOf<UAnimInstance> InClass)
 {
 	if(AnimScriptInstance)
 	{
-		AnimScriptInstance->SetLayerOverlay(InClass);
+		AnimScriptInstance->LinkAnimGraphByTag(InTag, InClass);
 	}
 }
 
-void USkeletalMeshComponent::ClearLayerOverlay(TSubclassOf<UAnimInstance> InClass)
+void USkeletalMeshComponent::LinkAnimClassLayers(TSubclassOf<UAnimInstance> InClass)
 {
 	if(AnimScriptInstance)
 	{
-		AnimScriptInstance->ClearLayerOverlay(InClass);
+		AnimScriptInstance->LinkAnimClassLayers(InClass);
 	}
 }
 
-UAnimInstance* USkeletalMeshComponent::GetLayerSubInstanceByGroup(FName InGroup) const
+void USkeletalMeshComponent::UnlinkAnimClassLayers(TSubclassOf<UAnimInstance> InClass)
 {
 	if(AnimScriptInstance)
 	{
-		return AnimScriptInstance->GetLayerSubInstanceByGroup(InGroup);
+		AnimScriptInstance->UnlinkAnimClassLayers(InClass);
+	}
+}
+
+UAnimInstance* USkeletalMeshComponent::GetLinkedAnimLayerInstanceByGroup(FName InGroup) const
+{
+	if(AnimScriptInstance)
+	{
+		return AnimScriptInstance->GetLinkedAnimLayerInstanceByGroup(InGroup);
 	}
 	return nullptr;
 }
 
-UAnimInstance* USkeletalMeshComponent::GetLayerSubInstanceByClass(TSubclassOf<UAnimInstance> InClass) const
+UAnimInstance* USkeletalMeshComponent::GetLinkedAnimLayerInstanceByClass(TSubclassOf<UAnimInstance> InClass) const
 {
 	if(AnimScriptInstance)
 	{
-		return AnimScriptInstance->GetLayerSubInstanceByClass(InClass);
+		return AnimScriptInstance->GetLinkedAnimLayerInstanceByClass(InClass);
 	}
 	return nullptr;
 }
@@ -2807,9 +2796,9 @@ void USkeletalMeshComponent::ResetAnimInstanceDynamics(ETeleportType InTeleportT
 		AnimScriptInstance->ResetDynamics(InTeleportType);
 	}
 
-	for(UAnimInstance* SubInstanceIter : SubInstances)
+	for(UAnimInstance* LinkedInstance : LinkedInstances)
 	{
-		SubInstanceIter->ResetDynamics(InTeleportType);
+		LinkedInstance->ResetDynamics(InTeleportType);
 	}
 
 	if(PostProcessAnimInstance)
@@ -3205,9 +3194,9 @@ FRootMotionMovementParams USkeletalMeshComponent::ConsumeRootMotion_Internal(flo
 	{
 		RootMotion.Accumulate(AnimScriptInstance->ConsumeExtractedRootMotion(InAlpha));
 
-		for(UAnimInstance* SubInstance : SubInstances)
+		for(UAnimInstance* LinkedInstance : LinkedInstances)
 		{
-			RootMotion.Accumulate(SubInstance->ConsumeExtractedRootMotion(InAlpha));
+			RootMotion.Accumulate(LinkedInstance->ConsumeExtractedRootMotion(InAlpha));
 		}
 	}
 
@@ -3489,9 +3478,9 @@ void USkeletalMeshComponent::RefreshMorphTargets()
 		check(!IsRunningParallelEvaluation());
 		AnimScriptInstance->RefreshCurves(this);
 
-		for(UAnimInstance* SubInstance : SubInstances)
+		for(UAnimInstance* LinkedInstance : LinkedInstances)
 		{
-			SubInstance->RefreshCurves(this);
+			LinkedInstance->RefreshCurves(this);
 		}
 		
 		if(PostProcessAnimInstance)
@@ -3569,10 +3558,10 @@ void USkeletalMeshComponent::ParallelDuplicateAndInterpolate(FAnimationEvaluatio
 					AnimScriptInstance->OnUROPreInterpolation_AnyThread(InAnimEvaluationContext);
 				}
 
-				for(UAnimInstance* SubInstance : SubInstances)
+				for(UAnimInstance* LinkedInstance : LinkedInstances)
 				{
-					SubInstance->OnUROPreInterpolation();
-					SubInstance->OnUROPreInterpolation_AnyThread(InAnimEvaluationContext);
+					LinkedInstance->OnUROPreInterpolation();
+					LinkedInstance->OnUROPreInterpolation_AnyThread(InAnimEvaluationContext);
 				}
 
 				if(PostProcessAnimInstance)

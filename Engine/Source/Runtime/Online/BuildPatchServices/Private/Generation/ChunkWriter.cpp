@@ -186,16 +186,18 @@ namespace BuildPatchServices
 							EChunkSaveResult ChunkSaveResult = ChunkDataSerialization->SaveToArchive(*ChunkFileOut.Get(), ChunkDataAccess.Get());
 							FStatsCollector::AccumulateTimeEnd(StatSerlialiseTime, ChunkWriteTime);
 							const int64 ChunkFileSize = ChunkFileOut->TotalSize();
-							ChunkOutputSizeQueue.Enqueue(FChunkOutputSize(ChunkGuid, ChunkFileSize));
-							ChunkOutputHashQueue.Enqueue(FChunkOutputHash(ChunkGuid, ChunkHash));
-							ChunkOutputShaQueue.Enqueue(FChunkOutputSha(ChunkGuid, ChunkSha));
-							if (ChunkFileOut->IsError() || ChunkSaveResult != EChunkSaveResult::Success)
+							const bool bArchiveSuccess = ChunkFileOut->Close();
+							const bool bNewFileExists = FileSystem->FileExists(*NewChunkFilename);
+							if (!bArchiveSuccess || !bNewFileExists || ChunkSaveResult != EChunkSaveResult::Success)
 							{
-								UE_LOG(LogChunkWriter, Log, TEXT("Could not save chunk [%s] (%s)."), *ToString(ChunkSaveResult), *NewChunkFilename);
+								UE_LOG(LogChunkWriter, Log, TEXT("Could not save chunk [%d %d %s] (%s)."), bArchiveSuccess, bNewFileExists, ToString(ChunkSaveResult), *NewChunkFilename);
 								FPlatformProcess::Sleep(Config.SaveRetryTime);
 								continue;
 							}
 							bSaveSuccess = true;
+							ChunkOutputSizeQueue.Enqueue(FChunkOutputSize(ChunkGuid, ChunkFileSize));
+							ChunkOutputHashQueue.Enqueue(FChunkOutputHash(ChunkGuid, ChunkHash));
+							ChunkOutputShaQueue.Enqueue(FChunkOutputSha(ChunkGuid, ChunkSha));
 							FStatsCollector::Accumulate(StatChunksSaved, 1);
 							FStatsCollector::Accumulate(StatDataWritten, ChunkFileSize);
 							FStatsCollector::Accumulate(&StatUncompressesData, ChunkHeader.HeaderSize + ChunkHeader.DataSizeUncompressed);
@@ -205,7 +207,7 @@ namespace BuildPatchServices
 							{
 								FStatsCollector::SetAsPercentage(StatCompressionRatio, DataWrittenD / UncompressesDataD);
 							}
-							double SerlialiseTime = FStatsCollector::CyclesToSeconds(*StatSerlialiseTime);
+							const double SerlialiseTime = FStatsCollector::CyclesToSeconds(*StatSerlialiseTime);
 							if (SerlialiseTime > 0)
 							{
 								FStatsCollector::Set(StatDataWriteSpeed, *StatDataWritten / SerlialiseTime);

@@ -103,6 +103,10 @@ static mtlpp::BlendFactor TranslateBlendFactor(EBlendFactor BlendFactor)
 		case BF_InverseDestAlpha:		return mtlpp::BlendFactor::OneMinusDestinationAlpha;
 		case BF_DestColor:				return mtlpp::BlendFactor::DestinationColor;
 		case BF_InverseDestColor:		return mtlpp::BlendFactor::OneMinusDestinationColor;
+		case BF_Source1Color:			return mtlpp::BlendFactor::Source1Color;
+		case BF_InverseSource1Color:	return mtlpp::BlendFactor::OneMinusSource1Color;
+		case BF_Source1Alpha:			return mtlpp::BlendFactor::Source1Alpha;
+		case BF_InverseSource1Alpha:	return mtlpp::BlendFactor::OneMinusSource1Alpha;
 		default:						return mtlpp::BlendFactor::Zero;
 	};
 }
@@ -143,6 +147,10 @@ static EBlendFactor TranslateBlendFactor(MTLBlendFactor BlendFactor)
 		case MTLBlendFactorOneMinusDestinationAlpha:	return BF_InverseDestAlpha;
 		case MTLBlendFactorDestinationColor:			return BF_DestColor;
 		case MTLBlendFactorOneMinusDestinationColor:	return BF_InverseDestColor;
+		case MTLBlendFactorSource1Color:				return BF_Source1Color;
+		case MTLBlendFactorOneMinusSource1Color:		return BF_InverseSource1Color;
+		case MTLBlendFactorSource1Alpha:				return BF_Source1Alpha;
+		case MTLBlendFactorOneMinusSource1Alpha:		return BF_InverseSource1Alpha;
 		case MTLBlendFactorZero: default:				return BF_Zero;
 	};
 }

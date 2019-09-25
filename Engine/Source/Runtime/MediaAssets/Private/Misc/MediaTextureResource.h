@@ -158,10 +158,18 @@ protected:
 
 private:
 
-	/**
-	* Cycle our cached samples
-	*/
-	void CycleCachedSamples();
+	// Class to maintain a reference to a IMediaTextureSample instance as long  as needed by RHI
+	// (needed not to keep Texture for GPU - that is safe already - but to avoid reusing the buffer too early)
+	class FTextureSampleKeeper : public FRHIResource
+	{
+	public:
+		FTextureSampleKeeper(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> & InMediaSample)
+			: MediaSample(InMediaSample)
+		{}
+
+		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> MediaSample;
+	};
+
 
 	/** Whether the texture has been cleared. */
 	bool Cleared;
@@ -191,5 +199,5 @@ private:
 	TWeakPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> PlayerFacadePtr;
 
 	/** cached media sample to postpone releasing it until the next sample rendering as it can get overwritten due to asynchronous rendering */
-	TArray<TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>> CachedSamples;
+	TRefCountPtr<FTextureSampleKeeper> CurrentSample;
 };

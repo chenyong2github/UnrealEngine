@@ -156,6 +156,17 @@ private:
 	void Stop();
 	/** Either play the cue or stop currently playing sound */
 	void TogglePlayback();
+
+	/** Toggle solo explain soloing*/
+	void ToggleSolo();
+	bool CanExcuteToggleSolo() const;
+	bool IsSoloToggled() const;
+	
+	/** Toggle mute */
+	void ToggleMute();
+	bool CanExcuteToggleMute() const;
+	bool IsMuteToggled() const;
+	
 	/** Plays a single specified node */
 	void PlaySingleNode(UEdGraphNode* Node);
 
@@ -198,6 +209,9 @@ private:
 
 	/** Command list for this editor */
 	TSharedPtr<FUICommandList> GraphEditorCommands;
+
+	/** Cache of the Audio debugger instance */
+	class FAudioDebugger* Debugger;
 
 	/**	The tab ids for all the tabs used */
 	static const FName GraphCanvasTabId;

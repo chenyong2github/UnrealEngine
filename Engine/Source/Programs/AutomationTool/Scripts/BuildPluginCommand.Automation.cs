@@ -19,6 +19,8 @@ using System.Text;
 [Help("Unversioned", "Do not embed the current engine version into the descriptor")]
 class BuildPlugin : BuildCommand
 {
+	const string AndroidArchitectures = "armv7+arm64";
+
 	public override void ExecuteBuild()
 	{
 		// Get the plugin filename
@@ -182,9 +184,8 @@ class BuildPlugin : BuildCommand
 			foreach (ModuleDescriptor Module in Plugin.Modules)
 			{
 				bool bBuildDeveloperTools = (TargetType == TargetType.Editor || TargetType == TargetType.Program);
-				bool bBuildEditor = (TargetType == TargetType.Editor);
 				bool bBuildRequiresCookedData = (TargetType != TargetType.Editor && TargetType != TargetType.Program);
-				if (Module.IsCompiledInConfiguration(Platform, Configuration, TargetName, TargetType, bBuildDeveloperTools, bBuildEditor, bBuildRequiresCookedData))
+				if (Module.IsCompiledInConfiguration(Platform, Configuration, TargetName, TargetType, bBuildDeveloperTools, bBuildRequiresCookedData))
 				{
 					bCompilePlatform = true;
 				}
@@ -198,6 +199,10 @@ class BuildPlugin : BuildCommand
 			ManifestFileNames.Add(ManifestFileName);
 			
 			string Arguments = String.Format("-plugin={0} -iwyu -noubtmakefiles -manifest={1} -nohotreload", CommandUtils.MakePathSafeToUseWithCommandLine(HostProjectPluginFile.FullName), CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFileName.FullName));
+			if (Platform == UnrealTargetPlatform.Android)
+			{
+				Arguments += String.Format(" -architectures={0}", AndroidArchitectures);
+			}
 			if(!String.IsNullOrEmpty(InAdditionalArgs))
 			{
 				Arguments += InAdditionalArgs;
@@ -287,9 +292,13 @@ class BuildPlugin : BuildCommand
 				TargetPlatforms.Remove(UnrealTargetPlatform.Win32);
 			}
 			// build Linux on Windows and Linux
-			if (HostPlatform != UnrealTargetPlatform.Win64 && HostPlatform != UnrealTargetPlatform.Linux && TargetPlatforms.Contains(UnrealTargetPlatform.Linux))
+			if (HostPlatform != UnrealTargetPlatform.Win64 && HostPlatform != UnrealTargetPlatform.Linux)
 			{
-				TargetPlatforms.Remove(UnrealTargetPlatform.Linux);
+				if (TargetPlatforms.Contains(UnrealTargetPlatform.Linux))
+					TargetPlatforms.Remove(UnrealTargetPlatform.Linux);
+
+				if (TargetPlatforms.Contains(UnrealTargetPlatform.LinuxAArch64))
+					TargetPlatforms.Remove(UnrealTargetPlatform.LinuxAArch64);
 			}
 
 			// Remove any platforms that aren't enabled on the command line

@@ -241,6 +241,11 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform Linux = FindOrAddByName("Linux");
 
 		/// <summary>
+		/// LinuxAArch64
+		/// </summary>
+		public static UnrealTargetPlatform LinuxAArch64 = FindOrAddByName("LinuxAArch64");
+
+		/// <summary>
 		/// All desktop platforms
 		/// </summary>
 		public static UnrealTargetPlatform AllDesktop = FindOrAddByName("AllDesktop");
@@ -454,6 +459,11 @@ namespace UnrealBuildTool
 		public static UnrealPlatformGroup Unix = FindOrAddByName("Unix");
 
 		/// <summary>
+		/// Linux platforms
+		/// </summary>
+		public static UnrealPlatformGroup Linux = FindOrAddByName("Linux");
+
+		/// <summary>
 		/// Android platforms
 		/// </summary>
 		public static UnrealPlatformGroup Android = FindOrAddByName("Android");
@@ -617,8 +627,8 @@ namespace UnrealBuildTool
 				throw new BuildException("{0} does not support the {1} configuration", Descriptor.Name, Descriptor.Configuration);
 			}
 
-			// Make sure this target type is supported
-			if (!InstalledPlatformInfo.IsValid(RulesObject.Type, Descriptor.Platform, Descriptor.Configuration, EProjectType.Code, InstalledPlatformState.Downloaded))
+			// Make sure this target type is supported. Allow UHT in installed builds as a special case for now.
+			if (!InstalledPlatformInfo.IsValid(RulesObject.Type, Descriptor.Platform, Descriptor.Configuration, EProjectType.Code, InstalledPlatformState.Downloaded) && Descriptor.Name != "UnrealHeaderTool")
 			{
 				if (InstalledPlatformInfo.IsValid(RulesObject.Type, Descriptor.Platform, Descriptor.Configuration, EProjectType.Code, InstalledPlatformState.Supported))
 				{
@@ -692,6 +702,12 @@ namespace UnrealBuildTool
 
 				// Don't allow using shared PCHs; they won't be distributed with the plugin
 				RulesObject.bUseSharedPCHs = false;
+			}
+
+			// Don't link if we're just preprocessing
+			if (RulesObject.bPreprocessOnly)
+			{
+				RulesObject.bDisableLinking = true;
 			}
 
 			// Include generated code plugin if not building an editor target and project is configured for nativization
@@ -1182,12 +1198,12 @@ namespace UnrealBuildTool
 						{
 							ResolveLibraryName(LibraryPath, LibraryName, LibraryExtension, Files);
 						}
-					}
+							}
 
 					foreach (string LibraryName in Rules.PublicSystemLibraryPaths)
-					{
+							{
 						foreach (string LibraryPath in SystemLibraryPaths)
-						{
+								{
 							ResolveLibraryName(LibraryPath, LibraryName, LibraryExtension, Files);
 						}
 					}
@@ -1556,7 +1572,11 @@ namespace UnrealBuildTool
 
 			// Create the makefile
 			string ExternalMetadata = UEBuildPlatform.GetBuildPlatform(Platform).GetExternalBuildMetadata(ProjectFile);
-			TargetMakefile Makefile = new TargetMakefile(TargetToolChain.GetVersionInfo(), ExternalMetadata, Binaries[0].OutputFilePaths[0], ReceiptFileName, ProjectIntermediateDirectory, TargetType, Rules.ConfigValueTracker, bDeployAfterCompile, bHasProjectScriptPlugin);
+			TargetMakefile Makefile = new TargetMakefile(ExternalMetadata, Binaries[0].OutputFilePaths[0], ReceiptFileName, ProjectIntermediateDirectory, TargetType, Rules.ConfigValueTracker, bDeployAfterCompile, bHasProjectScriptPlugin);
+
+			// Get diagnostic info to be printed before each build
+			TargetToolChain.GetVersionInfo(Makefile.Diagnostics);
+			Rules.GetBuildSettingsInfo(Makefile.Diagnostics);
 
 			// Setup the hot reload module list
 			Makefile.HotReloadModuleNames = GetHotReloadModuleNames();
@@ -1667,7 +1687,7 @@ namespace UnrealBuildTool
 			{
 				foreach (UEBuildBinary Binary in BuildBinaries)
 				{
-					List<FileItem> BinaryOutputItems = Binary.Build(Rules, TargetToolChain, GlobalCompileEnvironment, GlobalLinkEnvironment, WorkingSet, ExeDir, Makefile);
+					List<FileItem> BinaryOutputItems = Binary.Build(Rules, TargetToolChain, GlobalCompileEnvironment, GlobalLinkEnvironment, SingleFileToCompile, WorkingSet, ExeDir, Makefile);
 					Makefile.OutputItems.AddRange(BinaryOutputItems);
 				}
 			}
@@ -2583,9 +2603,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-			// Whether to allow developer modules
-			bool bAllowDeveloperModules = (Configuration != UnrealTargetConfiguration.Shipping);
-
 			// Find all the platform folders to exclude from the list of valid modules
 			ReadOnlyHashSet<string> ExcludeFolders = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
 
@@ -2609,7 +2626,7 @@ namespace UnrealBuildTool
 
 				// Also allow anything in the developer directory in non-shipping configurations (though we blacklist by default unless the PrecompileForTargets
 				// setting indicates that it's actually useful at runtime).
-				if(bAllowDeveloperModules)
+				if(Rules.bBuildDeveloperTools)
 				{
 					Directories.Add(UnrealBuildTool.EngineSourceDeveloperDirectory);
 					Directories.Add(DirectoryReference.Combine(UnrealBuildTool.EnterpriseSourceDirectory, "Developer"));
@@ -2676,7 +2693,7 @@ namespace UnrealBuildTool
 				// Add all the modules
 				foreach (ModuleDescriptor ModuleDescriptor in Plugin.Descriptor.Modules)
 				{
-					if (ModuleDescriptor.IsCompiledInConfiguration(Platform, Configuration, TargetName, TargetType, bAllowDeveloperModules && Rules.bBuildDeveloperTools, Rules.bBuildEditor, Rules.bBuildRequiresCookedData))
+					if (ModuleDescriptor.IsCompiledInConfiguration(Platform, Configuration, TargetName, TargetType, Rules.bBuildDeveloperTools, Rules.bBuildRequiresCookedData))
 					{
 						FileReference ModuleFileName = RulesAssembly.GetModuleFileName(ModuleDescriptor.Name);
 						if(ModuleFileName == null)
@@ -2690,7 +2707,7 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-			
+
 			// Create rules for each remaining module, and check that it's set to be compiled
 			foreach(string FilteredModuleName in FilteredModuleNames)
 			{
@@ -3140,7 +3157,7 @@ namespace UnrealBuildTool
 				{
 					foreach (ModuleDescriptor ModuleInfo in Info.Descriptor.Modules)
 					{
-						if (ModuleInfo.IsCompiledInConfiguration(Platform, Configuration, TargetName, TargetType, Rules.bBuildDeveloperTools, Rules.bBuildEditor, Rules.bBuildRequiresCookedData))
+						if (ModuleInfo.IsCompiledInConfiguration(Platform, Configuration, TargetName, TargetType, Rules.bBuildDeveloperTools, Rules.bBuildRequiresCookedData))
 						{
 							UEBuildModuleCPP Module = FindOrCreateCppModuleByName(ModuleInfo.Name, PluginReferenceChain);
 							if(!Instance.Modules.Contains(Module))
@@ -3289,6 +3306,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bOmitFramePointers = Rules.bOmitFramePointers;
 			GlobalCompileEnvironment.bUsePDBFiles = Rules.bUsePDBFiles;
 			GlobalCompileEnvironment.bSupportEditAndContinue = Rules.bSupportEditAndContinue;
+			GlobalCompileEnvironment.bPreprocessOnly = Rules.bPreprocessOnly;
 			GlobalCompileEnvironment.bUseIncrementalLinking = Rules.bUseIncrementalLinking;
 			GlobalCompileEnvironment.bAllowLTCG = Rules.bAllowLTCG;
 			GlobalCompileEnvironment.bPGOOptimize = Rules.bPGOOptimize;
@@ -3653,29 +3671,6 @@ namespace UnrealBuildTool
 					if(ProjectFile == null || !RulesObject.File.IsUnderDirectory(ProjectFile.Directory))
 					{
 						Log.TraceWarning("{0} module has shared PCHs disabled, but does not have a private PCH set", ModuleName);
-					}
-				}
-
-				// Disable shared PCHs for game modules by default (but not game plugins, since they won't depend on the game's PCH!)
-				if (RulesObject.PCHUsage == ModuleRules.PCHUsageMode.Default)
-				{
-					if(RulesObject.bUseBackwardsCompatibleDefaults && !Rules.bIWYU)
-					{
-						if(RulesObject.Plugin != null)
-						{
-							// Game plugin.  Enable shared PCHs by default, since they aren't typically large enough to warrant their own PCH.
-							RulesObject.PCHUsage = ModuleRules.PCHUsageMode.UseSharedPCHs;
-						}
-						else
-						{
-							// Game module.  Do not enable shared PCHs by default, because games usually have a large precompiled header of their own and compile times would suffer.
-							RulesObject.PCHUsage = ModuleRules.PCHUsageMode.NoSharedPCHs;
-						}
-					}
-					else
-					{
-						// Engine module or plugin module -- allow shared PCHs
-						RulesObject.PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 					}
 				}
 

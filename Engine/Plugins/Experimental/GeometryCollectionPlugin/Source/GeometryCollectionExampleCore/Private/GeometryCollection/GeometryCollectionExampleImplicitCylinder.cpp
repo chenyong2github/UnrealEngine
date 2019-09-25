@@ -7,51 +7,51 @@
 namespace GeometryCollectionExample
 {
 	template <class T>
-	void RunTestComputeSamplePoints(ExampleResponse& R, const Chaos::TCylinder<T> &Cylinder)
+	void RunTestComputeSamplePoints(const Chaos::TCylinder<T> &Cylinder)
 	{
 		Chaos::TVector<T, 3> Point;
 		T Phi;
-		R.ExpectTrue(Cylinder.GetType() == Chaos::ImplicitObjectType::Cylinder, FString("Implicit object type is not 'cylinder'."));
+		EXPECT_EQ(Cylinder.GetType(), Chaos::ImplicitObjectType::Cylinder) << *FString("Implicit object type is not 'cylinder'.");
 
 		Point = Cylinder.GetAxis();
-		R.ExpectTrue(FMath::Abs(Point.Size() - 1.0) < KINDA_SMALL_NUMBER, FString("Cylinder axis is not unit length."));
+		EXPECT_LT(FMath::Abs(Point.Size() - 1.0), KINDA_SMALL_NUMBER) << *FString("Cylinder axis is not unit length.");
 		
 		Point = Cylinder.GetOrigin() + Cylinder.GetAxis() * Cylinder.GetHeight();
-		R.ExpectTrue(((Point - Cylinder.GetInsertion()).Size() < KINDA_SMALL_NUMBER), FString("Cylinder is broken."));
+		EXPECT_LT((Point - Cylinder.GetInsertion()).Size(), KINDA_SMALL_NUMBER) << *FString("Cylinder is broken.");
 
 		Point = Cylinder.GetInsertion();// Cylinder.GetOrigin() + Cylinder.GetAxis() * Cylinder.GetHeight();
 		Phi = Cylinder.SignedDistance(Point);
-		R.ExpectTrue(Phi <= KINDA_SMALL_NUMBER, FString("Cylinder failed phi surface (insertion) sanity test."));
+		EXPECT_LE(Phi, KINDA_SMALL_NUMBER) << *FString("Cylinder failed phi surface (insertion) sanity test.");
 
 		Point = Cylinder.GetOrigin() + Cylinder.GetAxis() * Cylinder.GetHeight() * 0.25;
 		Phi = Cylinder.SignedDistance(Point);
-		R.ExpectTrue(Phi <= (T)0.0, FString("Cylinder failed phi depth (1/4 origin) sanity test."));
+		EXPECT_LE(Phi, (T)0.0) << *FString("Cylinder failed phi depth (1/4 origin) sanity test.");
 
 		Point = Cylinder.GetOrigin() + Cylinder.GetAxis() * Cylinder.GetHeight() * 0.75;
 		Phi = Cylinder.SignedDistance(Point);
-		R.ExpectTrue(Phi <= (T)0.0, FString("Cylinder failed phi depth (3/4 origin) sanity test."));
+		EXPECT_LE(Phi, (T)0.0) << *FString("Cylinder failed phi depth (3/4 origin) sanity test.");
 
-		R.ExpectTrue((Cylinder.GetCenter() - Chaos::TVector<T,3>(Cylinder.GetOrigin() + Cylinder.GetAxis() * Cylinder.GetHeight() * 0.5)).Size() <= KINDA_SMALL_NUMBER, FString("Cylinder center is off mid axis."));
+		EXPECT_LE((Cylinder.GetCenter() - Chaos::TVector<T,3>(Cylinder.GetOrigin() + Cylinder.GetAxis() * Cylinder.GetHeight() * 0.5)).Size(), KINDA_SMALL_NUMBER) << *FString("Cylinder center is off mid axis.");
 
 		Point = Cylinder.GetCenter();
 		Phi = Cylinder.SignedDistance(Point);
-		R.ExpectTrue(Phi < (T)0.0, FString("Cylinder failed phi depth sanity test."));
+		EXPECT_LT(Phi, (T)0.0) << *FString("Cylinder failed phi depth sanity test.");
 		
 		Point = Cylinder.GetOrigin();
 		Phi = Cylinder.SignedDistance(Point);
-		R.ExpectTrue(FMath::Abs(Phi) <= KINDA_SMALL_NUMBER, FString("Cylinder failed phi surface (origin) sanity test."));
+		EXPECT_LE(FMath::Abs(Phi), KINDA_SMALL_NUMBER) << *FString("Cylinder failed phi surface (origin) sanity test.");
 
 		Point = Cylinder.GetOrigin() + Cylinder.GetAxis() * Cylinder.GetHeight();
 		Phi = Cylinder.SignedDistance(Point);
-		R.ExpectTrue(FMath::Abs(Phi) <= KINDA_SMALL_NUMBER, FString("Cylinder failed phi surface (origin+axis*height) sanity test."));
+		EXPECT_LE(FMath::Abs(Phi), KINDA_SMALL_NUMBER) << *FString("Cylinder failed phi surface (origin+axis*height) sanity test.");
 
 		Point = Cylinder.GetOrigin() + Cylinder.GetAxis().GetOrthogonalVector().GetSafeNormal() * Cylinder.GetRadius();
 		Phi = Cylinder.SignedDistance(Point);
-		R.ExpectTrue(FMath::Abs(Phi) <= KINDA_SMALL_NUMBER, FString("Cylinder failed phi surface (origin+orthogonalAxis*radius) sanity test."));
+		EXPECT_LE(FMath::Abs(Phi), KINDA_SMALL_NUMBER) << *FString("Cylinder failed phi surface (origin+orthogonalAxis*radius) sanity test.");
 
 		Point = Cylinder.GetCenter() + Cylinder.GetAxis().GetOrthogonalVector().GetSafeNormal() * Cylinder.GetRadius();
 		Phi = Cylinder.SignedDistance(Point);
-		R.ExpectTrue(FMath::Abs(Phi) <= KINDA_SMALL_NUMBER, FString("Cylinder failed phi surface (center+orthogonalAxis*radius) sanity test."));
+		EXPECT_LE(FMath::Abs(Phi), KINDA_SMALL_NUMBER) << *FString("Cylinder failed phi surface (center+orthogonalAxis*radius) sanity test.");
 
 		TArray<Chaos::TVector<T, 3>> Points = Cylinder.ComputeSamplePoints(100);
 		check(Points.Num() == 100);
@@ -68,17 +68,17 @@ namespace GeometryCollectionExample
 			
 			const bool Differs = Pt != Point;
 			check(Differs);
-			R.ExpectTrue(Differs, FString("Produced a redundant value."));
+			EXPECT_TRUE(Differs) << *FString("Produced a redundant value.");
 			Point = Pt;
 		}
 
 		const bool OnSurface = FMath::Abs(MinPhi) <= KINDA_SMALL_NUMBER && FMath::Abs(MaxPhi) <= KINDA_SMALL_NUMBER;
 		check(OnSurface);
-		R.ExpectTrue(OnSurface, FString("Produced a point not on the surface of the cylinder."));
+		EXPECT_TRUE(OnSurface) << *FString("Produced a point not on the surface of the cylinder.");
 	}
 
 	template <class T>
-	void TestComputeSamplePoints_Cylinder(ExampleResponse& R)
+	void TestComputeSamplePoints_Cylinder()
 	{
 		//
 		// Height == 1
@@ -87,32 +87,32 @@ namespace GeometryCollectionExample
 		// At the origin with radius 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,1), (T)1.0);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius > 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,1), (T)10.0);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius < 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,1), (T)0.1);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,11), (T)1.0);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius > 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,11), (T)10.0);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius < 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,11), (T)0.1);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 
 		//
@@ -122,32 +122,32 @@ namespace GeometryCollectionExample
 		// At the origin with radius 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,10), (T)1.0);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius > 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,10), (T)10.0);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius < 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,10), (T)0.1);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,21), (T)1.0);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius > 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,21), (T)10.0);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius < 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,21), (T)0.1);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 
 		// 
@@ -157,40 +157,39 @@ namespace GeometryCollectionExample
 		// At the origin with radius 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(1,1,1), (T)1.0);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius > 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(1,1,1), (T)10.0);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius < 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(1,1,1), (T)0.1);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(11,11,11), (T)1.0);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius > 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(11,11,11), (T)10.0);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius < 1
 		{
 			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(11,11,11), (T)0.1);
-			RunTestComputeSamplePoints(R, Cylinder);
+			RunTestComputeSamplePoints(Cylinder);
 		}
 	}
 
 	template <class T>
-	bool TestImplicitCylinder(ExampleResponse&& R)
+	void TestImplicitCylinder()
 	{
-		TestComputeSamplePoints_Cylinder<T>(R);
-		return !R.HasError();
+		TestComputeSamplePoints_Cylinder<T>();
 	}
-	template bool TestImplicitCylinder<float>(ExampleResponse&& R);
+	template void TestImplicitCylinder<float>();
 } // namespace GeometryCollectionExample

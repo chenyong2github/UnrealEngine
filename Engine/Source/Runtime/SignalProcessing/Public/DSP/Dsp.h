@@ -242,6 +242,8 @@ namespace Audio
 			, Threshold(InThreshold)
 			, TargetValue(InInitValue)
 			, EaseFactor(InEaseFactor)
+			, OneMinusEase(1.0f - InEaseFactor)
+			, EaseTimesTarget(EaseFactor * InInitValue)
 		{
 		}
 
@@ -249,6 +251,10 @@ namespace Audio
 		{
 			CurrentValue = InInitValue;
 			TargetValue = InInitValue;
+			EaseFactor = InEaseFactor;
+
+			OneMinusEase = 1.0f - EaseFactor;
+			EaseTimesTarget = TargetValue * EaseFactor;
 		}
 
 		bool IsDone() const
@@ -256,19 +262,46 @@ namespace Audio
 			return FMath::Abs(TargetValue - CurrentValue) < Threshold;
 		}
 
-		float GetValue()
+		float GetNextValue()
 		{
 			if (IsDone())
 			{
 				return CurrentValue;
 			}
 
+			// Micro-optimization,
+			// But since GetNextValue(NumTicksToJumpAhead) does this work in a tight loop (non-vectorizable), might as well
+			/*
 			return CurrentValue = CurrentValue + (TargetValue - CurrentValue) * EaseFactor;
+								= CurrentValue + EaseFactor*TargetValue - EaseFactor*CurrentValue
+								= (CurrentValue - EaseFactor*CurrentValue) + EaseFactor*TargetValue
+								= (1 - EaseFactor)*CurrentValue + EaseFactor*TargetValue
+			*/
+			return CurrentValue = OneMinusEase * CurrentValue + EaseTimesTarget;
+		}
+
+		// same as GetValue(), but overloaded to jump forward by NumTicksToJumpAhead timesteps
+		// (before getting the value)
+		float GetNextValue(uint32 NumTicksToJumpAhead)
+		{
+			while (NumTicksToJumpAhead && !IsDone())
+			{
+				CurrentValue = OneMinusEase * CurrentValue + EaseTimesTarget;
+				--NumTicksToJumpAhead;
+			}
+
+			return CurrentValue;
+		}
+
+		float PeekCurrentValue() const
+		{
+			return CurrentValue;
 		}
 
 		void SetEaseFactor(const float InEaseFactor)
 		{
 			EaseFactor = InEaseFactor;
+			OneMinusEase = 1.0f - EaseFactor;
 		}
 
 		void operator=(const float& InValue)
@@ -279,6 +312,7 @@ namespace Audio
 		void SetValue(const float InValue, const bool bIsInit = false)
 		{
 			TargetValue = InValue;
+			EaseTimesTarget = EaseFactor * TargetValue;
 			if (bIsInit)
 			{
 				CurrentValue = TargetValue;
@@ -305,6 +339,12 @@ namespace Audio
 
 		// Percentage to move toward target value from current value each tick
 		float EaseFactor;
+
+		// 1.0f - EaseFactor
+		float OneMinusEase;
+
+		// EaseFactor * TargetValue
+		float EaseTimesTarget;
 	};
 	
 	// Simple easing function used to help interpolate params
@@ -345,7 +385,7 @@ namespace Audio
 			SetValue(End, InTimeSec);
 		}
 
-		float GetValue()
+		float GetNextValue()
 		{
 			if (IsDone())
 			{
@@ -359,21 +399,21 @@ namespace Audio
 		}
 
 		// same as GetValue(), but overloaded to increment Current Tick by NumTicksToJumpAhead
-		// (before getting the value);
-		float GetValue(int32 NumTicksToJumpAhead)
+		// (before getting the value)
+		float GetNextValue(int32 NumTicksToJumpAhead)
 		{
 			if (IsDone())
 			{
 				return CurrentValue;
 			}
 
-			CurrentTick += NumTicksToJumpAhead;
+			CurrentTick = FMath::Min(CurrentTick + NumTicksToJumpAhead, DurationTicks);
 			CurrentValue = DeltaValue * (float)CurrentTick / DurationTicks + StartValue;
 
 			return CurrentValue;
 		}
 
-		float GetCurrentValue() const
+		float PeekCurrentValue() const
 		{
 			return CurrentValue;
 		}
@@ -590,12 +630,12 @@ namespace Audio
 			}
 		}
 
-        // Get the current capacity of the buffer
-        uint32 GetCapacity()
-        {
-            return Capacity;
-        }
-        
+		// Get the current capacity of the buffer
+		uint32 GetCapacity()
+		{
+			return Capacity;
+		}
+
 		// Get number of samples that can be pushed onto the buffer before it is full.
 		uint32 Remainder()
 		{

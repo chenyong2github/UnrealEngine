@@ -100,7 +100,7 @@ public:
 	static uint64 GetHashForDataSet( const uint8* DataSet, uint32 WindowSize );
 
 private:
-	FRollingHash();;
+	FRollingHash();
 	// The data size that we roll over.
 	const uint32 WindowSize;
 	// The current hash value

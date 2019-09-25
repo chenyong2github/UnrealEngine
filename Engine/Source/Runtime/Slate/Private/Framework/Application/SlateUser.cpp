@@ -607,7 +607,7 @@ bool FSlateUser::SynthesizeCursorMoveIfNeeded()
 		
 		const bool bHasHardwareCursor = SlateApp.GetPlatformCursor() == Cursor;
 		FPointerEvent SyntheticCursorMoveEvent(
-			SlateApp.GetUserIndexForMouse(),
+			GetUserIndex(),
 			FSlateApplication::CursorPointerIndex,
 			GetCursorPosition(),
 			GetPreviousCursorPosition(),
@@ -1213,12 +1213,13 @@ void FSlateUser::UpdateTooltip(const FMenuStack& MenuStack, bool bCanSpawnNewToo
 			if (NewTooltipVisualizer)
 			{
 				ActiveTooltipInfo.TooltipVisualizer = NewTooltipVisualizer;
+				ActiveTooltipInfo.Tooltip = NewTooltip;
 			}
 			else if (bCanSpawnNewTooltip && NewTooltip)
 			{
 				ShowTooltip(NewTooltip.ToSharedRef(), DesiredLocation);
 				ActiveTooltipInfo.SourceWidget = WidgetProvidingNewTooltip;
-			}
+			}	
 		}
 	}
 

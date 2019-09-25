@@ -197,12 +197,12 @@ ir_rvalue * ir_algebraic_visitor::swizzle_if_required(ir_expression *expr, ir_rv
 
 ir_rvalue* ir_algebraic_visitor::handle_expression(ir_expression *ir)
 {
-	ir_constant *op_const[2] = { NULL, NULL };
-	ir_expression *op_expr[2] = { NULL, NULL };
+	ir_constant *op_const[3] = { NULL, NULL, NULL };
+	ir_expression *op_expr[3] = { NULL, NULL, NULL };
 	ir_expression *temp;
 	unsigned int i;
 
-	if (ir->get_num_operands() > 2)
+	if (ir->get_num_operands() > 3)
 	{
 		return ir;
 	}
@@ -476,6 +476,51 @@ ir_rvalue* ir_algebraic_visitor::handle_expression(ir_expression *ir)
 				base_ir->insert_before(LengthCall);
 				return new(State) ir_dereference_variable(NewOperandVar);
 			}
+		}
+		break;
+
+	case ir_ternop_fma:
+		/* Operands are op0 * op1 + op2. */
+		if (is_vec_zero(op_const[0]) || is_vec_zero(op_const[1])) {
+			return ir->operands[2];
+		}
+		else if (is_vec_zero(op_const[2])) {
+			temp = new(mem_ctx)ir_expression(ir_binop_mul,
+				ir->operands[0]->type,
+				ir->operands[0],
+				ir->operands[1]);
+			return swizzle_if_required(ir, temp);
+		}
+		else if (is_vec_one(op_const[0])) {
+			temp = new(mem_ctx)ir_expression(ir_binop_add,
+				ir->operands[1]->type,
+				ir->operands[1],
+				ir->operands[2]);
+			return swizzle_if_required(ir, temp);
+		}
+		else if (is_vec_one(op_const[1])) {
+			temp = new(mem_ctx)ir_expression(ir_binop_add,
+				ir->operands[0]->type,
+				ir->operands[0],
+				ir->operands[2]);
+			return swizzle_if_required(ir, temp);
+		}
+		break;
+
+	case ir_ternop_lerp:
+		/* Operands are (x, y, a). */
+		if (is_vec_zero(op_const[2])) {
+			return ir->operands[0];
+		}
+		else if (is_vec_one(op_const[2])) {
+			return ir->operands[1];
+		}
+		else if (is_vec_zero(op_const[0])) {
+			temp = new(mem_ctx)ir_expression(ir_binop_mul,
+				ir->operands[1]->type,
+				ir->operands[1],
+				ir->operands[2]);
+			return swizzle_if_required(ir, temp);
 		}
 		break;
 

@@ -58,8 +58,8 @@ void FSQAcceleratorUnion::RemoveSQAccelerator(ISQAccelerator* AcceleratorToRemov
 }
 
 #if INCLUDE_CHAOS
-FChaosSQAccelerator::FChaosSQAccelerator(const Chaos::TPBDRigidsEvolutionGBF<float, 3>& InEvolution)
-	: Evolution(InEvolution)
+FChaosSQAccelerator::FChaosSQAccelerator(const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>& InSpatialAcceleration)
+	: SpatialAcceleration(InSpatialAcceleration)
 {}
 
 struct FPreFilterInfo
@@ -68,15 +68,16 @@ struct FPreFilterInfo
 	int32 ActorIdx;
 };
 
-void FillHitHelper(ChaosInterface::FLocationHit& Hit, const float Distance, const FVector& WorldPosition, const FVector& WorldNormal)
+void FillHitHelper(ChaosInterface::FLocationHit& Hit, const float Distance, const FVector& WorldPosition, const FVector& WorldNormal, int32 FaceIdx)
 {
 	Hit.Distance = Distance;
 	Hit.WorldPosition = WorldPosition;
 	Hit.WorldNormal = WorldNormal;
-	Hit.Flags = Distance > 0 ? EHitFlags::Distance | EHitFlags::Normal | EHitFlags::Position : EHitFlags::Distance;
+	Hit.Flags = Distance > 0 ? EHitFlags::Distance | EHitFlags::Normal | EHitFlags::Position : EHitFlags::Distance | EHitFlags::FaceIndex;
+	Hit.FaceIndex = FaceIdx;
 }
 
-void FillHitHelper(ChaosInterface::FOverlapHit& Hit, const float Distance, const FVector& WorldPosition, const FVector& WorldNormal)
+void FillHitHelper(ChaosInterface::FOverlapHit& Hit, const float Distance, const FVector& WorldPosition, const FVector& WorldNormal, int32 FaceIdx)
 {
 }
 
@@ -163,7 +164,8 @@ private:
 	{
 		//todo: add a check to ensure hitbuffer matches SQ type
 		using namespace Chaos;
-		const TShapesArray<float,3>& Shapes = Payload->GTGeometryParticle()->ShapesArray();	//TODO: use GT particles directly
+		TGeometryParticle<float, 3>* GeometryParticle = Payload.GetExternalGeometryParticle_ExternalThread();
+		const TShapesArray<float,3>& Shapes = GeometryParticle->ShapesArray();
 
 		for (const auto& Shape : Shapes)
 		{
@@ -171,7 +173,7 @@ private:
 			//TODO: use gt particles directly
 			//#TODO alternative to px flags
 #if WITH_PHYSX
-			ECollisionQueryHitType HitType = QueryFilterData.flags & PxQueryFlag::ePREFILTER ? QueryCallback.PreFilter(P2UFilterData(QueryFilterData.data), *Shape, *Payload->GTGeometryParticle()) : ECollisionQueryHitType::Block;
+			ECollisionQueryHitType HitType = QueryFilterData.flags & PxQueryFlag::ePREFILTER ? QueryCallback.PreFilter(P2UFilterData(QueryFilterData.data), *Shape, *GeometryParticle) : ECollisionQueryHitType::Block;
 #else
 			//#TODO Chaos flag alternative
 			ensure(false);
@@ -179,17 +181,17 @@ private:
 #endif
 			if (HitType != ECollisionQueryHitType::None)
 			{
-				const TRigidTransform<float, 3> ActorTM(Payload->X(), Payload->R());
+				const TRigidTransform<float, 3> ActorTM(GeometryParticle->X(), GeometryParticle->R());
 
 				THitType Hit;
-				Hit.Actor = Payload->GTGeometryParticle();	//todo: use GT particles directly
+				Hit.Actor = GeometryParticle;
 				Hit.Shape = Shape.Get();
 
 				bool bHit = false;
 
 				TVector<float, 3> WorldPosition, WorldNormal;
 				float Distance = 0;	//not needed but fixes compiler warning for overlap
-				int32 FaceIdx;	//todo: pass back to unreal
+				int32 FaceIdx = INDEX_NONE;	//not needed but fixes compiler warning for overlap
 
 				if (SQ == ESQType::Raycast)
 				{
@@ -216,7 +218,7 @@ private:
 
 				if(bHit)
 				{
-					FillHitHelper(Hit, Distance, WorldPosition, WorldNormal);
+					FillHitHelper(Hit, Distance, WorldPosition, WorldNormal, FaceIdx);
 #if WITH_PHYSX
 					HitType = QueryFilterData.flags & PxQueryFlag::ePOSTFILTER ? QueryCallback.PostFilter(P2UFilterData(QueryFilterData.data), Hit) : HitType;
 #else
@@ -267,12 +269,10 @@ void FChaosSQAccelerator::Raycast(const FVector& Start, const FVector& Dir, cons
 	using namespace Chaos;
 	using namespace ChaosInterface;
 
-	TSQVisitor<TGeometryParticleHandle<float, 3>*, FRaycastHit> RaycastVisitor(Start, Dir, HitBuffer, OutputFlags, QueryFilterData, QueryCallback);
-	const auto& SpatialAcceleration = Evolution.GetCollisionConstraints().GetSpatialAcceleration();
+	TSQVisitor<TAccelerationStructureHandle<float, 3>, FRaycastHit> RaycastVisitor(Start, Dir, HitBuffer, OutputFlags, QueryFilterData, QueryCallback);
 	HitBuffer.IncFlushCount();
 	SpatialAcceleration.Raycast(Start, Dir, DeltaMagnitude, RaycastVisitor);
 	HitBuffer.DecFlushCount();
-	Evolution.GetCollisionConstraints().ReleaseSpatialAcceleration();
 }
 
 void FChaosSQAccelerator::Sweep(const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& StartTM, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
@@ -282,12 +282,10 @@ void FChaosSQAccelerator::Sweep(const Chaos::TImplicitObject<float, 3>& QueryGeo
 
 	const TBox<float, 3> Bounds = QueryGeom.BoundingBox().TransformedBox(StartTM);
 	const FVector HalfExtents = Bounds.Extents() * 0.5f;
-	TSQVisitor<TGeometryParticleHandle<float, 3>*, FSweepHit> SweepVisitor(StartTM, Dir, HitBuffer, OutputFlags, QueryFilterData, QueryCallback, QueryGeom);
-	const auto& SpatialAcceleration = Evolution.GetCollisionConstraints().GetSpatialAcceleration();
+	TSQVisitor<TAccelerationStructureHandle<float, 3>, FSweepHit> SweepVisitor(StartTM, Dir, HitBuffer, OutputFlags, QueryFilterData, QueryCallback, QueryGeom);
 	HitBuffer.IncFlushCount();
 	SpatialAcceleration.Sweep(Bounds.GetCenter(), Dir, DeltaMagnitude, HalfExtents, SweepVisitor);
 	HitBuffer.DecFlushCount();
-	Evolution.GetCollisionConstraints().ReleaseSpatialAcceleration();
 }
 
 void FChaosSQAccelerator::Overlap(const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& GeomPose, ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>& HitBuffer, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
@@ -296,19 +294,17 @@ void FChaosSQAccelerator::Overlap(const Chaos::TImplicitObject<float, 3>& QueryG
 	using namespace ChaosInterface;
 
 	const TBox<float, 3> Bounds = QueryGeom.BoundingBox().TransformedBox(GeomPose);
-	TSQVisitor<TGeometryParticleHandle<float, 3>*, FOverlapHit> OverlapVisitor(GeomPose, HitBuffer, QueryFilterData, QueryCallback, QueryGeom);
-	const auto& SpatialAcceleration = Evolution.GetCollisionConstraints().GetSpatialAcceleration();
+	TSQVisitor<TAccelerationStructureHandle<float, 3>, FOverlapHit> OverlapVisitor(GeomPose, HitBuffer, QueryFilterData, QueryCallback, QueryGeom);
 	HitBuffer.IncFlushCount();
 	SpatialAcceleration.Overlap(Bounds, OverlapVisitor);
 	HitBuffer.DecFlushCount();
-	Evolution.GetCollisionConstraints().ReleaseSpatialAcceleration();
 }
 
 #endif
 
 #if WITH_PHYSX && INCLUDE_CHAOS
-FChaosSQAcceleratorAdapter::FChaosSQAcceleratorAdapter(const Chaos::TPBDRigidsEvolutionGBF<float, 3>& InEvolution)
-	: ChaosSQAccelerator(InEvolution)
+FChaosSQAcceleratorAdapter::FChaosSQAcceleratorAdapter(const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>& InSpatialAcceleration)
+	: ChaosSQAccelerator(InSpatialAcceleration)
 {
 }
 

@@ -32,9 +32,9 @@ static FString GSavedCommandLine;
 
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)Sender;
 {
-	if(!GIsRequestingExit || ([NSThread gameThread] && [NSThread gameThread] != [NSThread mainThread]))
+	if(!IsEngineExitRequested() || ([NSThread gameThread] && [NSThread gameThread] != [NSThread mainThread]))
 	{
-		GIsRequestingExit = true;
+		RequestEngineExit(TEXT("applicationShouldTerminate"));
 		return NSTerminateLater;
 	}
 	else

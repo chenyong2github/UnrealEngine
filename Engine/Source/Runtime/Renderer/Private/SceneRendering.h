@@ -715,11 +715,14 @@ struct FTemporalAAHistory
 	}
 };
 
-// TODO: merge with FTemporalAAHistory?
-struct FScreenSpaceFilteringHistory
+/** Temporal history for a denoiser. */
+struct FScreenSpaceDenoiserHistory
 {
 	// Number of history render target to store.
 	static constexpr int32 RTCount = 3;
+
+	// Scissor of valid data in the render target;
+	FIntRect Scissor;
 
 	// Render target specific to the history.
 	TRefCountPtr<IPooledRenderTarget> RT[RTCount];
@@ -740,6 +743,42 @@ struct FScreenSpaceFilteringHistory
 		return RT[0].IsValid();
 	}
 };
+
+
+
+// Structure in charge of storing all information about GTAO history.
+struct FGTAOTAAHistory
+{
+	// Number of render target in the history.
+	static constexpr uint32 kRenderTargetCount = 2;
+
+	// Render targets holding's pixel history.
+	//  scene color's RGBA are in RT[0].
+	TRefCountPtr<IPooledRenderTarget> RT[kRenderTargetCount];
+	TRefCountPtr<IPooledRenderTarget> Depth[kRenderTargetCount];
+
+	// Reference size of RT. Might be different than RT's actual size to handle down res.
+	FIntPoint ReferenceBufferSize;
+
+	// Viewport coordinate of the history in RT according to ReferenceBufferSize.
+	FIntRect ViewportRect;
+
+	void SafeRelease()
+	{
+		for (uint32 i = 0; i < kRenderTargetCount; i++)
+		{
+			RT[i].SafeRelease();
+			Depth[i].SafeRelease();
+		}
+	}
+
+	bool IsValid() const
+	{
+		return RT[0].IsValid();
+	}
+};
+
+
 
 // Structure that hold all information related to previous frame.
 struct FPreviousViewInfo
@@ -770,19 +809,25 @@ struct FPreviousViewInfo
 	TRefCountPtr<IPooledRenderTarget> CustomSSRInput;
 
 	// History for the reflections
-	FScreenSpaceFilteringHistory ReflectionsHistory;
+	FScreenSpaceDenoiserHistory ReflectionsHistory;
 	
 	// History for the ambient occlusion
-	FScreenSpaceFilteringHistory AmbientOcclusionHistory;
+	FScreenSpaceDenoiserHistory AmbientOcclusionHistory;
+
+	// History for GTAO
+	FGTAOTAAHistory				 GTAOHistory;
 
 	// History for global illumination
-	FScreenSpaceFilteringHistory DiffuseIndirectHistory;
+	FScreenSpaceDenoiserHistory DiffuseIndirectHistory;
 
 	// History for sky light
-	FScreenSpaceFilteringHistory SkyLightHistory;
+	FScreenSpaceDenoiserHistory SkyLightHistory;
 
 	// History for shadow denoising.
-	TMap<const ULightComponent*, FScreenSpaceFilteringHistory> ShadowHistories;
+	TMap<const ULightComponent*, FScreenSpaceDenoiserHistory> ShadowHistories;
+
+	// History for denoising all lights penumbra at once.
+	FScreenSpaceDenoiserHistory PolychromaticPenumbraHarmonicsHistory;
 };
 
 class FViewCommands
@@ -917,6 +962,9 @@ public:
 	/* [PrimitiveIndex] = end index index in DynamicMeshElements[], to support GetDynamicMeshElementRange(). Contains valid values only for visible primitives with bDynamicRelevance. */
 	TArray<uint32, SceneRenderingAllocator> DynamicMeshEndIndices;
 
+	/** Hair strands dynamic mesh element. */
+	TArray<FMeshBatchAndRelevance, SceneRenderingAllocator> HairStrandsMeshElements;
+
 	/* Mesh pass relevance for gathered dynamic mesh elements. */
 	TArray<FMeshPassMask, SceneRenderingAllocator> DynamicMeshElementsPassRelevance;
 
@@ -982,8 +1030,8 @@ public:
 	/** Temporal AA jitter at the pixel scale. */
 	FVector2D TemporalJitterPixels;
 
-	/** Whether view state may be updated with this view. */
-	uint32 bViewStateIsReadOnly : 1;
+	/** Whether FSceneViewState::PrevFrameViewInfo can be updated with this view. */
+	uint32 bStatePrevViewInfoIsReadOnly : 1;
 
 	/** true if all PrimitiveVisibilityMap's bits are set to false. */
 	uint32 bHasNoVisiblePrimitive : 1;
@@ -1019,10 +1067,14 @@ public:
 	 * This is used to skip the sky rendering part during the SkyAtmosphere pass on non mobile platforms.
 	 */
 	uint32 bSceneHasSkyMaterial : 1;
+	/**
+	 * true if the scene has at least one mesh with a material tagged as water visible in a view.
+	 */
+	uint32 bHasSingleLayerWaterMaterial : 1;
 	/** Bitmask of all shading models used by primitives in this view */
 	uint16 ShadingModelMaskInView;
 
-	// Previous frame view info to use for this view.
+	/** Informations from the previous frame to use for this view. */
 	FPreviousViewInfo PrevViewInfo;
 
 	/** The GPU nodes on which to render this view. */
@@ -1043,8 +1095,9 @@ public:
 	FOcclusionQueryBatcher IndividualOcclusionQueries;
 	FOcclusionQueryBatcher GroupedOcclusionQueries;
 
-	// Hierarchical Z Buffer
+	// Furthest and closest Hierarchical Z Buffer
 	TRefCountPtr<IPooledRenderTarget> HZB;
+	TRefCountPtr<IPooledRenderTarget> ClosestHZB;
 
 	int32 NumBoxReflectionCaptures;
 	int32 NumSphereReflectionCaptures;
@@ -1208,9 +1261,13 @@ public:
 
 	/** Gets the rendertarget that will be populated by CombineLUTS post process 
 	* for stereo rendering, this will force the post-processing to use the same render target for both eyes*/
-	FSceneRenderTargetItem* GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput) const;
+	IPooledRenderTarget* GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput) const;
 	
-
+	/** Returns whether this view is the last in the family. */
+	bool IsLastInFamily() const
+	{
+		return Family->Views.Last() == this;
+	}
 
 	/** Instanced stereo and multi-view only need to render the left eye. */
 	bool ShouldRenderView() const 
@@ -1540,7 +1597,7 @@ protected:
 
 	void SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewCommands& ViewCommands);
 
-	bool RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, bool bProjectingForForwardShading, bool bMobileModulatedProjections);
+	bool RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, IPooledRenderTarget* ScreenShadowMaskSubPixelTexture, bool bProjectingForForwardShading, bool bMobileModulatedProjections, const struct FHairStrandsVisibilityViews* InHairVisibilityViews);
 
 	/** Finds a matching cached preshadow, if one exists. */
 	TRefCountPtr<FProjectedShadowInfo> GetCachedPreshadow(

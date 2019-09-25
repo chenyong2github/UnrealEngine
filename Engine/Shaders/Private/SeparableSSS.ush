@@ -121,7 +121,7 @@
 #define SSSS_FLATTEN FLATTEN
 #define SSSS_BRANCH BRANCH
 #define SSSS_UNROLL UNROLL
-
+#define SSSS_COMPUTESHADER COMPUTESHADER
 
 //-----------------------------------------------------------------------------
 // Separable SSS Transmittance Function
@@ -203,10 +203,11 @@ float4 SSSSBlurPS(float2 BufferUV, float2 dir, bool initStencil)
 	// 0..1
 	float SSSStrength = GetSubsurfaceStrength(BufferUV);
 
+#if !SSSS_COMPUTESHADER
 	// Initialize the stencil buffer in case it was not already available:
     if (initStencil) // (Checked in compile time, it's optimized away)
         if (SSSStrength < 1 / 256.0f) discard;
-
+#endif
 	float SSSScaleX = SubsurfaceParams.x;
 
 	float scale = SSSScaleX / OutDepth;

@@ -6,6 +6,7 @@
 
 #include "SystemTextures.h"
 #include "Math/RandomStream.h"
+#include "Math/Sobol.h"
 #include "RenderTargetPool.h"
 #include "ClearQuad.h"
 #include "LTC.h"
@@ -174,7 +175,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			uint32 DestStride;
 			uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)SobolSampling->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
 
-			uint16 Result, *Dest;
+			uint16 *Dest;
 			for (int y = 0; y < 16; ++y)
 			{
 				Dest = (uint16*)(DestBuffer + y * DestStride);
@@ -182,36 +183,20 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				// 16x16 block starting at 0,0 = Sobol X,Y from bottom 4 bits of cell X,Y
 				for (int x = 0; x < 16; ++x, ++Dest)
 				{
-					Result  = (x & 0x001) ? 0xf68e : 0;
-					Result ^= (x & 0x002) ? 0x8e56 : 0;
-					Result ^= (x & 0x004) ? 0x1135 : 0;
-					Result ^= (x & 0x008) ? 0x220a : 0;
-					Result ^= (y & 0x001) ? 0x94c4 : 0;
-					Result ^= (y & 0x002) ? 0x4ac2 : 0;
-					Result ^= (y & 0x004) ? 0xfb57 : 0;
-					Result ^= (y & 0x008) ? 0x0454 : 0;
-					*Dest = Result;
+					*Dest = FSobol::ComputeGPUSpatialSeed(x, y, /* Index = */ 0);
 				}
 
 				// 16x16 block starting at 16,0 = Sobol X,Y from 2nd 4 bits of cell X,Y
 				for (int x = 0; x < 16; ++x, ++Dest)
 				{
-					Result  = (x & 0x001) ? 0x4414 : 0;
-					Result ^= (x & 0x002) ? 0x8828 : 0;
-					Result ^= (x & 0x004) ? 0xe69e : 0;
-					Result ^= (x & 0x008) ? 0xae76 : 0;
-					Result ^= (y & 0x001) ? 0xa28a : 0;
-					Result ^= (y & 0x002) ? 0x265e : 0;
-					Result ^= (y & 0x004) ? 0xe69e : 0;
-					Result ^= (y & 0x008) ? 0xae76 : 0;
-					*Dest = Result;
+					*Dest = FSobol::ComputeGPUSpatialSeed(x, y, /* Index = */ 1);
 				}
 			}
 			RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)SobolSampling->GetRenderTargetItem().ShaderResourceTexture, 0, false);
 		}
 
 	// Create a VolumetricBlackDummy texture
-	if (CurrentFeatureLevel < ERHIFeatureLevel::SM4 && InFeatureLevel >= ERHIFeatureLevel::SM4)
+	if (CurrentFeatureLevel < ERHIFeatureLevel::SM5 && InFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::CreateVolumeDesc(1, 1, 1, PF_B8G8R8A8, FClearValueBinding::Transparent, TexCreate_HideInVisualizeTexture, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
 		Desc.AutoWritable = false;
@@ -228,7 +213,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			BlackBytes);
 	}
 
-	if (CurrentFeatureLevel < ERHIFeatureLevel::SM4 && InFeatureLevel >= ERHIFeatureLevel::SM4)
+	if (CurrentFeatureLevel < ERHIFeatureLevel::SM5 && InFeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 	// Create the PerlinNoise3D texture (similar to http://prettyprocs.wordpress.com/2012/10/20/fast-perlin-noise/)
 	{
@@ -392,7 +377,35 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 		}
 		RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)SSAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, false);
 			}
+	
+			{
+				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(4, 4), PF_R8G8, FClearValueBinding::None, TexCreate_HideInVisualizeTexture, TexCreate_None | TexCreate_NoFastClear, false));
+				Desc.AutoWritable = false;
+				GRenderTargetPool.FindFreeElement(RHICmdList, Desc,GTAORandomization, TEXT("GTAORandomization"), true, ERenderTargetTransience::NonTransient);
+				// Write the contents of the texture.
+				uint32 DestStride;
+				uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)GTAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
 
+				for(int32 y = 0; y < Desc.Extent.Y; ++y)
+				{
+					for(int32 x = 0; x < Desc.Extent.X; ++x)
+					{
+						uint8* Dest = (uint8*)(DestBuffer + x * sizeof(uint16) + y * DestStride);
+			
+						float Angle  = (PI/16.0f)  * ((((x + y) & 0x3) << 2) + (x & 0x3));
+						float Step	 = 0.5f + ((1.0f/8.0f) * ((y - x) & 0x3));
+
+						float ScaleCos = FMath::Cos(Angle) ;
+						float ScaleSin = FMath::Sin(Angle) ;
+			
+						Dest[0] = (uint8_t)(ScaleCos*127.5f + 127.5f);
+						Dest[1] = (uint8_t)(ScaleSin*127.5f + 127.5f);
+					}
+				}
+			}
+			RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)GTAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, false);
+			
+			
 		{
 			// for testing, with 128x128 R8G8 we are very close to the reference (if lower res is needed we might have to add an offset to counter the 0.5f texel shift)
 			const bool bReference = false;
@@ -565,7 +578,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)LTCAmp->GetRenderTargetItem().ShaderResourceTexture, 0, false);
 		}
 		} // end Create the SSAO randomization texture
-	} // end if (FeatureLevelInitializedTo < ERHIFeatureLevel::SM4 && InFeatureLevel >= ERHIFeatureLevel::SM4)
+	} // end if (FeatureLevelInitializedTo < ERHIFeatureLevel::SM5 && InFeatureLevel >= ERHIFeatureLevel::SM5)
 
 	// Initialize textures only once.
 	FeatureLevelInitializedTo = InFeatureLevel;
@@ -581,7 +594,10 @@ void FSystemTextures::ReleaseDynamicRHI()
 	PerlinNoise3D.SafeRelease();
 	SobolSampling.SafeRelease();
 	SSAORandomization.SafeRelease();
+	GTAORandomization.SafeRelease();
 	PreintegratedGF.SafeRelease();
+	HairLUT0.SafeRelease();
+	HairLUT1.SafeRelease();
 	LTCMat.SafeRelease();
 	LTCAmp.SafeRelease();
 	MaxFP16Depth.SafeRelease();

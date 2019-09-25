@@ -16,29 +16,28 @@
 #include "PostProcessParameters.h"
 #include "PostProcess/RenderingCompositionGraph.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
+#include "Math/Halton.h"
 
-static float GrainHalton( int32 Index, int32 Base )
-{
-	float Result = 0.0f;
-	float InvBase = 1.0f / Base;
-	float Fraction = InvBase;
-	while( Index > 0 )
-	{
-		Result += ( Index % Base ) * Fraction;
-		Index /= Base;
-		Fraction *= InvBase;
-	}
-	return Result;
-}
 
 static void GrainRandomFromFrame(FVector* RESTRICT const Constant, uint32 FrameNumber)
 {
-	Constant->X = GrainHalton(FrameNumber & 1023, 2);
-	Constant->Y = GrainHalton(FrameNumber & 1023, 3);
+	Constant->X = Halton(FrameNumber & 1023, 2);
+	Constant->Y = Halton(FrameNumber & 1023, 3);
 }
 
 
-void FilmPostSetConstants(FVector4* RESTRICT const Constants, const FPostProcessSettings* RESTRICT const FinalPostProcessSettings, bool bMobile, bool UseColorMatrix, bool UseShadowTint, bool UseContrast);
+BEGIN_SHADER_PARAMETER_STRUCT(FMobileFilmTonemapParameters, )
+	SHADER_PARAMETER(FVector4, ColorMatrixR_ColorCurveCd1)
+	SHADER_PARAMETER(FVector4, ColorMatrixG_ColorCurveCd3Cm3)
+	SHADER_PARAMETER(FVector4, ColorMatrixB_ColorCurveCm2)
+	SHADER_PARAMETER(FVector4, ColorCurve_Cm0Cd0_Cd2_Ch0Cm1_Ch3)
+	SHADER_PARAMETER(FVector4, ColorCurve_Ch1_Ch2)
+	SHADER_PARAMETER(FVector4, ColorShadow_Luma)
+	SHADER_PARAMETER(FVector4, ColorShadow_Tint1)
+	SHADER_PARAMETER(FVector4, ColorShadow_Tint2)
+END_SHADER_PARAMETER_STRUCT()
+
+FMobileFilmTonemapParameters GetMobileFilmTonemapParameters(const FPostProcessSettings& PostProcessSettings, bool bUseColorMatrix, bool bUseShadowTint, bool bUseContrast);
 
 // derives from TRenderingCompositePassBase<InputCount, OutputCount>
 // ePId_Input0: SceneColor
@@ -209,7 +208,7 @@ public:
 		if (!PermutationVector.Get<FTonemapperVSUseAutoExposure>())
 		{
 			// Compute a CPU-based default.  NB: reverts to "1" if SM5 feature level is not supported
-			float FixedExposure = FRCPassPostProcessEyeAdaptation::GetFixedExposure(Context.View);
+			float FixedExposure = GetEyeAdaptationFixedExposure(Context.View);
 			// Load a default value 
 			SetShaderValue(Context.RHICmdList, ShaderRHI, DefaultEyeExposure, FixedExposure);
 		}

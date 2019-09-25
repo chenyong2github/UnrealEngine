@@ -139,8 +139,8 @@ public:
 	// CreateClassVariablesFromBlueprint:
 	bool bAssignDelegateSignatureFunction;
 
-	// Flag to trigger ProcessSubInstance in CreateClassVariablesFromBlueprint:
-	bool bGenerateSubInstanceVariables;
+	// Flag to trigger ProcessLinkedGraph in CreateClassVariablesFromBlueprint:
+	bool bGenerateLinkedAnimGraphVariables;
 
 	static FSimpleMulticastDelegate OnPreCompile;
 	static FSimpleMulticastDelegate OnPostCompile;

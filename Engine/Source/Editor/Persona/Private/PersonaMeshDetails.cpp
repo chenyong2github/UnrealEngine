@@ -5043,7 +5043,7 @@ void FPersonaMeshDetails::OnGenerateElementForClothingAsset( TSharedRef<IPropert
 	.HAlign(HAlign_Fill)
 	[
 		SNew(STextBlock)
-		.Text(FText::FromString(CurrentAsset->GetName()))
+		.Text(CurrentAsset ? FText::FromString(CurrentAsset->GetName()) : FText())
 	];
 
 	ChildrenBuilder.AddCustomRow(LOCTEXT("ClothingAsset_Search_Details", "Details"))
@@ -5088,22 +5088,27 @@ void FPersonaMeshDetails::OnGenerateElementForClothingAsset( TSharedRef<IPropert
 	Options.bHideFilterArea = true;
 	Options.bShowComponents = false;
 
-	Inspector->ShowDetailsForSingleObject(CurrentAsset, Options);
+	if (CurrentAsset)
+	{
+		Inspector->ShowDetailsForSingleObject(CurrentAsset, Options);
+	}
 }
 
 TSharedRef<SUniformGridPanel> FPersonaMeshDetails::MakeClothingDetailsWidget(int32 AssetIndex) const
 {
-	const FSlateFontInfo DetailFontInfo = IDetailLayoutBuilder::GetDetailFont();
-
-	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
-	UClothingAsset* ClothingAsset = Cast<UClothingAsset>(SkelMesh->MeshClothingAssets[AssetIndex]);
-	check(ClothingAsset);
-
 	TSharedRef<SUniformGridPanel> Grid = SNew(SUniformGridPanel).SlotPadding(2.0f);
 
-	int32 NumLODs = ClothingAsset->LodData.Num();
-	int32 RowNumber = 0;
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	UClothingAssetBase* ClothingAsset = SkelMesh->MeshClothingAssets[AssetIndex];
+	if (!ClothingAsset)
+	{
+		return Grid;
+	}
 
+
+	const FSlateFontInfo DetailFontInfo = IDetailLayoutBuilder::GetDetailFont();
+	const int32 NumLODs = ClothingAsset->GetNumLods();
+	int32 RowNumber = 0;
 	for(int32 LODIndex=0; LODIndex < NumLODs; LODIndex++)
 	{
 		Grid->AddSlot(0, RowNumber) // x, y
@@ -5116,91 +5121,99 @@ TSharedRef<SUniformGridPanel> FPersonaMeshDetails::MakeClothingDetailsWidget(int
 
 		RowNumber++;
 
-		FClothLODData& LodData = ClothingAsset->LodData[LODIndex];
-		FClothPhysicalMeshData& PhysMeshData = LodData.PhysicalMeshData;
-		FClothCollisionData& CollisionData = LodData.CollisionData;
+		if (UClothingAsset* Asset = Cast<UClothingAsset>(ClothingAsset))
+		{
+			FClothLODData& LodData = Asset->LodData[LODIndex];
+			FClothPhysicalMeshData& PhysMeshData = LodData.PhysicalMeshData;
+			FClothCollisionData& CollisionData = LodData.CollisionData;
 
-		Grid->AddSlot(0, RowNumber) 
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.Font(DetailFontInfo)
+			Grid->AddSlot(0, RowNumber)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(DetailFontInfo)
 				.Text(LOCTEXT("SimulVertexCount", "Simul Verts"))
-			];
+				];
 
-		Grid->AddSlot(0, RowNumber + 1)
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.Font(DetailFontInfo)
+			Grid->AddSlot(0, RowNumber + 1)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(DetailFontInfo)
 				.Text(FText::AsNumber(PhysMeshData.Vertices.Num() - PhysMeshData.NumFixedVerts))
-			];
+				];
 
-		Grid->AddSlot(1, RowNumber)
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.Font(DetailFontInfo)
+			Grid->AddSlot(1, RowNumber)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(DetailFontInfo)
 				.Text(LOCTEXT("FixedVertexCount", "Fixed Verts"))
-			];
+				];
 
-		Grid->AddSlot(1, RowNumber + 1)
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.Font(DetailFontInfo)
+			Grid->AddSlot(1, RowNumber + 1)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(DetailFontInfo)
 				.Text(FText::AsNumber(PhysMeshData.NumFixedVerts))
-			];
+				];
 
-		Grid->AddSlot(2, RowNumber)
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.Font(DetailFontInfo)
+			Grid->AddSlot(2, RowNumber)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(DetailFontInfo)
 				.Text(LOCTEXT("TriangleCount", "Sim Triangles"))
-			];
+				];
 
-		Grid->AddSlot(2, RowNumber + 1)
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.Font(DetailFontInfo)
+			Grid->AddSlot(2, RowNumber + 1)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(DetailFontInfo)
 				.Text(FText::AsNumber(PhysMeshData.Indices.Num() / 3))
-			];
+				];
 
-		Grid->AddSlot(3, RowNumber)
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.Font(DetailFontInfo)
+			Grid->AddSlot(3, RowNumber)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(DetailFontInfo)
 				.Text(LOCTEXT("NumUsedBones", "Bones"))
-			];
+				];
 
-		Grid->AddSlot(3, RowNumber + 1)
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.Font(DetailFontInfo)
+			Grid->AddSlot(3, RowNumber + 1)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(DetailFontInfo)
 				.Text(FText::AsNumber(PhysMeshData.MaxBoneWeights))
-			];
+				];
 
-		Grid->AddSlot(4, RowNumber)
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.Font(DetailFontInfo)
+			Grid->AddSlot(4, RowNumber)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(DetailFontInfo)
 				.Text(LOCTEXT("NumBoneSpheres", "Spheres"))
-			];
+				];
 
-		Grid->AddSlot(4, RowNumber + 1)
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.Font(DetailFontInfo)
+			Grid->AddSlot(4, RowNumber + 1)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(DetailFontInfo)
 				.Text(FText::AsNumber(CollisionData.Spheres.Num()))
-			];
+				];
 
-		RowNumber += 2;
+			RowNumber += 2;
+		}
+		else
+		{
+			// Unsupported asset type
+			check(false);
+		}
 	}
 
 	return Grid;
@@ -5288,11 +5301,10 @@ FReply FPersonaMeshDetails::OnRemoveApexFileClicked(int32 AssetIndex, IDetailLay
 		// Now we can remove the asset.
 		if(SkelMesh->MeshClothingAssets.IsValidIndex(AssetIndex))
 		{
-			UClothingAssetBase* AssetToRemove = SkelMesh->MeshClothingAssets[AssetIndex];
-			check(AssetToRemove);
-
-			AssetToRemove->UnbindFromSkeletalMesh(SkelMesh);
-
+			if (UClothingAssetBase* AssetToRemove = SkelMesh->MeshClothingAssets[AssetIndex])
+			{
+				AssetToRemove->UnbindFromSkeletalMesh(SkelMesh);
+			}
 			SkelMesh->MeshClothingAssets.RemoveAt(AssetIndex);
 
 			// Need to fix up asset indices on sections.
@@ -5353,18 +5365,17 @@ void FPersonaMeshDetails::UpdateClothingEntries()
 	const int32 NumClothingAssets = Mesh->MeshClothingAssets.Num();
 	for(int32 Idx = 0; Idx < NumClothingAssets; ++Idx)
 	{
-		UClothingAsset* Asset = CastChecked<UClothingAsset>(Mesh->MeshClothingAssets[Idx]);
-
-		const int32 NumAssetLods = Asset->LodData.Num();
-		for(int32 AssetLodIndex = 0; AssetLodIndex < NumAssetLods; ++AssetLodIndex)
+		if (UClothingAssetBase* ClothingAsset = Mesh->MeshClothingAssets[Idx])
 		{
-			TSharedPtr<FClothingEntry> NewEntry = MakeShared<FClothingEntry>();
-
-			NewEntry->Asset = Mesh->MeshClothingAssets[Idx];
-			NewEntry->AssetIndex = Idx;
-			NewEntry->AssetLodIndex = AssetLodIndex;
-
-			NewClothingAssetEntries.Add(NewEntry);
+			const int32 NumAssetLods = ClothingAsset->GetNumLods();
+			for (int32 AssetLodIndex = 0; AssetLodIndex < NumAssetLods; ++AssetLodIndex)
+			{
+				TSharedPtr<FClothingEntry> NewEntry = MakeShared<FClothingEntry>();
+				NewEntry->Asset = ClothingAsset;
+				NewEntry->AssetIndex = Idx;
+				NewEntry->AssetLodIndex = AssetLodIndex;
+				NewClothingAssetEntries.Add(NewEntry);
+			}
 		}
 	}
 }
@@ -5504,9 +5515,8 @@ void FPersonaMeshDetails::OnFinishedChangingClothingProperties(const FPropertyCh
 			USkeletalMesh* CurrentMesh = GetPersonaToolkit()->GetMesh();
 			if(CurrentMesh->MeshClothingAssets.IsValidIndex(InAssetIndex))
 			{
-				UClothingAsset* Asset = CastChecked<UClothingAsset>(CurrentMesh->MeshClothingAssets[InAssetIndex]);
-
-				Asset->BuildSelfCollisionData();
+				if(UClothingAssetBase* Asset = CurrentMesh->MeshClothingAssets[InAssetIndex])
+					Asset->BuildSelfCollisionData();
 			}
 		}
 	}

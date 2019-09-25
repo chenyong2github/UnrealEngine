@@ -235,7 +235,10 @@ public:
 	 */
 	void Wait() const
 	{
-		while (!WaitFor(FTimespan::MaxValue()));
+		if (State.IsValid())
+		{
+			while (!WaitFor(FTimespan::MaxValue()));
+		}
 	}
 
 	/**

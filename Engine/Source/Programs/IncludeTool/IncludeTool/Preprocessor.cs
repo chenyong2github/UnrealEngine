@@ -467,8 +467,8 @@ namespace IncludeTool
 			ExpandMacros(Tokens, ExpandedTokens, false, CurrentLine);
 
 			// Expand any macros in them and resolve it
-			string IncludeToken = Token.Format(ExpandedTokens);
-			if(IncludeToken.Length >= 2 && IncludeToken.StartsWith("\"") && IncludeToken.EndsWith("\""))
+			string IncludeToken = Token.Format(ExpandedTokens).Replace("//", "/");
+			if (IncludeToken.Length >= 2 && IncludeToken.StartsWith("\"") && IncludeToken.EndsWith("\""))
 			{
 				return ResolveQuotedInclude(IncludeToken.Substring(1, IncludeToken.Length - 2));
 			}

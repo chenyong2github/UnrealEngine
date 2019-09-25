@@ -1,9 +1,13 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Common/FileSystem.h"
+
+#include "Async/Async.h"
+#include "Containers/Queue.h"
 #include "Containers/StringConv.h"
-#include "HAL/FileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/FileManager.h"
+#include "Misc/FileHelper.h"
 
 #if PLATFORM_WINDOWS
 // Start of region that uses windows types.
@@ -181,6 +185,66 @@ static_assert((uint32)BuildPatchServices::EReadFlags::AllowWrite == (uint32)::EF
 
 namespace BuildPatchServices
 {
+	class FParallelDirectoryEnumerator : public IPlatformFile::FDirectoryVisitor
+	{
+	public:
+
+		FParallelDirectoryEnumerator(IPlatformFile& InPlatformFile, const TCHAR* InFileExtension, EAsyncExecution InAsyncExecution)
+			: PlatformFile(InPlatformFile)
+			, FileExtension(InFileExtension)
+			, AsyncExecution(InAsyncExecution)
+		{
+			if (FileExtension.Len() > 0 && !FileExtension.StartsWith(TEXT(".")))
+			{
+				FileExtension.InsertAt(0, TEXT("."));
+			}
+		}
+
+		virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory) override
+		{
+			if (bIsDirectory)
+			{
+				FString Directory = FilenameOrDirectory;
+				DirectoryFutures.Enqueue(Async(AsyncExecution, [this, Directory = MoveTemp(Directory)]() { PlatformFile.IterateDirectory(*Directory, *this); }));
+			}
+			else if (MatchesExtension(FilenameOrDirectory))
+			{
+				FoundFilesQueue.Enqueue(FilenameOrDirectory);
+			}
+			return true;
+		}
+
+		void GetFiles(TArray<FString>& Results)
+		{
+			TFuture<void> Future;
+			while (DirectoryFutures.Dequeue(Future)) { Future.Wait(); }
+			while (FoundFilesQueue.Dequeue(Results.AddDefaulted_GetRef())) {}
+			Results.Pop(false);
+			Results.Sort();
+		}
+
+	private:
+		bool MatchesExtension(const TCHAR* Filename) const
+		{
+			if (FileExtension.Len() > 0)
+			{
+				const int32 FileNameLen = FCString::Strlen(Filename);
+				if (FileNameLen < FileExtension.Len() || FCString::Strcmp(&Filename[FileNameLen - FileExtension.Len()], *FileExtension) != 0)
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+
+	private:
+		IPlatformFile& PlatformFile;
+		FString FileExtension;
+		EAsyncExecution AsyncExecution;
+		TQueue<FString, EQueueMode::Mpsc> FoundFilesQueue;
+		TQueue<TFuture<void>, EQueueMode::Mpsc> DirectoryFutures;
+	};
+
 	class FFileSystem
 		: public IFileSystem
 	{
@@ -199,12 +263,15 @@ namespace BuildPatchServices
 		virtual bool SetExecutable(const TCHAR* Filename, bool bIsExecutable) const override;
 		virtual TUniquePtr<FArchive> CreateFileReader(const TCHAR* Filename, EReadFlags ReadFlags = EReadFlags::None) const override;
 		virtual TUniquePtr<FArchive> CreateFileWriter(const TCHAR* Filename, EWriteFlags WriteFlags = EWriteFlags::None) const override;
+		virtual bool LoadFileToString(const TCHAR* Filename, FString& Contents) const override;
+		virtual bool SaveStringToFile(const TCHAR* Filename, const FString& Contents) const override;
 		virtual bool DeleteFile(const TCHAR* Filename) const override;
 		virtual bool MoveFile(const TCHAR* FileDest, const TCHAR* FileSource) const override;
 		virtual bool CopyFile(const TCHAR* FileDest, const TCHAR* FileSource) const override;
 		virtual bool FileExists(const TCHAR* Filename) const override;
 		virtual void FindFiles(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension = nullptr) const override;
 		virtual void FindFilesRecursively(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension = nullptr) const override;
+		virtual void ParallelFindFilesRecursively(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension = nullptr, EAsyncExecution AsyncExecution = EAsyncExecution::ThreadPool) const override;
 		// IFileSystem interface end.
 
 	private:
@@ -275,6 +342,16 @@ namespace BuildPatchServices
 		return TUniquePtr<FArchive>(FileManager.CreateFileWriter(Filename, static_cast<uint32>(WriteFlags)));
 	}
 
+	bool FFileSystem::LoadFileToString(const TCHAR* Filename, FString& Contents) const
+	{
+		return FFileHelper::LoadFileToString(Contents, Filename);
+	}
+
+	bool FFileSystem::SaveStringToFile(const TCHAR* Filename, const FString& Contents) const
+	{
+		return FFileHelper::SaveStringToFile(Contents, Filename);
+	}
+
 	bool FFileSystem::DeleteFile(const TCHAR* Filename) const
 	{
 		return FileManager.Delete(Filename, false, true, true);
@@ -303,6 +380,13 @@ namespace BuildPatchServices
 	void FFileSystem::FindFilesRecursively(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension) const
 	{
 		PlatformFile.FindFilesRecursively(FoundFiles, Directory, FileExtension);
+	}
+
+	void FFileSystem::ParallelFindFilesRecursively(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension, EAsyncExecution AsyncExecution) const
+	{
+		FParallelDirectoryEnumerator DirectoryEnumerator(PlatformFile, FileExtension, AsyncExecution);
+		PlatformFile.IterateDirectory(Directory, DirectoryEnumerator);
+		DirectoryEnumerator.GetFiles(FoundFiles);
 	}
 
 	IFileSystem* FFileSystemFactory::Create()

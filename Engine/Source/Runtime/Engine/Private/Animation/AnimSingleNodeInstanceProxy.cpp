@@ -59,12 +59,11 @@ void FAnimSingleNodeInstanceProxy::PropagatePreviewCurve(FPoseContext& Output)
 }
 #endif // WITH_EDITORONLY_DATA
 
-void FAnimSingleNodeInstanceProxy::UpdateAnimationNode(float DeltaSeconds)
+void FAnimSingleNodeInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
 {
 	UpdateCounter.Increment();
 
-	FAnimationUpdateContext UpdateContext(this, DeltaSeconds);
-	SingleNode.Update_AnyThread(UpdateContext);
+	SingleNode.Update_AnyThread(InContext);
 }
 
 void FAnimSingleNodeInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const

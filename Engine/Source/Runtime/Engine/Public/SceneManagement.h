@@ -1111,6 +1111,7 @@ public:
 	FLinearColor GetSkyLuminanceFactor() const { return SkyLuminanceFactor; }
 	FLinearColor GetTransmittanceAtZenith() const { return TransmittanceAtZenith; };
 	float GetAerialPespectiveViewDistanceScale() const { return AerialPespectiveViewDistanceScale; }
+	float GetHeightFogContribution() const { return HeightFogContribution; }
 
 	const FAtmosphereSetup& GetAtmosphereSetup() const { return AtmosphereSetup; }
 
@@ -1125,6 +1126,7 @@ private:
 	FLinearColor TransmittanceAtZenith;
 	FLinearColor SkyLuminanceFactor;
 	float AerialPespectiveViewDistanceScale;
+	float HeightFogContribution;
 
 	bool OverrideAtmosphericLight[NUM_ATMOSPHERE_LIGHTS];
 	FVector OverrideAtmosphericLightDirection[NUM_ATMOSPHERE_LIGHTS];
@@ -1359,6 +1361,7 @@ public:
 	inline bool CastsStaticShadow() const { return bCastStaticShadow; }
 	inline bool CastsTranslucentShadows() const { return bCastTranslucentShadows; }
 	inline bool CastsVolumetricShadow() const { return bCastVolumetricShadow; }
+	inline bool CastsHairStrandsDeepShadow() const { return bCastHairStrandsDeepShadow; }
 	inline bool CastsRaytracedShadow() const { return bCastRaytracedShadow; }
 	inline bool AffectReflection() const { return bAffectReflection; }
 	inline bool AffectGlobalIllumination() const { return bAffectGlobalIllumination; }
@@ -1525,7 +1528,7 @@ protected:
 	const uint8 bTransmission : 1;
 
 	const uint8 bCastVolumetricShadow : 1;
-
+	const uint8 bCastHairStrandsDeepShadow : 1;
 	const uint8 bCastShadowsFromCinematicObjectsOnly : 1;
 
 	const uint8 bForceCachedShadowsForMovablePrimitives : 1;

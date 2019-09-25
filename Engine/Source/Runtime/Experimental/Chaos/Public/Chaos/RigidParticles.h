@@ -52,6 +52,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	{
 		TArrayCollection::AddArray(&MF);
 		TArrayCollection::AddArray(&MT);
+		TArrayCollection::AddArray(&MExternalForce);
+		TArrayCollection::AddArray(&MExternalTorque);
 		TArrayCollection::AddArray(&MI);
 		TArrayCollection::AddArray(&MInvI);
 		TArrayCollection::AddArray(&MM);
@@ -65,10 +67,12 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	}
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
 	TRigidParticles(TRigidParticles<T, d>&& Other)
-	    : TKinematicGeometryParticles<T, d>(MoveTemp(Other)), MF(MoveTemp(Other.MF)), MT(MoveTemp(Other.MT)), MI(MoveTemp(Other.MI)), MInvI(MoveTemp(Other.MInvI)), MM(MoveTemp(Other.MM)), MInvM(MoveTemp(Other.MInvM)), MCollisionParticles(MoveTemp(Other.MCollisionParticles)), MCollisionGroup(MoveTemp(Other.MCollisionGroup)), MObjectState(MoveTemp(Other.MObjectState))
+	    : TKinematicGeometryParticles<T, d>(MoveTemp(Other)), MF(MoveTemp(Other.MF)), MT(MoveTemp(Other.MT)), MExternalForce(MoveTemp(Other.MExternalForce)), MExternalTorque(MoveTemp(Other.MExternalTorque)), MI(MoveTemp(Other.MI)), MInvI(MoveTemp(Other.MInvI)), MM(MoveTemp(Other.MM)), MInvM(MoveTemp(Other.MInvM)), MCollisionParticles(MoveTemp(Other.MCollisionParticles)), MCollisionGroup(MoveTemp(Other.MCollisionGroup)), MObjectState(MoveTemp(Other.MObjectState))
 	{
 		TArrayCollection::AddArray(&MF);
 		TArrayCollection::AddArray(&MT);
+		TArrayCollection::AddArray(&MExternalForce);
+		TArrayCollection::AddArray(&MExternalTorque);
 		TArrayCollection::AddArray(&MI);
 		TArrayCollection::AddArray(&MInvI);
 		TArrayCollection::AddArray(&MM);
@@ -86,6 +90,12 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 
 	const TVector<T, d>& F(const int32 Index) const { return MF[Index]; }
 	TVector<T, d>& F(const int32 Index) { return MF[Index]; }
+
+	const TVector<T, d>& ExternalTorque(const int32 Index) const { return MExternalTorque[Index]; }
+	TVector<T, d>& ExternalTorque(const int32 Index) { return MExternalTorque[Index]; }
+
+	const TVector<T, d>& ExternalForce(const int32 Index) const { return MExternalForce[Index]; }
+	TVector<T, d>& ExternalForce(const int32 Index) { return MExternalForce[Index]; }
 
 	const PMatrix<T, d, d>& I(const int32 Index) const { return MI[Index]; }
 	PMatrix<T, d, d>& I(const int32 Index) { return MI[Index]; }
@@ -135,19 +145,21 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	FString ToString(int32 index) const
 	{
 		FString BaseString = TKinematicGeometryParticles<T, d>::ToString(index);
-		return FString::Printf(TEXT("%s, MF:%s, MT:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleepring:%d, MIsland:%d"), *BaseString, *F(index).ToString(), *Torque(index).ToString(), *I(index).ToString(), *InvI(index).ToString(), M(index), InvM(index), CollisionParticlesSize(index), CollisionGroup(index), Disabled(index), Sleeping(index), Island(index));
+		return FString::Printf(TEXT("%s, MF:%s, MT:%s, MExternalForce:%s, MExternalTorque:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleepring:%d, MIsland:%d"), *BaseString, *F(index).ToString(), *Torque(index).ToString(), *ExternalForce(index).ToString(), *ExternalTorque(index).ToString(), *I(index).ToString(), *InvI(index).ToString(), M(index), InvM(index), CollisionParticlesSize(index), CollisionGroup(index), Disabled(index), Sleeping(index), Island(index));
 	}
 
 	void Serialize(FChaosArchive& Ar)
 	{
 		TKinematicGeometryParticles<T,d>::Serialize(Ar);
-		Ar << MF << MT << MI << MInvI << MM << MInvM;
+		Ar << MF << MT << MExternalForce << MExternalTorque << MI << MInvI << MM << MInvM;
 		Ar << MCollisionParticles << MCollisionGroup << MIsland << MDisabled << MObjectState;
 	}
 
   private:
 	TArrayCollectionArray<TVector<T, d>> MF;
 	TArrayCollectionArray<TVector<T, d>> MT;
+	TArrayCollectionArray<TVector<T, d>> MExternalForce;
+	TArrayCollectionArray<TVector<T, d>> MExternalTorque;
 	TArrayCollectionArray<PMatrix<T, d, d>> MI;
 	TArrayCollectionArray<PMatrix<T, d, d>> MInvI;
 	TArrayCollectionArray<T> MM;

@@ -171,19 +171,19 @@ class FNDI_SkeletalMesh_GeneratedData
 {
 	// Encapsulates skinning data and mesh usage information. 
 	// Set by GetCachedSkinningData and used by TickGeneratedData to determine whether we need to pre-skin or not.
-	struct CachedSkinningDataAndUsage {
+	struct CachedSkinningDataAndUsage
+	{
+		bool bHasTicked = false;
 		TSharedPtr<FSkeletalMeshSkinningData> SkinningData;
 		FSkeletalMeshSkinningDataUsage Usage;
 	};
+
+	FRWLock CachedSkinningDataGuard;
 	TMap<TWeakObjectPtr<USkeletalMeshComponent>, CachedSkinningDataAndUsage> CachedSkinningData;
 
 public:
-
 	FSkeletalMeshSkinningDataHandle GetCachedSkinningData(TWeakObjectPtr<USkeletalMeshComponent>& InComponent, FSkeletalMeshSkinningDataUsage Usage);
-
-	void TickGeneratedData(float DeltaSeconds);
-
-	FCriticalSection CriticalSection;
+	void TickGeneratedData(ETickingGroup TickGroup, float DeltaSeconds);
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -524,6 +524,8 @@ public:
 	virtual TArray<FNiagaraDataInterfaceError> GetErrors() override;
 	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
 #endif
+	virtual bool HasTickGroupPrereqs() const override { return true; }
+	virtual ETickingGroup CalculateTickGroup(void* PerInstanceData) const override;
 	//~ UNiagaraDataInterface interface END
 
 	USkeletalMesh* GetSkeletalMesh(class UNiagaraComponent* OwningComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData = nullptr);
@@ -533,7 +535,7 @@ public:
 	virtual void GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
 
-	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FGuid& SystemInstance) override;
+	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 	static const FString MeshIndexBufferName;
 	static const FString MeshVertexBufferName;
@@ -750,7 +752,7 @@ struct FNiagaraDataInterfaceProxySkeletalMesh : public FNiagaraDataInterfaceProx
 		return sizeof(FNiagaraDISkeletalMeshPassedDataToRT);
 	}
 
-	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance) override;
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
 
-	TMap<FGuid, FNiagaraDataInterfaceProxySkeletalMeshData> SystemInstancesToData;
+	TMap<FNiagaraSystemInstanceID, FNiagaraDataInterfaceProxySkeletalMeshData> SystemInstancesToData;
 };

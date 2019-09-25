@@ -10,24 +10,32 @@ static const TCHAR* GLoadedRHIModuleName;
 
 static bool ShouldPreferD3D12()
 {
-	// Disabled until D3D12RHI is ready
+	if (!GIsEditor)
+	{
+		bool bPreferD3D12 = false;
+		if (GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bPreferD3D12InGame"), bPreferD3D12, GGameUserSettingsIni))
+		{
+			return bPreferD3D12;
+		}
+	}
+
 #if 0
 	bool bPreferD3D12 = false;
 	if (GIsEditor)
 	{
-		GConfig->GetBool(TEXT("D3DRHIPerference"), TEXT("bPreferD3D12InEditor"), bPreferD3D12, GEngineIni);
+		GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bPreferD3D12InEditor"), bPreferD3D12, GEngineIni);
 	}
 	else
 	{
-		GConfig->GetBool(TEXT("D3DRHIPerference"), TEXT("bPreferD3D12InGame"), bPreferD3D12, GEngineIni);
+		GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bPreferD3D12InGame"), bPreferD3D12, GEngineIni);
 	}
 
 	int32 MinNumCPUCores = 0;
-	GConfig->GetInt(TEXT("D3DRHIPerference"), TEXT("con.MinNumCPUCores"), MinNumCPUCores, GEngineIni);
+	GConfig->GetInt(TEXT("D3DRHIPreference"), TEXT("con.MinNumCPUCores"), MinNumCPUCores, GEngineIni);
 	const bool bHasEnoughCPUCores = FPlatformMisc::NumberOfCoresIncludingHyperthreads() >= MinNumCPUCores;
 
 	int32 MinPhysicalMemGB = 0;
-	GConfig->GetInt(TEXT("D3DRHIPerference"), TEXT("con.MinPhysicalMemGB"), MinPhysicalMemGB, GEngineIni);
+	GConfig->GetInt(TEXT("D3DRHIPreference"), TEXT("con.MinPhysicalMemGB"), MinPhysicalMemGB, GEngineIni);
 	const bool bHasEnoughMem = FPlatformMemory::GetConstants().TotalPhysical >= MinPhysicalMemGB * (1llu << 30);
 
 	return bPreferD3D12 && bHasEnoughCPUCores && bHasEnoughMem;
@@ -42,15 +50,13 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 	
 	// command line overrides
 	bool bForceSM5 = FParse::Param(FCommandLine::Get(), TEXT("sm5"));
-	bool bForceSM4 = FParse::Param(FCommandLine::Get(), TEXT("sm4"));
 	bool bForceVulkan = FParse::Param(FCommandLine::Get(), TEXT("vulkan"));
 	bool bForceOpenGL = FWindowsPlatformMisc::VerifyWindowsVersion(6, 0) == false || FParse::Param(FCommandLine::Get(), TEXT("opengl")) || FParse::Param(FCommandLine::Get(), TEXT("opengl3")) || FParse::Param(FCommandLine::Get(), TEXT("opengl4"));
-	bool bForceD3D10 = FParse::Param(FCommandLine::Get(), TEXT("d3d10")) || FParse::Param(FCommandLine::Get(), TEXT("dx10")) || (bForceSM4 && !bForceVulkan && !bForceOpenGL);
 	bool bForceD3D11 = FParse::Param(FCommandLine::Get(), TEXT("d3d11")) || FParse::Param(FCommandLine::Get(), TEXT("dx11")) || (bForceSM5 && !bForceVulkan && !bForceOpenGL);
 	bool bForceD3D12 = FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"));
 	DesiredFeatureLevel = ERHIFeatureLevel::Num;
 	
-	if(!(bForceVulkan||bForceOpenGL||bForceD3D10||bForceD3D11||bForceD3D12))
+	if(!(bForceVulkan||bForceOpenGL||bForceD3D11||bForceD3D12))
 	{
 		//Default graphics RHI is only used if no command line option is specified
 		FConfigFile EngineSettings;
@@ -80,16 +86,11 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 
 
 
-	int32 Sum = ((bForceD3D12 ? 1 : 0) + (bForceD3D11 ? 1 : 0) + (bForceD3D10 ? 1 : 0) + (bForceOpenGL ? 1 : 0) + (bForceVulkan ? 1 : 0));
-
-	if (bForceSM5 && bForceSM4)
-	{
-		UE_LOG(LogRHI, Fatal, TEXT("-sm4 and -sm5 are mutually exclusive options, but more than one was specified on the command-line."));
-	}
+	int32 Sum = ((bForceD3D12 ? 1 : 0) + (bForceD3D11 ? 1 : 0) + (bForceOpenGL ? 1 : 0) + (bForceVulkan ? 1 : 0));
 
 	if (Sum > 1)
 	{
-		UE_LOG(LogRHI, Fatal, TEXT("-d3d12, -d3d11, -d3d10, -vulkan, and -opengl[3|4] are mutually exclusive options, but more than one was specified on the command-line."));
+		UE_LOG(LogRHI, Fatal, TEXT("-d3d12, -d3d11, -vulkan, and -opengl[3|4] are mutually exclusive options, but more than one was specified on the command-line."));
 	}
 	else if (Sum == 0)
 	{
@@ -112,12 +113,6 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 		if (bForceSM5)
 		{
 			DesiredFeatureLevel = ERHIFeatureLevel::SM5;
-		}
-
-		if (bForceSM4)
-		{
-			DesiredFeatureLevel = ERHIFeatureLevel::SM4;
-			bPreferD3D12 = false;
 		}
 	}
 
@@ -184,6 +179,12 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 		FApp::SetGraphicsRHI(TEXT("DirectX 12"));
 		LoadedRHIModuleName = TEXT("D3D12RHI");
 		DynamicRHIModule = FModuleManager::LoadModulePtr<IDynamicRHIModule>(LoadedRHIModuleName);
+
+#if !WITH_EDITOR
+		// Enable -psocache by default on DX12. Since RHI is selected at runtime we can't set this at compile time with PIPELINE_CACHE_DEFAULT_ENABLED.
+		auto PSOFileCacheEnabledCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.Enabled"));
+		*PSOFileCacheEnabledCVar = 1;
+#endif
 
 		if (!DynamicRHIModule || !DynamicRHIModule->IsSupported())
 		{

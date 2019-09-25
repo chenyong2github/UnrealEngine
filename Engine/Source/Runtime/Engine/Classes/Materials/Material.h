@@ -494,6 +494,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Render After DOF"), AdvancedDisplay)
 	uint8 bEnableSeparateTranslucency : 1;
 
+	/** Indicates that the material should be rendered in the underwater pass. */
+	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Render Under Water"), AdvancedDisplay)
+	uint8 bEnableRenderUnderWater : 1;
+
 	/**
 	 * Indicates that the material should be rendered using responsive anti-aliasing. Improves sharpness of small moving particles such as sparks.
 	 * Only use for small moving features because it will cause aliasing of the background.
@@ -729,6 +733,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Usage)
 	uint32 bUsedWithWater : 1;
+
+	/**
+	 * Indicates that the material and its instances can be use with hair strands
+	 * This will result in the shaders required to support hair strands geometries being compiled which will increase shader compile time and memory usage.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Usage)
+	uint32 bUsedWithHairStrands : 1;
 
 	/** 
 	 * Indicates that the material and its instances can be used with Slate UI and UMG
@@ -1725,12 +1736,16 @@ protected:
 	 *	@Param	InFeatureLevel			Optional feature level - if supplied, only walk FeatureLevelSwitch branches according to it.
 	 *	@Param	InQuality				Optional quality switch - if supplied, only walk QualitySwitch branches according to it.
 	 *	@Param	InShadingPath			Optional shading path switch - if supplied, only walk ShadingPathSwitch branches according to it.
+	 *	@Param	InShaderFrequency		Optional shader frequency - if supplied, only walk ShaderFrequencySwitch branches according to it.
 	 *
 	 *	@return	bool					true if successful, false if not.
 	 */
 	ENGINE_API virtual bool RecursiveGetExpressionChain(UMaterialExpression* InExpression, TArray<FExpressionInput*>& InOutProcessedInputs, 
 		TArray<UMaterialExpression*>& OutExpressions, struct FStaticParameterSet* InStaticParameterSet,
-		ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num, EMaterialQualityLevel::Type InQuality = EMaterialQualityLevel::Num, ERHIShadingPath::Type InShadingPath = ERHIShadingPath::Num);
+		ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num,
+		EMaterialQualityLevel::Type InQuality = EMaterialQualityLevel::Num,
+		ERHIShadingPath::Type InShadingPath = ERHIShadingPath::Num,
+		EShaderFrequency InShaderFrequency = SF_NumFrequencies);
 
 	/**
 	*	Recursively update the bRealtimePreview for each expression based on whether it is connected to something that is time-varying.

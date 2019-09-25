@@ -258,56 +258,9 @@ namespace IncludeTool
 		}
 
 		/// <summary>
-		/// List of context-specific files
-		/// </summary>
-		static readonly HashSet<string> InlineFileNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
-		{
-			//"/Engine/Source/Runtime/Core/Public/Delegates/DelegateCombinations.h",
-			"/Engine/Source/Runtime/Core/Public/UObject/PendingVersions.h",
-			"/Engine/Source/Runtime/CoreUObject/Public/UObject/ScriptSerialization.h",
-			"/Engine/Source/Runtime/Online/HTTP/Public/HttpPackage.h",
-			"/Engine/Plugins/NotForLicensees/OnlineGameplayFramework/Source/McpProfileSys/Public/McpProfileSysPackage.h",
-			"/Engine/Plugins/Online/OnlineSubsystem/Source/Public/OnlineSubsystemPackage.h",
-			"/Engine/Plugins/Online/OnlineSubsystemNull/Source/Public/OnlineSubsystemNullPackage.h",
-			"/Engine/Plugins/Online/OnlineFramework/Source/Party/Public/PartyPackage.h",
-			"/Engine/Plugins/Online/NotForLicensees/OnlineSubsystemMcp/Source/Public/OnlineSubsystemMcpPackage.h",
-			"/Engine/Plugins/OnlineGameplayFramework/Source/McpProfileSys/Public/McpProfileSysPackage.h",
-			"/Engine/Plugins/Online/NotForLicensees/OnlineSubsystemTencent/Source/Public/OnlineSubsystemTencentPackage.h",
-			"/Engine/Plugins/Online/OnlineSubsystemSteam/Source/Public/OnlineSubsystemSteamPackage.h",
-			"/Engine/Plugins/Online/OnlineSubsystemAmazon/Source/Public/OnlineSubsystemAmazonPackage.h",
-			"/Engine/Plugins/Online/OnlineSubsystemUtils/Source/OnlineSubsystemUtils/Public/OnlineSubsystemUtilsPackage.h",
-			"/Engine/Plugins/Online/OnlineSubsystemTwitch/Source/Public/OnlineSubsystemTwitchPackage.h",
-			"/Engine/Plugins/Online/PS4/OnlineSubsystemPS4Server/Source/Public/OnlineSubsystemPS4ServerPackage.h",
-			"/Engine/Plugins/Online/XboxOne/OnlineSubsystemLiveServer/Source/Public/OnlineSubsystemLiveServerPackage.h",
-			"/Engine/Source/Runtime/Online/OnlineSubsystemAmazon/Public/OnlineSubsystemAmazonPackage.h",
-			"/Engine/Source/Runtime/Online/OnlineSubsystemFacebook/Public/OnlineSubsystemFacebookPackage.h",
-			"/Engine/Source/Runtime/Online/OnlineSubsystemSteam/Public/OnlineSubsystemSteamPackage.h",
-			"/Engine/Source/Runtime/Online/OnlineSubsystemUtils/Public/OnlineSubsystemUtilsPackage.h",
-			"/Engine/Source/Runtime/Online/NotForLicensees/OnlineSubsystemMcp/Public/OnlineSubsystemMcpPackage.h",
-			"/Engine/Source/Runtime/Online/Voice/Public/VoicePackage.h",
-			"/Engine/Source/Runtime/Sockets/Public/SocketSubsystemPackage.h",
-			"/Engine/Source/Runtime/Core/Public/UObject/UnrealNames.inl",
-			"/Engine/Source/Runtime/Core/Public/Math/UnrealMathCommon.inl",
-			"/Engine/Source/Runtime/Launch/Resources/Windows/resource.h",
-			"/Engine/Source/Programs/UnrealHeaderTool/Private/Specifiers/CheckedMetadataSpecifiers.def",
-			"/Engine/Source/Programs/UnrealHeaderTool/Private/Specifiers/FunctionSpecifiers.def",
-			"/Engine/Source/Programs/UnrealHeaderTool/Private/Specifiers/InterfaceSpecifiers.def",
-			"/Engine/Source/Programs/UnrealHeaderTool/Private/Specifiers/StructSpecifiers.def",
-			"/Engine/Source/Programs/UnrealHeaderTool/Private/Specifiers/VariableSpecifiers.def",
-			"/Engine/Source/Runtime/Engine/Public/ShowFlagsValues.inl",
-			"/Engine/Source/Runtime/Engine/Public/Animation/AnimMTStats.h",
-            "/Engine/Source/Runtime/Slate/Public/SlateScope.h",
-            "/FortniteGame/Plugins/Online/OnlineSubsystem/Source/Public/OnlineSubsystemPackage.h",
-            "/FortniteGame/Plugins/Online/NotForLicensees/OnlineSubsystemMcp/Source/Public/OnlineSubsystemMcpPackage.h",
-			"/FortniteGame/Plugins/Online/OnlineSubsystemNull/Source/Public/OnlineSubsystemNullPackage.h",
-			"/FortniteGame/Plugins/Online/OnlineSubsystemUtils/Source/OnlineSubsystemUtils/Public/OnlineSubsystemUtilsPackage.h",
-			"/FortniteGame/Plugins/OnlineGameplayFramework/Source/McpProfileSys/Public/McpProfileSysPackage.h"
-        };
-
-		/// <summary>
 		/// List of files whose includes are pinned to the file they are included from
 		/// </summary>
-		static readonly HashSet<string> PinnedFileNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+		static readonly HashSet<string> PinnedFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"/Engine/Source/Runtime/Core/Public/GenericPlatform/GenericPlatform.h",
 			"/Engine/Source/Runtime/Core/Public/Math/UnrealMatrix.h",
@@ -400,7 +353,7 @@ namespace IncludeTool
 		/// <summary>
 		/// List of files whose includes are pinned to the file they are included from
 		/// </summary>
-		static readonly HashSet<string> NotStandaloneFileNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+		static readonly HashSet<string> NotStandaloneFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"/Engine/Source/Runtime/Core/Public/Delegates/DelegateCombinations.h",
 			"/Engine/Source/Runtime/Core/Public/Containers/LockFreeListImpl.h",
@@ -419,7 +372,7 @@ namespace IncludeTool
 		/// <summary>
 		/// List of files whose includes are pinned to the file they are included from
 		/// </summary>
-		static readonly HashSet<string> AggregateFileNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+		static readonly HashSet<string> AggregateFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 //			"/Engine/Source/Runtime/CoreUObject/Classes/Object.h",
 			"/Engine/Source/Runtime/Slate/Public/SlateBasics.h",
@@ -429,7 +382,7 @@ namespace IncludeTool
 		/// <summary>
 		/// List of files whose includes are pinned to the file they are included from
 		/// </summary>
-		static readonly HashSet<string> NonAggregateFileNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+		static readonly HashSet<string> NonAggregateFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"/Engine/Source/Runtime/RHI/Public/RHI.h",
 		};
@@ -437,7 +390,7 @@ namespace IncludeTool
 		/// <summary>
 		/// List of files which are ok to split into multiple fragments
 		/// </summary>
-		static readonly HashSet<string> AllowMultipleFragmentFileNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+		static readonly HashSet<string> AllowMultipleFragmentFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"/Engine/Source/Runtime/CoreUObject/Public/UObject/UObjectBaseUtility.h",
 			"/Engine/Source/Runtime/CoreUObject/Public/UObject/Class.h",
@@ -453,7 +406,7 @@ namespace IncludeTool
 		/// <summary>
 		/// Files which should not be treated as containing purely forward declarations, despite a "fwd.h" suffix
 		/// </summary>
-		static readonly HashSet<string> IgnoreFwdHeaders = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+		static readonly HashSet<string> IgnoreFwdHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"/Engine/Source/Runtime/Core/Public/Internationalization/TextNamespaceFwd.h",
 			"/Engine/Source/Editor/SceneOutliner/Public/SceneOutlinerFwd.h",
@@ -461,6 +414,7 @@ namespace IncludeTool
 			"/Engine/Source/Runtime/Slate/Public/Framework/Text/ShapedTextCacheFwd.h", // Typedef isn't a forward declaration
 			"/Engine/Source/Runtime/MovieScene/Public/MovieSceneFwd.h",
 			"/Engine/Source/Runtime/Core/Public/Internationalization/StringTableCoreFwd.h", // Typedef isn't a forward declaration
+			"/Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/ParticleHandleFwd.h", // invalid forward declaration - 'namespace Chaos'
 		};
 
 		/// <summary>
@@ -506,10 +460,6 @@ namespace IncludeTool
 				Flags |= SourceFileFlags.FwdHeader;
 			}
 
-			if(InlineFileNames.Contains(NormalizedPath))
-			{
-				Flags = (Flags | SourceFileFlags.Inline) & ~SourceFileFlags.Standalone;
-			}
 			if(PinnedFileNames.Contains(NormalizedPath))
 			{
 				Flags = (Flags | SourceFileFlags.Pinned) & ~SourceFileFlags.Standalone;

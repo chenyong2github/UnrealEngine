@@ -18,15 +18,9 @@ namespace UnrealBuildTool.Rules
 					"ApplicationCore",
 					"MediaUtils",
 					"RenderCore",
-					"RHI",
-					"UtilityShaders",
+					"RHI"
 				});
-
-			PrivateIncludePathModuleNames.AddRange(
-				new string[] {
-					"UtilityShaders",
-				});
-
+			
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"Media",

@@ -93,35 +93,6 @@ void FD3D12CommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIVertexBuff
 	StateCache.SetStreamSource(VertexBuffer ? &VertexBuffer->ResourceLocation : nullptr, StreamIndex, Offset);
 }
 
-// Stream-Out state.
-void FD3D12DynamicRHI::RHISetStreamOutTargets(uint32 NumTargets, FRHIVertexBuffer* const* VertexBuffers, const uint32* Offsets)
-{
-	// Multi-GPU support: this might need a node mask parameter or broadcast to all GPUs.
-	FD3D12CommandContext& CmdContext = GetRHIDevice()->GetDefaultCommandContext();
-	FD3D12Resource* D3DVertexBuffers[D3D12_SO_BUFFER_SLOT_COUNT] = { 0 };
-	uint32 D3DOffsets[D3D12_SO_BUFFER_SLOT_COUNT] = { 0 };
-
-	if (VertexBuffers)
-	{
-		for (uint32 BufferIndex = 0; BufferIndex < NumTargets; BufferIndex++)
-		{
-			const FD3D12VertexBuffer* VB = ((FD3D12VertexBuffer*)VertexBuffers[BufferIndex]);
-			if (VB != nullptr)
-			{
-				D3DVertexBuffers[BufferIndex] = VB->ResourceLocation.GetResource();
-				D3DOffsets[BufferIndex] = VB->ResourceLocation.GetOffsetFromBaseOfResource();
-			}
-			else
-			{
-				D3DVertexBuffers[BufferIndex] = nullptr;
-				D3DOffsets[BufferIndex] = 0;
-			}
-		}
-	}
-
-	CmdContext.StateCache.SetStreamOutTargets(NumTargets, D3DVertexBuffers, D3DOffsets);
-}
-
 void FD3D12CommandContext::RHISetComputeShader(FRHIComputeShader* ComputeShaderRHI)
 {
 #if D3D12_RHI_RAYTRACING
@@ -155,7 +126,7 @@ void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, ui
 
 	if (IsDefaultContext())
 	{
-		GetParentDevice()->RegisterGPUWork(1);
+		GetParentDevice()->RegisterGPUDispatch(FIntVector(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ));	
 	}
 
 	if (ComputeShader->ResourceCounts.bGlobalUniformBufferUsed)
@@ -177,7 +148,7 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* Ar
 
 	if (IsDefaultContext())
 	{
-		GetParentDevice()->RegisterGPUWork(1);
+		GetParentDevice()->RegisterGPUDispatch(FIntVector(1, 1, 1));	
 	}
 
 	FD3D12ComputeShader* ComputeShader = nullptr;
@@ -320,12 +291,20 @@ void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess Tran
 #if USE_D3D12RHI_RESOURCE_STATE_TRACKING
 			if ( TransitionType == EResourceTransitionAccess::EReadable )
 			{
+				const D3D12_COMMAND_LIST_TYPE CmdListType = CommandListHandle.GetCommandListType();
 				for (int32 i = 0; i < InNumUAVs; ++i)
 				{
 					if (InUAVs[i])
 					{
 						FD3D12UnorderedAccessView* const UnorderedAccessView = RetrieveObject<FD3D12UnorderedAccessView>(InUAVs[i]);
-						FD3D12DynamicRHI::TransitionResource(CommandListHandle, UnorderedAccessView, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+						
+						// D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE cannot be used for compute command list so we exclude it here.
+						D3D12_RESOURCE_STATES AfterState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+						if (CmdListType != D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_COMPUTE)
+						{
+							AfterState |= D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+						}
+						FD3D12DynamicRHI::TransitionResource(CommandListHandle, UnorderedAccessView, AfterState);
 					}
 				}
 			}

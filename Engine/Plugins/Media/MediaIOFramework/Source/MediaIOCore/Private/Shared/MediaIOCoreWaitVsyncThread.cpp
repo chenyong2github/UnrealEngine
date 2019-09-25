@@ -27,7 +27,7 @@ bool FMediaIOCoreWaitVSyncThread::Init()
 
 uint32 FMediaIOCoreWaitVSyncThread::Run()
 {
-	while (!GIsRequestingExit && bAlive.Load() && HardwareSync->IsValid())
+	while (!IsEngineExitRequested() && bAlive.Load() && HardwareSync->IsValid())
 	{
 		// wait for event
 		HardwareSync->WaitVSync();

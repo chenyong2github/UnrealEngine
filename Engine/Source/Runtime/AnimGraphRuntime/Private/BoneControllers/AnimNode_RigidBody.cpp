@@ -21,7 +21,7 @@
 
 #define LOCTEXT_NAMESPACE "ImmediatePhysics"
 
-TAutoConsoleVariable<int32> CVarEnableRigidBodyNode(TEXT("p.RigidBodyNode"), 1, TEXT("Enables/disables rigid body node updates and evaluations"), ECVF_Scalability);
+TAutoConsoleVariable<int32> CVarEnableRigidBodyNode(TEXT("p.RigidBodyNode"), 1, TEXT("Enables/disables rigid body node updates and evaluations"), ECVF_ReadOnly);
 TAutoConsoleVariable<int32> CVarRigidBodyLODThreshold(TEXT("p.RigidBodyLODThreshold"), -1, TEXT("Max LOD that rigid body node is allowed to run on. Provides a global threshold that overrides per-node the LODThreshold property. -1 means no override."), ECVF_Scalability);
 
 FAnimNode_RigidBody::FAnimNode_RigidBody():
@@ -132,8 +132,7 @@ void FAnimNode_RigidBody::UpdateComponentPose_AnyThread(const FAnimationUpdateCo
 		{
 			// Create a new context with zero deltatime to freeze time in rest of the graph.
 			// This will be used to capture a frozen pose.
-			FAnimationUpdateContext FrozenContext = Context;
-			FrozenContext.FractionalWeightAndTime(1.f, 0.f);
+			FAnimationUpdateContext FrozenContext = Context.FractionalWeightAndTime(1.f, 0.f);
 
 			Super::UpdateComponentPose_AnyThread(FrozenContext);
 		}
@@ -608,7 +607,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 		bSimulateAnimPhysicsAfterReset = false;
 	}
 
-	if(UsePhysicsAsset)
+	if(CVarEnableRigidBodyNode.GetValueOnAnyThread() != 0 && UsePhysicsAsset)
 	{
 		delete PhysicsSimulation;
 		PhysicsSimulation = new ImmediatePhysics::FSimulation();

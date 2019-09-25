@@ -686,7 +686,7 @@ void USplineComponent::AddSplinePointAtIndex(const FVector& Position, int32 Inde
 		USplineMetadata* Metadata = GetSplinePointsMetadata();
 		if (Metadata)
 		{
-			Metadata->InsertPoint(InKey, Index);
+			Metadata->InsertPoint(InKey, Index, bClosedLoop);
 		}
 		
 		NumPoints++;
@@ -901,6 +901,12 @@ int32 USplineComponent::GetNumberOfSplinePoints() const
 	// No longer returns an imaginary extra endpoint if closed loop is set
 	const int32 NumPoints = SplineCurves.Position.Points.Num();
 	return NumPoints;
+}
+
+int32 USplineComponent::GetNumberOfSplineSegments() const
+{
+	const int32 NumPoints = SplineCurves.Position.Points.Num();
+	return (bClosedLoop ? NumPoints : NumPoints - 1);
 }
 
 

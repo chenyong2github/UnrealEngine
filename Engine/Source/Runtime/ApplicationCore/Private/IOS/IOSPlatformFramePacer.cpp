@@ -85,7 +85,7 @@ namespace IOSDisplayConstants
 -(void)signal:(id)param
 {
 	// during shutdown, this can cause crashes (only non-backgrounding apps do this)
-	if (GIsRequestingExit)
+	if (IsEngineExitRequested())
 	{
 		return;
 	};

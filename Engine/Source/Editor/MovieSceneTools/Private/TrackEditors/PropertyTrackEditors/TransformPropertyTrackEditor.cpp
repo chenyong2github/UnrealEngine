@@ -77,8 +77,8 @@ bool FTransformPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObjec
 	FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, GetSequencer()->GetFocusedTickResolution()));
 	EvalTrack.Interrogate(Context, InterrogationData, Object);
 
-	FVector CurrentPos; FRotator CurrentRot;
-	FVector CurrentScale;
+	FVector CurrentPos(0.f); FRotator CurrentRot(0.f);
+	FVector CurrentScale(1.f);
 	for (const FTransformData& Transform : InterrogationData.Iterate<FTransformData>(FMovieSceneInterrogationKey::GetTransformInterrogationKey()))
 	{
 		CurrentPos = Transform.Translation;

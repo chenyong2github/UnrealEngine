@@ -22,6 +22,13 @@ FAutoConsoleVariableRef CVarMetalMaxOutstandingAsyncTexUploads(
 															   ECVF_ReadOnly|ECVF_RenderThreadSafe
 															   );
 
+int32 GMetalForceIOSTexturesShared = 1;
+FAutoConsoleVariableRef CVarMetalForceIOSTexturesShared(
+														TEXT("rhi.Metal.ForceIOSTexturesShared"),
+														GMetalForceIOSTexturesShared,
+														TEXT("If true, forces all textures to be Shared on iOS"),
+														ECVF_RenderThreadSafe);
+
 
 /** Texture reference class. */
 class FMetalTextureReference : public FRHITextureReference
@@ -799,8 +806,21 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 		{
 			check(!(Flags & TexCreate_CPUReadback));
 			Desc.SetCpuCacheMode(mtlpp::CpuCacheMode::DefaultCache);
+#if PLATFORM_MAC
 			Desc.SetStorageMode(mtlpp::StorageMode::Private);
 			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache|mtlpp::ResourceOptions::StorageModePrivate));
+#else
+			if(GMetalForceIOSTexturesShared)
+			{
+				Desc.SetStorageMode(mtlpp::StorageMode::Shared);
+				Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache|mtlpp::ResourceOptions::StorageModeShared));
+			}
+			else
+			{
+				Desc.SetStorageMode(mtlpp::StorageMode::Private);
+				Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache|mtlpp::ResourceOptions::StorageModePrivate));
+			}
+#endif
 		}
 		else
 		{
@@ -811,21 +831,40 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeWriteCombined|mtlpp::ResourceOptions::StorageModePrivate));
 #else
 			Desc.SetCpuCacheMode(mtlpp::CpuCacheMode::DefaultCache);
+			if(GMetalForceIOSTexturesShared)
+			{
+				Desc.SetStorageMode(mtlpp::StorageMode::Shared);
+				Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache|mtlpp::ResourceOptions::StorageModeShared));
+			}
 			// No private storage for PVRTC as it messes up the blit-encoder usage.
 			// note: this is set to always be on and will be re-addressed in a future release
-            if (IsPixelFormatPVRTCCompressed(Format))
-            {
-                Desc.SetStorageMode(mtlpp::StorageMode::Shared);
-                Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache|mtlpp::ResourceOptions::StorageModeShared));
-            }
-            else
+			else
 			{
-				Desc.SetStorageMode(mtlpp::StorageMode::Private);
-				Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache|mtlpp::ResourceOptions::StorageModePrivate));
+				if (IsPixelFormatPVRTCCompressed(Format))
+				{
+					Desc.SetStorageMode(mtlpp::StorageMode::Shared);
+					Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache|mtlpp::ResourceOptions::StorageModeShared));
+				}
+				else
+				{
+					Desc.SetStorageMode(mtlpp::StorageMode::Private);
+					Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache|mtlpp::ResourceOptions::StorageModePrivate));
+				}
 			}
 #endif
 		}
 		
+#if PLATFORM_IOS
+		if (Flags & TexCreate_Memoryless)
+		{
+			ensure(Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
+			ensure(!(Flags & (TexCreate_CPUReadback | TexCreate_CPUWritable)));
+			ensure(!(Flags & TexCreate_UAV));
+			Desc.SetStorageMode(mtlpp::StorageMode::Memoryless);
+			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeMemoryless));
+		}
+#endif
+
 		static mtlpp::ResourceOptions GeneralResourceOption = FMetalCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions::HazardTrackingModeUntracked);
 		Desc.SetResourceOptions((mtlpp::ResourceOptions)(Desc.GetResourceOptions() | GeneralResourceOption));
 	}

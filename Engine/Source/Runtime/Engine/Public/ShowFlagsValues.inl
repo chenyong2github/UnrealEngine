@@ -7,6 +7,8 @@
 // Fixed in shipping builds:
 // SHOWFLAG_FIXED_IN_SHIPPING( <showflag name>, <fixed bool>, <showflag group>, <Localized TEXT stuff>)
 
+// [[ IncludeTool: Inline ]] // Markup to tell IncludeTool that this file is state changing and cannot be optimized out.
+
 #ifndef SHOWFLAG_ALWAYS_ACCESSIBLE
 #error SHOWFLAG_ALWAYS_ACCESSIBLE macro is undefined.
 #endif
@@ -308,8 +310,6 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeSSR, SFG_Visualize, NSLOCTEXT("UnrealEd",
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeShadingModels, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizeShadingModels", "Shading Models"))
 /** Visualize the senses configuration of AIs' PawnSensingComponent */
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeSenses, SFG_Advanced, NSLOCTEXT("UnrealEd", "VisualizeSenses", "Senses"))
-/** Visualize the bloom, for developer (by default off): */
-SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeBloom, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizeBloom", "Bloom"))
 /** Visualize LOD Coloration */
 SHOWFLAG_FIXED_IN_SHIPPING(0, LODColoration, SFG_Hidden, NSLOCTEXT("UnrealEd", "VisualizeLODColoration", "Visualize LOD Coloration"))
 /** Visualize HLOD Coloration */

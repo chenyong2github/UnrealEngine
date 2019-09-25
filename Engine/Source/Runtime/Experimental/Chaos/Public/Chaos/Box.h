@@ -339,6 +339,40 @@ namespace Chaos
 			return MakePair(TVector<T, d>(0), false);
 		}
 
+		virtual TVector<T, d> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T, d>& OriginalNormal) const override
+		{
+			// Find which faces were included in the contact normal, and for multiple faces, use the one most opposing the sweep direction.
+			TVector<T,d> BestNormal(OriginalNormal);
+			T BestOpposingDot = TNumericLimits<T>::Max();
+
+			for (int32 Axis = 0; Axis < d; Axis++)
+			{
+				// Select axis of face to compare to, based on normal.
+				if (OriginalNormal[Axis] > KINDA_SMALL_NUMBER)
+				{
+					const float TraceDotFaceNormal = DenormDir[Axis]; // TraceDirDenormLocal.dot(BoxFaceNormal)
+					if (TraceDotFaceNormal < BestOpposingDot)
+					{
+						BestOpposingDot = TraceDotFaceNormal;
+						BestNormal = TVector<T,d>(0);
+						BestNormal[Axis] = 1;
+					}
+				}
+				else if (OriginalNormal[Axis] < -KINDA_SMALL_NUMBER)
+				{
+					const float TraceDotFaceNormal = -DenormDir[Axis]; // TraceDirDenormLocal.dot(BoxFaceNormal)
+					if (TraceDotFaceNormal < BestOpposingDot)
+					{
+						BestOpposingDot = TraceDotFaceNormal;
+						BestNormal = FVector(0.f);
+						BestNormal[Axis] = -1.f;
+					}
+				}
+			}
+
+			return BestNormal;
+		}
+
 		virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const override
 		{
 			TVector<T, d> ChosenPt;

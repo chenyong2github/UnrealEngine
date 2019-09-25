@@ -16,6 +16,9 @@ namespace Chaos
 	template<typename T, int d>
 	class TPBDConstraintColor;
 
+	template<typename T, int d>
+	class TConstraintHandle;
+
 	template<class T>
 	class TChaosPhysicsMaterial;
 
@@ -50,7 +53,7 @@ namespace Chaos
 		struct FConstraintData
 		{
 			uint32 ContainerId;
-			int32 ConstraintIndex;
+			TConstraintHandle<T, d>* ConstraintHandle;
 		};
 
 		TPBDConstraintGraph();
@@ -71,7 +74,7 @@ namespace Chaos
 		/**
 		 * Add a constraint to the graph for each constraint in the container.
 		 */
-		void AddConstraint(const uint32 InContainerId, const int32 InConstraintIndex, const TVector<TGeometryParticleHandle<T,d>*, 2>& InConstrainedParticles);
+		void AddConstraint(const uint32 InContainerId, TConstraintHandle<T, d>* InConstraintHandle, const TVector<TGeometryParticleHandle<T,d>*, 2>& InConstrainedParticles);
 
 		/**
 		 * Add particles/constraints to their particle's already-assigned islands (if applicable).
@@ -101,8 +104,8 @@ namespace Chaos
 		void ReconcileIslands();
 
 		/**
-		 * Get the list of ConstraintData indices associated with the specified island. NOTE: ConstraintDataIndex != ConstraintIndex.
-		 * Indices returned are into the ConstraintData array in the ConstraintGraph to get to the Constraint Index and Container Id
+		 * Get the list of ConstraintsData indices associated with the specified island. NOTE: ConstraintDataIndex is an internal index and not related to 
+		 * a constraint's index in its owning container. Indices are into the ConstraintData array in the ConstraintGraph to get to the Constraint Index and Container Id.
 		 * @see GetConstraintsData().
 		 */
 		const TArray<int32>& GetIslandConstraintData(int32 Island) const

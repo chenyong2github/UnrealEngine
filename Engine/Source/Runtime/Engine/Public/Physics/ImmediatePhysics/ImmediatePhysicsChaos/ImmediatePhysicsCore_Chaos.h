@@ -11,13 +11,16 @@
 
 namespace Chaos
 {
+	template<typename T, int D> class TImplicitObject;
+	template<typename T, int D> struct TKinematicGeometryParticleParameters;
+	template<typename P, typename T, int D> class TPBDConstraintIslandRule;
+	template<typename T, int D> class TPBDJointConstraintHandle;
+	template<typename T, int D> class TPBDJointConstraints;
+	template<typename T, int D> class TPBD6DJointConstraintHandle;
+	template<typename T, int D> class TPBD6DJointConstraints;
+	template<typename T, int D> struct TPBDRigidParticleParameters;
 	template<typename T, int D> class TPBDRigidsEvolutionGBF;
 	template<typename T, int D> class TPBDRigidsSOAs;
-	template<typename T, int D> struct TKinematicGeometryParticleParameters;
-	template<typename T, int D> struct TPBDRigidParticleParameters;
-	template<typename T, int D> class TImplicitObject;
-	template<typename T, int D> class TPBDJointConstraints;
-	template<typename P, typename T, int D> class TPBDConstraintIslandRule;
 	template<typename T, int D> class TPerShapeData;
 }
 

@@ -21,7 +21,7 @@ public:
 		this->ConstructInternal(InArgs, InOwnerTableView);
 
 		this->Style = &FEditorStyle::GetWidgetStyle<FTableRowStyle>("ContentBrowser.AssetTagTableRow");
-		this->BorderImage = FEditorStyle::GetBrush("NoBorder");
+		this->BorderImage = FInvalidatableBrushAttribute(FEditorStyle::GetBrush("NoBorder"));
 
 		this->ConstructChildren(
 			InOwnerTableView->TableViewMode,

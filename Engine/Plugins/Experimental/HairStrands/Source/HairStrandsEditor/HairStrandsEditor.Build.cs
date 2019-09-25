@@ -4,24 +4,24 @@ namespace UnrealBuildTool.Rules
 {
 	public class HairStrandsEditor : ModuleRules
 	{
-        public HairStrandsEditor(ReadOnlyTargetRules Target) : base(Target)
+		public HairStrandsEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PrivateIncludePaths.Add(ModuleDirectory + "/Private");
-            PublicIncludePaths.Add(ModuleDirectory + "/Public");
+			PublicIncludePaths.Add(ModuleDirectory + "/Public");
 
-            PrivateDependencyModuleNames.AddRange(
-                new string[]
-                {
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
 					"Core",
 					"CoreUObject",
+					"Engine",
 					"HairStrandsCore",
 					"UnrealEd",
 					"AssetTools",
-                    "AlembicLib",
-                });
-            AddEngineThirdPartyPrivateStaticDependencies(Target,
-             "FBX"
+				});
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
+			 "FBX"
 			);
-        }
+		}
 	}
 }

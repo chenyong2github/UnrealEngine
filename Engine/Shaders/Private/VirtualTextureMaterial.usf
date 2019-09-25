@@ -28,7 +28,6 @@ void MainVS(
 	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
 	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
 
-	ISOLATE
 	{
 		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
 		float4 ClipSpacePosition = INVARIANT(mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip));
@@ -41,7 +40,7 @@ void MainVS(
 // Prepare for VirtualTextureUnpackNormal() in VirtualTextureCommon.h
 float3 PackNormal( float3 N )
 {
-	return normalize(N) * 0.5 + 0.5;
+	return normalize(N) * 0.5f + 0.5f;
 }
 
 // Prepare for VirtualTextureUnpackHeightR16() in VirtualTextureCommon.ush

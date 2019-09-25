@@ -29,6 +29,7 @@
 #include "OnlineExternalUIInterfaceSteam.h"
 #include "OnlineAchievementsInterfaceSteam.h"
 #include "OnlineAuthInterfaceSteam.h"
+#include "OnlineEncryptedAppTicketInterfaceSteam.h"
 #include "VoiceInterfaceSteam.h"
 
 /* Specify this define in your Target.cs for your project
@@ -223,6 +224,11 @@ bool ConfigureSteamInitDevOptions(bool& RequireRelaunch, int32& RelaunchAppId)
 FOnlineAuthSteamPtr FOnlineSubsystemSteam::GetAuthInterface() const
 {
 	return AuthInterface;
+}
+
+FOnlineEncryptedAppTicketSteamPtr FOnlineSubsystemSteam::GetEncryptedAppTicketInterface() const
+{
+	return EncryptedAppTicketInterface;
 }
 
 IOnlineSessionPtr FOnlineSubsystemSteam::GetSessionInterface() const
@@ -453,6 +459,7 @@ bool FOnlineSubsystemSteam::Init()
 			VoiceInterface = MakeShareable(new FOnlineVoiceSteam(this));
 			ExternalUIInterface = MakeShareable(new FOnlineExternalUISteam(this));
 			AchievementsInterface = MakeShareable(new FOnlineAchievementsSteam(this));
+			EncryptedAppTicketInterface = MakeShareable(new FOnlineEncryptedAppTicketSteam(this));
 
 			// Kick off a download/cache of the current user's stats
 			LeaderboardsInterface->CacheCurrentUsersStats();
@@ -507,6 +514,7 @@ bool FOnlineSubsystemSteam::Shutdown()
 	}
 
 	// Destruct the interfaces
+	DESTRUCT_INTERFACE(EncryptedAppTicketInterface);
 	DESTRUCT_INTERFACE(AchievementsInterface);
 	DESTRUCT_INTERFACE(ExternalUIInterface);
 	DESTRUCT_INTERFACE(VoiceInterface);

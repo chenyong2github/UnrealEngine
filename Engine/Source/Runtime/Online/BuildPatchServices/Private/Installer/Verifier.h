@@ -5,10 +5,12 @@
 #include "Common/SpeedRecorder.h"
 #include "BuildPatchManifest.h"
 
+
 namespace BuildPatchServices
 {
 	class IFileSystem;
 	class IVerifierStat;
+	class IBuildManifestSet;
 	enum class EVerifyMode : uint32;
 	enum class EVerifyError : uint32;
 	/**
@@ -60,11 +62,17 @@ namespace BuildPatchServices
 		/**
 		 * Verifies a local directory structure against a given manifest.
 		 * NOTE: This function is blocking and will not return until finished. Don't run on main thread.
-		 * @param OutDatedFiles    OUT  The array of files that do not match or are locally missing.
+		 * @param CorruptFiles     OUT  The array of files that do not match or are locally missing.
 		 * @return    EVerifiyResult::Success if no file errors occurred AND the verification was successful.
 		 *            Otherwise it will return the first error encountered during verification.
 		 */
-		virtual EVerifyResult Verify(TArray<FString>& OutDatedFiles) = 0;
+		virtual EVerifyResult Verify(TArray<FString>& CorruptFiles) = 0;
+
+		/**
+		 * Register any files that have been built so that they are verified in addition to any marked for repair when Verify is ran.
+		 * @param TouchedFiles          The array of files that have been created or edited.
+		 */
+		virtual void AddTouchedFiles(const TSet<FString>& TouchedFiles) = 0;
 	};
 
 	class FVerifierFactory
@@ -77,14 +85,13 @@ namespace BuildPatchServices
 		 * @param FileSystem            The file system interface.
 		 * @param VerifierStat          Pointer to the class which will receive status updates.
 		 * @param VerifyMode            The verify mode to run.
-		 * @param TouchedFiles          The set of files that were touched by the installation, these will be verified.
 		 * @param InstallTags           The install tags, will be used when verifying all files.
 		 * @param Manifest              The manifest describing the build data.
 		 * @param VerifyDirectory       The directory to analyze.
 		 * @param StagedFileDirectory   A stage directory for updated files, ignored if empty string. If a file exists here, it will be checked instead of the one in VerifyDirectory.
 		 * @return     Ref of an object that can be used to perform the operation.
 		 */
-		static IVerifier* Create(IFileSystem* FileSystem, IVerifierStat* VerifierStat, EVerifyMode VerifyMode, TSet<FString> TouchedFiles, TSet<FString> InstallTags, FBuildPatchAppManifestRef Manifest, FString VerifyDirectory, FString StagedFileDirectory);
+		static IVerifier* Create(IFileSystem* FileSystem, IVerifierStat* VerifierStat, EVerifyMode VerifyMode, IBuildManifestSet* ManifestSet, FString VerifyDirectory, FString StagedFileDirectory);
 	};
 
 	/**

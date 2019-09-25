@@ -601,6 +601,11 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FStaticMeshLODResources::Serialize"), STAT_StaticMeshLODResources_Serialize, STATGROUP_LoadTime);
 
+	bool bUsingCookedData = false;
+#if WITH_EDITORONLY_DATA
+	bUsingCookedData = Owner->GetOutermost()->bIsCookedForEditor;
+#endif
+
 	UStaticMesh* OwnerStaticMesh = Cast<UStaticMesh>(Owner);
 	// Actual flags used during serialization
 	const uint8 ClassDataStripFlags = GenerateClassStripFlags(Ar, OwnerStaticMesh, Index);
@@ -626,7 +631,7 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 			Ar << TmpBuffersSize;
 			BuffersSize = TmpBuffersSize.CalcBuffersSize();
 		}
-		else if (FPlatformProperties::RequiresCookedData() || Ar.IsCooking())
+		else if (FPlatformProperties::RequiresCookedData() || Ar.IsCooking() || bUsingCookedData)
 		{
 #if WITH_EDITOR
 			if (Ar.IsSaving())
@@ -1153,7 +1158,6 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 				FRayTracingGeometryInitializer Initializer;
 				Initializer.PositionVertexBuffer = VertexBuffers.PositionVertexBuffer.VertexBufferRHI;
 				Initializer.IndexBuffer = IndexBuffer.IndexBufferRHI;
-				Initializer.BaseVertexIndex = 0;
 				Initializer.VertexBufferStride = VertexBuffers.PositionVertexBuffer.GetStride();
 				Initializer.VertexBufferByteOffset = 0;
 				Initializer.TotalPrimitiveCount = 0; // This is calculated below based on static mesh section data
@@ -1362,16 +1366,13 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 				if (bValid)
 				{
 #if WITH_EDITOR
-					check(LOD.DistanceFieldData != nullptr);
-
-					bool bDownSampling = Ar.IsCooking() && Ar.IsSaving();
-					
-					if (bDownSampling)
+					if (Ar.IsCooking() && Ar.IsSaving())
 					{
-						float Divider = Ar.CookingTarget()->GetDownSampleMeshDistanceFieldDivider();
-						bDownSampling = Divider > 1;
+						check(LOD.DistanceFieldData != nullptr);
 
-						if (bDownSampling)
+						float Divider = Ar.CookingTarget()->GetDownSampleMeshDistanceFieldDivider();
+
+						if (Divider > 1)
 						{
 							FDistanceFieldVolumeData DownSampledDFVolumeData = *LOD.DistanceFieldData;
 							IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>(TEXT("MeshUtilities"));
@@ -1380,20 +1381,21 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 
 							Ar << DownSampledDFVolumeData;
 						}
+						else
+						{
+							Ar << *(LOD.DistanceFieldData);
+						}
 					}
-
-					if (!bDownSampling)
+					else
+#endif
 					{
+						if (LOD.DistanceFieldData == nullptr)
+						{
+							LOD.DistanceFieldData = new FDistanceFieldVolumeData();
+						}
+
 						Ar << *(LOD.DistanceFieldData);
 					}
-#else
-					if (LOD.DistanceFieldData == nullptr)
-					{
-						LOD.DistanceFieldData = new FDistanceFieldVolumeData();
-					}
-
-					Ar << *(LOD.DistanceFieldData);
-#endif
 				}
 			}
 		}
@@ -2536,7 +2538,7 @@ void UStaticMesh::InitResources()
 		//&& !bTemporarilyDisableStreaming;
 
 #if (WITH_EDITOR && DO_CHECK)
-	if (bIsStreamable)
+	if (bIsStreamable && !GetOutermost()->bIsCookedForEditor)
 	{
 		for (int32 LODIdx = 0; LODIdx < NumLODs; ++LODIdx)
 		{
@@ -5014,7 +5016,7 @@ bool UStaticMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 	// if resident and requested mip counts match then no pending request is in flight
 	if (PendingUpdate)
 	{
-		if (GIsRequestingExit || !RenderData)
+		if (IsEngineExitRequested() || !RenderData)
 		{
 			PendingUpdate->Abort();
 		}

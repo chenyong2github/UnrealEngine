@@ -5,24 +5,24 @@
 =============================================================================*/
 
 #include "Audio.h"
-#include "Misc/Paths.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
+#include "ActiveSound.h"
+#include "AnalyticsEventAttribute.h"
+#include "Audio/AudioDebug.h"
+#include "AudioDevice.h"
+#include "AudioPluginUtilities.h"
+#include "AudioThread.h"
 #include "Components/AudioComponent.h"
 #include "ContentStreaming.h"
 #include "DrawDebugHelpers.h"
-#include "Audio/AudioDebug.h"
-#include "AudioDevice.h"
-#include "AudioThread.h"
+#include "EngineAnalytics.h"
+#include "Interfaces/IAnalyticsProvider.h"
+#include "Misc/Paths.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundCue.h"
-#include "Sound/SoundWave.h"
-#include "ActiveSound.h"
 #include "Sound/SoundNodeWavePlayer.h"
-#include "EngineAnalytics.h"
-#include "AnalyticsEventAttribute.h"
-#include "Interfaces/IAnalyticsProvider.h"
-#include "AudioPluginUtilities.h"
+#include "Sound/SoundWave.h"
+#include "UObject/UObjectHash.h"
+#include "UObject/UObjectIterator.h"
 
 DEFINE_LOG_CATEGORY(LogAudio);
 
@@ -384,6 +384,7 @@ void FSoundSource::SetFilterFrequency()
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->AmbientZoneFilterFrequency);
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->AttenuationLowpassFilterFrequency);
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->SoundModulationControls.Lowpass);
+			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->SoundClassFilterFrequency);
 		}
 		break;
 	}
@@ -447,73 +448,62 @@ float FSoundSource::GetDebugVolume(const float InVolume)
 {
 	float OutVolume = InVolume;
 
-#if !UE_BUILD_SHIPPING
+#if ENABLE_AUDIO_DEBUG
 
+	// Bail if we don't have a device manager.
+	if (!GEngine || !GEngine->GetAudioDeviceManager() || !WaveInstance || !DebugInfo.IsValid() )
+	{
+		return OutVolume;
+	}
+
+	// Solos/Mutes (dev only).
+	FAudioDebugger& Debugger = GEngine->GetAudioDeviceManager()->GetDebugger();	
+	FDebugInfo Info;
+				
+	// SoundWave Solo/Mutes.
 	if (OutVolume != 0.0f)
 	{
-		// Check for solo sound class debugging. Mute all sounds that don't substring match their sound class name to the debug solo'd sound class
-		const FString& DebugSoloSoundName = GEngine->GetAudioDeviceManager()->GetDebugSoloSoundWave();
-		if (DebugSoloSoundName != TEXT(""))
+		Debugger.QuerySoloMuteSoundWave(WaveInstance->GetName(), Info.bIsSoloed, Info.bIsMuted, Info.MuteSoloReason);
+		if (Info.bIsMuted)
 		{
-			bool bMute = true;
-			FString WaveInstanceName = WaveInstance->GetName();
-			if (WaveInstanceName.Contains(DebugSoloSoundName))
-			{
-				bMute = false;
-			}
-			if (bMute)
+			OutVolume = 0.0f;
+		}
+	}
+
+	// SoundCues mutes/solos											
+	if (OutVolume != 0.0f && WaveInstance->ActiveSound)
+	{						
+		if (USoundCue* SoundCue = Cast<USoundCue>(WaveInstance->ActiveSound->GetSound()))
+		{
+			Debugger.QuerySoloMuteSoundCue(SoundCue->GetName(), Info.bIsSoloed, Info.bIsMuted, Info.MuteSoloReason);
+			if (Info.bIsMuted)
 			{
 				OutVolume = 0.0f;
 			}
 		}
 	}
 
-	if (OutVolume != 0.0f)
+	// SoundClass mutes/solos.
+	if (OutVolume != 0.0f && WaveInstance->SoundClass)
 	{
-		// Check for solo sound class debugging. Mute all sounds that don't substring match their sound class name to the debug solo'd sound class
-		const FString& DebugSoloSoundCue = GEngine->GetAudioDeviceManager()->GetDebugSoloSoundCue();
-		if (DebugSoloSoundCue != TEXT(""))
+		FString SoundClassName;
+		WaveInstance->SoundClass->GetName(SoundClassName);
+		Debugger.QuerySoloMuteSoundClass(SoundClassName, Info.bIsSoloed, Info.bIsMuted, Info.MuteSoloReason);
+		if (Info.bIsMuted)
 		{
-			bool bMute = true;
-			USoundBase* Sound = WaveInstance->ActiveSound->GetSound();
-			if (Sound->IsA<USoundCue>())
-			{
-				FString SoundCueName = Sound->GetName();
-				if (SoundCueName.Contains(DebugSoloSoundCue))
-				{
-					bMute = false;
-				}
-			}
-
-			if (bMute)
-			{
-				OutVolume = 0.0f;
-			}
+			OutVolume = 0.0f;
 		}
 	}
 
-	if (OutVolume != 0.0f)
+	// Update State. 
+	FScopeLock Lock(&DebugInfo->CS);
 	{
-		const FString& DebugSoloSoundClassName = GEngine->GetAudioDeviceManager()->GetDebugSoloSoundClass();
-		if (DebugSoloSoundClassName != TEXT(""))
-		{
-			bool bMute = true;
-			if (WaveInstance->SoundClass)
-			{
-				FString SoundClassName;
-				WaveInstance->SoundClass->GetName(SoundClassName);
-				if (SoundClassName.Contains(DebugSoloSoundClassName))
-				{
-					bMute = false;
-				}
-			}
-			if (bMute)
-			{
-				OutVolume = 0.0f;
-			}
-		}
+		DebugInfo->bIsMuted = Info.bIsMuted;
+		DebugInfo->bIsSoloed = Info.bIsSoloed;
+		DebugInfo->MuteSoloReason = MoveTemp(Info.MuteSoloReason);
 	}
-#endif
+
+#endif //ENABLE_AUDIO_DEBUG
 
 	return OutVolume;
 }
@@ -587,6 +577,10 @@ void FSoundSource::InitCommon()
 	// Reset pause state
 	bIsPausedByGame = false;
 	bIsManuallyPaused = false;
+	
+#if ENABLE_AUDIO_DEBUG
+	DebugInfo = MakeShared<FDebugInfo, ESPMode::ThreadSafe>();
+#endif //ENABLE_AUDIO_DEBUG
 }
 
 void FSoundSource::UpdateCommon()
@@ -802,6 +796,7 @@ FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InA
 	, ReverbPluginSettings(nullptr)
 	, OutputTarget(EAudioOutputTarget::Speaker)
 	, LowPassFilterFrequency(MAX_FILTER_FREQUENCY)
+	, SoundClassFilterFrequency(MAX_FILTER_FREQUENCY)
 	, OcclusionFilterFrequency(MAX_FILTER_FREQUENCY)
 	, AmbientZoneFilterFrequency(MAX_FILTER_FREQUENCY)
 	, AttenuationLowpassFilterFrequency(MAX_FILTER_FREQUENCY)

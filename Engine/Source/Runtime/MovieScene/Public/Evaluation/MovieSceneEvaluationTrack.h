@@ -93,6 +93,11 @@ struct FMovieSceneEvaluationTrackSegments
 	/** Add a new segment to the container */
 	FMovieSceneSegmentIdentifier Add(FMovieSceneSegment&& In);
 
+	int32 Num() const
+	{
+		return SegmentIdentifierToIndex.Num();
+	}
+
 private:
 
 	/** Array of indices into SortedSegments where each FMovieSceneSegmentIdentifier represents and index into SegmentIdentifierToIndex. Never shuffled until the container is reset. */

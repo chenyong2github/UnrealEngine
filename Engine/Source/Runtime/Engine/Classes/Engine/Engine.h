@@ -857,10 +857,26 @@ public:
 	/** The material used to render wireframe meshes. */
 	UPROPERTY()
 	class UMaterial* WireframeMaterial;
-
+	
 	/** @todo document */
 	UPROPERTY(globalconfig)
 	FString WireframeMaterialName;
+
+	/** The material used to default hair meshes. */
+	UPROPERTY()
+	class UMaterial* HairDefaultMaterial;
+
+	/** @todo document */
+	UPROPERTY(globalconfig)
+	FString HairDefaultMaterialName;
+
+	/** The material used to debug hair meshes. */
+	UPROPERTY()
+	class UMaterial* HairDebugMaterial;
+
+	/** @todo document */
+	UPROPERTY(globalconfig)
+	FString HairDebugMaterialName;
 
 #if WITH_EDITORONLY_DATA
 	/** A translucent material used to render things in geometry mode. */

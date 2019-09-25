@@ -97,8 +97,6 @@ private:
 
 	FHandState HandStates[2];
 
-	bool bIsHandTrackingStateValid;
-
 	// LiveLink Data
 	/** The local client to push data updates to */
 	ILiveLinkClient* LiveLinkClient = nullptr;

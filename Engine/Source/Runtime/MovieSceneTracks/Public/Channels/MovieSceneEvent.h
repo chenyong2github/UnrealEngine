@@ -90,6 +90,7 @@ private:
 #endif // WITH_EDITORONLY_DATA
 };
 
+#if WITH_EDITORONLY_DATA
 template<>
 struct TStructOpsTypeTraits<FMovieSceneEvent> : public TStructOpsTypeTraitsBase2<FMovieSceneEvent>
 {
@@ -98,6 +99,7 @@ struct TStructOpsTypeTraits<FMovieSceneEvent> : public TStructOpsTypeTraitsBase2
 		WithPostSerialize = true,
 	};
 };
+#endif
 
 
 

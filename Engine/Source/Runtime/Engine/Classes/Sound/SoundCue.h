@@ -77,6 +77,10 @@ class ENGINE_API USoundCue : public USoundBase
 {
 	GENERATED_UCLASS_BODY()
 
+	/* Makes this sound cue automatically load any sound waves it can play into the cache when it is loaded. */
+	UPROPERTY(EditAnywhere, Category = Caching)
+	uint32 bPrimeOnLoad : 1;
+
 	UPROPERTY()
 	USoundNode* FirstNode;
 
@@ -237,6 +241,9 @@ public:
 
 	/** Call to cache any values which need to be computed from the sound cue graph. e.g. MaxDistance, Duration, etc. */
 	void CacheAggregateValues();
+
+	/** Call this when stream caching is enabled to prime all SoundWave assets referenced by this Sound Cue. */
+	void PrimeSoundCue();
 
 protected:
 	bool RecursiveFindPathToNode(USoundNode* CurrentNode, const UPTRINT CurrentHash, const UPTRINT NodeHashToFind, TArray<USoundNode*>& OutPath) const;

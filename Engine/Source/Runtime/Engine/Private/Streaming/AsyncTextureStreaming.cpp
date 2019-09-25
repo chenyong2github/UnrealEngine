@@ -85,7 +85,8 @@ void FAsyncRenderAssetStreamingData::UpdateBoundSizes_Async(const FRenderAssetSt
 		StaticInstancesView.UpdateBoundSizes_Async(ViewInfos, ViewInfoExtras, LastUpdateTime, Settings);
 
 		// Skip levels that can not contribute to resolution.
-		if (StaticInstancesView.GetMaxLevelRenderAssetScreenSize() > Settings.MinLevelRenderAssetScreenSize)
+		if (StaticInstancesView.GetMaxLevelRenderAssetScreenSize() > Settings.MinLevelRenderAssetScreenSize
+			|| StaticInstancesView.HasAnyComponentWithForcedLOD())
 		{
 			StaticInstancesViewIndices.Add(StaticViewIndex);
 		}
@@ -175,7 +176,8 @@ void FAsyncRenderAssetStreamingData::UpdatePerfectWantedMips_Async(FStreamingRen
 					continue;
 				}
 
-				if (StaticInstancesView.GetMaxLevelRenderAssetScreenSize() < Settings.MinLevelRenderAssetScreenSize)
+				if (StaticInstancesView.GetMaxLevelRenderAssetScreenSize() < Settings.MinLevelRenderAssetScreenSize
+					&& !StaticInstancesView.HasComponentWithForcedLOD(RenderAsset))
 				{
 					bCulled = true;
 					continue;

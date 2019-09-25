@@ -220,6 +220,7 @@ FString				GHardwareIni;												/* Hardware ini filename */
 FString				GInputIni;													/* Input ini filename */
 FString				GGameIni;													/* Game ini filename */
 FString				GGameUserSettingsIni;										/* User Game Settings ini filename */
+FString				GRuntimeOptionsIni;											/* Runtime Options ini filename */
 
 float					GNearClippingPlane				= 10.0f;				/* Near clipping plane */
 
@@ -251,6 +252,26 @@ IMPLEMENT_FOREIGN_ENGINE_DIR()
 /** A function that does nothing. Allows for a default behavior for callback function pointers. */
 static void appNoop()
 {
+}
+
+void CORE_API RequestEngineExit(const TCHAR* ReasonString)
+{
+	ensureMsgf(ReasonString && FCString::Strlen(ReasonString) > 4, TEXT("RequestEngineExit must be given a valid reason (reason \"%s\""), ReasonString);
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_LOG(LogCore, Log, TEXT("Engine exit requested (reason: %s%s)"), ReasonString, GIsRequestingExit ? TEXT("; note: exit was already requested") : TEXT(""));
+	GIsRequestingExit = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void CORE_API RequestEngineExit(const FString& ReasonString)
+{
+	ensureMsgf(ReasonString.Len() > 4, TEXT("RequestEngineExit must be given a valid reason (reason \"%s\""), *ReasonString);
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_LOG(LogCore, Log, TEXT("Engine exit requested (reason: %s%s)"), *ReasonString, GIsRequestingExit ? TEXT("; note: exit was already requested") : TEXT(""));
+	GIsRequestingExit = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 /** Exec handler for game debugging tool, allowing commands like "editactor", ...							*/
