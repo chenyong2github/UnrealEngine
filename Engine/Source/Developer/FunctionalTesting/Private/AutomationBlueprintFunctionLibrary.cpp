@@ -42,7 +42,9 @@
 #include "SceneView.h"
 #include "Engine/GameEngine.h"
 #include "Engine/LevelStreaming.h"
+#if WITH_EDITOR
 #include "SLevelViewport.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "Automation"
 
