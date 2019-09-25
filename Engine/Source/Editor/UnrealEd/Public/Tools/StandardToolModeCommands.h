@@ -14,7 +14,8 @@
 enum class EStandardToolModeCommands
 {
 	IncreaseBrushSize = 100,
-	DecreaseBrushSize = 101
+	DecreaseBrushSize = 101,
+	ToggleWireframe = 102
 };
 
 

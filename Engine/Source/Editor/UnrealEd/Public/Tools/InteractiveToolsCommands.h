@@ -222,6 +222,8 @@ TSharedPtr<FUICommandInfo> TInteractiveToolCommands<CommandContextType>::FindSta
 		return StdCommands.FindStandardCommand(EStandardToolModeCommands::IncreaseBrushSize);
 	case EStandardToolActions::DecreaseBrushSize:
 		return StdCommands.FindStandardCommand(EStandardToolModeCommands::DecreaseBrushSize);
+	case EStandardToolActions::ToggleWireframe:
+		return StdCommands.FindStandardCommand(EStandardToolModeCommands::ToggleWireframe);
 	default:
 		return nullptr;
 	}

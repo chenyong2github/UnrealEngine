@@ -25,6 +25,11 @@ void FStandardToolModeCommands::RegisterCommands()
 	TSharedPtr<FUICommandInfo> DecreaseBrushSize;
 	UI_COMMAND(DecreaseBrushSize, "Decrease Brush Size", "Decreases the size of the brush", EUserInterfaceActionType::Button, FInputChord(EKeys::LeftBracket));
 	Commands.Add(EStandardToolModeCommands::DecreaseBrushSize, DecreaseBrushSize);
+
+	TSharedPtr<FUICommandInfo> ToggleWireframe;
+	UI_COMMAND(ToggleWireframe, "Toggle Wireframe", "Toggle Wireframe overlay on/off", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::W));
+	Commands.Add(EStandardToolModeCommands::ToggleWireframe, ToggleWireframe);
+
 }
 
 
