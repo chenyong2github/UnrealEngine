@@ -554,14 +554,13 @@ public:
 		bUsesWorldPositionOffset(false),
 		bUsesGlobalDistanceField(false),
 		bUsesPixelDepthOffset(false),
-		bUsesSingleLayerWaterMaterialOutput(false),
 		bUsesDistanceCullFade(false),
 		bHasRuntimeVirtualTextureOutput(false)
 	{}
 
 	ENGINE_API void Serialize(FArchive& Ar);
 
-	ENGINE_API bool IsSceneTextureUsed(ESceneTextureId TexId) const { return UsedSceneTextures & (1 << TexId); }
+	ENGINE_API bool IsSceneTextureUsed(ESceneTextureId TexId) const { return (UsedSceneTextures & (1 << TexId)) != 0; }
 	ENGINE_API void SetIsSceneTextureUsed(ESceneTextureId TexId) { UsedSceneTextures |= (1 << TexId); }
 
 	FUniformExpressionSet UniformExpressionSet;
@@ -601,9 +600,6 @@ public:
 
 	/** true if the material writes a pixel depth offset */
 	uint8 bUsesPixelDepthOffset : 1;
-
-	/** true if the material writes a pixel depth offset */
-	uint8 bUsesSingleLayerWaterMaterialOutput : 1;
 
 	/** true if the material uses distance cull fade */
 	uint8 bUsesDistanceCullFade : 1;
@@ -1112,7 +1108,6 @@ public:
 	bool UsesVelocitySceneTexture() const { return MaterialCompilationOutput.UsesVelocitySceneTexture(); }
 	bool UsesDistanceCullFade() const { return MaterialCompilationOutput.bUsesDistanceCullFade; }
 	bool HasRuntimeVirtualTextureOutput() const { return MaterialCompilationOutput.bHasRuntimeVirtualTextureOutput; }
-	bool UsesSingleLayerWaterMaterialOutput() const { return MaterialCompilationOutput.bUsesSingleLayerWaterMaterialOutput; }
 #if WITH_EDITOR
 	uint32 GetNumUsedUVScalars() const { return MaterialCompilationOutput.NumUsedUVScalars; }
 	uint32 GetNumUsedCustomInterpolatorScalars() const { return MaterialCompilationOutput.NumUsedCustomInterpolatorScalars; }
@@ -1120,7 +1115,7 @@ public:
 	uint32 GetEstimatedNumVirtualTextureLookups() const { return MaterialCompilationOutput.EstimatedNumVirtualTextureLookups; }
 #endif
 	uint32 GetNumVirtualTextureStacks() const { return MaterialCompilationOutput.UniformExpressionSet.VTStacks.Num(); }
-	bool UsesSceneTexture(uint32 TexId) const { return MaterialCompilationOutput.UsedSceneTextures & (1ull << TexId); }
+	bool UsesSceneTexture(uint32 TexId) const { return (MaterialCompilationOutput.UsedSceneTextures & (1ull << TexId)) != 0; }
 
 	bool IsValidForRendering(bool bFailOnInvalid = false) const
 	{
@@ -1498,6 +1493,7 @@ public:
 	virtual float GetTranslucentSelfShadowSecondOpacity() const { return 1.0f; }
 	virtual float GetTranslucentBackscatteringExponent() const { return 1.0f; }
 	virtual bool IsTranslucencyAfterDOFEnabled() const { return false; }
+	virtual bool IsTranslucencyUnderWaterEnabled() const { return false; }
 	virtual bool IsMobileSeparateTranslucencyEnabled() const { return false; }
 	virtual FLinearColor GetTranslucentMultipleScatteringExtinction() const { return FLinearColor::White; }
 	virtual float GetTranslucentShadowStartOffset() const { return 0.0f; }
@@ -1524,7 +1520,6 @@ public:
 	virtual uint32 GetStencilCompare() const { return 0; }
 	virtual bool HasRuntimeVirtualTextureOutput() const { return false; }
 	virtual bool CastsRayTracedShadows() const { return true; }
-	virtual bool IsUsingSingleLayerWaterMaterialOutput() const { return false; };
 
 	/**
 	 * Should shaders compiled for this material be saved to disk?
@@ -1610,10 +1605,6 @@ public:
 	/** Does the material modify the mesh position. */
 	ENGINE_API bool MaterialModifiesMeshPosition_RenderThread() const;
 	ENGINE_API bool MaterialModifiesMeshPosition_GameThread() const;
-
-	/** Does the material use a single layer water. */
-	ENGINE_API bool MaterialUsesSingleLayerWater_RenderThread() const;
-	ENGINE_API bool MaterialUsesSingleLayerWater_GameThread() const;
 
 	/** Does the material use a pixel depth offset. */
 	ENGINE_API bool MaterialUsesPixelDepthOffset() const;
@@ -2260,6 +2251,7 @@ public:
 	ENGINE_API virtual float GetTranslucentSelfShadowSecondOpacity() const override;
 	ENGINE_API virtual float GetTranslucentBackscatteringExponent() const override;
 	ENGINE_API virtual bool IsTranslucencyAfterDOFEnabled() const override;
+	ENGINE_API virtual bool IsTranslucencyUnderWaterEnabled() const override;
 	ENGINE_API virtual bool IsMobileSeparateTranslucencyEnabled() const override;
 	ENGINE_API virtual FLinearColor GetTranslucentMultipleScatteringExtinction() const override;
 	ENGINE_API virtual float GetTranslucentShadowStartOffset() const override;
@@ -2282,7 +2274,6 @@ public:
 	ENGINE_API virtual bool ComputeFogPerPixel() const override;
 	ENGINE_API virtual bool HasRuntimeVirtualTextureOutput() const override;
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;
-	ENGINE_API virtual bool IsUsingSingleLayerWaterMaterialOutput() const override;
 	ENGINE_API  virtual UMaterialInterface* GetMaterialInterface() const override;
 	/**
 	 * Should shaders compiled for this material be saved to disk?
@@ -2752,6 +2743,6 @@ bool ReloadMaterialResource(
 inline bool ShouldIncludeMaterialInDefaultOpaquePass(const FMaterial& Material)
 {
 	return !Material.IsSky()
-		&& !Material.MaterialUsesSingleLayerWater_RenderThread();
+		&& !Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
 }
 

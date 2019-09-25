@@ -13,7 +13,7 @@
 	[
 		{
 			"Name" : "RenderDocPlugin",
-			"Type" : "Developer",
+			"Type" : "Editor",
 			"LoadingPhase" : "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win32",

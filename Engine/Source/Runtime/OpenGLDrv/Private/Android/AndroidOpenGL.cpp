@@ -45,6 +45,7 @@ PFNGLMAPBUFFEROESPROC					glMapBufferOESa = NULL;
 PFNGLUNMAPBUFFEROESPROC					glUnmapBufferOESa = NULL;
 
 PFNGLTEXSTORAGE2DPROC					glTexStorage2D = NULL;
+PFNGLTEXSTORAGE3DPROC					glTexStorage3D = NULL;
 
 // KHR_debug
 PFNGLDEBUGMESSAGECONTROLKHRPROC			glDebugMessageControlKHR = NULL;
@@ -1081,6 +1082,8 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		glBindSampler = (PFNGLBINDSAMPLERPROC)((void*)eglGetProcAddress("glBindSampler"));
 		glProgramParameteri = (PFNGLPROGRAMPARAMETERIPROC)((void*)eglGetProcAddress("glProgramParameteri"));
 
+		glTexStorage3D = (PFNGLTEXSTORAGE3DPROC)((void*)eglGetProcAddress("glTexStorage3D"));
+		
 		// Required by the ES3 spec
 		bSupportsInstancing = true;
 		bSupportsTextureFloat = true;

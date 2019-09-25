@@ -389,9 +389,9 @@ public:
 
 	TReplicationBuffer<TDebugState>* GetRemoteDebugBuffer() {	return &RepProxy_Debug.ReceivedBuffer; }
 #else
-	TReplicationBuffer<TDebugState>* GetLocalDebugBuffer(bool bCreate=false) {	return nullptr; }
+	TReplicationBuffer<TDebugState>* GetLocalDebugBuffer() {	return nullptr; }
 	TDebugState* GetNextLocalDebugStateWrite() { return nullptr; }
-	TNetworkSimBufferContainer<TBufferTypes>* GetHistoricBuffers() { return nullptr; }
+	TNetworkSimBufferContainer<TBufferTypes>* GetHistoricBuffers(bool bCreate=false) { return nullptr; }
 	TReplicationBuffer<TDebugState>* GetRemoteDebugBuffer() {	return nullptr; }
 #endif
 

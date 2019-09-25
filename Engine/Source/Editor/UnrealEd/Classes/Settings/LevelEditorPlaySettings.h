@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "Layout/Margin.h"
 #include "Layout/Visibility.h"
+#include "Misc/App.h"
 #include "Settings/LevelEditorPlayNetworkEmulationSettings.h"
 #include "LevelEditorPlaySettings.generated.h"
 
@@ -413,6 +414,23 @@ public:
 	bool GetClientWindowSize( FIntPoint &OutClientWindowSize ) const { OutClientWindowSize = FIntPoint(ClientWindowWidth, ClientWindowHeight); return IsClientWindowSizeActive(); }
 	EVisibility GetClientWindowSizeVisibility() const { return (RunUnderOneProcess ? EVisibility::Hidden : EVisibility::Visible); }
 	bool IsCreateAudioDeviceForEveryPlayer() const { return CreateAudioDeviceForEveryPlayer; }
+
+	EBuildConfiguration GetLaunchBuildConfiguration() const
+	{
+		switch (LaunchConfiguration)
+		{
+		case LaunchConfig_Debug:
+			return EBuildConfiguration::Debug;
+		case LaunchConfig_Development:
+			return EBuildConfiguration::Development;
+		case LaunchConfig_Test:
+			return EBuildConfiguration::Test;
+		case LaunchConfig_Shipping:
+			return EBuildConfiguration::Shipping;
+		default:
+			return FApp::GetBuildConfiguration();
+		}
+	}
 
 public:
 

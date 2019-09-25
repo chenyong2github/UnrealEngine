@@ -1095,10 +1095,15 @@ void FViewInfo::SetupUniformBufferParameters(
 	// Mobile multi-view is not side by side
 	const FIntRect EffectiveViewRect = (bIsMobileMultiViewEnabled) ? FIntRect(0, 0, ViewRect.Width(), ViewRect.Height()) : ViewRect;
 
+	// Scene render targets may not be created yet; avoids NaNs.
+	FIntPoint EffectiveBufferSize = SceneContext.GetBufferSizeXY();
+	EffectiveBufferSize.X = FMath::Max(EffectiveBufferSize.X, 1);
+	EffectiveBufferSize.Y = FMath::Max(EffectiveBufferSize.Y, 1);
+
 	// TODO: We should use a view and previous view uniform buffer to avoid code duplication and keep consistency
 	SetupCommonViewUniformBufferParameters(
 		ViewUniformShaderParameters,
-		SceneContext.GetBufferSizeXY(),
+		EffectiveBufferSize,
 		SceneContext.GetMSAACount(),
 		EffectiveViewRect,
 		InViewMatrices,
@@ -1605,6 +1610,16 @@ void FViewInfo::SetupUniformBufferParameters(
 			ViewUniformShaderParameters.XRPassthroughCameraUVs[0] = FVector4(0, 0, 0, 1);
 			ViewUniformShaderParameters.XRPassthroughCameraUVs[1] = FVector4(1, 0, 1, 1);
 		}
+	}
+
+	if (DrawDynamicFlags & EDrawDynamicFlags::FarShadowCascade)
+	{
+		extern ENGINE_API int32 GFarShadowStaticMeshLODBias;
+		ViewUniformShaderParameters.FarShadowStaticMeshLODBias = GFarShadowStaticMeshLODBias;
+	}
+	else
+	{
+		ViewUniformShaderParameters.FarShadowStaticMeshLODBias = 0;
 	}
 
 	ViewUniformShaderParameters.PreIntegratedBRDF = GEngine->PreIntegratedSkinBRDFTexture->Resource->TextureRHI;
@@ -2778,7 +2793,7 @@ void FSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICmdList)
 
 					if (bSingleLayerWaterWarning)
 					{
-						static const FText Message = NSLOCTEXT("Renderer", "SingleLayerWater", "r.SingleLayerWater rendering is disabled with a view containing meshe(s) using water material. Meshes are not visible.");
+						static const FText Message = NSLOCTEXT("Renderer", "SingleLayerWater", "r.Water.SingleLayer rendering is disabled with a view containing meshe(s) using water material. Meshes are not visible.");
 						Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 						Y += 14;
 					}

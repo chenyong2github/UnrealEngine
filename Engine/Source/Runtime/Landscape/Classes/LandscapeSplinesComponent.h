@@ -179,7 +179,12 @@ public:
 	virtual void RemoveAllForeignMeshComponents(ULandscapeSplineSegment* Owner);
 	virtual void AddForeignMeshComponent(ULandscapeSplineControlPoint* Owner, UControlPointMeshComponent* Component);
 	virtual void RemoveForeignMeshComponent(ULandscapeSplineControlPoint* Owner, UControlPointMeshComponent* Component);
-	virtual void DestroyOrphanedForeignMeshComponents(UWorld* OwnerWorld);
+	virtual void DestroyOrphanedForeignSplineMeshComponents(UWorld* OwnerWorld);
+	virtual void DestroyOrphanedForeignControlPointMeshComponents(UWorld* OwnerWorld);
+
+	void DestroyUnreferencedForeignMeshComponents();
+	void ForEachUnreferencedForeignMeshComponent(TFunctionRef<bool(ULandscapeSplineSegment*, USplineMeshComponent*, ULandscapeSplineControlPoint*, UControlPointMeshComponent*)> Func);
+	
 	virtual UControlPointMeshComponent*   GetForeignMeshComponent(ULandscapeSplineControlPoint* Owner);
 	virtual TArray<USplineMeshComponent*> GetForeignMeshComponents(ULandscapeSplineSegment* Owner);
 

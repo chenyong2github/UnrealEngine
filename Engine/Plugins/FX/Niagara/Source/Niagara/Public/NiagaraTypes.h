@@ -188,19 +188,28 @@ FORCEINLINE uint32 GetTypeHash(const FNiagaraID& ID)
 }
 
 /** Information about how this type should be laid out in an FNiagaraDataSet */
+USTRUCT()
 struct FNiagaraTypeLayoutInfo
 {
+	GENERATED_BODY()
+
 	FNiagaraTypeLayoutInfo()
 	{}
 
 	/** Byte offset of each float component in a structured layout. */
+	UPROPERTY()
 	TArray<uint32> FloatComponentByteOffsets;
+
 	/** Offset into register table for each float component. */
+	UPROPERTY()
 	TArray<uint32> FloatComponentRegisterOffsets;
 
 	/** Byte offset of each int32 component in a structured layout. */
+	UPROPERTY()
 	TArray<uint32> Int32ComponentByteOffsets;
+
 	/** Offset into register table for each int32 component. */
+	UPROPERTY()
 	TArray<uint32> Int32ComponentRegisterOffsets;
 
 	FORCEINLINE uint32 GetNumComponents()const { return FloatComponentByteOffsets.Num() + Int32ComponentByteOffsets.Num(); }

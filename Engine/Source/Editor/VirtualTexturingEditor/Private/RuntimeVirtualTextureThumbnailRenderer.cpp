@@ -39,18 +39,14 @@ bool URuntimeVirtualTextureThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 	URuntimeVirtualTexture* RuntimeVirtualTexture = Cast<URuntimeVirtualTexture>(Object);
 	if (RuntimeVirtualTexture->GetEnabled())
 	{
-		//todo[vt]: Support thumbnails for ERuntimeVirtualTextureMaterialType::WorldHeight (which requires render to PF_G16)
-		if (RuntimeVirtualTexture->GetMaterialType() != ERuntimeVirtualTextureMaterialType::WorldHeight)
+		// We need a matching URuntimeVirtualTextureComponent in a Scene to be able to render a thumbnail
+		URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = FindComponent(RuntimeVirtualTexture);
+		if (RuntimeVirtualTextureComponent != nullptr)
 		{
-			// We need a matching URuntimeVirtualTextureComponent in a Scene to be able to render a thumbnail
-			URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = FindComponent(RuntimeVirtualTexture);
-			if (RuntimeVirtualTextureComponent != nullptr)
+			FSceneInterface* Scene = RuntimeVirtualTextureComponent->GetScene();
+			if (Scene != nullptr && RuntimeVirtualTexture::IsSceneReadyToRender(Scene->GetRenderScene()))
 			{
-				FSceneInterface* Scene = RuntimeVirtualTextureComponent->GetScene();
-				if (Scene != nullptr && RuntimeVirtualTexture::IsSceneReadyToRender(Scene->GetRenderScene()))
-				{
-					return true;
-				}
+				return true;
 			}
 		}
 	}
@@ -86,6 +82,7 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 			MaterialType,
 			true,
 			RenderTarget->GetRenderTargetTexture(), DestRect,
+			nullptr, DestRect,
 			nullptr, DestRect,
 			Transform,
 			FBox2D(FVector2D(0, 0), FVector2D(1, 1)),

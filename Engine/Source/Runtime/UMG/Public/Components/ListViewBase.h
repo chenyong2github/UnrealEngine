@@ -547,6 +547,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = ListViewBase)
 	void ScrollToBottom();
 
+	/** Set the scroll offset of this view (in items) */
+	UFUNCTION(BlueprintCallable, Category = ListView)
+	void SetScrollOffset(const float InScrollOffset);
+
 	UFUNCTION(BlueprintCallable, Category = ListViewBase)
 	void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
 

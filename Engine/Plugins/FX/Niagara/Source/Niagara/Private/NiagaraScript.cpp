@@ -19,13 +19,11 @@
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 
-
 #if WITH_EDITOR
 	#include "NiagaraScriptDerivedData.h"
 	#include "DerivedDataCacheInterface.h"
 	#include "Interfaces/ITargetPlatform.h"
 #endif
-
 
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/RenderingObjectVersion.h"
@@ -58,7 +56,8 @@ UNiagaraScriptSourceBase::UNiagaraScriptSourceBase(const FObjectInitializer& Obj
 
 
 FNiagaraVMExecutableData::FNiagaraVMExecutableData() 
-	: NumUserPtrs(0)
+	: NumTempRegisters(0)
+	, NumUserPtrs(0)
 #if WITH_EDITORONLY_DATA
 	, LastOpCount(0)
 #endif
@@ -442,6 +441,8 @@ void UNiagaraScript::PostLoad()
 {
 	Super::PostLoad();
 	
+	RapidIterationParameters.PostLoad();
+
 	bool bNeedsRecompile = false;
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
@@ -505,7 +506,6 @@ void UNiagaraScript::PostLoad()
 #endif
 
 }
-
 
 bool UNiagaraScript::IsReadyToRun(ENiagaraSimTarget SimTarget) const
 {
@@ -814,6 +814,17 @@ void WriteTextFileToDisk(FString SaveDirectory, FString FileName, FString TextTo
 	}
 }
 
+UNiagaraDataInterface* UNiagaraScript::CopyDataInterface(UNiagaraDataInterface* Src, UObject* Owner)
+{
+	if (Src)
+	{
+		UNiagaraDataInterface* DI = NewObject<UNiagaraDataInterface>(Owner, const_cast<UClass*>(Src->GetClass()), NAME_None, RF_Transactional | RF_Public);
+		Src->CopyTo(DI);
+		return DI;
+	}
+	return nullptr;
+}
+
 void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& InCompileId, FNiagaraVMExecutableData& InScriptVM, FNiagaraCompileRequestDataBase* InRequestData)
 {
 	check(InRequestData != nullptr);
@@ -864,7 +875,7 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 		UNiagaraDataInterface*const* FindDIById = InRequestData->GetObjectNameMap().Find(Info.Name);
 		if (FindDIById != nullptr && *(FindDIById) != nullptr)
 		{
-			CachedDefaultDataInterfaces[Idx].DataInterface = DuplicateObject<UNiagaraDataInterface>(*(FindDIById), this);
+			CachedDefaultDataInterfaces[Idx].DataInterface = CopyDataInterface(*(FindDIById), this);
 			check(CachedDefaultDataInterfaces[Idx].DataInterface != nullptr);
 		}			
 		
@@ -872,7 +883,7 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 		{
 			// Use the CDO since we didn't have a default..
 			UObject* Obj = const_cast<UClass*>(Info.Type.GetClass())->GetDefaultObject(true);
-			CachedDefaultDataInterfaces[Idx].DataInterface = Cast<UNiagaraDataInterface>(DuplicateObject(Obj, this));
+			CachedDefaultDataInterfaces[Idx].DataInterface = Cast<UNiagaraDataInterface>(CopyDataInterface(CastChecked<UNiagaraDataInterface>(Obj), this));
 
 			if (Info.bIsPlaceholder == false)
 			{
@@ -980,7 +991,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 	}
 	else
 	{
-		UE_LOG(LogNiagara, Log, TEXT("Script '%s' is in-sync skipping compile.."), *GetFullName());
+		UE_LOG(LogNiagara, Verbose, TEXT("Script '%s' is in-sync skipping compile.."), *GetFullName());
 	}
 }
 
@@ -1012,7 +1023,7 @@ bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiag
 	{
 		OutCompileId = LastGeneratedVMId;
 		OutAsyncHandle = (uint32)INDEX_NONE;
-		UE_LOG(LogNiagara, Log, TEXT("Script '%s' is in-sync skipping compile.."), *GetFullName());
+		UE_LOG(LogNiagara, Verbose, TEXT("Script '%s' is in-sync skipping compile.."), *GetFullName());
 		return false;
 	}
 }
@@ -1294,7 +1305,7 @@ bool UNiagaraScript::SynchronizeExecutablesWithMaster(const UNiagaraScript* Scri
 		{
 			FNiagaraScriptDataInterfaceInfo AddInfo;
 			AddInfo = Info;
-			AddInfo.DataInterface = DuplicateObject<UNiagaraDataInterface>(Info.DataInterface, this);
+			AddInfo.DataInterface = CopyDataInterface(Info.DataInterface, this);
 			CachedDefaultDataInterfaces.Add(AddInfo);
 		}
 

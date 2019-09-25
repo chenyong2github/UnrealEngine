@@ -117,6 +117,8 @@ DEFINE_STAT(STAT_Navigation_PathVisibilityOptimisation);
 DEFINE_STAT(STAT_Navigation_ObservedPathsCount);
 DEFINE_STAT(STAT_Navigation_RecastMemory);
 
+CSV_DEFINE_CATEGORY(NavigationSystem, false);
+
 //----------------------------------------------------------------------//
 // consts
 //----------------------------------------------------------------------//
@@ -1056,7 +1058,7 @@ void UNavigationSystemV1::SetNavigationAutoUpdateEnabled(bool bNewEnable, UNavig
 FPathFindingResult UNavigationSystemV1::FindPathSync(const FNavAgentProperties& AgentProperties, FPathFindingQuery Query, EPathFindingMode::Type Mode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_PathfindingSync);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PathfindingSync);
+	CSV_SCOPED_TIMING_STAT(NavigationSystem, PathfindingSync);
 
 	if (Query.NavData.IsValid() == false)
 	{
@@ -1082,7 +1084,7 @@ FPathFindingResult UNavigationSystemV1::FindPathSync(const FNavAgentProperties& 
 FPathFindingResult UNavigationSystemV1::FindPathSync(FPathFindingQuery Query, EPathFindingMode::Type Mode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_PathfindingSync);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PathfindingSync);
+	CSV_SCOPED_TIMING_STAT(NavigationSystem, PathfindingSync);
 
 	if (Query.NavData.IsValid() == false)
 	{
@@ -1108,7 +1110,7 @@ FPathFindingResult UNavigationSystemV1::FindPathSync(FPathFindingQuery Query, EP
 bool UNavigationSystemV1::TestPathSync(FPathFindingQuery Query, EPathFindingMode::Type Mode, int32* NumVisitedNodes) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_PathfindingSync);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PathfindingSync);
+	CSV_SCOPED_TIMING_STAT(NavigationSystem, PathfindingSync);
 
 	if (Query.NavData.IsValid() == false)
 	{
@@ -1197,7 +1199,7 @@ void UNavigationSystemV1::TriggerAsyncQueries(TArray<FAsyncPathFindingQuery>& Pa
 
 static void AsyncQueryDone(FAsyncPathFindingQuery Query)
 {
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AsyncNavQueryFinished);
+	CSV_SCOPED_TIMING_STAT(NavigationSystem, AsyncNavQueryFinished);
 
 	Query.OnDoneDelegate.ExecuteIfBound(Query.QueryID, Query.Result.Result, Query.Result.Path);
 }
@@ -1205,7 +1207,7 @@ static void AsyncQueryDone(FAsyncPathFindingQuery Query)
 void UNavigationSystemV1::PerformAsyncQueries(TArray<FAsyncPathFindingQuery> PathFindingQueries)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_PathfindingAsync);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PathfindingAsync);
+	CSV_SCOPED_TIMING_STAT(NavigationSystem, PathfindingAsync);
 
 	if (PathFindingQueries.Num() == 0)
 	{
@@ -1542,6 +1544,22 @@ const ANavigationData* UNavigationSystemV1::GetNavDataForProps(const FNavAgentPr
 	}
 
 	return NavDataInstance ? NavDataInstance : MainNavData;
+}
+
+ANavigationData* UNavigationSystemV1::GetNavDataForAgentName(const FName AgentName) const
+{
+	ANavigationData* Result = nullptr;
+
+	for (ANavigationData* NavData : NavDataSet)
+	{
+		if (NavData && !NavData->IsPendingKill() && NavData->GetConfig().Name == AgentName)
+		{
+			Result = NavData;
+			break;
+		}
+	}
+
+	return Result;
 }
 
 ANavigationData* UNavigationSystemV1::GetDefaultNavDataInstance(FNavigationSystem::ECreateIfMissing CreateNewIfNoneFound)
@@ -4316,8 +4334,24 @@ void UNavigationSystemV1::ApplySupportedAgentsFilter()
 	for (int32 AgentIndex = 0; AgentIndex < SupportedAgents.Num(); AgentIndex++)
 	{
 		if (SupportedAgentsMask.Contains(AgentIndex) == false)
-	{
+		{
 			SupportedAgents[AgentIndex].Invalidate();
+		}
+	}
+}
+
+void UNavigationSystemV1::UnregisterUnusedNavData()
+{
+	for (int32 AgentIndex = 0; AgentIndex < SupportedAgents.Num(); AgentIndex++)
+	{
+		if (SupportedAgentsMask.Contains(AgentIndex) == false)
+		{
+			// if we already have navdata for this agent we need to remove it
+			ANavigationData* NavData = GetNavDataForAgentName(SupportedAgents[AgentIndex].Name);
+			if (NavData)
+			{
+				UnregisterNavData(NavData);
+			}
 		}
 	}
 }

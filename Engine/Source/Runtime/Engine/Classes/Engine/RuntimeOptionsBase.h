@@ -62,6 +62,4 @@ protected:
 	void ApplyCommandlineOverrides();
 	void RegisterSupportedConsoleVariables(bool bDuringReload);
 	void InitializeRuntimeOptions();
-
-	void ApplyPluginOverridesIfPresent(const FString& PluginName);
 };

@@ -8,6 +8,7 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraEmitterInstance.h"
+#include "NiagaraFunctionLibrary.h"
 #include "NiagaraGPUInstanceCountManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("Register Setup"), STAT_NiagaraSimRegisterSetup, STATGROUP_Niagara);
@@ -93,6 +94,14 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 			bool bSuccessfullyMapped = true;
 			for (FVMExternalFunctionBindingInfo& BindingInfo : Script->GetVMExecutableData().CalledVMExternalFunctions)
 			{
+				// First check to see if we can pull from the fast path library..
+				FVMExternalFunction FuncBind;
+				if (UNiagaraFunctionLibrary::GetVectorVMFastPathExternalFunction(BindingInfo, FuncBind) && FuncBind.IsBound())
+				{
+					FunctionTable.Add(FuncBind);
+					continue;
+				}
+
 				for (int32 i = 0; i < Script->GetVMExecutableData().DataInterfaceInfo.Num(); i++)
 				{
 					FNiagaraScriptDataInterfaceCompileInfo& ScriptInfo = Script->GetVMExecutableData().DataInterfaceInfo[i];
@@ -162,10 +171,8 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
 
 	++TickCounter;//Should this be per execution?
 
-	int32 NumInputRegisters = 0;
-	int32 NumOutputRegisters = 0;
-	uint8* InputRegisters[VectorVM::MaxInputRegisters];
-	uint8* OutputRegisters[VectorVM::MaxOutputRegisters];
+	FNiagaraRegisterTable InputRegisters;
+	FNiagaraRegisterTable OutputRegisters;
 
 	DataSetMetaTable.Reset();
 
@@ -179,45 +186,41 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
 			DataSetInfo.DataSet->CheckForNaNs();
 #endif
 			check(Info.DataSet);
-			DataSetMetaTable.Emplace(&InputRegisters[NumInputRegisters], NumInputRegisters, Info.StartInstance,
+			int32 NumInputRegisters = InputRegisters.Num();
+			DataSetMetaTable.Emplace(NumInputRegisters, Info.StartInstance,
 				DestinationData ? &DestinationData->GetIDTable() : nullptr, &Info.DataSet->GetFreeIDTable(), &Info.DataSet->GetNumFreeIDs(), &Info.DataSet->GetMaxUsedID(), Info.DataSet->GetIDAcquireTag());
 
 			int32 TotalComponents = Info.DataSet->GetNumFloatComponents() + Info.DataSet->GetNumInt32Components();
-			if (NumInputRegisters + TotalComponents > VectorVM::MaxInputRegisters || NumOutputRegisters + TotalComponents > VectorVM::MaxOutputRegisters)
+			if (Info.Input && Info.Input->GetNumInstances() > 0)
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("VM Script is using too many registers."));//TODO: We can make this a non issue and support any number of registers.
-				bError = true;
-				break;
-			}
-
-			if (Info.Input)
-			{
-				Info.Input->AppendToRegisterTable(InputRegisters, NumInputRegisters, Info.StartInstance);
+				Info.Input->AppendToRegisterTable(InputRegisters, Info.StartInstance);
 			}
 			else
 			{
-				Info.DataSet->ClearRegisterTable(InputRegisters, NumInputRegisters);
+				Info.DataSet->GetCurrentDataChecked().ClearRegisterTable(InputRegisters);
 			}
 
 			if (Info.Output)
 			{
-				Info.Output->AppendToRegisterTable(OutputRegisters, NumOutputRegisters, Info.StartInstance);
+				Info.Output->AppendToRegisterTable(OutputRegisters, Info.StartInstance);
 			}
 			else
 			{
-				Info.DataSet->ClearRegisterTable(OutputRegisters, NumOutputRegisters);
+				Info.DataSet->GetCurrentDataChecked().ClearRegisterTable(OutputRegisters);
 			}
 		}
 	}
 
 	if (GbExecVMScripts != 0 && !bError)
 	{
+		const FNiagaraVMExecutableData& ExecData = Script->GetVMExecutableData();
 		VectorVM::Exec(
-			Script->GetVMExecutableData().ByteCode.GetData(),
-			InputRegisters,
-			NumInputRegisters,
-			OutputRegisters,
-			NumOutputRegisters,
+			ExecData.ByteCode.GetData(),
+			ExecData.NumTempRegisters,
+			InputRegisters.GetData(),
+			InputRegisters.Num(),
+			OutputRegisters.GetData(),
+			OutputRegisters.Num(),
 			Parameters.GetParameterDataArray().GetData(),
 			DataSetMetaTable,
 			FunctionTable.GetData(),

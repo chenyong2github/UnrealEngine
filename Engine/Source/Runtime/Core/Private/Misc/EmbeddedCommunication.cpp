@@ -204,15 +204,17 @@ void FEmbeddedCommunication::AllowSleep(FName Requester)
 }
 
 #if BUILD_EMBEDDED_APP
-static FName NativeLogCategory("Native");
-#endif
+
+DEFINE_LOG_CATEGORY_STATIC(LogBridge, Log, All);
+
+#endif // BUILD_EMBEDDED_APP
 
 void FEmbeddedCommunication::UELogError(const TCHAR* String)
 {
 #if BUILD_EMBEDDED_APP
-	if (GWarn)
+	if (GWarn && UE_LOG_ACTIVE(LogBridge, Error))
 	{
-		GWarn->Log(NativeLogCategory, ELogVerbosity::Error, String);
+		GWarn->Log("LogBridge", ELogVerbosity::Error, String);
 	}
 #endif
 }
@@ -220,9 +222,9 @@ void FEmbeddedCommunication::UELogError(const TCHAR* String)
 void FEmbeddedCommunication::UELogWarning(const TCHAR* String)
 {
 #if BUILD_EMBEDDED_APP
-	if (GWarn)
+	if (GWarn && UE_LOG_ACTIVE(LogBridge, Warning))
 	{
-		GWarn->Log(NativeLogCategory, ELogVerbosity::Warning, String);
+		GWarn->Log("LogBridge", ELogVerbosity::Warning, String);
 	}
 #endif
 }
@@ -230,9 +232,9 @@ void FEmbeddedCommunication::UELogWarning(const TCHAR* String)
 void FEmbeddedCommunication::UELogLog(const TCHAR* String)
 {
 #if BUILD_EMBEDDED_APP
-	if (GLog)
+	if (GLog && UE_LOG_ACTIVE(LogBridge, Log))
 	{
-		GLog->Log(NativeLogCategory, ELogVerbosity::Log, String);
+		GLog->Log("LogBridge", ELogVerbosity::Log, String);
 	}
 #endif
 }
@@ -240,9 +242,9 @@ void FEmbeddedCommunication::UELogLog(const TCHAR* String)
 void FEmbeddedCommunication::UELogVerbose(const TCHAR* String)
 {
 #if BUILD_EMBEDDED_APP
-	if (GLog)
+	if (GLog && UE_LOG_ACTIVE(LogBridge, Verbose))
 	{
-		GLog->Log(NativeLogCategory, ELogVerbosity::Verbose, String);
+		GLog->Log("LogBridge", ELogVerbosity::Verbose, String);
 	}
 #endif
 }

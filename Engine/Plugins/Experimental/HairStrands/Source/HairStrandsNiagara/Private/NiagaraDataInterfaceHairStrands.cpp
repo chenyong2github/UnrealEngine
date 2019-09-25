@@ -268,7 +268,7 @@ private:
 
 void FNDIHairStrandsProxy::DeferredDestroy()
 {
-	for (const FGuid& Sys : DeferredDestroyList)
+	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
 	{
 		SystemInstancesToProxyData.Remove(Sys);
 	}
@@ -276,7 +276,7 @@ void FNDIHairStrandsProxy::DeferredDestroy()
 	DeferredDestroyList.Empty();
 }
 
-void FNDIHairStrandsProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance)
+void FNDIHairStrandsProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
 {
 	FNDIHairStrandsData* SourceData = static_cast<FNDIHairStrandsData*>(PerInstanceData);
 	FNDIHairStrandsData* TargetData = SystemInstancesToProxyData.Find(Instance);
@@ -288,11 +288,11 @@ void FNDIHairStrandsProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanc
 	}
 	else
 	{
-		UE_LOG(LogHairStrands, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %s"), *Instance.ToString());
+		UE_LOG(LogHairStrands, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %s"), *FNiagaraUtilities::SystemInstanceIDToString(Instance));
 	}
 }
 
-void FNDIHairStrandsProxy::InitializePerInstanceData(const FGuid& SystemInstance, FNDIHairStrandsBuffer* StrandBuffer, uint32 NumStrands, const uint8 StrandSize,
+void FNDIHairStrandsProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIHairStrandsBuffer* StrandBuffer, uint32 NumStrands, const uint8 StrandSize,
 	const float StrandDensity, const float RootThickness, const float TipThickness)
 {
 	check(IsInRenderingThread());
@@ -314,7 +314,7 @@ void FNDIHairStrandsProxy::InitializePerInstanceData(const FGuid& SystemInstance
 	TargetData->TipThickness = TipThickness;
 }
 
-void FNDIHairStrandsProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FGuid& SystemInstance)
+void FNDIHairStrandsProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
 
@@ -885,7 +885,7 @@ void UNiagaraDataInterfaceHairStrands::GetParameterDefinitionHLSL(FNiagaraDataIn
 	OutHLSL += TEXT("DIHAIRSTRANDS_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
 }
 
-void UNiagaraDataInterfaceHairStrands::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FGuid& SystemInstance)
+void UNiagaraDataInterfaceHairStrands::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(Proxy);
 

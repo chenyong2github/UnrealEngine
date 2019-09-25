@@ -248,7 +248,7 @@ FNiagaraVariable FNiagaraUtilities::ConvertVariableToRapidIterationConstantName(
 	return Var;
 }
 
-void FNiagaraUtilities::CollectScriptDataInterfaceParameters(const UObject& Owner, const TArray<UNiagaraScript*>& Scripts, FNiagaraParameterStore& OutDataInterfaceParameters)
+void FNiagaraUtilities::CollectScriptDataInterfaceParameters(const UObject& Owner, const TArrayView<UNiagaraScript*>& Scripts, FNiagaraParameterStore& OutDataInterfaceParameters)
 {
 	for (UNiagaraScript* Script : Scripts)
 	{
@@ -303,6 +303,21 @@ void FNiagaraUtilities::DumpHLSLText(const FString& SourceCode, const FString& D
 	UE_LOG(LogNiagara, Display, TEXT("==================================================================================="));
 }
 
+FString FNiagaraUtilities::SystemInstanceIDToString(FNiagaraSystemInstanceID ID)
+{
+	TCHAR Buffer[17];
+	uint64 Value = ID;
+	for (int i = 15; i >= 0; --i)
+	{
+		TCHAR ch = Value & 0xf;
+		Value >>= 4;
+		Buffer[i] = (ch >= 10 ? TCHAR('A' - 10) : TCHAR('0')) + ch;
+	}
+	Buffer[16] = 0;
+
+	return FString(Buffer);
+}
+
 #if WITH_EDITORONLY_DATA
 void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, FString>& ScriptToEmitterNameMap)
 {
@@ -348,11 +363,10 @@ void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScr
 		}
 		else
 		{
-			const TMap<FNiagaraVariable, int32>& SourceParameterOffsets = Script->RapidIterationParameters.GetParameterOffsets();
-			for (auto ParameterOffsetIt = SourceParameterOffsets.CreateConstIterator(); ParameterOffsetIt; ++ParameterOffsetIt)
+			for (const FNiagaraVariableWithOffset& ParamWithOffset : Script->RapidIterationParameters.GetSortedParameterOffsets())
 			{
-				const FNiagaraVariable& SourceParameter = ParameterOffsetIt.Key();
-				int32 SourceOffset = ParameterOffsetIt.Value();
+				const FNiagaraVariable& SourceParameter = ParamWithOffset;
+				const int32 SourceOffset = ParamWithOffset.Offset;
 
 				int32 PreparedOffset = PreparedParameterStore.IndexOf(SourceParameter);
 				if (PreparedOffset == INDEX_NONE)

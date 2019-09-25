@@ -307,7 +307,7 @@ bool FAndroidTargetPlatform::IsSdkInstalled(bool bProjectHasCode, FString& OutDo
 	return true;
 }
 
-int32 FAndroidTargetPlatform::CheckRequirements(const FString& ProjectPath, bool bProjectHasCode, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const
+int32 FAndroidTargetPlatform::CheckRequirements(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const
 {
 	OutDocumentationPath = TEXT("Platforms/Android/GettingStarted");
 

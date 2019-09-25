@@ -37,6 +37,7 @@ namespace RuntimeVirtualTexture
 		bool bClearTextures,
 		FRHITexture2D* Texture0, FBox2D const& DestBox0,
 		FRHITexture2D* Texture1, FBox2D const& DestBox1,
+		FRHITexture2D* Texture2, FBox2D const& DestBox2,
 		FTransform const& UVToWorld,
 		FBox2D const& UVRange,
 		uint8 vLevel,

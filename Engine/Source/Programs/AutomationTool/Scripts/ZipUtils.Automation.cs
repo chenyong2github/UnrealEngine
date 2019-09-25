@@ -113,45 +113,21 @@ public class ZipUtils : BuildCommand
 	/// <param name="CopyModeOnly">No compression will be done. Only acts like a container. The default value is set to false.</param>
 	internal static void InternalZipFiles(FileReference ZipFileName, DirectoryReference BaseDirectory, FileFilter Filter, int CompressionLevel = 0)
 	{
-		// Ionic.Zip.Zip64Option.Always option produces broken archives on Mono, so we use system zip tool instead
-		if (Utils.IsRunningOnMono)
+		using (Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile())
 		{
-			DirectoryReference.CreateDirectory(ZipFileName.Directory);
-			CommandUtils.PushDir(BaseDirectory.FullName);
-			string FilesList = "";
+			Zip.UseZip64WhenSaving = Ionic.Zip.Zip64Option.AsNecessary;
+
+			Zip.CompressionLevel = (Ionic.Zlib.CompressionLevel)CompressionLevel;
+
+			if (Zip.CompressionLevel == Ionic.Zlib.CompressionLevel.Level0)
+				Zip.CompressionMethod = Ionic.Zip.CompressionMethod.None;
+
 			foreach (FileReference FilteredFile in Filter.ApplyToDirectory(BaseDirectory, true))
 			{
-				FilesList += " \"" + FilteredFile.MakeRelativeTo(BaseDirectory) + "\"";
-				if (FilesList.Length > 32000)
-				{
-					CommandUtils.RunAndLog(CommandUtils.CmdEnv, "zip", "-g -q \"" + ZipFileName + "\"" + FilesList);
-					FilesList = "";
-				}
+				Zip.AddFile(FilteredFile.FullName, Path.GetDirectoryName(FilteredFile.MakeRelativeTo(BaseDirectory)));
 			}
-			if (FilesList.Length > 0)
-			{
-				CommandUtils.RunAndLog(CommandUtils.CmdEnv, "zip", "-g -q \"" + ZipFileName + "\"" + FilesList);
-			}
-			CommandUtils.PopDir();
-		}
-		else
-		{
-			using (Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile())
-			{
-				Zip.UseZip64WhenSaving = Ionic.Zip.Zip64Option.Always;
-
-				Zip.CompressionLevel = (Ionic.Zlib.CompressionLevel)CompressionLevel;
-
-				if (Zip.CompressionLevel == Ionic.Zlib.CompressionLevel.Level0)
-					Zip.CompressionMethod = Ionic.Zip.CompressionMethod.None;
-
-				foreach (FileReference FilteredFile in Filter.ApplyToDirectory(BaseDirectory, true))
-				{
-					Zip.AddFile(FilteredFile.FullName, Path.GetDirectoryName(FilteredFile.MakeRelativeTo(BaseDirectory)));
-				}
-				CommandUtils.CreateDirectory(Path.GetDirectoryName(ZipFileName.FullName));
-				Zip.Save(ZipFileName.FullName);
-			}
+			CommandUtils.CreateDirectory(Path.GetDirectoryName(ZipFileName.FullName));
+			Zip.Save(ZipFileName.FullName);
 		}
 	}
 

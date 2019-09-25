@@ -48,8 +48,6 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGenLights);
 
-	SimpleTimer VertexDataTimer;
-
 	//Bail if we don't have the required attributes to render this emitter.
 	const UNiagaraLightRendererProperties* Properties = CastChecked<const UNiagaraLightRendererProperties>(InProperties);
 	FNiagaraDataSet& Data = Emitter->GetData();
@@ -97,7 +95,6 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 		}
 	}
 
-	CPUTimeMS = VertexDataTimer.GetElapsedMilliseconds();
 	return DynamicData;
 }
 

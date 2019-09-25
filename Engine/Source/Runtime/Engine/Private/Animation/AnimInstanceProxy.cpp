@@ -11,7 +11,7 @@
 #include "Animation/AnimNode_StateMachine.h"
 #include "Animation/AnimNode_TransitionResult.h"
 #include "Animation/AnimNode_SaveCachedPose.h"
-#include "Animation/AnimNode_SubInput.h"
+#include "Animation/AnimNode_LinkedInputPose.h"
 #include "Engine/Engine.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/WorldSettings.h"
@@ -23,7 +23,7 @@
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName ## _WorkerThread)
 #include "Animation/AnimMTStats.h"
 #include "Animation/AnimNode_Root.h"
-#include "Animation/AnimNode_Layer.h"
+#include "Animation/AnimNode_LinkedAnimLayer.h"
 #undef DO_ANIMSTAT_PROCESSING
 
 #define LOCTEXT_NAMESPACE "AnimInstance"
@@ -33,12 +33,12 @@ const FName NAME_Evaluate(TEXT("Evaluate"));
 const FName NAME_Update(TEXT("Update"));
 const FName NAME_AnimGraph(TEXT("AnimGraph"));
 
-void FAnimInstanceProxy::UpdateAnimationNode(float DeltaSeconds)
+void FAnimInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
 {
-	UpdateAnimationNode_WithRoot(DeltaSeconds, RootNode, NAME_AnimGraph);
+	UpdateAnimationNode_WithRoot(InContext, RootNode, NAME_AnimGraph);
 }
 
-void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimNode_Base* InRootNode, FName InLayerName)
+void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(const FAnimationUpdateContext& InContext, FAnimNode_Base* InRootNode, FName InLayerName)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	if(InRootNode != nullptr)
@@ -48,9 +48,7 @@ void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimN
 			UpdateCounter.Increment();
 		}
 		
-		FAnimationUpdateSharedContext SharedContext;
-		FAnimationUpdateContext UpdateContext(this, DeltaSeconds, &SharedContext);
-		InRootNode->Update_AnyThread(UpdateContext);
+		InRootNode->Update_AnyThread(InContext);
 
 		// We've updated the graph, now update the fractured saved pose sections
 		TArray<FAnimNode_SaveCachedPose*>& SavedPoseQueue = SavedPoseQueueMap.FindChecked(InLayerName);
@@ -221,7 +219,7 @@ void FAnimInstanceProxy::InitializeRootNode(bool bInDeferRootNodeInitialization)
 			StateMachine->CacheMachineDescription(AnimClassInterface);
 		}
 
-		// Cache default sub-input 
+		// Cache default linked input pose 
 		for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimClassInterface->GetAnimBlueprintFunctions())
 		{
 			if(AnimBlueprintFunction.Name == NAME_AnimGraph)
@@ -229,9 +227,9 @@ void FAnimInstanceProxy::InitializeRootNode(bool bInDeferRootNodeInitialization)
 				check(AnimBlueprintFunction.InputPoseNames.Num() == AnimBlueprintFunction.InputPoseNodeProperties.Num());
 				for(int32 InputIndex = 0; InputIndex < AnimBlueprintFunction.InputPoseNames.Num(); ++InputIndex)
 				{
-					if(AnimBlueprintFunction.InputPoseNames[InputIndex] == FAnimNode_SubInput::DefaultInputPoseName && AnimBlueprintFunction.InputPoseNodeProperties[InputIndex] != nullptr)
+					if(AnimBlueprintFunction.InputPoseNames[InputIndex] == FAnimNode_LinkedInputPose::DefaultInputPoseName && AnimBlueprintFunction.InputPoseNodeProperties[InputIndex] != nullptr)
 					{
-						DefaultSubInstanceInputNode = AnimBlueprintFunction.InputPoseNodeProperties[InputIndex]->ContainerPtrToValuePtr<FAnimNode_SubInput>(CastChecked<UAnimInstance>(GetAnimInstanceObject()));
+						DefaultLinkedInstanceInputNode = AnimBlueprintFunction.InputPoseNodeProperties[InputIndex]->ContainerPtrToValuePtr<FAnimNode_LinkedInputPose>(CastChecked<UAnimInstance>(GetAnimInstanceObject()));
 						break;
 					}
 				}
@@ -331,7 +329,7 @@ void FAnimInstanceProxy::Uninitialize(UAnimInstance* InAnimInstance)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	MontageEvaluationData.Reset();
-	DefaultSubInstanceInputNode = nullptr;
+	DefaultLinkedInstanceInputNode = nullptr;
 	ResetAnimationCurves();
 	MaterialParametersToClear.Reset();
 }
@@ -1158,9 +1156,9 @@ void FAnimInstanceProxy::RecalcRequiredBones(USkeletalMeshComponent* Component, 
 	}
 
 	// If this instance can accept input poses, initialise the input pose container
-	if(DefaultSubInstanceInputNode)
+	if(DefaultLinkedInstanceInputNode)
 	{
-		DefaultSubInstanceInputNode->CachedInputPose.SetBoneContainer(&RequiredBones);
+		DefaultLinkedInstanceInputNode->CachedInputPose.SetBoneContainer(&RequiredBones);
 	}
 
 	// When RequiredBones mapping has changed, AnimNodes need to update their bones caches. 
@@ -1183,10 +1181,12 @@ void FAnimInstanceProxy::UpdateAnimation()
 	UpdatedNodesThisFrame.Reset();
 #endif
 
-	UpdateAnimation_WithRoot(RootNode, NAME_AnimGraph);
+	FAnimationUpdateSharedContext SharedContext;
+	FAnimationUpdateContext Context(this, CurrentDeltaSeconds, &SharedContext);
+	UpdateAnimation_WithRoot(Context, RootNode, NAME_AnimGraph);
 }
 
-void FAnimInstanceProxy::UpdateAnimation_WithRoot(FAnimNode_Base* InRootNode, FName InLayerName)
+void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext& InContext, FAnimNode_Base* InRootNode, FName InLayerName)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -1213,7 +1213,7 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(FAnimNode_Base* InRootNode, FN
 	if(!bUpdatingRoot)
 	{
 		// Make sure we only update this once the first time we update, as we can re-call this function
-		// from other sub instances with grouped layers
+		// from other linked instances with grouped layers
 		if(FrameCounterForUpdate != GFrameCounter)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_NativeUpdateAnimation);
@@ -1233,11 +1233,11 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(FAnimNode_Base* InRootNode, FN
 		if(InRootNode == RootNode)
 		{
 			// Call the correct override point if this is the root node
-			UpdateAnimationNode(CurrentDeltaSeconds);
+			UpdateAnimationNode(InContext);
 		}
 		else
 		{
-			UpdateAnimationNode_WithRoot(CurrentDeltaSeconds, InRootNode, InLayerName);
+			UpdateAnimationNode_WithRoot(InContext, InRootNode, InLayerName);
 		}
 	}
 }

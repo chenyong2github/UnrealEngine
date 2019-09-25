@@ -33,7 +33,7 @@ public:
 	bool bDumpAfterEvent;
 	virtual ~FNiagaraEmitterInstance();
 
-	void Init(int32 InEmitterIdx, FName SystemInstanceName);
+	void Init(int32 InEmitterIdx, FNiagaraSystemInstanceID SystemInstanceID);
 
 	void ResetSimulation(bool bKillExisting=true);
 
@@ -87,7 +87,7 @@ public:
 
 	FNiagaraSystemInstance* GetParentSystemInstance()const	{ return ParentSystemInstance; }
 
-	float NIAGARA_API GetTotalCPUTime();
+	float NIAGARA_API GetTotalCPUTimeMS();
 	int	NIAGARA_API GetTotalBytesUsed();
 	
 	ENiagaraExecutionState NIAGARA_API GetExecutionState()	{ return ExecutionState; }
@@ -140,8 +140,8 @@ private:
 	/** Typical resets must be deferred until the tick as the RT could still be using the current buffer. */
 	uint32 bResetPending : 1;
 
-	/* Seconds taken to process everything (including rendering) */
-	float CPUTimeMS;
+	/* Cycles taken to process the tick. */
+	uint32 CPUTimeCycles;
 	/* Emitter tick state */
 	ENiagaraExecutionState ExecutionState;
 	/* Emitter bounds */
@@ -201,19 +201,11 @@ private:
 	TArray<bool> UpdateEventGeneratorIsSharedByIndex;
 	TArray<bool> SpawnEventGeneratorIsSharedByIndex;
 
-	FName OwnerSystemInstanceName;
+	FNiagaraSystemInstanceID OwnerSystemInstanceID;
 
 	/** Cached fixed bounds of the parent system which override this Emitter Instances bounds if set. Whenever we initialize the owning SystemInstance we will reconstruct this
 	 ** EmitterInstance and the cached bounds will be unset. */
 	TOptional<FBox> CachedSystemFixedBounds;
-
-#if WITH_EDITORONLY_DATA
-	bool CheckAttributesForRenderer(int32 Index);
-#endif
-
-#if !UE_BUILD_SHIPPING
-	bool bEncounteredNaNs;
-#endif
 
 	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
 	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;

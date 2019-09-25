@@ -76,8 +76,10 @@ private:
 	//~ FGCObject
 
 	//~IARSystemSupport
+	virtual bool IsARAvailable() const override;
 	virtual void OnARSystemInitialized() override;
 	virtual EARTrackingQuality OnGetTrackingQuality() const override;
+	virtual EARTrackingQualityReason OnGetTrackingQualityReason() const override;
 	virtual void OnStartARSession(UARSessionConfig* InSessionConfig) override;
 	virtual void OnPauseARSession() override;
 	virtual void OnStopARSession() override;

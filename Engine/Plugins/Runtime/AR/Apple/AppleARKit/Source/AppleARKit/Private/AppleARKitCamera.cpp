@@ -43,6 +43,31 @@ FAppleARKitCamera::FAppleARKitCamera( ARCamera* InARCamera )
 			break;
 	}
 	
+	// tracking quality reason
+	switch (InARCamera.trackingStateReason)
+	{
+		default:
+		case ARTrackingStateReasonNone:
+			TrackingQualityReason = EARTrackingQualityReason::None;
+			break;
+
+		case ARTrackingStateReasonInitializing:
+			TrackingQualityReason = EARTrackingQualityReason::Initializing;
+			break;
+
+		case ARTrackingStateReasonRelocalizing:
+			TrackingQualityReason = EARTrackingQualityReason::Relocalizing;
+			break;
+
+		case ARTrackingStateReasonExcessiveMotion:
+			TrackingQualityReason = EARTrackingQualityReason::ExcessiveMotion;
+			break;
+
+		case ARTrackingStateReasonInsufficientFeatures:
+			TrackingQualityReason = EARTrackingQualityReason::InsufficientFeatures;
+			break;
+	}
+	
 	
     // Copy / convert camera transform
     Transform = FAppleARKitConversion::ToFTransform( InARCamera.transform );

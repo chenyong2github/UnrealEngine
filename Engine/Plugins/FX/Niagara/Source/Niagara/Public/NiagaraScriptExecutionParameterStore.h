@@ -44,14 +44,19 @@ public:
 	void AddScriptParams(UNiagaraScript* Script, ENiagaraSimTarget SimTarget, bool bTriggerRebind);
 	void CopyCurrToPrev();
 
-	virtual bool AddParameter(const FNiagaraVariable& Param, bool bInitInterfaces = true, bool bTriggerRebind = true) override
+	virtual bool AddParameter(const FNiagaraVariable& Param, bool bInitInterfaces = true, bool bTriggerRebind = true, int32* OutOffset = nullptr) override
 	{
-		if (FNiagaraParameterStore::AddParameter(Param, bInitInterfaces, bTriggerRebind))
+		int32 NewParamOffset = INDEX_NONE;
+		const bool bAdded = FNiagaraParameterStore::AddParameter(Param, bInitInterfaces, bTriggerRebind, &NewParamOffset);
+		if (bAdded)
 		{
-			AddPaddedParamSize(Param.GetType(), IndexOf(Param));
-			return true;
+			AddPaddedParamSize(Param.GetType(), NewParamOffset);
 		}
-		return false;
+		if (OutOffset)
+		{
+			*OutOffset = NewParamOffset;
+		}
+		return bAdded;
 	}
 
 	virtual bool RemoveParameter(const FNiagaraVariable& Param) override

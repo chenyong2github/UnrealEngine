@@ -1670,10 +1670,13 @@ void UParticleEmitter::Build()
 		if (HighLODLevel->TypeDataModule != nullptr)
 		{
 			if(HighLODLevel->TypeDataModule->RequiresBuild())
-		{
-			FParticleEmitterBuildInfo EmitterBuildInfo;
+			{
+				FParticleEmitterBuildInfo EmitterBuildInfo;
 #if WITH_EDITOR
-				HighLODLevel->CompileModules( EmitterBuildInfo );
+				if(!GetOutermost()->bIsCookedForEditor)
+				{
+					HighLODLevel->CompileModules( EmitterBuildInfo );
+				}
 #endif
 				HighLODLevel->TypeDataModule->Build( EmitterBuildInfo );
 			}
@@ -3958,6 +3961,7 @@ void UParticleSystemComponent::SendRenderDynamicData_Concurrent()
 {
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_SendRenderDynamicData_Concurrent);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 
 	ForceAsyncWorkCompletion(ENSURE_AND_STALL, false, true);
 	Super::SendRenderDynamicData_Concurrent();

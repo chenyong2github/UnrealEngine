@@ -129,6 +129,9 @@ public:
 
 	UNiagaraComponentPool* GetComponentPool() { return ComponentPool; }
 
+	// Dump details about what's inside the world manager
+	void DumpDetails(FOutputDevice& Ar);
+
 private:
 
 	// Callback function registered with global world delegates to instantiate world manager when a game world is created

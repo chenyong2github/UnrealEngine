@@ -163,12 +163,15 @@ void ACameraRig_Rail::UpdateRailComponents()
 	{
 		float const SplineLen = RailSplineComponent->GetSplineLength();
 		FVector const MountPos = RailSplineComponent->GetLocationAtDistanceAlongSpline(CurrentPositionOnRail*SplineLen, ESplineCoordinateSpace::World);
-		RailCameraMount->SetWorldLocation(MountPos);
 
 		if (bLockOrientationToRail)
 		{
 			FQuat const RailRot = RailSplineComponent->GetQuaternionAtDistanceAlongSpline(CurrentPositionOnRail*SplineLen, ESplineCoordinateSpace::World);
-			RailCameraMount->SetWorldRotation(RailRot);
+			RailCameraMount->SetWorldTransform(FTransform(RailRot, MountPos));
+		}
+		else
+		{
+			RailCameraMount->SetWorldLocation(MountPos);
 		}
 	}
 

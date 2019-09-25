@@ -10,6 +10,7 @@
 #include "MeshPassProcessor.inl"
 #include "PixelShaderUtils.h"
 #include "PostProcess/PostProcessSubsurface.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "PostProcessTemporalAA.h"
 #include "RenderGraph.h"
 #include "ScenePrivate.h"
@@ -23,22 +24,54 @@ DECLARE_GPU_STAT(SingleLayerWater);
 
 
 
-static TAutoConsoleVariable<int32> CVarSingleLayerWater(
-	TEXT("r.SingleLayerWater"), 0,
+static TAutoConsoleVariable<int32> CVarWaterSingleLayer(
+	TEXT("r.Water.SingleLayer"), 1,
 	TEXT("Enable the single water renderring system."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 
-static TAutoConsoleVariable<int32> CVarSingleLayerWaterSSR(
-	TEXT("r.SingleLayerWater.SSR"), 1,
+static TAutoConsoleVariable<int32> CVarWaterSingleLayerReflection(
+	TEXT("r.Water.SingleLayer.Reflection"), 1,
+	TEXT("Enable reflection rendering on water."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
+
+static TAutoConsoleVariable<int32> CVarWaterSingleLayerTiledComposite(
+	TEXT("r.Water.SingleLayer.TiledComposite"), 1,
+	TEXT("Enable tiled optimisation of the water reflection rendering."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
+int32 GSingleLayerWaterRefractionDownsampleFactor = 2;
+FAutoConsoleVariableRef CVarWaterSingleLayerRefractionDownsampleFactor(
+	TEXT("r.Water.SingleLayer.RefractionDownsampleFactor"),
+	GSingleLayerWaterRefractionDownsampleFactor,
+	TEXT("Resolution divider for the water refraction buffer."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarWaterSingleLayerSSR(
+	TEXT("r.Water.SingleLayer.SSR"), 1,
 	TEXT("Enable SSR for the single water renderring system."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 
-static TAutoConsoleVariable<int32> CVarSingleLayerWaterSSRTAA(
-	TEXT("r.SingleLayerWater.SSRTAA"), 1,
+static TAutoConsoleVariable<int32> CVarWaterSingleLayerSSRTAA(
+	TEXT("r.Water.SingleLayer.SSRTAA"), 1,
 	TEXT("Enable SSR denoising using TAA for the single water renderring system."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
+
+
+static TAutoConsoleVariable<int32> CVarRHICmdSingleLayerWaterDeferredContexts(
+	TEXT("r.RHICmdSingleLayerWaterDeferredContexts"),
+	1,
+	TEXT("True to use deferred contexts to parallelize single layer water command list execution."));
+
+
+static TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasksSingleLayerWater(
+	TEXT("r.RHICmdFlushRenderThreadTasksSingleLayerWater"),
+	0,
+	TEXT("Wait for completion of parallel render thread tasks at the end of Single layer water. A more granular version of r.RHICmdFlushRenderThreadTasks. If either r.RHICmdFlushRenderThreadTasks or r.RHICmdFlushRenderThreadTasksSingleLayerWater is > 0 we will flush."));
+
 
 
 
@@ -53,7 +86,7 @@ static bool ShouldRenderSingleLayerWater(const FViewInfo& View)
 
 bool ShouldRenderSingleLayerWater(const TArray<FViewInfo>& Views, const FEngineShowFlags& EngineShowFlags)
 {
-	if (CVarSingleLayerWater.GetValueOnRenderThread() > 0) // && EngineShowFlags.Water)
+	if (CVarWaterSingleLayer.GetValueOnRenderThread() > 0) // && EngineShowFlags.Water)
 	{
 		for (const FViewInfo& View : Views)
 		{
@@ -68,7 +101,7 @@ bool ShouldRenderSingleLayerWater(const TArray<FViewInfo>& Views, const FEngineS
 
 bool ShouldRenderSingleLayerWaterSkippedRenderEditorNotification(const TArray<FViewInfo>& Views)
 {
-	if (CVarSingleLayerWater.GetValueOnRenderThread() <= 0)
+	if (CVarWaterSingleLayer.GetValueOnRenderThread() <= 0)
 	{
 		for (const FViewInfo& View : Views)
 		{
@@ -102,7 +135,7 @@ void FSingleLayerWaterPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT
 	const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 	const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
 
-	if (Material.MaterialUsesSingleLayerWater_RenderThread())
+	if (Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
 	{
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material);
 		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material);
@@ -185,27 +218,33 @@ FRegisterPassProcessorCreateFunction RegisterSingleLayerWaterPass(&CreateSingleL
 
 
 
+BEGIN_SHADER_PARAMETER_STRUCT(FSingleLayerWaterCommonShaderParameters, )
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenSpaceReflectionsTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, ScreenSpaceReflectionsSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
+	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneNoWaterColorAndDepthTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneNoWaterColorAndDepthSampler)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)	// Water scene texture
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+	SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
+	SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
+END_SHADER_PARAMETER_STRUCT()
+
+class FSingleLayerWaterScreenSpaceReflections : SHADER_PERMUTATION_BOOL("SCREEN_SPACE_REFLECTION");
+
 class FSingleLayerWaterCompositePS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FSingleLayerWaterCompositePS);
 	SHADER_USE_PARAMETER_STRUCT(FSingleLayerWaterCompositePS, FGlobalShader)
 
-	class FScreenSpaceReflections : SHADER_PERMUTATION_BOOL("SCREEN_SPACE_REFLECTION");
-	using FPermutationDomain = TShaderPermutationDomain<FScreenSpaceReflections>;
-
+	using FPermutationDomain = TShaderPermutationDomain<FSingleLayerWaterScreenSpaceReflections>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenSpaceReflectionsTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, ScreenSpaceReflectionsSampler)
-		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
-		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneNoWaterDepthTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState,  SceneNoWaterDepthSampler)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)	// Water scene texture
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
-		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSingleLayerWaterCommonShaderParameters, CommonParameters)
+		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectDrawParameter)	// Not used in shader but need to be reference in the parameter list
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, TileListData)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -216,7 +255,7 @@ class FSingleLayerWaterCompositePS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if (!IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4))
+		if (!IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
 		{
 			return false;
 		}
@@ -232,119 +271,438 @@ class FSingleLayerWaterCompositePS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FSingleLayerWaterCompositePS, "/Engine/Private/SingleLayerWaterComposite.usf", "SingleLayerWaterCompositePS", SF_Pixel);
 
-void FDeferredShadingSceneRenderer::RenderSingleLayerWaterSSR(FRHICommandListImmediate& RHICmdList)
+class FWaterTileCategorisationCS : public FGlobalShader
 {
-	if (CVarSingleLayerWater.GetValueOnRenderThread() <= 0)
+	DECLARE_GLOBAL_SHADER(FWaterTileCategorisationCS);
+	SHADER_USE_PARAMETER_STRUCT(FWaterTileCategorisationCS, FGlobalShader)
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	static int32 GetTileSize()
+	{
+		return 8;
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSingleLayerWaterCommonShaderParameters, CommonParameters)
+		SHADER_PARAMETER(uint32, VertexCountPerInstanceIndirect)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DispatchIndirectDataUAV)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, WaterTileListDataUAV)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		return PermutationVector;
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		if (!IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) || !RHISupportsDrawIndirect(Parameters.Platform))
+		{
+			return false;
+		}
+		return true;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("TILE_CATERGORISATION_SHADER"), 1.0f);
+		OutEnvironment.SetDefine(TEXT("WORK_TILE_SIZE"), GetTileSize());
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+};
+
+IMPLEMENT_GLOBAL_SHADER(FWaterTileCategorisationCS, "/Engine/Private/SingleLayerWaterComposite.usf", "WaterTileCatergorisationCS", SF_Compute);
+
+class FWaterTileVS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FWaterTileVS);
+	SHADER_USE_PARAMETER_STRUCT(FWaterTileVS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	using FParameters = FSingleLayerWaterCompositePS::FParameters; // Sharing parameters for proper registration with RDG
+
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		return PermutationVector;
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("TILE_VERTEX_SHADER"), 1.0f);
+		OutEnvironment.SetDefine(TEXT("WORK_TILE_SIZE"), FWaterTileCategorisationCS::GetTileSize());
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FWaterTileVS, "/Engine/Private/SingleLayerWaterComposite.usf", "WaterTileVS", SF_Vertex);
+
+class FWaterRefractionCopyPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FWaterRefractionCopyPS);
+	SHADER_USE_PARAMETER_STRUCT(FWaterRefractionCopyPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorCopyDownsampleTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorCopyDownsampleSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthCopyDownsampleTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthCopyDownsampleSampler)
+		SHADER_PARAMETER(FVector2D, SVPositionToSourceTextureUV)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	class FDownsampleRefraction : SHADER_PERMUTATION_BOOL("DOWNSAMPLE_REFRACTION");
+
+	using FPermutationDomain = TShaderPermutationDomain<FDownsampleRefraction>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FWaterRefractionCopyPS, "/Engine/Private/SingleLayerWaterComposite.usf", "WaterRefractionCopyPS", SF_Pixel);
+
+
+
+//////////////////////////////////////////////////////////////////////////
+
+DECLARE_CYCLE_STAT(TEXT("WaterSingleLayer"), STAT_CLP_WaterSingleLayerPass, STATGROUP_ParallelCommandListMarkers); 
+
+class FWaterSingleLayerPassParallelCommandListSet : public FParallelCommandListSet
+{
+public:
+	FExclusiveDepthStencil::Type PassDepthStencilAccess;
+
+	FWaterSingleLayerPassParallelCommandListSet(
+		const FViewInfo& InView,
+		FRHICommandListImmediate& InParentCmdList,
+		bool bInParallelExecute,
+		bool bInCreateSceneContext,
+		const FSceneRenderer* InSceneRenderer,
+		FExclusiveDepthStencil::Type InPassDepthStencilAccess,
+		const FMeshPassProcessorRenderState& InDrawRenderState)
+		: FParallelCommandListSet(GET_STATID(STAT_CLP_WaterSingleLayerPass), InView, InSceneRenderer, InParentCmdList, bInParallelExecute, bInCreateSceneContext, InDrawRenderState)
+		, PassDepthStencilAccess(InPassDepthStencilAccess)
+	{
+	}
+
+	virtual ~FWaterSingleLayerPassParallelCommandListSet()
+	{
+		Dispatch();
+	}
+
+	virtual void SetStateOnCommandList(FRHICommandList& CmdList) override
+	{
+		FParallelCommandListSet::SetStateOnCommandList(CmdList);
+
+		FDeferredShadingSceneRenderer::BeginRenderingWaterGBuffer(CmdList, PassDepthStencilAccess, SceneRenderer->ViewFamily.EngineShowFlags.ShaderComplexity, SceneRenderer->ShaderPlatform);
+		SetupBasePassView(CmdList, View, SceneRenderer);
+	}
+};
+
+//////////////////////////////////////////////////////////////////////////
+
+
+
+
+void FDeferredShadingSceneRenderer::CopySingleLayerWaterTextures(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData)
+{
+	check(RHICmdList.IsOutsideRenderPass());
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	const ERHIFeatureLevel::Type CurrentFeatureLevel = SceneContext.GetCurrentFeatureLevel();
+	const int32 RefractionDownsampleFactor = FMath::Clamp(GSingleLayerWaterRefractionDownsampleFactor, 1, 8);
+	const FIntPoint RefractionResolution = FIntPoint::DivideAndRoundDown(SceneContext.GetBufferSizeXY(), RefractionDownsampleFactor);
+
+	FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(RefractionResolution, PF_FloatRGBA, SceneContext.GetDefaultColorClear(), TexCreate_None, TexCreate_RenderTargetable, false));
+	Desc.NumSamples = SceneContext.GetNumSceneColorMSAASamples(CurrentFeatureLevel);
+	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PassData.SceneColorAndDepthWithoutSingleLayerWater, TEXT("SceneColorAndDepthWithoutSingleLayerWater"));
+
+	// For now support only the 1st view
+	const FViewInfo& View = Views[0];
+
+	FRDGBuilder GraphBuilder(RHICmdList);
+	FRDGTextureRef TargetColorTexture = GraphBuilder.RegisterExternalTexture(PassData.SceneColorAndDepthWithoutSingleLayerWater);
+
+	FWaterRefractionCopyPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FWaterRefractionCopyPS::FParameters>();
+	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+	PassParameters->SceneColorCopyDownsampleTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
+	PassParameters->SceneColorCopyDownsampleSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PassParameters->SceneDepthCopyDownsampleTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ);
+	PassParameters->SceneDepthCopyDownsampleSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PassParameters->SVPositionToSourceTextureUV = FVector2D(RefractionDownsampleFactor / float(SceneContext.GetBufferSizeXY().X), RefractionDownsampleFactor / float(SceneContext.GetBufferSizeXY().Y));
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(TargetColorTexture, ERenderTargetLoadAction::ELoad);
+
+	FWaterRefractionCopyPS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FWaterRefractionCopyPS::FDownsampleRefraction>(RefractionDownsampleFactor > 1);
+	auto PixelShader = View.ShaderMap->GetShader<FWaterRefractionCopyPS>(PermutationVector);
+
+	const FIntRect RefractionViewRect = FIntRect(FIntPoint(0, 0), FIntPoint::DivideAndRoundDown(View.ViewRect.Size(), RefractionDownsampleFactor));
+
+	PassData.SceneWithoutSingleLayerWaterValidUVRect.X = (RefractionViewRect.Min.X + 0.5f) / RefractionResolution.Y;
+	PassData.SceneWithoutSingleLayerWaterValidUVRect.Y = (RefractionViewRect.Min.Y + 0.5f) / RefractionResolution.Y;
+	PassData.SceneWithoutSingleLayerWaterValidUVRect.Z = (RefractionViewRect.Max.X - 0.5f) / RefractionResolution.Y;
+	PassData.SceneWithoutSingleLayerWaterValidUVRect.W = (RefractionViewRect.Max.Y - 0.5f) / RefractionResolution.Y;
+
+	FPixelShaderUtils::AddFullscreenPass(
+		GraphBuilder,
+		View.ShaderMap,
+		RDG_EVENT_NAME("Water Refraction Copy"),
+		PixelShader,
+		PassParameters,
+		RefractionViewRect);
+	GraphBuilder.Execute();
+}
+
+void FDeferredShadingSceneRenderer::BeginRenderingWaterGBuffer(FRHICommandList& RHICmdList, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers, EShaderPlatform InShaderPlatform)
+{
+	SCOPED_DRAW_EVENT(RHICmdList, BeginRenderingWaterGBuffer);
+
+	check(RHICmdList.IsOutsideRenderPass());
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+
+	const ERHIFeatureLevel::Type CurrentFeatureLevel = SceneContext.GetCurrentFeatureLevel();
+	const bool bUseGBuffer = IsUsingGBuffers(InShaderPlatform);
+	check(CurrentFeatureLevel >= ERHIFeatureLevel::SM5);
+
+	// Create MRT
+	int32 VelocityRTIndex = -1;
+	FRHIRenderPassInfo RPInfo;
+	SceneContext.FillGBufferRenderPassInfo(ERenderTargetLoadAction::ELoad, RPInfo, VelocityRTIndex);
+	// Set a dummy Scene color RT to avoid gbuffer to stomp HDR scene color we want to blend over
+	RPInfo.ColorRenderTargets[0].Action = MakeRenderTargetActions(ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
+	RPInfo.ColorRenderTargets[0].RenderTarget = SceneContext.GetSceneColorSurface();
+
+	// Stencil always has to be store or certain VK drivers will leave the attachment in an undefined state.
+	RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore), MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore));
+	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = (const FTexture2DRHIRef&)SceneContext.SceneDepthZ->GetRenderTargetItem().TargetableTexture;
+	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = DepthStencilAccess;
+
+	// Set other UAVs
+	const bool bClearQuadOverdrawBuffers = false;
+	SceneContext.SetQuadOverdrawUAV(RHICmdList, bBindQuadOverdrawBuffers, bClearQuadOverdrawBuffers, RPInfo);
+	if (UseVirtualTexturing(CurrentFeatureLevel) && !bBindQuadOverdrawBuffers)
+	{
+		SceneContext.BindVirtualTextureFeedbackUAV(RPInfo);
+	}
+
+	// Begin the pass
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("WaterGBuffer"));
+
+	// Needs to be called after we start a renderpass in order for the color/depth decompress/expand to be executed on the next write-to-read barrier/transition.
+	RHICmdList.BindClearMRTValues(true, true, false);
+}
+
+void FDeferredShadingSceneRenderer::FinishWaterGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList)
+{
+	// Same as the GBuffer for now (also same resolves)
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	SceneContext.FinishGBufferPassAndResolve(RHICmdList);
+}
+
+
+void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData)
+{
+	if (CVarWaterSingleLayer.GetValueOnRenderThread() <= 0 || CVarWaterSingleLayerReflection.GetValueOnRenderThread() <= 0)
 	{
 		return;
 	}
 
+	bool AllViewAreForward = true;
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		AllViewAreForward &= IsAnyForwardShadingEnabled(Views[ViewIndex].GetShaderPlatform());
+	}
+	if (AllViewAreForward)
+	{
+		return; // No SSR or composite needed in Forward for anyview so quick return. Reflections are applied in the WaterGBuffer pass.
+	}
+
 	FRDGBuilder GraphBuilder(RHICmdList);
-	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
 
-		FRDGTextureRef ReflectionsColor = nullptr;
-
-		if (!ShouldRenderScreenSpaceReflections(View))
+		if (IsAnyForwardShadingEnabled(View.GetShaderPlatform()))
 		{
-			continue;
+			continue; // No SSR or composite needed in forward views.
 		}
+
+		FRDGTextureRef ReflectionsColor = nullptr;
 
 		FSceneTextureParameters SceneTextures;
 		SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
+		auto SetCommonParameters = [&](FSingleLayerWaterCommonShaderParameters& Parameters)
 		{
-			const bool bEnableSSR = CVarSingleLayerWaterSSR.GetValueOnRenderThread();
-			if (bEnableSSR)
+			Parameters.ScreenSpaceReflectionsTexture = ReflectionsColor ? ReflectionsColor : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+			Parameters.ScreenSpaceReflectionsSampler = TStaticSamplerState<SF_Point>::GetRHI();
+			Parameters.PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
+			Parameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			Parameters.SceneNoWaterColorAndDepthTexture = GraphBuilder.RegisterExternalTexture(PassData.SceneColorAndDepthWithoutSingleLayerWater ? PassData.SceneColorAndDepthWithoutSingleLayerWater : GSystemTextures.BlackDummy);
+			Parameters.SceneNoWaterColorAndDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
+			Parameters.SceneTextures = SceneTextures;
+			SetupSceneTextureSamplers(&Parameters.SceneTextureSamplers);
+			Parameters.ViewUniformBuffer = View.ViewUniformBuffer;
+			Parameters.ReflectionCaptureData = View.ReflectionCaptureUniformBuffer;
 			{
-				// RUN SSR
-				// Uses the water GBuffer (depth, ABCDEF) to know how to start tracing.
-				// The water scene depth is used to know where to start tracing.
-				// Then it uses the scene HZB for the ray casting process.
-
-				FRDGTextureRef CurrentSceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
-
-				IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;
-				IScreenSpaceDenoiser::FReflectionsRayTracingConfig RayTracingConfig;
-				ESSRQuality SSRQuality;
-				GetSSRQualityForView(View, &SSRQuality, &RayTracingConfig);
-
-				RDG_EVENT_SCOPE(GraphBuilder, "Water ScreenSpaceReflections(Quality=%d)", int32(SSRQuality));
-
-				const bool bDenoise = false;
-				RenderScreenSpaceReflections(
-					GraphBuilder, SceneTextures, CurrentSceneColor, View, SSRQuality, bDenoise, &DenoiserInputs);
-
-				ReflectionsColor = DenoiserInputs.Color;
-
-				if (CVarSingleLayerWaterSSRTAA.GetValueOnRenderThread())
-				{
-					check(View.ViewState);
-					FTAAPassParameters TAASettings(View);
-					TAASettings.Pass = ETAAPassConfig::ScreenSpaceReflections;
-					TAASettings.SceneColorInput = DenoiserInputs.Color;
-
-					FTAAOutputs TAAOutputs = TAASettings.AddTemporalAAPass(
-						GraphBuilder,
-						SceneTextures, View,
-						View.PrevViewInfo.SSRHistory,
-						&View.ViewState->PrevFrameViewInfo.SSRHistory);
-
-					ReflectionsColor = TAAOutputs.SceneColor;
-				}
+				FReflectionUniformParameters ReflectionUniformParameters;
+				SetupReflectionUniformParameters(View, ReflectionUniformParameters);
+				Parameters.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
 			}
+		};
 
-			// COMPOSITE
+		const bool bRunTiled = RHISupportsDrawIndirect(View.GetShaderPlatform()) && CVarWaterSingleLayerTiledComposite.GetValueOnRenderThread();
+		FTiledScreenSpaceReflection TiledScreenSpaceReflection = {nullptr, nullptr, nullptr, nullptr, nullptr, 8};
+		FIntVector ViewRes(View.ViewRect.Width(), View.ViewRect.Height(), 1);
+		FIntVector TiledViewRes = FIntVector::DivideAndRoundUp(ViewRes, TiledScreenSpaceReflection.TileSize);
+		if (bRunTiled)
+		{
+			TiledScreenSpaceReflection.DispatchIndirectParametersBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), TEXT("WaterIndirectDrawParameters"));
+			TiledScreenSpaceReflection.DispatchIndirectParametersBufferUAV = GraphBuilder.CreateUAV(TiledScreenSpaceReflection.DispatchIndirectParametersBuffer);
+			FRDGBufferDesc TileListStructuredBufferDesc = FRDGBufferDesc::CreateStructuredDesc(4, TiledViewRes.X * TiledViewRes.Y); // one uint32 element per tile
+			TiledScreenSpaceReflection.TileListDataBuffer = GraphBuilder.CreateBuffer(TileListStructuredBufferDesc, TEXT("TileListDataBuffer"));
+			TiledScreenSpaceReflection.TileListStructureBufferUAV = GraphBuilder.CreateUAV(TiledScreenSpaceReflection.TileListDataBuffer);
+			TiledScreenSpaceReflection.TileListStructureBufferSRV = GraphBuilder.CreateSRV(TiledScreenSpaceReflection.TileListDataBuffer);
+
+			// Clear DispatchIndirectParametersBuffer
+			AddClearUAVPass(GraphBuilder, TiledScreenSpaceReflection.DispatchIndirectParametersBufferUAV, 0);
+
+			// Categorization based on SHADING_MODEL_ID
 			{
-				FSingleLayerWaterCompositePS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FSingleLayerWaterCompositePS::FScreenSpaceReflections>(bEnableSSR);
-				TShaderMapRef<FSingleLayerWaterCompositePS> PixelShader(View.ShaderMap, PermutationVector);
+				FWaterTileCategorisationCS::FPermutationDomain PermutationVector;
+				TShaderMapRef<FWaterTileCategorisationCS> ComputeShader(View.ShaderMap, PermutationVector);
 
-				FSingleLayerWaterCompositePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSingleLayerWaterCompositePS::FParameters>();
-				PassParameters->ScreenSpaceReflectionsTexture = ReflectionsColor ? ReflectionsColor : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-				PassParameters->ScreenSpaceReflectionsSampler = TStaticSamplerState<SF_Point>::GetRHI();
-				PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
-				PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-				PassParameters->SceneNoWaterDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZWithoutSingleLayerWater ? SceneContext.SceneDepthZWithoutSingleLayerWater : GSystemTextures.BlackDummy);
-				PassParameters->SceneNoWaterDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
-				PassParameters->SceneTextures = SceneTextures;
-				SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
-				PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-				PassParameters->ReflectionCaptureData = View.ReflectionCaptureUniformBuffer;
+				FWaterTileCategorisationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FWaterTileCategorisationCS::FParameters>();
+				SetCommonParameters(PassParameters->CommonParameters);
+				PassParameters->VertexCountPerInstanceIndirect = GRHISupportsRectTopology ? 3 : 6;
+				PassParameters->DispatchIndirectDataUAV = TiledScreenSpaceReflection.DispatchIndirectParametersBufferUAV;
+				PassParameters->WaterTileListDataUAV = TiledScreenSpaceReflection.TileListStructureBufferUAV;
+
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("WaterTileCategorisation"), *ComputeShader, PassParameters, TiledViewRes);
+			}
+		}
+
+		const bool bEnableSSR = CVarWaterSingleLayerSSR.GetValueOnRenderThread() != 0 && ShouldRenderScreenSpaceReflections(View);
+		if (bEnableSSR)
+		{
+			// RUN SSR
+			// Uses the water GBuffer (depth, ABCDEF) to know how to start tracing.
+			// The water scene depth is used to know where to start tracing.
+			// Then it uses the scene HZB for the ray casting process.
+
+			FRDGTextureRef CurrentSceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
+
+			IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;
+			IScreenSpaceDenoiser::FReflectionsRayTracingConfig RayTracingConfig;
+			ESSRQuality SSRQuality;
+			GetSSRQualityForView(View, &SSRQuality, &RayTracingConfig);
+
+			RDG_EVENT_SCOPE(GraphBuilder, "Water ScreenSpaceReflections(Quality=%d)", int32(SSRQuality));
+
+			const bool bDenoise = false;
+			RenderScreenSpaceReflections(
+				GraphBuilder, SceneTextures, CurrentSceneColor, View, SSRQuality, bDenoise, &DenoiserInputs, bRunTiled ? &TiledScreenSpaceReflection : nullptr);
+
+			ReflectionsColor = DenoiserInputs.Color;
+
+			if (CVarWaterSingleLayerSSRTAA.GetValueOnRenderThread() && IsSSRTemporalPassRequired(View)) // TAA pass is an option
+			{
+				check(View.ViewState);
+				FTAAPassParameters TAASettings(View);
+				TAASettings.Pass = ETAAPassConfig::ScreenSpaceReflections;
+				TAASettings.SceneColorInput = DenoiserInputs.Color;
+
+				FTAAOutputs TAAOutputs = AddTemporalAAPass(
+					GraphBuilder,
+					SceneTextures, 
+					View,
+					TAASettings,
+					View.PrevViewInfo.SSRHistory,
+					&View.ViewState->PrevFrameViewInfo.SSRHistory);
+
+				ReflectionsColor = TAAOutputs.SceneColor;
+			}
+		}
+
+		// Composite reflections on water
+		{
+			FSingleLayerWaterCompositePS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FSingleLayerWaterScreenSpaceReflections>(bEnableSSR);
+			TShaderMapRef<FSingleLayerWaterCompositePS> PixelShader(View.ShaderMap, PermutationVector);
+
+			FWaterTileVS::FPermutationDomain VsPermutationVector;
+			TShaderMapRef<FWaterTileVS> VertexShader(View.ShaderMap, VsPermutationVector);
+
+			FSingleLayerWaterCompositePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSingleLayerWaterCompositePS::FParameters>();
+			SetCommonParameters(PassParameters->CommonParameters);
+			PassParameters->TileListData = TiledScreenSpaceReflection.TileListStructureBufferSRV;
+			PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection.DispatchIndirectParametersBuffer;
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+
+			if (bRunTiled)
+			{
+				ValidateShaderParameters(*VertexShader, *PassParameters);
+			}
+			ValidateShaderParameters(*PixelShader, *PassParameters);
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("Water Composite %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[PassParameters, &View, TiledScreenSpaceReflection, VertexShader, PixelShader, bRunTiled](FRHICommandList& InRHICmdList)
+			{
+				InRHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+				if (bRunTiled)
 				{
-					FReflectionUniformParameters ReflectionUniformParameters;
-					SetupReflectionUniformParameters(View, ReflectionUniformParameters);
-					PassParameters->ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
+					FGraphicsPipelineStateInitializer GraphicsPSOInit;
+					InRHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+					GraphicsPSOInit.PrimitiveType = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
+					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha>::GetRHI();
+					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false>::GetRHI();
+					GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid,CM_None>::GetRHI();
+					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
+					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader->GetVertexShader();
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader->GetPixelShader();
+					SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
+
+					SetShaderParameters(InRHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+					SetShaderParameters(InRHICmdList, *VertexShader, VertexShader->GetVertexShader(), *PassParameters);
+					
+					PassParameters->IndirectDrawParameter->MarkResourceAsUsed();
+					InRHICmdList.DrawPrimitiveIndirect(PassParameters->IndirectDrawParameter->GetIndirectRHICallBuffer(), 0);
 				}
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
-				ClearUnusedGraphResources(*PixelShader, PassParameters);
-
-
-				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("WaterComposite %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
-					PassParameters,
-					ERDGPassFlags::Raster,
-					[PassParameters, &View, PixelShader](FRHICommandList& InRHICmdList)
+				else
 				{
-					InRHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-
 					FGraphicsPipelineStateInitializer GraphicsPSOInit;
 					FPixelShaderUtils::InitFullscreenPipelineState(InRHICmdList, View.ShaderMap, *PixelShader, GraphicsPSOInit);
 
 					// Premultiplied alpha where alpha is transmittance.
-					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha>::GetRHI(); 
+					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha>::GetRHI();
 
 					SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
 					SetShaderParameters(InRHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
 					FPixelShaderUtils::DrawFullscreenTriangle(InRHICmdList);
-				});
-			}
+				}
+			});
 		}
-
 	}
 
 	TRefCountPtr<IPooledRenderTarget> OutSceneColor;
@@ -355,9 +713,9 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterSSR(FRHICommandListImm
 	ResolveSceneColor(RHICmdList);
 }
 
-bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type WaterPassDepthStencilAccess)
+bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData, FExclusiveDepthStencil::Type WaterPassDepthStencilAccess, bool bParallel)
 {
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderSingleLayerWaterPass);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(WaterPassRenderSingleLayer);
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderSingleLayerWaterPass, FColor::Emerald);
 
 	bool bDirty = false;
@@ -369,8 +727,11 @@ bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListIm
 		SCOPE_CYCLE_COUNTER(STAT_WaterPassDrawTime);
 		SCOPED_GPU_STAT(RHICmdList, SingleLayerWater);
 
-		// Must have an open renderpass before getting here in single threaded mode.
-		check(RHICmdList.IsInsideRenderPass());
+		if (!bParallel)
+		{
+			// Must have an open renderpass before getting here in single threaded mode.
+			check(RHICmdList.IsInsideRenderPass());
+		}
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -380,7 +741,12 @@ bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListIm
 
 			TUniformBufferRef<FOpaqueBasePassUniformParameters> WaterPassUniformBuffer;
 			IPooledRenderTarget* WhiteForwardScreenSpaceShadowMask = GSystemTextures.WhiteDummy;
-			CreateOpaqueBasePassUniformBuffer(RHICmdList, View, WhiteForwardScreenSpaceShadowMask, WaterPassUniformBuffer);
+			CreateOpaqueBasePassUniformBuffer(RHICmdList, 
+				View, 
+				WhiteForwardScreenSpaceShadowMask, 
+				&PassData.SceneWithoutSingleLayerWaterValidUVRect,
+				PassData.SceneColorAndDepthWithoutSingleLayerWater,
+				WaterPassUniformBuffer);
 
 			FMeshPassProcessorRenderState DrawRenderState(View, WaterPassUniformBuffer);
 			SetupBasePassState(WaterPassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity, DrawRenderState);
@@ -390,7 +756,7 @@ bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListIm
 			{
 				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 
-				bDirty |= RenderSingleLayerWaterPassView(RHICmdList, View, DrawRenderState);
+				bDirty |= RenderSingleLayerWaterPassView(RHICmdList, View, PassData, DrawRenderState, bParallel);
 			}
 		}
 	}
@@ -401,15 +767,28 @@ bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListIm
 	return bDirty;
 }
 
-bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, const FMeshPassProcessorRenderState& InDrawRenderState)
+bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, FSingleLayerWaterPassData& PassData, const FMeshPassProcessorRenderState& InDrawRenderState, bool bParallel)
 {
-	bool bDirty = false;
-	FMeshPassProcessorRenderState DrawRenderState(InDrawRenderState);
-	SetupBasePassView(RHICmdList, View, this);
+	if (!bParallel)
+	{
+	    SetupBasePassView(RHICmdList, View, this);
+		View.ParallelMeshDrawCommandPasses[EMeshPass::SingleLayerWaterPass].DispatchDraw(nullptr, RHICmdList);
+	}
+	else
+	{
+		FWaterSingleLayerPassParallelCommandListSet ParallelSet
+		(
+			View,
+			RHICmdList,
+			CVarRHICmdSingleLayerWaterDeferredContexts.GetValueOnRenderThread() > 0,
+			CVarRHICmdFlushRenderThreadTasksSingleLayerWater.GetValueOnRenderThread() == 0 && CVarRHICmdFlushRenderThreadTasks.GetValueOnRenderThread() == 0,
+			this,
+			FExclusiveDepthStencil::DepthWrite_StencilWrite,
+			InDrawRenderState
+		);
 
-	View.ParallelMeshDrawCommandPasses[EMeshPass::SingleLayerWaterPass].DispatchDraw(nullptr, RHICmdList);
+		View.ParallelMeshDrawCommandPasses[EMeshPass::SingleLayerWaterPass].DispatchDraw(&ParallelSet, RHICmdList);
+	}
 
-	return bDirty;
+	return View.ParallelMeshDrawCommandPasses[EMeshPass::SingleLayerWaterPass].HasAnyDraw();
 }
-
-

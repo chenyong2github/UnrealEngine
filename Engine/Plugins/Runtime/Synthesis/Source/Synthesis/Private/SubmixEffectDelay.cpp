@@ -48,7 +48,7 @@ void FSubmixEffectDelay::OnProcessAudio(const FSoundEffectSubmixInputData& InDat
 		{
 			const int32 SampleIndex = OutputBufferIndex + DelayIndex;
 			OutBuffer[SampleIndex] = DelaysPtr[DelayIndex].ProcessAudioSample(InBuffer[SampleIndex]);
-			DelayLines[DelayIndex].SetDelayMsec(InterpolationInfo.GetValue());
+			DelayLines[DelayIndex].SetDelayMsec(InterpolationInfo.GetNextValue());
 		}
 	}
 }

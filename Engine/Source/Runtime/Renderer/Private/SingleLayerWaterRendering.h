@@ -16,6 +16,12 @@
 class FViewInfo;
 
 
+struct FSingleLayerWaterPassData
+{
+	TRefCountPtr<IPooledRenderTarget> SceneColorAndDepthWithoutSingleLayerWater;
+	FVector4 SceneWithoutSingleLayerWaterValidUVRect;
+};
+
 
 class FSingleLayerWaterPassMeshProcessor : public FMeshPassProcessor
 {

@@ -118,7 +118,7 @@ public:
 	UNiagaraSystem* GetSystem()const;
 	FORCEINLINE UNiagaraComponent *GetComponent() { return Component; }
 	FORCEINLINE TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > &GetEmitters()	{ return Emitters; }
-	FORCEINLINE FBox &GetSystemBounds()	{ return SystemBounds;  }
+	FORCEINLINE const FBox& GetLocalBounds() { return LocalBounds;  }
 
 	FNiagaraEmitterInstance* GetEmitterByID(FGuid InID);
 
@@ -148,8 +148,7 @@ public:
 	bool GetIsolateEnabled() const;
 #endif
 
-	FName GetIDName() { return IDName; }
-	FGuid GetId() { return ID; }
+	FNiagaraSystemInstanceID GetId() { return ID; }
 
 	/** Returns the instance data for a particular interface for this System. */
 	FORCEINLINE void* FindDataInterfaceInstanceData(UNiagaraDataInterface* Interface) 
@@ -213,6 +212,9 @@ public:
 	/** Dumps all of this systems info to the log. */
 	void Dump()const;
 
+	/** Dumps information about the instances tick to the log */
+	void DumpTickInfo(FOutputDevice& Ar);
+
 	bool GetPerInstanceDataAndOffsets(void*& OutData, uint32& OutDataSize, TMap<TWeakObjectPtr<UNiagaraDataInterface>, int32>*& OutOffsets);
 
 	NiagaraEmitterInstanceBatcher* GetBatcher() const { return Batcher; }
@@ -246,8 +248,6 @@ private:
 
 	/** Call PrepareForSImulation on each data source from the simulations and determine which need per-tick updates.*/
 	void InitDataInterfaces();	
-
-	void BindParameterCollections(FNiagaraScriptExecutionContext& ExecContext);
 	
 	/** Calculates the distance to use for distance based LODing / culling. */
 	float GetLODDistance();
@@ -261,9 +261,7 @@ private:
 	TSharedPtr<class FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSimulation;
 
 	UNiagaraComponent* Component;
-	FBox SystemBounds;
 
-	ETickingGroup TickGroup;
 	UActorComponent* PrereqComponent;
 
 	/** The age of the System instance. */
@@ -291,7 +289,7 @@ private:
 	TMap<FGuid, TSharedPtr<TArray<TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>>, ESPMode::ThreadSafe> > CapturedFrames;
 #endif
 
-	FGuid ID;
+	FNiagaraSystemInstanceID ID;
 	FName IDName;
 	
 	/** Per instance data for any data interfaces requiring it. */
@@ -354,25 +352,37 @@ private:
 	/** The system contains data interfaces that can have tick group prerequisites. */
 	uint32 bDataInterfacesHaveTickPrereqs : 1;
 
+	/** True if our bounds have changed and we require pushing that to the rendering thread. */
+	uint32 bIsTransformDirty : 1;
+
+	/** True if we require a call to FinalizeTick_GameThread(). Typically this is called from a GT task but can be called in WaitForAsync. */
+	uint32 bNeedsFinalize : 1;
+
+	uint32 bDataInterfacesInitialized : 1;
+
+	/** True if we have async work in flight. */
+	volatile bool bAsyncWorkInProgress;
+
+	/** Cached delta time, written during Tick_GameThread and used during other phases. */
+	float CachedDeltaSeconds;
+
+	/** Time since we last forced a bounds update. */
+	float TimeSinceLastForceUpdateTransform;
+
+	/** Current calculated local bounds. */
+	FBox LocalBounds;
+
 	/* Execution state requested by external code/BPs calling Activate/Deactivate. */
 	ENiagaraExecutionState RequestedExecutionState;
 
 	/** Copy of simulations internal state so that it can be passed to emitters etc. */
 	ENiagaraExecutionState ActualExecutionState;
 
-	bool bDataInterfacesInitialized;
-
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
-public:
-	/** True if we have async work in flight. */
-	volatile bool bAsyncWorkInProgress;
-	/** True if we require a call to FinalizeTick_GameThread(). Typically this is called from a GT task but can be called in WaitForAsync. */
-	volatile bool bNeedsFinalize;
 
+public:
 	// Transient data that is accumulated during tick.
 	uint32 TotalParamSize = 0;
 	uint32 ActiveGPUEmitterCount = 0;
 	int32 GPUDataInterfaceInstanceDataSize = 0;
-
-	float CachedDeltaSeconds;
 };

@@ -16,6 +16,7 @@
 struct FAppleARKitAnchorData;
 struct FARVideoFormat;
 class UTimecodeProvider;
+enum class EARFaceTrackingUpdate : uint8;
 
 class APPLEARKIT_API IAppleARKitFaceSupport :
 	public IModularFeature

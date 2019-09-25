@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -21,8 +21,6 @@ If no DefaultMap can be found, the command falls back to /Engine/Maps/Entry.")]
 [Help(typeof(CodeSign))]
 public class BuildCookRun : BuildCommand
 {
-	#region BaseCommand interface
-
 	public override void ExecuteBuild()
 	{
 		// these need to be done first
@@ -40,10 +38,6 @@ public class BuildCookRun : BuildCommand
 
 		DoBuildCookRun(Params);
 	}
-
-	#endregion
-
-	#region Setup
 
 	protected ProjectParams SetupParams()
 	{
@@ -190,10 +184,6 @@ public class BuildCookRun : BuildCommand
 		}
 		return DefaultMap;
 	}
-
-	#endregion
-
-	#region BuildCookRun
 
 	protected void DoBuildCookRun(ProjectParams Params)
 	{
@@ -346,6 +336,4 @@ public class BuildCookRun : BuildCommand
 			return ProjectFullPath;
 		}
 	}
-
-	#endregion
 }

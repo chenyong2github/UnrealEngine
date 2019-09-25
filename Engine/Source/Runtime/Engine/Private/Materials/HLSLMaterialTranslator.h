@@ -949,11 +949,7 @@ public:
 			Chunk[MP_CustomData1]					= Material->CompilePropertyAndSetMaterialProperty(MP_CustomData1		,this);
 			Chunk[MP_AmbientOcclusion]				= Material->CompilePropertyAndSetMaterialProperty(MP_AmbientOcclusion	,this);
 
-			// We parse the node graph to see if a water material is used. 
-			// We cannot use output node registration from custom output node for water because CompileCustomOutputs is called below and we need to enabled some input before hand.
-			const bool bNodeGraphIsUsingSingleLayerWaterMaterialOutput = Material->IsUsingSingleLayerWaterMaterialOutput();
-
-			if (IsTranslucentBlendMode(BlendMode) || bNodeGraphIsUsingSingleLayerWaterMaterialOutput)
+			if (IsTranslucentBlendMode(BlendMode) || MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
 			{
 				int32 UserRefraction = ForceCast(Material->CompilePropertyAndSetMaterialProperty(MP_Refraction, this), MCT_Float1);
 				int32 RefractionDepthBias = ForceCast(ScalarParameter(FName(TEXT("RefractionDepthBias")), Material->GetRefractionDepthBiasValue()), MCT_Float1);
@@ -1078,7 +1074,6 @@ ResourcesString = TEXT("");
 			MaterialCompilationOutput.bModifiesMeshPosition = bUsesPixelDepthOffset || bUsesWorldPositionOffset;
 			MaterialCompilationOutput.bUsesWorldPositionOffset = bUsesWorldPositionOffset;
 			MaterialCompilationOutput.bUsesPixelDepthOffset = bUsesPixelDepthOffset;
-			MaterialCompilationOutput.bUsesSingleLayerWaterMaterialOutput = bNodeGraphIsUsingSingleLayerWaterMaterialOutput;
 
 			// Fully rough if we have a roughness code chunk and it's constant and evaluates to 1.
 			bIsFullyRough = Chunk[MP_Roughness] != INDEX_NONE && IsMaterialPropertyUsed(MP_Roughness, Chunk[MP_Roughness], FLinearColor(1, 0, 0, 0), 1) == false;
@@ -1156,13 +1151,25 @@ ResourcesString = TEXT("");
 				Errorf(TEXT("Sky materials must be opaque and unlit. They are expected to completely replace the background."));
 			}
 
-			if (bNodeGraphIsUsingSingleLayerWaterMaterialOutput && (!MaterialShadingModels.IsLit() || BlendMode != BLEND_Opaque || !MaterialShadingModels.HasOnlyShadingModel(MSM_DefaultLit)))
+			if (MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
 			{
-				Errorf(TEXT("Water materials must be opaque and lit and they only support the DefaultLit shading model."));
+				if (BlendMode != BLEND_Opaque)
+				{
+					Errorf(TEXT("SingleLayerWater materials must be opaque."));
+				}
+				if (!MaterialShadingModels.HasOnlyShadingModel(MSM_SingleLayerWater))
+				{
+					Errorf(TEXT("SingleLayerWater materials cannot be combined with other shading models.")); // Simply untested for now
+				}
+				if (Material->GetMaterialInterface() && !Material->GetMaterialInterface()->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSingleLayerWaterMaterialOutput>())
+				{
+					Errorf(TEXT("SingleLayerWater materials requires the use of SingleLayerWaterMaterial output node."));
+				}
 			}
-			if (bNodeGraphIsUsingSingleLayerWaterMaterialOutput && Material->IsDistorted())
+
+			if (IsTranslucentBlendMode(BlendMode) && Material->IsTranslucencyUnderWaterEnabled() && (Material->IsMobileSeparateTranslucencyEnabled() || Material->IsTranslucencyAfterDOFEnabled()))
 			{
-				Errorf(TEXT("Water materials must not use Unreal built-in distortion."));
+				Errorf(TEXT("A material cannot be sent to a separate translucent pass and under water at the same time."));
 			}
 
 			bool bDBufferAllowed = IsUsingDBuffers(Platform);
@@ -1415,7 +1422,6 @@ ResourcesString = TEXT("");
 		OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_TRANSFORM"), bUsesParticleTransform);
 		OutEnvironment.SetDefine(TEXT("USES_TRANSFORM_VECTOR"), bUsesTransformVector);
 		OutEnvironment.SetDefine(TEXT("WANT_PIXEL_DEPTH_OFFSET"), bUsesPixelDepthOffset);
-		OutEnvironment.SetDefine(TEXT("MATERIAL_IS_SINGLE_LAYER_WATER"), Material->IsUsingSingleLayerWaterMaterialOutput());
 		if (IsMetalPlatform(InPlatform))
 		{
 			OutEnvironment.SetDefine(TEXT("USES_WORLD_POSITION_OFFSET"), bUsesWorldPositionOffset);
@@ -1514,6 +1520,11 @@ ResourcesString = TEXT("");
 			if (ShadingModels.HasShadingModel(MSM_Eye))
 			{
 				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_EYE"), TEXT("1"));
+				NumSetMaterials++;
+			}
+			if (ShadingModels.HasShadingModel(MSM_SingleLayerWater))
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_SINGLELAYERWATER"), TEXT("1"));
 				NumSetMaterials++;
 			}
 
@@ -5172,11 +5183,12 @@ protected:
 		return AddInlinedCodeChunk(MCT_Float2, *SampleCode, *GetParameterCode(WorldPositionIndex), *GetParameterCode(P0), *GetParameterCode(P1), *GetParameterCode(P2));
 	}
 
-	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, EVirtualTextureUnpackType UnpackType) override
+	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, int32 CodeIndex2, EVirtualTextureUnpackType UnpackType) override
 	{
-		if (UnpackType == EVirtualTextureUnpackType::BaseColor)
+		if (UnpackType == EVirtualTextureUnpackType::BaseColorYCoCg)
 		{
-			return CodeIndex0 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex0, 1, 1, 1, 0);
+			FString	SampleCode(TEXT("VirtualTextureUnpackBaseColorYCoCg(%s)"));
+			return CodeIndex0 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex0));
 		}
 		else if (UnpackType == EVirtualTextureUnpackType::NormalBC3)
 		{
@@ -5193,17 +5205,10 @@ protected:
 			FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC3BC3(%s, %s)"));
 			return CodeIndex0 == INDEX_NONE || CodeIndex1 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex0), *GetParameterCode(CodeIndex1));
 		}
-		else if (UnpackType == EVirtualTextureUnpackType::SpecularR8)
+		else if (UnpackType == EVirtualTextureUnpackType::NormalBC5BC1)
 		{
-			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 1, 0, 0, 0);
-		}
-		else if (UnpackType == EVirtualTextureUnpackType::RoughnessG8)
-		{
-			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 0, 1, 0, 0);
-		}
-		else if (UnpackType == EVirtualTextureUnpackType::RoughnessB8)
-		{
-			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 0, 0, 1, 0);
+			FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC5BC1(%s, %s)"));
+			return CodeIndex0 == INDEX_NONE || CodeIndex1 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex1), *GetParameterCode(CodeIndex2));
 		}
 		else if (UnpackType == EVirtualTextureUnpackType::HeightR16)
 		{

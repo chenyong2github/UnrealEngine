@@ -66,7 +66,7 @@ void FIOSPlatformEditorModule::StartupModule()
 		}
 	}
 
-	IModularFeatures::Get().RegisterModularFeature(FProjectBuildMutatorFeature::GetFeatureName(), &ProjectBuildMutator);
+	IModularFeatures::Get().RegisterModularFeature(PROJECT_BUILD_MUTATOR_FEATURE, &ProjectBuildMutator);
 }
 
 void FIOSPlatformEditorModule::ShutdownModule()
@@ -79,7 +79,7 @@ void FIOSPlatformEditorModule::ShutdownModule()
 		SettingsModule->UnregisterSettings("Project", "Platforms", "iOSMetalQuality");
 	}
 
-	IModularFeatures::Get().UnregisterModularFeature(FProjectBuildMutatorFeature::GetFeatureName(), &ProjectBuildMutator);
+	IModularFeatures::Get().UnregisterModularFeature(PROJECT_BUILD_MUTATOR_FEATURE, &ProjectBuildMutator);
 }
 
 void FIOSPlatformEditorModule::HandleSelectIOSSection()

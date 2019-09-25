@@ -145,7 +145,7 @@ void SetGBufferForShadingModel(
 #if MATERIAL_SHADINGMODEL_CLOTH
 	else if (ShadingModel == SHADINGMODELID_CLOTH)
 	{
-		GBuffer.CustomData.rgb = SubsurfaceColor;
+		GBuffer.CustomData.rgb = EncodeSubsurfaceColor(SubsurfaceColor);
 		GBuffer.CustomData.a = saturate( GetMaterialCustomData0(MaterialParameters) );	// Cloth
 		GBuffer.IndirectIrradiance *= 1 - GBuffer.CustomData.a;
 	}

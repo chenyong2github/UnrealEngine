@@ -248,6 +248,12 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 		bRenderInMainPass = false;
 	}
 
+	// Modify max draw distance for main pass if we are using virtual texturing
+	if (bUseVirtualTexture && bRenderInMainPass && InComponent->GetVirtualTextureMainPassMaxDrawDistance() > 0.f)
+	{
+		MaxDrawDistance = FMath::Min(MaxDrawDistance, InComponent->GetVirtualTextureMainPassMaxDrawDistance());
+	}
+
 #if WITH_EDITOR
 	const bool bGetDebugMaterials = true;
 	InComponent->GetUsedMaterials(UsedMaterialsForVerification, bGetDebugMaterials);

@@ -13,14 +13,9 @@ namespace UnrealBuildTool
 	class Unity
 	{
 		/// <summary>
-		/// Set of target names we've printed out adaptive non-unity messages for.
-		/// </summary>
-		public static HashSet<string> PrintedSettingsForTargets  = new HashSet<string>();
-
-		/// <summary>
 		/// Prefix used for all dynamically created Unity modules
 		/// </summary>
-		public static string ModulePrefix = "Module.";
+		public const string ModulePrefix = "Module.";
 
 		/// <summary>
 		/// A class which represents a list of files and the sum of their lengths.
@@ -281,27 +276,25 @@ namespace UnrealBuildTool
 
 				if (AdaptiveUnityBuildInfoString.Length > 0)
 				{
-					if (PrintedSettingsForTargets.Add(Target.Name))
+					if (Target.bAdaptiveUnityCreatesDedicatedPCH)
 					{
-						if (Target.bAdaptiveUnityCreatesDedicatedPCH)
-						{
-							Log.TraceInformation("[Adaptive unity build] Creating dedicated PCH for each excluded file. Set bAdaptiveUnityCreatesDedicatedPCH to false in BuildConfiguration.xml to change this behavior.");
-						}
-						else if (Target.bAdaptiveUnityDisablesPCH)
-						{
-							Log.TraceInformation("[Adaptive unity build] Disabling PCH for excluded files. Set bAdaptiveUnityDisablesPCH to false in BuildConfiguration.xml to change this behavior.");
-						}
-
-						if (Target.bAdaptiveUnityDisablesOptimizations)
-						{
-							Log.TraceInformation("[Adaptive unity build] Disabling optimizations for excluded files. Set bAdaptiveUnityDisablesOptimizations to false in BuildConfiguration.xml to change this behavior.");
-						}
-						if (Target.bAdaptiveUnityEnablesEditAndContinue)
-						{
-							Log.TraceInformation("[Adaptive unity build] Enabling Edit & Continue for excluded files. Set bAdaptiveUnityEnablesEditAndContinue to false in BuildConfiguration.xml to change this behavior.");
-						}
+						AddUniqueDiagnostic(Makefile, "[Adaptive unity build] Creating dedicated PCH for each excluded file. Set bAdaptiveUnityCreatesDedicatedPCH to false in BuildConfiguration.xml to change this behavior.");
 					}
-					Log.TraceInformation(AdaptiveUnityBuildInfoString.ToString());
+					else if (Target.bAdaptiveUnityDisablesPCH)
+					{
+						AddUniqueDiagnostic(Makefile, "[Adaptive unity build] Disabling PCH for excluded files. Set bAdaptiveUnityDisablesPCH to false in BuildConfiguration.xml to change this behavior.");
+					}
+
+					if (Target.bAdaptiveUnityDisablesOptimizations)
+					{
+						AddUniqueDiagnostic(Makefile, "[Adaptive unity build] Disabling optimizations for excluded files. Set bAdaptiveUnityDisablesOptimizations to false in BuildConfiguration.xml to change this behavior.");
+					}
+					if (Target.bAdaptiveUnityEnablesEditAndContinue)
+					{
+						AddUniqueDiagnostic(Makefile, "[Adaptive unity build] Enabling Edit & Continue for excluded files. Set bAdaptiveUnityEnablesEditAndContinue to false in BuildConfiguration.xml to change this behavior.");
+					}
+
+					Makefile.Diagnostics.Add(AdaptiveUnityBuildInfoString.ToString());
 				}
 
 				AllUnityFiles = CPPUnityFileBuilder.GetUnityFiles();
@@ -352,6 +345,14 @@ namespace UnrealBuildTool
 			}
 
 			return NewCPPFiles;
+		}
+
+		static void AddUniqueDiagnostic(TargetMakefile Makefile, string Message)
+		{
+			if(!Makefile.Diagnostics.Contains(Message, StringComparer.Ordinal))
+			{
+				Makefile.Diagnostics.Add(Message);
+			}
 		}
 	}
 }

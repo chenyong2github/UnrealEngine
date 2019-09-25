@@ -419,6 +419,7 @@ public:
 	* @param OutSolutionPath	Receives the string 
 	* @return True if a solution file exists and OutSolutionPath has been updated
 	*/
+	UE_DEPRECATED(4.24, "The IDesktopPlatform::GetSolutionPath() method has been deprecated. Use the ISourceCodeAccessor interface for cross-IDE support instead.")
 	virtual bool GetSolutionPath(FString& OutSolutionPath) = 0;
 
 	/**

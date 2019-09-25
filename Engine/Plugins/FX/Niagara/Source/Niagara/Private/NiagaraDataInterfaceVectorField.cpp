@@ -665,6 +665,8 @@ bool UNiagaraDataInterfaceVectorField::CopyToInternal(UNiagaraDataInterface* Des
 	OtherTyped->bTileX = bTileX;
 	OtherTyped->bTileY = bTileY;
 	OtherTyped->bTileZ = bTileZ;
+
+	OtherTyped->PushToRenderThread();
 	return true;
 }
 

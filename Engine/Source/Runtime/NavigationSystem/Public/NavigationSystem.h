@@ -457,6 +457,10 @@ public:
 	 */
 	virtual const ANavigationData* GetNavDataForProps(const FNavAgentProperties& AgentProperties) const;
 
+	/** Goes through all registered NavigationData instances and retrieves the one 
+	 *	supporting agent named AgentName */
+	virtual ANavigationData* GetNavDataForAgentName(const FName AgentName) const;
+
 	/**
 	 * Looks up NavData appropriate for specified movement properties and returns it. NULL if not found;
 	 * This is the encouraged way of querying for the appropriate NavData. It makes no difference for NavigationSystemV1
@@ -510,6 +514,7 @@ public:
 	FORCEINLINE const TArray<FNavDataConfig>& GetSupportedAgents() const { return SupportedAgents; }
 	void OverrideSupportedAgents(const TArray<FNavDataConfig>& NewSupportedAgents);
 	void SetSupportedAgentsMask(const FNavAgentSelector& InSupportedAgentsMask);
+	FNavAgentSelector GetSupportedAgentsMask() const { return SupportedAgentsMask; }
 
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 
@@ -541,6 +546,11 @@ public:
 	
 	// @todo document
 	virtual void UnregisterNavData(ANavigationData* NavData);
+
+	/** Traverses SupportedAgents and for all agents not supported (i.e. filtered
+	 *	out by SupportedAgentsMask) checks if there's a currently registered
+	 *	NavigationData instance for that agent, and if so it unregisters that agent */
+	virtual void UnregisterUnusedNavData();
 
 	/** Adds NavData to registration candidates queue - NavDataRegistrationQueue*/
 	virtual void RequestRegistrationDeferred(ANavigationData& NavData);
@@ -709,7 +719,7 @@ public:
 	void OnPIEEnd();
 	
 	// @todo document
-	FORCEINLINE bool IsNavigationBuildingLocked() const { return NavBuildingLockFlags != 0; }
+	FORCEINLINE bool IsNavigationBuildingLocked(uint8 Flags = ~0) const { return (NavBuildingLockFlags & Flags) != 0; }
 
 	/** check if building is permanently locked to avoid showing navmesh building notify (due to queued dirty areas) */
 	FORCEINLINE bool IsNavigationBuildingPermanentlyLocked() const

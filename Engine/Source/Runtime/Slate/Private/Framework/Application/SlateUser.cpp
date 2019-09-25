@@ -607,7 +607,7 @@ bool FSlateUser::SynthesizeCursorMoveIfNeeded()
 		
 		const bool bHasHardwareCursor = SlateApp.GetPlatformCursor() == Cursor;
 		FPointerEvent SyntheticCursorMoveEvent(
-			SlateApp.GetUserIndexForMouse(),
+			GetUserIndex(),
 			FSlateApplication::CursorPointerIndex,
 			GetCursorPosition(),
 			GetPreviousCursorPosition(),

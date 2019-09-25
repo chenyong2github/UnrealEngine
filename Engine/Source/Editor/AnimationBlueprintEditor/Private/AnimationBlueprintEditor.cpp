@@ -1291,13 +1291,13 @@ void FAnimationBlueprintEditor::GetCustomDebugObjects(TArray<FCustomDebugObject>
 		if (PreviewAnimBlueprint)
 		{
 			EPreviewAnimationBlueprintApplicationMethod ApplicationMethod = AnimBlueprint->GetPreviewAnimationBlueprintApplicationMethod();
-			if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::OverlayLayer)
+			if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::LinkedLayers)
 			{
-				PreviewInstance = PreviewInstance->GetLayerSubInstanceByClass(AnimBlueprint->GeneratedClass.Get());
+				PreviewInstance = PreviewInstance->GetLinkedAnimLayerInstanceByClass(AnimBlueprint->GeneratedClass.Get());
 			}
-			else if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::SubInstance)
+			else if(ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::LinkedAnimGraph)
 			{
-				PreviewInstance = PreviewInstance->GetSubInstanceByTag(AnimBlueprint->GetPreviewAnimationBlueprintTag());
+				PreviewInstance = PreviewInstance->GetLinkedAnimGraphInstanceByTag(AnimBlueprint->GetPreviewAnimationBlueprintTag());
 			}
 		}
 

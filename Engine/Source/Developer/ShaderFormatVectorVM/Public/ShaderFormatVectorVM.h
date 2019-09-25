@@ -7,9 +7,11 @@
 /** Data which is generated from the hlsl by the VectorVMBackend and fed back into the */
 struct FVectorVMCompilationOutput
 {
-	FVectorVMCompilationOutput(): NumOps(0){}
+	FVectorVMCompilationOutput(): MaxTempRegistersUsed(0), NumOps(0) {}
 
 	TArray<uint8> ByteCode;
+
+	int32 MaxTempRegistersUsed;
 
 	TArray<int32> InternalConstantOffsets;
 	TArray<uint8> InternalConstantData;

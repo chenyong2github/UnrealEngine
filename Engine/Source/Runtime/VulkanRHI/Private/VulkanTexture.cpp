@@ -246,7 +246,10 @@ VkImage FVulkanSurface::CreateImage(
 	{
 		VkFormat ViewFormat = UEToVkTextureFormat(InFormat, (UEFlags & TexCreate_SRGB) == TexCreate_SRGB);
 		*OutViewFormat = ViewFormat;
-		ImageCreateInfo.format = ViewFormat;
+		if((UEFlags & TexCreate_UAV) == 0)
+		{
+			ImageCreateInfo.format = ViewFormat;
+		}
 	}
 
 	ImageCreateInfo.extent.width = SizeX;

@@ -56,7 +56,6 @@ static FAutoConsoleVariableRef CVarSuppressNiagaraSystems(
 	ECVF_Default
 );
 
-
 void DumpNiagaraComponents(UWorld* World)
 {
 	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
@@ -94,7 +93,7 @@ void DumpNiagaraComponents(UWorld* World)
 						for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Emitter : SysInst->GetEmitters())
 						{
 							UE_LOG(LogNiagara, Log, TEXT("    Emitter: \"%s\" | ExecState: %d | NumParticles: %d | CPUTime: %f"), *Emitter->GetEmitterHandle().GetUniqueInstanceName(),
-								(int32)Emitter->GetExecutionState(), Emitter->GetNumParticles(), Emitter->GetTotalCPUTime());
+								(int32)Emitter->GetExecutionState(), Emitter->GetNumParticles(), Emitter->GetTotalCPUTimeMS());
 						}
 					}
 				}
@@ -373,6 +372,7 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, MaxSimTime(33.0f / 1000.0f)
 	, bIsSeeking(false)
 	, bAutoDestroy(false)
+	, MaxTimeBeforeForceUpdateTransform(5.0f)
 #if WITH_EDITOR
 	, PreviewDetailLevel(INDEX_NONE)
 	, PreviewLODDistance(0.0f)
@@ -795,7 +795,7 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 		}
 	}
 
-	FNiagaraSystemInstance::EResetMode ResetMode = bReset ? FNiagaraSystemInstance::EResetMode::ResetAll : FNiagaraSystemInstance::EResetMode::ResetSystem;
+	FNiagaraSystemInstance::EResetMode ResetMode = FNiagaraSystemInstance::EResetMode::ResetSystem;
 	if (InitializeSystem())
 	{
 		ResetMode = FNiagaraSystemInstance::EResetMode::None;//Already done a reinit sete
@@ -1120,23 +1120,7 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 	FBoxSphereBounds SystemBounds;
 	if (SystemInstance.IsValid())
 	{
-		UNiagaraSystem* System = SystemInstance->GetSystem();
-		if (System->bFixedBounds)
-		{
-			SystemBounds = System->GetFixedBounds();
-		}
-		else
-		{
-			SystemInstance->GetSystemBounds().Init();
-			for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
-			{
-				FNiagaraEmitterInstance &Sim = *(SystemInstance->GetEmitters()[i]);
-				SystemInstance->GetSystemBounds() += Sim.GetBounds();
-			}
-			FBox BoundingBox = SystemInstance->GetSystemBounds();
-
-			SystemBounds = FBoxSphereBounds(BoundingBox);
-		}
+		SystemBounds = SystemInstance->GetLocalBounds();
 	}
 	else
 	{
@@ -1416,6 +1400,9 @@ TArray<float> UNiagaraComponent::GetNiagaraParticleValues_DebugOnly(const FStrin
 void UNiagaraComponent::PostLoad()
 {
 	Super::PostLoad();
+
+	OverrideParameters.PostLoad();
+
 	if (Asset)
 	{
 		Asset->ConditionalPostLoad();
@@ -1712,6 +1699,30 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 		else
 		{
 			AssetExposedParametersChangedHandle.Reset();
+		}
+#else
+		// We need to populate the override parameters here
+		{
+			TArray<FNiagaraVariable> SourceVars;
+			Asset->GetExposedParameters().GetParameters(SourceVars);
+			for (FNiagaraVariable& Param : SourceVars)
+			{
+				OverrideParameters.AddParameter(Param, true);
+			}
+
+			TArray<FNiagaraVariable> ExistingVars;
+			OverrideParameters.GetUserParameters(ExistingVars);
+			Asset->GetExposedParameters().GetUserParameters(SourceVars);
+
+			for (FNiagaraVariable ExistingVar : ExistingVars)
+			{
+				if (!SourceVars.Contains(ExistingVar))
+				{
+					OverrideParameters.RemoveParameter(ExistingVar);
+				}
+			}
+
+			OverrideParameters.Rebind();
 		}
 #endif
 

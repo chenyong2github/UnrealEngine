@@ -356,19 +356,6 @@ void CompilerReflection::emit_type_member_qualifiers(const SPIRType &type, uint3
 	if (flags.get(DecorationRowMajor))
 		json_stream->emit_json_key_value("row_major", true);
 
-	/* UE Change Begin: Emit sizes and locations of members in structs */
-	BufferPackingStandard packing;
-	if (type.storage == spv::StorageClassUniform)
-	{
-		if (buffer_is_packing_standard(type, BufferPackingStd430))
-			packing = BufferPackingStd430;
-		else if (buffer_is_packing_standard(type, BufferPackingStd140))
-			packing = BufferPackingStd140;
-		else if (buffer_is_packing_standard(type, BufferPackingStd140EnhancedLayout))
-			packing = BufferPackingStd140EnhancedLayout;
-	}
-	/* UE Change End: Emit sizes and locations of members in structs */
-
 	auto &membertype = get<SPIRType>(type.member_types[index]);
 	emit_type_array(membertype);
 	auto &memb = ir.meta[type.self].members;
@@ -379,11 +366,6 @@ void CompilerReflection::emit_type_member_qualifiers(const SPIRType &type, uint3
 			json_stream->emit_json_key_value("location", dec.location);
 		if (dec.decoration_flags.get(DecorationOffset))
 			json_stream->emit_json_key_value("offset", dec.offset);
-		
-		/* UE Change Begin: Emit sizes and locations of members in structs */
-		if (type.storage == spv::StorageClassUniform || type.storage == spv::StorageClassGeneric)
-			json_stream->emit_json_key_value("size", type_to_packed_size(membertype, dec.decoration_flags, packing));
-		/* UE Change End: Emit sizes and locations of members in structs */
 	}
 }
 
@@ -442,30 +424,6 @@ void CompilerReflection::emit_entry_points()
 			json_stream->begin_json_object();
 			json_stream->emit_json_key_value("name", e.name);
 			json_stream->emit_json_key_value("mode", execution_model_to_str(e.execution_model));
-
-			/* UE Change Begin: Emit workgroup size */
-			SPIREntryPoint & execution = get_entry_point(e.name, e.execution_model);
-			switch(e.execution_model)
-			{
-				case ExecutionModelGLCompute:
-				case ExecutionModelKernel:
-					json_stream->emit_json_key_array("workgroup_size");
-					json_stream->emit_json_array_value(execution.workgroup_size.x);
-					json_stream->emit_json_array_value(execution.workgroup_size.y);
-					json_stream->emit_json_array_value(execution.workgroup_size.z);
-					json_stream->end_json_array();
-					break;
-				case ExecutionModelVertex:
-				case ExecutionModelTessellationControl:
-				case ExecutionModelTessellationEvaluation:
-				case ExecutionModelGeometry:
-				case ExecutionModelFragment:
-				case ExecutionModelMax:
-				default:
-					break;
-			}
-			/* UE Change End: Emit workgroup size */
-			
 			json_stream->end_json_object();
 		}
 		json_stream->end_json_array();
@@ -514,30 +472,16 @@ void CompilerReflection::emit_resources(const char *tag, const SmallVector<Resou
 
 		json_stream->begin_json_object();
 
-		/* UE Change Begin: Emit sensible name */
-		std::string name;
 		if (type.basetype == SPIRType::Struct)
 		{
-			std::string type_name = (!res.name.empty() ? res.name : get_fallback_name(fallback_id));
-			if (type_name.empty())
-			{
-				type_name = type_to_glsl(type);
-			}
-			json_stream->emit_json_key_value("type", type_name);
-			name = get_name(res.id);
-			if (name.empty())
-		{
-				name = type_name;
-			}
+			json_stream->emit_json_key_value("type", "_" + std::to_string(res.base_type_id));
 		}
 		else
 		{
 			json_stream->emit_json_key_value("type", type_to_glsl(type));
-			name = !res.name.empty() ? res.name : get_fallback_name(fallback_id);
 		}
 
-		json_stream->emit_json_key_value("name", name);
-		/* UE Change Begin: Emit sensible name */
+		json_stream->emit_json_key_value("name", !res.name.empty() ? res.name : get_fallback_name(fallback_id));
 		{
 			bool ssbo_block = type.storage == StorageClassStorageBuffer ||
 			                  (type.storage == StorageClassUniform && typeflags.get(DecorationBufferBlock));

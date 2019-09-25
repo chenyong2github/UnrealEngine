@@ -8,6 +8,7 @@ public class TP_FirstPersonEditorTarget : TargetRules
 	public TP_FirstPersonEditorTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Editor;
+		DefaultBuildSettings = BuildSettingsVersion.Latest;
 		ExtraModuleNames.Add("TP_FirstPerson");
 	}
 }

@@ -14,8 +14,9 @@ class FVectorVMLanguageSpec : public ILanguageSpec
 protected:
 
 public:
-
-	virtual bool SupportsDeterminantIntrinsic() const override{	return false;	}
+	virtual bool LowerSubToAddNeg() const override { return false; }
+	virtual bool SupportsFusedMultiplyAdd() const override { return true; }
+	virtual bool SupportsDeterminantIntrinsic() const override { return false; }
 	virtual bool SupportsTransposeIntrinsic() const override{ return false;	}
 	virtual bool SupportsIntegerModulo() const override { return false;	}
 	virtual bool SupportsMatrixConversions() const override { return false; }

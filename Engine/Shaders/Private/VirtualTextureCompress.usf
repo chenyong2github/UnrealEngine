@@ -19,8 +19,10 @@ SamplerState TextureSampler2;
 RWTexture2D<uint2> OutCompressTexture0_u2;
 RWTexture2D<uint4> OutCompressTexture0_u4;
 RWTexture2D<uint4> OutCompressTexture1;
+RWTexture2D<uint2> OutCompressTexture2;
 RWTexture2D<float4> OutCopyTexture0;
 RWTexture2D<float4> OutCopyTexture1;
+RWTexture2D<float4> OutCopyTexture2;
 
 // Read a 4x4 color block ready for BC1 compression
 void ReadBlockRGB( Texture2D<float4> SourceTexture, SamplerState TextureSampler, float2 UV, float2 TexelUVSize, out float3 Block[16] )
@@ -249,4 +251,74 @@ void CopyNormalSpecularExCS(
 	
 	OutCopyTexture0[ThreadId.xy + DestRect.xy] = float4(BaseColor, NormalXY.x);
 	OutCopyTexture1[ThreadId.xy + DestRect.xy] = float4(RoughnessSpecularNormalZ, NormalXY.y);
+}
+
+/** Compress base color, normal, roughness and specular to BC3, BC5, BC1 target set. */
+[numthreads(8,8,1)]
+void CompressBaseColorNormalSpecularYCoCgCS(
+	uint3 ThreadId : SV_DispatchThreadID 
+	)
+{
+	uint2 SamplePos = ThreadId.xy * 4;
+	if (any(SamplePos >= DestRect.zw))
+		return;
+
+	float2 TexelUVSize = 1.f / float2(DestRect.zw);
+	float2 SampleUV = (float2(SamplePos) + 0.5f) * TexelUVSize;
+
+	float3 BlockBaseColor[16];
+	ReadBlockRGB(RenderTexture0, TextureSampler0, SampleUV, TexelUVSize, BlockBaseColor);
+
+	float BlockNormalX[16];
+	float BlockNormalY[16];
+	ReadBlockRG(RenderTexture1, TextureSampler1, SampleUV, TexelUVSize, BlockNormalX, BlockNormalY);
+
+	float3 BlockSpecular[16];
+	ReadBlockRGB(RenderTexture2, TextureSampler2, SampleUV, TexelUVSize, BlockSpecular);
+
+	for (int i=0; i<16; i++)
+	{
+		BlockSpecular[i].z = round(BlockSpecular[i].z);
+	}
+
+	OutCompressTexture0_u4[ThreadId.xy + DestRect.xy] = CompressBC3BlockYCoCg(BlockBaseColor);
+	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC5Block(BlockNormalX, BlockNormalY);
+	OutCompressTexture2[ThreadId.xy + DestRect.xy] = CompressBC1Block(BlockSpecular);
+}
+
+/** Copy normal X and Y to the alpha channels of the final target textures (without compression)
+  * This path is used when we disable texture compression, because we need to keep the same final channel layout. */
+[numthreads(8,8,1)]
+void CopyNormalSpecularYCoCgCS(
+	uint3 ThreadId : SV_DispatchThreadID 
+	)
+{
+	uint2 SamplePos = ThreadId.xy;
+	if (any(ThreadId.xy >= DestRect.zw))
+		return;
+
+	float3 YCoCg = RGB2YCoCg(RenderTexture0[SamplePos].xyz);
+	float2 NormalXY = RenderTexture1[SamplePos].xy;
+	float3 RoughnessSpecularNormalZ = RenderTexture2[SamplePos].xyz;
+	
+	RoughnessSpecularNormalZ.z = round(RoughnessSpecularNormalZ.z);
+	
+	OutCopyTexture0[ThreadId.xy + DestRect.xy] = float4(YCoCg.yz, 0, YCoCg.x);
+	OutCopyTexture1[ThreadId.xy + DestRect.xy] = float4(NormalXY.xy, 0, 1);
+	OutCopyTexture2[ThreadId.xy + DestRect.xy] = float4(RoughnessSpecularNormalZ, 1);
+}
+
+/** Copy world height (without compression)
+  * This path is used when want to copy the world height data into a thumbnail. */
+[numthreads(8,8,1)]
+void CopyWorldHeightCS(
+	uint3 ThreadId : SV_DispatchThreadID 
+	)
+{
+	uint2 SamplePos = ThreadId.xy;
+	if (any(ThreadId.xy >= DestRect.zw))
+		return;
+
+	float WorldHeight = RenderTexture0[SamplePos].r;
+	OutCopyTexture0[ThreadId.xy + DestRect.xy] = float4(WorldHeight.xxx, 1.f);
 }

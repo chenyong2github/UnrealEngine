@@ -305,6 +305,7 @@ FReply FLandscapeEditorDetailCustomization_MiscTools::OnApplyAllSplinesButtonCli
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode)
 	{
+		FScopedTransaction Transaction(LOCTEXT("LandscapeSpline_ApplyAllSplines", "Apply All Splines to Landscape"));
 		LandscapeEdMode->UpdateLandscapeSplines(false);
 	}
 	return FReply::Handled();
@@ -315,6 +316,7 @@ FReply FLandscapeEditorDetailCustomization_MiscTools::OnApplySelectedSplinesButt
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode)
 	{
+		FScopedTransaction Transaction(LOCTEXT("LandscapeSpline_ApplySelectedSplines", "Apply Selected Splines to Landscape"));
 		LandscapeEdMode->UpdateLandscapeSplines(true);
 	}
 

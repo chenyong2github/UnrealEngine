@@ -159,10 +159,17 @@ EGoogleARCoreAvailability FGoogleARCoreAPKManager::CheckARCoreAPKAvailability()
 	static JNIEnv* Env = FAndroidApplication::GetJavaEnv();
 	static jmethodID Method = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "getApplicationContext", "()Landroid/content/Context;", false);
 	static jobject ApplicationContext = FJavaWrapper::CallObjectMethod(Env, FAndroidApplication::GetGameActivityThis(), Method);
-
-	ArAvailability OutAvailability = AR_AVAILABILITY_UNKNOWN_ERROR;
+	
+	// OutAvailability is cached here as calling 'ArCoreApk_checkAvailability' can cause memory leak in JAVA on some devices
+	// so we bail out immediately if the last call returns OK (this of course assumes the availability doesn't degrades during runtime)
+	static ArAvailability OutAvailability = AR_AVAILABILITY_UNKNOWN_ERROR;
+	if (OutAvailability == AR_AVAILABILITY_SUPPORTED_INSTALLED)
+	{
+		return EGoogleARCoreAvailability::SupportedInstalled;
+	}
+	
 	ArCoreApk_checkAvailability(Env, ApplicationContext, &OutAvailability);
-
+	
 	// Use static_cast here since we already make sure the enum has the same value.
 	return static_cast<EGoogleARCoreAvailability>(OutAvailability);
 #endif

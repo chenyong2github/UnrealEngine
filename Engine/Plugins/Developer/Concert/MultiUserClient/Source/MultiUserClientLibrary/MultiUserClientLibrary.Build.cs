@@ -15,7 +15,7 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			if (Target.bBuildDeveloperTools)
+			if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
 			{
 				PrivateDefinitions.Add("WITH_CONCERT=1");
 

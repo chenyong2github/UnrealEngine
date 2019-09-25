@@ -47,37 +47,6 @@ void URuntimeOptionsBase::InitializeRuntimeOptions()
 	}
 }
 
-void URuntimeOptionsBase::ApplyPluginOverridesIfPresent(const FString& PluginName)
-{
-	check(HasAnyFlags(RF_ClassDefaultObject));
-
-	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(*PluginName);
-	if (Plugin.IsValid() && Plugin->IsEnabled())
-	{
-		const FString PluginConfigDir = Plugin->GetBaseDir() / TEXT("Config/");
-		TArray<FString> PluginConfigs;
-		IFileManager::Get().FindFiles(PluginConfigs, *PluginConfigDir, TEXT("ini"));
-		const FString PlaformName = FPlatformProperties::PlatformName();
-
-		for (const FString& ConfigFile : PluginConfigs)
-		{
-			const FString PluginConfigFilename = FString::Printf(TEXT("%s%s/%s.ini"), *FPaths::GeneratedConfigDir(), *PlaformName, *FPaths::GetBaseFilename(ConfigFile));
-			if (FConfigFile* FoundConfig = GConfig->Find(PluginConfigFilename, false))
-			{
-				FString PluginConfigContent;
-				if (FFileHelper::LoadFileToString(PluginConfigContent, *FPaths::Combine(PluginConfigDir, ConfigFile)))
-				{
-					FoundConfig->CombineFromBuffer(PluginConfigContent);
-					// if plugin config overrides are applied then don't save
-					FoundConfig->NoSave = true;
-
-					FConfigFile::OverrideFromCommandline(FoundConfig, PluginConfigFilename);
-				}
-			}
-		}
-	}
-}
-
 void URuntimeOptionsBase::ApplyCommandlineOverrides()
 {
 #if UE_RUNTIMEOPTIONSBASE_SUPPORT_COMMANDLINE

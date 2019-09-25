@@ -278,7 +278,7 @@ namespace Audio
 				float SquareSaw1 = GetBipolar(Phase);
 				SquareSaw1 += PolySmooth(Phase, PhaseInc);
 
-				float CurrentPulseWidth = PulseWidthLerped.GetValue();
+				float CurrentPulseWidth = PulseWidthLerped.GetNextValue();
 
 				// Create a second sawtooth that is phase-shifted based on the pulsewidth
 				float NewPhase = 0.0f;

@@ -230,9 +230,6 @@ public:
 	void BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERenderTargetLoadAction ColorLoadAction, ERenderTargetLoadAction DepthLoadAction, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers = false, const FLinearColor& ClearColor = FLinearColor(0, 0, 0, 1), bool bIsWireframe=false);
 	void FinishGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList);
 
-	void BeginRenderingWaterGBuffer(FRHICommandList& RHICmdList, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers);
-	void FinishWaterGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList);
-
 	/**
 	 * Sets the scene color target and restores its contents if necessary
 	 */
@@ -286,12 +283,17 @@ public:
 		DefaultColorClear = ColorClear;
 	}
 
+	FClearValueBinding GetDefaultColorClear() const
+	{
+		return DefaultColorClear;
+	}
+
 	void SetDefaultDepthClear(const FClearValueBinding DepthClear)
 	{
 		DefaultDepthClear = DepthClear;
 	}
 
-	FClearValueBinding GetDefaultDepthClear()
+	FClearValueBinding GetDefaultDepthClear() const
 	{
 		return DefaultDepthClear;
 	}
@@ -543,10 +545,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> GBufferD;
 	TRefCountPtr<IPooledRenderTarget> GBufferE;
 
-	// Water rendering extra buffers
-	TRefCountPtr<IPooledRenderTarget> SceneColorWithoutSingleLayerWater;
-	TRefCountPtr<IPooledRenderTarget> SceneDepthZWithoutSingleLayerWater;
-
 	// DBuffer: For decals before base pass (only temporarily available after early z pass and until base pass)
 	TRefCountPtr<IPooledRenderTarget> DBufferA;
 	TRefCountPtr<IPooledRenderTarget> DBufferB;
@@ -644,6 +642,9 @@ public:
 	/** Allocates render targets for use with the deferred shading path. */
 	// Temporarily Public to call from DefferedShaderRenderer to attempt recovery from a crash until cause is found.
 	void AllocateDeferredShadingPathRenderTargets(FRHICommandListImmediate& RHICmdList, const int32 NumViews = 1);
+
+	/** Fills the given FRenderPassInfo with the current GBuffer */
+	int32 FillGBufferRenderPassInfo(ERenderTargetLoadAction ColorLoadAction, FRHIRenderPassInfo& OutRenderPassInfo, int32& OutVelocityRTIndex);
 private:
 
 	/** Allocates render targets for use with the current shading path. */
@@ -693,9 +694,6 @@ private:
 
 	/** Gets all GBuffers to use.  Returns the number actually used. */
 	int32 GetGBufferRenderTargets(ERenderTargetLoadAction ColorLoadAction, FRHIRenderTargetView OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex);
-
-	/** Fills the given FRenderPassInfo with the current GBuffer */
-	int32 FillGBufferRenderPassInfo(ERenderTargetLoadAction ColorLoadAction, FRHIRenderPassInfo& OutRenderPassInfo, int32& OutVelocityRTIndex);
 
 	ESceneColorFormatType GetSceneColorFormatType() const
 	{

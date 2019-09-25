@@ -2220,6 +2220,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
         PipelineBits &= EMetalPipelineFlagComputeMask;
     }
 	
+#if METAL_DEBUG_OPTIONS
 	if (SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
 	{
 		FMetalShaderPipeline* Pipeline = GetPipelineState();
@@ -2301,8 +2302,12 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 			uint32 Index = __builtin_ctz(VertexMask.BufferMask);
 			VertexMask.BufferMask &= ~(1 << Index);
 			
-			if ((VertexStage == EMetalShaderStages::Vertex) || (Pipeline->TessellationPipelineDesc.TessellationInputPatchConstBufferIndex != Index
-				&& Pipeline->TessellationPipelineDesc.TessellationInputControlPointBufferIndex != Index))
+			if (VertexStage == EMetalShaderStages::Vertex
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+				|| (Pipeline->TessellationPipelineDesc.TessellationInputPatchConstBufferIndex != Index
+				&& Pipeline->TessellationPipelineDesc.TessellationInputControlPointBufferIndex != Index)
+#endif // PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+				)
 			{
 				FMetalBufferBinding const& Binding = ShaderBuffers[VertexStage].Buffers[Index];
 				ensure(Binding.Buffer || Binding.Bytes);
@@ -2397,6 +2402,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 			ensure(ShaderSamplers[EMetalShaderStages::Pixel].Samplers[Index]);
 		}
 	}
+#endif // METAL_DEBUG_OPTIONS
 }
 
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS

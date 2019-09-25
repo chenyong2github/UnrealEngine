@@ -125,6 +125,7 @@ extern PFNGLLABELOBJECTEXTPROC			glLabelObjectEXT;
 extern PFNGLGETOBJECTLABELEXTPROC		glGetObjectLabelEXT;
 extern PFNGLPOPGROUPMARKEREXTPROC 		glPopGroupMarkerEXT;
 extern PFNGLTEXSTORAGE2DPROC			glTexStorage2D;
+extern PFNGLTEXSTORAGE3DPROC			glTexStorage3D;
 extern PFNGLDEBUGMESSAGECONTROLKHRPROC	glDebugMessageControlKHR;
 extern PFNGLDEBUGMESSAGEINSERTKHRPROC	glDebugMessageInsertKHR;
 extern PFNGLDEBUGMESSAGECALLBACKKHRPROC	glDebugMessageCallbackKHR;
@@ -410,23 +411,30 @@ struct FAndroidOpenGL : public FOpenGLES2
 	
 	static FORCEINLINE void TexStorage3D(GLenum Target, GLint Levels, GLint InternalFormat, GLsizei Width, GLsizei Height, GLsizei Depth, GLenum Format, GLenum Type)
 	{
-		const bool bArrayTexture = Target == GL_TEXTURE_2D_ARRAY || Target == GL_TEXTURE_CUBE_MAP_ARRAY;
-		for(uint32 MipIndex = 0; MipIndex < uint32(Levels); MipIndex++)
+		if (glTexStorage3D)
 		{
-			glTexImage3D(
-				Target,
-				MipIndex,
-				InternalFormat,
-				FMath::Max<uint32>(1,(Width >> MipIndex)),
-				FMath::Max<uint32>(1,(Height >> MipIndex)),
-				(bArrayTexture) ? Depth : FMath::Max<uint32>(1,(Depth >> MipIndex)),
-				0,
-				Format,
-				Type,
-				NULL
-				);
+			glTexStorage3D( Target, Levels, InternalFormat, Width, Height, Depth);
+		}
+		else
+		{
+			const bool bArrayTexture = Target == GL_TEXTURE_2D_ARRAY || Target == GL_TEXTURE_CUBE_MAP_ARRAY;
+			for(uint32 MipIndex = 0; MipIndex < uint32(Levels); MipIndex++)
+			{
+				glTexImage3D(
+					Target,
+					MipIndex,
+					InternalFormat,
+					FMath::Max<uint32>(1,(Width >> MipIndex)),
+					FMath::Max<uint32>(1,(Height >> MipIndex)),
+					(bArrayTexture) ? Depth : FMath::Max<uint32>(1,(Depth >> MipIndex)),
+					0,
+					Format,
+					Type,
+					NULL
+					);
 
-			VERIFY_GL(TexImage_3D);
+				VERIFY_GL(TexImage_3D);
+			}
 		}
 	}
 	
