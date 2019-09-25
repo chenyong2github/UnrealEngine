@@ -11,6 +11,9 @@
 #include "SimpleDynamicMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
+#include "Properties/MeshStatisticsProperties.h"
+#include "Properties/MeshAnalysisProperties.h"
+
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
 
 #define LOCTEXT_NAMESPACE "UMeshInspectorTool"
@@ -123,6 +126,10 @@ void UMeshInspectorTool::Setup()
 	UMeshStatisticsProperties* Statistics = NewObject<UMeshStatisticsProperties>(this);
 	Statistics->Update(*DynamicMeshComponent->GetMesh());
 	AddToolPropertySource(Statistics);
+
+	UMeshAnalysisProperties* MeshAnalysis = NewObject<UMeshAnalysisProperties>(this);
+	MeshAnalysis->Update(*DynamicMeshComponent->GetMesh(), ComponentTarget->GetWorldTransform());
+	AddToolPropertySource(MeshAnalysis);
 }
 
 

@@ -9,7 +9,6 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
 #include "Properties/MeshMaterialProperties.h"
-#include "Properties/MeshStatisticsProperties.h"
 #include "MeshInspectorTool.generated.h"
 
 
