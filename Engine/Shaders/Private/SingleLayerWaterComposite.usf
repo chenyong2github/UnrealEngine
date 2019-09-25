@@ -297,5 +297,14 @@ void WaterRefractionCopyPS(
 
 	// Downsample and average all 2x2 quads
 	OutColorAndDepth.xyz = Texture2DSampleLevel(SceneColorCopyDownsampleTexture, SceneColorCopyDownsampleSampler, BufferUV, 0).xyz;
-	OutColorAndDepth.w = ConvertFromDeviceZ(Texture2DSampleLevel(SceneDepthCopyDownsampleTexture, SceneDepthCopyDownsampleSampler, BufferUV, 0).r) / SINGLE_LAYER_WATER_DEPTH_SCALE;
+
+	float DeviceDepthZ = 0.0f;
+#if DOWNSAMPLE_REFRACTION
+	// Pick furthermost depth to minimize downsampling artifacts (UE4 is using reverse-z)
+	float4 Depth4 = SceneDepthCopyDownsampleTexture.Gather(SceneDepthCopyDownsampleSampler, BufferUV);
+	DeviceDepthZ = min(min(min(Depth4.x, Depth4.y), Depth4.z), Depth4.w);
+#else
+	DeviceDepthZ = Texture2DSampleLevel(SceneDepthCopyDownsampleTexture, SceneDepthCopyDownsampleSampler, BufferUV, 0).x;
+#endif
+	OutColorAndDepth.w = ConvertFromDeviceZ(DeviceDepthZ) / SINGLE_LAYER_WATER_DEPTH_SCALE;
 }
