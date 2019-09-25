@@ -58,4 +58,7 @@ protected:
 
 	/** Modifier set for this behavior, internally initialized with check on ModifierKey */
 	FInputBehaviorModifierStates Modifiers;
+
+	/** The key that was pressed to activate capture */
+	FKey PressedButton;
 };
