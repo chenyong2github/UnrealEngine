@@ -2891,7 +2891,7 @@ void FBlueprintGraphArgumentLayout::GenerateChildContent( IDetailChildrenBuilder
 		}
 
 		bool bMacroGraph = false;
-		if (TargetNode)
+		if (TargetNode && TargetNode->HasValidBlueprint())
 		{
 			if (const UBlueprint* Blueprint = TargetNode->GetBlueprint())
 			{
