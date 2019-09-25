@@ -9,6 +9,7 @@
 #include "Stats/Stats.h"
 #include "HAL/MallocJemalloc.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/LowLevelMemStats.h"
 
 #define MEM_TIME(st)
 
@@ -17,6 +18,14 @@
 #if USE_CACHE_FREED_OS_ALLOCS
 //#define CACHE_FREED_OS_ALLOCS
 #endif
+
+#ifndef USE_OS_SMALL_BLOCK_ALLOC
+#define USE_OS_SMALL_BLOCK_ALLOC PLATFORM_IOS
+#endif //USE_OS_SMALL_BLOCK_ALLOC
+
+#ifndef USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
+#define USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS (USE_OS_SMALL_BLOCK_ALLOC && PLATFORM_IOS)
+#endif //USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
 
 #ifdef USE_INTERNAL_LOCKS
 //#   define USE_COARSE_GRAIN_LOCKS
@@ -90,6 +99,24 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Binned Current Allocs"),	STAT_Binned_Cur
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Binned Total Allocs"),		STAT_Binned_TotalAllocs,STATGROUP_MemoryAllocator, CORE_API);
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Binned Slack Current"),	STAT_Binned_SlackCurrent,STATGROUP_MemoryAllocator, CORE_API);
 
+#if USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS && ENABLE_LOW_LEVEL_MEM_TRACKER
+DECLARE_LLM_MEMORY_STAT_EXTERN(TEXT("Nano Malloc Pages Current"), STAT_Binned_NanoMallocPages_Current,STATGROUP_LLMPlatform, CORE_API);
+DECLARE_LLM_MEMORY_STAT_EXTERN(TEXT("Nano Malloc Pages Peak"), STAT_Binned_NanoMallocPages_Peak,STATGROUP_LLMPlatform, CORE_API);
+DECLARE_LLM_MEMORY_STAT_EXTERN(TEXT("Nano Malloc Pages Waste Current"), STAT_Binned_NanoMallocPages_WasteCurrent,STATGROUP_LLMPlatform, CORE_API);
+DECLARE_LLM_MEMORY_STAT_EXTERN(TEXT("Nano Malloc Pages Waste Peak"),STAT_Binned_NanoMallocPages_WastePeak,STATGROUP_LLMPlatform, CORE_API);
+#endif //USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
+
+#if USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS && ENABLE_LOW_LEVEL_MEM_TRACKER
+enum class ELLMTagNanoMallocGrabber : LLM_TAG_TYPE
+{
+	NanoMallocPagesCurrent = (LLM_TAG_TYPE)ELLMTag::PlatformTagStart, // Use Instruments for detailed breakdown!
+	NanoMallocPagesPeak,
+	NanoMallocPagesWasteCurrent,
+	NanoMallocPagesWastePeak,
+	Count
+};
+#endif //#if USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
+
 
 //
 // Optimized virtual memory allocator.
@@ -106,7 +133,7 @@ private:
 	/** Maximum allocation for the pooled allocator */
 	enum { EXTENDED_PAGE_POOL_ALLOCATION_COUNT = 2 };
 	enum { MAX_POOLED_ALLOCATION_SIZE   = 32768+1 };
-
+	
 	// Forward declares.
 	struct FFreeMem;
 	struct FPoolTable;
@@ -198,7 +225,7 @@ private:
 	FCriticalSection	AccessGuard;
 
 	// PageSize dependent constants
-	uint64 MaxHashBuckets; 
+	uint64 MaxHashBuckets;
 	uint64 MaxHashBucketBits;
 	uint64 MaxHashBucketWaste;
 	uint64 MaxBookKeepingOverhead;
@@ -218,12 +245,12 @@ private:
 	FPoolTable	OsTable;
 	FPoolTable	PagePoolTable[EXTENDED_PAGE_POOL_ALLOCATION_COUNT];
 	FPoolTable* MemSizeToPoolTable[MAX_POOLED_ALLOCATION_SIZE+EXTENDED_PAGE_POOL_ALLOCATION_COUNT];
-
+	
 	PoolHashBucket* HashBuckets;
 	PoolHashBucket* HashBucketFreeList;
-
+	
 	uint32		PageSize;
-
+	
 #ifdef CACHE_FREED_OS_ALLOCS
 	FFreePageBlock	FreedPageBlocks[MAX_CACHED_OS_FREES];
 	uint32			FreedPageBlocksNum;
@@ -242,7 +269,15 @@ private:
 	/** OsCurrent - WasteCurrent - UsedCurrent. */
 	BINNED_STAT		SlackCurrent;
 	double		MemTime;
-#endif
+	
+#if USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
+	BINNED_STAT		NanoMallocPagesCurrent;
+	BINNED_STAT		NanoMallocPagesPeak;
+	BINNED_STAT		NanoMallocPagesWaste;
+	BINNED_STAT		NanoMallocWastePagesPeak;
+#endif //USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
+	
+#endif //STATS
 
 public:
 	// FMalloc interface.
