@@ -45,11 +45,13 @@ void FAnimNode_SaveCachedPose::Update_AnyThread(const FAnimationUpdateContext& C
 	// Make a minimal copy of the shared context for cached updates
 	if (FAnimationUpdateSharedContext* SharedContext = Context.GetSharedContext())
 	{
-		CachedUpdate.SharedContext.CopyForCachedUpdate(*SharedContext);
+		CachedUpdate.SharedContext = MakeShared<FAnimationUpdateSharedContext>();
+		CachedUpdate.SharedContext->CopyForCachedUpdate(*SharedContext);
+
 	}
 
 	// Store this context for the post update
-	CachedUpdate.Context = Context.WithOtherSharedContext(&CachedUpdate.SharedContext);
+	CachedUpdate.Context = Context.WithOtherSharedContext(CachedUpdate.SharedContext.Get());
 }
 
 void FAnimNode_SaveCachedPose::Evaluate_AnyThread(FPoseContext& Output)
