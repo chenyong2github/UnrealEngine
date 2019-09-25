@@ -40,7 +40,6 @@ FString FMeshSelectionChange::ToString() const
 
 
 
-
 FMeshSelectionChangeBuilder::FMeshSelectionChangeBuilder(EMeshSelectionElementType ElementType, bool bAdding)
 {
 	Change = MakeUnique<FMeshSelectionChange>();
@@ -48,7 +47,26 @@ FMeshSelectionChangeBuilder::FMeshSelectionChangeBuilder(EMeshSelectionElementTy
 	Change->bAdded = bAdding;
 }
 
-void FMeshSelectionChangeBuilder::Add(int ElementID)
+void FMeshSelectionChangeBuilder::Add(int32 ElementID)
 {
 	Change->Indices.Add(ElementID);
 }
+
+
+
+void FMeshSelectionChangeBuilder::Add(const TArray<int32>& Elements)
+{
+	for (int32 Index : Elements)
+	{
+		Change->Indices.Add(Index);
+	}
+}
+
+void FMeshSelectionChangeBuilder::Add(const TSet<int32>& Elements)
+{
+	for (int32 Index : Elements)
+	{
+		Change->Indices.Add(Index);
+	}
+}
+

@@ -16,7 +16,7 @@ class MODELINGCOMPONENTS_API FMeshSelectionChange : public FToolCommandChange
 {
 public:
 	EMeshSelectionElementType ElementType = EMeshSelectionElementType::Vertex;
-	TArray<int> Indices;
+	TArray<int32> Indices;
 	bool bAdded;
 
 	/** Makes the change to the object */
@@ -50,5 +50,15 @@ public:
 	/**
 	 * Add ElementID to list of changed elements  (which may then be added or removed, depending on bAdding parameter to constructor)
 	 */
-	void Add(int ElementID);
+	void Add(int32 ElementID);
+
+	/**
+	 * Add Array of elements
+	 */
+	void Add(const TArray<int32>& Elements);
+
+	/**
+	 * Add Set of elements
+	 */
+	void Add(const TSet<int32>& Elements);
 };

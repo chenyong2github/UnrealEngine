@@ -91,11 +91,22 @@ public:
 	 * Add list of Indices to the current selection for the given ElementType
 	 * @warning no duplicate detection is currently done
 	 */
-	void AddIndices(EMeshSelectionElementType ElementType, const TArray<int>& Indices);
-	
+	void AddIndices(EMeshSelectionElementType ElementType, const TArray<int32>& Indices);
+
+	/**
+	 * Add list of Indices to the current selection for the given ElementType
+	 * @warning no duplicate detection is currently done
+	 */
+	void AddIndices(EMeshSelectionElementType ElementType, const TSet<int32>& Indices);
+
+
 	/**
 	 * Remove list of Indices from the current selection for the given ElementType
 	 */
-	void RemoveIndices(EMeshSelectionElementType ElementType, const TArray<int>& Indices);
+	void RemoveIndices(EMeshSelectionElementType ElementType, const TArray<int32>& Indices);
 
+	/**
+	 * Remove list of Indices from the current selection for the given ElementType
+	 */
+	void RemoveIndices(EMeshSelectionElementType ElementType, const TSet<int32>& Indices);
 };
