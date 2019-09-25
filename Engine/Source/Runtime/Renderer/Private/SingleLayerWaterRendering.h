@@ -18,8 +18,7 @@ class FViewInfo;
 
 struct FSingleLayerWaterPassData
 {
-	TRefCountPtr<IPooledRenderTarget> SceneColorWithoutSingleLayerWater;
-	TRefCountPtr<IPooledRenderTarget> SceneDepthZWithoutSingleLayerWater;
+	TRefCountPtr<IPooledRenderTarget> SceneColorAndDepthWithoutSingleLayerWater;
 	FVector4 SceneWithoutSingleLayerWaterValidUVRect;
 };
 
