@@ -58,29 +58,30 @@ void FAnimNode_LinkedAnimGraph::CacheBones_AnyThread(const FAnimationCacheBonesC
 	}
 }
 
-void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& Context)
+void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& InContext)
 {
-	GetEvaluateGraphExposedInputs().Execute(Context);
+	GetEvaluateGraphExposedInputs().Execute(InContext);
 
 	UAnimInstance* InstanceToRun = GetTargetInstance<UAnimInstance>();
 	if(InstanceToRun && LinkedRoot)
 	{
 		FAnimInstanceProxy& Proxy = InstanceToRun->GetProxyOnAnyThread<FAnimInstanceProxy>();
-		Proxy.UpdateCounter.SynchronizeWith(Context.AnimInstanceProxy->UpdateCounter);
+		Proxy.UpdateCounter.SynchronizeWith(InContext.AnimInstanceProxy->UpdateCounter);
 
-		PropagateInputProperties(Context.AnimInstanceProxy->GetAnimInstanceObject());
+		PropagateInputProperties(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
 		// Only update if we've not had a single-threaded update already
 		if(InstanceToRun->bNeedsUpdate)
 		{
-			Proxy.UpdateAnimation_WithRoot(LinkedRoot, GetDynamicLinkFunctionName());
+			FAnimationUpdateContext NewContext = InContext.WithOtherProxy(&Proxy);
+			Proxy.UpdateAnimation_WithRoot(NewContext, LinkedRoot, GetDynamicLinkFunctionName());
 		}
 	}
 	else if(InputPoses.Num() > 0)
 	{
 		// If we have no valid instance (self or otherwise), we need to propagate down the graph to make sure
 		// subsequent nodes get properly updated
-		InputPoses[0].Update(Context);
+		InputPoses[0].Update(InContext);
 	}
 }
 
