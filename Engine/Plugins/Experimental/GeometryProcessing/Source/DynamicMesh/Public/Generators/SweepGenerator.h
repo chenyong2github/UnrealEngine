@@ -246,7 +246,7 @@ public:
 	float Radius[2] = {1.0f, 1.0f};
 	float Height = 1.0f;
 	int AngleSamples = 16;
-	int LengthSamples = 4;
+	int LengthSamples = 0;
 	bool bCapped = false;
 	bool bUVScaleMatchSidesAndCaps = true;
 
