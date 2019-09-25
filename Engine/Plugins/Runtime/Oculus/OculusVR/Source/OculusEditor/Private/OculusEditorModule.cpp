@@ -210,7 +210,7 @@ void FOculusHMDSettingsDetailsCustomization::OnEnableBuildTelemetry(ECheckBoxSta
 	GConfig->Flush(0);
 }
 
-ECheckBoxState FOculusHMDSettingsDetailsCustomization::IsBuildTelemtryEnabled() const
+ECheckBoxState FOculusHMDSettingsDetailsCustomization::IsBuildTelemetryEnabled() const
 {
 	bool v;
 	GConfig->GetBool(TEXT("/Script/OculusEditor.OculusEditorSettings"), TEXT("bEnableOculusBuildTelemetry"), v, GEditorIni);
@@ -266,7 +266,7 @@ void FOculusHMDSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBuild
 		[
 			SNew(SCheckBox)
 			.OnCheckStateChanged(this, &FOculusHMDSettingsDetailsCustomization::OnEnableBuildTelemetry)
-		.IsChecked(this, &FOculusHMDSettingsDetailsCustomization::IsBuildTelemtryEnabled)
+		.IsChecked(this, &FOculusHMDSettingsDetailsCustomization::IsBuildTelemetryEnabled)
 		]
 	+ SHorizontalBox::Slot().FillWidth(8)
 		]

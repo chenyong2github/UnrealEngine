@@ -14,6 +14,7 @@ class FMenuBuilder;
 
 #define OCULUS_EDITOR_MODULE_NAME "OculusEditor"
 
+enum class ECheckBoxState : uint8;
 
 class FOculusEditorModule : public IOculusEditorModule
 {
@@ -67,5 +68,5 @@ public:
 	FReply PluginClickPlatFn(bool text);
 
 	void OnEnableBuildTelemetry(ECheckBoxState NewState);
-	ECheckBoxState IsBuildTelemtryEnabled() const;
+	ECheckBoxState IsBuildTelemetryEnabled() const;
 };
