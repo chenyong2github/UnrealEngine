@@ -4332,8 +4332,24 @@ void UNavigationSystemV1::ApplySupportedAgentsFilter()
 	for (int32 AgentIndex = 0; AgentIndex < SupportedAgents.Num(); AgentIndex++)
 	{
 		if (SupportedAgentsMask.Contains(AgentIndex) == false)
-	{
+		{
 			SupportedAgents[AgentIndex].Invalidate();
+		}
+	}
+}
+
+void UNavigationSystemV1::UnregisterUnusedNavData()
+{
+	for (int32 AgentIndex = 0; AgentIndex < SupportedAgents.Num(); AgentIndex++)
+	{
+		if (SupportedAgentsMask.Contains(AgentIndex) == false)
+		{
+			// if we already have navdata for this agent we need to remove it
+			ANavigationData* NavData = GetNavDataForAgentName(SupportedAgents[AgentIndex].Name);
+			if (NavData)
+			{
+				UnregisterNavData(NavData);
+			}
 		}
 	}
 }
