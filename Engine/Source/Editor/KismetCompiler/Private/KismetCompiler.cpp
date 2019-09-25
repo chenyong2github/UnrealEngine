@@ -2454,10 +2454,18 @@ void FKismetCompilerContext::FinishCompilingClass(UClass* Class)
 	Class->ClassFlags |= (CLASS_Parsed | CLASS_CompiledFromBlueprint);
 	Class->ClassFlags &= ~CLASS_ReplicationDataIsSetUp;
 
-	// Look for OnRep 
+	// This function mostly mirrors PostParsingClassSetup, opportunity to refactor:
 	for( TFieldIterator<UProperty> It(Class, EFieldIteratorFlags::ExcludeSuper); It; ++It)
 	{
 		UProperty *Property = *It;
+		
+		// If any property is instanced, then the class needs to also have CLASS_HasInstancedReference flag
+		if (Property->ContainsInstancedObjectProperty())
+		{
+			Class->ClassFlags |= CLASS_HasInstancedReference;
+		}
+		
+		// Look for OnRep 
 		if (Property->HasAnyPropertyFlags(CPF_Net))
 		{
 			// Verify rep notifies are valid, if not, clear them
