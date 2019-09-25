@@ -69,6 +69,9 @@ public:
 	/** If true, the cut surface is filled with simple planar hole fill surface(s) */
 	UPROPERTY(EditAnywhere, Category = Advanced)
 	bool bFillCutHole;
+
+	UPROPERTY(EditAnywhere, Category = Preview)
+	bool bShowPreview;
 };
 
 

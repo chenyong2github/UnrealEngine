@@ -72,7 +72,7 @@ void UMeshOpPreviewWithBackgroundCompute::UpdateResults()
 		TUniquePtr<FDynamicMesh3> ResultMesh = MeshOp->ExtractResult();
 		PreviewMesh->SetTransform((FTransform)MeshOp->GetResultTransform());
 		PreviewMesh->UpdatePreview(ResultMesh.Get());  // copies the mesh @todo we could just give ownership to the Preview!
-		PreviewMesh->SetVisible(true);
+		PreviewMesh->SetVisible(bVisible);
 		bResultValid = true;
 
 		OnMeshUpdated.Broadcast(this);
@@ -99,7 +99,8 @@ void UMeshOpPreviewWithBackgroundCompute::ConfigureMaterials(UMaterialInterface*
 }
 
 
-void UMeshOpPreviewWithBackgroundCompute::SetVisibility(bool bVisible)
+void UMeshOpPreviewWithBackgroundCompute::SetVisibility(bool bVisibleIn)
 {
+	bVisible = bVisibleIn;
 	PreviewMesh->SetVisible(bVisible);
 }

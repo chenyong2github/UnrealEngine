@@ -62,6 +62,7 @@ UPlaneCutToolProperties::UPlaneCutToolProperties()
 	bKeepBothHalves = false;
 	bFillCutHole = true;
 	SpacingBetweenHalves = 1;
+	bShowPreview = true;
 }
 
 UPlaneCutAdvancedProperties::UPlaneCutAdvancedProperties()
@@ -268,6 +269,15 @@ void UPlaneCutTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 void UPlaneCutTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
 {
+	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPlaneCutToolProperties, bShowPreview)))
+	{
+		ComponentTarget->SetOwnerVisibility(!BasicProperties->bShowPreview);
+		for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
+		{
+			Preview->SetVisibility(BasicProperties->bShowPreview);
+		}
+	}
+
 	UpdateNumPreviews();
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{

@@ -148,6 +148,8 @@ protected:
 	// state flag, if true then we have valid result
 	bool bResultValid = false;
 
+	bool bVisible = true;
+
 	// this object manages the background computes
 	TUniquePtr<FBackgroundDynamicMeshComputeSource> BackgroundCompute;
 
