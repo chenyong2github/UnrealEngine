@@ -24,7 +24,8 @@ STextBlock::STextBlock()
 	bSimpleTextMode = false;
 
 #if WITH_ACCESSIBILITY
-	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
+	AccessibleBehavior = EAccessibleBehavior::Auto;
+	bCanChildrenBeAccessible = false;
 #endif
 }
 
@@ -472,9 +473,8 @@ TSharedRef<FSlateAccessibleWidget> STextBlock::CreateAccessibleWidget()
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleTextBlock(SharedThis(this)));
 }
 
-void STextBlock::SetDefaultAccessibleText(EAccessibleType AccessibleType)
+TOptional<FText> STextBlock::GetDefaultAccessibleText(EAccessibleType AccessibleType) const
 {
-	TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
-	Text.Bind(this, &STextBlock::GetTextCopy);
+	return GetText();
 }
 #endif
