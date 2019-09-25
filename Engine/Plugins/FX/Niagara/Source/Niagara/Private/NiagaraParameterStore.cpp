@@ -116,26 +116,18 @@ FNiagaraParameterStore::~FNiagaraParameterStore()
 	Bindings.Empty();
 }
 
-void FNiagaraParameterStore::Bind(FNiagaraParameterStore* DestStore, bool bAlwaysAddToBindings)
+void FNiagaraParameterStore::Bind(FNiagaraParameterStore* DestStore)
 {
 	check(DestStore);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreBind);
 	if (!Bindings.Contains(DestStore))
 	{
-		if (bAlwaysAddToBindings)
+		// Bind the parameter stores only if they have variables in common.
+		FNiagaraParameterStoreBinding HeapBinding;
+		if  (HeapBinding.Initialize(DestStore, this))
 		{
 			FNiagaraParameterStoreBinding& Binding = Bindings.FindOrAdd(DestStore);
-			Binding.Initialize(DestStore, this);
-		}
-		else
-		{
-			// Bind the parameter stores only if they have variables in common.
-			FNiagaraParameterStoreBinding HeapBinding;
-			if  (HeapBinding.Initialize(DestStore, this))
-			{
-				FNiagaraParameterStoreBinding& Binding = Bindings.FindOrAdd(DestStore);
-				FMemory::Memswap(&Binding, &HeapBinding, sizeof(FNiagaraParameterStoreBinding));
-			}
+			FMemory::Memswap(&Binding, &HeapBinding, sizeof(FNiagaraParameterStoreBinding));
 		}
 	}
 }
