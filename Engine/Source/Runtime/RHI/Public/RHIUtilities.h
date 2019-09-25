@@ -82,13 +82,13 @@ struct FTextureRWBuffer
 		);		
 				
 		// #todo(dmp): hardcoded for now...
-		uint32 BlockBytes = 16;
+		uint32 BlockBytes = 4;
 
 		NumBytes = SizeX * SizeY * BlockBytes;
 
 		FRHIResourceCreateInfo CreateInfo;
 		Buffer = RHICreateTexture2D(
-			SizeX, SizeY, PF_A32B32G32R32F,
+			SizeX, SizeY, PF_R32_FLOAT,
 			/*NumMips=*/ 1,
 			1,
 			/*Flags=*/ TexCreate_ShaderResource | TexCreate_UAV,
