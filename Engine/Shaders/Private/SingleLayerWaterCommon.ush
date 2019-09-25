@@ -46,6 +46,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
 	Texture2D SceneLuminanceWithoutSingleLayerWaterTexture, SamplerState SceneLuminanceWithoutSingleLayerWaterSampler,
 	Texture2D SceneCustomDepthTexture, SamplerState SceneCustomDepthSampler,
+	float4 SceneWithoutSingleLayerWaterValidUVRect,
 #endif // SIMPLE_SINGLE_LAYER_WATER
 	float Specular, const float4 DistortionParams,
 	float3 SunIlluminance, float3 AmbiantIlluminance, float3 EnvBrdf,
@@ -91,9 +92,9 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		BufferUVDistortion *= saturate((PixelSceneDepth - WaterDepth) * 1.0 / 30.0f);// *(1 - saturate(WaterDepth * 1.0 / 2000.0f));
 
 		// Clamp distorted UVs to not sample black outside the sub part of the buffer. Big quality increase.
-		const float2 DistortedUv = clamp(ViewportUV + BufferUVDistortion, 0.0, (ResolvedView.ViewSizeAndInvSize.xy-0.5f) * ResolvedView.BufferSizeAndInvSize.zw);
+		const float2 DistortedUV = clamp(ViewportUV + BufferUVDistortion, SceneWithoutSingleLayerWaterValidUVRect.xy, SceneWithoutSingleLayerWaterValidUVRect.zw);
 
-		float SceneDeviceZ = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, DistortedUv, 0).r;
+		float SceneDeviceZ = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, DistortedUV, 0).r;
 		float SceneDepth = ConvertFromDeviceZ(SceneDeviceZ);
 		if (SceneDepth < WaterDepth)
 		{
@@ -101,7 +102,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		}
 		else
 		{
-			ViewportUV = DistortedUv;
+			ViewportUV = DistortedUV;
 		}
 
 #endif // !SIMPLE_SINGLE_LAYER_WATER
