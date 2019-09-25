@@ -30,6 +30,8 @@ float DebugLineLifetime = 2.f;
 #include "Physics/Experimental/ChaosInterfaceWrapper.h"
 #endif
 
+CSV_DEFINE_CATEGORY(SceneQuery, false);
+
 enum class ESingleMultiOrTest : uint8
 {
 	Single,
@@ -440,7 +442,7 @@ bool FGenericPhysicsInterface::RaycastTest(const UWorld* World, const FVector St
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_RaycastAny);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RaycastTest);
+	CSV_SCOPED_TIMING_STAT(SceneQuery, RaycastTest);
 
 	using TCastTraits = TSQTraits<FHitRaycast, ESweepOrRay::Raycast, ESingleMultiOrTest::Test>;
 	FHitResult DummyHit(NoInit);
@@ -451,7 +453,7 @@ bool FGenericPhysicsInterface::RaycastSingle(const UWorld* World, struct FHitRes
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_RaycastSingle);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RaycastSingle);
+	CSV_SCOPED_TIMING_STAT(SceneQuery, RaycastSingle);
 
 	using TCastTraits = TSQTraits<FHitRaycast, ESweepOrRay::Raycast, ESingleMultiOrTest::Single>;
 	return TSceneCastCommon<TCastTraits>(World, OutHit, FRaycastSQAdditionalInputs(), Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
@@ -463,7 +465,7 @@ bool FGenericPhysicsInterface::RaycastMulti(const UWorld* World, TArray<struct F
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_RaycastMultiple);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RaycastMultiple);
+	CSV_SCOPED_TIMING_STAT(SceneQuery, RaycastMultiple);
 
 	using TCastTraits = TSQTraits<FHitRaycast, ESweepOrRay::Raycast, ESingleMultiOrTest::Multi>;
 	return TSceneCastCommon<TCastTraits> (World, OutHits, FRaycastSQAdditionalInputs(), Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
@@ -476,7 +478,7 @@ bool FGenericPhysicsInterface::GeomSweepTest(const UWorld* World, const struct F
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomSweepAny);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(GeomSweepTest);
+	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomSweepTest);
 
 	using TCastTraits = TSQTraits<FHitSweep, ESweepOrRay::Sweep, ESingleMultiOrTest::Test>;
 	FHitResult DummyHit(NoInit);
@@ -487,7 +489,7 @@ bool FGenericPhysicsInterface::GeomSweepSingle(const UWorld* World, const struct
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomSweepSingle);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(GeomSweepSingle);
+	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomSweepSingle);
 
 	using TCastTraits = TSQTraits<FHitSweep, ESweepOrRay::Sweep, ESingleMultiOrTest::Single>;
 	return TSceneCastCommon<TCastTraits>(World, OutHit, FGeomSQAdditionalInputs(CollisionShape, Rot), Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
@@ -498,7 +500,7 @@ bool FGenericPhysicsInterface::GeomSweepMulti(const UWorld* World, const FPhysic
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomSweepMultiple);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(GeomSweepMultiple);
+	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomSweepMultiple);
 
 	using TCastTraits = TSQTraits<FHitSweep, ESweepOrRay::Sweep, ESingleMultiOrTest::Multi>;
 	return TSceneCastCommon<TCastTraits>(World, OutHits, FGeomCollectionSQAdditionalInputs(InGeom, InGeomRot), Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
@@ -509,7 +511,7 @@ bool FGenericPhysicsInterface::GeomSweepMulti(const UWorld* World, const FCollis
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomSweepMultiple);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(GeomSweepMultiple);
+	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomSweepMultiple);
 
 	using TCastTraits = TSQTraits<FHitSweep, ESweepOrRay::Sweep, ESingleMultiOrTest::Multi>;
 	return TSceneCastCommon<TCastTraits>(World, OutHits, FGeomSQAdditionalInputs(InGeom, InGeomRot), Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
@@ -617,7 +619,7 @@ bool FGenericPhysicsInterface::GeomOverlapBlockingTest(const UWorld* World, cons
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomOverlapBlocking);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(GeomOverlapBlocking);
+	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomOverlapBlocking);
 
 	TArray<FOverlapResult> Overlaps;	//needed only for template shared code
 	FTransform GeomTransform(Rot, Pos);
@@ -633,7 +635,7 @@ bool FGenericPhysicsInterface::GeomOverlapAnyTest(const UWorld* World, const str
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomOverlapAny);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(GeomOverlapAny);
+	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomOverlapAny);
 
 	TArray<FOverlapResult> Overlaps;	//needed only for template shared code
 	FTransform GeomTransform(Rot, Pos);
@@ -650,7 +652,7 @@ bool FGenericPhysicsInterface::GeomOverlapMulti(const UWorld* World, const FPhys
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomOverlapMultiple);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(GeomOverlapMultiple);
+	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomOverlapMultiple);
 
 #if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
 	FTransform GeomTransform(InRotation, InPosition);
@@ -665,7 +667,7 @@ bool FGenericPhysicsInterface::GeomOverlapMulti(const UWorld* World, const FColl
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomOverlapMultiple);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(GeomOverlapMultiple);
+	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomOverlapMultiple);
 
 	FTransform GeomTransform(InRotation, InPosition);
 #if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
