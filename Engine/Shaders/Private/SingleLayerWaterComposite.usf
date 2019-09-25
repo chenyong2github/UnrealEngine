@@ -11,6 +11,8 @@
 #include "ShadingModels.ush"
 #include "SceneTextureParameters.ush"
 
+// Scale for encoding depth into SceneColorAndDepthWithoutSingleLayerWaterTexture
+#define SINGLE_LAYER_WATER_DEPTH_SCALE 100.0f
 
 #define ENABLE_SKY_LIGHT 1
 
@@ -23,8 +25,8 @@
 Texture2D ScreenSpaceReflectionsTexture;
 SamplerState ScreenSpaceReflectionsSampler;
 
-Texture2D SceneNoWaterDepthTexture;
-SamplerState SceneNoWaterDepthSampler;
+Texture2D SceneNoWaterColorAndDepthTexture;
+SamplerState SceneNoWaterColorAndDepthSampler;
 
 struct SingleLayerWaterCompositeOutput
 {
@@ -55,8 +57,9 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 #endif
 	if (ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
 	{
-		const float OpaqueDepth = ConvertFromDeviceZ(SceneNoWaterDepthTexture.SampleLevel(SceneNoWaterDepthSampler, BufferUV, 0).r);
-		const float WaterDepth = GBuffer.Depth;
+		float OpaqueDepth = SceneNoWaterColorAndDepthTexture.SampleLevel(SceneNoWaterColorAndDepthSampler, BufferUV, 0).w * SINGLE_LAYER_WATER_DEPTH_SCALE;
+		float WaterDepth = GBuffer.Depth;
+
 		float DeltaDepth = CameraIsUnderWater ? WaterDepth : OpaqueDepth - WaterDepth;	// Inverted depth
 		if (DeltaDepth > 0.0)
 		{
@@ -101,7 +104,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 			Reflection *= EnvBrdf;
 
 			// Soft fading near shor to avoid seeing triangles.
-			const float ShoreOpacity = saturate(DeltaDepth * 0.02);
+			const float ShoreOpacity = saturate(DeltaDepth * 0.02f);
 			Reflection.rgb *= ShoreOpacity;
 
 			// Apply transmittance to reflection if under water
@@ -288,12 +291,11 @@ float2 SVPositionToSourceTextureUV;
 
 void WaterRefractionCopyPS(
 	in float4 SVPosition : SV_Position,
-	out float4 OutColor : SV_Target0,
-	out float OutDepth : SV_DEPTH)
+	out float4 OutColorAndDepth : SV_Target0)
 {
 	float2 BufferUV = SVPosition.xy * SVPositionToSourceTextureUV;
 
 	// Downsample and average all 2x2 quads
-	OutColor = Texture2DSampleLevel(SceneColorCopyDownsampleTexture, SceneColorCopyDownsampleSampler, BufferUV, 0);
-	OutDepth = Texture2DSampleLevel(SceneDepthCopyDownsampleTexture, SceneDepthCopyDownsampleSampler, BufferUV, 0).r;
+	OutColorAndDepth.xyz = Texture2DSampleLevel(SceneColorCopyDownsampleTexture, SceneColorCopyDownsampleSampler, BufferUV, 0).xyz;
+	OutColorAndDepth.w = ConvertFromDeviceZ(Texture2DSampleLevel(SceneDepthCopyDownsampleTexture, SceneDepthCopyDownsampleSampler, BufferUV, 0).r) / SINGLE_LAYER_WATER_DEPTH_SCALE;
 }
