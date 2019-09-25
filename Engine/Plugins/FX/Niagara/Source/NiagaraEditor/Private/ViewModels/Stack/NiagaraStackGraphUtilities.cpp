@@ -575,14 +575,10 @@ TArray<UEdGraphPin*> FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(UNi
 	FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins, ConstantResolver);
 
 	// Find the start node for the traversal
-	UNiagaraNodeOutput* OutputNode = FunctionGraph->FindOutputNode(ENiagaraScriptUsage::Function);
+	UNiagaraNodeOutput* OutputNode = FunctionGraph->FindOutputNode(ENiagaraScriptUsage::Module);
 	if (OutputNode == nullptr)
 	{
-		OutputNode = FunctionGraph->FindOutputNode(ENiagaraScriptUsage::Module);
-	}
-	if (OutputNode == nullptr)
-	{
-		OutputNode = FunctionGraph->FindOutputNode(ENiagaraScriptUsage::DynamicInput);
+		return TArray<UEdGraphPin*>();
 	}
 
 	// Find reachable nodes
