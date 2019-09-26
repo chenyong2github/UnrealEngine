@@ -1562,7 +1562,7 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 
 		if (!bDumpProperties)
 		{
-			TGuardValue<bool> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, true);
+			TGuardValue<int32> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, 1);
 			TGuardValue<int32> GuardAllowCookedContentInEditor(GAllowCookedDataInEditorBuilds, 1);
 			TRefCountPtr<FUObjectSerializeContext> LoadContext(FUObjectThreadContext::Get().GetSerializeContext());
 			BeginLoad(LoadContext);
@@ -1588,7 +1588,7 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 			Reader = FArchiveStackTraceReader::CreateFromFile(*Filename);
 			if (Reader)
 			{
-				TGuardValue<bool> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, true);
+				TGuardValue<int32> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, 1);
 				TGuardValue<int32> GuardAllowCookedContentInEditor(GAllowCookedDataInEditorBuilds, 1);
 				UPackage* LoadedPackage = LoadPackage(Package, *Filename, LOAD_NoVerify, Reader);
 				if (LoadedPackage)
