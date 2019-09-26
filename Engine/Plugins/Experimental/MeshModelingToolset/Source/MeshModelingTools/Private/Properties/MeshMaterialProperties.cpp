@@ -77,4 +77,26 @@ void UExistingMeshMaterialProperties::SetMaterialIfChanged(UMaterialInterface* O
 }
 
 
+
+
+
+
+
+void UMeshEditingViewProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+{
+	UMeshEditingViewProperties* PropertyCache = GetPropertyCache<UMeshEditingViewProperties>();
+	PropertyCache->bShowWireframe = this->bShowWireframe;
+	PropertyCache->MaterialMode = this->MaterialMode;
+}
+
+void UMeshEditingViewProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	UMeshEditingViewProperties* PropertyCache = GetPropertyCache<UMeshEditingViewProperties>();
+	this->bShowWireframe = PropertyCache->bShowWireframe;
+	this->MaterialMode = PropertyCache->MaterialMode;
+}
+
+
+
+
 #undef LOCTEXT_NAMESPACE

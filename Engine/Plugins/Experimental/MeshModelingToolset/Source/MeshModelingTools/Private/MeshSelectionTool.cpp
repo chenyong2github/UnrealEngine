@@ -10,6 +10,7 @@
 #include "Changes/MeshChange.h"
 #include "MeshIndexUtil.h"
 #include "AssetGenerationUtil.h"
+#include "ToolSetupUtil.h"
 
 #define LOCTEXT_NAMESPACE "UMeshSelectionTool"
 
@@ -99,12 +100,12 @@ void UMeshSelectionTool::Setup()
 	PreviewMesh->EnableWireframe(true);
 
 	// set vertex color material on base component so we can see selection
-	UMaterialInterface* VertexColorMat = 
-		GetToolManager()->GetContextQueriesAPI()->GetStandardMaterial(EStandardToolContextMaterials::VertexColorMaterial);
-	if (VertexColorMat != nullptr)
+	UMaterialInterface* SelectionMat = ToolSetupUtil::GetSelectionMaterial(GetToolManager());
+	if (SelectionMat != nullptr)
 	{
-		PreviewMesh->SetMaterial(VertexColorMat);
+		PreviewMesh->SetMaterial(SelectionMat);
 	}
+	PreviewMesh->GetRootComponent()->bCastDynamicShadow = false;
 
 	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
 	SelectedVertices = TBitArray<>(false, Mesh->MaxVertexID());
@@ -163,7 +164,7 @@ void UMeshSelectionTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		TEXT("ToggleWireframe"),
 		LOCTEXT("ToggleWireframe", "Toggle Wireframe"),
 		LOCTEXT("ToggleWireframeTooltip", "Toggle visibility of wireframe overlay"),
-		EModifierKey::Control, EKeys::W,
+		EModifierKey::Alt, EKeys::W,
 		[this]() { SelectionProps->bShowWireframe = !SelectionProps->bShowWireframe; });
 }
 

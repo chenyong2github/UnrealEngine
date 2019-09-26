@@ -13,6 +13,7 @@
 #include "Drawing/ToolDataVisualizer.h"
 #include "Changes/ValueWatcher.h"
 #include "Gizmos/BrushStampIndicator.h"
+#include "Properties/MeshMaterialProperties.h"
 #include "DynamicMeshSculptTool.generated.h"
 
 
@@ -133,15 +134,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EDynamicMeshSculptBrushType::Sculpt || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptMax || PrimaryBrushType == EDynamicMeshSculptBrushType::Pinch" ))
 	bool bFreezeTarget;
 
-	/** Toggle drawing of wireframe overlay on/off */
-	UPROPERTY(EditAnywhere, Category = Sculpting)
-	bool bShowWireframe;
-
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 
 };
-
 
 
 
@@ -234,6 +230,9 @@ public:
 	UPROPERTY()
 	UBrushRemeshProperties* RemeshProperties;
 
+	UPROPERTY()
+	UMeshEditingViewProperties* ViewProperties;
+
 
 public:
 
@@ -271,6 +270,8 @@ protected:
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
 
 	TValueWatcher<bool> ShowWireframeWatcher;
+	TValueWatcher<EMeshEditingMaterialModes> MaterialModeWatcher;
+	void UpdateMaterialMode(EMeshEditingMaterialModes NewMode);
 
 
 	FInterval1d BrushRelativeSizeRange;

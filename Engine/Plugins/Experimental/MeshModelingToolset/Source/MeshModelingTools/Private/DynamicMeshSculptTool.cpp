@@ -14,6 +14,7 @@
 #include "MeshIndexUtil.h"
 #include "Drawing/MeshDebugDrawing.h"
 #include "PreviewMesh.h"
+#include "ToolSetupUtil.h"
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
@@ -46,7 +47,6 @@ UBrushSculptProperties::UBrushSculptProperties()
 	bPreserveUVFlow = false;
 	BrushDepth = 0;
 	bFreezeTarget = false;
-	bShowWireframe = false;
 }
 
 void UBrushSculptProperties::SaveProperties(UInteractiveTool* SaveFromTool)
@@ -57,7 +57,6 @@ void UBrushSculptProperties::SaveProperties(UInteractiveTool* SaveFromTool)
 	PropertyCache->PrimaryBrushType = this->PrimaryBrushType;
 	PropertyCache->bPreserveUVFlow = this->bPreserveUVFlow;
 	PropertyCache->BrushDepth = this->BrushDepth;
-	PropertyCache->bShowWireframe = this->bShowWireframe;
 }
 
 void UBrushSculptProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
@@ -68,8 +67,10 @@ void UBrushSculptProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
 	this->PrimaryBrushType = PropertyCache->PrimaryBrushType;
 	this->bPreserveUVFlow = PropertyCache->bPreserveUVFlow;
 	this->BrushDepth = PropertyCache->BrushDepth;
-	this->bShowWireframe = PropertyCache->bShowWireframe;
 }
+
+
+
 
 
 
@@ -110,7 +111,7 @@ void UDynamicMeshSculptTool::Setup()
 	DynamicMeshComponent->SetWorldTransform(ComponentTarget->GetWorldTransform());
 
 	// copy material if there is one
-	auto Material = ComponentTarget->GetMaterial(0);
+	UMaterialInterface* Material = ComponentTarget->GetMaterial(0);
 	if (Material != nullptr)
 	{
 		DynamicMeshComponent->SetMaterial(0, Material);
@@ -140,12 +141,9 @@ void UDynamicMeshSculptTool::Setup()
 	CalculateBrushRadius();
 
 	SculptProperties = NewObject<UBrushSculptProperties>(this, TEXT("Sculpting"));
-	ShowWireframeWatcher.Initialize(
-		[this]() { return SculptProperties->bShowWireframe; },
-		[this](bool bNewValue) { DynamicMeshComponent->bExplicitShowWireframe = bNewValue; }, false);
-
 	RemeshProperties = NewObject<UBrushRemeshProperties>(this, TEXT("Remeshing"));
 	InitialEdgeLength = EstimateIntialSafeTargetLength(*Mesh, 5000);
+
 
 	// hide input StaticMeshComponent
 	ComponentTarget->SetOwnerVisibility(false);
@@ -175,6 +173,17 @@ void UDynamicMeshSculptTool::Setup()
 	BrushProperties->RestoreProperties(this);
 	CalculateBrushRadius();
 	SculptProperties->RestoreProperties(this);
+
+	ViewProperties = NewObject<UMeshEditingViewProperties>();
+	ViewProperties->RestoreProperties(this);
+	AddToolPropertySource(ViewProperties);
+	ShowWireframeWatcher.Initialize(
+		[this]() { return ViewProperties->bShowWireframe; },
+		[this](bool bNewValue) { DynamicMeshComponent->bExplicitShowWireframe = bNewValue; }, false);
+	MaterialModeWatcher.Initialize(
+		[this]() { return ViewProperties->MaterialMode; },
+		[this](EMeshEditingMaterialModes NewMode) { UpdateMaterialMode(NewMode); }, EMeshEditingMaterialModes::ExistingMaterial);
+
 
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartSculptTool", "Hold Shift to Smooth, Ctrl to Invert (where applicable). Q/A keys cycle through Brush Types, Shift+Q/A for Brush History. S/D change Size (shift to small-step), W/E change Speed."),
@@ -235,6 +244,7 @@ void UDynamicMeshSculptTool::Shutdown(EToolShutdownType ShutdownType)
 
 	BrushProperties->SaveProperties(this);
 	SculptProperties->SaveProperties(this);
+	ViewProperties->SaveProperties(this);
 }
 
 
@@ -938,8 +948,6 @@ void UDynamicMeshSculptTool::Render(IToolsContextRenderAPI* RenderAPI)
 	UMeshSurfacePointTool::Render(RenderAPI);
 
 	BrushIndicator->Update( (float)this->CurrentBrushRadius, this->LastBrushPosWorld, this->LastBrushPosNormalWorld );
-
-	ShowWireframeWatcher.CheckAndUpdate();
 }
 
 
@@ -948,6 +956,9 @@ void UDynamicMeshSculptTool::Tick(float DeltaTime)
 	SCOPE_CYCLE_COUNTER(STAT_SculptToolTick);
 
 	UMeshSurfacePointTool::Tick(DeltaTime);
+
+	ShowWireframeWatcher.CheckAndUpdate();
+	MaterialModeWatcher.CheckAndUpdate();
 
 	// if user changed to not-frozen, we need to update the target
 	if (bCachedFreezeTarget != SculptProperties->bFreezeTarget)
@@ -1571,8 +1582,8 @@ void UDynamicMeshSculptTool::RegisterActions(FInteractiveToolActionSet& ActionSe
 		TEXT("ToggleWireframe"),
 		LOCTEXT("ToggleWireframe", "Toggle Wireframe"),
 		LOCTEXT("ToggleWireframeTooltip", "Toggle visibility of wireframe overlay"),
-		EModifierKey::Control, EKeys::W,
-		[this]() { SculptProperties->bShowWireframe = !SculptProperties->bShowWireframe; });
+		EModifierKey::Alt, EKeys::W,
+		[this]() { ViewProperties->bShowWireframe = !ViewProperties->bShowWireframe; });
 
 }
 
@@ -1642,6 +1653,30 @@ void UDynamicMeshSculptTool::UpdateSavedVertex(int vid, const FVector3d& OldPosi
 		UpdateSavedVertexLock.Lock();
 		ActiveVertexChange->UpdateVertex(vid, OldPosition, NewPosition);
 		UpdateSavedVertexLock.Unlock();
+	}
+}
+
+
+
+void UDynamicMeshSculptTool::UpdateMaterialMode(EMeshEditingMaterialModes MaterialMode)
+{
+	if (MaterialMode == EMeshEditingMaterialModes::ExistingMaterial)
+	{
+		UMaterialInterface* Material = ComponentTarget->GetMaterial(0);
+		if (Material != nullptr)
+		{
+			DynamicMeshComponent->SetMaterial(0, Material);
+		}
+		DynamicMeshComponent->bCastDynamicShadow = ComponentTarget->GetOwnerComponent()->bCastDynamicShadow;
+	} 
+	else if (MaterialMode == EMeshEditingMaterialModes::MeshFocusMaterial)
+	{ 
+		UMaterialInterface* Material = ToolSetupUtil::GetSculptMaterial1(GetToolManager());
+		if (Material != nullptr)
+		{
+			DynamicMeshComponent->SetMaterial(0, Material);
+		}
+		DynamicMeshComponent->bCastDynamicShadow = false;
 	}
 }
 

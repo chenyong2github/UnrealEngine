@@ -27,7 +27,7 @@ void FStandardToolModeCommands::RegisterCommands()
 	Commands.Add(EStandardToolModeCommands::DecreaseBrushSize, DecreaseBrushSize);
 
 	TSharedPtr<FUICommandInfo> ToggleWireframe;
-	UI_COMMAND(ToggleWireframe, "Toggle Wireframe", "Toggle Wireframe overlay on/off", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::W));
+	UI_COMMAND(ToggleWireframe, "Toggle Wireframe", "Toggle Wireframe overlay on/off", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt, EKeys::W));
 	Commands.Add(EStandardToolModeCommands::ToggleWireframe, ToggleWireframe);
 
 }

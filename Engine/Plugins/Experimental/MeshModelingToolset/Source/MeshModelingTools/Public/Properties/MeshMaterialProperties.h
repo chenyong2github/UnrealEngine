@@ -89,3 +89,33 @@ public:
 	void SetMaterialIfChanged(UMaterialInterface* OriginalMaterial, UMaterialInterface* CurrentMaterial, TFunctionRef<void(UMaterialInterface* Material)> SetMaterialFn);
 };
 
+
+
+
+
+
+UENUM()
+enum class EMeshEditingMaterialModes
+{
+	ExistingMaterial = 0,
+	MeshFocusMaterial = 1
+};
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UMeshEditingViewProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	/** Toggle drawing of wireframe overlay on/off [Alt+W] */
+	UPROPERTY(EditAnywhere, Category = ViewOptions)
+	bool bShowWireframe = false;
+
+	/** Set which material to use on object */
+	UPROPERTY(EditAnywhere, Category = ViewOptions)
+	EMeshEditingMaterialModes MaterialMode = EMeshEditingMaterialModes::MeshFocusMaterial;
+
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
+};

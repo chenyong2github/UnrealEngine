@@ -28,4 +28,17 @@ namespace ToolSetupUtil
 	 * @return default material to use for brush volume indicators
 	 */
 	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultBrushVolumeMaterial(UInteractiveToolManager* ToolManager);
+
+
+	/**
+	 * @return Sculpt Material 1
+	 */
+	MODELINGCOMPONENTS_API UMaterialInterface* GetSculptMaterial1(UInteractiveToolManager* ToolManager);
+
+
+	/**
+	 * @return Selection Material 1
+	 */
+	MODELINGCOMPONENTS_API UMaterialInterface* GetSelectionMaterial(UInteractiveToolManager* ToolManager);
+
 }

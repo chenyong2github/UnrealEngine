@@ -172,7 +172,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Selection)
 	bool bHitBackFaces = true;
 
-	/** Toggle drawing of wireframe overlay on/off */
+	/** Toggle drawing of wireframe overlay on/off [Alt+W] */
 	UPROPERTY(EditAnywhere, Category = Selection)
 	bool bShowWireframe = true;
 

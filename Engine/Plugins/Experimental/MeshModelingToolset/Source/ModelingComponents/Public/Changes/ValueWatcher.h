@@ -34,7 +34,7 @@ public:
 
 	void CheckAndUpdate()
 	{
-		bool CurValue = GetValueFunc();
+		ValueType CurValue = GetValueFunc();
 		if (CurValue != CachedValue)
 		{
 			CachedValue = GetValueFunc();
