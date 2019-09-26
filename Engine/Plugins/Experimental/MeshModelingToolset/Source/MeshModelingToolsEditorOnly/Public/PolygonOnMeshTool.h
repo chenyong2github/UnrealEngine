@@ -17,7 +17,8 @@
 // predeclarations
 struct FMeshDescription;
 class USimpleDynamicMeshComponent;
-
+class UTransformGizmo;
+class UTransformProxy;
 
 
 
@@ -164,11 +165,13 @@ protected:
 
 	FViewCameraState CameraState;
 
-	// plane control
 	UPROPERTY()
-	UInteractiveGizmo* PositionPlaneGizmo;
+	UTransformGizmo* PlaneTransformGizmo;
 
-	void UpdatePlaneFromGizmo(const FFrame3d& WorldPosition);
+	UPROPERTY()
+	UTransformProxy* PlaneTransformProxy;
+
+	void TransformChanged(UTransformProxy* Proxy, FTransform Transform);
 
 	void UpdateNumPreviews();
 
