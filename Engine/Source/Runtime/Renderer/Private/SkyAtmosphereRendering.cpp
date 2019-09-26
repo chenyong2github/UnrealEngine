@@ -171,11 +171,6 @@ static TAutoConsoleVariable<float> CVarSkyAtmosphereMultiScatteringLUTHighQualit
 	TEXT("The when enabled, 64 samples are used instead of 2, resulting in a more accurate multi scattering approximation (but also more expenssive).\n"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static TAutoConsoleVariable<int32> CVarSkyAtmosphereMultiScatteringLUTUseSmallFormat(
-	TEXT("r.SkyAtmosphere.MultiScatteringLUT.UseSmallFormat"), 0,
-	TEXT("If true, the multi-scattering LUT will use a small R8BG8B8A8 format to store data at lower quality."),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
-
 static TAutoConsoleVariable<float> CVarSkyAtmosphereMultiScatteringLUTWidth(
 	TEXT("r.SkyAtmosphere.MultiScatteringLUT.Width"), 32,
 	TEXT(""),
@@ -918,7 +913,6 @@ void InitSkyAtmosphereForScene(FRHICommandListImmediate& RHICmdList, FScene* Sce
 		// Initialise per scene/atmosphere resources
 		//
 		const bool TranstmittanceLUTUseSmallFormat = CVarSkyAtmosphereTransmittanceLUTUseSmallFormat.GetValueOnRenderThread() > 0;
-		const bool MultiScatteringLUTUseSmallFormat = CVarSkyAtmosphereMultiScatteringLUTUseSmallFormat.GetValueOnRenderThread() > 0;
 
 		TRefCountPtr<IPooledRenderTarget>& TransmittanceLutTexture = SkyInfo.GetTransmittanceLutTexture();
 		Desc = FPooledRenderTargetDesc::Create2DDesc(
@@ -929,7 +923,7 @@ void InitSkyAtmosphereForScene(FRHICommandListImmediate& RHICmdList, FScene* Sce
 		TRefCountPtr<IPooledRenderTarget>& MultiScatteredLuminanceLutTexture = SkyInfo.GetMultiScatteredLuminanceLutTexture();
 		Desc = FPooledRenderTargetDesc::Create2DDesc(
 			FIntPoint(MultiScatteredLuminanceLutWidth, MultiScatteredLuminanceLutHeight),
-			MultiScatteringLUTUseSmallFormat ? TextureLUTSmallFormat : TextureLUTFormat, FClearValueBinding::None, TexCreate_HideInVisualizeTexture, TexCreate_ShaderResource | TexCreate_UAV, false);
+			TextureLUTFormat, FClearValueBinding::None, TexCreate_HideInVisualizeTexture, TexCreate_ShaderResource | TexCreate_UAV, false);
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, MultiScatteredLuminanceLutTexture, TEXT("MultiScatteredLuminanceLutTexture"), true, ERenderTargetTransience::Transient);
 
 		if (CVarSkyAtmosphereDistantSkyLightLUT.GetValueOnRenderThread() > 0)
