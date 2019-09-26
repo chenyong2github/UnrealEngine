@@ -456,20 +456,10 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 		// We check which module inputs are not used so we can later remove them from the compilation of the
 		// parameter map that sets the input values for our function. This is mainly done to prevent data interfaces being
 		// initialized as parameter when they are not used in the function or module.
-		TArray<const UEdGraphPin*> OutInputPins;
-		TSet<const UEdGraphPin*> HiddenPins;
 		TSet<FName> HiddenPinNames;
-		//FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*this, OutInputPins, HiddenPins, FCompileConstantResolver(Translator));
-		// The above line of code isn't threadsafe as it builds a parameter map history live. This does things like load the asset registry module
-		// and  there are some static finds as well. We need to re-implement that using straight graph traversal logic.
-		for (const UEdGraphPin* Pin : HiddenPins)
+		for (UEdGraphPin* Pin : FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(*this, FCompileConstantResolver(Translator)))
 		{
-			FString PinNameString = Pin->PinName.ToString();
-			if (PinNameString.RemoveFromStart(TEXT("Module.")))
-			{
-				PinNameString = FunctionScript->GetFName().ToString() + TEXT(".") + PinNameString;
-				HiddenPinNames.Add(FName(*PinNameString));
-			}
+			HiddenPinNames.Add(Pin->PinName);
 		}
 		Translator->EnterFunctionCallNode(HiddenPinNames);
 
