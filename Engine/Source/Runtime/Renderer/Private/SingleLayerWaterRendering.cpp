@@ -116,6 +116,7 @@ bool ShouldRenderSingleLayerWaterSkippedRenderEditorNotification(const TArray<FV
 
 bool ShouldCompileTiledShadersForPlatform(EShaderPlatform ShaderPlatform)
 {
+	// Temporary disable tiled water shaders until compilation issues are resolved.
 	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5) && RHISupportsDrawIndirect(ShaderPlatform)
 		&& !IsSwitchPlatform(ShaderPlatform) && !IsVulkanPlatform(ShaderPlatform); // Switch does not use tiling and Vulkan gives error with WaterTileCatergorisationCS usage of atomic.
 }
