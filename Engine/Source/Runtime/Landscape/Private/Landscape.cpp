@@ -1936,6 +1936,14 @@ void ALandscapeProxy::PreSave(const class ITargetPlatform* TargetPlatform)
 	{
 		bHasLandscapeGrass = LandscapeComponents.ContainsByPredicate([](ULandscapeComponent* Component) { return Component->MaterialHasGrass(); });
 	}
+
+	if (ALandscape* Landscape = GetLandscapeActor())
+	{
+		for (ULandscapeComponent* LandscapeComponent : LandscapeComponents)
+		{
+			Landscape->ClearDirtyData(LandscapeComponent);
+		}
+	}
 #endif
 }
 
