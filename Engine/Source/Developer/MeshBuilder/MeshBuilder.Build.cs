@@ -17,7 +17,6 @@ namespace UnrealBuildTool.Rules
                     "RenderCore",
                     "MeshDescription",
 					"StaticMeshDescription",
-                    "RenderCore",
                     "MeshDescriptionOperations",
                     "MeshReductionInterface",
                     "RawMesh",
@@ -26,18 +25,11 @@ namespace UnrealBuildTool.Rules
                     "ClothingSystemRuntimeNv",
                     "MeshBoneReduction",
                     "SkeletalMeshUtilitiesCommon",
+					"MeshBuilderCommon",
                 }
 			);
 
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "nvTriStrip");
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "ForsythTriOptimizer");
-	        AddEngineThirdPartyPrivateStaticDependencies(Target, "nvTessLib");
             AddEngineThirdPartyPrivateStaticDependencies(Target, "QuadricMeshReduction");
-
-			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
-			{
-				PublicSystemLibraries.Add("stdc++");	// can be fixed, see UE-70769
-			}
        }
 	}
 }

@@ -33,7 +33,7 @@ public class MeshUtilities : ModuleRules
 				"PropertyEditor",
 				"EditorStyle",
                 "GraphColor",
-                "MeshBuilder",
+                "MeshBuilderCommon",
                 "MeshUtilitiesCommon",
                 "MeshDescription",
 				"StaticMeshDescription",
