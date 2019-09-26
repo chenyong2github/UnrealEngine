@@ -46,5 +46,23 @@ private:
 
 	/** Returns true if only one sound is selected to play */
 	bool CanExecutePlayCommand(TArray<TWeakObjectPtr<USoundBase>> Objects) const;
+
+	/** Handler for Mute is selected  */
+	void ExecuteMuteSound(TArray<TWeakObjectPtr<USoundBase>> Objects) const;
+	
+	/** Handler for Solo is selected  */
+	void ExecuteSoloSound(TArray<TWeakObjectPtr<USoundBase>> Objects) const;
+
+	/** Returns true if the mute state is set.  */
+	bool IsActionCheckedMute(TArray<TWeakObjectPtr<USoundBase>> Objects) const;
+
+	/** Returns true if the solo state is set.  */
+	bool IsActionCheckedSolo(TArray<TWeakObjectPtr<USoundBase>> Objects) const;
+
+	/** Returns true if its possible to mute a sound */
+	bool CanExecuteMuteCommand(TArray<TWeakObjectPtr<USoundBase>> Objects) const;
+	
+	/** Returns true if its possible to solo a sound */
+	bool CanExecuteSoloCommand(TArray<TWeakObjectPtr<USoundBase>> Objects) const;
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

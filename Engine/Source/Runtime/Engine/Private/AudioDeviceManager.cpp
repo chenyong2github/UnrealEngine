@@ -80,12 +80,17 @@ FAudioDeviceManager::FAudioDeviceManager()
 	, bOnlyToggleAudioMixerOnce(false)
 	, bToggledAudioMixer(false)
 {
+
+#if ENABLE_AUDIO_DEBUG
+
 	// Check for a command line debug sound argument.
 	FString DebugSound;
 	if (FParse::Value(FCommandLine::Get(), TEXT("DebugSound="), DebugSound))
 	{
-		SetAudioDebugSound(*DebugSound);
+		GetDebugger().SetAudioDebugSound(*DebugSound);
 	}
+
+#endif //ENABLE_AUDIO_DEBUG
 }
 
 FAudioDeviceManager::~FAudioDeviceManager()
@@ -994,101 +999,6 @@ void FAudioDeviceManager::ToggleVisualize3dDebug()
 
 	GetDebugger().ToggleVisualizeDebug3dEnabled();
 #endif // ENABLE_AUDIO_DEBUG
-}
-
-void FAudioDeviceManager::SetDebugSoloSoundClass(const TCHAR* SoundClassName)
-{
-	if (!IsInAudioThread())
-	{
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetDebugSoloSoundClass"), STAT_SetDebugSoloSoundClass, STATGROUP_AudioThreadCommands);
-
-		FAudioDeviceManager* AudioDeviceManager = this;
-		FAudioThread::RunCommandOnAudioThread([AudioDeviceManager, SoundClassName]()
-		{
-			AudioDeviceManager->SetDebugSoloSoundClass(SoundClassName);
-
-		}, GET_STATID(STAT_SetDebugSoloSoundClass));
-		return;
-	}
-
-	DebugNames.DebugSoloSoundClass = SoundClassName;
-}
-
-const FString& FAudioDeviceManager::GetDebugSoloSoundClass() const
-{
-	return DebugNames.DebugSoloSoundClass;
-}
-
-void FAudioDeviceManager::SetDebugSoloSoundWave(const TCHAR* SoundWave)
-{
-	if (!IsInAudioThread())
-	{
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetDebugSoloSoundWave"), STAT_SetDebugSoloSoundWave, STATGROUP_AudioThreadCommands);
-
-		FAudioDeviceManager* AudioDeviceManager = this;
-		FAudioThread::RunCommandOnAudioThread([AudioDeviceManager, SoundWave]()
-		{
-			AudioDeviceManager->SetDebugSoloSoundWave(SoundWave);
-
-		}, GET_STATID(STAT_SetDebugSoloSoundWave));
-		return;
-	}
-
-	DebugNames.DebugSoloSoundWave = SoundWave;
-}
-
-const FString& FAudioDeviceManager::GetDebugSoloSoundWave() const
-{
-	return DebugNames.DebugSoloSoundWave;
-}
-
-void FAudioDeviceManager::SetDebugSoloSoundCue(const TCHAR* SoundCue)
-{
-	if (!IsInAudioThread())
-	{
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetDebugSoloSoundCue"), STAT_SetDebugSoloSoundCue, STATGROUP_AudioThreadCommands);
-
-		FAudioDeviceManager* AudioDeviceManager = this;
-		FAudioThread::RunCommandOnAudioThread([AudioDeviceManager, SoundCue]()
-		{
-			AudioDeviceManager->SetDebugSoloSoundCue(SoundCue);
-
-		}, GET_STATID(STAT_SetDebugSoloSoundCue));
-		return;
-	}
-
-	DebugNames.DebugSoloSoundCue = SoundCue;
-}
-
-const FString& FAudioDeviceManager::GetDebugSoloSoundCue() const
-{
-	return DebugNames.DebugSoloSoundCue;
-}
-
-void FAudioDeviceManager::SetAudioMixerDebugSound(const TCHAR* SoundName)
-{
-	DebugNames.DebugAudioMixerSoundName = SoundName;
-}
-
-void FAudioDeviceManager::SetAudioDebugSound(const TCHAR* SoundName)
-{
-	DebugNames.DebugSoundName = SoundName;
-	DebugNames.bDebugSoundName = DebugNames.DebugSoundName != TEXT("");
-}
-
-const FString& FAudioDeviceManager::GetAudioMixerDebugSoundName() const
-{
-	return DebugNames.DebugAudioMixerSoundName;
-}
-
-bool FAudioDeviceManager::GetAudioDebugSound(FString& OutDebugSound)
-{
-	if (DebugNames.bDebugSoundName)
-	{
-		OutDebugSound = DebugNames.DebugSoundName;
-		return true;
-	}
-	return false;
 }
 
 float FAudioDeviceManager::GetDynamicSoundVolume(ESoundType SoundType, const FName& SoundName) const

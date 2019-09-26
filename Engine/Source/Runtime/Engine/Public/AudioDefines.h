@@ -49,3 +49,7 @@
 #define MIN_FILTER_BANDWIDTH			0.1f
 #define MAX_FILTER_BANDWIDTH			2.0f
 
+/**
+ * Debugger is Available on non-shipping builds
+ */
+#define ENABLE_AUDIO_DEBUG !UE_BUILD_SHIPPING
