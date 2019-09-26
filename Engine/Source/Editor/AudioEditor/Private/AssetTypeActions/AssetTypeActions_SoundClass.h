@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Toolkits/IToolkitHost.h"
 #include "AssetTypeActions_Base.h"
+#include "Sound/SoundClass.h"
 
 class FAssetTypeActions_SoundClass : public FAssetTypeActions_Base
 {
