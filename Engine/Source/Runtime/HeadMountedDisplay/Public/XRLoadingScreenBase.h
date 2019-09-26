@@ -5,7 +5,7 @@
 #include "IXRLoadingScreen.h"
 #include "TickableObjectRenderThread.h"
 #include "XRThreadUtils.h"
-
+#include "IXRTrackingSystem.h"
 
 /**
 * Base utility class for implementations of the IXRLoadingScreen interface
