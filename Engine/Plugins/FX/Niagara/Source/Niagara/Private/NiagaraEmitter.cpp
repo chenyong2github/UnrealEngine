@@ -110,6 +110,7 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 , MaxUpdateIterations(1)
 , bLimitDeltaTime(true)
 #if WITH_EDITORONLY_DATA
+, bBakeOutRapidIteration(true)
 , ThumbnailImageOutOfDate(true)
 #endif
 {
