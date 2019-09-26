@@ -176,16 +176,45 @@ void FD3D12FramePacing::PrePresentQueued(ID3D12CommandQueue* Queue)
 }
 #endif //WITH_MGPU
 
+// TODO: Move this bool into D3D12Viewport.h where it belongs. It's here because it was added as a hotfix for 4.23 and we don't want to touch public headers.
+// Whether to create swap chain and use swap chain's back buffer surface,
+// or don't create swap chain and create an off-screen back buffer surface.
+// Currently used for pixel streaming plugin "windowless" mode to run in the cloud without on screen display.
+bool bNeedSwapChain = true;
+
 /**
  * Creates a FD3D12Surface to represent a swap chain's back buffer.
  */
-FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFormat, IDXGISwapChain* SwapChain, uint32 BackBufferIndex)
+FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFormat, uint32 SizeX, uint32 SizeY, IDXGISwapChain* SwapChain, uint32 BackBufferIndex)
 {
 	FD3D12Adapter* Adapter = Parent->GetParentAdapter();
 
 	// Grab the back buffer
 	TRefCountPtr<ID3D12Resource> BackBufferResource;
-	VERIFYD3D12RESULT_EX(SwapChain->GetBuffer(BackBufferIndex, IID_PPV_ARGS(BackBufferResource.GetInitReference())), Parent->GetDevice());
+	if (SwapChain)
+	{
+		VERIFYD3D12RESULT_EX(SwapChain->GetBuffer(BackBufferIndex, IID_PPV_ARGS(BackBufferResource.GetInitReference())), Parent->GetDevice());
+	}
+	else
+	{
+		const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, (uint32)Parent->GetGPUIndex(), (uint32)Parent->GetGPUMask());
+
+		// Create custom back buffer texture as no swap chain is created in pixel streaming windowless mode
+		D3D12_RESOURCE_DESC TextureDesc;
+		TextureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		TextureDesc.Alignment = 0;
+		TextureDesc.Width  = SizeX;
+		TextureDesc.Height = SizeY;
+		TextureDesc.DepthOrArraySize = 1;
+		TextureDesc.MipLevels = 1;
+		TextureDesc.Format = GetRenderTargetFormat(PixelFormat);
+		TextureDesc.SampleDesc.Count = 1;
+		TextureDesc.SampleDesc.Quality = 0;
+		TextureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		TextureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+		Parent->GetDevice()->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_PRESENT, nullptr, IID_PPV_ARGS(BackBufferResource.GetInitReference()));
+	}
 
 	D3D12_RESOURCE_DESC BackBufferDesc = BackBufferResource->GetDesc();
 
@@ -432,12 +461,15 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		check(SizeX > 0);
 		check(SizeY > 0);
 
-		if (bInIsFullscreen)
+		if (bNeedSwapChain)
 		{
-			const DXGI_MODE_DESC BufferDesc = SetupDXGI_MODE_DESC();
-			if (FAILED(SwapChain1->ResizeTarget(&BufferDesc)))
+			if (bInIsFullscreen)
 			{
-				ConditionalResetSwapChain(true);
+				const DXGI_MODE_DESC BufferDesc = SetupDXGI_MODE_DESC();
+				if (FAILED(SwapChain1->ResizeTarget(&BufferDesc)))
+				{
+					ConditionalResetSwapChain(true);
+				}
 			}
 		}
 	}
@@ -447,9 +479,12 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		bIsFullscreen = bInIsFullscreen;
 		bIsValid = false;
 
-		// Use ConditionalResetSwapChain to call SetFullscreenState, to handle the failure case.
-		// Ignore the viewport's focus state; since Resize is called as the result of a user action we assume authority without waiting for Focus.
-		ConditionalResetSwapChain(true);
+		if (bNeedSwapChain)
+		{
+			// Use ConditionalResetSwapChain to call SetFullscreenState, to handle the failure case.
+			// Ignore the viewport's focus state; since Resize is called as the result of a user action we assume authority without waiting for Focus.
+			ConditionalResetSwapChain(true);
+		}
 	}
 
 	ResizeInternal();
