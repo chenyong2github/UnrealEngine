@@ -10,7 +10,6 @@
 #if WITH_EDITORONLY_DATA
 void FMovieSceneEvent::PostSerialize(const FArchive& Ar)
 {
-
 	UK2Node_FunctionEntry* FunctionEntry = Cast<UK2Node_FunctionEntry>(FunctionEntry_DEPRECATED.Get());
 	if (FunctionEntry)
 	{
@@ -21,6 +20,5 @@ void FMovieSceneEvent::PostSerialize(const FArchive& Ar)
 		}
 		GraphGuid = FunctionEntry->GetGraph()->GraphGuid;
 	}
-
-#endif
 }
+#endif
