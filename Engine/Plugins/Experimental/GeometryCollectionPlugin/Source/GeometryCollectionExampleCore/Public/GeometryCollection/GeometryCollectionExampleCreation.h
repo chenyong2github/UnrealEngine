@@ -6,45 +6,45 @@
 namespace GeometryCollectionExample
 {	
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API CheckIncrementMask(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API CheckIncrementMask();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Creation(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Creation();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API AppendTransformHierarchy(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API AppendTransformHierarchy();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API ContiguousElementsTest(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API ContiguousElementsTest();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API DeleteFromEnd(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API DeleteFromEnd();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API DeleteFromStart(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API DeleteFromStart();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API DeleteFromMiddle(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API DeleteFromMiddle();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API DeleteBranch(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API DeleteBranch();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API DeleteRootLeafMiddle(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API DeleteRootLeafMiddle();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API DeleteEverything(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API DeleteEverything();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API ParentTransformTest(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API ParentTransformTest();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API ReindexMaterialsTest(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API ReindexMaterialsTest();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API AttributeTransferTest(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API AttributeTransferTest();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API AttributeDependencyTest(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API AttributeDependencyTest();
 
 }

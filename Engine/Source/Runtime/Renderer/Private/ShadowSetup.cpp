@@ -514,6 +514,7 @@ FProjectedShadowInfo::FProjectedShadowInfo()
 	, bSelfShadowOnly(false)
 	, bPerObjectOpaqueShadow(false)
 	, bTransmission(false)
+	, bHairStrandsDeepShadow(false)
 	, LightSceneInfo(0)
 	, ParentSceneInfo(0)
 	, NumDynamicSubjectMeshElements(0)
@@ -554,6 +555,7 @@ bool FProjectedShadowInfo::SetupPerObjectProjection(
 	bPreShadow = bInPreShadow;
 	bSelfShadowOnly = InParentSceneInfo->Proxy->CastsSelfShadowOnly();
 	bTransmission = InLightSceneInfo->Proxy->Transmission();
+	bHairStrandsDeepShadow = InLightSceneInfo->Proxy->CastsHairStrandsDeepShadow();
 
 	check(!bRayTracedDistanceField);
 
@@ -675,6 +677,7 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 	bRayTracedDistanceField = Initializer.bRayTracedDistanceField;
 	bWholeSceneShadow = true;
 	bTransmission = InLightSceneInfo->Proxy->Transmission();
+	bHairStrandsDeepShadow = InLightSceneInfo->Proxy->CastsHairStrandsDeepShadow();
 	bReflectiveShadowmap = bInReflectiveShadowMap; 
 	BorderSize = InBorderSize;
 

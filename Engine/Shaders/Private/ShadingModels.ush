@@ -9,6 +9,10 @@
 #include "RectLight.ush"
 #include "TransmissionCommon.ush"
 
+#ifndef HAIR_CUSTOM_BSDF
+#define HAIR_CUSTOM_BSDF 0
+#endif
+
 #if 0
 void StandardShadingShared( float3 DiffuseColor, float3 SpecularColor, float Roughness, float3 V, half3 N )
 {
@@ -47,6 +51,45 @@ void StandardShadingPerLight( Shared, float3 L, float3 V, half3 N )
 }
 #endif
 
+struct FHairTransmittanceData
+{
+	// Average front/back scattering for a given L, V, T (tangent)
+	float3 Transmittance;
+	float3 A_front;			
+	float3 A_back;			
+
+	float OpaqueVisibility;
+	float HairCount;
+	float MultipleScattering;
+
+
+	// TEMP: for fastning iteration times
+	float3 LocalScattering;
+	float3 GlobalScattering;
+
+	uint3 ScatteringComponent; // R TT TRT
+	bool  Enable;
+};
+
+FHairTransmittanceData InitHairTransmittanceData()
+{
+	FHairTransmittanceData o;
+	o.Transmittance = 1;
+	o.A_front = 1;			
+	o.A_back = 1;			
+	o.OpaqueVisibility = 1;
+	o.HairCount = 0;
+	o.MultipleScattering = 0;
+	o.Enable = false;
+	
+	// TEMP: for fastning iteration times
+	o.LocalScattering = 0;
+	o.GlobalScattering = 1;
+	o.ScatteringComponent = 1;
+
+	return o;
+}
+
 struct FAreaLight
 {
 	float		SphereSinAlpha;
@@ -65,6 +108,7 @@ struct FShadowTerms
 	float	SurfaceShadow;
 	float	TransmissionShadow;
 	float	TransmissionThickness;
+	FHairTransmittanceData HairTransmittance;
 };
 
 float New_a2( float a2, float SinAlpha, float VoH )
@@ -441,17 +485,25 @@ FDirectLighting ClothBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, floa
 	return Lighting;
 }
 
+#if HAIR_CUSTOM_BSDF == 0
 float Hair_g( float B, float Theta )
 {
 	return exp( -0.5 * Pow2( Theta ) / (B*B) ) / ( sqrt(2*PI) * B );
 }
+#else
+float Hair_g( float B, float Theta );
+#endif
 
+#if HAIR_CUSTOM_BSDF == 0
 float Hair_F( float CosTheta )
 {
 	const float n = 1.55;
 	const float F0 = Pow2( (1 - n) / (1 + n) );
 	return F0 + (1 - F0) * Pow5( 1 - CosTheta );
 }
+#else
+float Hair_F( float CosTheta );
+#endif
 
 #define HAIR_REFERENCE	0
 #if HAIR_REFERENCE
@@ -679,10 +731,19 @@ float3 KajiyaKayDiffuseAttenuation(FGBufferData GBuffer, float3 L, float3 V, hal
 	return sqrt(GBuffer.BaseColor) * DiffuseScatter * ScatterTint;
 }
 
+float3 EvaluateHairMultipleScattering(
+	const FHairTransmittanceData TransmittanceData,
+	const float Roughness,
+	const float3 Fs)
+{
+	return TransmittanceData.GlobalScattering * (Fs + TransmittanceData.LocalScattering) * TransmittanceData.OpaqueVisibility;
+}
+
 // Approximation to HairShadingRef using concepts from the following papers:
 // [Marschner et al. 2003, "Light Scattering from Human Hair Fibers"]
 // [Pekelis et al. 2015, "A Data-Driven Light Scattering Model for Hair"]
-float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Shadow, float Backlit, float Area, uint2 Random, bool bEvalMultiScatter )
+#if HAIR_CUSTOM_BSDF == 0
+float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Shadow, FHairTransmittanceData HairTransmittance, float Backlit, float Area, uint2 Random, bool bEvalMultiScatter)
 {
 	// to prevent NaN with decals
 	// OR-18489 HERO: IGGY: RMB on E ability causes blinding hair effect
@@ -733,7 +794,7 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	float3 S = 0;
 
 	// R
-	if(1)
+	if(HairTransmittance.ScatteringComponent.x > 0)
 	{
 		const float sa = sin( Alpha[0] );
 		const float ca = cos( Alpha[0] );
@@ -746,7 +807,7 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	}
 
 	// TT
-	if(1)
+	if(HairTransmittance.ScatteringComponent.y > 0)
 	{
 		float Mp = Hair_g( B[1], SinThetaL + SinThetaV - Alpha[1] );
 
@@ -776,7 +837,7 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	}
 
 	// TRT
-	if(1)
+	if(HairTransmittance.ScatteringComponent.z > 0)
 	{
 		float Mp = Hair_g( B[2], SinThetaL + SinThetaV - Alpha[2] );
 		
@@ -794,13 +855,17 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	}
 #endif
 
-	if (bEvalMultiScatter)
+	if (!HairTransmittance.Enable && bEvalMultiScatter)
 	{
 		S += KajiyaKayDiffuseAttenuation(GBuffer, L, V, N, Shadow);
 	}
 
 	S = -min(-S, 0.0);
 
+	if (HairTransmittance.Enable && HairTransmittance.MultipleScattering > 0)
+	{
+		S = EvaluateHairMultipleScattering(HairTransmittance, ClampedRoughness, S);
+	}
 	return S;
 }
 
@@ -810,9 +875,14 @@ FDirectLighting HairBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, float
 	Lighting.Diffuse = 0;
 	Lighting.Specular = 0;
 	bool bEvalMultiScatter = true;
-	Lighting.Transmission = AreaLight.FalloffColor * Falloff * HairShading( GBuffer, L, V, N, Shadow.TransmissionShadow, 1, 0, uint2(0,0), bEvalMultiScatter );
+	Lighting.Transmission = AreaLight.FalloffColor * Falloff * HairShading( GBuffer, L, V, N, Shadow.TransmissionShadow, Shadow.HairTransmittance, 1, 0, uint2(0,0), bEvalMultiScatter);
 	return Lighting;
 }
+
+#else
+float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Shadow, FHairTransmittanceData HairTransmittance, float Backlit, float Area, uint2 Random, bool bEvalMultiScatter);
+FDirectLighting HairBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, float Falloff, float NoL, FAreaLight AreaLight, FShadowTerms Shadow );
+#endif
 
 FDirectLighting SubsurfaceBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, float Falloff, float NoL, FAreaLight AreaLight, FShadowTerms Shadow )
 {

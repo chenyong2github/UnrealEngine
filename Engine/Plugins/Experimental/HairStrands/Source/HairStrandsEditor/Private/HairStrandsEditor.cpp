@@ -1,19 +1,30 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "HairStrandsEditor.h"
-#include "HairStrandsActions.h"
+#include "GroomActions.h"
+
+#include "FbxHairTranslator.h"
+#include "HairFormatTranslator.h"
+#include "PbrtHairTranslator.h"
+
+IMPLEMENT_MODULE(FHairStrandsEditor, HairStrandsEditor);
 
 void FHairStrandsEditor::StartupModule()
 {
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	TSharedRef<IAssetTypeActions> AssetActions = MakeShareable(new FHairStrandsActions());
+	TSharedRef<IAssetTypeActions> AssetActions = MakeShareable(new FGroomActions());
 
 	AssetTools.RegisterAssetTypeActions(AssetActions);
 	RegisteredAssetTypeActions.Add(AssetActions);
+
+	RegisterHairTranslator<FFbxHairTranslator>();
+	RegisterHairTranslator<FHairFormatTranslator>();
+	RegisterHairTranslator<FPbrtHairTranslator>();
 }
 
 void FHairStrandsEditor::ShutdownModule()
 {
+	// #ueent_todo: Unregister the translators
 	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
 
 	if (AssetToolsModule != nullptr)
@@ -27,3 +38,13 @@ void FHairStrandsEditor::ShutdownModule()
 	}
 }
 
+TArray<TSharedPtr<IHairStrandsTranslator>> FHairStrandsEditor::GetHairTranslators()
+{
+	TArray<TSharedPtr<IHairStrandsTranslator>> Translators;
+	for (TFunction<TSharedPtr<IHairStrandsTranslator>()>& SpawnTranslator : TranslatorSpawners)
+	{
+		Translators.Add(SpawnTranslator());
+	}
+
+	return Translators;
+}

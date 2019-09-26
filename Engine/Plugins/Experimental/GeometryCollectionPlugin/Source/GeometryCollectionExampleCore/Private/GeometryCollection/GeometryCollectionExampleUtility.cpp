@@ -7,10 +7,14 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
+#include "GeometryCollection/GeometryCollectionSimulationCoreTypes.h"
 
 #include "PBDRigidsSolver.h"
 #include "PhysicsProxy/PhysicsProxies.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "../Resource/FracturedGeometry.h"
+
+#include "Chaos/ErrorReporter.h"
 
 
 namespace GeometryCollectionExample {
@@ -213,5 +217,95 @@ namespace GeometryCollectionExample {
 		return RestCollection;
 	}
 
-}
+	template<class T>
+	void InitMaterialToZero(TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> const &PhysicalMaterial)
+	{
+		PhysicalMaterial->Friction = 0;
+		PhysicalMaterial->Restitution = 0;
+		PhysicalMaterial->SleepingLinearThreshold = 0;
+		PhysicalMaterial->SleepingAngularThreshold = 0;
+		PhysicalMaterial->DisabledLinearThreshold = 0;
+		PhysicalMaterial->DisabledAngularThreshold = 0;
+	}
+	template void InitMaterialToZero(TUniquePtr<Chaos::TChaosPhysicsMaterial<float>> const &PhysicalMaterial);
+
+
+	template<class T>
+	void InitCollections(
+		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> &PhysicalMaterial,
+		TSharedPtr<FGeometryCollection>& RestCollection,
+		TSharedPtr<FGeometryDynamicCollection>& DynamicCollection,
+		InitCollectionsParameters& InitParams
+	)
+	{
+		// Allow for customized initialization of these objects in the calling function. 
+		if (PhysicalMaterial == nullptr)
+		{
+			PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+			InitMaterialToZero(PhysicalMaterial);
+		}
+
+		if (RestCollection == nullptr)
+		{
+			//Default initialization is a cube of the specified center and size. 
+			RestCollection = GeometryCollection::MakeCubeElement(InitParams.RestCenter, InitParams.RestScale);
+			if (InitParams.RestInitFunc != nullptr)
+			{
+				InitParams.RestInitFunc(RestCollection);
+			}
+		}
+
+		if (DynamicCollection == nullptr)
+		{
+			DynamicCollection = GeometryCollectionToGeometryDynamicCollection(RestCollection.Get(), InitParams.DynamicStateDefault);
+		}
+	}
+	template void InitCollections(
+		TUniquePtr<Chaos::TChaosPhysicsMaterial<float>> &PhysicalMaterial,
+		TSharedPtr<FGeometryCollection>& RestCollection,
+		TSharedPtr<FGeometryDynamicCollection>& DynamicCollection,
+		InitCollectionsParameters& InitParams
+	);
+
+	template<class T>
+	FGeometryCollectionPhysicsProxy* RigidBodySetup(
+		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> &PhysicalMaterial,
+		TSharedPtr<FGeometryCollection>& RestCollection,
+		TSharedPtr<FGeometryDynamicCollection>& DynamicCollection,
+		FInitFunc CustomFunc
+	)
+	{
+#if INCLUDE_CHAOS
+		auto InitFunc = [&RestCollection, &DynamicCollection, &PhysicalMaterial, &CustomFunc](FSimulationParameters& InParams)
+		{
+			InParams.RestCollection = RestCollection.Get();
+			InParams.DynamicCollection = DynamicCollection.Get();
+			InParams.PhysicalMaterial = MakeSerializable(PhysicalMaterial);
+			InParams.Shared.SizeSpecificData[0].CollisionType = ECollisionTypeEnum::Chaos_Volumetric;
+
+			if (CustomFunc != nullptr)
+			{
+				CustomFunc(InParams);
+			}
+
+			InParams.Simulating = true;
+			Chaos::FErrorReporter ErrorReporter;
+			BuildSimulationData(ErrorReporter, *RestCollection, InParams.Shared);
+		};
+
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
+		PhysObject->Initialize();
+		return PhysObject;
+#else
+		return nullptr;
+#endif
+	}
+	template FGeometryCollectionPhysicsProxy* RigidBodySetup(
+		TUniquePtr<Chaos::TChaosPhysicsMaterial<float>> & PhysicalMaterial,
+		TSharedPtr<FGeometryCollection>& RestCollection,
+		TSharedPtr<FGeometryDynamicCollection>& DynamicCollection,
+		FInitFunc CustomFunc
+	);
+
+} // end namespace GeometryCollectionExample
 

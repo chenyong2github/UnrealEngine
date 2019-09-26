@@ -94,6 +94,40 @@ namespace Chaos
 			return MakePair(TVector<T, 3>(0), false);
 		}
 
+		virtual int32 FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDist) const override
+		{
+			//todo: use hill climbing
+			int32 MostOpposingIdx = INDEX_NONE;
+			T MostOpposingDot = TNumericLimits<T>::Max();
+			int32 Idx = 0;
+			for (const TPlane<T, d>& Plane : Planes)
+			{
+				const T Distance = Plane.SignedDistance(Position);
+				if (FMath::Abs(Distance) < SearchDist)
+				{
+					const T Dot = TVector<T, d>::DotProduct(Plane.Normal(), UnitDir);
+					if (Dot < MostOpposingDot)
+					{
+						MostOpposingDot = Dot;
+						MostOpposingIdx = Idx;
+					}
+				}
+				++Idx;
+			}
+			ensure(MostOpposingIdx != INDEX_NONE);
+			return MostOpposingIdx;
+		}
+
+		TVector<T, d> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T, d>& OriginalNormal) const
+		{
+			if (ensure(FaceIndex != INDEX_NONE))
+			{
+				const TPlane<float, 3>& OpposingFace = GetFaces()[FaceIndex];
+				return OpposingFace.Normal();
+			}
+			return FVector(0, 0, 1);
+		}
+
 		virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const override
 		{
 			T MaxDot = TNumericLimits<T>::Lowest();
@@ -122,6 +156,11 @@ namespace Chaos
 		const TParticles<T, d>& GetSurfaceParticles() const
 		{
 			return SurfaceParticles;
+		}
+
+		const TArray<TPlane<T, d>>& GetFaces() const
+		{
+			return Planes;
 		}
 
 		virtual uint32 GetTypeHash() const override

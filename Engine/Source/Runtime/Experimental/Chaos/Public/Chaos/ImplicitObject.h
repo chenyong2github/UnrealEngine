@@ -161,11 +161,25 @@ public:
 		@param Position - local position to search around (for example an edge of a convex hull)
 		@param UnitDir - the direction we want to oppose (for example a ray moving into the edge of a convex hull would get the face with the most negative dot(FaceNormal, UnitDir)
 		@param HintFaceIndex - for certain geometry we can use this to accelerate the search.
+		@return Index of the most opposing face
 	*/
-	virtual int32 FindMostOpposingFace(const TVector<T, d>& Position, const TVector<T, d>& UnitDir, int32 HintFaceIndex) const
+	virtual int32 FindMostOpposingFace(const TVector<T, d>& Position, const TVector<T, d>& UnitDir, int32 HintFaceIndex, T SearchDist) const
 	{
 		//Many objects have no concept of a face
 		return INDEX_NONE;
+	}
+
+	/** Given a normal and a face index, compute the most opposing normal associated with the underlying geometry features.
+		For example a sphere swept against a box may not give a normal associated with one of the box faces. This function will return a normal associated with one of the faces.
+		@param DenormDir - the direction we want to oppose
+		@param FaceIndex - the face index associated with the geometry (for example if we hit a specific face of a convex hull)
+		@param OriginalNormal - the original normal given by something like a sphere sweep
+		@return The most opposing normal associated with the underlying geometry's feature (like a face)
+	*/
+	virtual TVector<T,d> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T,d>& OriginalNormal) const
+	{
+		//Many objects have no concept of a face
+		return OriginalNormal;
 	}
 
 	//This gives derived types a way to do an overlap check without calling PhiWithNormal todo: this api is confusing

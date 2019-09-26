@@ -112,7 +112,7 @@ void RayTracingFinalGatherRGS()
 		half3 V = -CameraDirection;
 		half3 L = normalize(GPPosition - WorldPosition);
 		float NoL = saturate(dot(N, L));
-		FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0 };
+		FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0, InitHairTransmittanceData() };
 		FDirectLighting LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
 		float3 RayThroughput = LightingSample.Diffuse / DiffuseColor;
 		float RayPdf = NoL / PI;

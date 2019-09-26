@@ -85,7 +85,8 @@ public:
 				ScreenSize, 
 				bSupportsCachingMeshDrawCommands,
 				bUseSkyMaterial,
-				bUseSingleLayerWaterMaterial
+				bUseSingleLayerWaterMaterial,
+				FeatureLevel
 			);
 		}
 	}

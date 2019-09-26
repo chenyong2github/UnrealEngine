@@ -2,6 +2,8 @@
 
 #include "HairStrandsCore.h"
 
+IMPLEMENT_MODULE(FHairStrandsCore, HairStrandsCore);
+
 void FHairStrandsCore::StartupModule()
 {
 }

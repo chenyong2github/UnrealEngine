@@ -1,0 +1,14 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+class UClothingAsset;
+
+// Base clothing actor just needs a link back to its parent asset, everything else defined by derived simulation
+class FClothingActorBase
+{
+public:
+
+	// Link back to parent asset
+	UClothingAsset* AssetCreatedFrom;
+};

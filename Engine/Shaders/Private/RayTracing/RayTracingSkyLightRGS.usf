@@ -34,7 +34,7 @@ float3 EvalSkyLight(float3 Direction)
 [shader("raygeneration")]
 void SkyLightRGS()
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
+	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy;
 	uint LinearIndex = CalcLinearIndex(PixelCoord);
 
 	// Get G-Buffer surface data
@@ -182,13 +182,14 @@ void SkyLightRGS()
 				float Area = 0.0;
 				uint2 Random = 0;
 				bool bEvalMultiScatter = false;
-				LightingSample.Diffuse = HairShading(GBufferData, L, V, N, Shadow, Backlit, Area, Random, bEvalMultiScatter);
+				FHairTransmittanceData HairTransmittance = InitHairTransmittanceData();
+				LightingSample.Diffuse = HairShading(GBufferData, L, V, N, Shadow, HairTransmittance, Backlit, Area, Random, bEvalMultiScatter);
 				LightingSample.Transmission = 0;
 				LightingSample.Specular = 0;
 			}
 			else
 			{
-				FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0 };
+				FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0, InitHairTransmittanceData() };
 				LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
 			}
 			float3 Brdf = LightingSample.Diffuse + LightingSample.Transmission + LightingSample.Specular;

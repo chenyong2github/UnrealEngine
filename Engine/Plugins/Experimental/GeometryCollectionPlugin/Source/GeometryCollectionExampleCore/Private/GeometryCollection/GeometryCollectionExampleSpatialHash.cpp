@@ -1014,7 +1014,7 @@ namespace GeometryCollectionExample
 	};
 
 	template<class T>
-	bool GetClosestPointsTest1(ExampleResponse&& R)
+	void GetClosestPointsTest1()
 	{
 		TSpatialHash<float> SpatialHash(Particles_1000, 18.f);
 		// TSpatialHash<T>::Init() Time is 0.000123
@@ -1024,22 +1024,22 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints = SpatialHash.GetClosestPoints(Particle_LookUp, 122.0);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000096
 
-		R.ExpectTrue(ClosestPoints.Num() == 7);
+		EXPECT_EQ(ClosestPoints.Num(), 7);
 
 		TSet<int32> CPSet(ClosestPoints);
-		R.ExpectTrue(CPSet.Contains(767));
-		R.ExpectTrue(CPSet.Contains(499));
-		R.ExpectTrue(CPSet.Contains(412));
-		R.ExpectTrue(CPSet.Contains(754));
-		R.ExpectTrue(CPSet.Contains(898));
-		R.ExpectTrue(CPSet.Contains(55));
-		R.ExpectTrue(CPSet.Contains(802));
+		EXPECT_TRUE(CPSet.Contains(767));
+		EXPECT_TRUE(CPSet.Contains(499));
+		EXPECT_TRUE(CPSet.Contains(412));
+		EXPECT_TRUE(CPSet.Contains(754));
+		EXPECT_TRUE(CPSet.Contains(898));
+		EXPECT_TRUE(CPSet.Contains(55));
+		EXPECT_TRUE(CPSet.Contains(802));
 
-		R.ExpectTrue(!CPSet.Contains(800));
-		R.ExpectTrue(!CPSet.Contains(700));
-		R.ExpectTrue(!CPSet.Contains(1));
-		R.ExpectTrue(!CPSet.Contains(900));
-		R.ExpectTrue(!CPSet.Contains(498));
+		EXPECT_FALSE(CPSet.Contains(800));
+		EXPECT_FALSE(CPSet.Contains(700));
+		EXPECT_FALSE(CPSet.Contains(1));
+		EXPECT_FALSE(CPSet.Contains(900));
+		EXPECT_FALSE(CPSet.Contains(498));
 
 		// ----------------------------------------------------------
 
@@ -1049,35 +1049,35 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints1 = SpatialHash.GetClosestPoints(Particle_LookUp1, 199.0);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000121
 
-		R.ExpectTrue(ClosestPoints1.Num() == 24);
+		EXPECT_EQ(ClosestPoints1.Num(), 24);
 
 		TSet<int32> CPSet1(ClosestPoints1);
-		R.ExpectTrue(CPSet1.Contains(402));
-		R.ExpectTrue(CPSet1.Contains(53));
-		R.ExpectTrue(CPSet1.Contains(862));
-		R.ExpectTrue(CPSet1.Contains(403));
-		R.ExpectTrue(CPSet1.Contains(21));
-		R.ExpectTrue(CPSet1.Contains(844));
-		R.ExpectTrue(CPSet1.Contains(952));
-		R.ExpectTrue(CPSet1.Contains(612));
-		R.ExpectTrue(CPSet1.Contains(908));
-		R.ExpectTrue(CPSet1.Contains(531));
-		R.ExpectTrue(CPSet1.Contains(353));
-		R.ExpectTrue(CPSet1.Contains(915));
-		R.ExpectTrue(CPSet1.Contains(270));
-		R.ExpectTrue(CPSet1.Contains(867));
-		R.ExpectTrue(CPSet1.Contains(551));
-		R.ExpectTrue(CPSet1.Contains(101));
-		R.ExpectTrue(CPSet1.Contains(244));
-		R.ExpectTrue(CPSet1.Contains(399));
-		R.ExpectTrue(CPSet1.Contains(854));
-		R.ExpectTrue(CPSet1.Contains(498));
-		R.ExpectTrue(CPSet1.Contains(462));
-		R.ExpectTrue(CPSet1.Contains(139));
-		R.ExpectTrue(CPSet1.Contains(464));
-		R.ExpectTrue(CPSet1.Contains(963));
+		EXPECT_TRUE(CPSet1.Contains(402));
+		EXPECT_TRUE(CPSet1.Contains(53));
+		EXPECT_TRUE(CPSet1.Contains(862));
+		EXPECT_TRUE(CPSet1.Contains(403));
+		EXPECT_TRUE(CPSet1.Contains(21));
+		EXPECT_TRUE(CPSet1.Contains(844));
+		EXPECT_TRUE(CPSet1.Contains(952));
+		EXPECT_TRUE(CPSet1.Contains(612));
+		EXPECT_TRUE(CPSet1.Contains(908));
+		EXPECT_TRUE(CPSet1.Contains(531));
+		EXPECT_TRUE(CPSet1.Contains(353));
+		EXPECT_TRUE(CPSet1.Contains(915));
+		EXPECT_TRUE(CPSet1.Contains(270));
+		EXPECT_TRUE(CPSet1.Contains(867));
+		EXPECT_TRUE(CPSet1.Contains(551));
+		EXPECT_TRUE(CPSet1.Contains(101));
+		EXPECT_TRUE(CPSet1.Contains(244));
+		EXPECT_TRUE(CPSet1.Contains(399));
+		EXPECT_TRUE(CPSet1.Contains(854));
+		EXPECT_TRUE(CPSet1.Contains(498));
+		EXPECT_TRUE(CPSet1.Contains(462));
+		EXPECT_TRUE(CPSet1.Contains(139));
+		EXPECT_TRUE(CPSet1.Contains(464));
+		EXPECT_TRUE(CPSet1.Contains(963));
 
-		R.ExpectTrue(!CPSet1.Contains(1));
+		EXPECT_FALSE(CPSet1.Contains(1));
 
 		// ----------------------------------------------------------
 
@@ -1087,12 +1087,12 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints2 = SpatialHash.GetClosestPoints(Particle_LookUp2, 52.0);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000008
 
-		R.ExpectTrue(ClosestPoints2.Num() == 1);
+		EXPECT_EQ(ClosestPoints2.Num(), 1);
 
 		TSet<int32> CPSet2(ClosestPoints2);
-		R.ExpectTrue(CPSet2.Contains(238));
+		EXPECT_TRUE(CPSet2.Contains(238));
 
-		R.ExpectTrue(!CPSet2.Contains(403));
+		EXPECT_FALSE(CPSet2.Contains(403));
 
 		// ----------------------------------------------------------
 
@@ -1102,23 +1102,21 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints3 = SpatialHash.GetClosestPoints(Particle_LookUp3, 122.0);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000035
 
-		R.ExpectTrue(ClosestPoints3.Num() == 5);
+		EXPECT_EQ(ClosestPoints3.Num(), 5);
 
 		TSet<int32> CPSet3(ClosestPoints3);
-		R.ExpectTrue(CPSet3.Contains(229));
-		R.ExpectTrue(CPSet3.Contains(78));
-		R.ExpectTrue(CPSet3.Contains(379));
-		R.ExpectTrue(CPSet3.Contains(843));
-		R.ExpectTrue(CPSet3.Contains(700));
+		EXPECT_TRUE(CPSet3.Contains(229));
+		EXPECT_TRUE(CPSet3.Contains(78));
+		EXPECT_TRUE(CPSet3.Contains(379));
+		EXPECT_TRUE(CPSet3.Contains(843));
+		EXPECT_TRUE(CPSet3.Contains(700));
 
-		R.ExpectTrue(!CPSet3.Contains(1));
-
-		return !R.HasError();
+		EXPECT_FALSE(CPSet3.Contains(1));
 	}
-	template bool GetClosestPointsTest1<float>(ExampleResponse&& R);
+	template void GetClosestPointsTest1<float>();
 
 	template<class T>
-	bool GetClosestPointsTest2(ExampleResponse&& R)
+	void GetClosestPointsTest2()
 	{
 		TSpatialHash<float> SpatialHash(Particles_1000);
 		// TSpatialHash<T>::Init() Time is 0.000080
@@ -1128,19 +1126,19 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints = SpatialHash.GetClosestPoints(Particle_LookUp, 122.0);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000039
 
-		R.ExpectTrue(ClosestPoints.Num() == 7);
+		EXPECT_EQ(ClosestPoints.Num(), 7);
 
 		TSet<int32> CPSet(ClosestPoints);
-		R.ExpectTrue(CPSet.Contains(767));
-		R.ExpectTrue(CPSet.Contains(499));
-		R.ExpectTrue(CPSet.Contains(412));
-		R.ExpectTrue(CPSet.Contains(754));
-		R.ExpectTrue(CPSet.Contains(898));
-		R.ExpectTrue(CPSet.Contains(55));
-		R.ExpectTrue(CPSet.Contains(802));
+		EXPECT_TRUE(CPSet.Contains(767));
+		EXPECT_TRUE(CPSet.Contains(499));
+		EXPECT_TRUE(CPSet.Contains(412));
+		EXPECT_TRUE(CPSet.Contains(754));
+		EXPECT_TRUE(CPSet.Contains(898));
+		EXPECT_TRUE(CPSet.Contains(55));
+		EXPECT_TRUE(CPSet.Contains(802));
 
-		R.ExpectTrue(!CPSet.Contains(900));
-		R.ExpectTrue(!CPSet.Contains(498));
+		EXPECT_FALSE(CPSet.Contains(900));
+		EXPECT_FALSE(CPSet.Contains(498));
 
 		// ----------------------------------------------------------
 
@@ -1150,35 +1148,35 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints1 = SpatialHash.GetClosestPoints(Particle_LookUp1, 199.0);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000046
 
-		R.ExpectTrue(ClosestPoints1.Num() == 24);
+		EXPECT_EQ(ClosestPoints1.Num(), 24);
 
 		TSet<int32> CPSet1(ClosestPoints1);
-		R.ExpectTrue(CPSet1.Contains(402));
-		R.ExpectTrue(CPSet1.Contains(53));
-		R.ExpectTrue(CPSet1.Contains(862));
-		R.ExpectTrue(CPSet1.Contains(403));
-		R.ExpectTrue(CPSet1.Contains(21));
-		R.ExpectTrue(CPSet1.Contains(844));
-		R.ExpectTrue(CPSet1.Contains(952));
-		R.ExpectTrue(CPSet1.Contains(612));
-		R.ExpectTrue(CPSet1.Contains(908));
-		R.ExpectTrue(CPSet1.Contains(531));
-		R.ExpectTrue(CPSet1.Contains(353));
-		R.ExpectTrue(CPSet1.Contains(915));
-		R.ExpectTrue(CPSet1.Contains(270));
-		R.ExpectTrue(CPSet1.Contains(867));
-		R.ExpectTrue(CPSet1.Contains(551));
-		R.ExpectTrue(CPSet1.Contains(101));
-		R.ExpectTrue(CPSet1.Contains(244));
-		R.ExpectTrue(CPSet1.Contains(399));
-		R.ExpectTrue(CPSet1.Contains(854));
-		R.ExpectTrue(CPSet1.Contains(498));
-		R.ExpectTrue(CPSet1.Contains(462));
-		R.ExpectTrue(CPSet1.Contains(139));
-		R.ExpectTrue(CPSet1.Contains(464));
-		R.ExpectTrue(CPSet1.Contains(963));
+		EXPECT_TRUE(CPSet1.Contains(402));
+		EXPECT_TRUE(CPSet1.Contains(53));
+		EXPECT_TRUE(CPSet1.Contains(862));
+		EXPECT_TRUE(CPSet1.Contains(403));
+		EXPECT_TRUE(CPSet1.Contains(21));
+		EXPECT_TRUE(CPSet1.Contains(844));
+		EXPECT_TRUE(CPSet1.Contains(952));
+		EXPECT_TRUE(CPSet1.Contains(612));
+		EXPECT_TRUE(CPSet1.Contains(908));
+		EXPECT_TRUE(CPSet1.Contains(531));
+		EXPECT_TRUE(CPSet1.Contains(353));
+		EXPECT_TRUE(CPSet1.Contains(915));
+		EXPECT_TRUE(CPSet1.Contains(270));
+		EXPECT_TRUE(CPSet1.Contains(867));
+		EXPECT_TRUE(CPSet1.Contains(551));
+		EXPECT_TRUE(CPSet1.Contains(101));
+		EXPECT_TRUE(CPSet1.Contains(244));
+		EXPECT_TRUE(CPSet1.Contains(399));
+		EXPECT_TRUE(CPSet1.Contains(854));
+		EXPECT_TRUE(CPSet1.Contains(498));
+		EXPECT_TRUE(CPSet1.Contains(462));
+		EXPECT_TRUE(CPSet1.Contains(139));
+		EXPECT_TRUE(CPSet1.Contains(464));
+		EXPECT_TRUE(CPSet1.Contains(963));
 
-		R.ExpectTrue(!CPSet1.Contains(1));
+		EXPECT_FALSE(CPSet1.Contains(1));
 
 		// ----------------------------------------------------------
 
@@ -1188,12 +1186,12 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints2 = SpatialHash.GetClosestPoints(Particle_LookUp2, 52.0);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000003
 
-		R.ExpectTrue(ClosestPoints2.Num() == 1);
+		EXPECT_EQ(ClosestPoints2.Num(), 1);
 
 		TSet<int32> CPSet2(ClosestPoints2);
-		R.ExpectTrue(CPSet2.Contains(238));
+		EXPECT_TRUE(CPSet2.Contains(238));
 
-		R.ExpectTrue(!CPSet2.Contains(403));
+		EXPECT_FALSE(CPSet2.Contains(403));
 
 		// ----------------------------------------------------------
 
@@ -1203,24 +1201,22 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints3 = SpatialHash.GetClosestPoints(Particle_LookUp3, 122.0);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000020
 
-		R.ExpectTrue(ClosestPoints3.Num() == 5);
+		EXPECT_EQ(ClosestPoints3.Num(), 5);
 
 		TSet<int32> CPSet3(ClosestPoints3);
-		R.ExpectTrue(CPSet3.Contains(229));
-		R.ExpectTrue(CPSet3.Contains(78));
-		R.ExpectTrue(CPSet3.Contains(379));
-		R.ExpectTrue(CPSet3.Contains(843));
-		R.ExpectTrue(CPSet3.Contains(700));
+		EXPECT_TRUE(CPSet3.Contains(229));
+		EXPECT_TRUE(CPSet3.Contains(78));
+		EXPECT_TRUE(CPSet3.Contains(379));
+		EXPECT_TRUE(CPSet3.Contains(843));
+		EXPECT_TRUE(CPSet3.Contains(700));
 
-		R.ExpectTrue(!CPSet3.Contains(1));
-
-		return !R.HasError();
+		EXPECT_FALSE(CPSet3.Contains(1));
 
 	}
-	template bool GetClosestPointsTest2<float>(ExampleResponse&& R);
+	template void GetClosestPointsTest2<float>();
 
 	template<class T>
-	bool GetClosestPointsTest3(ExampleResponse&& R)
+	void GetClosestPointsTest3()
 	{
 		TSpatialHash<float> SpatialHash(Particles_1000);
 		// TSpatialHash<T>::Init() Time is 0.000080
@@ -1230,15 +1226,15 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints = SpatialHash.GetClosestPoints(Particle_LookUp, 122.0, 12);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000050
 
-		R.ExpectTrue(ClosestPoints.Num() == 7);
+		EXPECT_EQ(ClosestPoints.Num(), 7);
 
-		R.ExpectTrue(ClosestPoints[0] == 767);
-		R.ExpectTrue(ClosestPoints[1] == 499);
-		R.ExpectTrue(ClosestPoints[2] == 412);
-		R.ExpectTrue(ClosestPoints[3] == 754);
-		R.ExpectTrue(ClosestPoints[4] == 898);
-		R.ExpectTrue(ClosestPoints[5] == 55);
-		R.ExpectTrue(ClosestPoints[6] == 802);
+		EXPECT_EQ(ClosestPoints[0], 767);
+		EXPECT_EQ(ClosestPoints[1], 499);
+		EXPECT_EQ(ClosestPoints[2], 412);
+		EXPECT_EQ(ClosestPoints[3], 754);
+		EXPECT_EQ(ClosestPoints[4], 898);
+		EXPECT_EQ(ClosestPoints[5], 55);
+		EXPECT_EQ(ClosestPoints[6], 802);
 
 		// ----------------------------------------------------------
 
@@ -1248,28 +1244,28 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints1 = SpatialHash.GetClosestPoints(Particle_LookUp1, 199.0, 20);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000065
 
-		R.ExpectTrue(ClosestPoints1.Num() == 20);
+		EXPECT_EQ(ClosestPoints1.Num(), 20);
 
-		R.ExpectTrue(ClosestPoints1[0] == 402);
-		R.ExpectTrue(ClosestPoints1[1] == 53);
-		R.ExpectTrue(ClosestPoints1[2] == 862);
-		R.ExpectTrue(ClosestPoints1[3] == 403);
-		R.ExpectTrue(ClosestPoints1[4] == 21);
-		R.ExpectTrue(ClosestPoints1[5] == 844);
-		R.ExpectTrue(ClosestPoints1[6] == 952);
-		R.ExpectTrue(ClosestPoints1[7] == 612);
-		R.ExpectTrue(ClosestPoints1[8] == 908);
-		R.ExpectTrue(ClosestPoints1[9] == 531);
-		R.ExpectTrue(ClosestPoints1[10] == 353);
-		R.ExpectTrue(ClosestPoints1[11] == 915);
-		R.ExpectTrue(ClosestPoints1[12] == 270);
-		R.ExpectTrue(ClosestPoints1[13] == 867);
-		R.ExpectTrue(ClosestPoints1[14] == 551);
-		R.ExpectTrue(ClosestPoints1[15] == 101);
-		R.ExpectTrue(ClosestPoints1[16] == 244);
-		R.ExpectTrue(ClosestPoints1[17] == 399);
-		R.ExpectTrue(ClosestPoints1[18] == 854);
-		R.ExpectTrue(ClosestPoints1[19] == 498);
+		EXPECT_EQ(ClosestPoints1[0], 402);
+		EXPECT_EQ(ClosestPoints1[1], 53);
+		EXPECT_EQ(ClosestPoints1[2], 862);
+		EXPECT_EQ(ClosestPoints1[3], 403);
+		EXPECT_EQ(ClosestPoints1[4], 21);
+		EXPECT_EQ(ClosestPoints1[5], 844);
+		EXPECT_EQ(ClosestPoints1[6], 952);
+		EXPECT_EQ(ClosestPoints1[7], 612);
+		EXPECT_EQ(ClosestPoints1[8], 908);
+		EXPECT_EQ(ClosestPoints1[9], 531);
+		EXPECT_EQ(ClosestPoints1[10], 353);
+		EXPECT_EQ(ClosestPoints1[11], 915);
+		EXPECT_EQ(ClosestPoints1[12], 270);
+		EXPECT_EQ(ClosestPoints1[13], 867);
+		EXPECT_EQ(ClosestPoints1[14], 551);
+		EXPECT_EQ(ClosestPoints1[15], 101);
+		EXPECT_EQ(ClosestPoints1[16], 244);
+		EXPECT_EQ(ClosestPoints1[17], 399);
+		EXPECT_EQ(ClosestPoints1[18], 854);
+		EXPECT_EQ(ClosestPoints1[19], 498);
 
 		// ----------------------------------------------------------
 
@@ -1279,13 +1275,13 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints2 = SpatialHash.GetClosestPoints(Particle_LookUp2, 200.0, 5);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000048
 
-		R.ExpectTrue(ClosestPoints2.Num() == 5);
+		EXPECT_EQ(ClosestPoints2.Num(), 5);
 
-		R.ExpectTrue(ClosestPoints2[0] == 238);
-		R.ExpectTrue(ClosestPoints2[1] == 807);
-		R.ExpectTrue(ClosestPoints2[2] == 149);
-		R.ExpectTrue(ClosestPoints2[3] == 284);
-		R.ExpectTrue(ClosestPoints2[4] == 245);
+		EXPECT_EQ(ClosestPoints2[0], 238);
+		EXPECT_EQ(ClosestPoints2[1], 807);
+		EXPECT_EQ(ClosestPoints2[2], 149);
+		EXPECT_EQ(ClosestPoints2[3], 284);
+		EXPECT_EQ(ClosestPoints2[4], 245);
 
 		// ----------------------------------------------------------
 
@@ -1295,13 +1291,13 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints3 = SpatialHash.GetClosestPoints(Particle_LookUp3, 122.0, 12);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000024
 
-		R.ExpectTrue(ClosestPoints3.Num() == 5);
+		EXPECT_EQ(ClosestPoints3.Num(), 5);
 
-		R.ExpectTrue(ClosestPoints3[0] == 229);
-		R.ExpectTrue(ClosestPoints3[1] == 78);
-		R.ExpectTrue(ClosestPoints3[2] == 379);
-		R.ExpectTrue(ClosestPoints3[3] == 843);
-		R.ExpectTrue(ClosestPoints3[4] == 700);
+		EXPECT_EQ(ClosestPoints3[0], 229);
+		EXPECT_EQ(ClosestPoints3[1], 78);
+		EXPECT_EQ(ClosestPoints3[2], 379);
+		EXPECT_EQ(ClosestPoints3[3], 843);
+		EXPECT_EQ(ClosestPoints3[4], 700);
 
 		// ----------------------------------------------------------
 
@@ -1311,7 +1307,7 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints4 = SpatialHash.GetClosestPoints(Particle_LookUp4, 250.0, 100000);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000147
 
-		R.ExpectTrue(ClosestPoints4.Num() == 63);
+		EXPECT_EQ(ClosestPoints4.Num(), 63);
 
 		// ----------------------------------------------------------
 
@@ -1321,15 +1317,13 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints5 = SpatialHash.GetClosestPoints(Particle_LookUp5, 1250.0, 100000);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000782
 
-		R.ExpectTrue(ClosestPoints5.Num() == 1000);
-
-		return !R.HasError();
+		EXPECT_EQ(ClosestPoints5.Num(), 1000);
 
 	}
-	template bool GetClosestPointsTest3<float>(ExampleResponse&& R);
+	template void GetClosestPointsTest3<float>();
 
 	template<class T>
-	bool GetClosestPointTest(ExampleResponse&& R)
+	void GetClosestPointTest()
 	{
 		TSpatialHash<float> SpatialHash(Particles_1000);
 		// TSpatialHash<T>::Init() Time is 0.000087
@@ -1339,7 +1333,7 @@ namespace GeometryCollectionExample
 		int32 ClosestPoint = SpatialHash.GetClosestPoint(Particle_LookUp);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
 
-		R.ExpectTrue(ClosestPoint == 568);
+		EXPECT_EQ(ClosestPoint, 568);
 
 		// ----------------------------------------------------------
 
@@ -1349,7 +1343,7 @@ namespace GeometryCollectionExample
 		int32 ClosestPoint1 = SpatialHash.GetClosestPoint(Particle_LookUp1);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
 
-		R.ExpectTrue(ClosestPoint1 == 854);
+		EXPECT_EQ(ClosestPoint1, 854);
 
 		// ----------------------------------------------------------
 
@@ -1359,7 +1353,7 @@ namespace GeometryCollectionExample
 		int32 ClosestPoint2 = SpatialHash.GetClosestPoint(Particle_LookUp2);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
 
-		R.ExpectTrue(ClosestPoint2 == 500);
+		EXPECT_EQ(ClosestPoint2, 500);
 
 		// ----------------------------------------------------------
 
@@ -1368,7 +1362,7 @@ namespace GeometryCollectionExample
 		int32 ClosestPoint3 = SpatialHash.GetClosestPoint(Particle_LookUp3);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
 
-		R.ExpectTrue(ClosestPoint3 == 161);
+		EXPECT_EQ(ClosestPoint3, 161);
 
 		// ----------------------------------------------------------
 
@@ -1377,15 +1371,13 @@ namespace GeometryCollectionExample
 		int32 ClosestPoint4 = SpatialHash.GetClosestPoint(Particle_LookUp4);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
 
-		R.ExpectTrue(ClosestPoint4 == 431);
-
-		return !R.HasError();
+		EXPECT_EQ(ClosestPoint4, 431);
 
 	}
-	template bool GetClosestPointTest<float>(ExampleResponse&& R);
+	template void GetClosestPointTest<float>();
 
 	template<class T>
-	bool HashTableUpdateTest(ExampleResponse&& R)
+	void HashTableUpdateTest()
 	{
 		TSpatialHash<float> SpatialHash(Particles_1000);
 		// TSpatialHash<T>::Init() Time is 0.000087
@@ -1394,13 +1386,13 @@ namespace GeometryCollectionExample
 		int32 ClosestPoint = SpatialHash.GetClosestPoint(Particle_LookUp);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
 
-		R.ExpectTrue(ClosestPoint == 568);
+		EXPECT_EQ(ClosestPoint, 568);
 
 		SpatialHash.Update(15.0);
 		int32 ClosestPoint1 = SpatialHash.GetClosestPoint(Particle_LookUp);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
 
-		R.ExpectTrue(ClosestPoint1 == 568);
+		EXPECT_EQ(ClosestPoint1, 568);
 
 		// ----------------------------------------------------------
 
@@ -1411,33 +1403,31 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints2 = SpatialHash2.GetClosestPoints(Particle_LookUp2, 122.0, 12);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000024
 
-		R.ExpectTrue(ClosestPoints2.Num() == 5);
+		EXPECT_EQ(ClosestPoints2.Num(), 5);
 
-		R.ExpectTrue(ClosestPoints2[0] == 229);
-		R.ExpectTrue(ClosestPoints2[1] == 78);
-		R.ExpectTrue(ClosestPoints2[2] == 379);
-		R.ExpectTrue(ClosestPoints2[3] == 843);
-		R.ExpectTrue(ClosestPoints2[4] == 700);
+		EXPECT_EQ(ClosestPoints2[0], 229);
+		EXPECT_EQ(ClosestPoints2[1], 78);
+		EXPECT_EQ(ClosestPoints2[2], 379);
+		EXPECT_EQ(ClosestPoints2[3], 843);
+		EXPECT_EQ(ClosestPoints2[4], 700);
 
 		SpatialHash2.Update(35.0);
 		TArray<int32> ClosestPoints3 = SpatialHash2.GetClosestPoints(Particle_LookUp2, 122.0, 12);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
 
-		R.ExpectTrue(ClosestPoints3.Num() == 5);
+		EXPECT_EQ(ClosestPoints3.Num(), 5);
 
-		R.ExpectTrue(ClosestPoints3[0] == 229);
-		R.ExpectTrue(ClosestPoints3[1] == 78);
-		R.ExpectTrue(ClosestPoints3[2] == 379);
-		R.ExpectTrue(ClosestPoints3[3] == 843);
-		R.ExpectTrue(ClosestPoints3[4] == 700);
-
-		return !R.HasError();
+		EXPECT_EQ(ClosestPoints3[0], 229);
+		EXPECT_EQ(ClosestPoints3[1], 78);
+		EXPECT_EQ(ClosestPoints3[2], 379);
+		EXPECT_EQ(ClosestPoints3[3], 843);
+		EXPECT_EQ(ClosestPoints3[4], 700);
 
 	}
-	template bool HashTableUpdateTest<float>(ExampleResponse&& R);
+	template void HashTableUpdateTest<float>();
 
 	template<class T>
-	bool HashTablePressureTest(ExampleResponse&& R)
+	void HashTablePressureTest()
 	{
 		const int32 NUM_PARTICLES = 1000000;
 		const float BOUNDARY_MIN = -1000.0;
@@ -1458,12 +1448,10 @@ namespace GeometryCollectionExample
 		TArray<int32> ClosestPoints2 = SpatialHash.GetClosestPoints(Particle_LookUp, 500.0);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.043953
 
-		R.ExpectTrue(ClosestPoints.Num() == 150);
-
-		return !R.HasError();
+		EXPECT_EQ(ClosestPoints.Num(), 150);
 
 	}
-	template bool HashTablePressureTest<float>(ExampleResponse&& R);
+	template void HashTablePressureTest<float>();
 
 }
 
