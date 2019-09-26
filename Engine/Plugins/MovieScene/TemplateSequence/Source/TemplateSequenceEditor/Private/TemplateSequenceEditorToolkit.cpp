@@ -209,7 +209,7 @@ FText FTemplateSequenceEditorToolkit::GetBoundActorClassName() const
 	return BoundActorClass ? BoundActorClass->GetDisplayNameText() : FText::FromName(NAME_None);
 }
 
-TSharedRef<SWidget> FTemplateSequenceEditorToolkit::GetBoundActorClassMenuContent() const
+TSharedRef<SWidget> FTemplateSequenceEditorToolkit::GetBoundActorClassMenuContent()
 {
 	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
 

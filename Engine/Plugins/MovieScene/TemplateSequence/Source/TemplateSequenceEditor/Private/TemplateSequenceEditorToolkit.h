@@ -69,7 +69,7 @@ private:
 
 	void ExtendSequencerToolbar(FToolBarBuilder& ToolbarBuilder);
 	FText GetBoundActorClassName() const;
-	TSharedRef<SWidget> GetBoundActorClassMenuContent() const;
+	TSharedRef<SWidget> GetBoundActorClassMenuContent();
 	void OnBoundActorClassPicked(UClass* ChosenClass);
 
 	TSharedRef<FExtender> HandleMenuExtensibilityGetExtender(const TSharedRef<FUICommandList> CommandList, const TArray<UObject*> ContextSensitiveObjects);
