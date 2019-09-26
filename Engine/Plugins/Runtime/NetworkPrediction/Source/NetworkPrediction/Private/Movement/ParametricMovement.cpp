@@ -3,6 +3,7 @@
 #include "Movement/ParametricMovement.h"
 #include "NetworkSimulationModelDebugger.h"
 #include "HAL/IConsoleManager.h"
+#include "NetworkSimulationGlobalManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogParametricMovement, Log, All);
 
@@ -25,6 +26,10 @@ static int32 SimulatedProxyBufferSize = 4;
 static FAutoConsoleVariableRef CVarSimulatedProxyBufferSize(TEXT("parametricmover.SimulatedProxyBufferSize"),
 	DrawDebugDefaultLifeTime, TEXT(""), ECVF_Default);
 
+static int32 FixStep = 0;
+static FAutoConsoleVariableRef CVarFixStepMS(TEXT("parametricmover.FixStep"),
+	DrawDebugDefaultLifeTime, TEXT("If > 0, will use fix step"), ECVF_Default);
+
 }
 
 // -------------------------------------------------------------------------------------------------------------------------------
@@ -33,10 +38,12 @@ static FAutoConsoleVariableRef CVarSimulatedProxyBufferSize(TEXT("parametricmove
 
 namespace ParametricMovement
 {
-	void FMovementSystem::Update(IMovementDriver* Driver, const TSimTime& SimeTimeDeltaMS, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
+	const FName FMovementSimulation::GroupName(TEXT("Parametric"));
+
+	void FMovementSimulation::Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
 	{
 		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
-		const float DeltaSeconds = SimeTimeDeltaMS.ToRealTimeSeconds();
+		//const float DeltaSeconds = SimTimeDeltaMS.ToRealTimeSeconds();
 
 		// Advance parametric time. This won't always be linear: we could loop, rewind/bounce, etc
 		const float InputPlayRate = InputCmd.PlayRate.Get(InputState.PlayRate); // Returns InputCmds playrate if set, else returns previous state's playrate		
@@ -45,13 +52,13 @@ namespace ParametricMovement
 		// We have our time that we should be at. We just need to move primitive component to that position.
 		// Again, note that we expect this cannot fail. We move like this so that it can push things, but we don't expect failure.
 		// (I think it would need to be a different simulation that supports this as a failure case. The tricky thing would be working out
-		// the ouput Position in the case where a Move is blocked (E.g, you move 50% towards the desired location)
+		// the output Position in the case where a Move is blocked (E.g, you move 50% towards the desired location)
 
 		FTransform StartingTransform;
-		Driver->SetTransformForPosition(InputState.Position, StartingTransform);
+		Driver->MapTimeToTransform(InputState.Position, StartingTransform);
 
 		FTransform NewTransform;
-		Driver->SetTransformForPosition(OutputState.Position, NewTransform);
+		Driver->MapTimeToTransform(OutputState.Position, NewTransform);
 
 		FHitResult Hit(1.f);
 
@@ -66,21 +73,16 @@ namespace ParametricMovement
 		}
 	}
 
-	void FMoveState::VisualLog(const FVisualLoggingParameters& Parameters, IParametricMovementDriver* Driver, IParametricMovementDriver* LogDriver) const
+	void FMoveState::VisualLog(const FVisualLoggingParameters& Parameters, IMovementDriver* Driver, IMovementDriver* LogDriver) const
 	{
 		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
 		IBaseMovementDriver& LogMovementDriver = LogDriver->GetBaseMovementDriver();
 
 		FTransform Transform;
-		Driver->SetTransformForPosition(Position, Transform);
+		Driver->MapTimeToTransform(Position, Transform);
 
-		IBaseMovementDriver::FDrawDebugParams DrawParams;
-		DrawParams.DebugWorld = LogMovementDriver.GetDriverWorld();
-		DrawParams.DebugLogOwner = LogMovementDriver.GetVLogOwner();
+		IBaseMovementDriver::FDrawDebugParams DrawParams(Parameters, &LogMovementDriver);
 		DrawParams.Transform = Transform;
-		DrawParams.DrawType = (Parameters.Context == EVisualLoggingContext::OtherMispredicted || Parameters.Context == EVisualLoggingContext::OtherPredicted) ? EVisualLoggingDrawType::Crumb : EVisualLoggingDrawType::Full;
-		DrawParams.Lifetime = Parameters.Lifetime;
-		DrawParams.DrawColor = Parameters.GetDebugColor();
 		DrawParams.InWorldText = LexToString(Parameters.Keyframe);
 		DrawParams.LogText = FString::Printf(TEXT("[%d] %s. Position: %.4f. Location: %s. Rotation: %s"), Parameters.Keyframe, *LexToString(Parameters.Context), Position, *Transform.GetLocation().ToString(), *Transform.GetRotation().Rotator().ToString());
 
@@ -98,27 +100,25 @@ UParametricMovementComponent::UParametricMovementComponent()
 
 }
 
-IReplicationProxy* UParametricMovementComponent::InstantiateNetworkSimulation()
+INetworkSimulationModel* UParametricMovementComponent::InstantiateNetworkSimulation()
 {
-	NetworkSim.Reset(new ParametricMovement::FMovementSystem());
-
-#if NETSIM_MODEL_DEBUG
-	FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NetworkSim.Get(), (IParametricMovementDriver*)this, GetOwner(), TEXT("ParametricMovement"));
-#endif
-
-	if (bEnableInterpolation)
+	if (bDisableParametricMovementSimulation)
 	{
-		NetworkInterpolator.Reset(new TNetworkSimulationModelInterpolator<ParametricMovement::FMovementSystem, IParametricMovementDriver>(NetworkSim.Get(), (IParametricMovementDriver*)this));
-		NetworkSim->RepProxy_Simulated.bAllowSimulatedExtrapolation = false;
+		return nullptr;
 	}
 
-	return NetworkSim.Get();
-}
-
-void UParametricMovementComponent::InitializeForNetworkRole(ENetRole Role)
-{	
-	check(NetworkSim);
-	NetworkSim->InitializeForNetworkRole(Role, GetSimulationInitParameters(Role));
+	if (ParametricMoverCVars::FixStep > 0)
+	{
+		auto *NewSim = new ParametricMovement::FMovementSystem<16>(this);
+		NewSim->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
+		DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
+		return NewSim;
+	}
+	
+	auto *NewSim = new ParametricMovement::FMovementSystem<>(this);
+	NewSim->RepProxy_Simulated.bAllowSimulatedExtrapolation = !bEnableInterpolation;
+	DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
+	return NewSim;
 }
 
 FNetworkSimulationModelInitParameters UParametricMovementComponent::GetSimulationInitParameters(ENetRole Role)
@@ -139,14 +139,6 @@ void UParametricMovementComponent::BeginPlay()
 	CachedStartingTransform = UpdatedComponent->GetComponentToWorld();
 }
 
-float UParametricMovementComponent::GetTransformForTime(const float InTime, FTransform& OutTransform) const
-{
-	const FVector Delta = ParametricDelta * InTime;
-	OutTransform = CachedStartingTransform;
-	OutTransform.AddToTranslation(Delta);
-	return InTime;
-}
-
 void UParametricMovementComponent::InitSyncState(ParametricMovement::FMoveState& OutSyncState) const
 {
 	// In this case, we just default to the 0 position. Maybe this could be a starting variable set on the component.
@@ -157,7 +149,7 @@ void UParametricMovementComponent::InitSyncState(ParametricMovement::FMoveState&
 void UParametricMovementComponent::FinalizeFrame(const ParametricMovement::FMoveState& SyncState)
 {
 	FTransform NewTransform;
-	GetTransformForTime(SyncState.Position, NewTransform);
+	MapTimeToTransform(SyncState.Position, NewTransform);
 
 	check(UpdatedComponent);
 	UpdatedComponent->SetWorldTransform(NewTransform, false, nullptr, ETeleportType::TeleportPhysics);
@@ -166,6 +158,10 @@ void UParametricMovementComponent::FinalizeFrame(const ParametricMovement::FMove
 FString UParametricMovementComponent::GetDebugName() const
 {
 	return FString::Printf(TEXT("ParametricMovement. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetName());
+}
+const UObject* UParametricMovementComponent::GetVLogOwner() const
+{
+	return GetOwner();
 }
 
 void UParametricMovementComponent::AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const
@@ -191,7 +187,7 @@ void UParametricMovementComponent::AdvanceParametricTime(const float InPosition,
 	}
 }
 
-void UParametricMovementComponent::SetTransformForPosition(const float InPosition, FTransform& OutTransform) const
+void UParametricMovementComponent::MapTimeToTransform(const float InPosition, FTransform& OutTransform) const
 {
 	const FVector Delta = ParametricDelta * InPosition;
 
@@ -202,36 +198,6 @@ void UParametricMovementComponent::SetTransformForPosition(const float InPositio
 void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	if (!bDisableParametricMovementSimulation)
-	{
-		TickSimulation(DeltaTime); // fixme
-
-		if (NetworkInterpolator.IsValid() && GetOwnerRole() == ROLE_SimulatedProxy)
-		{
-			NetworkInterpolator->Tick(DeltaTime, GetOwner());
-		}
-	}
-}
-
-void UParametricMovementComponent::Reconcile()
-{
-
-}
-
-void UParametricMovementComponent::TickSimulation(float DeltaTimeSeconds)
-{
-	const ENetRole OwnerRole = GetOwnerRole();
-
-	PreTickSimulation(DeltaTimeSeconds); // Fixme
-
-	if (NetworkSim && OwnerRole != ROLE_None)
-	{
-		ParametricMovement::FMovementSystem::FTickParameters Parameters(DeltaTimeSeconds, GetOwner());
-
-		// Tick the core network sim, this will consume input and generate new sync state
-		NetworkSim->Tick((IParametricMovementDriver*)this, Parameters);
-	}
 
 	if (ParentNetUpdateFrequency > 0.f)
 	{
@@ -244,7 +210,7 @@ void UParametricMovementComponent::TickSimulation(float DeltaTimeSeconds)
 	}
 }
 
-void UParametricMovementComponent::ProduceInput(const ParametricMovement::TSimTime& SimFrameTime, ParametricMovement::FInputCmd& Cmd)
+void UParametricMovementComponent::ProduceInput(const float DeltaTimeSeconds, ParametricMovement::FInputCmd& Cmd)
 {
 	Cmd.PlayRate = PendingPlayRate;
 	PendingPlayRate.Reset();

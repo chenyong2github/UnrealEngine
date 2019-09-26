@@ -4,6 +4,7 @@
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
+#include "NetworkSimulationGlobalManager.h"
 
 UNetworkPredictionComponent::UNetworkPredictionComponent()
 {
@@ -14,29 +15,68 @@ void UNetworkPredictionComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
 
-	IReplicationProxy* NetworkSim = InstantiateNetworkSimulation();
-	check(NetworkSim);
+	// Child class will instantiate
+	INetworkSimulationModel* NewNetworkSim = InstantiateNetworkSimulation();
+	NetworkSim.Reset(NewNetworkSim);
 
-	ReplicationProxy_ServerRPC.Init(NetworkSim, EReplicationProxyTarget::ServerRPC);
-	ReplicationProxy_Autonomous.Init(NetworkSim, EReplicationProxyTarget::AutonomousProxy);
-	ReplicationProxy_Simulated.Init(NetworkSim, EReplicationProxyTarget::SimulatedProxy);
-	ReplicationProxy_Replay.Init(NetworkSim, EReplicationProxyTarget::Replay);
+	if (NewNetworkSim == nullptr)
+	{
+		// Its ok to not instantiate a sim
+		return;
+	}
+
+	// Init RepProxies
+	ReplicationProxy_ServerRPC.Init(NewNetworkSim, EReplicationProxyTarget::ServerRPC);
+	ReplicationProxy_Autonomous.Init(NewNetworkSim, EReplicationProxyTarget::AutonomousProxy);
+	ReplicationProxy_Simulated.Init(NewNetworkSim, EReplicationProxyTarget::SimulatedProxy);
+	ReplicationProxy_Replay.Init(NewNetworkSim, EReplicationProxyTarget::Replay);
 #if NETSIM_MODEL_DEBUG
-	ReplicationProxy_Debug.Init(NetworkSim, EReplicationProxyTarget::Debug);
+	ReplicationProxy_Debug.Init(NewNetworkSim, EReplicationProxyTarget::Debug);
 #endif
+
+	// Register with GlobalManager
+	UNetworkSimulationGlobalManager* NetworkSimGlobalManager = GetWorld()->GetSubsystem<UNetworkSimulationGlobalManager>();
+	check(NetworkSimGlobalManager);
+
+	NetworkSimGlobalManager->RegisterModel(NewNetworkSim, GetOwner());
+	
+	CheckOwnerRoleChange();
+}
+
+void UNetworkPredictionComponent::UninitializeComponent()
+{
+	Super::UninitializeComponent();
+
+	if (NetworkSim.IsValid())
+	{
+		UNetworkSimulationGlobalManager* NetworkSimGlobalManager = GetWorld()->GetSubsystem<UNetworkSimulationGlobalManager>();
+		check(NetworkSimGlobalManager);
+
+		NetworkSimGlobalManager->UnregisterModel(NetworkSim.Get(), GetOwner());
+
+		if (ServerRPCHandle.IsValid())
+		{
+			NetworkSimGlobalManager->TickServerRPCDelegate.Remove(ServerRPCHandle);
+		}
+
+		NetworkSim.Reset(nullptr);
+	}
 }
 
 void UNetworkPredictionComponent::PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker)
 {
 	Super::PreReplication(ChangedPropertyTracker);
 
-	// We have to update our replication proxies so they can be accurately compared against client shadowstate during property replication. ServerRPC proxy does not need to do this.
-	ReplicationProxy_Autonomous.OnPreReplication();
-	ReplicationProxy_Simulated.OnPreReplication();
-	ReplicationProxy_Replay.OnPreReplication();
+	if (NetworkSim.IsValid())
+	{
+		// We have to update our replication proxies so they can be accurately compared against client shadowstate during property replication. ServerRPC proxy does not need to do this.
+		ReplicationProxy_Autonomous.OnPreReplication();
+		ReplicationProxy_Simulated.OnPreReplication();
+		ReplicationProxy_Replay.OnPreReplication();
 #if NETSIM_MODEL_DEBUG
-	ReplicationProxy_Debug.OnPreReplication();
+		ReplicationProxy_Debug.OnPreReplication();
 #endif
+	}
 }
 
 void UNetworkPredictionComponent::PreNetReceive()
@@ -56,6 +96,14 @@ void UNetworkPredictionComponent::GetLifetimeReplicatedProps(TArray< FLifetimePr
 #if NETSIM_MODEL_DEBUG
 	DOREPLIFETIME_CONDITION( UNetworkPredictionComponent, ReplicationProxy_Debug, COND_ReplayOrOwner);
 #endif
+}
+
+void UNetworkPredictionComponent::InitializeForNetworkRole(ENetRole Role)
+{
+	if (NetworkSim.IsValid())
+	{
+		NetworkSim->InitializeForNetworkRole(Role, GetSimulationInitParameters(Role));
+	}
 }
 
 FNetworkSimulationModelInitParameters UNetworkPredictionComponent::GetSimulationInitParameters(ENetRole Role)
@@ -92,19 +140,27 @@ bool UNetworkPredictionComponent::IsLocallyControlled()
 	return bIsLocallyControlled;
 }
 
-void UNetworkPredictionComponent::PreTickSimulation(float DeltaTime)
-{
-	CheckOwnerRoleChange();
-}
-
-void UNetworkPredictionComponent::CheckOwnerRoleChange()
+bool UNetworkPredictionComponent::CheckOwnerRoleChange()
 {
 	ENetRole CurrentRole = GetOwner()->Role;
 	if (CurrentRole != OwnerCachedNetRole)
 	{
+		if (OwnerCachedNetRole == ROLE_AutonomousProxy)
+		{
+			UnregisterServerRPCDelegate();
+		}
+
 		OwnerCachedNetRole = CurrentRole;
-		InitializeForNetworkRole(CurrentRole);		
+		InitializeForNetworkRole(CurrentRole);
+
+		if (OwnerCachedNetRole == ROLE_AutonomousProxy)
+		{
+			RegisterServerRPCDelegate();
+		}
+		return true;
 	}
+
+	return false;
 }
 
 bool UNetworkPredictionComponent::ServerRecieveClientInput_Validate(const FServerReplicationRPCParameter& ProxyParameter)
@@ -116,4 +172,35 @@ void UNetworkPredictionComponent::ServerRecieveClientInput_Implementation(const 
 {
 	// The const_cast is unavoidable here because the replication system only allows by value (forces copy, bad) or by const reference. This use case is unique because we are using the RPC parameter as a temp buffer.
 	const_cast<FServerReplicationRPCParameter&>(ProxyParameter).NetSerializeToProxy(ReplicationProxy_ServerRPC);
+}
+
+void UNetworkPredictionComponent::TickServerRPC(float DeltaSeconds)
+{
+	check(NetworkSim.IsValid());
+	if (NetworkSim->ShouldSendServerRPC(DeltaSeconds))
+	{
+		// Temp hack to make sure the ServerRPC doesn't get suppressed from bandwidth limiting
+		// (system hasn't been optimized and not mature enough yet to handle gaps in input stream)
+		FScopedBandwidthLimitBypass BandwidthBypass(GetOwner());
+
+		FServerReplicationRPCParameter ProxyParameter(ReplicationProxy_ServerRPC);
+		ServerRecieveClientInput(ProxyParameter);
+	}
+}
+
+void UNetworkPredictionComponent::RegisterServerRPCDelegate()
+{
+	UNetworkSimulationGlobalManager* NetworkSimGlobalManager = GetWorld()->GetSubsystem<UNetworkSimulationGlobalManager>();
+	check(NetworkSimGlobalManager);
+	ServerRPCHandle = NetworkSimGlobalManager->TickServerRPCDelegate.AddUObject(this, &UNetworkPredictionComponent::TickServerRPC);
+}
+void UNetworkPredictionComponent::UnregisterServerRPCDelegate()
+{
+	if (ServerRPCHandle.IsValid())
+	{
+		UNetworkSimulationGlobalManager* NetworkSimGlobalManager = GetWorld()->GetSubsystem<UNetworkSimulationGlobalManager>();
+		check(NetworkSimGlobalManager);
+		NetworkSimGlobalManager->TickServerRPCDelegate.Remove(ServerRPCHandle);
+		ServerRPCHandle.Reset();
+	}
 }
