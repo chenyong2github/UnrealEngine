@@ -881,6 +881,11 @@ bool FMaterial::HasRuntimeVirtualTextureOutput_RenderThread() const
 	return RenderingThreadShaderMap ? RenderingThreadShaderMap->HasRuntimeVirtualTextureOutput() : false;
 }
 
+bool FMaterial::UsesCustomDepthStencil_GameThread() const
+{
+	return GameThreadShaderMap.GetReference() ? (GameThreadShaderMap->UsesSceneTexture(PPI_CustomDepth) || GameThreadShaderMap->UsesSceneTexture(PPI_CustomStencil)) : false;
+}
+
 FMaterialShaderMap* FMaterial::GetRenderingThreadShaderMap() const 
 { 
 	check(IsInParallelRenderingThread());
