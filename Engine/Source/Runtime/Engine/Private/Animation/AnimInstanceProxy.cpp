@@ -190,6 +190,13 @@ void FAnimInstanceProxy::InitializeRootNode(bool bInDeferRootNodeInitialization)
 
 	if(AnimClassInterface)
 	{
+		// cache any state machine descriptions we have
+		for (UStructProperty* Property : AnimClassInterface->GetStateMachineNodeProperties())
+		{
+			FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
+			StateMachine->CacheMachineDescription(AnimClassInterface);
+		}
+
 		// Init any nodes that need non-relevancy based initialization
 		UAnimInstance* AnimInstance = CastChecked<UAnimInstance>(GetAnimInstanceObject());
 		for (UStructProperty* Property : AnimClassInterface->GetInitializationNodeProperties())
@@ -210,13 +217,6 @@ void FAnimInstanceProxy::InitializeRootNode(bool bInDeferRootNodeInitialization)
 		{
 			FAnimNode_Base* AnimNode = Property->ContainerPtrToValuePtr<FAnimNode_Base>(AnimInstanceObject);
 			DynamicResetNodes.Add(AnimNode);
-		}
-
-		// cache any state machine descriptions we have
-		for (UStructProperty* Property : AnimClassInterface->GetStateMachineNodeProperties())
-		{
-			FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
-			StateMachine->CacheMachineDescription(AnimClassInterface);
 		}
 
 		// Cache default linked input pose 
