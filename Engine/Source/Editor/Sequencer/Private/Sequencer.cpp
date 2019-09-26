@@ -5378,8 +5378,7 @@ void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 	{
 		if (GEditor->GetSelectedActorCount())
 		{
-			const bool bShouldActuallyTransact = !GIsTransacting;
-			const FScopedTransaction Transaction( NSLOCTEXT( "Sequencer", "UpdatingActorComponentSelectionNone", "Select None" ), bShouldActuallyTransact );
+			const FScopedTransaction Transaction( NSLOCTEXT( "Sequencer", "UpdatingActorComponentSelectionNone", "Select None" ) );
 			GEditor->SelectNone( bNotifySelectionChanged, bDeselectBSP, bWarnAboutTooManyActors );
 			GEditor->NoteSelectionChange();
 		}
@@ -5449,8 +5448,7 @@ void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 		return;
 	}
 
-	const bool bShouldActuallyTransact = !GIsTransacting;
-	const FScopedTransaction Transaction( NSLOCTEXT( "Sequencer", "UpdatingActorComponentSelection", "Select Actors/Components" ), bShouldActuallyTransact );
+	const FScopedTransaction Transaction( NSLOCTEXT( "Sequencer", "UpdatingActorComponentSelection", "Select Actors/Components" ) );
 
 
 	GEditor->GetSelectedActors()->Modify();
@@ -5513,11 +5511,6 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 	{
 		// Only level sequences have a full update here, but we still want filters to update for UMG animations
 		NodeTree->RequestFilterUpdate();
-		return;
-	}
-
-	if (!Sequence->GetMovieScene())
-	{
 		return;
 	}
 
