@@ -453,9 +453,6 @@ public:
 	/** Called to save the current movie scene */
 	void SaveCurrentMovieScene();
 
-	/** Called to save the current movie scene under a new name */
-	void SaveCurrentMovieSceneAs();
-
 	/** Called when a user executes the assign actor to track menu item */
 	void AssignActor(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
 	FGuid DoAssignActor(AActor*const* InActors, int32 NumActors, FGuid ObjectBinding);
@@ -580,9 +577,6 @@ public:
 
 	/** Promote a clipboard to the top of the clipboard stack, and update its timestamp */
 	void OnClipboardUsed(TSharedPtr<FMovieSceneClipboard> Clipboard);
-
-	/** Discard all changes to the current movie scene. */
-	void DiscardChanges();
 
 	/** Create camera and set it as the current camera cut. */
 	void CreateCamera();

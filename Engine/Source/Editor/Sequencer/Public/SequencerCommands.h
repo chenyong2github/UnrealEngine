@@ -331,9 +331,6 @@ public:
 	/** Restores all animated state for the current sequence. */
 	TSharedPtr< FUICommandInfo > RestoreAnimatedState;
 
-	/** Discard all changes to the current movie scene. */
-	TSharedPtr< FUICommandInfo > DiscardChanges;
-
 	/** Attempts to fix broken actor references. */
 	TSharedPtr< FUICommandInfo > FixActorReferences;
 

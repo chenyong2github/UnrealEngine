@@ -130,15 +130,11 @@ struct FSequencerHostCapabilities
 	/** Should we show the Save-As button in the toolbar? */
 	bool bSupportsSaveMovieSceneAsset;
 
-	/** Do we support discarding the changes */
-	bool bSupportsDiscardChanges;
-
 	/** Do we support the curve editor */
 	bool bSupportsCurveEditor;
 
 	FSequencerHostCapabilities()
 		: bSupportsSaveMovieSceneAsset(false)
-		, bSupportsDiscardChanges(false)
 		, bSupportsCurveEditor(false)
 	{}
 };

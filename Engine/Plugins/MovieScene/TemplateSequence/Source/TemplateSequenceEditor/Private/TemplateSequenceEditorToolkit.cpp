@@ -93,7 +93,6 @@ void FTemplateSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, c
 		SequencerInitParams.ToolkitHost = InitToolkitHost;
 		SequencerInitParams.SpawnRegister = SpawnRegister;
 		SequencerInitParams.HostCapabilities.bSupportsCurveEditor = true;
-		SequencerInitParams.HostCapabilities.bSupportsDiscardChanges = true;
 		SequencerInitParams.HostCapabilities.bSupportsSaveMovieSceneAsset = true;
 
 		SequencerInitParams.PlaybackContext.Bind(PlaybackContext.ToSharedRef(), &FTemplateSequenceEditorPlaybackContext::GetPlaybackContext);

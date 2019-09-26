@@ -1330,19 +1330,6 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 					LOCTEXT("SaveDirtyPackagesTooltip", "Saves the current sequence and any subsequences"),
 					SaveIcon
 				);
-
-				ToolBarBuilder.AddToolBarButton(
-					FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnSaveMovieSceneAsClicked)),
-					NAME_None,
-					LOCTEXT("SaveAs", "Save As"),
-					LOCTEXT("SaveAsTooltip", "Saves the current sequence under a different name"),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SaveAs")
-				);
-			}
-
-			if (SequencerPtr.Pin()->GetHostCapabilities().bSupportsDiscardChanges)
-			{
-				ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().DiscardChanges );
 			}
 
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().FindInContentBrowser );
@@ -2848,12 +2835,6 @@ TSharedPtr<SSequencerTreeView> SSequencer::GetTreeView() const
 void SSequencer::OnSaveMovieSceneClicked()
 {
 	SequencerPtr.Pin()->SaveCurrentMovieScene();
-}
-
-
-void SSequencer::OnSaveMovieSceneAsClicked()
-{
-	SequencerPtr.Pin()->SaveCurrentMovieSceneAs();
 }
 
 

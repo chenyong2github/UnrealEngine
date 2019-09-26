@@ -5129,36 +5129,6 @@ void FSequencer::SaveCurrentMovieScene()
 }
 
 
-void FSequencer::SaveCurrentMovieSceneAs()
-{
-	if (!GetHostCapabilities().bSupportsSaveMovieSceneAsset)
-	{
-		return;
-	}
-
-	TSharedPtr<IToolkitHost> MyToolkitHost = GetToolkitHost();
-	check(MyToolkitHost);
-
-	TArray<UObject*> AssetsToSave;
-	AssetsToSave.Add(GetCurrentAsset());
-
-	TArray<UObject*> SavedAssets;
-	FEditorFileUtils::SaveAssetsAs(AssetsToSave, SavedAssets);
-
-	if (SavedAssets.Num() == 0)
-	{
-		return;
-	}
-
-	if ((SavedAssets[0] != AssetsToSave[0]) && (SavedAssets[0] != nullptr))
-	{
-		UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
-		AssetEditorSubsystem->CloseAllEditorsForAsset(AssetsToSave[0]);
-		AssetEditorSubsystem->OpenEditorForAssets_Advanced(SavedAssets, EToolkitMode::Standalone, MyToolkitHost.ToSharedRef());
-	}
-}
-
-
 TArray<FGuid> FSequencer::AddActors(const TArray<TWeakObjectPtr<AActor> >& InActors, bool bSelectActors)
 {
 	TArray<FGuid> PossessableGuids;
@@ -9315,127 +9285,6 @@ void FSequencer::OnClipboardUsed(TSharedPtr<FMovieSceneClipboard> Clipboard)
 	});
 }
 
-
-void FSequencer::DiscardChanges()
-{
-	if (ActiveTemplateIDs.Num() == 0)
-	{
-		return;
-	}
-
-	TSharedPtr<IToolkitHost> MyToolkitHost = GetToolkitHost();
-
-	if (!MyToolkitHost.IsValid())
-	{
-		return;
-	}
-
-	UMovieSceneSequence* EditedSequence = GetFocusedMovieSceneSequence();
-
-	if (EditedSequence == nullptr)
-	{
-		return;
-	}
-
-	if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("RevertConfirm", "Are you sure you want to discard your current changes?")) != EAppReturnType::Yes)
-	{
-		return;
-	}
-
-	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
-	UClass* SequenceClass = EditedSequence->GetClass();
-	FString SequencePath = EditedSequence->GetPathName();
-	UPackage* SequencePackage = EditedSequence->GetOutermost();
-
-	// close asset editor
-	AssetEditorSubsystem->CloseAllEditorsForAsset(EditedSequence);
-
-	// collect objects to be unloaded
-	TMap<FString, UObject*> MovedObjects;
-
-	ForEachObjectWithOuter(SequencePackage, [&](UObject* Object) {
-		MovedObjects.Add(Object->GetPathName(), Object);
-	}, true);
-
-	// move objects into transient package
-	UPackage* const TransientPackage = GetTransientPackage();
-
-	for (auto MovedObject : MovedObjects)
-	{
-		UObject* Object = MovedObject.Value;
-
-		const FString OldName = Object->GetName();
-		const FString NewName = FString::Printf(TEXT("UNLOADING_%s"), *OldName);
-		const FName UniqueName = MakeUniqueObjectName(TransientPackage, Object->GetClass(), FName(*NewName));
-		UObject* NewOuter = (Object->GetOuter() == SequencePackage) ? TransientPackage : Object->GetOuter();
-	
-		Object->Rename(*UniqueName.ToString(), NewOuter, REN_DontCreateRedirectors | REN_DoNotDirty | REN_NonTransactional);
-		Object->SetFlags(RF_Transient);
-		Object->ClearFlags(RF_Standalone | RF_Transactional);
-	}
-
-	for (auto MovedObject : MovedObjects)
-	{
-		GLog->Logf(TEXT("Moved %s ---------> %s"), *MovedObject.Key, *MovedObject.Value->GetPathName());
-	}
-
-	// unload package
-	SequencePackage->SetDirtyFlag(false);
-
-	TArray<UPackage*> PackagesToUnload;
-	PackagesToUnload.Add(SequencePackage);
-
-	FText PackageUnloadError;
-	UPackageTools::UnloadPackages(PackagesToUnload, PackageUnloadError);
-
-	if (!PackageUnloadError.IsEmpty())
-	{
-		ResetLoaders(SequencePackage);
-		SequencePackage->ClearFlags(RF_WasLoaded);
-		SequencePackage->bHasBeenFullyLoaded = false;
-		SequencePackage->GetMetaData()->RemoveMetaDataOutsidePackage();
-	}
-
-	// reload package
-	TMap<UObject*, UObject*> MovedToReloadedObjectMap;
-
-	for (const auto MovedObject : MovedObjects)
-	{
-		UObject* ReloadedObject = StaticLoadObject(MovedObject.Value->GetClass(), nullptr, *MovedObject.Key, nullptr);//, LOAD_NoWarn);
-		MovedToReloadedObjectMap.Add(MovedObject.Value, ReloadedObject);
-	}
-
-	for (TObjectIterator<UObject> It; It; ++It)
-	{
-		// @todo sequencer: only process objects that actually reference the package?
-		FArchiveReplaceObjectRef<UObject> Ar(*It, MovedToReloadedObjectMap, false, false, false, false);
-	}
-
-	auto ReloadedSequence = Cast<UMovieSceneSequence>(StaticLoadObject(SequenceClass, nullptr, *SequencePath, nullptr));//, LOAD_NoWarn));
-
-	// release transient objects
-	for (auto MovedObject : MovedObjects)
-	{
-		MovedObject.Value->RemoveFromRoot();
-		MovedObject.Value->MarkPendingKill();
-	}
-
-//	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-
-	// clear undo buffer
-	if (true) // @todo sequencer: check whether objects are actually referenced in undo buffer
-	{
-		GEditor->Trans->Reset(LOCTEXT("UnloadedSequence", "Unloaded Sequence"));
-	}
-
-	// reopen asset editor
-	TArray<UObject*> AssetsToReopen;
-	AssetsToReopen.Add(ReloadedSequence);
-
-	AssetEditorSubsystem->OpenEditorForAssets_Advanced(AssetsToReopen, EToolkitMode::Standalone, MyToolkitHost.ToSharedRef());
-}
-
-
 void FSequencer::CreateCamera()
 {
 	UMovieScene* FocusedMovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
@@ -10528,22 +10377,6 @@ void FSequencer::BindCommands()
 		FCanExecuteAction(),
 		FIsActionChecked(),
 		FIsActionButtonVisible::CreateLambda([this] { return ExactCast<ULevelSequence>(GetFocusedMovieSceneSequence()) != nullptr && IVREditorModule::Get().IsVREditorModeActive() == false; }) //@todo VREditor: Creating a camera while in VR mode disrupts the hmd. This is a temporary fix by hiding the button when in VR mode.
-	);
-
-	SequencerCommandBindings->MapAction(
-		Commands.DiscardChanges,
-		FExecuteAction::CreateSP(this, &FSequencer::DiscardChanges),
-		FCanExecuteAction::CreateLambda([this]{
-			UMovieSceneSequence* EditedSequence = GetFocusedMovieSceneSequence();
-			if (!EditedSequence)
-			{
-				return false;
-			}
-
-			UPackage* EditedPackage = EditedSequence->GetOutermost();
-
-			return ((EditedPackage->FileSize != 0) && EditedPackage->IsDirty());
-		})
 	);
 
 	SequencerCommandBindings->MapAction(
