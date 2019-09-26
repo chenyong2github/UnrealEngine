@@ -10,6 +10,7 @@
 #include "Templates/UniquePtr.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataInterface.h"
+#include "NiagaraSystemFastPath.h"
 
 class FNiagaraWorldManager;
 class UNiagaraComponent;
@@ -108,6 +109,14 @@ public:
 
 	ENiagaraExecutionState GetActualExecutionState() { return ActualExecutionState; }
 	void SetActualExecutionState(ENiagaraExecutionState InState);
+
+	float GetSystemTimeSinceRendered() const { return SystemTimeSinceRenderedParam.GetValue(); }
+
+	float GetOwnerLODDistance() const { return OwnerLODDistanceParam.GetValue(); }
+
+	int32 GetNumParticles(int32 EmitterIndex) const { return ParameterNumParticleBindings[EmitterIndex].GetValue(); }
+
+	FVector GetOwnerVelocity() const { return OwnerVelocityParam.GetValue(); }
 
 	FORCEINLINE bool IsComplete()const { return ActualExecutionState == ENiagaraExecutionState::Complete || ActualExecutionState == ENiagaraExecutionState::Disabled; }
 	FORCEINLINE bool IsDisabled()const { return ActualExecutionState == ENiagaraExecutionState::Disabled; }
@@ -233,6 +242,12 @@ public:
 	}
 
 	void TickInstanceParameters(float DeltaSeconds);
+
+	void TickFastPathBindings();
+
+	void ResetFastPathBindings();
+
+	FNiagaraSystemFastPath::FParamMap0& GetFastPathMap() { return FastPathMap; }
 
 private:
 
@@ -385,4 +400,11 @@ public:
 	uint32 TotalParamSize = 0;
 	uint32 ActiveGPUEmitterCount = 0;
 	int32 GPUDataInterfaceInstanceDataSize = 0;
+
+	FNiagaraSystemFastPath::FParamMap0 FastPathMap;
+
+	TArray<TNiagaraFastPathRangedInputBinding<int32>> FastPathIntUpdateRangedInputBindings;
+	TArray<TNiagaraFastPathRangedInputBinding<float>> FastPathFloatUpdateRangedInputBindings;
+	TArray<TNiagaraFastPathUserParameterInputBinding<int32>> FastPathIntUserParameterInputBindings;
+	TArray<TNiagaraFastPathUserParameterInputBinding<float>> FastPathFloatUserParameterInputBindings;
 };

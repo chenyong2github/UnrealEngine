@@ -15,6 +15,7 @@ NiagaraEmitterInstance.h: Niagara emitter simulation class
 #include "NiagaraEmitter.h"
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraBoundsCalculator.h"
+#include "NiagaraSystemFastPath.h"
 
 class FNiagaraSystemInstance;
 struct FNiagaraEmitterHandle;
@@ -35,13 +36,13 @@ public:
 
 	void Init(int32 InEmitterIdx, FNiagaraSystemInstanceID SystemInstanceID);
 
-	void ResetSimulation(bool bKillExisting=true);
+	void ResetSimulation(bool bKillExisting = true);
 
 	/** Called after all emitters in an System have been initialized, allows emitters to access information from one another. */
 	void PostInitSimulation();
 
 	void DirtyDataInterfaces();
-	
+
 	/** Replaces the binding for a single parameter colleciton instance. If for example the component begins to override the global instance. */
 	//void RebindParameterCollection(UNiagaraParameterCollectionInstance* OldInstance, UNiagaraParameterCollectionInstance* NewInstance);
 	void BindParameters();
@@ -52,7 +53,7 @@ public:
 	void PreTick();
 	void Tick(float DeltaSeconds);
 	void PostTick();
-	bool HandleCompletion(bool bForce=false);
+	bool HandleCompletion(bool bForce = false);
 
 	bool RequiredPersistentID()const;
 
@@ -65,10 +66,10 @@ public:
 	NIAGARA_API void CalculateFixedBounds(const FTransform& ToWorldSpace);
 
 	FNiagaraDataSet& GetData()const { return *ParticleDataSet; }
-	
+
 	FORCEINLINE bool IsDisabled()const { return ExecutionState == ENiagaraExecutionState::Disabled; }
 	FORCEINLINE bool IsComplete()const { return ExecutionState == ENiagaraExecutionState::Complete || ExecutionState == ENiagaraExecutionState::Disabled; }
-		
+
 	/** Create a new NiagaraRenderer. The old renderer is not immediately deleted, but instead put in the ToBeRemoved list.*/
 	//void NIAGARA_API UpdateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, TArray<NiagaraRenderer*>& ToBeAddedList, TArray<NiagaraRenderer*>& ToBeRemovedList);
 
@@ -81,16 +82,16 @@ public:
 		}
 		return 0;
 	}
-	FORCEINLINE int32 GetTotalSpawnedParticles()const	{ return TotalSpawnedParticles; }
+	FORCEINLINE int32 GetTotalSpawnedParticles()const { return TotalSpawnedParticles; }
 
 	NIAGARA_API const FNiagaraEmitterHandle& GetEmitterHandle() const;
 
-	FNiagaraSystemInstance* GetParentSystemInstance()const	{ return ParentSystemInstance; }
+	FNiagaraSystemInstance* GetParentSystemInstance()const { return ParentSystemInstance; }
 
 	float NIAGARA_API GetTotalCPUTimeMS();
 	int	NIAGARA_API GetTotalBytesUsed();
-	
-	ENiagaraExecutionState NIAGARA_API GetExecutionState()	{ return ExecutionState; }
+
+	ENiagaraExecutionState NIAGARA_API GetExecutionState() { return ExecutionState; }
 	void NIAGARA_API SetExecutionState(ENiagaraExecutionState InState);
 
 	FNiagaraDataSet* GetDataSet(FNiagaraDataSetID SetID);
@@ -121,9 +122,29 @@ public:
 
 	bool FindBinding(const FNiagaraUserParameterBinding& InBinding, TArray<UMaterialInterface*>& OutMaterials) const;
 
-private:
+	void InitFastPathAttributeBindings();
 
+	void TickFastPathAttributeBindings();
+
+	FNiagaraEmitterFastPath::FParamMap0& GetFastPathMap() { return FastPathMap; }
+
+private:
 	void CheckForErrors();
+
+	void InitFastPathParameterBindingsInternal(const FNiagaraFastPathAttributeNames& SourceParameterNames, FNiagaraParameterStore& TargetParameterStore);
+
+	template<typename TBindingType, typename TVariableType>
+	static void AddBinding(FName ParameterName, TVariableType ParameterType, TBindingType* SourceValuePtr, FNiagaraParameterStore& TargetParameterStore, TArray<TNiagaraFastPathAttributeBinding<TBindingType>>& TargetBindings)
+	{
+		TNiagaraFastPathAttributeBinding<TBindingType> Binding;
+		FNiagaraVariable ParameterVariable = FNiagaraVariable(ParameterType, ParameterName);
+		Binding.ParameterBinding.Init(TargetParameterStore, ParameterVariable);
+		if (Binding.ParameterBinding.ValuePtr != nullptr)
+		{
+			Binding.ParameterValue = SourceValuePtr;
+			TargetBindings.Add(Binding);
+		}
+	}
 
 	/** The index of our emitter in our parent system instance. */
 	int32 EmitterIdx;
@@ -218,4 +239,9 @@ private:
 
 	/** Optional list of bounds calculators. */
 	TArray<TUniquePtr<FNiagaraBoundsCalculator>, TInlineAllocator<1>> BoundsCalculators;
+
+	FNiagaraEmitterFastPath::FParamMap0 FastPathMap;
+
+	TArray<TNiagaraFastPathAttributeBinding<int32>> FastPathIntAttributeBindings;
+	TArray<TNiagaraFastPathAttributeBinding<float>> FastPathFloatAttributeBindings;
 };
