@@ -229,7 +229,7 @@ struct FMallocBinned::Private
 		}
 		
 		int GrabIndex = --NumFreeSmallBlockGrabAllocations;
-		check(GrabIndex > 0);
+		check(GrabIndex >= 0);
 		void* FreeMemory = (void*)SmallBlockGrab_FreeStartPointers[GrabIndex];
 		
 		//Flag that we have used this value for verification
