@@ -148,7 +148,7 @@ class FRCPassPostProcessAmbientOcclusion_HorizonSearch : public TRenderingCompos
 {
 public:
 
-	FRCPassPostProcessAmbientOcclusion_HorizonSearch(const FSceneView& View, const ESSAOType AOType );
+	FRCPassPostProcessAmbientOcclusion_HorizonSearch(const FSceneView& View, uint32 DownScaleFactor, const ESSAOType AOType );
 
 	// interface FRenderingCompositePass ---------
 	virtual void Process(FRenderingCompositePassContext& Context) override;
@@ -156,13 +156,14 @@ public:
 	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
 
 	template <uint32 ShaderQuality>
-	void DispatchCS(const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint TexSize);
+	void DispatchCS(const FRenderingCompositePassContext& Context, FIntRect ViewRect, FIntPoint DestSize, FIntPoint TexSize);
 
 	template <uint32 ShaderQuality>
 	FShader* SetShaderPS(const FRenderingCompositePassContext& Context, FGraphicsPipelineStateInitializer& GraphicsPSOInit, FIntPoint DestSize);
 
 private:
 	const ESSAOType AOType;
+	uint32		DownScaleFactor;
 };
 
 
@@ -170,7 +171,7 @@ class FRCPassPostProcessAmbientOcclusion_InnerIntegrate : public TRenderingCompo
 {
 public:
 
-	FRCPassPostProcessAmbientOcclusion_InnerIntegrate(const FSceneView& View, bool FinalOutput);
+	FRCPassPostProcessAmbientOcclusion_InnerIntegrate(const FSceneView& View, uint32 DownScaleFactor, bool FinalOutput);
 
 	// interface FRenderingCompositePass ---------
 	virtual void Process(FRenderingCompositePassContext& Context) override;
@@ -179,14 +180,15 @@ public:
 
 private:
 	const bool bFinalOutput;
+	uint32		DownScaleFactor;
 };
 
 
-class FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate : public TRenderingCompositePassBase<2, 1>
+class FRCPassPostProcessAmbientOcclusion_GTAOCombined : public TRenderingCompositePassBase<2, 1>
 {
 public:
 
-	FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate(const FSceneView& View, bool FinalOutput);
+	FRCPassPostProcessAmbientOcclusion_GTAOCombined(const FSceneView& View, uint32 DownScaleFactor, bool FinalOutput);
 
 	// interface FRenderingCompositePass ---------
 	virtual void Process(FRenderingCompositePassContext& Context) override;
@@ -201,5 +203,59 @@ public:
 
 private:
 	const bool bFinalOutput;
+	uint32		DownScaleFactor;
+};
+
+
+
+
+class FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter : public TRenderingCompositePassBase<1, 2>
+{
+public:
+
+	FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter(const FSceneView& View, uint32 DownScaleFactor, const FGTAOTAAHistory& InInputHistory, FGTAOTAAHistory* OutOutputHistory);
+
+	// interface FRenderingCompositePass ---------
+	virtual void Process(FRenderingCompositePassContext& Context) override;
+	virtual void Release() override { delete this; }
+	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+
+	template <uint32 ShaderQuality>
+	void DispatchCS(const FRenderingCompositePassContext& Context, FIntRect OutputViewRect, FIntPoint OutputTexSize);
+
+private:
+
+	const FGTAOTAAHistory& InputHistory;
+	FGTAOTAAHistory* OutputHistory;
+	uint32		DownScaleFactor;
+};
+
+class FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter : public TRenderingCompositePassBase<2, 1>
+{
+public:
+
+	FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter(const FSceneView& View);
+
+	// interface FRenderingCompositePass ---------
+	virtual void Process(FRenderingCompositePassContext& Context) override;
+	virtual void Release() override { delete this; }
+	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+
+private:
+
+};
+
+class FRCPassPostProcessAmbientOcclusion_GTAO_Upsample : public TRenderingCompositePassBase<1, 1>
+{
+public:
+
+	FRCPassPostProcessAmbientOcclusion_GTAO_Upsample();
+
+	// interface FRenderingCompositePass ---------
+	virtual void Process(FRenderingCompositePassContext& Context) override;
+	virtual void Release() override { delete this; }
+	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+
+private:
 
 };
