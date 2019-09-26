@@ -21,6 +21,7 @@
 #include "SSoundClassActionMenu.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "AudioEditorModule.h"
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
