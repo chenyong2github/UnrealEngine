@@ -115,6 +115,7 @@ FMovieSceneEvaluationTrack::FMovieSceneEvaluationTrack()
 	, SourceTrack(nullptr)
 	, bEvaluateInPreroll(true)
 	, bEvaluateInPostroll(true)
+	, bTearDownPriority(false)
 {
 }
 
@@ -125,6 +126,7 @@ FMovieSceneEvaluationTrack::FMovieSceneEvaluationTrack(const FGuid& InObjectBind
 	, SourceTrack(nullptr)
 	, bEvaluateInPreroll(true)
 	, bEvaluateInPostroll(true)
+	, bTearDownPriority(false)
 {
 }
 
