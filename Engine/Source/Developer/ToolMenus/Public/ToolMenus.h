@@ -32,23 +32,14 @@ class UToolMenuEntryScript;
 struct FToolMenuEntry;
 struct FToolMenuSection;
 
-USTRUCT()
 struct FGeneratedToolMenuWidget
 {
-	GENERATED_BODY()
-
-	UPROPERTY()
 	UToolMenu* GeneratedMenu;
-
 	TWeakPtr<SWidget> Widget;
 };
 
-USTRUCT()
 struct FGeneratedToolMenuWidgets
 {
-	GENERATED_BODY()
-
-	UPROPERTY()
 	TArray<FGeneratedToolMenuWidget> Instances;
 };
 
@@ -342,7 +333,6 @@ private:
 	UPROPERTY()
 	TMap<FName, UToolMenu*> Menus;
 
-	UPROPERTY()
 	TMap<FName, FGeneratedToolMenuWidgets> GeneratedMenuWidgets;
 
 	TMap<TWeakPtr<FMultiBox>, TArray<UObject*>> WidgetObjectReferences;
