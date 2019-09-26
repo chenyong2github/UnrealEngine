@@ -3,6 +3,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
@@ -572,6 +573,43 @@ namespace Tools.DotNETCommon
 		}
 
 		/// <summary>
+		/// Gets the prefix for a particular argument
+		/// </summary>
+		/// <param name="FieldInfo">The field hosting the attribute</param>
+		/// <param name="Attribute">The attribute instance</param>
+		/// <returns>Prefix for this argument</returns>
+		private static string GetArgumentPrefix(FieldInfo FieldInfo, CommandLineAttribute Attribute)
+		{
+			// Get the inner field type, unwrapping nullable types
+			Type ValueType = FieldInfo.FieldType;
+			if (ValueType.IsGenericType && ValueType.GetGenericTypeDefinition() == typeof(Nullable<>))
+			{
+				ValueType = ValueType.GetGenericArguments()[0];
+			}
+
+			string Prefix = Attribute.Prefix;
+			if (Prefix == null)
+			{
+				if (ValueType == typeof(bool))
+				{
+					Prefix = String.Format("-{0}", FieldInfo.Name);
+				}
+				else
+				{
+					Prefix = String.Format("-{0}=", FieldInfo.Name);
+				}
+			}
+			else
+			{
+				if (ValueType != typeof(bool) && Attribute.Value == null && !Prefix.EndsWith("=") && !Prefix.EndsWith(":"))
+				{
+					Prefix = Prefix + "=";
+				}
+			}
+			return Prefix;
+		}
+
+		/// <summary>
 		/// Applies these arguments to fields with the [CommandLine] attribute in the given object.
 		/// </summary>
 		/// <param name="TargetObject">The object to configure</param>
@@ -593,33 +631,8 @@ namespace Tools.DotNETCommon
 					IEnumerable<CommandLineAttribute> Attributes = FieldInfo.GetCustomAttributes<CommandLineAttribute>();
 					foreach(CommandLineAttribute Attribute in Attributes)
 					{
-						// Get the inner field type, unwrapping nullable types
-						Type ValueType = FieldInfo.FieldType;
-						if(ValueType.IsGenericType && ValueType.GetGenericTypeDefinition() == typeof(Nullable<>))
-						{
-							ValueType = ValueType.GetGenericArguments()[0];
-						}
-
 						// Get the appropriate prefix for this attribute
-						string Prefix = Attribute.Prefix;
-						if(Prefix == null)
-						{
-							if(ValueType == typeof(bool))
-							{
-								Prefix = String.Format("-{0}", FieldInfo.Name);
-							}
-							else
-							{
-								Prefix = String.Format("-{0}=", FieldInfo.Name);
-							}
-						}
-						else
-						{
-							if(ValueType != typeof(bool) && Attribute.Value == null && !Prefix.EndsWith("=") && !Prefix.EndsWith(":"))
-							{
-								Prefix = Prefix + "=";
-							}
-						}
+						string Prefix = GetArgumentPrefix(FieldInfo, Attribute);
 
 						// Get the value with the correct prefix
 						int FirstIndex;
@@ -696,6 +709,52 @@ namespace Tools.DotNETCommon
 					throw new CommandLineArgumentException(String.Format("Missing {0} arguments", StringUtils.FormatList(MissingArguments.Select(x => x.Replace("=", "=...")))));
 				}
 			}
+		}
+
+		/// <summary>
+		/// Gets help text for the arguments of a given type
+		/// </summary>
+		/// <param name="Type">The type to find parameters for</param>
+		/// <returns>List of parameters</returns>
+		public static List<KeyValuePair<string, string>> GetParameters(Type Type)
+		{
+			List<KeyValuePair<string, string>> Parameters = new List<KeyValuePair<string, string>>();
+			for (Type TargetType = Type; TargetType != typeof(object); TargetType = TargetType.BaseType)
+			{
+				foreach (FieldInfo FieldInfo in TargetType.GetFields(BindingFlags.Instance | BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+				{
+					List<CommandLineAttribute> Attributes = FieldInfo.GetCustomAttributes<CommandLineAttribute>().ToList();
+					if(Attributes.Count > 0)
+					{
+						StringBuilder DescriptionBuilder = new StringBuilder();
+						foreach (DescriptionAttribute Attribute in FieldInfo.GetCustomAttributes<DescriptionAttribute>())
+						{
+							if(DescriptionBuilder.Length > 0)
+							{
+								DescriptionBuilder.Append("\n");
+							}
+							DescriptionBuilder.Append(Attribute.Description);
+						}
+
+						string Description = DescriptionBuilder.ToString();
+						if (Description.Length == 0)
+						{
+							Description = "No description available.";
+						}
+
+						foreach (CommandLineAttribute Attribute in Attributes)
+						{
+							string Prefix = GetArgumentPrefix(FieldInfo, Attribute);
+							if(Prefix.EndsWith("=", StringComparison.Ordinal))
+							{
+								Prefix += "...";
+							}
+							Parameters.Add(new KeyValuePair<string, string>(Prefix, Description));
+						}
+					}
+				}
+			}
+			return Parameters;
 		}
 
 		/// <summary>

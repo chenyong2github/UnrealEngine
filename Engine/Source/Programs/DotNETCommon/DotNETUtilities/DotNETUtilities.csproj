@@ -82,6 +82,7 @@
     <Compile Include="FileReference.cs" />
     <Compile Include="FileSystemReference.cs" />
     <Compile Include="FileUtils.cs" />
+    <Compile Include="HelpUtils.cs" />
     <Compile Include="Json.cs" />
     <Compile Include="JsonObject.cs" />
     <Compile Include="JsonWriter.cs" />

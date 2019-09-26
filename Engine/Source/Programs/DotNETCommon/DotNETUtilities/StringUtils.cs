@@ -26,6 +26,67 @@ namespace Tools.DotNETCommon
 		}
 
 		/// <summary>
+		/// Takes a given sentence and wraps it on a word by word basis so that no line exceeds the
+		/// set maximum line length. Words longer than a line are broken up. Returns the sentence as
+		/// a list of individual lines.
+		/// </summary>
+		/// <param name="Text">The text to be wrapped</param>
+		/// <param name="MaxWidth">The maximum (non negative) length of the returned sentences</param>
+		/// <param name="Lines">Receives a list of word-wrapped lines</param>
+		public static List<string> WordWrap(string Text, int MaxWidth)
+		{
+			// Early out
+			if (Text.Length == 0)
+			{
+				return new List<string>();
+			}
+
+			string[] Words = Text.Split(' ');
+			List<string> WrappedWords = new List<string>();
+
+			string CurrentSentence = string.Empty;
+			foreach (var Word in Words)
+			{
+				// if this is a very large word, split it
+				if (Word.Length > MaxWidth)
+				{
+					// Top up the current line
+					WrappedWords.Add(CurrentSentence + Word.Substring(0, MaxWidth - CurrentSentence.Length));
+
+					int length = MaxWidth - CurrentSentence.Length;
+					while (length + MaxWidth < Word.Length)
+					{
+						// Place the starting lengths into their own lines
+						WrappedWords.Add(Word.Substring(length, Math.Min(MaxWidth, Word.Length - length)));
+						length += MaxWidth;
+					}
+
+					// then the trailing end into the next line
+					CurrentSentence += Word.Substring(length, Math.Min(MaxWidth, Word.Length - length)) + " ";
+				}
+				else
+				{
+					if (CurrentSentence.Length + Word.Length > MaxWidth)
+					{
+						// next line and reset sentence
+						WrappedWords.Add(CurrentSentence);
+						CurrentSentence = string.Empty;
+					}
+
+					// Add the word to the current sentence.
+					CurrentSentence += Word + " ";
+				}
+			}
+
+			if (CurrentSentence.Length > 0)
+			{
+				WrappedWords.Add(CurrentSentence);
+			}
+
+			return WrappedWords;
+		}
+
+		/// <summary>
 		/// Extension method to allow formatting a string to a stringbuilder and appending a newline
 		/// </summary>
 		/// <param name="Builder">The string builder</param>
