@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "AudioDefines.h"		// For ENABLE_AUDIO_DEBUG
+#include "Audio.h"
 
 #if ENABLE_AUDIO_DEBUG
 
@@ -14,22 +15,6 @@ struct FAudioVirtualLoop;
 struct FWaveInstance;
 
 class FSoundSource;
-
-/** Struct containing the debug state of a SoundSource */
-struct ENGINE_API FSoundSource::FDebugInfo
-{
-	/** True if this sound has been soloed. */
-	bool bIsSoloed = false;
-
-	/** True if this sound has been muted . */
-	bool bIsMuted = false;
-
-	/** Reason why this sound is mute/soloed. */
-	FString MuteSoloReason;
-
-	/** Basic CS so we can pass this around safely. */
-	FCriticalSection CS;
-};
 
 class ENGINE_API FAudioDebugger
 {
