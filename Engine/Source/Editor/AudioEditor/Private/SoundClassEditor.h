@@ -92,6 +92,16 @@ private:
 	/** Called to redo the last undone action */
 	void RedoGraphAction();
 
+	/** Toggle solo (Soloing means we just hear this) */
+	void ToggleSolo();
+	bool CanExcuteToggleSolo() const;
+	bool IsSoloToggled() const;
+
+	/** Toggle mute (Muting means this will be explicitly silienced)*/
+	void ToggleMute();
+	bool CanExcuteToggleMute() const;
+	bool IsMuteToggled() const;
+
 private:
 	/** The SoundClass asset being inspected */
 	USoundClass* SoundClass;
@@ -108,7 +118,16 @@ private:
 	/** Command list for this editor */
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 
+	/** Cache the audio debugger instance */
+	class FAudioDebugger* Debugger;
+
 	/**	The tab ids for all the tabs used */
 	static const FName GraphCanvasTabId;
 	static const FName PropertiesTabId;
+
+	/** Bind to commands. */
+	void BindCommands();
+
+	/** Helper function to grow the toolbar and add custom buttons */
+	void ExtendToolbar();
 };

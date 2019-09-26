@@ -775,6 +775,13 @@ protected:
 
 	friend class FAudioDevice;
 	friend struct FActiveSound;
+
+#if ENABLE_AUDIO_DEBUG
+public:
+	struct FDebugInfo;
+	TSharedPtr<FDebugInfo, ESPMode::ThreadSafe> DebugInfo;
+	friend struct FDebugInfo;
+#endif //ENABLE_AUDIO_DEBUG
 };
 
 /*-----------------------------------------------------------------------------
