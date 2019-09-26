@@ -610,9 +610,6 @@ UObject* UFbxFactory::FactoryCreateFile
 								USkeletalMesh* NewMesh = FbxImporter->ImportSkeletalMesh( ImportSkeletalMeshArgs );
 								CreatedObject = NewMesh;
 								
-								//Set the base skeletalmesh to the scoped post edit change variable
-								ScopedPostEditChange.SetSkeletalMesh(NewMesh);
-
 								if(bOperationCanceled)
 								{
 									// User cancelled, clean up and return
@@ -624,6 +621,9 @@ UObject* UFbxFactory::FactoryCreateFile
 
 								if ( NewMesh )
 								{
+									//Set the base skeletalmesh to the scoped post edit change variable
+									ScopedPostEditChange.SetSkeletalMesh(NewMesh);
+
 									if (ImportOptions->bImportAnimations)
 									{
 										// We need to remove all scaling from the root node before we set up animation data.
