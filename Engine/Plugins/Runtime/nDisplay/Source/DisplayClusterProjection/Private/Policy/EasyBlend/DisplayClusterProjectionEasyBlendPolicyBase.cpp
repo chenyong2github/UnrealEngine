@@ -66,9 +66,9 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleAddViewport(const FIntP
 
 	// Create and store nDisplay-to-EasyBlend viewport adapter
 	TSharedPtr<FDisplayClusterProjectionEasyBlendViewAdapterBase> NewViewAdapter = CreateViewAdapter(FDisplayClusterProjectionEasyBlendViewAdapterBase::FInitParams{ ViewportSize, ViewsAmount });
-	if (!NewViewAdapter->Initialize(FullFilePath))
+	if (!NewViewAdapter || !NewViewAdapter->Initialize(FullFilePath))
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't initialize EasyBlend viewport adapter"));
+		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("An error occurred during EasyBlend viewport adapter initialization"));
 		return false;
 	}
 
@@ -89,7 +89,7 @@ void FDisplayClusterProjectionEasyBlendPolicyBase::HandleRemoveViewport()
 
 bool FDisplayClusterProjectionEasyBlendPolicyBase::CalculateView(const uint32 ViewIdx, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
-	check(IsInGameThread())
+	check(IsInGameThread());
 
 	if (!ViewAdapter.IsValid())
 	{
@@ -98,24 +98,29 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::CalculateView(const uint32 Vi
 
 	const float WorldScale = WorldToMeters / 100.f;
 
-	// Get world-2-local matrix
+	// Get origin component
 	const USceneComponent* const OriginComp = GetOriginComp();
+	check(OriginComp);
+
+	// Get world-origin matrix
 	const FTransform& World2LocalTransform = (OriginComp != nullptr ? OriginComp->GetComponentTransform() : FTransform::Identity);
 
 	// Calculate view location in origin space
-	const FVector LocalViewLoc = World2LocalTransform.InverseTransformPosition(InOutViewLocation);
+	FVector  OriginSpaceViewLocation = World2LocalTransform.InverseTransformPosition(InOutViewLocation);
 
-	// Prepare non-const variables to get output
-	FVector  EasyBlendViewLocation = LocalViewLoc * EasyBlendScale;
-	FRotator EasyBlendViewRotation = FRotator::ZeroRotator;
-	if (!ViewAdapter->CalculateView(ViewIdx, EasyBlendViewLocation, EasyBlendViewRotation, ViewOffset, WorldScale, NCP, FCP))
+	// Apply EasyBlend scale depending on the measurement units used in calibration
+	OriginSpaceViewLocation = (OriginSpaceViewLocation / 100 / EasyBlendScale);
+
+	// Forward data to the RHI dependend EasyBlend implementation
+	FRotator OriginSpaceViewRotation = FRotator::ZeroRotator;
+	if (!ViewAdapter->CalculateView(ViewIdx, OriginSpaceViewLocation, OriginSpaceViewRotation, ViewOffset, WorldScale, NCP, FCP))
 	{
 		UE_LOG(LogDisplayClusterProjectionEasyBlend, Warning, TEXT("Couldn't compute view info for <%s> viewport"), *GetViewportId());
 		return false;
 	}
 
-	// Convert rotation from local to world space
-	InOutViewRotation = World2LocalTransform.TransformRotation(EasyBlendViewRotation.Quaternion()).Rotator();
+	// Convert rotation back from origin to world space
+	InOutViewRotation = World2LocalTransform.TransformRotation(OriginSpaceViewRotation.Quaternion()).Rotator();
 
 	return true;
 }
