@@ -1336,7 +1336,7 @@ bool FAudioDevice::HandleAudioSoloSoundClass(const TCHAR* Cmd, FOutputDevice& Ar
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
-		DeviceManager->SetDebugSoloSoundClass(Cmd);
+		DeviceManager->GetDebugger().ToggleSoloSoundClass(Cmd);
 	}
 	return true;
 }
@@ -1346,7 +1346,7 @@ bool FAudioDevice::HandleAudioSoloSoundWave(const TCHAR* Cmd, FOutputDevice& Ar)
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
-		DeviceManager->SetDebugSoloSoundWave(Cmd);
+		DeviceManager->GetDebugger().ToggleSoloSoundWave(Cmd);
 	}
 	return true;
 }
@@ -1356,7 +1356,7 @@ bool FAudioDevice::HandleAudioSoloSoundCue(const TCHAR* Cmd, FOutputDevice& Ar)
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
-		DeviceManager->SetDebugSoloSoundCue(Cmd);
+		DeviceManager->GetDebugger().ToggleSoloSoundCue(Cmd);
 	}
 	return true;
 }
@@ -1366,7 +1366,7 @@ bool FAudioDevice::HandleAudioMixerDebugSound(const TCHAR* Cmd, FOutputDevice& A
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
-		DeviceManager->SetAudioMixerDebugSound(Cmd);
+		DeviceManager->GetDebugger().SetAudioMixerDebugSound(Cmd);
 	}
 	return true;
 }
@@ -1376,7 +1376,7 @@ bool FAudioDevice::HandleAudioDebugSound(const TCHAR* Cmd, FOutputDevice& Ar)
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
-		DeviceManager->SetAudioDebugSound(Cmd);
+		DeviceManager->GetDebugger().SetAudioDebugSound(Cmd);
 	}
 	return true;
 }
@@ -4297,7 +4297,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 #if !UE_BUILD_SHIPPING
 	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 	FString DebugSound;
-	if (AudioDeviceManager->GetAudioDebugSound(DebugSound))
+	if (AudioDeviceManager->GetDebugger().GetAudioDebugSound(DebugSound))
 	{
 		// Reject the new sound if it doesn't have the debug sound name substring
 		FString SoundName;
