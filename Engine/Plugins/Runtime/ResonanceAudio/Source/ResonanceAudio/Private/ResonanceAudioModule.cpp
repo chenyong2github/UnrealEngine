@@ -65,6 +65,7 @@ namespace ResonanceAudio
 #if RESONANCE_SPAT_ENABLED
 		check(bModuleInitialized == true);
 		bModuleInitialized = false;
+		UE_LOG(LogResonanceAudio, Log, TEXT("Resonance Audio Module is Shutdown"));
 #endif // #if RESONANCE_SPAT_ENABLED
 	}
 
@@ -100,6 +101,7 @@ namespace ResonanceAudio
 	void FResonanceAudioModule::UnregisterAudioDevice(FAudioDevice* AudioDeviceHandle)
 	{
 		RegisteredAudioDevices.Remove(AudioDeviceHandle);
+		UE_LOG(LogResonanceAudio, Log, TEXT("Audio Device unregistered from Resonance"));
 	}
 
 	UResonanceAudioSpatializationSourceSettings* FResonanceAudioModule::GetGlobalSpatializationSourceSettings()
