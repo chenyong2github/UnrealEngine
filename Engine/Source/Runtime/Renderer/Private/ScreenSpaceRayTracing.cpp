@@ -112,7 +112,7 @@ bool IsSSRTemporalPassRequired(const FViewInfo& View)
 	return View.AntiAliasingMethod != AAM_TemporalAA || CVarSSRTemporal.GetValueOnRenderThread() != 0;
 }
 
-bool ShouldCompileTiledShadersForPlatform(EShaderPlatform ShaderPlatform);
+bool UseSingleLayerWaterIndirectDraw(EShaderPlatform ShaderPlatform);
 
 namespace
 {
@@ -358,7 +358,7 @@ class FScreenSpaceReflectionsTileVS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ::ShouldCompileTiledShadersForPlatform(Parameters.Platform);
+		return ::UseSingleLayerWaterIndirectDraw(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
