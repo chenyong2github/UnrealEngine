@@ -7,6 +7,6 @@ namespace GeometryCollectionExample
 {	
 
 	template<class T>
-	bool TestImplicitSphere(ExampleResponse&& R);
+	void TestImplicitSphere();
 	
 }

@@ -33,7 +33,8 @@ namespace Chaos
 
 		bool OverlapGeom(const TImplicitObject<T,3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, const TVector<T,3> Scale = TVector<T,3>(1)) const;
 		bool SweepGeom(const TImplicitObject<T, 3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T,3>& Dir, const T Length, T& OutTime, TVector<T,3>& OutPosition, TVector<T,3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, const TVector<T,3> Scale = TVector<T,3>(1)) const;
-		virtual int32 FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex) const override;
+		virtual int32 FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDistance) const override;
+		virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, 3>& DenormDir, int32 FaceIndex, const TVector<T, 3>& OriginalNormal) const override;
 
 		virtual const TBox<T, 3>& BoundingBox() const
 		{
@@ -92,10 +93,13 @@ namespace Chaos
 			return Result;
 		}
 
+		TVector<T, 3> GetFaceNormal(const int32 FaceIdx) const;
+
 	private:
 
 		void RebuildConvexHulls();
 		void RebuildBV();
+
 
 		TParticles<T, 3> MParticles;
 		TArray<TVector<int32, 3>> MElements;

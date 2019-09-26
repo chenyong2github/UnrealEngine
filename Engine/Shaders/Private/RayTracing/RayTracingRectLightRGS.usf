@@ -301,7 +301,7 @@ void RectLightRGS()
 			half3 N = WorldNormal;
 			half3 V = -CameraDirection;
 			half3 L = Ray.Direction;
-			FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0 };
+			FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0, InitHairTransmittanceData() };
 			FDirectLighting LightingSample = EvaluateBxDF(ScreenSpaceData.GBuffer, N, V, L, NoL, ShadowTerms);
 			float3 Brdf = LightingSample.Diffuse + LightingSample.Transmission + LightingSample.Specular;
 

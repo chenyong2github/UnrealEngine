@@ -147,7 +147,7 @@ public class Launch : ModuleRules
 			});
 
 			PrivateDependencyModuleNames.AddRange(new string[] {
-				"ClothingSystemRuntime",
+				"ClothingSystemRuntimeNv",
 				"ClothingSystemRuntimeInterface"
 			});
 

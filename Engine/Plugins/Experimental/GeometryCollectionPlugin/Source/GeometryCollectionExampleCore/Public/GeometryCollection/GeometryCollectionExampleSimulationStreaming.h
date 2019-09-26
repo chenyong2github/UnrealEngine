@@ -7,12 +7,12 @@
 namespace GeometryCollectionExample
 {	
 	template<class T>
-	bool RigidBodies_Streaming_StartSolverEmpty(ExampleResponse&& R);
+	void RigidBodies_Streaming_StartSolverEmpty();
 
 	template<class T>
-	bool RigidBodies_Streaming_BulkInitialization(ExampleResponse&& R);
+	void RigidBodies_Streaming_BulkInitialization();
 	
 	template<class T>
-	bool RigidBodies_Streaming_DeferedClusteringInitialization(ExampleResponse&& R);
+	void RigidBodies_Streaming_DeferedClusteringInitialization();
 
 }

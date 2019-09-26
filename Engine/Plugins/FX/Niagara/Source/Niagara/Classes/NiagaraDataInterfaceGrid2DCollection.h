@@ -16,10 +16,10 @@ class Grid2DBuffer
 public:
 	Grid2DBuffer(int NumX, int NumY)
 	{		
-		GridBuffer.Initialize(NumX, NumY);
+		GridBuffer.Initialize(16, NumX, NumY, EPixelFormat::PF_A32B32G32R32F);
 	}
 
-	FTextureRWBuffer GridBuffer;	
+	FTextureRWBuffer2D GridBuffer;	
 };
 
 class Grid2DCollectionRWInstanceData

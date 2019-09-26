@@ -1,104 +1,93 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "HairStrandsFactory.h"
-#include "HairStrandsAsset.h"
-#include "HairStrandsLoader.h"
 
-#include "Developer/DesktopPlatform/Public/IDesktopPlatform.h"
-#include "Developer/DesktopPlatform/Public/DesktopPlatformModule.h"
-#include "UnrealEd/Public/EditorDirectories.h"
-
+#include "EditorFramework/AssetImportData.h"
+#include "HairDescription.h"
+#include "GroomAsset.h"
+#include "HairStrandsEditor.h"
+#include "HairStrandsImporter.h"
+#include "HairStrandsTranslator.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopedSlowTask.h"
 
-/**
- * true if the extension is for the .hair, .fbx, .abc format.
- */
-static bool IsHairStrandsFormat(const TCHAR* Extension)
-{
-	return (FCString::Stricmp(Extension, TEXT("abc")) == 0) || 
-		   (FCString::Stricmp(Extension, TEXT("fbx")) == 0) ||
-		   (FCString::Stricmp(Extension, TEXT("hair")) == 0);
-}
-
-static void BuildHairStrands( const FString& FilePath, FHairStrandsDatas& OutStrandsDatas)
-{
-	if (FCString::Stricmp(*FPaths::GetExtension(FilePath), TEXT("hair")) == 0)
-	{
-		THairStrandsLoader<FHairFormat>::LoadHairStrands(FilePath, OutStrandsDatas);
-	}
-	else if (FCString::Stricmp(*FPaths::GetExtension(FilePath), TEXT("fbx")) == 0)
-	{
-		THairStrandsLoader<FFbxFormat>::LoadHairStrands(FilePath, OutStrandsDatas);
-	}
-	else if (FCString::Stricmp(*FPaths::GetExtension(FilePath), TEXT("abc")) == 0)
-	{
-		THairStrandsLoader<FAbcFormat>::LoadHairStrands(FilePath, OutStrandsDatas);
-	}
-}
+#define LOCTEXT_NAMESPACE "HairStrandsFactory"
 
 UHairStrandsFactory::UHairStrandsFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SupportedClass = UHairStrandsAsset::StaticClass();
-	bCreateNew = true;
-	bEditAfterNew = true;
-	bEditorImport = false;
+	SupportedClass = UGroomAsset::StaticClass();
+	bCreateNew = false;		// manual creation not allow
+	bEditAfterNew = false;
+	bEditorImport = true;	// only allow import
 
-	Formats.Add(TEXT("hair;Hair hair strands file"));
-	Formats.Add(TEXT("fbx;Fbx hair strands file"));
-	Formats.Add(TEXT("abc;Alembic hair strands file"));
+	// Slightly increased priority to allow its translators to check if they can translate the file
+	ImportPriority += 1;
+
+	// Lazy init the translators to let them register themselves before the CDO is used
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		InitTranslators();
+	}
 }
 
-UObject* UHairStrandsFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+void UHairStrandsFactory::InitTranslators()
 {
-	UHairStrandsAsset* ExistingAsset = FindObject<UHairStrandsAsset>(InParent, *InName.ToString());
-	if (ExistingAsset)
-	{
-		ExistingAsset->ReleaseResource();
-	}
-	UHairStrandsAsset* CurrentAsset = NewObject<UHairStrandsAsset>(InParent, InClass, InName, Flags);
+	Formats.Reset();
 
+	Translators = FHairStrandsEditor::Get().GetHairTranslators();
+	for (TSharedPtr<IHairStrandsTranslator> Translator : Translators)
+	{
+		Formats.Add(Translator->GetSupportedFormat());
+	}
+}
+
+void UHairStrandsFactory::GetSupportedFileExtensions(TArray<FString>& OutExtensions) const
+{
+	if (HasAnyFlags(RF_ClassDefaultObject) && Formats.Num() == 0)
+	{
+		// Init the translators the first time the CDO is used
+		UHairStrandsFactory* Factory = const_cast<UHairStrandsFactory*>(this);
+		Factory->InitTranslators();
+	}
+
+	Super::GetSupportedFileExtensions(OutExtensions);
+}
+
+UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, 
+	const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled) 
+{
+	// Translate the hair data from the file
+	TSharedPtr<IHairStrandsTranslator> SelectedTranslator = GetTranslator(Filename);
+	if (!SelectedTranslator.IsValid())
+	{
+		return nullptr;
+	}
+
+	//GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(this, InClass, InParent, InName, FileType);
+
+	FScopedSlowTask Progress((float) 1, LOCTEXT("ImportHairAsset", "Importing hair asset..."), true);
+	Progress.MakeDialog(true);
+
+	FHairDescription HairDescription;
+	if (!SelectedTranslator->Translate(Filename, HairDescription))
+	{
+		return nullptr;
+	}
+
+	// Might try to import the same file in the same folder, so if an asset already exists there, reuse and update it
+	UGroomAsset* ExistingAsset = FindObject<UGroomAsset>(InParent, *InName.ToString());
+
+	FHairImportContext HairImportContext(InParent, InClass, InName, Flags);
+	UGroomAsset* CurrentAsset = FHairStrandsImporter::ImportHair(HairImportContext, HairDescription, ExistingAsset);
 	if (CurrentAsset)
 	{
-		const FString Filter(TEXT("Hair Strands Files (*.hair,*.fbx,*.abc)|*.hair;*.fbx;*.abc"));
-
-		TArray<FString> OpenFilenames;
-		int32 FilterIndex = -1;
-		if (FDesktopPlatformModule::Get()->OpenFileDialog(
-			nullptr,
-			FString(TEXT("Choose a hair strands file")),
-			FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_IMPORT),
-			TEXT(""),
-			Filter,
-			EFileDialogFlags::None,
-			OpenFilenames,
-			FilterIndex))
-		{			
-			CurrentAsset->FilePath = OpenFilenames[0];
-			BuildHairStrands(CurrentAsset->FilePath, CurrentAsset->StrandsDatas);
+		// Setup asset import data
+		if (!CurrentAsset->AssetImportData)
+		{
+			CurrentAsset->AssetImportData = NewObject<UAssetImportData>(CurrentAsset);
 		}
-
-		CurrentAsset->InitResource();
-	}
-	return CurrentAsset;
-}
-
-UObject* UHairStrandsFactory::FactoryCreateFile(UClass * InClass, UObject * InParent, FName InName, EObjectFlags Flags, 
-	const FString & Filename, const TCHAR* Parms, FFeedbackContext * Warn, bool& bOutOperationCanceled) 
-{
-	UHairStrandsAsset* ExistingAsset = FindObject<UHairStrandsAsset>(InParent, *InName.ToString());
-	if (ExistingAsset)
-	{
-		ExistingAsset->ReleaseResource();
-	}
-
-	UHairStrandsAsset* CurrentAsset = NewObject<UHairStrandsAsset>(InParent, InClass, InName, Flags);	
-
-	if (CurrentAsset)
-	{
-		CurrentAsset->FilePath = Filename;
-		BuildHairStrands(CurrentAsset->FilePath, CurrentAsset->StrandsDatas);
-		CurrentAsset->InitResource();
+		CurrentAsset->AssetImportData->Update(Filename);
 	}
 
 	return CurrentAsset;
@@ -106,51 +95,25 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass * InClass, UObject * InPa
 
 bool UHairStrandsFactory::FactoryCanImport(const FString& Filename)
 {
-	return  IsHairStrandsFormat(*FPaths::GetExtension(Filename));
-}
-
-bool UHairStrandsFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
-{
-	UHairStrandsAsset* Asset = Cast<UHairStrandsAsset>(Obj);
-	if (Asset)
+	for (TSharedPtr<IHairStrandsTranslator> Translator : Translators)
 	{
-		const FString& FileName = Asset->FilePath;
-		if (!FileName.IsEmpty())
+		if (Translator->CanTranslate(Filename))
 		{
-			OutFilenames.Add(FileName);
+			return true;
 		}
-
-		return true;
 	}
 	return false;
 }
 
-void UHairStrandsFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
+TSharedPtr<IHairStrandsTranslator> UHairStrandsFactory::GetTranslator(const FString& Filename)
 {
-	UHairStrandsAsset* Asset = Cast<UHairStrandsAsset>(Obj);
-	if (Asset && ensure(NewReimportPaths.Num() == 1))
+	FString Extension = FPaths::GetExtension(Filename);
+	for (TSharedPtr<IHairStrandsTranslator> Translator : Translators)
 	{
-		Asset->FilePath = NewReimportPaths[0];
+		if (Translator->IsFileExtensionSupported(Extension))
+		{
+			return Translator;
+		}
 	}
-}
-
-EReimportResult::Type UHairStrandsFactory::Reimport(UObject* Obj)
-{
-	UHairStrandsAsset* CurrentAsset = Cast<UHairStrandsAsset>(Obj);
-	BuildHairStrands(CurrentAsset->FilePath, CurrentAsset->StrandsDatas);
-	// Try to find the outer package so we can dirty it up
-	if (Obj->GetOuter())
-	{
-		Obj->GetOuter()->MarkPackageDirty();
-	}
-	else
-	{
-		Obj->MarkPackageDirty();
-	}
-	return EReimportResult::Succeeded;
-}
-
-int32 UHairStrandsFactory::GetPriority() const
-{
-	return ImportPriority;
+	return {};
 }

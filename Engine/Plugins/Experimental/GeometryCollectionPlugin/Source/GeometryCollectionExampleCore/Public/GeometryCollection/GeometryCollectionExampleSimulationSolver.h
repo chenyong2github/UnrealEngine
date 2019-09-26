@@ -8,21 +8,21 @@ namespace GeometryCollectionExample
 {	
 	
 	template<class T>
-	bool Solver_AdvanceNoObjects(ExampleResponse&& R);
+	void Solver_AdvanceNoObjects();
 
 	template<class T>
-	bool Solver_AdvanceDisabledObjects(ExampleResponse&& R);
+	void Solver_AdvanceDisabledObjects();
 
 	template<class T>
-	bool Solver_AdvanceDisabledClusteredObjects(ExampleResponse&& R);
+	void Solver_AdvanceDisabledClusteredObjects();
 
 	template<class T>
-	bool Solver_ValidateReverseMapping(ExampleResponse&& R);
+	void Solver_ValidateReverseMapping();
 
 	template<class T>
-	bool Solver_CollisionEventFilter(ExampleResponse&& R);
+	void Solver_CollisionEventFilter();
 
 	template<class T>
-	bool Solver_BreakingEventFilter(ExampleResponse&& R);
+	void Solver_BreakingEventFilter();
 
 }

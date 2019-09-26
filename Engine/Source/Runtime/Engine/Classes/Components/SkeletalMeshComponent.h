@@ -22,7 +22,7 @@
 
 #include "ClothingSystemRuntimeTypes.h"
 #include "ClothingSimulationInterface.h"
-#include "ClothingSimulationFactoryInterface.h"
+#include "ClothingSimulationFactory.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
 #include "SkeletalMeshComponent.generated.h"

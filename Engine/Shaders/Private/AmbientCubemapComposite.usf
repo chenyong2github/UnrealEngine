@@ -1,5 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+/*=============================================================================
+	PostprocessAmbient.usf: To apply a ambient cubemap as a postprocess
+=============================================================================*/
+
 #include "Common.ush"
 #include "PostProcessCommon.ush"
 #include "DeferredShadingCommon.ush"
@@ -155,7 +159,7 @@ float3 ImageBasedLightingMIS( FGBufferData GBuffer, float3 V, float3 N, uint2 Ra
 				}
 				float Weight = rcp( InvWeight );
 
-				FShadowTerms Shadow = { 1, 1, 1 };
+				FShadowTerms Shadow = { 1, 1, 1, InitHairTransmittanceData() };
 				FDirectLighting LightingSample = EvaluateBxDF( GBuffer, N, V, L, NoL, Shadow );
 
 				Lighting += SampleColor * Weight * ( LightingSample.Diffuse + LightingSample.Specular + LightingSample.Transmission );
@@ -295,6 +299,8 @@ float3 ImageBasedLightingHair( FGBufferData GBuffer, float3 V, float3 N, uint2 R
 
 	uint NumSamples = 32;
 	
+	FHairTransmittanceData HairTransmittance = InitHairTransmittanceData();
+
 	LOOP
 	for( uint i = 0; i < NumSamples; i++ )
 	{
@@ -311,7 +317,7 @@ float3 ImageBasedLightingHair( FGBufferData GBuffer, float3 V, float3 N, uint2 R
 
 			float3 Shading = 0;
 			bool bEvalMultiScatter = true;
-			Shading = HairShading( GBuffer, L, V, N, 1, 0, 0, Random, bEvalMultiScatter );
+			Shading = HairShading( GBuffer, L, V, N, 1, HairTransmittance, 0, 0, Random, bEvalMultiScatter );
 			
 			Lighting += SampleColor * Shading * Weight;
 		}
@@ -422,11 +428,12 @@ void MainPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPositio
 	
 	BRANCH if( GBuffer.ShadingModelID == SHADINGMODELID_HAIR )
 	{
+		FHairTransmittanceData HairTransmittance = InitHairTransmittanceData();
 		float3 FakeNormal = normalize( V - N * dot(V,N) );
 		FakeNormal = normalize( FakeNormal + 0 * float3(0,0,1) );
 		SpecularContribution = TextureCubeSampleLevel(AmbientCubemap, AmbientCubemapSampler, FakeNormal, AbsoluteDiffuseMip).rgb;
 		bool bEvalMultiScatter = true;
-		SpecularContribution *= PI * HairShading( GBuffer, FakeNormal, V, N, 1, 0, 0.2, Random, bEvalMultiScatter );
+		SpecularContribution *= PI * HairShading( GBuffer, FakeNormal, V, N, 1, HairTransmittance, 0, 0.2, Random, bEvalMultiScatter);
 		NonSpecularContribution = 0;
 	}
 

@@ -1,0 +1,75 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../CommonViewUniformBuffer.ush"
+#include "../SceneTextureParameters.ush"
+
+
+float3 VoxelMinAABB;
+uint   VoxelResolution;
+float3 VoxelMaxAABB;
+float2 OutputResolution;
+float2 SceneDepthResolution;
+
+Texture2D<float> SceneDepthTexture;
+RWTexture3D<uint> DensityTexture;
+SamplerState LinearSampler;
+
+float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
+{
+	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
+	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
+
+	return WorldPosition;
+}
+
+// hair_todo: change to CS & optmize (naive code)
+void MainPS(
+	FScreenVertexOutput Input,
+	out float4  OutColor0 : SV_Target0)
+{
+	const float2 UV = Input.UV;
+	const float2 PixelCoord = UV * OutputResolution;
+
+	const float VoxelSize = (VoxelMaxAABB.x - VoxelMinAABB.x) / VoxelResolution;
+
+	uint3 VoxelPos = 0;
+	uint2 TileCount = OutputResolution / VoxelResolution;
+	VoxelPos.x = PixelCoord.x % VoxelResolution;
+	VoxelPos.y = PixelCoord.y % VoxelResolution;
+	VoxelPos.z = PixelCoord.x / VoxelResolution + PixelCoord.y / VoxelResolution * TileCount.x;
+
+	const float3 WorldPosition = VoxelPos / float(VoxelResolution) * (VoxelMaxAABB - VoxelMinAABB) + VoxelMinAABB;
+
+	float4 ClipPos = mul(float4(WorldPosition,1), View.WorldToClip);
+	ClipPos /= ClipPos.w;
+	const float DepthBias 			= 3 * VoxelSize;
+	const float  VoxelDepth 		= ConvertFromDeviceZ(ClipPos.z) - DepthBias;
+	float2 SceneUV 					= float2(0.5f*(ClipPos.x+1), 1-0.5f*(ClipPos.y+1));
+	SceneUV							= ViewportUVToBufferUV(SceneUV);
+	const float2 ScenePixelCoord 	= SceneUV * SceneDepthResolution;
+
+	OutColor0 = float4(VoxelPos.xy / float(VoxelResolution), 0, 1); 
+	const bool bIsOnScreen = SceneUV.x >= 0 && SceneUV.x < 1 && SceneUV.y >= 0 && SceneUV.y < 1;
+	if (!bIsOnScreen)
+		return;
+
+	const float ClosestDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(ScenePixelCoord,0)));
+	const float3 SceneWorldPos = ReconstructWorldPositionFromDepth(SceneUV, ClosestDepth);
+
+	const bool bIsInVolume = 
+		SceneWorldPos.x >= VoxelMinAABB.x && SceneWorldPos.x < VoxelMaxAABB.x && 
+		SceneWorldPos.y >= VoxelMinAABB.y && SceneWorldPos.y < VoxelMaxAABB.y && 
+		SceneWorldPos.z >= VoxelMinAABB.z && SceneWorldPos.z < VoxelMaxAABB.z;
+
+	if (!bIsInVolume)
+		return;
+
+	// Inject opaque depth on a thin layer (Dist < DistThreshold) for avoiding weird projection
+	if (ClosestDepth < VoxelDepth && abs(ClosestDepth - VoxelDepth) < DepthBias)
+	{
+		OutColor0 = float4(1,0,0,1);
+		DensityTexture[VoxelPos] = 100000;
+	}
+}

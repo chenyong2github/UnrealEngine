@@ -9,7 +9,7 @@
 #include "Physics/ImmediatePhysics/ImmediatePhysicsStats.h"
 
 #include "Chaos/ParticleHandle.h"
-#include "Chaos/PBDJointConstraints.h"
+#include "Chaos/PBD6DJointConstraints.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 
@@ -29,10 +29,10 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		const int DefaultSolverIterations = 5;
+		const int DefaultSolverIterations = 3;
 		Particles = MakeUnique<TPBDRigidsSOAs<FReal, Dimensions>>();
-		Joints = MakeUnique<TPBDJointConstraints<FReal, Dimensions>>();
-		JointsRule = MakeUnique<TPBDConstraintIslandRule<TPBDJointConstraints<FReal, Dimensions>, FReal, Dimensions>>(*Joints);
+		Joints = MakeUnique<TPBD6DJointConstraints<FReal, Dimensions>>();
+		JointsRule = MakeUnique<TPBDConstraintIslandRule<TPBD6DJointConstraints<FReal, Dimensions>, FReal, Dimensions>>(*Joints);
 		Evolution = MakeUnique<TPBDRigidsEvolutionGBF<FReal, Dimensions>>(*Particles.Get(), DefaultSolverIterations);
 
 		Evolution->AddConstraintRule(JointsRule.Get());
