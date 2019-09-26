@@ -11,17 +11,14 @@
 #include "MeshPassProcessor.h"
 #include "Containers/Array.h"
 
-
-
 class FViewInfo;
-
 
 struct FSingleLayerWaterPassData
 {
-	TRefCountPtr<IPooledRenderTarget> SceneColorAndDepthWithoutSingleLayerWater;
+	TRefCountPtr<IPooledRenderTarget> SceneColorWithoutSingleLayerWater;
+	TRefCountPtr<IPooledRenderTarget> SceneDepthWithoutSingleLayerWater;
 	FVector4 SceneWithoutSingleLayerWaterValidUVRect;
 };
-
 
 class FSingleLayerWaterPassMeshProcessor : public FMeshPassProcessor
 {

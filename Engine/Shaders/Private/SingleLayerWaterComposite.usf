@@ -11,7 +11,7 @@
 #include "ShadingModels.ush"
 #include "SceneTextureParameters.ush"
 
-// Scale for encoding depth into SceneColorAndDepthWithoutSingleLayerWaterTexture
+// Scale for encoding depth into SceneDepthWithoutSingleLayerWaterTexture
 #define SINGLE_LAYER_WATER_DEPTH_SCALE 100.0f
 
 #define ENABLE_SKY_LIGHT 1
@@ -25,8 +25,8 @@
 Texture2D ScreenSpaceReflectionsTexture;
 SamplerState ScreenSpaceReflectionsSampler;
 
-Texture2D SceneNoWaterColorAndDepthTexture;
-SamplerState SceneNoWaterColorAndDepthSampler;
+Texture2D SceneNoWaterDepthTexture;
+SamplerState SceneNoWaterDepthSampler;
 
 struct SingleLayerWaterCompositeOutput
 {
@@ -57,7 +57,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 #endif
 	if (ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
 	{
-		float OpaqueDepth = SceneNoWaterColorAndDepthTexture.SampleLevel(SceneNoWaterColorAndDepthSampler, BufferUV, 0).w * SINGLE_LAYER_WATER_DEPTH_SCALE;
+		float OpaqueDepth = SceneNoWaterDepthTexture.SampleLevel(SceneNoWaterDepthSampler, BufferUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
 		float WaterDepth = GBuffer.Depth;
 
 		float DeltaDepth = CameraIsUnderWater ? WaterDepth : OpaqueDepth - WaterDepth;	// Inverted depth
@@ -291,12 +291,14 @@ float2 SVPositionToSourceTextureUV;
 
 void WaterRefractionCopyPS(
 	in float4 SVPosition : SV_Position,
-	out float4 OutColorAndDepth : SV_Target0)
+	out float4 OutSceneColor : SV_Target0,
+	out float OutSceneDepth : SV_Target1)
 {
 	float2 BufferUV = SVPosition.xy * SVPositionToSourceTextureUV;
 
 	// Downsample and average all 2x2 quads
-	OutColorAndDepth.xyz = Texture2DSampleLevel(SceneColorCopyDownsampleTexture, SceneColorCopyDownsampleSampler, BufferUV, 0).xyz;
+	OutSceneColor.xyz = Texture2DSampleLevel(SceneColorCopyDownsampleTexture, SceneColorCopyDownsampleSampler, BufferUV, 0).xyz;
+	OutSceneColor.w = 1.0f;
 
 	float DeviceDepthZ = 0.0f;
 #if DOWNSAMPLE_REFRACTION
@@ -306,5 +308,5 @@ void WaterRefractionCopyPS(
 #else
 	DeviceDepthZ = Texture2DSampleLevel(SceneDepthCopyDownsampleTexture, SceneDepthCopyDownsampleSampler, BufferUV, 0).x;
 #endif
-	OutColorAndDepth.w = ConvertFromDeviceZ(DeviceDepthZ) / SINGLE_LAYER_WATER_DEPTH_SCALE;
+	OutSceneDepth = ConvertFromDeviceZ(DeviceDepthZ) / SINGLE_LAYER_WATER_DEPTH_SCALE;
 }
