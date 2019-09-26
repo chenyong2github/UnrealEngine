@@ -1709,7 +1709,7 @@ private:
 
 		if (bFilterCoolingDown && InWorld->TickGroup >= 0 && InWorld->TickGroup < TG_NewlySpawned)
 		{
-			UE_LOG(LogTick, Warning, TEXT("GetEnabledTickFunctionCounts: Filtering results mid-frame. TickFunctions that execute later this frame will not be reported."));
+			UE_LOG(LogTick, Warning, TEXT("GetEnabledTickFunctionCounts is filtering results before TickGroups have finished. TickFunctions with a cooldown interval may be missing."));
 		}
 
 		const float WorldTimeSeconds = InWorld->GetTimeSeconds();
