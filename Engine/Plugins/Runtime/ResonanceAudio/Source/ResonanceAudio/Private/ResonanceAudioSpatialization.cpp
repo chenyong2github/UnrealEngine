@@ -12,6 +12,15 @@ FAutoConsoleVariableRef CVarResonanceQualityOverride(
 	TEXT("0: Quality is not overridden, 1: Stereo Panning, 2: Low Quality, 3: Medium Quality, 4: High Quality"),
 	ECVF_Default);
 
+
+static int32 ExtraResonanceLoggingCVar = 0;
+FAutoConsoleVariableRef CVarExtraResonanceLogging(
+	TEXT("au.ExtraResonanceLogging"),
+	ExtraResonanceLoggingCVar,
+	TEXT("If non-zero, will log extra information about the state of Resonance HRTF processing.\n")
+	TEXT("0: Disable, >0: Enable"),
+	ECVF_Default);
+
 namespace ResonanceAudio {
 
 	/************************************************************/
@@ -42,6 +51,8 @@ namespace ResonanceAudio {
 		SpatializationSettings.Init(nullptr, InitializationParams.NumSources);
 
 		bIsInitialized = true;
+
+		UE_LOG(LogResonanceAudio, Log, TEXT("Google Resonance Audio Spatialization is initialized."));
 	}
 
 	bool FResonanceAudioSpatialization::IsSpatializationEffectInitialized() const
@@ -147,6 +158,12 @@ namespace ResonanceAudio {
 			UE_LOG(LogResonanceAudio, Error, TEXT("ResonanceAudioSpatializer::OnInitSource: Undefined distance roll-off model!"));
 			break;
 		}
+
+
+		if (ExtraResonanceLoggingCVar)
+		{
+			UE_LOG(LogResonanceAudio, Warning, TEXT("Source initialized (Our source ID: %i) (Binaural SourceId)."), SourceId, BinauralSource.Id);
+		}
 	}
 
 	void FResonanceAudioSpatialization::OnReleaseSource(const uint32 SourceId)
@@ -161,6 +178,11 @@ namespace ResonanceAudio {
 		{
 			ResonanceAudioApi->DestroySource(BinauralSource.Id);
 			BinauralSource.Id = RA_INVALID_SOURCE_ID;
+		}
+
+		if (ExtraResonanceLoggingCVar)
+		{
+			UE_LOG(LogResonanceAudio, Warning, TEXT("Destroying Source (Our Source ID: %i)(Binaural Source ID: %i)"), SourceId, BinauralSource.Id);
 		}
 	}
 
@@ -199,6 +221,15 @@ namespace ResonanceAudio {
 
 			// Add source buffer to process.
 			ResonanceAudioApi->SetInterleavedBuffer(BinauralSource.Id, InputData.AudioBuffer->GetData(), InputData.NumChannels, InputData.AudioBuffer->Num() / InputData.NumChannels);
+
+			// optional heartbeat to make sure Resonance is processing audio
+			static const int32 NumBuffersBetweenLogs = 500;
+			static int32 ResonanceAudioBuffersProcessecdCounter = 0;
+
+			if (ExtraResonanceLoggingCVar && (ResonanceAudioBuffersProcessecdCounter++ % NumBuffersBetweenLogs) == 0)
+			{
+				UE_LOG(LogResonanceAudio, Warning, TEXT("FResonanceAudioSpatialization::ProcessAudio() has been called %i times"), NumBuffersBetweenLogs);
+			}
 		}
 	}
 
