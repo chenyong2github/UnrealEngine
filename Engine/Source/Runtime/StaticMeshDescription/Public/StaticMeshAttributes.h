@@ -45,7 +45,7 @@ namespace MeshAttribute
 }
 
 
-class FStaticMeshAttributes : public FMeshAttributes
+class STATICMESHDESCRIPTION_API FStaticMeshAttributes : public FMeshAttributes
 {
 public:
 
@@ -53,7 +53,7 @@ public:
 		: FMeshAttributes(InMeshDescription)
 	{}
 
-	STATICMESHDESCRIPTION_API virtual void Register() override;
+	virtual void Register() override;
 
 	TVertexAttributesRef<float> GetVertexCornerSharpnesses() { return MeshDescription.VertexAttributes().GetAttributesRef<float>(MeshAttribute::Vertex::CornerSharpness); }
 	TVertexAttributesConstRef<float> GetVertexCornerSharpnesses() const { return MeshDescription.VertexAttributes().GetAttributesRef<float>(MeshAttribute::Vertex::CornerSharpness); }

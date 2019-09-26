@@ -14,7 +14,7 @@ namespace MeshAttribute
 }
 
 
-class FMeshAttributes
+class MESHDESCRIPTION_API FMeshAttributes
 {
 public:
 	explicit FMeshAttributes(FMeshDescription& InMeshDescription)
@@ -23,7 +23,7 @@ public:
 
 	virtual ~FMeshAttributes() = default;
 
-	MESHDESCRIPTION_API virtual void Register();
+	virtual void Register();
 
 	/** Accessors for cached vertex position array */
 	TVertexAttributesRef<FVector> GetVertexPositions() { return MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position); }
