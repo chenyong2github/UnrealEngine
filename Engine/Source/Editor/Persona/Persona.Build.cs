@@ -55,7 +55,7 @@ public class Persona : ModuleRules
                 "RHI",
                 "Json",
                 "JsonUtilities",
-                "ClothingSystemRuntime",
+                "ClothingSystemRuntimeNv",
                 "ClothingSystemEditorInterface",
                 "ClothingSystemRuntimeInterface",
                 "AnimGraphRuntime",

@@ -97,6 +97,38 @@ public:
 		return false;
 	}
 
+	virtual int32 FindMostOpposingFace(const TVector<T, d>& Position, const TVector<T, d>& UnitDir, int32 HintFaceIndex, T SearchDist) const override
+	{
+		ensure(FMath::IsNearlyEqual(UnitDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
+
+		const TVector<T, d> UnscaledPosition = MInvScale * Position;
+		TVector<T, d> UnscaledDir = MInvScale * UnitDir;
+		const T UnscaledLength = UnscaledDir.SafeNormalize();
+		const T UnscaledSearchDist = SearchDist * MInvScale.Max();	//this is not quite right since it's no longer a sphere, but the whole thing is fuzzy anyway
+
+		return MObject->FindMostOpposingFace(UnscaledPosition, UnscaledDir, HintFaceIndex, UnscaledSearchDist);
+	}
+
+	virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T, d>& OriginalNormal) const override
+	{
+		TVector<T, 3> LocalDenormDir = DenormDir * MInvScale;
+		TVector<T, 3> LocalOriginalNormal = OriginalNormal * MInvScale;
+		
+		if (ensure(LocalOriginalNormal.SafeNormalize()) == 0)
+		{
+			LocalOriginalNormal = TVector<T,3>(0,0,1);
+		}
+
+		const TVector<T, d> LocalNormal = MObject->FindGeometryOpposingNormal(LocalDenormDir, FaceIndex, LocalOriginalNormal);
+		TVector<T, d> Normal = LocalNormal * MScale;
+		if (ensure(Normal.SafeNormalize()) == 0)
+		{
+			Normal = TVector<T,3>(0,0,1);
+		}
+
+		return Normal;
+	}
+
 	virtual bool Overlap(const TVector<T, d>& Point, const T Thickness) const override
 	{
 		const TVector<T, d> UnscaledPoint = MInvScale * Point;

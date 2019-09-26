@@ -20,5 +20,3 @@ public:
 		return true;
 	}
 };
-
-IMPLEMENT_MODULE(FHairStrandsCore, HairStrandsCore);

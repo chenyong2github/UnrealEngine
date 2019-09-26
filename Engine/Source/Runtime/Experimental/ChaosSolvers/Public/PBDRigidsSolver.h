@@ -8,7 +8,6 @@
 #include "Chaos/Defines.h"
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "Chaos/Framework/MultiBufferResource.h"
-#include "Chaos/Framework/SingleParticlePhysicsProxy.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/PBDCollisionConstraint.h"
@@ -24,6 +23,7 @@
 #include "Framework/Dispatcher.h"
 #include "Field/FieldSystem.h"
 #include "EventManager.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "SolverEventFilters.h"
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER

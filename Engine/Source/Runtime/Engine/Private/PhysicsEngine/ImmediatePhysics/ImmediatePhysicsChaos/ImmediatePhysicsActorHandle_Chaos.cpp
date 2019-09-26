@@ -413,6 +413,11 @@ namespace ImmediatePhysics_Chaos
 		return FLT_MAX;
 	}
 
+	const FVector& FActorHandle::GetCoMTranslation() const
+	{
+		return ActorToCoMTranslation;
+	}
+
 }
 
 #endif // INCLUDE_CHAOS

@@ -1,0 +1,46 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+// Use a custom BSDF which match more closely PBRT's one.
+// This allows to compare with offline/reference rendering
+#define HAIR_CUSTOM_BSDF 1
+
+struct HairAverageEnergy
+{
+	float3 A_R;
+	float3 A_TT;
+	float3 A_TRT;
+};
+
+struct HairAverageScattering
+{
+	float3 A_front;	// Front Scattering A_f
+	float3 A_back;	// Back Scattering A_b
+};
+
+
+HairAverageScattering SampleHairLUT(Texture3D<float4> LUTTexture, SamplerState LUTSampler, float3 Absorption, float Roughness, float SinViewAngle)
+{
+	const float2 LUTValue_R = LUTTexture.SampleLevel(LUTSampler, float3(saturate(abs(SinViewAngle)), saturate(Roughness), saturate(Absorption.x)), 0).xy;
+	const float2 LUTValue_G = LUTTexture.SampleLevel(LUTSampler, float3(saturate(abs(SinViewAngle)), saturate(Roughness), saturate(Absorption.y)), 0).xy;
+	const float2 LUTValue_B = LUTTexture.SampleLevel(LUTSampler, float3(saturate(abs(SinViewAngle)), saturate(Roughness), saturate(Absorption.z)), 0).xy;
+
+	HairAverageScattering Output;
+	Output.A_front = float3(LUTValue_R.x, LUTValue_G.x, LUTValue_B.x);
+	Output.A_back  = float3(LUTValue_R.y, LUTValue_G.y, LUTValue_B.y);
+	return Output;
+}
+
+HairAverageEnergy SampleHairEnergyLUT(Texture3D<float4> LUTTexture, SamplerState LUTSampler, float3 Absorption, float Roughness, float SinViewAngle)
+{
+	const float3 LUTValue_R = LUTTexture.SampleLevel(LUTSampler, float3(saturate(abs(SinViewAngle)), saturate(Roughness), saturate(Absorption.x)), 0).xyz;
+	const float3 LUTValue_G = LUTTexture.SampleLevel(LUTSampler, float3(saturate(abs(SinViewAngle)), saturate(Roughness), saturate(Absorption.y)), 0).xyz;
+	const float3 LUTValue_B = LUTTexture.SampleLevel(LUTSampler, float3(saturate(abs(SinViewAngle)), saturate(Roughness), saturate(Absorption.z)), 0).xyz;
+
+	HairAverageEnergy Output;
+	Output.A_R = float3(LUTValue_R.x, LUTValue_G.x, LUTValue_B.x);
+	Output.A_TT = float3(LUTValue_R.y, LUTValue_G.y, LUTValue_B.y);
+	Output.A_TRT = float3(LUTValue_R.z, LUTValue_G.z, LUTValue_B.z);
+	return Output;
+}

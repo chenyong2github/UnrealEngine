@@ -2,7 +2,7 @@
 
 #include "ClothMeshAdapter.h"
 
-#include "ClothingAssetInterface.h"
+#include "ClothingAssetBase.h"
 #include "Assets/ClothingAsset.h"
 
 #include "MeshPaintTypes.h"

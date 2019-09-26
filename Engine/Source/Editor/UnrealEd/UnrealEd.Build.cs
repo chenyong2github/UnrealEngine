@@ -170,7 +170,7 @@ public class UnrealEd : ModuleRules
 				"ViewportInteraction",
 				"VREditor",
 				"ClothingSystemEditor",
-				"ClothingSystemRuntime",
+				"ClothingSystemRuntimeNv",
 				"ClothingSystemRuntimeInterface",
 				"PIEPreviewDeviceProfileSelector",
 				"PakFileUtilities",

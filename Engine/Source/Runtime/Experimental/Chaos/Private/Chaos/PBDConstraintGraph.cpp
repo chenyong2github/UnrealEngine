@@ -84,14 +84,14 @@ void TPBDConstraintGraph<T, d>::ReserveConstraints(const int32 NumConstraints)
 }
 
 template<typename T, int d>
-void TPBDConstraintGraph<T, d>::AddConstraint(const uint32 InContainerId, const int32 InConstraintIndex, const TVector<TGeometryParticleHandle<T,d>*, 2>& ConstrainedParticles)
+void TPBDConstraintGraph<T, d>::AddConstraint(const uint32 InContainerId, TConstraintHandle<T, d>* InConstraintHandle, const TVector<TGeometryParticleHandle<T,d>*, 2>& ConstrainedParticles)
 {
 	// Must have at least one constrained particle
 	check((ConstrainedParticles[0]) || (ConstrainedParticles[1]));
 
 	const int32 NewEdgeIndex = Edges.Num();
 	FGraphEdge NewEdge;
-	NewEdge.Data = { InContainerId, InConstraintIndex };
+	NewEdge.Data = { InContainerId, InConstraintHandle };
 
 	if (ConstrainedParticles[0])
 	{
