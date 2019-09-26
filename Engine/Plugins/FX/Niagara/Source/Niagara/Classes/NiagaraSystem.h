@@ -235,6 +235,10 @@ public:
 	void InvalidateCachedCompileIds();
 
 	static void RequestCompileForEmitter(UNiagaraEmitter* InEmitter);
+
+	/** Experimental feature that allows us to bake out rapid iteration parameters during the normal compile process. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	uint32 bBakeOutRapidIteration : 1;
 #endif
 
 	FORCEINLINE UNiagaraParameterCollectionInstance* GetParameterCollectionOverride(UNiagaraParameterCollection* Collection)

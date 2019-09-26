@@ -2813,7 +2813,9 @@ int32 FHlslNiagaraTranslator::GetRapidIterationParameter(const FNiagaraVariable&
 		int32 FoundIdx = TranslationOptions.OverrideModuleConstants.Find(RapidIterationConstantVar);
 		if (FoundIdx != INDEX_NONE)
 		{
-			int32 OutputChunkId = GetConstant(TranslationOptions.OverrideModuleConstants[FoundIdx]);
+			FString DebugConstantStr;
+			int32 OutputChunkId = GetConstant(TranslationOptions.OverrideModuleConstants[FoundIdx], &DebugConstantStr);
+			//UE_LOG(LogNiagaraEditor, Display, TEXT("Converted parameter %s to constant %s for script %s"), *RapidIterationConstantVar.GetName().ToString(), *DebugConstantStr, *CompileOptions.FullName);
 			return OutputChunkId;
 		}
 	}
@@ -2942,7 +2944,7 @@ int32 FHlslNiagaraTranslator::GetParameter(const FNiagaraVariable& Parameter)
 	return OutputChunkIdx;
 }
 
-int32 FHlslNiagaraTranslator::GetConstant(const FNiagaraVariable& Constant)
+int32 FHlslNiagaraTranslator::GetConstant(const FNiagaraVariable& Constant, FString* DebugOutputValue)
 {
 	if (Constant.IsDataInterface())
 	{
@@ -2961,6 +2963,10 @@ int32 FHlslNiagaraTranslator::GetConstant(const FNiagaraVariable& Constant)
 		ConstantStr = GenerateConstantString(Constant);
 	}
 
+	if (DebugOutputValue != nullptr)
+	{
+		*DebugOutputValue = ConstantStr;
+	}
 	if (ConstantStr.IsEmpty())
 	{
 		return INDEX_NONE;
@@ -3962,8 +3968,9 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 		}
 
 		// Check to see if this is the first time we've encountered this node and it is a viable candidate for rapid iteration
-		if (LastSetChunkIdx == INDEX_NONE && bIsCandidateForRapidIteration && TranslationOptions.bParameterRapidIteration)
+		if (LastSetChunkIdx == INDEX_NONE && bIsCandidateForRapidIteration)
 		{
+			FNiagaraVariable OriginalVar = Var;
 			bool bVarChanged = false;
 			if (!bWasEmitterAliased && ActiveHistoryForFunctionCalls.GetEmitterAlias() != nullptr)
 			{
@@ -3976,27 +3983,61 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 				bVarChanged = true;
 			}
 
-			// Now try to look up with the new name.. we may have already made this an external variable before..
-			if (bVarChanged)
+			if (TranslationOptions.bParameterRapidIteration)
 			{
-				VarIdx = ParamMapHistories[ParamMapHistoryIdx].FindVariableByName(Var.GetName());
-				if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
+				// Now try to look up with the new name.. we may have already made this an external variable before..
+				if (bVarChanged)
 				{
-					LastSetChunkIdx = ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx];
+					VarIdx = ParamMapHistories[ParamMapHistoryIdx].FindVariableByName(Var.GetName());
+					if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
+					{
+						LastSetChunkIdx = ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx];
+					}
 				}
-			}
 
-			// If it isn't found yet.. go ahead and make it into a constant variable..
-			if (LastSetChunkIdx == INDEX_NONE && ParameterMapRegisterExternalConstantNamespaceVariable(Var, ErrorNode, ParamMapHistoryIdx, OutputChunkId, InputPin))
-			{
-				LastSetChunkIdx = OutputChunkId;
-				if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
+				// If it isn't found yet.. go ahead and make it into a constant variable..
+				if (LastSetChunkIdx == INDEX_NONE && ParameterMapRegisterExternalConstantNamespaceVariable(Var, ErrorNode, ParamMapHistoryIdx, OutputChunkId, InputPin))
 				{
-					// Record that we wrote to it.
-					ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx] = LastSetChunkIdx;
-					ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
+					LastSetChunkIdx = OutputChunkId;
+					if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
+					{
+						// Record that we wrote to it.
+						ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx] = LastSetChunkIdx;
+						ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
+					}
+					return;
+				}				
+			}
+			else
+			{
+				int32 FoundIdx = TranslationOptions.OverrideModuleConstants.Find(Var);
+				if (FoundIdx == INDEX_NONE)
+				{
+					if (!bWasEmitterAliased && ActiveHistoryForFunctionCalls.GetEmitterAlias() != nullptr && CompileData != nullptr)
+					{
+						Var = FNiagaraParameterMapHistory::ConvertVariableToRapidIterationConstantName(OriginalVar, *CompileData->EmitterUniqueName, GetTargetUsage());
+						bVarChanged = true;
+						FoundIdx = TranslationOptions.OverrideModuleConstants.Find(Var);
+					}
 				}
-				return;
+				
+				if (FoundIdx != INDEX_NONE)
+				{
+					FString DebugConstantStr;
+					OutputChunkId = GetConstant(TranslationOptions.OverrideModuleConstants[FoundIdx], &DebugConstantStr);
+					UE_LOG(LogNiagaraEditor, Display, TEXT("Converted parameter %s to constant %s for script %s"), *Var.GetName().ToString(), *DebugConstantStr, *CompileOptions.FullName);
+					return;
+				}
+				else if (InputPin != nullptr && !InputPin->bDefaultValueIsIgnored) // Use the default from the input pin because this variable was previously never encountered.
+				{
+					FNiagaraVariable PinVar = Schema->PinToNiagaraVariable(InputPin, true);
+					FString DebugConstantStr;
+					OutputChunkId = GetConstant(PinVar, &DebugConstantStr);
+					UE_LOG(LogNiagaraEditor, Display, TEXT("Converted default value of parameter %s to constant %s for script %s. Likely added since this system was last compiled."), *Var.GetName().ToString(), *DebugConstantStr, *CompileOptions.FullName);
+					return;
+				}
+				
+				Error(FText::Format(LOCTEXT("InvalidRapidIterationReplacement", "Variable {0} is a rapid iteration param, but it wasn't found in the override list to bake out!"), FText::FromName(Var.GetName())), ErrorNode, nullptr);
 			}
 		}
 
@@ -4079,9 +4120,21 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 					int32 FoundIdx = TranslationOptions.OverrideModuleConstants.Find(RapidIterationConstantVar);
 					if (FoundIdx != INDEX_NONE)
 					{
-						OutputChunkId = GetConstant(TranslationOptions.OverrideModuleConstants[FoundIdx]);
+						FString DebugConstantStr;
+						OutputChunkId = GetConstant(TranslationOptions.OverrideModuleConstants[FoundIdx], &DebugConstantStr);
+						UE_LOG(LogNiagaraEditor, Display, TEXT("Converted parameter %s to constant %s for script %s"), *Var.GetName().ToString(), *DebugConstantStr, *CompileOptions.FullName);
 						return;
 					}
+					else if (InputPin != nullptr && !InputPin->bDefaultValueIsIgnored) // Use the default from the input pin because this variable was previously never encountered.
+					{
+						FNiagaraVariable PinVar = Schema->PinToNiagaraVariable(InputPin, true);
+						FString DebugConstantStr;
+						OutputChunkId = GetConstant(PinVar, &DebugConstantStr);
+						UE_LOG(LogNiagaraEditor, Display, TEXT("Converted default value of parameter %s to constant %s for script %s. Likely added since this system was last compiled."), *Var.GetName().ToString(), *DebugConstantStr, *CompileOptions.FullName);
+						return;
+					}
+
+					Error(FText::Format(LOCTEXT("InvalidRapidIterationReplacement", "Variable {0} is a rapid iteration param, but it wasn't found in the override list to bake out!"), FText::FromName(Var.GetName())), ErrorNode, nullptr);
 				}
 
 				CurrentDefaultPinTraversal.Push(InputPin);
@@ -5405,6 +5458,16 @@ FNiagaraTypeDefinition FHlslNiagaraTranslator::GetChildType(const FNiagaraTypeDe
 				{
 					return FNiagaraTypeDefinition::GetBoolDef();
 				}
+				else if (Property->IsA(UEnumProperty::StaticClass()))
+				{
+					const UEnumProperty* EnumProp = Cast<UEnumProperty>(Property);
+					return FNiagaraTypeDefinition(EnumProp->GetEnum());
+				}
+				else if (Property->IsA(UByteProperty::StaticClass()))
+				{
+					const UByteProperty* ByteProp = Cast<UByteProperty>(Property);
+					return FNiagaraTypeDefinition(ByteProp->GetIntPropertyEnum());
+				}
 				else if (const UStructProperty* StructProp = CastChecked<UStructProperty>(Property))
 				{
 					return FNiagaraTypeDefinition(StructProp->Struct);
@@ -6015,7 +6078,10 @@ FString FHlslNiagaraTranslator::GetPropertyHlslTypeName(const UProperty* Propert
 	}
 	else if (Property->IsA(UEnumProperty::StaticClass()))
 	{
-		const UEnumProperty* EnumProp = Cast<const UEnumProperty>(Property);
+		return "int";
+	}
+	else if (Property->IsA(UByteProperty::StaticClass()))
+	{
 		return "int";
 	}
 	else if (Property->IsA(UBoolProperty::StaticClass()))
