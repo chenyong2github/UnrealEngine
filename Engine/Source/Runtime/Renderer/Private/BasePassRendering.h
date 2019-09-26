@@ -72,8 +72,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FOpaqueBasePassUniformParameters,)
 	SHADER_PARAMETER_SAMPLER(SamplerState, DBufferCTextureSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D<uint>, DBufferRenderMask)
 	// Single Layer Water
-	SHADER_PARAMETER_TEXTURE(Texture2D, SceneColorAndDepthWithoutSingleLayerWaterTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorAndDepthWithoutSingleLayerWaterSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D, SceneColorWithoutSingleLayerWaterTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorWithoutSingleLayerWaterSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D, SceneDepthWithoutSingleLayerWaterTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthWithoutSingleLayerWaterSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGFTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, SceneCustomDepthTexture)
@@ -119,7 +121,8 @@ extern void CreateOpaqueBasePassUniformBuffer(
 	const FViewInfo& View,
 	IPooledRenderTarget* ForwardScreenSpaceShadowMask,
 	FVector4* SceneWithoutSingleLayerWaterValidUVRect,
-	IPooledRenderTarget* SceneColorAndDepthWithoutSingleLayerWater,
+	IPooledRenderTarget* SceneColorWithoutSingleLayerWater,
+	IPooledRenderTarget* SceneDepthWithoutSingleLayerWater,
 	TUniformBufferRef<FOpaqueBasePassUniformParameters>& BasePassUniformBuffer);
 
 extern void CreateTranslucentBasePassUniformBuffer(
