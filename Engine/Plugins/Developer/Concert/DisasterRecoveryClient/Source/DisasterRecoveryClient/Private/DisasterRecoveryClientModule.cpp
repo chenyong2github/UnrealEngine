@@ -392,7 +392,7 @@ private:
 		}
 
 		const FString DisasterRecoveryServerName = RecoveryService::GetRecoveryServerName();
-		const FString DisasterRecoverySessionName = FString::Printf(TEXT("%s_%s_%s"), FApp::GetProjectName(), *FDateTime::Now().ToString(), *DisasterRecoveryServerName);
+		const FString DisasterRecoverySessionName = FString::Printf(TEXT("%s_%s_%s"), *DisasterRecoveryServerName, FApp::GetProjectName(), *FDateTime::Now().ToString());
 
 		if (ShouldLaunchDisasterRecoveryBackendService() && !SpawnDisasterRecoveryServer(DisasterRecoveryServerName))
 		{

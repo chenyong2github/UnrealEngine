@@ -470,7 +470,7 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	const FString CrashContextXMLPath = FPaths::Combine(*ReportDirectoryAbsolutePath, FPlatformCrashContext::CrashContextRuntimeXMLNameW);
 	CrashContext.SerializeAsXML(*CrashContextXMLPath);
 
-	if (RecoveryService && DirectoryExists && SharedCrashContext.bSendUsageData && (SharedCrashContext.CrashType != ECrashContextType::Ensure || SharedCrashContext.CrashType == ECrashContextType::Assert))
+	if (RecoveryService && DirectoryExists && SharedCrashContext.bSendUsageData && SharedCrashContext.CrashType != ECrashContextType::Ensure)
 	{
 		RecoveryService->CollectFiles(ReportDirectoryAbsolutePath);
 	}
@@ -633,8 +633,8 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 						FCrashReportAnalytics::Initialize();
 					}
 
-					// Build error report in memory. (NOTE: Don't collect recovery service files, data anonymity is not implemented yet)
-					FPlatformErrorReport ErrorReport = CollectErrorReport(nullptr/*RecoveryService.Get()*/, MonitorPid, CrashContext, MonitorWritePipe);
+					// Build error report in memory.
+					FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryService.Get(), MonitorPid, CrashContext, MonitorWritePipe);
 					const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, CrashContext.bNoDialog && CrashContext.bSendUnattenededBugReports);
 
 					// At this point the game can continue execution. It is important this happens

@@ -109,13 +109,11 @@ FString FRecoveryService::GetRecoveryServiceArchivedDir() const
 
 FGuid FRecoveryService::GetRecoverySessionId() const
 {
-	// As convention, the disaster recovery client names the session as Recover_{pid}_{projName}_{dateTime}.
-	FString SearchedSessionName = FString::Printf(TEXT("Recovery_%d"), MonitorPid);
-
 	// As long as the Concert server is up, the session would remain live (it's going to be archived when the server shutdown or reboot).
 	for (TSharedPtr<IConcertServerSession>& Session : Server->GetConcertServer()->GetSessions())
 	{
-		if (Session->GetName().StartsWith(SearchedSessionName))
+		// As convention, the disaster recovery session names starts with the server name, followed by the project name, and date time.
+		if (Session->GetName().StartsWith(Server->GetConcertServer()->GetServerInfo().ServerName))
 		{
 			return Session->GetId();
 		}
