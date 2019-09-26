@@ -31,6 +31,8 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "EditorStyleSet.h"
+#include "Kismet2/KismetEditorUtilities.h"
+#include "MovieSceneSequenceEditor.h"
 #include "Engine/Selection.h"
 #include "LevelEditorViewport.h"
 #include "Widgets/Navigation/SBreadcrumbTrail.h"
@@ -1022,6 +1024,25 @@ void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBinding
 		FSequencerCommands::Get().ToggleShowStretchBox,
 		FExecuteAction::CreateLambda([this] { StretchBox->ToggleVisibility(); })
 	);
+
+	auto OpenDirectorBlueprint = [WeakSequencer = SequencerPtr]
+	{
+		UMovieSceneSequence*       Sequence       = WeakSequencer.Pin()->GetFocusedMovieSceneSequence();
+		FMovieSceneSequenceEditor* SequenceEditor = Sequence ? FMovieSceneSequenceEditor::Find(Sequence) : nullptr;
+		if (SequenceEditor)
+		{
+			UBlueprint* DirectorBP = SequenceEditor->GetOrCreateDirectorBlueprint(Sequence);
+			if (DirectorBP)
+			{
+				FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(DirectorBP);
+			}
+		}
+	};
+
+	SequencerCommandBindings->MapAction(
+		FSequencerCommands::Get().OpenDirectorBlueprint,
+		FExecuteAction::CreateLambda(OpenDirectorBlueprint)
+	);
 }
 
 void SSequencer::ShowTickResolutionOverlay()
@@ -1329,8 +1350,6 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie );
 			ToolBarBuilder.AddSeparator("Level Sequence Separator");
 		}
-
-		ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RestoreAnimatedState );
 
 		ToolBarBuilder.AddComboButton(
 			FUIAction(),
@@ -1742,6 +1761,21 @@ TSharedRef<SWidget> SSequencer::MakeGeneralMenu()
 {
 	FMenuBuilder MenuBuilder( true, SequencerPtr.Pin()->GetCommandBindings() );
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+
+
+	MenuBuilder.BeginSection("SequenceOptions", LOCTEXT("SequenceOptionsHeader", "Sequence"));
+	{
+		UMovieSceneSequence* RootSequence = SequencerPtr.Pin()->GetRootMovieSceneSequence();
+		if (RootSequence->GetTypedOuter<UBlueprint>() == nullptr)
+		{
+			// Only show this button where it makes sense (ie, if the sequence is not contained within a blueprint already)
+			MenuBuilder.AddMenuEntry(FSequencerCommands::Get().OpenDirectorBlueprint);
+		}
+
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().RestoreAnimatedState);
+	}
+	MenuBuilder.EndSection();
+
 
 	// view options
 	MenuBuilder.BeginSection( "ViewOptions", LOCTEXT( "ViewMenuHeader", "View" ) );
