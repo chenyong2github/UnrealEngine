@@ -177,6 +177,7 @@ void FConcertClientPackageManager::HandlePackageDiscarded(UPackage* InPackage)
 	Event.Package.Info.PackageName = InPackage->GetFName();
 	Event.Package.Info.PackageFileExtension = UWorld::FindWorldInPackage(InPackage) ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
 	Event.Package.Info.PackageUpdateType = EConcertPackageUpdateType::Dummy;
+	Event.bReplayable = bReplayableEvents;
 	LiveSession->GetSessionDatabase().GetTransactionMaxEventId(Event.Package.Info.TransactionEventIdAtSave);
 	LiveSession->GetSession().SendCustomEvent(Event, LiveSession->GetSession().GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
 }
@@ -329,6 +330,7 @@ void FConcertClientPackageManager::HandleLocalPackageEvent(const FConcertPackage
 
 	FConcertPackageUpdateEvent Event;
 	Event.Package = Package;
+	Event.bReplayable = bReplayableEvents;
 	LiveSession->GetSessionDatabase().GetTransactionMaxEventId(Event.Package.Info.TransactionEventIdAtSave);
 	LiveSession->GetSession().SendCustomEvent(Event, LiveSession->GetSession().GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
 }

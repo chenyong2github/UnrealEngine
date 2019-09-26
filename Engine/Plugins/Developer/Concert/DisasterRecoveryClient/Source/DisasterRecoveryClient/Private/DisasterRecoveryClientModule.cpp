@@ -6,6 +6,7 @@
 #include "IConcertSyncClientModule.h"
 #include "IConcertModule.h"
 #include "IConcertClient.h"
+#include "IConcertClientWorkspace.h"
 #include "IConcertSession.h"
 #include "IConcertSyncClient.h"
 #include "ConcertFrontendStyle.h"
@@ -50,6 +51,14 @@ public:
 		// Wait for init to finish before starting the Disaster Recovery service
 		FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FDisasterRecoveryClientModule::OnEngineInitComplete);
 
+		// Hook to listen when a new session is created.
+		IConcertSyncClientModule::Get().OnClientCreated().AddRaw(this, &FDisasterRecoveryClientModule::HandleConcertSyncClientCreated);
+		for (TSharedRef<IConcertSyncClient> Client : IConcertSyncClientModule::Get().GetClients())
+		{
+			Client->OnSyncSessionStartup().AddRaw(this, &FDisasterRecoveryClientModule::HandleSyncSessionStartup);
+			Client->OnSyncSessionShutdown().AddRaw(this, &FDisasterRecoveryClientModule::HandleSyncSessionShutdown);
+		}
+
 		// Initialize Style
 		FConcertFrontendStyle::Initialize();
 
@@ -64,6 +73,17 @@ public:
 		// Unhook AppPreExit and call it
 		FCoreDelegates::OnPreExit.RemoveAll(this);
 		HandleAppPreExit();
+
+		// Unhook this module callback from other clients.
+		if (IConcertSyncClientModule::IsAvailable())
+		{
+			IConcertSyncClientModule::Get().OnClientCreated().RemoveAll(this);
+			for (TSharedRef<IConcertSyncClient> Client : IConcertSyncClientModule::Get().GetClients())
+			{
+				Client->OnSyncSessionStartup().RemoveAll(this);
+				Client->OnSyncSessionShutdown().RemoveAll(this);
+			}
+		}
 
 		// Unregister the Disaster Recovery Settings panel.
 		UnregisterSettings();
@@ -136,6 +156,27 @@ private:
 		}
 
 		StopDisasterRecoveryService();
+	}
+
+	void HandleConcertSyncClientCreated(TSharedRef<IConcertSyncClient> Client)
+	{
+		if (Client->GetConcertClient()->GetRole() != Role) // Exclude disaster recovery own session connection changes.
+		{
+			Client->OnSyncSessionStartup().AddRaw(this, &FDisasterRecoveryClientModule::HandleSyncSessionStartup);
+			Client->OnSyncSessionShutdown().AddRaw(this, &FDisasterRecoveryClientModule::HandleSyncSessionShutdown);
+		}
+	}
+
+	void HandleSyncSessionStartup(const IConcertSyncClient* SyncClient)
+	{
+		check(DisasterRecoveryClient.Get() != SyncClient)
+		SetDisasterRecoveryEventsAsReplayable(IsCompatibleWithOtherConcertSessions(SyncClient, /*SyncClientShuttingDownSession*/nullptr));
+	}
+
+	void HandleSyncSessionShutdown(const IConcertSyncClient* SyncClient)
+	{
+		check(DisasterRecoveryClient.Get() != SyncClient);
+		SetDisasterRecoveryEventsAsReplayable(IsCompatibleWithOtherConcertSessions(/*SyncClientStartingSession*/nullptr, SyncClient));
 	}
 
 	FGuid GetDisasterRecoverySessionId() const
@@ -251,7 +292,7 @@ private:
 		// Normally, bAutoRestoreLastSession is set true here and overwritten to false when the app exits normally, but when running under the debugger, auto-restore is disabled as
 		// programmers kill applications (stop the debugger) and this should not count as a crash (unless you want to simulate crash this way - see below).
 		Session.bAutoRestoreLastSession = !FPlatformMisc::IsDebuggerPresent();
-		//Sessions.bAutoRestoreLastSession = true; // <- MUST BE COMMENTED BEFORE SUBMITTING: For debugging purpose only. Simulate a crash by stopping the debugger during a session.
+		//Session.bAutoRestoreLastSession = true; // <- MUST BE COMMENTED BEFORE SUBMITTING: For debugging purpose only. Simulate a crash by stopping the debugger during a session.
 
 		// Save the file.
 		SaveDisasterRecoverySessionInfo(RecoverySessionInfo);
@@ -377,6 +418,9 @@ private:
 		DisasterRecoveryClient->GetConcertClient()->OnSessionStartup().AddRaw(this, &FDisasterRecoveryClientModule::DisasterRecoverySessionCreated);
 		DisasterRecoveryClient->Startup(ClientConfig, EConcertSyncSessionFlags::Default_DisasterRecoverySession);
 
+		// Set all events captured by the disaster recovery service as 'replayable' unless another concert client (assumed Multi-User) has created an incompatible session.
+		SetDisasterRecoveryEventsAsReplayable(IsCompatibleWithOtherConcertSessions(/*SyncClientStartingSession*/nullptr, /*SyncClientShuttingDownSession*/nullptr));
+
 		// If something needs to be recovered from a crash.
 		if (RestoringSession)
 		{
@@ -425,6 +469,54 @@ private:
 		{
 			FPlatformProcess::TerminateProc(DisasterRecoveryServiceHandle);
 			DisasterRecoveryServiceHandle.Reset();
+		}
+	}
+
+	/** Returns true if disaster recovery Concert session can run concurrently with other Concert sessions (if any). */
+	bool IsCompatibleWithOtherConcertSessions(const IConcertSyncClient* SyncClientStartingSession, const IConcertSyncClient* SyncClientShuttingDownSession) const
+	{
+		// At the moment, we don't expect more than 2 clients. We don't have use cases for a third concurrent concert client.
+		checkf(IConcertSyncClientModule::Get().GetClients().Num() <= 2, TEXT("Expected 1 disaster recovery client + 1 multi-user client at max."));
+
+		// Scan all existing clients.
+		for (const TSharedRef<IConcertSyncClient>& SyncClient : IConcertSyncClientModule::Get().GetClients())
+		{
+			if (SyncClient == DisasterRecoveryClient || &SyncClient.Get() == SyncClientShuttingDownSession)
+			{
+				continue; // Compatible with itself or the sync client is shutting down its sync session, so it cannot interfere anymore.
+			}
+			else if (&SyncClient.Get() == SyncClientStartingSession)
+			{
+				if (!IsCompatibleWithConcertClient(&SyncClient.Get()))
+				{
+					return false; // The sync client starting a session will interfere with disaster recovery client.
+				}
+			}
+			else if (SyncClient->GetWorkspace() && !IsCompatibleWithConcertClient(&SyncClient.Get())) // A valid workspace means the client is joining, in or leaving a session.
+			{
+				return false; // That existing client is interfering with disaster recovery client.
+			}
+		}
+
+		return true; // No other sessions exist or it is compatible.
+	}
+
+	bool IsCompatibleWithConcertClient(const IConcertSyncClient* SyncClient) const
+	{
+		check(SyncClient != DisasterRecoveryClient.Get());
+		checkf(SyncClient->GetConcertClient()->GetRole() == TEXT("MultiUser"), TEXT("A new role was added, check if this role can run concurrently with disaster recovery."));
+
+		// Multi-User (MU) sessions are not compatible with disaster recovery (DR) session because MU events are performed in a transient sandbox that doesn't exist outside the MU session.
+		// If a crash occurs during a MU session, DR must not recover transactions applied to the transient sandbox. DR will will record the MU events, but for crash inspection purpose only.
+		return SyncClient->GetConcertClient()->GetRole() != TEXT("MultiUser");
+	}
+
+	/** Sets whether further Concert events (transaction/package) emitted by Disaster Recovery have the replayable flag on or off. */
+	void SetDisasterRecoveryEventsAsReplayable(bool bReplayable)
+	{
+		if (TSharedPtr<IConcertClientWorkspace> Workspace = DisasterRecoveryClient ? DisasterRecoveryClient->GetWorkspace() : TSharedPtr<IConcertClientWorkspace>())
+		{
+			Workspace->SetEmittedEventsAsReplayable(bReplayable);
 		}
 	}
 

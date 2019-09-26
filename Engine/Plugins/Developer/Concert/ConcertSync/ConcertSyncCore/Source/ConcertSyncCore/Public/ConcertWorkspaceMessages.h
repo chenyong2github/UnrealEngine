@@ -73,6 +73,10 @@ struct FConcertPackageUpdateEvent
 
 	UPROPERTY()
 	FConcertPackage Package;
+
+	/** True to set the package event as replayable by clients. False would record it for logging/inspection purpose but will prevent clients from replaying it. */
+	UPROPERTY()
+	bool bReplayable = true;
 };
 
 USTRUCT()

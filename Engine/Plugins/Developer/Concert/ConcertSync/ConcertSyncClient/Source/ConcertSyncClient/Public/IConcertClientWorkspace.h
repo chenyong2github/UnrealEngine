@@ -158,4 +158,13 @@ public:
 	 * @param[in] OtherClientsWithModifMaxFetchNum The maximum number of client info to store in OutOtherClientsWithModifInfo if the latter is not null.
 	 */
 	virtual bool IsAssetModifiedByOtherClients(const FName& AssetName, int32* OutOtherClientsWithModifNum = nullptr, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo = nullptr, int32 OtherClientsWithModifMaxFetchNum = 0) const = 0;
+
+	/**
+	 * Controls whether the events emitted to the server through this workspace are marked as 'replayable'. By default, all events are marked as replayable. When
+	 * the workspace 'replayable' flag is false, the events emitted are recorded by the server, but are not replayed on the client(s). Non-replaylable events
+	 * are used for inspection rather than propagating/applying changes.
+	 * @note This was implemented to prevent multi-users transactions from being reapplied by disaster recovery in case of a crash during as multi-user session.
+	 * @param bReplayable True will mark all further events sent as replaylable, false as non-replayable.
+	 */
+	virtual void SetEmittedEventsAsReplayable(bool bReplayable) = 0;
 };

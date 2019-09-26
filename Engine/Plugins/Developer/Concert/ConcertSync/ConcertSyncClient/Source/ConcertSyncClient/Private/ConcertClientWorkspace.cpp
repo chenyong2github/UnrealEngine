@@ -763,4 +763,12 @@ void FConcertClientWorkspace::PostActivityUpdated(const FConcertSyncActivity& In
 	}
 }
 
+void FConcertClientWorkspace::SetEmittedEventsAsReplayable(bool bReplayable)
+{
+	check(TransactionManager && PackageManager);
+
+	TransactionManager->SetTransactionEventsAsReplayable(bReplayable);
+	PackageManager->SetPackageEventAsReplayable(bReplayable);
+}
+
 #undef LOCTEXT_NAMESPACE

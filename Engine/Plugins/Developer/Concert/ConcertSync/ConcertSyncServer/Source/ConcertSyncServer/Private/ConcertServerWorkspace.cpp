@@ -260,7 +260,7 @@ void FConcertServerWorkspace::HandlePackageUpdateEvent(const FConcertSessionCont
 	{
 		return;
 	}
-	
+
 	// Consider acquiring lock on asset saving an explicit lock
 	const bool bLockOwned = LockWorkspaceResource(Event.Package.Info.PackageName, Context.SourceEndpointId, EConcertLockFlags::Temporary);
 	if (bLockOwned)
@@ -280,6 +280,7 @@ void FConcertServerWorkspace::HandlePackageUpdateEvent(const FConcertSessionCont
 				}
 			}
 			PackageActivity.EventSummary.SetTypedPayload(FConcertSyncPackageActivitySummary::CreateSummaryForEvent(PackageActivity.EventData));
+			PackageActivity.bIgnored = !Event.bReplayable;
 			AddPackageActivity(PackageActivity);
 		}
 
@@ -322,6 +323,7 @@ void FConcertServerWorkspace::HandleTransactionFinalizedEvent(const FConcertSess
 			TransactionActivity.EndpointId = InEventContext.SourceEndpointId;
 			TransactionActivity.EventData.Transaction = InEvent;
 			TransactionActivity.EventSummary.SetTypedPayload(FConcertSyncTransactionActivitySummary::CreateSummaryForEvent(TransactionActivity.EventData));
+			TransactionActivity.bIgnored = !InEvent.bReplayable;
 			AddTransactionActivity(TransactionActivity);
 		}
 
@@ -340,7 +342,7 @@ void FConcertServerWorkspace::HandleTransactionFinalizedEvent(const FConcertSess
 
 void FConcertServerWorkspace::HandleTransactionSnapshotEvent(const FConcertSessionContext& InEventContext, const FConcertTransactionSnapshotEvent& InEvent)
 {
-	if (!EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnableTransactions))
+	if (!EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnableTransactions) || !InEvent.bReplayable)
 	{
 		return;
 	}

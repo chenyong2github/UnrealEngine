@@ -366,6 +366,7 @@ void FDisasterRecoveryFSM::RestoreAndJoinSession()
 	RestoreArgs.SessionId = RecoverySessionId;
 	RestoreArgs.SessionFilter.ActivityIdUpperBound = SelectedRecoveryActivity->Activity.ActivityId;
 	RestoreArgs.SessionFilter.bOnlyLiveData = bLiveDataOnly; // TODO: I'm not sure if this should be true or false.
+	RestoreArgs.SessionFilter.bIncludeIgnoredActivities = false; // Don't restore ignored activities. (Like MultiUser events recorded in a DisasterRecovery session for inspection purpose)
 	RestoreArgs.SessionName = ClientConfig->DefaultSessionName;
 
 	// Restore the session on the server.

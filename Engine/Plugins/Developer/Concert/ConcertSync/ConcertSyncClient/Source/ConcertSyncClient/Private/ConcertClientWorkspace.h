@@ -49,6 +49,7 @@ public:
 	virtual FOnWorkspaceSynchronized& OnWorkspaceSynchronized() override;
 	virtual IConcertClientDataStore& GetDataStore() override;
 	virtual bool IsAssetModifiedByOtherClients(const FName& AssetName, int32* OutOtherClientsWithModifNum, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo, int32 OtherClientsWithModifMaxFetchNum) const override;
+	virtual void SetEmittedEventsAsReplayable(bool bEnabled) override;
 
 private:
 	/** Bind the workspace to this session. */

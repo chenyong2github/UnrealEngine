@@ -389,13 +389,14 @@ void FConcertClientTransactionManager::HandleLocalTransactionFinalized(const FCo
 			return;
 		}
 	}
-	
+
 	FPendingTransactionToSend& PendingTransaction = HandleLocalTransactionCommon(InCommonData);
+	PendingTransaction.CommonData.bReplayable = bReplayableEvents;
 	PendingTransaction.FinalizedData = InFinalizedData;
 	PendingTransaction.bIsFinalized = true;
 }
 
-void FConcertClientTransactionManager::SendTransactionFinalizedEvent(const FGuid& InTransactionId, const FGuid& InOperationId, UObject* InPrimaryObject, const TArray<FName>& InModifiedPackages, const TArray<FConcertExportedObject>& InObjectUpdates, const FConcertLocalIdentifierTable& InLocalIdentifierTable, const FText& InTitle)
+void FConcertClientTransactionManager::SendTransactionFinalizedEvent(const FGuid& InTransactionId, const FGuid& InOperationId, UObject* InPrimaryObject, const TArray<FName>& InModifiedPackages, const TArray<FConcertExportedObject>& InObjectUpdates, const FConcertLocalIdentifierTable& InLocalIdentifierTable, const FText& InTitle, bool bReplayable)
 {
 	FConcertTransactionFinalizedEvent TransactionFinalizedEvent;
 	FillTransactionEvent(InTransactionId, InOperationId, InModifiedPackages, TransactionFinalizedEvent);
@@ -403,6 +404,7 @@ void FConcertClientTransactionManager::SendTransactionFinalizedEvent(const FGuid
 	TransactionFinalizedEvent.ExportedObjects = InObjectUpdates;
 	InLocalIdentifierTable.GetState(TransactionFinalizedEvent.LocalIdentifierState);
 	TransactionFinalizedEvent.Title = InTitle;
+	TransactionFinalizedEvent.bReplayable = bReplayable;
 
 	LiveSession->GetSession().SendCustomEvent(TransactionFinalizedEvent, LiveSession->GetSession().GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
 }
@@ -451,7 +453,8 @@ void FConcertClientTransactionManager::SendPendingTransactionEvents()
 						PendingTransactionPtr->CommonData.ModifiedPackages, 
 						PendingTransactionPtr->FinalizedData.FinalizedObjectUpdates, 
 						PendingTransactionPtr->FinalizedData.FinalizedLocalIdentifierTable, 
-						PendingTransactionPtr->CommonData.TransactionTitle
+						PendingTransactionPtr->CommonData.TransactionTitle,
+						PendingTransactionPtr->CommonData.bReplayable
 						);
 				}
 				// TODO: Warn about excluded objects?
