@@ -65,6 +65,15 @@ static TAutoConsoleVariable<float> CVarFarShadowDistanceOverride(
 	TEXT("Overriding far shadow distance for all directional lighst"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
+static TAutoConsoleVariable<float> CVarRtdfFarTransitionScale(
+	TEXT("r.DFFarTransitionScale"),
+	1.0f,
+	TEXT("Use to modify the length of the far transition (fade out) of the distance field shadows.\n")
+	TEXT("1.0: (default) Calculate in the same way as other cascades.")
+	TEXT("0.0: Disable fade out."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
+
 /**
  * The scene info for a directional light.
  */
@@ -758,7 +767,15 @@ private:
 		// Add the fade region to the end of the subfrustum, if this is not the last cascade.
 		if ((int32)ShadowSplitIndex < (int32)NumTotalCascades - 1)
 		{
-			SplitFar += FadeExtension;			
+			SplitFar += FadeExtension;
+		}
+		else if (bIsRayTracedCascade)
+		{
+			FadeExtension *= FMath::Clamp(CVarRtdfFarTransitionScale.GetValueOnAnyThread(), 0.0f, 1.0f);
+			// For the ray-traced cascade, we want to fade out to avoid a hard line.
+			// Since there is no further cascade, extending the far makes less sensse as it affects performance by extending the shadow range.
+			// Thus, we instead move the fade plane closer.
+			FadePlane -= FadeExtension;
 		}
 
 		if(OutCascadeSettings)
