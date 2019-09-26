@@ -10,6 +10,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "IPersonaToolkit.h"
+#include "Engine/SkeletalMesh.h"
 #include "LODInfoUILayout.generated.h"
 
 UCLASS(HideCategories=Object, MinimalAPI)
