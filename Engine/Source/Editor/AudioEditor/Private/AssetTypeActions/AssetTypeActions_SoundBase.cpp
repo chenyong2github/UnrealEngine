@@ -294,146 +294,164 @@ bool FAssetTypeActions_SoundBase::CanExecutePlayCommand(TArray<TWeakObjectPtr<US
 
 void FAssetTypeActions_SoundBase::ExecuteMuteSound(TArray<TWeakObjectPtr<USoundBase>> Objects) const
 {	
-	FAudioDebugger& Debugger = GEditor->GetAudioDeviceManager()->GetDebugger();	
-		
-	// In a selection that consists of some already muted, toggle everything in the same direction,
-	// to avoid AB problem.
-
-	bool bAnyMuted = IsActionCheckedMute(Objects);
-	for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
+	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
-		if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
-		{											
-			Debugger.SetMuteSoundCue(Cue->GetFName(), !bAnyMuted);
-		}
-		else if(USoundWave* Wave = Cast<USoundWave>(SoundBase.Get()))
+		FAudioDebugger& Debugger = ADM->GetDebugger();
+
+		// In a selection that consists of some already muted, toggle everything in the same direction,
+		// to avoid AB problem.
+
+		bool bAnyMuted = IsActionCheckedMute(Objects);
+		for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
 		{
-			Debugger.SetMuteSoundWave(Wave->GetFName(), !bAnyMuted);
-		}		
-	}	
+			if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
+			{
+				Debugger.SetMuteSoundCue(Cue->GetFName(), !bAnyMuted);
+			}
+			else if (USoundWave* Wave = Cast<USoundWave>(SoundBase.Get()))
+			{
+				Debugger.SetMuteSoundWave(Wave->GetFName(), !bAnyMuted);
+			}
+		}
+	}
 }
 
 void FAssetTypeActions_SoundBase::ExecuteSoloSound(TArray<TWeakObjectPtr<USoundBase>> Objects) const
 {
-	FAudioDebugger& Debugger = GEditor->GetAudioDeviceManager()->GetDebugger();
-	
-	// In a selection that consists of some already soloed, toggle everything in the same direction,
-	// to avoid AB problem.
-		
-	bool bAnySoloed = IsActionCheckedSolo(Objects);
-	for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
+	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
-		if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
+		FAudioDebugger& Debugger = ADM->GetDebugger();
+
+		// In a selection that consists of some already soloed, toggle everything in the same direction,
+		// to avoid AB problem.
+
+		bool bAnySoloed = IsActionCheckedSolo(Objects);
+		for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
 		{
-			Debugger.SetSoloSoundCue(Cue->GetFName(), !bAnySoloed);
-		}
-		else if (USoundWave* Wave = Cast<USoundWave>(SoundBase.Get()))
-		{
-			Debugger.SetSoloSoundCue(Wave->GetFName(), !bAnySoloed);
+			if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
+			{
+				Debugger.SetSoloSoundCue(Cue->GetFName(), !bAnySoloed);
+			}
+			else if (USoundWave* Wave = Cast<USoundWave>(SoundBase.Get()))
+			{
+				Debugger.SetSoloSoundCue(Wave->GetFName(), !bAnySoloed);
+			}
 		}
 	}
 }
 
 bool FAssetTypeActions_SoundBase::IsActionCheckedMute(TArray<TWeakObjectPtr<USoundBase>> Objects) const
 {
-	// If *any* of the selection are muted, show the tick box as ticked.
-	FAudioDebugger& Debugger = GEditor->GetAudioDeviceManager()->GetDebugger();
-	for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
+	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
-		if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
+		// If *any* of the selection are muted, show the tick box as ticked.
+		FAudioDebugger& Debugger = ADM->GetDebugger();
+		for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
 		{
-			if (Debugger.IsMuteSoundCue(Cue->GetFName()))
+			if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
 			{
-				return true;
+				if (Debugger.IsMuteSoundCue(Cue->GetFName()))
+				{
+					return true;
+				}
 			}
-		}
-		else if (USoundWave* Wave = Cast<USoundWave>(SoundBase.Get()))
-		{
-			if (Debugger.IsMuteSoundWave(Wave->GetFName()))
+			else if (USoundWave* Wave = Cast<USoundWave>(SoundBase.Get()))
 			{
-				return true;
+				if (Debugger.IsMuteSoundWave(Wave->GetFName()))
+				{
+					return true;
+				}
 			}
 		}
 	}
-
 	return false;
 }
 
 bool FAssetTypeActions_SoundBase::IsActionCheckedSolo(TArray<TWeakObjectPtr<USoundBase>> Objects) const
 {
 	// If *any* of the selection are solod, show the tick box as ticked.
-	FAudioDebugger& Debugger = GEditor->GetAudioDeviceManager()->GetDebugger();
-	for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
+	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
-		if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
+		FAudioDebugger& Debugger = ADM->GetDebugger();
+		for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
 		{
-			if (Debugger.IsSoloSoundCue(Cue->GetFName()))
+			if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
 			{
-				return true;
+				if (Debugger.IsSoloSoundCue(Cue->GetFName()))
+				{
+					return true;
+				}
 			}
-		}
-		else if (USoundWave* Wave = Cast<USoundWave>(SoundBase.Get()))
-		{
-			if (Debugger.IsSoloSoundWave(Wave->GetFName()))
+			else if (USoundWave* Wave = Cast<USoundWave>(SoundBase.Get()))
 			{
-				return true;
+				if (Debugger.IsSoloSoundWave(Wave->GetFName()))
+				{
+					return true;
+				}
 			}
 		}
 	}
-
 	return false;
 }
 
 bool FAssetTypeActions_SoundBase::CanExecuteMuteCommand(TArray<TWeakObjectPtr<USoundBase>> Objects) const
 {
-	// Allow muting if we're not Soloing.
-	FAudioDebugger& Debugger = GEditor->GetAudioDeviceManager()->GetDebugger();
-	for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
-	{		
-		if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
+	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
+	{
+		// Allow muting if we're not Soloing.
+		FAudioDebugger& Debugger = ADM->GetDebugger();
+		for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
 		{
-			if (Debugger.IsSoloSoundCue(Cue->GetFName()))
+			if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
 			{
-				return false;
+				if (Debugger.IsSoloSoundCue(Cue->GetFName()))
+				{
+					return false;
+				}
+			}
+			else if (USoundWave* Wave = Cast<USoundWave>(SoundBase.Get()))
+			{
+				if (Debugger.IsSoloSoundWave(Wave->GetFName()))
+				{
+					return false;
+				}
 			}
 		}
-		else if (USoundWave* Wave = Cast<USoundWave>(SoundBase.Get()))
-		{
-			if (Debugger.IsSoloSoundWave(Wave->GetFName()))
-			{
-				return false;
-			}
-		}
-	}
 
-	// Ok.
-	return true;
+		// Ok.
+		return true;
+	}
+	return false;
 }
 
 bool FAssetTypeActions_SoundBase::CanExecuteSoloCommand(TArray<TWeakObjectPtr<USoundBase>> Objects) const
 {	
-	// Allow Soloing if we're not Muting.
-	FAudioDebugger& Debugger = GEditor->GetAudioDeviceManager()->GetDebugger();
-	for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
-	{		
-		if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
+	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
+	{
+		// Allow Soloing if we're not Muting.
+		FAudioDebugger& Debugger = ADM->GetDebugger();
+		for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
 		{
-			if (Debugger.IsMuteSoundCue(Cue->GetFName()))
+			if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
 			{
-				return false;
+				if (Debugger.IsMuteSoundCue(Cue->GetFName()))
+				{
+					return false;
+				}
+			}
+			else if (USoundWave* Wave = Cast<USoundWave>(SoundBase.Get()))
+			{
+				if (Debugger.IsMuteSoundWave(Wave->GetFName()))
+				{
+					return false;
+				}
 			}
 		}
-		else if (USoundWave* Wave = Cast<USoundWave>(SoundBase.Get()))
-		{
-			if (Debugger.IsMuteSoundWave(Wave->GetFName()))
-			{
-				return false;
-			}
-		}
-	}
 
-	// Ok.
-	return true;
+		// Ok.
+		return true;
+	}
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE
