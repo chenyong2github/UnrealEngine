@@ -5276,7 +5276,7 @@ private:
 	bool bSkipRecursionOnce;
 
 	/** Goes to the next Property/value pair. Returns true if next value is valid */
-	bool NextValue(EPropertyValueIteratorFlags RecursionFlags, bool bReturningFromStruct);
+	bool NextValue(EPropertyValueIteratorFlags RecursionFlags);
 
 	/** Iterates to next property being checked for or until reaching the end of the structure */
 	COREUOBJECT_API void IterateToNext();
