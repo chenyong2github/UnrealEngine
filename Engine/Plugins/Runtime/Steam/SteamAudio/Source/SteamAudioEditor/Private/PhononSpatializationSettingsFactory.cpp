@@ -28,6 +28,15 @@ namespace SteamAudio
 	{
 		return EAssetTypeCategories::Sounds;
 	}
+
+	const TArray<FText>& FAssetTypeActions_PhononSpatializationSettings::GetSubMenus() const
+	{
+		static const TArray<FText> PhononSubMenus
+		{
+			NSLOCTEXT("SteamAudio", "AssetPhononSubMenu", "Phonon")
+		};
+		return PhononSubMenus;
+	}
 }
 
 UPhononSpatializationSettingsFactory::UPhononSpatializationSettingsFactory(const FObjectInitializer& ObjectInitializer)

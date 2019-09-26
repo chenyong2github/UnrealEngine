@@ -23,6 +23,15 @@ uint32 FAssetTypeActions_ITDSpatializationSettings::GetCategories()
 	return EAssetTypeCategories::Sounds;
 }
 
+const TArray<FText>& FAssetTypeActions_ITDSpatializationSettings::GetSubMenus() const
+{
+	static const TArray<FText> ITDSubMenus
+	{
+		NSLOCTEXT("Spatialization", "AssetSpatializationSettingsSubMenu", "Spatialization")
+	};
+	return ITDSubMenus;
+}
+
 UITDSpatializationSettingsFactory::UITDSpatializationSettingsFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
