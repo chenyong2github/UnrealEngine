@@ -1,9 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "TemplateSequence.h"
-#include "MovieScene.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
+#include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
+#include "MovieScene.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, TemplateSequence);
 
