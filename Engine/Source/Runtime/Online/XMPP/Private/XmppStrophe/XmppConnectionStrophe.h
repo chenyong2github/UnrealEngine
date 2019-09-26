@@ -31,7 +31,7 @@ class FXmppConnectionStrophe
 public:
 	// FXmppConnectionStrophe
 	explicit FXmppConnectionStrophe();
-	virtual ~FXmppConnectionStrophe() = default;
+	virtual ~FXmppConnectionStrophe();
 	FXmppConnectionStrophe(const FXmppConnectionStrophe& Other) = delete;
 	FXmppConnectionStrophe(FXmppConnectionStrophe&& Other) = delete;
 	FXmppConnectionStrophe& operator=(const FXmppConnectionStrophe& Other) = delete;
