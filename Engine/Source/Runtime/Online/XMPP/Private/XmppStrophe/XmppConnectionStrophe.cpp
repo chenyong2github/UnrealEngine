@@ -27,6 +27,20 @@ FXmppConnectionStrophe::FXmppConnectionStrophe()
 	PubSubStrophe = MakeShared<FXmppPubSubStrophe, ESPMode::ThreadSafe>(*this);
 }
 
+FXmppConnectionStrophe::~FXmppConnectionStrophe()
+{
+	// Shutdown our connections before we're fully destructed; strophe calls back into us on its disconnect event
+	if (StropheThread.IsValid())
+	{
+		StopXmppThread();
+	}
+
+	if (WebsocketConnection.IsValid())
+	{
+		WebsocketConnection.Reset();
+	}
+}
+
 void FXmppConnectionStrophe::SetServer(const FXmppServer& NewServerConfiguration)
 {
 	ServerConfiguration = NewServerConfiguration;
