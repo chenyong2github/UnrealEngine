@@ -8,7 +8,7 @@
 #include "MathUtil.h"
 
 #include "MeshDescription.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
 

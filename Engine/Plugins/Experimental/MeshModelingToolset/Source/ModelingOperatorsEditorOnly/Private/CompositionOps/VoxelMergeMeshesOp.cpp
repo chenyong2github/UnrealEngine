@@ -7,6 +7,7 @@
 #include "Engine/StaticMesh.h"
 
 #include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
@@ -15,7 +16,8 @@
 void FVoxelMergeMeshesOp::CalculateResult(FProgressCancel* Progress)
 {
 	FMeshDescription MergedMeshesDescription;
-	UStaticMesh::RegisterMeshAttributes(MergedMeshesDescription);
+	FStaticMeshAttributes Attributes(MergedMeshesDescription);
+	Attributes.Register();
 
 	// Use the world space bounding box of each mesh to compute the voxel size
 	VoxelSizeD = ComputeVoxelSize();

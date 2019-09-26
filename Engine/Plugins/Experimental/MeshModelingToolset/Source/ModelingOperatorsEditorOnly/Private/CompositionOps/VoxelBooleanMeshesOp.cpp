@@ -7,6 +7,7 @@
 #include "Engine/StaticMesh.h"
 
 #include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
@@ -14,7 +15,8 @@
 void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 {
 	FMeshDescription ResultMeshDescription;
-	UStaticMesh::RegisterMeshAttributes(ResultMeshDescription);
+	FStaticMeshAttributes Attributes(ResultMeshDescription);
+	Attributes.Register();
 
 	if (VoxelCount < 16)
 	{
