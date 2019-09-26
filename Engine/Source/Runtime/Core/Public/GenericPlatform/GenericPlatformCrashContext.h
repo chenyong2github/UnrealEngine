@@ -259,6 +259,20 @@ public:
 		return bIsInitialized;
 	}
 
+	/**
+	 * @return true if crash reporting is being handled out-of-process.
+	 */
+	static bool IsOutOfProcessCrashReporter()
+	{
+		return bIsOutOfProcess;
+	}
+
+	/** Set whether or not the out-of-process crash reporter is running. */
+	static void SetIsOutOfProcessCrashReporter(bool bInValue)
+	{
+		bIsOutOfProcess = bInValue;
+	}
+
 	/** Default constructor. Optionally pass a process handle if building a crash context for a process other then current. */
 	FGenericCrashContext(ECrashContextType InType, const TCHAR* ErrorMessage);
 
@@ -433,6 +447,9 @@ private:
 
 	/**	Whether the Initialize() has been called */
 	static bool bIsInitialized;
+
+	/** Whether or not crash reporting is being handled out-of-process. */
+	static bool bIsOutOfProcess;
 
 	/**	Static counter records how many crash contexts have been constructed */
 	static int32 StaticCrashContextIndex;
