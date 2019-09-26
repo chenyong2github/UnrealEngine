@@ -480,6 +480,11 @@ public:
 	 * @return	true if this player is not using splitscreen, or is the first player in the split-screen layout.
 	 */
 	bool IsPrimaryPlayer() const;
+	 
+	/**
+	 * Clear cached view state.  Suitable for calling when cleaning up the world but the view state has some references objects (usually mids) owned by the world (thus preventing GC) 
+	 */
+	void CleanupViewState();
 
 	/** Locked view state needs access to GetViewPoint. */
 	friend class FLockedViewState;
