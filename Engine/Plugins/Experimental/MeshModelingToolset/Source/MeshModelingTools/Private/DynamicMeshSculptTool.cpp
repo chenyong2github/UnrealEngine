@@ -1113,7 +1113,7 @@ void UDynamicMeshSculptTool::PrecomputeRemeshInfo()
 			bHaveUVSeams = bHaveUVSeams || Attribs->GetUVLayer(k)->HasInteriorSeamEdges();
 		}
 
-		bHaveNormalSeams = Attribs->PrimaryUV()->HasInteriorSeamEdges();
+		bHaveNormalSeams = Attribs->PrimaryNormals()->HasInteriorSeamEdges();
 	}
 }
 
