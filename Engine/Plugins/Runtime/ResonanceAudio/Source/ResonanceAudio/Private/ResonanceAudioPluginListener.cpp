@@ -43,7 +43,7 @@ namespace ResonanceAudio
 		ResonanceAudioApi = CreateResonanceAudioApi(ResonanceAudioModule->GetResonanceAudioDynamicLibraryHandle(), 2 /* num channels */, FramesPerBuffer, SampleRate);
 		if (ResonanceAudioApi == nullptr)
 		{
-			UE_LOG(LogResonanceAudio, Log, TEXT("Failed to initialize Resonance Audio API"));
+			UE_LOG(LogResonanceAudio, Error, TEXT("Failed to initialize Resonance Audio API"));
 			return;
 		}
 
@@ -69,6 +69,8 @@ namespace ResonanceAudio
 		{
 			AmbisonicsPtr->SetResonanceAudioApi(ResonanceAudioApi);
 		}
+
+		UE_LOG(LogResonanceAudio, Log, TEXT("Resonance Audio Listener is initialized"));
 	}
 
 	void FResonanceAudioPluginListener::OnListenerUpdated(FAudioDevice* AudioDevice, const int32 ViewportIndex, const FTransform& ListenerTransform, const float InDeltaSeconds)
@@ -83,6 +85,13 @@ namespace ResonanceAudio
 			ResonanceAudioApi->SetHeadPosition(ConvertedPosition.X, ConvertedPosition.Y, ConvertedPosition.Z);
 			const FQuat ConvertedRotation = ConvertToResonanceAudioRotation(ListenerTransform.GetRotation());
 			ResonanceAudioApi->SetHeadRotation(ConvertedRotation.X, ConvertedRotation.Y, ConvertedRotation.Z, ConvertedRotation.W);
+
+
+			static IConsoleVariable* ExtraBinauralLoggingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("au.ExtraResonanceLogging"));
+			if (ExtraBinauralLoggingCVar && ExtraBinauralLoggingCVar->GetBool())
+			{
+				UE_LOG(LogResonanceAudio, Warning, TEXT("Set listener position (X,Y,Z) to: (%f, %f, %f)"), ConvertedPosition.X, ConvertedPosition.Y, ConvertedPosition.Z);
+			}
 		}
 	}
 
@@ -92,6 +101,8 @@ namespace ResonanceAudio
 		{
 			ResonanceAudioModule->UnregisterAudioDevice(AudioDevice);
 		}
+
+		UE_LOG(LogResonanceAudio, Log, TEXT("Resonance Audio Listener is shutdown"));
 	}
 
 	void FResonanceAudioPluginListener::OnTick(UWorld* InWorld, const int32 ViewportIndex, const FTransform& ListenerTransform, const float InDeltaSeconds)
@@ -121,6 +132,7 @@ namespace ResonanceAudio
 			else
 			{
 				ReverbPtr->SetPreset(nullptr);
+				UE_LOG(LogResonanceAudio, Log, TEXT("Set reverb preset to nullptr"));
 			}
 		}
 	}
