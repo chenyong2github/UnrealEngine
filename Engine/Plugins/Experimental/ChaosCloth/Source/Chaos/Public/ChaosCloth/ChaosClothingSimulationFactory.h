@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ClothingSimulationFactoryInterface.h"
+#include "ClothingSimulationFactory.h"
 
 #include "ChaosClothingSimulationFactory.generated.h" // Ryan - really???
 

@@ -11,19 +11,16 @@ namespace GeometryCollectionExample
 {
 #if INCLUDE_CHAOS
 	template <class TImplicitShape>
-	bool AllOnSurface(const TImplicitShape *Shape, const TArray<Chaos::TVector<float, 3>> &Points, const float Tolerance = KINDA_SMALL_NUMBER)
+	void AllOnSurface(const TImplicitShape *Shape, const TArray<Chaos::TVector<float, 3>> &Points, const float Tolerance = KINDA_SMALL_NUMBER)
 	{
-		bool RetVal = true;
 		for (auto &Pt : Points)
 		{
 			const float Phi = Shape->SignedDistance(Pt);
-			RetVal &= FMath::Abs(Phi) <= Tolerance;
-			check(RetVal);
+			EXPECT_NEAR(Phi, 0, Tolerance);
 		}
-		return RetVal;
 	}
 
-	void TestSphere(ExampleResponse& R, const Chaos::TVector<float, 3>& Center, const float Radius, const FTransform &BoneRelXf)
+	void TestSphere(const Chaos::TVector<float, 3>& Center, const float Radius, const FTransform &BoneRelXf)
 	{
 		Chaos::TSphere<float, 3>* Sphere = new Chaos::TSphere<float, 3>(Center, Radius);
 		TUniquePtr<FAnalyticImplicitGroup> Group1(new FAnalyticImplicitGroup("Root", 0));
@@ -34,10 +31,9 @@ namespace GeometryCollectionExample
 		check(Points);
 		check(Points->Num());
 		Chaos::TImplicitObject<float, 3> *Implicit = Group1->BuildSimImplicitObject();
-		R.ExpectTrue(AllOnSurface(Implicit, *Points));
+		AllOnSurface(Implicit, *Points);
 	}
 	void TestSphere2(
-		ExampleResponse& R, 
 		const Chaos::TVector<float, 3>& Center1, 
 		const Chaos::TVector<float, 3>& Center2, 
 		const float Radius1, 
@@ -56,15 +52,15 @@ namespace GeometryCollectionExample
 		check(Points);
 		check(Points->Num());
 		Chaos::TImplicitObject<float, 3> *Implicit = Group1->BuildSimImplicitObject();
-		R.ExpectTrue(AllOnSurface(Implicit, *Points));
+		AllOnSurface(Implicit, *Points);
 	}
 
-	void RunAnalyticImplicitGroupTest(ExampleResponse& R)
+	void RunAnalyticImplicitGroupTest()
 	{
-		TestSphere(R, Chaos::TVector<float, 3>(0, 0, 0), 1.f, FTransform::Identity);
-		TestSphere(R, Chaos::TVector<float, 3>(0, 0, 0), 1.f, FTransform(FVector(1,0,0)));
-		TestSphere(R, Chaos::TVector<float, 3>(0, 0, 0), 1.f, FTransform(FVector(1,1,0)));
-		TestSphere(R, Chaos::TVector<float, 3>(0, 0, 0), 1.f, FTransform(FVector(1,1,1)));
+		TestSphere(Chaos::TVector<float, 3>(0, 0, 0), 1.f, FTransform::Identity);
+		TestSphere(Chaos::TVector<float, 3>(0, 0, 0), 1.f, FTransform(FVector(1,0,0)));
+		TestSphere(Chaos::TVector<float, 3>(0, 0, 0), 1.f, FTransform(FVector(1,1,0)));
+		TestSphere(Chaos::TVector<float, 3>(0, 0, 0), 1.f, FTransform(FVector(1,1,1)));
 
 		//This test fails in Dev-Physics for spheres of larger radii
 		//TestSphere(R, Chaos::TVector<float, 3>(0, 0, 0), 10.f, FTransform::Identity);
@@ -72,7 +68,7 @@ namespace GeometryCollectionExample
 		//TestSphere(R, Chaos::TVector<float, 3>(0, 0, 0), 10.f, FTransform(FVector(1,1,0)));
 		//TestSphere(R, Chaos::TVector<float, 3>(0, 0, 0), 10.f, FTransform(FVector(1,1,1)));
 
-		TestSphere2(R, 
+		TestSphere2( 
 			Chaos::TVector<float, 3>(0, 0, 0), 
 			Chaos::TVector<float, 3>(0, 0, 0), 
 			1.f, 
@@ -81,7 +77,7 @@ namespace GeometryCollectionExample
 			FTransform(FVector(2,0,0)));
 	}
 
-	void RunBoneHierarchyTest(ExampleResponse& R)
+	void RunBoneHierarchyTest()
 	{
 		FBoneHierarchy Hierarchy;
 		Hierarchy.InitPreAdd(2);
@@ -144,13 +140,12 @@ namespace GeometryCollectionExample
 #endif
 
 	template<class T>
-	bool TestImplicitBoneHierarchy(ExampleResponse&& R)
+	void TestImplicitBoneHierarchy()
 	{
 #if INCLUDE_CHAOS
-		RunAnalyticImplicitGroupTest(R);
-		RunBoneHierarchyTest(R);
+		RunAnalyticImplicitGroupTest();
+		RunBoneHierarchyTest();
 #endif
-		return !R.HasError();
 	}
-	template bool TestImplicitBoneHierarchy<float>(ExampleResponse&& R);
+	template void TestImplicitBoneHierarchy<float>();
 } // namespace GeometryCollectionExample

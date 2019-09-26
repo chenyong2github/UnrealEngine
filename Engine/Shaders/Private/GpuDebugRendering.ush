@@ -1,8 +1,10 @@
 #pragma once
 
-#define DEBUG_GPU_RENDERING 1
+#ifndef GPU_DEBUG_RENDERING
+#define GPU_DEBUG_RENDERING 0
+#endif
 
-#if DEBUG_GPU_RENDERING
+#if GPU_DEBUG_RENDERING
 
 #define COLOR_RED		0
 #define COLOR_GREEN		1

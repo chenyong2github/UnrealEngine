@@ -352,6 +352,11 @@ public:
 	virtual int32 SkyAtmosphereViewLuminance() = 0;
 	virtual int32 SkyAtmosphereAerialPerspective(int32 WorldPosition) = 0;
 	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() = 0;
+	virtual int32 GetHairUV() = 0;
+	virtual int32 GetHairDimensions() = 0;
+	virtual int32 GetHairSeed() = 0;
+	virtual int32 GetHairTangent() = 0;
+	virtual int32 GetHairRootUV() = 0;
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) = 0;
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) = 0;
 
@@ -604,6 +609,12 @@ public:
 	{
 		return Compiler->DepthOfFieldFunction(Depth, FunctionValueIndex);
 	}
+
+	virtual int32 GetHairUV() override { return Compiler->GetHairUV(); }
+	virtual int32 GetHairDimensions() override { return Compiler->GetHairDimensions(); }
+	virtual int32 GetHairSeed() override { return Compiler->GetHairSeed(); }
+	virtual int32 GetHairTangent() override { return Compiler->GetHairTangent(); }
+	virtual int32 GetHairRootUV() override { return Compiler->GetHairRootUV(); }
 
 	virtual int32 RotateScaleOffsetTexCoords(int32 TexCoordCodeIndex, int32 RotationScale, int32 Offset) override
 	{

@@ -1,0 +1,165 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../CommonViewUniformBuffer.ush"
+#include "../SceneTextureParameters.ush"
+#include "../DeferredShadingCommon.ush"
+#include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsDeepVoxelCommon.ush"
+
+float3 VoxelMinAABB;
+uint   VoxelResolution;
+float3 VoxelMaxAABB;
+float  VoxelDensityScale;
+float  DensityIsoline;
+float2 OutputResolution;
+
+Texture3D<uint> DensityTexture;
+Texture3D<uint> TangentXTexture;
+Texture3D<uint> TangentYTexture;
+Texture3D<uint> TangentZTexture;
+Texture3D<uint> MaterialTexture;
+
+SamplerState LinearSampler;
+
+
+float3 HUEtoRGB(in float H)
+{
+	float R = abs(H * 6 - 3) - 1;
+	float G = 2 - abs(H * 6 - 2);
+	float B = 2 - abs(H * 6 - 4);
+	return saturate(float3(R, G, B));
+}
+
+float3 HSVtoRGB(in float3 HSV)
+{
+	float3 RGB = HUEtoRGB(HSV.x);
+	return ((RGB - 1) * HSV.y + 1) * HSV.z;
+}
+
+float3 GetColorCode(float x)
+{
+	float c = (1 - saturate(x)) * 0.6; // Remap [0,1] to Blue-Red
+	return x > 0 ? HSVtoRGB(float3(c, 1, 1)) : float3(0, 0, 0);
+}
+
+
+float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
+{
+	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
+	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
+
+	return WorldPosition;
+}
+
+// Config
+#define DEBUG_MODE_DENSITY 0
+#define DEBUG_MODE_TANGENT 1
+#define DEBUG_MODE_BASECOLOR 2
+#define DEBUG_MODE_ROUGHNESS 3
+
+#define VOXEL_BLOCK 0
+#define VOXEL_SMOOTH 1
+#define VOXEL_FILTERING VOXEL_BLOCK
+
+void MainPS(
+	FScreenVertexOutput Input,
+	out float4  OutColor0 : SV_Target0)
+{
+	const float2 UV = Input.UV;
+	const float2 PixelCoord = UV * OutputResolution;
+	
+	// Reverse-Z
+	const float3 O = View.WorldCameraOrigin;
+	const float3 E = ReconstructWorldPositionFromDepth(UV, ConvertFromDeviceZ(0.0001f));
+	const float3 D = (E - O);
+
+	float  WorldDepth = 0;
+	float  ClipDepth = 0;
+
+	const float2 HitT = LineBoxIntersect(O, E, VoxelMinAABB, VoxelMaxAABB);
+	float3 HitColor = float3(0,0,0);
+	float AccDensity = 0;
+	bool bIsValid = false;
+	if (HitT.x < HitT.y)
+	{
+		// Use different offseting to see either: 
+		// * Individual voxel (for debugging mainly)
+		// * Smoothed voxel (as used for transmittance computation)
+	#if VOXEL_FILTERING == VOXEL_BLOCK
+		const float3 Offset = 0;
+		const float Dither = InterleavedGradientNoise(PixelCoord.xy, 1);
+	#endif
+	#if VOXEL_FILTERING == VOXEL_SMOOTH
+		const float3 Offset = float3(InterleavedGradientNoise(PixelCoord.xy, 1), InterleavedGradientNoise(PixelCoord.xy, 2), InterleavedGradientNoise(PixelCoord.xy, 3));
+		const float Dither = 0;
+	#endif
+
+		const uint MipLevel = 0; // clamp(View.GeneralPurposeTweak, 0, 6);
+		const uint MipResolution = VoxelResolution >> MipLevel;
+		const uint MaxStep = 256;
+		const float Delta = (HitT.y-HitT.x)/float(MaxStep);
+		for (uint StepIt=0; StepIt<MaxStep; ++StepIt)
+		{			
+			const float3 HitP = Offset + O + ((Dither+StepIt)*Delta + HitT.x) * D;
+			const float3 UVW  = (HitP - VoxelMinAABB) / (VoxelMaxAABB - VoxelMinAABB);
+			const int3 VolumeCoord = clamp(int3(UVW * MipResolution), int3(0,0,0), int3(MipResolution.xxx-1));
+			const float Density = GetHairVoxelDensity(VolumeCoord, DensityTexture, MipLevel) * VoxelDensityScale;
+		#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_DENSITY
+			if (Density > 0)
+			{
+				AccDensity = max(AccDensity, float(Density));
+				bIsValid = true;
+			}
+		#endif	
+
+		#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_TANGENT
+			if (Density > 0)
+			{
+				const float3 Tangent = GetHairVoxelTangent(VolumeCoord, Density, TangentXTexture, TangentYTexture, TangentZTexture);
+				HitColor = float3((Tangent + 1)*0.5f);
+				bIsValid = true;
+				break;
+			}
+		#endif
+
+		#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_BASECOLOR
+			if (Density > 0)
+			{
+				float3 BaseColor = 0;
+				float Roughness = 0;
+				const uint EncodedBaseColorAndRoughness = MaterialTexture.Load(int4(VolumeCoord, 0));
+				DecodeBaseColorAndRoughness(EncodedBaseColorAndRoughness, BaseColor, Roughness);
+				HitColor = BaseColor;
+				bIsValid = true;
+				break;
+			}
+		#endif
+
+		#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_ROUGHNESS
+			if (Density > 0)
+			{
+				float3 BaseColor = 0;
+				float Roughness = 0;
+				const uint EncodedBaseColorAndRoughness = MaterialTexture.Load(int4(VolumeCoord, 0));
+				DecodeBaseColorAndRoughness(EncodedBaseColorAndRoughness, BaseColor, Roughness);
+				HitColor = Roughness.xxx;
+				bIsValid = true;
+				break;
+			}
+		#endif
+		}
+	}
+
+	if (!bIsValid)
+	{ 
+		discard;
+	}
+
+	#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_DENSITY
+	HitColor = GetColorCode(saturate(AccDensity));
+	#endif
+
+	OutColor0 = float4(HitColor,1);
+}

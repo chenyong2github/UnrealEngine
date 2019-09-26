@@ -66,9 +66,15 @@ bool THeightField<T>::SweepGeom(const TImplicitObject<T, 3>& QueryGeom, const TR
 }
 
 template <typename T>
-int32 THeightField<T>::FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex) const
+int32 THeightField<T>::FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDist) const
 {
-	return MTriangleMeshImplicitObject->FindMostOpposingFace(Position, UnitDir, HintFaceIndex);
+	return MTriangleMeshImplicitObject->FindMostOpposingFace(Position, UnitDir, HintFaceIndex, SearchDist);
+}
+
+template <typename T>
+TVector<T, 3> THeightField<T>::FindGeometryOpposingNormal(const TVector<T, 3>& DenormDir, int32 FaceIndex, const TVector<T, 3>& OriginalNormal) const
+{
+	return MTriangleMeshImplicitObject->FindGeometryOpposingNormal(DenormDir, FaceIndex, OriginalNormal);
 }
 
 }

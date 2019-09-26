@@ -1131,6 +1131,11 @@ bool FMaterialResource::IsUsedWithWater() const
 	return Material->bUsedWithWater;
 }
 
+bool FMaterialResource::IsUsedWithHairStrands() const
+{
+	return Material->bUsedWithHairStrands;
+}
+
 bool FMaterialResource::IsUsedWithLandscape() const
 {
 	return false;

@@ -109,6 +109,10 @@ namespace ImmediatePhysics_Chaos
 		/** Get the max contact impulse*/
 		float GetMaxContactImpulse() const;
 
+		/** Get the actor-space centre of mass offset */
+		// @todo(ccaulfield): should be FTransform
+		const FVector& GetCoMTranslation() const;
+
 	private:
 		friend struct FSimulation;
 		friend struct FJointHandle;

@@ -1,0 +1,274 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+// Custom hair BSDF for prototype purpose
+// Need clean up, validation, and optimization
+float I0( float x )
+{
+	x = abs(x);
+	float a;
+	if( x < 3.75 )
+	{
+		float t = x / 3.75;
+		float t2 = t*t;
+		a =        + 0.0045813;
+		a = a * t2 + 0.0360768;	
+		a = a * t2 + 0.2659732;
+		a = a * t2 + 1.2067492;
+		a = a * t2 + 3.0899424;
+		a = a * t2 + 3.5156229;
+		a = a * t2 + 1.0;
+	}
+	else
+	{
+		float t = 3.75 / x;
+		a =       + 0.00392377;
+		a = a * t - 0.01647633;
+		a = a * t + 0.02635537;
+		a = a * t - 0.02057706;
+		a = a * t + 0.00916281;
+		a = a * t - 0.00157565;
+		a = a * t + 0.00225319;
+		a = a * t + 0.01328592;
+		a = a * t + 0.39894228;
+		a *= exp(x) * rsqrt(x);
+	}
+	return a;
+}
+
+float Hair_g_2( float B, float SinThetaL, float SinThetaV )
+{
+	float v = B*B;
+	float CosThetaL2 = 1 - SinThetaL * SinThetaL;
+	float CosThetaV2 = 1 - SinThetaV * SinThetaV;
+	float Mp = 0;
+	if( v < 0.1 )
+	{
+		float a = sqrt(CosThetaL2 * CosThetaV2) / v;
+		float b = -SinThetaL * SinThetaV / v;
+		float logI0a = a > 12 ? a + 0.5 * ( -log(2*PI) + log(1/a) + 0.125/a ) : log( I0(a) );
+		Mp = exp( logI0a + b - rcp(v) + 0.6931 + log(0.5 / v) );
+	}
+	else
+	{
+		Mp = rcp( exp(2/v) * v - v ) * exp( ( 1 - SinThetaL * SinThetaV ) / v ) * I0( sqrt(CosThetaL2 * CosThetaV2) / v );
+	}
+	
+	return Mp;
+}
+
+float Hair_g( float B, float Theta )
+{
+	return exp( -0.5 * Pow2( Theta ) / (B*B) ) / ( sqrt(2*PI) * B );
+}
+
+float Hair_F( float CosTheta )
+{
+	const float n = 1.55;
+	const float F0 = Pow2( (1 - n) / (1 + n) );
+	return F0 + (1 - F0) * Pow5( 1 - CosTheta );
+}
+
+float SigmaAFromReflectance(float c, float b) 
+{
+	const float b2 = b  * b;
+	const float b3 = b  * b2;
+	const float b4 = b2 * b2;
+	const float b5 = b  * b4;
+	const float a  = log(c);
+	const float t = (a / (5.969f - 0.215f * b + 2.532f * b2 - 10.73f * b3 + 5.574f * b4 + 0.245f * b5) );
+	return t*t;
+}
+
+float3 SigmaAFromReflectance(const float3 c, float beta_n) 
+{
+	return float3(
+		SigmaAFromReflectance(c.x, beta_n),
+		SigmaAFromReflectance(c.y, beta_n),
+		SigmaAFromReflectance(c.z, beta_n));
+}
+
+float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Shadow, FHairTransmittanceData HairTransmittance, float Backlit, float Area, uint2 Random )
+{
+	// Strand tangent is oriented from root to tip, while the existing shading code expect tip to root orientation
+	//N = -N;
+
+	// to prevent NaN with decals
+	// OR-18489 HERO: IGGY: RMB on E ability causes blinding hair effect
+	// OR-17578 HERO: HAMMER: E causes blinding light on heroes with hair
+	float ClampedRoughness = clamp(GBuffer.Roughness, 1/255.0f, 1.0f);
+
+	//const float3 DiffuseN	= OctahedronToUnitVector( GBuffer.CustomData.xy * 2 - 1 );
+	//const float Backlit	= GBuffer.CustomData.z;
+
+#if HAIR_REFERENCE
+	// todo: ClampedRoughness is missing for this code path
+	float3 S = HairShadingRef( GBuffer, L, V, N, Random );
+	//float3 S = HairShadingMarschner( GBuffer, L, V, N );
+#else
+	// N is the vector parallel to hair pointing toward root
+
+	const float VoL       = dot(V,L);                                                      
+	const float SinThetaL = dot(N,L);
+	const float SinThetaV = dot(N,V);
+	float CosThetaD = cos( 0.5 * abs( asinFast( SinThetaV ) - asinFast( SinThetaL ) ) );
+
+	//CosThetaD = abs( CosThetaD ) < 0.01 ? 0.01 : CosThetaD;
+
+	const float3 Lp = L - SinThetaL * N;
+	const float3 Vp = V - SinThetaV * N;
+	const float CosPhi = dot(Lp,Vp) * rsqrt( dot(Lp,Lp) * dot(Vp,Vp) + 1e-4 );
+	const float CosHalfPhi = sqrt( saturate( 0.5 + 0.5 * CosPhi ) );
+	//const float Phi = acosFast( CosPhi );
+
+	const float beta_n = 0.3;
+	const float3 Color = SigmaAFromReflectance(GBuffer.BaseColor, beta_n); // GBuffer.BaseColor
+
+	float n = 1.55;
+	//float n_prime = sqrt( n*n - 1 + Pow2( CosThetaD ) ) / CosThetaD;
+	float n_prime = 1.19 / CosThetaD + 0.36 * CosThetaD;
+
+	float Shift = 0.035;
+	float Alpha[] =
+	{
+		-Shift * 2,
+		Shift,
+		Shift * 4,
+	};
+	
+	float B[3];
+	B[0] = Area + Pow2( ClampedRoughness );
+	B[1] = Area + Pow2( ClampedRoughness ) / 2;
+	B[2] = Area + Pow2( ClampedRoughness ) * 2;
+
+	float3 S = 0;
+
+	// R
+	if(HairTransmittance.ScatteringComponent.x > 0)
+	{
+		const float sa = sin( Alpha[0] );
+		const float ca = cos( Alpha[0] );
+		float Shift = 2*sa* ( ca * CosHalfPhi * sqrt( 1 - SinThetaV * SinThetaV ) + sa * SinThetaV );
+#if 0
+		float Mp = Hair_g( B[0] * sqrt(2.0) * CosHalfPhi, SinThetaL + SinThetaV - Shift );
+#elif 0
+		float Mp = Hair_g( B[0], SinThetaL + SinThetaV - Shift );
+#else
+		float SinThetaV0 = SinThetaV;
+		SinThetaV0 -= 2*sa * ( CosHalfPhi * ca * sqrt( 1 - SinThetaV0 * SinThetaV0 ) + sa * SinThetaV0 );
+		float Mp = Hair_g_2(B[0], SinThetaL, SinThetaV0 );
+#endif
+		float Np = 0.25 * CosHalfPhi;
+
+#if 0
+		float Fp = Hair_F( sqrt( saturate( 0.5 + 0.5 * VoL ) ) );
+#else
+        const float CosThetaV = sqrt(1 - SinThetaV * SinThetaV);
+		float Fp = Hair_F( CosThetaV );
+#endif
+		
+		const float SpecVariation = ( GBuffer.Specular * 2 ) * lerp( 1, Backlit, saturate(-VoL) );
+		S += Mp * Np * Fp  * SpecVariation;
+	}
+
+	// TT
+	if(HairTransmittance.ScatteringComponent.y > 0)
+	{
+		float Mp = Hair_g( B[1], SinThetaL + SinThetaV - Alpha[1] );
+
+		float a = 1 / n_prime;
+		//float h = CosHalfPhi * rsqrt( 1 + a*a - 2*a * sqrt( 0.5 - 0.5 * CosPhi ) );
+		//float h = CosHalfPhi * ( ( 1 - Pow2( CosHalfPhi ) ) * a + 1 );
+		float h = CosHalfPhi * ( 1 + a * ( 0.6 - 0.8 * CosPhi ) );
+		//float h = 0.4;
+		//float yi = asinFast(h);
+		//float yt = asinFast(h / n_prime);
+		
+		float f = Hair_F( CosThetaD * sqrt( saturate( 1 - h*h ) ) );
+		float Fp = Pow2(1 - f);
+		//float3 Tp = pow( GBuffer.BaseColor, 0.5 * ( 1 + cos(2*yt) ) / CosThetaD );
+		//float3 Tp = pow( GBuffer.BaseColor, 0.5 * cos(yt) / CosThetaD );
+		#if 0
+		float3 Tp = pow( GBuffer.BaseColor, 0.5 * sqrt( 1 - Pow2(h * a) ) / CosThetaD );
+		#else
+		// This allows to have the same absorption than PBRT. The resulting color how ever 
+		// does not match the actual input color as this is supposed to have multiple 
+		// scattering event to reach the same saturation level
+		float yt = asinFast(h / n_prime);
+		float3 Tp = exp(-Color * 2 * abs(cos(yt) / CosThetaD) );
+		#endif
+		//float t = asin( 1 / n_prime );
+		//float d = ( sqrt(2) - t ) / ( 1 - t );
+		//float s = -0.5 * PI * (1 - 1 / n_prime) * log( 2*d - 1 - 2 * sqrt( d * (d - 1) ) );
+		//float s = 0.35;
+		//float Np = exp( (Phi - PI) / s ) / ( s * Pow2( 1 + exp( (Phi - PI) / s ) ) );
+		//float Np = 0.71 * exp( -1.65 * Pow2(Phi - PI) );
+		float Np = exp( -3.65 * CosPhi - 3.98 );
+
+		S += Mp * Np * Fp * Tp * Backlit;
+	}
+
+	// TRT
+	if(HairTransmittance.ScatteringComponent.z > 0)
+	{
+		float Mp = Hair_g( B[2], SinThetaL + SinThetaV - Alpha[2] );
+		
+		//float h = 0.75;
+		float f = Hair_F( CosThetaD * 0.5 );
+		float Fp = Pow2(1 - f) * f;
+		#if 0
+		//float3 Tp = pow( GBuffer.BaseColor, 1.6 / CosThetaD );
+		float3 Tp = pow( GBuffer.BaseColor, 0.8 / CosThetaD );
+		#else
+		// This allows to have the same absorption than PBRT. The resulting color however 
+		// does not match the actual input color as this is supposed to have multiple
+		// scattering events to reach the same saturation level
+		const float3 Color = SigmaAFromReflectance(GBuffer.BaseColor, beta_n);
+		float3 Tp = exp(-Color * 2 * 1.6 / CosThetaD );
+		#endif
+
+		//float s = 0.15;
+		//float Np = 0.75 * exp( Phi / s ) / ( s * Pow2( 1 + exp( Phi / s ) ) );
+		float Np = exp( 17 * CosPhi - 16.78 );
+
+		S += Mp * Np * Fp * Tp;
+	}
+#endif
+
+	if (!HairTransmittance.Enable)
+	{
+		// Use soft Kajiya Kay diffuse attenuation
+		float KajiyaDiffuse = 1 - abs( dot(N,L) );
+	
+		float3 FakeNormal = normalize( V - N * dot(V,N) );
+		//N = normalize( DiffuseN + FakeNormal * 2 );
+		N = FakeNormal;
+	
+		// Hack approximation for multiple scattering.
+		float Wrap = 1;
+		float NoL = saturate( ( dot(N, L) + Wrap ) / Square( 1 + Wrap ) );
+		float DiffuseScatter = (1 / PI) * lerp( NoL, KajiyaDiffuse, 0.33 ) * GBuffer.Metallic;
+		float Luma = Luminance( GBuffer.BaseColor );
+		float3 ScatterTint = pow( GBuffer.BaseColor / Luma, 1 - Shadow );
+		S += GBuffer.BaseColor * DiffuseScatter * pow(ScatterTint,.5);
+	}
+
+	S = -min(-S, 0.0);
+
+	if (HairTransmittance.Enable && HairTransmittance.MultipleScattering > 0)
+	{
+		S = EvaluateHairMultipleScattering(HairTransmittance, ClampedRoughness, S);
+	}
+
+	return S;
+}
+
+FDirectLighting HairBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, float Falloff, float NoL, FAreaLight AreaLight, FShadowTerms Shadow )
+{
+	FDirectLighting Lighting;
+	Lighting.Diffuse = 0;
+	Lighting.Specular = 0;
+	Lighting.Transmission = AreaLight.FalloffColor * Falloff * HairShading( GBuffer, L, V, N, Shadow.TransmissionShadow, Shadow.HairTransmittance, 1, 0, uint2(0,0) );
+	return Lighting;
+}

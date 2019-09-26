@@ -114,6 +114,12 @@ public:
 		bComponentListUnique = true;
 	}
 
+	/** Clears the set of actors to ignore during the trace. */
+	void ClearIgnoredActors()
+	{
+		IgnoreActors.Reset();
+	}
+
 	/**
 	 * Set the number of ignored components in the list. Uniqueness is not changed, it operates on the current state (unique or not).
 	 * Useful for temporarily adding some, then restoring to a previous size. NewNum must be <= number of current components for there to be any effect.

@@ -344,7 +344,7 @@ FSkeletalMeshGpuSpawnStaticBuffers::~FSkeletalMeshGpuSpawnStaticBuffers()
 void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceData* InstData, const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData, const FSkeletalMeshSamplingLODBuiltData& MeshSamplingLODBuiltData)
 {
 	if (!InstData)
-	{
+    {
 		SkeletalMeshSamplingLODBuiltData = nullptr;
 		bUseGpuUniformlyDistributedSampling = false;
 
@@ -358,38 +358,40 @@ void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceDat
 		SpecificSocketBoneOffset = 0;
 		return;
 	}
-
-	SkeletalMeshSamplingLODBuiltData = &MeshSamplingLODBuiltData;
-	bUseGpuUniformlyDistributedSampling = InstData->bIsGpuUniformlyDistributedSampling;
-
-	LODRenderData = &SkeletalMeshLODRenderData;
-	TriangleCount = SkeletalMeshLODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->Num() / 3;
-	VertexCount = SkeletalMeshLODRenderData.GetNumVertices();
-	
-	if (TriangleCount == 0)
+	else
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> Triangle count is invalid %d"), TriangleCount, (InstData && InstData->Mesh) ? *InstData->Mesh->GetFullName() : TEXT("Unknown Mesh"));
-	}
-	if (VertexCount == 0)
-	{
-		UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> Vertex count is invalid %d"), VertexCount, (InstData && InstData->Mesh) ? *InstData->Mesh->GetFullName() : TEXT("Unknown Mesh"));
-	}
+		SkeletalMeshSamplingLODBuiltData = &MeshSamplingLODBuiltData;
+		bUseGpuUniformlyDistributedSampling = InstData->bIsGpuUniformlyDistributedSampling;
 
-	// Copy Specific Bones / Socket data into arrays that the renderer will use to create read buffers
-	//-TODO: Exclude setting up these arrays if we don't sample from them
-	NumSpecificBones = InstData->SpecificBones.Num();
-	if (NumSpecificBones > 0)
-	{
-		SpecificBonesArray.Reserve(NumSpecificBones);
-		for ( int32 v : InstData->SpecificBones )
+		LODRenderData = &SkeletalMeshLODRenderData;
+		TriangleCount = SkeletalMeshLODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->Num() / 3;
+		VertexCount = SkeletalMeshLODRenderData.GetNumVertices();
+
+		if (TriangleCount == 0)
 		{
-			check(v <= 65535);
-			SpecificBonesArray.Add(v);
+			UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> Triangle count is invalid %d"), TriangleCount, (InstData && InstData->Mesh) ? *InstData->Mesh->GetFullName() : TEXT("Unknown Mesh"));
 		}
-	}
+		if (VertexCount == 0)
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> Vertex count is invalid %d"), VertexCount, (InstData && InstData->Mesh) ? *InstData->Mesh->GetFullName() : TEXT("Unknown Mesh"));
+		}
 
-	NumSpecificSockets = InstData->SpecificSockets.Num();
-	SpecificSocketBoneOffset = InstData->SpecificSocketBoneOffset;
+		// Copy Specific Bones / Socket data into arrays that the renderer will use to create read buffers
+		//-TODO: Exclude setting up these arrays if we don't sample from them
+		NumSpecificBones = InstData->SpecificBones.Num();
+		if (NumSpecificBones > 0)
+		{
+			SpecificBonesArray.Reserve(NumSpecificBones);
+			for (int32 v : InstData->SpecificBones)
+			{
+				check(v <= 65535);
+				SpecificBonesArray.Add(v);
+			}
+		}
+
+		NumSpecificSockets = InstData->SpecificSockets.Num();
+		SpecificSocketBoneOffset = InstData->SpecificSocketBoneOffset;
+	}
 }
 
 void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()

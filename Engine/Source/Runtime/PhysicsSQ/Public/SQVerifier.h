@@ -6,6 +6,8 @@
 
 #if WITH_PHYSX && INCLUDE_CHAOS
 
+#include "Chaos/PBDRigidsEvolutionGBF.h"
+
 #ifndef SQ_REPLAY_TEST
 #define SQ_REPLAY_TEST(cond) bEnsureOnMismatch ? ensure(cond) : (cond)
 #endif
@@ -43,8 +45,10 @@ bool SQComparisonHelper(FPhysTestSerializer& Serializer, bool bEnsureOnMismatch 
 		}
 
 		auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>>();
-		FChaosSQAccelerator SQAccelerator(*Serializer.GetChaosData());
+		auto& Accelerator = Serializer.GetChaosData()->GetCollisionConstraints().GetSpatialAcceleration();
+		FChaosSQAccelerator SQAccelerator(Accelerator);
 		SQAccelerator.Raycast(CapturedSQ.StartPoint, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
+		Serializer.GetChaosData()->GetCollisionConstraints().ReleaseSpatialAcceleration();
 
 		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->HasBlockingHit() == CapturedSQ.PhysXRaycastBuffer.hasBlock);
 		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->GetNumHits() == CapturedSQ.PhysXRaycastBuffer.GetNumHits());
@@ -84,8 +88,10 @@ bool SQComparisonHelper(FPhysTestSerializer& Serializer, bool bEnsureOnMismatch 
 		}
 
 		auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>>();
-		FChaosSQAccelerator SQAccelerator(*Serializer.GetChaosData());
+		auto& Accelerator = Serializer.GetChaosData()->GetCollisionConstraints().GetSpatialAcceleration();
+		FChaosSQAccelerator SQAccelerator(Accelerator);
 		SQAccelerator.Sweep(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
+		Serializer.GetChaosData()->GetCollisionConstraints().ReleaseSpatialAcceleration();
 
 		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->HasBlockingHit() == CapturedSQ.PhysXSweepBuffer.hasBlock);
 		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->GetNumHits() == CapturedSQ.PhysXSweepBuffer.GetNumHits());
@@ -111,8 +117,10 @@ bool SQComparisonHelper(FPhysTestSerializer& Serializer, bool bEnsureOnMismatch 
 		bTestPassed &= SQ_REPLAY_TEST(PxHitBuffer->GetNumHits() == CapturedSQ.PhysXOverlapBuffer.GetNumHits());
 
 		auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>>();
-		FChaosSQAccelerator SQAccelerator(*Serializer.GetChaosData());
+		auto& Accelerator = Serializer.GetChaosData()->GetCollisionConstraints().GetSpatialAcceleration();
+		FChaosSQAccelerator SQAccelerator(Accelerator);
 		SQAccelerator.Overlap(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, *ChaosHitBuffer, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
+		Serializer.GetChaosData()->GetCollisionConstraints().ReleaseSpatialAcceleration();
 
 		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->GetNumHits() == CapturedSQ.PhysXOverlapBuffer.GetNumHits());
 		break;
@@ -143,7 +151,8 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 			Timer.Stop();
 		}
 
-		FChaosSQAccelerator SQAccelerator(*Serializer.GetChaosData());
+		auto& Accelerator = Serializer.GetChaosData()->GetCollisionConstraints().GetSpatialAcceleration();
+		FChaosSQAccelerator SQAccelerator(Accelerator);
 		for (double i = 0; i < NumIterations; ++i)
 		{
 			auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>>();
@@ -152,7 +161,7 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 			SQAccelerator.Raycast(CapturedSQ.StartPoint, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 			Timer.Stop();
 		}
-
+		Serializer.GetChaosData()->GetCollisionConstraints().ReleaseSpatialAcceleration();
 		break;
 	}
 	case FSQCapture::ESQType::Sweep:
@@ -166,7 +175,8 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 			Timer.Stop();
 		}
 
-		FChaosSQAccelerator SQAccelerator(*Serializer.GetChaosData());
+		auto& Accelerator = Serializer.GetChaosData()->GetCollisionConstraints().GetSpatialAcceleration();
+		FChaosSQAccelerator SQAccelerator(Accelerator);
 		for (double i = 0; i < NumIterations; ++i)
 		{
 			auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>>();
@@ -175,7 +185,7 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 			SQAccelerator.Sweep(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 			Timer.Stop();
 		}
-
+		Serializer.GetChaosData()->GetCollisionConstraints().ReleaseSpatialAcceleration();
 		break;
 	}
 	case FSQCapture::ESQType::Overlap:
@@ -189,7 +199,8 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 			Timer.Stop();
 		}
 
-		FChaosSQAccelerator SQAccelerator(*Serializer.GetChaosData());
+		auto& Accelerator = Serializer.GetChaosData()->GetCollisionConstraints().GetSpatialAcceleration();
+		FChaosSQAccelerator SQAccelerator(Accelerator);
 		for (double i = 0; i < NumIterations; ++i)
 		{
 			auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>>();
@@ -198,6 +209,7 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 			SQAccelerator.Overlap(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, *ChaosHitBuffer, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 			Timer.Stop();
 		}
+		Serializer.GetChaosData()->GetCollisionConstraints().ReleaseSpatialAcceleration();
 		break;
 	}
 	}

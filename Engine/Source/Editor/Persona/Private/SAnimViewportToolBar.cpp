@@ -34,7 +34,7 @@
 #include "PreviewSceneCustomizations.h"
 #include "ClothingSimulation.h"
 #include "SimulationEditorExtender.h"
-#include "ClothingSimulationFactoryInterface.h"
+#include "ClothingSimulationFactory.h"
 #include "ClothingSystemEditorInterfaceModule.h"
 #include "Widgets/SWidget.h"
 #include "Types/ISlateMetaData.h"

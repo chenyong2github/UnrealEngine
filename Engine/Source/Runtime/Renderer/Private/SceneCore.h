@@ -168,7 +168,7 @@ private:
 class FStaticMeshBatchRelevance
 {
 public:
-	FStaticMeshBatchRelevance(const FStaticMeshBatch& StaticMesh, float InScreenSize, bool InbSupportsCachingMeshDrawCommands, bool InbUseSkyMaterial, bool bInUseSingleLayerWaterMaterial)
+	FStaticMeshBatchRelevance(const FStaticMeshBatch& StaticMesh, float InScreenSize, bool InbSupportsCachingMeshDrawCommands, bool InbUseSkyMaterial, bool bInUseSingleLayerWaterMaterial, ERHIFeatureLevel::Type FeatureLevel)
 		: Id(StaticMesh.Id)
 		, ScreenSize(InScreenSize)
 		, CommandInfosBase(0)
@@ -183,6 +183,7 @@ public:
 		, bUseAsOccluder(StaticMesh.bUseAsOccluder)
 		, bUseSkyMaterial(InbUseSkyMaterial)
 		, bUseSingleLayerWaterMaterial(bInUseSingleLayerWaterMaterial)
+		, bUseHairStrands(StaticMesh.UseForHairStrands(FeatureLevel))
 		, bRenderToVirtualTexture(StaticMesh.bRenderToVirtualTexture)
 		, RuntimeVirtualTextureMaterialType(StaticMesh.RuntimeVirtualTextureMaterialType)
 		, bSupportsCachingMeshDrawCommands(InbSupportsCachingMeshDrawCommands)
@@ -222,6 +223,7 @@ public:
 	uint8 bUseAsOccluder	: 1; // User hint whether it's a good occluder.
 	uint8 bUseSkyMaterial	: 1; // Whether this batch uses a Sky material or not.
 	uint8 bUseSingleLayerWaterMaterial : 1; // Whether this batch uses a water material or not.
+	uint8 bUseHairStrands	: 1; // Whether it contains hair strands geometry.
 
 	/** Whether the mesh batch can be used for rendering to a virtual texture. */
 	uint8 bRenderToVirtualTexture : 1;

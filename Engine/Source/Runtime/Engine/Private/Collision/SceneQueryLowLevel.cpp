@@ -67,11 +67,12 @@ void FinalizeCapture(FPhysTestSerializer& Serializer) {}
 void LowLevelRaycast(FPhysScene& Scene, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback)
 {
 #if !defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX
-	Chaos::FPhysicsSolver* Solver = Scene.GetSolver();
-	Chaos::FPhysicsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
-	FChaosSQAccelerator SQAccelerator(*Evolution);
-	//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
-	SQAccelerator.Raycast(Start, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback);
+	if (const auto& SolverAccelerationStructure = Scene.GetScene().SolverAccelerationStructure)
+	{
+		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure.Get());
+		//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
+		SQAccelerator.Raycast(Start, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback);
+	}
 #else
 	if (SerializeSQs | ReplaySQs)
 	{
@@ -94,11 +95,12 @@ void LowLevelRaycast(FPhysScene& Scene, const FVector& Start, const FVector& Dir
 void LowLevelSweep(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback)
 {
 #if !defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX
-	Chaos::FPhysicsSolver* Solver = Scene.GetSolver();
-	Chaos::FPhysicsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
-	FChaosSQAccelerator SQAccelerator(*Evolution);
-	//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
-	SQAccelerator.Sweep(QueryGeom, StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback);
+	if (const auto& SolverAccelerationStructure = Scene.GetScene().SolverAccelerationStructure)
+	{
+		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure.Get());
+		//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
+		SQAccelerator.Sweep(QueryGeom, StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback);
+	}
 #else
 	if (SerializeSQs | ReplaySQs)
 	{
@@ -121,11 +123,12 @@ void LowLevelSweep(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const F
 void LowLevelOverlap(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<FHitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback)
 {
 #if !defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX
-	Chaos::FPhysicsSolver* Solver = Scene.GetSolver();
-	Chaos::FPhysicsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
-	FChaosSQAccelerator SQAccelerator(*Evolution);
-	//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
-	SQAccelerator.Overlap(QueryGeom, GeomPose, HitBuffer, QueryFilterData, *QueryCallback);
+	if (const auto& SolverAccelerationStructure = Scene.GetScene().SolverAccelerationStructure)
+	{
+		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure.Get());
+		//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
+		SQAccelerator.Overlap(QueryGeom, GeomPose, HitBuffer, QueryFilterData, *QueryCallback);
+	}
 #else
 	if (SerializeSQs | ReplaySQs)
 	{

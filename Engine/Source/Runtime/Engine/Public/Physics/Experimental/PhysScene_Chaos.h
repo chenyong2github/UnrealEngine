@@ -14,7 +14,7 @@
 #include "PhysInterface_Chaos.h"
 #include "Chaos/Transform.h"
 #include "Chaos/Declares.h"
-#include "Chaos/Framework/SingleParticlePhysicsProxyFwd.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
 #define CHAOS_WITH_PAUSABLE_SOLVER 1
@@ -44,6 +44,12 @@ namespace Chaos
 
 	template<typename PayloadType, typename HandlerType>
 	class TRawEventHandler;
+
+	template <typename T, int d>
+	class TAccelerationStructureHandle;
+
+	template <typename TPayload, typename T, int d>
+	class ISpatialAcceleration;
 }
 
 /**
@@ -103,6 +109,8 @@ public:
 	void RemoveObject(FGeometryCollectionPhysicsProxy* InObject);
 	void RemoveObject(FFieldSystemPhysicsProxy* InObject);	
 
+	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
+
 	template<typename PayloadType>
 	void RegisterEvent(const Chaos::EEventType& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InLambda);
 	void UnregisterEvent(const Chaos::EEventType& EventID);
@@ -135,6 +143,8 @@ public:
 		IPhysicsProxyBase* const* PhysicsProxyPtr = ComponentToPhysicsProxyMap.Find(Comp);
 		return PhysicsProxyPtr ? *PhysicsProxyPtr : nullptr;
 	}
+
+	TUniquePtr<Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>> SolverAccelerationStructure;
 
 private:
 #if CHAOS_WITH_PAUSABLE_SOLVER
@@ -248,6 +258,9 @@ public:
 
 	Chaos::FPhysicsSolver* GetSolver();
 	const Chaos::FPhysicsSolver* GetSolver() const;
+
+	FPhysScene_Chaos& GetScene() { return Scene; }
+	const FPhysScene_Chaos& GetScene() const { return Scene; }
 
 	FPhysicsReplication* GetPhysicsReplication();
 	void RemoveBodyInstanceFromPendingLists_AssumesLocked(FBodyInstance* BodyInstance, int32 SceneType);

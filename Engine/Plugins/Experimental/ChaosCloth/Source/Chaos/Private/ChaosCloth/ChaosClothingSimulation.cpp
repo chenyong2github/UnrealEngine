@@ -4,7 +4,8 @@
 
 #include "Async/ParallelFor.h"
 #include "Assets/ClothingAsset.h"
-#include "ClothingSimulation.h" // ClothingSystemRuntime
+#include "ClothingSimulation.h" // ClothingSystemRuntimeInterface
+#include "Utils/ClothingMeshUtils.h" // ClothingSystemRuntimeNv
 #include "Components/SkeletalMeshComponent.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Chaos/Box.h"
@@ -49,7 +50,8 @@ static TAutoConsoleVariable<float> CVarClothDamping(TEXT("physics.ClothDamping")
 static TAutoConsoleVariable<float> CVarClothGravityMagnitude(TEXT("physics.ClothGravityMagnitude"), 490.f, TEXT(""));
 
 ClothingSimulation::ClothingSimulation()
-	: NumIterations(1)
+	: Asset(nullptr)
+	, NumIterations(1)
 	, EdgeStiffness(1.f)
 	, BendingStiffness(1.f)
 	, AreaStiffness(1.f)
@@ -172,8 +174,8 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	// It's already accounted for in our skinning matrices."), and returns all points 
 	// in that space.
 	FTransform RootBoneTransform = Context.BoneTransforms[Asset->ReferenceBoneIndex];
-	FClothingSimulationBase::SkinPhysicsMesh(
-		Asset, 
+	ClothingMeshUtils::SkinPhysicsMesh(
+		Asset->UsedBoneIndices, 
 		PhysMesh, // curr pos and norm
 		RootBoneTransform, 
 		Context.RefToLocals.GetData(), 
@@ -566,7 +568,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 				"convex collision objects for physics authored as part of a LOD construct, "
 				"probably by the Apex cloth authoring system.  This is deprecated.  "
 				"Please update your asset!"),
-			*InOwnerComponent->GetOwner()->GetName(),
+			InOwnerComponent->GetOwner() ? *InOwnerComponent->GetOwner()->GetName() : TEXT("None"),
 			*InOwnerComponent->GetName(),
 			LodCollData.Spheres.Num(),
 			LodCollData.SphereConnections.Num(),
@@ -742,6 +744,9 @@ void ClothingSimulation::FillContext(USkeletalMeshComponent* InComponent, float 
 
 void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 {
+	if (!ensure(Asset))
+		return;
+
     ClothingSimulationContext* Context = static_cast<ClothingSimulationContext*>(InContext);
     if (Context->DeltaTime == 0)
         return;
@@ -753,8 +758,8 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
     const FClothPhysicalMeshData& PhysMesh = AssetLodData.PhysicalMeshData;
 
 	FTransform RootBoneTransform = Context->BoneTransforms[Asset->ReferenceBoneIndex];
-    FClothingSimulationBase::SkinPhysicsMesh(
-		Asset, 
+    ClothingMeshUtils::SkinPhysicsMesh(
+		Asset->UsedBoneIndices, 
 		PhysMesh, 
 		RootBoneTransform, 
 		Context->RefToLocals.GetData(), 

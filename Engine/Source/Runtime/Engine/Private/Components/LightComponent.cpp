@@ -71,6 +71,16 @@ void ULightComponentBase::SetCastVolumetricShadow(bool bNewValue)
 	}
 }
 
+void ULightComponentBase::SetCastDeepShadow(bool bNewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& bCastDeepShadow != bNewValue)
+	{
+		bCastDeepShadow = bNewValue;
+		MarkRenderStateDirty();
+	}
+}
+
 void ULightComponentBase::SetAffectReflection(bool bNewValue)
 {
 	if (AreDynamicDataChangesAllowed()
@@ -275,6 +285,7 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, bCastTranslucentShadows(InLightComponent->CastTranslucentShadows)
 	, bTransmission(InLightComponent->bTransmission && bCastDynamicShadow && !bStaticShadowing)
 	, bCastVolumetricShadow(InLightComponent->bCastVolumetricShadow)
+	, bCastHairStrandsDeepShadow(InLightComponent->bCastDeepShadow)
 	, bCastShadowsFromCinematicObjectsOnly(InLightComponent->bCastShadowsFromCinematicObjectsOnly)
 	, bForceCachedShadowsForMovablePrimitives(InLightComponent->bForceCachedShadowsForMovablePrimitives)
 	, bCastRaytracedShadow(InLightComponent->bCastRaytracedShadow)
@@ -673,6 +684,7 @@ void ULightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, LightingChannels) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, VolumetricScatteringIntensity) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bCastVolumetricShadow) &&
+		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bCastDeepShadow) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bCastRaytracedShadow) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bAffectReflection) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bAffectGlobalIllumination) &&

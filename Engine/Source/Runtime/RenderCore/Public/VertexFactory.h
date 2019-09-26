@@ -556,7 +556,13 @@ public:
 		return PrimitiveIdStreamIndex[static_cast<uint8>(InputStreamType)];
 	}
 
+
 protected:
+
+	inline void SetPrimitiveIdStreamIndex(EVertexInputStreamType InputStreamType, int32 StreamIndex)
+	{
+		PrimitiveIdStreamIndex[static_cast<uint8>(InputStreamType)] = StreamIndex;
+	}
 
 	/**
 	 * Creates a vertex element for a vertex stream components.  Adds a unique stream index for the vertex buffer used by the component.

@@ -1,0 +1,300 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+//#include "HairStrandsShadowCommon.ush"
+
+float3 HUEtoRGB(in float H)
+{
+	float R = abs(H * 6 - 3) - 1;
+	float G = 2 - abs(H * 6 - 2);
+	float B = 2 - abs(H * 6 - 4);
+	return saturate(float3(R, G, B));
+}
+
+float3 HSVtoRGB(in float3 HSV)
+{
+	float3 RGB = HUEtoRGB(HSV.x);
+	return ((RGB - 1) * HSV.y + 1) * HSV.z;
+}
+
+float3 ColorCode(float x)
+{
+	float c = (1 - saturate(x)) * 0.6; // Remap [0,1] to Blue-Red
+	return x > 0 ? HSVtoRGB(float3(c, 1, 1)) : float3(0, 0, 0);
+}
+
+
+float3 ToLightPosition(float3 WorldPosition, float4x4 WorldToLightTransform)
+{
+	float4 LightPos = mul(float4(WorldPosition,1), WorldToLightTransform);
+	LightPos.xyz/= LightPos.w;
+	const float2 LightUV = (LightPos.xy + float(1).xx) * 0.5f;
+	return float3(LightUV.x, 1-LightUV.y, LightPos.z);
+}
+
+float SampleDOM_PCF2x2(
+	float3 LightSpacePosition, 
+	float DepthBias,
+	Texture2D<float> FrontDepthTexture,
+	Texture2D<float4> DomTexture)
+{
+	// Find the bottom left corner texel for bilinear interpolation
+	const float2 PBottomLeft = floor(LightSpacePosition.xy - float(0.5f).xx); // Bottom-left corner of the bottom left texel.
+	const uint2 C0 = uint2(PBottomLeft);
+	const uint2 C1 = C0 + uint2(1,0);
+	const uint2 C2 = C0 + uint2(0,1);
+	const uint2 C3 = C0 + uint2(1,1);
+	
+	// @todo_hair: gather4
+	const float FrontDepth0 = FrontDepthTexture.Load(uint3(C0, 0)).x;
+	const float FrontDepth1 = FrontDepthTexture.Load(uint3(C1, 0)).x;
+	const float FrontDepth2 = FrontDepthTexture.Load(uint3(C2, 0)).x;
+	const float FrontDepth3 = FrontDepthTexture.Load(uint3(C3, 0)).x;
+
+	const float4 DOMValue0  = DomTexture.Load(uint3(C0, 0));
+	const float4 DOMValue1  = DomTexture.Load(uint3(C1, 0));
+	const float4 DOMValue2  = DomTexture.Load(uint3(C2, 0));
+	const float4 DOMValue3  = DomTexture.Load(uint3(C3, 0));
+	
+	const float HairCount0	= ComputeHairCount(DOMValue0, GetDomDistanceToFrontDepthWithBias(FrontDepth0, LightSpacePosition.z, DepthBias));
+	const float HairCount1	= ComputeHairCount(DOMValue1, GetDomDistanceToFrontDepthWithBias(FrontDepth1, LightSpacePosition.z, DepthBias));
+	const float HairCount2	= ComputeHairCount(DOMValue2, GetDomDistanceToFrontDepthWithBias(FrontDepth2, LightSpacePosition.z, DepthBias));
+	const float HairCount3	= ComputeHairCount(DOMValue3, GetDomDistanceToFrontDepthWithBias(FrontDepth3, LightSpacePosition.z, DepthBias));
+
+	const float2 S = frac(LightSpacePosition.xy - (PBottomLeft + 0.5f));
+	const float HairCount01 = lerp(HairCount0, HairCount1, S.x);
+	const float HairCount23 = lerp(HairCount2, HairCount3, S.x);
+	return lerp(HairCount01, HairCount23, S.y);
+}
+
+float SampleDOM_PCF(
+	float3 LightSpacePosition, 
+	float DepthBias,
+	Texture2D<float> FrontDepthTexture,
+	Texture2D<float4> DomTexture)
+{	
+	// Explicit 1 ring (6x6 / 5x5) with uniform weighting
+	float HairCount = 0;
+	float w = 1;
+	HairCount += w * SampleDOM_PCF2x2(LightSpacePosition + float3(-2,-2, 0), DepthBias, FrontDepthTexture, DomTexture);
+	HairCount += w * SampleDOM_PCF2x2(LightSpacePosition + float3( 0,-2, 0), DepthBias, FrontDepthTexture, DomTexture);
+	HairCount += w * SampleDOM_PCF2x2(LightSpacePosition + float3( 2,-2, 0), DepthBias, FrontDepthTexture, DomTexture);
+
+	HairCount += w * SampleDOM_PCF2x2(LightSpacePosition + float3(-2, 0, 0), DepthBias, FrontDepthTexture, DomTexture);
+	HairCount += w * SampleDOM_PCF2x2(LightSpacePosition + float3( 0, 0, 0), DepthBias, FrontDepthTexture, DomTexture);
+	HairCount += w * SampleDOM_PCF2x2(LightSpacePosition + float3( 2, 0, 0), DepthBias, FrontDepthTexture, DomTexture);
+
+	HairCount += w * SampleDOM_PCF2x2(LightSpacePosition + float3(-2, 2, 0), DepthBias, FrontDepthTexture, DomTexture);
+	HairCount += w * SampleDOM_PCF2x2(LightSpacePosition + float3( 0, 2, 0), DepthBias, FrontDepthTexture, DomTexture);
+	HairCount += w * SampleDOM_PCF2x2(LightSpacePosition + float3( 2, 2, 0), DepthBias, FrontDepthTexture, DomTexture);
+
+	HairCount /= w * 9;
+	return HairCount;
+}
+
+// Sample [-1,1]
+// Jitter [0,1]
+float2 ComputeJitteredSample(float2 Sample, float2 Jitter)
+{
+#if 0
+	const float2 NormSample = (Sample + float2(1, 1)) * 0.5f;
+	const float2 JitteredNormSample = frac(NormSample + Jitter);
+	return JitteredNormSample *2 - float2(1, 1);
+#else
+	return Sample;
+#endif
+}
+
+float SampleDOM_PCSS(
+	float3 LightSpacePosition,
+	uint2 DeepShadowResolution,
+	float DepthBias,
+	Texture2D<float> FrontDepthTexture,
+	Texture2D<float4> DomTexture,
+	SamplerState LinearSampler,
+	float ApexAngleInDegree,
+	float2 Jitter) // [0,1]
+{
+	// Poisson disk position http://developer.download.nvidia.com/whitepapers/2008/PCSS_Integration.pdf
+	float2 PoissonDisk[16] =
+	{
+		 float2(-0.94201624, -0.39906216),
+		 float2(0.94558609, -0.76890725),
+		 float2(-0.094184101, -0.92938870),
+		 float2(0.34495938, 0.29387760),
+		 float2(-0.91588581, 0.45771432),
+		 float2(-0.81544232, -0.87912464),
+		 float2(-0.38277543, 0.27676845),
+		 float2(0.97484398, 0.75648379),
+		 float2(0.44323325, -0.97511554),
+		 float2(0.53742981, -0.47373420),
+		 float2(-0.26496911, -0.41893023),
+		 float2(0.79197514, 0.19090188),
+		 float2(-0.24188840, 0.99706507),
+		 float2(-0.81409955, 0.91437590),
+		 float2(0.19984126, 0.78641367),
+		 float2(0.14383161, -0.14100790)
+	};
+
+	// Find the closest occluder from light point of view
+	const uint OccluderCount = 5;
+	float OccluderDistance = 0; // Occluder distance in clip space
+	for (uint OccluderIt = 0; OccluderIt < OccluderCount; ++OccluderIt)
+	{
+		const float2 Offset = ComputeJitteredSample(PoissonDisk[OccluderIt], Jitter) * DeepShadowResolution;
+		const float2 SamplePosition = LightSpacePosition.xy + Offset;
+		const float2 P = floor(SamplePosition - float(0.5f).xx);
+		const uint2 C0 = P;
+		const uint2 C1 = C0 + uint2(1, 0);
+		const uint2 C2 = C0 + uint2(0, 1);
+		const uint2 C3 = C0 + uint2(1, 1);
+
+		// @todo_hair: gather4
+		const float FrontDepth0 = FrontDepthTexture.Load(uint3(C0, 0)).x;
+		const float FrontDepth1 = FrontDepthTexture.Load(uint3(C1, 0)).x;
+		const float FrontDepth2 = FrontDepthTexture.Load(uint3(C2, 0)).x;
+		const float FrontDepth3 = FrontDepthTexture.Load(uint3(C3, 0)).x;
+
+		const float Distance0 = GetDomDistanceToFrontDepth(FrontDepth0, LightSpacePosition.z);
+		const float Distance1 = GetDomDistanceToFrontDepth(FrontDepth1, LightSpacePosition.z);
+		const float Distance2 = GetDomDistanceToFrontDepth(FrontDepth2, LightSpacePosition.z);
+		const float Distance3 = GetDomDistanceToFrontDepth(FrontDepth3, LightSpacePosition.z);
+
+		OccluderDistance = max(OccluderDistance, max(Distance0, max(Distance1, max(Distance2, Distance3))));
+	}
+
+	// Sample DOM
+	float HairCount = 0;
+	const uint SampleCount = 16;
+	const float ApexAngleInRad = ApexAngleInDegree / 180.f * 3.141592653f;
+	const float ApexHalfAngleInRad = ApexAngleInRad * 0.5f;
+	const float SampleRadius = OccluderDistance * tan(ApexHalfAngleInRad); // Sample radius in clip space
+	for (uint SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
+	{
+		const float2 Offset = ComputeJitteredSample(PoissonDisk[SampleIt], Jitter) * SampleRadius * DeepShadowResolution;
+		HairCount += SampleDOM_PCF2x2(LightSpacePosition + float3(Offset,0), DepthBias, FrontDepthTexture, DomTexture);
+	}
+	
+	HairCount /= SampleCount;
+	return HairCount;
+}
+
+struct FTransmittanceSettings
+{
+	int2	 DeepShadowResolution;
+	int2	 DeepShadowOffset;
+	float4x4 WorldToLightTransform;
+	float3   LightDirection;
+	float4   LightPosition;
+
+	float    DeepShadowDepthBiasScale;
+	float    DeepShadowDensityScale;
+	float	 TransmittanceKernelApertureInDegree;
+	float3   Random;
+	uint	 DebugMode;
+
+	uint TransmittanceKernelType;
+};
+
+#define TILE_PIXEL_SIZE 8
+
+float3 ComputeDomDebugColor(
+	float3 WorldPosition, 
+	float4x4 WorldToLightTransform, 
+	Texture2D<float> FrontDepthTexture, 
+	SamplerState LinearSampler)
+{
+	const float3 LightSpacePosition = ToLightPosition(WorldPosition, WorldToLightTransform); 
+	const float FrontDepth = FrontDepthTexture.SampleLevel(LinearSampler, LightSpacePosition.xy, 0).x;
+	const float DistanceToFrontDepth = GetDomDistanceToFrontDepth(FrontDepth, LightSpacePosition.z);
+	return HairDebugColor(DistanceToFrontDepth);
+}
+
+float3 ComputeHairCountDebugColor(
+	float3 WorldPosition, 
+	float4x4 WorldToLightTransform, 
+	Texture2D<float> FrontDepthTexture, 
+	Texture2D<float4> DomTexture, 
+	SamplerState LinearSampler, 
+	float MaxHairCount)
+{
+	const float3 LightSpacePosition = ToLightPosition(WorldPosition, WorldToLightTransform);
+	const float FrontDepth = FrontDepthTexture.SampleLevel(LinearSampler, LightSpacePosition.xy, 0).x;
+	const float4 DOMValue = DomTexture.SampleLevel(LinearSampler, LightSpacePosition.xy, 0);
+	const float DistanceToFrontDepth = GetDomDistanceToFrontDepth(FrontDepth, LightSpacePosition.z);
+	const float HairCount = ComputeHairCount(DOMValue, DistanceToFrontDepth);
+	return ColorCode(HairCount / MaxHairCount);
+}
+
+float4 ComputeTransmittanceFromHairCount(float HairCount, FGBufferData GBuffer, float SinLightAngle, Texture3D<float4> InHairScatteringLUTTexture, SamplerState InHairLUTSampler)
+{
+	HairAverageScattering AbsorptionData = SampleHairLUT(InHairScatteringLUTTexture, InHairLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinLightAngle);
+
+	// Always shift the hair count by one to remove self-occlusion/shadow aliasing and have smootheer transition
+	// This insure the the pow function always starts at 0 for front facing hair
+	HairCount = max(0, HairCount - 1);
+	return  float4(pow(AbsorptionData.A_front, HairCount), HairCount);
+}
+
+float4 ComputeTransmittance(
+	float3 WorldPosition,
+	FGBufferData GBuffer, 
+	FTransmittanceSettings Settings,
+	Texture2D<float>	FrontDepthTexture,
+	Texture2D<float4>	DomTexture,
+	Texture3D<float4>	HairLUTTexture,
+	SamplerState		LinearSampler)
+{
+	const bool bIsHairPixel = GBuffer.ShadingModelID == SHADINGMODELID_HAIR;
+
+	float4 Transmittance = float4(1,1,1,0);
+	if (bIsHairPixel)
+	{
+		const bool bIsDirectionalLight = Settings.LightPosition.w == 0;
+
+		// LightSpacePosition is 'WorldPosition' in LightSpace (TexelCoord.XY / NDC Depth.Z)
+		const float3 LightSpacePosition = ToLightPosition(WorldPosition, Settings.WorldToLightTransform) * float3(Settings.DeepShadowResolution, 1) + float3(Settings.DeepShadowOffset, 0); 
+		const float3 L = bIsDirectionalLight ? Settings.LightDirection : normalize(Settings.LightPosition.xyz - WorldPosition);
+		const float3 T = GBuffer.WorldNormal;
+		const float SinLightAngle = dot(L, T);
+
+		float DepthBias = 0;
+		if (Settings.DeepShadowDepthBiasScale > 0)
+		{
+			#if 0 
+			const float DephtBiasSlope = 6;
+			const float DefaultDepthBias = LAYER_DEPTH0 * Settings.DeepShadowDepthBiasScale; 
+			DepthBias = (CosLightAngle*DephtBiasSlope + 1) * DefaultDepthBias;
+			#else
+			DepthBias = LAYER_DEPTH0 * Settings.DeepShadowDepthBiasScale;
+			#endif
+		}
+
+		// Compute the number of hair count between light & shading point
+		float HairCount = 0;
+		if (Settings.TransmittanceKernelType == 3)
+		{
+			HairCount = SampleDOM_PCSS(LightSpacePosition.xyz, Settings.DeepShadowResolution, DepthBias, FrontDepthTexture, DomTexture, LinearSampler, Settings.TransmittanceKernelApertureInDegree, Settings.Random.xy);
+		}
+		else if (Settings.TransmittanceKernelType == 2)
+		{
+			HairCount = SampleDOM_PCF(LightSpacePosition.xyz, DepthBias, FrontDepthTexture, DomTexture);
+		}
+		else if (Settings.TransmittanceKernelType == 1)
+		{
+			HairCount = SampleDOM_PCF2x2(LightSpacePosition.xyz, DepthBias, FrontDepthTexture, DomTexture);
+		}
+		else
+		{
+			HairCount = 0;
+		}
+
+		Transmittance = ComputeTransmittanceFromHairCount(HairCount * Settings.DeepShadowDensityScale, GBuffer, SinLightAngle, HairLUTTexture, LinearSampler);
+
+		if (Settings.DebugMode != 0)
+		{
+			Transmittance.xyz = ComputeDomDebugColor(WorldPosition, Settings.WorldToLightTransform, FrontDepthTexture, LinearSampler);
+			Transmittance.w = 1;
+		}
+	}
+	return Transmittance;
+}

@@ -7,12 +7,12 @@ namespace GeometryCollectionExample
 {	
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API BasicGlobalMatrices(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API BasicGlobalMatrices();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API ReparentingMatrices(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API ReparentingMatrices();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API TransformMatrixElement(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API TransformMatrixElement();
 
 }
