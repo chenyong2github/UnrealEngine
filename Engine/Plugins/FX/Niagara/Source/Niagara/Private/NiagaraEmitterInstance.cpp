@@ -252,7 +252,14 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 
 	//Init the spawn infos to the correct number for this system.
 	int32 NumEvents = CachedEmitter->GetEventHandlers().Num();
-	SpawnInfos.SetNum(EmitterCompiledData[EmitterIdx].SpawnAttributes.Num());
+	if (ParentSystemInstance->GetSystem()->FastPathMode != ENiagaraFastPathMode::ScriptVMOnly)
+	{
+		SpawnInfos.SetNum(CachedEmitter->SpawnRate.Num() + CachedEmitter->SpawnPerUnit.Num() + CachedEmitter->SpawnBurstInstantaneous.Num());
+	}
+	else
+	{
+		SpawnInfos.SetNum(EmitterCompiledData[EmitterIdx].SpawnAttributes.Num());
+	}
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 	Data.InitFromCompiledData(EmitterCompiledData[EmitterIdx].DataSetCompiledData, ParentSystemInstance->GetSystem()->GetName() + TEXT("/") + CachedEmitter->GetName());
@@ -445,6 +452,10 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 		{
 			GPUExecContext->Reset(Batcher);
 		}
+
+		FastPathMap = FNiagaraEmitterFastPath::FParamMap0();
+		FastPathIntAttributeBindings.Empty();
+		FastPathFloatAttributeBindings.Empty();
 	}
 }
 
@@ -1704,4 +1715,28 @@ bool FNiagaraEmitterInstance::FindBinding(const FNiagaraUserParameterBinding& In
 		}
 	}
 	return false;
+}
+
+void FNiagaraEmitterInstance::InitFastPathAttributeBindings()
+{
+	FastPathIntAttributeBindings.Empty();
+	FastPathFloatAttributeBindings.Empty();
+
+	FNiagaraEmitterFastPath::InitFastPathAttributeBindings(CachedEmitter->SpawnFastPathAttributeNames, SpawnExecContext.Parameters, 
+		GetParentSystemInstance()->FastPathMap, FastPathMap, FastPathIntAttributeBindings, FastPathFloatAttributeBindings);
+	FNiagaraEmitterFastPath::InitFastPathAttributeBindings(CachedEmitter->UpdateFastPathAttributeNames, UpdateExecContext.Parameters, 
+		GetParentSystemInstance()->FastPathMap, FastPathMap, FastPathIntAttributeBindings, FastPathFloatAttributeBindings);
+}
+
+void FNiagaraEmitterInstance::TickFastPathAttributeBindings()
+{
+	for (TNiagaraFastPathAttributeBinding<int32>& IntBinding : FastPathIntAttributeBindings)
+	{
+		IntBinding.Tick();
+	}
+
+	for (TNiagaraFastPathAttributeBinding<float>& FloatBinding : FastPathFloatAttributeBindings)
+	{
+		FloatBinding.Tick();
+	}
 }
