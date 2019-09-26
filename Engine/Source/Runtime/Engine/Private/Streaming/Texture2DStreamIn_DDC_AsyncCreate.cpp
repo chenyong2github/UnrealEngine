@@ -12,12 +12,46 @@ Texture2DStreamIn_DDC_AsyncCreate.h: Load texture 2D mips from the DDC using asy
 FTexture2DStreamIn_DDC_AsyncCreate::FTexture2DStreamIn_DDC_AsyncCreate(UTexture2D* InTexture, int32 InRequestedMips)
 	: FTexture2DStreamIn_DDC(InTexture, InRequestedMips) 
 {
-	PushTask(FContext(InTexture, TT_None), TT_Async, SRA_UPDATE_CALLBACK(AllocateAndLoadMips), TT_None, nullptr);
+	if (GStreamingUseAsyncRequestsForDDC)
+	{
+		PushTask(FContext(InTexture, TT_None), TT_Async, SRA_UPDATE_CALLBACK(AsyncDDC), TT_None, nullptr);
+	}
+	else
+	{
+		PushTask(FContext(InTexture, TT_None), TT_Async, SRA_UPDATE_CALLBACK(AllocateAndLoadMips), TT_None, nullptr);
+	}
 }
 
 // ****************************
 // ******* Update Steps *******
 // ****************************
+
+void FTexture2DStreamIn_DDC_AsyncCreate::AsyncDDC(const FContext& Context)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FTexture2DStreamIn_DDC_AsyncCreate::AsyncDDC"), STAT_Texture2DStreamInDDCAsyncCreate_AsyncDDC, STATGROUP_StreamingDetails);
+	check(Context.CurrentThread == TT_Async);
+
+	DoCreateAsyncDDCRequests(Context);
+
+	bDeferExecution = !IsCancelled(); // Set as pending.
+	PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(PollDDC), TT_Render, SRA_UPDATE_CALLBACK(Cancel));
+}
+
+void FTexture2DStreamIn_DDC_AsyncCreate::PollDDC(const FContext& Context)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FTexture2DStreamIn_DDC_AsyncCreate::PollDDC"), STAT_Texture2DStreamInDDCAsyncCreate_PollDDC, STATGROUP_StreamingDetails);
+	check(Context.CurrentThread == TT_Async);
+
+	if (DoPoolDDCRequests(Context))
+	{
+		PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(AllocateAndLoadMips), TT_Render, SRA_UPDATE_CALLBACK(Cancel));
+	}
+	else
+	{
+		bDeferExecution = !IsCancelled(); // Set as pending.
+		PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(PollDDC), TT_Render, SRA_UPDATE_CALLBACK(Cancel));
+	}
+}
 
 void FTexture2DStreamIn_DDC_AsyncCreate::AllocateAndLoadMips(const FContext& Context)
 {
