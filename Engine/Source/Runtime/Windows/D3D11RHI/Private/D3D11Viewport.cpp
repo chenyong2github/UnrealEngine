@@ -85,6 +85,7 @@ namespace RHIConsoleVariables
 };
 
 extern void D3D11TextureAllocated2D( FD3D11Texture2D& Texture );
+extern uint32 D3D11GetSwapChainFlags();
 
 /**
  * Creates a FD3D11Surface to represent a swap chain's back buffer.
@@ -259,12 +260,8 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		{
 			// Resize the swap chain.
 			DXGI_FORMAT RenderTargetFormat = GetRenderTargetFormat(PixelFormat);
-#if PLATFORM_HOLOLENS
 			// Resize all existing buffers, don't change count
-			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
-#else
-			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(BackBufferCount, SizeX, SizeY, RenderTargetFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
-#endif
+			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, D3D11GetSwapChainFlags()), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
 
 			if (bInIsFullscreen)
 			{
@@ -372,7 +369,8 @@ bool FD3D11Viewport::PresentChecked(int32 SyncInterval)
 	FThreadHeartBeat::Get().PresentFrame();
 
 	VERIFYD3D11RESULT_EX(Result, D3DRHI->GetDevice());
-	
+	D3DRHI->GetDeviceContext()->OMSetRenderTargets(0,0,0);
+
 	return bNeedNativePresent;
 }
 
