@@ -820,6 +820,7 @@ namespace UnrealBuildTool
 			if (LinkEnvironment.bUseIncrementalLinking)
 			{
 				Arguments.Add("/INCREMENTAL");
+				Arguments.Add("/verbose:incr");
 			}
 			else
 			{
