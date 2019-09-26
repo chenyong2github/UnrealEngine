@@ -53,7 +53,9 @@ struct FMovieSceneEvent
 	UPROPERTY()
 	FMovieSceneEventPtrs Ptrs;
 
+#if WITH_EDITORONLY_DATA
 	void PostSerialize(const FArchive& Ar);
+#endif
 
 public:
 
