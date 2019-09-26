@@ -90,6 +90,8 @@ bool FNiagaraShaderScript::IsSame(const FNiagaraShaderMapId& InId) const
 		InId.FeatureLevel == FeatureLevel &&
 		InId.BaseScriptID == BaseScriptId &&
 		InId.AdditionalDefines == AdditionalDefines &&
+		InId.DetailLevelMask == DetailLevelMask &&
+		InId.bUsesRapidIterationParams == bUsesRapidIterationParams &&
 		InId.BaseCompileHash == BaseCompileHash &&
 		InId.ReferencedCompileHashes == ReferencedCompileHashes &&
 		InId.CompilerVersionID == CompilerVersionId;
@@ -124,6 +126,8 @@ NIAGARASHADER_API void FNiagaraShaderScript::GetShaderMapId(EShaderPlatform Plat
 		OutId.FeatureLevel = GetFeatureLevel();
 		OutId.BaseScriptID = BaseScriptId;
 		OutId.AdditionalDefines = AdditionalDefines;
+		OutId.DetailLevelMask = DetailLevelMask;
+		OutId.bUsesRapidIterationParams = bUsesRapidIterationParams;		
 		OutId.BaseCompileHash = BaseCompileHash;
 		OutId.ReferencedCompileHashes = ReferencedCompileHashes;
 		OutId.CompilerVersionID = FNiagaraCustomVersion::LatestScriptCompileVersion;
@@ -225,7 +229,8 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 }
 
 void FNiagaraShaderScript::SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersionID, const FGuid& InBaseScriptID, const TArray<FString>& InAdditionalDefines,
-	const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, FString InFriendlyName)
+		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
+		bool bInUsesRapidIterationParams, uint32 InDetailLevelMask, FString InFriendlyName)
 {
 	checkf(InBaseScriptID.IsValid(), TEXT("Invalid base script id.  Script caching will fail."));
 	checkf(InBaseCompileHash.IsValid(), TEXT("Invalid base compile hash.  Script caching will fail."))
@@ -233,6 +238,8 @@ void FNiagaraShaderScript::SetScript(UNiagaraScript *InScript, ERHIFeatureLevel:
 	CompilerVersionId = InCompilerVersionID;
 	BaseScriptId = InBaseScriptID;
 	AdditionalDefines = InAdditionalDefines;
+	bUsesRapidIterationParams = bInUsesRapidIterationParams;
+	DetailLevelMask = InDetailLevelMask;
 	BaseCompileHash = InBaseCompileHash;
 	ReferencedCompileHashes = InReferencedCompileHashes;
 	FriendlyName = InFriendlyName;

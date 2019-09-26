@@ -82,6 +82,11 @@ struct FNiagaraTranslateResults
 class FNiagaraCompileRequestData : public FNiagaraCompileRequestDataBase
 {
 public:
+	FNiagaraCompileRequestData() : bUseRapidIterationParams(true), DetailLevelMask(FNiagaraCompileRequestDataBase::CookForAllDetailLevelMask)
+	{
+
+	}
+
 	virtual ~FNiagaraCompileRequestData() {}
 	virtual bool GatherPreCompiledVariables(const FString& InNamespaceFilter, TArray<FNiagaraVariable>& OutVars) override;
 	virtual void GetReferencedObjects(TArray<UObject*>& Objects) override;
@@ -103,7 +108,11 @@ public:
 	virtual TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> GetDependentRequest(int32 Index) override {
 		return EmitterData[Index];
 	}
-
+	void AddRapidIterationParameters(const FNiagaraParameterStore& InParamStore, FCompileConstantResolver InResolver);
+	virtual uint32 GetDetailLevelMask(void) const override {
+		return DetailLevelMask;
+	};
+	virtual bool GetUseRapidIterationParams() const override { return bUseRapidIterationParams; }
 
 	// If this is being held onto for any length of time, make sure to hold onto it in a gc-aware object. Right now in this information-passing struct,
 	// we could have a leaked garbage collected pointer if not held onto by someone capable of registering a reference.
@@ -116,9 +125,13 @@ public:
 	TArray<TSharedPtr<FNiagaraCompileRequestData, ESPMode::ThreadSafe>> EmitterData;
 	UNiagaraScriptSource* Source;
 	FString SourceName;
+	bool bUseRapidIterationParams = true;
+	uint32 DetailLevelMask = 0xFFFFFFFF;
 
 	UEnum* ENiagaraScriptCompileStatusEnum;
 	UEnum* ENiagaraScriptUsageEnum;
+
+	TArray<FNiagaraVariable> RapidIterationParams;
 
 	struct FunctionData
 	{
@@ -250,6 +263,10 @@ public:
 
 	}
 
+	FHlslNiagaraTranslatorOptions(const FHlslNiagaraTranslatorOptions& InOptions) : SimTarget(InOptions.SimTarget), InstanceParameterNamespaces(InOptions.InstanceParameterNamespaces), bParameterRapidIteration(InOptions.bParameterRapidIteration), OverrideModuleConstants(InOptions.OverrideModuleConstants)
+	{
+	}
+
 	ENiagaraSimTarget SimTarget;
 
 	/** Any parameters in these namespaces will be pulled from an "InstanceParameters" dataset rather than from the uniform table. */
@@ -260,6 +277,8 @@ public:
 
 	/** Whether or not to override top-level module variables with values from the constant override table. This is only used for variables that were candidates for rapid iteration.*/
 	TArray<FNiagaraVariable> OverrideModuleConstants;
+
+
 };
 
 class NIAGARAEDITOR_API FHlslNiagaraTranslationStage
@@ -420,7 +439,7 @@ public:
 
 	virtual int32 GetAttribute(const FNiagaraVariable& Attribute);
 
-	virtual int32 GetConstant(const FNiagaraVariable& Constant);
+	virtual int32 GetConstant(const FNiagaraVariable& Constant, FString* DebugOutputValue = nullptr);
 	
 	virtual void ReadDataSet(const FNiagaraDataSetID DataSet, const TArray<FNiagaraVariable>& Variable, ENiagaraDataSetAccessMode AccessMode, int32 InputChunk, TArray<int32>& Outputs);
 	virtual void WriteDataSet(const FNiagaraDataSetID DataSet, const TArray<FNiagaraVariable>& Variable, ENiagaraDataSetAccessMode AccessMode, const TArray<int32>& Inputs, TArray<int32>& Outputs);

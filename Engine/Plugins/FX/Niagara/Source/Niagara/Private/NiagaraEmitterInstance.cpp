@@ -223,10 +223,9 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 	OwnerSystemInstanceID = InSystemInstanceID;
 	const FNiagaraEmitterHandle& EmitterHandle = GetEmitterHandle();
 	CachedEmitter = EmitterHandle.GetInstance();
-	checkSlow(CachedEmitter);
 	CachedIDName = EmitterHandle.GetIdName();
 
-	if (!IsAllowedToExecute())
+	if (CachedEmitter == nullptr || !IsAllowedToExecute())
 	{
 		//@todo(message manager) Error bubbling here
 		ExecutionState = ENiagaraExecutionState::Disabled;

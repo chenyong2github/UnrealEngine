@@ -353,20 +353,26 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 		{
 			FNiagaraEmitterHandle& EmitterHandle = System->GetEmitterHandle(EmitterIdx);
 			UNiagaraEmitter* Emitter = EmitterHandle.GetInstance();
-			FString EmitterName = Emitter->GetUniqueEmitterName();
-			check(Emitter);
-			EmitterExecutionStateAccessors.Emplace(MainDataSet, FNiagaraVariable(EnumPtr, *(EmitterName + TEXT(".ExecutionState"))));
-			const TArray<FNiagaraEmitterCompiledData>& EmitterCompiledData = System->GetEmitterCompiledData();
-			
-			check(EmitterCompiledData.Num() == System->GetNumEmitters());
-			for (FName AttrName : EmitterCompiledData[EmitterIdx].SpawnAttributes)
+			if (Emitter)
 			{
-				EmitterSpawnInfoAccessors[EmitterIdx].Emplace(MainDataSet, FNiagaraVariable(FNiagaraTypeDefinition(FNiagaraSpawnInfo::StaticStruct()), AttrName));
-			}
+				FString EmitterName = Emitter->GetUniqueEmitterName();
+				EmitterExecutionStateAccessors.Emplace(MainDataSet, FNiagaraVariable(EnumPtr, *(EmitterName + TEXT(".ExecutionState"))));
+				const TArray<FNiagaraEmitterCompiledData>& EmitterCompiledData = System->GetEmitterCompiledData();
 
-			if (Emitter->bLimitDeltaTime)
+				check(EmitterCompiledData.Num() == System->GetNumEmitters());
+				for (FName AttrName : EmitterCompiledData[EmitterIdx].SpawnAttributes)
+				{
+					EmitterSpawnInfoAccessors[EmitterIdx].Emplace(MainDataSet, FNiagaraVariable(FNiagaraTypeDefinition(FNiagaraSpawnInfo::StaticStruct()), AttrName));
+				}
+
+				if (Emitter->bLimitDeltaTime)
+				{
+					MaxDeltaTime = MaxDeltaTime.IsSet() ? FMath::Min(MaxDeltaTime.GetValue(), Emitter->MaxDeltaTimePerTick) : Emitter->MaxDeltaTimePerTick;
+				}
+			}
+			else
 			{
-				MaxDeltaTime = MaxDeltaTime.IsSet() ? FMath::Min(MaxDeltaTime.GetValue(), Emitter->MaxDeltaTimePerTick) : Emitter->MaxDeltaTimePerTick;
+				EmitterExecutionStateAccessors.Emplace();
 			}
 		}
 
