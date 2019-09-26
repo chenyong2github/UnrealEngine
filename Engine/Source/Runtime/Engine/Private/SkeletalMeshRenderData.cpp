@@ -161,7 +161,6 @@ void FSkeletalMeshRenderData::Cache(USkeletalMesh* Owner)
 				for (int32 SectionIndex = 0; SectionIndex < LODModel->Sections.Num(); ++SectionIndex)
 				{
 					Ar << LODModel->Sections[SectionIndex];
-					LODModel->Sections[SectionIndex].OverlappingVertices;
 				}
 				LODModel->SyncronizeUserSectionsDataArray();
 			}

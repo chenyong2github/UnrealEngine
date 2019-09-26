@@ -892,7 +892,7 @@ TSharedRef<SWidget> FSkeletalMeshReductionSettingsLayout::FillReductionMethodMen
 {
 	if (EnumReductionMethod == nullptr)
 	{
-		SNullWidget::NullWidget;
+		return SNullWidget::NullWidget;
 	}
 	FMenuBuilder MenuBuilder(true, NULL);
 	int32 EnumCount = EnumReductionMethod->NumEnums();
@@ -922,7 +922,7 @@ TSharedRef<SWidget> FSkeletalMeshReductionSettingsLayout::FillReductionImportanc
 {
 	if (EnumImportance == nullptr)
 	{
-		SNullWidget::NullWidget;
+		return SNullWidget::NullWidget;
 	}
 	FMenuBuilder MenuBuilder(true, NULL);
 	int32 EnumCount = EnumImportance->NumEnums();
@@ -977,7 +977,7 @@ TSharedRef<class SWidget> FSkeletalMeshReductionSettingsLayout::FillReductionTer
 {
 	if (EnumTerminationCriterion == nullptr)
 	{
-		SNullWidget::NullWidget;
+		return SNullWidget::NullWidget;
 	}
 	FMenuBuilder MenuBuilder(true, NULL);
 	int32 EnumCount = EnumTerminationCriterion->NumEnums();
