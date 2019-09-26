@@ -21,6 +21,7 @@
 #include "Templates/Greater.h"
 #include "Serialization/ArchiveProxy.h"
 #include "Misc/Base64.h"
+#include "HAL/DiskUtilizationTracker.h"
 #include "Stats/StatsMisc.h"
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/ThreadHeartBeat.h"
@@ -4115,6 +4116,11 @@ void FPakPlatformFile::Tick()
 		}
 		GPreCacheTotalLoadedLastTick = GPreCacheTotalLoaded;
 }
+#endif
+#if TRACK_DISK_UTILIZATION && CSV_PROFILER
+	CSV_CUSTOM_STAT(DiskIO, OutstandingIORequests, int32(GDiskUtilizationTracker.GetOutstandingRequests()), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(DiskIO, BusyTime, float(GDiskUtilizationTracker.GetShortTermStats().GetTotalIOTimeInSeconds()), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(DiskIO, IdleTime, float(GDiskUtilizationTracker.GetShortTermStats().GetTotalIdleTimeInSeconds()), ECsvCustomStatOp::Set);
 #endif
 }
 
