@@ -3939,6 +3939,17 @@ bool ULandscapeInfo::CanHaveLayersContent() const
 	return false;
 }
 
+void ULandscapeInfo::ClearDirtyData()
+{
+	if (ALandscape* Landscape = LandscapeActor.Get())
+	{
+		ForAllLandscapeComponents([=](ULandscapeComponent* InLandscapeComponent)
+		{
+			Landscape->ClearDirtyData(InLandscapeComponent);
+		});
+	}
+}
+
 namespace
 {
 	inline float AdjustStaticLightingResolution(float StaticLightingResolution, int32 NumSubsections, int32 SubsectionSizeQuads, int32 ComponentSizeQuads)
