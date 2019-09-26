@@ -23,6 +23,10 @@ protected:
 	// ******* Update Steps *******
 	// ****************************
 
+	// Create DDC requests for each mips. (AsyncThread)
+	void AsyncDDC(const FContext& Context);
+	// Poll DDC requests completion for each mips. (AsyncThread)
+	void PollDDC(const FContext& Context);
 	// Allocate the MipData (AsyncThread)
 	void AllocateAndLoadMips(const FContext& Context);
 	// Create load requests into each locked mips. (AsyncThread)
