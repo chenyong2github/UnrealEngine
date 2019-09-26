@@ -156,8 +156,8 @@ class UNiagaraGraph : public UEdGraph
 	TArray<FNiagaraVariable> FindStaticSwitchInputs(bool bReachableOnly = false) const;
 
 	/** Get an in-order traversal of a graph by the specified target output script usage.*/
-	void BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraversed, ENiagaraScriptUsage TargetUsage, FGuid TargetUsageId) const;
-	static void BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraversed, UNiagaraNode* FinalNode);
+	void BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraversed, ENiagaraScriptUsage TargetUsage, FGuid TargetUsageId, bool bEvaluateStaticSwitches = false) const;
+	static void BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraversed, UNiagaraNode* FinalNode, bool bEvaluateStaticSwitches = false);
 
 	/** Generates a list of unique input and output parameters for when this script is used as a function. */
 	void GetParameters(TArray<FNiagaraVariable>& Inputs, TArray<FNiagaraVariable>& Outputs) const;

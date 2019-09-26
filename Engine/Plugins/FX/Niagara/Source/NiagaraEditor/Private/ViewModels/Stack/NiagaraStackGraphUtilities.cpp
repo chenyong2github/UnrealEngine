@@ -30,7 +30,6 @@
 #include "EdGraph/EdGraphPin.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "AssetRegistryModule.h"
-#include "NiagaraNodeStaticSwitch.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - StackGraphUtilities - RelayoutGraph"), STAT_NiagaraEditor_StackGraphUtilities_RelayoutGraph, STATGROUP_NiagaraEditor);
 
@@ -581,38 +580,6 @@ TArray<UEdGraphPin*> FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(UNi
 		return TArray<UEdGraphPin*>();
 	}
 
-	// Find reachable nodes
-	TArray<UEdGraphPin*> PinsToCheck;
-	OutputNode->GetInputPins(PinsToCheck);
-	TSet<UNiagaraNode*> ReachedNodes;
-	while (PinsToCheck.Num() > 0)
-	{
-		UEdGraphPin* Pin = PinsToCheck.Pop(false);
-		UNiagaraNode* Owner = Cast<UNiagaraNode>(Pin->GetOwningNode());
-		if (!Owner)
-		{
-			continue;
-		}
-		for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
-		{
-			UEdGraphPin* TracedPin = UNiagaraNode::TraceOutputPin(LinkedPin);
-			if (TracedPin->Direction == EGPD_Output && TracedPin->GetOwningNode()->IsA<UNiagaraNodeStaticSwitch>())
-			{
-				// if the static switch has no connected input (the value is set on the input pin directly) then the trace returns the output pin and we can ignore it
-				continue;
-			}
-			UNiagaraNode* TracedPinOwner = Cast<UNiagaraNode>(TracedPin->GetOwningNode());
-			if (!TracedPinOwner || ReachedNodes.Contains(TracedPinOwner))
-			{
-				continue;
-			}
-			ReachedNodes.Add(TracedPinOwner);
-			TArray<UEdGraphPin*> TracedInputs;
-			TracedPinOwner->GetInputPins(TracedInputs);
-			PinsToCheck.Append(TracedInputs);
-		}
-	}
-
 	// Get the used function parameters from the parameter map set node linked to the function's input pin.
 	// Note that this is only valid for module scripts, not function scripts.
 	TArray<UEdGraphPin*> ResultPins;
@@ -637,6 +604,10 @@ TArray<UEdGraphPin*> FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(UNi
 	{
 		return ResultPins;
 	}
+
+	// Find reachable nodes
+	TArray<UNiagaraNode*> ReachedNodes;
+	FunctionGraph->BuildTraversal(ReachedNodes, OutputNode, true);
 
 	// We only care about reachable parameter map get nodes with module inputs
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
