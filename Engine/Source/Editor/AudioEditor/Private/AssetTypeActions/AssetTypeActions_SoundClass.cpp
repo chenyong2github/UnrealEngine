@@ -6,6 +6,7 @@
 #include "Audio/AudioDebug.h"
 #include "AudioDeviceManager.h"
 #include "Editor.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
