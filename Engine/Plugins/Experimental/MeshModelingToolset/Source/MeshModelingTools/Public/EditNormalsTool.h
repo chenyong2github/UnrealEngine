@@ -51,6 +51,10 @@ class MESHMODELINGTOOLS_API UEditNormalsToolProperties : public UInteractiveTool
 public:
 	UEditNormalsToolProperties();
 
+	bool WillTopologyChange()
+	{
+		return bFixInconsistentNormals || bInvertNormals || bRecomputeNormalTopologyAndEdgeSharpness;
+	}
 
 	/** Recompute all mesh normals */
 	UPROPERTY(EditAnywhere, Category = NormalsCalculation, meta = (EditCondition = "!bRecomputeNormalTopologyAndEdgeSharpness"))
@@ -59,6 +63,10 @@ public:
 	/** Choose the method for computing vertex normals */
 	UPROPERTY(EditAnywhere, Category = NormalsCalculation)
 	ENormalCalculationMethod NormalCalculationMethod;
+
+	/** For meshes with inconsistent triangle orientations/normals, flip as needed to make the normals consistent */
+	UPROPERTY(EditAnywhere, Category = NormalsCalculation)
+	bool bFixInconsistentNormals;
 
 	/** Invert (flip) all mesh normals and associated triangle orientations */
 	UPROPERTY(EditAnywhere, Category = NormalsCalculation)

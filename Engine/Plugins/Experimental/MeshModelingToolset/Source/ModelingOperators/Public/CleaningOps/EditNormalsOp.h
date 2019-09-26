@@ -27,6 +27,7 @@ public:
 	// inputs
 	TSharedPtr<FDynamicMesh3> OriginalMesh;
 
+	bool bFixInconsistentNormals;
 	bool bInvertNormals;
 	bool bRecomputeNormals;
 	ENormalCalculationMethod NormalCalculationMethod;

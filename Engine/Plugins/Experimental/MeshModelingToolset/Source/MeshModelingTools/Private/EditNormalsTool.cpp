@@ -64,12 +64,13 @@ UInteractiveTool* UEditNormalsToolBuilder::BuildTool(const FToolBuilderState& Sc
 
 UEditNormalsToolProperties::UEditNormalsToolProperties()
 {
+	bFixInconsistentNormals = false;
 	bInvertNormals = false;
 	bRecomputeNormals = true;
 	NormalCalculationMethod = ENormalCalculationMethod::AreaAngleWeighting;
 	bRecomputeNormalTopologyAndEdgeSharpness = false;
 	SharpEdgeAngleThreshold = 60;
-	bAllowSharpVertices = true;
+	bAllowSharpVertices = false;
 }
 
 UEditNormalsAdvancedProperties::UEditNormalsAdvancedProperties()
@@ -180,6 +181,7 @@ void UEditNormalsTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 TSharedPtr<FDynamicMeshOperator> UEditNormalsOperatorFactory::MakeNewOperator()
 {
 	TSharedPtr<FEditNormalsOp> NormalsOp = MakeShared<FEditNormalsOp>();
+	NormalsOp->bFixInconsistentNormals = Tool->BasicProperties->bFixInconsistentNormals;
 	NormalsOp->bInvertNormals = Tool->BasicProperties->bInvertNormals;
 	NormalsOp->bRecomputeNormals = Tool->BasicProperties->bRecomputeNormals;
 	NormalsOp->bSplitNormals = Tool->BasicProperties->bRecomputeNormalTopologyAndEdgeSharpness;
@@ -263,7 +265,8 @@ void UEditNormalsTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResul
 		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](FMeshDescription* MeshDescription)
 		{
 			FDynamicMeshToMeshDescription Converter;
-			if (BasicProperties->bRecomputeNormalTopologyAndEdgeSharpness || BasicProperties->bInvertNormals)
+			
+			if (BasicProperties->WillTopologyChange())
 			{
 				// full conversion if normal topology changed or faces were inverted
 				Converter.Convert(Results[ComponentIdx]->Mesh.Get(), *MeshDescription);

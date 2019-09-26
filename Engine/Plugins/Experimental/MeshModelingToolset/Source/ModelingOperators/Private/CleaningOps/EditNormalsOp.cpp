@@ -12,7 +12,8 @@
 
 
 #include "MeshNormals.h"
-
+#include "Operations/RepairOrientation.h"
+#include "DynamicMeshAABBTree3.h"
 
 void FEditNormalsOp::SetTransform(const FTransform& Transform) {
 	ResultTransform = (FTransform3d)Transform;
@@ -34,6 +35,14 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 
 	// if you split normals you must always recompute as well
 	bool bNeedsRecompute = bRecomputeNormals || bSplitNormals;
+
+	if (bFixInconsistentNormals)
+	{
+		FMeshRepairOrientation Repair(ResultMesh.Get());
+		Repair.OrientComponents();
+		FDynamicMeshAABBTree3 Tree(ResultMesh.Get());
+		Repair.SolveGlobalOrientation(&Tree);
+	}
 
 	if (bInvertNormals)
 	{
