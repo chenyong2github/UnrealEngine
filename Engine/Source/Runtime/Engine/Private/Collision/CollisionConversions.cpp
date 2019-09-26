@@ -102,6 +102,13 @@ static FVector FindGeomOpposingNormal(ECollisionShapeType QueryGeomType, const F
 		const FPhysicsShape* Shape = GetShape(Hit);
 		if (Shape)
 		{
+#if WITH_CHAOS
+			const FTransform ActorTM(Hit.Actor->R(), Hit.Actor->X());
+			const FVector LocalInNormal = ActorTM.InverseTransformVectorNoScale(InNormal);
+			const FVector LocalTraceDirectionDenorm = ActorTM.InverseTransformVectorNoScale(TraceDirectionDenorm);
+			const FVector LocalNormal = Shape->Geometry->FindGeometryOpposingNormal(LocalTraceDirectionDenorm, Hit.FaceIndex, LocalInNormal);
+			return ActorTM.TransformVectorNoScale(LocalNormal);
+#else
 			ECollisionShapeType GeomType = GetGeometryType(*Shape);
 			switch (GeomType)
 			{
@@ -111,8 +118,10 @@ static FVector FindGeomOpposingNormal(ECollisionShapeType QueryGeomType, const F
 			case ECollisionShapeType::Convex:		return FindConvexMeshOpposingNormal(Hit, TraceDirectionDenorm, InNormal);
 			case ECollisionShapeType::Heightfield:		return FindHeightFieldOpposingNormal(Hit, TraceDirectionDenorm, InNormal);
 			case ECollisionShapeType::Trimesh:	return FindTriMeshOpposingNormal(Hit, TraceDirectionDenorm, InNormal);
-			default: break; //TODO_SQ_IMPLEMENTATION check(false);	//unsupported geom type
+			default: break;
 			}
+
+#endif
 		}
 	}
 
@@ -339,13 +348,10 @@ EConvertQueryResult ConvertTraceResults(bool& OutHasValidBlockingHit, const UWor
 		{
 			if (TIsSame<HitType, FHitSweep>::Value)
 			{
-#if WITH_PHYSX
-				SetInternalFaceIndex(Hit, FindFaceIndex(Hit, Dir));
-#else
-				//#TODO Chaos implementation
-				ensure(false);
-				SetInternalFaceIndex(Hit, 0);
-#endif
+				if (!HadInitialOverlap(Hit))
+				{
+					SetInternalFaceIndex(Hit, FindFaceIndex(Hit, Dir));
+				}
 			}
 
 			FHitResult& NewResult = OutHits[OutHits.AddDefaulted()];

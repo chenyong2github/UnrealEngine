@@ -187,12 +187,15 @@ void UNiagaraDataInterfaceChaosDestruction::BeginDestroy()
 	Super::BeginDestroy();
 
 #if WITH_CHAOS
-	FPhysScene* Scene = GetWorld()->GetPhysicsScene();
-	if (Scene)
+	if (GetWorld())
 	{
-		Scene->UnregisterEventHandler(Chaos::EEventType::Collision, this);
-		Scene->UnregisterEventHandler(Chaos::EEventType::Breaking, this);
-		Scene->UnregisterEventHandler(Chaos::EEventType::Trailing, this);
+		FPhysScene* Scene = GetWorld()->GetPhysicsScene();
+		if (Scene)
+		{
+			Scene->UnregisterEventHandler(Chaos::EEventType::Collision, this);
+			Scene->UnregisterEventHandler(Chaos::EEventType::Breaking, this);
+			Scene->UnregisterEventHandler(Chaos::EEventType::Trailing, this);
+		}
 	}
 #endif
 }

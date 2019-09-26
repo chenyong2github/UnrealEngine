@@ -334,8 +334,12 @@ public:
     // Interface needed for cmd
     static bool ExecuteRead(const FPhysicsActorHandle& InActorReference, TFunctionRef<void(const FPhysicsActorHandle& Actor)> InCallable)
     {
-		InCallable(InActorReference);
-		return true;
+		if (InActorReference)
+		{
+			InCallable(InActorReference);
+			return true;
+		}
+		return false;
     }
 
     static bool ExecuteRead(USkeletalMeshComponent* InMeshComponent, TFunctionRef<void()> InCallable)
@@ -374,9 +378,25 @@ public:
 
     static bool ExecuteWrite(const FPhysicsActorHandle& InActorReference, TFunctionRef<void(const FPhysicsActorHandle& Actor)> InCallable)
     {
-		InCallable(InActorReference);
-		return true;
+		//why do we have a write that takes in a const handle?
+		if (InActorReference)
+		{
+			InCallable(InActorReference);
+			return true;
+		}
+		return false;
     }
+
+	static bool ExecuteWrite(FPhysicsActorHandle& InActorReference, TFunctionRef<void(FPhysicsActorHandle& Actor)> InCallable)
+	{
+		if (InActorReference)
+		{
+			InCallable(InActorReference);
+			return true;
+		}
+
+		return false;
+	}
 
     static bool ExecuteWrite(USkeletalMeshComponent* InMeshComponent, TFunctionRef<void()> InCallable)
     {
@@ -498,11 +518,6 @@ FORCEINLINE float GetHalfHeight(const Chaos::TCapsule<float>& Capsule)
 	return Capsule.GetHeight() / 2.f;
 }
 */
-
-FVector FindBoxOpposingNormal(const FLocationHit& PHit, const FVector& TraceDirectionDenorm, const FVector& InNormal);
-FVector FindHeightFieldOpposingNormal(const FLocationHit& PHit, const FVector& TraceDirectionDenorm, const FVector& InNormal);
-FVector FindConvexMeshOpposingNormal(const FLocationHit& PHit, const FVector& TraceDirectionDenorm, const FVector& InNormal);
-FVector FindTriMeshOpposingNormal(const FLocationHit& PHit, const FVector& TraceDirectionDenorm, const FVector& InNormal);
 
 FORCEINLINE void DrawOverlappingTris(const UWorld* World, const FLocationHit& Hit, const Chaos::TImplicitObject<float, 3>& Geom, const FTransform& QueryTM)
 {

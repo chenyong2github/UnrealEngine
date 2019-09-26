@@ -47,6 +47,8 @@ struct FDeferredLightData
 	uint ShadowedBits;
 	float RectLightBarnCosAngle;
 	float RectLightBarnLength;
+
+	FHairTransmittanceData HairTransmittance;
 };
 
 /** Data about a single light to be shaded with the simple shading model, designed for speed and limited feature set. */
@@ -200,11 +202,21 @@ void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 W
 
 		FLATTEN
 		if( GBuffer.ShadingModelID == SHADINGMODELID_HAIR ||  GBuffer.ShadingModelID == SHADINGMODELID_EYE  )
-			Shadow.TransmissionShadow *= ContactShadow;
+		{
+			// If hair transmittance is enabled, sharp shadowing should already be handled by 
+			// the dedicated deep shadow maps. Thus no need for contact shadow
+			if (!LightData.HairTransmittance.Enable)
+			{
+				Shadow.TransmissionShadow *= ContactShadow;
+			}
+		}
 		else
 			Shadow.TransmissionShadow *= ContactShadow * 0.5 + 0.5;
 	}
 #endif
+
+	Shadow.HairTransmittance = LightData.HairTransmittance;
+	Shadow.HairTransmittance.OpaqueVisibility = Shadow.SurfaceShadow;
 }
 
 float GetLocalLightAttenuation(
@@ -300,6 +312,8 @@ float4 GetDynamicLighting(float3 WorldPosition, float3 CameraVector, FGBufferDat
 		Shadow.SurfaceShadow = AmbientOcclusion;
 		Shadow.TransmissionShadow = 1;
 		Shadow.TransmissionThickness = 1;
+		Shadow.HairTransmittance.Transmittance = 1;
+		Shadow.HairTransmittance.OpaqueVisibility = 1;
 		GetShadowTerms(GBuffer, LightData, WorldPosition, L, LightAttenuation, Dither, Shadow);
 
 		LightAccumulator.EstimatedCost += 0.3f;		// add the cost of getting the shadow terms

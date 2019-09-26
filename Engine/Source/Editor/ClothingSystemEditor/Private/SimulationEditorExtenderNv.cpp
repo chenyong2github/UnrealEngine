@@ -6,7 +6,7 @@
 
 #include "ClothingSimulation.h"
 #include "ClothingSimulationNv.h"
-#include "ClothingSimulationFactory.h"
+#include "ClothingSimulationFactoryNv.h"
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Framework/Commands/UIAction.h"

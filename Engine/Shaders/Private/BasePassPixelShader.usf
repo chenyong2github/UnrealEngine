@@ -539,7 +539,7 @@ float3 GetSimpleForwardLightingDirectionalLight(FGBufferData GBuffer, float3 Dif
 
 	float3 LightColor = ResolvedView.DirectionalLightColor.rgb * PI;
 	
-	FShadowTerms Shadow = { 1, 1, 1 };
+	FShadowTerms Shadow = { 1, 1, 1, InitHairTransmittanceData() };
 	FDirectLighting Lighting = EvaluateBxDF( GBuffer, N, V, L, NoL, Shadow );
 
 	// Not computing specular, material was forced fully rough
@@ -1040,12 +1040,13 @@ ShadingModel);
 		#if MATERIAL_SHADINGMODEL_HAIR
 		if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 		{
+			FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
 			float3 N = MaterialParameters.WorldNormal;
 			float3 V = MaterialParameters.CameraVector;
 			float3 L = normalize( V - N * dot(V,N) );
 			DiffuseDir = L;
 			bool bEvalMultiScatter = true;
-			DiffuseColorForIndirect = 2*PI * HairShading( GBuffer, L, V, N, 1, 0, 0.2, uint2(0,0), bEvalMultiScatter );
+			DiffuseColorForIndirect = 2*PI * HairShading( GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0,0), bEvalMultiScatter);
 		}
 		#endif
 

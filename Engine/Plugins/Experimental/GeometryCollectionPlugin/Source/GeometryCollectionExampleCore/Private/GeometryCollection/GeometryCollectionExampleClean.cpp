@@ -14,7 +14,7 @@
 namespace GeometryCollectionExample
 {
 	template<class T>
-	bool TestDeleteCoincidentVertices(ExampleResponse&& R)
+	void TestDeleteCoincidentVertices()
 	{
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f, 0.f, 0.f)), FVector(0.f, 0.f, 0.f)), FVector(1.0));
 		Collection->AppendGeometry(*GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f, 0.f, 0.f)), FVector(1.f, 0.f, 0.f)), FVector(1.0)));
@@ -35,22 +35,20 @@ namespace GeometryCollectionExample
 		GeometryCollectionAlgo::DeleteCoincidentVertices(Coll, 1e-2);
 
 		
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::VerticesGroup) == 24);
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::FacesGroup) == 36);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::VerticesGroup), 24);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::FacesGroup), 36);
 
 		GeometryCollectionAlgo::DeleteZeroAreaFaces(Coll, 1e-4);
 
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::VerticesGroup) == 24);
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::FacesGroup) == 36);
-
-		return !R.HasError();
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::VerticesGroup), 24);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::FacesGroup), 36);
 	}
-	template bool TestDeleteCoincidentVertices<float>(ExampleResponse&& R);
+	template void TestDeleteCoincidentVertices<float>();
 
 	
 
 	template<class T>
-	bool TestDeleteCoincidentVertices2(ExampleResponse&& R)
+	void TestDeleteCoincidentVertices2()
 	{
 		FGeometryCollection* Coll = FGeometryCollection::NewGeometryCollection(FracturedGeometry::RawVertexArray,
 																   			   FracturedGeometry::RawIndicesArray,
@@ -62,20 +60,18 @@ namespace GeometryCollectionExample
 																			   FracturedGeometry::RawSimulationTypeArray,
 																			   FracturedGeometry::RawStatusFlagsArray);
 
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::VerticesGroup) == 667);
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::FacesGroup) == 493);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::VerticesGroup), 667);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::FacesGroup), 493);
 
 		GeometryCollectionAlgo::DeleteCoincidentVertices(Coll, 1e-2);
 
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::VerticesGroup) == 270);
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::FacesGroup) == 493);
-
-		return !R.HasError();
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::VerticesGroup), 270);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::FacesGroup), 493);
 	}
-	template bool TestDeleteCoincidentVertices2<float>(ExampleResponse&& R);
+	template void TestDeleteCoincidentVertices2<float>();
 
 	template<class T>
-	bool TestDeleteZeroAreaFaces(ExampleResponse&& R)
+	void TestDeleteZeroAreaFaces()
 	{
 		FGeometryCollection* Coll = FGeometryCollection::NewGeometryCollection(FracturedGeometry::RawVertexArray,
 																			   FracturedGeometry::RawIndicesArray,
@@ -88,20 +84,18 @@ namespace GeometryCollectionExample
 																			   FracturedGeometry::RawStatusFlagsArray
 			);
 
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::VerticesGroup) == 667);
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::FacesGroup) == 493);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::VerticesGroup), 667);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::FacesGroup), 493);
 
 		GeometryCollectionAlgo::DeleteZeroAreaFaces(Coll, 1e-4);
 
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::VerticesGroup) == 667);
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::FacesGroup) == 493);
-
-		return !R.HasError();
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::VerticesGroup), 667);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::FacesGroup), 493);
 	}
-	template bool TestDeleteZeroAreaFaces<float>(ExampleResponse&& R);
+	template void TestDeleteZeroAreaFaces<float>();
 
 	template<class T>
-	bool TestFillHoles(ExampleResponse&& R)
+	void TestFillHoles()
 	{
 		FGeometryCollection* Coll = FGeometryCollection::NewGeometryCollection(FracturedGeometry::RawVertexArray,
 			FracturedGeometry::RawIndicesArray,
@@ -112,8 +106,8 @@ namespace GeometryCollectionExample
 			FracturedGeometry::RawChildrenArray,
 			FracturedGeometry::RawSimulationTypeArray,
 			FracturedGeometry::RawStatusFlagsArray);
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::VerticesGroup) == 667);
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::FacesGroup) == 493);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::VerticesGroup), 667);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::FacesGroup), 493);
 
 		TArray<TArray<TArray<int32>>> BoundaryVertexIndices;
 		Coll->RemoveElements(FGeometryCollection::FacesGroup, { 0,1,2 });
@@ -147,38 +141,36 @@ namespace GeometryCollectionExample
 		};
 		
 		int32 TinyFacesBefore = CountTinyFaces(Coll);
-		R.ExpectTrue(CountHoles(BoundaryVertexIndices) == 3);
+		EXPECT_EQ(CountHoles(BoundaryVertexIndices), 3);
 		GeometryCollectionAlgo::TriangulateBoundaries(Coll, BoundaryVertexIndices);
 		int32 TinyFacesAfter = CountTinyFaces(Coll);
-		R.ExpectTrue(CountTinyFaces(Coll) == TinyFacesBefore);
+		EXPECT_EQ(CountTinyFaces(Coll), TinyFacesBefore);
 
 		BoundaryVertexIndices.Empty();
 		GeometryCollectionAlgo::FindOpenBoundaries(Coll, 1e-2, BoundaryVertexIndices);
-		R.ExpectTrue(CountHoles(BoundaryVertexIndices) == 2);
+		EXPECT_EQ(CountHoles(BoundaryVertexIndices), 2);
 
 		GeometryCollectionAlgo::TriangulateBoundaries(Coll, BoundaryVertexIndices, true, 0);
 		BoundaryVertexIndices.Empty();
 		GeometryCollectionAlgo::FindOpenBoundaries(Coll, 1e-2, BoundaryVertexIndices);
-		R.ExpectTrue(CountHoles(BoundaryVertexIndices) == 0);
-		R.ExpectTrue(CountTinyFaces(Coll) > TinyFacesBefore);
+		EXPECT_EQ(CountHoles(BoundaryVertexIndices), 0);
+		EXPECT_GT(CountTinyFaces(Coll), TinyFacesBefore);
 
 
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::VerticesGroup) == 667);
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::FacesGroup) == 496);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::VerticesGroup), 667);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::FacesGroup), 496);
 
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::VerticesGroup) == 667);
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::FacesGroup) == 496);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::VerticesGroup), 667);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::FacesGroup), 496);
 
-		R.ExpectTrue(Coll->HasContiguousFaces());
-		R.ExpectTrue(Coll->HasContiguousVertices());
-		R.ExpectTrue(GeometryCollectionAlgo::HasValidGeometryReferences(Coll));
-
-		return !R.HasError();
+		EXPECT_TRUE(Coll->HasContiguousFaces());
+		EXPECT_TRUE(Coll->HasContiguousVertices());
+		EXPECT_TRUE(GeometryCollectionAlgo::HasValidGeometryReferences(Coll));
 	}
-	template bool TestFillHoles<float>(ExampleResponse&& R);
+	template void TestFillHoles<float>();
 
 	template<class T>
-	bool TestDeleteHiddenFaces(ExampleResponse&& R)
+	void TestDeleteHiddenFaces()
 	{
 		FGeometryCollection* Coll = FGeometryCollection::NewGeometryCollection(FracturedGeometry::RawVertexArray,
 																			   FracturedGeometry::RawIndicesArray,
@@ -190,8 +182,8 @@ namespace GeometryCollectionExample
 																			   FracturedGeometry::RawSimulationTypeArray,
 																			   FracturedGeometry::RawStatusFlagsArray);
 
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::VerticesGroup) == 667);
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::FacesGroup) == 493);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::VerticesGroup), 667);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::FacesGroup), 493);
 
 		TManagedArray<bool>& VisibleArray = Coll->Visible;
 
@@ -204,16 +196,14 @@ namespace GeometryCollectionExample
 			}
 		}
 
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::VerticesGroup) == 667);
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::FacesGroup) == 493);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::VerticesGroup), 667);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::FacesGroup), 493);
 
 		GeometryCollectionAlgo::DeleteHiddenFaces(Coll);
 
-		R.ExpectTrue( Coll->NumElements(FGeometryCollection::VerticesGroup) == 667);
-		R.ExpectTrue(Coll->NumElements(FGeometryCollection::FacesGroup) == 394);
-
-		return !R.HasError();
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::VerticesGroup), 667);
+		EXPECT_EQ(Coll->NumElements(FGeometryCollection::FacesGroup), 394);
 	}
-	template bool TestDeleteHiddenFaces<float>(ExampleResponse&& R);
+	template void TestDeleteHiddenFaces<float>();
 }
 

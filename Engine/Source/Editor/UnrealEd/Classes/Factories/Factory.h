@@ -160,7 +160,7 @@ public:
 	virtual bool ImportUntypedBulkDataFromText(const TCHAR*& Buffer, FUntypedBulkData& BulkData);
 
 	/** Creates a list of file extensions supported by this factory */
-	void GetSupportedFileExtensions(TArray<FString>& OutExtensions) const;
+	virtual void GetSupportedFileExtensions(TArray<FString>& OutExtensions) const;
 
 	/** Do clean up after importing is done. Will be called once for multi batch import. */
 	virtual void CleanUp() {}

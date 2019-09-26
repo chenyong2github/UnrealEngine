@@ -31,7 +31,7 @@
 #include "Animation/AnimNode_LinkedInputPose.h"
 
 #include "PhysXIncludes.h"
-#include "ClothingSimulationFactoryInterface.h"
+#include "ClothingSimulationFactory.h"
 #include "ClothingSimulationInterface.h"
 #include "ClothingSimulationInteractor.h"
 #include "Features/IModularFeatures.h"

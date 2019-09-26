@@ -80,7 +80,7 @@ namespace GeometryCollectionExample
 
 
 	template<class T>
-	bool Event_Handler(ExampleResponse&& R)
+	void Event_Handler()
 	{
 #if INCLUDE_CHAOS
 		Chaos::FEventManager EventManager(Chaos::EMultiBufferMode::Single);
@@ -117,7 +117,7 @@ namespace GeometryCollectionExample
 		EventManager.FillProducerData(Solver);
 		EventManager.FlipBuffersIfRequired();
 		EventManager.DispatchEvents();
-		R.ExpectTrue(HandlerTest.ResultFromHandler == TestData);
+		EXPECT_EQ(HandlerTest.ResultFromHandler, TestData);
 
 		TestData.Data1 = 789;
 		TestData.Data2 = FVector(7, 8, 9);
@@ -125,7 +125,7 @@ namespace GeometryCollectionExample
 		EventManager.FillProducerData(Solver);
 		EventManager.FlipBuffersIfRequired();
 		EventManager.DispatchEvents();
-		R.ExpectTrue(HandlerTest.ResultFromHandler == TestData);
+		EXPECT_EQ(HandlerTest.ResultFromHandler, TestData);
 
 		// Unregister - data should no longer update
 		HandlerTest.UnregisterHandler1();
@@ -137,7 +137,7 @@ namespace GeometryCollectionExample
 		EventManager.FillProducerData(Solver);
 		EventManager.FlipBuffersIfRequired();
 		EventManager.DispatchEvents();
-		R.ExpectTrue(HandlerTest.ResultFromHandler == OriginalTestData);
+		EXPECT_EQ(HandlerTest.ResultFromHandler, OriginalTestData);
 
 		EventTestData Data;
 		TestArrayData.Push(EventTestData(123, FVector(1, 2, 3)));
@@ -148,8 +148,8 @@ namespace GeometryCollectionExample
 		EventManager.FlipBuffersIfRequired();
 		EventManager.DispatchEvents();
 		// dispatched to multiple handlers
-		R.ExpectTrue(HandlerTest.ResultFromHandler2 == TestArrayData);
-		R.ExpectTrue(AnotherHandlerTest.ResultFromHandler2 == TestArrayData);
+		EXPECT_EQ(HandlerTest.ResultFromHandler2, TestArrayData);
+		EXPECT_EQ(AnotherHandlerTest.ResultFromHandler2, TestArrayData);
 
 		// Unregister one of the handlers from the events
 		HandlerTest.UnregisterHandler2();
@@ -161,21 +161,19 @@ namespace GeometryCollectionExample
 		EventManager.FillProducerData(Solver);
 		EventManager.FlipBuffersIfRequired();
 		EventManager.DispatchEvents();
-		R.ExpectTrue(HandlerTest.ResultFromHandler2 == OriginalTestArrayData); // Unregistered - data should no longer update
-		R.ExpectTrue(AnotherHandlerTest.ResultFromHandler2 == TestArrayData); // Still registered so should get updates
+		EXPECT_EQ(HandlerTest.ResultFromHandler2, OriginalTestArrayData); // Unregistered - data should no longer update
+		EXPECT_EQ(AnotherHandlerTest.ResultFromHandler2, TestArrayData); // Still registered so should get updates
 
 		HandlerTest.RegisterHandler2();
 
 		EventManager.FillProducerData(Solver);
 		EventManager.FlipBuffersIfRequired();
 		EventManager.DispatchEvents();
-		R.ExpectTrue(HandlerTest.ResultFromHandler2 == TestArrayData);
-		R.ExpectTrue(AnotherHandlerTest.ResultFromHandler2 == TestArrayData);
+		EXPECT_EQ(HandlerTest.ResultFromHandler2, TestArrayData);
+		EXPECT_EQ(AnotherHandlerTest.ResultFromHandler2, TestArrayData);
 #endif
-		return !R.HasError();
-
 	}
-	template bool Event_Handler<float>(ExampleResponse&& R);
+	template void Event_Handler<float>();
 
 }
 

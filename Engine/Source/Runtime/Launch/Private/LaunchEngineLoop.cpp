@@ -3374,7 +3374,7 @@ bool FEngineLoop::LoadStartupCoreModules()
 	FModuleManager::Get().LoadModule(TEXT("MediaAssets"));
 #endif
 
-	FModuleManager::Get().LoadModule(TEXT("ClothingSystemRuntime"));
+	FModuleManager::Get().LoadModule(TEXT("ClothingSystemRuntimeNv"));
 #if WITH_EDITOR
 	FModuleManager::Get().LoadModule(TEXT("ClothingSystemEditor"));
 #endif

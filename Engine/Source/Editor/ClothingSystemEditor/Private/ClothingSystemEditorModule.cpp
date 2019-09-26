@@ -3,7 +3,7 @@
 #include "ClothingSystemEditorModule.h"
 #include "ClothingSystemEditorInterfaceModule.h"
 
-#include "ClothingSimulationFactory.h"
+#include "ClothingSimulationFactoryNv.h"
 #include "SimulationEditorExtenderNv.h"
 #include "ClothingAssetFactory.h"
 #include "Modules/ModuleManager.h"

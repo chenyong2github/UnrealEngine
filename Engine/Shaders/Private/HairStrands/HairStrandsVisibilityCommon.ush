@@ -1,0 +1,307 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+struct FVisibilityData
+{
+	float3 Tangent;		// 24 bits
+	uint   Coverage8bit;//  8 bits
+	uint   PrimitiveId;	// 28 bits
+	uint   ClusterId;	//  4 bits
+};
+
+// Footprint: 128bits | 16bytes
+// Option to reduce the footprint: 
+// * we don't use PrimitiveID at the moment which is encoded on 3bytes
+// * Deferred the evaluation of Coverage & material properties into some other pass?
+struct FNodeData
+{
+	float Depth;
+	uint  PrimitiveID_ClusterID;
+	uint  Tangent_Coverage8bit;
+	uint  BaseColor_Roughness;
+	float Specular;
+};
+
+float3 EncodeTangent(float3 N)
+{
+	return N * 0.5 + 0.5;
+}
+
+float3 DecodeTangent(float3 N)
+{
+	return N * 2 - 1;
+}
+
+uint float4ToUint(float4 v)
+{
+	uint4 i = v * 255;
+	return (0xFF & i.w) << 24 | (0xFF & i.z) << 16 | (0xFF & i.y) << 8 | (0xFF & i.x);
+}
+
+float4 UintToFloat4(uint In)
+{
+	uint4 Out;
+	Out.x = (0xFF &  In);
+	Out.y = (0xFF & (In >>  8));
+	Out.z = (0xFF & (In >> 16));
+	Out.w = (0xFF & (In >> 24));
+	return Out / 255.f;
+}
+
+uint4 EncodeVisibilityData(FVisibilityData Data)
+{
+	uint4 Output;
+
+	// Tangent and Coverage
+	// Encode into 2 x 16bits
+	float3 T = saturate(EncodeTangent(Data.Tangent));
+	Output.xy = uint2(
+		(0xFF & uint(T.x * 255)) | ((0xFF & uint(T.y * 255)) << 8),
+		(0xFF & uint(T.z * 255)) | ((0xFF & Data.Coverage8bit) << 8));
+
+	// PrimitiveId and ClusterId
+	// Encode into 2 x 16bits
+	// PrimitiveId is on 28bits | ClusterId is on 4bits
+	Output.zw = uint2(
+		0xFFFF & Data.PrimitiveId,
+		((Data.ClusterId & 0x0F) << 12) | (0x0FFF & (uint(Data.PrimitiveId) >> 16)));
+
+	return Output;
+}
+
+FVisibilityData DecodeVisibilityData(uint4 EncodedData)
+{
+	FVisibilityData Output;
+	Output.Tangent = DecodeTangent(float3(
+		float((EncodedData.x     ) & 0xFF) / 255.f,
+		float((EncodedData.x >> 8) & 0xFF) / 255.f,
+		float((EncodedData.y     ) & 0xFF) / 255.f));
+	Output.Coverage8bit = (EncodedData.y >> 8) & 0xFF;
+
+	Output.PrimitiveId = EncodedData.z | ((EncodedData.w & 0x0FFF) << 16);
+	Output.ClusterId = (EncodedData.w & 0xF000) >> 12;
+
+	return Output;
+}
+
+bool IsValidHairData(uint4 EncodedVisibilityData)
+{
+	const uint InvalidSample = 0xFFFF;
+	return EncodedVisibilityData.w != InvalidSample;
+}
+
+uint DecodeClusterId(uint4 EncodedVisibilityData)
+{
+	return (EncodedVisibilityData.w >> 12) & 0xF;
+}
+
+// * Max 67,108,864 total nodes (This is 32 nodes per pixel at 1080p if all pixel were covered)
+// * Max 63 nodes per pixel
+// 26bits for offset | 6 bits for count (max 63 nodes)
+struct FNodeDesc
+{
+	uint Offset;
+	uint Count;
+};
+
+uint EncodeNodeDesc(const FNodeDesc Desc)
+{
+	return (Desc.Offset & 0x03FFFFFF) | ((Desc.Count & 0x3F) << 26);
+}
+
+FNodeDesc DecodeNodeDesc(uint In)
+{
+	FNodeDesc Out;
+	Out.Offset = In & 0x03FFFFFF;
+	Out.Count  = (In >> 26) & 0x3F;
+	return Out;
+}
+
+FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 BaseColor, float Roughness, float Specular)
+{
+	// 4x16bits
+	const uint4 EncodedVisibilityData = EncodeVisibilityData(VisibilityData);
+
+	FNodeData Out;
+	Out.Depth					= Depth;																			// 32bits float
+	Out.Tangent_Coverage8bit	= (0xFFFF & EncodedVisibilityData.x) | ((0xFFFF & EncodedVisibilityData.y) << 16);	// 32bits uint
+	Out.PrimitiveID_ClusterID	= (0xFFFF & EncodedVisibilityData.z) | ((0xFFFF & EncodedVisibilityData.w) << 16);	// 32bits uint
+	Out.BaseColor_Roughness		= float4ToUint(float4(sqrt(BaseColor), Roughness));									// 32bits uint
+	Out.Specular				= Specular;																			// 32bits float
+
+	return Out;
+}
+
+ void DecodeNodeData(
+	 const FNodeData	 InNode, 
+	 out float			 OutDepth, 
+	 out FVisibilityData OutVisibilityData,
+	 out float3			 OutBaseColor, 
+	 out float			 OutRoughness,
+	 out float			 OutSpecular)
+{
+	OutDepth = InNode.Depth;
+
+	const uint4 EncodedVisibility = uint4(
+		(InNode.Tangent_Coverage8bit & 0xFFFF),
+		(InNode.Tangent_Coverage8bit >> 16) & 0xFFFF,
+		(InNode.PrimitiveID_ClusterID & 0xFFFF),
+		(InNode.PrimitiveID_ClusterID >> 16) & 0xFFFF);
+	OutVisibilityData = DecodeVisibilityData(EncodedVisibility);
+
+	const float4 BaseColorAndRoughness = UintToFloat4(InNode.BaseColor_Roughness);
+	OutBaseColor = BaseColorAndRoughness.xyz * BaseColorAndRoughness.xyz;
+	OutRoughness = BaseColorAndRoughness.w;
+	OutSpecular = InNode.Specular;
+}
+
+#define HAIR_VISIBILITY_MAXSAMPLECOUNT 8
+#define HAIR_VISIBILITY_GROUP_COUNT_WIDTH 64
+
+ struct FSampleDesc
+ {
+	 uint   SampleId;
+	 uint   ClusterId;
+	 float  Depths;
+	 float  Weights;
+	 float3 Tangents;
+	 uint   Coverage8bit;
+	 float4 BaseColorAndRoughness;
+	 float  Specular;
+ };
+
+ struct FSampleSetDesc
+ {
+	 uint   UniqueSampleCount;
+	 uint   ValidSampleCount;
+	 uint   HairSampleCount;
+ };
+
+ void ComputeUniqueSamples(
+	 out FSampleDesc OutSamples[HAIR_VISIBILITY_MAXSAMPLECOUNT],
+	 out FSampleSetDesc OutSet,
+	 const uint2 PixelCoord,
+	 const uint SampleCount,
+	 Texture2D<float4> InSceneDepthTexture,
+	 Texture2DMS<uint4, HAIR_VISIBILITY_MAXSAMPLECOUNT>  InMSAA_IDTexture,
+	 Texture2DMS<float4, HAIR_VISIBILITY_MAXSAMPLECOUNT> InMSAA_MaterialTexture,
+//	 Texture2DMS<float4, HAIR_VISIBILITY_MAXSAMPLECOUNT> InMSAA_AttributeTexture,
+	 Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT>  InMSAA_DepthTexture)
+ {
+	 OutSet.UniqueSampleCount = 0;
+	 OutSet.ValidSampleCount = 0;
+
+	 OutSet.HairSampleCount = clamp(SampleCount, 0, HAIR_VISIBILITY_MAXSAMPLECOUNT);
+	 const uint InvalidSample = 0xFFFF;
+	 const float OpaqueDepth = InSceneDepthTexture.Load(uint3(PixelCoord, 0)).r;
+	 for (uint SampleIt = 0; SampleIt < OutSet.HairSampleCount; ++SampleIt)
+	 {
+		 const uint4 EncodedData = InMSAA_IDTexture.Load(PixelCoord, SampleIt);
+		 const bool bIsValid = IsValidHairData(EncodedData);
+		 if (!bIsValid)
+			 continue;
+
+		 const float SampleDepth = InMSAA_DepthTexture.Load(PixelCoord, SampleIt);
+		 if (OpaqueDepth > SampleDepth) // Reverse-Z
+			 continue;
+
+		 ++OutSet.ValidSampleCount;
+
+		 const FVisibilityData VisibilityData = DecodeVisibilityData(EncodedData);
+		 bool bAlreadyExist = false;
+		 for (uint UniqueIt = 0; UniqueIt < OutSet.UniqueSampleCount; ++UniqueIt)
+		 {
+			 if (VisibilityData.PrimitiveId == OutSamples[UniqueIt].SampleId)
+			 {
+				 OutSamples[UniqueIt].Weights += 1;
+				 bAlreadyExist = true;
+				 break;
+			 }
+		 }
+
+		 if (!bAlreadyExist)
+		 {
+			 //const float Specular = InMSAA_AttributeTexture.Load(PixelCoord, SampleIt).x;
+			 const float4 BaseColorAndRoughness = InMSAA_MaterialTexture.Load(PixelCoord, SampleIt);
+			 OutSamples[OutSet.UniqueSampleCount].SampleId = VisibilityData.PrimitiveId;
+			 OutSamples[OutSet.UniqueSampleCount].Tangents = VisibilityData.Tangent;
+			 OutSamples[OutSet.UniqueSampleCount].Coverage8bit = VisibilityData.Coverage8bit;
+			 OutSamples[OutSet.UniqueSampleCount].Depths = SampleDepth;
+			 OutSamples[OutSet.UniqueSampleCount].Weights = 1;
+			 OutSamples[OutSet.UniqueSampleCount].ClusterId = VisibilityData.ClusterId;
+			 OutSamples[OutSet.UniqueSampleCount].BaseColorAndRoughness = float4(BaseColorAndRoughness.xyz * BaseColorAndRoughness.xyz, BaseColorAndRoughness.a);
+			 OutSamples[OutSet.UniqueSampleCount].Specular = 0.5f; // Specular;
+			 ++OutSet.UniqueSampleCount;
+		 }
+	 }
+ }
+
+ uint To8bitCoverage(float Coverage)
+ {
+	 return min(uint(Coverage * 0x100), 0xFFu);
+ }
+
+ float From8bitCoverage(uint Coverage8bit)
+ {
+	 return float(Coverage8bit) / 255.f;
+ }
+
+ float GetVoxelDensityFixPointScale()
+ {
+	 // Constant for scaling the hair coverage during the voxelization (done with atomic integer)
+	 return 1000.f;
+ }
+
+ struct FCategorizationData
+ {
+	 uint  TotalCoverage8bit;
+	 uint  SampleCount;
+	 float ClosestDepth;
+ };
+
+ uint4 EncodeCategorizationData(FCategorizationData Data)
+ {
+	 const uint ClosestDepthUint = asuint(Data.ClosestDepth);
+	 const uint ClosestDepthLow  = ClosestDepthUint & 0xFFFF;
+	 const uint ClosestDepthHigh = (ClosestDepthUint >> 16) & 0xFFFF;
+
+	 return uint4(Data.TotalCoverage8bit, Data.SampleCount, ClosestDepthLow, ClosestDepthHigh);
+ }
+
+ FCategorizationData DecodeCategorizationData(uint4 Data)
+ {
+	 FCategorizationData Out;
+	 Out.TotalCoverage8bit			= Data.x;
+	 Out.SampleCount				= Data.y;
+	 const uint ClosestDepthLow		= Data.z & 0xFFFF;
+	 const uint ClosestDepthHigh	=(Data.w & 0xFFFF) << 16;
+	 Out.ClosestDepth				= asfloat(ClosestDepthHigh | ClosestDepthLow);
+
+	 return Out;
+ }
+
+ uint3 QuantizeTo8Bits(float3 T)
+ {
+	 return saturate((T + float(1).xxx) * 0.5f) * 0xFF;
+ }
+
+ float3 From8bits(float3 In8bits)
+ {
+	 return (normalize(In8bits / 255.f) * 2) - float(1).xxx;
+ }
+
+ uint EncodeBaseColorAndRoughness(float3 BaseColor, float Roughness)
+ {
+	 return
+		 (uint(BaseColor.x * 0xFF) & 0xFF) |
+		 (uint(BaseColor.y * 0xFF) & 0xFF) << 8 |
+		 (uint(BaseColor.z * 0xFF) & 0xFF) << 16 |
+		 (uint(Roughness   * 0xFF) & 0xFF) << 24;
+ }
+
+ void DecodeBaseColorAndRoughness(uint Encoded, out float3 BaseColor, out float Roughness)
+ {
+	 BaseColor.x = (float((Encoded) & 0xFF) / 255.f);
+	 BaseColor.y = (float((Encoded >> 8) & 0xFF) / 255.f);
+	 BaseColor.z = (float((Encoded >> 16) & 0xFF) / 255.f);
+	 Roughness   = (float((Encoded >> 24) & 0xFF) / 255.f);
+ }

@@ -7,6 +7,6 @@ namespace GeometryCollectionExample
 {	
 
 	template<class T>
-	bool TestImplicitCapsule(ExampleResponse&& R);
+	void TestImplicitCapsule();
 	
 }

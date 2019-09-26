@@ -2366,12 +2366,10 @@ void USkeletalMeshComponent::RecreateClothingActors()
 			for(int32 BaseAssetIndex = 0; BaseAssetIndex < NumMeshAssets; ++BaseAssetIndex)
 			{
 				UClothingAssetBase* Asset = SkeletalMesh->MeshClothingAssets[BaseAssetIndex];
-
-				if(!AssetsInUse.Contains(Asset))
+				if(!Asset || !AssetsInUse.Contains(Asset))
 				{
 					continue;
 				}
-
 				ClothingSimulation->CreateActor(this, Asset, BaseAssetIndex);
 			}
 

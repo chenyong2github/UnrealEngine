@@ -5,6 +5,7 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
+#include "GeometryCollection/GeometryCollectionExampleUtility.h"
 #include "GeometryCollection/TransformCollection.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
@@ -13,8 +14,11 @@ namespace GeometryCollectionExample
 {
 	DEFINE_LOG_CATEGORY_STATIC(GCTM_Log, Verbose, All);
 
+	MATCHER_P2(VectorNear, V, Tolerance, "") { return arg.Equals(V, Tolerance); }
+#define EXPECT_FVECTOR_NEAR(A,B,T) EXPECT_THAT(A, VectorNear(B, T)) << *FString("Expected: " + B.ToString() + "\nActual:   " + A.ToString());
+
 	template<class T>
-	bool BasicGlobalMatrices(ExampleResponse&& R)
+	void BasicGlobalMatrices()
 	{ 
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 90.)), FVector(0, 10, 0)), FVector(1.0));
 		Collection->AppendGeometry(*GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 90.)), FVector(0, 10, 0)), FVector(1.0)));
@@ -33,37 +37,35 @@ namespace GeometryCollectionExample
 		GeometryCollectionAlgo::GlobalMatrices(Collection->Transform, Collection->Parent, GlobalTransform);
 
 		FVector Rot0 = GlobalTransform[0].GetRotation().Euler();
-		R.ExpectTrue(Rot0.Equals(FVector(0, 0, 90), 0.0001));
+		EXPECT_FVECTOR_NEAR(Rot0, FVector(0, 0, 90), 0.0001);
 
 		FVector Rot1 = GlobalTransform[1].GetRotation().Euler();
-		R.ExpectTrue(Rot1.Equals(FVector(0, 0, -180), 0.0001));
+		EXPECT_FVECTOR_NEAR(Rot1, FVector(0, 0, -180), 0.0001);
 
 		FVector Rot2 = GlobalTransform[2].GetRotation().Euler();
-		R.ExpectTrue(Rot2.Equals(FVector(0, 0, -90), 0.0001));
+		EXPECT_FVECTOR_NEAR(Rot2, FVector(0, 0, -90), 0.0001);
 
 		FVector Pos0 = GlobalTransform[0].GetTranslation();
-		R.ExpectTrue(Pos0.Equals(FVector(0, 10, 0), 0.0001));
+		EXPECT_FVECTOR_NEAR(Pos0, FVector(0, 10, 0), 0.0001);
 
 		FVector Pos1 = GlobalTransform[1].GetTranslation();
-		R.ExpectTrue(Pos1.Equals(FVector(-10, 10, 0), 0.0001));
+		EXPECT_FVECTOR_NEAR(Pos1, FVector(-10, 10, 0), 0.0001);
 
 		FVector Pos2 = GlobalTransform[2].GetTranslation();
-		R.ExpectTrue(Pos2.Equals(FVector(-10, 0, 0), 0.0001));
+		EXPECT_FVECTOR_NEAR(Pos2, FVector(-10, 0, 0), 0.0001);
 
 		FTransform Frame = GeometryCollectionAlgo::GlobalMatrix(Collection->Transform, Collection->Parent, 2);
-		R.ExpectTrue(Frame.GetRotation().Euler().Equals(FVector(0, 0, -90), 0.0001));
-		R.ExpectTrue(Frame.GetTranslation().Equals(FVector(-10, 0, 0), 0.0001));
+		EXPECT_FVECTOR_NEAR(Frame.GetRotation().Euler(), FVector(0, 0, -90), 0.0001);
+		EXPECT_FVECTOR_NEAR(Frame.GetTranslation(), FVector(-10, 0, 0), 0.0001);
 
 		Frame = GeometryCollectionAlgo::GlobalMatrix(Collection->Transform, Collection->Parent, 1);
-		R.ExpectTrue(Frame.GetRotation().Euler().Equals(FVector(0, 0, -180), 0.0001));
-		R.ExpectTrue(Frame.GetTranslation().Equals(FVector(-10, 10, 0), 0.0001));
-
-		return !R.HasError();
+		EXPECT_FVECTOR_NEAR(Frame.GetRotation().Euler(), FVector(0, 0, -180), 0.0001);
+		EXPECT_FVECTOR_NEAR(Frame.GetTranslation(), FVector(-10, 10, 0), 0.0001);
 	}
-	template bool BasicGlobalMatrices<float>(ExampleResponse&& R);
+	template void BasicGlobalMatrices<float>();
 
 	template<class T>
-	bool ReparentingMatrices(ExampleResponse&& R)
+	void ReparentingMatrices()
 	{
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 90.)), FVector(0, 10, 0)), FVector(1.0));
 		Collection->AppendGeometry(*GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 90.)), FVector(0, 10, 0)), FVector(1.0)));
@@ -82,37 +84,35 @@ namespace GeometryCollectionExample
 		//  ......2
 		TArray<int32> Bones = { 2 };
 		GeometryCollectionAlgo::ParentTransforms(Collection.Get(), 1, Bones);
-		R.ExpectTrue((Collection->Transform)[2].GetTranslation().Equals(FVector(0, 10, 0), 0.0001));
-		R.ExpectTrue((Collection->Transform)[2].GetRotation().Euler().Equals(FVector(0, 0, 90.), 0.0001));
+		EXPECT_FVECTOR_NEAR((Collection->Transform)[2].GetTranslation(), FVector(0, 10, 0), 0.0001);
+		EXPECT_FVECTOR_NEAR((Collection->Transform)[2].GetRotation().Euler(), FVector(0, 0, 90.), 0.0001);
 
 		TArray<FTransform> GlobalTransform;
 		GeometryCollectionAlgo::GlobalMatrices(Collection->Transform, Collection->Parent, GlobalTransform);
 
 		FVector Rot0 = GlobalTransform[0].GetRotation().Euler();
-		R.ExpectTrue(Rot0.Equals(FVector(0, 0, 90), 0.0001));
+		EXPECT_FVECTOR_NEAR(Rot0, FVector(0, 0, 90), 0.0001);
 
 		FVector Rot1 = GlobalTransform[1].GetRotation().Euler();
-		R.ExpectTrue(Rot1.Equals(FVector(0, 0, -180), 0.0001));
+		EXPECT_FVECTOR_NEAR(Rot1, FVector(0, 0, -180), 0.0001);
 
 		FVector Rot2 = GlobalTransform[2].GetRotation().Euler();
-		R.ExpectTrue(Rot2.Equals(FVector(0, 0, -90), 0.0001));
+		EXPECT_FVECTOR_NEAR(Rot2, FVector(0, 0, -90), 0.0001);
 
 		FVector Pos0 = GlobalTransform[0].GetTranslation();
-		R.ExpectTrue(Pos0.Equals(FVector(0, 10, 0), 0.0001));
+		EXPECT_FVECTOR_NEAR(Pos0, FVector(0, 10, 0), 0.0001);
 
 		FVector Pos1 = GlobalTransform[1].GetTranslation();
-		R.ExpectTrue(Pos1.Equals(FVector(-10, 10, 0), 0.0001));
+		EXPECT_FVECTOR_NEAR(Pos1, FVector(-10, 10, 0), 0.0001);
 
 		FVector Pos2 = GlobalTransform[2].GetTranslation();
-		R.ExpectTrue(Pos2.Equals(FVector(-10, 0, 0), 0.0001));
-
-		return !R.HasError();
+		EXPECT_FVECTOR_NEAR(Pos2, FVector(-10, 0, 0), 0.0001);
 	}
-	template bool ReparentingMatrices<float>(ExampleResponse&& R);
+	template void ReparentingMatrices<float>();
 
 
 	template<class T>
-	bool TransformMatrixElement(ExampleResponse&& R)
+	void TransformMatrixElement()
 	{
 		FTransformCollection Collection;
 
@@ -146,14 +146,12 @@ namespace GeometryCollectionExample
 		//	UE_LOG(GCTM_Log, Verbose, TEXT("... GlobalM0[%d] : (%3.5f,%3.5f,%3.5f)"), rdx, GlobalMatrices0[rdx].GetTranslation().X, GlobalMatrices0[rdx].GetTranslation().Y, GlobalMatrices0[rdx].GetTranslation().Z);
 		//	UE_LOG(GCTM_Log, Verbose, TEXT("... GlobalM1[%d] : (%3.5f,%3.5f,%3.5f)"), rdx, GlobalMatrices1[rdx].GetTranslation().X, GlobalMatrices1[rdx].GetTranslation().Y, GlobalMatrices1[rdx].GetTranslation().Z);
 		//}
-		R.ExpectTrue(FMath::Abs((GlobalMatrices1[0].GetTranslation() - GlobalMatrices0[0].GetTranslation()).Size()) < 1e-3);
-		R.ExpectTrue(FMath::Abs((GlobalMatrices1[1].GetTranslation() - GlobalMatrices0[1].GetTranslation()).Size()) > 1.0);
-		R.ExpectTrue(FMath::Abs((GlobalMatrices1[2].GetTranslation() - GlobalMatrices0[2].GetTranslation()).Size()) > 1.0);
-		R.ExpectTrue(FMath::Abs((GlobalMatrices1[3].GetTranslation() - GlobalMatrices0[3].GetTranslation()).Size()) < 1e-3);
-
-		return !R.HasError();
+		EXPECT_LT(FMath::Abs((GlobalMatrices1[0].GetTranslation() - GlobalMatrices0[0].GetTranslation()).Size()), 1e-3);
+		EXPECT_GT(FMath::Abs((GlobalMatrices1[1].GetTranslation() - GlobalMatrices0[1].GetTranslation()).Size()), 1.0);
+		EXPECT_GT(FMath::Abs((GlobalMatrices1[2].GetTranslation() - GlobalMatrices0[2].GetTranslation()).Size()), 1.0);
+		EXPECT_LT(FMath::Abs((GlobalMatrices1[3].GetTranslation() - GlobalMatrices0[3].GetTranslation()).Size()), 1e-3);
 	}
-	template bool TransformMatrixElement<float>(ExampleResponse&& R);
+	template void TransformMatrixElement<float>();
 
 }
 

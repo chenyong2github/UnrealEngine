@@ -2,58 +2,52 @@
 #pragma once
 
 #include "GeometryCollection/GeometryCollectionExample.h"
-#include "GeometryCollection/GeometryCollectionExampleResponse.h"
 #include "Chaos/Declares.h"
 
 namespace GeometryCollectionExample
 {
-
-#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 	template<class T>
-	bool RigidBodies_ClusterTest_SingleLevelNonBreaking(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_SingleLevelNonBreaking();
 
 	template<class T>
-	bool RigidBodies_ClusterTest_DeactivateClusterParticle(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_DeactivateClusterParticle();
 
 	template<class T>
-	bool RigidBodies_ClusterTest_SingleLevelBreaking(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_SingleLevelBreaking();
 
 	template<class T>
-	bool RigidBodies_ClusterTest_NestedCluster(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_NestedCluster();
 
 	template<class T>
-	bool RigidBodies_ClusterTest_NestedCluster_MultiStrain(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_NestedCluster_MultiStrain();
 
 	template<class T>
-	bool RigidBodies_ClusterTest_NestedCluster_Halt(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_NestedCluster_Halt();
 
 	template<class T>
-	bool RigidBodies_ClusterTest_KinematicAnchor(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_KinematicAnchor();
 
 	template<class T>
-	bool RigidBodies_ClusterTest_StaticAnchor(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_StaticAnchor();
 
 	template<class T>
-	bool RigidBodies_ClusterTest_UnionClusters(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_UnionClusters();
 
 	template<class T>
-	bool RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredNode(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredNode();
 
 	template<class T>
-	bool RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredKinematicNode(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredKinematicNode();
 
 	template<class T>
-	bool RigidBodies_ClusterTest_ReleaseClusterParticles_AllLeafNodes(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_ReleaseClusterParticles_AllLeafNodes();
 
 	template<class T>
-	bool RigidBodies_ClusterTest_ReleaseClusterParticles_ClusterNodeAndSubClusterNode(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_ReleaseClusterParticles_ClusterNodeAndSubClusterNode();
 
 	template<class T>
-	bool RigidBodies_ClusterTest_RemoveOnFracture(ExampleResponse&& R);
+	void RigidBodies_ClusterTest_RemoveOnFracture();
 
 	template<class T>
-	bool RigidBodiess_ClusterTest_ParticleImplicitCollisionGeometry(ExampleResponse&& R);
-
-#endif
-
+	void RigidBodiess_ClusterTest_ParticleImplicitCollisionGeometry();
 }

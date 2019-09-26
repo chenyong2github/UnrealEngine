@@ -19,6 +19,7 @@
 
 #include "Assets/ClothingAsset.h"
 #include "ClothingSimulation.h"
+#include "Utils/ClothingMeshUtils.h"
 #include "DynamicMeshBuilder.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
@@ -813,7 +814,7 @@ void UDebugSkelMeshComponent::RefreshSelectedClothingSkinnedPositions()
 	{
 		UClothingAssetBase** Asset = SkeletalMesh->MeshClothingAssets.FindByPredicate([&](UClothingAssetBase* Item)
 		{
-			return SelectedClothingGuidForPainting == Item->GetAssetGuid();
+			return Item && SelectedClothingGuidForPainting == Item->GetAssetGuid();
 		});
 
 		if(Asset)
@@ -831,7 +832,7 @@ void UDebugSkelMeshComponent::RefreshSelectedClothingSkinnedPositions()
 
 				FClothLODData& LodData = ConcreteAsset->LodData[SelectedClothingLodForPainting];
 
-				FClothingSimulationBase::SkinPhysicsMesh(ConcreteAsset, LodData.PhysicalMeshData, FTransform::Identity, RefToLocals.GetData(), RefToLocals.Num(), SkinnedSelectedClothingPositions, SkinnedSelectedClothingNormals);
+				ClothingMeshUtils::SkinPhysicsMesh(ConcreteAsset->UsedBoneIndices, LodData.PhysicalMeshData, FTransform::Identity, RefToLocals.GetData(), RefToLocals.Num(), SkinnedSelectedClothingPositions, SkinnedSelectedClothingNormals);
 				RebuildCachedClothBounds();
 			}
 		}
@@ -1028,7 +1029,7 @@ FDebugSkelMeshDynamicData::FDebugSkelMeshDynamicData(UDebugSkelMeshComponent* In
 			for(int32 ClothingAssetIndex = 0; ClothingAssetIndex < NumClothingAssets; ++ClothingAssetIndex)
 			{
 				UClothingAssetBase* BaseAsset = Mesh->MeshClothingAssets[ClothingAssetIndex];
-				if(BaseAsset->GetAssetGuid() == InComponent->SelectedClothingGuidForPainting)
+				if(BaseAsset && BaseAsset->GetAssetGuid() == InComponent->SelectedClothingGuidForPainting)
 				{
 					ClothingSimDataIndexWhenPainting = ClothingAssetIndex;
 

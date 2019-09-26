@@ -8,38 +8,38 @@ namespace GeometryCollectionExample
 {	
 	
 	template<class T>
-	bool RigidBodies_Field_KinematicActivation(ExampleResponse&& R);
+	void RigidBodies_Field_KinematicActivation();
 
 	template<class T>
-	bool RigidBodies_Field_InitialLinearVelocity(ExampleResponse&& R);
+	void RigidBodies_Field_InitialLinearVelocity();
 
 	template<class T>
-	bool RigidBodies_Field_StayDynamic(ExampleResponse&& R);
+	void RigidBodies_Field_StayDynamic();
 
 	template<class T>
-	bool RigidBodies_Field_LinearForce(ExampleResponse&& R);
+	void RigidBodies_Field_LinearForce();
 
 	template<class T>
-	bool RigidBodies_Field_Torque(ExampleResponse&& R);
+	void RigidBodies_Field_Torque();
 
 	template<class T>
-	bool RigidBodies_Field_Kill(ExampleResponse&& R);
+	void RigidBodies_Field_Kill();
 
 	template<class T>
-	bool RigidBodies_Field_LinearVelocity(ExampleResponse&& R);
+	void RigidBodies_Field_LinearVelocity();
 
 	template<class T>
-	bool RigidBodies_Field_CollisionGroup(ExampleResponse&& R);
+	void RigidBodies_Field_CollisionGroup();
 	
 	template<class T>
-	bool RigidBodies_Field_ClusterBreak_StrainModel_Test1(ExampleResponse&& R);
+	void RigidBodies_Field_ClusterBreak_StrainModel_Test1();
 
 	template<class T>
-	bool RigidBodies_Field_ClusterBreak_StrainModel_Test2(ExampleResponse&& R);
+	void RigidBodies_Field_ClusterBreak_StrainModel_Test2();
 
 	template<class T>
-	bool RigidBodies_Field_ClusterBreak_StrainModel_Test3(ExampleResponse&& R);
+	void RigidBodies_Field_ClusterBreak_StrainModel_Test3();
 
 	template<class T>
-	bool RigidBodies_Field_ClusterBreak_StrainModel_Test4(ExampleResponse&& R);
+	void RigidBodies_Field_ClusterBreak_StrainModel_Test4();
 }

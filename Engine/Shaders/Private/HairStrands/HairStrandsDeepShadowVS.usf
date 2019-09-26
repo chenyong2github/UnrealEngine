@@ -1,0 +1,76 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "/Engine/Generated/Material.ush"
+#include "/Engine/Generated/VertexFactory.ush"
+
+#define MESH_RENDER_DEPTH 0
+#define MESH_RENDER_DOM   1
+#define MESH_RENDER_VOXEL 2
+
+struct FDeepShadowAccumulateVSToPS
+{
+#if SUPPORT_TANGENT_PROPERTY == 1 || SUPPORT_MATERIAL_PROPERTY == 1
+	FVertexFactoryInterpolantsVSToPS Interpolants;
+#endif
+	float4 Position : SV_POSITION;
+#if MESH_RENDER_MODE == MESH_RENDER_VOXEL
+	float4 PixelPosition : TEXCOORD6;
+#endif
+#if MESH_RENDER_MODE == MESH_RENDER_DOM || MESH_RENDER_MODE == MESH_RENDER_VOXEL
+	float HairCoverage : CUSTOM_COVERAGE;
+#endif
+};
+
+#define VS_OUTPUT_TYPE FDeepShadowAccumulateVSToPS
+#define SUPPORT_WPO 0
+
+#if VERTEXSHADER
+
+/** transform mesh as normal */
+void Main(
+	FVertexFactoryInput Input,
+	OPTIONAL_VertexID
+	out VS_OUTPUT_TYPE Output
+	)
+{
+	ResolvedView = ResolveView();
+
+	// #hair_todo
+	// Override the View direction with the light direction, since the Deep Shadow pass does not setup the View data, but passes data through a dedicated constant buffer
+	// Hack: Use 1337 as a flag for the strand vertex factory to not use MinRadiusAtDepth1 for computing the minimum radius for directional light. 
+#if SM5_PROFILE && COMPILER_HLSL
+	ResolvedView.TranslatedWorldCameraOrigin = float3(1337, DeepShadowPass.bIsOrtho, DeepShadowPass.MinStrandRadius);
+	ResolvedView.ViewForward = DeepShadowPass.LightDirection;
+#endif
+
+	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);		
+	WorldPosition.xyz -= ResolvedView.PreViewTranslation.xyz; // Remove the camera relative position (todo move this into matrix transform)
+
+	Output.Position = mul(WorldPosition, DeepShadowPass.WorldToClipMatrix);
+#if MESH_RENDER_MODE == MESH_RENDER_VOXEL && defined(VF_STRAND_HAIR)
+	Output.PixelPosition = WorldPosition;
+  #if SUPPORT_TANGENT_PROPERTY == 1 || SUPPORT_MATERIAL_PROPERTY == 1
+	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
+	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
+	Output.Interpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
+  #endif
+#endif
+
+#if MESH_RENDER_MODE == MESH_RENDER_DOM || MESH_RENDER_MODE == MESH_RENDER_VOXEL
+  #ifdef VF_STRAND_HAIR	
+	const float CurrentDepth = Output.Position.z / Output.Position.w;
+	const float PixelRadius = CurrentDepth * DeepShadowPass.MinStrandRadius;
+	const float StrandRealRadius = VFIntermediates.HairDimensions.y;
+	const float Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
+	Output.HairCoverage = Coverage * VFIntermediates.HairDensity;
+  #else
+	Output.HairCoverage = 1;
+  #endif
+#endif
+
+	OutputVertexID( Output );
+}
+
+#endif // VERTEXSHADER
