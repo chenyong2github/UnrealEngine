@@ -62,7 +62,8 @@ public:
 		DebugChannelG(INDEX_NONE),
 		DebugChannelB(INDEX_NONE),
 		DataTexture(NULL),
-		LayerContributionTexture(NULL)
+		LayerContributionTexture(NULL),
+		DirtyTexture(NULL)
 	{}
 
 	// Material used to render the tool.
@@ -91,6 +92,9 @@ public:
 
 	UPROPERTY(NonTransactional)
 	UTexture2D* LayerContributionTexture; // Data texture used to represent layer contribution
+
+	UPROPERTY(NonTransactional)
+	UTexture2D* DirtyTexture; // Data texture used to represent layer blend dirtied area
 
 #if WITH_EDITOR
 	void UpdateDebugColorMaterial(const ULandscapeComponent* const Component);
