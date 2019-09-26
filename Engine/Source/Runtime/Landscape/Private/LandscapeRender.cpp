@@ -81,6 +81,10 @@ static FAutoConsoleVariableRef CVarAllowLandscapeShadows(
 	TEXT("Allow Landscape Shadows")
 );
 
+#if WITH_EDITOR
+extern TAutoConsoleVariable<int32> CVarLandscapeShowDirty;
+#endif
+
 #if !UE_BUILD_SHIPPING
 static void OnLODDistributionScaleChanged(IConsoleVariable* CVar)
 {
@@ -573,6 +577,7 @@ UMaterialInterface* GMaskRegionMaterial = nullptr;
 UMaterialInterface* GColorMaskRegionMaterial = nullptr;
 UTexture2D* GLandscapeBlackTexture = nullptr;
 UMaterialInterface* GLandscapeLayerUsageMaterial = nullptr;
+UMaterialInterface* GLandscapeDirtyMaterial = nullptr;
 #endif
 
 void ULandscapeComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
@@ -623,6 +628,7 @@ void ULandscapeComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 		OutMaterials.Add(GMaskRegionMaterial);
 		OutMaterials.Add(GColorMaskRegionMaterial);
 		OutMaterials.Add(GLandscapeLayerUsageMaterial);
+		OutMaterials.Add(GLandscapeDirtyMaterial);
 	}
 #endif
 }
@@ -1193,6 +1199,12 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 				ToolRelevance |= GColorMaskRegionMaterial->GetRelevance_Concurrent(FeatureLevel);
 			}
 
+			if (CVarLandscapeShowDirty.GetValueOnRenderThread())
+			{
+				Result.bDynamicRelevance = true;
+				ToolRelevance |= GLandscapeDirtyMaterial->GetRelevance_Concurrent(FeatureLevel);
+			}
+
 			ToolRelevance.SetPrimitiveViewRelevance(Result);
 		}
 	}
@@ -1219,6 +1231,7 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 #if WITH_EDITOR
 		(IsSelected() && !GLandscapeEditModeActive) ||
 		(GLandscapeViewMode != ELandscapeViewMode::Normal) ||
+		CVarLandscapeShowDirty.GetValueOnRenderThread() ||
 #else
 		IsSelected() ||
 #endif
@@ -2960,6 +2973,25 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 						NumTriangles += Mesh.GetNumPrimitives();
 						NumDrawCalls += Mesh.Elements.Num();
 					}
+				}
+				else if (CVarLandscapeShowDirty.GetValueOnRenderThread())
+				{
+					Mesh.bCanApplyViewModeOverrides = false;
+					Collector.AddMesh(ViewIndex, Mesh);
+					NumPasses++;
+					NumTriangles += Mesh.GetNumPrimitives();
+					NumDrawCalls += Mesh.Elements.Num();
+
+					FMeshBatch& MaskMesh = Collector.AllocateMesh();
+					MaskMesh = MeshTools;
+										
+					auto DirtyMaterialInstance = new FLandscapeMaskMaterialRenderProxy(GLandscapeDirtyMaterial->GetRenderProxy(), EditToolRenderData.DirtyTexture ? EditToolRenderData.DirtyTexture : GLandscapeBlackTexture, true);
+					MaskMesh.MaterialRenderProxy = DirtyMaterialInstance;
+					Collector.RegisterOneFrameMaterialProxy(DirtyMaterialInstance);
+					Collector.AddMesh(ViewIndex, MaskMesh);
+					NumPasses++;
+					NumTriangles += MaskMesh.GetNumPrimitives();
+					NumDrawCalls += MaskMesh.Elements.Num();
 				}
 				else
 #endif

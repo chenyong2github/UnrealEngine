@@ -36,6 +36,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "GameFramework/WorldSettings.h"
 #include "UObject/UObjectThreadContext.h"
 #include "LandscapeSplinesComponent.h"
+#include "Misc/FileHelper.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -78,6 +79,51 @@ static TAutoConsoleVariable<int32> CVarLandscapeLayerBrushOptim(
 	TEXT("landscape.BrushOptim"),
 	0,
 	TEXT("This will enable landscape layers optim."));
+
+static TAutoConsoleVariable<int32> CVarLandscapeOutputDiffBitmap(
+	TEXT("landscape.OutputDiffBitmap"),
+	0,
+	TEXT("This will save images for readback textures that have changed in the last layer blend phase. (= 1 Heightmap Diff, = 2 Weightmap Diff, = 3 All Diffs"));
+
+TAutoConsoleVariable<int32> CVarLandscapeShowDirty(
+	TEXT("landscape.ShowDirty"),
+	0,
+	TEXT("This will highlight the data that as changed during the layer blend phase."));
+
+struct FLandscapeDirty
+{
+	FLandscapeDirty()
+		: ClearDiffConsoleCommand(
+			TEXT("Landscape.ClearDirty"),
+			TEXT("Clears all Landscape Dirty Debug Data"),
+			FConsoleCommandDelegate::CreateRaw(this, &FLandscapeDirty::ClearDirty))
+	{
+	}
+
+private:
+	FAutoConsoleCommand ClearDiffConsoleCommand;
+
+	void ClearDirty()
+	{
+		if(!GWorld || GWorld->IsGameWorld())
+		{ 
+			return;
+		}
+
+		auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(GWorld);
+		for (TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)
+		{
+			if (Pair.Value)
+			{
+				Pair.Value->ClearDirtyData();
+			}
+		}
+
+		UE_LOG(LogLandscape, Display, TEXT("Landscape.Dirty: Cleared"));
+	}
+};
+
+FLandscapeDirty GLandscapeDebugDirty;
 #endif
 
 DECLARE_GPU_STAT_NAMED(LandscapeLayersRender, TEXT("Landscape Layer System Render"));
@@ -3067,7 +3113,7 @@ void ALandscape::ResolveLayersHeightmapTexture(const TArray<ULandscapeComponent*
 				continue;
 			}
 						
-			bChanged = ResolveLayersTexture(*CPUReadback, ComponentHeightmap);
+			bChanged = ResolveLayersTexture(*CPUReadback, ComponentHeightmap, true, Component);
 			ProcessedTexture.Add(ComponentHeightmap, bChanged);
 			bValue = &bChanged;
 		}
@@ -3083,7 +3129,58 @@ void ALandscape::ResolveLayersHeightmapTexture(const TArray<ULandscapeComponent*
 
 }
 
-bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOutputTexture)
+void ALandscape::ClearDirtyData(ULandscapeComponent* InLandscapeComponent)
+{
+	if (InLandscapeComponent->EditToolRenderData.DirtyTexture == nullptr)
+	{
+		return;
+	}
+
+	UpdateDirtyData(InLandscapeComponent, nullptr, nullptr, 0);
+}
+
+void ALandscape::UpdateDirtyData(ULandscapeComponent* InLandscapeComponent, const FColor* InOldData, const FColor* InNewData, int32 InSize)
+{
+	if (!CVarLandscapeShowDirty.GetValueOnAnyThread())
+	{
+		return;
+	}
+
+	FLandscapeEditDataInterface LandscapeEdit(GetLandscapeInfo());
+	const int32 X1 = InLandscapeComponent->GetSectionBase().X;
+	const int32 X2 = X1 + ComponentSizeQuads;
+	const int32 Y1 = InLandscapeComponent->GetSectionBase().Y;
+	const int32 Y2 = Y1 + ComponentSizeQuads;
+	const int32 ComponentWidth = (SubsectionSizeQuads + 1)*NumSubsections;
+	const int32 DirtyDataSize = ComponentWidth * ComponentWidth;
+	uint8* DirtyData = new uint8[DirtyDataSize];
+	
+	if (InOldData && InNewData)
+	{
+		check(InSize == DirtyDataSize);
+		LandscapeEdit.GetDirtyData(X1, Y1, X2, Y2, DirtyData, 0);
+
+		for (int32 i = 0; i < DirtyDataSize; ++i)
+		{
+			if (*InOldData != *InNewData)
+			{
+				DirtyData[i] = 255;
+			}
+			InOldData++;
+			InNewData++;
+		}
+	}
+	else
+	{
+		FMemory::Memzero(DirtyData, DirtyDataSize);
+	}
+
+	LandscapeEdit.SetDirtyData(X1, Y1, X2, Y2, DirtyData, 0);
+
+	delete[] DirtyData;
+}
+
+bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOutputTexture, bool bHeightmap, ULandscapeComponent* InComponent)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE("ResolveLayersTexture");
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersResolveTexture);
@@ -3118,6 +3215,8 @@ bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResour
 	FlushRenderingCommands();
 
 	bool bChanged = false;
+	const bool HeightmapDiff = (CVarLandscapeOutputDiffBitmap.GetValueOnAnyThread() & 1) != 0;
+	const bool WeightmapDiff = (CVarLandscapeOutputDiffBitmap.GetValueOnAnyThread() & 2) != 0;
     const bool bUpdateHash = !bIntermediateRender;
 	for (int8 MipIndex = 0; MipIndex < OutMipsData.Num(); ++MipIndex)
 	{
@@ -3129,7 +3228,21 @@ bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResour
 				bChanged = InCPUReadBackTexture->UpdateHashFromTextureSource((uint8*)OutMipsData[MipIndex].GetData());
 			}
 
+			if (MipIndex == 0 && bChanged)
+			{
+				UpdateDirtyData(InComponent, (FColor*)TextureData, OutMipsData[MipIndex].GetData(), InOutputTexture->Source.GetSizeX()*InOutputTexture->Source.GetSizeY());
+
+				if ((HeightmapDiff && bHeightmap) || (WeightmapDiff && !bHeightmap))
+				{
+					FString LevelName = FPackageName::GetShortName(InComponent->GetOutermost());
+					FString FilePattern = FString::Format(TEXT("LandscapeLayers/{0}-{1}-{2}"), { LevelName, InComponent->GetName(), bHeightmap ? TEXT("HM") : TEXT("WM") });
+					FFileHelper::CreateBitmap(*(FilePattern), InOutputTexture->Source.GetSizeX(), InOutputTexture->Source.GetSizeY(), (FColor*)TextureData, nullptr, &IFileManager::Get(), nullptr, true);
+					FFileHelper::CreateBitmap(*(FilePattern), InOutputTexture->Source.GetSizeX(), InOutputTexture->Source.GetSizeY(), OutMipsData[MipIndex].GetData(), nullptr, &IFileManager::Get(), nullptr, true);
+				}
+			}
+
 			FMemory::Memcpy(TextureData, OutMipsData[MipIndex].GetData(), OutMipsData[MipIndex].Num() * sizeof(FColor));
+
 			InOutputTexture->Source.UnlockMip(MipIndex);
 		}
 	}	
@@ -4305,7 +4418,7 @@ void ALandscape::ResolveLayersWeightmapTexture(const TArray<ULandscapeComponent*
 					continue;
 				}
 								
-				bool bWeightmapChanged = ResolveLayersTexture(*CPUReadback, ComponentLayerWeightmap);
+				bool bWeightmapChanged = ResolveLayersTexture(*CPUReadback, ComponentLayerWeightmap, false, Component);
 				ProcessedWeightmaps.Add(ComponentLayerWeightmap, bWeightmapChanged);
 				bChanged |= bWeightmapChanged;
 			}
