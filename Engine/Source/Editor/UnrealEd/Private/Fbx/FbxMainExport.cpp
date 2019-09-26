@@ -67,9 +67,7 @@
 #include "Matinee/MatineeActor.h"
 #include "FbxExporter.h"
 
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
-#include "MeshAttributeArray.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
 #include "Components/BrushComponent.h"
@@ -695,7 +693,8 @@ void FFbxExporter::ExportBrush(ABrush* Actor, UModel* InModel, bool bConvertToSt
 	else
 	{
 		FMeshDescription Mesh;
-		UStaticMesh::RegisterMeshAttributes(Mesh);
+		FStaticMeshAttributes MeshAttributes(Mesh);
+		MeshAttributes.Register();
 		TArray<FStaticMaterial>	Materials;
 		GetBrushMesh(Actor,Actor->Brush,Mesh,Materials);
 
@@ -1019,7 +1018,9 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 			{
 				uint32 NumWedges = ExportData->NumFaces * 3;
 
-				UStaticMesh::RegisterMeshAttributes(Mesh);
+				FStaticMeshAttributes InitMeshAttributes(Mesh);
+				InitMeshAttributes.Register();
+
 				ExportData->bInitialised = true;
 				Mesh.Empty();
 				Mesh.ReserveNewVertices(ExportData->NumVerts);
@@ -1028,8 +1029,7 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 				Mesh.ReserveNewEdges(ExportData->NumFaces * 2);
 				Mesh.ReserveNewPolygonGroups(Materials.Num());
 				//We need to get the PolygonGroupImportedMaterial
-				FStaticMeshDescriptionAttributeGetter InitMeshAttributes(&Mesh);
-				TPolygonGroupAttributesRef<FName> InitPolygonGroupNames = InitMeshAttributes.GetPolygonGroupImportedMaterialSlotNames();
+				TPolygonGroupAttributesRef<FName> InitPolygonGroupNames = InitMeshAttributes.GetPolygonGroupMaterialSlotNames();
 				for (const FStaticMaterial& StaticMaterial : Materials)
 				{
 					const FPolygonGroupID PolygonGroupID = Mesh.CreatePolygonGroup();
@@ -1039,11 +1039,11 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 			}
 			
 			//Get the Attributes
-			FStaticMeshDescriptionAttributeGetter MeshAttributes(&Mesh);
-			TVertexAttributesRef<FVector> VertexPositions = MeshAttributes.GetPositions();
-			TVertexInstanceAttributesRef<FVector2D> UVs = MeshAttributes.GetUVs();
-			TVertexInstanceAttributesRef<FVector4> Colors = MeshAttributes.GetColors();
-			TVertexInstanceAttributesRef<FVector> Normals = MeshAttributes.GetNormals();
+			FStaticMeshAttributes MeshAttributes(Mesh);
+			TVertexAttributesRef<FVector> VertexPositions = MeshAttributes.GetVertexPositions();
+			TVertexInstanceAttributesRef<FVector2D> UVs = MeshAttributes.GetVertexInstanceUVs();
+			TVertexInstanceAttributesRef<FVector4> Colors = MeshAttributes.GetVertexInstanceColors();
+			TVertexInstanceAttributesRef<FVector> Normals = MeshAttributes.GetVertexInstanceNormals();
 			TEdgeAttributesRef<bool> EdgeHardnesses = MeshAttributes.GetEdgeHardnesses();
 			TEdgeAttributesRef<float> EdgeCreaseSharpnesses = MeshAttributes.GetEdgeCreaseSharpnesses();
 

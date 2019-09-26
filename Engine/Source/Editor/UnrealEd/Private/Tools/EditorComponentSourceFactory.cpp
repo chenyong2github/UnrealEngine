@@ -5,6 +5,7 @@
 #include "Engine/StaticMesh.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "StaticMeshAttributes.h"
 #include "PhysicsEngine/BodySetup.h"
 
 

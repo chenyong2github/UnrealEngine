@@ -94,7 +94,7 @@
 #include "OverlappingCorners.h"
 #include "MeshUtilitiesCommon.h"
 
-#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
 
 #if WITH_EDITOR
@@ -2632,10 +2632,13 @@ public:
 				FRawMesh& DestMesh = LODMeshes[NumValidLODs];
 				FOverlappingCorners& InOverlappingCorners = LODOverlappingCorners[ReductionSettings.BaseLODModel];
 				FOverlappingCorners& DestOverlappingCorners = LODOverlappingCorners[NumValidLODs];
+
 				FMeshDescription SrcMeshdescription;
-				UStaticMesh::RegisterMeshAttributes(SrcMeshdescription);
+				FStaticMeshAttributes(SrcMeshdescription).Register();
+
 				FMeshDescription DestMeshdescription;
-				UStaticMesh::RegisterMeshAttributes(DestMeshdescription);
+				FStaticMeshAttributes(DestMeshdescription).Register();
+
 				TMap<int32, FName> FromMaterialMap;
 				FMeshDescriptionOperations::ConvertFromRawMesh(InMesh, SrcMeshdescription, FromMaterialMap);
 				MeshReduction->ReduceMeshDescription(DestMeshdescription, LODMaxDeviation[NumValidLODs], SrcMeshdescription, InOverlappingCorners, ReductionSettings);

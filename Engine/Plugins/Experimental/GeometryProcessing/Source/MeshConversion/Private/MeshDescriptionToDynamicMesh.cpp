@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved. 
 
 #include "MeshDescriptionToDynamicMesh.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "DynamicMeshAttributeSet.h"
 #include "DynamicMeshOverlay.h"
 #include "MeshDescriptionBuilder.h"

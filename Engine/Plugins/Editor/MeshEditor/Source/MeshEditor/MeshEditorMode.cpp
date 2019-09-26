@@ -6,7 +6,7 @@
 #include "MeshEditorModeToolkit.h"
 #include "MeshEditorUtilities.h"
 #include "EditableMesh.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "EditableMeshFactory.h"
 #include "MeshElement.h"
 #include "DynamicMeshBuilder.h"

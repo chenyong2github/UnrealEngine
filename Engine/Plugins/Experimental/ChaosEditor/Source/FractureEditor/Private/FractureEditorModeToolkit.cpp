@@ -42,7 +42,7 @@
 #include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
 #include "Layers/LayersSubsystem.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "GeometryCollection/GeometryCollectionConversion.h"
 
 #include "PlanarCut.h"

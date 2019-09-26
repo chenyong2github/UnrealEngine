@@ -24,12 +24,10 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "Math/Vector2D.h"
-#include "MeshAttributeArray.h"
-#include "MeshDescription.h"
 #include "MeshDescriptionOperations.h"
-#include "MeshTypes.h"
 #include "Misc/FileHelper.h"
 #include "ObjectTools.h"
+#include "StaticMeshAttributes.h"
 #include "TessellationRendering.h"
 #include "UObject/SoftObjectPath.h"
 
@@ -241,8 +239,8 @@ namespace DataprepOperationsLibraryUtil
 		SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
 		SourceModel.BuildSettings.bComputeWeightedNormals = false;
 
-		FMeshDescription* StaticMeshDescription = SourceModel.MeshDescription.Get();
-		check( StaticMeshDescription );
+		FMeshDescription* MeshDescription = SourceModel.MeshDescription.Get();
+		check( MeshDescription );
 
 		// Create render data
 		StaticMesh->RenderData.Reset( new(FMemory::Malloc(sizeof(FStaticMeshRenderData)))FStaticMeshRenderData() );
@@ -361,9 +359,10 @@ void UDataprepOperationsLibrary::SetGenerateLightmapUVs( const TArray< UObject* 
 			{
 				bDidChangeSettings |= SourceModel.BuildSettings.bGenerateLightmapUVs != bGenerateLightmapUVs;
 				SourceModel.BuildSettings.bGenerateLightmapUVs = bGenerateLightmapUVs;
-				if( FMeshDescription* MeshDescription = SourceModel.MeshDescription.Get() )
+				if( const FMeshDescription* MeshDescription = SourceModel.MeshDescription.Get() )
 				{
-					int32 UVChannelCount = MeshDescription->VertexInstanceAttributes().GetAttributesRef< FVector2D >( MeshAttribute::VertexInstance::TextureCoordinate ).GetNumIndices();
+					FStaticMeshConstAttributes Attributes(*MeshDescription);
+					int32 UVChannelCount = Attributes.GetVertexInstanceUVs().GetNumIndices();
 					MinBiggestUVChannel = FMath::Min( MinBiggestUVChannel, UVChannelCount - 1 );
 				}
 			}

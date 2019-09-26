@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "MeshDescriptionBuilder.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 #include "VectorTypes.h"
 #include "BoxTypes.h"
 

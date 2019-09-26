@@ -16,8 +16,7 @@
 #include "Engine/Engine.h"
 #include "StaticMeshResources.h"
 
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
 
 #include "DynamicMeshAttributeSet.h"
 #include "MeshNormals.h"

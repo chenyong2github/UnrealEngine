@@ -28,6 +28,7 @@ public class ModelingOperatorsEditorOnly : ModuleRules
 				"Core",
                 "InteractiveToolsFramework",
                 "MeshDescription",
+				"StaticMeshDescription",
 				"ModelingOperators",
 				"GeometricObjects",
 				"DynamicMesh",

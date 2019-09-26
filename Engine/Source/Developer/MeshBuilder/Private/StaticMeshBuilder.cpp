@@ -4,9 +4,8 @@
 #include "Engine/StaticMesh.h"
 #include "StaticMeshResources.h"
 #include "PhysicsEngine/BodySetup.h"
-#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
 #include "MeshDescriptionOperations.h"
-#include "MeshAttributes.h"
 #include "MeshDescriptionHelper.h"
 #include "BuildOptimizationHelper.h"
 #include "Components.h"
@@ -91,26 +90,26 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 
 		float MaxDeviation = 0.0f;
 		FMeshBuildSettings& LODBuildSettings = SrcModel.BuildSettings;
-		const FMeshDescription* OriginalMeshDescription = StaticMesh->GetMeshDescription(LodIndex);
+		const FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LodIndex);
 		FMeshDescriptionHelper MeshDescriptionHelper(&LODBuildSettings);
 
 		FMeshReductionSettings ReductionSettings = LODGroup.GetSettings(SrcModel.ReductionSettings, LodIndex);
 
 		//Make sure we do not reduce a non custom LOD by himself
-		const int32 BaseReduceLodIndex = FMath::Clamp<int32>(ReductionSettings.BaseLODModel, 0, OriginalMeshDescription == nullptr ? LodIndex - 1 : LodIndex);
+		const int32 BaseReduceLodIndex = FMath::Clamp<int32>(ReductionSettings.BaseLODModel, 0, MeshDescription == nullptr ? LodIndex - 1 : LodIndex);
 		// Use simplifier if a reduction in triangles or verts has been requested.
 		bool bUseReduction = StaticMesh->IsReductionActive(LodIndex);
 
-		if (OriginalMeshDescription != nullptr)
+		if (MeshDescription != nullptr)
 		{
-			MeshDescriptionHelper.GetRenderMeshDescription(StaticMesh, *OriginalMeshDescription, MeshDescriptions[LodIndex]);
+			MeshDescriptionHelper.GetRenderMeshDescription(StaticMesh, *MeshDescription, MeshDescriptions[LodIndex]);
 		}
 		else
 		{
 			if (bUseReduction)
 			{
 				// Initialize an empty mesh description that the reduce will fill
-				UStaticMesh::RegisterMeshAttributes(MeshDescriptions[LodIndex]);
+				FStaticMeshAttributes(MeshDescriptions[LodIndex]).Register();
 			}
 			else
 			{

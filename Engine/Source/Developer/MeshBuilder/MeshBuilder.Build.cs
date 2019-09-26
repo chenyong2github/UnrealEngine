@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
                     "Engine",
                     "RenderCore",
                     "MeshDescription",
+					"StaticMeshDescription",
                     "RenderCore",
                     "MeshDescriptionOperations",
                     "MeshReductionInterface",
