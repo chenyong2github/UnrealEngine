@@ -1669,4 +1669,11 @@ bool ULocalPlayer::IsPrimaryPlayer() const
 	return (this == PrimaryPlayer);
 }
 
+void ULocalPlayer::CleanupViewState()
+{
+	if (FSceneViewStateInterface* Ref = ViewState.GetReference())
+	{
+		Ref->ClearMIDPool();
+	}
+}
 
