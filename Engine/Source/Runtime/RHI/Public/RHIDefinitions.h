@@ -1196,12 +1196,6 @@ inline bool RHISupportsMobileMultiView(const EShaderPlatform Platform)
 		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsMobileMultiView;
 }
 
-inline bool RHISupportsDrawIndirect(const EShaderPlatform Platform)
-{
-	return Platform == EShaderPlatform::SP_METAL_SM5 || Platform == EShaderPlatform::SP_PCD3D_SM5 || IsVulkanSM5Platform(Platform) || Platform == EShaderPlatform::SP_PS4
-		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsDrawIndirect;
-}
-
 inline bool RHISupportsNativeShaderLibraries(const EShaderPlatform Platform)
 {
 	return IsMetalPlatform(Platform);
