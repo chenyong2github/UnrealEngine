@@ -135,9 +135,16 @@ void FNiagaraShaderMapId::Serialize(FArchive& Ar)
 		Ar << BaseCompileHash;
 		Ar << ReferencedCompileHashes;
 	}
+
 	if (NiagaraVer >= FNiagaraCustomVersion::AddAdditionalDefinesProperty)
 	{
 		Ar << AdditionalDefines;
+	}
+	
+	if (NiagaraVer >= FNiagaraCustomVersion::AddRIAndDetailLevel)
+	{
+		Ar << DetailLevelMask;
+		Ar << bUsesRapidIterationParams;
 	}
 	
 	//ParameterSet.Serialize(Ar);		// NIAGARATODO: at some point we'll need stuff for static switches here
@@ -180,18 +187,24 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 	if (BaseScriptID != ReferenceSet.BaseScriptID 
 		|| BaseCompileHash != ReferenceSet.BaseCompileHash
 		|| FeatureLevel != ReferenceSet.FeatureLevel
-		|| CompilerVersionID != ReferenceSet.CompilerVersionID)
+		|| CompilerVersionID != ReferenceSet.CompilerVersionID 
+		|| DetailLevelMask != ReferenceSet.DetailLevelMask 
+		|| bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams)
 	{
 		return false;
 	}
+	
+	
 	if (AdditionalDefines.Num() != ReferenceSet.AdditionalDefines.Num())
 	{
 		return false;
 	}
 
-	for (int32 i = 0; i < AdditionalDefines.Num(); i++)
+	for (int32 Idx = 0; Idx < ReferenceSet.AdditionalDefines.Num(); Idx++)
 	{
-		if (AdditionalDefines[i] != ReferenceSet.AdditionalDefines[i])
+		const FString& ReferenceStr = ReferenceSet.AdditionalDefines[Idx];
+
+		if (AdditionalDefines[Idx] != ReferenceStr)
 		{
 			return false;
 		}
@@ -245,6 +258,24 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 	KeyString += CompilerVersionID.ToString();
 	KeyString += TEXT("_");
 
+	if (DetailLevelMask != 0xFFFFFFFF)
+	{
+		KeyString += FString::Printf(TEXT("DL_%d"), DetailLevelMask);
+	}
+	else
+	{
+		KeyString += TEXT("ALLDL_");
+	}
+
+	if (bUsesRapidIterationParams)
+	{
+		KeyString += TEXT("USESRI_");
+	}
+	else
+	{
+		KeyString += TEXT("NORI_");
+	}
+	
 	// Add additional defines
 	for (int32 DefinesIndex = 0; DefinesIndex < AdditionalDefines.Num(); DefinesIndex++)
 	{

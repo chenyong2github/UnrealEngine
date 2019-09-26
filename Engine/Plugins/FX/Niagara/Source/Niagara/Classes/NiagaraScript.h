@@ -133,6 +133,14 @@ public:
 	UPROPERTY()
 	TArray<FString> AdditionalDefines;
 
+	/** Bitfield of supported detail levels in this compile.*/
+	UPROPERTY()
+	uint32 DetailLevelMask;
+
+	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/
+	UPROPERTY()
+	bool bUsesRapidIterationParams;
+
 	/**
 	* The GUID of the subgraph this shader primarily represents.
 	*/
@@ -157,6 +165,8 @@ public:
 	FNiagaraVMExecutableDataId()
 		: CompilerVersionID()
 		, ScriptUsageType(ENiagaraScriptUsage::Function)
+		, DetailLevelMask(0xFFFFFFFF)
+		, bUsesRapidIterationParams(true)
 		, BaseScriptID(0, 0, 0, 0)
 	{ }
 

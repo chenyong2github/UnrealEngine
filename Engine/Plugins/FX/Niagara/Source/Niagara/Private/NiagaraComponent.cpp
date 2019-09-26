@@ -1156,11 +1156,14 @@ void UNiagaraComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 
 		if (UNiagaraEmitter* Props = Sim->GetEmitterHandle().GetInstance())
 		{
-			for (int32 i = 0; i < Props->GetRenderers().Num(); i++)
+			if (Props)
 			{
-				if (UNiagaraRendererProperties* Renderer = Props->GetRenderers()[i])
+				for (int32 i = 0; i < Props->GetRenderers().Num(); i++)
 				{
-					Renderer->GetUsedMaterials(&Sim.Get(), OutMaterials);
+					if (UNiagaraRendererProperties* Renderer = Props->GetRenderers()[i])
+					{
+						Renderer->GetUsedMaterials(&Sim.Get(), OutMaterials);
+					}
 				}
 			}
 		}
