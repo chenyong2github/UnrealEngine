@@ -713,24 +713,6 @@ UK2Node_Event* FKismetEditorUtilities::AddDefaultEventNode(UBlueprint* InBluepri
 	return NewEventNode;
 }
 
-UBlueprint* FKismetEditorUtilities::ReloadBlueprint(UBlueprint* StaleBlueprint)
-{
-	check(StaleBlueprint->IsAsset());
-	FSoftObjectPath BlueprintAssetRef(StaleBlueprint);
-
-	// Need to close the editor now, it won't work once it's been garbage collected during the reload
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(StaleBlueprint);
-
-	FBlueprintUnloader Unloader(StaleBlueprint);
-	Unloader.UnloadBlueprint(/*bResetPackage =*/true);
-
-	UBlueprint* ReloadedBlueprint = Cast<UBlueprint>(StaticLoadObject(UBlueprint::StaticClass(), /*Outer =*/nullptr, *BlueprintAssetRef.ToString()));
-
-	// This will generally not fix most references as the UnloadBlueprint causes a GC
-	Unloader.ReplaceStaleRefs(ReloadedBlueprint);
-	return ReloadedBlueprint;
-}
-
 UBlueprint* FKismetEditorUtilities::ReplaceBlueprint(UBlueprint* Target, UBlueprint const* ReplacementArchetype)
 {
 	if (Target == ReplacementArchetype)
