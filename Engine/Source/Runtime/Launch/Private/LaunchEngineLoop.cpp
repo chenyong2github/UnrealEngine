@@ -2274,20 +2274,27 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		RenderUtilsInit();
 	}
 
-	if (FPlatformProperties::RequiresCookedData())
 	{
+		bool bUseCodeLibrary = FPlatformProperties::RequiresCookedData() || GAllowCookedDataInEditorBuilds;
+		if (bUseCodeLibrary)
 		{
-			SCOPED_BOOT_TIMING("FShaderCodeLibrary::InitForRuntime");
-			// Will open material shader code storage if project was packaged with it
-			// This only opens the Global shader library, which is always in the content dir.
-			FShaderCodeLibrary::InitForRuntime(GMaxRHIShaderPlatform);
-		}
+			{
+				SCOPED_BOOT_TIMING("FShaderCodeLibrary::InitForRuntime");
+				// Will open material shader code storage if project was packaged with it
+				// This only opens the Global shader library, which is always in the content dir.
+				FShaderCodeLibrary::InitForRuntime(GMaxRHIShaderPlatform);
+			}
 
-		{
-			SCOPED_BOOT_TIMING("FShaderPipelineCache::Initialize");
-			// Initialize the pipeline cache system. Opening is deferred until the manual call to
-			// OpenPipelineFileCache below, after content pak's ShaderCodeLibraries are loaded.
-			FShaderPipelineCache::Initialize(GMaxRHIShaderPlatform);
+	#if !UE_EDITOR
+			// Cooked data only - but also requires the code library - game only
+			if (FPlatformProperties::RequiresCookedData())
+			{
+				SCOPED_BOOT_TIMING("FShaderPipelineCache::Initialize");
+				// Initialize the pipeline cache system. Opening is deferred until the manual call to
+				// OpenPipelineFileCache below, after content pak's ShaderCodeLibraries are loaded.
+				FShaderPipelineCache::Initialize(GMaxRHIShaderPlatform);
+			}
+	#endif //!UE_EDITOR
 		}
 	}
 
@@ -2586,7 +2593,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 					FShaderCodeLibrary::OpenLibrary(FApp::GetProjectName(), FPaths::Combine(RootDir, FApp::GetProjectName(), TEXT("Content")));
 				}
 
-				// Now our shader code main library is opened, kick off the precompile.
+				// Now our shader code main library is opened, kick off the precompile, if already initialized
 				FShaderPipelineCache::OpenPipelineFileCache(GMaxRHIShaderPlatform);
 			}
 		}
