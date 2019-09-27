@@ -12,6 +12,8 @@ USynthSound::USynthSound(const FObjectInitializer& ObjectInitializer)
 
 void USynthSound::Init(USynthComponent* InSynthComponent, const int32 InNumChannels, const int32 InSampleRate, const int32 InCallbackSize)
 {
+	check(InSynthComponent);
+
 	OwningSynthComponent = InSynthComponent;
 	VirtualizationMode = EVirtualizationMode::PlayWhenSilent;
 	NumChannels = InNumChannels;
@@ -54,6 +56,13 @@ int32 USynthSound::OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples)
 	{
 		// If running with audio mixer, the output audio buffer will be in floats already
 		OutAudio.AddZeroed(NumSamples * sizeof(float));
+
+		// Mark pending kill can null this out on the game thread in rare cases.
+		if (!OwningSynthComponent)
+		{
+			return 0;
+		}
+
 		return OwningSynthComponent->OnGeneratePCMAudio((float*)OutAudio.GetData(), NumSamples);
 	}
 	else
@@ -61,6 +70,12 @@ int32 USynthSound::OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples)
 		// Use the float scratch buffer instead of the out buffer directly
 		FloatBuffer.Reset();
 		FloatBuffer.AddZeroed(NumSamples * sizeof(float));
+
+		// Mark pending kill can null this out on the game thread in rare cases.
+		if (!OwningSynthComponent)
+		{
+			return 0;
+		}
 
 		float* FloatBufferDataPtr = FloatBuffer.GetData();
 		int32 NumSamplesGenerated = OwningSynthComponent->OnGeneratePCMAudio(FloatBufferDataPtr, NumSamples);
@@ -80,8 +95,11 @@ int32 USynthSound::OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples)
 
 void USynthSound::OnEndGenerate()
 {
-	check(OwningSynthComponent);
-	OwningSynthComponent->OnEndGenerate();
+	// Mark pending kill can null this out on the game thread in rare cases.
+	if(OwningSynthComponent)
+	{
+		OwningSynthComponent->OnEndGenerate();
+	}
 }
 
 Audio::EAudioMixerStreamDataFormat::Type USynthSound::GetGeneratedPCMDataFormat() const
