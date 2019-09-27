@@ -119,7 +119,6 @@ public:
 	FNetNameMapping ClassScopeNetNameMap;
 
 	// Data that persists across CompileClassLayout/CompileFunctions calls:
-	bool bIsSkeletonOnly;
 	UObject* OldCDO;
 	int32 OldGenLinkerIdx;
 	FLinkerLoad* OldLinker;

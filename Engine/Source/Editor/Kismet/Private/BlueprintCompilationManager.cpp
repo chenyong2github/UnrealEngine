@@ -2190,9 +2190,6 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 	// Temporarily set the compile type to indicate that we're generating the skeleton class.
 	TGuardValue<EKismetCompileType::Type> GuardCompileType(CompilerContext.CompileOptions.CompileType, EKismetCompileType::SkeletonOnly);
 
-	// Temporarily set the flag to indicate whether or not we'll only be generating the skeleton class as part of the overall compile request.
-	TGuardValue<bool> GuardSkeletonOnly(CompilerContext.bIsSkeletonOnly, bIsSkeletonOnly);
-
 	if (BP->SkeletonGeneratedClass == nullptr)
 	{
 		// This might exist in the package because we are being reloaded in place
