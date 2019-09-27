@@ -7418,14 +7418,15 @@ string CompilerMSL::to_function_args(uint32_t img, const SPIRType &imgtype, bool
 	if (!farg_str.empty())
 		farg_str += ", ";
 	
-	if (imgtype.image.arrayed && msl_options.emulate_cube_array)
+	if (imgtype.image.dim == DimCube && imgtype.image.arrayed && msl_options.emulate_cube_array)
 	{
 		farg_str += "spvCubemapTo2DArrayFace(" + tex_coords + ").xy";
 		
 		if (is_cube_fetch)
 			farg_str += ", uint(" + to_extract_component_expression(coord, 2) + ")";
 		else
-			farg_str += ", uint(spvCubemapTo2DArrayFace(" + tex_coords + ").z) + (uint(" + to_extract_component_expression(coord, 2) + ") * 6u)";
+			farg_str += ", uint(spvCubemapTo2DArrayFace(" + tex_coords + ").z) + (uint(" +
+			round_fp_tex_coords(to_extract_component_expression(coord, alt_coord_component), coord_is_fp) + ") * 6u)";
 		
 		add_spv_func_and_recompile(SPVFuncImplCubemapTo2DArrayFace);
 	}
