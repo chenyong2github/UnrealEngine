@@ -151,12 +151,7 @@ bool FMeshProxyTool::RunMerge(const FString& PackageName)
 					StaticMeshComponentsToMerge.Add(StaticMeshComponent);
 			}
 		}
-		StaticMeshComponentsToMerge.RemoveAll([](UStaticMeshComponent* Val)
-		{
-			bool bValidClass = Val->GetClass() == UStaticMeshComponent::StaticClass() || Val->IsA<UInstancedStaticMeshComponent>() || Val->IsA<USplineMeshComponent>();
-			bool bValidMesh = Val->GetStaticMesh() != nullptr;
-			return !bValidClass || !bValidMesh;
-		});
+		StaticMeshComponentsToMerge.RemoveAll([](UStaticMeshComponent* Val) { return Val->GetStaticMesh() == nullptr; });
 		
 		if ( StaticMeshComponentsToMerge.Num())
 		{
