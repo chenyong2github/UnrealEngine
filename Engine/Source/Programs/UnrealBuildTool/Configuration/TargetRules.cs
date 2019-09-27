@@ -1418,6 +1418,10 @@ namespace UnrealBuildTool
 			{
 				ConfigCache.ReadSettings(DirectoryReference.FromFile(ProjectFile), Platform, ConfigurableObject, ConfigValueTracker);
 				XmlConfig.ApplyTo(ConfigurableObject);
+				if (Target.Arguments != null)
+				{
+					Target.Arguments.ApplyTo(ConfigurableObject);
+				}
 			}
 
 			// If we've got a changelist set, set that we're making a formal build

@@ -49,6 +49,11 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Additional command line arguments for this target
+		/// </summary>
+		public CommandLineArguments Arguments;
+
+		/// <summary>
 		/// Constructs a TargetInfo for passing to the TargetRules constructor.
 		/// </summary>
 		/// <param name="Name">Name of the target being built</param>
@@ -56,13 +61,15 @@ namespace UnrealBuildTool
 		/// <param name="Configuration">The configuration being built</param>
 		/// <param name="Architecture">The architecture being built for</param>
 		/// <param name="ProjectFile">Path to the project file containing the target</param>
-		public TargetInfo(string Name, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, FileReference ProjectFile)
+		/// <param name="Arguments">Additional command line arguments for this target</param>
+		public TargetInfo(string Name, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, FileReference ProjectFile, CommandLineArguments Arguments)
 		{
 			this.Name = Name;
 			this.Platform = Platform;
 			this.Configuration = Configuration;
 			this.Architecture = Architecture;
 			this.ProjectFile = ProjectFile;
+			this.Arguments = Arguments;
 		}
 	}
 }
