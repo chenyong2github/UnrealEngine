@@ -16,6 +16,8 @@
 
 UToolMenus* UToolMenus::Singleton = nullptr;
 bool UToolMenus::bHasShutDown = false;
+FSimpleMulticastDelegate UToolMenus::StartupCallbacks;
+TOptional<FDelegateHandle> UToolMenus::InternalStartupCallbackHandle;
 
 FAutoConsoleCommand ToolMenusRefreshMenuWidget = FAutoConsoleCommand(
 	TEXT("ToolMenus.RefreshAllWidgets"),
@@ -94,6 +96,8 @@ void UToolMenus::BeginDestroy()
 {
 	if (Singleton == this)
 	{
+		UnregisterPrivateStartupCallback();
+
 		bHasShutDown = true;
 		Singleton = nullptr;
 	}
@@ -1803,6 +1807,63 @@ void UToolMenus::RegisterStringCommandHandler(const FName InName, const FToolMen
 void UToolMenus::UnregisterStringCommandHandler(const FName InName)
 {
 	StringCommandHandlers.Remove(InName);
+}
+
+FDelegateHandle UToolMenus::RegisterStartupCallback(const FSimpleMulticastDelegate::FDelegate& InDelegate)
+{
+	if (IsToolMenuUIEnabled() && UToolMenus::TryGet())
+	{
+		// Call immediately if systems are initialized
+		InDelegate.Execute();
+	}
+	else
+	{
+		// Defer call to occur after systems are initialized (slate and menus)
+		FDelegateHandle Result = StartupCallbacks.Add(InDelegate);
+
+		if (!InternalStartupCallbackHandle.IsSet())
+		{
+			InternalStartupCallbackHandle = FCoreDelegates::OnPostEngineInit.Add(FSimpleMulticastDelegate::FDelegate::CreateStatic(&UToolMenus::PrivateStartupCallback));
+		}
+
+		return Result;
+	}
+
+	return FDelegateHandle();
+}
+
+void UToolMenus::UnRegisterStartupCallback(const void* UserPointer)
+{
+	StartupCallbacks.RemoveAll(UserPointer);
+}
+
+void UToolMenus::UnRegisterStartupCallback(FDelegateHandle InHandle)
+{
+	StartupCallbacks.Remove(InHandle);
+}
+
+void UToolMenus::PrivateStartupCallback()
+{
+	UnregisterPrivateStartupCallback();
+
+	if (IsToolMenuUIEnabled() && UToolMenus::TryGet())
+	{
+		StartupCallbacks.Broadcast();
+		StartupCallbacks.Clear();
+	}
+}
+
+void UToolMenus::UnregisterPrivateStartupCallback()
+{
+	if (InternalStartupCallbackHandle.IsSet())
+	{
+		FDelegateHandle& Handle = InternalStartupCallbackHandle.GetValue();
+		if (Handle.IsValid())
+		{
+			FCoreDelegates::OnPostEngineInit.Remove(Handle);
+			Handle.Reset();
+		}
+	}
 }
 
 void UToolMenus::SaveCustomizations()

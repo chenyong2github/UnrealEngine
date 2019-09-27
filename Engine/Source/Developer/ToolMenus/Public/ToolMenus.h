@@ -83,33 +83,19 @@ public:
 	 */
 	static bool IsToolMenuUIEnabled();
 
-	static FDelegateHandle RegisterStartupCallback(const FSimpleMulticastDelegate::FDelegate& Delegate)
-	{
-		if (IsToolMenuUIEnabled())
-		{
-			if (UToolMenus::TryGet())
-			{
-				Delegate.Execute();
-			}
-			else
-			{
-				// Wait until UToolMenus has been initialized
-				return FCoreDelegates::OnPostEngineInit.Add(Delegate);
-			}
-		}
+	/** 
+	 * Delays menu registration until safe and ready
+	 * Will not trigger if Slate does not end up being enabled after loading
+	 * Will not trigger when running commandlet, game, dedicated server or client only
+	 *
+	 */
+	static FDelegateHandle RegisterStartupCallback(const FSimpleMulticastDelegate::FDelegate& InDelegate);
 
-		return FDelegateHandle();
-	}
+	/** Unregister a startup callback delegate by pointer */
+	static void UnRegisterStartupCallback(const void* UserPointer);
 
-	static void UnRegisterStartupCallback(const void* UserPointer)
-	{
-		FCoreDelegates::OnPostEngineInit.RemoveAll(UserPointer);
-	}
-
-	static void UnRegisterStartupCallback(FDelegateHandle InHandle)
-	{
-		FCoreDelegates::OnPostEngineInit.Remove(InHandle);
-	}
+	/** Unregister a startup callback delegate by handle */
+	static void UnRegisterStartupCallback(FDelegateHandle InHandle);
 
 	/**
 	 * Registers a menu by name
@@ -326,6 +312,9 @@ private:
 	/** Sets the current temporary menu owner. Used by FToolMenuEntryScoped */
 	void PopOwner(const FToolMenuOwner InOwner);
 
+	static void PrivateStartupCallback();
+	static void UnregisterPrivateStartupCallback();
+
 	UToolMenu* FindSubMenuToGenerateWith(const FName InParentName, const FName InChildName);
 
 	void FillMenuBarDropDown(FMenuBuilder& MenuBuilder, FName InParentName, FName InChildName, FToolMenuContext InMenuContext);
@@ -390,6 +379,8 @@ private:
 
 	static UToolMenus* Singleton;
 	static bool bHasShutDown;
+	static FSimpleMulticastDelegate StartupCallbacks;
+	static TOptional<FDelegateHandle> InternalStartupCallbackHandle;
 };
 
 struct FToolMenuOwnerScoped

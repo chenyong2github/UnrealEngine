@@ -18,6 +18,13 @@ FAutoConsoleVariableRef CVarRex(
 	TEXT("Edit menus in modal window"),
 	ECVF_Default);
 
+FAutoConsoleCommand ToolMenusEditMenusModeCVar = FAutoConsoleCommand(
+	TEXT("ToolMenus.EditMenusMode"),
+	TEXT("Enable edit menus mode toggle in level editor's windows menu"),
+	FConsoleCommandDelegate::CreateLambda([]() {
+		IToolMenusEditorModule::Get().RegisterShowEditMenusModeCheckbox();
+	}));
+
 /**
  * Implements the Tool menus module.
  */
