@@ -164,66 +164,37 @@ struct TNetworkSimBufferContainer
 	}
 };
 
-/** Interface base for the simulation driver. This is what is used by the Network Sim Model internally. Basically, the non simulation specific functions that need to be defined. */
-template<typename TBufferTypes>
-class TNetworkSimDriverInterfaceBase
-{
-public:
-	virtual FString GetDebugName() const = 0; // Used for debugging. Recommended to emit the simulation name and the actor name/role.
-	virtual const UObject* GetVLogOwner() const = 0; // Owning object for Visual Logs
-
-	virtual void InitSyncState(typename TBufferTypes::TSyncState& OutSyncState) const = 0;	// Called to create initial value of the sync state.
-	virtual void ProduceInput(const float DeltaTimeSeconds, typename TBufferTypes::TInputCmd&) = 0; // Called when the sim is ready to process new local input
-	virtual void FinalizeFrame(const typename TBufferTypes::TSyncState& SyncState) = 0; // Called from the Network Sim at the end of the sim frame when there is new sync data.
-};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 //		Tick and time keeping related structures
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-// Holds all settings for a network sim related to ticking
-// Main point are we want to distinguish between real time coming in from the outside in seconds. Float by default.
-// "SimTime" meaning time type we when advancing the simulation or talking about how long it has been running. This is stored in int32 milliseconds by default.
-// (This can be changed by the InRealToSimFactor parameter. Though code will always refer to is as MSec for clarity/consistency).
-template<int32 InFixedStepMS=0, int32 InMaxStepMS=0, typename TUnderlyingSimTimeType=int32, typename TUnderlyingRealTimeType=float, int32 InRealToSimFactor=1000>
-struct TNetworkSimTickSettings
+// The main Simulation time type. All sims use this to talk about time.
+struct FNetworkSimTime
 {
-	using TUnderlingSimTime = TUnderlyingSimTimeType;	// Underlying type of time. This type shouldn't be used directly (use TNetworkSimTime)
-	using TRealTime = TUnderlyingRealTimeType;	// This is the "final" real time type. We do not wrap it in anything else.
+	using FSimTime = int32; // Underlying type used to store simulation time
+	using FRealTime = float; // Underlying type used when dealing with realtime (usually coming in from the engine tick).
 
-	static_assert(!(InFixedStepMS!=0 && InMaxStepMS != 0), "MaxStepMS is only applicable when using variable step (FixedStepMS == 0)");
-
-	enum 
+	enum
 	{
-		MaxStepMS = InMaxStepMS,				// Max step. Only applicable to variable time step.
-		FixedStepMS = InFixedStepMS,			// Fixed step. If 0, then we are "variable time step"
-		RealToSimFactor = InRealToSimFactor		// Factor to go from RealTime (always seconds) to SimTime (MSec by default with factor of 1000)
+		RealToSimFactor = 1000 // Factor to go from RealTime (always seconds) to SimTime (MSec by default with factor of 1000)
 	};
 
-	// Typed accessors
-	static constexpr TUnderlingSimTime GetMaxStepMS() { return static_cast<TUnderlingSimTime>(InMaxStepMS); }
-	static constexpr TUnderlingSimTime GetFixedStepMS() { return static_cast<TUnderlingSimTime>(InFixedStepMS); }
-	static constexpr TRealTime GetRealToSimFactor() { return static_cast<TRealTime>(InRealToSimFactor); }
-	static constexpr TRealTime GetSimToRealFactor() { return static_cast<TRealTime>(1.f / InRealToSimFactor); }
-};
+	static constexpr FRealTime GetRealToSimFactor() { return static_cast<FRealTime>(RealToSimFactor); }
+	static constexpr FRealTime GetSimToRealFactor() { return static_cast<FRealTime>(1.f / RealToSimFactor); }
 
-// Actual time value. This by default will store time in MSec (ultimately determined by TickSettings::RealToSimFactor)
-template<typename TickSettings>
-struct TNetworkSimTime
-{
-	using TTime = typename TickSettings::TUnderlingSimTime;
-	using TRealTime = typename TickSettings::TRealTime;
+	// ---------------------------------------------------------------
 
-	TNetworkSimTime() { }
+	FNetworkSimTime() { }
 
 	// Things get confusing with templated types and overloaded functions. To avoid that, use these funcs to construct from either msec or real time
-	static inline TNetworkSimTime FromMSec(const TTime& InTime) { return TNetworkSimTime(InTime); } 
-	static inline TNetworkSimTime FromRealTimeSeconds(const TRealTime& InRealTime) { return TNetworkSimTime( static_cast<TTime>(InRealTime * TickSettings::GetRealToSimFactor())); } 
-	TRealTime ToRealTimeSeconds() const { return (Time * TickSettings::GetSimToRealFactor()); }
+	static inline FNetworkSimTime FromMSec(const FSimTime& InTime) { return FNetworkSimTime(InTime); } 
+	static inline FNetworkSimTime FromRealTimeSeconds(const FRealTime& InRealTime) { return FNetworkSimTime( static_cast<FSimTime>(InRealTime * GetRealToSimFactor())); } 
+	FRealTime ToRealTimeSeconds() const { return (Time * GetSimToRealFactor()); }
 
 	// Direct casts to "real time MS" which should be rarely used in practice (TRealTimeAccumulator only current case). All other cases of "real time" imply seconds.
-	static inline TNetworkSimTime FromRealTimeMS(const TRealTime& InRealTime) { return TNetworkSimTime( static_cast<TTime>(InRealTime)); } 
-	TRealTime ToRealTimeMS() const { return static_cast<TRealTime>(Time); }
+	static inline FNetworkSimTime FromRealTimeMS(const FRealTime& InRealTime) { return FNetworkSimTime( static_cast<FSimTime>(InRealTime)); } 
+	FRealTime ToRealTimeMS() const { return static_cast<FRealTime>(Time); }
 
 	FString ToString() const { return LexToString(this->Time); }
 
@@ -234,7 +205,7 @@ struct TNetworkSimTime
 	// FIXME
 	void NetSerialize(FArchive& Ar) { Ar << Time; }
 
-	using T = TNetworkSimTime;
+	using T = FNetworkSimTime;
 	T& operator+= (const T &rhs) { this->Time += rhs.Time; return(*this); }
 	T& operator-= (const T &rhs) { this->Time -= rhs.Time; return(*this); }
 	
@@ -248,29 +219,45 @@ struct TNetworkSimTime
 	bool operator== (const T &rhs) const { return(this->Time == rhs.Time); }
 	bool operator!= (const T &rhs) const { return(this->Time != rhs.Time); }
 
-	TTime Time = 0;
-
 private:
-	TNetworkSimTime(const TTime& InTime) { Time = InTime; }
+
+	FSimTime Time = 0;
+
+	FNetworkSimTime(const FSimTime& InTime) { Time = InTime; }
+};
+
+// Holds per-simulation settings about how ticking is supposed to happen.
+template<int32 InFixedStepMS=0, int32 InMaxStepMS=0>
+struct TNetworkSimTickSettings
+{
+	static_assert(!(InFixedStepMS!=0 && InMaxStepMS != 0), "MaxStepMS is only applicable when using variable step (FixedStepMS == 0)");
+	enum 
+	{
+		MaxStepMS = InMaxStepMS,				// Max step. Only applicable to variable time step.
+		FixedStepMS = InFixedStepMS,			// Fixed step. If 0, then we are "variable time step"
+	};
+
+	// Typed accessors
+	static constexpr FNetworkSimTime::FSimTime GetMaxStepMS() { return static_cast<FNetworkSimTime::FSimTime>(InMaxStepMS); }
+	static constexpr FNetworkSimTime::FSimTime GetFixedStepMS() { return static_cast<FNetworkSimTime::FSimTime>(InFixedStepMS); }
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-//
+//	Accumulator: Helper for accumulating real time into sim time based on TickSettings
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-// Helper for accumulating real time into sim time based on TickSettings
 template<typename TickSettings, bool IsFixedTick=(TickSettings::FixedStepMS!=0)>
 struct TRealTimeAccumulator
 {
-	using TRealTime = typename TickSettings::TRealTime;
-	void Accumulate(TNetworkSimTime<TickSettings>& NetworkSimTime, const TRealTime RealTimeSeconds)
+	using TRealTime = FNetworkSimTime::FRealTime;
+	void Accumulate(FNetworkSimTime& NetworkSimTime, const TRealTime RealTimeSeconds)
 	{
 		// Even though we are variable tick, we still want to truncate down to an even msec. This keeps sim steps as whole integer values that serialize better, don't have denormals or other floating point weirdness.
 		// (If we ever wanted to just fully let floats pass through and be used as the msec sim time, this could be done through another specialization for float/float time).		
 		// Also note that MaxStepMS enforcement does NOT belong here. Dropping time due to MaxStepMS would just make the sim run slower. MaxStepMS is used at the input processing level.
 		
-		AccumulatedTimeMS += RealTimeSeconds * TickSettings::GetRealToSimFactor(); // convert input seconds -> msec
-		const TNetworkSimTime<TickSettings> AccumulatedSimTimeMS = TNetworkSimTime<TickSettings>::FromRealTimeMS(AccumulatedTimeMS);	// truncate (float) accumulated msec to (int32) sim time msec
+		AccumulatedTimeMS += RealTimeSeconds * FNetworkSimTime::GetRealToSimFactor(); // convert input seconds -> msec
+		const FNetworkSimTime AccumulatedSimTimeMS = FNetworkSimTime::FromRealTimeMS(AccumulatedTimeMS);	// truncate (float) accumulated msec to (int32) sim time msec
 
 		NetworkSimTime += AccumulatedSimTimeMS;
 		AccumulatedTimeMS -= AccumulatedSimTimeMS.ToRealTimeMS(); // subtract out the "whole" msec, we are left with the remainder msec
@@ -290,10 +277,10 @@ private:
 template<typename TickSettings>
 struct TRealTimeAccumulator<TickSettings, true>
 {
-	using TRealTime = typename TickSettings::TRealTime;
-	const TRealTime RealTimeFixedStep = static_cast<TRealTime>(TickSettings::GetFixedStepMS() * TickSettings::GetSimToRealFactor());
+	using TRealTime = FNetworkSimTime::FRealTime;
+	const TRealTime RealTimeFixedStep = static_cast<TRealTime>(TickSettings::GetFixedStepMS() * FNetworkSimTime::GetSimToRealFactor());
 
-	void Accumulate(TNetworkSimTime<TickSettings>& NetworkSimTime, const TRealTime RealTimeSeconds)
+	void Accumulate(FNetworkSimTime& NetworkSimTime, const TRealTime RealTimeSeconds)
 	{
 		AccumulatedTime += RealTimeSeconds;
 		if (AccumulatedTime > RealTimeFixedStep)
@@ -306,7 +293,7 @@ struct TRealTimeAccumulator<TickSettings, true>
 				AccumulatedTime = TRealTime(0.f);
 			}
 
-			NetworkSimTime += TNetworkSimTime<TickSettings>::FromMSec(NumFrames * TickSettings::FixedStepMS);
+			NetworkSimTime += FNetworkSimTime::FromMSec(NumFrames * TickSettings::FixedStepMS);
 		}
 	}
 
@@ -333,25 +320,25 @@ struct TSimulationTickState
 	int32 LastProcessedInputKeyframe = 0;	// The last input keyframe that we processed
 	int32 MaxAllowedInputKeyframe = 0;		// The max input keyframe that we are allowed to process (e.g, don't process input past this keyframe yet)
 
-	void SetTotalAllowedSimulationTime(const TNetworkSimTime<TSettings>& SimTime)
+	void SetTotalAllowedSimulationTime(const FNetworkSimTime& SimTime)
 	{
 		TotalAllowedSimulationTime = SimTime;
 		RealtimeAccumulator.Reset();
 	}
 
-	TNetworkSimTime<TSettings> GetTotalProcessedSimulationTime() const 
+	FNetworkSimTime GetTotalProcessedSimulationTime() const 
 	{ 
 		return TotalProcessedSimulationTime; 
 	}
 
-	void SetTotalProcessedSimulationTime(const TNetworkSimTime<TSettings>& SimTime, int32 Keyframe)
+	void SetTotalProcessedSimulationTime(const FNetworkSimTime& SimTime, int32 Keyframe)
 	{
 		TotalProcessedSimulationTime = SimTime;
 		SimulationTimeBuffer.ResetNextHeadKeyframe(Keyframe);
 		*SimulationTimeBuffer.GetWriteNext() = SimTime;
 	}
 
-	void IncrementTotalProcessedSimulationTime(const TNetworkSimTime<TSettings>& DeltaSimTime, int32 Keyframe)
+	void IncrementTotalProcessedSimulationTime(const FNetworkSimTime& DeltaSimTime, int32 Keyframe)
 	{
 		TotalProcessedSimulationTime += DeltaSimTime;
 		*SimulationTimeBuffer.GetWriteNext() = TotalProcessedSimulationTime;
@@ -361,11 +348,10 @@ struct TSimulationTickState
 	void InitSimulationTimeBuffer(int32 Size)
 	{
 		SimulationTimeBuffer.SetBufferSize(Size);
-		//*SimulationTimeBuffer.GetWriteNext() = TNetworkSimTime<TSettings>::FromMSec(0);
 	}
 		
 	// Historic tracking of simulation time. This allows us to timestamp sync data as its produced
-	TReplicationBuffer<TNetworkSimTime<TSettings>>	SimulationTimeBuffer;
+	TReplicationBuffer<FNetworkSimTime>	SimulationTimeBuffer;
 
 	// "Grants" allowed simulation time to this tick state. That is, we are now allowed to advance the simulation by this amount the next time the sim ticks.
 	// Note the input is RealTime in SECONDS. This is what the rest of the engine uses when dealing with float delta time.
@@ -375,20 +361,20 @@ struct TSimulationTickState
 	}
 
 	// How much granted simulation time is left to process
-	TNetworkSimTime<TSettings> GetRemainingAllowedSimulationTime() const
+	FNetworkSimTime GetRemainingAllowedSimulationTime() const
 	{
 		return TotalAllowedSimulationTime - TotalProcessedSimulationTime;
 	}
 
-	TNetworkSimTime<TSettings> GetTotalAllowedSimulationTime() const
+	FNetworkSimTime GetTotalAllowedSimulationTime() const
 	{
 		return TotalAllowedSimulationTime;
 	}
 
 private:
 
-	TNetworkSimTime<TSettings> TotalAllowedSimulationTime;	// Total time we have been "given" to process. We cannot process more simulation time than this: doing so would be speed hacking.
-	TNetworkSimTime<TSettings> TotalProcessedSimulationTime;	// How much time we've actually processed. The only way to increment this is to process user commands or receive authoritative state from the network.
+	FNetworkSimTime TotalAllowedSimulationTime;	// Total time we have been "given" to process. We cannot process more simulation time than this: doing so would be speed hacking.
+	FNetworkSimTime TotalProcessedSimulationTime;	// How much time we've actually processed. The only way to increment this is to process user commands or receive authoritative state from the network.
 
 	TRealTimeAccumulator<TSettings>	RealtimeAccumulator;
 };
@@ -401,8 +387,8 @@ private:
 template<typename BaseCmdType, typename TickSettings, bool IsFixedTick=(TickSettings::FixedStepMS!=0)>
 struct TFrameCmd : public BaseCmdType
 {
-	TNetworkSimTime<TickSettings> GetFrameDeltaTime() const { return FrameDeltaTime; }
-	void SetFrameDeltaTime(const TNetworkSimTime<TickSettings>& InTime) { FrameDeltaTime = InTime; }
+	FNetworkSimTime GetFrameDeltaTime() const { return FrameDeltaTime; }
+	void SetFrameDeltaTime(const FNetworkSimTime& InTime) { FrameDeltaTime = InTime; }
 	void NetSerialize(const FNetSerializeParams& P)
 	{
 		FrameDeltaTime.NetSerialize(P.Ar);
@@ -410,15 +396,15 @@ struct TFrameCmd : public BaseCmdType
 	}
 
 private:
-	TNetworkSimTime<TickSettings> FrameDeltaTime;
+	FNetworkSimTime FrameDeltaTime;
 };
 
 // Fixed tick specialization
 template<typename BaseCmdType, typename TickSettings>
 struct TFrameCmd<BaseCmdType, TickSettings, true> : public BaseCmdType
 {
-	constexpr TNetworkSimTime<TickSettings> GetFrameDeltaTime() const { return TNetworkSimTime<TickSettings>::FromMSec(TickSettings::GetFixedStepMS()); }
-	void SetFrameDeltaTime(const TNetworkSimTime<TickSettings>& InTime) { }
+	FNetworkSimTime GetFrameDeltaTime() const { return FNetworkSimTime::FromMSec(TickSettings::GetFixedStepMS()); }
+	void SetFrameDeltaTime(const FNetworkSimTime& InTime) { }
 	void NetSerialize(const FNetSerializeParams& P) { BaseCmdType::NetSerialize(P); }
 };
 
@@ -434,4 +420,17 @@ struct TInternalBufferTypes : TNetworkSimBufferTypes<
 	typename TUserBufferTypes::TDebugState	// Debugstate passes through
 >
 {
+};
+
+/** Interface base for the simulation driver. This is what is used by the Network Sim Model internally. Basically, the non simulation specific functions that need to be defined. */
+template<typename TBufferTypes>
+class TNetworkSimDriverInterfaceBase
+{
+public:
+	virtual FString GetDebugName() const = 0; // Used for debugging. Recommended to emit the simulation name and the actor name/role.
+	virtual const UObject* GetVLogOwner() const = 0; // Owning object for Visual Logs
+
+	virtual void InitSyncState(typename TBufferTypes::TSyncState& OutSyncState) const = 0;	// Called to create initial value of the sync state.
+	virtual void ProduceInput(const FNetworkSimTime SimTime, typename TBufferTypes::TInputCmd&) = 0; // Called when the sim is ready to process new local input
+	virtual void FinalizeFrame(const typename TBufferTypes::TSyncState& SyncState) = 0; // Called from the Network Sim at the end of the sim frame when there is new sync data.
 };

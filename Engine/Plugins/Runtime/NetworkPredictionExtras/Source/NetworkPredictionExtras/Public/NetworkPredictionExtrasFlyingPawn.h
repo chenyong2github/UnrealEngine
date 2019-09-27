@@ -45,7 +45,7 @@ class NETWORKPREDICTIONEXTRAS_API ANetworkPredictionExtrasFlyingPawn : public AP
 
 private:
 
-	void ProduceInput(const float TimeSeconds, FlyingMovement::FInputCmd& Cmd);
+	void ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd);
 
 	FVector CachedMoveInput;
 	FVector2D CachedLookInput;
