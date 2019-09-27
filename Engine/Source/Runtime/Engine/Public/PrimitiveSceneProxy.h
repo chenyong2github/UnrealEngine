@@ -311,6 +311,13 @@ public:
 	virtual void CreateRenderThreadResources() {}
 
 	/**
+	 *	Called when the rendering thread removes the proxy from the scene.
+	 *	This function allows for removing renderer-side resources.
+	 *	Called in the rendering thread.
+	 */
+	virtual void DestroyRenderThreadResources() {}
+
+	/**
 	 * Called by the rendering thread to notify the proxy when a light is no longer
 	 * associated with the proxy, so that it can clean up any cached resources.
 	 * @param Light - The light to be removed.
