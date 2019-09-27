@@ -370,7 +370,7 @@ FTimespan FGameplayMediaEncoder::GetMediaTimestamp() const
 	return FTimespan::FromSeconds(FPlatformTime::Seconds()) - StartTime;
 }
 
-void FGameplayMediaEncoder::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock)
+void FGameplayMediaEncoder::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double /*AudioClock*/)
 {
 	CSV_SCOPED_TIMING_STAT(GameplayMediaEncoder, OnNewSubmixBuffer);
 	if (SampleRate != HardcodedAudioSamplerate)
