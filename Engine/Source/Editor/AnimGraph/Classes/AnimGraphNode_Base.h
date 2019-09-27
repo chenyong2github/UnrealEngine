@@ -288,6 +288,11 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	 */
 	bool IsPinExposedAndLinked(const FString& InPinName, const EEdGraphPinDirection Direction = EGPD_MAX) const;
 
+	// Event that is broadcast to inform observers that the node title has changed
+	// The default SAnimationGraphNode uses this to invalidate cached node title text
+	DECLARE_EVENT(UAnimGraphNode_Base, FOnNodeTitleChangedEvent);
+	FOnNodeTitleChangedEvent& OnNodeTitleChangedEvent() { return NodeTitleChangedEvent; }
+
 protected:
 	friend FAnimBlueprintCompilerContext;
 	friend FAnimGraphNodeDetails;
@@ -313,6 +318,8 @@ protected:
 	void InternalPinCreation(TArray<UEdGraphPin*>* OldPins);
 
 	FOnNodePropertyChangedEvent PropertyChangeEvent;
+
+	FOnNodeTitleChangedEvent NodeTitleChangedEvent;
 
 private:
 	TArray<FName> OldShownPins;
