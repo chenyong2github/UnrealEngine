@@ -29,6 +29,12 @@ static FAutoConsoleVariableRef CVarMetalTessellationForcePartitionMode(
 	GMetalTessellationForcePartitionMode,
 	TEXT("The partition mode (+1) to force Metal to use for debugging or off (0). (Default: 0)"));
 
+static int32 GMetalCacheMinSize = 32;
+static FAutoConsoleVariableRef CVarMetalCacheMinSize(
+	TEXT("r.ShaderPipelineCache.MetalCacheMinSizeInMB"),
+	GMetalCacheMinSize,
+	TEXT("Sets the minimum size that we expect the metal OS cache to be (in MB). This is used to determine if we need to cache PSOs again (Default: 32).\n"), ECVF_ReadOnly);
+
 static uint32 BlendBitOffsets[] = { Offset_BlendState0, Offset_BlendState1, Offset_BlendState2, Offset_BlendState3, Offset_BlendState4, Offset_BlendState5, Offset_BlendState6, Offset_BlendState7 };
 static uint32 RTBitOffsets[] = { Offset_RenderTargetFormat0, Offset_RenderTargetFormat1, Offset_RenderTargetFormat2, Offset_RenderTargetFormat3, Offset_RenderTargetFormat4, Offset_RenderTargetFormat5, Offset_RenderTargetFormat6, Offset_RenderTargetFormat7 };
 static_assert(Offset_RasterEnd < 64 && Offset_End < 128, "Offset_RasterEnd must be < 64 && Offset_End < 128");
@@ -1843,6 +1849,7 @@ TRefCountPtr<FRHIComputePipelineState> FMetalDynamicRHI::RHICreateComputePipelin
 FMetalPipelineStateCacheManager::FMetalPipelineStateCacheManager()
 {
 #if PLATFORM_IOS
+	OnShaderPipelineCachePreOpenDelegate = FShaderPipelineCache::GetCachePreOpenDelegate().AddRaw(this, &FMetalPipelineStateCacheManager::OnShaderPipelineCachePreOpen);
 	OnShaderPipelineCacheOpenedDelegate = FShaderPipelineCache::GetCacheOpenedDelegate().AddRaw(this, &FMetalPipelineStateCacheManager::OnShaderPipelineCacheOpened);
 	OnShaderPipelineCachePrecompilationCompleteDelegate = FShaderPipelineCache::GetPrecompilationCompleteDelegate().AddRaw(this, &FMetalPipelineStateCacheManager::OnShaderPipelineCachePrecompilationComplete);
 #endif
@@ -1861,6 +1868,23 @@ FMetalPipelineStateCacheManager::~FMetalPipelineStateCacheManager()
 	}
 }
 
+void FMetalPipelineStateCacheManager::OnShaderPipelineCachePreOpen(FString const& Name, EShaderPlatform Platform, bool& bReady)
+{
+	// only do this when haven't gotten a full pso cache already
+	struct stat FileInfo;
+	static FString PrivateWritePathBase = FString([NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0]) + TEXT("/");
+	FString Result = PrivateWritePathBase + FString([NSString stringWithFormat:@"/Caches/%@/com.apple.metal/functions.data", [NSBundle mainBundle].bundleIdentifier]);
+	FString Result2 = PrivateWritePathBase + FString([NSString stringWithFormat:@"/Caches/%@/com.apple.metal/usecache.txt", [NSBundle mainBundle].bundleIdentifier]);
+	if (stat(TCHAR_TO_UTF8(*Result), &FileInfo) != -1 && ((FileInfo.st_size / 1024 / 1024) > GMetalCacheMinSize) && stat(TCHAR_TO_UTF8(*Result2), &FileInfo) != -1)
+	{
+		bReady = false;
+	}
+	else
+	{
+		bReady = true;
+	}
+}
+
 void FMetalPipelineStateCacheManager::OnShaderPipelineCacheOpened(FString const& Name, EShaderPlatform Platform, uint32 Count, const FGuid& VersionGuid, FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext)
 {
 	ShaderCachePrecompileContext.SetPrecompilationIsSlowTask();
@@ -1869,8 +1893,10 @@ void FMetalPipelineStateCacheManager::OnShaderPipelineCacheOpened(FString const&
 void FMetalPipelineStateCacheManager::OnShaderPipelineCachePrecompilationComplete(uint32 Count, double Seconds, const FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext)
 {
 	// Want to ignore any subsequent Shader Pipeline Cache opening/closing, eg when loading modules
+	FShaderPipelineCache::GetCachePreOpenDelegate().Remove(OnShaderPipelineCachePreOpenDelegate);
 	FShaderPipelineCache::GetCacheOpenedDelegate().Remove(OnShaderPipelineCacheOpenedDelegate);
 	FShaderPipelineCache::GetPrecompilationCompleteDelegate().Remove(OnShaderPipelineCachePrecompilationCompleteDelegate);
+	OnShaderPipelineCachePreOpenDelegate.Reset();
 	OnShaderPipelineCacheOpenedDelegate.Reset();
 	OnShaderPipelineCachePrecompilationCompleteDelegate.Reset();
 }

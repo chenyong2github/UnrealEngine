@@ -157,6 +157,16 @@ public:
 		bool IsPrecompilationSlowTask() const { return bSlowPrecompileTask; }
 	};
 
+	/**
+	 * Delegate signature for being notified when we are about to open the pipeline cache
+	 */
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FShaderCachePreOpenDelegate, FString const& /* Name */, EShaderPlatform /* Platform*/, bool& /* Ready */);
+	
+	/**
+	 * Gets the event delegate to register to to be notified when we are about to open the pipeline cache.
+	 */
+	static FShaderCachePreOpenDelegate& GetCachePreOpenDelegate() { return OnCachePreOpen; }
+	
     /**
      * Delegate signature for being notified when a pipeline cache is opened
      */
@@ -244,7 +254,8 @@ private:
 
 	TArray<CompileJob> ShutdownReadCompileTasks;
 	TDoubleLinkedList<FPipelineCacheFileFormatPSORead*> ShutdownFetchTasks;
-    
+	
+	static FShaderCachePreOpenDelegate OnCachePreOpen;
     static FShaderCacheOpenedDelegate OnCachedOpened;
     static FShaderCacheClosedDelegate OnCachedClosed;
 	static FShaderPrecompilationBeginDelegate OnPrecompilationBegin;
