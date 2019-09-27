@@ -1719,7 +1719,11 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 
 			for (FNiagaraVariable ExistingVar : ExistingVars)
 			{
-				if (!SourceVars.Contains(ExistingVar))
+				if (SourceVars.Contains(ExistingVar))
+				{
+					Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
+				}
+				else
 				{
 					OverrideParameters.RemoveParameter(ExistingVar);
 				}
