@@ -209,8 +209,8 @@ static volatile sig_atomic_t handling_fatal_signal = 0;
 static void spin_wait_for_max_seconds_then_exit(float seconds_to_wait)
 {
     float current = 0.0f;
-    while (handling_fatal_signal) {
-        /* We maxed out waiting, exit */
+    /* We are never coming out of this loop, wait until max time then exit */
+    while (1) {
         if (current > seconds_to_wait) {
             exit(0);
         }
@@ -227,38 +227,28 @@ static void spin_wait_for_max_seconds_then_exit(float seconds_to_wait)
  */
 /* EG BEGIN */
 static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t *uap, void *context, PLCrashSignalHandlerCallback *next) {
-    /* Need to set this as soon as possible in case another signal is raised on another thread */
-    handling_fatal_signal += 1;
 
-    /* If we are already handling a fatal signal, spin and wait for it to re-raise itself
-    * after setting the signal handlers back to default which will terminate the process
-    * If what is handling the crash happens to also crash, we will set a max spin to
-    * in which we will default all the signals and exit to avoid hanging for ever
-    */
-    if (handling_fatal_signal > 1) {
-        spin_wait_for_max_seconds_then_exit(60);
+    bool fatal_signal = true;
+
+    for (int i = 0; i < non_fatal_monitored_signals_count; i++) {
+        if (info->si_signo == non_fatal_monitored_signals[i]) {
+            fatal_signal = false;
+            break;
+        }
+    }
+
+    /* If we are a fatal signal, we *can* only handle one at a time. So avoid allow multiple fatal signals going through */
+    if (fatal_signal) {
+        /* Returns true if set to 1, otherwise we failed to meaning more then one thread has been past here already */
+        if (!__sync_val_compare_and_swap(&handling_fatal_signal, 0, 1)) {
+            spin_wait_for_max_seconds_then_exit(60);
+        }
     }
 
     plcrashreporter_handler_ctx_t *sigctx = context;
     plcrash_async_thread_state_t thread_state;
     plcrash_log_signal_info_t signal_info;
     plcrash_log_bsd_signal_info_t bsd_signal_info;
-    bool fatal_signal = true;
-
-    for (int i = 0; i < non_fatal_monitored_signals_count; i++) {
-
-        if (info->si_signo == non_fatal_monitored_signals[i]) {
-            fatal_signal = false;
-            break;
-        }
-
-        // For non_fatal signals we assume it may be called again and need to handle that vs using SIG_DFL
-    }
-
-    /* We happen to not be a fatal signal, and may have a fatal signal waiting in the top spin, let it through! */
-    if (!fatal_signal) {
-        handling_fatal_signal -= 1;
-    }
 
     /* Extract the thread state */
     // XXX_ARM64 rdar://14970271 -- In the Xcode 5 GM SDK, _STRUCT_MCONTEXT is not correctly
