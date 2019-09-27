@@ -15,6 +15,13 @@
 struct FComponentTransformPersistentData;
 class UMovieScene3DTransformSection;
 
+struct MOVIESCENETRACKS_API FGlobalTransformPersistentData : IPersistentEvaluationData
+{
+	static FSharedPersistentDataKey GetDataKey();
+
+	FTransform Origin;
+};
+
 USTRUCT()
 struct FMovieScene3DTransformTemplateData
 {
@@ -64,11 +71,9 @@ struct FMovieSceneComponentTransformSectionTemplate : public FMovieSceneEvalTemp
 protected:
 
 	virtual UScriptStruct& GetScriptStructImpl() const override { return *StaticStruct(); }
-	virtual void SetupOverrides() override { EnableOverrides(RequiresInitializeFlag); }
-	virtual void Initialize(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const override;
 	virtual void Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const override;
 	virtual void Interrogate(const FMovieSceneContext& Context, FMovieSceneInterrogationData& Container, UObject* BindingOverride) const override;
 
 private:
-	MovieScene::TMultiChannelValue<float, 9> EvaluateTransform(FFrameTime Time, const FComponentTransformPersistentData* SectionData) const;
+	MovieScene::TMultiChannelValue<float, 9> EvaluateTransform(FFrameTime Time, const FGlobalTransformPersistentData* GlobalTransformData) const;
 };
