@@ -762,42 +762,48 @@ bool UEdGraphSchema_K2::CanFunctionBeUsedInGraph(const UClass* InClass, const UF
 			return false;
 		}
 
-		const bool bIsProtected = InFunction->GetBoolMetaData(FBlueprintMetadata::MD_Protected);
-		const bool bFuncBelongsToSubClass = InClass->IsChildOf(InFunction->GetOuterUClass());
-		if (bIsProtected)
+		const bool bIsNotNative = !FBlueprintEditorUtils::IsNativeSignature(InFunction);
+		if(!bIsNotNative)
 		{
-			const bool bAllowProtectedFuncs = (InAllowedFunctionTypes & FT_Protected) != 0;
-			if (!bAllowProtectedFuncs)
+			// Blueprint functions visibility flags can be enforced in blueprints - native functions
+			// are often using these flags to only hide functionality from other native functions:
+			const bool bIsProtected = (InFunction->FunctionFlags & FUNC_Protected) != 0;
+			const bool bFuncBelongsToSubClass = InClass->IsChildOf(InFunction->GetOuterUClass()->GetSuperStruct());
+			if (bIsProtected)
+			{
+				const bool bAllowProtectedFuncs = (InAllowedFunctionTypes & FT_Protected) != 0;
+				if (!bAllowProtectedFuncs)
+				{
+					if(OutReason != nullptr)
+					{
+						*OutReason = LOCTEXT("ProtectedFunctionsNotAllowed", "Protected functions are not allowed.");
+					}
+
+					return false;
+				}
+
+				if (!bFuncBelongsToSubClass)
+				{
+					if(OutReason != nullptr)
+					{
+						*OutReason = LOCTEXT("ProtectedFunctionInaccessible", "Function is protected and inaccessible.");
+					}
+
+					return false;
+				}
+			}
+
+			const bool bIsPrivate = (InFunction->FunctionFlags & FUNC_Private) != 0;
+			const bool bFuncBelongsToClass = bFuncBelongsToSubClass && (InClass->GetSuperStruct() == InFunction->GetOuterUClass()->GetSuperStruct());
+			if ( bIsPrivate && !bFuncBelongsToClass)
 			{
 				if(OutReason != nullptr)
 				{
-					*OutReason = LOCTEXT("ProtectedFunctionsNotAllowed", "Protected functions are not allowed.");
+					*OutReason = LOCTEXT("PrivateFunctionInaccessible", "Function is private and inaccessible.");
 				}
 
 				return false;
 			}
-
-			if (!bFuncBelongsToSubClass)
-			{
-				if(OutReason != nullptr)
-				{
-					*OutReason = LOCTEXT("ProtectedFunctionInaccessible", "Function is protected and inaccessible.");
-				}
-
-				return false;
-			}
-		}
-
-		const bool bIsPrivate = InFunction->GetBoolMetaData(FBlueprintMetadata::MD_Private);
-		const bool bFuncBelongsToClass = bFuncBelongsToSubClass && (InFunction->GetOuterUClass() == InClass);
-		if (bIsPrivate && !bFuncBelongsToClass)
-		{
-			if(OutReason != nullptr)
-			{
-				*OutReason = LOCTEXT("PrivateFunctionInaccessible", "Function is private and inaccessible.");
-			}
-
-			return false;
 		}
 
 		const bool bIsUnsafeForConstruction = InFunction->GetBoolMetaData(FBlueprintMetadata::MD_UnsafeForConstructionScripts);	
@@ -913,8 +919,18 @@ bool UEdGraphSchema_K2::CanUserKismetCallFunction(const UFunction* Function)
 
 bool UEdGraphSchema_K2::CanKismetOverrideFunction(const UFunction* Function)
 {
-	return  Function && 
-		(Function->HasAllFunctionFlags(FUNC_BlueprintEvent) && !Function->HasAllFunctionFlags(FUNC_Delegate) && !Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && (!Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction) || GetDefault<UBlueprintEditorSettings>()->bExposeDeprecatedFunctions));
+	return  
+		Function && 
+		(
+			Function->HasAllFunctionFlags(FUNC_BlueprintEvent)
+			&& !Function->HasAllFunctionFlags(FUNC_Delegate) && 
+			!Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && 
+			(!Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction) || GetDefault<UBlueprintEditorSettings>()->bExposeDeprecatedFunctions)
+		) &&
+		(
+			FBlueprintEditorUtils::IsNativeSignature(Function) ||
+			(Function->FunctionFlags & FUNC_Private) == 0
+		);
 }
 
 bool UEdGraphSchema_K2::HasFunctionAnyOutputParameter(const UFunction* InFunction)

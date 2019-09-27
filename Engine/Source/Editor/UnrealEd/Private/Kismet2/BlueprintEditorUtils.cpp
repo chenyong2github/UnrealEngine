@@ -767,6 +767,21 @@ UClass* FBlueprintEditorUtils::FindFirstNativeClass(UClass* Class)
 	return Class;
 }
 
+bool FBlueprintEditorUtils::IsNativeSignature(const UFunction* Fn)
+{
+	if(UClass* OwningClass = Fn->GetOwnerClass())
+	{
+		if(UClass* PotentialNativeOwner = FindFirstNativeClass(OwningClass))
+		{
+			return PotentialNativeOwner->FindFunctionByName(Fn->GetFName()) != nullptr;
+		}
+	}
+
+	// All UFunctions are owned by UClasses, but if we encounter one that
+	// is not lets just fall back to the flag:
+	return Fn->HasAnyFunctionFlags(FUNC_Native);
+}
+
 void FBlueprintEditorUtils::GetAllGraphNames(const UBlueprint* Blueprint, TSet<FName>& GraphNames)
 {
 	TArray< UEdGraph* > GraphList;
@@ -1763,10 +1778,7 @@ void FBlueprintEditorUtils::PostDuplicateBlueprint(UBlueprint* Blueprint, bool b
 			Blueprint->SkeletonGeneratedClass = nullptr;
 
 			// Make sure the new blueprint has a shiny new class
-			IKismetCompilerInterface& Compiler = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>(KISMET_COMPILER_MODULENAME);
 			FCompilerResultsLog Results;
-			FKismetCompilerOptions CompileOptions;
-			CompileOptions.bIsDuplicationInstigated = true;
 
 			FName NewSkelClassName, NewGenClassName;
 			Blueprint->GetBlueprintClassNames(NewGenClassName, NewSkelClassName);
@@ -1778,9 +1790,6 @@ void FBlueprintEditorUtils::PostDuplicateBlueprint(UBlueprint* Blueprint, bool b
 			NewClass->ClassGeneratedBy = Blueprint;
 			NewClass->SetSuperStruct(Blueprint->ParentClass);
 			Blueprint->bHasBeenRegenerated = true;		// Set to true, similar to CreateBlueprint, since we've regerated the class by duplicating it
-
-			// Since we just duplicated the generated class above, we don't need to do a full compile below
-			CompileOptions.CompileType = EKismetCompileType::SkeletonOnly;
 
 			TMap<UObject*, UObject*> OldToNewMap;
 

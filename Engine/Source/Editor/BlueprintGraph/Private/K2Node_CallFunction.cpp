@@ -1321,6 +1321,41 @@ bool UK2Node_CallFunction::IsActionFilteredOut(FBlueprintActionFilter const& Fil
 		bIsFilteredOut |= !CanPasteHere(TargetGraph);
 	}
 
+	if(const UFunction* TargetFunction = GetTargetFunction())
+	{
+		const bool bIsProtected = (TargetFunction->FunctionFlags & FUNC_Protected) != 0;
+		const bool bIsPrivate = (TargetFunction->FunctionFlags & FUNC_Private) != 0;
+		const UClass* OwningClass = TargetFunction->GetOwnerClass();
+		if( (bIsProtected || bIsPrivate) && !FBlueprintEditorUtils::IsNativeSignature(TargetFunction) && OwningClass)
+		{
+			OwningClass = OwningClass->GetAuthoritativeClass();
+			// we can filter private and protected blueprints that are unrelated:
+			bool bAccessibleInAll = true;
+			for (const UBlueprint* Blueprint : Filter.Context.Blueprints)
+			{
+				UClass* AuthoritativeClass = Blueprint->GeneratedClass;
+				if(!AuthoritativeClass)
+				{
+					continue;
+				}
+
+				if(bIsPrivate)
+				{
+					bAccessibleInAll = bAccessibleInAll && AuthoritativeClass == OwningClass;
+				}
+				else if(bIsProtected)
+				{
+					bAccessibleInAll = bAccessibleInAll && AuthoritativeClass->IsChildOf(OwningClass);
+				}
+			}
+
+			if(!bAccessibleInAll)
+			{
+				bIsFilteredOut = true;
+			}
+		}
+	}
+
 	return bIsFilteredOut;
 }
 
@@ -2007,6 +2042,25 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 			if (ParentClass && !FBlueprintEditorUtils::ImplementsGetWorld(Blueprint) && !ParentClass->HasMetaDataHierarchical(FBlueprintMetadata::MD_ShowWorldContextPin))
 			{
 				MessageLog.Warning(*LOCTEXT("FunctionUnsafeInContext", "Function '@@' is unsafe to call from blueprints of class '@@'.").ToString(), this, ParentClass);
+			}
+		}
+
+		if(!FBlueprintEditorUtils::IsNativeSignature(Function))
+		{
+			// enforce protected function restriction
+			const bool bIsProtected = (Function->FunctionFlags & FUNC_Protected) != 0;
+			const bool bFuncBelongsToSubClass = Blueprint->SkeletonGeneratedClass->IsChildOf(Function->GetOuterUClass());
+			if (bIsProtected && !bFuncBelongsToSubClass)
+			{
+				MessageLog.Error(*LOCTEXT("FunctionPrivateAccessed", "Function '@@' is protected and can't be accessed outside of its hierarchy.").ToString(), this);
+			}
+
+			// enforce private function restriction
+			const bool bIsPrivate = (Function->FunctionFlags & FUNC_Private) != 0;
+			const bool bFuncBelongsToClass = bFuncBelongsToSubClass && (Blueprint->SkeletonGeneratedClass == Function->GetOuterUClass());
+			if (bIsPrivate && !bFuncBelongsToClass)
+			{
+				MessageLog.Error(*LOCTEXT("FunctionPrivateAccessed", "Function '@@' is private and can't be accessed outside of its defined class '@@'.").ToString(), this, Function->GetOuterUClass());
 			}
 		}
 	}
