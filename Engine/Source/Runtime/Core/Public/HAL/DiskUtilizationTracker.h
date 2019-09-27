@@ -6,6 +6,8 @@
 #define TRACK_DISK_UTILIZATION 0
 #endif
 
+#include "HAL/Platform.h"
+
 #if TRACK_DISK_UTILIZATION
 #include "HAL/PlatformMisc.h"
 #include "HAL/ThreadSafeBool.h"
