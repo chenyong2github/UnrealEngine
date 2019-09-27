@@ -8,6 +8,8 @@
 
 #include "DynamicMeshEditor.h"
 
+#include "Misc/ScopeLock.h"
+
 // TODO:
 //  - (in merge coincident) don't merge tris with same/opposite normals (option)
 //  - after orienting components, try to find adjacent open components and
