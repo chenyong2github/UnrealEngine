@@ -171,7 +171,14 @@ struct FNiagaraTranslatorOutput
 
 };
 
+struct FCompiledPin
+{
+	int32 CompilationIndex;
+	UEdGraphPin* Pin;
 
+	FCompiledPin(int32 CompilationIndex, UEdGraphPin* Pin) : CompilationIndex(CompilationIndex), Pin(Pin)
+	{}
+};
 
 enum class ENiagaraCodeChunkMode : uint8
 {
@@ -443,7 +450,7 @@ public:
 	
 	virtual void ReadDataSet(const FNiagaraDataSetID DataSet, const TArray<FNiagaraVariable>& Variable, ENiagaraDataSetAccessMode AccessMode, int32 InputChunk, TArray<int32>& Outputs);
 	virtual void WriteDataSet(const FNiagaraDataSetID DataSet, const TArray<FNiagaraVariable>& Variable, ENiagaraDataSetAccessMode AccessMode, const TArray<int32>& Inputs, TArray<int32>& Outputs);
-	virtual void ParameterMapSet(class UNiagaraNodeParameterMapSet* SetNode, TArray<int32>& Inputs, TArray<int32>& Outputs);
+	virtual void ParameterMapSet(class UNiagaraNodeParameterMapSet* SetNode, TArray<FCompiledPin>& Inputs, TArray<int32>& Outputs);
 	virtual void ParameterMapGet(class UNiagaraNodeParameterMapGet* GetNode, TArray<int32>& Inputs, TArray<int32>& Outputs);
 	virtual void Emitter(class UNiagaraNodeEmitter* GetNode, TArray<int32>& Inputs, TArray<int32>& Outputs);
 
