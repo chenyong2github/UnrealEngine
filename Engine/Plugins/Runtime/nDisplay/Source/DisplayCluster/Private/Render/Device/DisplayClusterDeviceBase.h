@@ -156,8 +156,12 @@ protected:
 	uint32 ViewsAmountPerViewport = 0;
 	// UE4 main viewport
 	FViewport* MainViewport = nullptr;
-	// custom post processing settings
-	TMap<int, FPostProcessSettings> ViewportStartPostProcessingSettings;	 
+
+	// Per-eye regions
+	FIntRect EyeRegions[2];
+
+	// Custom post processing settings
+	TMap<int, FPostProcessSettings> ViewportStartPostProcessingSettings;
 	TMap<int, FOverridePostProcessingSettings> ViewportOverridePostProcessingSettings;
 	TMap<int, FPostProcessSettings> ViewportFinalPostProcessingSettings;
 

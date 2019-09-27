@@ -24,8 +24,15 @@ void FDisplayClusterDeviceQuadBufferStereoBase::CalculateRenderTargetSize(const 
 	
 	check(IsInGameThread());
 
+	// Call base to calculate single-view RT size
+	FDisplayClusterDeviceBase::CalculateRenderTargetSize(Viewport, InOutSizeX, InOutSizeY);
+	
+	// And make it twice bigger for second eye
 	InOutSizeX = Viewport.GetSizeXY().X * 2;
 	InOutSizeY = Viewport.GetSizeXY().Y;
+
+	// Store right eye region
+	EyeRegions[1] = FIntRect(FIntPoint(InOutSizeX / 2, 0), FIntPoint(InOutSizeX, InOutSizeY));
 
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Render target size: [%d x %d]"), InOutSizeX, InOutSizeY);
 
@@ -71,21 +78,22 @@ void FDisplayClusterDeviceQuadBufferStereoBase::CopyTextureToBackBuffer_RenderTh
 	check(IsInRenderingThread());
 
 	const FIntPoint SrcSize = SrcTexture->GetSizeXY();
-
+	const FIntPoint BBSize  = BackBuffer->GetSizeXY();
+	
 	// Calculate sub regions to copy
-	const int halfSizeX = SrcSize.X / 2;
+	const int HalfSrcSizeX = SrcSize.X / 2;
 
 	FResolveParams copyParamsLeft;
 	copyParamsLeft.DestArrayIndex = 0;
 	copyParamsLeft.SourceArrayIndex = 0;
 	copyParamsLeft.Rect.X1 = 0;
 	copyParamsLeft.Rect.Y1 = 0;
-	copyParamsLeft.Rect.X2 = halfSizeX;
-	copyParamsLeft.Rect.Y2 = SrcSize.Y;
+	copyParamsLeft.Rect.X2 = HalfSrcSizeX;
+	copyParamsLeft.Rect.Y2 = BBSize.Y;
 	copyParamsLeft.DestRect.X1 = 0;
 	copyParamsLeft.DestRect.Y1 = 0;
-	copyParamsLeft.DestRect.X2 = halfSizeX;
-	copyParamsLeft.DestRect.Y2 = SrcSize.Y;
+	copyParamsLeft.DestRect.X2 = HalfSrcSizeX;
+	copyParamsLeft.DestRect.Y2 = BBSize.Y;
 
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("CopyToResolveTarget [L]: [%d,%d - %d,%d] -> [%d,%d - %d,%d]"),
 		copyParamsLeft.Rect.X1, copyParamsLeft.Rect.Y1, copyParamsLeft.Rect.X2, copyParamsLeft.Rect.Y2,
@@ -98,7 +106,7 @@ void FDisplayClusterDeviceQuadBufferStereoBase::CopyTextureToBackBuffer_RenderTh
 	copyParamsRight.SourceArrayIndex = 0;
 
 	copyParamsRight.Rect = copyParamsLeft.Rect;
-	copyParamsRight.Rect.X1 = halfSizeX;
+	copyParamsRight.Rect.X1 = HalfSrcSizeX;
 	copyParamsRight.Rect.X2 = SrcSize.X;
 
 	copyParamsRight.DestRect = copyParamsLeft.DestRect;
