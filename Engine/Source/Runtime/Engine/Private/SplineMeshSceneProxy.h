@@ -85,27 +85,7 @@ class FSplineMeshVertexFactoryShaderParameters : public FVertexFactoryShaderPara
 
 	void Serialize(FArchive& Ar) override
 	{
-		Ar << SplineStartPosParam;
-		Ar << SplineStartTangentParam;
-		Ar << SplineStartRollParam;
-		Ar << SplineStartScaleParam;
-		Ar << SplineStartOffsetParam;
-
-		Ar << SplineEndPosParam;
-		Ar << SplineEndTangentParam;
-		Ar << SplineEndRollParam;
-		Ar << SplineEndScaleParam;
-		Ar << SplineEndOffsetParam;
-
-		Ar << SplineUpDirParam;
-		Ar << SmoothInterpRollScaleParam;
-
-		Ar << SplineMeshMinZParam;
-		Ar << SplineMeshScaleZParam;
-
-		Ar << SplineMeshDirParam;
-		Ar << SplineMeshXParam;
-		Ar << SplineMeshYParam;
+		Ar << SplineMeshParams;
 	}
 
 	virtual uint32 GetSize() const override
@@ -114,27 +94,7 @@ class FSplineMeshVertexFactoryShaderParameters : public FVertexFactoryShaderPara
 	}
 
 private:
-	FShaderParameter SplineStartPosParam;
-	FShaderParameter SplineStartTangentParam;
-	FShaderParameter SplineStartRollParam;
-	FShaderParameter SplineStartScaleParam;
-	FShaderParameter SplineStartOffsetParam;
-
-	FShaderParameter SplineEndPosParam;
-	FShaderParameter SplineEndTangentParam;
-	FShaderParameter SplineEndRollParam;
-	FShaderParameter SplineEndScaleParam;
-	FShaderParameter SplineEndOffsetParam;
-
-	FShaderParameter SplineUpDirParam;
-	FShaderParameter SmoothInterpRollScaleParam;
-
-	FShaderParameter SplineMeshMinZParam;
-	FShaderParameter SplineMeshScaleZParam;
-
-	FShaderParameter SplineMeshDirParam;
-	FShaderParameter SplineMeshXParam;
-	FShaderParameter SplineMeshYParam;
+	FShaderParameter SplineMeshParams;
 };
 
 //////////////////////////////////////////////////////////////////////////
