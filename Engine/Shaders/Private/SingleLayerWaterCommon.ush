@@ -47,7 +47,6 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 #else
 	Texture2D SceneColorWithoutSingleLayerWaterTexture, SamplerState SceneColorWithoutSingleLayerWaterSampler,
 	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
-	Texture2D SceneCustomDepthTexture, SamplerState SceneCustomDepthSampler,
 	float4 SceneWithoutSingleLayerWaterValidUVRect,
 #endif // SIMPLE_SINGLE_LAYER_WATER
 	float Specular, const float4 DistortionParams,
@@ -61,14 +60,6 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 	float2 WaterNDC = MaterialParameters.ScreenPosition.xy / MaterialParameters.ScreenPosition.w;
 	float2 ViewportUV = WaterNDC * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz;
-
-#if SIMPLE_SINGLE_LAYER_WATER==0
-	float SceneCustomDepth = SceneCustomDepthTexture.SampleLevel(SceneCustomDepthSampler, ViewportUV, 0).r;
-	if (SceneCustomDepth > MaterialParameters.SvPosition.z)
-	{
-		clip(-1); // Custom depth Z is used to clip, this in order to avoid water being visible inside boats for instance.
-	}
-#endif // !SIMPLE_SINGLE_LAYER_WATER
 
 	float WaterDepth = ConvertFromDeviceZ(MaterialParameters.SvPosition.z);
 	if (WaterVisibility > 0.0f)
