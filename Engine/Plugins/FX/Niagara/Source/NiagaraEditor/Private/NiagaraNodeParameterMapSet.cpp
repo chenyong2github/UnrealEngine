@@ -158,7 +158,7 @@ void UNiagaraNodeParameterMapSet::Compile(class FHlslNiagaraTranslator* Translat
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 
 	// First compile fully down the hierarchy for our predecessors..
-	TArray<int32> CompileInputs;
+	TArray<FCompiledPin> CompileInputs;
 	for (UEdGraphPin* InputPin : InputPins)
 	{
 		if (IsAddPin(InputPin))
@@ -168,7 +168,6 @@ void UNiagaraNodeParameterMapSet::Compile(class FHlslNiagaraTranslator* Translat
 
 		if (Translator->IsFunctionVariableCulledFromCompilation(InputPin->PinName))
 		{
-			CompileInputs.Add(INDEX_NONE);
 			continue;
 		}
 
@@ -182,7 +181,7 @@ void UNiagaraNodeParameterMapSet::Compile(class FHlslNiagaraTranslator* Translat
 		{
 			Translator->Error(LOCTEXT("InputError", "Error compiling input for set node."), this, InputPin);
 		}
-		CompileInputs.Add(CompiledInput);
+		CompileInputs.Add(FCompiledPin(CompiledInput, InputPin));
 	}
 
 	if (GetInputPin(0) != nullptr && GetInputPin(0)->LinkedTo.Num() > 0)

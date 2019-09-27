@@ -3299,7 +3299,7 @@ void FHlslNiagaraTranslator::ParameterMapForEnd(UNiagaraNodeParameterMapFor* For
 	AddBodyChunk(TEXT(""), TEXT("}"), FNiagaraTypeDefinition::GetIntDef(), false, false);
 }
 
-void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNode, TArray<int32>& Inputs, TArray<int32>& Outputs)
+void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNode, TArray<FCompiledPin>& Inputs, TArray<int32>& Outputs)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_MapSet);
 
@@ -3307,17 +3307,13 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 
 	FString ParameterMapInstanceName = TEXT("Context.Map");
 
-
-	TArray<UEdGraphPin*> InputPins;
-	SetNode->GetInputPins(InputPins);
-
 	// There is only one output pin for a set node, the parameter map must 
 	// continue to route through it.
 	if (!SetNode->IsNodeEnabled())
 	{
-		if (InputPins.Num() >= 1)
+		if (Inputs.Num() >= 1)
 		{
-			Outputs[0] = Inputs[0];
+			Outputs[0] = Inputs[0].CompilationIndex;
 		}
 		return;
 	}
@@ -3325,32 +3321,24 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 	int32 ParamMapHistoryIdx = INDEX_NONE;
 	for (int32 i = 0; i < Inputs.Num(); i++)
 	{
-		int32 Input = Inputs[i];
+		int32 Input = Inputs[i].CompilationIndex;
 		if (i == 0) // This is the parameter map
 		{
-			Outputs[0] = Inputs[0];
-			ParamMapHistoryIdx = Inputs[0];
+			Outputs[0] = Inputs[0].CompilationIndex;
+			ParamMapHistoryIdx = Inputs[0].CompilationIndex;
 			ParameterMapInstanceName = GetParameterMapInstanceName(ParamMapHistoryIdx);
 
 			if (ParamMapHistoryIdx == -1)
 			{
 				Error(LOCTEXT("NoParamMapIdxForInput", "Cannot find parameter map for input!"), SetNode, nullptr);
-				for (int32 j = 0; j < Outputs.Num(); j++)
-				{
-					Outputs[j] = INDEX_NONE;
-					return;
-				}
+				Outputs[0] = INDEX_NONE;
+				return;
 			}
-			continue;
-		}
-		else if (SetNode->IsAddPin(InputPins[i]))
-		{
-			// Not a real pin..
 			continue;
 		}
 		else // These are the pins that we are setting on the parameter map.
 		{
-			FNiagaraVariable Var = Schema->PinToNiagaraVariable(InputPins[i], false);
+			FNiagaraVariable Var = Schema->PinToNiagaraVariable(Inputs[i].Pin, false);
 
 			if (!AddStructToDefinitionSet(Var.GetType()))
 			{
@@ -3383,7 +3371,7 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 				int32 VarIdx = ParamMapHistories[ParamMapHistoryIdx].FindVariableByName(Var.GetName());
 				if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
 				{
-					ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx] = Inputs[i];
+					ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx] = Inputs[i].CompilationIndex;
 					ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
 				}
 			}
@@ -3403,7 +3391,7 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 				{
 					if (Input < 0 || Input >= CompilationOutput.ScriptData.DataInterfaceInfo.Num())
 					{
-						Error(FText::Format(LOCTEXT("ParameterMapDataInterfaceNotFoundErrorFormat", "Data interface could not be found for parameter map set.  Paramter: {0}"), FText::FromName(Var.GetName())), SetNode, InputPins[i]);
+						Error(FText::Format(LOCTEXT("ParameterMapDataInterfaceNotFoundErrorFormat", "Data interface could not be found for parameter map set.  Paramter: {0}"), FText::FromName(Var.GetName())), SetNode, Inputs[i].Pin);
 						continue;
 					}
 
@@ -3426,7 +3414,7 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 					else
 					{
 						Error(FText::Format(LOCTEXT("ExternalDataInterfaceAssignedToMultipleParameters", "The data interface named {0} was added to a parameter map multiple times which isn't supported.  First usage: {1} Invalid usage:{2}"),
-							FText::FromName(Info.Name), FText::FromName(Info.RegisteredParameterMapWrite), FText::FromName(UsageName)), SetNode, InputPins[i]);
+							FText::FromName(Info.Name), FText::FromName(Info.RegisteredParameterMapWrite), FText::FromName(UsageName)), SetNode, Inputs[i].Pin);
 						continue;
 					}
 				}
