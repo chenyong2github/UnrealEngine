@@ -164,7 +164,7 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 		}
 	}
 
-#if !FORWARD_SIMPLE_SINGLE_LAYER_WATER
+#if !(MATERIAL_SHADINGMODEL_SINGLELAYERWATER && FORWARD_SIMPLE_SINGLE_LAYER_WATER)
 
 	const FCulledLightsGridData CulledLightsGrid = GetCulledLightsGrid(GridIndex, EyeIndex);
 
