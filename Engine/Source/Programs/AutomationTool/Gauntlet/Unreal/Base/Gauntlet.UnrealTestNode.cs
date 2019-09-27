@@ -123,6 +123,9 @@ namespace Gauntlet
 
 		protected int TimeToWaitForProcesses { get; set; }
 
+		protected DateTime LastHeartbeatTime = DateTime.MinValue;
+		protected DateTime LastActiveHeartbeatTime = DateTime.MinValue;
+
 		// End  UnrealTestNode properties and members 
 
 		// artifact paths that have been used in this run
@@ -575,7 +578,7 @@ namespace Gauntlet
 			if (App != null)
 			{
 				UnrealLogParser Parser = new UnrealLogParser(App.StdOut);
-
+				
 				// TODO - hardcoded for Orion
 				List<string> TestLines = Parser.GetLogChannel("Gauntlet").ToList();
 
@@ -584,12 +587,25 @@ namespace Gauntlet
 				for (int i = LastLogCount; i < TestLines.Count; i++)
 				{
 					Log.Info(TestLines[i]);
+
+					if (Regex.IsMatch(TestLines[i], @".*GauntletHeartbeat\: Active.*"))
+					{
+						LastHeartbeatTime = DateTime.Now;
+						LastActiveHeartbeatTime = DateTime.Now;
+					}
+					else if (Regex.IsMatch(TestLines[i], @".*GauntletHeartbeat\: Idle.*"))
+					{
+						LastHeartbeatTime = DateTime.Now;
+					}
 				}
 
 				LastLogCount = TestLines.Count;
+
+				// Detect missed heartbeats and fail the test
+				CheckHeartbeat();
 			}
 
-			
+
 			// Check status and health after updating logs
 			if (GetTestStatus() == TestStatus.InProgress && IsTestRunning() == false)
 			{
@@ -829,6 +845,52 @@ namespace Gauntlet
 			}
 
 			return ExitCode;
+		}
+
+		private void CheckHeartbeat()
+		{
+			if (CachedConfig == null || CachedConfig.HeartbeatOptions.bExpectHeartbeats == false)
+			{
+				return;
+			}
+
+			UnrealHeartbeatOptions HeartbeatOptions = CachedConfig.HeartbeatOptions;
+
+			// First active heartbeat has not happened yet and timeout before first active heartbeat is enabled
+			if (LastActiveHeartbeatTime == DateTime.MinValue && HeartbeatOptions.TimeoutBeforeFirstActiveHeartbeat > 0)
+			{
+				double SecondsSinceSessionStart = DateTime.Now.Subtract(SessionStartTime).TotalSeconds;
+				if (SecondsSinceSessionStart > HeartbeatOptions.TimeoutBeforeFirstActiveHeartbeat)
+				{
+					Log.Error("{0} seconds have passed without detecting the first active Gauntlet heartbeat.", HeartbeatOptions.TimeoutBeforeFirstActiveHeartbeat);
+					MarkTestComplete();
+					SetUnrealTestResult(TestResult.TimedOut);
+				}
+			}
+
+			// First active heartbeat has happened and timeout between active heartbeats is enabled
+			if (LastActiveHeartbeatTime != DateTime.MinValue && HeartbeatOptions.TimeoutBetweenActiveHeartbeats > 0)
+			{
+				double SecondsSinceLastActiveHeartbeat = DateTime.Now.Subtract(LastActiveHeartbeatTime).TotalSeconds;
+				if (SecondsSinceLastActiveHeartbeat > HeartbeatOptions.TimeoutBetweenActiveHeartbeats)
+				{
+					Log.Error("{0} seconds have passed without detecting any active Gauntlet heartbeats.", HeartbeatOptions.TimeoutBetweenActiveHeartbeats);
+					MarkTestComplete();
+					SetUnrealTestResult(TestResult.TimedOut);
+				}
+			}
+
+			// First heartbeat has happened and timeout between heartbeats is enabled
+			if (LastHeartbeatTime != DateTime.MinValue && HeartbeatOptions.TimeoutBetweenAnyHeartbeats > 0)
+			{
+				double SecondsSinceLastHeartbeat = DateTime.Now.Subtract(LastHeartbeatTime).TotalSeconds;
+				if (SecondsSinceLastHeartbeat > HeartbeatOptions.TimeoutBetweenAnyHeartbeats)
+				{
+					Log.Error("{0} seconds have passed without detecting any Gauntlet heartbeats.", HeartbeatOptions.TimeoutBetweenAnyHeartbeats);
+					MarkTestComplete();
+					SetUnrealTestResult(TestResult.TimedOut);
+				}
+			}
 		}
 
 		/// <summary>
