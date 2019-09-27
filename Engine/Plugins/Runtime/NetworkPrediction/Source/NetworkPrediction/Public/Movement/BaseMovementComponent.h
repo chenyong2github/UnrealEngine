@@ -27,8 +27,8 @@ public:
 	virtual bool MoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* OutHit, ETeleportType Teleport) const = 0;
 	virtual FTransform GetUpdateComponentTransform() const = 0;
 
-	virtual UWorld* GetDriverWorld() const = 0;
-	virtual UObject* GetVLogOwner() const = 0;
+	virtual UWorld* GetBaseMovementDriverWorld() const = 0;
+	virtual UObject* GetBaseMovementVLogOwner() const = 0;
 
 	struct FDrawDebugParams
 	{
@@ -69,8 +69,8 @@ public:
 	bool MoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* OutHit, ETeleportType Teleport) const override final;
 	FTransform GetUpdateComponentTransform() const override final;
 	
-	UWorld* GetDriverWorld() const override final { return GetWorld(); }
-	UObject* GetVLogOwner() const override final;	
+	UWorld* GetBaseMovementDriverWorld() const override final { return GetWorld(); }
+	UObject* GetBaseMovementVLogOwner() const override final;	
 
 	virtual void DrawDebug(const IBaseMovementDriver::FDrawDebugParams& Params) const override;
 
