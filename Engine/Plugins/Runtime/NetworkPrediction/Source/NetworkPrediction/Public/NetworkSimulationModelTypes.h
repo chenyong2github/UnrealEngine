@@ -164,8 +164,21 @@ struct TNetworkSimBufferContainer
 	}
 };
 
+/** Interface base for the simulation driver. This is what is used by the Network Sim Model internally. Basically, the non simulation specific functions that need to be defined. */
+template<typename TBufferTypes>
+class TNetworkSimDriverInterfaceBase
+{
+public:
+	virtual FString GetDebugName() const = 0; // Used for debugging. Recommended to emit the simulation name and the actor name/role.
+	virtual const UObject* GetVLogOwner() const = 0; // Owning object for Visual Logs
+
+	virtual void InitSyncState(typename TBufferTypes::TSyncState& OutSyncState) const = 0;	// Called to create initial value of the sync state.
+	virtual void ProduceInput(const float DeltaTimeSeconds, typename TBufferTypes::TInputCmd&) = 0; // Called when the sim is ready to process new local input
+	virtual void FinalizeFrame(const typename TBufferTypes::TSyncState& SyncState) = 0; // Called from the Network Sim at the end of the sim frame when there is new sync data.
+};
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-//
+//		Tick and time keeping related structures
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 // Holds all settings for a network sim related to ticking
@@ -317,8 +330,8 @@ struct TSimulationTickState
 {
 	using TSettings = TickSettings;
 
-	int32 LastProcessedInputKeyframe;	// The last input keyframe that we processed
-	int32 MaxAllowedInputKeyframe;		// The max input keyframe that we are allowed to process (e.g, don't process input past this keyframe yet)
+	int32 LastProcessedInputKeyframe = 0;	// The last input keyframe that we processed
+	int32 MaxAllowedInputKeyframe = 0;		// The max input keyframe that we are allowed to process (e.g, don't process input past this keyframe yet)
 
 	void SetTotalAllowedSimulationTime(const TNetworkSimTime<TSettings>& SimTime)
 	{

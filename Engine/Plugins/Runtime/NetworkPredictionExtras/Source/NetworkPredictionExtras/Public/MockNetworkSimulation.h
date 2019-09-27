@@ -20,6 +20,7 @@
 #include "MockNetworkSimulation.generated.h"
 
 class IMockNetworkSimulationDriver;
+class IMockDriver;
 
 // -------------------------------------------------------------------------------------------------------------------------------
 //	Mock Network Simulation
@@ -29,7 +30,7 @@ class IMockNetworkSimulationDriver;
 //	in this example. This is just meant to show the bare minimum hook ups into the system to make it easier to understand.
 //
 //	Highlights:
-//		FMockNetworkSimulation::Update			The "core update" function of the simulation.
+//		FMockNetworkModel::Update			The "core update" function of the simulation.
 //		UMockNetworkSimulationComponent			The UE4 Actor Component that anchors the system to an actor.
 //
 //	Usage:
@@ -98,7 +99,12 @@ struct FMockSyncState
 		}
 	}
 
-	void VisualLog(const FVisualLoggingParameters& Parameters, IMockNetworkSimulationDriver* Driver, IMockNetworkSimulationDriver* LogDriver);
+	void VisualLog(const FVisualLoggingParameters& Parameters, IMockDriver* Driver, IMockDriver* LogDriver) const;
+
+	static void Interpolate(const FMockSyncState& From, const FMockSyncState& To, const float PCT, FMockSyncState& OutDest)
+	{
+		OutDest.Total = From.Total + ((To.Total - From.Total) * PCT);
+	}
 };
 
 // Auxiliary state that is input into the simulation. Doesn't change during the simulation tick.
@@ -115,27 +121,34 @@ struct FMockAuxState
 
 using TMockNetworkSimulationBufferTypes = TNetworkSimBufferTypes<FMockInputCmd, FMockSyncState, FMockAuxState>;
 
-// Actual definition of our network simulation.
-class FMockNetworkSimulation : public TNetworkedSimulationModel<FMockNetworkSimulation, TMockNetworkSimulationBufferTypes>
+static FName MockSimulationGroupName("Mock");
+
+// Interface between the simulation and owning component driving it. Functions added here are available in ::Update and must be implemented by UMockNetworkSimulationComponent.
+class IMockDriver : public TNetworkSimDriverInterfaceBase<TMockNetworkSimulationBufferTypes>
 {
 public:
 
-	// Interface between the simulation and owning component driving it. Functions added here are available in ::Update and must be implemented by UMockNetworkSimulationComponent.
-	class IMockDriver : public IDriver
-	{
-	public:
-		virtual UWorld* GetDriverWorld() const = 0;
-		virtual UObject* GetVLogOwner() const = 0;
-		virtual FTransform GetDebugWorldTransform() const = 0;
-	};
+	virtual UWorld* GetDriverWorld() const = 0;
+	virtual FTransform GetDebugWorldTransform() const = 0;
+};
+
+class FMockNetworkSimulation
+{
+public:
 
 	/** Main update function */
-	static void Update(IMockNetworkSimulationDriver* Driver, const TSimTime& DeltaTimeMS, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState);
+	static void Update(IMockDriver* Driver, const float DeltaTimeSeconds, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState);
+
+	/** Tick group the simulation maps to */
+	static const FName GroupName;
 };
+
+// Actual definition of our network simulation.
+using FMockNetworkModel = TNetworkedSimulationModel<FMockNetworkSimulation, IMockDriver, TMockNetworkSimulationBufferTypes>;
 
 // Needed to trick UHT into letting UMockNetworkSimulationComponent implement. UHT cannot parse the ::
 // Also needed for forward declaring. Can't just be a typedef/using =
-class IMockNetworkSimulationDriver : public FMockNetworkSimulation::IMockDriver { };
+class IMockNetworkSimulationDriver : public IMockDriver { };
 
 // -------------------------------------------------------------------------------------------------------------------------------
 // ActorComponent for running a MockNetworkSimulation
@@ -152,23 +165,17 @@ public:
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	
-	virtual IReplicationProxy* InstantiateNetworkSimulation() override;
-	virtual void InitializeForNetworkRole(ENetRole Role) override;
-
-private:
-
-	// The Network sim that this component is managing. This is what is doing all the work.
-	TUniquePtr<FMockNetworkSimulation> NetworkSim;
+	virtual INetworkSimulationModel* InstantiateNetworkSimulation() override;
 	
 public:
 
 	FString GetDebugName() const override;
+	virtual UObject* GetVLogOwner() const override final;
+
 	void InitSyncState(FMockSyncState& OutSyncState) const override;
 	void FinalizeFrame(const FMockSyncState& SyncState) override;
-	void ProduceInput(const FMockNetworkSimulation::TSimTime& SimFrameTime, FMockInputCmd& Cmd);
-
+	void ProduceInput(const float DeltaTimeSeconds, FMockInputCmd& Cmd);
 	virtual UWorld* GetDriverWorld() const override final { return GetWorld(); }
-	virtual UObject* GetVLogOwner() const override final;
 	virtual FTransform GetDebugWorldTransform() const override final;
 
 	// Mock representation of "syncing' to the sync state in the network sim.

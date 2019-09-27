@@ -6,12 +6,6 @@
 
 #include "NetworkPredictionComponent.generated.h"
 
-class INetworkSimulationOwner
-{
-	virtual void Reconcile() = 0;
-	virtual void TickSimulation(float DeltaTimeSeconds) = 0;
-};
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //	UNetworkPredictionComponent
 //	This is the base component for running a TNetworkedSimulationModel through an actor component. This contains the boiler plate hooks into getting the system
@@ -33,22 +27,20 @@ public:
 	UNetworkPredictionComponent();
 
 	virtual void InitializeComponent() override;
+	virtual void UninitializeComponent() override;
 	virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker) override;
 	virtual void PreNetReceive() override;
 	
 	virtual void Reconcile() { }
 	virtual void TickSimulation(float DeltaTimeSeconds) { }
 
-	void PreTickSimulation(float DeltaTime);
-
 protected:
+	
+	// Classes must instantiate their own NetworkSim here. The UNetworkPredictionComponent will manage its lifetime
+	virtual INetworkSimulationModel* InstantiateNetworkSimulation() { check(false); return nullptr; }
 
-	// Child classes must allocate and manage lifetime of their own NetworkSim (E.g, TNetworkedSimulationModel). Recommend to just store in a TUniquePtr.
-	// Child classes must also register with Network Sim debugger here (FNetworkSimulationModelDebuggerManager RegisterNetworkSimulationModel)
-	virtual IReplicationProxy* InstantiateNetworkSimulation() { check(false); return nullptr; }
-
-	// Child must override this an initialize their NetworkSim here (call 
-	virtual void InitializeForNetworkRole(ENetRole Role) { check(false); }
+	// Finalizes initialization when NetworkRole changes. Does not need to be overridden.
+	virtual void InitializeForNetworkRole(ENetRole Role);
 
 	// Doesn't need to be overridden. Expected to be used in ::InitializeForNetworkRole implementation
 	virtual FNetworkSimulationModelInitParameters GetSimulationInitParameters(ENetRole Role);
@@ -58,7 +50,7 @@ protected:
 
 	// Helper: Checks if the owner's role has changed and calls InitializeForNetworkRole if necessary.
 	// NOTE: You may need to call this in your TickComponent function
-	void CheckOwnerRoleChange();
+	bool CheckOwnerRoleChange();
 	ENetRole OwnerCachedNetRole = ROLE_None;
 
 	UFUNCTION(Server, unreliable, WithValidation)
@@ -84,6 +76,15 @@ private:
 
 protected:
 
+	void TickServerRPC(float DeltaSeconds);
+
+	void RegisterServerRPCDelegate();
+	void UnregisterServerRPCDelegate();
+	FDelegateHandle ServerRPCHandle;
+
 	UFUNCTION()
 	virtual void OnRep_SimulatedProxy() { }
+
+	// The Network sim that this component is managing. This is what is doing all the work.
+	TUniquePtr<INetworkSimulationModel> NetworkSim;
 };
