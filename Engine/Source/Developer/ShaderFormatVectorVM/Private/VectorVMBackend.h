@@ -71,6 +71,7 @@ enum class ECallScalarizeMode : uint8
 ECallScalarizeMode get_scalarize_mode(ir_function_signature* in_sig);
 EVectorVMOp get_special_vm_opcode(ir_function_signature* signature);
 
+void vm_remove_self_ref_assignments(exec_list* instructions, _mesa_glsl_parse_state *state);
 void vm_matrices_to_vectors(exec_list* instructions, _mesa_glsl_parse_state *state);
 bool do_vec_op_to_scalar(exec_list *instructions, _mesa_glsl_parse_state* parse_state);
 bool vm_flatten_branches_to_selects(exec_list *instructions, _mesa_glsl_parse_state *state);
