@@ -70,8 +70,8 @@ struct NETWORKPREDICTION_API FNetworkSimulationModelDebuggerManager: public FTic
 	//	Outside API (registration, console commands, draw services, etc)
 	// ---------------------------------------------------------------------------------------------------------------------------------------
 
-	template <typename T, typename TDriver>
-	void RegisterNetworkSimulationModel(T* NetworkSim, TDriver* Driver, AActor* OwningActor, FString DebugName);
+	template <typename T>
+	void RegisterNetworkSimulationModel(T* NetworkSim, AActor* OwningActor);
 
 	void SetDebuggerActive(AActor* OwningActor, bool InActive)
 	{
@@ -333,18 +333,16 @@ private:
 	TWeakObjectPtr<UCanvas> LastCanvas;
 };
 
-template <typename TNetSimModel, typename TDriver>
+template <typename TNetSimModel>
 struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 {
 	using TSimTime = typename TNetSimModel::TSimTime;
 	using TDebugState = typename TNetSimModel::TDebugState;
 
-	TNetworkSimulationModelDebugger(TNetSimModel* InNetSim, TDriver* InDriver, AActor* OwningActor, FString InDebugName)
+	TNetworkSimulationModelDebugger(TNetSimModel* InNetSim, AActor* OwningActor)
 	{
 		NetworkSim = InNetSim;
-		Driver = InDriver;
 		WeakOwningActor = OwningActor;
-		DebugName = InDebugName;
 	}
 
 	~TNetworkSimulationModelDebugger()
@@ -662,15 +660,15 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 
 		if (auto* LatestSync = NetworkSim->Buffers.Sync.GetElementFromHead(0))
 		{
-			LatestSync->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::LastPredicted, NetworkSim->Buffers.Sync.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), Driver, Driver);
+			LatestSync->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::LastPredicted, NetworkSim->Buffers.Sync.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), NetworkSim->Driver, NetworkSim->Driver);
 		}
 
 		FStuff ServerPIEStuff = GetServerPIEStuff();
-		if (ServerPIEStuff.Driver && ServerPIEStuff.NetworkSim)
+		if (ServerPIEStuff.NetworkSim)
 		{
 			if (auto* ServerLatestSync = ServerPIEStuff.NetworkSim->Buffers.Sync.GetElementFromHead(0))
 			{
-				ServerLatestSync->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::CurrentServerPIE, ServerPIEStuff.NetworkSim->Buffers.Sync.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), ServerPIEStuff.Driver, Driver);
+				ServerLatestSync->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::CurrentServerPIE, ServerPIEStuff.NetworkSim->Buffers.Sync.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), ServerPIEStuff.NetworkSim->Driver, NetworkSim->Driver);
 			}
 		}
 
@@ -679,7 +677,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 			if (auto* SyncState = NetworkSim->Buffers.Sync.FindElementByKeyframe(Keyframe))
 			{
 				const EVisualLoggingContext Context = (Keyframe == NetworkSim->RepProxy_Autonomous.GetLastSerializedKeyframe()) ? EVisualLoggingContext::LastConfirmed : EVisualLoggingContext::OtherPredicted;
-				SyncState->VisualLog( FVisualLoggingParameters(Context, NetworkSim->Buffers.Sync.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), Driver, Driver);
+				SyncState->VisualLog( FVisualLoggingParameters(Context, NetworkSim->Buffers.Sync.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), NetworkSim->Driver, NetworkSim->Driver);
 			}
 		}
 	}
@@ -688,30 +686,25 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 	struct FStuff
 	{
 		TNetSimModel* NetworkSim = nullptr;
-		TDriver* Driver = nullptr;
 	};
 
 	FStuff GetStuff()
 	{
-		return {NetworkSim, Driver};
+		return {NetworkSim};
 	}
 
 	TFunction< FStuff() > GetServerPIEStuff;
 
 private:
-
 	
 	TWeakObjectPtr<AActor>	WeakOwningActor;
-	FString DebugName;
-
 	TNetSimModel* NetworkSim = nullptr;
-	TDriver* Driver = nullptr;
 };
 
-template <typename T, typename TDriver>
-void FNetworkSimulationModelDebuggerManager::RegisterNetworkSimulationModel(T* NetworkSim, TDriver* Driver, AActor* OwningActor, FString DebugName)
+template <typename T>
+void FNetworkSimulationModelDebuggerManager::RegisterNetworkSimulationModel(T* NetworkSim, AActor* OwningActor)
 {
-	TNetworkSimulationModelDebugger<T, TDriver>* Debugger = new TNetworkSimulationModelDebugger<T, TDriver>(NetworkSim, Driver, OwningActor, DebugName);
+	TNetworkSimulationModelDebugger<T>* Debugger = new TNetworkSimulationModelDebugger<T>(NetworkSim, OwningActor);
 	DebuggerMap.Add( TWeakObjectPtr<AActor>(OwningActor), Debugger );
 
 	// Gross stuff so that the debugger can find the ServerPIE equiv
@@ -720,8 +713,8 @@ void FNetworkSimulationModelDebuggerManager::RegisterNetworkSimulationModel(T* N
 	{
 		if (AActor* ServerOwner = Cast<AActor>(FindReplicatedObjectOnPIEServer(WeakOwner.Get())))
 		{
-			return ((TNetworkSimulationModelDebugger<T, TDriver>*)DebuggerMap.FindRef(TWeakObjectPtr<AActor>(ServerOwner)))->GetStuff();
+			return ((TNetworkSimulationModelDebugger<T>*)DebuggerMap.FindRef(TWeakObjectPtr<AActor>(ServerOwner)))->GetStuff();
 		}
-		return typename TNetworkSimulationModelDebugger<T, TDriver>::FStuff();
+		return typename TNetworkSimulationModelDebugger<T>::FStuff();
 	};
 }

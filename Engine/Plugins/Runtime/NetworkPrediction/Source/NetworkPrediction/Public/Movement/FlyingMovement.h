@@ -27,6 +27,8 @@ class USceneComponent;
 
 namespace FlyingMovement
 {
+	class IMovementDriver;
+
 	// State the client generates
 	struct FInputCmd
 	{
@@ -90,7 +92,13 @@ namespace FlyingMovement
 			}
 		}
 
-		void VisualLog(const FVisualLoggingParameters& Parameters, IFlyingMovementDriver* Driver, IFlyingMovementDriver* LogDriver);
+		void VisualLog(const FVisualLoggingParameters& Parameters, IMovementDriver* Driver, IMovementDriver* LogDriver) const;
+
+		static void Interpolate(const FMoveState& From, const FMoveState& To, const float PCT, FMoveState& OutDest)
+		{
+			OutDest.Location = From.Location + ((To.Location - From.Location) * PCT);
+			OutDest.Rotation = From.Rotation + ((To.Rotation - From.Rotation) * PCT);
+		}
 	};
 
 	// Auxiliary state that is input into the simulation. Doesn't change during the simulation tick.
@@ -106,33 +114,41 @@ namespace FlyingMovement
 
 	using TMovementBufferTypes = TNetworkSimBufferTypes<FInputCmd, FMoveState, FAuxState>;
 
-	// Actual definition of our network simulation.
-	class FMovementSystem : public TNetworkedSimulationModel<FMovementSystem, TMovementBufferTypes, TNetworkSimTickSettings<0>>
+	static FName SimulationGroupName("FlyingMovement");
+
+	// Interface between the simulation and owning component driving it. Functions added here are available in ::Update and must be implemented by UMockNetworkSimulationComponent.
+	class IMovementDriver : public TNetworkSimDriverInterfaceBase<TMovementBufferTypes>
 	{
 	public:
 
-		// Interface between the simulation and owning component driving it. Functions added here are available in ::Update and must be implemented by UMockNetworkSimulationComponent.
-		class IMovementDriver : public IDriver
-		{
-		public:
-			// Interface for moving the collision component around
-			virtual IBaseMovementDriver& GetBaseMovementDriver() = 0;
+		// Interface for moving the collision component around
+		virtual IBaseMovementDriver& GetBaseMovementDriver() = 0;
 
-			// Called prior to running the sim to make sure to make sure the collision component is in the right place. 
-			// This is unfortunate and not good, but is needed to ensure our collision and world position have not been moved out from under us.
-			// Refactoring primitive component movement to allow the sim to do all collision queries outside of the component code would be ideal.
-			virtual void PreSimSync(const FMoveState& SyncState) = 0;
-		};
+		// Called prior to running the sim to make sure to make sure the collision component is in the right place. 
+		// This is unfortunate and not good, but is needed to ensure our collision and world position have not been moved out from under us.
+		// Refactoring primitive component movement to allow the sim to do all collision queries outside of the component code would be ideal.
+		virtual void PreSimSync(const FMoveState& SyncState) = 0;
+	};
 
+	class FMovementSimulation
+	{
+	public:
 		/** Main update function */
-		static void Update(IMovementDriver* Driver, const TSimTime& DeltaTimeMS, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState);
+		static void Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState);
+
+		/** Tick group the simulation maps to */
+		static const FName GroupName;
 
 		/** Dev tool to force simple mispredict */
 		static bool ForceMispredict;
 	};
 
+	// Actual definition of our network simulation.
+	template<int32 InFixedStepMS=0>
+	using FMovementSystem = TNetworkedSimulationModel<FMovementSimulation, IMovementDriver, TMovementBufferTypes, TNetworkSimTickSettings<InFixedStepMS> >;
+
 	// Simulation time used by the movement system
-	using TSimTime = FMovementSystem::TSimTime;
+	//using TSimTime = FMovementSystem::TSimTime;
 
 	// general tolerance value for rotation checks
 	static const float ROTATOR_TOLERANCE = (1e-3);
@@ -141,7 +157,7 @@ namespace FlyingMovement
 
 // Needed to trick UHT into letting UMockNetworkSimulationComponent implement. UHT cannot parse the ::
 // Also needed for forward declaring. Can't just be a typedef/using =
-class IFlyingMovementDriver : virtual public FlyingMovement::FMovementSystem::IMovementDriver { };
+class IFlyingMovementDriver : public FlyingMovement::IMovementDriver { };
 
 // -------------------------------------------------------------------------------------------------------------------------------
 // ActorComponent for running FlyingMovement 
@@ -161,20 +177,17 @@ public:
 	IBaseMovementDriver& GetBaseMovementDriver() override final { return *static_cast<IBaseMovementDriver*>(this); }
 
 	FString GetDebugName() const override;
+	const UObject* GetVLogOwner() const override;
 	void InitSyncState(FlyingMovement::FMoveState& OutSyncState) const override;
 	void PreSimSync(const FlyingMovement::FMoveState& SyncState) override;
-	void ProduceInput(const FlyingMovement::TSimTime& SimFrameTime, FlyingMovement::FInputCmd& Cmd) override;
+	void ProduceInput(const float DeltaTimeSeconds, FlyingMovement::FInputCmd& Cmd) override;
 	void FinalizeFrame(const FlyingMovement::FMoveState& SyncState) override;
 
-	DECLARE_DELEGATE_TwoParams(FProduceFlyingInput, const FlyingMovement::TSimTime& /*SimFrameTime*/, FlyingMovement::FInputCmd& /*Cmd*/)
+	DECLARE_DELEGATE_TwoParams(FProduceFlyingInput, const float /*DeltaTimeSeconds*/, FlyingMovement::FInputCmd& /*Cmd*/)
 	FProduceFlyingInput ProduceInputDelegate;
 
 protected:
 
 	// Network Prediction
-	virtual IReplicationProxy* InstantiateNetworkSimulation() override;
-	virtual void InitializeForNetworkRole(ENetRole Role) override;
-
-	TUniquePtr<FlyingMovement::FMovementSystem> NetworkSim; // The Network sim that this component is managing. This is what is doing all the work.
-	
+	virtual INetworkSimulationModel* InstantiateNetworkSimulation() override;
 };
