@@ -283,6 +283,22 @@ public:
 		return bEvaluateInPostroll;
 	}
 
+	/**
+	 * Tell this track to prioritize its tear down over other tracks, regardless of evaluation priority
+	 */
+	void PrioritizeTearDown()
+	{
+		bTearDownPriority = true;
+	}
+
+	/**
+	 * Check whether this track has tear down priority or not
+	 */
+	bool HasTearDownPriority() const
+	{
+		return bTearDownPriority;
+	}
+
 public:
 
 	/**
@@ -577,6 +593,10 @@ private:
 	/** Whether this track is evaluated in postroll */
 	UPROPERTY()
 	uint32 bEvaluateInPostroll : 1;
+
+	/** Whether track should be given priority when being torn down */
+	UPROPERTY()
+	uint32 bTearDownPriority : 1;
 };
 
 template<> struct TStructOpsTypeTraits<FMovieSceneEvaluationTrack> : public TStructOpsTypeTraitsBase2<FMovieSceneEvaluationTrack> { enum { WithPostSerialize = true, WithCopy = false }; };

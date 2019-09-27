@@ -311,8 +311,7 @@ void FMovieSceneEvaluationMetaData::DiffEntities(const FMovieSceneEvaluationMeta
 			++LastFrameKeys;
 		}
 
-		// Expired keys are torn down in reverse
-		Algo::SortBy(*ExpiredKeys, [](const FMovieSceneOrderedEvaluationKey& In){ return uint32(-1) - In.EvaluationIndex; });
+		Algo::SortBy(*ExpiredKeys, &FMovieSceneOrderedEvaluationKey::TearDownIndex);
 	}
 
 	// Add any remaining new entities
@@ -324,7 +323,7 @@ void FMovieSceneEvaluationMetaData::DiffEntities(const FMovieSceneEvaluationMeta
 			++ThisFrameKeys;
 		}
 
-		Algo::SortBy(*NewKeys, &FMovieSceneOrderedEvaluationKey::EvaluationIndex);
+		Algo::SortBy(*NewKeys, &FMovieSceneOrderedEvaluationKey::SetupIndex);
 	}
 }
 
