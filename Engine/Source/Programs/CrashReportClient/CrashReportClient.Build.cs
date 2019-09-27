@@ -34,12 +34,7 @@ public class CrashReportClient : ModuleRules
 				"LauncherPlatform",
 				"Concert",
 				"InputCore",
-			}
-		);
-
-		PrivateDependencyModuleNames.AddRange(
-			new string[] 
-			{
+				"EditorAnalyticsSession",
 				"Slate",
 				"SlateCore",
 				"StandaloneRenderer",

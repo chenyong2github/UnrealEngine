@@ -15,7 +15,10 @@
 #include "EngineSessionManager.h"
 #include "Misc/EngineVersion.h"
 #include "RHI.h"
-#include "Analytics/EditorSessionSummary.h"
+#include "EditorAnalyticsSession.h"
+#include "EditorSessionSummarySender.h"
+#include "Analytics/EditorSessionSummaryWriter.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 bool FEngineAnalytics::bIsInitialized;
 TSharedPtr<IAnalyticsProviderET> FEngineAnalytics::Analytics;
@@ -163,7 +166,11 @@ void FEngineAnalytics::Initialize()
 
 		if (!SessionSummarySender.IsValid())
 		{
-			SessionSummarySender = MakeShareable(new FEditorSessionSummarySender());
+			// if we're using out-of-process crash reporting, then we don't need to create a sender in this process.
+			if (!FGenericCrashContext::IsOutOfProcessCrashReporter())
+			{
+				SessionSummarySender = MakeShareable(new FEditorSessionSummarySender(FEngineAnalytics::GetProvider(), TEXT("Editor")));
+			}
 		}
 	}
 }
@@ -187,7 +194,11 @@ void FEngineAnalytics::Shutdown(bool bIsEngineShutdown)
 		SessionSummaryWriter.Reset();
 	}
 
-	SessionSummarySender.Reset();
+	if (SessionSummarySender.IsValid())
+	{
+		SessionSummarySender->Shutdown();
+		SessionSummarySender.Reset();
+	}
 }
 
 void FEngineAnalytics::Tick(float DeltaTime)

@@ -35,6 +35,7 @@
 #include "PlatformErrorReport.h"
 #include "XmlFile.h"
 #include "RecoveryService.h"
+#include "EditorSessionSummarySender.h"
 
 /** Default main window size */
 const FVector2D InitialWindowDimensions(740, 560);
@@ -73,6 +74,9 @@ static void* MonitorWritePipe = nullptr;
 
 /** True to enable the disaster recovery service. */
 static bool bDisasterRecoveryServiceEnabled = false;
+
+/** Is the out-of-process editor session summary sender enabled? */
+static bool bEditorSessionSummaryEnabled = true;
 
 /** Result of submission of report */
 enum SubmitCrashReportResult {
@@ -612,6 +616,21 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			RecoveryService = MakeUnique<FRecoveryService>(MonitorPid);
 		}
 
+		FCrashReportAnalytics::Initialize();
+
+		TUniquePtr<FEditorSessionSummarySender> EditorSessionSummarySender;
+		if (FCrashReportCoreConfig::Get().GetAllowToBeContacted())
+		{
+			EditorSessionSummarySender = MakeUnique<FEditorSessionSummarySender>(FCrashReportAnalytics::GetProvider(), TEXT("CrashReportClient"));
+
+			FTicker::GetCoreTicker().AddTicker(TEXT("EditorSessionSummarySender"), 0, 
+				[&EditorSessionSummarySender](float DeltaTime)
+				{
+					EditorSessionSummarySender->Tick(DeltaTime);
+					return true;
+				});
+		}
+
 		// This IsApplicationAlive() call is quite expensive, perform it at low frequency.
 		bool bApplicationAlive = FPlatformProcess::IsApplicationAlive(MonitorPid);
 		while (bApplicationAlive && !IsEngineExitRequested())
@@ -625,14 +644,6 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 				FSharedCrashContext CrashContext;
 				if (IsCrashReportAvailable(MonitorPid, CrashContext, MonitorReadPipe))
 				{
-					// When running in monitor mode we cannot setup analytics info on the command line (we start earlier than 
-					// config system), instead the crash context contains what the user has selected.
-					bool bReportCrashAnalyticInfo = CrashContext.bSendUsageData;
-					if (bReportCrashAnalyticInfo)
-					{
-						FCrashReportAnalytics::Initialize();
-					}
-
 					// Build error report in memory.
 					FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryService.Get(), MonitorPid, CrashContext, MonitorWritePipe);
 					const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, CrashContext.bNoDialog && CrashContext.bSendUnattenededBugReports);
@@ -643,6 +654,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
 					FPlatformProcess::WritePipe(MonitorWritePipe, ResponseCode, sizeof(ResponseCode));
 
+					bool bReportCrashAnalyticInfo = CrashContext.bSendUsageData;
 					if (bReportCrashAnalyticInfo)
 					{
 						// If analytics is enabled make sure they are submitted now.
@@ -656,11 +668,6 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					{
 						GIsRequestingExit = false;
 					}*/
-
-					if (bReportCrashAnalyticInfo)
-					{
-						FCrashReportAnalytics::Shutdown();
-					}
 				}
 			}
 
@@ -688,6 +695,13 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 			LastTime = CurrentTime;
 		}
+
+		if (EditorSessionSummarySender.IsValid())
+		{
+			EditorSessionSummarySender->Shutdown();
+		}
+
+		FCrashReportAnalytics::Shutdown();
 	}
 
 	FPrimaryCrashProperties::Shutdown();
