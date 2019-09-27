@@ -1167,11 +1167,6 @@ ResourcesString = TEXT("");
 				}
 			}
 
-			if (IsTranslucentBlendMode(BlendMode) && Material->IsTranslucencyUnderWaterEnabled() && (Material->IsMobileSeparateTranslucencyEnabled() || Material->IsTranslucencyAfterDOFEnabled()))
-			{
-				Errorf(TEXT("A material cannot be sent to a separate translucent pass and under water at the same time."));
-			}
-
 			bool bDBufferAllowed = IsUsingDBuffers(Platform);
 			bool bDBufferBlendMode = IsDBufferDecalBlendMode((EDecalBlendMode)Material->GetDecalBlendMode());
 

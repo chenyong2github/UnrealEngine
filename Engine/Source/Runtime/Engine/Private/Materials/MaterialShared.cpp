@@ -1221,11 +1221,6 @@ bool FMaterialResource::IsTranslucencyAfterDOFEnabled() const
 	return Material->bEnableSeparateTranslucency && !IsUIMaterial() && !IsDeferredDecal();
 }
 
-bool FMaterialResource::IsTranslucencyUnderWaterEnabled() const
-{
-	return Material->bEnableRenderUnderWater && !IsUIMaterial() && !IsDeferredDecal();
-}
-
 bool FMaterialResource::IsMobileSeparateTranslucencyEnabled() const
 {
 	return Material->bEnableMobileSeparateTranslucency && !IsUIMaterial() && !IsDeferredDecal();
