@@ -1661,7 +1661,7 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	UNiagaraSystem* System = GetSystem();
-	FScopeCycleCounter SystemStat(System->GetStatID(true, true));
+	FScopeCycleCounter SystemStat(System->GetStatID(true, false));
 
 	WaitForAsyncTick(true);
 
