@@ -12,6 +12,7 @@
 #include "AudioPluginUtilities.h"
 #include "AudioThread.h"
 #include "Components/AudioComponent.h"
+#include "Components/SynthComponent.h"
 #include "ContentStreaming.h"
 #include "DrawDebugHelpers.h"
 #include "EngineAnalytics.h"
@@ -877,6 +878,15 @@ FArchive& operator<<( FArchive& Ar, FWaveInstance* WaveInstance )
 void FWaveInstance::AddReferencedObjects( FReferenceCollector& Collector )
 {
 	Collector.AddReferencedObject( WaveData );
+
+	if (USynthSound* SynthSound = Cast<USynthSound>(WaveData))
+	{
+		if (USynthComponent* SynthComponent = SynthSound->GetOwningSynthComponent())
+		{
+			Collector.AddReferencedObject(SynthComponent);
+		}
+	}
+
 	Collector.AddReferencedObject( SoundClass );
 	NotifyBufferFinishedHooks.AddReferencedObjects( Collector );
 }
