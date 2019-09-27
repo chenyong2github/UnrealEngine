@@ -146,7 +146,7 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FString& InCommandLine)
 
 bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UTextAssetCommandlet::Main"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UTextAssetCommandlet::Main);
 
 	RepairDamagedFiles();
 

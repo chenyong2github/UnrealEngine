@@ -16,6 +16,7 @@ void FCpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	auto& Builder = Context.InterfaceBuilder;
 
 	Builder.RouteEvent(RouteId_EventSpec, "CpuProfiler", "EventSpec");
+	Builder.RouteEvent(RouteId_EventSpecEx, "CpuProfiler", "EventSpecEx");
 	Builder.RouteEvent(RouteId_EventBatch, "CpuProfiler", "EventBatch");
 	Builder.RouteEvent(RouteId_EndCapture, "CpuProfiler", "EndCapture");
 }
@@ -29,14 +30,22 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	{
 	case RouteId_EventSpec:
 	{
-		uint16 Id = EventData.GetValue<uint16>("Id");
-		if (ScopeIdToEventIdMap.Contains(Id))
+		uint32 Id = EventData.GetValue<uint16>("Id");
+		const TCHAR* ScopeName = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
+		DefineScope(Id, ScopeName);
+		break;
+	}
+	case RouteId_EventSpecEx:
+	{
+		uint32 Id = EventData.GetValue<uint32>("Id");
+		uint8 CharSize = EventData.GetValue<uint8>("CharSize");
+		if (CharSize == 1)
 		{
-			TimingProfilerProvider.SetTimerName(ScopeIdToEventIdMap[Id], reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
+			DefineScope(Id, Session.StoreString(StringCast<TCHAR>(reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment())).Get()));
 		}
-		else
+		else if (CharSize == 2)
 		{
-			ScopeIdToEventIdMap.Add(Id, TimingProfilerProvider.AddCpuTimer(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
+			DefineScope(Id, Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
 		}
 		break;
 	}
@@ -59,7 +68,7 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 			{
 				EventScopeState& ScopeState = ThreadState->ScopeStack.AddDefaulted_GetRef();
 				ScopeState.StartCycle = ActualCycle;
-				uint16 SpecId = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+				uint32 SpecId = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
 				uint32* FindIt = ScopeIdToEventIdMap.Find(SpecId);
 				if (!FindIt)
 				{
@@ -102,6 +111,28 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	}
 
 	return true;
+}
+
+void FCpuProfilerAnalyzer::DefineScope(uint32 Id, const TCHAR* Name)
+{
+	if (ScopeIdToEventIdMap.Contains(Id))
+	{
+		TimingProfilerProvider.SetTimerName(ScopeIdToEventIdMap[Id], Name);
+	}
+	else
+	{
+		uint32* FindEventIdByName = ScopeNameToEventIdMap.Find(Name);
+		if (FindEventIdByName)
+		{
+			ScopeIdToEventIdMap.Add(Id, *FindEventIdByName);
+		}
+		else
+		{
+			uint32 NewTimerId = TimingProfilerProvider.AddCpuTimer(Name);
+			ScopeIdToEventIdMap.Add(Id, NewTimerId);
+			ScopeNameToEventIdMap.Add(Name, NewTimerId);
+		}
+	}
 }
 
 TSharedRef<FCpuProfilerAnalyzer::FThreadState> FCpuProfilerAnalyzer::GetThreadState(uint32 ThreadId)

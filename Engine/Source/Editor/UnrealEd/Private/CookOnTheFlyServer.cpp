@@ -311,7 +311,7 @@ void ClearHierarchyTimers()
 
 #define CREATE_TIMER(name, incrementScope) FScopeTimer ScopeTimer##name(__COUNTER__, #name, incrementScope); 
 
-#define SCOPE_TIMER(name)				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT(#name)); CREATE_TIMER(name, true); ScopeTimer##name.Start();
+#define SCOPE_TIMER(name)				TRACE_CPUPROFILER_EVENT_SCOPE(name); CREATE_TIMER(name, true); ScopeTimer##name.Start();
 
 #else
 #define SCOPE_TIMER(name)
@@ -1464,7 +1464,7 @@ UCookOnTheFlyServer::~UCookOnTheFlyServer()
 // this tick only happens in the editor cook commandlet directly calls tick on the side
 void UCookOnTheFlyServer::Tick(float DeltaTime)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::Tick"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::Tick);
 
 	check(IsCookingInEditor());
 
@@ -4070,7 +4070,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UPackage* Package, uint32 SaveFlags,
 
 void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInitializationFlags InCookFlags, const FString &InOutputDirectoryOverride )
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::Initialize"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::Initialize);
 
 	OutputDirectoryOverride = InOutputDirectoryOverride;
 	CurrentCookMode = DesiredCookMode;
@@ -5064,7 +5064,7 @@ FName UCookOnTheFlyServer::ConvertCookedPathToUncookedPath(
 
 void UCookOnTheFlyServer::GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCookedPath, const FString& SandboxRootDir)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::GetAllCookedFiles"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::GetAllCookedFiles);
 
 	TArray<FString> CookedFiles;
 	{
@@ -5093,7 +5093,7 @@ void UCookOnTheFlyServer::GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCo
 
 void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPlatform*>& Platforms)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::PopulateCookedPackagesFromDisk"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::PopulateCookedPackagesFromDisk);
 
 	// See what files are out of date in the sandbox folder
 	for (int32 Index = 0; Index < Platforms.Num(); Index++)
@@ -5357,7 +5357,7 @@ const FString ExtractPackageNameFromObjectPath( const FString ObjectPath )
 
 void UCookOnTheFlyServer::CleanSandbox(const bool bIterative)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::CleanSandbox"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::CleanSandbox);
 
 	const TArray<ITargetPlatform*>& Platforms = GetCookingTargetPlatforms();
 
@@ -5432,7 +5432,7 @@ void UCookOnTheFlyServer::CleanSandbox(const bool bIterative)
 
 void UCookOnTheFlyServer::GenerateAssetRegistry()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::GenerateAssetRegistry"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::GenerateAssetRegistry);
 
 	// Cache asset registry for later
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -5571,7 +5571,7 @@ void UCookOnTheFlyServer::AddFileToCook( TArray<FName>& InOutFilesToCook, const 
 
 void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const TArray<FString>& CookMaps, const TArray<FString>& InCookDirectories, const TArray<FString> &IniMapSections, ECookByTheBookOptions FilesToCookFlags)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::GenerateAssetRegistry"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::GenerateAssetRegistry);
 
 #if OUTPUT_TIMING
 	SCOPE_TIMER(CollectFilesToCook);

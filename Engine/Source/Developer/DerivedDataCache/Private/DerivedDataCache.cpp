@@ -30,7 +30,7 @@ DEFINE_STAT(STAT_DDC_SyncBuildTime);
 DEFINE_STAT(STAT_DDC_ExistTime);
 
 //#define DDC_SCOPE_CYCLE_COUNTER(x) QUICK_SCOPE_CYCLE_COUNTER(STAT_ ## x)
-#define DDC_SCOPE_CYCLE_COUNTER(x) TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT(#x));
+#define DDC_SCOPE_CYCLE_COUNTER(x) TRACE_CPUPROFILER_EVENT_SCOPE(x);
 
 
 #if ENABLE_COOK_STATS
@@ -158,12 +158,12 @@ class FDerivedDataCache : public FDerivedDataCacheInterface
 		/** Async worker that checks the cache backend and if that fails, calls the deriver to build the data and then puts the results to the cache **/
 		void DoWork()
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("DDC_DoWork"));
+			TRACE_CPUPROFILER_EVENT_SCOPE(DDC_DoWork);
 
 			const int32 NumBeforeDDC = Data.Num();
 			bool bGetResult;
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("DDC_Get"));
+				TRACE_CPUPROFILER_EVENT_SCOPE(DDC_Get);
 
 				INC_DWORD_STAT(STAT_DDC_NumGets);
 				STAT(double ThisTime = 0);
@@ -217,7 +217,7 @@ class FDerivedDataCache : public FDerivedDataCacheInterface
 			else if (DataDeriver)
 			{
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("DDC_Build"));
+					TRACE_CPUPROFILER_EVENT_SCOPE(DDC_Build);
 
 					INC_DWORD_STAT(STAT_DDC_NumBuilds);
 					STAT(double ThisTime = 0);
@@ -234,7 +234,7 @@ class FDerivedDataCache : public FDerivedDataCacheInterface
 				{
 					check(Data.Num());
 
-					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("DDC_Put"));
+					TRACE_CPUPROFILER_EVENT_SCOPE(DDC_Put);
 
 					INC_DWORD_STAT(STAT_DDC_NumPuts);
 					STAT(double ThisTime = 0);

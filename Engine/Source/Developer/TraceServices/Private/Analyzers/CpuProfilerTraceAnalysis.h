@@ -34,11 +34,13 @@ private:
 		double LastCycle = 0.0;
 	};
 
+	void DefineScope(uint32 Id, const TCHAR* ScopeName);
 	TSharedRef<FThreadState> GetThreadState(uint32 ThreadId);
 
 	enum : uint16
 	{
 		RouteId_EventSpec,
+		RouteId_EventSpecEx,
 		RouteId_EventBatch,
 		RouteId_EndCapture,
 	};
@@ -46,7 +48,8 @@ private:
 	Trace::IAnalysisSession& Session;
 	Trace::FTimingProfilerProvider& TimingProfilerProvider;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStatesMap;
-	TMap<uint16, uint32> ScopeIdToEventIdMap;
+	TMap<uint32, uint32> ScopeIdToEventIdMap;
+	TMap<const TCHAR*, uint32> ScopeNameToEventIdMap;
 	uint64 TotalEventSize = 0;
 	uint64 TotalScopeCount = 0;
 	double BytesPerScope = 0.0;

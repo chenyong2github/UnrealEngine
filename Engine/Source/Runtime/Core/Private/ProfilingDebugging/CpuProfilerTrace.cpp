@@ -9,9 +9,10 @@
 
 #if CPUPROFILERTRACE_ENABLED
 
-UE_TRACE_EVENT_BEGIN(CpuProfiler, EventSpec, Always)
-	UE_TRACE_EVENT_FIELD(uint16, Id)
+UE_TRACE_EVENT_BEGIN(CpuProfiler, EventSpecEx, Always)
+	UE_TRACE_EVENT_FIELD(uint32, Id)
 	UE_TRACE_EVENT_FIELD(uint16, Group)
+	UE_TRACE_EVENT_FIELD(uint8, CharSize)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CpuProfiler, EventBatch)
@@ -24,12 +25,36 @@ UE_TRACE_EVENT_END()
 
 struct FCpuProfilerTraceInternal
 {
-public:
 	enum
 	{
 		MaxBufferSize = 255,
-		MaxEncodedEventSize = 12, // 9 + 3
+		MaxEncodedEventSize = 14, // 9 + 5
 		FullBufferThreshold = MaxBufferSize - MaxEncodedEventSize,
+	};
+
+	template<typename CharType>
+	struct FDynamicScopeNameMapKeyFuncs
+	{
+		typedef const CharType* KeyType;
+		typedef const CharType* KeyInitType;
+		typedef const TPairInitializer<const CharType*, uint32>& ElementInitType;
+
+		enum { bAllowDuplicateKeys = false };
+
+		static FORCEINLINE bool Matches(const CharType* A, const CharType* B)
+		{
+			return TCString<CharType>::Stricmp(A, B) == 0;
+		}
+
+		static FORCEINLINE uint32 GetKeyHash(const CharType* Key)
+		{
+			return GetTypeHash(Key);
+		}
+
+		static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
+		{
+			return Element.Key;
+		}
 	};
 
 	struct FThreadBuffer
@@ -38,8 +63,12 @@ public:
 		uint64 LastCycle = 0;
 		uint16 BufferSize = 0;
 		uint8 Buffer[MaxBufferSize];
+		FMemStackBase DynamicScopeNamesMemory;
+		TMap<const ANSICHAR*, uint32, FDefaultSetAllocator, FDynamicScopeNameMapKeyFuncs<ANSICHAR>> DynamicAnsiScopeNamesMap;
+		TMap<const TCHAR*, uint32, FDefaultSetAllocator, FDynamicScopeNameMapKeyFuncs<TCHAR>> DynamicTCharScopeNamesMap;
 	};
 
+	uint32 static GetNextSpecId();
 	FORCENOINLINE static FThreadBuffer* CreateThreadBuffer();
 	FORCENOINLINE static void FlushThreadBuffer(FThreadBuffer* ThreadBuffer);
 	FORCENOINLINE static void EndCapture(FThreadBuffer* ThreadBuffer);
@@ -76,7 +105,7 @@ void FCpuProfilerTraceInternal::EndCapture(FThreadBuffer* InThreadBuffer)
 	InThreadBuffer->BufferSize = 0;
 }
 
-void FCpuProfilerTrace::OutputBeginEvent(uint16 SpecId)
+void FCpuProfilerTrace::OutputBeginEvent(uint32 SpecId)
 {
 	++FCpuProfilerTraceInternal::ThreadDepth;
 	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(CpuProfiler, EventBatch);
@@ -106,6 +135,58 @@ void FCpuProfilerTrace::OutputBeginEvent(uint16 SpecId)
 	FTraceUtils::Encode7bit((CycleDiff << 1) | 1ull, BufferPtr);
 	FTraceUtils::Encode7bit(SpecId, BufferPtr);
 	ThreadBuffer->BufferSize = BufferPtr - ThreadBuffer->Buffer;
+}
+
+void FCpuProfilerTrace::OutputBeginDynamicEvent(const ANSICHAR* Name, ECpuProfilerGroup Group)
+{
+	if (UE_TRACE_EVENT_IS_ENABLED(CpuProfiler, EventBatch))
+	{
+		FCpuProfilerTraceInternal::FThreadBuffer* ThreadBuffer = FCpuProfilerTraceInternal::ThreadBuffer;
+		if (!ThreadBuffer)
+		{
+			ThreadBuffer = FCpuProfilerTraceInternal::CreateThreadBuffer();
+		}
+		uint32& SpecId = ThreadBuffer->DynamicAnsiScopeNamesMap.FindOrAdd(Name);
+		if (SpecId == 0)
+		{
+			int32 NameSize = strlen(Name) + 1;
+			ANSICHAR* NameCopy = reinterpret_cast<ANSICHAR*>(ThreadBuffer->DynamicScopeNamesMemory.Alloc(NameSize, alignof(ANSICHAR)));
+			FMemory::Memmove(NameCopy, Name, NameSize);
+			SpecId = OutputEventType(NameCopy, Group);
+			ThreadBuffer->DynamicAnsiScopeNamesMap.Add(NameCopy, SpecId);
+		}
+		OutputBeginEvent(SpecId);
+	}
+	else
+	{
+		OutputBeginEvent(0);
+	}
+}
+
+void FCpuProfilerTrace::OutputBeginDynamicEvent(const TCHAR* Name, ECpuProfilerGroup Group)
+{
+	if (UE_TRACE_EVENT_IS_ENABLED(CpuProfiler, EventBatch))
+	{
+		FCpuProfilerTraceInternal::FThreadBuffer* ThreadBuffer = FCpuProfilerTraceInternal::ThreadBuffer;
+		if (!ThreadBuffer)
+		{
+			ThreadBuffer = FCpuProfilerTraceInternal::CreateThreadBuffer();
+		}
+		uint32& SpecId = ThreadBuffer->DynamicTCharScopeNamesMap.FindOrAdd(Name);
+		if (SpecId == 0)
+		{
+			int32 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
+			TCHAR* NameCopy = reinterpret_cast<TCHAR*>(ThreadBuffer->DynamicScopeNamesMemory.Alloc(NameSize, alignof(TCHAR)));
+			FMemory::Memmove(NameCopy, Name, NameSize);
+			SpecId = OutputEventType(NameCopy, Group);
+			ThreadBuffer->DynamicTCharScopeNamesMap.Add(NameCopy, SpecId);
+		}
+		OutputBeginEvent(SpecId);
+	}
+	else
+	{
+		OutputBeginEvent(0);
+	}
 }
 
 void FCpuProfilerTrace::OutputEndEvent()
@@ -139,18 +220,34 @@ void FCpuProfilerTrace::OutputEndEvent()
 	ThreadBuffer->BufferSize = BufferPtr - ThreadBuffer->Buffer;
 }
 
-uint16 FCpuProfilerTrace::OutputEventType(const TCHAR* Name, ECpuProfilerGroup Group)
+uint32 FCpuProfilerTraceInternal::GetNextSpecId()
 {
 	static TAtomic<uint32> NextSpecId(1);
-	uint32 WideId = NextSpecId++;
-	check(WideId <= 0xFFFF);
-	uint16 Id = uint16(WideId);
+	return NextSpecId++;
+}
+
+uint32 FCpuProfilerTrace::OutputEventType(const TCHAR* Name, ECpuProfilerGroup Group)
+{
+	uint32 SpecId = FCpuProfilerTraceInternal::GetNextSpecId();
 	uint16 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
-	UE_TRACE_LOG(CpuProfiler, EventSpec, NameSize)
-		<< EventSpec.Id(Id)
-		<< EventSpec.Group(uint16(Group))
-		<< EventSpec.Attachment(Name, NameSize);
-	return Id;
+	UE_TRACE_LOG(CpuProfiler, EventSpecEx, NameSize)
+		<< EventSpecEx.Id(SpecId)
+		<< EventSpecEx.Group(uint16(Group))
+		<< EventSpecEx.CharSize(sizeof(TCHAR))
+		<< EventSpecEx.Attachment(Name, NameSize);
+	return SpecId;
+}
+
+uint32 FCpuProfilerTrace::OutputEventType(const ANSICHAR* Name, ECpuProfilerGroup Group)
+{
+	uint32 SpecId = FCpuProfilerTraceInternal::GetNextSpecId();
+	uint16 NameSize = strlen(Name) + 1;
+	UE_TRACE_LOG(CpuProfiler, EventSpecEx, NameSize)
+		<< EventSpecEx.Id(SpecId)
+		<< EventSpecEx.Group(uint16(Group))
+		<< EventSpecEx.CharSize(1)
+		<< EventSpecEx.Attachment(Name, NameSize);
+	return SpecId;
 }
 
 void FCpuProfilerTrace::Init(const TCHAR* CmdLine)

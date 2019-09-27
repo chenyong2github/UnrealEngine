@@ -597,7 +597,7 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 
 bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, TArray<FString>& FilesInPath )
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("CookByTheBook"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(CookByTheBook);
 
 	COOK_STAT(FScopedDurationTimer CookByTheBookTimer(DetailedCookStats::CookByTheBookTimeSec));
 	UCookOnTheFlyServer *CookOnTheFlyServer = NewObject<UCookOnTheFlyServer>();
