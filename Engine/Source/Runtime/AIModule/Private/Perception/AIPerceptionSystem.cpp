@@ -2,6 +2,7 @@
 
 #include "Perception/AIPerceptionSystem.h"
 #include "EngineGlobals.h"
+#include "EngineUtils.h"
 #include "TimerManager.h"
 #include "Engine/Engine.h"
 #include "AISystem.h"
@@ -580,12 +581,9 @@ void UAIPerceptionSystem::StartPlay()
 void UAIPerceptionSystem::RegisterAllPawnsAsSourcesForSense(FAISenseID SenseID)
 {
 	UWorld* World = GetWorld();
-	for (auto PawnIt = World->GetPawnIterator(); PawnIt; ++PawnIt)
+	for (TActorIterator<APawn> PawnIt(World); PawnIt; ++PawnIt)
 	{
-		if (PawnIt->Get())
-		{
-			RegisterSource(SenseID, **PawnIt);
-		}
+		RegisterSource(SenseID, **PawnIt);
 	}
 }
 
