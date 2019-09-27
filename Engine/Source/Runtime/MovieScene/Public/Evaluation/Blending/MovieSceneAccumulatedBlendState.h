@@ -177,5 +177,5 @@ private:
 	};
 
 	/** Array of all tokens that have been added this frame */
-	TArray<TInlineValue<FTokenEntry>> TokensToBlend;
+	TArray<TInlineValue<FTokenEntry, 128>> TokensToBlend;
 };

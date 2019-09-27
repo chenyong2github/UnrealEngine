@@ -191,7 +191,7 @@ protected:
 USTRUCT()
 struct FMovieSceneEvalTemplatePtr
 #if CPP
-	: TInlineValue<FMovieSceneEvalTemplate, 48>
+	: TInlineValue<FMovieSceneEvalTemplate, 128>
 #endif
 {
 	GENERATED_BODY()
