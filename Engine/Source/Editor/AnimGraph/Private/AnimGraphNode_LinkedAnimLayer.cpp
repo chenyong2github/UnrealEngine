@@ -17,8 +17,27 @@
 #include "UObject/CoreRedirects.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "AnimationStateGraph.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "LinkedAnimLayerNode"
+
+void UAnimGraphNode_LinkedAnimLayer::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::AnimLayerGuidConformation)
+		{
+			if (!InterfaceGuid.IsValid())
+			{
+				InterfaceGuid = GetGuidForLayer();
+			}
+		}
+	}
+}
 
 FText UAnimGraphNode_LinkedAnimLayer::GetTooltipText() const
 {
@@ -509,18 +528,14 @@ TSubclassOf<UInterface> UAnimGraphNode_LinkedAnimLayer::GetInterfaceForLayer() c
 {
 	if (UAnimBlueprint* CurrentBlueprint = Cast<UAnimBlueprint>(GetBlueprint()))
 	{
-		UClass* TargetClass = *CurrentBlueprint->SkeletonGeneratedClass;
-		if(TargetClass)
+		// Find layer with this name in interfaces
+		for(FBPInterfaceDescription& InterfaceDesc : CurrentBlueprint->ImplementedInterfaces)
 		{
-			// Find layer with this name in interfaces
-			for(FBPInterfaceDescription& InterfaceDesc : CurrentBlueprint->ImplementedInterfaces)
+			for(UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
 			{
-				for(UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
+				if(InterfaceGraph->GetFName() == Node.Layer)
 				{
-					if(InterfaceGraph->GetFName() == Node.Layer)
-					{
-						return InterfaceDesc.Interface;
-					}
+					return InterfaceDesc.Interface;
 				}
 			}
 		}
@@ -529,12 +544,43 @@ TSubclassOf<UInterface> UAnimGraphNode_LinkedAnimLayer::GetInterfaceForLayer() c
 	return nullptr;
 }
 
+void UAnimGraphNode_Layer::UpdateGuidForLayer()
+{
+	if (!InterfaceGuid.IsValid())
+	{
+		InterfaceGuid = GetGuidForLayer();
+	}
+}
+
+FGuid UAnimGraphNode_Layer::GetGuidForLayer() const
+{
+	if (UAnimBlueprint* CurrentBlueprint = Cast<UAnimBlueprint>(GetBlueprint()))
+	{
+		// Find layer with this name in interfaces
+		for (FBPInterfaceDescription& InterfaceDesc : CurrentBlueprint->ImplementedInterfaces)
+		{
+			for (UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
+			{
+				if (InterfaceGraph->GetFName() == Node.Layer)
+				{
+					return InterfaceGraph->InterfaceGuid;
+				}
+			}
+		}
+	}
+
+	return FGuid();
+}
+
 void UAnimGraphNode_LinkedAnimLayer::OnLayerChanged(IDetailLayoutBuilder* DetailBuilder)
 {
 	OnStructuralPropertyChanged(DetailBuilder);
 
 	// Get the interface for this layer. If null, then we are using a 'self' layer.
 	Node.Interface = GetInterfaceForLayer();
+
+	// Update the Guid for conforming
+	InterfaceGuid = GetGuidForLayer();
 
 	if(Node.Interface.Get() == nullptr)
 	{
