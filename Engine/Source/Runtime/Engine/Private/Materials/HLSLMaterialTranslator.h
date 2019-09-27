@@ -1523,6 +1523,8 @@ ResourcesString = TEXT("");
 				NumSetMaterials++;
 			}
 
+			OutEnvironment.SetDefine(TEXT("FORWARD_SIMPLE_SINGLE_LAYER_WATER"), UMaterial::SingleLayerWaterForcesForwardSimpleShading(InPlatform) ? TEXT("1") : TEXT("0"));
+
 			if (NumSetMaterials == 1)
 			{
 				OutEnvironment.SetDefine(TEXT("MATERIAL_SINGLE_SHADINGMODEL"), TEXT("1"));
