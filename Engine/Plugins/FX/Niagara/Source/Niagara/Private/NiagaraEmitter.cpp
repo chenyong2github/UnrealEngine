@@ -1169,6 +1169,7 @@ void UNiagaraEmitter::GenerateStatID()
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
 UNiagaraEmitter* UNiagaraEmitter::GetParent() const
 {
 	return Parent;
@@ -1179,6 +1180,7 @@ void UNiagaraEmitter::RemoveParent()
 	Parent = nullptr;
 	ParentAtLastMerge = nullptr;
 }
+#endif
 
 void UNiagaraEmitter::InitFastPathAttributeNames()
 {
