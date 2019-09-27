@@ -374,11 +374,11 @@ protected:
 	UPROPERTY()
 	TArray<FName> UserDINamesReadInSystemScripts;
 
-	void GenerateStatID();
+	void GenerateStatID()const;
 #if STATS
-	TStatId StatID_GT;
-	TStatId StatID_GT_CNC;
-	TStatId StatID_RT;
-	TStatId StatID_RT_CNC;
+	mutable TStatId StatID_GT;
+	mutable TStatId StatID_GT_CNC;
+	mutable TStatId StatID_RT;
+	mutable TStatId StatID_RT_CNC;
 #endif
 };
