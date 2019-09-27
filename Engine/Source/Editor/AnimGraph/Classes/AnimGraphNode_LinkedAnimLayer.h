@@ -25,6 +25,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FAnimNode_LinkedAnimLayer Node;
 
+	/** Guid of the named layer graph we refer to */
+	UPROPERTY()
+	FGuid InterfaceGuid;
+
+	// Begin UObject interface
+	virtual void Serialize(FArchive& Ar) override;
+
 	//~ Begin UEdGraphNode Interface.
 	virtual FText GetTooltipText() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
@@ -36,6 +43,9 @@ public:
 
 	// UAnimGraphNode_Base interface
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+	// Optionally updates layer GUID if it is invalid
+	void UpdateGuidForLayer();
 
 protected:
 	// ----- UI CALLBACKS ----- //
@@ -63,6 +73,9 @@ protected:
 
 	// Helper function to get the interface currently in use by the selected layer
 	TSubclassOf<UInterface> GetInterfaceForLayer() const;
+
+	// Helper function to get the interface graph GUID currently in use by the selected layer
+	FGuid GetGuidForLayer() const;
 };
 
 UE_DEPRECATED(4.24, "UAnimGraphNode_Layer has been renamed to UAnimGraphNode_LinkedAnimLayer")
