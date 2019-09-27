@@ -1,6 +1,8 @@
+
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
 #include "NetworkSimulationModelCVars.h"
 #include "VisualLogger/VisualLogger.h"
 #include "GameFramework/Actor.h"
@@ -12,7 +14,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogNetInterpolation, Log, All);
 namespace NetworkInterpolationDebugCVars
 {
 	NETSIM_DEVCVAR_SHIPCONST_INT(Disable, 0, "ni.Disable", "Disables Network Interpolation");
-	NETSIM_DEVCVAR_SHIPCONST_INT(VLog, 1, "ni.VLog", "Enables Network Interpolation VLog ");
+	NETSIM_DEVCVAR_SHIPCONST_INT(VLog, 0, "ni.VLog", "Enables Network Interpolation VLog ");
 
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(WaitSlack, 0.05, "ni.WaitSlack", "How much slack to wait for when waiting");
 
@@ -21,91 +23,49 @@ namespace NetworkInterpolationDebugCVars
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(CatchUpFactor, 1.25, "ni.CatchUpFactor", "Factor we use to catch up");
 }
 
-
-class INetworkInterpolator
+template<typename TBufferTypes, typename TTickSettings>
+struct TInterpolator
 {
-public:
-
-	virtual ~INetworkInterpolator() { }
-	virtual void Tick(float DeltaSeconds, AActor* LogOwner) = 0;
-};
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-//	TNetworkSimulationModelInterpolator
-//	The interpolator is responsible for smoothly interpolating between known Sync States. The output of the interpolator does NOT feed back into the simulation!
-//	This is still a WIP and not where we want it to be. Some notes about future improvements:
-//	-We should take a data oriented approach and have an interpolation manager than can more efficiently bulk process interpolations
-//	-We should have interpolation settings instead of cvars and in general improve the dynamic-ness of the interpolation algorithm.
-//	-The tricky part here is that we cannot rely on consistent replication frequency and frame rates. We want the interpolator to handle any network conditions and scale accordingly.
-//	-E.g, smooth motion, but minimize added application latency.
-//
-//	Also note: the intention is not for every actor using NetworkPrediction to necessarily be interpolated. Simulated Extrapolation is still a fine option.
-//
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-template<typename TNetworkedSimulationModel, typename TDriver>
-class TNetworkSimulationModelInterpolator : public INetworkInterpolator
-{
-public:
-
-	using TSimTime = typename TNetworkedSimulationModel::TSimTime;
-	using TRealTime = typename TNetworkedSimulationModel::TRealTime;
-	using TSyncState = typename TNetworkedSimulationModel::TSyncState;
+	using TSimTime = TNetworkSimTime<TTickSettings>;
+	using TRealTime = typename TTickSettings::TRealTime;
+	using TSyncState = typename TBufferTypes::TSyncState;
 
 	bool bEnableVisualLog = true;
 
-	TNetworkSimulationModelInterpolator(TNetworkedSimulationModel* Source, TDriver* InDriver)
-	{
-		NetworkSim = Source;
-		Driver = InDriver;
-	}
-	virtual ~TNetworkSimulationModelInterpolator()
-	{
-		if (NetworkInterpolationDebugCVars::Disable() > 0)
-		{			
-			if (const TSyncState* HeadState = NetworkSim->Buffers.Sync.GetElementFromHead(0))
-			{
-				Driver->FinalizeFrame(*HeadState);
-			}
-			return;
-		}
-		
-		if (NetworkSim->TickInfo.SimulationTimeBuffer.GetNumValidElements() <= 1)
-		{
-			// Cant interpolate yet	
-			return;
-		}
-
-
-	}
-
-	void Tick(float DeltaSeconds, AActor* LogOwner) override
+	template<typename TDriver>
+	void PostSimTick(TDriver* Driver, const TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo, const FNetSimTickParameters& TickParameters)
 	{
 		const bool bDoVLog = NetworkInterpolationDebugCVars::VLog() && bEnableVisualLog;
+		const float DeltaSeconds = TickParameters.LocalDeltaTimeSeconds;
+
+		const UObject* LogOwner = Driver->GetVLogOwner();
+
+		//
 
 		if (NetworkInterpolationDebugCVars::Disable() > 0)
 		{			
-			if (const TSyncState* HeadState = NetworkSim->Buffers.Sync.GetElementFromHead(0))
+			if (const TSyncState* HeadState = Buffers.Sync.GetElementFromHead(0))
 			{
 				Driver->FinalizeFrame(*HeadState);
 			}
 			return;
 		}
 		
-		if (NetworkSim->TickInfo.SimulationTimeBuffer.GetNumValidElements() <= 1)
+		if (TickInfo.SimulationTimeBuffer.GetNumValidElements() <= 1)
 		{
 			// Cant interpolate yet	
 			return;
 		}
 
 
-		auto& SimulationTimeBuffer = NetworkSim->TickInfo.SimulationTimeBuffer;
+		auto& SimulationTimeBuffer = TickInfo.SimulationTimeBuffer;
 
 		// Starting off: start at the tail end
 		if (InterpolationTime <= 0.f)
 		{
 			InterpolationTime = SimulationTimeBuffer.GetElementFromTail(0)->ToRealTimeSeconds();
 			InterpolationKeyframe = SimulationTimeBuffer.GetTailKeyframe();
-			InterpolationState = *NetworkSim->Buffers.Sync.GetElementFromTail(0);
+			InterpolationState = *Buffers.Sync.GetElementFromTail(0);
 		}
 
 		// Wait if we were too far ahead
@@ -154,7 +114,7 @@ public:
 					LoggingContext = EVisualLoggingContext::InterpolationSpeedUp;
 
 					UE_VLOG(LogOwner, LogNetInterpolation, Log, TEXT("Catching up! %s < %s"), *LexToString(InterpolationTime), *LexToString(CatchUpUntilTime));
-					UE_LOG(LogNetInterpolation, Warning, TEXT("Catching up! %s < %s"), *LexToString(InterpolationTime), *LexToString(CatchUpUntilTime));
+					//!UE_LOG(LogNetInterpolation, Warning, TEXT("Catching up! %s < %s"), *LexToString(InterpolationTime), *LexToString(CatchUpUntilTime));
 				}
 				else
 				{
@@ -184,7 +144,7 @@ public:
 			{
 				InterpolationKeyframe = Keyframe;
 				ToTime = ElementSimTime.ToRealTimeSeconds();
-				ToState = NetworkSim->Buffers.Sync.FindElementByKeyframe(Keyframe);
+				ToState = Buffers.Sync.FindElementByKeyframe(Keyframe);
 				break;
 			}
 		}
@@ -212,11 +172,11 @@ public:
 					// Graph Interpolation Time vs Buffer Head/Tail times
 					const FName ServerSimulationGraphName("ServerSimulationTimeGraph");
 					const FName ServerSimTimeName("Server Simulation Time");
-					FVector2D LocalTimeVsServerSimTime(LogOwner->GetWorld()->GetTimeSeconds(), (int32)NetworkSim->TickInfo.SimulationTimeBuffer.GetElementFromHead(0)->ToRealTimeMS());
+					FVector2D LocalTimeVsServerSimTime(LogOwner->GetWorld()->GetTimeSeconds(), (int32)TickInfo.SimulationTimeBuffer.GetElementFromHead(0)->ToRealTimeMS());
 					UE_VLOG_HISTOGRAM(LogOwner, LogNetInterpolation, Log, ServerSimulationGraphName, ServerSimTimeName, LocalTimeVsServerSimTime);
 
 					const FName BufferTailSimTimeName("Buffer Tail Simulation Time");
-					FVector2D LocalTimeVsBufferTailSim(LogOwner->GetWorld()->GetTimeSeconds(), (int32)NetworkSim->TickInfo.SimulationTimeBuffer.GetElementFromTail(0)->ToRealTimeMS());
+					FVector2D LocalTimeVsBufferTailSim(LogOwner->GetWorld()->GetTimeSeconds(), (int32)TickInfo.SimulationTimeBuffer.GetElementFromTail(0)->ToRealTimeMS());
 					UE_VLOG_HISTOGRAM(LogOwner, LogNetInterpolation, Log, ServerSimulationGraphName, BufferTailSimTimeName, LocalTimeVsBufferTailSim);
 
 					const FName LocalInterpolationTimeName("Local Interpolation Time");
@@ -230,11 +190,11 @@ public:
 					UE_VLOG_HISTOGRAM(LogOwner, LogNetInterpolation, Log, ServerSimulationGraphName, "Catch Up Goal", LocalTimeVsCatchUpGoal);
 
 					// VLog the actual motion states
-					const TSyncState* DebugTail = NetworkSim->Buffers.Sync.GetElementFromTail(0);
-					const TSyncState* DebugHead = NetworkSim->Buffers.Sync.GetElementFromHead(0);
+					const TSyncState* DebugTail = Buffers.Sync.GetElementFromTail(0);
+					const TSyncState* DebugHead = Buffers.Sync.GetElementFromHead(0);
 
-					DebugTail->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::InterpolationBufferTail, NetworkSim->Buffers.Sync.GetTailKeyframe(), EVisualLoggingLifetime::Transient), Driver, Driver );
-					DebugHead->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::InterpolationBufferHead, NetworkSim->Buffers.Sync.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), Driver, Driver );
+					DebugTail->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::InterpolationBufferTail, Buffers.Sync.GetTailKeyframe(), EVisualLoggingLifetime::Transient), Driver, Driver );
+					DebugHead->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::InterpolationBufferHead, Buffers.Sync.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), Driver, Driver );
 
 					InterpolationState.VisualLog( FVisualLoggingParameters(EVisualLoggingContext::InterpolationFrom, InterpolationKeyframe, EVisualLoggingLifetime::Transient), Driver, Driver );
 					ToState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::InterpolationTo, InterpolationKeyframe, EVisualLoggingLifetime::Transient), Driver, Driver );
@@ -251,9 +211,6 @@ public:
 
 private:
 
-	const TNetworkedSimulationModel* NetworkSim;
-	TDriver* Driver;
-	
 	TRealTime InterpolationTime = 0.f; // SimTime we are currently interpolating at
 	int32 InterpolationKeyframe = INDEX_NONE; // Keyframe we are currently/last interpolated at
 
@@ -269,31 +226,4 @@ private:
 
 	TRealTime	MinBufferedTime = 1/120.f;
 	TRealTime	MaxBufferedTime = 1.f;
-
-};
-
-
-class UNetworkInterpolationManager
-{
-public:
-
-	virtual ~UNetworkInterpolationManager() { }
-
-
-	virtual void Tick(float DeltaSeconds);
-	
-	void Register(INetworkInterpolator* Interpolater)
-	{
-		Interpolaters.Add(Interpolater);
-	}
-
-	
-	void UnregisterNetworkSim(INetworkInterpolator* Interpolater)
-	{
-		Interpolaters.Remove(Interpolater);
-	}
-
-private:
-
-	TArray<INetworkInterpolator*> Interpolaters;
 };

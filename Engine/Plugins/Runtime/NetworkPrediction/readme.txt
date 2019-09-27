@@ -108,6 +108,10 @@ Smoothing: Taking the output of the simulation and applying an additional layer 
 // Release notes
 // ----------------------------------------------------------------------------------------------------------
 
+Update (9-26-19)
+-More refactors on general system architecture. UNetworkSimulationGlobalManager is solidifying and most boiler plate is out of the actor components (Not an exciting update but this was overdue!).
+-PostSimTick added and Interpolator refactored to be part of this step, dependent on network role (Eg., simulated proxy only when enabled).
+-Continuing to investigate dependent actor simulations. A few early prototypes did not work out but am going to try a slightly different approach.
 
 Update (8-14-19)
 -Some more cleanup. Cvar fixes and other consolidation. Now time for vacation (2 weeks). 
