@@ -92,11 +92,11 @@ void FPackageLocalizationCultureCache::RemoveRootSourcePath(const FString& InRoo
 	}
 }
 
-void FPackageLocalizationCultureCache::AddPackage(const FString& InPackageName)
+bool FPackageLocalizationCultureCache::AddPackage(const FString& InPackageName)
 {
 	if (!FPackageName::IsLocalizedPackage(InPackageName))
 	{
-		return;
+		return false;
 	}
 
 	FScopeLock Lock(&LocalizedPackagesCS);
@@ -112,13 +112,15 @@ void FPackageLocalizationCultureCache::AddPackage(const FString& InPackageName)
 
 				TArray<FName>& PrioritizedLocalizedPackageNames = SourcePackagesToLocalizedPackages.FindOrAdd(SourcePackageName);
 				PrioritizedLocalizedPackageNames.AddUnique(*InPackageName);
-				return;
+				return true;
 			}
 		}
 	}
+
+	return false;
 }
 
-void FPackageLocalizationCultureCache::RemovePackage(const FString& InPackageName)
+bool FPackageLocalizationCultureCache::RemovePackage(const FString& InPackageName)
 {
 	FScopeLock Lock(&LocalizedPackagesCS);
 
@@ -137,14 +139,16 @@ void FPackageLocalizationCultureCache::RemovePackage(const FString& InPackageNam
 				{
 					SourcePackagesToLocalizedPackages.Remove(SourcePackageToLocalizedPackagesPair.Key);
 				}
-				return;
+				return true;
 			}
 		}
 	}
 	else
 	{
-		SourcePackagesToLocalizedPackages.Remove(*InPackageName);
+		return SourcePackagesToLocalizedPackages.Remove(*InPackageName) > 0;
 	}
+
+	return false;
 }
 
 void FPackageLocalizationCultureCache::Empty()
