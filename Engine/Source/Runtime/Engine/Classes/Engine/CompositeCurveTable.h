@@ -33,6 +33,10 @@ class UCompositeCurveTable
 
 	ENGINE_API virtual void EmptyTable() override;
 
+	// Support for runtime modification of parent tables, 
+	// Be aware this can be slow and can cause hitches during gameplay
+	ENGINE_API void AppendParentTables(const TArray<UCurveTable*>& NewTables);
+
 protected:
 
 	// Searches the parent tables to see if there are any loops.
