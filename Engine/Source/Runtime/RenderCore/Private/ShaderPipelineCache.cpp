@@ -69,6 +69,12 @@ static TAutoConsoleVariable<int32> CVarPSOFileCacheBatchSize(
 														   TEXT("Set the number of PipelineStateObjects to compile in a single batch operation when compiling takes priority. Defaults to a maximum of 50 per frame, due to async. file IO it is less in practice."),
 														   ECVF_Default | ECVF_RenderThreadSafe
 														   );
+static TAutoConsoleVariable<int32> CVarPSOFileCachePrecompileBatchSize(
+															 TEXT("r.ShaderPipelineCache.PrecompileBatchSize"),
+															 50,
+															 TEXT("Set the number of PipelineStateObjects to compile in a single batch operation when pre-optimizing the cache. Defaults to a maximum of 50 per frame, due to async. file IO it is less in practice."),
+															 ECVF_Default | ECVF_RenderThreadSafe
+															 );
 static TAutoConsoleVariable<float> CVarPSOFileCacheBackgroundBatchTime(
 														  TEXT("r.ShaderPipelineCache.BackgroundBatchTime"),
 														  0.0f,
@@ -81,6 +87,12 @@ static TAutoConsoleVariable<float> CVarPSOFileCacheBatchTime(
 														   TEXT("The target time (in ms) to spend precompiling each frame when compiling takes priority or 0.0 to disable. When precompiling is faster the batch size will grow and when slower will shrink to attempt to occupy the full amount. Defaults to 16.0 (max. ms per-frame of precompilation)."),
 														   ECVF_Default | ECVF_RenderThreadSafe
 														   );
+static TAutoConsoleVariable<float> CVarPSOFileCachePrecompileBatchTime(
+															 TEXT("r.ShaderPipelineCache.PrecompileBatchTime"),
+															 0.0f,
+															 TEXT("The target time (in ms) to spend precompiling each frame when cpre-optimizing or 0.0 to disable. When precompiling is faster the batch size will grow and when slower will shrink to attempt to occupy the full amount. Defaults to 10.0 (off)."),
+															 ECVF_Default | ECVF_RenderThreadSafe
+															 );
 static TAutoConsoleVariable<int32> CVarPSOFileCacheSaveAfterPSOsLogged(
 														   TEXT("r.ShaderPipelineCache.SaveAfterPSOsLogged"),
 #if !UE_BUILD_SHIPPING
@@ -199,6 +211,11 @@ void ConsoleCommandSwitchModePipelineCacheCmd(const TArray< FString >& Args)
             FShaderPipelineCache::SetBatchMode(FShaderPipelineCache::BatchMode::Fast);
             FShaderPipelineCache::ResumeBatching();
         }
+		else if (Mode == TEXT("Precompile"))
+		{
+			FShaderPipelineCache::SetBatchMode(FShaderPipelineCache::BatchMode::Precompile);
+			FShaderPipelineCache::ResumeBatching();
+		}
     }
 }
 
@@ -420,6 +437,12 @@ void FShaderPipelineCache::SetBatchMode(BatchMode Mode)
 	{
 		switch (Mode)
 		{
+			case BatchMode::Precompile:
+			{
+				ShaderPipelineCache->BatchSize = CVarPSOFileCachePrecompileBatchSize.GetValueOnAnyThread();
+				ShaderPipelineCache->BatchTime = CVarPSOFileCachePrecompileBatchTime.GetValueOnAnyThread();
+				break;
+			}
 			case BatchMode::Fast:
 			{
 				ShaderPipelineCache->BatchSize = CVarPSOFileCacheBatchSize.GetValueOnAnyThread();
