@@ -279,6 +279,7 @@ private:
 
 FShaderPipelineCache* FShaderPipelineCache::ShaderPipelineCache = nullptr;
 
+FShaderPipelineCache::FShaderCachePreOpenDelegate FShaderPipelineCache::OnCachePreOpen;
 FShaderPipelineCache::FShaderCacheOpenedDelegate FShaderPipelineCache::OnCachedOpened;
 FShaderPipelineCache::FShaderCacheClosedDelegate FShaderPipelineCache::OnCachedClosed;
 FShaderPipelineCache::FShaderPrecompilationBeginDelegate FShaderPipelineCache::OnPrecompilationBegin;
@@ -307,7 +308,7 @@ bool FShaderPipelineCache::SetGameUsageMaskWithComparison(uint64 InMask, FPSOMas
 {
 	bool bMaskChanged = false;
 	
-	if (ShaderPipelineCache != nullptr)
+	if (ShaderPipelineCache != nullptr && CVarPSOFileCacheGameFileMaskEnabled.GetValueOnAnyThread())
 	{
 		FScopeLock Lock(&ShaderPipelineCache->Mutex);
 		
@@ -316,7 +317,7 @@ bool FShaderPipelineCache::SetGameUsageMaskWithComparison(uint64 InMask, FPSOMas
 		
 		ShaderPipelineCache->bReady = true;
 		
-		if(bMaskChanged && ShaderPipelineCache->bOpened && CVarPSOFileCacheGameFileMaskEnabled.GetValueOnAnyThread())
+		if(bMaskChanged && ShaderPipelineCache->bOpened)
 		{
 			// Mask has changed and we have an open file refetch PSO's for this Mask - leave the FPipelineFileCache file open - no need to close - just pull out the relevant PSOs.
 			// If this PSO compile run has completed for this Mask in which case don't refetch + compile for that mask
@@ -1390,6 +1391,11 @@ bool FShaderPipelineCache::Open(FString const& Name, EShaderPlatform Platform)
 		
 		Flush();
 		
+		if (OnCachePreOpen.IsBound())
+		{
+			OnCachePreOpen.Broadcast(Name, Platform, bReady);
+		}
+		
 		if(bReady)
 		{
 			uint64 PreCompileMask = (uint64)CVarPSOFileCachePreCompileMask.GetValueOnAnyThread();
@@ -1428,10 +1434,14 @@ bool FShaderPipelineCache::Open(FString const& Name, EShaderPlatform Platform)
 
 			PreFetchedTasks = LocalPreFetchedTasks;
 
-			UE_LOG(LogRHI, Display, TEXT("Opened pipeline cache and enqueued %d of %d tasks for precompile."), Count, PreFetchedTasks.Num());
+			UE_LOG(LogRHI, Display, TEXT("Opened pipeline cache and enqueued %d of %d tasks for precompile with BatchSize %d and BatchTime %f."), Count, PreFetchedTasks.Num(), BatchSize, BatchTime);
 		}
 		else
 		{
+			if (CVarPSOFileCacheGameFileMaskEnabled.GetValueOnAnyThread() == 0)
+			{
+				CVarPSOFileCacheGameFileMaskEnabled->Set(1);
+			}
 			UE_LOG(LogRHI, Display, TEXT("Opened pipeline cache - precompile deferred on UsageMask."));
 		}
 	}

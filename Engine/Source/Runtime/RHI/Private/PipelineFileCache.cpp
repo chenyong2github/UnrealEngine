@@ -2456,9 +2456,9 @@ bool FPipelineFileCache::ShouldEnableFileCache()
 	{
 		struct stat FileInfo;
 		static FString PrivateWritePathBase = FString([NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0]) + TEXT("/");
-		FString Result = PrivateWritePathBase + TEXT("/Caches/com.chairentertainment.Fortnite/com.apple.metal/functions.data");
-		FString Result2 = PrivateWritePathBase + TEXT("Caches/com.chairentertainment.Fortnite/com.apple.metal/usecache.txt");
-		if (stat(TCHAR_TO_UTF8(*Result), &FileInfo) != -1 && stat(TCHAR_TO_UTF8(*Result2), &FileInfo) != -1)
+		FString Result = PrivateWritePathBase + FString([NSString stringWithFormat:@"/Caches/%@/com.apple.metal/functions.data", [NSBundle mainBundle].bundleIdentifier]);
+		FString Result2 = PrivateWritePathBase + FString([NSString stringWithFormat:@"/Caches/%@/com.apple.metal/usecache.txt", [NSBundle mainBundle].bundleIdentifier]);
+		if (stat(TCHAR_TO_UTF8(*Result), &FileInfo) != -1 && ((FileInfo.st_size / 1024 / 1024) > 4) && stat(TCHAR_TO_UTF8(*Result2), &FileInfo) != -1)
 		{
 			return false;
 		}
@@ -2470,19 +2470,18 @@ bool FPipelineFileCache::ShouldEnableFileCache()
 void FPipelineFileCache::PreCompileComplete()
 {
 #if PLATFORM_IOS
-	if (CVarAlwaysGeneratePOSSOFileCache.GetValueOnAnyThread() == 0)
-	{
-		static FString PrivateWritePathBase = FString([NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0]) + TEXT("/");
-		FString Result = PrivateWritePathBase + TEXT("Caches/com.chairentertainment.Fortnite/com.apple.metal/usecache.txt");
-		int32 Handle = open(TCHAR_TO_UTF8(*Result), O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-		close(Handle);
-	}
+	// write out a file signifying we have completed a pre-compile of the PSO cache. Used on successive runs of the game to determine how much caching we need to still perform
+	static FString PrivateWritePathBase = FString([NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0]) + TEXT("/");
+	FString Result = PrivateWritePathBase + FString([NSString stringWithFormat:@"/Caches/%@/com.apple.metal/usecache.txt", [NSBundle mainBundle].bundleIdentifier]);
+	int32 Handle = open(TCHAR_TO_UTF8(*Result), O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+	close(Handle);
 #endif
 }
 
 void FPipelineFileCache::ClearOSPipelineCache()
 {
-	if (CVarClearOSPSOFileCache.GetValueOnAnyThread() > 0)
+	bool bCmdLineSkip = FParse::Param(FCommandLine::Get(), TEXT("skippsoclear"));
+	if (CVarClearOSPSOFileCache.GetValueOnAnyThread() > 0 && !bCmdLineSkip)
 	{
 		// clear the PSO cache on IOS if the executable is newer
 #if PLATFORM_IOS
@@ -2492,9 +2491,10 @@ void FPipelineFileCache::ClearOSPipelineCache()
 		struct stat FileInfo;
 		if(stat(TCHAR_TO_UTF8(*ExecutablePath), &FileInfo) != -1)
 		{
+			// TODO: add ability to only do this change on major release as opposed to minor release (e.g. 10.30 -> 10.40 (delete) vs 10.40 -> 10.40.1 (don't delete)), this is very much game specific, so need a way to have games be able to modify this
 			FTimespan ExecutableTime(0, 0, FileInfo.st_atime);
 			static FString PrivateWritePathBase = FString([NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0]) + TEXT("/");
-			FString Result = PrivateWritePathBase + TEXT("/Caches/com.chairentertainment.Fortnite/com.apple.metal/functions.data");
+			FString Result = PrivateWritePathBase + FString([NSString stringWithFormat:@"/Caches/%@/com.apple.metal/functions.data", [NSBundle mainBundle].bundleIdentifier]);
 			if (stat(TCHAR_TO_UTF8(*Result), &FileInfo) != -1)
 			{
 				FTimespan DataTime(0, 0, FileInfo.st_atime);
@@ -2503,7 +2503,7 @@ void FPipelineFileCache::ClearOSPipelineCache()
 					unlink(TCHAR_TO_UTF8(*Result));
 				}
 			}
-			Result = PrivateWritePathBase + TEXT("/Caches/com.chairentertainment.Fortnite/com.apple.metal/functions.maps");
+			Result = PrivateWritePathBase + FString([NSString stringWithFormat:@"/Caches/%@/com.apple.metal/functions.maps", [NSBundle mainBundle].bundleIdentifier]);
 			if (stat(TCHAR_TO_UTF8(*Result), &FileInfo) != -1)
 			{
 				FTimespan MapsTime(0, 0, FileInfo.st_atime);
