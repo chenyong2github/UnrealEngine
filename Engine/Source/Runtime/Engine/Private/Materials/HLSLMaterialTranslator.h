@@ -1523,7 +1523,11 @@ ResourcesString = TEXT("");
 				NumSetMaterials++;
 			}
 
-			OutEnvironment.SetDefine(TEXT("FORWARD_SIMPLE_SINGLE_LAYER_WATER"), UMaterial::SingleLayerWaterForcesForwardSimpleShading(InPlatform) ? TEXT("1") : TEXT("0"));
+			// This is to have switch use the simple single layer water shading similar to mobile: no dynamic lights, only sun and sky, no distortion, no colored transmittance on background, no custom depth read.
+			if (IsSwitchPlatform(Platform))
+			{
+				OutEnvironment.SetDefine(TEXT("FORWARD_SIMPLE_SINGLE_LAYER_WATER"), TEXT("1"));
+			}
 
 			if (NumSetMaterials == 1)
 			{
