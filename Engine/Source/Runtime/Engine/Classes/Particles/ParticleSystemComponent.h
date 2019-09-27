@@ -663,11 +663,6 @@ public:
 	/** LOD updating... */
 	float AccumLODDistanceCheckTime;
 
-private:
-	/** Remember the global detail mode when we last checked the emitters. */
-	uint32 LastCheckedDetailMode;
-
-public:
 	/** The view relevance flags for each LODLevel. */
 	TArray<FMaterialRelevance> CachedViewRelevanceFlags;
 
