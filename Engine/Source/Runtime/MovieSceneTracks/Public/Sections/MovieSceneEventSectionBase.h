@@ -20,9 +20,11 @@ public:
 
 	virtual TArrayView<FMovieSceneEvent> GetAllEntryPoints() { return TArrayView<FMovieSceneEvent>(); }
 
-	virtual void PostLoad() override;
+	virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR
+
+	MOVIESCENETRACKS_API void AttemptUpgrade();
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FGenerateEventEntryPointFunctionsEvent, UMovieSceneEventSectionBase*, const FGenerateBlueprintFunctionParams&);
 	DECLARE_MULTICAST_DELEGATE_FourParams(FFixupPayloadParameterNameEvent, UMovieSceneEventSectionBase*, UK2Node*, FName, FName);

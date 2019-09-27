@@ -293,6 +293,9 @@ void FMovieSceneToolsModule::HandleGenerateEventEntryPoints(UMovieSceneEventSect
 		FLinkerLoad* Linker = EventSection->GetLinker();
 		Linker->Preload(EventSection);
 	}
+
+	EventSection->AttemptUpgrade();
+
 	for (FMovieSceneEvent& EntryPoint : EventSection->GetAllEntryPoints())
 	{
 		UEdGraphNode* Endpoint = FMovieSceneEventUtils::FindEndpoint(&EntryPoint, EventSection, Params.CompilerContext->Blueprint);

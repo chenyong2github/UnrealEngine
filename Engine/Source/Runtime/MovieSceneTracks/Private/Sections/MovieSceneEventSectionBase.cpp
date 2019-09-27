@@ -56,28 +56,49 @@ void UMovieSceneEventSectionBase::OnPostCompile(UBlueprint* Blueprint)
 	Blueprint->OnCompiled().RemoveAll(this);
 }
 
+void UMovieSceneEventSectionBase::AttemptUpgrade()
+{
+	UBlueprint* Blueprint = DirectorBlueprint_DEPRECATED.Get();
+	if (!Blueprint)
+	{
+		return;
+	}
+
+	// Bind onto this event to ensure that we get another chance to upgrade when the BP compiles
+	Blueprint->GenerateFunctionGraphsEvent.AddUniqueDynamic(this, &UMovieSceneEventSectionBase::HandleGenerateEntryPoints);
+
+	for (UEdGraph* EdGraph : Blueprint->FunctionGraphs)
+	{
+		if (EdGraph->HasAnyFlags(RF_NeedLoad))
+		{
+			return;
+		}
+	}
+
+	UpgradeLegacyEventEndpoint.Broadcast(this, Blueprint);
+
+	// If the BP has already been compiled (eg regenerate on load) we must perform PostCompile fixup immediately since
+	// We will not have had a chance to generate function entries. In this case we just bind directly to the already compiled functions.
+	if (Blueprint->bHasBeenRegenerated)
+	{
+		OnPostCompile(Blueprint);
+	}
+
+	// We're done with data upgrade now
+	DirectorBlueprint_DEPRECATED = nullptr;
+}
+
 #endif
 
-void UMovieSceneEventSectionBase::PostLoad()
+void UMovieSceneEventSectionBase::Serialize(FArchive& Ar)
 {
-	Super::PostLoad();
+	Super::Serialize(Ar);
 
 #if WITH_EDITORONLY_DATA
-	if (UBlueprint* Blueprint = DirectorBlueprint_DEPRECATED.Get())
+	
+	if (Ar.IsLoading())
 	{
-		UpgradeLegacyEventEndpoint.Broadcast(this, Blueprint);
-
-		Blueprint->GenerateFunctionGraphsEvent.AddUniqueDynamic(this, &UMovieSceneEventSectionBase::HandleGenerateEntryPoints);
-
-		// If the BP has already been compiled (eg regenerate on load) we must perform PostCompile fixup immediately since
-		// We will not have had a chance to generate function entries. In this case we just bind directly to the already compiled functions.
-		if (Blueprint->bHasBeenRegenerated)
-		{
-			OnPostCompile(Blueprint);
-		}
-
-		// We're done with data upgrade now
-		DirectorBlueprint_DEPRECATED = nullptr;
+		AttemptUpgrade();
 	}
 #endif
 }
