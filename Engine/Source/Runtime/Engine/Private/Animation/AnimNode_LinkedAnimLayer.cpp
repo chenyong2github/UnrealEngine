@@ -66,4 +66,8 @@ void FAnimNode_LinkedAnimLayer::SetLinkedLayerInstance(const UAnimInstance* InOw
 	{
 		InitializeSelfLayer(InOwningAnimInstance);
 	}
+
+#if WITH_EDITOR
+	OnInstanceChangedEvent.Broadcast();
+#endif
 }
