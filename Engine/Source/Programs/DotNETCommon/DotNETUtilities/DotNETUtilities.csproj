@@ -76,6 +76,7 @@
     <Compile Include="FastJSON\JsonSerializer.cs" />
     <Compile Include="FastJSON\Reflection.cs" />
     <Compile Include="FastJSON\SafeDictionary.cs" />
+    <Compile Include="FatalErrorException.cs" />
     <Compile Include="FileFilter.cs" />
     <Compile Include="FileFilterNode.cs" />
     <Compile Include="FilePattern.cs" />
@@ -156,6 +157,7 @@
     <Compile Include="Perforce\Records\UpdateChangeOptions.cs" />
     <Compile Include="Perforce\Records\UserRecord.cs" />
     <Compile Include="Perforce\Records\WhereRecord.cs" />
+    <Compile Include="ProcessUtils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ReadOnlyHashSet.cs" />
     <Compile Include="ResXResource\UEResXReader.cs" />

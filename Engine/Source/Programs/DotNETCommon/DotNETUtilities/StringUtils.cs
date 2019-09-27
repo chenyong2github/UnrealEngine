@@ -1,4 +1,5 @@
 ﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -167,12 +168,31 @@ namespace Tools.DotNETCommon
 		/// <summary>
 		/// Parses a hexadecimal string into an array of bytes
 		/// </summary>
+		/// <returns>Array of bytes</returns>
+		public static byte[] ParseHexString(string Text)
+		{
+			byte[] Bytes;
+			if(!TryParseHexString(Text, out Bytes))
+			{
+				throw new FormatException(String.Format("Invalid hex string: '{0}'", Text));
+			}
+			return Bytes;
+		}
+
+		/// <summary>
+		/// Parses a hexadecimal string into an array of bytes
+		/// </summary>
 		/// <param name="Text">Text to parse</param>
 		/// <returns></returns>
 		public static bool TryParseHexString(string Text, out byte[] OutBytes)
 		{
+			if((Text.Length & 1) != 0)
+			{
+				throw new FormatException("Length of hex string must be a multiple of two characters");
+			}
+
 			byte[] Bytes = new byte[Text.Length / 2];
-			for(int Idx = 0; Idx < Text.Length; Idx++)
+			for(int Idx = 0; Idx < Text.Length; Idx += 2)
 			{
 				int A, B;
 				if(!TryParseHexDigit(Text[Idx], out A) || !TryParseHexDigit(Text[Idx + 1], out B))

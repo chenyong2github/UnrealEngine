@@ -758,6 +758,42 @@ namespace Tools.DotNETCommon
 		}
 
 		/// <summary>
+		/// Quotes a command line argument, if necessary
+		/// </summary>
+		/// <param name="Argument">The argument that may need quoting</param>
+		/// <returns>Argument which is safe to pass on the command line</returns>
+		public static string Quote(string Argument)
+		{
+			if (Argument.IndexOf(' ') != -1 && Argument[0] != '\"')
+			{
+				return "\"" + Argument+ "\"";
+			}
+			else
+			{
+				return Argument;
+			}
+		}
+
+		/// <summary>
+		/// Joins the given arguments into a command line
+		/// </summary>
+		/// <param name="Arguments">List of command line arguments</param>
+		/// <returns>Joined command line</returns>
+		public static string Join(IEnumerable<string> Arguments)
+		{
+			StringBuilder Result = new StringBuilder();
+			foreach (string Argument in Arguments)
+			{
+				if(Result.Length > 0)
+				{
+					Result.Append(' ');
+				}
+				Result.Append(Quote(Argument));
+			}
+			return Result.ToString();
+		}
+
+		/// <summary>
 		/// Splits a command line into individual arguments
 		/// </summary>
 		/// <param name="CommandLine">The command line text</param>
@@ -969,7 +1005,7 @@ namespace Tools.DotNETCommon
 		/// <returns>True if the text could be parsed, false otherwise</returns>
 		private static bool TryParseValue(Type FieldType, string Text, out object Value)
 		{
-			if(FieldType.IsGenericType && FieldType.GetGenericTypeDefinition() == typeof(Nullable<>))
+			if (FieldType.IsGenericType && FieldType.GetGenericTypeDefinition() == typeof(Nullable<>))
 			{
 				// Try to parse the inner type instead
 				return TryParseValue(FieldType.GetGenericArguments()[0], Text, out Value);
@@ -982,13 +1018,13 @@ namespace Tools.DotNETCommon
 					Value = Enum.Parse(FieldType, Text, true);
 					return true;
 				}
-				catch(ArgumentException)
+				catch (ArgumentException)
 				{
 					Value = null;
 					return false;
 				}
 			}
-			else if(FieldType == typeof(FileReference))
+			else if (FieldType == typeof(FileReference))
 			{
 				// Construct a file reference from the string
 				try
@@ -1002,7 +1038,7 @@ namespace Tools.DotNETCommon
 					return false;
 				}
 			}
-			else if(FieldType == typeof(DirectoryReference))
+			else if (FieldType == typeof(DirectoryReference))
 			{
 				// Construct a file reference from the string
 				try
@@ -1016,6 +1052,38 @@ namespace Tools.DotNETCommon
 					return false;
 				}
 			}
+			else if (FieldType == typeof(TimeSpan))
+			{
+				// Construct a time span form the string
+				double FloatValue;
+				if (Text.EndsWith("h", StringComparison.OrdinalIgnoreCase) && Double.TryParse(Text.Substring(0, Text.Length - 1), out FloatValue))
+				{
+					Value = TimeSpan.FromHours(FloatValue);
+					return true;
+				}
+				else if (Text.EndsWith("m", StringComparison.OrdinalIgnoreCase) && Double.TryParse(Text.Substring(0, Text.Length - 1), out FloatValue))
+				{
+					Value = TimeSpan.FromMinutes(FloatValue);
+					return true;
+				}
+				else if (Text.EndsWith("s", StringComparison.OrdinalIgnoreCase) && Double.TryParse(Text.Substring(0, Text.Length - 1), out FloatValue))
+				{
+					Value = TimeSpan.FromSeconds(FloatValue);
+					return true;
+				}
+
+				TimeSpan TimeSpanValue;
+				if (TimeSpan.TryParse(Text, out TimeSpanValue))
+				{
+					Value = TimeSpanValue;
+					return true;
+				}
+				else
+				{
+					Value = null;
+					return false;
+				}
+			}
 			else
 			{
 				// Otherwise let the framework convert between types
@@ -1024,7 +1092,7 @@ namespace Tools.DotNETCommon
 					Value = Convert.ChangeType(Text, FieldType);
 					return true;
 				}
-				catch(InvalidCastException)
+				catch (InvalidCastException)
 				{
 					Value = null;
 					return false;

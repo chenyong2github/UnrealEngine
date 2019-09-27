@@ -145,11 +145,8 @@ namespace AutomationTool
 				}
 			}
 
-			List<string> Lines = new List<string>();
-			Lines.Add("");
-			Lines.AddRange(HelpUtils.GetHelpText(String.Format("{0} Help:", Command.Name), Description, ParamDict.ToList(), HelpUtils.WindowWidth - 1));
-
-			Log.TraceInformation("{0}", String.Join(Environment.NewLine, Lines));
+			Log.TraceInformation("");
+			HelpUtils.PrintHelp(String.Format("{0} Help:", Command.Name), Description, ParamDict.ToList());
 		}
 
 		/// <summary>

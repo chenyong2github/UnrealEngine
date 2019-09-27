@@ -289,18 +289,18 @@ namespace Tools.DotNETCommon
 		/// <param name="Input">Text to be passed via stdin to the new process. May be null.</param>
 		public ManagedProcess(ManagedProcessGroup Group, string FileName, string CommandLine, string WorkingDirectory, IReadOnlyDictionary<string, string> Environment, byte[] Input, ProcessPriorityClass Priority)
 		{
-			if(ManagedProcessGroup.SupportsJobObjects)
+			if (ManagedProcessGroup.SupportsJobObjects)
 			{
 				// Create the child process
 				IntPtr EnvironmentBlock = IntPtr.Zero;
 				try
 				{
 					// Create the environment block for the child process, if necessary.
-					if(Environment != null)
+					if (Environment != null)
 					{
 						// The native format for the environment block is a sequence of null terminated strings with a final null terminator.
 						List<byte> EnvironmentBytes = new List<byte>();
-						foreach(KeyValuePair<string, string> Pair in Environment)
+						foreach (KeyValuePair<string, string> Pair in Environment)
 						{
 							EnvironmentBytes.AddRange(Console.OutputEncoding.GetBytes(Pair.Key));
 							EnvironmentBytes.Add((byte)'=');
@@ -319,7 +319,7 @@ namespace Tools.DotNETCommon
 					{
 						// Get the flags to create the new process
 						ProcessCreationFlags Flags = ProcessCreationFlags.CREATE_NO_WINDOW | ProcessCreationFlags.CREATE_SUSPENDED;
-						switch(Priority)
+						switch (Priority)
 						{
 							case ProcessPriorityClass.Normal:
 								Flags |= ProcessCreationFlags.NORMAL_PRIORITY_CLASS;
@@ -344,7 +344,7 @@ namespace Tools.DotNETCommon
 						// Acquire a global lock before creating inheritable handles. If multiple threads create inheritable handles at the same time, and child processes will inherit them all.
 						// Since we need to wait for output pipes to be closed (in order to consume all output), this can result in output reads not returning until all processes with the same
 						// inherited handles are closed.
-						lock(LockObject)
+						lock (LockObject)
 						{
 							SafeFileHandle StdInRead = null;
 							SafeFileHandle StdOutWrite = null;
@@ -356,15 +356,15 @@ namespace Tools.DotNETCommon
 								SecurityAttributes.nLength = Marshal.SizeOf(SecurityAttributes);
 								SecurityAttributes.bInheritHandle = 1;
 
-								if(CreatePipe(out StdInRead, out StdInWrite, SecurityAttributes, 0) == 0 || SetHandleInformation(StdInWrite, HANDLE_FLAG_INHERIT, 0) == 0)
+								if (CreatePipe(out StdInRead, out StdInWrite, SecurityAttributes, 0) == 0 || SetHandleInformation(StdInWrite, HANDLE_FLAG_INHERIT, 0) == 0)
 								{
 									throw new Win32Exception();
 								}
-								if(CreatePipe(out StdOutRead, out StdOutWrite, SecurityAttributes, 0) == 0 || SetHandleInformation(StdOutRead, HANDLE_FLAG_INHERIT, 0) == 0)
+								if (CreatePipe(out StdOutRead, out StdOutWrite, SecurityAttributes, 0) == 0 || SetHandleInformation(StdOutRead, HANDLE_FLAG_INHERIT, 0) == 0)
 								{
 									throw new Win32Exception();
 								}
-								if(DuplicateHandle(GetCurrentProcess(), StdOutWrite, GetCurrentProcess(), out StdErrWrite, 0, true, DUPLICATE_SAME_ACCESS) == 0)
+								if (DuplicateHandle(GetCurrentProcess(), StdOutWrite, GetCurrentProcess(), out StdErrWrite, 0, true, DUPLICATE_SAME_ACCESS) == 0)
 								{
 									throw new Win32Exception(String.Format("Unable to duplicate stdout handle ({0})", StdOutWrite));
 								}
@@ -385,17 +385,17 @@ namespace Tools.DotNETCommon
 							finally
 							{
 								// Close the write ends of the handle. We don't want any other process to be able to inherit these.
-								if(StdInRead != null)
+								if (StdInRead != null)
 								{
 									StdInRead.Dispose();
 									StdInRead = null;
 								}
-								if(StdOutWrite != null)
+								if (StdOutWrite != null)
 								{
 									StdOutWrite.Dispose();
 									StdOutWrite = null;
 								}
-								if(StdErrWrite != null)
+								if (StdErrWrite != null)
 								{
 									StdErrWrite.Dispose();
 									StdErrWrite = null;
@@ -404,7 +404,7 @@ namespace Tools.DotNETCommon
 						}
 
 						// Add it to our job object
-						if(AssignProcessToJobObject(Group.JobHandle, ProcessInfo.hProcess) == 0)
+						if (Group != null && AssignProcessToJobObject(Group.JobHandle, ProcessInfo.hProcess) == 0)
 						{
 							// Support for nested job objects was only addeed in Windows 8; prior to that, assigning processes to job objects would fail. Figure out if we're already in a job, and ignore the error if we are.
 							int OriginalError = Marshal.GetLastWin32Error();
@@ -412,22 +412,22 @@ namespace Tools.DotNETCommon
 							bool bProcessInJob;
 							IsProcessInJob(GetCurrentProcess(), IntPtr.Zero, out bProcessInJob);
 
-							if(!bProcessInJob)
+							if (!bProcessInJob)
 							{
 								throw new Win32Exception(OriginalError);
 							}
 						}
 
 						// Allow the thread to start running
-						if(ResumeThread(ProcessInfo.hThread) == -1)
+						if (ResumeThread(ProcessInfo.hThread) == -1)
 						{
 							throw new Win32Exception();
 						}
 
 						// If we have any input text, write it to stdin now
-						using(FileStream Stream = new FileStream(StdInWrite, FileAccess.Write, 4096, false))
+						using (FileStream Stream = new FileStream(StdInWrite, FileAccess.Write, 4096, false))
 						{
-							if(Input != null)
+							if (Input != null)
 							{
 								Stream.Write(Input, 0, Input.Length);
 								Stream.Flush();
@@ -443,11 +443,11 @@ namespace Tools.DotNETCommon
 					}
 					finally
 					{
-						if(ProcessInfo.hProcess != IntPtr.Zero && ProcessHandle == null)
+						if (ProcessInfo.hProcess != IntPtr.Zero && ProcessHandle == null)
 						{
 							CloseHandle(ProcessInfo.hProcess);
 						}
-						if(ProcessInfo.hThread != IntPtr.Zero)
+						if (ProcessInfo.hThread != IntPtr.Zero)
 						{
 							CloseHandle(ProcessInfo.hThread);
 						}
@@ -460,7 +460,7 @@ namespace Tools.DotNETCommon
 				}
 				finally
 				{
-					if(EnvironmentBlock != IntPtr.Zero)
+					if (EnvironmentBlock != IntPtr.Zero)
 					{
 						Marshal.FreeHGlobal(EnvironmentBlock);
 						EnvironmentBlock = IntPtr.Zero;
@@ -479,9 +479,9 @@ namespace Tools.DotNETCommon
 				FrameworkProcess.StartInfo.UseShellExecute = false;
 				FrameworkProcess.StartInfo.CreateNoWindow = true;
 
-				if(Environment != null)
+				if (Environment != null)
 				{
-					foreach(KeyValuePair<string, string> Pair in Environment)
+					foreach (KeyValuePair<string, string> Pair in Environment)
 					{
 						FrameworkProcess.StartInfo.EnvironmentVariables[Pair.Key] = Pair.Value;
 					}

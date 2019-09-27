@@ -609,10 +609,7 @@ namespace AutomationTool
 					CommandUtils.LogInformation("");
 					CommandUtils.LogInformation("Options:");
 					CommandUtils.LogInformation("");
-					foreach(string Line in HelpUtils.Tabulate(Parameters, 4, 24, HelpUtils.WindowWidth - 1))
-					{
-						CommandUtils.LogInformation(Line);
-					}
+					HelpUtils.PrintTable(Parameters, 4, 24);
 				}
 			}
 

@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -45,62 +47,46 @@ namespace Tools.DotNETCommon
 		/// <param name="Type">Type to print help for</param>
 		public static void PrintHelp(string Title, Type Type)
 		{
-			List<string> Lines = GetHelpText(Title, Type);
-			foreach(string Line in Lines)
-			{
-				Log.TraceInformation("{0}", Line);
-			}
+			PrintHelp(Title, GetDescription(Type), CommandLineArguments.GetParameters(Type));
 		}
 
 		/// <summary>
-		/// Get the help text for a given type, using any attribute-driven command line arguments, and the [Description] attribute for help text.
+		/// Prints help for a command
 		/// </summary>
 		/// <param name="Title">Title for the help text</param>
-		/// <param name="Type">Type to query</param>
-		/// <param name="MaxWidth">Maximum width for the returned lines</param>
-		/// <returns>List of help lines</returns>
-		public static List<string> GetHelpText(string Title, Type Type)
+		/// <param name="Description">Description for the command</param>
+		/// <param name="Parameters">List of parameters</param>
+		public static void PrintHelp(string Title, string Description, List<KeyValuePair<string, string>> Parameters)
 		{
-			return GetHelpText(Title, GetDescription(Type), CommandLineArguments.GetParameters(Type), WindowWidth - 1);
-		}
+			int MaxWidth = WindowWidth;
 
-		/// <summary>
-		/// Get the help text for a given type, using any attribute-driven command line arguments, and the [Description] attribute for help text.
-		/// </summary>
-		/// <param name="Title">Title for the help text</param>
-		/// <param name="Description">Help description</param>
-		/// <param name="Parameters">Arguments for the command</param>
-		/// <param name="MaxWidth">Maximum width for the returned lines</param>
-		/// <returns>List of help lines</returns>
-		public static List<string> GetHelpText(string Title, string Description, List<KeyValuePair<string, string>> Parameters, int MaxWidth)
-		{
-			List<string> Lines = new List<string>();
-
+			bool bFirstLine = true;
 			if (!String.IsNullOrEmpty(Title))
 			{
-				Lines.AddRange(StringUtils.WordWrap(Title, MaxWidth));
+				PrintParagraph(Title, MaxWidth);
+				bFirstLine = false;
 			}
 
 			if (!String.IsNullOrEmpty(Description))
 			{
-				if (Lines.Count > 0)
+				if (!bFirstLine)
 				{
-					Lines.Add("");
+					Log.TraceInformation("");
 				}
-				Lines.AddRange(StringUtils.WordWrap(Description, MaxWidth));
+				PrintParagraph(Description, MaxWidth);
+				bFirstLine = false;
 			}
 
 			if (Parameters.Count > 0)
 			{
-				if (Lines.Count > 0)
+				if (!bFirstLine)
 				{
-					Lines.Add("");
+					Log.TraceInformation("");
 				}
-				Lines.Add("Parameters:");
-				Lines.AddRange(Tabulate(Parameters, 4, 24, MaxWidth));
-			}
 
-			return Lines;
+				Log.TraceInformation("Parameters:");
+				PrintTable(Parameters, 4, 24, MaxWidth);
+			}
 		}
 
 		/// <summary>
@@ -123,6 +109,30 @@ namespace Tools.DotNETCommon
 		}
 
 		/// <summary>
+		/// Prints a paragraph of text using word wrapping
+		/// </summary>
+		/// <param name="Text">Text to print</param>
+		/// <param name="MaxWidth">Maximum width for each line</param>
+		public static void PrintParagraph(string Text)
+		{
+			PrintParagraph(Text, WindowWidth - 1);
+		}
+
+		/// <summary>
+		/// Prints a paragraph of text using word wrapping
+		/// </summary>
+		/// <param name="Text">Text to print</param>
+		/// <param name="MaxWidth">Maximum width for each line</param>
+		public static void PrintParagraph(string Text, int MaxWidth)
+		{
+			List<string> Lines = StringUtils.WordWrap(Text, MaxWidth);
+			foreach (string Line in Lines)
+			{
+				Log.TraceInformation("{0}", Line);
+			}
+		}
+
+		/// <summary>
 		/// Formats the given parameters as so:
 		///     -Param1     Param1 Description
 		///
@@ -135,9 +145,26 @@ namespace Tools.DotNETCommon
 		/// <param name="Indent">Indent from the left hand side</param>
 		/// <param name="DefaultRightPadding">The minimum padding from the start of the param name to the start of the description (resizes with larger param names)</param>
 		/// <returns></returns>
-		public static List<string> Tabulate(List<KeyValuePair<string, string>> Items, int Indent, int MinFirstColumnWidth, int MaxWidth)
+		public static void PrintTable(List<KeyValuePair<string, string>> Items, int Indent, int MinFirstColumnWidth)
 		{
-			List<string> Lines = new List<string>();
+			PrintTable(Items, Indent, MinFirstColumnWidth, WindowWidth - 1);
+		}
+
+		/// <summary>
+		/// Formats the given parameters as so:
+		///     -Param1     Param1 Description
+		///
+		///     -Param2      Param2 Description, this description is
+		///                  longer and splits onto a separate line. 
+		///
+		///     -Param3      Param3 Description continues as before. 
+		/// </summary>
+		/// <param name="Items">List of parameters arranged as "-ParamName Param Description"</param>
+		/// <param name="Indent">Indent from the left hand side</param>
+		/// <param name="DefaultRightPadding">The minimum padding from the start of the param name to the start of the description (resizes with larger param names)</param>
+		/// <returns></returns>
+		public static void PrintTable(List<KeyValuePair<string, string>> Items, int Indent, int MinFirstColumnWidth, int MaxWidth)
+		{
 			if(Items.Count > 0)
 			{
 				// string used to intent the param
@@ -159,14 +186,13 @@ namespace Tools.DotNETCommon
 					{
 						// Formatting as following:
 						// <Indent>-param<Right Padding>Description<New line>
-						Lines.Add(ParamString + DescriptionLine);
+						Log.TraceInformation("{0}{1}", ParamString, DescriptionLine);
 
 						// we replace the param string on subsequent lines with white space of the same length
 						ParamString = string.Empty.PadRight(IndentString.Length + RightPadding);
 					}
 				}
 			}
-			return Lines;
 		}
 	}
 }
