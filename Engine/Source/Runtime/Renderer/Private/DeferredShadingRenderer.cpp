@@ -1820,11 +1820,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SCOPED_DRAW_EVENTF(RHICmdList, WaterRendering, TEXT("WaterRendering"));
 		SCOPED_GPU_STAT(RHICmdList, WaterRendering);
 
-		// First render the under water particles. We only support a black readable scene color for now.
-		// TODO: this should be done after the water GBuffer pass when the camera is under water.
-		IPooledRenderTarget* DummyReadBackSceneTexture = GSystemTextures.BlackDummy;
-		RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_TranslucencyUnderWater, DummyReadBackSceneTexture);
-
 		// Copy the texture to be available for the water surface to refrace
 		FSingleLayerWaterPassData SingleLayerWaterPassData;
 		CopySingleLayerWaterTextures(RHICmdList, SingleLayerWaterPassData);
@@ -2003,18 +1998,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 			// Disable UAV cache flushing so we have optimal VT feedback performance.
 			RHICmdList.AutomaticCacheFlushAfterComputeShader(false);
-
-			if (!bShouldRenderSingleLayerWater)
-			{
-				// We render under water transparent separately even when water is disabled (simple, and avoid checking if water is enabled everywhere)
-				// This translucency pass is cheap and fast to render but could be improved 
-				//  - it is always full screen todya.
-				//  - particles do not have correct under water fog apply on them. it is the backgroung fog that is applied on them.
-				//  - particle are not cut out by the top part of the depth layer
-				// This could be resolved by rendering particles in an offscreenbuffer with corret fog and applied in the SingleLayerWater gbuffer pass.
-				// A depth buffer from previous frame could also be sampled to clip particle.
-				RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_TranslucencyUnderWater, SceneColorCopy);
-			}
 
 			if (ViewFamily.AllowTranslucencyAfterDOF())
 			{

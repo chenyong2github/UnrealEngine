@@ -2021,14 +2021,7 @@ struct FRelevancePacket
 
 			if (bTranslucentRelevance && !bEditorRelevance && ViewRelevance.bRenderInMainPass)
 			{
-				if (ViewRelevance.bUnderWaterTranslucencyRelevance)
-				{
-					// Translucency under water do not need to use scene color resolve (a black texture is provided) and we do not need to render to another off-screen buffer.
-					const bool bUsesSceneColorCopy = false;
-					const bool bDisableOffscreenRendering = true;
-					TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyUnderWater, bUsesSceneColorCopy, bDisableOffscreenRendering);
-				}
-				else if (View.Family->AllowTranslucencyAfterDOF())
+				if (View.Family->AllowTranslucencyAfterDOF())
 				{
 					if (ViewRelevance.bNormalTranslucencyRelevance)
 					{
@@ -2321,11 +2314,6 @@ struct FRelevancePacket
 								if (ViewRelevance.bSeparateTranslucencyRelevance)
 								{
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyAfterDOF);
-								}
-
-								if (ViewRelevance.bUnderWaterTranslucencyRelevance)
-								{
-									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyUnderWater);
 								}
 							}
 							else
@@ -2746,12 +2734,6 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 			{
 				PassMask.Set(EMeshPass::TranslucencyAfterDOF);
 				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyAfterDOF] += NumElements;
-			}
-
-			if (ViewRelevance.bUnderWaterTranslucencyRelevance)
-			{
-				PassMask.Set(EMeshPass::TranslucencyUnderWater);
-				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyUnderWater] += NumElements;
 			}
 		}
 		else
