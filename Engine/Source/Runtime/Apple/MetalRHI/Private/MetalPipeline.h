@@ -56,10 +56,12 @@ public:
 	~FMetalPipelineStateCacheManager();
 	
 private:
+	FDelegateHandle OnShaderPipelineCachePreOpenDelegate;
 	FDelegateHandle OnShaderPipelineCacheOpenedDelegate;
 	FDelegateHandle OnShaderPipelineCachePrecompilationCompleteDelegate;
 	
 	/** Delegate handlers to track the ShaderPipelineCache precompile. */
+	void OnShaderPipelineCachePreOpen(FString const& Name, EShaderPlatform Platform, bool& bReady);
 	void OnShaderPipelineCacheOpened(FString const& Name, EShaderPlatform Platform, uint32 Count, const FGuid& VersionGuid, FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext);
 	void OnShaderPipelineCachePrecompilationComplete(uint32 Count, double Seconds, const FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext);
 };
