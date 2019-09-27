@@ -125,6 +125,8 @@ void UMovieSceneSpawnTrack::PostCompile(FMovieSceneEvaluationTrack& OutTrack, co
 	OutTrack.SetEvaluationGroup(IMovieSceneTracksModule::GetEvaluationGroupName(EBuiltInEvaluationGroup::SpawnObjects));
 	// Set priority to highest possible
 	OutTrack.SetEvaluationPriority(GetEvaluationPriority());
+
+	OutTrack.PrioritizeTearDown();
 }
 
 #if WITH_EDITORONLY_DATA

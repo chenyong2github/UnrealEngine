@@ -150,7 +150,10 @@ struct FMovieSceneOrderedEvaluationKey
 	FMovieSceneEvaluationKey Key;
 
 	UPROPERTY()
-	uint32 EvaluationIndex;
+	uint16 SetupIndex;
+
+	UPROPERTY()
+	uint16 TearDownIndex;
 };
 
 /** Informational meta-data that applies to a given time range */
