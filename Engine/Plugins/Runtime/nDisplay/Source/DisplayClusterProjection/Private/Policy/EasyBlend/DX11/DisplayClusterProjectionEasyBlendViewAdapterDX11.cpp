@@ -22,7 +22,6 @@ FDisplayClusterProjectionEasyBlendViewAdapterDX11::FDisplayClusterProjectionEasy
 	: FDisplayClusterProjectionEasyBlendViewAdapterBase(InitParams)
 	, bIsRenderResourcesInitialized(false)
 {
-	check(InitParams.ViewportSize.GetMax() > InitParams.ViewportSize.GetMin());
 	check(InitParams.NumViews > 0)
 
 	Views.AddDefaulted(InitParams.NumViews);
@@ -61,12 +60,16 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::Initialize(const FString
 	for (auto& It : Views)
 	{
 		// Initialize the mesh data
-		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitializeFunc);
-		EasyBlendSDKDXError err = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitializeFunc(FileName, It.EasyBlendMeshData.Get());
-		if (!EasyBlendSDKDX_SUCCEEDED(err))
 		{
-			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't initialize EasyBlend internals"));
-			return false;
+			FScopeLock lock(&DllAccessCS);
+
+			check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitializeFunc);
+			const EasyBlendSDKDXError Result = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitializeFunc(FileName, It.EasyBlendMeshData.Get());
+			if (!EasyBlendSDKDX_SUCCEEDED(Result))
+			{
+				UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't initialize EasyBlend internals"));
+				return false;
+			}
 		}
 
 		// EasyBlendMeshData has been initialized
@@ -83,7 +86,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::Initialize(const FString
 	return true;
 }
 
-
+// Location/Rotation inside the function is in EasyBlend space with a scale applied
 bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::CalculateView(const uint32 ViewIdx, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
 	check(Views.Num() > (int)ViewIdx);
@@ -91,26 +94,31 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::CalculateView(const uint
 	ZNear = NCP;
 	ZFar  = FCP;
 
-	static const FMatrix Game2EasyBlend(
-		FPlane(0, 0, -1, 0),
-		FPlane(-1, 0, 0, 0),
-		FPlane(0, 1, 0, 0),
-		FPlane(0, 0, 0, 1));
+	// Convert to EasyBlend coordinate system
+	FVector EasyBlendEyeLocation;
+	EasyBlendEyeLocation.X =  InOutViewLocation.Y;
+	EasyBlendEyeLocation.Y = -InOutViewLocation.Z;
+	EasyBlendEyeLocation.Z =  InOutViewLocation.X;
 
-	// Calculate view location in the EasyBlend coordinate system
-	FVector EasyBlendEyeLocation = Game2EasyBlend.TransformPosition(InOutViewLocation);
+	// View rotation
+	double Yaw   = 0.l;
+	double Pitch = 0.l;
+	double Roll  = 0.l;
 
-	// Update EasyBlend state
 	{
 		FScopeLock lock(&DllAccessCS);
+
+		// Update view location
 		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetEyepointFunc);
 		DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetEyepointFunc(Views[ViewIdx].EasyBlendMeshData.Get(), EasyBlendEyeLocation.X, EasyBlendEyeLocation.Y, EasyBlendEyeLocation.Z);
+
+		// Get actual view rotation
+		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSDK_GetHeadingPitchRollFunc);
+		DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSDK_GetHeadingPitchRollFunc(Yaw, Pitch, Roll, Views[ViewIdx].EasyBlendMeshData.Get());
 	}
 
-	// Get rotation from the frustum that has been updated already
-	InOutViewRotation.Pitch = float(-Views[ViewIdx].EasyBlendMeshData->Frustum.ViewAngleC - 90);
-	InOutViewRotation.Yaw   = float(Views[ViewIdx].EasyBlendMeshData->Frustum.ViewAngleB);
-	InOutViewRotation.Roll  = float(Views[ViewIdx].EasyBlendMeshData->Frustum.ViewAngleA);
+	// Forward view rotation to a caller
+	InOutViewRotation = FRotator(-(float)Pitch, (float)Yaw, (float)Roll);
 
 	return true;
 }

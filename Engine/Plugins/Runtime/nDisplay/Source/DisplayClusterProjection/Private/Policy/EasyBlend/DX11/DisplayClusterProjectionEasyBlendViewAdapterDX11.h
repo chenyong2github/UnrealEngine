@@ -41,8 +41,6 @@ private:
 
 		bool bIsMeshInitialized = false;
 		
-		FVector EyeLocation = FVector::ZeroVector;
-
 		ViewData()
 		{
 			EasyBlendMeshData.Reset(new EasyBlendSDKDX_Mesh);
