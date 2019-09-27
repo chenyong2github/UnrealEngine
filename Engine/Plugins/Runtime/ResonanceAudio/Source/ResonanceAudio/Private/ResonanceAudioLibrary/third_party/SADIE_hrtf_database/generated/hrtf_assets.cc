@@ -17,11 +17,11 @@ limitations under the License.
 #include "hrtf_assets.h"
 
 namespace sadie {
+#if RESONANCE_SPAT_ENABLED
 std::unique_ptr<std::string> HrtfAssets::GetFile(
     const std::string& filename) const
 {
-#if RESONANCE_SPAT_ENABLED
-	AssetDataMap::const_iterator map_entry_itr = kAssetMap.find(filename);
+  AssetDataMap::const_iterator map_entry_itr = kAssetMap.find(filename);
   if (map_entry_itr == kAssetMap.end()) {
     return nullptr;
   }
@@ -29,10 +29,13 @@ std::unique_ptr<std::string> HrtfAssets::GetFile(
       reinterpret_cast<const char*>(map_entry_itr->second.data());
   const size_t data_size = map_entry_itr->second.size();
   return std::unique_ptr<std::string>(new std::string(data, data_size));
-#else
-  return {};
-#endif // #if RESONANCE_SPAT_ENABLED
 }
+#else
+	std::unique_ptr<std::string> HrtfAssets::GetFile(const std::string&) const
+{
+  return {};
+}
+#endif // #if RESONANCE_SPAT_ENABLED
 
 #if RESONANCE_SPAT_ENABLED
 const HrtfAssets::AssetDataMap HrtfAssets::kAssetMap = {
