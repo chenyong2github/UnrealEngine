@@ -10677,6 +10677,12 @@ void FSavedMove_Character::PostUpdate(ACharacter* Character, FSavedMove_Characte
 		{
 			bForceNoCombine = true;
 		}
+
+		// Don't combine if this move caused us to change movement modes during the move.
+		if (StartPackedMovementMode != EndPackedMovementMode)
+		{
+			bForceNoCombine = true;
+		}
 	}
 	else if (PostUpdateMode == PostUpdate_Replay)
 	{
@@ -10905,6 +10911,11 @@ bool FSavedMove_Character::CanCombineWith(const FSavedMovePtr& NewMovePtr, AChar
 		{
 			return false;
 		}
+	}
+
+	if (StartPackedMovementMode != NewMove->StartPackedMovementMode)
+	{
+		return false;
 	}
 
 	if (EndPackedMovementMode != NewMove->StartPackedMovementMode)
