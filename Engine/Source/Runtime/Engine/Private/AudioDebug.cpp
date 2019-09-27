@@ -164,7 +164,7 @@ namespace
 
 	void HandleDumpActiveSounds(UWorld* World)
 	{
-		if (GEngine)
+		if (GEngine && GEngine->GetAudioDeviceManager())
 		{
 			GEngine->GetAudioDeviceManager()->GetDebugger().DumpActiveSounds();
 		}
@@ -172,7 +172,7 @@ namespace
 	
 	void HandleClearMutesAndSolos(UWorld* World)
 	{
-		if (GEngine)
+		if (GEngine && GEngine->GetAudioDeviceManager())
 		{
 			GEngine->GetAudioDeviceManager()->GetDebugger().ClearMutesAndSolos();
 		}
@@ -1318,8 +1318,6 @@ void FAudioDebugger::SendUpdateResultsToGameThread(const FAudioDevice& AudioDevi
 
 	const uint8 RequestedStats = Stats_AudioThread->RequestedStats;
 	TMap<FActiveSound*, int32> ActiveSoundToInfoIndex;
-
-	FAudioDebugger& Debugger = GEngine->GetAudioDeviceManager()->GetDebugger();
 	
 	const bool bDebug = (RequestedStats & ERequestedAudioStats::DebugSounds) != 0;
 
