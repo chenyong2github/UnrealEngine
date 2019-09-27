@@ -16,7 +16,7 @@ void FMovieSceneAccumulatedBlendState::Consolidate(TMap<FMovieSceneBlendingKey, 
 		{
 			if (UObject* Obj = WeakObj.Get())
 			{
-				for (TInlineValue<FTokenEntry>& Token : TokensToBlend)
+				for (TInlineValue<FTokenEntry, 128>& Token : TokensToBlend)
 				{
 					FMovieSceneBlendingKey Key = { Obj, Token->GetActuatorID() };
 
@@ -34,7 +34,7 @@ void FMovieSceneAccumulatedBlendState::Consolidate(TMap<FMovieSceneBlendingKey, 
 
 void FMovieSceneAccumulatedBlendState::Consolidate(TMap<FMovieSceneBlendingKey, FActuatorTokenStackPtr>& InOutBlendState)
 {
-	for (TInlineValue<FTokenEntry>& Token : TokensToBlend)
+	for (TInlineValue<FTokenEntry, 128>& Token : TokensToBlend)
 	{
 		FMovieSceneBlendingKey Key = { nullptr, Token->GetActuatorID() };
 
