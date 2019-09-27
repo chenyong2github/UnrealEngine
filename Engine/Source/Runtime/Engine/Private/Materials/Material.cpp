@@ -62,6 +62,7 @@
 #include "Materials/MaterialExpressionComment.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "RenderCore/Public/RenderUtils.h"
 
 #if WITH_EDITOR
 #include "Logging/TokenizedMessage.h"
@@ -6315,6 +6316,12 @@ bool UMaterial::HasFlippedCoordinates()
 	return ReversedInputCount > StandardInputCount;
 }
 #endif //WITH_EDITORONLY_DATA
+
+// This is to have switch use the simple single layer water shading similar to mobile: no dynamic lights, only sun and sky, no distortion, no colored transmittance on background, no custom depth read.
+bool UMaterial::SingleLayerWaterForcesForwardSimpleShading(EShaderPlatform ShaderPlatform)
+{
+	return IsSwitchPlatform(ShaderPlatform) && IsForwardShadingEnabled(ShaderPlatform);
+}
 
 void UMaterial::GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid>& OutGuids) const
 {

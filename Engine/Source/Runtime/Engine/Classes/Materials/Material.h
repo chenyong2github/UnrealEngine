@@ -1796,10 +1796,7 @@ public:
 #endif //WITH_EDITORONLY_DATA
 
 	// This is to have switch use the simple single layer water shading similar to mobile: no dynamic lights, only sun and sky, no distortion, no colored transmittance on background, no custom depth read.
-	static bool SingleLayerWaterForcesForwardSimpleShading(EShaderPlatform ShaderPlatform) 
-	{
-		return IsSwitchPlatform(ShaderPlatform) && IsForwardShadingEnabled(ShaderPlatform);
-	}
+	static bool SingleLayerWaterForcesForwardSimpleShading(EShaderPlatform ShaderPlatform);
 
 private:
 #if WITH_EDITOR
