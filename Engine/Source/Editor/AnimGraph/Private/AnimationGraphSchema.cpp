@@ -34,6 +34,7 @@
 #include "ScopedTransaction.h"
 #include "Animation/AnimMontage.h"
 #include "AnimGraphNode_LinkedInputPose.h"
+#include "AnimGraphNode_LinkedAnimLayer.h"
 
 #define LOCTEXT_NAMESPACE "AnimationGraphSchema"
 
@@ -748,6 +749,40 @@ void UAnimationGraphSchema::ConformAnimGraphToInterface(UBlueprint* InBlueprint,
 						}
 
 						CurrentPoseIndex++;
+					}
+				}
+			}
+		}
+	}
+}
+
+void UAnimationGraphSchema::ConformAnimLayersByGuid(const UAnimBlueprint* InAnimBlueprint, const FBPInterfaceDescription& CurrentInterfaceDesc)
+{
+	const UBlueprint* InterfaceBlueprint = CastChecked<UBlueprint>(CurrentInterfaceDesc.Interface->ClassGeneratedBy);
+
+	TArray<UEdGraph*> InterfaceGraphs;
+	InterfaceBlueprint->GetAllGraphs(InterfaceGraphs);
+
+	TArray<UEdGraph*> Graphs;
+	InAnimBlueprint->GetAllGraphs(Graphs);
+
+	for (UEdGraph* Graph : Graphs)
+	{
+		TArray<UAnimGraphNode_LinkedInputLayer*> LayerNodes;
+		Graph->GetNodesOfClass<UAnimGraphNode_Layer>(LayerNodes);
+
+		for (UAnimGraphNode_LinkedInputLayer* LayerNode : LayerNodes)
+		{
+			LayerNode->UpdateGuidForLayer();
+
+			if (LayerNode->InterfaceGuid.IsValid())
+			{
+				for (UEdGraph* InterfaceGraph : InterfaceGraphs)
+				{
+					// Check to see if GUID matches but name does not and update if so
+					if (InterfaceGraph->GraphGuid == LayerNode->InterfaceGuid && InterfaceGraph->GetFName() != LayerNode->Node.Layer)
+					{
+						LayerNode->Node.Layer = InterfaceGraph->GetFName();
 					}
 				}
 			}

@@ -6650,6 +6650,12 @@ void FBlueprintEditorUtils::ConformImplementedEvents(UBlueprint* Blueprint)
 /** Helper function for ConformImplementedInterfaces */
 static void ConformInterfaceByGUID(const UBlueprint* Blueprint, const FBPInterfaceDescription& CurrentInterfaceDesc)
 {
+	// Conform anim layers before interface graphs as GUIDs may need to be set up in older assets.
+	if (const UAnimBlueprint * AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
+	{
+		UAnimationGraphSchema::ConformAnimLayersByGuid(AnimBlueprint, CurrentInterfaceDesc);
+	}
+
 	// Attempt to conform by GUID if we have a blueprint interface
 	// This just make sure that GUID-linked functions preserve their names
 	const UBlueprint* InterfaceBlueprint = CastChecked<UBlueprint>(CurrentInterfaceDesc.Interface->ClassGeneratedBy);
