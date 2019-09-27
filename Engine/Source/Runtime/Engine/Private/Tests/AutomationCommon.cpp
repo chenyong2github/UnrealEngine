@@ -87,7 +87,7 @@ namespace AutomationCommon
 		FString PathName = FPaths::AutomationDir() + TestName / FPlatformProperties::IniPlatformName();
 		PathName = PathName + TEXT("/") + GetRenderDetailsString();
 
-		FPaths::MakePathRelativeTo(PathName, *FPaths::RootDir());
+		FPaths::MakePathRelativeTo(PathName, *FPaths::ProjectDir());
 
 		OutScreenshotName = FString::Printf(TEXT("%s/%s.png"), *PathName, *FPlatformMisc::GetDeviceId());
 	}
