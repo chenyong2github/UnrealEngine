@@ -12,6 +12,8 @@
 
 class FMenuBuilder;
 class UAnimationAsset;
+class UAnimBlueprint;
+struct FBPInterfaceDescription;
 
 UCLASS(MinimalAPI)
 class UAnimationGraphSchema : public UEdGraphSchema_K2
