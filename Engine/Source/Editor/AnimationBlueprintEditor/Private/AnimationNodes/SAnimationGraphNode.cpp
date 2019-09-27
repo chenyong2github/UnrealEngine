@@ -191,3 +191,23 @@ FReply SAnimationGraphNode::SpawnColourPicker()
 
 	return FReply::Handled();
 }
+
+TSharedRef<SWidget> SAnimationGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle> InNodeTitle)
+{
+	// Store title widget reference
+	NodeTitle = InNodeTitle;
+
+	// hook up invalidation delegate
+	UAnimGraphNode_Base* AnimGraphNode = CastChecked<UAnimGraphNode_Base>(GraphNode);
+	AnimGraphNode->OnNodeTitleChangedEvent().AddSP(this, &SAnimationGraphNode::HandleNodeTitleChanged);
+
+	return SGraphNodeK2Base::CreateTitleWidget(InNodeTitle);
+}
+
+void SAnimationGraphNode::HandleNodeTitleChanged()
+{
+	if(NodeTitle.IsValid())
+	{
+		NodeTitle->MarkDirty();
+	}
+}

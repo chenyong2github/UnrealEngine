@@ -89,6 +89,11 @@ FVector2D SNodeTitle::GetTitleSize() const
 	return CachedSize;
 }
 
+void SNodeTitle::MarkDirty()
+{
+	NodeTitleCache.MarkDirty();
+}
+
 void SNodeTitle::RebuildWidget()
 {
 	// Create the box to contain the lines
