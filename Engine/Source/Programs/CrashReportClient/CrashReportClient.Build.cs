@@ -39,6 +39,7 @@ public class CrashReportClient : ModuleRules
 				"SlateCore",
 				"StandaloneRenderer",
 				"MessageLog",
+				"Messaging",
 			}
 		);
 

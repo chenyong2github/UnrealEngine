@@ -25,7 +25,7 @@ public class CrashReportClientTarget : TargetRules
 			ExtraModuleNames.Add("EditorStyle");
 		}
 
-        bLegalToDistributeBinary = true;
+		bLegalToDistributeBinary = true;
 
 		bBuildDeveloperTools = true;
 
@@ -47,5 +47,12 @@ public class CrashReportClientTarget : TargetRules
 		WindowsPlatform.bUseBundledDbgHelp = false;
 
 		GlobalDefinitions.Add("NOINITCRASHREPORTER=1");
+
+		if (Target.Configuration == UnrealTargetConfiguration.Shipping && LinkType == TargetLinkType.Monolithic)
+		{
+			// DisasterRecovery/Concert needs message bus to run. If not enabled, Recovery Service will self-disable as well. In Shipping
+			// message bus is turned off by default but for a monolithic build, it can be turned on just for this executable.
+			GlobalDefinitions.Add("PLATFORM_SUPPORTS_MESSAGEBUS=1");
+		}
 	}
 }

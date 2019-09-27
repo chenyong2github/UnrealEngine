@@ -4,6 +4,7 @@
 #include "HAL/FileManager.h"
 #include "CrashReportClient.h" // For CrashReportClientLog
 #include "Interfaces/IPluginManager.h"
+#include "IMessagingModule.h"
 #include "ConcertSettings.h"
 #include "ConcertSyncSessionFlags.h"
 #include "IConcertServer.h"
@@ -24,7 +25,7 @@ bool FRecoveryService::CollectFiles(const FString& DestDir, bool bMetaDataOnly, 
 
 	if (!Server)
 	{
-		LogError(TEXT("The recovery service is not running anymore."));
+		LogError(TEXT("The recovery service is not running."));
 		return false;
 	}
 	else if (!IFileManager::Get().DirectoryExists(*DestDir))
@@ -54,6 +55,15 @@ bool FRecoveryService::CollectFiles(const FString& DestDir, bool bMetaDataOnly, 
 
 bool FRecoveryService::Startup()
 {
+#if UE_BUILD_SHIPPING && (!defined(PLATFORM_SUPPORTS_MESSAGEBUS) || !PLATFORM_SUPPORTS_MESSAGEBUS)
+	#error PLATFORM_SUPPORTS_MESSAGEBUS was explicitly defined in CrashReportClient.Target.cs for shipping configuration. MessageBus is required by Concert. Ensure it is still enabled.
+#endif
+	if (!IMessagingModule::Get().GetDefaultBus())
+	{
+		UE_LOG(CrashReportClientLog, Error, TEXT("MessageBus is not enabled in this configuration. Recovery service will be disabled!"));
+		return false;
+	}
+
 	if (!IConcertSyncServerModule::IsAvailable())
 	{
 		UE_LOG(CrashReportClientLog, Error, TEXT("ConcertSyncServer Module is missing. Recovery service will be disabled!"));
