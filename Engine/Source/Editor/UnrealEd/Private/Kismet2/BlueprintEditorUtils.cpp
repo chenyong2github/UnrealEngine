@@ -2767,6 +2767,24 @@ void FBlueprintEditorUtils::RenameGraph(UEdGraph* Graph, const FString& NewNameS
 		// Note: This will find ALL children (including nested children) so there's no need to do this recursively.
 		ValidateBlueprintChildVariables(Blueprint, Graph->GetFName(), PostValidateChildBlueprintLambda);
 
+		// Find all variable nodes in this graph.
+		TArray<UK2Node_Variable*> VariableNodes;
+		Graph->GetNodesOfClass<UK2Node_Variable>(VariableNodes);
+		for (const UEdGraph* SubGraph : Graph->SubGraphs)
+		{
+			check(SubGraph != nullptr);
+			SubGraph->GetNodesOfClass<UK2Node_Variable>(VariableNodes);
+		}
+
+		// For any nodes that reference a local variable, update the variable's scope to be the graph's new name (which will mirror the UFunction).
+		for (UK2Node_Variable* const VariableNode : VariableNodes)
+		{
+			if (VariableNode->VariableReference.IsLocalScope())
+			{
+				VariableNode->VariableReference.SetLocalMember(VariableNode->VariableReference.GetMemberName(), NewNameStr, VariableNode->VariableReference.GetMemberGuid());
+			}
+		}
+
 		// Rename any function call points (including any calls w/ a child Blueprint as the target).
 		for (TObjectIterator<UK2Node_CallFunction> It(RF_ClassDefaultObject | RF_Transient); It; ++It)
 		{
