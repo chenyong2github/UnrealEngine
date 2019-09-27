@@ -47,6 +47,23 @@ FText USoundNodeQualityLevel::GetInputPinName(int32 PinIndex) const
 }
 #endif
 
+void USoundNodeQualityLevel::PrimeChildWavePlayers(bool bRecurse)
+{
+	// If we're able to retrieve a valid cached quality level for this sound cue,
+	// only prime that quality level.
+	int32 QualityLevel = USoundCue::GetCachedQualityLevel();
+
+	if (GIsEditor && QualityLevel < 0)
+	{
+		QualityLevel = GetDefault<ULevelEditorPlaySettings>()->PlayInEditorSoundQualityLevel;
+	}
+
+	if (ChildNodes.IsValidIndex(QualityLevel) && ChildNodes[QualityLevel])
+	{
+		ChildNodes[QualityLevel]->PrimeChildWavePlayers(bRecurse);
+	}
+}
+
 int32 USoundNodeQualityLevel::GetMaxChildNodes() const
 {
 	return GetDefault<UAudioSettings>()->QualityLevels.Num();
