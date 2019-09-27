@@ -375,9 +375,11 @@ public:
 
 	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
 
+#if WITH_EDITORONLY_DATA
 	NIAGARA_API UNiagaraEmitter* GetParent() const;
 
 	NIAGARA_API void RemoveParent();
+#endif
 
 	void InitFastPathAttributeNames();
 
@@ -443,11 +445,13 @@ private:
 	UPROPERTY()
 	TArray<FName> SharedEventGeneratorIds;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	UNiagaraEmitter* Parent;
 
 	UPROPERTY()
 	UNiagaraEmitter* ParentAtLastMerge;
+#endif
 
 #if WITH_EDITOR
 	FOnPropertiesChanged OnPropertiesChangedDelegate;
