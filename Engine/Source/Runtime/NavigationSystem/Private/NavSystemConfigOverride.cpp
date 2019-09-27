@@ -64,8 +64,9 @@ void ANavSystemConfigOverride::PostLoad()
 {
 	Super::PostLoad();
 	
+#if WITH_EDITOR
 	UWorld* World = GetWorld();
-	if (World != nullptr)
+	if ((World != nullptr) && (World->IsGameWorld() == false))
 	{
 		if (World->bInTick)
 		{
@@ -76,6 +77,13 @@ void ANavSystemConfigOverride::PostLoad()
 			ApplyConfig();
 		}
 	}
+#endif // WITH_EDITOR
+}
+
+void ANavSystemConfigOverride::BeginPlay()
+{
+	Super::BeginPlay();
+	ApplyConfig();
 }
 
 void ANavSystemConfigOverride::ApplyConfig()

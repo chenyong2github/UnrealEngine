@@ -53,6 +53,10 @@ public:
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 
+	//~ Begin AActor Interface
+	virtual void BeginPlay() override;
+	//~ End AActor Interface
+
 #if WITH_EDITOR
 	/** made an explicit function since rebuilding navigation system can be expensive */
 	UFUNCTION(Category = Navigation, meta = (CallInEditor = "true"))
