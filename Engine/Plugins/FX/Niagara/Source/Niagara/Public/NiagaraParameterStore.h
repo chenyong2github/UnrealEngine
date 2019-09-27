@@ -121,9 +121,10 @@ struct FNiagaraVariableWithOffset : public FNiagaraVariable
 {
 	GENERATED_USTRUCT_BODY()
 
-	FNiagaraVariableWithOffset() : Offset(INDEX_NONE) {}
-	FNiagaraVariableWithOffset(const FNiagaraVariableWithOffset& InRef) : FNiagaraVariable(InRef), Offset(InRef.Offset) {}
-	FNiagaraVariableWithOffset(const FNiagaraVariable& InVariable, int32 InOffset) : FNiagaraVariable(InVariable), Offset(InOffset) {}
+	// Those constructor enforce that there are no data allocated.
+	FORCEINLINE FNiagaraVariableWithOffset() : Offset(INDEX_NONE) {}
+	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariableWithOffset& InRef) : FNiagaraVariable(InRef.GetType(), InRef.GetName()), Offset(InRef.Offset) {}
+	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariable& InVariable, int32 InOffset) : FNiagaraVariable(InVariable.GetType(), InVariable.GetName()), Offset(InOffset) {}
 
 	UPROPERTY()
 	int32 Offset;

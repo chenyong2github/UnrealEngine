@@ -382,40 +382,40 @@ struct NIAGARA_API FNiagaraTypeDefinition
 public:
 
 	// Construct blank raw type definition 
-	FNiagaraTypeDefinition(UClass *ClassDef)
+	FORCEINLINE FNiagaraTypeDefinition(UClass *ClassDef)
 		: Struct(ClassDef), Enum(nullptr), Size(INDEX_NONE), Alignment(INDEX_NONE)
 	{
 		checkSlow(Struct != nullptr);
 	}
 
-	FNiagaraTypeDefinition(UEnum *EnumDef)
+	FORCEINLINE FNiagaraTypeDefinition(UEnum *EnumDef)
 		: Struct(IntStruct), Enum(EnumDef), Size(INDEX_NONE), Alignment(INDEX_NONE)
 	{
 		checkSlow(Struct != nullptr);
 	}
 
-	FNiagaraTypeDefinition(UScriptStruct *StructDef)
+	FORCEINLINE FNiagaraTypeDefinition(UScriptStruct *StructDef)
 		: Struct(StructDef), Enum(nullptr), Size(INDEX_NONE), Alignment(INDEX_NONE)
 	{
 		checkSlow(Struct != nullptr);
 	}
 
-	FNiagaraTypeDefinition(const FNiagaraTypeDefinition &Other)
+	FORCEINLINE FNiagaraTypeDefinition(const FNiagaraTypeDefinition &Other)
 		: Struct(Other.Struct), Enum(Other.Enum), Size(INDEX_NONE), Alignment(INDEX_NONE)
 	{
 	}
 
 	// Construct a blank raw type definition
-	FNiagaraTypeDefinition()
+	FORCEINLINE FNiagaraTypeDefinition()
 		: Struct(nullptr), Enum(nullptr), Size(INDEX_NONE), Alignment(INDEX_NONE)
 	{}
 
-	bool operator !=(const FNiagaraTypeDefinition &Other) const
+	FORCEINLINE bool operator !=(const FNiagaraTypeDefinition &Other) const
 	{
 		return !(*this == Other);
 	}
 
-	bool operator == (const FNiagaraTypeDefinition &Other) const
+	FORCEINLINE bool operator == (const FNiagaraTypeDefinition &Other) const
 	{
 		return Struct == Other.Struct && Enum == Other.Enum;
 	}
@@ -796,7 +796,7 @@ struct FNiagaraVariable
 		}
 	}
 
-	FNiagaraVariable(FNiagaraTypeDefinition InType, FName InName)
+	FORCEINLINE FNiagaraVariable(const FNiagaraTypeDefinition& InType, const FName& InName)
 		: Name(InName)
 		, TypeDef(InType)
 	{
@@ -879,6 +879,11 @@ struct FNiagaraVariable
 	uint8* GetData()
 	{
 		return VarData.GetData();
+	}
+
+	void ClearData()
+	{
+		VarData.Empty();
 	}
 
 	int32 GetSizeInBytes() const
