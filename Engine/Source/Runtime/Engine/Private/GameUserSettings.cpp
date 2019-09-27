@@ -233,8 +233,6 @@ void UGameUserSettings::SetToDefaults()
 		UpdateResolutionQuality();
 	}
 
-	bUseHeadphoneMode = false;
-
 	bUseDynamicResolution = false;
 	bUseHDRDisplayOutput = GUserSettingsDefaultHDRValue;
 	HDRDisplayOutputNits = 1000;
@@ -462,8 +460,6 @@ void UGameUserSettings::ApplyNonResolutionSettings()
 	}
 
 	IConsoleManager::Get().CallAllConsoleVariableSinks();
-
-	EnableHeadphoneMode(bUseHeadphoneMode);
 
 	bool bWithEditor = false;
 #if WITH_EDITOR
@@ -708,17 +704,6 @@ void UGameUserSettings::SetAudioQualityLevel(int32 QualityLevel)
 		AudioQualityLevel = QualityLevel;
 
 		USoundCue::StaticAudioQualityChanged(QualityLevel);
-	}
-}
-
-void UGameUserSettings::EnableHeadphoneMode(bool bEnabled)
-{
-	static IConsoleVariable* BinauralSpatializationDisabledCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("au.DisableBinauralSpatialization"));
-
-	if (BinauralSpatializationDisabledCVar)
-	{
-		BinauralSpatializationDisabledCVar->Set(!bEnabled, ECVF_SetByGameSetting);
-		bUseHeadphoneMode = bEnabled;
 	}
 }
 
