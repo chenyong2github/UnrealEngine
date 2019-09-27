@@ -73,38 +73,44 @@ void FAssetTypeActions_SoundClass::GetActions(const TArray<UObject*>& InObjects,
 
 void FAssetTypeActions_SoundClass::ExecuteMute(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
-	FAudioDebugger& Debugger = GEditor->GetAudioDeviceManager()->GetDebugger();
-	for (TWeakObjectPtr<USoundClass> i : Objects)
-	{		
-		if (USoundClass* Class = Cast<USoundClass>(i.Get()))
+	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
+	{
+		for (TWeakObjectPtr<USoundClass> i : Objects)
 		{
-			Debugger.ToggleMuteSoundClass(Class->GetFName());
+			if (USoundClass* Class = Cast<USoundClass>(i.Get()))
+			{
+				ADM->GetDebugger().ToggleMuteSoundClass(Class->GetFName());
+			}
 		}
 	}
 }
 
 void FAssetTypeActions_SoundClass::ExecuteSolo(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
-	FAudioDebugger& Debugger = GEditor->GetAudioDeviceManager()->GetDebugger();
-	for (TWeakObjectPtr<USoundClass> i : Objects)
+	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
-		if (USoundClass* Class = Cast<USoundClass>(i.Get()))
+		for (TWeakObjectPtr<USoundClass> i : Objects)
 		{
-			Debugger.ToggleSoloSoundClass(Class->GetFName());
+			if (USoundClass* Class = Cast<USoundClass>(i.Get()))
+			{
+				ADM->GetDebugger().ToggleSoloSoundClass(Class->GetFName());
+			}
 		}
 	}
 }
 
 bool FAssetTypeActions_SoundClass::IsActionCheckedMute(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
-	FAudioDebugger& Debugger = GEditor->GetAudioDeviceManager()->GetDebugger();
-	for (TWeakObjectPtr<USoundClass> i : Objects)
+	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
-		if (USoundClass* Class = Cast<USoundClass>(i.Get()))
+		for (TWeakObjectPtr<USoundClass> i : Objects)
 		{
-			if (Debugger.IsMuteSoundClass(Class->GetFName()))
+			if (USoundClass* Class = Cast<USoundClass>(i.Get()))
 			{
-				return true;
+				if (ADM->GetDebugger().IsMuteSoundClass(Class->GetFName()))
+				{
+					return true;
+				}
 			}
 		}
 	}
@@ -113,60 +119,62 @@ bool FAssetTypeActions_SoundClass::IsActionCheckedMute(TArray<TWeakObjectPtr<USo
 
 bool FAssetTypeActions_SoundClass::IsActionCheckedSolo(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
-	FAudioDebugger& Debugger = GEditor->GetAudioDeviceManager()->GetDebugger();
-
-	for (TWeakObjectPtr<USoundClass> i : Objects)
-	{
-		if (USoundClass* Class = Cast<USoundClass>(i.Get()))
+	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
+	{		
+		for (TWeakObjectPtr<USoundClass> i : Objects)
 		{
-			if (Debugger.IsSoloSoundClass(Class->GetFName()))
+			if (USoundClass* Class = Cast<USoundClass>(i.Get()))
 			{
-				return true;
+				if (ADM->GetDebugger().IsSoloSoundClass(Class->GetFName()))
+				{
+					return true;
+				}
 			}
 		}
 	}
-
 	return false;
 }
 
 bool FAssetTypeActions_SoundClass::CanExecuteMuteCommand(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
-	FAudioDebugger& Debugger = GEditor->GetAudioDeviceManager()->GetDebugger();
-
-	// Allow muting if we're not Soloing.
-	for (TWeakObjectPtr<USoundClass> i : Objects)
+	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
-		if (USoundClass* Class = Cast<USoundClass>(i.Get()))
+		// Allow muting if we're not Soloing.
+		for (TWeakObjectPtr<USoundClass> i : Objects)
 		{
-			if (Debugger.IsSoloSoundClass(Class->GetFName()))
+			if (USoundClass* Class = Cast<USoundClass>(i.Get()))
 			{
-				return false;
+				if (ADM->GetDebugger().IsSoloSoundClass(Class->GetFName()))
+				{
+					return false;
+				}
 			}
 		}
+		// Ok.
+		return true;
 	}
-
-	// Ok.
-	return true;
+	return false;
 }
 
 bool FAssetTypeActions_SoundClass::CanExecuteSoloCommand(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
-	FAudioDebugger& Debugger = GEditor->GetAudioDeviceManager()->GetDebugger();
-
-	// Allow Soloing if we're not Muting.
-	for (TWeakObjectPtr<USoundClass> i : Objects)
+	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
-		if (USoundClass* Class = Cast<USoundClass>(i.Get()))
+		// Allow Soloing if we're not Muting.
+		for (TWeakObjectPtr<USoundClass> i : Objects)
 		{
-			if (Debugger.IsMuteSoundClass(Class->GetFName()))
+			if (USoundClass* Class = Cast<USoundClass>(i.Get()))
 			{
-				return false;
+				if (ADM->GetDebugger().IsMuteSoundClass(Class->GetFName()))
+				{
+					return false;
+				}
 			}
 		}
+		// Ok.
+		return true;
 	}
-
-	// Ok.
-	return true;
+	return false;
 }
 
 

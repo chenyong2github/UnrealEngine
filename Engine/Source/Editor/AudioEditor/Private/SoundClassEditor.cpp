@@ -161,9 +161,10 @@ void FSoundClassEditor::InitSoundClassEditor( const EToolkitMode::Type Mode, con
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
 			
-	ensure(GEditor);
-	ensure(GEditor->GetAudioDeviceManager());
-	Debugger = &GEditor->GetAudioDeviceManager()->GetDebugger();
+	if (GEditor->GetAudioDeviceManager())
+	{
+		Debugger = &GEditor->GetAudioDeviceManager()->GetDebugger();
+	}	
 
 	GraphEditor->SelectAllNodes();
 	for (UObject* SelectedNode : GraphEditor->GetSelectedNodes())
@@ -395,34 +396,40 @@ void FSoundClassEditor::RedoGraphAction()
 
 void FSoundClassEditor::ToggleSolo()
 {
-	Debugger->ToggleSoloSoundClass(SoundClass->GetFName());
+	if (Debugger)
+	{
+		Debugger->ToggleSoloSoundClass(SoundClass->GetFName());
+	}
 }
 
 bool FSoundClassEditor::CanExcuteToggleSolo() const
 {
 	// Enable solo if we are not Muted	
-	return !Debugger->IsMuteSoundClass(SoundClass->GetFName());
+	return Debugger ? !Debugger->IsMuteSoundClass(SoundClass->GetFName()) : false;
 }
 
 bool FSoundClassEditor::IsSoloToggled() const
 {
-	return Debugger->IsSoloSoundClass(SoundClass->GetFName());
+	return Debugger ? Debugger->IsSoloSoundClass(SoundClass->GetFName()) : false;
 }
 
 void FSoundClassEditor::ToggleMute()
 {
-	Debugger->ToggleMuteSoundClass(SoundClass->GetFName());
+	if (Debugger)
+	{
+		Debugger->ToggleMuteSoundClass(SoundClass->GetFName());
+	}
 }
 
 bool FSoundClassEditor::CanExcuteToggleMute() const
 {
 	// Enable mute if we are not Soloed
-	return !Debugger->IsSoloSoundClass(SoundClass->GetFName());
+	return Debugger ? !Debugger->IsSoloSoundClass(SoundClass->GetFName()) : false;
 }
 
 bool FSoundClassEditor::IsMuteToggled() const
 {	
-	return Debugger->IsMuteSoundClass(SoundClass->GetFName());
+	return Debugger ? Debugger->IsMuteSoundClass(SoundClass->GetFName()) : false;
 }
 
 void FSoundClassEditor::CreateSoundClass(UEdGraphPin* FromPin, const FVector2D& Location, const FString& Name)
