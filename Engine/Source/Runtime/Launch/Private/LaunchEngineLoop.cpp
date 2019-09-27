@@ -2380,7 +2380,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 					GUseRHIThread_InternalUseOnly = false;
 				}
 			}
-
+				
 			SCOPED_BOOT_TIMING("StartRenderingThread");
 			StartRenderingThread();
 		}
@@ -4925,10 +4925,6 @@ bool FEngineLoop::AppInit( )
 		// Now that configs have been initialized, setup stack walking options
 		FPlatformStackWalk::Init();
 	}
-
-#if WITH_EDITOR
-	FBlueprintSupport::InitializeCompilationManager();
-#endif
 
 	CheckForPrintTimesOverride();
 

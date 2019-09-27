@@ -9,8 +9,6 @@
 #include "BlueprintCompilationManager.h"
 #endif
 
-extern COREUOBJECT_API bool GBlueprintUseCompilationManager;
-
 //////////////////////////////////////////////////////////////////////////
 // FMemberReference
 
@@ -266,7 +264,7 @@ void FMemberReference::InitFieldRedirectMap()
 
 UClass* FMemberReference::GetClassToUse(UClass* InClass, bool bUseUpToDateClass)
 {
-	if(GBlueprintUseCompilationManager && bUseUpToDateClass)
+	if(bUseUpToDateClass)
 	{
 		return FBlueprintEditorUtils::GetMostUpToDateClass(InClass);
 	}

@@ -64,8 +64,6 @@ FSimpleMulticastDelegate FKismetCompilerContext::OnPostCompile;
 
 #define LOCTEXT_NAMESPACE "KismetCompiler"
 
-extern COREUOBJECT_API bool GBlueprintUseCompilationManager;
-
 //////////////////////////////////////////////////////////////////////////
 // Stats for this module
 DECLARE_CYCLE_STAT(TEXT("Create Schema"), EKismetCompilerStats_CreateSchema, STATGROUP_KismetCompiler );
@@ -3971,17 +3969,6 @@ void FKismetCompilerContext::CompileClassLayout(EInternalCompilerFlags InternalF
 		else
 		{
 			Blueprint->GeneratedClass = TargetClass;
-		}
-	}
-
-	if (CompileOptions.DoesRequireBytecodeGeneration() && !GBlueprintUseCompilationManager)
-	{
-		TArray<UEdGraph*> AllGraphs;
-		Blueprint->GetAllGraphs(AllGraphs);
-		for (int32 i = 0; i < AllGraphs.Num(); i++)
-		{
-			//Reset error flags associated with nodes in each graph
-			ResetErrorFlags(AllGraphs[i]);
 		}
 	}
 
