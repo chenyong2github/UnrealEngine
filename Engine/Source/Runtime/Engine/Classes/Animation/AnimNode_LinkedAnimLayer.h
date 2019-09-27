@@ -49,8 +49,18 @@ public:
 		return *Interface;
 	}
 
+#if WITH_EDITOR
+	// Event fired when the instance we are running has changed
+	FSimpleMulticastDelegate& OnInstanceChanged() { return OnInstanceChangedEvent; }
+#endif
+
 protected:
 	void InitializeSelfLayer(const UAnimInstance* SelfAnimInstance);
+
+#if WITH_EDITOR
+	// Event fired when the instance we are running has changed
+	FSimpleMulticastDelegate OnInstanceChangedEvent;
+#endif
 };
 
 UE_DEPRECATED(4.24, "FAnimNode_Layer has been renamed to FAnimNode_LinkedAnimLayer")
