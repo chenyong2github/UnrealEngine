@@ -2,13 +2,18 @@
 
 #pragma once
 
-#include "HAL/PlatformMisc.h"
-
 #ifndef TRACK_DISK_UTILIZATION
 #define TRACK_DISK_UTILIZATION 0
 #endif
 
 #if TRACK_DISK_UTILIZATION
+#include "HAL/PlatformMisc.h"
+#include "HAL/ThreadSafeBool.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+
+#include <nn/nn_Log.h>
+
+CSV_DECLARE_CATEGORY_EXTERN(DiskIO);
 
 #ifndef SPEW_DISK_UTILIZATION
 #define SPEW_DISK_UTILIZATION 0
@@ -16,47 +21,111 @@
 
 struct FDiskUtilizationTracker
 {
-	FCriticalSection CriticalSection;
+	struct UtilizationStats
+	{
+		UtilizationStats() :
+			TotalReads(0),
+			TotalSeeks(0),
+			TotalBytesRead(0),
+			TotalSeekDistance(0),
+			TotalIOTime(0.0),
+			TotalIdleTime(0.0)
+		{}
 
-	uint64 NumReads;
-	uint64 NumSeeks;
+		double GetOverallThroughputMBS() const
+		{
+			return double(TotalBytesRead) / (TotalIOTime + TotalIdleTime) / (1024 * 1024);
+		}
+
+		double GetReadThrougputMBS() const
+		{
+			return double(TotalBytesRead) / (TotalIOTime) / (1024 * 1024);
+		}
+
+		double GetTotalIdleTimeInSeconds() const
+		{
+			return TotalIdleTime;
+		}
+
+		double GetTotalIOTimeInSeconds() const
+		{
+			return TotalIOTime;
+		}
+
+		double GetPercentTimeIdle() const
+		{
+			double TotalTime = TotalIOTime + TotalIdleTime;
+
+			return TotalTime > 0.0 ? (100.0f * TotalIdleTime) / TotalTime : 0.0;
+		}
+
+		void Reset()
+		{
+			TotalReads = 0;
+			TotalSeeks = 0;
+			TotalBytesRead = 0;
+			TotalSeekDistance = 0;
+			TotalIOTime = 0.0;
+			TotalIdleTime = 0.0;
+		}
+
+		void Dump() const;
+
+		uint64 TotalReads;
+		uint64 TotalSeeks;
+
+		uint64 TotalBytesRead;
+		uint64 TotalSeekDistance;
+
+		double TotalIOTime;
+		double TotalIdleTime;
+	};
+
+	UtilizationStats LongTermStats;
+	UtilizationStats ShortTermStats;
+
+	FCriticalSection CriticalSection;
 
 	uint64 IdleStartCycle;
 	uint64 ReadStartCycle;
 
-	uint64 TotalBytesRead;
-	uint64 TotalSeekDistance;
-
-	double TotalIOTime;
-	double TotalIdleTime;
-
 	uint64 InFlightBytes;
 	int32  InFlightReads;
 
-	FDiskUtilizationTracker()
-		: NumReads(0)
-		, NumSeeks(0)
-		, IdleStartCycle(0)
-		, ReadStartCycle(0)
-		, TotalBytesRead(0)
-		, TotalSeekDistance(0)
-		, TotalIOTime(0.0)
-		, TotalIdleTime(0.0)
-		, InFlightBytes(0)
-		, InFlightReads(0)
+	FThreadSafeBool bResetShortTermStats;
+
+	FDiskUtilizationTracker() :
+		IdleStartCycle(0),
+		ReadStartCycle(0),
+		InFlightBytes(0),
+		InFlightReads(0)
 	{
 	}
 
 	void StartRead(uint64 InReadBytes, uint64 InSeekDistance = 0)
 	{
+		static bool bBreak = false;
+
+		bool bReset = bResetShortTermStats.AtomicSet(false);
+
+		if (bReset)
+		{
+			ShortTermStats.Reset();
+			bBreak = true;
+		}
+
 		// update total reads
-		NumReads++;
+		LongTermStats.TotalReads++;
+		ShortTermStats.TotalReads++;
 
 		// update seek data
 		if (InSeekDistance > 0)
 		{
-			NumSeeks++;
-			TotalSeekDistance += InSeekDistance;
+			LongTermStats.TotalSeeks++;
+			ShortTermStats.TotalSeeks++;
+
+			LongTermStats.TotalSeekDistance += InSeekDistance;
+			ShortTermStats.TotalSeekDistance += InSeekDistance;
 		}
 
 		{
@@ -70,8 +139,12 @@ struct FDiskUtilizationTracker
 				// update idle time (if we've been idle)
 				if (IdleStartCycle > 0)
 				{
+					const double IdleTime = double(ReadStartCycle - IdleStartCycle) * FPlatformTime::GetSecondsPerCycle64();
 
-					TotalIdleTime += double(ReadStartCycle - IdleStartCycle) * FPlatformTime::GetSecondsPerCycle64();
+					LongTermStats.TotalIdleTime += IdleTime;
+					ShortTermStats.TotalIdleTime += bReset ? 0 : IdleTime;
+
+					CSV_CUSTOM_STAT(DiskIO, AccumulatedIdleTime, float(IdleTime), ECsvCustomStatOp::Accumulate);
 				}
 			}
 
@@ -93,46 +166,41 @@ struct FDiskUtilizationTracker
 				IdleStartCycle = FPlatformTime::Cycles64();
 
 				// update our read counters
-				TotalIOTime += double(IdleStartCycle - ReadStartCycle) * FPlatformTime::GetSecondsPerCycle64();
-				TotalBytesRead += InFlightBytes;
+				const double IOTime = double(IdleStartCycle - ReadStartCycle) * FPlatformTime::GetSecondsPerCycle64();
+
+				LongTermStats.TotalIOTime += IOTime;
+				ShortTermStats.TotalIOTime += IOTime;
+
+				LongTermStats.TotalBytesRead += InFlightBytes;
+				ShortTermStats.TotalBytesRead += InFlightBytes;
+
+				CSV_CUSTOM_STAT(DiskIO, AccumulatedIOTime, float(IOTime), ECsvCustomStatOp::Accumulate);
 
 				InFlightBytes = 0;
 			}
 
 		}
-
 		MaybePrint();
 	}
 
-	double GetOverallThroughputMBS()
+	uint32 GetOutstandingRequests() const
 	{
-		return double(TotalBytesRead) / (TotalIOTime + TotalIdleTime) / (1024 * 1024);
+		return InFlightReads;
 	}
 
-	double GetReadThrougputMBS()
+	struct UtilizationStats& GetLongTermStats()
 	{
-		return double(TotalBytesRead) / (TotalIOTime) / (1024 * 1024);
+		return LongTermStats;
 	}
 
-	void ResetStats()
+	struct UtilizationStats& GetShortTermStats()
 	{
-		// make sure we're not reseting stats while a read is in flight. that'd mess things up.
-		check(InFlightReads == 0);
+		return ShortTermStats;
+	}
 
-		NumSeeks = 0;
-		NumReads = 0;
-		
-		IdleStartCycle = 0;
-		ReadStartCycle = 0;
-
-		TotalBytesRead = 0;
-		TotalSeekDistance = 0;
-
-		TotalIOTime = 0.0;
-		TotalIdleTime = 0.0;
-
-		InFlightBytes = 0;
-		InFlightReads = 0;
+	void ResetShortTermStats()
+	{
+		bResetShortTermStats = true;
 	}
 
 	static constexpr float PrintFrequencySeconds = 0.5f;
