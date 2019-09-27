@@ -42,15 +42,17 @@ public:
 	 * Add a package (potentially source or localized) to this cache.
 	 *
 	 * @param InPackageName		The name of the package to add.
+	 * @return TRUE if the supplied package is a localized asset and was added to the culture cache, FALSE otherwise
 	 */
-	void AddPackage(const FString& InPackageName);
+	bool AddPackage(const FString& InPackageName);
 
 	/**
 	 * Remove a package (potentially source or localized) from this cache.
 	 *
 	 * @param InPackageName		The name of the package to remove.
+	 * @return TRUE if the supplied package is a localized asset and was removed from the culture cache, FALSE otherwise
 	 */
-	void RemovePackage(const FString& InPackageName);
+	bool RemovePackage(const FString& InPackageName);
 
 	/**
 	 * Restore this cache to an empty state.
