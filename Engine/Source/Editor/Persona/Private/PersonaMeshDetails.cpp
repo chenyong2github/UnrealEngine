@@ -2898,7 +2898,8 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 	{
 		return FReply::Handled();
 	}
-
+	
+	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkelMesh);
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkelMesh);
 		
@@ -2955,6 +2956,7 @@ void FPersonaMeshDetails::RegenerateOneLOD(int32 LODIndex)
 {
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
 	check(SkelMesh);
+	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkelMesh);
 
 	if (SkelMesh->IsValidLODIndex(LODIndex))
 	{
@@ -3015,6 +3017,7 @@ void FPersonaMeshDetails::RegenerateDependentLODs(int32 LODIndex)
 
 	IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
 	IMeshReduction* MeshReduction = ReductionModule.GetSkeletalMeshReductionInterface();
+	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkelMesh);
 	if (MeshReduction && MeshReduction->IsSupported())
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkelMesh);
@@ -3068,6 +3071,7 @@ FReply FPersonaMeshDetails::RegenerateLOD(int32 LODIndex)
 		}
 	}
 	
+	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkelMesh);
 	//Reregister scope
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkelMesh);
@@ -3111,6 +3115,7 @@ FReply FPersonaMeshDetails::RemoveOneLOD(int32 LODIndex)
 			FScopedTransaction Transaction(TEXT(""), RemoveLODText, SkelMesh);
 			SkelMesh->Modify();
 
+			FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkelMesh);
 			//PostEditChange scope
 			{
 				FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkelMesh);
@@ -3152,6 +3157,7 @@ void FPersonaMeshDetails::ApplyChanges()
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
 	check(SkelMesh);
 
+	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkelMesh);
 	//Control the scope of the PostEditChange
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkelMesh);
@@ -5294,6 +5300,7 @@ FReply FPersonaMeshDetails::OnRemoveApexFileClicked(int32 AssetIndex, IDetailLay
 		}
 	}
 
+	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkelMesh);
 	{
 		// Need to unregister our components so they shut down their current clothing simulation
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkelMesh);
@@ -5448,6 +5455,7 @@ void FPersonaMeshDetails::OnClothingSelectionChanged(TSharedPtr<FClothingEntry> 
 
 	FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[InLodIdx];
 	const FSkelMeshSection& Section = LODModel.Sections[InSectionIdx];
+	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(Mesh);
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(Mesh);
 		FScopedTransaction Transaction(LOCTEXT("PersonaOnSectionClothChangedTransaction", "Persona editor: Section cloth changed"));

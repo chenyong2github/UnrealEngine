@@ -900,6 +900,7 @@ void FSkeletalMeshEditor::ApplyClothing(UClothingAssetBase* InAsset, int32 InLod
 
 	FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[InLodIndex];
 	const FSkelMeshSection& Section = LODModel.Sections[InSectionIndex];
+	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(Mesh);
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(Mesh);
 		FScopedTransaction Transaction(LOCTEXT("SkeletalMeshEditorApplyClothingTransaction", "Persona editor: Apply Section Cloth"));
@@ -954,6 +955,7 @@ void FSkeletalMeshEditor::RemoveClothing(int32 InLodIndex, int32 InSectionIndex)
 
 	FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[InLodIndex];
 	const FSkelMeshSection& Section = LODModel.Sections[InSectionIndex];
+	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(Mesh);
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(Mesh);
 		FScopedTransaction Transaction(LOCTEXT("SkeletalMeshEditorRemoveClothingTransaction", "Persona editor: Remove Section Cloth"));
@@ -1047,72 +1049,17 @@ UObject* FSkeletalMeshEditor::HandleGetAsset()
 	return GetEditingObject();
 }
 
-class FScopedSuspendAlternateSkinWeightPreview
-{
-public:
-	/*
-	 * This constructor suspend the alternate skinning preview for all editor component that use the specified skeletalmesh
-	 * Parameters:
-	 * @param InSkeletalMesh - SkeletalMesh use to know which preview component we have to suspend the alternate skinning preview.
-	 */
-	FScopedSuspendAlternateSkinWeightPreview(USkeletalMesh* InSkeletalMesh);
-
-	/*
-	 * This destructor put back the preview alternate skinning
-	 */
-	~FScopedSuspendAlternateSkinWeightPreview();
-
-private:
-	TArray< TTuple<UDebugSkelMeshComponent*, FName> > SuspendedComponentArray;
-};
-
-FScopedSuspendAlternateSkinWeightPreview::FScopedSuspendAlternateSkinWeightPreview(USkeletalMesh* SkeletalMesh)
-{
-	SuspendedComponentArray.Empty(2);
-	if (SkeletalMesh != nullptr)
-	{
-		// Now iterate over all skeletal mesh components and unregister them from the world, we will reregister them in the destructor
-		for (TObjectIterator<UDebugSkelMeshComponent> It; It; ++It)
-		{
-			UDebugSkelMeshComponent* DebugSKComp = *It;
-			if (DebugSKComp->SkeletalMesh == SkeletalMesh)
-			{
-				const FName ProfileName = DebugSKComp->GetCurrentSkinWeightProfileName();
-				if (ProfileName != NAME_None)
-				{
-					DebugSKComp->ClearSkinWeightProfile();
-					TTuple<UDebugSkelMeshComponent*, FName> ComponentTupple;
-					ComponentTupple.Key = DebugSKComp;
-					ComponentTupple.Value = ProfileName;
-					SuspendedComponentArray.Add(ComponentTupple);
-				}
-			}
-		}
-	}
-}
-
-FScopedSuspendAlternateSkinWeightPreview::~FScopedSuspendAlternateSkinWeightPreview()
-{
-	//Put back the skin weight profile for all editor debug component
-	for (const TTuple<UDebugSkelMeshComponent*, FName>& ComponentTupple : SuspendedComponentArray)
-	{
-		ComponentTupple.Key->SetSkinWeightProfile(ComponentTupple.Value);
-	}
-	SuspendedComponentArray.Empty();
-}
-
-
 bool FSkeletalMeshEditor::HandleReimportMeshInternal(int32 SourceFileIndex /*= INDEX_NONE*/, bool bWithNewFile /*= false*/)
 {
-	FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
 	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkeletalMesh);
-
-	// Reimport the asset
-	const bool bResult = FReimportManager::Instance()->Reimport(SkeletalMesh, true, true, TEXT(""), nullptr, SourceFileIndex, bWithNewFile);
-
-	// Refresh skeleton tree
-	SkeletonTree->Refresh();
-
+	bool bResult = false;
+	{
+		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
+		// Reimport the asset
+		bResult = FReimportManager::Instance()->Reimport(SkeletalMesh, true, true, TEXT(""), nullptr, SourceFileIndex, bWithNewFile);
+		// Refresh skeleton tree
+		SkeletonTree->Refresh();
+	}
 	return bResult;
 }
 
@@ -1132,50 +1079,52 @@ void FSkeletalMeshEditor::HandleReimportMeshWithNewFile(int32 SourceFileIndex /*
 
 void ReimportAllCustomLODs(USkeletalMesh* SkeletalMesh, UDebugSkelMeshComponent* PreviewMeshComponent, bool bWithNewFile)
 {
-	FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
 	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkeletalMesh);
-
-	//Find the dependencies of the generated LOD
-	TArray<bool> Dependencies;
-	Dependencies.AddZeroed(SkeletalMesh->GetLODNum());
-	//Avoid making LOD 0 to true in the dependencies since everything that should be regenerate base on LOD 0 is already regenerate at this point.
-	//But we need to regenerate every generated LOD base on any re-import custom LOD
-	//Reimport all custom LODs
-	for (int32 LodIndex = 1; LodIndex < SkeletalMesh->GetLODNum(); ++LodIndex)
 	{
-		//Do not reimport LOD that was re-import with the base mesh
-		if (SkeletalMesh->GetLODInfo(LodIndex)->bImportWithBaseMesh)
-		{
-			continue;
-		}
-		if (SkeletalMesh->GetLODInfo(LodIndex)->bHasBeenSimplified == false)
-		{
-			FString SourceFilenameBackup = SkeletalMesh->GetLODInfo(LodIndex)->SourceImportFilename;
-			if (bWithNewFile)
-			{
-				SkeletalMesh->GetLODInfo(LodIndex)->SourceImportFilename.Empty();
-			}
+		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
 
-			if (!FbxMeshUtils::ImportMeshLODDialog(SkeletalMesh, LodIndex, false))
+		//Find the dependencies of the generated LOD
+		TArray<bool> Dependencies;
+		Dependencies.AddZeroed(SkeletalMesh->GetLODNum());
+		//Avoid making LOD 0 to true in the dependencies since everything that should be regenerate base on LOD 0 is already regenerate at this point.
+		//But we need to regenerate every generated LOD base on any re-import custom LOD
+		//Reimport all custom LODs
+		for (int32 LodIndex = 1; LodIndex < SkeletalMesh->GetLODNum(); ++LodIndex)
+		{
+			//Do not reimport LOD that was re-import with the base mesh
+			if (SkeletalMesh->GetLODInfo(LodIndex)->bImportWithBaseMesh)
 			{
+				continue;
+			}
+			if (SkeletalMesh->GetLODInfo(LodIndex)->bHasBeenSimplified == false)
+			{
+				FString SourceFilenameBackup = SkeletalMesh->GetLODInfo(LodIndex)->SourceImportFilename;
 				if (bWithNewFile)
 				{
-					SkeletalMesh->GetLODInfo(LodIndex)->SourceImportFilename = SourceFilenameBackup;
+					SkeletalMesh->GetLODInfo(LodIndex)->SourceImportFilename.Empty();
+				}
+
+				if (!FbxMeshUtils::ImportMeshLODDialog(SkeletalMesh, LodIndex, false))
+				{
+					if (bWithNewFile)
+					{
+						SkeletalMesh->GetLODInfo(LodIndex)->SourceImportFilename = SourceFilenameBackup;
+					}
+				}
+				else
+				{
+					Dependencies[LodIndex] = true;
 				}
 			}
-			else
+			else if (Dependencies[SkeletalMesh->GetLODInfo(LodIndex)->ReductionSettings.BaseLOD])
 			{
+				//Regenerate the LOD
+				FSkeletalMeshUpdateContext UpdateContext;
+				UpdateContext.SkeletalMesh = SkeletalMesh;
+				UpdateContext.AssociatedComponents.Push(PreviewMeshComponent);
+				FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LodIndex, false);
 				Dependencies[LodIndex] = true;
 			}
-		}
-		else if(Dependencies[SkeletalMesh->GetLODInfo(LodIndex)->ReductionSettings.BaseLOD])
-		{
-			//Regenerate the LOD
-			FSkeletalMeshUpdateContext UpdateContext;
-			UpdateContext.SkeletalMesh = SkeletalMesh;
-			UpdateContext.AssociatedComponents.Push(PreviewMeshComponent);
-			FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LodIndex, false);
-			Dependencies[LodIndex] = true;
 		}
 	}
 }
