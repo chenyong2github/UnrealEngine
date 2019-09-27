@@ -1017,6 +1017,10 @@ void FNiagaraSystemSimulation::Tick_Concurrent(FNiagaraSystemSimulationTickConte
 
 		FScopeCycleCounter SystemStatCounter(Context.System->GetStatID(true, true));
 
+		for (FNiagaraSystemInstance* SystemInstance : Context.Instances)
+		{
+			SystemInstance->TickInstanceParameters_Concurrent();
+		}
 
 		if (Context.Owner->GetSystem()->FastPathMode != ENiagaraFastPathMode::ScriptVMOnly)
 		{
@@ -1317,8 +1321,6 @@ void FNiagaraSystemSimulation::PrepareForSystemSimulate(FNiagaraSystemSimulation
 	auto TransferInstanceParameters = [&](int32 SystemIndex)
 	{
 		FNiagaraSystemInstance* Inst = Context.Instances[SystemIndex];
-
-		//Inst->TickInstanceParameters(Context.DeltaSeconds);
 
 		if (Inst->GetParameters().GetParametersDirty() && bCanExecute)
 		{

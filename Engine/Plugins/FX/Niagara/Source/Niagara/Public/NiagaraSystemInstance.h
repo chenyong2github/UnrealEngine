@@ -241,7 +241,9 @@ public:
 		bNeedsFinalize = true;
 	}
 
-	void TickInstanceParameters(float DeltaSeconds);
+	void TickInstanceParameters_GameThread(float DeltaSeconds);
+
+	void TickInstanceParameters_Concurrent();
 
 	void TickFastPathBindings();
 
@@ -400,6 +402,37 @@ public:
 	uint32 TotalParamSize = 0;
 	uint32 ActiveGPUEmitterCount = 0;
 	int32 GPUDataInterfaceInstanceDataSize = 0;
+
+	struct FInstanceParameters
+	{
+		float DeltaSeconds;
+
+		FTransform ComponentTrans;
+		FVector OldPos;
+
+		float LODDistance;
+		float TimeSeconds;
+		float RealTimeSeconds;
+
+		float Age;
+		int32 TickCount;
+
+		TArray<int32> EmitterNumParticles;
+		TArray<int32> EmitterTotalSpawnedParticles;
+		int32 NumAlive;
+
+		float SafeTimeSinceRendererd;
+
+		ENiagaraExecutionState RequestedExecutionState;
+
+		void Init(int32 NumEmitters)
+		{
+			EmitterNumParticles.AddUninitialized(NumEmitters);
+			EmitterTotalSpawnedParticles.AddUninitialized(NumEmitters);
+		}
+	};
+
+	FInstanceParameters GatheredInstanceParameters;
 
 	FNiagaraSystemFastPath::FParamMap0 FastPathMap;
 

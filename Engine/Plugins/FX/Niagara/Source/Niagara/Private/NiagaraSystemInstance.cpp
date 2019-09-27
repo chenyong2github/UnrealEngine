@@ -930,7 +930,8 @@ void FNiagaraSystemInstance::ReInitInternal()
 	// rebind now after all parameters have been added
 	InstanceParameters.Rebind();
 
-	TickInstanceParameters(0.01f);
+	TickInstanceParameters_GameThread(0.01f);
+	TickInstanceParameters_Concurrent();
 
 	//Invalidate the component render state so we recreate the scene proxy and the renderers.
 	Component->MarkRenderStateDirty();
@@ -1374,28 +1375,76 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup()
 	return NewTickGroup;
 }
 
-void FNiagaraSystemInstance::TickInstanceParameters(float DeltaSeconds)
+void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSeconds)
 {
 	if (!Component)
 	{
 		return;
 	}
 
-	//TODO: Create helper binding objects to avoid the search in set parameter value.
-	//Set System params.
-	FTransform ComponentTrans = Component->GetComponentTransform();
-	FVector CurrPos = ComponentTrans.GetLocation();
-	FVector OldPos = FMath::IsNearlyZero(Age) ? CurrPos : OwnerPositionParam.GetValue(); // The first frame the value in OwnerPositionParam is uninitialized memory, we need to make sure that we don't use it.
+	GatheredInstanceParameters.DeltaSeconds = DeltaSeconds;
+
+	GatheredInstanceParameters.ComponentTrans = Component->GetComponentTransform();
+	GatheredInstanceParameters.OldPos = OwnerPositionParam.GetValue();
+
+	UWorld* World = Component->GetWorld();
+	if (World != NULL)
+	{
+		GatheredInstanceParameters.LODDistance = GetLODDistance();
+		GatheredInstanceParameters.TimeSeconds = World->TimeSeconds;
+		GatheredInstanceParameters.RealTimeSeconds = World->RealTimeSeconds;
+	}
+	else
+	{
+		GatheredInstanceParameters.LODDistance = 0;
+		GatheredInstanceParameters.TimeSeconds = Age;
+		GatheredInstanceParameters.RealTimeSeconds = Age;
+	}
+
+	GatheredInstanceParameters.Age = Age;
+	GatheredInstanceParameters.TickCount = TickCount;
+
+	GatheredInstanceParameters.NumAlive = 0;
+	for (int32 i = 0; i < Emitters.Num(); ++i)
+	{
+		const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter = Emitters[i];
+		if (Emitter->GetExecutionState() != ENiagaraExecutionState::Disabled)
+		{
+			GatheredInstanceParameters.EmitterNumParticles[i] = Emitter->GetNumParticles();
+			GatheredInstanceParameters.EmitterTotalSpawnedParticles[i] = Emitter->GetTotalSpawnedParticles();
+			if (!Emitter->IsComplete())
+			{
+				GatheredInstanceParameters.NumAlive++;
+			}
+		}
+	}
+
+	//Bias the LastRenderTime slightly to account for any delay as it's written by the RT.
+	GatheredInstanceParameters.SafeTimeSinceRendererd = FMath::Max(0.0f, GatheredInstanceParameters.TimeSeconds - Component->GetLastRenderTime() - GLastRenderTimeSafetyBias);
+
+	GatheredInstanceParameters.RequestedExecutionState = RequestedExecutionState;
+
+	Component->GetOverrideParameters().Tick();
+}
+
+
+void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
+{
+	FVector CurrPos = GatheredInstanceParameters.ComponentTrans.GetLocation();
+	FVector OldPos = FMath::IsNearlyZero(Age) ? CurrPos : GatheredInstanceParameters.OldPos; // The first frame the value in OwnerPositionParam is uninitialized memory, we need to make sure that we don't use it
+
 	OwnerPositionParam.SetValue(CurrPos);
-	OwnerScaleParam.SetValue(ComponentTrans.GetScale3D());
-	OwnerVelocityParam.SetValue((CurrPos - OldPos) / DeltaSeconds);
-	OwnerXAxisParam.SetValue(ComponentTrans.GetRotation().GetAxisX());
-	OwnerYAxisParam.SetValue(ComponentTrans.GetRotation().GetAxisY());
-	OwnerZAxisParam.SetValue(ComponentTrans.GetRotation().GetAxisZ());
+	OwnerScaleParam.SetValue(GatheredInstanceParameters.ComponentTrans.GetScale3D());
+	OwnerVelocityParam.SetValue((CurrPos - OldPos) / GatheredInstanceParameters.DeltaSeconds);
 
-	OwnerRotationParam.SetValue(ComponentTrans.GetRotation());
+	FQuat Rotation = GatheredInstanceParameters.ComponentTrans.GetRotation();
+	OwnerXAxisParam.SetValue(Rotation.GetAxisX());
+	OwnerYAxisParam.SetValue(Rotation.GetAxisY());
+	OwnerZAxisParam.SetValue(Rotation.GetAxisZ());
 
-	FMatrix Transform = ComponentTrans.ToMatrixWithScale();
+	OwnerRotationParam.SetValue(Rotation);
+
+	FMatrix Transform = GatheredInstanceParameters.ComponentTrans.ToMatrixWithScale();
 	FMatrix Inverse = Transform.Inverse();
 	FMatrix Transpose = Transform.GetTransposed();
 	FMatrix InverseTranspose = Inverse.GetTransposed();
@@ -1404,58 +1453,38 @@ void FNiagaraSystemInstance::TickInstanceParameters(float DeltaSeconds)
 	OwnerTransposeParam.SetValue(Transpose);
 	OwnerInverseTransposeParam.SetValue(InverseTranspose);
 
-	FMatrix TransformNoScale = ComponentTrans.ToMatrixNoScale();
+	FMatrix TransformNoScale = GatheredInstanceParameters.ComponentTrans.ToMatrixNoScale();
 	FMatrix InverseNoScale = TransformNoScale.Inverse();
 	OwnerTransformNoScaleParam.SetValue(TransformNoScale);
 	OwnerInverseNoScaleParam.SetValue(InverseNoScale);
 
-	OwnerDeltaSecondsParam.SetValue(DeltaSeconds);
-	OwnerInverseDeltaSecondsParam.SetValue(1.0f / DeltaSeconds);
+	OwnerDeltaSecondsParam.SetValue(GatheredInstanceParameters.DeltaSeconds);
+	OwnerInverseDeltaSecondsParam.SetValue(1.0f / GatheredInstanceParameters.DeltaSeconds);
 
-	//Calculate the min distance to a camera.
-	UWorld* World = Component->GetWorld();
-	if (World != NULL)
-	{
-		float LODDistance = GetLODDistance();
-		OwnerLODDistanceParam.SetValue(LODDistance);
-		OwnerEngineTimeParam.SetValue(World->TimeSeconds);
-		OwnerEngineRealtimeParam.SetValue(World->RealTimeSeconds);
-	}
-	else
-	{
-		OwnerEngineTimeParam.SetValue(Age);
-		OwnerEngineRealtimeParam.SetValue(Age);
-	}
-	SystemAgeParam.SetValue(Age);
-	SystemTickCountParam.SetValue(TickCount);
+	OwnerLODDistanceParam.SetValue(GatheredInstanceParameters.LODDistance);
+	OwnerEngineTimeParam.SetValue(GatheredInstanceParameters.TimeSeconds);
+	OwnerEngineRealtimeParam.SetValue(GatheredInstanceParameters.RealTimeSeconds);
 
-	int32 NumAlive = 0;
-	const TArray<FNiagaraEmitterHandle>& EmitterHandles = GetSystem()->GetEmitterHandles();
+	SystemAgeParam.SetValue(GatheredInstanceParameters.Age);
+	SystemTickCountParam.SetValue(GatheredInstanceParameters.TickCount);
+
 	for (int32 i = 0; i < Emitters.Num(); i++)
 	{
-		if (EmitterHandles[i].GetIsEnabled())//TODO: We should just null out the entry to the emitter in the array.
+		const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter = Emitters[i];
+		if (Emitter->GetExecutionState() != ENiagaraExecutionState::Disabled)
 		{
-			int32 NumParticles = Emitters[i]->GetNumParticles();
-			if (!Emitters[i]->IsComplete())
-			{
-				NumAlive++;
-			}
-			ParameterNumParticleBindings[i].SetValue(NumParticles);
-			ParameterTotalSpawnedParticlesBindings[i].SetValue(Emitters[i]->GetTotalSpawnedParticles());
+			ParameterNumParticleBindings[i].SetValue(GatheredInstanceParameters.EmitterNumParticles[i]);
+			ParameterTotalSpawnedParticlesBindings[i].SetValue(GatheredInstanceParameters.EmitterTotalSpawnedParticles[i]);
 		}
 	}
-	SystemNumEmittersParam.SetValue(Emitters.Num());
-	SystemNumEmittersAliveParam.SetValue(NumAlive);
 
-	check(World);
-	float WorldTime = World->GetTimeSeconds();
-	//Bias the LastRenderTime slightly to account for any delay as it's written by the RT.
-	float SafeTimeSinceRendererd = FMath::Max(0.0f, WorldTime - Component->GetLastRenderTime() - GLastRenderTimeSafetyBias);
-	SystemTimeSinceRenderedParam.SetValue(SafeTimeSinceRendererd);
+	SystemNumEmittersParam.SetValue(Emitters.Num());
+	SystemNumEmittersAliveParam.SetValue(GatheredInstanceParameters.NumAlive);
+
+	SystemTimeSinceRenderedParam.SetValue(GatheredInstanceParameters.SafeTimeSinceRendererd);
+
+	OwnerExecutionStateParam.SetValue((int32)GatheredInstanceParameters.RequestedExecutionState);
 	
-	OwnerExecutionStateParam.SetValue((int32)RequestedExecutionState);
-	
-	Component->GetOverrideParameters().Tick();
 	InstanceParameters.Tick();
 	InstanceParameters.MarkParametersDirty();
 }
@@ -1581,6 +1610,8 @@ void FNiagaraSystemInstance::InitEmitters()
 			LocalBounds = System->GetFixedBounds();
 		}
 	}
+
+	GatheredInstanceParameters.Init(Emitters.Num());
 }
 
 void FNiagaraSystemInstance::ComponentTick(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent)
@@ -1668,7 +1699,7 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	CachedDeltaSeconds = DeltaSeconds;
 	bNeedsFinalize = true;
 
-	TickInstanceParameters(DeltaSeconds);
+	TickInstanceParameters_GameThread(DeltaSeconds);
 
 	TickDataInterfaces(DeltaSeconds, false);
 
