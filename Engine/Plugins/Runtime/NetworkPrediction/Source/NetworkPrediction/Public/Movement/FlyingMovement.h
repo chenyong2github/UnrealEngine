@@ -180,10 +180,10 @@ public:
 	const UObject* GetVLogOwner() const override;
 	void InitSyncState(FlyingMovement::FMoveState& OutSyncState) const override;
 	void PreSimSync(const FlyingMovement::FMoveState& SyncState) override;
-	void ProduceInput(const float DeltaTimeSeconds, FlyingMovement::FInputCmd& Cmd) override;
+	void ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd) override;
 	void FinalizeFrame(const FlyingMovement::FMoveState& SyncState) override;
 
-	DECLARE_DELEGATE_TwoParams(FProduceFlyingInput, const float /*DeltaTimeSeconds*/, FlyingMovement::FInputCmd& /*Cmd*/)
+	DECLARE_DELEGATE_TwoParams(FProduceFlyingInput, const FNetworkSimTime /*SimTime*/, FlyingMovement::FInputCmd& /*Cmd*/)
 	FProduceFlyingInput ProduceInputDelegate;
 
 protected:
