@@ -5375,6 +5375,11 @@ protected:
 
 	virtual int32 StaticTerrainLayerWeight(FName ParameterName,int32 Default) override
 	{
+		if (GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 && ShaderFrequency != SF_Pixel)
+		{
+			return Errorf(TEXT("Landscape layer weights are only available in the pixel shader."));
+		}
+		
 		// Look up the weight-map index for this static parameter.
 		int32 WeightmapIndex = INDEX_NONE;
 		bool bFoundParameter = false;
