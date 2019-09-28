@@ -155,7 +155,7 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 	const UObject* GetVLogOwner() const override;
 	void InitSyncState(ParametricMovement::FMoveState& OutSyncState) const override;
 	void FinalizeFrame(const ParametricMovement::FMoveState& SyncState) override;
-	void ProduceInput(const float DeltaTimeSeconds, ParametricMovement::FInputCmd& Cmd);
+	void ProduceInput(const FNetworkSimTime SimTime, ParametricMovement::FInputCmd& Cmd);
 
 	// Base Movement Driver
 	IBaseMovementDriver& GetBaseMovementDriver() override final { return *static_cast<IBaseMovementDriver*>(this); }

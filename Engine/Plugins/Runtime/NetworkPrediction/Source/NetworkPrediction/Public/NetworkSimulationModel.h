@@ -49,8 +49,8 @@ public:
 	using TAuxState = typename TBufferTypes::TAuxState;
 	using TDebugState = typename TBufferTypes::TDebugState;
 
-	using TSimTime = TNetworkSimTime<TTickSettings>;
-	using TRealTime = typename TTickSettings::TRealTime;
+	using TSimTime = FNetworkSimTime;
+	using TRealTime = FNetworkSimTime::FRealTime;
 
 	class IDriver
 	{
@@ -58,7 +58,7 @@ public:
 		virtual FString GetDebugName() const = 0; // Used for debugging. Recommended to emit the simulation name and the actor name/role.
 
 		virtual void InitSyncState(TSyncState& OutSyncState) const = 0;	// Called to create initial value of the sync state.
-		virtual void ProduceInput(const TRealTime, typename TUserBufferTypes::TInputCmd&) = 0; // Called when the sim is ready to process new local input
+		virtual void ProduceInput(const FNetworkSimTime, typename TUserBufferTypes::TInputCmd&) = 0; // Called when the sim is ready to process new local input
 		virtual void FinalizeFrame(const TSyncState& SyncState) = 0; // Called from the Network Sim at the end of the sim frame when there is new sync data.
 	};
 	

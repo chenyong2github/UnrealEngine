@@ -25,8 +25,8 @@ namespace NetworkInterpolationDebugCVars
 template<typename TBufferTypes, typename TTickSettings>
 struct TInterpolator
 {
-	using TSimTime = TNetworkSimTime<TTickSettings>;
-	using TRealTime = typename TTickSettings::TRealTime;
+	using FSimTime = FNetworkSimTime;
+	using FRealTime = FNetworkSimTime::FRealTime;
 	using TSyncState = typename TBufferTypes::TSyncState;
 
 	bool bEnableVisualLog = true;
@@ -94,12 +94,12 @@ struct TInterpolator
 		EVisualLoggingContext LoggingContext = EVisualLoggingContext::InterpolationLatest;
 
 		// Calc new interpolation time
-		TRealTime NewInterpolationTime = InterpolationTime;
+		FRealTime NewInterpolationTime = InterpolationTime;
 		{
-			TRealTime Step = DeltaSeconds;
+			FRealTime Step = DeltaSeconds;
 			
 			// Speed up if we are too far behind
-			TRealTime CatchUpThreshold = SimulationTimeBuffer.GetElementFromHead(0)->ToRealTimeSeconds() - NetworkInterpolationDebugCVars::CatchUpThreshold();
+			FRealTime CatchUpThreshold = SimulationTimeBuffer.GetElementFromHead(0)->ToRealTimeSeconds() - NetworkInterpolationDebugCVars::CatchUpThreshold();
 			if (CatchUpUntilTime <= 0.f && InterpolationTime < CatchUpThreshold)
 			{
 				CatchUpUntilTime = SimulationTimeBuffer.GetElementFromHead(0)->ToRealTimeSeconds() - NetworkInterpolationDebugCVars::CatchUpGoal();
@@ -134,11 +134,11 @@ struct TInterpolator
 
 		// Find "To" keyframe
 		const TSyncState* ToState = nullptr;
-		TRealTime ToTime = 0.f;
+		FRealTime ToTime = 0.f;
 
 		for (int32 Keyframe = SimulationTimeBuffer.GetTailKeyframe(); Keyframe <= SimulationTimeBuffer.GetHeadKeyframe(); ++Keyframe)
 		{
-			TSimTime ElementSimTime = *SimulationTimeBuffer.FindElementByKeyframe(Keyframe);
+			FSimTime ElementSimTime = *SimulationTimeBuffer.FindElementByKeyframe(Keyframe);
 			if (NewInterpolationTime <= ElementSimTime.ToRealTimeSeconds())
 			{
 				InterpolationKeyframe = Keyframe;
@@ -150,9 +150,9 @@ struct TInterpolator
 
 		if (ensure(ToState))
 		{
-			const TRealTime FromRealTime = InterpolationTime;
-			const TRealTime ToRealTime = ToTime;
-			const TRealTime InterpolationInterval = ToRealTime - FromRealTime;
+			const FRealTime FromRealTime = InterpolationTime;
+			const FRealTime ToRealTime = ToTime;
+			const FRealTime InterpolationInterval = ToRealTime - FromRealTime;
 		
 			if (ensure(FMath::Abs(InterpolationInterval) > 0.f))
 			{
@@ -210,19 +210,19 @@ struct TInterpolator
 
 private:
 
-	TRealTime InterpolationTime = 0.f; // SimTime we are currently interpolating at
+	FRealTime InterpolationTime = 0.f; // SimTime we are currently interpolating at
 	int32 InterpolationKeyframe = INDEX_NONE; // Keyframe we are currently/last interpolated at
 
 	TSyncState InterpolationState;
 
-	TRealTime WaitUntilTime = 0.f;	
+	FRealTime WaitUntilTime = 0.f;	
 
-	TRealTime CatchUpUntilTime = 0.f;
+	FRealTime CatchUpUntilTime = 0.f;
 
 
-	TRealTime DynamicBufferedTime = 1/60.f; // SimTime we are currently interpolating at
-	TRealTime DynamicBufferedTimeStep = 1/60.f;
+	FRealTime DynamicBufferedTime = 1/60.f; // SimTime we are currently interpolating at
+	FRealTime DynamicBufferedTimeStep = 1/60.f;
 
-	TRealTime	MinBufferedTime = 1/120.f;
-	TRealTime	MaxBufferedTime = 1.f;
+	FRealTime	MinBufferedTime = 1/120.f;
+	FRealTime	MaxBufferedTime = 1.f;
 };

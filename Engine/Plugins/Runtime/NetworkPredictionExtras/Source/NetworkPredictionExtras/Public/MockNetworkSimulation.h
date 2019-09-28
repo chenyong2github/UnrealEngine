@@ -174,7 +174,7 @@ public:
 
 	void InitSyncState(FMockSyncState& OutSyncState) const override;
 	void FinalizeFrame(const FMockSyncState& SyncState) override;
-	void ProduceInput(const float DeltaTimeSeconds, FMockInputCmd& Cmd);
+	void ProduceInput(const FNetworkSimTime SimTime, FMockInputCmd& Cmd);
 	virtual UWorld* GetDriverWorld() const override final { return GetWorld(); }
 	virtual FTransform GetDebugWorldTransform() const override final;
 
