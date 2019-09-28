@@ -259,7 +259,7 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		TSharedRef<FRequestGroupState> GroupState = MakeShared<FRequestGroupState>();
 		const TCHAR* FormatString = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
 		const uint8* FormatArgs = EventData.GetAttachment() + (FCString::Strlen(FormatString) + 1) * sizeof(TCHAR);
-		Trace::FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, FormatString, FormatArgs);
+		Trace::FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, TempBuffer, FormatBufferSize - 1, FormatString, FormatArgs);
 		GroupState->Name = Session.StoreString(FormatBuffer);
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);

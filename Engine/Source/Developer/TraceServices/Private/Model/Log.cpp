@@ -59,7 +59,7 @@ void FLogProvider::AppendMessage(uint64 LogPoint, double Time, const uint8* Form
 		FLogMessageInternal& InternalMessage = Messages.PushBack();
 		InternalMessage.Time = Time;
 		InternalMessage.Spec = *FindSpec;
-		FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, InternalMessage.Spec->FormatString, FormatArgs);
+		FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, TempBuffer, FormatBufferSize - 1, InternalMessage.Spec->FormatString, FormatArgs);
 		InternalMessage.Message = Session.StoreString(FormatBuffer);
 		Session.UpdateDurationSeconds(Time);
 	}
