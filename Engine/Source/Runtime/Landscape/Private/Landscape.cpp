@@ -992,6 +992,10 @@ void ULandscapeComponent::PostLoad()
 
 #endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
+TArray<ALandscapeProxy*> ALandscapeProxy::LandscapeProxies;
+#endif
+
 ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
@@ -1080,6 +1084,10 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 
 	static uint32 FrameOffsetForTickIntervalInc = 0;
 	FrameOffsetForTickInterval = FrameOffsetForTickIntervalInc++;
+
+#if WITH_EDITORONLY_DATA
+	LandscapeProxies.Add(this);
+#endif
 }
 
 #if WITH_EDITORONLY_DATA
@@ -3302,6 +3310,10 @@ ALandscapeProxy::~ALandscapeProxy()
 	NumComponentsNeedingGrassMapRender = 0;
 	TotalTexturesToStreamForVisibleGrassMapRender -= NumTexturesToStreamForVisibleGrassMapRender;
 	NumTexturesToStreamForVisibleGrassMapRender = 0;
+#endif
+
+#if WITH_EDITORONLY_DATA
+	LandscapeProxies.Remove(this);
 #endif
 }
 
