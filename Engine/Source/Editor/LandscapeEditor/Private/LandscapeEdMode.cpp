@@ -2636,10 +2636,11 @@ bool FEdModeLandscape::CanEditCurrentTarget(FText* Reason) const
 		return false;
 	}
 
+	ALandscapeProxy* Proxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
+
 	// Landscape Layer Editing not available without a loaded Landscape Actor
 	if (GetLandscape() == nullptr)
 	{
-		ALandscapeProxy* Proxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
 		if (!Proxy)
 		{
             LocalReason = NSLOCTEXT("UnrealEd", "LandscapeNotFound", "No Landscape found.");
@@ -2651,6 +2652,14 @@ bool FEdModeLandscape::CanEditCurrentTarget(FText* Reason) const
 			LocalReason = NSLOCTEXT("UnrealEd", "LandscapeActorNotLoaded", "Landscape actor is not loaded. It is needed to do layer editing.");
 			return false;
 		}
+
+	}
+	
+	// To edit a Landscape with layers all components need to be registered
+	if(Proxy && Proxy->HasLayersContent() && !CurrentToolTarget.LandscapeInfo->AreAllComponentsRegistered())
+	{
+		LocalReason = NSLOCTEXT("UnrealEd", "LandscapeMissingComponents", "Landscape has some unregistered components (hidden levels).");
+		return false;
 	}
 
 	return true;

@@ -4764,7 +4764,8 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		return;
 	}
 
-	if (GetLandscapeInfo() == nullptr || !CanHaveLayersContent())
+	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+	if (LandscapeInfo == nullptr || !CanHaveLayersContent() || !LandscapeInfo->AreAllComponentsRegistered())
 	{
 		return;
 	}
@@ -5840,6 +5841,12 @@ void ALandscape::UpdateLandscapeSplines(const FGuid& InTargetLayer, bool bInUpda
 		TSet<ULandscapeComponent*>* ModifiedComponent = nullptr;
 		if (LandscapeSplinesTargetLayerGuid.IsValid())
 		{
+			// Check that we can modify data
+			if (!LandscapeInfo->AreAllComponentsRegistered())
+			{
+				return;
+			}
+						
 			TMap<ULandscapeComponent*, uint32> PreviousHashes;
 			{
 				FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
