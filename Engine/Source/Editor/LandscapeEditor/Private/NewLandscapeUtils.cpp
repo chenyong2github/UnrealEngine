@@ -28,9 +28,9 @@ void FNewLandscapeUtils::ChooseBestComponentSizeForImport(ULandscapeEditorObject
 	if(Width > 0 && Height > 0)
 	{
 		// Try to find a section size and number of sections that exactly matches the dimensions of the heightfield
-		for(int32 SectionSizesIdx = ARRAY_COUNT(SectionSizes) - 1; SectionSizesIdx >= 0; SectionSizesIdx--)
+		for(int32 SectionSizesIdx = UE_ARRAY_COUNT(SectionSizes) - 1; SectionSizesIdx >= 0; SectionSizesIdx--)
 		{
-			for(int32 NumSectionsIdx = ARRAY_COUNT(NumSections) - 1; NumSectionsIdx >= 0; NumSectionsIdx--)
+			for(int32 NumSectionsIdx = UE_ARRAY_COUNT(NumSections) - 1; NumSectionsIdx >= 0; NumSectionsIdx--)
 			{
 				int32 ss = SectionSizes[SectionSizesIdx];
 				int32 ns = NumSections[NumSectionsIdx];
@@ -58,7 +58,7 @@ void FNewLandscapeUtils::ChooseBestComponentSizeForImport(ULandscapeEditorObject
 			// if there was no exact match, try increasing the section size until we encompass the whole heightmap
 			const int32 CurrentSectionSize = UISettings->NewLandscape_QuadsPerSection;
 			const int32 CurrentNumSections = UISettings->NewLandscape_SectionsPerComponent;
-			for(int32 SectionSizesIdx = 0; SectionSizesIdx < ARRAY_COUNT(SectionSizes); SectionSizesIdx++)
+			for(int32 SectionSizesIdx = 0; SectionSizesIdx < UE_ARRAY_COUNT(SectionSizes); SectionSizesIdx++)
 			{
 				if(SectionSizes[SectionSizesIdx] < CurrentSectionSize)
 				{
@@ -83,8 +83,8 @@ void FNewLandscapeUtils::ChooseBestComponentSizeForImport(ULandscapeEditorObject
 		if(!bFoundMatch)
 		{
 			// if the heightmap is very large, fall back to using the largest values we support
-			const int32 MaxSectionSize = SectionSizes[ARRAY_COUNT(SectionSizes) - 1];
-			const int32 MaxNumSubSections = NumSections[ARRAY_COUNT(NumSections) - 1];
+			const int32 MaxSectionSize = SectionSizes[UE_ARRAY_COUNT(SectionSizes) - 1];
+			const int32 MaxNumSubSections = NumSections[UE_ARRAY_COUNT(NumSections) - 1];
 			const int32 ComponentsX = FMath::DivideAndRoundUp((Width - 1), MaxSectionSize * MaxNumSubSections);
 			const int32 ComponentsY = FMath::DivideAndRoundUp((Height - 1), MaxSectionSize * MaxNumSubSections);
 

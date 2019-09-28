@@ -138,7 +138,7 @@ public:
 	{
 		// If we weren't given enough data to fill the int, zero first
 		// TODO: Only zero the bits we aren't going to copy over
-		if (InNumBytes < (ARRAY_COUNT(Bits) * sizeof(uint32)))
+		if (InNumBytes < (UE_ARRAY_COUNT(Bits) * sizeof(uint32)))
 		{
 			Zero();
 		}

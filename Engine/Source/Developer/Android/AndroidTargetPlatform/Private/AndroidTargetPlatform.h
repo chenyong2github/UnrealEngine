@@ -512,7 +512,7 @@ public:
 			else
 			{
 				// perform any remapping away from defaults
-				for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); ++RemapIndex)
+				for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); ++RemapIndex)
 				{
 					if (TextureFormatName == FormatRemap[RemapIndex][0])
 					{
@@ -543,7 +543,7 @@ public:
 
 		GetAllDefaultTextureFormats(this, OutFormats, false);
 
-		for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); ++RemapIndex)
+		for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); ++RemapIndex)
 		{
 			OutFormats.Remove(FormatRemap[RemapIndex][0]);
 			OutFormats.AddUnique(FormatRemap[RemapIndex][1]);

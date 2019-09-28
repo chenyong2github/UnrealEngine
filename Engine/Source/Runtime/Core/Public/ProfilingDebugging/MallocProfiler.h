@@ -209,14 +209,14 @@ struct FCallStackInfo
 		Ar << CallStackInfo.CRC;
 		// Serialize valid callstack indices.
 		int32 i=0;
-		for( ; i<ARRAY_COUNT(CallStackInfo.AddressIndices) && CallStackInfo.AddressIndices[i]!=-1; i++ )
+		for( ; i<UE_ARRAY_COUNT(CallStackInfo.AddressIndices) && CallStackInfo.AddressIndices[i]!=-1; i++ )
 		{
 			Ar << CallStackInfo.AddressIndices[i];
 		}
 		// Terminate list of address indices with -1 if we have a normal callstack.
 		int32 Stopper = -1;
 		// And terminate with -2 if the callstack was truncated.
-		if( i== ARRAY_COUNT(CallStackInfo.AddressIndices) )
+		if( i== UE_ARRAY_COUNT(CallStackInfo.AddressIndices) )
 		{
 			Stopper = -2;
 		}

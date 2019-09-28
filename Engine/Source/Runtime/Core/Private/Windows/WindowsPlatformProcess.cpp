@@ -908,7 +908,7 @@ const TCHAR* FWindowsPlatformProcess::BaseDir()
 			{
 				hCurrentModule = hInstance;
 			}
-			GetModuleFileName(hCurrentModule, Result, ARRAY_COUNT(Result));
+			GetModuleFileName(hCurrentModule, Result, UE_ARRAY_COUNT(Result));
 			FString TempResult(Result);
 			TempResult = TempResult.Replace(TEXT("\\"), TEXT("/"));
 			FCString::Strcpy(Result, *TempResult);
@@ -1023,7 +1023,7 @@ const TCHAR* FWindowsPlatformProcess::ComputerName()
 	static TCHAR Result[256]=TEXT("");
 	if( !Result[0] )
 	{
-		uint32 Size=ARRAY_COUNT(Result);
+		uint32 Size=UE_ARRAY_COUNT(Result);
 		GetComputerName( Result, (::DWORD*)&Size );
 	}
 	return Result;
@@ -1037,7 +1037,7 @@ const TCHAR* FWindowsPlatformProcess::UserName(bool bOnlyAlphaNumeric/* = true*/
 	{
 		if( !ResultAlpha[0] )
 		{
-			uint32 Size=ARRAY_COUNT(ResultAlpha);
+			uint32 Size=UE_ARRAY_COUNT(ResultAlpha);
 			GetUserName( ResultAlpha, (::DWORD*)&Size );
 			TCHAR *c, *d;
 			for( c=ResultAlpha, d=ResultAlpha; *c!=0; c++ )
@@ -1051,7 +1051,7 @@ const TCHAR* FWindowsPlatformProcess::UserName(bool bOnlyAlphaNumeric/* = true*/
 	{
 		if( !Result[0] )
 		{
-			uint32 Size=ARRAY_COUNT(Result);
+			uint32 Size=UE_ARRAY_COUNT(Result);
 			GetUserName( Result, (::DWORD*)&Size );
 		}
 		return Result;
@@ -1104,7 +1104,7 @@ const TCHAR* FWindowsPlatformProcess::ExecutablePath()
 	static TCHAR Result[512]=TEXT("");
 	if( !Result[0] )
 	{
-		if ( !GetModuleFileName( hInstance, Result, ARRAY_COUNT(Result) ) )
+		if ( !GetModuleFileName( hInstance, Result, UE_ARRAY_COUNT(Result) ) )
 		{
 			Result[0] = 0;
 		}
@@ -1119,13 +1119,13 @@ const TCHAR* FWindowsPlatformProcess::ExecutableName(bool bRemoveExtension)
 	if( !Result[0] )
 	{
 		// Get complete path for the executable
-		if ( GetModuleFileName( hInstance, Result, ARRAY_COUNT(Result) ) != 0 )
+		if ( GetModuleFileName( hInstance, Result, UE_ARRAY_COUNT(Result) ) != 0 )
 		{
 			// Remove all of the path information by finding the base filename
 			FString FileName = Result;
 			FString FileNameWithExt = Result;
-			FCString::Strncpy( Result, *( FPaths::GetBaseFilename(FileName) ), ARRAY_COUNT(Result) );
-			FCString::Strncpy( ResultWithExt, *( FPaths::GetCleanFilename(FileNameWithExt) ), ARRAY_COUNT(ResultWithExt) );
+			FCString::Strncpy( Result, *( FPaths::GetBaseFilename(FileName) ), UE_ARRAY_COUNT(Result) );
+			FCString::Strncpy( ResultWithExt, *( FPaths::GetCleanFilename(FileNameWithExt) ), UE_ARRAY_COUNT(ResultWithExt) );
 		}
 		// If the call failed, zero out the memory to be safe
 		else
@@ -1165,7 +1165,7 @@ const FString FWindowsPlatformProcess::GetModulesDirectory()
 		}
 
 		// Get the directory for it
-		GetModuleFileName(hCurrentModule, Result, ARRAY_COUNT(Result));
+		GetModuleFileName(hCurrentModule, Result, UE_ARRAY_COUNT(Result));
 		*FCString::Strrchr(Result, '\\') = 0;
 
 		// Normalize the resulting path

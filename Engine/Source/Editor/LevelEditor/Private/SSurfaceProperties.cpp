@@ -66,7 +66,7 @@ void SSurfaceProperties::Construct( const FArguments& InArgs )
 	GConfig->GetBool(TEXT("SelectionDetails"), TEXT("UseRelativeScaling"), bUseRelativeScaling, GEditorPerProjectIni);
 
 	static const float ScalingValues[] = { 1.0f / 16, 1.0f / 8, 1.0f / 4, 1.0f / 2, 1, 2, 4, 8, 16 };
-	for(int Idx = 0; Idx < ARRAY_COUNT(ScalingValues); Idx++)
+	for(int Idx = 0; Idx < UE_ARRAY_COUNT(ScalingValues); Idx++)
 	{
 		ScalingFactors.Add(MakeShareable(new FString(FString::Printf(TEXT("%f"),ScalingValues[Idx]))));
 	}
@@ -213,7 +213,7 @@ TSharedRef<SWidget> SSurfaceProperties::ConstructTexturePan()
 
 	const static FText ButtonFields[] = {FText::FromString("1/256"), FText::FromString("1/64"), FText::FromString("1/16"), FText::FromString("1/4")};
 	const static int32 ButtonIncriments[] = {1,4,16,64};
-	for (int32 i = 0; i < ARRAY_COUNT(ButtonFields); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(ButtonFields); i++)
 	{
 		GridBox->AddSlot(i, 0)
 		.VAlign(VAlign_Fill)
@@ -245,7 +245,7 @@ TSharedRef<SWidget> SSurfaceProperties::ConstructTexturePan()
 	{
 		TSharedPtr<SComboButton> ComboButton;
 		TSharedPtr<SWidget> NumberBox;
-		GridBox->AddSlot(ARRAY_COUNT(ButtonFields),i)
+		GridBox->AddSlot(UE_ARRAY_COUNT(ButtonFields),i)
 		.VAlign(VAlign_Fill)
 		.HAlign(HAlign_Fill)
 		[
@@ -328,7 +328,7 @@ TSharedRef<SWidget> SSurfaceProperties::ConstructTextureRotate()
 	const static RotationAction RotationActions[] = {Rotate,Rotate,RotateCustom};
 	
 	// create rotation controls
-	for (int Idx = 0; Idx < ARRAY_COUNT(RotationValues); Idx++)
+	for (int Idx = 0; Idx < UE_ARRAY_COUNT(RotationValues); Idx++)
 	{
 		if (RotationActions[Idx] == RotateCustom)
 		{
@@ -412,7 +412,7 @@ TSharedRef<SWidget> SSurfaceProperties::ConstructTextureFlip()
 	const static TextureCoordChannel TextureCoordinateChannels[] = {UChannel,VChannel};
 
 	// create flip controls
-	for (int Idx = 0; Idx < ARRAY_COUNT(ButtonFields); Idx++)
+	for (int Idx = 0; Idx < UE_ARRAY_COUNT(ButtonFields); Idx++)
 	{
 		FlipBox->AddSlot()
 		.FillWidth(1)
@@ -468,7 +468,7 @@ TSharedRef<SWidget> SSurfaceProperties::ConstructTextureScale()
 	FString ControlLabels[] = {"U", "V"};
 	TextureCoordChannel Channels[] = {UChannel,VChannel};
 	
-	for(int idx = 0; idx < ARRAY_COUNT(ControlLabels); idx++)
+	for(int idx = 0; idx < UE_ARRAY_COUNT(ControlLabels); idx++)
 	{
 		Controls->AddSlot()
 		.HAlign(HAlign_Fill)

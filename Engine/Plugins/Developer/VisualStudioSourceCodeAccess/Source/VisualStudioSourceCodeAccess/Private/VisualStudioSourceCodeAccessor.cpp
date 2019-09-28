@@ -119,9 +119,9 @@ int32 GetVisualStudioVersionForSolution(const FString& InSolutionFile)
 			const TCHAR* VersionChar = *SolutionFileContents + VersionStringStart + VisualStudioVersionString.Len();
 
 			const TCHAR VersionSuffix[] = TEXT("Version ");
-			if (FCString::Strnicmp(VersionChar, VersionSuffix, ARRAY_COUNT(VersionSuffix) - 1) == 0)
+			if (FCString::Strnicmp(VersionChar, VersionSuffix, UE_ARRAY_COUNT(VersionSuffix) - 1) == 0)
 			{
-				VersionChar += ARRAY_COUNT(VersionSuffix) - 1;
+				VersionChar += UE_ARRAY_COUNT(VersionSuffix) - 1;
 			}
 
 			FString VersionString;

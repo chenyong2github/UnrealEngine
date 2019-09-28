@@ -454,7 +454,7 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 	{
 		// larger number means more accuracy but slower, some slower GPUs might timeout with a number to large
 		const uint32 IterationCount = 70;
-		const uint32 MethodCount = ARRAY_COUNT(InOut.GPUStats);
+		const uint32 MethodCount = UE_ARRAY_COUNT(InOut.GPUStats);
 
 		enum class EMethodType
 		{
@@ -484,10 +484,10 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 			{ TEXT("VertThroughPut2"),  1.0f / 1.767f,  TEXT("s/GigaVert"), 0.0f, EMethodType::Vertex }, // TODO: Set weights
 		};
 
-		static_assert(ARRAY_COUNT(Methods) == ARRAY_COUNT(InOut.GPUStats), "Benchmark methods descriptor array lengths should match.");
+		static_assert(UE_ARRAY_COUNT(Methods) == UE_ARRAY_COUNT(InOut.GPUStats), "Benchmark methods descriptor array lengths should match.");
 
 		// Initialize the GPU benchmark stats
-		for (int32 Index = 0; Index < ARRAY_COUNT(Methods); ++Index)
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Methods); ++Index)
 		{
 			auto& Method = Methods[Index];
 			InOut.GPUStats[Index] = FSynthBenchmarkStat(Method.Desc, Method.IndexNormalizedTime, Method.ValueType, Method.Weight);

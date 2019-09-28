@@ -112,7 +112,7 @@ FPlatformMemoryStats FAndroidPlatformMemory::GetStats()
 		do
 		{
 			char LineBuffer[256] = { 0 };
-			char *Line = fgets(LineBuffer, ARRAY_COUNT(LineBuffer), FileGlobalMemStats);
+			char *Line = fgets(LineBuffer, UE_ARRAY_COUNT(LineBuffer), FileGlobalMemStats);
 			if (Line == nullptr)
 			{
 				break;	// eof or an error
@@ -157,7 +157,7 @@ FPlatformMemoryStats FAndroidPlatformMemory::GetStats()
 		do
 		{
 			char LineBuffer[256] = { 0 };
-			char *Line = fgets(LineBuffer, ARRAY_COUNT(LineBuffer), ProcMemStats);
+			char *Line = fgets(LineBuffer, UE_ARRAY_COUNT(LineBuffer), ProcMemStats);
 			if (Line == nullptr)
 			{
 				break;	// eof or an error
@@ -220,7 +220,7 @@ uint64 FAndroidPlatformMemory::GetMemoryUsedFast()
 		while (1)
 		{
 			char LineBuffer[256] = { 0 };
-			char *Line = fgets(LineBuffer, ARRAY_COUNT(LineBuffer), ProcMemStats);
+			char *Line = fgets(LineBuffer, UE_ARRAY_COUNT(LineBuffer), ProcMemStats);
 			if (Line == nullptr)
 			{
 				break;	// eof or an error
