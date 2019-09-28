@@ -30,13 +30,11 @@ public:
 	FName	GetCurrentState() const override { return CurrentState; }
 	double	GetTimeInCurrentState() const override { return TimeInCurrentState; }
 
-	
 	FString			GetCurrentMap() const { return CurrentMap; }
 
-	void			SetScreenshotPeriod(float Period)
-	{
-		ScreenshotPeriod = Period;
-	}
+	void			SetScreenshotPeriod(float Period) { ScreenshotPeriod = Period; }
+
+	void			MarkHeartbeatActive(const FString& OptionalStatusMessage = FString());
 
 	UGauntletTestController*	GetTestController(UClass* ControllerClass) override;
 
@@ -65,6 +63,9 @@ protected:
 
 	void		TakeScreenshot();
 
+	/** Prints a heartbeat message to the log */
+	void		LogHeartbeat();
+
 private:
 
 	/** Handle to our tick callback */
@@ -85,6 +86,19 @@ private:
 
 	double							LastScreenshotTime;
 	float							ScreenshotPeriod;
+
+	/**
+	 * Heartbeat Internal Members
+	 */
+
+	/** True if the next heartbeat is marked Active rather than Idle */
+	bool bHeartbeatActive;
+	/** How often to regularly log heartbeat messages, in seconds */
+	float HeartbeatPeriod;
+	/** Platform time in seconds of the last heartbeat. Used with HeartbeatPeriod. */
+	float LastHeartbeatTime;
+	/** Optional status message to include with Active heartbeats */
+	FString HeartbeatStatus;
 };
 
 
@@ -102,6 +116,10 @@ void FGauntletModuleImpl::StartupModule()
 	TimeInCurrentState = 0;
 	LastScreenshotTime = 0.0f;
 	ScreenshotPeriod = 0.0f;
+	bHeartbeatActive = false;
+	HeartbeatPeriod = 0.0f;
+	LastHeartbeatTime = 0.f;
+	HeartbeatStatus = FString();
 
 	if (IsRunningGame() || IsRunningDedicatedServer())
 	{
@@ -116,6 +134,7 @@ void FGauntletModuleImpl::OnPostEngineInit()
 	FCoreUObjectDelegates::PreLoadMap.AddRaw(this, &FGauntletModuleImpl::InnerPreMapChange);
 
 	FParse::Value(FCommandLine::Get(), TEXT("gauntlet.screenshotperiod="), ScreenshotPeriod);
+	FParse::Value(FCommandLine::Get(), TEXT("gauntlet.heartbeatperiod="), HeartbeatPeriod);
 
 	LoadControllers();
 
@@ -324,6 +343,11 @@ void FGauntletModuleImpl::InnerTick(const float TimeDelta)
 			TakeScreenshot();
 			LastScreenshotTime = FPlatformTime::Seconds();
 		}
+
+		if (HeartbeatPeriod > 0.0f && (FPlatformTime::Seconds() - LastHeartbeatTime) > HeartbeatPeriod)
+		{
+			LogHeartbeat();
+		}
 	}
 
 	TimeInCurrentState += TimeDelta;
@@ -339,6 +363,25 @@ void FGauntletModuleImpl::TakeScreenshot()
 	FScreenshotRequest::RequestScreenshot(true);
 }
 
+void FGauntletModuleImpl::LogHeartbeat()
+{
+	FString HeartbeatMessage = bHeartbeatActive ? FString("GauntletHeartbeat: Active") : FString("GauntletHeartbeat: Idle");
+	UE_LOG(LogGauntlet, Display, TEXT("%s %s"), *HeartbeatMessage, *HeartbeatStatus);
+	bHeartbeatActive = false;
+	HeartbeatStatus.Empty();
+	LastHeartbeatTime = FPlatformTime::Seconds();
+}
+
+void FGauntletModuleImpl::MarkHeartbeatActive(const FString& OptionalStatusMessage /*= FString()*/)
+{
+	bHeartbeatActive = true;
+	// If a status message is given, heartbeat immediately so that the message is printed at the relevant time.
+	if (!OptionalStatusMessage.IsEmpty())
+	{
+		HeartbeatStatus = OptionalStatusMessage;
+		LogHeartbeat();
+	}
+}
 
 UGauntletTestController* FGauntletModuleImpl::GetTestController(UClass* ControllerClass)
 {
