@@ -16,7 +16,6 @@ void FCpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	auto& Builder = Context.InterfaceBuilder;
 
 	Builder.RouteEvent(RouteId_EventSpec, "CpuProfiler", "EventSpec");
-	Builder.RouteEvent(RouteId_EventSpecEx, "CpuProfiler", "EventSpecEx");
 	Builder.RouteEvent(RouteId_EventBatch, "CpuProfiler", "EventBatch");
 	Builder.RouteEvent(RouteId_EndCapture, "CpuProfiler", "EndCapture");
 }
@@ -30,20 +29,13 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	{
 	case RouteId_EventSpec:
 	{
-		uint32 Id = EventData.GetValue<uint16>("Id");
-		const TCHAR* ScopeName = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
-		DefineScope(Id, ScopeName);
-		break;
-	}
-	case RouteId_EventSpecEx:
-	{
 		uint32 Id = EventData.GetValue<uint32>("Id");
 		uint8 CharSize = EventData.GetValue<uint8>("CharSize");
-		if (CharSize == 1)
+		if (CharSize == sizeof(ANSICHAR))
 		{
 			DefineScope(Id, Session.StoreString(StringCast<TCHAR>(reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment())).Get()));
 		}
-		else if (CharSize == 2)
+		else if (CharSize == 0 || CharSize == sizeof(TCHAR)) // 0 for backwards compatibility
 		{
 			DefineScope(Id, Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
 		}

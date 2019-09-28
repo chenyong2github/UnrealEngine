@@ -6,10 +6,12 @@
 #include "HAL/TlsAutoCleanup.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "Misc/Parse.h"
+#include "Containers/Map.h"
+#include "Misc/MemStack.h"
 
 #if CPUPROFILERTRACE_ENABLED
 
-UE_TRACE_EVENT_BEGIN(CpuProfiler, EventSpecEx, Always)
+UE_TRACE_EVENT_BEGIN(CpuProfiler, EventSpec, Always)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
 	UE_TRACE_EVENT_FIELD(uint16, Group)
 	UE_TRACE_EVENT_FIELD(uint8, CharSize)
@@ -230,11 +232,11 @@ uint32 FCpuProfilerTrace::OutputEventType(const TCHAR* Name, ECpuProfilerGroup G
 {
 	uint32 SpecId = FCpuProfilerTraceInternal::GetNextSpecId();
 	uint16 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
-	UE_TRACE_LOG(CpuProfiler, EventSpecEx, NameSize)
-		<< EventSpecEx.Id(SpecId)
-		<< EventSpecEx.Group(uint16(Group))
-		<< EventSpecEx.CharSize(sizeof(TCHAR))
-		<< EventSpecEx.Attachment(Name, NameSize);
+	UE_TRACE_LOG(CpuProfiler, EventSpec, NameSize)
+		<< EventSpec.Id(SpecId)
+		<< EventSpec.Group(uint16(Group))
+		<< EventSpec.CharSize(sizeof(TCHAR))
+		<< EventSpec.Attachment(Name, NameSize);
 	return SpecId;
 }
 
@@ -242,11 +244,11 @@ uint32 FCpuProfilerTrace::OutputEventType(const ANSICHAR* Name, ECpuProfilerGrou
 {
 	uint32 SpecId = FCpuProfilerTraceInternal::GetNextSpecId();
 	uint16 NameSize = strlen(Name) + 1;
-	UE_TRACE_LOG(CpuProfiler, EventSpecEx, NameSize)
-		<< EventSpecEx.Id(SpecId)
-		<< EventSpecEx.Group(uint16(Group))
-		<< EventSpecEx.CharSize(1)
-		<< EventSpecEx.Attachment(Name, NameSize);
+	UE_TRACE_LOG(CpuProfiler, EventSpec, NameSize)
+		<< EventSpec.Id(SpecId)
+		<< EventSpec.Group(uint16(Group))
+		<< EventSpec.CharSize(1)
+		<< EventSpec.Attachment(Name, NameSize);
 	return SpecId;
 }
 

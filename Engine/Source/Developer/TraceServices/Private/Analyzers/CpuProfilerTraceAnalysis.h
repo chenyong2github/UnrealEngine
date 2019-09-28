@@ -40,7 +40,6 @@ private:
 	enum : uint16
 	{
 		RouteId_EventSpec,
-		RouteId_EventSpecEx,
 		RouteId_EventBatch,
 		RouteId_EndCapture,
 	};
