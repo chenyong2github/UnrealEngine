@@ -939,7 +939,7 @@ void MainSSAOSmoothCS(
 
 
 
-float4 GTAOParams[2];
+float4 GTAOParams[3];
 
 #define FALLOFF_START		100.0
 #define FALLOFF_END			200.0
@@ -1420,7 +1420,7 @@ void GTAOCombinedCS(
 	float4 OutColor		= 0;
 	int2   PixelPos		= DispatchThreadId + ScreenSpaceAOParams[5].zw; 
 	float2 PixelCenter	= (float2)PixelPos + float2(0.5, 0.5);
-	float2 BufferUV		= SvPositionToBufferUV(float4(PixelCenter, 0, 0));
+	float2 BufferUV		= PixelCenter.xy * GTAOParams[2].zw;
 
 	GTAOCombinedPSandCS(BufferUV , OutColor);
 
@@ -1455,10 +1455,8 @@ float GTAOInnerIntegratePSandCS(in float2 UV)
 	Angles				    = Angles *2-1;
 
 	// Get Angle
-	float2 ViewportUVToRandomUV = ScreenSpaceAOParams[1].xy;
-	const float2 TemporalOffset = ScreenSpaceAOParams[3].xy;
-	float2 RandomVec			= (Texture2DSample(RandomNormalTexture, RandomNormalTextureSampler, TemporalOffset + UV * ViewportUVToRandomUV).rg * 2 - 1) ;
-	float3 ScreenDir			= float3(RandomVec.x, RandomVec.y, 0.0);
+	float2 RandomVec		= GetRandomVector(UV);
+	float3 ScreenDir		= float3(RandomVec.x, RandomVec.y, 0.0);
 
 	// ViewspacePos and Normal
 	float3 ViewSpacePos		= ScreenToViewPos(UV, SceneDepth);
@@ -1500,8 +1498,7 @@ void GTAOInnerIntegrateCS(
 	float  OutColor		= 0;
 	int2   PixelPos		= DispatchThreadId + ScreenSpaceAOParams[5].zw; 
 	float2 PixelCenter	= (float2)PixelPos + float2(0.5, 0.5);
-	PixelCenter		   *= DownSampleFactor;
-	float2 BufferUV		= SvPositionToBufferUV(float4(PixelCenter, 0, 0));
+	float2 BufferUV		= PixelCenter.xy * GTAOParams[2].zw;
 
 	float AO = GTAOInnerIntegratePSandCS(BufferUV);
 	
@@ -1575,8 +1572,7 @@ void HorizonSearchCS(
 	float2 OutColor		= 0;
 	int2   PixelPos		= DispatchThreadId + ScreenSpaceAOParams[5].zw; 
 	float2 PixelCenter	= (float2)PixelPos + float2(0.5, 0.5);
-	PixelCenter		   *= DownSampleFactor;
-	float2 BufferUV		= SvPositionToBufferUV(float4(PixelCenter, 0, 0));
+	float2 BufferUV		= PixelCenter.xy * GTAOParams[2].zw;
 
 	float2 Horizons = HorizonSearchPSandCS(BufferUV);
 	
@@ -1599,14 +1595,14 @@ float2 ReprojectPos(float2 UV, float Depth)
 
 	PrevUV += PostprocessInput0Size.zw*0.25;
 
+	float2 Velocity		= GetGBufferData(UV, false).Velocity.xy;
 
 	// TODO - Take into account velocity
-//	float2 Velocity = Texture.SampleLevel( Sampler, UV, 0 ).xy;
-//	if( Velocity.x > 0.0 )
-//	{
-//		PrevScreen = ThisClip.xy - DecodeVelocityFromTexture( Velocity );
-//	}
-
+	if( Velocity.x > 0.0 )
+	{
+		PrevScreen = ThisClip.xy - DecodeVelocityFromTexture( Velocity );
+	}
+	
 
 	return PrevUV;
 }
