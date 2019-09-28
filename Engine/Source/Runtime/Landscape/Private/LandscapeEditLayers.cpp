@@ -1939,12 +1939,12 @@ void ALandscape::CopyTexturePS(const FString& InSourceDebugName, FTextureResourc
 {
 	check(InSourceResource != nullptr);
 	check(InDestResource != nullptr);
-	check(InSourceResource->GetSizeX() == InDestResource->GetSizeX());
-	check(InSourceResource->GetSizeY() == InDestResource->GetSizeY());
-
+	
 	ENQUEUE_RENDER_COMMAND(CopyPSCommand)(
 		[InSourceResource, InDestResource](FRHICommandListImmediate& RHICmdList)
 	{
+		check(InSourceResource->GetSizeX() == InDestResource->GetSizeX());
+		check(InSourceResource->GetSizeY() == InDestResource->GetSizeY());
 		FRHIRenderPassInfo RPInfo(InDestResource->TextureRHI, ERenderTargetActions::DontLoad_Store);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("CopyTexture"));
 
