@@ -2049,6 +2049,35 @@ void ULandscapeComponent::GetComponentExtent(int32& MinX, int32& MinY, int32& Ma
 //
 // ALandscape
 //
+bool ULandscapeInfo::AreAllComponentsRegistered() const
+{
+	const TArray<ALandscapeProxy*>& LandscapeProxies = ALandscapeProxy::GetLandscapeProxies();
+	for(ALandscapeProxy* LandscapeProxy : LandscapeProxies)
+	{
+		if (LandscapeProxy->IsPendingKill())
+		{
+			continue;
+		}
+
+		if (LandscapeProxy->GetLandscapeGuid() == LandscapeGuid)
+		{
+			if (LandscapeProxy->SplineComponent && !LandscapeProxy->SplineComponent->IsRegistered())
+			{
+				return false;
+			}
+
+			for (ULandscapeComponent* LandscapeComponent : LandscapeProxy->LandscapeComponents)
+			{
+				if (LandscapeComponent && !LandscapeComponent->IsRegistered())
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
 
 #define MAX_LANDSCAPE_SUBSECTIONS 2
 
@@ -3281,10 +3310,7 @@ LANDSCAPE_API void ULandscapeInfo::ForAllLandscapeComponents(TFunctionRef<void(U
 	{
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
-			if (Component->IsRegistered())
-			{
-				Fn(Component);
-			}
+			Fn(Component);
 		}
 	});
 }
