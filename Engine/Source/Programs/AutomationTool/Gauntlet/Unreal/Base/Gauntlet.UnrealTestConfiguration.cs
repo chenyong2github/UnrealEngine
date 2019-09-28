@@ -123,6 +123,48 @@ namespace Gauntlet
 
 	}
 
+	/// <summary>
+	/// Collection of parameters that control how heartbeats coming from the native gauntlet controller for this role should be handled.
+	/// To make best use of this, your GauntletTestController should regularly call MarkHeartbeatActive().
+	/// Set bExpectHeartbeats to true to enable killing the App Instance when expected heartbeats are not detected.
+	/// </summary>
+	public class UnrealHeartbeatOptions
+	{
+		/// <summary>
+		/// The amount of time between regular heartbeats. This value is passed along through the command line.
+		/// </summary>
+		public float HeartbeatPeriod;
+
+		/// <summary>
+		/// Set to true to allow the App Instance to be killed when expected heartbeats are not detected. If left false, heartbeat timeouts will not result in any action or timeouts.
+		/// </summary>
+		public bool bExpectHeartbeats;
+		
+		/// <summary>
+		/// The max amount of time allowed before the first "active" heartbeat is detected
+		/// </summary>
+		public float TimeoutBeforeFirstActiveHeartbeat;
+
+		/// <summary>
+		/// The max amount of time allowed between "active" heartbeats
+		/// </summary>
+		public float TimeoutBetweenActiveHeartbeats;
+
+		/// <summary>
+		/// The max amount of time allowed between any heartbeats, active or not
+		/// </summary>
+		public float TimeoutBetweenAnyHeartbeats;
+
+		public UnrealHeartbeatOptions(float InHeartbeatPeriod = 30f, bool bShouldExpectHeartbeats = false, float InTimeoutBeforeFirstActiveHeartbeat = 0f, float InTimeoutBetweenActiveHeartbeats = 0f, float InTimeoutBetweenAnyHeartbeats = 90f)
+		{
+			HeartbeatPeriod = InHeartbeatPeriod;
+			bExpectHeartbeats = bShouldExpectHeartbeats;
+			TimeoutBeforeFirstActiveHeartbeat = InTimeoutBeforeFirstActiveHeartbeat;
+			TimeoutBetweenActiveHeartbeats = InTimeoutBetweenActiveHeartbeats;
+			TimeoutBetweenAnyHeartbeats = InTimeoutBetweenAnyHeartbeats;
+		}
+
+	}
 
 	/// <summary>
 	///	TestConfiguration describes the setup that is required for a specific test. 
@@ -231,6 +273,11 @@ namespace Gauntlet
 		/// </summary>
 		public bool AllRolesExit { get; set; }
 
+		/// <summary>
+		/// The collection of options which define heartbeat behavior
+		/// </summary>
+		public UnrealHeartbeatOptions HeartbeatOptions { get; set; }
+
 		// Member variables 
 
 		/// <summary>
@@ -247,6 +294,8 @@ namespace Gauntlet
 
 			// create the role structure
 			RequiredRoles = new Dictionary<UnrealTargetRole, List<UnrealTestRole>>();
+
+			HeartbeatOptions = new UnrealHeartbeatOptions();
 		}
 
 		/// <summary>
@@ -399,6 +448,12 @@ namespace Gauntlet
 			}
 
 			AppConfig.CommandLine += " -stdout -AllowStdOutLogVerbosity";
+
+			float HeartbeatPeriod = Globals.Params.ParseValue("HeartbeatPeriod", HeartbeatOptions.HeartbeatPeriod);
+			if (HeartbeatPeriod > 0)
+			{
+				AppConfig.CommandLine += string.Format(" -gauntlet.heartbeatperiod={0}", HeartbeatPeriod);
+			}
 		}
 	}
 
