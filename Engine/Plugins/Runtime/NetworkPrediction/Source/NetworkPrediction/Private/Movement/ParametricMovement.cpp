@@ -210,7 +210,7 @@ void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 	}
 }
 
-void UParametricMovementComponent::ProduceInput(const float DeltaTimeSeconds, ParametricMovement::FInputCmd& Cmd)
+void UParametricMovementComponent::ProduceInput(const FNetworkSimTime DeltaTimeSeconds, ParametricMovement::FInputCmd& Cmd)
 {
 	Cmd.PlayRate = PendingPlayRate;
 	PendingPlayRate.Reset();

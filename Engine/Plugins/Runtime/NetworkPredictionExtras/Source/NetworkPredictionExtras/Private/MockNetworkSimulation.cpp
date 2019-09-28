@@ -154,7 +154,7 @@ void UMockNetworkSimulationComponent::TickComponent(float DeltaTime, enum ELevel
 	DrawDebugString( GetWorld(), GetOwner()->GetActorLocation() + FVector(0.f,0.f,100.f), *LexToString(MockValue), nullptr, FColor::White, 0.00001f );
 }
 
-void UMockNetworkSimulationComponent::ProduceInput(const float DeltaTimeSeconds, FMockInputCmd& Cmd)
+void UMockNetworkSimulationComponent::ProduceInput(const FNetworkSimTime SimTime, FMockInputCmd& Cmd)
 {
 	if (MockNetworkSimCVars::DoLocalInput)
 	{

@@ -128,7 +128,7 @@ struct TReplicator_SimTime : public TBase
 		SerializedTime.NetSerialize(P.Ar);
 	}
 
-	TNetworkSimTime<TTickSettings> SerializedTime;
+	FNetworkSimTime SerializedTime;
 };
 
 // Enabled=false specialization: do nothing
@@ -261,14 +261,14 @@ struct TReplicator_Server : public TBase
 
 		if (TickParameters.bGenerateLocalInputCmds)
 		{
-			TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
+			FNetworkSimTime DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
 			if (DeltaSimTime.IsPositive())
 			{
 				if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
 				{
 					*InputCmd = TInputCmd();
 					InputCmd->SetFrameDeltaTime(DeltaSimTime);
-					Driver->ProduceInput(DeltaSimTime.ToRealTimeSeconds(), *InputCmd);
+					Driver->ProduceInput(DeltaSimTime, *InputCmd);
 					TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
 				}
 			}
@@ -289,7 +289,7 @@ struct TReplicator_Simulated : public TBase
 
 	TInterpolator<TBufferTypes, TTickSettings> Interpolator;
 
-	TNetworkSimTime<TTickSettings> GetLastSerializedSimulationTime() const { return LastSerializedSimulationTime; }
+	FNetworkSimTime GetLastSerializedSimulationTime() const { return LastSerializedSimulationTime; }
 	
 	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<TBufferTypes>& Buffers) const
 	{
@@ -300,7 +300,7 @@ struct TReplicator_Simulated : public TBase
 	{
 		FArchive& Ar = P.Ar;
 
-		TNetworkSimTime<TTickSettings> PrevLastSerializedSimulationTime = LastSerializedSimulationTime;
+		FNetworkSimTime PrevLastSerializedSimulationTime = LastSerializedSimulationTime;
 
 		// Serialize latest simulation time
 		LastSerializedSimulationTime = TickInfo.GetTotalProcessedSimulationTime();
@@ -349,8 +349,8 @@ struct TReplicator_Simulated : public TBase
 
 				if (DestinationKeyframe == INDEX_NONE)
 				{
-					TNetworkSimTime<TTickSettings> TotalTimeAhead = *TickInfo.SimulationTimeBuffer.GetElementFromHead(0) - LastSerializedSimulationTime;
-					TNetworkSimTime<TTickSettings> SerializeDelta = LastSerializedSimulationTime - PrevLastSerializedSimulationTime;
+					FNetworkSimTime TotalTimeAhead = *TickInfo.SimulationTimeBuffer.GetElementFromHead(0) - LastSerializedSimulationTime;
+					FNetworkSimTime SerializeDelta = LastSerializedSimulationTime - PrevLastSerializedSimulationTime;
 
 					// We are way far ahead of the server... we will need to clear out sync buffers, take what they gave us, and catch up in reconcile
 					//UE_LOG(LogNetworkSim, Warning, TEXT("!!! TReplicator_Simulated. Large gap detected. SerializedTime: %s. Buffer time: [%s-%s]. %d Elements. DeltaFromHead: %s. DeltaSerialize: %s"), *LastSerializedSimulationTime.ToString(), 
@@ -407,7 +407,7 @@ struct TReplicator_Simulated : public TBase
 			}
 
 			// Do we have time to make up? We may have extrapolated ahead of the server (totally fine - can happen with small amount of latency variance)
-			TNetworkSimTime<TTickSettings> DeltaSimTime = ReconcileSimulationTime - TickInfo.GetTotalProcessedSimulationTime();
+			FNetworkSimTime DeltaSimTime = ReconcileSimulationTime - TickInfo.GetTotalProcessedSimulationTime();
 			if (DeltaSimTime.IsPositive() && NetworkSimulationModelCVars::EnableSimulatedReconcile())
 			{
 				// We have extrapolated ahead of the server. The latest network update is now "in the past" from what we rendered last frame.
@@ -454,7 +454,7 @@ struct TReplicator_Simulated : public TBase
 
 			if (TickParameters.bGenerateLocalInputCmds)
 			{
-				TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
+				FNetworkSimTime DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
 				if (DeltaSimTime.IsPositive())
 				{
 					if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
@@ -463,7 +463,7 @@ struct TReplicator_Simulated : public TBase
 
 						*InputCmd = TInputCmd();
 						InputCmd->SetFrameDeltaTime(DeltaSimTime);
-						Driver->ProduceInput(DeltaSimTime.ToRealTimeSeconds(), *InputCmd);
+						Driver->ProduceInput(DeltaSimTime, *InputCmd);
 						TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
 					}
 				}
@@ -491,8 +491,8 @@ struct TReplicator_Simulated : public TBase
 
 private:
 	
-	TNetworkSimTime<TTickSettings> ReconcileSimulationTime;
-	TNetworkSimTime<TTickSettings> LastSerializedSimulationTime;
+	FNetworkSimTime ReconcileSimulationTime;
+	FNetworkSimTime LastSerializedSimulationTime;
 	
 };
 
@@ -507,7 +507,7 @@ struct TReplicator_Autonomous : public TBase
 
 	int32 GetLastSerializedKeyframe() const { return LastSerializedKeyframe; }
 	bool IsReconcileFaultDetected() const { return bReconcileFaultDetected; }
-	const TNetworkSimTime<TTickSettings>& GetLastSerializedSimTime() const { return SerializedTime; }
+	const FNetworkSimTime& GetLastSerializedSimTime() const { return SerializedTime; }
 
 	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<TBufferTypes>& Buffers) const
 	{
@@ -709,14 +709,14 @@ struct TReplicator_Autonomous : public TBase
 			{
 				// Prediction: add simulation time and generate new commands
 				TickInfo.GiveSimulationTime(TickParameters.LocalDeltaTimeSeconds);
-				const TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
+				const FNetworkSimTime DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
 				if (DeltaSimTime.IsPositive())
 				{
 					if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
 					{
 						*InputCmd = TInputCmd();
 						InputCmd->SetFrameDeltaTime(DeltaSimTime);
-						Driver->ProduceInput(DeltaSimTime.ToRealTimeSeconds(), *InputCmd);
+						Driver->ProduceInput(DeltaSimTime, *InputCmd);
 						TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe(); // Allow the new command to be processed by the local simulation
 					}
 				}
@@ -727,7 +727,7 @@ struct TReplicator_Autonomous : public TBase
 				// Since we aren't processing the simulation locally, our core simulation time will only advance from network updates.
 				// (still, we need *something* to tell us when to generate a new command and what the delta time should be)
 
-				TNetworkSimTime<TTickSettings> NonPredictedInputTime;
+				FNetworkSimTime NonPredictedInputTime;
 				NonPredictedInputTimeAccumulator.Accumulate(NonPredictedInputTime, TickParameters.LocalDeltaTimeSeconds);
 				if (NonPredictedInputTime.IsPositive())
 				{
@@ -735,7 +735,7 @@ struct TReplicator_Autonomous : public TBase
 					{
 						*InputCmd = TInputCmd();
 						InputCmd->SetFrameDeltaTime(NonPredictedInputTime);
-						Driver->ProduceInput(NonPredictedInputTime.ToRealTimeSeconds(), *InputCmd);
+						Driver->ProduceInput(NonPredictedInputTime, *InputCmd);
 					}
 				}
 			}
@@ -743,11 +743,9 @@ struct TReplicator_Autonomous : public TBase
 	}
 
 private:
-
-
 	
 	TReplicationBuffer<TSyncState> ReconciliationBuffer;
-	TNetworkSimTime<TTickSettings> SerializedTime; // last serialized time keeper
+	FNetworkSimTime SerializedTime; // last serialized time keeper
 	TRealTimeAccumulator<TTickSettings> NonPredictedInputTimeAccumulator; // for tracking input time in the non predictive case
 
 	int32 LastSerializedKeyframe = -1;
