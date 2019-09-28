@@ -2153,6 +2153,7 @@ void UReplicationGraph::SetActorDiscoveryBudget(int32 ActorDiscoveryBudgetInKByt
 	if (ActorDiscoveryBudgetInKBytesPerSec <= 0)
 	{
 		ActorDiscoveryMaxBitsPerFrame = 0;
+		UE_LOG(LogReplicationGraph, Display, TEXT("SetActorDiscoveryBudget disabled the ActorDiscovery budget."));
 		return;
 	}
 
