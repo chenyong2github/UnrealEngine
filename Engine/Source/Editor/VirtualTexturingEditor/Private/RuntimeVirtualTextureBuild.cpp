@@ -202,9 +202,9 @@ namespace RuntimeVirtualTexture
 					Desc.bClearTextures = true;
 					Desc.DebugType = DebugType;
 					Desc.NumPageDescs = 1;
-					Desc.Textures[0] = RenderTileResources.GetRenderTarget(0);
-					Desc.Textures[1] = RenderTileResources.GetRenderTarget(1);
-					Desc.Textures[2] = RenderTileResources.GetRenderTarget(2);
+					Desc.Targets[0].Texture = RenderTileResources.GetRenderTarget(0);
+					Desc.Targets[1].Texture = RenderTileResources.GetRenderTarget(1);
+					Desc.Targets[2].Texture = RenderTileResources.GetRenderTarget(2);
 					Desc.PageDescs[0].DestBox[0] = TileBox;
 					Desc.PageDescs[0].DestBox[1] = TileBox;
 					Desc.PageDescs[0].DestBox[2] = TileBox;

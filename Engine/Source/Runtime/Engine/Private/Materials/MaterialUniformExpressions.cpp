@@ -869,7 +869,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 					const IAllocatedVirtualTexture* AllocatedVT = UniformExpressionCache.AllocatedVTs[StackAndLayerIndex.StackIndex];
 					if (AllocatedVT != nullptr)
 					{
-						FRHIShaderResourceView* PhysicalViewRHI = AllocatedVT->GetPhysicalTextureView(StackAndLayerIndex.LayerIndex, VTResource->bSRGB);
+						FRHIShaderResourceView* PhysicalViewRHI = AllocatedVT->GetPhysicalTextureSRV(StackAndLayerIndex.LayerIndex, VTResource->bSRGB);
 						if (PhysicalViewRHI)
 						{
 							*ResourceTablePhysicalTexturePtr = PhysicalViewRHI;
@@ -891,7 +891,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 					if (AllocatedVT != nullptr)
 					{
 						const int32 LayerIndex = UniformVirtualTextureExpressions[ExpressionIndex]->GetTextureLayerIndex();
-						FRHIShaderResourceView* PhysicalViewRHI = AllocatedVT->GetPhysicalTextureView(LayerIndex, Texture->IsLayerSRGB(LayerIndex));
+						FRHIShaderResourceView* PhysicalViewRHI = AllocatedVT->GetPhysicalTextureSRV(LayerIndex, Texture->IsLayerSRGB(LayerIndex));
 						if (PhysicalViewRHI != nullptr)
 						{
 							*ResourceTablePhysicalTexturePtr = PhysicalViewRHI;

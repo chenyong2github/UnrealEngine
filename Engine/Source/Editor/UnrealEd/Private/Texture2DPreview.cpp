@@ -70,7 +70,7 @@ public:
 			FVirtualTexture2DResource* VirtualTextureValue = (FVirtualTexture2DResource*)TextureValue;
 			IAllocatedVirtualTexture* AllocatedVT = VirtualTextureValue->AcquireAllocatedVT();
 	
-			FRHIShaderResourceView* PhysicalView = AllocatedVT->GetPhysicalTextureView((uint32)LayerIndex, TextureValue->bSRGB);
+			FRHIShaderResourceView* PhysicalView = AllocatedVT->GetPhysicalTextureSRV((uint32)LayerIndex, TextureValue->bSRGB);
 			SetSRVParameter(RHICmdList, GetPixelShader(), InTexture, PhysicalView);
 			SetSamplerParameter(RHICmdList, GetPixelShader(), InTextureSampler, VirtualTextureValue->SamplerStateRHI);
 
