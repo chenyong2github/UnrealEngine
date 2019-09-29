@@ -606,15 +606,15 @@ void FComponentTransformDetails::OnSetAbsoluteTransform(ETransformField::Type Tr
 	switch (TransformField)
 	{
 	case ETransformField::Location:
-		AbsoluteProperty = FindField<UBoolProperty>(USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USceneComponent, bAbsoluteLocation));
+		AbsoluteProperty = FindField<UBoolProperty>(USceneComponent::StaticClass(), USceneComponent::GetAbsoluteLocationPropertyName());
 		TransactionText = LOCTEXT("ToggleAbsoluteLocation", "Toggle Absolute Location");
 		break;
 	case ETransformField::Rotation:
-		AbsoluteProperty = FindField<UBoolProperty>(USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USceneComponent, bAbsoluteRotation));
+		AbsoluteProperty = FindField<UBoolProperty>(USceneComponent::StaticClass(), USceneComponent::GetAbsoluteRotationPropertyName());
 		TransactionText = LOCTEXT("ToggleAbsoluteRotation", "Toggle Absolute Rotation");
 		break;
 	case ETransformField::Scale:
-		AbsoluteProperty = FindField<UBoolProperty>(USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USceneComponent, bAbsoluteScale));
+		AbsoluteProperty = FindField<UBoolProperty>(USceneComponent::StaticClass(), USceneComponent::GetAbsoluteScalePropertyName());
 		TransactionText = LOCTEXT("ToggleAbsoluteScale", "Toggle Absolute Scale");
 		break;
 	default:
@@ -632,7 +632,7 @@ void FComponentTransformDetails::OnSetAbsoluteTransform(ETransformField::Type Tr
 			USceneComponent* SceneComponent = GetSceneComponentFromDetailsObject(Object);
 			if (SceneComponent)
 			{
-				bool bOldValue = TransformField == ETransformField::Location ? SceneComponent->bAbsoluteLocation : (TransformField == ETransformField::Rotation ? SceneComponent->bAbsoluteRotation : SceneComponent->bAbsoluteScale);
+				bool bOldValue = TransformField == ETransformField::Location ? SceneComponent->IsUsingAbsoluteLocation() : (TransformField == ETransformField::Rotation ? SceneComponent->IsUsingAbsoluteRotation() : SceneComponent->IsUsingAbsoluteScale());
 
 				if (bOldValue == bAbsoluteEnabled)
 				{
@@ -665,28 +665,28 @@ void FComponentTransformDetails::OnSetAbsoluteTransform(ETransformField::Type Tr
 				switch (TransformField)
 				{
 				case ETransformField::Location:
-					SceneComponent->bAbsoluteLocation = bAbsoluteEnabled;
+					SceneComponent->SetUsingAbsoluteLocation(bAbsoluteEnabled);
 
 					// Update RelativeLocation to maintain/stabilize position when switching between relative and world.
 					if (SceneComponent->GetAttachParent())
 					{
-						if (SceneComponent->bAbsoluteLocation)
+						if (SceneComponent->IsUsingAbsoluteLocation())
 						{
-							SceneComponent->RelativeLocation = SceneComponent->GetComponentTransform().GetTranslation();
+							SceneComponent->SetRelativeLocation_Direct(SceneComponent->GetComponentTransform().GetTranslation());
 						}
 						else
 						{
 							FTransform ParentToWorld = SceneComponent->GetAttachParent()->GetSocketTransform(SceneComponent->GetAttachSocketName());
 							FTransform RelativeTM = SceneComponent->GetComponentTransform().GetRelativeTransform(ParentToWorld);
-							SceneComponent->RelativeLocation = RelativeTM.GetTranslation();
+							SceneComponent->SetRelativeLocation_Direct(RelativeTM.GetTranslation());
 						}
 					}
 					break;
 				case ETransformField::Rotation:
-					SceneComponent->bAbsoluteRotation = bAbsoluteEnabled;
+					SceneComponent->SetUsingAbsoluteRotation(bAbsoluteEnabled);
 					break;
 				case ETransformField::Scale:
-					SceneComponent->bAbsoluteScale = bAbsoluteEnabled;
+					SceneComponent->SetUsingAbsoluteScale(bAbsoluteEnabled);
 					break;
 				}
 
@@ -759,7 +759,7 @@ struct FGetRootComponentArchetype
 EVisibility FComponentTransformDetails::GetLocationResetVisibility() const
 {
 	const USceneComponent* Archetype = FGetRootComponentArchetype::Get(SelectedObjects[0].Get());
-	const FVector Data = Archetype ? Archetype->RelativeLocation : FVector::ZeroVector;
+	const FVector Data = Archetype ? Archetype->GetRelativeLocation() : FVector::ZeroVector;
 
 	// unset means multiple differing values, so show "Reset to Default" in that case
 	return CachedLocation.IsSet() && CachedLocation.X.GetValue() == Data.X && CachedLocation.Y.GetValue() == Data.Y && CachedLocation.Z.GetValue() == Data.Z ? EVisibility::Hidden : EVisibility::Visible;
@@ -771,7 +771,7 @@ FReply FComponentTransformDetails::OnLocationResetClicked()
 	FScopedTransaction Transaction(TransactionName);
 
 	const USceneComponent* Archetype = FGetRootComponentArchetype::Get(SelectedObjects[0].Get());
-	const FVector Data = Archetype ? Archetype->RelativeLocation : FVector::ZeroVector;
+	const FVector Data = Archetype ? Archetype->GetRelativeLocation() : FVector::ZeroVector;
 
 	OnSetTransform(ETransformField::Location, EAxisList::All, Data, false, true);
 
@@ -781,7 +781,7 @@ FReply FComponentTransformDetails::OnLocationResetClicked()
 EVisibility FComponentTransformDetails::GetRotationResetVisibility() const
 {
 	const USceneComponent* Archetype = FGetRootComponentArchetype::Get(SelectedObjects[0].Get());
-	const FVector Data = Archetype ? Archetype->RelativeRotation.Euler() : FVector::ZeroVector;
+	const FVector Data = Archetype ? Archetype->GetRelativeRotation().Euler() : FVector::ZeroVector;
 
 	// unset means multiple differing values, so show "Reset to Default" in that case
 	return CachedRotation.IsSet() && CachedRotation.X.GetValue() == Data.X && CachedRotation.Y.GetValue() == Data.Y && CachedRotation.Z.GetValue() == Data.Z ? EVisibility::Hidden : EVisibility::Visible;
@@ -793,7 +793,7 @@ FReply FComponentTransformDetails::OnRotationResetClicked()
 	FScopedTransaction Transaction(TransactionName);
 
 	const USceneComponent* Archetype = FGetRootComponentArchetype::Get(SelectedObjects[0].Get());
-	const FVector Data = Archetype ? Archetype->RelativeRotation.Euler() : FVector::ZeroVector;
+	const FVector Data = Archetype ? Archetype->GetRelativeRotation().Euler() : FVector::ZeroVector;
 
 	OnSetTransform(ETransformField::Rotation, EAxisList::All, Data, false, true);
 
@@ -803,7 +803,7 @@ FReply FComponentTransformDetails::OnRotationResetClicked()
 EVisibility FComponentTransformDetails::GetScaleResetVisibility() const
 {
 	const USceneComponent* Archetype = FGetRootComponentArchetype::Get(SelectedObjects[0].Get());
-	const FVector Data = Archetype ? Archetype->RelativeScale3D : FVector(1.0f);
+	const FVector Data = Archetype ? Archetype->GetRelativeScale3D() : FVector(1.0f);
 
 	// unset means multiple differing values, so show "Reset to Default" in that case
 	return CachedScale.IsSet() && CachedScale.X.GetValue() == Data.X && CachedScale.Y.GetValue() == Data.Y && CachedScale.Z.GetValue() == Data.Z ? EVisibility::Hidden : EVisibility::Visible;
@@ -815,7 +815,7 @@ FReply FComponentTransformDetails::OnScaleResetClicked()
 	FScopedTransaction Transaction(TransactionName);
 
 	const USceneComponent* Archetype = FGetRootComponentArchetype::Get(SelectedObjects[0].Get());
-	const FVector Data = Archetype ? Archetype->RelativeScale3D : FVector(1.0f);
+	const FVector Data = Archetype ? Archetype->GetRelativeScale3D() : FVector(1.0f);
 
 	OnSetTransform(ETransformField::Scale, EAxisList::All, Data, false, true);
 
@@ -898,10 +898,10 @@ void FComponentTransformDetails::CacheTransform()
 			FVector Scale;
 			if( SceneComponent )
 			{
-				Loc = SceneComponent->RelativeLocation;
+				Loc = SceneComponent->GetRelativeLocation();
 				FRotator* FoundRotator = ObjectToRelativeRotationMap.Find(SceneComponent);
-				Rot = (bEditingRotationInUI && !Object->IsTemplate() && FoundRotator) ? *FoundRotator : SceneComponent->RelativeRotation;
-				Scale = SceneComponent->RelativeScale3D;
+				Rot = (bEditingRotationInUI && !Object->IsTemplate() && FoundRotator) ? *FoundRotator : SceneComponent->GetRelativeRotation();
+				Scale = SceneComponent->GetRelativeScale3D();
 
 				if( ObjectIndex == 0 )
 				{
@@ -914,9 +914,9 @@ void FComponentTransformDetails::CacheTransform()
 					CachedRotation.Set( Rot );
 					CachedScale.Set( Scale );
 
-					bAbsoluteLocation = SceneComponent->bAbsoluteLocation;
-					bAbsoluteScale = SceneComponent->bAbsoluteScale;
-					bAbsoluteRotation = SceneComponent->bAbsoluteRotation;
+					bAbsoluteLocation = SceneComponent->IsUsingAbsoluteLocation();
+					bAbsoluteScale = SceneComponent->IsUsingAbsoluteScale();
+					bAbsoluteRotation = SceneComponent->IsUsingAbsoluteRotation();
 				}
 				else if( CurLoc != Loc || CurRot != Rot || CurScale != Scale )
 				{
@@ -968,7 +968,7 @@ void FComponentTransformDetails::OnSetTransform(ETransformField::Type TransformF
 	{
 	case ETransformField::Location:
 		TransactionText = LOCTEXT("OnSetLocation", "Set Location");
-		ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeLocation));
+		ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 		
 		// Only set axis property for single axis set
 		if (Axis == EAxisList::X)
@@ -986,7 +986,7 @@ void FComponentTransformDetails::OnSetTransform(ETransformField::Type TransformF
 		break;
 	case ETransformField::Rotation:
 		TransactionText = LOCTEXT("OnSetRotation", "Set Rotation");
-		ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeRotation));
+		ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeRotationPropertyName());
 		
 		// Only set axis property for single axis set
 		if (Axis == EAxisList::X)
@@ -1004,7 +1004,7 @@ void FComponentTransformDetails::OnSetTransform(ETransformField::Type TransformF
 		break;
 	case ETransformField::Scale:
 		TransactionText = LOCTEXT("OnSetScale", "Set Scale");
-		ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeScale3D));
+		ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeScale3DPropertyName());
 
 		// If keep scale is set, don't set axis property
 		if (!bPreserveScaleRatio && Axis == EAxisList::X)
@@ -1055,18 +1055,18 @@ void FComponentTransformDetails::OnSetTransform(ETransformField::Type TransformF
 				switch (TransformField)
 				{
 				case ETransformField::Location:
-					OldComponentValue = SceneComponent->RelativeLocation;
+					OldComponentValue = SceneComponent->GetRelativeLocation();
 					break;
 				case ETransformField::Rotation:
 					// Pull from the actual component or from the cache
-					OldComponentValue = SceneComponent->RelativeRotation.Euler();
+					OldComponentValue = SceneComponent->GetRelativeRotation().Euler();
 					if (bEditingRotationInUI && !bIsEditingTemplateObject && ObjectToRelativeRotationMap.Find(SceneComponent))
 					{
 						OldComponentValue = ObjectToRelativeRotationMap.Find(SceneComponent)->Euler();
 					}
 					break;
 				case ETransformField::Scale:
-					OldComponentValue = SceneComponent->RelativeScale3D;
+					OldComponentValue = SceneComponent->GetRelativeScale3D();
 					break;
 				}
 
@@ -1132,13 +1132,13 @@ void FComponentTransformDetails::OnSetTransform(ETransformField::Type TransformF
 							if (!bIsEditingTemplateObject)
 							{
 								// Update local cache for restoring later
-								ObjectToRelativeRotationMap.FindOrAdd(SceneComponent) = SceneComponent->RelativeRotation;
+								ObjectToRelativeRotationMap.FindOrAdd(SceneComponent) = SceneComponent->GetRelativeRotation();
 							}
 
 							SceneComponent->SetRelativeLocation(NewComponentValue);
 
 							// Also forcibly set it as the cache may have changed it slightly
-							SceneComponent->RelativeLocation = NewComponentValue;
+							SceneComponent->SetRelativeLocation_Direct(NewComponentValue);
 
 							// If it's a template, propagate the change out to any current instances of the object
 							if (bIsEditingTemplateObject)
@@ -1299,12 +1299,12 @@ void FComponentTransformDetails::OnSetTransform(ETransformField::Type TransformF
 						if (FoundRotator)
 						{
 							FQuat OldQuat = FoundRotator->GetDenormalized().Quaternion();
-							FQuat NewQuat = SceneComponent->RelativeRotation.GetDenormalized().Quaternion();
+							FQuat NewQuat = SceneComponent->GetRelativeRotation().GetDenormalized().Quaternion();
 
 							if (OldQuat.Equals(NewQuat))
 							{
 								// Need to restore the manually set rotation as it was modified by quat conversion
-								SceneComponent->RelativeRotation = *FoundRotator;
+								SceneComponent->SetRelativeRotation_Direct(*FoundRotator);
 							}
 						}
 					}
@@ -1417,7 +1417,7 @@ void FComponentTransformDetails::OnBeginRotationSlider()
 				FScopedSwitchWorldForObject WorldSwitcher(Object);
 
 				// Add/update cached rotation value prior to slider interaction
-				ObjectToRelativeRotationMap.FindOrAdd(SceneComponent) = SceneComponent->RelativeRotation;
+				ObjectToRelativeRotationMap.FindOrAdd(SceneComponent) = SceneComponent->GetRelativeRotation();
 			}
 		}
 	}

@@ -58,7 +58,7 @@ void AVisualLoggerCameraController::PostInitializeComponents()
 	}
 	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.Owner = this;
-	SpawnInfo.Instigator = Instigator;
+	SpawnInfo.Instigator = GetInstigator();
 	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	MyHUD = GetWorld()->SpawnActor<AVisualLoggerHUD>(SpawnInfo);
 
@@ -86,7 +86,7 @@ AVisualLoggerCameraController* AVisualLoggerCameraController::EnableCamera(UWorl
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		SpawnInfo.Owner = PC->GetWorldSettings();
-		SpawnInfo.Instigator = PC->Instigator;
+		SpawnInfo.Instigator = PC->GetInstigator();
 		Instance = InWorld->SpawnActor<AVisualLoggerCameraController>( SpawnInfo );
 		Instance->Player = PC->Player;
 	}

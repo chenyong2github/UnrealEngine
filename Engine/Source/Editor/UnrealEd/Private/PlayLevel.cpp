@@ -3241,7 +3241,7 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 			ActorsThatWereSelected.Add( Actor );
 
 			AActor* SimActor = EditorUtilities::GetSimWorldCounterpartActor(Actor);
-			if (SimActor && !SimActor->bHidden && bInSimulateInEditor)
+			if (SimActor && !SimActor->IsHidden() && bInSimulateInEditor)
 			{
 				SelectActor( SimActor, true, false );
 			}
@@ -3802,7 +3802,7 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 		if (Actor.IsValid())
 		{
 			AActor* SimActor = EditorUtilities::GetSimWorldCounterpartActor(Actor.Get());
-			if (SimActor && !SimActor->bHidden)
+			if (SimActor && !SimActor->IsHidden())
 			{
 				SelectActor( SimActor, bIsSimulatingInEditor, false );
 			}

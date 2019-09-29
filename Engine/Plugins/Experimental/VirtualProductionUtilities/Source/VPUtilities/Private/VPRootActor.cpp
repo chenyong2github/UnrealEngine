@@ -62,7 +62,7 @@ AVPRootActor::AVPRootActor(const FObjectInitializer& ObjectInitializer)
 		ConstructorHelpers::FObjectFinderOptional<UTexture2D> RootTextureObject = TEXT("/VirtualProductionUtilities/Icons/S_VPRootActor");
 
 		SpriteComponent->Sprite = RootTextureObject.Get();
-		SpriteComponent->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+		SpriteComponent->SetRelativeScale3D_Direct(FVector(0.5f, 0.5f, 0.5f));
 		SpriteComponent->bHiddenInGame = false;
 		SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_Sprite;
 		SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Sprite;
@@ -188,8 +188,8 @@ void AVPRootActor::PostEditChangeChainProperty(struct FPropertyChangedChainEvent
 
 	if (bMoveLevelWithActor && !bReentrantPostEditMove)
 	{
-		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeLocation)
-			|| PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeRotation))
+		if (PropertyChangedEvent.Property->GetFName() == USceneComponent::GetRelativeLocationPropertyName()
+			|| PropertyChangedEvent.Property->GetFName() == USceneComponent::GetRelativeRotationPropertyName())
 		{
 			TGuardValue<bool> Tmp(bReentrantPostEditMove, true);
 			MoveLevelToRootActor();

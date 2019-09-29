@@ -30,7 +30,7 @@ static TAutoConsoleVariable<int32> CVarDebugCameraTraceComplex(
 ADebugCameraHUD::ADebugCameraHUD(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bHidden = false;
+	SetHidden(false);
 }
 
 bool ADebugCameraHUD::DisplayMaterials( float X, float& Y, float DY, UMeshComponent* MeshComp )

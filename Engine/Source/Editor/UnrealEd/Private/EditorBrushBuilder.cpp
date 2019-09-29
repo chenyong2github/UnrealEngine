@@ -53,7 +53,7 @@ bool UEditorBrushBuilder::EndBrush( UWorld* InWorld, ABrush* InBrush )
 	ABrush* BuilderBrush = (InBrush != nullptr) ? InBrush : InWorld->GetDefaultBrush();
 
 	// Ensure the builder brush is unhidden.
-	BuilderBrush->bHidden = false;
+	BuilderBrush->SetHidden(false);
 	BuilderBrush->bHiddenEdLayer = false;
 
 	AActor* Actor = GEditor->GetSelectedActors()->GetTop<AActor>();

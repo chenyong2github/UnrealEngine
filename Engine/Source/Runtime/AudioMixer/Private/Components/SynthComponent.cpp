@@ -153,7 +153,7 @@ void USynthComponent::Activate(bool bReset)
 	if (bReset || ShouldActivate())
 	{
 		Start();
-		if (bIsActive)
+		if (IsActive())
 		{
 			OnComponentActivated.Broadcast(this, bReset);
 		}
@@ -166,7 +166,7 @@ void USynthComponent::Deactivate()
 	{
 		Stop();
 
-		if (!bIsActive)
+		if (!IsActive())
 		{
 			OnComponentDeactivated.Broadcast(this);
 		}
@@ -321,7 +321,7 @@ bool USynthComponent::IsReadyForOwnerToAutoDestroy() const
 #if WITH_EDITOR
 void USynthComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (bIsActive)
+	if (IsActive())
 	{
 		// If this is an auto destroy component we need to prevent it from being auto-destroyed since we're really just restarting it
 		const bool bWasAutoDestroy = bAutoDestroy;
@@ -397,7 +397,7 @@ int32 USynthComponent::OnGeneratePCMAudio(float* GeneratedPCMData, int32 NumSamp
 void USynthComponent::Start()
 {
 	// Only need to start if we're not already active
-	if (bIsActive)
+	if (IsActive())
 	{
 		return;
 	}
@@ -442,9 +442,9 @@ void USynthComponent::Start()
 		Synth->SoundSubmixObject = SoundSubmix;
 		Synth->SoundSubmixSends = SoundSubmixSends;
 
-		bIsActive = AudioComponent->IsActive();
+		SetActiveFlag(AudioComponent->IsActive());
 
-		if (bIsActive)
+		if (IsActive())
 		{
 			PendingSynthEvents.Enqueue(ESynthEvent::Start);
 		}
@@ -453,7 +453,7 @@ void USynthComponent::Start()
 
 void USynthComponent::Stop()
 {
-	if (bIsActive)
+	if (IsActive())
 	{
 		PendingSynthEvents.Enqueue(ESynthEvent::Stop);
 
@@ -462,7 +462,7 @@ void USynthComponent::Stop()
 			AudioComponent->Stop();
 		}
 
-		bIsActive = false;
+		SetActiveFlag(false);
 	}
 }
 

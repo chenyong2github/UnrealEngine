@@ -60,7 +60,7 @@ struct FTemporarilyHiddenInGameTokenProducer : IMovieScenePreAnimatedTokenProduc
 #else
 				false;
 #endif
-			return FTemporarilyHiddenInGamePreAnimatedToken(Actor->bHidden, bInTemporarilyHiddenInGame);
+			return FTemporarilyHiddenInGamePreAnimatedToken(Actor->IsHidden(), bInTemporarilyHiddenInGame);
 		}
 		else if (InObject.IsA(USceneComponent::StaticClass()))
 		{

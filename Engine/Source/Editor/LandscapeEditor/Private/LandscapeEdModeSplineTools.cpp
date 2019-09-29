@@ -100,7 +100,7 @@ public:
 	{
 		Landscape->Modify();
 		Landscape->SplineComponent = NewObject<ULandscapeSplinesComponent>(Landscape, NAME_None, RF_Transactional);
-		Landscape->SplineComponent->RelativeScale3D = Scale3D;
+		Landscape->SplineComponent->SetRelativeScale3D_Direct(Scale3D);
 		Landscape->SplineComponent->AttachToComponent(Landscape->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 		Landscape->SplineComponent->ShowSplineEditorMesh(true);
 	}
@@ -883,7 +883,7 @@ public:
 					ToLandscape->Modify();
 					if (ToLandscape->SplineComponent == nullptr)
 					{
-						CreateSplineComponent(ToLandscape, FromProxy->SplineComponent->RelativeScale3D);
+						CreateSplineComponent(ToLandscape, FromProxy->SplineComponent->GetRelativeScale3D());
 						check(ToLandscape->SplineComponent);
 					}
 					ToLandscape->SplineComponent->Modify();
@@ -957,7 +957,7 @@ public:
 					ToLandscape->Modify();
 					if (ToLandscape->SplineComponent == nullptr)
 					{
-						CreateSplineComponent(ToLandscape, FromProxy->SplineComponent->RelativeScale3D);
+						CreateSplineComponent(ToLandscape, FromProxy->SplineComponent->GetRelativeScale3D());
 						check(ToLandscape->SplineComponent);
 					}
 					ToLandscape->SplineComponent->Modify();
@@ -1090,7 +1090,7 @@ public:
 			{
 				if (!Landscape->SplineComponent)
 				{
-					CreateSplineComponent(Landscape, FVector(1.0f) / Landscape->GetRootComponent()->RelativeScale3D);
+					CreateSplineComponent(Landscape, FVector(1.0f) / Landscape->GetRootComponent()->GetRelativeScale3D());
 					check(Landscape->SplineComponent);
 				}
 				SplinesComponent = Landscape->SplineComponent;
@@ -2255,7 +2255,7 @@ public:
 		}
 		if (!Landscape->SplineComponent)
 		{
-			CreateSplineComponent(Landscape, FVector(1.0f) / Landscape->GetRootComponent()->RelativeScale3D);
+			CreateSplineComponent(Landscape, FVector(1.0f) / Landscape->GetRootComponent()->GetRelativeScale3D());
 			check(Landscape->SplineComponent);
 		}
 		Landscape->SplineComponent->Modify();

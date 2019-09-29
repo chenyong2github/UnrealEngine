@@ -44,15 +44,15 @@ FString UDisplayClusterSceneComponentSyncParent::GetSyncId() const
 bool UDisplayClusterSceneComponentSyncParent::IsDirty() const
 {
 	USceneComponent* const pParent = GetAttachParent();
-	return (LastSyncLoc != pParent->RelativeLocation || LastSyncRot != pParent->RelativeRotation || LastSyncScale != pParent->RelativeScale3D);
+	return (LastSyncLoc != pParent->GetRelativeLocation() || LastSyncRot != pParent->GetRelativeRotation() || LastSyncScale != pParent->GetRelativeScale3D());
 }
 
 void UDisplayClusterSceneComponentSyncParent::ClearDirty()
 {
 	USceneComponent* const pParent = GetAttachParent();
-	LastSyncLoc = pParent->RelativeLocation;
-	LastSyncRot = pParent->RelativeRotation;
-	LastSyncScale = pParent->RelativeScale3D;
+	LastSyncLoc = pParent->GetRelativeLocation();
+	LastSyncRot = pParent->GetRelativeRotation();
+	LastSyncScale = pParent->GetRelativeScale3D();
 }
 
 

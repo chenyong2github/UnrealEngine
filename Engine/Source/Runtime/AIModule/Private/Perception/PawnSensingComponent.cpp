@@ -448,7 +448,7 @@ bool UPawnSensingComponent::ShouldCheckVisibilityOf(APawn *Pawn) const
 		return false;
 	}
 
-	if (Pawn->bHidden)
+	if (Pawn->IsHidden())
 	{
 		return false;
 	}

@@ -86,7 +86,7 @@ void DumpNiagaraComponents(UWorld* World)
 				else
 				{
 					UE_LOG(LogNiagara, Log, TEXT("Component: \"%s\" System: \"%s\" | ReqExecState: %d | ExecState: %d | bIsActive: %d"), *Component->GetName(), *Sys->GetName(),
-						(int32)SysInst->GetRequestedExecutionState(), (int32)SysInst->GetActualExecutionState(), Component->bIsActive);
+						(int32)SysInst->GetRequestedExecutionState(), (int32)SysInst->GetActualExecutionState(), Component->IsActive());
 
 					if (!SysInst->IsComplete())
 					{
@@ -436,7 +436,7 @@ void UNiagaraComponent::ReleaseToPool()
 		return;
 	}
 
-	if (!bIsActive)
+	if (!IsActive())
 	{
 		//If we're already complete then release to the pool straight away.
 		UWorld* World = GetWorld();
@@ -479,13 +479,13 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 		return;
 	}
 
-	if (!bIsActive && bAutoActivate && SystemInstance.Get() && SystemInstance->GetAreDataInterfacesInitialized())
+	if (!IsActive() && bAutoActivate && SystemInstance.Get() && SystemInstance->GetAreDataInterfacesInitialized())
 	{
 		Activate();
 	}
 
 	check(SystemInstance->IsSolo());
-	if (bIsActive && SystemInstance.Get() && !SystemInstance->IsComplete())
+	if (IsActive() && SystemInstance.Get() && !SystemInstance->IsComplete())
 	{
 		// If the interfaces have changed in a meaningful way, we need to potentially rebind and update the values.
 		if (OverrideParameters.GetInterfacesDirty())
@@ -773,9 +773,9 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 			{
 				bDidAutoAttach = bWasAutoAttached;
 				CancelAutoAttachment(true);
-				SavedAutoAttachRelativeLocation = RelativeLocation;
-				SavedAutoAttachRelativeRotation = RelativeRotation;
-				SavedAutoAttachRelativeScale3D = RelativeScale3D;
+				SavedAutoAttachRelativeLocation = GetRelativeLocation();
+				SavedAutoAttachRelativeRotation = GetRelativeRotation();
+				SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
 				//bIsChangingAutoAttachment = true;
 				AttachToComponent(NewParent, FAttachmentTransformRules(AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule, false), AutoAttachSocketName);
 				//bIsChangingAutoAttachment = false;
@@ -826,12 +826,12 @@ void UNiagaraComponent::Deactivate()
 		SystemInstance->Deactivate();
 
 		// We are considered active until we are complete
-		bIsActive = !SystemInstance->IsComplete();
+		SetActiveFlag(!SystemInstance->IsComplete());
 	}
 	else
 	{
 		Super::Deactivate();
-		bIsActive = false;
+		SetActiveFlag(false);
 	}
 }
 
@@ -844,7 +844,7 @@ void UNiagaraComponent::DeactivateImmediate()
 
 	//UE_LOG(LogNiagara, Log, TEXT("Deactivate %s"), *GetName());
 
-	bIsActive = false;
+	SetActiveFlag(false);
 
 	if (SystemInstance)
 	{
@@ -857,7 +857,7 @@ void UNiagaraComponent::OnSystemComplete()
 	//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete: %p - %s"), SystemInstance.Get(), *Asset->GetName());
 
 	SetComponentTickEnabled(false);
-	bIsActive = false;
+	SetActiveFlag(false);
 
 	MarkRenderDynamicDataDirty();
 		
@@ -890,7 +890,7 @@ void UNiagaraComponent::DestroyInstance()
 {
 	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::DestroyInstance: %p  %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
 	//UE_LOG(LogNiagara, Log, TEXT("DestroyInstance: %u - %s"), this, *Asset->GetName());
-	bIsActive = false;
+	SetActiveFlag(false);
 	
 	// Rather than setting the unique ptr to null here, we allow it to transition ownership to the system's deferred deletion queue. This allows us to safely
 	// get rid of the system interface should we be doing this in response to a callback invoked during the system interface's lifetime completion cycle.
@@ -939,9 +939,9 @@ void UNiagaraComponent::OnRegister()
 			}
 		}
 
-		SavedAutoAttachRelativeLocation = RelativeLocation;
-		SavedAutoAttachRelativeRotation = RelativeRotation;
-		SavedAutoAttachRelativeScale3D = RelativeScale3D;
+		SavedAutoAttachRelativeLocation = GetRelativeLocation();
+		SavedAutoAttachRelativeRotation = GetRelativeRotation();
+		SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
 	}
 	Super::OnRegister();
 }
@@ -958,7 +958,7 @@ void UNiagaraComponent::OnUnregister()
 {
 	Super::OnUnregister();
 
-	bIsActive = false;
+	SetActiveFlag(false);
 
 	if (SystemInstance)
 	{
@@ -1756,9 +1756,9 @@ void UNiagaraComponent::CancelAutoAttachment(bool bDetachFromParent)
 		if (bDidAutoAttach)
 		{
 			// Restore relative transform from before attachment. Actual transform will be updated as part of DetachFromParent().
-			RelativeLocation = SavedAutoAttachRelativeLocation;
-			RelativeRotation = SavedAutoAttachRelativeRotation;
-			RelativeScale3D = SavedAutoAttachRelativeScale3D;
+			SetRelativeLocation_Direct(SavedAutoAttachRelativeLocation);
+			SetRelativeRotation_Direct(SavedAutoAttachRelativeRotation);
+			SetRelativeScale3D_Direct(SavedAutoAttachRelativeScale3D);
 			bDidAutoAttach = false;
 		}
 

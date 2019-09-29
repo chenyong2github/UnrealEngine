@@ -189,25 +189,25 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(
 						const FTransform ParentToWorld = AttachToComponent->GetSocketTransform(AttachPointName);
 						const FTransform ComponentToWorld(Rotation, Location, Scale);
 						const FTransform RelativeTM = ComponentToWorld.GetRelativeTransform(ParentToWorld);
-						PSC->RelativeLocation = RelativeTM.GetLocation();
-						PSC->RelativeRotation = RelativeTM.GetRotation().Rotator();
-						PSC->RelativeScale3D = RelativeTM.GetScale3D();
+						PSC->SetRelativeLocation_Direct(RelativeTM.GetLocation());
+						PSC->SetRelativeRotation_Direct(RelativeTM.GetRotation().Rotator());
+						PSC->SetRelativeScale3D_Direct(RelativeTM.GetScale3D());
 					}
 					else
 					{
-						PSC->RelativeLocation = Location;
-						PSC->RelativeRotation = Rotation;
+						PSC->SetRelativeLocation_Direct(Location);
+						PSC->SetRelativeRotation_Direct(Rotation);
 
 						if (LocationType == EAttachLocation::SnapToTarget)
 						{
 							// SnapToTarget indicates we "keep world scale", this indicates we we want the inverse of the parent-to-world scale 
 							// to calculate world scale at Scale 1, and then apply the passed in Scale
 							const FTransform ParentToWorld = AttachToComponent->GetSocketTransform(AttachPointName);
-							PSC->RelativeScale3D = Scale * ParentToWorld.GetSafeScaleReciprocal(ParentToWorld.GetScale3D());
+							PSC->SetRelativeScale3D_Direct(Scale * ParentToWorld.GetSafeScaleReciprocal(ParentToWorld.GetScale3D()));
 						}
 						else
 						{
-							PSC->RelativeScale3D = Scale;
+							PSC->SetRelativeScale3D_Direct(Scale);
 						}
 					}
 

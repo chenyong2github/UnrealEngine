@@ -45,9 +45,9 @@ void AActor::PreEditChange(UProperty* PropertyThatWillChange)
 	}
 }
 
-static FName Name_RelativeLocation = GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeLocation);
-static FName Name_RelativeRotation = GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeRotation);
-static FName Name_RelativeScale3D = GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeScale3D);
+static FName Name_RelativeLocation = USceneComponent::GetRelativeLocationPropertyName();
+static FName Name_RelativeRotation = USceneComponent::GetRelativeRotationPropertyName();
+static FName Name_RelativeScale3D = USceneComponent::GetRelativeScale3DPropertyName();
 
 void AActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -228,7 +228,7 @@ void AActor::DebugShowOneComponentHierarchy( USceneComponent* SceneComp, int32& 
 	{
 		FVector Posn = SceneComp->GetComponentTransform().GetLocation();
 		//PosString = FString::Printf( TEXT("{R:%f,%f,%f- W:%f,%f,%f}"), SceneComp->RelativeLocation.X, SceneComp->RelativeLocation.Y, SceneComp->RelativeLocation.Z, Posn.X, Posn.Y, Posn.Z );
-		PosString = FString::Printf( TEXT("{R:%f- W:%f}"), SceneComp->RelativeLocation.Z, Posn.Z );
+		PosString = FString::Printf( TEXT("{R:%f- W:%f}"), SceneComp->GetRelativeLocation().Z, Posn.Z );
 	}
 	else
 	{
@@ -249,7 +249,7 @@ void AActor::DebugShowOneComponentHierarchy( USceneComponent* SceneComp, int32& 
 		{
 			FVector Posn = SceneComp->GetComponentTransform().GetLocation();
 			//PosString = FString::Printf( TEXT("{R:%f,%f,%f- W:%f,%f,%f}"), SceneComp->RelativeLocation.X, SceneComp->RelativeLocation.Y, SceneComp->RelativeLocation.Z, Posn.X, Posn.Y, Posn.Z );
-			PosString = FString::Printf( TEXT("{R:%f- W:%f}"), SceneComp->RelativeLocation.Z, Posn.Z );
+			PosString = FString::Printf( TEXT("{R:%f- W:%f}"), SceneComp->GetRelativeLocation().Z, Posn.Z );
 		}
 		else
 		{
@@ -592,7 +592,7 @@ void AActor::EditorApplyRotation(const FRotator& DeltaRotation, bool bAltDown, b
 {
 	if( RootComponent != NULL )
 	{
-		FRotator Rot = RootComponent->GetAttachParent() != NULL ? GetActorRotation() : RootComponent->RelativeRotation;
+		FRotator Rot = RootComponent->GetAttachParent() != NULL ? GetActorRotation() : RootComponent->GetRelativeRotation();
 		FRotator ActorRotWind, ActorRotRem;
 		Rot.GetWindingAndRemainder(ActorRotWind, ActorRotRem);
 		const FQuat ActorQ = ActorRotRem.Quaternion();
@@ -610,7 +610,7 @@ void AActor::EditorApplyRotation(const FRotator& DeltaRotation, bool bAltDown, b
 			NewRelRotation = RootComponent->GetRelativeRotationFromWorld(NewRelRotation);
 			NewActorRotRem = FRotator(NewRelRotation);
 			//now we need to get current relative rotation to find the diff
-			Rot = RootComponent->RelativeRotation;
+			Rot = RootComponent->GetRelativeRotation();
 			Rot.GetWindingAndRemainder(ActorRotWind, ActorRotRem);
 		}
 		else
@@ -635,7 +635,7 @@ void AActor::EditorApplyScale( const FVector& DeltaScale, const FVector* PivotLo
 {
 	if( RootComponent != NULL )
 	{
-		const FVector CurrentScale = GetRootComponent()->RelativeScale3D;
+		const FVector CurrentScale = GetRootComponent()->GetRelativeScale3D();
 
 		// @todo: Remove this hack once we have decided on the scaling method to use.
 		FVector ScaleToApply;
@@ -694,7 +694,7 @@ void AActor::EditorApplyMirror(const FVector& MirrorScale, const FVector& PivotL
 		Loc += PivotLocation;
 		GetRootComponent()->SetRelativeLocation( Loc );
 
-		FVector Scale3D = GetRootComponent()->RelativeScale3D;
+		FVector Scale3D = GetRootComponent()->GetRelativeScale3D();
 		Scale3D.X = -Scale3D.X;
 		GetRootComponent()->SetRelativeScale3D(Scale3D);
 	}
@@ -940,7 +940,7 @@ void AActor::CheckForErrors()
 	}
 
 	UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(RootComponent);
-	if( PrimComp && (PrimComp->Mobility != EComponentMobility::Movable) && PrimComp->BodyInstance.bSimulatePhysics)
+	if (PrimComp && (PrimComp->Mobility != EComponentMobility::Movable) && PrimComp->BodyInstance.bSimulatePhysics)
 	{
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("ActorName"), FText::FromString(GetPathName()));
@@ -950,14 +950,18 @@ void AActor::CheckForErrors()
 			->AddToken(FMapErrorToken::Create(FMapErrors::StaticPhysNone));
 	}
 
-	if( RootComponent && FMath::IsNearlyZero( GetRootComponent()->RelativeScale3D.X * GetRootComponent()->RelativeScale3D.Y * GetRootComponent()->RelativeScale3D.Z ) )
+	if (RootComponent)
 	{
-		FFormatNamedArguments Arguments;
-		Arguments.Add(TEXT("ActorName"), FText::FromString(GetPathName()));
-		FMessageLog("MapCheck").Error()
-			->AddToken(FUObjectToken::Create(this))
-			->AddToken(FTextToken::Create(FText::Format(LOCTEXT( "MapCheck_Message_InvalidDrawscale", "{ActorName} : Invalid DrawScale/DrawScale3D" ), Arguments) ))
-			->AddToken(FMapErrorToken::Create(FMapErrors::InvalidDrawscale));
+		const FVector LocalRelativeScale3D = RootComponent->GetRelativeScale3D();
+		if (FMath::IsNearlyZero(LocalRelativeScale3D.X * LocalRelativeScale3D.Y * LocalRelativeScale3D.Z))
+		{
+			FFormatNamedArguments Arguments;
+			Arguments.Add(TEXT("ActorName"), FText::FromString(GetPathName()));
+			FMessageLog("MapCheck").Error()
+				->AddToken(FUObjectToken::Create(this))
+				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_InvalidDrawscale", "{ActorName} : Invalid DrawScale/DrawScale3D"), Arguments)))
+				->AddToken(FMapErrorToken::Create(FMapErrors::InvalidDrawscale));
+		}
 	}
 
 	// Route error checking to components.

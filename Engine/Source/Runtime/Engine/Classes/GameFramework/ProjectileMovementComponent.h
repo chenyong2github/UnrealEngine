@@ -231,7 +231,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ProjectileMovement")
 	virtual void StopSimulating(const FHitResult& HitResult);
 
-	bool HasStoppedSimulation() { return (UpdatedComponent == nullptr) || (bIsActive == false); }
+	bool HasStoppedSimulation() { return (UpdatedComponent == nullptr) || (IsActive() == false); }
 
 	/**
 	 * Compute remaining time step given remaining time and current iterations.

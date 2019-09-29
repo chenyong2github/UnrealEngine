@@ -4307,7 +4307,7 @@ void FFbxExporter::ExportLandscapeToFbx(ALandscapeProxy* Landscape, const TCHAR*
 			int32 VertX, VertY;
 			CDI.VertexIndexToXY(VertIndex, VertX, VertY);
 
-			FVector Position = CDI.GetLocalVertex(VertX, VertY) + Component->RelativeLocation;
+			FVector Position = CDI.GetLocalVertex(VertX, VertY) + Component->GetRelativeLocation();
 			FbxVector4 FbxPosition = FbxVector4(Position.X, -Position.Y, Position.Z);
 			ControlPoints[BaseVertIndex + VertIndex] = FbxPosition;
 
