@@ -206,10 +206,8 @@ TWeakPtr<SDockTab> SLocalizationDashboard::ShowTargetEditor(ULocalizationTarget*
 				OurTargetEditor
 			];
 
-		if (TabManager->InsertNewDocumentTab(DocumentsTabName, FTabManager::ESearchPreference::RequireClosedTab, NewTargetEditorTab))
-		{
-			TargetEditorDockTab = NewTargetEditorTab;
-		}
+		TabManager->InsertNewDocumentTab(DocumentsTabName, FTabManager::ESearchPreference::RequireClosedTab, NewTargetEditorTab);
+		TargetEditorDockTab = NewTargetEditorTab;
 	}
 	else
 	{
