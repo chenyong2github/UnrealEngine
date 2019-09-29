@@ -92,6 +92,7 @@
 
 DEFINE_LOG_CATEGORY(LogSkeletalMeshPersonaMeshDetail);
 
+#define SUFFIXE_DEFAULT_MATERIAL TEXT(" (Default)")
 /*
 * Custom data key
 */
@@ -3672,7 +3673,8 @@ void FPersonaMeshDetails::OnGetSectionsForView(ISectionListBuilder& OutSections,
 		int32 NumSections = Model.Sections.Num();
 		for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
 		{
-			int32 MaterialIndex = Model.Sections[SectionIdx].MaterialIndex;
+			int32 DefaultSectionMaterialIndex = Model.Sections[SectionIdx].MaterialIndex;
+			int32 MaterialIndex = DefaultSectionMaterialIndex;
 			if (MaterialMap.IsValidIndex(MaterialIndex) && SkelMesh->Materials.IsValidIndex(MaterialMap[MaterialIndex]))
 			{
 				MaterialIndex = MaterialMap[MaterialIndex];
@@ -3687,12 +3689,22 @@ void FPersonaMeshDetails::OnGetSectionsForView(ISectionListBuilder& OutSections,
 				for (const FSkeletalMaterial &SkeletalMaterial : SkelMesh->Materials)
 				{
 					if (MaterialIndex != CurrentIterMaterialIndex)
-						AvailableSectionName.Add(CurrentIterMaterialIndex, SkeletalMaterial.MaterialSlotName);
+					{
+						if (DefaultSectionMaterialIndex == CurrentIterMaterialIndex)
+						{
+							FString BuildDefaultName = SkeletalMaterial.MaterialSlotName.ToString() + SUFFIXE_DEFAULT_MATERIAL;
+							AvailableSectionName.Add(CurrentIterMaterialIndex, FName(*BuildDefaultName));
+						}
+						else
+						{
+							AvailableSectionName.Add(CurrentIterMaterialIndex, SkeletalMaterial.MaterialSlotName);
+						}
+					}
 					CurrentIterMaterialIndex++;
 				}
 				bool bClothSection = Model.Sections[SectionIdx].HasClothingData();
 				bool bIsChunkSection = Model.Sections[SectionIdx].ChunkedParentSectionIndex != INDEX_NONE;
-				OutSections.AddSection(LODIndex, SectionIdx, CurrentSectionMaterialSlotName, MaterialIndex, CurrentSectionOriginalImportedMaterialName, AvailableSectionName, SkelMesh->Materials[MaterialIndex].MaterialInterface, bClothSection, bIsChunkSection);
+				OutSections.AddSection(LODIndex, SectionIdx, CurrentSectionMaterialSlotName, MaterialIndex, CurrentSectionOriginalImportedMaterialName, AvailableSectionName, SkelMesh->Materials[MaterialIndex].MaterialInterface, bClothSection, bIsChunkSection, DefaultSectionMaterialIndex);
 			}
 		}
 	}
@@ -4885,11 +4897,15 @@ void FPersonaMeshDetails::OnSectionChanged(int32 LODIndex, int32 SectionIndex, i
 
 		check(TotalSectionCount > SectionIndex);
 
+		FString NewMaterialSlotNameString = NewMaterialSlotName.ToString();
+		NewMaterialSlotNameString.RemoveFromEnd(SUFFIXE_DEFAULT_MATERIAL, ESearchCase::CaseSensitive);
+		FName CleanNewMaterialSlotName(*NewMaterialSlotNameString);
+
 		int32 NewSkeletalMaterialIndex = INDEX_NONE;
 		FName NewImportedMaterialSlotName = NAME_None;
 		for (int SkeletalMaterialIndex = 0; SkeletalMaterialIndex < Mesh->Materials.Num(); ++SkeletalMaterialIndex)
 		{
-			if (NewMaterialSlotIndex == SkeletalMaterialIndex && Mesh->Materials[SkeletalMaterialIndex].MaterialSlotName == NewMaterialSlotName)
+			if (NewMaterialSlotIndex == SkeletalMaterialIndex && Mesh->Materials[SkeletalMaterialIndex].MaterialSlotName == CleanNewMaterialSlotName)
 			{
 				NewSkeletalMaterialIndex = SkeletalMaterialIndex;
 				NewImportedMaterialSlotName = Mesh->Materials[SkeletalMaterialIndex].ImportedMaterialSlotName;
