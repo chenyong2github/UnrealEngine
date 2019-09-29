@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+
 struct FEditorAnalyticsSession;
 class IAnalyticsProvider;
 

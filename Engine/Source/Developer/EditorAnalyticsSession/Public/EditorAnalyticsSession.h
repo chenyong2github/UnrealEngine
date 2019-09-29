@@ -1,5 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
+#include "Containers/UnrealString.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/DateTime.h"
 #include "Modules/ModuleInterface.h"
 
 struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession

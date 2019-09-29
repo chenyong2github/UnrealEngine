@@ -5,6 +5,8 @@
 #include "AnalyticsEventAttribute.h"
 #include "Algo/Transform.h"
 #include "Interfaces/IAnalyticsProvider.h"
+#include "EditorAnalyticsSession.h"
+#include "HAL/PlatformProcess.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorSessionSummary, Verbose, All);
 
