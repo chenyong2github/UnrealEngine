@@ -537,7 +537,7 @@ public:
 	 * Larger values reduce the effective draw distance in the runtime virtual texture.
 	 * This culling method doesn't take into account primitive size or virtual texture size.
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Skip Mips", UIMin = "0", UIMax = "15"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Skip Mips", UIMin = "0", UIMax = "7"))
 	int32 VirtualTextureCullMips = 0;
 
 	/** Render to the main pass based on the virtual texture settings. */
