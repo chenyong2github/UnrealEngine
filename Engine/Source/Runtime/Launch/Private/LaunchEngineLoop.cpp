@@ -3821,6 +3821,8 @@ void FEngineLoop::Exit()
 	IStreamingManager::Shutdown();
 
 	FPlatformMisc::ShutdownTaggedStorage();
+
+	TRACE_CPUPROFILER_SHUTDOWN();
 }
 
 

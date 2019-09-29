@@ -261,4 +261,14 @@ void FCpuProfilerTrace::Init(const TCHAR* CmdLine)
 	}
 }
 
+void FCpuProfilerTrace::Shutdown()
+{
+	Trace::ToggleEvent(TEXT("CpuProfiler.EventBatch"), false);
+	if (FCpuProfilerTraceInternal::ThreadBuffer)
+	{
+		delete FCpuProfilerTraceInternal::ThreadBuffer;
+		FCpuProfilerTraceInternal::ThreadBuffer = nullptr;
+	}
+}
+
 #endif
