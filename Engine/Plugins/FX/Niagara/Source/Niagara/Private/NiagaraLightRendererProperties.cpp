@@ -40,7 +40,7 @@ void UNiagaraLightRendererProperties::InitCDOPropertiesAfterModuleStartup()
 FNiagaraRenderer* UNiagaraLightRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
 {
 	FNiagaraRenderer* NewRenderer = new FNiagaraRendererLights(FeatureLevel, this, Emitter);
-	NewRenderer->Initialize(FeatureLevel, this, Emitter);
+	NewRenderer->Initialize(this, Emitter);
 	return NewRenderer;
 }
 
