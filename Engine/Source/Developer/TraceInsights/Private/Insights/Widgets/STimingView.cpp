@@ -312,6 +312,8 @@ void STimingView::EnableAssetLoadingMode()
 
 void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	//SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
 	//FStopwatch TickStopwatch;
 	//TickStopwatch.Start();
 

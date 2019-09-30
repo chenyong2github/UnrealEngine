@@ -35,6 +35,24 @@ void FNetTraceAnalyzer::OnAnalysisEnd()
 {
 }
 
+uint32 FNetTraceAnalyzer::GetTracedEventTypeIndex(uint16 NameIndex, uint8 Level)
+{
+	const uint32 TracedEventTypeKey = uint32(NameIndex << 8U | Level);
+
+	if (const uint32* NetProfilerEventTypeIndex = TraceEventTypeToNetProfilerEventTypeIndexMap.Find(TracedEventTypeKey))
+	{
+		return *NetProfilerEventTypeIndex;
+	}
+	else
+	{
+		// Add new EventType
+		uint32 NewEventTypeIndex = NetProfilerProvider.AddNetProfilerEventType(NameIndex, Level);
+		TraceEventTypeToNetProfilerEventTypeIndexMap.Add(TracedEventTypeKey, NewEventTypeIndex);
+
+		return NewEventTypeIndex;
+	}
+}
+
 bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
@@ -86,7 +104,7 @@ bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 			const uint16 ConnectionId = EventData.GetValue<uint16>("ConnectionId");
 			const uint8 GameInstanceId = EventData.GetValue<uint8>("ReplicationSystemId");
 			const uint8 PacketType =  EventData.GetValue<uint8>("PacketType");
-			
+
 			TSharedRef<FNetTraceGameInstanceState> GameInstanceState = GetOrCreateActiveGameInstanceState(GameInstanceId);
 			TSharedRef<FNetTraceConnectionState> ConnectionState = GetActiveConnectionState(GameInstanceId, ConnectionId);
 
@@ -96,7 +114,7 @@ bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 			++ConnectionData.ContentEventChangeCount;
 
 			TPagedArray<Trace::FNetProfilerContentEvent>& Events = ConnectionData.ContentEvents;
-		
+
 			// New Packet, update state
 			if (ConnectionState->CurrentPacketStartIndex == Events.Num())
 			{
@@ -113,7 +131,7 @@ bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 			const uint8* BufferPtr = EventData.GetAttachment();
 			const uint8* BufferEnd = BufferPtr + BufferSize;
 			uint64 LastOffset = 0;
-			
+
 			while (BufferPtr < BufferEnd)
 			{
 				// Decode data
@@ -150,9 +168,11 @@ bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 						Event.NameIndex = *NetProfilerNameIndex;
 					}
 				}
+
+				// EventTypeIndex does not match NameIndex as we might see the same name on different levels
+				Event.EventTypeIndex = GetTracedEventTypeIndex(Event.NameIndex, Event.Level);
 			}
 			check(BufferPtr == BufferEnd);
-			
 		}
 		break;
 
@@ -162,7 +182,7 @@ bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 			const uint32 SequenceNumber = EventData.GetValue<uint32>("SequenceNumber");
 			const uint8 GameInstanceId = EventData.GetValue<uint8>("ReplicationSystemId");
 			const uint16 ConnectionId = EventData.GetValue<uint16>("ConnectionId");
-			
+
 			// Update LastTimestamp, latar on we will be able to get timestamps piggybacked from other analyzers
 			LastTimeStamp = Context.SessionContext.TimestampFromCycle(TimestampCycles);
 
@@ -266,10 +286,10 @@ bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 			const uint16 NameId = EventData.GetValue<uint16>("NameId");
 			const uint8 GameInstanceId = EventData.GetValue<uint8>("ReplicationSystemId");
 			const uint16 ConnectionId = EventData.GetValue<uint16>("ConnectionId");
-			
+
 			TSharedRef<FNetTraceGameInstanceState> GameInstanceState = GetOrCreateActiveGameInstanceState(GameInstanceId);
 			check(!GameInstanceState->ActiveObjects.Contains(ObjectId));
-	
+
 			// Add persistent object representation
 			Trace::FNetProfilerObjectInstance& ObjectInstance = NetProfilerProvider.CreateObject(GameInstanceState->GameInstanceIndex);
 

@@ -53,8 +53,9 @@ public:
 	explicit FNetProfilerProvider(IAnalysisSession& InSession);
 	virtual ~FNetProfilerProvider();
 
-	uint32 AddNetProfilerName(TCHAR* Name) ;
-	const FNetProfilerName* GetNetProfilerName(uint32 ProfilerNameId) const;
+	uint32 AddNetProfilerName(const TCHAR* Name);
+
+	uint32 AddNetProfilerEventType(uint32 NameIndex, uint32 Level);
 
 	Trace::FNetProfilerGameInstanceInternal& CreateGameInstance();
 	Trace::FNetProfilerGameInstanceInternal* EditGameInstance(uint32 GameInstanceIndex);
@@ -75,6 +76,11 @@ public:
 	virtual void ReadNames(TFunctionRef<void(const FNetProfilerName*, uint64)> Callback) const override;
 	virtual void ReadName(uint32 NameIndex, TFunctionRef<void(const FNetProfilerName&)> Callback) const override;
 
+	// Access EventTypers
+	virtual uint32 GetEventTypesCount() const override { return EventTypes.Num(); }
+	virtual void ReadEventTypes(TFunctionRef<void(const FNetProfilerEventType*, uint64)> Callback) const override;
+	virtual void ReadEventType(uint32 EventTypeIndex, TFunctionRef<void(const FNetProfilerEventType&)> Callback) const override;
+
 	// Access GameInstances
 	virtual uint32 GetGameInstanceCount() const override { return GameInstances.Num(); }
 	virtual void ReadGameInstances(TFunctionRef<void(const FNetProfilerGameInstance&)> Callback) const override;
@@ -89,7 +95,7 @@ public:
 	virtual uint32 GetObjectCount(uint32 GameInstanceIndex) const override;
 	virtual void ReadObjects(uint32 GameInstanceIndex, TFunctionRef<void(const FNetProfilerObjectInstance&)> Callback) const override;
 	virtual void ReadObject(uint32 GameInstanceIndex, uint32 ObjectIndex, TFunctionRef<void(const FNetProfilerObjectInstance&)> Callback) const override;
-	virtual uint32 GeObjectsChangeCount(uint32 GameInstanceIndex) const override;
+	virtual uint32 GetObjectsChangeCount(uint32 GameInstanceIndex) const override;
 
 	// Enumerate packets in the provided packet interval
 	virtual uint32 GetPacketCount(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode) const override;
@@ -100,15 +106,34 @@ public:
 	virtual void EnumeratePacketContentEventsByIndex(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 StartEventIndex, uint32 EndEventIndex, TFunctionRef<void(const FNetProfilerContentEvent&)> Callback) const override;
 	virtual void EnumeratePacketContentEventsByPosition(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 PacketIndex, uint32 StartPos, uint32 EndPos, TFunctionRef<void(const FNetProfilerContentEvent&)> Callback) const override;
 	virtual uint32 GetPacketContentEventChangeCount(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode) const override;
-	
+
+	// Stats queries
+	virtual ITable<FNetProfilerAggregatedStats>* CreateAggregation(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 PacketIndexIntervalStart, uint32 PacketIndexIntervalEnd, uint32 StartPosition, uint32 EndPosition) const override;
+
 private:
+
+	UE_TRACE_TABLE_LAYOUT_BEGIN(FAggregatedStatsTableLayout, FNetProfilerAggregatedStats)
+		UE_TRACE_TABLE_COLUMN(EventTypeIndex, TEXT("EventTypeIndex"))
+		UE_TRACE_TABLE_COLUMN(InstanceCount, TEXT("Count"))
+		UE_TRACE_TABLE_COLUMN(TotalInclusive, TEXT("Incl"))
+		UE_TRACE_TABLE_COLUMN(MaxInclusive, TEXT("I.Max"))
+		UE_TRACE_TABLE_COLUMN(AverageInclusive, TEXT("I.Avg"))
+		UE_TRACE_TABLE_COLUMN(TotalExclusive, TEXT("Excl"))
+		UE_TRACE_TABLE_COLUMN(MaxExclusive, TEXT("E.Max"))
+	UE_TRACE_TABLE_LAYOUT_END()
+
+	const FNetProfilerName* GetNetProfilerName(uint32 ProfilerNameId) const;
+	const FNetProfilerEventType* GetNetProfilerEventType(uint32 ProfilerEventTypeId) const;
+
 	IAnalysisSession& Session;
 
 	TArray<FNetProfilerName> Names;
 
+	TArray<FNetProfilerEventType> EventTypes;
+
 	// All GameInstances seen throughout the session
 	TArray<FNetProfilerGameInstanceInternal, TInlineAllocator<4>> GameInstances;
-	
+
 	// All connections we have seen throughout the session
 	TPagedArray<FNetProfilerConnectionInternal> Connections;
 	uint32 ConnectionChangeCount;

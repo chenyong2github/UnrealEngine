@@ -1216,7 +1216,7 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 		{
 			MenuBuilder.AddSubMenu
 			(
-				LOCTEXT("ChangeGrouping_Section", "Change With..."),
+				LOCTEXT("ChangeGrouping_Section", "Change To..."),
 				LOCTEXT("GroupingMenu_Add_Desc", "Change selected grouping."),
 				FNewMenuDelegate::CreateSP(this, &STableTreeView::BuildGroupingSubMenu_Change, CrumbGrouping),
 				false,
@@ -1487,6 +1487,8 @@ void STableTreeView::CreateSortings()
 			}
 		}
 	}
+
+	UpdateCurrentSortingByColumn();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

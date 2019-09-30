@@ -16,7 +16,6 @@
 // Insights
 #include "Insights/ViewModels/TimerGroupingAndSorting.h"
 #include "Insights/ViewModels/TimerNode.h"
-#include "Insights/ViewModels/TimersViewColumn.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -110,8 +109,8 @@ private:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting
 
-	static const EColumnSortMode::Type GetDefaultColumnSortMode();
 	static const FName GetDefaultColumnBeingSorted();
+	static const EColumnSortMode::Type GetDefaultColumnSortMode();
 
 	void CreateSortings();
 

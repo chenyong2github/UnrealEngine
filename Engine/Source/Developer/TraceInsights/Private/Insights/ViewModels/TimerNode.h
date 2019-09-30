@@ -79,41 +79,20 @@ public:
 	/**
 	 * @return a name of the meta group that this timer node belongs to, taken from the metadata.
 	 */
-	const FName& GetMetaGroupName() const
-	{
-		return MetaGroupName;
-	}
+	const FName& GetMetaGroupName() const { return MetaGroupName; }
 
 	/**
 	 * @return a type of this timer node or ETimerNodeType::Group for group nodes.
 	 */
-	const ETimerNodeType& GetType() const
-	{
-		return Type;
-	}
+	const ETimerNodeType& GetType() const { return Type; }
 
 	/**
 	 * @return the aggregated stats for this timer.
 	 */
-	const Trace::FAggregatedTimingStats& GetAggregatedStats() const
-	{
-		return AggregatedStats;
-	}
+	const Trace::FAggregatedTimingStats& GetAggregatedStats() const { return AggregatedStats; }
 
 	void ResetAggregatedStats();
-
 	void SetAggregatedStats(const Trace::FAggregatedTimingStats& AggregatedStats);
-
-	/** Sorts children using the specified class instance. */
-	template<typename TSortingClass>
-	void SortChildren(const TSortingClass& Instance)
-	{
-		auto Projection = [](Insights::FBaseTreeNodePtr Node) -> FTimerNodePtr
-		{
-			return StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(Node);
-		};
-		Algo::SortBy(GetChildrenMutable(), Projection, Instance);
-	}
 
 	bool IsHotPath() const { return bIsHotPath; }
 	void SetIsHotPath(bool bOnOff) { bIsHotPath = bOnOff; }

@@ -15,16 +15,18 @@ FNetProfilerProvider::FNetProfilerProvider(IAnalysisSession& InSession)
 	, Connections(InSession.GetLinearAllocator(), 4096)
 	, ConnectionChangeCount(0u)
 {
+	// Use name index 0 to indicate that we do not know the name
+	AddNetProfilerName(TEXT("N/A"));
 }
 
 FNetProfilerProvider::~FNetProfilerProvider()
 {
 }
 
-uint32 FNetProfilerProvider::AddNetProfilerName(TCHAR* Name)
+uint32 FNetProfilerProvider::AddNetProfilerName(const TCHAR* Name)
 {
 	Session.WriteAccessCheck();
-	
+
 	FNetProfilerName& NewName = Names.AddDefaulted_GetRef();
 	NewName.NameIndex = Names.Num() - 1;
 	NewName.Name = Session.StoreString(Name);
@@ -37,6 +39,24 @@ const FNetProfilerName* FNetProfilerProvider::GetNetProfilerName(uint32 NameInde
 	return NameIndex < (uint32)Names.Num() ? &Names[NameIndex] : nullptr;
 }
 
+uint32 FNetProfilerProvider::AddNetProfilerEventType(uint32 NameIndex, uint32 Level)
+{
+	Session.WriteAccessCheck();
+
+	FNetProfilerEventType& NewEventType = EventTypes.AddDefaulted_GetRef();
+	NewEventType.EventTypeIndex = EventTypes.Num() - 1;
+	NewEventType.NameIndex = NameIndex;
+	NewEventType.Name = GetNetProfilerName(NameIndex)->Name;
+	NewEventType.Level = Level;
+
+	return NewEventType.EventTypeIndex;
+}
+
+const FNetProfilerEventType* FNetProfilerProvider::GetNetProfilerEventType(uint32 EventTypeIndex) const
+{
+	return EventTypeIndex < (uint32)EventTypes.Num() ? &EventTypes[EventTypeIndex] : nullptr;
+}
+
 Trace::FNetProfilerGameInstanceInternal& FNetProfilerProvider::CreateGameInstance()
 {
 	Session.WriteAccessCheck();
@@ -47,6 +67,9 @@ Trace::FNetProfilerGameInstanceInternal& FNetProfilerProvider::CreateGameInstanc
 	GameInstance.Objects = (TPagedArray<FNetProfilerObjectInstance>*)Session.GetLinearAllocator().Allocate(sizeof(TPagedArray<FNetProfilerObjectInstance>));
 	new (GameInstance.Objects) TPagedArray<FNetProfilerObjectInstance>(Session.GetLinearAllocator(), 4096);
 	GameInstance.ObjectsChangeCount = 0u;
+
+	// We reserve object index 0 as an invalid object
+	CreateObject(GameInstance.Instance.GameInstanceIndex);
 
 	return GameInstance;
 }
@@ -77,7 +100,7 @@ Trace::FNetProfilerConnectionInternal& FNetProfilerProvider::CreateConnection(ui
 	FNetProfilerConnectionInternal& Connection = Connections.PushBack();
 
 	Connection.Connection.ConnectionIndex = ConnectionIndex;
-	Connection.Connection.GameIntanceIndex = GameInstanceIndex;
+	Connection.Connection.GameInstanceIndex = GameInstanceIndex;
 	Connection.Connection.bHasIncomingData = false;
 	Connection.Connection.bHasOutgoingData = false;
 
@@ -115,7 +138,7 @@ Trace::FNetProfilerObjectInstance* FNetProfilerProvider::EditObject(uint32 GameI
 
 	FNetProfilerGameInstanceInternal* GameInstance = EditGameInstance(GameInstanceIndex);
 	check(GameInstance);
-	
+
 	if (ensure(ObjectIndex < (uint32)GameInstance->Objects->Num()))
 	{
 		++GameInstance->ObjectsChangeCount;
@@ -130,7 +153,7 @@ Trace::FNetProfilerObjectInstance* FNetProfilerProvider::EditObject(uint32 GameI
 Trace::FNetProfilerConnectionInternal* FNetProfilerProvider::EditConnection(uint32 ConnectionIndex)
 {
 	Session.WriteAccessCheck();
-	
+
 	if (ensure(ConnectionIndex < (uint32)Connections.Num()))
 	{
 		++ConnectionChangeCount;
@@ -196,6 +219,21 @@ void FNetProfilerProvider::ReadName(uint32 NameIndex, TFunctionRef<void(const FN
 	check(NameIndex < (uint32)Names.Num());
 
 	Callback(*GetNetProfilerName(NameIndex));
+}
+
+void FNetProfilerProvider::ReadEventTypes(TFunctionRef<void(const FNetProfilerEventType*, uint64)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	Callback(EventTypes.GetData(), EventTypes.Num());
+}
+
+void FNetProfilerProvider::ReadEventType(uint32 EventTypeIndex, TFunctionRef<void(const FNetProfilerEventType&)> Callback) const
+{
+	Session.ReadAccessCheck();
+	check(EventTypeIndex < (uint32)EventTypes.Num());
+
+	Callback(*GetNetProfilerEventType(EventTypeIndex));
 }
 
 void FNetProfilerProvider::ReadGameInstances(TFunctionRef<void(const FNetProfilerGameInstance&)> Callback) const
@@ -281,7 +319,7 @@ void FNetProfilerProvider::ReadObject(uint32 GameInstanceIndex, uint32 ObjectInd
 	Callback((*GameInstance.Objects)[ObjectIndex]);
 }
 
-uint32 FNetProfilerProvider::GeObjectsChangeCount(uint32 GameInstanceIndex) const
+uint32 FNetProfilerProvider::GetObjectsChangeCount(uint32 GameInstanceIndex) const
 {
 	Session.ReadAccessCheck();
 
@@ -306,7 +344,7 @@ uint32 FNetProfilerProvider::GetPacketCount(uint32 ConnectionIndex, ENetProfiler
 	check(ConnectionIndex < Connections.Num());
 
 	const auto& Packets = Connections[ConnectionIndex].Data[Mode]->Packets;
-	
+
 	return Packets.Num();
 }
 
@@ -317,7 +355,7 @@ void FNetProfilerProvider::EnumeratePackets(uint32 ConnectionIndex, ENetProfiler
 	check(ConnectionIndex < Connections.Num());
 
 	const auto& Packets = Connections[ConnectionIndex].Data[Mode]->Packets;
-	
+
 	const uint32 PacketCount = Packets.Num();
 
 	if (PacketCount == 0 || PacketIndexIntervalStart > PacketIndexIntervalEnd)
@@ -339,7 +377,7 @@ void FNetProfilerProvider::EnumeratePacketContentEventsByIndex(uint32 Connection
 	check(ConnectionIndex < Connections.Num());
 
 	const auto& ContentEvents = Connections[ConnectionIndex].Data[Mode]->ContentEvents;
-	
+
 	const uint32 EventCount = ContentEvents.Num();
 
 	if (EventCount == 0 || StartEventIndex > EndEventIndex)
@@ -371,8 +409,8 @@ void FNetProfilerProvider::EnumeratePacketContentEventsByPosition(uint32 Connect
 	const uint32 EndEventIndex = StartEventIndex + Packet.EventCount - 1u;
 
 	const auto& ContentEvents = ConnectionData.ContentEvents;
-	
-	uint32 EventIt = StartEventIndex; 
+
+	uint32 EventIt = StartEventIndex;
 	// Skip all Events outside of the scope
 	while (EventIt <= EndEventIndex &&	ContentEvents[EventIt].EndPos < StartPos)
 	{
@@ -401,6 +439,121 @@ uint32 FNetProfilerProvider::GetPacketContentEventChangeCount(uint32 ConnectionI
 	check(ConnectionIndex < Connections.Num());
 
 	return Connections[ConnectionIndex].Data[Mode]->ContentEventChangeCount;
+}
+
+ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 PacketIndexIntervalStart, uint32 PacketIndexIntervalEnd, uint32 StartPosition, uint32 EndPosition) const
+{
+	Session.ReadAccessCheck();
+
+	if (!ensure(ConnectionIndex < Connections.Num()))
+	{
+		return nullptr;
+	}
+
+	if (!ensure(PacketIndexIntervalStart <= PacketIndexIntervalEnd))
+	{
+		return nullptr;
+	}
+
+	const auto& Packets = Connections[ConnectionIndex].Data[Mode]->Packets;
+	const uint32 PacketCount = Packets.Num();
+
+	if (!ensure(PacketCount > 0))
+	{
+		return nullptr;
+	}
+
+	// Aggregate stats for events in selection
+	TMap<uint32, FNetProfilerAggregatedStats> AggregatedStats;
+	AggregatedStats.Reserve(EventTypes.Num());
+
+	struct FStackEntry
+	{
+		uint32 EventTypeIndex = 0U;
+		uint32 StartPos = 0U;
+		uint32 EndPos = 0U;
+		uint32 ExclusiveAccumulator = 0U;
+	};
+
+	TArray<FStackEntry> Stack;
+	Stack.SetNum(256);
+
+	auto GetStatsFunction = [&AggregatedStats, &Stack, this](const FNetProfilerContentEvent& ContentEvent)
+	{
+		FNetProfilerAggregatedStats* StatsEntry = AggregatedStats.Find(ContentEvent.EventTypeIndex);
+		if (!StatsEntry)
+		{
+			StatsEntry = &AggregatedStats.Add(ContentEvent.EventTypeIndex);
+			StatsEntry->EventTypeIndex = ContentEvent.EventTypeIndex;
+		}
+
+		// Fill in basics
+		uint32 InclusiveSize = ContentEvent.EndPos - ContentEvent.StartPos;
+
+		++StatsEntry->InstanceCount;
+		StatsEntry->TotalInclusive += InclusiveSize;
+		StatsEntry->MaxInclusive = FMath::Max(InclusiveSize, StatsEntry->MaxInclusive);
+
+		// We track what we have visited to be able to update exclusive bits for our parent
+		// We accumulate during the first pass and finalize the values during the second
+		Stack[ContentEvent.Level].EventTypeIndex = ContentEvent.EventTypeIndex;
+		Stack[ContentEvent.Level].StartPos = ContentEvent.StartPos;
+		Stack[ContentEvent.Level].EndPos = ContentEvent.EndPos;
+		Stack[ContentEvent.Level].ExclusiveAccumulator = 0U;
+
+		if (ContentEvent.Level > 0U)
+		{
+			FStackEntry& ParentStackEntry = Stack[ContentEvent.Level - 1U];
+
+			ParentStackEntry.ExclusiveAccumulator += InclusiveSize;
+
+			if (ContentEvent.EndPos == ParentStackEntry.EndPos)
+			{
+				// Finalize exclusive
+				FNetProfilerAggregatedStats& ParentStateEntry = AggregatedStats.FindChecked(ContentEvent.EventTypeIndex);
+				uint32 ExclusiveTime = (ParentStackEntry.EndPos - ParentStackEntry.StartPos) - ParentStackEntry.ExclusiveAccumulator;
+				ParentStateEntry.TotalExclusive += ExclusiveTime;
+				ParentStateEntry.MaxExclusive = FMath::Max(ParentStateEntry.MaxExclusive, ExclusiveTime);
+			}
+		}
+	};
+
+	// Iterate over content events
+	if (PacketIndexIntervalStart == PacketIndexIntervalEnd)
+	{
+		EnumeratePacketContentEventsByPosition(ConnectionIndex, Mode, PacketIndexIntervalStart, StartPosition, EndPosition, GetStatsFunction);
+	}
+	else
+	{
+		// Iterate over packets
+		for (uint32 PacketIt = PacketIndexIntervalStart, PacketEndIt = FMath::Min(PacketIndexIntervalEnd, PacketCount - 1u); PacketIt <= PacketEndIt; ++PacketIt)
+		{
+			const auto& ContentEvents = Connections[ConnectionIndex].Data[Mode]->ContentEvents;
+			const uint32 EventCount = ContentEvents.Num();
+
+			const FNetProfilerPacket& Packet = Packets[PacketIt];
+			if (Packet.EventCount > 0U)
+			{
+				const uint32 StartEventIndex = Packet.StartEventIndex;
+				for (uint32 It = 0U; It < Packet.EventCount; ++It)
+				{
+					GetStatsFunction(ContentEvents[StartEventIndex + It]);
+				}
+			}
+		}
+	}
+
+	// Calculate averages and populate table
+	TTable<FAggregatedStatsTableLayout>* Table = new TTable<FAggregatedStatsTableLayout>();
+	for (const auto& KV : AggregatedStats)
+	{
+		FNetProfilerAggregatedStats& Row = Table->AddRow();
+		Row = KV.Value;
+
+		// Finalize StatsEntry
+		Row.AverageInclusive = (uint64)((double)KV.Value.TotalInclusive / KV.Value.InstanceCount);
+	}
+	return Table;
 }
 
 }

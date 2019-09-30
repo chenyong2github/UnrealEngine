@@ -146,7 +146,7 @@ FTimerNodeSortingByTotalInclusiveTime::FTimerNodeSortingByTotalInclusiveTime(TSh
 	: Insights::FTableCellValueSorter(
 		FName(TEXT("ByTotalInclusiveTime")),
 		LOCTEXT("Sorting_ByTotalInclusiveTime_Name", "By Total Inclusive Time"),
-		LOCTEXT("Sorting_ByTotalInclusiveTime_Title", "Sort By Total Inxclusive Time"),
+		LOCTEXT("Sorting_ByTotalInclusiveTime_Title", "Sort By Total Inclusive Time"),
 		LOCTEXT("Sorting_ByTotalInclusiveTime_Desc", "Sort by aggregated total inclusive time (ascending or descending), then by name (ascending)."),
 		InColumnRef)
 {

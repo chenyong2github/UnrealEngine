@@ -20,47 +20,53 @@
 #include "Insights/ViewModels/TooltipDrawState.h"
 
 class SScrollBar;
+class SNetworkingProfilerWindow;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct FNetworkPacketEventRef
 {
 	FNetworkPacketEvent Event;
+	bool bIsValid;
 
 	FNetworkPacketEventRef()
-	: Event(0, 0, -1, -1)
+		: Event()
+		, bIsValid(false)
 	{
 	}
 
-	FNetworkPacketEventRef(int64 InOffset, int64 InSize, int32 InType, int32 InDepth)
-		: Event(InOffset, InSize, InType, InDepth)
+	FNetworkPacketEventRef(const FNetworkPacketEvent& InEvent)
+		: Event(InEvent)
+		, bIsValid(true)
 	{
 	}
 
 	FNetworkPacketEventRef(const FNetworkPacketEventRef& Other)
 		: Event(Other.Event)
+		, bIsValid(Other.bIsValid)
 	{
 	}
 
 	FNetworkPacketEventRef& operator=(const FNetworkPacketEventRef& Other)
 	{
 		Event = Other.Event;
+		bIsValid = Other.bIsValid;
 		return *this;
 	}
 
 	void Reset()
 	{
-		Event.Type = -1;
+		bIsValid = false;
 	}
 
 	bool IsValid() const
 	{
-		return Event.Type >= 0;
+		return bIsValid;
 	}
 
 	bool Equals(const FNetworkPacketEventRef& Other) const
 	{
-		return Event.Equals(Other.Event);
+		return bIsValid == Other.bIsValid && Event.Equals(Other.Event);
 	}
 
 	static bool AreEquals(const FNetworkPacketEventRef& A, const FNetworkPacketEventRef& B)
@@ -99,11 +105,7 @@ public:
 	SLATE_BEGIN_ARGS(SPacketContentView) {}
 	SLATE_END_ARGS()
 
-	/**
-	 * Construct this widget
-	 * @param InArgs The declaration data for this widget
-	 */
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow);
 
 	/**
 	 * Ticks this widget. Override in derived classes, but always call the parent implementation.
@@ -129,14 +131,12 @@ public:
 	void SetPacket(uint32 InGameInstanceIndex, uint32 InConnectionIndex, Trace::ENetProfilerConnectionMode InConnectionMode, uint32 InPacketIndex, int64 InPacketBitSize);
 
 private:
-	void UpdateState();
-	void UpdateHoveredEvent();
-	FNetworkPacketEventRef GetEventAtMousePosition(float X, float Y);
-
 	//void ShowContextMenu(const FPointerEvent& MouseEvent);
 
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/**
 	 * Called when the user scrolls the horizontal scrollbar.
@@ -147,7 +147,19 @@ private:
 
 	void ZoomHorizontally(const float Delta, const float X);
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void UpdateState();
+
+	void UpdateHoveredEvent();
+	FNetworkPacketEventRef GetEventAtMousePosition(float X, float Y);
+
+	void OnSelectedEventChanged();
+	void SelectHoveredEvent();
+
 private:
+	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow;
+
 	/** The track's viewport. Encapsulates info about position and scale. */
 	FPacketContentViewport Viewport;
 	bool bIsViewportDirty;
@@ -188,6 +200,8 @@ private:
 	// Selection
 
 	FNetworkPacketEventRef HoveredEvent;
+	FNetworkPacketEventRef SelectedEvent;
+
 	FTooltipDrawState Tooltip;
 
 	//////////////////////////////////////////////////

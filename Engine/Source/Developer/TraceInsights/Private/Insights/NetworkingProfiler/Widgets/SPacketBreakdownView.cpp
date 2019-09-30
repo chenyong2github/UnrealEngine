@@ -13,9 +13,11 @@
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
+#include "Insights/Common/TimeUtils.h"
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
+#include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -24,7 +26,8 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SPacketContentView::SPacketContentView()
-	: DrawState(MakeShareable(new FPacketContentViewDrawState()))
+	: ProfilerWindow()
+	, DrawState(MakeShareable(new FPacketContentViewDrawState()))
 {
 	Reset();
 }
@@ -39,6 +42,8 @@ SPacketContentView::~SPacketContentView()
 
 void SPacketContentView::Reset()
 {
+	//ProfilerWindow
+
 	Viewport.Reset();
 	//FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
 	//ViewportX.SetScaleLimits(0.000001, 100000.0);
@@ -67,6 +72,7 @@ void SPacketContentView::Reset()
 	bIsScrolling = false;
 
 	HoveredEvent.Reset();
+	SelectedEvent.Reset();
 	Tooltip.Reset();
 
 	//ThisGeometry
@@ -81,8 +87,10 @@ void SPacketContentView::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketContentView::Construct(const FArguments& InArgs)
+void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow)
 {
+	ProfilerWindow = InProfilerWindow;
+
 	ChildSlot
 	[
 		SNew(SOverlay)
@@ -163,6 +171,9 @@ void SPacketContentView::ResetPacket()
 
 	DrawState->Reset();
 	bIsStateDirty = true;
+
+	HoveredEvent.Reset();
+	SelectedEvent.Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -182,36 +193,9 @@ void SPacketContentView::SetPacket(uint32 InGameInstanceIndex, uint32 InConnecti
 
 	DrawState->Reset();
 	bIsStateDirty = true;
-}
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void AddMockEventsRec(FPacketContentViewDrawStateBuilder& Builder, FRandomStream& RandomStream , int32 Depth, int64 Offset, int64 Size, int32 Type)
-{
-	Trace::FNetProfilerContentEvent Event;
-	Event.StartPos = Offset;
-	Event.EndPos = Offset + Size;
-	Event.Level = Depth;
-	Event.NameIndex = Type;
-	Builder.AddEvent(Event);
-
-	int64 ChildEventOffset = Offset;
-	while (ChildEventOffset < Offset + Size)
-	{
-		int64 ChildEventSize = RandomStream.RandRange(1, Size);
-		if (ChildEventOffset + ChildEventSize > Offset + Size)
-		{
-			ChildEventSize = Offset + Size - ChildEventOffset;
-		}
-
-		if (ChildEventOffset != Offset || ChildEventSize != Size)
-		{
-			int32 ChildEventType = RandomStream.RandRange(1, 1000);
-			AddMockEventsRec(Builder, RandomStream, Depth + 1, ChildEventOffset, ChildEventSize, ChildEventType);
-		}
-
-		ChildEventOffset += ChildEventSize;
-	}
+	HoveredEvent.Reset();
+	SelectedEvent.Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -249,22 +233,25 @@ void SPacketContentView::UpdateState()
 
 			const uint32 StartPos = 0;
 			const uint32 EndPos = PacketBitSize;
-			NetProfilerProvider.EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex, StartPos, EndPos, [&Builder, &NetProfilerProvider](const Trace::FNetProfilerContentEvent& Event)
+			NetProfilerProvider.EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex, StartPos, EndPos, [this, &Builder, &NetProfilerProvider](const Trace::FNetProfilerContentEvent& Event)
 			{
 				const TCHAR* Name = nullptr;
 				NetProfilerProvider.ReadName(Event.NameIndex, [&Name](const Trace::FNetProfilerName& NetProfilerName)
 				{
 					Name = NetProfilerName.Name;
 				});
-				Builder.AddEvent(Event, Name);
-			});
-		}
 
-		// Init packet content with mock data.
-		if (false)
-		{
-			FRandomStream RandomStream(PacketIndex);
-			AddMockEventsRec(Builder, RandomStream, 0, 0, PacketBitSize, 0);
+				uint32 NetId = 0;
+				if (Event.ObjectInstanceIndex != 0)
+				{
+					NetProfilerProvider.ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&NetId](const Trace::FNetProfilerObjectInstance& ObjectInstance)
+					{
+						NetId = ObjectInstance.NetId;
+					});
+				}
+
+				Builder.AddEvent(Event, Name, NetId);
+			});
 		}
 
 		Builder.Flush();
@@ -292,18 +279,59 @@ void SPacketContentView::UpdateHoveredEvent()
 	{
 		// Init the tooltip's content.
 		Tooltip.ResetContent();
-		Tooltip.AddTitle(FString::Printf(TEXT("NetObject%d"), HoveredEvent.Event.Type));
-		Tooltip.AddNameValueTextLine(TEXT("Offset:"), FString::Format(TEXT("bit {0}"), { FText::AsNumber(HoveredEvent.Event.Offset).ToString() }));
-		if (HoveredEvent.Event.Size == 1)
+
+		const FNetworkPacketEvent& Event = HoveredEvent.Event;
+		FString Name(TEXT("?"));
+		Trace::FNetProfilerEventType EventType;
+		Trace::FNetProfilerObjectInstance ObjectInstance;
+
+		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid())
+		{
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+
+			NetProfilerProvider.ReadEventType(Event.EventTypeIndex, [&EventType](const Trace::FNetProfilerEventType& InEventType)
+			{
+				EventType = InEventType;
+			});
+
+			NetProfilerProvider.ReadName(EventType.NameIndex, [&Name](const Trace::FNetProfilerName& NetProfilerName)
+			{
+				Name = NetProfilerName.Name;
+			});
+
+			if (Event.ObjectInstanceIndex != 0)
+			{
+				NetProfilerProvider.ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&ObjectInstance](const Trace::FNetProfilerObjectInstance& InObjectInstance)
+				{
+					ObjectInstance = InObjectInstance;
+				});
+			}
+		}
+
+		Tooltip.AddTitle(Name);
+
+		if (Event.ObjectInstanceIndex != 0)
+		{
+			Tooltip.AddNameValueTextLine(TEXT("Net Id:"), FText::AsNumber(ObjectInstance.NetId).ToString());
+			Tooltip.AddNameValueTextLine(TEXT("Type Id:"), FString::Printf(TEXT("0x%016X"), ObjectInstance.TypeId));
+			Tooltip.AddNameValueTextLine(TEXT("Obj. LifeTime:"), FString::Format(TEXT("from {0} to {1}"),
+				{ TimeUtils::FormatTimeAuto(ObjectInstance.LifeTime.Begin), TimeUtils::FormatTimeAuto(ObjectInstance.LifeTime.End) }));
+		}
+
+		Tooltip.AddNameValueTextLine(TEXT("Offset:"), FString::Format(TEXT("bit {0}"), { FText::AsNumber(Event.BitOffset).ToString() }));
+		if (Event.BitSize == 1)
 		{
 			Tooltip.AddNameValueTextLine(TEXT("Size:"), TEXT("1 bit"));
 		}
 		else
 		{
-			Tooltip.AddNameValueTextLine(TEXT("Size:"), FString::Format(TEXT("{0} bits"), { FText::AsNumber(HoveredEvent.Event.Size).ToString() }));
+			Tooltip.AddNameValueTextLine(TEXT("Size:"), FString::Format(TEXT("{0} bits"), { FText::AsNumber(Event.BitSize).ToString() }));
 		}
-		Tooltip.AddNameValueTextLine(TEXT("Type:"), FText::AsNumber(HoveredEvent.Event.Type).ToString());
-		Tooltip.AddNameValueTextLine(TEXT("Depth:"), FText::AsNumber(HoveredEvent.Event.Depth).ToString());
+
+		Tooltip.AddNameValueTextLine(TEXT("Level:"), FText::AsNumber(Event.Level).ToString());
+
 		Tooltip.UpdateLayout();
 
 		Tooltip.SetDesiredOpacity(1.0f);
@@ -316,28 +344,53 @@ void SPacketContentView::UpdateHoveredEvent()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SPacketContentView::OnSelectedEventChanged()
+{
+	if (SelectedEvent.IsValid() && ProfilerWindow.IsValid())
+	{
+		// Select the node coresponding to net event type of selected net event instance.
+		const uint64 EventTypeId = static_cast<uint64>(SelectedEvent.Event.EventTypeIndex);
+		ProfilerWindow->SetSelectedEventType(EventTypeId);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketContentView::SelectHoveredEvent()
+{
+	SelectedEvent = HoveredEvent;
+	//if (SelectedEvent.IsValid())
+	//{
+	//	LastSelectionType = ESelectionType::TimingEvent;
+	//	BringIntoView(SelectedEvent.StartPos, SelectedEvent.EndPos);
+	//}
+	OnSelectedEventChanged();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FNetworkPacketEventRef SPacketContentView::GetEventAtMousePosition(float X, float Y)
 {
 	if (!bIsStateDirty)
 	{
-		for (const auto& Event : DrawState->Events)
+		for (const FNetworkPacketEvent& Event : DrawState->Events)
 		{
 			const FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
 
-			const float EventX1 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.Offset));
-			const float EventX2 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.Offset + Event.Size));
+			const float EventX1 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.BitOffset));
+			const float EventX2 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.BitOffset + Event.BitSize));
 
 			constexpr float Y0 = 0.0f;
 			constexpr float EventH = 14.0f;
 			constexpr float EventDY = 2.0f;
-			const float EventY = Y0 + (EventH + EventDY) * Event.Depth;
+			const float EventY = Y0 + (EventH + EventDY) * Event.Level;
 
 			constexpr float ToleranceX = 1.0f;
 
 			if (X >= EventX1 - ToleranceX && X <= EventX2 &&
 				Y >= EventY - EventDY / 2 && Y < EventY + EventH + EventDY / 2)
 			{
-				return FNetworkPacketEventRef(Event.Offset, Event.Size, Event.Type, Event.Depth);
+				return FNetworkPacketEventRef(Event);
 			}
 		}
 	}
@@ -367,10 +420,27 @@ int32 SPacketContentView::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 		// Draw the cached state (the network events of the package breakdown).
 		Helper.Draw(*DrawState);
 
-		// Highlight the hovered event.
-		if (HoveredEvent.IsValid())
+		if (!FNetworkPacketEventRef::AreEquals(SelectedEvent, HoveredEvent))
 		{
-			Helper.DrawEventHighlight(HoveredEvent.Event);
+			// Highlight the selected event (if any).
+			if (SelectedEvent.IsValid())
+			{
+				Helper.DrawEventHighlight(SelectedEvent.Event, FPacketContentViewDrawHelper::EHighlightMode::Selected);
+			}
+
+			// Highlight the hovered event (if any).
+			if (HoveredEvent.IsValid())
+			{
+				Helper.DrawEventHighlight(HoveredEvent.Event, FPacketContentViewDrawHelper::EHighlightMode::Hovered);
+			}
+		}
+		else
+		{
+			// Highlight the selected and hovered event (if any).
+			if (SelectedEvent.IsValid())
+			{
+				Helper.DrawEventHighlight(SelectedEvent.Event, FPacketContentViewDrawHelper::EHighlightMode::SelectedAndHovered);
+			}
 		}
 
 		// Draw tooltip for hovered Event.
@@ -484,7 +554,9 @@ FReply SPacketContentView::OnMouseButtonDown(const FGeometry& MyGeometry, const 
 {
 	FReply Reply = FReply::Unhandled();
 
-	MousePositionOnButtonDown = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	MousePositionOnButtonDown = MousePosition;
+
 	ViewportPosXOnButtonDown = Viewport.GetHorizontalAxisViewport().GetPos();
 
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
@@ -498,7 +570,7 @@ FReply SPacketContentView::OnMouseButtonDown(const FGeometry& MyGeometry, const 
 	{
 		bIsRMB_Pressed = true;
 
-		// Capture mouse, so we can scroll outside this widget.
+		// Capture mouse, so we can drag outside this widget.
 		Reply = FReply::Handled().CaptureMouse(SharedThis(this));
 	}
 
@@ -511,7 +583,8 @@ FReply SPacketContentView::OnMouseButtonUp(const FGeometry& MyGeometry, const FP
 {
 	FReply Reply = FReply::Unhandled();
 
-	MousePositionOnButtonUp = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	MousePositionOnButtonUp = MousePosition;
 
 	const bool bIsValidForMouseClick = MousePositionOnButtonUp.Equals(MousePositionOnButtonDown, MOUSE_SNAP_DISTANCE);
 
@@ -526,13 +599,15 @@ FReply SPacketContentView::OnMouseButtonUp(const FGeometry& MyGeometry, const FP
 			}
 			else if (bIsValidForMouseClick)
 			{
-				//SelectEventAtMousePosition(MousePositionOnButtonUp.X, MousePositionOnButtonUp.Y);
+				// Select the hovered timing event (if any).
+				UpdateHoveredEvent();
+				SelectHoveredEvent();
 			}
 
-			bIsLMB_Pressed = false;
-
-			// Release the mouse.
+			// Release mouse as we no longer drag.
 			Reply = FReply::Handled().ReleaseMouseCapture();
+
+			bIsLMB_Pressed = false;
 		}
 	}
 	else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
@@ -549,10 +624,10 @@ FReply SPacketContentView::OnMouseButtonUp(const FGeometry& MyGeometry, const FP
 				//ShowContextMenu(MouseEvent);
 			}
 
-			bIsRMB_Pressed = false;
-
-			// Release mouse as we no longer scroll.
+			// Release mouse as we no longer drag.
 			Reply = FReply::Handled().ReleaseMouseCapture();
+
+			bIsRMB_Pressed = false;
 		}
 	}
 
@@ -613,7 +688,7 @@ void SPacketContentView::OnMouseLeave(const FPointerEvent& MouseEvent)
 {
 	if (!HasMouseCapture())
 	{
-		// No longer scrolling (unless we have mouse capture).
+		// No longer dragging (unless we have mouse capture).
 		bIsScrolling = false;
 
 		bIsLMB_Pressed = false;

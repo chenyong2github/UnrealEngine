@@ -16,8 +16,8 @@
 #include "Widgets/Views/STreeView.h"
 
 // Insights
-#include "Insights/ViewModels/TimerGroupingAndSorting.h"
-#include "Insights/ViewModels/TimerNode.h"
+#include "Insights/NetworkingProfiler/ViewModels/NetEventGroupingAndSorting.h"
+#include "Insights/NetworkingProfiler/ViewModels/NetEventNode.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -37,26 +37,26 @@ namespace Insights
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** The filter collection - used for updating the list of timer nodes. */
-typedef TFilterCollection<const FTimerNodePtr&> FTimerNodeFilterCollection;
+/** The filter collection - used for updating the list of tree nodes. */
+typedef TFilterCollection<const FNetEventNodePtr&> FNetEventNodeFilterCollection;
 
-/** The text based filter - used for updating the list of timer nodes. */
-typedef TTextFilter<const FTimerNodePtr&> FTimerNodeTextFilter;
+/** The text based filter - used for updating the list of tree nodes. */
+typedef TTextFilter<const FNetEventNodePtr&> FNetEventNodeTextFilter;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * A custom widget used to display the list of timers.
+ * A custom widget used to display the list of net events and thier aggregated stats.
  */
-class STimersView : public SCompoundWidget
+class SNetStatsView : public SCompoundWidget
 {
 public:
 	/** Default constructor. */
-	STimersView();
+	SNetStatsView();
 
 	/** Virtual destructor. */
-	virtual ~STimersView();
+	virtual ~SNetStatsView();
 
-	SLATE_BEGIN_ARGS(STimersView){}
+	SLATE_BEGIN_ARGS(SNetStatsView){}
 	SLATE_END_ARGS()
 
 	/**
@@ -68,20 +68,33 @@ public:
 	TSharedPtr<Insights::FTable> GetTable() const { return Table; }
 
 	/**
+	 * Ticks this widget. Override in derived classes, but always call the parent implementation.
+	 *
+	 * @param  AllottedGeometry - the space allotted for this widget
+	 * @param  InCurrentTime    - current absolute real time
+	 * @param  InDeltaTime      - real time passed since last tick
+	 */
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+	/**
 	 * Rebuilds the tree (if necessary).
-	 * @param bResync - If true, it forces a resync with list of timers from Analysis, even if the list did not changed since last sync.
+	 * @param bResync - If true, it forces a resync with list of net events from Analysis, even if the list did not changed since last sync.
 	 */
 	void RebuildTree(bool bResync = true);
-	void UpdateStats(double StartTime, double EndTime);
 
-	void SelectTimerNode(uint64 Id);
+	void ResetStats();
+	void UpdateStats(uint32 InGameInstanceIndex, uint32 InConnectionIndex, Trace::ENetProfilerConnectionMode InConnectionMode, uint32 InStatsPacketStartIndex, uint32 InStatsPacketEndIndex, uint32 InStatsStartPosition, uint32 InStatsEndPosition);
 
-	//const TSet<FTimerNodePtr>& GetTimerNodes() const { return TimerNodes; }
-	//const TMap<uint64, FTimerNodePtr> GetTimerNodesIdMap() const { return TimerNodesIdMap; }
-	const FTimerNodePtr* GetTimerNode(uint64 Id) const { return TimerNodesIdMap.Find(Id); }
+	void SelectNetEventNode(uint64 Id);
+
+	//const TSet<FNetEventNodePtr>& GetNetEventNodes() const { return NetEventNodes; }
+	//const TMap<uint64, FNetEventNodePtr> GetNetEventNodesIdMap() const { return NetEventNodesIdMap; }
+	const FNetEventNodePtr* GetNetEventNode(uint64 Id) const { return NetEventNodesIdMap.Find(Id); }
 
 protected:
 	void UpdateTree();
+
+	void UpdateStatsInternal();
 
 	/** Called when the analysis session has changed. */
 	void InsightsManager_OnSessionChanged();
@@ -93,7 +106,7 @@ protected:
 	 * @param OutSearchStrings   - an array of strings to use in searching.
 	 *
 	 */
-	void HandleItemToStringArray(const FTimerNodePtr& GroupOrStatNodePtr, TArray<FString>& OutSearchStrings) const;
+	void HandleItemToStringArray(const FNetEventNodePtr& GroupOrStatNodePtr, TArray<FString>& OutSearchStrings) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Context Menu
@@ -121,27 +134,27 @@ protected:
 	 * @param InParent    - The parent node to retrieve the children from.
 	 * @param OutChildren - List of children for the parent node.
 	 */
-	void TreeView_OnGetChildren(FTimerNodePtr InParent, TArray<FTimerNodePtr>& OutChildren);
+	void TreeView_OnGetChildren(FNetEventNodePtr InParent, TArray<FNetEventNodePtr>& OutChildren);
 
 	/** Called by STreeView when selection has changed. */
-	void TreeView_OnSelectionChanged(FTimerNodePtr SelectedItem, ESelectInfo::Type SelectInfo);
+	void TreeView_OnSelectionChanged(FNetEventNodePtr SelectedItem, ESelectInfo::Type SelectInfo);
 
 	/** Called by STreeView when a tree item is double clicked. */
-	void TreeView_OnMouseButtonDoubleClick(FTimerNodePtr TreeNode);
+	void TreeView_OnMouseButtonDoubleClick(FNetEventNodePtr TreeNode);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Table Row
 
 	/** Called by STreeView to generate a table row for the specified item. */
-	TSharedRef<ITableRow> TreeView_OnGenerateRow(FTimerNodePtr TreeNode, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> TreeView_OnGenerateRow(FNetEventNodePtr TreeNode, const TSharedRef<STableViewBase>& OwnerTable);
 
-	void TableRow_SetHoveredCell(TSharedPtr<Insights::FTable> TablePtr, TSharedPtr<Insights::FTableColumn> ColumnPtr, const FTimerNodePtr NodePtr);
+	void TableRow_SetHoveredCell(TSharedPtr<Insights::FTable> TablePtr, TSharedPtr<Insights::FTableColumn> ColumnPtr, const FNetEventNodePtr NodePtr);
 	EHorizontalAlignment TableRow_GetColumnOutlineHAlignment(const FName ColumnId) const;
 
 	FText TableRow_GetHighlightText() const;
 	FName TableRow_GetHighlightedNodeName() const;
 
-	bool TableRow_ShouldBeEnabled(const uint32 TimerId) const;
+	bool TableRow_ShouldBeEnabled(const uint32 NodeId) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Filtering
@@ -149,9 +162,9 @@ protected:
 	/** Populates the group and stat tree with items based on the current data. */
 	void ApplyFiltering();
 
-	TSharedRef<SWidget> GetToggleButtonForTimerType(const ETimerNodeType InTimerType);
-	void FilterByTimerType_OnCheckStateChanged(ECheckBoxState NewRadioState, const ETimerNodeType InTimerType);
-	ECheckBoxState FilterByTimerType_IsChecked(const ETimerNodeType InTimerType) const;
+	TSharedRef<SWidget> GetToggleButtonForNetEventType(const ENetEventNodeType InNetEventType);
+	void FilterByNetEventType_OnCheckStateChanged(ECheckBoxState NewRadioState, const ENetEventNodeType InNetEventType);
+	ECheckBoxState FilterByNetEventType_IsChecked(const ENetEventNodeType InNetEventType) const;
 
 	bool SearchBox_IsEnabled() const;
 	void SearchBox_OnTextChanged(const FText& InFilterText);
@@ -162,9 +175,9 @@ protected:
 	void CreateGroups();
 	void CreateGroupByOptionsSources();
 
-	void GroupBy_OnSelectionChanged(TSharedPtr<ETimerGroupingMode> NewGroupingMode, ESelectInfo::Type SelectInfo);
+	void GroupBy_OnSelectionChanged(TSharedPtr<ENetEventGroupingMode> NewGroupingMode, ESelectInfo::Type SelectInfo);
 
-	TSharedRef<SWidget> GroupBy_OnGenerateWidget(TSharedPtr<ETimerGroupingMode> InGroupingMode) const;
+	TSharedRef<SWidget> GroupBy_OnGenerateWidget(TSharedPtr<ENetEventGroupingMode> InGroupingMode) const;
 
 	FText GroupBy_GetSelectedText() const;
 
@@ -180,7 +193,7 @@ protected:
 
 	void UpdateCurrentSortingByColumn();
 	void SortTreeNodes();
-	void SortTreeNodesRec(FTimerNode& Node, const Insights::ITableCellValueSorter& Sorter);
+	void SortTreeNodesRec(FNetEventNode& Node, const Insights::ITableCellValueSorter& Sorter);
 
 	EColumnSortMode::Type GetSortModeForColumn(const FName ColumnId) const;
 	void SetSortModeForColumn(const FName& ColumnId, EColumnSortMode::Type SortMode);
@@ -244,8 +257,8 @@ protected:
 	//////////////////////////////////////////////////
 	// Tree View, Columns
 
-	/** The tree widget which holds the list of groups and timers corresponding with each group. */
-	TSharedPtr<STreeView<FTimerNodePtr>> TreeView;
+	/** The tree widget which holds the net event tree nodes. */
+	TSharedPtr<STreeView<FNetEventNodePtr>> TreeView;
 
 	/** Holds the tree view header row widget which display all columns in the tree view. */
 	TSharedPtr<SHeaderRow> TreeViewHeaderRow;
@@ -254,34 +267,34 @@ protected:
 	TSharedPtr<SScrollBar> ExternalScrollbar;
 
 	//////////////////////////////////////////////////
-	// Hovered Column, Hovered Timer Node
+	// Hovered Column, Hovered Node
 
 	/** Name of the column currently being hovered by the mouse. */
 	FName HoveredColumnId;
 
-	/** A shared pointer to the timer node currently being hovered by the mouse. */
-	FTimerNodePtr HoveredNodePtr;
+	/** A shared pointer to the node currently being hovered by the mouse. */
+	FNetEventNodePtr HoveredNodePtr;
 
-	/** Name of the timer that should be drawn as highlighted. */
+	/** Name of the node that should be drawn as highlighted. */
 	FName HighlightedNodeName;
 
 	//////////////////////////////////////////////////
-	// Timer Nodes
+	// Net Event Nodes
 
-	/** An array of group and timer nodes generated from the metadata. */
-	TArray<FTimerNodePtr> GroupNodes;
+	/** An array of group nodes. */
+	TArray<FNetEventNodePtr> GroupNodes;
 
-	/** A filtered array of group and timer nodes to be displayed in the tree widget. */
-	TArray<FTimerNodePtr> FilteredGroupNodes;
+	/** A filtered array of group nodes to be displayed in the tree widget. */
+	TArray<FNetEventNodePtr> FilteredGroupNodes;
 
-	/** All timer nodes. */
-	TSet<FTimerNodePtr> TimerNodes;
+	/** All net event nodes. */
+	TSet<FNetEventNodePtr> NetEventNodes;
 
-	/** All timer nodes, stored as TimerId -> FTimerNodePtr. */
-	TMap<uint64, FTimerNodePtr> TimerNodesIdMap;
+	/** All net event nodes, stored as NodeId -> FNetEventNodePtr. */
+	TMap<uint64, FNetEventNodePtr> NetEventNodesIdMap;
 
 	/** Currently expanded group nodes. */
-	TSet<FTimerNodePtr> ExpandedNodes;
+	TSet<FNetEventNodePtr> ExpandedNodes;
 
 	/** If true, the expanded nodes have been saved before applying a text filter. */
 	bool bExpansionSaved;
@@ -295,25 +308,25 @@ protected:
 	TSharedPtr<SSearchBox> SearchBox;
 
 	/** The text based filter. */
-	TSharedPtr<FTimerNodeTextFilter> TextFilter;
+	TSharedPtr<FNetEventNodeTextFilter> TextFilter;
 
 	/** The filter collection. */
-	TSharedPtr<FTimerNodeFilterCollection> Filters;
+	TSharedPtr<FNetEventNodeFilterCollection> Filters;
 
-	/** Holds the visibility of each timer type. */
-	bool bTimerTypeIsVisible[static_cast<int>(ETimerNodeType::InvalidOrMax)];
+	/** Holds the visibility of each net event type. */
+	bool bNetEventTypeIsVisible[static_cast<int>(ENetEventNodeType::InvalidOrMax)];
 
 	//////////////////////////////////////////////////
 	// Grouping
 
 	//bool bUseGrouping;
 
-	TArray<TSharedPtr<ETimerGroupingMode>> GroupByOptionsSource;
+	TArray<TSharedPtr<ENetEventGroupingMode>> GroupByOptionsSource;
 
-	TSharedPtr<SComboBox<TSharedPtr<ETimerGroupingMode>>> GroupByComboBox;
+	TSharedPtr<SComboBox<TSharedPtr<ENetEventGroupingMode>>> GroupByComboBox;
 
-	/** How we group the timers? */
-	ETimerGroupingMode GroupingMode;
+	/** How we group the net event nodes? */
+	ENetEventGroupingMode GroupingMode;
 
 	//////////////////////////////////////////////////
 	// Sorting
@@ -334,8 +347,16 @@ protected:
 
 	//////////////////////////////////////////////////
 
-	double StatsStartTime;
-	double StatsEndTime;
+	uint64 NextTimestamp;
+	uint32 ObjectsChangeCount;
+
+	uint32 GameInstanceIndex;
+	uint32 ConnectionIndex;
+	Trace::ENetProfilerConnectionMode ConnectionMode;
+	uint32 StatsPacketStartIndex;
+	uint32 StatsPacketEndIndex;
+	uint32 StatsStartPosition;
+	uint32 StatsEndPosition;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

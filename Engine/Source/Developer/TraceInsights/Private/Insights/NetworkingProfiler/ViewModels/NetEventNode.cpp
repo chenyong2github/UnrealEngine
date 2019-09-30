@@ -1,21 +1,21 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "TimerNode.h"
+#include "NetEventNode.h"
 
-#define LOCTEXT_NAMESPACE "TimerNode"
+#define LOCTEXT_NAMESPACE "NetEventNode"
 
-const FName FTimerNode::TypeName(TEXT("FTimerNode"));
+const FName FNetEventNode::TypeName(TEXT("FNetEventNode"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimerNode::ResetAggregatedStats()
+void FNetEventNode::ResetAggregatedStats()
 {
-	AggregatedStats = Trace::FAggregatedTimingStats();
+	AggregatedStats = Trace::FNetProfilerAggregatedStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimerNode::SetAggregatedStats(const Trace::FAggregatedTimingStats& InAggregatedStats)
+void FNetEventNode::SetAggregatedStats(const Trace::FNetProfilerAggregatedStats& InAggregatedStats)
 {
 	AggregatedStats = InAggregatedStats;
 }

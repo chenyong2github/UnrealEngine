@@ -35,16 +35,16 @@ FPacketContentViewDrawStateBuilder::FPacketContentViewDrawStateBuilder(FPacketCo
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerContentEvent& Event, const TCHAR* EventName)
+void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerContentEvent& Event, const TCHAR* EventName, uint32 NetId)
 {
-	const int32 Depth = Event.Level;
-
 	DrawState.Events.AddUninitialized();
-	FPacketContentViewDrawState::FPacketEvent& PacketEvent = DrawState.Events.Last();
-	PacketEvent.Offset = Event.StartPos;
-	PacketEvent.Size = Event.EndPos - Event.StartPos;
-	PacketEvent.Type = Event.NameIndex;
-	PacketEvent.Depth = Depth;
+	FNetworkPacketEvent& PacketEvent = DrawState.Events.Last();
+	PacketEvent.EventTypeIndex = Event.EventTypeIndex;
+	PacketEvent.ObjectInstanceIndex = Event.ObjectInstanceIndex;
+	PacketEvent.NetId = NetId;
+	PacketEvent.BitOffset = Event.StartPos;
+	PacketEvent.BitSize = Event.EndPos - Event.StartPos;
+	PacketEvent.Level = Event.Level;
 
 	const FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
 
@@ -71,6 +71,7 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerConte
 		EventX2 = EventX1 + 1.0f;
 	}
 
+	const int32 Depth = static_cast<int32>(Event.Level);
 	if (Depth > MaxDepth)
 	{
 		MaxDepth = Depth;
@@ -205,7 +206,7 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerConte
 			if (Event.ObjectInstanceIndex != 0)
 			{
 				Name += TEXT(" (NetId:");
-				Name += FText::AsNumber(Event.ObjectInstanceIndex).ToString();
+				Name += FText::AsNumber(NetId).ToString();
 				Name += TEXT(", ");
 			}
 			else
@@ -373,17 +374,17 @@ void FPacketContentViewDrawHelper::Draw(const FPacketContentViewDrawState& DrawS
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketContentViewDrawHelper::DrawEventHighlight(const FNetworkPacketEvent& Event) const
+void FPacketContentViewDrawHelper::DrawEventHighlight(const FNetworkPacketEvent& Event, EHighlightMode Mode) const
 {
 	const FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
 
-	float EventX1 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.Offset));
+	float EventX1 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.BitOffset));
 	if (EventX1 > Viewport.GetWidth())
 	{
 		return;
 	}
 
-	float EventX2 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.Offset + Event.Size));
+	float EventX2 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.BitOffset + Event.BitSize));
 	if (EventX2 < 0)
 	{
 		return;
@@ -415,11 +416,29 @@ void FPacketContentViewDrawHelper::DrawEventHighlight(const FNetworkPacketEvent&
 	constexpr float EventH = 14.0f;
 	constexpr float EventDY = 2.0f;
 
-	const float EventY = Y0 + (EventH + EventDY) * Event.Depth;
+	const float EventY = Y0 + (EventH + EventDY) * Event.Level;
 
-	const FLinearColor Color(1.0f, 1.0f, 0.0f, 1.0f);
-	DrawContext.DrawBox(EventX1 - 2.0f, EventY - 2.0f, EventW + 4.0f, EventH + 4.0f, HoveredEventBorderBrush, Color);
+	if (Mode == EHighlightMode::Hovered)
+	{
+		const FLinearColor Color(1.0f, 1.0f, 0.0f, 1.0f); // yellow
+
+		// Draw border around the timing event box.
+		DrawContext.DrawBox(EventX1 - 2.0f, EventY - 2.0f, EventW + 4.0f, EventH + 4.0f, HoveredEventBorderBrush, Color);
+	}
+	else // EHighlightMode::Selected or EHighlightMode::SelectedAndHovered
+	{
+		// Animate color from white (if selected and hovered) or yellow (if only selected) to black, using a squared sine function.
+		const double Time = static_cast<double>(FPlatformTime::Cycles64()) * FPlatformTime::GetSecondsPerCycle64();
+		float S = FMath::Sin(2.0 * Time);
+		S = S * S; // squared, to ensure only positive [0 - 1] values
+		const float Blue = (Mode == EHighlightMode::SelectedAndHovered) ? 0.0f : S;
+		const FLinearColor Color(S, S, Blue, 1.0f);
+
+		// Draw border around the timing event box.
+		DrawContext.DrawBox(EventX1 - 2.0f, EventY - 2.0f, EventW + 4.0f, EventH + 4.0f, SelectedEventBorderBrush, Color);
+	}
 	DrawContext.LayerId++;
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

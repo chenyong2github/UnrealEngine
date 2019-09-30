@@ -45,6 +45,8 @@ private:
 	// Shared for trace
 	TMap<uint16, uint32> TracedNameIdToNetProfilerNameIdMap;
 
+	TMap<uint32, uint32> TraceEventTypeToNetProfilerEventTypeIndexMap;
+
 	struct FNetTraceConnectionState
 	{
 		// Index into persistent connection array
@@ -69,6 +71,8 @@ private:
 
 		uint32 GameInstanceIndex;
 	};
+
+	uint32 GetTracedEventTypeIndex(uint16 NameIndex, uint8 Level);
 
 	TSharedRef<FNetTraceGameInstanceState> GetOrCreateActiveGameInstanceState(uint32 GameInstanceId);
 	void DestroyActiveGameInstanceState(uint32 GameInstanceId);

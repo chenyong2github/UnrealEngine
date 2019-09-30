@@ -1,12 +1,13 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "STimersView.h"
+#include "SNetStatsView.h"
 
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
 #include "Templates/UniquePtr.h"
 #include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/NetProfiler.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -19,36 +20,39 @@
 // Insights
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
-#include "Insights/TimingProfilerCommon.h"
-#include "Insights/TimingProfilerManager.h"
-#include "Insights/ViewModels/TimerNodeHelper.h"
-#include "Insights/ViewModels/TimersViewColumnFactory.h"
-#include "Insights/Widgets/STimersViewTooltip.h"
-#include "Insights/Widgets/STimerTableRow.h"
-#include "Insights/Widgets/STimingProfilerWindow.h"
-#include "Insights/Widgets/STimingView.h"
+#include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
+#include "Insights/NetworkingProfiler/ViewModels/NetStatsViewColumnFactory.h"
+#include "Insights/NetworkingProfiler/Widgets/SNetStatsViewTooltip.h"
+#include "Insights/NetworkingProfiler/Widgets/SNetStatsTableRow.h"
 
-#define LOCTEXT_NAMESPACE "STimersView"
+#define LOCTEXT_NAMESPACE "SNetStatsView"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-STimersView::STimersView()
+SNetStatsView::SNetStatsView()
 	: Table(MakeShareable(new Insights::FTable()))
 	, bExpansionSaved(false)
-	, GroupingMode(ETimerGroupingMode::ByType)
+	, GroupingMode(ENetEventGroupingMode::Flat)
 	, AvailableSorters()
 	, CurrentSorter(nullptr)
 	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
 	, ColumnSortMode(GetDefaultColumnSortMode())
-	, StatsStartTime(0.0)
-	, StatsEndTime(0.0)
+	, NextTimestamp(0)
+	, ObjectsChangeCount(0)
+	, GameInstanceIndex(0)
+	, ConnectionIndex(0)
+	, ConnectionMode(Trace::ENetProfilerConnectionMode::Outgoing)
+	, StatsPacketStartIndex(0)
+	, StatsPacketEndIndex(0)
+	, StatsStartPosition(0)
+	, StatsEndPosition(0)
 {
-	FMemory::Memset(bTimerTypeIsVisible, 1);
+	FMemory::Memset(bNetEventTypeIsVisible, 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-STimersView::~STimersView()
+SNetStatsView::~SNetStatsView()
 {
 	// Remove ourselves from the Insights manager.
 	if (FInsightsManager::Get().IsValid())
@@ -60,7 +64,7 @@ STimersView::~STimersView()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void STimersView::Construct(const FArguments& InArgs)
+void SNetStatsView::Construct(const FArguments& InArgs)
 {
 	SAssignNew(ExternalScrollbar, SScrollBar)
 	.AlwaysShowScrollbar(true);
@@ -86,10 +90,10 @@ void STimersView::Construct(const FArguments& InArgs)
 				.AutoHeight()
 				[
 					SAssignNew(SearchBox, SSearchBox)
-					.HintText(LOCTEXT("SearchBoxHint", "Search timers or groups"))
-					.OnTextChanged(this, &STimersView::SearchBox_OnTextChanged)
-					.IsEnabled(this, &STimersView::SearchBox_IsEnabled)
-					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search timer or group"))
+					.HintText(LOCTEXT("SearchBoxHint", "Search net events or groups"))
+					.OnTextChanged(this, &SNetStatsView::SearchBox_OnTextChanged)
+					.IsEnabled(this, &SNetStatsView::SearchBox_IsEnabled)
+					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search net events or groups"))
 				]
 
 				// Group by
@@ -112,19 +116,20 @@ void STimersView::Construct(const FArguments& InArgs)
 					.FillWidth(2.0f)
 					.VAlign(VAlign_Center)
 					[
-						SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<ETimerGroupingMode>>)
-						.ToolTipText(this, &STimersView::GroupBy_GetSelectedTooltipText)
+						SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<ENetEventGroupingMode>>)
+						.ToolTipText(this, &SNetStatsView::GroupBy_GetSelectedTooltipText)
 						.OptionsSource(&GroupByOptionsSource)
-						.OnSelectionChanged(this, &STimersView::GroupBy_OnSelectionChanged)
-						.OnGenerateWidget(this, &STimersView::GroupBy_OnGenerateWidget)
+						.OnSelectionChanged(this, &SNetStatsView::GroupBy_OnSelectionChanged)
+						.OnGenerateWidget(this, &SNetStatsView::GroupBy_OnGenerateWidget)
 						[
 							SNew(STextBlock)
-							.Text(this, &STimersView::GroupBy_GetSelectedText)
+							.Text(this, &SNetStatsView::GroupBy_GetSelectedText)
 						]
 					]
 				]
 
-				// Check boxes for: GpuScope, ComputeScope, CpuScope
+				// TODO: Check boxes for: NetEvent, ...
+				/*
 				+ SVerticalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
@@ -136,23 +141,24 @@ void STimersView::Construct(const FArguments& InArgs)
 					.Padding(FMargin(0.0f,0.0f,1.0f,0.0f))
 					.FillWidth(1.0f)
 					[
-						GetToggleButtonForTimerType(ETimerNodeType::GpuScope)
+						GetToggleButtonForNetEventType(ENetEventNodeType::NetEvent)
 					]
 
 					//+SHorizontalBox::Slot()
 					//.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
 					//.FillWidth(1.0f)
 					//[
-					//	GetToggleButtonForTimerType(ETimerNodeType::ComputeScope)
+					//	GetToggleButtonForNetEventType(ENetEventNodeType::NetEvent1)
 					//]
 
-					+SHorizontalBox::Slot()
-					.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
-					.FillWidth(1.0f)
-					[
-						GetToggleButtonForTimerType(ETimerNodeType::CpuScope)
-					]
+					//+SHorizontalBox::Slot()
+					.//Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
+					//.FillWidth(1.0f)
+					//[
+					//	GetToggleButtonForNetEventType(ENetEventNodeType::NetEvent2)
+					//]
 				]
+				*/
 			]
 		]
 
@@ -176,15 +182,15 @@ void STimersView::Construct(const FArguments& InArgs)
 					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 					.Padding(0.0f)
 					[
-						SAssignNew(TreeView, STreeView<FTimerNodePtr>)
+						SAssignNew(TreeView, STreeView<FNetEventNodePtr>)
 						.ExternalScrollbar(ExternalScrollbar)
 						.SelectionMode(ESelectionMode::Multi)
 						.TreeItemsSource(&FilteredGroupNodes)
-						.OnGetChildren(this, &STimersView::TreeView_OnGetChildren)
-						.OnGenerateRow(this, &STimersView::TreeView_OnGenerateRow)
-						.OnSelectionChanged(this, &STimersView::TreeView_OnSelectionChanged)
-						.OnMouseButtonDoubleClick(this, &STimersView::TreeView_OnMouseButtonDoubleClick)
-						.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &STimersView::TreeView_GetMenuContent))
+						.OnGetChildren(this, &SNetStatsView::TreeView_OnGetChildren)
+						.OnGenerateRow(this, &SNetStatsView::TreeView_OnGenerateRow)
+						.OnSelectionChanged(this, &SNetStatsView::TreeView_OnSelectionChanged)
+						.OnMouseButtonDoubleClick(this, &SNetStatsView::TreeView_OnMouseButtonDoubleClick)
+						.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SNetStatsView::TreeView_GetMenuContent))
 						.ItemHeight(12.0f)
 						.HeaderRow
 						(
@@ -212,15 +218,15 @@ void STimersView::Construct(const FArguments& InArgs)
 	//BindCommands();
 
 	// Create the search filters: text based, type based etc.
-	TextFilter = MakeShareable(new FTimerNodeTextFilter(FTimerNodeTextFilter::FItemToStringArray::CreateSP(this, &STimersView::HandleItemToStringArray)));
-	Filters = MakeShareable(new FTimerNodeFilterCollection());
+	TextFilter = MakeShareable(new FNetEventNodeTextFilter(FNetEventNodeTextFilter::FItemToStringArray::CreateSP(this, &SNetStatsView::HandleItemToStringArray)));
+	Filters = MakeShareable(new FNetEventNodeFilterCollection());
 	Filters->Add(TextFilter);
 
 	CreateGroupByOptionsSources();
 	CreateSortings();
 
 	// Register ourselves with the Insights manager.
-	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &STimersView::InsightsManager_OnSessionChanged);
+	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &SNetStatsView::InsightsManager_OnSessionChanged);
 
 	// Update the Session (i.e. when analysis session was already started).
 	InsightsManager_OnSessionChanged();
@@ -229,11 +235,28 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
+void SNetStatsView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	const TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	//SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	// Check if we need to update the lists of net events, but not too often.
+	const uint64 Time = FPlatformTime::Cycles64();
+	if (Time > NextTimestamp)
+	{
+		const uint64 WaitTime = static_cast<uint64>(0.5 / FPlatformTime::GetSecondsPerCycle64()); // 500ms
+		NextTimestamp = Time + WaitTime;
+
+		RebuildTree(false);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<SWidget> SNetStatsView::TreeView_GetMenuContent()
+{
+	const TArray<FNetEventNodePtr> SelectedNodes = TreeView->GetSelectedItems();
 	const int32 NumSelectedNodes = SelectedNodes.Num();
-	FTimerNodePtr SelectedNode = NumSelectedNodes ? SelectedNodes[0] : nullptr;
+	FNetEventNodePtr SelectedNode = NumSelectedNodes ? SelectedNodes[0] : nullptr;
 
 	const TSharedPtr<Insights::FTableColumn> HoveredColumnPtr = Table->FindColumn(HoveredColumnId);
 
@@ -289,8 +312,8 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		/*TODO
 		FUIAction Action_CopySelectedToClipboard
 		(
-			FExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_Execute),
-			FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_CanExecute)
+			FExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_CopySelectedToClipboard_Execute),
+			FCanExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_CopySelectedToClipboard_CanExecute)
 		);
 		MenuBuilder.AddMenuEntry
 		(
@@ -304,7 +327,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort", "Sort By"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Sort by column"),
-			FNewMenuDelegate::CreateSP(this, &STimersView::TreeView_BuildSortByMenu),
+			FNewMenuDelegate::CreateSP(this, &SNetStatsView::TreeView_BuildSortByMenu),
 			false,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortBy")
 		);
@@ -317,15 +340,15 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_View", "View Column"),
 			LOCTEXT("ContextMenu_Header_Columns_View_Desc", "Hides or shows columns"),
-			FNewMenuDelegate::CreateSP(this, &STimersView::TreeView_BuildViewColumnMenu),
+			FNewMenuDelegate::CreateSP(this, &SNetStatsView::TreeView_BuildViewColumnMenu),
 			false,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ViewColumn")
 		);
 
 		FUIAction Action_ShowAllColumns
 		(
-			FExecuteAction::CreateSP(this, &STimersView::ContextMenu_ShowAllColumns_Execute),
-			FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_ShowAllColumns_CanExecute)
+			FExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_ShowAllColumns_Execute),
+			FCanExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_ShowAllColumns_CanExecute)
 		);
 		MenuBuilder.AddMenuEntry
 		(
@@ -336,8 +359,8 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 
 		FUIAction Action_ShowMinMaxMedColumns
 		(
-			FExecuteAction::CreateSP(this, &STimersView::ContextMenu_ShowMinMaxMedColumns_Execute),
-			FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_ShowMinMaxMedColumns_CanExecute)
+			FExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_ShowMinMaxMedColumns_Execute),
+			FCanExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_ShowMinMaxMedColumns_CanExecute)
 		);
 		MenuBuilder.AddMenuEntry
 		(
@@ -348,8 +371,8 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 
 		FUIAction Action_ResetColumns
 		(
-			FExecuteAction::CreateSP(this, &STimersView::ContextMenu_ResetColumns_Execute),
-			FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_ResetColumns_CanExecute)
+			FExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_ResetColumns_Execute),
+			FCanExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_ResetColumns_CanExecute)
 		);
 		MenuBuilder.AddMenuEntry
 		(
@@ -365,7 +388,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
+void SNetStatsView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 {
 	// TODO: Refactor later @see TSharedPtr<SWidget> SCascadePreviewViewportToolBar::GenerateViewMenu() const
 
@@ -379,9 +402,9 @@ void STimersView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		{
 			FUIAction Action_SortByColumn
 			(
-				FExecuteAction::CreateSP(this, &STimersView::ContextMenu_SortByColumn_Execute, Column.GetId()),
-				FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_SortByColumn_CanExecute, Column.GetId()),
-				FIsActionChecked::CreateSP(this, &STimersView::ContextMenu_SortByColumn_IsChecked, Column.GetId())
+				FExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_SortByColumn_Execute, Column.GetId()),
+				FCanExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_SortByColumn_CanExecute, Column.GetId()),
+				FIsActionChecked::CreateSP(this, &SNetStatsView::ContextMenu_SortByColumn_IsChecked, Column.GetId())
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -400,9 +423,9 @@ void STimersView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 	{
 		FUIAction Action_SortAscending
 		(
-			FExecuteAction::CreateSP(this, &STimersView::ContextMenu_SortMode_Execute, EColumnSortMode::Ascending),
-			FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_SortMode_CanExecute, EColumnSortMode::Ascending),
-			FIsActionChecked::CreateSP(this, &STimersView::ContextMenu_SortMode_IsChecked, EColumnSortMode::Ascending)
+			FExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_SortMode_Execute, EColumnSortMode::Ascending),
+			FCanExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_SortMode_CanExecute, EColumnSortMode::Ascending),
+			FIsActionChecked::CreateSP(this, &SNetStatsView::ContextMenu_SortMode_IsChecked, EColumnSortMode::Ascending)
 		);
 		MenuBuilder.AddMenuEntry
 		(
@@ -413,9 +436,9 @@ void STimersView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 
 		FUIAction Action_SortDescending
 		(
-			FExecuteAction::CreateSP(this, &STimersView::ContextMenu_SortMode_Execute, EColumnSortMode::Descending),
-			FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_SortMode_CanExecute, EColumnSortMode::Descending),
-			FIsActionChecked::CreateSP(this, &STimersView::ContextMenu_SortMode_IsChecked, EColumnSortMode::Descending)
+			FExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_SortMode_Execute, EColumnSortMode::Descending),
+			FCanExecuteAction::CreateSP(this, &SNetStatsView::ContextMenu_SortMode_CanExecute, EColumnSortMode::Descending),
+			FIsActionChecked::CreateSP(this, &SNetStatsView::ContextMenu_SortMode_IsChecked, EColumnSortMode::Descending)
 		);
 		MenuBuilder.AddMenuEntry
 		(
@@ -429,7 +452,7 @@ void STimersView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
+void SNetStatsView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection("ViewColumn", LOCTEXT("ContextMenu_Header_Columns_View", "View Column"));
 
@@ -439,9 +462,9 @@ void STimersView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 
 		FUIAction Action_ToggleColumn
 		(
-			FExecuteAction::CreateSP(this, &STimersView::ToggleColumnVisibility, Column.GetId()),
-			FCanExecuteAction::CreateSP(this, &STimersView::CanToggleColumnVisibility, Column.GetId()),
-			FIsActionChecked::CreateSP(this, &STimersView::IsColumnVisible, Column.GetId())
+			FExecuteAction::CreateSP(this, &SNetStatsView::ToggleColumnVisibility, Column.GetId()),
+			FCanExecuteAction::CreateSP(this, &SNetStatsView::CanToggleColumnVisibility, Column.GetId()),
+			FIsActionChecked::CreateSP(this, &SNetStatsView::IsColumnVisible, Column.GetId())
 		);
 		MenuBuilder.AddMenuEntry
 		(
@@ -456,11 +479,11 @@ void STimersView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::InitializeAndShowHeaderColumns()
+void SNetStatsView::InitializeAndShowHeaderColumns()
 {
 	// Create columns.
 	TArray<TSharedPtr<Insights::FTableColumn>> Columns;
-	FTimersViewColumnFactory::CreateTimersViewColumns(Columns);
+	FNetStatsViewColumnFactory::CreateNetStatsViewColumns(Columns);
 	Table->SetColumns(Columns);
 
 	// Show columns.
@@ -475,7 +498,7 @@ void STimersView::InitializeAndShowHeaderColumns()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText STimersView::GetColumnHeaderText(const FName ColumnId) const
+FText SNetStatsView::GetColumnHeaderText(const FName ColumnId) const
 {
 	const Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	return Column.GetShortName();
@@ -483,7 +506,7 @@ FText STimersView::GetColumnHeaderText(const FName ColumnId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const Insights::FTableColumn& Column)
+TSharedRef<SWidget> SNetStatsView::TreeViewHeaderRow_GenerateColumnMenu(const Insights::FTableColumn& Column)
 {
 	bool bIsMenuVisible = false;
 
@@ -496,8 +519,8 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const Insi
 
 			FUIAction Action_HideColumn
 			(
-				FExecuteAction::CreateSP(this, &STimersView::HideColumn, Column.GetId()),
-				FCanExecuteAction::CreateSP(this, &STimersView::CanHideColumn, Column.GetId())
+				FExecuteAction::CreateSP(this, &SNetStatsView::HideColumn, Column.GetId()),
+				FCanExecuteAction::CreateSP(this, &SNetStatsView::CanHideColumn, Column.GetId())
 			);
 
 			MenuBuilder.AddMenuEntry
@@ -517,9 +540,9 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const Insi
 
 			FUIAction Action_SortAscending
 			(
-				FExecuteAction::CreateSP(this, &STimersView::HeaderMenu_SortMode_Execute, Column.GetId(), EColumnSortMode::Ascending),
-				FCanExecuteAction::CreateSP(this, &STimersView::HeaderMenu_SortMode_CanExecute, Column.GetId(), EColumnSortMode::Ascending),
-				FIsActionChecked::CreateSP(this, &STimersView::HeaderMenu_SortMode_IsChecked, Column.GetId(), EColumnSortMode::Ascending)
+				FExecuteAction::CreateSP(this, &SNetStatsView::HeaderMenu_SortMode_Execute, Column.GetId(), EColumnSortMode::Ascending),
+				FCanExecuteAction::CreateSP(this, &SNetStatsView::HeaderMenu_SortMode_CanExecute, Column.GetId(), EColumnSortMode::Ascending),
+				FIsActionChecked::CreateSP(this, &SNetStatsView::HeaderMenu_SortMode_IsChecked, Column.GetId(), EColumnSortMode::Ascending)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -530,9 +553,9 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const Insi
 
 			FUIAction Action_SortDescending
 			(
-				FExecuteAction::CreateSP(this, &STimersView::HeaderMenu_SortMode_Execute, Column.GetId(), EColumnSortMode::Descending),
-				FCanExecuteAction::CreateSP(this, &STimersView::HeaderMenu_SortMode_CanExecute, Column.GetId(), EColumnSortMode::Descending),
-				FIsActionChecked::CreateSP(this, &STimersView::HeaderMenu_SortMode_IsChecked, Column.GetId(), EColumnSortMode::Descending)
+				FExecuteAction::CreateSP(this, &SNetStatsView::HeaderMenu_SortMode_Execute, Column.GetId(), EColumnSortMode::Descending),
+				FCanExecuteAction::CreateSP(this, &SNetStatsView::HeaderMenu_SortMode_CanExecute, Column.GetId(), EColumnSortMode::Descending),
+				FIsActionChecked::CreateSP(this, &SNetStatsView::HeaderMenu_SortMode_IsChecked, Column.GetId(), EColumnSortMode::Descending)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -567,13 +590,22 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const Insi
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::InsightsManager_OnSessionChanged()
+void SNetStatsView::InsightsManager_OnSessionChanged()
 {
 	TSharedPtr<const Trace::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
 
 	if (NewSession != Session)
 	{
 		Session = NewSession;
+
+		GameInstanceIndex = 0;
+		ConnectionIndex = 0;
+		ConnectionMode = Trace::ENetProfilerConnectionMode::Outgoing;
+		StatsPacketStartIndex = 0;
+		StatsPacketEndIndex = 0;
+		StatsStartPosition = 0;
+		StatsEndPosition = 0;
+
 		RebuildTree();
 	}
 	else
@@ -584,7 +616,7 @@ void STimersView::InsightsManager_OnSessionChanged()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::UpdateTree()
+void SNetStatsView::UpdateTree()
 {
 	CreateGroups();
 	SortTreeNodes();
@@ -593,7 +625,7 @@ void STimersView::UpdateTree()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::ApplyFiltering()
+void SNetStatsView::ApplyFiltering()
 {
 	FilteredGroupNodes.Reset();
 
@@ -601,7 +633,7 @@ void STimersView::ApplyFiltering()
 	const int32 NumGroups = GroupNodes.Num();
 	for (int32 GroupIndex = 0; GroupIndex < NumGroups; ++GroupIndex)
 	{
-		FTimerNodePtr& GroupPtr = GroupNodes[GroupIndex];
+		FNetEventNodePtr& GroupPtr = GroupNodes[GroupIndex];
 		GroupPtr->ClearFilteredChildren();
 		const bool bIsGroupVisible = Filters->PassesAllFilters(GroupPtr);
 
@@ -611,8 +643,8 @@ void STimersView::ApplyFiltering()
 		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
 		{
 			// Add a child.
-			const FTimerNodePtr& NodePtr = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(GroupChildren[Cx]);
-			const bool bIsChildVisible = Filters->PassesAllFilters(NodePtr) && bTimerTypeIsVisible[static_cast<int>(NodePtr->GetType())];
+			const FNetEventNodePtr& NodePtr = StaticCastSharedPtr<FNetEventNode, Insights::FBaseTreeNode>(GroupChildren[Cx]);
+			const bool bIsChildVisible = Filters->PassesAllFilters(NodePtr) && bNetEventTypeIsVisible[static_cast<int>(NodePtr->GetType())];
 			if (bIsChildVisible)
 			{
 				GroupPtr->AddFilteredChild(NodePtr);
@@ -632,7 +664,7 @@ void STimersView::ApplyFiltering()
 		}
 	}
 
-	// Only expand timer nodes if we have a text filter.
+	// Only expand net event nodes if we have a text filter.
 	const bool bNonEmptyTextFilter = !TextFilter->GetRawFilterText().IsEmpty();
 	if (bNonEmptyTextFilter)
 	{
@@ -645,7 +677,7 @@ void STimersView::ApplyFiltering()
 
 		for (int32 Fx = 0; Fx < FilteredGroupNodes.Num(); Fx++)
 		{
-			const FTimerNodePtr& GroupPtr = FilteredGroupNodes[Fx];
+			const FNetEventNodePtr& GroupPtr = FilteredGroupNodes[Fx];
 			TreeView->SetItemExpansion(GroupPtr, GroupPtr->IsExpanded());
 		}
 	}
@@ -669,22 +701,22 @@ void STimersView::ApplyFiltering()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::HandleItemToStringArray(const FTimerNodePtr& FTimerNodePtr, TArray<FString>& OutSearchStrings) const
+void SNetStatsView::HandleItemToStringArray(const FNetEventNodePtr& FNetEventNodePtr, TArray<FString>& OutSearchStrings) const
 {
-	OutSearchStrings.Add(FTimerNodePtr->GetName().GetPlainNameString());
+	OutSearchStrings.Add(FNetEventNodePtr->GetName().GetPlainNameString());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimersView::GetToggleButtonForTimerType(const ETimerNodeType NodeType)
+TSharedRef<SWidget> SNetStatsView::GetToggleButtonForNetEventType(const ENetEventNodeType NodeType)
 {
 	return SNew(SCheckBox)
 		.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
 		.HAlign(HAlign_Center)
 		.Padding(2.0f)
-		.OnCheckStateChanged(this, &STimersView::FilterByTimerType_OnCheckStateChanged, NodeType)
-		.IsChecked(this, &STimersView::FilterByTimerType_IsChecked, NodeType)
-		.ToolTipText(TimerNodeTypeHelper::ToDescription(NodeType))
+		.OnCheckStateChanged(this, &SNetStatsView::FilterByNetEventType_OnCheckStateChanged, NodeType)
+		.IsChecked(this, &SNetStatsView::FilterByNetEventType_IsChecked, NodeType)
+		.ToolTipText(NetEventNodeTypeHelper::ToDescription(NodeType))
 		[
 			SNew(SHorizontalBox)
 
@@ -693,7 +725,7 @@ TSharedRef<SWidget> STimersView::GetToggleButtonForTimerType(const ETimerNodeTyp
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-						.Image(TimerNodeTypeHelper::GetIconForTimerNodeType(NodeType))
+						.Image(NetEventNodeTypeHelper::GetIconForNetEventNodeType(NodeType))
 				]
 
 			+SHorizontalBox::Slot()
@@ -701,7 +733,7 @@ TSharedRef<SWidget> STimersView::GetToggleButtonForTimerType(const ETimerNodeTyp
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-						.Text(TimerNodeTypeHelper::ToText(NodeType))
+						.Text(NetEventNodeTypeHelper::ToText(NodeType))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
 				]
 		];
@@ -709,24 +741,24 @@ TSharedRef<SWidget> STimersView::GetToggleButtonForTimerType(const ETimerNodeTyp
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::FilterByTimerType_OnCheckStateChanged(ECheckBoxState NewRadioState, const ETimerNodeType InStatType)
+void SNetStatsView::FilterByNetEventType_OnCheckStateChanged(ECheckBoxState NewRadioState, const ENetEventNodeType InStatType)
 {
-	bTimerTypeIsVisible[static_cast<int>(InStatType)] = (NewRadioState == ECheckBoxState::Checked);
+	bNetEventTypeIsVisible[static_cast<int>(InStatType)] = (NewRadioState == ECheckBoxState::Checked);
 	ApplyFiltering();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-ECheckBoxState STimersView::FilterByTimerType_IsChecked(const ETimerNodeType InStatType) const
+ECheckBoxState SNetStatsView::FilterByNetEventType_IsChecked(const ENetEventNodeType InStatType) const
 {
-	return bTimerTypeIsVisible[static_cast<int>(InStatType)] ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return bNetEventTypeIsVisible[static_cast<int>(InStatType)] ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // TreeView
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::TreeView_Refresh()
+void SNetStatsView::TreeView_Refresh()
 {
 	if (TreeView.IsValid())
 	{
@@ -736,52 +768,38 @@ void STimersView::TreeView_Refresh()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::TreeView_OnSelectionChanged(FTimerNodePtr SelectedItem, ESelectInfo::Type SelectInfo)
+void SNetStatsView::TreeView_OnSelectionChanged(FNetEventNodePtr SelectedItem, ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
-		TArray<FTimerNodePtr> SelectedItems = TreeView->GetSelectedItems();
+		TArray<FNetEventNodePtr> SelectedItems = TreeView->GetSelectedItems();
 		if (SelectedItems.Num() == 1 && !SelectedItems[0]->IsGroup())
 		{
-			FTimingProfilerManager::Get()->SetSelectedTimer(SelectedItems[0]->GetId());
+			//TODO: FNetworkingProfilerManager::Get()->SetSelectedNetEvent(SelectedItems[0]->GetId());
 		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::TreeView_OnGetChildren(FTimerNodePtr InParent, TArray<FTimerNodePtr>& OutChildren)
+void SNetStatsView::TreeView_OnGetChildren(FNetEventNodePtr InParent, TArray<FNetEventNodePtr>& OutChildren)
 {
 	const TArray<Insights::FBaseTreeNodePtr>& Children = InParent->GetFilteredChildren();
 	OutChildren.Reset(Children.Num());
 	for (const Insights::FBaseTreeNodePtr& Child : Children)
 	{
-		OutChildren.Add(StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(Child));
+		OutChildren.Add(StaticCastSharedPtr<FNetEventNode, Insights::FBaseTreeNode>(Child));
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::TreeView_OnMouseButtonDoubleClick(FTimerNodePtr TimerNodePtr)
+void SNetStatsView::TreeView_OnMouseButtonDoubleClick(FNetEventNodePtr NetEventNodePtr)
 {
-	if (TimerNodePtr->IsGroup())
+	if (NetEventNodePtr->IsGroup())
 	{
-		const bool bIsGroupExpanded = TreeView->IsItemExpanded(TimerNodePtr);
-		TreeView->SetItemExpansion(TimerNodePtr, !bIsGroupExpanded);
-	}
-	else
-	{
-		//im:TODO: const bool bIsTracked = FTimingProfilerManager::Get()->IsTimerTracked(TimerNodePtr->GetId());
-	//	if (!bIsTracked)
-	//	{
-	//		// Add a new graph series.
-	//		FTimingProfilerManager::Get()->TrackTimer(TimerNodePtr->GetId());
-	//	}
-	//	else
-	//	{
-	//		// Remove the corresponding graph series.
-	//		FTimingProfilerManager::Get()->UntrackTimer(TimerNodePtr->GetId());
-	//	}
+		const bool bIsGroupExpanded = TreeView->IsItemExpanded(NetEventNodePtr);
+		TreeView->SetItemExpansion(NetEventNodePtr, !bIsGroupExpanded);
 	}
 }
 
@@ -789,32 +807,32 @@ void STimersView::TreeView_OnMouseButtonDoubleClick(FTimerNodePtr TimerNodePtr)
 // Tree View's Table Row
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<ITableRow> STimersView::TreeView_OnGenerateRow(FTimerNodePtr TimerNodePtr, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SNetStatsView::TreeView_OnGenerateRow(FNetEventNodePtr NetEventNodePtr, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	TSharedRef<ITableRow> TableRow =
-		SNew(STimerTableRow, OwnerTable)
-		.OnShouldBeEnabled(this, &STimersView::TableRow_ShouldBeEnabled)
-		.OnIsColumnVisible(this, &STimersView::IsColumnVisible)
-		.OnSetHoveredCell(this, &STimersView::TableRow_SetHoveredCell)
-		.OnGetColumnOutlineHAlignmentDelegate(this, &STimersView::TableRow_GetColumnOutlineHAlignment)
-		.HighlightText(this, &STimersView::TableRow_GetHighlightText)
-		.HighlightedNodeName(this, &STimersView::TableRow_GetHighlightedNodeName)
+		SNew(SNetStatsTableRow, OwnerTable)
+		.OnShouldBeEnabled(this, &SNetStatsView::TableRow_ShouldBeEnabled)
+		.OnIsColumnVisible(this, &SNetStatsView::IsColumnVisible)
+		.OnSetHoveredCell(this, &SNetStatsView::TableRow_SetHoveredCell)
+		.OnGetColumnOutlineHAlignmentDelegate(this, &SNetStatsView::TableRow_GetColumnOutlineHAlignment)
+		.HighlightText(this, &SNetStatsView::TableRow_GetHighlightText)
+		.HighlightedNodeName(this, &SNetStatsView::TableRow_GetHighlightedNodeName)
 		.TablePtr(Table)
-		.TimerNodePtr(TimerNodePtr);
+		.NetEventNodePtr(NetEventNodePtr);
 
 	return TableRow;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::TableRow_ShouldBeEnabled(const uint32 TimerId) const
+bool SNetStatsView::TableRow_ShouldBeEnabled(const uint32 NodeId) const
 {
-	return true;//im:TODO: Session->GetAggregatedStat(TimerId) != nullptr;
+	return true;//im:TODO: Session->GetAggregatedStat(NodeId) != nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::TableRow_SetHoveredCell(TSharedPtr<Insights::FTable> InTablePtr, TSharedPtr<Insights::FTableColumn> InColumnPtr, const FTimerNodePtr InNodePtr)
+void SNetStatsView::TableRow_SetHoveredCell(TSharedPtr<Insights::FTable> InTablePtr, TSharedPtr<Insights::FTableColumn> InColumnPtr, const FNetEventNodePtr InNodePtr)
 {
 	HoveredColumnId = InColumnPtr ? InColumnPtr->GetId() : FName();
 
@@ -827,7 +845,7 @@ void STimersView::TableRow_SetHoveredCell(TSharedPtr<Insights::FTable> InTablePt
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-EHorizontalAlignment STimersView::TableRow_GetColumnOutlineHAlignment(const FName ColumnId) const
+EHorizontalAlignment SNetStatsView::TableRow_GetColumnOutlineHAlignment(const FName ColumnId) const
 {
 	const TIndirectArray<SHeaderRow::FColumn>& Columns = TreeViewHeaderRow->GetColumns();
 	const int32 LastColumnIdx = Columns.Num() - 1;
@@ -850,14 +868,14 @@ EHorizontalAlignment STimersView::TableRow_GetColumnOutlineHAlignment(const FNam
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText STimersView::TableRow_GetHighlightText() const
+FText SNetStatsView::TableRow_GetHighlightText() const
 {
 	return SearchBox->GetText();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FName STimersView::TableRow_GetHighlightedNodeName() const
+FName SNetStatsView::TableRow_GetHighlightedNodeName() const
 {
 	return HighlightedNodeName;
 }
@@ -866,7 +884,7 @@ FName STimersView::TableRow_GetHighlightedNodeName() const
 // SearchBox
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::SearchBox_OnTextChanged(const FText& InFilterText)
+void SNetStatsView::SearchBox_OnTextChanged(const FText& InFilterText)
 {
 	TextFilter->SetRawFilterText(InFilterText);
 	SearchBox->SetError(TextFilter->GetFilterErrorText());
@@ -875,99 +893,84 @@ void STimersView::SearchBox_OnTextChanged(const FText& InFilterText)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::SearchBox_IsEnabled() const
+bool SNetStatsView::SearchBox_IsEnabled() const
 {
-	return TimerNodes.Num() > 0;
+	return NetEventNodes.Num() > 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Grouping
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::CreateGroups()
+void SNetStatsView::CreateGroups()
 {
-	TMap<FName, FTimerNodePtr> GroupNodeSet;
+	TMap<FName, FNetEventNodePtr> GroupNodeSet;
 
-	if (GroupingMode == ETimerGroupingMode::Flat)
+	if (GroupingMode == ENetEventGroupingMode::Flat)
 	{
 		const FName GroupName(TEXT("All"));
-		FTimerNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
+		FNetEventNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 		if (!GroupPtr)
 		{
-			GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FTimerNode(GroupName)));
+			GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FNetEventNode(GroupName)));
 		}
 
-		for (const FTimerNodePtr& TimerNodePtr : TimerNodes)
+		for (const FNetEventNodePtr& NetEventNodePtr : NetEventNodes)
 		{
-			(*GroupPtr)->AddChildAndSetGroupPtr(TimerNodePtr);
+			(*GroupPtr)->AddChildAndSetGroupPtr(NetEventNodePtr);
 		}
 
 		TreeView->SetItemExpansion(*GroupPtr, true);
 	}
-	// Creates groups based on stat metadata groups.
-	else if (GroupingMode == ETimerGroupingMode::ByMetaGroupName)
+	// Creates one group for one letter.
+	else if (GroupingMode == ENetEventGroupingMode::ByName)
 	{
-		for (const FTimerNodePtr& TimerNodePtr : TimerNodes)
+		for (const FNetEventNodePtr& NetEventNodePtr : NetEventNodes)
 		{
-			const FName GroupName = TimerNodePtr->GetMetaGroupName();
+			const FName GroupName = *NetEventNodePtr->GetName().GetPlainNameString().Left(1).ToUpper();
 
-			FTimerNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
+			FNetEventNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)
 			{
-				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FTimerNode(GroupName)));
+				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FNetEventNode(GroupName)));
 			}
 
-			(*GroupPtr)->AddChildAndSetGroupPtr(TimerNodePtr);
+			(*GroupPtr)->AddChildAndSetGroupPtr(NetEventNodePtr);
+		}
+	}
+	// Creates one group for each stat type.
+	else if (GroupingMode == ENetEventGroupingMode::ByType)
+	{
+		for (const FNetEventNodePtr& NetEventNodePtr : NetEventNodes)
+		{
+			const FName GroupName = *NetEventNodeTypeHelper::ToText(NetEventNodePtr->GetType()).ToString();
+
+			FNetEventNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
+			if (!GroupPtr)
+			{
+				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FNetEventNode(GroupName)));
+			}
+
+			(*GroupPtr)->AddChildAndSetGroupPtr(NetEventNodePtr);
 			TreeView->SetItemExpansion(*GroupPtr, true);
 		}
 	}
 	// Creates one group for each stat type.
-	else if (GroupingMode == ETimerGroupingMode::ByType)
+	else if (GroupingMode == ENetEventGroupingMode::ByLevel)
 	{
-		for (const FTimerNodePtr& TimerNodePtr : TimerNodes)
+		for (const FNetEventNodePtr& NetEventNodePtr : NetEventNodes)
 		{
-			const FName GroupName = *TimerNodeTypeHelper::ToText(TimerNodePtr->GetType()).ToString();
+			const FName GroupName(*FString::Printf(TEXT("Level %d"), NetEventNodePtr->GetLevel()));
 
-			FTimerNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
+			FNetEventNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)
 			{
-				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FTimerNode(GroupName)));
+				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FNetEventNode(GroupName)));
 			}
 
-			(*GroupPtr)->AddChildAndSetGroupPtr(TimerNodePtr);
+			(*GroupPtr)->AddChildAndSetGroupPtr(NetEventNodePtr);
 			TreeView->SetItemExpansion(*GroupPtr, true);
 		}
-	}
-	// Creates one group for one letter.
-	else if (GroupingMode == ETimerGroupingMode::ByName)
-	{
-		for (const FTimerNodePtr& TimerNodePtr : TimerNodes)
-		{
-			const FName GroupName = *TimerNodePtr->GetName().GetPlainNameString().Left(1).ToUpper();
-
-			FTimerNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
-			if (!GroupPtr)
-			{
-				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShareable(new FTimerNode(GroupName)));
-			}
-
-			(*GroupPtr)->AddChildAndSetGroupPtr(TimerNodePtr);
-		}
-	}
-	// Creates one group for each logarithmic range ie. 0.001 - 0.01, 0.01 - 0.1, 0.1 - 1.0, 1.0 - 10.0, etc.
-	else if (GroupingMode == ETimerGroupingMode::ByTotalInclusiveTime)
-	{
-		//im:TODO:
-	}
-	// Creates one group for each logarithmic range ie. 0.001 - 0.01, 0.01 - 0.1, 0.1 - 1.0, 1.0 - 10.0, etc.
-	else if (GroupingMode == ETimerGroupingMode::ByTotalExclusiveTime)
-	{
-		//im:TODO:
-	}
-	// Creates one group for each logarithmic range ie. 0, 1 - 10, 10 - 100, 100 - 1000, etc.
-	else if (GroupingMode == ETimerGroupingMode::ByInstanceCount)
-	{
-		//im:TODO:
 	}
 
 	GroupNodeSet.GenerateValueArray(GroupNodes);
@@ -975,17 +978,17 @@ void STimersView::CreateGroups()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::CreateGroupByOptionsSources()
+void SNetStatsView::CreateGroupByOptionsSources()
 {
 	GroupByOptionsSource.Reset(3);
 
-	// Must be added in order of elements in the ETimerGroupingMode.
-	GroupByOptionsSource.Add(MakeShareable(new ETimerGroupingMode(ETimerGroupingMode::Flat)));
-	GroupByOptionsSource.Add(MakeShareable(new ETimerGroupingMode(ETimerGroupingMode::ByName)));
-	//GroupByOptionsSource.Add(MakeShareable(new ETimerGroupingMode(ETimerGroupingMode::ByMetaGroupName)));
-	GroupByOptionsSource.Add(MakeShareable(new ETimerGroupingMode(ETimerGroupingMode::ByType)));
+	// Must be added in order of elements in the ENetEventGroupingMode.
+	GroupByOptionsSource.Add(MakeShareable(new ENetEventGroupingMode(ENetEventGroupingMode::Flat)));
+	GroupByOptionsSource.Add(MakeShareable(new ENetEventGroupingMode(ENetEventGroupingMode::ByName)));
+	//GroupByOptionsSource.Add(MakeShareable(new ENetEventGroupingMode(ENetEventGroupingMode::ByType)));
+	GroupByOptionsSource.Add(MakeShareable(new ENetEventGroupingMode(ENetEventGroupingMode::ByLevel)));
 
-	ETimerGroupingModePtr* GroupingModePtrPtr = GroupByOptionsSource.FindByPredicate([&](const ETimerGroupingModePtr InGroupingModePtr) { return *InGroupingModePtr == GroupingMode; });
+	ENetEventGroupingModePtr* GroupingModePtrPtr = GroupByOptionsSource.FindByPredicate([&](const ENetEventGroupingModePtr InGroupingModePtr) { return *InGroupingModePtr == GroupingMode; });
 	if (GroupingModePtrPtr != nullptr)
 	{
 		GroupByComboBox->SetSelectedItem(*GroupingModePtrPtr);
@@ -996,7 +999,7 @@ void STimersView::CreateGroupByOptionsSources()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::GroupBy_OnSelectionChanged(TSharedPtr<ETimerGroupingMode> NewGroupingMode, ESelectInfo::Type SelectInfo)
+void SNetStatsView::GroupBy_OnSelectionChanged(TSharedPtr<ENetEventGroupingMode> NewGroupingMode, ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
@@ -1010,46 +1013,46 @@ void STimersView::GroupBy_OnSelectionChanged(TSharedPtr<ETimerGroupingMode> NewG
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimersView::GroupBy_OnGenerateWidget(TSharedPtr<ETimerGroupingMode> InGroupingMode) const
+TSharedRef<SWidget> SNetStatsView::GroupBy_OnGenerateWidget(TSharedPtr<ENetEventGroupingMode> InGroupingMode) const
 {
 	return SNew(STextBlock)
-		.Text(TimerNodeGroupingHelper::ToText(*InGroupingMode))
-		.ToolTipText(TimerNodeGroupingHelper::ToDescription(*InGroupingMode));
+		.Text(NetEventNodeGroupingHelper::ToText(*InGroupingMode))
+		.ToolTipText(NetEventNodeGroupingHelper::ToDescription(*InGroupingMode));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText STimersView::GroupBy_GetSelectedText() const
+FText SNetStatsView::GroupBy_GetSelectedText() const
 {
-	return TimerNodeGroupingHelper::ToText(GroupingMode);
+	return NetEventNodeGroupingHelper::ToText(GroupingMode);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText STimersView::GroupBy_GetSelectedTooltipText() const
+FText SNetStatsView::GroupBy_GetSelectedTooltipText() const
 {
-	return TimerNodeGroupingHelper::ToDescription(GroupingMode);
+	return NetEventNodeGroupingHelper::ToDescription(GroupingMode);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sorting
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FName STimersView::GetDefaultColumnBeingSorted()
+const FName SNetStatsView::GetDefaultColumnBeingSorted()
 {
-	return FTimersViewColumns::TotalInclusiveTimeColumnID;
+	return FNetStatsViewColumns::TotalInclusiveSizeColumnID;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const EColumnSortMode::Type STimersView::GetDefaultColumnSortMode()
+const EColumnSortMode::Type SNetStatsView::GetDefaultColumnSortMode()
 {
 	return EColumnSortMode::Descending;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::CreateSortings()
+void SNetStatsView::CreateSortings()
 {
 	AvailableSorters.Reset();
 	CurrentSorter = nullptr;
@@ -1071,7 +1074,7 @@ void STimersView::CreateSortings()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::UpdateCurrentSortingByColumn()
+void SNetStatsView::UpdateCurrentSortingByColumn()
 {
 	TSharedPtr<Insights::FTableColumn> ColumnPtr = Table->FindColumn(ColumnBeingSorted);
 	CurrentSorter = ColumnPtr.IsValid() ? ColumnPtr->GetValueSorter() : nullptr;
@@ -1079,11 +1082,11 @@ void STimersView::UpdateCurrentSortingByColumn()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::SortTreeNodes()
+void SNetStatsView::SortTreeNodes()
 {
 	if (CurrentSorter.IsValid())
 	{
-		for (FTimerNodePtr& Root : GroupNodes)
+		for (FNetEventNodePtr& Root : GroupNodes)
 		{
 			SortTreeNodesRec(*Root, *CurrentSorter);
 		}
@@ -1092,7 +1095,7 @@ void STimersView::SortTreeNodes()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::SortTreeNodesRec(FTimerNode& Node, const Insights::ITableCellValueSorter& Sorter)
+void SNetStatsView::SortTreeNodesRec(FNetEventNode& Node, const Insights::ITableCellValueSorter& Sorter)
 {
 	if (ColumnSortMode == EColumnSortMode::Type::Descending)
 	{
@@ -1108,14 +1111,14 @@ void STimersView::SortTreeNodesRec(FTimerNode& Node, const Insights::ITableCellV
 		//if (ChildPtr->IsGroup())
 		if (ChildPtr->GetChildren().Num() > 0)
 		{
-			SortTreeNodesRec(*StaticCastSharedPtr<FTimerNode>(ChildPtr), Sorter);
+			SortTreeNodesRec(*StaticCastSharedPtr<FNetEventNode>(ChildPtr), Sorter);
 		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-EColumnSortMode::Type STimersView::GetSortModeForColumn(const FName ColumnId) const
+EColumnSortMode::Type SNetStatsView::GetSortModeForColumn(const FName ColumnId) const
 {
 	if (ColumnBeingSorted != ColumnId)
 	{
@@ -1127,7 +1130,7 @@ EColumnSortMode::Type STimersView::GetSortModeForColumn(const FName ColumnId) co
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::SetSortModeForColumn(const FName& ColumnId, const EColumnSortMode::Type SortMode)
+void SNetStatsView::SetSortModeForColumn(const FName& ColumnId, const EColumnSortMode::Type SortMode)
 {
 	ColumnBeingSorted = ColumnId;
 	ColumnSortMode = SortMode;
@@ -1139,7 +1142,7 @@ void STimersView::SetSortModeForColumn(const FName& ColumnId, const EColumnSortM
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::OnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type SortMode)
+void SNetStatsView::OnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type SortMode)
 {
 	SetSortModeForColumn(ColumnId, SortMode);
 	TreeView_Refresh();
@@ -1149,14 +1152,14 @@ void STimersView::OnSortModeChanged(const EColumnSortPriority::Type SortPriority
 // SortMode action (HeaderMenu)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::HeaderMenu_SortMode_IsChecked(const FName ColumnId, const EColumnSortMode::Type InSortMode)
+bool SNetStatsView::HeaderMenu_SortMode_IsChecked(const FName ColumnId, const EColumnSortMode::Type InSortMode)
 {
 	return ColumnBeingSorted == ColumnId && ColumnSortMode == InSortMode;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::HeaderMenu_SortMode_CanExecute(const FName ColumnId, const EColumnSortMode::Type InSortMode) const
+bool SNetStatsView::HeaderMenu_SortMode_CanExecute(const FName ColumnId, const EColumnSortMode::Type InSortMode) const
 {
 	const Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	return Column.CanBeSorted();
@@ -1164,7 +1167,7 @@ bool STimersView::HeaderMenu_SortMode_CanExecute(const FName ColumnId, const ECo
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::HeaderMenu_SortMode_Execute(const FName ColumnId, const EColumnSortMode::Type InSortMode)
+void SNetStatsView::HeaderMenu_SortMode_Execute(const FName ColumnId, const EColumnSortMode::Type InSortMode)
 {
 	SetSortModeForColumn(ColumnId, InSortMode);
 	TreeView_Refresh();
@@ -1174,21 +1177,21 @@ void STimersView::HeaderMenu_SortMode_Execute(const FName ColumnId, const EColum
 // SortMode action (ContextMenu)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::ContextMenu_SortMode_IsChecked(const EColumnSortMode::Type InSortMode)
+bool SNetStatsView::ContextMenu_SortMode_IsChecked(const EColumnSortMode::Type InSortMode)
 {
 	return ColumnSortMode == InSortMode;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::ContextMenu_SortMode_CanExecute(const EColumnSortMode::Type InSortMode) const
+bool SNetStatsView::ContextMenu_SortMode_CanExecute(const EColumnSortMode::Type InSortMode) const
 {
 	return true; //ColumnSortMode != InSortMode;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::ContextMenu_SortMode_Execute(const EColumnSortMode::Type InSortMode)
+void SNetStatsView::ContextMenu_SortMode_Execute(const EColumnSortMode::Type InSortMode)
 {
 	SetSortModeForColumn(ColumnBeingSorted, InSortMode);
 	TreeView_Refresh();
@@ -1198,21 +1201,21 @@ void STimersView::ContextMenu_SortMode_Execute(const EColumnSortMode::Type InSor
 // SortByColumn action (ContextMenu)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::ContextMenu_SortByColumn_IsChecked(const FName ColumnId)
+bool SNetStatsView::ContextMenu_SortByColumn_IsChecked(const FName ColumnId)
 {
 	return ColumnId == ColumnBeingSorted;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::ContextMenu_SortByColumn_CanExecute(const FName ColumnId) const
+bool SNetStatsView::ContextMenu_SortByColumn_CanExecute(const FName ColumnId) const
 {
 	return true; //ColumnId != ColumnBeingSorted;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::ContextMenu_SortByColumn_Execute(const FName ColumnId)
+void SNetStatsView::ContextMenu_SortByColumn_Execute(const FName ColumnId)
 {
 	SetSortModeForColumn(ColumnId, EColumnSortMode::Descending);
 	TreeView_Refresh();
@@ -1222,14 +1225,14 @@ void STimersView::ContextMenu_SortByColumn_Execute(const FName ColumnId)
 // ShowColumn action
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::CanShowColumn(const FName ColumnId) const
+bool SNetStatsView::CanShowColumn(const FName ColumnId) const
 {
 	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::ShowColumn(const FName ColumnId)
+void SNetStatsView::ShowColumn(const FName ColumnId)
 {
 	Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	Column.Show();
@@ -1243,19 +1246,19 @@ void STimersView::ShowColumn(const FName ColumnId)
 		.HeaderContentPadding(FMargin(2.0f))
 		.HAlignCell(HAlign_Fill)
 		.VAlignCell(VAlign_Fill)
-		.SortMode(this, &STimersView::GetSortModeForColumn, Column.GetId())
-		.OnSort(this, &STimersView::OnSortModeChanged)
+		.SortMode(this, &SNetStatsView::GetSortModeForColumn, Column.GetId())
+		.OnSort(this, &SNetStatsView::OnSortModeChanged)
 		.ManualWidth(Column.GetInitialWidth())
 		.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
 		.HeaderContent()
 		[
 			SNew(SBox)
-			.ToolTip(STimersViewTooltip::GetColumnTooltip(Column))
+			.ToolTip(SNetStatsViewTooltip::GetColumnTooltip(Column))
 			.HAlign(Column.GetHorizontalAlignment())
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(this, &STimersView::GetColumnHeaderText, Column.GetId())
+				.Text(this, &SNetStatsView::GetColumnHeaderText, Column.GetId())
 			]
 		]
 		.MenuContent()
@@ -1283,7 +1286,7 @@ void STimersView::ShowColumn(const FName ColumnId)
 // HideColumn action
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::CanHideColumn(const FName ColumnId) const
+bool SNetStatsView::CanHideColumn(const FName ColumnId) const
 {
 	const Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	return Column.CanBeHidden();
@@ -1291,7 +1294,7 @@ bool STimersView::CanHideColumn(const FName ColumnId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::HideColumn(const FName ColumnId)
+void SNetStatsView::HideColumn(const FName ColumnId)
 {
 	Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	Column.Hide();
@@ -1303,7 +1306,7 @@ void STimersView::HideColumn(const FName ColumnId)
 // ToggleColumn action
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::IsColumnVisible(const FName ColumnId)
+bool SNetStatsView::IsColumnVisible(const FName ColumnId)
 {
 	const Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	return Column.IsVisible();
@@ -1311,7 +1314,7 @@ bool STimersView::IsColumnVisible(const FName ColumnId)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::CanToggleColumnVisibility(const FName ColumnId) const
+bool SNetStatsView::CanToggleColumnVisibility(const FName ColumnId) const
 {
 	const Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	return !Column.IsVisible() || Column.CanBeHidden();
@@ -1319,7 +1322,7 @@ bool STimersView::CanToggleColumnVisibility(const FName ColumnId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::ToggleColumnVisibility(const FName ColumnId)
+void SNetStatsView::ToggleColumnVisibility(const FName ColumnId)
 {
 	const Insights::FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	if (Column.IsVisible())
@@ -1336,18 +1339,17 @@ void STimersView::ToggleColumnVisibility(const FName ColumnId)
 // "Show All Columns" action (ContextMenu)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::ContextMenu_ShowAllColumns_CanExecute() const
+bool SNetStatsView::ContextMenu_ShowAllColumns_CanExecute() const
 {
 	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::ContextMenu_ShowAllColumns_Execute()
+void SNetStatsView::ContextMenu_ShowAllColumns_Execute()
 {
-	ColumnBeingSorted = GetDefaultColumnBeingSorted();
 	ColumnSortMode = GetDefaultColumnSortMode();
-	UpdateCurrentSortingByColumn();
+	ColumnBeingSorted = GetDefaultColumnBeingSorted();
 
 	for (const TSharedPtr<Insights::FTableColumn>& ColumnPtr : Table->GetColumns())
 	{
@@ -1364,34 +1366,32 @@ void STimersView::ContextMenu_ShowAllColumns_Execute()
 // "Show Min/Max/Median Columns" action (ContextMenu)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::ContextMenu_ShowMinMaxMedColumns_CanExecute() const
+bool SNetStatsView::ContextMenu_ShowMinMaxMedColumns_CanExecute() const
 {
 	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::ContextMenu_ShowMinMaxMedColumns_Execute()
+void SNetStatsView::ContextMenu_ShowMinMaxMedColumns_Execute()
 {
 	TSet<FName> Preset =
 	{
-		FTimersViewColumns::NameColumnID,
-		//FTimersViewColumns::MetaGroupNameColumnID,
-		//FTimersViewColumns::TypeColumnID,
-		FTimersViewColumns::InstanceCountColumnID,
+		FNetStatsViewColumns::NameColumnID,
+		//FNetStatsViewColumns::MetaGroupNameColumnID,
+		//FNetStatsViewColumns::TypeColumnID,
+		FNetStatsViewColumns::InstanceCountColumnID,
 
-		FTimersViewColumns::TotalInclusiveTimeColumnID,
-		FTimersViewColumns::MaxInclusiveTimeColumnID,
-		FTimersViewColumns::MedianInclusiveTimeColumnID,
-		FTimersViewColumns::MinInclusiveTimeColumnID,
+		FNetStatsViewColumns::TotalInclusiveSizeColumnID,
+		FNetStatsViewColumns::MaxInclusiveSizeColumnID,
+		FNetStatsViewColumns::AverageInclusiveSizeColumnID,
 
-		FTimersViewColumns::TotalExclusiveTimeColumnID,
-		FTimersViewColumns::MaxExclusiveTimeColumnID,
-		FTimersViewColumns::MedianExclusiveTimeColumnID,
-		FTimersViewColumns::MinExclusiveTimeColumnID,
+		FNetStatsViewColumns::TotalExclusiveSizeColumnID,
+		FNetStatsViewColumns::MaxExclusiveSizeColumnID,
+		//FNetStatsViewColumns::AverageExclusiveSizeColumnID,
 	};
 
-	ColumnBeingSorted = FTimersViewColumns::TotalInclusiveTimeColumnID;
+	ColumnBeingSorted = FNetStatsViewColumns::TotalInclusiveSizeColumnID;
 	ColumnSortMode = EColumnSortMode::Descending;
 	UpdateCurrentSortingByColumn();
 
@@ -1416,14 +1416,14 @@ void STimersView::ContextMenu_ShowMinMaxMedColumns_Execute()
 // ResetColumns action (ContextMenu)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::ContextMenu_ResetColumns_CanExecute() const
+bool SNetStatsView::ContextMenu_ResetColumns_CanExecute() const
 {
 	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::ContextMenu_ResetColumns_Execute()
+void SNetStatsView::ContextMenu_ResetColumns_Execute()
 {
 	ColumnBeingSorted = GetDefaultColumnBeingSorted();
 	ColumnSortMode = GetDefaultColumnSortMode();
@@ -1446,28 +1446,28 @@ void STimersView::ContextMenu_ResetColumns_Execute()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::RebuildTree(bool bResync)
+void SNetStatsView::RebuildTree(bool bResync)
 {
-	TArray<FTimerNodePtr> SelectedItems;
+	TArray<FNetEventNodePtr> SelectedItems;
 	bool bListHasChanged = false;
 
 	if (bResync)
 	{
-		const int32 PreviousNodeCount = TimerNodes.Num();
-		TimerNodes.Empty(PreviousNodeCount);
-		TimerNodesIdMap.Empty(PreviousNodeCount);
+		const int32 PreviousNodeCount = NetEventNodes.Num();
+		NetEventNodes.Empty(PreviousNodeCount);
+		NetEventNodesIdMap.Empty(PreviousNodeCount);
 		bListHasChanged = true;
 	}
 
-	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+	if (Session.IsValid())
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
 
-		TimingProfilerProvider.ReadTimers([this, &bResync, &SelectedItems, &bListHasChanged](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
+		NetProfilerProvider.ReadEventTypes([this, &bResync, &SelectedItems, &bListHasChanged, &NetProfilerProvider](const Trace::FNetProfilerEventType* NetEvents, uint64 NetEventCount)
 		{
-			if (TimersCount != TimerNodes.Num())
+			if (NetEventCount != NetEventNodes.Num())
 			{
 				bResync = true;
 			}
@@ -1477,20 +1477,27 @@ void STimersView::RebuildTree(bool bResync)
 				// Save selection.
 				TreeView->GetSelectedItems(SelectedItems);
 
-				const int32 PreviousNodeCount = TimerNodes.Num();
-				TimerNodes.Empty(PreviousNodeCount);
-				TimerNodesIdMap.Empty(PreviousNodeCount);
+				const int32 PreviousNodeCount = NetEventNodes.Num();
+				NetEventNodes.Empty(PreviousNodeCount);
+				NetEventNodesIdMap.Empty(PreviousNodeCount);
 				bListHasChanged = true;
 
-				for (uint64 TimerIndex = 0; TimerIndex < TimersCount; ++TimerIndex)
+				for (uint64 Index = 0; Index < NetEventCount; ++Index)
 				{
-					const Trace::FTimingProfilerTimer& Timer = Timers[TimerIndex];
-					FName Name(Timer.Name);// +TEXT(" [GPU]")));
-					FName Group(Timer.IsGpuTimer ? TEXT("GPU") : TEXT("CPU"));
-					ETimerNodeType Type = Timer.IsGpuTimer ? ETimerNodeType::GpuScope : ETimerNodeType::CpuScope;
-					FTimerNodePtr TimerNodePtr = MakeShareable(new FTimerNode(Timer.Id, Name, Group, Type));
-					TimerNodes.Add(TimerNodePtr);
-					TimerNodesIdMap.Add(Timer.Id, TimerNodePtr);
+					const Trace::FNetProfilerEventType& NetEvent = NetEvents[Index];
+
+					const uint64 Id = NetEvent.EventTypeIndex;
+
+					const TCHAR* NamePtr;
+					NetProfilerProvider.ReadName(NetEvent.NameIndex, [&NamePtr](const Trace::FNetProfilerName& InName)
+					{
+						NamePtr = InName.Name;
+					});
+					const FName Name(NamePtr);
+					const ENetEventNodeType Type = ENetEventNodeType::NetEvent;
+					FNetEventNodePtr NetEventNodePtr = MakeShareable(new FNetEventNode(Id, Name, Type, NetEvent.Level));
+					NetEventNodes.Add(NetEventNodePtr);
+					NetEventNodesIdMap.Add(Id, NetEventNodePtr);
 				}
 			}
 		});
@@ -1498,20 +1505,20 @@ void STimersView::RebuildTree(bool bResync)
 
 	if (bListHasChanged)
 	{
-		UpdateTree();
-		UpdateStats(StatsStartTime, StatsEndTime);
+		//UpdateTree();
+		UpdateStatsInternal();
 
 		// Restore selection.
 		if (SelectedItems.Num() > 0)
 		{
 			TreeView->ClearSelection();
-			TArray<FTimerNodePtr> NewSelectedItems;
-			for (const FTimerNodePtr& TimerNode : SelectedItems)
+			TArray<FNetEventNodePtr> NewSelectedItems;
+			for (const FNetEventNodePtr& NetEventNode : SelectedItems)
 			{
-				FTimerNodePtr* TimerNodePtrPtr = TimerNodesIdMap.Find(TimerNode->GetId());
-				if (TimerNodePtrPtr != nullptr)
+				FNetEventNodePtr* NetEventNodePtrPtr = NetEventNodesIdMap.Find(NetEventNode->GetId());
+				if (NetEventNodePtrPtr != nullptr)
 				{
-					NewSelectedItems.Add(*TimerNodePtrPtr);
+					NewSelectedItems.Add(*NetEventNodePtrPtr);
 				}
 			}
 			if (NewSelectedItems.Num() > 0)
@@ -1525,72 +1532,93 @@ void STimersView::RebuildTree(bool bResync)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::UpdateStats(double StartTime, double EndTime)
+void SNetStatsView::ResetStats()
 {
-	for (const FTimerNodePtr& TimerNodePtr : TimerNodes)
+	GameInstanceIndex = 0;
+	ConnectionIndex = 0;
+	ConnectionMode = Trace::ENetProfilerConnectionMode::Outgoing;
+	StatsPacketStartIndex = 0;
+	StatsPacketEndIndex = 0;
+	StatsStartPosition = 0;
+	StatsEndPosition = 0;
+
+	UpdateStatsInternal();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SNetStatsView::UpdateStats(uint32 InGameInstanceIndex, uint32 InConnectionIndex, Trace::ENetProfilerConnectionMode InConnectionMode, uint32 InStatsPacketStartIndex, uint32 InStatsPacketEndIndex, uint32 InStatsStartPosition, uint32 InStatsEndPosition)
+{
+	GameInstanceIndex = InGameInstanceIndex;
+	ConnectionIndex = InConnectionIndex;
+	ConnectionMode = InConnectionMode;
+	StatsPacketStartIndex = InStatsPacketStartIndex;
+	StatsPacketEndIndex = InStatsPacketEndIndex;
+	StatsStartPosition = InStatsStartPosition;
+	StatsEndPosition = InStatsEndPosition;
+
+	UpdateStatsInternal();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SNetStatsView::UpdateStatsInternal()
+{
+	for (const FNetEventNodePtr& NetEventNodePtr : NetEventNodes)
 	{
-		TimerNodePtr->ResetAggregatedStats();
+		NetEventNodePtr->ResetAggregatedStats();
 	}
 
-	if (Session.IsValid() && StartTime < EndTime && Trace::ReadTimingProfilerProvider(*Session.Get()))
+	if (Session.IsValid() && StatsStartPosition < StatsEndPosition)
 	{
-		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
+		TUniquePtr<Trace::ITable<Trace::FNetProfilerAggregatedStats>> AggregatedStatsTable;
 
-		auto ThreadFilter = [&TimingView](uint32 ThreadId)
-		{
-			return !TimingView.IsValid() || TimingView->IsCpuTrackVisible(ThreadId);
-		};
-
-		const bool bIsGpuTrackVisible = TimingView.IsValid() && TimingView->IsGpuTrackVisible();
-
-		TUniquePtr<Trace::ITable<Trace::FTimingProfilerAggregatedStats>> AggregationResultTable;
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
-			AggregationResultTable.Reset(TimingProfilerProvider.CreateAggregation(StartTime, EndTime, ThreadFilter, bIsGpuTrackVisible));
+			const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+			AggregatedStatsTable.Reset(NetProfilerProvider.CreateAggregation(ConnectionIndex, ConnectionMode, StatsPacketStartIndex, StatsPacketEndIndex - 1, StatsStartPosition, StatsEndPosition));
 		}
 
-		TUniquePtr<Trace::ITableReader<Trace::FTimingProfilerAggregatedStats>> AggregationResultTableReader(AggregationResultTable->CreateReader());
-		while (AggregationResultTableReader->IsValid())
+		if (AggregatedStatsTable.IsValid())
 		{
-			const Trace::FTimingProfilerAggregatedStats* Row = AggregationResultTableReader->GetCurrentRow();
-			FTimerNodePtr* TimerNodePtrPtr = TimerNodesIdMap.Find(Row->Timer->Id);
-			if (TimerNodePtrPtr != nullptr)
+			TUniquePtr<Trace::ITableReader<Trace::FNetProfilerAggregatedStats>> TableReader(AggregatedStatsTable->CreateReader());
+			while (TableReader->IsValid())
 			{
-				(*TimerNodePtrPtr)->SetAggregatedStats(*Row);
+				const Trace::FNetProfilerAggregatedStats* Row = TableReader->GetCurrentRow();
+				FNetEventNodePtr* NetEventNodePtrPtr = NetEventNodesIdMap.Find(static_cast<uint64>(Row->EventTypeIndex));
+				if (NetEventNodePtrPtr != nullptr)
+				{
+					(*NetEventNodePtrPtr)->SetAggregatedStats(*Row);
+				}
+				TableReader->NextRow();
 			}
-			AggregationResultTableReader->NextRow();
 		}
+	}
 
-		StatsStartTime = StartTime;
-		StatsEndTime = EndTime;
+	UpdateTree();
 
-		UpdateTree();
+	// Save selection.
+	TArray<FNetEventNodePtr> SelectedItems = TreeView->GetSelectedItems();
 
-		// Save selection.
-		TArray<FTimerNodePtr> SelectedItems = TreeView->GetSelectedItems();
+	TreeView->RebuildList();
 
-		TreeView->RebuildList();
-
-		// Restore selection.
-		if (SelectedItems.Num() > 0)
-		{
-			TreeView->ClearSelection();
-			TreeView->SetItemSelection(SelectedItems, true);
-			TreeView->RequestScrollIntoView(SelectedItems[0]);
-		}
+	// Restore selection.
+	if (SelectedItems.Num() > 0)
+	{
+		TreeView->ClearSelection();
+		TreeView->SetItemSelection(SelectedItems, true);
+		TreeView->RequestScrollIntoView(SelectedItems[0]);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::SelectTimerNode(uint64 Id)
+void SNetStatsView::SelectNetEventNode(uint64 Id)
 {
-	FTimerNodePtr* NodePtrPtr = TimerNodesIdMap.Find(Id);
+	FNetEventNodePtr* NodePtrPtr = NetEventNodesIdMap.Find(Id);
 	if (NodePtrPtr != nullptr)
 	{
-		FTimerNodePtr NodePtr = *NodePtrPtr;
+		FNetEventNodePtr NodePtr = *NodePtrPtr;
 
 		TreeView->SetSelection(NodePtr);
 		TreeView->RequestScrollIntoView(NodePtr);

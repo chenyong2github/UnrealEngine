@@ -375,19 +375,16 @@ void SPacketView::OnSelectedSampleChanged()
 {
 	if (ProfilerWindow.IsValid())
 	{
-		TSharedPtr<SPacketContentView> PacketContentView = ProfilerWindow->GetPacketContentView();
-		if (PacketContentView.IsValid())
+		if (SelectedSample.IsValid())
 		{
-			if (SelectedSample.IsValid())
-			{
-				PacketContentView->SetPacket(GameInstanceIndex, ConnectionIndex, ConnectionMode,
-											 SelectedSample.Sample->LargestPacket.Index,
-											 SelectedSample.Sample->LargestPacket.TotalSizeInBytes * 8);
-			}
-			else
-			{
-				PacketContentView->ResetPacket();
-			}
+			const uint32 BitSize = SelectedSample.Sample->LargestPacket.TotalSizeInBytes * 8;
+			ProfilerWindow->SetSelectedPacket(SelectedSample.Sample->LargestPacket.Index, SelectedSample.Sample->LargestPacket.Index + 1, BitSize);
+			ProfilerWindow->SetSelectedBitRange(0, BitSize);
+		}
+		else
+		{
+			ProfilerWindow->SetSelectedPacket(0, 0);
+			ProfilerWindow->SetSelectedBitRange(0, 0);
 		}
 	}
 }

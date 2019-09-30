@@ -20,32 +20,60 @@ class FSlateWindowElementList;
 
 struct FNetworkPacketEvent
 {
-	int64 Offset;
-	int64 Size;
-	int32 Type;
-	int32 Depth;
+	uint32 EventTypeIndex;
+	uint32 ObjectInstanceIndex;
+	uint32 NetId;
+	uint32 BitOffset;
+	uint32 BitSize;
+	uint32 Level;
 
-	FNetworkPacketEvent(int64 InOffset, int64 InSize, int32 InType, int32 InDepth)
-		: Offset(InOffset), Size(InSize), Type(InType), Depth(InDepth)
+	FNetworkPacketEvent()
+		: EventTypeIndex(0)
+		, ObjectInstanceIndex(0)
+		, NetId(0)
+		, BitOffset(0)
+		, BitSize(0)
+		, Level(0)
 	{}
 
+	FNetworkPacketEvent(uint32 InEventTypeIndex, uint32 InObjectInstanceIndex, uint32 InNetId, uint32 InBitOffset, uint32 InBitSize, uint32 InLevel)
+		: EventTypeIndex(InEventTypeIndex)
+		, ObjectInstanceIndex(InObjectInstanceIndex)
+		, NetId(InNetId)
+		, BitOffset(InBitOffset)
+		, BitSize(InBitSize)
+		, Level(InLevel)
+	{}
+	
 	FNetworkPacketEvent(const FNetworkPacketEvent& Other)
-		: Offset(Other.Offset), Size(Other.Size), Type(Other.Type), Depth(Other.Depth)
+		: EventTypeIndex(Other.EventTypeIndex)
+		, ObjectInstanceIndex(Other.ObjectInstanceIndex)
+		, NetId(Other.NetId)
+		, BitOffset(Other.BitOffset)
+		, BitSize(Other.BitSize)
+		, Level(Other.Level)
 	{
 	}
 
 	FNetworkPacketEvent& operator=(const FNetworkPacketEvent& Other)
 	{
-		Offset = Other.Offset;
-		Size = Other.Size;
-		Type = Other.Type;
-		Depth = Other.Depth;
+		EventTypeIndex = Other.EventTypeIndex;
+		ObjectInstanceIndex = Other.ObjectInstanceIndex;
+		NetId = Other.NetId;
+		BitOffset = Other.BitOffset;
+		BitSize = Other.BitSize;
+		Level = Other.Level;
 		return *this;
 	}
 
 	bool Equals(const FNetworkPacketEvent& Other) const
 	{
-		return Offset == Other.Offset && Size == Other.Size && Type == Other.Type && Depth == Other.Depth;
+		return EventTypeIndex == Other.EventTypeIndex
+			&& ObjectInstanceIndex == Other.ObjectInstanceIndex
+			&& NetId == Other.NetId
+			&& BitOffset == Other.BitOffset
+			&& BitSize == Other.BitSize
+			&& Level == Other.Level;
 	}
 
 	static bool AreEquals(const FNetworkPacketEvent& A, const FNetworkPacketEvent& B)
@@ -58,14 +86,6 @@ struct FNetworkPacketEvent
 
 struct FPacketContentViewDrawState
 {
-	struct FPacketEvent
-	{
-		int64 Offset; // [bit]
-		int64 Size; // [bit]
-		int32 Type;
-		int32 Depth;
-	};
-
 	struct FBox
 	{
 		float X;
@@ -98,7 +118,7 @@ struct FPacketContentViewDrawState
 
 	int32 GetNumMergedBoxes() const { return NumMergedBoxes; }
 
-	TArray<FPacketEvent> Events;
+	TArray<FNetworkPacketEvent> Events;
 	TArray<FBox> Boxes;
 	TArray<FBox> Borders;
 	TArray<FText> Texts;
@@ -132,7 +152,7 @@ public:
 	FPacketContentViewDrawStateBuilder(const FPacketContentViewDrawStateBuilder&) = delete;
 	FPacketContentViewDrawStateBuilder& operator=(const FPacketContentViewDrawStateBuilder&) = delete;
 
-	void AddEvent(const Trace::FNetProfilerContentEvent& Event, const TCHAR* Name = nullptr);
+	void AddEvent(const Trace::FNetProfilerContentEvent& Event, const TCHAR* Name, uint32 NetId);
 	void Flush();
 
 private:
@@ -176,7 +196,7 @@ public:
 
 	void DrawBackground() const;
 	void Draw(const FPacketContentViewDrawState& DrawState) const;
-	void DrawEventHighlight(const FNetworkPacketEvent& Event) const;
+	void DrawEventHighlight(const FNetworkPacketEvent& Event, EHighlightMode Mode) const;
 
 	static FLinearColor GetColorByType(int32 Type);
 

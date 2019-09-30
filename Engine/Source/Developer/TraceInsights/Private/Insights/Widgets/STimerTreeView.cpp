@@ -544,16 +544,16 @@ FName STimerTreeView::TableRow_GetHighlightedNodeName() const
 // Sorting
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const EColumnSortMode::Type STimerTreeView::GetDefaultColumnSortMode()
+const FName STimerTreeView::GetDefaultColumnBeingSorted()
 {
-	return EColumnSortMode::Descending;
+	return FTimersViewColumns::TotalInclusiveTimeColumnID;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FName STimerTreeView::GetDefaultColumnBeingSorted()
+const EColumnSortMode::Type STimerTreeView::GetDefaultColumnSortMode()
 {
-	return FTimersViewColumns::TotalInclusiveTimeColumnID;
+	return EColumnSortMode::Descending;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -574,6 +574,8 @@ void STimerTreeView::CreateSortings()
 			}
 		}
 	}
+
+	UpdateCurrentSortingByColumn();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

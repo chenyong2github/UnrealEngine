@@ -26,8 +26,7 @@
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
-#include "Insights/NetworkingProfiler/Widgets/SDataStreamBreakdownView.h"
-//#include "Insights/NetworkingProfiler/Widgets/SNetStatsView.h"
+#include "Insights/NetworkingProfiler/Widgets/SNetStatsView.h"
 #include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerToolbar.h"
 #include "Insights/NetworkingProfiler/Widgets/SPacketBreakdownView.h"
 //#include "Insights/NetworkingProfiler/Widgets/SPacketContentView.h"
@@ -89,6 +88,7 @@ void SNetworkingProfilerWindow::Reset()
 	if (NetStatsView)
 	{
 		//TODO: NetStatsView->Reset();
+		NetStatsView->RebuildTree(true);
 	}
 
 	AvailableGameInstances.Reset();
@@ -97,6 +97,11 @@ void SNetworkingProfilerWindow::Reset()
 	SelectedConnection.Reset();
 	AvailableConnectionModes.Reset();
 	SelectedConnectionMode.Reset();
+
+	SelectedPacketStartIndex = 0;
+	SelectedPacketEndIndex = 0;
+	SelectionStartPosition = 0;
+	SelectionEndPosition = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -154,7 +159,7 @@ TSharedRef<SDockTab> SNetworkingProfilerWindow::SpawnTab_PacketContentView(const
 		.ShouldAutosize(false)
 		.TabRole(ETabRole::PanelTab)
 		[
-			SAssignNew(PacketContentView, SPacketContentView)
+			SAssignNew(PacketContentView, SPacketContentView, SharedThis(this))
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SNetworkingProfilerWindow::OnPacketContentViewTabClosed));
@@ -266,7 +271,7 @@ void SNetworkingProfilerWindow::Construct(const FArguments& InArgs, const TShare
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.35f)
-					->AddTab(FNetworkingProfilerTabs::NetStatsViewID, ETabState::ClosedTab)
+					->AddTab(FNetworkingProfilerTabs::NetStatsViewID, ETabState::OpenedTab)
 					//->SetForegroundTab(FNetworkingProfilerTabs::NetStatsViewID)
 				)
 			)
@@ -751,6 +756,7 @@ void SNetworkingProfilerWindow::GameInstance_OnSelectionChanged(TSharedPtr<FGame
 	{
 		PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
 	}
+	UpdateAggregatedNetStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -807,6 +813,7 @@ void SNetworkingProfilerWindow::Connection_OnSelectionChanged(TSharedPtr<FConnec
 	{
 		PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
 	}
+	UpdateAggregatedNetStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -862,6 +869,7 @@ void SNetworkingProfilerWindow::ConnectionMode_OnSelectionChanged(TSharedPtr<FCo
 	{
 		PacketView->SetConnection(GetSelectedGameInstanceIndex(), GetSelectedConnectionIndex(), GetSelectedConnectionMode());
 	}
+	UpdateAggregatedNetStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -876,6 +884,95 @@ FText SNetworkingProfilerWindow::ConnectionMode_GetSelectedText() const
 FText SNetworkingProfilerWindow::ConnectionMode_GetSelectedTooltipText() const
 {
 	return SelectedConnectionMode.IsValid() ? SelectedConnectionMode->GetTooltipText() : FText();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SNetworkingProfilerWindow::SetSelectedPacket(uint32 StartIndex, uint32 EndIndex, uint32 SinglePacketBitSize)
+{
+	if (StartIndex != SelectedPacketStartIndex || EndIndex != SelectedPacketEndIndex)
+	{
+		SelectedPacketStartIndex = StartIndex;
+		SelectedPacketEndIndex = EndIndex;
+
+		UpdateAggregatedNetStats();
+
+		if (PacketContentView.IsValid())
+		{
+			if (SelectedPacketEndIndex == SelectedPacketStartIndex + 1 && // only one packet selected
+				SelectedGameInstance.IsValid() &&
+				SelectedConnection.IsValid() &&
+				SelectedConnectionMode.IsValid())
+			{
+				PacketContentView->SetPacket(SelectedGameInstance->GetIndex(),
+											 SelectedConnection->GetIndex(),
+											 SelectedConnectionMode->Mode,
+											 SelectedPacketStartIndex,
+											 SinglePacketBitSize);
+			}
+			else
+			{
+				PacketContentView->ResetPacket();
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SNetworkingProfilerWindow::SetSelectedBitRange(uint32 StartPos, uint32 EndPos)
+{
+	if (StartPos != SelectionStartPosition || EndPos != SelectionEndPosition)
+	{
+		SelectionStartPosition = StartPos;
+		SelectionEndPosition = EndPos;
+		UpdateAggregatedNetStats();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SNetworkingProfilerWindow::SetSelectedEventType(const uint64 InEventTypeId)
+{
+	if (InEventTypeId != SelectedEventTypeId)
+	{
+		SelectedEventTypeId = InEventTypeId;
+
+		if (SelectedEventTypeId != InvalidEventTypeId)
+		{
+			if (NetStatsView)
+			{
+				NetStatsView->SelectNetEventNode(SelectedEventTypeId);
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SNetworkingProfilerWindow::UpdateAggregatedNetStats()
+{
+	if (NetStatsView)
+	{
+		if (SelectedGameInstance.IsValid() &&
+			SelectedConnection.IsValid() &&
+			SelectedConnectionMode.IsValid() &&
+			SelectedPacketStartIndex < SelectedPacketEndIndex &&
+			SelectionStartPosition < SelectionEndPosition)
+		{
+			NetStatsView->UpdateStats(SelectedGameInstance->GetIndex(),
+									  SelectedConnection->GetIndex(),
+									  SelectedConnectionMode->Mode,
+									  SelectedPacketStartIndex,
+									  SelectedPacketEndIndex,
+									  SelectionStartPosition,
+									  SelectionEndPosition);
+		}
+		else
+		{
+			//NetStatsView->ResetStats();
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

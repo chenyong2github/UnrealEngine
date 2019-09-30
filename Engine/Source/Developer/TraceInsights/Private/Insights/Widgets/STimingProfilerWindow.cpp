@@ -385,7 +385,7 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		.SetGroup(AppMenuGroup);
 
 	TabManager->RegisterTabSpawner(FTimingProfilerTabs::StatsCountersID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_StatsCounters))
-		.SetDisplayName(LOCTEXT("StatsCountersTabTitle", "Stats Counters"))
+		.SetDisplayName(LOCTEXT("StatsCountersTabTitle", "Counters"))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "StatsCountersView.Icon.Small"))
 		.SetGroup(AppMenuGroup);
 

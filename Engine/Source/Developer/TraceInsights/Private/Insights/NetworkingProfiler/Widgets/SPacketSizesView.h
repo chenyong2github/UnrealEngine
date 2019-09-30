@@ -108,10 +108,6 @@ public:
 	}
 	SLATE_END_ARGS()
 
-	/**
-	 * Construct this widget
-	 * @param InArgs The declaration data for this widget
-	 */
 	void Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow);
 
 	/**

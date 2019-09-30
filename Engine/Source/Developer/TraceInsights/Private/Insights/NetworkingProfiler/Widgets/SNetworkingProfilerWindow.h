@@ -132,6 +132,10 @@ public:
 	TSharedRef<SWidget> CreateConnectionComboBox();
 	TSharedRef<SWidget> CreateConnectionModeComboBox();
 
+	void SetSelectedPacket(uint32 StartIndex, uint32 EndIndex, uint32 SinglePacketBitSize = 0);
+	void SetSelectedBitRange(uint32 StartPos, uint32 EndPos);
+	void SetSelectedEventType(uint64 EventTypeId);
+
 private:
 	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
 	void OnToolbarTabClosed(TSharedRef<SDockTab> TabBeingClosed);
@@ -156,7 +160,7 @@ private:
 public:\
 	void Map_##CmdName(); /**< Maps UI command info CmdName with the specified UI command list. */\
 	const FUIAction CmdName##_Custom(); /**< UI action for CmdName command. */\
-protected:\
+private:\
 	void CmdName##_Execute(); /**< Handles FExecuteAction for CmdName. */\
 	bool CmdName##_CanExecute() const; /**< Handles FCanExecuteAction for CmdName. */\
 	ECheckBoxState CmdName##_GetCheckState() const; /**< Handles FGetActionCheckState for CmdName. */
@@ -167,7 +171,8 @@ protected:\
 #undef DECLARE_TOGGLE_COMMAND
 
 	//////////////////////////////////////////////////
-private:
+
+	void UpdateAggregatedNetStats();
 
 	/**
 	 * Fill the main menu with menu items.
@@ -292,6 +297,14 @@ private:
 	TSharedPtr<SComboBox<TSharedPtr<FConnectionModeItem>>> ConnectionModeComboBox;
 	TArray<TSharedPtr<FConnectionModeItem>> AvailableConnectionModes;
 	TSharedPtr<FConnectionModeItem> SelectedConnectionMode;
+
+	uint32 SelectedPacketStartIndex;
+	uint32 SelectedPacketEndIndex;
+	uint32 SelectionStartPosition;
+	uint32 SelectionEndPosition;
+
+	static const uint64 InvalidEventTypeId = uint64(-1);
+	uint64 SelectedEventTypeId;
 
 	/** The handle to the active update duration tick */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
