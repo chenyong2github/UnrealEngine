@@ -454,7 +454,7 @@ void FBlueprintNativeCodeGenUtils::GenerateCppCode(UObject* Obj, TSharedPtr<FStr
 		CodeGenBackend.NativizationSummary() = NativizationSummary;
 
 		{
-			FBlueprintCompilationManager::CompileSynchronouslyToCpp( DuplicateBP, OutCppSource, OutHeaderSource, NativizationOptions );
+			FBlueprintCompilationManager::CompileSynchronouslyToCpp( DuplicateBP, OutHeaderSource, OutCppSource, NativizationOptions );
 			
 			IKismetCompilerInterface& Compiler = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>(KISMET_COMPILER_MODULENAME);
 			Compiler.RemoveBlueprintGeneratedClasses(DuplicateBP);
