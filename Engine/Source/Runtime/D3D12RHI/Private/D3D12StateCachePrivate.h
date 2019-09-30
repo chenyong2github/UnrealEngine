@@ -258,6 +258,70 @@ struct FD3D12SamplerStateCache : public FD3D12ResourceCache<SamplerSlotMask>
 	FD3D12SamplerState* States[SF_NumStandardFrequencies][MAX_SAMPLERS];
 };
 
+
+static inline D3D_PRIMITIVE_TOPOLOGY GetD3D12PrimitiveType(uint32 PrimitiveType, bool bUsingTessellation)
+{
+	static const uint8 D3D12PrimitiveType[] =
+	{
+		D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST,               // PT_TriangleList
+		D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP,              // PT_TriangleStrip
+		D3D_PRIMITIVE_TOPOLOGY_LINELIST,                   // PT_LineList
+		0,                                                 // PT_QuadList
+		D3D_PRIMITIVE_TOPOLOGY_POINTLIST,                  // PT_PointList
+		D3D_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST,  // PT_1_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_2_CONTROL_POINT_PATCHLIST,  // PT_2_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST,  // PT_3_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST,  // PT_4_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_5_CONTROL_POINT_PATCHLIST,  // PT_5_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_6_CONTROL_POINT_PATCHLIST,  // PT_6_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_7_CONTROL_POINT_PATCHLIST,  // PT_7_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_8_CONTROL_POINT_PATCHLIST,  // PT_8_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_9_CONTROL_POINT_PATCHLIST,  // PT_9_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_10_CONTROL_POINT_PATCHLIST, // PT_10_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_11_CONTROL_POINT_PATCHLIST, // PT_11_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_12_CONTROL_POINT_PATCHLIST, // PT_12_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_13_CONTROL_POINT_PATCHLIST, // PT_13_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_14_CONTROL_POINT_PATCHLIST, // PT_14_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_15_CONTROL_POINT_PATCHLIST, // PT_15_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_16_CONTROL_POINT_PATCHLIST, // PT_16_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_17_CONTROL_POINT_PATCHLIST, // PT_17_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_18_CONTROL_POINT_PATCHLIST, // PT_18_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_19_CONTROL_POINT_PATCHLIST, // PT_19_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_20_CONTROL_POINT_PATCHLIST, // PT_20_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_21_CONTROL_POINT_PATCHLIST, // PT_21_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_22_CONTROL_POINT_PATCHLIST, // PT_22_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_23_CONTROL_POINT_PATCHLIST, // PT_23_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_24_CONTROL_POINT_PATCHLIST, // PT_24_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_25_CONTROL_POINT_PATCHLIST, // PT_25_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_26_CONTROL_POINT_PATCHLIST, // PT_26_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_27_CONTROL_POINT_PATCHLIST, // PT_27_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_28_CONTROL_POINT_PATCHLIST, // PT_28_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_29_CONTROL_POINT_PATCHLIST, // PT_29_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_30_CONTROL_POINT_PATCHLIST, // PT_30_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_31_CONTROL_POINT_PATCHLIST, // PT_31_ControlPointPatchList
+		D3D_PRIMITIVE_TOPOLOGY_32_CONTROL_POINT_PATCHLIST, // PT_32_ControlPointPatchList
+	};
+
+	if (bUsingTessellation)
+	{
+		if (PrimitiveType == PT_TriangleList)
+		{
+			// This is the case for tessellation without AEN or other buffers, so just flip to 3 CPs
+			return D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST;
+		}
+		else/* if (PrimitiveType < PT_1_ControlPointPatchList)*/
+		{
+			//UE_LOG(LogD3D12RHI, Fatal, TEXT("Invalid type specified for tessellated render, probably missing a case in FSkeletalMeshSceneProxy::DrawDynamicElementsByMaterial or FStaticMeshSceneProxy::GetMeshElement"));
+
+			checkf(PrimitiveType >= PT_1_ControlPointPatchList, TEXT("Invalid type specified for tessellated render, probably missing a case in FSkeletalMeshSceneProxy::DrawDynamicElementsByMaterial or FStaticMeshSceneProxy::GetMeshElement"));
+		}
+	}
+
+	D3D_PRIMITIVE_TOPOLOGY D3DType = (D3D_PRIMITIVE_TOPOLOGY) D3D12PrimitiveType[PrimitiveType];
+	checkf(D3DType, TEXT("Unknown primitive type: %u"), PrimitiveType);
+	return D3DType;
+}
+
 //-----------------------------------------------------------------------------
 //	FD3D12StateCache Class Definition
 //-----------------------------------------------------------------------------
@@ -314,6 +378,7 @@ protected:
 			FD3D12IndexBufferCache IBCache;
 
 			// Primitive Topology State
+			EPrimitiveType CurrentPrimitiveType;
 			D3D_PRIMITIVE_TOPOLOGY CurrentPrimitiveTopology;
 
 			// Input Layout State
@@ -329,8 +394,6 @@ protected:
 
 			float MinDepth;
 			float MaxDepth;
-
-			EPrimitiveType PrimitiveType = PT_Num;
 		} Graphics;
 
 		struct
@@ -466,7 +529,7 @@ public:
 
 	inline EPrimitiveType GetGraphicsPipelinePrimitiveType() const
 	{
-		return PipelineState.Graphics.PrimitiveType;
+		return PipelineState.Graphics.CurrentPrimitiveType;
 	}
 
 	const FD3D12RootSignature* GetComputeRootSignature()
@@ -673,7 +736,7 @@ public:
 		GetShader(Shader);
 	}
 
-	D3D12_STATE_CACHE_INLINE void SetGraphicsPipelineState(FD3D12GraphicsPipelineState* GraphicsPipelineState)
+	D3D12_STATE_CACHE_INLINE void SetGraphicsPipelineState(FD3D12GraphicsPipelineState* GraphicsPipelineState, bool bTessellationChanged)
 	{
 		check(GraphicsPipelineState);
 		if (PipelineState.Graphics.CurrentPipelineStateObject != GraphicsPipelineState)
@@ -697,7 +760,15 @@ public:
 			// Save the PSO
 			PipelineState.Common.bNeedSetPSO = true;
 			PipelineState.Graphics.CurrentPipelineStateObject = GraphicsPipelineState;
-			PipelineState.Graphics.PrimitiveType = GraphicsPipelineState->PipelineStateInitializer.PrimitiveType;
+
+			EPrimitiveType PrimitiveType = GraphicsPipelineState->PipelineStateInitializer.PrimitiveType;
+			if (PipelineState.Graphics.CurrentPrimitiveType != PrimitiveType || bTessellationChanged)
+			{
+				const bool bUsingTessellation = GraphicsPipelineState->GetHullShader() && GraphicsPipelineState->GetDomainShader();
+				PipelineState.Graphics.CurrentPrimitiveType = PrimitiveType;
+				PipelineState.Graphics.CurrentPrimitiveTopology = GetD3D12PrimitiveType(PrimitiveType, bUsingTessellation);
+				bNeedSetPrimitiveTopology = true;
+			}
 
 			// Set the PSO
 			InternalSetPipelineState<D3D12PT_Graphics>();
@@ -790,8 +861,6 @@ public:
 		return PipelineState.Graphics.IBCache.CurrentIndexBufferLocation == ResourceLocation;
 	}
 
-	void SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopology);
-	
 	D3D12_STATE_CACHE_INLINE void GetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY* PrimitiveTopology) const
 	{
 		*PrimitiveTopology = PipelineState.Graphics.CurrentPrimitiveTopology;
