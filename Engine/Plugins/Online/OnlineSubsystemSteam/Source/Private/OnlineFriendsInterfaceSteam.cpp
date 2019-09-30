@@ -2,6 +2,7 @@
 
 #include "OnlineFriendsInterfaceSteam.h"
 #include "OnlineSubsystemSteam.h"
+#include "OnlineError.h"
 #include "OnlineSubsystemSteamTypes.h"
 
 // FOnlineFriendSteam
@@ -100,6 +101,16 @@ bool FOnlineFriendsSteam::RejectInvite(int32 LocalUserNum, const FUniqueNetId& F
 {
 	TriggerOnRejectInviteCompleteDelegates(LocalUserNum, false, FriendId, ListName, FString(TEXT("RejectInvite() is not supported")));
 	return false;
+}
+
+void FOnlineFriendsSteam::SetFriendAlias(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FString& Alias, const FOnSetFriendAliasComplete& Delegate /*= FOnSetFriendAliasComplete()*/)
+{
+	TSharedRef<const FUniqueNetId> FriendIdRef = FriendId.AsShared();
+	SteamSubsystem->ExecuteNextTick([LocalUserNum, FriendIdRef, ListName, Delegate]()
+	{
+		UE_LOG_ONLINE_FRIEND(Warning, TEXT("FOnlineFriendsSteam::SetFriendAlias is not supported"));
+		Delegate.ExecuteIfBound(LocalUserNum, *FriendIdRef, ListName, FOnlineError(EOnlineErrorResult::NotImplemented));
+	});
 }
 
 bool FOnlineFriendsSteam::DeleteFriend(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName)

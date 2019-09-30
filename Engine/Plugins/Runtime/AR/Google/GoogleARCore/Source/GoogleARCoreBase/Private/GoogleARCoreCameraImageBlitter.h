@@ -15,18 +15,24 @@ public:
 	~FGoogleARCoreDeviceCameraBlitter();
 
 	void DoBlit(uint32_t TextureId, FIntPoint ImageSize);
-	UTexture *GetLastCameraImageTexture();
+	UTexture2D* GetLastCameraImageTexture();
 
 private:
-
 	void LateInit(FIntPoint ImageSize);
-
+	
+#if PLATFORM_ANDROID
+	void CopyTextureToVulkan(UTexture2D* TargetTexture);
+	void DeleteOpenGLTextures();
+#endif
+	
 	uint32 CurrentCameraCopy;
 	uint32 BlitShaderProgram;
 	uint32 BlitShaderProgram_Uniform_CameraTexture;
 	uint32 BlitShaderProgram_Attribute_InPos;
 	uint32 FrameBufferObject;
 	uint32 VertexBufferObject;
-	TArray<UTexture *> CameraCopies;
-    TArray<uint32 *> CameraCopyIds;
+	TArray<UTexture2D*> CameraCopies;
+    TArray<uint32*> CameraCopyIds;
+	
+	FIntPoint CameraCopySize = FIntPoint::ZeroValue;
 };

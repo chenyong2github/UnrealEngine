@@ -744,6 +744,42 @@ struct FScreenSpaceDenoiserHistory
 	}
 };
 
+
+
+// Structure in charge of storing all information about GTAO history.
+struct FGTAOTAAHistory
+{
+	// Number of render target in the history.
+	static constexpr uint32 kRenderTargetCount = 2;
+
+	// Render targets holding's pixel history.
+	//  scene color's RGBA are in RT[0].
+	TRefCountPtr<IPooledRenderTarget> RT[kRenderTargetCount];
+	TRefCountPtr<IPooledRenderTarget> Depth[kRenderTargetCount];
+
+	// Reference size of RT. Might be different than RT's actual size to handle down res.
+	FIntPoint ReferenceBufferSize;
+
+	// Viewport coordinate of the history in RT according to ReferenceBufferSize.
+	FIntRect ViewportRect;
+
+	void SafeRelease()
+	{
+		for (uint32 i = 0; i < kRenderTargetCount; i++)
+		{
+			RT[i].SafeRelease();
+			Depth[i].SafeRelease();
+		}
+	}
+
+	bool IsValid() const
+	{
+		return RT[0].IsValid();
+	}
+};
+
+
+
 // Structure that hold all information related to previous frame.
 struct FPreviousViewInfo
 {
@@ -762,6 +798,9 @@ struct FPreviousViewInfo
 	// Temporal AA result of last frame
 	FTemporalAAHistory TemporalAAHistory;
 
+	// Half resolution version temporal AA result of last frame
+	TRefCountPtr<IPooledRenderTarget> HalfResTemporalAAHistory;
+
 	// Temporal AA history for diaphragm DOF.
 	FTemporalAAHistory DOFSetupHistory;
 	
@@ -777,6 +816,9 @@ struct FPreviousViewInfo
 	
 	// History for the ambient occlusion
 	FScreenSpaceDenoiserHistory AmbientOcclusionHistory;
+
+	// History for GTAO
+	FGTAOTAAHistory				 GTAOHistory;
 
 	// History for global illumination
 	FScreenSpaceDenoiserHistory DiffuseIndirectHistory;
@@ -922,6 +964,9 @@ public:
 
 	/* [PrimitiveIndex] = end index index in DynamicMeshElements[], to support GetDynamicMeshElementRange(). Contains valid values only for visible primitives with bDynamicRelevance. */
 	TArray<uint32, SceneRenderingAllocator> DynamicMeshEndIndices;
+
+	/** Hair strands dynamic mesh element. */
+	TArray<FMeshBatchAndRelevance, SceneRenderingAllocator> HairStrandsMeshElements;
 
 	/* Mesh pass relevance for gathered dynamic mesh elements. */
 	TArray<FMeshPassMask, SceneRenderingAllocator> DynamicMeshElementsPassRelevance;
@@ -1555,7 +1600,7 @@ protected:
 
 	void SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewCommands& ViewCommands);
 
-	bool RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, bool bProjectingForForwardShading, bool bMobileModulatedProjections);
+	bool RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, IPooledRenderTarget* ScreenShadowMaskSubPixelTexture, bool bProjectingForForwardShading, bool bMobileModulatedProjections, const struct FHairStrandsVisibilityViews* InHairVisibilityViews);
 
 	/** Finds a matching cached preshadow, if one exists. */
 	TRefCountPtr<FProjectedShadowInfo> GetCachedPreshadow(

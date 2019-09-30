@@ -26,7 +26,7 @@ inline EMessageType FilterMcppError(const FString& ErrorMsg)
 		TEXT("with no newline, supplemented newline"),
 		TEXT("Converted [CR+LF] to [LF]")
 	};
-	const int32 FilteredSubstringCount = ARRAY_COUNT(SubstringsToFilter);
+	const int32 FilteredSubstringCount = UE_ARRAY_COUNT(SubstringsToFilter);
 
 	if (ErrorMsg.Contains(TEXT("UE4SHADERMETADATA")))
 	{

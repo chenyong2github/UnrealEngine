@@ -164,6 +164,8 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 		}
 	}
 
+#if !DISABLE_FORWARD_LOCAL_LIGHTS
+
 	const FCulledLightsGridData CulledLightsGrid = GetCulledLightsGrid(GridIndex, EyeIndex);
 
 	
@@ -213,6 +215,8 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 			DirectLighting += NewLighting;
 		}
 	}
+
+#endif
 
 	// For debugging
 	//DirectLighting = CulledLightsGrid.NumLocalLights / (float)ForwardLightData.MaxCulledLightsPerCell;

@@ -12,6 +12,7 @@
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraUserRedirectionParameterStore.h"
+#include "NiagaraSystemFastPath.h"
 #include "NiagaraSystem.generated.h"
 
 #if WITH_EDITORONLY_DATA
@@ -29,7 +30,6 @@ struct FNiagaraEmitterCompiledData
 	UPROPERTY()
 	TArray<FName> SpawnAttributes;
 
-
 	/** Explicit list of Niagara Variables to bind to Emitter instances. */
 	UPROPERTY()
 	FNiagaraVariable EmitterSpawnIntervalVar;
@@ -45,6 +45,10 @@ struct FNiagaraEmitterCompiledData
 
 	UPROPERTY()
 	FNiagaraVariable EmitterRandomSeedVar;
+
+	/** Per-Emitter DataSet Data. */
+	UPROPERTY()
+	FNiagaraDataSetCompiledData DataSetCompiledData;
 };
 
 USTRUCT()
@@ -231,6 +235,10 @@ public:
 	void InvalidateCachedCompileIds();
 
 	static void RequestCompileForEmitter(UNiagaraEmitter* InEmitter);
+
+	/** Experimental feature that allows us to bake out rapid iteration parameters during the normal compile process. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	uint32 bBakeOutRapidIteration : 1;
 #endif
 
 	FORCEINLINE UNiagaraParameterCollectionInstance* GetParameterCollectionOverride(UNiagaraParameterCollection* Collection)
@@ -262,6 +270,15 @@ public:
 
 	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
 
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	ENiagaraFastPathMode FastPathMode;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	FNiagaraFastPath_Module_SystemScalability SystemScalability;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	FNiagaraFastPath_Module_SystemLifeCycle SystemLifeCycle;
+
 private:
 #if WITH_EDITORONLY_DATA
 	bool QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply = false);
@@ -271,10 +288,13 @@ private:
 	void InitSystemCompiledData();
 
 	/** Helper for filling in precomputed variable names per emitter. Converts an emitter paramter "Emitter.XXXX" into it's real parameter name. */
-	void InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& EmitterCompiledDataToInit, const UNiagaraEmitter& InAssociatedEmitter);
+	void InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& EmitterCompiledDataToInit, const UNiagaraEmitter* InAssociatedEmitter);
 
 	/** Helper for generating aliased FNiagaraVariable names for the Emitter they are associated with. */
-	const FName GetEmitterVariableAliasName(const FNiagaraVariable& InEmitterVar, const UNiagaraEmitter& InEmitter) const;
+	const FName GetEmitterVariableAliasName(const FNiagaraVariable& InEmitterVar, const UNiagaraEmitter* InEmitter) const;
+
+	/** Helper for filling in attribute datasets per emitter. */
+	void InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const UNiagaraEmitter* InAssociatedEmitter, const FNiagaraEmitterHandle& InAssociatedEmitterHandle);
 #endif
 
 	void UpdatePostCompileDIInfo();
@@ -354,11 +374,11 @@ protected:
 	UPROPERTY()
 	TArray<FName> UserDINamesReadInSystemScripts;
 
-	void GenerateStatID();
+	void GenerateStatID()const;
 #if STATS
-	TStatId StatID_GT;
-	TStatId StatID_GT_CNC;
-	TStatId StatID_RT;
-	TStatId StatID_RT_CNC;
+	mutable TStatId StatID_GT;
+	mutable TStatId StatID_GT_CNC;
+	mutable TStatId StatID_RT;
+	mutable TStatId StatID_RT_CNC;
 #endif
 };

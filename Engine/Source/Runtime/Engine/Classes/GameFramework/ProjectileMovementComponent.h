@@ -231,7 +231,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ProjectileMovement")
 	virtual void StopSimulating(const FHitResult& HitResult);
 
-	bool HasStoppedSimulation() { return (UpdatedComponent == nullptr) || (bIsActive == false); }
+	bool HasStoppedSimulation() { return (UpdatedComponent == nullptr) || (IsActive() == false); }
 
 	/**
 	 * Compute remaining time step given remaining time and current iterations.
@@ -415,7 +415,20 @@ public:
 	/** Allow the projectile to track towards its homing target. */
 	virtual FVector ComputeHomingAcceleration(const FVector& InVelocity, float DeltaTime) const;
 
+	/** Adds a force which is accumulated until next tick, used by ComputeAcceleration() to affect Velocity. */
+	void AddForce(FVector Force);
+
+	/** Returns the sum of pending forces from AddForce(). */
+	FVector GetPendingForce() const { return PendingForce; }
+
+	/** Clears any pending forces from AddForce(). If bClearImmediateForce is true, clears any force being processed during this update as well. */
+	void ClearPendingForce(bool bClearImmediateForce = false);
+	
 protected:
+
+	// Double-buffer of pending force so that updates can use the accumulated value and reset the data so other AddForce() calls work correctly.
+	// Also prevents accumulation over frames where the update aborts for whatever reason, and works with substepping movement.
+	FVector PendingForceThisUpdate;
 
 	virtual void TickInterpolation(float DeltaTime);
 	
@@ -424,6 +437,11 @@ protected:
 	TWeakObjectPtr<USceneComponent> InterpolatedComponentPtr;
 	FQuat InterpRotationOffset;
 	FQuat InterpInitialRotationOffset;
+
+private:
+
+	// Pending force for next tick.
+	FVector PendingForce;
 
 public:
 	/** Compute gravity effect given current physics volume, projectile gravity scale, etc. */

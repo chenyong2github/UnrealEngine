@@ -116,6 +116,8 @@ enum ETextureSourceFormat
 	//@todo: Deprecated!
 	TSF_RGBE8,
 
+	TSF_G16,
+
 	TSF_MAX
 };
 

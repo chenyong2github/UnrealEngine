@@ -288,7 +288,7 @@ public:
 	FORCEINLINE FNiagaraComputeInstanceData* GetInstanceData()const{ return reinterpret_cast<FNiagaraComputeInstanceData*>(InstanceData_ParamData_Packed); }
 
 	uint32 Count;
-	FGuid SystemInstanceID;
+	FNiagaraSystemInstanceID SystemInstanceID;
 	FNiagaraDataInterfaceInstanceData* DIInstanceData;
 	uint8* InstanceData_ParamData_Packed;
 	bool bRequiredDistanceFieldData = false;

@@ -14,7 +14,7 @@
 namespace GeometryCollectionExample
 {
 	template<class T>
-	bool TestHideVertices(ExampleResponse&& R)
+	void TestHideVertices()
 	{
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f, 0.f, 0.f)), FVector(0.f, 0.f, 0.f)), FVector(1.0));
 		Collection->AppendGeometry(*GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f, 0.f, 0.f)), FVector(1.f, 0.f, 0.f)), FVector(1.0)));
@@ -40,7 +40,7 @@ namespace GeometryCollectionExample
 		for (int32 Idx = 0; Idx < NumFaces; Idx++)
 		{
 			check(VisibleArray[Idx]);
-			R.ExpectTrue(VisibleArray[Idx]);
+			EXPECT_TRUE(VisibleArray[Idx]);
 		}
 
 		// hide node 1
@@ -54,13 +54,13 @@ namespace GeometryCollectionExample
 			switch (BoneMapArray[IndicesArray[Idx][0]])
 			{
 			case 0:
-				R.ExpectTrue(VisibleArray[Idx]);
+				EXPECT_TRUE(VisibleArray[Idx]);
 			break;
 			case 1:
-				R.ExpectTrue(!VisibleArray[Idx]);
+				EXPECT_FALSE(VisibleArray[Idx]);
 			break;
 			case 2:
-				R.ExpectTrue(VisibleArray[Idx]);
+				EXPECT_TRUE(VisibleArray[Idx]);
 			break;
 			}			
 		}
@@ -80,20 +80,18 @@ namespace GeometryCollectionExample
 			switch (BoneMapArray[IndicesArray[Idx][0]])
 			{
 			case 0:
-				R.ExpectTrue(!VisibleArray[Idx]);
+				EXPECT_FALSE(VisibleArray[Idx]);
 				break;
 			case 1:
-				R.ExpectTrue(VisibleArray[Idx]);
+				EXPECT_TRUE(VisibleArray[Idx]);
 				break;
 			case 2:
-				R.ExpectTrue(!VisibleArray[Idx]);
+				EXPECT_FALSE(VisibleArray[Idx]);
 				break;
 			}
 		}
-
-		return !R.HasError();
 	}
-	template bool TestHideVertices<float>(ExampleResponse&& R);
+	template void TestHideVertices<float>();
 
 	
 

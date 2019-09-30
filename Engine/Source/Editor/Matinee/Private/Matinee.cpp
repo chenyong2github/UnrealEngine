@@ -2958,7 +2958,7 @@ void FMatinee::RepairHierarchyProblems()
  */
 FString FMatinee::GetInterpEdFPSSnapSizeLocName( int32 StringIndex )
 {
-	check( StringIndex >= 0 && StringIndex < ARRAY_COUNT( InterpEdFPSSnapSizes ) );
+	check( StringIndex >= 0 && StringIndex < UE_ARRAY_COUNT( InterpEdFPSSnapSizes ) );
 
 	switch( StringIndex )
 	{

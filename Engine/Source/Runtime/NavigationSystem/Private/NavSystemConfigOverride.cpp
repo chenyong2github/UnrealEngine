@@ -45,7 +45,7 @@ ANavSystemConfigOverride::ANavSystemConfigOverride(const FObjectInitializer& Obj
 		if (SpriteComponent)
 		{
 			SpriteComponent->Sprite = ConstructorStatics.NoteTextureObject.Get();
-			SpriteComponent->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+			SpriteComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
 			SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_Notes;
 			SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Notes;
 			SpriteComponent->SetupAttachment(RootComponent);
@@ -54,8 +54,8 @@ ANavSystemConfigOverride::ANavSystemConfigOverride(const FObjectInitializer& Obj
 	}
 #endif // WITH_EDITORONLY_DATA
 
-	bHidden = true;
-	bCanBeDamaged = false;
+	SetHidden(true);
+	SetCanBeDamaged(false);
 
 	bNetLoadOnClient = false;
 }
@@ -64,8 +64,9 @@ void ANavSystemConfigOverride::PostLoad()
 {
 	Super::PostLoad();
 	
+#if WITH_EDITOR
 	UWorld* World = GetWorld();
-	if (World != nullptr)
+	if ((World != nullptr) && (World->IsGameWorld() == false))
 	{
 		if (World->bInTick)
 		{
@@ -76,6 +77,13 @@ void ANavSystemConfigOverride::PostLoad()
 			ApplyConfig();
 		}
 	}
+#endif // WITH_EDITOR
+}
+
+void ANavSystemConfigOverride::BeginPlay()
+{
+	Super::BeginPlay();
+	ApplyConfig();
 }
 
 void ANavSystemConfigOverride::ApplyConfig()

@@ -38,11 +38,6 @@
 #include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTexturePoolConfig.h"
 
-#if WITH_EDITOR
-#include "Settings/EditorExperimentalSettings.h"
-#include "Landscape/Classes/LandscapeProxy.h"
-#endif
-
 UTexture2D::UTexture2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -1255,14 +1250,6 @@ bool UTexture2D::ShouldMipLevelsBeForcedResident() const
 		return true;
 	}
 
-#if WITH_EDITOR
-	if (GIsEditor && (LODGroup == TEXTUREGROUP_Terrain_Heightmap || LODGroup == TEXTUREGROUP_Terrain_Weightmap))
-	{
-		ALandscapeProxy* Proxy = Cast<ALandscapeProxy>(GetOuter());
-		return Proxy && Proxy->HasLayersContent();
-	}
-#endif
-
 	return false;
 }
 
@@ -1478,7 +1465,7 @@ FTexture2DResource::FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCou
 	bSRGB = InOwner->SRGB;
 
 	check(InitialMipCount>0);
-	check(ARRAY_COUNT(MipData)>=GMaxTextureMipCount);
+	check(UE_ARRAY_COUNT(MipData)>=GMaxTextureMipCount);
 
 	// Keep track of first miplevel to use.
 	CurrentFirstMip = InOwner->GetNumMips() - InitialMipCount;
@@ -1511,7 +1498,7 @@ FTexture2DResource::~FTexture2DResource()
 		});
 
 	// Make sure we're not leaking memory if InitRHI has never been called.
-	for( int32 MipIndex=0; MipIndex<ARRAY_COUNT(MipData); MipIndex++ )
+	for( int32 MipIndex=0; MipIndex<UE_ARRAY_COUNT(MipData); MipIndex++ )
 	{
 		// free any mip data that was copied 
 		if( MipData[MipIndex] )

@@ -43,13 +43,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Animation Blueprint", meta=(DisplayThumbnail=true))
 	TSoftObjectPtr<UAnimBlueprint> PreviewAnimationBlueprint;
 
-	/** The method by which a preview animation blueprint is applied, either as an overlay layer, or as a sub-instance */
+	/** The method by which a preview animation blueprint is applied, either as an overlay layer, or as a linked instance */
 	UPROPERTY(EditAnywhere, Category = "Animation Blueprint")
 	EPreviewAnimationBlueprintApplicationMethod ApplicationMethod;
 
-	/** The tag to use when applying a preview animation blueprint via SetSubInstanceClassByTag */
+	/** The tag to use when applying a preview animation blueprint via LinkAnimGraphByTag */
 	UPROPERTY(EditAnywhere, Category = "Animation Blueprint")
-	FName SubInstanceTag;
+	FName LinkedAnimGraphTag;
 
 	UPROPERTY(EditAnywhere, Category = "Additional Meshes")
 	TSoftObjectPtr<UDataAsset> AdditionalMeshes;

@@ -27,16 +27,16 @@ ACameraRig_Crane::ACameraRig_Crane(const FObjectInitializer& ObjectInitializer)
 	// create the functional component hierarchy
 	CraneYawControl = CreateDefaultSubobject<USceneComponent>(TEXT("CraneYawControl"));
 	CraneYawControl->SetupAttachment(TransformComponent);
-	CraneYawControl->RelativeLocation = FVector(0.f, 0.f, 70.f);			// pivot height off the ground
-	CraneYawControl->RelativeRotation = FRotator(0.f, CraneYaw, 0.f);
+	CraneYawControl->SetRelativeLocation(FVector(0.f, 0.f, 70.f));			// pivot height off the ground
+	CraneYawControl->SetRelativeRotation(FRotator(0.f, CraneYaw, 0.f));
 
 	CranePitchControl = CreateDefaultSubobject<USceneComponent>(TEXT("CranePitchControl"));
 	CranePitchControl->SetupAttachment(CraneYawControl);
-	CranePitchControl->RelativeRotation = FRotator(CranePitch, 0.f, 0.f);
+	CranePitchControl->SetRelativeRotation(FRotator(CranePitch, 0.f, 0.f));
 
 	CraneCameraMount = CreateDefaultSubobject<USceneComponent>(TEXT("CraneCameraMount"));
 	CraneCameraMount->SetupAttachment(CranePitchControl);
-	CraneCameraMount->RelativeLocation = FVector(CraneArmLength, 0.f, -15.f);			// negative z == underslung mount
+	CraneCameraMount->SetRelativeLocation(FVector(CraneArmLength, 0.f, -15.f));			// negative z == underslung mount
 
 #if WITH_EDITORONLY_DATA
 	// create preview meshes
@@ -66,9 +66,9 @@ ACameraRig_Crane::ACameraRig_Crane(const FObjectInitializer& ObjectInitializer)
 			PreviewMesh_CraneArm->CastShadow = false;
 			
 			PreviewMesh_CraneArm->SetupAttachment(CranePitchControl);		// sibling of the mount
-			PreviewMesh_CraneArm->RelativeRotation = FRotator(0.f, 90.f, 0.f);
-			PreviewMesh_CraneArm->RelativeLocation = FVector(0.f, 0.f, 52.f);
-			PreviewMesh_CraneArm->RelativeScale3D = FVector(0.7f, 0.7f, 0.7f);
+			PreviewMesh_CraneArm->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
+			PreviewMesh_CraneArm->SetRelativeLocation(FVector(0.f, 0.f, 52.f));
+			PreviewMesh_CraneArm->SetRelativeScale3D(FVector(0.7f, 0.7f, 0.7f));
 		}
 		
 		static ConstructorHelpers::FObjectFinder<UStaticMesh> CraneArmMount(TEXT("/Engine/EditorMeshes/Camera/SM_CraneRig_Mount.SM_CraneRig_Mount"));
@@ -82,9 +82,9 @@ ACameraRig_Crane::ACameraRig_Crane(const FObjectInitializer& ObjectInitializer)
 			PreviewMesh_CraneMount->CastShadow = false;
 
 			PreviewMesh_CraneMount->SetupAttachment(CranePitchControl);
-			PreviewMesh_CraneMount->RelativeRotation = FRotator(0.f, 90.f, 0.f);
-			PreviewMesh_CraneMount->RelativeLocation = FVector(CraneArmLength, 0.f, 0.f);
-			PreviewMesh_CraneMount->RelativeScale3D = FVector(0.7f, 0.7f, 0.7f);
+			PreviewMesh_CraneMount->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
+			PreviewMesh_CraneMount->SetRelativeLocation(FVector(CraneArmLength, 0.f, 0.f));
+			PreviewMesh_CraneMount->SetRelativeScale3D(FVector(0.7f, 0.7f, 0.7f));
 		}
 		
 		static ConstructorHelpers::FObjectFinder<UStaticMesh> CraneArmCW(TEXT("/Engine/EditorMeshes/Camera/SM_CraneRig_Body.SM_CraneRig_Body"));
@@ -98,8 +98,8 @@ ACameraRig_Crane::ACameraRig_Crane(const FObjectInitializer& ObjectInitializer)
 			PreviewMesh_CraneCounterWeight->CastShadow = false;
 
 			PreviewMesh_CraneCounterWeight->SetupAttachment(CranePitchControl);
-			PreviewMesh_CraneCounterWeight->RelativeRotation = FRotator(0.f, 90.f, 0.f);
-			PreviewMesh_CraneCounterWeight->RelativeScale3D = FVector(0.7f, 0.7f, 0.7f);
+			PreviewMesh_CraneCounterWeight->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
+			PreviewMesh_CraneCounterWeight->SetRelativeScale3D(FVector(0.7f, 0.7f, 0.7f));
 		}
 
 		UpdatePreviewMeshes();
@@ -118,7 +118,7 @@ void ACameraRig_Crane::UpdatePreviewMeshes()
 		// this tailored to the dimensions of the asset (29cm in scaling direction, pivot at the edge)
 		float const CraneArmYScale = CraneArmLength / CraneArmMesh_DefaultMeshSize;
 
-		FVector NewRelScale3D = PreviewMesh_CraneArm->RelativeScale3D;
+		FVector NewRelScale3D = PreviewMesh_CraneArm->GetRelativeScale3D();
 		NewRelScale3D.Y = CraneArmYScale * 0.7f;
 
 		PreviewMesh_CraneArm->SetRelativeScale3D(NewRelScale3D);
@@ -135,17 +135,16 @@ void ACameraRig_Crane::UpdatePreviewMeshes()
 
 void ACameraRig_Crane::UpdateCraneComponents()
 {
-	FRotator NewYawControlRot = CraneYawControl->RelativeRotation;
+	FRotator NewYawControlRot = CraneYawControl->GetRelativeRotation();
 	NewYawControlRot.Yaw = CraneYaw;
 	CraneYawControl->SetRelativeRotation(FRotator(0.f, CraneYaw, 0.f));
 
-	FRotator NewPitchControlRot = CranePitchControl->RelativeRotation;
+	FRotator NewPitchControlRot = CranePitchControl->GetRelativeRotation();
 	NewPitchControlRot.Pitch = CranePitch;
 	CranePitchControl->SetRelativeRotation(FRotator(CranePitch, 0.f, 0.f));
 
-	FVector NewCameraMountLoc = CraneCameraMount->RelativeLocation;
+	FVector NewCameraMountLoc = CraneCameraMount->GetRelativeLocation();
 	NewCameraMountLoc.X = CraneArmLength;
-	CraneCameraMount->SetRelativeLocation(NewCameraMountLoc);
 
 	// zero the pitch from the camera mount component
 	// this effectively gives us bAbsoluteRotation for only pitch component of an attached camera
@@ -156,10 +155,12 @@ void ACameraRig_Crane::UpdateCraneComponents()
 	}
 	if (!bLockMountYaw)
 	{
-		NewCameraMountWorldRot.Yaw = RootComponent->RelativeRotation.Yaw;
+		NewCameraMountWorldRot.Yaw = RootComponent->GetRelativeRotation().Yaw;
 	}
 	NewCameraMountWorldRot.Roll = 0.f;
-	CraneCameraMount->SetWorldRotation(NewCameraMountWorldRot);
+
+	FQuat RelativeRot = CraneCameraMount->GetRelativeRotationFromWorld(FQuat(NewCameraMountWorldRot));
+	CraneCameraMount->SetRelativeTransform(FTransform(RelativeRot, NewCameraMountLoc));
 
 #if WITH_EDITORONLY_DATA
 	UpdatePreviewMeshes();

@@ -13,7 +13,7 @@ class UMaterialExpressionConstant4Vector : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionConstant4Vector)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionConstant4Vector, meta=(OnlyUpdateOnInteractionEnd))
 	FLinearColor Constant;
 
 	//~ Begin UMaterialExpression Interface

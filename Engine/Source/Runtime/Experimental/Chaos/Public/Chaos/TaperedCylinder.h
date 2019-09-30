@@ -208,7 +208,7 @@ namespace Chaos
 			if (Determinant == 0)
 			{
 				T Root = -b / (2 * a);
-				auto RootPoint = Root * Direction + StartPoint;
+				TVector<T, 3> RootPoint = Root * Direction + StartPoint;
 				if (Root >= 0 && Root <= Length && TVector<T, 3>::DotProduct(RootPoint - Top, -BaseNormal) >= 0)
 				{
 					Intersections.Add(MakePair(Root, RootPoint));
@@ -218,8 +218,8 @@ namespace Chaos
 			{
 				T Root1 = (-b - sqrt(Determinant)) / (2 * a);
 				T Root2 = (-b + sqrt(Determinant)) / (2 * a);
-				auto Root1Point = Root1 * Direction + StartPoint;
-				auto Root2Point = Root2 * Direction + StartPoint;
+				TVector<T, 3> Root1Point = Root1 * Direction + StartPoint;
+				TVector<T, 3> Root2Point = Root2 * Direction + StartPoint;
 				if (Root1 < 0 || Root1 > Length || TVector<T, 3>::DotProduct(Root1Point - Top, -BaseNormal) < 0)
 				{
 					if (Root2 >= 0 && Root2 <= Length && TVector<T, 3>::DotProduct(Root2Point - Top, -BaseNormal) >= 0)

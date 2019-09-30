@@ -471,9 +471,9 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 
 			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
 			{
-				ensureMsgf(Texture->Desc.NumSamples == 1,
-					TEXT("Pass '%s' uses an MSAA depth-stencil render target. This is not yet supported."),
-					Pass->GetName());
+				//ensureMsgf(Texture->Desc.NumSamples == 1,
+				//	TEXT("Pass '%s' uses an MSAA depth-stencil render target. This is not yet supported."),
+				//	Pass->GetName());
 
 				ensureMsgf(!bIsGeneratingMips,
 					TEXT("Pass '%s' is marked to generate mips but has a depth stencil texture. This is not supported."),

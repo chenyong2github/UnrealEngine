@@ -560,6 +560,85 @@ void FNiagaraStackGraphUtilities::GetStackFunctionInputPins(UNiagaraNodeFunction
 	}
 }
 
+TArray<UEdGraphPin*> FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(UNiagaraNodeFunctionCall& FunctionCallNode, FCompileConstantResolver ConstantResolver)
+{
+	UNiagaraGraph* FunctionGraph = FunctionCallNode.GetCalledGraph();
+	if (!FunctionGraph || FunctionCallNode.FunctionScript->Usage != ENiagaraScriptUsage::Module)
+	{
+		return TArray<UEdGraphPin*>();
+	}
+	
+	// Set the static switch values so we traverse the correct node paths
+	TArray<UEdGraphPin*> InputPins;
+	FunctionCallNode.GetInputPins(InputPins);
+	FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins, ConstantResolver);
+
+	// Find the start node for the traversal
+	UNiagaraNodeOutput* OutputNode = FunctionGraph->FindOutputNode(ENiagaraScriptUsage::Module);
+	if (OutputNode == nullptr)
+	{
+		return TArray<UEdGraphPin*>();
+	}
+
+	// Get the used function parameters from the parameter map set node linked to the function's input pin.
+	// Note that this is only valid for module scripts, not function scripts.
+	TArray<UEdGraphPin*> ResultPins;
+	FString FunctionScriptName = FunctionCallNode.FunctionScript->GetFName().ToString();
+	if (InputPins.Num() > 0 && InputPins[0]->LinkedTo.Num() > 0)
+	{
+		UNiagaraNodeParameterMapSet* ParamMapNode = Cast<UNiagaraNodeParameterMapSet>(InputPins[0]->LinkedTo[0]->GetOwningNode());
+		if (ParamMapNode)
+		{
+			ParamMapNode->GetInputPins(InputPins);
+			for (UEdGraphPin* Pin : InputPins)
+			{
+				FString PinName = Pin->PinName.ToString();
+				if (PinName.StartsWith(FunctionScriptName + "."))
+				{
+					ResultPins.Add(Pin);
+				}
+			}
+		}
+	}
+	if (ResultPins.Num() == 0)
+	{
+		return ResultPins;
+	}
+
+	// Find reachable nodes
+	TArray<UNiagaraNode*> ReachedNodes;
+	FunctionGraph->BuildTraversal(ReachedNodes, OutputNode, true);
+
+	// We only care about reachable parameter map get nodes with module inputs
+	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+	for (UNiagaraNode* Node : ReachedNodes)
+	{
+		UNiagaraNodeParameterMapGet* ParamMapNode = Cast<UNiagaraNodeParameterMapGet>(Node);
+		if (ParamMapNode)
+		{
+			TArray<UEdGraphPin*> OutPins;
+			ParamMapNode->GetOutputPins(OutPins);
+			for (UEdGraphPin* OutPin : OutPins)
+			{
+				FString OutPinName = OutPin->PinName.ToString();
+				if (!OutPinName.RemoveFromStart(TEXT("Module.")) || OutPin->LinkedTo.Num() == 0)
+				{
+					continue;
+				}
+				for (UEdGraphPin* Pin : ResultPins)
+				{
+					if (Pin->GetName() == FunctionScriptName + "." + OutPinName && Pin->PinType == OutPin->PinType)
+					{
+						ResultPins.RemoveSwap(Pin);
+						break;
+					}
+				}
+			}
+		}
+	}
+	return ResultPins;
+}
+
 void FNiagaraStackGraphUtilities::GetStackFunctionInputPins(UNiagaraNodeFunctionCall& FunctionCallNode, TArray<const UEdGraphPin*>& OutInputPins, ENiagaraGetStackFunctionInputPinsOptions Options /*= ENiagaraGetStackFunctionInputPinsOptions::AllInputs*/, bool bIgnoreDisabled /*= false*/)
 {
 	TSet<const UEdGraphPin*> HiddenPins;

@@ -214,7 +214,7 @@ public:
 			TEXT("Scene(1/32)"),
 			TEXT("Scene(1/64)")
 		};
-		static_assert(ARRAY_COUNT(PassNames) == StageCount, "PassNames size must equal StageCount");
+		static_assert(UE_ARRAY_COUNT(PassNames) == StageCount, "PassNames size must equal StageCount");
 
 		// The first stage is the input.
 		Textures[0] = HalfResolutionSceneTexture;
@@ -411,8 +411,8 @@ FBloomOutputs AddBloomPass(
 				6  // Q5
 			};
 
-			static_assert(ARRAY_COUNT(BloomStages) == BloomQualityCountMax, "Array must be one less than the number of bloom quality entries.");
-			static_assert(ARRAY_COUNT(BloomQualityToSceneDownsampleStage) == BloomQualityCountMax, "Array must be one less than the number of bloom quality entries.");
+			static_assert(UE_ARRAY_COUNT(BloomStages) == BloomQualityCountMax, "Array must be one less than the number of bloom quality entries.");
+			static_assert(UE_ARRAY_COUNT(BloomQualityToSceneDownsampleStage) == BloomQualityCountMax, "Array must be one less than the number of bloom quality entries.");
 
 			// Use bloom quality to select the number of downsample stages to use for bloom.
 			const uint32 BloomStageCount = BloomQualityToSceneDownsampleStage[BloomQualityIndex];
@@ -1204,6 +1204,12 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					FDownsamplePassOutputs Outputs = AddDownsamplePass(GraphBuilder, ScreenPassView, Inputs);
 					HalfResolutionSceneColorTexture = Outputs.Texture;
 					HalfResolutionSceneColorViewRect = Outputs.Viewport;
+				}
+
+				if (!View.bStatePrevViewInfoIsReadOnly && HalfResolutionSceneColorTexture)
+				{
+					FSceneViewState* ViewState = (FSceneViewState*)View.State;
+					GraphBuilder.QueueTextureExtraction(HalfResolutionSceneColorTexture, &ViewState->PrevFrameViewInfo.HalfResTemporalAAHistory);
 				}
 
 				FEyeAdaptationParameters EyeAdaptationParameters = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);

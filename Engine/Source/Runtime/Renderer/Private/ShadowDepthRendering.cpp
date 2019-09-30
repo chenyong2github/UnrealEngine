@@ -1191,6 +1191,11 @@ void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FVie
 
 	FoundView->ViewMatrices.HackRemoveTemporalAAProjectionJitter();
 
+	if (CascadeSettings.bFarShadowCascade)
+	{
+		(int32&)FoundView->DrawDynamicFlags |= (int32)EDrawDynamicFlags::FarShadowCascade;
+	}
+
 	// Don't do material texture mip biasing in shadow maps.
 	FoundView->MaterialTextureMipBias = 0;
 
@@ -1223,7 +1228,7 @@ void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FVie
 
 	if (bPreShadow && GPreshadowsForceLowestLOD)
 	{
-		FoundView->DrawDynamicFlags = EDrawDynamicFlags::ForceLowestLOD;
+		(int32&)FoundView->DrawDynamicFlags |= EDrawDynamicFlags::ForceLowestLOD;
 	}
 }
 
@@ -1625,7 +1630,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 			ColorTarget1.TargetableTexture
 		};
 
-		FRHIRenderPassInfo RPInfo(ARRAY_COUNT(RenderTargetArray), RenderTargetArray, ERenderTargetActions::Load_Store);
+		FRHIRenderPassInfo RPInfo(UE_ARRAY_COUNT(RenderTargetArray), RenderTargetArray, ERenderTargetActions::Load_Store);
 		TransitionRenderPassTargets(RHICmdList, RPInfo);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderTranslucencyDepths"));
 		{
@@ -1698,23 +1703,23 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 				Uavs[2] = LightPropagationVolume->GetVplListBufferUav();
 				Uavs[3] = LightPropagationVolume->GetVplListHeadBufferUav();
 
-				FRHIRenderPassInfo RPInfo(ARRAY_COUNT(RenderTargets), RenderTargets, ERenderTargetActions::Load_Store);
+				FRHIRenderPassInfo RPInfo(UE_ARRAY_COUNT(RenderTargets), RenderTargets, ERenderTargetActions::Load_Store);
 				RPInfo.DepthStencilRenderTarget.Action = EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil;
 				RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DepthTarget.TargetableTexture;
 				RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
 				// Set starting UAV bind index
-				RPInfo.UAVIndex = ARRAY_COUNT(RenderTargets);
-				RPInfo.NumUAVs = ARRAY_COUNT(Uavs);
+				RPInfo.UAVIndex = UE_ARRAY_COUNT(RenderTargets);
+				RPInfo.NumUAVs = UE_ARRAY_COUNT(Uavs);
 				for (int32 Index = 0; Index < RPInfo.NumUAVs; Index++)
 				{
 					RPInfo.UAVs[Index] = Uavs[Index];
 				}
 
-				InRHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToGfx, Uavs, ARRAY_COUNT(Uavs));
+				InRHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToGfx, Uavs, UE_ARRAY_COUNT(Uavs));
 				InRHICmdList.BeginRenderPass(RPInfo, TEXT("ShadowAtlas"));
 
-				ProjectedShadowInfo->ClearDepth(InRHICmdList, this, ARRAY_COUNT(RenderTargets), RenderTargets, DepthTarget.TargetableTexture, bPerformClear);
+				ProjectedShadowInfo->ClearDepth(InRHICmdList, this, UE_ARRAY_COUNT(RenderTargets), RenderTargets, DepthTarget.TargetableTexture, bPerformClear);
 			};
 
 			{
@@ -1743,7 +1748,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 				FRHIUnorderedAccessView* UavsToReadable[2];
 				UavsToReadable[0] = LightPropagationVolume->GetGvListBufferUav();
 				UavsToReadable[1] = LightPropagationVolume->GetGvListHeadBufferUav();
-				RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, UavsToReadable, ARRAY_COUNT(UavsToReadable));
+				RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, UavsToReadable, UE_ARRAY_COUNT(UavsToReadable));
 			}
 			checkSlow(RHICmdList.IsOutsideRenderPass());
 		}

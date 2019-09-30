@@ -102,6 +102,7 @@
 #include "Materials/MaterialExpressionGIReplace.h"
 #include "Materials/MaterialExpressionRayTracingQualitySwitch.h"
 #include "Materials/MaterialExpressionGetMaterialAttributes.h"
+#include "Materials/MaterialExpressionHairAttributes.h"
 #include "Materials/MaterialExpressionIf.h"
 #include "Materials/MaterialExpressionLightmapUVs.h"
 #include "Materials/MaterialExpressionPrecomputedAOMask.h"
@@ -2075,13 +2076,17 @@ UMaterialExpressionRuntimeVirtualTextureSample::UMaterialExpressionRuntimeVirtua
 #endif
 }
 
-void UMaterialExpressionRuntimeVirtualTextureSample::InitVirtualTextureDependentSettings()
+bool UMaterialExpressionRuntimeVirtualTextureSample::InitVirtualTextureDependentSettings()
 {
+	bool bChanged = false;
 	if (VirtualTexture != nullptr)
 	{
+		bChanged |= MaterialType != VirtualTexture->GetMaterialType();
 		MaterialType = VirtualTexture->GetMaterialType();
+		bChanged |= bSinglePhysicalSpace != VirtualTexture->GetSinglePhysicalSpace();
 		bSinglePhysicalSpace = VirtualTexture->GetSinglePhysicalSpace();
 	}
+	return bChanged;
 }
 
 void UMaterialExpressionRuntimeVirtualTextureSample::InitOutputs()
@@ -2164,6 +2169,8 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 
 	// Calculate the virtual texture layer and sampling/unpacking functions for this output
 	// Fallback to a sensible default value if the output isn't valid for the bound virtual texture
+	uint32 UnpackTarget = 0;
+	uint32 UnpackMask = 0;
 	EVirtualTextureUnpackType UnpackType = EVirtualTextureUnpackType::None;
 
 	bool bIsBaseColorValid = false;
@@ -2177,6 +2184,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal: bIsBaseColorValid = bIsNormalValid = true; break;
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex: bIsBaseColorValid = bIsNormalValid = bIsSpecularValid = true; break;
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg: bIsBaseColorValid = bIsNormalValid = bIsSpecularValid = true; break;
 	case ERuntimeVirtualTextureMaterialType::WorldHeight: bIsWorldHeightValid = true; break;
 	}
 
@@ -2185,7 +2193,11 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	case 0: 
 		if ((bIsParameter || bIsVirtualTextureValid) && bIsBaseColorValid)
 		{
-			UnpackType = EVirtualTextureUnpackType::BaseColor;
+			switch (MaterialType)
+			{
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg: UnpackType = EVirtualTextureUnpackType::BaseColorYCoCg; break;
+			default: UnpackTarget = 0; UnpackMask = 0x7; break;
+			}
 		}
 		else
 		{
@@ -2195,7 +2207,12 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	case 1:
 		if ((bIsParameter || bIsVirtualTextureValid) && bIsSpecularValid)
 		{
-			UnpackType = EVirtualTextureUnpackType::SpecularR8;
+			switch (MaterialType)
+			{
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:  UnpackTarget = 1; UnpackMask = 0x1; break;
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg: UnpackTarget = 2; UnpackMask = 0x1; break;
+			}
 		}
 		else
 		{
@@ -2207,8 +2224,9 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		{
 			switch (MaterialType)
 			{
-			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular: UnpackType = EVirtualTextureUnpackType::RoughnessB8; break;
-			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex: UnpackType = EVirtualTextureUnpackType::RoughnessG8; break;
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular: UnpackTarget = 1; UnpackMask = 0x4; break;
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex: UnpackTarget = 1; UnpackMask = 0x2; break;
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg: UnpackTarget = 2; UnpackMask = 0x2; break;
 			}
 		}
 		else
@@ -2224,6 +2242,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal: UnpackType = EVirtualTextureUnpackType::NormalBC5; break;
 			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular: UnpackType = EVirtualTextureUnpackType::NormalBC3; break;
 			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex: UnpackType = EVirtualTextureUnpackType::NormalBC3BC3; break;
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg: UnpackType = EVirtualTextureUnpackType::NormalBC5BC1; break;
 			}
 		}
 		else
@@ -2246,12 +2265,11 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	}
 	
 	// Compile the texture object references
-	enum { MAX_RVT_LAYERS = 2 };
 	const int32 TextureLayerCount = URuntimeVirtualTexture::GetLayerCount(MaterialType);
-	check(TextureLayerCount <= MAX_RVT_LAYERS);
+	check(TextureLayerCount <= RuntimeVirtualTexture::MaxTextureLayers);
 
-	int32 TextureCodeIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
-	int32 TextureReferenceIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
+	int32 TextureCodeIndex[RuntimeVirtualTexture::MaxTextureLayers] = { INDEX_NONE };
+	int32 TextureReferenceIndex[RuntimeVirtualTexture::MaxTextureLayers] = { INDEX_NONE };
 	for (int32 TexureLayerIndex = 0; TexureLayerIndex < TextureLayerCount; TexureLayerIndex++)
 	{
 		const int32 PageTableLayerIndex = bSinglePhysicalSpace ? 0 : TexureLayerIndex;
@@ -2309,7 +2327,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	}
 
 	// Compile the texture sample code
-	int32 SampleCodeIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
+	int32 SampleCodeIndex[RuntimeVirtualTexture::MaxTextureLayers] = { INDEX_NONE };
 	for (int32 TexureLayerIndex = 0; TexureLayerIndex < TextureLayerCount; TexureLayerIndex++)
 	{
 		SampleCodeIndex[TexureLayerIndex] = Compiler->TextureSample(
@@ -2322,7 +2340,15 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	}
 
 	// Compile any unpacking code
-	const int32 UnpackCodeIndex = Compiler->VirtualTextureUnpack(SampleCodeIndex[0], SampleCodeIndex[1], UnpackType);
+	int32 UnpackCodeIndex = INDEX_NONE;
+	if (UnpackType != EVirtualTextureUnpackType::None)
+	{
+		UnpackCodeIndex = Compiler->VirtualTextureUnpack(SampleCodeIndex[0], SampleCodeIndex[1], SampleCodeIndex[2], UnpackType);
+	}
+	else
+	{
+		UnpackCodeIndex = SampleCodeIndex[UnpackTarget] == INDEX_NONE ? INDEX_NONE : Compiler->ComponentMask(SampleCodeIndex[UnpackTarget], UnpackMask & 1, (UnpackMask >> 1) & 1, (UnpackMask >> 2) & 1, (UnpackMask >> 3) & 1);
+	}
 	return UnpackCodeIndex;
 }
 
@@ -8016,7 +8042,7 @@ UMaterialExpressionQualitySwitch::UMaterialExpressionQualitySwitch(const FObject
 int32 UMaterialExpressionQualitySwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	const EMaterialQualityLevel::Type QualityLevelToCompile = Compiler->GetQualityLevel();
-	check(QualityLevelToCompile < ARRAY_COUNT(Inputs));
+	check(QualityLevelToCompile < UE_ARRAY_COUNT(Inputs));
 	FExpressionInput QualityInput = Inputs[QualityLevelToCompile].GetTracedInput();
 	FExpressionInput DefaultTraced = Default.GetTracedInput();
 
@@ -8044,7 +8070,7 @@ const TArray<FExpressionInput*> UMaterialExpressionQualitySwitch::GetInputs()
 
 	OutInputs.Add(&Default);
 
-	for (int32 InputIndex = 0; InputIndex < ARRAY_COUNT(Inputs); InputIndex++)
+	for (int32 InputIndex = 0; InputIndex < UE_ARRAY_COUNT(Inputs); InputIndex++)
 	{
 		OutInputs.Add(&Inputs[InputIndex]);
 	}
@@ -8127,7 +8153,7 @@ UMaterialExpressionFeatureLevelSwitch::UMaterialExpressionFeatureLevelSwitch(con
 int32 UMaterialExpressionFeatureLevelSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	const ERHIFeatureLevel::Type FeatureLevelToCompile = Compiler->GetFeatureLevel();
-	check(FeatureLevelToCompile < ARRAY_COUNT(Inputs));
+	check(FeatureLevelToCompile < UE_ARRAY_COUNT(Inputs));
 	FExpressionInput& FeatureInput = Inputs[FeatureLevelToCompile];
 
 	if (!Default.GetTracedInput().Expression)
@@ -8154,7 +8180,7 @@ const TArray<FExpressionInput*> UMaterialExpressionFeatureLevelSwitch::GetInputs
 
 	OutInputs.Add(&Default);
 
-	for (int32 InputIndex = 0; InputIndex < ARRAY_COUNT(Inputs); InputIndex++)
+	for (int32 InputIndex = 0; InputIndex < UE_ARRAY_COUNT(Inputs); InputIndex++)
 	{
 		OutInputs.Add(&Inputs[InputIndex]);
 	}
@@ -8269,7 +8295,7 @@ int32 UMaterialExpressionShadingPathSwitch::Compile(class FMaterialCompiler* Com
 		ShadingPathToCompile = ERHIShadingPath::Mobile;
 	}
 
-	check(ShadingPathToCompile < ARRAY_COUNT(Inputs));
+	check(ShadingPathToCompile < UE_ARRAY_COUNT(Inputs));
 	FExpressionInput ShadingPathInput = Inputs[ShadingPathToCompile].GetTracedInput();
 	FExpressionInput DefaultTraced = Default.GetTracedInput();
 
@@ -8297,7 +8323,7 @@ const TArray<FExpressionInput*> UMaterialExpressionShadingPathSwitch::GetInputs(
 
 	OutInputs.Add(&Default);
 
-	for (int32 InputIndex = 0; InputIndex < ARRAY_COUNT(Inputs); InputIndex++)
+	for (int32 InputIndex = 0; InputIndex < UE_ARRAY_COUNT(Inputs); InputIndex++)
 	{
 		OutInputs.Add(&Inputs[InputIndex]);
 	}
@@ -13983,6 +14009,18 @@ int32 UMaterialExpressionMaterialProxyReplace::Compile(class FMaterialCompiler* 
 	}
 }
 
+bool UMaterialExpressionMaterialProxyReplace::IsResultMaterialAttributes(int32 OutputIndex)
+{
+	for (FExpressionInput* ExpressionInput : GetInputs())
+	{
+		if (ExpressionInput->GetTracedInput().Expression && !ExpressionInput->Expression->ContainsInputLoop() && ExpressionInput->Expression->IsResultMaterialAttributes(ExpressionInput->OutputIndex))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void UMaterialExpressionMaterialProxyReplace::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("MaterialProxyReplace"));
@@ -16760,6 +16798,77 @@ void UMaterialExpressionCurveAtlasRowParameter::PostEditChangeProperty(FProperty
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
+
+
+//
+// Hair attributes
+//
+
+UMaterialExpressionHairAttributes::UMaterialExpressionHairAttributes(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Hair Attributes", "Hair Attributes"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+
+#endif
+
+#if WITH_EDITORONLY_DATA
+	bShowOutputNameOnPin = true;
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("U"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("V"), 1, 0, 1, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Length"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Radius"), 1, 0, 1, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Seed")));
+	Outputs.Add(FExpressionOutput(TEXT("World Tangent"), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Root UV"), 1, 1, 1, 0, 0));
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionHairAttributes::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (OutputIndex == 0 || OutputIndex == 1)
+	{
+		return Compiler->GetHairUV();
+	}
+	else if (OutputIndex == 2 || OutputIndex == 3)
+	{
+		return Compiler->GetHairDimensions();
+	}
+	else if (OutputIndex == 4)
+	{
+		return Compiler->GetHairSeed();
+	}
+	else if (OutputIndex == 5)
+	{
+		return Compiler->GetHairTangent();
+	}
+	else if (OutputIndex == 6)
+	{
+		return Compiler->GetHairRootUV();
+	}
+
+	return Compiler->Errorf(TEXT("Invalid input parameter"));
+}
+
+void UMaterialExpressionHairAttributes::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Hair Attributes"));
+}
+#endif // WITH_EDITOR
+
 
 //
 //  UMaterialExpressionARPassthroughCameraUVs

@@ -52,6 +52,10 @@ class UCompositeDataTable
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
+	// Support for runtime modification of parent tables
+	// Be aware this can be slow and can cause hitches during gameplay
+	ENGINE_API void AppendParentTables(const TArray<UDataTable*>& NewTables);
+
 protected:
 
 	// Searches the parent tables to see if there are any loops.

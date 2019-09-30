@@ -42,9 +42,9 @@ ABrush::ABrush(const FObjectInitializer& ObjectInitializer)
 
 	RootComponent = BrushComponent;
 	
-	bHidden = true;
+	SetHidden(true);
 	bNotForClientOrServer = false;
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 	bCollideWhenPlacing = true;
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 }

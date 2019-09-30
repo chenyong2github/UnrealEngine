@@ -101,19 +101,19 @@ namespace
 
 		// Test for known delegate and event macros.
 		TCHAR MulticastDelegateStart[] = TEXT("DECLARE_MULTICAST_DELEGATE");
-		if (!FCString::Strncmp(Identifier, MulticastDelegateStart, ARRAY_COUNT(MulticastDelegateStart) - 1))
+		if (!FCString::Strncmp(Identifier, MulticastDelegateStart, UE_ARRAY_COUNT(MulticastDelegateStart) - 1))
 		{
 			return true;
 		}
 
 		TCHAR DelegateStart[] = TEXT("DECLARE_DELEGATE");
-		if (!FCString::Strncmp(Identifier, DelegateStart, ARRAY_COUNT(DelegateStart) - 1))
+		if (!FCString::Strncmp(Identifier, DelegateStart, UE_ARRAY_COUNT(DelegateStart) - 1))
 		{
 			return true;
 		}
 
 		TCHAR DelegateEvent[] = TEXT("DECLARE_EVENT");
-		if (!FCString::Strncmp(Identifier, DelegateEvent, ARRAY_COUNT(DelegateEvent) - 1))
+		if (!FCString::Strncmp(Identifier, DelegateEvent, UE_ARRAY_COUNT(DelegateEvent) - 1))
 		{
 			return true;
 		}
@@ -189,7 +189,7 @@ namespace
 			TEXT("FORCEINLINE_STATS"),
 			TEXT("SIZE_T")
 		};
-		if (Algo::FindSortedStringCaseInsensitive(Token.Identifier, Whitelist, ARRAY_COUNT(Whitelist)) >= 0)
+		if (Algo::FindSortedStringCaseInsensitive(Token.Identifier, Whitelist, UE_ARRAY_COUNT(Whitelist)) >= 0)
 		{
 			return false;
 		}
@@ -227,7 +227,7 @@ namespace
 			{
 				// It's a tag with an argument
 
-				if (FCString::Strnicmp(IdentifierPtr, IdTag, ARRAY_COUNT(IdTag) - 1) == 0)
+				if (FCString::Strnicmp(IdentifierPtr, IdTag, UE_ARRAY_COUNT(IdTag) - 1) == 0)
 				{
 					int32 TempInt = FCString::Atoi(Equals + 1);
 					if (TempInt <= 0 || TempInt > MAX_uint16)
@@ -236,8 +236,8 @@ namespace
 					}
 					FuncInfo.RPCId = TempInt;
 				}
-				else if (FCString::Strnicmp(IdentifierPtr, ResponseIdTag, ARRAY_COUNT(ResponseIdTag) - 1) == 0 ||
-					FCString::Strnicmp(IdentifierPtr, JSBridgePriTag, ARRAY_COUNT(JSBridgePriTag) - 1) == 0)
+				else if (FCString::Strnicmp(IdentifierPtr, ResponseIdTag, UE_ARRAY_COUNT(ResponseIdTag) - 1) == 0 ||
+					FCString::Strnicmp(IdentifierPtr, JSBridgePriTag, UE_ARRAY_COUNT(JSBridgePriTag) - 1) == 0)
 				{
 					int32 TempInt = FCString::Atoi(Equals + 1);
 					if (TempInt <= 0 || TempInt > MAX_uint16)
@@ -1276,7 +1276,7 @@ FClass* FHeaderParser::GetQualifiedClass(const FClasses& AllClasses, const TCHAR
 	{
 		RedirectTypeIdentifier(Token);
 
-		FCString::Strncat( ClassName, Token.Identifier, ARRAY_COUNT(ClassName) );
+		FCString::Strncat( ClassName, Token.Identifier, UE_ARRAY_COUNT(ClassName) );
 	}
 
 	if (!ClassName[0])
@@ -2078,7 +2078,7 @@ TMap<FName, FString> FHeaderParser::GetParameterToolTipsFromFunctionComment(cons
 		int32 ParamStart = Input.Find(ParamTag, ESearchCase::CaseSensitive, ESearchDir::FromStart, Offset);
 		if(ParamStart != INDEX_NONE)
 		{
-			ParamStart = ParamStart + ARRAY_COUNT(ParamTag);
+			ParamStart = ParamStart + UE_ARRAY_COUNT(ParamTag);
 			Offset = ParamStart;
 		}
 		else
@@ -2086,7 +2086,7 @@ TMap<FName, FString> FHeaderParser::GetParameterToolTipsFromFunctionComment(cons
 			ParamStart = Input.Find(ReturnTag, ESearchCase::CaseSensitive, ESearchDir::FromStart, Offset);
 			if (ParamStart != INDEX_NONE)
 			{
-				ParamStart = ParamStart + ARRAY_COUNT(ReturnTag);
+				ParamStart = ParamStart + UE_ARRAY_COUNT(ReturnTag);
 				Offset = ParamStart;
 				ParamPrefix = ReturnParamPrefix;
 			}

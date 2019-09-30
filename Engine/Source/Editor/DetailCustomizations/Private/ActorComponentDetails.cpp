@@ -69,7 +69,7 @@ void FActorComponentDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuild
 
 	if (bHideReplicates)
 	{
-		TSharedPtr<IPropertyHandle> ReplicatesProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UActorComponent, bReplicates));
+		TSharedPtr<IPropertyHandle> ReplicatesProperty = DetailBuilder.GetProperty(UActorComponent::GetReplicatesPropertyName());
 		ReplicatesProperty->MarkHiddenByCustomization();
 	}
 }

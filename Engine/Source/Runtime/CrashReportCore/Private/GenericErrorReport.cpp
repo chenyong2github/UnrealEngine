@@ -299,7 +299,7 @@ bool FGenericErrorReport::TryReadDiagnosticsFile()
 			else if (Line.StartsWith(ExceptionLineStart))
 			{
 				// Not subtracting 1 from the array count so it gobbles the initial quote
-				Exception = Line.RightChop(ARRAY_COUNT(ExceptionLineStart)).LeftChop(1);
+				Exception = Line.RightChop(UE_ARRAY_COUNT(ExceptionLineStart)).LeftChop(1);
 			}
 			break;
 		}

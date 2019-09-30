@@ -140,6 +140,11 @@ void UProjectileMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 		TickInterpolation(DeltaTime);
 	}
 
+	// Consume PendingForce and reset to zero.
+	// At this point, any calls to AddForce() will apply to the next frame.
+	PendingForceThisUpdate = PendingForce;
+	ClearPendingForce();
+
 	// skip if don't want component updated when not rendered or updated component can't move
 	if (HasStoppedSimulation() || ShouldSkipUpdate(DeltaTime))
 	{
@@ -183,7 +188,7 @@ void UProjectileMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 		
 		// Logging
 		UE_LOG(LogProjectileMovement, Verbose, TEXT("Projectile %s: (Role: %d, Iteration %d, step %.3f, [%.3f / %.3f] cur/total) sim (Pos %s, Vel %s)"),
-			*GetNameSafe(ActorOwner), (int32)ActorOwner->Role, LoopCount, TimeTick, FMath::Max(0.f, DeltaTime - InitialTimeRemaining), DeltaTime,
+			*GetNameSafe(ActorOwner), (int32)ActorOwner->GetLocalRole(), LoopCount, TimeTick, FMath::Max(0.f, DeltaTime - InitialTimeRemaining), DeltaTime,
 			*UpdatedComponent->GetComponentLocation().ToString(), *Velocity.ToString());
 
 		// Initial move state
@@ -234,7 +239,7 @@ void UProjectileMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 
 			// Logging
 			UE_LOG(LogProjectileMovement, VeryVerbose, TEXT("Projectile %s: (Role: %d, Iteration %d, step %.3f) no hit (Pos %s, Vel %s)"),
-				*GetNameSafe(ActorOwner), (int32)ActorOwner->Role, LoopCount, TimeTick, *UpdatedComponent->GetComponentLocation().ToString(), *Velocity.ToString());
+				*GetNameSafe(ActorOwner), (int32)ActorOwner->GetLocalRole(), LoopCount, TimeTick, *UpdatedComponent->GetComponentLocation().ToString(), *Velocity.ToString());
 		}
 		else
 		{
@@ -247,7 +252,7 @@ void UProjectileMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 
 			// Logging
 			UE_CLOG(UpdatedComponent != nullptr, LogProjectileMovement, VeryVerbose, TEXT("Projectile %s: (Role: %d, Iteration %d, step %.3f) new hit at t=%.3f: (Pos %s, Vel %s)"),
-				*GetNameSafe(ActorOwner), (int32)ActorOwner->Role, LoopCount, TimeTick, Hit.Time, *UpdatedComponent->GetComponentLocation().ToString(), *Velocity.ToString());
+				*GetNameSafe(ActorOwner), (int32)ActorOwner->GetLocalRole(), LoopCount, TimeTick, Hit.Time, *UpdatedComponent->GetComponentLocation().ToString(), *Velocity.ToString());
 
 			// Handle blocking hit
 			NumImpacts++;
@@ -277,7 +282,7 @@ void UProjectileMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 			
 			// Logging
 			UE_CLOG(UpdatedComponent != nullptr, LogProjectileMovement, VeryVerbose, TEXT("Projectile %s: (Role: %d, Iteration %d, step %.3f) deflect at t=%.3f: (Pos %s, Vel %s)"),
-				*GetNameSafe(ActorOwner), (int32)ActorOwner->Role, Iterations, TimeTick, Hit.Time, *UpdatedComponent->GetComponentLocation().ToString(), *Velocity.ToString());
+				*GetNameSafe(ActorOwner), (int32)ActorOwner->GetLocalRole(), Iterations, TimeTick, Hit.Time, *UpdatedComponent->GetComponentLocation().ToString(), *Velocity.ToString());
 			
 			// Add unprocessed time after impact
 			if (SubTickTimeRemaining >= MIN_TICK_TIME)
@@ -291,7 +296,7 @@ void UProjectileMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 
 					// Logging
 					UE_LOG(LogProjectileMovement, Verbose, TEXT("Projectile %s: (Role: %d, Iteration %d, step %.3f) allowing extra iteration after bounce %u (t=%.3f, adding %.3f secs)"),
-						*GetNameSafe(ActorOwner), (int32)ActorOwner->Role, LoopCount, TimeTick, NumBounces, Hit.Time, SubTickTimeRemaining);
+						*GetNameSafe(ActorOwner), (int32)ActorOwner->GetLocalRole(), LoopCount, TimeTick, NumBounces, Hit.Time, SubTickTimeRemaining);
 				}
 			}
 		}
@@ -466,6 +471,8 @@ FVector UProjectileMovementComponent::ComputeAcceleration(const FVector& InVeloc
 
 	Acceleration.Z += GetGravityZ();
 
+	Acceleration += PendingForceThisUpdate;
+
 	if (bIsHomingProjectile && HomingTargetComponent.IsValid())
 	{
 		Acceleration += ComputeHomingAcceleration(InVelocity, DeltaTime);
@@ -482,6 +489,20 @@ FVector UProjectileMovementComponent::ComputeHomingAcceleration(const FVector& I
 }
 
 
+void UProjectileMovementComponent::AddForce(FVector Force)
+{
+	PendingForce += Force;
+}
+
+void UProjectileMovementComponent::ClearPendingForce(bool bClearImmediateForce)
+{
+	PendingForce = FVector::ZeroVector;
+	if (bClearImmediateForce)
+	{
+		PendingForceThisUpdate = FVector::ZeroVector;
+	}
+}
+
 float UProjectileMovementComponent::GetGravityZ() const
 {
 	// TODO: apply buoyancy if in water
@@ -492,6 +513,8 @@ float UProjectileMovementComponent::GetGravityZ() const
 void UProjectileMovementComponent::StopSimulating(const FHitResult& HitResult)
 {
 	Velocity = FVector::ZeroVector;
+	PendingForce = FVector::ZeroVector;
+	PendingForceThisUpdate = FVector::ZeroVector;
 	UpdateComponentVelocity();
 	SetUpdatedComponent(NULL);
 	OnProjectileStop.Broadcast(HitResult);
@@ -685,8 +708,8 @@ void UProjectileMovementComponent::SetInterpolatedComponent(USceneComponent* Com
 	{
 		ResetInterpolation();
 		InterpolatedComponentPtr = Component;
-		InterpInitialLocationOffset = Component->RelativeLocation;
-		InterpInitialRotationOffset = Component->RelativeRotation.Quaternion();
+		InterpInitialLocationOffset = Component->GetRelativeLocation();
+		InterpInitialRotationOffset = Component->GetRelativeRotation().Quaternion();
 		bInterpolationComplete = false;
 	}
 	else
@@ -717,7 +740,7 @@ void UProjectileMovementComponent::MoveInterpolationTarget(const FVector& NewLoc
 		if (USceneComponent* InterpComponent = GetInterpolatedComponent())
 		{
 			// Avoid moving the child, it will interpolate later
-			const FRotator InterpRelativeRotation = InterpComponent->RelativeRotation;
+			const FRotator InterpRelativeRotation = InterpComponent->GetRelativeRotation();
 			FScopedPreventAttachedComponentMove ScopedChildNoMove(InterpComponent);
 			
 			// Update interp offset
@@ -745,8 +768,8 @@ void UProjectileMovementComponent::MoveInterpolationTarget(const FVector& NewLoc
 			{
 				// If not interpolating rotation, we should allow the component to rotate.
 				// The absolute flag will get restored by the scoped move.
-				InterpComponent->bAbsoluteRotation = false;
-				InterpComponent->RelativeRotation = InterpRelativeRotation;
+				InterpComponent->SetUsingAbsoluteRotation(false);
+				InterpComponent->SetRelativeRotation_Direct(InterpRelativeRotation);
 				InterpRotationOffset = FQuat::Identity;
 			}
 

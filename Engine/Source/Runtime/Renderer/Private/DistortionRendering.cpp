@@ -41,16 +41,13 @@ static TAutoConsoleVariable<int32> CVarDisableDistortion(
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDistortionPassUniformParameters, "DistortionPass");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileDistortionPassUniformParameters, "MobileDistortionPass");
 
-void SetupDistortionPassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FDistortionPassUniformParameters& DistortionPassParameters)
+void SetupDistortionParams(FVector4& DistortionParams, const FViewInfo& View)
 {
-	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
-	SetupSceneTextureUniformParameters(SceneRenderTargets, View.FeatureLevel, ESceneTextureSetupMode::All, DistortionPassParameters.SceneTextures);
-
 	float Ratio = View.UnscaledViewRect.Width() / (float)View.UnscaledViewRect.Height();
-	DistortionPassParameters.DistortionParams.X = View.ViewMatrices.GetProjectionMatrix().M[0][0];
-	DistortionPassParameters.DistortionParams.Y = Ratio;
-	DistortionPassParameters.DistortionParams.Z = (float)View.UnscaledViewRect.Width();
-	DistortionPassParameters.DistortionParams.W = (float)View.UnscaledViewRect.Height();
+	DistortionParams.X = View.ViewMatrices.GetProjectionMatrix().M[0][0];
+	DistortionParams.Y = Ratio;
+	DistortionParams.Z = (float)View.UnscaledViewRect.Width();
+	DistortionParams.W = (float)View.UnscaledViewRect.Height();
 
 	// When ISR is enabled we store two FOVs in the distortion parameters and compute the aspect ratio in the shader instead.
 	if ((View.IsInstancedStereoPass() || View.bIsMobileMultiViewEnabled) && View.Family->Views.Num() > 0)
@@ -59,30 +56,22 @@ void SetupDistortionPassUniformBuffer(FRHICommandListImmediate& RHICmdList, cons
 		const EStereoscopicPass StereoPassIndex = (View.StereoPass != eSSP_FULL) ? eSSP_RIGHT_EYE : eSSP_FULL;
 
 		const FViewInfo& InstancedView = static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
-		DistortionPassParameters.DistortionParams.Y = InstancedView.ViewMatrices.GetProjectionMatrix().M[0][0];
+		DistortionParams.Y = InstancedView.ViewMatrices.GetProjectionMatrix().M[0][0];
 	}
+}
+
+void SetupDistortionPassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FDistortionPassUniformParameters& DistortionPassParameters)
+{
+	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
+	SetupSceneTextureUniformParameters(SceneRenderTargets, View.FeatureLevel, ESceneTextureSetupMode::All, DistortionPassParameters.SceneTextures);
+	SetupDistortionParams(DistortionPassParameters.DistortionParams, View);
 }
 
 void SetupMobileDistortionPassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FMobileDistortionPassUniformParameters& DistortionPassParameters)
 {
 	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
 	SetupMobileSceneTextureUniformParameters(SceneRenderTargets, View.FeatureLevel, true, DistortionPassParameters.SceneTextures);
-
-	float Ratio = View.UnscaledViewRect.Width() / (float)View.UnscaledViewRect.Height();
-	DistortionPassParameters.DistortionParams.X = View.ViewMatrices.GetProjectionMatrix().M[0][0];
-	DistortionPassParameters.DistortionParams.Y = Ratio;
-	DistortionPassParameters.DistortionParams.Z = (float)View.UnscaledViewRect.Width();
-	DistortionPassParameters.DistortionParams.W = (float)View.UnscaledViewRect.Height();
-
-	// When ISR is enabled we store two FOVs in the distortion parameters and compute the aspect ratio in the shader instead.
-	if ((View.IsInstancedStereoPass() || View.bIsMobileMultiViewEnabled) && View.Family->Views.Num() > 0)
-	{
-		// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
-		const EStereoscopicPass StereoPassIndex = (View.StereoPass != eSSP_FULL) ? eSSP_RIGHT_EYE : eSSP_FULL;
-
-		const FViewInfo& InstancedView = static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
-		DistortionPassParameters.DistortionParams.Y = InstancedView.ViewMatrices.GetProjectionMatrix().M[0][0];
-	}
+	SetupDistortionParams(DistortionPassParameters.DistortionParams, View);
 }
 
 /**

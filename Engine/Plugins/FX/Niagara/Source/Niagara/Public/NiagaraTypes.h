@@ -188,19 +188,28 @@ FORCEINLINE uint32 GetTypeHash(const FNiagaraID& ID)
 }
 
 /** Information about how this type should be laid out in an FNiagaraDataSet */
+USTRUCT()
 struct FNiagaraTypeLayoutInfo
 {
+	GENERATED_BODY()
+
 	FNiagaraTypeLayoutInfo()
 	{}
 
 	/** Byte offset of each float component in a structured layout. */
+	UPROPERTY()
 	TArray<uint32> FloatComponentByteOffsets;
+
 	/** Offset into register table for each float component. */
+	UPROPERTY()
 	TArray<uint32> FloatComponentRegisterOffsets;
 
 	/** Byte offset of each int32 component in a structured layout. */
+	UPROPERTY()
 	TArray<uint32> Int32ComponentByteOffsets;
+
 	/** Offset into register table for each int32 component. */
+	UPROPERTY()
 	TArray<uint32> Int32ComponentRegisterOffsets;
 
 	FORCEINLINE uint32 GetNumComponents()const { return FloatComponentByteOffsets.Num() + Int32ComponentByteOffsets.Num(); }
@@ -373,40 +382,40 @@ struct NIAGARA_API FNiagaraTypeDefinition
 public:
 
 	// Construct blank raw type definition 
-	FNiagaraTypeDefinition(UClass *ClassDef)
+	FORCEINLINE FNiagaraTypeDefinition(UClass *ClassDef)
 		: Struct(ClassDef), Enum(nullptr), Size(INDEX_NONE), Alignment(INDEX_NONE)
 	{
 		checkSlow(Struct != nullptr);
 	}
 
-	FNiagaraTypeDefinition(UEnum *EnumDef)
+	FORCEINLINE FNiagaraTypeDefinition(UEnum *EnumDef)
 		: Struct(IntStruct), Enum(EnumDef), Size(INDEX_NONE), Alignment(INDEX_NONE)
 	{
 		checkSlow(Struct != nullptr);
 	}
 
-	FNiagaraTypeDefinition(UScriptStruct *StructDef)
+	FORCEINLINE FNiagaraTypeDefinition(UScriptStruct *StructDef)
 		: Struct(StructDef), Enum(nullptr), Size(INDEX_NONE), Alignment(INDEX_NONE)
 	{
 		checkSlow(Struct != nullptr);
 	}
 
-	FNiagaraTypeDefinition(const FNiagaraTypeDefinition &Other)
+	FORCEINLINE FNiagaraTypeDefinition(const FNiagaraTypeDefinition &Other)
 		: Struct(Other.Struct), Enum(Other.Enum), Size(INDEX_NONE), Alignment(INDEX_NONE)
 	{
 	}
 
 	// Construct a blank raw type definition
-	FNiagaraTypeDefinition()
+	FORCEINLINE FNiagaraTypeDefinition()
 		: Struct(nullptr), Enum(nullptr), Size(INDEX_NONE), Alignment(INDEX_NONE)
 	{}
 
-	bool operator !=(const FNiagaraTypeDefinition &Other) const
+	FORCEINLINE bool operator !=(const FNiagaraTypeDefinition &Other) const
 	{
 		return !(*this == Other);
 	}
 
-	bool operator == (const FNiagaraTypeDefinition &Other) const
+	FORCEINLINE bool operator == (const FNiagaraTypeDefinition &Other) const
 	{
 		return Struct == Other.Struct && Enum == Other.Enum;
 	}
@@ -580,6 +589,7 @@ public:
 	static UScriptStruct* GetIDStruct() { return IDStruct; }
 
 	static UEnum* GetExecutionStateEnum() { return ExecutionStateEnum; }
+	static UEnum* GetExecutionStateSouceEnum() { return ExecutionStateSourceEnum; }
 	static UEnum* GetSimulationTargetEnum() { return SimulationTargetEnum; }
 	static UEnum* GetScriptUsageEnum() { return ScriptUsageEnum; }
 
@@ -786,7 +796,7 @@ struct FNiagaraVariable
 		}
 	}
 
-	FNiagaraVariable(FNiagaraTypeDefinition InType, FName InName)
+	FORCEINLINE FNiagaraVariable(const FNiagaraTypeDefinition& InType, const FName& InName)
 		: Name(InName)
 		, TypeDef(InType)
 	{
@@ -869,6 +879,11 @@ struct FNiagaraVariable
 	uint8* GetData()
 	{
 		return VarData.GetData();
+	}
+
+	void ClearData()
+	{
+		VarData.Empty();
 	}
 
 	int32 GetSizeInBytes() const

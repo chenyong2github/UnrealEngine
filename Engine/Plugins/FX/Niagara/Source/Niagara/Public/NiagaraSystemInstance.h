@@ -10,6 +10,7 @@
 #include "Templates/UniquePtr.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataInterface.h"
+#include "NiagaraSystemFastPath.h"
 
 class FNiagaraWorldManager;
 class UNiagaraComponent;
@@ -109,6 +110,14 @@ public:
 	ENiagaraExecutionState GetActualExecutionState() { return ActualExecutionState; }
 	void SetActualExecutionState(ENiagaraExecutionState InState);
 
+	float GetSystemTimeSinceRendered() const { return SystemTimeSinceRenderedParam.GetValue(); }
+
+	float GetOwnerLODDistance() const { return OwnerLODDistanceParam.GetValue(); }
+
+	int32 GetNumParticles(int32 EmitterIndex) const { return ParameterNumParticleBindings[EmitterIndex].GetValue(); }
+
+	FVector GetOwnerVelocity() const { return OwnerVelocityParam.GetValue(); }
+
 	FORCEINLINE bool IsComplete()const { return ActualExecutionState == ENiagaraExecutionState::Complete || ActualExecutionState == ENiagaraExecutionState::Disabled; }
 	FORCEINLINE bool IsDisabled()const { return ActualExecutionState == ENiagaraExecutionState::Disabled; }
 
@@ -118,7 +127,7 @@ public:
 	UNiagaraSystem* GetSystem()const;
 	FORCEINLINE UNiagaraComponent *GetComponent() { return Component; }
 	FORCEINLINE TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > &GetEmitters()	{ return Emitters; }
-	FORCEINLINE FBox &GetSystemBounds()	{ return SystemBounds;  }
+	FORCEINLINE const FBox& GetLocalBounds() { return LocalBounds;  }
 
 	FNiagaraEmitterInstance* GetEmitterByID(FGuid InID);
 
@@ -148,8 +157,7 @@ public:
 	bool GetIsolateEnabled() const;
 #endif
 
-	FName GetIDName() { return IDName; }
-	FGuid GetId() { return ID; }
+	FNiagaraSystemInstanceID GetId() { return ID; }
 
 	/** Returns the instance data for a particular interface for this System. */
 	FORCEINLINE void* FindDataInterfaceInstanceData(UNiagaraDataInterface* Interface) 
@@ -233,7 +241,15 @@ public:
 		bNeedsFinalize = true;
 	}
 
-	void TickInstanceParameters(float DeltaSeconds);
+	void TickInstanceParameters_GameThread(float DeltaSeconds);
+
+	void TickInstanceParameters_Concurrent();
+
+	void TickFastPathBindings();
+
+	void ResetFastPathBindings();
+
+	FNiagaraSystemFastPath::FParamMap0& GetFastPathMap() { return FastPathMap; }
 
 private:
 
@@ -262,7 +278,6 @@ private:
 	TSharedPtr<class FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSimulation;
 
 	UNiagaraComponent* Component;
-	FBox SystemBounds;
 
 	UActorComponent* PrereqComponent;
 
@@ -291,7 +306,7 @@ private:
 	TMap<FGuid, TSharedPtr<TArray<TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>>, ESPMode::ThreadSafe> > CapturedFrames;
 #endif
 
-	FGuid ID;
+	FNiagaraSystemInstanceID ID;
 	FName IDName;
 	
 	/** Per instance data for any data interfaces requiring it. */
@@ -354,25 +369,75 @@ private:
 	/** The system contains data interfaces that can have tick group prerequisites. */
 	uint32 bDataInterfacesHaveTickPrereqs : 1;
 
+	/** True if our bounds have changed and we require pushing that to the rendering thread. */
+	uint32 bIsTransformDirty : 1;
+
+	/** True if we require a call to FinalizeTick_GameThread(). Typically this is called from a GT task but can be called in WaitForAsync. */
+	uint32 bNeedsFinalize : 1;
+
+	uint32 bDataInterfacesInitialized : 1;
+
+	/** True if we have async work in flight. */
+	volatile bool bAsyncWorkInProgress;
+
+	/** Cached delta time, written during Tick_GameThread and used during other phases. */
+	float CachedDeltaSeconds;
+
+	/** Time since we last forced a bounds update. */
+	float TimeSinceLastForceUpdateTransform;
+
+	/** Current calculated local bounds. */
+	FBox LocalBounds;
+
 	/* Execution state requested by external code/BPs calling Activate/Deactivate. */
 	ENiagaraExecutionState RequestedExecutionState;
 
 	/** Copy of simulations internal state so that it can be passed to emitters etc. */
 	ENiagaraExecutionState ActualExecutionState;
 
-	bool bDataInterfacesInitialized;
-
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
-public:
-	/** True if we have async work in flight. */
-	volatile bool bAsyncWorkInProgress;
-	/** True if we require a call to FinalizeTick_GameThread(). Typically this is called from a GT task but can be called in WaitForAsync. */
-	volatile bool bNeedsFinalize;
 
+public:
 	// Transient data that is accumulated during tick.
 	uint32 TotalParamSize = 0;
 	uint32 ActiveGPUEmitterCount = 0;
 	int32 GPUDataInterfaceInstanceDataSize = 0;
 
-	float CachedDeltaSeconds;
+	struct FInstanceParameters
+	{
+		float DeltaSeconds;
+
+		FTransform ComponentTrans;
+		FVector OldPos;
+
+		float LODDistance;
+		float TimeSeconds;
+		float RealTimeSeconds;
+
+		float Age;
+		int32 TickCount;
+
+		TArray<int32> EmitterNumParticles;
+		TArray<int32> EmitterTotalSpawnedParticles;
+		int32 NumAlive;
+
+		float SafeTimeSinceRendererd;
+
+		ENiagaraExecutionState RequestedExecutionState;
+
+		void Init(int32 NumEmitters)
+		{
+			EmitterNumParticles.AddUninitialized(NumEmitters);
+			EmitterTotalSpawnedParticles.AddUninitialized(NumEmitters);
+		}
+	};
+
+	FInstanceParameters GatheredInstanceParameters;
+
+	FNiagaraSystemFastPath::FParamMap0 FastPathMap;
+
+	TArray<TNiagaraFastPathRangedInputBinding<int32>> FastPathIntUpdateRangedInputBindings;
+	TArray<TNiagaraFastPathRangedInputBinding<float>> FastPathFloatUpdateRangedInputBindings;
+	TArray<TNiagaraFastPathUserParameterInputBinding<int32>> FastPathIntUserParameterInputBindings;
+	TArray<TNiagaraFastPathUserParameterInputBinding<float>> FastPathFloatUserParameterInputBindings;
 };

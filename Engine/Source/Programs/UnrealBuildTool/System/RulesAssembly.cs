@@ -66,7 +66,7 @@ namespace UnrealBuildTool
 		/// Whether to use backwards compatible default settings for module and target rules. This is enabled by default for game projects to support a simpler migration path, but
 		/// is disabled for engine modules.
 		/// </summary>
-		private bool bUseBackwardsCompatibleDefaults;
+		private BuildSettingsVersion? DefaultBuildSettings;
 
 		/// <summary>
 		/// Whether the modules and targets in this assembly are read-only
@@ -88,18 +88,18 @@ namespace UnrealBuildTool
 		/// <param name="TargetFiles">List of target files to compile</param>
 		/// <param name="AssemblyFileName">The output path for the compiled assembly</param>
 		/// <param name="bContainsEngineModules">Whether this assembly contains engine modules. Used to initialize the default value for ModuleRules.bTreatAsEngineModule.</param>
-		/// <param name="bUseBackwardsCompatibleDefaults">Whether modules in this assembly should use backwards-compatible defaults.</param>
+		/// <param name="DefaultBuildSettings">Optional override for the default build settings version for modules created from this assembly.</param>
 		/// <param name="bReadOnly">Whether the modules and targets in this assembly are installed, and should be created with the bUsePrecompiled flag set</param> 
 		/// <param name="bSkipCompile">Whether to skip compiling this assembly</param>
 		/// <param name="Parent">The parent rules assembly</param>
-		internal RulesAssembly(RulesScope Scope, DirectoryReference BaseDir, IReadOnlyList<PluginInfo> Plugins, Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext, List<FileReference> TargetFiles, FileReference AssemblyFileName, bool bContainsEngineModules, bool bUseBackwardsCompatibleDefaults, bool bReadOnly, bool bSkipCompile, RulesAssembly Parent)
+		internal RulesAssembly(RulesScope Scope, DirectoryReference BaseDir, IReadOnlyList<PluginInfo> Plugins, Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext, List<FileReference> TargetFiles, FileReference AssemblyFileName, bool bContainsEngineModules, BuildSettingsVersion? DefaultBuildSettings, bool bReadOnly, bool bSkipCompile, RulesAssembly Parent)
 		{
 			this.Scope = Scope;
 			this.BaseDir = BaseDir;
 			this.Plugins = Plugins;
 			this.ModuleFileToContext = ModuleFileToContext;
 			this.bContainsEngineModules = bContainsEngineModules;
-			this.bUseBackwardsCompatibleDefaults = bUseBackwardsCompatibleDefaults;
+			this.DefaultBuildSettings = DefaultBuildSettings;
 			this.bReadOnly = bReadOnly;
 			this.Parent = Parent;
 
@@ -421,7 +421,10 @@ namespace UnrealBuildTool
 				RulesObject.Context = ModuleFileToContext[RulesObject.File];
 				RulesObject.Plugin = RulesObject.Context.Plugin;
 				RulesObject.bTreatAsEngineModule = bContainsEngineModules;
-				RulesObject.bUseBackwardsCompatibleDefaults = bUseBackwardsCompatibleDefaults && Target.bUseBackwardsCompatibleDefaults;
+				if(DefaultBuildSettings.HasValue)
+				{
+					RulesObject.DefaultBuildSettings = DefaultBuildSettings.Value;
+				}
 				RulesObject.bPrecompile = (RulesObject.bTreatAsEngineModule || ModuleName.Equals("UE4Game", StringComparison.OrdinalIgnoreCase)) && Target.bPrecompile;
 				RulesObject.bUsePrecompiled = bReadOnly;
 
@@ -466,9 +469,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="TypeName">Type name of the target rules</param>
 		/// <param name="TargetInfo">Target configuration information to pass to the constructor</param>
-		/// <param name="Arguments">Command line arguments for this target</param>
 		/// <returns>Instance of the corresponding TargetRules</returns>
-		protected TargetRules CreateTargetRulesInstance(string TypeName, TargetInfo TargetInfo, CommandLineArguments Arguments)
+		protected TargetRules CreateTargetRulesInstance(string TypeName, TargetInfo TargetInfo)
 		{
 			// The build module must define a type named '<TargetName>Target' that derives from our 'TargetRules' type.  
 			Type RulesType = CompiledAssembly.GetType(TypeName);
@@ -479,7 +481,10 @@ namespace UnrealBuildTool
 
 			// Create an instance of the module's rules object, and set some defaults before calling the constructor.
 			TargetRules Rules = (TargetRules)FormatterServices.GetUninitializedObject(RulesType);
-			Rules.bUseBackwardsCompatibleDefaults = bUseBackwardsCompatibleDefaults;
+			if (DefaultBuildSettings.HasValue)
+			{
+				Rules.DefaultBuildSettings = DefaultBuildSettings.Value;
+			}
 
 			// Find the constructor
 			ConstructorInfo Constructor = RulesType.GetConstructor(new Type[] { typeof(TargetInfo) });
@@ -503,15 +508,6 @@ namespace UnrealBuildTool
 
 			// Set the default overriddes for the configured target type
 			Rules.SetOverridesForTargetType();
-
-			// Parse any additional command-line arguments. These override default settings specified in config files or the .target.cs files.
-			if(Arguments != null)
-			{
-				foreach(object ConfigurableObject in Rules.GetConfigurableObjects())
-				{
-					Arguments.ApplyTo(ConfigurableObject);
-				}
-			}
 
 			// Set the final value for the link type in the target rules
 			if(Rules.LinkType == TargetLinkType.Default)
@@ -624,7 +620,7 @@ namespace UnrealBuildTool
 			string TargetTypeName = TargetName + "Target";
 
 			// The build module must define a type named '<TargetName>Target' that derives from our 'TargetRules' type.  
-			return CreateTargetRulesInstance(TargetTypeName, new TargetInfo(TargetName, Platform, Configuration, Architecture, ProjectFile), Arguments);
+			return CreateTargetRulesInstance(TargetTypeName, new TargetInfo(TargetName, Platform, Configuration, Architecture, ProjectFile, Arguments));
 		}
 
 		/// <summary>
@@ -642,7 +638,7 @@ namespace UnrealBuildTool
 			List<string> Matches = new List<string>();
 			foreach(KeyValuePair<string, FileReference> TargetPair in TargetNameToTargetFile)
 			{
-				TargetRules Rules = CreateTargetRulesInstance(TargetPair.Key + "Target", new TargetInfo(TargetPair.Key, Platform, Configuration, Architecture, ProjectFile), null);
+				TargetRules Rules = CreateTargetRulesInstance(TargetPair.Key + "Target", new TargetInfo(TargetPair.Key, Platform, Configuration, Architecture, ProjectFile, null));
 				if(Rules.Type == Type)
 				{
 					Matches.Add(TargetPair.Key);

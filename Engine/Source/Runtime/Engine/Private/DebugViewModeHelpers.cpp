@@ -24,11 +24,7 @@ static bool PlatformSupportsDebugViewShaders(EShaderPlatform Platform)
 
 bool AllowDebugViewVSDSHS(EShaderPlatform Platform)
 {
-#if WITH_EDITOR
-	return true; 
-#else
-	return false;
-#endif
+	return IsPCPlatform(Platform); 
 }
 
 bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel)
@@ -44,7 +40,7 @@ bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform P
 	case DVSM_None:
 		return false;
 	case DVSM_ShaderComplexity:
-		return true;
+		return IsPCPlatform(Platform);
 	case DVSM_ShaderComplexityContainedQuadOverhead:
 	case DVSM_ShaderComplexityBleedingQuadOverhead:
 	case DVSM_QuadComplexity:

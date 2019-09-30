@@ -15,6 +15,7 @@
 #include "EditorSubsystem.h"
 #include "Subsystems/SubsystemBlueprintLibrary.h"
 #include "Subsystems/EditorSubsystemBlueprintLibrary.h"
+#include "Subsystems/WorldSubsystem.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Subsystems/WorldSubsystem.h"

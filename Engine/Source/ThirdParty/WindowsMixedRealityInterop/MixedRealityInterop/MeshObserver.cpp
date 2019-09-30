@@ -24,6 +24,7 @@
 
 #include <DirectXMath.h>
 #include <windows.graphics.directx.h>
+#include <DirectXPackedVector.h>
 
 
 using namespace Microsoft::WRL;
@@ -104,15 +105,16 @@ void MeshUpdateObserver::Log(const wchar_t* LogMsg)
 
 void MeshUpdateObserver::CopyMeshData(MeshUpdate& DestMesh, SpatialSurfaceMesh^ SurfaceMesh)
 {
-	XMFLOAT4* RawVertices = GetDataFromIBuffer<XMFLOAT4>(SurfaceMesh->VertexPositions->Data);
+	PackedVector::XMSHORTN4* RawVertices = GetDataFromIBuffer<PackedVector::XMSHORTN4>(SurfaceMesh->VertexPositions->Data);
 	short* RawIndices = GetDataFromIBuffer<short>(SurfaceMesh->TriangleIndices->Data);
 	int VertexCount = DestMesh.NumVertices;
 	float* DestVertices = (float*)DestMesh.Vertices;
 
 	for (int Index = 0; Index < VertexCount; Index++)
 	{
-		// Use DX math on the theory this is faster
-		XMFLOAT4 Source = RawVertices[Index];
+		// Match alignment with MeshOptions->VertexPositionFormat
+		PackedVector::XMSHORTN4 packedSource = RawVertices[Index];
+		XMVECTOR Source = PackedVector::XMLoadShortN4(&packedSource);
 		XMFLOAT3 Dest = ToUE4Translation(Source);
 
 		DestVertices[0] = Dest.x;
@@ -122,7 +124,12 @@ void MeshUpdateObserver::CopyMeshData(MeshUpdate& DestMesh, SpatialSurfaceMesh^ 
 	}
 
 	int TriangleCount = DestMesh.NumIndices / 3;
-	short* DestIndices = (short*)DestMesh.Indices;
+// The DestIndices format in UE4 is defined by MRMESH_INDEX_TYPE.  Depending on platform it may be 16 or 32 bits.  This needs to match that.
+#if PLATFORM_HOLOLENS
+	short* DestIndices = (short*)DestMesh.Indices; 
+#else
+	uint32* DestIndices = (uint32*)DestMesh.Indices;
+#endif
 	// Reverse triangle order
 	for (int Index = 0; Index < TriangleCount; Index++)
 	{
@@ -347,7 +354,7 @@ void MeshUpdateObserver::InitSupportedMeshFormats(void)
 	MeshOptions = ref new SpatialSurfaceMeshOptions();
 	// We have to recalc normals anyway, so skip
 	MeshOptions->IncludeVertexNormals = false;
-	MeshOptions->VertexPositionFormat = DirectXPixelFormat::R32G32B32A32Float;
+	MeshOptions->VertexPositionFormat = DirectXPixelFormat::R16G16B16A16IntNormalized;
 	MeshOptions->TriangleIndexFormat = DirectXPixelFormat::R16UInt;
 
 	IVectorView<DirectXPixelFormat>^ VertexFormats = MeshOptions->SupportedVertexPositionFormats;

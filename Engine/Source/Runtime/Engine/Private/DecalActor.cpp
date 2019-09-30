@@ -25,7 +25,7 @@ ADecalActor::ADecalActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	Decal = CreateDefaultSubobject<UDecalComponent>(TEXT("NewDecalComponent"));
-	Decal->RelativeRotation = FRotator(-90, 0, 0);
+	Decal->SetRelativeRotation(FRotator(-90, 0, 0));
 	Decal->bDestroyOwnerAfterFade = true;
 
 	RootComponent = Decal;
@@ -59,25 +59,25 @@ ADecalActor::ADecalActor(const FObjectInitializer& ObjectInitializer)
 			ArrowComponent->SpriteInfo.Category = ConstructorStatics.ID_Decals;
 			ArrowComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Decals;
 			ArrowComponent->SetupAttachment(Decal);
-			ArrowComponent->bAbsoluteScale = true;
+			ArrowComponent->SetUsingAbsoluteScale(true);
 			ArrowComponent->bIsScreenSizeScaled = true;
 		}
 
 		if (SpriteComponent)
 		{
 			SpriteComponent->Sprite = ConstructorStatics.DecalTexture.Get();
-			SpriteComponent->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+			SpriteComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
 			SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_Decals;
 			SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Decals;
 			SpriteComponent->SetupAttachment(Decal);
 			SpriteComponent->bIsScreenSizeScaled = true;
-			SpriteComponent->bAbsoluteScale = true;
+			SpriteComponent->SetUsingAbsoluteScale(true);
 			SpriteComponent->bReceivesDecals = false;
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
 
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 }
 
 #if WITH_EDITOR
@@ -162,7 +162,7 @@ void ADecalActor::Serialize(FArchive& Ar)
 		if(Decal)
 		{
 			// before Super::Serialize(Ar);
-			Decal->RelativeScale3D = FVector(128.0f, 256.0f, 256.0f);
+			Decal->SetRelativeScale3D_Direct(FVector(128.0f, 256.0f, 256.0f));
 		}
 	}
 

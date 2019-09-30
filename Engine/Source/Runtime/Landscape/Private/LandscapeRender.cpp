@@ -81,6 +81,10 @@ static FAutoConsoleVariableRef CVarAllowLandscapeShadows(
 	TEXT("Allow Landscape Shadows")
 );
 
+#if WITH_EDITOR
+extern TAutoConsoleVariable<int32> CVarLandscapeShowDirty;
+#endif
+
 #if !UE_BUILD_SHIPPING
 static void OnLODDistributionScaleChanged(IConsoleVariable* CVar)
 {
@@ -573,6 +577,7 @@ UMaterialInterface* GMaskRegionMaterial = nullptr;
 UMaterialInterface* GColorMaskRegionMaterial = nullptr;
 UTexture2D* GLandscapeBlackTexture = nullptr;
 UMaterialInterface* GLandscapeLayerUsageMaterial = nullptr;
+UMaterialInterface* GLandscapeDirtyMaterial = nullptr;
 #endif
 
 void ULandscapeComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
@@ -623,6 +628,7 @@ void ULandscapeComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 		OutMaterials.Add(GMaskRegionMaterial);
 		OutMaterials.Add(GColorMaskRegionMaterial);
 		OutMaterials.Add(GLandscapeLayerUsageMaterial);
+		OutMaterials.Add(GLandscapeDirtyMaterial);
 	}
 #endif
 }
@@ -1071,6 +1077,12 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 #endif
 }
 
+void FLandscapeComponentSceneProxy::DestroyRenderThreadResources()
+{
+	FPrimitiveSceneProxy::DestroyRenderThreadResources();
+	UnregisterNeighbors();
+}
+
 void FLandscapeComponentSceneProxy::OnLevelAddedToWorld()
 {
 	RegisterNeighbors();
@@ -1078,8 +1090,6 @@ void FLandscapeComponentSceneProxy::OnLevelAddedToWorld()
 
 FLandscapeComponentSceneProxy::~FLandscapeComponentSceneProxy()
 {
-	UnregisterNeighbors();
-
 	// Free the subsection uniform buffer
 	LandscapeUniformShaderParameters.ReleaseResource();
 
@@ -1193,6 +1203,12 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 				ToolRelevance |= GColorMaskRegionMaterial->GetRelevance_Concurrent(FeatureLevel);
 			}
 
+			if (CVarLandscapeShowDirty.GetValueOnRenderThread() && GLandscapeDirtyMaterial)
+			{
+				Result.bDynamicRelevance = true;
+				ToolRelevance |= GLandscapeDirtyMaterial->GetRelevance_Concurrent(FeatureLevel);
+			}
+
 			ToolRelevance.SetPrimitiveViewRelevance(Result);
 		}
 	}
@@ -1219,6 +1235,7 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 #if WITH_EDITOR
 		(IsSelected() && !GLandscapeEditModeActive) ||
 		(GLandscapeViewMode != ELandscapeViewMode::Normal) ||
+		(CVarLandscapeShowDirty.GetValueOnRenderThread() && GLandscapeDirtyMaterial) ||
 #else
 		IsSelected() ||
 #endif
@@ -2961,6 +2978,27 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 						NumDrawCalls += Mesh.Elements.Num();
 					}
 				}
+#if WITH_EDITOR
+				else if (CVarLandscapeShowDirty.GetValueOnRenderThread() && GLandscapeDirtyMaterial)
+				{
+					Mesh.bCanApplyViewModeOverrides = false;
+					Collector.AddMesh(ViewIndex, Mesh);
+					NumPasses++;
+					NumTriangles += Mesh.GetNumPrimitives();
+					NumDrawCalls += Mesh.Elements.Num();
+
+					FMeshBatch& MaskMesh = Collector.AllocateMesh();
+					MaskMesh = MeshTools;
+										
+					auto DirtyMaterialInstance = new FLandscapeMaskMaterialRenderProxy(GLandscapeDirtyMaterial->GetRenderProxy(), EditToolRenderData.DirtyTexture ? EditToolRenderData.DirtyTexture : GLandscapeBlackTexture, true);
+					MaskMesh.MaterialRenderProxy = DirtyMaterialInstance;
+					Collector.RegisterOneFrameMaterialProxy(DirtyMaterialInstance);
+					Collector.AddMesh(ViewIndex, MaskMesh);
+					NumPasses++;
+					NumTriangles += MaskMesh.GetNumPrimitives();
+					NumDrawCalls += MaskMesh.Elements.Num();
+				}
+#endif
 				else
 #endif
 					// Regular Landscape rendering. Only use the dynamic path if we're rendering a rich view or we've disabled the static path for debugging.
@@ -3102,13 +3140,15 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 
 	FMemStackBase& PrimitiveCustomDataMemStack = FMemStack::Get();
 
+	FViewCustomDataLOD* InPrimitiveCustomData;
+
 	float MeshScreenSizeSquared = 0;
 	int32 ForcedLODLevel = (Context.ReferenceView->Family->EngineShowFlags.LOD) ? GetCVarForceLOD() : 0;
 
 	FLODMask LODToRender = GetCustomLOD(*Context.ReferenceView, Context.ReferenceView->LODDistanceFactor, ForcedLODLevel, MeshScreenSizeSquared);
-	FViewCustomDataLOD* InPrimitiveCustomData = (FViewCustomDataLOD*)InitViewCustomData(*Context.ReferenceView, Context.ReferenceView->LODDistanceFactor, PrimitiveCustomDataMemStack, false, false, &LODToRender, MeshScreenSizeSquared);
+	InPrimitiveCustomData = (FViewCustomDataLOD*)InitViewCustomData(*Context.ReferenceView, Context.ReferenceView->LODDistanceFactor, PrimitiveCustomDataMemStack, false, false, &LODToRender, MeshScreenSizeSquared);
 	PostInitViewCustomData(*Context.ReferenceView, InPrimitiveCustomData);
-
+	
 	FLandscapeElementParamArray& ParameterArray = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FLandscapeElementParamArray>();
 	ParameterArray.ElementParams.AddDefaulted(NumSubsections * NumSubsections);
 
@@ -4185,6 +4225,10 @@ FVertexFactoryShaderParameters* FLandscapeFixedGridVertexFactory::ConstructShade
 	switch (ShaderFrequency)
 	{
 	case SF_Vertex:
+#if RHI_RAYTRACING
+	case SF_Compute:
+	case SF_RayHitGroup:
+#endif
 		return new FLandscapeFixedGridVertexFactoryVertexShaderParameters();
 		break;
 	case SF_Pixel:
@@ -4229,7 +4273,7 @@ public:
 		if (bIsLayerThumbnail || bDisableTessellation)
 		{
 			FSHA1 Hash;
-			Hash.Update(OutId.BasePropertyOverridesHash.Hash, ARRAY_COUNT(OutId.BasePropertyOverridesHash.Hash));
+			Hash.Update(OutId.BasePropertyOverridesHash.Hash, UE_ARRAY_COUNT(OutId.BasePropertyOverridesHash.Hash));
 
 			const FString HashString = TEXT("bOverride_TessellationMode");
 			Hash.UpdateWithString(*HashString, HashString.Len());
@@ -4646,7 +4690,7 @@ void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 	if (Proxy)
 	{
 		LocalStreamingDistanceMultiplier = FMath::Max(0.0f, Proxy->StreamingDistanceMultiplier);
-		TexelFactor = 0.75f * LocalStreamingDistanceMultiplier * ComponentSizeQuads * FMath::Abs(Proxy->GetRootComponent()->RelativeScale3D.X);
+		TexelFactor = 0.75f * LocalStreamingDistanceMultiplier * ComponentSizeQuads * FMath::Abs(Proxy->GetRootComponent()->GetRelativeScale3D().X);
 	}
 
 	ERHIFeatureLevel::Type FeatureLevel = LevelContext.GetFeatureLevel();
@@ -5117,8 +5161,10 @@ void FLandscapeMeshProxySceneProxy::OnLevelAddedToWorld()
 	}
 }
 
-FLandscapeMeshProxySceneProxy::~FLandscapeMeshProxySceneProxy()
+void FLandscapeMeshProxySceneProxy::DestroyRenderThreadResources()
 {
+	FStaticMeshSceneProxy::DestroyRenderThreadResources();
+
 	for (FLandscapeNeighborInfo& Info : ProxyNeighborInfos)
 	{
 		Info.UnregisterNeighbors();

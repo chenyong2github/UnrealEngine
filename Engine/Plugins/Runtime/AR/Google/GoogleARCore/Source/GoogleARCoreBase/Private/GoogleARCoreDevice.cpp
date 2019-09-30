@@ -19,6 +19,15 @@
 
 #include "GoogleARCorePermissionHandler.h"
 
+int32 GARCoreEnableVulkanSupport = 0;
+static FAutoConsoleVariableRef CVarARCoreEnableVulkanSupport(
+	TEXT("r.ARCore.EnableVulkanSupport"),
+	GARCoreEnableVulkanSupport,
+	TEXT("Whether to support Vulkan in the ARCore plugin.\n")
+	TEXT(" 0: Disabled (default)\n")
+	TEXT(" 1: Enabled"),
+	ECVF_Default);
+
 namespace
 {
 	EGoogleARCoreFunctionStatus ToARCoreFunctionStatus(EGoogleARCoreAPIStatus Status)
@@ -42,6 +51,15 @@ namespace
 			return EGoogleARCoreFunctionStatus::Unknown;
 		}
 	}
+}
+
+static bool ShouldUseVulkan()
+{
+#if PLATFORM_ANDROID
+	return FAndroidMisc::ShouldUseVulkan();
+#else
+	return false;
+#endif
 }
 
 FGoogleARCoreDelegates::FGoogleARCoreOnConfigCameraDelegate FGoogleARCoreDelegates::OnCameraConfig;
@@ -130,7 +148,15 @@ float FGoogleARCoreDevice::GetWorldToMetersScale()
 void FGoogleARCoreDevice::StartARCoreSessionRequest(UARSessionConfig* SessionConfig)
 {
 	UE_LOG(LogGoogleARCore, Log, TEXT("Start ARCore session requested."));
-
+	
+#if PLATFORM_ANDROID
+	if (ShouldUseVulkan() && !GARCoreEnableVulkanSupport)
+	{
+		UE_LOG(LogGoogleARCore, Error, TEXT("StartARCoreSessionRequest ignored - ARCore requires an OpenGL context, but we're using Vulkan!"));
+		return;
+	}
+#endif
+	
 	// The new SessionConfig should be set to the session already at this point. We can check if it is front camera session here.
 	bool bShouldUseFrontCamera = GetIsFrontCameraSession();
 	bool bShouldSwitchCamera = bShouldUseFrontCamera ? ARCoreSession == BackCameraARCoreSession : ARCoreSession == FrontCameraARCoreSession;
@@ -340,7 +366,12 @@ void FGoogleARCoreDevice::OnWorldTickStart(UWorld* World, ELevelTick TickType, f
 		else
 		{
 			// Copy the camera GPU texture to a normal Texture2D so that we can get around the multi-threaded rendering issue.
-			CameraBlitter.DoBlit(PassthroughCameraTextureId, SessionCameraConfig.CameraTextureResolution);
+			if (!CameraBlitter)
+			{
+				CameraBlitter = MakeShared<FGoogleARCoreDeviceCameraBlitter, ESPMode::ThreadSafe>();
+			}
+			
+			CameraBlitter->DoBlit(PassthroughCameraTextureId, SessionCameraConfig.CameraTextureResolution);
 		}
 	}
 }
@@ -407,7 +438,12 @@ void FGoogleARCoreDevice::HandleRuntimePermissionsGranted(const TArray<FString>&
 void FGoogleARCoreDevice::StartSessionWithRequestedConfig()
 {
 	bStartSessionRequested = false;
-
+	
+	if (ShouldUseVulkan())
+	{
+		GLContext = FGoogleARCoreOpenGLContext::CreateContext();
+	}
+	
 	// Allocate passthrough camera texture if necessary.
 	if (PassthroughCameraTexture == nullptr)
 	{
@@ -628,18 +664,32 @@ void FGoogleARCoreDevice::ResetARCoreSession()
 	BackCameraARCoreSession.Reset();
 	CurrentSessionStatus.Status = EARSessionStatus::NotStarted;
 	CurrentSessionStatus.AdditionalInfo = TEXT("ARCore Session is uninitialized.");
+	// Release the CameraBlitter first as it may need to release resources created from the GLContext
+	if (GLContext)
+	{
+		CameraBlitter = nullptr;
+		GLContext = nullptr;
+	}
 }
 
 void FGoogleARCoreDevice::AllocatePassthroughCameraTexture_RenderThread()
 {
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FRHIResourceCreateInfo CreateInfo;
-
-	PassthroughCameraTexture = RHICmdList.CreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, 0, CreateInfo);
-
-	void* NativeResource = PassthroughCameraTexture->GetNativeResource();
-	check(NativeResource);
-	PassthroughCameraTextureId = *reinterpret_cast<uint32*>(NativeResource);
+	if (ShouldUseVulkan())
+	{
+		check(GLContext);
+		PassthroughCameraTextureId = GLContext->GetCameraTextureId();
+	}
+	else
+	{
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		FRHIResourceCreateInfo CreateInfo;
+		
+		PassthroughCameraTexture = RHICmdList.CreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, 0, CreateInfo);
+		
+		void* NativeResource = PassthroughCameraTexture->GetNativeResource();
+		check(NativeResource);
+		PassthroughCameraTextureId = *reinterpret_cast<uint32*>(NativeResource);
+	}
 }
 
 FTextureRHIRef FGoogleARCoreDevice::GetPassthroughCameraTexture()
@@ -741,7 +791,12 @@ EGoogleARCoreFunctionStatus FGoogleARCoreDevice::GetLatestCameraMetadata(const A
 
 UTexture* FGoogleARCoreDevice::GetCameraTexture()
 {
-	return CameraBlitter.GetLastCameraImageTexture();
+	if (CameraBlitter.IsValid())
+	{
+		return CameraBlitter->GetLastCameraImageTexture();
+	}
+
+	return nullptr;
 }
 
 EGoogleARCoreFunctionStatus FGoogleARCoreDevice::AcquireCameraImage(UGoogleARCoreCameraImage *&OutLatestCameraImage)

@@ -2220,6 +2220,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
         PipelineBits &= EMetalPipelineFlagComputeMask;
     }
 	
+#if METAL_DEBUG_OPTIONS
 	if (SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
 	{
 		FMetalShaderPipeline* Pipeline = GetPipelineState();
@@ -2401,6 +2402,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 			ensure(ShaderSamplers[EMetalShaderStages::Pixel].Samplers[Index]);
 		}
 	}
+#endif // METAL_DEBUG_OPTIONS
 }
 
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS

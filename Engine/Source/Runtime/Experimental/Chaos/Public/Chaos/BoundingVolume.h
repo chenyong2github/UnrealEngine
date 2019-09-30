@@ -28,7 +28,7 @@ struct TPayloadHelper
 	template <typename TParticle>
 	static TPayloadType GetPayload(TParticle& Particle, int32 Idx)
 	{
-		return Particle.Handle();
+		return TPayloadType(Particle.Handle());
 	}
 };
 
@@ -112,9 +112,9 @@ public:
 		return *this;
 	}
 
-	TBoundingVolume<TSOA, TPayloadType, T, d> Copy() const
+	TUniquePtr<TBoundingVolume<TSOA, TPayloadType, T, d>> Copy() const
 	{
-		return TBoundingVolume<TSOA, TPayloadType, T, d>(*this);
+		return TUniquePtr<TBoundingVolume<TSOA, TPayloadType, T, d>>(new TBoundingVolume<TSOA, TPayloadType, T, d>(*this));
 	}
 
 	template <typename ParticleView>
@@ -153,6 +153,35 @@ public:
 		TArray<TPayloadType> IntersectionList = FindAllIntersectionsHelper(Intersection);
 		IntersectionList.Append(MGlobalPayloads);
 		return IntersectionList;
+	}
+
+	virtual void RemoveElement(const TPayloadType& Payload) override
+	{
+		//todo: remove with a faster search
+		if(MGlobalPayloads.RemoveSwap(Payload) == 0)
+		{
+			const TVector<int32, d> NumCells = MGrid.Counts();
+			for (int32 X = 0; X < NumCells[0]; ++X)
+			{
+				for (int32 Y = 0; Y < NumCells[1]; ++Y)
+				{
+					for (int32 Z = 0; Z < NumCells[2]; ++Z)
+					{
+						TArray<FCellElement>& Elems = MElements(X, Y, Z);
+						int32 ElemIdx = 0;
+						for (FCellElement& Elem : Elems)
+						{
+							if (Elem.Payload == Payload)
+							{
+								Elems.RemoveAtSwap(ElemIdx);
+								break;
+							}
+							++ElemIdx;
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Begin ISpatialAcceleration interface

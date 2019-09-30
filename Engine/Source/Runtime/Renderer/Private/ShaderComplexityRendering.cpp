@@ -10,6 +10,14 @@ ShaderComplexityRendering.cpp: Contains definitions for rendering the shader com
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
+int32 GCacheShaderComplexityShaders = 0;
+static FAutoConsoleVariableRef CVarNiagaraAllowTickBeforeRender(
+	TEXT("r.ShaderComplexity.CacheShaders"),
+	GCacheShaderComplexityShaders,
+	TEXT("If non zero, store the shader complexity shaders in the material shader map, to prevent compile on-the-fly lag. (default=0)"),
+	ECVF_ReadOnly
+);
+
 int32 GShaderComplexityBaselineForwardVS = 134;
 static FAutoConsoleVariableRef CVarShaderComplexityBaselineForwardVS(
 	TEXT("r.ShaderComplexity.Baseline.Forward.VS"),

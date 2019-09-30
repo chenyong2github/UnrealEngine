@@ -49,7 +49,7 @@ UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 FNiagaraRenderer* UNiagaraSpriteRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
 {
 	FNiagaraRenderer* NewRenderer = new FNiagaraRendererSprites(FeatureLevel, this, Emitter);	
-	NewRenderer->Initialize(FeatureLevel, this, Emitter);
+	NewRenderer->Initialize(this, Emitter);
 	return NewRenderer;
 }
 
@@ -92,8 +92,13 @@ void UNiagaraSpriteRendererProperties::Serialize(FStructuredArchive::FRecord Rec
 {
 	Super::Serialize(Record);
 
+	bool bIsCookedForEditor = false;
+#if WITH_EDITORONLY_DATA
+	bIsCookedForEditor = GetOutermost()->bIsCookedForEditor;
+#endif // WITH_EDITORONLY_DATA
+
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
-	if (UnderlyingArchive.IsCooking() || (FPlatformProperties::RequiresCookedData() && UnderlyingArchive.IsLoading()))
+	if (UnderlyingArchive.IsCooking() || (FPlatformProperties::RequiresCookedData() && UnderlyingArchive.IsLoading()) || bIsCookedForEditor)
 	{
 		DerivedData.Serialize(Record.EnterField(FIELD_NAME_TEXT("DerivedData")));
 	}

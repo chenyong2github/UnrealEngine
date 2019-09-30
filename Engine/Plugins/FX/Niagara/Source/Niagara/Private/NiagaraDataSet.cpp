@@ -95,12 +95,37 @@ void FNiagaraDataSet::Init(FNiagaraDataSetID InID, ENiagaraSimTarget InSimTarget
 	SimTarget = InSimTarget;
 	DebugName = InDebugName;
 }
+
+void FNiagaraDataSet::InitFromCompiledData(const FNiagaraDataSetCompiledData& InDataSetCompiledData, const FString& InDebugName)
+{
+	Variables = InDataSetCompiledData.Variables;
+	VariableLayouts = InDataSetCompiledData.VariableLayouts;
+	TotalFloatComponents = InDataSetCompiledData.TotalFloatComponents;
+	TotalInt32Components = InDataSetCompiledData.TotalInt32Components;
+	bNeedsPersistentIDs = InDataSetCompiledData.bNeedsPersistentIDs;
+	ID = InDataSetCompiledData.ID;
+	SimTarget = InDataSetCompiledData.SimTarget;
+	DebugName = InDebugName;
+	bFinalized = true;
+}
 #else
 void FNiagaraDataSet::Init(FNiagaraDataSetID InID, ENiagaraSimTarget InSimTarget)
 {
 	Reset();
 	ID = InID;
 	SimTarget = InSimTarget;
+}
+
+void FNiagaraDataSet::InitFromCompiledData(const FNiagaraDataSetCompiledData& InDataSetCompiledData)
+{
+	Variables = InDataSetCompiledData.Variables;
+	VariableLayouts = InDataSetCompiledData.VariableLayouts;
+	TotalFloatComponents = InDataSetCompiledData.TotalFloatComponents;
+	TotalInt32Components = InDataSetCompiledData.TotalInt32Components;
+	bNeedsPersistentIDs = InDataSetCompiledData.bNeedsPersistentIDs;
+	ID = InDataSetCompiledData.ID;
+	SimTarget = InDataSetCompiledData.SimTarget;
+	bFinalized = true;
 }
 #endif
 
@@ -357,6 +382,7 @@ void FNiagaraDataSet::ReleaseGPUInstanceCounts(FNiagaraGPUInstanceCountManager& 
 	}
 }
 
+// note, this method is also implemented in FNiagaraDataSetCompiledData::BuildLayout()
 void FNiagaraDataSet::BuildLayout()
 {
 	VariableLayouts.Empty();
@@ -397,8 +423,10 @@ void FNiagaraDataSet::Finalize()
 	BuildLayout();
 
 	ResetBuffers();
-
-	GetCurrentDataChecked().BuildRegisterTable();
+	if (SimTarget == ENiagaraSimTarget::CPUSim)
+	{
+		GetCurrentDataChecked().BuildRegisterTable();
+	}
 }
 
 const FNiagaraVariableLayoutInfo* FNiagaraDataSet::GetVariableLayout(const FNiagaraVariable& Var)const
@@ -1110,4 +1138,34 @@ void FNiagaraDataBuffer::BuildRegisterTable()
 		}
 		NumRegisters += NumFloats + NumInts;
 	}
+}
+
+// note, this method is also implemented in FNiagaraDataSet::BuildLayout()
+void FNiagaraDataSetCompiledData::BuildLayout()
+{
+	VariableLayouts.Empty();
+	TotalFloatComponents = 0;
+	TotalInt32Components = 0;
+
+	VariableLayouts.Reserve(Variables.Num());
+	for (FNiagaraVariable& Var : Variables)
+	{
+		FNiagaraVariableLayoutInfo& VarInfo = VariableLayouts[VariableLayouts.AddDefaulted()];
+		FNiagaraTypeLayoutInfo::GenerateLayoutInfo(VarInfo.LayoutInfo, Var.GetType().GetScriptStruct());
+		VarInfo.FloatComponentStart = TotalFloatComponents;
+		VarInfo.Int32ComponentStart = TotalInt32Components;
+		TotalFloatComponents += VarInfo.GetNumFloatComponents();
+		TotalInt32Components += VarInfo.GetNumInt32Components();
+	}
+}
+
+void FNiagaraDataSetCompiledData::Empty()
+{
+	bNeedsPersistentIDs = 0;
+	TotalFloatComponents = 0;
+	TotalInt32Components = 0;
+	Variables.Empty();
+	VariableLayouts.Empty();
+	ID = FNiagaraDataSetID();
+	SimTarget = ENiagaraSimTarget::CPUSim;
 }

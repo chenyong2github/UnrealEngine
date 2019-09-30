@@ -6,7 +6,6 @@
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "PhysicsEngine/AggregateGeom.h"
-#include "Chaos/Framework/SingleParticlePhysicsProxy.h"
 
 #include "Chaos/Box.h"
 #include "Chaos/Cylinder.h"
@@ -16,6 +15,7 @@
 #include "Chaos/Levelset.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/Sphere.h"
+#include "Chaos/Matrix.h"
 #include "PhysicsSolver.h"
 #include "Templates/UniquePtr.h"
 #include "ChaosSolversModule.h"
@@ -24,6 +24,8 @@
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Convex.h"
 #include "Chaos/GeometryQueries.h"
+#include "Chaos/Plane.h"
+
 
 
 #include "Async/ParallelFor.h"
@@ -122,6 +124,7 @@ void FPhysInterface_Chaos::ReleaseActor(FPhysicsActorHandle& Handle, FPhysScene*
 	check(Handle);
 	if (InScene)
 	{
+		InScene->GetScene().RemoveActorFromAccelerationStructure(Handle);
 		RemoveActorFromSolver(Handle, InScene->GetSolver(), FChaosSolversModule::GetModule()->GetDispatcher());
 	}
 
@@ -234,8 +237,11 @@ bool FPhysInterface_Chaos::CanSimulate_AssumesLocked(const FPhysicsActorHandle& 
 
 float FPhysInterface_Chaos::GetMass_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	// #todo : Implement
-	return 1.f;
+	if (const Chaos::TPBDRigidParticle<float,3>* RigidParticle = InActorReference->AsDynamic())
+	{
+		return RigidParticle->M();
+	}
+	return 0.f;
 }
 
 void FPhysInterface_Chaos::SetSendsSleepNotifies_AssumesLocked(const FPhysicsActorHandle& InActorReference, bool bSendSleepNotifies)
@@ -444,18 +450,32 @@ void FPhysInterface_Chaos::SetSleepEnergyThreshold_AssumesLocked(const FPhysicsA
 {
 }
 
-void FPhysInterface_Chaos::SetMass_AssumesLocked(const FPhysicsActorHandle& InHandle, float InMass)
+void FPhysInterface_Chaos::SetMass_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InMass)
 {
-	// #todo : Implement
-	//LocalParticles.M(Index) = InMass;
+	if (Chaos::TPBDRigidParticle<float, 3 >* RigidParticle = InActorReference->AsDynamic())
+	{
+		RigidParticle->SetM(InMass);
+		if (ensure(!FMath::IsNearlyZero(InMass)))
+		{
+			RigidParticle->SetInvM(1./InMass);
+		}
+		else
+		{
+			RigidParticle->SetInvM(0);
+		}
+	}
 }
 
-void FPhysInterface_Chaos::SetMassSpaceInertiaTensor_AssumesLocked(const FPhysicsActorHandle& InHandle, const FVector& InTensor)
+void FPhysInterface_Chaos::SetMassSpaceInertiaTensor_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InTensor)
 {
-	// #todo : Implement
-	//LocalParticles.I(Index).M[0][0] = InTensor[0];
-    //LocalParticles.I(Index).M[1][1] = InTensor[1];
-    //LocalParticles.I(Index).M[2][2] = InTensor[2];
+	if (Chaos::TPBDRigidParticle<float, 3 >* RigidParticle = InActorReference->AsDynamic())
+	{
+		if(ensure(!FMath::IsNearlyZero(InTensor.X)) && ensure(!FMath::IsNearlyZero(InTensor.Y)) && ensure(!FMath::IsNearlyZero(InTensor.Z)) )
+		{
+			RigidParticle->SetI(Chaos::PMatrix<float,3,3>(InTensor.X, InTensor.Y, InTensor.Z));
+			RigidParticle->SetInvI(Chaos::PMatrix<float, 3, 3>(1./InTensor.X, 1./InTensor.Y, 1./InTensor.Z));
+		}
+	}
 }
 
 void FPhysInterface_Chaos::SetComLocalPose_AssumesLocked(const FPhysicsActorHandle& InHandle, const FTransform& InComLocalPose)
@@ -871,9 +891,10 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 	{
 		for (uint32 i = 0; i < static_cast<uint32>(InParams.Geometry->SphereElems.Num()); ++i)
 		{
-			ensure(FMath::IsNearlyEqual(Scale[0],Scale[1]) && FMath::IsNearlyEqual(Scale[1],Scale[2]) );
-			const auto& CollisionSphere = InParams.Geometry->SphereElems[i];
-			auto ImplicitSphere = MakeUnique<Chaos::TSphere<float, 3>>(Chaos::TVector<float, 3>(0.f, 0.f, 0.f), CollisionSphere.Radius * Scale[0]);
+			const FKSphereElem ScaledSphereElem = InParams.Geometry->SphereElems[i].GetFinalScaled(Scale, InParams.LocalTransform);
+			const float UseRadius = FMath::Max(ScaledSphereElem.Radius, KINDA_SMALL_NUMBER);
+
+			auto ImplicitSphere = MakeUnique<Chaos::TSphere<float, 3>>(Chaos::TVector<float, 3>(0.f, 0.f, 0.f), UseRadius);
 			auto NewShape = NewShapeHelper(ImplicitSphere.Get());
 			Shapes.Emplace(MoveTemp(NewShape));
 
@@ -1442,21 +1463,70 @@ bool FPhysInterface_Chaos::Overlap_Geom(const FBodyInstance* InBodyInstance, con
 
 bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInstance, const FVector& InPoint, float& OutDistanceSquared, FVector* OutOptPointOnBody)
 {
-	const FTransform BodyTM = InInstance->GetUnrealWorldTransform();
+	if (OutOptPointOnBody)
+	{
+		*OutOptPointOnBody = InPoint;
+		OutDistanceSquared = 0.f;
+	}
+
+	float ReturnDistance = -1.f;
+	float MinPhi = BIG_NUMBER;
+	bool bFoundValidBody = false;
+	bool bEarlyOut = true;
+
+	const FBodyInstance* UseBI = InInstance->WeldParent ? InInstance->WeldParent : InInstance;
+	const FTransform BodyTM = UseBI->GetUnrealWorldTransform();
 	const FVector LocalPoint = BodyTM.InverseTransformPositionNoScale(InPoint);
 
-    TArray<FPhysicsShapeReference_Chaos> OutShapes;
-    InInstance->GetAllShapes_AssumesLocked(OutShapes);
-    check(OutShapes.Num() == 1);
-    Chaos::TVector<float, 3> Normal;
-    const auto Phi = OutShapes[0].Shape->Geometry->PhiWithNormal(LocalPoint, Normal);
-    OutDistanceSquared = Phi * Phi;
-    if (OutOptPointOnBody)
-    {
-		const Chaos::TVector<float, 3> LocalClosestPoint = LocalPoint - Phi * Normal;
-        *OutOptPointOnBody = BodyTM.TransformPositionNoScale(LocalClosestPoint);
-    }
-    return true;
+	FPhysicsCommand::ExecuteRead(UseBI->ActorHandle, [&](const FPhysicsActorHandle& Actor)
+	{
+
+		bEarlyOut = false;
+
+		TArray<FPhysicsShapeReference_Chaos> Shapes;
+		InInstance->GetAllShapes_AssumesLocked(Shapes);
+		for (const FPhysicsShapeReference_Chaos& Shape : Shapes)
+		{
+			if (UseBI->IsShapeBoundToBody(Shape) == false)	//skip welded shapes that do not belong to us
+			{
+				continue;
+			}
+
+			ECollisionShapeType GeomType = FPhysicsInterface::GetShapeType(Shape);
+
+			if (GeomType == ECollisionShapeType::Trimesh)
+			{
+				// Type unsupported for this function, but some other shapes will probably work. 
+				continue;
+			}
+
+			bFoundValidBody = true;
+
+			Chaos::TVector<float, 3> Normal;
+			const float Phi = Shape.Shape->Geometry->PhiWithNormal(LocalPoint, Normal);
+			if (Phi <= 0)
+			{
+				break;
+			}
+			else if (Phi < MinPhi)
+			{
+				MinPhi = Phi;
+				OutDistanceSquared = Phi * Phi;
+				if (OutOptPointOnBody)
+				{
+					const Chaos::TVector<float, 3> LocalClosestPoint = LocalPoint - Phi * Normal;
+					*OutOptPointOnBody = BodyTM.TransformPositionNoScale(LocalClosestPoint);
+				}
+			}
+		}
+	});
+
+	if (!bFoundValidBody && !bEarlyOut)
+	{
+		UE_LOG(LogPhysics, Verbose, TEXT("GetDistanceToBody: Component (%s) has no simple collision and cannot be queried for closest point."), InInstance->OwnerComponent.Get() ? *(InInstance->OwnerComponent->GetPathName()) : TEXT("NONE"));
+	}
+
+	return bFoundValidBody;
 }
 
 template<typename AllocatorType>
@@ -1545,74 +1615,5 @@ FTransform FPhysicsShapeAdapter_Chaos::GetGeometryPose(const FVector& Pos) const
 const FQuat& FPhysicsShapeAdapter_Chaos::GetGeomOrientation() const
 {
 	return GeometryRotation;
-}
-
-FVector FindBoxOpposingNormal(const FLocationHit& Hit, const FVector& TraceDirectionDenorm, const FVector& InNormal)
-{
-	// We require normal info for our algorithm.
-	const bool bNormalData = !!(Hit.Flags & EHitFlags::Normal);
-	if (!bNormalData)
-	{
-		return InNormal;
-	}
-
-	ensure(Hit.Shape->Geometry->GetType() == Chaos::ImplicitObjectType::Box);
-	const FTransform LocalToWorld(Hit.Actor->R(), Hit.Actor->X());
-
-	// Find which faces were included in the contact normal, and for multiple faces, use the one most opposing the sweep direction.
-	const FVector ContactNormalLocal = LocalToWorld.InverseTransformVectorNoScale(Hit.WorldNormal);
-	const float* ContactNormalLocalPtr = &ContactNormalLocal.X;
-	const float* TraceDirDenormWorldPtr = &TraceDirectionDenorm.X;
-	const FVector TraceDirDenormLocal = LocalToWorld.InverseTransformVectorNoScale(TraceDirectionDenorm);
-	const float* TraceDirDenormLocalPtr = &TraceDirDenormLocal.X;
-
-	FVector BestLocalNormal(ContactNormalLocal);
-	float* BestLocalNormalPtr = &BestLocalNormal.X;
-	float BestOpposingDot = FLT_MAX;
-
-	for (int32 i = 0; i < 3; i++)
-	{
-		// Select axis of face to compare to, based on normal.
-		if (ContactNormalLocalPtr[i] > KINDA_SMALL_NUMBER)
-		{
-			const float TraceDotFaceNormal = TraceDirDenormLocalPtr[i]; // TraceDirDenormLocal.dot(BoxFaceNormal)
-			if (TraceDotFaceNormal < BestOpposingDot)
-			{
-				BestOpposingDot = TraceDotFaceNormal;
-				BestLocalNormal = FVector(0.f);
-				BestLocalNormalPtr[i] = 1.f;
-			}
-		}
-		else if (ContactNormalLocalPtr[i] < -KINDA_SMALL_NUMBER)
-		{
-			const float TraceDotFaceNormal = -TraceDirDenormLocalPtr[i]; // TraceDirDenormLocal.dot(BoxFaceNormal)
-			if (TraceDotFaceNormal < BestOpposingDot)
-			{
-				BestOpposingDot = TraceDotFaceNormal;
-				BestLocalNormal = FVector(0.f);
-				BestLocalNormalPtr[i] = -1.f;
-			}
-		}
-	}
-
-	// Fill in result
-	const FVector WorldNormal = LocalToWorld.TransformVectorNoScale(BestLocalNormal);
-	return WorldNormal;
-}
-
-FVector FindHeightFieldOpposingNormal(const FLocationHit& PHit, const FVector& TraceDirectionDenorm, const FVector& InNormal)
-{
-	//todo: implement
-	return FVector(0, 0, 1);
-}
-FVector FindConvexMeshOpposingNormal(const FLocationHit& PHit, const FVector& TraceDirectionDenorm, const FVector& InNormal)
-{
-	//todo: implement
-	return FVector(0, 0, 1);
-}
-FVector FindTriMeshOpposingNormal(const FLocationHit& PHit, const FVector& TraceDirectionDenorm, const FVector& InNormal)
-{
-	//todo: implement
-	return FVector(0, 0, 1);
 }
 #endif

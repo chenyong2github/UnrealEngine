@@ -222,12 +222,12 @@ bool FCollisionResponse::AddReponseToArray(ECollisionChannel Channel, ECollision
 
 void FCollisionResponse::UpdateArrayFromResponseContainer()
 {
-	ResponseArray.Empty(ARRAY_COUNT(ResponseToChannels.EnumArray));
+	ResponseArray.Empty(UE_ARRAY_COUNT(ResponseToChannels.EnumArray));
 
 	const FCollisionResponseContainer& DefaultResponse = FCollisionResponseContainer::GetDefaultResponseContainer();
 	const UCollisionProfile* CollisionProfile = UCollisionProfile::Get();
 
-	for (int32 i = 0; i < ARRAY_COUNT(ResponseToChannels.EnumArray); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(ResponseToChannels.EnumArray); i++)
 	{
 		// if not same as default
 		if (ResponseToChannels.EnumArray[i] != DefaultResponse.EnumArray[i])
@@ -2536,101 +2536,101 @@ void FBodyInstance::UpdateMassProperties()
 	UPhysicalMaterial* PhysMat = GetSimplePhysicalMaterial();
 
 #if WITH_PHYSX
-	if(FPhysicsInterface::IsValid(ActorHandle) && FPhysicsInterface::IsRigidBody(ActorHandle))
+	if (FPhysicsInterface::IsValid(ActorHandle) && FPhysicsInterface::IsRigidBody(ActorHandle))
 	{
 		FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
 		{
 			check(FPhysicsInterface::IsValid(Actor));
 
-			if(GetNumSimShapes_AssumesLocked(Actor) > 0)
+			if (GetNumSimShapes_AssumesLocked(Actor) > 0)
 			{
 				const int32 NumShapes = FPhysicsInterface::GetNumShapes(Actor);
 
 				TArray<FPhysicsShapeHandle> Shapes;
-			Shapes.AddUninitialized(NumShapes);
+				Shapes.AddUninitialized(NumShapes);
 				FPhysicsInterface::GetAllShapes_AssumedLocked(Actor, Shapes);
 
-			// Ignore trimeshes & shapes which don't contribute to the mass
-			for(int32 ShapeIdx = Shapes.Num() - 1; ShapeIdx >= 0; --ShapeIdx)
-			{
+				// Ignore trimeshes & shapes which don't contribute to the mass
+				for (int32 ShapeIdx = Shapes.Num() - 1; ShapeIdx >= 0; --ShapeIdx)
+				{
 					const FPhysicsShapeHandle& Shape = Shapes[ShapeIdx];
 					const FKShapeElem* ShapeElem = FPhysxUserData::Get<FKShapeElem>(FPhysicsInterface::GetUserData(Shape));
 					bool bIsTriangleMesh = FPhysicsInterface::GetShapeType(Shape) == ECollisionShapeType::Trimesh;
-				bool bHasNoMass = ShapeElem && !ShapeElem->GetContributeToMass();
-				if (bIsTriangleMesh || bHasNoMass)
-				{
-					Shapes.RemoveAtSwap(ShapeIdx);
+					bool bHasNoMass = ShapeElem && !ShapeElem->GetContributeToMass();
+					if (bIsTriangleMesh || bHasNoMass)
+					{
+						Shapes.RemoveAtSwap(ShapeIdx);
+					}
 				}
-			}
 
-			PxMassProperties TotalMassProperties;
-			if(ShapeToBodiesMap.IsValid() && ShapeToBodiesMap->Num() > 0)
-			{
-				struct FWeldedBatch
+				PxMassProperties TotalMassProperties;
+				if (ShapeToBodiesMap.IsValid() && ShapeToBodiesMap->Num() > 0)
 				{
+					struct FWeldedBatch
+					{
 						TArray<FPhysicsShapeHandle> Shapes;
-					FTransform RelTM;
-				};
+						FTransform RelTM;
+					};
 
-				//If we have welded children we must compute the mass properties of each individual body first and then combine them all together
-				TMap<FBodyInstance*, FWeldedBatch> BodyToShapes;
+					//If we have welded children we must compute the mass properties of each individual body first and then combine them all together
+					TMap<FBodyInstance*, FWeldedBatch> BodyToShapes;
 
-				for (const FPhysicsShapeHandle& Shape : Shapes) //sort all welded children by their original bodies
-				{
-					if (FWeldInfo* WeldInfo = ShapeToBodiesMap->Find(Shape))
+					for (const FPhysicsShapeHandle& Shape : Shapes) //sort all welded children by their original bodies
 					{
-						FWeldedBatch* WeldedBatch = BodyToShapes.Find(WeldInfo->ChildBI);
-						if (!WeldedBatch)
+						if (FWeldInfo* WeldInfo = ShapeToBodiesMap->Find(Shape))
 						{
-							WeldedBatch = &BodyToShapes.Add(WeldInfo->ChildBI);
-							WeldedBatch->RelTM = WeldInfo->RelativeTM;
-						}
+							FWeldedBatch* WeldedBatch = BodyToShapes.Find(WeldInfo->ChildBI);
+							if (!WeldedBatch)
+							{
+								WeldedBatch = &BodyToShapes.Add(WeldInfo->ChildBI);
+								WeldedBatch->RelTM = WeldInfo->RelativeTM;
+							}
 
-						WeldedBatch->Shapes.Add(Shape);
+							WeldedBatch->Shapes.Add(Shape);
+						}
+						else
+						{
+							//no weld info so shape really belongs to this body
+							FWeldedBatch* WeldedBatch = BodyToShapes.Find(this);
+							if (!WeldedBatch)
+							{
+								WeldedBatch = &BodyToShapes.Add(this);
+								WeldedBatch->RelTM = FTransform::Identity;
+							}
+
+							WeldedBatch->Shapes.Add(Shape);
+						}
 					}
-					else
+
+					TArray<PxMassProperties> SubMassProperties;
+					TArray<PxTransform> MassTMs;
+					for (auto BodyShapesItr : BodyToShapes)
 					{
-						//no weld info so shape really belongs to this body
-						FWeldedBatch* WeldedBatch = BodyToShapes.Find(this);
-						if (!WeldedBatch)
-						{
-							WeldedBatch = &BodyToShapes.Add(this);
-							WeldedBatch->RelTM = FTransform::Identity;
-						}
+						const FBodyInstance* OwningBI = BodyShapesItr.Key;
+						const FWeldedBatch& WeldedBatch = BodyShapesItr.Value;
+						FTransform MassModifierTransform = WeldedBatch.RelTM;
+						MassModifierTransform.SetScale3D(MassModifierTransform.GetScale3D() * Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
 
-						WeldedBatch->Shapes.Add(Shape);
+						PxMassProperties BodyMassProperties = ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
+						SubMassProperties.Add(BodyMassProperties);
+						MassTMs.Add(PxTransform(PxIdentity));
 					}
-				}
 
-				TArray<PxMassProperties> SubMassProperties;
-				TArray<PxTransform> MassTMs;
-				for(auto BodyShapesItr : BodyToShapes)
+					TotalMassProperties = PxMassProperties::sum(SubMassProperties.GetData(), MassTMs.GetData(), SubMassProperties.Num());
+				}
+				else
 				{
-					const FBodyInstance* OwningBI = BodyShapesItr.Key;
-					const FWeldedBatch& WeldedBatch = BodyShapesItr.Value;
-					FTransform MassModifierTransform = WeldedBatch.RelTM;
-					MassModifierTransform.SetScale3D(MassModifierTransform.GetScale3D() * Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
-
-					PxMassProperties BodyMassProperties = ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
-					SubMassProperties.Add(BodyMassProperties);
-					MassTMs.Add(PxTransform(PxIdentity));
-				}
-
-				TotalMassProperties = PxMassProperties::sum(SubMassProperties.GetData(), MassTMs.GetData(), SubMassProperties.Num());
-			}
-			else
-			{
 					// If we have no shapes that affect mass we cannot compute the mass properties in a meaningful way.
 					if (Shapes.Num())
 					{
-				//No children welded so just get this body's mass properties
-				FTransform MassModifierTransform(FQuat::Identity, FVector(0.f, 0.f, 0.f), Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
-				TotalMassProperties = ComputeMassProperties(this, Shapes, MassModifierTransform);
-			}
+						//No children welded so just get this body's mass properties
+						FTransform MassModifierTransform(FQuat::Identity, FVector(0.f, 0.f, 0.f), Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
+						TotalMassProperties = ComputeMassProperties(this, Shapes, MassModifierTransform);
+					}
 				}
-			
+
 				// #PHYS2 Refactor out PxMassProperties (Our own impl?)
-			PxQuat MassOrientation;
+				PxQuat MassOrientation;
 				const FVector MassSpaceInertiaTensor = P2UVector(PxMassProperties::getMassSpaceInertia(TotalMassProperties.inertiaTensor, MassOrientation));
 
 				FPhysicsInterface::SetMass_AssumesLocked(Actor, TotalMassProperties.mass);
@@ -2638,8 +2638,8 @@ void FBodyInstance::UpdateMassProperties()
 
 				FTransform Com(P2UQuat(MassOrientation), P2UVector(TotalMassProperties.centerOfMass));
 				FPhysicsInterface::SetComLocalPose_AssumesLocked(Actor, Com);
-		}
-	});
+			}
+		});
 	}
 #endif
 
@@ -2982,7 +2982,7 @@ void FBodyInstance::SetUseCCD(bool bInUseCCD)
 		// Need to set body flag
 		FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
 		{
-			if(FPhysicsInterface::IsRigidBody(Actor))
+			if (FPhysicsInterface::IsValid(Actor) && FPhysicsInterface::IsRigidBody(Actor))
 			{
 				FPhysicsInterface::SetCcdEnabled_AssumesLocked(Actor, bUseCCD);
 			}

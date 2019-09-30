@@ -534,6 +534,7 @@ MaterialFloat4 TextureVirtualSampleLevel(
 	return NumLevels-log2(vPagesWideInLevel);
 }*/
 
+
 /**
 	Helper function to convert world space to virtual texture UV space
 	todo[vt]: For large worlds we will probably want to use position relative to Camera to avoid precision issues
@@ -542,6 +543,16 @@ float2 VirtualTextureWorldToUV(in float3 WorldPos, in float3 Origin, in float3 U
 {
 	float3 P = WorldPos - Origin;
 	return saturate(float2(dot(P, U), dot(P, V)));
+}
+
+/** Unpack color from YCoCg stored in BC3. */
+float3 VirtualTextureUnpackBaseColorYCoCg(in float4 PackedValue)
+{
+	float Y = PackedValue.a;
+	float Scale = 1.f / ((255.f / 8.f) * PackedValue.b + 1.f);
+	float Co = (PackedValue.r - 128.f / 255.f) * Scale;
+	float Cg = (PackedValue.g - 128.f / 255.f) * Scale;
+	return float3(Y + Co - Cg, Y + Cg, Y - Co - Cg);
 }
 
 /** Generic normal unpack funtion. */
@@ -562,7 +573,6 @@ float3 VirtualTextureUnpackNormalBC3(in float4 PackedValue)
 /** Unpack normal from two BC3 textures. */
 float3 VirtualTextureUnpackNormalBC3BC3(in float4 PackedValue0, in float4 PackedValue1)
 {
-
 	return VirtualTextureUnpackNormal(float2(PackedValue0.a, PackedValue1.a), PackedValue1.b);
 }
 
@@ -570,6 +580,12 @@ float3 VirtualTextureUnpackNormalBC3BC3(in float4 PackedValue0, in float4 Packed
 float3 VirtualTextureUnpackNormalBC5(in float4 PackedValue)
 {
 	return VirtualTextureUnpackNormal(PackedValue.rg, 1.f);
+}
+
+/** Unpack normal from BC5 and BC1 textures. */
+float3 VirtualTextureUnpackNormalBC5BC1(in float4 PackedValue0, in float4 PackedValue1)
+{
+	return VirtualTextureUnpackNormal(float2(PackedValue0.x, PackedValue0.y), PackedValue1.b);
 }
 
 /** Unpack 16 bit height (with some hardcoded range scale/bias). */

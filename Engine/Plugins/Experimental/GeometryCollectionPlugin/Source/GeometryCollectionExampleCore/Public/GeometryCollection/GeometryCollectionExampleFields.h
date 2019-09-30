@@ -7,55 +7,55 @@ namespace GeometryCollectionExample
 {
 	
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_NoiseSample(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_NoiseSample();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_RadialIntMask(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_RadialIntMask();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_RadialFalloff(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_RadialFalloff();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_PlaneFalloff(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_PlaneFalloff();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_UniformVector(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_UniformVector();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_RaidalVector(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_RaidalVector();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumVectorFullMult(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumVectorFullMult();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumVectorFullDiv(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumVectorFullDiv();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumVectorFullAdd(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumVectorFullAdd();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumVectorFullSub(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumVectorFullSub();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumVectorLeftSide(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumVectorLeftSide();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumVectorRightSide(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumVectorRightSide();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumScalar(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumScalar();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumScalarRightSide(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumScalarRightSide();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumScalarLeftSide(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumScalarLeftSide();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_Culling(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_Culling();
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SerializeAPI(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SerializeAPI();
 
 
 }

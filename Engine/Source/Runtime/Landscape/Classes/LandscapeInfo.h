@@ -145,6 +145,7 @@ public:
 #if WITH_EDITOR
 	// @todo document 
 	// all below.
+	LANDSCAPE_API bool AreAllComponentsRegistered() const;
 	LANDSCAPE_API void GetComponentsInRegion(int32 X1, int32 Y1, int32 X2, int32 Y2, TSet<ULandscapeComponent*>& OutComponents, bool bOverlap = true) const;
 	LANDSCAPE_API bool GetLandscapeExtent(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY) const;
 	LANDSCAPE_API void ForAllLandscapeComponents(TFunctionRef<void(ULandscapeComponent*)> Fn) const;
@@ -238,6 +239,9 @@ public:
 
 	/** Will tell if the landscape actor can have some content related to the layer system */
 	LANDSCAPE_API bool CanHaveLayersContent() const;
+
+	/** Will clear all component dirty data */
+	LANDSCAPE_API void ClearDirtyData();
 #endif
 	/** Associates passed actor with this info object
  *  @param	Proxy		Landscape actor to register

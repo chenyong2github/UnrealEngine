@@ -70,7 +70,7 @@ void VerifyEGLResult(EGLint ErrorCode, const TCHAR* Msg1, const TCHAR* Msg2, con
 			TEXT("UNKNOWN EGL ERROR")
 		};
 
-		uint32 ErrorIndex = FMath::Min<uint32>(ErrorCode - EGL_SUCCESS, ARRAY_COUNT(EGLErrorStrings) - 1);
+		uint32 ErrorIndex = FMath::Min<uint32>(ErrorCode - EGL_SUCCESS, UE_ARRAY_COUNT(EGLErrorStrings) - 1);
 		UE_LOG(LogRHI, Warning, TEXT("%s(%u): %s%s failed with error %s (0x%x)"),
 			Filename, Line, Msg1, Msg2, EGLErrorStrings[ErrorIndex], ErrorCode);
 		check(0);

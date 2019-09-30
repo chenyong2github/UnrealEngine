@@ -51,10 +51,17 @@ void UKismetRenderingLibrary::ClearRenderTarget2D(UObject* WorldContextObject, U
 		ENQUEUE_RENDER_COMMAND(ClearRTCommand)(
 			[RenderTargetResource, ClearColor](FRHICommandList& RHICmdList)
 			{
-				FRHIRenderPassInfo RPInfo(RenderTargetResource->GetRenderTargetTexture(), ERenderTargetActions::DontLoad_Store);
+				// Use hardware fast clear if the clear colors match.
+				const FTexture2DRHIRef& Texture = RenderTargetResource->GetRenderTargetTexture();
+				const bool bFastClear = Texture->GetClearColor() == ClearColor;
+
+				FRHIRenderPassInfo RPInfo(RenderTargetResource->GetRenderTargetTexture(), bFastClear ? ERenderTargetActions::Clear_Store : ERenderTargetActions::DontLoad_Store);
 				TransitionRenderPassTargets(RHICmdList, RPInfo);
 				RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearRT"));
-				DrawClearQuad(RHICmdList, ClearColor);
+				if (!bFastClear)
+				{
+					DrawClearQuad(RHICmdList, ClearColor);
+				}
 				RHICmdList.EndRenderPass();
 			});
 	}
@@ -113,7 +120,7 @@ void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextOb
 	}
 	else
 	{
-		World->SendAllEndOfFrameUpdates();
+		World->FlushDeferredParameterCollectionInstanceUpdates();
 
 		FTextureRenderTargetResource* RenderTargetResource = TextureRenderTarget->GameThread_GetRenderTargetResource();
 
@@ -550,14 +557,17 @@ void UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(UObject* WorldContex
 	}
 	else
 	{
+		World->FlushDeferredParameterCollectionInstanceUpdates();
+
 		Context.RenderTarget = TextureRenderTarget;
 
 		Canvas = World->GetCanvasForRenderingToTarget();
 
 		Size = FVector2D(TextureRenderTarget->SizeX, TextureRenderTarget->SizeY);
 
+		FTextureRenderTargetResource* RenderTargetResource = TextureRenderTarget->GameThread_GetRenderTargetResource();
 		FCanvas* NewCanvas = new FCanvas(
-			TextureRenderTarget->GameThread_GetRenderTargetResource(), 
+			RenderTargetResource,
 			nullptr, 
 			World,
 			World->FeatureLevel, 
@@ -571,8 +581,10 @@ void UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(UObject* WorldContex
 		FName RTName = TextureRenderTarget->GetFName();
 		TDrawEvent<FRHICommandList>* DrawEvent = Context.DrawEvent;
 		ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
-			[RTName, DrawEvent](FRHICommandList& RHICmdList)
+			[RTName, DrawEvent, RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 			{
+				RenderTargetResource->FlushDeferredResourceUpdate(RHICmdList);
+
 				BEGIN_DRAW_EVENTF(
 					RHICmdList, 
 					DrawCanvasToTarget, 

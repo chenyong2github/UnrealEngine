@@ -530,10 +530,10 @@ bool FUnixPlatformStackWalk::ProgramCounterToHumanReadableString( int32 CurrentC
 				if (UnixContext)
 				{
 					// append Module!FunctioName [Source.cpp:X] to MinidumpCallstackInfo
-					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, TempSymbolInfo.ModuleName, ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
-					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, "!", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
-					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, TempSymbolInfo.FunctionName, ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
-					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, TempArray, ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
+					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, TempSymbolInfo.ModuleName, UE_ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
+					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, "!", UE_ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
+					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, TempSymbolInfo.FunctionName, UE_ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
+					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, TempArray, UE_ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
 				}
 			}
 			else
@@ -559,10 +559,10 @@ bool FUnixPlatformStackWalk::ProgramCounterToHumanReadableString( int32 CurrentC
 
 				if (UnixContext)
 				{
-					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, ModuleName != nullptr ? ModuleName : "Unknown", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
-					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, "!", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
-					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, FunctionName != nullptr ? FunctionName : "UnknownFunction", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
-					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, FunctionName && TempSymbolInfo.SymbolDisplacement ? "(+": "(", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
+					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, ModuleName != nullptr ? ModuleName : "Unknown", UE_ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
+					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, "!", UE_ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
+					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, FunctionName != nullptr ? FunctionName : "UnknownFunction", UE_ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
+					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, FunctionName && TempSymbolInfo.SymbolDisplacement ? "(+": "(", UE_ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
 				}
 
 				if (TempSymbolInfo.SymbolDisplacement > 0x0)
@@ -572,7 +572,7 @@ bool FUnixPlatformStackWalk::ProgramCounterToHumanReadableString( int32 CurrentC
 
 					if (UnixContext)
 					{
-						FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, TempArray, ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
+						FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, TempArray, UE_ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
 					}
 				}
 
@@ -580,13 +580,13 @@ bool FUnixPlatformStackWalk::ProgramCounterToHumanReadableString( int32 CurrentC
 
 				if (UnixContext)
 				{
-					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, ")", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
+					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, ")", UE_ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
 				}
 			}
 
 			if (UnixContext)
 			{
-				FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, "\r\n", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);	// this one always uses Windows line terminators
+				FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, "\r\n", UE_ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);	// this one always uses Windows line terminators
 			}
 		}
 		return true;

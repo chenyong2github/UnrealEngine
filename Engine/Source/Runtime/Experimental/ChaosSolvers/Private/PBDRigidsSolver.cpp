@@ -7,13 +7,13 @@
 
 #include "Async/AsyncWork.h"
 #include "Chaos/ChaosArchive.h"
-#include "Chaos/Framework/SingleParticlePhysicsProxy.h"
 #include "Chaos/PBDCollisionConstraintUtil.h"
 #include "Chaos/Utilities.h"
 #include "ChaosStats.h"
 #include "ChaosSolversModule.h"
 #include "HAL/FileManager.h"
 #include "Misc/ScopeLock.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
@@ -75,8 +75,8 @@ namespace Chaos
 			}
 
 			{
-				//SCOPE_CYCLE_COUNTER(STAT_EndFrame);
-				//MSolver->EndFrameCallback(MDeltaTime);
+				SCOPE_CYCLE_COUNTER(STAT_EndFrame);
+				MSolver->GetEvolution()->EndFrame(MDeltaTime);
 			}
 
 			MSolver->GetSolverTime() += MDeltaTime;
@@ -266,7 +266,7 @@ namespace Chaos
 			}
 
 			// Use the handle to destroy the particle data
-			Solver->Particles.DestroyParticle(Handle);
+			Solver->GetEvolution()->DestroyParticle(Handle);
 		});
 	}
 

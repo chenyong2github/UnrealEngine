@@ -930,8 +930,6 @@ namespace AutomationTool
 
 	public partial class CommandUtils
 	{
-		#region Environment Setup
-
 		static private P4Connection PerforceConnection;
 		static private P4Environment PerforceEnvironment;
 
@@ -984,8 +982,6 @@ namespace AutomationTool
 		{
 			PerforceConnection = new P4Connection(User: P4Env.User, Client: P4Env.Client, ServerAndPort: P4Env.ServerAndPort);
 		}
-
-		#endregion
 
 		/// <summary>
 		/// Check if P4 is supported.
@@ -3966,8 +3962,6 @@ namespace AutomationTool
 			return null;
 		}
 
-		#region Utilities
-
 		private static object[] OldStyleBinaryFlags = new object[]
 		{
 			P4FileAttributes.Uncompressed,
@@ -4093,7 +4087,5 @@ namespace AutomationTool
 			}
 			return Text;
 		}
-
-		#endregion
 	}
 }

@@ -984,7 +984,7 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 			[ImageString appendString : @"-Portrait"];
 		}
 	}
-    else if (Device == FPlatformMisc::IOS_IPhoneX || Device == FPlatformMisc::IOS_IPhoneXS)
+	else if (Device == FPlatformMisc::IOS_IPhoneX || Device == FPlatformMisc::IOS_IPhoneXS || Device == FPlatformMisc::IOS_IPhone11Pro)
 	{
 		[ImageString appendString : @"-IPhoneXS"];
 		if (!self.bDeviceInPortraitMode)
@@ -996,7 +996,7 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 			[ImageString appendString : @"-Portrait"];
 		}
 	}
-    else if (Device == FPlatformMisc::IOS_IPhoneXSMax)
+	else if (Device == FPlatformMisc::IOS_IPhoneXSMax || Device == FPlatformMisc::IOS_IPhone11ProMax)
     {
         [ImageString appendString : @"-IPhoneXSMax"];
         if (!self.bDeviceInPortraitMode)
@@ -1008,7 +1008,7 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
             [ImageString appendString : @"-Portrait"];
         }
     }
-    else if (Device == FPlatformMisc::IOS_IPhoneXR)
+	else if (Device == FPlatformMisc::IOS_IPhoneXR || Device == FPlatformMisc::IOS_IPhone11)
     {
         [ImageString appendString : @"-IPhoneXR"];
         if (!self.bDeviceInPortraitMode)

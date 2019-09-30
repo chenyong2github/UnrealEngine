@@ -280,31 +280,40 @@ void SPluginTile::RecreateWidgets()
 											[
 												SNew(SHorizontalBox)
 
+												// beta version label
 												+ SHorizontalBox::Slot()
 													.AutoWidth()
-													.Padding(0.0f, 0.0f, 0.0f, 1.0f) // Lower padding to align font with version number base
+													.VAlign(VAlign_Bottom)
 													[
 														SNew(SHorizontalBox)
-
-														// beta version icon
+														.Visibility((PluginDescriptor.bIsBetaVersion || PluginDescriptor.bIsExperimentalVersion) ? EVisibility::Visible : EVisibility::Collapsed)
 														+ SHorizontalBox::Slot()
 															.AutoWidth()
 															.VAlign(VAlign_Bottom)
-															.Padding(0.0f, 0.0f, 3.0f, 2.0f)
+															.Padding(0.0f, 0.0f, 0.0f, 2.0f)
 															[
 																SNew(SImage)
-																	.Visibility(PluginDescriptor.bIsBetaVersion ? EVisibility::Visible : EVisibility::Collapsed)
 																	.Image(FPluginStyle::Get()->GetBrush("PluginTile.BetaWarning"))
 															]
-
-														// version label
 														+ SHorizontalBox::Slot()
 															.AutoWidth()
 															.VAlign(VAlign_Bottom)
+															.Padding(2.0f, 0.0f, 8.0f, 1.0f)
 															[
 																SNew(STextBlock)
-																	.Text(PluginDescriptor.bIsBetaVersion ? LOCTEXT("PluginBetaVersionLabel", "BETA Version ") : LOCTEXT("PluginVersionLabel", "Version "))
+																	.TextStyle(FPluginStyle::Get(), "PluginTile.BetaText")
+																	.Text(PluginDescriptor.bIsBetaVersion ? LOCTEXT("PluginBetaVersionText", "BETA") : LOCTEXT("PluginExperimentalVersionText", "EXPERIMENTAL"))
 															]
+													]
+
+												// version number
+												+ SHorizontalBox::Slot()
+													.AutoWidth()
+													.VAlign( VAlign_Bottom )
+													.Padding(0.0f, 0.0f, 0.0f, 1.0f) // Lower padding to align font with version number base
+													[
+														SNew(STextBlock)
+															.Text(LOCTEXT("PluginVersionLabel", "Version "))
 													]
 
 												+ SHorizontalBox::Slot()
@@ -329,6 +338,7 @@ void SPluginTile::RecreateWidgets()
 											[
 												SNew(STextBlock)
 													.Text(FText::FromString(PluginDescriptor.Description))
+													.HighlightText_Raw(&OwnerWeak.Pin()->GetOwner().GetPluginTextFilter(), &FPluginTextFilter::GetRawFilterText)
 													.AutoWrapText(true)
 											]
 

@@ -23,7 +23,8 @@ namespace ERawImageFormat
 		BGRE8,
 		RGBA16,
 		RGBA16F,
-		RGBA32F
+		RGBA32F,
+		G16
 	};
 };
 
@@ -142,6 +143,12 @@ public:
 		return RawData.GetData();
 	}
 
+	uint16* AsG16()
+	{
+		check(Format == ERawImageFormat::G16);
+		return (uint16*)RawData.GetData();
+	}
+
 	struct FColor* AsBGRA8()
 	{
 		check(Format == ERawImageFormat::BGRA8);
@@ -178,6 +185,12 @@ public:
 	{
 		check(Format == ERawImageFormat::G8);
 		return RawData.GetData();
+	}
+
+	const uint16* AsG16() const
+	{
+		check(Format == ERawImageFormat::G16);
+		return (const uint16*)RawData.GetData();
 	}
 
 	const struct FColor* AsBGRA8() const

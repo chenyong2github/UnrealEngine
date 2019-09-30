@@ -363,11 +363,11 @@ void UCameraComponent::CheckForErrors()
 
 bool UCameraComponent::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut)
 {
-	if (bIsActive)
+	if (IsActive())
 	{
 		GetCameraView(DeltaTime, ViewOut);
 	}
-	return bIsActive;
+	return IsActive();
 }
 #endif	// WITH_EDITOR
 

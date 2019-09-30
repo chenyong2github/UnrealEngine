@@ -18,7 +18,7 @@ void FSpringComponentVisualizer::DrawVisualization( const UActorComponent* Compo
 		float R = FMath::Lerp(RestColor.R, CompressedColor.R, CompressionNormalized);
 		float G = FMath::Lerp(RestColor.G, CompressedColor.G, CompressionNormalized);
 		float B = FMath::Lerp(RestColor.B, CompressedColor.B, CompressionNormalized);
-		const FColor CurrentColor = SpringComp->bIsActive ? FColor(R, G, B) : DisabledColor;
+		const FColor CurrentColor = SpringComp->IsActive() ? FColor(R, G, B) : DisabledColor;
 		
 		//draw capsule for spring sweep
 		const FTransform& WorldTM = SpringComp->GetComponentToWorld();

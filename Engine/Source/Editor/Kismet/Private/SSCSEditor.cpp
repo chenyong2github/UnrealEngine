@@ -2584,9 +2584,9 @@ void SSCS_RowWidget::OnAttachToDropAction(const TArray<FSCSEditorTreeNodePtrType
 				FRotator OldRelativeRotation;
 				if(SceneComponentTemplate)
 				{
-					OldRelativeLocation = SceneComponentTemplate->RelativeLocation;
-					OldRelativeRotation = SceneComponentTemplate->RelativeRotation;
-					OldRelativeScale3D = SceneComponentTemplate->RelativeScale3D;
+					OldRelativeLocation = SceneComponentTemplate->GetRelativeLocation();
+					OldRelativeRotation = SceneComponentTemplate->GetRelativeRotation();
+					OldRelativeScale3D = SceneComponentTemplate->GetRelativeScale3D();
 				}
 
 				// Check for a valid parent node
@@ -2617,9 +2617,9 @@ void SSCS_RowWidget::OnAttachToDropAction(const TArray<FSCSEditorTreeNodePtrType
 						{
 							// If we find a match, save off the world position
 							FTransform ComponentToWorld = InstancedSceneComponent->GetComponentToWorld();
-							SceneComponentTemplate->RelativeLocation = ComponentToWorld.GetTranslation();
-							SceneComponentTemplate->RelativeRotation = ComponentToWorld.Rotator();
-							SceneComponentTemplate->RelativeScale3D = ComponentToWorld.GetScale3D();
+							SceneComponentTemplate->SetRelativeLocation_Direct(ComponentToWorld.GetTranslation());
+							SceneComponentTemplate->SetRelativeRotation_Direct(ComponentToWorld.Rotator());
+							SceneComponentTemplate->SetRelativeScale3D_Direct(ComponentToWorld.GetScale3D());
 						}
 					}
 				}
@@ -2632,26 +2632,26 @@ void SSCS_RowWidget::OnAttachToDropAction(const TArray<FSCSEditorTreeNodePtrType
 				if(SceneComponentTemplate && ParentSceneComponent && ParentSceneComponent->IsRegistered())
 				{
 					// If we find a match, calculate its new position relative to the scene root component instance in its current scene
-					FTransform ComponentToWorld(SceneComponentTemplate->RelativeRotation, SceneComponentTemplate->RelativeLocation, SceneComponentTemplate->RelativeScale3D);
+					FTransform ComponentToWorld(SceneComponentTemplate->GetRelativeRotation(), SceneComponentTemplate->GetRelativeLocation(), SceneComponentTemplate->GetRelativeScale3D());
 					FTransform ParentToWorld = SceneComponentTemplate->GetAttachSocketName() != NAME_None ? ParentSceneComponent->GetSocketTransform(SceneComponentTemplate->GetAttachSocketName(), RTS_World) : ParentSceneComponent->GetComponentToWorld();
 					FTransform RelativeTM = ComponentToWorld.GetRelativeTransform(ParentToWorld);
 
 					// Store new relative location value (if not set to absolute)
-					if(!SceneComponentTemplate->bAbsoluteLocation)
+					if(!SceneComponentTemplate->IsUsingAbsoluteLocation())
 					{
-						SceneComponentTemplate->RelativeLocation = RelativeTM.GetTranslation();
+						SceneComponentTemplate->SetRelativeLocation_Direct(RelativeTM.GetTranslation());
 					}
 
 					// Store new relative rotation value (if not set to absolute)
-					if(!SceneComponentTemplate->bAbsoluteRotation)
+					if(!SceneComponentTemplate->IsUsingAbsoluteRotation())
 					{
-						SceneComponentTemplate->RelativeRotation = RelativeTM.Rotator();
+						SceneComponentTemplate->SetRelativeRotation_Direct(RelativeTM.Rotator());
 					}
 
 					// Store new relative scale value (if not set to absolute)
-					if(!SceneComponentTemplate->bAbsoluteScale)
+					if(!SceneComponentTemplate->IsUsingAbsoluteScale())
 					{
-						SceneComponentTemplate->RelativeScale3D = RelativeTM.GetScale3D();
+						SceneComponentTemplate->SetRelativeScale3D_Direct(RelativeTM.GetScale3D());
 					}
 				}
 
@@ -2665,9 +2665,9 @@ void SSCS_RowWidget::OnAttachToDropAction(const TArray<FSCSEditorTreeNodePtrType
 						USceneComponent* InstancedSceneComponent = Cast<USceneComponent>(InstancedSceneComponents[InstanceIndex]);
 						if(InstancedSceneComponent != nullptr)
 						{
-							FComponentEditorUtils::ApplyDefaultValueChange(InstancedSceneComponent, InstancedSceneComponent->RelativeLocation, OldRelativeLocation, SceneComponentTemplate->RelativeLocation);
-							FComponentEditorUtils::ApplyDefaultValueChange(InstancedSceneComponent, InstancedSceneComponent->RelativeRotation, OldRelativeRotation, SceneComponentTemplate->RelativeRotation);
-							FComponentEditorUtils::ApplyDefaultValueChange(InstancedSceneComponent, InstancedSceneComponent->RelativeScale3D,  OldRelativeScale3D,  SceneComponentTemplate->RelativeScale3D);
+							FComponentEditorUtils::ApplyDefaultValueChange(InstancedSceneComponent, InstancedSceneComponent->GetRelativeLocation_DirectMutable(), OldRelativeLocation, SceneComponentTemplate->GetRelativeLocation());
+							FComponentEditorUtils::ApplyDefaultValueChange(InstancedSceneComponent, InstancedSceneComponent->GetRelativeRotation_DirectMutable(), OldRelativeRotation, SceneComponentTemplate->GetRelativeRotation());
+							FComponentEditorUtils::ApplyDefaultValueChange(InstancedSceneComponent, InstancedSceneComponent->GetRelativeScale3D_DirectMutable(),  OldRelativeScale3D,  SceneComponentTemplate->GetRelativeScale3D());
 						}
 					}
 				}
@@ -2729,9 +2729,9 @@ void SSCS_RowWidget::OnDetachFromDropAction(const TArray<FSCSEditorTreeNodePtrTy
 			if(SceneComponentTemplate)
 			{
 				// Cache current default values for propagation
-				OldRelativeLocation = SceneComponentTemplate->RelativeLocation;
-				OldRelativeRotation = SceneComponentTemplate->RelativeRotation;
-				OldRelativeScale3D = SceneComponentTemplate->RelativeScale3D;
+				OldRelativeLocation = SceneComponentTemplate->GetRelativeLocation();
+				OldRelativeRotation = SceneComponentTemplate->GetRelativeRotation();
+				OldRelativeScale3D = SceneComponentTemplate->GetRelativeScale3D();
 
 				// Save current state
 				SceneComponentTemplate->Modify();
@@ -2751,9 +2751,9 @@ void SSCS_RowWidget::OnDetachFromDropAction(const TArray<FSCSEditorTreeNodePtrTy
 				{
 					// If we find a match, save off the world position
 					FTransform ComponentToWorld = InstancedSceneComponent->GetComponentToWorld();
-					SceneComponentTemplate->RelativeLocation = ComponentToWorld.GetTranslation();
-					SceneComponentTemplate->RelativeRotation = ComponentToWorld.Rotator();
-					SceneComponentTemplate->RelativeScale3D = ComponentToWorld.GetScale3D();
+					SceneComponentTemplate->SetRelativeLocation_Direct(ComponentToWorld.GetTranslation());
+					SceneComponentTemplate->SetRelativeRotation_Direct(ComponentToWorld.Rotator());
+					SceneComponentTemplate->SetRelativeScale3D_Direct(ComponentToWorld.GetScale3D());
 				}
 			}
 
@@ -2767,26 +2767,26 @@ void SSCS_RowWidget::OnDetachFromDropAction(const TArray<FSCSEditorTreeNodePtrTy
 			if(SceneComponentTemplate && InstancedSceneRootComponent && InstancedSceneRootComponent->IsRegistered())
 			{
 				// If we find a match, calculate its new position relative to the scene root component instance in the preview scene
-				FTransform ComponentToWorld(SceneComponentTemplate->RelativeRotation, SceneComponentTemplate->RelativeLocation, SceneComponentTemplate->RelativeScale3D);
+				FTransform ComponentToWorld(SceneComponentTemplate->GetRelativeRotation(), SceneComponentTemplate->GetRelativeLocation(), SceneComponentTemplate->GetRelativeScale3D());
 				FTransform ParentToWorld = SceneComponentTemplate->GetAttachSocketName() != NAME_None ? InstancedSceneRootComponent->GetSocketTransform(SceneComponentTemplate->GetAttachSocketName(), RTS_World) : InstancedSceneRootComponent->GetComponentToWorld();
 				FTransform RelativeTM = ComponentToWorld.GetRelativeTransform(ParentToWorld);
 
 				// Store new relative location value (if not set to absolute)
-				if(!SceneComponentTemplate->bAbsoluteLocation)
+				if(!SceneComponentTemplate->IsUsingAbsoluteLocation())
 				{
-					SceneComponentTemplate->RelativeLocation = RelativeTM.GetTranslation();
+					SceneComponentTemplate->SetRelativeLocation_Direct(RelativeTM.GetTranslation());
 				}
 
 				// Store new relative rotation value (if not set to absolute)
-				if(!SceneComponentTemplate->bAbsoluteRotation)
+				if(!SceneComponentTemplate->IsUsingAbsoluteRotation())
 				{
-					SceneComponentTemplate->RelativeRotation = RelativeTM.Rotator();
+					SceneComponentTemplate->SetRelativeRotation_Direct(RelativeTM.Rotator());
 				}
 
 				// Store new relative scale value (if not set to absolute)
-				if(!SceneComponentTemplate->bAbsoluteScale)
+				if(!SceneComponentTemplate->IsUsingAbsoluteScale())
 				{
-					SceneComponentTemplate->RelativeScale3D = RelativeTM.GetScale3D();
+					SceneComponentTemplate->SetRelativeScale3D_Direct(RelativeTM.GetScale3D());
 				}
 			}
 
@@ -2800,9 +2800,9 @@ void SSCS_RowWidget::OnDetachFromDropAction(const TArray<FSCSEditorTreeNodePtrTy
 					USceneComponent* InstancedSceneComponent = Cast<USceneComponent>(InstancedSceneComponents[InstanceIndex]);
 					if(InstancedSceneComponent != nullptr)
 					{
-						FComponentEditorUtils::ApplyDefaultValueChange(InstancedSceneComponent, InstancedSceneComponent->RelativeLocation, OldRelativeLocation, SceneComponentTemplate->RelativeLocation);
-						FComponentEditorUtils::ApplyDefaultValueChange(InstancedSceneComponent, InstancedSceneComponent->RelativeRotation, OldRelativeRotation, SceneComponentTemplate->RelativeRotation);
-						FComponentEditorUtils::ApplyDefaultValueChange(InstancedSceneComponent, InstancedSceneComponent->RelativeScale3D,  OldRelativeScale3D,  SceneComponentTemplate->RelativeScale3D);
+						FComponentEditorUtils::ApplyDefaultValueChange(InstancedSceneComponent, InstancedSceneComponent->GetRelativeLocation_DirectMutable(), OldRelativeLocation, SceneComponentTemplate->GetRelativeLocation());
+						FComponentEditorUtils::ApplyDefaultValueChange(InstancedSceneComponent, InstancedSceneComponent->GetRelativeRotation_DirectMutable(), OldRelativeRotation, SceneComponentTemplate->GetRelativeRotation());
+						FComponentEditorUtils::ApplyDefaultValueChange(InstancedSceneComponent, InstancedSceneComponent->GetRelativeScale3D_DirectMutable(),  OldRelativeScale3D,  SceneComponentTemplate->GetRelativeScale3D());
 					}
 				}
 			}
@@ -2898,8 +2898,8 @@ void SSCS_RowWidget::OnMakeNewRootDropAction(FSCSEditorTreeNodePtrType DroppedNo
 				}
 
 				// Cache the current relative location and rotation values (for propagation)
-				const FVector OldRelativeLocation = SceneComponentTemplate->RelativeLocation;
-				const FRotator OldRelativeRotation = SceneComponentTemplate->RelativeRotation;
+				const FVector OldRelativeLocation = SceneComponentTemplate->GetRelativeLocation();
+				const FRotator OldRelativeRotation = SceneComponentTemplate->GetRelativeRotation();
 
 				// Reset the relative transform (location and rotation only; scale is preserved)
 				SceneComponentTemplate->SetRelativeLocation(FVector::ZeroVector);
@@ -2918,8 +2918,8 @@ void SSCS_RowWidget::OnMakeNewRootDropAction(FSCSEditorTreeNodePtrType DroppedNo
 						SceneComponentInstance->DetachFromComponent(DetachmentTransformRules);
 
 						// Propagate the default relative location & rotation reset from the template to the instance
-						FComponentEditorUtils::ApplyDefaultValueChange(SceneComponentInstance, SceneComponentInstance->RelativeLocation, OldRelativeLocation, SceneComponentTemplate->RelativeLocation);
-						FComponentEditorUtils::ApplyDefaultValueChange(SceneComponentInstance, SceneComponentInstance->RelativeRotation, OldRelativeRotation, SceneComponentTemplate->RelativeRotation);
+						FComponentEditorUtils::ApplyDefaultValueChange(SceneComponentInstance, SceneComponentInstance->GetRelativeLocation_DirectMutable(), OldRelativeLocation, SceneComponentTemplate->GetRelativeLocation());
+						FComponentEditorUtils::ApplyDefaultValueChange(SceneComponentInstance, SceneComponentInstance->GetRelativeRotation_DirectMutable(), OldRelativeRotation, SceneComponentTemplate->GetRelativeRotation());
 
 						// Must also reset the root component here, so that RerunConstructionScripts() will cache the correct root component instance data
 						AActor* Owner = SceneComponentInstance->GetOwner();
@@ -4241,7 +4241,7 @@ void SSCSEditor::OnDuplicateComponent()
 				// otherwise we'll end up with the square of the root's scale instead of being the same size.
 				if (OriginalNodePtr == GetSceneRootNode())
 				{
-					NewSceneComponent->RelativeScale3D = FVector(1.f);
+					NewSceneComponent->SetRelativeScale3D_Direct(FVector(1.f));
 				}
 				else
 				{

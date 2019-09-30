@@ -8906,9 +8906,9 @@ void FBlueprintEditor::UpdatePreviewActor(UBlueprint* InBlueprint, bool bInForce
 			check(PreviewActor);
 
 			// Ensure that the actor is visible
-			if ( PreviewActor->bHidden )
+			if ( PreviewActor->IsHidden() )
 			{
-				PreviewActor->bHidden = false;
+				PreviewActor->SetHidden(false);
 				PreviewActor->MarkComponentsRenderStateDirty();				
 			}
 

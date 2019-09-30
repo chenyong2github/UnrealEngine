@@ -45,7 +45,7 @@ UDestructibleComponent::UDestructibleComponent(const FObjectInitializer& ObjectI
 	SetCollisionProfileName(CollisionProfileName);
 
 	bAlwaysCreatePhysicsState = true;
-	bIsActive = true;
+	SetActiveFlag(true);
 	bMultiBodyOverlap = true;
 
 	LargeChunkThreshold = 25.f;
@@ -1159,7 +1159,7 @@ void UDestructibleComponent::Activate( bool bReset/*=false*/ )
 {
 	if (bReset || ShouldActivate()==true)
 	{
-		bIsActive = true;
+		SetActiveFlag(true);
 	}
 }
 
@@ -1167,7 +1167,7 @@ void UDestructibleComponent::Deactivate()
 {
 	if (ShouldActivate()==false)
 	{
-		bIsActive = false;
+		SetActiveFlag(false);
 	}
 }
 

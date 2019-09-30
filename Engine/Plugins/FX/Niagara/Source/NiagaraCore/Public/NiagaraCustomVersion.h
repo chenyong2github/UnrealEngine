@@ -125,10 +125,13 @@ struct FNiagaraCustomVersion
 		AddLibraryAssetProperty, // Add property to all Niagara scripts indicating whether or not they belong to the library
 
 		AddAdditionalDefinesProperty, // Addding additional defines to the GPU script
-
+		
 		RemoveGraphUsageCompileIds, // Remove the random compile id guids from the cached script usage and from the compile and script ids since the hashes serve the same purpose and are deterministic.
+			
+		AddRIAndDetailLevel, //Adding UseRapidIterationParams and DetailLevelMask to the GPU script
 
-		// -----<new versions can be added above this line>-------------------------------------------------
+		// DO NOT ADD A NEW VERSION UNLESS YOU HAVE TALKED TO THE NIAGARA LEAD. Mismanagement of these versions can lead to data loss if it is adjusted in multiple streams simultaneously.
+		// -----<new versions can be added above this line>  -------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1,
 	};

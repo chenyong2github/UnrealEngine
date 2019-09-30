@@ -491,8 +491,8 @@ void UCineCameraComponent::CreateDebugFocusPlane()
 			DebugFocusPlaneComponent->CreationMethod = CreationMethod;
 			DebugFocusPlaneComponent->bSelectable = false;
 
-			DebugFocusPlaneComponent->RelativeScale3D = FVector(10000.f, 10000.f, 1.f);
-			DebugFocusPlaneComponent->RelativeRotation = FRotator(90.f, 0.f, 0.f);
+			DebugFocusPlaneComponent->SetRelativeScale3D_Direct(FVector(10000.f, 10000.f, 1.f));
+			DebugFocusPlaneComponent->SetRelativeRotation_Direct(FRotator(90.f, 0.f, 0.f));
 
 			DebugFocusPlaneComponent->RegisterComponentWithWorld(GetWorld());
 

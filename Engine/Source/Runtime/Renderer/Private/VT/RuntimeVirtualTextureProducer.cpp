@@ -55,15 +55,25 @@ void FRuntimeVirtualTextureFinalizer::AddTile(FTileEntry& Tile)
 
 void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdList)
 {
+	RuntimeVirtualTexture::FRenderPageBatchDesc RenderPageBatchDesc;
+	RenderPageBatchDesc.Scene = Scene->GetRenderScene();
+	RenderPageBatchDesc.RuntimeVirtualTextureMask = RuntimeVirtualTextureMask;
+	RenderPageBatchDesc.UVToWorld = UVToWorld;
+	RenderPageBatchDesc.MaterialType = MaterialType;
+	RenderPageBatchDesc.MaxLevel = Desc.MaxLevel;
+	RenderPageBatchDesc.bClearTextures = bClearTextures;
+	RenderPageBatchDesc.DebugType = ERuntimeVirtualTextureDebugType::None;
+	
+	for (int LayerIndex = 0; LayerIndex < RuntimeVirtualTexture::MaxTextureLayers; ++LayerIndex)
+	{
+		RenderPageBatchDesc.Targets[LayerIndex].Texture = Tiles[0].Targets[LayerIndex].TextureRHI != nullptr ? Tiles[0].Targets[LayerIndex].TextureRHI->GetTexture2D() : nullptr;
+		RenderPageBatchDesc.Targets[LayerIndex].UAV = Tiles[0].Targets[LayerIndex].UnorderedAccessViewRHI;
+	}
+
+	int32 BatchSize = 0;
 	for (auto Entry : Tiles)
 	{
-		const int32 TileSize = Desc.TileSize + 2 * Desc.TileBorderSize;
-		
-		const FVector2D DestinationBoxStart0(Entry.DestX0 * TileSize, Entry.DestY0 * TileSize);
-		const FBox2D DestinationBox0(DestinationBoxStart0, DestinationBoxStart0 + FVector2D(TileSize, TileSize));
-
-		const FVector2D DestinationBoxStart1(Entry.DestX1 * TileSize, Entry.DestY1 * TileSize);
-		const FBox2D DestinationBox1(DestinationBoxStart1, DestinationBoxStart1 + FVector2D(TileSize, TileSize));
+		RuntimeVirtualTexture::FRenderPageDesc& RenderPageDesc = RenderPageBatchDesc.PageDescs[BatchSize];
 
 		const float X = (float)FMath::ReverseMortonCode2(Entry.vAddress);
 		const float Y = (float)FMath::ReverseMortonCode2(Entry.vAddress >> 1);
@@ -75,21 +85,44 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 		const FVector2D UVBorder = UVSize * ((float)Desc.TileBorderSize / (float)Desc.TileSize);
 		const FBox2D UVRange(UV - UVBorder, UV + UVSize + UVBorder);
 
-		RuntimeVirtualTexture::RenderPage(
-			RHICmdList,
-			Scene->GetRenderScene(),
-			RuntimeVirtualTextureMask,
-			MaterialType,
-			bClearTextures,
-			Entry.Texture0, 
-			DestinationBox0, 
-			Entry.Texture1,
-			DestinationBox1,
-			UVToWorld,
-			UVRange, 
-			Entry.vLevel,
-			Desc.MaxLevel,
-			ERuntimeVirtualTextureDebugType::None);
+		RenderPageDesc.vLevel = Entry.vLevel;
+		RenderPageDesc.UVRange = UVRange;
+
+		const int32 TileSize = Desc.TileSize + 2 * Desc.TileBorderSize;
+		for (int LayerIndex = 0; LayerIndex < RuntimeVirtualTexture::MaxTextureLayers; ++LayerIndex)
+		{
+			const FVector2D DestinationBoxStart0(Entry.Targets[LayerIndex].pPageLocation.X * TileSize, Entry.Targets[LayerIndex].pPageLocation.Y * TileSize);
+			RenderPageDesc.DestBox[LayerIndex] = FBox2D(DestinationBoxStart0, DestinationBoxStart0 + FVector2D(TileSize, TileSize));
+		}
+
+		bool bBreakBatchForTextures = false;
+		for (int LayerIndex = 0; LayerIndex < RuntimeVirtualTexture::MaxTextureLayers; ++LayerIndex)
+		{
+			// This should never happen which is why we don't bother sorting to maximize batch size
+			bBreakBatchForTextures |= (RenderPageBatchDesc.Targets[LayerIndex].Texture != Entry.Targets[LayerIndex].TextureRHI);
+		}
+
+		if (++BatchSize == RuntimeVirtualTexture::EMaxRenderPageBatch || bBreakBatchForTextures)
+		{
+			RenderPageBatchDesc.NumPageDescs = BatchSize;
+			RuntimeVirtualTexture::RenderPages(RHICmdList, RenderPageBatchDesc);
+			BatchSize = 0;
+		}
+
+		if (bBreakBatchForTextures)
+		{
+			for (int LayerIndex = 0; LayerIndex < RuntimeVirtualTexture::MaxTextureLayers; ++LayerIndex)
+			{
+				RenderPageBatchDesc.Targets[LayerIndex].Texture = Tiles[0].Targets[LayerIndex].TextureRHI != nullptr ? Tiles[0].Targets[LayerIndex].TextureRHI->GetTexture2D() : nullptr;
+				RenderPageBatchDesc.Targets[LayerIndex].UAV = Tiles[0].Targets[LayerIndex].UnorderedAccessViewRHI;
+			}
+		}
+	}
+
+	if (BatchSize > 0)
+	{
+		RenderPageBatchDesc.NumPageDescs = BatchSize;
+		RuntimeVirtualTexture::RenderPages(RHICmdList, RenderPageBatchDesc);
 	}
 
 	Tiles.SetNumUnsafeInternal(0);
@@ -133,24 +166,16 @@ IVirtualTextureFinalizer* FRuntimeVirtualTextureProducer::ProducePageData(
 	Tile.vAddress = vAddress;
 	Tile.vLevel = vLevel;
 
-	//todo[vt]: 
 	// Partial layer masks can happen when one layer has more physical space available so that old pages are evicted at different rates.
-	// This can be almost always be avoided by setting up the physical pools correctly for the application's needs.
-	// If we can't avoid partial layer masks then we could look at ways to handle it more efficiently (right now we render all layers even for these partial requests).
+	// We currently render all layers even for these partial requests. That might be considered inefficient?
+	// But since the problem is avoided by setting bSinglePhysicalSpace on the URuntimeVirtualTexture we can live with it.
 
-	//todo[vt]: Add support for more than two layers
-	if (TargetLayers[0].TextureRHI != nullptr)
+	for (int LayerIndex = 0; LayerIndex < RuntimeVirtualTexture::MaxTextureLayers; ++LayerIndex)
 	{
-		Tile.Texture0 = TargetLayers[0].TextureRHI->GetTexture2D();
-		Tile.DestX0 = TargetLayers[0].pPageLocation.X;
-		Tile.DestY0 = TargetLayers[0].pPageLocation.Y;
-	}
-
-	if (TargetLayers[1].TextureRHI != nullptr)
-	{
-		Tile.Texture1 = TargetLayers[1].TextureRHI->GetTexture2D();
-		Tile.DestX1 = TargetLayers[1].pPageLocation.X;
-		Tile.DestY1 = TargetLayers[1].pPageLocation.Y;
+		if (TargetLayers[LayerIndex].TextureRHI != nullptr)
+		{
+			Tile.Targets[LayerIndex] = TargetLayers[LayerIndex];
+		}
 	}
 
 	Finalizer.InitProducer(ProducerHandle);

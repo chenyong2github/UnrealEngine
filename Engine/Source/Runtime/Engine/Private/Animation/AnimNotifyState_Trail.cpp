@@ -162,7 +162,7 @@ void UAnimNotifyState_Trail::NotifyBegin(class USkeletalMeshComponent * MeshComp
 		NewParticleComp->SecondsBeforeInactive = 0.0f;
 		NewParticleComp->bAutoActivate = false;
 		NewParticleComp->bOverrideLODMethod = false;
-		NewParticleComp->RelativeScale3D = FVector(1.f);
+		NewParticleComp->SetRelativeScale3D_Direct(FVector(1.f));
 		NewParticleComp->bAutoManageAttachment = true; // Let it detach when finished (only happens if not auto-destroying)
 		NewParticleComp->SetAutoAttachParams(MeshComp, NAME_None);
 

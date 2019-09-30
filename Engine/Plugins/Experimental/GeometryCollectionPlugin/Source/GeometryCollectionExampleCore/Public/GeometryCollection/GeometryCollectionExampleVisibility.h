@@ -6,5 +6,5 @@
 namespace GeometryCollectionExample
 {	
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API TestHideVertices(ExampleResponse&& R);
+	void GEOMETRYCOLLECTIONEXAMPLECORE_API TestHideVertices();
 }

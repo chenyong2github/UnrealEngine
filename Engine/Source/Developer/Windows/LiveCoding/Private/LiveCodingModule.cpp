@@ -237,15 +237,6 @@ bool FLiveCodingModule::IsCompiling() const
 
 void FLiveCodingModule::Tick()
 {
-	extern void LppSyncPoint();
-	LppSyncPoint();
-
-	if (GHasLoadedPatch)
-	{
-		OnPatchCompleteDelegate.Broadcast();
-		GHasLoadedPatch = false;
-	}
-
 	if (LppWantsRestart())
 	{
 		LppRestart(lpp::LPP_RESTART_BEHAVIOR_REQUEST_EXIT, 0);
@@ -261,6 +252,16 @@ void FLiveCodingModule::Tick()
 	{
 		UpdateModules();
 		bUpdateModulesInTick = false;
+	}
+
+	// Needs to happen after updating modules, since "Quick Restart" functionality may try to install patch immediately
+	extern void LppSyncPoint();
+	LppSyncPoint();
+
+	if (GHasLoadedPatch)
+	{
+		OnPatchCompleteDelegate.Broadcast();
+		GHasLoadedPatch = false;
 	}
 }
 
@@ -361,7 +362,7 @@ void FLiveCodingModule::UpdateModules()
 	{
 #if IS_MONOLITHIC
 		wchar_t FullFilePath[WINDOWS_MAX_PATH];
-		verify(GetModuleFileName(hInstance, FullFilePath, ARRAY_COUNT(FullFilePath)));
+		verify(GetModuleFileName(hInstance, FullFilePath, UE_ARRAY_COUNT(FullFilePath)));
 		LppEnableModule(FullFilePath);
 #else
 		TArray<FModuleStatus> ModuleStatuses;

@@ -141,7 +141,7 @@ struct StaticMeshLightingInfoStatsGenerator
 			{
 				ULightComponent* Light = AllLights[LightIndex];
 				// Only add enabled lights
-				if (Light->bVisible && Light->AffectsPrimitive(InComponent))
+				if (Light->GetVisibleFlag() && Light->AffectsPrimitive(InComponent))
 				{
 					// Check whether the light should use a light-map or shadow-map.
 					const bool bHasStaticLighting = Light->HasStaticLighting();

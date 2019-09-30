@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/Defines.h"
+#include "Chaos/ConstraintHandle.h"
 
 namespace Chaos
 {
@@ -14,5 +15,11 @@ namespace Chaos
 	class CHAOS_API TPBDConstraintContainer
 	{
 	public:
+		using FConstraintHandle = TConstraintHandle<T, d>;
+
+	protected:
+		// friend access to the Constraint Handle's container API
+		int32 GetConstraintIndex(const FConstraintHandle* ConstraintHandle) const { return ConstraintHandle->ConstraintIndex; }
+		void SetConstraintIndex(FConstraintHandle* ConstraintHandle, int32 ConstraintIndex) const { ConstraintHandle->ConstraintIndex = ConstraintIndex; }
 	};
 }

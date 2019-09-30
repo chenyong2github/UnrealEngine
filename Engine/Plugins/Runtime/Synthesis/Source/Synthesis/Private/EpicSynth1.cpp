@@ -619,7 +619,7 @@ namespace Audio
 
 		for (int32 i = 0; i < 2; ++i)
 		{
-			Oscil[i].SetFrequency(PortamentoFrequency.GetValue());
+			Oscil[i].SetFrequency(PortamentoFrequency.GetNextValue());
 		}
 
 		FModulationMatrix* ModMatrix = &ParentSynth->ModMatrix;

@@ -1851,11 +1851,15 @@ FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FR
 	if (Initializer.GeometryType == RTGT_Triangles)
 	{
 		// #dxr_todo UE-72160: VET_Half4 (DXGI_FORMAT_R16G16B16A16_FLOAT) is also supported by DXR. Should we support it?
-		check(Initializer.VertexBufferElementType == VET_Float3 || Initializer.VertexBufferElementType == VET_Float2 || Initializer.VertexBufferElementType == VET_Half2);
+		check(Initializer.VertexBufferElementType == VET_Float4 || Initializer.VertexBufferElementType == VET_Float3 || Initializer.VertexBufferElementType == VET_Float2 || Initializer.VertexBufferElementType == VET_Half2);
 
 		// #dxr_todo UE-72160: temporary constraints on vertex and index buffer formats (this will be relaxed when more flexible vertex/index fetching is implemented)
-		checkf(Initializer.VertexBufferElementType == VET_Float3, TEXT("Only float3 vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support other vertex buffer formats
-		checkf(Initializer.VertexBufferStride == 12, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
+		checkf(Initializer.VertexBufferElementType == VET_Float3 || Initializer.VertexBufferElementType == VET_Float4, TEXT("Only float3 vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support other vertex buffer formats
+		if (Initializer.VertexBufferElementType == VET_Float3)
+			checkf(Initializer.VertexBufferStride >= 12, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
+
+		if (Initializer.VertexBufferElementType == VET_Float4)
+			checkf(Initializer.VertexBufferStride >= 16, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
 	}
 
 	if (Initializer.GeometryType == RTGT_Procedural)
@@ -2098,6 +2102,10 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 		{
 			switch (VertexElemType)
 			{
+			case VET_Float4: 
+				// While the DXGI_FORMAT_R32G32B32A32_FLOAT format is not supported by DXR, since we manually load vertex 
+				// data when we are building the BLAS, we can just rely on the vertex stride to offset the read index, 
+				// and read only the 3 vertex components, and so use the DXGI_FORMAT_R32G32B32_FLOAT vertex format
 			case VET_Float3:
 				Desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 				break;
@@ -2547,7 +2555,7 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 				if (Geometry->GeometryType == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES)
 				{
 					// #dxr_todo UE-72160: support various vertex buffer layouts (fetch/decode based on vertex stride and format)
-					checkf(Geometry->VertexElemType == VET_Float3, TEXT("Only VET_Float3 is currently implemented and tested. Other formats will be supported in the future."));
+					checkf(Geometry->VertexElemType == VET_Float3 || Geometry->VertexElemType == VET_Float4, TEXT("Only VET_Float3 is currently implemented and tested. Other formats will be supported in the future."));
 				}
 
 				SystemParameters.RootConstants.SetVertexAndIndexStride(Geometry->VertexStrideInBytes, IndexStride);
@@ -3028,11 +3036,11 @@ static void SetRayTracingShaderResources(
 	ResourceBinderType& Binder)
 {
 	SetRayTracingShaderResources(CommandContext, Shader,
-		ARRAY_COUNT(ResourceBindings.Textures), ResourceBindings.Textures,
-		ARRAY_COUNT(ResourceBindings.SRVs), ResourceBindings.SRVs,
-		ARRAY_COUNT(ResourceBindings.UniformBuffers), ResourceBindings.UniformBuffers,
-		ARRAY_COUNT(ResourceBindings.Samplers), ResourceBindings.Samplers,
-		ARRAY_COUNT(ResourceBindings.UAVs), ResourceBindings.UAVs,
+		UE_ARRAY_COUNT(ResourceBindings.Textures), ResourceBindings.Textures,
+		UE_ARRAY_COUNT(ResourceBindings.SRVs), ResourceBindings.SRVs,
+		UE_ARRAY_COUNT(ResourceBindings.UniformBuffers), ResourceBindings.UniformBuffers,
+		UE_ARRAY_COUNT(ResourceBindings.Samplers), ResourceBindings.Samplers,
+		UE_ARRAY_COUNT(ResourceBindings.UAVs), ResourceBindings.UAVs,
 		0, nullptr, // loose parameters
 		DescriptorCache, Binder);
 }

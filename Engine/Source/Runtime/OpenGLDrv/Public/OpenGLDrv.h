@@ -518,7 +518,8 @@ public:
 	virtual void RHIDiscardRenderTargets(bool Depth,bool Stencil,uint32 ColorBitMask) final override;
 
 	virtual void RHICopySubTextureRegion(FRHITexture2D* SourceTexture, FRHITexture2D* DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox) final override;
-	virtual void RHICopyTexture(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FRHICopyTextureInfo& CopyInfo) final override;
+	// FIXME: Broken on Android for cubemaps
+	//virtual void RHICopyTexture(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FRHICopyTextureInfo& CopyInfo) final override;
 
 	// FOpenGLDynamicRHI interface.
 	virtual FTexture2DRHIRef RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, const FClearValueBinding& ClearValueBinding, GLuint Resource, uint32 Flags);
@@ -563,7 +564,7 @@ public:
 	}
 
 	void CachedSetupTextureStageInner(FOpenGLContextState& ContextState, GLint TextureIndex, GLenum Target, GLuint Resource, GLint BaseMip, GLint NumMips);
-	void CachedSetupUAVStage(FOpenGLContextState& ContextState, GLint UAVIndex, GLenum Format, GLuint Resource);
+	void CachedSetupUAVStage(FOpenGLContextState& ContextState, GLint UAVIndex, GLenum Format, GLuint Resource, bool bLayered, GLint Layer);
 	void UpdateSRV(FOpenGLShaderResourceView* SRV);
 	FOpenGLContextState& GetContextStateForCurrentContext(bool bAssertIfInvalid = true);
 
@@ -1142,7 +1143,7 @@ private:
 public:
 	/** Remember what RHI user wants set on a specific OpenGL texture stage, translating from Stage and TextureIndex for stage pair. */
 	void InternalSetShaderTexture(FOpenGLTextureBase* Texture, FOpenGLShaderResourceView* SRV, GLint TextureIndex, GLenum Target, GLuint Resource, int NumMips, int LimitMip);
-	void InternalSetShaderUAV(GLint UAVIndex, GLenum Format, GLuint Resource);
+	void InternalSetShaderUAV(GLint UAVIndex, GLenum Format, GLuint Resource, bool bLayered, GLint Layer);
 	void InternalSetSamplerStates(GLint TextureIndex, FOpenGLSamplerState* SamplerState);
 
 private:
@@ -1167,7 +1168,7 @@ private:
 	{
 		if (FOpenGL::NeedsVertexAttribRemapTable())
 		{
-			check(VertexAttributeIndex < ARRAY_COUNT(PendingState.BoundShaderState->GetVertexShader()->Bindings.VertexAttributeRemap));
+			check(VertexAttributeIndex < UE_ARRAY_COUNT(PendingState.BoundShaderState->GetVertexShader()->Bindings.VertexAttributeRemap));
 			VertexAttributeIndex = PendingState.BoundShaderState->GetVertexShader()->Bindings.VertexAttributeRemap[VertexAttributeIndex];
 		}
 		check(VertexAttributeIndex < NUM_OPENGL_VERTEX_STREAMS); // check that this attribute has remaped correctly.
@@ -1178,7 +1179,7 @@ private:
 	{
 		if (FOpenGL::NeedsVertexAttribRemapTable())
 		{
-			check(VertexAttributeIndex < ARRAY_COUNT(Bindings.VertexAttributeRemap));
+			check(VertexAttributeIndex < UE_ARRAY_COUNT(Bindings.VertexAttributeRemap));
 			VertexAttributeIndex = Bindings.VertexAttributeRemap[VertexAttributeIndex];
 		}
 		check(VertexAttributeIndex < NUM_OPENGL_VERTEX_STREAMS); // check that this attribute has remaped correctly.

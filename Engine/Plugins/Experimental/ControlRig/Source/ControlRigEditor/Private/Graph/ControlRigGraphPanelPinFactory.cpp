@@ -4,8 +4,8 @@
 #include "Graph/ControlRigGraphSchema.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "Graph/ControlRigGraph.h"
-#include "Graph/SGraphPinNameList.h"
-#include "Graph/SGraphPinCurveFloat.h"
+#include "Graph/SControlRigGraphPinNameList.h"
+#include "Graph/SControlRigGraphPinCurveFloat.h"
 #include "KismetPins/SGraphPinExec.h"
 #include "ControlRig.h"
 #include "NodeFactory.h"
@@ -43,22 +43,22 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 						{
 							if (Property->HasMetaData(UControlRig::BoneNameMetaName))
 							{
-								return SNew(SGraphPinNameList, InPin)
+								return SNew(SControlRigGraphPinNameList, InPin)
 									.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetBoneNameList);
 							}
 							if (Property->HasMetaData(UControlRig::ControlNameMetaName))
 							{
-								return SNew(SGraphPinNameList, InPin)
+								return SNew(SControlRigGraphPinNameList, InPin)
 									.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetControlNameList);
 							}
 							if (Property->HasMetaData(UControlRig::SpaceNameMetaName))
 							{
-								return SNew(SGraphPinNameList, InPin)
+								return SNew(SControlRigGraphPinNameList, InPin)
 									.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetSpaceNameList);
 							}
 							else if (Property->HasMetaData(UControlRig::CurveNameMetaName))
 							{
-								return SNew(SGraphPinNameList, InPin)
+								return SNew(SControlRigGraphPinNameList, InPin)
 									.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetCurveNameList);
 							}
 						}
@@ -74,7 +74,7 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 				}
 				else if (InPin->PinType.PinSubCategoryObject == FRuntimeFloatCurve::StaticStruct())
 				{
-					return SNew(SGraphPinCurveFloat, InPin);
+					return SNew(SControlRigGraphPinCurveFloat, InPin);
 				}
 			}
 		}

@@ -32,6 +32,7 @@ public class VirtualTexturingEditor : ModuleRules
 				"EditorStyle",
 				"Engine",
 				"InputCore",
+				"MaterialEditor",
 				"PlacementMode",
 				"PropertyEditor",
 				"RenderCore",

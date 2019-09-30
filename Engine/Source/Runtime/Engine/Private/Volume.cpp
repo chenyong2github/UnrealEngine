@@ -23,12 +23,12 @@ AVolume::AVolume(const FObjectInitializer& ObjectInitializer)
 	static FName CollisionProfileName(TEXT("OverlapAll"));
 	GetBrushComponent()->SetCollisionProfileName(CollisionProfileName);
 	GetBrushComponent()->SetGenerateOverlapEvents(true);
-	bReplicateMovement = false;
+	SetReplicatingMovement(false);
 #if WITH_EDITORONLY_DATA
 	bActorLabelEditable = true;
 #endif // WITH_EDITORONLY_DATA
 
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 }
 
 #if WITH_EDITOR

@@ -79,7 +79,7 @@ void FGoogleARCorePassthroughCameraRenderer::InitializeRenderer_RenderThread(FTe
 	const uint16 Indices[] = { 0, 1, 2, 2, 1, 3};
 
 	TResourceArray<uint16, INDEXBUFFER_ALIGNMENT> IndexBuffer;
-	uint32 NumIndices = ARRAY_COUNT(Indices);
+	uint32 NumIndices = UE_ARRAY_COUNT(Indices);
 	IndexBuffer.AddUninitialized(NumIndices);
 	FMemory::Memcpy(IndexBuffer.GetData(), Indices, NumIndices * sizeof(uint16));
 
@@ -92,7 +92,11 @@ void FGoogleARCorePassthroughCameraRenderer::InitializeRenderer_RenderThread(FTe
 	FSamplerStateInitializerRHI SamplerStateInitializer(SF_Point, AM_Clamp, AM_Clamp, AM_Clamp);
 	FSamplerStateRHIRef SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 
-	FExternalTextureRegistry::Get().RegisterExternalTexture(GoogleARCorePassthroughCameraExternalTextureGuid, VideoTexture, SamplerStateRHI);
+	// VideoTexture can be NULL for Vulkan
+	if (VideoTexture)
+	{
+		FExternalTextureRegistry::Get().RegisterExternalTexture(GoogleARCorePassthroughCameraExternalTextureGuid, VideoTexture, SamplerStateRHI);
+	}
 
 	//Make sure AR camera pass through materials are updated properly
 	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
@@ -217,6 +221,13 @@ IMPLEMENT_MATERIAL_SHADER(FGoogleARCoreCameraOverlayPS, "/Engine/Private/PostPro
 void FGoogleARCorePassthroughCameraRenderer::RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
 {
 #if PLATFORM_ANDROID
+	if (FAndroidMisc::ShouldUseVulkan() && IsMobileHDR() && !RHICmdList.IsInsideRenderPass())
+	{
+		// We must NOT call DrawIndexedPrimitive below if not in a render pass on Vulkan, it's very likely to crash!
+		UE_LOG(LogTemp, Warning, TEXT("FGoogleARCorePassthroughCameraRenderer::RenderVideoOverlay_RenderThread: skipped due to not called within a render pass on Vulkan!"));
+		return;
+	}
+	
 	if (RenderingOverlayMaterial == nullptr || !RenderingOverlayMaterial->IsValidLowLevel())
 	{
 		return;
@@ -244,7 +255,7 @@ void FGoogleARCorePassthroughCameraRenderer::RenderVideoOverlay_RenderThread(FRH
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader);
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::DoNothing);
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		VertexShader->SetParameters(RHICmdList, InView);
 		PixelShader->SetParameters(RHICmdList, InView, RenderingOverlayMaterial->GetRenderProxy());

@@ -59,7 +59,7 @@ UBaseMovementComponent::UBaseMovementComponent()
 	
 	bWantsInitializeComponent = true;
 	bAutoActivate = true;
-	bReplicates = true;
+	SetIsReplicatedByDefault(true);
 	bWantsInitializeComponent = true;
 }
 
@@ -341,7 +341,7 @@ FTransform UBaseMovementComponent::GetUpdateComponentTransform() const
 	return FTransform::Identity;
 }
 
-UObject* UBaseMovementComponent::GetVLogOwner() const
+UObject* UBaseMovementComponent::GetBaseMovementVLogOwner() const
 {
 	return GetOwner();
 }
@@ -426,8 +426,8 @@ void UBaseMovementComponent::DrawDebug(const IBaseMovementDriver::FDrawDebugPara
 
 IBaseMovementDriver::FDrawDebugParams::FDrawDebugParams(const FVisualLoggingParameters& Parameters, IBaseMovementDriver* LogDriver)
 {
-	DebugWorld = LogDriver->GetDriverWorld();
-	DebugLogOwner = LogDriver->GetVLogOwner();
+	DebugWorld = LogDriver->GetBaseMovementDriverWorld();
+	DebugLogOwner = LogDriver->GetBaseMovementVLogOwner();
 	DrawType = (Parameters.Context == EVisualLoggingContext::OtherMispredicted || Parameters.Context == EVisualLoggingContext::OtherPredicted) ? EVisualLoggingDrawType::Crumb : EVisualLoggingDrawType::Full;
 	Lifetime = Parameters.Lifetime;
 	DrawColor = Parameters.GetDebugColor();	

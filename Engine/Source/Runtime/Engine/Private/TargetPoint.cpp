@@ -39,7 +39,7 @@ ATargetPoint::ATargetPoint(const FObjectInitializer& ObjectInitializer)
 		if (SpriteComponent)
 		{
 			SpriteComponent->Sprite = ConstructorStatics.TargetIconObject.Get();
-			SpriteComponent->RelativeScale3D = FVector(0.35f, 0.35f, 0.35f);
+			SpriteComponent->SetRelativeScale3D_Direct(FVector(0.35f, 0.35f, 0.35f));
 			SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_TargetPoint;
 			SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_TargetPoint;
 			SpriteComponent->bIsScreenSizeScaled = true;
@@ -60,13 +60,15 @@ ATargetPoint::ATargetPoint(const FObjectInitializer& ObjectInitializer)
 
 			// Counteract the scaled down parent so that the arrow is large enough to see.
 			if (SpriteComponent)
-				ArrowComponent->SetRelativeScale3D((FVector::OneVector / SpriteComponent->RelativeScale3D));
+			{
+				ArrowComponent->SetRelativeScale3D((FVector::OneVector / SpriteComponent->GetRelativeScale3D()));
+			}
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
 
-	bHidden = true;
-	bCanBeDamaged = false;
+	SetHidden(true);
+	SetCanBeDamaged(false);
 }
 
 #if WITH_EDITORONLY_DATA

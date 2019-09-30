@@ -6,6 +6,9 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
+#include "Subsystems/WorldSubsystem.h"
+#include "Engine/EngineBaseTypes.h"
+#include "NetworkSimulationModelDebugger.h"
 
 #include "NetworkSimulationGlobalManager.generated.h"
 
@@ -33,16 +36,51 @@
 //
 // ----------------------------------------------------------------------------------------------------------------------------
 
+class IReplicationProxy;
+
 UCLASS()
-class UNetworkSimulationGlobalManager : public UObject
+class UNetworkSimulationGlobalManager : public UWorldSubsystem
 {
 	GENERATED_BODY()
-
 public:
 
 	UNetworkSimulationGlobalManager();
+	
+	// Subsystem Init/Deinit
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+
+	// Netsim Register/Unregister
+	void RegisterModel(INetworkSimulationModel* Model, AActor* OwningActor);
+	void UnregisterModel(INetworkSimulationModel* Model, AActor* OwningActor);
+
+	// Delegate for auto proxies to register with to send their server RPC
+	DECLARE_MULTICAST_DELEGATE_OneParam(FTickServerRPC, float /*RealTime DeltaSeconds*/)
+	FTickServerRPC TickServerRPCDelegate;
+
+private:
 
 	void ReconcileSimulationsPostNetworkUpdate();
-	void TickNewSimulationFrame(float DeltaTimeSeconds);
+	void BeginNewSimulationFrame(UWorld* InWorld, ELevelTick InLevelTick, float InDeltaSeconds);
+	
+	// Structure for organizing our simulations into groups to give some ticking order.
+	// This will need to evolve over time a bit and be optimized for larger number of simulations.
+	struct FSimulationGroup
+	{
+		struct FItem
+		{
+			FItem(INetworkSimulationModel* InSim, AActor* InActor) : Simulation(InSim), OwningActor(InActor) { }
+			bool operator == (const INetworkSimulationModel* InSim) const { return Simulation == InSim; }
 
+			INetworkSimulationModel* Simulation;
+			AActor* OwningActor;
+		};
+
+		TArray<FItem> Simulations;
+	};
+
+	TSortedMap<FName, FSimulationGroup, FDefaultAllocator, FNameFastLess> SimulationGroupMap;
+
+	FDelegateHandle PostTickDispatchHandle;
+	FDelegateHandle PreWorldActorTickHandle;
 };

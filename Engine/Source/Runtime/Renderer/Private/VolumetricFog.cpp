@@ -121,7 +121,10 @@ FVector VolumetricFogTemporalRandom(uint32 FrameNumber)
 	return RandomOffsetValue;
 }
 
-uint32 VolumetricFogGridInjectionGroupSize = 4;
+static const uint32 VolumetricFogGridInjectionGroupSize  = 4;
+static const uint32 VolumetricFogLightScatteringGroupSizeX = 8;
+static const uint32 VolumetricFogLightScatteringGroupSizeY = 8;
+static const uint32 VolumetricFogLightScatteringGroupSizeZ = 1;
 
 class FVolumetricFogMaterialSetupCS : public FGlobalShader
 {
@@ -556,8 +559,10 @@ class TVolumetricFogLightScatteringCS : public FGlobalShader
 
 	class FTemporalReprojection			: SHADER_PERMUTATION_BOOL("USE_TEMPORAL_REPROJECTION");
 	class FDistanceFieldSkyOcclusion	: SHADER_PERMUTATION_BOOL("DISTANCE_FIELD_SKY_OCCLUSION");
+	class FSuperSampleCount				: SHADER_PERMUTATION_RANGE_INT("HISTORY_MISS_SUPER_SAMPLE_COUNT",1,16);
 
 	using FPermutationDomain = TShaderPermutationDomain<
+		FSuperSampleCount,
 		FTemporalReprojection,
 		FDistanceFieldSkyOcclusion >;
 
@@ -580,7 +585,9 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), VolumetricFogGridInjectionGroupSize);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_X"), VolumetricFogLightScatteringGroupSizeX);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_Y"), VolumetricFogLightScatteringGroupSizeY);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_Z"), VolumetricFogLightScatteringGroupSizeZ);
 		FVolumetricFogIntegrationParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 	}
@@ -1111,15 +1118,17 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRHICommandListImmediat
 				TVolumetricFogLightScatteringCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set< TVolumetricFogLightScatteringCS::FTemporalReprojection >(bUseTemporalReprojection);
 				PermutationVector.Set< TVolumetricFogLightScatteringCS::FDistanceFieldSkyOcclusion >(bUseDistanceFieldSkyOcclusion);
+				PermutationVector.Set< TVolumetricFogLightScatteringCS::FSuperSampleCount >(GVolumetricFogHistoryMissSupersampleCount);
 
 				auto ComputeShader = View.ShaderMap->GetShader< TVolumetricFogLightScatteringCS >(PermutationVector);
 				ClearUnusedGraphResources(ComputeShader, PassParameters);
 
 				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("LightScattering %dx%dx%d %s %s",
+					RDG_EVENT_NAME("LightScattering %dx%dx%d SS:%d %s %s",
 						VolumetricFogGridSize.X,
 						VolumetricFogGridSize.Y,
 						VolumetricFogGridSize.Z,
+						GVolumetricFogHistoryMissSupersampleCount,
 						bUseDistanceFieldSkyOcclusion ? TEXT("DFAO") : TEXT(""),
 						PassParameters->LightFunctionTexture ? TEXT("LF") : TEXT("")),
 					PassParameters,
@@ -1127,7 +1136,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRHICommandListImmediat
 					[PassParameters, ComputeShader, &View, this, FogInfo, bUseTemporalReprojection, VolumetricFogGridSize, IntegrationData, bUseDirectionalLightShadowing, bUseDistanceFieldSkyOcclusion, LightFunctionWorldToShadow](FRHICommandListImmediate& RHICmdList)
 				{
 					UnbindRenderTargets(RHICmdList);
-					const FIntVector NumGroups = FIntVector::DivideAndRoundUp(VolumetricFogGridSize, VolumetricFogGridInjectionGroupSize);
+					const FIntVector NumGroups = FIntVector::DivideAndRoundUp(VolumetricFogGridSize, FIntVector(VolumetricFogLightScatteringGroupSizeX, VolumetricFogLightScatteringGroupSizeY, VolumetricFogLightScatteringGroupSizeZ));
 
 					RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 

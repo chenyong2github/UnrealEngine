@@ -293,6 +293,7 @@ void NiagaraEmitterInstanceBatcher::DispatchMultipleStages(const FNiagaraGPUSyst
 			{
 				continue;
 			}
+
 			PreStageInterface(Tick, Instance, RHICmdList, ComputeShader, ShaderStageIndex);
 
 			if (!IterationInterface)
@@ -999,7 +1000,7 @@ void NiagaraEmitterInstanceBatcher::SetDataInterfaceParameters(const TArray<FNia
 	//
 
 	// @todo-threadsafety This is a bit gross. Need to rethink this api.
-	const FGuid& SystemInstance = Tick.SystemInstanceID;
+	const FNiagaraSystemInstanceID& SystemInstance = Tick.SystemInstanceID;
 
 	uint32 InterfaceIndex = 0;
 	for (FNiagaraDataInterfaceProxy* Interface : DataInterfaceProxies)
@@ -1027,7 +1028,7 @@ void NiagaraEmitterInstanceBatcher::UnsetDataInterfaceParameters(const TArray<FN
 	//
 
 	// @todo-threadsafety This is a bit gross. Need to rethink this api.
-	const FGuid& SystemInstance = Tick.SystemInstanceID;
+	const FNiagaraSystemInstanceID& SystemInstance = Tick.SystemInstanceID;
 
 	uint32 InterfaceIndex = 0;
 	for (FNiagaraDataInterfaceProxy* Interface : DataInterfaceProxies)
@@ -1152,10 +1153,10 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 
 	if (IterationInterface)
 	{
-	if (TotalNumInstances > NIAGARA_COMPUTE_THREADGROUP_SIZE)
-	{
-		RHICmdList.SetShaderParameter(Shader->GetComputeShader(), Shader->IterationInterfaceCount.GetBufferIndex(), Shader->IterationInterfaceCount.GetBaseIndex(), Shader->IterationInterfaceCount.GetNumBytes(), &TotalNumInstances);					// 0, except if several stages are defined
-	}
+		if (TotalNumInstances > NIAGARA_COMPUTE_THREADGROUP_SIZE)
+		{
+			RHICmdList.SetShaderParameter(Shader->GetComputeShader(), Shader->IterationInterfaceCount.GetBufferIndex(), Shader->IterationInterfaceCount.GetBaseIndex(), Shader->IterationInterfaceCount.GetNumBytes(), &TotalNumInstances);					// 0, except if several stages are defined
+		}
 	}
 
 

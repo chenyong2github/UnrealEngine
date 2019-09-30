@@ -17,6 +17,7 @@
 #include "HAL/PlatformFilemanager.h"
 #include "IPlatformFilePak.h"
 #include "Stats/StatsMisc.h"
+#include "Internationalization/PackageLocalizationManager.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -1938,6 +1939,7 @@ bool UAssetManager::OnAssetRegistryAvailableAfterInitialization(FName InName, FA
 		if (bLoaded)
 		{
 			LocalAssetRegistry.AppendState(OutNewState);
+			FPackageLocalizationManager::Get().ConditionalUpdateCache();
 
 			TArray<FAssetData> NewAssetData;
 			bool bRebuildReferenceList = false;

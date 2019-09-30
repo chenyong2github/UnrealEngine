@@ -86,14 +86,14 @@ void DumpNiagaraComponents(UWorld* World)
 				else
 				{
 					UE_LOG(LogNiagara, Log, TEXT("Component: \"%s\" System: \"%s\" | ReqExecState: %d | ExecState: %d | bIsActive: %d"), *Component->GetName(), *Sys->GetName(),
-						(int32)SysInst->GetRequestedExecutionState(), (int32)SysInst->GetActualExecutionState(), Component->bIsActive);
+						(int32)SysInst->GetRequestedExecutionState(), (int32)SysInst->GetActualExecutionState(), Component->IsActive());
 
 					if (!SysInst->IsComplete())
 					{
 						for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Emitter : SysInst->GetEmitters())
 						{
 							UE_LOG(LogNiagara, Log, TEXT("    Emitter: \"%s\" | ExecState: %d | NumParticles: %d | CPUTime: %f"), *Emitter->GetEmitterHandle().GetUniqueInstanceName(),
-								(int32)Emitter->GetExecutionState(), Emitter->GetNumParticles(), Emitter->GetTotalCPUTime());
+								(int32)Emitter->GetExecutionState(), Emitter->GetNumParticles(), Emitter->GetTotalCPUTimeMS());
 						}
 					}
 				}
@@ -180,15 +180,10 @@ void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 	{
 		if (UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter())
 		{
-			for (UNiagaraRendererProperties* Properties : Emitter->GetRenderers())
+			for (UNiagaraRendererProperties* Properties : Emitter->GetEnabledRenderers())
 			{
 				RendererSortInfo.Emplace(Properties->SortOrderHint, EmitterRenderers.Num());
-				FNiagaraRenderer* NewRenderer = nullptr;
-				if (Properties->GetIsEnabled())
-				{
-					NewRenderer = Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get());
-				}
-				EmitterRenderers.Add(NewRenderer);
+				EmitterRenderers.Add(Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get()));
 			}
 		}
 	}
@@ -372,6 +367,7 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, MaxSimTime(33.0f / 1000.0f)
 	, bIsSeeking(false)
 	, bAutoDestroy(false)
+	, MaxTimeBeforeForceUpdateTransform(5.0f)
 #if WITH_EDITOR
 	, PreviewDetailLevel(INDEX_NONE)
 	, PreviewLODDistance(0.0f)
@@ -440,7 +436,7 @@ void UNiagaraComponent::ReleaseToPool()
 		return;
 	}
 
-	if (!bIsActive)
+	if (!IsActive())
 	{
 		//If we're already complete then release to the pool straight away.
 		UWorld* World = GetWorld();
@@ -483,13 +479,13 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 		return;
 	}
 
-	if (!bIsActive && bAutoActivate && SystemInstance.Get() && SystemInstance->GetAreDataInterfacesInitialized())
+	if (!IsActive() && bAutoActivate && SystemInstance.Get() && SystemInstance->GetAreDataInterfacesInitialized())
 	{
 		Activate();
 	}
 
 	check(SystemInstance->IsSolo());
-	if (bIsActive && SystemInstance.Get() && !SystemInstance->IsComplete())
+	if (IsActive() && SystemInstance.Get() && !SystemInstance->IsComplete())
 	{
 		// If the interfaces have changed in a meaningful way, we need to potentially rebind and update the values.
 		if (OverrideParameters.GetInterfacesDirty())
@@ -777,9 +773,9 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 			{
 				bDidAutoAttach = bWasAutoAttached;
 				CancelAutoAttachment(true);
-				SavedAutoAttachRelativeLocation = RelativeLocation;
-				SavedAutoAttachRelativeRotation = RelativeRotation;
-				SavedAutoAttachRelativeScale3D = RelativeScale3D;
+				SavedAutoAttachRelativeLocation = GetRelativeLocation();
+				SavedAutoAttachRelativeRotation = GetRelativeRotation();
+				SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
 				//bIsChangingAutoAttachment = true;
 				AttachToComponent(NewParent, FAttachmentTransformRules(AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule, false), AutoAttachSocketName);
 				//bIsChangingAutoAttachment = false;
@@ -830,12 +826,12 @@ void UNiagaraComponent::Deactivate()
 		SystemInstance->Deactivate();
 
 		// We are considered active until we are complete
-		bIsActive = !SystemInstance->IsComplete();
+		SetActiveFlag(!SystemInstance->IsComplete());
 	}
 	else
 	{
 		Super::Deactivate();
-		bIsActive = false;
+		SetActiveFlag(false);
 	}
 }
 
@@ -848,7 +844,7 @@ void UNiagaraComponent::DeactivateImmediate()
 
 	//UE_LOG(LogNiagara, Log, TEXT("Deactivate %s"), *GetName());
 
-	bIsActive = false;
+	SetActiveFlag(false);
 
 	if (SystemInstance)
 	{
@@ -861,7 +857,7 @@ void UNiagaraComponent::OnSystemComplete()
 	//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete: %p - %s"), SystemInstance.Get(), *Asset->GetName());
 
 	SetComponentTickEnabled(false);
-	bIsActive = false;
+	SetActiveFlag(false);
 
 	MarkRenderDynamicDataDirty();
 		
@@ -894,7 +890,7 @@ void UNiagaraComponent::DestroyInstance()
 {
 	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::DestroyInstance: %p  %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
 	//UE_LOG(LogNiagara, Log, TEXT("DestroyInstance: %u - %s"), this, *Asset->GetName());
-	bIsActive = false;
+	SetActiveFlag(false);
 	
 	// Rather than setting the unique ptr to null here, we allow it to transition ownership to the system's deferred deletion queue. This allows us to safely
 	// get rid of the system interface should we be doing this in response to a callback invoked during the system interface's lifetime completion cycle.
@@ -943,9 +939,9 @@ void UNiagaraComponent::OnRegister()
 			}
 		}
 
-		SavedAutoAttachRelativeLocation = RelativeLocation;
-		SavedAutoAttachRelativeRotation = RelativeRotation;
-		SavedAutoAttachRelativeScale3D = RelativeScale3D;
+		SavedAutoAttachRelativeLocation = GetRelativeLocation();
+		SavedAutoAttachRelativeRotation = GetRelativeRotation();
+		SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
 	}
 	Super::OnRegister();
 }
@@ -962,7 +958,7 @@ void UNiagaraComponent::OnUnregister()
 {
 	Super::OnUnregister();
 
-	bIsActive = false;
+	SetActiveFlag(false);
 
 	if (SystemInstance)
 	{
@@ -1047,9 +1043,10 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 			FScopeCycleCounter EmitterStatCounter(EmitterStatID);
 #endif
 
-			for (int32 EmitterIdx = 0; EmitterIdx < Emitter->GetRenderers().Num(); EmitterIdx++, RendererIndex++)
+			const TArray<UNiagaraRendererProperties*>& Renderers = Emitter->GetEnabledRenderers();
+			for (int32 EmitterIdx = 0; EmitterIdx < Renderers.Num(); EmitterIdx++, RendererIndex++)
 			{
-				UNiagaraRendererProperties* Properties = Emitter->GetRenderers()[EmitterIdx];
+				UNiagaraRendererProperties* Properties = Renderers[EmitterIdx];
 				FNiagaraRenderer* Renderer = EmitterRenderers[RendererIndex];
 				FNiagaraDynamicDataBase* NewData = nullptr;
 				
@@ -1060,7 +1057,6 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 					const FNiagaraEmitterHandle& Handle = Asset->GetEmitterHandle(i);
 					bRendererEditorEnabled = (!SystemInstance->GetIsolateEnabled() || Handle.IsIsolated());
 #endif
-					bRendererEditorEnabled &= Properties->GetIsEnabled();
 					if (bRendererEditorEnabled && !EmitterInst->IsComplete() && !SystemInstance->IsComplete())
 					{
 						NewData = Renderer->GenerateDynamicData(NiagaraProxy, Properties, EmitterInst);
@@ -1095,9 +1091,8 @@ int32 UNiagaraComponent::GetNumMaterials() const
 		{
 			FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[i].Get();
 			UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter();
-			for (int32 EmitterIdx = 0; EmitterIdx < Emitter->GetRenderers().Num(); EmitterIdx++)
+			for (UNiagaraRendererProperties* Properties : Emitter->GetEnabledRenderers())
 			{
-				UNiagaraRendererProperties* Properties = Emitter->GetRenderers()[EmitterIdx];
 				Properties->GetUsedMaterials(EmitterInst, UsedMaterials);
 			}
 		}
@@ -1119,23 +1114,7 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 	FBoxSphereBounds SystemBounds;
 	if (SystemInstance.IsValid())
 	{
-		UNiagaraSystem* System = SystemInstance->GetSystem();
-		if (System->bFixedBounds)
-		{
-			SystemBounds = System->GetFixedBounds();
-		}
-		else
-		{
-			SystemInstance->GetSystemBounds().Init();
-			for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
-			{
-				FNiagaraEmitterInstance &Sim = *(SystemInstance->GetEmitters()[i]);
-				SystemInstance->GetSystemBounds() += Sim.GetBounds();
-			}
-			FBox BoundingBox = SystemInstance->GetSystemBounds();
-
-			SystemBounds = FBoxSphereBounds(BoundingBox);
-		}
+		SystemBounds = SystemInstance->GetLocalBounds();
 	}
 	else
 	{
@@ -1171,9 +1150,9 @@ void UNiagaraComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 
 		if (UNiagaraEmitter* Props = Sim->GetEmitterHandle().GetInstance())
 		{
-			for (int32 i = 0; i < Props->GetRenderers().Num(); i++)
+			if (Props)
 			{
-				if (UNiagaraRendererProperties* Renderer = Props->GetRenderers()[i])
+				for (UNiagaraRendererProperties* Renderer : Props->GetEnabledRenderers())
 				{
 					Renderer->GetUsedMaterials(&Sim.Get(), OutMaterials);
 				}
@@ -1715,6 +1694,34 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 		{
 			AssetExposedParametersChangedHandle.Reset();
 		}
+#else
+		// We need to populate the override parameters here
+		{
+			TArray<FNiagaraVariable> SourceVars;
+			Asset->GetExposedParameters().GetParameters(SourceVars);
+			for (FNiagaraVariable& Param : SourceVars)
+			{
+				OverrideParameters.AddParameter(Param, true);
+			}
+
+			TArray<FNiagaraVariable> ExistingVars;
+			OverrideParameters.GetUserParameters(ExistingVars);
+			Asset->GetExposedParameters().GetUserParameters(SourceVars);
+
+			for (FNiagaraVariable ExistingVar : ExistingVars)
+			{
+				if (SourceVars.Contains(ExistingVar))
+				{
+					Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
+				}
+				else
+				{
+					OverrideParameters.RemoveParameter(ExistingVar);
+				}
+			}
+
+			OverrideParameters.Rebind();
+		}
 #endif
 
 		//Force a reinit.
@@ -1749,9 +1756,9 @@ void UNiagaraComponent::CancelAutoAttachment(bool bDetachFromParent)
 		if (bDidAutoAttach)
 		{
 			// Restore relative transform from before attachment. Actual transform will be updated as part of DetachFromParent().
-			RelativeLocation = SavedAutoAttachRelativeLocation;
-			RelativeRotation = SavedAutoAttachRelativeRotation;
-			RelativeScale3D = SavedAutoAttachRelativeScale3D;
+			SetRelativeLocation_Direct(SavedAutoAttachRelativeLocation);
+			SetRelativeRotation_Direct(SavedAutoAttachRelativeRotation);
+			SetRelativeScale3D_Direct(SavedAutoAttachRelativeScale3D);
 			bDidAutoAttach = false;
 		}
 

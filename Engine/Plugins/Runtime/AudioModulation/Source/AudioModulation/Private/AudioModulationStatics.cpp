@@ -1,5 +1,4 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #include "AudioModulationStatics.h"
 
 #include "AudioDevice.h"
@@ -9,6 +8,7 @@
 
 #include "Engine/Engine.h"
 #include "SoundControlBus.h"
+#include "SoundControlBusMix.h"
 
 #define LOCTEXT_NAMESPACE "AudioModulationStatics"
 
@@ -24,8 +24,9 @@ namespace
 			return nullptr;
 		}
 
-		T* NewBus = NewObject<T>(nullptr, Name, RF_Transient);
+		T* NewBus = NewObject<T>(GetTransientPackage(), Name);
 		NewBus->DefaultValue = DefaultValue;
+		NewBus->Address = Name.ToString();
 
 		if (Activate)
 		{
@@ -155,7 +156,7 @@ USoundBusModulatorLFO* UAudioModulationStatics::CreateLFO(const UObject* WorldCo
 		return nullptr;
 	}
 
-	USoundBusModulatorLFO* NewLFO = NewObject<USoundBusModulatorLFO>(nullptr, Name, RF_Transient);
+	USoundBusModulatorLFO* NewLFO = NewObject<USoundBusModulatorLFO>(GetTransientPackage(), Name);
 	NewLFO->Amplitude = Amplitude;
 	NewLFO->Frequency = Frequency;
 	NewLFO->Offset    = Offset;
@@ -171,7 +172,15 @@ USoundBusModulatorLFO* UAudioModulationStatics::CreateLFO(const UObject* WorldCo
 	return NewLFO;
 }
 
-USoundControlBusMix* UAudioModulationStatics::CreateBusMix(const UObject* WorldContextObject, FName Name, TArray<USoundControlBusBase*> Buses, float TargetValue, bool Activate)
+FSoundControlBusMixChannel UAudioModulationStatics::CreateBusMixChannel(const UObject* WorldContextObject, USoundControlBusBase* Bus, float Value, float AttackTime, float ReleaseTime)
+{
+	FSoundControlBusMixChannel MixChannel;
+	MixChannel.Bus = Bus;
+	MixChannel.Value = FSoundModulationValue(Value, AttackTime, ReleaseTime);
+	return MixChannel;
+}
+
+USoundControlBusMix* UAudioModulationStatics::CreateBusMix(const UObject* WorldContextObject, FName Name, TArray<FSoundControlBusMixChannel> Channels, bool Activate)
 {
 	UWorld* World = GetAudioWorld(WorldContextObject);
 	if (!World)
@@ -179,17 +188,17 @@ USoundControlBusMix* UAudioModulationStatics::CreateBusMix(const UObject* WorldC
 		return nullptr;
 	}
 
-	USoundControlBusMix* NewBusMix = NewObject<USoundControlBusMix>(nullptr, Name, RF_Transient);
-	for (USoundControlBusBase* Bus : Buses)
+	USoundControlBusMix* NewBusMix = NewObject<USoundControlBusMix>(GetTransientPackage(), Name);
+	for (FSoundControlBusMixChannel& Channel : Channels)
 	{
-		if (Bus)
+		if (Channel.Bus)
 		{
-			NewBusMix->Channels.Emplace_GetRef(Bus, TargetValue);
+			NewBusMix->Channels.Emplace_GetRef(Channel);
 		}
 		else
 		{
 			UE_LOG(LogAudioModulation, Warning,
-				TEXT("USoundControlBusMix '%s' was created but bus provided is null. Channel not added."),
+				TEXT("USoundControlBusMix '%s' was created but bus provided is null. Channel not added to mix."),
 				*Name.ToString());
 		}
 	}
@@ -242,6 +251,38 @@ void UAudioModulationStatics::DeactivateBusModulator(const UObject* WorldContext
 		{
 			auto LFOId = static_cast<const AudioModulation::FLFOId>(Modulator->GetUniqueID());
 			ModulationImpl->DeactivateLFO(LFOId);
+		}
+	}
+}
+
+void UAudioModulationStatics::UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixChannel> Channels)
+{
+	if (Mix)
+	{
+		UWorld* World = GetAudioWorld(WorldContextObject);
+		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
+		{
+			ModulationImpl->UpdateMix(*Mix, Channels);
+		}
+	}
+}
+
+void UAudioModulationStatics::UpdateMixByFilter(
+	const UObject*						WorldContextObject,
+	USoundControlBusMix*				Mix,
+	FString								AddressFilter,
+	TSubclassOf<USoundControlBusBase>	BusClassFilter,
+	float								Value,
+	float								AttackTime,
+	float								ReleaseTime)
+{
+	if (Mix)
+	{
+		UWorld* World = GetAudioWorld(WorldContextObject);
+		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
+		{
+			FSoundModulationValue ModValue(Value, AttackTime, ReleaseTime);
+			ModulationImpl->UpdateMixByFilter(*Mix, AddressFilter, BusClassFilter, ModValue);
 		}
 	}
 }

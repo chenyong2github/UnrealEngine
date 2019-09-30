@@ -79,8 +79,6 @@
 #include "Blueprint/BlueprintSupport.h"
 #include "Settings/ProjectPackagingSettings.h"
 
-#include "ProjectBuildMutatorFeature.h"
-
 #if WITH_LIVE_CODING
 #include "ILiveCodingModule.h"
 #endif
@@ -1423,6 +1421,13 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 
 	SlowTask.EnterProgressFrame();
 
+	// Add a rule to replace the build settings version with the appropriate number
+	FTemplateReplacement& DefaultBuildSettingsRepl = TemplateDefs->ReplacementsInFiles.AddZeroed_GetRef();
+	DefaultBuildSettingsRepl.Extensions.Add("cs");
+	DefaultBuildSettingsRepl.From = TEXT("BuildSettingsVersion.Latest");
+	DefaultBuildSettingsRepl.To = GetDefaultBuildSettingsVersion();
+	DefaultBuildSettingsRepl.bCaseSensitive = true;
+
 	// Fix up the replacement strings using the specified project name
 	TemplateDefs->FixupStrings(TemplateName, ProjectName);
 
@@ -2697,7 +2702,7 @@ GameProjectUtils::EProjectDuplicateResult GameProjectUtils::DuplicateProjectForU
 				TEXT("Saved/StagedBuilds"),
 			};
 
-			SourceDirectoriesToSkip.Reserve(ARRAY_COUNT(RelativeDirectoriesToSkip));
+			SourceDirectoriesToSkip.Reserve(UE_ARRAY_COUNT(RelativeDirectoriesToSkip));
 			for (const FString& RelativeDirectoryToSkip : RelativeDirectoriesToSkip)
 			{
 				SourceDirectoriesToSkip.Emplace(RootSourceDirectory / RelativeDirectoryToSkip);
@@ -2849,6 +2854,11 @@ void GameProjectUtils::UpdateAdditionalPluginDirectory(const FString& InDir, con
 
 		IProjectManager::Get().UpdateAdditionalPluginDirectory(InDir, bAddOrRemove);
 	}
+}
+
+const TCHAR* GameProjectUtils::GetDefaultBuildSettingsVersion()
+{
+	return TEXT("BuildSettingsVersion.V2");
 }
 
 bool GameProjectUtils::ReadTemplateFile(const FString& TemplateFileName, FString& OutFileContents, FText& OutFailReason)
@@ -3305,6 +3315,7 @@ bool GameProjectUtils::GenerateGameModuleTargetFile(const FString& NewBuildFileN
 	FinalOutput = FinalOutput.Replace(TEXT("%EXTRA_MODULE_NAMES%"), *MakeCommaDelimitedList(ExtraModuleNames), ESearchCase::CaseSensitive);
 	FinalOutput = FinalOutput.Replace(TEXT("%MODULE_NAME%"), *ModuleName, ESearchCase::CaseSensitive);
 	FinalOutput = FinalOutput.Replace(TEXT("%TARGET_TYPE%"), TEXT("Game"), ESearchCase::CaseSensitive);
+	FinalOutput = FinalOutput.Replace(TEXT("%DEFAULT_BUILD_SETTINGS_VERSION%"), GetDefaultBuildSettingsVersion(), ESearchCase::CaseSensitive);
 
 	return WriteOutputFile(NewBuildFileName, FinalOutput, OutFailReason);
 }
@@ -3339,6 +3350,7 @@ bool GameProjectUtils::GenerateEditorModuleTargetFile(const FString& NewBuildFil
 	FinalOutput = FinalOutput.Replace(TEXT("%EXTRA_MODULE_NAMES%"), *MakeCommaDelimitedList(ExtraModuleNames), ESearchCase::CaseSensitive);
 	FinalOutput = FinalOutput.Replace(TEXT("%MODULE_NAME%"), *ModuleName, ESearchCase::CaseSensitive);
 	FinalOutput = FinalOutput.Replace(TEXT("%TARGET_TYPE%"), TEXT("Editor"), ESearchCase::CaseSensitive);
+	FinalOutput = FinalOutput.Replace(TEXT("%DEFAULT_BUILD_SETTINGS_VERSION%"), GetDefaultBuildSettingsVersion(), ESearchCase::CaseSensitive);
 
 	return WriteOutputFile(NewBuildFileName, FinalOutput, OutFailReason);
 }
@@ -3691,124 +3703,6 @@ bool GameProjectUtils::ProjectHasCodeFiles()
 	TArray<FString> FileNames;
 	FindCodeFiles(*FPaths::GameSourceDir(), FileNames, 1);
 	return FileNames.Num() > 0;
-}
-
-PROJECTS_API bool HasDefaultPluginSettings(const FString& Platform);
-
-bool GameProjectUtils::ProjectRequiresBuild(const FName InPlatformInfoName)
-{
-	//  early out on projects with code files
-	if (ProjectHasCodeFiles())
-	{
-		return true;
-	}
-
-	bool bRequiresBuild = false;
-
-	if (!FApp::IsEngineInstalled())
-	{
-		// check to see if the default build settings have changed
-		bRequiresBuild |= !HasDefaultBuildSettings(InPlatformInfoName);
-	}
-
-	// check to see if any plugins beyond the defaults have been enabled
-	const PlatformInfo::FPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(InPlatformInfoName);
-	FName PlatformName = (PlatformInfo != nullptr) ? PlatformInfo->UBTTargetId : InPlatformInfoName;
-	bRequiresBuild |= !HasDefaultPluginSettings(PlatformName.ToString());
-
-	// check to see if Blueprint nativization is enabled in the Project settings
-	bRequiresBuild |= GetDefault<UProjectPackagingSettings>()->BlueprintNativizationMethod != EProjectPackagingBlueprintNativizationMethod::Disabled;
-
-	// check to see if any projectmutator modular features are available
-	for (FProjectBuildMutatorFeature* Feature : IModularFeatures::Get().GetModularFeatureImplementations<FProjectBuildMutatorFeature>(FProjectBuildMutatorFeature::GetFeatureName()))
-	{
-		bRequiresBuild |= Feature->RequiresProjectBuild(InPlatformInfoName);
-	}
-
-	return bRequiresBuild;
-}
-
-bool GameProjectUtils::DoProjectSettingsMatchDefault(const FString& InPlatformName, const FString& InSection, const TArray<FString>* InBoolKeys, const TArray<FString>* InIntKeys, const TArray<FString>* InStringKeys)
-{
-	FConfigFile ProjIni;
-	FConfigFile DefaultIni;
-	FConfigCacheIni::LoadLocalIniFile(ProjIni, TEXT("Engine"), true, *InPlatformName, true);
-	FConfigCacheIni::LoadExternalIniFile(DefaultIni, TEXT("Engine"), *FPaths::EngineConfigDir(), *FPaths::EngineConfigDir(), true, NULL, true);
-
-	if (InBoolKeys != NULL)
-	{
-		for (int Index = 0; Index < InBoolKeys->Num(); ++Index)
-		{
-			FString Default(TEXT("False")), Project(TEXT("False"));
-			DefaultIni.GetString(*InSection, *((*InBoolKeys)[Index]), Default);
-			ProjIni.GetString(*InSection, *((*InBoolKeys)[Index]), Project);
-			if (Default.Compare(Project, ESearchCase::IgnoreCase))
-			{
-				return false;
-			}
-		}
-	}
-
-	if (InIntKeys != NULL)
-	{
-		for (int Index = 0; Index < InIntKeys->Num(); ++Index)
-		{
-			int64 Default(0), Project(0);
-			DefaultIni.GetInt64(*InSection, *((*InIntKeys)[Index]), Default);
-			ProjIni.GetInt64(*InSection, *((*InIntKeys)[Index]), Project);
-			if (Default != Project)
-			{
-				return false;
-			}
-		}
-	}
-
-	if (InStringKeys != NULL)
-	{
-		for (int Index = 0; Index < InStringKeys->Num(); ++Index)
-		{
-			FString Default(TEXT("False")), Project(TEXT("False"));
-			DefaultIni.GetString(*InSection, *((*InStringKeys)[Index]), Default);
-			ProjIni.GetString(*InSection, *((*InStringKeys)[Index]), Project);
-			if (Default.Compare(Project, ESearchCase::IgnoreCase))
-			{
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
-bool GameProjectUtils::HasDefaultBuildSettings(const FName InPlatformInfoName)
-{
-	// first check default build settings for all platforms
-	TArray<FString> BoolKeys, IntKeys, StringKeys, BuildKeys;
-	BuildKeys.Add(TEXT("bCompileApex")); BuildKeys.Add(TEXT("bCompileICU"));
-	BuildKeys.Add(TEXT("bCompileSimplygon")); BuildKeys.Add(TEXT("bCompileSimplygonSSF"));
-	BuildKeys.Add(TEXT("bCompileRecast")); BuildKeys.Add(TEXT("bCompileSpeedTree"));
-	BuildKeys.Add(TEXT("bCompileWithPluginSupport")); BuildKeys.Add(TEXT("bCompilePhysXVehicle")); BuildKeys.Add(TEXT("bCompileFreeType"));
-	BuildKeys.Add(TEXT("bCompileForSize"));	BuildKeys.Add(TEXT("bCompileCEF3")); BuildKeys.Add(TEXT("bCompileCustomSQLitePlatform"));
-
-	const PlatformInfo::FPlatformInfo* const PlatInfo = PlatformInfo::FindPlatformInfo(InPlatformInfoName);
-	check(PlatInfo);
-
-	if (!DoProjectSettingsMatchDefault(PlatInfo->TargetPlatformName.ToString(), TEXT("/Script/BuildSettings.BuildSettings"), &BuildKeys))
-	{
-		return false;
-	}
-
-	if (PlatInfo->SDKStatus == PlatformInfo::EPlatformSDKStatus::Installed)
-	{
-		const ITargetPlatform* const Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatInfo->TargetPlatformName.ToString());
-		if (Platform)
-		{
-			FString PlatformSection;
-			Platform->GetBuildProjectSettingKeys(PlatformSection, BoolKeys, IntKeys, StringKeys);
-			return DoProjectSettingsMatchDefault(PlatInfo->TargetPlatformName.ToString(), PlatformSection, &BoolKeys, &IntKeys, &StringKeys);
-		}
-	}
-	return true;
 }
 
 TArray<FString> GameProjectUtils::GetRequiredAdditionalDependencies(const FNewClassInfo& ClassInfo)

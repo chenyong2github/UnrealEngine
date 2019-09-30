@@ -155,6 +155,11 @@ namespace UnrealBuildTool
 		public bool bIsBetaVersion;
 
 		/// <summary>
+		/// Marks the plugin as experimental in the UI
+		/// </summary>
+		public bool bIsExperimentalVersion;
+
+		/// <summary>
 		/// Set for plugins which are installed
 		/// </summary>
 		public bool bInstalled;
@@ -272,6 +277,7 @@ namespace UnrealBuildTool
 
 			RawObject.TryGetBoolField("CanContainContent", out bCanContainContent);
 			RawObject.TryGetBoolField("IsBetaVersion", out bIsBetaVersion);
+			RawObject.TryGetBoolField("IsExperimentalVersion", out bIsExperimentalVersion);
 			RawObject.TryGetBoolField("Installed", out bInstalled);
 
 			bool bCanBeUsedWithUnrealHeaderTool;
@@ -303,7 +309,15 @@ namespace UnrealBuildTool
 			JsonObject RawObject = JsonObject.Read(FileName);
 			try
 			{
-				return new PluginDescriptor(RawObject);
+				PluginDescriptor Descriptor = new PluginDescriptor(RawObject);
+				if (Descriptor.Modules != null)
+				{
+					foreach (ModuleDescriptor Module in Descriptor.Modules)
+					{
+						Module.Validate(FileName);
+					}
+				}
+				return Descriptor;
 			}
 			catch (JsonParseException ParseException)
 			{
@@ -351,11 +365,15 @@ namespace UnrealBuildTool
 				Writer.WriteValue("EnabledByDefault", bEnabledByDefault.Value);
 			}
 			Writer.WriteValue("CanContainContent", bCanContainContent);
-			if(bIsBetaVersion)
+			if (bIsBetaVersion)
 			{
 				Writer.WriteValue("IsBetaVersion", bIsBetaVersion);
 			}
-			if(bInstalled)
+			if (bIsExperimentalVersion)
+			{
+				Writer.WriteValue("IsExperimentalVersion", bIsExperimentalVersion);
+			}
+			if (bInstalled)
 			{
 				Writer.WriteValue("Installed", bInstalled);
 			}

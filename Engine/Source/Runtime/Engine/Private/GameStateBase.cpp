@@ -21,7 +21,7 @@ AGameStateBase::AGameStateBase(const FObjectInitializer& ObjectInitializer)
 	SetRemoteRoleForBackwardsCompat(ROLE_SimulatedProxy);
 	bReplicates = true;
 	bAlwaysRelevant = true;
-	bReplicateMovement = false;
+	SetReplicatingMovement(false);
 
 	// Note: this is very important to set to false. Though all replication infos are spawned at run time, during seamless travel
 	// they are held on to and brought over into the new world. In ULevel::InitializeNetworkActors, these PlayerStates may be treated as map/startup actors
@@ -30,7 +30,7 @@ AGameStateBase::AGameStateBase(const FObjectInitializer& ObjectInitializer)
 	bNetLoadOnClient = false;
 
 	// Default to every few seconds.
-	ServerWorldTimeSecondsUpdateFrequency = 5.f;
+	ServerWorldTimeSecondsUpdateFrequency = 0.1f;
 }
 
 const AGameModeBase* AGameStateBase::GetDefaultGameMode() const
@@ -51,7 +51,7 @@ void AGameStateBase::PostInitializeComponents()
 	World->SetGameState(this);
 
 	FTimerManager& TimerManager = GetWorldTimerManager();
-	if (World->IsGameWorld() && Role == ROLE_Authority)
+	if (World->IsGameWorld() && GetLocalRole() == ROLE_Authority)
 	{
 		UpdateServerTimeSeconds();
 		if (ServerWorldTimeSecondsUpdateFrequency > 0.f)
@@ -164,7 +164,7 @@ void AGameStateBase::OnRep_ReplicatedWorldTimeSeconds()
 
 void AGameStateBase::OnRep_ReplicatedHasBegunPlay()
 {
-	if (bReplicatedHasBegunPlay && Role != ROLE_Authority)
+	if (bReplicatedHasBegunPlay && GetLocalRole() != ROLE_Authority)
 	{
 		GetWorldSettings()->NotifyBeginPlay();
 		GetWorldSettings()->NotifyMatchStarted();

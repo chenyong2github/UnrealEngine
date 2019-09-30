@@ -38,7 +38,7 @@ FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeat
 	if (ParticleMesh)
 	{
 		FNiagaraRenderer* NewRenderer = new FNiagaraRendererMeshes(FeatureLevel, this, Emitter);
-		NewRenderer->Initialize(FeatureLevel, this, Emitter);
+		NewRenderer->Initialize(this, Emitter);
 		return NewRenderer;
 	}
 
@@ -234,7 +234,7 @@ void UNiagaraMeshRendererProperties::PreEditChange(class UProperty* PropertyThat
 	Super::PreEditChange(PropertyThatWillChange);
 
 	static FName ParticleMeshName(TEXT("ParticleMesh"));
-	if ( PropertyThatWillChange->GetFName() == FName(ParticleMeshName))
+	if ((PropertyThatWillChange != nullptr) && (PropertyThatWillChange->GetFName() == FName(ParticleMeshName)))
 	{
 		if (ParticleMesh != nullptr)
 		{

@@ -57,7 +57,7 @@ void FInternetAddrSteam::SetIp(const TCHAR* InAddr, bool& bIsValid)
 	FString SteamIPAddrStr;
 	if (InAddrStr.StartsWith(STEAM_URL_PREFIX))
 	{
-		SteamIPAddrStr = InAddrStr.Mid(ARRAY_COUNT(STEAM_URL_PREFIX) - 1);
+		SteamIPAddrStr = InAddrStr.Mid(UE_ARRAY_COUNT(STEAM_URL_PREFIX) - 1);
 	}
 	else
 	{

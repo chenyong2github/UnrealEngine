@@ -528,7 +528,7 @@ bool UGameplayStatics::ApplyRadialDamageWithFalloff(const UObject* WorldContextO
 		AActor* const OverlapActor = Overlap.GetActor();
 
 		if (OverlapActor &&
-			OverlapActor->bCanBeDamaged &&
+			OverlapActor->CanBeDamaged() &&
 			OverlapActor != DamageCauser &&
 			Overlap.Component.IsValid())
 		{
@@ -658,7 +658,7 @@ class AActor* UGameplayStatics::BeginDeferredActorSpawnFromClass(const UObject* 
 		{
 			if (AActor* ContextActor = Cast<AActor>(MutableWorldContextObject))
 			{
-				AutoInstigator = ContextActor->Instigator;
+				AutoInstigator = ContextActor->GetInstigator();
 			}
 		}
 
@@ -996,12 +996,13 @@ UParticleSystemComponent* UGameplayStatics::InternalSpawnEmitterAtLocation(UWorl
 
 	if (UParticleSystemComponent* PSC = CreateParticleSystem(EmitterTemplate, World, World->GetWorldSettings(), bAutoDestroy, PoolingMethod))
 	{
-		PSC->bAbsoluteLocation = true;
-		PSC->bAbsoluteRotation = true;
-		PSC->bAbsoluteScale = true;
-		PSC->RelativeLocation = SpawnLocation;
-		PSC->RelativeRotation = SpawnRotation;
-		PSC->RelativeScale3D = SpawnScale;
+
+		PSC->SetUsingAbsoluteLocation(true);
+		PSC->SetUsingAbsoluteRotation(true);
+		PSC->SetUsingAbsoluteScale(true);
+		PSC->SetRelativeLocation_Direct(SpawnLocation);
+		PSC->SetRelativeRotation_Direct(SpawnRotation);
+		PSC->SetRelativeScale3D_Direct(SpawnScale);
 
 		PSC->RegisterComponentWithWorld(World);
 		if (bAutoActivateSystem)
@@ -1081,25 +1082,25 @@ UParticleSystemComponent* UGameplayStatics::SpawnEmitterAttached(UParticleSystem
 						const FTransform ParentToWorld = AttachToComponent->GetSocketTransform(AttachPointName);
 						const FTransform ComponentToWorld(Rotation, Location, Scale);
 						const FTransform RelativeTM = ComponentToWorld.GetRelativeTransform(ParentToWorld);
-						PSC->RelativeLocation = RelativeTM.GetLocation();
-						PSC->RelativeRotation = RelativeTM.GetRotation().Rotator();
-						PSC->RelativeScale3D = RelativeTM.GetScale3D();
+						PSC->SetRelativeLocation_Direct(RelativeTM.GetLocation());
+						PSC->SetRelativeRotation_Direct(RelativeTM.GetRotation().Rotator());
+						PSC->SetRelativeScale3D_Direct(RelativeTM.GetScale3D());
 					}
 					else
 					{
-						PSC->RelativeLocation = Location;
-						PSC->RelativeRotation = Rotation;
+						PSC->SetRelativeLocation_Direct(Location);
+						PSC->SetRelativeRotation_Direct(Rotation);
 
 						if (LocationType == EAttachLocation::SnapToTarget)
 						{
 							// SnapToTarget indicates we "keep world scale", this indicates we we want the inverse of the parent-to-world scale 
 							// to calculate world scale at Scale 1, and then apply the passed in Scale
 							const FTransform ParentToWorld = AttachToComponent->GetSocketTransform(AttachPointName);
-							PSC->RelativeScale3D = Scale * ParentToWorld.GetSafeScaleReciprocal(ParentToWorld.GetScale3D());
+							PSC->SetRelativeScale3D_Direct(Scale * ParentToWorld.GetSafeScaleReciprocal(ParentToWorld.GetScale3D()));
 						}
 						else
 						{
-							PSC->RelativeScale3D = Scale;
+							PSC->SetRelativeScale3D_Direct(Scale);
 						}
 					}
 
@@ -1788,7 +1789,7 @@ UDecalComponent* CreateDecalComponent(class UMaterialInterface* DecalMaterial, F
 	DecalComp->bAllowAnyoneToDestroyMe = true;
 	DecalComp->SetDecalMaterial(DecalMaterial);
 	DecalComp->DecalSize = DecalSize;
-	DecalComp->bAbsoluteScale = true;
+	DecalComp->SetUsingAbsoluteScale(true);
 	DecalComp->RegisterComponentWithWorld(World);
 
 	if (LifeSpan > 0.f)

@@ -161,6 +161,11 @@ FRenderAssetStreamingManager::~FRenderAssetStreamingManager()
 
 void FRenderAssetStreamingManager::OnPreGarbageCollect()
 {
+#if WITH_EDITORONLY_DATA
+	void PurgeAbandonedDDCHandles();
+	PurgeAbandonedDDCHandles();
+#endif
+
 	FScopeLock ScopeLock(&CriticalSection);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRenderAssetStreamingManager_OnPreGarbageCollect);
 

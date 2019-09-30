@@ -4,7 +4,6 @@
 
 #include "NetworkSimulationModel.h"
 #include "BaseMovementComponent.h"
-#include "NetworkInterpolation.h"
 
 #include "ParametricMovement.generated.h"
 
@@ -12,6 +11,8 @@ class IParametricMovementDriver;
 
 namespace ParametricMovement
 {
+	class IMovementDriver;
+
 	// State the client generates
 	struct FInputCmd
 	{
@@ -72,7 +73,7 @@ namespace ParametricMovement
 			}
 		}
 
-		void VisualLog(const FVisualLoggingParameters& Parameters, IParametricMovementDriver* Driver, IParametricMovementDriver* LogDriver) const;
+		void VisualLog(const FVisualLoggingParameters& Parameters, IMovementDriver* Driver, IMovementDriver* LogDriver) const;
 
 		static void Interpolate(const FMoveState& From, const FMoveState& To, const float PCT, FMoveState& OutDest)
 		{
@@ -94,41 +95,41 @@ namespace ParametricMovement
 
 	using TMovementBufferTypes = TNetworkSimBufferTypes<FInputCmd, FMoveState, FAuxState>;
 
-	// Actual definition of our network simulation.
-	class FMovementSystem : public TNetworkedSimulationModel<FMovementSystem, TMovementBufferTypes, TNetworkSimTickSettings<0>>
+	// Interface between the simulation and owning component driving it. Functions added here are available in ::Update
+	class IMovementDriver : public TNetworkSimDriverInterfaceBase<TMovementBufferTypes>
 	{
 	public:
 
-		// Interface between the simulation and owning component driving it. Functions added here are available in ::Update and must be implemented by UMockNetworkSimulationComponent.
-		class IMovementDriver : public IDriver
-		{
-		public:
+		// BaseMovement driver API (functions for moving around a primitive component)
+		virtual IBaseMovementDriver& GetBaseMovementDriver() = 0;
 
-			// BaseMovement driver API (functions for moving around a primitive component)
-			virtual IBaseMovementDriver& GetBaseMovementDriver() = 0;
+		// Advance parametric time. This is meant to do simple things like looping/reversing etc.
+		// Note how this should be STATIC and not rely on state outside of what is passed in (such thing would need to be done inside the simulation, not through the driver!)
+		virtual void AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const = 0;
 
-			// Advance parametric time. This is meant to do simple things like looping/reversing etc.
-			// Note how this should be STATIC and not rely on state outside of what is passed in (such thing would need to be done inside the simulation, not through the driver!)
-			virtual void AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const = 0;
-
-			// Actually turn the given position into a transform. Again, should be static and not conditional on changing state outside of the network sim
-			virtual void SetTransformForPosition(const float InPosition, FTransform& OutTransform) const = 0;
-		};
-
-		/** Main update function */
-		static void Update(IMovementDriver* Driver, const TSimTime& SimeTimeDeltaMS, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState);
-
-		/** Dev tool to force simple mispredict */
-		static bool ForceMispredict;
+		// Actually turn the given position into a transform. Again, should be static and not conditional on changing state outside of the network sim
+		virtual void MapTimeToTransform(const float InPosition, FTransform& OutTransform) const = 0;
+	};
+	
+	class FMovementSimulation
+	{
+	public:
+		static void Update(IMovementDriver* Driver, const float DeltaSeconds, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState);
+		static const FName GroupName;
 	};
 
-	using TSimTime = FMovementSystem::TSimTime;
+
+	// Actual definition of our network simulation.
+	template<int32 FixedStepMS=0>
+	using FMovementSystem = TNetworkedSimulationModel<FMovementSimulation, IMovementDriver, TMovementBufferTypes, TNetworkSimTickSettings<FixedStepMS>>;
+
+	//using TSimTime = FMovementSystem::TSimTime;
 
 } // End namespace
 
 // Needed to trick UHT into letting UMockNetworkSimulationComponent implement. UHT cannot parse the ::
 // Also needed for forward declaring. Can't just be a typedef/using =
-class IParametricMovementDriver : public ParametricMovement::FMovementSystem::IMovementDriver { };
+class IParametricMovementDriver : public ParametricMovement::IMovementDriver { };
 
 // -------------------------------------------------------------------------------------------------------------------------------
 //	ActorComponent for running basic Parametric movement. 
@@ -149,34 +150,24 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	virtual void Reconcile() override;
-	virtual void TickSimulation(float DeltaTimeSeconds) override;
-
 	// Base TNetworkModelSimulation driver
 	FString GetDebugName() const override;
+	const UObject* GetVLogOwner() const override;
 	void InitSyncState(ParametricMovement::FMoveState& OutSyncState) const override;
 	void FinalizeFrame(const ParametricMovement::FMoveState& SyncState) override;
-	void ProduceInput(const ParametricMovement::TSimTime& SimFrameTime, ParametricMovement::FInputCmd& Cmd);
+	void ProduceInput(const FNetworkSimTime SimTime, ParametricMovement::FInputCmd& Cmd);
 
 	// Base Movement Driver
 	IBaseMovementDriver& GetBaseMovementDriver() override final { return *static_cast<IBaseMovementDriver*>(this); }
 
 	// Parametric Movement Driver
-	float GetTransformForTime(const float InTime, FTransform& OutTransform) const;
-
 	virtual void AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const override;
-	virtual void SetTransformForPosition(const float InPosition, FTransform& OutTransform) const override;
+	virtual void MapTimeToTransform(const float InPosition, FTransform& OutTransform) const override;
 
 protected:
 
-	virtual IReplicationProxy* InstantiateNetworkSimulation() override;	
-	void InitializeForNetworkRole(ENetRole Role) override;
+	virtual INetworkSimulationModel* InstantiateNetworkSimulation() override;
 	FNetworkSimulationModelInitParameters GetSimulationInitParameters(ENetRole Role) override;
-
-	TUniquePtr<ParametricMovement::FMovementSystem> NetworkSim;	
-
-	// Temp, will be moved
-	TUniquePtr< TNetworkSimulationModelInterpolator<ParametricMovement::FMovementSystem, IParametricMovementDriver> > NetworkInterpolator;
 
 	// ------------------------------------------------------------------------
 	// Temp Parametric movement example

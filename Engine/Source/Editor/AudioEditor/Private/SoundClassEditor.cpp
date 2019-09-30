@@ -21,12 +21,16 @@
 #include "SSoundClassActionMenu.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "AudioEditorModule.h"
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "Factories/SoundClassFactory.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
+#include "SoundClassEditorCommands.h"
+#include "Audio/AudioDebug.h"
+#include "AudioDeviceManager.h"
 
 #define LOCTEXT_NAMESPACE "SoundClassEditor"
 DEFINE_LOG_CATEGORY_STATIC( LogSoundClassEditor, Log, All );
@@ -34,6 +38,31 @@ DEFINE_LOG_CATEGORY_STATIC( LogSoundClassEditor, Log, All );
 const FName FSoundClassEditor::GraphCanvasTabId( TEXT( "SoundClassEditor_GraphCanvas" ) );
 const FName FSoundClassEditor::PropertiesTabId( TEXT( "SoundClassEditor_Properties" ) );
 
+
+void FSoundClassEditor::ExtendToolbar()
+{
+	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
+
+	ToolbarExtender->AddToolBarExtension(
+		"Asset",
+		EExtensionHook::After,
+		GetToolkitCommands(),
+		FToolBarExtensionDelegate::CreateLambda([](FToolBarBuilder& ToolbarBuilder)
+		{
+			ToolbarBuilder.BeginSection("Audition");
+			{
+				ToolbarBuilder.AddToolBarButton(FSoundClassEditorCommands::Get().ToggleMute);
+				ToolbarBuilder.AddToolBarButton(FSoundClassEditorCommands::Get().ToggleSolo);
+			}
+			ToolbarBuilder.EndSection();
+		})
+	);
+
+	AddToolbarExtender(ToolbarExtender);
+
+	IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
+	AddToolbarExtender(AudioEditorModule->GetSoundClassToolBarExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
+}
 
 //////////////////////////////////////////////////////////////////////////
 // FSoundClassEditor
@@ -77,15 +106,10 @@ void FSoundClassEditor::InitSoundClassEditor( const EToolkitMode::Type Mode, con
 	SoundClass->SetFlags(RF_Transactional);
 
 	GEditor->RegisterForUndo(this);
-
-	ToolkitCommands->MapAction(
-		FGenericCommands::Get().Undo,
-		FExecuteAction::CreateSP( this, &FSoundClassEditor::UndoGraphAction ));
-
-	ToolkitCommands->MapAction(
-		FGenericCommands::Get().Redo,
-		FExecuteAction::CreateSP( this, &FSoundClassEditor::RedoGraphAction ));
-
+	
+	FSoundClassEditorCommands::Register();
+	BindCommands();
+	
 	if( !SoundClass->SoundClassGraph )
 	{
 		USoundClassGraph* SoundClassGraph = CastChecked<USoundClassGraph>(FBlueprintEditorUtils::CreateNewGraph(SoundClass, NAME_None, USoundClassGraph::StaticClass(), USoundClassGraphSchema::StaticClass()));
@@ -133,7 +157,14 @@ void FSoundClassEditor::InitSoundClassEditor( const EToolkitMode::Type Mode, con
 
 	IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>( "AudioEditor" );
 	AddMenuExtender(AudioEditorModule->GetSoundClassMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
-	AddToolbarExtender(AudioEditorModule->GetSoundClassToolBarExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
+
+	ExtendToolbar();
+	RegenerateMenusAndToolbars();
+			
+	if (GEditor->GetAudioDeviceManager())
+	{
+		Debugger = &GEditor->GetAudioDeviceManager()->GetDebugger();
+	}	
 
 	GraphEditor->SelectAllNodes();
 	for (UObject* SelectedNode : GraphEditor->GetSelectedNodes())
@@ -149,8 +180,34 @@ void FSoundClassEditor::InitSoundClassEditor( const EToolkitMode::Type Mode, con
 	}
 }
 
+void FSoundClassEditor::BindCommands()
+{
+	ToolkitCommands->MapAction(
+		FGenericCommands::Get().Undo,
+		FExecuteAction::CreateSP(this, &FSoundClassEditor::UndoGraphAction));
+
+	ToolkitCommands->MapAction(
+		FGenericCommands::Get().Redo,
+		FExecuteAction::CreateSP(this, &FSoundClassEditor::RedoGraphAction));
+
+	const FSoundClassEditorCommands& Commands = FSoundClassEditorCommands::Get();
+	
+	ToolkitCommands->MapAction(
+		Commands.ToggleSolo,
+		FExecuteAction::CreateSP(this, &FSoundClassEditor::ToggleSolo),
+		FCanExecuteAction::CreateSP(this, &FSoundClassEditor::CanExcuteToggleSolo),
+		FIsActionChecked::CreateSP(this, &FSoundClassEditor::IsSoloToggled));
+
+	ToolkitCommands->MapAction(
+		Commands.ToggleMute,
+		FExecuteAction::CreateSP(this, &FSoundClassEditor::ToggleMute),
+		FCanExecuteAction::CreateSP(this, &FSoundClassEditor::CanExcuteToggleMute),
+		FIsActionChecked::CreateSP(this, &FSoundClassEditor::IsMuteToggled));
+}
+
 FSoundClassEditor::FSoundClassEditor()
 	: SoundClass(nullptr)
+	, Debugger(nullptr)
 {
 }
 
@@ -335,6 +392,44 @@ void FSoundClassEditor::RedoGraphAction()
 	GraphEditor->ClearSelectionSet();
 
 	GEditor->RedoTransaction();
+}
+
+void FSoundClassEditor::ToggleSolo()
+{
+	if (Debugger)
+	{
+		Debugger->ToggleSoloSoundClass(SoundClass->GetFName());
+	}
+}
+
+bool FSoundClassEditor::CanExcuteToggleSolo() const
+{
+	// Enable solo if we are not Muted	
+	return Debugger ? !Debugger->IsMuteSoundClass(SoundClass->GetFName()) : false;
+}
+
+bool FSoundClassEditor::IsSoloToggled() const
+{
+	return Debugger ? Debugger->IsSoloSoundClass(SoundClass->GetFName()) : false;
+}
+
+void FSoundClassEditor::ToggleMute()
+{
+	if (Debugger)
+	{
+		Debugger->ToggleMuteSoundClass(SoundClass->GetFName());
+	}
+}
+
+bool FSoundClassEditor::CanExcuteToggleMute() const
+{
+	// Enable mute if we are not Soloed
+	return Debugger ? !Debugger->IsSoloSoundClass(SoundClass->GetFName()) : false;
+}
+
+bool FSoundClassEditor::IsMuteToggled() const
+{	
+	return Debugger ? Debugger->IsMuteSoundClass(SoundClass->GetFName()) : false;
 }
 
 void FSoundClassEditor::CreateSoundClass(UEdGraphPin* FromPin, const FVector2D& Location, const FString& Name)

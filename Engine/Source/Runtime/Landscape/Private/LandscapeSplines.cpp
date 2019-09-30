@@ -39,6 +39,7 @@
 #include "Misc/UObjectToken.h"
 #include "Landscape.h"
 #include "LandscapeLayerInfoObject.h"
+#include "LandscapeInfoMap.h"
 #endif
 
 IMPLEMENT_HIT_PROXY(HLandscapeSplineProxy, HHitProxy);
@@ -60,6 +61,50 @@ static FAutoConsoleVariableRef CVarSplinesAlwaysUseBlockAll(
 
 /** Represents a ULandscapeSplinesComponent to the scene manager. */
 #if WITH_EDITOR
+struct FLandscapeFixSplines
+{
+	FLandscapeFixSplines()
+		: FixSplinesConsoleCommand(
+			TEXT("Landscape.FixSplines"),
+			TEXT("One off fix for bad layer width"),
+			FConsoleCommandDelegate::CreateRaw(this, &FLandscapeFixSplines::FixSplines))
+	{
+	}
+
+	FAutoConsoleCommand FixSplinesConsoleCommand;
+
+	void FixSplines()
+	{
+		if (!GWorld || GWorld->IsGameWorld())
+		{
+			return;
+		}
+
+		auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(GWorld);
+		for (TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)
+		{
+			if (Pair.Value)
+			{
+				Pair.Value->ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
+				{
+					if (Proxy && Proxy->SplineComponent)
+					{
+						Proxy->SplineComponent->RebuildAllSplines();
+					}
+				});
+
+				if (Pair.Value->LandscapeActor && Pair.Value->LandscapeActor->HasLayersContent())
+				{
+					Pair.Value->LandscapeActor->RequestSplineLayerUpdate();
+				}
+			}
+		}
+
+	}
+};
+
+FLandscapeFixSplines GLandscapeFixSplines;
+
 class FLandscapeSplinesSceneProxy final : public FPrimitiveSceneProxy
 {
 private:
@@ -945,7 +990,7 @@ ULandscapeSplinesComponent* ULandscapeSplinesComponent::GetStreamingSplinesCompo
 			{
 				ComponentLandscapeProxy->Modify();
 				ComponentLandscapeProxy->SplineComponent = NewObject<ULandscapeSplinesComponent>(ComponentLandscapeProxy, NAME_None, RF_Transactional);
-				ComponentLandscapeProxy->SplineComponent->RelativeScale3D = RelativeScale3D;
+				ComponentLandscapeProxy->SplineComponent->SetRelativeScale3D_Direct(GetRelativeScale3D());
 				ComponentLandscapeProxy->SplineComponent->AttachToComponent(ComponentLandscapeProxy->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 			}
 			if (ComponentLandscapeProxy->SplineComponent)
@@ -973,7 +1018,7 @@ ULandscapeSplinesComponent* ULandscapeSplinesComponent::GetStreamingSplinesCompo
 			{
 				Proxy->Modify();
 				Proxy->SplineComponent = NewObject<ULandscapeSplinesComponent>(Proxy, NAME_None, RF_Transactional);
-				Proxy->SplineComponent->RelativeScale3D = RelativeScale3D;
+				Proxy->SplineComponent->SetRelativeScale3D_Direct(GetRelativeScale3D());
 				Proxy->SplineComponent->AttachToComponent(Proxy->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 			}
 			return Proxy->SplineComponent;
@@ -1327,9 +1372,12 @@ void ULandscapeSplinesComponent::DestroyOrphanedForeignSplineMeshComponents(UWor
 			{
 				for (auto* MeshComponent : SegmentData.MeshComponents)
 				{
-					checkSlow(!MeshComponentForeignOwnersMap.FindRef(MeshComponent).IsValid());
-					verifySlow(MeshComponentForeignOwnersMap.Remove(MeshComponent) == 1);
-					MeshComponent->DestroyComponent();
+					if (MeshComponent)
+					{
+						checkSlow(!MeshComponentForeignOwnersMap.FindRef(MeshComponent).IsValid());
+						verifySlow(MeshComponentForeignOwnersMap.Remove(MeshComponent) == 1);
+						MeshComponent->DestroyComponent();
+					}
 				}
 				SegmentData.MeshComponents.Empty();
 
@@ -1355,7 +1403,7 @@ void ULandscapeSplinesComponent::DestroyOrphanedForeignControlPointMeshComponent
 			FForeignControlPointData& ControlPointData = ForeignWorldSplineData->ForeignControlPointData[i];
 			const auto& ForeignControlPoint = ControlPointData.Identifier;
 
-			if (!ForeignControlPoint)
+			if (!ForeignControlPoint && ControlPointData.MeshComponent)
 			{
 				ControlPointData.MeshComponent->DestroyComponent();
 				ForeignWorldSplineData->ForeignControlPointData.RemoveSingle(ControlPointData);
@@ -1503,7 +1551,7 @@ void ULandscapeSplineControlPoint::Serialize(FArchive& Ar)
 		}
 	}
 
-	if (Ar.IsLoading() && Ar.CustomVer(FLandscapeCustomVersion::GUID) << FLandscapeCustomVersion::AddSplineLayerWidth)
+	if (Ar.IsLoading() && Ar.CustomVer(FLandscapeCustomVersion::GUID) < FLandscapeCustomVersion::AddSplineLayerWidth)
 	{
 		for (FLandscapeSplineInterpPoint& Point : Points)
 		{
@@ -1870,9 +1918,9 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 			MeshLocation = RelativeTransform.TransformPosition(MeshLocation);
 		}
 
-		if (MeshComponent->RelativeLocation != MeshLocation ||
-			MeshComponent->RelativeRotation != MeshRotation ||
-			MeshComponent->RelativeScale3D != MeshScale)
+		if (MeshComponent->GetRelativeLocation() != MeshLocation ||
+			MeshComponent->GetRelativeRotation() != MeshRotation ||
+			MeshComponent->GetRelativeScale3D() != MeshScale)
 		{
 			MeshComponent->Modify();
 			MeshComponent->SetRelativeTransform(FTransform(MeshRotation, MeshLocation, MeshScale));
@@ -2296,7 +2344,7 @@ void ULandscapeSplineSegment::Serialize(FArchive& Ar)
 		}
 	}
 
-	if (Ar.IsLoading() && Ar.CustomVer(FLandscapeCustomVersion::GUID) << FLandscapeCustomVersion::AddSplineLayerWidth)
+	if (Ar.IsLoading() && Ar.CustomVer(FLandscapeCustomVersion::GUID) < FLandscapeCustomVersion::AddSplineLayerWidth)
 	{
 		for (FLandscapeSplineInterpPoint& Point : Points)
 		{
@@ -2944,9 +2992,9 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 			}
 
 			// Set Mesh component's location to half way between the start and end points. Improves the bounds and allows LDMaxDrawDistance to work
-			MeshComponent->RelativeLocation = (MeshComponent->SplineParams.StartPos + MeshComponent->SplineParams.EndPos) / 2;
-			MeshComponent->SplineParams.StartPos -= MeshComponent->RelativeLocation;
-			MeshComponent->SplineParams.EndPos -= MeshComponent->RelativeLocation;
+			MeshComponent->SetRelativeLocation_Direct((MeshComponent->SplineParams.StartPos + MeshComponent->SplineParams.EndPos) / 2);
+			MeshComponent->SplineParams.StartPos -= MeshComponent->GetRelativeLocation();
+			MeshComponent->SplineParams.EndPos -= MeshComponent->GetRelativeLocation();
 
 			if (MeshComponent->LDMaxDrawDistance != LDMaxDrawDistance)
 			{

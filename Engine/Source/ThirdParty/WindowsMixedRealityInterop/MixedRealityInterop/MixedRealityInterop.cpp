@@ -3472,7 +3472,7 @@ namespace WindowsMixedReality
 #endif
 	}
 
-#if PLATFORM_HOLOLENS
+#if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 	template <typename T>
 	T from_cx(Platform::Object^ from)
 	{
@@ -3490,7 +3490,9 @@ namespace WindowsMixedReality
 	{
 		return safe_cast<T^>(reinterpret_cast<Platform::Object^>(winrt::get_abi(from)));
 	}
+#endif
 
+#if PLATFORM_HOLOLENS
 	void MixedRealityInterop::SetHolographicSpace(Windows::Graphics::Holographic::HolographicSpace^ inHolographicSpace)
 	{
 		holographicSpace = from_cx<winrt::Windows::Graphics::Holographic::HolographicSpace>(inHolographicSpace);
@@ -3678,7 +3680,7 @@ namespace WindowsMixedReality
 		void(*FinishFunctionPointer)()
 	)
 	{
-#if PLATFORM_HOLOLENS
+#if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 		MeshUpdateObserver& Instance = MeshUpdateObserver::Get();
 		// Pass any logging callback on
 		Instance.SetOnLog(m_logCallback);
@@ -3695,7 +3697,7 @@ namespace WindowsMixedReality
 
 	void UpdateMeshObserverBoundingVolume(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem, winrt::Windows::Foundation::Numerics::float3 InPosition)
 	{
-#if PLATFORM_HOLOLENS
+#if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 		// This is intentional because god hates me
 		Windows::Foundation::Numerics::float3 Position;
 		Position.x = InPosition.x;
@@ -3708,7 +3710,7 @@ namespace WindowsMixedReality
 
 	void StopMeshObserver()
 	{
-#if PLATFORM_HOLOLENS
+#if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 		MeshUpdateObserver& Instance = MeshUpdateObserver::Get();
 		Instance.Release();
 #endif

@@ -730,6 +730,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Usage)
 	uint32 bUsedWithWater : 1;
 
+	/**
+	 * Indicates that the material and its instances can be use with hair strands
+	 * This will result in the shaders required to support hair strands geometries being compiled which will increase shader compile time and memory usage.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Usage)
+	uint32 bUsedWithHairStrands : 1;
+
 	/** 
 	 * Indicates that the material and its instances can be used with Slate UI and UMG
 	 * This will result in the shaders required to support UI materials being compiled which will increase shader compile time and memory usage.
@@ -1605,10 +1612,11 @@ public:
 	 * @param	Expression	The expression dynamic parameter to check for duplicates.
 	 */
 	ENGINE_API virtual bool HasDuplicateDynamicParameters(const UMaterialExpression* Expression);
-#endif // WITH_EDITOR
 
 	/** Collect all material expressions fomr this material and all its functions and figure out which possible shading models exist in this material */
 	ENGINE_API void RebuildShadingModelField();
+
+#endif // WITH_EDITOR
 
 	/**
 	 * Iterate through all of the expression nodes and fix up changed properties on

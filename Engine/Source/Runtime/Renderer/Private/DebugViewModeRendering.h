@@ -86,10 +86,7 @@ protected:
 
 public:
 
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return AllowDebugViewVSDSHS(Parameters.Platform) && Parameters.Material->GetFriendlyName().Contains(TEXT("DebugViewMode"));
-	}
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters);
 
 	void GetShaderBindings(
 		const FScene* Scene,

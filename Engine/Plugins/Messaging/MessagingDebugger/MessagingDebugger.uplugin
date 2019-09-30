@@ -15,7 +15,7 @@
 	[
 		{
 			"Name" : "MessagingDebugger",
-			"Type" : "Developer"
+			"Type" : "UncookedOnly"
 		}
 	],
 

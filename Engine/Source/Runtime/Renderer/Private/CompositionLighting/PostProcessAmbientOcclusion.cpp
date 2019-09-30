@@ -20,9 +20,12 @@ DECLARE_GPU_STAT_NAMED(SSAOSetup, TEXT("ScreenSpace AO Setup") );
 DECLARE_GPU_STAT_NAMED(SSAO, TEXT("ScreenSpace AO") );
 DECLARE_GPU_STAT_NAMED(BasePassAO, TEXT("BasePass AO") );
 DECLARE_GPU_STAT_NAMED(SSAOSmooth, TEXT("SSAO smooth"));
-DECLARE_GPU_STAT_NAMED(GTAO_HorizonSearch, TEXT("GTAO HorizonSearch"));
-DECLARE_GPU_STAT_NAMED(GTAO_HorizonSearchInnerIntegrate, TEXT("GTAO HorizonSetupAndInnerIntegrate"));
+DECLARE_GPU_STAT_NAMED(GTAO_HorizonSearch,	TEXT("GTAO HorizonSearch"));
+DECLARE_GPU_STAT_NAMED(GTAO_Combined,		TEXT("GTAO Combined"));
 DECLARE_GPU_STAT_NAMED(GTAO_InnerIntegrate, TEXT("GTAO InnerIntegrate"));
+DECLARE_GPU_STAT_NAMED(GTAO_TemporalFilter, TEXT("GTAO Temportal Filter"));
+DECLARE_GPU_STAT_NAMED(GTAO_SpatialFilter,	TEXT("GTAO Spatial Filter"));
+DECLARE_GPU_STAT_NAMED(GTAO_Upsample,		TEXT("GTAO Upsample"));
 
 // Tile size for the AmbientOcclusion compute shader, tweaked for 680 GTX. */
 // see GCN Performance Tip 21 http://developer.amd.com/wordpress/media/2013/05/GCNPerformanceTweets.pdf 
@@ -226,7 +229,7 @@ EGTAOType FSSAOHelper::GetGTAOPassType(const FViewInfo& View)
 
 	if (Method == 1)
 	{
-		if (IsAmbientOcclusionAsyncCompute(View, 1))
+		if (IsAmbientOcclusionAsyncCompute(View, 1) && GSupportsEfficientAsyncCompute)
 		{
 			return EGTAOType::ESplitAsync;
 		}
@@ -1210,42 +1213,39 @@ public:
 
 	//@param TRHICmdList could be async compute or compute dispatch, so template on commandlist type.
 	template<typename ShaderRHIParamRef, typename TRHICmdList>
-	void Set(TRHICmdList& RHICmdList, const FViewInfo& View, const ShaderRHIParamRef ShaderRHI) const
+	void Set(TRHICmdList& RHICmdList, const FViewInfo& View, FIntPoint DestSize, const ShaderRHIParamRef ShaderRHI) const
 	{
 		const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 
 		uint32 TemporalFrame = 0;
-		uint32 Frame = 0;
 		
 		const FSceneViewState* ViewState = static_cast<const FSceneViewState*>(View.State);
 
 		if (ViewState)
 		{
-			TemporalFrame = ViewState->GetCurrentTemporalAASampleIndex();
-			Frame = ViewState->GetFrameIndex();
+			TemporalFrame	= ViewState->GetCurrentUnclampedTemporalAASampleIndex();
 		}
-
-		static int32 DiffS = Frame - TemporalFrame;
-
-		FVector4 GTAOParam[2];
+			
+		const int ArraySize = 3;
+		FVector4 GTAOParam[ArraySize];
 
 		const float Rots[6]		= { 60.0f, 300.0f, 180.0f, 240.0f, 120.0f, 0.0f };
 		const float Offsets[4]	= { 0.0f, 0.5f, 0.25f, 0.75f };
 
 		float TemporalAngle = Rots[TemporalFrame % 6] * (PI / 360.0f);
 
-		GTAOParam[0] = FVector4(cos(TemporalAngle), sin(TemporalAngle),
-									Offsets[(TemporalFrame / 6) % 4], Offsets[TemporalFrame % 4]);
+		GTAOParam[0] = FVector4(cos(TemporalAngle), sin(TemporalAngle), Offsets[(TemporalFrame / 6) % 4], Offsets[TemporalFrame % 4]);
 
 
 		FIntPoint RandomizationSize = GSystemTextures.GTAORandomization->GetDesc().Extent;
 
-		GTAOParam[1] = FVector4(((float)TemporalFrame) * (1.0f / (float)RandomizationSize.X),
-			((float)TemporalFrame) * (3.0f / (float)RandomizationSize.X),
-			(float)TemporalFrame, 0.0f);
+		GTAOParam[1] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 
+		float Fx = float(DestSize.X);
+		float Fy = float(DestSize.Y);
+		GTAOParam[2] = FVector4(Fx, Fy, 1.0f / Fx, 1.0f / Fy);
 
-		SetShaderValueArray(RHICmdList, ShaderRHI, GTAOParams, GTAOParam, 2);
+		SetShaderValueArray(RHICmdList, ShaderRHI, GTAOParams, GTAOParam, ArraySize);
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FGTAOParameters& This);
@@ -1260,6 +1260,14 @@ FArchive& operator<<(FArchive& Ar, FGTAOParameters& This)
 	return Ar;
 }
 
+
+static FVector4 GetHZBValue(const FViewInfo& View)
+{
+	return FVector4(float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
+					float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y), 0.0f, 0.0f);
+
+	
+}
 
 
 template<uint32 bComputeShader, uint32 ShaderQuality>
@@ -1296,6 +1304,7 @@ public:
 	FShaderResourceParameter      RandomNormalTexture;
 	FShaderResourceParameter      RandomNormalTextureSampler;
 	FShaderParameter			  HZBRemapping;
+	FShaderParameter			  HorizonSearchParams;
 
 	/** Initialization constructor. */
 	FPostProcessGTAOHorizonSearchPSandCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -1306,6 +1315,7 @@ public:
 		ScreenSpaceAOParams.Bind(Initializer.ParameterMap);
 		GTAOParams.Bind(Initializer.ParameterMap);
 		HZBRemapping.Bind(Initializer.ParameterMap, TEXT("HZBRemapping"));
+		HorizonSearchParams.Bind(Initializer.ParameterMap, TEXT("HorizonSearchParams"));
 		RandomNormalTexture.Bind(Initializer.ParameterMap, TEXT("RandomNormalTexture"));
 		RandomNormalTextureSampler.Bind(Initializer.ParameterMap, TEXT("RandomNormalTextureSampler"));
 
@@ -1317,28 +1327,23 @@ public:
 
 	FVector4 GetHZBRemapVal(const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint InputTextureSize)
 	{
-		const FVector2D HZBScaleFactor(float(Context.View.ViewRect.Width()) / float(2 * Context.View.HZBMipmap0Size.X),
-			float(Context.View.ViewRect.Height()) / float(2 * Context.View.HZBMipmap0Size.Y));
+		const FVector2D HZBScaleFactor(float(InputTextureSize.X) / float(2 * Context.View.HZBMipmap0Size.X),
+			float(InputTextureSize.Y) / float(2 * Context.View.HZBMipmap0Size.Y));
 
-		const FVector2D UVScaleFactor(float(DestSize.X) / float(InputTextureSize.X),
-			float(DestSize.Y) / float(InputTextureSize.Y));
-
-		return FVector4(HZBScaleFactor.X / UVScaleFactor.X, HZBScaleFactor.Y / UVScaleFactor.Y, 0.0f, 0.0f);
+		return FVector4(HZBScaleFactor.X, HZBScaleFactor.Y, 0.0f, 0.0f);
 	}
 
-
 	template <typename TRHICmdList>
-	void SetParametersCS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint InputTextureSize, FRHIUnorderedAccessView *OutUAV)
+	void SetParametersCS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint InputTextureSize, uint32 DownScaleFactor, FRHIUnorderedAccessView *OutUAV)
 	{
 		const FFinalPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
 		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
-		ScreenSpaceAOParams.Set(RHICmdList, Context.View, ShaderRHI, InputTextureSize, FScreenSpaceAOParameters::ERandTexType::GTAO);
+		ScreenSpaceAOParams.Set(RHICmdList, Context.View, ShaderRHI, DestSize, FScreenSpaceAOParameters::ERandTexType::GTAO);
 
-		GTAOParams.Set(RHICmdList, Context.View, ShaderRHI);
-
+		GTAOParams.Set(RHICmdList, Context.View, DestSize, ShaderRHI);
 
 		PostprocessParameter.SetCS(ShaderRHI, Context, RHICmdList, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 
@@ -1346,6 +1351,9 @@ public:
 
 		FVector4 HZBRemappingValue = GetHZBRemapVal(Context, DestSize, InputTextureSize);
 		SetShaderValue(RHICmdList, ShaderRHI, HZBRemapping, HZBRemappingValue);
+
+		FVector4 HorizonSearchParamsValue = FVector4((float)DownScaleFactor, 0.0f, 0.0f, 0.0f);
+		SetShaderValue(RHICmdList, ShaderRHI, HorizonSearchParams, HorizonSearchParamsValue);
 
 		const FSceneRenderTargetItem& GTAORandomization = GSystemTextures.GTAORandomization->GetRenderTargetItem();
 		SetTextureParameter(RHICmdList, ShaderRHI, RandomNormalTexture, RandomNormalTextureSampler, TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI(), GTAORandomization.ShaderResourceTexture);
@@ -1360,8 +1368,8 @@ public:
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 		SceneTextureParameters.Set(Context.RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
-		ScreenSpaceAOParams.Set(Context.RHICmdList, Context.View, ShaderRHI, InputTextureSize, FScreenSpaceAOParameters::ERandTexType::GTAO);
-		GTAOParams.Set(Context.RHICmdList, Context.View, ShaderRHI);
+		ScreenSpaceAOParams.Set(Context.RHICmdList, Context.View, ShaderRHI, DestSize, FScreenSpaceAOParameters::ERandTexType::GTAO);
+		GTAOParams.Set(Context.RHICmdList, Context.View, DestSize, ShaderRHI);
 
 		FVector4 HZBRemappingValue = GetHZBRemapVal(Context, DestSize, InputTextureSize);
 		SetShaderValue(Context.RHICmdList, ShaderRHI, HZBRemapping, HZBRemappingValue);
@@ -1383,7 +1391,7 @@ public:
 	virtual bool Serialize(FArchive& Ar) override
 	{
 		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << SceneTextureParameters << ScreenSpaceAOParams << GTAOParams << HorizonOutTexture << HZBRemapping << RandomNormalTexture << RandomNormalTextureSampler;
+		Ar << PostprocessParameter << SceneTextureParameters << ScreenSpaceAOParams << GTAOParams << HorizonOutTexture << HZBRemapping << RandomNormalTexture << RandomNormalTextureSampler << HorizonSearchParams;
 		return bShaderHasOutdatedParameters;
 	}
 
@@ -1416,9 +1424,9 @@ VARIATION0(4)
 
 
 template<uint32 bComputeShader, uint32 ShaderQuality, uint32 UseNormalBuffer >
-class FPostProcessGTAOHorizonSearchAndInnerIntegratePSandCS : public FGlobalShader
+class FPostProcessGTAOCombinedPSandCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPostProcessGTAOHorizonSearchAndInnerIntegratePSandCS, Global);
+	DECLARE_SHADER_TYPE(FPostProcessGTAOCombinedPSandCS, Global);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -1440,7 +1448,7 @@ class FPostProcessGTAOHorizonSearchAndInnerIntegratePSandCS : public FGlobalShad
 	}
 
 	/** Default constructor. */
-	FPostProcessGTAOHorizonSearchAndInnerIntegratePSandCS() {}
+	FPostProcessGTAOCombinedPSandCS() {}
 
 public:
 	FSceneTextureShaderParameters SceneTextureParameters;
@@ -1453,7 +1461,7 @@ public:
 	FGTAOParameters				  GTAOParams;
 
 	/** Initialization constructor. */
-	FPostProcessGTAOHorizonSearchAndInnerIntegratePSandCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	FPostProcessGTAOCombinedPSandCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
 		PostprocessParameter.Bind(Initializer.ParameterMap);
@@ -1470,31 +1478,29 @@ public:
 		}
 	}
 
+
 	FVector4 GetHZBRemapVal(const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint InputTextureSize)
 	{
-		const FVector2D HZBScaleFactor(float(Context.View.ViewRect.Width()) / float(2 * Context.View.HZBMipmap0Size.X),
-			float(Context.View.ViewRect.Height()) / float(2 * Context.View.HZBMipmap0Size.Y));
+		const FVector2D HZBScaleFactor(float(InputTextureSize.X) / float(2 * Context.View.HZBMipmap0Size.X),
+			float(InputTextureSize.Y) / float(2 * Context.View.HZBMipmap0Size.Y));
 
-		const FVector2D UVScaleFactor(float(DestSize.X) / float(InputTextureSize.X),
-			float(DestSize.Y) / float(InputTextureSize.Y));
-
-		return FVector4(HZBScaleFactor.X / UVScaleFactor.X, HZBScaleFactor.Y / UVScaleFactor.Y, 0.0f, 0.0f);
+		return FVector4(HZBScaleFactor.X, HZBScaleFactor.Y, 0.0f, 0.0f);
 	}
 
 
 	template <typename TRHICmdList>
-	void SetParametersCS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint InputTextureSize, FRHIUnorderedAccessView *OutUAV)
+	void SetParametersCS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint InputTextureSize, uint32 DownScaleFactor, FRHIUnorderedAccessView *OutUAV)
 	{
 		const FFinalPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
 		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
-		ScreenSpaceAOParams.Set(RHICmdList, Context.View, ShaderRHI, InputTextureSize, FScreenSpaceAOParameters::ERandTexType::GTAO);
+		ScreenSpaceAOParams.Set(RHICmdList, Context.View, ShaderRHI, DestSize, FScreenSpaceAOParameters::ERandTexType::GTAO);
 
 		PostprocessParameter.SetCS(ShaderRHI, Context, RHICmdList, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 
-		GTAOParams.Set(RHICmdList, Context.View, ShaderRHI);
+		GTAOParams.Set(RHICmdList, Context.View, DestSize, ShaderRHI);
 		RHICmdList.SetUAVParameter(ShaderRHI, OutTexture.GetBaseIndex(), OutUAV);
 
 		FVector4 HZBRemappingValue = GetHZBRemapVal(Context, DestSize, InputTextureSize);
@@ -1513,8 +1519,8 @@ public:
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 		SceneTextureParameters.Set(Context.RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
-		ScreenSpaceAOParams.Set(Context.RHICmdList, Context.View, ShaderRHI, InputTextureSize, FScreenSpaceAOParameters::ERandTexType::GTAO);
-		GTAOParams.Set(Context.RHICmdList, Context.View, ShaderRHI);
+		ScreenSpaceAOParams.Set(Context.RHICmdList, Context.View, ShaderRHI, DestSize, FScreenSpaceAOParameters::ERandTexType::GTAO);
+		GTAOParams.Set(Context.RHICmdList, Context.View, DestSize, ShaderRHI);
 
 		FVector4 HZBRemappingValue = GetHZBRemapVal(Context, DestSize, InputTextureSize);
 		SetShaderValue(Context.RHICmdList, ShaderRHI, HZBRemapping, HZBRemappingValue);
@@ -1547,20 +1553,20 @@ public:
 
 	static const TCHAR* GetFunctionName()
 	{
-		return bComputeShader ? TEXT("HorizonSearchAndInnerIntegrateCS") : TEXT("HorizonSearchAndInnerIntegratePS");
+		return bComputeShader ? TEXT("GTAOCombinedCS") : TEXT("GTAOCombinedPS");
 	}
 };
 
 // #define avoids a lot of code duplication
 #define VARIATION0(A) \
-	typedef FPostProcessGTAOHorizonSearchAndInnerIntegratePSandCS<false,A,0> FPostProcessGTAOHorizonSearchAndInnerIntegratePS0##A; \
-	typedef FPostProcessGTAOHorizonSearchAndInnerIntegratePSandCS<false,A,1> FPostProcessGTAOHorizonSearchAndInnerIntegratePS1##A; \
-	typedef FPostProcessGTAOHorizonSearchAndInnerIntegratePSandCS<true ,A,0> FPostProcessGTAOHorizonSearchAndInnerIntegrateCS0##A; \
-	typedef FPostProcessGTAOHorizonSearchAndInnerIntegratePSandCS<true ,A,1> FPostProcessGTAOHorizonSearchAndInnerIntegrateCS1##A; \
-	IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOHorizonSearchAndInnerIntegratePS0##A, SF_Pixel); \
-	IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOHorizonSearchAndInnerIntegratePS1##A, SF_Pixel); \
-	IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOHorizonSearchAndInnerIntegrateCS0##A, SF_Compute);\
-	IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOHorizonSearchAndInnerIntegrateCS1##A, SF_Compute);
+	typedef FPostProcessGTAOCombinedPSandCS<false,A,0> FPostProcessGTAOCombinedPSandCSPS0##A; \
+	typedef FPostProcessGTAOCombinedPSandCS<false,A,1> FPostProcessGTAOCombinedPSandCSPS1##A; \
+	typedef FPostProcessGTAOCombinedPSandCS<true ,A,0> FPostProcessGTAOCombinedPSandCSCS0##A; \
+	typedef FPostProcessGTAOCombinedPSandCS<true ,A,1> FPostProcessGTAOCombinedPSandCSCS1##A; \
+	IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOCombinedPSandCSPS0##A, SF_Pixel); \
+	IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOCombinedPSandCSPS1##A, SF_Pixel); \
+	IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOCombinedPSandCSCS0##A, SF_Compute);\
+	IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOCombinedPSandCSCS1##A, SF_Compute);
 VARIATION0(0)
 VARIATION0(1)
 VARIATION0(2)
@@ -1604,6 +1610,7 @@ public:
 	FShaderResourceParameter      HorizonsTexture;
 	FShaderResourceParameter      HorizonsTextureSampler;
 	FGTAOParameters				  GTAOParams;
+	FShaderParameter			  InnerIntegrateParams;
 
 
 	/** Initialization constructor. */
@@ -1618,6 +1625,7 @@ public:
 		HorizonsTexture.Bind(Initializer.ParameterMap, TEXT("HorizonsTexture"));
 		HorizonsTextureSampler.Bind(Initializer.ParameterMap, TEXT("HorizonsTextureSampler"));
 		GTAOParams.Bind(Initializer.ParameterMap);
+		InnerIntegrateParams.Bind(Initializer.ParameterMap, TEXT("InnerIntegrateParams"));
 
 		if (bComputeShader)
 		{
@@ -1629,14 +1637,14 @@ public:
 	{
 		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 		Ar << PostprocessParameter << SceneTextureParameters << ScreenSpaceAOParams << OutTexture << GTAOParams <<  RandomNormalTexture << RandomNormalTextureSampler;
-		Ar << HorizonsTexture << HorizonsTextureSampler;
+		Ar << HorizonsTexture << HorizonsTextureSampler << InnerIntegrateParams;
 
 		return bShaderHasOutdatedParameters;
 	}
 
 
 	template <typename TRHICmdList>
-	void SetParametersCS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint InputTextureSize, FRHIUnorderedAccessView *OutUAV)
+	void SetParametersCS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, uint32 DownScaleFactor, FIntPoint DestSize, FIntPoint InputTextureSize, FRHIUnorderedAccessView *OutUAV)
 	{
 		const FFinalPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
 		FRHIComputeShader* ShaderRHI = GetComputeShader();
@@ -1644,7 +1652,7 @@ public:
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
 		ScreenSpaceAOParams.Set(RHICmdList, Context.View, ShaderRHI, InputTextureSize, FScreenSpaceAOParameters::ERandTexType::GTAO);
-		GTAOParams.Set(RHICmdList, Context.View, ShaderRHI);
+		GTAOParams.Set(RHICmdList, Context.View, DestSize, ShaderRHI);
 
 		PostprocessParameter.SetCS(ShaderRHI, Context, RHICmdList, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 
@@ -1658,9 +1666,12 @@ public:
 		SetTextureParameter(RHICmdList, ShaderRHI, HorizonsTexture, HorizonsTextureSampler, TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI(), 
 			SceneContext.ScreenSpaceGTAOHorizons->GetRenderTargetItem().ShaderResourceTexture);
 
+		FVector4 InnerIntegrateParamsValue = FVector4((float)DownScaleFactor, 0.0f, 0.0f, 0.0f);
+		SetShaderValue(RHICmdList, ShaderRHI, InnerIntegrateParams, InnerIntegrateParamsValue);
 	}
 
-	void SetParametersPS(const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint InputTextureSize)
+
+	void SetParametersPS(const FRenderingCompositePassContext& Context, FIntPoint DestSize)
 	{
 		const FFinalPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
 		FRHIPixelShader* ShaderRHI = GetPixelShader();
@@ -1669,8 +1680,8 @@ public:
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 		SceneTextureParameters.Set(Context.RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
-		ScreenSpaceAOParams.Set(Context.RHICmdList, Context.View, ShaderRHI, InputTextureSize, FScreenSpaceAOParameters::ERandTexType::GTAO);
-		GTAOParams.Set(Context.RHICmdList, Context.View, ShaderRHI);
+		ScreenSpaceAOParams.Set(Context.RHICmdList, Context.View, ShaderRHI, DestSize, FScreenSpaceAOParameters::ERandTexType::GTAO);
+		GTAOParams.Set(Context.RHICmdList, Context.View, DestSize, ShaderRHI);
 
 		const FSceneRenderTargetItem& GTAORandomization = GSystemTextures.GTAORandomization->GetRenderTargetItem();
 		SetTextureParameter(Context.RHICmdList, ShaderRHI, RandomNormalTexture, RandomNormalTextureSampler, TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI(), GTAORandomization.ShaderResourceTexture);
@@ -1702,34 +1713,34 @@ public:
 IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOInnerIntegratePSandCS<false>, SF_Pixel);
 IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOInnerIntegratePSandCS<true>, SF_Compute);
 
-FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate::FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate(const FSceneView& View, bool FinalOutput)
-	:bFinalOutput(FinalOutput)
+FRCPassPostProcessAmbientOcclusion_GTAOCombined::FRCPassPostProcessAmbientOcclusion_GTAOCombined(const FSceneView& View, uint32 InDownScaleFactor, bool FinalOutput)
+	:bFinalOutput(FinalOutput),
+	DownScaleFactor(InDownScaleFactor)
 {
 
 }
 
 template <uint32 ShaderQuality, uint32 UseNormals>
-void FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate::DispatchCS(const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint TexSize)
+void FRCPassPostProcessAmbientOcclusion_GTAOCombined::DispatchCS(const FRenderingCompositePassContext& Context, FIntRect ViewRect, FIntPoint DestSize, FIntPoint TexSize)
 {
-	TShaderMapRef<FPostProcessGTAOHorizonSearchAndInnerIntegratePSandCS<true, ShaderQuality, UseNormals>> ComputeShader(Context.GetShaderMap());
+	TShaderMapRef<FPostProcessGTAOCombinedPSandCS<true, ShaderQuality, UseNormals>> ComputeShader(Context.GetShaderMap());
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-	const FSceneRenderTargetItem& DestRenderTarget = bFinalOutput ? SceneContext.ScreenSpaceAO->GetRenderTargetItem() : PassOutputs[0].RequestSurface(Context);
+	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
 
 	Context.RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
-	ComputeShader->SetParametersCS(Context.RHICmdList, Context, DestSize, TexSize, DestRenderTarget.UAV);
+	ComputeShader->SetParametersCS(Context.RHICmdList, Context, DestSize, TexSize, DownScaleFactor, DestRenderTarget.UAV);
 
-	uint32 GroupSizeX = FMath::DivideAndRoundUp(DestSize.X, 8);
-	uint32 GroupSizeY = FMath::DivideAndRoundUp(DestSize.Y, 8);
+	uint32 GroupSizeX = FMath::DivideAndRoundUp(ViewRect.Width(), 8);
+	uint32 GroupSizeY = FMath::DivideAndRoundUp(ViewRect.Height(), 8);
 	DispatchComputeShader(Context.RHICmdList, *ComputeShader, GroupSizeX, GroupSizeY, 1);
-
 	ComputeShader->UnsetParameters(Context.RHICmdList);
 }
 
 template <uint32 ShaderQuality, uint32 UseNormals>
-FShader* FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate::SetShaderPS(const FRenderingCompositePassContext& Context, FGraphicsPipelineStateInitializer& GraphicsPSOInit, FIntPoint DestSize)
+FShader* FRCPassPostProcessAmbientOcclusion_GTAOCombined::SetShaderPS(const FRenderingCompositePassContext& Context, FGraphicsPipelineStateInitializer& GraphicsPSOInit, FIntPoint DestSize)
 {
 	TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
-	TShaderMapRef<FPostProcessGTAOHorizonSearchAndInnerIntegratePSandCS<false, ShaderQuality, UseNormals> > PixelShader(Context.GetShaderMap());
+	TShaderMapRef<FPostProcessGTAOCombinedPSandCS<false, ShaderQuality, UseNormals> > PixelShader(Context.GetShaderMap());
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
@@ -1748,20 +1759,22 @@ FShader* FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate::SetShad
 
 
 
-void FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate::Process(FRenderingCompositePassContext& Context)
+void FRCPassPostProcessAmbientOcclusion_GTAOCombined::Process(FRenderingCompositePassContext& Context)
 {
-	SCOPED_GPU_STAT(Context.RHICmdList, GTAO_HorizonSearchInnerIntegrate);
+	SCOPED_GPU_STAT(Context.RHICmdList, GTAO_Combined);
 	const FViewInfo& View = Context.View;
-	FIntRect ViewRect = View.ViewRect;
-	FIntRect SrcRect = Context.View.ViewRect;
-	FIntRect DestRect = SrcRect;
-	FIntPoint DestSize(DestRect.Width(), DestRect.Height());
-	const FPooledRenderTargetDesc* InputDesc0 = GetInputDesc(ePId_Input0);
+
+	// Get Size of destination
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-	FIntPoint TexSize = InputDesc0 ? InputDesc0->Extent : SceneContext.GetBufferSizeXY();
+	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+	const FPooledRenderTargetDesc* InputDesc0 = GetInputDesc(ePId_Input0);
 
-	const FSceneRenderTargetItem& DestRenderTarget = bFinalOutput ? SceneContext.ScreenSpaceAO->GetRenderTargetItem() : PassOutputs[0].RequestSurface(Context);
+	// Get the size of the input and output sizes of the buffers.
+	FIntPoint InputTexSize = InputDesc0 ? InputDesc0->Extent : SceneContext.GetBufferSizeXY();
+	FIntPoint OutputTexSize = PassOutputs[0].RenderTargetDesc.Extent;
+	FIntRect ViewRect = View.ViewRect / DownScaleFactor;
 
+	   
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AmbientOcclusion.Compute"));
 
 	const int32 ShaderQuality = FSSAOHelper::GetAmbientOcclusionShaderLevel(Context.View);
@@ -1777,19 +1790,19 @@ void FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate::Process(FRe
 		switch(ShaderQuality)
 		{
 		case 0:
-			DispatchCS<0,0>(Context, DestSize, TexSize);
+			DispatchCS<0,0>(Context, ViewRect, OutputTexSize, InputTexSize);
 			break;
 		case 1:
-			DispatchCS<1, 0>(Context, DestSize, TexSize);
+			DispatchCS<1, 0>(Context, ViewRect, OutputTexSize, InputTexSize);
 			break;
 		case 2:
-			DispatchCS<2, 0>(Context, DestSize, TexSize);
+			DispatchCS<2, 0>(Context, ViewRect, OutputTexSize, InputTexSize);
 			break;
 		case 3:
-			DispatchCS<3, 0>(Context, DestSize, TexSize);
+			DispatchCS<3, 0>(Context, ViewRect, OutputTexSize, InputTexSize);
 			break;
 		case 4:
-			DispatchCS<4, 0>(Context, DestSize, TexSize);
+			DispatchCS<4, 0>(Context, ViewRect, OutputTexSize, InputTexSize);
 			break;
 		}
 	}
@@ -1801,6 +1814,7 @@ void FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate::Process(FRe
 		{
 			// PS Version
 			Context.SetViewportAndCallRHI(ViewRect);
+			DrawClearQuad(Context.RHICmdList, FLinearColor::White);
 
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -1817,32 +1831,33 @@ void FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate::Process(FRe
 			switch (ShaderQuality)
 			{
 			case 0:
-				VertexShader = SetShaderPS<0, 0>(Context, GraphicsPSOInit, DestSize);
+				VertexShader = SetShaderPS<0, 0>(Context, GraphicsPSOInit, OutputTexSize);
 				break;
 			case 1:
-				VertexShader = SetShaderPS<1, 0>(Context, GraphicsPSOInit, DestSize);
+				VertexShader = SetShaderPS<1, 0>(Context, GraphicsPSOInit, OutputTexSize);
 				break;
 			case 2:
-				VertexShader = SetShaderPS<2, 0>(Context, GraphicsPSOInit, DestSize);
+				VertexShader = SetShaderPS<2, 0>(Context, GraphicsPSOInit, OutputTexSize);
 				break;
 			case 3:
-				VertexShader = SetShaderPS<3, 0>(Context, GraphicsPSOInit, DestSize);
+				VertexShader = SetShaderPS<3, 0>(Context, GraphicsPSOInit, OutputTexSize);
 				break;
 			case 4:
-				VertexShader = SetShaderPS<4, 0>(Context, GraphicsPSOInit, DestSize);
+				VertexShader = SetShaderPS<4, 0>(Context, GraphicsPSOInit, OutputTexSize);
 				break;
 			}
 
+
 			DrawRectangle(
 				Context.RHICmdList,
-				0, 0,
-				ViewRect.Width(), ViewRect.Height(),
-				ViewRect.Min.X, ViewRect.Min.Y,
-				ViewRect.Width(), ViewRect.Height(),
+				0, 0,ViewRect.Width(), ViewRect.Height(),
+				ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Width(), ViewRect.Height(),
 				ViewRect.Size(),
-				TexSize,
+				OutputTexSize,
 				VertexShader,
 				EDRF_UseTriangleOptimization);
+
+
 		}
 		Context.RHICmdList.EndRenderPass();
 	}
@@ -1851,51 +1866,48 @@ void FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate::Process(FRe
 }
 
 
-FPooledRenderTargetDesc FRCPassPostProcessAmbientOcclusion_HorizonSearchInnerIntegrate::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+FPooledRenderTargetDesc FRCPassPostProcessAmbientOcclusion_GTAOCombined::ComputeOutputDesc(EPassOutputId InPassOutputId) const
 {
 	FPooledRenderTargetDesc Ret;
 
 	Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
 	Ret.Reset();
-	Ret.Format = PF_B8G8R8A8;
+	Ret.Format = PF_G8; 
+	Ret.Extent = FIntPoint::DivideAndRoundUp(Ret.Extent, DownScaleFactor);
 
 	Ret.ClearValue = FClearValueBinding::None;
 	Ret.TargetableFlags &= ~TexCreate_DepthStencilTargetable;
 	Ret.TargetableFlags |= TexCreate_RenderTargetable | TexCreate_ShaderResource;
-	Ret.DebugName = TEXT("GTAOInnerHorizonInnerIntegrate");
+	Ret.TargetableFlags |= TexCreate_UAV;
+	Ret.DebugName = TEXT("GTAOCombined");
 
 	return Ret;
 }
 
 
-
-
-FRCPassPostProcessAmbientOcclusion_InnerIntegrate::FRCPassPostProcessAmbientOcclusion_InnerIntegrate(const FSceneView& View, bool FinalOutput)
-	:bFinalOutput(FinalOutput)
+FRCPassPostProcessAmbientOcclusion_InnerIntegrate::FRCPassPostProcessAmbientOcclusion_InnerIntegrate(const FSceneView& View, uint32 InDownScaleFactor, bool FinalOutput)
+	:bFinalOutput(FinalOutput),
+	DownScaleFactor(InDownScaleFactor)
 {
-
 }
-
-
-
 
 void FRCPassPostProcessAmbientOcclusion_InnerIntegrate::Process(FRenderingCompositePassContext& Context)
 {
 	SCOPED_GPU_STAT(Context.RHICmdList, GTAO_InnerIntegrate);
 	const FViewInfo& View = Context.View;
-	FIntRect ViewRect = View.ViewRect;
-	FIntRect SrcRect = Context.View.ViewRect;
-	FIntRect DestRect = SrcRect;
-	FIntPoint DestSize(DestRect.Width(), DestRect.Height());
-	const FPooledRenderTargetDesc* InputDesc0 = GetInputDesc(ePId_Input0);
+
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-	FIntPoint TexSize = InputDesc0 ? InputDesc0->Extent : SceneContext.GetBufferSizeXY();
+	const FPooledRenderTargetDesc* InputDesc0 = GetInputDesc(ePId_Input0);
+
+	FIntPoint TexSize = PassOutputs[0].RenderTargetDesc.Extent;
+
+	FIntRect ViewRect = View.ViewRect / DownScaleFactor;
 
 	const FSceneRenderTargetItem& DestRenderTarget = bFinalOutput ? SceneContext.ScreenSpaceAO->GetRenderTargetItem() : PassOutputs[0].RequestSurface(Context);
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AmbientOcclusion.Compute"));
 
-	if (CVar->GetValueOnRenderThread() >= 1)
+	if (0)// CVar->GetValueOnRenderThread() >= 1)
 	{
 		// Compute  Version
 		Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV, nullptr);
@@ -1904,10 +1916,10 @@ void FRCPassPostProcessAmbientOcclusion_InnerIntegrate::Process(FRenderingCompos
 
 		TShaderMapRef<FPostProcessGTAOInnerIntegratePSandCS<true>> ComputeShader(Context.GetShaderMap());
 		Context.RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
-		ComputeShader->SetParametersCS(Context.RHICmdList, Context, DestSize, TexSize, DestRenderTarget.UAV);
+		ComputeShader->SetParametersCS(Context.RHICmdList, Context, DownScaleFactor, TexSize, TexSize, DestRenderTarget.UAV);
 
-		uint32 GroupSizeX = FMath::DivideAndRoundUp(DestSize.X, 8);
-		uint32 GroupSizeY = FMath::DivideAndRoundUp(DestSize.Y, 8);
+		uint32 GroupSizeX = FMath::DivideAndRoundUp(ViewRect.Width(), 8);
+		uint32 GroupSizeY = FMath::DivideAndRoundUp(ViewRect.Height(), 8);
 		DispatchComputeShader(Context.RHICmdList, *ComputeShader, GroupSizeX, GroupSizeY, 1);
 
 		ComputeShader->UnsetParameters(Context.RHICmdList);
@@ -1934,14 +1946,12 @@ void FRCPassPostProcessAmbientOcclusion_InnerIntegrate::Process(FRenderingCompos
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
 			SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
 
-			PixelShader->SetParametersPS(Context, DestSize, TexSize);
+			PixelShader->SetParametersPS(Context, TexSize);
 
 			DrawRectangle(
 				Context.RHICmdList,
-				0, 0,
-				ViewRect.Width(), ViewRect.Height(),
-				ViewRect.Min.X, ViewRect.Min.Y,
-				ViewRect.Width(), ViewRect.Height(),
+				0, 0, ViewRect.Width(), ViewRect.Height(),
+				ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Width(), ViewRect.Height(),
 				ViewRect.Size(),
 				TexSize,
 				*VertexShader,
@@ -1962,6 +1972,8 @@ FPooledRenderTargetDesc FRCPassPostProcessAmbientOcclusion_InnerIntegrate::Compu
 	Ret.Reset();
 	Ret.Format = PF_G8;
 
+	Ret.Extent = FIntPoint::DivideAndRoundUp(Ret.Extent, DownScaleFactor);
+
 	Ret.ClearValue = FClearValueBinding::None;
 	Ret.TargetableFlags &= ~TexCreate_DepthStencilTargetable;
 	Ret.TargetableFlags |= TexCreate_UAV;
@@ -1971,33 +1983,32 @@ FPooledRenderTargetDesc FRCPassPostProcessAmbientOcclusion_InnerIntegrate::Compu
 }
 
 
-
-FRCPassPostProcessAmbientOcclusion_HorizonSearch::FRCPassPostProcessAmbientOcclusion_HorizonSearch(const FSceneView& View, const ESSAOType InAOType)
-	: AOType(InAOType)
+FRCPassPostProcessAmbientOcclusion_HorizonSearch::FRCPassPostProcessAmbientOcclusion_HorizonSearch(const FSceneView& View, uint32 InDownScaleFactor, const ESSAOType InAOType)
+	: AOType(InAOType),
+	DownScaleFactor(InDownScaleFactor)
 {
 }
 
 
 
 template <uint32 ShaderQuality>
-void FRCPassPostProcessAmbientOcclusion_HorizonSearch::DispatchCS(const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint TexSize)
+void FRCPassPostProcessAmbientOcclusion_HorizonSearch::DispatchCS(const FRenderingCompositePassContext& Context, FIntRect ViewRect, FIntPoint DestSize, FIntPoint TexSize)
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-	const FSceneRenderTargetItem& DestRenderTarget = (AOType == ESSAOType::EAsyncCS) ? SceneContext.ScreenSpaceGTAOHorizons->GetRenderTargetItem() : PassOutputs[0].RequestSurface(Context);
+	const FSceneRenderTargetItem& DestRenderTarget = SceneContext.ScreenSpaceGTAOHorizons->GetRenderTargetItem();
 
 	FRHIAsyncComputeCommandListImmediate& RHICmdListComputeImmediate = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
 
 	TShaderMapRef<FPostProcessGTAOHorizonSearchPSandCS<true, ShaderQuality>> ComputeShader(Context.GetShaderMap());
 	RHICmdListComputeImmediate.SetComputeShader(ComputeShader->GetComputeShader());
-	ComputeShader->SetParametersCS(RHICmdListComputeImmediate, Context, DestSize, TexSize, DestRenderTarget.UAV);
+	ComputeShader->SetParametersCS(RHICmdListComputeImmediate, Context, DestSize, TexSize, DownScaleFactor, DestRenderTarget.UAV);
 
-	uint32 GroupSizeX = FMath::DivideAndRoundUp(DestSize.X, 8);
-	uint32 GroupSizeY = FMath::DivideAndRoundUp(DestSize.Y, 8);
+	uint32 GroupSizeX = FMath::DivideAndRoundUp(ViewRect.Width(), 8);
+	uint32 GroupSizeY = FMath::DivideAndRoundUp(ViewRect.Height(), 8);
 	DispatchComputeShader(RHICmdListComputeImmediate, *ComputeShader, GroupSizeX, GroupSizeY, 1);
 
 	ComputeShader->UnsetParameters(RHICmdListComputeImmediate);
 }
-
 
 template <uint32 ShaderQuality>
 FShader* FRCPassPostProcessAmbientOcclusion_HorizonSearch::SetShaderPS(const FRenderingCompositePassContext& Context, FGraphicsPipelineStateInitializer& GraphicsPSOInit, FIntPoint DestSize)
@@ -2024,19 +2035,20 @@ FShader* FRCPassPostProcessAmbientOcclusion_HorizonSearch::SetShaderPS(const FRe
 
 void FRCPassPostProcessAmbientOcclusion_HorizonSearch::Process(FRenderingCompositePassContext& Context)
 {
-
 	SCOPED_GPU_STAT(Context.RHICmdList, GTAO_HorizonSearch);
 	const FViewInfo& View = Context.View;
-	FIntRect ViewRect = View.ViewRect;
-	FIntRect SrcRect = Context.View.ViewRect;
-	FIntRect DestRect = SrcRect;
-	FIntPoint DestSize(DestRect.Width(), DestRect.Height());
-	const FPooledRenderTargetDesc* InputDesc0 = GetInputDesc(ePId_Input0);
+
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-	FIntPoint TexSize = InputDesc0 ? InputDesc0->Extent : SceneContext.GetBufferSizeXY();
+	const FPooledRenderTargetDesc* InputDesc0 = GetInputDesc(ePId_Input0);
+
+	// Get the size of the input and output sizes of the buffers.
+	FIntPoint InputTexSize = InputDesc0 ? InputDesc0->Extent : SceneContext.GetBufferSizeXY();
+	FIntPoint OutputTexSize = PassOutputs[0].RenderTargetDesc.Extent;
+	FIntRect ViewRect = View.ViewRect / DownScaleFactor;;
 
 
-	const FSceneRenderTargetItem& DestRenderTarget = (AOType == ESSAOType::EAsyncCS) ? SceneContext.ScreenSpaceGTAOHorizons->GetRenderTargetItem()  : PassOutputs[0].RequestSurface(Context);
+	//const FSceneRenderTargetItem& DestRenderTarget = (AOType == ESSAOType::EAsyncCS) ? SceneContext.ScreenSpaceGTAOHorizons->GetRenderTargetItem()  : PassOutputs[0].RequestSurface(Context);
+	const FSceneRenderTargetItem& DestRenderTarget = SceneContext.ScreenSpaceGTAOHorizons->GetRenderTargetItem();
 
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AmbientOcclusion.Compute"));
 	const int32 ShaderQuality = FSSAOHelper::GetAmbientOcclusionShaderLevel(Context.View);
@@ -2060,19 +2072,19 @@ void FRCPassPostProcessAmbientOcclusion_HorizonSearch::Process(FRenderingComposi
 		switch (ShaderQuality)
 		{
 		case 0:
-			DispatchCS<0>(Context, DestSize, TexSize);
+			DispatchCS<0>(Context, ViewRect, OutputTexSize, InputTexSize);
 			break;
 		case 1:
-			DispatchCS<1>(Context, DestSize, TexSize);
+			DispatchCS<1>(Context, ViewRect, OutputTexSize, InputTexSize);
 			break;
 		case 2:
-			DispatchCS<2>(Context, DestSize, TexSize);
+			DispatchCS<2>(Context, ViewRect, OutputTexSize, InputTexSize);
 			break;
 		case 3:
-			DispatchCS<3>(Context, DestSize, TexSize);
+			DispatchCS<3>(Context, ViewRect, OutputTexSize, InputTexSize);
 			break;
 		case 4:
-			DispatchCS<4>(Context, DestSize, TexSize);
+			DispatchCS<4>(Context, ViewRect, OutputTexSize, InputTexSize);
 			break;
 		}
 	}
@@ -2099,30 +2111,28 @@ void FRCPassPostProcessAmbientOcclusion_HorizonSearch::Process(FRenderingComposi
 			switch (ShaderQuality)
 			{
 			case 0:
-				VertexShader = SetShaderPS<0>(Context, GraphicsPSOInit, DestSize);
+				VertexShader = SetShaderPS<0>(Context, GraphicsPSOInit, OutputTexSize);
 				break;
 			case 1:
-				VertexShader = SetShaderPS<1>(Context, GraphicsPSOInit, DestSize);
+				VertexShader = SetShaderPS<1>(Context, GraphicsPSOInit, OutputTexSize);
 				break;
 			case 2:
-				VertexShader = SetShaderPS<2>(Context, GraphicsPSOInit, DestSize);
+				VertexShader = SetShaderPS<2>(Context, GraphicsPSOInit, OutputTexSize);
 				break;
 			case 3:
-				VertexShader = SetShaderPS<3>(Context, GraphicsPSOInit, DestSize);
+				VertexShader = SetShaderPS<3>(Context, GraphicsPSOInit, OutputTexSize);
 				break;
 			case 4:
-				VertexShader = SetShaderPS<4>(Context, GraphicsPSOInit, DestSize);
+				VertexShader = SetShaderPS<4>(Context, GraphicsPSOInit, OutputTexSize);
 				break;
 			}
 
 			DrawRectangle(
 				Context.RHICmdList,
-				0, 0,
-				ViewRect.Width(), ViewRect.Height(),
-				ViewRect.Min.X, ViewRect.Min.Y,
-				ViewRect.Width(), ViewRect.Height(),
+				0, 0, ViewRect.Width(), ViewRect.Height(),
+				ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Width(), ViewRect.Height(),
 				ViewRect.Size(),
-				TexSize,
+				OutputTexSize,
 				VertexShader,
 				EDRF_UseTriangleOptimization);
 		}
@@ -2141,13 +2151,610 @@ FPooledRenderTargetDesc FRCPassPostProcessAmbientOcclusion_HorizonSearch::Comput
 	Ret.Reset();
 	Ret.Format = PF_B8G8R8A8;
 
+	Ret.Extent = FIntPoint::DivideAndRoundUp(Ret.Extent, DownScaleFactor);
+
 	Ret.ClearValue = FClearValueBinding::None;
 	Ret.TargetableFlags &= ~TexCreate_DepthStencilTargetable;
 	Ret.TargetableFlags |= TexCreate_UAV;
 	Ret.TargetableFlags |= TexCreate_RenderTargetable | TexCreate_ShaderResource;
 
 
-	Ret.DebugName = TEXT("GTAOInnerHorizon");
+	Ret.DebugName = TEXT("GTAOHorizonSearch");
 
 	return Ret;
 }
+
+template<uint32 bComputeShader>
+class FPostProcessGTAOTemporalFilterPSandCS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FPostProcessGTAOTemporalFilterPSandCS, Global);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), bComputeShader);
+		if (bComputeShader)
+		{
+			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), 8);
+			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), 8);
+		}
+	}
+
+	/** Default constructor. */
+	FPostProcessGTAOTemporalFilterPSandCS() {}
+
+public:
+	FSceneTextureShaderParameters	SceneTextureParameters;
+	FPostProcessPassParameters		PostprocessParameter;
+	FShaderResourceParameter		HistoryTexture;
+	FShaderResourceParameter		HistoryTextureSampler;
+
+	FShaderResourceParameter		DepthHistoryTexture;
+	FShaderResourceParameter		DepthHistoryTextureSampler;
+
+	FShaderResourceParameter		SceneVelocityTexture;
+	FShaderResourceParameter		SceneVelocityTextureSampler;
+
+	FShaderParameter				PrevScreenPositionScaleBias;
+	FShaderParameter				BlendParams;
+	FScreenSpaceAOParameters		ScreenSpaceAOParams;
+	FShaderParameter OutTexture;
+
+
+	/** Initialization constructor. */
+	FPostProcessGTAOTemporalFilterPSandCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		PostprocessParameter.Bind(Initializer.ParameterMap);
+		SceneTextureParameters.Bind(Initializer);
+
+		HistoryTexture.Bind(Initializer.ParameterMap,				TEXT("HistoryTexture"));
+		HistoryTextureSampler.Bind(Initializer.ParameterMap,		TEXT("HistoryTextureSampler"));
+
+		DepthHistoryTexture.Bind(Initializer.ParameterMap,			TEXT("DepthHistoryTexture"));
+		DepthHistoryTextureSampler.Bind(Initializer.ParameterMap,	TEXT("DepthHistoryTextureSampler"));
+
+		SceneVelocityTexture.Bind(Initializer.ParameterMap,			TEXT("SceneVelocityTexture"));
+		SceneVelocityTextureSampler.Bind(Initializer.ParameterMap,	TEXT("SceneVelocityTextureSampler"));
+
+		PrevScreenPositionScaleBias.Bind(Initializer.ParameterMap,  TEXT("PrevScreenPositionScaleBias"));
+		BlendParams.Bind(Initializer.ParameterMap,					TEXT("BlendParams"));
+		OutTexture.Bind(Initializer.ParameterMap, TEXT("OutTexture"));
+
+		ScreenSpaceAOParams.Bind(Initializer.ParameterMap);
+	}
+
+
+	void SetParametersPS(const FRenderingCompositePassContext& Context, FIntPoint DestSize, FIntPoint InputTextureSize, bool bCameraCut, const FGTAOTAAHistory& InputHistory, TRefCountPtr<IPooledRenderTarget>& VelocityRT)
+	{
+		const FFinalPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
+
+		PostprocessParameter.SetPS(Context.RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
+		SceneTextureParameters.Set(Context.RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
+
+		FIntPoint ViewportOffset = InputHistory.ViewportRect.Min;
+		FIntPoint ViewportExtent = InputHistory.ViewportRect.Size();
+		FIntPoint BufferSize = InputHistory.ReferenceBufferSize;
+
+		FVector4 PrevScreenPositionScaleBiasValue = FVector4(
+			ViewportExtent.X * 0.5f / BufferSize.X,
+			-ViewportExtent.Y * 0.5f / BufferSize.Y,
+			(ViewportExtent.X * 0.5f + ViewportOffset.X) / BufferSize.X,
+			(ViewportExtent.Y * 0.5f + ViewportOffset.Y) / BufferSize.Y);
+
+		SetShaderValue(Context.RHICmdList, ShaderRHI, PrevScreenPositionScaleBias, PrevScreenPositionScaleBiasValue);
+
+		FVector4 BlendParamsValue = FVector4(bCameraCut ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
+		SetShaderValue(Context.RHICmdList, ShaderRHI, BlendParams, BlendParamsValue);
+
+
+		if (InputHistory.IsValid())
+		{
+			SetTextureParameter(Context.RHICmdList, ShaderRHI, HistoryTexture, HistoryTextureSampler,
+				TStaticSamplerState<SF_Bilinear,AM_Border, AM_Border, AM_Border, 0,0, 0xffffffff >::GetRHI(),
+				InputHistory.RT[0]->GetRenderTargetItem().TargetableTexture);
+
+
+			SetTextureParameter(Context.RHICmdList, ShaderRHI, DepthHistoryTexture, DepthHistoryTextureSampler,
+				TStaticSamplerState<SF_Bilinear>::GetRHI(),
+				InputHistory.Depth[0]->GetRenderTargetItem().TargetableTexture);
+		}
+		else
+		{
+			// Need to bind a white dummy
+			SetTextureParameter(Context.RHICmdList, ShaderRHI, HistoryTexture, HistoryTextureSampler,
+				TStaticSamplerState<SF_Bilinear>::GetRHI(),
+				GSystemTextures.WhiteDummy->GetRenderTargetItem().ShaderResourceTexture);
+
+		}
+
+		SetTextureParameter(Context.RHICmdList, ShaderRHI, SceneVelocityTexture, SceneVelocityTextureSampler,
+				TStaticSamplerState<SF_Point>::GetRHI(), VelocityRT->GetRenderTargetItem().ShaderResourceTexture);
+
+	}
+
+	template <typename TRHICmdList>
+	void UnsetParameters(TRHICmdList& RHICmdList)
+	{
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		RHICmdList.SetUAVParameter(ShaderRHI, OutTexture.GetBaseIndex(), nullptr);
+	}
+
+
+	// FShader interface.
+	virtual bool Serialize(FArchive& Ar) override
+	{
+		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
+		Ar << DepthHistoryTexture << DepthHistoryTextureSampler << HistoryTexture << HistoryTextureSampler << PostprocessParameter << SceneTextureParameters << PrevScreenPositionScaleBias << OutTexture;
+		Ar << SceneVelocityTexture << SceneVelocityTextureSampler << BlendParams;
+		return bShaderHasOutdatedParameters;
+	}
+
+	static const TCHAR* GetSourceFilename()
+	{
+		return TEXT("/Engine/Private/PostProcessAmbientOcclusion.usf");
+	}
+
+	static const TCHAR* GetFunctionName()
+	{
+		return bComputeShader ? TEXT("GTAOTemporalFilterCS") : TEXT("GTAOTemporalFilterPS");
+	}
+};
+
+IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOTemporalFilterPSandCS<false>, SF_Pixel); 
+IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOTemporalFilterPSandCS<true>, SF_Compute);
+
+
+FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter::FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter(const FSceneView& View, uint32 InDownScaleFactor,
+	const FGTAOTAAHistory& InInputHistory,
+	FGTAOTAAHistory* OutOutputHistory)
+	: InputHistory(InInputHistory),
+	OutputHistory(OutOutputHistory),
+	DownScaleFactor(InDownScaleFactor)
+{
+}
+
+#if 0
+template <uint32 ShaderQuality>
+void FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter::DispatchCS(const FRenderingCompositePassContext& Context, FIntRect OutputViewRect, FIntPoint OutputTexSize)
+{
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
+	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+
+	FRHIAsyncComputeCommandListImmediate& RHICmdListComputeImmediate = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
+
+	TShaderMapRef<FPostProcessGTAOTemporalFilterPSandCS<true>> ComputeShader(Context.GetShaderMap());
+	RHICmdListComputeImmediate.SetComputeShader(ComputeShader->GetComputeShader());
+	ComputeShader->SetParametersCS(RHICmdListComputeImmediate, Context, DestRenderTarget.UAV, InputHistory);
+	dawd
+	uint32 GroupSizeX = FMath::DivideAndRoundUp(OutputViewRect.Max.X, 8);
+	uint32 GroupSizeY = FMath::DivideAndRoundUp(OutputViewRect.Max.Y, 8);
+	DispatchComputeShader(RHICmdListComputeImmediate, *ComputeShader, GroupSizeX, GroupSizeY, 1);
+
+	ComputeShader->UnsetParameters(RHICmdListComputeImmediate);
+}
+#endif
+
+void FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter::Process(FRenderingCompositePassContext& Context)
+{
+	SCOPED_GPU_STAT(Context.RHICmdList, GTAO_TemporalFilter);
+	const FViewInfo& View = Context.View;
+
+	const FPooledRenderTargetDesc* InputDesc0 = GetInputDesc(ePId_Input0);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
+
+	const FSceneRenderTargetItem& DestRenderTarget0 = PassOutputs[0].RequestSurface(Context);
+	const FSceneRenderTargetItem& DestRenderTarget1 = PassOutputs[1].RequestSurface(Context);
+
+	FIntPoint InputTexSize  = InputDesc0->Extent;
+	FIntPoint OutputTexSize = PassOutputs[0].RenderTargetDesc.Extent;
+	FIntRect OutputFullRect(FIntPoint(0, 0), OutputTexSize);
+	
+	FIntRect InputViewRect = View.ViewRect / DownScaleFactor;
+	FIntRect OutputViewRect = InputViewRect ;
+
+	// Whether to use camera cut shader permutation or not.
+	const bool bCameraCut = !InputHistory.IsValid() || View.bCameraCut;
+
+	OutputHistory->SafeRelease();
+	OutputHistory->RT[0]	= PassOutputs[0].PooledRenderTarget;
+	OutputHistory->Depth[0] = PassOutputs[1].PooledRenderTarget;
+	OutputHistory->ViewportRect = OutputViewRect;
+	OutputHistory->ReferenceBufferSize = OutputTexSize;
+
+	
+	{
+		//FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Load_Store);
+		FRHITexture* RenderTargets[2] =
+		{
+			DestRenderTarget0.TargetableTexture,
+			DestRenderTarget1.TargetableTexture
+		};
+
+		Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, DestRenderTarget0.TargetableTexture);
+		Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, DestRenderTarget1.TargetableTexture);
+
+		FRHIRenderPassInfo RPInfo(2, RenderTargets, ERenderTargetActions::Load_Store);
+
+		Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("GTAO_TemporalFilter"));
+		{
+			Context.SetViewportAndCallRHI(OutputFullRect);
+
+			DrawClearQuad(Context.RHICmdList, FLinearColor::White);
+
+
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+			TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
+			TShaderMapRef<FPostProcessGTAOTemporalFilterPSandCS<false>> PixelShader(Context.GetShaderMap());
+
+			// set the state
+			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			GraphicsPSOInit.bDepthBounds = false;
+
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
+
+			VertexShader->SetParameters(Context);
+			PixelShader->SetParametersPS(Context, OutputTexSize, InputTexSize, bCameraCut, InputHistory,
+											bCameraCut ? GSystemTextures.BlackDummy : SceneContext.SceneVelocity);
+
+			DrawRectangle(
+				Context.RHICmdList,
+				OutputViewRect.Min.X, OutputViewRect.Min.Y, OutputViewRect.Width(), OutputViewRect.Height(),
+				InputViewRect.Min.X, InputViewRect.Min.Y, InputViewRect.Width(), InputViewRect.Height(),
+				OutputTexSize,
+				InputTexSize,
+				*VertexShader,
+				EDRF_UseTriangleOptimization);
+
+		}
+		Context.RHICmdList.EndRenderPass();
+	}
+	Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DestRenderTarget0.TargetableTexture);
+	Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DestRenderTarget1.TargetableTexture);
+}
+
+
+FPooledRenderTargetDesc FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+{
+	FPooledRenderTargetDesc Ret;
+
+	Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
+	Ret.Reset();
+	if (InPassOutputId == 0)
+	{
+		Ret.Format = PF_G8;
+	}
+	else
+	{
+		Ret.Format = PF_R32_FLOAT;
+	}
+
+
+	Ret.ClearValue = FClearValueBinding::None;
+	Ret.TargetableFlags &= ~TexCreate_DepthStencilTargetable;
+	Ret.TargetableFlags |= TexCreate_UAV;
+	Ret.TargetableFlags |= TexCreate_RenderTargetable | TexCreate_ShaderResource;
+
+	Ret.DebugName		= TEXT("GTAOTemporalAccumulate");
+	return Ret;
+}
+
+
+template<uint32 bComputeShader>
+class FPostProcessGTAOSpatialFilterPSandCS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FPostProcessGTAOSpatialFilterPSandCS, Global);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), bComputeShader);
+		if (bComputeShader)
+		{
+			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), 8);
+			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), 8);
+		}
+	}
+
+	FPostProcessGTAOSpatialFilterPSandCS() {}
+	FPostProcessPassParameters	PostprocessParameter;
+	FShaderParameter			OutTexture;
+	FShaderParameter			FilterParams;
+
+public:
+
+	/** Initialization constructor. */
+	FPostProcessGTAOSpatialFilterPSandCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		PostprocessParameter.Bind(Initializer.ParameterMap);
+		OutTexture.Bind(Initializer.ParameterMap, TEXT("OutTexture"));
+		FilterParams.Bind(Initializer.ParameterMap, TEXT("FilterParams"));
+	}
+
+	// FShader interface.
+	virtual bool Serialize(FArchive& Ar) override
+	{
+		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
+		Ar << PostprocessParameter << OutTexture << FilterParams;
+		return bShaderHasOutdatedParameters;
+	}
+
+	void SetParametersPS(const FRenderingCompositePassContext& Context)
+	{
+		const FFinalPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
+
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
+
+		PostprocessParameter.SetPS(Context.RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+	}
+
+
+	template <typename TRHICmdList>
+	void SetParametersCS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, FIntPoint InputTextureSize, const FIntRect& OutputRect, FRHIUnorderedAccessView *OutUAV)
+	{
+		const FFinalPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
+
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
+		PostprocessParameter.SetCS(ShaderRHI, Context, RHICmdList, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+
+		RHICmdList.SetUAVParameter(ShaderRHI, OutTexture.GetBaseIndex(), OutUAV);
+
+		FVector4 FilterParamsValue(OutputRect.Min.X, OutputRect.Min.Y, OutputRect.Width(), OutputRect.Height());
+		SetShaderValue(RHICmdList, ShaderRHI, FilterParams, FilterParamsValue);
+	}
+
+	template <typename TRHICmdList>
+	void UnsetParameters(TRHICmdList& RHICmdList)
+	{
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		RHICmdList.SetUAVParameter(ShaderRHI, OutTexture.GetBaseIndex(), nullptr);
+	}
+
+
+	static const TCHAR* GetSourceFilename()
+	{
+		return TEXT("/Engine/Private/PostProcessAmbientOcclusion.usf");
+	}
+
+	static const TCHAR* GetFunctionName()
+	{
+		return bComputeShader ? TEXT("GTAOSpatialFilterCS") : TEXT("GTAOSpatialFilterPS");
+	}
+};
+
+IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOSpatialFilterPSandCS<true>,  SF_Compute);
+IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOSpatialFilterPSandCS<false>, SF_Pixel);
+
+FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter::FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter(const FSceneView& View, uint32 InDownScaleFactor)
+	:DownScaleFactor(InDownScaleFactor)
+{
+}
+
+void FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter::Process(FRenderingCompositePassContext& Context)
+{
+	SCOPED_GPU_STAT(Context.RHICmdList, GTAO_SpatialFilter);
+	const FViewInfo& View = Context.View;
+
+	const FPooledRenderTargetDesc* InputDesc0 = GetInputDesc(ePId_Input0);
+	FIntPoint InputTexSize = InputDesc0->Extent;
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
+	FIntPoint OutputTexSize = SceneContext.GetBufferSizeXY();
+	FIntRect OutputFullRect(FIntPoint(0, 0), OutputTexSize);
+
+	FIntRect InputViewRect = View.ViewRect / DownScaleFactor;
+	FIntRect OutputViewRect = InputViewRect;
+
+	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+
+	// Compute  Version
+	Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV, nullptr);
+
+	UnbindRenderTargets(Context.RHICmdList);
+
+	TShaderMapRef<FPostProcessGTAOSpatialFilterPSandCS<true>> ComputeShader(Context.GetShaderMap());
+	Context.RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+	ComputeShader->SetParametersCS(Context.RHICmdList, Context, InputTexSize, OutputViewRect, DestRenderTarget.UAV);
+
+	uint32 GroupSizeX = FMath::DivideAndRoundUp(OutputViewRect.Width(), 8);
+	uint32 GroupSizeY = FMath::DivideAndRoundUp(OutputViewRect.Height(), 8);
+	DispatchComputeShader(Context.RHICmdList, *ComputeShader, GroupSizeX, GroupSizeY, 1);
+
+	ComputeShader->UnsetParameters(Context.RHICmdList);
+}
+
+
+
+FPooledRenderTargetDesc FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+{
+	FPooledRenderTargetDesc Ret;
+
+	Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
+	Ret.Reset();
+	Ret.Format = PF_G8;
+
+	Ret.ClearValue = FClearValueBinding::None;
+	Ret.TargetableFlags &= ~TexCreate_DepthStencilTargetable;
+	Ret.TargetableFlags |= TexCreate_UAV;
+	Ret.TargetableFlags |= TexCreate_RenderTargetable | TexCreate_ShaderResource;
+
+	Ret.DebugName = TEXT("GTAOFilter");
+	return Ret;
+}
+
+
+
+template<uint32 bComputeShader>
+class FPostProcessGTAOUpsamplePSandCS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FPostProcessGTAOUpsamplePSandCS, Global);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), bComputeShader);
+		if (bComputeShader)
+		{
+			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), 8);
+			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), 8);
+		}
+	}
+
+	FPostProcessGTAOUpsamplePSandCS() {}
+	FPostProcessPassParameters	  PostprocessParameter;
+	FShaderParameter OutTexture;
+	FScreenSpaceAOParameters ScreenSpaceAOParams;
+
+public:
+
+	/** Initialization constructor. */
+	FPostProcessGTAOUpsamplePSandCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		PostprocessParameter.Bind(Initializer.ParameterMap);
+		OutTexture.Bind(Initializer.ParameterMap, TEXT("OutTexture"));
+		ScreenSpaceAOParams.Bind(Initializer.ParameterMap);
+	}
+
+	// FShader interface.
+	virtual bool Serialize(FArchive& Ar) override
+	{
+		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
+		Ar << PostprocessParameter << OutTexture << ScreenSpaceAOParams;
+		return bShaderHasOutdatedParameters;
+	}
+
+	void SetParametersPS(const FRenderingCompositePassContext& Context)
+	{
+		const FFinalPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
+
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
+
+		PostprocessParameter.SetPS(Context.RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+	}
+
+	static const TCHAR* GetSourceFilename()
+	{
+		return TEXT("/Engine/Private/PostProcessAmbientOcclusion.usf");
+	}
+
+	static const TCHAR* GetFunctionName()
+	{
+		return bComputeShader ? TEXT("GTAOUpsampleCS") : TEXT("GTAOUpsamplePS");
+	}
+};
+
+IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOUpsamplePSandCS<true>, SF_Compute);
+IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOUpsamplePSandCS<false>, SF_Pixel);
+
+FRCPassPostProcessAmbientOcclusion_GTAO_Upsample::FRCPassPostProcessAmbientOcclusion_GTAO_Upsample(const FSceneView& View, uint32 InDownScaleFactor)
+	:DownScaleFactor(InDownScaleFactor)
+{
+}
+
+void FRCPassPostProcessAmbientOcclusion_GTAO_Upsample::Process(FRenderingCompositePassContext& Context)
+{
+	SCOPED_GPU_STAT(Context.RHICmdList, GTAO_Upsample);
+	const FViewInfo& View = Context.View;
+
+	const FPooledRenderTargetDesc* InputDesc0 = GetInputDesc(ePId_Input0);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
+	const FSceneRenderTargetItem& DestRenderTarget = SceneContext.ScreenSpaceAO->GetRenderTargetItem();
+
+	// Do a simple upsample filter from source to dest
+	FIntPoint InputTexSize = InputDesc0->Extent;
+	FIntPoint OutputTexSize = SceneContext.GetBufferSizeXY();
+	FIntRect OutputFullRect(FIntPoint(0, 0), OutputTexSize);
+
+	FIntRect InputViewRect = View.ViewRect / DownScaleFactor;
+	FIntRect OutputViewRect = View.ViewRect;
+
+	Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, DestRenderTarget.TargetableTexture);
+
+	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Load_Store);
+	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("GTAO_Filter"));
+	{
+		Context.SetViewportAndCallRHI(OutputFullRect);
+
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+		TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
+		TShaderMapRef<FPostProcessGTAOUpsamplePSandCS<false>> PixelShader(Context.GetShaderMap());
+
+		// set the state
+		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+		GraphicsPSOInit.bDepthBounds = false;
+
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
+
+		VertexShader->SetParameters(Context);
+		PixelShader->SetParametersPS(Context);
+
+		DrawRectangle(
+			Context.RHICmdList,
+			OutputViewRect.Min.X, OutputViewRect.Min.Y, OutputViewRect.Width(), OutputViewRect.Height(),
+			InputViewRect.Min.X, InputViewRect.Min.Y, InputViewRect.Width(), InputViewRect.Height(),
+			OutputTexSize,
+			InputTexSize,
+			*VertexShader,
+			EDRF_UseTriangleOptimization);
+
+	}
+	Context.RHICmdList.EndRenderPass();
+
+	Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DestRenderTarget.TargetableTexture);
+}
+
+FPooledRenderTargetDesc FRCPassPostProcessAmbientOcclusion_GTAO_Upsample::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+{
+	FPooledRenderTargetDesc Ret;
+
+	Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
+	Ret.Reset();
+	Ret.Format = PF_G8;
+
+	Ret.ClearValue = FClearValueBinding::None;
+	Ret.TargetableFlags &= ~TexCreate_DepthStencilTargetable;
+	Ret.TargetableFlags |= TexCreate_UAV;
+	Ret.TargetableFlags |= TexCreate_RenderTargetable | TexCreate_ShaderResource;
+
+	Ret.DebugName = TEXT("GTAOFilter");
+	return Ret;
+}
+

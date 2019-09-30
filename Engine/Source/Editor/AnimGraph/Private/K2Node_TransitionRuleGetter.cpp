@@ -172,7 +172,7 @@ void UK2Node_TransitionRuleGetter::GetStateSpecificAnimTransitionSchemaMenuActio
 	TArray<UK2Node*> AssetPlayers;
 	StateNode->BoundGraph->GetNodesOfClassEx<UAnimGraphNode_Base, UK2Node>(/*out*/ AssetPlayers);
 
-	for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(SequenceSpecificGetters); ++TypeIndex)
+	for (int32 TypeIndex = 0; TypeIndex < UE_ARRAY_COUNT(SequenceSpecificGetters); ++TypeIndex)
 	{
 		for (auto NodeIt = AssetPlayers.CreateConstIterator(); NodeIt; ++NodeIt)
 		{
@@ -252,7 +252,7 @@ void UK2Node_TransitionRuleGetter::GetNonStateSpecificMenuActions(FBlueprintActi
 			ETransitionGetter::CurrentState_GetBlendWeight
 		};
 
-		for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(NonSpecificGetters); ++TypeIndex)
+		for (int32 TypeIndex = 0; TypeIndex < UE_ARRAY_COUNT(NonSpecificGetters); ++TypeIndex)
 		{
 			auto UiSpecOverride = [](const FBlueprintActionContext& /*Context*/, const IBlueprintNodeBinder::FBindingSet& Bindings, FBlueprintActionUiSpec* UiSpecOut, TEnumAsByte<ETransitionGetter::Type> InGetterType)
 			{

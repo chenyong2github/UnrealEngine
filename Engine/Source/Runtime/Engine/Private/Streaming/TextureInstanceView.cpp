@@ -256,6 +256,7 @@ void FRenderAssetInstanceView::SwapData(FRenderAssetInstanceView* Lfs, FRenderAs
 	check(Lfs->Elements.Num() == Rhs->Elements.Num());
 	check(Lfs->RenderAssetMap.Num() == Rhs->RenderAssetMap.Num());
 	check(Lfs->CompiledRenderAssetMap.Num() == 0 && Rhs->CompiledRenderAssetMap.Num() == 0);
+	check(!Lfs->CompiledNumForcedLODCompMap.Num() && !Rhs->CompiledNumForcedLODCompMap.Num());
 
 	FMemory::Memswap(&Lfs->Bounds4 , &Rhs->Bounds4, sizeof(Lfs->Bounds4));
 	FMemory::Memswap(&Lfs->Elements , &Rhs->Elements, sizeof(Lfs->Elements));
@@ -599,4 +600,14 @@ void FRenderAssetInstanceAsyncView::GetRenderAssetScreenSize(
 bool FRenderAssetInstanceAsyncView::HasRenderAssetReferences(const UStreamableRenderAsset* InAsset) const
 {
 	return View.IsValid() && (bool)View->GetElementIterator(InAsset);
+}
+
+bool FRenderAssetInstanceAsyncView::HasComponentWithForcedLOD(const UStreamableRenderAsset* InAsset) const
+{
+	return View.IsValid() && View->HasComponentWithForcedLOD(InAsset);
+}
+
+bool FRenderAssetInstanceAsyncView::HasAnyComponentWithForcedLOD() const
+{
+	return View.IsValid() && View->HasAnyComponentWithForcedLOD();
 }

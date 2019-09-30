@@ -62,6 +62,7 @@
 #include "Materials/MaterialExpressionComment.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "RenderCore/Public/RenderUtils.h"
 
 #if WITH_EDITOR
 #include "Logging/TokenizedMessage.h"
@@ -987,7 +988,7 @@ void UMaterial::GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQuality
 					&CurrentResource->GetUniformVolumeTextureExpressions(),
 					&CurrentResource->GetUniformVirtualTextureExpressions()
 				};
-				for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(ExpressionsByType); TypeIndex++)
+				for (int32 TypeIndex = 0; TypeIndex < UE_ARRAY_COUNT(ExpressionsByType); TypeIndex++)
 				{
 					// Iterate over each of the material's texture expressions.
 					for (FMaterialUniformExpressionTexture* Expression : *ExpressionsByType[TypeIndex])
@@ -1008,7 +1009,7 @@ void UMaterial::GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQuality
 				{
 					&CurrentResource->GetUniformScalarParameterExpressions()
 				};
-				for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(AtlasExpressions); TypeIndex++)
+				for (int32 TypeIndex = 0; TypeIndex < UE_ARRAY_COUNT(AtlasExpressions); TypeIndex++)
 				{
 					// Iterate over each of the material's texture expressions.
 					for (FMaterialUniformExpression* Expression : *AtlasExpressions[TypeIndex])
@@ -1056,7 +1057,7 @@ void UMaterial::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray
 			// Try to prevent resizing since this would be expensive.
 			OutIndices.Empty(ExpressionsByType[0]->Num() + ExpressionsByType[1]->Num() + ExpressionsByType[2]->Num() + ExpressionsByType[3]->Num());
 
-			for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(ExpressionsByType); TypeIndex++)
+			for (int32 TypeIndex = 0; TypeIndex < UE_ARRAY_COUNT(ExpressionsByType); TypeIndex++)
 			{
 				// Iterate over each of the material's texture expressions.
 				for (FMaterialUniformExpressionTexture* Expression : *ExpressionsByType[TypeIndex])
@@ -1115,7 +1116,7 @@ void UMaterial::LogMaterialsAndTextures(FOutputDevice& Ar, int32 Indent) const
 						&MaterialResource->GetUniformVolumeTextureExpressions(),
 						&MaterialResource->GetUniformVirtualTextureExpressions(),
 					};
-					for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(ExpressionsByType); TypeIndex++)
+					for (int32 TypeIndex = 0; TypeIndex < UE_ARRAY_COUNT(ExpressionsByType); TypeIndex++)
 					{
 						for (FMaterialUniformExpressionTexture* Expression : *ExpressionsByType[TypeIndex])
 						{
@@ -1172,7 +1173,7 @@ void UMaterial::OverrideTexture(const UTexture* InTextureToOverride, UTexture* O
 			&Resource->GetUniformVolumeTextureExpressions(),
 			&Resource->GetUniformVirtualTextureExpressions()
 		};
-		for(int32 TypeIndex = 0;TypeIndex < ARRAY_COUNT(ExpressionsByType);TypeIndex++)
+		for(int32 TypeIndex = 0;TypeIndex < UE_ARRAY_COUNT(ExpressionsByType);TypeIndex++)
 		{
 			// Iterate over each of the material's texture expressions.
 			for (FMaterialUniformExpressionTexture* Expression : *ExpressionsByType[TypeIndex])
@@ -1301,6 +1302,7 @@ bool UMaterial::GetUsageByFlag(EMaterialUsage Usage) const
 		case MATUSAGE_Clothing: UsageValue = bUsedWithClothing; break;
 		case MATUSAGE_GeometryCache: UsageValue = bUsedWithGeometryCache; break;
 		case MATUSAGE_Water: UsageValue = bUsedWithWater; break;
+		case MATUSAGE_HairStrands: UsageValue = bUsedWithHairStrands; break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 	return UsageValue;
@@ -1440,6 +1442,10 @@ void UMaterial::SetUsageByFlag(EMaterialUsage Usage, bool NewValue)
 		{
 			bUsedWithWater = NewValue; break;
 		}
+		case MATUSAGE_HairStrands:
+		{
+			bUsedWithHairStrands = NewValue; break;
+		}
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 #if WITH_EDITOR
@@ -1468,6 +1474,7 @@ FString UMaterial::GetUsageName(EMaterialUsage Usage) const
 		case MATUSAGE_Clothing: UsageName = TEXT("bUsedWithClothing"); break;
 		case MATUSAGE_GeometryCache: UsageName = TEXT("bUsedWithGeometryCache"); break;
 		case MATUSAGE_Water: UsageName = TEXT("bUsedWithWater"); break;
+		case MATUSAGE_HairStrands: UsageName = TEXT("bUsedWithHairStrands"); break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 	return UsageName;
@@ -3063,8 +3070,10 @@ void UMaterial::UpdateMaterialShaderCacheAndTextureReferences()
 
 void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 {
+#if WITH_EDITOR
 	// Always rebuild the shading model field on recompile
 	RebuildShadingModelField();
+#endif //WITH_EDITOR
 
 	if (bRegenerateId)
 	{
@@ -4633,7 +4642,6 @@ void UMaterial::UpdateExpressionParameterName(UMaterialExpression* Expression)
 		}
 	}
 }
-#endif // WITH_EDITOR
 
 void UMaterial::RebuildShadingModelField()
 {
@@ -4674,6 +4682,7 @@ void UMaterial::RebuildShadingModelField()
 	UsedShadingModels = GetShadingModelFieldString(ShadingModels, FShadingModelToStringDelegate::CreateLambda(ShadingModelToStringLambda), " | ");
 #endif
 }
+#endif // WITH_EDITOR
 
 bool UMaterial::GetExpressionParameterName(const UMaterialExpression* Expression, FName& OutName)
 {
@@ -5955,8 +5964,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	bool bBlendableOutputAlpha,
 	bool bHasTessellation,
 	bool bHasRefraction,
-	bool bUsesShadingModelFromMaterialExpression,
-	bool bIsSingleLayerWater)
+	bool bUsesShadingModelFromMaterialExpression)
 {
 	if (Domain == MD_PostProcess)
 	{
@@ -6141,10 +6149,10 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		Active = false;
 		break;
 	case MP_Refraction:
-		Active = (bIsTranslucentBlendMode && BlendMode != BLEND_AlphaHoldout && BlendMode != BLEND_Modulate) || bIsSingleLayerWater;
+		Active = (bIsTranslucentBlendMode && BlendMode != BLEND_AlphaHoldout && BlendMode != BLEND_Modulate) || ShadingModels.HasShadingModel(MSM_SingleLayerWater);
 		break;
 	case MP_Opacity:
-		Active = (bIsTranslucentBlendMode && BlendMode != BLEND_Modulate) || bIsSingleLayerWater;
+		Active = (bIsTranslucentBlendMode && BlendMode != BLEND_Modulate) || ShadingModels.HasShadingModel(MSM_SingleLayerWater);
 		if (IsSubsurfaceShadingModel(ShadingModels))
 		{
 			Active = true;
@@ -6211,7 +6219,6 @@ bool UMaterial::IsPropertyActive(EMaterialProperty InProperty) const
 #if WITH_EDITOR
 bool UMaterial::IsPropertyActiveInEditor(EMaterialProperty InProperty) const
 {
-	bool bUsesSingleLayerWaterMaterial = bUsedWithWater; // HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSingleLayerWaterMaterialOutput>();
 	// explicitly DON'T use getters for BlendMode/ShadingModel...these getters may return an optimized value
 	// we want the actual value that's been set by the user in the material editor
 	return IsPropertyActive_Internal(InProperty,
@@ -6223,14 +6230,12 @@ bool UMaterial::IsPropertyActiveInEditor(EMaterialProperty InProperty) const
 		BlendableOutputAlpha,
 		D3D11TessellationMode != MTM_NoTessellation,
 		Refraction.IsConnected(),
-		IsShadingModelFromMaterialExpression(),
-		bUsesSingleLayerWaterMaterial);
+		IsShadingModelFromMaterialExpression());
 }
 #endif // WITH_EDITOR
 
 bool UMaterial::IsPropertyActiveInDerived(EMaterialProperty InProperty, const UMaterialInterface* DerivedMaterial) const
 {
-	bool bUsesSingleLayerWaterMaterial = DerivedMaterial->GetMaterial()->bUsedWithWater; //HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSingleLayerWaterMaterialOutput>();
 	return IsPropertyActive_Internal(InProperty,
 		MaterialDomain,
 		DerivedMaterial->GetBlendMode(),
@@ -6240,8 +6245,7 @@ bool UMaterial::IsPropertyActiveInDerived(EMaterialProperty InProperty, const UM
 		BlendableOutputAlpha,
 		D3D11TessellationMode != MTM_NoTessellation,
 		Refraction.IsConnected(),
-		DerivedMaterial->IsShadingModelFromMaterialExpression(),
-		bUsesSingleLayerWaterMaterial);
+		DerivedMaterial->IsShadingModelFromMaterialExpression());
 }
 
 #if WITH_EDITORONLY_DATA

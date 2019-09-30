@@ -1058,4 +1058,13 @@ protected:
 private:
 	/** Returns Grass Update interval */
 	int32 GetGrassUpdateInterval() const;
+
+#if WITH_EDITORONLY_DATA
+public:
+	static const TArray<ALandscapeProxy*>& GetLandscapeProxies() { return LandscapeProxies; }
+
+private:
+	/** Maintain list of Proxies for faster iteration */
+	static TArray<ALandscapeProxy*> LandscapeProxies;
+#endif
 };

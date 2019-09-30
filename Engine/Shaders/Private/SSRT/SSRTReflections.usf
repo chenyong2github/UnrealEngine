@@ -73,6 +73,7 @@ void ScreenSpaceReflectionsStencilPS(
 	const float Roughness = GetRoughness(GBuffer);
 	const float RoughnessFade = GetRoughnessFade(Roughness);
 	
+#if !defined(TILE_COMPUTE_SSR)
 	if (RoughnessFade > 0.0 && GBuffer.ShadingModelID != 0)
 	{
 		// we are going to compute SSR for this pixel, so we discard this
@@ -80,6 +81,7 @@ void ScreenSpaceReflectionsStencilPS(
 		// tehrefore execute ScreenSpaceReflectionsPS() for this pixel. 
 		discard;
 	}
+#endif
 	
 	// we are not going to compute SSR for this pixel, so we clear the color
 	// since ScreenSpaceReflectionsPS() won't be executed in this pixel.
@@ -89,11 +91,11 @@ void ScreenSpaceReflectionsStencilPS(
 	#endif
 }
 
-void ScreenSpaceReflectionsPS(
-	float4 SvPosition : SV_POSITION
-	, out float4 OutColor : SV_Target0
+void ScreenSpaceReflections(
+	float4 SvPosition
+	, out float4 OutColor
 #if SSR_OUTPUT_FOR_DENOISER
-	, out float4 OutClosestHitDistance : SV_Target1
+	, out float4 OutClosestHitDistance
 #endif
 )
 {
@@ -356,3 +358,20 @@ void ScreenSpaceReflectionsPS(
 	}
 	#endif
 }
+
+void ScreenSpaceReflectionsPS(
+	float4 SvPosition : SV_POSITION
+	, out float4 OutColor : SV_Target0
+#if SSR_OUTPUT_FOR_DENOISER
+	, out float4 OutClosestHitDistance : SV_Target1
+#endif
+)
+{
+	ScreenSpaceReflections(SvPosition, OutColor
+#if SSR_OUTPUT_FOR_DENOISER
+		,OutClosestHitDistance
+#endif
+	);
+}
+
+

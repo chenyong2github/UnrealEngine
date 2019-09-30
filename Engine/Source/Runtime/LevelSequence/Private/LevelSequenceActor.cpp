@@ -6,6 +6,7 @@
 #include "Components/BillboardComponent.h"
 #include "LevelSequenceBurnIn.h"
 #include "DefaultLevelSequenceInstanceData.h"
+#include "Evaluation/MovieScene3DTransformTemplate.h"
 #include "Engine/ActorChannel.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
@@ -43,7 +44,7 @@ ALevelSequenceActor::ALevelSequenceActor(const FObjectInitializer& Init)
 			SpriteComponent->Sprite = ConstructorStatics.DecalTexture.Get();
 			SpriteComponent->SetupAttachment(RootComponent);
 			SpriteComponent->bIsScreenSizeScaled = true;
-			SpriteComponent->bAbsoluteScale = true;
+			SpriteComponent->SetUsingAbsoluteScale(true);
 			SpriteComponent->bReceivesDecals = false;
 			SpriteComponent->bHiddenInGame = true;
 		}
@@ -161,6 +162,25 @@ void ALevelSequenceActor::Tick(float DeltaSeconds)
 
 	if (SequencePlayer)
 	{
+		// If the global instance data implements a transform origin interface, use its transform as an origin for this frame
+		{
+			UObject*                          InstanceData = GetInstanceData();
+			const IMovieSceneTransformOrigin* RawInterface = Cast<IMovieSceneTransformOrigin>(InstanceData);
+
+			const bool bHasInterface = RawInterface || (InstanceData && InstanceData->GetClass()->ImplementsInterface(UMovieSceneTransformOrigin::StaticClass()));
+			if (bHasInterface)
+			{
+				static FSharedPersistentDataKey GlobalTransformDataKey = FGlobalTransformPersistentData::GetDataKey();
+
+				// Retrieve the current origin
+				FTransform TransformOrigin = RawInterface ? RawInterface->GetTransformOrigin() : IMovieSceneTransformOrigin::Execute_BP_GetTransformOrigin(InstanceData);
+
+				// Assign the transform origin to the peristent data so it can be queried in Evaluate
+				FPersistentEvaluationData PersistentData(*SequencePlayer);
+				PersistentData.GetOrAdd<FGlobalTransformPersistentData>(GlobalTransformDataKey).Origin = TransformOrigin;
+			}
+		}
+
 		SequencePlayer->Update(DeltaSeconds);
 	}
 }

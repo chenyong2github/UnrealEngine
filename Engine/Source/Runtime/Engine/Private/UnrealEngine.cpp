@@ -1411,7 +1411,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 #if !UE_BUILD_SHIPPING
 	// Check for overrides to the default map on the command line
 	TCHAR MapName[512];
-	if ( FParse::Value(FCommandLine::Get(), TEXT("DEFAULTMAP="), MapName, ARRAY_COUNT(MapName)) )
+	if ( FParse::Value(FCommandLine::Get(), TEXT("DEFAULTMAP="), MapName, UE_ARRAY_COUNT(MapName)) )
 	{
 		UE_LOG(LogEngine, Log, TEXT("Overriding default map to %s"), MapName);
 
@@ -2363,6 +2363,8 @@ void UEngine::InitializeObjectReferences()
 	{
 		// Materials that are needed in-game if debug viewmodes are allowed
 		LoadSpecialMaterial(TEXT("WireframeMaterialName"), WireframeMaterialName, WireframeMaterial, true);
+		LoadSpecialMaterial(TEXT("HairDefaultMaterialName"), HairDefaultMaterialName, HairDefaultMaterial, true);
+		LoadSpecialMaterial(TEXT("HairDebugMaterialName"), HairDebugMaterialName, HairDebugMaterial, true);
 		LoadSpecialMaterial(TEXT("LevelColorationLitMaterialName"), LevelColorationLitMaterialName, LevelColorationLitMaterial, true);
 		LoadSpecialMaterial(TEXT("LevelColorationUnlitMaterialName"), LevelColorationUnlitMaterialName, LevelColorationUnlitMaterial, true);
 		LoadSpecialMaterial(TEXT("LightingTexelDensityName"), LightingTexelDensityName, LightingTexelDensityMaterial, false);
@@ -3744,7 +3746,7 @@ static void BufferOverflowFunction(SIZE_T BufferSize, const ANSICHAR* Buffer)
 	ANSICHAR LocalBuffer[32];
 	LocalBuffer[0] = LocalBuffer[31] = 0; //if BufferSize is 0 then there's nothing to print out!
 
-	BufferSize = FMath::Min<SIZE_T>(BufferSize, ARRAY_COUNT(LocalBuffer)-1);
+	BufferSize = FMath::Min<SIZE_T>(BufferSize, UE_ARRAY_COUNT(LocalBuffer)-1);
 
 	for( uint32 i = 0; i < BufferSize; i++ ) 
 	{
@@ -7598,7 +7600,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 
 		if ( !ParseObject<UClass>( Cmd, TEXT("CLASS="), Cls, ANY_PACKAGE ) || !ParseObject(Cmd,TEXT("NAME="), Cls, Obj, ANY_PACKAGE) )
 		{
-			if ( FParse::Token(Cmd,ObjectName,ARRAY_COUNT(ObjectName), 1) )
+			if ( FParse::Token(Cmd,ObjectName,UE_ARRAY_COUNT(ObjectName), 1) )
 			{
 				Obj = FindObject<UObject>(ANY_PACKAGE,ObjectName);
 			}
@@ -7954,7 +7956,7 @@ bool UEngine::HandleGetIniCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	TCHAR IniPlusSectionName[256];
 	TCHAR KeyName[256];
 
-	if (FParse::Token(Cmd, IniPlusSectionName, ARRAY_COUNT(IniPlusSectionName), true))
+	if (FParse::Token(Cmd, IniPlusSectionName, UE_ARRAY_COUNT(IniPlusSectionName), true))
 	{
 		FString IniPlusSection = IniPlusSectionName;
 		int32 IniDelim = IniPlusSection.Find(TEXT(":"));
@@ -8000,7 +8002,7 @@ bool UEngine::HandleGetIniCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 
 		if (!IniName.IsEmpty() && !SectionName.IsEmpty())
 		{
-			if (FParse::Token(Cmd, KeyName, ARRAY_COUNT(KeyName), true))
+			if (FParse::Token(Cmd, KeyName, UE_ARRAY_COUNT(KeyName), true))
 			{
 				TArray<FString> Values;
 
@@ -8384,7 +8386,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 		// stack overflow test - this case should be caught by /GS (Buffer Overflow Check) compile option
 		ANSICHAR SrcBuffer[] = "12345678901234567890123456789012345678901234567890";
 		SetCrashType(ECrashType::Debug);
-		BufferOverflowFunction(ARRAY_COUNT(SrcBuffer), SrcBuffer);
+		BufferOverflowFunction(UE_ARRAY_COUNT(SrcBuffer), SrcBuffer);
 		return true;
 	}
 	else if (FParse::Command(&Cmd, TEXT("CRTINVALID")))
@@ -10421,7 +10423,7 @@ FString appGetStartupMap(const TCHAR* CommandLine)
 #endif // UE_BUILD_SHIPPING
 
 	const TCHAR* Tmp = CommandLine ? CommandLine : TEXT("");
-	if (!FParse::Token(Tmp, Parm, ARRAY_COUNT(Parm), 0) || Parm[0] == '-')
+	if (!FParse::Token(Tmp, Parm, UE_ARRAY_COUNT(Parm), 0) || Parm[0] == '-')
 	{
 		const UGameMapsSettings* GameMapsSettings = GetDefault<UGameMapsSettings>();
 		FCString::Strcpy(Parm, *(GameMapsSettings->GetGameDefaultMap() + GameMapsSettings->LocalMapOptions));
@@ -11482,12 +11484,12 @@ void UEngine::SpawnServerActors(UWorld *World)
 	{
 		TCHAR Str[2048];
 		const TCHAR* Ptr = * FullServerActors[i];
-		if( FParse::Token( Ptr, Str, ARRAY_COUNT(Str), 1 ) )
+		if( FParse::Token( Ptr, Str, UE_ARRAY_COUNT(Str), 1 ) )
 		{
 			UE_LOG(LogNet, Log, TEXT("Spawning: %s"), Str );
 			UClass* HelperClass = StaticLoadClass( AActor::StaticClass(), NULL, Str, NULL, LOAD_None, NULL );
 			AActor* Actor = World->SpawnActor( HelperClass );
-			while( Actor && FParse::Token(Ptr,Str,ARRAY_COUNT(Str),1) )
+			while( Actor && FParse::Token(Ptr,Str,UE_ARRAY_COUNT(Str),1) )
 			{
 				TCHAR* Value = FCString::Strchr(Str,'=');
 				if( Value )
@@ -12319,6 +12321,8 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 				}
 				// reset split join info so we'll send one after loading the new map if necessary
 				Player->bSentSplitJoin = false;
+				// When loading maps, clear out mids that are referenced as they may prevent the world from shutting down cleanly and the local player will not be cleaned up until later
+				Player->CleanupViewState(); 
 			}
 		}
 

@@ -147,5 +147,5 @@ void FMrcLatencyViewExtension::BeginRenderViewFamily(FSceneViewFamily& ViewFamil
 //------------------------------------------------------------------------------
 bool FMrcLatencyViewExtension::IsActiveThisFrame(class FViewport* InViewport) const
 {
-	return Owner.IsValid() && Owner->bIsActive && FMotionDelayClient::IsActiveThisFrame(InViewport);
+	return Owner.IsValid() && Owner->IsActive() && FMotionDelayClient::IsActiveThisFrame(InViewport);
 }

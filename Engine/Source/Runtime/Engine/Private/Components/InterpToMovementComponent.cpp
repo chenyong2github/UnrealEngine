@@ -85,7 +85,7 @@ void UInterpToMovementComponent::TickComponent(float DeltaTime, enum ELevelTick 
 	{
 		WaitPos = UpdatedComponent->GetComponentLocation(); //-V595
 	}
-	while (RemainingTime >= MIN_TICK_TIME && (Iterations < MaxSimulationIterations) && !ActorOwner->IsPendingKill() && UpdatedComponent && bIsActive)
+	while (RemainingTime >= MIN_TICK_TIME && (Iterations < MaxSimulationIterations) && !ActorOwner->IsPendingKill() && UpdatedComponent && IsActive())
 	{
 		Iterations++;
 
@@ -116,7 +116,7 @@ void UInterpToMovementComponent::TickComponent(float DeltaTime, enum ELevelTick 
 		}
 		//DrawDebugPoint(GetWorld(), UpdatedComponent->GetComponentLocation(), 16, FColor::White,true,5.0f);
 		// If we hit a trigger that destroyed us, abort.
-		if (ActorOwner->IsPendingKill() || !UpdatedComponent || !bIsActive)
+		if (ActorOwner->IsPendingKill() || !UpdatedComponent || !IsActive())
 		{
 			return;
 		}

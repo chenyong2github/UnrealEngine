@@ -539,7 +539,7 @@ float3 GetSimpleForwardLightingDirectionalLight(FGBufferData GBuffer, float3 Dif
 
 	float3 LightColor = ResolvedView.DirectionalLightColor.rgb * PI;
 	
-	FShadowTerms Shadow = { 1, 1, 1 };
+	FShadowTerms Shadow = { 1, 1, 1, InitHairTransmittanceData() };
 	FDirectLighting Lighting = EvaluateBxDF( GBuffer, N, V, L, NoL, Shadow );
 
 	// Not computing specular, material was forced fully rough
@@ -862,7 +862,7 @@ void FPixelShaderInOut_MainPS(
 #endif
 
 	float DBufferOpacity = 1.0f;
-#if USE_DBUFFER && MATERIALDECALRESPONSEMASK && !MATERIALBLENDING_ANY_TRANSLUCENT
+#if USE_DBUFFER && MATERIALDECALRESPONSEMASK && !MATERIALBLENDING_ANY_TRANSLUCENT && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	// apply decals from the DBuffer
 #if SM5_PROFILE
 	//Temporary workaround to avoid crashes on AMD, revert back to BRANCH
@@ -1040,12 +1040,13 @@ ShadingModel);
 		#if MATERIAL_SHADINGMODEL_HAIR
 		if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 		{
+			FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
 			float3 N = MaterialParameters.WorldNormal;
 			float3 V = MaterialParameters.CameraVector;
 			float3 L = normalize( V - N * dot(V,N) );
 			DiffuseDir = L;
 			bool bEvalMultiScatter = true;
-			DiffuseColorForIndirect = 2*PI * HairShading( GBuffer, L, V, N, 1, 0, 0.2, uint2(0,0), bEvalMultiScatter );
+			DiffuseColorForIndirect = 2*PI * HairShading( GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0,0), bEvalMultiScatter);
 		}
 		#endif
 
@@ -1225,10 +1226,10 @@ ShadingModel);
 
 		Color += EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
+			OpaqueBasePass.SceneColorWithoutSingleLayerWaterTexture, OpaqueBasePass.SceneColorWithoutSingleLayerWaterSampler,
 			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, OpaqueBasePass.SceneDepthWithoutSingleLayerWaterSampler,
-			OpaqueBasePass.SceneLuminanceWithoutSingleLayerWaterTexture, OpaqueBasePass.SceneLuminanceWithoutSingleLayerWaterSampler,
-			OpaqueBasePass.SceneCustomDepthTexture, OpaqueBasePass.SceneCustomDepthSampler,
-			Specular,
+			OpaqueBasePass.SceneWithoutSingleLayerWaterValidUVRect,
+			Specular, OpaqueBasePass.DistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility).Luminance;
 	}
@@ -1356,11 +1357,23 @@ ShadingModel);
 #endif
 }
 
+// If virtual texture is enabled then use early depth test so that UAV feedback buffer writes respect the depth test
+#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
+	#if COMPILER_SUPPORT_DEPTHSTENCIL_EARLYTEST_LATEWRITE
+		// If we support early depth test with late write behaviour then use it since we may be using discard, or modifying depth
+		#define PIXELSHADER_EARLYDEPTHSTENCIL DEPTHSTENCIL_EARLYTEST_LATEWRITE
+	#elif !OUTPUT_PIXEL_DEPTH_OFFSET
+		// Otherwise we can only use early depth test if not modifying depth
+		// Modifying depth will trigger the slow path where we write feedback to UAV even where depth occluded!
+		#define PIXELSHADER_EARLYDEPTHSTENCIL EARLYDEPTHSTENCIL
+	#endif
+#endif
+
 
 // the following needs to match to the code in FSceneRenderTargets::GetGBufferRenderTargets()
 #define PIXELSHADEROUTPUT_BASEPASS 1
 #if USES_GBUFFER
-#define PIXELSHADEROUTPUT_MRT0 (!SELECTIVE_BASEPASS_OUTPUTS || NEEDS_BASEPASS_VERTEX_FOGGING || USES_EMISSIVE_COLOR || ALLOW_STATIC_LIGHTING)
+#define PIXELSHADEROUTPUT_MRT0 (!SELECTIVE_BASEPASS_OUTPUTS || NEEDS_BASEPASS_VERTEX_FOGGING || USES_EMISSIVE_COLOR || ALLOW_STATIC_LIGHTING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 #define PIXELSHADEROUTPUT_MRT1 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
 #define PIXELSHADEROUTPUT_MRT2 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
 #define PIXELSHADEROUTPUT_MRT3 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))

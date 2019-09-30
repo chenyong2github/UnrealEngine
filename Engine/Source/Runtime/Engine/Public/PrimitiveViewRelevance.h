@@ -47,6 +47,8 @@ struct FPrimitiveViewRelevance
 	uint32 bDrawRelevance : 1;
 	/** The primitive is casting a shadow. */
 	uint32 bShadowRelevance : 1;
+	/** The primitive is hair strands geometry. */
+	uint32 bHairStrandsRelevance : 1;
 	/** The primitive should render velocity. */
 	uint32 bVelocityRelevance : 1;
 	/** The primitive should render to the custom depth pass. */

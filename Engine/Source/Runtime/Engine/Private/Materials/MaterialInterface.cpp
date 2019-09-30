@@ -20,6 +20,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Components.h"
 #include "ContentStreaming.h"
+#include "MeshBatch.h"
 
 /**
  * This is used to deprecate data that has been built with older versions.
@@ -41,6 +42,7 @@ void FMaterialRelevance::SetPrimitiveViewRelevance(FPrimitiveViewRelevance& OutV
 	OutViewRelevance.bMaskedRelevance = bMasked;
 	OutViewRelevance.bOutputsTranslucentVelocityRelevance = bOutputsTranslucentVelocity;
 	OutViewRelevance.bDistortionRelevance = bDistortion;
+	OutViewRelevance.bHairStrandsRelevance = bHairStrands;
 	OutViewRelevance.bSeparateTranslucencyRelevance = bSeparateTranslucency;
 	OutViewRelevance.bNormalTranslucencyRelevance = bNormalTranslucency;
 	OutViewRelevance.bUsesSceneColorCopy = bUsesSceneColorCopy;
@@ -152,6 +154,7 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 			MaterialRelevance.bOpaque = !bIsTranslucent;
 			MaterialRelevance.bMasked = IsMasked();
 			MaterialRelevance.bDistortion = MaterialResource->IsDistorted();
+			MaterialRelevance.bHairStrands = IsCompatibleWithHairStrands(MaterialResource, InFeatureLevel);
 			MaterialRelevance.bSeparateTranslucency = bIsTranslucent && bMaterialSeparateTranclucency;
 			MaterialRelevance.bNormalTranslucency = bIsTranslucent && !bMaterialSeparateTranclucency;
 			MaterialRelevance.bDisableDepthTest = bIsTranslucent && Material->bDisableDepthTest;		

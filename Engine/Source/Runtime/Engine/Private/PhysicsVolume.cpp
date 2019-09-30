@@ -16,7 +16,7 @@ APhysicsVolume::APhysicsVolume(const FObjectInitializer& ObjectInitializer)
 	TerminalVelocity = UPhysicsSettings::Get()->DefaultTerminalVelocity;
 	bAlwaysRelevant = true;
 	NetUpdateFrequency = 0.1f;
-	bReplicateMovement = false;
+	SetReplicatingMovement(false);
 }
 
 #if WITH_EDITOR

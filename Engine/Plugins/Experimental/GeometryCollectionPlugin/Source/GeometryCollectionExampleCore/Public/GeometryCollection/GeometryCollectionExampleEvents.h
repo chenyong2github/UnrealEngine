@@ -7,6 +7,6 @@
 namespace GeometryCollectionExample
 {
 	template<class T>
-	bool Event_Handler(ExampleResponse&& R);
+	void Event_Handler();
 
 }

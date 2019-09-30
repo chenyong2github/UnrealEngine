@@ -1,0 +1,249 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "../Common.ush"
+#include "HairStrandsVisibilityCommon.ush"
+
+#define RENDER_MODE_MSAA 0
+#define VENDOR_AMD 0
+#define VENDOR_NVIDIA 1
+#define VENDOR_OTHER 2
+
+void ComputeUniqueSamplesWithoutDepthTest(
+	out uint3 OutSamples[HAIR_VISIBILITY_MAXSAMPLECOUNT],
+	out FSampleSetDesc OutSet,
+	const uint2 PixelCoord,
+	const uint SampleCount,
+	const float OpaqueDepth,
+	Texture2DMS<uint4, HAIR_VISIBILITY_MAXSAMPLECOUNT>  InMSAA_IDTexture,
+	Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT>  InMSAA_DepthTexture)
+{
+	OutSet.UniqueSampleCount = 0;
+	OutSet.ValidSampleCount = 0;
+
+	OutSet.HairSampleCount = clamp(SampleCount, 0, HAIR_VISIBILITY_MAXSAMPLECOUNT);
+	const uint InvalidSample = 0xFFFF;
+	for (uint SampleIt = 0; SampleIt < OutSet.HairSampleCount; ++SampleIt)
+	{
+		const uint4 EncodedData = InMSAA_IDTexture.Load(PixelCoord, SampleIt);
+		const bool bIsValid = IsValidHairData(EncodedData);
+		if (!bIsValid)
+			continue;
+
+		const float SampleDepth = InMSAA_DepthTexture.Load(PixelCoord, SampleIt);
+		if (OpaqueDepth > SampleDepth) // Reverse-Z
+			continue;
+
+		++OutSet.ValidSampleCount;
+
+		const FVisibilityData VisibilityData = DecodeVisibilityData(EncodedData);
+		bool bAlreadyExist = false;
+		for (uint UniqueIt = 0; UniqueIt < OutSet.UniqueSampleCount; ++UniqueIt)
+		{
+			if (VisibilityData.PrimitiveId == OutSamples[UniqueIt].x)
+			{
+				OutSamples[UniqueIt].y += 1;
+				bAlreadyExist = true;
+				break;
+			}
+		}
+
+		if (!bAlreadyExist)
+		{
+			OutSamples[OutSet.UniqueSampleCount].x = VisibilityData.PrimitiveId;
+			OutSamples[OutSet.UniqueSampleCount].y = 1;
+			OutSamples[OutSet.UniqueSampleCount].z = SampleIt;
+			++OutSet.UniqueSampleCount;
+		}
+	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#if PERMUTATION_VENDOR == VENDOR_AMD
+#define TILE_PIXEL_SIZE_X 8
+#define TILE_PIXEL_SIZE_Y 8
+#elif PERMUTATION_VENDOR == VENDOR_NVIDIA
+#define TILE_PIXEL_SIZE_X 8
+#define TILE_PIXEL_SIZE_Y 4
+#else //VENDOR_OTHER
+#define TILE_PIXEL_SIZE_X 8
+#define TILE_PIXEL_SIZE_Y 8
+#endif
+
+#ifndef HAIR_VISIBILITY_MAXSAMPLECOUNT
+#error HAIR_VISIBILITY_MAXSAMPLECOUNT is not defined
+#endif
+
+uint2 OutputResolution;
+uint MaxNodeCount;
+uint HairVisibilitySampleCount;
+uint2 ResolutionOffset;
+
+Texture2DMS<uint4, HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_IDTexture;
+Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_DepthTexture;
+Texture2DMS<float4,HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_MaterialTexture;
+Texture2DMS<float4,HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_AttributeTexture;
+
+RWTexture2D<uint> OutCompactNodeCounter;
+RWTexture2D<uint> OutCompactNodeIndex;
+RWStructuredBuffer<FNodeData> OutCompactNodeData;
+RWStructuredBuffer<uint> OutCompactNodeCoord;
+RWTexture2D<uint4> OutCategorizationTexture;
+
+#define VELOCITY_TYPE_NONE 0
+#define VELOCITY_TYPE_AVG 1  
+#define VELOCITY_TYPE_CLOSEST 2
+#define VELOCITY_TYPE_MAX 3
+#if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
+	Texture2DMS<float2, HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_VelocityTexture;
+	RWTexture2D<float2> OutVelocityTexture;
+#endif
+
+groupshared uint AllocationNodeCount;
+groupshared uint AllocationNodeOffset;
+
+[numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
+void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (GroupIndex == 0)
+	{
+		AllocationNodeCount = 0;
+		AllocationNodeOffset = 0;
+	}
+
+	uint2 PixelCoord = DispatchThreadId.xy + ResolutionOffset;
+	if (HairVisibilitySampleCount == 0 || PixelCoord.x >= OutputResolution.x || PixelCoord.y >= OutputResolution.y)
+		PixelCoord = uint2(0, 0);
+
+	FSampleSetDesc SampleDesc;
+
+	const float OpaqueDepth = SceneTexturesStruct.SceneDepthTexture.Load(uint3(PixelCoord, 0)).r;
+	uint3 Samples[HAIR_VISIBILITY_MAXSAMPLECOUNT]; // x:PrimitiveId, y:Weight, z:SampleIndex
+	ComputeUniqueSamplesWithoutDepthTest(
+		Samples,
+		SampleDesc,
+		PixelCoord,
+		HairVisibilitySampleCount,
+		OpaqueDepth,
+		MSAA_IDTexture, 
+		MSAA_DepthTexture);
+
+	FNodeDesc NodeDesc;
+	NodeDesc.Count = SampleDesc.UniqueSampleCount;
+	NodeDesc.Offset = 0;
+
+	InterlockedAdd(AllocationNodeCount, NodeDesc.Count, NodeDesc.Offset);
+	GroupMemoryBarrierWithGroupSync();
+	if (GroupIndex == 0 && AllocationNodeCount > 0)
+	{
+		InterlockedAdd(OutCompactNodeCounter[uint2(0, 0)], AllocationNodeCount, AllocationNodeOffset);
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	// Allocate node space
+	FCategorizationData Categorization = (FCategorizationData)0;
+	if (NodeDesc.Count > 0)
+	{
+		NodeDesc.Offset += AllocationNodeOffset;
+
+		// Store final sort node data 
+		if (NodeDesc.Offset + NodeDesc.Count < MaxNodeCount)
+		{
+			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
+			float2 AverageVelocity = 0;
+			uint ValidVelocityCount = 0;
+			#endif
+
+			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
+			float2 ClosestEncodedVelocity = 0;
+			float ClosestDepth = 0;
+			#endif		
+
+			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
+			float2 MaxEncodedVelocity = 0;
+			float MaxVelocityMagnitude2 = 0;
+			#endif		
+
+			for (uint OutIndex = 0; OutIndex < NodeDesc.Count; ++OutIndex)
+			{
+				const uint SampleIt = Samples[OutIndex].z;
+
+				// Read all material data
+				// #hair_todo: simplify the encoding. technically we don't need to decompress the visibility data, 
+				// as we only need to patch the weight
+				// #hair_todo: merge similar sample
+				FNodeData OutNodeData;
+				{
+					const float SampleDepth = MSAA_DepthTexture.Load(PixelCoord, SampleIt);
+					const uint4 EncodedData = MSAA_IDTexture.Load(PixelCoord, SampleIt);
+					FVisibilityData VisibilityData = DecodeVisibilityData(EncodedData);
+					VisibilityData.Coverage8bit = To8bitCoverage(Samples[OutIndex].y / float(SampleDesc.HairSampleCount));
+					Categorization.TotalCoverage8bit += VisibilityData.Coverage8bit;
+					Categorization.ClosestDepth = max(Categorization.ClosestDepth, SampleDepth); // Inverse-Z
+
+					float4 BaseColorAndRoughness = MSAA_MaterialTexture.Load(PixelCoord, SampleIt);
+					BaseColorAndRoughness.xyz = BaseColorAndRoughness.xyz * BaseColorAndRoughness.xyz; // Cheap gamma encoding since this is encoded into 8bit target
+					const float Specular = MSAA_AttributeTexture.Load(PixelCoord, SampleIt).x;
+
+
+					OutNodeData = ConvertToNodeData(
+						SampleDepth,
+						VisibilityData,
+						BaseColorAndRoughness.xyz,
+						BaseColorAndRoughness.w,
+						Specular);
+
+					#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
+					const float2 EncodedVelocity = MSAA_VelocityTexture.Load(PixelCoord, SampleIt);
+					AverageVelocity += DecodeVelocityFromTexture(EncodedVelocity);
+					++ValidVelocityCount;
+					#endif			
+
+					#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
+					const float2 EncodedVelocity = MSAA_VelocityTexture.Load(PixelCoord, SampleIt);
+					if (ClosestDepth < Categorization.ClosestDepth) // Inverse-Z
+					{
+						ClosestEncodedVelocity = EncodedVelocity;
+						ClosestDepth = Categorization.ClosestDepth;
+					}
+					#endif
+
+					#if PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
+					const float2 EncodedVelocity = MSAA_VelocityTexture.Load(PixelCoord, SampleIt);
+					const float2 CurrentVelocity = DecodeVelocityFromTexture(EncodedVelocity);
+					const float CurrentVelocityMagnitude2 = dot(CurrentVelocity, CurrentVelocity);
+					if (CurrentVelocityMagnitude2 > MaxVelocityMagnitude2)
+					{
+						MaxEncodedVelocity = EncodedVelocity;
+						MaxVelocityMagnitude2 = CurrentVelocityMagnitude2;
+					}
+					#endif			
+				}
+
+				const uint StoreIndex = NodeDesc.Offset + OutIndex;
+				OutCompactNodeData[StoreIndex] = OutNodeData;
+				OutCompactNodeCoord[StoreIndex] = (PixelCoord.x & 0xFFFF) | ((PixelCoord.y & 0xFFFF) << 16);
+			}
+
+			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
+			OutVelocityTexture[PixelCoord] = EncodeVelocityToTexture(AverageVelocity / max(ValidVelocityCount, 1));
+			#endif		
+
+			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
+			OutVelocityTexture[PixelCoord] = ClosestEncodedVelocity;
+			#endif		
+
+			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
+			OutVelocityTexture[PixelCoord] = MaxEncodedVelocity;
+			#endif		
+
+			NodeDesc.Count = NodeDesc.Count;
+			Categorization.SampleCount = NodeDesc.Count;
+		}
+	}
+
+	OutCompactNodeIndex[PixelCoord] = EncodeNodeDesc(NodeDesc);
+	OutCategorizationTexture[PixelCoord] = EncodeCategorizationData(Categorization);
+}

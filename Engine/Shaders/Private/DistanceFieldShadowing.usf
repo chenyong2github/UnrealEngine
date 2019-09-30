@@ -519,7 +519,7 @@ void DistanceFieldShadowingCS(
 #endif
 #endif // USE_CULLING
 
-	float Result = 0;
+	float Result = 1.0;
 
 #define COMPUTE_SHADOWING 1
 #if COMPUTE_SHADOWING

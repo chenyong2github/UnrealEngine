@@ -38,6 +38,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/RendererSettings.h"
 #include "Engine/World.h"
+#include "DesktopPlatformModule.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "AI/NavigationSystemBase.h"
 #include "Editor/EditorEngine.h"
@@ -100,6 +101,7 @@
 #include "Engine/LevelStreaming.h"
 #include "Components/ModelComponent.h"
 #include "GameDelegates.h"
+#include "PlatformInfo.h"
 #include "Net/OnlineEngineInterface.h"
 #include "Kismet2/DebuggerCommands.h"
 #include "Misc/ScopeExit.h"
@@ -1992,10 +1994,10 @@ void UEditorEngine::PlayUsingLauncher()
 				return;
 			}
 		}
-		
+
 		// does the project have any code?
 		FGameProjectGenerationModule& GameProjectModule = FModuleManager::LoadModuleChecked<FGameProjectGenerationModule>(TEXT("GameProjectGeneration"));
-		bPlayUsingLauncherHasCode = GameProjectModule.Get().ProjectRequiresBuild(FName(*LaunchPlatformName));
+		bPlayUsingLauncherHasCode = GameProjectModule.Get().ProjectHasCodeFiles();
 
 		const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
 		// Setup launch profile, keep the setting here to a minimum.
@@ -3239,7 +3241,7 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 			ActorsThatWereSelected.Add( Actor );
 
 			AActor* SimActor = EditorUtilities::GetSimWorldCounterpartActor(Actor);
-			if (SimActor && !SimActor->bHidden && bInSimulateInEditor)
+			if (SimActor && !SimActor->IsHidden() && bInSimulateInEditor)
 			{
 				SelectActor( SimActor, true, false );
 			}
@@ -3800,7 +3802,7 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 		if (Actor.IsValid())
 		{
 			AActor* SimActor = EditorUtilities::GetSimWorldCounterpartActor(Actor.Get());
-			if (SimActor && !SimActor->bHidden)
+			if (SimActor && !SimActor->IsHidden())
 			{
 				SelectActor( SimActor, bIsSimulatingInEditor, false );
 			}

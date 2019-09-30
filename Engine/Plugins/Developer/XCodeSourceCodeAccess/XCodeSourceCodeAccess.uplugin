@@ -19,7 +19,7 @@
 	[
 		{
 			"Name" : "XCodeSourceCodeAccess",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default",
 			"WhitelistPlatforms" :
 			[

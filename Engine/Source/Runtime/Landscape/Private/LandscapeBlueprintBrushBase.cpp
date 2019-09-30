@@ -178,6 +178,14 @@ void ALandscapeBlueprintBrushBase::Destroyed()
 #endif
 }
 
+void ALandscapeBlueprintBrushBase::GetRenderDependencies(TSet<UTexture2D *>& OutTextures)
+{
+	TArray<UTexture2D*> BPDependencies;
+	GetBlueprintRenderDependencies(BPDependencies);
+
+	OutTextures.Append(BPDependencies);
+}
+
 void ALandscapeBlueprintBrushBase::SetOwningLandscape(ALandscape* InOwningLandscape)
 {
 #if WITH_EDITORONLY_DATA

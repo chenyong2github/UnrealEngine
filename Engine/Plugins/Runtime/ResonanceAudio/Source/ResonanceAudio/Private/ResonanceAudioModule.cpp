@@ -31,6 +31,7 @@ namespace ResonanceAudio
 	{
 		check(bModuleInitialized == false);
 
+#if RESONANCE_SPAT_ENABLED
 		bModuleInitialized = true;
 
 		// Register the Resonance Audio plugin factories.
@@ -56,16 +57,21 @@ namespace ResonanceAudio
 				GlobalSpatializationSourceSettings->AddToRoot();
 			}
 		}
+#endif // #if RESONANCE_SPAT_ENABLED
 	}
 
 	void FResonanceAudioModule::ShutdownModule()
 	{
+#if RESONANCE_SPAT_ENABLED
 		check(bModuleInitialized == true);
 		bModuleInitialized = false;
+		UE_LOG(LogResonanceAudio, Log, TEXT("Resonance Audio Module is Shutdown"));
+#endif // #if RESONANCE_SPAT_ENABLED
 	}
 
 	IAudioPluginFactory* FResonanceAudioModule::GetPluginFactory(EAudioPlugin PluginType)
 	{
+#if RESONANCE_SPAT_ENABLED
 		switch (PluginType)
 		{
 		case EAudioPlugin::SPATIALIZATION:
@@ -77,6 +83,9 @@ namespace ResonanceAudio
 		default:
 			return nullptr;
 		}
+#else
+		return nullptr;
+#endif // #if RESONANCE_SPAT_ENABLED
 	}
 
 	void FResonanceAudioModule::RegisterAudioDevice(FAudioDevice* AudioDeviceHandle)
@@ -92,6 +101,7 @@ namespace ResonanceAudio
 	void FResonanceAudioModule::UnregisterAudioDevice(FAudioDevice* AudioDeviceHandle)
 	{
 		RegisteredAudioDevices.Remove(AudioDeviceHandle);
+		UE_LOG(LogResonanceAudio, Log, TEXT("Audio Device unregistered from Resonance"));
 	}
 
 	UResonanceAudioSpatializationSourceSettings* FResonanceAudioModule::GetGlobalSpatializationSourceSettings()

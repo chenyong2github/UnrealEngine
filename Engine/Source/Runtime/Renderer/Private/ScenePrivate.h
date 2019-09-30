@@ -843,6 +843,9 @@ public:
 	// if TemporalAA is on this cycles through 0..TemporalAASampleCount-1, ResetViewState() puts it back to 0
 	int8 TemporalAASampleIndex;
 
+	// if TemporalAA is on this cycles through 0..Onwards, ResetViewState() puts it back to 0
+	uint32 TemporalAASampleIndexUnclamped;
+
 	// counts up by one each frame, warped in 0..7 range, ResetViewState() puts it back to 0
 	uint32 FrameIndex;
 	
@@ -990,6 +993,10 @@ public:
 		return TemporalAASampleIndex;
 	}
 
+	virtual uint32 GetCurrentUnclampedTemporalAASampleIndex() const
+	{
+		return TemporalAASampleIndexUnclamped;
+	}
 	// Returns the index of the frame with a desired power of two modulus.
 	inline uint32 GetFrameIndex(uint32 Pow2Modulus) const
 	{
@@ -1007,6 +1014,7 @@ public:
 	virtual void ResetViewState()
 	{
 		TemporalAASampleIndex = 0;
+		TemporalAASampleIndexUnclamped = 0;
 		FrameIndex = 0;
 		DistanceFieldTemporalSampleIndex = 0;
 		PreExposure = 1.f;

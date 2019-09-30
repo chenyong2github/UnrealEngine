@@ -68,7 +68,7 @@ void AGameModeBase::InitGame(const FString& MapName, const FString& Options, FSt
 	OptionsString = Options;
 
 	FActorSpawnParameters SpawnInfo;
-	SpawnInfo.Instigator = Instigator;
+	SpawnInfo.Instigator = GetInstigator();
 	SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save game sessions into a map
 	GameSession = World->SpawnActor<AGameSession>(GetGameSessionClass(), SpawnInfo);
 	GameSession->InitOptions(Options);
@@ -99,7 +99,7 @@ void AGameModeBase::PreInitializeComponents()
 	Super::PreInitializeComponents();
 
 	FActorSpawnParameters SpawnInfo;
-	SpawnInfo.Instigator = Instigator;
+	SpawnInfo.Instigator = GetInstigator();
 	SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save game states or network managers into a map									
 											
 	// Fallback to default GameState if none was specified.
@@ -694,7 +694,7 @@ APlayerController* AGameModeBase::SpawnReplayPlayerController(ENetRole InRemoteR
 APlayerController* AGameModeBase::SpawnPlayerControllerCommon(ENetRole InRemoteRole, FVector const& SpawnLocation, FRotator const& SpawnRotation, TSubclassOf<APlayerController> InPlayerControllerClass)
 {
 	FActorSpawnParameters SpawnInfo;
-	SpawnInfo.Instigator = Instigator;
+	SpawnInfo.Instigator = GetInstigator();
 	SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save player controllers into a map
 	SpawnInfo.bDeferConstruction = true;
 	APlayerController* NewPC = GetWorld()->SpawnActor<APlayerController>(InPlayerControllerClass, SpawnLocation, SpawnRotation, SpawnInfo);
@@ -1162,7 +1162,7 @@ APawn* AGameModeBase::SpawnDefaultPawnFor_Implementation(AController* NewPlayer,
 APawn* AGameModeBase::SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform)
 {
 	FActorSpawnParameters SpawnInfo;
-	SpawnInfo.Instigator = Instigator;
+	SpawnInfo.Instigator = GetInstigator();
 	SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save default player pawns into a map
 	UClass* PawnClass = GetDefaultPawnClassForController(NewPlayer);
 	APawn* ResultPawn = GetWorld()->SpawnActor<APawn>(PawnClass, SpawnTransform, SpawnInfo);

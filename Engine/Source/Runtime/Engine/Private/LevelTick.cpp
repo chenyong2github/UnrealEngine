@@ -1080,6 +1080,24 @@ void UWorld::SendAllEndOfFrameUpdates()
 	EndSendEndOfFrameUpdatesDrawEvent(SendAllEndOfFrameUpdates);
 }
 
+/**
+ * Flush any pending parameter collection updates to the render thrad.
+ */
+void UWorld::FlushDeferredParameterCollectionInstanceUpdates()
+{
+	if ( bMaterialParameterCollectionInstanceNeedsDeferredUpdate )
+	{
+		for (UMaterialParameterCollectionInstance* ParameterCollectionInstance : ParameterCollectionInstances)
+		{
+			if (ParameterCollectionInstance)
+			{
+				ParameterCollectionInstance->DeferredUpdateRenderState(false);
+			}
+		}
+
+		bMaterialParameterCollectionInstanceNeedsDeferredUpdate = false;
+	}
+}
 
 #if !UE_BUILD_SHIPPING
 static class FFileProfileWrapperExec: private FSelfRegisteringExec
@@ -1252,11 +1270,11 @@ extern TMap<FName, int32> CSVActorClassNameToCountMap;
 extern int32 CSVActorTotalCount;
 
 /** Add additional stats to CSV profile for tick and actor counts */
-static void RecordWorldCountsToCSV(UWorld* World)
+static void RecordWorldCountsToCSV(UWorld* World, bool bDoingActorTicks)
 {
 	if(FCsvProfiler::Get()->IsCapturing())
 	{
-		if (CVarRecordTickCountsToCSV.GetValueOnGameThread())
+		if (bDoingActorTicks && CVarRecordTickCountsToCSV.GetValueOnGameThread())
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RecordTickCountsToCSV);
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RecordTickCountsToCSV);
@@ -1739,7 +1757,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 #endif
 
 #if (CSV_PROFILER && !UE_BUILD_SHIPPING)
-	RecordWorldCountsToCSV(this);
+	RecordWorldCountsToCSV(this, bDoingActorTicks);
 #endif // (CSV_PROFILER && !UE_BUILD_SHIPPING)
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

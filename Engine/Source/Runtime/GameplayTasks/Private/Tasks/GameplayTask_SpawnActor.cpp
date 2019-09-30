@@ -17,7 +17,7 @@ UGameplayTask_SpawnActor* UGameplayTask_SpawnActor::SpawnActor(TScriptInterface<
 		AActor* TaskOwnerActor = TaskOwner->GetGameplayTaskOwner(nullptr);
 		if (TaskOwnerActor)
 		{
-			bCanSpawn = (TaskOwnerActor->Role == ROLE_Authority);
+			bCanSpawn = (TaskOwnerActor->GetLocalRole() == ROLE_Authority);
 		}
 		else
 		{

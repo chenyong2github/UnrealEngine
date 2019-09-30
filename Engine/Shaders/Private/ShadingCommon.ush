@@ -24,40 +24,6 @@
 #define ZERO_PRECSHADOW_MASK			(1 << 6)
 #define SKIP_VELOCITY_MASK				(1 << 7)
 
-uint GetShadingModelID()
-{        
-#if MATERIAL_SHADINGMODEL_UNLIT
-	return SHADINGMODELID_UNLIT;
-#elif MATERIAL_SHADINGMODEL_DEFAULT_LIT
-	return SHADINGMODELID_DEFAULT_LIT;
-#elif MATERIAL_SHADINGMODEL_SUBSURFACE
-	return SHADINGMODELID_SUBSURFACE;
-#elif MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN
-	return SHADINGMODELID_PREINTEGRATED_SKIN;
-#elif MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE
-	return SHADINGMODELID_SUBSURFACE_PROFILE;
-#elif MATERIAL_SHADINGMODEL_CLEAR_COAT
-	return SHADINGMODELID_CLEAR_COAT;
-#elif MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-	return SHADINGMODELID_TWOSIDED_FOLIAGE;
-#elif MATERIAL_SHADINGMODEL_HAIR
-	return SHADINGMODELID_HAIR;
-#elif MATERIAL_SHADINGMODEL_CLOTH
-	return SHADINGMODELID_CLOTH;
-#elif MATERIAL_SHADINGMODEL_EYE
-	return SHADINGMODELID_EYE;
-#elif MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-	return SHADINGMODELID_SINGLELAYERWATER;
-#else
-	#if COMPILER_HLSLCC
-		// hlslcc needs a return type
-		return SHADINGMODELID_MASK;
-	#else
-	// missing shading model, compiler should report ShadingModelID is not set
-	#endif
-#endif
-}
-
 // for debugging and to visualize
 float3 GetShadingModelColor(uint ShadingModelID)
 {
@@ -74,6 +40,7 @@ float3 GetShadingModelColor(uint ShadingModelID)
 	else if (ShadingModelID == SHADINGMODELID_HAIR) return float3(0.6f, 0.1f, 0.5f);
 	else if (ShadingModelID == SHADINGMODELID_CLOTH) return float3(0.7f, 1.0f, 1.0f); 
 	else if (ShadingModelID == SHADINGMODELID_EYE) return float3(0.3f, 1.0f, 1.0f); 
+	else if (ShadingModelID == SHADINGMODELID_SINGLELAYERWATER) return float3(0.5f, 0.5f, 1.0f);
 	else return float3(1.0f, 1.0f, 1.0f); // White
 #else
 	switch(ShadingModelID)
@@ -88,6 +55,7 @@ float3 GetShadingModelColor(uint ShadingModelID)
 		case SHADINGMODELID_HAIR: return float3(0.6f, 0.1f, 0.5f);
 		case SHADINGMODELID_CLOTH: return float3(0.7f, 1.0f, 1.0f);
 		case SHADINGMODELID_EYE: return float3(0.3f, 1.0f, 1.0f);
+		case SHADINGMODELID_SINGLELAYERWATER: return float3(0.5f, 0.5f, 1.0f);
 		default: return float3(1.0f, 1.0f, 1.0f); // White
 	}
 #endif

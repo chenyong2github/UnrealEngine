@@ -7,6 +7,9 @@
 #include "Stats/Stats.h"
 #include "VT/VirtualTexturePoolConfig.h"
 
+// Will turn this on when RHI support is reviewed and submitted
+#define VIRTUALTEXTURE_UAV_ALIASING 0
+
 FVirtualTexturePhysicalSpace::FVirtualTexturePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc, uint16 InID)
 	: Description(InDesc)
 	, NumRefs(0u)
@@ -30,7 +33,7 @@ FVirtualTexturePhysicalSpace::FVirtualTexturePhysicalSpace(const FVTPhysicalSpac
 	}
 	const uint32 MaxTiles = (uint32)(PoolSizeInBytes / TileSizeBytes);
 	
-	TextureSizeInTiles = FMath::CeilToInt(FMath::Sqrt((float)MaxTiles));
+	TextureSizeInTiles = FMath::FloorToInt(FMath::Sqrt((float)MaxTiles));
 	if (bForce16BitPageTable)
 	{
 		// 16 bit page tables support max size of 64x64 (4096 tiles)
@@ -57,30 +60,76 @@ FVirtualTexturePhysicalSpace::~FVirtualTexturePhysicalSpace()
 {
 }
 
+EPixelFormat GetUnorderedAccessViewFormat(EPixelFormat InFormat)
+{
+#if VIRTUALTEXTURE_UAV_ALIASING
+	// Use alias formats for compressed textures on APIs where that is possible
+	// This allows us to compress runtime data directly to the physical texture
+	const bool bUAVAliasForCompressedTextures = GRHISupportsUAVFormatAliasing;
+#else
+	const bool bUAVAliasForCompressedTextures = false;
+#endif
+
+	switch (InFormat)
+	{
+	case PF_DXT1: 
+	case PF_BC4: 
+		return bUAVAliasForCompressedTextures ? PF_R32G32_UINT : PF_Unknown;
+	case PF_DXT3: 
+	case PF_DXT5: 
+	case PF_BC5: 
+		return bUAVAliasForCompressedTextures ? PF_R32G32B32A32_UINT : PF_Unknown;
+	}
+
+	return InFormat;
+}
+
 void FVirtualTexturePhysicalSpace::InitRHI()
 {
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 	for (int32 Layer = 0; Layer < Description.NumLayers; ++Layer)
 	{
+		const EPixelFormat FormatSRV = Description.Format[Layer];
+		const EPixelFormat FormatUAV = GetUnorderedAccessViewFormat(FormatSRV);
+		const bool bCreateUAV = FormatUAV != PF_Unknown;
+		const bool bCreateAliasedUAV = bCreateUAV && (FormatUAV != FormatSRV);
+
+		// Allocate physical texture from the render target pool
 		const uint32 TextureSize = GetTextureSize();
 		const FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
 			FIntPoint(TextureSize, TextureSize),
-			Description.Format[Layer],
+			FormatSRV,
 			FClearValueBinding::None,
 			TexCreate_None,
-			TexCreate_ShaderResource | (Description.bCreateRenderTarget ? (TexCreate_RenderTargetable | TexCreate_UAV) : 0),
+			bCreateUAV ? TexCreate_UAV : TexCreate_None,
 			false);
 
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTarget[Layer], TEXT("PhysicalTexture"));
 		FRHITexture* TextureRHI = PooledRenderTarget[Layer]->GetRenderTargetItem().ShaderResourceTexture;
 
-		// Create sRGB/non-sRGB views into the physical texture
-		FRHITextureSRVCreateInfo ViewInfo;
-		TextureView[Layer] = RHICreateShaderResourceView(TextureRHI, ViewInfo);
+		// Create sRGB and non-sRGB shader resource views into the physical texture
+		FRHITextureSRVCreateInfo SRVCreateInfo;
+		SRVCreateInfo.Format = FormatSRV;
+		TextureSRV[Layer] = RHICreateShaderResourceView(TextureRHI, SRVCreateInfo);
 
-		ViewInfo.SRGBOverride = SRGBO_ForceEnable;
-		TextureSRGBView[Layer] = RHICreateShaderResourceView(TextureRHI, ViewInfo);
+		SRVCreateInfo.SRGBOverride = SRGBO_ForceEnable;
+		TextureSRV_SRGB[Layer] = RHICreateShaderResourceView(TextureRHI, SRVCreateInfo);
+
+		if (bCreateUAV)
+		{
+#if VIRTUALTEXTURE_UAV_ALIASING
+			if (bCreateAliasedUAV)
+			{
+				// Specific API for format aliasing. Maybe RHI will unify this in future...
+				TextureUAV[Layer] = RHICreateUnorderedAccessView(TextureRHI, 0, FormatUAV);
+			}
+			else
+#endif
+			{
+				TextureUAV[Layer] = RHICreateUnorderedAccessView(TextureRHI);
+			}
+		}
 	}
 }
 
@@ -89,8 +138,9 @@ void FVirtualTexturePhysicalSpace::ReleaseRHI()
 	for (int32 Layer = 0; Layer < Description.NumLayers; ++Layer)
 	{
 		GRenderTargetPool.FreeUnusedResource(PooledRenderTarget[Layer]);
-		TextureView[Layer].SafeRelease();
-		TextureSRGBView[Layer].SafeRelease();
+		TextureSRV[Layer].SafeRelease();
+		TextureSRV_SRGB[Layer].SafeRelease();
+		TextureUAV[Layer].SafeRelease();
 	}
 }
 

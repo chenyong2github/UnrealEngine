@@ -84,8 +84,7 @@ public:
 	virtual EARTrackingQuality OnGetTrackingQuality() const = 0;
 	
 	/** @return the reason of limited tracking quality; if the state is not limited, return EARTrackingQualityReason::None */
-	// @todo merge-check
-//	virtual EARTrackingQualityReason OnGetTrackingQualityReason() const = 0;
+	virtual EARTrackingQualityReason OnGetTrackingQualityReason() const = 0;
 	
 	/**
 	 * Start the AR system.
@@ -106,7 +105,7 @@ public:
 	virtual FARSessionStatus OnGetARSessionStatus() const = 0;
 	
 	/** Returns true/false based on whether AR features are available */
-//	virtual bool IsARAvailable() const = 0;
+	virtual bool IsARAvailable() const = 0;
 	
 	/**
 	 * Set a transform that will align the Tracking Space origin to the World Space origin.

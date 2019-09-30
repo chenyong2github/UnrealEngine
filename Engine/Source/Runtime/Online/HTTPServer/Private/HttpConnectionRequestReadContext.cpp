@@ -28,7 +28,8 @@ EHttpConnectionContextState FHttpConnectionRequestReadContext::ReadStream(float 
 {
 	ElapsedIdleTime += DeltaTime;
 
-	uint8 ByteBuffer[2 * 1024] = { 0 };
+	const uint32 ByteBufferSize = 1024 * 64; // 64k - safe value to remain under SCA limit (/analyze:stacksize 81940)
+	uint8 ByteBuffer[ByteBufferSize] = { 0 };
 	int32 BytesRead = 0;
 	if (!Socket->Recv(ByteBuffer, sizeof(ByteBuffer) - 1, BytesRead, ESocketReceiveFlags::None))
 	{
@@ -345,7 +346,7 @@ FString FHttpConnectionRequestReadContext::UrlDecode(const FString &EncodedStrin
 
 					ANSICHAR Buffer[8] = { 0 };
 					ANSICHAR* BufferPtr = Buffer;
-					const int32 Len = ARRAY_COUNT(Buffer);
+					const int32 Len = UE_ARRAY_COUNT(Buffer);
 					const int32 WrittenChars = FTCHARToUTF8_Convert::Utf8FromCodepoint(Value, BufferPtr, Len);
 
 					Data.Append(Buffer, WrittenChars);

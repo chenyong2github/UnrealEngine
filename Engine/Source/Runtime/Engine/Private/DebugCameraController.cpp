@@ -43,7 +43,7 @@ ADebugCameraController::ADebugCameraController(const FObjectInitializer& ObjectI
 
 	bIsFrozenRendering = false;
 	DrawFrustum = nullptr;
-	bHidden = false;
+	SetHidden(false);
 #if WITH_EDITORONLY_DATA
 	bHiddenEd = false;
 #endif // WITH_EDITORONLY_DATA
@@ -399,7 +399,7 @@ void ADebugCameraController::PostInitializeComponents()
 	}
 	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.Owner = this;
-	SpawnInfo.Instigator = Instigator;
+	SpawnInfo.Instigator = GetInstigator();
 	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnInfo.ObjectFlags |= RF_Transient;	// We never want these to save into a map
 	MyHUD = GetWorld()->SpawnActor<ADebugCameraHUD>( SpawnInfo );

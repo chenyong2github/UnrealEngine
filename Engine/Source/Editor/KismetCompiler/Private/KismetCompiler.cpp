@@ -137,7 +137,7 @@ FKismetCompilerContext::FKismetCompilerContext(UBlueprint* SourceSketch, FCompil
 	, OldLinker(nullptr)
 	, TargetClass(nullptr)
 	, bAssignDelegateSignatureFunction(false)
-	, bGenerateSubInstanceVariables(false)
+	, bGenerateLinkedAnimGraphVariables(false)
 {
 	MacroRowMaxHeight = 0;
 

@@ -40,9 +40,9 @@ AInfo::AInfo(const FObjectInitializer& ObjectInitializer)
 	bAllowTickBeforeBeginPlay = true;
 	bReplicates = false;
 	NetUpdateFrequency = 10.0f;
-	bHidden = true;
-	bReplicateMovement = false;
-	bCanBeDamaged = false;
+	SetHidden(true);
+	SetReplicatingMovement(false);
+	SetCanBeDamaged(false);
 }
 
 #if WITH_EDITORONLY_DATA

@@ -104,7 +104,7 @@ void ALight::SetEnabled(bool bSetEnabled)
 
 bool ALight::IsEnabled() const
 {
-	return LightComponent ? LightComponent->bVisible : false;
+	return LightComponent ? LightComponent->GetVisibleFlag() : false;
 }
 
 void ALight::ToggleEnabled()
@@ -237,7 +237,7 @@ ADirectionalLight::ADirectionalLight(const FObjectInitializer& ObjectInitializer
 #endif
 	DirectionalLightComponent = CastChecked<UDirectionalLightComponent>(GetLightComponent());
 	DirectionalLightComponent->Mobility = EComponentMobility::Stationary;
-	DirectionalLightComponent->RelativeRotation = FRotator(-46.0f, 0.0f, 0.0f);
+	DirectionalLightComponent->SetRelativeRotation(FRotator(-46.0f, 0.0f, 0.0f));
 	// Make directional light icons big since they tend to be important
 	// This is the root component so its scale affects all other components
 	DirectionalLightComponent->SetRelativeScale3D(FVector(2.5f, 2.5f, 2.5f));

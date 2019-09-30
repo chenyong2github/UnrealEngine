@@ -127,6 +127,7 @@ ANavigationData::ANavigationData(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bEnableDrawing(false)
 	, bForceRebuildOnLoad(false)
+	, bAutoDestroyWhenNoNavigation(true)
 	, bCanBeMainNavData(true)
 	, bCanSpawnOnRebuild(true)
 	, RuntimeGeneration(ERuntimeGenerationType::LegacyGeneration) //TODO: set to a valid value once bRebuildAtRuntime_DEPRECATED is removed
@@ -134,11 +135,12 @@ ANavigationData::ANavigationData(const FObjectInitializer& ObjectInitializer)
 	, FindPathImplementation(NULL)
 	, FindHierarchicalPathImplementation(NULL)
 	, bRegistered(false)
+	, bRebuildingSuspended(false)
 	, NavDataUniqueID(GetNextUniqueID())
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bNetLoadOnClient = false;
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 	DefaultQueryFilter = MakeShareable(new FNavigationQueryFilter());
 	ObservedPathsTickInterval = 0.5;
 
@@ -186,11 +188,11 @@ void ANavigationData::PostInitializeComponents()
 	UWorld* MyWorld = GetWorld();
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(MyWorld);
 
-	if (MyWorld == nullptr ||
+	if (bAutoDestroyWhenNoNavigation && (MyWorld == nullptr ||
 		(MyWorld->GetNetMode() != NM_Client && NavSys == nullptr) ||
-		(MyWorld->GetNetMode() == NM_Client && !bNetLoadOnClient))
+		(MyWorld->GetNetMode() == NM_Client && !bNetLoadOnClient)))
 	{
-		UE_LOG(LogNavigation, Log, TEXT("Marking %s as PendingKill due to %s"), *GetName()
+		UE_VLOG_UELOG(this, LogNavigation, Log, TEXT("Marking %s as PendingKill due to %s"), *GetName()
 			, !MyWorld ? TEXT("No World") : (MyWorld->GetNetMode() == NM_Client ? TEXT("not creating navigation on clients") : TEXT("missing navigation system")));
 		CleanUpAndMarkPendingKill();
 	}
@@ -549,9 +551,35 @@ void ANavigationData::TickAsyncBuild(float DeltaSeconds)
 
 void ANavigationData::RebuildDirtyAreas(const TArray<FNavigationDirtyArea>& DirtyAreas)
 {
-	if (NavDataGenerator.IsValid())
+	if (bRebuildingSuspended)
 	{
-		NavDataGenerator->RebuildDirtyAreas(DirtyAreas);
+		SuspendedDirtyAreas.Append(DirtyAreas);
+	}
+	else
+	{
+		if (NavDataGenerator.IsValid())
+		{
+			NavDataGenerator->RebuildDirtyAreas(DirtyAreas);
+		}
+	}
+}
+
+void ANavigationData::SetRebuildingSuspended(const bool bNewSuspend)
+{
+	if (bRebuildingSuspended != bNewSuspend)
+	{
+		bRebuildingSuspended = bNewSuspend;
+		UE_VLOG_UELOG(this, LogNavigation, Verbose, TEXT("%s nav generation %s")
+			, *GetName(), bNewSuspend ? TEXT("SUSPENDED") : TEXT("ACTIVE"));
+
+		if (bNewSuspend == false && SuspendedDirtyAreas.Num() > 0)
+		{
+			UE_VLOG_UELOG(this, LogNavigation, Verbose, TEXT("%s resuming nav generation with %d dirty areas")
+				, *GetName(), SuspendedDirtyAreas.Num());
+			// resuming the generation so we need to utilize SuspendedDirtyAreas and clean it
+			RebuildDirtyAreas(SuspendedDirtyAreas);
+			SuspendedDirtyAreas.Empty();
+		}
 	}
 }
 
@@ -602,7 +630,7 @@ void ANavigationData::OnNavAreaAdded(const UClass* NavAreaClass, int32 AgentInde
 	const bool bIsMetaArea = DefArea != nullptr && DefArea->IsMetaArea();
 	if (!DefArea || bIsMetaArea || !DefArea->IsSupportingAgent(AgentIndex))
 	{
-		UE_LOG(LogNavigation, Verbose, TEXT("%s discarded area %s (valid:%s meta:%s validAgent[%d]:%s)"),
+		UE_VLOG_UELOG(this, LogNavigation, Verbose, TEXT("%s discarded area %s (valid:%s meta:%s validAgent[%d]:%s)"),
 			*GetName(), *GetNameSafe(NavAreaClass),
 			DefArea ? TEXT("yes") : TEXT("NO"),
 			bIsMetaArea ? TEXT("YES") : TEXT("no"),
@@ -618,7 +646,7 @@ void ANavigationData::OnNavAreaAdded(const UClass* NavAreaClass, int32 AgentInde
 		{
 			SupportedAreas[i].AreaClass = NavAreaClass;
 			AreaClassToIdMap.Add(NavAreaClass, SupportedAreas[i].AreaID);
-			UE_LOG(LogNavigation, Verbose, TEXT("%s updated area %s with ID %d"), *GetName(), *AreaClassName, SupportedAreas[i].AreaID);
+			UE_VLOG_UELOG(this, LogNavigation, Verbose, TEXT("%s updated area %s with ID %d"), *GetName(), *AreaClassName, SupportedAreas[i].AreaID);
 			return;
 		}
 	}
@@ -627,7 +655,7 @@ void ANavigationData::OnNavAreaAdded(const UClass* NavAreaClass, int32 AgentInde
 	const int32 MaxSupported = GetMaxSupportedAreas();
 	if (SupportedAreas.Num() >= MaxSupported)
 	{
-		UE_LOG(LogNavigation, Error, TEXT("%s can't support area %s - limit reached! (%d)"), *GetName(), *AreaClassName, MaxSupported);
+		UE_VLOG_UELOG(this, LogNavigation, Error, TEXT("%s can't support area %s - limit reached! (%d)"), *GetName(), *AreaClassName, MaxSupported);
 		return;
 	}
 
@@ -638,7 +666,7 @@ void ANavigationData::OnNavAreaAdded(const UClass* NavAreaClass, int32 AgentInde
 	SupportedAreas.Add(NewAgentData);
 	AreaClassToIdMap.Add(NavAreaClass, NewAgentData.AreaID);
 
-	UE_LOG(LogNavigation, Verbose, TEXT("%s registered area %s with ID %d"), *GetName(), *AreaClassName, NewAgentData.AreaID);
+	UE_VLOG_UELOG(this, LogNavigation, Verbose, TEXT("%s registered area %s with ID %d"), *GetName(), *AreaClassName, NewAgentData.AreaID);
 }
 
 void ANavigationData::OnNavAreaEvent(const UClass* NavAreaClass, ENavAreaEvent::Type Event)
@@ -771,7 +799,7 @@ uint32 ANavigationData::LogMemUsed() const
 	const uint32 MemUsed = ActivePaths.GetAllocatedSize() + SupportedAreas.GetAllocatedSize() +
 		QueryFilters.GetAllocatedSize() + AreaClassToIdMap.GetAllocatedSize();
 
-	UE_LOG(LogNavigation, Display, TEXT("%s: ANavigationData: %u\n    self: %d"), *GetName(), MemUsed, sizeof(ANavigationData));	
+	UE_VLOG_UELOG(this, LogNavigation, Display, TEXT("%s: ANavigationData: %u\n    self: %d"), *GetName(), MemUsed, sizeof(ANavigationData));
 
 	if (NavDataGenerator.IsValid())
 	{

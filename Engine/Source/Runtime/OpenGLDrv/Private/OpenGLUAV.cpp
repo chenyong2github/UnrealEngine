@@ -138,6 +138,7 @@ FOpenGLTextureUnorderedAccessView::FOpenGLTextureUnorderedAccessView(FRHITexture
 
 	this->Resource = Texture->Resource;
 	this->Format = GLFormat.InternalFormat[0];
+	this->bLayered = (Texture->Target == GL_TEXTURE_3D);
 }
 
 

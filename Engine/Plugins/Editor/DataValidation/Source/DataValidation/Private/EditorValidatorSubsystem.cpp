@@ -277,12 +277,13 @@ void UEditorValidatorSubsystem::ValidateOnSave(TArray<FAssetData> AssetDataList)
 		return;
 	}
 
-	FMessageLog DataValidationLog("DataValidation");
+	FMessageLog DataValidationLog("AssetCheck");
+	FText SavedAsset = AssetDataList.Num() == 1 ? FText::FromName(AssetDataList[0].AssetName) : LOCTEXT("MultipleErrors", "multiple assets");
+	DataValidationLog.NewPage(FText::Format(LOCTEXT("DataValidationLogPage", "Asset Save: {0}"), SavedAsset));
 	if (ValidateAssets(AssetDataList, true, false) > 0)
 	{
 		const FText ErrorMessageNotification = FText::Format(
-			LOCTEXT("ValidationFailureNotification", "Validation failed when saving {0}, check Data Validation log"),
-			AssetDataList.Num() == 1 ? FText::FromName(AssetDataList[0].AssetName) : LOCTEXT("MultipleErrors", "multiple assets"));
+			LOCTEXT("ValidationFailureNotification", "Validation failed when saving {0}, check Data Validation log"), SavedAsset);
 		DataValidationLog.Notify(ErrorMessageNotification, EMessageSeverity::Warning, /*bForce=*/ true);
 	}
 }

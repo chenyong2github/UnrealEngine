@@ -107,7 +107,7 @@ AFunctionalTest::AFunctionalTest( const FObjectInitializer& ObjectInitializer )
 	PrimaryActorTick.bStartWithTickEnabled = false;
 	PrimaryActorTick.bTickEvenWhenPaused = true;
 	
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 
 	SpriteComponent = CreateDefaultSubobject<UBillboardComponent>(TEXT("Sprite"));
 	if (SpriteComponent)

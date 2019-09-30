@@ -59,6 +59,7 @@ void FTextureSourceData::Init(UTexture& InTexture, const FTextureBuildSettings* 
 		switch (InTexture.Source.GetFormat(LayerIndex))
 		{
 		case TSF_G8:		LayerData->ImageFormat = ERawImageFormat::G8;		break;
+		case TSF_G16:		LayerData->ImageFormat = ERawImageFormat::G16;		break;
 		case TSF_BGRA8:		LayerData->ImageFormat = ERawImageFormat::BGRA8;	break;
 		case TSF_BGRE8:		LayerData->ImageFormat = ERawImageFormat::BGRE8;	break;
 		case TSF_RGBA16:	LayerData->ImageFormat = ERawImageFormat::RGBA16;	break;
@@ -449,7 +450,8 @@ void FTextureCacheDerivedDataWorker::DoWork()
 			CompositeTextureData.GetAsyncSourceMips(ImageWrapper);
 		}
 
-		if (TextureData.Blocks[0].MipsPerLayer[0].Num() && (!CompositeTextureData.IsValid() || CompositeTextureData.Blocks[0].MipsPerLayer[0].Num()))
+		if (TextureData.Blocks.Num() && TextureData.Blocks[0].MipsPerLayer.Num() && TextureData.Blocks[0].MipsPerLayer[0].Num() && 
+			(!CompositeTextureData.IsValid() || (CompositeTextureData.Blocks.Num() && CompositeTextureData.Blocks[0].MipsPerLayer.Num() && CompositeTextureData.Blocks[0].MipsPerLayer[0].Num())))
 		{
 			BuildTexture();
 			bSucceeded = true;

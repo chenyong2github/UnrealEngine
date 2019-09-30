@@ -40,7 +40,7 @@ ANiagaraActor::ANiagaraActor(const FObjectInitializer& ObjectInitializer)
 		if (SpriteComponent)
 		{
 			SpriteComponent->Sprite = ConstructorStatics.SpriteTextureObject.Get();
-			SpriteComponent->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+			SpriteComponent->SetRelativeScale3D_Direct(FVector(0.5f, 0.5f, 0.5f));
 			SpriteComponent->bHiddenInGame = true;
 			SpriteComponent->bIsScreenSizeScaled = true;
 			SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_Effects;
@@ -59,7 +59,7 @@ ANiagaraActor::ANiagaraActor(const FObjectInitializer& ObjectInitializer)
 			ArrowComponent->SpriteInfo.Category = ConstructorStatics.ID_Effects;
 			ArrowComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Effects;
 			ArrowComponent->SetupAttachment(NiagaraComponent);
-			ArrowComponent->bAbsoluteScale = true;
+			ArrowComponent->SetUsingAbsoluteScale(true);
 		}
 	}
 #endif // WITH_EDITORONLY_DATA

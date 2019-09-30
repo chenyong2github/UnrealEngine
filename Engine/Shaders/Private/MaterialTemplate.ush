@@ -287,6 +287,15 @@ struct FMaterialPixelParameters
 	// Index into View.PrimitiveSceneData
 	uint PrimitiveId;
 
+	// Actual primitive Id
+#if VF_STRAND_HAIR
+	uint HairPrimitiveId;
+	float2 HairUV;			// U: parametric coord along the length V: parametric coord along the width)
+	float2 HairDimensions;  // X: Length, Y: Radius
+	float  HairSeed;		// [0,1] quantized on 8bits
+	float2 HairRootUV;		// [0,1]^2	8bits
+#endif
+
 	/** Per-particle properties. Only valid for particle vertex factories. */
 	FMaterialParticleParameters Particle;
 
@@ -313,6 +322,10 @@ struct FMaterialPixelParameters
 
 #if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
 	FVirtualTextureFeedbackParams VirtualTextureFeedback;
+#endif
+
+#if WATER_MESH_FACTORY
+	uint WaterWaveParamIndex;
 #endif
 };
 
@@ -389,6 +402,10 @@ struct FMaterialVertexParameters
 
 	// Index into View.PrimitiveSceneData
 	uint PrimitiveId;
+
+#if WATER_MESH_FACTORY
+	uint WaterWaveParamIndex;
+#endif
 };
 
 /**
@@ -521,6 +538,24 @@ float2 GetViewportUV(FMaterialPixelParameters Parameters)
 
 #endif
 
+float GetWaterWaveParamIndex(FMaterialPixelParameters Parameters)
+{
+#if WATER_MESH_FACTORY
+	return (float)Parameters.WaterWaveParamIndex;
+#else
+	return 0.0f;
+#endif
+}
+
+float GetWaterWaveParamIndex(FMaterialVertexParameters Parameters)
+{
+#if WATER_MESH_FACTORY
+	return (float)Parameters.WaterWaveParamIndex;
+#else
+	return 0.0f;
+#endif
+}
+
 // Returns whether a scene texture id is a for a post process input or not.
 bool IsPostProcessInputSceneTexture(const uint SceneTextureId)
 {
@@ -560,7 +595,7 @@ float4 GetSceneTextureUVMinMax(const uint SceneTextureId)
 	if (IsPostProcessInputSceneTexture(SceneTextureId))
 	{
 		switch (SceneTextureId)
-		{
+	{
 		case PPI_PostProcessInput0:
 			return float4(PostProcessInput_0_UVViewportBilinearMin, PostProcessInput_0_UVViewportBilinearMax);
 		case PPI_PostProcessInput1:
@@ -626,10 +661,10 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 {
 	#if POST_PROCESS_MATERIAL
 	if (IsPostProcessInputSceneTexture(SceneTextureId))
-	{
-		return ViewportUVToSceneTextureUV(GetViewportUV(Parameters), SceneTextureId);
-	}
-	#endif
+		{
+			return ViewportUVToSceneTextureUV(GetViewportUV(Parameters), SceneTextureId);
+		}
+		#endif
 
 	return GetSceneTextureUV(Parameters);
 }
@@ -962,6 +997,47 @@ float3 MaterialExpressionBlackBody( float Temp )
 	};
 
 	return mul( XYZtoRGB, float3( X, Y, Z ) ) * pow( 0.0004 * Temp, 4 );
+}
+
+float2 MaterialExpressionGetHairRootUV(FMaterialPixelParameters Parameters)
+{
+#if VF_STRAND_HAIR
+	return Parameters.HairRootUV;
+#else
+	return float2(0, 0);
+#endif
+}
+
+float2 MaterialExpressionGetHairUV(FMaterialPixelParameters Parameters)
+{	
+#if VF_STRAND_HAIR
+	return Parameters.HairUV;
+#else
+	return float2(0,0);
+#endif
+}
+
+float2 MaterialExpressionGetHairDimensions(FMaterialPixelParameters Parameters)
+{
+#if VF_STRAND_HAIR
+	return Parameters.HairDimensions; // Length | Radius
+#else
+	return float2(0, 0);
+#endif
+}
+
+float MaterialExpressionGetHairSeed(FMaterialPixelParameters Parameters)
+{
+#if VF_STRAND_HAIR
+	return Parameters.HairSeed;
+#else
+	return 0;
+#endif
+}
+
+float3 MaterialExpressionGetHairTangent(FMaterialPixelParameters Parameters)
+{
+	return Parameters.TangentToWorld[2];
 }
 
 float4 MaterialExpressionAtmosphericFog(FMaterialPixelParameters Parameters, float3 AbsoluteWorldPosition)
@@ -2334,7 +2410,7 @@ half3x3 AssembleTangentToWorld( half3 TangentToWorld0, half4 TangentToWorld2 )
 
 // Whether to use the hidden d3d11 feature that supports depth writes with ZCull by only pushing into the screen
 //@todo - use for other SM5 platforms
-#define SUPPORTS_CONSERVATIVE_DEPTH_WRITES ((COMPILER_HLSL && FEATURE_LEVEL >= FEATURE_LEVEL_SM5) || (PS4_PROFILE) || (COMPILER_METAL && FEATURE_LEVEL >= FEATURE_LEVEL_SM5))
+#define SUPPORTS_CONSERVATIVE_DEPTH_WRITES ((COMPILER_HLSL && FEATURE_LEVEL >= FEATURE_LEVEL_SM5) || (PS4_PROFILE) || (COMPILER_METAL && FEATURE_LEVEL >= FEATURE_LEVEL_SM5) || SWITCH_PROFILE || SWITCH_PROFILE_FORWARD)
 #define USE_CONSERVATIVE_DEPTH_WRITES (OUTPUT_PIXEL_DEPTH_OFFSET && SUPPORTS_CONSERVATIVE_DEPTH_WRITES) 
 
 #if USE_CONSERVATIVE_DEPTH_WRITES
@@ -2350,6 +2426,9 @@ half3x3 AssembleTangentToWorld( half3 TangentToWorld0, half4 TangentToWorld2 )
 #elif PS4_PROFILE
 	#define INPUT_POSITION_QUALIFIERS
 	#define DEPTH_WRITE_SEMANTIC S_DEPTH_LE_OUTPUT
+#elif SWITCH_PROFILE || SWITCH_PROFILE_FORWARD
+	#define INPUT_POSITION_QUALIFIERS
+	#define DEPTH_WRITE_SEMANTIC SV_DepthLessEqual
 #else
 	#error USE_CONSERVATIVE_DEPTH_WRITES enabled for unsupported platform
 #endif

@@ -209,7 +209,7 @@ bool FIOSTargetPlatform::IsSdkInstalled(bool bProjectHasCode, FString& OutTutori
 	return biOSSDKInstalled;
 }
 
-int32 FIOSTargetPlatform::CheckRequirements(const FString& ProjectPath, bool bProjectHasCode, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const
+int32 FIOSTargetPlatform::CheckRequirements(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const
 {
 	OutDocumentationPath = TEXT("Platforms/iOS/QuickStart/6");
 
@@ -229,7 +229,9 @@ int32 FIOSTargetPlatform::CheckRequirements(const FString& ProjectPath, bool bPr
 			OutTutorialPath = FString("/Engine/Tutorial/Mobile/iOSonPCRestrictions.iOSonPCRestrictions");
 			bReadyToBuild |= ETargetPlatformReadyStatus::CodeUnsupported;
 		}
-		if (!IProjectManager::Get().HasDefaultPluginSettings())
+
+		FText Reason;
+		if (RequiresTempTarget(bProjectHasCode, Configuration, bRequiresAssetNativization, Reason))
 		{
 			OutTutorialPath = FString("/Engine/Tutorial/Mobile/iOSonPCValidPlugins.iOSonPCValidPlugins");
 			bReadyToBuild |= ETargetPlatformReadyStatus::PluginsUnsupported;
@@ -253,6 +255,7 @@ int32 FIOSTargetPlatform::CheckRequirements(const FString& ProjectPath, bool bPr
 	FString TeamID;
 	GConfig->GetString(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("IOSTeamID"), TeamID, GEngineIni);
 
+	FString ProjectPath = FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath());
 #if PLATFORM_MAC
     FString CmdExe = TEXT("/bin/sh");
     FString ScriptPath = FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / TEXT("Build/BatchFiles/Mac/RunMono.sh"));
@@ -622,7 +625,7 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 		TArray<FName> TextureFormatNamesASTC(TextureFormatNames);
 		for (FName& TextureFormatName : TextureFormatNamesASTC)
 		{
-			for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); RemapIndex += 3)
+			for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 3)
 			{
 				if (TextureFormatName == FormatRemap[RemapIndex])
 				{
@@ -639,7 +642,7 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 		TArray<FName> TextureFormatNamesPVRTC(TextureFormatNames);
 		for (FName& TextureFormatName : TextureFormatNamesPVRTC)
 		{
-			for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); RemapIndex += 3)
+			for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 3)
 			{
 				if (TextureFormatName == FormatRemap[RemapIndex])
 				{
@@ -671,7 +674,7 @@ void FIOSTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 
 	GetAllDefaultTextureFormats(this, OutFormats, false);
 
-	for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); RemapIndex += 3)
+	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 3)
 	{
 		OutFormats.Remove(FormatRemap[RemapIndex+0]);
 	}
@@ -679,14 +682,14 @@ void FIOSTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 	// include the formats we want (use ASTC first so that it is preferred at runtime if they both exist and it's supported)
 	if (bIncludeASTC)
 	{
-		for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); RemapIndex += 3)
+		for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 3)
 		{
 			OutFormats.AddUnique(FormatRemap[RemapIndex + 2]);
 		}
 	}
 	if (bIncludePVRTC)
 	{
-		for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); RemapIndex += 3)
+		for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 3)
 		{
 			OutFormats.AddUnique(FormatRemap[RemapIndex + 1]);
 		}

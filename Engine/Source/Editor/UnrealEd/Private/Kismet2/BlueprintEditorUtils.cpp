@@ -116,7 +116,7 @@
 #include "BaseWidgetBlueprint.h"
 #include "Components/Widget.h"
 #include "UObject/UObjectThreadContext.h"
-#include "AnimGraphNode_SubInput.h"
+#include "AnimGraphNode_LinkedInputPose.h"
 #include "AnimGraphNode_Root.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
@@ -6118,12 +6118,12 @@ void FBlueprintEditorUtils::PromoteGraphFromInterfaceOverride(UBlueprint* InBlue
 		}
 	}
 
-	// Promote any animation sub-inputs
-	TArray<UAnimGraphNode_SubInput*> SubInputNodes;
-	InInterfaceGraph->GetNodesOfClass(SubInputNodes);
-	for (UAnimGraphNode_SubInput* SubInput : SubInputNodes)
+	// Promote any animation linked input poses
+	TArray<UAnimGraphNode_LinkedInputPose*> LinkedInputPoseNodes;
+	InInterfaceGraph->GetNodesOfClass(LinkedInputPoseNodes);
+	for (UAnimGraphNode_LinkedInputPose* LinkedInputPoseNode : LinkedInputPoseNodes)
 	{
-		SubInput->PromoteFromInterfaceOverride();
+		LinkedInputPoseNode->PromoteFromInterfaceOverride();
 	}
 }
 
@@ -6524,6 +6524,12 @@ void FBlueprintEditorUtils::ConformImplementedEvents(UBlueprint* Blueprint)
 /** Helper function for ConformImplementedInterfaces */
 static void ConformInterfaceByGUID(const UBlueprint* Blueprint, const FBPInterfaceDescription& CurrentInterfaceDesc)
 {
+	// Conform anim layers before interface graphs as GUIDs may need to be set up in older assets.
+	if (const UAnimBlueprint * AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
+	{
+		UAnimationGraphSchema::ConformAnimLayersByGuid(AnimBlueprint, CurrentInterfaceDesc);
+	}
+
 	// Attempt to conform by GUID if we have a blueprint interface
 	// This just make sure that GUID-linked functions preserve their names
 	const UBlueprint* InterfaceBlueprint = CastChecked<UBlueprint>(CurrentInterfaceDesc.Interface->ClassGeneratedBy);

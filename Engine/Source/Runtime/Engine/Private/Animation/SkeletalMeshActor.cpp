@@ -169,7 +169,7 @@ void ASkeletalMeshActor::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 	// grab the current mesh for replication
-	if (Role == ROLE_Authority && SkeletalMeshComponent)
+	if (GetLocalRole() == ROLE_Authority && SkeletalMeshComponent)
 	{
 		ReplicatedMesh = SkeletalMeshComponent->SkeletalMesh;
 	}
@@ -291,7 +291,7 @@ void ASkeletalMeshActor::LoadedFromAnotherClass(const FName& OldClassName)
 			SkeletalMeshComponent->bBlendPhysics = true;
 
 			bAlwaysRelevant = true;
-			bReplicateMovement = true;
+			SetReplicatingMovement(true);
 			SetRemoteRoleForBackwardsCompat(ROLE_SimulatedProxy);
 			bReplicates = true;
 		}

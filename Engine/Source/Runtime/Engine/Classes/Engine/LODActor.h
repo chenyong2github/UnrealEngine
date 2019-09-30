@@ -238,6 +238,9 @@ public:
 	/** Returns instanced static mesh components that represents the imposters found in this LODActor. */
 	TArray<UInstancedStaticMeshComponent*> GetImpostersStaticMeshComponents() const { TArray<UInstancedStaticMeshComponent*> ISM; ImpostersStaticMeshComponents.GenerateValueArray(ISM); return ISM; }
 
+	/** Returns an array of distances that are used to override individual LOD actors min draw distances. */
+	static const TArray<float>& GetHLODDistanceOverride();
+
 private:
 	// Called when CVars are changed to check to see if the maximum HLOD level value has changed
 	static void OnCVarsChanged();

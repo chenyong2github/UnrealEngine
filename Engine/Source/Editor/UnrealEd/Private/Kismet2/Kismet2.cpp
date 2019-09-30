@@ -1209,17 +1209,17 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, TAr
 
 				const FTransform ComponentToWorld = SceneComponent->GetComponentTransform();
 				const FTransform RelativeTransform = ComponentToWorld.GetRelativeTransform(FirstAttachParent->GetComponentTransform());
-				if (!SceneComponent->bAbsoluteLocation)
+				if (!SceneComponent->IsUsingAbsoluteLocation())
 				{
-					SceneComponentTemplate->RelativeLocation = RelativeTransform.GetLocation();
+					SceneComponentTemplate->SetRelativeLocation_Direct(RelativeTransform.GetLocation());
 				}
-				if (!SceneComponent->bAbsoluteRotation)
+				if (!SceneComponent->IsUsingAbsoluteRotation())
 				{
-					SceneComponentTemplate->RelativeRotation = RelativeTransform.GetRotation().Rotator();
+					SceneComponentTemplate->SetRelativeRotation_Direct(RelativeTransform.GetRotation().Rotator());
 				}
-				if (!SceneComponent->bAbsoluteScale)
+				if (!SceneComponent->IsUsingAbsoluteScale())
 				{
-					SceneComponentTemplate->RelativeScale3D = RelativeTransform.GetScale3D();
+					SceneComponentTemplate->SetRelativeScale3D_Direct(RelativeTransform.GetScale3D());
 				}
 			}
 		}
@@ -1302,8 +1302,8 @@ struct FResetSceneComponentAfterCopy
 private:
 	static void Reset(USceneComponent* Component)
 	{
-		Component->RelativeLocation = FVector::ZeroVector;
-		Component->RelativeRotation = FRotator::ZeroRotator;
+		Component->SetRelativeLocation_Direct(FVector::ZeroVector);
+		Component->SetRelativeRotation_Direct(FRotator::ZeroRotator);
 
 		// Clear out the attachment info after having copied the properties from the source actor
 		Component->SetupAttachment(nullptr);
@@ -1355,7 +1355,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FName Bluepri
 					// Copy relative scale from source to target.
 					if (USceneComponent* SrcSceneRoot = Actor->GetRootComponent())
 					{
-						DstSceneRoot->RelativeScale3D = SrcSceneRoot->RelativeScale3D;
+						DstSceneRoot->SetRelativeScale3D_Direct(SrcSceneRoot->GetRelativeScale3D());
 					}
 				}
 			}

@@ -59,9 +59,12 @@ static FAutoConsoleVariableRef CVarBindAutomatically(TEXT("mns.BindAutomatically
 // ============================================================================================
 
 static bool ForceMispredict = false;
-void FMockNetworkSimulation::Update(IMockNetworkSimulationDriver* Driver, const TSimTime& DeltaTimeMS, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState)
+
+const FName FMockNetworkSimulation::GroupName(TEXT("Mock"));
+
+void FMockNetworkSimulation::Update(IMockDriver* Driver, const float DeltaTimeSeconds, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState)
 {
-	OutputState.Total = InputState.Total + (InputCmd.InputValue * AuxState.Multiplier * DeltaTimeMS.ToRealTimeSeconds());
+	OutputState.Total = InputState.Total + (InputCmd.InputValue * AuxState.Multiplier * DeltaTimeSeconds);
 
 	// Dev hack to force mispredict
 	if (ForceMispredict)
@@ -74,7 +77,7 @@ void FMockNetworkSimulation::Update(IMockNetworkSimulationDriver* Driver, const 
 	}
 }
 
-void FMockSyncState::VisualLog(const FVisualLoggingParameters& Parameters, IMockNetworkSimulationDriver* Driver, IMockNetworkSimulationDriver* LogDriver)
+void FMockSyncState::VisualLog(const FVisualLoggingParameters& Parameters, IMockDriver* Driver, IMockDriver* LogDriver) const
 {
 	// This function is awkward because the mock example doesn't include any positional data, so we added an explicit ::GetDebugWorldTransform to the driver interface.
 	// still, this doesn't give us historical location info. So we will just use Z offset based on the EvisualLoggingContext to space things out.
@@ -110,7 +113,7 @@ UMockNetworkSimulationComponent::UMockNetworkSimulationComponent()
 
 	bWantsInitializeComponent = true;
 	bAutoActivate = true;
-	bReplicates = true;
+	SetIsReplicatedByDefault(true);
 
 	bWantsInitializeComponent = true;
 
@@ -129,60 +132,29 @@ UMockNetworkSimulationComponent::UMockNetworkSimulationComponent()
 	}
 }
 
-IReplicationProxy* UMockNetworkSimulationComponent::InstantiateNetworkSimulation()
+INetworkSimulationModel* UMockNetworkSimulationComponent::InstantiateNetworkSimulation()
 {
-	NetworkSim.Reset(new FMockNetworkSimulation());
-
-#if NETSIM_MODEL_DEBUG
-	FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NetworkSim.Get(), (IMockNetworkSimulationDriver*)this, GetOwner(), TEXT("MockNetworkSimulation"));
-#endif
-	return NetworkSim.Get();
-}
-
-// Child classes should override this an initialize their NetworkSim here
-void UMockNetworkSimulationComponent::InitializeForNetworkRole(ENetRole Role)
-{	
-	NetworkSim->InitializeForNetworkRole(Role, GetSimulationInitParameters(Role));
+	auto* NewSim = new FMockNetworkModel(this);
+	DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
+	return NewSim;
 }
 
 void UMockNetworkSimulationComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
-	CheckOwnerRoleChange();
-
 	const ENetRole OwnerRole = GetOwnerRole();
-	
-	// -------------------------------------
-	// Tick the network sim
-	// -------------------------------------
-	if (NetworkSim)
+
+	// Check if we should trip a mispredict. (Note how its not possible to do this inside the Update function!)
+	if (OwnerRole == ROLE_Authority && MockNetworkSimCVars::RequestMispredict)
 	{
-		PreTickSimulation(DeltaTime); // Fixme
-
-		// Check if we should trip a mispredict. (Note how its not possible to do this inside the Update function!)
-		if (OwnerRole == ROLE_Authority && MockNetworkSimCVars::RequestMispredict)
-		{
-			ForceMispredict = true;
-			MockNetworkSimCVars::RequestMispredict = 0;
-		}
-		
-		FMockNetworkSimulation::FTickParameters Parameters(DeltaTime, GetOwner());
-
-		// Tick the core network sim, this will consume input and generate new sync state
-		NetworkSim->Tick((IMockNetworkSimulationDriver*)this, Parameters);
-
-		// Client->Server communication
-		if (NetworkSim->ShouldSendServerRPC(OwnerRole, DeltaTime))
-		{
-			FServerReplicationRPCParameter ProxyParameter(ReplicationProxy_ServerRPC);
-			ServerRecieveClientInput(ProxyParameter);
-		}
+		ForceMispredict = true;
+		MockNetworkSimCVars::RequestMispredict = 0;
 	}
 	
 	// Mock example of displaying
 	DrawDebugString( GetWorld(), GetOwner()->GetActorLocation() + FVector(0.f,0.f,100.f), *LexToString(MockValue), nullptr, FColor::White, 0.00001f );
 }
 
-void UMockNetworkSimulationComponent::ProduceInput(const FMockNetworkSimulation::TSimTime& SimFrameTime, FMockInputCmd& Cmd)
+void UMockNetworkSimulationComponent::ProduceInput(const FNetworkSimTime SimTime, FMockInputCmd& Cmd)
 {
 	if (MockNetworkSimCVars::DoLocalInput)
 	{

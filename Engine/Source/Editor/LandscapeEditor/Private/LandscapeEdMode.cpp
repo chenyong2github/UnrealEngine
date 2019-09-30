@@ -305,6 +305,7 @@ FEdModeLandscape::FEdModeLandscape()
 	, CopyPasteTool(nullptr)
 	, SplinesTool(nullptr)
 	, LandscapeRenderAddCollision(nullptr)
+	, TargetLayerStartingIndex(0)
 	, CachedLandscapeMaterial(nullptr)
 	, ToolActiveViewport(nullptr)
 	, bIsPaintingInVR(false)
@@ -317,6 +318,7 @@ FEdModeLandscape::FEdModeLandscape()
 	GSelectionRegionMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/SelectBrushMaterial_SelectedRegion.SelectBrushMaterial_SelectedRegion")));
 	GMaskRegionMaterial      = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/MaskBrushMaterial_MaskedRegion.MaskBrushMaterial_MaskedRegion")));
 	GColorMaskRegionMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/ColorMaskBrushMaterial_MaskedRegion.ColorMaskBrushMaterial_MaskedRegion")));
+	GLandscapeDirtyMaterial		 = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorLandscapeResources/LandscapeDirtyMaterial.LandscapeDirtyMaterial")));
 	GLandscapeBlackTexture   = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/Black.Black"));
 	GLandscapeLayerUsageMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorLandscapeResources/LandscapeLayerUsageMaterial.LandscapeLayerUsageMaterial")));
 	
@@ -389,6 +391,7 @@ FEdModeLandscape::~FEdModeLandscape()
 	GColorMaskRegionMaterial = NULL;
 	GLandscapeBlackTexture = NULL;
 	GLandscapeLayerUsageMaterial = NULL;
+	GLandscapeDirtyMaterial = NULL;
 
 	InteractorPainting = nullptr;
 }
@@ -408,6 +411,7 @@ void FEdModeLandscape::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject(GColorMaskRegionMaterial);
 	Collector.AddReferencedObject(GLandscapeBlackTexture);
 	Collector.AddReferencedObject(GLandscapeLayerUsageMaterial);
+	Collector.AddReferencedObject(GLandscapeDirtyMaterial);
 }
 
 void FEdModeLandscape::UpdateToolModes()
@@ -2633,10 +2637,11 @@ bool FEdModeLandscape::CanEditCurrentTarget(FText* Reason) const
 		return false;
 	}
 
+	ALandscapeProxy* Proxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
+
 	// Landscape Layer Editing not available without a loaded Landscape Actor
 	if (GetLandscape() == nullptr)
 	{
-		ALandscapeProxy* Proxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
 		if (!Proxy)
 		{
             LocalReason = NSLOCTEXT("UnrealEd", "LandscapeNotFound", "No Landscape found.");
@@ -2648,6 +2653,14 @@ bool FEdModeLandscape::CanEditCurrentTarget(FText* Reason) const
 			LocalReason = NSLOCTEXT("UnrealEd", "LandscapeActorNotLoaded", "Landscape actor is not loaded. It is needed to do layer editing.");
 			return false;
 		}
+
+	}
+	
+	// To edit a Landscape with layers all components need to be registered
+	if(Proxy && Proxy->HasLayersContent() && !CurrentToolTarget.LandscapeInfo->AreAllComponentsRegistered())
+	{
+		LocalReason = NSLOCTEXT("UnrealEd", "LandscapeMissingComponents", "Landscape has some unregistered components (hidden levels).");
+		return false;
 	}
 
 	return true;

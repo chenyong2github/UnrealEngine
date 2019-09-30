@@ -605,7 +605,7 @@ COREUOBJECT_API uint8 GRegisterNative( int32 NativeBytecodeIndex, const FNativeF
 	if (!bInitialized)
 	{
 		bInitialized = true;
-		for (uint32 i = 0; i < ARRAY_COUNT(GNatives); i++)
+		for (uint32 i = 0; i < UE_ARRAY_COUNT(GNatives); i++)
 		{
 			GNatives[i] = &UObject::execUndefined;
 		}
@@ -613,7 +613,7 @@ COREUOBJECT_API uint8 GRegisterNative( int32 NativeBytecodeIndex, const FNativeF
 
 	if( NativeBytecodeIndex != INDEX_NONE )
 	{
-		if( NativeBytecodeIndex<0 || (uint32)NativeBytecodeIndex>ARRAY_COUNT(GNatives) || GNatives[NativeBytecodeIndex]!=&UObject::execUndefined) 
+		if( NativeBytecodeIndex<0 || (uint32)NativeBytecodeIndex>UE_ARRAY_COUNT(GNatives) || GNatives[NativeBytecodeIndex]!=&UObject::execUndefined) 
 		{
 #if WITH_HOT_RELOAD
 			if (GIsHotReload)
@@ -641,7 +641,7 @@ COREUOBJECT_API uint8 GRegisterCast( int32 CastCode, const FNativeFuncPtr& Func 
 	if (!bInitialized)
 	{
 		bInitialized = true;
-		for (uint32 i = 0; i < ARRAY_COUNT(GCasts); i++)
+		for (uint32 i = 0; i < UE_ARRAY_COUNT(GCasts); i++)
 		{
 			GCasts[i] = &UObject::execUndefined;
 		}
@@ -656,7 +656,7 @@ COREUOBJECT_API uint8 GRegisterCast( int32 CastCode, const FNativeFuncPtr& Func 
 #if WITH_HOT_RELOAD
 			!GIsHotReload && 
 #endif
-			(CastCode<0 || (uint32)CastCode>ARRAY_COUNT(GCasts) || GCasts[CastCode]!=&UObject::execUndefined) ) 
+			(CastCode<0 || (uint32)CastCode>UE_ARRAY_COUNT(GCasts) || GCasts[CastCode]!=&UObject::execUndefined) ) 
 		{
 			GCastDuplicate = CastCode;
 		}

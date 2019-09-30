@@ -383,8 +383,9 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 				bool bUpdated = false;
 				if (AActor* OwningActor = PrimComp->GetOwner())
 				{
-					const bool bIsSimulated = OwningActor->Role == ROLE_SimulatedProxy;
-					const bool bIsReplicatedAutonomous = OwningActor->Role == ROLE_AutonomousProxy && PrimComp->bReplicatePhysicsToAutonomousProxy;
+					const ENetRole OwnerRole = OwningActor->GetLocalRole();
+					const bool bIsSimulated = OwnerRole == ROLE_SimulatedProxy;
+					const bool bIsReplicatedAutonomous = OwnerRole == ROLE_AutonomousProxy && PrimComp->bReplicatePhysicsToAutonomousProxy;
 					if (bIsSimulated || bIsReplicatedAutonomous)
 					{
 						// Get the ping of the guy who owns this thing. If nobody is,

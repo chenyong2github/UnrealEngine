@@ -82,6 +82,7 @@ LANDSCAPE_API extern UMaterialInterface* GMaskRegionMaterial;
 LANDSCAPE_API extern UMaterialInterface* GColorMaskRegionMaterial;
 LANDSCAPE_API extern UTexture2D* GLandscapeBlackTexture;
 LANDSCAPE_API extern UMaterialInterface* GLandscapeLayerUsageMaterial;
+LANDSCAPE_API extern UMaterialInterface* GLandscapeDirtyMaterial;
 #endif
 
 
@@ -462,8 +463,8 @@ public:
 	SIZE_T GetTypeHash() const override;
 
 	FLandscapeMeshProxySceneProxy(UStaticMeshComponent* InComponent, const FGuid& InGuid, const TArray<FIntPoint>& InProxyComponentBases, int8 InProxyLOD);
-	virtual ~FLandscapeMeshProxySceneProxy();
 	virtual void CreateRenderThreadResources() override;
+	virtual void DestroyRenderThreadResources() override;
 	virtual void OnLevelAddedToWorld() override;
 };
 
@@ -737,6 +738,7 @@ public:
 	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
 	virtual void OnTransformChanged() override;
 	virtual void CreateRenderThreadResources() override;
+	virtual void DestroyRenderThreadResources() override;
 	virtual void OnLevelAddedToWorld() override;
 	virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant, bool InIsShadowOnly, const FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f) override;
 	void PostInitViewCustomData(const FSceneView& InView, void* InViewCustomData) const;
@@ -1010,7 +1012,7 @@ public:
 			FName(TEXT("Color15"))
 		};
 
-		for (int32 i = 0; i < ARRAY_COUNT(ColorNames) && i < LayerColors.Num(); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(ColorNames) && i < LayerColors.Num(); i++)
 		{
 			if (ParameterInfo.Name == ColorNames[i])
 			{

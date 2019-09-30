@@ -40,6 +40,13 @@ struct FVertexFactoryInterpolantsVSToPS
 		nointerpolation uint LightmapDataIndex : LIGHTMAP_ID;
 	#endif
 #endif
+#if VF_STRAND_HAIR
+	nointerpolation uint HairPrimitiveId	: HAIR_PRIMITIVE_ID;
+	float2 HairDimensions					: HAIR_DIMENSIONS;
+	float2 HairUV							: HAIR_UV;
+	float2 HairRootUV						: HAIR_ROOT_UV;
+	float  HairSeed							: HAIR_SEED;
+#endif
 };
 
 #if NUM_TEX_COORD_INTERPOLATORS || USE_PARTICLE_SUBUVS

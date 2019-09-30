@@ -1084,7 +1084,7 @@ void ULandscapeComponent::RecreateCollisionComponent(bool bUseSimpleCollision)
 		CollisionComp = NewObject<ULandscapeHeightfieldCollisionComponent>(Proxy, NAME_None, RF_Transactional);
 	}
 
-	CollisionComp->SetRelativeLocation(RelativeLocation);
+	CollisionComp->SetRelativeLocation(GetRelativeLocation());
 	CollisionComp->SetupAttachment(Proxy->GetRootComponent(), NAME_None);
 	Proxy->CollisionComponents.Add(CollisionComp);
 
@@ -1995,7 +1995,7 @@ float ULandscapeComponent::GetLayerWeightAtLocation(const FVector& InLocation, U
 	// TODO: Root landscape isn't always loaded, would Proxy suffice?
 	if (ALandscape* Landscape = GetLandscapeActor())
 	{
-		const FVector DrawScale = Landscape->GetRootComponent()->RelativeScale3D;
+		const FVector DrawScale = Landscape->GetRootComponent()->GetRelativeScale3D();
 		float TestX = (InLocation.X - Landscape->GetActorLocation().X) / DrawScale.X - (float)GetSectionBase().X;
 		float TestY = (InLocation.Y - Landscape->GetActorLocation().Y) / DrawScale.Y - (float)GetSectionBase().Y;
 
@@ -2049,6 +2049,35 @@ void ULandscapeComponent::GetComponentExtent(int32& MinX, int32& MinY, int32& Ma
 //
 // ALandscape
 //
+bool ULandscapeInfo::AreAllComponentsRegistered() const
+{
+	const TArray<ALandscapeProxy*>& LandscapeProxies = ALandscapeProxy::GetLandscapeProxies();
+	for(ALandscapeProxy* LandscapeProxy : LandscapeProxies)
+	{
+		if (LandscapeProxy->IsPendingKill())
+		{
+			continue;
+		}
+
+		if (LandscapeProxy->GetLandscapeGuid() == LandscapeGuid)
+		{
+			if (LandscapeProxy->SplineComponent && !LandscapeProxy->SplineComponent->IsRegistered())
+			{
+				return false;
+			}
+
+			for (ULandscapeComponent* LandscapeComponent : LandscapeProxy->LandscapeComponents)
+			{
+				if (LandscapeComponent && !LandscapeComponent->IsRegistered())
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
 
 #define MAX_LANDSCAPE_SUBSECTIONS 2
 
@@ -2297,7 +2326,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 		}
 	}
 
-	const FVector DrawScale3D = GetRootComponent()->RelativeScale3D;
+	const FVector DrawScale3D = GetRootComponent()->GetRelativeScale3D();
 
 	// layer to import data (Final or 1st layer)
 	const FGuid FinalLayerGuid = FGuid();
@@ -3054,15 +3083,15 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 
 		//We need to not duplicate the vertex position, so we use the FIndexAndZ to achieve fast result
 		TArray<FIndexAndZ> VertIndexAndZ;
-		VertIndexAndZ.Reserve(ComponentSizeQuadsLOD*ComponentSizeQuadsLOD*ARRAY_COUNT(QuadPattern));
+		VertIndexAndZ.Reserve(ComponentSizeQuadsLOD*ComponentSizeQuadsLOD*UE_ARRAY_COUNT(QuadPattern));
 		int32 CurrentIndex = 0;
 		TMap<int32, FVector> IndexToPosition;
-		IndexToPosition.Reserve(ComponentSizeQuadsLOD*ComponentSizeQuadsLOD*ARRAY_COUNT(QuadPattern));
+		IndexToPosition.Reserve(ComponentSizeQuadsLOD*ComponentSizeQuadsLOD*UE_ARRAY_COUNT(QuadPattern));
 		for (int32 y = 0; y < ComponentSizeQuadsLOD; y++)
 		{
 			for (int32 x = 0; x < ComponentSizeQuadsLOD; x++)
 			{
-				for (int32 i = 0; i < ARRAY_COUNT(QuadPattern); i++)
+				for (int32 i = 0; i < UE_ARRAY_COUNT(QuadPattern); i++)
 				{
 					int32 VertexX = x + QuadPattern[i].X;
 					int32 VertexY = y + QuadPattern[i].Y;
@@ -3111,11 +3140,11 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 		{
 			for (int32 x = 0; x < ComponentSizeQuadsLOD; x++)
 			{
-				FVector Positions[ARRAY_COUNT(QuadPattern)];
+				FVector Positions[UE_ARRAY_COUNT(QuadPattern)];
 				bool bProcess = bIgnoreBounds;
 
 				// Fill positions
-				for (int32 i = 0; i < ARRAY_COUNT(QuadPattern); i++)
+				for (int32 i = 0; i < UE_ARRAY_COUNT(QuadPattern); i++)
 				{
 					int32 VertexX = x + QuadPattern[i].X;
 					int32 VertexY = y + QuadPattern[i].Y;
@@ -3132,11 +3161,11 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 				{
 					//Fill the vertexID we need
 					TArray<FVertexID> VertexIDs;
-					VertexIDs.Reserve(ARRAY_COUNT(QuadPattern));
+					VertexIDs.Reserve(UE_ARRAY_COUNT(QuadPattern));
 					TArray<FVertexInstanceID> VertexInstanceIDs;
-					VertexInstanceIDs.Reserve(ARRAY_COUNT(QuadPattern));
+					VertexInstanceIDs.Reserve(UE_ARRAY_COUNT(QuadPattern));
 					// Fill positions
-					for (int32 i = 0; i < ARRAY_COUNT(QuadPattern); i++)
+					for (int32 i = 0; i < UE_ARRAY_COUNT(QuadPattern); i++)
 					{
 						int32 DuplicateLowestIndex = FindPreviousIndex(CurrentIndex);
 						FVertexID VertexID;
@@ -3176,7 +3205,7 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 							VertexInstanceIDs.Add(OutRawMesh.CreateVertexInstance(VertexIDs[5]));
 
 							// Fill other vertex data
-							for (int32 i = 0; i < ARRAY_COUNT(QuadPattern); i++)
+							for (int32 i = 0; i < UE_ARRAY_COUNT(QuadPattern); i++)
 							{
 								int32 VertexX = x + QuadPattern[i].X;
 								int32 VertexY = y + QuadPattern[i].Y;
@@ -3218,7 +3247,7 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 				}
 				else
 				{
-					CurrentIndex += ARRAY_COUNT(QuadPattern);
+					CurrentIndex += UE_ARRAY_COUNT(QuadPattern);
 				}
 			}
 		}
@@ -3281,10 +3310,7 @@ LANDSCAPE_API void ULandscapeInfo::ForAllLandscapeComponents(TFunctionRef<void(U
 	{
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
-			if (Component->IsRegistered())
-			{
-				Fn(Component);
-			}
+			Fn(Component);
 		}
 	});
 }
@@ -3576,7 +3602,7 @@ void ALandscapeProxy::EditorApplyScale(const FVector& DeltaScale, const FVector*
 	ModifiedScale.X = ModifiedScale.Y = (FMath::Abs(DeltaScale.X) > FMath::Abs(DeltaScale.Y)) ? DeltaScale.X : DeltaScale.Y;
 
 	// Correct for attempts to scale to 0 on any axis
-	FVector CurrentScale = GetRootComponent()->RelativeScale3D;
+	FVector CurrentScale = GetRootComponent()->GetRelativeScale3D();
 	if (AActor::bUsePercentageBasedScaling)
 	{
 		if (ModifiedScale.X == -1)
@@ -3939,6 +3965,17 @@ bool ULandscapeInfo::CanHaveLayersContent() const
 	return false;
 }
 
+void ULandscapeInfo::ClearDirtyData()
+{
+	if (ALandscape* Landscape = LandscapeActor.Get())
+	{
+		ForAllLandscapeComponents([=](ULandscapeComponent* InLandscapeComponent)
+		{
+			Landscape->ClearDirtyData(InLandscapeComponent);
+		});
+	}
+}
+
 namespace
 {
 	inline float AdjustStaticLightingResolution(float StaticLightingResolution, int32 NumSubsections, int32 SubsectionSizeQuads, int32 ComponentSizeQuads)
@@ -3986,17 +4023,18 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		// RelativeScale3D isn't even a property of ALandscapeProxy, it's a property of the root component
 		if (RootComponent)
 		{
-			FVector ModifiedScale = RootComponent->RelativeScale3D;
+			const FVector OriginalScale = RootComponent->GetRelativeScale3D();
+			FVector ModifiedScale = OriginalScale;
 
 			// Lock X and Y scaling to the same value
 			if (SubPropertyName == FName("Y"))
 			{
-				ModifiedScale.X = FMath::Abs(RootComponent->RelativeScale3D.Y)*FMath::Sign(ModifiedScale.X);
+				ModifiedScale.X = FMath::Abs(OriginalScale.Y)*FMath::Sign(ModifiedScale.X);
 			}
 			else
 			{
 				// There's no "if name == X" here so that if we can't tell which has changed out of X and Y, we just use X
-				ModifiedScale.Y = FMath::Abs(RootComponent->RelativeScale3D.X)*FMath::Sign(ModifiedScale.Y);
+				ModifiedScale.Y = FMath::Abs(OriginalScale.X)*FMath::Sign(ModifiedScale.Y);
 			}
 
 			ULandscapeInfo* Info = GetLandscapeInfo();
@@ -5679,10 +5717,12 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 		}
 	}
 
+	GDisableAutomaticTextureMaterialUpdateDependencies = true;
 	for (int TextureIdx = 0; TextureIdx < MobileWeightmapTextures.Num(); TextureIdx++)
 	{
 		MobileWeightmapTextures[TextureIdx]->PostEditChange();
 	}
+	GDisableAutomaticTextureMaterialUpdateDependencies = false;
 
 	FLinearColor Masks[4];
 	Masks[0] = FLinearColor(1, 0, 0, 0);

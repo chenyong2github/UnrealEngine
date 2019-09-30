@@ -26,7 +26,9 @@ namespace Chaos
 		M =				1 << 14,
 		InvM =			1 << 15,
 		ObjectState =	1 << 16,
-		Geometry =		1 << 17
+		Geometry =		1 << 17,
+		ExternalForce = 1 << 18,
+		ExternalTorque =1 << 19
 	};
 
 	class FParticleDirtyFlags

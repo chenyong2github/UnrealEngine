@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,8 +31,6 @@ namespace AutomationTool
 	/// </summary>
 	public class ScriptCompiler
 	{
-		#region Fields
-				
 		private Dictionary<string, Type> ScriptCommands;
 #if DEBUG
 		const string BuildConfig = "Debug";
@@ -40,10 +38,6 @@ namespace AutomationTool
 		const string BuildConfig = "Development";
 #endif
 		const string DefaultScriptsDLLName = "AutomationScripts.Automation.dll";
-
-		#endregion
-
-		#region Compilation
 
 		public ScriptCompiler()
 		{
@@ -491,15 +485,9 @@ namespace AutomationTool
 			return CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "Engine", "Binaries", "DotNET", "AutomationScripts");
 		}
 
-		#endregion
-
-		#region Properties
-
 		public Dictionary<string, Type> Commands
 		{
 			get { return ScriptCommands; }
 		}
-
-		#endregion
 	}
 }

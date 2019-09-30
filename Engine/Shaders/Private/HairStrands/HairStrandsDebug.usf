@@ -1,0 +1,65 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "HairStrandsVisibilityCommon.ush"
+
+float2 OutputResolution;
+uint FastResolveMask;
+
+Texture2D<uint4> CategorizationTexture;
+Texture2D<uint2> DepthStencilTexture;
+SamplerState LinearSampler;
+
+#define DEBUG_MODE_SAMPLE_COUNT 0 
+#define DEBUG_MODE_COVERAGE_TYPE 1
+#define DEBUG_MODE_TAA_RESOLVE_TYPE 2
+
+float3 HUEtoRGB(in float H)
+{
+	float R = abs(H * 6 - 3) - 1;
+	float G = 2 - abs(H * 6 - 2);
+	float B = 2 - abs(H * 6 - 4);
+	return saturate(float3(R, G, B));
+}
+
+float3 HSVtoRGB(in float3 HSV)
+{
+	float3 RGB = HUEtoRGB(HSV.x);
+	return ((RGB - 1) * HSV.y + 1) * HSV.z;
+}
+
+float3 GetColorCode(float x)
+{
+	float c = (1 - saturate(x)) * 0.6; // Remap [0,1] to Blue-Red
+	return x > 0 ? HSVtoRGB(float3(c, 1, 1)) : float3(0, 0, 0);
+}
+
+void MainPS(
+	in FScreenVertexOutput Input,
+	out float4 OutColor : SV_Target0)
+{
+	const float2 UV = Input.UV;
+	const float2 PixelPos = UV * OutputResolution;
+
+	const FCategorizationData CatData = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelPos,0)));
+	const bool bIsValid = CatData.TotalCoverage8bit > 0;
+	if (!bIsValid)
+		discard;
+
+#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_SAMPLE_COUNT
+	const float3 Color = GetColorCode(CatData.SampleCount/float(HAIR_VISIBILITY_MAXSAMPLECOUNT));
+#endif
+
+#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_COVERAGE_TYPE
+	const bool bIsFullyCovered = CatData.TotalCoverage8bit >= 255;
+	const float3 Color = bIsFullyCovered ? float3(0.25,0.85,0.25) : float3(0.85,0.25,0.25);
+#endif
+
+#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_TAA_RESOLVE_TYPE
+	const uint Stencil = DepthStencilTexture.Load(uint3(PixelPos,0)).y;
+	const bool bIsFastResolve = (Stencil & FastResolveMask) != 0;
+	const float3 Color = bIsFastResolve ? float3(1,1,0) : float3(0.15f, 0.25f, 0.75f);
+#endif
+
+	OutColor = float4(Color, 1);
+}
