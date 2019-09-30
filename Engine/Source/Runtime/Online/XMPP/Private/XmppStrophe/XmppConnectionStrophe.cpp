@@ -13,11 +13,13 @@
 #include "XmppStrophe/StropheStanzaConstants.h"
 #include "XmppStrophe/StropheError.h"
 #include "XmppLog.h"
+#include "Containers/BackgroundableTicker.h"
 
 #if WITH_XMPP_STROPHE
 
 FXmppConnectionStrophe::FXmppConnectionStrophe()
-	: LoginStatus(EXmppLoginStatus::NotStarted)
+	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	, LoginStatus(EXmppLoginStatus::NotStarted)
 {
 	MessagesStrophe = MakeShared<FXmppMessagesStrophe, ESPMode::ThreadSafe>(*this);
 	MultiUserChatStrophe = MakeShared<FXmppMultiUserChatStrophe, ESPMode::ThreadSafe>(*this);

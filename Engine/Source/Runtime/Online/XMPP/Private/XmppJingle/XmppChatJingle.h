@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Queue.h"
 #include "Containers/Ticker.h"
 #include "XmppJingle/XmppJingle.h"
-#include "Containers/Queue.h"
 #include "XmppChat.h"
 
 #if WITH_XMPP_JINGLE
