@@ -363,6 +363,13 @@ bool CreateCrashReportClientPath(TCHAR* OutClientPath, int32 MaxLength)
 		return Results != INVALID_FILE_ATTRIBUTES;
 	};
 
+#if WITH_EDITORONLY_DATA
+	if (CreateCrashReportClientPathImpl(TEXT("CrashReportClientEditor.exe")))
+	{
+		return true;
+	}
+#endif
+
 	if (CreateCrashReportClientPathImpl(TEXT("CrashReportClient.exe")))
 	{
 		return true;
