@@ -644,21 +644,21 @@ void CreatePipelineStateFromStream(ID3D12PipelineState*& PSO, ID3D12Device2* Dev
 	check(PSO);
 }
 
-static inline void FastHashName(wchar_t Name[9], uint32 Hash)
+static inline void FastHashName(wchar_t Name[17], uint64 Hash)
 {
-	for (int32 i = 0; i < 8; i++)
+	for (int32 i = 0; i < 16; i++)
 	{
 		Name[i] = (Hash & 0xF) + 'A';
 		Hash >>= 4;
 	}
-	Name[8] = 0;
+	Name[16] = 0;
 }
 
 template <typename TDesc>
 static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const TDesc* CreationArgs)
 {
 	// Get the pipeline state name, currently based on the hash.
-	wchar_t Name[9];
+	wchar_t Name[17];
 	FastHashName(Name, CreationArgs->Desc->CombinedHash);
 
 #if LOG_PSO_CREATES
