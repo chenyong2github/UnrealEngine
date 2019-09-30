@@ -135,7 +135,7 @@ void ANetworkPredictionExtrasFlyingPawn::Tick( float DeltaSeconds)
 	// Do whatever you want here. By now we have the latest movement state and latest input processed.
 }
 
-void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const float DeltaTimeSeconds, FlyingMovement::FInputCmd& Cmd)
+void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd)
 {
 	// Generate user commands. Called right before the flying movement simulation will tick (for a locally controlled pawn)
 	// This isn't meant to be the best way of doing a camera system. It is just meant to show a couple of ways it may be done
@@ -171,6 +171,8 @@ void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const float DeltaTimeSecon
 	// Zero out input structs in case each path doesnt set each member. This is really all we are filling out here.
 	Cmd.MovementInput = FVector::ZeroVector;
 	Cmd.RotationInput = FRotator::ZeroRotator;
+
+	const float DeltaTimeSeconds = SimTime.ToRealTimeSeconds();
 
 	switch (FlyingPawnCVars::CameraStyle)
 	{
