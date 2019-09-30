@@ -19,7 +19,6 @@
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/ReferenceChainSearch.h"
 #include "Misc/PackageName.h"
-#include "Serialization/AsyncLoading.h"
 #include "GameMapsSettings.h"
 #include "TimerManager.h"
 #include "Materials/MaterialInterface.h"

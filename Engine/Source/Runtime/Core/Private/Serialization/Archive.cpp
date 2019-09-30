@@ -35,8 +35,6 @@ FArchive::FArchive()
 #if DEVIRTUALIZE_FLinkerLoad_Serialize
 	ActiveFPLB = &InlineFPLB;
 #endif
-	CustomVersionContainer = nullptr;
-
 	SerializedPropertyChain = nullptr;
 
 #if USE_STABLE_LOCALIZATION_KEYS
@@ -63,9 +61,11 @@ FArchive::FArchive(const FArchive& ArchiveToCopy)
 	// Don't know why this is set to false, but this is what the original copying code did
 	ArIsFilterEditorOnly  = false;
 
+	SharedCustomVersionContainerForOptimizedLoading = ArchiveToCopy.SharedCustomVersionContainerForOptimizedLoading;
 	bCustomVersionsAreReset = ArchiveToCopy.bCustomVersionsAreReset;
 	if (ArchiveToCopy.CustomVersionContainer)
 	{
+		check(!SharedCustomVersionContainerForOptimizedLoading);
 		CustomVersionContainer = new FCustomVersionContainer(*ArchiveToCopy.CustomVersionContainer);
 	}
 	else
@@ -87,9 +87,11 @@ FArchive& FArchive::operator=(const FArchive& ArchiveToCopy)
 	// Don't know why this is set to false, but this is what the original copying code did
 	ArIsFilterEditorOnly  = false;
 
+	SharedCustomVersionContainerForOptimizedLoading = ArchiveToCopy.SharedCustomVersionContainerForOptimizedLoading;
 	bCustomVersionsAreReset = ArchiveToCopy.bCustomVersionsAreReset;
 	if (ArchiveToCopy.CustomVersionContainer)
 	{
+		check(!SharedCustomVersionContainerForOptimizedLoading);
 		if (!CustomVersionContainer)
 		{
 			CustomVersionContainer = new FCustomVersionContainer(*ArchiveToCopy.CustomVersionContainer);
@@ -430,6 +432,11 @@ void FArchive::SerializeBool( bool& D )
 
 const FCustomVersionContainer& FArchive::GetCustomVersions() const
 {
+	if (SharedCustomVersionContainerForOptimizedLoading)
+	{
+		return *SharedCustomVersionContainerForOptimizedLoading;
+	}
+
 	if (!CustomVersionContainer)
 	{
 		CustomVersionContainer = new FCustomVersionContainer;
@@ -456,6 +463,7 @@ const FCustomVersionContainer& FArchive::GetCustomVersions() const
 
 void FArchive::SetCustomVersions(const FCustomVersionContainer& NewVersions)
 {
+	check(!SharedCustomVersionContainerForOptimizedLoading);
 	if (!CustomVersionContainer)
 	{
 		CustomVersionContainer = new FCustomVersionContainer(NewVersions);
@@ -467,8 +475,15 @@ void FArchive::SetCustomVersions(const FCustomVersionContainer& NewVersions)
 	bCustomVersionsAreReset = false;
 }
 
+void FArchive::SetSharedCustomVersionContainerForOptimizedLoading(const FCustomVersionContainer* SharedCustomVersionContainer)
+{
+	check(!CustomVersionContainer);
+	SharedCustomVersionContainerForOptimizedLoading = SharedCustomVersionContainer;
+}
+
 void FArchive::ResetCustomVersions()
 {
+	check(!SharedCustomVersionContainerForOptimizedLoading);
 	bCustomVersionsAreReset = true;
 }
 
@@ -479,6 +494,7 @@ void FArchive::UsingCustomVersion(const FGuid& Key)
 	{
 		return;
 	}
+	check(!SharedCustomVersionContainerForOptimizedLoading);
 
 	auto* RegisteredVersion = FCustomVersionContainer::GetRegistered().GetVersion(Key);
 
@@ -502,6 +518,14 @@ int32 FArchive::CustomVer(const FGuid& Key) const
 
 void FArchive::SetCustomVersion(const FGuid& Key, int32 Version, FName FriendlyName)
 {
+	if (SharedCustomVersionContainerForOptimizedLoading)
+	{
+		// Handle licensee proxy archives that may want to set their own custom versions instead of relying on the original
+		check(!CustomVersionContainer);
+		CustomVersionContainer = new FCustomVersionContainer(*SharedCustomVersionContainerForOptimizedLoading);
+		SharedCustomVersionContainerForOptimizedLoading = nullptr;
+	}
+
 	const_cast<FCustomVersionContainer&>(GetCustomVersions()).SetVersion(Key, Version, FriendlyName);
 }
 

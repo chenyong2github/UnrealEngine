@@ -9,7 +9,6 @@ Level.cpp: Level-related functions
 #include "UObject/RenderingObjectVersion.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Package.h"
-#include "Serialization/AsyncLoading.h"
 #include "EngineStats.h"
 #include "Engine/Blueprint.h"
 #include "GameFramework/Actor.h"

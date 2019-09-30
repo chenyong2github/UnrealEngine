@@ -669,14 +669,16 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 			else
 #endif
 			{
+#if USE_BULKDATA_STREAMING_TOKEN
 				FByteBulkData TmpBulkData;
-				TmpBulkData.Serialize(Ar, Owner, Index);
+				TmpBulkData.Serialize(Ar, Owner, Index, false);
 				bIsOptionalLOD = !!(TmpBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
-				int64 Tmp = TmpBulkData.GetBulkDataOffsetInFile();
-				check(Tmp >= 0 && Tmp <= 0xffffffff);
-				OffsetInFile = static_cast<uint32>(Tmp);
-				check(TmpBulkData.GetBulkDataSize() >= 0);
-				BulkDataSize = static_cast<uint32>(TmpBulkData.GetBulkDataSize());
+
+				BulkDataStreamingToken = TmpBulkData.CreateStreamingToken();
+#else
+				StreamingBulkData.Serialize(Ar, Owner, Index, false);
+				bIsOptionalLOD = !!(StreamingBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
+#endif
 			}
 
 			SerializeAvailabilityInfo(Ar);
@@ -684,7 +686,7 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 			Ar << TmpBuffersSize;
 			BuffersSize = TmpBuffersSize.CalcBuffersSize();
 
-			if (Ar.IsLoading() && bIsOptionalLOD && !BulkDataSize)
+			if (Ar.IsLoading() && bIsOptionalLOD)
 			{
 				ClearAvailabilityInfo();
 			}

@@ -82,6 +82,7 @@ class FLinkerLoad
 	friend class UObject;
 	friend class UPackageMap;
 	friend struct FAsyncPackage;
+	friend struct FAsyncPackage2;
 	friend struct FResolvingExportTracker;
 protected:
 	/** Linker loading status. */
@@ -134,6 +135,11 @@ public:
 		return bIsAsyncLoader ? (FAsyncArchive*)Loader : nullptr;
 	}
 
+public:
+	int32* LocalImportIndices = 0;
+	UObject** GlobalImportObjects = nullptr;
+	const TArray<FNameEntryId>* ActiveNameMap = &NameMap;
+
 private:
 
 	/** Structured archive interface. Wraps underlying loader to provide contextual metadata to the values being written
@@ -175,14 +181,15 @@ public:
 	}
 
 	/** The async package associated with this linker */
-	struct FAsyncPackage* AsyncRoot;
+	class FGCObject* AsyncRoot;
 #if WITH_EDITOR
 	/** Bulk data that does not need to be loaded when the linker is loaded.												*/
 	TArray<FUntypedBulkData*> BulkDataLoaders;
 #endif // WITH_EDITOR
 
 	/** Hash table for exports.																								*/
-	int32						ExportHash[256];
+	static constexpr int32 ExportHashCount = 256;
+	TUniquePtr<int32[]> ExportHash;
 
 	/**
 	* List of imports and exports that must be serialized before other exports...all packed together, see FirstExportDependency
@@ -817,10 +824,10 @@ private:
 		int32 Number = 0;
 		Ar << Number;
 
-		if (NameMap.IsValidIndex(NameIndex))
+		if (ActiveNameMap->IsValidIndex(NameIndex))
 		{
 			// if the name wasn't loaded (because it wasn't valid in this context)
-			FNameEntryId MappedName = NameMap[NameIndex];
+			FNameEntryId MappedName = (*ActiveNameMap)[NameIndex];
 
 			// simply create the name from the NameMap's name and the serialized instance number
 			Name = FName::CreateFromDisplayId(MappedName, Number);
@@ -865,6 +872,9 @@ private:
 	COREUOBJECT_API static FLinkerLoad* CreateLinkerAsync(FUObjectSerializeContext* LoadContext, UPackage* Parent, const TCHAR* Filename, uint32 LoadFlags
 		, TFunction<void()>&& InSummaryReadyCallback
 	);
+	COREUOBJECT_API static FLinkerLoad* CreateLinkerAsync2(FUObjectSerializeContext* LoadContext, UPackage* Parent, const TCHAR* Filename, uint32 LoadFlags);
+	static void UpdateLinkerAndLoaderFromSummary(const FPackageFileSummary& Summary, FLinkerLoad& Linker, FArchive* Loader = nullptr);
+	static void UpdateUPackageFromSummary(const FPackageFileSummary& Summary, bool bCustomVersionIsLatest, UPackage* LinkerRootPackage);
 
 protected: // Daniel L: Made this protected so I can override the constructor and create a custom loader to load the header of the linker in the DiffFilesCommandlet
 	/**
@@ -877,7 +887,7 @@ protected: // Daniel L: Made this protected so I can override the constructor an
 	 * 
 	 * @return	true if linker has finished creation, false if it is still in flight
 	 */
-	ELinkerStatus Tick( float InTimeLimit, bool bInUseTimeLimit, bool bInUseFullTimeLimit);
+	ELinkerStatus Tick( float InTimeLimit, bool bInUseTimeLimit, bool bInUseFullTimeLimit, TMap<TPair<FName, FPackageIndex>, FPackageIndex>* ObjectNameWithOuterToExportMap);
 
 	/**
 	 * Private constructor, passing arguments through from CreateLinker.
@@ -1193,7 +1203,7 @@ private:
 	/**
 	 * Finalizes linker creation, adding linker to loaders array and potentially verifying imports.
 	 */
-	ELinkerStatus FinalizeCreation();
+	ELinkerStatus FinalizeCreation(TMap<TPair<FName, FPackageIndex>, FPackageIndex>* ObjectNameWithOuterToExportMap);
 
 	//
 	// FLinkerLoad creation helpers END

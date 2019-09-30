@@ -2299,7 +2299,8 @@ public:
 	FSavePackageResultStruct Save(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
 		FOutputDevice* Error = GError, FLinkerNull* Conform = NULL, bool bForceByteSwapping = false, bool bWarnOfLongFilename = true,
 		uint32 SaveFlags = SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), 
-		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr);
+		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr,
+		FSavePackageContext* SavePackageContext = nullptr);
 
 	virtual bool InitializePhysicsSceneForSaveIfNecessary(UWorld* World, bool &bOutForceInitialized);
 	void CleanupPhysicsSceneThatWasInitializedForSave(UWorld* World, bool bForceInitialized);

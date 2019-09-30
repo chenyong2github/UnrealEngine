@@ -1676,7 +1676,16 @@ int32 FWindowsPlatformMisc::NumberOfCores()
 			}
 			FMemory::Free(InfoBuffer);
 		}
+
+		// Optionally limit number of threads (we don't necessarily scale super well with very high core counts)
+
+		int32 LimitCount = 32768;
+		if (FParse::Value(FCommandLine::Get(), TEXT("-corelimit="), LimitCount))
+		{
+			CoreCount = FMath::Min(CoreCount, LimitCount);
+		}
 	}
+
 	return CoreCount;
 }
 
@@ -1689,7 +1698,16 @@ int32 FWindowsPlatformMisc::NumberOfCoresIncludingHyperthreads()
 		SYSTEM_INFO SI;
 		GetSystemInfo(&SI);
 		CoreCount = (int32)SI.dwNumberOfProcessors;
+
+		// Optionally limit number of threads (we don't necessarily scale super well with very high core counts)
+
+		int32 LimitCount = 32768;
+		if (FParse::Value(FCommandLine::Get(), TEXT("-corelimit="), LimitCount))
+		{
+			CoreCount = FMath::Min(CoreCount, LimitCount);
+		}
 	}
+
 	return CoreCount;
 }
 

@@ -29,6 +29,7 @@
 #include "UObject/Class.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
+#include "UObject/SavePackage.h"
 #include "UObject/MetaData.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/UObjectArray.h"
@@ -1422,6 +1423,7 @@ public:
 	bool							bErrorOnEngineContentUse = false;
 	bool							bDisableUnsolicitedPackages = false;
 	bool							bFullLoadAndSave = false;
+	bool							bPackageStore = false;
 	TArray<FName>					TargetPlatformNames;
 	TArray<FName>					StartupPackages;
 
@@ -1980,6 +1982,11 @@ bool UCookOnTheFlyServer::IsRealtimeMode() const
 bool UCookOnTheFlyServer::IsCookByTheBookMode() const
 {
 	return CurrentCookMode == ECookMode::CookByTheBookFromTheEditor || CurrentCookMode == ECookMode::CookByTheBook;
+}
+
+bool UCookOnTheFlyServer::IsUsingPackageStore() const
+{
+	return CookByTheBookOptions->bPackageStore;
 }
 
 bool UCookOnTheFlyServer::IsCookOnTheFlyMode() const
@@ -4022,7 +4029,8 @@ void UCookOnTheFlyServer::SaveCookedPackage(UPackage* Package, uint32 SaveFlags,
 						}
 						else
 						{
-							Result = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, SaveFlags, Target, FDateTime::MinValue(), false);
+							FSavePackageContext* SavePackageContext = SavePackageContexts[PlatformIndex];
+							Result = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, SaveFlags, Target, FDateTime::MinValue(), false, /*DiffMap*/nullptr, SavePackageContext);
 						}
 						GIsCookerLoadingPackage = false;
 						{
@@ -6319,6 +6327,19 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	UE_LOG(LogCook, Display, TEXT("Finishing up..."));
 
 	UPackage::WaitForAsyncFileWrites();
+	
+	if (IsCookByTheBookMode() && IsUsingPackageStore())
+	{
+		SCOPE_TIMER(SavingNameMap);
+		UE_LOG(LogCook, Display, TEXT("Saving name map(s)..."));
+		const TArray<ITargetPlatform*>& TargetPlatforms = GetCookingTargetPlatforms();
+		for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
+		{
+			INameMapSaver& NameMapSaver = SavePackageContexts[PlatformIndex]->HeaderSaver.NameMapSaver;
+			NameMapSaver.End();
+		}
+		UE_LOG(LogCook, Display, TEXT("Done saving name map(s)"));
+	}
 
 	GetDerivedDataCacheRef().WaitForQuiescence(true);
 	
@@ -6691,6 +6712,37 @@ void UCookOnTheFlyServer::InitializeSandbox()
 	}
 }
 
+void UCookOnTheFlyServer::InitializePackageStore(const TArray<FName>& TargetPlatformNames)
+{
+	// TODO: should ideally support cook-on-the-fly
+
+	if (!(IsCookByTheBookMode() && IsUsingPackageStore()))
+	{
+		// set up reusable buffers for non-package store case???
+		SavePackageContexts.SetNum(TargetPlatformNames.Num());
+
+		return;
+	}
+
+	const FString NameMapFilename = FPaths::RootDir() / TEXT("megafile.unamemap");
+	const FString NameMapSandboxFilename = ConvertToFullSandboxPath(*NameMapFilename, true);
+
+	FString NameMapCookedSandboxFilename;
+	SavePackageContexts.Reserve(TargetPlatformNames.Num());
+
+	for (const FName PlatformName : TargetPlatformNames)
+	{
+		NameMapCookedSandboxFilename = NameMapSandboxFilename.Replace(TEXT("[Platform]"), *PlatformName.ToString());
+
+		// just leak all memory for now
+		FPackageStoreNameMapSaver* NameMapSaver = new FPackageStoreNameMapSaver(*NameMapCookedSandboxFilename);
+		FPackageHeaderSaver* PackageHeaderSaver = new FPackageHeaderSaver(*NameMapSaver);
+		FLooseFileWriter* LooseFileWriter		= new FLooseFileWriter();
+		FSavePackageContext* SavePackageContext = new FSavePackageContext(*PackageHeaderSaver, *LooseFileWriter);
+
+		SavePackageContexts.Add(SavePackageContext);
+	}
+}
 
 void UCookOnTheFlyServer::InitializeTargetPlatforms()
 {
@@ -6800,6 +6852,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->CreateReleaseVersion = CreateReleaseVersion;
 	CookByTheBookOptions->bDisableUnsolicitedPackages = !!(CookOptions & ECookByTheBookOptions::DisableUnsolicitedPackages);
 	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave);
+	CookByTheBookOptions->bPackageStore = !!(CookOptions & ECookByTheBookOptions::PackageStore);
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;
 
 	GenerateAssetRegistry();
@@ -6943,6 +6996,8 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	// This will either delete the sandbox or iteratively clean it
 	InitializeSandbox();
 	InitializeTargetPlatforms();
+
+	InitializePackageStore(TargetPlatformNames);
 
 	if (CurrentCookMode == ECookMode::CookByTheBook && !IsCookFlagSet(ECookInitializationFlags::Iterative))
 	{

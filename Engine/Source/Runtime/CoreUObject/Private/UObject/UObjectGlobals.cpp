@@ -1041,7 +1041,7 @@ public:
 
 		
 
-		while ( Tick(0.0, false, false) == FLinkerLoad::LINKER_TimedOut ) 
+		while ( Tick(0.0, false, false, nullptr) == FLinkerLoad::LINKER_TimedOut ) 
 		{ 
 		}
 

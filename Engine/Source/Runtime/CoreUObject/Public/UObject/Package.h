@@ -19,6 +19,7 @@ class Error;
 // This is a dummy type which is not implemented anywhere. It's only 
 // used to flag a deprecated Conform argument to package save functions.
 class FLinkerNull;
+class FSavePackageContext;
 
 /**
 * Represents the result of saving a package
@@ -147,7 +148,7 @@ public:
 
 private:
 	/** Time in seconds it took to fully load this package. 0 if package is either in process of being loaded or has never been fully loaded.					*/
-	float LoadTime;
+	float LoadTime;		// TODO: strip from runtime?
 
 #if WITH_EDITORONLY_DATA
 	/** Indicates which folder to display this package under in the Generic Browser's list of packages. If not specified, package is added to the root level.	*/
@@ -189,10 +190,10 @@ private:
 public:
 
 	/** Editor only: PIE instance ID this package belongs to, INDEX_NONE otherwise */
-	int32 PIEInstanceID;
+	int32 PIEInstanceID;		// TODO: strip from runtime?
 
 	/** The name of the file that this package was loaded from */
-	FName	FileName;
+	FName	FileName;			// TODO: strip from runtime?
 
 	/** Linker load associated with this package */
 	class FLinkerLoad* LinkerLoad;
@@ -207,7 +208,7 @@ public:
 	FCustomVersionContainer LinkerCustomVersion;
 
 	/** size of the file for this package; if the package was not loaded from a file or was a forced export in another package, this will be zero */
-	uint64 FileSize;
+	uint64 FileSize;			// TODO: strip from runtime?
 
 #if WITH_EDITORONLY_DATA
 	/** Editor only: Thumbnails stored in this package */
@@ -546,7 +547,8 @@ public:
 	static FSavePackageResultStruct Save(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
 		FOutputDevice* Error=GError, FLinkerNull* Conform=NULL, bool bForceByteSwapping=false, bool bWarnOfLongFilename=true, 
 		uint32 SaveFlags=SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), 
-		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr);
+		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr,
+		FSavePackageContext* SavePackageContext = nullptr);
 
 	/**
 	* Save one specific object (along with any objects it references contained within the same Outer) into an Unreal package.

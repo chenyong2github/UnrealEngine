@@ -17,6 +17,7 @@
 #include "HAL/ThreadSafeBool.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Serialization/AsyncPackageLoader.h"
 
 struct FPrecacheCallbackHandler;
 
@@ -146,7 +147,7 @@ struct FMaxPackageSummarySize
 /**
  * Async loading thread. Preloads/serializes packages on async loading thread. Postloads objects on the game thread.
  */
-class FAsyncLoadingThread : public FRunnable
+class FAsyncLoadingThread : public FRunnable, public IAsyncPackageLoader
 {
 	/** Structure that holds the async loading thread ini settings */
 	struct FAsyncLoadingThreadSettings
@@ -156,6 +157,8 @@ class FAsyncLoadingThread : public FRunnable
 
 		FAsyncLoadingThreadSettings();
 	};
+
+	IEDLBootNotificationManager& EDLBootNotificationManager;
 
 	/** Thread to run the worker FRunnable on */
 	FRunnableThread* Thread;
@@ -250,11 +253,10 @@ private:
 	/** Thread safe counter used to accumulate cycles spent on blocking. Using stats may generate to many stats messages. */
 	static FThreadSafeCounter BlockingCycles;
 #endif
-
-	FAsyncLoadingThread(int32 InThreadIndex);
-	virtual ~FAsyncLoadingThread();
-
 public:
+
+	FAsyncLoadingThread(int32 InThreadIndex, IEDLBootNotificationManager& InEDLBootNotificationManager);
+	virtual ~FAsyncLoadingThread();
 
 	//~ Begin FRunnable Interface.
 	virtual bool Init();
@@ -263,10 +265,33 @@ public:
 	//~ End FRunnable Interface
 
 	/** Returns the async loading thread singleton */
-	static FAsyncLoadingThread& Get();
+	static FAsyncLoadingThread& Get()
+	{
+		check(Instance);
+		return *Instance;
+	}
 
 	/** Start the async loading thread */
-	void StartThread();
+	void StartThread() override;
+
+	int32 LoadPackage(
+			const FString& InPackageName,
+			const FGuid* InGuid,
+			const TCHAR* InPackageToLoadFrom,
+			FLoadPackageAsyncDelegate InCompletionDelegate,
+			EPackageFlags InPackageFlags,
+			int32 InPIEInstanceID,
+			int32 InPackagePriority) override;
+
+	EAsyncPackageState::Type ProcessLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit) override;
+
+	EAsyncPackageState::Type ProcessLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, float TimeLimit) override;
+
+	void FlushLoading(int32 PackageId) override;
+
+	void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject) override;
+
+	void FireCompletedCompiledInImport(FGCObject* AsyncPacakge, FPackageIndex Import) override;
 
 	/** [EDL] Event queue */
 	FAsyncLoadEventQueue EventQueue;
@@ -308,7 +333,7 @@ public:
 	static FAsyncLoadingThreadSettings& GetAsyncLoadingThreadSettings();
 
 	/** True if multithreaded async loading is currently being used. */
-	static FORCEINLINE bool IsMultithreaded()
+	FORCEINLINE bool IsMultithreaded() override
 	{
 		return bThreadStarted;
 	}
@@ -338,15 +363,13 @@ public:
 		return !!AsyncLoadingTickCounter.GetValue();
 	}
 
-	/** Returns true if packages are currently being loaded on the async thread */
-	FORCEINLINE bool IsAsyncLoadingPackages()
+	FORCEINLINE bool IsAsyncLoadingPackages() override
 	{
 		FPlatformMisc::MemoryBarrier();
 		return QueuedPackagesCounter.GetValue() != 0 || ExistingAsyncPackagesCounter.GetValue() != 0;
 	}
 
-	/** Returns true this codes runs on the async loading thread */
-	static FORCEINLINE bool IsInAsyncLoadThread()
+	FORCEINLINE bool IsInAsyncLoadThread() override
 	{
 		bool bResult = false;
 		if (IsMultithreaded())
@@ -355,17 +378,17 @@ public:
 			// we're on game thread but inside of async loading code (PostLoad mostly)
 			// to make it behave exactly like the non-threaded version
 			bResult = FPlatformTLS::GetCurrentThreadId() == AsyncLoadingThreadID || 
-				(IsInGameThread() && FAsyncLoadingThread::Get().GetIsInAsyncLoadingTick());
+				(IsInGameThread() && GetIsInAsyncLoadingTick());
 		}
 		else
 		{
-			bResult = IsInGameThread() && FAsyncLoadingThread::Get().GetIsInAsyncLoadingTick();
+			bResult = IsInGameThread() && GetIsInAsyncLoadingTick();
 		}
 		return bResult;
 	}
 
 	/** Returns true if async loading is suspended */
-	FORCEINLINE bool IsAsyncLoadingSuspended()
+	FORCEINLINE bool IsAsyncLoadingSuspended() override
 	{
 		FPlatformMisc::MemoryBarrier();
 		return IsLoadingSuspended.GetValue() != 0;
@@ -378,7 +401,7 @@ public:
 	}
 
 	/** Returns the number of async packages that are currently being processed */
-	FORCEINLINE int32 GetAsyncPackagesCount()
+	FORCEINLINE int32 GetNumAsyncPackages() override
 	{
 		FPlatformMisc::MemoryBarrier();
 		return ExistingAsyncPackagesCounter.GetValue();
@@ -426,22 +449,22 @@ public:
 	/**
 	* [GAME THREAD] Cancels streaming
 	*/
-	void CancelAsyncLoading();
+	void CancelLoading() override;
 
 	/**
 	* [GAME THREAD] Stops the async loading thread and blocks until the thread has exited.
 	*/
-	void Kill();
+	void ShutdownLoading() override;
 
 	/**
 	* [GAME THREAD] Suspends async loading thread
 	*/
-	void SuspendLoading();
+	void SuspendLoading() override;
 
 	/**
 	* [GAME THREAD] Resumes async loading thread
 	*/
-	void ResumeLoading();
+	void ResumeLoading() override;
 
 	/**
 	* [ASYNC/GAME THREAD] Queues a package for streaming.
@@ -493,14 +516,14 @@ public:
 	EAsyncPackageState::Type TickAsyncThread(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, bool& bDidSomething, FFlushTree* FlushTree = nullptr);
 
 	/** Initializes async loading thread */
-	void InitializeAsyncThread();
+	void InitializeLoading() override;
 
 	/** 
 	 * [GAME THREAD] Gets the load percentage of the specified package
 	 * @param PackageName Name of the package to return async load percentage for
 	 * @return Percentage (0-100) of the async package load or -1 of package has not been found
 	 */
-	float GetAsyncLoadPercentage(const FName& PackageName);
+	float GetAsyncLoadPercentage(const FName& PackageName) override;
 
 	/** 
 	 * [ASYNC/GAME THREAD] Checks if a request ID already is added to the loading queue
@@ -633,4 +656,6 @@ public:
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	FThreadSafeCounter RecursionNotAllowed;
 #endif
+
+	static FAsyncLoadingThread* Instance;
 };

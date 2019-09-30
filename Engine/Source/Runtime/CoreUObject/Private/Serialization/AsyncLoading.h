@@ -16,13 +16,11 @@
 #include "UObject/ObjectRedirector.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Templates/RefCounting.h"
-
+#include "Serialization/AsyncPackageLoader.h"
 class IAsyncReadRequest;
 struct FAsyncPackage;
 struct FFlushTree;
 class FAsyncLoadingThread;
-
-#define PERF_TRACK_DETAILED_ASYNC_STATS (0)
 
 struct FAsyncPackage;
 /** [EDL] Async Package Loading State */
@@ -342,7 +340,7 @@ struct FAsyncPackage : public FGCObject
 	/**
 	 * Constructor
 	 */
-	FAsyncPackage(FAsyncLoadingThread& InThread, const FAsyncPackageDesc& InDesc);
+	FAsyncPackage(FAsyncLoadingThread& InThread, const FAsyncPackageDesc& InDesc, IEDLBootNotificationManager& InEDLBootNotificationManager);
 	~FAsyncPackage();
 
 	/**
@@ -621,6 +619,7 @@ private:
 	FCriticalSection ReferencedObjectsCritical;
 	/** Cached async loading thread object this package was created by */
 	FAsyncLoadingThread& AsyncLoadingThread;
+	class IEDLBootNotificationManager& EDLBootNotificationManager;
 	/** Packages that have been imported by this async package */
 	TSet<UPackage*> ImportedPackages;
 
@@ -959,9 +958,3 @@ struct FScopedAsyncPackageEvent
 	~FScopedAsyncPackageEvent();
 };
 
-// Stats for ChartCreation.cpp
-extern COREUOBJECT_API double GFlushAsyncLoadingTime;
-extern COREUOBJECT_API uint32 GFlushAsyncLoadingCount;
-extern COREUOBJECT_API uint32 GSyncLoadCount;
-
-extern COREUOBJECT_API void ResetAsyncLoadingStats();

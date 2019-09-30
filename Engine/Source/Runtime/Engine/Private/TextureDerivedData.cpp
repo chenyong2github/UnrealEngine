@@ -1084,7 +1084,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 					UE_CLOG(Mip.BulkData.GetFilename().EndsWith(TEXT(".ubulk")), LogTexture, Error, TEXT("Loading non-streamed mips from an external bulk file.  This is not desireable.  File %s"), *(Mip.BulkData.GetFilename() ) );
 				}
 #endif
-				Mip.BulkData.GetCopy(&OutMipData[MipIndex - FirstMipToLoad]);
+				Mip.BulkData.GetCopy(&OutMipData[MipIndex - FirstMipToLoad], true);
 			}
 			NumMipsCached++;
 		}
@@ -1144,8 +1144,7 @@ int32 FTexturePlatformData::GetNumNonStreamingMips() const
 
 		for (const FTexture2DMipMap& Mip : Mips)
 		{
-			uint32 BulkDataFlags = Mip.BulkData.GetBulkDataFlags();
-			if ((BulkDataFlags & BULKDATA_PayloadInSeperateFile) || (BulkDataFlags & BULKDATA_PayloadAtEndOfFile))
+			if ( Mip.BulkData.InSeperateFile() || !Mip.BulkData.IsInlined() )
 			{
 				--NumNonStreamingMips;
 			}
@@ -1407,8 +1406,7 @@ static void SerializePlatformData(
 		for (int32 MipIndex = 0; MipIndex < BulkDataMipFlags.Num(); ++MipIndex)
 		{
 			check(Ar.IsSaving());
-			PlatformData->Mips[MipIndex].BulkData.ClearBulkDataFlags(~BulkDataMipFlags[MipIndex]);
-			PlatformData->Mips[MipIndex].BulkData.SetBulkDataFlags(BulkDataMipFlags[MipIndex]);
+			PlatformData->Mips[MipIndex].BulkData.ResetBulkDataFlags(BulkDataMipFlags[MipIndex]);
 		}
 	}
 	else
@@ -1416,10 +1414,9 @@ static void SerializePlatformData(
 		for (int32 ChunkIndex = 0; ChunkIndex < BulkDataMipFlags.Num(); ++ChunkIndex)
 		{
 			check(Ar.IsSaving() && bCooked);
-			PlatformData->VTData->Chunks[ChunkIndex].BulkData.ClearBulkDataFlags(~BulkDataMipFlags[ChunkIndex]);
-			PlatformData->VTData->Chunks[ChunkIndex].BulkData.SetBulkDataFlags(BulkDataMipFlags[ChunkIndex]);
+			PlatformData->VTData->Chunks[ChunkIndex].BulkData.ResetBulkDataFlags(BulkDataMipFlags[ChunkIndex]);
 		}
-	}	
+	}
 }
 
 void FTexturePlatformData::Serialize(FArchive& Ar, UTexture* Owner)

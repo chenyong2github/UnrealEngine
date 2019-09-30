@@ -118,13 +118,16 @@ void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkInd
 	Ar << bCooked;
 
 	// ChunkIndex 0 is always inline payload, all other chunks are streamed.
-	if (ChunkIndex == 0)
+	if (Ar.IsSaving())
 	{
-		BulkData.SetBulkDataFlags(BULKDATA_ForceInlinePayload);
-	}
-	else
-	{
-		BulkData.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+		if (ChunkIndex == 0)
+		{
+			BulkData.SetBulkDataFlags(BULKDATA_ForceInlinePayload);
+		}
+		else
+		{
+			BulkData.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+		}
 	}
 
 	// streaming doesn't use memory mapped IO
@@ -396,7 +399,7 @@ void USoundWave::Serialize( FArchive& Ar )
 	else
 	{
 		// only save the raw data for non-cooked packages
-		RawData.Serialize( Ar, this );
+		RawData.Serialize(Ar, this, INDEX_NONE, false);
 	}
 
 	Ar << CompressedDataGuid;

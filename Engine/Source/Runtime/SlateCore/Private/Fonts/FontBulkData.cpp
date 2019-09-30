@@ -10,7 +10,7 @@ DECLARE_MEMORY_STAT(TEXT("Font BulkData Memory"), STAT_SlateBulkFontDataMemory, 
 
 UFontBulkData::UFontBulkData()
 {
-	BulkData.SetBulkDataFlags(BULKDATA_SerializeCompressed|BULKDATA_SerializeCompressedBitWindow);
+	
 }
 
 void UFontBulkData::Initialize(const FString& InFontFilename)
@@ -72,7 +72,7 @@ const void* UFontBulkData::Lock(int32& OutFontDataSizeBytes) const
 
 }
 
-void UFontBulkData::Unlock() const
+void UFontBulkData::Unlock()
 {
 	bool bWasLoaded = BulkData.IsBulkDataLoaded();
 	int32 BulkDataSize = BulkData.GetBulkDataSize(); 
@@ -94,13 +94,23 @@ int32 UFontBulkData::GetBulkDataSize() const
 
 int32 UFontBulkData::GetBulkDataSizeOnDisk() const
 {
+#if !USE_NEW_BULKDATA
 	return BulkData.GetBulkDataSizeOnDisk();
+#else
+	return 0;
+#endif
 }
 
 void UFontBulkData::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
-	BulkData.Serialize(Ar, this);
+
+	if (Ar.IsSaving())
+	{
+		BulkData.SetBulkDataFlags(BULKDATA_SerializeCompressed | BULKDATA_SerializeCompressedBitWindow);
+	}
+	
+	BulkData.Serialize(Ar, this, INDEX_NONE, false);
 
 	if( !GIsEditor && Ar.IsLoading() )
 	{

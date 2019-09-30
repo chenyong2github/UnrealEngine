@@ -141,7 +141,7 @@ void UVirtualTexture::Serialize(FArchive& Ar)
 		}
 
 		FByteBulkData BulkData;
-		BulkData.Serialize(Ar, this, ChunkId);
+		BulkData.Serialize(Ar, this, ChunkId, false);
 
 #if WITH_EDITORONLY_DATA
 		if (!bCooked && Version >= FVirtualTextureBuiltDataCustomVersion::SplitDDC)

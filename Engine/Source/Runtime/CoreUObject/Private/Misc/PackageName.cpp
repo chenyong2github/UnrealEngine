@@ -439,7 +439,6 @@ bool FPackageName::ConvertRootPathToContentPath( const FString& RootPath, FStrin
 
 FString FPackageName::LongPackageNameToFilename(const FString& InLongPackageName, const FString& InExtension)
 {
-	FString FailureReason;
 	FString Result;
 	if (!TryConvertLongPackageNameToFilename(InLongPackageName, Result, InExtension))
 	{
@@ -786,8 +785,7 @@ bool FPackageName::FindPackageFileWithoutExtension(const FString& InPackageFilen
 		for (int32 ExtensionIndex = 0; ExtensionIndex < UE_ARRAY_COUNT(PackageExtensions); ++ExtensionIndex)
 		{
 			FString   PackageFilename = InPackageFilename + *PackageExtensions[ExtensionIndex];
-			FDateTime Timestamp       = FileManager.GetTimeStamp(*PackageFilename);
-			if (Timestamp != FDateTime::MinValue())
+			if (FileManager.FileExists(*PackageFilename))
 			{
 				// The package exists so exit. From now on InPackageFilename can be equal to OutFilename so
 				// don't attempt to use it anymore (case where &InPackageFilename == &OutFilename).
@@ -809,8 +807,7 @@ bool FPackageName::FindPackageFileWithoutExtension(const FString& InPackageFilen
 		for (int32 ExtensionIndex = 0; ExtensionIndex < UE_ARRAY_COUNT(TextPackageExtensions); ++ExtensionIndex)
 		{
 			FString   PackageFilename = InPackageFilename + *TextPackageExtensions[ExtensionIndex];
-			FDateTime Timestamp		  = FileManager.GetTimeStamp(*PackageFilename);
-			if (Timestamp != FDateTime::MinValue())
+			if (FileManager.FileExists(*PackageFilename))
 			{
 				// The package exists so exit. From now on InPackageFilename can be equal to OutFilename so
 				// don't attempt to use it anymore (case where &InPackageFilename == &OutFilename).

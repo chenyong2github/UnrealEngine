@@ -941,4 +941,3 @@ IFileManager& IFileManager::Get()
 	static FFileManagerGeneric Singleton;
 	return Singleton;
 }
-

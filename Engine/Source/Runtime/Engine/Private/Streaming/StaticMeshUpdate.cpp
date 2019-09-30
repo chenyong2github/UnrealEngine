@@ -307,7 +307,6 @@ void FStaticMeshStreamIn_IO::FCancelIORequestsTask::DoWork()
 
 FStaticMeshStreamIn_IO::FStaticMeshStreamIn_IO(UStaticMesh* InMesh, int32 InRequestedMips, bool bHighPrio)
 	: FStaticMeshStreamIn(InMesh, InRequestedMips)
-	, IOFileHandle(nullptr)
 	, IORequest(nullptr)
 	, bHighPrioIORequest(bHighPrio)
 {}
@@ -318,8 +317,7 @@ void FStaticMeshStreamIn_IO::Abort()
 	{
 		FStaticMeshStreamIn::Abort();
 
-		// IO requests can only exist in the lifetime of IOFileHandle.
-		if (IOFileHandle)
+		if (IORequest != nullptr)
 		{
 			// Prevent the update from being considered done before this is finished.
 			// By checking that it was not already cancelled, we make sure this doesn't get called twice.
@@ -373,71 +371,54 @@ void FStaticMeshStreamIn_IO::SetIORequest(const FContext& Context, const FString
 	{
 		return;
 	}
-	check(!IOFileHandle && PendingFirstMip < CurrentFirstLODIdx);
-	IOFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*IOFilename);
+
+	check(!IORequest && PendingFirstMip < CurrentFirstLODIdx);
+
 	FStaticMeshRenderData* RenderData = Context.RenderData;
-	if (IOFileHandle && RenderData)
+	if (RenderData != nullptr)
 	{
 		SetAsyncFileCallback(Context);
 
-		int64 ReadOffset;
-		int64 ReadSize;
-		{
-			FStaticMeshLODResources& FirstLOD = RenderData->LODResources[PendingFirstMip];
-			FStaticMeshLODResources& LastLOD = RenderData->LODResources[CurrentFirstLODIdx - 1];
-			ReadOffset = FirstLOD.OffsetInFile;
-			ReadSize = LastLOD.OffsetInFile + LastLOD.BulkDataSize - ReadOffset;
-#if DO_CHECK
-			int64 TestOffset = ReadOffset;
-			for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
-			{
-				FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIdx];
-				const int64 CurOffset = (int64)LODResource.OffsetInFile;
-				check(ReadOffset <= CurOffset);
-				check(TestOffset == CurOffset);
-				TestOffset += LODResource.BulkDataSize;
-			}
-			check(TestOffset == ReadOffset + ReadSize);
-#endif
-		}
+		const FStaticMeshLODResources& FirstLOD = RenderData->LODResources[PendingFirstMip];
+		const FStaticMeshLODResources& LastLOD = RenderData->LODResources[CurrentFirstLODIdx - 1];
 
 		// Increment as we push the request. If a request complete immediately, then it will call the callback
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 		TaskSynchronization.Increment();
-		LODData.Empty(ReadSize);
-		LODData.AddUninitialized(ReadSize);
 
-		IORequest = IOFileHandle->ReadRequest(
-			ReadOffset,
-			ReadSize,
+#if USE_BULKDATA_STREAMING_TOKEN
+		IORequest = FUntypedBulkData::CreateStreamingRequestForRange(
+			IOFilename,
+			FirstLOD.BulkDataStreamingToken,
+			LastLOD.BulkDataStreamingToken,
 			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
-			&AsyncFileCallback,
-			LODData.GetData());
+			&AsyncFileCallback);
+#else
+		IORequest = BulkDataUtils::CreateStreamingRequestForRange(
+			FirstLOD.StreamingBulkData,
+			LastLOD.StreamingBulkData,
+			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
+			&AsyncFileCallback);
+#endif
 	}
 	else
 	{
 		MarkAsCancelled();
 	}
-}
+} 
 
 void FStaticMeshStreamIn_IO::ClearIORequest(const FContext& Context)
 {
-	if (IOFileHandle)
+	if (IORequest != nullptr)
 	{
-		if (IORequest)
+		// If clearing requests not yet completed, cancel and wait.
+		if (!IORequest->PollCompletion())
 		{
-			// If clearing requests not yet completed, cancel and wait.
-			if (!IORequest->PollCompletion())
-			{
-				IORequest->Cancel();
-				IORequest->WaitCompletion();
-			}
-			delete IORequest;
-			IORequest = nullptr;
+			IORequest->Cancel();
+			IORequest->WaitCompletion();
 		}
-
-		delete IOFileHandle;
-		IOFileHandle = nullptr;
+		delete IORequest;
+		IORequest = nullptr;
 	}
 }
 
@@ -451,7 +432,11 @@ void FStaticMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 	if (!IsCancelled() && Mesh && RenderData)
 	{
 		check(PendingFirstMip < CurrentFirstLODIdx && CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx);
-		FMemoryReader Ar(LODData, true);
+		check(IORequest->GetSize() >= 0 && IORequest->GetSize() <= TNumericLimits<uint32>::Max());
+
+		TArrayView<uint8> Data(IORequest->GetReadResults(), IORequest->GetSize());
+
+		FMemoryReaderView Ar(Data, true);
 		for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
 		{
 			FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIdx];
@@ -460,7 +445,8 @@ void FStaticMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 			LODResource.SerializeBuffers(Ar, Mesh, DummyStripFlags, DummyBuffersSize);
 			check(DummyBuffersSize.CalcBuffersSize() == LODResource.BuffersSize);
 		}
-		LODData.Empty();
+		
+		FMemory::Free(Data.GetData());// Free the memory we took ownership of via IORequest->GetReadResults()
 	}
 }
 

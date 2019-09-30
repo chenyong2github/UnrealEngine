@@ -454,7 +454,7 @@ FLinkerLoad* FLinkerLoad::CreateLinker(FUObjectSerializeContext* LoadContext, UP
 		}
 
 		TGuardValue<FLinkerLoad*> SerializedPackageLinkerGuard(LoadContext->SerializedPackageLinker, Linker);
-		if (Linker->Tick(0.f, false, false) == LINKER_Failed)
+		if (Linker->Tick(0.f, false, false, nullptr) == LINKER_Failed)
 		{
 			return nullptr;
 		}
@@ -646,6 +646,105 @@ FLinkerLoad* FLinkerLoad::CreateLinkerAsync(FUObjectSerializeContext* LoadContex
 	return Linker;
 }
 
+void FLinkerLoad::UpdateLinkerAndLoaderFromSummary(const FPackageFileSummary& Summary, FLinkerLoad& Linker, FArchive* Loader)
+{
+	Linker.SetUE4Ver(Summary.GetFileVersionUE4());
+	Linker.SetLicenseeUE4Ver(Summary.GetFileVersionLicenseeUE4());
+	Linker.SetEngineVer(Summary.SavedByEngineVersion);
+
+	const FCustomVersionContainer& SummaryVersions = Summary.GetCustomVersionContainer();
+	Linker.SetSharedCustomVersionContainerForOptimizedLoading(&SummaryVersions);
+
+	// TODO: Also done by void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
+	if (Summary.PackageFlags & PKG_FilterEditorOnly)
+	{
+		Linker.SetFilterEditorOnly(true);
+	}
+
+	// Propagate fact that package cannot use lazy loading to archive (aka this).
+	if (Linker.IsTextFormat())
+	{
+		Linker.ArAllowLazyLoading = false;
+	}
+	else
+	{
+		Linker.ArAllowLazyLoading = true;
+	}
+
+	if (Loader)
+	{
+		Loader->SetUE4Ver(Summary.GetFileVersionUE4());
+		Loader->SetLicenseeUE4Ver(Summary.GetFileVersionLicenseeUE4());
+		Loader->SetEngineVer(Summary.SavedByEngineVersion);
+		Loader->SetSharedCustomVersionContainerForOptimizedLoading(&SummaryVersions);
+	}
+}
+
+void FLinkerLoad::UpdateUPackageFromSummary(const FPackageFileSummary& Summary, bool bCustomVersionIsLatest, UPackage* LinkerRootPackage)
+{
+	if (!LinkerRootPackage)
+	{
+		return;
+	}
+
+	// Preserve PIE package flag
+	uint32 NewPackageFlags = Summary.PackageFlags;
+	if (LinkerRootPackage->HasAnyPackageFlags(PKG_PlayInEditor))
+	{
+		NewPackageFlags |= PKG_PlayInEditor;
+	}
+
+	// Propagate package flags
+	LinkerRootPackage->SetPackageFlagsTo(NewPackageFlags);
+
+#if WITH_EDITORONLY_DATA
+	// Propagate package folder name
+	LinkerRootPackage->SetFolderName(*Summary.FolderName);
+#endif
+
+	// Propagate streaming install ChunkID
+	LinkerRootPackage->SetChunkIDs(Summary.ChunkIDs);
+
+	// Propagate package file size
+	// LinkerRootPackage->FileSize = TotalSize(); // TODO!!!!
+
+	// Propagate package Guid
+	LinkerRootPackage->SetGuid( Summary.Guid );
+
+#if WITH_EDITORONLY_DATA
+	LinkerRootPackage->SetPersistentGuid( Summary.PersistentGuid );
+	LinkerRootPackage->SetOwnerPersistentGuid( Summary.OwnerPersistentGuid );
+#endif
+
+	// Remember the linker versions
+	LinkerRootPackage->LinkerPackageVersion = Summary.GetFileVersionUE4();
+	LinkerRootPackage->LinkerLicenseeVersion = Summary.GetFileVersionLicenseeUE4();
+
+	// Only set the custom version if it is not already latest.
+	// If it is latest, we will compare against latest in GetLinkerCustomVersion
+	if (!bCustomVersionIsLatest)
+	{
+		LinkerRootPackage->LinkerCustomVersion = Summary.GetCustomVersionContainer();
+	}
+
+#if WITH_EDITORONLY_DATA
+	LinkerRootPackage->bIsCookedForEditor = !!(Summary.PackageFlags & PKG_FilterEditorOnly);
+#endif
+}
+
+FLinkerLoad* FLinkerLoad::CreateLinkerAsync2(FUObjectSerializeContext* LoadContext, UPackage* Parent, const TCHAR* FileName, uint32 LoadFlags)
+{
+	LoadFlags |= LOAD_Async;
+	FLinkerLoad* Linker = new FLinkerLoad(Parent, FileName, LoadFlags);
+	Linker->bIsAsyncLoader = false;
+	Linker->bLockoutLegacyOperations = true;
+	Linker->SetIsLoading(true);
+	Linker->SetIsPersistent(true);
+	Parent->LinkerLoad = Linker;
+
+	return Linker;
+}
+
 void FLinkerLoad::SetSerializeContext(FUObjectSerializeContext* InLoadContext)
 {
 }
@@ -665,7 +764,7 @@ FUObjectSerializeContext* FLinkerLoad::GetSerializeContext()
  * 
  * @return	true if linker has finished creation, false if it is still in flight
  */
-FLinkerLoad::ELinkerStatus FLinkerLoad::Tick( float InTimeLimit, bool bInUseTimeLimit, bool bInUseFullTimeLimit )
+FLinkerLoad::ELinkerStatus FLinkerLoad::Tick( float InTimeLimit, bool bInUseTimeLimit, bool bInUseFullTimeLimit, TMap<TPair<FName, FPackageIndex>, FPackageIndex>* ObjectNameWithOuterToExportMap)
 {
 	ELinkerStatus Status = LINKER_Loaded;
 
@@ -785,7 +884,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::Tick( float InTimeLimit, bool bInUseTime
 			if( Status == LINKER_Loaded )
 			{
 				SCOPED_LOADTIMER(LinkerLoad_FinalizeCreation);
-				Status = FinalizeCreation();
+				Status = FinalizeCreation(ObjectNameWithOuterToExportMap);
 			}
 		}
 		// Loop till we are done if no time limit is specified, or loop until the real time limit is up if we want to use full time
@@ -859,11 +958,10 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const TCHAR* InFilename, uint32 InL
 ,	DeferredCDOIndex(INDEX_NONE)
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 {
-	FMemory::Memset(ExportHash, INDEX_NONE, sizeof(ExportHash));
 	INC_DWORD_STAT(STAT_LinkerCount);
 	INC_DWORD_STAT(STAT_LiveLinkerCount);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	FLinkerManager::Get().GetLiveLinkers().Add(this);
+	FLinkerManager::Get().AddLiveLinker(this);
 #endif
 
 	OwnerThread = FPlatformTLS::GetCurrentThreadId();
@@ -874,7 +972,7 @@ FLinkerLoad::~FLinkerLoad()
 {
 	TRACE_LOADTIME_DESTROY_LINKER(this);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	FLinkerManager::Get().GetLiveLinkers().Remove(this);
+	FLinkerManager::Get().RemoveLiveLinker(this);
 #endif
 
 	UE_CLOG(!FUObjectThreadContext::Get().IsDeletingLinkers, LogLinker, Fatal, TEXT("Linkers can only be deleted by FLinkerManager."));
@@ -1270,16 +1368,12 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 		}
 #endif // PLATFORM_WINDOWS
 
-		// Check custom versions.
-		const FCustomVersionContainer& LatestCustomVersions  = FCustomVersionContainer::GetRegistered();
-		bool bCustomVersionIsLatest = false;
-		if (Summary.bUnversioned)
+		// When unversioned, pretend we are the latest version
+		bool bCustomVersionIsLatest = Summary.bUnversioned;
+		if (!bCustomVersionIsLatest)
 		{
-			// When unversioned, pretend we are the latest version
-			bCustomVersionIsLatest = true;
-		}
-		else
-		{
+			// Check custom versions.
+			const FCustomVersionContainer& LatestCustomVersions  = FCustomVersionContainer::GetRegistered();
 			bool bAllSavedVersionsMatch = true;
 			const FCustomVersionArray&  PackageCustomVersions = Summary.GetCustomVersionContainer().GetAllVersions();
 			for (auto It = PackageCustomVersions.CreateConstIterator(); It; ++It)
@@ -1310,78 +1404,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 			bCustomVersionIsLatest = bSameNumberOfVersions && bAllSavedVersionsMatch;
 		}
 
-		// Loader needs to be the same version.
-		Loader->SetUE4Ver(Summary.GetFileVersionUE4());
-		Loader->SetLicenseeUE4Ver(Summary.GetFileVersionLicenseeUE4());
-		Loader->SetEngineVer(Summary.SavedByEngineVersion);
-
-		this->SetUE4Ver(Summary.GetFileVersionUE4());
-		this->SetLicenseeUE4Ver(Summary.GetFileVersionLicenseeUE4());
-		this->SetEngineVer(Summary.SavedByEngineVersion);
-
-		const FCustomVersionContainer& SummaryVersions = Summary.GetCustomVersionContainer();
-		Loader->SetCustomVersions(SummaryVersions);
-		SetCustomVersions(SummaryVersions);
-
-		// Package has been stored compressed.
-
-		UPackage* LinkerRootPackage = LinkerRoot;
-		if( LinkerRootPackage )
-		{
-			// Preserve PIE package flag
-			uint32 NewPackageFlags = Summary.PackageFlags;
-			if (LinkerRootPackage->HasAnyPackageFlags(PKG_PlayInEditor))
-			{
-				NewPackageFlags |= PKG_PlayInEditor;
-			}
-			
-			// Propagate package flags
-			LinkerRootPackage->SetPackageFlagsTo(NewPackageFlags);
-
-#if WITH_EDITORONLY_DATA
-			// Propagate package folder name
-			LinkerRootPackage->SetFolderName(*Summary.FolderName);
-#endif
-
-			// Propagate streaming install ChunkID
-			LinkerRootPackage->SetChunkIDs(Summary.ChunkIDs);
-			
-			// Propagate package file size
-			LinkerRootPackage->FileSize = TotalSize();
-
-			// Propagate package Guids
-			LinkerRootPackage->SetGuid( Summary.Guid );
-
-#if WITH_EDITORONLY_DATA
-			LinkerRootPackage->SetPersistentGuid( Summary.PersistentGuid );
-			LinkerRootPackage->SetOwnerPersistentGuid( Summary.OwnerPersistentGuid );
-#endif
-
-			// Remember the linker versions
-			LinkerRootPackage->LinkerPackageVersion = this->UE4Ver();
-			LinkerRootPackage->LinkerLicenseeVersion = this->LicenseeUE4Ver();
-
-			// Only set the custom version if it is not already latest.
-			// If it is latest, we will compare against latest in GetLinkerCustomVersion
-			if (!bCustomVersionIsLatest)
-			{
-				LinkerRootPackage->LinkerCustomVersion = SummaryVersions;
-			}
-
-#if WITH_EDITORONLY_DATA
-			LinkerRootPackage->bIsCookedForEditor = !!(Summary.PackageFlags & PKG_FilterEditorOnly);
-#endif
-		}
-		
-		// Propagate fact that package cannot use lazy loading to archive (aka this).
-		if (IsTextFormat())
-		{
-			ArAllowLazyLoading = false;
-		}
-		else
-		{
-			ArAllowLazyLoading = true;
-		}
+		UpdateLinkerAndLoaderFromSummary(Summary, *this, Loader);
+		UpdateUPackageFromSummary(Summary, bCustomVersionIsLatest, LinkerRoot);
 
 		// Slack everything according to summary.
 		ImportMap					.Empty( Summary.ImportCount				);
@@ -2140,10 +2164,16 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateExportHash()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FLinkerLoad::CreateExportHash" ), STAT_LinkerLoad_CreateExportHash, STATGROUP_LinkerLoad );
 
-	// Zero initialize hash on first iteration.
+	if (GEventDrivenLoaderEnabled)
+	{
+		return LINKER_Loaded;
+	}
+
+	// Initialize hash on first iteration.
 	if( ExportHashIndex == 0 )
 	{
-		for( int32 i=0; i<UE_ARRAY_COUNT(ExportHash); i++ )
+		ExportHash.Reset(new int32[ExportHashCount]);
+		for( int32 i=0; i<ExportHashCount; i++ )
 		{
 			ExportHash[i] = INDEX_NONE;
 		}
@@ -2154,7 +2184,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateExportHash()
 	{
 		FObjectExport& Export = ExportMap[ExportHashIndex];
 
-		const int32 iHash = HashNames( Export.ObjectName, GetExportClassName(ExportHashIndex), GetExportClassPackage(ExportHashIndex) ) & (UE_ARRAY_COUNT(ExportHash)-1);
+		const int32 iHash = HashNames( Export.ObjectName, GetExportClassName(ExportHashIndex), GetExportClassPackage(ExportHashIndex) ) & (ExportHashCount-1);
 		Export.HashNext = ExportHash[iHash];
 		ExportHash[iHash] = ExportHashIndex;
 
@@ -2209,7 +2239,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FindExistingExports()
 /**
  * Finalizes linker creation, adding linker to loaders array and potentially verifying imports.
  */
-FLinkerLoad::ELinkerStatus FLinkerLoad::FinalizeCreation()
+FLinkerLoad::ELinkerStatus FLinkerLoad::FinalizeCreation(TMap<TPair<FName, FPackageIndex>, FPackageIndex>* ObjectNameWithOuterToExportMap)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FLinkerLoad::FinalizeCreation" ), STAT_LinkerLoad_FinalizeCreation, STATGROUP_LinkerLoad );
 
@@ -2225,13 +2255,13 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FinalizeCreation()
 		// Add this linker to the object manager's linker array.
 		FLinkerManager::Get().AddLoader(this);
 
-		if (GEventDrivenLoaderEnabled && AsyncRoot)
+		if (GEventDrivenLoaderEnabled && AsyncRoot && ObjectNameWithOuterToExportMap)
 		{
 			for (int32 ExportIndex = 0; ExportIndex < ExportMap.Num(); ++ExportIndex)
 			{
 				FPackageIndex Index = FPackageIndex::FromExport(ExportIndex);
 				const FObjectExport& Export = Exp(Index);
-				AsyncRoot->ObjectNameWithOuterToExport.Add(TPair<FName, FPackageIndex>(Export.ObjectName, Export.OuterIndex), Index);
+				ObjectNameWithOuterToExportMap->Add(TPair<FName, FPackageIndex>(Export.ObjectName, Export.OuterIndex), Index);
 			}
 		}
 
@@ -2954,7 +2984,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			Pkg = CreatePackage(NULL, *Top->ObjectName.ToString() );
 
 			// Find this import within its existing linker.
-			int32 iHash = HashNames( Import.ObjectName, Import.ClassName, Import.ClassPackage) & (UE_ARRAY_COUNT(ExportHash)-1);
+			int32 iHash = HashNames( Import.ObjectName, Import.ClassName, Import.ClassPackage) & (ExportHashCount-1);
 
 			//@Package name transition, if we can match without shortening the names, then we must not take a shortened match
 			bool bMatchesWithoutShortening = false;
@@ -3419,7 +3449,7 @@ FName FLinkerLoad::ResolveResourceName( FPackageIndex ResourceIndex )
 // Find the index of a specified object without regard to specific package.
 int32 FLinkerLoad::FindExportIndex( FName ClassName, FName ClassPackage, FName ObjectName, FPackageIndex ExportOuterIndex )
 {
-	int32 iHash = HashNames( ObjectName, ClassName, ClassPackage ) & (UE_ARRAY_COUNT(ExportHash)-1);
+	int32 iHash = HashNames( ObjectName, ClassName, ClassPackage ) & (ExportHashCount-1);
 
 	for( int32 i=ExportHash[iHash]; i!=INDEX_NONE; i=ExportMap[i].HashNext )
 	{
@@ -4939,11 +4969,8 @@ void FLinkerLoad::Detach()
 		LinkerRoot->LinkerLoad = nullptr;
 		LinkerRoot = nullptr;
 	}
-	if (AsyncRoot)
-	{
-		AsyncRoot->DetachLinker();
-		AsyncRoot = nullptr;
-	}
+
+	UE_CLOG(AsyncRoot != nullptr, LogStreaming, Error, TEXT("AsyncRoot still associated with Linker"));
 }
 
 #if WITH_EDITOR
@@ -5002,7 +5029,33 @@ FArchive& FLinkerLoad::operator<<( UObject*& Object )
 	if (GEventDrivenLoaderEnabled && bForceSimpleIndexToObject)
 	{
 		check(Ar.IsLoading() && AsyncRoot);
-		Object = AsyncRoot->EventDrivenIndexToObject(Index, false);
+
+		if (Index.IsNull())
+		{
+			Object = nullptr;
+		}
+		else
+		{
+			if (Index.IsExport())
+			{
+				Object = Exp(Index).Object;
+			}
+			else // Index.IsImport()
+			{
+				if (LocalImportIndices)
+				{
+					check(GlobalImportObjects);
+					Object = GlobalImportObjects[LocalImportIndices[Index.ToImport()]];
+				}
+				else
+				{
+					Object = Imp(Index).XObject;
+				}
+			}
+		}
+
+		//Object = ((FAsyncPackage*)AsyncRoot)->EventDrivenIndexToObject(Index, false);
+
 		return *this;
 	}
 
