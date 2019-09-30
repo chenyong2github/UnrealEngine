@@ -160,11 +160,10 @@ public:
 	virtual bool IsAssetModifiedByOtherClients(const FName& AssetName, int32* OutOtherClientsWithModifNum = nullptr, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo = nullptr, int32 OtherClientsWithModifMaxFetchNum = 0) const = 0;
 
 	/**
-	 * Controls whether the events emitted to the server through this workspace are marked as 'replayable'. By default, all events are marked as replayable. When
-	 * the workspace 'replayable' flag is false, the events emitted are recorded by the server, but are not replayed on the client(s). Non-replaylable events
-	 * are used for inspection rather than propagating/applying changes.
-	 * @note This was implemented to prevent multi-users transactions from being reapplied by disaster recovery in case of a crash during as multi-user session.
-	 * @param bReplayable True will mark all further events sent as replaylable, false as non-replayable.
+	 * Controls whether the activities emitted to the server through this workspace are marked as 'ignored on restore'. By default, all activities are marked as 'restorable'. When
+	 * the workspace 'ignore' state is true, the events emitted are recorded by the server, but are marked as 'should not restore'. Non-restorable activities are used for inspection.
+	 * @note This was implemented to prevent multi-users transactions from being restored by disaster recovery in case of a crash during as multi-user session.
+	 * @param bIgnore Whether all further events emitted are marked as 'ignored on restore'.
 	 */
-	virtual void SetEmittedEventsAsReplayable(bool bReplayable) = 0;
+	virtual void SetIgnoreOnRestoreFlagForEmittedActivities(bool bIgnore) = 0;
 };

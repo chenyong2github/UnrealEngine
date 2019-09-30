@@ -52,11 +52,6 @@ public:
 	 */
 	void ProcessPending();
 
-	/**
-	 * Sets whether further events emitted to the server has the 'replayable' flag on or off.
-	 */
-	void SetTransactionEventsAsReplayable(bool bReplayable) { bReplayableEvents = bReplayable; }
-
 private:
 	/**
 	 * Context object for transactions that are to be processed.
@@ -160,7 +155,7 @@ private:
 	/**
 	 * Send a transaction finalized event.
 	 */
-	void SendTransactionFinalizedEvent(const FGuid& InTransactionId, const FGuid& InOperationId, UObject* InPrimaryObject, const TArray<FName>& InModifiedPackages, const TArray<FConcertExportedObject>& InObjectUpdates, const FConcertLocalIdentifierTable& InLocalIdentifierTable, const FText& InTitle, bool bReplayable);
+	void SendTransactionFinalizedEvent(const FGuid& InTransactionId, const FGuid& InOperationId, UObject* InPrimaryObject, const TArray<FName>& InModifiedPackages, const TArray<FConcertExportedObject>& InObjectUpdates, const FConcertLocalIdentifierTable& InLocalIdentifierTable, const FText& InTitle);
 
 	/**
 	 * Send a transaction snapshot event.
@@ -208,9 +203,4 @@ private:
 	 * Map of transaction IDs to the pending transaction that may be sent in the future (when finalized).
 	 */
 	TMap<FGuid, FPendingTransactionToSend> PendingTransactionsToSend;
-
-	/**
-	 * Whether the transaction events emitted to the server has the replayable flag on or off.
-	 */
-	bool bReplayableEvents = true;
 };

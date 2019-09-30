@@ -77,11 +77,6 @@ public:
 	 */
 	bool PersistSessionChanges(TArrayView<const FString> InFilesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons = nullptr);
 
-	/**
-	 * Sets whether further package events emitted to the server has the 'replayable' flag on or off.
-	 */
-	void SetPackageEventAsReplayable(bool bReplayable) { bReplayableEvents = bReplayable; }
-
 private:
 	/**
 	 * Apply the data in the given package to disk and update the in-memory state.
@@ -168,9 +163,4 @@ private:
 	 * Array of package names that are pending an in-memory purge.
 	 */
 	TArray<FName> PackagesPendingPurge;
-
-	/**
-	 * Whether the package events emitted to the server has the replayable flag on or off.
-	 */
-	bool bReplayableEvents = false;
 };

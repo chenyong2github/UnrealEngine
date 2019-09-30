@@ -73,10 +73,6 @@ struct FConcertPackageUpdateEvent
 
 	UPROPERTY()
 	FConcertPackage Package;
-
-	/** True to set the package event as replayable by clients. False would record it for logging/inspection purpose but will prevent clients from replaying it. */
-	UPROPERTY()
-	bool bReplayable = true;
 };
 
 USTRUCT()
@@ -162,4 +158,21 @@ struct FConcertPlaySessionEvent
 
 	UPROPERTY()
 	bool bIsSimulating = false;
+};
+
+/**
+ * Sets the specified client 'ignore on restore' state for further activities. The 'ignored' flag can be raised to mark a series of activities as 'should not be restored'.
+ * @note This can be used to record and monitor session activities for inspection purpose, for example allowing disaster recovery to record what
+ *       happens in a multi-user session without restoring such activities in case of crash (because they occurred in a transient sandbox).
+ */
+USTRUCT()
+struct FConcertIgnoreActivityStateChangedEvent
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid EndpointId;
+
+	UPROPERTY()
+	bool bIgnore = false;
 };

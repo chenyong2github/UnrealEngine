@@ -129,10 +129,6 @@ struct FConcertTransactionEventBase
 
 	UPROPERTY()
 	TArray<FConcertExportedObject> ExportedObjects;
-
-	/** True to set the transaction event as replayable by clients. False would record it for logging/inspection purpose but will prevent clients from replaying it. */
-	UPROPERTY()
-	bool bReplayable = true;
 };
 
 USTRUCT()

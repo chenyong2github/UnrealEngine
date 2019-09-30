@@ -30,7 +30,6 @@ struct FConcertClientLocalTransactionCommonData
 	TArray<FName> ModifiedPackages;
 	TArray<FConcertObjectId> ExcludedObjectUpdates;
 	bool bIsExcluded = false;
-	bool bReplayable = true;
 };
 
 /**

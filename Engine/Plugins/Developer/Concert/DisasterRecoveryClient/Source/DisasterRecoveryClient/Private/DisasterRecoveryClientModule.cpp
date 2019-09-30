@@ -161,13 +161,13 @@ private:
 	void HandleSyncSessionStartup(const IConcertSyncClient* SyncClient)
 	{
 		check(DisasterRecoveryClient.Get() != SyncClient)
-		SetDisasterRecoveryEventsAsReplayable(IsCompatibleWithOtherConcertSessions(SyncClient, /*SyncClientShuttingDownSession*/nullptr));
+		SetIgnoreOnRestoreState(!IsCompatibleWithOtherConcertSessions(SyncClient, /*SyncClientShuttingDownSession*/nullptr));
 	}
 
 	void HandleSyncSessionShutdown(const IConcertSyncClient* SyncClient)
 	{
 		check(DisasterRecoveryClient.Get() != SyncClient);
-		SetDisasterRecoveryEventsAsReplayable(IsCompatibleWithOtherConcertSessions(/*SyncClientStartingSession*/nullptr, SyncClient));
+		SetIgnoreOnRestoreState(!IsCompatibleWithOtherConcertSessions(/*SyncClientStartingSession*/nullptr, SyncClient));
 	}
 
 	FGuid GetDisasterRecoverySessionId() const
@@ -411,7 +411,7 @@ private:
 		DisasterRecoveryClient->Startup(ClientConfig, EConcertSyncSessionFlags::Default_DisasterRecoverySession);
 
 		// Set all events captured by the disaster recovery service as 'replayable' unless another concert client (assumed Multi-User) has created an incompatible session.
-		SetDisasterRecoveryEventsAsReplayable(IsCompatibleWithOtherConcertSessions(/*SyncClientStartingSession*/nullptr, /*SyncClientShuttingDownSession*/nullptr));
+		SetIgnoreOnRestoreState(!IsCompatibleWithOtherConcertSessions(/*SyncClientStartingSession*/nullptr, /*SyncClientShuttingDownSession*/nullptr));
 
 		// If something needs to be recovered from a crash.
 		if (RestoringSession)
@@ -503,12 +503,12 @@ private:
 		return SyncClient->GetConcertClient()->GetRole() != TEXT("MultiUser");
 	}
 
-	/** Sets whether further Concert events (transaction/package) emitted by Disaster Recovery have the replayable flag on or off. */
-	void SetDisasterRecoveryEventsAsReplayable(bool bReplayable)
+	/** Sets whether further Concert events (transaction/package) emitted by Disaster Recovery have the 'ignore' flag on or off. */
+	void SetIgnoreOnRestoreState(bool bIgnore)
 	{
 		if (TSharedPtr<IConcertClientWorkspace> Workspace = DisasterRecoveryClient ? DisasterRecoveryClient->GetWorkspace() : TSharedPtr<IConcertClientWorkspace>())
 		{
-			Workspace->SetEmittedEventsAsReplayable(bReplayable);
+			Workspace->SetIgnoreOnRestoreFlagForEmittedActivities(bIgnore);
 		}
 	}
 
