@@ -5717,10 +5717,12 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 		}
 	}
 
+	GDisableAutomaticTextureMaterialUpdateDependencies = true;
 	for (int TextureIdx = 0; TextureIdx < MobileWeightmapTextures.Num(); TextureIdx++)
 	{
 		MobileWeightmapTextures[TextureIdx]->PostEditChange();
 	}
+	GDisableAutomaticTextureMaterialUpdateDependencies = false;
 
 	FLinearColor Masks[4];
 	Masks[0] = FLinearColor(1, 0, 0, 0);
