@@ -3535,7 +3535,7 @@ void FEdModeLandscape::ForceRealTimeViewports(const bool bEnable, const bool bSt
 		{
 			if (ViewportWindow.IsValid())
 			{
-				FEditorViewportClient& Viewport = ViewportWindow->GetViewportClient();
+				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
 				if (bEnable)
 				{
 					Viewport.SetRealtime(bEnable, bStoreCurrentState);

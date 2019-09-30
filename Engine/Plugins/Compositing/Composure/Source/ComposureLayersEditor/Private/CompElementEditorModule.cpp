@@ -36,7 +36,7 @@ namespace CompElementEditor_Impl
 		TSharedPtr<IAssetViewport> Viewport = LevelEditorModule.GetFirstActiveViewport();
 		if (Viewport.IsValid())
 		{
-			Viewport->GetViewportClient().RedrawRequested(Viewport->GetActiveViewport());
+			Viewport->GetAssetViewportClient().RedrawRequested(Viewport->GetActiveViewport());
 		}
 		else if (GCurrentLevelEditingViewportClient)
 		{

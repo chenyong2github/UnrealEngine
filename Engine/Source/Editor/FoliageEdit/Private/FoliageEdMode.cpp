@@ -3843,7 +3843,7 @@ void FEdModeFoliage::ForceRealTimeViewports(const bool bEnable, const bool bStor
 	TSharedPtr< IAssetViewport > ViewportWindow = LevelEditorModule.GetFirstActiveViewport();
 	if (ViewportWindow.IsValid())
 	{
-		FEditorViewportClient &Viewport = ViewportWindow->GetViewportClient();
+		FEditorViewportClient &Viewport = ViewportWindow->GetAssetViewportClient();
 		if (Viewport.IsPerspective())
 		{
 			if (bEnable)

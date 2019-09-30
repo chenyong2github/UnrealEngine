@@ -459,7 +459,7 @@ FEditorViewportClient::~FEditorViewportClient()
 
 	if(Viewport)
 	{
-		UE_LOG(LogEditorViewport, Fatal, TEXT("Viewport != NULL in FLevelEditorViewportClient destructor."));
+		UE_LOG(LogEditorViewport, Fatal, TEXT("Viewport != NULL in FEditorViewportClient destructor."));
 	}
 
 	if(GEditor)

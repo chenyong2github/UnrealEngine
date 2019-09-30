@@ -94,7 +94,7 @@ public:
 		return *LevelViewportClient;
 	}
 
-	virtual FEditorViewportClient& GetViewportClient() override
+	virtual FEditorViewportClient& GetAssetViewportClient() override
 	{
 		return *LevelViewportClient;
 	}

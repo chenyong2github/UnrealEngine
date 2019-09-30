@@ -62,7 +62,7 @@ public:
 	/**
 	 * @return The editor client for this viewport
 	 */
-	virtual FEditorViewportClient& GetViewportClient() = 0;
+	virtual FEditorViewportClient& GetAssetViewportClient() = 0;
 
 	/**
 	 * Gets the active viewport.

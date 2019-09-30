@@ -620,25 +620,25 @@ void UEditorEngine::TeardownPlaySession(FWorldContext& PieWorldContext)
 					if (bLastViewAndLocationValid == true && !GEngine->IsStereoscopic3D( Viewport->GetActiveViewport() ) )
 					{
 						bLastViewAndLocationValid = false;
-						Viewport->GetViewportClient().SetViewLocation( LastViewLocation );
+						Viewport->GetAssetViewportClient().SetViewLocation( LastViewLocation );
 
-						if( Viewport->GetViewportClient().IsPerspective() )
+						if( Viewport->GetAssetViewportClient().IsPerspective() )
 						{
 							// Rotation only matters for perspective viewports not orthographic
-							Viewport->GetViewportClient().SetViewRotation( LastViewRotation );
+							Viewport->GetAssetViewportClient().SetViewRotation( LastViewRotation );
 						}
 					}
 				}
 
 				// No longer simulating in the viewport
-				Viewport->GetViewportClient().SetIsSimulateInEditorViewport( false );
+				Viewport->GetAssetViewportClient().SetIsSimulateInEditorViewport( false );
 
 				
 				FEditorModeRegistry::Get().UnregisterMode(FBuiltinEditorModes::EM_Physics);
 				
 
 				// Clear out the hit proxies before GC'ing
-				Viewport->GetViewportClient().Viewport->InvalidateHitProxy();
+				Viewport->GetAssetViewportClient().Viewport->InvalidateHitProxy();
 			}
 			else if (SlatePlayInEditorSession->SlatePlayInEditorWindow.IsValid())
 			{
@@ -808,7 +808,7 @@ void UEditorEngine::TeardownPlaySession(FWorldContext& PieWorldContext)
 				Viewport->OnSimulateSessionFinished();
 			}
 
-			StaticCast<FLevelEditorViewportClient&>(Viewport->GetViewportClient()).SetReferenceToWorldContext(EditorWorldContext);
+			StaticCast<FLevelEditorViewportClient&>(Viewport->GetAssetViewportClient()).SetReferenceToWorldContext(EditorWorldContext);
 		}
 
 		// Remove the slate info from the map (note that the UWorld* is long gone at this point, but the WorldContext still exists. It will be removed outside of this function)
@@ -3659,7 +3659,7 @@ bool UEditorEngine::GetSimulateInEditorViewTransform(FTransform& OutViewTransfor
 					TSharedPtr<IAssetViewport> LevelViewport = SlateInfoPtr->DestinationSlateViewport.Pin();
 					if (LevelViewport.IsValid())
 					{
-						FEditorViewportClient& EditorViewportClient = LevelViewport->GetViewportClient();
+						FEditorViewportClient& EditorViewportClient = LevelViewport->GetAssetViewportClient();
 						OutViewTransform = FTransform(EditorViewportClient.GetViewRotation(), EditorViewportClient.GetViewLocation());
 						return true;
 					}
@@ -3707,7 +3707,7 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 	TSharedPtr<IAssetViewport> LevelViewport = SlatePlayInEditorSession.DestinationSlateViewport.Pin();
 	if( ensure(LevelViewport.IsValid()) )
 	{
-		FEditorViewportClient& EditorViewportClient = LevelViewport->GetViewportClient();
+		FEditorViewportClient& EditorViewportClient = LevelViewport->GetAssetViewportClient();
 
 		// Toggle to pie if currently simulating
 		if( bIsSimulatingInEditor )

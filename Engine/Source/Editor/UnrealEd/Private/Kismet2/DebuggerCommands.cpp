@@ -1356,9 +1356,9 @@ void FPlayWorldCommandCallbacks::StartPlayFromHere()
 	const bool bSimulateInEditor = false;
 	if( ActiveLevelViewport.IsValid() )
 	{
-		if( ActiveLevelViewport->GetViewportClient().IsPerspective() )
+		if( ActiveLevelViewport->GetAssetViewportClient().IsPerspective() )
 		{
-			StartRotation = ActiveLevelViewport->GetViewportClient().GetViewRotation();
+			StartRotation = ActiveLevelViewport->GetAssetViewportClient().GetViewRotation();
 		}
 
 		// If there is an active level view port, play the game in it.
@@ -1772,8 +1772,8 @@ void FInternalPlayWorldCommandCallbacks::PlayInViewport_Clicked( )
 		if( !bAtPlayerStart )
 		{
 			// Start the player where the camera is if not forcing from player start
-			StartLoc = &ActiveLevelViewport->GetViewportClient().GetViewLocation();
-			StartRot = &ActiveLevelViewport->GetViewportClient().GetViewRotation();
+			StartLoc = &ActiveLevelViewport->GetAssetViewportClient().GetViewLocation();
+			StartRot = &ActiveLevelViewport->GetAssetViewportClient().GetViewRotation();
 		}
 
 		// @todo UE4: Not supported yet
@@ -1841,8 +1841,8 @@ void FInternalPlayWorldCommandCallbacks::PlayInEditorFloating_Clicked( )
 				FSlateApplication::Get().FindWidgetWindow( ActiveLevelViewport->AsWidget() ).IsValid() )
 			{
 				// Start the player where the camera is if not forcing from player start
-				StartLoc = &ActiveLevelViewport->GetViewportClient().GetViewLocation();
-				StartRot = &ActiveLevelViewport->GetViewportClient().GetViewRotation();
+				StartLoc = &ActiveLevelViewport->GetAssetViewportClient().GetViewLocation();
+				StartRot = &ActiveLevelViewport->GetAssetViewportClient().GetViewRotation();
 			}
 		}
 
@@ -1890,8 +1890,8 @@ void FInternalPlayWorldCommandCallbacks::PlayInVR_Clicked()
 				FSlateApplication::Get().FindWidgetWindow(ActiveLevelViewport->AsWidget()).IsValid())
 			{
 				// Start the player where the camera is if not forcing from player start
-				StartLoc = &ActiveLevelViewport->GetViewportClient().GetViewLocation();
-				StartRot = &ActiveLevelViewport->GetViewportClient().GetViewRotation();
+				StartLoc = &ActiveLevelViewport->GetAssetViewportClient().GetViewLocation();
+				StartRot = &ActiveLevelViewport->GetAssetViewportClient().GetViewRotation();
 			}
 		}
 
@@ -1945,8 +1945,8 @@ void FInternalPlayWorldCommandCallbacks::PlayInNewProcess_Clicked(EPlayModeType 
 
 			if ( ActiveLevelViewport.IsValid() && FSlateApplication::Get().FindWidgetWindow( ActiveLevelViewport->AsWidget() ).IsValid() )
 			{
-				StartLoc = &ActiveLevelViewport->GetViewportClient().GetViewLocation();
-				StartRot = &ActiveLevelViewport->GetViewportClient().GetViewRotation();
+				StartLoc = &ActiveLevelViewport->GetAssetViewportClient().GetViewLocation();
+				StartRot = &ActiveLevelViewport->GetAssetViewportClient().GetViewRotation();
 			}
 		}
 

@@ -1153,7 +1153,7 @@ void MeshPaintHelpers::SetRealtimeViewport(bool bRealtime)
 	const bool bRememberCurrentState = false;
 	if (ViewportWindow.IsValid())
 	{
-		FEditorViewportClient &Viewport = ViewportWindow->GetViewportClient();
+		FEditorViewportClient &Viewport = ViewportWindow->GetAssetViewportClient();
 		if (Viewport.IsPerspective())
 		{
 			if (bRealtime)

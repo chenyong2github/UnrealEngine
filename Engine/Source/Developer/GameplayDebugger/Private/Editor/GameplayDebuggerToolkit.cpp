@@ -94,7 +94,7 @@ FReply FGameplayDebuggerToolkit::OnClickedDisableTool()
 		{
 			if (ViewportWindow.IsValid())
 			{
-				FEditorViewportClient& Viewport = ViewportWindow->GetViewportClient();
+				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
 				Viewport.EngineShowFlags.SetDebugAI(false);
 			}
 		}

@@ -546,7 +546,7 @@ void UVREditorMode::PostTick( float DeltaTime )
 	}
 
 	TickHandle.Broadcast( DeltaTime );
-	UISystem->Tick( &GetLevelViewportPossessedForVR().GetViewportClient(), DeltaTime );
+	UISystem->Tick( GetLevelViewportPossessedForVR().GetViewportClient().Get(), DeltaTime );
 
 	// Update avatar meshes
 	{
@@ -1106,7 +1106,7 @@ void UVREditorMode::StartViewport(TSharedPtr<SLevelViewport> Viewport)
 
 	if (WorldInteraction != nullptr)
 	{
-		TSharedPtr<FEditorViewportClient> VRViewportClient = MakeShareable(&Viewport->GetViewportClient());
+		TSharedPtr<FEditorViewportClient> VRViewportClient = Viewport->GetViewportClient();
 		WorldInteraction->SetDefaultOptionalViewportClient(VRViewportClient);
 	}
 }
