@@ -3127,7 +3127,7 @@ struct ENGINE_API FRepMovement
 		bRepPhysics = true;
 	}
 
-	void CopyTo(struct FRigidBodyState& RBState, const AActor* const Actor = nullptr)
+	void CopyTo(struct FRigidBodyState& RBState, const AActor* const Actor = nullptr) const
 	{
 		RBState.Position = RebaseOntoLocalOrigin(Location, Actor);
 		RBState.Quaternion = Rotation.Quaternion();

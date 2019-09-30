@@ -113,6 +113,9 @@ public:
 	virtual bool IsVisualizingArchetype() const override;
 	//~ End FComponentVisualizer Interface
 
+	/** Add menu sections to the context menu */
+	virtual void GenerateContextMenuSections(FMenuBuilder& InMenuBuilder) const;
+
 	/** Get the spline component we are currently editing */
 	USplineComponent* GetEditedSplineComponent() const;
 
@@ -127,7 +130,7 @@ protected:
 	bool TransformSelectedKeys(const FVector& DeltaTranslate, const FRotator& DeltaRotate = FRotator::ZeroRotator, const FVector& DeltaScale = FVector::ZeroVector);
 
 	/** Update the key selection state of the visualizer */
-	void ChangeSelectionState(int32 Index, bool bIsCtrlHeld);
+	virtual void ChangeSelectionState(int32 Index, bool bIsCtrlHeld);
 
 	/** Alt-drag: duplicates the selected spline key */
 	virtual bool DuplicateKeyForAltDrag(const FVector& InDrag);
@@ -263,9 +266,9 @@ protected:
 	    selected spline point's X, Y, or Z value when fix is not equal to none. */
 	EAxis::Type AddKeyLockedAxis;
 
-private:
 	UProperty* SplineCurvesProperty;
 
+private:
 	TSharedPtr<SSplineGeneratorPanel> SplineGeneratorPanel;
 	static TWeakPtr<SWindow> WeakExistingWindow;
 };

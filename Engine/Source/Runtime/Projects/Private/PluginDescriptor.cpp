@@ -30,6 +30,7 @@ FPluginDescriptor::FPluginDescriptor()
 	, EnabledByDefault(EPluginEnabledByDefault::Unspecified)
 	, bCanContainContent(false)
 	, bIsBetaVersion(false)
+	, bIsExperimentalVersion(false)
 	, bInstalled(false)
 	, bRequiresBuildPlatform(false)
 	, bIsHidden(false)
@@ -137,6 +138,7 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
 
 	Object.TryGetBoolField(TEXT("CanContainContent"), bCanContainContent);
 	Object.TryGetBoolField(TEXT("IsBetaVersion"), bIsBetaVersion);
+	Object.TryGetBoolField(TEXT("IsExperimentalVersion"), bIsExperimentalVersion);
 	Object.TryGetBoolField(TEXT("Installed"), bInstalled);
 	Object.TryGetBoolField(TEXT("RequiresBuildPlatform"), bRequiresBuildPlatform);
 	Object.TryGetBoolField(TEXT("Hidden"), bIsHidden);
@@ -207,6 +209,7 @@ void FPluginDescriptor::Write(TJsonWriter<>& Writer) const
 	}
 	Writer.WriteValue(TEXT("CanContainContent"), bCanContainContent);
 	Writer.WriteValue(TEXT("IsBetaVersion"), bIsBetaVersion);
+	Writer.WriteValue(TEXT("IsExperimentalVersion"), bIsExperimentalVersion);
 	Writer.WriteValue(TEXT("Installed"), bInstalled);
 
 	if(SupportedTargetPlatforms.Num() > 0)

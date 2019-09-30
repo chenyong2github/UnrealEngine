@@ -151,9 +151,10 @@ void FPluginStyle::Initialize()
 			}
 
 			FTextBlockStyle BetaText = FTextBlockStyle( NormalText )
+				.SetFont(DEFAULT_FONT("Bold", 14))
 				.SetColorAndOpacity( FLinearColor( 0.9f, 0.9f, 0.9f ) );
 			{
-				BetaText.Font.Size = 14;
+				BetaText.Font.Size = 10;
 				StyleSet->Set( "PluginTile.BetaText", BetaText );
 			}
 

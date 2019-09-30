@@ -26,8 +26,7 @@ OutputVS OutputRemap_VS(InputVS IN)
 {
 	float2 Pos = IN.Position.xy;
 
-	Pos.xy = Pos.xy * 2 - 1.0f;
-	Pos.xy *= float2(1, -1);
+	Pos.xy = Pos.xy * 2 - 1.0f;	
 
 	OutputVS Out;
 	Out.Position = float4(Pos, 0, 1);
