@@ -149,6 +149,9 @@ protected:
 	/** Populates the group and stat tree with items based on the current data. */
 	void ApplyFiltering();
 
+	void FilterOutZeroCountTimers_OnCheckStateChanged(ECheckBoxState NewRadioState);
+	ECheckBoxState FilterOutZeroCountTimers_IsChecked() const;
+
 	TSharedRef<SWidget> GetToggleButtonForTimerType(const ETimerNodeType InTimerType);
 	void FilterByTimerType_OnCheckStateChanged(ECheckBoxState NewRadioState, const ETimerNodeType InTimerType);
 	ECheckBoxState FilterByTimerType_IsChecked(const ETimerNodeType InTimerType) const;
@@ -302,6 +305,9 @@ protected:
 
 	/** Holds the visibility of each timer type. */
 	bool bTimerTypeIsVisible[static_cast<int>(ETimerNodeType::InvalidOrMax)];
+
+	/** Filter out the timers having zero total instance count (aggregated stats). */
+	bool bFilterOutZeroCountTimers;
 
 	//////////////////////////////////////////////////
 	// Grouping

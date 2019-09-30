@@ -162,6 +162,9 @@ protected:
 	/** Populates the group and stat tree with items based on the current data. */
 	void ApplyFiltering();
 
+	void FilterOutZeroCountEvents_OnCheckStateChanged(ECheckBoxState NewRadioState);
+	ECheckBoxState FilterOutZeroCountEvents_IsChecked() const;
+
 	TSharedRef<SWidget> GetToggleButtonForNetEventType(const ENetEventNodeType InNetEventType);
 	void FilterByNetEventType_OnCheckStateChanged(ECheckBoxState NewRadioState, const ENetEventNodeType InNetEventType);
 	ECheckBoxState FilterByNetEventType_IsChecked(const ENetEventNodeType InNetEventType) const;
@@ -315,6 +318,9 @@ protected:
 
 	/** Holds the visibility of each net event type. */
 	bool bNetEventTypeIsVisible[static_cast<int>(ENetEventNodeType::InvalidOrMax)];
+
+	/** Filter out the net event types having zero total instance count (aggregated stats). */
+	bool bFilterOutZeroCountEvents;
 
 	//////////////////////////////////////////////////
 	// Grouping

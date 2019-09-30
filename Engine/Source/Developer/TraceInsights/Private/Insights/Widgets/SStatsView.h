@@ -163,6 +163,9 @@ protected:
 	/** Populates the group and stat tree with items based on the current data. */
 	void ApplyFiltering();
 
+	void FilterOutZeroCountStats_OnCheckStateChanged(ECheckBoxState NewRadioState);
+	ECheckBoxState FilterOutZeroCountStats_IsChecked() const;
+
 	TSharedRef<SWidget> GetToggleButtonForStatsType(const EStatsNodeType StatType);
 	void FilterByStatsType_OnCheckStateChanged(ECheckBoxState NewRadioState, const EStatsNodeType InStatType);
 	ECheckBoxState FilterByStatsType_IsChecked(const EStatsNodeType InStatType) const;
@@ -316,6 +319,9 @@ protected:
 
 	/** Holds the visibility of each stats type. */
 	bool bStatsNodeIsVisible[static_cast<int>(EStatsNodeType::InvalidOrMax)];
+
+	/** Filter out the stats counters having zero total instance count (aggregated stats). */
+	bool bFilterOutZeroCountStats;
 
 	//////////////////////////////////////////////////
 	// Grouping
