@@ -97,6 +97,7 @@ FPacketViewDrawHelper::FPacketViewDrawHelper(const FDrawContext& InDrawContext, 
 	//, EventBorderBrush(FInsightsStyle::Get().GetBrush("EventBorder"))
 	, HoveredEventBorderBrush(FInsightsStyle::Get().GetBrush("HoveredEventBorder"))
 	, SelectedEventBorderBrush(FInsightsStyle::Get().GetBrush("SelectedEventBorder"))
+	, SelectionFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 	, NumPackets(0)
 	, NumDrawSamples(0)
 {
@@ -214,8 +215,9 @@ void FPacketViewDrawHelper::DrawSampleHighlight(const FNetworkPacketAggregatedSa
 	const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
 	const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
 
-	//const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.ContentSizeInBits)));
-	const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.TotalSizeInBytes * 8)));
+	//const double Value = static_cast<double>(Sample.LargestPacket.ContentSizeInBits);
+	const double Value = static_cast<double>(Sample.LargestPacket.TotalSizeInBytes * 8);
+	const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(Value));
 
 	const float H = ValueY - BaselineY;
 	const float Y = ViewHeight - H;
@@ -224,7 +226,7 @@ void FPacketViewDrawHelper::DrawSampleHighlight(const FNetworkPacketAggregatedSa
 	{
 		const FLinearColor Color(1.0f, 1.0f, 0.0f, 1.0f); // yellow
 
-		// Draw border around the timing event box.
+		// Draw border around the hovered box.
 		DrawContext.DrawBox(X - 1.0f, Y - 1.0f, SampleW + 2.0f, H + 2.0f, HoveredEventBorderBrush, Color);
 	}
 	else // EHighlightMode::Selected or EHighlightMode::SelectedAndHovered
@@ -236,12 +238,54 @@ void FPacketViewDrawHelper::DrawSampleHighlight(const FNetworkPacketAggregatedSa
 		const float Blue = (Mode == EHighlightMode::SelectedAndHovered) ? 0.0f : S;
 		const FLinearColor Color(S, S, Blue, 1.0f);
 
-		// Draw border around the timing event box.
+		// Draw border around the selected box.
 		DrawContext.DrawBox(X - 1.0f, Y - 1.0f, SampleW + 2.0f, H + 2.0f, SelectedEventBorderBrush, Color);
 	}
 	DrawContext.LayerId++;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FPacketViewDrawHelper::DrawSelection(int32 StartPacketIndex, int32 EndPacketIndex) const
+{
+	const float SampleW = Viewport.GetSampleWidth();
+	const int32 PacketsPerSample = Viewport.GetNumPacketsPerSample();
+	const int32 FirstPacketIndex = Viewport.GetFirstPacketIndex();
+
+	const int32 StartSampleIndex = (StartPacketIndex - FirstPacketIndex) / PacketsPerSample;
+	const float X1 = FMath::Max(-2.0f, StartSampleIndex * SampleW);
+
+	const int32 EndSampleIndex = (EndPacketIndex - FirstPacketIndex) / PacketsPerSample;
+	const float X2 = FMath::Min(Viewport.GetWidth() + 2.0f, EndSampleIndex * SampleW);
+
+	const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
+
+	const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
+	const float Y = 0.0f;
+	const float H = ViewHeight - Y;
+
+	//// Animate color from white (if selected and hovered) or yellow (if only selected) to black, using a squared sine function.
+	//const double Time = static_cast<double>(FPlatformTime::Cycles64()) * FPlatformTime::GetSecondsPerCycle64();
+	//float S = FMath::Sin(2.0 * Time);
+	//S = S * S; // squared, to ensure only positive [0 - 1] values
+	//const FLinearColor Color(S, S, S, 1.0f);
+	//
+	//// Draw border around the selected box.
+	//DrawContext.DrawBox(X1 - 1.0f, Y - 1.0f, X2 - X1 + 2.0f, H + 2.0f, SelectedEventBorderBrush, Color);
+
+	// Fill the selected area.
+	const int32 PacketCount = EndPacketIndex - StartPacketIndex;
+	if (PacketCount > 1)
+	{
+		const float MinX = 0.0f;
+		const float MaxX = Viewport.GetWidth();
+
+		if (X1 <= MaxX && X2 >= MinX)
+		{
+			const FString Text = FString::Printf(TEXT("%d packets"), PacketCount);
+			FDrawHelpers::DrawSelection(DrawContext, MinX, MaxX, X1, X2, Y, H, 30.0f, Text, WhiteBrush, SelectionFont);
+		}
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

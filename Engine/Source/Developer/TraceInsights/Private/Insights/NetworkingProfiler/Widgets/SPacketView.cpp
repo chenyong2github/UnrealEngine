@@ -83,8 +83,9 @@ void SPacketView::Reset()
 
 	bIsScrolling = false;
 
-	SelectionStartFrameIndex = 0;
-	SelectionEndFrameIndex = 0;
+	SelectionStartPacketIndex = 0;
+	SelectionEndPacketIndex = 0;
+	LastSelectedPacketIndex = 0;
 
 	SelectedSample.Reset();
 	HoveredSample.Reset();
@@ -118,7 +119,10 @@ void SPacketView::SetConnection(uint32 InGameInstanceIndex, uint32 InConnectionI
 	HoveredSample.Reset();
 
 	SelectedSample.Reset();
-	OnSelectedSampleChanged();
+	SelectionStartPacketIndex = 0;
+	SelectionEndPacketIndex = 0;
+	LastSelectedPacketIndex = 0;
+	OnSelectionChanged();
 
 	bIsStateDirty = true;
 }
@@ -348,7 +352,7 @@ FNetworkPacketSampleRef SPacketView::GetSampleAtMousePosition(float X, float Y)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketView::SelectSampleAtMousePosition(float X, float Y)
+void SPacketView::SelectSampleAtMousePosition(float X, float Y, const FPointerEvent& MouseEvent)
 {
 	FNetworkPacketSampleRef SampleRef = GetSampleAtMousePosition(X, Y);
 	if (!SampleRef.IsValid())
@@ -360,16 +364,83 @@ void SPacketView::SelectSampleAtMousePosition(float X, float Y)
 		SampleRef = GetSampleAtMousePosition(X + 1.0f, Y);
 	}
 
-	if (!SelectedSample.Equals(SampleRef))
+	bool bRaiseSelectionChanged = false;
+
+	if (SampleRef.IsValid())
 	{
-		SelectedSample = SampleRef;
-		OnSelectedSampleChanged();
+		const int32 SelectedPacketIndex = SampleRef.Sample->LargestPacket.Index;
+
+		if (MouseEvent.GetModifierKeys().IsShiftDown())
+		{
+			if (SelectedPacketIndex >= LastSelectedPacketIndex)
+			{
+				// Extend selection toward right.
+				if (SelectionStartPacketIndex != LastSelectedPacketIndex ||
+					SelectionEndPacketIndex != SelectedPacketIndex + 1)
+				{
+					SelectionStartPacketIndex = LastSelectedPacketIndex;
+					SelectionEndPacketIndex = SelectedPacketIndex + 1;
+					bRaiseSelectionChanged = true;
+				}
+				LastSelectedPacketIndex = SelectionStartPacketIndex;
+			}
+			else
+			{
+				// Extend selection toward left.
+				if (SelectionEndPacketIndex != SelectedPacketIndex + 1)
+				{
+					SelectionStartPacketIndex = SelectedPacketIndex;
+					SelectionEndPacketIndex = LastSelectedPacketIndex + 1;
+					bRaiseSelectionChanged = true;
+				}
+				LastSelectedPacketIndex = SelectionEndPacketIndex - 1;
+			}
+		}
+		else
+		{
+			if (SelectionStartPacketIndex != SelectedPacketIndex ||
+				SelectionEndPacketIndex != SelectedPacketIndex + 1)
+			{
+				SelectionStartPacketIndex = SelectedPacketIndex;
+				SelectionEndPacketIndex = SelectedPacketIndex + 1;
+				bRaiseSelectionChanged = true;
+			}
+			LastSelectedPacketIndex = SelectedPacketIndex;
+		}
+	}
+	else
+	{
+		if (SelectionStartPacketIndex != 0 ||
+			SelectionEndPacketIndex != 0)
+		{
+			SelectionStartPacketIndex = 0;
+			SelectionEndPacketIndex = 0;
+			LastSelectedPacketIndex = 0;
+			bRaiseSelectionChanged = true;
+		}
+	}
+
+	if (SelectionEndPacketIndex == SelectionStartPacketIndex + 1)
+	{
+		if (!SelectedSample.Equals(SampleRef))
+		{
+			SelectedSample = SampleRef;
+		}
+	}
+	else
+	{
+		SelectedSample.Reset();
+	}
+
+	if (bRaiseSelectionChanged)
+	{
+		OnSelectionChanged();
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketView::OnSelectedSampleChanged()
+void SPacketView::OnSelectionChanged()
 {
 	if (ProfilerWindow.IsValid())
 	{
@@ -381,7 +452,7 @@ void SPacketView::OnSelectedSampleChanged()
 		}
 		else
 		{
-			ProfilerWindow->SetSelectedPacket(0, 0);
+			ProfilerWindow->SetSelectedPacket(SelectionStartPacketIndex, SelectionEndPacketIndex);
 			ProfilerWindow->SetSelectedBitRange(0, 0);
 		}
 	}
@@ -454,6 +525,10 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		if (HoveredSample.IsValid() && !bIsSelectedAndHovered)
 		{
 			Helper.DrawSampleHighlight(*HoveredSample.Sample, FPacketViewDrawHelper::EHighlightMode::Hovered);
+		}
+		if (SelectionEndPacketIndex > SelectionStartPacketIndex + 1)
+		{
+			Helper.DrawSelection(SelectionStartPacketIndex, SelectionEndPacketIndex);
 		}
 
 		// Draw the vertical axis grid.
@@ -832,7 +907,7 @@ FReply SPacketView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 			else if (bIsValidForMouseClick)
 			{
-				SelectSampleAtMousePosition(MousePositionOnButtonUp.X, MousePositionOnButtonUp.Y);
+				SelectSampleAtMousePosition(MousePositionOnButtonUp.X, MousePositionOnButtonUp.Y, MouseEvent);
 			}
 
 			bIsLMB_Pressed = false;
@@ -999,6 +1074,28 @@ FCursorReply SPacketView::OnCursorQuery(const FGeometry& MyGeometry, const FPoin
 	}
 
 	return CursorReply;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SPacketView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (InKeyEvent.GetKey() == EKeys::A)
+	{
+		if (InKeyEvent.GetModifierKeys().IsControlDown())
+		{
+			// Select all.
+			SelectedSample.Reset();
+			SelectionStartPacketIndex = 0;
+			const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+			SelectionEndPacketIndex = ViewportX.GetMaxValue();
+			LastSelectedPacketIndex = 0;
+			OnSelectionChanged();
+			return FReply::Handled();
+		}
+	}
+
+	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

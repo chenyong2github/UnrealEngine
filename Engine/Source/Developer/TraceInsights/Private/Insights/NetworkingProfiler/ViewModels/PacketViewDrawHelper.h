@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Fonts/SlateFontInfo.h"
 #include "Styling/WidgetStyle.h"
 #include "TraceServices/Model/NetProfiler.h"
 
@@ -182,6 +183,7 @@ public:
 	void DrawBackground() const;
 	void DrawCached(const FNetworkPacketSeries& Series) const;
 	void DrawSampleHighlight(const FNetworkPacketAggregatedSample& Sample, EHighlightMode Mode) const;
+	void DrawSelection(int32 StartPacketIndex, int32 EndPacketIndex) const;
 
 	static FLinearColor GetColorByStatus(Trace::ENetProfilerDeliveryStatus Status);
 
@@ -196,6 +198,7 @@ private:
 	//const FSlateBrush* EventBorderBrush;
 	const FSlateBrush* HoveredEventBorderBrush;
 	const FSlateBrush* SelectedEventBorderBrush;
+	const FSlateFontInfo SelectionFont;
 
 	// Debug stats.
 	mutable int32 NumPackets;

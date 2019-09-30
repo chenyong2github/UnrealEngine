@@ -128,6 +128,10 @@ public:
 
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	//virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
 private:
 	void UpdateState();
 
@@ -135,8 +139,8 @@ private:
 	void DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const;
 
 	FNetworkPacketSampleRef GetSampleAtMousePosition(float X, float Y);
-	void SelectSampleAtMousePosition(float X, float Y);
-	void OnSelectedSampleChanged();
+	void SelectSampleAtMousePosition(float X, float Y, const FPointerEvent& MouseEvent);
+	void OnSelectionChanged();
 
 	void ShowContextMenu(const FPointerEvent& MouseEvent);
 
@@ -202,8 +206,9 @@ private:
 	//////////////////////////////////////////////////
 	// Selection
 
-	int32 SelectionStartFrameIndex;
-	int32 SelectionEndFrameIndex;
+	int32 SelectionStartPacketIndex;
+	int32 SelectionEndPacketIndex;
+	int32 LastSelectedPacketIndex;
 
 	FNetworkPacketSampleRef SelectedSample;
 	FNetworkPacketSampleRef HoveredSample;

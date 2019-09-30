@@ -172,7 +172,7 @@ void FDrawHelpers::DrawTimeRangeSelection(
 			const double Duration = EndTime - StartTime;
 			const FString Text = TimeUtils::FormatTimeAuto(Duration);
 
-			DrawSelection(DrawContext, MinX, MaxX, SelectionX1, SelectionX2, Y, H, Text, Brush, Font);
+			DrawSelection(DrawContext, MinX, MaxX, SelectionX1, SelectionX2, Y, H, 6.0f, Text, Brush, Font);
 		}
 	}
 }
@@ -187,6 +187,7 @@ void FDrawHelpers::DrawSelection(
 	float SelectionX2,
 	const float Y,
 	const float H,
+	const float TextY,
 	const FString Text,
 	const FSlateBrush* Brush,
 	const FSlateFontInfo& Font)
@@ -228,7 +229,7 @@ void FDrawHelpers::DrawSelection(
 	DrawContext.LayerId++;
 
 	const float ArrowSize = 6.0f;
-	const float ArrowY = Y + 6.0f;
+	const float ArrowY = Y + TextY;
 
 	if (SelectionX2 - SelectionX1 > 2 * ArrowSize)
 	{
