@@ -27,7 +27,7 @@ struct FSkeletalMeshUpdateContext
 
 //////////////////////////////////////////////////////////////////////////
 // FLODUtilities
-DECLARE_DELEGATE_TwoParams(FOnPostRebindCloth, int32, const FSkelMeshSection&);
+
 
 class SKELETALMESHUTILITIESCOMMON_API FLODUtilities
 {
@@ -131,8 +131,6 @@ public:
 	
 	static void RestoreClothingFromBackup(USkeletalMesh* SkeletalMesh, TArray<ClothingAssetUtils::FClothingAssetMeshBinding>& ClothingBindings);
 	static void RestoreClothingFromBackup(USkeletalMesh* SkeletalMesh, TArray<ClothingAssetUtils::FClothingAssetMeshBinding>& ClothingBindings, const int32 LODIndex);
-	static void RestoreClothingFromBackup(USkeletalMesh* SkeletalMesh, TArray<ClothingAssetUtils::FClothingAssetMeshBinding>& ClothingBindings, FOnPostRebindCloth OnPostRebindCloth);
-	static void RestoreClothingFromBackup(USkeletalMesh* SkeletalMesh, TArray<ClothingAssetUtils::FClothingAssetMeshBinding>& ClothingBindings, const int32 LODIndex, FOnPostRebindCloth OnPostRebindCloth);
 	
 
 private:

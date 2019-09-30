@@ -2726,17 +2726,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ReimportSkeletalMesh(USkeletalMesh* Mesh, UF
 			FSkeletalMeshModel* MeshResource = SkelMesh->GetImportedModel();
 			if (MeshResource && ClothingBindings.Num() > 0)
 			{
-				FLODUtilities::RestoreClothingFromBackup(SkelMesh, ClothingBindings, FOnPostRebindCloth::CreateLambda([&MeshResource](int32 LODIndex, const FSkelMeshSection& BindSection)
-				{
-					if (MeshResource->LODModels.IsValidIndex(LODIndex))
-					{
-						FSkeletalMeshLODModel& LODModel = MeshResource->LODModels[LODIndex];
-						//If successfull set back the section user data
-						FSkelMeshSourceSectionUserData& SectionUserData = LODModel.UserSectionsData.FindOrAdd(BindSection.OriginalDataSectionIndex);
-						SectionUserData.CorrespondClothAssetIndex = BindSection.CorrespondClothAssetIndex;
-						SectionUserData.ClothingData = BindSection.ClothingData;
-					}
-				}));
+				FLODUtilities::RestoreClothingFromBackup(SkelMesh, ClothingBindings);
 			}
 		};
 
