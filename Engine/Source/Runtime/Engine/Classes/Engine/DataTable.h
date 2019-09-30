@@ -111,7 +111,7 @@ public:
 
 	//~ Begin UObject Interface.
 	ENGINE_API virtual void FinishDestroy() override;
-	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FStructuredArchiveRecord Record) override;
 	ENGINE_API static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	ENGINE_API virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
@@ -365,8 +365,8 @@ public:
 	//~ End UDataTable Interface
 
 protected:
-	void SaveStructData(FArchive& Ar);
-	void LoadStructData(FArchive& Ar);
+	void SaveStructData(FStructuredArchiveSlot Slot);
+	void LoadStructData(FStructuredArchiveSlot Slot);
 
 	/**
 	 * Called whenever new data is imported into the data table via CreateTableFrom*; Alerts each imported row and gives the
