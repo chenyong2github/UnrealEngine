@@ -330,4 +330,5 @@ Insights::FTreeNodeGroupInfo FNetEventNodeGroupingByLevel::GetGroupForNode(const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#undef INSIGHTS_DEFAULT_SORTING_NODES
 #undef LOCTEXT_NAMESPACE

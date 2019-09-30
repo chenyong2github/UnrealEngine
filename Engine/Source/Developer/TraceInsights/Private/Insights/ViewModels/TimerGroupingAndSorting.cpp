@@ -301,4 +301,5 @@ Insights::FTreeNodeGroupInfo FTimerNodeGroupingByTimerType::GetGroupForNode(cons
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#undef INSIGHTS_DEFAULT_SORTING_NODES
 #undef LOCTEXT_NAMESPACE
