@@ -171,7 +171,6 @@ class AnalyzeThirdPartyLibs : BuildCommand
 		Platforms.Add(new PlatformLibraryInfo("Android", "Android"));
 		Platforms.Add(new PlatformLibraryInfo("PS4", "PS4"));
 		Platforms.Add(new PlatformLibraryInfo("XB1", "XBoxOne"));
-		Platforms.Add(new PlatformLibraryInfo("HTML5", "HTML5"));
 		Platforms.Add(new PlatformLibraryInfo("Linux", "Linux"));
 
 		Platforms.Add(new PlatformLibraryInfo("VS2013", "VS2013", "vs12"));

@@ -22,6 +22,8 @@
 	#include <unistd.h>
 	#include <sys/socket.h>
 #if PLATFORM_HAS_BSD_SOCKET_FEATURE_IOCTL
+	#include <fcntl.h>
+	#include <sys/types.h>
 	#include <sys/ioctl.h>
 #endif
 	#include <netinet/in.h>

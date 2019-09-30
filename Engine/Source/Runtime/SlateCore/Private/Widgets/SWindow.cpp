@@ -387,12 +387,11 @@ void SWindow::Construct(const FArguments& InArgs)
 		DeltaSize = WindowSize - InArgs._ClientSize;
 	}
 
-// HoloLens needs similar treatment to HTML5 here.  Also note comments in FDisplayMetrics::GetDisplayMetrics for HoloLens.
-#if PLATFORM_HTML5 || PLATFORM_HOLOLENS
-	// UE expects mouse coordinates in screen space. SDL/HTML5 canvas provides in client space. 
-	// Anchor the window at the top/left corner to make sure client space coordinates and screen space coordinates match up. 
-	WindowPosition.X =  WindowPosition.Y = 0; 
-#endif 
+	if (FPlatformApplicationMisc::AnchorWindowWindowPositionTopLeft())
+	{
+		WindowPosition.X = WindowPosition.Y = 0;
+	}
+
 	this->InitialDesiredScreenPosition = WindowPosition;
 	this->InitialDesiredSize = WindowSize;
 

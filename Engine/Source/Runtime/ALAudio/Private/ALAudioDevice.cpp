@@ -136,7 +136,7 @@ bool FALAudioDevice::InitializeHardware( void )
 		0, 0
 	};
 	SoundContext = alcCreateContext( HardwareDevice, Caps );
-#elif PLATFORM_HTML5
+#else // some platforms does not use ALCint* attrlist parameter
 	SoundContext = alcCreateContext( HardwareDevice, 0 );
 #endif
 
