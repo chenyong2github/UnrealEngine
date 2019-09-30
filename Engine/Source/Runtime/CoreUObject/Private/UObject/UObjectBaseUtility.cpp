@@ -72,22 +72,29 @@ void UObjectBaseUtility::GetPathName(const UObject* StopOuter, FString& ResultSt
  *
  * @note	safe to call on NULL object pointers!
  */
-FString UObjectBaseUtility::GetFullName(const UObject* StopOuter) const
+FString UObjectBaseUtility::GetFullName(const UObject* StopOuter, EObjectFullNameFlags Flags) const
 {
 	FString Result;
 	Result.Empty(128);
-	GetFullName(StopOuter, Result);
+	GetFullName(StopOuter, Result, Flags);
 	return Result;
 }
 
  /**
   * Version of GetFullName() that eliminates unnecessary copies and appends an existing string.
   */
-void UObjectBaseUtility::GetFullName(const UObject* StopOuter, FString& ResultString) const
+void UObjectBaseUtility::GetFullName(const UObject* StopOuter, FString& ResultString, EObjectFullNameFlags Flags) const
 {
 	if (this != nullptr)
 	{
-		GetClass()->AppendName(ResultString);
+		if (EnumHasAllFlags(Flags, EObjectFullNameFlags::IncludeClassPackage))
+		{
+			ResultString += GetClass()->GetPathName();
+		}
+		else
+		{
+			GetClass()->AppendName(ResultString);
+		}
 		ResultString += TEXT(' ');
 		GetPathName(StopOuter, ResultString);
 	}

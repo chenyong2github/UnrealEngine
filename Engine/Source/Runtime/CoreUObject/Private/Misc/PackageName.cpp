@@ -503,51 +503,28 @@ bool FPackageName::SplitLongPackageName(const FString& InLongPackageName, FStrin
 void FPackageName::SplitFullObjectPath(const FString& InFullObjectPath, FString& OutClassName, FString& OutPackageName, FString& OutObjectName, FString& OutSubObjectName)
 {
 	FString Sanitized = InFullObjectPath.TrimStartAndEnd();
+	const TCHAR* Cur = *Sanitized;
 
-	int32 StartOfClass = 0;
-	int32 StartOfPackage = 0;
-	int32 StartOfObject = 0;
-	int32 StartOfSubObject = 0;
-	int32 EndOfClass = 0;
-	int32 EndOfPackage = 0;
-	int32 EndOfObject = 0;
-	int32 EndOfSubObject = 0;
-
-	int32 TempIndex = INDEX_NONE;
-	if (Sanitized.FindChar(' ', TempIndex))
+	auto ExtractBeforeDelim = [&Cur](TCHAR Delim, FString& OutString)
 	{
-		EndOfClass = TempIndex;
-		StartOfPackage = EndOfPackage = EndOfClass + 1;
-	}
-
-	if (Sanitized.FindChar('.', TempIndex))
-	{
-		EndOfPackage = TempIndex;
-		StartOfObject = EndOfObject = EndOfPackage + 1;
-
-		if (Sanitized.FindChar(':', TempIndex))
+		const TCHAR* Start = Cur;
+		while (*Cur != '\0' && *Cur != Delim)
 		{
-			EndOfObject = TempIndex;
-			if (TempIndex < InFullObjectPath.Len())
-			{
-				StartOfSubObject = TempIndex + 1;
-				EndOfSubObject = InFullObjectPath.Len();
-			}
+			++Cur;
 		}
-		else
-		{
-			EndOfObject = Sanitized.Len();
-		}
-	}
-	else
-	{
-		EndOfPackage = Sanitized.Len();
-	}
 
-	OutClassName = Sanitized.Mid(StartOfClass, EndOfClass - StartOfClass);
-	OutPackageName = Sanitized.Mid(StartOfPackage, EndOfPackage - StartOfPackage);
-	OutObjectName = Sanitized.Mid(StartOfObject, EndOfObject - StartOfObject);
-	OutSubObjectName = Sanitized.Mid(StartOfSubObject, EndOfSubObject - StartOfSubObject);
+		OutString = FString(Cur - Start, Start);
+
+		if (*Cur == Delim)
+		{
+			++Cur;
+		}
+	};
+
+	ExtractBeforeDelim(' ', OutClassName);
+	ExtractBeforeDelim('.', OutPackageName);
+	ExtractBeforeDelim(':', OutObjectName);
+	ExtractBeforeDelim('\0', OutSubObjectName);
 }
 
 FString FPackageName::GetLongPackageAssetName(const FString& InLongPackageName)

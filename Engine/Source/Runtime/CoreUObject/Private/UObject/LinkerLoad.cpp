@@ -1813,12 +1813,28 @@ FPackageIndex FLinkerLoad::FindOrCreateImportOrExport(const FString& InFullPath)
 	else
 	{
 		FName ClassName = *Class;
+		FName ClassPackageName;
 		FName PackageName = *Package;
 
-		if (UClass* ObjectClass = FindObjectFast<UClass>(nullptr, ClassName, false, true))
+		if (Class.StartsWith(TEXT("/")))
 		{
-			FName ClassPackageName = *ObjectClass->GetOuterUPackage()->GetPathName();
+			int32 EndOfPackage = INDEX_NONE;
+			if (Class.FindChar('.', EndOfPackage))
+			{
+				ClassPackageName = *FString(EndOfPackage, *Class);
+				ClassName = *FString(Class.Len() - EndOfPackage, *Class + EndOfPackage + 1);
+			}
+		}
+		else
+		{
+			if (UClass * ObjectClass = FindObjectFast<UClass>(nullptr, ClassName, false, true))
+			{
+				ClassPackageName = *ObjectClass->GetOuterUPackage()->GetPathName();
+			}
+		}
 
+		if (ClassPackageName != NAME_None)
+		{
 			FPackageIndex ImportOuterIndex = FindOrCreateImport(PackageName, NAME_Package, FName(TEXT("/Script/CoreUObject")));
 			FPackageIndex ImportIndex = FindOrCreateImport(ObjectName, ClassName, ClassPackageName);
 			ImportMap[ImportIndex.ToImport()].OuterIndex = ImportOuterIndex;

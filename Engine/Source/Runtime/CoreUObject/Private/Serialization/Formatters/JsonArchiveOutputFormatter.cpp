@@ -325,7 +325,7 @@ void FJsonArchiveOutputFormatter::Serialize(bool& Value)
 void FJsonArchiveOutputFormatter::Serialize(FString& Value)
 {
 	// Insert a "String:" prefix to prevent incorrect interpretation as another explicit type
-	if (Value.StartsWith(TEXT("Name:")) || Value.StartsWith(TEXT("Object:")) || Value.StartsWith(TEXT("String:")) || Value.StartsWith(TEXT("Base64:")))
+	if (Value.StartsWith(TEXT("Object:")) || Value.StartsWith(TEXT("String:")) || Value.StartsWith(TEXT("Base64:")))
 	{
 		SerializeStringInternal(FString::Printf(TEXT("String:%s"), *Value));
 	}
@@ -337,14 +337,15 @@ void FJsonArchiveOutputFormatter::Serialize(FString& Value)
 
 void FJsonArchiveOutputFormatter::Serialize(FName& Value)
 {
-	SerializeStringInternal(FString::Printf(TEXT("Name:%s"), *Value.ToString()));
+	SerializeStringInternal(*Value.ToString());
 }
 
 void FJsonArchiveOutputFormatter::Serialize(UObject*& Value)
 {
 	if (Value != nullptr && IsObjectAllowed(Value))
 	{
-		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value->GetFullName()));
+		FString FullObjectName = Value->GetFullName(nullptr, EObjectFullNameFlags::IncludeClassPackage);
+		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *FullObjectName));
 	}
 	else
 	{
@@ -363,7 +364,7 @@ void FJsonArchiveOutputFormatter::Serialize(FWeakObjectPtr& Value)
 {
 	if (Value.IsValid() && IsObjectAllowed(Value.Get()))
 	{
-		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value.Get()->GetFullName()));
+		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value.Get()->GetFullName(nullptr, EObjectFullNameFlags::IncludeClassPackage)));
 	}
 	else
 	{
