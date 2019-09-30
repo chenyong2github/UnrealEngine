@@ -469,6 +469,16 @@ bool FOnlineFriendsTencent::RejectInvite(int32 LocalUserNum, const FUniqueNetId&
 	return bStarted;
 }
 
+void FOnlineFriendsTencent::SetFriendAlias(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FString& Alias, const FOnSetFriendAliasComplete& Delegate /*= FOnSetFriendAliasComplete()*/)
+{
+	TSharedRef<const FUniqueNetId> FriendIdRef = FriendId.AsShared();
+	TencentSubsystem->ExecuteNextTick([LocalUserNum, FriendIdRef, ListName, Delegate]()
+	{
+		UE_LOG_ONLINE_FRIEND(Warning, TEXT("FOnlineFriendsTencent::SetFriendAlias is not implemented"));
+		Delegate.ExecuteIfBound(LocalUserNum, *FriendIdRef, ListName, FOnlineError(EOnlineErrorResult::NotImplemented));
+	});
+}
+
 bool FOnlineFriendsTencent::DeleteFriend(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName)
 {
 	/** NYI */

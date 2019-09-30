@@ -4,6 +4,7 @@
 #include "OnlineFriendGameCircle.h"
 #include "OnlineAGSPlayerClientCallbacks.h"
 #include "OnlineSubsystemGameCircle.h"
+#include "OnlineError.h"
 #include "OnlineIdentityInterfaceGameCircle.h"
 
 
@@ -54,6 +55,16 @@ bool FOnlineFriendsInterfaceGameCircle::RejectInvite(int32 LocalUserNum, const F
 {
 	return false;
 }
+
+void FOnlineFriendsInterfaceGameCircle::SetFriendAlias(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FString& Alias, const FOnSetFriendAliasComplete& Delegate /*= FOnSetFriendAliasComplete()*/)
+{
+	TSharedRef<const FUniqueNetId> FriendIdRef = FriendId.AsShared();
+	GameCircleSubsystem->ExecuteNextTick([LocalUserNum, FriendIdRef, ListName, Delegate]()
+	{
+		Delegate.ExecuteIfBound(LocalUserNum, *FriendIdRef, ListName, FOnlineError(EOnlineErrorResult::NotImplemented));
+	});
+}
+
 bool FOnlineFriendsInterfaceGameCircle::DeleteFriend(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName)
 {
 	return false;
