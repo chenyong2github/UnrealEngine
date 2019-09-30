@@ -13,10 +13,8 @@
 
 // Insights
 #include "Insights/Common/FixedCircularBuffer.h"
-#include "Insights/NetworkingProfiler/ViewModels/PacketSizesViewHelper.h"
-//#include "Insights/NetworkingProfiler/ViewModels/PacketViewHelper.h"
-#include "Insights/NetworkingProfiler/ViewModels/PacketSizesViewport.h"
-//#include "Insights/NetworkingProfiler/ViewModels/PacketViewViewport.h"
+#include "Insights/NetworkingProfiler/ViewModels/PacketViewDrawHelper.h"
+#include "Insights/NetworkingProfiler/ViewModels/PacketViewport.h"
 
 class SScrollBar;
 class SNetworkingProfilerWindow;
@@ -166,7 +164,7 @@ private:
 	Trace::ENetProfilerConnectionMode ConnectionMode;
 
 	/** The track's viewport. Encapsulates info about position and scale. */
-	FPacketViewViewport Viewport;
+	FPacketViewport Viewport;
 	bool bIsViewportDirty;
 
 	/** Cached info for the packet series. */

@@ -14,7 +14,7 @@ struct FDrawContext;
 struct FGeometry;
 struct FSlateBrush;
 
-class FPacketViewViewport;
+class FPacketViewport;
 class FSlateWindowElementList;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,7 +133,7 @@ struct FNetworkPacketSeries
 class FNetworkPacketSeriesBuilder
 {
 public:
-	explicit FNetworkPacketSeriesBuilder(FNetworkPacketSeries& InSeries, const FPacketViewViewport& InViewport);
+	explicit FNetworkPacketSeriesBuilder(FNetworkPacketSeries& InSeries, const FPacketViewport& InViewport);
 
 	/**
 	 * Non-copyable
@@ -147,7 +147,7 @@ public:
 
 private:
 	FNetworkPacketSeries& Series; // series to update
-	const FPacketViewViewport& Viewport;
+	const FPacketViewport& Viewport;
 
 	float SampleW; // width of a sample, in Slate units
 	int32 PacketsPerSample; // number of packets in a sample
@@ -171,7 +171,7 @@ public:
 	};
 
 public:
-	explicit FPacketViewDrawHelper(const FDrawContext& InDrawContext, const FPacketViewViewport& InViewport);
+	explicit FPacketViewDrawHelper(const FDrawContext& InDrawContext, const FPacketViewport& InViewport);
 
 	/**
 	 * Non-copyable
@@ -190,7 +190,7 @@ public:
 
 private:
 	const FDrawContext& DrawContext;
-	const FPacketViewViewport& Viewport;
+	const FPacketViewport& Viewport;
 
 	const FSlateBrush* WhiteBrush;
 	//const FSlateBrush* EventBorderBrush;

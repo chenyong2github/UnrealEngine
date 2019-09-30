@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "PacketSizesViewHelper.h"
-//#include "PacketViewHelper.h"
+#include "PacketViewDrawHelper.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
@@ -10,8 +9,7 @@
 // Insights
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/InsightsStyle.h"
-#include "Insights/NetworkingProfiler/ViewModels/PacketSizesViewport.h"
-//#include "Insights/NetworkingProfiler/ViewModels/PacketViewViewport.h"
+#include "Insights/NetworkingProfiler/ViewModels/PacketViewport.h"
 #include "Insights/ViewModels/DrawHelpers.h"
 
 #include <limits>
@@ -20,7 +18,7 @@
 // FNetworkPacketSeriesBuilder
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FNetworkPacketSeriesBuilder::FNetworkPacketSeriesBuilder(FNetworkPacketSeries& InSeries, const FPacketViewViewport& InViewport)
+FNetworkPacketSeriesBuilder::FNetworkPacketSeriesBuilder(FNetworkPacketSeries& InSeries, const FPacketViewport& InViewport)
 	: Series(InSeries)
 	, Viewport(InViewport)
 	, NumAddedPackets(0)
@@ -92,7 +90,7 @@ void FNetworkPacketSeriesBuilder::AddPacket(int32 PacketIndex, const Trace::FNet
 // FPacketViewDrawHelper
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FPacketViewDrawHelper::FPacketViewDrawHelper(const FDrawContext& InDrawContext, const FPacketViewViewport& InViewport)
+FPacketViewDrawHelper::FPacketViewDrawHelper(const FDrawContext& InDrawContext, const FPacketViewport& InViewport)
 	: DrawContext(InDrawContext)
 	, Viewport(InViewport)
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))

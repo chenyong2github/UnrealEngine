@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "PacketBreakdownViewHelper.h"
-//#include "PacketContentViewHelper.h"
+#include "PacketContentViewDrawHelper.h"
 
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
@@ -12,8 +11,7 @@
 // Insights
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/InsightsStyle.h"
-#include "Insights/NetworkingProfiler/ViewModels/PacketBreakdownViewport.h"
-//#include "Insights/NetworkingProfiler/ViewModels/PacketContentViewport.h"
+#include "Insights/NetworkingProfiler/ViewModels/PacketContentViewport.h"
 #include "Insights/ViewModels/DrawHelpers.h"
 
 #include <limits>
@@ -438,7 +436,6 @@ void FPacketContentViewDrawHelper::DrawEventHighlight(const FNetworkPacketEvent&
 		DrawContext.DrawBox(EventX1 - 2.0f, EventY - 2.0f, EventW + 4.0f, EventH + 4.0f, SelectedEventBorderBrush, Color);
 	}
 	DrawContext.LayerId++;
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

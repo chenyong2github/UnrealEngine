@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "SPacketSizesView.h"
-//#include "SPacketView.h"
+#include "SPacketView.h"
 
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
@@ -21,8 +20,7 @@
 #include "Insights/InsightsStyle.h"
 #include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
 #include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerWindow.h"
-#include "Insights/NetworkingProfiler/Widgets/SPacketBreakdownView.h"
-//#include "Insights/NetworkingProfiler/Widgets/SPacketContentView.h"
+#include "Insights/NetworkingProfiler/Widgets/SPacketContentView.h"
 
 #include <limits>
 

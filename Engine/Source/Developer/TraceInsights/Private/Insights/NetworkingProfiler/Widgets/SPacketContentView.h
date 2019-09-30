@@ -13,10 +13,8 @@
 
 // Insights
 #include "Insights/Common/FixedCircularBuffer.h"
-#include "Insights/NetworkingProfiler/ViewModels/PacketBreakdownViewHelper.h"
-//#include "Insights/NetworkingProfiler/ViewModels/PacketContentViewHelper.h"
-#include "Insights/NetworkingProfiler/ViewModels/PacketBreakdownViewport.h"
-//#include "Insights/NetworkingProfiler/ViewModels/PacketContentViewport.h"
+#include "Insights/NetworkingProfiler/ViewModels/PacketContentViewDrawHelper.h"
+#include "Insights/NetworkingProfiler/ViewModels/PacketContentViewport.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 
 class SScrollBar;

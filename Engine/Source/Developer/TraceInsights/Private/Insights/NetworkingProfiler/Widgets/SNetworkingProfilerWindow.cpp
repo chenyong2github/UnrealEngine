@@ -28,10 +28,8 @@
 #include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
 #include "Insights/NetworkingProfiler/Widgets/SNetStatsView.h"
 #include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerToolbar.h"
-#include "Insights/NetworkingProfiler/Widgets/SPacketBreakdownView.h"
-//#include "Insights/NetworkingProfiler/Widgets/SPacketContentView.h"
-#include "Insights/NetworkingProfiler/Widgets/SPacketSizesView.h"
-//#include "Insights/NetworkingProfiler/Widgets/SPacketView.h"
+#include "Insights/NetworkingProfiler/Widgets/SPacketContentView.h"
+#include "Insights/NetworkingProfiler/Widgets/SPacketView.h"
 #include "Insights/Version.h"
 #include "Insights/Widgets/SInsightsSettings.h"
 

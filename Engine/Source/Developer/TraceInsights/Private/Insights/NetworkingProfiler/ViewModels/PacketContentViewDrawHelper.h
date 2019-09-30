@@ -44,7 +44,7 @@ struct FNetworkPacketEvent
 		, BitSize(InBitSize)
 		, Level(InLevel)
 	{}
-	
+
 	FNetworkPacketEvent(const FNetworkPacketEvent& Other)
 		: EventTypeIndex(Other.EventTypeIndex)
 		, ObjectInstanceIndex(Other.ObjectInstanceIndex)
