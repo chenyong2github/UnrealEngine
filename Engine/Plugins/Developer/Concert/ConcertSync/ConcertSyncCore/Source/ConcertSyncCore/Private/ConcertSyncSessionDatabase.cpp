@@ -264,6 +264,14 @@ bool ReadPackage(const TArray<uint8>& InSerializedPackageData, FConcertPackageIn
 
 } // namespace PackageDataUtil
 
+enum class FConcertSyncSessionDatabaseVersion
+{
+	Empty = 0,
+	Initial = 1,
+
+	Current = Initial,
+};
+
 class FConcertSyncSessionDatabaseStatements
 {
 public:
@@ -1157,6 +1165,15 @@ bool FConcertSyncSessionDatabase::Open(const FString& InSessionPath, const ESQLi
 	Database->Execute(TEXT("PRAGMA journal_mode=WAL;"));
 	Database->Execute(TEXT("PRAGMA synchronous=NORMAL;"));
 
+	int32 LoadedDatabaseVersion = 0;
+	Database->GetUserVersion(LoadedDatabaseVersion);
+	if (LoadedDatabaseVersion > (int32)FConcertSyncSessionDatabaseVersion::Current)
+	{
+		Close();
+		UE_LOG(LogConcert, Error, TEXT("Failed to open session database for '%s': Database is too new (version %d, expected <= %d)"), *InSessionPath, LoadedDatabaseVersion, (int32)FConcertSyncSessionDatabaseVersion::Current);
+		return false;
+	}
+
 	// Create our required tables
 #define CREATE_TABLE(NAME, STATEMENT)																										\
 	if (!Database->Execute(TEXT("CREATE TABLE IF NOT EXISTS ") TEXT(NAME) TEXT("(") TEXT(STATEMENT) TEXT(");")))							\
@@ -1204,6 +1221,13 @@ bool FConcertSyncSessionDatabase::Open(const FString& InSessionPath, const ESQLi
 	CREATE_INDEX("idx_transaction_event_ids_in_object_transactions", "object_transactions", "transaction_event_id");
 #undef CREATE_INDEX
 #undef CREATE_UNIQUE_INDEX
+
+	// The database will have the latest schema at this point, so update the user-version
+	if (!Database->SetUserVersion((int32)FConcertSyncSessionDatabaseVersion::Current))
+	{
+		Close();
+		return false;
+	}
 
 	// Create our required prepared statements
 	Statements = MakeUnique<FConcertSyncSessionDatabaseStatements>(*Database);
