@@ -11,7 +11,6 @@
 #include "Misc/UObjectToken.h"
 #include "Logging/TokenizedMessage.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogContentValidation, Log, Log);
 #define LOCTEXT_NAMESPACE "AssetValidation"
 
 UEditorValidatorBase::UEditorValidatorBase()
