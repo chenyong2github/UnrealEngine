@@ -43,7 +43,11 @@ bool FOodleArchiveBase::SerializeOodleCompressData(FOodleCompressedData& OutData
 		OutDataInfo.DecompressedLength.Set(*this, DataBytes);
 	
 #if HAS_OODLE_DATA_SDK
+#if UE4_OODLE_VER > 255
 		uint32 CompressBufferLen = OodleLZ_GetCompressedBufferSizeNeeded(OodleLZ_Compressor_Kraken, DataBytes);
+#else
+		uint32 CompressBufferLen = OodleLZ_GetCompressedBufferSizeNeeded(DataBytes);
+#endif
 		uint8* CompressBuffer = new uint8[CompressBufferLen];
 
 		SINTa OodleLen = OodleLZ_Compress(OodleLZ_Compressor_Kraken, Data, (SINTa)DataBytes, CompressBuffer,
@@ -371,7 +375,6 @@ void FOodleDictionaryArchive::FDictionaryHeader::SerializeHeader(FOodleDictionar
 
 		bSuccess = bSuccess && ensure(Magic == DICTIONARY_HEADER_MAGIC);
 		bSuccess = bSuccess && ensure(DictionaryVersion <= DICTIONARY_FILE_VERSION);
-		//bSuccess = bSuccess && ensure(OodleMajorHeaderVersion == OODLE2NET_VERSION_MAJOR);   //deprecated. oodle network data format has stabilised.
 	}
 
 	if (!bSuccess)
@@ -392,7 +395,11 @@ FOodleDictionaryArchive::FOodleDictionaryArchive(FArchive& InInnerArchive)
 	if (IsSaving())
 	{
 		Header.DictionaryVersion = DICTIONARY_FILE_VERSION;
+#if UE4_OODLE_VER > 255
 		Header.OodleMajorHeaderVersion = OODLE2NET_VERSION_MAJOR;
+#else
+		Header.OodleMajorHeaderVersion = OODLE2_VERSION_MAJOR;
+#endif
 	}
 }
 
