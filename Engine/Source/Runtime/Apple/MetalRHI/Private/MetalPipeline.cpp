@@ -1884,10 +1884,12 @@ void FMetalPipelineStateCacheManager::OnShaderPipelineCachePreOpen(FString const
 	if (stat(TCHAR_TO_UTF8(*Result), &FileInfo) != -1 && ((FileInfo.st_size / 1024 / 1024) > GMetalCacheMinSize) && stat(TCHAR_TO_UTF8(*Result2), &FileInfo) != -1)
 	{
 		bReady = false;
+		FShaderPipelineCache::SetBatchMode(FShaderPipelineCache::BatchMode::Background);
 	}
 	else
 	{
 		bReady = true;
+		FShaderPipelineCache::SetBatchMode(FShaderPipelineCache::BatchMode::Precompile);
 	}
 }
 

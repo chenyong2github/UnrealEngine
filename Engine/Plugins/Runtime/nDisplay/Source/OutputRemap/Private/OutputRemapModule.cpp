@@ -14,13 +14,12 @@
 #include "OutputRemapLog.h"
 #include "OutputRemapMesh.h"
 
+#define NDISPLAY_SHADERS_MAP TEXT("/Plugin/nDisplay")
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IModuleInterface
 //////////////////////////////////////////////////////////////////////////////////////////////
-#define NDISPLAY_SHADERS_MAP TEXT("/Plugin/nDisplay")
-
 void FOutputRemapModule::StartupModule()
 {
 	if (!AllShaderSourceDirectoryMappings().Contains(NDISPLAY_SHADERS_MAP))

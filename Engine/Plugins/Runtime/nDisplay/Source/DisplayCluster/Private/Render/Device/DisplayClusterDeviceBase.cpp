@@ -60,7 +60,7 @@ static TAutoConsoleVariable<int32> CVarCustomPPEnabled(
 
 FDisplayClusterDeviceBase::FDisplayClusterDeviceBase(uint32 ViewsPerViewport)
 	: FRHICustomPresent()
-	, FDisplayClusterDeviceBase_PostProcess(RenderViewports, ViewsPerViewport)
+	, FDisplayClusterDeviceBase_PostProcess(RenderViewports, ViewsPerViewport, EyeRegions)
 	, ViewsAmountPerViewport(ViewsPerViewport)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
@@ -541,6 +541,9 @@ void FDisplayClusterDeviceBase::CalculateRenderTargetSize(const class FViewport&
 		InOutSizeY = FMath::Max(InOutSizeY, (uint32)Item.GetArea().Max.Y);
 	}
 
+	// Store eye region
+	EyeRegions[0] = FIntRect(FIntPoint(0, 0), FIntPoint(InOutSizeX, InOutSizeY));
+
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Render target size: [%d x %d]"), InOutSizeX, InOutSizeY);
 
 	check(InOutSizeX > 0 && InOutSizeY > 0);
@@ -558,7 +561,7 @@ bool FDisplayClusterDeviceBase::NeedReAllocateViewportRenderTarget(const class F
 	// Get desired RT size
 	uint32 newSizeX = 0;
 	uint32 newSizeY = 0;
-	CalculateRenderTargetSize(Viewport, newSizeX, newSizeY);	
+	CalculateRenderTargetSize(Viewport, newSizeX, newSizeY);
 
 	// Here we conclude if need to re-allocate
 	const bool Result = (newSizeX != rtSize.X || newSizeY != rtSize.Y);

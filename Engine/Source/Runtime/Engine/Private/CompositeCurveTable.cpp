@@ -230,6 +230,12 @@ void UCompositeCurveTable::EmptyTable()
 	Super::EmptyTable();
 }
 
+void UCompositeCurveTable::AppendParentTables(const TArray<UCurveTable*>& NewTables)
+{
+	ParentTables.Append(NewTables);
+	OnParentTablesUpdated();
+}
+
 const UCompositeCurveTable* UCompositeCurveTable::FindLoops(TArray<const UCompositeCurveTable*> AlreadySeenTables) const
 {
 	AlreadySeenTables.Add(this);
