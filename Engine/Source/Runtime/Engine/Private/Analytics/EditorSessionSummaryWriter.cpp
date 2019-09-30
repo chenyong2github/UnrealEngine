@@ -2,7 +2,8 @@
 
 #include "EditorSessionSummaryWriter.h"
 
-#include "EditorAnalyticsSession.h"
+#if WITH_EDITOR
+
 #include "EngineAnalytics.h"
 #include "EngineGlobals.h"
 #include "GeneralProjectSettings.h"
@@ -22,10 +23,9 @@
 #include "Misc/EngineVersion.h"
 #include "Misc/Guid.h"
 
-#if WITH_EDITOR
+#include "EditorAnalyticsSession.h"
 #include "IVREditorModule.h"
 #include "Kismet2/DebuggerCommands.h"
-#endif // WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "SessionSummary"
 
@@ -345,3 +345,4 @@ FString FEditorSessionSummaryWriter::GetUserActivityString() const
 }
 
 #undef LOCTEXT_NAMESPACE
+#endif // WITH_EDITOR

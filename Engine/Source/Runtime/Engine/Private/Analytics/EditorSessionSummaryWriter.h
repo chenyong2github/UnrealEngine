@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#if WITH_EDITOR
+
 struct FUserActivity;
 struct FEditorAnalyticsSession;
 
@@ -37,3 +39,5 @@ private:
 	float HeartbeatTimeElapsed;
 	bool bShutdown;
 };
+
+#endif
