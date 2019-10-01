@@ -12,6 +12,7 @@
 #include "Misc/Paths.h"
 #include "RHI.h"
 #include "RenderingThread.h"
+#include "UObject/NameTypes.h"
 
 static TAutoConsoleVariable<int32> GTracingProfileBufferSize(
 	TEXT("TracingProfiler.BufferSize"),
@@ -112,7 +113,7 @@ void FTracingProfiler::EndFrame()
 
 	GameThreadFrameEndCycle = FPlatformTime::Cycles64();
 
-	AddCPUEvent("GameThread",
+	AddCPUEvent(NAME_GameThread,
 		GameThreadFrameBeginCycle,
 		GameThreadFrameEndCycle,
 		GGameThreadId,
@@ -162,7 +163,7 @@ void FTracingProfiler::EndFrameRT()
 		return;
 	}
 
-	AddCPUEvent("RenderThread",
+	AddCPUEvent(NAME_RenderThread,
 		RenderThreadFrameBeginCycle,
 		RenderThreadFrameEndCycle,
 		GRenderThreadId,
@@ -344,10 +345,13 @@ void FTracingProfiler::WriteCaptureToFile()
 			ThreadOrGpuId = Event.GPU.GPUIndex;
 		}
 
+		ANSICHAR EventName[NAME_SIZE];
+		Event.Name.GetPlainANSIString(EventName);
+
 		FCStringAnsi::Snprintf(StringBuffer, StringBufferSize,
 			R"({"pid":%d, "tid":%d, "ph": "X", "name": "%s", "ts": %llu, "dur": %llu, "args":{"frame":%d}},)"
 			"\n",
-			Pid, ThreadOrGpuId, Event.Name, TimeBeginMicroseconds,
+			Pid, ThreadOrGpuId, EventName, TimeBeginMicroseconds,
 			TimeEndMicroseconds - TimeBeginMicroseconds,
 			Event.FrameNumber);
 
