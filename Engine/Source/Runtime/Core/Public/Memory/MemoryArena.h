@@ -20,6 +20,9 @@
 #	endif
 #endif
 
+#define UE_WITH_HEAPARENA	0
+#define UE_WITH_ARENAMAP	0
+
 class FMemoryArena;
 class FHeapArena;
 
@@ -143,6 +146,7 @@ CORE_API FArenaPointer ArenaRealloc(FMemoryArena* Arena, void* InPtr, SIZE_T Old
 	it
   */
 
+#if UE_WITH_HEAPARENA
 class FHeapArena : public FMemoryArena
 {
 public:
@@ -157,6 +161,7 @@ private:
 
 	void* HeapHandle = nullptr;
 };
+#endif
 
 /** Default heap allocator
 
@@ -198,6 +203,8 @@ private:
 
 	Provides an efficient mechanism for mapping pointers to arenas
   */
+
+#if UE_WITH_ARENAMAP
 class FArenaMap
 {
 public:
@@ -216,3 +223,4 @@ public:
 	// Map a virtual address to a memory arena
 	CORE_API static FMemoryArena* MapPtrToArena(const void* VaBase);
 };
+#endif

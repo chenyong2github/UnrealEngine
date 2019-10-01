@@ -7,6 +7,7 @@
 #include "Misc/ScopeRWLock.h"
 #include <atomic>
 
+#if UE_WITH_HEAPARENA
 // dlmalloc for use in FHeapArena
 
 extern "C" {
@@ -36,6 +37,7 @@ extern "C" {
 #	pragma warning(pop)
 #endif
 }
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 //
@@ -217,6 +219,8 @@ FArenaPointer ArenaRealloc(FArenaPointer InPtr, SIZE_T OldSize, SIZE_T NewSize, 
 
 //////////////////////////////////////////////////////////////////////////
 
+#if UE_WITH_HEAPARENA
+
 FHeapArena::FHeapArena()
 {
 	HeapHandle = create_mspace(1024 * 1024, /* locked */ 1);
@@ -246,6 +250,8 @@ const TCHAR* FHeapArena::InternalGetDebugName() const
 {
 	return TEXT("HeapArena");
 }
+
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -306,6 +312,8 @@ const TCHAR* FAnsiArena::InternalGetDebugName() const
 	return TEXT("AnsiArena");
 }
 
+
+#if UE_WITH_ARENAMAP
 
 //////////////////////////////////////////////////////////////////////////
 //
@@ -462,5 +470,7 @@ FMemoryArena* FArenaMap::MapPtrToArena(const void* VaBase)
 
 	return nullptr;
 }
+
+#endif
 
 //////////////////////////////////////////////////////////////////////////
