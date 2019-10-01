@@ -78,6 +78,9 @@ public:
 class FPackageStoreWriter
 {
 public:
+	COREUOBJECT_API			FPackageStoreWriter();
+	COREUOBJECT_API virtual ~FPackageStoreWriter();
+
 	struct HeaderInfo
 	{
 		FName	PackageName;
@@ -122,8 +125,8 @@ public:
 class FLooseFileWriter : public FPackageStoreWriter
 {
 public:
-	FLooseFileWriter() = default;
-	~FLooseFileWriter() = default;
+	COREUOBJECT_API FLooseFileWriter();
+	COREUOBJECT_API ~FLooseFileWriter();
 
 	COREUOBJECT_API virtual void WriteHeader(const HeaderInfo& Info, const FIoBuffer& HeaderData) override;
 	COREUOBJECT_API virtual void WriteExports(const ExportsInfo& Info, const FIoBuffer& ExportsData) override;

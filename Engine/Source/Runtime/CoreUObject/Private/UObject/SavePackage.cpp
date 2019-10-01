@@ -6412,6 +6412,12 @@ bool UPackage::IsEmptyPackage(UPackage* Package, const UObject* LastReferencer)
 // TODO: this should go elsewhere, this file is big enough as it is already
 //
 
+FPackageStoreWriter::FPackageStoreWriter() = default;
+FPackageStoreWriter::~FPackageStoreWriter() = default;
+
+FLooseFileWriter::FLooseFileWriter() = default;
+FLooseFileWriter::~FLooseFileWriter() = default;
+
 void FLooseFileWriter::WriteHeader(const FLooseFileWriter::HeaderInfo& Info, const FIoBuffer& HeaderData)
 {
 	WriteToFile(Info.LooseFilePath, HeaderData.Data(), HeaderData.DataSize());
