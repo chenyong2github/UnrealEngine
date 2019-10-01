@@ -28,12 +28,12 @@ TStringBuilderImpl<C>::~TStringBuilderImpl()
 
 template<typename C>
 void
-TStringBuilderImpl<C>::Extend(SIZE_T ExtraCapacity)
+TStringBuilderImpl<C>::Extend(int32 ExtraCapacity)
 {
 	check(bIsExtendable);
 
-	const size_t OldCapacity = End - Base;
-	const size_t NewCapacity = NextPowerOfTwo(OldCapacity + ExtraCapacity);
+	const SIZE_T OldCapacity = End - Base;
+	const SIZE_T NewCapacity = NextPowerOfTwo(OldCapacity + ExtraCapacity);
 
 	C* NewBase = (C*)AllocBuffer(NewCapacity);
 
@@ -53,14 +53,14 @@ TStringBuilderImpl<C>::Extend(SIZE_T ExtraCapacity)
 
 template<typename C>
 void*
-TStringBuilderImpl<C>::AllocBuffer(SIZE_T ByteCount)
+TStringBuilderImpl<C>::AllocBuffer(int32 ByteCount)
 {
 	return FMemory::Malloc(ByteCount * sizeof(C));
 }
 
 template<typename C>
 void
-TStringBuilderImpl<C>::FreeBuffer(void* Buffer, SIZE_T ByteCount)
+TStringBuilderImpl<C>::FreeBuffer(void* Buffer, int32 ByteCount)
 {
 	FMemory::Free(Buffer);
 }
@@ -68,7 +68,7 @@ TStringBuilderImpl<C>::FreeBuffer(void* Buffer, SIZE_T ByteCount)
 // Instantiate templates once
 
 template class TStringBuilderImpl<ANSICHAR>;
-template class TStringBuilderImpl<WIDECHAR>;
+template class TStringBuilderImpl<TCHAR>;
 
 #if 0
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

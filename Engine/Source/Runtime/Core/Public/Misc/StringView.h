@@ -19,19 +19,21 @@ template<typename C>
 class TStringViewImpl
 {
 public:
+	typedef int32 SizeType;
+
 	inline TStringViewImpl(const C* InData)
 	:	DataPtr(InData)
 	,	Size(TCString<C>::Strlen(InData))
 	{
 	}
 
-	inline TStringViewImpl(const C* InData, SIZE_T InSize)
+	inline TStringViewImpl(const C* InData, SizeType InSize)
 	:	DataPtr(InData)
 	,	Size(InSize)
 	{
 	}
 
-	inline const C& operator[](SIZE_T Pos) const	{ return DataPtr[Pos]; }
+	inline const C& operator[](SizeType Pos) const	{ return DataPtr[Pos]; }
 
 	// Q: should this even be here? Semantics differ from FString as it won't return 
 	//    a null terminated string
@@ -41,18 +43,18 @@ public:
 
 	// Capacity
 
-	inline SIZE_T	Len() const						{ return Size; }
+	inline SizeType	Len() const						{ return Size; }
 	inline bool		IsEmpty() const					{ return Size == 0; }
 
 	// Modifiers
 
-	inline void		RemovePrefix(SIZE_T CharCount)	{ DataPtr += CharCount; Size -= CharCount; }
-	inline void		RemoveSuffix(SIZE_T CharCount)	{ Size -= CharCount; }
+	inline void		RemovePrefix(SizeType CharCount)	{ DataPtr += CharCount; Size -= CharCount; }
+	inline void		RemoveSuffix(SizeType CharCount)	{ Size -= CharCount; }
 
 	// Operations
 
-	inline SIZE_T			CopyString(C* Dest, SIZE_T CharCount, SIZE_T Position = 0)	{ memcpy(Dest, DataPtr + Position, FMath::Min(Size - Position, CharCount)); }
-	inline TStringViewImpl& SubStr(SIZE_T Position, SIZE_T CharCount)					{ return TStringViewImpl(DataPtr + Position, FMath::Min(Size - Position, CharCount)); }
+	inline SIZE_T			CopyString(C* Dest, SizeType CharCount, SizeType Position = 0)	{ memcpy(Dest, DataPtr + Position, FMath::Min(Size - Position, CharCount)); }
+	inline TStringViewImpl& SubStr(SizeType Position, SizeType CharCount)					{ return TStringViewImpl(DataPtr + Position, FMath::Min(Size - Position, CharCount)); }
 
 	// Comparison
 
@@ -74,17 +76,9 @@ public:
 		return 0 == TCString<C>::Strnicmp(Suffix.Data(), this->Data() + this->Len() - SuffixLen, SuffixLen);
 	}
 
-	// Find
-
-	int32 Find(const FString& SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, ESearchDir::Type SearchDir = ESearchDir::FromStart) const
-	{
-		// :TODO:
-		return 0;
-	}
-
 	inline bool FindChar(C InChar, int32& OutIndex) const
 	{
-		for (SIZE_T i = 0; i < Size; ++i)
+		for (SizeType i = 0; i < Size; ++i)
 		{
 			if (DataPtr[i] == InChar)
 			{
@@ -103,7 +97,7 @@ public:
 			return false;
 		}
 
-		for (SIZE_T i = Size - 1; i >= 0; --i)
+		for (SizeType i = Size - 1; i >= 0; --i)
 		{
 			if (DataPtr[i] == InChar)
 			{
@@ -124,7 +118,7 @@ public:
 
 protected:
 	const C*	DataPtr;
-	SIZE_T		Size;
+	SizeType	Size;
 };
 
 template<typename C>
@@ -149,7 +143,7 @@ inline bool operator!=(const TStringViewImpl<C>& lhs, const TStringViewImpl<C>& 
 class FAnsiStringView : public TStringViewImpl<ANSICHAR>
 {
 public:
-	FAnsiStringView(const ANSICHAR* InString, SIZE_T InStrlen)
+	FAnsiStringView(const ANSICHAR* InString, SizeType InStrlen)
 	:	TStringViewImpl<ANSICHAR>(InString, InStrlen)
 	{
 	}
@@ -160,23 +154,21 @@ public:
 	}
 };
 
-class FWideStringView : public TStringViewImpl<WIDECHAR>
+class FStringView : public TStringViewImpl<TCHAR>
 {
 public:
-	FWideStringView(const FString& InString)
-	:	TStringViewImpl<WIDECHAR>(*InString, InString.Len())
+	FStringView(const FString& InString)
+	:	TStringViewImpl<TCHAR>(*InString, InString.Len())
 	{
 	}
 
-	FWideStringView(const WIDECHAR* InString)
-	:	TStringViewImpl<WIDECHAR>(InString)
+	FStringView(const TCHAR* InString)
+	:	TStringViewImpl<TCHAR>(InString)
 	{
 	}
 
-	FWideStringView(const WIDECHAR* InString, SIZE_T InStrlen)
-	:	TStringViewImpl<WIDECHAR>(InString, InStrlen)
+	FStringView(const TCHAR* InString, SizeType InStrlen)
+	:	TStringViewImpl<TCHAR>(InString, InStrlen)
 	{
 	}
 };
-
-using FStringView = FWideStringView;
