@@ -1350,6 +1350,11 @@ public:
 	/** Releases all allocated Skin Weight Profile resources, assumes none are currently in use */
 	void ReleaseSkinWeightProfileResources();
 
+#if WITH_EDITORONLY_DATA
+	/*Transient data use when we postload an old asset to use legacy ddc key, it is turn off so if the user change the asset it go back to the latest ddc code*/
+	bool UseLegacyMeshDerivedDataKey = false;
+#endif
+
 protected:
 	/** Set of skin weight profiles associated with this mesh */
 	UPROPERTY(EditAnywhere, Category = SkinWeights, EditFixedSize, Meta=(NoResetToDefault))

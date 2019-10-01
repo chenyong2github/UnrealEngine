@@ -2108,6 +2108,9 @@ void USkeletalMesh::PostLoad()
 
 		if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshBuildRefactor)
 		{
+			//We want to avoid changing the ddc if we load an old asset.
+			//This bool should be put to false at the end of the postload, if there is another posteditchange call after a new ddc will be created
+			UseLegacyMeshDerivedDataKey = true;
 			//Fill up the Section ChunkedParentSectionIndex and OriginalDataSectionIndex
 			//We also want to create the UserSectionsData structure so the user can change the section data
 			for (int32 LodIndex = 0; LodIndex < LODInfo.Num(); LodIndex++)
@@ -2300,6 +2303,10 @@ void USkeletalMesh::PostLoad()
 #if !WITH_EDITOR
 	RebuildSocketMap();
 #endif // !WITH_EDITOR
+#if WITH_EDITORONLY_DATA
+	//Next postedit change will use the new ddc key scheme
+	UseLegacyMeshDerivedDataKey = false;
+#endif
 }
 
 #if WITH_EDITORONLY_DATA
