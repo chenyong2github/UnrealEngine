@@ -177,7 +177,7 @@ static void ResolvePendingRenderTarget(FRHICommandListImmediate& RHICmdList, FGr
 			const uint16 Indices[] = { 0, 1, 2, 2, 1, 3, 0, 4, 5 };
 
 			TResourceArray<uint16, INDEXBUFFER_ALIGNMENT> IndexBuffer;
-			uint32 InternalNumIndices = ARRAY_COUNT(Indices);
+			uint32 InternalNumIndices = UE_ARRAY_COUNT(Indices);
 			IndexBuffer.AddUninitialized(InternalNumIndices);
 			FMemory::Memcpy(IndexBuffer.GetData(), Indices, InternalNumIndices * sizeof(uint16));
 

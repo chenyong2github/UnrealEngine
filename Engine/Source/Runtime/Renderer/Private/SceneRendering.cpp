@@ -1051,14 +1051,18 @@ void SetupPrecomputedVolumetricLightmapUniformBufferParameters(const FScene* Sce
 		ViewUniformShaderParameters.SkyBentNormalBrickTexture = OrBlack3DIfNull(VolumetricLightmapData->BrickData.SkyBentNormal.Texture);
 		ViewUniformShaderParameters.DirectionalLightShadowingBrickTexture = OrBlack3DIfNull(VolumetricLightmapData->BrickData.DirectionalLightShadowing.Texture);
 
-		const FBox& VolumeBounds = VolumetricLightmapData->GetBounds();
-		const FVector InvVolumeSize = FVector(1.0f) / VolumeBounds.GetSize();
+		const FBox VolumeBounds = VolumetricLightmapData->GetBounds();
+		const FVector VolumeSize = VolumeBounds.GetSize();
+		const FVector InvVolumeSize = VolumeSize.Reciprocal();
+
+		const FVector BrickDimensions(VolumetricLightmapData->BrickDataDimensions);
+		const FVector InvBrickDimensions = BrickDimensions.Reciprocal();
 
 		ViewUniformShaderParameters.VolumetricLightmapWorldToUVScale = InvVolumeSize;
 		ViewUniformShaderParameters.VolumetricLightmapWorldToUVAdd = -VolumeBounds.Min * InvVolumeSize;
 		ViewUniformShaderParameters.VolumetricLightmapIndirectionTextureSize = FVector(VolumetricLightmapData->IndirectionTextureDimensions);
 		ViewUniformShaderParameters.VolumetricLightmapBrickSize = VolumetricLightmapData->BrickSize;
-		ViewUniformShaderParameters.VolumetricLightmapBrickTexelSize = FVector(1.0f, 1.0f, 1.0f) / FVector(VolumetricLightmapData->BrickDataDimensions);
+		ViewUniformShaderParameters.VolumetricLightmapBrickTexelSize = InvBrickDimensions;
 	}
 	else
 	{
@@ -1713,7 +1717,7 @@ FViewInfo* FViewInfo::CreateSnapshot() const
 	TUniformBufferRef<FViewUniformShaderParameters> NullViewUniformBuffer;
 	FMemory::Memcpy(Result->ViewUniformBuffer, NullViewUniformBuffer); 
 	TUniformBufferRef<FMobileDirectionalLightShaderParameters> NullMobileDirectionalLightUniformBuffer;
-	for (size_t i = 0; i < ARRAY_COUNT(Result->MobileDirectionalLightUniformBuffers); i++)
+	for (size_t i = 0; i < UE_ARRAY_COUNT(Result->MobileDirectionalLightUniformBuffers); i++)
 	{
 		// This memcpy is necessary to clear the reference from the memcpy of the whole of this -> Result without releasing the pointer
 		// But what we really want is the null buffer.
@@ -3408,7 +3412,7 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		}
 
 		// Only reset per-frame scene state once all views have processed their frame, including those in planar reflections
-		for (int32 CacheType = 0; CacheType < ARRAY_COUNT(SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds); CacheType++)
+		for (int32 CacheType = 0; CacheType < UE_ARRAY_COUNT(SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds); CacheType++)
 		{
 			SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Reset();
 		}

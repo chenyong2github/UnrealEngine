@@ -279,7 +279,7 @@ UCameraComponent* FCameraAnimTrackEditor::AcquireCameraComponentFromObjectGuid(c
 		}
 		else if (UCameraComponent* const CameraComp = Cast<UCameraComponent>(Obj))
 		{
-			if (CameraComp->bIsActive)
+			if (CameraComp->IsActive())
 			{
 				return CameraComp;
 			}

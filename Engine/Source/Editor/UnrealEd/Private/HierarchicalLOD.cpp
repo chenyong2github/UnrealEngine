@@ -537,7 +537,7 @@ bool FHierarchicalLODBuilder::ShouldGenerateCluster(AActor* Actor, const bool bP
 		return false;
 	}
 
-	if (Actor->bHidden)
+	if (Actor->IsHidden())
 	{
 		return false;
 	}

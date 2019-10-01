@@ -279,7 +279,7 @@ void USoundCue::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCha
 	{
 		for (TObjectIterator<UAudioComponent> It; It; ++It)
 		{
-			if (It->Sound == this && It->bIsActive)
+			if (It->Sound == this && It->IsActive())
 			{
 				It->Stop();
 				It->Play();

@@ -8,7 +8,7 @@
 AParticleEventManager::AParticleEventManager(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 }
 
 void AParticleEventManager::HandleParticleSpawnEvents( UParticleSystemComponent* Component, const TArray<FParticleEventSpawnData>& SpawnEvents )

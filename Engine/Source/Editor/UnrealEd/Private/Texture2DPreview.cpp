@@ -70,7 +70,7 @@ public:
 			FVirtualTexture2DResource* VirtualTextureValue = (FVirtualTexture2DResource*)TextureValue;
 			IAllocatedVirtualTexture* AllocatedVT = VirtualTextureValue->AcquireAllocatedVT();
 	
-			FRHIShaderResourceView* PhysicalView = AllocatedVT->GetPhysicalTextureView((uint32)LayerIndex, TextureValue->bSRGB);
+			FRHIShaderResourceView* PhysicalView = AllocatedVT->GetPhysicalTextureSRV((uint32)LayerIndex, TextureValue->bSRGB);
 			SetSRVParameter(RHICmdList, GetPixelShader(), InTexture, PhysicalView);
 			SetSamplerParameter(RHICmdList, GetPixelShader(), InTextureSampler, VirtualTextureValue->SamplerStateRHI);
 
@@ -90,7 +90,7 @@ public:
 			AllocatedVT->GetPackedPageTableUniform(PageTableUniform, false);
 			AllocatedVT->GetPackedUniform(&Uniform, (uint32)LayerIndex);
 
-			SetShaderValueArray(RHICmdList, GetPixelShader(), VTPackedPageTableUniform, PageTableUniform, ARRAY_COUNT(PageTableUniform));
+			SetShaderValueArray(RHICmdList, GetPixelShader(), VTPackedPageTableUniform, PageTableUniform, UE_ARRAY_COUNT(PageTableUniform));
 			SetShaderValue(RHICmdList, GetPixelShader(), VTPackedUniform, Uniform);
 		}
 		else

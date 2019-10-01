@@ -276,7 +276,7 @@ void OutputHierarchyTimers(const FHierarchicalTimerInfo* TimerInfo, int32 Depth)
 	FString TimerName(TimerInfo->Name);
 
 	static const TCHAR LeftPad[] = TEXT("                                ");
-	const SIZE_T PadOffset = FMath::Max<int>(ARRAY_COUNT(LeftPad) - 1 - Depth * 2, 0);
+	const SIZE_T PadOffset = FMath::Max<int>(UE_ARRAY_COUNT(LeftPad) - 1 - Depth * 2, 0);
 
 	UE_LOG(LogCook, Display, TEXT("  %s%s: %.3fs (%u)"), &LeftPad[PadOffset], *TimerName, TimerInfo->Length, TimerInfo->HitCount);
 

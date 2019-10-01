@@ -15,7 +15,6 @@ struct FVTPhysicalSpaceDescription
 	uint8 NumLayers;
 	TEnumAsByte<EPixelFormat> Format[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 	bool bContinuousUpdate;
-	bool bCreateRenderTarget;
 };
 
 inline bool operator==(const FVTPhysicalSpaceDescription& Lhs, const FVTPhysicalSpaceDescription& Rhs)
@@ -23,8 +22,7 @@ inline bool operator==(const FVTPhysicalSpaceDescription& Lhs, const FVTPhysical
 	if (Lhs.TileSize != Rhs.TileSize || 
 		Lhs.NumLayers != Rhs.NumLayers || 
 		Lhs.Dimensions != Rhs.Dimensions || 
-		Lhs.bContinuousUpdate != Rhs.bContinuousUpdate || 
-		Lhs.bCreateRenderTarget != Rhs.bCreateRenderTarget)
+		Lhs.bContinuousUpdate != Rhs.bContinuousUpdate)
 	{
 		return false;
 	}
@@ -78,16 +76,14 @@ public:
 		return PooledRenderTarget[Layer]->GetRenderTargetItem().ShaderResourceTexture;
 	}
 
-	TRefCountPtr<IPooledRenderTarget> GetPhysicalTexturePooledRenderTarget(int32 Layer) const
+	FRHIShaderResourceView* GetPhysicalTextureSRV(int32 Layer, bool bSRGB) const
 	{
-		check(PooledRenderTarget[Layer].IsValid());
-		check(Description.bCreateRenderTarget);
-		return PooledRenderTarget[Layer];
+		return bSRGB ? TextureSRV_SRGB[Layer] : TextureSRV[Layer];
 	}
 
-	FRHIShaderResourceView* GetPhysicalTextureView(int32 Layer, bool bSRGB) const
+	FRHIUnorderedAccessView* GetPhysicalTextureUAV(int32 Layer) const
 	{
-		return bSRGB ? TextureSRGBView[Layer] : TextureView[Layer];
+		return TextureUAV[Layer];
 	}
 
 #if STATS
@@ -104,8 +100,9 @@ private:
 	FVTPhysicalSpaceDescription Description;
 	FTexturePagePool Pool;
 	TRefCountPtr<IPooledRenderTarget> PooledRenderTarget[VIRTUALTEXTURE_SPACE_MAXLAYERS];
-	FShaderResourceViewRHIRef TextureView[VIRTUALTEXTURE_SPACE_MAXLAYERS];
-	FShaderResourceViewRHIRef TextureSRGBView[VIRTUALTEXTURE_SPACE_MAXLAYERS];
+	FShaderResourceViewRHIRef TextureSRV[VIRTUALTEXTURE_SPACE_MAXLAYERS];
+	FShaderResourceViewRHIRef TextureSRV_SRGB[VIRTUALTEXTURE_SPACE_MAXLAYERS];
+	FUnorderedAccessViewRHIRef TextureUAV[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 
 	uint32 TextureSizeInTiles;
 	uint32 NumRefs;

@@ -2897,7 +2897,7 @@ bool UPrimitiveComponent::AreAllCollideableDescendantsRelative(bool bAllowCached
 			if (CurrentComp)
 			{
 				// Is the component not using relative position?
-				if (CurrentComp->bAbsoluteLocation || CurrentComp->bAbsoluteRotation)
+				if (CurrentComp->IsUsingAbsoluteLocation() || CurrentComp->IsUsingAbsoluteRotation())
 				{
 					// Can we possibly collide with the component?
 					UPrimitiveComponent* const CurrentPrimitive = Cast<UPrimitiveComponent>(CurrentComp);

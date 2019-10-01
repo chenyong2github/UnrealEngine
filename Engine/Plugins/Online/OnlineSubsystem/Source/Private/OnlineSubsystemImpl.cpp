@@ -31,17 +31,18 @@ namespace OSSConsoleVariables
 const FName FOnlineSubsystemImpl::DefaultInstanceName(TEXT("DefaultInstance"));
 
 FOnlineSubsystemImpl::FOnlineSubsystemImpl(FName InSubsystemName, FName InInstanceName) :
+	FOnlineSubsystemImpl(InSubsystemName, InInstanceName, FTicker::GetCoreTicker())
+{
+}
+
+FOnlineSubsystemImpl::FOnlineSubsystemImpl(FName InSubsystemName, FName InInstanceName, FTicker& Ticker) :
+	FTickerObjectBase(0.0f, Ticker),
 	SubsystemName(InSubsystemName),
 	InstanceName(InInstanceName),
 	bForceDedicated(false),
-	NamedInterfaces(nullptr)
+	NamedInterfaces(nullptr),
+	bTickerStarted(true)
 {
-	StartTicker();
-}
-
-FOnlineSubsystemImpl::~FOnlineSubsystemImpl()
-{	
-	ensure(!TickHandle.IsValid());
 }
 
 void FOnlineSubsystemImpl::PreUnload()
@@ -94,43 +95,36 @@ void FOnlineSubsystemImpl::ExecuteDelegateNextTick(const FNextTickDelegate& Call
 
 void FOnlineSubsystemImpl::StartTicker()
 {
-	if (!TickHandle.IsValid())
-	{
-		// Register delegate for ticker callback
-		FTickerDelegate TickDelegate = FTickerDelegate::CreateRaw(this, &FOnlineSubsystemImpl::Tick);
-		TickHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate, 0.0f);
-	}
+	bTickerStarted = true;
 }
 
 void FOnlineSubsystemImpl::StopTicker()
 {
-	// Unregister ticker delegate
-	if (TickHandle.IsValid())
-	{
-		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
-		TickHandle.Reset();
-	}
+	bTickerStarted = false;
 }
 
 bool FOnlineSubsystemImpl::Tick(float DeltaTime)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlineSubsystemImpl_Tick);
-	if (!NextTickQueue.IsEmpty())
+	if (bTickerStarted)
 	{
-		// unload the next-tick queue into our buffer. Any further executes (from within callbacks) will happen NEXT frame (as intended)
-		FNextTickDelegate Temp;
-		while (NextTickQueue.Dequeue(Temp))
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlineSubsystemImpl_Tick);
+		if (!NextTickQueue.IsEmpty())
 		{
-			CurrentTickBuffer.Add(Temp);
-		}
+			// unload the next-tick queue into our buffer. Any further executes (from within callbacks) will happen NEXT frame (as intended)
+			FNextTickDelegate Temp;
+			while (NextTickQueue.Dequeue(Temp))
+			{
+				CurrentTickBuffer.Add(Temp);
+			}
 
-		// execute any functions in the current tick array
-		for (const auto& Callback : CurrentTickBuffer)
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlineSubsystemImpl_Tick_ExecuteCallback);
-			Callback.ExecuteIfBound();
+			// execute any functions in the current tick array
+			for (const auto& Callback : CurrentTickBuffer)
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlineSubsystemImpl_Tick_ExecuteCallback);
+				Callback.ExecuteIfBound();
+			}
+			CurrentTickBuffer.SetNum(0, false); // keep the memory around
 		}
-		CurrentTickBuffer.SetNum(0, false); // keep the memory around
 	}
 	return true;
 }

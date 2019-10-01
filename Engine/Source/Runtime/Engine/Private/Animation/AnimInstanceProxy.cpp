@@ -62,7 +62,7 @@ void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(const FAnimationUpdateCont
 void FAnimInstanceProxy::AddReferencedObjects(UAnimInstance* InAnimInstance, FReferenceCollector& Collector)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	for (int32 Index = 0; Index < ARRAY_COUNT(UngroupedActivePlayerArrays); ++Index)
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(UngroupedActivePlayerArrays); ++Index)
 	{
 		TArray<FAnimTickRecord>& UngroupedPlayers = UngroupedActivePlayerArrays[Index];
 		for (FAnimTickRecord& TickRecord : UngroupedPlayers)
@@ -1198,6 +1198,25 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext&
 		if(bDeferRootNodeInitialization)
 		{
 			InitializeRootNode_WithRoot(RootNode);
+
+			if(AnimClassInterface)
+			{
+				// Initialize linked sub graphs
+				for(UStructProperty* LayerNodeProperty : AnimClassInterface->GetLinkedAnimLayerNodeProperties())
+				{
+					if(FAnimNode_LinkedAnimLayer* LayerNode = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimLayer>(AnimInstanceObject))
+					{
+						if(UAnimInstance* LinkedInstance = LayerNode->GetTargetInstance<UAnimInstance>())
+						{
+							FAnimationInitializeContext InitContext(this);
+							LayerNode->InitializeSubGraph_AnyThread(InitContext);
+							FAnimationCacheBonesContext CacheBonesContext(this);
+							LayerNode->CacheBonesSubGraph_AnyThread(CacheBonesContext);
+						}
+					}
+				}
+			}
+
 			bDeferRootNodeInitialization = false;
 		}
 

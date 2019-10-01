@@ -38,7 +38,7 @@ FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeat
 	if (ParticleMesh)
 	{
 		FNiagaraRenderer* NewRenderer = new FNiagaraRendererMeshes(FeatureLevel, this, Emitter);
-		NewRenderer->Initialize(FeatureLevel, this, Emitter);
+		NewRenderer->Initialize(this, Emitter);
 		return NewRenderer;
 	}
 

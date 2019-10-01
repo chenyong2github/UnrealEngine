@@ -15,7 +15,7 @@ ALevelBounds::ALevelBounds(const FObjectInitializer& ObjectInitializer)
 	UBoxComponent* BoxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComponent0"));
 	RootComponent = BoxComponent;
 	RootComponent->Mobility = EComponentMobility::Movable;
-	RootComponent->RelativeScale3D = DefaultLevelSize;
+	RootComponent->SetRelativeScale3D(DefaultLevelSize);
 	RootComponent->SetCanEverAffectNavigation(false);
 
 	bAutoUpdateBounds = true;
@@ -26,7 +26,7 @@ ALevelBounds::ALevelBounds(const FObjectInitializer& ObjectInitializer)
 	BoxComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 	BoxComponent->InitBoxExtent(FVector(0.5f, 0.5f, 0.5f));
 	
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 	
 #if WITH_EDITOR
 	bLevelBoundsDirty = true;

@@ -5,23 +5,24 @@
 
 const FName FAnimNode_LinkedInputPose::DefaultInputPoseName("InPose");
 
+// Note not calling through Initialize or CacheBones here.
+// This is handled in the owning LinkedAnimGraph node. This is because not all input poses may be linked in a
+// particular linked graph, so to avoid mismatches in initialization and bone references we make sure that all
+// branches of the tree are taken when initializing and caching bones.
+
+#if ENABLE_ANIMGRAPH_TRAVERSAL_DEBUG
 void FAnimNode_LinkedInputPose::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
-	if(InputProxy)
-	{
-		FAnimationInitializeContext InputContext(InputProxy);
-		InputPose.Initialize(InputContext);
-	}
+	// Make sure to sync input pose debug counters as we still use this pose link in Update/Evaluate etc.
+	InputPose.InitializationCounter.SynchronizeWith(Context.AnimInstanceProxy->GetInitializationCounter());
 }
 
 void FAnimNode_LinkedInputPose::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
-	if(InputProxy)
-	{
-		FAnimationCacheBonesContext InputContext(InputProxy);
-		InputPose.CacheBones(InputContext);
-	}
+	// Make sure to sync input pose debug counters as we still use this pose link in Update/Evaluate etc.
+	InputPose.CachedBonesCounter.SynchronizeWith(Context.AnimInstanceProxy->GetCachedBonesCounter());
 }
+#endif
 
 void FAnimNode_LinkedInputPose::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
@@ -68,7 +69,7 @@ void FAnimNode_LinkedInputPose::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_LinkedInputPose::DynamicLink(FAnimInstanceProxy* InInputProxy, FPoseLinkBase* InPoseLink)
 {
-	check(InputProxy == nullptr);	// Must be unlinked before re-linking
+	check(InputProxy == nullptr);			// Must be unlinked before re-linking
 
 	InputProxy = InInputProxy;
 	InputPose.SetDynamicLinkNode(InPoseLink);
@@ -76,7 +77,7 @@ void FAnimNode_LinkedInputPose::DynamicLink(FAnimInstanceProxy* InInputProxy, FP
 
 void FAnimNode_LinkedInputPose::DynamicUnlink()
 {
-	check(InputProxy != nullptr);	// Must be linked before unlinking
+	check(InputProxy != nullptr);			// Must be linked before unlinking
 
 	InputProxy = nullptr;
 	InputPose.SetDynamicLinkNode(nullptr);

@@ -103,7 +103,7 @@ FBox FBox::InverseTransformBy(const FTransform& M) const
 
 	FBox NewBox(ForceInit);
 
-	for (int32 VertexIndex = 0; VertexIndex < ARRAY_COUNT(Vertices); VertexIndex++)
+	for (int32 VertexIndex = 0; VertexIndex < UE_ARRAY_COUNT(Vertices); VertexIndex++)
 	{
 		FVector4 ProjectedVertex = M.InverseTransformPosition(Vertices[VertexIndex]);
 		NewBox += ProjectedVertex;
@@ -129,7 +129,7 @@ FBox FBox::TransformProjectBy(const FMatrix& ProjM) const
 
 	FBox NewBox(ForceInit);
 
-	for (int32 VertexIndex = 0; VertexIndex < ARRAY_COUNT(Vertices); VertexIndex++)
+	for (int32 VertexIndex = 0; VertexIndex < UE_ARRAY_COUNT(Vertices); VertexIndex++)
 	{
 		FVector4 ProjectedVertex = ProjM.TransformPosition(Vertices[VertexIndex]);
 		NewBox += ((FVector)ProjectedVertex) / ProjectedVertex.W;

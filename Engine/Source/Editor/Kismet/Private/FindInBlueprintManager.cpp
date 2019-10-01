@@ -1439,7 +1439,7 @@ FFindInBlueprintSearchManager::FFindInBlueprintSearchManager()
 	, AssetRegistryModule(nullptr)
 	, CachingObject(nullptr)
 {
-	for (int32 TabIdx = 0; TabIdx < ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
+	for (int32 TabIdx = 0; TabIdx < UE_ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
 	{
 		const FName TabID = FName(*FString::Printf(TEXT("GlobalFindResults_%02d"), TabIdx + 1));
 		GlobalFindResultsTabIDs[TabIdx] = TabID;
@@ -2590,7 +2590,7 @@ TSharedPtr<SFindInBlueprints> FFindInBlueprintSearchManager::OpenGlobalFindResul
 		}
 	}
 
-	for (int32 Idx = 0; Idx < ARRAY_COUNT(GlobalFindResultsTabIDs); ++Idx)
+	for (int32 Idx = 0; Idx < UE_ARRAY_COUNT(GlobalFindResultsTabIDs); ++Idx)
 	{
 		const FName GlobalTabId = GlobalFindResultsTabIDs[Idx];
 		if (!OpenGlobalTabIDs.Contains(GlobalTabId))
@@ -2643,7 +2643,7 @@ void FFindInBlueprintSearchManager::EnableGlobalFindResults(bool bEnable)
 			GlobalFindResultsIcon,
 			true);
 
-		for (int32 TabIdx = 0; TabIdx < ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
+		for (int32 TabIdx = 0; TabIdx < UE_ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
 		{
 			const FName TabID = GlobalFindResultsTabIDs[TabIdx];
 			if (!GlobalTabManager->HasTabSpawner(TabID))
@@ -2678,7 +2678,7 @@ void FFindInBlueprintSearchManager::EnableGlobalFindResults(bool bEnable)
 
 		GlobalFindResults.Empty();
 
-		for (int32 TabIdx = 0; TabIdx < ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
+		for (int32 TabIdx = 0; TabIdx < UE_ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
 		{
 			const FName TabID = GlobalFindResultsTabIDs[TabIdx];
 			if (GlobalTabManager->HasTabSpawner(TabID))
@@ -2699,7 +2699,7 @@ void FFindInBlueprintSearchManager::CloseOrphanedGlobalFindResultsTabs(TSharedPt
 {
 	if (TabManager.IsValid())
 	{
-		for (int32 TabIdx = 0; TabIdx < ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
+		for (int32 TabIdx = 0; TabIdx < UE_ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
 		{
 			const FName TabID = GlobalFindResultsTabIDs[TabIdx];
 			if (!FGlobalTabmanager::Get()->HasTabSpawner(TabID))

@@ -1,7 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+
 #include "OnlineFriendsInterfaceIOS.h"
 #include "OnlineSubsystemIOS.h"
+#include "OnlineError.h"
 
 // FOnlineFriendIOS
 
@@ -41,10 +43,10 @@ const FOnlineUserPresence& FOnlineFriendIOS::GetPresence() const
 
 // FOnlineFriendsIOS
 
-FOnlineFriendsIOS::FOnlineFriendsIOS(FOnlineSubsystemIOS* InSubsystem)
+FOnlineFriendsIOS::FOnlineFriendsIOS(FOnlineSubsystemIOS* InSubsystem):IOSSubsystem(InSubsystem)
 {
 	UE_LOG_ONLINE_FRIEND(Verbose, TEXT("FOnlineFriendsIOS::FOnlineFriendsIOS()"));
-
+	check(IOSSubsystem);
 	IdentityInterface = (FOnlineIdentityIOS*)InSubsystem->GetIdentityInterface().Get();
 }
 
@@ -227,6 +229,16 @@ bool FOnlineFriendsIOS::RejectInvite(int32 LocalUserNum, const FUniqueNetId& Fri
 {
 	TriggerOnRejectInviteCompleteDelegates(LocalUserNum, false, FriendId, ListName, FString(TEXT("RejectInvite() is not supported")));
 	return false;
+}
+
+void FOnlineFriendsIOS::SetFriendAlias(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FString& Alias, const FOnSetFriendAliasComplete& Delegate /*= FOnSetFriendAliasComplete()*/)
+{
+	TSharedRef<const FUniqueNetId> FriendIdRef = FriendId.AsShared();
+	IOSSubsystem->ExecuteNextTick([LocalUserNum, FriendIdRef, ListName, Delegate]()
+	{
+		UE_LOG_ONLINE_FRIEND(Warning, TEXT("FOnlineFriendsIOS::SetFriendAlias is currently not supported"));
+		Delegate.ExecuteIfBound(LocalUserNum, *FriendIdRef, ListName, FOnlineError(EOnlineErrorResult::NotImplemented));
+	});
 }
 
 bool FOnlineFriendsIOS::DeleteFriend(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName)

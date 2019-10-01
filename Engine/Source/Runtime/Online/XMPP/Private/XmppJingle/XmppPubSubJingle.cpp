@@ -4,6 +4,7 @@
 #include "XmppJingle/XmppConnectionJingle.h"
 #include "XmppLog.h"
 #include "Misc/ScopeLock.h"
+#include "Containers/BackgroundableTicker.h"
 
 #if WITH_XMPP_JINGLE
 
@@ -133,7 +134,8 @@ bool FXmppPubSubJingle::GetLastMessages(const FXmppPubSubId& NodeId, int32 NumMe
 }
 
 FXmppPubSubJingle::FXmppPubSubJingle(class FXmppConnectionJingle& InConnection)
-	: Connection(InConnection)
+	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	, Connection(InConnection)
 {
 
 }

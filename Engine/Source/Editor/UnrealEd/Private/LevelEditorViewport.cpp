@@ -211,19 +211,19 @@ namespace LevelEditorViewportClientHelper
 		switch (WidgetMode)
 		{
 		case FWidget::WM_Translate:
-			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeLocation));
+			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 			break;
 		case FWidget::WM_Rotate:
-			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeRotation));
+			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeRotationPropertyName());
 			break;
 		case FWidget::WM_Scale:
-			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeScale3D));
+			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeScale3DPropertyName());
 			break;
 		case FWidget::WM_TranslateRotateZ:
-			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeLocation));
+			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 			break;
 		case FWidget::WM_2D:
-			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeLocation));
+			ValueProperty = FindField<UProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 			break;
 		default:
 			break;
@@ -2327,8 +2327,8 @@ void FLevelEditorViewportClient::UpdateViewForLockedActor(float DeltaTime)
 			{
 				// No attachment, so just use the relative location, so that we don't need to
 				// convert from a quaternion, which loses winding information.
-				SetViewLocation(Actor->GetRootComponent()->RelativeLocation);
-				SetViewRotation(Actor->GetRootComponent()->RelativeRotation);
+				SetViewLocation(Actor->GetRootComponent()->GetRelativeLocation());
+				SetViewRotation(Actor->GetRootComponent()->GetRelativeRotation());
 			}
 
 			if (bLockedCameraView)
@@ -3555,7 +3555,7 @@ UActorComponent* FLevelEditorViewportClient::FindViewComponentForActor(AActor co
 		for (UActorComponent* Comp : Comps)
 		{
 			FMinimalViewInfo DummyViewInfo;
-			if (Comp && Comp->bIsActive && Comp->GetEditorPreviewInfo(/*DeltaTime =*/0.0f, DummyViewInfo))
+			if (Comp && Comp->IsActive() && Comp->GetEditorPreviewInfo(/*DeltaTime =*/0.0f, DummyViewInfo))
 			{
 				if (Comp->IsSelected())
 				{
@@ -4030,7 +4030,7 @@ void FLevelEditorViewportClient::ModifyScale( AActor* InActor, FVector& ScaleDel
 {
 	if( InActor->GetRootComponent() )
 	{
-		const FVector CurrentScale = InActor->GetRootComponent()->RelativeScale3D;
+		const FVector CurrentScale = InActor->GetRootComponent()->GetRelativeScale3D();
 
 		const FBox LocalBox = InActor->GetComponentsBoundingBox( true );
 		const FVector ScaledExtents = LocalBox.GetExtent() * CurrentScale;
@@ -4061,8 +4061,8 @@ void FLevelEditorViewportClient::ModifyScale( USceneComponent* InComponent, FVec
 	}
 	check(PreDragTransform);
 	const FBox LocalBox = Actor->GetComponentsBoundingBox(true);
-	const FVector ScaledExtents = LocalBox.GetExtent() * InComponent->RelativeScale3D;
-	ValidateScale(PreDragTransform->GetScale3D(), InComponent->RelativeScale3D, ScaledExtents, ScaleDelta);
+	const FVector ScaledExtents = LocalBox.GetExtent() * InComponent->GetRelativeScale3D();
+	ValidateScale(PreDragTransform->GetScale3D(), InComponent->GetRelativeScale3D(), ScaledExtents, ScaleDelta);
 
 	if( ScaleDelta.IsNearlyZero() )
 	{
@@ -4140,7 +4140,7 @@ void FLevelEditorViewportClient::MouseMove(FViewport* InViewport, int32 x, int32
 			{
 				UDirectionalLightComponent* SunLight = *ComponentIt;
 
-				if (!SunLight->IsUsedAsAtmosphereSunLight() || SunLight->GetAtmosphereSunLightIndex()!= DesiredLightIndex || !SunLight->bVisible)
+				if (!SunLight->IsUsedAsAtmosphereSunLight() || SunLight->GetAtmosphereSunLightIndex()!= DesiredLightIndex || !SunLight->GetVisibleFlag())
 					continue;
 
 				float LightLuminance = SunLight->GetColoredLightBrightness().ComputeLuminance();

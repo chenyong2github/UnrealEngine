@@ -454,7 +454,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 			}
 			else
 			{
-				UE_LOG(LogAudio, Warning, TEXT("Failed to retrieve compressed data for format %s and soundwave %s"),
+				UE_LOG(LogAudio, Display, TEXT("Failed to retrieve compressed data for format %s and soundwave %s."),
 					   *AudioFormatName.GetPlainNameString(),
 					   *SoundWave.GetPathName()
 					);

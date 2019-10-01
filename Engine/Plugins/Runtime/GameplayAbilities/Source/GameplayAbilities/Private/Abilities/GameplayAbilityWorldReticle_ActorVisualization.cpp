@@ -19,7 +19,7 @@ AGameplayAbilityWorldReticle_ActorVisualization::AGameplayAbilityWorldReticle_Ac
 	CollisionComponent = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CollisionCapsule0"));
 	CollisionComponent->InitCapsuleSize(0.f, 0.f);
 	CollisionComponent->AlwaysLoadOnClient = true;
-	CollisionComponent->bAbsoluteScale = true;
+	CollisionComponent->SetUsingAbsoluteScale(true);
 	//CollisionComponent->AlwaysLoadOnServer = true;
 	CollisionComponent->SetCanEverAffectNavigation(false);
 	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);

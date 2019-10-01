@@ -126,7 +126,7 @@ void UMotionControllerComponent::TickComponent(float DeltaTime, enum ELevelTick 
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (bIsActive)
+	if (IsActive())
 	{
 		FVector Position = GetRelativeTransform().GetTranslation();
 		FRotator Orientation = GetRelativeTransform().GetRotation().Rotator();
@@ -469,7 +469,7 @@ void UMotionControllerComponent::RefreshDisplayComponent(const bool bForceDestro
 				}
 
 				DisplayComponent->SetHiddenInGame(bHiddenInGame);
-				DisplayComponent->SetVisibility(bVisible);
+				DisplayComponent->SetVisibility(GetVisibleFlag());
 			}
 		}
 		else if (DisplayComponent)

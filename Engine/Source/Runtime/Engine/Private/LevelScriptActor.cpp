@@ -21,7 +21,7 @@ ALevelScriptActor::ALevelScriptActor(const FObjectInitializer& ObjectInitializer
 	bEditable = false;
 #endif // WITH_EDITORONLY_DATA
 
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 	bInputEnabled = true;
  
 	SetRemoteRoleForBackwardsCompat(ROLE_SimulatedProxy);

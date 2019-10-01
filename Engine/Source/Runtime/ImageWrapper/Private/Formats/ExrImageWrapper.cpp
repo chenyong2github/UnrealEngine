@@ -270,7 +270,7 @@ const char* FExrImageWrapper::GetRawChannelName(int ChannelIndex) const
 		break;
 		case ERGBFormat::Gray:
 		{
-			check(ChannelIndex < ARRAY_COUNT(GrayChannelNames));
+			check(ChannelIndex < UE_ARRAY_COUNT(GrayChannelNames));
 			ChannelNames = GrayChannelNames;
 		}
 		break;

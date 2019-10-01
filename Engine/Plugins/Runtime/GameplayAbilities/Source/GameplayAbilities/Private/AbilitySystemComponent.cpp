@@ -2110,24 +2110,53 @@ void UAbilitySystemComponent::Debug_Internal(FAbilitySystemComponentDebugInfo& I
 	{
 		FString DebugTitle("");
 		// Category
-		if (Info.bShowAbilities) DebugTitle += TEXT("ABILITIES ");
-		if (Info.bShowAttributes) DebugTitle += TEXT("ATTRIBUTES ");
-		if (Info.bShowGameplayEffects) DebugTitle += TEXT("GAMEPLAYEFFECTS ");
+		if (Info.bShowAbilities)
+		{
+			DebugTitle += TEXT("ABILITIES ");
+		}
+		if (Info.bShowAttributes)
+		{
+			DebugTitle += TEXT("ATTRIBUTES ");
+		}
+		if (Info.bShowGameplayEffects)
+		{
+			DebugTitle += TEXT("GAMEPLAYEFFECTS ");
+		}
 		// Avatar info
 		if (AvatarActor)
 		{
+			const ENetRole AvatarRole = AvatarActor->GetLocalRole();
 			DebugTitle += FString::Printf(TEXT("for avatar %s "), *AvatarActor->GetName());
-			if (AvatarActor->Role == ROLE_AutonomousProxy) DebugTitle += TEXT("(local player) ");
-			else if (AvatarActor->Role == ROLE_SimulatedProxy) DebugTitle += TEXT("(simulated) ");
-			else if (AvatarActor->Role == ROLE_Authority) DebugTitle += TEXT("(authority) ");
+			if (AvatarRole == ROLE_AutonomousProxy)
+			{
+				DebugTitle += TEXT("(local player) ");
+			}
+			else if (AvatarRole == ROLE_SimulatedProxy)
+			{
+				DebugTitle += TEXT("(simulated) ");
+			}
+			else if (AvatarRole == ROLE_Authority)
+			{
+				DebugTitle += TEXT("(authority) ");
+			}
 		}
 		// Owner info
 		if (OwnerActor && OwnerActor != AvatarActor)
 		{
+			const ENetRole OwnerRole = OwnerActor->GetLocalRole();
 			DebugTitle += FString::Printf(TEXT("for owner %s "), *OwnerActor->GetName());
-			if (OwnerActor->Role == ROLE_AutonomousProxy) DebugTitle += TEXT("(autonomous) ");
-			else if (OwnerActor->Role == ROLE_SimulatedProxy) DebugTitle += TEXT("(simulated) ");
-			else if (OwnerActor->Role == ROLE_Authority) DebugTitle += TEXT("(authority) ");
+			if (OwnerRole == ROLE_AutonomousProxy)
+			{
+				DebugTitle += TEXT("(autonomous) ");
+			}
+			else if (OwnerRole == ROLE_SimulatedProxy)
+			{
+				DebugTitle += TEXT("(simulated) ");
+			}
+			else if (OwnerRole == ROLE_Authority)
+			{
+				DebugTitle += TEXT("(authority) ");
+			}
 		}
 
 		if (Info.Canvas)

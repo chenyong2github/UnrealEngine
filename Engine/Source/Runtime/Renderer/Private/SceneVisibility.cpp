@@ -2962,7 +2962,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			{
 				RollingRemoveIndex = 0;
 				RollingPassShrinkIndex++;
-				if (RollingPassShrinkIndex >= ARRAY_COUNT(Scene->CachedDrawLists))
+				if (RollingPassShrinkIndex >= UE_ARRAY_COUNT(Scene->CachedDrawLists))
 				{
 					RollingPassShrinkIndex = 0;
 				}
@@ -3114,7 +3114,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			}
 
 			// Compute the new sample index in the temporal sequence.
-			int32 TemporalSampleIndex = ViewState->TemporalAASampleIndex + 1;
+			int32 TemporalSampleIndex			= ViewState->TemporalAASampleIndex + 1;
 			if(TemporalSampleIndex >= TemporalAASamples || View.bCameraCut)
 			{
 				TemporalSampleIndex = 0;
@@ -3123,7 +3123,8 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			// Updates view state.
 			if (!View.bStatePrevViewInfoIsReadOnly && !bFreezeTemporalSequences)
 			{
-				ViewState->TemporalAASampleIndex = TemporalSampleIndex;
+				ViewState->TemporalAASampleIndex		  = TemporalSampleIndex;
+				ViewState->TemporalAASampleIndexUnclamped = ViewState->TemporalAASampleIndexUnclamped+1;
 			}
 
 			// Choose sub pixel sample coordinate in the temporal sequence.
@@ -3132,7 +3133,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			{
 				float SamplesX[] = { -8.0f/16.0f, 0.0/16.0f };
 				float SamplesY[] = { /* - */ 0.0f/16.0f, 8.0/16.0f };
-				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				check(TemporalAASamples == UE_ARRAY_COUNT(SamplesX));
 				SampleX = SamplesX[ TemporalSampleIndex ];
 				SampleY = SamplesY[ TemporalSampleIndex ];
 			}
@@ -3153,7 +3154,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				//   .S
 				float SamplesX[] = { -4.0f/16.0f, 4.0/16.0f };
 				float SamplesY[] = { -4.0f/16.0f, 4.0/16.0f };
-				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				check(TemporalAASamples == UE_ARRAY_COUNT(SamplesX));
 				SampleX = SamplesX[ TemporalSampleIndex ];
 				SampleY = SamplesY[ TemporalSampleIndex ];
 			}
@@ -3166,7 +3167,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				// Rolling circle pattern (A,B,C).
 				float SamplesX[] = { -2.0f/3.0f,  2.0/3.0f,  0.0/3.0f };
 				float SamplesY[] = { -2.0f/3.0f,  0.0/3.0f,  2.0/3.0f };
-				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				check(TemporalAASamples == UE_ARRAY_COUNT(SamplesX));
 				SampleX = SamplesX[ TemporalSampleIndex ];
 				SampleY = SamplesY[ TemporalSampleIndex ];
 			}
@@ -3181,7 +3182,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				// Rolling circle pattern (N,E,S,W).
 				float SamplesX[] = { -2.0f/16.0f,  6.0/16.0f, 2.0/16.0f, -6.0/16.0f };
 				float SamplesY[] = { -6.0f/16.0f, -2.0/16.0f, 6.0/16.0f,  2.0/16.0f };
-				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				check(TemporalAASamples == UE_ARRAY_COUNT(SamplesX));
 				SampleX = SamplesX[ TemporalSampleIndex ];
 				SampleY = SamplesY[ TemporalSampleIndex ];
 			}
@@ -3195,7 +3196,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				// Rolling circle pattern (N,E,S,W).
 				float SamplesX[] = {  0.0f/2.0f,  1.0/2.0f,  0.0/2.0f, -1.0/2.0f };
 				float SamplesY[] = { -1.0f/2.0f,  0.0/2.0f,  1.0/2.0f,  0.0/2.0f };
-				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				check(TemporalAASamples == UE_ARRAY_COUNT(SamplesX));
 				SampleX = SamplesX[ TemporalSampleIndex ];
 				SampleY = SamplesY[ TemporalSampleIndex ];
 			}

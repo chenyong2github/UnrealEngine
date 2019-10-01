@@ -355,6 +355,7 @@ public:
 	bool NIAGARA_API SetUniqueEmitterName(const FString& InName);
 
 	const TArray<UNiagaraRendererProperties*>& GetRenderers() const { return RendererProperties; }
+	TArray<UNiagaraRendererProperties*> GetEnabledRenderers() const;
 
 	void NIAGARA_API AddRenderer(UNiagaraRendererProperties* Renderer);
 

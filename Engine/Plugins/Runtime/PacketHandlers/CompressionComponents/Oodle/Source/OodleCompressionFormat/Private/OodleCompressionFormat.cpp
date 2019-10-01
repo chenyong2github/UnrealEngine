@@ -145,7 +145,11 @@ struct FOodleCustomCompressor : ICompressionFormat
 	{
 		ConditionalInitialize();
 
+#if UE4_OODLE_VER > 255
 		int32 Needed = (int32)OodleLZ_GetCompressedBufferSizeNeeded(Compressor, UncompressedSize);
+#else
+		int32 Needed = (int32)OodleLZ_GetCompressedBufferSizeNeeded(UncompressedSize);
+#endif
 		return Needed;
 	}
 };
@@ -203,7 +207,9 @@ class FOodleCompressionFormatModuleInterface : public IModuleInterface
 
 		IModularFeatures::Get().RegisterModularFeature(COMPRESSION_FORMAT_FEATURE_NAME, CompressionFormat);
 
+#if UE4_OODLE_VER > 255
 		OodleCore_Plugins_SetPrintf(OodleCore_Plugin_Printf_Verbose);
+#endif
 
 #endif
 	}

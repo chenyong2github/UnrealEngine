@@ -257,7 +257,7 @@ FSkyLightSceneProxy* USkyLightComponent::CreateSceneProxy() const
 
 void USkyLightComponent::SetCaptureIsDirty()
 { 
-	if (bVisible && bAffectsWorld)
+	if (GetVisibleFlag() && bAffectsWorld)
 	{
 		FScopeLock Lock(&SkyCapturesToUpdateLock);
 
@@ -314,7 +314,7 @@ void USkyLightComponent::SanitizeCubemapSize()
 
 void USkyLightComponent::SetBlendDestinationCaptureIsDirty()
 { 
-	if (bVisible && bAffectsWorld && BlendDestinationCubemap)
+	if (GetVisibleFlag() && bAffectsWorld && BlendDestinationCubemap)
 	{
 		SkyCapturesToUpdateBlendDestinations.AddUnique(this); 
 
@@ -343,7 +343,7 @@ void USkyLightComponent::CreateRenderState_Concurrent()
 
 	const bool bIsValid = SourceType != SLS_SpecifiedCubemap || Cubemap != NULL;
 
-	if (bAffectsWorld && bVisible && !bHidden && bIsValid)
+	if (bAffectsWorld && GetVisibleFlag() && !bHidden && bIsValid)
 	{
 		// Create the light's scene proxy.
 		SceneProxy = CreateSceneProxy();
@@ -377,7 +377,7 @@ void USkyLightComponent::PostLoad()
 	SanitizeCubemapSize();
 
 	// All components are queued for update on creation by default, remove if needed
-	if (!bVisible || HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	if (!GetVisibleFlag() || HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
 		FScopeLock Lock(&SkyCapturesToUpdateLock);
 		SkyCapturesToUpdate.Remove(this);
@@ -524,7 +524,7 @@ void USkyLightComponent::CheckForErrors()
 {
 	AActor* Owner = GetOwner();
 
-	if (Owner && bVisible && bAffectsWorld)
+	if (Owner && GetVisibleFlag() && bAffectsWorld)
 	{
 		UWorld* ThisWorld = Owner->GetWorld();
 		bool bMultipleFound = false;
@@ -537,7 +537,7 @@ void USkyLightComponent::CheckForErrors()
 
 				if (Component != this 
 					&& !Component->IsPendingKill()
-					&& Component->bVisible
+					&& Component->GetVisibleFlag()
 					&& Component->bAffectsWorld
 					&& Component->GetOwner() 
 					&& ThisWorld->ContainsActor(Component->GetOwner())
@@ -906,7 +906,7 @@ void USkyLightComponent::OnVisibilityChanged()
 {
 	Super::OnVisibilityChanged();
 
-	if (bVisible && !bHasEverCaptured)
+	if (GetVisibleFlag() && !bHasEverCaptured)
 	{
 		// Capture if we are being enabled for the first time
 		SetCaptureIsDirty();

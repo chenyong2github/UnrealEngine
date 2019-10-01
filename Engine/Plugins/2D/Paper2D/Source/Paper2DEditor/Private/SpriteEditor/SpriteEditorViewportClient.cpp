@@ -118,7 +118,7 @@ FSpriteEditorViewportClient::FSpriteEditorViewportClient(TWeakPtr<FSpriteEditor>
 
 		// Nudge the source texture view back a bit so it doesn't occlude sprites
 		const FTransform Transform(-1.0f * PaperAxisZ);
-		SourceTextureViewComponent->bVisible = false;
+		SourceTextureViewComponent->SetVisibleFlag(false);
 		PreviewScene->AddComponent(SourceTextureViewComponent, Transform);
 	}
 }

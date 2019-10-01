@@ -64,21 +64,22 @@ FRotator USpringArmComponent::GetTargetRotation() const
 	}
 
 	// If inheriting rotation, check options for which components to inherit
-	if (!bAbsoluteRotation)
+	if (!IsUsingAbsoluteRotation())
 	{
+		const FRotator LocalRelativeRotation = GetRelativeRotation();
 		if (!bInheritPitch)
 		{
-			DesiredRot.Pitch = RelativeRotation.Pitch;
+			DesiredRot.Pitch = LocalRelativeRotation.Pitch;
 		}
 
 		if (!bInheritYaw)
 		{
-			DesiredRot.Yaw = RelativeRotation.Yaw;
+			DesiredRot.Yaw = LocalRelativeRotation.Yaw;
 		}
 
 		if (!bInheritRoll)
 		{
-			DesiredRot.Roll = RelativeRotation.Roll;
+			DesiredRot.Roll = LocalRelativeRotation.Roll;
 		}
 	}
 

@@ -687,7 +687,9 @@ void UBrushComponent::RequestUpdateBrushCollision()
 {
 	if (BrushBodySetup)
 	{
-		const bool bIsMirrored = (RelativeScale3D.X * RelativeScale3D.Y * RelativeScale3D.Z) < 0.0f;
+
+		const FVector LocalRelativeScale3D = GetRelativeScale3D();
+		const bool bIsMirrored = (LocalRelativeScale3D.X * LocalRelativeScale3D.Y * LocalRelativeScale3D.Z) < 0.0f;
 		if ((BrushBodySetup->bGenerateNonMirroredCollision && bIsMirrored) || (BrushBodySetup->bGenerateMirroredCollision && !bIsMirrored))
 		{
 			// Brushes only maintain one convex mesh as they can't be transformed at runtime.
@@ -753,7 +755,8 @@ bool UBrushComponent::HasInvertedPolys() const
 	// Determine if a brush looks as if it has had its sense inverted
 	// (due to the old behavior of inverting the poly winding and normal when performing a Mirror operation).
 
-	const bool bIsMirrored = (RelativeScale3D.X * RelativeScale3D.Y * RelativeScale3D.Z < 0.0f);
+	const FVector LocalRelativeScale3D = GetRelativeScale3D();
+	const bool bIsMirrored = (LocalRelativeScale3D.X * LocalRelativeScale3D.Y * LocalRelativeScale3D.Z < 0.0f);
 	// Only attempt to fix up brushes with negative scale
 	if (bIsMirrored)
 	{

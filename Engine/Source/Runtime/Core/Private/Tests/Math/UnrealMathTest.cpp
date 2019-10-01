@@ -1352,10 +1352,10 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		}
 
 		// Test loop
-		for (int32 QIndex = 0; QIndex < ARRAY_COUNT(TestQuats); ++QIndex)
+		for (int32 QIndex = 0; QIndex < UE_ARRAY_COUNT(TestQuats); ++QIndex)
 		{
 			const FQuat& Q = TestQuats[QIndex];
-			for (int32 VIndex = 0; VIndex < ARRAY_COUNT(TestVectors); ++VIndex)
+			for (int32 VIndex = 0; VIndex < UE_ARRAY_COUNT(TestVectors); ++VIndex)
 			{
 				const FVector& V = TestVectors[VIndex];
 				TEST_QUAT_ROTATE(QIndex, VIndex, Q, V, TestQuaternionRotateVectorScalar, Tolerance);

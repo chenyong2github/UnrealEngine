@@ -44,7 +44,7 @@ ALevelSequenceActor::ALevelSequenceActor(const FObjectInitializer& Init)
 			SpriteComponent->Sprite = ConstructorStatics.DecalTexture.Get();
 			SpriteComponent->SetupAttachment(RootComponent);
 			SpriteComponent->bIsScreenSizeScaled = true;
-			SpriteComponent->bAbsoluteScale = true;
+			SpriteComponent->SetUsingAbsoluteScale(true);
 			SpriteComponent->bReceivesDecals = false;
 			SpriteComponent->bHiddenInGame = true;
 		}

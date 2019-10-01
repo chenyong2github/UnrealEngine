@@ -179,9 +179,9 @@ bool FWindowsPlatformSurvey::GetSurveyResults( FHardwareSurveyResults& OutResult
 	LCID DefaultLocale = GetSystemDefaultLCID();
 	const int32 MaxLocaleStringLength = 9;
 	TCHAR LangBuffer[MaxLocaleStringLength];
-	int LangReturn = GetLocaleInfo(DefaultLocale, LOCALE_SISO639LANGNAME, LangBuffer, ARRAY_COUNT(LangBuffer));
+	int LangReturn = GetLocaleInfo(DefaultLocale, LOCALE_SISO639LANGNAME, LangBuffer, UE_ARRAY_COUNT(LangBuffer));
 	TCHAR CountryBuffer[MaxLocaleStringLength];
-	int CountryReturn = GetLocaleInfo(DefaultLocale, LOCALE_SISO3166CTRYNAME, CountryBuffer, ARRAY_COUNT(CountryBuffer));
+	int CountryReturn = GetLocaleInfo(DefaultLocale, LOCALE_SISO3166CTRYNAME, CountryBuffer, UE_ARRAY_COUNT(CountryBuffer));
 
 	if (LangReturn == 0 || CountryReturn == 0)
 	{

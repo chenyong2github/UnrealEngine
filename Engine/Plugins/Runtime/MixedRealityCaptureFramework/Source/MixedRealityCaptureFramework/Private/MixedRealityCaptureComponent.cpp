@@ -407,7 +407,7 @@ void UMixedRealityCaptureComponent::Activate(bool bReset)
 {
 	Super::Activate(bReset);
 
-	if (bIsActive)
+	if (IsActive())
 	{
 		RefreshDevicePairing();
 		RefreshTrackingOriginOffset();
@@ -448,7 +448,7 @@ void UMixedRealityCaptureComponent::Deactivate()
 {
 	Super::Deactivate();
 
-	if (!bIsActive)
+	if (!IsActive())
 	{
 		FXRTrackingSystemDelegates::OnXRTrackingOriginChanged.RemoveAll(this);
 		MRCaptureComponent_Impl::RemoveAllCVarBindings(this);
@@ -610,7 +610,7 @@ void UMixedRealityCaptureComponent::UpdateSceneCaptureContents(FSceneInterface* 
 void UMixedRealityCaptureComponent::RefreshCameraFeed()
 {
 	const UWorld* MyWorld = GetWorld();
-	if (CaptureFeedRef.DeviceURL.IsEmpty() && bIsActive && HasBeenInitialized() && MyWorld && MyWorld->IsGameWorld())
+	if (CaptureFeedRef.DeviceURL.IsEmpty() && IsActive() && HasBeenInitialized() && MyWorld && MyWorld->IsGameWorld())
 	{
 		TArray<FMediaCaptureDeviceInfo> CaptureDevices;
 		MediaCaptureSupport::EnumerateVideoCaptureDevices(CaptureDevices);
@@ -795,7 +795,7 @@ bool UMixedRealityCaptureComponent::IsTracked() const
 void UMixedRealityCaptureComponent::SetCaptureDevice(const FMrcVideoCaptureFeedIndex& FeedRef)
 {
 	const UWorld* MyWorld = GetWorld();
-	if (HasBeenInitialized() && bIsActive && MyWorld && MyWorld->IsGameWorld())
+	if (HasBeenInitialized() && IsActive() && MyWorld && MyWorld->IsGameWorld())
 	{
 		if (MediaSource)
 		{
@@ -1160,7 +1160,7 @@ bool UMixedRealityCaptureComponent::SetGarbageMatteActor(AMrcGarbageMatteActor* 
 		GarbageMatteCaptureComponent->SetGarbageMatteActor(Actor);
 		bSuccess = true;
 	}
-	else if (bIsActive)
+	else if (IsActive())
 	{
 		USceneComponent* GarbageMatteOrigin = TrackingOriginOffset ? TrackingOriginOffset : (PairedTracker ? PairedTracker->GetAttachParent() : GetAttachParent());
 		GarbageMatteCaptureComponent = MRCaptureComponent_Impl::CreateGarbageMatteComponent(this, GarbageMatteOrigin);

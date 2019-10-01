@@ -1370,7 +1370,7 @@ void SAssetViewItem::CacheDisplayTags()
 				if (ValueString.StartsWith(StringToRemove))
 				{
 					// Remove the class path for native classes, and also remove Engine. for engine classes
-					const int32 SizeOfPrefix = ARRAY_COUNT(StringToRemove) - 1;
+					const int32 SizeOfPrefix = UE_ARRAY_COUNT(StringToRemove) - 1;
 					ValueString = ValueString.Mid(SizeOfPrefix, ValueString.Len() - SizeOfPrefix).Replace(TEXT("Engine."), TEXT(""));
 				}
 

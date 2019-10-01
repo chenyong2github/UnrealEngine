@@ -13,7 +13,7 @@ void FWindowsPlatformAtomics::HandleAtomicsFailure( const TCHAR* InFormat, ... )
 	va_list Ptr;
 
 	va_start( Ptr, InFormat );	
-	FCString::GetVarArgs( TempStr, ARRAY_COUNT(TempStr), InFormat, Ptr );
+	FCString::GetVarArgs( TempStr, UE_ARRAY_COUNT(TempStr), InFormat, Ptr );
 	va_end( Ptr );
 
 	UE_LOG(LogWindows, Log,  TempStr );

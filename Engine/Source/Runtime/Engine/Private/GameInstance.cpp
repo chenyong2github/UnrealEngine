@@ -742,7 +742,7 @@ bool UGameInstance::RemoveLocalPlayer(ULocalPlayer* ExistingPlayer)
 	// FIXME: Notify server we want to leave the game if this is an online game
 	if (ExistingPlayer->PlayerController != nullptr)
 	{
-		bool bShouldRemovePlayer = (ExistingPlayer->PlayerController->Role == ROLE_Authority);
+		bool bShouldRemovePlayer = (ExistingPlayer->PlayerController->GetLocalRole() == ROLE_Authority);
 
 		// FIXME: Do this all inside PlayerRemoved?
 		ExistingPlayer->PlayerController->CleanupGameViewport();

@@ -119,7 +119,7 @@ FTileAtlasPage::FTileAtlasPage()
 	static int32 NextPageUniqueID = 1;
 	FName AtlasPageName = *FString::Printf(TEXT("WorldCompositionAtlasPage_%d"), NextPageUniqueID++);
 	
-	for (int32 i = 0; i < ARRAY_COUNT(AtlasSlots); ++i)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(AtlasSlots); ++i)
 	{
 		FTileAtlasSlot& Slot = AtlasSlots[i];
 		
@@ -141,7 +141,7 @@ FTileAtlasPage::FTileAtlasPage()
 
 FTileAtlasPage::~FTileAtlasPage()
 {
-	for (int32 i = 0; i < ARRAY_COUNT(AtlasSlots); ++i)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(AtlasSlots); ++i)
 	{
 		FTileAtlasSlot& Slot = AtlasSlots[i];
 		delete Slot.SlotBrush;
@@ -160,7 +160,7 @@ void FTileAtlasPage::SetOccupied(int32 SlotIdx, bool bOccupied)
 
 bool FTileAtlasPage::HasOccupiedSlots() const
 {
-	for (int32 i = 0; i < ARRAY_COUNT(AtlasSlots); ++i)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(AtlasSlots); ++i)
 	{
 		if (AtlasSlots[i].bOccupied)
 		{
@@ -174,7 +174,7 @@ bool FTileAtlasPage::HasOccupiedSlots() const
 int32 FTileAtlasPage::GetFreeSlotIndex() const
 {
 	int32 Result = INDEX_NONE;
-	for (int32 i = 0; i < ARRAY_COUNT(AtlasSlots); ++i)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(AtlasSlots); ++i)
 	{
 		if (!AtlasSlots[i].bOccupied)
 		{

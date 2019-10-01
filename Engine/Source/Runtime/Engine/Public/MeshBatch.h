@@ -231,7 +231,7 @@ struct FMeshBatch
 	/** Whether the mesh batch can be rendered to virtual textures. */
 	uint32 bRenderToVirtualTexture : 1;
 	/** What virtual texture material type this mesh batch should be rendered with. */
-	uint32 RuntimeVirtualTextureMaterialType : ERuntimeVirtualTextureMaterialType_NumBits;
+	uint32 RuntimeVirtualTextureMaterialType : RuntimeVirtualTexture::MaterialType_NumBits;
 
 	// can be NULL
 	const FLightCacheInterface* LCI;

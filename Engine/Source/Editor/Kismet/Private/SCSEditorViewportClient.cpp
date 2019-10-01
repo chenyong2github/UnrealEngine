@@ -451,9 +451,9 @@ bool FSCSEditorViewportClient::InputWidgetDelta( FViewport* InViewport, EAxisLis
 						if(SceneComp != NULL && SelectedTemplate != NULL)
 						{
 							// Cache the current default values for propagation
-							FVector OldRelativeLocation = SelectedTemplate->RelativeLocation;
-							FRotator OldRelativeRotation = SelectedTemplate->RelativeRotation;
-							FVector OldRelativeScale3D = SelectedTemplate->RelativeScale3D;
+							FVector OldRelativeLocation = SelectedTemplate->GetRelativeLocation();
+							FRotator OldRelativeRotation = SelectedTemplate->GetRelativeRotation();
+							FVector OldRelativeScale3D = SelectedTemplate->GetRelativeScale3D();
 
 							// Adjust the deltas as necessary
 							FComponentEditorUtils::AdjustComponentDelta(SceneComp, Drag, Rot);
@@ -473,7 +473,7 @@ bool FSCSEditorViewportClient::InputWidgetDelta( FViewport* InViewport, EAxisLis
 										&Drag,
 										&Rot,
 										&ModifiedScale,
-										SelectedTemplate->RelativeLocation );
+										SelectedTemplate->GetRelativeLocation());
 							}
 
 							UBlueprint* PreviewBlueprint = UBlueprint::GetBlueprintFromClass(PreviewActor->GetClass());
@@ -505,9 +505,9 @@ bool FSCSEditorViewportClient::InputWidgetDelta( FViewport* InViewport, EAxisLis
 										SceneComp = Cast<USceneComponent>(ArchetypeInstances[InstanceIndex]);
 										if(SceneComp != nullptr)
 										{
-											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->RelativeLocation, OldRelativeLocation, SelectedTemplate->RelativeLocation);
-											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->RelativeRotation, OldRelativeRotation, SelectedTemplate->RelativeRotation);
-											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->RelativeScale3D,  OldRelativeScale3D,  SelectedTemplate->RelativeScale3D);
+											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeLocation_DirectMutable(), OldRelativeLocation, SelectedTemplate->GetRelativeLocation());
+											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeRotation_DirectMutable(), OldRelativeRotation, SelectedTemplate->GetRelativeRotation());
+											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeScale3D_DirectMutable(),  OldRelativeScale3D,  SelectedTemplate->GetRelativeScale3D());
 										}
 									}
 								}
@@ -519,9 +519,9 @@ bool FSCSEditorViewportClient::InputWidgetDelta( FViewport* InViewport, EAxisLis
 										SceneComp = static_cast<USceneComponent*>(FindObjectWithOuter(ArchetypeInstances[InstanceIndex], SelectedTemplate->GetClass(), SelectedTemplate->GetFName()));
 										if(SceneComp)
 										{
-											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->RelativeLocation, OldRelativeLocation, SelectedTemplate->RelativeLocation);
-											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->RelativeRotation, OldRelativeRotation, SelectedTemplate->RelativeRotation);
-											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->RelativeScale3D, OldRelativeScale3D, SelectedTemplate->RelativeScale3D);
+											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeLocation_DirectMutable(), OldRelativeLocation, SelectedTemplate->GetRelativeLocation());
+											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeRotation_DirectMutable(), OldRelativeRotation, SelectedTemplate->GetRelativeRotation());
+											FComponentEditorUtils::ApplyDefaultValueChange(SceneComp, SceneComp->GetRelativeScale3D_DirectMutable(), OldRelativeScale3D, SelectedTemplate->GetRelativeScale3D());
 										}
 									}
 								}

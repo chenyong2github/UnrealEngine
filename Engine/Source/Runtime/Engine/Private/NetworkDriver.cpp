@@ -899,7 +899,7 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 					PerfCounters->Set(TEXT("MinPing"), MinPing, IPerfCounters::Flags::Transient);
 
 					// update buckets
-					for (int BucketIdx = 0; BucketIdx < ARRAY_COUNT(Buckets); ++BucketIdx)
+					for (int BucketIdx = 0; BucketIdx < UE_ARRAY_COUNT(Buckets); ++BucketIdx)
 					{
 						PerfCountersIncrement(FString::Printf(TEXT("PingBucketInt%d"), BucketIdx), Buckets[BucketIdx], 0, IPerfCounters::Flags::Transient);
 					}
@@ -5692,7 +5692,7 @@ static bool NetDriverExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 		TCHAR TokenStr[128];
 
 		// Route the command to a specific beacon if a name is specified or all of them otherwise
-		if (FParse::Token(Cmd, TokenStr, ARRAY_COUNT(TokenStr), true))
+		if (FParse::Token(Cmd, TokenStr, UE_ARRAY_COUNT(TokenStr), true))
 		{
 			NamedDriver = GEngine->FindNamedNetDriver(InWorld, FName(TokenStr));
 			if (NamedDriver != NULL)

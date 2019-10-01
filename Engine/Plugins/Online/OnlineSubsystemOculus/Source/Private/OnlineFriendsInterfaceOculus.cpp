@@ -2,6 +2,7 @@
 
 #include "OnlineFriendsInterfaceOculus.h"
 #include "OnlineSubsystemOculusPrivate.h"
+#include "OnlineError.h"
 #include "OnlineSubsystemOculusPackage.h"
 
 FOnlineFriendsOculus::FOnlineFriendsOculus(FOnlineSubsystemOculus& InSubsystem)
@@ -115,6 +116,16 @@ bool FOnlineFriendsOculus::RejectInvite(int32 LocalUserNum, const FUniqueNetId& 
 {
 	/** Does not exist in LibOVRPlatform */	
 	return false;
+}
+
+void FOnlineFriendsOculus::SetFriendAlias(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FString& Alias, const FOnSetFriendAliasComplete& Delegate /*= FOnSetFriendAliasComplete()*/)
+{
+	TSharedRef<const FUniqueNetId> FriendIdRef = FriendId.AsShared();
+	OculusSubsystem.ExecuteNextTick([LocalUserNum, FriendIdRef, ListName, Delegate]()
+	{
+		UE_LOG_ONLINE_FRIEND(Warning, TEXT("FOnlineFriendsOculus::SetFriendAlias is not implemented"));
+		Delegate.ExecuteIfBound(LocalUserNum, *FriendIdRef, ListName, FOnlineError(EOnlineErrorResult::NotImplemented));
+	});
 }
 
 bool FOnlineFriendsOculus::DeleteFriend(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName)

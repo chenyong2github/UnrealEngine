@@ -945,6 +945,7 @@ public:
 		checkNoEntry();
 	}
 
+	virtual void RHIAdvanceFrameFence(){};
 	virtual FTextureRHIRef RHICreateAliasedTexture(FRHITexture* SourceTexture)
 	{
 		checkNoEntry();
@@ -1393,6 +1394,11 @@ FORCEINLINE FTexture2DRHIRef RHIGetViewportBackBuffer(FRHIViewport* Viewport)
 FORCEINLINE FTexture2DRHIRef RHIGetFMaskTexture(FRHITexture* SourceTextureRHI)
 {
 	return GDynamicRHI->RHIGetFMaskTexture(SourceTextureRHI);
+}
+
+FORCEINLINE void RHIAdvanceFrameFence()
+{
+	return GDynamicRHI->RHIAdvanceFrameFence();
 }
 
 FORCEINLINE void RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport)

@@ -192,7 +192,7 @@ FTransform FXRTrackingSystemBase::ComputeTrackingToWorldTransform(FWorldContext&
 						// emulates AActor::CalcCamera(); the PlayerCameraManager uses ViewTarget->CalcCamera() for 
 						// the HMD view's basis (regardless of whether bLockToHmd is set), CalcCamera() just finds 
 						// the first active cam component and chooses that
-						if (Cam->bIsActive)
+						if (Cam->IsActive())
 						{
 							PlayerCamera = Cam;
 							break;
@@ -206,17 +206,17 @@ FTransform FXRTrackingSystemBase::ComputeTrackingToWorldTransform(FWorldContext&
 						{
 							TrackingToWorld = ViewParent->GetComponentTransform();
 
-							if (PlayerCamera->bAbsoluteLocation)
+							if (PlayerCamera->IsUsingAbsoluteLocation())
 							{
 								TrackingToWorld.SetLocation(FVector::ZeroVector);
 							}
 
-							if (PlayerCamera->bAbsoluteRotation)
+							if (PlayerCamera->IsUsingAbsoluteRotation())
 							{
 								TrackingToWorld.SetRotation(FQuat::Identity);
 							}
 
-							if (PlayerCamera->bAbsoluteScale)
+							if (PlayerCamera->IsUsingAbsoluteScale())
 							{
 								TrackingToWorld.SetScale3D(FVector::OneVector);
 							}

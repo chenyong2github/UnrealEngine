@@ -74,7 +74,7 @@ AEQSTestingPawn::AEQSTestingPawn(const FObjectInitializer& ObjectInitializer)
 			static FConstructorStatics ConstructorStatics;
 
 			SpriteComponent->Sprite = ConstructorStatics.TextureObject.Get();
-			SpriteComponent->RelativeScale3D = FVector(1, 1, 1);
+			SpriteComponent->SetRelativeScale3D(FVector(1, 1, 1));
 			SpriteComponent->bHiddenInGame = true;
 			//SpriteComponent->Mobility = EComponentMobility::Static;
 			SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_Misc;
@@ -282,7 +282,7 @@ void AEQSTestingPawn::UpdateDrawing()
 		SpriteComponent->MarkRenderStateDirty();
 	}	
 
-	if (EdRenderComp != NULL && EdRenderComp->bVisible)
+	if (EdRenderComp != NULL && EdRenderComp->GetVisibleFlag())
 	{
 		EdRenderComp->MarkRenderStateDirty();
 

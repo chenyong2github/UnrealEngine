@@ -233,7 +233,7 @@ namespace Audio
 	void FMixerDevice::Get2DChannelMapInternal(const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly, TArray<float>& OutChannelMap) const
 	{
 		const int32 OutputChannelMapIndex = NumOutputChannels - 1;
-		check(OutputChannelMapIndex < ARRAY_COUNT(OutputChannelMaps));
+		check(OutputChannelMapIndex < UE_ARRAY_COUNT(OutputChannelMaps));
 
 		float* RESTRICT Matrix = OutputChannelMaps[OutputChannelMapIndex];
 		check(Matrix != nullptr);
