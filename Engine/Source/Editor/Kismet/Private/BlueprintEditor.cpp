@@ -5453,7 +5453,7 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 
 		// Keep track of the old connections from the entry node
 		TMap<FString, TSet<UEdGraphPin*>> PinConnections;
-		GetPinConnectionMap(SelectedCallFunctionNode, PinConnections);
+		FEdGraphUtilities::GetPinConnectionMap(SelectedCallFunctionNode, PinConnections);
 
 		FName EventName = Func->GetFName();
 		UClass* const OverrideFuncClass = CastChecked<UClass>(Func->GetOuter())->GetAuthoritativeClass();
@@ -5501,7 +5501,7 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 			NewEventNode->CustomFunctionName = EventName;
 			NewEventNode->bOverrideFunction = false;
 
-			// Add every type of user pin that we need tot he new event node
+			// Add every type of user pin that we need to the new event node
 			for (TSharedPtr<FUserPinInfo> Pin : SelectedCallFunctionNode->UserDefinedPins)
 			{
 				NewEventNode->CreateUserDefinedPin(Pin->PinName, Pin->PinType, Pin->DesiredPinDirection);
@@ -5533,7 +5533,8 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 		if (NewEventNode)
 		{
 			// Link the nodes from the original function entry node to the new event node
-			ReconnectPinMap(NewEventNode, PinConnections);
+			FEdGraphUtilities::ReconnectPinMap(NewEventNode, PinConnections);
+			FEdGraphUtilities::CopyPinDefaults(SelectedCallFunctionNode, NewEventNode);
 			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(NewEventNode, false);
 		}
 
@@ -5541,39 +5542,6 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 		FBlueprintEditorUtils::RemoveGraph(NodeBP, FunctionGraph, EGraphRemoveFlags::Recompile);
 		FunctionGraph->MarkPendingKill();
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(NodeBP);
-	}
-}
-
-void FBlueprintEditor::GetPinConnectionMap(UEdGraphNode* Node, TMap<FString, TSet<UEdGraphPin*>>& OutPinConnections) const
-{
-	check(Node);
-	
-	for (UEdGraphPin* Pin : Node->Pins)
-	{
-		if (Pin != nullptr)
-		{
-			FString PinName = Pin->GetName();
-
-			// If this is the first time seeing this pin name, add a new set
-			if (!OutPinConnections.Contains(PinName))
-			{
-				OutPinConnections.Add(PinName, TSet<UEdGraphPin*>());
-			}
-			else
-			{
-				// There are no pins connected to this
-				continue;
-			}
-
-			for (UEdGraphPin* ConnectedPin : Pin->LinkedTo)
-			{
-				if (ConnectedPin != nullptr)
-				{
-					// Add to the array of nodes at this pin name
-					OutPinConnections[PinName].Add(ConnectedPin);
-				}
-			}
-		}
 	}
 }
 
@@ -5654,7 +5622,7 @@ void FBlueprintEditor::ConvertEventToFunction(UK2Node_Event* SelectedEventNode)
 
 		// Keep track of the old connections from the event node
 		TMap<FString, TSet<UEdGraphPin*>> PinConnections;
-		GetPinConnectionMap(SelectedEventNode, PinConnections);
+		FEdGraphUtilities::GetPinConnectionMap(SelectedEventNode, PinConnections);
 
 		TArray<UEdGraphNode*> CollapsableNodes = GetAllConnectedNodes(SelectedEventNode);
 
@@ -5763,9 +5731,11 @@ void FBlueprintEditor::ConvertEventToFunction(UK2Node_Event* SelectedEventNode)
 			MoveNodesToGraph(CollapsableNodes, NewGraph, ExpandedNodes, &Entry, &Result);
 			
 			// Link the new nodes accordingly
-			ReconnectPinMap(NewEntryNode, PinConnections);
 			if (NewEntryNode)
 			{
+				FEdGraphUtilities::ReconnectPinMap(NewEntryNode, PinConnections);
+				FEdGraphUtilities::CopyPinDefaults(SelectedEventNode, NewEntryNode);
+
 				MoveNodesToAveragePos(ExpandedNodes, FVector2D(NewEntryNode->NodePosX + 500.0f, NewEntryNode->NodePosY));
 			}
 			else
@@ -5800,28 +5770,19 @@ void FBlueprintEditor::ConvertEventToFunction(UK2Node_Event* SelectedEventNode)
 			{
 				IBlueprintNodeBinder::FBindingSet Bindings;
 				UEdGraphNode* OutFunctionNode = UBlueprintFunctionNodeSpawner::Create(NewFunction)->Invoke(SourceGraph, Bindings, NewFuncCallSpawn);
+				if (NewEntryNode)
+				{
+					FEdGraphUtilities::CopyPinDefaults(NewEntryNode, OutFunctionNode);
+				}
+				FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(OutFunctionNode, false);
+			}
+			else if(NewEntryNode)
+			{
+				FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(NewEntryNode, false);
 			}
 		}
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(NodeBP);
-	}
-}
-
-void FBlueprintEditor::ReconnectPinMap(UEdGraphNode* Node, const TMap<FString, TSet<UEdGraphPin*>>& PinConnections)
-{
-	check(Node);
-
-	for (UEdGraphPin* const NewPin : Node->Pins)
-	{
-		const FString& NewPinName = NewPin->GetName();
-		if (PinConnections.Contains(NewPinName))
-		{
-			// Connect the new pins here
-			for (UEdGraphPin* OldPin : PinConnections[NewPinName])
-			{
-				NewPin->MakeLinkTo(OldPin);
-			}
-		}
 	}
 }
 
