@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-
+#include "UObject/Object.h"
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ScriptMacros.h"
@@ -69,7 +69,10 @@ public:
 	UControlRig();
 
 	virtual void Serialize(FArchive& Ar) override;
-
+#if WITH_EDITOR
+	virtual void PostEditUndo() override;
+#endif
+	
 	/** Get the current delta time */
 	UFUNCTION(BlueprintPure, Category = "Animation")
 	float GetDeltaTime() const;
@@ -95,17 +98,23 @@ public:
 	virtual void Evaluate_AnyThread();
 
 	/** Setup bindings to a runtime object (or clear by passing in nullptr). */
-	void SetObjectBinding(TSharedPtr<IControlRigObjectBinding> InObjectBinding)
+	virtual void SetObjectBinding(TSharedPtr<IControlRigObjectBinding> InObjectBinding) override
 	{
 		ObjectBinding = InObjectBinding;
 	}
 
 	/** Get bindings to a runtime object */
-	TSharedPtr<IControlRigObjectBinding> GetObjectBinding() const
+	virtual TSharedPtr<IControlRigObjectBinding> GetObjectBinding() const override
 	{
 		return ObjectBinding;
 	}
-
+    /** Get OurName*/
+	virtual FString GetName() const override
+	{
+		FString ObjectName = (GetClass()->GetName());
+		ObjectName.RemoveFromEnd(TEXT("_C"));
+		return ObjectName;
+	}
 	FRigHierarchyContainer* GetHierarchy()
 	{
 		return &Hierarchy;
@@ -216,6 +225,12 @@ public:
 	virtual FRigControlValue GetControlValueFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform) override;
 	virtual bool SetControlSpace(const FName& InControlName, const FName& InSpaceName) override;
 	virtual UControlRigGizmoLibrary* GetGizmoLibrary() const override;
+#if WITH_EDITOR
+	virtual void SelectControl(const FName& InControlName, bool bSelect = true) override;
+	virtual bool ClearControlSelection() override;
+	virtual TArray<FName> CurrentControlSelection() const override;
+	virtual bool IsControlSelected(const FName& InControlName)const override;
+#endif
 	// END IControlRigManipulatable interface
 
 	DECLARE_EVENT_TwoParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const EControlRigState);
@@ -296,6 +311,10 @@ private:
 	/** Broadcasts a notification whenever the controlrig is executed / updated. */
 	FControlRigExecuteEvent ExecutedEvent;
 
+#if WITH_EDITOR
+	/** Handle a Control Being Selected */
+	void HandleOnControlSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected);
+#endif
 	void ResolveInputOutputProperties();
 
 	void InitializeFromCDO();

@@ -451,10 +451,6 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 					{
 						InertializationNode->Request(ReferenceTransition.CrossfadeDuration);
 					}
-					else
-					{
-						UE_LOG(LogAnimation, Error, TEXT("FAnimNode_StateMachine: No inertialization context found for transition"));
-					}
 				}
 
 #if WITH_EDITORONLY_DATA

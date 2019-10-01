@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Units/Math/RigUnit_MathTransform.h"
+#include "Units/Math/RigUnit_MathVector.h"
 #include "Math/ControlRigMathLibrary.h"
 #include "Units/RigUnitContext.h"
 
@@ -26,6 +27,14 @@ FRigUnit_MathTransformMakeRelative_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Local = Global.GetRelativeTransform(Parent);
+	Local.NormalizeRotation();
+}
+
+FRigUnit_MathTransformMakeAbsolute_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	Global = Local * Parent;
+	Global.NormalizeRotation();
 }
 
 FRigUnit_MathTransformInverse_Execute()
@@ -65,4 +74,13 @@ FRigUnit_MathTransformFromSRT_Execute()
 	Transform.SetRotation(FControlRigMathLibrary::QuatFromEuler(Rotation, RotationOrder));
 	Transform.SetScale3D(Scale);
 	EulerTransform.FromFTransform(Transform);
+}
+
+FRigUnit_MathTransformClampSpatially_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	FVector Position;
+	FRigUnit_MathVectorClampSpatially::StaticExecute(Value.GetTranslation(), Axis, Type, Minimum, Maximum, Space, bDrawDebug, DebugColor, DebugThickness, Position, RigUnitName, RigUnitStructName, ExecutionType, Context);
+	Result = Value;
+	Result.SetTranslation(Position);
 }

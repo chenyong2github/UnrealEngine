@@ -3,6 +3,7 @@
 #include "Units/Highlevel/Hierarchy/RigUnit_TwoBoneIKSimple.h"
 #include "Units/RigUnitContext.h"
 #include "Math/ControlRigMathLibrary.h"
+#include "TwoBoneIK.h"
 
 FRigUnit_TwoBoneIKSimple_Execute()
 {
@@ -70,7 +71,7 @@ FRigUnit_TwoBoneIKSimple_Execute()
 	TransformB.SetLocation(Hierarchy->GetGlobalTransform(BoneBIndex).GetLocation());
 	FTransform TransformC = Effector;
 
-	FControlRigMathLibrary::SolveBasicTwoBoneIK(TransformA, TransformB, TransformC, PoleTarget, PrimaryAxis, SecondaryAxis, LengthA, LengthB, bEnableStretch, StretchStartRatio, StretchMaximumRatio);
+	FControlRigMathLibrary::SolveBasicTwoBoneIK(TransformA, TransformB, TransformC, PoleTarget, PrimaryAxis, SecondaryAxis, SecondaryAxisWeight, LengthA, LengthB, bEnableStretch, StretchStartRatio, StretchMaximumRatio);
 
 	if (Context.DrawInterface != nullptr && DebugSettings.bEnabled)
 	{
@@ -96,4 +97,14 @@ FRigUnit_TwoBoneIKSimple_Execute()
 	Hierarchy->SetGlobalTransform(BoneAIndex, TransformA, bPropagateToChildren);
 	Hierarchy->SetGlobalTransform(BoneBIndex, TransformB, bPropagateToChildren);
 	Hierarchy->SetGlobalTransform(EffectorBoneIndex, TransformC, bPropagateToChildren);
+}
+
+FRigUnit_TwoBoneIKSimpleVectors_Execute()
+{
+	AnimationCore::SolveTwoBoneIK(Root, Elbow, Effector, PoleVector, Effector, Elbow, Effector, BoneALength, BoneBLength, bEnableStretch, StretchStartRatio, StretchMaximumRatio);
+}
+
+FRigUnit_TwoBoneIKSimpleTransforms_Execute()
+{
+	FControlRigMathLibrary::SolveBasicTwoBoneIK(Root, Elbow, Effector, PoleVector, PrimaryAxis, SecondaryAxis, SecondaryAxisWeight, BoneALength, BoneBLength, bEnableStretch, StretchStartRatio, StretchMaximumRatio);
 }

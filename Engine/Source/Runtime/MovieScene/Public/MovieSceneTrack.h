@@ -250,6 +250,16 @@ public:
 		return SupportedBlendTypes.Num() != 0;
 	}
 
+	/** Set This Section as the one to key. If track doesn't support layered blends then don't implement
+	* @param InSection		Section that we want to key
+	*/
+	 virtual void SetSectionToKey(UMovieSceneSection* InSection) {};
+
+	/** Get the section we want to key. If track doesn't support layered blends it will return nulltpr.
+	* @return The section to key if one exists
+	*/
+	 virtual UMovieSceneSection* GetSectionToKey() const { return nullptr; }
+
 	/** Gets the greatest row index of all the sections owned by this track. */
 	MOVIESCENE_API int32 GetMaxRowIndex() const;
 

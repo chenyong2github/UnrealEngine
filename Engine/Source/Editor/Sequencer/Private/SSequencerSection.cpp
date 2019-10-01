@@ -1039,7 +1039,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 		Hotspot = GetSequencer().GetHotspot().Get();
 	}
 
-	UMovieScenePropertyTrack* Track = SectionObject->GetTypedOuter<UMovieScenePropertyTrack>();
+	UMovieSceneTrack* Track = SectionObject->GetTypedOuter<UMovieSceneTrack>();
 	const bool bEnabled = bParentEnabled && SectionObject->IsActive() && !(Track && Track->IsEvalDisabled());
 	const bool bLocked = SectionObject->IsLocked();
 	bool bSetSectionToKey = false;

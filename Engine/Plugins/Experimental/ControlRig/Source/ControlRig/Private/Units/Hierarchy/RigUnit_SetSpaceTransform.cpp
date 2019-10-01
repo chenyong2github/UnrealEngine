@@ -19,7 +19,7 @@ FRigUnit_SetSpaceTransform_Execute()
 			case EControlRigState::Init:
 			{
 				CachedSpaceIndex = Hierarchy->GetIndex(Space);
-				// fall through to update
+				break;
 			}
 			case EControlRigState::Update:
 			{

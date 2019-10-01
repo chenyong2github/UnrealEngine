@@ -5670,6 +5670,121 @@ void FSequencer::GetSelectedFolders(TArray<UMovieSceneFolder*>& OutSelectedFolde
 	CalculateSelectedFolderAndPath(OutSelectedFolders, OutNewNodePath);
 }
 
+void FSequencer::GetSelectedObjects(TArray<FGuid>& Objects)
+{
+	Objects = GetSelection().GetBoundObjectsGuids();
+}
+
+void FSequencer::GetSelectedKeyAreas(TArray<const IKeyArea*>& OutSelectedKeyAreas)
+{
+	TSet<TSharedRef<FSequencerDisplayNode>> NodesToKey = Selection.GetSelectedOutlinerNodes();
+	{
+		TSet<TSharedRef<FSequencerDisplayNode>> ChildNodes;
+		for (TSharedRef<FSequencerDisplayNode> Node : NodesToKey.Array())
+		{
+			ChildNodes.Reset();
+			SequencerHelpers::GetDescendantNodes(Node, ChildNodes);
+
+			for (TSharedRef<FSequencerDisplayNode> ChildNode : ChildNodes)
+			{
+				NodesToKey.Remove(ChildNode);
+			}
+		}
+	}
+
+	TSet<TSharedPtr<IKeyArea>> KeyAreas;
+	TSet<UMovieSceneSection*>  ModifiedSections;
+
+	for (TSharedRef<FSequencerDisplayNode> Node : NodesToKey)
+	{
+		SequencerHelpers::GetAllKeyAreas(Node, KeyAreas);
+	}
+	for (FSequencerSelectedKey Key : Selection.GetSelectedKeys())
+	{
+		KeyAreas.Add(Key.KeyArea); 
+	}
+	for (TSharedPtr<IKeyArea> KeyArea : KeyAreas)
+	{
+		const IKeyArea* KeyAreaPtr = KeyArea.Get();
+		OutSelectedKeyAreas.Add(KeyAreaPtr);
+	}
+}
+
+void FSequencer::SelectByKeyAreas(const TArray<IKeyArea>& InKeyAreas, bool bSelectParentInstead, bool bSelect)
+{
+	TSet<TSharedRef<FSequencerDisplayNode>> Nodes;
+	TArray<TSharedRef<FSequencerDisplayNode>> NodesToSelect;
+	for (const TSharedRef<FSequencerDisplayNode>& Node : NodeTree->GetAllNodes())
+	{
+		if (Node->GetType() == ESequencerNode::Track)
+		{
+			TSharedRef<FSequencerTrackNode> TrackNode = StaticCastSharedRef<FSequencerTrackNode>(Node);
+			TArray<TSharedRef<FSequencerSectionKeyAreaNode>> KeyAreaNodes;
+			TrackNode->GetChildKeyAreaNodesRecursively(KeyAreaNodes);
+			for (TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode : KeyAreaNodes)
+			{
+				for (TSharedPtr<IKeyArea> KeyArea : KeyAreaNode->GetAllKeyAreas())
+				{
+					for (const IKeyArea& InKeyArea : InKeyAreas)
+					{
+						if (InKeyArea.GetOwningSection() == KeyArea->GetOwningSection() &&
+							InKeyArea.GetChannel() == KeyArea->GetChannel())
+						{
+							if (bSelectParentInstead || bSelect == false)
+							{
+								Nodes.Add(KeyAreaNode->GetParent()->AsShared());
+							}
+							if (!bSelectParentInstead || bSelect == false)
+							{
+								Nodes.Add(KeyAreaNode);
+							}
+						}
+					}
+				}
+			}
+		}
+		else if (Node->GetType() == ESequencerNode::KeyArea)
+		{
+			TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode = StaticCastSharedRef<FSequencerSectionKeyAreaNode>(Node);
+
+			for (TSharedPtr<IKeyArea> KeyArea : KeyAreaNode->GetAllKeyAreas())
+			{
+				for (const IKeyArea& InKeyArea : InKeyAreas)
+				{
+					if (InKeyArea.GetOwningSection() == KeyArea->GetOwningSection() &&
+						InKeyArea.GetChannel() == KeyArea->GetChannel())
+					{
+						if (bSelectParentInstead || bSelect == false)
+						{
+							Nodes.Add(KeyAreaNode->GetParent()->AsShared());
+						}
+						if (!bSelectParentInstead || bSelect == false)
+						{
+							Nodes.Add(KeyAreaNode);
+						}
+					}
+				}
+			}
+		}
+	}
+	if (bSelect)
+	{
+		for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : Nodes)
+		{
+			NodesToSelect.Add(DisplayNode);
+			Selection.AddToSelection(NodesToSelect);
+		}
+	}
+	else
+	{
+		for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : Nodes)
+		{
+			Selection.RemoveFromSelection(DisplayNode);
+			Selection.RemoveFromNodesWithSelectedKeysOrSections(DisplayNode);
+		}
+	}
+}
+
 void FSequencer::SelectObject(FGuid ObjectBinding)
 {
 	TSharedPtr<FSequencerObjectBindingNode> Node = NodeTree->FindObjectBindingNode(ObjectBinding);
