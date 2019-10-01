@@ -162,7 +162,7 @@ namespace ResonanceAudio {
 
 		if (ExtraResonanceLoggingCVar)
 		{
-			UE_LOG(LogResonanceAudio, Warning, TEXT("Source initialized (Our source ID: %i) (Binaural SourceId)."), SourceId, BinauralSource.Id);
+			UE_LOG(LogResonanceAudio, Warning, TEXT("Source initialized (Our source ID: %i) (Binaural SourceId: %i)."), SourceId, BinauralSource.Id);
 		}
 	}
 
