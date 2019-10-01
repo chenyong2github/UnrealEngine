@@ -522,7 +522,7 @@ TSharedRef<SWidget> SStartPageWindow::ConstructSessionsPanel()
 				SNew(SHeaderRow)
 
 				+ SHeaderRow::Column(FName(TEXT("Name")))
-				.FillWidth(0.4f)
+				.FillWidth(0.25f)
 				.DefaultLabel(LOCTEXT("NameColumn", "Name"))
 
 				+ SHeaderRow::Column(FName(TEXT("Platform")))

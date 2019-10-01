@@ -38,18 +38,18 @@ struct FDiagnosticsSessionAnalyzer
 			return false;
 		}
 
-		uint8 CommandLineOffset = EventData.GetValue<uint8>("CommandLineOffset");
 		uint8 AppNameOffset = EventData.GetValue<uint8>("AppNameOffset");
+		uint8 CommandLineOffset = EventData.GetValue<uint8>("CommandLineOffset");
 
-		Platform = FString(CommandLineOffset, (const ANSICHAR*)Attachment);
+		Platform = FString(AppNameOffset, (const ANSICHAR*)Attachment);
 
-		Attachment += CommandLineOffset;
-		int32 CommandLineLength = AppNameOffset - CommandLineOffset;
-		CommandLine = FString(CommandLineLength, (const ANSICHAR*)Attachment);
-
-		Attachment += CommandLineLength;
-		int32 AppNameLength = EventData.GetAttachmentSize() - AppNameOffset;
+		Attachment += AppNameOffset;
+		int32 AppNameLength = CommandLineOffset - AppNameOffset;
 		AppName = FString(AppNameLength, (const ANSICHAR*)Attachment);
+
+		Attachment += AppNameLength;
+		int32 CommandLineLength = EventData.GetAttachmentSize() - CommandLineOffset;
+		CommandLine = FString(CommandLineLength, (const ANSICHAR*)Attachment);
 
 		ConfigurationType = EventData.GetValue<int8>("ConfigurationType");
 		TargetType = EventData.GetValue<int8>("TargetType");
