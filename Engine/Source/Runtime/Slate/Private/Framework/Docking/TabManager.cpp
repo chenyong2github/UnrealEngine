@@ -1347,6 +1347,7 @@ TSharedPtr<SDockingArea> FTabManager::RestoreArea(
 	}
 	else
 	{
+		check(bCanOutputBeNullptr);
 		return nullptr;
 	}
 }
@@ -1371,18 +1372,10 @@ TSharedPtr<SDockingNode> FTabManager::RestoreArea_Helper(
 		for (int32 TabIndex=0; TabIndex < NodeAsStack->Tabs.Num(); ++TabIndex )
 		{
 			const FTab& SomeTab = NodeAsStack->Tabs[ TabIndex ];
-if (SomeTab.TabId.ToString() == FString("LiveLink"))
-{
-	UE_LOG(LogSlate, Warning, TEXT("SomeTab %d/%d = %s."), TabIndex + 1, NodeAsStack->Tabs.Num(), *(SomeTab.TabId.ToString()));
-}
-if (SomeTab.TabId.ToString() == FString("StandaloneToolkit"))
-{
-	UE_LOG(LogSlate, Warning, TEXT("SomeTab %d/%d = %s."), TabIndex + 1, NodeAsStack->Tabs.Num(), *(SomeTab.TabId.ToString()));
-}
 
 			if (SomeTab.TabState == ETabState::OpenedTab && IsValidTabForSpawning(SomeTab))
 			{
-				const TSharedPtr<SDockTab> NewTabWidget = SpawnTab( SomeTab.TabId, ParentWindow );
+				const TSharedPtr<SDockTab> NewTabWidget = SpawnTab(SomeTab.TabId, ParentWindow, bCanOutputBeNullptr);
 
 				if (NewTabWidget.IsValid())
 				{
@@ -1504,7 +1497,7 @@ if (SomeTab.TabId.ToString() == FString("StandaloneToolkit"))
 	{
 		ensureMsgf( false, TEXT("Unexpected node type") );
 		TSharedRef<SDockingTabStack> NewStackWidget = SNew(SDockingTabStack, FTabManager::NewStack());
-		NewStackWidget->OpenTab(SpawnTab( FName(NAME_None), ParentWindow ).ToSharedRef());
+		NewStackWidget->OpenTab(SpawnTab(FName(NAME_None), ParentWindow, bCanOutputBeNullptr).ToSharedRef());
 		return NewStackWidget;
 	}
 }
@@ -1579,7 +1572,7 @@ bool FTabManager::IsValidTabForSpawning( const FTab& SomeTab ) const
 	return ( !NomadSpawner || !NomadSpawner->Get().IsSoleTabInstanceSpawned() );
 }
 
-TSharedPtr<SDockTab> FTabManager::SpawnTab( const FTabId& TabId, const TSharedPtr<SWindow>& ParentWindow )
+TSharedPtr<SDockTab> FTabManager::SpawnTab(const FTabId& TabId, const TSharedPtr<SWindow>& ParentWindow, const bool bCanOutputBeNullptr)
 {
 	TSharedPtr<SDockTab> NewTabWidget;
 
@@ -1617,6 +1610,25 @@ TSharedPtr<SDockTab> FTabManager::SpawnTab( const FTabId& TabId, const TSharedPt
 			TEXT("The tab \"%s\" attempted to spawn but failed for some reason. It will not be displayed but it will be saved in the layout settings file."),
 			*(!StringToDisplay.IsEmpty() ? StringToDisplay : FString("Unknown"))
 		);
+
+		// If an output must be generated, create an "unrecognized tab"
+		if (!bCanOutputBeNullptr)
+		{
+			NewTabWidget = SNew(SDockTab)
+				.Label( TabId.ToText() )
+				.ShouldAutosize( false )
+				[
+					SNew(SBox)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text( NSLOCTEXT("TabManagement", "Unrecognized", "unrecognized tab") )
+					]
+				];
+
+			NewTabWidget->SetLayoutIdentifier(TabId);
+		}
 	}
 
 	if (NewTabWidget.IsValid())
@@ -2391,7 +2403,7 @@ void FProxyTabmanager::OpenUnmanagedTab(FName PlaceholderId, const FSearchPrefer
 				->AddTab( UnmanagedTab->GetLayoutIdentifier(), ETabState::OpenedTab )
 			);
 
-		if (TSharedPtr<SDockingArea> DockingArea = RestoreArea(NewAreaForTab, ParentWindowPtr, false))
+		if (TSharedPtr<SDockingArea> DockingArea = RestoreArea(NewAreaForTab, ParentWindowPtr))
 		{
 			ParentWindowPtr->SetContent(StaticCastSharedRef<SDockingArea>(DockingArea->AsShared()));
 			if (DockingArea->GetAllChildTabs().Num() > 0)
