@@ -1,49 +1,49 @@
 #if WITH_MLSDK
-#define TOUCH_GESTURE_CASE(x) case MLInputControllerTouchpadGestureType_##x: { return EMagicLeapTouchpadGestureType::x; }
+#define TOUCH_GESTURE_CASE_DEPRECATED(x) case MLInputControllerTouchpadGestureType_##x: { return EMagicLeapTouchpadGestureType::x; }
 
-EMagicLeapTouchpadGestureType MLToUnrealTouchpadGestureType(MLInputControllerTouchpadGestureType GestureType)
+EMagicLeapTouchpadGestureType MLToUnrealTouchpadGestureType_DEPRECATED(MLInputControllerTouchpadGestureType GestureType)
 {
 	switch (GestureType)
 	{
-		TOUCH_GESTURE_CASE(Tap)
-		TOUCH_GESTURE_CASE(ForceTapDown)
-		TOUCH_GESTURE_CASE(ForceTapUp)
-		TOUCH_GESTURE_CASE(ForceDwell)
-		TOUCH_GESTURE_CASE(SecondForceDown)
-		TOUCH_GESTURE_CASE(LongHold)
-		TOUCH_GESTURE_CASE(RadialScroll)
-		TOUCH_GESTURE_CASE(Swipe)
-		TOUCH_GESTURE_CASE(Scroll)
-		TOUCH_GESTURE_CASE(Pinch)
+		TOUCH_GESTURE_CASE_DEPRECATED(Tap)
+		TOUCH_GESTURE_CASE_DEPRECATED(ForceTapDown)
+		TOUCH_GESTURE_CASE_DEPRECATED(ForceTapUp)
+		TOUCH_GESTURE_CASE_DEPRECATED(ForceDwell)
+		TOUCH_GESTURE_CASE_DEPRECATED(SecondForceDown)
+		TOUCH_GESTURE_CASE_DEPRECATED(LongHold)
+		TOUCH_GESTURE_CASE_DEPRECATED(RadialScroll)
+		TOUCH_GESTURE_CASE_DEPRECATED(Swipe)
+		TOUCH_GESTURE_CASE_DEPRECATED(Scroll)
+		TOUCH_GESTURE_CASE_DEPRECATED(Pinch)
 	}
 	return EMagicLeapTouchpadGestureType::None;
 }
 
-#define TOUCH_DIR_CASE(x) case MLInputControllerTouchpadGestureDirection_##x: { return EMagicLeapTouchpadGestureDirection::x; }
+#define TOUCH_DIR_CASE_DEPRECATED(x) case MLInputControllerTouchpadGestureDirection_##x: { return EMagicLeapTouchpadGestureDirection::x; }
 
-EMagicLeapTouchpadGestureDirection MLToUnrealTouchpadGestureDirection(MLInputControllerTouchpadGestureDirection Direction)
+EMagicLeapTouchpadGestureDirection MLToUnrealTouchpadGestureDirection_DEPRECATED(MLInputControllerTouchpadGestureDirection Direction)
 {
 	switch (Direction)
 	{
-		TOUCH_DIR_CASE(Up)
-		TOUCH_DIR_CASE(Down)
-		TOUCH_DIR_CASE(Left)
-		TOUCH_DIR_CASE(Right)
-		TOUCH_DIR_CASE(In)
-		TOUCH_DIR_CASE(Out)
-		TOUCH_DIR_CASE(Clockwise)
-		TOUCH_DIR_CASE(CounterClockwise)
+		TOUCH_DIR_CASE_DEPRECATED(Up)
+		TOUCH_DIR_CASE_DEPRECATED(Down)
+		TOUCH_DIR_CASE_DEPRECATED(Left)
+		TOUCH_DIR_CASE_DEPRECATED(Right)
+		TOUCH_DIR_CASE_DEPRECATED(In)
+		TOUCH_DIR_CASE_DEPRECATED(Out)
+		TOUCH_DIR_CASE_DEPRECATED(Clockwise)
+		TOUCH_DIR_CASE_DEPRECATED(CounterClockwise)
 	}
 	return EMagicLeapTouchpadGestureDirection::None;
 }
 
-FMagicLeapTouchpadGesture MLToUnrealTouchpadGesture(EControllerHand hand, FName MotionSource, const MLInputControllerTouchpadGesture& touchpad_gesture)
+FMagicLeapTouchpadGesture MLToUnrealTouchpadGesture_DEPRECATED(EControllerHand hand, FName MotionSource, const MLInputControllerTouchpadGesture& touchpad_gesture)
 {
 	FMagicLeapTouchpadGesture gesture;
 	gesture.Hand = hand;
 	gesture.MotionSource = MotionSource;
-	gesture.Type = MLToUnrealTouchpadGestureType(touchpad_gesture.type);
-	gesture.Direction = MLToUnrealTouchpadGestureDirection(touchpad_gesture.direction);
+	gesture.Type = MLToUnrealTouchpadGestureType_DEPRECATED(touchpad_gesture.type);
+	gesture.Direction = MLToUnrealTouchpadGestureDirection_DEPRECATED(touchpad_gesture.direction);
 	gesture.PositionAndForce = FVector(touchpad_gesture.pos_and_force.x, touchpad_gesture.pos_and_force.y, touchpad_gesture.pos_and_force.z);
 	gesture.Speed = touchpad_gesture.speed;
 	gesture.Distance = touchpad_gesture.distance;
@@ -60,18 +60,6 @@ const FName& MLToUnrealButton(EControllerHand Hand, MLInputControllerButton ml_b
 
 	switch (ml_button)
 	{
-	case MLInputControllerButton_Move:
-		if (Hand == EControllerHand::Left)
-		{
-			return FMagicLeapControllerKeyNames::Left_MoveButton_Name;
-		}
-		return FMagicLeapControllerKeyNames::Right_MoveButton_Name;
-	case MLInputControllerButton_App:
-		if (Hand == EControllerHand::Left)
-		{
-			return FMagicLeapControllerKeyNames::Left_AppButton_Name;
-		}
-		return FMagicLeapControllerKeyNames::Right_AppButton_Name;
 	case MLInputControllerButton_Bumper:
 		if (Hand == EControllerHand::Left)
 		{
@@ -174,47 +162,47 @@ const FName& MLTriggerToUnrealTriggerKey(EControllerHand Hand)
 
 #if WITH_MLSDK
 
-MLInputControllerFeedbackPatternLED UnrealToMLPatternLED(EMLControllerLEDPattern LEDPattern)
+MLInputControllerFeedbackPatternLED UnrealToMLPatternLED(EMagicLeapControllerLEDPattern LEDPattern)
 {
 	switch (LEDPattern)
 	{
-	case EMLControllerLEDPattern::None:
+	case EMagicLeapControllerLEDPattern::None:
 		return MLInputControllerFeedbackPatternLED_None;
-	case EMLControllerLEDPattern::Clock01:
+	case EMagicLeapControllerLEDPattern::Clock01:
 		return MLInputControllerFeedbackPatternLED_Clock1;
-	case EMLControllerLEDPattern::Clock02:
+	case EMagicLeapControllerLEDPattern::Clock02:
 		return MLInputControllerFeedbackPatternLED_Clock2;
-	case EMLControllerLEDPattern::Clock03:
+	case EMagicLeapControllerLEDPattern::Clock03:
 		return MLInputControllerFeedbackPatternLED_Clock3;
-	case EMLControllerLEDPattern::Clock04:
+	case EMagicLeapControllerLEDPattern::Clock04:
 		return MLInputControllerFeedbackPatternLED_Clock4;
-	case EMLControllerLEDPattern::Clock05:
+	case EMagicLeapControllerLEDPattern::Clock05:
 		return MLInputControllerFeedbackPatternLED_Clock5;
-	case EMLControllerLEDPattern::Clock06:
+	case EMagicLeapControllerLEDPattern::Clock06:
 		return MLInputControllerFeedbackPatternLED_Clock6;
-	case EMLControllerLEDPattern::Clock07:
+	case EMagicLeapControllerLEDPattern::Clock07:
 		return MLInputControllerFeedbackPatternLED_Clock7;
-	case EMLControllerLEDPattern::Clock08:
+	case EMagicLeapControllerLEDPattern::Clock08:
 		return MLInputControllerFeedbackPatternLED_Clock8;
-	case EMLControllerLEDPattern::Clock09:
+	case EMagicLeapControllerLEDPattern::Clock09:
 		return MLInputControllerFeedbackPatternLED_Clock9;
-	case EMLControllerLEDPattern::Clock10:
+	case EMagicLeapControllerLEDPattern::Clock10:
 		return MLInputControllerFeedbackPatternLED_Clock10;
-	case EMLControllerLEDPattern::Clock11:
+	case EMagicLeapControllerLEDPattern::Clock11:
 		return MLInputControllerFeedbackPatternLED_Clock11;
-	case EMLControllerLEDPattern::Clock12:
+	case EMagicLeapControllerLEDPattern::Clock12:
 		return MLInputControllerFeedbackPatternLED_Clock12;
-	case EMLControllerLEDPattern::Clock01_07:
+	case EMagicLeapControllerLEDPattern::Clock01_07:
 		return MLInputControllerFeedbackPatternLED_Clock1And7;
-	case EMLControllerLEDPattern::Clock02_08:
+	case EMagicLeapControllerLEDPattern::Clock02_08:
 		return MLInputControllerFeedbackPatternLED_Clock2And8;
-	case EMLControllerLEDPattern::Clock03_09:
+	case EMagicLeapControllerLEDPattern::Clock03_09:
 		return MLInputControllerFeedbackPatternLED_Clock3And9;
-	case EMLControllerLEDPattern::Clock04_10:
+	case EMagicLeapControllerLEDPattern::Clock04_10:
 		return MLInputControllerFeedbackPatternLED_Clock4And10;
-	case EMLControllerLEDPattern::Clock05_11:
+	case EMagicLeapControllerLEDPattern::Clock05_11:
 		return MLInputControllerFeedbackPatternLED_Clock5And11;
-	case EMLControllerLEDPattern::Clock06_12:
+	case EMagicLeapControllerLEDPattern::Clock06_12:
 		return MLInputControllerFeedbackPatternLED_Clock6And12;
 	default:
 		UE_LOG(LogMagicLeapController, Error, TEXT("Unhandled LED Pattern type %d"), static_cast<int32>(LEDPattern));
@@ -223,21 +211,21 @@ MLInputControllerFeedbackPatternLED UnrealToMLPatternLED(EMLControllerLEDPattern
 	return MLInputControllerFeedbackPatternLED_Ensure32Bits;
 }
 
-MLInputControllerFeedbackEffectLED UnrealToMLEffectLED(EMLControllerLEDEffect LEDEffect)
+MLInputControllerFeedbackEffectLED UnrealToMLEffectLED(EMagicLeapControllerLEDEffect LEDEffect)
 {
 	switch (LEDEffect)
 	{
-	case EMLControllerLEDEffect::RotateCW:
+	case EMagicLeapControllerLEDEffect::RotateCW:
 		return MLInputControllerFeedbackEffectLED_RotateCW;
-	case EMLControllerLEDEffect::RotateCCW:
+	case EMagicLeapControllerLEDEffect::RotateCCW:
 		return MLInputControllerFeedbackEffectLED_RotateCCW;
-	case EMLControllerLEDEffect::Pulse:
+	case EMagicLeapControllerLEDEffect::Pulse:
 		return MLInputControllerFeedbackEffectLED_Pulse;
-	case EMLControllerLEDEffect::PaintCW:
+	case EMagicLeapControllerLEDEffect::PaintCW:
 		return MLInputControllerFeedbackEffectLED_PaintCW;
-	case EMLControllerLEDEffect::PaintCCW:
+	case EMagicLeapControllerLEDEffect::PaintCCW:
 		return MLInputControllerFeedbackEffectLED_PaintCCW;
-	case EMLControllerLEDEffect::Blink:
+	case EMagicLeapControllerLEDEffect::Blink:
 		return MLInputControllerFeedbackEffectLED_Blink;
 	default:
 		UE_LOG(LogMagicLeapController, Error, TEXT("Unhandled LED effect type %d"), static_cast<int32>(LEDEffect));
@@ -246,8 +234,8 @@ MLInputControllerFeedbackEffectLED UnrealToMLEffectLED(EMLControllerLEDEffect LE
 	return MLInputControllerFeedbackEffectLED_Ensure32Bits;
 }
 
-#define LED_COLOR_CASE(x) case EMLControllerLEDColor::x: { return MLInputControllerFeedbackColorLED_##x; }
-MLInputControllerFeedbackColorLED UnrealToMLColorLED(EMLControllerLEDColor LEDColor)
+#define LED_COLOR_CASE(x) case EMagicLeapControllerLEDColor::x: { return MLInputControllerFeedbackColorLED_##x; }
+MLInputControllerFeedbackColorLED UnrealToMLColorLED(EMagicLeapControllerLEDColor LEDColor)
 {
 	switch (LEDColor)
 	{
@@ -274,15 +262,15 @@ MLInputControllerFeedbackColorLED UnrealToMLColorLED(EMLControllerLEDColor LEDCo
 	return MLInputControllerFeedbackColorLED_Ensure32Bits;
 }
 
-MLInputControllerFeedbackEffectSpeedLED UnrealToMLSpeedLED(EMLControllerLEDSpeed LEDSpeed)
+MLInputControllerFeedbackEffectSpeedLED UnrealToMLSpeedLED(EMagicLeapControllerLEDSpeed LEDSpeed)
 {
 	switch (LEDSpeed)
 	{
-	case EMLControllerLEDSpeed::Slow:
+	case EMagicLeapControllerLEDSpeed::Slow:
 		return MLInputControllerFeedbackEffectSpeedLED_Slow;
-	case EMLControllerLEDSpeed::Medium:
+	case EMagicLeapControllerLEDSpeed::Medium:
 		return MLInputControllerFeedbackEffectSpeedLED_Medium;
-	case EMLControllerLEDSpeed::Fast:
+	case EMagicLeapControllerLEDSpeed::Fast:
 		return MLInputControllerFeedbackEffectSpeedLED_Fast;
 	default:
 		UE_LOG(LogMagicLeapController, Error, TEXT("Unhandled LED speed type %d"), static_cast<int32>(LEDSpeed));
@@ -291,29 +279,29 @@ MLInputControllerFeedbackEffectSpeedLED UnrealToMLSpeedLED(EMLControllerLEDSpeed
 	return MLInputControllerFeedbackEffectSpeedLED_Ensure32Bits;
 }
 
-MLInputControllerFeedbackPatternVibe UnrealToMLPatternVibe(EMLControllerHapticPattern HapticPattern)
+MLInputControllerFeedbackPatternVibe UnrealToMLPatternVibe(EMagicLeapControllerHapticPattern HapticPattern)
 {
 	switch (HapticPattern)
 	{
-	case EMLControllerHapticPattern::None:
+	case EMagicLeapControllerHapticPattern::None:
 		return MLInputControllerFeedbackPatternVibe_None;
-	case EMLControllerHapticPattern::Click:
+	case EMagicLeapControllerHapticPattern::Click:
 		return MLInputControllerFeedbackPatternVibe_Click;
-	case EMLControllerHapticPattern::Bump:
+	case EMagicLeapControllerHapticPattern::Bump:
 		return MLInputControllerFeedbackPatternVibe_Bump;
-	case EMLControllerHapticPattern::DoubleClick:
+	case EMagicLeapControllerHapticPattern::DoubleClick:
 		return MLInputControllerFeedbackPatternVibe_DoubleClick;
-	case EMLControllerHapticPattern::Buzz:
+	case EMagicLeapControllerHapticPattern::Buzz:
 		return MLInputControllerFeedbackPatternVibe_Buzz;
-	case EMLControllerHapticPattern::Tick:
+	case EMagicLeapControllerHapticPattern::Tick:
 		return MLInputControllerFeedbackPatternVibe_Tick;
-	case EMLControllerHapticPattern::ForceDown:
+	case EMagicLeapControllerHapticPattern::ForceDown:
 		return MLInputControllerFeedbackPatternVibe_ForceDown;
-	case EMLControllerHapticPattern::ForceUp:
+	case EMagicLeapControllerHapticPattern::ForceUp:
 		return MLInputControllerFeedbackPatternVibe_ForceUp;
-	case EMLControllerHapticPattern::ForceDwell:
+	case EMagicLeapControllerHapticPattern::ForceDwell:
 		return MLInputControllerFeedbackPatternVibe_ForceDwell;
-	case EMLControllerHapticPattern::SecondForceDown:
+	case EMagicLeapControllerHapticPattern::SecondForceDown:
 		return MLInputControllerFeedbackPatternVibe_SecondForceDown;
 	default:
 		UE_LOG(LogMagicLeapController, Error, TEXT("Unhandled Haptic Pattern type %d"), static_cast<int32>(HapticPattern));
@@ -322,15 +310,15 @@ MLInputControllerFeedbackPatternVibe UnrealToMLPatternVibe(EMLControllerHapticPa
 	return MLInputControllerFeedbackPatternVibe_Ensure32Bits;
 }
 
-MLInputControllerFeedbackIntensity UnrealToMLHapticIntensity(EMLControllerHapticIntensity HapticIntensity)
+MLInputControllerFeedbackIntensity UnrealToMLHapticIntensity(EMagicLeapControllerHapticIntensity HapticIntensity)
 {
 	switch (HapticIntensity)
 	{
-	case EMLControllerHapticIntensity::Low:
+	case EMagicLeapControllerHapticIntensity::Low:
 		return MLInputControllerFeedbackIntensity_Low;
-	case EMLControllerHapticIntensity::Medium:
+	case EMagicLeapControllerHapticIntensity::Medium:
 		return MLInputControllerFeedbackIntensity_Medium;
-	case EMLControllerHapticIntensity::High:
+	case EMagicLeapControllerHapticIntensity::High:
 		return MLInputControllerFeedbackIntensity_High;
 	default:
 		UE_LOG(LogMagicLeapController, Error, TEXT("Unhandled Haptic Intensity type %d"), static_cast<int32>(HapticIntensity));

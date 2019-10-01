@@ -5,30 +5,17 @@
 #include "Engine/Engine.h"
 #include "MagicLeapScreensTypes.generated.h"
 
-/** 
-  ID for a Screens Watch History Entry.
-
-  Save this off when you add a new watch history and use the same to update or delete that same entry.
- */
-USTRUCT(BlueprintType)
-struct FScreenID
-{
-	GENERATED_BODY()
-
-public:
-	int64 ID;
-};
 
 /** Channel watch history, may be displayed in the Screens Launcher application. */
 USTRUCT(BlueprintType)
-struct FScreensWatchHistoryEntry
+struct FMagicLeapScreensWatchHistoryEntry
 {
 	GENERATED_BODY()
 
 public:
 	/** Entry Identifier. Must be used to update and delete a given entry. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Screens|MagicLeap")
-	FScreenID ID;
+	FGuid ID;
 
 	/** Title of the media for which this entry is created. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screens|MagicLeap")
@@ -61,11 +48,15 @@ public:
   This will be received from the Screens Launcher api, based on the previous screens spawned by user.
  */
 USTRUCT(BlueprintType)
-struct FScreenTransform
+struct FMagicLeapScreenTransform
 {
 	GENERATED_BODY()
 
 public:
+	/** Entry identifier. Must be used to update a given entry. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Screens|MagicLeap")
+	FGuid ID;
+
 	/** Position of the screen in Unreal's world space. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screens|MagicLeap")
 	FVector ScreenPosition;
@@ -77,6 +68,12 @@ public:
 	/** Dimensions of the screen in Unreal Units. The dimensions are axis-aligned with the orientation. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screens|MagicLeap")
 	FVector ScreenDimensions;
+
+	/** Screen scale, used to scale the screens dimensions */
+	FVector ScreenScale3D;
+
+	/** Version number */
+	int32 VersionNumber;
 };
 
 /**
@@ -86,7 +83,7 @@ public:
 	@param[out] bSuccess True when the request is successful
 	@param[out] WatchHistoryEntry Resulting watch history entry for which the operation was performed on.
 */
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FScreensEntryRequestResultDelegate, const bool, bSuccess, const FScreensWatchHistoryEntry&, WatchHistoryEntry);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FMagicLeapScreensEntryRequestResultDelegate, const bool, bSuccess, const FMagicLeapScreensWatchHistoryEntry&, WatchHistoryEntry);
 
 /**
 	Delegate used to relay the result of getting the entire watch history.
@@ -94,4 +91,12 @@ DECLARE_DYNAMIC_DELEGATE_TwoParams(FScreensEntryRequestResultDelegate, const boo
 	@param[out] bSuccess True when the request is successful.
 	@param[out] WatchHistoryEntry Resulting array of watch histories returned by the operation.
 */
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FScreensHistoryRequestResultDelegate, const bool, bSuccess, const TArray<FScreensWatchHistoryEntry>&, WatchHistoryEntries);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FMagicLeapScreensHistoryRequestResultDelegate, const bool, bSuccess, const TArray<FMagicLeapScreensWatchHistoryEntry>&, WatchHistoryEntries);
+
+/**
+	Delegate used to relay the result of updating a screen's transform.
+
+	@param[out] bSuccess True when the request is successful.
+*/
+DECLARE_DYNAMIC_DELEGATE_OneParam(FMagicLeapScreenTransformRequestResultDelegate, const bool, bSuccess);
+

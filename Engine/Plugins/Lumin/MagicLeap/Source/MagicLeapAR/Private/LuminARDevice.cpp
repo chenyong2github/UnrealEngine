@@ -253,7 +253,7 @@ void FLuminARDevice::StartSession()
 
 void* FLuminARDevice::GetARSessionRawPointer()
 {
-#if PLATFORM_LUMIN
+#if WITH_MLSDK
 	check(false); // never used and unsupported
 	return nullptr;
 #endif
@@ -262,7 +262,7 @@ void* FLuminARDevice::GetARSessionRawPointer()
 
 void* FLuminARDevice::GetGameThreadARFrameRawPointer()
 {
-#if PLATFORM_LUMIN
+#if WITH_MLSDK
 	return reinterpret_cast<void*>(LuminARSession->GetLatestFrameRawPointer());
 #endif
 	return nullptr;

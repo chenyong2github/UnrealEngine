@@ -9,109 +9,124 @@
 #include "ILiveLinkClient.h"
 #include "ILiveLinkSource.h"
 
+bool GetHandTrackingData(EControllerHand Hand, const FMagicLeapHandTracking::FHandState*& HandTrackingData)
+{
+	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
+
+	if (HandTracking.IsValid() && HandTracking->IsHandTrackingStateValid())
+	{
+		switch (Hand)
+		{
+		case EControllerHand::Left:
+		{
+			HandTrackingData = &HandTracking->GetLeftHandState();
+		}
+		break;
+
+		case EControllerHand::Right:
+		{
+			HandTrackingData = &HandTracking->GetRightHandState();
+		}
+		break;
+
+		case EControllerHand::AnyHand:
+		{
+			HandTrackingData = &HandTracking->GetLeftHandState();
+			if (!HandTrackingData->IsValid() ||
+				(HandTracking->GetRightHandState().IsValid() &&
+				(HandTracking->GetRightHandState().GestureConfidence > HandTracking->GetLeftHandState().GestureConfidence)))
+			{
+				HandTrackingData = &HandTracking->GetRightHandState();
+			}
+		}
+		break;
+
+		default:
+		{
+			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Hand %d is not supported"), static_cast<int32>(Hand));
+		}
+		}
+	}
+
+	return HandTrackingData && HandTrackingData->IsValid();
+}
+
 bool UMagicLeapHandTrackingFunctionLibrary::GetHandCenter(EControllerHand Hand, FTransform& HandCenter)
 {
-	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
+	const FMagicLeapHandTracking::FHandState* HandTrackingData = nullptr;
 
-	if (HandTracking.IsValid() && HandTracking->IsHandTrackingStateValid())
+	if (GetHandTrackingData(Hand, HandTrackingData))
 	{
-		if (Hand == EControllerHand::Left || Hand == EControllerHand::Right)
-		{
-			const FMagicLeapHandTracking::FHandState& HandTrackingData = (Hand == EControllerHand::Right) ? HandTracking->GetRightHandState() : HandTracking->GetLeftHandState();
-			HandCenter = HandTrackingData.HandCenter.Transform;
-			return HandTrackingData.IsValid();
-		}
-		else
-		{
-			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Hand %d is not supported"), static_cast<int32>(Hand));
-			return false;
-		}
+		HandCenter = HandTrackingData->HandCenter.Transform;
+		return true;
 	}
 
 	return false;
 }
 
-bool UMagicLeapHandTrackingFunctionLibrary::GetHandIndexFingerTip(EControllerHand Hand, EGestureTransformSpace TransformSpace, FTransform& Pointer)
+bool UMagicLeapHandTrackingFunctionLibrary::GetHandIndexFingerTip(EControllerHand Hand, EMagicLeapGestureTransformSpace TransformSpace, FTransform& Pointer)
 {
-	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
+	const FMagicLeapHandTracking::FHandState* HandTrackingData = nullptr;
 
-	if (HandTracking.IsValid() && HandTracking->IsHandTrackingStateValid())
+	if (GetHandTrackingData(Hand, HandTrackingData))
 	{
-		if (Hand == EControllerHand::Left || Hand == EControllerHand::Right)
+		switch (TransformSpace)
 		{
-			const FMagicLeapHandTracking::FHandState& HandTrackingData = (Hand == EControllerHand::Right) ? HandTracking->GetRightHandState() : HandTracking->GetLeftHandState();
-			switch (TransformSpace)
-			{
-			case EGestureTransformSpace::Tracking:
-			{
-				Pointer = HandTrackingData.IndexFinger.Tip.Transform;
-				break;
-			}
-			case EGestureTransformSpace::World:
-			{
-				FTransform TrackingToWorldTransform = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(GWorld);
-				Pointer = HandTrackingData.IndexFinger.Tip.Transform * TrackingToWorldTransform;
-				break;
-			}
-			case EGestureTransformSpace::Hand:
-			{
-				Pointer = HandTrackingData.IndexFinger.Tip.Transform * HandTrackingData.HandCenter.Transform.Inverse();
-				break;
-			}
-			default:
-				check(false);
-				return false;
-			}
-			return HandTrackingData.IsValid();
+		case EMagicLeapGestureTransformSpace::Tracking:
+		{
+			Pointer = HandTrackingData->IndexFinger.Tip.Transform;
+			break;
 		}
-		else
+		case EMagicLeapGestureTransformSpace::World:
 		{
-			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Hand %d is not supported"), static_cast<int32>(Hand));
+			const FTransform TrackingToWorldTransform = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr);
+			Pointer = HandTrackingData->IndexFinger.Tip.Transform * TrackingToWorldTransform;
+			break;
+		}
+		case EMagicLeapGestureTransformSpace::Hand:
+		{
+			Pointer = HandTrackingData->IndexFinger.Tip.Transform * HandTrackingData->HandCenter.Transform.Inverse();
+			break;
+		}
+		default:
+			check(false);
 			return false;
 		}
+		return true;
 	}
 
 	return false;
 }
 
-bool UMagicLeapHandTrackingFunctionLibrary::GetHandThumbTip(EControllerHand Hand, EGestureTransformSpace TransformSpace, FTransform& Secondary)
+bool UMagicLeapHandTrackingFunctionLibrary::GetHandThumbTip(EControllerHand Hand, EMagicLeapGestureTransformSpace TransformSpace, FTransform& Secondary)
 {
-	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
+	const FMagicLeapHandTracking::FHandState* HandTrackingData = nullptr;
 
-	if (HandTracking.IsValid() && HandTracking->IsHandTrackingStateValid())
+	if (GetHandTrackingData(Hand, HandTrackingData))
 	{
-		if (Hand == EControllerHand::Left || Hand == EControllerHand::Right)
+		switch (TransformSpace)
 		{
-			const FMagicLeapHandTracking::FHandState& HandTrackingData = (Hand == EControllerHand::Right) ? HandTracking->GetRightHandState() : HandTracking->GetLeftHandState();
-			switch (TransformSpace)
-			{
-			case EGestureTransformSpace::Tracking:
-			{
-				Secondary = HandTrackingData.Thumb.Tip.Transform;
-				break;
-			}
-			case EGestureTransformSpace::World:
-			{
-				FTransform TrackingToWorldTransform = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(GWorld);
-				Secondary = HandTrackingData.Thumb.Tip.Transform * TrackingToWorldTransform;
-				break;
-			}
-			case EGestureTransformSpace::Hand:
-			{
-				Secondary = HandTrackingData.Thumb.Tip.Transform * HandTrackingData.HandCenter.Transform.Inverse();
-				break;
-			}
-			default:
-				check(false);
-				return false;
-			}
-			return HandTrackingData.IsValid();
+		case EMagicLeapGestureTransformSpace::Tracking:
+		{
+			Secondary = HandTrackingData->Thumb.Tip.Transform;
+			break;
 		}
-		else
+		case EMagicLeapGestureTransformSpace::World:
 		{
-			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Hand %d is not supported"), static_cast<int32>(Hand));
+			const FTransform TrackingToWorldTransform = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr);
+			Secondary = HandTrackingData->Thumb.Tip.Transform * TrackingToWorldTransform;
+			break;
+		}
+		case EMagicLeapGestureTransformSpace::Hand:
+		{
+			Secondary = HandTrackingData->Thumb.Tip.Transform * HandTrackingData->HandCenter.Transform.Inverse();
+			break;
+		}
+		default:
+			check(false);
 			return false;
 		}
+		return true;
 	}
 
 	return false;
@@ -119,31 +134,12 @@ bool UMagicLeapHandTrackingFunctionLibrary::GetHandThumbTip(EControllerHand Hand
 
 bool UMagicLeapHandTrackingFunctionLibrary::GetHandCenterNormalized(EControllerHand Hand, FVector& HandCenterNormalized)
 {
-	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
+	const FMagicLeapHandTracking::FHandState* HandTrackingData = nullptr;
 
-	if (HandTracking.IsValid() && HandTracking->IsHandTrackingStateValid())
+	if (GetHandTrackingData(Hand, HandTrackingData))
 	{
-		if (Hand == EControllerHand::Left)
-		{
-			if (HandTracking->GetLeftHandState().IsValid())
-			{
-				HandCenterNormalized = HandTracking->GetLeftHandState().HandCenterNormalized;
-			}
-			return HandTracking->GetLeftHandState().IsValid();
-		}
-		else if (Hand == EControllerHand::Right)
-		{
-			if (HandTracking->GetRightHandState().IsValid())
-			{
-				HandCenterNormalized = HandTracking->GetRightHandState().HandCenterNormalized;
-			}
-			return HandTracking->GetRightHandState().IsValid();
-		}
-		else
-		{
-			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Hand %d is not supported"), static_cast<int32>(Hand));
-			return false;
-		}
+		HandCenterNormalized = HandTrackingData->HandCenterNormalized;
+		return true;
 	}
 
 	return false;
@@ -151,30 +147,21 @@ bool UMagicLeapHandTrackingFunctionLibrary::GetHandCenterNormalized(EControllerH
 
 bool UMagicLeapHandTrackingFunctionLibrary::GetGestureKeypoints(EControllerHand Hand, TArray<FTransform>& Keypoints)
 {
-	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
+	const FMagicLeapHandTracking::FHandState* HandTrackingData = nullptr;
 
-	if (HandTracking.IsValid() && HandTracking->IsHandTrackingStateValid())
+	if (GetHandTrackingData(Hand, HandTrackingData))
 	{
-		if (Hand == EControllerHand::Left || Hand == EControllerHand::Right)
-		{
-			const FMagicLeapHandTracking::FHandState& HandState = (Hand == EControllerHand::Left) ? HandTracking->GetLeftHandState() : HandTracking->GetRightHandState();
-			Keypoints.SetNum(3);
-			Keypoints[0] = HandState.HandCenter.Transform;
-			Keypoints[1] = HandState.IndexFinger.Tip.Transform;
-			Keypoints[2] = HandState.Thumb.Tip.Transform;
-			return true;
-		}
-		else
-		{
-			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Hand %d is not supported"), static_cast<int32>(Hand));
-			return false;
-		}
+		Keypoints.SetNum(3);
+		Keypoints[0] = HandTrackingData->HandCenter.Transform;
+		Keypoints[1] = HandTrackingData->IndexFinger.Tip.Transform;
+		Keypoints[2] = HandTrackingData->Thumb.Tip.Transform;
+		return true;
 	}
 
 	return false;
 }
 
-bool UMagicLeapHandTrackingFunctionLibrary::GetGestureKeypointTransform(EControllerHand Hand, EHandTrackingKeypoint Keypoint, EGestureTransformSpace TransformSpace, FTransform& OutTransform)
+bool UMagicLeapHandTrackingFunctionLibrary::GetGestureKeypointTransform(EControllerHand Hand, EMagicLeapHandTrackingKeypoint Keypoint, EMagicLeapGestureTransformSpace TransformSpace, FTransform& OutTransform)
 {
 	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
 
@@ -187,21 +174,21 @@ bool UMagicLeapHandTrackingFunctionLibrary::GetGestureKeypointTransform(EControl
 		{
 			switch (TransformSpace)
 			{
-			case EGestureTransformSpace::Tracking:
+			case EMagicLeapGestureTransformSpace::Tracking:
 			{
 				OutTransform = KeyPointTransform;
 				return true;
 			}
-			case EGestureTransformSpace::World:
+			case EMagicLeapGestureTransformSpace::World:
 			{
-				FTransform TrackingToWorldTransform = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(GWorld);
+				const FTransform TrackingToWorldTransform = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr);
 				OutTransform = KeyPointTransform * TrackingToWorldTransform;
 				return true;
 			}
-			case EGestureTransformSpace::Hand:
+			case EMagicLeapGestureTransformSpace::Hand:
 			{
 				FTransform HandTransform;
-				const bool bSuccess2 = HandTracking->GetKeypointTransform(Hand, EHandTrackingKeypoint::Hand_Center, HandTransform);
+				const bool bSuccess2 = HandTracking->GetKeypointTransform(Hand, EMagicLeapHandTrackingKeypoint::Hand_Center, HandTransform);
 				if (bSuccess2)
 				{
 					OutTransform = KeyPointTransform * HandTransform.Inverse();
@@ -219,19 +206,19 @@ bool UMagicLeapHandTrackingFunctionLibrary::GetGestureKeypointTransform(EControl
 	return false;
 }
 
-bool UMagicLeapHandTrackingFunctionLibrary::SetConfiguration(const TArray<EHandTrackingGesture>& StaticGesturesToActivate, EHandTrackingKeypointFilterLevel KeypointsFilterLevel, EHandTrackingGestureFilterLevel GestureFilterLevel, EHandTrackingGestureFilterLevel HandSwitchingFilterLevel, bool bEnabled)
+bool UMagicLeapHandTrackingFunctionLibrary::SetConfiguration(const TArray<EMagicLeapHandTrackingGesture>& StaticGesturesToActivate, EMagicLeapHandTrackingKeypointFilterLevel KeypointsFilterLevel, EMagicLeapHandTrackingGestureFilterLevel GestureFilterLevel, bool bEnabled)
 {
 	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
 	return HandTracking.IsValid() && HandTracking->SetConfiguration(bEnabled, StaticGesturesToActivate, KeypointsFilterLevel, GestureFilterLevel);
 }
 
-bool UMagicLeapHandTrackingFunctionLibrary::GetConfiguration(TArray<EHandTrackingGesture>& ActiveStaticGestures, EHandTrackingKeypointFilterLevel& KeypointsFilterLevel, EHandTrackingGestureFilterLevel& GestureFilterLevel, EHandTrackingGestureFilterLevel& HandSwitchingFilterLevel, bool& bEnabled)
+bool UMagicLeapHandTrackingFunctionLibrary::GetConfiguration(TArray<EMagicLeapHandTrackingGesture>& ActiveStaticGestures, EMagicLeapHandTrackingKeypointFilterLevel& KeypointsFilterLevel, EMagicLeapHandTrackingGestureFilterLevel& GestureFilterLevel, bool& bEnabled)
 {
 	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
 	return HandTracking.IsValid() && HandTracking->GetConfiguration(bEnabled, ActiveStaticGestures, KeypointsFilterLevel, GestureFilterLevel);
 }
 
-void UMagicLeapHandTrackingFunctionLibrary::SetStaticGestureConfidenceThreshold(EHandTrackingGesture Gesture, float Confidence)
+void UMagicLeapHandTrackingFunctionLibrary::SetStaticGestureConfidenceThreshold(EMagicLeapHandTrackingGesture Gesture, float Confidence)
 {
 	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
 	if (HandTracking.IsValid())
@@ -240,7 +227,7 @@ void UMagicLeapHandTrackingFunctionLibrary::SetStaticGestureConfidenceThreshold(
 	}
 }
 
-float UMagicLeapHandTrackingFunctionLibrary::GetStaticGestureConfidenceThreshold(EHandTrackingGesture Gesture)
+float UMagicLeapHandTrackingFunctionLibrary::GetStaticGestureConfidenceThreshold(EMagicLeapHandTrackingGesture Gesture)
 {
 	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
 	return (HandTracking.IsValid()) ? HandTracking->GetGestureConfidenceThreshold(Gesture) : 0.0f;
@@ -248,55 +235,28 @@ float UMagicLeapHandTrackingFunctionLibrary::GetStaticGestureConfidenceThreshold
 
 bool UMagicLeapHandTrackingFunctionLibrary::GetCurrentGestureConfidence(EControllerHand Hand, float& Confidence)
 {
-	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
+	const FMagicLeapHandTracking::FHandState* HandTrackingData = nullptr;
 
-	if (HandTracking.IsValid() && HandTracking->IsHandTrackingStateValid())
+	if (GetHandTrackingData(Hand, HandTrackingData))
 	{
-		if (Hand == EControllerHand::Left)
-		{
-			Confidence = HandTracking->GetLeftHandState().GestureConfidence;
-			return true;
-		}
-		else if (Hand == EControllerHand::Right)
-		{
-			Confidence = HandTracking->GetRightHandState().GestureConfidence;
-			return true;
-		}
-		else
-		{
-			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Hand %d is not supported"), static_cast<int32>(Hand));
-			return false;
-		}
+		Confidence = HandTrackingData->GestureConfidence;
+		return true;
 	}
 
 	return false;
 }
 
-bool UMagicLeapHandTrackingFunctionLibrary::GetCurrentGesture(EControllerHand Hand, EHandTrackingGesture& Gesture)
+bool UMagicLeapHandTrackingFunctionLibrary::GetCurrentGesture(EControllerHand Hand, EMagicLeapHandTrackingGesture& Gesture)
 {
-	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
+	const FMagicLeapHandTracking::FHandState* HandTrackingData = nullptr;
 
-	if (HandTracking.IsValid() && HandTracking->IsHandTrackingStateValid())
+	if (GetHandTrackingData(Hand, HandTrackingData))
 	{
-		if (Hand == EControllerHand::Left)
-		{
-			Gesture = HandTracking->GetLeftHandState().Gesture;
-			return true;
-		}
-		else if (Hand == EControllerHand::Right)
-		{
-			Gesture = HandTracking->GetRightHandState().Gesture;
-			return true;
-		}
-		else
-		{
-			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Hand %d is not supported"), static_cast<int32>(Hand));
-			Gesture = EHandTrackingGesture::NoHand;
-			return false;
-		}
+		Gesture = HandTrackingData->Gesture;
+		return true;
 	}
 
-	Gesture = EHandTrackingGesture::NoHand;
+	Gesture = EMagicLeapHandTrackingGesture::NoHand;
 	return false;
 }
 

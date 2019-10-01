@@ -3,9 +3,8 @@
 
 #include "CoreMinimal.h"
 
-#if WITH_MLSDK
-#include <ml_api.h>
-#endif //WITH_MLSDK
+#include "Lumin/CAPIShims/LuminAPI.h"
+#include "MagicLeapHandle.h"
 
 #include "ARTypes.h"
 #include "ARTrackable.h"
@@ -17,8 +16,6 @@
 
 /// @defgroup LuminARBase
 /// The base module for LuminAR plugin
-
-#if PLATFORM_LUMIN
 
 typedef enum
 {
@@ -38,26 +35,39 @@ struct ArPose
 struct LuminArTrackable
 {
 	LuminArTrackable(ArPose InPose)
-		: Handle(ML_INVALID_HANDLE)
+#if WITH_MLSDK
+		: Handle(MagicLeap::MLHandleToFGuid(ML_INVALID_HANDLE))
+#endif // WITH_MLSDK
 	{
 	}
 
-	MLHandle Handle;
+	// Use FGuid since a LuminArTrackable can either be an MLHandle or an MLCFUID (currently only for PCFs)
+	FGuid Handle;
 };
 
 struct LuminArAnchor : public LuminArTrackable
 {
-	LuminArAnchor(ArPose InPose, MLHandle InParentTrackable)
+	LuminArAnchor(ArPose InPose)
+		: LuminArTrackable(InPose)
+#if WITH_MLSDK
+		, ParentTrackable(MagicLeap::MLHandleToFGuid(ML_INVALID_HANDLE))
+#endif // WITH_MLSDK
+	{}
+
+	LuminArAnchor(ArPose InPose, const FGuid& InParentTrackable)
 		: LuminArTrackable(InPose)
 		, ParentTrackable(InParentTrackable)
 	{}
 
 	void Detach()
 	{
-		ParentTrackable = ML_INVALID_HANDLE;
+#if WITH_MLSDK
+		ParentTrackable = MagicLeap::MLHandleToFGuid(ML_INVALID_HANDLE);
+#endif // WITH_MLSDK
 	}
 
-	MLHandle ParentTrackable;
+	// Use FGuid since a LuminArTrackable can either be an MLHandle or an MLCFUID (currently only for PCFs)
+	FGuid ParentTrackable;
 };
 
 typedef struct MLPlane ArPlane;
@@ -67,8 +77,6 @@ typedef struct MLPlane ArPoint;
 struct ArImage
 {
 };
-
-#endif
 
 UENUM(BlueprintType)
 enum class ELuminARAvailability : uint8

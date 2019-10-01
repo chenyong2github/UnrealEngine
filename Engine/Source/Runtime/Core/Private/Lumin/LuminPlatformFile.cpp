@@ -10,8 +10,13 @@
 #include "Misc/Paths.h"
 #include <sys/stat.h>   // mkdirp()
 #include <dirent.h>
+#include "Lumin/CAPIShims/LuminAPISharedFile.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLuminPlatformFile, Log, All);
+
+FLuminFileInfo::FLuminFileInfo()
+: FileHandle(nullptr)
+{}
 
 // make an FTimeSpan object that represents the "epoch" for time_t (from a stat struct)
 const FDateTime UnixEpoch(1970, 1, 1);
@@ -46,6 +51,7 @@ namespace
 * files which are opened READ_ONLY.
 */
 // @todo lumin - Consider if we need managed handles or not.
+// TODO - handle shared files properly when using managed file handles.
 #define MANAGE_FILE_HANDLES 0
 
 /**
@@ -69,6 +75,9 @@ public:
 		, FileOffset(0)
 		, FileSize(0)
 #endif // MANAGE_FILE_HANDLES
+		, SharedFileList(nullptr)
+		, Fileinfo(nullptr)
+		, bReleaseFileInfo(false)
 	{
 		check(FileHandle > -1);
 #if MANAGE_FILE_HANDLES
@@ -88,6 +97,26 @@ public:
 #endif // MANAGE_FILE_HANDLES
 	}
 
+	FFileHandleLumin(int32 InFileHandle, MLSharedFileList* InSharedFileList)
+		: FileHandle(InFileHandle)
+		, SharedFileList(InSharedFileList)
+		, Fileinfo(nullptr)
+		, bReleaseFileInfo(false)
+	{
+		check(FileHandle > -1);
+		check(SharedFileList != nullptr)
+	}
+
+	FFileHandleLumin(int32 InFileHandle, const MLFileInfo* InFileInfo)
+		: FileHandle(InFileHandle)
+		, SharedFileList(nullptr)
+		, Fileinfo(InFileInfo)
+		, bReleaseFileInfo(false)
+	{
+		check(FileHandle > -1);
+		check(Fileinfo != nullptr)
+	}
+
 	virtual ~FFileHandleLumin()
 	{
 #if MANAGE_FILE_HANDLES
@@ -102,9 +131,28 @@ public:
 		else
 #endif // MANAGE_FILE_HANDLES
 		{
-			close(FileHandle);
+			if (SharedFileList != nullptr)
+			{
+				MLResult Result = MLSharedFileListRelease(&SharedFileList);
+				UE_CLOG(MLResult_Ok != Result, LogLuminPlatformFile, Error, TEXT("Error %s releasing shared file list for fd %d"), UTF8_TO_TCHAR(MLSharedFileGetResultString(Result)), FileHandle);
+			}
+			// Close if it's a normal unreal file. MLFileInfo fds are closed via MLLifecycleFreeInitArgList()
+			else if (Fileinfo == nullptr)
+			{
+				close(FileHandle);
+			}
 		}
+
 		FileHandle = -1;
+		SharedFileList = nullptr;
+		Fileinfo = nullptr;
+	}
+
+	bool SetMLFileInfoFD(MLFileInfo* InFileInfo) const
+	{
+		MLResult Result = MLFileInfoSetFD(InFileInfo, FileHandle);
+		UE_CLOG(MLResult_Ok != Result, LogLuminPlatformFile, Error, TEXT("Error setting MLFileInfo FD : %s"), UTF8_TO_TCHAR(MLGetResultString(Result)));
+		return MLResult_Ok == Result;
 	}
 
 	virtual int64 Tell() override
@@ -348,6 +396,10 @@ private:
 	static __thread FFileHandleLumin* ActiveHandles[ACTIVE_HANDLE_COUNT];
 	static __thread double AccessTimes[ACTIVE_HANDLE_COUNT];
 #endif // MANAGE_FILE_HANDLES
+
+	MLSharedFileList* SharedFileList;
+	const MLFileInfo* Fileinfo;
+	bool bReleaseFileInfo;
 };
 
 #if MANAGE_FILE_HANDLES
@@ -1097,14 +1149,12 @@ FString FLuminPlatformFile::ConvertToLuminPath(const FString& Filename, bool bFo
 	// Remove the writable path if present, we will prepend it the correct base path as needed.
 	Result.ReplaceInline(*FLuminPlatformMisc::GetApplicationWritableDirectoryPath(), TEXT(""));
 
+	FString lhs;
+
 	// If the file is for writing, then add it to the app writable directory path.
 	if (bForWrite)
 	{
-		FString lhs = FLuminPlatformMisc::GetApplicationWritableDirectoryPath();
-		FString rhs = Result;
-		lhs.RemoveFromEnd(TEXT("/"));
-		rhs.RemoveFromStart(TEXT("/"));
-		Result = lhs / rhs;
+		lhs = FLuminPlatformMisc::GetApplicationWritableDirectoryPath();
 	}
 	else
 	{
@@ -1112,35 +1162,19 @@ FString FLuminPlatformFile::ConvertToLuminPath(const FString& Filename, bool bFo
 		FString Value;
 		// Cache this value as the command line doesn't change.
 		static bool bHasHostIP = FParse::Value(FCommandLine::Get(), TEXT("filehostip"), Value) || FParse::Value(FCommandLine::Get(), TEXT("streaminghostip"), Value);
-		// @todo Lumin support iterative deployment!! See LuminPlatform.Automation.cs
 		static bool bIsIterative = FParse::Value(FCommandLine::Get(), TEXT("iterative"), Value);
 
 		if (bHasHostIP)
 		{
-			FString lhs = FLuminPlatformMisc::GetApplicationWritableDirectoryPath();
-			FString rhs = Result;
-			lhs.RemoveFromEnd(TEXT("/"));
-			rhs.RemoveFromStart(TEXT("/"));
-			Result = lhs / rhs;
+			lhs = FLuminPlatformMisc::GetApplicationWritableDirectoryPath();
 		}
 		else if (bIsIterative)
 		{
-			FString lhs = FLuminPlatformMisc::GetApplicationWritableDirectoryPath();
-			FString rhs = Result;
-			lhs.RemoveFromEnd(TEXT("/"));
-			rhs.RemoveFromStart(TEXT("/"));
-			Result = lhs / rhs;
+			lhs = FLuminPlatformMisc::GetApplicationWritableDirectoryPath();
 		}
 		else
 		{
-//			Result = Filename;
-			// @todo Lumin: Don't know why the Lumin code didn't have this
-			FString lhs = FLuminPlatformMisc::GetApplicationPackageDirectoryPath();
-			FString rhs = Result;
-			lhs.RemoveFromEnd(TEXT("/"));
-			rhs.RemoveFromStart(TEXT("/"));
-			Result = lhs / rhs;
-
+			lhs = FLuminPlatformMisc::GetApplicationPackageDirectoryPath();
 		}
 	}
 
@@ -1148,8 +1182,84 @@ FString FLuminPlatformFile::ConvertToLuminPath(const FString& Filename, bool bFo
 	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("LOG_LUMIN_PATH Write = %d Input = %s Output = %s"), bForWrite, *Filename, *Result.ToLower());
 #endif
 
-	// always use lower case ... always
-	return Result.ToLower();
+	// Lower only unreal path.
+	FString rhs = Result.ToLower();
+	rhs.RemoveFromStart(TEXT("/"));
+	lhs.RemoveFromEnd(TEXT("/"));
+
+	Result = lhs / rhs;
+
+	return Result;
+}
+
+
+IFileHandle* GetHandleForSharedFile(const TCHAR* Filename, bool bForWrite)
+{
+	const char* Filename_UTF8 = TCHAR_TO_UTF8(Filename);
+	MLSharedFileList* SharedFileList = nullptr;
+	MLResult Result;
+	if (bForWrite)
+	{
+		Result = MLSharedFileWrite(&Filename_UTF8, 1, &SharedFileList);
+	}
+	else
+	{
+		Result = MLSharedFileRead(&Filename_UTF8, 1, &SharedFileList);
+	}
+
+	if (Result == MLResult_Ok && SharedFileList != nullptr)
+	{
+		MLHandle ListLength = 0;
+		Result = MLSharedFileGetListLength(SharedFileList, &ListLength);
+		if (Result == MLResult_Ok && ListLength > 0)
+		{
+			MLFileInfo* FileInfo = nullptr;
+			Result = MLSharedFileGetMLFileInfoByIndex(SharedFileList, 0, &FileInfo);
+			if (Result == MLResult_Ok && FileInfo != nullptr)
+			{
+				MLFileDescriptor FileHandle = -1;
+				Result = MLFileInfoGetFD(FileInfo, &FileHandle);
+				if (Result == MLResult_Ok && FileHandle > -1)
+				{
+					return new FFileHandleLumin(FileHandle, SharedFileList);
+				}
+			}
+		}
+	}
+
+	UE_LOG(LogLuminPlatformFile, Error, TEXT("Error %s opening shared file %s for read."), UTF8_TO_TCHAR(MLSharedFileGetResultString(Result)), Filename);
+	return nullptr;
+}
+
+IFileHandle* FLuminPlatformFile::SharedFileOpenRead(const TCHAR* Filename)
+{
+	return GetHandleForSharedFile(Filename, false);
+}
+
+IFileHandle* FLuminPlatformFile::SharedFileOpenWrite(const TCHAR* Filename)
+{
+	return GetHandleForSharedFile(Filename, true);
+}
+
+IFileHandle* FLuminPlatformFile::GetFileHandleForMLFileInfo(const void* InFileInfo)
+{
+	const MLFileInfo* Fileinfo = static_cast<const MLFileInfo*>(InFileInfo);
+	MLFileDescriptor FileHandle = -1;
+	MLResult Result = MLFileInfoGetFD(Fileinfo, &FileHandle);
+	if (Result == MLResult_Ok && FileHandle > -1)
+	{
+		return new FFileHandleLumin(FileHandle, Fileinfo);
+	}
+
+	return nullptr;
+}
+
+bool FLuminPlatformFile::SetMLFileInfoFD(const IFileHandle* FileHandle, void* InFileInfo)
+{
+	check(FileHandle);
+	check(InFileInfo);
+	const FFileHandleLumin* LuminFileHandle = static_cast<const FFileHandleLumin*>(FileHandle);
+	return LuminFileHandle->SetMLFileInfoFD(static_cast<MLFileInfo*>(InFileInfo));
 }
 
 bool FLuminPlatformFile::FileExistsInternal(const FString& NormalizedFilename) const

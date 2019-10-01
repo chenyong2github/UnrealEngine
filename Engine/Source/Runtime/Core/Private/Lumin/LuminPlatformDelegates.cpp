@@ -1,0 +1,7 @@
+#include "Lumin/LuminPlatformDelegates.h"
+
+FLuminDelegates::FLuminAppStartupArgumentsDelegate FLuminDelegates::LuminAppReceivedStartupArgumentsDelegate;
+
+FLuminDelegates::FLuminApplicationLifetimeDelegate FLuminDelegates::DeviceHasReactivatedDelegate;
+FLuminDelegates::FLuminApplicationLifetimeDelegate FLuminDelegates::DeviceWillEnterRealityModeDelegate;
+FLuminDelegates::FLuminApplicationLifetimeDelegate FLuminDelegates::DeviceWillGoInStandbyDelegate;

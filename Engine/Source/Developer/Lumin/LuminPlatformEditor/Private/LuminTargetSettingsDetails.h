@@ -39,7 +39,8 @@ private:
 	FUNC_DECLARE_DELEGATE(FOnChoosePath, FReply, TAttribute<FString>, const FOnPickPath&, TSharedPtr<SButton>);
 	void BuildPathPicker(IDetailLayoutBuilder& DetailBuilder, IDetailCategoryBuilder& Category,
 		TAttribute<FString> DirPath, const FText& Label, const FText& Tooltip,
-		const FOnChoosePath& OnChoose, const FOnPickPath& OnPick);
+		const FOnChoosePath& OnChoose, const FOnPickPath& OnPick, bool bClearButton, const FText& ClearTooltip,
+		bool bDisableUntilConfigured);
 	FReply OnPickDirectory(TAttribute<FString> DirPath,
 		const FOnPickPath& OnPick, TSharedPtr<SButton> PickButton);
 	FReply OnPickFile(TAttribute<FString> FilePath,

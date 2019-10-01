@@ -24,7 +24,7 @@ public:
 	@return True if the command to play the LED pattern was successfully sent to the controller, false otherwise.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "MotionController|MagicLeap")
-		static bool PlayLEDPattern(FName MotionSource, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec);
+	static bool PlayLEDPattern(FName MotionSource, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec);
 
 	/**
 	Starts a LED feedback effect using the specified pattern on the specified controller.
@@ -37,7 +37,7 @@ public:
 	@return True if the command to play the LED effect was successfully sent to the controller, false otherwise.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "MotionController|MagicLeap")
-		static bool PlayLEDEffect(FName MotionSource, EMLControllerLEDEffect LEDEffect, EMLControllerLEDSpeed LEDSpeed, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec);
+	static bool PlayLEDEffect(FName MotionSource, EMagicLeapControllerLEDEffect LEDEffect, EMagicLeapControllerLEDSpeed LEDSpeed, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec);
 
 	/**
 	Play haptic feedback on the controller.
@@ -47,7 +47,7 @@ public:
 	@return True if the command to play the haptic feedback was successfully sent to the controller, false otherwise.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "MotionController|MagicLeap")
-		static bool PlayHapticPattern(FName MotionSource, EMLControllerHapticPattern HapticPattern, EMLControllerHapticIntensity Intensity);
+	static bool PlayHapticPattern(FName MotionSource, EMagicLeapControllerHapticPattern HapticPattern, EMagicLeapControllerHapticIntensity Intensity);
 
 	/**
 	Set controller tracking mode.
@@ -55,35 +55,35 @@ public:
 	@return True if the command to set the tracking mode was successfully sent to the controller, false otherwise.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "MotionController|MagicLeap")
-		static bool SetControllerTrackingMode(EMLControllerTrackingMode TrackingMode);
+	static bool SetControllerTrackingMode(EMagicLeapControllerTrackingMode TrackingMode);
 
 	/**
 	Get controller tracking mode.
 	@return Controller tracking mode.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "MotionController|MagicLeap")
-		static EMLControllerTrackingMode GetControllerTrackingMode();
+	static EMagicLeapControllerTrackingMode GetControllerTrackingMode();
 
 	/**
 	Get motion source for hand.
 	@return Motion source to which hand is mapped.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "MotionController|MagicLeap")
-		static FName GetMotionSourceForHand(EControllerHand Hand);
+	static FName GetMotionSourceForHand(EControllerHand Hand);
 
 	/**
 	Get motion source for hand.
 	@return Hand to which motion source is mapped, ControllerHand_Count if not mapped.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "MotionController|MagicLeap")
-		static EControllerHand GetHandForMotionSource(FName MotionSource);
+	static EControllerHand GetHandForMotionSource(FName MotionSource);
 
 	/**
 	Set motion source for hand.
 	@return True if successful, false otherwise.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "MotionController|MagicLeap")
-		static bool SetMotionSourceForHand(EControllerHand Hand, FName MotionSource);
+	static bool SetMotionSourceForHand(EControllerHand Hand, FName MotionSource);
 
 	/**
 	Type of ML device bound to the specified motion source
@@ -91,7 +91,15 @@ public:
 	@return Type of ML device which maps to given Unreal controller hand.
 	*/
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MotionController|MagicLeap")
-		static EMLControllerType GetControllerType(FName MotionSource);
+	static EMagicLeapControllerType GetControllerType(FName MotionSource);
+
+	/**
+	Checks if the ML controller (MagicLeapControl0, MagicLeapControl1, MagicLeapMobileApp) of the given motion source is currently connected.
+	@param MotionSource Motion source to query.
+	@return true if the ML controller of the given motion source is connected, false otherwise. Will return false if the motion source is not of an ML controller.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MotionController|MagicLeap")
+	static bool IsMLControllerConnected(FName MotionSource);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	// DEPRECATED FUNCTIONS
@@ -113,7 +121,7 @@ public:
 	  @param Hand Output parameter which is the hand the given index maps to. Valid only if the function returns true.
 	  @return true of the controller index maps to a valid hand, false otherwise
 	*/
-	UFUNCTION(BlueprintCallable, Category = "MotionController|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "Use GetHandForMotionSource instead"))
+	UFUNCTION(BlueprintCallable, Category = "MotionController|MagicLeap")
 	static bool GetControllerMapping(int32 ControllerIndex, EControllerHand& Hand);
 
 	/**
@@ -121,8 +129,8 @@ public:
 	@param Hand Controller hand to query.
 	@return Type of ML device which maps to given Unreal controller hand.
 	*/
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MotionController|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "Use GetMotionSourceForHand instead"))
-		static EMLControllerType GetMLControllerType(EControllerHand Hand);
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MotionController|MagicLeap")
+	static EMagicLeapControllerType GetMLControllerType(EControllerHand Hand);
 
 	/**
 	  Inverts the controller mapping i.e. keys mapped to left hand controller will now be treated as right hand and vice-versa.
@@ -140,7 +148,7 @@ public:
 	  @return True if the command to play the LED pattern was successfully sent to the controller, false otherwise.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "MotionController|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "Use PlayLEDPattern instead"))
-	static bool PlayControllerLED(EControllerHand Hand, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec);
+	static bool PlayControllerLED(EControllerHand Hand, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec);
 
 	/**
 	  Starts a LED feedback effect using the specified pattern on the specified controller.
@@ -153,7 +161,7 @@ public:
 	  @return True if the command to play the LED effect was successfully sent to the controller, false otherwise.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "MotionController|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "Use PlayLEDEffect instead"))
-	static bool PlayControllerLEDEffect(EControllerHand Hand, EMLControllerLEDEffect LEDEffect, EMLControllerLEDSpeed LEDSpeed, EMLControllerLEDPattern LEDPattern, EMLControllerLEDColor LEDColor, float DurationInSec);
+	static bool PlayControllerLEDEffect(EControllerHand Hand, EMagicLeapControllerLEDEffect LEDEffect, EMagicLeapControllerLEDSpeed LEDSpeed, EMagicLeapControllerLEDPattern LEDPattern, EMagicLeapControllerLEDColor LEDColor, float DurationInSec);
 
 	/**
 	  Play haptic feedback on the controller.
@@ -163,5 +171,5 @@ public:
 	  @return True if the command to play the haptic feedback was successfully sent to the controller, false otherwise.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "MotionController|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "Use PlayHapticPattern instead"))
-	static bool PlayControllerHapticFeedback(EControllerHand Hand, EMLControllerHapticPattern HapticPattern, EMLControllerHapticIntensity Intensity);
+	static bool PlayControllerHapticFeedback(EControllerHand Hand, EMagicLeapControllerHapticPattern HapticPattern, EMagicLeapControllerHapticIntensity Intensity);
 };

@@ -454,7 +454,7 @@ public:
 };
 
 /** Texture/RT wrapper. */
-class FMetalSurface
+class METALRHI_API FMetalSurface
 {
 public:
 

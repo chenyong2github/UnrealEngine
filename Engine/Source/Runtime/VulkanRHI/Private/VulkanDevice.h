@@ -315,7 +315,7 @@ public:
 
 	void* GetCrashMarkerMappedPointer() const
 	{
-		return CrashMarker.Allocation->GetMappedPointer();
+		return (CrashMarker.Allocation != nullptr) ? CrashMarker.Allocation->GetMappedPointer() : nullptr;
 	}
 #endif
 

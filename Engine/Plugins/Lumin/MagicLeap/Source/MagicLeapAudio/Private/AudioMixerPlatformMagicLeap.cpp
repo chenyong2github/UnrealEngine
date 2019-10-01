@@ -9,7 +9,11 @@
 #include "Misc/CoreDelegates.h"
 #include "VorbisAudioInfo.h"
 #include "ADPCMAudioInfo.h"
-
+#include "MagicLeapAudioModule.h"
+#include "Lumin/CAPIShims/LuminAPILogging.h"
+#if PLATFORM_LUMIN
+#include "Lumin/LuminPlatformDelegates.h"
+#endif // PLATFORM_LUMIN
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAudioMixerMagicLeap, Log, All);
 DEFINE_LOG_CATEGORY(LogAudioMixerMagicLeap);
@@ -34,7 +38,7 @@ DEFINE_LOG_CATEGORY(LogAudioMixerMagicLeap);
 #define MLAUDIO_LOG_FAILURE(Result)							\
 	{														\
 		const TCHAR* ErrorString = FMixerPlatformMagicLeap::GetErrorString(Result);	\
-		UE_LOG(LogAudioMixerMagicLeap, Error, TEXT("Error in %s, line %s: %s"), __FILE__, __LINE__,ErrorString); \
+		UE_LOG(LogAudioMixerMagicLeap, Error, TEXT("Error in %s, line %d: %s"), __FILE__, __LINE__, ErrorString); \
 	}
 
 namespace Audio
@@ -45,11 +49,11 @@ namespace Audio
 	const uint32 DefaultSamplesPerSecond = 48000;  // presumed 48KHz and 16 bits for the sample
 	// TODO: @Epic check the value to be used. Setting default for now.
 	const float DefaultMaxPitch = 1.0f;
+	static bool bRetrievedDeviceDefaults = false;
 
 #if WITH_MLSDK
 	static void GetMLDeviceDefaults(MLAudioBufferFormat& OutFormat, uint32& OutSize, uint32& OutMinSize)
 	{
-		static bool bRetrievedDeviceDefaults = false;
 		static uint32 CachedSize = 0;
 		static uint32 CachedMinSize = 0;
 		static MLAudioBufferFormat CachedBufferFormat;
@@ -64,7 +68,7 @@ namespace Audio
 			else
 			{
 				bRetrievedDeviceDefaults = false;
-				UE_LOG(LogAudioMixerMagicLeap, Error, TEXT("MLAudioGetOutputStreamDefaults failed with error %d."), Result);
+				UE_LOG(LogAudioMixerMagicLeap, Error, TEXT("MLAudioGetOutputStreamDefaults failed with error %s."), UTF8_TO_TCHAR(MLAudioGetResultString(Result)));
 			}
 		}
 
@@ -79,10 +83,15 @@ namespace Audio
 		, bSuspended(false)
 		, bInitialized(false)
 		, bInCallback(false)
+		, FakeCallback(this)
 #if WITH_MLSDK
 		, StreamHandle(ML_INVALID_HANDLE)
 #endif //WITH_MLSDK
 	{
+#if WITH_MLSDK && PLATFORM_MAC
+		// Force load ml_ext_logging before any ml_audio function is called because of REM-3398
+		MLLoggingLogLevelIsEnabled(MLLogLevel_Error);
+#endif
 	}
 
 	FMixerPlatformMagicLeap::~FMixerPlatformMagicLeap()
@@ -128,6 +137,12 @@ namespace Audio
 		FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FMixerPlatformMagicLeap::SuspendContext);
 		FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FMixerPlatformMagicLeap::ResumeContext);
 
+#if PLATFORM_LUMIN		
+		FLuminDelegates::DeviceWillEnterRealityModeDelegate.AddRaw(this, &FMixerPlatformMagicLeap::DeviceStandby);
+		FLuminDelegates::DeviceWillGoInStandbyDelegate.AddRaw(this, &FMixerPlatformMagicLeap::DeviceStandby);
+		FLuminDelegates::DeviceHasReactivatedDelegate.AddRaw(this, &FMixerPlatformMagicLeap::DeviceActive);
+#endif // PLATFORM_LUMIN
+
 		bInitialized = true;
 
 		return true;
@@ -143,6 +158,12 @@ namespace Audio
 		// Unregister application lifecycle delegates
 		FCoreDelegates::ApplicationWillEnterBackgroundDelegate.RemoveAll(this);
 		FCoreDelegates::ApplicationHasEnteredForegroundDelegate.RemoveAll(this);
+
+#if PLATFORM_LUMIN
+		FLuminDelegates::DeviceWillEnterRealityModeDelegate.RemoveAll(this);
+		FLuminDelegates::DeviceWillGoInStandbyDelegate.RemoveAll(this);
+		FLuminDelegates::DeviceHasReactivatedDelegate.RemoveAll(this);
+#endif // PLATFORM_LUMIN
 
 		bInitialized = false;
 		return true;
@@ -169,6 +190,7 @@ namespace Audio
 
 		GetMLDeviceDefaults(DesiredBufferFormat, OutSize, OutMinimalSize);
 
+		check(bRetrievedDeviceDefaults == true);
 		OutInfo.Name = TEXT("Magic Leap Audio Device");
 		OutInfo.DeviceId = 0;
 		OutInfo.bIsSystemDefault = true;
@@ -222,6 +244,7 @@ namespace Audio
 		uint32 OutMinimalSize;
 
 		GetMLDeviceDefaults(DesiredBufferFormat, OutSize, OutMinimalSize);
+		check(bRetrievedDeviceDefaults == true);
 
 		OpenStreamParams = Params;
 
@@ -256,23 +279,26 @@ namespace Audio
 	bool FMixerPlatformMagicLeap::CloseAudioStream()
 	{
 #if WITH_MLSDK
-		check(MLHandleIsValid(StreamHandle));
-
-		if (!bInitialized || (AudioStreamInfo.StreamState != EAudioOutputStreamState::Open && AudioStreamInfo.StreamState != EAudioOutputStreamState::Stopped))
 		{
-			return false;
+			FScopeLock Lock(&StreamHandleCriticalSection);
+			check(MLHandleIsValid(StreamHandle));
+
+			if (!bInitialized || (AudioStreamInfo.StreamState != EAudioOutputStreamState::Open && AudioStreamInfo.StreamState != EAudioOutputStreamState::Stopped))
+			{
+				return false;
+			}
+
+			MLResult Result = MLAudioDestroySound(StreamHandle);
+
+			if (Result != MLResult_Ok)
+			{
+				MLAUDIO_LOG_FAILURE(Result);
+				return false;
+			}
+
+			AudioStreamInfo.StreamState = EAudioOutputStreamState::Closed;
+			StreamHandle = ML_INVALID_HANDLE;
 		}
-
-		MLResult Result = MLAudioDestroySound(StreamHandle);
-
-		if (Result != MLResult_Ok)
-		{
-			MLAUDIO_LOG_FAILURE(Result);
-			return false;
-		}
-
-		AudioStreamInfo.StreamState = EAudioOutputStreamState::Closed;
-		StreamHandle = ML_INVALID_HANDLE;
 #endif //WITH_MLSDK
 
 		return true;
@@ -360,6 +386,7 @@ namespace Audio
 
 		GetMLDeviceDefaults(DesiredBufferFormat, OutSize, OutMinimalSize);
 
+		check(bRetrievedDeviceDefaults == true);
 		FAudioPlatformSettings PlatformSettings;
 		PlatformSettings.CallbackBufferFrameSize = OutSize / (DefaultNumChannels * (DesiredBufferFormat.bits_per_sample / 8));
 		PlatformSettings.MaxChannels = 0;
@@ -440,6 +467,11 @@ namespace Audio
 #endif //WITH_MLSDK
 	}
 
+	void FMixerPlatformMagicLeap::OnHardwareUpdate()
+	{
+		GetMagicLeapAudioModule().CheckOutputDevice();
+	}
+
 	int32 FMixerPlatformMagicLeap::GetNumFrames(const int32 InNumReqestedFrames)
 	{
 #if WITH_MLSDK
@@ -448,6 +480,7 @@ namespace Audio
 		uint32 OutMinimalSize;
 
 		GetMLDeviceDefaults(DesiredBufferFormat, OutSize, OutMinimalSize);
+		check(bRetrievedDeviceDefaults == true);
 		return OutSize / (DefaultNumChannels * (DesiredBufferFormat.bits_per_sample / 8));
 #else
 		return 0;
@@ -474,48 +507,75 @@ namespace Audio
 #endif //WITH_MLSDK
 	}
 
+	void FMixerPlatformMagicLeap::DeviceStandby()
+	{
+		// When the device goes in standby mode, the MLAudioCallback function is not called.
+		// As a result the audio buffers from the engine queue up and they play back once the device becomes active again.
+		// This desyncs gameplay with audio and breaks the UX spec for standby mode. When in standby, the app should function normally
+		// from a gameplay standpoint. It should not "pause". This spec is to ensure that when the device is active again, the "resume" time is very minimal.
+		// Using this fake callback, we keep emptying the audio buffer from the engine and act as if everything is running like it normally should.
+		// Another aspect this fixes is launching an app when device is already in standby mode. If during engine initialization, the audio mixer
+		// does not call IAudioMixerPlatformInterface::ReadNextBuffer(), the audio engine blocks and eventually crashes.
+		// This fake callback ensures a smooth initialization as well. 
+		FakeCallback.SetShouldUseCallback(true);
+	}
+
+	void FMixerPlatformMagicLeap::DeviceActive()
+	{
+		FakeCallback.SetShouldUseCallback(false);
+	}
+
 #if WITH_MLSDK
 	void FMixerPlatformMagicLeap::MLAudioCallback(MLHandle Handle, void* CallbackContext)
 	{
-		FMixerPlatformMagicLeap* InPlatform = (FMixerPlatformMagicLeap*)CallbackContext;
+		FMixerPlatformMagicLeap* InPlatform = reinterpret_cast<FMixerPlatformMagicLeap*>(CallbackContext);
 
-		MLAudioBuffer CallbackBuffer;
-
-		check(MLHandleIsValid(InPlatform->StreamHandle));
-		// TODO: should this be an assert?
-		if (Handle != InPlatform->StreamHandle)
+		if (InPlatform == nullptr)
 		{
+			UE_LOG(LogAudioMixerMagicLeap, Error, TEXT("The callback context to MLAudioBufferCallback for MLAudioCreateSoundWithOutputStream was null!"));
 			return;
 		}
-		// Get the callback buffer from MLAudio
-		MLResult Result = MLAudioGetOutputStreamBuffer(InPlatform->StreamHandle, &CallbackBuffer);
-		if (Result != MLResult_Ok)
-		{
-			MLAUDIO_LOG_FAILURE(Result);
-			return;
-		}
+		check(MLHandleIsValid(Handle));
 
-		if (InPlatform->CachedBufferHandle == nullptr)
+		// This handle may be used even after being invalidated in CloseAudioStream's call to MLAudioDestroySound
 		{
-			InPlatform->ReadNextBuffer();
-		}
+			FScopeLock Lock(&InPlatform->StreamHandleCriticalSection);
+			if (!MLHandleIsValid(InPlatform->StreamHandle))
+			{
+				return;
+			}
 
-		// It is possible that ReadNextBuffer() doesn't call SubmitBuffer()
-		// in which case CachedBufferHandle will still be null and memcpy will segfault.
-		if (InPlatform->CachedBufferHandle != nullptr)
-		{
-			// Fill the callback buffer:
-			FMemory::Memcpy(CallbackBuffer.ptr, InPlatform->CachedBufferHandle, CallbackBuffer.size);
-		}
+			MLAudioBuffer CallbackBuffer;
+			// Get the callback buffer from MLAudio
+			MLResult Result = MLAudioGetOutputStreamBuffer(InPlatform->StreamHandle, &CallbackBuffer);
+			if (Result != MLResult_Ok)
+			{
+				MLAUDIO_LOG_FAILURE(Result);
+				return;
+			}
 
-		Result = MLAudioReleaseOutputStreamBuffer(InPlatform->StreamHandle);
-		if (Result != MLResult_Ok)
-		{
-			MLAUDIO_LOG_FAILURE(Result);
-			return;
-		}
+			if (InPlatform->CachedBufferHandle == nullptr)
+			{
+				InPlatform->ReadNextBuffer();
+			}
 
-		InPlatform->CachedBufferHandle = nullptr;
+			// It is possible that ReadNextBuffer() doesn't call SubmitBuffer()
+			// in which case CachedBufferHandle will still be null and memcpy will segfault.
+			if (InPlatform->CachedBufferHandle != nullptr)
+			{
+				// Fill the callback buffer:
+				FMemory::Memcpy(CallbackBuffer.ptr, InPlatform->CachedBufferHandle, CallbackBuffer.size);
+			}
+
+			Result = MLAudioReleaseOutputStreamBuffer(InPlatform->StreamHandle);
+			if (Result != MLResult_Ok)
+			{
+				MLAUDIO_LOG_FAILURE(Result);
+				return;
+			}
+
+			InPlatform->CachedBufferHandle = nullptr;
+		}
 	}
 #endif //WITH_MLSDK
 }

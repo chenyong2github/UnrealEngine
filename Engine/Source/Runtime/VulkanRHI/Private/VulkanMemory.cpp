@@ -984,7 +984,7 @@ namespace VulkanRHI
 				}
 			}
 #else
-#if PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID && !PLATFORM_LUMIN
 			// free all pages, as this would keep staging buffers around forever, and they are 64mb in practice
 			for (int32 Index = 0; Index < FreePages.Num(); ++Index)
 #else
@@ -1271,7 +1271,7 @@ namespace VulkanRHI
 					HeapSize = FMath::Min<VkDeviceSize>(VULKAN_FAKE_MEMORY_LIMIT << 30llu, HeapSize);
 				}
 				VkDeviceSize PageSize = FMath::Min<VkDeviceSize>(HeapSize / 8, GPU_ONLY_HEAP_PAGE_SIZE);
-#if PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID && !PLATFORM_LUMIN
 				PageSize = FMath::Min<VkDeviceSize>(PageSize, ANDROID_MAX_HEAP_PAGE_SIZE);
 #endif
 				ResourceTypeHeaps[TypeIndices[Index]] = new FOldResourceHeap(this, TypeIndices[Index], PageSize);

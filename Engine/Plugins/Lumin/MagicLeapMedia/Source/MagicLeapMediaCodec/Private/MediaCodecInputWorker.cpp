@@ -7,12 +7,11 @@
 #include "MagicLeapMediaCodecPlayer.h"
 #include "Lumin/LuminPlatformAffinity.h"
 #include "IMagicLeapMediaCodecModule.h"
+#include "Lumin/CAPIShims/LuminAPIMediaExtractor.h"
+#include "Lumin/CAPIShims/LuminAPIMediaError.h"
+#include "Lumin/CAPIShims/LuminAPIMediaFormat.h"
 
-#include "ml_media_extractor.h"
-#include "ml_media_codec.h"
-#include "ml_media_error.h"
-
-FMediaCodecInputWorker::FMediaCodecInputWorker()
+FMagicLeapMediaCodecInputWorker::FMagicLeapMediaCodecInputWorker()
 : OwnerPlayer(nullptr)
 , ExtractorHandle(nullptr)
 , CriticalSection(nullptr)
@@ -24,12 +23,12 @@ FMediaCodecInputWorker::FMediaCodecInputWorker()
 , bReachedInputEndOfStream(false)
 {}
 
-FMediaCodecInputWorker::~FMediaCodecInputWorker()
+FMagicLeapMediaCodecInputWorker::~FMagicLeapMediaCodecInputWorker()
 {
 	DestroyThread();
 }
 
-void FMediaCodecInputWorker::InitThread(FMagicLeapMediaCodecPlayer& InOwnerPlayer, MLHandle& InExtractorHandle, FCriticalSection& InCriticalSection, FCriticalSection& InGT_IT_Mutex, FCriticalSection& InRT_IT_Mutex)
+void FMagicLeapMediaCodecInputWorker::InitThread(FMagicLeapMediaCodecPlayer& InOwnerPlayer, MLHandle& InExtractorHandle, FCriticalSection& InCriticalSection, FCriticalSection& InGT_IT_Mutex, FCriticalSection& InRT_IT_Mutex)
 {
 	OwnerPlayer = &InOwnerPlayer;
 	ExtractorHandle = &InExtractorHandle;
@@ -46,7 +45,7 @@ void FMediaCodecInputWorker::InitThread(FMagicLeapMediaCodecPlayer& InOwnerPlaye
 	}
 }
 
-void FMediaCodecInputWorker::DestroyThread()
+void FMagicLeapMediaCodecInputWorker::DestroyThread()
 {
 	StopTaskCounter.Increment();
 	if (Semaphore != nullptr)
@@ -56,13 +55,13 @@ void FMediaCodecInputWorker::DestroyThread()
 		FGenericPlatformProcess::ReturnSynchEventToPool(Semaphore);
 		Semaphore = nullptr;
 		delete Thread;
-		Thread = nullptr;		
+		Thread = nullptr;
 	}
 }
 
-uint32 FMediaCodecInputWorker::Run()
+uint32 FMagicLeapMediaCodecInputWorker::Run()
 {
-	FInputWorkerTask QueuedTask;
+	FMagicLeapMediaCodecInputWorkerTask QueuedTask;
 
 	while (StopTaskCounter.GetValue() == 0)
 	{
@@ -91,11 +90,17 @@ uint32 FMediaCodecInputWorker::Run()
 
 		if (IncomingTasks.Dequeue(QueuedTask))
 		{
-			if (QueuedTask.TaskType == EInputWorkerTaskType::Seek)
+			if (QueuedTask.TaskType == EMagicLeapMediaCodecInputWorkerTaskType::Seek)
 			{
 				FScopeLock LockGT(GT_IT_Mutex);
 				FScopeLock LockRT(RT_IT_Mutex);
 				Seek_WorkerThread(QueuedTask.SeekTime);
+			}
+			else if (QueuedTask.TaskType == EMagicLeapMediaCodecInputWorkerTaskType::SelectTrack)
+			{
+				FScopeLock LockGT(GT_IT_Mutex);
+				FScopeLock LockRT(RT_IT_Mutex);
+				SelectTrack_WorkerThread(QueuedTask.TrackIndex, QueuedTask.SeekTime);
 			}
 		}
 
@@ -110,7 +115,7 @@ uint32 FMediaCodecInputWorker::Run()
 	return 0;
 }
 
-void FMediaCodecInputWorker::WakeUp()
+void FMagicLeapMediaCodecInputWorker::WakeUp()
 {
 	if (Semaphore != nullptr)
 	{
@@ -118,17 +123,22 @@ void FMediaCodecInputWorker::WakeUp()
 	}
 }
 
-void FMediaCodecInputWorker::Seek(FTimespan SeekTime)
+void FMagicLeapMediaCodecInputWorker::Seek(FTimespan SeekTime)
 {
-	IncomingTasks.Enqueue(FInputWorkerTask(EInputWorkerTaskType::Seek, SeekTime));
+	IncomingTasks.Enqueue(FMagicLeapMediaCodecInputWorkerTask(EMagicLeapMediaCodecInputWorkerTaskType::Seek, SeekTime));
 }
 
-bool FMediaCodecInputWorker::HasReachedInputEOS() const
+void FMagicLeapMediaCodecInputWorker::SelectTrack(int32 TrackIndex, const FTimespan& SeekTime)
+{
+	IncomingTasks.Enqueue(FMagicLeapMediaCodecInputWorkerTask(EMagicLeapMediaCodecInputWorkerTaskType::SelectTrack, TrackIndex, SeekTime));
+}
+
+bool FMagicLeapMediaCodecInputWorker::HasReachedInputEOS() const
 {
 	return bReachedInputEndOfStream;
 }
 
-void FMediaCodecInputWorker::ProcessInputSample_WorkerThread()
+void FMagicLeapMediaCodecInputWorker::ProcessInputSample_WorkerThread()
 {
 	{
 		FScopeLock Lock(CriticalSection);
@@ -164,7 +174,7 @@ void FMediaCodecInputWorker::ProcessInputSample_WorkerThread()
 		else
 		{
 			UE_LOG(LogMagicLeapMediaCodec, Display, TEXT("negative track index from MLMediaExtractorGetSampleTrackIndex. Reached input EOS."));
-		
+
 			{
 				FScopeLock Lock(CriticalSection);
 				bReachedInputEndOfStream = true;
@@ -229,10 +239,9 @@ void FMediaCodecInputWorker::ProcessInputSample_WorkerThread()
 	UE_CLOG(Result != MLResult_Ok, LogMagicLeapMediaCodec, Error, TEXT("MLMediaExtractorAdvance() failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
 }
 
-bool FMediaCodecInputWorker::Seek_WorkerThread(const FTimespan& SeekTime)
+bool FMagicLeapMediaCodecInputWorker::Seek_WorkerThread(const FTimespan& SeekTime)
 {
-	UE_LOG(LogMagicLeapMediaCodec, Display, TEXT("Seek(%f)"), SeekTime.GetTotalMilliseconds());
-	MLResult Result = MLMediaExtractorSeekTo(*ExtractorHandle, SeekTime.GetTotalMicroseconds(), MLMediaSeekMode_Closest_Sync);
+	MLResult Result = MLMediaExtractorSeekTo(*ExtractorHandle, static_cast<int64>(SeekTime.GetTotalMicroseconds()), MLMediaSeekMode_Closest_Sync);
 	if (Result == MLResult_Ok)
 	{
 		// TODO: Make thread safe.
@@ -248,4 +257,23 @@ bool FMediaCodecInputWorker::Seek_WorkerThread(const FTimespan& SeekTime)
 		UE_LOG(LogMagicLeapMediaCodec, Error, TEXT("MLMediaExtractorSeekTo failed with error %s"), UTF8_TO_TCHAR(MLGetResultString(Result)));
 		return false;
 	}
+}
+
+void FMagicLeapMediaCodecInputWorker::SelectTrack_WorkerThread(int32 TrackIndex, const FTimespan& SeekTime)
+{
+	MLHandle TrackFormatHandle = ML_INVALID_HANDLE;
+	MLResult Result = MLMediaExtractorGetTrackFormat(*ExtractorHandle, TrackIndex, &TrackFormatHandle);
+	UE_CLOG(Result != MLResult_Ok, LogMagicLeapMediaCodec, Error, TEXT("MLMediaExtractorGetTrackFormat() failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
+
+	Result = MLMediaExtractorSelectTrack(*ExtractorHandle, static_cast<SIZE_T>(TrackIndex));
+	if (Result == MLResult_Ok)
+	{
+		OwnerPlayer->SetSelectedTrack(TrackIndex);
+		Seek(SeekTime);
+	}
+
+	UE_CLOG(Result != MLResult_Ok, LogMagicLeapMediaCodec, Error, TEXT("MLMediaExtractorSelectTrack failed with error %s"), UTF8_TO_TCHAR(MLGetResultString(Result)));
+
+	Result = MLMediaFormatDestroy(TrackFormatHandle);
+	UE_CLOG(Result != MLResult_Ok, LogMagicLeapMediaCodec, Error, TEXT("MLMediaFormatDestroy() failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
 }

@@ -7,11 +7,12 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "MagicLeapSecureStorage.generated.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogSecureStorage, Display, All);
+
 /**
   Function library for the Magic Leap Secure Storage API.
   Currently supports bool, uint8, int32, float, FString, FVector, FRotator and FTransform via Blueprints.
   Provides a template function for any non specialized types to be used via C++.
-  TODO: Support TArray and a generic USTRUCT.
 */
 UCLASS(ClassGroup = MagicLeap)
 class MAGICLEAPSECURESTORAGE_API UMagicLeapSecureStorage : public UBlueprintFunctionLibrary
@@ -47,6 +48,15 @@ public:
 	static bool PutSecureInt(const FString& Key, int32 DataToStore);
 
 	/**
+	  Stores the 64 bit integer under the specified key. An existing key would be overwritten.
+	  @param   Key String key associated with the data.
+	  @param   DataToStore The data to store.
+	  @return  True if the data was stored successfully, false otherwise.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	static bool PutSecureInt64(const FString& Key, int64 DataToStore);
+
+	/**
 	  Stores the float under the specified key. An existing key would be overwritten.
 	  @param   Key String key associated with the data.
 	  @param   DataToStore The data to store.
@@ -70,7 +80,7 @@ public:
 	  @param   DataToStore The data to store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `PutSecureArray`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureVector(const FString& Key, const FVector& DataToStore);
 
 	/**
@@ -79,7 +89,7 @@ public:
 	  @param   DataToStore The data to store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `PutSecureArray`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureRotator(const FString& Key, const FRotator& DataToStore);
 
 	/**
@@ -88,7 +98,7 @@ public:
 	  @param   DataToStore The data to store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `PutSecureArray`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureTransform(const FString& Key, const FTransform& DataToStore);
 
 	/**
@@ -119,6 +129,15 @@ public:
 	static bool GetSecureInt(const FString& Key, int32& DataToRetrieve);
 
 	/**
+	  Retrieves the 64 bit integer associated with the specified key.
+	  @param   Key The string key to look for.
+	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
+	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	static bool GetSecureInt64(const FString& Key, int64& DataToRetrieve);
+
+	/**
 	  Retrieves the float associated with the specified key.
 	  @param   Key The string key to look for.
 	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
@@ -142,7 +161,7 @@ public:
 	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `GetSecureArray`"), Category = "SecureStorage|MagicLeap")
 	static bool GetSecureVector(const FString& Key, FVector& DataToRetrieve);
 
 	/**
@@ -151,7 +170,7 @@ public:
 	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `GetSecureArray`"), Category = "SecureStorage|MagicLeap")
 	static bool GetSecureRotator(const FString& Key, FRotator& DataToRetrieve);
 
 	/**
@@ -160,16 +179,94 @@ public:
 	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="This function has been replaced by `GetSecureArray`"),Category = "SecureStorage|MagicLeap")
 	static bool GetSecureTransform(const FString& Key, FTransform& DataToRetrieve);
 
 	/**
-	  Deletes the data associated with the specified key.
-	  @param   Key The string key of the data to delete.
-	  @return  True if the data was deleted successfully or did not exist altogether, false otherwise.
+	  Stores the USaveGame object under the specified key. An existing key would be overwritten.
+	  @param   Key String key associated with the data.
+	  @param   ObjectToStore The USaveGame object to serialize and store.
+	  @return  True if the data was stored successfully, false otherwise.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
-	static bool DeleteSecureData(const FString& Key);
+	static bool PutSecureSaveGame(const FString& Key, USaveGame* ObjectToStore);
+
+	/**
+	  Stores the data under the specified key. An existing key would be overwritten.
+	  @param   Key String key associated with the data.
+	  @param   DataToStore The data to store.
+	  @return  True if the data was stored successfully, false otherwise.
+	*/
+	UFUNCTION(BlueprintCallable, CustomThunk, meta = (ArrayParm = "DataToStore"), Category = "SecureStorage|MagicLeap")
+	static bool PutSecureArray(const FString& Key, const TArray<int32>& DataToStore);
+
+	DECLARE_FUNCTION(execPutSecureArray)
+	{
+
+		P_GET_PROPERTY(UStrProperty, Key);
+
+		Stack.StepCompiledIn<UArrayProperty>(nullptr);
+		void* ArrayAddress = Stack.MostRecentPropertyAddress;
+		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+
+		if (!ArrayProperty)
+		{
+			Stack.bArrayContextFailed = true;
+			return;
+		}
+
+		P_FINISH;
+
+		P_NATIVE_BEGIN;
+		*static_cast<bool*>(RESULT_PARAM) = GenericPutSecureArray(Key, ArrayProperty, ArrayAddress);
+		P_NATIVE_END;
+
+	}
+
+	static bool GenericPutSecureArray(const FString& Key, const UArrayProperty* ArrayProperty, void* TargetArray);
+
+	/**
+	  Retrieves a USaveGame object associated with the specified key.
+	  @param   Key The string key to look for.
+	  @param   ObjectToRetrieve Reference to a USaveGame object that will be populated with the serialized data.
+	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	static bool GetSecureSaveGame(const FString& Key, USaveGame*& ObjectToRetrieve);
+
+	/**
+	  Retrieves an array associated with the specified key.
+	  @param   Key The string key to look for.
+	  @param   DataToRetrieve Reference to an array that will be populated with the stored data.
+	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
+	*/
+	UFUNCTION(BlueprintCallable, CustomThunk, meta = (ArrayParm = "DataToRetrieve"), Category = "SecureStorage|MagicLeap")
+	static bool GetSecureArray(const FString& Key, TArray<int32>& DataToRetrieve);
+
+	DECLARE_FUNCTION(execGetSecureArray)
+	{
+
+		P_GET_PROPERTY(UStrProperty, Key);
+
+		Stack.StepCompiledIn<UArrayProperty>(nullptr);
+		void* ArrayAddress = Stack.MostRecentPropertyAddress;
+		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+
+		if (!ArrayProperty)
+		{
+			Stack.bArrayContextFailed = true;
+			return;
+		}
+
+		P_FINISH;
+
+		P_NATIVE_BEGIN;
+		*static_cast<bool*>(RESULT_PARAM) = GenericGetSecureArray(Key, ArrayProperty, ArrayAddress);
+		P_NATIVE_END;
+
+	}
+
+	static bool GenericGetSecureArray(const FString& Key, UArrayProperty* ArrayProperty, void* TargetArray);
 
 	/**
 	  Template function to store the data under the specified key. An existing key would be overwritten.
@@ -189,10 +286,18 @@ public:
 	template<class T>
 	static bool GetSecureBlob(const FString& Key, T& DataToRetrieve);
 
-private:
-	static bool PutSecureBlobImpl(const FString& Key, const void* DataToStore, size_t DataTypeSize);
+	/**
+	  Deletes the data associated with the specified key.
+	  @param   Key The string key of the data to delete.
+	  @return  True if the data was deleted successfully or did not exist altogether, false otherwise.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	static bool DeleteSecureData(const FString& Key);
 
-	static uint8* GetSecureBlobImpl(const FString& Key, size_t DataTypeSize);
+private:
+	static bool PutSecureBlobImpl(const FString& Key, const uint8* DataToStore, size_t DataTypeSize);
+
+	static bool GetSecureBlobImpl(const FString& Key, uint8*& DataToRetrieve, size_t& DataTypeSize);
 
 	static void FreeBlobBufferImpl(uint8* Buffer);
 };
@@ -200,17 +305,29 @@ private:
 template<class T>
 bool UMagicLeapSecureStorage::PutSecureBlob(const FString& Key, const T* DataToStore)
 {
-	return UMagicLeapSecureStorage::PutSecureBlobImpl(Key, reinterpret_cast<const void*>(DataToStore), sizeof(T));
+	return UMagicLeapSecureStorage::PutSecureBlobImpl(Key, reinterpret_cast<const uint8*>(DataToStore), sizeof(T));
 }
 
 template<class T>
 bool UMagicLeapSecureStorage::GetSecureBlob(const FString& Key, T& DataToRetrieve)
 {
-	uint8* blob = UMagicLeapSecureStorage::GetSecureBlobImpl(Key, sizeof(T));
-	if (blob != nullptr)
+
+	uint8* Data;
+	size_t Size;
+	bool bSuccess = UMagicLeapSecureStorage::GetSecureBlobImpl(Key, Data, Size);
+
+	if (!bSuccess) 
 	{
-		DataToRetrieve = *reinterpret_cast<T*>(blob);
-		UMagicLeapSecureStorage::FreeBlobBufferImpl(blob);
+		return false;
 	}
-	return blob != nullptr;
+
+	if (Size != sizeof(T))
+	{
+		UE_LOG(LogSecureStorage, Error, TEXT("Size of blob data %s does not match the size of requested data type. Requested size = %d vs Actual size = %d"), *Key, sizeof(T), Size);
+		FreeBlobBufferImpl(Data);
+		return false;
+	}
+
+	DataToRetrieve = *reinterpret_cast<T*>(Data);
+	return bSuccess;
 }

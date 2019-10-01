@@ -10,7 +10,7 @@
 #include <pthread.h>
 #include <libgen.h>
 #include <dlfcn.h>
-#include <ml_dispatch.h>
+#include "Lumin/CAPIShims/LuminAPIDispatch.h"
 
 const TCHAR* FLuminPlatformProcess::ComputerName()
 {

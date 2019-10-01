@@ -282,7 +282,10 @@ bool FApp::ShouldUseThreadingForPerformance()
 		IsRunningDedicatedServer() ||
 		!FPlatformProcess::SupportsMultithreading() ||
 		FPlatformMisc::NumberOfCoresIncludingHyperthreads() < MIN_CORE_COUNT;
-	return !OnlyOneThread;
+
+	// Enable at runtime for experimentation by passing "useperfthreads" as a command line arg.
+	static bool bForceUsePerfThreads = FParse::Param(FCommandLine::Get(), TEXT("useperfthreads"));
+	return !OnlyOneThread || bForceUsePerfThreads;
 }
 #undef MIN_CORE_COUNT
 

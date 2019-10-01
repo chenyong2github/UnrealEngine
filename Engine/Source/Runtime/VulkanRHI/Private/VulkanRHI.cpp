@@ -83,7 +83,7 @@ FDynamicRHI* FVulkanDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequest
 	else
 	{
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
-		GMaxRHIShaderPlatform = (PLATFORM_LUMINGL4 || PLATFORM_LUMIN) ? SP_VULKAN_SM5_LUMIN : SP_VULKAN_SM5;
+		GMaxRHIShaderPlatform = (PLATFORM_LUMIN) ? SP_VULKAN_SM5_LUMIN : SP_VULKAN_SM5;
 	}
 
 	GVulkanRHI = new FVulkanDynamicRHI();
@@ -609,7 +609,7 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 
 	Device->InitGPU(DeviceIndex);
 
-	if (PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4)
+	if (PLATFORM_ANDROID && !PLATFORM_LUMIN)
 	{
 		GRHIAdapterName.Append(TEXT(" Vulkan"));
 		GRHIAdapterInternalDriverVersion = FString::Printf(TEXT("%d.%d.%d"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion));

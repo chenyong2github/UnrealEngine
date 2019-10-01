@@ -6,40 +6,49 @@
 #include "HAL/Runnable.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Containers/Queue.h"
-
-#include "ml_api.h"
+#include "Lumin/CAPIShims/LuminAPI.h"
 
 class FMagicLeapMediaCodecPlayer;
 
-enum class EInputWorkerTaskType : uint8
+enum class EMagicLeapMediaCodecInputWorkerTaskType : uint8
 {
 	None,
-	Seek
+	Seek,
+	SelectTrack
 };
 
-struct FInputWorkerTask
+struct FMagicLeapMediaCodecInputWorkerTask
 {
 public:
-	EInputWorkerTaskType TaskType;
+	EMagicLeapMediaCodecInputWorkerTaskType TaskType;
 	FTimespan SeekTime;
+	int32 TrackIndex;
 
 public:
-	FInputWorkerTask()
-	: TaskType(EInputWorkerTaskType::None)
+	FMagicLeapMediaCodecInputWorkerTask()
+	: TaskType(EMagicLeapMediaCodecInputWorkerTaskType::None)
 	, SeekTime(FTimespan::Zero())
+	, TrackIndex(0)
 	{}
 
-	FInputWorkerTask(EInputWorkerTaskType InTaskType, const FTimespan& InSeekTime)
+	FMagicLeapMediaCodecInputWorkerTask(EMagicLeapMediaCodecInputWorkerTaskType InTaskType, const FTimespan& InSeekTime)
 	: TaskType(InTaskType)
 	, SeekTime(InSeekTime)
+	, TrackIndex(0)
+	{}
+
+	FMagicLeapMediaCodecInputWorkerTask(EMagicLeapMediaCodecInputWorkerTaskType InTaskType, int32 InTrackIndex, const FTimespan& InSeekTime)
+	: TaskType(InTaskType)
+	, SeekTime(InSeekTime)
+	, TrackIndex(InTrackIndex)
 	{}
 };
 
-class FMediaCodecInputWorker : public FRunnable
+class FMagicLeapMediaCodecInputWorker : public FRunnable
 {
 public:
-	FMediaCodecInputWorker();
-	virtual ~FMediaCodecInputWorker();
+	FMagicLeapMediaCodecInputWorker();
+	virtual ~FMagicLeapMediaCodecInputWorker();
 
 	void InitThread(FMagicLeapMediaCodecPlayer& InOwnerPlayer, MLHandle& InExtractorHandle, FCriticalSection& InCriticalSection, FCriticalSection& InGT_IT_Mutex, FCriticalSection& InRT_IT_Mutex);
 	void DestroyThread();
@@ -47,12 +56,14 @@ public:
 
 	void WakeUp();
 	void Seek(FTimespan SeekTime);
+	void SelectTrack(int32 TrackIndex, const FTimespan& SeekTime);
 
 	bool HasReachedInputEOS() const;
 
 private:
 	void ProcessInputSample_WorkerThread();
 	bool Seek_WorkerThread(const FTimespan& SeekTime);
+	void SelectTrack_WorkerThread(int32 TrackIndex, const FTimespan& SeekTime);
 
 	FMagicLeapMediaCodecPlayer* OwnerPlayer;
 	MLHandle* ExtractorHandle;
@@ -66,5 +77,5 @@ private:
 
 	bool bReachedInputEndOfStream;
 
-	TQueue<FInputWorkerTask, EQueueMode::Spsc> IncomingTasks;
+	TQueue<FMagicLeapMediaCodecInputWorkerTask, EQueueMode::Mpsc> IncomingTasks;
 };

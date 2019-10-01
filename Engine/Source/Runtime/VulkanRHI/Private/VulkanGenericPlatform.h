@@ -116,4 +116,7 @@ public:
 
 	// Gathers a list of pso cache filenames to attempt to load
 	static TArray<FString> GetPSOCacheFilenames();
+
+	// Return VK_FALSE if platform wants to suppress the given debug report from the validation layers, VK_TRUE to print it.
+	static VkBool32 DebugReportFunction(VkDebugReportFlagsEXT MsgFlags, VkDebugReportObjectTypeEXT ObjType, uint64_t SrcObject, size_t Location, int32 MsgCode, const ANSICHAR* LayerPrefix, const ANSICHAR* Msg, void* UserData) { return VK_TRUE; }
 };

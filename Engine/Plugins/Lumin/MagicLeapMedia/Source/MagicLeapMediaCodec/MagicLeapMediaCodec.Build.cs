@@ -8,8 +8,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public MagicLeapMediaCodec(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
-			string EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
+			PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
 
 			DynamicallyLoadedModuleNames.AddRange(
 				new string[] {
@@ -22,12 +21,11 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"RenderCore",
 					"MediaUtils",
-					"OpenGLDrv",
 					"LuminRuntimeSettings",
 					"MLSDK",
-                    "MagicLeap",
-                    "MagicLeapHelperVulkan",
-            });
+					"MagicLeapHelperVulkan",
+					"MagicLeapHelperOpenGL"
+			});
 
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
@@ -36,11 +34,8 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePaths.AddRange(
 				new string[] {
-                    "MagicLeapMedia/Private",
-					Path.Combine(EngineDir, "Source/Runtime/OpenGLDrv/Private")
-            });
-
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
+					"MagicLeapMedia/Private"
+			});
 		}
 	}
 }

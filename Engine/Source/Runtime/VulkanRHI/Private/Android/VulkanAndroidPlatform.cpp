@@ -9,7 +9,7 @@
 #endif
 
 //#todo-Lumin: Remove this define when it becomes untangled from Android
-#if (!defined(PLATFORM_LUMIN) && !defined(PLATFORM_LUMINGL4)) || (!PLATFORM_LUMIN && !PLATFORM_LUMINGL4)
+#if (!defined(PLATFORM_LUMIN) || (!PLATFORM_LUMIN))
 #include "VulkanAndroidPlatform.h"
 #include "../VulkanRHIPrivate.h"
 #include <dlfcn.h>
