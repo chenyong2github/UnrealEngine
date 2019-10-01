@@ -4,6 +4,8 @@
 #include "NetworkSimulationModelDebugger.h"
 #include "HAL/IConsoleManager.h"
 #include "NetworkSimulationGlobalManager.h"
+#include "Engine/LocalPlayer.h"
+#include "GameFramework/PlayerController.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogParametricMovement, Log, All);
 
@@ -198,6 +200,28 @@ void UParametricMovementComponent::MapTimeToTransform(const float InPosition, FT
 void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (bEnableDependentSimulation && NetworkSim.IsValid() && NetworkSim->GetParentSimulation() == nullptr)
+	{
+		// This is a very simply and generic way of finding a locally controlled network sim.
+		// The long term vision for dependent simulations is more game specific and dynamic. 
+		// E.g, stepping on elevators, getting close to moving platforms, etc. This example here is meant to 
+		// just be a simple way of linking them up no matter where they are in relationship to each other
+		UWorld* World = GetWorld();
+		check(World);
+		ULocalPlayer* Player = World->GetFirstLocalPlayerFromController();
+		if (Player && Player->GetPlayerController(World))
+		{
+			APawn* Pawn = Player->GetPlayerController(World)->GetPawn();
+			if (UNetworkPredictionComponent* NetComponent = Pawn->FindComponentByClass<UNetworkPredictionComponent>())
+			{
+				if (INetworkSimulationModel* ParentNetSim = NetComponent->GetNetworkSimulation())
+				{
+					NetworkSim->SetParentSimulation(ParentNetSim);
+				}
+			}
+		}
+	}
 
 	if (ParentNetUpdateFrequency > 0.f)
 	{
