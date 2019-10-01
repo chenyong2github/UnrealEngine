@@ -1575,7 +1575,11 @@ void FRHICommandList::EndFrame()
 		GetContext().RHIEndFrame();
 		return;
 	}
+
 	ALLOC_COMMAND(FRHICommandEndFrame)();
+
+	FRHICommandListExecutor::GetImmediateCommandList().AdvanceFrameFence();
+
 	if (!IsRunningRHIInSeparateThread())
 	{
 		// if we aren't running an RHIThread, there is no good reason to buffer this frame advance stuff and that complicates state management, so flush everything out now

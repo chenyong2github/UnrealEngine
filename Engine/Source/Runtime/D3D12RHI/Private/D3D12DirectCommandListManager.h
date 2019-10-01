@@ -93,7 +93,7 @@ public:
 	// Avoids calling GetCompletedValue().
 	bool IsFenceCompleteFast(uint64 FenceValue) const { return FenceValue <= LastCompletedFence; }
 
-	uint64 GetCurrentFence() const { return CurrentFence; }
+	virtual uint64 GetCurrentFence() const { return CurrentFence; }
 	uint64 GetLastSignaledFence() const { return LastSignaledFence; }
 
 	uint64 PeekLastCompletedFence() const;
@@ -119,7 +119,8 @@ protected:
 	FD3D12FenceCore* FenceCores[MAX_NUM_GPUS];
 };
 
-// Fence value must be incremented manually. Useful when you need incrementing and signaling to happen at different times.
+// Fence value must be incremented manually. Useful when you need incrementing and signaling to happen at different times, e.g. for a FrameFence,
+// where the RenderThread increments and the RHIThread signals, so that both are in agreement on which frame they are on.
 class FD3D12ManualFence : public FD3D12Fence
 {
 public:
@@ -127,11 +128,20 @@ public:
 		: FD3D12Fence(InParent, InGPUMask, InName)
 	{}
 
+	uint64 GetCurrentFence() const final override
+	{
+		return IsInRHIThread()? LastSignaledFence + 1 : CurrentFence;
+	}
+
 	// Signals the specified fence value.
 	uint64 Signal(ED3D12CommandQueueType InQueueType, uint64 FenceToSignal);
 
 	// Increments the current fence and returns the previous value.
-	inline uint64 IncrementCurrentFence() { return CurrentFence++; }
+	inline uint64 IncrementCurrentFence()
+	{
+		check(IsInRenderingThread());
+		return CurrentFence++;
+	}
 };
 
 class FD3D12CommandAllocatorManager : public FD3D12DeviceChild
