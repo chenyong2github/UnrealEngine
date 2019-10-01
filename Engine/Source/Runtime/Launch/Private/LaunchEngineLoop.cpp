@@ -1209,6 +1209,42 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
 
+	// Trace out information about this session
+	{
+		uint8 Payload[1024];
+		int32 PayloadSize = 0;
+
+		auto AddToPayload = [&] (const TCHAR* String) -> uint8
+		{
+			int32 Length = FCString::Strlen(String);
+			Length = FMath::Min<int32>(Length, sizeof(Payload) - PayloadSize - 1);
+			for (int32 i = 0, n = Length; i < n; ++i)
+			{
+				Payload[PayloadSize] = uint8(String[i] & 0x7f);
+				++PayloadSize;
+			}
+			return uint8(PayloadSize - Length);
+		};
+
+		AddToPayload(FGenericPlatformMisc::GetUBTPlatform());
+		uint8 CommandLineOffset = AddToPayload(CmdLine);
+		uint8 AppNameOffset = AddToPayload(TEXT(UE_APP_NAME));
+
+		UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important|Always)
+			UE_TRACE_EVENT_FIELD(uint8, CommandLineOffset)
+			UE_TRACE_EVENT_FIELD(uint8, AppNameOffset)
+			UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
+			UE_TRACE_EVENT_FIELD(uint8, TargetType)
+		UE_TRACE_EVENT_END()
+
+		UE_TRACE_LOG(Diagnostics, Session, PayloadSize)
+			<< Session.CommandLineOffset(CommandLineOffset)
+			<< Session.AppNameOffset(AppNameOffset)
+			<< Session.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
+			<< Session.TargetType(uint8(FApp::GetBuildTargetType()))
+			<< Session.Attachment(Payload, PayloadSize);
+	}
+
 #if PLATFORM_WINDOWS
 	// Register a handler for Ctrl-C so we've effective signal handling from the outset.
 	FWindowsPlatformMisc::SetGracefulTerminationHandler();

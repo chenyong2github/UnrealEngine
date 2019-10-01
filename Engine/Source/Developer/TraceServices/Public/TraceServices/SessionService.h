@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/PlatformMisc.h"
 #include "Templates/SharedPointer.h"
 #include "Trace/Store.h"
 #include "Trace/DataStream.h"
@@ -16,9 +17,14 @@ struct FSessionInfo
 {
 	const TCHAR* Uri = nullptr;
 	const TCHAR* Name = nullptr;
+	const TCHAR* Platform = nullptr;
+	const TCHAR* AppName = nullptr;
+	const TCHAR* CommandLine = nullptr;
 	FDateTime TimeStamp;
 	uint64 Size = 0;
 	bool bIsLive = false;
+	EBuildConfiguration ConfigurationType = EBuildConfiguration::Unknown;
+	EBuildTargetType TargetType = EBuildTargetType::Unknown;
 };
 
 class ISessionService
