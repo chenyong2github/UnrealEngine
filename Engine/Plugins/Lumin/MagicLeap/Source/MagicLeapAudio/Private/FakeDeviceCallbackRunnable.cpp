@@ -2,6 +2,8 @@
 
 #include "FakeDeviceCallbackRunnable.h"
 #include "CoreGlobals.h"
+#include "HAL/Event.h"
+#include "GenericPlatform/GenericPlatformProcess.h"
 
 namespace Audio
 {
