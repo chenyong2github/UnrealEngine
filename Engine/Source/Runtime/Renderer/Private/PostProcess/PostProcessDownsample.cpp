@@ -203,7 +203,7 @@ void FSceneDownsampleChain::Init(
 		TEXT("Scene(1/32)"),
 		TEXT("Scene(1/64)")
 	};
-	static_assert(ARRAY_COUNT(PassNames) == StageCount, "PassNames size must equal StageCount");
+	static_assert(UE_ARRAY_COUNT(PassNames) == StageCount, "PassNames size must equal StageCount");
 
 	// The first stage is the input.
 	Textures[0] = HalfResolutionSceneColor;

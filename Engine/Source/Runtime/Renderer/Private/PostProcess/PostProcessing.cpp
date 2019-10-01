@@ -286,10 +286,10 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		TEXT("SecondaryUpscale")
 	};
 
-	static_assert(static_cast<uint32>(EPass::MAX) == ARRAY_COUNT(PassNames), "EPass does not match PassNames.");
+	static_assert(static_cast<uint32>(EPass::MAX) == UE_ARRAY_COUNT(PassNames), "EPass does not match PassNames.");
 
 	TOverridePassSequence<EPass> PassSequence(ViewFamilyOutput);
-	PassSequence.SetNames(PassNames, ARRAY_COUNT(PassNames));
+	PassSequence.SetNames(PassNames, UE_ARRAY_COUNT(PassNames));
 	PassSequence.SetEnabled(EPass::VisualizeStationaryLightOverlap, EngineShowFlags.StationaryLightOverlap);
 	PassSequence.SetEnabled(EPass::VisualizeLightCulling, EngineShowFlags.VisualizeLightCulling);
 #if WITH_EDITOR
@@ -901,10 +901,10 @@ void AddDebugPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		TEXT("SecondaryUpscale")
 	};
 
-	static_assert(static_cast<uint32>(EPass::MAX) == ARRAY_COUNT(PassNames), "EPass does not match PassNames.");
+	static_assert(static_cast<uint32>(EPass::MAX) == UE_ARRAY_COUNT(PassNames), "EPass does not match PassNames.");
 
 	TOverridePassSequence<EPass> PassSequence(ViewFamilyOutput);
-	PassSequence.SetNames(PassNames, ARRAY_COUNT(PassNames));
+	PassSequence.SetNames(PassNames, UE_ARRAY_COUNT(PassNames));
 	PassSequence.SetEnabled(EPass::Visualize, true);
 	PassSequence.SetEnabled(EPass::TonemapAfter, bTonemapAfter);
 	PassSequence.SetEnabled(EPass::SelectionOutline, GIsEditor);

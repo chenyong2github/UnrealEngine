@@ -248,8 +248,8 @@ FBloomOutputs AddBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, con
 				6  // Q5
 			};
 
-			static_assert(ARRAY_COUNT(BloomStages) == BloomQualityCountMax, "Array must be one less than the number of bloom quality entries.");
-			static_assert(ARRAY_COUNT(BloomQualityToSceneDownsampleStage) == BloomQualityCountMax, "Array must be one less than the number of bloom quality entries.");
+			static_assert(UE_ARRAY_COUNT(BloomStages) == BloomQualityCountMax, "Array must be one less than the number of bloom quality entries.");
+			static_assert(UE_ARRAY_COUNT(BloomQualityToSceneDownsampleStage) == BloomQualityCountMax, "Array must be one less than the number of bloom quality entries.");
 
 			// Use bloom quality to select the number of downsample stages to use for bloom.
 			const uint32 BloomStageCount = BloomQualityToSceneDownsampleStage[BloomQualityIndex];
