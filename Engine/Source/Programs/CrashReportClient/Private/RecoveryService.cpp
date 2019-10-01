@@ -1,6 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "RecoveryService.h"
+
+#if CRASH_REPORT_WITH_RECOVERY
+
 #include "HAL/FileManager.h"
 #include "CrashReportClient.h" // For CrashReportClientLog
 #include "Interfaces/IPluginManager.h"
@@ -131,3 +134,5 @@ FGuid FRecoveryService::GetRecoverySessionId() const
 
 	return FGuid();// Not found.
 }
+
+#endif

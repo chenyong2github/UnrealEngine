@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "CrashReportClientApp.h"
+#include "CrashReportClientDefines.h"
 #include "Misc/Parse.h"
 #include "Misc/CommandLine.h"
 #include "Misc/QueuedThreadPool.h"
@@ -35,7 +36,12 @@
 #include "PlatformErrorReport.h"
 #include "XmlFile.h"
 #include "RecoveryService.h"
+
+#if CRASH_REPORT_WITH_MTBF
 #include "EditorSessionSummarySender.h"
+#endif
+
+class FRecoveryService;
 
 /** Default main window size */
 const FVector2D InitialWindowDimensions(740, 560);
@@ -71,12 +77,6 @@ static void* MonitorReadPipe = nullptr;
 
 /** If in monitor mode, pipe to write data to game. */
 static void* MonitorWritePipe = nullptr;
-
-/** True to enable the disaster recovery service. */
-static bool bDisasterRecoveryServiceEnabled = false;
-
-/** Is the out-of-process editor session summary sender enabled? */
-static bool bEditorSessionSummaryEnabled = true;
 
 /** Result of submission of report */
 enum SubmitCrashReportResult {
@@ -148,11 +148,6 @@ void ParseCommandLine(const TCHAR* CommandLine)
 		if (Switches.Contains(TEXT("NoAnalytics")))
 		{
 			AnalyticsEnabledFromCmd = false;
-		}
-
-		if (Params.Contains(TEXT("ConcertServer")))
-		{
-			bDisasterRecoveryServiceEnabled = true;
 		}
 
 		CrashGUIDFromCmd = Params.FindRef(TEXT("CrashGUID"));
@@ -474,10 +469,12 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	const FString CrashContextXMLPath = FPaths::Combine(*ReportDirectoryAbsolutePath, FPlatformCrashContext::CrashContextRuntimeXMLNameW);
 	CrashContext.SerializeAsXML(*CrashContextXMLPath);
 
+#if CRASH_REPORT_WITH_RECOVERY
 	if (RecoveryService && DirectoryExists && SharedCrashContext.bSendUsageData && SharedCrashContext.CrashType != ECrashContextType::Ensure)
 	{
 		RecoveryService->CollectFiles(ReportDirectoryAbsolutePath);
 	}
+#endif
 
 	const TCHAR* CrachContextBuffer = *CrashContext.GetBuffer();
 	FPrimaryCrashProperties::Set(new FCrashContext(ReportDirectoryAbsolutePath / TEXT("CrashContext.runtime-xml"), CrachContextBuffer));
@@ -562,7 +559,9 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 	// Initialize the engine. -Messaging enables MessageBus transports required by Concert (Recovery Service).
 	FString FinalCommandLine(CommandLine);
-	FinalCommandLine += TEXT(" -Messaging");
+#if CRASH_REPORT_WITH_RECOVERY
+	FinalCommandLine += TEXT(" -Messaging -EnablePlugins=\"UdpMessaging,ConcertSyncServer\"");
+#endif
 	GEngineLoop.PreInit(*FinalCommandLine);
 	check(GConfig && GConfig->IsReadyForUse());
 
@@ -609,15 +608,16 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 		double LastTime = FPlatformTime::Seconds();
 		const float IdealFrameTime = 1.0f / IdealFramerate;
 
-		TUniquePtr<FRecoveryService> RecoveryService;
-		if (bDisasterRecoveryServiceEnabled)
-		{
-			// Starts the disaster recovery service. This records transactions and allows users to recover from previous crashes.
-			RecoveryService = MakeUnique<FRecoveryService>(MonitorPid);
-		}
+		FRecoveryService* RecoveryServicePtr = nullptr;
+#if CRASH_REPORT_WITH_RECOVERY
+		// Starts the disaster recovery service. This records transactions and allows users to recover from previous crashes.
+		FRecoveryService RecoveryService(MonitorPid);
+		RecoveryServicePtr = &RecoveryService;
+#endif
 
 		FCrashReportAnalytics::Initialize();
 
+#if CRASH_REPORT_WITH_MTBF
 		TUniquePtr<FEditorSessionSummarySender> EditorSessionSummarySender;
 		if (FCrashReportCoreConfig::Get().GetAllowToBeContacted())
 		{
@@ -630,6 +630,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					return true;
 				});
 		}
+#endif
 
 		// This IsApplicationAlive() call is quite expensive, perform it at low frequency.
 		bool bApplicationAlive = FPlatformProcess::IsApplicationAlive(MonitorPid);
@@ -645,7 +646,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 				if (IsCrashReportAvailable(MonitorPid, CrashContext, MonitorReadPipe))
 				{
 					// Build error report in memory.
-					FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryService.Get(), MonitorPid, CrashContext, MonitorWritePipe);
+					FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryServicePtr, MonitorPid, CrashContext, MonitorWritePipe);
 					const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, CrashContext.bNoDialog && CrashContext.bSendUnattenededBugReports);
 
 					// At this point the game can continue execution. It is important this happens
@@ -688,10 +689,12 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			LastTime = CurrentTime;
 		}
 
+#if CRASH_REPORT_WITH_MTBF
 		if (EditorSessionSummarySender.IsValid())
 		{
 			EditorSessionSummarySender->Shutdown();
 		}
+#endif
 
 		FCrashReportAnalytics::Shutdown();
 	}

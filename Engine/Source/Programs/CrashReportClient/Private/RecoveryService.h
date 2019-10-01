@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CrashReportClientDefines.h"
+
+#if CRASH_REPORT_WITH_RECOVERY
 
 class IConcertSyncServer;
 
@@ -28,3 +31,5 @@ private:
 	TSharedPtr<IConcertSyncServer> Server;
 	uint64 MonitorPid = 0;
 };
+
+#endif

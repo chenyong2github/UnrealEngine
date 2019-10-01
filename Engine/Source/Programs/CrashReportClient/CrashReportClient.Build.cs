@@ -32,29 +32,23 @@ public class CrashReportClient : ModuleRules
 				"AnalyticsET",
 				"DesktopPlatform",
 				"LauncherPlatform",
-				"Concert",
 				"InputCore",
-				"EditorAnalyticsSession",
 				"Slate",
 				"SlateCore",
 				"StandaloneRenderer",
 				"MessageLog",
-				"Messaging",
 			}
 		);
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"SlateReflector",
-				"ConcertSyncCore",
-				"ConcertSyncServer",
 			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
 				"SlateReflector",
-				"ConcertSyncServer",
 			}
 		);
 

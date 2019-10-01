@@ -15,11 +15,6 @@ public class CrashReportClientTarget : TargetRules
 
 		LaunchModuleName = "CrashReportClient";
 
-		AdditionalPlugins.Add("UdpMessaging");
-		AdditionalPlugins.Add("ConcertSyncServer");
-		bBuildWithEditorOnlyData = false;
-		bCompileWithPluginSupport = true; // Enable Developer plugins (like Concert!)
-
 		if (Target.Platform != UnrealTargetPlatform.Linux)
 		{
 			ExtraModuleNames.Add("EditorStyle");
@@ -27,7 +22,7 @@ public class CrashReportClientTarget : TargetRules
 
 		bLegalToDistributeBinary = true;
 
-		bBuildDeveloperTools = true;
+		bBuildDeveloperTools = false;
 
 		// CrashReportClient doesn't ever compile with the engine linked in
 		bCompileAgainstEngine = false;
@@ -47,12 +42,5 @@ public class CrashReportClientTarget : TargetRules
 		WindowsPlatform.bUseBundledDbgHelp = false;
 
 		GlobalDefinitions.Add("NOINITCRASHREPORTER=1");
-
-		if (Target.Configuration == UnrealTargetConfiguration.Shipping && LinkType == TargetLinkType.Monolithic)
-		{
-			// DisasterRecovery/Concert needs message bus to run. If not enabled, Recovery Service will self-disable as well. In Shipping
-			// message bus is turned off by default but for a monolithic build, it can be turned on just for this executable.
-			GlobalDefinitions.Add("PLATFORM_SUPPORTS_MESSAGEBUS=1");
-		}
 	}
 }

@@ -363,20 +363,21 @@ bool CreateCrashReportClientPath(TCHAR* OutClientPath, int32 MaxLength)
 		return Results != INVALID_FILE_ATTRIBUTES;
 	};
 
-#if WITH_EDITORONLY_DATA
-	if (CreateCrashReportClientPathImpl(TEXT("CrashReportClientEditor.exe")))
-	{
-		return true;
-	}
+#if WITH_EDITOR
+	const TCHAR CrashReportClientShippingName[] = TEXT("CrashReportClientEditor.exe");
+	const TCHAR CrashReportClientDevelopmentName[] = TEXT("CrashReportClientEditor-Win64-Development.exe");
+#else
+	const TCHAR CrashReportClientShippingName[] = TEXT("CrashReportClient.exe");
+	const TCHAR CrashReportClientDevelopmentName[] = TEXT("CrashReportClient-Win64-Development.exe");
 #endif
 
-	if (CreateCrashReportClientPathImpl(TEXT("CrashReportClient.exe")))
+	if (CreateCrashReportClientPathImpl(CrashReportClientShippingName))
 	{
 		return true;
 	}
 
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
-	if (CreateCrashReportClientPathImpl(TEXT("CrashReportClient-Win64-Development.exe")))
+	if (CreateCrashReportClientPathImpl(CrashReportClientDevelopmentName))
 	{
 		return true;
 	}
