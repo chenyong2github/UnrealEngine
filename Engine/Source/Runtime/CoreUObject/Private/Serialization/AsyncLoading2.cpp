@@ -1587,17 +1587,17 @@ struct FAsyncPackageScope2
 };
 
 /** Makes sure the specified object reference is added to the package reference list by the time we exit a function (early or not) */
-struct FScopedAddObjectreference
+struct FScopedAddObjectreference2
 {
 	FAsyncPackage2& Package;
 	UObject*& Reference;
 
-	FScopedAddObjectreference(FAsyncPackage2& InPackage, UObject*& InReference)
+	FScopedAddObjectreference2(FAsyncPackage2& InPackage, UObject*& InReference)
 		: Package(InPackage)
 		, Reference(InReference)
 	{
 	}
-	~FScopedAddObjectreference()
+	~FScopedAddObjectreference2()
 	{
 		if (Reference)
 		{
@@ -2520,7 +2520,7 @@ void FAsyncPackage2::LinkSlimport(int32 LocalImportIndex, int32 GlobalImportInde
 	}
 
 	UObject*& Object = GlobalImportObjects[GlobalImportIndex];
-	FScopedAddObjectreference OnExitAddReference(*this, Object);
+	FScopedAddObjectreference2 OnExitAddReference(*this, Object);
 
 	if (Object)
 	{
@@ -2628,7 +2628,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 	if (!Export.Object && !Export.bExportLoadFailed)
 	{
 		FUObjectSerializeContext* LoadContext = GetSerializeContext();
-		FScopedAddObjectreference OnExitAddReference(*this, Export.Object);
+		FScopedAddObjectreference2 OnExitAddReference(*this, Export.Object);
 
 		if (!Linker->FilterExport(Export)) // for some acceptable position, it was not "not for" 
 		{

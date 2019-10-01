@@ -27,7 +27,7 @@ bool CanPostLoadOnAsyncLoadingThread(UObject* Object);
 template <typename T>
 void ClearFlagsAndDissolveClustersFromLoadedObjects(T& LoadedObjects)
 {
-	const EObjectFlags ObjectLoadFlags = EObjectFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects | RF_WasLoaded);
+	const EObjectFlags ObjectLoadFlags = RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects | RF_WasLoaded;
 	for (UObject* ObjRef : LoadedObjects)
 	{
 		if (ObjRef)
