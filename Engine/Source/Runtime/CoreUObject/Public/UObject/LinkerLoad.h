@@ -135,11 +135,6 @@ public:
 		return bIsAsyncLoader ? (FAsyncArchive*)Loader : nullptr;
 	}
 
-public:
-	int32* LocalImportIndices = 0;
-	UObject** GlobalImportObjects = nullptr;
-	const TArray<FNameEntryId>* ActiveNameMap = &NameMap;
-
 private:
 
 	/** Structured archive interface. Wraps underlying loader to provide contextual metadata to the values being written
@@ -152,6 +147,10 @@ private:
 
 	/** The archive that actually reads the raw data from disk.																*/
 	FArchive*				Loader;
+
+	int32* LocalImportIndices = nullptr;
+	UObject** GlobalImportObjects = nullptr;
+	const TArray<FNameEntryId>* ActiveNameMap = &NameMap;
 
 protected:
 
@@ -872,9 +871,6 @@ private:
 	COREUOBJECT_API static FLinkerLoad* CreateLinkerAsync(FUObjectSerializeContext* LoadContext, UPackage* Parent, const TCHAR* Filename, uint32 LoadFlags
 		, TFunction<void()>&& InSummaryReadyCallback
 	);
-	COREUOBJECT_API static FLinkerLoad* CreateLinkerAsync2(FUObjectSerializeContext* LoadContext, UPackage* Parent, const TCHAR* Filename, uint32 LoadFlags);
-	static void UpdateLinkerAndLoaderFromSummary(const FPackageFileSummary& Summary, FLinkerLoad& Linker, FArchive* Loader = nullptr);
-	static void UpdateUPackageFromSummary(const FPackageFileSummary& Summary, bool bCustomVersionIsLatest, UPackage* LinkerRootPackage);
 
 protected: // Daniel L: Made this protected so I can override the constructor and create a custom loader to load the header of the linker in the DiffFilesCommandlet
 	/**
@@ -919,6 +915,11 @@ private:
 	 * Serializes the package file summary.
 	 */
 	ELinkerStatus SerializePackageFileSummary();
+
+	/**
+	 * Updates the linker, loader and root package with data from the package file summary.
+	 * */
+	ELinkerStatus UpdateFromPackageFileSummary();
 
 	/**
 	 * Serializes the name map.

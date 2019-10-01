@@ -2580,8 +2580,7 @@ UObject* FAsyncPackage2::EventDrivenIndexToObject(FPackageIndex Index, bool bChe
 	else if (Index.IsImport())
 	{
 		int32 GlobalImportIndex = LocalImportIndices[Index.ToImport()];
-		Result = GlobalImportObjects[GlobalImportIndex];
-		// Result = FindExistingSlimport(GlobalImportIndex);
+		Result = FindExistingSlimport(GlobalImportIndex);
 		check(Result);
 	}
 	if (bCheckSerialized && !IsFullyLoadedObj(Result))
@@ -4405,12 +4404,16 @@ EAsyncPackageState::Type FAsyncPackage2::CreateLinker()
 
 	check(!FLinkerLoad::FindExistingLinkerForPackage(Package));
 
-	uint32 LinkerFlags = LOAD_None | LOAD_Async | LOAD_NoVerify;
-	Linker = FLinkerLoad::CreateLinkerAsync2(/*LoadContext*/ nullptr, Package, *AsyncLoadingThread.GetPackageFileName(GlobalPackageId), LinkerFlags);
-	check(Linker);
-
-	check(Linker->AsyncRoot == nullptr);
-	Linker->AsyncRoot = this;
+	{
+		uint32 LinkerFlags = LOAD_None | LOAD_Async | LOAD_NoVerify;
+		Linker = new FLinkerLoad(Package, *AsyncLoadingThread.GetPackageFileName(GlobalPackageId), LinkerFlags);
+		Linker->bIsAsyncLoader = false;
+		Linker->bLockoutLegacyOperations = true;
+		Linker->SetIsLoading(true);
+		Linker->SetIsPersistent(true);
+		Linker->AsyncRoot = this;
+	}
+	Package->LinkerLoad = Linker;
 
 	AsyncLoadingThread.EnqueueIoRequest(this, CreateChunkId(PackageChunkId, 0, EChunkType::PackageSummary));
 
@@ -4449,8 +4452,7 @@ EAsyncPackageState::Type FAsyncPackage2::FinishLinker()
 
 			Summary.SetFileVersions(GPackageFileUE4Version, GPackageFileLicenseeUE4Version, /*unversioned*/true);
 
-			FLinkerLoad::UpdateLinkerAndLoaderFromSummary(Summary, *Linker);
-			FLinkerLoad::UpdateUPackageFromSummary(Summary, /*bCustomVersionIsLatest*/true, Linker->LinkerRoot);
+			Linker->UpdateFromPackageFileSummary();
 		}
 
 		// TODO: FLinker should not be a FArchive - NameMap is only required for operator<<(FName& Name)
