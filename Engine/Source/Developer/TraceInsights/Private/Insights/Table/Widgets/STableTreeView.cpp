@@ -1868,6 +1868,8 @@ void STableTreeView::RebuildTree(bool bResync)
 	if (bListHasChanged)
 	{
 		UpdateTree();
+
+		TreeView->RebuildList();
 	}
 }
 

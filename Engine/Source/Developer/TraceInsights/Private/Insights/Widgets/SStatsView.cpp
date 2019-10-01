@@ -1927,22 +1927,9 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 		// Compute average and median inclusive/exclusive times.
 		CalculationHelperDbl.PostProcess(StatsNodesIdMap, bComputeMedian);
 		CalculationHelperInt.PostProcess(StatsNodesIdMap, bComputeMedian);
-
-		UpdateTree();
-
-		// Save selection.
-		//TArray<FStatsNodePtr> SelectedItems = TreeView->GetSelectedItems();
-
-		//TreeView->RebuildList();
-
-		// Restore selection.
-		//if (SelectedItems.Num() > 0)
-		//{
-		//	TreeView->ClearSelection();
-		//	TreeView->SetItemSelection(SelectedItems, true);
-		//	TreeView->RequestScrollIntoView(SelectedItems[0]);
-		//}
 	}
+
+	UpdateTree();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -1661,19 +1661,6 @@ void SNetStatsView::UpdateStatsInternal()
 	}
 
 	UpdateTree();
-
-	// Save selection.
-	//TArray<FNetEventNodePtr> SelectedItems = TreeView->GetSelectedItems();
-
-	//TreeView->RebuildList();
-
-	// Restore selection.
-	//if (SelectedItems.Num() > 0)
-	//{
-	//	TreeView->ClearSelection();
-	//	TreeView->SetItemSelection(SelectedItems, true);
-	//	TreeView->RequestScrollIntoView(SelectedItems[0]);
-	//}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -1630,22 +1630,9 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 			}
 			AggregationResultTableReader->NextRow();
 		}
-
-		UpdateTree();
-
-		// Save selection.
-		//TArray<FTimerNodePtr> SelectedItems = TreeView->GetSelectedItems();
-
-		//TreeView->RebuildList();
-
-		// Restore selection.
-		//if (SelectedItems.Num() > 0)
-		//{
-		//	TreeView->ClearSelection();
-		//	TreeView->SetItemSelection(SelectedItems, true);
-		//	TreeView->RequestScrollIntoView(SelectedItems[0]);
-		//}
 	}
+
+	UpdateTree();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
