@@ -85,8 +85,7 @@ void SNetworkingProfilerWindow::Reset()
 
 	if (NetStatsView)
 	{
-		//TODO: NetStatsView->Reset();
-		NetStatsView->RebuildTree(true);
+		NetStatsView->Reset();
 	}
 
 	AvailableGameInstances.Reset();
@@ -968,7 +967,7 @@ void SNetworkingProfilerWindow::UpdateAggregatedNetStats()
 		}
 		else
 		{
-			//NetStatsView->ResetStats();
+			NetStatsView->ResetStats();
 		}
 	}
 }

@@ -74,22 +74,22 @@ void SLoadingProfilerWindow::Reset()
 
 	if (EventAggregationTreeView)
 	{
-		EventAggregationTreeView->RebuildTree(true);
+		EventAggregationTreeView->Reset();
 	}
 
 	if (ObjectTypeAggregationTreeView)
 	{
-		ObjectTypeAggregationTreeView->RebuildTree(true);
+		ObjectTypeAggregationTreeView->Reset();
 	}
 
 	if (PackageDetailsTreeView)
 	{
-		PackageDetailsTreeView->RebuildTree(true);
+		PackageDetailsTreeView->Reset();
 	}
 
 	if (ExportDetailsTreeView)
 	{
-		ExportDetailsTreeView->RebuildTree(true);
+		ExportDetailsTreeView->Reset();
 	}
 }
 
@@ -170,7 +170,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_EventAggregationTreeView(c
 			SAssignNew(EventAggregationTreeView, Insights::STableTreeView, TablePtr)
 		];
 
-	EventAggregationTreeView->RebuildTree(true);
+	EventAggregationTreeView->Reset();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnEventAggregationTreeViewTabClosed));
 
@@ -210,7 +210,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_ObjectTypeAggregationTreeV
 			SAssignNew(ObjectTypeAggregationTreeView, Insights::STableTreeView, TablePtr)
 		];
 
-	ObjectTypeAggregationTreeView->RebuildTree(true);
+	ObjectTypeAggregationTreeView->Reset();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnObjectTypeAggregationTreeViewTabClosed));
 
@@ -250,7 +250,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_PackageDetailsTreeView(con
 			SAssignNew(PackageDetailsTreeView, Insights::STableTreeView, TablePtr)
 		];
 
-	PackageDetailsTreeView->RebuildTree(true);
+	PackageDetailsTreeView->Reset();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnPackageDetailsTreeViewTabClosed));
 
@@ -290,7 +290,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_ExportDetailsTreeView(cons
 			SAssignNew(ExportDetailsTreeView, Insights::STableTreeView, TablePtr)
 		];
 
-	ExportDetailsTreeView->RebuildTree(true);
+	ExportDetailsTreeView->Reset();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnExportDetailsTreeViewTabClosed));
 

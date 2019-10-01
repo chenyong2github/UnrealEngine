@@ -66,11 +66,13 @@ public:
 
 	TSharedPtr<Insights::FTable> GetTable() const { return Table; }
 
+	virtual void Reset();
+
 	/**
 	 * Rebuilds the tree (if necessary).
 	 * @param bResync - If true, it forces a resync even if the list did not changed since last sync.
 	 */
-	virtual void RebuildTree(bool bResync = true);
+	virtual void RebuildTree(bool bResync);
 
 	const FTableTreeNodePtr* FindNode(uint64 Id) const { return TableTreeNodesIdMap.Find(Id); }
 

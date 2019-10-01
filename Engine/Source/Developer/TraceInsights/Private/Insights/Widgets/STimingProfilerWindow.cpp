@@ -79,30 +79,37 @@ void STimingProfilerWindow::Reset()
 	{
 		FrameTrack->Reset();
 	}
+
 	if (GraphTrack)
 	{
 		GraphTrack->Reset();
 	}
+
 	if (TimingView)
 	{
 		TimingView->Reset();
 	}
+
 	if (TimersView)
 	{
-		TimersView->RebuildTree(true);
+		TimersView->Reset();
 	}
+
 	if (CallersTreeView)
 	{
 		CallersTreeView->Reset();
 	}
+
 	if (CalleesTreeView)
 	{
 		CalleesTreeView->Reset();
 	}
+
 	if (StatsView)
 	{
-		StatsView->RebuildTree(true);
+		StatsView->Reset();
 	}
+
 	if (LogView)
 	{
 		LogView->Reset();

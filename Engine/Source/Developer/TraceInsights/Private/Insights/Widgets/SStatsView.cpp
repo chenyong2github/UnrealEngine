@@ -658,7 +658,7 @@ void SStatsView::InsightsManager_OnSessionChanged()
 	if (NewSession != Session)
 	{
 		Session = NewSession;
-		RebuildTree();
+		Reset();
 	}
 	else
 	{
@@ -1501,6 +1501,16 @@ void SStatsView::ContextMenu_ResetColumns_Execute()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SStatsView::Reset()
+{
+	StatsStartTime = 0.0;
+	StatsEndTime = 0.0;
+
+	RebuildTree(true);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SStatsView::RebuildTree(bool bResync)
 {
 	TArray<FStatsNodePtr> SelectedItems;
@@ -1556,6 +1566,8 @@ void SStatsView::RebuildTree(bool bResync)
 	{
 		UpdateTree();
 		UpdateStats(StatsStartTime, StatsEndTime);
+
+		TreeView->RebuildList();
 
 		// Restore selection.
 		if (SelectedItems.Num() > 0)
@@ -1849,12 +1861,21 @@ void TTimeCalculationHelper<int64>::PostProcess(TMap<uint64, FStatsNodePtr>& Sta
 
 void SStatsView::UpdateStats(double StartTime, double EndTime)
 {
+	StatsStartTime = StartTime;
+	StatsEndTime = EndTime;
+
+	if (StartTime >= EndTime)
+	{
+		// keep previous aggregated stats
+		return;
+	}
+
 	for (const FStatsNodePtr& StatsNodePtr : StatsNodes)
 	{
 		StatsNodePtr->ResetAggregatedStats();
 	}
 
-	if (Session.IsValid() && StartTime < EndTime)
+	if (Session.IsValid())
 	{
 		const bool bComputeMedian = true;
 
@@ -1907,23 +1928,20 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 		CalculationHelperDbl.PostProcess(StatsNodesIdMap, bComputeMedian);
 		CalculationHelperInt.PostProcess(StatsNodesIdMap, bComputeMedian);
 
-		StatsStartTime = StartTime;
-		StatsEndTime = EndTime;
-
 		UpdateTree();
 
 		// Save selection.
-		TArray<FStatsNodePtr> SelectedItems = TreeView->GetSelectedItems();
+		//TArray<FStatsNodePtr> SelectedItems = TreeView->GetSelectedItems();
 
-		TreeView->RebuildList();
+		//TreeView->RebuildList();
 
 		// Restore selection.
-		if (SelectedItems.Num() > 0)
-		{
-			TreeView->ClearSelection();
-			TreeView->SetItemSelection(SelectedItems, true);
-			TreeView->RequestScrollIntoView(SelectedItems[0]);
-		}
+		//if (SelectedItems.Num() > 0)
+		//{
+		//	TreeView->ClearSelection();
+		//	TreeView->SetItemSelection(SelectedItems, true);
+		//	TreeView->RequestScrollIntoView(SelectedItems[0]);
+		//}
 	}
 }
 

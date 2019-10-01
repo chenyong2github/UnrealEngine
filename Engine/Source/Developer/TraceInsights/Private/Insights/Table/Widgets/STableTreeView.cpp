@@ -539,7 +539,7 @@ void STableTreeView::InsightsManager_OnSessionChanged()
 	if (NewSession != Session)
 	{
 		Session = NewSession;
-		RebuildTree();
+		Reset();
 	}
 	else
 	{
@@ -1808,6 +1808,16 @@ void STableTreeView::ContextMenu_ResetColumns_Execute()
 			HideColumn(Column.GetId());
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::Reset()
+{
+	StatsStartTime = 0.0;
+	StatsEndTime = 0.0;
+
+	RebuildTree(true);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

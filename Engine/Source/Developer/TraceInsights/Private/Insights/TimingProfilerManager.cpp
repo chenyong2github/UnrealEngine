@@ -427,16 +427,13 @@ void FTimingProfilerManager::UpdateCallersAndCallees()
 
 void FTimingProfilerManager::UpdateAggregatedTimerStats()
 {
-	if (SelectionStartTime < SelectionEndTime)
+	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd)
 	{
-		TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
-		if (Wnd)
+		TSharedPtr<STimersView> TimersView = Wnd->GetTimersView();
+		if (TimersView)
 		{
-			TSharedPtr<STimersView> TimersView = Wnd->GetTimersView();
-			if (TimersView)
-			{
-				TimersView->UpdateStats(SelectionStartTime, SelectionEndTime);
-			}
+			TimersView->UpdateStats(SelectionStartTime, SelectionEndTime);
 		}
 	}
 }
@@ -445,16 +442,13 @@ void FTimingProfilerManager::UpdateAggregatedTimerStats()
 
 void FTimingProfilerManager::UpdateAggregatedCounterStats()
 {
-	if (SelectionStartTime < SelectionEndTime)
+	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd)
 	{
-		TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
-		if (Wnd)
+		TSharedPtr<SStatsView> StatsView = Wnd->GetStatsView();
+		if (StatsView)
 		{
-			TSharedPtr<SStatsView> StatsView = Wnd->GetStatsView();
-			if (StatsView)
-			{
-				StatsView->UpdateStats(SelectionStartTime, SelectionEndTime);
-			}
+			StatsView->UpdateStats(SelectionStartTime, SelectionEndTime);
 		}
 	}
 }

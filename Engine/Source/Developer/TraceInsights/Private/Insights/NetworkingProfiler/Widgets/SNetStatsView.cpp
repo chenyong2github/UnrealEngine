@@ -627,16 +627,7 @@ void SNetStatsView::InsightsManager_OnSessionChanged()
 	if (NewSession != Session)
 	{
 		Session = NewSession;
-
-		GameInstanceIndex = 0;
-		ConnectionIndex = 0;
-		ConnectionMode = Trace::ENetProfilerConnectionMode::Outgoing;
-		StatsPacketStartIndex = 0;
-		StatsPacketEndIndex = 0;
-		StatsStartPosition = 0;
-		StatsEndPosition = 0;
-
-		RebuildTree();
+		Reset();
 	}
 	else
 	{
@@ -1493,6 +1484,22 @@ void SNetStatsView::ContextMenu_ResetColumns_Execute()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SNetStatsView::Reset()
+{
+	GameInstanceIndex = 0;
+	ConnectionIndex = 0;
+	ConnectionMode = Trace::ENetProfilerConnectionMode::Outgoing;
+
+	StatsPacketStartIndex = 0;
+	StatsPacketEndIndex = 0;
+	StatsStartPosition = 0;
+	StatsEndPosition = 0;
+
+	RebuildTree(true);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SNetStatsView::RebuildTree(bool bResync)
 {
 	TArray<FNetEventNodePtr> SelectedItems;
@@ -1552,8 +1559,10 @@ void SNetStatsView::RebuildTree(bool bResync)
 
 	if (bListHasChanged)
 	{
-		//UpdateTree();
+		UpdateTree();
 		UpdateStatsInternal();
+
+		TreeView->RebuildList();
 
 		// Restore selection.
 		if (SelectedItems.Num() > 0)
@@ -1584,6 +1593,7 @@ void SNetStatsView::ResetStats()
 	GameInstanceIndex = 0;
 	ConnectionIndex = 0;
 	ConnectionMode = Trace::ENetProfilerConnectionMode::Outgoing;
+
 	StatsPacketStartIndex = 0;
 	StatsPacketEndIndex = 0;
 	StatsStartPosition = 0;
@@ -1599,6 +1609,7 @@ void SNetStatsView::UpdateStats(uint32 InGameInstanceIndex, uint32 InConnectionI
 	GameInstanceIndex = InGameInstanceIndex;
 	ConnectionIndex = InConnectionIndex;
 	ConnectionMode = InConnectionMode;
+
 	StatsPacketStartIndex = InStatsPacketStartIndex;
 	StatsPacketEndIndex = InStatsPacketEndIndex;
 	StatsStartPosition = InStatsStartPosition;
@@ -1611,12 +1622,19 @@ void SNetStatsView::UpdateStats(uint32 InGameInstanceIndex, uint32 InConnectionI
 
 void SNetStatsView::UpdateStatsInternal()
 {
+	if (StatsPacketStartIndex >= StatsPacketEndIndex ||
+		StatsStartPosition >= StatsEndPosition)
+	{
+		// keep previous aggregated stats
+		return;
+	}
+
 	for (const FNetEventNodePtr& NetEventNodePtr : NetEventNodes)
 	{
 		NetEventNodePtr->ResetAggregatedStats();
 	}
 
-	if (Session.IsValid() && StatsStartPosition < StatsEndPosition)
+	if (Session.IsValid())
 	{
 		TUniquePtr<Trace::ITable<Trace::FNetProfilerAggregatedStats>> AggregatedStatsTable;
 
@@ -1645,17 +1663,17 @@ void SNetStatsView::UpdateStatsInternal()
 	UpdateTree();
 
 	// Save selection.
-	TArray<FNetEventNodePtr> SelectedItems = TreeView->GetSelectedItems();
+	//TArray<FNetEventNodePtr> SelectedItems = TreeView->GetSelectedItems();
 
-	TreeView->RebuildList();
+	//TreeView->RebuildList();
 
 	// Restore selection.
-	if (SelectedItems.Num() > 0)
-	{
-		TreeView->ClearSelection();
-		TreeView->SetItemSelection(SelectedItems, true);
-		TreeView->RequestScrollIntoView(SelectedItems[0]);
-	}
+	//if (SelectedItems.Num() > 0)
+	//{
+	//	TreeView->ClearSelection();
+	//	TreeView->SetItemSelection(SelectedItems, true);
+	//	TreeView->RequestScrollIntoView(SelectedItems[0]);
+	//}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

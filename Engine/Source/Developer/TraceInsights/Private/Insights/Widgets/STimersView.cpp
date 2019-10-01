@@ -604,7 +604,7 @@ void STimersView::InsightsManager_OnSessionChanged()
 	if (NewSession != Session)
 	{
 		Session = NewSession;
-		RebuildTree();
+		Reset();
 	}
 	else
 	{
@@ -1493,6 +1493,16 @@ void STimersView::ContextMenu_ResetColumns_Execute()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STimersView::Reset()
+{
+	StatsStartTime = 0.0;
+	StatsEndTime = 0.0;
+
+	RebuildTree(true);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimersView::RebuildTree(bool bResync)
 {
 	TArray<FTimerNodePtr> SelectedItems;
@@ -1548,6 +1558,8 @@ void STimersView::RebuildTree(bool bResync)
 		UpdateTree();
 		UpdateStats(StatsStartTime, StatsEndTime);
 
+		TreeView->RebuildList();
+
 		// Restore selection.
 		if (SelectedItems.Num() > 0)
 		{
@@ -1574,12 +1586,21 @@ void STimersView::RebuildTree(bool bResync)
 
 void STimersView::UpdateStats(double StartTime, double EndTime)
 {
+	StatsStartTime = StartTime;
+	StatsEndTime = EndTime;
+
+	if (StartTime >= EndTime)
+	{
+		// keep previous aggregated stats
+		return;
+	}
+
 	for (const FTimerNodePtr& TimerNodePtr : TimerNodes)
 	{
 		TimerNodePtr->ResetAggregatedStats();
 	}
 
-	if (Session.IsValid() && StartTime < EndTime && Trace::ReadTimingProfilerProvider(*Session.Get()))
+	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
 	{
 		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
@@ -1610,23 +1631,20 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 			AggregationResultTableReader->NextRow();
 		}
 
-		StatsStartTime = StartTime;
-		StatsEndTime = EndTime;
-
 		UpdateTree();
 
 		// Save selection.
-		TArray<FTimerNodePtr> SelectedItems = TreeView->GetSelectedItems();
+		//TArray<FTimerNodePtr> SelectedItems = TreeView->GetSelectedItems();
 
-		TreeView->RebuildList();
+		//TreeView->RebuildList();
 
 		// Restore selection.
-		if (SelectedItems.Num() > 0)
-		{
-			TreeView->ClearSelection();
-			TreeView->SetItemSelection(SelectedItems, true);
-			TreeView->RequestScrollIntoView(SelectedItems[0]);
-		}
+		//if (SelectedItems.Num() > 0)
+		//{
+		//	TreeView->ClearSelection();
+		//	TreeView->SetItemSelection(SelectedItems, true);
+		//	TreeView->RequestScrollIntoView(SelectedItems[0]);
+		//}
 	}
 }
 
