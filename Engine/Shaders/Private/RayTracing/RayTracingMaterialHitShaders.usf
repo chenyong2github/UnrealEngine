@@ -188,7 +188,7 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 
 	for (int i = 0; i < 3; i++)
 	{
-		FVertexFactoryInput Input = LoadVertexFactoryInput(PrimitiveIndex(), i);
+		FVertexFactoryInput Input = LoadVertexFactoryInputForHGS(PrimitiveIndex(), i);
 	
 		FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
 		float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	

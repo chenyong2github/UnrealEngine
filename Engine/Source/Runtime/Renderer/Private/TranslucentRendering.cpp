@@ -135,6 +135,7 @@ void FDeferredShadingSceneRenderer::UpdateTranslucencyTimersAndSeparateTransluce
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			const FViewInfo& View = Views[ViewIndex];
+			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 			FSceneViewState* ViewState = View.ViewState;
 
 			if (ViewState)
@@ -507,6 +508,7 @@ void FDeferredShadingSceneRenderer::ConditionalResolveSceneColorForTranslucentMa
 		{
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
+			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 			SCOPED_DRAW_EVENTF(RHICmdList, EventCopy, TEXT("CopySceneColor from SceneColor for translucency"));
 
 			RHICmdList.CopyToResolveTarget(SceneContext.GetSceneColorSurface(), SceneContext.GetSceneColorTexture(), FResolveRect(View.ViewRect.Min.X, View.ViewRect.Min.Y, View.ViewRect.Max.X, View.ViewRect.Max.Y));
@@ -881,12 +883,14 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate&
 	{
 		checkSlow(RHICmdList.IsOutsideRenderPass());
 
-		SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
 		FViewInfo& View = Views[ViewIndex];
 		if (!View.ShouldRenderView())
 		{
 			continue;
 		}
+
+		SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+		SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
 
 #if STATS
 		if (View.ViewState && IsMainTranslucencyPass(TranslucencyPass))

@@ -901,11 +901,11 @@ public:
 
 	/** Watch out for OutData to be 0 (can happen on DXGI_ERROR_DEVICE_REMOVED), don't call RHIUnmapStagingSurface in that case. */
 	// FlushType: Flush Immediate (seems wrong)
-	virtual void RHIMapStagingSurface(FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight) = 0;
+	virtual void RHIMapStagingSurface(FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex = 0) = 0;
 
 	/** call after a succesful RHIMapStagingSurface() call */
 	// FlushType: Flush Immediate (seems wrong)
-	virtual void RHIUnmapStagingSurface(FRHITexture* Texture) = 0;
+	virtual void RHIUnmapStagingSurface(FRHITexture* Texture, uint32 GPUIndex = 0) = 0;
 
 	// FlushType: Flush Immediate (seems wrong)
 	virtual void RHIReadSurfaceFloatData(FRHITexture* Texture, FIntRect Rect, TArray<FFloat16Color>& OutData, ECubeFace CubeFace, int32 ArrayIndex, int32 MipIndex) = 0;
@@ -936,6 +936,16 @@ public:
 	}
 	
 	virtual FTexture2DRHIRef RHIGetFMaskTexture(FRHITexture* SourceTextureRHI)
+	{
+		return nullptr;
+	}
+
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewHTile(FRHITexture2D* RenderTarget)
+	{
+		return nullptr;
+	}
+
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewHTile(FRHITexture2D* RenderTarget)
 	{
 		return nullptr;
 	}
@@ -1091,12 +1101,8 @@ public:
 
 #if WITH_MGPU
 	/** Returns a context for sending commands to the given GPU mask. Default implementation is only valid when not using multi-gpu. */
-	virtual IRHICommandContext* RHIGetDefaultContext(FRHIGPUMask GPUMask) { ensure(GPUMask == FRHIGPUMask::GPU0()); return RHIGetDefaultContext(); }
-	virtual IRHIComputeContext* RHIGetDefaultAsyncComputeContext(FRHIGPUMask GPUMask) { ensure(GPUMask == FRHIGPUMask::GPU0()); return RHIGetDefaultAsyncComputeContext(); }
 	virtual IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num, FRHIGPUMask GPUMask) { ensure(GPUMask == FRHIGPUMask::GPU0()); return RHIGetCommandContextContainer(Index, Num); }
 #else
-	FORCEINLINE IRHICommandContext* RHIGetDefaultContext(FRHIGPUMask GPUMask) { return RHIGetDefaultContext(); }
-	FORCEINLINE IRHIComputeContext* RHIGetDefaultAsyncComputeContext(FRHIGPUMask GPUMask) { return RHIGetDefaultAsyncComputeContext(); }
 	FORCEINLINE IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num, FRHIGPUMask GPUMask) { return RHIGetCommandContextContainer(Index, Num); }
 #endif
 
@@ -1396,6 +1402,16 @@ FORCEINLINE void RHIAdvanceFrameFence()
 	return GDynamicRHI->RHIAdvanceFrameFence();
 }
 
+FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceViewHTile(FRHITexture2D* RenderTarget)
+{
+	return GDynamicRHI->RHICreateShaderResourceViewHTile(RenderTarget);
+}
+
+FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewHTile(FRHITexture2D* RenderTarget)
+{
+	return GDynamicRHI->RHICreateUnorderedAccessViewHTile(RenderTarget);
+}
+
 FORCEINLINE void RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport)
 {
 	return GDynamicRHI->RHIAdvanceFrameForGetViewportBackBuffer(Viewport);
@@ -1461,14 +1477,14 @@ FORCEINLINE bool RHIRequiresComputeGenerateMips()
 	return GDynamicRHI->RHIRequiresComputeGenerateMips();
 }
 
-FORCEINLINE class IRHICommandContext* RHIGetDefaultContext(FRHIGPUMask GPUMask = FRHIGPUMask::All())
+FORCEINLINE class IRHICommandContext* RHIGetDefaultContext()
 {
-	return GDynamicRHI->RHIGetDefaultContext(GPUMask);
+	return GDynamicRHI->RHIGetDefaultContext();
 }
 
-FORCEINLINE class IRHIComputeContext* RHIGetDefaultAsyncComputeContext(FRHIGPUMask GPUMask = FRHIGPUMask::All())
+FORCEINLINE class IRHIComputeContext* RHIGetDefaultAsyncComputeContext()
 {
-	return GDynamicRHI->RHIGetDefaultAsyncComputeContext(GPUMask);
+	return GDynamicRHI->RHIGetDefaultAsyncComputeContext();
 }
 
 FORCEINLINE class IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num, FRHIGPUMask GPUMask)

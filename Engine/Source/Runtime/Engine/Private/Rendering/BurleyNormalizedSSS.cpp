@@ -153,6 +153,13 @@ void ComputeMirroredBSSSKernel(FLinearColor* TargetBuffer, uint32 TargetBufferSi
 			kernel[i].B = t.Z;
 		}
 
+		// We still need to do a small tweak to get the radius to visually match. Multiplying by 4.0 seems to fix it.
+		const float StepScale = 4.0f;
+		for (int32 i = 0; i < nTotalSamples; i++)
+		{
+			kernel[i].A *= StepScale;
+		}
+
 		// We want the offset 0.0 to come first:
 		FLinearColor t = kernel[nTotalSamples / 2];
 

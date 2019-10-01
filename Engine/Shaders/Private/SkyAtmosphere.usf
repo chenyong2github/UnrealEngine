@@ -332,7 +332,8 @@ float3 GetLightDiskLuminance(float3 WorldPos, float3 WorldDir, uint LightIndex)
 {
 #if SOURCE_DISK_ENABLED
 	float t = RaySphereIntersectNearest(WorldPos, WorldDir, float3(0.0f, 0.0f, 0.0f), Atmosphere.BottomRadius);
-	if (t < 0.0f) // no intersection with the planet
+	if (t < 0.0f												// No intersection with the planet
+		&& View.RenderingReflectionCaptureMask==0.0f)	// Do not render light disk when in reflection capture in order to avoid double specular. The sun contribution is already computed analyticaly.
 	{
 		float3 LightDiskLuminance = GetLightDiskLuminance(
 			WorldPos, WorldDir, Atmosphere.BottomRadius, Atmosphere.TopRadius,

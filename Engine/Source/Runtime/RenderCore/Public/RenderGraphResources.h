@@ -106,6 +106,13 @@ enum class ERDGResourceFlags : uint8
 
 ENUM_CLASS_FLAGS(ERDGResourceFlags);
 
+/** Used to specify a particular texture meta data plane instead of the default resource */
+enum class ERDGTextureMetaDataAccess : uint8
+{
+	None = 0,
+	HTile,
+};
+
 /** Generic graph resource. */
 class RENDERCORE_API FRDGResource
 {
@@ -376,6 +383,7 @@ public:
 	FRDGTextureSRVDesc() = default;
 	
 	FRDGTextureRef Texture = nullptr;
+	ERDGTextureMetaDataAccess MetaData = ERDGTextureMetaDataAccess::None;
 
 	/** Create SRV that access all sub resources of texture. */
 	static FRDGTextureSRVDesc Create(FRDGTextureRef Texture)
@@ -409,6 +417,14 @@ public:
 	{
 		FRDGTextureSRVDesc Desc = FRDGTextureSRVDesc::Create(Texture);
 		Desc.Format = PixelFormat;
+		return Desc;
+	}
+
+	/** Create SRV with access to a specific meta data plane */
+	static FRDGTextureSRVDesc CreateForMetaData(FRDGTextureRef Texture, ERDGTextureMetaDataAccess MetaData)
+	{
+		FRDGTextureSRVDesc Desc = FRDGTextureSRVDesc::Create(Texture);
+		Desc.MetaData = MetaData;
 		return Desc;
 	}
 };
@@ -450,8 +466,17 @@ public:
 		, MipLevel(InMipLevel)
 	{}
 
+	/** Create UAV with access to a specific meta data plane */
+	static FRDGTextureUAVDesc CreateForMetaData(FRDGTextureRef Texture, ERDGTextureMetaDataAccess MetaData)
+	{
+		FRDGTextureUAVDesc Desc = FRDGTextureUAVDesc(Texture, 0);
+		Desc.MetaData = MetaData;
+		return Desc;
+	}
+
 	FRDGTextureRef Texture = nullptr;
 	uint8 MipLevel = 0;
+	ERDGTextureMetaDataAccess MetaData = ERDGTextureMetaDataAccess::None;
 };
 
 /** Render graph tracked texture UAV. */

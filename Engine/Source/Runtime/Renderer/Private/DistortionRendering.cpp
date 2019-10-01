@@ -606,9 +606,10 @@ void FSceneRenderer::RenderDistortion(FRHICommandListImmediate& RHICmdList)
 			{
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 				{
+					FViewInfo& View = Views[ViewIndex];
+					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 					SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
 
-					FViewInfo& View = Views[ViewIndex];
 					if (!View.ShouldRenderView())
 					{
 						continue;
@@ -678,10 +679,11 @@ void FSceneRenderer::RenderDistortion(FRHICommandListImmediate& RHICmdList)
 			{
 				for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ++ViewIndex)
 				{
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion_PostView1);
-					SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
-
 					FViewInfo& View = Views[ViewIndex];
+
+					QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion_PostView1);
+					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+					SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
 
 					if (MSAACount == 1)
 					{
@@ -709,10 +711,11 @@ void FSceneRenderer::RenderDistortion(FRHICommandListImmediate& RHICmdList)
 			{
 				for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ++ViewIndex)
 				{
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion_PostView2);
-					SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
-
 					FViewInfo& View = Views[ViewIndex];
+
+					QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion_PostView2);
+					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+					SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
 
 					if (MSAACount == 1)
 					{

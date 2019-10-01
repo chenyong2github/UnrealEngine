@@ -94,9 +94,9 @@ private:
 	const uint8* Data;
 };
 
-template<class RHIShaderType>
+template<class RHICmdListType, class RHIShaderType>
 void FMeshDrawShaderBindings::SetShaderBindings(
-	FRHICommandList& RHICmdList,
+	RHICmdListType& RHICmdList,
 	RHIShaderType Shader,
 	const FReadOnlyMeshDrawSingleShaderBindings& RESTRICT SingleShaderBindings,
 	FShaderBindingState& RESTRICT ShaderBindingState)
@@ -193,9 +193,9 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 	}
 }
 
-template<class RHIShaderType>
+template<class RHICmdListType, class RHIShaderType>
 void FMeshDrawShaderBindings::SetShaderBindings(
-	FRHICommandList& RHICmdList,
+	RHICmdListType& RHICmdList,
 	RHIShaderType Shader,
 	const FReadOnlyMeshDrawSingleShaderBindings& RESTRICT SingleShaderBindings)
 {
@@ -812,6 +812,15 @@ void FMeshDrawShaderBindings::SetOnCommandList(FRHICommandList& RHICmdList, FBou
 }
 
 void FMeshDrawShaderBindings::SetOnCommandListForCompute(FRHICommandList& RHICmdList, FRHIComputeShader* Shader) const
+{
+	check(ShaderLayouts.Num() == 1);
+	FReadOnlyMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[0], GetData());
+	check(SingleShaderBindings.Frequency == SF_Compute);
+
+	SetShaderBindings(RHICmdList, Shader, SingleShaderBindings);
+}
+
+void FMeshDrawShaderBindings::SetOnCommandListForCompute(FRHIAsyncComputeCommandList& RHICmdList, FRHIComputeShader* Shader) const
 {
 	check(ShaderLayouts.Num() == 1);
 	FReadOnlyMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[0], GetData());

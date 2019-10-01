@@ -7,5 +7,4 @@
 // TODO(VR team): move shader file and C++ into a plugin.
 
 #include "Common.ush"
-#include "PostProcessCommon.ush"
 #include "Platform/PS4/PostProcessHMDMorpheus.usf"

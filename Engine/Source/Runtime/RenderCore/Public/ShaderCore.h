@@ -159,17 +159,19 @@ enum ECompilerFlags
 	CFLAG_PreferFlowControl = 0,
 	CFLAG_Debug,
 	CFLAG_AvoidFlowControl,
-	/** Disable shader validation */
+	// Disable shader validation
 	CFLAG_SkipValidation,
-	/** Only allows standard optimizations, not the longest compile times. */
+	// Only allows standard optimizations, not the longest compile times.
 	CFLAG_StandardOptimization,
-	/** Shader should use on chip memory instead of main memory ring buffer memory. */
+	// Always optimize, even when CFLAG_Debug is set. Required for some complex shaders and features.
+	CFLAG_ForceOptimization,
+	// Shader should use on chip memory instead of main memory ring buffer memory.
 	CFLAG_OnChip,
 	CFLAG_KeepDebugInfo,
 	CFLAG_NoFastMath,
-	/** Explicitly enforce zero initialisation on shader platforms that may omit it. */
+	// Explicitly enforce zero initialisation on shader platforms that may omit it.
 	CFLAG_ZeroInitialise,
-	/** Explicitly enforce bounds checking on shader platforms that may omit it. */
+	// Explicitly enforce bounds checking on shader platforms that may omit it.
 	CFLAG_BoundsChecking,
 	// Compile ES2 with ES3.1 features
 	CFLAG_FeatureLevelES31,

@@ -23,6 +23,7 @@
 #include "PostProcess/RenderingCompositionGraph.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "PostProcess/PostProcessSubsurface.h"
+#include "PostProcess/PostProcessing.h"
 #include "CompositionLighting/CompositionLighting.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "SceneViewExtension.h"
@@ -54,6 +55,7 @@
 #include "IXRTrackingSystem.h"
 #include "IXRCamera.h"
 #include "IXRCamera.h"
+#include "IHeadMountedDisplay.h"
 #include "DiaphragmDOF.h" 
 #include "SingleLayerWaterRendering.h" 
 
@@ -597,7 +599,6 @@ FParallelCommandListSet::FParallelCommandListSet(
 	, SceneRenderer(InSceneRenderer)
 	, DrawRenderState(InDrawRenderState)
 	, ParentCmdList(InParentCmdList)
-	, GPUMask(ParentCmdList.GetGPUMask())
 	, Snapshot(nullptr)
 	, ExecuteStat(InExecuteStat)
 	, NumAlloc(0)
@@ -618,9 +619,6 @@ FParallelCommandListSet::FParallelCommandListSet(
 
 FRHICommandList* FParallelCommandListSet::AllocCommandList()
 {
-	// We don't support the mask changing while the parallel commandlists are being generated.
-	ensure(GPUMask == ParentCmdList.GetGPUMask());
-
 	NumAlloc++;
 	return new FRHICommandList(ParentCmdList.GetGPUMask());
 }
@@ -636,9 +634,6 @@ void FParallelCommandListSet::Dispatch(bool bHighPriority)
 	// This is a bit weird since we will (likely) end up opening one in the parallel translate case but until we have
 	// a cleaner way for the RHI to specify parallel passes this is what we've got.
 	check(ParentCmdList.IsOutsideRenderPass());
-
-	// We don't support the mask changing while the parallel commandlists are being processed.
-	ensure(GPUMask == ParentCmdList.GetGPUMask());
 
 	ENamedThreads::Type RenderThread_Local = ENamedThreads::GetRenderThread_Local();
 	if (bSpewBalance)
@@ -769,7 +764,19 @@ void FParallelCommandListSet::WaitForTasksInternal()
 	}
 }
 
+bool IsHMDHiddenAreaMaskActive()
+{
+	// Query if we have a custom HMD post process mesh to use
+	static const auto* const HiddenAreaMaskCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.HiddenAreaMask"));
 
+	return
+		HiddenAreaMaskCVar != nullptr &&
+		// Any thread is used due to FViewInfo initialization.
+		HiddenAreaMaskCVar->GetValueOnAnyThread() == 1 &&
+		GEngine &&
+		GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() &&
+		GEngine->XRSystem->GetHMDDevice()->HasVisibleAreaMesh();
+}
 
 /*-----------------------------------------------------------------------------
 	FViewInfo
@@ -780,7 +787,6 @@ void FParallelCommandListSet::WaitForTasksInternal()
  */
 FViewInfo::FViewInfo(const FSceneViewInitOptions& InitOptions)
 	:	FSceneView(InitOptions)
-	,	GPUMask(FRHIGPUMask::GPU0())
 	,	IndividualOcclusionQueries((FSceneViewState*)InitOptions.SceneViewStateInterface, 1)	
 	,	GroupedOcclusionQueries((FSceneViewState*)InitOptions.SceneViewStateInterface, FOcclusionQueryBatcher::OccludedPrimitiveQueryBatchSize)
 {
@@ -793,7 +799,6 @@ FViewInfo::FViewInfo(const FSceneViewInitOptions& InitOptions)
  */
 FViewInfo::FViewInfo(const FSceneView* InView)
 	:	FSceneView(*InView)
-	,	GPUMask(FRHIGPUMask::GPU0())
 	,	IndividualOcclusionQueries((FSceneViewState*)InView->State,1)	
 	,	GroupedOcclusionQueries((FSceneViewState*)InView->State,FOcclusionQueryBatcher::OccludedPrimitiveQueryBatchSize)
 	,	CustomVisibilityQuery(nullptr)
@@ -863,6 +868,8 @@ void FViewInfo::Init()
 
 	ViewState = (FSceneViewState*)State;
 	bIsSnapshot = false;
+	bHMDHiddenAreaMaskActive = IsHMDHiddenAreaMaskActive();
+	bUseComputePasses = IsPostProcessingWithComputeEnabled(FeatureLevel);
 	bHasCustomDepthPrimitives = false;
 	bHasDistortionPrimitives = false;
 	bAllowStencilDither = false;
@@ -1263,9 +1270,6 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 		ViewUniformShaderParameters.SkyViewLutSizeAndInvSize = FVector4(SkyViewLutWidth, SkyViewLutHeight, 1.0f / SkyViewLutWidth, 1.0f / SkyViewLutHeight);
 
-		//DistantSkyLightLutTextureFound = SkyAtmosphere->GetDistantSkyLightLutTextureRHI();
-		//ViewUniformShaderParameters.SkyAtmosphereSkyLuminanceFactor = SkyAtmosphere->GetSkyLuminanceFactor();
-
 		// Now initialize remaining view parameters.
 
 		const FAtmosphereSetup& AtmosphereSetup = SkyAtmosphereSceneProxy.GetAtmosphereSetup();
@@ -1441,7 +1445,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	{
 		// If rendering in stereo, the other stereo passes uses the left eye's translucency lighting volume.
 		const FViewInfo* PrimaryView = this;
-		if (IStereoRendering::IsASecondaryView(StereoPass, GEngine->StereoRenderingDevice))
+		if (IStereoRendering::IsASecondaryView(*this, GEngine->StereoRenderingDevice))
 		{
 			if (Family->Views.IsValidIndex(0))
 			{
@@ -1801,7 +1805,7 @@ FSceneViewState* FViewInfo::GetEffectiveViewState() const
 	FSceneViewState* EffectiveViewState = ViewState;
 
 	// When rendering in stereo we want to use the same exposure for both eyes.
-	if (IStereoRendering::IsASecondaryView(StereoPass, GEngine->StereoRenderingDevice))
+	if (IStereoRendering::IsASecondaryView(*this, GEngine->StereoRenderingDevice))
 	{
 		int32 ViewIndex = Family->Views.Find(this);
 		if (Family->Views.IsValidIndex(ViewIndex))
@@ -1911,29 +1915,35 @@ float FViewInfo::GetLastAverageSceneLuminance() const
 	return 0.f; // Invalid scene luminance
 }
 
-void FViewInfo::SetValidTonemappingLUT() const
+ERenderTargetLoadAction FViewInfo::GetOverwriteLoadAction() const
 {
-	FSceneViewState* EffectiveViewState = GetEffectiveViewState();
-	if (EffectiveViewState) EffectiveViewState->SetValidTonemappingLUT();
+	return bHMDHiddenAreaMaskActive ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;
 }
 
-const FTextureRHIRef* FViewInfo::GetTonemappingLUTTexture() const
+void FViewInfo::SetValidTonemappingLUT() const
 {
-	const FTextureRHIRef* TextureRHIRef = NULL;
+	if (FSceneViewState* EffectiveViewState = GetEffectiveViewState())
+	{
+		EffectiveViewState->SetValidTonemappingLUT();
+	}
+}
+
+IPooledRenderTarget* FViewInfo::GetTonemappingLUT() const
+{
 	FSceneViewState* EffectiveViewState = GetEffectiveViewState();
 	if (EffectiveViewState && EffectiveViewState->HasValidTonemappingLUT())
 	{
-		TextureRHIRef = EffectiveViewState->GetTonemappingLUTTexture();
+		return EffectiveViewState->GetTonemappingLUT();
 	}
-	return TextureRHIRef;
+	return nullptr;
 };
 
-IPooledRenderTarget* FViewInfo::GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput) const 
+IPooledRenderTarget* FViewInfo::GetTonemappingLUT(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput) const 
 {
 	FSceneViewState* EffectiveViewState = GetEffectiveViewState();
 	if (EffectiveViewState)
 	{
-		return EffectiveViewState->GetTonemappingLUTRenderTarget(RHICmdList, LUTSize, bUseVolumeLUT, bNeedUAV, bNeedFloatOutput);
+		return EffectiveViewState->GetTonemappingLUT(RHICmdList, LUTSize, bUseVolumeLUT, bNeedUAV, bNeedFloatOutput);
 	}
 	return nullptr;
 }
@@ -2252,7 +2262,7 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 
 		// Fallback to no anti aliasing.
 		{
-			const bool bWillApplyTemporalAA = GPostProcessing.AllowFullPostProcessing(View, FeatureLevel) || (View.bIsPlanarReflection && FeatureLevel >= ERHIFeatureLevel::SM5);
+			const bool bWillApplyTemporalAA = IsPostProcessingEnabled(View) || (View.bIsPlanarReflection && FeatureLevel >= ERHIFeatureLevel::SM5);
 
 			if (!bWillApplyTemporalAA)
 			{
@@ -2287,8 +2297,6 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 		checkf(PrimaryResolutionFraction <= ViewFamily.GetPrimaryResolutionFractionUpperBound(),
 			TEXT("ISceneViewFamilyScreenPercentage::GetPrimaryResolutionFractionUpperBound() should not lie to the renderer."));
 		
-		check(FSceneViewScreenPercentageConfig::IsValidResolutionFraction(PrimaryResolutionFraction));
-
 		check(FSceneViewScreenPercentageConfig::IsValidResolutionFraction(PrimaryResolutionFraction));
 		
 		// Compute final resolution fraction.
@@ -2401,49 +2409,46 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 	}
 }
 
+#if WITH_MGPU
 void FSceneRenderer::ComputeViewGPUMasks(FRHIGPUMask RenderTargetGPUMask)
 {
-#if WITH_MGPU
 	// First check whether we are in multi-GPU and if fork and join cross-gpu transfers are enabled.
 	// Otherwise fallback on rendering the whole view family on each relevant GPU using broadcast logic.
 	if (GNumExplicitGPUsForRendering > 1 && CVarEnableMultiGPUForkAndJoin.GetValueOnAnyThread() != 0)
 	{
 		// Check whether this looks like an AFR setup (note that the logic also applies when there is only one AFR group).
-		FRHIGPUMask UsableGPUMask = RenderTargetGPUMask;
-		if (RenderTargetGPUMask.HasSingleIndex() && RenderTargetGPUMask.ToIndex() < GNumAlternateFrameRenderingGroups)
-		{
 			// Each AFR group uses multiple GPU. AFRGroup(i) = { i, NumAFRGroups + i,  2 * NumAFRGroups + i, ... } up to NumGPUs.
 			// Each view rendered gets assigned to the next GPU in that group. 
-			for (uint32 GPUIndex = RenderTargetGPUMask.ToIndex() + GNumAlternateFrameRenderingGroups; GPUIndex < GNumExplicitGPUsForRendering; GPUIndex += GNumAlternateFrameRenderingGroups)
-			{
-				UsableGPUMask |= FRHIGPUMask::FromIndex(GPUIndex);
-			}
-		}
-
+		FRHIGPUMask UsableGPUMask = AFRUtils::GetGPUMaskForGroup(RenderTargetGPUMask);
 		FRHIGPUMask::FIterator GPUIterator(UsableGPUMask);
 		for (FViewInfo& ViewInfo : Views)
 		{
 			// Only handle views that are to be rendered (this excludes instance stereo).
 			if (ViewInfo.ShouldRenderView())
 			{
-				ViewInfo.GPUMask = FRHIGPUMask::FromIndex(*GPUIterator);
-				ViewFamily.bMultiGPUForkAndJoin |= (ViewInfo.GPUMask != RenderTargetGPUMask);
-					
-				// Increment and wrap around if we reach the last index.
-				++GPUIterator;
-				if (!GPUIterator)
+				// Multi-GPU support : This is inefficient for AFR if the reflection capture
+				// updates every frame. Work is wasted on the GPUs that are not involved in
+				// rendering the current frame.
+				if (ViewInfo.bIsReflectionCapture || ViewInfo.bIsPlanarReflection)
 				{
-					GPUIterator = FRHIGPUMask::FIterator(UsableGPUMask);
+					ViewInfo.GPUMask = FRHIGPUMask::All();
 				}
-			}
-			else
-			{
-				ViewInfo.GPUMask = RenderTargetGPUMask;
+				else
+				{
+					ViewInfo.GPUMask = FRHIGPUMask::FromIndex(*GPUIterator);
+					ViewFamily.bMultiGPUForkAndJoin |= (ViewInfo.GPUMask != RenderTargetGPUMask);
+
+					// Increment and wrap around if we reach the last index.
+					++GPUIterator;
+					if (!GPUIterator)
+					{
+						GPUIterator = FRHIGPUMask::FIterator(UsableGPUMask);
+					}
+				}
 			}
 		}
 	}
 	else
-#endif
 	{
 		for (FViewInfo& ViewInfo : Views)
 		{
@@ -2453,7 +2458,14 @@ void FSceneRenderer::ComputeViewGPUMasks(FRHIGPUMask RenderTargetGPUMask)
 			}
 		}
 	}
+
+	AllViewsGPUMask = Views[0].GPUMask;
+	for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		AllViewsGPUMask |= Views[ViewIndex].GPUMask;
+	}
 }
+#endif // WITH_MGPU
 
 void FSceneRenderer::DoCrossGPUTransfers(FRHICommandListImmediate& RHICmdList, FRHIGPUMask RenderTargetGPUMask)
 {
@@ -2524,7 +2536,7 @@ void FSceneRenderer::ComputeFamilySize()
 		MaxFamilyX = FMath::Max(MaxFamilyX, FinalViewMaxX);
 		MaxFamilyY = FMath::Max(MaxFamilyY, FinalViewMaxY);
 
-		if (!IStereoRendering::IsAnAdditionalView(View.StereoPass, GEngine->StereoRenderingDevice))
+		if (!IStereoRendering::IsAnAdditionalView(View, GEngine->StereoRenderingDevice))
 		{
 		InstancedStereoWidth = FPlatformMath::Max(InstancedStereoWidth, static_cast<uint32>(View.ViewRect.Max.X));
 	}

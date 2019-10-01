@@ -230,7 +230,7 @@ void GammaMaskedMain(
 /** the width to smooth the edge the texture */
 float SmoothWidth;
 /** toggles drop shadow rendering */
-bool EnableShadow;
+uint EnableShadow;
 /** 2d vector specifying the direction of shadow */
 float2 ShadowDirection;
 /** Color of the shadowed pixels */
@@ -238,7 +238,7 @@ float4 ShadowColor;
 /** the width to smooth the edge the shadow of the texture */
 float ShadowSmoothWidth;
 /** toggles glow rendering */
-bool EnableGlow;
+uint EnableGlow;
 /** base color to use for the glow */
 float4 GlowColor;
 /** outline glow outer radius */

@@ -898,6 +898,9 @@ public:
 	/** Half of the view's stereo IPD (- for lhs, + for rhs) */
 	float StereoIPD;
 
+	/** The GPU nodes on which to render this view. */
+	FRHIGPUMask GPUMask;
+
 	/** Whether this view should render the first instance only of any meshes using instancing. */
 	bool bRenderFirstInstanceOnly;
 

@@ -536,6 +536,7 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 	const int32 VulkanValidationOption = GValidationCvar.GetValueOnAnyThread();
 	if (!GRenderDocFound && VulkanValidationOption > 0)
 	{
+		// Path for older drivers
 		bool bStandardAvailable = false;
 		if (GStandardValidationCvar.GetValueOnAnyThread() != 0)
 		{
@@ -560,11 +561,6 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 						OutDeviceLayers.Add(CurrValidationLayer);
 						break;
 					}
-				}
-
-				if (!bValidationFound)
-				{
-					UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan device validation layer '%s'"), ANSI_TO_TCHAR(CurrValidationLayer));
 				}
 			}
 		}

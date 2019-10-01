@@ -138,7 +138,15 @@ public:
 			bool bShaderTypeMatches = false;
 
 			// For FMaterialResource::GetRepresentativeInstructionCounts
-			if (FCString::Stricmp(ShaderType->GetName(), TEXT("MobileDirectionalLight")))
+			if (FCString::Stristr(ShaderType->GetName(), TEXT("MaterialCHSFNoLightMapPolicy")))
+			{
+				bShaderTypeMatches = true;
+			}
+			else if (FCString::Stristr(ShaderType->GetName(), TEXT("MobileDirectionalLight")))
+			{
+				bShaderTypeMatches = true;
+			}
+			else if (FCString::Stristr(ShaderType->GetName(), TEXT("MobileMovableDirectionalLight")))
 			{
 				bShaderTypeMatches = true;
 			}
@@ -181,7 +189,7 @@ public:
 			{
 				bShaderTypeMatches = true;
 			}
-			else if (FCString::Stristr(ShaderType->GetName(), TEXT("TDistortion")))
+			else if (FCString::Stristr(ShaderType->GetName(), TEXT("Distortion")))
 			{
 				bShaderTypeMatches = true;
 			}
@@ -194,6 +202,14 @@ public:
 				bShaderTypeMatches = true;
 			}
 			else if (FCString::Stristr(ShaderType->GetName(), TEXT("FDebugViewModeVS")))
+			{
+				bShaderTypeMatches = true;
+			}
+			else if (FCString::Stristr(ShaderType->GetName(), TEXT("FVelocity")))
+			{
+				bShaderTypeMatches = true;
+			}
+			else if (FCString::Stristr(ShaderType->GetName(), TEXT("RayTracingDynamicGeometryConverter")))
 			{
 				bShaderTypeMatches = true;
 			}

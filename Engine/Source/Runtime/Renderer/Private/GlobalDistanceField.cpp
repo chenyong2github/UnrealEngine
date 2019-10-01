@@ -1389,6 +1389,11 @@ void UpdateGlobalDistanceFieldVolume(
 					? GlobalDistanceFieldInfo.MostlyStaticClipmaps 
 					: GlobalDistanceFieldInfo.Clipmaps;
 
+				// Multi-GPU support : Updating on all GPUs may be inefficient for AFR. Work is
+				// wasted for any clipmaps that update on consecutive frames.
+				const FRHIGPUMask ClipmapGPUMask = AFRUtils::GetGPUMaskWithSiblings(RHICmdList.GetGPUMask());
+				SCOPED_GPU_MASK(RHICmdList, ClipmapGPUMask);
+
 				for (int32 ClipmapIndex = 0; ClipmapIndex < Clipmaps.Num(); ClipmapIndex++)
 				{
 					SCOPED_DRAW_EVENTF(RHICmdList, Clipmap, TEXT("CacheType %s Clipmap %u"), CacheType == GDF_MostlyStatic ? TEXT("MostlyStatic") : TEXT("Movable"), ClipmapIndex);

@@ -266,7 +266,6 @@ public:
 	}
 	
 	void ResolveSceneDepthTexture(FRHICommandList& RHICmdList, const FResolveRect& ResolveRect);
-	void ResolveSceneDepthToAuxiliaryTexture(FRHICommandList& RHICmdList);
 
 	void BeginRenderingPrePass(FRHICommandList& RHICmdList, bool bPerformClear);
 	void FinishRenderingPrePass(FRHICommandListImmediate& RHICmdList);
@@ -363,15 +362,13 @@ public:
 
 	const FTexture2DRHIRef& GetSceneAlphaCopyTexture() const { return (const FTexture2DRHIRef&)SceneAlphaCopy->GetRenderTargetItem().ShaderResourceTexture; }
 	bool HasSceneAlphaCopyTexture() const { return SceneAlphaCopy.GetReference() != 0; }
-	const FTexture2DRHIRef& GetSceneDepthTexture() const { return (const FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().ShaderResourceTexture; }
 
-	const FTexture2DRHIRef& GetAuxiliarySceneDepthTexture() const
-	{ 
-		check(!GSupportsDepthFetchDuringDepthTest);
-		return (const FTexture2DRHIRef&)AuxiliarySceneDepthZ->GetRenderTargetItem().ShaderResourceTexture; 
+	const FTexture2DRHIRef& GetSceneDepthTexture() const
+	{
+		static const FTexture2DRHIRef EmptyTexture;
+		return SceneDepthZ ? (const FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().ShaderResourceTexture : EmptyTexture;
 	}
 
-	const FTexture2DRHIRef* GetActualDepthTexture() const;
 	const FTexture2DRHIRef& GetGBufferATexture() const { return (const FTexture2DRHIRef&)GBufferA->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferBTexture() const { return (const FTexture2DRHIRef&)GBufferB->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferCTexture() const { return (const FTexture2DRHIRef&)GBufferC->GetRenderTargetItem().ShaderResourceTexture; }
@@ -390,11 +387,6 @@ public:
 	const FTexture2DRHIRef& GetSmallDepthSurface() const							{ return (const FTexture2DRHIRef&)SmallDepthZ->GetRenderTargetItem().TargetableTexture; }
 	const FTexture2DRHIRef& GetOptionalShadowDepthColorSurface(FRHICommandList& RHICmdList, int32 Width, int32 Height) const;
 	const FTexture2DRHIRef& GetLightAttenuationSurface() const					{ return (const FTexture2DRHIRef&)GetLightAttenuation()->GetRenderTargetItem().TargetableTexture; }
-	const FTexture2DRHIRef& GetAuxiliarySceneDepthSurface() const 
-	{	
-		check(!GSupportsDepthFetchDuringDepthTest); 
-		return (const FTexture2DRHIRef&)AuxiliarySceneDepthZ->GetRenderTargetItem().TargetableTexture; 
-	}
 
 	const FTexture2DRHIRef& GetDirectionalOcclusionTexture() const 
 	{	
@@ -535,8 +527,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> LightingChannels;
 	// Mobile without frame buffer fetch (to get depth from alpha).
 	TRefCountPtr<IPooledRenderTarget> SceneAlphaCopy;
-	// Auxiliary scene depth target. The scene depth is resolved to this surface when targeting SM4. 
-	TRefCountPtr<IPooledRenderTarget> AuxiliarySceneDepthZ;
 	// Quarter-sized version of the scene depths
 	TRefCountPtr<IPooledRenderTarget> SmallDepthZ;
 

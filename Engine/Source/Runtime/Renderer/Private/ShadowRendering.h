@@ -1282,7 +1282,7 @@ private:
  * Pixel shader used to project one pass point light shadows.
  */
 // Quality = 0 / 1
-template <uint32 Quality, bool bUseTransmission = false>
+template <uint32 Quality, bool bUseTransmission>
 class TOnePassPointShadowProjectionPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(TOnePassPointShadowProjectionPS,Global);

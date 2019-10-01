@@ -339,6 +339,7 @@ public:
 	void SetOnCommandList(FRHICommandList& RHICmdList, FBoundShaderStateInput Shaders, class FShaderBindingState* StateCacheShaderBindings) const;
 
 	void SetOnCommandListForCompute(FRHICommandList& RHICmdList, FRHIComputeShader* Shader) const;
+	void SetOnCommandListForCompute(FRHIAsyncComputeCommandList& RHICmdList, FRHIComputeShader* Shader) const;
 
 #if RHI_RAYTRACING
 	void SetRayTracingShaderBindingsForHitGroup(FRHICommandList& RHICmdList, FRHIRayTracingScene* Scene, uint32 InstanceIndex, uint32 SegmentIndex, FRayTracingPipelineState* Pipeline, uint32 HitGroupIndex, uint32 ShaderSlot) const;
@@ -420,16 +421,16 @@ private:
 
 	RENDERER_API void Release();
 
-	template<class RHIShaderType>
+	template<class RHICmdListType, class RHIShaderType>
 	static void SetShaderBindings(
-		FRHICommandList& RHICmdList,
+		RHICmdListType& RHICmdList,
 		RHIShaderType Shader,
 		const class FReadOnlyMeshDrawSingleShaderBindings& RESTRICT SingleShaderBindings,
 		FShaderBindingState& RESTRICT ShaderBindingState);
 
-	template<class RHIShaderType>
+	template<class RHICmdListType, class RHIShaderType>
 	static void SetShaderBindings(
-		FRHICommandList& RHICmdList,
+		RHICmdListType& RHICmdList,
 		RHIShaderType Shader,
 		const class FReadOnlyMeshDrawSingleShaderBindings& RESTRICT SingleShaderBindings);
 };

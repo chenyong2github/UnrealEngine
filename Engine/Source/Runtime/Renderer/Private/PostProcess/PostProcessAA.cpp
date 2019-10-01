@@ -1,306 +1,124 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessAA.cpp: Post processing anti aliasing implementation.
-=============================================================================*/
-
 #include "PostProcess/PostProcessAA.h"
-#include "StaticBoundShaderState.h"
-#include "SceneUtils.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "SceneRendering.h"
-#include "PipelineStateCache.h"
+#include "PostProcess/PostProcessing.h"
 
-/** Encapsulates the post processing anti aliasing pixel shader. */
-// Quality 1..6
-template<uint32 Quality>
-class FPostProcessAntiAliasingPS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FPostProcessAntiAliasingPS, Global);
+BEGIN_SHADER_PARAMETER_STRUCT(FFXAAParameters, )
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureInput, Input)
+	SHADER_PARAMETER(FVector4, fxaaConsoleRcpFrameOpt)
+	SHADER_PARAMETER(FVector4, fxaaConsoleRcpFrameOpt2)
+	SHADER_PARAMETER(float, fxaaQualitySubpix)
+	SHADER_PARAMETER(float, fxaaQualityEdgeThreshold)
+	SHADER_PARAMETER(float, fxaaQualityEdgeThresholdMin)
+	SHADER_PARAMETER(float, fxaaConsoleEdgeSharpness)
+	SHADER_PARAMETER(float, fxaaConsoleEdgeThreshold)
+	SHADER_PARAMETER(float, fxaaConsoleEdgeThresholdMin)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("FXAA_PRESET"), Quality - 1);
-	}
-
-	/** Default constructor. */
-	FPostProcessAntiAliasingPS() {}
-
-public:
-	FPostProcessPassParameters PostprocessParameter;
-	FShaderParameter fxaaQualityRcpFrame;
-	FShaderParameter fxaaConsoleRcpFrameOpt;
-	FShaderParameter fxaaConsoleRcpFrameOpt2;
-	FShaderParameter fxaaQualitySubpix;
-	FShaderParameter fxaaQualityEdgeThreshold;
-	FShaderParameter fxaaQualityEdgeThresholdMin;
-	FShaderParameter fxaaConsoleEdgeSharpness;
-	FShaderParameter fxaaConsoleEdgeThreshold;
-	FShaderParameter fxaaConsoleEdgeThresholdMin;
-
-	/** Initialization constructor. */
-	FPostProcessAntiAliasingPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		fxaaQualityRcpFrame.Bind(Initializer.ParameterMap, TEXT("fxaaQualityRcpFrame"));
-		fxaaConsoleRcpFrameOpt.Bind(Initializer.ParameterMap, TEXT("fxaaConsoleRcpFrameOpt"));
-		fxaaConsoleRcpFrameOpt2.Bind(Initializer.ParameterMap, TEXT("fxaaConsoleRcpFrameOpt2"));
-		fxaaQualitySubpix.Bind(Initializer.ParameterMap, TEXT("fxaaQualitySubpix"));
-		fxaaQualityEdgeThreshold.Bind(Initializer.ParameterMap, TEXT("fxaaQualityEdgeThreshold"));
-		fxaaQualityEdgeThresholdMin.Bind(Initializer.ParameterMap, TEXT("fxaaQualityEdgeThresholdMin"));
-		fxaaConsoleEdgeSharpness.Bind(Initializer.ParameterMap, TEXT("fxaaConsoleEdgeSharpness"));
-		fxaaConsoleEdgeThreshold.Bind(Initializer.ParameterMap, TEXT("fxaaConsoleEdgeThreshold"));
-		fxaaConsoleEdgeThresholdMin.Bind(Initializer.ParameterMap, TEXT("fxaaConsoleEdgeThresholdMin"));
-	}
-
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << fxaaQualityRcpFrame
-			<< fxaaConsoleRcpFrameOpt << fxaaConsoleRcpFrameOpt2
-			<< fxaaQualitySubpix << fxaaQualityEdgeThreshold << fxaaQualityEdgeThresholdMin
-			<< fxaaConsoleEdgeSharpness << fxaaConsoleEdgeThreshold << fxaaConsoleEdgeThresholdMin;
-		return bShaderHasOutdatedParameters;
-	}
-
-	template <typename TRHICmdList>
-	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context)
-	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
-
-		const FViewInfo& View = Context.View;
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-		
-		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-
-		const FPooledRenderTargetDesc* InputDesc = Context.Pass->GetInputDesc(ePId_Input0);
-
-		if(!InputDesc)
-		{
-			// input is not hooked up correctly
-			return;
-		}
-
-		FVector2D InvExtent = FVector2D(1.0f / InputDesc->Extent.X, 1.0f / InputDesc->Extent.Y);
-
-		SetShaderValue(RHICmdList, ShaderRHI, fxaaQualityRcpFrame, InvExtent);
-
-		{
-			float N = 0.5f;
-			FVector4 Value(-N * InvExtent.X, -N * InvExtent.Y, N * InvExtent.X, N * InvExtent.Y);
-			SetShaderValue(RHICmdList, ShaderRHI, fxaaConsoleRcpFrameOpt, Value);
-		}
-
-		{
-			float N = 2.0f;
-			FVector4 Value(-N * InvExtent.X, -N * InvExtent.Y, N * InvExtent.X, N * InvExtent.Y);
-			SetShaderValue(RHICmdList, ShaderRHI, fxaaConsoleRcpFrameOpt2, Value);
-		}
-
-		{
-			float Value = 0.75f;
-			SetShaderValue(RHICmdList, ShaderRHI, fxaaQualitySubpix, Value);
-		}
-
-		{
-			float Value = 0.166f;
-			SetShaderValue(RHICmdList, ShaderRHI, fxaaQualityEdgeThreshold, Value);
-		}
-
-		{
-			float Value = 0.0833f;
-			SetShaderValue(RHICmdList, ShaderRHI, fxaaQualityEdgeThresholdMin, Value);
-		}
-
-		{
-			float Value = 8.0f;
-			SetShaderValue(RHICmdList, ShaderRHI, fxaaConsoleEdgeSharpness, Value);
-		}
-
-		{
-			float Value = 0.125f;
-			SetShaderValue(RHICmdList, ShaderRHI, fxaaConsoleEdgeThreshold, Value);
-		}
-
-		{
-			float Value = 0.05f;
-			SetShaderValue(RHICmdList, ShaderRHI, fxaaConsoleEdgeThresholdMin, Value);
-		}
-	}
-	
-	static const TCHAR* GetSourceFilename()
-	{
-		return TEXT("/Engine/Private/FXAAShader.usf");
-	}
-
-	static const TCHAR* GetFunctionName()
-	{
-		return TEXT("FxaaPS");
-	}
-};
-
-// #define avoids a lot of code duplication
-#define VARIATION1(A) typedef FPostProcessAntiAliasingPS<A> FPostProcessAntiAliasingPS##A; \
-	IMPLEMENT_SHADER_TYPE2(FPostProcessAntiAliasingPS##A, SF_Pixel);
-
-	VARIATION1(1)			VARIATION1(2)			VARIATION1(3)			VARIATION1(4)			VARIATION1(5)			VARIATION1(6)
-#undef VARIATION1
-
-/*-----------------------------------------------------------------------------
-	FFXAAVertexShader
------------------------------------------------------------------------------*/
 class FFXAAVS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FFXAAVS,Global);
 public:
+	DECLARE_GLOBAL_SHADER(FFXAAVS);
+	// FDrawRectangleParameters is filled by DrawScreenPass.
+	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FFXAAVS, FGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
-	/** Default constructor. */
-	FFXAAVS() {}
-	
-	/** Initialization constructor. */
-	FFXAAVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FGlobalShader(Initializer)
-	{
-		fxaaQualityRcpFrame.Bind(Initializer.ParameterMap, TEXT("fxaaQualityRcpFrame"));
-	}
-
-	/** Serializer */
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-
-		Ar << fxaaQualityRcpFrame;
-
-		return bShaderHasOutdatedParameters;
-	}
-
-	void SetParameters(const FRenderingCompositePassContext& Context)
-	{
-		FRHIVertexShader* ShaderRHI = GetVertexShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-
-		const FPooledRenderTargetDesc* InputDesc = Context.Pass->GetInputDesc(ePId_Input0);
-
-		if(!InputDesc)
-		{
-			// input is not hooked up correctly
-			return;
-		}
-
-		FVector2D InvExtent = FVector2D(1.0f / InputDesc->Extent.X, 1.0f / InputDesc->Extent.Y);
-
-		SetShaderValue(Context.RHICmdList, ShaderRHI, fxaaQualityRcpFrame, InvExtent);
-	}
-
-	FShaderParameter fxaaQualityRcpFrame;
+	using FParameters = FFXAAParameters;
 };
 
-IMPLEMENT_SHADER_TYPE(,FFXAAVS,TEXT("/Engine/Private/FXAAShader.usf"),TEXT("FxaaVS"),SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FFXAAVS, "/Engine/Private/FXAAShader.usf", "FxaaVS", SF_Vertex);
 
-
-// @param Quality 1..6
-template <uint32 Quality, typename TRHICmdList>
-static void SetShaderTemplAA(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context)
+class FFXAAPS : public FGlobalShader
 {
-	static_assert(Quality >= 1 && Quality <= 6, "Quality should be 1..6!");
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+public:
+	DECLARE_GLOBAL_SHADER(FFXAAPS);
+	SHADER_USE_PARAMETER_STRUCT(FFXAAPS, FGlobalShader);
 
-	TShaderMapRef<FFXAAVS> VertexShader(Context.GetShaderMap());
-	TShaderMapRef<FPostProcessAntiAliasingPS<Quality> > PixelShader(Context.GetShaderMap());
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-	
-	PixelShader->SetParameters(RHICmdList, Context);
-	VertexShader->SetParameters(Context);
-}
-
-void FRCPassPostProcessAA::Process(FRenderingCompositePassContext& Context)
-{
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-
-	if(!InputDesc)
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		// input is not hooked up correctly
-		return;
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
-	const FViewInfo& View = Context.View;
-	const FSceneViewFamily& ViewFamily = *(View.Family);
+	class FQualityDimension : SHADER_PERMUTATION_ENUM_CLASS("FXAA_PRESET", EFXAAQuality);
+	using FPermutationDomain = TShaderPermutationDomain<FQualityDimension>;
+	using FParameters = FFXAAParameters;
+};
 
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+IMPLEMENT_GLOBAL_SHADER(FFXAAPS, "/Engine/Private/FXAAShader.usf", "FxaaPS", SF_Pixel);
 
-	FIntRect SrcRect = Context.SceneColorViewRect;
-	FIntRect DestRect = Context.GetSceneColorDestRect(DestRenderTarget);
-
-	FIntPoint SrcSize = InputDesc->Extent;
-	FIntPoint DestSize = PassOutputs[0].RenderTargetDesc.Extent;
-
-	SCOPED_DRAW_EVENTF(Context.RHICmdList, PostProcessFXAA, TEXT("PostProcessFXAA %dx%d"), DestRect.Width(), DestRect.Height());
-
-	// Set the view family's render target/viewport.
-	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Load_Store);
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("PostProcessAA"));
-	{
-		Context.SetViewportAndCallRHI(0, 0, 0.0f, DestSize.X, DestSize.Y, 1.0f);
-
-		switch (Quality)
-		{
-		case 1:  SetShaderTemplAA<1>(Context.RHICmdList, Context); break;
-		case 2:  SetShaderTemplAA<2>(Context.RHICmdList, Context); break;
-		case 3:  SetShaderTemplAA<3>(Context.RHICmdList, Context); break;
-		case 4:  SetShaderTemplAA<4>(Context.RHICmdList, Context); break;
-		case 5:  SetShaderTemplAA<5>(Context.RHICmdList, Context); break;
-		default: SetShaderTemplAA<6>(Context.RHICmdList, Context); break;
-		}
-
-		TShaderMapRef<FFXAAVS> VertexShader(Context.GetShaderMap());
-
-		DrawPostProcessPass(Context.RHICmdList,
-			DestRect.Min.X, DestRect.Min.Y,
-			DestRect.Width(), DestRect.Height(),
-			SrcRect.Min.X, SrcRect.Min.Y,
-			SrcRect.Width(), SrcRect.Height(),
-			DestSize,
-			SrcSize,
-			*VertexShader,
-			View.StereoPass,
-			Context.HasHmdMesh(),
-			EDRF_Default);
-	}
-	Context.RHICmdList.EndRenderPass();
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
+EFXAAQuality GetFXAAQuality()
+{
+	const EPostProcessAAQuality PostProcessAAQuality = GetPostProcessAAQuality();
+	static_assert(uint32(EPostProcessAAQuality::MAX) == uint32(EFXAAQuality::MAX), "FXAA quality levels don't match post process AA quality levels. Can't trivially convert.");
+	return static_cast<EFXAAQuality>(PostProcessAAQuality);
 }
 
-FPooledRenderTargetDesc FRCPassPostProcessAA::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+FScreenPassTexture AddFXAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFXAAInputs& Inputs)
 {
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
+	check(Inputs.SceneColor.IsValid());
+	check(Inputs.Quality != EFXAAQuality::MAX);
 
-	Ret.Reset();
-	Ret.DebugName = TEXT("PostProcessFXAA");
+	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
 
-	return Ret;
+	if (!Output.IsValid())
+	{
+		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, Inputs.SceneColor, View.GetOverwriteLoadAction(), TEXT("FXAA"));
+	}
+
+	const FVector2D OutputExtentInverse = FVector2D(1.0f / (float)Output.Texture->Desc.Extent.X, 1.0f / (float)Output.Texture->Desc.Extent.Y);
+
+	FRHISamplerState* BilinearClampSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	FFXAAParameters* PassParameters = GraphBuilder.AllocParameters<FFXAAParameters>();
+	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+	PassParameters->Input = GetScreenPassTextureInput(Inputs.SceneColor, BilinearClampSampler);
+
+	{
+		float N = 0.5f;
+		FVector4 Value(-N * OutputExtentInverse.X, -N * OutputExtentInverse.Y, N * OutputExtentInverse.X, N * OutputExtentInverse.Y);
+		PassParameters->fxaaConsoleRcpFrameOpt = Value;
+	}
+
+	{
+		float N = 2.0f;
+		FVector4 Value(-N * OutputExtentInverse.X, -N * OutputExtentInverse.Y, N * OutputExtentInverse.X, N * OutputExtentInverse.Y);
+		PassParameters->fxaaConsoleRcpFrameOpt2 = Value;
+	}
+
+	PassParameters->fxaaQualitySubpix = 0.75f;
+	PassParameters->fxaaQualityEdgeThreshold = 0.166f;
+	PassParameters->fxaaQualityEdgeThresholdMin = 0.0833f;
+	PassParameters->fxaaConsoleEdgeSharpness = 8.0f;
+	PassParameters->fxaaConsoleEdgeThreshold = 0.125f;
+	PassParameters->fxaaConsoleEdgeThresholdMin = 0.05f;
+
+	FFXAAPS::FPermutationDomain PixelPermutationVector;
+	PixelPermutationVector.Set<FFXAAPS::FQualityDimension>(Inputs.Quality);
+
+	TShaderMapRef<FFXAAVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<FFXAAPS> PixelShader(View.ShaderMap, PixelPermutationVector);
+
+	const FScreenPassTextureViewport OutputViewport(Output);
+
+	AddDrawScreenPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FXAA %dx%d (PS)", OutputViewport.Rect.Width(), OutputViewport.Rect.Height()),
+		View,
+		OutputViewport,
+		FScreenPassTextureViewport(Inputs.SceneColor),
+		FScreenPassPipelineState(*VertexShader, *PixelShader),
+		EScreenPassDrawFlags::AllowHMDHiddenAreaMask,
+		PassParameters,
+		[VertexShader, PixelShader, PassParameters](FRHICommandList& RHICmdList)
+	{
+		SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), *PassParameters);
+		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+	});
+
+	return MoveTemp(Output);
 }

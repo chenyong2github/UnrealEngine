@@ -6,12 +6,12 @@
 
 #if RHI_RAYTRACING
 
-DECLARE_GPU_STAT_NAMED(RayTracingDynamicGeom, TEXT("Ray Tracing Dynamic Geometry Update"));
 
 static bool IsSupportedDynamicVertexFactoryType(const FVertexFactoryType* VertexFactoryType)
 {
 	return VertexFactoryType == FindVertexFactoryType(FName(TEXT("FNiagaraSpriteVertexFactory"), FNAME_Find))
 		|| VertexFactoryType == FindVertexFactoryType(FName(TEXT("FNiagaraRibbonVertexFactory"), FNAME_Find))
+		|| VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLocalVertexFactory"), FNAME_Find))
 		|| VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeVertexFactory"), FNAME_Find))
 		|| VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeFixedGridVertexFactory"), FNAME_Find))
 		|| VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeXYOffsetVertexFactory"), FNAME_Find))
@@ -31,6 +31,7 @@ public:
 		VertexBufferSize.Bind(Initializer.ParameterMap, TEXT("VertexBufferSize"));
 		NumVertices.Bind(Initializer.ParameterMap, TEXT("NumVertices"));
 		MinVertexIndex.Bind(Initializer.ParameterMap, TEXT("MinVertexIndex"));
+		PrimitiveId.Bind(Initializer.ParameterMap, TEXT("PrimitiveId"));
 	}
 
 	FRayTracingDynamicGeometryConverterCS() = default;
@@ -47,6 +48,7 @@ public:
 		Ar << VertexBufferSize;
 		Ar << NumVertices;
 		Ar << MinVertexIndex;
+		Ar << PrimitiveId;
 		return bShaderHasOutdatedParameters;
 	}
 
@@ -83,6 +85,7 @@ public:
 	FShaderParameter VertexBufferSize;
 	FShaderParameter NumVertices;
 	FShaderParameter MinVertexIndex;
+	FShaderParameter PrimitiveId;
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FRayTracingDynamicGeometryConverterCS, TEXT("/Engine/Private/RayTracing/RayTracingDynamicMesh.usf"), TEXT("RayTracingDynamicGeometryConverterCS"), SF_Compute);
@@ -96,7 +99,8 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	const FScene* Scene, 
 	const FSceneView* View, 
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy, 
-	FRayTracingDynamicGeometryUpdateParams UpdateParams
+	FRayTracingDynamicGeometryUpdateParams UpdateParams,
+	uint32 PrimitiveId
 )
 {
 	FRayTracingGeometry& Geometry = *UpdateParams.Geometry;
@@ -108,7 +112,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	{
 		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(Scene->GetFeatureLevel(), FallbackMaterialRenderProxyPtr);
-
+		auto* MaterialInterface = Material.GetMaterialInterface();
 		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
 
 		TMeshProcessorShaders<
@@ -142,6 +146,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		DispatchCmd.TargetBuffer = &Buffer;
 		DispatchCmd.NumMaxVertices = UpdateParams.NumVertices;
 		DispatchCmd.NumCPUVertices = !bUsingIndirectDraw ? UpdateParams.NumVertices : 0;
+		DispatchCmd.PrimitiveId = PrimitiveId;
 		if (MeshBatch.Elements[0].MinVertexIndex < MeshBatch.Elements[0].MaxVertexIndex)
 		{
 			DispatchCmd.NumCPUVertices = MeshBatch.Elements[0].MaxVertexIndex - MeshBatch.Elements[0].MinVertexIndex;
@@ -191,15 +196,44 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	}
 }
 
-void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHICommandListImmediate& RHICmdList)
+
+template<typename C>
+struct TAutoCmdListType
 {
+	using Type = C;
+};
+
+template<>
+struct TAutoCmdListType<FRHIAsyncComputeCommandListImmediate>
+{
+	using Type = FRHIAsyncComputeCommandList;
+};
+
+template<>
+struct TAutoCmdListType<FRHICommandListImmediate>
+{
+	using Type = FRHICommandList;
+};
+
+
+
+template<typename CmdListType>
+void FRayTracingDynamicGeometryCollection::DispatchUpdates(CmdListType& RHICmdList)
+{
+	using BaseCmdListType = typename TAutoCmdListType<CmdListType>::Type;
+
+#if WANTS_DRAW_MESH_EVENTS
+#define SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, Name) TDrawEvent<BaseCmdListType> PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), TEXT(#Name));
+#else
+#define SCOPED_DRAW_OR_COMPUTE_EVENT(...)
+#endif
+
 	if (DispatchCommands->Num() > 0)
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, RayTracingDynamicGeometryUpdate);
-		SCOPED_GPU_STAT(RHICmdList, RayTracingDynamicGeom);
+		SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, RayTracingDynamicGeometryUpdate)
 
 		{
-			SCOPED_DRAW_EVENT(RHICmdList, VSinCSComputeDispatch);
+			SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, VSinCSComputeDispatch)
 			for (auto& Cmd : *DispatchCommands)
 			{
 				{
@@ -212,8 +246,8 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHICommandListImmedi
 					SetShaderValue(RHICmdList, Shader->GetComputeShader(), Shader->VertexBufferSize, Cmd.TargetBuffer->NumBytes / sizeof(FVector));
 					SetShaderValue(RHICmdList, Shader->GetComputeShader(), Shader->NumVertices, Cmd.NumCPUVertices);
 					SetShaderValue(RHICmdList, Shader->GetComputeShader(), Shader->MinVertexIndex, Cmd.MinVertexIndex);
-
-					RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp<uint32>(Cmd.NumMaxVertices, 256), 1, 1);
+					SetShaderValue(RHICmdList, Shader->GetComputeShader(), Shader->PrimitiveId, Cmd.PrimitiveId);
+					RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp<uint32>(Cmd.NumMaxVertices, 64), 1, 1);
 
 					Shader->RWVertexPositions.UnsetUAV(RHICmdList, Shader->GetComputeShader());
 				}
@@ -221,18 +255,22 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHICommandListImmedi
 		}
 
 		{
-			SCOPED_DRAW_EVENT(RHICmdList, Build);
+			SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, Build)
 			RHICmdList.BuildAccelerationStructures(BuildParams);
 		}
 
 		{
-			SCOPED_DRAW_EVENT(RHICmdList, Refit);
+			SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, Refit)
 			RHICmdList.UpdateAccelerationStructures(RefitParams);
 		}
 
 		Clear();
 	}
 }
+
+template void FRayTracingDynamicGeometryCollection::DispatchUpdates<FRHICommandListImmediate>(FRHICommandListImmediate& RHICmdList);
+
+template void FRayTracingDynamicGeometryCollection::DispatchUpdates<FRHIAsyncComputeCommandListImmediate>(FRHIAsyncComputeCommandListImmediate& RHICmdList);
 
 void FRayTracingDynamicGeometryCollection::Clear()
 {

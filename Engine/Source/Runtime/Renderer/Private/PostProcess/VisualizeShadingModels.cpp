@@ -1,200 +1,116 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessVisualizeShadingModels.cpp: Post processing VisualizeShadingModels implementation.
-=============================================================================*/
-
 #include "PostProcess/VisualizeShadingModels.h"
-#include "StaticBoundShaderState.h"
 #include "CanvasTypes.h"
-#include "UnrealEngine.h"
 #include "RenderTargetTemp.h"
-#include "SceneUtils.h"
-#include "PostProcess/SceneRenderTargets.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "SceneRenderTargetParameters.h"
-#include "PostProcess/PostProcessing.h"
-#include "PipelineStateCache.h"
+#include "SceneTextureParameters.h"
 
-/** Encapsulates the post processing eye adaptation pixel shader. */
-class FPostProcessVisualizeShadingModelsPS : public FGlobalShader
+class FVisualizeShadingModelPS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPostProcessVisualizeShadingModelsPS, Global);
+public:
+	static const uint32 ShadingModelCount = 16;
+
+	DECLARE_GLOBAL_SHADER(FVisualizeShadingModelPS);
+	SHADER_USE_PARAMETER_STRUCT(FVisualizeShadingModelPS, FGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
-	/** Default constructor. */
-	FPostProcessVisualizeShadingModelsPS() {}
-
-public:
-	FPostProcessPassParameters PostprocessParameter;
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderParameter ShadingModelMaskInView;
-
-	/** Initialization constructor. */
-	FPostProcessVisualizeShadingModelsPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		SceneTextureParameters.Bind(Initializer);
-		ShadingModelMaskInView.Bind(Initializer.ParameterMap,TEXT("ShadingModelMaskInView"));
-	}
-
-	template <typename TRHICmdList>
-	void SetPS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, uint16 InShadingModelMaskInView)
-	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
-		
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-
-		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
-
-		static FLinearColor SoftBits[sizeof(InShadingModelMaskInView) * 8] = {};	// init with 0.0f
-
-		for(uint32 i = 0; i < sizeof(InShadingModelMaskInView) * 8; ++i)
-		{
-			float& ref = SoftBits[i].R;
-
-			ref -= Context.View.Family->DeltaWorldTime;
-			ref = FMath::Max(0.0f, ref);
-
-			if(InShadingModelMaskInView & (1 << i))
-			{
-				ref = 1.0f;
-			}
-		}
-
-		SetShaderValueArray(RHICmdList, ShaderRHI, ShadingModelMaskInView, SoftBits, sizeof(InShadingModelMaskInView) * 8);
-	}
-	
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << SceneTextureParameters << ShadingModelMaskInView;
-		return bShaderHasOutdatedParameters;
-	}
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
+		SHADER_PARAMETER_ARRAY(uint32, ShadingModelMaskInView, [ShadingModelCount])
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_SHADER_TYPE(,FPostProcessVisualizeShadingModelsPS,TEXT("/Engine/Private/VisualizeShadingModels.usf"),TEXT("MainPS"),SF_Pixel);
+static_assert(
+	sizeof(FViewInfo::ShadingModelMaskInView) * 8 == FVisualizeShadingModelPS::ShadingModelCount,
+	"Number of shading model bits doesn't match the shader.");
 
-FRCPassPostProcessVisualizeShadingModels::FRCPassPostProcessVisualizeShadingModels(FRHICommandList& RHICmdList)
+IMPLEMENT_GLOBAL_SHADER(FVisualizeShadingModelPS, "/Engine/Private/VisualizeShadingModels.usf", "MainPS", SF_Pixel);
+
+FScreenPassTexture AddVisualizeShadingModelPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeShadingModelInputs& Inputs)
 {
-	// AdjustGBufferRefCount(-1) call is done when the pass gets executed
-	FSceneRenderTargets::Get(RHICmdList).AdjustGBufferRefCount(RHICmdList, 1);
-}
+	check(Inputs.SceneTextures);
+	check(Inputs.SceneColor.IsValid());
 
-void FRCPassPostProcessVisualizeShadingModels::Process(FRenderingCompositePassContext& Context)
-{
-	SCOPED_DRAW_EVENT(Context.RHICmdList, PostProcessVisualizeShadingModels);
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
+	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
 
-	const FViewInfo& View = Context.View;
-	const FViewInfo& ViewInfo = Context.View;
-	const FSceneViewFamily& ViewFamily = *(View.Family);
-	
-	FIntRect SrcRect = View.ViewRect;
-	FIntRect DestRect = View.ViewRect;
-	FIntPoint SrcSize = InputDesc->Extent;
-
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
-
-	// Set the view family's render target/viewport.
-	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Load_Store);
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("VisualizeShadingModels"));
+	if (!Output.IsValid())
 	{
-
-		Context.SetViewportAndCallRHI(DestRect);
-
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-		TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
-		TShaderMapRef<FPostProcessVisualizeShadingModelsPS> PixelShader(Context.GetShaderMap());
-
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-		PixelShader->SetPS(Context.RHICmdList, Context, ((FViewInfo&)View).ShadingModelMaskInView);
-
-		// Draw a quad mapping scene color to the view's render target
-		DrawRectangle(
-			Context.RHICmdList,
-			DestRect.Min.X, DestRect.Min.Y,
-			DestRect.Width(), DestRect.Height(),
-			SrcRect.Min.X, SrcRect.Min.Y,
-			SrcRect.Width(), SrcRect.Height(),
-			DestRect.Size(),
-			SrcSize,
-			*VertexShader,
-			EDRF_UseTriangleOptimization);
-	}
-	Context.RHICmdList.EndRenderPass();
-
-	FRenderTargetTemp TempRenderTarget(View, (const FTexture2DRHIRef&)DestRenderTarget.TargetableTexture);
-	FCanvas Canvas(&TempRenderTarget, NULL, 0, 0, 0, Context.GetFeatureLevel());
-
-	float X = 30;
-	float Y = 28;
-	const float YStep = 14;
-	const float ColumnWidth = 250;
-
-	FString Line;
-
-	Canvas.DrawShadowedString( X, Y += YStep, TEXT("Visualize ShadingModels (mostly to track down bugs)"), GetStatsFont(), FLinearColor(1, 1, 1));
-
-	Y = 160 - YStep - 4;
-	
-	uint32 Value = ((FViewInfo&)View).ShadingModelMaskInView;
-
-	Line = FString::Printf(TEXT("View.ShadingModelMaskInView = 0x%x"), Value);
-	Canvas.DrawShadowedString( X, Y, *Line, GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
-	Y += YStep;
-
-	UEnum* Enum = StaticEnum<EMaterialShadingModel>();
-	check(Enum);
-
-	Y += 5;
-
-	for(uint32 i = 0; i < MSM_NUM; ++i)
-	{
-		FString Name = Enum->GetNameStringByValue(i);
-		Line = FString::Printf(TEXT("%d.  %s"), i, *Name);
-
-		bool bThere = (Value & (1 << i)) != 0;
-
-		Canvas.DrawShadowedString(X + 30, Y, *Line, GetStatsFont(), bThere ? FLinearColor(1, 1, 1) : FLinearColor(0, 0, 0) );
-		Y += 20;
+		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, Inputs.SceneColor, View.GetOverwriteLoadAction(), TEXT("VisualizeShadingModel"));
 	}
 
-	Line = FString::Printf(TEXT("(On CPU, based on what gets rendered)"));
-	Canvas.DrawShadowedString( X, Y, *Line, GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f)); Y += YStep;
+	const FScreenPassTextureViewport InputViewport(Inputs.SceneColor);
+	const FScreenPassTextureViewport OutputViewport(Output);
 
-	Canvas.Flush_RenderThread(Context.RHICmdList);
+	FVisualizeShadingModelPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeShadingModelPS::FParameters>();
+	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->SceneTextures = *Inputs.SceneTextures;
+	PassParameters->SceneColorTexture = Inputs.SceneColor.Texture;
+	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
 
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
+	for (uint32 BitIndex = 0; BitIndex < FVisualizeShadingModelPS::ShadingModelCount; ++BitIndex)
+	{
+		const uint32 BitMask = (1 << BitIndex);
 
-	// AdjustGBufferRefCount(1) call is done in constructor
-	FSceneRenderTargets::Get(Context.RHICmdList).AdjustGBufferRefCount(Context.RHICmdList, -1);
-}
+		PassParameters->ShadingModelMaskInView[BitIndex] = (View.ShadingModelMaskInView & BitMask) != 0;
+	}
 
-FPooledRenderTargetDesc FRCPassPostProcessVisualizeShadingModels::ComputeOutputDesc(EPassOutputId InPassOutputId) const
-{
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
+	TShaderMapRef<FVisualizeShadingModelPS> PixelShader(View.ShaderMap);
 
-	Ret.Reset();
-	Ret.DebugName = TEXT("VisualizeShadingModels");
+	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeShadingModels");
 
-	return Ret;
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, OutputViewport, InputViewport, *PixelShader, PassParameters);
+
+	Output.LoadAction = ERenderTargetLoadAction::ELoad;
+
+	AddDrawCanvasPass(GraphBuilder, RDG_EVENT_NAME("Overlay"), View, Output, [&View](FCanvas& Canvas)
+	{
+		float X = 30;
+		float Y = 28;
+		const float YStep = 14;
+		const float ColumnWidth = 250;
+
+		FString Line;
+
+		Canvas.DrawShadowedString(X, Y += YStep, TEXT("Visualize ShadingModels"), GetStatsFont(), FLinearColor(1, 1, 1));
+
+		Y = 160 - YStep - 4;
+
+		const uint32 Value = View.ShadingModelMaskInView;
+
+		Line = FString::Printf(TEXT("View.ShadingModelMaskInView = 0x%x"), Value);
+		Canvas.DrawShadowedString(X, Y, *Line, GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f));
+		Y += YStep;
+
+		UEnum* Enum = StaticEnum<EMaterialShadingModel>();
+		check(Enum);
+
+		Y += 5;
+
+		for (uint32 i = 0; i < MSM_NUM; ++i)
+		{
+			FString Name = Enum->GetNameStringByValue(i);
+			Line = FString::Printf(TEXT("%d.  %s"), i, *Name);
+
+			bool bThere = (Value & (1 << i)) != 0;
+
+			Canvas.DrawShadowedString(X + 30, Y, *Line, GetStatsFont(), bThere ? FLinearColor(1, 1, 1) : FLinearColor(0, 0, 0));
+			Y += 20;
+		}
+
+		Line = FString::Printf(TEXT("(On CPU, based on what gets rendered)"));
+		Canvas.DrawShadowedString(X, Y, *Line, GetStatsFont(), FLinearColor(0.5f, 0.5f, 0.5f)); Y += YStep;
+	});
+
+	return MoveTemp(Output);
 }

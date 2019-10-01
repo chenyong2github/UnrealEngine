@@ -494,6 +494,7 @@ void FDeferredShadingSceneRenderer::RenderAtmosphere(FRHICommandListImmediate& R
 		{
 			const FViewInfo& View = Views[ViewIndex];
 
+			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 			SCOPED_DRAW_EVENTF(RHICmdList, Atmosphere, TEXT("Atmosphere %dx%d"), View.ViewRect.Width(), View.ViewRect.Height());
 			SCOPED_GPU_STAT(RHICmdList, Atmosphere);
 

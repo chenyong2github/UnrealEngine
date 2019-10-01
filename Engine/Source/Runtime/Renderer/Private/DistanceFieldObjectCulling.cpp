@@ -623,6 +623,7 @@ void BuildTileObjectLists(FRHICommandListImmediate& RHICmdList, FScene* Scene, T
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		const FViewInfo& View = Views[ViewIndex];
+		SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 
 		const FIntPoint TileListGroupSize = GetTileListGroupSizeForView(View);
 

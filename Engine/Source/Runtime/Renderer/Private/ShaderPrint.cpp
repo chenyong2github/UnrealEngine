@@ -163,7 +163,7 @@ namespace ShaderPrint
 	class FShaderInitValueBufferCS : public FGlobalShader
 	{
 	public:
-		DECLARE_SHADER_TYPE(FShaderInitValueBufferCS, Global);
+		DECLARE_GLOBAL_SHADER(FShaderInitValueBufferCS);
 		SHADER_USE_PARAMETER_STRUCT(FShaderInitValueBufferCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -176,13 +176,13 @@ namespace ShaderPrint
 		}
 	};
 
-	IMPLEMENT_SHADER_TYPE(, FShaderInitValueBufferCS, TEXT("/Engine/Private/ShaderPrintDraw.usf"), TEXT("InitValueBufferCS"), SF_Compute)
+	IMPLEMENT_GLOBAL_SHADER(FShaderInitValueBufferCS, "/Engine/Private/ShaderPrintDraw.usf", "InitValueBufferCS", SF_Compute);
 
 	// Shader to fill the indirect parameter arguments ready for the value->symbol compute pass
 	class FShaderBuildIndirectDispatchArgsCS : public FGlobalShader
 	{
 	public:
-		DECLARE_SHADER_TYPE(FShaderBuildIndirectDispatchArgsCS, Global);
+		DECLARE_GLOBAL_SHADER(FShaderBuildIndirectDispatchArgsCS);
 		SHADER_USE_PARAMETER_STRUCT(FShaderBuildIndirectDispatchArgsCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -198,13 +198,13 @@ namespace ShaderPrint
 		}
 	};
 
-	IMPLEMENT_SHADER_TYPE(, FShaderBuildIndirectDispatchArgsCS, TEXT("/Engine/Private/ShaderPrintDraw.usf"), TEXT("BuildIndirectDispatchArgsCS"), SF_Compute)
+	IMPLEMENT_GLOBAL_SHADER(FShaderBuildIndirectDispatchArgsCS, "/Engine/Private/ShaderPrintDraw.usf", "BuildIndirectDispatchArgsCS", SF_Compute);
 
 	// Shader to read the values buffer and convert to the symbols buffer
 	class FShaderBuildSymbolBufferCS : public FGlobalShader
 	{
 	public:
-		DECLARE_SHADER_TYPE(FShaderBuildSymbolBufferCS, Global);
+		DECLARE_GLOBAL_SHADER(FShaderBuildSymbolBufferCS);
 		SHADER_USE_PARAMETER_STRUCT(FShaderBuildSymbolBufferCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -220,13 +220,13 @@ namespace ShaderPrint
 		}
 	};
 
-	IMPLEMENT_SHADER_TYPE(, FShaderBuildSymbolBufferCS, TEXT("/Engine/Private/ShaderPrintDraw.usf"), TEXT("BuildSymbolBufferCS"), SF_Compute)
+	IMPLEMENT_GLOBAL_SHADER(FShaderBuildSymbolBufferCS, "/Engine/Private/ShaderPrintDraw.usf", "BuildSymbolBufferCS", SF_Compute);
 
 	// Shader to fill the indirect parameter arguments ready for draw pass
 	class FShaderBuildIndirectDrawArgsCS : public FGlobalShader
 	{
 	public:
-		DECLARE_SHADER_TYPE(FShaderBuildIndirectDrawArgsCS, Global);
+		DECLARE_GLOBAL_SHADER(FShaderBuildIndirectDrawArgsCS);
 		SHADER_USE_PARAMETER_STRUCT(FShaderBuildIndirectDrawArgsCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -241,7 +241,7 @@ namespace ShaderPrint
 		}
 	};
 
-	IMPLEMENT_SHADER_TYPE(, FShaderBuildIndirectDrawArgsCS, TEXT("/Engine/Private/ShaderPrintDraw.usf"), TEXT("BuildIndirectDrawArgsCS"), SF_Compute)
+	IMPLEMENT_GLOBAL_SHADER(FShaderBuildIndirectDrawArgsCS, "/Engine/Private/ShaderPrintDraw.usf", "BuildIndirectDrawArgsCS", SF_Compute);
 
 	// Shader for draw pass to render each symbol
 	class FShaderDrawSymbols : public FGlobalShader
@@ -266,7 +266,7 @@ namespace ShaderPrint
 	class FShaderDrawSymbolsVS : public FShaderDrawSymbols
 	{
 	public:
-		DECLARE_SHADER_TYPE(FShaderDrawSymbolsVS, Global);
+		DECLARE_GLOBAL_SHADER(FShaderDrawSymbolsVS);
 
 		FShaderDrawSymbolsVS()
 		{}
@@ -276,12 +276,12 @@ namespace ShaderPrint
 		{}
 	};
 
-	IMPLEMENT_SHADER_TYPE(, FShaderDrawSymbolsVS, TEXT("/Engine/Private/ShaderPrintDraw.usf"), TEXT("DrawSymbolsVS"), SF_Vertex)
+	IMPLEMENT_GLOBAL_SHADER(FShaderDrawSymbolsVS, "/Engine/Private/ShaderPrintDraw.usf", "DrawSymbolsVS", SF_Vertex);
 
 	class FShaderDrawSymbolsPS : public FShaderDrawSymbols
 	{
 	public:
-		DECLARE_SHADER_TYPE(FShaderDrawSymbolsPS, Global);
+		DECLARE_GLOBAL_SHADER(FShaderDrawSymbolsPS);
 
 		FShaderDrawSymbolsPS()
 		{}
@@ -291,8 +291,7 @@ namespace ShaderPrint
 		{}
 	};
 
-	IMPLEMENT_SHADER_TYPE(, FShaderDrawSymbolsPS, TEXT("/Engine/Private/ShaderPrintDraw.usf"), TEXT("DrawSymbolsPS"), SF_Pixel)
-
+	IMPLEMENT_GLOBAL_SHADER(FShaderDrawSymbolsPS, "/Engine/Private/ShaderPrintDraw.usf", "DrawSymbolsPS", SF_Pixel);
 
 	void BeginView(FRHICommandListImmediate& RHICmdList, FViewInfo& View)
 	{
@@ -327,25 +326,17 @@ namespace ShaderPrint
 		FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, Parameters, FIntVector(1, 1, 1));
 	}
 
-	void DrawView(FRHICommandListImmediate& RHICmdList, FViewInfo const& View, TRefCountPtr<IPooledRenderTarget>& OutputTarget)
+	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture)
 	{
-		// Early out if system is disabled
-		if (!IsEnabled() || !IsSupported(View))
-		{
-			return;
-		}
+		check(OutputTexture);
 
-		SCOPED_DRAW_EVENT(RHICmdList, ShaderPrintDrawView);
-
-		// Build graph
-		FRDGBuilder GraphBuilder(RHICmdList);
+		RDG_EVENT_SCOPE(GraphBuilder, "ShaderPrintDrawView");
 
 		// Initialize graph managed resources
 		// Symbols buffer contains Count + 1 elements. The first element is only used as a counter.
 		FRDGBufferRef SymbolBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), GetMaxSymbolCount() + 1), TEXT("ShaderPrintSymbolBuffer"));
 		FRDGBufferRef IndirectDispatchArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("ShaderPrintIndirectDispatchArgs"));
 		FRDGBufferRef IndirectDrawArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(5), TEXT("ShaderPrintIndirectDrawArgs"));
-		FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(OutputTarget);
 
 		// Non graph managed resources
 		FUniformBufferRef UniformBuffer = CreateUniformBuffer(View);
@@ -444,8 +435,6 @@ namespace ShaderPrint
 				RHICmdListImmediate.DrawIndexedPrimitiveIndirect(GTwoTrianglesIndexBuffer.IndexBufferRHI, PassParameters->IndirectDrawArgsBuffer->GetIndirectRHICallBuffer(), 0);
 			});
 		}
-
-		GraphBuilder.Execute();
 	}
 
 	void EndView(FViewInfo& View)

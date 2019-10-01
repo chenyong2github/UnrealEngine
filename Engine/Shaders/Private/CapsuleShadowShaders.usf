@@ -282,7 +282,7 @@ void SetupTileCullingData(
 	float3 ViewTileMin2;
 	float3 ViewTileMax2;
 
-	bool bCenteredProjection = abs(View.ViewToClip[1][0]) < .00001f && abs(View.ViewToClip[2][0]) < .00001f;
+	bool bCenteredProjection = abs(View.ViewToClip[2][0]) < .00001f && abs(View.ViewToClip[2][1]) < .00001f;
 
 	BRANCH
 	// Off center projection path uses 37 more asm instructions

@@ -2895,6 +2895,20 @@ public:
 
 	virtual bool EnableStereo(bool stereo = true) override { return true; }
 
+	virtual bool DeviceIsAPrimaryView(const FSceneView& View) override
+	{
+#if WITH_MGPU
+		// We have to do all the work for secondary views that are on a different GPU than
+		// the primary view. NB: This assumes that the primary view is assigned to the
+		// first GPU of the AFR group. See FSceneRenderer::ComputeViewGPUMasks.
+		if (View.StereoPass != eSSP_FULL && AFRUtils::GetIndexWithinGroup(View.GPUMask.ToIndex()) != 0)
+		{
+			return true;
+		}
+#endif
+		return IStereoRendering::DeviceIsAPrimaryView(View);
+	}
+
 	virtual void AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const override
 	{
 		SizeX = SizeX / 2;

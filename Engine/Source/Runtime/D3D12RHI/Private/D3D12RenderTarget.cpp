@@ -212,7 +212,7 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 		return;
 	}
 
-	FRHICommandList_RecursiveHazardous RHICmdList(this);
+	FRHICommandList_RecursiveHazardous RHICmdList(this, FRHIGPUMask::FromIndex(GetGPUIndex()));
 
 	FD3D12Texture2D* SourceTexture2D = static_cast<FD3D12Texture2D*>(RetrieveTextureBase(SourceTextureRHI->GetTexture2D()));
 	FD3D12Texture2D* DestTexture2D = static_cast<FD3D12Texture2D*>(RetrieveTextureBase(DestTextureRHI->GetTexture2D()));
@@ -635,7 +635,14 @@ static uint32 ComputeBytesPerPixel(DXGI_FORMAT Format)
 
 TRefCountPtr<FD3D12Resource> FD3D12DynamicRHI::GetStagingTexture(FRHITexture* TextureRHI, FIntRect InRect, FIntRect& StagingRectOUT, FReadSurfaceDataFlags InFlags, D3D12_PLACED_SUBRESOURCE_FOOTPRINT &readbackHeapDesc)
 {
+	FD3D12Device* Device = GetRHIDevice();
+	FD3D12Adapter* Adapter = Device->GetParentAdapter();
+	const FRHIGPUMask Node = Device->GetGPUMask();
+
+	FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
 	FD3D12TextureBase* Texture = GetD3D12TextureFromRHITexture(TextureRHI);
+	D3D12_RESOURCE_DESC const& SourceDesc = Texture->GetResource()->GetDesc();
+
 	// Ensure we're dealing with a Texture2D, which the rest of this function already assumes
 	check(TextureRHI->GetTexture2D());
 	FD3D12Texture2D* InTexture2D = static_cast<FD3D12Texture2D*>(Texture);
@@ -654,12 +661,6 @@ TRefCountPtr<FD3D12Resource> FD3D12DynamicRHI::GetStagingTexture(FRHITexture* Te
 
 		return (Texture->GetResource());
 	}
-
-	FD3D12Device* Device = GetRHIDevice();
-	FD3D12Adapter* Adapter = Device->GetParentAdapter();
-	const FRHIGPUMask Node = Device->GetGPUMask();
-
-	D3D12_RESOURCE_DESC const& SourceDesc = Texture->GetResource()->GetDesc();
 
 	// a temporary staging texture is needed.
 	int32 SizeX = InRect.Width();
@@ -720,7 +721,6 @@ TRefCountPtr<FD3D12Resource> FD3D12DynamicRHI::GetStagingTexture(FRHITexture* Te
 	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(TempTexture2D->GetResource(), placedTexture2D);
 	CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(Texture->GetResource()->GetResource(), Subresource);
 
-	FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
 	TransitionResource(hCommandList, Texture->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, SourceCopyLocation.SubresourceIndex);
 	hCommandList.FlushResourceBarriers();
 	// Upload heap doesn't need to transition
@@ -1168,7 +1168,8 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect InRe
 	}
 	else
 	{
-		FRHICommandList_RecursiveHazardous RHICmdList(RHIGetDefaultContext());
+		FD3D12CommandContextBase* CmdContext = static_cast<FD3D12CommandContextBase*>(RHIGetDefaultContext());
+		FRHICommandList_RecursiveHazardous RHICmdList(CmdContext, CmdContext->GetGPUMask());
 		ReadSurfaceDataMSAARaw(RHICmdList, TextureRHI, InRect, OutDataRaw, InFlags);
 	}
 
@@ -1228,7 +1229,8 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect InRe
 	}
 	else
 	{
-		FRHICommandList_RecursiveHazardous RHICmdList(RHIGetDefaultContext());
+		FD3D12CommandContextBase* CmdContext = static_cast<FD3D12CommandContextBase*>(RHIGetDefaultContext());
+		FRHICommandList_RecursiveHazardous RHICmdList(CmdContext, CmdContext->GetGPUMask());
 		ReadSurfaceDataMSAARaw(RHICmdList, TextureRHI, InRect, OutDataRaw, InFlags);
 	}
 
@@ -1407,22 +1409,35 @@ void FD3D12DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous
 	}
 }
 
-void FD3D12DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, void*& OutData, int32& OutWidth, int32& OutHeight)
+void FD3D12DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex)
 {
-	FD3D12Resource* Texture = GetD3D12TextureFromRHITexture(TextureRHI)->GetResource();
+	FD3D12Texture2D* DestTexture2D = ResourceCast(TextureRHI->GetTexture2D());
 
-	DXGI_FORMAT Format = (DXGI_FORMAT)GPixelFormats[TextureRHI->GetFormat()].PlatformFormat;
+#if WITH_MGPU
+	FD3D12Device* Device = GetAdapter().GetDevice(GPUIndex);
+	while (DestTexture2D && DestTexture2D->GetParentDevice() != Device)
+	{
+		DestTexture2D = static_cast<FD3D12Texture2D*>(DestTexture2D->GetNextObject());
+	}
+#endif
+
+	FD3D12Resource* Texture = DestTexture2D->GetResource();
+
+	DXGI_FORMAT Format = (DXGI_FORMAT)GPixelFormats[DestTexture2D->GetFormat()].PlatformFormat;
 
 	uint32 BytesPerPixel = ComputeBytesPerPixel(Format);
 
 	// Wait for the command list if needed
-	FD3D12Texture2D* DestTexture2D = static_cast<FD3D12Texture2D*>(TextureRHI->GetTexture2D());
 	FD3D12CLSyncPoint SyncPoint = DestTexture2D->GetReadBackSyncPoint();
 	CommandListState listState = GetRHIDevice()->GetCommandListManager().GetCommandListState(SyncPoint);
 	if (listState == CommandListState::kOpen)
+	{
 		GetRHIDevice()->GetDefaultCommandContext().FlushCommands(true);
+	}
 	else
+	{
 		GetRHIDevice()->GetCommandListManager().WaitForCompletion(SyncPoint);
+	}
 
 	void* pData;
 	D3D12_RANGE ReadRange = { 0, Texture->GetDesc().Width };
@@ -1460,9 +1475,19 @@ void FD3D12DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, void*& OutD
 	}
 }
 
-void FD3D12DynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI)
+void FD3D12DynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI, uint32 GPUIndex)
 {
-	ID3D12Resource* Texture = GetD3D12TextureFromRHITexture(TextureRHI)->GetResource()->GetResource();
+	FD3D12Texture2D* DestTexture2D = ResourceCast(TextureRHI->GetTexture2D());
+
+#if WITH_MGPU
+	FD3D12Device* Device = GetAdapter().GetDevice(GPUIndex);
+	while (DestTexture2D && DestTexture2D->GetParentDevice() != Device)
+	{
+		DestTexture2D = static_cast<FD3D12Texture2D*>(DestTexture2D->GetNextObject());
+	}
+#endif
+
+	ID3D12Resource* Texture = DestTexture2D->GetResource()->GetResource();
 
 	Texture->Unmap(0, nullptr);
 }

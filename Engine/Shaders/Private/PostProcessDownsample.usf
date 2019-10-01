@@ -22,6 +22,7 @@ Texture2D InputTexture;
 SamplerState InputSampler;
 
 SCREEN_PASS_TEXTURE_VIEWPORT(Input)
+SCREEN_PASS_TEXTURE_VIEWPORT(Output)
 
 float4 SampleInput(float2 UV)
 {
@@ -67,14 +68,14 @@ float4 DownsampleCommon(float2 UV)
 }
 
 // pixel shader entry point
-void MainPS(noperspective float4 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
+void MainPS(float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 {
-	OutColor = DownsampleCommon(InUV.xy);
+	const float2 UV = SvPosition.xy * Output_ExtentInverse;
+
+	OutColor = DownsampleCommon(UV);
 }
 
 #if COMPUTESHADER
-
-SCREEN_PASS_TEXTURE_VIEWPORT(Output)
 
 RWTexture2D<float4> OutComputeTexture;
 

@@ -205,7 +205,7 @@ struct FMetalHelperFunctions
 			ns::AutoReleasedError Error;
 			
 			CopyIndexLib = GetMetalDeviceContext().GetDevice().NewLibrary(GMetalCopyIndexComputeShader, CompileOptions, &Error);
-			CopyIndex32Func = CopyIndexLib.NewFunction(@"Main_CopyIndex16");
+			CopyIndex32Func = CopyIndexLib.NewFunction(@"Main_CopyIndex32");
 			CopyIndex16Func = CopyIndexLib.NewFunction(@"Main_CopyIndex16");
 			CopyIndex32State = GetMetalDeviceContext().GetDevice().NewComputePipelineState(CopyIndex32Func, &Error);
 			CopyIndex16State = GetMetalDeviceContext().GetDevice().NewComputePipelineState(CopyIndex16Func, &Error);

@@ -2,30 +2,82 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
+#include "ScreenPass.h"
+#include "OverridePassSequence.h"
 #include "PostProcess/RenderingCompositionGraph.h"
-
-class FViewInfo;
-struct FMeshPassProcessorRenderState;
 
 #if WITH_EDITOR
 
-
-// derives from TRenderingCompositePassBase<InputCount, OutputCount>
-// ePId_Input0: SceneColor
-class FRCPassPostProcessCompositeEditorPrimitives : public TRenderingCompositePassBase<1, 1>
+/** Base class for a global pixel shader which renders editor primitives (outlines, helpers, etc). */
+class FEditorPrimitiveShader : public FGlobalShader
 {
 public:
-	FRCPassPostProcessCompositeEditorPrimitives(bool bInDeferredBasePass) : bDeferredBasePass(bInDeferredBasePass) {}
+	static const uint32 kEditorMSAASampleCountMax = 8;
 
-	// interface FRenderingCompositePass ---------
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+	class FSampleCountDimension : SHADER_PERMUTATION_RANGE_INT("MSAA_SAMPLE_COUNT", 1, kEditorMSAASampleCountMax + 1);
+	using FPermutationDomain = TShaderPermutationDomain<FSampleCountDimension>;
 
-private:
-	bool bDeferredBasePass;
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		const FPermutationDomain PermutationVector(Parameters.PermutationId);
+		const int32 SampleCount = PermutationVector.Get<FSampleCountDimension>();
+
+		// Only SM5+ platforms supports MSAA.
+		if (!IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && SampleCount > 1)
+		{
+			return false;
+		}
+
+		// Only use permutations with valid MSAA sample counts.
+		if (!FMath::IsPowerOfTwo(SampleCount))
+		{
+			return false;
+		}
+
+		// Only PC platforms render editor primitives.
+		return IsPCPlatform(Parameters.Platform);
+	}
+
+	FEditorPrimitiveShader() = default;
+	FEditorPrimitiveShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{}
 };
+
+// Constructs a new view suitable for rendering editor primitives (outlines, helpers, etc).
+const FViewInfo* UpdateEditorPrimitiveView(
+	FPersistentUniformBuffers& SceneUniformBuffers,
+	FSceneRenderTargets& SceneContext,
+	const FViewInfo& ParentView,
+	FIntRect ViewRect);
+
+struct FEditorPrimitiveInputs
+{
+	enum class EBasePassType : uint32
+	{
+		Deferred,
+		Mobile,
+		MAX
+	};
+
+	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
+	FScreenPassRenderTarget OverrideOutput;
+
+	// [Required] The scene color to composite with editor primitives.
+	FScreenPassTexture SceneColor;
+
+	// [Required] The scene depth to composite with editor primitives.
+	FScreenPassTexture SceneDepth;
+
+	// [Required] The type of base pass to use for rendering editor primitives.
+	EBasePassType BasePassType = EBasePassType::MAX;
+};
+
+FScreenPassTexture AddEditorPrimitivePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FEditorPrimitiveInputs& Inputs);
+
+FRenderingCompositeOutputRef AddEditorPrimitivePass(
+	FRenderingCompositionGraph& Graph,
+	FRenderingCompositeOutputRef Input,
+	FEditorPrimitiveInputs::EBasePassType BasePassType);
 
 #endif

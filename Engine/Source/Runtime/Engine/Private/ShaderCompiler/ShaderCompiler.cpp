@@ -2667,7 +2667,6 @@ static void GenerateUniformBufferStructMember(FString& Result, const FShaderPara
 	FString BaseTypeName;
 	switch (Member.GetBaseType())
 	{
-		case UBMT_BOOL:    BaseTypeName = TEXT("bool"); break;
 		case UBMT_INT32:   BaseTypeName = TEXT("int"); break;
 		case UBMT_UINT32:  BaseTypeName = TEXT("uint"); break;
 		case UBMT_FLOAT32:
@@ -2818,7 +2817,6 @@ static void PullRootShaderParametersLayout(FShaderCompilerInput& CompileInput, c
 			}
 		}
 		else if (
-			BaseType == UBMT_BOOL ||
 			BaseType == UBMT_INT32 ||
 			BaseType == UBMT_UINT32 ||
 			BaseType == UBMT_FLOAT32)
@@ -3100,8 +3098,11 @@ void GlobalBeginCompileShader(
 	Input.Environment.IncludeVirtualPathToExternalContentsMap.Add(TEXT("/Engine/Generated/GeneratedInstancedStereo.ush"), GCachedGeneratedInstancedStereoCode);
 
 	{
+		// Check if the compile environment explicitly wants to force optimization
+		const bool bForceOptimization = Input.Environment.CompilerFlags.Contains(CFLAG_ForceOptimization);
+
 		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.Optimize"));
-		if (CVar && CVar->GetInt() == 0)
+		if (!bForceOptimization && CVar && CVar->GetInt() == 0)
 		{
 			Input.Environment.CompilerFlags.Add(CFLAG_Debug);
 		}

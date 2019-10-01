@@ -400,6 +400,7 @@ static void UpdatePlanarReflectionContents_RenderThread(
 				for (int32 ViewIndex = 0; ViewIndex < SceneRenderer->Views.Num(); ++ViewIndex)
 				{
 					FViewInfo& View = SceneRenderer->Views[ViewIndex];
+					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 					if (MainSceneRenderer->Scene->GetShadingPath() == EShadingPath::Deferred)
 					{
 						PrefilterPlanarReflection<true>(RHICmdList, View, SceneProxy, Target);

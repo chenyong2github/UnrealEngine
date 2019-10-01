@@ -82,8 +82,6 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, CompositeEditorPrimitives, SFG_Developer, NSLOCTEX
 SHOWFLAG_FIXED_IN_SHIPPING(0, TestImage, SFG_Developer, NSLOCTEXT("UnrealEd", "TestImageSF", "Test Image"))
 /** Helper to tweak depth of field */
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeDOF, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizeDOFSF", "Depth of Field Layers"))
-/** Helper to tweak depth of field */
-SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeAdaptiveDOF, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizeAdaptiveDOFSF", "Adaptive Depth of Field"))
 /** Show Vertex Colors */
 SHOWFLAG_FIXED_IN_SHIPPING(0, VertexColors, SFG_Advanced, NSLOCTEXT("UnrealEd", "VertexColorsSF", "Vertex Colors"))
 /** Render Post process (screen space) distortion/refraction */
