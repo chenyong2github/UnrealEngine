@@ -689,7 +689,7 @@ FScreenPassTexture AddHighResolutionScreenshotMaskPass(
 		TEXT("CaptureRegionMaterial")
 	};
 
-	static_assert(ARRAY_COUNT(PassNames) == static_cast<uint32>(EPass::MAX), "Pass names array doesn't match pass enum");
+	static_assert(UE_ARRAY_COUNT(PassNames) == static_cast<uint32>(EPass::MAX), "Pass names array doesn't match pass enum");
 
 	TOverridePassSequence<EPass> PassSequence(Inputs.OverrideOutput);
 	PassSequence.SetEnabled(EPass::Material, Inputs.Material != nullptr);
