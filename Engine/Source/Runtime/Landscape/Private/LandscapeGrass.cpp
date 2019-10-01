@@ -594,7 +594,8 @@ public:
 		check(RenderTargetTexture);
 		RenderTargetTexture->ClearColor = FLinearColor::White;
 		RenderTargetTexture->TargetGamma = 1.0f;
-		RenderTargetTexture->InitCustomFormat(TargetSize.X, TargetSize.Y, PF_B8G8R8A8, false);
+		const bool bForceLinearGamma = true;
+		RenderTargetTexture->InitCustomFormat(TargetSize.X, TargetSize.Y, PF_B8G8R8A8, bForceLinearGamma);
 		RenderTargetResource = RenderTargetTexture->GameThread_GetRenderTargetResource()->GetTextureRenderTarget2DResource();
 
 		// render
