@@ -35,13 +35,15 @@ namespace BuildAgent.Run
 		[Description("The program to run.")]
 		FileReference Program = null;
 
-		[CommandLine("-Arguments=")]
-		[Description("Specifies command line arguments to pass to the child process.")]
-		string Arguments = "";
+		string[] ProgramArguments;
 
 		[CommandLine]
 		[Description("Amount of time to leave before killing the child process.")]
 		TimeSpan? Timeout = null;
+
+		[CommandLine("-NoWarnings")]
+		[Description("Ignores any warnings")]
+		bool bNoWarnings = false;
 
 		[CommandLine("-DebugListener")]
 		[Description("Enables the debug listener")]
@@ -60,10 +62,12 @@ namespace BuildAgent.Run
 				throw new CommandLineArgumentException(String.Format("Either -{0}=... or -{1}=... must be specified.", nameof(InputFile), nameof(Program)));
 			}
 
-			if (!bElectricCommanderListener && !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("COMMANDER_JOBSTEP")))
+			if (!bElectricCommanderListener && !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("COMMANDER_JOBSTEPID")))
 			{
 				bElectricCommanderListener = true;
 			}
+
+			ProgramArguments = Arguments.GetPositionalArguments();
 		}
 
 		public override void Execute()
@@ -131,7 +135,7 @@ namespace BuildAgent.Run
 					using (StreamReader Reader = new StreamReader(InputFile.FullName))
 					{
 						LineFilter Filter = new LineFilter(() => Reader.ReadLine());
-						ProcessErrors(Filter.ReadLine, Matchers, IgnorePatterns, Listeners);
+						ProcessErrors(Filter.ReadLine, Matchers, IgnorePatterns, Listeners, bNoWarnings);
 					}
 				}
 				else
@@ -143,10 +147,10 @@ namespace BuildAgent.Run
 					}
 
 					CancellationToken CancellationToken = CancellationTokenSource.Token;
-					using (ManagedProcess Process = new ManagedProcess(null, Program.FullName, Arguments, null, null, null, ProcessPriorityClass.Normal))
+					using (ManagedProcess Process = new ManagedProcess(null, Program.FullName, CommandLineArguments.Join(ProgramArguments), null, null, null, ProcessPriorityClass.Normal))
 					{
 						Func<string> ReadLine = new LineFilter(() => ReadProcessLine(Process, CancellationToken)).ReadLine;
-						ProcessErrors(ReadLine, Matchers, IgnorePatterns, Listeners);
+						ProcessErrors(ReadLine, Matchers, IgnorePatterns, Listeners, bNoWarnings);
 					}
 
 					ProcessUtils.TerminateChildProcesses();
@@ -184,7 +188,8 @@ namespace BuildAgent.Run
 		/// <param name="Matchers">List of matchers to run against the text</param>
 		/// <param name="IgnorePatterns">List of patterns to ignore</param>
 		/// <param name="Listeners">Set of listeners for processing the errors</param>
-		static void ProcessErrors(Func<string> ReadLine, List<IErrorMatcher> Matchers, List<string> IgnorePatterns, List<IErrorListener> Listeners)
+		/// <param name="bNoWarnings">Does not output warnings</param>
+		static void ProcessErrors(Func<string> ReadLine, List<IErrorMatcher> Matchers, List<string> IgnorePatterns, List<IErrorListener> Listeners, bool bNoWarnings)
 		{
 			System.Text.RegularExpressions.Regex.CacheSize = 1000;
 
@@ -208,6 +213,12 @@ namespace BuildAgent.Run
 					{
 						Error = NewError;
 					}
+				}
+
+				// If we matched a warning and don't want it, clear it out
+				if (Error != null && Error.Severity == ErrorSeverity.Warning && bNoWarnings)
+				{
+					Error = null;
 				}
 
 				// If we did match something, check if it's not negated by an ignore pattern. We typically have relatively few errors and many more ignore patterns than matchers, so it's quicker 

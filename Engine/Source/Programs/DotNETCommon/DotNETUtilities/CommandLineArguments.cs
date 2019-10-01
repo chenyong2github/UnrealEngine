@@ -103,6 +103,11 @@ namespace Tools.DotNETCommon
 		int[] NextArgumentIndex;
 
 		/// <summary>
+		/// List of positional arguments
+		/// </summary>
+		List<int> PositionalArgumentIndices = new List<int>();
+
+		/// <summary>
 		/// Array of characters that separate argument names from values
 		/// </summary>
 		static readonly char[] ValueSeparators = { '=', ':' };
@@ -131,39 +136,58 @@ namespace Tools.DotNETCommon
 			ArgumentToFirstIndex = new Dictionary<string, int>(Arguments.Length, StringComparer.OrdinalIgnoreCase);
 			for(int Idx = 0; Idx < Arguments.Length; Idx++)
 			{
-				int SeparatorIdx = Arguments[Idx].IndexOfAny(ValueSeparators);
-				if(SeparatorIdx == -1)
+				if (Arguments[Idx].Equals("--", StringComparison.Ordinal))
 				{
-					// Ignore duplicate -Option flags; they are harmless.
-					if(ArgumentToFirstIndex.ContainsKey(Arguments[Idx]))
+					// End of option arguments
+					MarkAsUsed(Idx++);
+					for (; Idx < Arguments.Length; Idx++)
 					{
-						UsedArguments.Set(Idx, true);
+						PositionalArgumentIndices.Add(Idx);
+					}
+					break;
+				}
+				else if (Arguments[Idx].StartsWith("-", StringComparison.Ordinal))
+				{
+					// Option argument
+					int SeparatorIdx = Arguments[Idx].IndexOfAny(ValueSeparators);
+					if (SeparatorIdx == -1)
+					{
+						// Ignore duplicate -Option flags; they are harmless.
+						if (ArgumentToFirstIndex.ContainsKey(Arguments[Idx]))
+						{
+							UsedArguments.Set(Idx, true);
+						}
+						else
+						{
+							ArgumentToFirstIndex.Add(Arguments[Idx], Idx);
+						}
+
+						// Mark this argument as a flag
+						FlagArguments.Set(Idx, true);
 					}
 					else
 					{
-						ArgumentToFirstIndex.Add(Arguments[Idx], Idx);
-					}
+						// Just take the part up to and including the separator character
+						string Prefix = Arguments[Idx].Substring(0, SeparatorIdx + 1);
 
-					// Mark this argument as a flag
-					FlagArguments.Set(Idx, true);
+						// Add the prefix to the argument lookup, or update the appropriate matching argument list if it's been seen before
+						int ExistingArgumentIndex;
+						if (ArgumentToFirstIndex.TryGetValue(Prefix, out ExistingArgumentIndex))
+						{
+							NextArgumentIndex[LastArgumentIndex[ExistingArgumentIndex]] = Idx;
+							LastArgumentIndex[ExistingArgumentIndex] = Idx;
+						}
+						else
+						{
+							ArgumentToFirstIndex.Add(Prefix, Idx);
+							LastArgumentIndex[Idx] = Idx;
+						}
+					}
 				}
 				else
 				{
-					// Just take the part up to and including the separator character
-					string Prefix = Arguments[Idx].Substring(0, SeparatorIdx + 1);
-
-					// Add the prefix to the argument lookup, or update the appropriate matching argument list if it's been seen before
-					int ExistingArgumentIndex;
-					if(ArgumentToFirstIndex.TryGetValue(Prefix, out ExistingArgumentIndex))
-					{
-						NextArgumentIndex[LastArgumentIndex[ExistingArgumentIndex]] = Idx;
-						LastArgumentIndex[ExistingArgumentIndex] = Idx;
-					}
-					else
-					{
-						ArgumentToFirstIndex.Add(Prefix, Idx);
-						LastArgumentIndex[Idx] = Idx;
-					}
+					// Positional argument
+					PositionalArgumentIndices.Add(Idx);
 				}
 			}
 		}
@@ -185,7 +209,7 @@ namespace Tools.DotNETCommon
 		{
 			get { return Arguments[Index]; }
 		}
-		
+
 		/// <summary>
 		/// Determines if an argument has been used
 		/// </summary>
@@ -239,6 +263,41 @@ namespace Tools.DotNETCommon
 		{
 			CheckValidPrefix(Prefix);
 			return ArgumentToFirstIndex.ContainsKey(Prefix);
+		}
+
+		/// <summary>
+		/// Gets the positional argument at the given index
+		/// </summary>
+		/// <returns>Number of positional arguments</returns>
+		public int GetPositionalArgumentCount()
+		{
+			return PositionalArgumentIndices.Count;
+		}
+
+		/// <summary>
+		/// Gets the index of the numbered positional argument
+		/// </summary>
+		/// <param name="Index">Number of the positional argument</param>
+		/// <returns>Index of the positional argument</returns>
+		public int GetPositionalArgumentIndex(int Num)
+		{
+			return PositionalArgumentIndices[Num];
+		}
+
+		/// <summary>
+		/// Returns all the positional arguments, and marks them as used
+		/// </summary>
+		/// <returns>Array of positional arguments</returns>
+		public string[] GetPositionalArguments()
+		{
+			string[] PositionalArguments = new string[PositionalArgumentIndices.Count];
+			for (int Idx = 0; Idx < PositionalArguments.Length; Idx++)
+			{
+				int Index = PositionalArgumentIndices[Idx];
+				MarkAsUsed(Index);
+				PositionalArguments[Idx] = Arguments[Index];
+			}
+			return PositionalArguments;
 		}
 
 		/// <summary>
@@ -764,14 +823,38 @@ namespace Tools.DotNETCommon
 		/// <returns>Argument which is safe to pass on the command line</returns>
 		public static string Quote(string Argument)
 		{
-			if (Argument.IndexOf(' ') != -1 && Argument[0] != '\"')
+			// See if the entire string is quoted correctly
+			bool bInQuotes = false;
+			for (int Idx = 0;;Idx++)
 			{
-				return "\"" + Argument+ "\"";
+				if (Idx == Argument.Length)
+				{
+					return Argument;
+				}
+				else if (Argument[Idx] == '\"')
+				{
+					bInQuotes ^= true;
+				}
+				else if (Argument[Idx] == ' ')
+				{
+					break;
+				}
 			}
-			else
+
+			// Try to insert a quote after the argument string
+			if (Argument[0] == '-')
 			{
-				return Argument;
+				for(int Idx = 1; Idx < Argument.Length && Argument[Idx] != ' '; Idx++)
+				{
+					if (Argument[Idx] == '=')
+					{
+						return String.Format("{0}=\"{1}\"", Argument.Substring(0, Idx), Argument.Substring(Idx + 1).Replace("\"", "\\\""));
+					}
+				}
 			}
+
+			// Quote the whole thing
+			return "\"" + Argument.Replace("\"", "\\\"") + "\"";
 		}
 
 		/// <summary>

@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Tools.DotNETCommon;
@@ -25,19 +26,34 @@ namespace BuildAgent.Listeners
 		FileReference OutputFile;
 
 		/// <summary>
-		/// List of the matched errors
+		/// New errors which are posted for the background thread
 		/// </summary>
-		List<ErrorMatch> Errors = new List<ErrorMatch>();
+		List<ErrorMatch> NewErrors = new List<ErrorMatch>();
+
+		/// <summary>
+		/// Object used for synchronization
+		/// </summary>
+		object LockObject = new object();
 
 		/// <summary>
 		/// Whether we should set a property indicating that the diagnostics file exists
 		/// </summary>
-		bool bUpdateProperty = true;
+		bool bUpdateProperties;
 
 		/// <summary>
-		/// Process which is created to update properties in the background
+		/// Thread used to update EC properties with the error/warning count
 		/// </summary>
-		Process UpdatePropertyProcess;
+		Thread BackgroundThread;
+
+		/// <summary>
+		/// Event that is set whenever EC needs to be updated
+		/// </summary>
+		ManualResetEvent UpdateEvent = new ManualResetEvent(false);
+
+		/// <summary>
+		/// Set when the object is being disposed
+		/// </summary>
+		bool bDisposing;
 
 		/// <summary>
 		/// Constructs an EC listener
@@ -45,16 +61,16 @@ namespace BuildAgent.Listeners
 		/// <param name="OutputFile">Path to the output file</param>
 		public ElectricCommanderListener()
 		{
-			string EnvVar = Environment.GetEnvironmentVariable("COMMANDER_JOBSTEP");
+			string EnvVar = Environment.GetEnvironmentVariable("COMMANDER_JOBSTEPID");
 			if (String.IsNullOrEmpty(EnvVar))
 			{
 				OutputFile = new FileReference("BuildAgent.xml");
-				bUpdateProperty = false;
+				bUpdateProperties = false;
 			}
 			else
 			{
 				OutputFile = new FileReference(String.Format("BuildAgent-{0}.xml", EnvVar));
-				bUpdateProperty = true;
+				bUpdateProperties = true;
 			}
 		}
 
@@ -63,19 +79,21 @@ namespace BuildAgent.Listeners
 		/// </summary>
 		public void Dispose()
 		{
-			if(UpdatePropertyProcess != null)
+			if (BackgroundThread != null)
 			{
-				if (!UpdatePropertyProcess.WaitForExit(0))
+				lock(LockObject)
+				{
+					bDisposing = true;
+				}
+				UpdateEvent.Set();
+
+				if (!BackgroundThread.Join(500))
 				{
 					Log.TraceInformation("Waiting for ectool to terminate...");
-					UpdatePropertyProcess.WaitForExit();
+					BackgroundThread.Join();
 				}
-				if (UpdatePropertyProcess.ExitCode != 0)
-				{
-					Log.TraceWarning("ectool terminated with exit code {0}", UpdatePropertyProcess.ExitCode);
-				}
-				UpdatePropertyProcess.Dispose();
-				UpdatePropertyProcess = null;
+
+				BackgroundThread = null;
 			}
 		}
 
@@ -85,21 +103,111 @@ namespace BuildAgent.Listeners
 		/// <param name="Error">The matched error</param>
 		public void OnErrorMatch(ErrorMatch Error)
 		{
-			Errors.Add(Error);
-
-			Write();
-
-			if(bUpdateProperty)
+			lock(LockObject)
 			{
-				UpdatePropertyProcess = Process.Start("ectool", String.Format("setProperty /myJobStep/diagFile {0}", OutputFile.GetFileName()));
-				bUpdateProperty = false;
+				NewErrors.Add(Error);
+			}
+
+			UpdateEvent.Set();
+
+			if (BackgroundThread == null)
+			{
+				BackgroundThread = new Thread(() => BackgroundWorker());
+				BackgroundThread.Start();
+			}
+		}
+
+		/// <summary>
+		/// Updates EC properties in the background
+		/// </summary>
+		private void BackgroundWorker()
+		{
+			bool bHasSetDiagFile = false;
+			int NumErrors = 0;
+			int NumWarnings = 0;
+			string Outcome = null;
+
+			List<ErrorMatch> Errors = new List<ErrorMatch>();
+			while (!bDisposing)
+			{
+				// Copy the current set of errors
+				lock(LockObject)
+				{
+					if (NewErrors.Count > 0)
+					{
+						Errors.AddRange(NewErrors);
+						NewErrors.Clear();
+					}
+					else if(bDisposing)
+					{
+						break;
+					}
+				}
+
+				// Write them to disk
+				Write(OutputFile, Errors);
+
+				// On the first run, set the path to the diagnostics file
+				if (!bHasSetDiagFile)
+				{
+					SetProperty("/myJobStep/diagFile", OutputFile.GetFileName());
+					bHasSetDiagFile = true;
+				}
+
+				// Check if the number of errors has changed
+				int NewNumErrors = Errors.Count(x => x.Severity == ErrorSeverity.Error);
+				if (NewNumErrors > NumErrors)
+				{
+					SetProperty("/myJobStep/errors", NewNumErrors.ToString());
+					NumErrors = NewNumErrors;
+				}
+
+				// Check if the number of warnings has changed
+				int NewNumWarnings = Errors.Count(x => x.Severity == ErrorSeverity.Warning);
+				if (NewNumWarnings > NumWarnings)
+				{
+					SetProperty("/myJobStep/warnings", NewNumWarnings.ToString());
+					NumWarnings = NewNumWarnings;
+				}
+
+				// Check if the outcome has changed
+				string NewOutcome = (NumErrors > 0) ? "error" : (NumWarnings > 0) ? "warning" : null;
+				if (NewOutcome != Outcome)
+				{
+					SetProperty("/myJobStep/outcome", NewOutcome);
+					Outcome = NewOutcome;
+				}
+
+				// Wait until the next update
+				UpdateEvent.WaitOne();
+			}
+		}
+
+		/// <summary>
+		/// Sets an EC property 
+		/// </summary>
+		/// <param name="Command">The command to run</param>
+		void SetProperty(string Name, string Value)
+		{
+			if (bUpdateProperties)
+			{
+				string Arguments = String.Format("setProperty \"{0}\" \"{1}\"", Name, Value);
+				using (Process Process = Process.Start("ectool", Arguments))
+				{
+					Process.WaitForExit();
+
+					if (Process.ExitCode != 0)
+					{
+						Log.TraceWarning("ectool {0} terminated with exit code {1}", Arguments, Process.ExitCode);
+					}
+				}
 			}
 		}
 
 		/// <summary>
 		/// Write the list of errors to disk in XML format
 		/// </summary>
-		public void Write()
+		static void Write(FileReference OutputFile, List<ErrorMatch> Errors)
 		{
 			XmlWriterSettings Settings = new XmlWriterSettings();
 			Settings.NewLineChars = Environment.NewLine;

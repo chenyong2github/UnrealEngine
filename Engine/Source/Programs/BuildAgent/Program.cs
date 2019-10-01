@@ -48,10 +48,10 @@ namespace BuildAgent
 		static int GuardedMain(string[] Args)
 		{
 			// Find the index of the first command
-			int FirstModeIndex = 0;
-			while (FirstModeIndex < Args.Length && Args[FirstModeIndex].StartsWith("-"))
+			int ModeIndex = 0;
+			while (ModeIndex < Args.Length && Args[ModeIndex].StartsWith("-"))
 			{
-				FirstModeIndex++;
+				ModeIndex++;
 			}
 
 			// Find all the ToolMode types
@@ -66,14 +66,14 @@ namespace BuildAgent
 			}
 
 			// Check if there are any commands specified on the command line.
-			if (FirstModeIndex == Args.Length)
+			if (ModeIndex == Args.Length)
 			{
 				Log.TraceInformation("BuildAgent");
 				Log.TraceInformation("");
 				Log.TraceInformation("Utility for managing automated processes on build machines.");
 				Log.TraceInformation("");
 				Log.TraceInformation("Usage:");
-				Log.TraceInformation("    BuildAgent.exe [CommandA] [-OptionA1] [-OptionA2] [CommandB] [-OptionB1]...");
+				Log.TraceInformation("    BuildAgent.exe [Command] [-Option1] [-Option2]...");
 				Log.TraceInformation("");
 				Log.TraceInformation("Commands:");
 
@@ -81,69 +81,59 @@ namespace BuildAgent
 				return 0;
 			}
 
-			// Parse the arguments for all commands
-			List<ProgramMode> Modes = new List<ProgramMode>();
-			for (int NextCommandIdx = FirstModeIndex; NextCommandIdx < Args.Length;)
+			// Get the command name
+			string CommandName = Args[ModeIndex];
+
+			// Get the command type
+			Type CommandType;
+			if (!ModeNameToType.TryGetValue(CommandName, out CommandType))
 			{
-				string CommandName = Args[NextCommandIdx++];
+				Log.TraceError("Unknown command '{0}'.", CommandName);
+				Log.TraceInformation("");
+				Log.TraceInformation("Available commands");
+				PrintCommands(ModeNameToType);
+				return 1;
+			}
 
-				// Get the command type
-				Type CommandType;
-				if (!ModeNameToType.TryGetValue(CommandName, out CommandType))
-				{
-					Log.TraceError("Unknown command '{0}'.", CommandName);
-					Log.TraceInformation("");
-					Log.TraceInformation("Available commands");
-					PrintCommands(ModeNameToType);
-					return 1;
-				}
-
-				// Build an argument list for the command, including all the global arguments as well as arguments until the next command
-				List<string> ArgumentList = new List<string>();
-				for (int Idx = 0; Idx < FirstModeIndex; Idx++)
+			// Build an argument list for the command, including all the global arguments as well as arguments until the next command
+			List<string> ArgumentList = new List<string>();
+			for (int Idx = 0; Idx < Args.Length; Idx++)
+			{
+				if (Idx != ModeIndex)
 				{
 					ArgumentList.Add(Args[Idx]);
 				}
-				while (NextCommandIdx < Args.Length && Args[NextCommandIdx].StartsWith("-"))
-				{
-					ArgumentList.Add(Args[NextCommandIdx++]);
-				}
-				CommandLineArguments CommandArguments = new CommandLineArguments(ArgumentList.ToArray());
+			}
+			CommandLineArguments ModeArguments = new CommandLineArguments(ArgumentList.ToArray());
 
-				// Create the command instance
-				ProgramMode Command = (ProgramMode)Activator.CreateInstance(CommandType);
-				Modes.Add(Command);
+			// Create the command instance
+			ProgramMode Mode = (ProgramMode)Activator.CreateInstance(CommandType);
 
-				// If the help flag is specified, print the help info and exit immediately
-				if (CommandArguments.HasOption("-Help"))
-				{
-					HelpUtils.PrintHelp(CommandName, HelpUtils.GetDescription(CommandType), Command.GetParameters());
-					return 1;
-				}
+			// If the help flag is specified, print the help info and exit immediately
+			if (ModeArguments.HasOption("-Help"))
+			{
+				HelpUtils.PrintHelp(CommandName, HelpUtils.GetDescription(CommandType), Mode.GetParameters());
+				return 1;
+			}
 
-				// Configure the command
-				try
-				{
-					Command.Configure(CommandArguments);
-					CommandArguments.CheckAllArgumentsUsed();
-				}
-				catch (CommandLineArgumentException Ex)
-				{
-					Log.TraceError("{0}: {1}", CommandName, Ex.Message);
-					Log.TraceInformation("");
-					Log.TraceInformation("Arguments for {0}:", CommandName);
+			// Configure the command
+			try
+			{
+				Mode.Configure(ModeArguments);
+				ModeArguments.CheckAllArgumentsUsed();
+			}
+			catch (CommandLineArgumentException Ex)
+			{
+				Log.TraceError("{0}: {1}", CommandName, Ex.Message);
+				Log.TraceInformation("");
+				Log.TraceInformation("Arguments for {0}:", CommandName);
 
-					HelpUtils.PrintTable(Command.GetParameters(), 4, 24);
-					return 1;
-				}
+				HelpUtils.PrintTable(Mode.GetParameters(), 4, 24);
+				return 1;
 			}
 
 			// Execute all the commands
-			foreach (ProgramMode Mode in Modes)
-			{
-				Mode.Execute();
-			}
-
+			Mode.Execute();
 			return 0;
 		}
 
