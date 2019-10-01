@@ -162,7 +162,7 @@ class ULandscapeSplineControlPoint : public UObject
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
 
 	/** Lod bias for rendering to runtime virtual texture. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture LOD Bias", UIMin = "0", UIMax = "7"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture LOD Bias", UIMin = "-7", UIMax = "8"))
 	int32 VirtualTextureLodBias = 0;
 
 	/**
@@ -170,7 +170,7 @@ class ULandscapeSplineControlPoint : public UObject
 	 * Larger values reduce the effective draw distance in the runtime virtual texture.
 	 * This culling method doesn't take into account primitive size or virtual texture size.
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Skip Mips", UIMin = "0", UIMax = "15"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Skip Mips", UIMin = "0", UIMax = "7"))
 	int32 VirtualTextureCullMips = 0;
 
 	/** Desired cull distance in the main pass if we are rendering to both the virtual texture AND the main pass. A value of 0 has no effect. */

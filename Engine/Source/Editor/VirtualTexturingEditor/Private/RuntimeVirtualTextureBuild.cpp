@@ -193,21 +193,25 @@ namespace RuntimeVirtualTexture
 						RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RenderTileResources.GetRenderTarget(Layer));
 					}
 
-					// Render a single tile
-					RuntimeVirtualTexture::RenderPage(
-						RHICmdList,
-						Scene->GetRenderScene(),
-						1 << VirtualTextureSceneIndex,
-						MaterialType,
-						true,
-						RenderTileResources.GetRenderTarget(0), TileBox,
-						RenderTileResources.GetRenderTarget(1), TileBox,
-						RenderTileResources.GetRenderTarget(2), TileBox,
-						Transform,
-						UVRange,
-						RenderLevel,
-						MaxLevel,
-						DebugType);
+					RuntimeVirtualTexture::FRenderPageBatchDesc Desc;
+					Desc.Scene = Scene->GetRenderScene();
+					Desc.RuntimeVirtualTextureMask = 1 << VirtualTextureSceneIndex;
+					Desc.UVToWorld = Transform;
+					Desc.MaterialType = MaterialType;
+					Desc.MaxLevel = MaxLevel;
+					Desc.bClearTextures = true;
+					Desc.DebugType = DebugType;
+					Desc.NumPageDescs = 1;
+					Desc.Targets[0].Texture = RenderTileResources.GetRenderTarget(0);
+					Desc.Targets[1].Texture = RenderTileResources.GetRenderTarget(1);
+					Desc.Targets[2].Texture = RenderTileResources.GetRenderTarget(2);
+					Desc.PageDescs[0].DestBox[0] = TileBox;
+					Desc.PageDescs[0].DestBox[1] = TileBox;
+					Desc.PageDescs[0].DestBox[2] = TileBox;
+					Desc.PageDescs[0].UVRange = UVRange;
+					Desc.PageDescs[0].vLevel = RenderLevel;
+
+					RuntimeVirtualTexture::RenderPages(RHICmdList, Desc);
 
 					// Transition render targets for copying
 					for (int32 Layer = 0; Layer < NumLayers; Layer++)

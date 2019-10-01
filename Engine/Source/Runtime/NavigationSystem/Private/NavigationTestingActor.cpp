@@ -142,7 +142,7 @@ void ANavigationTestingActor::PostEditChangeProperty(FPropertyChangedEvent& Prop
 		}
 		else if (ChangedPropName == NAME_ShouldBeVisibleInGame)
 		{
-			bHidden = !bShouldBeVisibleInGame;
+			SetHidden(!bShouldBeVisibleInGame);
 		}
 		else if (ChangedCategory == TEXT("Debug"))
 		{
@@ -250,7 +250,7 @@ void ANavigationTestingActor::PostLoad()
 	}
 #endif
 
-	bHidden = !bShouldBeVisibleInGame;
+	SetHidden(!bShouldBeVisibleInGame);
 }
 
 void ANavigationTestingActor::TickMe()

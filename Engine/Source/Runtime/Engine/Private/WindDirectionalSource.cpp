@@ -48,7 +48,7 @@ AWindDirectionalSource::AWindDirectionalSource(const FObjectInitializer& ObjectI
 		if (UBillboardComponent* SpriteComp = GetSpriteComponent())
 		{
 			SpriteComp->Sprite = ConstructorStatics.SpriteTexture.Get();
-			SpriteComp->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+			SpriteComp->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
 			SpriteComp->SpriteInfo.Category = ConstructorStatics.ID_Wind;
 			SpriteComp->SpriteInfo.DisplayName = ConstructorStatics.NAME_Wind;
 			SpriteComp->SetupAttachment(Component);

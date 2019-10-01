@@ -2008,7 +2008,7 @@ void FPaintModePainter::UpdatePaintTargets(UObject* InObject, struct FPropertyCh
 {
 	AActor* Actor = Cast<AActor>(InObject);
 	if (InPropertyChangedEvent.Property && 
-		InPropertyChangedEvent.Property->GetName() == GET_MEMBER_NAME_CHECKED(USceneComponent, bVisible).ToString())
+		InPropertyChangedEvent.Property->GetName() == USceneComponent::GetVisiblePropertyName().ToString())
 	{
 		Refresh();
 	}

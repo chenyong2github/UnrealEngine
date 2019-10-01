@@ -1412,30 +1412,29 @@ FD3D12FastAllocatorPage* FD3D12FastAllocatorPagePool::RequestFastAllocatorPage()
 {
 	FD3D12Device* Device = GetParentDevice();
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();
-	FD3D12Fence& Fence = Adapter->GetFrameFence();
-
-	FD3D12FastAllocatorPage* Page = nullptr;
+	FD3D12ManualFence& Fence = Adapter->GetFrameFence();
 
 	const uint64 CompletedFence = Fence.UpdateLastCompletedFence();
 
 	for (int32 Index = 0; Index < Pool.Num(); Index++)
 	{
+		FD3D12FastAllocatorPage* Page = Pool[Index];
+
 		//If the GPU is done with it and no-one has a lock on it
-		if (Pool[Index]->FastAllocBuffer->GetRefCount() == 1 &&
-			Pool[Index]->FrameFence <= CompletedFence)
+		if (Page->FastAllocBuffer->GetRefCount() == 1 &&
+			Page->FrameFence <= CompletedFence)
 		{
-			Page = Pool[Index];
 			Page->Reset();
 			Pool.RemoveAt(Index);
 			return Page;
 		}
 	}
 
-	check(Page == nullptr);
-	Page = new FD3D12FastAllocatorPage(PageSize);
+	FD3D12FastAllocatorPage* Page = new FD3D12FastAllocatorPage(PageSize);
 
 	const D3D12_RESOURCE_STATES InitialState = DetermineInitialResourceState(HeapProperties.Type, &HeapProperties);
 	VERIFYD3D12RESULT(Adapter->CreateBuffer(HeapProperties, GetGPUMask(), InitialState, PageSize, Page->FastAllocBuffer.GetInitReference(), TEXT("Fast Allocator Page")));
+	Page->FastAllocBuffer->DoNotDeferDelete();
 
 	Page->FastAllocData = Page->FastAllocBuffer->Map();
 
@@ -1445,7 +1444,7 @@ FD3D12FastAllocatorPage* FD3D12FastAllocatorPagePool::RequestFastAllocatorPage()
 void FD3D12FastAllocatorPagePool::ReturnFastAllocatorPage(FD3D12FastAllocatorPage* Page)
 {
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-	FD3D12Fence& FrameFence = Adapter->GetFrameFence();
+	FD3D12ManualFence& FrameFence = Adapter->GetFrameFence();
 
 	// Extend the lifetime of these resources when in AFR as other nodes might be relying on this
 	Page->FrameFence = FrameFence.GetCurrentFence();
@@ -1460,18 +1459,19 @@ void FD3D12FastAllocatorPagePool::CleanupPages(uint64 FrameLag)
 	}
 
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-	FD3D12Fence& FrameFence = Adapter->GetFrameFence();
+	FD3D12ManualFence& FrameFence = Adapter->GetFrameFence();
 
 	const uint64 CompletedFence = FrameFence.UpdateLastCompletedFence();
 
 	// Pages get returned to end of list, so we'll look for pages to delete, starting from the LRU
 	for (int32 Index = 0; Index < Pool.Num(); Index++)
 	{
+		FD3D12FastAllocatorPage* Page = Pool[Index];
+
 		//If the GPU is done with it and no-one has a lock on it
-		if (Pool[Index]->FastAllocBuffer->GetRefCount() == 1 &&
-			Pool[Index]->FrameFence + FrameLag <= CompletedFence)
+		if (Page->FastAllocBuffer->GetRefCount() == 1 &&
+			Page->FrameFence + FrameLag <= CompletedFence)
 		{
-			FD3D12FastAllocatorPage* Page = Pool[Index];
 			Pool.RemoveAt(Index);
 			delete(Page);
 

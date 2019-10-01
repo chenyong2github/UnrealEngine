@@ -17,7 +17,7 @@
 AVisualLoggerHUD::AVisualLoggerHUD(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bHidden = false;
+	SetHidden(false);
 
 	TextRenderInfo.bEnableShadow = true;
 }

@@ -42,14 +42,14 @@ FString UDisplayClusterSceneComponentSyncThis::GetSyncId() const
 
 bool UDisplayClusterSceneComponentSyncThis::IsDirty() const
 {
-	return (LastSyncLoc != RelativeLocation || LastSyncRot != RelativeRotation || LastSyncScale != RelativeScale3D);
+	return (LastSyncLoc != GetRelativeLocation() || LastSyncRot != GetRelativeRotation() || LastSyncScale != GetRelativeScale3D());
 }
 
 void UDisplayClusterSceneComponentSyncThis::ClearDirty()
 {
-	LastSyncLoc = RelativeLocation;
-	LastSyncRot = RelativeRotation;
-	LastSyncScale = RelativeScale3D;
+	LastSyncLoc = GetRelativeLocation();
+	LastSyncRot = GetRelativeRotation();
+	LastSyncScale = GetRelativeScale3D();
 }
 
 

@@ -134,6 +134,58 @@ FRWBuffer& FNiagaraRenderer::GetDummyUIntBuffer()
 	return DummyUIntBuffer.Buffer;
 }
 
+bool FNiagaraRenderer::SetVertexFactoryVariable(const FNiagaraDataSet& DataSet, const FNiagaraVariable& Var, int32 VFVarOffset)
+{
+	int32 FloatOffset;
+	int32 IntOffset;//TODO: No VF uses ints atm but it should be trivial to copy the float path if some vf should need to.
+	DataSet.GetVariableComponentOffsets(Var, FloatOffset, IntOffset);
+	int32 NumComponents = Var.GetSizeInBytes() / sizeof(float);
+
+	int32 GPULocation = INDEX_NONE;
+	bool bUpload = true;
+	if (FloatOffset != INDEX_NONE)
+	{
+		if (FNiagaraRendererVariableInfo* ExistingVarInfo = VFVariables.FindByPredicate([&](const FNiagaraRendererVariableInfo& VarInfo) { return VarInfo.DatasetOffset == FloatOffset; }))
+		{
+			//Don't need to upload this var again if it's already been uploaded for another var info. Just point to that.
+			//E.g. when custom sorting uses age.
+			GPULocation = ExistingVarInfo->GPUBufferOffset;
+			bUpload = false;
+		}
+		else
+		{
+			//For CPU Sims we pack just the required data tightly in a GPU buffer we upload. For GPU sims the data is there already so we just provide the real data location.
+			GPULocation = SimTarget == ENiagaraSimTarget::CPUSim ? TotalVFComponents : FloatOffset;
+			TotalVFComponents += NumComponents;
+		}
+	}
+
+	VFVariables[VFVarOffset] = FNiagaraRendererVariableInfo(FloatOffset, GPULocation, NumComponents, bUpload);
+
+	return FloatOffset != INDEX_NONE;
+}
+
+FGlobalDynamicReadBuffer::FAllocation FNiagaraRenderer::TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, FNiagaraDataBuffer* SrcData)const
+{
+	int32 TotalFloatSize = TotalVFComponents * SrcData->GetNumInstances();
+	int32 ComponentStrideDest = SrcData->GetNumInstances() * sizeof(float);
+	FGlobalDynamicReadBuffer::FAllocation Allocation = DynamicReadBuffer.AllocateFloat(TotalFloatSize);
+	for (const FNiagaraRendererVariableInfo& VarInfo : VFVariables)
+	{
+		int32 GpuOffset = VarInfo.GetGPUOffset();
+		if (GpuOffset != INDEX_NONE && VarInfo.bUpload)
+		{
+			for (int32 CompIdx = 0; CompIdx < VarInfo.NumComponents; ++CompIdx)
+			{
+				float* SrcComponent = (float*)SrcData->GetComponentPtrFloat(VarInfo.DatasetOffset + CompIdx);
+				void* Dest = Allocation.Buffer + ComponentStrideDest * (GpuOffset + CompIdx);
+				FMemory::Memcpy(Dest, SrcComponent, ComponentStrideDest);
+			}
+		}
+	}
+	return Allocation;
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 FNiagaraDynamicDataBase::FNiagaraDynamicDataBase(const FNiagaraEmitterInstance* InEmitter)
@@ -190,19 +242,21 @@ FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender()const
 //////////////////////////////////////////////////////////////////////////
 
 
-FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
+FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type InFeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
 	: DynamicDataRender(nullptr)
 	, bLocalSpace(Emitter->GetCachedEmitter()->bLocalSpace)
 	, bHasLights(false)
 	, SimTarget(Emitter->GetCachedEmitter()->SimTarget)
 	, NumIndicesPerInstance(InProps ? InProps->GetNumIndicesPerInstance() : 0)
+	, FeatureLevel(InFeatureLevel)
+	, TotalVFComponents(0)
 {
 #if STATS
 	EmitterStatID = Emitter->GetCachedEmitter()->GetStatID(false, false);
 #endif
 }
 
-void FNiagaraRenderer::Initialize(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
+void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
 {
 	//Get our list of valid base materials. Fall back to default material if they're not valid.
 	InProps->GetUsedMaterials(Emitter, BaseMaterials_GT);
@@ -286,13 +340,14 @@ struct FParticleOrderAsUint
 	FORCEINLINE operator uint32() const { return OrderAsUint; }
 };
 
-void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices)const
+void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, int32 SortVarIdx, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices)const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSortParticles);
 
 	uint32 NumInstances = Buffer.GetNumInstances();
 	check(OutIndices.ReadBuffer->NumBytes >= OutIndices.FirstIndex + NumInstances * sizeof(int32));
 	check(SortInfo.SortMode != ENiagaraSortMode::None);
+	check(VFVariables.IsValidIndex(SortVarIdx));
 	check(SortInfo.SortAttributeOffset != INDEX_NONE);
 
 	const bool bUseRadixSort = GNiagaraRadixSortThreshold != -1 && (int32)NumInstances  > GNiagaraRadixSortThreshold;
@@ -304,9 +359,10 @@ void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, const FN
 
 	if (SortInfo.SortMode == ENiagaraSortMode::ViewDepth || SortInfo.SortMode == ENiagaraSortMode::ViewDistance)
 	{
-		float* RESTRICT PositionX = (float*)Buffer.GetComponentPtrFloat(SortInfo.SortAttributeOffset);
-		float* RESTRICT PositionY = (float*)Buffer.GetComponentPtrFloat(SortInfo.SortAttributeOffset + 1);
-		float* RESTRICT PositionZ = (float*)Buffer.GetComponentPtrFloat(SortInfo.SortAttributeOffset + 2);
+		int32 BaseCompOffset = VFVariables[SortVarIdx].DatasetOffset;
+		float* RESTRICT PositionX = (float*)Buffer.GetComponentPtrFloat(BaseCompOffset);
+		float* RESTRICT PositionY = (float*)Buffer.GetComponentPtrFloat(BaseCompOffset + 1);
+		float* RESTRICT PositionZ = (float*)Buffer.GetComponentPtrFloat(BaseCompOffset + 2);
 		auto GetPos = [&PositionX, &PositionY, &PositionZ](int32 Idx)
 		{
 			return FVector(PositionX[Idx], PositionY[Idx], PositionZ[Idx]);
@@ -329,7 +385,7 @@ void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, const FN
 	}
 	else
 	{
-		float* RESTRICT CustomSorting = (float*)Buffer.GetComponentPtrFloat(SortInfo.SortAttributeOffset);
+		float* RESTRICT CustomSorting = (float*)Buffer.GetComponentPtrFloat(VFVariables[SortVarIdx].DatasetOffset);
 
 		if (SortInfo.SortMode == ENiagaraSortMode::CustomAscending)
 		{

@@ -588,7 +588,7 @@ FORCEINLINE FOverlapInterval GetInterval(const FBox& Box, const FVector& Vector)
 	FOverlapInterval Result;
 	Result.Min = Result.Max = FVector::DotProduct(Vector, BoxVertices[0]);
 
-	for (int32 i = 1; i < ARRAY_COUNT(BoxVertices); ++i)
+	for (int32 i = 1; i < UE_ARRAY_COUNT(BoxVertices); ++i)
 	{
 		float Projection = FVector::DotProduct(Vector, BoxVertices[i]);
 		Result.Min = FMath::Min(Result.Min, Projection);
@@ -635,7 +635,7 @@ FORCEINLINE bool IntersectTriangleAndAABB(const FTriangle& Triangle, const FBox&
 		FVector::CrossProduct(BoxNormal2, TriangleEdge2)
 	};
 
-	for (int i = 0; i < ARRAY_COUNT(TestDirections); ++i)
+	for (int i = 0; i < UE_ARRAY_COUNT(TestDirections); ++i)
 	{
 		if (!OverlapOnAxis(Box, Triangle, TestDirections[i]))
 		{

@@ -218,7 +218,10 @@ bool UNiagaraStackEntry::GetIsExpanded() const
 
 void UNiagaraStackEntry::SetIsExpanded(bool bInExpanded)
 {
-	StackEditorData->SetStackEntryIsExpanded(GetStackEditorDataKey(), bInExpanded);
+	if (StackEditorData)
+	{
+		StackEditorData->SetStackEntryIsExpanded(GetStackEditorDataKey(), bInExpanded);
+	}
 	bIsExpandedCache.Reset();
 }
 

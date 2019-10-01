@@ -1626,51 +1626,7 @@ UBlendableInterface::UBlendableInterface(const FObjectInitializer& ObjectInitial
 {
 }
 
-void DoPostProcessVolume(IInterface_PostProcessVolume* Volume, FVector ViewLocation, FSceneView* SceneView)
-{
-	const FPostProcessVolumeProperties VolumeProperties = Volume->GetProperties();
-	if (!VolumeProperties.bIsEnabled)
-	{
-		return;
-	}
 
-	float DistanceToPoint = 0.0f;
-	float LocalWeight = FMath::Clamp(VolumeProperties.BlendWeight, 0.0f, 1.0f);
-
-	if (!VolumeProperties.bIsUnbound)
-	{
-		float SquaredBlendRadius = VolumeProperties.BlendRadius * VolumeProperties.BlendRadius;
-		Volume->EncompassesPoint(ViewLocation, 0.0f, &DistanceToPoint);
-
-		if (DistanceToPoint >= 0)
-		{
-			if (DistanceToPoint > VolumeProperties.BlendRadius)
-			{
-				// outside
-				LocalWeight = 0.0f;
-			}
-			else
-			{
-				// to avoid div by 0
-				if (VolumeProperties.BlendRadius >= 1.0f)
-				{
-					LocalWeight *= 1.0f - DistanceToPoint / VolumeProperties.BlendRadius;
-
-					check(LocalWeight >= 0 && LocalWeight <= 1.0f);
-				}
-			}
-		}
-		else
-		{
-			LocalWeight = 0;
-		}
-	}
-
-	if (LocalWeight > 0)
-	{
-		SceneView->OverridePostProcessSettings(*VolumeProperties.Settings, LocalWeight);
-	}
-}
 
 void FSceneView::StartFinalPostprocessSettings(FVector InViewLocation)
 {
@@ -1749,10 +1705,7 @@ void FSceneView::StartFinalPostprocessSettings(FVector InViewLocation)
 	// Some views have no world (e.g. material preview)
 	if (World != nullptr)
 	{
-		for (auto VolumeIt = World->PostProcessVolumes.CreateIterator(); VolumeIt; ++VolumeIt)
-		{
-			DoPostProcessVolume(*VolumeIt, InViewLocation, this);
-		}
+		World->AddPostProcessingSettings(InViewLocation, this);
 	}
 }
 

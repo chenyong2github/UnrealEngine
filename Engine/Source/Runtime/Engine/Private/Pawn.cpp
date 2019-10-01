@@ -49,13 +49,13 @@ APawn::APawn(const FObjectInitializer& ObjectInitializer)
 	{
 		AIControllerClass = ((APawn*)APawn::StaticClass()->GetDefaultObject())->AIControllerClass;
 	}
-	bCanBeDamaged = true;
+	SetCanBeDamaged(true);
 	
 	SetRemoteRoleForBackwardsCompat(ROLE_SimulatedProxy);
 	bReplicates = true;
 	NetPriority = 3.0f;
 	NetUpdateFrequency = 100.f;
-	bReplicateMovement = true;
+	SetReplicatingMovement(true);
 	BaseEyeHeight = 64.0f;
 	AllowedYawError = 10.99f;
 	BlendedReplayViewPitch = 0.0f;
@@ -70,16 +70,16 @@ APawn::APawn(const FObjectInitializer& ObjectInitializer)
 
 	bInputEnabled = true;
 
-	ReplicatedMovement.LocationQuantizationLevel = EVectorQuantization::RoundTwoDecimals;
+	GetReplicatedMovement_Mutable().LocationQuantizationLevel = EVectorQuantization::RoundTwoDecimals;
 }
 
 void APawn::PreInitializeComponents()
 {
 	Super::PreInitializeComponents();
 
-	if (Instigator == nullptr)
+	if (GetInstigator() == nullptr)
 	{
-		Instigator = this;
+		SetInstigator(this);
 	}
 
 	if (AutoPossessPlayer != EAutoReceiveInput::Disabled && GetNetMode() != NM_Client )
@@ -287,7 +287,7 @@ FRotator APawn::GetViewRotation() const
 	{
 		return Controller->GetControlRotation();
 	}
-	else if (Role < ROLE_Authority)
+	else if (GetLocalRole() < ROLE_Authority)
 	{
 		// check if being spectated
 		for( FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator )
@@ -313,7 +313,7 @@ void APawn::SpawnDefaultController()
 	if (AIControllerClass != nullptr)
 	{
 		FActorSpawnParameters SpawnInfo;
-		SpawnInfo.Instigator = Instigator;
+		SpawnInfo.Instigator = GetInstigator();
 		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		SpawnInfo.OverrideLevel = GetLevel();
 		SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save AI controllers into a map
@@ -329,7 +329,7 @@ void APawn::SpawnDefaultController()
 
 void APawn::TurnOff()
 {
-	if (Role == ROLE_Authority)
+	if (GetLocalRole() == ROLE_Authority)
 	{
 		SetReplicates(true);
 	}
@@ -408,7 +408,7 @@ void APawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 bool APawn::ShouldTakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) const
 {
-	if ( (Role < ROLE_Authority) || !bCanBeDamaged || !GetWorld()->GetAuthGameMode() || (Damage == 0.f) )
+	if ((GetLocalRole() < ROLE_Authority) || !CanBeDamaged() || !GetWorld()->GetAuthGameMode() || (Damage == 0.f))
 	{
 		return false;
 	}
@@ -566,7 +566,7 @@ const AActor* APawn::GetNetOwner() const
 
 class UPlayer* APawn::GetNetOwningPlayer()
 {
-	if (Role == ROLE_Authority)
+	if (GetLocalRole() == ROLE_Authority)
 	{
 		if (Controller)
 		{
@@ -844,7 +844,7 @@ void APawn::OutsideWorldBounds()
 	{
 		bProcessingOutsideWorldBounds = true;
 		// AI pawns on the server just destroy
-		if (Role == ROLE_Authority && Cast<APlayerController>(Controller) == nullptr)
+		if (GetLocalRole() == ROLE_Authority && Cast<APlayerController>(Controller) == nullptr)
 		{
 			Destroy();
 		}
@@ -1002,7 +1002,7 @@ void APawn::LaunchPawn(FVector LaunchVelocity, bool bXYOverride, bool bZOverride
 
 void APawn::PostNetReceiveVelocity(const FVector& NewVelocity)
 {
-	if (Role == ROLE_SimulatedProxy)
+	if (GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		UMovementComponent* const MoveComponent = GetMovementComponent();
 		if ( MoveComponent )
@@ -1014,27 +1014,30 @@ void APawn::PostNetReceiveVelocity(const FVector& NewVelocity)
 
 void APawn::PostNetReceiveLocationAndRotation()
 {
+	const FRepMovement& ConstRepMovement = GetReplicatedMovement();
+
 	// always consider Location as changed if we were spawned this tick as in that case our replicated Location was set as part of spawning, before PreNetReceive()
-	if( (FRepMovement::RebaseOntoLocalOrigin(ReplicatedMovement.Location, this) == GetActorLocation() 
-		&& ReplicatedMovement.Rotation == GetActorRotation()) && (CreationTime != GetWorld()->TimeSeconds) )
+	if( (FRepMovement::RebaseOntoLocalOrigin(ConstRepMovement.Location, this) == GetActorLocation()
+		&& ConstRepMovement.Rotation == GetActorRotation()) && (CreationTime != GetWorld()->TimeSeconds) )
 	{
 		return;
 	}
 
-	if( Role == ROLE_SimulatedProxy )
+	if (GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		// Correction to make sure pawn doesn't penetrate floor after replication rounding
-		ReplicatedMovement.Location.Z += 0.01f;
+		FRepMovement& MutableRepMovement = GetReplicatedMovement_Mutable();
+		MutableRepMovement.Location.Z += 0.01f;
 
 		const FVector OldLocation = GetActorLocation();
 		const FQuat OldRotation = GetActorQuat();
-		const FVector NewLocation = FRepMovement::RebaseOntoLocalOrigin(ReplicatedMovement.Location, this);
-		SetActorLocationAndRotation(NewLocation, ReplicatedMovement.Rotation, /*bSweep=*/ false);
+		const FVector NewLocation = FRepMovement::RebaseOntoLocalOrigin(MutableRepMovement.Location, this);
+		SetActorLocationAndRotation(NewLocation, MutableRepMovement.Rotation, /*bSweep=*/ false);
 
 		INetworkPredictionInterface* PredictionInterface = Cast<INetworkPredictionInterface>(GetMovementComponent());
 		if (PredictionInterface)
 		{
-			PredictionInterface->SmoothCorrection(OldLocation, OldRotation, NewLocation, ReplicatedMovement.Rotation.Quaternion());
+			PredictionInterface->SmoothCorrection(OldLocation, OldRotation, NewLocation, MutableRepMovement.Rotation.Quaternion());
 		}
 	}
 }
@@ -1056,12 +1059,12 @@ bool APawn::IsBasedOnActor(const AActor* Other) const
 bool APawn::IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const
 {
 	CA_SUPPRESS(6011);
-	if (bAlwaysRelevant || RealViewer == Controller || IsOwnedBy(ViewTarget) || IsOwnedBy(RealViewer) || this == ViewTarget || ViewTarget == Instigator
+	if (bAlwaysRelevant || RealViewer == Controller || IsOwnedBy(ViewTarget) || IsOwnedBy(RealViewer) || this == ViewTarget || ViewTarget == GetInstigator()
 		|| IsBasedOnActor(ViewTarget) || (ViewTarget && ViewTarget->IsBasedOnActor(this)))
 	{
 		return true;
 	}
-	else if( (bHidden || bOnlyRelevantToOwner) && (!GetRootComponent() || !GetRootComponent()->IsCollisionEnabled()) ) 
+	else if ((IsHidden() || bOnlyRelevantToOwner) && (!GetRootComponent() || !GetRootComponent()->IsCollisionEnabled())) 
 	{
 		return false;
 	}
@@ -1093,7 +1096,7 @@ void APawn::PreReplication( IRepChangedPropertyTracker & ChangedPropertyTracker 
 {
 	Super::PreReplication( ChangedPropertyTracker );
 
-	if (Role == ROLE_Authority && GetController())
+	if (GetLocalRole() == ROLE_Authority && GetController())
 	{
 		SetRemoteViewPitch(GetController()->GetControlRotation().Pitch);
 	}

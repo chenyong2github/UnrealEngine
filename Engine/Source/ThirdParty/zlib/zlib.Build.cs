@@ -24,7 +24,7 @@ public class zlib : ModuleRules
             (Target.Platform == UnrealTargetPlatform.HoloLens))
         {
             string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
-            PublicIncludePaths.Add(System.String.Format("{0}/include/Win32/VS{1}", zlibPath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
+            PublicIncludePaths.Add(System.String.Format("{0}/include/{1}/VS{2}", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
             string LibDir;
 			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {

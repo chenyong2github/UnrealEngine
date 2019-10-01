@@ -1256,11 +1256,16 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 
 			FastAllocator.Allocate(Size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &TempResourceLocation);
 			FastAllocator.Allocate(SizeLowMips, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &TempResourceLocationLowMips);
+			TempResourceLocationLowMips.GetResource()->AddRef();
 		}
 		else
 		{
 			FastAllocator.Allocate(Size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &TempResourceLocation);
 		}
+		// We AddRef() the resource here to make sure it doesn't get recycled prematurely. We are likely to be done with it during the frame,
+		// but lifetime of the allocation is not strictly tied to the frame because we're using the copy queue here. Because we're waiting
+		// on the GPU before returning here, this protection is safe, even if we end up straddling frame boundaries.
+		TempResourceLocation.GetResource()->AddRef();
 
 		FD3D12Texture2D* CurrentTexture = TextureOut;
 		while (CurrentTexture != nullptr)
@@ -1316,6 +1321,12 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 		}
 
 		FD3D12TextureStats::D3D12TextureAllocated(*TextureOut);
+
+		// These are clear to be recycled now because GPU is done with it at this point. We wait on GPU in ExecuteCommandList() above.
+		TempResourceLocation.GetResource()->Release();
+		if (TempResourceLocationLowMips.GetResource())
+			TempResourceLocationLowMips.GetResource()->Release();
+
 	}
 
 	if (TempBufferSize != ZeroBufferSize)

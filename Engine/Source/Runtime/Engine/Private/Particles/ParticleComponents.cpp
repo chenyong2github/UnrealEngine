@@ -3601,16 +3601,20 @@ bool UParticleSystemComponent::CanConsiderInvisible()const
 
 void DetailModeSink()
 {
-	int32 DetailMode = GetCachedScalabilityCVars().DetailMode;
-	static int32 CachedDetailMode = DetailMode;
+	//This Cvar sink can happen before the one which primes the cached scalability cvars so we must grab this ourselves.
+	IConsoleManager& ConsoleMan = IConsoleManager::Get();
+	static const auto DetailMode = ConsoleMan.FindTConsoleVariableDataInt(TEXT("r.DetailMode"));
+	int32 NewDetailMode = DetailMode->GetValueOnGameThread();
+	static int32 CachedDetailMode = NewDetailMode;
 
-	if (CachedDetailMode != DetailMode)
+	if (CachedDetailMode != NewDetailMode)
 	{
-		CachedDetailMode = DetailMode;
+		CachedDetailMode = NewDetailMode;
 
 		for (TObjectIterator<UParticleSystemComponent> It; It; ++It)
 		{
-			It->ForceReset();
+			//We must also reset on next tick rather than immediately as the cached cvar values are read internally to determin detail mode.
+			It->ResetNextTick();
 		}
 	}
 }
@@ -3627,7 +3631,7 @@ void UParticleSystemComponent::ForceReset()
 	}
 #endif
 
-	bool bOldActive = bIsActive;
+	bool bOldActive = IsActive();
 	ResetParticles(true);
 	if (bOldActive)
 	{
@@ -3866,9 +3870,9 @@ void UParticleSystemComponent::OnRegister()
 			}
 		}
 
-		SavedAutoAttachRelativeLocation = RelativeLocation;
-		SavedAutoAttachRelativeRotation = RelativeRotation;
-		SavedAutoAttachRelativeScale3D = RelativeScale3D;
+		SavedAutoAttachRelativeLocation = GetRelativeLocation();
+		SavedAutoAttachRelativeRotation = GetRelativeRotation();
+		SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
 	}
 
 	if (ShouldBeTickManaged())
@@ -3879,7 +3883,7 @@ void UParticleSystemComponent::OnRegister()
 	Super::OnRegister();
 
 	// If we were active before but are not now, activate us
-	if (bWasActive && !bIsActive)
+	if (bWasActive && !IsActive())
 	{
 		Activate(true);
 	}
@@ -3902,7 +3906,7 @@ void UParticleSystemComponent::OnUnregister()
 		TEXT("OnUnregister %s Component=0x%p Scene=0x%p FXSystem=0x%p"),
 		Template != NULL ? *Template->GetName() : TEXT("NULL"), this, GetWorld()->Scene, FXSystem);
 
-	bWasActive = bIsActive && !bWasDeactivated;
+	bWasActive = IsActive() && !bWasDeactivated;
 
 	check(GetWorld());
 	SetComponentTickEnabled(false);
@@ -3962,7 +3966,7 @@ void UParticleSystemComponent::SendRenderTransform_Concurrent()
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
 
 	ForceAsyncWorkCompletion(ENSURE_AND_STALL, false, true);
-	if (bIsActive)
+	if (IsActive())
 	{
 		if (bSkipUpdateDynamicDataDuringTick == false)
 		{
@@ -3994,7 +3998,7 @@ void UParticleSystemComponent::SendRenderDynamicData_Concurrent()
 		// check to see if this PSC is active.  When you attach a PSC it gets added to the DataManager
 		// even if it might be bIsActive = false  (e.g. attach and later in the frame activate it)
 		// or also for PSCs that are attached to a SkelComp which is being attached and reattached but the PSC itself is not active!
-		if (bIsActive)
+		if (IsActive())
 		{
 			UpdateDynamicData();
 		}
@@ -4567,7 +4571,7 @@ void UParticleSystemComponent::OrientZAxisTowardCamera()
 		
 		// Adjust our rotation
 		const FRotator AdjustmentAngle(PointTo);
-		RelativeRotation += AdjustmentAngle;
+		GetRelativeRotation_DirectMutable() += AdjustmentAngle;
 
 		// Mark the component transform as dirty if the rotation has changed.
 		bIsTransformDirty |= !AdjustmentAngle.IsZero();
@@ -4934,7 +4938,7 @@ void FGameThreadDispatchBatchedAsyncTasks::DoTask(ENamedThreads::Type CurrentThr
 
 bool UParticleSystemComponent::IsReadyForOwnerToAutoDestroy() const
 {
-	return (!bIsActive && bWasCompleted);
+	return (!IsActive() && bWasCompleted);
 }
 
 void UParticleSystemComponent::SetComponentTickEnabled(bool bEnabled)
@@ -5077,7 +5081,7 @@ void UParticleSystemComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	bool bDisallowAsync = false;
 
 	// Bail out if inactive and not AutoActivate
-	if ((bIsActive == false) && (bAutoActivate == false))
+	if ((IsActive() == false) && (bAutoActivate == false))
 	{
 		// Disable our tick here, will be enabled when activating
 		SetComponentTickEnabled(false);
@@ -5109,9 +5113,9 @@ void UParticleSystemComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	// System settings may have been lowered. Support late deactivation.
 	int32 DetailModeCVar = GetCurrentDetailMode();
 	const bool bDetailModeAllowsRendering	= DetailMode <= DetailModeCVar;
-	if ( bDetailModeAllowsRendering == false )
+	if (bDetailModeAllowsRendering == false)
 	{
-		if ( bIsActive )
+		if (IsActive())
 		{
 			DeactivateSystem();
 			Super::MarkRenderDynamicDataDirty();
@@ -5435,7 +5439,7 @@ void UParticleSystemComponent::FinalizeTickComponent()
 	float CurrTime = GetWorld()->GetTimeSeconds();
 
 	//Are we still significant?
-	if ((bIsActive && !bWasDeactivated) && bIsManagingSignificance && NumSignificantEmitters == 0 && CurrTime >= LastSignificantTime + Template->InsignificanceDelay)
+	if ((IsActive() && !bWasDeactivated) && bIsManagingSignificance && NumSignificantEmitters == 0 && CurrTime >= LastSignificantTime + Template->InsignificanceDelay)
 	{
 		OnSignificanceChanged(false, true);
 	}
@@ -5701,7 +5705,7 @@ void UParticleSystemComponent::ResetParticles(bool bEmptyInstances)
 	UWorld* OwningWorld = GetWorld();
 
 	//Also consider this deactivation.
-	if (bIsActive)
+	if (IsActive())
 	{
 		OnSystemPreActivationChange.Broadcast(this, false);
 	}
@@ -5726,7 +5730,7 @@ void UParticleSystemComponent::ResetParticles(bool bEmptyInstances)
 	}
 
 	// Set the system as inactive
-	bIsActive	= false;
+	SetActiveFlag(false);
 
 	// Remove instances if we're not running gameplay.ww
 	if (!bIsGameWorld || bEmptyInstances)
@@ -5792,7 +5796,7 @@ void UParticleSystemComponent::SetTemplate(class UParticleSystem* NewTemplate)
 		bool bIsTemplate = IsTemplate();
 		bWasCompleted = false;
 		// remember if we were active and therefore should restart after setting up the new template
-		bWasActive = bIsActive && !bWasDeactivated; 
+		bWasActive = IsActive() && !bWasDeactivated; 
 		bool bResetInstances = false;
 		if (NewTemplate != Template)
 		{
@@ -5931,9 +5935,9 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 				{
 					bDidAutoAttach = bWasAutoAttached;
 					CancelAutoAttachment(true, World);
-					SavedAutoAttachRelativeLocation = RelativeLocation;
-					SavedAutoAttachRelativeRotation = RelativeRotation;
-					SavedAutoAttachRelativeScale3D = RelativeScale3D;
+					SavedAutoAttachRelativeLocation = GetRelativeLocation();
+					SavedAutoAttachRelativeRotation = GetRelativeRotation();
+					SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
 					AttachToComponent(NewParent, FAttachmentTransformRules(AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule, false), AutoAttachSocketName);
 				}
 
@@ -5948,7 +5952,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 
 		AccumTickTime = 0.0;
 
-		if (!bIsActive)
+		if (!IsActive())
 		{
 			LastSignificantTime = World->GetTimeSeconds();
 			RequiredSignificance = EParticleSignificanceLevel::Low;
@@ -5972,7 +5976,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 		bool bNeedToUpdateTransform = bWasDeactivated;
 		bWasCompleted = false;
 		bWasDeactivated = false;
-		bIsActive = true;
+		SetActiveFlag(true);
 		bWasActive = false; // Set to false now, it may get set to true when it's deactivated due to unregister
 		SetComponentTickEnabled(true);
 
@@ -6031,7 +6035,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 			{
 				if (DesiredLODLevel != LODLevel)
 				{
-					bIsActive = true;
+					SetActiveFlag(true);
 					SetComponentTickEnabled(true);
 				}
 				SetLODLevel(DesiredLODLevel);
@@ -6093,7 +6097,7 @@ void UParticleSystemComponent::Complete()
 
 	// When system is done - destroy all subemitters etc. We don't need them any more.
 	ResetParticles();
-	bIsActive = false;
+	SetActiveFlag(false);
 	SetComponentTickEnabled(false);
 
 	if (PoolingMethod == EPSCPoolMethod::AutoRelease)
@@ -6132,7 +6136,7 @@ void UParticleSystemComponent::DeactivateSystem()
 		TEXT("DeactivateSystem @ %fs %s"), World->TimeSeconds,
 		Template != NULL ? *Template->GetName() : TEXT("NULL"));
 
-	if (bIsActive)
+	if (IsActive())
 	{
 		OnSystemPreActivationChange.Broadcast(this, false);
 	}
@@ -6192,9 +6196,9 @@ void UParticleSystemComponent::CancelAutoAttachment(bool bDetachFromParent, cons
 		if (bDidAutoAttach)
 		{
 			// Restore relative transform from before attachment. Actual transform will be updated as part of DetachFromParent().
-			RelativeLocation = SavedAutoAttachRelativeLocation;
-			RelativeRotation = SavedAutoAttachRelativeRotation;
-			RelativeScale3D = SavedAutoAttachRelativeScale3D;
+			SetRelativeLocation_Direct(SavedAutoAttachRelativeLocation);
+			SetRelativeRotation_Direct(SavedAutoAttachRelativeRotation);
+			SetRelativeScale3D_Direct(SavedAutoAttachRelativeScale3D);
 			bDidAutoAttach = false;
 		}
 
@@ -6250,7 +6254,7 @@ void UParticleSystemComponent::Activate(bool bReset)
 		{
 			ActivateSystem(bReset);
 
-			if (bIsActive)
+			if (IsActive())
 			{
 				OnComponentActivated.Broadcast(this, bReset);
 			}
@@ -6611,7 +6615,7 @@ void UParticleSystemComponent::InitializeSystem()
 		if (IsRegistered())
 		{
 			AccumTickTime = 0.0;
-			if ((bIsActive == false) && (bAutoActivate == true) && (bWasDeactivated == false))
+			if ((IsActive() == false) && (bAutoActivate == true) && (bWasDeactivated == false))
 			{
 				SetActive(true);
 			}

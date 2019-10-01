@@ -47,7 +47,11 @@ namespace OodleUtils
 		const OodleLZ_Compressor			Compressor = OodleLZ_Compressor_Selkie;
 		const OodleLZ_CompressionLevel		Level = OodleLZ_CompressionLevel_VeryFast;
 
+#if UE4_OODLE_VER > 255
 		OutCompressed.SetNum(ReservedBytes + OodleLZ_GetCompressedBufferSizeNeeded(Compressor, InBuffer.Num()));
+#else
+		OutCompressed.SetNum(ReservedBytes + OodleLZ_GetCompressedBufferSizeNeeded(InBuffer.Num()));
+#endif
 		CompressedSize = OodleLZ_Compress(Compressor, InBuffer.GetData(), (SINTa)InBuffer.Num(), OutCompressed.GetData() + ReservedBytes, Level);
 
 		if (CompressedSize == OODLELZ_FAILED)

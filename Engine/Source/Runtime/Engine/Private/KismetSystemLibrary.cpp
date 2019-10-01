@@ -2133,8 +2133,8 @@ void UKismetSystemLibrary::MoveComponentTo(USceneComponent* Component, FVector T
 		FLatentActionManager& LatentActionManager = World->GetLatentActionManager();
 		FInterpolateComponentToAction* Action = LatentActionManager.FindExistingAction<FInterpolateComponentToAction>(LatentInfo.CallbackTarget, LatentInfo.UUID);
 
-		const FVector ComponentLocation = (Component != NULL) ? Component->RelativeLocation : FVector::ZeroVector;
-		const FRotator ComponentRotation = (Component != NULL) ? Component->RelativeRotation : FRotator::ZeroRotator;
+		const FVector ComponentLocation = (Component != NULL) ? Component->GetRelativeLocation() : FVector::ZeroVector;
+		const FRotator ComponentRotation = (Component != NULL) ? Component->GetRelativeRotation() : FRotator::ZeroRotator;
 
 		// If not currently running
 		if (Action == NULL)

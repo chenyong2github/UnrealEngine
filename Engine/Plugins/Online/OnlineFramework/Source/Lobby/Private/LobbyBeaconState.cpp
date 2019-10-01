@@ -161,7 +161,7 @@ void ALobbyBeaconState::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
-	if (Role == ROLE_Authority)
+	if (GetLocalRole() == ROLE_Authority)
 	{
 		FTimerDelegate TimerDelegate = FTimerDelegate::CreateUObject(this, &ALobbyBeaconState::OneSecTick);
 		GetWorldTimerManager().SetTimer(OneSecTimerHandle, TimerDelegate, 1.0f, true);
@@ -187,7 +187,7 @@ void ALobbyBeaconState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& 
 
 void ALobbyBeaconState::StartWaiting()
 {
-	if (Role == ROLE_Authority)
+	if (GetLocalRole() == ROLE_Authority)
 	{
 		WaitForPlayersTimeRemaining = GetClass()->GetDefaultObject<ALobbyBeaconState>()->WaitForPlayersTimeRemaining;
 		OnRep_WaitForPlayersTimeRemaining();
@@ -198,7 +198,7 @@ void ALobbyBeaconState::StartWaiting()
 
 void ALobbyBeaconState::StartLobby()
 {
-	if (Role == ROLE_Authority)
+	if (GetLocalRole() == ROLE_Authority)
 	{
 		WaitForPlayersTimeRemaining = 0.0f;
 		OnRep_WaitForPlayersTimeRemaining();
@@ -228,7 +228,7 @@ void ALobbyBeaconState::OnRep_WaitForPlayersTimeRemaining()
 
 void ALobbyBeaconState::OneSecTick()
 {
-	if (Role == ROLE_Authority)
+	if (GetLocalRole() == ROLE_Authority)
 	{
 		double CurrTime = FPlatformTime::Seconds();
 		double DeltaTime = (CurrTime - LastTickTime);
@@ -310,7 +310,7 @@ ALobbyBeaconPlayerState* ALobbyBeaconState::CreateNewPlayer(const FText& PlayerN
 
 ALobbyBeaconPlayerState* ALobbyBeaconState::AddPlayer(const FText& PlayerName, const FUniqueNetIdRepl& UniqueId)
 {
-	if (Role == ROLE_Authority)
+	if (GetLocalRole() == ROLE_Authority)
 	{
 		return Players.AddPlayer(PlayerName, UniqueId);
 	}
@@ -320,7 +320,7 @@ ALobbyBeaconPlayerState* ALobbyBeaconState::AddPlayer(const FText& PlayerName, c
 
 void ALobbyBeaconState::RemovePlayer(const FUniqueNetIdRepl& UniqueId)
 {
-	if (Role == ROLE_Authority)
+	if (GetLocalRole() == ROLE_Authority)
 	{
 		Players.RemovePlayer(UniqueId);
 	}
@@ -357,7 +357,7 @@ ALobbyBeaconPlayerState* ALobbyBeaconState::GetPlayer(const FUniqueNetIdRepl& Un
 
 ALobbyBeaconPlayerState* ALobbyBeaconState::GetPlayer(const AOnlineBeaconClient* ClientActor)
 {
-	if (Role == ROLE_Authority)
+	if (GetLocalRole() == ROLE_Authority)
 	{
 		return Players.GetPlayer(ClientActor);
 	}

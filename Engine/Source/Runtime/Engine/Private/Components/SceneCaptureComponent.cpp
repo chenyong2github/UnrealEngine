@@ -732,9 +732,9 @@ APlanarReflection::APlanarReflection(const FObjectInitializer& ObjectInitializer
 		static FConstructorStatics ConstructorStatics;
 
 		SpriteComponent->Sprite = ConstructorStatics.DecalTexture.Get();
-		SpriteComponent->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+		SpriteComponent->SetRelativeScale3D_Direct(FVector(0.5f, 0.5f, 0.5f));
 		SpriteComponent->bHiddenInGame = true;
-		SpriteComponent->bAbsoluteScale = true;
+		SpriteComponent->SetUsingAbsoluteScale(true);
 		SpriteComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 		SpriteComponent->bIsScreenSizeScaled = true;
 	}
@@ -833,7 +833,7 @@ void UPlanarReflectionComponent::OnRegister()
 	if (ProxyMeshComponent)
 	{
 		ProxyMeshComponent->SetMaterial(0, CaptureMaterial);
-		ProxyMeshComponent->bVisible = bShowPreviewPlane;
+		ProxyMeshComponent->SetVisibleFlag(bShowPreviewPlane);
 		ProxyMeshComponent->SetRelativeScale3D(FVector(4, 4, 1));
 	}
 #endif
@@ -911,7 +911,7 @@ void UPlanarReflectionComponent::PostEditChangeProperty(FPropertyChangedEvent& P
 
 	if (ProxyMeshComponent)
 	{
-		ProxyMeshComponent->bVisible = bShowPreviewPlane;
+		ProxyMeshComponent->SetVisibleFlag(bShowPreviewPlane);
 		ProxyMeshComponent->MarkRenderStateDirty();
 	}
 }

@@ -74,7 +74,7 @@ struct FComponentTransformActuator : TMovieSceneBlendingActuator<F3DTransformTra
 	{
 		if (USceneComponent* SceneComponent = MovieSceneHelpers::SceneComponentFromRuntimeObject(InObject))
 		{
-			return F3DTransformTrackToken(SceneComponent->RelativeLocation, SceneComponent->RelativeRotation, SceneComponent->RelativeScale3D);
+			return F3DTransformTrackToken(SceneComponent->GetRelativeLocation(), SceneComponent->GetRelativeRotation(), SceneComponent->GetRelativeScale3D());
 		}
 
 		return F3DTransformTrackToken();
@@ -129,7 +129,7 @@ struct FSimulatedComponentTransformActuator : TMovieSceneBlendingActuator<F3DTra
 	{
 		if (USceneComponent* SceneComponent = MovieSceneHelpers::SceneComponentFromRuntimeObject(InObject))
 		{
-			return F3DTransformTrackToken(SceneComponent->RelativeLocation, SceneComponent->RelativeRotation, SceneComponent->RelativeScale3D);
+			return F3DTransformTrackToken(SceneComponent->GetRelativeLocation(), SceneComponent->GetRelativeRotation(), SceneComponent->GetRelativeScale3D());
 		}
 
 		return F3DTransformTrackToken();
@@ -184,7 +184,7 @@ MovieScene::TMultiChannelValue<float, 9> FMovieSceneComponentTransformSectionTem
 		Components[4] = Rotation.Y;
 		Components[5] = Rotation.Z;
 
-		for (int32 Index = 0; Index < ARRAY_COUNT(Components); ++Index)
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Components); ++Index)
 		{
 			if (TransformValue.IsSet(Index))
 			{

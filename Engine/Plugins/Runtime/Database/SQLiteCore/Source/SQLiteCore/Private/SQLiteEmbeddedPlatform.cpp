@@ -696,7 +696,7 @@ private:
 			check(InOutputBuffer);
 
 			TCHAR ErrorBuffer[1024];
-			FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, ARRAY_COUNT(ErrorBuffer), 0);
+			FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, UE_ARRAY_COUNT(ErrorBuffer), 0);
 			FCStringAnsi::Strncpy(InOutputBuffer, TCHAR_TO_UTF8(ErrorBuffer), InOutputBufferSizeBytes);
 			InOutputBuffer[InOutputBufferSizeBytes - 1] = 0;
 		}

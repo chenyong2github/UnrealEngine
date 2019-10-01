@@ -36,7 +36,7 @@ AVectorFieldVolume::AVectorFieldVolume(const FObjectInitializer& ObjectInitializ
 		SpriteComponent->bIsScreenSizeScaled = true;
 		SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_Effects;
 		SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Effects;
-		SpriteComponent->bAbsoluteScale = true;
+		SpriteComponent->SetUsingAbsoluteScale(true);
 		SpriteComponent->SetupAttachment(VectorFieldComponent);
 		SpriteComponent->bReceivesDecals = false;
 	}

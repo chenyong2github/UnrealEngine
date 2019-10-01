@@ -282,13 +282,13 @@ void AVREditorRadialFloatingUI::UpdateFadingState( const float DeltaTime )
 		}
 		ArrowMaterial->SetScalarParameterValue("Alpha", ArrowAlpha);
 	}
-	if ( FadeDelay > 0.f )
+	if (FadeDelay > 0.f)
 	{
 		FadeDelay -= DeltaTime;
 	}
 	else
 	{
-		if( bShouldBeVisible.GetValue() )
+		if (bShouldBeVisible.GetValue())
 		{
 			FadeAlpha += VREd::RadialUIFadeSpeed->GetFloat() * DeltaTime;
 		}
@@ -296,14 +296,14 @@ void AVREditorRadialFloatingUI::UpdateFadingState( const float DeltaTime )
 		{
 			FadeAlpha -= VREd::RadialUIFadeSpeed->GetFloat() * DeltaTime;
 		}
-		FadeAlpha = FMath::Clamp( FadeAlpha, 0.0f, 1.0f );
+		FadeAlpha = FMath::Clamp(FadeAlpha, 0.0f, 1.0f);
 
-		if( FadeAlpha > 0.0f + KINDA_SMALL_NUMBER )
+		if (FadeAlpha > 0.0f + KINDA_SMALL_NUMBER)
 		{
 			// At least a little bit visible
-			if( bHidden )
+			if(IsHidden())
 			{
-				bHidden =  false ;
+				SetHidden(false);
 				TInlineComponentArray<USceneComponent*> ComponentArray;
 				GetComponents(ComponentArray);
 				for (USceneComponent* Component : ComponentArray)
@@ -314,16 +314,16 @@ void AVREditorRadialFloatingUI::UpdateFadingState( const float DeltaTime )
 			}
 		}
 
-		if( FadeAlpha >= 1.0f - KINDA_SMALL_NUMBER )
+		if (FadeAlpha >= 1.0f - KINDA_SMALL_NUMBER)
 		{
 			// Fully visible
 		}
-		else if( FadeAlpha <= 0.0f + KINDA_SMALL_NUMBER )
+		else if (FadeAlpha <= 0.0f + KINDA_SMALL_NUMBER)
 		{
 			// Fully invisible
-			if( !bHidden )
+			if (!IsHidden())
 			{
-				bHidden = true;
+				SetHidden(true);
 				TInlineComponentArray<USceneComponent*> ComponentArray;
 				GetComponents(ComponentArray);
 				for (USceneComponent* Component : ComponentArray)
@@ -389,7 +389,7 @@ void AVREditorRadialFloatingUI::ShowUI( const bool bShow, const bool bAllowFadin
 
 		if( !bAllowFading )
 		{
-			bHidden = !bShow;
+			SetHidden(!bShow);
 			TInlineComponentArray<USceneComponent*> ComponentArray;
 			GetComponents(ComponentArray);
 			for (USceneComponent* Component : ComponentArray)

@@ -60,8 +60,8 @@ FConcertVirtualCameraCameraData::FConcertVirtualCameraCameraData(const AActor* I
 {
 	CameraActorLocation = InOwner->GetActorLocation();
 	CameraActorRotation = InOwner->GetActorRotation();
-	CameraComponentLocation = InCineCameraComponent->RelativeLocation;
-	CameraComponentRotation = InCineCameraComponent->RelativeRotation;
+	CameraComponentLocation = InCineCameraComponent->GetRelativeLocation();
+	CameraComponentRotation = InCineCameraComponent->GetRelativeRotation();
 
 	CurrentAperture = InCineCameraComponent->CurrentAperture;
 	CurrentFocalLength = InCineCameraComponent->CurrentFocalLength;

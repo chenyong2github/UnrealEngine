@@ -990,7 +990,7 @@ ULandscapeSplinesComponent* ULandscapeSplinesComponent::GetStreamingSplinesCompo
 			{
 				ComponentLandscapeProxy->Modify();
 				ComponentLandscapeProxy->SplineComponent = NewObject<ULandscapeSplinesComponent>(ComponentLandscapeProxy, NAME_None, RF_Transactional);
-				ComponentLandscapeProxy->SplineComponent->RelativeScale3D = RelativeScale3D;
+				ComponentLandscapeProxy->SplineComponent->SetRelativeScale3D_Direct(GetRelativeScale3D());
 				ComponentLandscapeProxy->SplineComponent->AttachToComponent(ComponentLandscapeProxy->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 			}
 			if (ComponentLandscapeProxy->SplineComponent)
@@ -1018,7 +1018,7 @@ ULandscapeSplinesComponent* ULandscapeSplinesComponent::GetStreamingSplinesCompo
 			{
 				Proxy->Modify();
 				Proxy->SplineComponent = NewObject<ULandscapeSplinesComponent>(Proxy, NAME_None, RF_Transactional);
-				Proxy->SplineComponent->RelativeScale3D = RelativeScale3D;
+				Proxy->SplineComponent->SetRelativeScale3D_Direct(GetRelativeScale3D());
 				Proxy->SplineComponent->AttachToComponent(Proxy->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 			}
 			return Proxy->SplineComponent;
@@ -1918,9 +1918,9 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 			MeshLocation = RelativeTransform.TransformPosition(MeshLocation);
 		}
 
-		if (MeshComponent->RelativeLocation != MeshLocation ||
-			MeshComponent->RelativeRotation != MeshRotation ||
-			MeshComponent->RelativeScale3D != MeshScale)
+		if (MeshComponent->GetRelativeLocation() != MeshLocation ||
+			MeshComponent->GetRelativeRotation() != MeshRotation ||
+			MeshComponent->GetRelativeScale3D() != MeshScale)
 		{
 			MeshComponent->Modify();
 			MeshComponent->SetRelativeTransform(FTransform(MeshRotation, MeshLocation, MeshScale));
@@ -2992,9 +2992,9 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 			}
 
 			// Set Mesh component's location to half way between the start and end points. Improves the bounds and allows LDMaxDrawDistance to work
-			MeshComponent->RelativeLocation = (MeshComponent->SplineParams.StartPos + MeshComponent->SplineParams.EndPos) / 2;
-			MeshComponent->SplineParams.StartPos -= MeshComponent->RelativeLocation;
-			MeshComponent->SplineParams.EndPos -= MeshComponent->RelativeLocation;
+			MeshComponent->SetRelativeLocation_Direct((MeshComponent->SplineParams.StartPos + MeshComponent->SplineParams.EndPos) / 2);
+			MeshComponent->SplineParams.StartPos -= MeshComponent->GetRelativeLocation();
+			MeshComponent->SplineParams.EndPos -= MeshComponent->GetRelativeLocation();
 
 			if (MeshComponent->LDMaxDrawDistance != LDMaxDrawDistance)
 			{

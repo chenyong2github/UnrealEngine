@@ -71,7 +71,7 @@ void UMovieSceneVisibilityTrackRecorder::CreateTrackImpl()
 		}
 		else if (AActor* Actor = Cast<AActor>(ObjectToRecord.Get()))
 		{
-			bWasVisible = !Actor->bHidden;
+			bWasVisible = !Actor->IsHidden();
 		}
 
 		FMovieSceneBoolChannel* Channel = MovieSceneSection->GetChannelProxy().GetChannel<FMovieSceneBoolChannel>(0);
@@ -184,7 +184,7 @@ void UMovieSceneVisibilityTrackRecorder::RemoveRedundantTracks()
 		else if (AActor* Actor = Cast<AActor>(ObjectToRecord.Get()))
 		{
 			AActor* DefaultActor = CastChecked<AActor>(Actor->GetClass()->GetDefaultObject());
-			if (!DefaultActor->bHidden == bDefaultValue)
+			if (!DefaultActor->IsHidden() == bDefaultValue)
 			{
 				bRemoveSection = true;
 			}
@@ -212,7 +212,7 @@ bool UMovieSceneVisibilityTrackRecorder::IsObjectVisible() const
 	}
 	else if (AActor* Actor = Cast<AActor>(ObjectToRecord.Get()))
 	{
-		bVisible = !Actor->bHidden;
+		bVisible = !Actor->IsHidden();
 	}
 	
 	return bVisible;

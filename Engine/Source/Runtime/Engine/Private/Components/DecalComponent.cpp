@@ -18,8 +18,8 @@ static TAutoConsoleVariable<float> CVarDecalFadeDurationScale(
 	);
 
 FDeferredDecalProxy::FDeferredDecalProxy(const UDecalComponent* InComponent)
-	: DrawInGame( InComponent->bVisible && !InComponent->bHiddenInGame )
-	, DrawInEditor( InComponent->bVisible )
+	: DrawInGame(InComponent->GetVisibleFlag() && !InComponent->bHiddenInGame)
+	, DrawInEditor(InComponent->GetVisibleFlag())
 	, InvFadeDuration(-1.0f)
 	, InvFadeInDuration(1.0f)
 	, FadeStartDelayNormalized(1.0f)
@@ -55,7 +55,7 @@ FDeferredDecalProxy::FDeferredDecalProxy(const UDecalComponent* InComponent)
 	
 	if ( InComponent->GetOwner() )
 	{
-		DrawInGame &= !( InComponent->GetOwner()->bHidden );
+		DrawInGame &= !(InComponent->GetOwner()->IsHidden());
 #if WITH_EDITOR
 		DrawInEditor &= !InComponent->GetOwner()->IsHiddenEd();
 #endif

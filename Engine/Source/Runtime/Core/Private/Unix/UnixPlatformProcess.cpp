@@ -141,8 +141,8 @@ const TCHAR* FUnixPlatformProcess::ComputerName()
 			SysName = "Unix Computer";
 		}
 
-		FCString::Strcpy(CachedResult, ARRAY_COUNT(CachedResult) - 1, UTF8_TO_TCHAR(SysName));
-		CachedResult[ARRAY_COUNT(CachedResult) - 1] = 0;
+		FCString::Strcpy(CachedResult, UE_ARRAY_COUNT(CachedResult) - 1, UTF8_TO_TCHAR(SysName));
+		CachedResult[UE_ARRAY_COUNT(CachedResult) - 1] = 0;
 		bHaveResult = true;
 	}
 	return CachedResult;
@@ -163,7 +163,7 @@ const TCHAR* FUnixPlatformProcess::UserName(bool bOnlyAlphaNumeric)
 			{
 				const TCHAR *Src = *TempName;
 				TCHAR * Dst = Name;
-				for (; *Src != 0 && (Dst - Name) < ARRAY_COUNT(Name) - 1; ++Src)
+				for (; *Src != 0 && (Dst - Name) < UE_ARRAY_COUNT(Name) - 1; ++Src)
 				{
 					if (FChar::IsAlnum(*Src))
 					{
@@ -174,7 +174,7 @@ const TCHAR* FUnixPlatformProcess::UserName(bool bOnlyAlphaNumeric)
 			}
 			else
 			{
-				FCString::Strncpy(Name, *TempName, ARRAY_COUNT(Name) - 1);
+				FCString::Strncpy(Name, *TempName, UE_ARRAY_COUNT(Name) - 1);
 			}
 		}
 		else
@@ -207,8 +207,8 @@ const TCHAR* FUnixPlatformProcess::UserDir()
 				if (DocLen > 0)
 				{
 					DocPath[DocLen] = '\0';
-					FCString::Strncpy(Result, UTF8_TO_TCHAR(DocPath), ARRAY_COUNT(Result));
-					FCString::Strncat(Result, TEXT("/"), ARRAY_COUNT(Result));
+					FCString::Strncpy(Result, UTF8_TO_TCHAR(DocPath), UE_ARRAY_COUNT(Result));
+					FCString::Strncat(Result, TEXT("/"), UE_ARRAY_COUNT(Result));
 				}
 			}
 			pclose(FilePtr);
@@ -217,8 +217,8 @@ const TCHAR* FUnixPlatformProcess::UserDir()
 		// if xdg-user-dir did not work, use $HOME
 		if (!Result[0])
 		{
-			FCString::Strncpy(Result, FPlatformProcess::UserHomeDir(), ARRAY_COUNT(Result));
-			FCString::Strncat(Result, TEXT("/Documents/"), ARRAY_COUNT(Result));
+			FCString::Strncpy(Result, FPlatformProcess::UserHomeDir(), UE_ARRAY_COUNT(Result));
+			FCString::Strncat(Result, TEXT("/Documents/"), UE_ARRAY_COUNT(Result));
 		}
 	}
 	return Result;
@@ -235,7 +235,7 @@ const TCHAR* FUnixPlatformProcess::UserHomeDir()
 		const char * VarValue = secure_getenv("HOME");
 		if (VarValue)
 		{
-			FCString::Strcpy(CachedResult, ARRAY_COUNT(CachedResult) - 1, UTF8_TO_TCHAR(VarValue));
+			FCString::Strcpy(CachedResult, UE_ARRAY_COUNT(CachedResult) - 1, UTF8_TO_TCHAR(VarValue));
 			bHaveHome = true;
 		}
 		else
@@ -243,7 +243,7 @@ const TCHAR* FUnixPlatformProcess::UserHomeDir()
 			struct passwd * UserInfo = getpwuid(geteuid());
 			if (NULL != UserInfo && NULL != UserInfo->pw_dir)
 			{
-				FCString::Strcpy(CachedResult, ARRAY_COUNT(CachedResult) - 1, UTF8_TO_TCHAR(UserInfo->pw_dir));
+				FCString::Strcpy(CachedResult, UE_ARRAY_COUNT(CachedResult) - 1, UTF8_TO_TCHAR(UserInfo->pw_dir));
 				bHaveHome = true;
 			}
 			else
@@ -271,8 +271,8 @@ const TCHAR* FUnixPlatformProcess::ApplicationSettingsDir()
 	static TCHAR Result[UNIX_MAX_PATH] = TEXT("");
 	if (!Result[0])
 	{
-		FCString::Strncpy(Result, FPlatformProcess::UserHomeDir(), ARRAY_COUNT(Result));
-		FCString::Strncat(Result, TEXT("/.config/Epic/"), ARRAY_COUNT(Result));
+		FCString::Strncpy(Result, FPlatformProcess::UserHomeDir(), UE_ARRAY_COUNT(Result));
+		FCString::Strncat(Result, TEXT("/.config/Epic/"), UE_ARRAY_COUNT(Result));
 	}
 	return Result;
 }
@@ -327,17 +327,17 @@ const TCHAR* FUnixPlatformProcess::ExecutablePath()
 	if (!bHaveResult)
 	{
 		char SelfPath[ PlatformProcessLimits::MaxBaseDirLength ] = {0};
-		if (readlink( "/proc/self/exe", SelfPath, ARRAY_COUNT(SelfPath) - 1) == -1)
+		if (readlink( "/proc/self/exe", SelfPath, UE_ARRAY_COUNT(SelfPath) - 1) == -1)
 		{
 			int ErrNo = errno;
 			UE_LOG(LogHAL, Fatal, TEXT("readlink() failed with errno = %d (%s)"), ErrNo,
 				StringCast< TCHAR >(strerror(ErrNo)).Get());
 			return CachedResult;
 		}
-		SelfPath[ARRAY_COUNT(SelfPath) - 1] = 0;
+		SelfPath[UE_ARRAY_COUNT(SelfPath) - 1] = 0;
 
-		FCString::Strcpy(CachedResult, ARRAY_COUNT(CachedResult) - 1, UTF8_TO_TCHAR(SelfPath));
-		CachedResult[ARRAY_COUNT(CachedResult) - 1] = 0;
+		FCString::Strcpy(CachedResult, UE_ARRAY_COUNT(CachedResult) - 1, UTF8_TO_TCHAR(SelfPath));
+		CachedResult[UE_ARRAY_COUNT(CachedResult) - 1] = 0;
 		bHaveResult = true;
 	}
 	return CachedResult;
@@ -350,17 +350,17 @@ const TCHAR* FUnixPlatformProcess::ExecutableName(bool bRemoveExtension)
 	if (!bHaveResult)
 	{
 		char SelfPath[ PlatformProcessLimits::MaxBaseDirLength ] = {0};
-		if (readlink( "/proc/self/exe", SelfPath, ARRAY_COUNT(SelfPath) - 1) == -1)
+		if (readlink( "/proc/self/exe", SelfPath, UE_ARRAY_COUNT(SelfPath) - 1) == -1)
 		{
 			int ErrNo = errno;
 			UE_LOG(LogHAL, Fatal, TEXT("readlink() failed with errno = %d (%s)"), ErrNo,
 				StringCast< TCHAR >(strerror(ErrNo)).Get());
 			return CachedResult;
 		}
-		SelfPath[ARRAY_COUNT(SelfPath) - 1] = 0;
+		SelfPath[UE_ARRAY_COUNT(SelfPath) - 1] = 0;
 
-		FCString::Strcpy(CachedResult, ARRAY_COUNT(CachedResult) - 1, UTF8_TO_TCHAR(basename(SelfPath)));
-		CachedResult[ARRAY_COUNT(CachedResult) - 1] = 0;
+		FCString::Strcpy(CachedResult, UE_ARRAY_COUNT(CachedResult) - 1, UTF8_TO_TCHAR(basename(SelfPath)));
+		CachedResult[UE_ARRAY_COUNT(CachedResult) - 1] = 0;
 		bHaveResult = true;
 	}
 	return CachedResult;
@@ -389,7 +389,7 @@ FString FUnixPlatformProcess::GetApplicationName( uint32 ProcessId )
 	FCStringAnsi::Sprintf(ReadLinkCmd, "/proc/%d/exe", ProcessId);
 	
 	char ProcessPath[ PlatformProcessLimits::MaxBaseDirLength ] = {0};
-	int32 Ret = readlink(ReadLinkCmd, ProcessPath, ARRAY_COUNT(ProcessPath) - 1);
+	int32 Ret = readlink(ReadLinkCmd, ProcessPath, UE_ARRAY_COUNT(ProcessPath) - 1);
 	if (Ret != -1)
 	{
 		Output = UTF8_TO_TCHAR(ProcessPath);

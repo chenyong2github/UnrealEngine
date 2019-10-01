@@ -434,7 +434,7 @@ ALandscapeGizmoActor::ALandscapeGizmoActor(const FObjectInitializer& ObjectIniti
 		static FConstructorStatics ConstructorStatics;
 
 		SpriteComponent->Sprite = ConstructorStatics.DecalActorIconTexture.Get();
-		SpriteComponent->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+		SpriteComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
 		SpriteComponent->bHiddenInGame = true;
 		SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_Misc;
 		SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Misc;
@@ -469,9 +469,9 @@ void ALandscapeGizmoActor::Duplicate(ALandscapeGizmoActor* Gizmo)
 	Gizmo->SetActorLocation( GetActorLocation(), false );
 	Gizmo->SetActorRotation( GetActorRotation() );
 
-	if( Gizmo->GetRootComponent() != NULL && GetRootComponent() != NULL )
+	if (Gizmo->GetRootComponent() != NULL && GetRootComponent() != NULL)
 	{
-		Gizmo->GetRootComponent()->SetRelativeScale3D( GetRootComponent()->RelativeScale3D );
+		Gizmo->GetRootComponent()->SetRelativeScale3D(GetRootComponent()->GetRelativeScale3D());
 	}
 
 	Gizmo->MinRelativeZ = MinRelativeZ;
@@ -710,9 +710,11 @@ void ALandscapeGizmoActiveActor::FitToSelection()
 		TargetLandscapeInfo->GetSelectedExtent(MinX, MinY, MaxX, MaxY);
 		if (MinX != MAX_int32)
 		{
+			const FVector LocalScale3D = GetRootComponent()->GetRelativeScale3D();
+
 			float ScaleXY = TargetLandscapeInfo->DrawScale.X;
-			Width = ScaleXY * (MaxX - MinX + 1) / (GetRootComponent()->RelativeScale3D.X);
-			Height = ScaleXY * (MaxY - MinY + 1) / (GetRootComponent()->RelativeScale3D.Y);
+			Width = ScaleXY * (MaxX - MinX + 1) / (LocalScale3D.X);
+			Height = ScaleXY * (MaxY - MinY + 1) / (LocalScale3D.Y);
 			float NewLengthZ;
 			FVector NewLocation = TargetLandscapeInfo->GetLandscapeCenterPos(NewLengthZ, MinX, MinY, MaxX, MaxY);
 			SetLength(NewLengthZ);

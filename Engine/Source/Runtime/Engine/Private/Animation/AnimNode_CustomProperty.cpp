@@ -62,6 +62,8 @@ void FAnimNode_CustomProperty::InitializeProperties(const UObject* InSourceInsta
 {
 	if(InTargetClass)
 	{
+		UClass* SourceClass = InSourceInstance->GetClass();
+
 		// Build property lists
 		SourceProperties.Reset(SourcePropertyNames.Num());
 		DestProperties.Reset(SourcePropertyNames.Num());
@@ -70,10 +72,8 @@ void FAnimNode_CustomProperty::InitializeProperties(const UObject* InSourceInsta
 
 		for(int32 Idx = 0; Idx < SourcePropertyNames.Num(); ++Idx)
 		{
-			FName& SourceName = SourcePropertyNames[Idx];
-			FName& DestName = DestPropertyNames[Idx];
-
-			UClass* SourceClass = InSourceInstance->GetClass();
+			const FName& SourceName = SourcePropertyNames[Idx];
+			const FName& DestName = DestPropertyNames[Idx];
 
 			UProperty* SourceProperty = FindField<UProperty>(SourceClass, SourceName);
 			UProperty* DestProperty = FindField<UProperty>(InTargetClass, DestName);

@@ -35,7 +35,7 @@ AController::AController(const FObjectInitializer& ObjectInitializer)
 {
 
 	PrimaryActorTick.bCanEverTick = true;
-	bHidden = true;
+	SetHidden(true);
 #if WITH_EDITORONLY_DATA
 	bHiddenEd = true;
 #endif // WITH_EDITORONLY_DATA
@@ -44,7 +44,7 @@ AController::AController(const FObjectInitializer& ObjectInitializer)
 	TransformComponent = CreateDefaultSubobject<USceneComponent>(TEXT("TransformComponent0"));
 	RootComponent = TransformComponent;
 
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 	bAttachToPawn = false;
 	bIsPlayerController = false;
 	bCanPossessWithoutAuthority = false;
@@ -53,7 +53,7 @@ AController::AController(const FObjectInitializer& ObjectInitializer)
 	{
 		// We attach the RootComponent to the pawn for location updates,
 		// but we want to drive rotation with ControlRotation regardless of attachment state.
-		RootComponent->bAbsoluteRotation = true;
+		RootComponent->SetUsingAbsoluteRotation(true);
 	}
 }
 
@@ -72,13 +72,13 @@ bool AController::IsLocalController() const
 		return true;
 	}
 	
-	if (NetMode == NM_Client && Role == ROLE_AutonomousProxy)
+	if (NetMode == NM_Client && GetLocalRole() == ROLE_AutonomousProxy)
 	{
 		// Networked client in control.
 		return true;
 	}
 
-	if (GetRemoteRole() != ROLE_AutonomousProxy && Role == ROLE_Authority)
+	if (GetRemoteRole() != ROLE_AutonomousProxy && GetLocalRole() == ROLE_Authority)
 	{
 		// Local authority in control.
 		return true;
@@ -117,7 +117,7 @@ void AController::SetControlRotation(const FRotator& NewRotation)
 	{
 		ControlRotation = NewRotation;
 
-		if (RootComponent && RootComponent->bAbsoluteRotation)
+		if (RootComponent && RootComponent->IsUsingAbsoluteRotation())
 		{
 			RootComponent->SetWorldRotation(GetControlRotation());
 		}
@@ -267,7 +267,7 @@ void AController::PostInitializeComponents()
 
 		// Since we avoid updating rotation in SetControlRotation() if it hasn't changed,
 		// we should make sure that the initial RootComponent rotation matches it if ControlRotation was set directly.
-		if (RootComponent && RootComponent->bAbsoluteRotation)
+		if (RootComponent && RootComponent->IsUsingAbsoluteRotation())
 		{
 			RootComponent->SetWorldRotation(GetControlRotation());
 		}
@@ -476,7 +476,7 @@ void AController::OnRep_PlayerState()
 
 void AController::Destroyed()
 {
-	if (Role == ROLE_Authority && PlayerState != NULL)
+	if (GetLocalRole() == ROLE_Authority && PlayerState != NULL)
 	{
 		// if we are a player, log out
 		AGameModeBase* const GameMode = GetWorld()->GetAuthGameMode();
@@ -526,7 +526,7 @@ void AController::InitPlayerState()
 		{
 			FActorSpawnParameters SpawnInfo;
 			SpawnInfo.Owner = this;
-			SpawnInfo.Instigator = Instigator;
+			SpawnInfo.Instigator = GetInstigator();
 			SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 			SpawnInfo.ObjectFlags |= RF_Transient;	// We never want player states to save into a map
 

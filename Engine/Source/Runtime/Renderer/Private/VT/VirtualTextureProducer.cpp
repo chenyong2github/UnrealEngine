@@ -63,7 +63,6 @@ FVirtualTextureProducerHandle FVirtualTextureProducerCollection::RegisterProduce
 	PhysicalSpaceDesc.Dimensions = InDesc.Dimensions;
 	PhysicalSpaceDesc.TileSize = InDesc.TileSize + InDesc.TileBorderSize * 2u;
 	PhysicalSpaceDesc.bContinuousUpdate = InDesc.bContinuousUpdate;
-	PhysicalSpaceDesc.bCreateRenderTarget = InDesc.bCreateRenderTarget;
 
 	Entry.Producer.PhysicalGroups.SetNum(InDesc.NumPhysicalGroups);
 	for (uint32 PhysicalGroupIndex = 0u; PhysicalGroupIndex < InDesc.NumPhysicalGroups; ++PhysicalGroupIndex)
@@ -188,7 +187,7 @@ uint32 FVirtualTextureProducerCollection::RemoveAllCallbacks(const void* Baton)
 			Callback.OwnerHandle = FVirtualTextureProducerHandle();
 
 			// If callback is already pending, we can't move it back to free list, or we risk corrupting the pending list while it's being iterated
-			// Setting DestroyedFunction tol nullptr here will ensure callback is no longer invoked, and it will be moved to free list later when it's removed from pending list
+			// Setting DestroyedFunction to nullptr here will ensure callback is no longer invoked, and it will be moved to free list later when it's removed from pending list
 			if (!Callback.bPending)
 			{
 				Callback.PackedFlags = 0u;

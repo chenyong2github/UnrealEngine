@@ -275,7 +275,7 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 
 							const float EdgePullback = .1f;
 
-							for (int32 SampleIndex = 0; SampleIndex < ARRAY_COUNT(SubsamplePositions); SampleIndex++)
+							for (int32 SampleIndex = 0; SampleIndex < UE_ARRAY_COUNT(SubsamplePositions); SampleIndex++)
 							{
 								const FVector2D SamplePosition = SubsamplePositions[SampleIndex] * (1 - 2 * EdgePullback) + FVector2D(EdgePullback, EdgePullback);
 
@@ -361,7 +361,7 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 						const float CurrentMaxHeight = ExtremaIndex == 0 ? Cell.HitTriangles[HeightIndex].HeightRange.X : Cell.HitTriangles[HeightIndex].HeightRange.Y;
 						const float CompareHeight = CurrentMaxHeight + .5f * PrecomputedVisibilitySettings.PlayAreaHeight;
 
-						for (int32 TestIndex = 0; TestIndex < ARRAY_COUNT(TestHeights); TestIndex++)
+						for (int32 TestIndex = 0; TestIndex < UE_ARRAY_COUNT(TestHeights); TestIndex++)
 						{
 							const float TestHeight = CurrentMaxHeight + TestHeights[TestIndex] * PrecomputedVisibilitySettings.PlayAreaHeight;
 
@@ -527,7 +527,7 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 			const FVector BoxExtent = SortMeshes[MeshIndex].Bounds.GetExtent();
 			float LocalDistance = 0;
 
-			for (int32 CornerIndex = 0; CornerIndex < ARRAY_COUNT(CubeCorners); CornerIndex++)
+			for (int32 CornerIndex = 0; CornerIndex < UE_ARRAY_COUNT(CubeCorners); CornerIndex++)
 			{
 				// Calculate max distance to a corner of the bounds as a measure of how much this mesh will expand the grid bounds
 				LocalDistance = FMath::Max(LocalDistance, (BoxCenter + BoxExtent * CubeCorners[CornerIndex]).SizeSquared());

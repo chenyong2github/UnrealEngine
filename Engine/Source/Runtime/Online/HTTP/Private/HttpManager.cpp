@@ -13,13 +13,14 @@
 #include "Misc/CommandLine.h"
 
 #include "Stats/Stats.h"
+#include "Containers/BackgroundableTicker.h"
 
 // FHttpManager
 
 FCriticalSection FHttpManager::RequestLock;
 
 FHttpManager::FHttpManager()
-	: FTickerObjectBase(0.0f)
+	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
 	, Thread(nullptr)
 	, CorrelationIdMethod(FHttpManager::GetDefaultCorrelationIdMethod())
 {

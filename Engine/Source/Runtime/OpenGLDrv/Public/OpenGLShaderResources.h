@@ -208,7 +208,7 @@ inline FArchive& operator<<(FArchive& Ar, FOpenGLShaderBindings& Bindings)
 	Ar << Bindings.NumUniformBuffers;
 	Ar << Bindings.NumUAVs;
 	Ar << Bindings.bFlattenUB;
-	for (uint32 i = 0; i < ARRAY_COUNT(Bindings.VertexAttributeRemap); i++)
+	for (uint32 i = 0; i < UE_ARRAY_COUNT(Bindings.VertexAttributeRemap); i++)
 	{
 		Ar << Bindings.VertexAttributeRemap[i];
 	}

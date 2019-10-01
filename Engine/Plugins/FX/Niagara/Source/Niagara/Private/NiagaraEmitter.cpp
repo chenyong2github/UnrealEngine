@@ -1021,6 +1021,19 @@ bool UNiagaraEmitter::SetUniqueEmitterName(const FString& InName)
 	return false;
 }
 
+TArray<UNiagaraRendererProperties*> UNiagaraEmitter::GetEnabledRenderers() const
+{
+	TArray<UNiagaraRendererProperties*> Renderers;
+	for (UNiagaraRendererProperties* Renderer : RendererProperties)
+	{
+		if (Renderer && Renderer->GetIsEnabled() && Renderer->IsSimTargetSupported(this->SimTarget))
+		{
+			Renderers.Add(Renderer);
+		}
+	}
+	return Renderers;
+}
+
 void UNiagaraEmitter::AddRenderer(UNiagaraRendererProperties* Renderer)
 {
 	Modify();

@@ -36,7 +36,7 @@ public:
 	void SetWhitelistClientsEnabled(bool bEnabled) override;
 
 	/** Callback that receives data from a socket. */
-	void OnMessageReceived(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endpoint);
+	void OnPacketReceived(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endpoint);
 
 	UOSCServer* Server;
 

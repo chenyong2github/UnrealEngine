@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "XmppJingle/XmppConnectionJingle.h"
+#include "Containers/BackgroundableTicker.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/ThreadSafeCounter.h"
@@ -404,7 +405,8 @@ private:
 int32 FXmppConnectionPumpThread::ThreadInstanceIdx = 0;
 
 FXmppConnectionJingle::FXmppConnectionJingle()
-	: LastLoginState(EXmppLoginStatus::NotStarted)
+	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	, LastLoginState(EXmppLoginStatus::NotStarted)
 	, LoginState(EXmppLoginStatus::NotStarted)
 	, StatUpdateFreq(1.0)
 	, LastStatUpdateTime(0.0)

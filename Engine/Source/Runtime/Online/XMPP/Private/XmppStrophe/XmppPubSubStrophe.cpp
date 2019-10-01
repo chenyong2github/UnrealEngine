@@ -2,11 +2,13 @@
 
 #include "XmppPubSubStrophe.h"
 #include "XmppConnectionStrophe.h"
+#include "Containers/BackgroundableTicker.h"
 
 #if WITH_XMPP_STROPHE
 
 FXmppPubSubStrophe::FXmppPubSubStrophe(FXmppConnectionStrophe& InConnectionManager)
-	: ConnectionManager(InConnectionManager)
+	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	, ConnectionManager(InConnectionManager)
 {
 
 }

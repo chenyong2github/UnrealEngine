@@ -10,8 +10,8 @@ AAROriginActor::AAROriginActor(const FObjectInitializer& ObjectInitializer)
 	PrimaryActorTick.bCanEverTick = false;
 	bAllowTickBeforeBeginPlay = false;
 	bReplicates = false;
-	bReplicateMovement = false;
-	bCanBeDamaged = false;
+	SetReplicatingMovement(false);
+	SetCanBeDamaged(false);
 }
 
 AAROriginActor* AAROriginActor::GetOriginActor()
