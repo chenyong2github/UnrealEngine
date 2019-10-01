@@ -2833,6 +2833,24 @@ TArray<UActorComponent*> AActor::GetComponentsByTag(TSubclassOf<UActorComponent>
 	return MoveTemp(ComponentsByTag);
 }
 
+TArray<UActorComponent*> AActor::GetComponentsByInterface(TSubclassOf<UInterface> Interface) const
+{
+	TArray<UActorComponent*> Components;
+
+	if (Interface)
+	{
+		for (UActorComponent* Component : GetComponents())
+		{
+			if (Component && Component->GetClass()->ImplementsInterface(Interface))
+			{
+				Components.Add(Component);
+			}
+		}
+	}
+
+	return Components;
+}
+
 void AActor::DisableComponentsSimulatePhysics()
 {
 	for (UActorComponent* Component : GetComponents())

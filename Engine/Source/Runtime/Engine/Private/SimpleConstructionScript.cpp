@@ -637,7 +637,8 @@ void USimpleConstructionScript::ExecuteScriptOnActor(AActor* Actor, const TInlin
 
 		for (USCS_Node* RootNode : RootNodes)
 		{
-			if(RootNode != nullptr)
+			// If the node is a default scene root and the actor already has a root component, skip it
+			if (RootNode && ((RootNode != DefaultSceneRootNode) || (RootComponent == nullptr)))
 			{
 				// If the root node specifies that it has a parent
 				USceneComponent* ParentComponent = nullptr;

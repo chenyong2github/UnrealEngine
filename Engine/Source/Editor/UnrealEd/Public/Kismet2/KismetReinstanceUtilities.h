@@ -78,8 +78,6 @@ protected:
 	friend struct FReinstancingJob;
 
 	static TSet<TWeakObjectPtr<UBlueprint>> DependentBlueprintsToRefresh;
-	static TSet<TWeakObjectPtr<UBlueprint>> DependentBlueprintsToRecompile;
-	static TSet<TWeakObjectPtr<UBlueprint>> DependentBlueprintsToByteRecompile;
 	static TSet<TWeakObjectPtr<UBlueprint>> CompiledBlueprintsToSave;
 
 	static UClass* HotReloadedOldClass;

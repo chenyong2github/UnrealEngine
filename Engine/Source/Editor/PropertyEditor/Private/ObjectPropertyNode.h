@@ -26,8 +26,6 @@ public:
 	virtual bool GetReadAddressUncached(FPropertyNode& InNode, bool InRequiresSingleSelection, FReadAddressListData* OutAddresses, bool bComparePropertyContents = true, bool bObjectForceCompare = false, bool bArrayPropertiesCanDifferInSize = false) const override;
 	virtual bool GetReadAddressUncached(FPropertyNode& InNode, FReadAddressListData& OutAddresses) const override;
 
-	virtual uint8* GetValueBaseAddress( uint8* Base ) override;
-
 	/**
 	 * Returns the UObject at index "n" of the Objects Array
 	 * @param InIndex - index to read out of the array
@@ -72,18 +70,27 @@ public:
 	void Finalize();
 
 	/** @return		The base-est baseclass for objects in this list. */
-	UClass*			GetObjectBaseClass()       { return BaseClass.IsValid() ? BaseClass.Get() : NULL; }
+	UClass*			GetObjectBaseClass()       { return BaseClass.IsValid() ? BaseClass.Get() : nullptr; }
 	/** @return		The base-est baseclass for objects in this list. */
-	const UClass*	GetObjectBaseClass() const { return BaseClass.IsValid() ? BaseClass.Get() : NULL; }
+	const UClass*	GetObjectBaseClass() const { return BaseClass.IsValid() ? BaseClass.Get() : nullptr; }
 
 
 	// FComplexPropertyNode implementation
 	virtual UStruct* GetBaseStructure() override { return GetObjectBaseClass(); }
 	virtual const UStruct* GetBaseStructure() const override{ return GetObjectBaseClass(); }
+
+	virtual TArray<UStruct*> GetAllStructures() override;
+	virtual TArray<const UStruct*> GetAllStructures() const override;
+
 	virtual int32 GetInstancesNum() const override{ return GetNumObjects(); }
 	virtual uint8* GetMemoryOfInstance(int32 Index) override
 	{
 		return (uint8*)GetUObject(Index);
+	}
+	virtual uint8* GetValuePtrOfInstance(int32 Index, const UProperty* InProperty, FPropertyNode* InParentNode) override
+	{
+		uint8* ParentOffset = InParentNode ? InParentNode->GetValueAddressFromObject(GetUObject(Index)) : nullptr;
+		return InProperty ? InProperty->ContainerPtrToValuePtr<uint8>(ParentOffset) : nullptr;
 	}
 	virtual TWeakObjectPtr<UObject> GetInstanceAsUObject(int32 Index) override
 	{
@@ -98,7 +105,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	/** @return		The property stored at this node, to be passed to Pre/PostEditChange. */
-	virtual UProperty*		GetStoredProperty()		{ return StoredProperty.IsValid() ? StoredProperty.Get() : NULL; }
+	virtual UProperty*		GetStoredProperty()		{ return StoredProperty.IsValid() ? StoredProperty.Get() : nullptr; }
 
 	TPropObjectIterator			ObjectIterator()			{ return TPropObjectIterator( Objects ); }
 	TPropObjectConstIterator	ObjectConstIterator() const	{ return TPropObjectConstIterator( Objects ); }
@@ -113,12 +120,17 @@ public:
 	const TSet<FName>& GetHiddenCategories() const { return HiddenCategories; }
 
 	bool IsRootNode() const { return ParentNode == nullptr; }
+
+	/**
+	 * @return True if Struct is one of the sparse data structures used by this object
+	 */
+	bool IsSparseDataStruct(const UScriptStruct* Struct) const;
 protected:
 	/** FPropertyNode interface */
 	virtual void InitBeforeNodeFlags() override;
 	virtual void InitChildNodes() override;
 	virtual bool GetQualifiedName( FString& PathPlusIndex, const bool bWithArrayIndex, const FPropertyNode* StopParent = nullptr, bool bIgnoreCategories = false ) const override;
-
+	virtual uint8* GetValueBaseAddress(uint8* Base, bool bIsSparseData) override;
 	/**
 	 * Looks at the Objects array and creates the best base class.  Called by
 	 * Finalize(); that is, when the list of selected objects is being finalized.
@@ -132,6 +144,10 @@ private:
 	 * @param SingleChildName	The property name of a single child to create instead of all childen
 	 */
 	void InternalInitChildNodes( FName SingleChildName = NAME_None );
+
+	/** If CurrentProperty should show up in the ClassesToConsider make sure its category is in SortedCategories and CategoriesFromProperties. */
+	void GetCategoryProperties(const TSet<UClass*>& ClassesToConsider, const UProperty* CurrentProperty, bool bShouldShowDisableEditOnInstance, bool bShouldShowHiddenProperties,
+	const TSet<FName>& CategoriesFromBlueprints, TSet<FName>& CategoriesFromProperties, TArray<FName>& SortedCategories);
 private:
 	/** The list of objects we are editing properties for. */
 	TArray< TWeakObjectPtr<UObject> >		Objects;
@@ -148,6 +164,13 @@ private:
 	 * Set of all category names hidden by the objects in this node
 	 */
 	TSet<FName> HiddenCategories;
+
+
+
+	/* 
+	 * Contains the structure and memory location for storing data of that type. Used to read and write to sidecar structs for the class
+	 */
+	TMap<UClass*, TTuple<UScriptStruct*, void*>> SparseClassDataInstances;
 
 	/** Object -> Package re-mapping */
 	TMap<TWeakObjectPtr<UObject>, TWeakObjectPtr<UPackage>> ObjectToPackageMapping;
