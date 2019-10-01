@@ -285,6 +285,28 @@ namespace Tools.DotNETCommon
 		}
 
 		/// <summary>
+		/// Attempts to read the next unused positional argument
+		/// </summary>
+		/// <param name="Argument">Receives the argument that was read, on success</param>
+		/// <returns>True if an argument was read</returns>
+		public bool TryGetPositionalArgument(out string Argument)
+		{
+			for (int Idx = 0; Idx < PositionalArgumentIndices.Count; Idx++)
+			{
+				int Index = PositionalArgumentIndices[Idx];
+				if (!HasBeenUsed(Index))
+				{
+					MarkAsUsed(Index);
+					Argument = Arguments[Index];
+					return true;
+				}
+			}
+
+			Argument = null;
+			return false;
+		}
+
+		/// <summary>
 		/// Returns all the positional arguments, and marks them as used
 		/// </summary>
 		/// <returns>Array of positional arguments</returns>

@@ -112,7 +112,7 @@ namespace BuildAgent
 			// If the help flag is specified, print the help info and exit immediately
 			if (ModeArguments.HasOption("-Help"))
 			{
-				HelpUtils.PrintHelp(CommandName, HelpUtils.GetDescription(CommandType), Mode.GetParameters());
+				HelpUtils.PrintHelp(CommandName, HelpUtils.GetDescription(CommandType), Mode.GetParameters(ModeArguments));
 				return 1;
 			}
 
@@ -128,7 +128,7 @@ namespace BuildAgent
 				Log.TraceInformation("");
 				Log.TraceInformation("Arguments for {0}:", CommandName);
 
-				HelpUtils.PrintTable(Mode.GetParameters(), 4, 24);
+				HelpUtils.PrintTable(Mode.GetParameters(ModeArguments), 4, 24);
 				return 1;
 			}
 

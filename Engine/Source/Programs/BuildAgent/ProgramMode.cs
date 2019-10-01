@@ -17,7 +17,7 @@ namespace BuildAgent
 			Arguments.ApplyTo(this);
 		}
 
-		public virtual List<KeyValuePair<string, string>> GetParameters()
+		public virtual List<KeyValuePair<string, string>> GetParameters(CommandLineArguments Arguments)
 		{
 			return CommandLineArguments.GetParameters(GetType());
 		}
