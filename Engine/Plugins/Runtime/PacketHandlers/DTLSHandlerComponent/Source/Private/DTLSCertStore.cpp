@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "DTLSCertStore.h"
+#include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "HAL/IConsoleManager.h"
 
