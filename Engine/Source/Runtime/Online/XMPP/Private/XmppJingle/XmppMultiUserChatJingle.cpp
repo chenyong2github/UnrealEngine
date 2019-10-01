@@ -6,7 +6,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "XmppJingle/XmppConnectionJingle.h"
-
+#include "Containers/BackgroundableTicker.h"
 
 #if WITH_XMPP_JINGLE
 
