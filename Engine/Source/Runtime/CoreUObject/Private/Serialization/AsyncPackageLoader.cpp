@@ -564,7 +564,7 @@ void FlushAsyncLoading(int32 PackageID /* = INDEX_NONE */)
 	checkf(IsInGameThread(), TEXT("Unable to FlushAsyncLoading from any thread other than the game thread."));
 	if (GPackageLoader)
 	{
-		return GPackageLoader->FlushLoading(PackageID);
+		GPackageLoader->FlushLoading(PackageID);
 	}
 }
 
