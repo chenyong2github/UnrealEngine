@@ -9,7 +9,7 @@
 #endif
 
 //#todo-Lumin: Remove this define when it becomes untangled from Android
-#if (!defined(PLATFORM_LUMIN) && !defined(PLATFORM_LUMINGL4)) || (!PLATFORM_LUMIN && !PLATFORM_LUMINGL4)
+#if (!defined(PLATFORM_LUMIN) || (!PLATFORM_LUMIN))
 #include "VulkanAndroidPlatform.h"
 #include "../VulkanRHIPrivate.h"
 #include <dlfcn.h>
@@ -151,6 +151,7 @@ void FVulkanAndroidPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 	OutExtensions.Add(VK_KHR_SURFACE_EXTENSION_NAME);
 	OutExtensions.Add(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
 	OutExtensions.Add(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
+	OutExtensions.Add(VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME);
 }
 
 bool FVulkanAndroidPlatform::SupportsStandardSwapchain()
@@ -175,6 +176,12 @@ EPixelFormat FVulkanAndroidPlatform::GetPixelFormatForNonDefaultSwapchain()
 	{
 		return FVulkanGenericPlatform::GetPixelFormatForNonDefaultSwapchain();
 	}
+}
+
+bool FVulkanAndroidPlatform::SupportsTimestampRenderQueries()
+{
+	// standalone devices have newer drivers where timestamp render queries work.
+	return FPlatformMisc::IsStandaloneStereoOnlyDevice();
 }
 
 void FVulkanAndroidPlatform::OverridePlatformHandlers(bool bInit)

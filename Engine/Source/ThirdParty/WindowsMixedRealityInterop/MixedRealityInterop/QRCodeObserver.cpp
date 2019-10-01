@@ -4,6 +4,7 @@
 #include "MixedRealityInterop.h"
 
 #include "QRCodeObserver.h"
+#include "FastConversion.h"
 
 #include <wrl/client.h>
 #include <wrl/wrappers/corewrappers.h>
@@ -113,13 +114,8 @@ static void CopyQRCodeDataManually(QRCodeData* code, Guid InId, int32 InVersion,
 		}
 	}
 
-	code->Translation[0] = 0.0f;
-	code->Translation[1] = 0.0f;
-	code->Translation[2] = 0.0f;
-	code->Rotation[0] = 0.0f;
-	code->Rotation[1] = 0.0f;
-	code->Rotation[2] = 0.0f;
-	code->Rotation[3] = 1.0f;
+	XMMATRIX ConvertTransform = XMMatrixIdentity();
+
 	if (LastCoordinateSystem != nullptr)
 	{
 		Windows::Perception::Spatial::SpatialCoordinateSystem^ qrCoordinateSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(InId);
@@ -127,23 +123,23 @@ static void CopyQRCodeDataManually(QRCodeData* code, Guid InId, int32 InVersion,
 		if (CodeTransform != nullptr)
 		{
 			XMMATRIX ConvertTransform = XMLoadFloat4x4(&CodeTransform->Value);
-			XMVECTOR Scale, Rot, Trans;
-			if (XMMatrixDecompose(&Scale, &Rot, &Trans, ConvertTransform))
-			{
-				XMFLOAT3 OutTrans;
-				XMFLOAT4 OutRot;
-				XMStoreFloat4(&OutRot, Rot);
-				XMStoreFloat3(&OutTrans, Trans);
-				code->Translation[0] = OutTrans.x;
-				code->Translation[1] = OutTrans.y;
-				code->Translation[2] = OutTrans.z;
-				code->Rotation[0] = OutRot.x;
-				code->Rotation[1] = OutRot.y;
-				code->Rotation[2] = OutRot.z;
-				code->Rotation[3] = OutRot.w;
-			}
 		}
 	}
+
+	XMVECTOR TransformScale;
+	XMVECTOR TransformRot;
+	XMVECTOR TransformTrans;
+	XMMatrixDecompose(&TransformScale, &TransformRot, &TransformTrans, ConvertTransform);
+
+	XMFLOAT3 Translation = ToUE4Translation(TransformTrans);
+	XMFLOAT4 Rotation = ToUE4Quat(TransformRot);
+	code->Translation[0] = Translation.x;
+	code->Translation[1] = Translation.y;
+	code->Translation[2] = Translation.z;
+	code->Rotation[0] = Rotation.x;
+	code->Rotation[1] = Rotation.y;
+	code->Rotation[2] = Rotation.z;
+	code->Rotation[3] = Rotation.w;
 }
 
 #pragma warning(disable:4691)

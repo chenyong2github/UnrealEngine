@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class HoloLensAR : ModuleRules
 {
@@ -33,34 +34,31 @@ public class HoloLensAR : ModuleRules
 
         if (Target.Platform == UnrealTargetPlatform.Win64 || (Target.Platform == UnrealTargetPlatform.HoloLens && Target.WindowsPlatform.Architecture == WindowsArchitecture.x64))
         {
-            PublicDelayLoadDLLs.Add("QRCodesTrackerPlugin.dll");
             RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "QRCodesTrackerPlugin.dll"));
             RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "QRCodesTrackerPlugin.winmd"));
         }
         else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
-            PublicDelayLoadDLLs.Add("QRCodesTrackerPlugin.dll");
             RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens/ARM64", "QRCodesTrackerPlugin.dll"));
             RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens/ARM64", "QRCodesTrackerPlugin.winmd"));
+
+            // Add a dependency to SceneUnderstanding.dll if present
+            string SceneUnderstandingDllPath = System.IO.Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.SceneUnderstanding.dll");
+            string SceneUnderstandingWinMDPath = System.IO.Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.SceneUnderstanding.winmd");
+            if (System.IO.File.Exists(SceneUnderstandingDllPath) && System.IO.File.Exists(SceneUnderstandingWinMDPath))
+            {
+                RuntimeDependencies.Add(SceneUnderstandingDllPath);
+                RuntimeDependencies.Add(SceneUnderstandingWinMDPath);
+                PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
+            }
+            else
+            {
+                PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
+            }
         }
 
-        AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");
 
 		PublicDefinitions.Add("WITH_WINDOWS_MIXED_REALITY=1");
-
-		// Add a dependency to SceneUnderstanding.dll if present
-		string SceneUnderstandingDllPath = System.IO.Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "SceneUnderstanding.dll");
-        string SceneUnderstandingWinMDPath = System.IO.Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "SceneUnderstanding.winmd");
-        if (System.IO.File.Exists(SceneUnderstandingDllPath) && System.IO.File.Exists(SceneUnderstandingWinMDPath))
-		{
-			PublicDelayLoadDLLs.Add("SceneUnderstanding.dll");
-			RuntimeDependencies.Add(SceneUnderstandingDllPath);
-            RuntimeDependencies.Add(SceneUnderstandingWinMDPath);
-            PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
-		}
-        else
-        {
-            PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
-        }
-	}
+    }
 }

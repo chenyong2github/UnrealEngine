@@ -23,25 +23,7 @@
 #include "Serialization/Archive.h"
 #include "Serialization/ArrayReader.h"
 #include "MediaCodecInputWorker.h"
-
-#ifndef EGL_EGLEXT_PROTOTYPES
-#define EGL_EGLEXT_PROTOTYPES
-#endif // !EGL_EGLEXT_PROTOTYPES
-
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-
-#ifndef GL_GLEXT_PROTOTYPES
-#define GL_GLEXT_PROTOTYPES
-#endif // !GL_GLEXT_PROTOTYPES
-
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-
-#include "ml_api.h"
-#include "ml_media_codec.h"
-#include "ml_audio.h"
-#include "ml_media_data_source.h"
+#include "Lumin/CAPIShims/LuminAPIMediaCodec.h"
 
 class FMediaSamples;
 class IMediaEventSink;
@@ -121,6 +103,7 @@ public:
 	bool IsPlaybackCompleted() const;
 	void SetPlaybackCompleted(bool PlaybackCompleted);
 	void QueueVideoCodecStartTimeReset();
+	void SetSelectedTrack(int32 TrackIndex);
 
 	int64_t MediaDataSourceReadAt(MLHandle media_data_source, size_t position, size_t size, uint8_t *buffer);
 	int64_t MediaDataSourceGetSize(MLHandle media_data_source);
@@ -137,7 +120,7 @@ private:
 	// TODO: Move or rename, get rid of height/width since this is used for both audio and video
 	// Perhaps an FAudioTrackData and FVideoTrackData inheriting from FTrackData?
 	// Also make the codec handle a part of this struct. Will make it easier to perform all operations.
-	struct FTrackData 
+	struct FTrackData
 	{
 		FTrackData(FString Mime, int32 Index) : MimeType(Mime), TrackIndex(Index) {}
 		FString MimeType;
@@ -230,6 +213,7 @@ protected:
 	TAtomic<FTimespan> CurrentPlaybackTime;
 	TAtomic<FTimespan> LastAudioRenderedSampleTime;
 	EMediaSourceType MediaSourceType;
+	FThreadSafeBool bJustSeeked;
 
 	bool bLoopPlayback;
 	bool bPlaybackCompleted;
@@ -242,9 +226,17 @@ protected:
 
 	TQueue<EMediaEvent, EQueueMode::Spsc> MediaEventQueue;
 
-	FMediaCodecInputWorker InputWorker;
+	FMagicLeapMediaCodecInputWorker InputWorker;
 
 	TSharedPtr<FArchive, ESPMode::ThreadSafe> DataSourceArchive;
+
+	struct FTrackSelectionData
+	{
+		EMediaTrackType TrackType;
+		int32 LocalTrackIndex;
+	};
+
+	TMap<int32, FTrackSelectionData> TrackSelectionQueue;
 
 private:
 	// Non-Interface functions

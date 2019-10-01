@@ -13,6 +13,7 @@ public:
 	FSubmixEffectOculusReverbPlugin();
 
 	void SetContext(ovrAudioContext* SharedContext);
+	void ClearContext();
 
 	virtual void Init(const FSoundEffectSubmixInitData& InSampleRate) override
 	{
@@ -48,6 +49,7 @@ public:
 	}
 
 	void SetContext(ovrAudioContext* SharedContext);
+	void ClearContext();
 
 	virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, UReverbPluginSourceSettingsBase* InSettings) override
 	{

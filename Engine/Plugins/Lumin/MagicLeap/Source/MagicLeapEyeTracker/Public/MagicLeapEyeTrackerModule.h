@@ -9,7 +9,6 @@
 #include "GameFramework/HUD.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "MagicLeapEyeTrackerTypes.h"
-#include "IMagicLeapModule.h"
 #include "MagicLeapEyeTrackerModule.generated.h"
 
 class FMagicLeapVREyeTracker;
@@ -107,7 +106,6 @@ public:
 	virtual EEyeTrackerStatus GetEyeTrackerStatus() const override;
 	virtual bool IsStereoGazeDataAvailable() const override;
 
-	bool IsEyeTrackerCalibrated() const;
 	bool GetEyeBlinkState(FMagicLeapEyeBlinkState& BlinkState) const;
 	bool GetFixationComfort(FMagicLeapFixationComfort& FixationComfort) const;
 
@@ -122,7 +120,7 @@ private:
 	FMagicLeapVREyeTracker* VREyeTracker;
 };
 
-class FMagicLeapEyeTrackerModule : public IMagicLeapEyeTrackerModule, public IMagicLeapModule
+class FMagicLeapEyeTrackerModule : public IMagicLeapEyeTrackerModule
 {
 	/************************************************************************/
 	/* IInputDeviceModule                                                   */
@@ -131,7 +129,6 @@ public:
 	FMagicLeapEyeTrackerModule();
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
-	virtual void Disable() override;
 	virtual TSharedPtr< class IEyeTracker, ESPMode::ThreadSafe > CreateEyeTracker() override;
 
 	/************************************************************************/
@@ -159,17 +156,10 @@ class MAGICLEAPEYETRACKER_API UMagicLeapEyeTrackerFunctionLibrary : public UBlue
 	GENERATED_BODY()
 
 public:
-	/** 
-	  False if the calibration status is none, otherwise returns true, even with a bad calibration.
-	  If not, user should be advised to run the Eye Calibrator app on the device.
-	*/
-	UFUNCTION(BlueprintCallable, BlueprintPure, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetCalibrationStatus instead"), Category = "Eye Tracking|MagicLeap")
-	static bool IsEyeTrackerCalibrated();
-
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Eye Tracking|MagicLeap")
 	static bool GetEyeBlinkState(FMagicLeapEyeBlinkState& BlinkState);
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Eye Tracking|MagicLeap")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Eye Tracking|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "Eye fixation comfort api is no longer available"))
 	static bool GetFixationComfort(FMagicLeapFixationComfort& FixationComfort);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EyeTracking|MagicLeap")

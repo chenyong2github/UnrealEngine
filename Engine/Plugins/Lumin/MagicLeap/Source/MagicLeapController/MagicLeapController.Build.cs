@@ -32,9 +32,6 @@ namespace UnrealBuildTool.Rules
 					"MLSDK"
 				}
 			);
-
-			// This is not ideal but needs to be done in order to expose the private MagicLeapHMD header to this module.
-			PrivateIncludePaths.Add(Path.Combine(new string[] { ModuleDirectory, "..", "MagicLeap", "Private" }));
 		}
 	}
 }

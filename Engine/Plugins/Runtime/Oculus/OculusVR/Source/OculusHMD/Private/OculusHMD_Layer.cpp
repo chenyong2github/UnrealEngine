@@ -34,11 +34,13 @@ FOvrpLayer::FOvrpLayer(uint32 InOvrpLayerId) :
 
 FOvrpLayer::~FOvrpLayer()
 {
-	check(InRenderThread() || InRHIThread());
-	ExecuteOnRHIThread_DoNotWait([this]()
+	if (!IsInGameThread())
 	{
-		ovrp_DestroyLayer(OvrpLayerId);
-	});
+		ExecuteOnRHIThread_DoNotWait([this]()
+		{
+			ovrp_DestroyLayer(OvrpLayerId);
+		});
+	}
 }
 
 
@@ -70,6 +72,7 @@ FLayer::FLayer(const FLayer& Layer) :
 	OvrpLayer(Layer.OvrpLayer),
 	SwapChain(Layer.SwapChain),
 	DepthSwapChain(Layer.DepthSwapChain),
+	FoveationSwapChain(Layer.FoveationSwapChain),
 	RightSwapChain(Layer.RightSwapChain),
 	RightDepthSwapChain(Layer.RightDepthSwapChain),
 	bUpdateTexture(Layer.bUpdateTexture),
@@ -340,6 +343,10 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 		bInvertY = (CustomPresent->GetLayerFlags() & ovrpLayerFlag_TextureOriginAtBottomLeft) != 0;
 
 		uint32 SizeX = 0, SizeY = 0;
+		if (Desc.Flags & IStereoLayers::LAYER_FLAG_HIDDEN)
+		{
+			return;
+		}
 
 		if (Desc.Texture.IsValid())
 		{
@@ -379,6 +386,10 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 
 		case IStereoLayers::CubemapLayer:
 			Shape = ovrpShape_Cubemap;
+			break;
+
+		case IStereoLayers::EquirectLayer:
+			Shape = ovrpShape_Equirect;
 			break;
 
 		default:
@@ -433,6 +444,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 		OvrpLayer = InLayer->OvrpLayer;
 		SwapChain = InLayer->SwapChain;
 		DepthSwapChain = InLayer->DepthSwapChain;
+		FoveationSwapChain = InLayer->FoveationSwapChain;
 		RightSwapChain = InLayer->RightSwapChain;
 		RightDepthSwapChain = InLayer->RightDepthSwapChain;
 		bUpdateTexture = InLayer->bUpdateTexture;
@@ -441,10 +453,13 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 	else
 	{
 		bool bLayerCreated = false;
+		bool bValidFoveationTextures = true;
 		TArray<ovrpTextureHandle> ColorTextures;
 		TArray<ovrpTextureHandle> DepthTextures;
+		TArray<ovrpTextureHandle> FoveationTextures;
 		TArray<ovrpTextureHandle> RightColorTextures;
 		TArray<ovrpTextureHandle> RightDepthTextures;
+		ovrpSizei FoveationTextureSize;
 
 		ExecuteOnRHIThread([&]()
 		{
@@ -461,6 +476,9 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 						DepthTextures.SetNum(TextureCount);
 					}
 					
+					FoveationTextures.SetNum(TextureCount);
+					FoveationTextureSize.w = 0;
+					FoveationTextureSize.h = 0;
 
 					for (int32 TextureIndex = 0; TextureIndex < TextureCount; TextureIndex++)
 					{
@@ -470,6 +488,16 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 							UE_LOG(LogHMD, Error, TEXT("Failed to create Oculus layer texture. NOTE: This causes a leak of %d other texture(s), which will go unused."), TextureIndex);
 							// skip setting bLayerCreated and allocating any other textures
 							return;
+						}
+						if (bValidFoveationTextures)
+						{
+							// Call fails on unsupported platforms and returns null textures for no foveation texture
+							// Since this texture is not required for rendering, don't return on failure
+							if (!OVRP_SUCCESS(ovrp_GetLayerTextureFoveation(OvrpLayerId, TextureIndex, ovrpEye_Left, &FoveationTextures[TextureIndex], &FoveationTextureSize)) || 
+								FoveationTextures[TextureIndex] == (unsigned long long)nullptr)
+							{
+								bValidFoveationTextures = false;
+							}
 						}
 					}
 				}
@@ -542,6 +570,14 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 			if (bHasDepth)
 			{
 				DepthSwapChain = CustomPresent->CreateSwapChain_RenderThread(SizeX, SizeY, DepthFormat, DepthTextureBinding, 1, NumSamples, NumSamplesTileMem, ResourceType, DepthTextures, DepthTexCreateFlags);
+			}
+			if (bValidFoveationTextures)
+			{
+				FoveationSwapChain = CustomPresent->CreateSwapChain_RenderThread(FoveationTextureSize.w, FoveationTextureSize.h, PF_R8G8, FClearValueBinding::White, 1, 1, 1, ResourceType, FoveationTextures, 0);
+			}
+			else
+			{
+				FoveationSwapChain.Reset();
 			}
 
 			if (OvrpLayerDesc.Layout == ovrpLayout_Stereo)
@@ -622,6 +658,33 @@ const ovrpLayerSubmit* FLayer::UpdateLayer_RHIThread(const FSettings* Settings, 
 	bool injectColorScale = Id == 0 || Settings->bApplyColorScaleAndOffsetToAllLayers;
 	OvrpLayerSubmit.ColorOffset = injectColorScale ? Settings->ColorOffset : ovrpVector4f{ 0, 0, 0, 0 };
 	OvrpLayerSubmit.ColorScale = injectColorScale ? Settings->ColorScale : ovrpVector4f{ 1, 1, 1, 1};
+
+	if (OvrpLayerDesc.Shape == ovrpShape_Equirect) {
+		ovrpTextureRectMatrixf& RectMatrix = OvrpLayerSubmit.TextureRectMatrix;
+		ovrpRectf& LeftUVRect = RectMatrix.LeftRect;
+		ovrpRectf& RightUVRect = RectMatrix.RightRect;
+		LeftUVRect.Pos.x = Desc.EquirectProps.LeftUVRect.Min.X;
+		LeftUVRect.Pos.y = Desc.EquirectProps.LeftUVRect.Min.Y;
+		LeftUVRect.Size.w = Desc.EquirectProps.LeftUVRect.Max.X - Desc.EquirectProps.LeftUVRect.Min.X;
+		LeftUVRect.Size.h = Desc.EquirectProps.LeftUVRect.Max.Y - Desc.EquirectProps.LeftUVRect.Min.Y;
+		RightUVRect.Pos.x = Desc.EquirectProps.RightUVRect.Min.X;
+		RightUVRect.Pos.y = Desc.EquirectProps.RightUVRect.Min.Y;
+		RightUVRect.Size.w = Desc.EquirectProps.RightUVRect.Max.X - Desc.EquirectProps.RightUVRect.Min.X;
+		RightUVRect.Size.h = Desc.EquirectProps.RightUVRect.Max.Y - Desc.EquirectProps.RightUVRect.Min.Y;
+
+		ovrpVector4f& LeftScaleBias = RectMatrix.LeftScaleBias;
+		LeftScaleBias.x = Desc.EquirectProps.LeftScale.X;
+		LeftScaleBias.y = Desc.EquirectProps.LeftScale.Y;
+		LeftScaleBias.z = Desc.EquirectProps.LeftBias.X;
+		LeftScaleBias.w = Desc.EquirectProps.LeftBias.Y;
+		ovrpVector4f& RightScaleBias = RectMatrix.RightScaleBias;
+		RightScaleBias.x = Desc.EquirectProps.RightScale.X;
+		RightScaleBias.y = Desc.EquirectProps.RightScale.Y;
+		RightScaleBias.z = Desc.EquirectProps.RightBias.X;
+		RightScaleBias.w = Desc.EquirectProps.RightBias.Y;
+
+		OvrpLayerSubmit.OverrideTextureRectMatrix = ovrpBool_True;
+	}
 
 	if (Id != 0)
 	{
@@ -734,6 +797,11 @@ void FLayer::IncrementSwapChainIndex_RHIThread(FCustomPresent* CustomPresent)
 		DepthSwapChain->IncrementSwapChainIndex_RHIThread();
 	}
 
+	if (FoveationSwapChain.IsValid())
+	{
+		FoveationSwapChain->IncrementSwapChainIndex_RHIThread();
+	}
+
 	if (RightSwapChain.IsValid())
 	{
 		RightSwapChain->IncrementSwapChainIndex_RHIThread();
@@ -754,6 +822,7 @@ void FLayer::ReleaseResources_RHIThread()
 	OvrpLayer.Reset();
 	SwapChain.Reset();
 	DepthSwapChain.Reset();
+	FoveationSwapChain.Reset();
 	RightSwapChain.Reset();
 	RightDepthSwapChain.Reset();
 	bUpdateTexture = false;

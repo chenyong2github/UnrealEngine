@@ -53,6 +53,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSharedBasePassUniformParameters,)
 	SHADER_PARAMETER_STRUCT(FReflectionUniformParameters, Reflection)
 	SHADER_PARAMETER_STRUCT(FPlanarReflectionUniformParameters, PlanarReflection) // Single global planar reflection for the forward pass.
 	SHADER_PARAMETER_STRUCT(FFogUniformParameters, Fog)
+	SHADER_PARAMETER_STRUCT(FFogUniformParameters, FogISR)
 	SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 

@@ -86,6 +86,10 @@ public:
 	UPROPERTY(Category = OculusMR, EditAnywhere, BlueprintReadWrite, meta = (UIMin = "0.0", UIMax = "0.1"))
 	float CastingLatency;
 
+	/** When CompositionMethod is External Composition, the color of the backdrop in the foreground view */
+	UPROPERTY(Category = OculusMR, EditAnywhere, BlueprintReadWrite)
+	FColor BackdropColor;
+
 	/** When CompositionMethod is Direct Composition, you could adjust this latency to delay the virtual
 	* hand movement by a small amount of time to match the camera latency */
 	UPROPERTY(Category = OculusMR, EditAnywhere, BlueprintReadWrite, meta = (UIMin = "0.0", UIMax = "0.5"))

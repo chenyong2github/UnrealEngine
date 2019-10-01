@@ -14,8 +14,6 @@ namespace UnrealBuildTool.Rules
 					// ... add other private include paths required here ...
 				}
 			);
-			// This is not ideal but needs to be done in order to expose the private MagicLeapHMD header to this module.
-			//PrivateIncludePaths.Add(Path.Combine(new string[] { ModuleDirectory, "../../../../Lumin/MagicLeap", "Private" }));
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
@@ -28,13 +26,11 @@ namespace UnrealBuildTool.Rules
 					"LuminRuntimeSettings",
 					"MagicLeap",
 					"MLSDK",
+					"MagicLeapPlanes",
 					"HeadMountedDisplay",
-					"AugmentedReality"
+					"AugmentedReality",
 				}
 			);
-
-			// This is not ideal but needs to be done in order to expose the private MagicLeapHMD header to this module.
-			PrivateIncludePaths.Add(Path.Combine(new string[] { ModuleDirectory, "..", "MagicLeap", "Private" }));
 		}
 	}
 }

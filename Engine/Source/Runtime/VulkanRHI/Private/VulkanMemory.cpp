@@ -984,7 +984,7 @@ namespace VulkanRHI
 				}
 			}
 #else
-#if PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID && !PLATFORM_LUMIN
 			// free all pages, as this would keep staging buffers around forever, and they are 64mb in practice
 			for (int32 Index = 0; Index < FreePages.Num(); ++Index)
 #else
@@ -1271,7 +1271,7 @@ namespace VulkanRHI
 					HeapSize = FMath::Min<VkDeviceSize>(VULKAN_FAKE_MEMORY_LIMIT << 30llu, HeapSize);
 				}
 				VkDeviceSize PageSize = FMath::Min<VkDeviceSize>(HeapSize / 8, GPU_ONLY_HEAP_PAGE_SIZE);
-#if PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID && !PLATFORM_LUMIN
 				PageSize = FMath::Min<VkDeviceSize>(PageSize, ANDROID_MAX_HEAP_PAGE_SIZE);
 #endif
 				ResourceTypeHeaps[TypeIndices[Index]] = new FOldResourceHeap(this, TypeIndices[Index], PageSize);
@@ -1796,13 +1796,13 @@ namespace VulkanRHI
 		check(FreeStagingBuffers.Num() == 0);
 	}
 
-	FStagingBuffer* FStagingManager::AcquireBuffer(uint32 Size, VkBufferUsageFlags InUsageFlags, bool bCPURead)
+	FStagingBuffer* FStagingManager::AcquireBuffer(uint32 Size, VkBufferUsageFlags InUsageFlags, VkMemoryPropertyFlagBits InMemoryReadFlags)
 	{
 #if VULKAN_ENABLE_AGGRESSIVE_STATS
 		SCOPE_CYCLE_COUNTER(STAT_VulkanStagingBuffer);
 #endif
 		LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanStagingBuffers);
-		if (bCPURead)
+		if (InMemoryReadFlags == VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
 		{
 			uint64 NonCoherentAtomSize = (uint64)Device->GetLimits().nonCoherentAtomSize;
 			Size = AlignArbitrary(Size, NonCoherentAtomSize);
@@ -1814,7 +1814,7 @@ namespace VulkanRHI
 			for (int32 Index = 0; Index < FreeStagingBuffers.Num(); ++Index)
 			{
 				FFreeEntry& FreeBuffer = FreeStagingBuffers[Index];
-				if (FreeBuffer.StagingBuffer->GetSize() == Size && FreeBuffer.StagingBuffer->bCPURead == bCPURead)
+				if (FreeBuffer.StagingBuffer->GetSize() == Size && FreeBuffer.StagingBuffer->MemoryReadFlags == InMemoryReadFlags)
 				{
 					FStagingBuffer* Buffer = FreeBuffer.StagingBuffer;
 					FreeStagingBuffers.RemoveAtSwap(Index, 1, false);
@@ -1844,14 +1844,16 @@ namespace VulkanRHI
 
 		// Set minimum alignment to 16 bytes, as some buffers are used with CPU SIMD instructions
 		MemReqs.alignment = FMath::Max<VkDeviceSize>(16, MemReqs.alignment);
-		if (bCPURead)
+		if (InMemoryReadFlags == VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
 		{
 			uint64 NonCoherentAtomSize = (uint64)Device->GetLimits().nonCoherentAtomSize;
 			MemReqs.alignment = AlignArbitrary(MemReqs.alignment, NonCoherentAtomSize);
 		}
 
-		StagingBuffer->ResourceAllocation = Device->GetResourceHeapManager().AllocateBufferMemory(MemReqs, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | (bCPURead ? VK_MEMORY_PROPERTY_HOST_CACHED_BIT : VK_MEMORY_PROPERTY_HOST_COHERENT_BIT), __FILE__, __LINE__);
-		StagingBuffer->bCPURead = bCPURead;
+		VkMemoryPropertyFlags readTypeFlags = InMemoryReadFlags;
+
+		StagingBuffer->ResourceAllocation = Device->GetResourceHeapManager().AllocateBufferMemory(MemReqs, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | readTypeFlags, __FILE__, __LINE__);
+		StagingBuffer->MemoryReadFlags = InMemoryReadFlags;
 		StagingBuffer->BufferSize = Size;
 		StagingBuffer->ResourceAllocation->BindBuffer(Device, StagingBuffer->Buffer);
 

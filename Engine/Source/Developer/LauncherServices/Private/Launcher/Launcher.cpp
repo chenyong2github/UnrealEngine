@@ -24,8 +24,10 @@ ILauncherWorkerPtr FLauncher::Launch(const TSharedRef<ITargetDeviceProxyManager>
 
 		if ((LauncherWorker != nullptr) && (FRunnableThread::Create(LauncherWorker, *WorkerName) != nullptr))
 		{
-			return MakeShareable(LauncherWorker);
-		}			
+			ILauncherWorkerPtr Worker = MakeShareable(LauncherWorker);
+			FLauncherWorkerStartedDelegate.Broadcast(Worker, Profile);
+			return Worker;
+		}
 	}
 
 	return nullptr;

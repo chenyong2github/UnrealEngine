@@ -32,15 +32,30 @@ public class WindowsMixedRealityInterop : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "HolographicStreamerDesktop.lib"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "Microsoft.Perception.Simulation.lib"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "PerceptionSimulationManager.lib"));
+
+            PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
         }
         else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
             LibrariesPath = Path.Combine(LibrariesPath, Target.WindowsPlatform.GetArchitectureSubpath());
             PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "MixedRealityInteropHoloLens.lib"));
+
+            // Add a dependency to SceneUnderstanding.dll if present
+            string SceneUnderstandingPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.SceneUnderstanding.dll");
+            if (File.Exists(SceneUnderstandingPath))
+            {
+                RuntimeDependencies.Add(SceneUnderstandingPath);
+                PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
+            }
+            else
+            {
+                PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
+            }
         }
         else
         {
             bAddLibraries = false;
+            PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
         }
 
         if (bAddLibraries)
@@ -50,6 +65,6 @@ public class WindowsMixedRealityInterop : ModuleRules
             // Explicitly load lib path since name conflicts with an existing lib in the DX11 dependency.
             PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "d3d11.lib"));
         }
-    }
+	}
 }
 

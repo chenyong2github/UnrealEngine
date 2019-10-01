@@ -39,7 +39,13 @@ public class VorbisFile : ModuleRules
                         Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
                         Target.WindowsPlatform.GetArchitectureSubpath(),
                         LibFileName));
-            }
+				PublicAdditionalLibraries.Add(
+					System.String.Format(VorbisPath + "/lib/{0}/VS{1}/{2}/{3}.lib",
+							Target.Platform,
+							Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
+							Target.WindowsPlatform.GetArchitectureSubpath(),
+							LibFileName));
+			}
             else
             {
                 RuntimeDependencies.Add(
@@ -47,9 +53,13 @@ public class VorbisFile : ModuleRules
                         Target.Platform,
                         Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
                         LibFileName));
-            }
+				PublicAdditionalLibraries.Add(
+					System.String.Format(VorbisPath + "/lib/{0}/VS{1}/{2}.lib",
+							Target.Platform,
+							Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
+							LibFileName));
+			}
 
-            PublicAdditionalLibraries.Add(LibFileName + ".lib");
             PublicDelayLoadDLLs.Add(LibFileName + ".dll");
         }
 		else if (Target.Platform == UnrealTargetPlatform.HTML5)

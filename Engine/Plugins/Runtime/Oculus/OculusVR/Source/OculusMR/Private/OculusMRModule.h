@@ -2,6 +2,7 @@
 
 #pragma once
 #include "IOculusMRModule.h"
+#include "Engine/EngineBaseTypes.h"
 
 #define LOCTEXT_NAMESPACE "OculusMR"
 
@@ -25,7 +26,7 @@ public:
 
 	static inline FOculusMRModule& Get()
 	{
-		return FModuleManager::LoadModuleChecked< FOculusMRModule >("OculusMR");
+		return FModuleManager::GetModuleChecked< FOculusMRModule >("OculusMR");
 	}
 
 	// IOculusMRModule
@@ -34,6 +35,7 @@ public:
 
 	bool IsInitialized() { return bInitialized; }
 
+	bool IsActive();
 	UOculusMR_Settings* GetMRSettings();
 	UOculusMR_State* GetMRState();
 
@@ -48,12 +50,16 @@ private:
 	FDelegateHandle WorldDestroyedEventBinding;
 	FDelegateHandle WorldLoadEventBinding;
 
+	void InitMixedRealityCapture();
+
 	/** Initialize the tracked physical camera */
 	void SetupExternalCamera();
 	/** Close the tracked physical camera */
 	void CloseExternalCamera();
 	/** Set up the needed settings and actors for MRC in-game */
-	void SetupInGameCapture(UWorld* World);
+	void SetupInGameCapture();
+	/** Destroy actors for MRC in-game */
+	void CloseInGameCapture();
 	/** Reset all the MRC settings and state to the config and default */
 	void ResetSettingsAndState();
 
@@ -67,6 +73,19 @@ private:
 
 	void OnWorldCreated(UWorld* NewWorld);
 	void OnWorldDestroyed(UWorld* NewWorld);
+
+#if PLATFORM_ANDROID
+	bool bActivated;
+
+	FDelegateHandle InitialWorldAddedEventBinding;
+	FDelegateHandle InitialWorldLoadEventBinding;
+	FDelegateHandle PreWorldTickEventBinding;
+
+	void ChangeCaptureState();
+	void OnWorldTick(UWorld* World, ELevelTick Tick, float Delta);
+	void OnInitialWorldCreated(UWorld* NewWorld);
+#endif
+
 #if WITH_EDITOR
 	FDelegateHandle PieBeginEventBinding;
 	FDelegateHandle PieStartedEventBinding;

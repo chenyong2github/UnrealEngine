@@ -9,6 +9,63 @@
 #include "LuminRuntimeSettings.generated.h"
 
 UENUM(BlueprintType)
+enum class ELuminComponentSubElementType : uint8
+{
+	FileExtension,
+	MimeType,
+	Mode,
+	MusicAttribute,
+	Schema
+};
+
+UENUM(BlueprintType)
+enum class ELuminComponentType : uint8
+{
+	Universe,
+	Fullscreen,
+	SearchProvider,
+	MusicService,
+	Screens,
+	ScreensImmersive,
+	Console,
+	SystemUI,
+};
+
+USTRUCT(BlueprintType)
+struct FLuminComponentSubElement
+{
+	GENERATED_BODY()
+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Component sub-node type"))
+	ELuminComponentSubElementType ElementType;
+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Component sub-node value"))
+	FString Value;
+};
+
+USTRUCT(BlueprintType)
+struct FLuminComponentElement
+{
+	GENERATED_BODY()
+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Name"))
+	FString Name;
+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Visiable name"))
+	FString VisibleName;
+
+	/** Name of the executable for this component. This binary should be packaged into the bin folder of the mpk. Refer to ResonanceAudio_LPL.xml for an example. */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Executable name"))
+	FString ExecutableName;
+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Component type"))
+	ELuminComponentType ComponentType;
+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Extra sub-elements"))
+	TArray<FLuminComponentSubElement> ExtraComponentSubElements;
+};
+
+UENUM(BlueprintType)
 enum class ELuminFrameTimingHint : uint8
 {
 	/* Default rate is unspecified, adjusted based on system conditions. */
@@ -25,7 +82,6 @@ UENUM(BlueprintType)
 enum class ELuminPrivilege : uint8
 {
 	Invalid,
-	AudioRecognizer,
 	BatteryInfo,
 	CameraCapture,
 	WorldReconstruction,
@@ -54,6 +110,11 @@ enum class ELuminPrivilege : uint8
 	ScreensProvider,
 	GesturesSubscribe,
 	GesturesConfig,
+	AddressBookRead,
+	AddressBookWrite,
+	CoarseLocation,
+	HandMesh,
+	WifiStatusRead,
 };
 
 /**
@@ -68,12 +129,6 @@ class LUMINRUNTIMESETTINGS_API ULuminRuntimeSettings : public UObject
 {
 public:
 	GENERATED_BODY()
-
-#if WITH_EDITOR
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
-
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif // WITH_EDITOR
 
 	/** The official name of the project. Note: Must have at least 2 sections separated by a period and be unique! */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "MPK Packaging", Meta = (DisplayName = "Magic Leap Package Name ('com.Company.Project', [PROJECT] is replaced with project name)"))
@@ -95,16 +150,12 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Protected Content"))
 	bool bProtectedContent;
 
-	/** If checked, use Mobile Rendering. Otherwise, use Desktop Rendering [FOR FULL SOURCE GAMES ONLY]. */
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", Meta = (DisplayName = "Use Mobile Rendering.  Otherwise, Desktop Rendering"))
+	/** If checked, use Mobile Rendering. Otherwise, use Desktop Rendering. */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", Meta = (DisplayName = "Use Mobile Rendering (otherwise, Desktop Rendering)"))
 	bool bUseMobileRendering;
 
 	UPROPERTY(GlobalConfig, Meta = (DisplayName = "Use Vulkan (otherwise, OpenGL)"))
 	bool bUseVulkan;
-
-	/** Enable support for NVIDIA Tegra Graphics Debugger [FOR FULL SOURCE GAMES ONLY]. */
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", Meta = (DisplayName = "Support NVIDIA Tegra Graphics Debugger"))
-	bool bBuildWithNvTegraGfxDebugger;
 
 	/** Certificate File used to sign builds for distribution. */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Distribution Signing", Meta = (DisplayName = "Certificate File Path"))
@@ -130,13 +181,13 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Advanced MPK Packaging", Meta = (DisplayName = "App Privileges"))
 	TArray<ELuminPrivilege> AppPrivileges;
 
-	/** Extra nodes under the <application> node. */
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Advanced MPK Packaging", Meta = (DisplayName = "Extra nodes under the <application> node"))
-	TArray<FString> ExtraApplicationNodes;
-
 	/** Extra nodes under the <component> node like <mime-type>, <schema> etc. */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Advanced MPK Packaging", Meta = (DisplayName = "Extra nodes under the <component> node"))
-	TArray<FString> ExtraComponentNodes;
+	TArray<FLuminComponentSubElement> ExtraComponentSubElements;
+
+	/** Extra component elements. */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Advanced MPK Packaging", Meta = (DisplayName = "Extra <component> elements."))
+	TArray<FLuminComponentElement> ExtraComponentElements;
 
 	/** Which of the currently enabled spatialization plugins to use on Lumin. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio")
@@ -153,4 +204,15 @@ public:
 	// Strip debug symbols from packaged builds even if they aren't shipping builds.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Strip debug symbols from packaged builds even if they aren't shipping builds"))
 	bool bRemoveDebugInfo;
+
+	/** Folder containing the libraries required for vulkan validation layers. Can be found under %NDKROOT%/sources/third_party/vulkan/src/build-android/jniLibs/arm64-v8a */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, Meta = (DisplayName = "Vulkan Validation Layer libs"))
+	FDirectoryPath VulkanValidationLayerLibs;
+
+	/** Render frame vignette. */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Rendering", Meta = (DisplayName = "Render frame vignette"))
+	bool bFrameVignette;
+
+	TArray<FString> ExtraApplicationNodes_DEPRECATED;
+	TArray<FString> ExtraComponentNodes_DEPRECATED;
 };

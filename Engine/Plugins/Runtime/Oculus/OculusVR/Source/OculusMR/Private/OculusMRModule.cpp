@@ -7,6 +7,7 @@
 #include "SceneCaptureComponent2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "EngineUtils.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "Kismet/GameplayStatics.h"
 #include "OculusHMDModule.h"
 #include "OculusHMD.h"
@@ -15,6 +16,7 @@
 #include "OculusMR_Settings.h"
 #include "OculusMR_State.h"
 #include "OculusMR_CastingCameraActor.h"
+#include "AudioDevice.h"
 
 #if WITH_EDITOR
 #include "Editor.h" // for FEditorDelegates::PostPIEStarted
@@ -61,6 +63,20 @@ FOculusMRModule::FOculusMRModule()
 	, MRState(nullptr)
 	, MRActor(nullptr)
 	, CurrentWorld(nullptr)
+	, WorldAddedEventBinding()
+	, WorldDestroyedEventBinding()
+	, WorldLoadEventBinding()
+#if PLATFORM_ANDROID
+	, bActivated(false)
+	, InitialWorldAddedEventBinding()
+	, InitialWorldLoadEventBinding()
+	, PreWorldTickEventBinding()
+#endif
+#if WITH_EDITOR
+	, PieBeginEventBinding()
+	, PieStartedEventBinding()
+	, PieEndedEventBinding()
+#endif
 {}
 
 FOculusMRModule::~FOculusMRModule()
@@ -69,43 +85,23 @@ FOculusMRModule::~FOculusMRModule()
 void FOculusMRModule::StartupModule()
 {
 #if OCULUS_MR_SUPPORTED_PLATFORMS
+#if PLATFORM_WINDOWS
 	const TCHAR* CmdLine = FCommandLine::Get();
 	const bool bAutoOpenFromParams = FParse::Param(CmdLine, TEXT("mixedreality"));
 
 	if (bAutoOpenFromParams && FOculusHMDModule::Get().PreInit() && OVRP_SUCCESS(ovrp_InitializeMixedReality()))
 	{
-		bInitialized = true;
-
-		MRSettings = NewObject<UOculusMR_Settings>();
-		MRSettings->AddToRoot();
-		MRState = NewObject<UOculusMR_State>();
-		MRState->AddToRoot();
-
-		// Always bind the event handlers in case devs call them without MRC on
-		MRSettings->TrackedCameraIndexChangeDelegate.BindRaw(this, &FOculusMRModule::OnTrackedCameraIndexChanged);
-		MRSettings->CompositionMethodChangeDelegate.BindRaw(this, &FOculusMRModule::OnCompositionMethodChanged);
-		MRSettings->CapturingCameraChangeDelegate.BindRaw(this, &FOculusMRModule::OnCapturingCameraChanged);
-		MRSettings->IsCastingChangeDelegate.BindRaw(this, &FOculusMRModule::OnIsCastingChanged);
-		MRSettings->UseDynamicLightingChangeDelegate.BindRaw(this, &FOculusMRModule::OnUseDynamicLightingChanged);
-		MRSettings->DepthQualityChangeDelegate.BindRaw(this, &FOculusMRModule::OnDepthQualityChanged);
-
-		ResetSettingsAndState();
-
-		// Add all the event delegates to handle game start, end and level change
-		WorldAddedEventBinding = GEngine->OnWorldAdded().AddRaw(this, &FOculusMRModule::OnWorldCreated);
-		WorldDestroyedEventBinding = GEngine->OnWorldDestroyed().AddRaw(this, &FOculusMRModule::OnWorldDestroyed);
-		WorldLoadEventBinding = FCoreUObjectDelegates::PostLoadMapWithWorld.AddRaw(this, &FOculusMRModule::OnWorldCreated);
-#if WITH_EDITOR
-		// Bind events on PIE start/end to open/close camera
-		PieBeginEventBinding = FEditorDelegates::BeginPIE.AddRaw(this, &FOculusMRModule::OnPieBegin);
-		PieStartedEventBinding = FEditorDelegates::PostPIEStarted.AddRaw(this, &FOculusMRModule::OnPieStarted);
-		PieEndedEventBinding = FEditorDelegates::PrePIEEnded.AddRaw(this, &FOculusMRModule::OnPieEnded);
-#else
-		// Start casting and open camera with the module if it's the game
-		MRSettings->SetIsCasting(true);
-#endif
+		InitMixedRealityCapture();
 	}
-#endif
+#elif PLATFORM_ANDROID
+	// On Android, ovrp_Media_Initialize() needs OVRPlugin to be initialized first, so we should handle that when the world is created
+	if (GEngine)
+	{
+		InitialWorldAddedEventBinding = GEngine->OnWorldAdded().AddRaw(this, &FOculusMRModule::OnInitialWorldCreated);
+	}
+	InitialWorldLoadEventBinding = FCoreUObjectDelegates::PostLoadMapWithWorld.AddRaw(this, &FOculusMRModule::OnInitialWorldCreated);
+#endif // PLATFORM_WINDOWS || PLATFORM_ANDROID
+#endif // OCULUS_MR_SUPPORTED_PLATFORMS
 }
 
 void FOculusMRModule::ShutdownModule()
@@ -126,12 +122,46 @@ void FOculusMRModule::ShutdownModule()
 			MRSettings->SetIsCasting(false);
 #endif
 		}
+#if PLATFORM_ANDROID
+		ovrpBool mediaInit = false;
+		if (OVRP_SUCCESS(ovrp_Media_GetInitialized(&mediaInit)) && mediaInit == ovrpBool_True)
+		{
+			ovrp_Media_Shutdown();
+		}
+#endif 
 		ovrp_ShutdownMixedReality();
 
-		MRSettings->RemoveFromRoot();
-		MRState->RemoveFromRoot();
+		if (MRSettings->IsRooted())
+		{
+			MRSettings->RemoveFromRoot();
+		}
+		if (MRState->IsRooted())
+		{
+			MRState->RemoveFromRoot();
+		}
+	}
+#if PLATFORM_ANDROID
+	if (InitialWorldAddedEventBinding.IsValid() && GEngine)
+	{
+		GEngine->OnWorldAdded().Remove(InitialWorldAddedEventBinding);
+		InitialWorldAddedEventBinding.Reset();
+	}
+	if (InitialWorldLoadEventBinding.IsValid())
+	{
+		FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(InitialWorldLoadEventBinding);
+		InitialWorldLoadEventBinding.Reset();
 	}
 #endif
+#endif // OCULUS_MR_SUPPORTED_PLATFORMS
+}
+
+bool FOculusMRModule::IsActive()
+{
+	bool bReturn = bInitialized && MRSettings && MRSettings->GetIsCasting();
+#if PLATFORM_ANDROID
+	bReturn = bReturn && bActivated;
+#endif
+	return bReturn;
 }
 
 UOculusMR_Settings* FOculusMRModule::GetMRSettings()
@@ -146,19 +176,67 @@ UOculusMR_State* FOculusMRModule::GetMRState()
 
 void FOculusMRModule::OnWorldCreated(UWorld* NewWorld)
 {
+#if PLATFORM_WINDOWS
 #if WITH_EDITORONLY_DATA
 	const bool bIsGameInst = !IsRunningCommandlet() && NewWorld->IsGameWorld();
 	if (bIsGameInst)
 #endif 
 	{
 		CurrentWorld = NewWorld;
-		SetupInGameCapture(NewWorld);
+		SetupInGameCapture();
 	}
+#endif
+#if PLATFORM_ANDROID
+	CurrentWorld = NewWorld;
+	// Check MRC activation state initially when loading world
+	ChangeCaptureState();
+	// Poll MRC activation state for future changes
+	PreWorldTickEventBinding = FWorldDelegates::OnWorldPreActorTick.AddRaw(this, &FOculusMRModule::OnWorldTick);
+#endif
 }
 
 void FOculusMRModule::OnWorldDestroyed(UWorld* NewWorld)
 {
 	CurrentWorld = nullptr;
+#if PLATFORM_ANDROID
+	if (PreWorldTickEventBinding.IsValid())
+	{
+		FWorldDelegates::OnWorldPreActorTick.Remove(PreWorldTickEventBinding);
+		PreWorldTickEventBinding.Reset();
+	}
+#endif // PLATFORM_ANDROID
+}
+
+void FOculusMRModule::InitMixedRealityCapture()
+{
+	bInitialized = true;
+
+	MRSettings = NewObject<UOculusMR_Settings>((UObject*)GetTransientPackage(), FName("OculusMR_Settings"), RF_MarkAsRootSet);
+	MRState = NewObject<UOculusMR_State>((UObject*)GetTransientPackage(), FName("OculusMR_State"), RF_MarkAsRootSet);
+
+	// Always bind the event handlers in case devs call them without MRC on
+	MRSettings->TrackedCameraIndexChangeDelegate.BindRaw(this, &FOculusMRModule::OnTrackedCameraIndexChanged);
+	MRSettings->CompositionMethodChangeDelegate.BindRaw(this, &FOculusMRModule::OnCompositionMethodChanged);
+	MRSettings->CapturingCameraChangeDelegate.BindRaw(this, &FOculusMRModule::OnCapturingCameraChanged);
+	MRSettings->IsCastingChangeDelegate.BindRaw(this, &FOculusMRModule::OnIsCastingChanged);
+	MRSettings->UseDynamicLightingChangeDelegate.BindRaw(this, &FOculusMRModule::OnUseDynamicLightingChanged);
+	MRSettings->DepthQualityChangeDelegate.BindRaw(this, &FOculusMRModule::OnDepthQualityChanged);
+
+	ResetSettingsAndState();
+
+	WorldAddedEventBinding = GEngine->OnWorldAdded().AddRaw(this, &FOculusMRModule::OnWorldCreated);
+	WorldDestroyedEventBinding = GEngine->OnWorldDestroyed().AddRaw(this, &FOculusMRModule::OnWorldDestroyed);
+	WorldLoadEventBinding = FCoreUObjectDelegates::PostLoadMapWithWorld.AddRaw(this, &FOculusMRModule::OnWorldCreated);
+
+#if WITH_EDITOR
+	// Bind events on PIE start/end to open/close camera
+	PieBeginEventBinding = FEditorDelegates::BeginPIE.AddRaw(this, &FOculusMRModule::OnPieBegin);
+	PieStartedEventBinding = FEditorDelegates::PostPIEStarted.AddRaw(this, &FOculusMRModule::OnPieStarted);
+	PieEndedEventBinding = FEditorDelegates::PrePIEEnded.AddRaw(this, &FOculusMRModule::OnPieEnded);
+#else // WITH_EDITOR
+	// Start casting and open camera with the module if it's the game
+	MRSettings->SetIsCasting(true);
+#endif // WITH_EDITOR
 }
 
 void FOculusMRModule::SetupExternalCamera()
@@ -173,7 +251,16 @@ void FOculusMRModule::SetupExternalCamera()
 	// Always request the MRC actor to handle a camera state change on its end
 	MRState->ChangeCameraStateRequested = true;
 
-	if (MRSettings->CompositionMethod == EOculusMR_CompositionMethod::DirectComposition)
+	if (MRSettings->CompositionMethod == EOculusMR_CompositionMethod::ExternalComposition)
+	{
+		// Close the camera device for external composition since we don't need the actual camera feed
+		if (MRState->CurrentCapturingCamera != ovrpCameraDevice_None)
+		{
+			ovrp_CloseCameraDevice(MRState->CurrentCapturingCamera);
+		}
+	}
+#if PLATFORM_WINDOWS
+	else if (MRSettings->CompositionMethod == EOculusMR_CompositionMethod::DirectComposition)
 	{
 		ovrpBool available = ovrpBool_False;
 		if (MRSettings->CapturingCamera == EOculusMR_CameraDeviceEnum::CD_None)
@@ -222,14 +309,7 @@ void FOculusMRModule::SetupExternalCamera()
 			return;
 		}
 	}
-	else if (MRSettings->CompositionMethod == EOculusMR_CompositionMethod::ExternalComposition)
-	{
-		// Close the camera device for external composition since we don't need the actual camera feed
-		if (MRState->CurrentCapturingCamera != ovrpCameraDevice_None)
-		{
-			ovrp_CloseCameraDevice(MRState->CurrentCapturingCamera);
-		}
-	}
+#endif // PLATFORM_WINDOWS
 }
 
 void FOculusMRModule::CloseExternalCamera()
@@ -241,10 +321,10 @@ void FOculusMRModule::CloseExternalCamera()
 	}
 }
 
-void FOculusMRModule::SetupInGameCapture(UWorld* World)
+void FOculusMRModule::SetupInGameCapture()
 {
 	// Don't do anything if we don't have a UWorld or if we are not casting
-	if (World == nullptr || !MRSettings->GetIsCasting())
+	if (CurrentWorld == nullptr || !MRSettings->GetIsCasting())
 	{
 		return;
 	}
@@ -253,7 +333,7 @@ void FOculusMRModule::SetupInGameCapture(UWorld* World)
 	MRState->BindToTrackedCameraIndexRequested = true;
 
 	// Don't add another actor if there's already a MRC camera actor
-	for (TActorIterator<AOculusMR_CastingCameraActor> ActorIt(World); ActorIt; ++ActorIt)
+	for (TActorIterator<AOculusMR_CastingCameraActor> ActorIt(CurrentWorld); ActorIt; ++ActorIt)
 	{
 		if (!ActorIt->IsPendingKillOrUnreachable() && ActorIt->IsValidLowLevel())
 		{
@@ -263,9 +343,19 @@ void FOculusMRModule::SetupInGameCapture(UWorld* World)
 	}
 
 	// Spawn an MRC camera actor if one wasn't already there
-	MRActor = World->SpawnActorDeferred<AOculusMR_CastingCameraActor>(AOculusMR_CastingCameraActor::StaticClass(), FTransform::Identity);
+	MRActor = CurrentWorld->SpawnActorDeferred<AOculusMR_CastingCameraActor>(AOculusMR_CastingCameraActor::StaticClass(), FTransform::Identity);
 	MRActor->InitializeStates(MRSettings, MRState);
 	UGameplayStatics::FinishSpawningActor(MRActor, FTransform::Identity);
+}
+
+void FOculusMRModule::CloseInGameCapture()
+{
+	// Destory actor and close the camera when we turn MRC off
+	if (MRActor != nullptr && MRActor->GetWorld() != nullptr)
+	{
+		MRActor->Destroy();
+		MRActor = nullptr;
+	}
 }
 
 void FOculusMRModule::ResetSettingsAndState()
@@ -295,6 +385,89 @@ void FOculusMRModule::ResetSettingsAndState()
 		MRSettings->CompositionMethod = EOculusMR_CompositionMethod::DirectComposition;
 	}
 }
+
+#if PLATFORM_ANDROID
+void FOculusMRModule::ChangeCaptureState()
+{
+	ovrpBool activated;
+	// Set up or close in-game capture when activation state changes
+	if (OVRP_SUCCESS(ovrp_Media_Update()) && OVRP_SUCCESS(ovrp_Media_IsMrcActivated(&activated)) && activated == ovrpBool_True)
+	{
+		if (!bActivated)
+		{
+			UE_LOG(LogMR, Log, TEXT("Activating MR Capture"))
+			bActivated = true;
+			SetupInGameCapture();
+		}
+	}
+	else
+	{
+		if (bActivated)
+		{
+			UE_LOG(LogMR, Log, TEXT("Deactivating MR Capture"))
+			bActivated = false;
+			CloseInGameCapture();
+		}
+	}
+}
+
+void FOculusMRModule::OnWorldTick(UWorld* World, ELevelTick Tick, float Delta)
+{
+	// Poll MRC activation state
+	if (CurrentWorld && World == CurrentWorld)
+	{
+		ChangeCaptureState();
+	}
+}
+
+void FOculusMRModule::OnInitialWorldCreated(UWorld* NewWorld)
+{
+	// Remove the initial world load handlers 
+	if (InitialWorldAddedEventBinding.IsValid())
+	{
+		GEngine->OnWorldAdded().Remove(InitialWorldAddedEventBinding);
+		InitialWorldAddedEventBinding.Reset();
+	}
+	if (InitialWorldLoadEventBinding.IsValid())
+	{
+		FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(InitialWorldLoadEventBinding);
+		InitialWorldLoadEventBinding.Reset();
+	}
+
+	// Initialize and check if MRC is enabled
+	if (FOculusHMDModule::Get().PreInit() && OVRP_SUCCESS(ovrp_InitializeMixedReality()))
+	{
+		ovrpBool mrcEnabled;
+		if (OVRP_SUCCESS(ovrp_Media_Initialize()))
+		{
+			UE_LOG(LogMR, Log, TEXT("MRC Initialized"));
+			if (OVRP_SUCCESS(ovrp_Media_IsMrcEnabled(&mrcEnabled)) && mrcEnabled == ovrpBool_True)
+			{
+				UE_LOG(LogMR, Log, TEXT("MRC Enabled"));
+				ovrp_Media_SetMrcInputVideoBufferType(ovrpMediaInputVideoBufferType_TextureHandle);
+				ovrp_Media_SetMrcFrameImageFlipped(IsAndroidOpenGLESPlatform(GMaxRHIShaderPlatform));
+				ovrp_Media_SetMrcFrameInverseAlpha(ovrpBool_True);
+				FAudioDevice* AudioDevice = FAudioDevice::GetMainAudioDevice();
+				float SampleRate = AudioDevice->GetSampleRate();
+				ovrp_Media_SetMrcAudioSampleRate((int)SampleRate);
+				InitMixedRealityCapture();
+				OnWorldCreated(NewWorld);
+			}
+			else
+			{
+				// Shut down if MRC not enabled or the media couldn't be enabled
+				ovrp_Media_Shutdown();
+				ovrp_ShutdownMixedReality();
+			}
+		}
+		else
+		{
+			// Shut down if MRC not enabled or the media couldn't be enabled
+			ovrp_ShutdownMixedReality();
+		}
+	}
+}
+#endif
 
 void FOculusMRModule::OnTrackedCameraIndexChanged(int OldVal, int NewVal)
 {
@@ -338,18 +511,19 @@ void FOculusMRModule::OnIsCastingChanged(bool OldVal, bool NewVal)
 	}
 	if (NewVal == true)
 	{
+#if PLATFORM_ANDROID
+		ovrp_Media_SetMrcActivationMode(ovrpMediaMrcActivationMode_Automatic);
+#endif
 		// Initialize everything again if we turn MRC on
 		SetupExternalCamera();
-		SetupInGameCapture(CurrentWorld);
+		SetupInGameCapture();
 	}
 	else
 	{
-		// Destory actor and close the camera when we turn MRC off
-		if (MRActor != nullptr && MRActor->GetWorld() != nullptr)
-		{
-			MRActor->Destroy();
-			MRActor = nullptr;
-		}
+#if PLATFORM_ANDROID
+		ovrp_Media_SetMrcActivationMode(ovrpMediaMrcActivationMode_Disabled);
+#endif
+		CloseInGameCapture();
 		CloseExternalCamera();
 	}
 }

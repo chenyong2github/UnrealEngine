@@ -956,6 +956,11 @@ public:
 	}
 
 	virtual void RHIAdvanceFrameFence(){};
+	virtual FTextureRHIRef RHICreateAliasedTexture(FRHITexture* SourceTexture)
+	{
+		checkNoEntry();
+		return nullptr;
+	}
 
 	// Only relevant with an RHI thread, this advances the backbuffer for the purpose of GetViewportBackBuffer
 	// FlushType: Thread safe

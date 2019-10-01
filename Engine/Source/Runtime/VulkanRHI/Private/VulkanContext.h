@@ -309,7 +309,7 @@ public:
 
 	inline VkImageLayout GetLayoutForDescriptor(const FVulkanSurface& Surface) const
 	{
-#if PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID && !PLATFORM_LUMIN
 		// Workaround clang bug; don't use IsDepthOrStencilAspect() directly
 		VkImageAspectFlags AspectFlags = Surface.GetFullAspectMask();
 		if ((AspectFlags & VK_IMAGE_ASPECT_DEPTH_BIT) != 0 || (AspectFlags & VK_IMAGE_ASPECT_STENCIL_BIT) != 0)

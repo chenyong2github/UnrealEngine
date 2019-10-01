@@ -75,8 +75,8 @@ namespace UnrealBuildTool
 		static private Dictionary<string, string[]> LibrariesToSkip = new Dictionary<string, string[]> {
 			{ "-armv7", new string[] { } },
 			{ "-arm64", new string[] { "nvToolsExt", "nvToolsExtStub", "vorbisenc", } },
-			{ "-x86",   new string[] { "nvToolsExt", "nvToolsExtStub", "oculus", "OVRPlugin", "vrapi", "vrintegrationloader", "ovrkernel", "systemutils", "openglloader", "ovrplatformloader", "opus", "speex_resampler", "vorbisenc", } },
-			{ "-x64",   new string[] { "nvToolsExt", "nvToolsExtStub", "oculus", "OVRPlugin", "vrapi", "vrintegrationloader", "ovrkernel", "systemutils", "openglloader", "ovrplatformloader", "gpg", "vorbisenc", } },
+			{ "-x86",   new string[] { "nvToolsExt", "nvToolsExtStub", "oculus", "OVRPlugin", "vrapi", "ovrkernel", "systemutils", "openglloader", "ovrplatformloader", "opus", "speex_resampler", "vorbisenc", } },
+			{ "-x64",   new string[] { "nvToolsExt", "nvToolsExtStub", "oculus", "OVRPlugin", "vrapi", "ovrkernel", "systemutils", "openglloader", "ovrplatformloader", "gpg", "vorbisenc", } },
 		};
 
 		static private Dictionary<string, string[]> ModulesToSkip = new Dictionary<string, string[]> {
@@ -1490,22 +1490,7 @@ namespace UnrealBuildTool
 						CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 						if(bExecuteCompilerThroughShell)
 						{
-							string FixedClangPath = ClangPath;
-							if (FixedClangPath.Contains(' '))
-							{
-								FixedClangPath = "'" + FixedClangPath + "'";
-							}
-					
-							CompileAction.CommandPath = BuildHostPlatform.Current.Shell;
-							if (BuildHostPlatform.Current.ShellType == ShellType.Cmd)
-							{
-								CompileAction.CommandArguments = String.Format("/c \"{0} {1}\"", FixedClangPath, ResponseArgument);
-							}
-							else
-							{
-								CompileAction.CommandArguments = String.Format("-c \'{0} {1}\'", FixedClangPath, ResponseArgument);
-							}
-							CompileAction.CommandDescription = "Compile";
+							SetupActionToExecuteCompilerThroughShell(ref CompileAction, ClangPath, ResponseArgument, "Compile");
 						}
 						else
 						{
@@ -1777,22 +1762,7 @@ namespace UnrealBuildTool
 
 					if(bExecuteCompilerThroughShell)
 					{
-						string LinkCommandPath = LinkAction.CommandPath.FullName;
-						if (LinkCommandPath.Contains(' '))
-						{
-							LinkCommandPath = "'" + LinkCommandPath + "'";
-						}
-						
-						if (BuildHostPlatform.Current.ShellType == ShellType.Cmd)
-						{
-							LinkAction.CommandArguments = String.Format("/c \"{0} {1}\"", LinkCommandPath, LinkAction.CommandArguments);
-						}
-						else
-						{
-							LinkAction.CommandArguments = String.Format("-c \'{0} {1}\'", LinkCommandPath, LinkAction.CommandArguments);
-						}
-						LinkAction.CommandPath = BuildHostPlatform.Current.Shell;
-						LinkAction.CommandDescription = "Link";
+						SetupActionToExecuteCompilerThroughShell(ref LinkAction, LinkAction.CommandPath.FullName, LinkAction.CommandArguments, "Link");
 					}
 					Actions.Add(LinkAction);
 
@@ -1956,6 +1926,27 @@ namespace UnrealBuildTool
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;
 			Utils.RunLocalProcessAndLogOutput(StartInfo);
+		}
+
+		protected virtual void SetupActionToExecuteCompilerThroughShell(ref Action CompileOrLinkAction, string CommandPath, string CommandArguments, string CommandDescription)
+		{
+			string QuotedCommandPath = CommandPath;
+			if (CommandPath.Contains(' '))
+			{
+				QuotedCommandPath = "'" + CommandPath + "'";
+			}
+	
+			if (BuildHostPlatform.Current.ShellType == ShellType.Cmd)
+			{
+				CompileOrLinkAction.CommandArguments = String.Format("/c \"{0} {1}\"", QuotedCommandPath, CommandArguments);
+			}
+			else
+			{
+				CompileOrLinkAction.CommandArguments = String.Format("-c \'{0} {1}\'", QuotedCommandPath, CommandArguments);
+			}
+
+			CompileOrLinkAction.CommandPath = BuildHostPlatform.Current.Shell;
+			CompileOrLinkAction.CommandDescription = CommandDescription;
 		}
 	};
 }

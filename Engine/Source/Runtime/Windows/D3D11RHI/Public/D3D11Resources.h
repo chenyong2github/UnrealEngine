@@ -306,6 +306,13 @@ public:
 		check(MemorySize == Texture->MemorySize);
 		check(bCreatedRTVsPerSlice == Texture->bCreatedRTVsPerSlice);
 		check(RTVArraySize == Texture->RTVArraySize);
+
+		// If we're creating an aliased texture, make sure we handle this case correctly.
+		if (Texture->NumDepthStencilViews && !NumDepthStencilViews)
+		{
+			NumDepthStencilViews = Texture->NumDepthStencilViews;
+		}
+
 		check(NumDepthStencilViews == Texture->NumDepthStencilViews);
 
 		// Do not copy the BaseShaderResource from the source texture (this is initialized correctly here, and is used for

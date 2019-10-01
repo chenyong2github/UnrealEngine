@@ -75,7 +75,7 @@ public:
 
 	void SetVoiceVisualValue(float value) { VoiceVisualValue = FMath::Clamp(value, 0.f, 1.f); }
 
-	void UpdateVisemeValues(const TArray<float>& visemes);
+	void UpdateVisemeValues(const TArray<float>& visemes, const float laughterScore);
 
 	void SetBodyCapability(bool Enable)	{ EnableBody = Enable; }
 	void SetBaseCapability(bool Enable) { EnableBase = Enable; }

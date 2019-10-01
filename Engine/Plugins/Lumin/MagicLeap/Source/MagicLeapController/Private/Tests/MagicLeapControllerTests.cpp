@@ -4,20 +4,14 @@
 #include "Misc/AutomationTest.h"
 #include "Tests/AutomationCommon.h"
 #include "GenericPlatform/IInputInterface.h"
-#include "IMagicLeapInputDevice.h"
+#include "IMagicLeapTrackerEntity.h"
 #include "IHapticDevice.h"
 #include "IMotionController.h"
 #include "MagicLeapControllerKeys.h"
 #include "MagicLeapControllerFunctionLibrary.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Haptics/HapticFeedbackEffect_Base.h"
-#include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
-
-#if WITH_MLSDK
-ML_INCLUDES_START
-#include <ml_input.h>
-ML_INCLUDES_END
-#endif //WITH_MLSDK
+#include "Lumin/CAPIShims/LuminAPI.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMagicLeapControllerTest, Display, All);
 
@@ -32,45 +26,53 @@ void MagicLeapTestReferenceFunction()
 /**
 * Play Pattern Haptic Effect
 */
-DEFINE_LATENT_AUTOMATION_COMMAND_THREE_PARAMETER(FPlayPatternHapticLatentCommand, EControllerHand, Hand, EMLControllerHapticPattern, Pattern, EMLControllerHapticIntensity, Intensity);
+DEFINE_LATENT_AUTOMATION_COMMAND_THREE_PARAMETER(FPlayPatternHapticLatentCommand, FName, Hand, EMagicLeapControllerHapticPattern, Pattern, EMagicLeapControllerHapticIntensity, Intensity);
 bool FPlayPatternHapticLatentCommand::Update()
 {
 	FString PatternName;
-	UEnum* PatternEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMLControllerHapticPattern"), true);
+	UEnum* PatternEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerHapticPattern"), true);
 	if (PatternEnum != nullptr)
 	{
 		PatternName = PatternEnum->GetNameByValue((int32)Pattern).ToString();
 	}
 
-	UE_LOG(LogCore, Log, TEXT("FPlayPatternHapticLatentCommand %d, %s"), (int32)Hand, *PatternName);
+	FString IntensityName;
+	UEnum* IntensityEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerHapticIntensity"), true);
+	if (IntensityEnum != nullptr)
+	{
+		IntensityName = IntensityEnum->GetNameByValue((int32)Intensity).ToString();
+	}
 
-	UMagicLeapControllerFunctionLibrary::PlayControllerHapticFeedback(Hand, Pattern, Intensity);
+	UE_LOG(LogCore, Log, TEXT("FPlayPatternHapticLatentCommand %s, %s %s"), *Hand.ToString(), *PatternName, *IntensityName);
+
+	UMagicLeapControllerFunctionLibrary::PlayHapticPattern(Hand, Pattern, Intensity);
 
 	return true;
 }
 
 
 //@TODO - remove editor
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagicLeapControllerHapticTest, "System.VR.MagicLeap.Haptics.Pattern", EAutomationTestFlags::ClientContext | EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagicLeapControllerHapticTest, "System.VR.MagicLeap.Haptics.Patterns", EAutomationTestFlags::ClientContext | EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FMagicLeapControllerHapticTest::RunTest(const FString&)
 {
-	UEnum* PatternEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMLControllerHapticPattern"), true);
-	UEnum* IntensityEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMLControllerHapticIntensity"), true);
+	UEnum* PatternEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerHapticPattern"), true);
+	UEnum* IntensityEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerHapticIntensity"), true);
 
-	float ActiveDuration = 1.0f;
+	float ActiveDuration = 2.0f;
 	//for (uint32 HandIndex = 0; HandIndex < MLInput_MaxControllers; ++HandIndex)
 	//for now only right hand matters
-	uint32 HandIndex = (uint32)EControllerHand::Right;
+	FName MotionSource = TEXT("Right");
 	{
-		for (uint32 PatternIndex = 0; PatternIndex < PatternEnum->GetMaxEnumValue(); ++PatternIndex)
+		// haptic pattern 0 is None, skip it
+		for (uint32 PatternIndex = 1; PatternIndex < PatternEnum->GetMaxEnumValue(); ++PatternIndex)
 		{
 			for (uint32 IntensityIndex = 0; IntensityIndex < IntensityEnum->GetMaxEnumValue(); ++IntensityIndex)
 			{
 				//Turn on haptics
 				ADD_LATENT_AUTOMATION_COMMAND(FPlayPatternHapticLatentCommand(
-					(EControllerHand)HandIndex,
-					(EMLControllerHapticPattern)PatternIndex,
-					(EMLControllerHapticIntensity)IntensityIndex));
+					MotionSource,
+					(EMagicLeapControllerHapticPattern)PatternIndex,
+					(EMagicLeapControllerHapticIntensity)IntensityIndex));
 				//Give the command a chance to finish
 				ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(ActiveDuration));
 			}
@@ -82,57 +84,141 @@ bool FMagicLeapControllerHapticTest::RunTest(const FString&)
 
 
 /**
-* Play LED Effect
+* Play LED Pattern
 */
-DEFINE_LATENT_AUTOMATION_COMMAND_FOUR_PARAMETER(FPlayLEDPatternLatentCommand, EControllerHand, Hand, EMLControllerLEDPattern, Pattern, EMLControllerLEDColor, Color, float, Duration);
+DEFINE_LATENT_AUTOMATION_COMMAND_FOUR_PARAMETER(FPlayLEDPatternLatentCommand, FName, Hand, EMagicLeapControllerLEDPattern, Pattern, EMagicLeapControllerLEDColor, Color, float, Duration);
 bool FPlayLEDPatternLatentCommand::Update()
 {
 	FString PatternName;
-	UEnum* PatternEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMLControllerLEDPattern"), true);
+	UEnum* PatternEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerLEDPattern"), true);
 	if (PatternEnum != nullptr)
 	{
 		PatternName = PatternEnum->GetNameByValue((int32)Pattern).ToString();
 	}
 
 	FString ColorName;
-	UEnum* ColorEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMLControllerLEDColor"), true);
+	UEnum* ColorEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerLEDColor"), true);
 	if (ColorEnum != nullptr)
 	{
 		ColorName = ColorEnum->GetNameByValue((int32)Color).ToString();
 	}
 
-	UE_LOG(LogCore, Log, TEXT("FPlayLEDPatternLatentCommand %d Hand, %s %s"), (int32)Hand, *PatternName, *ColorName);
+	UE_LOG(LogCore, Log, TEXT("FPlayLEDPatternLatentCommand %s Hand, %s %s"), *Hand.ToString(), *PatternName, *ColorName);
 
-	UMagicLeapControllerFunctionLibrary::PlayControllerLED(Hand, Pattern, Color, Duration);
+	UMagicLeapControllerFunctionLibrary::PlayLEDPattern(Hand, Pattern, Color, Duration);
 
 	return true;
 }
 
 
 //@TODO - remove editor
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagicLeapControllerLEDTest, "System.VR.MagicLeap.LED", EAutomationTestFlags::ClientContext | EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-bool FMagicLeapControllerLEDTest::RunTest(const FString&)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagicLeapControllerLEDPatternTest, "System.VR.MagicLeap.LED.Patterns", EAutomationTestFlags::ClientContext | EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FMagicLeapControllerLEDPatternTest::RunTest(const FString&)
 {
-	UEnum* PatternEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMLControllerLEDPattern"), true);
-	UEnum* ColorEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMLControllerLEDColor"), true);
+	UEnum* PatternEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerLEDPattern"), true);
+	UEnum* ColorEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerLEDColor"), true);
 
 	float ActiveDuration = 1.0f;
 	float InactiveDuration = 0.5f;
 	//run through each pattern and run the pattern, wait for it to finish, turn off, wait
 	//for (uint32 HandIndex = 0; HandIndex < MLInput_MaxControllers; ++HandIndex)
 	//for now only right hand matters
-	uint32 HandIndex = (uint32)EControllerHand::Right;
+	FName MotionSource = TEXT("Right");
 	{
-		for (uint32 PatternIndex = 0; PatternIndex < PatternEnum->GetMaxEnumValue(); ++PatternIndex)
+		// led pattern 0 is None, skip it
+		for (uint32 PatternIndex = 1; PatternIndex < PatternEnum->GetMaxEnumValue(); ++PatternIndex)
 		{
 			for (uint32 ColorIndex = 0; ColorIndex < ColorEnum->GetMaxEnumValue(); ++ColorIndex)
 			{
 				//Turn LED pattern on
-				ADD_LATENT_AUTOMATION_COMMAND(FPlayLEDPatternLatentCommand((EControllerHand)HandIndex, (EMLControllerLEDPattern)PatternIndex, (EMLControllerLEDColor)ColorIndex, ActiveDuration));
+				ADD_LATENT_AUTOMATION_COMMAND(FPlayLEDPatternLatentCommand(MotionSource, (EMagicLeapControllerLEDPattern)PatternIndex, (EMagicLeapControllerLEDColor)ColorIndex, ActiveDuration));
 				//Give the command a chance to finish
 				ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(ActiveDuration));
 				//Add a second to delimit between patterns
 				ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(InactiveDuration));
+			}
+		}
+	}
+
+	return true;
+}
+
+
+/**
+* Play LED Effect
+*/
+DEFINE_LATENT_AUTOMATION_COMMAND_FIVE_PARAMETER(FPlayLEDEffectLatentCommand, FName, Hand, EMagicLeapControllerLEDEffect, LEDEffect, EMagicLeapControllerLEDSpeed, LEDSpeed, EMagicLeapControllerLEDPattern, Pattern, EMagicLeapControllerLEDColor, Color);
+bool FPlayLEDEffectLatentCommand::Update()
+{
+	FString EffectName;
+	UEnum* EffectEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerLEDEffect"), true);
+	if (EffectEnum != nullptr)
+	{
+		EffectName = EffectEnum->GetNameByValue((int32)LEDEffect).ToString();
+	}
+
+	FString SpeedName;
+	UEnum* SpeedEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerLEDSpeed"), true);
+	if (SpeedEnum != nullptr)
+	{
+		SpeedName = SpeedEnum->GetNameByValue((int32)LEDSpeed).ToString();
+	}
+
+	FString PatternName;
+	UEnum* PatternEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerLEDPattern"), true);
+	if (PatternEnum != nullptr)
+	{
+		PatternName = PatternEnum->GetNameByValue((int32)Pattern).ToString();
+	}
+
+	FString ColorName;
+	UEnum* ColorEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerLEDColor"), true);
+	if (ColorEnum != nullptr)
+	{
+		ColorName = ColorEnum->GetNameByValue((int32)Color).ToString();
+	}
+
+	UE_LOG(LogCore, Log, TEXT("FPlayLEDEffectLatentCommand %s Hand, $s %s %s %s"), *Hand.ToString(), *EffectName, *SpeedName, *PatternName, *ColorName);
+
+	UMagicLeapControllerFunctionLibrary::PlayLEDEffect(Hand, LEDEffect, LEDSpeed, Pattern, Color, 1.0f);
+
+	return true;
+}
+
+
+//@TODO - remove editor
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagicLeapControllerLEDEffectTest, "System.VR.MagicLeap.LED.Effects", EAutomationTestFlags::ClientContext | EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FMagicLeapControllerLEDEffectTest::RunTest(const FString&)
+{
+	UEnum* EffectEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerLEDEffect"), true);
+	UEnum* SpeedEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerLEDSpeed"), true);
+	UEnum* PatternEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerLEDPattern"), true);
+	UEnum* ColorEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMagicLeapControllerLEDColor"), true);
+
+	float ActiveDuration = 1.0f;
+	float InactiveDuration = 0.5f;
+	//run through each effect, speed, pattern, color and run the effect, wait for it to finish, turn off, wait
+	//for (uint32 HandIndex = 0; HandIndex < MLInput_MaxControllers; ++HandIndex)
+	//for now only right hand matters
+	FName MotionSource = TEXT("Right");
+	{
+		for (uint32 EffectIndex = 0; EffectIndex < EffectEnum->GetMaxEnumValue(); ++EffectIndex)
+		{
+			for (uint32 SpeedIndex = 0; SpeedIndex < SpeedEnum->GetMaxEnumValue(); ++SpeedIndex)
+			{
+				// led pattern 0 is None, skip it
+				for (uint32 PatternIndex = 1; PatternIndex < PatternEnum->GetMaxEnumValue(); ++PatternIndex)
+				{
+					for (uint32 ColorIndex = 0; ColorIndex < ColorEnum->GetMaxEnumValue(); ++ColorIndex)
+					{
+						//Turn LED pattern on
+						ADD_LATENT_AUTOMATION_COMMAND(FPlayLEDEffectLatentCommand(MotionSource, (EMagicLeapControllerLEDEffect)EffectIndex, (EMagicLeapControllerLEDSpeed)SpeedIndex, (EMagicLeapControllerLEDPattern)PatternIndex, (EMagicLeapControllerLEDColor)ColorIndex));
+						//Give the command a chance to finish
+						ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(ActiveDuration));
+						//Add a second to delimit between patterns
+						ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(InactiveDuration));
+					}
+				}
 			}
 		}
 	}

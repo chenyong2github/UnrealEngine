@@ -19,7 +19,8 @@ public class LuminPlatform : Platform
 
 	// TODO Try to get these at runtime from the Lumin lifecycle service instead of hardcoding them here.
 	//private static string PackageInstallPath = "/package";
-	private static string PackageWritePath = "/documents/c2";
+	// Don't lowercase the sandbox directories.
+	private static string PackageWritePath = "/documents/C2";
 
 	private List<FileReference> RuntimeDependenciesForMabu;
 
@@ -65,20 +66,12 @@ public class LuminPlatform : Platform
 	{
 		// Read in any extra assets required to correctly install the application.
 		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, SC.RawProjectPath.Directory, UnrealTargetPlatform.Lumin);
-		// ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, SC.RawProjectPath.Directory, SC.StageTargetPlatform.PlatformType);
 		string Value;
 		Ini.GetString("/Script/LuminRuntimeSettings.LuminRuntimeSettings", ConfigPropertyName, out Value);
 		Value = CleanFilePath(Value);
 		// We can have two different kinds of paths in the ini for icons: engine exec relative or project root relative.
 		DirectoryReference IconDir = GetFullPathFromRelativePath(Value, SC);
-		List<FileReference> IconFiles = SC.FindFilesToStage(IconDir, "*", StageFilesSearch.AllDirectories);
-		StringBuilder Builder = new StringBuilder();
-		foreach(FileReference IconFile in IconFiles)
-		{
-			string StagePath = IconFile.FullName.Replace(IconDir.FullName, IconStagePath);
-			Builder.AppendLine(String.Format("\"{0}\" : \"{1}\"\\", IconFile.FullName.Replace('\\', '/'), StagePath.Replace('\\', '/')));
-		}
-		return Builder.ToString();
+		return GenerateMabuPackageLine(EnsureTrailingSlashForDirectoryPath(IconDir.FullName), EnsureTrailingSlashForDirectoryPath(IconStagePath));
 	}
 
 	public override void GetFilesToDeployOrStage(ProjectParams Params, DeploymentContext SC)
@@ -506,8 +499,24 @@ public class LuminPlatform : Platform
 				// if we don't need to deploy any NonUFS files, and the exe is up to date, then there's no need to waste time packaging!
 				if (Lines.Length > 0 && !string.IsNullOrWhiteSpace(Lines[0]))
 				{
-					LogInformation("Need minimal package because {0} NonUFS files needed to be staged", Lines.Length);
-					return false;
+					bool NeedDeployNonUFSFiles = false;
+					foreach (string Line in Lines)
+					{
+						// We should not count ue4commandline.txt as a NonUFS file since it is deployed regardless (see Deploy() function).
+						// and counting it here as NonUFS causes an unnecesarry minimal package.
+						if (!(string.IsNullOrWhiteSpace(Line) || Line.Contains("ue4commandline.txt")))
+						{
+							NeedDeployNonUFSFiles = true;
+							break;
+						}
+					}
+					if (NeedDeployNonUFSFiles)
+					{
+						// We used to print the number of NonUFS files that need to be staged, but Lines.Length counts the new line at EOF and thus is off by 1.
+						// Print the actual files instead. Helps with debugging iterative deployment too.
+						LogInformation("Need minimal package because NonUFS files needed to be staged - {0}", NonUFSFiles.Replace("\n", "; "));
+						return false;
+					}
 				}
 			}
 			else
@@ -576,54 +585,142 @@ public class LuminPlatform : Platform
 			Builder.AppendLine("OPTIONS=\\");
 			Builder.AppendLine("stl/libgnustl\\");
 			Builder.AppendLine(string.Format("package/debuggable/{0}", Params.Distribution ? "off" : "on"));
-			Builder.AppendLine("DATAS=\\");
+
+			// Use .package file for mpk signing so that the user can override that if needed with the MLCERT env var.
+			string Certificate = Deploy.GetProjectRelativeCertificatePath();
+			if (!string.IsNullOrEmpty(Certificate))
+			{
+				Certificate = Path.GetFullPath(Path.Combine(Params.RawProjectPath.Directory.FullName, Certificate));
+				if (File.Exists(Certificate))
+				{
+					// Quote the path to handle spaces.
+					Builder.AppendLine(string.Format("MLCERT=\"{0}\"", Certificate));
+				}
+				else
+				{
+					throw new BuildException(string.Format("Certificate file does not exist at path {0}. Please enter a valid certificate file path in Project Settings > Magic Leap or clear the field if you do not intend to sign the package.", Certificate));
+				}
+			}
+
+			Builder.AppendLine("DATAS= \\");
 			if (additionalFiles.Length > 0)
 			{
 				//intentionally no newline because it should already be in the additionalFiles
 				Builder.Append(additionalFiles);
 			}
 
-			string StagedEngineDir = Path.Combine(SC.StageDirectory.FullName, "engine").ToLowerInvariant();
-			string StagedProjectDir = Path.Combine(SC.StageDirectory.FullName, Params.ShortProjectName).ToLowerInvariant();
-			string StagedMoviesDir = Path.Combine(StagedProjectDir, "content", "movies");
-
-			foreach (var FilePath in Directory.EnumerateFiles(SC.StageDirectory.FullName, "*", SearchOption.AllDirectories))
+			List<string> MinimalPackageFiles = new List<string>();
+			if (Params.IterativeDeploy)
 			{
-				if (Path.GetFileName(MabuFile) == Path.GetFileName(FilePath))
+				string NonUFSManifestFileName = CombinePaths(SC.StageDirectory.FullName, SC.GetNonUFSDeployedManifestFileName(null));
+				if (File.Exists(NonUFSManifestFileName))
 				{
-					continue;
+					string[] AllLines = File.ReadAllLines(NonUFSManifestFileName);
+					foreach (string NonUFSFileInfo in AllLines)
+					{
+						MinimalPackageFiles.Add(Path.Combine(SC.StageDirectory.FullName, NonUFSFileInfo.Split(null)[0]).ToLowerInvariant());
+					}
+				}
+				else
+				{
+					CommandUtils.LogError("NonUFS file manifest {0} does not exist at package time", NonUFSManifestFileName);
 				}
 
-				string LowercaseFilePath = FilePath.ToLowerInvariant();
-
-				// when doing iterative deploying, we only add the root files and Icon files
-				// @todo Lumin: Can we change iterative deploying to be at staging time, so that we have the list of NonUFS files to package
-				// @todo Lumin: Why aren't the manifest files around in the Staged dir? This would allow us to know what is Staged
-				if (Params.IterativeDeploy)
+				// Add files in the bin folder explicitely since they are not counted as NonUFS files.
+				string StagedBinDir = Path.Combine(SC.StageDirectory.FullName, "bin").ToLowerInvariant();
+				if (Directory.Exists(StagedBinDir))
 				{
-					// skip project files (except movies)
-					if (LowercaseFilePath.StartsWith(StagedEngineDir) || (LowercaseFilePath.StartsWith(StagedProjectDir) && !LowercaseFilePath.StartsWith(StagedMoviesDir)))
+					foreach (var BinFilePath in Directory.EnumerateFiles(StagedBinDir, "*", SearchOption.AllDirectories))
 					{
-						continue;
+						MinimalPackageFiles.Add(BinFilePath.ToLowerInvariant());
 					}
 				}
 
+				foreach (var FilePath in Directory.EnumerateFiles(SC.StageDirectory.FullName, "*", SearchOption.AllDirectories))
 				{
-					Builder.AppendLine(String.Format("\"{0}\" : \"{1}\"\\", FilePath, Utils.MakePathRelativeTo(FilePath, SC.StageDirectory.FullName, true).Replace('\\', '/')));
+					if (Path.GetFileName(MabuFile) == Path.GetFileName(FilePath))
+					{
+						continue;
+					}
+
+					string LowercaseFilePath = FilePath.ToLowerInvariant();
+
+					// when doing iterative deploying, we only add the NonUFS files and bin folder
+					if (!MinimalPackageFiles.Contains(LowercaseFilePath))
+					{
+						continue;
+					}
+
+					{
+						Builder.AppendLine(GenerateMabuPackageLine(FilePath, Utils.MakePathRelativeTo(FilePath, SC.StageDirectory.FullName, true).Replace('\\', '/')));
+					}
 				}
+			}
+			else
+			{
+				// For regular deployment, provide the entire StageDirectory for packaging.
+				Builder.AppendLine(GenerateMabuPackageLine(EnsureTrailingSlashForDirectoryPath(SC.StageDirectory.FullName), "./"));
 			}
 
 			// third party lbs should be packaged in the bin folder, without changing their filename casing.
 			foreach (FileReference LibFile in RuntimeDependenciesForMabu)
 			{
-				Builder.AppendLine(String.Format("\"{0}\" : \"bin/{1}\"\\", LibFile.FullName, LibFile.GetFileName()));
+				Builder.AppendLine(GenerateMabuPackageLine(LibFile.FullName, string.Format("bin/{0}", LibFile.GetFileName())));
+			}
+
+			// Stage vulkan validation libs
+			bool bStageVulkanValidationLayers = false;
+			if (Deploy.UseVulkan())
+			{
+				switch (SC.StageTargets[0].Receipt.Configuration)
+				{
+					case UnrealTargetConfiguration.Debug:
+					case UnrealTargetConfiguration.DebugGame:
+					case UnrealTargetConfiguration.Development:
+						bStageVulkanValidationLayers = true;
+						break;
+				}
+			}
+
+			if (bStageVulkanValidationLayers)
+			{
+				List<string> VulkanLayerLibsLookupPaths = new List<string>();
+
+				string VulkanValdationLayerLibsDir = Deploy.GetVulkanValdationLayerLibsDir();
+				if (!string.IsNullOrEmpty(VulkanValdationLayerLibsDir))
+				{
+					VulkanLayerLibsLookupPaths.Add(Path.GetFullPath(VulkanValdationLayerLibsDir));
+				}
+				// TODO: add path dir in MLSDK which contains these layer libs. Until that is available, use NDKROOT path as a contingency.
+				//  When we do get these libs in the MLSDK, remove the folder selection option from LuminRuntimeSettings.
+				VulkanLayerLibsLookupPaths.Add(Environment.ExpandEnvironmentVariables("%NDKROOT%/sources/third_party/vulkan/src/build-android/jniLibs/arm64-v8a"));
+
+				VulkanValdationLayerLibsDir = string.Empty;
+				foreach (string LookupPath in VulkanLayerLibsLookupPaths)
+				{
+					if (Directory.Exists(LookupPath))
+					{
+						VulkanValdationLayerLibsDir = LookupPath;
+						break;
+					}
+				}
+
+				if (!string.IsNullOrEmpty(VulkanValdationLayerLibsDir))
+				{
+					Builder.AppendLine(GenerateMabuPackageLine(EnsureTrailingSlashForDirectoryPath(VulkanValdationLayerLibsDir), "bin/"));
+					CommandUtils.LogInformation("Packaging vulkan validation layers from {0} into the mpk.", VulkanValdationLayerLibsDir);
+				}
+				else
+				{
+					CommandUtils.LogInformation("No vulkan validation layer libraries found while building with bUseVulkan enabled. Validation layers will not be enabled in this build.");
+				}
 			}
 
 			// Stage icon files directly to mabu instead of via Unreal to avoid the file casing issues.
 			// Icon files must be staged as is, without changing the case as the fbx, obj etc could have 
 			// embedded references to texture files.
-			Builder.Append(StageIconFileToMabu("IconModelPath", Deploy.GetIconModelStagingPath(), SC));
-			Builder.Append(StageIconFileToMabu("IconPortalPath", Deploy.GetIconPortalStagingPath(), SC));
+			Builder.AppendLine(StageIconFileToMabu("IconModelPath", Deploy.GetIconModelStagingPath(), SC));
+			Builder.AppendLine(StageIconFileToMabu("IconPortalPath", Deploy.GetIconPortalStagingPath(), SC));
 
 			// find executable
 			if (GetExecutableNames(SC).Count > 1)
@@ -633,7 +730,7 @@ public class LuminPlatform : Platform
 
 			// now put the exe into the data list (coming from original location)
 			string ExePath = GetExePath(Params, SC);
-			Builder.AppendLine(String.Format("\"{0}/Binaries/{1}\" : \"bin/{2}\"", Path.GetDirectoryName(MabuFile), Path.GetFileName(ExePath), Params.ShortProjectName));
+			Builder.AppendLine(GenerateMabuPackageLine(string.Format("{0}/Binaries/{1}", Path.GetDirectoryName(MabuFile), Path.GetFileName(ExePath)), string.Format("bin/{0}", Params.ShortProjectName)));
 
 			Directory.CreateDirectory(Path.GetDirectoryName(MabuFile));
 			WriteAllText(MabuFile, Builder.ToString());
@@ -652,6 +749,11 @@ public class LuminPlatform : Platform
 		string UninstallBatchName = GetFinalBatchName(Params, SC, true);
 		BatchLines = GenerateUninstallBatchFile(PackageName, Params);
 		File.WriteAllLines(UninstallBatchName, BatchLines);
+		
+		// Copy mpk and .bat file to staging directory, because this is where Gauntlet looks for them to discover the build
+		File.Copy(MpkName, SC.CookSourceRuntimeRootDir + "\\" + Path.GetFileName(MpkName).ToString(), true);
+		File.Copy(BatchName, SC.CookSourceRuntimeRootDir + "\\" + Path.GetFileName(BatchName).ToString(), true);
+		File.Copy(UninstallBatchName, SC.CookSourceRuntimeRootDir + "\\" + Path.GetFileName(UninstallBatchName).ToString(), true);
 
 		// If needed, make the batch files able to execute
 		if (Utils.IsRunningOnMono)
@@ -782,7 +884,8 @@ public class LuminPlatform : Platform
 		// update the ue4commandline.txt
 		// update and deploy ue4commandline.txt
 		// always delete the existing commandline text file, so it doesn't reuse an old one
-		string IntermediateCmdLineFile = CombinePaths(SC.StageDirectory.FullName, "UE4CommandLine.txt");
+		// only the file name should be lowercased, not the entire path
+		string IntermediateCmdLineFile = CombinePaths(SC.StageDirectory.FullName, "ue4commandline.txt");
 		Project.WriteStageCommandline(new FileReference(IntermediateCmdLineFile), Params, SC);
 
 		// Where we put the files on device.
@@ -797,7 +900,7 @@ public class LuminPlatform : Platform
 			if (Params.IterativeDeploy)
 			{
 				LogInformation("ITERATIVE DEPLOY..");
-				// always send UE4CommandLine.txt (it was written above after delta checks applied)
+				// always send ue4commandline.txt (it was written above after delta checks applied)
 				EntriesToDeploy.Add(IntermediateCmdLineFile);
 
 				// Add non UFS files if any to deploy
@@ -1110,19 +1213,19 @@ public class LuminPlatform : Platform
 
 	#region Implementation Details
 
-	private string GetDeviceCommandLine(ProjectParams Params, string SerialNumber, string Args)
+	private static string GetDeviceCommandLine(ProjectParams Params, string SerialNumber, string Args)
 	{
-		if (SerialNumber != "")
+		if (SerialNumber != null && SerialNumber != "")
 		{
 			SerialNumber = "-s " + SerialNumber;
 		}
 
-		return string.Format("{0} {1}", SerialNumber, Args);
+		return string.Format("{0} {1}", SerialNumber != null ? SerialNumber : "", Args);
 	}
 
 	static string LastSpewFilename = "";
 
-	public string ADBSpewFilter(string Message)
+	public static string MLDBSpewFilter(string Message)
 	{
 		if (Message.StartsWith("[") && Message.Contains("%]"))
 		{
@@ -1143,7 +1246,7 @@ public class LuminPlatform : Platform
 		return Message;
 	}
 
-	private string DeviceCommand
+	private static string DeviceCommand
 	{
 		get
 		{
@@ -1174,12 +1277,12 @@ public class LuminPlatform : Platform
 		}
 	}
 
-	private IProcessResult RunDeviceCommand(ProjectParams Params, string SerialNumber, string Args, string Input = null, ERunOptions Options = ERunOptions.Default)
+	public static IProcessResult RunDeviceCommand(ProjectParams Params, string SerialNumber, string Args, string Input = null, ERunOptions Options = ERunOptions.Default)
 	{
 		if (Options.HasFlag(ERunOptions.AllowSpew) || Options.HasFlag(ERunOptions.SpewIsVerbose))
 		{
 			LastSpewFilename = "";
-			return Run(DeviceCommand, GetDeviceCommandLine(Params, SerialNumber, Args), Input, Options, SpewFilterCallback: new ProcessResult.SpewFilterCallbackType(ADBSpewFilter));
+			return Run(DeviceCommand, GetDeviceCommandLine(Params, SerialNumber, Args), Input, Options, SpewFilterCallback: new ProcessResult.SpewFilterCallbackType(MLDBSpewFilter));
 		}
 		return Run(DeviceCommand, GetDeviceCommandLine(Params, SerialNumber, Args), Input, Options);
 	}
@@ -1187,7 +1290,7 @@ public class LuminPlatform : Platform
 	private string RunAndLogDeviceCommand(ProjectParams Params, string SerialNumber, string Args, out int SuccessCode)
 	{
 		LastSpewFilename = "";
-		return RunAndLog(CmdEnv, DeviceCommand, GetDeviceCommandLine(Params, SerialNumber, Args), out SuccessCode, SpewFilterCallback: new ProcessResult.SpewFilterCallbackType(ADBSpewFilter));
+		return RunAndLog(CmdEnv, DeviceCommand, GetDeviceCommandLine(Params, SerialNumber, Args), out SuccessCode, SpewFilterCallback: new ProcessResult.SpewFilterCallbackType(MLDBSpewFilter));
 	}
 
 	private const int DeployMaxParallelCommands = 6;
@@ -1232,6 +1335,27 @@ public class LuminPlatform : Platform
 		return Configurations;
 	}
 
+	/// <summary>
+	/// Generates a formatted line for the mabu .package file to map the SrcFile to the Dst path in the mpk
+	/// </summary>
+	/// <param name="SrcFile">Full path to src file. Should not be quoted.</param>
+	/// <param name="DstFile">Path relative to mpk root where the SrcFile should be packaged. Should not be quoted.</param>
+	private string GenerateMabuPackageLine(string SrcFile, string DstFile)
+	{
+		// Ensure that the paths are quoted and that there is a space before the trailing slash
+		return string.Format("\"{0}\" : \"{1}\" \\", SrcFile.Replace('\\', '/'), DstFile.Replace('\\', '/'));
+	}
+
+	private string EnsureTrailingSlashForDirectoryPath(string DirPath)
+	{
+		if (!(DirPath.EndsWith(Path.DirectorySeparatorChar.ToString()) || DirPath.EndsWith(Path.AltDirectorySeparatorChar.ToString()) ))
+		{
+			// Ensure trailing slash in folder path for recursive folder packaging via mabu.
+			return DirPath + Path.DirectorySeparatorChar;
+		}
+
+		return DirPath;
+	}
 
 	#endregion
 }

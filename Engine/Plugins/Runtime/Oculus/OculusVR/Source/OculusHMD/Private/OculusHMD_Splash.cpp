@@ -29,6 +29,8 @@ FSplash::FSplash(FOculusHMD* InOculusHMD) :
 	NextLayerId(1),
 	bInitialized(false),
 	bIsShown(false),
+	bNeedSplashUpdate(false),
+	bShouldShowSplash(false),
 	SystemDisplayInterval(1 / 90.0f)
 {
 	// Create empty quad layer for black frame
@@ -125,7 +127,7 @@ void FSplash::LoadSettings()
 
 void FSplash::OnPreLoadMap(const FString&)
 {
-	Show();
+	DoShow();
 }
 
 void FSplash::Startup()
@@ -381,6 +383,21 @@ int FSplash::AddSplash(const FOculusSplashDesc& Desc)
 }
 
 
+void FSplash::AddSplash(const FSplashDesc& Splash)
+{
+	FOculusSplashDesc OculusDesc;
+	OculusDesc.TransformInMeters = Splash.Transform;
+	OculusDesc.QuadSizeInMeters = Splash.QuadSize;
+	OculusDesc.DeltaRotation = Splash.DeltaRotation;
+	OculusDesc.bNoAlphaChannel = Splash.bIgnoreAlpha;
+	OculusDesc.bIsDynamic = Splash.bIsDynamic || Splash.bIsExternal;
+	OculusDesc.TextureOffset = Splash.UVRect.Min;
+	OculusDesc.TextureScale = Splash.UVRect.Max;
+	OculusDesc.LoadedTexture = Splash.Texture;
+
+	AddSplash(OculusDesc);
+}
+
 void FSplash::ClearSplashes()
 {
 	CheckInGameThread();
@@ -420,7 +437,7 @@ IStereoLayers::FLayerDesc FSplash::StereoLayerDescFromOculusSplashDesc(FOculusSp
 	return LayerDesc;
 }
 
-void FSplash::Show()
+void FSplash::DoShow()
 {
 	CheckInGameThread();
 
@@ -518,7 +535,7 @@ void FSplash::Show()
 }
 
 
-void FSplash::Hide()
+void FSplash::DoHide()
 {
 	CheckInGameThread();
 
@@ -526,6 +543,38 @@ void FSplash::Hide()
 	bIsShown = false;
 
 	StopTicker();
+}
+
+void FSplash::UpdateLoadingScreen_GameThread()
+{
+	if (bNeedSplashUpdate)
+	{
+		if (bShouldShowSplash)
+		{
+			DoShow();
+		}
+		else
+		{
+			DoHide();
+		}
+
+		bNeedSplashUpdate = false;
+	}
+}
+
+void FSplash::ShowLoadingScreen()
+{
+	bShouldShowSplash = true;
+
+	// DoShow will be called from UpdateSplashScreen_Gamethread().
+	// This can can happen if the splashes are already being shown, as it will reset the relative positions and delta rotations of the layers.
+	bNeedSplashUpdate = true;  
+}
+
+void FSplash::HideLoadingScreen()
+{
+	bShouldShowSplash = false;
+	bNeedSplashUpdate = bIsShown; // no need to call DoHide when the splash is already hidden
 }
 
 void FSplash::UnloadTextures()

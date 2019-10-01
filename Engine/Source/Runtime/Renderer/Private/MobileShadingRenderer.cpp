@@ -501,13 +501,21 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
+	FRHITexture* FoveationTexture = nullptr;
+	
+	if (SceneContext.IsFoveationTextureAllocated())
+	{
+		FoveationTexture = SceneContext.GetFoveationTexture();
+	}
+
 	FRHIRenderPassInfo SceneColorRenderPassInfo(
 		SceneColor,
 		ColorTargetAction,
 		SceneColorResolve,
 		SceneDepth,
-		DepthTargetAction, 
+		DepthTargetAction,
 		nullptr, // we never resolve scene depth on mobile
+		FoveationTexture,
 		FExclusiveDepthStencil::DepthWrite_StencilWrite
 	);
 	SceneColorRenderPassInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
@@ -598,6 +606,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			SceneDepth,
 			DepthTargetAction, 
 			nullptr,
+			FoveationTexture,
 			ExclusiveDepthStencil
 		);
 		TranslucentRenderPassInfo.NumOcclusionQueries = 0;

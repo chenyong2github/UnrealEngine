@@ -33,13 +33,4 @@ public:
 	{
 		return FModuleManager::Get().IsModuleLoaded( "MagicLeapScreens" );
 	}
-
-	virtual bool Tick(float DeltaTime) = 0;
-
-	virtual bool IsEngineLoopInitComplete() const = 0;
-
-	virtual void OnEngineLoopInitComplete() = 0;
-
-	FTickerDelegate TickDelegate;
-	FDelegateHandle TickDelegateHandle;
 };

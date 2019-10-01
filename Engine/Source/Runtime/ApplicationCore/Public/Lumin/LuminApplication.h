@@ -6,9 +6,8 @@
 #include "Android/AndroidApplication.h"
 #include <Containers/Queue.h>
 
-#include <ml_api.h>
-#include <ml_keycodes.h>
-#include <ml_input.h>
+#include "Lumin/CAPIShims/LuminAPIInput.h"
+#include "Lumin/CAPIShims/LuminAPIKeyCodes.h"
 
 /**
 * Lumin-specific application implementation.

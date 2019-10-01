@@ -114,10 +114,14 @@ public:
 	virtual void StartupModule() override
 	{
 		// supported file extensions
+		SupportedFileExtensions.Add(TEXT("3gp"));
 		SupportedFileExtensions.Add(TEXT("mp4"));
-		SupportedFileExtensions.Add(TEXT("3gpp"));
+		SupportedFileExtensions.Add(TEXT("mp4a"));
 		SupportedFileExtensions.Add(TEXT("aac"));
-		SupportedFileExtensions.Add(TEXT("m3u8"));
+		SupportedFileExtensions.Add(TEXT("ts"));
+		SupportedFileExtensions.Add(TEXT("mkv"));
+		SupportedFileExtensions.Add(TEXT("webm"));
+		SupportedFileExtensions.Add(TEXT("m4v"));
 
     	// supported platforms
     	SupportedPlatforms.Add(TEXT("Lumin"));
@@ -126,6 +130,8 @@ public:
 		SupportedUriSchemes.Add(TEXT("file"));
 		SupportedUriSchemes.Add(TEXT("http"));
 		SupportedUriSchemes.Add(TEXT("https"));
+		// custom schema for user shared files
+		SupportedUriSchemes.Add(TEXT("mlshared"));
 		// Not supporting streaming right now.
 		// SupportedUriSchemes.Add(TEXT("httpd"));
 		// SupportedUriSchemes.Add(TEXT("mms"));

@@ -9,19 +9,16 @@
 #include "Misc/CoreDelegates.h"
 #include "RenderingThread.h"
 #include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
-#include "IMagicLeapModule.h"
 
-#if WITH_MLSDK
-ML_INCLUDES_START
-#include <ml_snapshot.h>
-ML_INCLUDES_END
-#endif //WITH_MLSDK
+#include "Lumin/CAPIShims/LuminAPISnapshot.h"
+
+#if PLATFORM_LUMIN
+#include "Lumin/LuminPlatformDelegates.h"
+#endif // PLATFORM_LUMIN
 
 TArray<MagicLeap::IAppEventHandler*> FAppFramework::EventHandlers;
 FCriticalSection FAppFramework::EventHandlersCriticalSection;
 MagicLeap::FAsyncDestroyer* FAppFramework::AsyncDestroyer = nullptr;
-TMap<FName, IMagicLeapModule*> FAppFramework::RegisteredModules;
-
 
 FAppFramework::FAppFramework()
 {}
@@ -33,19 +30,15 @@ FAppFramework::~FAppFramework()
 
 void FAppFramework::Startup()
 {
-	base_dirty_ = false;
-
-#if WITH_MLSDK
-	base_coordinate_frame_.data[0] = 0;
-	base_coordinate_frame_.data[1] = 0;
-#endif //WITH_MLSDK
-
-	base_position_ = FVector::ZeroVector;
-	base_orientation_ = FQuat::Identity;
-
 	// Register application lifecycle delegates
 	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FAppFramework::ApplicationPauseDelegate);
 	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FAppFramework::ApplicationResumeDelegate);
+
+#if PLATFORM_LUMIN
+	FLuminDelegates::DeviceHasReactivatedDelegate.AddRaw(this, &FAppFramework::OnDeviceActive);
+	FLuminDelegates::DeviceWillEnterRealityModeDelegate.AddRaw(this, &FAppFramework::OnDeviceRealityMode);
+	FLuminDelegates::DeviceWillGoInStandbyDelegate.AddRaw(this, &FAppFramework::OnDeviceStandby);
+#endif // PLATFORM_LUMIN
 
 	AsyncDestroyer = new MagicLeap::FAsyncDestroyer();
 
@@ -60,6 +53,15 @@ void FAppFramework::Shutdown()
 
 	delete AsyncDestroyer;
 	AsyncDestroyer = nullptr;
+
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.RemoveAll(this);
+	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.RemoveAll(this);
+
+#if PLATFORM_LUMIN
+	FLuminDelegates::DeviceHasReactivatedDelegate.RemoveAll(this);
+	FLuminDelegates::DeviceWillEnterRealityModeDelegate.RemoveAll(this);
+	FLuminDelegates::DeviceWillGoInStandbyDelegate.RemoveAll(this);
+#endif // PLATFORM_LUMIN
 }
 
 void FAppFramework::BeginUpdate()
@@ -67,19 +69,6 @@ void FAppFramework::BeginUpdate()
 #if WITH_MLSDK
 	if (bInitialized)
 	{
-		if (base_dirty_)
-		{
-			MLTransform Transform = MagicLeap::kIdentityTransform;
-			Transform.position = MagicLeap::ToMLVector(-base_position_, GetWorldToMetersScale());
-			Transform.rotation = MagicLeap::ToMLQuat(base_orientation_.Inverse());
-
-			base_coordinate_frame_.data[0] = 0;
-			base_coordinate_frame_.data[1] = 0;
-			base_position_ = FVector::ZeroVector;
-			base_orientation_ = FQuat::Identity;
-			base_dirty_ = false;
-		}
-
 		FScopeLock Lock(&EventHandlersCriticalSection);
 		for (auto EventHandler : EventHandlers)
 		{
@@ -113,11 +102,7 @@ void FAppFramework::ApplicationPauseDelegate()
 	}
 
 	// Pause rendering
-	FMagicLeapHMD * const HMD = GEngine ? static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice()) : nullptr;
-	if (HMD)
-	{
-		HMD->PauseRendering(true);
-	}
+	PauseRendering(true);
 }
 
 void FAppFramework::ApplicationResumeDelegate()
@@ -125,12 +110,7 @@ void FAppFramework::ApplicationResumeDelegate()
 	UE_LOG(LogMagicLeap, Log, TEXT("+++++++ ML AppFramework APP RESUME ++++++"));
 
 	// Resume rendering
-	// Resume rendering
-	FMagicLeapHMD * const HMD = GEngine ? static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice()) : nullptr;
-	if (HMD)
-	{
-		HMD->PauseRendering(false);
-	}
+	PauseRendering(false);
 
 	if (GEngine)
 	{
@@ -159,30 +139,31 @@ void FAppFramework::OnApplicationShutdown()
 	}
 }
 
-#if WITH_MLSDK
-void FAppFramework::SetBaseCoordinateFrame(MLCoordinateFrameUID InBaseCoordinateFrame)
+void FAppFramework::OnDeviceActive()
 {
-	base_coordinate_frame_ = InBaseCoordinateFrame;
-	base_dirty_ = true;
-}
-#endif //WITH_MLSDK
-
-void FAppFramework::SetBasePosition(const FVector& InBasePosition)
-{
-	base_position_ = InBasePosition;
-	base_dirty_ = true;
+	UE_LOG(LogMagicLeap, Log, TEXT("+++++++ ML AppFramework DEVICE ACTIVE ++++++"));
+	PauseRendering(false);
 }
 
-void FAppFramework::SetBaseOrientation(const FQuat& InBaseOrientation)
+void FAppFramework::OnDeviceRealityMode()
 {
-	base_orientation_ = InBaseOrientation;
-	base_dirty_ = true;
+	UE_LOG(LogMagicLeap, Log, TEXT("+++++++ ML AppFramework DEVICE REALITY MODE ++++++"));
+	PauseRendering(true);
 }
 
-void FAppFramework::SetBaseRotation(const FRotator& InBaseRotation)
+void FAppFramework::OnDeviceStandby()
 {
-	base_orientation_ = InBaseRotation.Quaternion();
-	base_dirty_ = true;
+	UE_LOG(LogMagicLeap, Log, TEXT("+++++++ ML AppFramework DEVICE STANDBY ++++++"));
+	PauseRendering(true);
+}
+
+void FAppFramework::PauseRendering(bool bPause)
+{
+	FMagicLeapHMD * const HMD = GEngine ? static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice()) : nullptr;
+	if (HMD)
+	{
+		HMD->PauseRendering(bPause);
+	}
 }
 
 const FTrackingFrame* FAppFramework::GetCurrentFrame() const
@@ -197,17 +178,11 @@ const FTrackingFrame* FAppFramework::GetOldFrame() const
 	return hmd ? &(hmd->GetOldFrame()) : nullptr;
 }
 
-FVector2D FAppFramework::GetFieldOfView() const
-{
-	// TODO Pass correct values when graphics provides them through API.
-	return FVector2D(80.0f, 60.0f);
-}
-
 uint32 FAppFramework::GetViewportCount() const
 {
 #if WITH_MLSDK
 	const FTrackingFrame *frame = GetOldFrame();
-	return frame ? frame->RenderInfoArray.num_virtual_cameras : 2;
+	return frame ? frame->FrameInfo.virtual_camera_info_array.num_virtual_cameras : 2;
 #else
 	return 1;
 #endif //WITH_MLSDK
@@ -233,12 +208,12 @@ FTransform FAppFramework::GetCurrentFrameUpdatePose() const
 }
 
 #if WITH_MLSDK
-bool FAppFramework::GetTransform(const MLCoordinateFrameUID& Id, FTransform& OutTransform, EFailReason& OutReason) const
+bool FAppFramework::GetTransform(const MLCoordinateFrameUID& Id, FTransform& OutTransform, EMagicLeapTransformFailReason& OutReason) const
 {
 	const FTrackingFrame* frame = GetCurrentFrame();
 	if (frame == nullptr)
 	{
-		OutReason = EFailReason::InvalidTrackingFrame;
+		OutReason = EMagicLeapTransformFailReason::InvalidTrackingFrame;
 		return false;
 	}
 
@@ -249,7 +224,7 @@ bool FAppFramework::GetTransform(const MLCoordinateFrameUID& Id, FTransform& Out
 		OutTransform = MagicLeap::ToFTransform(transform, GetWorldToMetersScale());
 		if (OutTransform.ContainsNaN())
 		{
-			OutReason = EFailReason::NaNsInTransform;
+			OutReason = EMagicLeapTransformFailReason::NaNsInTransform;
 			return false;
 		}
 		// Unreal crashes if the incoming quaternion is not normalized.
@@ -259,58 +234,21 @@ bool FAppFramework::GetTransform(const MLCoordinateFrameUID& Id, FTransform& Out
 			rotation.Normalize();
 			OutTransform.SetRotation(rotation);
 		}
-		OutReason = EFailReason::None;
+		OutReason = EMagicLeapTransformFailReason::None;
 		return true;
 	}
 	else if (Result == MLSnapshotResult_PoseNotFound)
 	{
-		OutReason = EFailReason::PoseNotFound;
+		OutReason = EMagicLeapTransformFailReason::PoseNotFound;
 	}
 	else
 	{
-		OutReason = EFailReason::CallFailed;
+		OutReason = EMagicLeapTransformFailReason::CallFailed;
 	}
 
 	return false;
 }
 #endif //WITH_MLSDK
-
-TSharedPtr<FCameraCaptureRunnable, ESPMode::ThreadSafe> FAppFramework::GetCameraCaptureRunnable()
-{
-	if (!CameraCaptureRunnable.IsValid())
-	{
-		CameraCaptureRunnable = MakeShared<FCameraCaptureRunnable, ESPMode::ThreadSafe>();
-	}
-	return CameraCaptureRunnable;
-}
-
-void FAppFramework::RefreshCameraCaptureRunnableReferences()
-{
-	// a reference count of 1 is a self reference
-	if (CameraCaptureRunnable.GetSharedReferenceCount() == 1)
-	{
-		CameraCaptureRunnable.Reset();
-	}
-}
-
-TSharedPtr<FImageTrackerRunnable, ESPMode::ThreadSafe> FAppFramework::GetImageTrackerRunnable()
-{
-	if (!ImageTrackerRunnable.IsValid())
-	{
-		ImageTrackerRunnable = MakeShared<FImageTrackerRunnable, ESPMode::ThreadSafe>();
-	}
-
-	return ImageTrackerRunnable;
-}
-
-void FAppFramework::RefreshImageTrackerRunnableReferences()
-{
-	// a reference count of 1 is a self reference
-	if (ImageTrackerRunnable.GetSharedReferenceCount() == 1)
-	{
-		ImageTrackerRunnable.Reset();
-	}
-}
 
 void FAppFramework::AddEventHandler(MagicLeap::IAppEventHandler* EventHandler)
 {
@@ -333,21 +271,4 @@ bool FAppFramework::AsyncDestroy(MagicLeap::IAppEventHandler* InEventHandler)
 	}
 
 	return false;
-}
-
-void FAppFramework::RegisterMagicLeapModule(IMagicLeapModule* InModule)
-{
-	checkf(RegisteredModules.Find(InModule->GetName()) == nullptr, TEXT("MagicLeapModule %s has already been registered!"), *InModule->GetName().ToString());
-	RegisteredModules.Add(InModule->GetName(), InModule);
-}
-
-void FAppFramework::UnregisterMagicLeapModule(IMagicLeapModule* InModule)
-{
-	RegisteredModules.Remove(InModule->GetName());
-}
-
-IMagicLeapModule* FAppFramework::GetMagicLeapModule(FName InName)
-{
-	IMagicLeapModule** MagicLeapModule = RegisteredModules.Find(InName);
-	return MagicLeapModule ? *MagicLeapModule : nullptr;
 }

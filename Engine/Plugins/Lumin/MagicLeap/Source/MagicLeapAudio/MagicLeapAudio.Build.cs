@@ -13,8 +13,6 @@ public class MagicLeapAudio : ModuleRules
 		PublicIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/AudioMixer/Public"));
 		PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/AudioMixer/Private"));
 
-		PrivateIncludePaths.Add("MagicLeap/Private");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
@@ -22,7 +20,9 @@ public class MagicLeapAudio : ModuleRules
 				"Engine",
 				"MLSDK",
 				"AudioMixer",
-				"AudioMixerCore"
+				"AudioMixerCore",
+				"HeadMountedDisplay",
+				"MagicLeap"
 			}
 		);
 

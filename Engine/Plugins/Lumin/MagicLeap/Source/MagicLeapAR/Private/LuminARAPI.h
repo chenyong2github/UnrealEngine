@@ -7,7 +7,8 @@
 #include "LuminARTypes.h"
 #include "LuminARSessionConfig.h"
 #include "ARSessionConfig.h"
-#include "PlanesComponent.h"
+#include "MagicLeapPlanesTypes.h"
+#include "MagicLeapHandle.h"
 
 #include "LuminARAPI.generated.h"
 
@@ -35,7 +36,6 @@ enum class ELuminARPlaneQueryStatus : int
 	Fail
 };
 
-#if PLATFORM_LUMIN
 static ArTrackableType GetTrackableType(UClass* ClassType)
 {
 	if (ClassType == UARTrackedGeometry::StaticClass())
@@ -51,7 +51,6 @@ static ArTrackableType GetTrackableType(UClass* ClassType)
 		return ArTrackableType::LUMIN_AR_TRACKABLE_NOT_VALID;
 	}
 }
-#endif
 
 class FLuminARFrame;
 class FLuminARSession;
@@ -66,15 +65,13 @@ public:
 	UPROPERTY()
 	TArray<UARPin*> AllAnchors;
 
-#if PLATFORM_LUMIN
-	TMap<uint64, TSharedPtr<LuminArAnchor>> HandleToLuminAnchorMap;
-	TMap<uint64, UARPin*> HandleToAnchorMap;
-	TMap<uint64, TWeakObjectPtr<UARTrackedGeometry>> TrackableHandleMap;
+	TMap<FGuid, TSharedPtr<LuminArAnchor>> HandleToLuminAnchorMap;
+	TMap<FGuid, UARPin*> HandleToAnchorMap;
+	TMap<FGuid, TWeakObjectPtr<UARTrackedGeometry>> TrackableHandleMap;
 
-	template< class T > T* GetTrackableFromHandle(MLHandle TrackableHandle, FLuminARSession* Session);
+	template< class T > T* GetTrackableFromHandle(const FGuid& TrackableHandle, FLuminARSession* Session);
 
-	void DumpTrackableHandleMap(const MLHandle SessionHandle);
-#endif
+	void DumpTrackableHandleMap(const FGuid& SessionHandle);
 };
 
 
@@ -92,9 +89,6 @@ public:
 	float GetWorldToMeterScale();
 	void SetARSystem(TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> InArSystem) { ARSystem = InArSystem; }
 	TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> GetARSystem() { return ARSystem.ToSharedRef(); }
-#if PLATFORM_LUMIN
-	MLHandle GetPlaneTrackerHandle();
-#endif
 
 	ELuminARAPIStatus Resume();
 	ELuminARAPIStatus Pause();
@@ -123,10 +117,13 @@ private:
 	uint32 FrameNumber;
 
 	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> ARSystem;
+};
 
-#if PLATFORM_LUMIN
-	MLHandle PlaneTrackerHandle = ML_INVALID_HANDLE;
-#endif
+struct FPlanesAndBoundaries
+{
+public:
+	FMagicLeapPlaneResult Plane;
+	TArray<FVector> PolygonVerticesLocalSpace;
 };
 
 class FLuminARFrame
@@ -147,7 +144,7 @@ public:
 
 	void GetUpdatedAnchors(TArray<UARPin*>& OutUpdatedAnchors) const;
 
-	const FPlaneResult* GetPlaneResult(int64 Handle) const { return PlaneResultsMap.Find(Handle); }
+	const FPlanesAndBoundaries* GetPlaneResult(const FGuid& Handle) const { return PlaneResultsMap.Find(Handle); }
 
 	void ARLineTrace(FVector2D ScreenPosition, ELuminARLineTraceChannel RequestedTraceChannels, TArray<FARTraceResult>& OutHitResults) const;
 	void ARLineTrace(FVector Start, FVector End, ELuminARLineTraceChannel RequestedTraceChannels, TArray<FARTraceResult>& OutHitResults) const;
@@ -160,7 +157,7 @@ public:
 private:
 
 	void StartPlaneQuery();
-	void ProcessPlaneQuery();
+	void ProcessPlaneQuery(const bool bSuccess, const TArray<FMagicLeapPlaneResult>& Planes, const TArray<FMagicLeapPlaneBoundaries>& Polygons);
 
 
 	FLuminARSession* Session;
@@ -170,15 +167,14 @@ private:
 	ELuminARPlaneQueryStatus LatestARPlaneQueryStatus;
 
 	TArray<UARPin*> UpdatedAnchors;
-	TMap<uint64, FPlaneResult> PlaneResultsMap;
+	TMap<FGuid, FPlanesAndBoundaries> PlaneResultsMap;
 
 	int32 MaxPlaneQueryResults = 0;
 	bool bDiscardZeroExtentPlanes = false;
 
-#if PLATFORM_LUMIN
-	MLHandle PlaneTrackerHandle = ML_INVALID_HANDLE;
-	MLHandle PlaneQueryHandle = ML_INVALID_HANDLE;
-#endif
+	bool bPlanesQueryPending;
+
+	FMagicLeapPlanesResultStaticDelegate ResultDelegate;
 };
 
 class FLuminARTrackableResource : public IARRef
@@ -189,18 +185,19 @@ public:
 
 	virtual void RemoveRef() override
 	{
-#if PLATFORM_LUMIN
-		TrackableHandle = ML_INVALID_HANDLE;
-#endif
+#if WITH_MLSDK
+		TrackableHandle = MagicLeap::MLHandleToFGuid(ML_INVALID_HANDLE);
+#endif // WITH_MLSDK
 	}
 
-#if PLATFORM_LUMIN
 public:
-	FLuminARTrackableResource(MLHandle InTrackableHandle, UARTrackedGeometry* InTrackedGeometry)
+	FLuminARTrackableResource(const FGuid& InTrackableHandle, UARTrackedGeometry* InTrackedGeometry)
 		: TrackableHandle(InTrackableHandle)
 		, TrackedGeometry(InTrackedGeometry)
 	{
-		ensure(TrackableHandle != ML_INVALID_HANDLE);
+#if WITH_MLSDK
+		ensure(MagicLeap::FGuidIsValidHandle(TrackableHandle));
+#endif // WITH_MLSDK
 	}
 
 	virtual ~FLuminARTrackableResource()
@@ -211,36 +208,29 @@ public:
 
 	virtual void UpdateGeometryData(FLuminARSession* InSession);
 
-	MLHandle GetNativeHandle() { return TrackableHandle; }
+	const FGuid& GetNativeHandle() { return TrackableHandle; }
 
 	void ResetNativeHandle(LuminArTrackable* InTrackableHandle);
 
 protected:
-	MLHandle TrackableHandle;
+	FGuid TrackableHandle;
 	UARTrackedGeometry* TrackedGeometry;
-#endif
 };
 
 class FLuminARTrackedPlaneResource : public FLuminARTrackableResource
 {
 public:
-#if PLATFORM_LUMIN
-	FLuminARTrackedPlaneResource(MLHandle InTrackableHandle, UARTrackedGeometry* InTrackedGeometry)
+	FLuminARTrackedPlaneResource(const FGuid& InTrackableHandle, UARTrackedGeometry* InTrackedGeometry)
 		: FLuminARTrackableResource(InTrackableHandle, InTrackedGeometry)
 	{
-		ensure(TrackableHandle != ML_INVALID_HANDLE);
 	}
 
 	void UpdateGeometryData(FLuminARSession* InSession) override;
-
-	ArPlane* GetPlaneHandle() { return reinterpret_cast<ArPlane*>(TrackableHandle); }
-#endif
 };
 
-#if PLATFORM_LUMIN
 // Template function definition
 template< class T >
-T* ULuminARUObjectManager::GetTrackableFromHandle(MLHandle TrackableHandle, FLuminARSession* Session)
+T* ULuminARUObjectManager::GetTrackableFromHandle(const FGuid& TrackableHandle, FLuminARSession* Session)
 {
 	if (!TrackableHandleMap.Contains(TrackableHandle)
 		|| !TrackableHandleMap[TrackableHandle].IsValid()
@@ -253,7 +243,7 @@ T* ULuminARUObjectManager::GetTrackableFromHandle(MLHandle TrackableHandle, FLum
 		check(Session);
 		const FLuminARFrame* Frame = Session->GetLatestFrame();
 		check(Frame);
-		const FPlaneResult* PlaneResult = Frame->GetPlaneResult(TrackableHandle);
+		const FPlanesAndBoundaries* PlaneResult = Frame->GetPlaneResult(TrackableHandle);
 		if (PlaneResult)
 		{
 			TrackableType = ArTrackableType::LUMIN_AR_TRACKABLE_PLANE;
@@ -278,7 +268,7 @@ T* ULuminARUObjectManager::GetTrackableFromHandle(MLHandle TrackableHandle, FLum
 		NewTrackableObject->InitializeNativeResource(NativeResource);
 		NativeResource = nullptr;
 
-		FLuminARTrackableResource* TrackableResource = reinterpret_cast<FLuminARTrackableResource*>(NewTrackableObject->GetNativeResource());
+		FLuminARTrackableResource* TrackableResource = static_cast<FLuminARTrackableResource*>(NewTrackableObject->GetNativeResource());
 
 		// no, we always do this in ProcessPlaneQuery
 		// Update the tracked geometry data using the native resource
@@ -292,13 +282,11 @@ T* ULuminARUObjectManager::GetTrackableFromHandle(MLHandle TrackableHandle, FLum
 	//checkf(Result, TEXT("ULuminARUObjectManager failed to get a valid trackable %p from the map."), TrackableHandle);
 	return Result;
 }
-#endif
 
 template< class T >
 void FLuminARSession::GetAllTrackables(TArray<T*>& OutARCoreTrackableList)
 {
 	OutARCoreTrackableList.Empty();
-#if PLATFORM_LUMIN
 
 	ArTrackableType TrackableType = GetTrackableType(T::StaticClass());
 	if (TrackableType == ArTrackableType::LUMIN_AR_TRACKABLE_NOT_VALID)
@@ -321,5 +309,4 @@ void FLuminARSession::GetAllTrackables(TArray<T*>& OutARCoreTrackableList)
 			}
 		}	
 	}
-#endif
 }

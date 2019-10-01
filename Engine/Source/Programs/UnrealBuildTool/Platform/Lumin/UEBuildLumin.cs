@@ -21,6 +21,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-GPUArchitectures=", ListSeparator = '+')]
 		public List<string> GPUArchitectures = new List<string>();
+
+		/// <summary>
+		/// If -distribution was passed on the commandline, this build is for distribution.
+		/// </summary>
+		[CommandLine("-distribution")]
+		public bool bForDistribution = false;
 	}
 
 	/// <summary>
@@ -54,12 +60,98 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.GPUArchitectures.AsReadOnly(); }
 		}
+		public bool bForDistribution
+		{
+			get { return Inner.bForDistribution; }
+		}
 
 #if !__MonoCS__
 #pragma warning restore CS1591
 #endif
 		#endregion
 	}
+
+	/// <summary>
+	/// Helper class for shared lumin platform functions and members
+	/// </summary>
+	public class LuminSDKVersionHelper
+	{
+		/// <summary>
+		/// This is the minimum SDK version we support.
+		/// </summary>
+		static uint MinimumSDKVersionMajor = 0;
+		static uint MinimumSDKVersionMinor = 22;
+
+		/// <summary>
+		/// Gets a string defining the minimum required sdk version.
+		/// </summary>
+		/// <returns></returns>
+		public string GetRequiredSDKString()
+		{
+			return string.Format("{0}.{1}", MinimumSDKVersionMajor, MinimumSDKVersionMinor);
+		}
+
+		/// <summary>
+		/// checks if the sdk is installed or has been synced, sets environment variable
+		/// </summary>
+		/// <returns></returns>
+		public bool HasAnySDK()
+		{
+			string EnvVarKey = "MLSDK";
+
+			string MLSDKPath = Environment.GetEnvironmentVariable(EnvVarKey);
+			if (String.IsNullOrEmpty(MLSDKPath))
+			{
+				Log.TraceLog("*** Unable to determine MLSDK location ***");
+				return false;
+			}
+
+			// detected SDK version is < minimum major/minor
+			uint DetectedMajorVersion;
+			uint DetectedMinorVersion;
+			String VersionFile = string.Format("{0}/include/ml_version.h", MLSDKPath).Replace('/', Path.DirectorySeparatorChar);
+			if (File.Exists(VersionFile))
+			{
+				string[] VersionText = File.ReadAllLines(VersionFile);
+
+				String MajorVersion = FindVersionNumber("MLSDK_VERSION_MAJOR", VersionText);
+				String MinorVersion = FindVersionNumber("MLSDK_VERSION_MINOR", VersionText);
+				DetectedMajorVersion = Convert.ToUInt32(MajorVersion);
+				DetectedMinorVersion = Convert.ToUInt32(MinorVersion);
+			}
+			else
+			{
+				Log.TraceLog("*** Unable to locate MLSDK version file ml_version.h ***");
+				return false;
+			}
+
+			if (DetectedMajorVersion < MinimumSDKVersionMajor || (DetectedMajorVersion == MinimumSDKVersionMajor && DetectedMinorVersion < MinimumSDKVersionMinor))
+			{
+				Log.TraceLog("*** Found installed MLSDK version {0}.{1} at '{2}' but require at least {3}.{4} ***",
+					DetectedMajorVersion, DetectedMinorVersion, MLSDKPath, MinimumSDKVersionMajor, MinimumSDKVersionMinor);
+				return false;
+			}
+
+			Log.TraceLog("*** Found installed MLSDK version {0}.{1} at '{2}' ***", DetectedMajorVersion, DetectedMinorVersion, MLSDKPath);
+			return true;
+		}
+
+		private string FindVersionNumber(string StringToFind, string[] AllLines)
+		{
+			string FoundVersion = "Unknown";
+			foreach (string CurrentLine in AllLines)
+			{
+				int Index = CurrentLine.IndexOf(StringToFind);
+				if (Index != -1)
+				{
+					FoundVersion = CurrentLine.Substring(Index + StringToFind.Length);
+					break;
+				}
+			}
+			return FoundVersion.Trim();
+		}
+	}
+
 	class LuminPlatform : AndroidPlatform
 	{
 		public LuminPlatform(AndroidPlatformSDK InSDK)
@@ -79,7 +171,6 @@ namespace UnrealBuildTool
 			Ini.GetBool("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "bUseVulkan", out bUseVulkan);
 
 			List<string> ConfigBoolKeys = new List<string>();
-			ConfigBoolKeys.Add("bBuildWithNvTegraGfxDebugger");
 			if (!bUseVulkan)
 			{
 				ConfigBoolKeys.Add("bUseMobileRendering");
@@ -180,73 +271,23 @@ namespace UnrealBuildTool
 			LinkEnvironment.LibraryPaths.Add(DirectoryReference.Combine(MLSDKDir, "lib/lumin"));
 			LinkEnvironment.LibraryPaths.Add(DirectoryReference.Combine(MLSDKDir, "lumin/stl/gnu-libstdc++/lib"));
 
-			if (!UseTegraGraphicsDebugger(Target.ProjectFile) || !UseTegraDebuggerStub(Target.ProjectFile))
-			{
-				LinkEnvironment.AdditionalLibraries.Add("GLESv2");
-				LinkEnvironment.AdditionalLibraries.Add("EGL");
-			}
-			if (UseTegraDebuggerStub(Target.ProjectFile))
-			{
-				DirectoryReference TegraDebuggerDirectoryReference = new DirectoryReference(TegraDebuggerDir);
-
-				LinkEnvironment.LibraryPaths.Add(DirectoryReference.Combine(TegraDebuggerDirectoryReference, "/target/android-kk-egl-t124-a32"));
-				LinkEnvironment.LibraryPaths.Add(DirectoryReference.Combine(TegraDebuggerDirectoryReference, "/target/android-L-egl-t132-a64"));
-				LinkEnvironment.AdditionalLibraries.Add("Nvidia_gfx_debugger_stub");
-			}
+			LinkEnvironment.AdditionalLibraries.Add("GLESv2");
+			LinkEnvironment.AdditionalLibraries.Add("EGL");
 
 			LinkEnvironment.AdditionalLibraries.Add("ml_lifecycle");
 			LinkEnvironment.AdditionalLibraries.Add("ml_ext_logging");
 			LinkEnvironment.AdditionalLibraries.Add("ml_dispatch");
 		}
 
-
-        public static bool? HaveTegraGraphicsDebugger = null;
-        public static string TegraDebuggerDir = null;
-        public static int[] TegraDebuggerVersion = null;
-
-        public static bool UseTegraGraphicsDebugger(FileReference ProjectFile)
-        {
-            if (!HaveTegraGraphicsDebugger.HasValue)
-            {
-                string ProgramsDir = Environment.GetEnvironmentVariable("ProgramFiles(x86)");
-                string NVDir = ProgramsDir + "/NVIDIA Corporation";
-                try
-                {
-                    string[] TegraDebuggerDirs = Directory.GetDirectories(NVDir, "Tegra Graphics Debugger *");
-                    if (TegraDebuggerDirs.Length > 0)
-                    {
-                        TegraDebuggerDir = TegraDebuggerDirs[0].Replace('\\', '/');
-                        HaveTegraGraphicsDebugger = true;
-                        string[] V = TegraDebuggerDir.Split(' ').Last().Split('.');
-                        TegraDebuggerVersion = new int[2];
-                        TegraDebuggerVersion[0] = Int32.Parse(V[0]);
-                        TegraDebuggerVersion[1] = Int32.Parse(V[1]);
-                    }
-                    else
-                    {
-                        HaveTegraGraphicsDebugger = false;
-                    }
-                }
-                catch (System.IO.IOException)
-                {
-                    HaveTegraGraphicsDebugger = false;
-                }
-            }
-            bool bBuild = false;
-			// TODO: do we need this?
-            ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Lumin);
-            Ini.GetBool(
-                "/Script/LuminRuntimeSettings.LuminRuntimeSettings",
-                "bBuildWithNvTegraGfxDebugger",
-                out bBuild);
-            return HaveTegraGraphicsDebugger.Value && bBuild;
-        }
-
-
-		public static bool UseTegraDebuggerStub(FileReference ProjectFile)
+		public override bool ShouldCreateDebugInfo(ReadOnlyTargetRules Target)
 		{
-			return UseTegraGraphicsDebugger(ProjectFile) &&
-				TegraDebuggerVersion[0] <= 2 && TegraDebuggerVersion[1] <= 1;
+			// Don't create debug info for shipping distribution builds
+			if (Target.Configuration == UnrealTargetConfiguration.Shipping && Target.LuminPlatform.bForDistribution)
+			{
+				return false;
+			}
+
+			return base.ShouldCreateDebugInfo(Target);
 		}
 
 		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
@@ -282,36 +323,21 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// This is the minimum SDK version we support.
 		/// </summary>
-		static uint MinimumSDKVersionMajor = 0;
-		static uint MinimumSDKVersionMinor = 19;
+		LuminSDKVersionHelper SDKVersionHelper = new LuminSDKVersionHelper();
 
 		public override string GetSDKTargetPlatformName()
 		{
 			return "Lumin";
 		}
+
 		protected override string GetRequiredSDKString()
 		{
-			return string.Format("{0}.{1}", MinimumSDKVersionMajor, MinimumSDKVersionMinor);
+			return SDKVersionHelper.GetRequiredSDKString();
 		}
 
 		protected override String GetRequiredScriptVersionString()
 		{
 			return "Lumin_15";
-		}
-
-		private string FindVersionNumber(string StringToFind, string[] AllLines)
-		{
-			string FoundVersion = "Unknown";
-			foreach (string CurrentLine in AllLines)
-			{
-				int Index = CurrentLine.IndexOf(StringToFind);
-				if (Index != -1)
-				{
-					FoundVersion = CurrentLine.Substring(Index + StringToFind.Length);
-					break;
-				}
-			}
-			return FoundVersion.Trim();
 		}
 
 		/// <summary>
@@ -320,43 +346,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		protected override bool HasAnySDK()
 		{
-			string EnvVarKey = "MLSDK";
-
-			string MLSDKPath = Environment.GetEnvironmentVariable(EnvVarKey);
-			if (String.IsNullOrEmpty(MLSDKPath))
-			{
-				Log.TraceLog("*** Unable to determine MLSDK location ***");
-				return false;
-			}
-
-			// detected SDK version is < minimum major/minor
-			uint DetectedMajorVersion;
-			uint DetectedMinorVersion;
-			String VersionFile = string.Format("{0}/include/ml_version.h", MLSDKPath).Replace('/', Path.DirectorySeparatorChar);
-			if (File.Exists(VersionFile))
-			{
-				string[] VersionText = File.ReadAllLines(VersionFile);
-
-				String MajorVersion = FindVersionNumber("MLSDK_VERSION_MAJOR", VersionText);
-				String MinorVersion = FindVersionNumber("MLSDK_VERSION_MINOR", VersionText);
-				DetectedMajorVersion = Convert.ToUInt32(MajorVersion);
-				DetectedMinorVersion = Convert.ToUInt32(MinorVersion);
-			}
-			else
-			{
-				Log.TraceLog("*** Unable to locate MLSDK version file ml_version.h ***");
-				return false;
-			}
-
-			if (DetectedMajorVersion < MinimumSDKVersionMajor || (DetectedMajorVersion == MinimumSDKVersionMajor && DetectedMinorVersion < MinimumSDKVersionMinor))
-			{
-				Log.TraceLog("*** Found installed MLSDK version {0}.{1} at '{2}' but require at least {3}.{4} ***",
-					DetectedMajorVersion, DetectedMinorVersion, MLSDKPath, MinimumSDKVersionMajor, MinimumSDKVersionMinor);
-				return false;
-			}
-
-			Log.TraceLog("*** Found installed MLSDK version {0}.{1} at '{2}' ***", DetectedMajorVersion, DetectedMinorVersion, MLSDKPath);
-			return true;
+			return SDKVersionHelper.HasAnySDK();
 		}
 
 		protected override SDKStatus HasRequiredManualSDKInternal()
@@ -367,7 +357,7 @@ namespace UnrealBuildTool
 				return SDKStatus.Invalid;
 			}
 
-			if (HasAnySDK())
+			if (SDKVersionHelper.HasAnySDK())
 			{
 				return SDKStatus.Valid;
 			}

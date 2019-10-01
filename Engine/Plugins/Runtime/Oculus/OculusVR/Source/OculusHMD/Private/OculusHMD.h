@@ -97,8 +97,6 @@ public:
 	virtual void SetBaseOrientation(const FQuat& BaseOrient) override;
 	virtual FQuat GetBaseOrientation() const override;
 	//virtual TSharedPtr<class IXRCamera, ESPMode::ThreadSafe> GetXRCamera(int32 DeviceId = HMDDeviceId) override;
-	virtual class IHeadMountedDisplay* GetHMDDevice() override { return this; }
-	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override { return SharedThis(this); }
 	//virtual class IXRInput* GetXRInput() override;
 	virtual bool IsHeadTrackingEnforced() const override;
 	virtual void SetHeadTrackingEnforced(bool bEnabled) override;
@@ -107,6 +105,7 @@ public:
 	virtual void OnEndPlay(FWorldContext& InWorldContext) override;
 	virtual bool OnStartGameFrame(FWorldContext& WorldContext) override;
 	virtual bool OnEndGameFrame(FWorldContext& WorldContext) override;
+	virtual class IXRLoadingScreen* CreateLoadingScreen() override { return GetSplash(); }
 
 	// IHeadMountedDisplay
 	virtual bool IsHMDConnected() override;
@@ -171,7 +170,7 @@ public:
 	//virtual void UseImplicitHmdPosition(bool bInImplicitHmdPosition) override;
 	//virtual bool GetUseImplicitHmdPosition() override;
 
-	// FHeadMoundedDisplayBase interface
+	// FHeadMountedDisplayBase interface
 	virtual FVector2D GetEyeCenterPoint_RenderThread(EStereoscopicPass StereoPassType) const override;
 	virtual FIntRect GetFullFlatEyeRect_RenderThread(FTexture2DRHIRef EyeTexture) const override;
 	virtual void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, FRHITexture2D* DstTexture, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const override;
@@ -182,8 +181,10 @@ public:
 	virtual void CalculateRenderTargetSize(const FViewport& Viewport, uint32& InOutSizeX, uint32& InOutSizeY) override;
 	virtual bool NeedReAllocateViewportRenderTarget(const class FViewport& Viewport) override;
 	virtual bool NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderTarget>& DepthTarget) override;
+	virtual bool NeedReAllocateFoveationTexture(const TRefCountPtr<IPooledRenderTarget>& FoveationTarget) override;
 	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 InTargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
 	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
+	virtual bool AllocateFoveationTexture(uint32 Index, uint32 RenderSizeX, uint32 RenderSizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 InTargetableTextureFlags, FTexture2DRHIRef& OutTexture, FIntPoint& OutTextureSize) override;
 	virtual void UpdateViewportWidget(bool bUseSeparateRenderTarget, const class FViewport& Viewport, class SViewport* ViewportWidget) override;
 	virtual FXRRenderBridge* GetActiveRenderBridge_GameThread(bool bUseSeparateRenderTarget);
 	void AllocateEyeBuffer();
@@ -194,10 +195,11 @@ public:
 	virtual void SetLayerDesc(uint32 LayerId, const IStereoLayers::FLayerDesc& InLayerDesc) override;
 	virtual bool GetLayerDesc(uint32 LayerId, IStereoLayers::FLayerDesc& OutLayerDesc) override;
 	virtual void MarkTextureForUpdate(uint32 LayerId) override;
-	virtual void UpdateSplashScreen() override;
 	virtual IStereoLayers::FLayerDesc GetDebugCanvasLayerDesc(FTextureRHIRef Texture) override;
 	virtual void GetAllocatedTexture(uint32 LayerId, FTextureRHIRef &Texture, FTextureRHIRef &LeftTexture) override;
 	virtual bool ShouldCopyDebugLayersToSpectatorScreen() const override { return true; }
+	virtual void PushLayerState(bool) override { /* Todo */ }
+	virtual void PopLayerState() override { /* Todo */ }
 
 	// ISceneViewExtension
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override;
@@ -226,7 +228,6 @@ protected:
 	void ApplicationResumeDelegate();
 	void SetupOcclusionMeshes();
 	void UpdateStereoRenderingParams();
-	void UpdateSplashScreen_GameThread();
 	void UpdateHmdRenderInfo();
 	void InitializeEyeLayer_RenderThread(FRHICommandListImmediate& RHICmdList);
 	void ApplySystemOverridesOnStereo(bool force = false);
@@ -324,7 +325,7 @@ public:
 	const FRotator GetSplashRotation() const { return SplashRotation; }
 	void SetSplashRotationToForward();
 
-	void StartGameFrame_GameThread(); // Called from OnStartGameFrame
+	OCULUSHMD_API void StartGameFrame_GameThread(); // Called from OnStartGameFrame or from FOculusInput::SendControllerEvents (first actual call of the frame)
 	void FinishGameFrame_GameThread(); // Called from OnEndGameFrame
 	void StartRenderFrame_GameThread(); // Called from BeginRenderViewFamily
 	void FinishRenderFrame_RenderThread(FRHICommandListImmediate& RHICmdList); // Called from PostRenderViewFamily_RenderThread
@@ -332,7 +333,7 @@ public:
 	void FinishRHIFrame_RHIThread(); // Called from FinishRendering_RHIThread
 
 	void SetCPUAndGPULevel(int CPULevel, int GPULevel);
-	void SetTiledMultiResLevel(ETiledMultiResLevel multiresLevel);
+	void SetFixedFoveatedRenderingLevel(EFixedFoveatedRenderingLevel InFFRLevel);
 	void SetColorScaleAndOffset(FLinearColor ColorScale, FLinearColor ColorOffset, bool bApplyToAllLayers);
 
 	OCULUSHMD_API void UpdateRTPoses();
@@ -353,6 +354,7 @@ protected:
 #endif
 
 	void LoadFromSettings();
+	void DoSessionShutdown();
 
 protected:
 	void UpdateHMDWornState();
@@ -366,7 +368,6 @@ protected:
 
 			uint64	bNeedEnableStereo : 1;
 			uint64	bNeedDisableStereo : 1;
-			uint64  bNeedSplashUpdate : 1;
 		};
 		uint64 Raw;
 	} Flags;
@@ -421,6 +422,7 @@ protected:
 	TArray<FLayerPtr> Layers_RenderThread;
 	FLayerPtr EyeLayer_RenderThread; // Valid to be accessed from game thread, since updated only when game thread is waiting
 	bool bNeedReAllocateDepthTexture_RenderThread;
+	bool bNeedReAllocateFoveationTexture_RenderThread;
 
 	// RHI thread
 	FSettingsPtr Settings_RHIThread;
@@ -438,6 +440,8 @@ protected:
 #if !UE_BUILD_SHIPPING
 	FDelegateHandle DrawDebugDelegateHandle;
 #endif
+
+	bool bShutdownRequestQueued;
 };
 
 typedef TSharedPtr< FOculusHMD, ESPMode::ThreadSafe > FOculusHMDPtr;

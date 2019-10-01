@@ -13,11 +13,13 @@ void FLuminApplication::DeferredKeyEvent::SendModified(
 	{
 	case Type::KeyDown:
 		InOutModifierMask = KeyData;
-		MessageHandler->OnKeyDown(KeyCode, 0, false);
+		// Engine requires a CharacterCode != 0, so KeyCode is passed in twice
+		MessageHandler->OnKeyDown(KeyCode, KeyCode, false);
 		break;
 	case Type::KeyUp:
 		InOutModifierMask = KeyData;
-		MessageHandler->OnKeyUp(KeyCode, 0, false);
+		// Engine requires a CharacterCode != 0, so KeyCode is passed in twice
+		MessageHandler->OnKeyUp(KeyCode, KeyCode, false);
 		break;
 	case Type::Char:
 		MessageHandler->OnKeyChar(KeyData, false);
@@ -122,6 +124,11 @@ void FLuminApplication::InitializeInputCallbacks()
 		auto application = reinterpret_cast<FLuminApplication*>(data);
 		if (application)
 		{
+			// BACKSPACE TEMP FIX UNTIL PLATFORM'S FIX
+			if (key_code == MLKeyCode::MLKEYCODE_DEL)
+			{
+				application->AddDeferredKeyEvent(DeferredKeyEvent('\b'));
+			}
 			application->AddDeferredKeyEvent(DeferredKeyEvent(
 				DeferredKeyEvent::Type::KeyUp, key_code, modifier_mask));
 		}
