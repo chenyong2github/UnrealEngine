@@ -232,10 +232,9 @@ void MeshUpdateObserver::OnSurfacesChanged(SpatialSurfaceObserver^ Observer, Pla
 			}
 		}
 		// Iterate through the last known guids to find ones that have been removed
-		std::map<Guid, long long>::iterator It = LastGuidToLastUpdateMap.begin();
-		while (It != LastGuidToLastUpdateMap.end())
+		for (const auto& [Key, Value] : LastGuidToLastUpdateMap)
 		{
-			Guid Id = It->first;
+			Guid Id = Key;
 			// If this one is not in the new set, then it was removed
 			if (CurrentGuidToLastUpdateMap.find(Id) == CurrentGuidToLastUpdateMap.end())
 			{
@@ -362,6 +361,7 @@ void MeshUpdateObserver::StopMeshObserver()
 		// Stop our callback from doing any processing first
 		bIsRunning = false;
 		SurfaceObserver->ObservedSurfacesChanged -= OnChangeEventToken;
+		OnChangeEventToken = Windows::Foundation::EventRegistrationToken();
 
 		SurfaceObserver = nullptr;
 		LastGuidToLastUpdateMap.erase(LastGuidToLastUpdateMap.begin(), LastGuidToLastUpdateMap.end());
