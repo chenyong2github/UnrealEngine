@@ -9,9 +9,42 @@
 /** String View
 
 	* A string view is implicitly constructible from FString and const char* style strings
+
 	* A string view does not own any data nor does it attempt to control any lifetimes, it 
 	  merely points at a subrange of characters in some other string. It's up to the user
 	  to ensure the underlying string stays valid for the lifetime of the string view.
+
+	* A string view does not represent a NUL terminated string and therefore you should
+	  never pass in the pointer returned by Data() into a C-string API accepting only a
+	  pointer. You must either use a string builder to make a properly terminated string,
+	  or the ToString() function below if you absolutely must, and can live with the
+	  knowledge that you just added yet one more memory allocation even though memory
+	  allocations are not cheap.
+
+	String views are a good fit for arguments to functions which don't wish to care
+	which style of string construction is used by the caller. If you accept strings via
+	string views then the caller is free to use FString, FStringBuilder or raw C strings
+	or any other type which can be converted into a string builder.
+
+	I.e a function such as
+
+	void DoFoo(const FStringView& InString);
+
+	May be called as:
+
+	void MultiFoo()
+	{
+	     FString MyFoo(TEXT("Zoo"));
+		 const TCHAR* MyFooStr = *MyFoo;
+
+		 TStringBuilder<64> BuiltFoo;
+		 BuiltFoo.Append(TEXT("ABC"));
+
+		 DoFoo(MyFoo);
+		 DoFoo(MyFooStr);
+		 DoFoo(TEXT("ABC"));
+		 DoFoo(BuiltFoo);
+	}
 
   */
 
@@ -34,10 +67,6 @@ public:
 	}
 
 	inline const C& operator[](SizeType Pos) const	{ return DataPtr[Pos]; }
-
-	// Q: should this even be here? Semantics differ from FString as it won't return 
-	//    a null terminated string
-	inline const C* operator*() const				{ return DataPtr; }			
 
 	inline const C* Data() const					{ return DataPtr; }
 
@@ -121,6 +150,8 @@ protected:
 	SizeType	Size;
 };
 
+// Case-insensitive comparison operators
+
 template<typename C>
 inline bool operator==(const TStringViewImpl<C>& lhs, const TStringViewImpl<C>& rhs)
 {
@@ -171,4 +202,22 @@ public:
 	:	TStringViewImpl<TCHAR>(InString, InStrlen)
 	{
 	}
+
+	/** Convert to a dynamic string
+
+		Remember that a string view is not necessarily
+		NUL terminated so whenever you end up passing a
+		string into an API which accepts a plain C string
+		then you will need to ensure it's NUL terminated
+		first. This is one way of doing that, involving
+		a memory allocation as well as a string copy,
+		along with a memory deallocation when the string
+		goes away.
+
+		I would encourage you to use a TStringBuilder<>
+		instead since this avoids hitting the heap, and
+		the heap is always more expensive even if it
+		seems seductively convenient.
+	  */
+	CORE_API FString ToString() const;
 };
