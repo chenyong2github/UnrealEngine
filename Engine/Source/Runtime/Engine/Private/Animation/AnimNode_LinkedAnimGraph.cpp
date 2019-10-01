@@ -12,10 +12,8 @@ FAnimNode_LinkedAnimGraph::FAnimNode_LinkedAnimGraph()
 {
 }
 
-void FAnimNode_LinkedAnimGraph::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+void FAnimNode_LinkedAnimGraph::InitializeSubGraph_AnyThread(const FAnimationInitializeContext& Context)
 {
-	FAnimNode_Base::Initialize_AnyThread(Context);
-
 	UAnimInstance* InstanceToRun = GetTargetInstance<UAnimInstance>();
 	if(InstanceToRun && LinkedRoot)
 	{
@@ -23,18 +21,22 @@ void FAnimNode_LinkedAnimGraph::Initialize_AnyThread(const FAnimationInitializeC
 		Proxy.InitializationCounter.SynchronizeWith(Context.AnimInstanceProxy->InitializationCounter);
 		Proxy.InitializeRootNode_WithRoot(LinkedRoot);
 	}
-	else
+}
+
+void FAnimNode_LinkedAnimGraph::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+{
+	FAnimNode_Base::Initialize_AnyThread(Context);
+
+	InitializeSubGraph_AnyThread(Context);
+
+	// Make sure we propagate down all input poses, as they may not all be linked in the linked graph
+	for(FPoseLink& InputPose : InputPoses)
 	{
-		// If we have no valid instance (self or otherwise), we need to propagate down the graph to make sure
-		// subsequent nodes get properly initialized
-		for(FPoseLink& InputPose : InputPoses)
-		{
-			InputPose.Initialize(Context);
-		}
+		InputPose.Initialize(Context);
 	}
 }
 
-void FAnimNode_LinkedAnimGraph::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
+void FAnimNode_LinkedAnimGraph::CacheBonesSubGraph_AnyThread(const FAnimationCacheBonesContext& Context)
 {
 	UAnimInstance* InstanceToRun = GetTargetInstance<UAnimInstance>();
 	if(InstanceToRun && LinkedRoot)
@@ -47,14 +49,16 @@ void FAnimNode_LinkedAnimGraph::CacheBones_AnyThread(const FAnimationCacheBonesC
 		FAnimationCacheBonesContext LinkedContext(&Proxy);
 		LinkedRoot->CacheBones_AnyThread(LinkedContext);
 	}
-	else
+}
+
+void FAnimNode_LinkedAnimGraph::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
+{
+	CacheBonesSubGraph_AnyThread(Context);
+
+	// Make sure we propagate down all input poses, as they may not all be linked in the linked graph
+	for(FPoseLink& InputPose : InputPoses)
 	{
-		// If we have no valid instance (self or otherwise), we need to propagate down the graph to make sure
-		// subsequent nodes get properly their bones properly cached
-		for(FPoseLink& InputPose : InputPoses)
-		{
-			InputPose.CacheBones(Context);
-		}
+		InputPose.CacheBones(Context);
 	}
 }
 
@@ -257,11 +261,11 @@ void FAnimNode_LinkedAnimGraph::DynamicLink(UAnimInstance* InOwningAnimInstance)
 		if(SubAnimBlueprintClass)
 		{
 			FAnimInstanceProxy* NonConstProxy = &InOwningAnimInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+			const FName FunctionToLink = GetDynamicLinkFunctionName();
 
 			// Link input poses
 			for(const FAnimBlueprintFunction& AnimBlueprintFunction : SubAnimBlueprintClass->GetAnimBlueprintFunctions())
 			{
-				const FName FunctionToLink = GetDynamicLinkFunctionName();
 				if(AnimBlueprintFunction.Name == FunctionToLink)
 				{
 					for(int32 InputPoseIndex = 0; InputPoseIndex < AnimBlueprintFunction.InputPoseNames.Num() && InputPoseIndex < InputPoses.Num(); ++InputPoseIndex)
@@ -311,10 +315,12 @@ void FAnimNode_LinkedAnimGraph::DynamicUnlink(UAnimInstance* InOwningAnimInstanc
 		IAnimClassInterface* SubAnimBlueprintClass = IAnimClassInterface::GetFromClass(LinkTargetInstance->GetClass());
 		if(SubAnimBlueprintClass)
 		{
+			const FName FunctionToLink = GetDynamicLinkFunctionName();
+
 			// Link input poses
 			for(const FAnimBlueprintFunction& AnimBlueprintFunction : SubAnimBlueprintClass->GetAnimBlueprintFunctions())
 			{
-				if(AnimBlueprintFunction.Name == GetDynamicLinkFunctionName())
+				if(AnimBlueprintFunction.Name == FunctionToLink)
 				{
 					for(int32 InputPoseIndex = 0; InputPoseIndex < AnimBlueprintFunction.InputPoseNames.Num() && InputPoseIndex < InputPoses.Num(); ++InputPoseIndex)
 					{

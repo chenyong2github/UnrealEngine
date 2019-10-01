@@ -215,11 +215,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Pitch)
 	FSoundPitchModulationPatch Pitch;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Lowpass)
-	FSoundLPFModulationPatch Lowpass;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Highpass)
 	FSoundHPFModulationPatch Highpass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Lowpass)
+	FSoundLPFModulationPatch Lowpass;
 
 	// Mixes that will applied and removed when sounds utilizing settings
 	// play and stop respectively. If mix has already been applied manually,

@@ -768,11 +768,11 @@ public:
 	UAnimInstance* GetLinkedAnimLayerInstanceByClass(TSubclassOf<UAnimInstance> InClass) const;
 
 	/** Sets up initial layer groupings */
-	void InitializeGroupedLayers();
+	void InitializeGroupedLayers(bool bInDeferSubGraphInitialization);
 
 private:
 	/** Helper function to perform layer overlay actions (set, clear) */
-	void PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance> InClass, TFunctionRef<UClass*(UClass*, FAnimNode_LinkedAnimLayer*)> InClassSelectorFunction);
+	void PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance> InClass, TFunctionRef<UClass*(UClass*, FAnimNode_LinkedAnimLayer*)> InClassSelectorFunction, bool bInDeferSubGraphInitialization = false);
 
 protected:
 	/** Map between Active Montages and their FAnimMontageInstance */

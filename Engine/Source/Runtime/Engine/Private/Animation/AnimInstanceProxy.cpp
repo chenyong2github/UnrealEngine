@@ -1198,6 +1198,25 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext&
 		if(bDeferRootNodeInitialization)
 		{
 			InitializeRootNode_WithRoot(RootNode);
+
+			if(AnimClassInterface)
+			{
+				// Initialize linked sub graphs
+				for(UStructProperty* LayerNodeProperty : AnimClassInterface->GetLinkedAnimLayerNodeProperties())
+				{
+					if(FAnimNode_LinkedAnimLayer* LayerNode = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimLayer>(AnimInstanceObject))
+					{
+						if(UAnimInstance* LinkedInstance = LayerNode->GetTargetInstance<UAnimInstance>())
+						{
+							FAnimationInitializeContext InitContext(this);
+							LayerNode->InitializeSubGraph_AnyThread(InitContext);
+							FAnimationCacheBonesContext CacheBonesContext(this);
+							LayerNode->CacheBonesSubGraph_AnyThread(CacheBonesContext);
+						}
+					}
+				}
+			}
+
 			bDeferRootNodeInitialization = false;
 		}
 

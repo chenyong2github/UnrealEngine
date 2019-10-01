@@ -17,6 +17,8 @@
 
 #define LOCTEXT_NAMESPACE "EditorValidationSubsystem"
 
+DEFINE_LOG_CATEGORY(LogContentValidation);
+
 UEditorValidatorSubsystem::UEditorValidatorSubsystem()
 	: UEditorSubsystem()
 {
@@ -199,7 +201,9 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 	// Now add to map or update as needed
 	for (FAssetData& Data : AssetDataList)
 	{
-		SlowTask.EnterProgressFrame(1.0f / NumFilesToValidate, FText::Format(LOCTEXT("ValidatingFilename", "Validating {0}"), FText::FromString(Data.GetFullName())));
+		FText ValidatingMessage = FText::Format(LOCTEXT("ValidatingFilename", "Validating {0}"), FText::FromString(Data.GetFullName()));
+		SlowTask.EnterProgressFrame(1.0f / NumFilesToValidate, ValidatingMessage);
+		UE_LOG(LogContentValidation, Display, TEXT("%s"), *ValidatingMessage.ToString());
 
 		// Check exclusion path
 		if (bSkipExcludedDirectories && IsPathExcludedFromValidation(Data.PackageName.ToString()))

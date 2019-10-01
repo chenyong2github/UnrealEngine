@@ -192,7 +192,7 @@ void FPoseLinkBase::AttemptRelink(const FAnimationBaseContext& Context)
 		check(AnimBlueprintClass);
 
 		// adding ensure. We had a crash on here
-		const TArray<UStructProperty*> AnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties();
+		const TArray<UStructProperty*>& AnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties();
 		if ( ensure(AnimNodeProperties.IsValidIndex(LinkID)) )
 		{
 			UProperty* LinkedProperty = AnimNodeProperties[LinkID];

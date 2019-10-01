@@ -369,6 +369,8 @@ bool FEmbeddedCommunication::TickGameThread(float DeltaTime)
 FString FEmbeddedCommunication::GetDebugInfo()
 {
 #if BUILD_EMBEDDED_APP
+	FScopeLock Lock(&GEmbeddedLock);
+
 	FString Str = "";
 	for (auto It : GRenderingWakeMap)
 	{
