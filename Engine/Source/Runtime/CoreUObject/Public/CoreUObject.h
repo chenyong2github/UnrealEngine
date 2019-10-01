@@ -84,4 +84,3 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "Misc/RedirectCollector.h"
 #include "UObject/ScriptStackTracker.h"
 #include "Misc/WorldCompositionUtility.h"
-#include "UObject/PackageResource.h"
