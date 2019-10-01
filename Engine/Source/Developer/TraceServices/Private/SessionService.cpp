@@ -280,7 +280,7 @@ bool FSessionService::Tick(float DeltaTime)
 
 void FSessionService::UpdateSessionContext(FStoreSessionHandle StoreHandle, FSessionInfoInternal& Info)
 {
-	if (Info.Platform.Len())
+	if (Info.bIsUpdated)
 	{
 		return;
 	}
@@ -311,11 +311,7 @@ void FSessionService::UpdateSessionContext(FStoreSessionHandle StoreHandle, FSes
 
 	delete Stream;
 
-	if (Analyzer.Platform.Len() == 0)
-	{
-		Info.Platform = TEXT("Unknown");
-	}
-	else
+	if (Analyzer.Platform.Len() != 0)
 	{
 		Info.Platform = MoveTemp(Analyzer.Platform);
 		Info.AppName = MoveTemp(Analyzer.AppName);
@@ -323,6 +319,8 @@ void FSessionService::UpdateSessionContext(FStoreSessionHandle StoreHandle, FSes
 		Info.ConfigurationType = Analyzer.ConfigurationType;
 		Info.TargetType = Analyzer.TargetType;
 	}
+
+	Info.bIsUpdated = true;
 }
 
 void FSessionService::UpdateSessions()

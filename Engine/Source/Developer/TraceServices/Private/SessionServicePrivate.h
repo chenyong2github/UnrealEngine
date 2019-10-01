@@ -46,6 +46,7 @@ private:
 		bool bIsLive;
 		int8 ConfigurationType;
 		int8 TargetType;
+		bool bIsUpdated = false;
 	};
 
 	bool Tick(float DeltaTime);

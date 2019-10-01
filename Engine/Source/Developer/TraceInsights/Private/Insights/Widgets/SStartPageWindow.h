@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Docking/TabManager.h"
+#include "GenericPlatform/GenericPlatformMisc.h"
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
 #include "Misc/Guid.h"
@@ -44,6 +45,11 @@ struct FTraceSession
 	Trace::FSessionHandle SessionHandle;
 	FText Name;
 	FText Uri;
+	FText Platform;
+	FText AppName;
+	FText CommandLine;
+	EBuildConfiguration ConfigurationType;
+	EBuildTargetType TargetType;
 	FDateTime TimeStamp;
 	uint64 Size;
 	bool bIsLive;
@@ -52,6 +58,13 @@ struct FTraceSession
 		: SessionHandle(InSessionHandle)
 		, Name(FText::FromString(InSessionInfo.Name))
 		, Uri(FText::FromString(InSessionInfo.Uri))
+		, Platform(FText::FromString(InSessionInfo.Platform))
+		, AppName(FText::FromString(InSessionInfo.AppName))
+		, CommandLine(FText::FromString(InSessionInfo.CommandLine))
+		//, ConfigurationType(EBuildConfiguration::Unknown)
+		, ConfigurationType(InSessionInfo.ConfigurationType)
+		//, TargetType(EBuildTargetType::Unknown)
+		, TargetType(InSessionInfo.TargetType)
 		, TimeStamp(InSessionInfo.TimeStamp)
 		, Size(InSessionInfo.Size)
 		, bIsLive(InSessionInfo.bIsLive)
