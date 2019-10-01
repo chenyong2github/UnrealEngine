@@ -1227,19 +1227,19 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		};
 
 		AddToPayload(FGenericPlatformMisc::GetUBTPlatform());
-		uint8 CommandLineOffset = AddToPayload(CmdLine);
 		uint8 AppNameOffset = AddToPayload(TEXT(UE_APP_NAME));
+		uint8 CommandLineOffset = AddToPayload(CmdLine);
 
 		UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important|Always)
-			UE_TRACE_EVENT_FIELD(uint8, CommandLineOffset)
 			UE_TRACE_EVENT_FIELD(uint8, AppNameOffset)
+			UE_TRACE_EVENT_FIELD(uint8, CommandLineOffset)
 			UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
 			UE_TRACE_EVENT_FIELD(uint8, TargetType)
 		UE_TRACE_EVENT_END()
 
 		UE_TRACE_LOG(Diagnostics, Session, PayloadSize)
-			<< Session.CommandLineOffset(CommandLineOffset)
 			<< Session.AppNameOffset(AppNameOffset)
+			<< Session.CommandLineOffset(CommandLineOffset)
 			<< Session.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
 			<< Session.TargetType(uint8(FApp::GetBuildTargetType()))
 			<< Session.Attachment(Payload, PayloadSize);
