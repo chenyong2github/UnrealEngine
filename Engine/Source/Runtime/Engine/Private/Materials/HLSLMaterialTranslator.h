@@ -1167,11 +1167,6 @@ ResourcesString = TEXT("");
 				}
 			}
 
-			if (IsTranslucentBlendMode(BlendMode) && Material->IsTranslucencyUnderWaterEnabled() && (Material->IsMobileSeparateTranslucencyEnabled() || Material->IsTranslucencyAfterDOFEnabled()))
-			{
-				Errorf(TEXT("A material cannot be sent to a separate translucent pass and under water at the same time."));
-			}
-
 			bool bDBufferAllowed = IsUsingDBuffers(Platform);
 			bool bDBufferBlendMode = IsDBufferDecalBlendMode((EDecalBlendMode)Material->GetDecalBlendMode());
 
@@ -1526,6 +1521,11 @@ ResourcesString = TEXT("");
 			{
 				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_SINGLELAYERWATER"), TEXT("1"));
 				NumSetMaterials++;
+			}
+
+			if(ShadingModels.HasShadingModel(MSM_SingleLayerWater) && (IsSwitchPlatform(Platform) || IsPS4Platform(Platform) || Platform == SP_XBOXONE_D3D12))
+			{
+				OutEnvironment.SetDefine(TEXT("DISABLE_FORWARD_LOCAL_LIGHTS"), TEXT("1"));
 			}
 
 			if (NumSetMaterials == 1)
@@ -5183,11 +5183,12 @@ protected:
 		return AddInlinedCodeChunk(MCT_Float2, *SampleCode, *GetParameterCode(WorldPositionIndex), *GetParameterCode(P0), *GetParameterCode(P1), *GetParameterCode(P2));
 	}
 
-	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, EVirtualTextureUnpackType UnpackType) override
+	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, int32 CodeIndex2, EVirtualTextureUnpackType UnpackType) override
 	{
-		if (UnpackType == EVirtualTextureUnpackType::BaseColor)
+		if (UnpackType == EVirtualTextureUnpackType::BaseColorYCoCg)
 		{
-			return CodeIndex0 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex0, 1, 1, 1, 0);
+			FString	SampleCode(TEXT("VirtualTextureUnpackBaseColorYCoCg(%s)"));
+			return CodeIndex0 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex0));
 		}
 		else if (UnpackType == EVirtualTextureUnpackType::NormalBC3)
 		{
@@ -5204,17 +5205,10 @@ protected:
 			FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC3BC3(%s, %s)"));
 			return CodeIndex0 == INDEX_NONE || CodeIndex1 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex0), *GetParameterCode(CodeIndex1));
 		}
-		else if (UnpackType == EVirtualTextureUnpackType::SpecularR8)
+		else if (UnpackType == EVirtualTextureUnpackType::NormalBC5BC1)
 		{
-			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 1, 0, 0, 0);
-		}
-		else if (UnpackType == EVirtualTextureUnpackType::RoughnessG8)
-		{
-			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 0, 1, 0, 0);
-		}
-		else if (UnpackType == EVirtualTextureUnpackType::RoughnessB8)
-		{
-			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 0, 0, 1, 0);
+			FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC5BC1(%s, %s)"));
+			return CodeIndex0 == INDEX_NONE || CodeIndex1 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex1), *GetParameterCode(CodeIndex2));
 		}
 		else if (UnpackType == EVirtualTextureUnpackType::HeightR16)
 		{
@@ -5380,6 +5374,11 @@ protected:
 
 	virtual int32 StaticTerrainLayerWeight(FName ParameterName,int32 Default) override
 	{
+		if (GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 && ShaderFrequency != SF_Pixel)
+		{
+			return Errorf(TEXT("Landscape layer weights are only available in the pixel shader."));
+		}
+		
 		// Look up the weight-map index for this static parameter.
 		int32 WeightmapIndex = INDEX_NONE;
 		bool bFoundParameter = false;
@@ -6610,6 +6609,31 @@ protected:
 		}
 
 		return AddCodeChunk( MCT_Float3, TEXT("MaterialExpressionBlackBody(%s)"), *GetParameterCode(Temp) );
+	}
+
+	virtual int32 GetHairUV() override
+	{
+		return AddCodeChunk(MCT_Float2, TEXT("MaterialExpressionGetHairUV(Parameters)"));
+	}
+
+	virtual int32 GetHairDimensions() override
+	{
+		return AddCodeChunk(MCT_Float2, TEXT("MaterialExpressionGetHairDimensions(Parameters)"));
+	}
+
+	virtual int32 GetHairSeed() override
+	{
+		return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairSeed(Parameters)"));
+	}
+
+	virtual int32 GetHairTangent() override
+	{
+		return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionGetHairTangent(Parameters)"));
+	}
+
+	virtual int32 GetHairRootUV() override
+	{
+		return AddCodeChunk(MCT_Float2, TEXT("MaterialExpressionGetHairRootUV(Parameters)"));
 	}
 
 	virtual int32 DistanceToNearestSurface(int32 PositionArg) override

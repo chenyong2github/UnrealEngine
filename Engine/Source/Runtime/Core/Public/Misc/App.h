@@ -41,6 +41,13 @@ public:
 	 */
 	static EBuildConfiguration GetBuildConfiguration();
 
+	/**
+	 * Gets the target type of the current application (eg. client, server, etc...)
+	 *
+	 * @return The build target type
+	 */
+	static EBuildTargetType GetBuildTargetType();
+
 #if UE_BUILD_DEVELOPMENT
 	/**
 	 * For development configurations, sets whether the application should load DebugGame game modules.
@@ -177,9 +184,9 @@ public:
 	FORCEINLINE static void SetProjectName(const TCHAR* InProjectName)
 	{
 		// At the moment Strcpy is not safe as we don't check the buffer size on all platforms, so we use strncpy here.
-		FCString::Strncpy(GInternalProjectName, InProjectName, ARRAY_COUNT(GInternalProjectName));
+		FCString::Strncpy(GInternalProjectName, InProjectName, UE_ARRAY_COUNT(GInternalProjectName));
 		// And make sure the ProjectName string is null terminated.
-		GInternalProjectName[ARRAY_COUNT(GInternalProjectName) - 1] = 0;
+		GInternalProjectName[UE_ARRAY_COUNT(GInternalProjectName) - 1] = 0;
 	}
 
 	UE_DEPRECATED(4.18, "SetGameName() has been superseded by SetProjectName().")

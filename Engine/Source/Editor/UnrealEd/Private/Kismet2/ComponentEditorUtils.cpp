@@ -723,7 +723,7 @@ void FComponentEditorUtils::AdjustComponentDelta(USceneComponent* Component, FVe
 	{
 		const FTransform ParentToWorldSpace = ParentSceneComp->GetSocketTransform(Component->GetAttachSocketName());
 
-		if (!Component->bAbsoluteLocation)
+		if (!Component->IsUsingAbsoluteLocation())
 		{
 			//transform the drag vector in relative to the parent transform
 			Drag = ParentToWorldSpace.InverseTransformVectorNoScale(Drag);
@@ -731,7 +731,7 @@ void FComponentEditorUtils::AdjustComponentDelta(USceneComponent* Component, FVe
 			Drag = Drag * ParentToWorldSpace.Inverse().GetScale3D();
 		}
 
-		if (!Component->bAbsoluteRotation)
+		if (!Component->IsUsingAbsoluteRotation())
 		{
 			Rotation = ( ParentToWorldSpace.Inverse().GetRotation() * Rotation.Quaternion() * ParentToWorldSpace.GetRotation() ).Rotator();
 		}

@@ -9,6 +9,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraCollision.h"
 #include "INiagaraMergeManager.h"
+#include "NiagaraSystemFastPath.h"
 #include "NiagaraEmitter.generated.h"
 
 class UMaterial;
@@ -290,6 +291,10 @@ public:
 	UPROPERTY()
 	class UNiagaraScriptSourceBase*	GraphSource;
 
+	/** Should we enable rapid iteration removal if the system is also set to remove rapid iteration parameters on compile? This value defaults to true.*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	uint32 bBakeOutRapidIteration : 1;
+
 	bool NIAGARA_API AreAllScriptAndSourcesSynchronized() const;
 	void NIAGARA_API OnPostCompile();
 
@@ -350,6 +355,7 @@ public:
 	bool NIAGARA_API SetUniqueEmitterName(const FString& InName);
 
 	const TArray<UNiagaraRendererProperties*>& GetRenderers() const { return RendererProperties; }
+	TArray<UNiagaraRendererProperties*> GetEnabledRenderers() const;
 
 	void NIAGARA_API AddRenderer(UNiagaraRendererProperties* Renderer);
 
@@ -370,9 +376,34 @@ public:
 
 	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
 
+#if WITH_EDITORONLY_DATA
 	NIAGARA_API UNiagaraEmitter* GetParent() const;
 
 	NIAGARA_API void RemoveParent();
+#endif
+
+	void InitFastPathAttributeNames();
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	FNiagaraFastPath_Module_EmitterScalability EmitterScalability;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	FNiagaraFastPath_Module_EmitterLifeCycle EmitterLifeCycle;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	TArray<FNiagaraFastPath_Module_SpawnRate> SpawnRate;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	TArray<FNiagaraFastPath_Module_SpawnPerUnit> SpawnPerUnit;
+
+	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
+	TArray<FNiagaraFastPath_Module_SpawnBurstInstantaneous> SpawnBurstInstantaneous;
+
+	UPROPERTY()
+	FNiagaraFastPathAttributeNames SpawnFastPathAttributeNames;
+
+	UPROPERTY()
+	FNiagaraFastPathAttributeNames UpdateFastPathAttributeNames;
 
 protected:
 	virtual void BeginDestroy() override;
@@ -415,22 +446,24 @@ private:
 	UPROPERTY()
 	TArray<FName> SharedEventGeneratorIds;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	UNiagaraEmitter* Parent;
 
 	UPROPERTY()
 	UNiagaraEmitter* ParentAtLastMerge;
+#endif
 
 #if WITH_EDITOR
 	FOnPropertiesChanged OnPropertiesChangedDelegate;
 #endif
 
-	void GenerateStatID();
+	void GenerateStatID()const;
 #if STATS
-	TStatId StatID_GT;
-	TStatId StatID_GT_CNC;
-	TStatId StatID_RT;
-	TStatId StatID_RT_CNC;
+	mutable TStatId StatID_GT;
+	mutable TStatId StatID_GT_CNC;
+	mutable TStatId StatID_RT;
+	mutable TStatId StatID_RT_CNC;
 #endif
 };
 

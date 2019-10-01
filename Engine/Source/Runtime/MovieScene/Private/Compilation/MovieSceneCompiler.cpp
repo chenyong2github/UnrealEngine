@@ -593,7 +593,8 @@ void FMovieSceneCompiler::PopulateMetaData(FCompiledGroupResult& OutResult, cons
 	OutResult.MetaData.Reset();
 
 	// Add all the init tracks first
-	uint32 SortOrder = 0;
+	uint16 SetupIndex    = 0;
+	uint16 TearDownIndex = 0;
 	for (const FCompileOnTheFlyData& CompileData : SortedCompileData)
 	{
 		if (!CompileData.bRequiresInit)
@@ -601,16 +602,21 @@ void FMovieSceneCompiler::PopulateMetaData(FCompiledGroupResult& OutResult, cons
 			continue;
 		}
 
+		const bool bPriorityTearDown = CompileData.Track->HasTearDownPriority();
+
 		FMovieSceneEvaluationFieldSegmentPtr SegmentPtr = CompileData.Segment;
 
 		// Add the track key
 		FMovieSceneEvaluationKey TrackKey(SegmentPtr.SequenceID, SegmentPtr.TrackIdentifier);
-		OutResult.MetaData.ActiveEntities.Add(FMovieSceneOrderedEvaluationKey{ TrackKey, SortOrder++ });
+		OutResult.MetaData.ActiveEntities.Add(FMovieSceneOrderedEvaluationKey{ TrackKey, SetupIndex++, (bPriorityTearDown ? TearDownIndex : uint16(MAX_uint16-TearDownIndex)) });
+		++TearDownIndex;
 
 		for (FSectionEvaluationData EvalData : CompileData.Track->GetSegment(SegmentPtr.SegmentID).Impls)
 		{
 			FMovieSceneEvaluationKey SectionKey = TrackKey.AsSection(EvalData.ImplIndex);
-			OutResult.MetaData.ActiveEntities.Add(FMovieSceneOrderedEvaluationKey{ SectionKey, SortOrder++ });
+			OutResult.MetaData.ActiveEntities.Add(FMovieSceneOrderedEvaluationKey{ SectionKey, SetupIndex++, (bPriorityTearDown ? TearDownIndex : uint16(MAX_uint16 - TearDownIndex)) });
+
+			++TearDownIndex;
 		}
 	}
 
@@ -622,16 +628,21 @@ void FMovieSceneCompiler::PopulateMetaData(FCompiledGroupResult& OutResult, cons
 			continue;
 		}
 
+		const bool bPriorityTearDown = CompileData.Track->HasTearDownPriority();
+
 		FMovieSceneEvaluationFieldSegmentPtr SegmentPtr = CompileData.Segment;
 
 		// Add the track key
 		FMovieSceneEvaluationKey TrackKey(SegmentPtr.SequenceID, SegmentPtr.TrackIdentifier);
-		OutResult.MetaData.ActiveEntities.Add(FMovieSceneOrderedEvaluationKey{ TrackKey, SortOrder++ });
+		OutResult.MetaData.ActiveEntities.Add(FMovieSceneOrderedEvaluationKey{ TrackKey, SetupIndex++, (bPriorityTearDown ? TearDownIndex : uint16(MAX_uint16 - TearDownIndex)) });
+		++TearDownIndex;
 
 		for (FSectionEvaluationData EvalData : CompileData.Track->GetSegment(SegmentPtr.SegmentID).Impls)
 		{
 			FMovieSceneEvaluationKey SectionKey = TrackKey.AsSection(EvalData.ImplIndex);
-			OutResult.MetaData.ActiveEntities.Add(FMovieSceneOrderedEvaluationKey{ SectionKey, SortOrder++ });
+			OutResult.MetaData.ActiveEntities.Add(FMovieSceneOrderedEvaluationKey{ SectionKey, SetupIndex++, (bPriorityTearDown ? TearDownIndex : uint16(MAX_uint16 - TearDownIndex)) });
+
+			++TearDownIndex;
 		}
 	}
 

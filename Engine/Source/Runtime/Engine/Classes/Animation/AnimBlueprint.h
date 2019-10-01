@@ -61,11 +61,11 @@ struct FAnimParentNodeAssetOverride
 UENUM()
 enum class EPreviewAnimationBlueprintApplicationMethod : uint8
 {
-	/** Apply the preview animation blueprint using SetLayerOverlay */
-	OverlayLayer,
+	/** Apply the preview animation blueprint using LinkAnimClassLayers */
+	LinkedLayers,
 
-	/** Apply the preview animation blueprint using SetSubInstanceClassByTag */
-	SubInstance,
+	/** Apply the preview animation blueprint using SetLinkedAnimGraphByTag */
+	LinkedAnimGraph,
 };
 
 /**
@@ -217,11 +217,11 @@ private:
 	UPROPERTY(duplicatetransient, AssetRegistrySearchable)
 	TSoftObjectPtr<class UAnimBlueprint> PreviewAnimationBlueprint;
 
-	/** The method by which a preview animation blueprint is applied, either as an overlay layer, or as a sub-instance */
+	/** The method by which a preview animation blueprint is applied, either as an overlay layer, or as a linked instance */
 	UPROPERTY()
 	EPreviewAnimationBlueprintApplicationMethod PreviewAnimationBlueprintApplicationMethod;
 
-	/** The tag to use when applying a preview animation blueprint via SetSubInstanceClassByTag */
+	/** The tag to use when applying a preview animation blueprint via LinkAnimGraphByTag */
 	UPROPERTY()
 	FName PreviewAnimationBlueprintTag;
 #endif // WITH_EDITORONLY_DATA

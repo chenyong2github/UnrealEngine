@@ -58,6 +58,12 @@ protected:
 
 	TArray<float> FloatBuffer;
 	bool bAudioMixer;
+
+public:
+	USynthComponent* GetOwningSynthComponent()
+	{
+		return OwningSynthComponent;
+	}
 };
 
 UCLASS(ClassGroup = Synth, hidecategories = (Object, ActorComponent, Physics, Rendering, Mobility, LOD))

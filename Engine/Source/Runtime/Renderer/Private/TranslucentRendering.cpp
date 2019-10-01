@@ -91,7 +91,6 @@ EMeshPass::Type TranslucencyPassToMeshPass(ETranslucencyPass::Type TranslucencyP
 	{
 	case ETranslucencyPass::TPT_StandardTranslucency: TranslucencyMeshPass = EMeshPass::TranslucencyStandard; break;
 	case ETranslucencyPass::TPT_TranslucencyAfterDOF: TranslucencyMeshPass = EMeshPass::TranslucencyAfterDOF; break;
-	case ETranslucencyPass::TPT_TranslucencyUnderWater: TranslucencyMeshPass = EMeshPass::TranslucencyUnderWater; break;
 	case ETranslucencyPass::TPT_AllTranslucency: TranslucencyMeshPass = EMeshPass::TranslucencyAll; break;
 	}
 
@@ -136,6 +135,7 @@ void FDeferredShadingSceneRenderer::UpdateTranslucencyTimersAndSeparateTransluce
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			const FViewInfo& View = Views[ViewIndex];
+			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 			FSceneViewState* ViewState = View.ViewState;
 
 			if (ViewState)
@@ -508,6 +508,7 @@ void FDeferredShadingSceneRenderer::ConditionalResolveSceneColorForTranslucentMa
 		{
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
+			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 			SCOPED_DRAW_EVENTF(RHICmdList, EventCopy, TEXT("CopySceneColor from SceneColor for translucency"));
 
 			RHICmdList.CopyToResolveTarget(SceneContext.GetSceneColorSurface(), SceneContext.GetSceneColorTexture(), FResolveRect(View.ViewRect.Min.X, View.ViewRect.Min.Y, View.ViewRect.Max.X, View.ViewRect.Max.Y));
@@ -882,12 +883,14 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate&
 	{
 		checkSlow(RHICmdList.IsOutsideRenderPass());
 
-		SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
 		FViewInfo& View = Views[ViewIndex];
 		if (!View.ShouldRenderView())
 		{
 			continue;
 		}
+
+		SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+		SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
 
 #if STATS
 		if (View.ViewState && IsMainTranslucencyPass(TranslucencyPass))
@@ -965,8 +968,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate&
 		}
 		else
 		{
-			bool bAllowBufferClear = TranslucencyPass != ETranslucencyPass::TPT_TranslucencyUnderWater; // We render in an existing scene color in this case so do not clear.
-			SceneContext.BeginRenderingTranslucency(RHICmdList, View, *this, (ViewIndex == 0 || View.Family->bMultiGPUForkAndJoin) && bAllowBufferClear);
+			SceneContext.BeginRenderingTranslucency(RHICmdList, View, *this, ViewIndex == 0 || View.Family->bMultiGPUForkAndJoin);
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
 
 			if (bUseParallel && !ViewFamily.UseDebugViewPS())

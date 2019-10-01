@@ -53,6 +53,7 @@ enum EMaterialUsage
 	MATUSAGE_NiagaraMeshParticles,
 	MATUSAGE_GeometryCache,
 	MATUSAGE_Water,
+	MATUSAGE_HairStrands,
 
 	MATUSAGE_MAX,
 };
@@ -66,8 +67,8 @@ struct ENGINE_API FMaterialRelevance
 	uint8 bOpaque : 1;
 	uint8 bMasked : 1;
 	uint8 bDistortion : 1;
+	uint8 bHairStrands : 1;
 	uint8 bSeparateTranslucency : 1; // Translucency After DOF
-	uint8 bUnderWaterTranslucency : 1;
 	uint8 bNormalTranslucency : 1;
 	uint8 bUsesSceneColorCopy : 1;
 	uint8 bDisableOffscreenRendering : 1; // Blend Modulate

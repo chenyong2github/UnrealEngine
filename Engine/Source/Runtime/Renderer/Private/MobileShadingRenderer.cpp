@@ -80,6 +80,7 @@ DECLARE_CYCLE_STAT(TEXT("Occlusion"), STAT_CLMM_Occlusion, STATGROUP_CommandList
 DECLARE_CYCLE_STAT(TEXT("Post"), STAT_CLMM_Post, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("Translucency"), STAT_CLMM_Translucency, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("Shadows"), STAT_CLMM_Shadows, STATGROUP_CommandListMarkers);
+DECLARE_CYCLE_STAT(TEXT("SceneSimulation"), STAT_CLMM_SceneSim, STATGROUP_CommandListMarkers);
 
 FGlobalDynamicIndexBuffer FMobileSceneRenderer::DynamicIndexBuffer;
 FGlobalDynamicVertexBuffer FMobileSceneRenderer::DynamicVertexBuffer;
@@ -396,6 +397,8 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	DynamicReadBuffer.Commit();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
+	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneSim));
+
 	// Generate the Sky/Atmosphere look up tables
 	// Do compute work first, before any graphics work
 	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
@@ -708,39 +711,24 @@ void FMobileSceneRenderer::BasicPostProcess(FRHICommandListImmediate& RHICmdList
 	const bool bBlitRequired = !bDoUpscale && !bDoEditorPrimitives;
 
 	if (bDoUpscale || bBlitRequired)
-	{	// blit from sceneRT to view family target, simple bilinear if upscaling otherwise point filtered.
-		uint32 UpscaleQuality = bDoUpscale ? 1 : 0;
-		FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessUpscaleES2(View, UpscaleQuality, false));
+	{
+		const EUpscaleMethod UpscaleMethod = bDoUpscale ? EUpscaleMethod::Bilinear : EUpscaleMethod::Nearest;
 
-		Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-		Node->SetInput(ePId_Input1, FRenderingCompositeOutputRef(Context.FinalOutput));
-
-		Context.FinalOutput = FRenderingCompositeOutputRef(Node);
+		Context.FinalOutput = AddUpscalePass(Context.Graph, Context.FinalOutput, UpscaleMethod, EUpscaleStage::PrimaryToOutput);
 	}
 
 #if WITH_EDITOR
 	// Composite editor primitives if we had any to draw and compositing is enabled
 	if (bDoEditorPrimitives)
 	{
-		FRenderingCompositePass* EditorCompNode = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessCompositeEditorPrimitives(false));
-		EditorCompNode->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-		//Node->SetInput(ePId_Input1, FRenderingCompositeOutputRef(Context.SceneDepth));
-		Context.FinalOutput = FRenderingCompositeOutputRef(EditorCompNode);
+		Context.FinalOutput = AddEditorPrimitivePass(Context.Graph, Context.FinalOutput, FEditorPrimitiveInputs::EBasePassType::Mobile);
 	}
 #endif
 
 	bool bStereoRenderingAndHMD = View.Family->EngineShowFlags.StereoRendering && View.Family->EngineShowFlags.HMDDistortion;
 	if (bStereoRenderingAndHMD)
 	{
-		const IHeadMountedDisplay* HMD =  GEngine->XRSystem->GetHMDDevice();
-		checkf(HMD, TEXT("EngineShowFlags.HMDDistortion can not be true when IXRTrackingSystem::GetHMDDevice returns null"));
-		FRenderingCompositePass* Node = Context.Graph.RegisterPass(new FRCPassPostProcessHMD());
-
-		if (Node)
-		{
-			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
-		}
+		Context.FinalOutput = AddHMDDistortionPass(Context.Graph, Context.FinalOutput);
 	}
 
 	// currently created on the heap each frame but View.Family->RenderTarget could keep this object and all would be cleaner
@@ -872,7 +860,6 @@ bool FMobileSceneRenderer::RequiresTranslucencyPass(FRHICommandListImmediate& RH
 void FMobileSceneRenderer::ConditionalResolveSceneDepth(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	SceneContext.ResolveSceneDepthToAuxiliaryTexture(RHICmdList);
 	
 	if (IsSimulatedPlatform(ShaderPlatform)) // mobile emulation on PC
 	{
@@ -969,7 +956,7 @@ void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRHICommandListI
 {
 	bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
 	// Fill in the other entries based on the lights
-	for (int32 ChannelIdx = 0; ChannelIdx < ARRAY_COUNT(Scene->MobileDirectionalLights); ChannelIdx++)
+	for (int32 ChannelIdx = 0; ChannelIdx < UE_ARRAY_COUNT(Scene->MobileDirectionalLights); ChannelIdx++)
 	{
 		FMobileDirectionalLightShaderParameters Params;
 		SetupMobileDirectionalLightUniformParameters(*Scene, View, VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);
@@ -998,7 +985,7 @@ void FMobileSceneRenderer::CreateDirectionalLightUniformBuffers(FViewInfo& View)
 	// First array entry is used for primitives with no lighting channel set
 	View.MobileDirectionalLightUniformBuffers[0] = TUniformBufferRef<FMobileDirectionalLightShaderParameters>::CreateUniformBufferImmediate(FMobileDirectionalLightShaderParameters(), UniformBuffer_SingleFrame);
 	// Fill in the other entries based on the lights
-	for (int32 ChannelIdx = 0; ChannelIdx < ARRAY_COUNT(Scene->MobileDirectionalLights); ChannelIdx++)
+	for (int32 ChannelIdx = 0; ChannelIdx < UE_ARRAY_COUNT(Scene->MobileDirectionalLights); ChannelIdx++)
 	{
 		FMobileDirectionalLightShaderParameters Params;
 		SetupMobileDirectionalLightUniformParameters(*Scene, View, VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);

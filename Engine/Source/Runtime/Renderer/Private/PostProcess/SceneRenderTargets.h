@@ -232,7 +232,7 @@ public:
 	/**
 	 * Sets the scene color target and restores its contents if necessary
 	 */
-	void BeginRenderingSceneColor(FRHICommandList& FRHICommandListImmediate, ESimpleRenderTargetMode RenderTargetMode = ESimpleRenderTargetMode::EUninitializedColorExistingDepth, FExclusiveDepthStencil DepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite, bool bTransitionWritable = true);
+	void BeginRenderingSceneColor(FRHICommandList& FRHICommandListImmediate, ESimpleRenderTargetMode RenderTargetMode = ESimpleRenderTargetMode::EUninitializedColorExistingDepth, FExclusiveDepthStencil DepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite, bool bTransitionWritable = true, bool bBindSubPixelRT = false);
 	void FinishRenderingSceneColor(FRHICommandList& RHICmdList);
 
 	// @return true: call FinishRenderingCustomDepth after rendering, false: don't render it, feature is disabled
@@ -266,7 +266,6 @@ public:
 	}
 	
 	void ResolveSceneDepthTexture(FRHICommandList& RHICmdList, const FResolveRect& ResolveRect);
-	void ResolveSceneDepthToAuxiliaryTexture(FRHICommandList& RHICmdList);
 
 	void BeginRenderingPrePass(FRHICommandList& RHICmdList, bool bPerformClear);
 	void FinishRenderingPrePass(FRHICommandListImmediate& RHICmdList);
@@ -363,15 +362,13 @@ public:
 
 	const FTexture2DRHIRef& GetSceneAlphaCopyTexture() const { return (const FTexture2DRHIRef&)SceneAlphaCopy->GetRenderTargetItem().ShaderResourceTexture; }
 	bool HasSceneAlphaCopyTexture() const { return SceneAlphaCopy.GetReference() != 0; }
-	const FTexture2DRHIRef& GetSceneDepthTexture() const { return (const FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().ShaderResourceTexture; }
 
-	const FTexture2DRHIRef& GetAuxiliarySceneDepthTexture() const
-	{ 
-		check(!GSupportsDepthFetchDuringDepthTest);
-		return (const FTexture2DRHIRef&)AuxiliarySceneDepthZ->GetRenderTargetItem().ShaderResourceTexture; 
+	const FTexture2DRHIRef& GetSceneDepthTexture() const
+	{
+		static const FTexture2DRHIRef EmptyTexture;
+		return SceneDepthZ ? (const FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().ShaderResourceTexture : EmptyTexture;
 	}
 
-	const FTexture2DRHIRef* GetActualDepthTexture() const;
 	const FTexture2DRHIRef& GetGBufferATexture() const { return (const FTexture2DRHIRef&)GBufferA->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferBTexture() const { return (const FTexture2DRHIRef&)GBufferB->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferCTexture() const { return (const FTexture2DRHIRef&)GBufferC->GetRenderTargetItem().ShaderResourceTexture; }
@@ -390,11 +387,6 @@ public:
 	const FTexture2DRHIRef& GetSmallDepthSurface() const							{ return (const FTexture2DRHIRef&)SmallDepthZ->GetRenderTargetItem().TargetableTexture; }
 	const FTexture2DRHIRef& GetOptionalShadowDepthColorSurface(FRHICommandList& RHICmdList, int32 Width, int32 Height) const;
 	const FTexture2DRHIRef& GetLightAttenuationSurface() const					{ return (const FTexture2DRHIRef&)GetLightAttenuation()->GetRenderTargetItem().TargetableTexture; }
-	const FTexture2DRHIRef& GetAuxiliarySceneDepthSurface() const 
-	{	
-		check(!GSupportsDepthFetchDuringDepthTest); 
-		return (const FTexture2DRHIRef&)AuxiliarySceneDepthZ->GetRenderTargetItem().TargetableTexture; 
-	}
 
 	const FTexture2DRHIRef& GetDirectionalOcclusionTexture() const 
 	{	
@@ -456,6 +448,7 @@ public:
 	const TRefCountPtr<IPooledRenderTarget>& GetSceneColor() const;
 
 	TRefCountPtr<IPooledRenderTarget>& GetSceneColor();
+	TRefCountPtr<IPooledRenderTarget>& GetSceneColorSubPixel();
 
 	EPixelFormat GetSceneColorFormat(ERHIFeatureLevel::Type InFeatureLevel) const;
 	EPixelFormat GetSceneColorFormat() const;
@@ -496,6 +489,7 @@ public:
 	void AllocateDebugViewModeTargets(FRHICommandList& RHICmdList);
 
 	void AllocateScreenShadowMask(FRHICommandList& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskTexture);
+	void AllocateScreenTransmittanceMask(FRHICommandList& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ScreenTransmittanceMaskTexture);
 
 	TRefCountPtr<IPooledRenderTarget>& GetReflectionBrightnessTarget();
 
@@ -518,6 +512,9 @@ public:
 	// Light Accumulation is a high precision scratch pad matching the size of the scene color buffer used by many passes.
 	TRefCountPtr<IPooledRenderTarget> LightAccumulation;
 
+	// Secondary scene color target for storing subpixel color details (e.g. hair pixels)
+	TRefCountPtr<IPooledRenderTarget> SceneColorSubPixel;
+
 	// Reflection Environment: Bringing back light accumulation buffer to apply indirect reflections
 	TRefCountPtr<IPooledRenderTarget> DirectionalOcclusion;
 	
@@ -530,8 +527,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> LightingChannels;
 	// Mobile without frame buffer fetch (to get depth from alpha).
 	TRefCountPtr<IPooledRenderTarget> SceneAlphaCopy;
-	// Auxiliary scene depth target. The scene depth is resolved to this surface when targeting SM4. 
-	TRefCountPtr<IPooledRenderTarget> AuxiliarySceneDepthZ;
 	// Quarter-sized version of the scene depths
 	TRefCountPtr<IPooledRenderTarget> SmallDepthZ;
 

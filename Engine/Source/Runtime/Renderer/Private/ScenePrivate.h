@@ -819,7 +819,7 @@ private:
 	TRefCountPtr<IPooledRenderTarget> CombinedLUTRenderTarget;
 
 	// LUT is only valid after it has been computed, not on allocation of the RT
-	bool bValidTonemappingLUT;
+	bool bValidTonemappingLUT = false;
 
 
 	// used by the Postprocess Material Blending system to avoid recreation and garbage collection of MIDs
@@ -842,6 +842,9 @@ public:
 	
 	// if TemporalAA is on this cycles through 0..TemporalAASampleCount-1, ResetViewState() puts it back to 0
 	int8 TemporalAASampleIndex;
+
+	// if TemporalAA is on this cycles through 0..Onwards, ResetViewState() puts it back to 0
+	uint32 TemporalAASampleIndexUnclamped;
 
 	// counts up by one each frame, warped in 0..7 range, ResetViewState() puts it back to 0
 	uint32 FrameIndex;
@@ -930,10 +933,6 @@ public:
 	FIntPoint GatherPointsResolution;
 #endif
 
-	// cache for stencil reads to a avoid reallocations of the SRV, Key is to detect if the object has changed
-	FTextureRHIRef SelectionOutlineCacheKey;
-	TRefCountPtr<FRHIShaderResourceView> SelectionOutlineCacheValue;
-
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResources;
 
 	FForwardLightingCullingResources ForwardLightingCullingResources;
@@ -990,6 +989,10 @@ public:
 		return TemporalAASampleIndex;
 	}
 
+	virtual uint32 GetCurrentUnclampedTemporalAASampleIndex() const
+	{
+		return TemporalAASampleIndexUnclamped;
+	}
 	// Returns the index of the frame with a desired power of two modulus.
 	inline uint32 GetFrameIndex(uint32 Pow2Modulus) const
 	{
@@ -1007,6 +1010,7 @@ public:
 	virtual void ResetViewState()
 	{
 		TemporalAASampleIndex = 0;
+		TemporalAASampleIndexUnclamped = 0;
 		FrameIndex = 0;
 		DistanceFieldTemporalSampleIndex = 0;
 		PreExposure = 1.f;
@@ -1205,7 +1209,7 @@ public:
 	}
 
 	// Returns a reference to the render target used for the LUT.  Allocated on the first request.
-	IPooledRenderTarget* GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput)
+	IPooledRenderTarget* GetTonemappingLUT(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput)
 	{
 		if (CombinedLUTRenderTarget.IsValid() == false || 
 			CombinedLUTRenderTarget->GetDesc().Extent.Y != LUTSize ||
@@ -1221,14 +1225,9 @@ public:
 		return CombinedLUTRenderTarget.GetReference();
 	}
 
-	const FTextureRHIRef* GetTonemappingLUTTexture() const
+	IPooledRenderTarget* GetTonemappingLUT() const
 	{
-		const FTextureRHIRef* ShaderResourceTexture = NULL;
-
-		if (CombinedLUTRenderTarget.IsValid()) {
-			ShaderResourceTexture = &CombinedLUTRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
-		}
-		return ShaderResourceTexture;
+		return CombinedLUTRenderTarget.GetReference();
 	}
 
 	// FRenderResource interface.
@@ -2413,6 +2412,7 @@ struct FMeshComputeDispatchCommand
 	uint32 NumMaxVertices;
 	uint32 NumCPUVertices;
 	uint32 MinVertexIndex;
+	uint32 PrimitiveId;
 	FRWBuffer* TargetBuffer;
 };
 #endif

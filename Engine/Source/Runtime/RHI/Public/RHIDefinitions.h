@@ -472,8 +472,11 @@ enum EUniformBufferBaseType : uint8
 {
 	UBMT_INVALID,
 
-	// Parameter types.
+	// Invalid type when trying to use bool, to have explicit error message to programmer on why
+	// they shouldn't use bool in shader parameter structures.
 	UBMT_BOOL,
+
+	// Parameter types.
 	UBMT_INT32,
 	UBMT_UINT32,
 	UBMT_FLOAT32,
@@ -1194,12 +1197,6 @@ inline bool RHISupportsMobileMultiView(const EShaderPlatform Platform)
 {
 	return (Platform == EShaderPlatform::SP_OPENGL_ES3_1_ANDROID || Platform == EShaderPlatform::SP_OPENGL_ES2_ANDROID) || IsVulkanMobilePlatform(Platform)
 		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsMobileMultiView;
-}
-
-inline bool RHISupportsDrawIndirect(const EShaderPlatform Platform)
-{
-	return Platform == EShaderPlatform::SP_METAL_SM5 || Platform == EShaderPlatform::SP_PCD3D_SM5 || IsVulkanSM5Platform(Platform) || Platform == EShaderPlatform::SP_PS4
-		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsDrawIndirect;
 }
 
 inline bool RHISupportsNativeShaderLibraries(const EShaderPlatform Platform)

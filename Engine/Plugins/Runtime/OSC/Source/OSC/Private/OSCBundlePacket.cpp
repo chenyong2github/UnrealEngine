@@ -50,15 +50,34 @@ void FOSCBundlePacket::WriteData(FOSCStream& Stream)
 
 void FOSCBundlePacket::ReadData(FOSCStream& Stream)
 {
+	FString BundleTag = Stream.ReadString();
+	if (BundleTag != OSC::BundleTag)
+	{
+		UE_LOG(LogOSC, Warning, TEXT("Failed to parse OSCBundle of invalid format. #bundle identifier not first item in packet."));
+		return;
+	}
+
 	TimeTag = FOSCType(Stream.ReadUInt64());
 
 	while (!Stream.HasReachedEnd())
 	{
-		TSharedPtr<IOSCPacket> Packet = IOSCPacket::CreatePacket(Stream.GetData());
-		if (Packet.IsValid())
+		int32 PacketLength = Stream.ReadInt32();
+
+		int32 StartPos = Stream.GetPosition();
+		TSharedPtr<IOSCPacket> Packet = IOSCPacket::CreatePacket(Stream.GetData() + Stream.GetPosition());
+		if (!Packet.IsValid())
 		{
-			Packet->ReadData(Stream);
-			Packets.Add(Packet);
+			break;
+		}
+
+		Packet->ReadData(Stream);
+		Packets.Add(Packet);
+		int32 EndPos = Stream.GetPosition();
+
+		if (EndPos - StartPos != PacketLength)
+		{
+			UE_LOG(LogOSC, Warning, TEXT("Failed to parse OSCBundle of invalid format. Element size mismatch."));
+			break;
 		}
 	}
 }

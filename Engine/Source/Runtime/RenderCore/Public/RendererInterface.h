@@ -335,7 +335,7 @@ public:
 		bForceSharedTargetAndShaderResource = false;
 		AutoWritable = true;
 
-		// Remove UAV flag for rendertargets that don't need it (some formats are incompatible)
+		// Remove UAV flag for render targets that don't need it (some formats are incompatible)
 		TargetableFlags |= TexCreate_RenderTargetable;
 		TargetableFlags &= (~TexCreate_UAV);
 	}
@@ -399,6 +399,8 @@ struct FSceneRenderTargetItem
 		UAV.SafeRelease();
 		MipUAVs.Empty();
 		SRVs.Empty();
+		HTileUAV.SafeRelease();
+		HTileSRV.SafeRelease();
 	}
 
 	bool IsValid() const
@@ -410,18 +412,26 @@ struct FSceneRenderTargetItem
 
 	/** The 2D or cubemap texture that may be used as a render or depth-stencil target. */
 	FTextureRHIRef TargetableTexture;
+
 	/** The 2D or cubemap shader-resource 2D texture that the targetable textures may be resolved to. */
 	FTextureRHIRef ShaderResourceTexture;
+	
 	/** only created if requested through the flag, same as MipUAVs[0] */
 	// TODO: refactor all the code to only use MipUAVs?
 	FUnorderedAccessViewRHIRef UAV;
+	
 	/** only created if requested through the flag  */
 	TArray< FUnorderedAccessViewRHIRef, TInlineAllocator<1> > MipUAVs;
+
 	/** All SRVs that has been created on for that ShaderResourceTexture.  */
 	TMap<FRHITextureSRVCreateInfo, FShaderResourceViewRHIRef> SRVs;
 
 	FShaderResourceViewRHIRef RTWriteMaskBufferRHI_SRV;
 	FStructuredBufferRHIRef RTWriteMaskDataBufferRHI;
+
+	/** only created if requested through meta data access flags */
+	FUnorderedAccessViewRHIRef HTileUAV;
+	FShaderResourceViewRHIRef  HTileSRV;
 };
 
 /**

@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Declares.h"
 #include "Chaos/PBDCollisionTypes.h"
 #include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/PBDConstraintColor.h"
@@ -9,6 +10,9 @@
 
 namespace Chaos
 {
+	template<typename T, int d>
+	class TConstraintHandle;
+
 	/**
 	 * Constraint Rules bind constraint collections to the evolution and provide their update algorithm.
 	 */
@@ -98,7 +102,7 @@ namespace Chaos
 			ConstraintGraph->ReserveConstraints(Constraints.NumConstraints());
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.NumConstraints(); ++ConstraintIndex)
 			{
-				ConstraintGraph->AddConstraint(ContainerId, ConstraintIndex, Constraints.ConstraintParticles(ConstraintIndex));
+				ConstraintGraph->AddConstraint(ContainerId, Constraints.GetConstraintHandle(ConstraintIndex), Constraints.GetConstrainedParticles(ConstraintIndex));
 			}
 		}
 
@@ -126,8 +130,10 @@ namespace Chaos
 		typedef TPBDConstraintGraphRuleImpl<T_CONSTRAINTS, T, d> Base;
 
 	public:
-		typedef typename Base::FConstraints FConstraints;
-		typedef typename Base::FConstraintGraph FConstraintGraph;
+		using FConstraints = typename Base::FConstraints;
+		using FConstraintHandle = typename FConstraints::FConstraintHandle;
+		using FConstraintList = TArray<TConstraintHandle<T, d>*>;
+		using FConstraintGraph = typename Base::FConstraintGraph;
 
 		TPBDConstraintIslandRule(FConstraints& InConstraints)
 			: TPBDConstraintGraphRuleImpl<T_CONSTRAINTS, T, d>(InConstraints)
@@ -138,7 +144,7 @@ namespace Chaos
 		{
 			if (IslandConstraintLists[Island].Num())
 			{
-				Constraints.Apply(Dt, IslandConstraintLists[Island]);
+				Constraints.Apply(Dt, GetIslandConstraints(Island));
 			}
 		}
 
@@ -146,14 +152,14 @@ namespace Chaos
 		{
 			if (IslandConstraintLists[Island].Num())
 			{
-				Constraints.ApplyPushOut(Dt, IslandConstraintLists[Island]);
+				Constraints.ApplyPushOut(Dt, GetIslandConstraints(Island));
 			}
 		}
 
 		virtual void InitializeAccelerationStructures() override
 		{
 			IslandConstraintLists.SetNum(ConstraintGraph->NumIslands());
-			for (TArray<int32>& IslandConstraintList : IslandConstraintLists)
+			for (FConstraintList& IslandConstraintList : IslandConstraintLists)
 			{
 				IslandConstraintList.Reset();
 			}
@@ -162,7 +168,7 @@ namespace Chaos
 		virtual void UpdateAccelerationStructures(const int32 Island) override
 		{
 			const TArray<int32>& ConstraintDataIndices = ConstraintGraph->GetIslandConstraintData(Island);
-			TArray<int32>& IslandConstraintList = IslandConstraintLists[Island];
+			FConstraintList& IslandConstraintList = IslandConstraintLists[Island];
 			IslandConstraintList.Reset();
 			IslandConstraintList.Reserve(ConstraintDataIndices.Num());
 			for (int32 ConstraintDataIndex : ConstraintDataIndices)
@@ -170,7 +176,7 @@ namespace Chaos
 				const typename FConstraintGraph::FConstraintData& ConstraintData = ConstraintGraph->GetConstraintData(ConstraintDataIndex);
 				if (ConstraintData.ContainerId == ContainerId)
 				{
-					IslandConstraintList.Add(ConstraintData.ConstraintIndex);
+					IslandConstraintList.Add(ConstraintData.ConstraintHandle);
 				}
 			}
 		}
@@ -180,9 +186,16 @@ namespace Chaos
 		using Base::ConstraintGraph;
 		using Base::ContainerId;
 
+		const TArray<FConstraintHandle*>& GetIslandConstraints(int32 Island)
+		{
+			// Constraint rules are bound to a single type, but the FConstraintGraph works with many types. We have
+			// already pre-filtered the constraint lists based on type, so this case is safe.
+			return reinterpret_cast<const TArray<FConstraintHandle*>&>(IslandConstraintLists[Island]);
+		}
+
 		// @todo(ccaulfield): optimize: eliminate the need for this index list - it is a subset of EdgeData. 
 		// If EdgeData were sorted by ContainerId we could use TArray<TArrayView<int32>>...
-		TArray<TArray<int32>> IslandConstraintLists;
+		TArray<FConstraintList> IslandConstraintLists;
 	};
 
 	/**
@@ -224,7 +237,8 @@ namespace Chaos
 				{
 					if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
 					{
-						Constraints.Apply(Dt, LevelToColorToConstraintListMap[Level][Color]);
+						const TArray<typename FConstraints::FConstraintHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
+						Constraints.Apply(Dt, ConstraintHandles);
 					}
 				}
 			}
@@ -247,7 +261,8 @@ namespace Chaos
 					{
 						if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
 						{
-							NeedsAnotherIteration = Constraints.ApplyPushOut(Dt, LevelToColorToConstraintListMap[Level][Color], IsTemporarilyStatic, Iteration, PushOutIterations);
+							const TArray<typename FConstraints::FConstraintHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
+							NeedsAnotherIteration = Constraints.ApplyPushOut(Dt, ConstraintHandles, IsTemporarilyStatic, Iteration, PushOutIterations);
 						}
 					}
 #if USE_SHOCK_PROPOGATION
@@ -257,7 +272,7 @@ namespace Chaos
 						{
 							for (int32 Edge = 0; Edge < LevelToColorToConstraintListMap[Level][Color].Num(); ++Edge)
 							{
-								const int32 ConstraintIndex = LevelToColorToConstraintListMap[Level][Color][Edge];
+								const int32 ConstraintIndex = LevelToColorToConstraintListMap[Level][Color][Edge]->GetConstraintIndex();
 								const TVector<TGeometryParticleHandle<T,d>*, 2> Particles = Constraints.ConstraintParticles(ConstraintIndex);
 								if (Iteration == PushOutIterations - 1)
 								{
@@ -297,6 +312,12 @@ namespace Chaos
 		using Base::Constraints;
 		using Base::ConstraintGraph;
 		using Base::ContainerId;
+
+		const TArray<typename FConstraints::FConstraintHandle*>& GetLevelColorConstraints(const typename FConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap, int32 Level, int32 Color) const
+		{
+			// FConstraintColor works with any constraint type (in principle - currently only used with Collisions), but the rule is bound to a single type and so this cast is ok
+			return reinterpret_cast<const TArray<typename FConstraints::FConstraintHandle*>&>(LevelToColorToConstraintListMap[Level][Color]);
+		}
 
 		FConstraintColor GraphColor;
 		int32 PushOutIterations;

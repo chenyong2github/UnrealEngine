@@ -13,11 +13,13 @@
 #include "XmppStrophe/StropheStanzaConstants.h"
 #include "XmppStrophe/StropheError.h"
 #include "XmppLog.h"
+#include "Containers/BackgroundableTicker.h"
 
 #if WITH_XMPP_STROPHE
 
 FXmppConnectionStrophe::FXmppConnectionStrophe()
-	: LoginStatus(EXmppLoginStatus::NotStarted)
+	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	, LoginStatus(EXmppLoginStatus::NotStarted)
 {
 	MessagesStrophe = MakeShared<FXmppMessagesStrophe, ESPMode::ThreadSafe>(*this);
 	MultiUserChatStrophe = MakeShared<FXmppMultiUserChatStrophe, ESPMode::ThreadSafe>(*this);
@@ -25,6 +27,20 @@ FXmppConnectionStrophe::FXmppConnectionStrophe()
 	PresenceStrophe = MakeShared<FXmppPresenceStrophe, ESPMode::ThreadSafe>(*this);
 	PrivateChatStrophe = MakeShared<FXmppPrivateChatStrophe, ESPMode::ThreadSafe>(*this);
 	PubSubStrophe = MakeShared<FXmppPubSubStrophe, ESPMode::ThreadSafe>(*this);
+}
+
+FXmppConnectionStrophe::~FXmppConnectionStrophe()
+{
+	// Shutdown our connections before we're fully destructed; strophe calls back into us on its disconnect event
+	if (StropheThread.IsValid())
+	{
+		StopXmppThread();
+	}
+
+	if (WebsocketConnection.IsValid())
+	{
+		WebsocketConnection.Reset();
+	}
 }
 
 void FXmppConnectionStrophe::SetServer(const FXmppServer& NewServerConfiguration)

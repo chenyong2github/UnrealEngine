@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "XmppJingle/XmppChatJingle.h"
+#include "Containers/BackgroundableTicker.h"
 #include "XmppJingle/XmppConnectionJingle.h"
 #include "XmppPresence.h"
 #include "XmppLog.h"
@@ -197,7 +198,8 @@ protected:
 };
 
 FXmppChatJingle::FXmppChatJingle(class FXmppConnectionJingle& InConnection)
-	: ChatRcvTask(NULL)
+	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	, ChatRcvTask(NULL)
 	, ChatSendTask(NULL)
 	, Connection(InConnection)
 {

@@ -219,11 +219,7 @@ public:
 	BufferType* CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 		const D3D12_RESOURCE_DESC& Desc,
 		uint32 Alignment, uint32 Stride, uint32 Size, uint32 InUsage,
-		FRHIResourceCreateInfo& CreateInfo,
-		FRHIGPUMask GPUMask = FRHIGPUMask::All());
-
-	// Queue up a command to signal the frame fence on the command list. This should only be called from the rendering thread.
-	void SignalFrameFence_RenderThread(FRHICommandListImmediate& RHICmdList);
+		FRHIResourceCreateInfo& CreateInfo);
 
 	template<typename ObjectType, typename CreationCoreFunction>
 	inline ObjectType* CreateLinkedObject(FRHIGPUMask GPUMask, const CreationCoreFunction& pfnCreationCore)
@@ -358,7 +354,9 @@ protected:
 
 	FD3DGPUProfiler GPUProfilingData;
 
+#if WITH_MGPU
 	TMap<FName, FD3D12TemporalEffect> TemporalEffectMap;
+#endif
 
 	// Each of these devices represents a physical GPU 'Node'
 	FD3D12Device* Devices[MAX_NUM_GPUS];

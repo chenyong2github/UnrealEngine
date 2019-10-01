@@ -13,6 +13,8 @@ void SPluginCategoryTree::Construct( const FArguments& Args, const TSharedRef< S
 {
 	OwnerWeak = Owner;
 
+	FilterType = EFilterType::None;
+
 	// Create the root categories
 	BuiltInCategory = MakeShareable(new FPluginCategory(NULL, TEXT("Built-In"), LOCTEXT("BuiltInCategoryName", "Built-In")));
 	InstalledCategory = MakeShareable(new FPluginCategory(NULL, TEXT("Installed"), LOCTEXT("InstalledCategoryName", "Installed")));
@@ -64,27 +66,44 @@ static void ResetCategories(TArray<TSharedPtr<FPluginCategory>>& Categories)
 
 void SPluginCategoryTree::RebuildAndFilterCategoryTree()
 {
-	// Get a plugin from the currently selected category, so we can track it if it's removed
-	TSharedPtr<IPlugin> TrackPlugin = nullptr;
+	// Get the path to the first currently selected category
+	TArray<FString> SelectCategoryPath;
 	for(TSharedPtr<FPluginCategory> SelectedItem: TreeView->GetSelectedItems())
 	{
-		if(SelectedItem->Plugins.Num() > 0)
+		for (const FPluginCategory* Category = SelectedItem.Get(); Category != nullptr; Category = Category->ParentCategory.Pin().Get())
 		{
-			TrackPlugin = SelectedItem->Plugins[0];
-			break;
+			SelectCategoryPath.Insert(Category->Name, 0);
 		}
+		break;
 	}
 
 	// Clear the list of plugins in each current category
 	ResetCategories(RootCategories);
 
 	// Add all the known plugins into categories
-	TSharedPtr<FPluginCategory> SelectCategory;
 	for(TSharedRef<IPlugin> Plugin: IPluginManager::Get().GetDiscoveredPlugins())
 	{
 		if (Plugin->IsHidden())
 		{
 			continue;
+		}
+
+		switch (FilterType)
+		{
+		case SPluginCategoryTree::EFilterType::None:
+			break;
+		case SPluginCategoryTree::EFilterType::OnlyEnabled:
+			if (!Plugin->IsEnabled())
+			{
+				continue;
+			}
+			break;
+		case SPluginCategoryTree::EFilterType::OnlyDisabled:
+			if (Plugin->IsEnabled())
+			{
+				continue;
+			}
+			break;
 		}
 
 		// Figure out which base category this plugin belongs in
@@ -140,12 +159,6 @@ void SPluginCategoryTree::RebuildAndFilterCategoryTree()
 			ParentCategory->Plugins.Add(Plugin);
 			ParentCategory = ParentCategory->ParentCategory.Pin();
 		}
-
-		// Update the selection if this is the plugin we're tracking
-		if(TrackPlugin == Plugin)
-		{
-			SelectCategory = FoundCategory;
-		}
 	}
 
 	// Remove any empty categories, keeping track of which items are still selected
@@ -156,6 +169,29 @@ void SPluginCategoryTree::RebuildAndFilterCategoryTree()
 			if(RootCategory->SubCategories[Idx]->Plugins.Num() == 0)
 			{
 				RootCategory->SubCategories.RemoveAt(Idx);
+			}
+		}
+	}
+
+	// Resolve the path to the category to select
+	TSharedPtr<FPluginCategory> SelectCategory;
+	if (SelectCategoryPath.Num() > 0)
+	{
+		for (TSharedPtr<FPluginCategory> RootCategory : RootCategories)
+		{
+			if (RootCategory->Name == SelectCategoryPath[0])
+			{
+				SelectCategory = RootCategory;
+				for (int Idx = 1; Idx < SelectCategoryPath.Num(); Idx++)
+				{
+					TSharedPtr<FPluginCategory> SubCategory = SelectCategory->FindSubCategory(SelectCategoryPath[Idx]);
+					if (!SubCategory.IsValid())
+					{
+						break;
+					}
+					SelectCategory = SubCategory;
+				}
+				break;
 			}
 		}
 	}
@@ -270,6 +306,17 @@ bool SPluginCategoryTree::IsItemExpanded( const TSharedPtr<FPluginCategory> Item
 void SPluginCategoryTree::SetNeedsRefresh()
 {
 	RegisterActiveTimer (0.f, FWidgetActiveTimerDelegate::CreateSP (this, &SPluginCategoryTree::TriggerCategoriesRefresh));
+}
+
+bool SPluginCategoryTree::IsFilterEnabled(EFilterType FilterValue) const
+{
+	return (FilterType == FilterValue);
+}
+
+void SPluginCategoryTree::ToggleFilterType(EFilterType FilterValue)
+{
+	FilterType = IsFilterEnabled(FilterValue) ? EFilterType::None : FilterValue;
+	SetNeedsRefresh();
 }
 
 EActiveTimerReturnType SPluginCategoryTree::TriggerCategoriesRefresh(double InCurrentTime, float InDeltaTime)

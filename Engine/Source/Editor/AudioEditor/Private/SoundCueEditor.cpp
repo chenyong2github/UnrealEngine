@@ -30,6 +30,8 @@
 #include "Sound/SoundNodeDialoguePlayer.h"
 #include "SSoundCuePalette.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "AudioDeviceManager.h"
+#include "Audio/AudioDebug.h"
 
 #define LOCTEXT_NAMESPACE "SoundCueEditor"
 
@@ -39,6 +41,7 @@ const FName FSoundCueEditor::PaletteTabId( TEXT( "SoundCueEditor_Palette" ) );
 
 FSoundCueEditor::FSoundCueEditor()
 	: SoundCue(nullptr)
+	, Debugger(nullptr)
 {
 }
 
@@ -146,6 +149,11 @@ void FSoundCueEditor::InitSoundCueEditor(const EToolkitMode::Type Mode, const TS
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
 
+	if (GEditor->GetAudioDeviceManager())
+	{
+		Debugger = &GEditor->GetAudioDeviceManager()->GetDebugger();
+	}	
+	
 	// @todo toolkit world centric editing
 	/*if(IsWorldCentricAssetEditor())
 	{
@@ -281,6 +289,14 @@ void FSoundCueEditor::ExtendToolbar()
 {
 		static void FillToolbar(FToolBarBuilder& ToolbarBuilder)
 		{
+			ToolbarBuilder.BeginSection("Debug");
+			{
+				ToolbarBuilder.AddToolBarButton(FSoundCueGraphEditorCommands::Get().ToggleSolo);
+
+				ToolbarBuilder.AddToolBarButton(FSoundCueGraphEditorCommands::Get().ToggleMute);
+			}
+			ToolbarBuilder.EndSection();
+
 			ToolbarBuilder.BeginSection("Toolbar");
 			{
 				ToolbarBuilder.AddToolBarButton(FSoundCueGraphEditorCommands::Get().PlayCue);
@@ -336,6 +352,18 @@ void FSoundCueEditor::BindGraphCommands()
 	ToolkitCommands->MapAction(
 		FGenericCommands::Get().Redo,
 		FExecuteAction::CreateSP( this, &FSoundCueEditor::RedoGraphAction ));
+
+	ToolkitCommands->MapAction(
+		Commands.ToggleSolo,
+		FExecuteAction::CreateSP(this, &FSoundCueEditor::ToggleSolo),
+		FCanExecuteAction::CreateSP(this, &FSoundCueEditor::CanExcuteToggleSolo),
+		FIsActionChecked::CreateSP(this, &FSoundCueEditor::IsSoloToggled));
+		
+	ToolkitCommands->MapAction(
+		Commands.ToggleMute,
+		FExecuteAction::CreateSP(this, &FSoundCueEditor::ToggleMute),
+		FCanExecuteAction::CreateSP(this, &FSoundCueEditor::CanExcuteToggleMute),
+		FIsActionChecked::CreateSP(this, &FSoundCueEditor::IsMuteToggled));
 }
 
 void FSoundCueEditor::PlayCue()
@@ -390,6 +418,44 @@ void FSoundCueEditor::TogglePlayback()
 	{
 		PlayCue();
 	}
+}
+
+void FSoundCueEditor::ToggleSolo()
+{
+	if (Debugger)
+	{
+		Debugger->ToggleSoloSoundCue(SoundCue->GetFName());
+	}
+}
+
+bool FSoundCueEditor::CanExcuteToggleSolo() const
+{
+	// Allow Solo if Mute is not Toggle on
+	return Debugger ? !Debugger->IsMuteSoundCue(SoundCue->GetFName()) : false;
+}
+
+bool FSoundCueEditor::IsSoloToggled() const
+{
+	return Debugger ? Debugger->IsSoloSoundCue(SoundCue->GetFName()) : false;
+}
+
+void FSoundCueEditor::ToggleMute()
+{
+	if (Debugger)
+	{
+		Debugger->ToggleMuteSoundCue(SoundCue->GetFName());
+	}
+}
+
+bool FSoundCueEditor::CanExcuteToggleMute() const
+{
+	// Allow Mute if Solo is not Toggle on
+	return Debugger ? !Debugger->IsSoloSoundCue(SoundCue->GetFName()) : false;
+}
+
+bool FSoundCueEditor::IsMuteToggled() const
+{
+	return Debugger ? Debugger->IsMuteSoundCue(SoundCue->GetFName()) : false;
 }
 
 void FSoundCueEditor::PlaySingleNode(UEdGraphNode* Node)

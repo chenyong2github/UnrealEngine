@@ -27,11 +27,11 @@ class UCanvas;
 struct FAnimInstanceProxy;
 struct FAnimNode_AssetPlayerBase;
 struct FAnimNode_StateMachine;
-struct FAnimNode_SubInput;
+struct FAnimNode_LinkedInputPose;
 struct FBakedAnimationStateMachine;
 class FCompilerResultsLog;
 struct FBoneContainer;
-struct FAnimNode_Layer;
+struct FAnimNode_LinkedAnimLayer;
 
 typedef TArray<FTransform> FTransformArrayA2;
 
@@ -699,56 +699,80 @@ public:
 	virtual void OnMontageInstanceStopped(FAnimMontageInstance & StoppedMontageInstance);
 	void ClearMontageInstanceReferences(FAnimMontageInstance& InMontageInstance);
 
+	UE_DEPRECATED(4.24, "Function renamed, please use GetLinkedInputPoseNode")
+	FAnimNode_LinkedInputPose* GetSubInputNode(FName InSubInput = NAME_None, FName InGraph = NAME_None) { return GetLinkedInputPoseNode(InSubInput, InGraph); }
+
 	/** 
-	 * Get a sub-input node by name, given a named graph.
-	 * @param	InSubInput	The name of the sub-input. If this is NAME_None, then we assume that the desired input is FAnimNode_SubInput::DefaultInputPoseName.
-	 * @param	InGraph		The name of the graph in which to find the sub-input. If this is NAME_None, then we assume that the desired graph is "AnimGraph", the default.
+	 * Get a linked input pose node by name, given a named graph.
+	 * @param	InSubInput	The name of the linked input pose. If this is NAME_None, then we assume that the desired input is FAnimNode_LinkedInputPose::DefaultInputPoseName.
+	 * @param	InGraph		The name of the graph in which to find the linked input. If this is NAME_None, then we assume that the desired graph is "AnimGraph", the default.
 	 */
-	FAnimNode_SubInput* GetSubInputNode(FName InSubInput = NAME_None, FName InGraph = NAME_None);
+	FAnimNode_LinkedInputPose* GetLinkedInputPoseNode(FName InSubInput = NAME_None, FName InGraph = NAME_None);
 
-	/** Runs through all nodes, attempting to find the first sub-instance by name/tag */
-	UFUNCTION(BlueprintPure, Category = "Sub-Instances")
-	UAnimInstance* GetSubInstanceByTag(FName InTag) const;
+	UE_DEPRECATED(4.24, "Function renamed, please use GetLinkedAnimGraphInstanceByTag")
+	UAnimInstance* GetSubInstanceByTag(FName InTag) const { return GetLinkedAnimGraphInstanceByTag(InTag); }
 
-	/** Runs through all nodes, attempting to find all sub-instance that match the name/tag */
-	UFUNCTION(BlueprintPure, Category = "Sub-Instances")
+	/** Runs through all nodes, attempting to find the first linked instance by name/tag */
+	UFUNCTION(BlueprintPure, Category = "Animation Blueprint Linking")
+	UAnimInstance* GetLinkedAnimGraphInstanceByTag(FName InTag) const;
+
+	UE_DEPRECATED(4.24, "Function renamed, please use GetLinkedAnimGraphInstancesByTag")
 	void GetSubInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutSubInstances) const;
 
-	/** Runs through all nodes, attempting to find sub-instance by name/tag, then sets the class of each node if the tag matches */
-	UFUNCTION(BlueprintCallable, Category = "Sub-Instances")
-	void SetSubInstanceClassByTag(FName InTag, TSubclassOf<UAnimInstance> InClass);
+	/** Runs through all nodes, attempting to find all linked instances that match the name/tag */
+	UFUNCTION(BlueprintPure, Category = "Animation Blueprint Linking")
+	void GetLinkedAnimGraphInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutLinkedInstances) const;
 
-	/** 
-	 * Runs through all layer nodes, attempting to find layer nodes that are implemented by the specified class, then sets up a sub instance of the class for each.
-	 * Allocates one sub instance to run each of the groups specified in the class, so state is shared. If a layer is not grouped (ie. NAME_None), then state is not shared
-	 * and a separate sub-instance is allocated for each layer node.
+	UE_DEPRECATED(4.24, "Function renamed, please use LinkAnimGraphByTag")
+	void SetSubInstanceClassByTag(FName InTag, TSubclassOf<UAnimInstance> InClass) { LinkAnimGraphByTag(InTag, InClass); }
+
+	/** Runs through all nodes, attempting to find a linked instance by name/tag, then sets the class of each node if the tag matches */
+	UFUNCTION(BlueprintCallable, Category = "Animation Blueprint Linking")
+	void LinkAnimGraphByTag(FName InTag, TSubclassOf<UAnimInstance> InClass);
+
+	UE_DEPRECATED(4.24, "Function renamed, please use LinkAnimClassLayers")
+	void SetLayerOverlay(TSubclassOf<UAnimInstance> InClass) { LinkAnimClassLayers(InClass); }
+
+	/**
+	 * Runs through all layer nodes, attempting to find layer nodes that are implemented by the specified class, then sets up a linked instance of the class for each.
+	 * Allocates one linked instance to run each of the groups specified in the class, so state is shared. If a layer is not grouped (ie. NAME_None), then state is not shared
+	 * and a separate linked instance is allocated for each layer node.
 	 * If InClass is null, then all layers are reset to their defaults.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Layers")
-	void SetLayerOverlay(TSubclassOf<UAnimInstance> InClass);
+	UFUNCTION(BlueprintCallable, Category = "Animation Blueprint Linking")
+	void LinkAnimClassLayers(TSubclassOf<UAnimInstance> InClass);
 
-	/** 
+	UE_DEPRECATED(4.24, "Function renamed, please use UnlinkAnimClassLayers")
+	void ClearLayerOverlay(TSubclassOf<UAnimInstance> InClass) { UnlinkAnimClassLayers(InClass); }
+
+	/**
 	 * Runs through all layer nodes, attempting to find layer nodes that are currently running the specified class, then resets each to its default value.
 	 * State sharing rules are as with SetLayerOverlay.
 	 * If InClass is null, does nothing.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Layers")
-	void ClearLayerOverlay(TSubclassOf<UAnimInstance> InClass);
+	UFUNCTION(BlueprintCallable, Category = "Animation Blueprint Linking")
+	void UnlinkAnimClassLayers(TSubclassOf<UAnimInstance> InClass);
 
-	/** Gets the layer sub instance corresponding to the specified group */
-	UFUNCTION(BlueprintCallable, Category = "Layers")
-	UAnimInstance* GetLayerSubInstanceByGroup(FName InGroup) const;
+	UE_DEPRECATED(4.24, "Function renamed, please use GetLinkedAnimLayerInstanceByGroup")
+	UAnimInstance* GetLayerSubInstanceByGroup(FName InGroup) const { return GetLinkedAnimLayerInstanceByGroup(InGroup); }
 
-	/** Gets the first layer sub instance corresponding to the specified class */
-	UFUNCTION(BlueprintCallable, Category = "Layers")
-	UAnimInstance* GetLayerSubInstanceByClass(TSubclassOf<UAnimInstance> InClass) const;
+	/** Gets the layer linked instance corresponding to the specified group */
+	UFUNCTION(BlueprintPure, Category = "Animation Blueprint Linking")
+	UAnimInstance* GetLinkedAnimLayerInstanceByGroup(FName InGroup) const;
+
+	UE_DEPRECATED(4.24, "Function renamed, please use GetLinkedAnimLayerInstanceByClass")
+	UAnimInstance* GetLayerSubInstanceByClass(TSubclassOf<UAnimInstance> InClass) const { return GetLinkedAnimLayerInstanceByClass(InClass); }
+
+	/** Gets the first layer linked instance corresponding to the specified class */
+	UFUNCTION(BlueprintPure, Category = "Animation Blueprint Linking")
+	UAnimInstance* GetLinkedAnimLayerInstanceByClass(TSubclassOf<UAnimInstance> InClass) const;
 
 	/** Sets up initial layer groupings */
-	void InitializeGroupedLayers();
+	void InitializeGroupedLayers(bool bInDeferSubGraphInitialization);
 
 private:
 	/** Helper function to perform layer overlay actions (set, clear) */
-	void PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InClass, TFunctionRef<UClass*(UClass*, FAnimNode_Layer*)> InClassSelectorFunction);
+	void PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance> InClass, TFunctionRef<UClass*(UClass*, FAnimNode_LinkedAnimLayer*)> InClassSelectorFunction, bool bInDeferSubGraphInitialization = false);
 
 protected:
 	/** Map between Active Montages and their FAnimMontageInstance */
@@ -1375,7 +1399,7 @@ protected:
 		return *static_cast<const T*>(AnimInstanceProxy);
 	}
 
-	friend struct FAnimNode_SubInstance;
+	friend struct FAnimNode_LinkedAnimGraph;
 	
 	/** Return whethere this AnimNotifyState should be triggered */
 	virtual bool ShouldTriggerAnimNotifyState(const UAnimNotifyState* AnimNotifyState) const { return true; }

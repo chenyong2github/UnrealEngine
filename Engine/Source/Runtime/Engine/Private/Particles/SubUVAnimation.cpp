@@ -483,7 +483,7 @@ int32 ComputeNeighborCount(int32 X, int32 Y, int32 GlobalX, int32 GlobalY, int32
 {
 	int32 NeighborCount = 0;
 
-	for (int32 NeighborIndex = 0; NeighborIndex < ARRAY_COUNT(GNeighbors); NeighborIndex++)
+	for (int32 NeighborIndex = 0; NeighborIndex < UE_ARRAY_COUNT(GNeighbors); NeighborIndex++)
 	{
 		int32 NeighborX = X + GNeighbors[NeighborIndex].X;
 		int32 NeighborY = Y + GNeighbors[NeighborIndex].Y;

@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "ShaderParameters.h"
+#include "SceneInterface.h"
 #include "MaterialShared.h"
 
 class FSceneView;

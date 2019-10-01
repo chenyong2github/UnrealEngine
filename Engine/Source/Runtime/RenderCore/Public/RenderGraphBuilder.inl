@@ -62,7 +62,7 @@ inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 }
 
 inline FRDGTextureRef FRDGBuilder::CreateTexture(
-	const FPooledRenderTargetDesc& Desc,
+	const FRDGTextureDesc& Desc,
 	const TCHAR* Name,
 	ERDGResourceFlags Flags)
 {
@@ -86,7 +86,11 @@ inline FRDGTextureRef FRDGBuilder::CreateTexture(
 	}
 #endif
 
-	FRDGTexture* Texture = AllocateForRHILifeTime<FRDGTexture>(Name, Desc, Flags);
+	// Fix-up the debug name to force consistency.
+	FRDGTextureDesc TextureDesc = Desc;
+	TextureDesc.DebugName = Name;
+
+	FRDGTexture* Texture = AllocateForRHILifeTime<FRDGTexture>(Name, TextureDesc, Flags);
 
 	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateTexture(Texture));
 

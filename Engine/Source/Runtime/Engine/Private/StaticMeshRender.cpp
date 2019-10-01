@@ -40,6 +40,7 @@
 #include "Engine/LODActor.h"
 
 #include "UnrealEngine.h"
+#include "RayTracingInstance.h"
 
 /** If true, optimized depth-only index buffers are used for shadow rendering. */
 static bool GUseShadowIndexBuffer = true;
@@ -193,8 +194,31 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	const bool bLODsShareStaticLighting = RenderData->bLODsShareStaticLighting || bForceLODsShareStaticLighting;
 
 #if RHI_RAYTRACING
-	RayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
+	if (IsRayTracingEnabled())
+	{
+		if(InComponent->bEvaluateWorldPositionOffset && MaterialRelevance.bUsesWorldPositionOffset)
+		{
+			DynamicRayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
+			for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
+			{
+				auto& Initializer = DynamicRayTracingGeometries[LODIndex].Initializer;
+				Initializer = RenderData->LODResources[LODIndex].RayTracingGeometry.Initializer;
+				Initializer.PositionVertexBuffer = nullptr;
+				Initializer.bAllowUpdate = true;
+				Initializer.bFastBuild = true;
+			}
+		} 
+		else
+		{
+			RayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
+			for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
+			{
+				RayTracingGeometries[LODIndex] = &RenderData->LODResources[LODIndex].RayTracingGeometry;
+			}
+		}
+	}
 #endif
+
 	for(int32 LODIndex = 0;LODIndex < RenderData->LODResources.Num();LODIndex++)
 	{
 		FLODInfo* NewLODInfo = new FLODInfo(InComponent, RenderData->LODVertexFactories, LODIndex, ClampedMinLOD, bLODsShareStaticLighting);
@@ -212,10 +236,6 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 				MaterialRelevance |= UMaterial::GetDefaultMaterial(MD_Surface)->GetRelevance(FeatureLevel);
 			}
 		}
-
-	#if RHI_RAYTRACING
-		RayTracingGeometries[LODIndex] = &RenderData->LODResources[LODIndex].RayTracingGeometry;
-	#endif
 	}
 
 	// WPO is typically used for ambient animations, so don't include in cached shadowmaps
@@ -282,6 +302,18 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 
 FStaticMeshSceneProxy::~FStaticMeshSceneProxy()
 {
+#if RHI_RAYTRACING
+	for (auto& Buffer: DynamicRayTracingGeometryVertexBuffers)
+	{
+		Buffer.Release();
+	}
+
+	for (auto& Geometry: DynamicRayTracingGeometries)
+	{
+		Geometry.ReleaseResource();
+	}
+#endif
+
 	RemoveSpeedTreeWind();
 }
 
@@ -519,6 +551,23 @@ int32 FStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsCollector&
 	}
 	
 	return 0;
+}
+
+void FStaticMeshSceneProxy::CreateRenderThreadResources()
+{
+#if RHI_RAYTRACING
+	if(IsRayTracingEnabled())
+	{
+		DynamicRayTracingGeometryVertexBuffers.AddDefaulted(DynamicRayTracingGeometries.Num());
+		for(int32 i = 0; i < DynamicRayTracingGeometries.Num(); i++)
+		{
+			auto& Geometry = DynamicRayTracingGeometries[i];
+			DynamicRayTracingGeometryVertexBuffers[i]
+				.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("RayTracingDynamicVertexBuffer"));
+			Geometry.InitResource();
+		}
+	}
+#endif
 }
 
 /** Sets up a wireframe FMeshBatch for a specific LOD. */
@@ -953,21 +1002,23 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 
 				for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
 				{
-					FMeshBatch MeshBatch;
+					FMeshBatch BaseMeshBatch;
 
-					if (GetMeshElement(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, bIsMeshElementSelected, true, MeshBatch))
+					if (GetMeshElement(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, bIsMeshElementSelected, true, BaseMeshBatch))
 					{
-						PDI->DrawMesh(MeshBatch, FLT_MAX);
-
 						if (NumRuntimeVirtualTextureTypes > 0)
 						{
 							// Runtime virtual texture mesh elements.
+							FMeshBatch MeshBatch(BaseMeshBatch);
 							SetupMeshBatchForRuntimeVirtualTexture(MeshBatch);
 							for (ERuntimeVirtualTextureMaterialType MaterialType : RuntimeVirtualTextureMaterialTypes)
 							{
 								MeshBatch.RuntimeVirtualTextureMaterialType = (uint32)MaterialType;
 								PDI->DrawMesh(MeshBatch, FLT_MAX);
 							}
+						}
+						{
+							PDI->DrawMesh(BaseMeshBatch, FLT_MAX);
 						}
 					}
 				}
@@ -1070,15 +1121,6 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 						FMeshBatch BaseMeshBatch;
 						if (GetMeshElement(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, bIsMeshElementSelected, true, BaseMeshBatch))
 						{
-							{
-								// Standard mesh elements.
-								// If we have submitted an optimized shadow-only mesh, remaining mesh elements must not cast shadows.
-								FMeshBatch MeshBatch(BaseMeshBatch);
-								MeshBatch.CastShadow &= !bUseUnifiedMeshForShadow;
-								MeshBatch.bUseAsOccluder &= !bUseUnifiedMeshForDepth;
-								MeshBatch.bUseForDepthPass &= !bUseUnifiedMeshForDepth;
-								PDI->DrawMesh(MeshBatch, ScreenSize);
-							}
 							if (NumRuntimeVirtualTextureTypes > 0)
 							{
 								// Runtime virtual texture mesh elements.
@@ -1088,8 +1130,18 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 								for (ERuntimeVirtualTextureMaterialType MaterialType : RuntimeVirtualTextureMaterialTypes)
 								{
 									MeshBatch.RuntimeVirtualTextureMaterialType = (uint32)MaterialType;
-									PDI->DrawMesh(MeshBatch, FLT_MAX);
+									PDI->DrawMesh(MeshBatch, ScreenSize);
 								}
+							}
+
+							{
+								// Standard mesh elements.
+								// If we have submitted an optimized shadow-only mesh, remaining mesh elements must not cast shadows.
+								FMeshBatch MeshBatch(BaseMeshBatch);
+								MeshBatch.CastShadow &= !bUseUnifiedMeshForShadow;
+								MeshBatch.bUseAsOccluder &= !bUseUnifiedMeshForDepth;
+								MeshBatch.bUseForDepthPass &= !bUseUnifiedMeshForDepth;
+								PDI->DrawMesh(MeshBatch, ScreenSize);
 							}
 						}
 					}
@@ -1469,6 +1521,56 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 #endif // STATICMESH_ENABLE_DEBUG_RENDERING
 }
 
+#if RHI_RAYTRACING
+void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances )
+{
+	uint8 PrimitiveDPG = GetStaticDepthPriorityGroup();
+	const uint32 LODIndex = GetLOD(Context.ReferenceView);
+	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+
+	FRayTracingGeometry& Geometry = DynamicRayTracingGeometries[LODIndex];
+	{
+		FRayTracingInstance RayTracingInstance;
+	
+		const int32 NumBatches = GetNumMeshBatches();
+
+		for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
+		{
+			RayTracingInstance.Materials.Reserve(LODModel.Sections.Num());
+			for(int SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+			{
+				FMeshBatch Mesh;
+	
+				bool bResult = GetMeshElement(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, false, false, Mesh);
+				check(bResult);
+				Mesh.SegmentIndex = SectionIndex;
+				RayTracingInstance.Materials.Add(Mesh);
+			}
+		}
+
+		RayTracingInstance.Geometry = &Geometry;
+		RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
+
+		Context.DynamicRayTracingGeometriesToUpdate.Add(
+			FRayTracingDynamicGeometryUpdateParams
+			{
+				RayTracingInstance.Materials,
+				false,
+				(uint32)LODModel.GetNumVertices(),
+				uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
+				Geometry.Initializer.TotalPrimitiveCount,
+				&Geometry,
+				&DynamicRayTracingGeometryVertexBuffers[LODIndex]
+			}
+		);
+		
+		RayTracingInstance.BuildInstanceMaskAndFlags();
+
+		check(RayTracingInstance.Geometry->Initializer.Segments.Num() == RayTracingInstance.Materials.Num());
+		OutRayTracingInstances.Add(RayTracingInstance);
+	}
+}
+#endif
 void FStaticMeshSceneProxy::GetLCIs(FLCIArray& LCIs)
 {
 	for (int32 LODIndex = 0; LODIndex < LODs.Num(); ++LODIndex)

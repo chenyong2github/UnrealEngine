@@ -93,6 +93,11 @@ struct FMovieSceneEvaluationTrackSegments
 	/** Add a new segment to the container */
 	FMovieSceneSegmentIdentifier Add(FMovieSceneSegment&& In);
 
+	int32 Num() const
+	{
+		return SegmentIdentifierToIndex.Num();
+	}
+
 private:
 
 	/** Array of indices into SortedSegments where each FMovieSceneSegmentIdentifier represents and index into SegmentIdentifierToIndex. Never shuffled until the container is reset. */
@@ -276,6 +281,22 @@ public:
 	bool ShouldEvaluateInPostroll() const
 	{
 		return bEvaluateInPostroll;
+	}
+
+	/**
+	 * Tell this track to prioritize its tear down over other tracks, regardless of evaluation priority
+	 */
+	void PrioritizeTearDown()
+	{
+		bTearDownPriority = true;
+	}
+
+	/**
+	 * Check whether this track has tear down priority or not
+	 */
+	bool HasTearDownPriority() const
+	{
+		return bTearDownPriority;
 	}
 
 public:
@@ -572,6 +593,10 @@ private:
 	/** Whether this track is evaluated in postroll */
 	UPROPERTY()
 	uint32 bEvaluateInPostroll : 1;
+
+	/** Whether track should be given priority when being torn down */
+	UPROPERTY()
+	uint32 bTearDownPriority : 1;
 };
 
 template<> struct TStructOpsTypeTraits<FMovieSceneEvaluationTrack> : public TStructOpsTypeTraitsBase2<FMovieSceneEvaluationTrack> { enum { WithPostSerialize = true, WithCopy = false }; };

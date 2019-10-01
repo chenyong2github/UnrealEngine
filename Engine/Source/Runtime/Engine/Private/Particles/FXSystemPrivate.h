@@ -301,4 +301,9 @@ private:
 	/** true if the system has been suspended. */
 	bool bSuspended;
 #endif // #if WITH_EDITOR
+
+#if WITH_MGPU
+	EParticleSimulatePhase::Type PhaseToWaitForTemporalEffect = EParticleSimulatePhase::First;
+	EParticleSimulatePhase::Type PhaseToBroadcastTemporalEffect = EParticleSimulatePhase::Last;
+#endif
 };

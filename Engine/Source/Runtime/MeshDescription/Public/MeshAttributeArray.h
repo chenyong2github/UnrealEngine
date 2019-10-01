@@ -857,7 +857,7 @@ protected:
 	}
 
 	/** Serialization */
-	friend FArchive& operator<<( FArchive& Ar, FAttributesSetBase& AttributesSet );
+	friend MESHDESCRIPTION_API FArchive& operator<<( FArchive& Ar, FAttributesSetBase& AttributesSet );
 
 	template <typename T>
 	friend void SerializeLegacy( FArchive& Ar, FAttributesSetBase& AttributesSet );

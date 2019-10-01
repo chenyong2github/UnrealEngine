@@ -766,6 +766,8 @@ public:
 
 	virtual int32 CollectOccluderElements(class FOccluderElementsCollector& Collector) const override;
 
+	virtual void CreateRenderThreadResources() override;
+
 	/** Sets up a wireframe FMeshBatch for a specific LOD. */
 	virtual bool GetWireframeMeshElement(int32 LODIndex, int32 BatchIndex, const FMaterialRenderProxy* WireframeRenderProxy, uint8 InDepthPriorityGroup, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const;
 
@@ -832,11 +834,13 @@ public:
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
 #if RHI_RAYTRACING
+	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override;
 	virtual bool IsRayTracingRelevant() const override { return true; }
 	virtual bool IsRayTracingStaticRelevant() const override 
 	{ 
 		const bool bAllowStaticLighting = FReadOnlyCVARCache::Get().bAllowStaticLighting;
-		return IsStaticPathAvailable() && !HasViewDependentDPG() && !(bAllowStaticLighting && HasStaticLighting() && !HasValidSettingsForStaticLighting());
+		const bool bIsStaticInstance = RayTracingGeometries.Num() > 0;
+		return bIsStaticInstance && IsStaticPathAvailable() && !HasViewDependentDPG() && !(bAllowStaticLighting && HasStaticLighting() && !HasValidSettingsForStaticLighting());
 	}
 #endif // RHI_RAYTRACING
 
@@ -925,6 +929,10 @@ protected:
 
 	const FDistanceFieldVolumeData* DistanceFieldData;	
 
+#if RHI_RAYTRACING
+	TArray<FRayTracingGeometry, TInlineAllocator<MAX_MESH_LOD_COUNT>> DynamicRayTracingGeometries;
+	TArray<FRWBuffer, TInlineAllocator<MAX_MESH_LOD_COUNT>> DynamicRayTracingGeometryVertexBuffers;
+#endif
 	/**
 	 * The forcedLOD set in the static mesh editor, copied from the mesh component
 	 */
@@ -964,8 +972,6 @@ private:
 
 #if STATICMESH_ENABLE_DEBUG_RENDERING
 	AActor* Owner;
-	/** Hierarchical LOD Index used for rendering */
-	uint8 HierarchicalLODIndex;
 	/** LightMap resolution used for VMI_LightmapDensity */
 	int32 LightMapResolution;
 	/** Body setup for collision debug rendering */
@@ -980,6 +986,10 @@ private:
 	uint32 bDrawMeshCollisionIfComplex : 1;
 	/** Draw mesh collision if used for simple collision */
 	uint32 bDrawMeshCollisionIfSimple : 1;
+
+protected:
+	/** Hierarchical LOD Index used for rendering */
+	uint8 HierarchicalLODIndex;
 #endif
 
 public:

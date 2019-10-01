@@ -1568,7 +1568,7 @@ void UActorComponent::Activate(bool bReset)
 	if (bReset || ShouldActivate()==true)
 	{
 		SetComponentTickEnabled(true);
-		bIsActive = true;
+		SetActiveFlag(true);
 
 		OnComponentActivated.Broadcast(this, bReset);
 	}
@@ -1579,7 +1579,7 @@ void UActorComponent::Deactivate()
 	if (ShouldActivate()==false)
 	{
 		SetComponentTickEnabled(false);
-		bIsActive = false;
+		SetActiveFlag(false);
 
 		OnComponentDeactivated.Broadcast(this);
 	}
@@ -1588,7 +1588,7 @@ void UActorComponent::Deactivate()
 bool UActorComponent::ShouldActivate() const
 {
 	// if not active, should activate
-	return !bIsActive;
+	return !IsActive();
 }
 
 void UActorComponent::SetActive(bool bNewActive, bool bReset)
@@ -1620,7 +1620,7 @@ void UActorComponent::SetAutoActivate(bool bNewAutoActivate)
 
 void UActorComponent::ToggleActive()
 {
-	SetActive(!bIsActive);
+	SetActive(!IsActive());
 }
 
 void UActorComponent::SetTickableWhenPaused(bool bTickableWhenPaused)
@@ -1697,13 +1697,16 @@ bool UActorComponent::IsSupportedForNetworking() const
 	return GetIsReplicated() || IsNameStableForNetworking();
 }
 
-void UActorComponent::SetIsReplicated(bool ShouldReplicate)
+void UActorComponent::SetIsReplicated(bool bShouldReplicate)
 {
-	if (bReplicates != ShouldReplicate)
+	if (GetIsReplicated() != bShouldReplicate)
 	{
+		ensureMsgf(!NeedsInitialization(), TEXT("SetReplicatedByDefault is preferred during Component Construction."));
+
 		if (GetComponentClassCanReplicate())
 		{
-			bReplicates = ShouldReplicate;
+			bReplicates = bShouldReplicate;
+			// MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bReplicates, this);
 
 			if (AActor* MyOwner = GetOwner())
 			{
@@ -1739,7 +1742,7 @@ bool UActorComponent::GetComponentClassCanReplicate() const
 ENetRole UActorComponent::GetOwnerRole() const
 {
 	AActor* MyOwner = GetOwner();
-	return (MyOwner ? MyOwner->Role.GetValue() : ROLE_None);
+	return (MyOwner ? MyOwner->GetLocalRole() : ROLE_None);
 }
 
 void UActorComponent::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifetimeProps ) const
@@ -1756,7 +1759,7 @@ void UActorComponent::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & 
 
 void UActorComponent::OnRep_IsActive()
 {
-	SetComponentTickEnabled(bIsActive);
+	SetComponentTickEnabled(IsActive());
 }
 
 bool UActorComponent::IsEditableWhenInherited() const
@@ -1893,6 +1896,38 @@ AActor* UActorComponent::GetActorOwnerNoninline() const
 	// This is defined out-of-line because AActor isn't defined where the inlined function is.
 
 	return GetTypedOuter<AActor>();
+}
+
+void UActorComponent::SetIsReplicatedByDefault(const bool bNewReplicates)
+{
+	// Don't bother checking parent here.
+	if (LIKELY(NeedsInitialization()))
+	{
+		bReplicates = bNewReplicates;
+		// MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bReplicates, this);
+	}
+	else
+	{
+		ensureMsgf(false, TEXT("SetIsReplicatedByDefault should only be called during Component Construction. Class=%s"), *GetPathNameSafe(GetClass()));
+		SetIsReplicated(bNewReplicates);
+	}
+}
+
+void UActorComponent::SetActiveFlag(const bool bNewIsActive)
+{
+	bIsActive = bNewIsActive;
+	// MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bIsActive, this);
+}
+
+bool UActorComponent::OwnerNeedsInitialization() const
+{
+	AActor* Owner = GetOwner();
+	return Owner && Owner->HasAnyFlags(RF_NeedInitialization);
+}
+
+bool UActorComponent::NeedsInitialization() const
+{
+	return HasAnyFlags(RF_NeedInitialization);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -11,8 +11,8 @@ float PdfSkyLightOcclusionRay(
 {
 	// Determine primary direction
 	uint MipCount = log2(SkyLight.MipDimensions.x);
-	uint3 TextureCoord = GetTextureCubeCoordinate(WorldDirection, SkyLight.TextureDimensions);
-	float2 TextureUV = TextureCoord.xy / (float2)SkyLight.TextureDimensions;
+	uint3 TextureCoord = GetTextureCubeCoordinate(WorldDirection, SkyLight.TextureDimensions.xy);
+	float2 TextureUV = TextureCoord.xy / (float2)SkyLight.TextureDimensions.xy;
 	uint2 MipCoord = TextureUV * SkyLight.MipDimensions.xy;
 	float FacePdf = PdfFace(FaceCdf, TextureCoord.z);
 
@@ -35,7 +35,7 @@ float PdfSkyLightOcclusionRay(
 		// Build Cdf
 		uint MipIndex = MipCount - Index - 1;
 #if USE_MORTON_CODE
-		uint BufferOffset = BufferOffsetAtPixel(MipPixel, MipIndex, SkyLight.MipDimensions);
+		uint BufferOffset = BufferOffsetAtPixel(MipPixel, MipIndex, SkyLight.MipDimensions.xy);
 		uint4 BufferOffsets = uint4(BufferOffset, BufferOffset + 1, BufferOffset + 2, BufferOffset + 3);
 #else
 		uint4 BufferOffsets;
@@ -66,7 +66,7 @@ float PdfSkyLightOcclusionRay(
 	uint LinearIndex = BufferOffsetAtPixel(MipCoord, StopLevel, SkyLight.MipDimensions.xy);
 	float AreaPdf = SkyLight.SolidAnglePdf[LinearIndex];
 #else
-	float AreaPdf = 1.0 / TexelCoordSolidAngle(MipCoord, DimensionsAtLevel(SkyLight.MipDimensions, StopLevel));
+	float AreaPdf = 1.0 / TexelCoordSolidAngle(MipCoord, DimensionsAtLevel(SkyLight.MipDimensions.xy, StopLevel));
 #endif
 	return FacePdf * MipPdf * AreaPdf;
 #endif
@@ -135,20 +135,20 @@ bool GenerateSkyLightOcclusionRay(
 	MipPixel = uint2(MipPixel.x >> 1, MipPixel.y >> 1);
 
 	float2 PixelOffset = RandSample.yz;
-	float2 MipPixelUV = (MipPixel + PixelOffset) / float2(DimensionsAtLevel(SkyLight.MipDimensions, StopLevel));
+	float2 MipPixelUV = (MipPixel + PixelOffset) / float2(DimensionsAtLevel(SkyLight.MipDimensions.xy, StopLevel));
 
 	// Construct Cubemap coordinate
-	float3 TexelCoord = float3(MipPixelUV * SkyLight.TextureDimensions, FaceIndex);
+	float3 TexelCoord = float3(MipPixelUV * SkyLight.TextureDimensions.xy, FaceIndex);
 
 	// Determine area pdf
 #if USE_SOLID_ANGLE_TEXTURE
 	uint LinearIndex = BufferOffsetAtPixel(MipPixel, StopLevel, SkyLight.MipDimensions.xy);
 	float AreaPdf = SkyLight.SolidAnglePdf[LinearIndex];
 #else
-	float AreaPdf = 1.0 / TexelCoordSolidAngle(MipPixel, DimensionsAtLevel(SkyLight.MipDimensions, StopLevel));
+	float AreaPdf = 1.0 / TexelCoordSolidAngle(MipPixel, DimensionsAtLevel(SkyLight.MipDimensions.xy, StopLevel));
 #endif
 
-	RayDirection = normalize(GetTextureCubeVector(TexelCoord, SkyLight.TextureDimensions));
+	RayDirection = normalize(GetTextureCubeVector(TexelCoord, SkyLight.TextureDimensions.xy));
 	RayPdf = FacePdf * MipPdf * AreaPdf;
 
 	return true;

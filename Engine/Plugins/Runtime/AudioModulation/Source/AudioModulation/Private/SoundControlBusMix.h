@@ -6,9 +6,14 @@
 #include "UObject/Object.h"
 
 #include "SoundControlBus.h"
+#include "SoundModulatorBase.h"
 #include "SoundModulationValue.h"
 
 #include "SoundControlBusMix.generated.h"
+
+
+// Forward Declarations
+class USoundControlBusBase;
 
 
 USTRUCT(BlueprintType)
@@ -47,6 +52,8 @@ namespace AudioModulation
 	struct FModulatorBusMixChannelProxy : public TModulatorProxyBase<FBusId>
 	{
 		FModulatorBusMixChannelProxy(const FSoundControlBusMixChannel& Channel);
+		FString Address;
+		uint32 ClassId;
 		FSoundModulationValue Value;
 	};
 
@@ -64,10 +71,14 @@ namespace AudioModulation
 		virtual ~FModulatorBusMixProxy() = default;
 
 		virtual bool CanDestroy() const override;
-		virtual void OnUpdateProxy(const USoundModulatorBase& InModulatorArchetype) override;
+
+		virtual void OnUpdateProxy(const FModulatorBusMixProxy& InBusMixProxy);
 
 		void SetEnabled();
+		void SetMix(const TArray<FSoundControlBusMixChannel>& InChannels);
+		void SetMixByFilter(const FString& InAddressFilter, uint32 InFilterClassId, const FSoundModulationValue& InValue);
 		void SetStopping();
+
 		void Update(const float Elapsed, BusProxyMap& ProxyMap);
 
 		TMap<FBusId, FModulatorBusMixChannelProxy> Channels;

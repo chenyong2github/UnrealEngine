@@ -31,7 +31,7 @@ void UAnimGraphNode_CustomProperty::ValidateAnimNodeDuringCompilation(USkeleton*
 		UClass* TargetClass = GetTargetClass();
 		if(!TargetClass)
 		{
-			MessageLog.Error(TEXT("Sub instance node @@ has no valid instance class to spawn."), this);
+			MessageLog.Error(TEXT("Linked graph node @@ has no valid instance class to spawn."), this);
 		}
 	}
 }

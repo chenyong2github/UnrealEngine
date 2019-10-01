@@ -26,9 +26,9 @@
 
 #include "PhysicsProxy/FieldSystemPhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
-#include "Chaos/Framework/SingleParticlePhysicsProxy.h"
 #include "Chaos/UniformGrid.h"
 #include "Chaos/BoundingVolume.h"
 #include "Chaos/ISpatialAcceleration.h"
@@ -583,6 +583,15 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FFieldSystemPhy
 #endif
 }
 
+void FPhysScene_Chaos::RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor)
+{
+	if (SolverAccelerationStructure)
+	{
+		Chaos::TAccelerationStructureHandle<float, 3> AccelerationHandle(Actor);
+		SolverAccelerationStructure->RemoveElement(AccelerationHandle);
+	}
+}
+
 template<typename ObjectType>
 void RemovePhysicsProxy(ObjectType* InObject, Chaos::FPhysicsSolver* InSolver, FChaosSolversModule* InModule)
 {
@@ -1104,6 +1113,9 @@ void FPhysScene_ChaosInterface::StartFrame()
 	{
 	case EChaosThreadingMode::SingleThread:
 	{
+		OnPhysScenePreTick.Broadcast(this, MDeltaTime);
+		OnPhysSceneStep.Broadcast(this, MDeltaTime);
+
 		// Here we can directly tick the scene. Single threaded mode doesn't buffer any commands
 		// that would require pumping here - everything is done on demand.
 		Scene.Tick(MDeltaTime);
@@ -1112,6 +1124,9 @@ void FPhysScene_ChaosInterface::StartFrame()
 	case EChaosThreadingMode::TaskGraph:
 	{
 		check(!CompletionEvent.GetReference())
+
+		OnPhysScenePreTick.Broadcast(this, MDeltaTime);
+		OnPhysSceneStep.Broadcast(this, MDeltaTime);
 
 		{
 			const TArray<FPhysicsSolver*>& SolverList = SolverModule->GetSolvers();
@@ -1182,6 +1197,8 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 	{
 		SyncBodies();
 		Scene.GetSolver()->SyncEvents_GameThread();
+
+		OnPhysScenePostTick.Broadcast(this);
 	}
 	break;
 	case EChaosThreadingMode::TaskGraph:
@@ -1194,6 +1211,13 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		// Flip the buffers over to the game thread and sync
 		{
 			SCOPE_CYCLE_COUNTER(STAT_FlipResults);
+
+			//update external SQ structure
+			//for now just copy the whole thing, stomping any changes that came from GT
+			if (Chaos::FPhysicsSolver* SceneSolver = Scene.GetSolver())
+			{
+				Scene.SolverAccelerationStructure = SceneSolver->GetEvolution()->GetCollisionConstraints().CreateExternalAccelerationStructure();
+			}
 
 			const TArray<FPhysicsSolver*>& SolverList = SolverModule->GetSolvers();
 			TArray<FPhysicsSolver*> ActiveSolvers;
@@ -1232,6 +1256,8 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 				Solver->SyncEvents_GameThread();
 			}
 		}
+
+		OnPhysScenePostTick.Broadcast(this);
 	}
 		break;
 

@@ -79,14 +79,6 @@ public:
 	/** Helper for recursive traversing LODActors to retrieve a semi deterministic first AActor for resulting asset naming */
 	static const AActor* FindFirstActor(const ALODActor* LODActor);
 
-	/**
-	 * Recursively retrieves StaticMeshComponents from a LODActor and its child LODActors
-	 *
-	 * @param Actor - LODActor instance
-	 * @param InOutComponents - Will hold the StaticMeshComponents
-	 */
-	static void ExtractStaticMeshComponentsFromLODActor(const ALODActor* LODActor, TArray<UStaticMeshComponent*>& InOutComponents);
-
 	/** Extract components that we would use for LOD generation. Used to generate keys for LOD actors. */
 	static void ExtractComponents(const ALODActor* LODActor, TArray<UPrimitiveComponent*>& InOutComponents);
 
@@ -99,6 +91,14 @@ public:
 	static uint32 GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC = 0);
 
 #endif
+
+	/**
+	 * Recursively retrieves StaticMeshComponents from a LODActor and its child LODActors
+	 *
+	 * @param Actor - LODActor instance
+	 * @param InOutComponents - Will hold the StaticMeshComponents
+	 */
+	static void ExtractStaticMeshComponentsFromLODActor(const ALODActor* LODActor, TArray<UStaticMeshComponent*>& InOutComponents);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** Check if we contain data for the specified actor */

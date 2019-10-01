@@ -494,10 +494,6 @@ public:
 	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Render After DOF"), AdvancedDisplay)
 	uint8 bEnableSeparateTranslucency : 1;
 
-	/** Indicates that the material should be rendered in the underwater pass. */
-	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Render Under Water"), AdvancedDisplay)
-	uint8 bEnableRenderUnderWater : 1;
-
 	/**
 	 * Indicates that the material should be rendered using responsive anti-aliasing. Improves sharpness of small moving particles such as sparks.
 	 * Only use for small moving features because it will cause aliasing of the background.
@@ -733,6 +729,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Usage)
 	uint32 bUsedWithWater : 1;
+
+	/**
+	 * Indicates that the material and its instances can be use with hair strands
+	 * This will result in the shaders required to support hair strands geometries being compiled which will increase shader compile time and memory usage.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Usage)
+	uint32 bUsedWithHairStrands : 1;
 
 	/** 
 	 * Indicates that the material and its instances can be used with Slate UI and UMG
@@ -1609,10 +1612,11 @@ public:
 	 * @param	Expression	The expression dynamic parameter to check for duplicates.
 	 */
 	ENGINE_API virtual bool HasDuplicateDynamicParameters(const UMaterialExpression* Expression);
-#endif // WITH_EDITOR
 
 	/** Collect all material expressions fomr this material and all its functions and figure out which possible shading models exist in this material */
 	ENGINE_API void RebuildShadingModelField();
+
+#endif // WITH_EDITOR
 
 	/**
 	 * Iterate through all of the expression nodes and fix up changed properties on

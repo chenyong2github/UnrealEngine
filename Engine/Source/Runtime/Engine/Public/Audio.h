@@ -775,6 +775,29 @@ protected:
 
 	friend class FAudioDevice;
 	friend struct FActiveSound;
+
+#if ENABLE_AUDIO_DEBUG
+public:
+
+	/** Struct containing the debug state of a SoundSource */
+	struct ENGINE_API FDebugInfo
+	{
+		/** True if this sound has been soloed. */
+		bool bIsSoloed = false;
+
+		/** True if this sound has been muted . */
+		bool bIsMuted = false;
+
+		/** Reason why this sound is mute/soloed. */
+		FString MuteSoloReason;
+
+		/** Basic CS so we can pass this around safely. */
+		FCriticalSection CS;
+	};
+	
+	TSharedPtr<FDebugInfo, ESPMode::ThreadSafe> DebugInfo;
+	friend struct FDebugInfo;
+#endif //ENABLE_AUDIO_DEBUG
 };
 
 /*-----------------------------------------------------------------------------

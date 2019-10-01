@@ -215,7 +215,7 @@ FText FNiagaraEmitterViewModel::GetStatsText() const
 				{
 					return FText::Format(StatsFormat,
 						FText::AsNumber(SimInstance->GetNumParticles()),
-						FText::AsNumber(SimInstance->GetTotalCPUTime(), &FractionalFormatOptions),
+						FText::AsNumber(SimInstance->GetTotalCPUTimeMS(), &FractionalFormatOptions),
 						FText::AsNumber(SimInstance->GetTotalBytesUsed() / Megabyte, &FractionalFormatOptions),
 						ExecutionStateEnum->GetDisplayNameTextByValue((int32)SimInstance->GetExecutionState()));
 				}

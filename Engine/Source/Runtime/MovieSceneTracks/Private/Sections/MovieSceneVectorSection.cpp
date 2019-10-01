@@ -233,7 +233,7 @@ void UMovieSceneVectorSection::RecreateChannelProxy()
 {
 	FMovieSceneChannelProxyData Channels;
 
-	check(ChannelsUsed <= ARRAY_COUNT(Curves));
+	check(ChannelsUsed <= UE_ARRAY_COUNT(Curves));
 
 #if WITH_EDITOR
 

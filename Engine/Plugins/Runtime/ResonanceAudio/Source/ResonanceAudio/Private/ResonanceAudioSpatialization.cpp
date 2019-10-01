@@ -3,6 +3,24 @@
 #include "ResonanceAudioModule.h"
 #include "ResonanceAudioSettings.h"
 
+
+static int32 ResonanceQualityOverrideCVar = 0;
+FAutoConsoleVariableRef CVarResonanceQualityOverride(
+	TEXT("au.resonance.quality"),
+	ResonanceQualityOverrideCVar,
+	TEXT("Override the quality of resonance sound sources. Will not increase quality levels. The quality used will be min of the quality in the resonance source settings and this override.\n")
+	TEXT("0: Quality is not overridden, 1: Stereo Panning, 2: Low Quality, 3: Medium Quality, 4: High Quality"),
+	ECVF_Default);
+
+
+static int32 ExtraResonanceLoggingCVar = 0;
+FAutoConsoleVariableRef CVarExtraResonanceLogging(
+	TEXT("au.ExtraResonanceLogging"),
+	ExtraResonanceLoggingCVar,
+	TEXT("If non-zero, will log extra information about the state of Resonance HRTF processing.\n")
+	TEXT("0: Disable, >0: Enable"),
+	ECVF_Default);
+
 namespace ResonanceAudio {
 
 	/************************************************************/
@@ -33,6 +51,8 @@ namespace ResonanceAudio {
 		SpatializationSettings.Init(nullptr, InitializationParams.NumSources);
 
 		bIsInitialized = true;
+
+		UE_LOG(LogResonanceAudio, Log, TEXT("Google Resonance Audio Spatialization is initialized."));
 	}
 
 	bool FResonanceAudioSpatialization::IsSpatializationEffectInitialized() const
@@ -72,30 +92,46 @@ namespace ResonanceAudio {
 			return;
 		}
 
-		if (SpatializationSettings[SourceId]->SpatializationMethod == ERaSpatializationMethod::STEREO_PANNING || GetDefault<UResonanceAudioSettings>()->QualityMode == ERaQualityMode::STEREO_PANNING)
+		vraudio::RenderingMode ResonanceRenderingMode = vraudio::RenderingMode::kStereoPanning;
+
+		if (SpatializationSettings[SourceId]->SpatializationMethod != ERaSpatializationMethod::STEREO_PANNING)
 		{
-			BinauralSource.Id = ResonanceAudioApi->CreateSoundObjectSource(vraudio::RenderingMode::kStereoPanning);
-			UE_LOG(LogResonanceAudio, Verbose, TEXT("ResonanceAudioSpatializer::OnInitSource: STEREO_PANNING mode chosen."));
+			switch (GetDefault<UResonanceAudioSettings>()->QualityMode)
+			{
+			case ERaQualityMode::STEREO_PANNING:
+				ResonanceRenderingMode = vraudio::RenderingMode::kStereoPanning;
+				UE_LOG(LogResonanceAudio, Verbose, TEXT("ResonanceAudioSpatializer::OnInitSource: STEREO_PANNING mode chosen."));
+				break;
+
+			case ERaQualityMode::BINAURAL_LOW:
+				ResonanceRenderingMode = vraudio::RenderingMode::kBinauralLowQuality;
+				UE_LOG(LogResonanceAudio, Verbose, TEXT("ResonanceAudioSpatializer::OnInitSource: BINAURAL_LOW mode chosen."));
+				break;
+
+			case ERaQualityMode::BINAURAL_MEDIUM:
+				ResonanceRenderingMode = vraudio::RenderingMode::kBinauralMediumQuality;
+				UE_LOG(LogResonanceAudio, Verbose, TEXT("ResonanceAudioSpatializer::OnInitSource: BINAURAL_MEDIUM mode chosen."));
+				break;
+
+			case ERaQualityMode::BINAURAL_HIGH:
+				ResonanceRenderingMode = vraudio::RenderingMode::kBinauralHighQuality;
+				UE_LOG(LogResonanceAudio, Verbose, TEXT("ResonanceAudioSpatializer::OnInitSource: BINAURAL_HIGH mode chosen."));
+				break;
+
+			default:
+				UE_LOG(LogResonanceAudio, Error, TEXT("ResonanceAudioSpatializer::OnInitSource: Unknown quality mode!"));
+				break;
+			}
 		}
-		else if (GetDefault<UResonanceAudioSettings>()->QualityMode == ERaQualityMode::BINAURAL_LOW)
+
+		// Only let cvar values between 0 and vraudio::RenderingMode::kRoomEffectsOnly + 1 affect the rendering mode
+		// Note that 0 is treated as non-overridden, but we want to map to the enumeration values which are 
+		if (ResonanceQualityOverrideCVar > 0 && ResonanceQualityOverrideCVar < ((int32)(vraudio::RenderingMode::kRoomEffectsOnly) + 1))
 		{
-			BinauralSource.Id = ResonanceAudioApi->CreateSoundObjectSource(vraudio::RenderingMode::kBinauralLowQuality);
-			UE_LOG(LogResonanceAudio, Verbose, TEXT("ResonanceAudioSpatializer::OnInitSource: BINAURAL_LOW mode chosen."));
+			ResonanceRenderingMode = (vraudio::RenderingMode)FMath::Min((int32)ResonanceRenderingMode, ResonanceQualityOverrideCVar - 1);
 		}
-		else if (GetDefault<UResonanceAudioSettings>()->QualityMode == ERaQualityMode::BINAURAL_MEDIUM)
-		{
-			BinauralSource.Id = ResonanceAudioApi->CreateSoundObjectSource(vraudio::RenderingMode::kBinauralMediumQuality);
-			UE_LOG(LogResonanceAudio, Verbose, TEXT("ResonanceAudioSpatializer::OnInitSource: BINAURAL_MEDIUM mode chosen."));
-		}
-		else if (GetDefault<UResonanceAudioSettings>()->QualityMode == ERaQualityMode::BINAURAL_HIGH)
-		{
-			BinauralSource.Id = ResonanceAudioApi->CreateSoundObjectSource(vraudio::RenderingMode::kBinauralHighQuality);
-			UE_LOG(LogResonanceAudio, Verbose, TEXT("ResonanceAudioSpatializer::OnInitSource: BINAURAL_HIGH mode chosen."));
-		}
-		else
-		{
-			UE_LOG(LogResonanceAudio, Verbose, TEXT("ResonanceAudioSpatializer::OnInitSource: Unknown quality mode!"));
-		}
+
+		BinauralSource.Id = ResonanceAudioApi->CreateSoundObjectSource(ResonanceRenderingMode);
 
 		// Set initial sound source directivity.
 		BinauralSource.Pattern = SpatializationSettings[SourceId]->Pattern;
@@ -122,6 +158,12 @@ namespace ResonanceAudio {
 			UE_LOG(LogResonanceAudio, Error, TEXT("ResonanceAudioSpatializer::OnInitSource: Undefined distance roll-off model!"));
 			break;
 		}
+
+
+		if (ExtraResonanceLoggingCVar)
+		{
+			UE_LOG(LogResonanceAudio, Warning, TEXT("Source initialized (Our source ID: %i) (Binaural SourceId)."), SourceId, BinauralSource.Id);
+		}
 	}
 
 	void FResonanceAudioSpatialization::OnReleaseSource(const uint32 SourceId)
@@ -136,6 +178,11 @@ namespace ResonanceAudio {
 		{
 			ResonanceAudioApi->DestroySource(BinauralSource.Id);
 			BinauralSource.Id = RA_INVALID_SOURCE_ID;
+		}
+
+		if (ExtraResonanceLoggingCVar)
+		{
+			UE_LOG(LogResonanceAudio, Warning, TEXT("Destroying Source (Our Source ID: %i)(Binaural Source ID: %i)"), SourceId, BinauralSource.Id);
 		}
 	}
 
@@ -174,6 +221,15 @@ namespace ResonanceAudio {
 
 			// Add source buffer to process.
 			ResonanceAudioApi->SetInterleavedBuffer(BinauralSource.Id, InputData.AudioBuffer->GetData(), InputData.NumChannels, InputData.AudioBuffer->Num() / InputData.NumChannels);
+
+			// optional heartbeat to make sure Resonance is processing audio
+			static const int32 NumBuffersBetweenLogs = 500;
+			static int32 ResonanceAudioBuffersProcessecdCounter = 0;
+
+			if (ExtraResonanceLoggingCVar && (ResonanceAudioBuffersProcessecdCounter++ % NumBuffersBetweenLogs) == 0)
+			{
+				UE_LOG(LogResonanceAudio, Warning, TEXT("FResonanceAudioSpatialization::ProcessAudio() has been called %i times"), NumBuffersBetweenLogs);
+			}
 		}
 	}
 

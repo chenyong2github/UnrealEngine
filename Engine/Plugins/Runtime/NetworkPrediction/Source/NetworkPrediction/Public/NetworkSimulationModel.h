@@ -21,7 +21,8 @@
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 template <
-	typename T,											// Final Driver class
+	typename TSimulation,								// Final Simulation class. Used to call static T::Update function.
+	typename TInDriver,
 	typename TUserBufferTypes,							// The user types (input, sync, aux, debug). Note this gets wrapped in TInternalBufferTypes internally.
 	typename InTTickSettings=TNetworkSimTickSettings<>, // Defines global rules about time keeping and ticking
 
@@ -34,9 +35,11 @@ template <
 	typename TRepProxyReplay =		TReplicator_Sequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Sync,  3>,
 	typename TRepProxyDebug =		TReplicator_Debug		<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings>
 >
-class TNetworkedSimulationModel : public IReplicationProxy
+class TNetworkedSimulationModel : public INetworkSimulationModel
 {
 public:
+
+	using TDriver = TInDriver;
 
 	using TBufferTypes = TInternalBufferTypes<TUserBufferTypes, InTTickSettings>;
 	using TTickSettings = InTTickSettings;
@@ -46,8 +49,8 @@ public:
 	using TAuxState = typename TBufferTypes::TAuxState;
 	using TDebugState = typename TBufferTypes::TDebugState;
 
-	using TSimTime = TNetworkSimTime<TTickSettings>;
-	using TRealTime = typename TTickSettings::TRealTime;
+	using TSimTime = FNetworkSimTime;
+	using TRealTime = FNetworkSimTime::FRealTime;
 
 	class IDriver
 	{
@@ -55,21 +58,16 @@ public:
 		virtual FString GetDebugName() const = 0; // Used for debugging. Recommended to emit the simulation name and the actor name/role.
 
 		virtual void InitSyncState(TSyncState& OutSyncState) const = 0;	// Called to create initial value of the sync state.
-		virtual void ProduceInput(const TSimTime&, typename TUserBufferTypes::TInputCmd&) = 0; // Called when the sim is ready to process new local input
+		virtual void ProduceInput(const FNetworkSimTime, typename TUserBufferTypes::TInputCmd&) = 0; // Called when the sim is ready to process new local input
 		virtual void FinalizeFrame(const TSyncState& SyncState) = 0; // Called from the Network Sim at the end of the sim frame when there is new sync data.
 	};
-
-	struct FTickParameters : public FNetSimTickParametersBase
+	
+	TNetworkedSimulationModel(TDriver* InDriver)
 	{
-		FTickParameters() { }
-		FTickParameters(typename TTickSettings::TRealTime InRealTime, class AActor* Actor=nullptr) : FNetSimTickParametersBase(Actor), LocalDeltaTimeSeconds(InRealTime) {}
+		Driver = InDriver;
+	}
 
-		// Local fraem delta time seconds. Just passed in from ::Tick
-		typename TTickSettings::TRealTime LocalDeltaTimeSeconds = 0.f;
-	};
-
-	template<typename TDriver>
-	void Tick(TDriver* Driver, const FTickParameters& Parameters)
+	void Tick(const FNetSimTickParameters& Parameters) final override
 	{
 		// Update previous DebugState based on what we (might) have sent *after* our last Tick 
 		// (property replication and ServerRPC get sent after the tick, rather than forcing awkward callback into the NetSim post replication, we can check it here)
@@ -107,26 +105,6 @@ public:
 			}
 		}
 
-		// --------------------------------------------------------------------------------------------------------------------------
-		//	Reconcile
-		//	This will eventually be called outside the Tick loop, only after processing a network bunch
-		//	Reconcile is about "making things right" after a network update. We are not processing "more" simulation yet.
-		// --------------------------------------------------------------------------------------------------------------------------
-		switch (Parameters.Role)
-		{
-			case ROLE_Authority:
-				RepProxy_ServerRPC.template Reconcile<T, TDriver>(Driver, Buffers, TickInfo);
-			break;
-
-			case ROLE_AutonomousProxy:
-				RepProxy_Autonomous.template Reconcile<T, TDriver>(Driver, Buffers, TickInfo);
-			break;
-
-			case ROLE_SimulatedProxy:
-				RepProxy_Simulated.template Reconcile<T, TDriver>(Driver, Buffers, TickInfo);
-			break;
-		}
-
 		// ----------------------------------------------------------------------------------------------------------------
 		//	PreSimTick
 		//	This is the beginning of a new frame. PreSimTick will decide if we should take Parameters.LocalDeltaTimeSeconds
@@ -135,15 +113,15 @@ public:
 		switch (Parameters.Role)
 		{
 			case ROLE_Authority:
-				RepProxy_ServerRPC.template PreSimTick<T, TDriver, FTickParameters>(Driver, Buffers, TickInfo, Parameters);
+				RepProxy_ServerRPC.template PreSimTick<TSimulation, TDriver>(Driver, Buffers, TickInfo, Parameters);
 			break;
 
 			case ROLE_AutonomousProxy:
-				RepProxy_Autonomous.template PreSimTick<T, TDriver, FTickParameters>(Driver, Buffers, TickInfo, Parameters);
+				RepProxy_Autonomous.template PreSimTick<TSimulation, TDriver>(Driver, Buffers, TickInfo, Parameters);
 			break;
 
 			case ROLE_SimulatedProxy:
-				RepProxy_Simulated.template PreSimTick<T, TDriver, FTickParameters>(Driver, Buffers, TickInfo, Parameters);
+				RepProxy_Simulated.template PreSimTick<TSimulation, TDriver>(Driver, Buffers, TickInfo, Parameters);
 			break;
 		}
 
@@ -214,8 +192,7 @@ public:
 						}
 					
 						TAuxState AuxState; // Temp: aux buffer not implemented yet
-
-						T::Update(Driver, NextCmd->GetFrameDeltaTime(), *NextCmd, *PrevSyncState, *NextSyncState, AuxState);
+						TSimulation::Update(Driver, NextCmd->GetFrameDeltaTime().ToRealTimeSeconds(), *NextCmd, *PrevSyncState, *NextSyncState, AuxState);
 					
 						TickInfo.IncrementTotalProcessedSimulationTime(NextCmd->GetFrameDeltaTime(), Keyframe);
 						TickInfo.LastProcessedInputKeyframe = Keyframe;
@@ -230,18 +207,25 @@ public:
 					break;
 				}
 			}
+		}
 
-			// FIXME: this needs to be sorted out. We really want to check if there is new sync state and then call this here.
-			// Call into the driver to sync to the latest state if we processed any input
-			//if (NumProcessed > 0)	
-			{
-				//check(SyncBuffer.GetNumValidElements() > 0);
-				if (Buffers.Sync.GetNumValidElements() > 0)
-				{
-					Driver->FinalizeFrame(*Buffers.Sync.GetElementFromHead(0));
-				}
-			}
+		// -------------------------------------------------------------------------------------------------------------------------------------------------
+		//												Post Sim Tick: finalize the frame
+		// -------------------------------------------------------------------------------------------------------------------------------------------------
 
+		switch (Parameters.Role)
+		{
+			case ROLE_Authority:
+				RepProxy_ServerRPC.template PostSimTick<TDriver>(Driver, Buffers, TickInfo, Parameters);
+			break;
+
+			case ROLE_AutonomousProxy:
+				RepProxy_Autonomous.template PostSimTick<TDriver>(Driver, Buffers, TickInfo, Parameters);
+			break;
+
+			case ROLE_SimulatedProxy:
+				RepProxy_Simulated.template PostSimTick<TDriver>(Driver, Buffers, TickInfo, Parameters);
+			break;
 		}
 
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -263,9 +247,32 @@ public:
 			HistoricData->Sync.CopyAndMerge(Buffers.Sync);
 			HistoricData->Aux.CopyAndMerge(Buffers.Aux);
 		}
-	}	
+	}
+
+	virtual void Reconcile(const ENetRole Role) final override
+	{
+		// --------------------------------------------------------------------------------------------------------------------------
+		//	Reconcile
+		//	This will eventually be called outside the Tick loop, only after processing a network bunch
+		//	Reconcile is about "making things right" after a network update. We are not processing "more" simulation yet.
+		// --------------------------------------------------------------------------------------------------------------------------
+		switch (Role)
+		{
+			case ROLE_Authority:
+				RepProxy_ServerRPC.template Reconcile<TSimulation, TDriver>(Driver, Buffers, TickInfo);
+			break;
+
+			case ROLE_AutonomousProxy:
+				RepProxy_Autonomous.template Reconcile<TSimulation, TDriver>(Driver, Buffers, TickInfo);
+			break;
+
+			case ROLE_SimulatedProxy:
+				RepProxy_Simulated.template Reconcile<TSimulation, TDriver>(Driver, Buffers, TickInfo);
+			break;
+		}
+	}
 	
-	void InitializeForNetworkRole(const ENetRole Role, const FNetworkSimulationModelInitParameters& Parameters)
+	void InitializeForNetworkRole(const ENetRole Role, const FNetworkSimulationModelInitParameters& Parameters) final override
 	{
 		Buffers.Input.SetBufferSize(Parameters.InputBufferSize);
 		Buffers.Sync.SetBufferSize(Parameters.SyncedBufferSize);
@@ -289,7 +296,7 @@ public:
 		*Buffers.Input.GetWriteNext() = TInputCmd();
 	}
 
-	void NetSerializeProxy(EReplicationProxyTarget Target, const FNetSerializeParams& Params)
+	void NetSerializeProxy(EReplicationProxyTarget Target, const FNetSerializeParams& Params) final override
 	{
 		switch(Target)
 		{
@@ -315,7 +322,7 @@ public:
 		};
 	}
 
-	int32 GetProxyDirtyCount(EReplicationProxyTarget Target)
+	int32 GetProxyDirtyCount(EReplicationProxyTarget Target) final override
 	{
 		switch(Target)
 		{
@@ -336,7 +343,8 @@ public:
 			return 0;
 		};
 	}
-	
+
+	TDriver* Driver = nullptr;	
 	TSimulationTickState<TTickSettings> TickInfo;	// Manages simulation time and what inputs we are processed
 
 	TNetworkSimBufferContainer<TBufferTypes> Buffers;
@@ -353,22 +361,24 @@ public:
 	// completely be tracked at the driver level, but that will also push more boilerplate to that layer for users.
 	// ------------------------------------------------------------------
 
-	void SetDesiredServerRPCSendFrequency(float DesiredHz) { ServerRPCThresholdTimeSeconds = 1.f / DesiredHz; }
-	bool ShouldSendServerRPC(ENetRole OwnerRole, float DeltaTimeSeconds)
+	void SetDesiredServerRPCSendFrequency(float DesiredHz) final override { ServerRPCThresholdTimeSeconds = 1.f / DesiredHz; }
+	bool ShouldSendServerRPC(float DeltaTimeSeconds) final override
 	{
 		// Don't allow a large delta time to pollute the accumulator
 		const float CappedDeltaTimeSeconds = FMath::Min<float>(DeltaTimeSeconds, ServerRPCThresholdTimeSeconds);
-		if (OwnerRole == ROLE_AutonomousProxy)
+		ServerRPCAccumulatedTimeSeconds += DeltaTimeSeconds;
+		if (ServerRPCAccumulatedTimeSeconds >= ServerRPCThresholdTimeSeconds)
 		{
-			ServerRPCAccumulatedTimeSeconds += DeltaTimeSeconds;
-			if (ServerRPCAccumulatedTimeSeconds >= ServerRPCThresholdTimeSeconds)
-			{
-				ServerRPCAccumulatedTimeSeconds -= ServerRPCThresholdTimeSeconds;
-				return true;
-			}
+			ServerRPCAccumulatedTimeSeconds -= ServerRPCThresholdTimeSeconds;
+			return true;
 		}
+
 		return false;
 	}
+
+	// Simulation class should have a static const FName GroupName member
+	FName GetSimulationGroupName() const final override { return TSimulation::GroupName; }
+
 private:
 	float ServerRPCAccumulatedTimeSeconds = 0.f;
 	float ServerRPCThresholdTimeSeconds = 1.f / 999.f; // Default is to send at a max of 999hz. This part of the system needs to be build out more (better handling of super high FPS clients and fixed rate servers)
@@ -389,9 +399,9 @@ public:
 
 	TReplicationBuffer<TDebugState>* GetRemoteDebugBuffer() {	return &RepProxy_Debug.ReceivedBuffer; }
 #else
-	TReplicationBuffer<TDebugState>* GetLocalDebugBuffer(bool bCreate=false) {	return nullptr; }
+	TReplicationBuffer<TDebugState>* GetLocalDebugBuffer() {	return nullptr; }
 	TDebugState* GetNextLocalDebugStateWrite() { return nullptr; }
-	TNetworkSimBufferContainer<TBufferTypes>* GetHistoricBuffers() { return nullptr; }
+	TNetworkSimBufferContainer<TBufferTypes>* GetHistoricBuffers(bool bCreate=false) { return nullptr; }
 	TReplicationBuffer<TDebugState>* GetRemoteDebugBuffer() {	return nullptr; }
 #endif
 

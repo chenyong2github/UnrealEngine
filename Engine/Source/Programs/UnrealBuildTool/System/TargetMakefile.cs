@@ -29,9 +29,9 @@ namespace UnrealBuildTool
 		public DateTime CreateTimeUtc;
 
 		/// <summary>
-		/// Information about the toolchain used to build. This string will be output before building.
+		/// Additional diagnostic output to print before building this target (toolchain version, etc...)
 		/// </summary>
-		public string ToolchainInfo;
+		public List<string> Diagnostics = new List<string>();
 
 		/// <summary>
 		/// Any additional information about the build environment which the platform can use to invalidate the makefile
@@ -157,7 +157,6 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="ToolchainInfo">String describing the toolchain used to build. This will be output before executing actions.</param>
 		/// <param name="ExternalMetadata">External build metadata from the platform</param>
 		/// <param name="ExecutableFile">Path to the executable or primary output binary for this target</param>
 		/// <param name="ReceiptFile">Path to the receipt file</param>
@@ -166,10 +165,10 @@ namespace UnrealBuildTool
 		/// <param name="ConfigValueTracker">Set of dependencies on config files</param>
 		/// <param name="bDeployAfterCompile">Whether to deploy the target after compiling</param>
 		/// <param name="bHasProjectScriptPlugin">Whether the target has a project script plugin</param>
-		public TargetMakefile(string ToolchainInfo, string ExternalMetadata, FileReference ExecutableFile, FileReference ReceiptFile, DirectoryReference ProjectIntermediateDirectory, TargetType TargetType, ConfigValueTracker ConfigValueTracker, bool bDeployAfterCompile, bool bHasProjectScriptPlugin)
+		public TargetMakefile(string ExternalMetadata, FileReference ExecutableFile, FileReference ReceiptFile, DirectoryReference ProjectIntermediateDirectory, TargetType TargetType, ConfigValueTracker ConfigValueTracker, bool bDeployAfterCompile, bool bHasProjectScriptPlugin)
 		{
 			this.CreateTimeUtc = DateTime.UtcNow;
-			this.ToolchainInfo = ToolchainInfo;
+			this.Diagnostics = new List<string>();
 			this.ExternalMetadata = ExternalMetadata;
 			this.ExecutableFile = ExecutableFile;
 			this.ReceiptFile = ReceiptFile;
@@ -199,7 +198,7 @@ namespace UnrealBuildTool
 		public TargetMakefile(BinaryArchiveReader Reader)
 		{
 			CreateTimeUtc = new DateTime(Reader.ReadLong(), DateTimeKind.Utc);
-			ToolchainInfo = Reader.ReadString();
+			Diagnostics = Reader.ReadList(() => Reader.ReadString());
 			ExternalMetadata = Reader.ReadString();
 			ExecutableFile = Reader.ReadFileReference();
 			ReceiptFile = Reader.ReadFileReference();
@@ -232,7 +231,7 @@ namespace UnrealBuildTool
 		public void Write(BinaryArchiveWriter Writer)
 		{
 			Writer.WriteLong(CreateTimeUtc.Ticks);
-			Writer.WriteString(ToolchainInfo);
+			Writer.WriteList(Diagnostics, x => Writer.WriteString(x));
 			Writer.WriteString(ExternalMetadata);
 			Writer.WriteFileReference(ExecutableFile);
 			Writer.WriteFileReference(ReceiptFile);

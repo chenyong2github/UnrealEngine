@@ -95,10 +95,6 @@ void FD3D12CommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIVertexBuff
 
 void FD3D12CommandContext::RHISetComputeShader(FRHIComputeShader* ComputeShaderRHI)
 {
-#if D3D12_RHI_RAYTRACING
-	StateCache.TransitionComputeState(D3D12PT_Compute);
-#endif
-
 	// TODO: Eventually the high-level should just use RHISetComputePipelineState() directly similar to how graphics PSOs are handled.
 	FD3D12ComputePipelineState* const ComputePipelineState = FD3D12DynamicRHI::ResourceCast(RHICreateComputePipelineState(ComputeShaderRHI).GetReference());
 	RHISetComputePipelineState(ComputePipelineState);
@@ -289,21 +285,21 @@ void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess Tran
 		else
 		{
 #if USE_D3D12RHI_RESOURCE_STATE_TRACKING
-			if ( TransitionType == EResourceTransitionAccess::EReadable )
+			if (TransitionType == EResourceTransitionAccess::EReadable)
 			{
 				const D3D12_COMMAND_LIST_TYPE CmdListType = CommandListHandle.GetCommandListType();
+
+				// Compute pipeline can't transition to graphics states such as PIXEL_SHADER_RESOURCE. Best bet is to transition to COMMON given that we're going to consume it on a different queue anyway.
+				// Technically we should be able to transition NON_PIXEL_SHADER_RESOURCE on ComputeToCompute cases, but it appears an AMD driver issue is causing that to hang the GPU, so we're using COMMON
+				// in that case also, which is not ideal, but avoids the hang.
+				D3D12_RESOURCE_STATES AfterState = (CmdListType == D3D12_COMMAND_LIST_TYPE_DIRECT && TransitionPipeline == EResourceTransitionPipeline::EComputeToGfx)?
+					D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON;
+
 				for (int32 i = 0; i < InNumUAVs; ++i)
 				{
 					if (InUAVs[i])
 					{
 						FD3D12UnorderedAccessView* const UnorderedAccessView = RetrieveObject<FD3D12UnorderedAccessView>(InUAVs[i]);
-						
-						// D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE cannot be used for compute command list so we exclude it here.
-						D3D12_RESOURCE_STATES AfterState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-						if (CmdListType != D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_COMPUTE)
-						{
-							AfterState |= D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-						}
 						FD3D12DynamicRHI::TransitionResource(CommandListHandle, UnorderedAccessView, AfterState);
 					}
 				}
@@ -466,87 +462,12 @@ void FD3D12CommandContext::RHISetScissorRect(bool bEnable, uint32 MinX, uint32 M
 	}
 }
 
-static inline D3D_PRIMITIVE_TOPOLOGY GetD3D12PrimitiveType(EPrimitiveType PrimitiveType, bool bUsingTessellation)
-{
-	if (bUsingTessellation)
-	{
-		switch (PrimitiveType)
-		{
-		case PT_1_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST;
-		case PT_2_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_2_CONTROL_POINT_PATCHLIST;
-
-			// This is the case for tessellation without AEN or other buffers, so just flip to 3 CPs
-		case PT_TriangleList: return D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST;
-
-		case PT_LineList:
-		case PT_TriangleStrip:
-		case PT_QuadList:
-		case PT_RectList:
-		case PT_PointList:
-			UE_LOG(LogD3D12RHI, Fatal, TEXT("Invalid type specified for tessellated render, probably missing a case in FSkeletalMeshSceneProxy::DrawDynamicElementsByMaterial or FStaticMeshSceneProxy::GetMeshElement"));
-			break;
-		default:
-			// Other cases are valid.
-			break;
-		};
-	}
-
-	switch (PrimitiveType)
-	{
-	case PT_TriangleList: return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	case PT_TriangleStrip: return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
-	case PT_LineList: return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
-	case PT_PointList: return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-	#if defined(D3D12RHI_PRIMITIVE_TOPOLOGY_RECTLIST)
-		case PT_RectList: return D3D12RHI_PRIMITIVE_TOPOLOGY_RECTLIST;
-	#endif
-
-		// ControlPointPatchList types will pretend to be TRIANGLELISTS with a stride of N 
-		// (where N is the number of control points specified), so we can return them for
-		// tessellation and non-tessellation. This functionality is only used when rendering a 
-		// default material with something that claims to be tessellated, generally because the 
-		// tessellation material failed to compile for some reason.
-	case PT_3_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST;
-	case PT_4_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST;
-	case PT_5_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_5_CONTROL_POINT_PATCHLIST;
-	case PT_6_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_6_CONTROL_POINT_PATCHLIST;
-	case PT_7_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_7_CONTROL_POINT_PATCHLIST;
-	case PT_8_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_8_CONTROL_POINT_PATCHLIST;
-	case PT_9_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_9_CONTROL_POINT_PATCHLIST;
-	case PT_10_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_10_CONTROL_POINT_PATCHLIST;
-	case PT_11_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_11_CONTROL_POINT_PATCHLIST;
-	case PT_12_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_12_CONTROL_POINT_PATCHLIST;
-	case PT_13_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_13_CONTROL_POINT_PATCHLIST;
-	case PT_14_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_14_CONTROL_POINT_PATCHLIST;
-	case PT_15_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_15_CONTROL_POINT_PATCHLIST;
-	case PT_16_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_16_CONTROL_POINT_PATCHLIST;
-	case PT_17_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_17_CONTROL_POINT_PATCHLIST;
-	case PT_18_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_18_CONTROL_POINT_PATCHLIST;
-	case PT_19_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_19_CONTROL_POINT_PATCHLIST;
-	case PT_20_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_20_CONTROL_POINT_PATCHLIST;
-	case PT_21_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_21_CONTROL_POINT_PATCHLIST;
-	case PT_22_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_22_CONTROL_POINT_PATCHLIST;
-	case PT_23_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_23_CONTROL_POINT_PATCHLIST;
-	case PT_24_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_24_CONTROL_POINT_PATCHLIST;
-	case PT_25_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_25_CONTROL_POINT_PATCHLIST;
-	case PT_26_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_26_CONTROL_POINT_PATCHLIST;
-	case PT_27_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_27_CONTROL_POINT_PATCHLIST;
-	case PT_28_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_28_CONTROL_POINT_PATCHLIST;
-	case PT_29_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_29_CONTROL_POINT_PATCHLIST;
-	case PT_30_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_30_CONTROL_POINT_PATCHLIST;
-	case PT_31_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_31_CONTROL_POINT_PATCHLIST;
-	case PT_32_ControlPointPatchList: return D3D_PRIMITIVE_TOPOLOGY_32_CONTROL_POINT_PATCHLIST;
-	default: UE_LOG(LogD3D12RHI, Fatal, TEXT("Unknown primitive type: %u"), PrimitiveType);
-	};
-
-	return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-}
-
 void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState)
 {
 	FD3D12GraphicsPipelineState* GraphicsPipelineState = FD3D12DynamicRHI::ResourceCast(GraphicsState);
 
 	// TODO: [PSO API] Every thing inside this scope is only necessary to keep the PSO shadow in sync while we convert the high level to only use PSOs
+	const bool bWasUsingTessellation = bUsingTessellation;
 	bUsingTessellation = GraphicsPipelineState->GetHullShader() && GraphicsPipelineState->GetDomainShader();
 	// Ensure the command buffers are reset to reduce the amount of data that needs to be versioned.
 	VSConstantBuffer.Reset();
@@ -564,12 +485,16 @@ void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState
 		StateCache.SetDepthBounds(0.0f, 1.0f);
 	}
 
-	StateCache.SetGraphicsPipelineState(GraphicsPipelineState);
+	StateCache.SetGraphicsPipelineState(GraphicsPipelineState, bUsingTessellation != bWasUsingTessellation);
 	StateCache.SetStencilRef(0);
 }
 
 void FD3D12CommandContext::RHISetComputePipelineState(FRHIComputePipelineState* ComputeState)
 {
+#if D3D12_RHI_RAYTRACING
+	StateCache.TransitionComputeState(D3D12PT_Compute);
+#endif
+
 	FD3D12ComputePipelineState* ComputePipelineState = FD3D12DynamicRHI::ResourceCast(ComputeState);
 
 	// TODO: [PSO API] Every thing inside this scope is only necessary to keep the PSO shadow in sync while we convert the high level to only use PSOs
@@ -1414,37 +1339,34 @@ void FD3D12CommandContext::CommitComputeResourceTables(FD3D12ComputeShader* InCo
 
 void FD3D12CommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPrimitives, uint32 NumInstances)
 {
-	RHI_DRAW_CALL_STATS(StateCache.GetGraphicsPipelinePrimitiveType(), NumInstances*NumPrimitives);
-
 	CommitGraphicsResourceTables();
 	CommitNonComputeShaderConstants();
 
 	uint32 VertexCount = GetVertexCountForPrimitiveCount(NumPrimitives, StateCache.GetGraphicsPipelinePrimitiveType());
 
-	if (IsDefaultContext())
+	NumInstances = FMath::Max<uint32>(1, NumInstances);
+	numDraws++;
+	numPrimitives += NumInstances * NumPrimitives;
+	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(NumPrimitives * NumInstances, VertexCount * NumInstances);
 	}
 
-	StateCache.SetPrimitiveTopology(GetD3D12PrimitiveType(StateCache.GetGraphicsPipelinePrimitiveType(), bUsingTessellation));
-
 	StateCache.ApplyState<D3D12PT_Graphics>();
-	numDraws++;
-	CommandListHandle->DrawInstanced(VertexCount, FMath::Max<uint32>(1, NumInstances), BaseVertexIndex, 0);
+	CommandListHandle->DrawInstanced(VertexCount, NumInstances, BaseVertexIndex, 0);
+
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
 #endif
 	DEBUG_EXECUTE_COMMAND_LIST(this);
-
 }
 
 void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
 	FD3D12VertexBuffer* ArgumentBuffer = RetrieveObject<FD3D12VertexBuffer>(ArgumentBufferRHI);
 
-	RHI_DRAW_CALL_INC();
-
-	if (IsDefaultContext())
+	numDraws++;
+	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(0);
 	}
@@ -1452,14 +1374,11 @@ void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBu
 	CommitGraphicsResourceTables();
 	CommitNonComputeShaderConstants();
 
-	StateCache.SetPrimitiveTopology(GetD3D12PrimitiveType(StateCache.GetGraphicsPipelinePrimitiveType(), bUsingTessellation));
-
 	FD3D12ResourceLocation& Location = ArgumentBuffer->ResourceLocation;
 	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
 	StateCache.ApplyState<D3D12PT_Graphics>();
 
-	numDraws++;
 	CommandListHandle->ExecuteIndirect(
 		GetParentDevice()->GetParentAdapter()->GetDrawIndirectCommandSignature(),
 		1,
@@ -1475,7 +1394,6 @@ void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBu
 	OwningRHI.DrawCount++;
 #endif
 	DEBUG_EXECUTE_COMMAND_LIST(this);
-
 }
 
 void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIStructuredBuffer* ArgumentsBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances)
@@ -1483,9 +1401,8 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRH
 	FD3D12IndexBuffer* IndexBuffer = RetrieveObject<FD3D12IndexBuffer>(IndexBufferRHI);
 	FD3D12StructuredBuffer* ArgumentsBuffer = RetrieveObject<FD3D12StructuredBuffer>(ArgumentsBufferRHI);
 
-	RHI_DRAW_CALL_INC();
-
-	if (IsDefaultContext())
+	numDraws++;
+	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(1);
 	}
@@ -1494,18 +1411,15 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRH
 	CommitNonComputeShaderConstants();
 
 	// determine 16bit vs 32bit indices
-	uint32 SizeFormat = sizeof(DXGI_FORMAT);
 	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
 
 	StateCache.SetIndexBuffer(&IndexBuffer->ResourceLocation, Format, 0);
-	StateCache.SetPrimitiveTopology(GetD3D12PrimitiveType(StateCache.GetGraphicsPipelinePrimitiveType(), bUsingTessellation));
 
 	FD3D12ResourceLocation& Location = ArgumentsBuffer->ResourceLocation;
 	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
 	StateCache.ApplyState<D3D12PT_Graphics>();
 
-	numDraws++;
 	CommandListHandle->ExecuteIndirect(
 		GetParentDevice()->GetParentAdapter()->GetDrawIndexedIndirectCommandSignature(),
 		1,
@@ -1525,43 +1439,39 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRH
 
 void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBufferRHI, int32 BaseVertexIndex, uint32 FirstInstance, uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances)
 {
-	FD3D12IndexBuffer* IndexBuffer = RetrieveObject<FD3D12IndexBuffer>(IndexBufferRHI);
-
 	// called should make sure the input is valid, this avoid hidden bugs
 	ensure(NumPrimitives > 0);
 
-	RHI_DRAW_CALL_STATS(StateCache.GetGraphicsPipelinePrimitiveType(), NumInstances*NumPrimitives);
-
-	if (IsDefaultContext())
+	NumInstances = FMath::Max<uint32>(1, NumInstances);
+	numDraws++;
+	numPrimitives += NumInstances * NumPrimitives;
+	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(NumPrimitives * NumInstances, NumVertices * NumInstances);
 	}
+	uint32 IndexCount = GetVertexCountForPrimitiveCount(NumPrimitives, StateCache.GetGraphicsPipelinePrimitiveType());
 
 	CommitGraphicsResourceTables();
 	CommitNonComputeShaderConstants();
 
-	// determine 16bit vs 32bit indices
-	uint32 SizeFormat = sizeof(DXGI_FORMAT);
-	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
-
-	uint32 IndexCount = GetVertexCountForPrimitiveCount(NumPrimitives, StateCache.GetGraphicsPipelinePrimitiveType());
+	FD3D12IndexBuffer* IndexBuffer = RetrieveObject<FD3D12IndexBuffer>(IndexBufferRHI);
 
 	// Verify that we are not trying to read outside the index buffer range
 	// test is an optimized version of: StartIndex + IndexCount <= IndexBuffer->GetSize() / IndexBuffer->GetStride() 
 	checkf((StartIndex + IndexCount) * IndexBuffer->GetStride() <= IndexBuffer->GetSize(),
 		TEXT("Start %u, Count %u, Type %u, Buffer Size %u, Buffer stride %u"), StartIndex, IndexCount, StateCache.GetGraphicsPipelinePrimitiveType(), IndexBuffer->GetSize(), IndexBuffer->GetStride());
 
+	// determine 16bit vs 32bit indices
+	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
 	StateCache.SetIndexBuffer(&IndexBuffer->ResourceLocation, Format, 0);
-	StateCache.SetPrimitiveTopology(GetD3D12PrimitiveType(StateCache.GetGraphicsPipelinePrimitiveType(), bUsingTessellation));
 	StateCache.ApplyState<D3D12PT_Graphics>();
 
-	numDraws++;
-	CommandListHandle->DrawIndexedInstanced(IndexCount, FMath::Max<uint32>(1, NumInstances), StartIndex, BaseVertexIndex, FirstInstance);
+	CommandListHandle->DrawIndexedInstanced(IndexCount, NumInstances, StartIndex, BaseVertexIndex, FirstInstance);
+
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
 #endif
 	DEBUG_EXECUTE_COMMAND_LIST(this);
-
 }
 
 void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
@@ -1569,9 +1479,8 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* Inde
 	FD3D12IndexBuffer* IndexBuffer = RetrieveObject<FD3D12IndexBuffer>(IndexBufferRHI);
 	FD3D12VertexBuffer* ArgumentBuffer = RetrieveObject<FD3D12VertexBuffer>(ArgumentBufferRHI);
 
-	RHI_DRAW_CALL_INC();
-
-	if (IsDefaultContext())
+	numDraws++;
+	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(0);
 	}
@@ -1580,17 +1489,14 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* Inde
 	CommitNonComputeShaderConstants();
 
 	// Set the index buffer.
-	const uint32 SizeFormat = sizeof(DXGI_FORMAT);
 	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
 	StateCache.SetIndexBuffer(&IndexBuffer->ResourceLocation, Format, 0);
-	StateCache.SetPrimitiveTopology(GetD3D12PrimitiveType(StateCache.GetGraphicsPipelinePrimitiveType(), bUsingTessellation));
 
 	FD3D12ResourceLocation& Location = ArgumentBuffer->ResourceLocation;
 	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
 	StateCache.ApplyState<D3D12PT_Graphics>();
 
-	numDraws++;
 	CommandListHandle->ExecuteIndirect(
 		GetParentDevice()->GetParentAdapter()->GetDrawIndexedIndirectCommandSignature(),
 		1,
@@ -1839,118 +1745,105 @@ void FD3D12CommandContext::RHISubmitCommandsHint()
 
 void FD3D12CommandContext::RHIWaitForTemporalEffect(const FName& InEffectName)
 {
-#if USE_COPY_QUEUE_FOR_RESOURCE_SYNC
+#if WITH_MGPU
 	check(IsDefaultContext());
-	FD3D12Device* Device = GetParentDevice();
-	FD3D12Adapter* Adapter = Device->GetParentAdapter();
 
-#if 0 // Multi-GPU support : this must depend on whether the current GPUs was also used or for rendering the last frame.
-	if (Adapter->AlternateFrameRenderingEnabled() && AFRSyncTemporalResources)
+	if (GNumAlternateFrameRenderingGroups == 1 || !AFRSyncTemporalResources)
 	{
-		FD3D12TemporalEffect* Effect = Adapter->GetTemporalEffect(InEffectName);
+		return;
+	}
 
+#if USE_COPY_QUEUE_FOR_RESOURCE_SYNC
+	FD3D12Adapter* Adapter = GetParentAdapter();
+	FD3D12TemporalEffect* Effect = Adapter->GetTemporalEffect(InEffectName);
+
+	const uint32 GPUIndex = GetGPUIndex();
+	if (Effect->ShouldWaitForPrevious(GPUIndex))
+	{
 		// Execute the current command list so we can have a point to insert a wait
 		FlushCommands();
 
-		FD3D12CommandListManager& Manager = bIsAsyncComputeContext ? Device->GetAsyncCommandListManager() :
-			Device->GetCommandListManager();
-
-		// Wait for previous copy by splicing in a wait to the queue
-		Effect->WaitForPrevious(Manager.GetD3DCommandQueue());
+		Effect->WaitForPrevious(GPUIndex, bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default);
 	}
 #endif
-#endif
+#endif // WITH_MGPU
 }
 
-void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName, FRHITexture** InTextures, int32 NumTextures)
+void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHITexture*> InTextures)
 {
+#if WITH_MGPU
 	check(IsDefaultContext());
-	FD3D12Device* Device = GetParentDevice();
-	FD3D12Adapter* Adapter = Device->GetParentAdapter();
+
+	if (GNumAlternateFrameRenderingGroups == 1 || !AFRSyncTemporalResources)
+	{
+		return;
+	}
+
+	const uint32 GPUIndex = GetGPUIndex();
+	TArray<FD3D12TextureBase*, TInlineAllocator<8>> SrcTextures, DstTextures;
+	const int32 NumTextures = InTextures.Num();
+	for (int32 i = 0; i < NumTextures; i++)
+	{
+		SrcTextures.Emplace(RetrieveTextureBase(InTextures[i]));
+		const uint32 NextSiblingGPUIndex = AFRUtils::GetNextSiblingGPUIndex(GPUIndex);
+		DstTextures.Emplace(RetrieveTextureBase(InTextures[i], [NextSiblingGPUIndex](FD3D12Device* Device) { return Device->GetGPUIndex() == NextSiblingGPUIndex; }));
+	}
 
 #if USE_COPY_QUEUE_FOR_RESOURCE_SYNC
-#if 0 // Multi-GPU support : we only need to broadcast to GPUs that will be used to render the next frame.
-	if (Adapter->AlternateFrameRenderingEnabled() && AFRSyncTemporalResources)
+
+	FD3D12Device* Device = GetParentDevice();
+	FD3D12Adapter* Adapter = Device->GetParentAdapter();
+	FD3D12TemporalEffect* Effect = Adapter->GetTemporalEffect(InEffectName);
+
+	for (int32 i = 0; i < NumTextures; i++)
 	{
-		FD3D12TemporalEffect* Effect = Adapter->GetTemporalEffect(InEffectName);
-
-		FD3D12CommandAllocatorManager& TextureStreamingCommandAllocatorManager = Device->GetTextureStreamingCommandAllocatorManager();
-		FD3D12CommandAllocator* CurrentCommandAllocator = TextureStreamingCommandAllocatorManager.ObtainCommandAllocator();
-		FD3D12CommandListManager& CopyManager = Device->GetCopyCommandListManager();
-		FD3D12CommandListHandle hCopyCommandList = CopyManager.ObtainCommandList(*CurrentCommandAllocator);
-		hCopyCommandList.SetCurrentOwningContext(this);
-
-		for (int32 i = 0; i < NumTextures; i++)
-		{
-			// Get the texture for this frame i.e. the one that was just generated
-			FD3D12TextureBase* ThisTexture = RetrieveTextureBase(InTextures[i]);
-			FD3D12TextureBase* OtherTexture = ((FD3D12TextureBase*)InTextures[i]->GetTextureBaseRHI());
-
-			FD3D12DynamicRHI::TransitionResource(CommandListHandle, ThisTexture->GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-			// Broadcast this texture to all other GPUs in the LDA chain
-			while (OtherTexture)
-			{
-				if (OtherTexture != ThisTexture)
-				{
-					// Note: We transition on the incomming queue as the copy queue will auto promote from common to whatever the resource is used as.
-					FD3D12DynamicRHI::TransitionResource(CommandListHandle, OtherTexture->GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-					hCopyCommandList.GetCurrentOwningContext()->numCopies++;
-					hCopyCommandList->CopyResource(OtherTexture->GetResource()->GetResource(), ThisTexture->GetResource()->GetResource());
-				}
-
-				OtherTexture = OtherTexture->GetNextObject();
-			}
-		}
-
-		// Flush 3D/Compute Queue
-		{
-			CommandListHandle.FlushResourceBarriers();
-			FlushCommands();
-		}
-
-		// Kick off the async copy, signalling when done
-		{
-			// The consuming engine must wait for the producer before executing
-			{
-				FD3D12CommandListManager& ProducerManager = bIsAsyncComputeContext ? Device->GetAsyncCommandListManager() :
-					Device->GetCommandListManager();
-
-				FD3D12Fence& ProducerFence = ProducerManager.GetFence();
-				ProducerFence.GpuWait(CopyManager.GetD3DCommandQueue(), ProducerFence.GetLastSignaledFence());
-			}
-
-			hCopyCommandList.Close();
-			Device->GetCopyCommandListManager().ExecuteCommandList(hCopyCommandList);
-
-			Effect->SignalSyncComplete(Device->GetCopyCommandListManager().GetD3DCommandQueue());
-			TextureStreamingCommandAllocatorManager.ReleaseCommandAllocator(CurrentCommandAllocator);
-		}
+		// Resources must be in the COMMON state before using on the copy queue.
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, SrcTextures[i]->GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, DstTextures[i]->GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 	}
-#endif
+	CommandListHandle.FlushResourceBarriers();
+
+	// Finish rendering on the current queue.
+	FlushCommands();
+
+	// Tell the copy queue to wait for the current queue to finish rendering before starting the copy.
+	Effect->SignalSyncComplete(GPUIndex, bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default);
+	Effect->WaitForPrevious(GPUIndex, ED3D12CommandQueueType::Copy);
+
+	FD3D12CommandAllocatorManager& CopyCommandAllocatorManager = Device->GetTextureStreamingCommandAllocatorManager();
+	FD3D12CommandAllocator* CopyCommandAllocator = CopyCommandAllocatorManager.ObtainCommandAllocator();
+	FD3D12CommandListManager& CopyCommandListManager = Device->GetCopyCommandListManager();
+	FD3D12CommandListHandle hCopyCommandList = CopyCommandListManager.ObtainCommandList(*CopyCommandAllocator);
+	hCopyCommandList.SetCurrentOwningContext(this);
+
+	for (int32 i = 0; i < NumTextures; i++)
+	{
+		// NB: We do not increment numCopies here because the main context isn't doing any work.
+		hCopyCommandList->CopyResource(DstTextures[i]->GetResource()->GetResource(), SrcTextures[i]->GetResource()->GetResource());
+	}
+	hCopyCommandList.Close();
+
+	CopyCommandListManager.ExecuteCommandList(hCopyCommandList);
+	CopyCommandAllocatorManager.ReleaseCommandAllocator(CopyCommandAllocator);
+
+	// Signal again once the copy queue copy is complete.
+	Effect->SignalSyncComplete(GPUIndex, ED3D12CommandQueueType::Copy);
+
 #else
-	for (size_t i = 0; i < NumTextures; i++)
+
+	for (int32 i = 0; i < NumTextures; i++)
 	{
-		// Get the texture for this frame i.e. the one that was just generated
-		FD3D12TextureBase* ThisTexture = RetrieveTextureBase(InTextures[i]);
-		FD3D12TextureBase* OtherTexture = ((FD3D12TextureBase*)InTextures[i]->GetTextureBaseRHI());
-
-		FD3D12DynamicRHI::TransitionResource(CommandListHandle, ThisTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-		// Broadcast this texture to all other GPUs in the LDA chain
-		while (OtherTexture)
-		{
-			if (OtherTexture != ThisTexture)
-			{
-				FD3D12DynamicRHI::TransitionResource(CommandListHandle, OtherTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-				CommandListHandle.GetCurrentOwningContext()->numCopies++;
-				CommandListHandle->CopyResource(OtherTexture->GetResource()->GetResource(), ThisTexture->GetResource()->GetResource());
-			}
-
-			OtherTexture = OtherTexture->GetNextObject();
-		}
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, SrcTextures[i]->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, DstTextures[i]->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 	}
-#endif
+	CommandListHandle.FlushResourceBarriers();
+
+	for (int32 i = 0; i < NumTextures; i++)
+	{
+		numCopies++;
+		CommandListHandle->CopyResource(DstTextures[i]->GetResource()->GetResource(), SrcTextures[i]->GetResource()->GetResource());
+	}
+
+#endif // USE_COPY_QUEUE_FOR_RESOURCE_SYNC
+#endif // WITH_MGPU
 }

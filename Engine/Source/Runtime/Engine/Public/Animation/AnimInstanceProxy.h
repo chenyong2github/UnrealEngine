@@ -25,7 +25,7 @@ struct FAnimNode_AssetPlayerBase;
 struct FAnimNode_Base;
 struct FAnimNode_SaveCachedPose;
 struct FAnimNode_StateMachine;
-struct FAnimNode_SubInput;
+struct FAnimNode_LinkedInputPose;
 struct FNodeDebugData;
 struct FPoseContext;
 
@@ -116,7 +116,7 @@ public:
 		, CurrentDeltaSeconds(0.0f)
 		, CurrentTimeDilation(1.0f)
 		, RootNode(nullptr)
-		, DefaultSubInstanceInputNode(nullptr)
+		, DefaultLinkedInstanceInputNode(nullptr)
 		, SyncGroupWriteIndex(0)
 		, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
 		, FrameCounterForUpdate(0)
@@ -140,7 +140,7 @@ public:
 		, CurrentDeltaSeconds(0.0f)
 		, CurrentTimeDilation(1.0f)
 		, RootNode(nullptr)
-		, DefaultSubInstanceInputNode(nullptr)
+		, DefaultLinkedInstanceInputNode(nullptr)
 		, SyncGroupWriteIndex(0)
 		, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
 		, FrameCounterForUpdate(0)
@@ -461,7 +461,7 @@ public:
 	friend class UAnimInstance;
 	friend class UAnimSingleNodeInstance;
 	friend class USkeletalMeshComponent;
-	friend struct FAnimNode_SubInstance;
+	friend struct FAnimNode_LinkedAnimGraph;
 	friend struct FAnimationBaseContext;
 
 protected:
@@ -480,11 +480,25 @@ protected:
 	/** Update override point */
 	virtual void Update(float DeltaSeconds) {}
 
+	UE_DEPRECATED(4.24, "Please use the overload that takes an FAnimationUpdateContext")
+	virtual void UpdateAnimationNode(float DeltaSeconds)
+	{
+		FAnimationUpdateContext Context(this, DeltaSeconds);
+		UpdateAnimationNode(Context);
+	}
+
 	/** Updates the anim graph */
-	virtual void UpdateAnimationNode(float DeltaSeconds);
+	virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext);
+
+	UE_DEPRECATED(4.24, "Please use the overload that takes an FAnimationUpdateContext")
+	virtual void UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimNode_Base* InRootNode, FName InLayerName) 
+	{
+		FAnimationUpdateContext Context(this, DeltaSeconds);
+		UpdateAnimationNode_WithRoot(Context, InRootNode, InLayerName);
+	}
 
 	/** Updates the anim graph using a specified root node */
-	virtual void UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimNode_Base* InRootNode, FName InLayerName);
+	virtual void UpdateAnimationNode_WithRoot(const FAnimationUpdateContext& InContext, FAnimNode_Base* InRootNode, FName InLayerName);
 
 	/** Called on the game thread pre-evaluate. */
 	virtual void PreEvaluateAnimation(UAnimInstance* InAnimInstance);
@@ -547,8 +561,15 @@ protected:
 	/** Calls Update(), updates the anim graph, ticks asset players */
 	void UpdateAnimation();
 
+	UE_DEPRECATED(4.24, "Please use the overload that takes an FAnimationUpdateContext")
+	void UpdateAnimation_WithRoot(FAnimNode_Base* InRootNode, FName InLayerName)
+	{
+		FAnimationUpdateContext Context(this, CurrentDeltaSeconds);
+		UpdateAnimation_WithRoot(Context, InRootNode, InLayerName);
+	}
+
 	/** Calls Update(), updates the anim graph from the specified root, ticks asset players */
-	void UpdateAnimation_WithRoot(FAnimNode_Base* InRootNode, FName InLayerName);
+	void UpdateAnimation_WithRoot(const FAnimationUpdateContext& InContext, FAnimNode_Base* InRootNode, FName InLayerName);
 
 	/** Evaluates the anim graph if Evaluate() returns false */
 	void EvaluateAnimation(FPoseContext& Output);
@@ -815,8 +836,8 @@ private:
 	/** Anim graph */
 	FAnimNode_Base* RootNode;
 
-	/** Default sub-instance input node if available */
-	FAnimNode_SubInput* DefaultSubInstanceInputNode;
+	/** Default linked instance input node if available */
+	FAnimNode_LinkedInputPose* DefaultLinkedInstanceInputNode;
 
 	/** Map of layer name to saved pose nodes to process after the graph has been updated */
 	TMap<FName, TArray<FAnimNode_SaveCachedPose*>> SavedPoseQueueMap;

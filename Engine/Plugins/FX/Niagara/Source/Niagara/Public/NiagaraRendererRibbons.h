@@ -61,8 +61,6 @@ private:
 
 	FCPUSimParticleDataAllocation AllocateParticleDataIfCPUSim(struct FNiagaraDynamicDataRibbon* DynamicDataRibbon, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
 
-	class FNiagaraRibbonVertexFactory *VertexFactory;
-
 	ENiagaraRibbonFacingMode FacingMode;
 	float UV0TilingDistance;
 	FVector2D UV0Scale;
@@ -80,19 +78,7 @@ private:
 	float CustomTessellationMinAngle;
 	bool bCustomUseScreenSpace;
 
-	int32 PositionDataOffset;
-	int32 VelocityDataOffset;
-	int32 WidthDataOffset;
-	int32 TwistDataOffset;
-	int32 FacingDataOffset;
-	int32 ColorDataOffset;
-	int32 NormalizedAgeDataOffset;
-	int32 MaterialRandomDataOffset;
 	uint32 MaterialParamValidMask;
-	int32 MaterialParamOffset;
-	int32 MaterialParamOffset1;
-	int32 MaterialParamOffset2;
-	int32 MaterialParamOffset3;
 
 	// Average curvature of the segments.
 	mutable float TessellationAngle = 0;

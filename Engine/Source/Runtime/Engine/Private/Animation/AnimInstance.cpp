@@ -26,9 +26,9 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "Animation/AnimNode_SubInstance.h"
-#include "Animation/AnimNode_SubInput.h"
-#include "Animation/AnimNode_Layer.h"
+#include "Animation/AnimNode_LinkedAnimGraph.h"
+#include "Animation/AnimNode_LinkedInputPose.h"
+#include "Animation/AnimNode_LinkedAnimLayer.h"
 
 /** Anim stats */
 
@@ -218,7 +218,7 @@ void UAnimInstance::InitializeAnimation(bool bInDeferRootNodeInitialization)
 	// we can bind rules & events now the graph has been initialized
 	GetProxyOnGameThread<FAnimInstanceProxy>().BindNativeDelegates();
 
-	InitializeGroupedLayers();
+	InitializeGroupedLayers(bInDeferRootNodeInitialization);
 }
 
 void UAnimInstance::UninitializeAnimation()
@@ -595,10 +595,10 @@ void UAnimInstance::ParallelUpdateAnimation()
 {
 	GetProxyOnAnyThread<FAnimInstanceProxy>().UpdateAnimation();
 
-	// Tick asset players for this and any sub instances we have
-	for(UAnimInstance* SubInstance : GetSkelMeshComponent()->SubInstances)
+	// Tick asset players for this and any linked instances we have
+	for(UAnimInstance* LinkedInstance : GetSkelMeshComponent()->GetLinkedAnimInstances())
 	{
-		SubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>().TickAssetPlayerInstances();
+		LinkedInstance->GetProxyOnAnyThread<FAnimInstanceProxy>().TickAssetPlayerInstances();
 	}
 
 	GetProxyOnAnyThread<FAnimInstanceProxy>().TickAssetPlayerInstances();
@@ -2420,18 +2420,18 @@ void UAnimInstance::ClearMontageInstanceReferences(FAnimMontageInstance& InMonta
 	InMontageInstance.MontageSync_StopLeading();
 }
 
-FAnimNode_SubInput* UAnimInstance::GetSubInputNode(FName InSubInputName, FName InGraph)
+FAnimNode_LinkedInputPose* UAnimInstance::GetLinkedInputPoseNode(FName InLinkedInputName, FName InGraph)
 {
 	const FAnimInstanceProxy& Proxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
-	if(InSubInputName == NAME_None && InGraph == NAME_None)
+	if(InLinkedInputName == NAME_None && InGraph == NAME_None)
 	{
-		return Proxy.DefaultSubInstanceInputNode;
+		return Proxy.DefaultLinkedInstanceInputNode;
 	}
 	else if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
-		if(InSubInputName == NAME_None)
+		if(InLinkedInputName == NAME_None)
 		{
-			InSubInputName = FAnimNode_SubInput::DefaultInputPoseName;
+			InLinkedInputName = FAnimNode_LinkedInputPose::DefaultInputPoseName;
 		}
 		if(InGraph == NAME_None)
 		{
@@ -2444,11 +2444,11 @@ FAnimNode_SubInput* UAnimInstance::GetSubInputNode(FName InSubInputName, FName I
 				check(AnimBlueprintFunction.InputPoseNames.Num() == AnimBlueprintFunction.InputPoseNodeProperties.Num());
 				for(int32 InputIndex = 0; InputIndex < AnimBlueprintFunction.InputPoseNames.Num(); ++InputIndex)
 				{
-					if(AnimBlueprintFunction.InputPoseNames[InputIndex] == InSubInputName && AnimBlueprintFunction.InputPoseNodeProperties[InputIndex] != nullptr)
+					if(AnimBlueprintFunction.InputPoseNames[InputIndex] == InLinkedInputName && AnimBlueprintFunction.InputPoseNodeProperties[InputIndex] != nullptr)
 					{
-						FAnimNode_SubInput* SubInput = AnimBlueprintFunction.InputPoseNodeProperties[InputIndex]->ContainerPtrToValuePtr<FAnimNode_SubInput>(this);
-						check(SubInput->Name == InSubInputName);
-						return SubInput;
+						FAnimNode_LinkedInputPose* LinkedInput = AnimBlueprintFunction.InputPoseNodeProperties[InputIndex]->ContainerPtrToValuePtr<FAnimNode_LinkedInputPose>(this);
+						check(LinkedInput->Name == InLinkedInputName);
+						return LinkedInput;
 					}
 				}
 			}
@@ -2458,17 +2458,17 @@ FAnimNode_SubInput* UAnimInstance::GetSubInputNode(FName InSubInputName, FName I
 	return nullptr;
 }
 
-UAnimInstance* UAnimInstance::GetSubInstanceByTag(FName InTag) const
+UAnimInstance* UAnimInstance::GetLinkedAnimGraphInstanceByTag(FName InTag) const
 {
 	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
-		const TArray<UStructProperty*>& SubInstanceNodeProperties = AnimBlueprintClass->GetSubInstanceNodeProperties();
-		for(UStructProperty* SubInstanceNodeProperty : SubInstanceNodeProperties)
+		const TArray<UStructProperty*>& LinkedAnimGraphNodeProperties = AnimBlueprintClass->GetLinkedAnimGraphNodeProperties();
+		for(UStructProperty* LinkedAnimGraphNodeProperty : LinkedAnimGraphNodeProperties)
 		{
-			const FAnimNode_SubInstance* SubInstance = SubInstanceNodeProperty->ContainerPtrToValuePtr<FAnimNode_SubInstance>(this);
-			if(SubInstance && SubInstance->Tag == InTag)
+			const FAnimNode_LinkedAnimGraph* LinkedAnimGraph = LinkedAnimGraphNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimGraph>(this);
+			if(LinkedAnimGraph && LinkedAnimGraph->Tag == InTag)
 			{
-				return SubInstance->GetTargetInstance<UAnimInstance>();
+				return LinkedAnimGraph->GetTargetInstance<UAnimInstance>();
 			}
 		}
 	}
@@ -2476,39 +2476,39 @@ UAnimInstance* UAnimInstance::GetSubInstanceByTag(FName InTag) const
 	return nullptr;
 }
 
-void UAnimInstance::GetSubInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutSubInstances) const
+void UAnimInstance::GetLinkedAnimGraphInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutLinkedInstances) const
 {
 	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
-		const TArray<UStructProperty*>& SubInstanceNodeProperties = AnimBlueprintClass->GetSubInstanceNodeProperties();
-		for(UStructProperty* SubInstanceNodeProperty : SubInstanceNodeProperties)
+		const TArray<UStructProperty*>& LinkedAnimGraphNodeProperties = AnimBlueprintClass->GetLinkedAnimGraphNodeProperties();
+		for (UStructProperty* LinkedAnimGraphNodeProperty : LinkedAnimGraphNodeProperties)
 		{
-			const FAnimNode_SubInstance* SubInstance = SubInstanceNodeProperty->ContainerPtrToValuePtr<FAnimNode_SubInstance>(this);
-			if(SubInstance && SubInstance->Tag == InTag)
+			const FAnimNode_LinkedAnimGraph* LinkedAnimGraph = LinkedAnimGraphNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimGraph>(this);
+			if(LinkedAnimGraph && LinkedAnimGraph->Tag == InTag)
 			{
-				OutSubInstances.Add(SubInstance->GetTargetInstance<UAnimInstance>());
+				OutLinkedInstances.Add(LinkedAnimGraph->GetTargetInstance<UAnimInstance>());
 			}
 		}
 	}
 }
 
-void UAnimInstance::SetSubInstanceClassByTag(FName InTag, TSubclassOf<UAnimInstance> InClass)
+void UAnimInstance::LinkAnimGraphByTag(FName InTag, TSubclassOf<UAnimInstance> InClass)
 {
 	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
-		const TArray<UStructProperty*>& SubInstanceNodeProperties = AnimBlueprintClass->GetSubInstanceNodeProperties();
-		for(UStructProperty* SubInstanceNodeProperty : SubInstanceNodeProperties)
+		const TArray<UStructProperty*>& LinkedAnimGraphNodeProperties = AnimBlueprintClass->GetLinkedAnimGraphNodeProperties();
+		for (UStructProperty* LinkedAnimGraphNodeProperty : LinkedAnimGraphNodeProperties)
 		{
-			FAnimNode_SubInstance* SubInstance = SubInstanceNodeProperty->ContainerPtrToValuePtr<FAnimNode_SubInstance>(this);
-			if(SubInstance && SubInstance->Tag == InTag)
+			FAnimNode_LinkedAnimGraph* LinkedAnimGraph = LinkedAnimGraphNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimGraph>(this);
+			if(LinkedAnimGraph && LinkedAnimGraph->Tag == InTag)
 			{
-				SubInstance->SetAnimClass(InClass, this);
+				LinkedAnimGraph->SetAnimClass(InClass, this);
 			}
 		}
 	}
 }
 
-void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InClass, TFunctionRef<UClass*(UClass* InClass, FAnimNode_Layer*)> InClassSelectorFunction)
+void UAnimInstance::PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance> InClass, TFunctionRef<UClass*(UClass* InClass, FAnimNode_LinkedAnimLayer*)> InClassSelectorFunction, bool bInDeferSubGraphInitialization)
 {
 	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
@@ -2516,26 +2516,25 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 		if(NewClass)
 		{
 			// Verify target skeleton matches at runtime
-			IAnimClassInterface* SubAnimBlueprintClass = IAnimClassInterface::GetFromClass(NewClass);
-			USkeleton* SubSkeleton = SubAnimBlueprintClass->GetTargetSkeleton();
+			IAnimClassInterface* LinkedAnimBlueprintClass = IAnimClassInterface::GetFromClass(NewClass);
+			USkeleton* LinkedSkeleton = LinkedAnimBlueprintClass->GetTargetSkeleton();
 			USkeleton* OuterSkeleton = AnimBlueprintClass->GetTargetSkeleton();
-			if(SubSkeleton != OuterSkeleton)
+			if(LinkedSkeleton != OuterSkeleton)
 			{
-				UE_LOG(LogAnimation, Warning, TEXT("Setting layer overlay: Sub instance class has a mismatched target skeleton. Expected %s, found %s."), OuterSkeleton ? *OuterSkeleton->GetName() : TEXT("null"), SubSkeleton ? *SubSkeleton->GetName() : TEXT("null"));
+				UE_LOG(LogAnimation, Warning, TEXT("Linking layer: Linked instance class has a mismatched target skeleton. Expected %s, found %s."), OuterSkeleton ? *OuterSkeleton->GetName() : TEXT("null"), LinkedSkeleton ? *LinkedSkeleton->GetName() : TEXT("null"));
 				return;
 			}
 		}
 
-		// Make sure we have valid objects as initialization can route back out of sub-instances into this outer graph
+		// Make sure we have valid objects as initialization can route back out of linked instances into this outer graph
 		GetProxyOnAnyThread<FAnimInstanceProxy>().InitializeObjects(this);
 
 		// Map of group name->nodes to run under that group instance
-		TMap<FName, TArray<FAnimNode_Layer*, TInlineAllocator<4>>, TInlineSetAllocator<4>> LayerNodesToSet;
+		TMap<FName, TArray<FAnimNode_LinkedAnimLayer*, TInlineAllocator<4>>, TInlineSetAllocator<4>> LayerNodesToSet;
 
-		const TArray<UStructProperty*>& LayerNodeProperties = AnimBlueprintClass->GetLayerNodeProperties();
-		for(UStructProperty* LayerNodeProperty : LayerNodeProperties)
+		for(UStructProperty* LayerNodeProperty : AnimBlueprintClass->GetLinkedAnimLayerNodeProperties())
 		{
-			FAnimNode_Layer* Layer = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_Layer>(this);
+			FAnimNode_LinkedAnimLayer* Layer = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimLayer>(this);
 
 			// If the class is null, then reset to default (which can be null)
 			UClass* ClassToSet = NewClass != nullptr ? NewClass : Layer->InstanceClass.Get();
@@ -2548,7 +2547,7 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 				{
 					if(FoundFunction->bImplemented)
 					{
-						TArray<FAnimNode_Layer*, TInlineAllocator<4>>& LayerNodes = LayerNodesToSet.FindOrAdd(FoundFunction->Group);
+						TArray<FAnimNode_LinkedAnimLayer*, TInlineAllocator<4>>& LayerNodes = LayerNodesToSet.FindOrAdd(FoundFunction->Group);
 						LayerNodes.Add(Layer);
 					}
 				}
@@ -2556,7 +2555,7 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 			else
 			{
 				// Add null classes so we clear the node's instance below
-				TArray<FAnimNode_Layer*, TInlineAllocator<4>>& LayerNodes = LayerNodesToSet.FindOrAdd(NAME_None);
+				TArray<FAnimNode_LinkedAnimLayer*, TInlineAllocator<4>>& LayerNodes = LayerNodesToSet.FindOrAdd(NAME_None);
 				LayerNodes.Add(Layer);
 			}
 		}
@@ -2565,20 +2564,30 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 
 		auto UnlinkLayerNodesInInstance = [](UAnimInstance* InAnimInstance)
 		{
-			const IAnimClassInterface* NewSubInstanceClass = IAnimClassInterface::GetFromClass(InAnimInstance->GetClass());
-			for(const UStructProperty* LayerNodeProperty : NewSubInstanceClass->GetLayerNodeProperties())
+			const IAnimClassInterface* NewLinkedInstanceClass = IAnimClassInterface::GetFromClass(InAnimInstance->GetClass());
+			for(const UStructProperty* LayerNodeProperty : NewLinkedInstanceClass->GetLinkedAnimLayerNodeProperties())
 			{
-				FAnimNode_Layer* SubInstanceLayerNode = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_Layer>(InAnimInstance);
-				SubInstanceLayerNode->DynamicUnlink(InAnimInstance);
+				FAnimNode_LinkedAnimLayer* LinkedAnimLayerNode = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimLayer>(InAnimInstance);
+				LinkedAnimLayerNode->DynamicUnlink(InAnimInstance);
 			}
 		};
 
-		for(TPair<FName, TArray<FAnimNode_Layer*, TInlineAllocator<4>>> LayerPair : LayerNodesToSet)
+		auto InitializeAndCacheBonesForLinkedRoot = [](FAnimNode_LinkedAnimLayer* InLayerNode, FAnimInstanceProxy& InThisProxy, UAnimInstance* InLinkedInstance, FAnimInstanceProxy& InLinkedProxy)
+		{
+			InLinkedProxy.InitializeObjects(InLinkedInstance);
+			FAnimationInitializeContext InitContext(&InThisProxy);
+			InLayerNode->InitializeSubGraph_AnyThread(InitContext);
+			FAnimationCacheBonesContext CacheBonesContext(&InThisProxy);
+			InLayerNode->CacheBonesSubGraph_AnyThread(CacheBonesContext);
+			InLinkedProxy.ClearObjects();
+		};
+
+		for(TPair<FName, TArray<FAnimNode_LinkedAnimLayer*, TInlineAllocator<4>>> LayerPair : LayerNodesToSet)
 		{
 			if (LayerPair.Key == NAME_None)
 			{
 				// Ungrouped path - each layer gets a separate instance
-				for(FAnimNode_Layer* LayerNode : LayerPair.Value)
+				for(FAnimNode_LinkedAnimLayer* LayerNode : LayerPair.Value)
 				{
 					UClass* ClassToSet = InClassSelectorFunction(NewClass, LayerNode);
 
@@ -2590,33 +2599,42 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 						// Skip setting if the class is the same
 						if (TargetInstance == nullptr || ClassToSet != TargetInstance->GetClass())
 						{
-							UAnimInstance* NewSubInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
-							NewSubInstance->InitializeAnimation();
+							UAnimInstance* NewLinkedInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
+							NewLinkedInstance->InitializeAnimation();
 
-							// Unlink any layer nodes in the new sub instance, as they may have been hooked up to self in InitializeAnimation above.
-							UnlinkLayerNodesInInstance(NewSubInstance);
+							// Unlink any layer nodes in the new linked instance, as they may have been hooked up to self in InitializeAnimation above.
+							UnlinkLayerNodesInInstance(NewLinkedInstance);
 
-							LayerNode->SetLayerOverlaySubInstance(this, NewSubInstance);
+							LayerNode->SetLinkedLayerInstance(this, NewLinkedInstance);
 
-							// Initialize the correct parts of the sub instance
-							if(LayerNode->LinkedRoot)
+							if(!bInDeferSubGraphInitialization)
 							{
-								FAnimInstanceProxy& ThisProxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
-								FAnimInstanceProxy& LinkedProxy = NewSubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
-								LinkedProxy.InitializeObjects(NewSubInstance);
-								FAnimationInitializeContext InitContext(&ThisProxy);
-								LayerNode->Initialize_AnyThread(InitContext);
-								FAnimationCacheBonesContext CacheBonesContext(&ThisProxy);
-								LayerNode->CacheBones_AnyThread(CacheBonesContext);
-								LinkedProxy.ClearObjects();
+								// Initialize the correct parts of the linked instance
+								if(LayerNode->LinkedRoot)
+								{
+									FAnimInstanceProxy& ThisProxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
+									FAnimInstanceProxy& LinkedProxy = NewLinkedInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+									InitializeAndCacheBonesForLinkedRoot(LayerNode, ThisProxy, NewLinkedInstance, LinkedProxy);
+								}
 							}
 
-							MeshComp->SubInstances.Add(NewSubInstance);
+							MeshComp->GetLinkedAnimInstances().Add(NewLinkedInstance);
 						}
 					}
 					else
 					{
-						LayerNode->SetLayerOverlaySubInstance(this, nullptr);
+						LayerNode->SetLinkedLayerInstance(this, nullptr);
+
+						if(!bInDeferSubGraphInitialization)
+						{
+							UAnimInstance* LinkedInstance = LayerNode->GetTargetInstance<UAnimInstance>();
+							if(LayerNode->LinkedRoot && LinkedInstance)
+							{
+								FAnimInstanceProxy& ThisProxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
+								FAnimInstanceProxy& LinkedProxy = LinkedInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+								InitializeAndCacheBonesForLinkedRoot(LayerNode, ThisProxy, LinkedInstance, LinkedProxy);
+							}
+						}
 					}
 				}
 			}
@@ -2624,7 +2642,7 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 			{		
 				// Grouped path - each group gets an instance
 				// If the class is null, then reset to default (which can be null)
-				FAnimNode_Layer* FirstLayerNode = LayerPair.Value[0];
+				FAnimNode_LinkedAnimLayer* FirstLayerNode = LayerPair.Value[0];
 				UClass* ClassToSet = InClassSelectorFunction(NewClass, FirstLayerNode);
 
 				// Disallow setting the same class as this instance, which would create infinite recursion
@@ -2635,44 +2653,53 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 					// Skip setting if the class is the same
 					if (TargetInstance == nullptr || ClassToSet != TargetInstance->GetClass())
 					{
-						// Create and add one sub-instance for this group
-						UAnimInstance* NewSubInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
-						NewSubInstance->InitializeAnimation();
+						// Create and add one linked instance for this group
+						UAnimInstance* NewLinkedInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
+						NewLinkedInstance->InitializeAnimation();
 
-						// Unlink any layer nodes in the new sub instance, as they may have been hooked up to self in InitializeAnimation above.
-						UnlinkLayerNodesInInstance(NewSubInstance);
+						// Unlink any layer nodes in the new linked instance, as they may have been hooked up to self in InitializeAnimation above.
+						UnlinkLayerNodesInInstance(NewLinkedInstance);
 
-						for(FAnimNode_Layer* LayerNode : LayerPair.Value)
+						for(FAnimNode_LinkedAnimLayer* LayerNode : LayerPair.Value)
 						{
-							LayerNode->SetLayerOverlaySubInstance(this, NewSubInstance);
+							LayerNode->SetLinkedLayerInstance(this, NewLinkedInstance);
 						}
 
-						FAnimInstanceProxy& ThisProxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
-						FAnimInstanceProxy& LinkedProxy = NewSubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
-
-						// Initialize the correct parts of the sub instance
-						for(FAnimNode_Layer* LayerNode : LayerPair.Value)
+						if(!bInDeferSubGraphInitialization)
 						{
-							if(LayerNode->LinkedRoot)
+							FAnimInstanceProxy& ThisProxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
+							FAnimInstanceProxy& LinkedProxy = NewLinkedInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+
+							// Initialize the correct parts of the linked instance
+							for(FAnimNode_LinkedAnimLayer* LayerNode : LayerPair.Value)
 							{
-								LinkedProxy.InitializeObjects(NewSubInstance);
-								FAnimationInitializeContext InitContext(&ThisProxy);
-								LayerNode->Initialize_AnyThread(InitContext);
-								FAnimationCacheBonesContext CacheBonesContext(&ThisProxy);
-								LayerNode->CacheBones_AnyThread(CacheBonesContext);
-								LinkedProxy.ClearObjects();
+								if(LayerNode->LinkedRoot)
+								{
+									InitializeAndCacheBonesForLinkedRoot(LayerNode, ThisProxy, NewLinkedInstance, LinkedProxy);
+								}
 							}
 						}
 
-						MeshComp->SubInstances.Add(NewSubInstance);
+						MeshComp->GetLinkedAnimInstances().Add(NewLinkedInstance);
 					}
 				}
 				else
 				{
 					// Clear the node's instance - we didnt find a class to use
-					for(FAnimNode_Layer* LayerNode : LayerPair.Value)
+					for(FAnimNode_LinkedAnimLayer* LayerNode : LayerPair.Value)
 					{
-						LayerNode->SetLayerOverlaySubInstance(this, nullptr);
+						LayerNode->SetLinkedLayerInstance(this, nullptr);
+
+						if(!bInDeferSubGraphInitialization)
+						{
+							UAnimInstance* LinkedInstance = LayerNode->GetTargetInstance<UAnimInstance>();
+							if(LayerNode->LinkedRoot && LinkedInstance)
+							{
+								FAnimInstanceProxy& ThisProxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
+								FAnimInstanceProxy& LinkedProxy = LinkedInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+								InitializeAndCacheBonesForLinkedRoot(LayerNode, ThisProxy, LinkedInstance, LinkedProxy);
+							}
+						}
 					}
 				}
 			}
@@ -2680,9 +2707,9 @@ void UAnimInstance::PerformLayerOverlayOperation(TSubclassOf<UAnimInstance> InCl
 	}
 }
 
-void UAnimInstance::SetLayerOverlay(TSubclassOf<UAnimInstance> InClass)
+void UAnimInstance::LinkAnimClassLayers(TSubclassOf<UAnimInstance> InClass)
 {
-	auto SelectResolvedClassIfValid = [](UClass* InResolvedClass, FAnimNode_Layer* InLayerNode)
+	auto SelectResolvedClassIfValid = [](UClass* InResolvedClass, FAnimNode_LinkedAnimLayer* InLayerNode)
 	{
 		if(InResolvedClass != nullptr)
 		{
@@ -2696,12 +2723,12 @@ void UAnimInstance::SetLayerOverlay(TSubclassOf<UAnimInstance> InClass)
 		}
 	};
 
-	PerformLayerOverlayOperation(InClass, SelectResolvedClassIfValid);
+	PerformLinkedLayerOverlayOperation(InClass, SelectResolvedClassIfValid);
 }
 
-void UAnimInstance::ClearLayerOverlay(TSubclassOf<UAnimInstance> InClass)
+void UAnimInstance::UnlinkAnimClassLayers(TSubclassOf<UAnimInstance> InClass)
 {
-	auto ConditionallySelectDefaultClass = [](UClass* InResolvedClass, FAnimNode_Layer* InLayerNode)
+	auto ConditionallySelectDefaultClass = [](UClass* InResolvedClass, FAnimNode_LinkedAnimLayer* InLayerNode)
 	{
 		if (InResolvedClass != nullptr && InLayerNode->GetTargetInstance<UAnimInstance>()->GetClass() == InResolvedClass)
 		{
@@ -2715,22 +2742,35 @@ void UAnimInstance::ClearLayerOverlay(TSubclassOf<UAnimInstance> InClass)
 		}
 	};
 
-	PerformLayerOverlayOperation(InClass, ConditionallySelectDefaultClass);
+	PerformLinkedLayerOverlayOperation(InClass, ConditionallySelectDefaultClass);
 }
 
-void UAnimInstance::InitializeGroupedLayers()
+void UAnimInstance::InitializeGroupedLayers(bool bInDeferSubGraphInitialization)
 {
-	SetLayerOverlay(nullptr);
+	auto SelectResolvedClassIfValid = [](UClass* InResolvedClass, FAnimNode_LinkedAnimLayer* InLayerNode)
+	{
+		if(InResolvedClass != nullptr)
+		{
+			// If we have a valid resolved class, use that as an overlay
+			return InResolvedClass;
+		}
+		else
+		{
+			// Otherwise use the default (which can be null)
+			return InLayerNode->InstanceClass.Get();
+		}
+	};
+
+	PerformLinkedLayerOverlayOperation(nullptr, SelectResolvedClassIfValid, bInDeferSubGraphInitialization);
 }
 
-UAnimInstance* UAnimInstance::GetLayerSubInstanceByGroup(FName InGroup) const
+UAnimInstance* UAnimInstance::GetLinkedAnimLayerInstanceByGroup(FName InGroup) const
 {
 	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
-		const TArray<UStructProperty*>& LayerNodeProperties = AnimBlueprintClass->GetLayerNodeProperties();
-		for(UStructProperty* LayerNodeProperty : LayerNodeProperties)
+		for(UStructProperty* LayerNodeProperty : AnimBlueprintClass->GetLinkedAnimLayerNodeProperties())
 		{
-			const FAnimNode_Layer* Layer = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_Layer>(this);
+			const FAnimNode_LinkedAnimLayer* Layer = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimLayer>(this);
 
 			UClass* ClassForGroups;
 			if(UClass* InterfaceClass = Layer->Interface.Get())
@@ -2756,14 +2796,13 @@ UAnimInstance* UAnimInstance::GetLayerSubInstanceByGroup(FName InGroup) const
 	return nullptr;
 }
 
-UAnimInstance* UAnimInstance::GetLayerSubInstanceByClass(TSubclassOf<UAnimInstance> InClass) const
+UAnimInstance* UAnimInstance::GetLinkedAnimLayerInstanceByClass(TSubclassOf<UAnimInstance> InClass) const
 {
 	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
-		const TArray<UStructProperty*>& LayerNodeProperties = AnimBlueprintClass->GetLayerNodeProperties();
-		for(UStructProperty* LayerNodeProperty : LayerNodeProperties)
+		for(UStructProperty* LayerNodeProperty : AnimBlueprintClass->GetLinkedAnimLayerNodeProperties())
 		{
-			const FAnimNode_Layer* Layer = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_Layer>(this);
+			const FAnimNode_LinkedAnimLayer* Layer = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimLayer>(this);
 			UAnimInstance* TargetInstance = Layer->GetTargetInstance<UAnimInstance>();
 			if (TargetInstance && TargetInstance->GetClass() == InClass.Get())
 			{

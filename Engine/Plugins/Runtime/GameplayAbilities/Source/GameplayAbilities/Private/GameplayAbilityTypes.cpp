@@ -102,7 +102,7 @@ bool FGameplayAbilityActorInfo::IsNetAuthority() const
 	AActor* const OwnerActorPtr = OwnerActor.Get(/*bEvenIfPendingKill=*/ true);
 	if (OwnerActorPtr)
 	{
-		return (OwnerActorPtr->Role == ROLE_Authority);
+		return (OwnerActorPtr->GetLocalRole() == ROLE_Authority);
 	}
 
 	// This rarely happens during shutdown cases for reasons that aren't quite clear

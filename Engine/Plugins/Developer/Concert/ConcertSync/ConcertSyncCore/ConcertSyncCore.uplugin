@@ -19,7 +19,7 @@
 	"Modules": [
 		{
 			"Name": "ConcertSyncCore",
-			"Type": "Developer",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "PreDefault",
 			"WhitelistPrograms": [ "UnrealMultiUserServer", "UnrealDisasterRecoveryService" ]
 		}

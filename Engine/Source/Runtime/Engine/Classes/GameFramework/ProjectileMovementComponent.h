@@ -231,7 +231,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ProjectileMovement")
 	virtual void StopSimulating(const FHitResult& HitResult);
 
-	bool HasStoppedSimulation() { return (UpdatedComponent == nullptr) || (bIsActive == false); }
+	bool HasStoppedSimulation() { return (UpdatedComponent == nullptr) || (IsActive() == false); }
 
 	/**
 	 * Compute remaining time step given remaining time and current iterations.
@@ -421,8 +421,8 @@ public:
 	/** Returns the sum of pending forces from AddForce(). */
 	FVector GetPendingForce() const { return PendingForce; }
 
-	/** Clears any pending forces from AddForce(). */
-	void ClearPendingForce();
+	/** Clears any pending forces from AddForce(). If bClearImmediateForce is true, clears any force being processed during this update as well. */
+	void ClearPendingForce(bool bClearImmediateForce = false);
 	
 protected:
 

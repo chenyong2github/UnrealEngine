@@ -252,7 +252,7 @@ namespace UnrealBuildTool
 		}
 
 		// UEBuildModule interface.
-		public override List<FileItem> Compile(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment BinaryCompileEnvironment, ISourceFileWorkingSet WorkingSet, TargetMakefile Makefile)
+		public override List<FileItem> Compile(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment BinaryCompileEnvironment, FileReference SingleFileToCompile, ISourceFileWorkingSet WorkingSet, TargetMakefile Makefile)
 		{
 			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(BinaryCompileEnvironment.Platform);
 
@@ -290,6 +290,20 @@ namespace UnrealBuildTool
 
 			// Find all the input files
 			InputFileCollection InputFiles = FindInputFiles(Target.Platform, Makefile.DirectoryToSourceFiles);
+
+			// If we're compiling a single file, strip out anything else. This prevents us clobbering response files for anything we're 
+			// not going to build, triggering a larger build than necessary when we do a regular build again.
+			if(SingleFileToCompile != null)
+			{
+				InputFiles.CPPFiles.RemoveAll(x => x.Location != SingleFileToCompile);
+				InputFiles.CCFiles.RemoveAll(x => x.Location != SingleFileToCompile);
+				InputFiles.CFiles.RemoveAll(x => x.Location != SingleFileToCompile);
+
+				if(InputFiles.CPPFiles.Count == 0 && InputFiles.CCFiles.Count == 0 && InputFiles.CFiles.Count == 0)
+				{
+					return new List<FileItem>();
+				}
+			}
 
 			// Process all of the header file dependencies for this module
 			CheckFirstIncludeMatchesEachCppFile(Target, ModuleCompileEnvironment, InputFiles.HeaderFiles, InputFiles.CPPFiles);
@@ -449,7 +463,7 @@ namespace UnrealBuildTool
 			}
 
 			// Compile all the generated CPP files
-			if (GeneratedCodeWildcard != null && !CompileEnvironment.bHackHeaderGenerator)
+			if (GeneratedCodeWildcard != null && !CompileEnvironment.bHackHeaderGenerator && SingleFileToCompile == null)
 			{
 				string[] GeneratedFiles = Directory.GetFiles(Path.GetDirectoryName(GeneratedCodeWildcard), Path.GetFileName(GeneratedCodeWildcard));
 				if(GeneratedFiles.Length > 0)

@@ -49,7 +49,7 @@ UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 FNiagaraRenderer* UNiagaraSpriteRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
 {
 	FNiagaraRenderer* NewRenderer = new FNiagaraRendererSprites(FeatureLevel, this, Emitter);	
-	NewRenderer->Initialize(FeatureLevel, this, Emitter);
+	NewRenderer->Initialize(this, Emitter);
 	return NewRenderer;
 }
 

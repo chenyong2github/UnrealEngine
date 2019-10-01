@@ -31,6 +31,15 @@ static FAutoConsoleVariableRef CVarEnableNiagaraSpriteRendering(
 	ECVF_Default
 );
 
+int32 GbEnableMinimalGPUBuffers = 1;
+static FAutoConsoleVariableRef CVarbEnableMinimalGPUBuffers(
+	TEXT("fx.EnableMinimalGPUBuffers"),
+	GbEnableMinimalGPUBuffers,
+	TEXT("If > 0 we use new code to pass the gpu only data the VF actuially uses for redering, rather than the whole partilce buffer. \n"),
+	ECVF_Default
+);
+
+
 /** Dynamic data for sprite renderers. */
 struct FNiagaraDynamicDataSprites : public FNiagaraDynamicDataBase
 {
@@ -59,6 +68,32 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 
+namespace ENiagaraSpriteVFLayout
+{
+	enum Type
+	{
+		Position, 
+		Color, 
+		Velocity, 
+		Rotation, 
+		Size, 
+		Facing, 
+		Alignment, 
+		SubImage, 
+		MaterialParam0, 
+		MaterialParam1,
+		MaterialParam2,
+		MaterialParam3,
+		CameraOffset, 
+		UVScale, 
+		MaterialRandom, 
+		CustomSorting, 
+		NormalizedAge, 
+
+		Num,
+	};
+};
+
 FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
 	: FNiagaraRenderer(FeatureLevel, InProps, Emitter)
 	, Alignment(ENiagaraSpriteAlignment::Unaligned)
@@ -72,28 +107,9 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	, bSortOnlyWhenTranslucent(true)
 	, MinFacingCameraBlendDistance(0.0f)
 	, MaxFacingCameraBlendDistance(0.0f)
-	, PositionOffset(INDEX_NONE)
-	, ColorOffset(INDEX_NONE)
-	, VelocityOffset(INDEX_NONE)
-	, RotationOffset(INDEX_NONE)
-	, SizeOffset(INDEX_NONE)
-	, FacingOffset(INDEX_NONE)
-	, AlignmentOffset(INDEX_NONE)
-	, SubImageOffset(INDEX_NONE)
 	, MaterialParamValidMask(0)
-	, MaterialParamOffset(INDEX_NONE)
-	, MaterialParamOffset1(INDEX_NONE)
-	, MaterialParamOffset2(INDEX_NONE)
-	, MaterialParamOffset3(INDEX_NONE)
-	, CameraOffsetOffset(INDEX_NONE)
-	, UVScaleOffset(INDEX_NONE)
-	, MaterialRandomOffset(INDEX_NONE)
-	, CustomSortingOffset(INDEX_NONE)
-	, NormalizedAgeOffset(INDEX_NONE)
 {
 	check(InProps && Emitter);
-
-	VertexFactory = new FNiagaraSpriteVertexFactory(NVFT_Sprite, FeatureLevel);
 
 	const UNiagaraSpriteRendererProperties* Properties = CastChecked<const UNiagaraSpriteRendererProperties>(InProps);
 	
@@ -112,45 +128,36 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	NumCutoutVertexPerSubImage = Properties->GetNumCutoutVertexPerSubimage();
 	CutoutVertexBuffer.Data = Properties->GetCutoutData();
 
-	int32 IntDummy;
 	const FNiagaraDataSet& Data = Emitter->GetData();
-	Data.GetVariableComponentOffsets(Properties->PositionBinding.DataSetVariable, PositionOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->VelocityBinding.DataSetVariable, VelocityOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->SpriteRotationBinding.DataSetVariable, RotationOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->SpriteSizeBinding.DataSetVariable, SizeOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->ColorBinding.DataSetVariable, ColorOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->SpriteFacingBinding.DataSetVariable, FacingOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->SpriteAlignmentBinding.DataSetVariable, AlignmentOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->SubImageIndexBinding.DataSetVariable, SubImageOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->DynamicMaterialBinding.DataSetVariable, MaterialParamOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->DynamicMaterial1Binding.DataSetVariable, MaterialParamOffset1, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->DynamicMaterial2Binding.DataSetVariable, MaterialParamOffset2, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->DynamicMaterial3Binding.DataSetVariable, MaterialParamOffset3, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->CameraOffsetBinding.DataSetVariable, CameraOffsetOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->UVScaleBinding.DataSetVariable, UVScaleOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->NormalizedAgeBinding.DataSetVariable, NormalizedAgeOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->MaterialRandomBinding.DataSetVariable, MaterialRandomOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->CustomSortingBinding.DataSetVariable, CustomSortingOffset, IntDummy);
 
-	MaterialParamValidMask = MaterialParamOffset != -1 ? 1 : 0;
-	MaterialParamValidMask |= MaterialParamOffset1 != -1 ? 2 : 0;
-	MaterialParamValidMask |= MaterialParamOffset2 != -1 ? 4 : 0;
-	MaterialParamValidMask |= MaterialParamOffset3 != -1 ? 8 : 0;
+	TotalVFComponents = 0;
+	VFVariables.SetNum(ENiagaraSpriteVFLayout::Num);
+	SetVertexFactoryVariable(Data, Properties->PositionBinding.DataSetVariable, ENiagaraSpriteVFLayout::Position);
+	SetVertexFactoryVariable(Data, Properties->VelocityBinding.DataSetVariable, ENiagaraSpriteVFLayout::Velocity);
+	SetVertexFactoryVariable(Data, Properties->ColorBinding.DataSetVariable, ENiagaraSpriteVFLayout::Color);
+	SetVertexFactoryVariable(Data, Properties->SpriteRotationBinding.DataSetVariable, ENiagaraSpriteVFLayout::Rotation);
+	SetVertexFactoryVariable(Data, Properties->SpriteSizeBinding.DataSetVariable, ENiagaraSpriteVFLayout::Size);
+	SetVertexFactoryVariable(Data, Properties->SpriteFacingBinding.DataSetVariable, ENiagaraSpriteVFLayout::Facing);
+	SetVertexFactoryVariable(Data, Properties->SpriteAlignmentBinding.DataSetVariable, ENiagaraSpriteVFLayout::Alignment);
+	SetVertexFactoryVariable(Data, Properties->SubImageIndexBinding.DataSetVariable, ENiagaraSpriteVFLayout::SubImage);
+	SetVertexFactoryVariable(Data, Properties->CameraOffsetBinding.DataSetVariable, ENiagaraSpriteVFLayout::CameraOffset);
+	SetVertexFactoryVariable(Data, Properties->UVScaleBinding.DataSetVariable, ENiagaraSpriteVFLayout::UVScale);
+	SetVertexFactoryVariable(Data, Properties->NormalizedAgeBinding.DataSetVariable, ENiagaraSpriteVFLayout::NormalizedAge);
+	SetVertexFactoryVariable(Data, Properties->MaterialRandomBinding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialRandom);
+	SetVertexFactoryVariable(Data, Properties->CustomSortingBinding.DataSetVariable, ENiagaraSpriteVFLayout::CustomSorting);
+	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterialBinding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam0) ? 0x1 : 0;
+	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterial1Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam1) ? 0x2 : 0;
+	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterial2Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam2) ? 0x4 : 0;
+	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterial3Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam3) ? 0x8 : 0;
 }
 
 FNiagaraRendererSprites::~FNiagaraRendererSprites()
 {
-	if ( VertexFactory != nullptr )
-	{
-		delete VertexFactory;
-		VertexFactory = nullptr;
-	}
 }
 
 void FNiagaraRendererSprites::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
 {
 	FNiagaraRenderer::ReleaseRenderThreadResources(Batcher);
-	VertexFactory->ReleaseResource();
 
 	CutoutVertexBuffer.ReleaseResource();
 #if RHI_RAYTRACING
@@ -166,7 +173,6 @@ void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstance
 {
 	FNiagaraRenderer::CreateRenderThreadResources(Batcher);
 	CutoutVertexBuffer.InitResource();
-	VertexFactory->InitResource();
 
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
@@ -193,16 +199,23 @@ FNiagaraRendererSprites::FCPUSimParticleDataAllocation FNiagaraRendererSprites::
 {
 	FNiagaraDataBuffer* SourceParticleData = DynamicDataSprites->GetParticleDataToRender();
 	check(SourceParticleData);//Can be null but should be checked before here.
-	int32 TotalFloatSize = SourceParticleData->GetFloatBuffer().Num() / sizeof(float);
 
 	FCPUSimParticleDataAllocation CPUSimParticleDataAllocation { DynamicReadBuffer };
 
 	if (SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSpritesCPUSimCopy);
-		CPUSimParticleDataAllocation.ParticleData = DynamicReadBuffer.AllocateFloat(TotalFloatSize);
+
+		if (GbEnableMinimalGPUBuffers)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSpritesCPUSimMemCopy);
+			CPUSimParticleDataAllocation.ParticleData = TransferDataToGPU(DynamicReadBuffer, SourceParticleData);
+		}
+		else
+		{
+			int32 TotalFloatSize = SourceParticleData->GetFloatBuffer().Num() / sizeof(float);
+			CPUSimParticleDataAllocation.ParticleData = DynamicReadBuffer.AllocateFloat(TotalFloatSize);
+			SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSpritesCPUSimMemCopy);			
 			FMemory::Memcpy(CPUSimParticleDataAllocation.ParticleData.Buffer, SourceParticleData->GetFloatBuffer().GetData(), SourceParticleData->GetFloatBuffer().Num());
 		}
 	}
@@ -229,24 +242,26 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 	PerViewUniformParameters.RemoveHMDRoll = bRemoveHMDRollInVR;
 	PerViewUniformParameters.CustomFacingVectorMask = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 	PerViewUniformParameters.SubImageSize = FVector4(SubImageSize.X, SubImageSize.Y, 1.0f / SubImageSize.X, 1.0f / SubImageSize.Y);
-	PerViewUniformParameters.PositionDataOffset = PositionOffset;
-	PerViewUniformParameters.VelocityDataOffset = VelocityOffset;
-	PerViewUniformParameters.RotationDataOffset = RotationOffset;
-	PerViewUniformParameters.SizeDataOffset = SizeOffset;
-	PerViewUniformParameters.ColorDataOffset = ColorOffset;
-	PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
-	PerViewUniformParameters.MaterialParamDataOffset = MaterialParamOffset;
-	PerViewUniformParameters.MaterialParam1DataOffset = MaterialParamOffset1;
-	PerViewUniformParameters.MaterialParam2DataOffset = MaterialParamOffset2;
-	PerViewUniformParameters.MaterialParam3DataOffset = MaterialParamOffset3;
-	PerViewUniformParameters.SubimageDataOffset = SubImageOffset;
-	PerViewUniformParameters.FacingDataOffset = FacingOffset;
-	PerViewUniformParameters.AlignmentDataOffset = AlignmentOffset;
+
+	PerViewUniformParameters.PositionDataOffset = VFVariables[ENiagaraSpriteVFLayout::Position].GetGPUOffset();
+	PerViewUniformParameters.VelocityDataOffset = VFVariables[ENiagaraSpriteVFLayout::Velocity].GetGPUOffset();
+	PerViewUniformParameters.RotationDataOffset = VFVariables[ENiagaraSpriteVFLayout::Rotation].GetGPUOffset();
+	PerViewUniformParameters.SizeDataOffset = VFVariables[ENiagaraSpriteVFLayout::Size].GetGPUOffset();
+	PerViewUniformParameters.ColorDataOffset = VFVariables[ENiagaraSpriteVFLayout::Color].GetGPUOffset();
+	PerViewUniformParameters.MaterialParamDataOffset = VFVariables[ENiagaraSpriteVFLayout::MaterialParam0].GetGPUOffset();
+	PerViewUniformParameters.MaterialParam1DataOffset = VFVariables[ENiagaraSpriteVFLayout::MaterialParam1].GetGPUOffset();
+	PerViewUniformParameters.MaterialParam2DataOffset = VFVariables[ENiagaraSpriteVFLayout::MaterialParam2].GetGPUOffset();
+	PerViewUniformParameters.MaterialParam3DataOffset = VFVariables[ENiagaraSpriteVFLayout::MaterialParam3].GetGPUOffset();
+	PerViewUniformParameters.SubimageDataOffset = VFVariables[ENiagaraSpriteVFLayout::SubImage].GetGPUOffset();
+	PerViewUniformParameters.FacingDataOffset = VFVariables[ENiagaraSpriteVFLayout::Facing].GetGPUOffset();
+	PerViewUniformParameters.AlignmentDataOffset = VFVariables[ENiagaraSpriteVFLayout::Alignment].GetGPUOffset();
+	PerViewUniformParameters.CameraOffsetDataOffset = VFVariables[ENiagaraSpriteVFLayout::CameraOffset].GetGPUOffset();
+	PerViewUniformParameters.UVScaleDataOffset = VFVariables[ENiagaraSpriteVFLayout::UVScale].GetGPUOffset();
+	PerViewUniformParameters.NormalizedAgeDataOffset = VFVariables[ENiagaraSpriteVFLayout::NormalizedAge].GetGPUOffset();
+	PerViewUniformParameters.MaterialRandomDataOffset = VFVariables[ENiagaraSpriteVFLayout::MaterialRandom].GetGPUOffset();
+
 	PerViewUniformParameters.SubImageBlendMode = bSubImageBlend;
-	PerViewUniformParameters.CameraOffsetDataOffset = CameraOffsetOffset;
-	PerViewUniformParameters.UVScaleDataOffset = UVScaleOffset;
-	PerViewUniformParameters.NormalizedAgeDataOffset = NormalizedAgeOffset;
-	PerViewUniformParameters.MaterialRandomDataOffset = MaterialRandomOffset;
+	PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 	PerViewUniformParameters.DefaultPos = bLocalSpace ? FVector4(0.0f, 0.0f, 0.0f, 1.0f) : FVector4(SceneProxy->GetLocalToWorld().GetOrigin());
 
 	ENiagaraSpriteFacingMode ActualFacingMode = FacingMode;
@@ -325,24 +340,27 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 
 		FMaterialRenderProxy* MaterialRenderProxy = DynamicDataSprites->Material;
 		check(MaterialRenderProxy);
-		EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(VertexFactory->GetFeatureLevel())->GetBlendMode();
+		EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(FeatureLevel)->GetBlendMode();
 		OutVertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
 
 		int32 NumInstances = SourceParticleData->GetNumInstances();
 		FNiagaraGPUSortInfo SortInfo;
-		if (View && SortMode != ENiagaraSortMode::None && (BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_AlphaHoldout|| BlendMode == BLEND_Translucent || !bSortOnlyWhenTranslucent))
+		SortInfo.SortAttributeOffset = INDEX_NONE;
+		int32 SortingVarIdx = INDEX_NONE;
+		bool bShouldSort = SortMode != ENiagaraSortMode::None && (BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_AlphaHoldout || BlendMode == BLEND_Translucent || !bSortOnlyWhenTranslucent);
+		if (bShouldSort)
 		{
 			SortInfo.ParticleCount = NumInstances;
 			SortInfo.SortMode = SortMode;
 			if (SortInfo.SortMode == ENiagaraSortMode::CustomAscending || SortInfo.SortMode == ENiagaraSortMode::CustomDecending)
 			{
-				SortInfo.SortAttributeOffset = CustomSortingOffset;
+				SortingVarIdx = ENiagaraSpriteVFLayout::CustomSorting;	
 				SortInfo.ViewOrigin.Set(0, 0, 0);
 				SortInfo.ViewDirection.Set(0, 0, 1);
 			}
 			else
 			{
-				SortInfo.SortAttributeOffset = PositionOffset;
+				SortingVarIdx = ENiagaraSpriteVFLayout::Position;
 				SortInfo.ViewOrigin = View->ViewMatrices.GetViewOrigin();
 				SortInfo.ViewDirection = View->GetViewDirection();
 				if (bLocalSpace)
@@ -351,10 +369,14 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 					SortInfo.ViewDirection = SceneProxy->GetLocalToWorld().GetTransposed().TransformVector(SortInfo.ViewDirection);
 				}
 			}
-		};
+
+			SortInfo.SortAttributeOffset = VFVariables[SortingVarIdx].GetGPUOffset();
+		}
+
 
 		if (SimTarget == ENiagaraSimTarget::CPUSim)//TODO: Compute shader for sorting gpu sims and larger cpu sims.
 		{
+			int32 ParticleStrideInFloats = GbEnableMinimalGPUBuffers ? SourceParticleData->GetNumInstances() : SourceParticleData->GetFloatStride() / sizeof(float);
 			check(CPUSimParticleDataAllocation.ParticleData.IsValid());
 			if (SortInfo.SortMode != ENiagaraSortMode::None && SortInfo.SortAttributeOffset != INDEX_NONE)
 			{
@@ -365,7 +387,7 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 					SortInfo.ParticleCount = NumInstances;
 					SortInfo.ParticleDataFloatSRV = CPUSimParticleDataAllocation.ParticleData.ReadBuffer->SRV;
 					SortInfo.FloatDataOffset = CPUSimParticleDataAllocation.ParticleData.FirstIndex / sizeof(float);
-					SortInfo.FloatDataStride = SourceParticleData->GetFloatStride() / sizeof(float);
+					SortInfo.FloatDataStride = ParticleStrideInFloats;
 					const int32 IndexBufferOffset = Batcher->AddSortedGPUSimulation(SortInfo);
 					if (IndexBufferOffset != INDEX_NONE)
 					{
@@ -378,11 +400,11 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 
 					FGlobalDynamicReadBuffer::FAllocation SortedIndices;
 					SortedIndices = CPUSimParticleDataAllocation.DynamicReadBuffer.AllocateInt32(NumInstances);
-					SortIndices(SortInfo, *SourceParticleData, SortedIndices);
+					SortIndices(SortInfo, SortingVarIdx, *SourceParticleData, SortedIndices);
 					OutVertexFactory.SetSortedIndices(SortedIndices.ReadBuffer->SRV, SortedIndices.FirstIndex / sizeof(float));
 				}
 			}
-			OutVertexFactory.SetParticleData(CPUSimParticleDataAllocation.ParticleData.ReadBuffer->SRV, CPUSimParticleDataAllocation.ParticleData.FirstIndex / sizeof(float), SourceParticleData->GetFloatStride() / sizeof(float));
+			OutVertexFactory.SetParticleData(CPUSimParticleDataAllocation.ParticleData.ReadBuffer->SRV, CPUSimParticleDataAllocation.ParticleData.FirstIndex / sizeof(float), ParticleStrideInFloats);
 		}
 		else // ENiagaraSimTarget::GPUSim
 		{
@@ -529,8 +551,6 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
 	check(SceneProxy);
 
-	SimpleTimer MeshElementsTimer;
-
 	//check(DynamicDataRender)
 	FNiagaraDynamicDataSprites *DynamicDataSprites = static_cast<FNiagaraDynamicDataSprites*>(DynamicDataRender);
 	NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
@@ -552,7 +572,15 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 #if STATS
 	FScopeCycleCounter EmitterStatsCounter(EmitterStatID);
 #endif
-	
+	FMaterialRenderProxy* MaterialRenderProxy = DynamicDataSprites->Material;
+	check(MaterialRenderProxy);
+	EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(FeatureLevel)->GetBlendMode();
+	bool bShouldSort = SortMode != ENiagaraSortMode::None && (BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_AlphaHoldout || BlendMode == BLEND_Translucent || !bSortOnlyWhenTranslucent);
+	bool bNeedCustomSort = bShouldSort && (SortMode == ENiagaraSortMode::CustomAscending || SortMode == ENiagaraSortMode::CustomDecending);
+	//Disable the upload of sorting data if we're using a material that doesn't need it.
+	//TODO: we can probably reinit the GPU layout info entirely to remove custom sorting from the buffer but for now just skip the upload if it's not needed.
+	VFVariables[ENiagaraSpriteVFLayout::CustomSorting].bUpload &= bNeedCustomSort;
+
 	FCPUSimParticleDataAllocation CPUSimParticleDataAllocation = ConditionalAllocateCPUSimParticleData(DynamicDataSprites, Collector.GetDynamicReadBuffer());
 
 	uint32 IndirectArgsOffset = INDEX_NONE;
@@ -575,8 +603,6 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 			Collector.AddMesh(ViewIndex, MeshBatch);
 		}
 	}
-
-	CPUTimeMS += MeshElementsTimer.GetElapsedMilliseconds();
 }
 
 #if RHI_RAYTRACING
@@ -585,8 +611,6 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRender);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
 	check(SceneProxy);
-
-	SimpleTimer MeshElementsTimer;
 
 	FNiagaraDynamicDataSprites *DynamicDataSprites = static_cast<FNiagaraDynamicDataSprites*>(DynamicDataRender);
 	NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
@@ -647,8 +671,6 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	RayTracingInstance.BuildInstanceMaskAndFlags();
 
 	OutRayTracingInstances.Add(RayTracingInstance);
-
-	CPUTimeMS += MeshElementsTimer.GetElapsedMilliseconds();
 }
 #endif
 
@@ -660,8 +682,6 @@ FNiagaraDynamicDataBase *FNiagaraRendererSprites::GenerateDynamicData(const FNia
 
 	if (Properties)
 	{
-		SimpleTimer VertexDataTimer;
-
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraGenSpriteDynamicData);
 
 		FNiagaraDataSet& Data = Emitter->GetData();
@@ -678,8 +698,6 @@ FNiagaraDynamicDataBase *FNiagaraRendererSprites::GenerateDynamicData(const FNia
 			DynamicData->Material = BaseMaterials_GT[0]->GetRenderProxy();
 			DynamicData->SetMaterialRelevance(BaseMaterialRelevance_GT);
 		}
-
-		CPUTimeMS = VertexDataTimer.GetElapsedMilliseconds();
 	}
 
 	return DynamicData;  // for VF that can fetch from particle data directly

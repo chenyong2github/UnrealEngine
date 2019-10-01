@@ -438,7 +438,6 @@ public:
 	const FSceneRenderer* SceneRenderer;
 	FMeshPassProcessorRenderState DrawRenderState;
 	FRHICommandListImmediate& ParentCmdList;
-	const FRHIGPUMask GPUMask; // Copy of the Parent GPUMask at creation (since it could change).
 	FSceneRenderTargets* Snapshot;
 	TStatId	ExecuteStat;
 	int32 Width;
@@ -744,6 +743,42 @@ struct FScreenSpaceDenoiserHistory
 	}
 };
 
+
+
+// Structure in charge of storing all information about GTAO history.
+struct FGTAOTAAHistory
+{
+	// Number of render target in the history.
+	static constexpr uint32 kRenderTargetCount = 2;
+
+	// Render targets holding's pixel history.
+	//  scene color's RGBA are in RT[0].
+	TRefCountPtr<IPooledRenderTarget> RT[kRenderTargetCount];
+	TRefCountPtr<IPooledRenderTarget> Depth[kRenderTargetCount];
+
+	// Reference size of RT. Might be different than RT's actual size to handle down res.
+	FIntPoint ReferenceBufferSize;
+
+	// Viewport coordinate of the history in RT according to ReferenceBufferSize.
+	FIntRect ViewportRect;
+
+	void SafeRelease()
+	{
+		for (uint32 i = 0; i < kRenderTargetCount; i++)
+		{
+			RT[i].SafeRelease();
+			Depth[i].SafeRelease();
+		}
+	}
+
+	bool IsValid() const
+	{
+		return RT[0].IsValid();
+	}
+};
+
+
+
 // Structure that hold all information related to previous frame.
 struct FPreviousViewInfo
 {
@@ -759,8 +794,15 @@ struct FPreviousViewInfo
 	TRefCountPtr<IPooledRenderTarget> GBufferB;
 	TRefCountPtr<IPooledRenderTarget> GBufferC;
 
+	// Compressed scene textures for bandwidth efficient bilateral kernel rejection.
+	// DeviceZ as float16, and normal in view space.
+	TRefCountPtr<IPooledRenderTarget> CompressedDepthViewNormal;
+
 	// Temporal AA result of last frame
 	FTemporalAAHistory TemporalAAHistory;
+
+	// Half resolution version temporal AA result of last frame
+	TRefCountPtr<IPooledRenderTarget> HalfResTemporalAAHistory;
 
 	// Temporal AA history for diaphragm DOF.
 	FTemporalAAHistory DOFSetupHistory;
@@ -777,6 +819,9 @@ struct FPreviousViewInfo
 	
 	// History for the ambient occlusion
 	FScreenSpaceDenoiserHistory AmbientOcclusionHistory;
+
+	// History for GTAO
+	FGTAOTAAHistory				 GTAOHistory;
 
 	// History for global illumination
 	FScreenSpaceDenoiserHistory DiffuseIndirectHistory;
@@ -923,6 +968,9 @@ public:
 	/* [PrimitiveIndex] = end index index in DynamicMeshElements[], to support GetDynamicMeshElementRange(). Contains valid values only for visible primitives with bDynamicRelevance. */
 	TArray<uint32, SceneRenderingAllocator> DynamicMeshEndIndices;
 
+	/** Hair strands dynamic mesh element. */
+	TArray<FMeshBatchAndRelevance, SceneRenderingAllocator> HairStrandsMeshElements;
+
 	/* Mesh pass relevance for gathered dynamic mesh elements. */
 	TArray<FMeshPassMask, SceneRenderingAllocator> DynamicMeshElementsPassRelevance;
 
@@ -1035,9 +1083,6 @@ public:
 	/** Informations from the previous frame to use for this view. */
 	FPreviousViewInfo PrevViewInfo;
 
-	/** The GPU nodes on which to render this view. */
-	FRHIGPUMask GPUMask;
-
 	/** An intermediate number of visible static meshes.  Doesn't account for occlusion until after FinishOcclusionQueries is called. */
 	int32 NumVisibleStaticMeshElements;
 
@@ -1090,6 +1135,12 @@ public:
 	TShaderMap<FGlobalShaderType>* ShaderMap;
 
 	bool bIsSnapshot;
+
+	// Whether this view should use an HMD hidden area mask where appropriate.
+	bool bHMDHiddenAreaMaskActive = false;
+
+	// Whether this view should use compute passes where appropriate.
+	bool bUseComputePasses = false;
 
 	// Optional stencil dithering optimization during prepasses
 	bool bAllowStencilDither;
@@ -1210,18 +1261,25 @@ public:
 	/** Get the last valid average scene luminange for eye adapation (exposure compensation curve). */
 	float GetLastAverageSceneLuminance() const;
 
+	/** Returns the load action to use when overwriting all pixels of a target that you intend to read from. Takes into account the HMD hidden area mesh. */
+	ERenderTargetLoadAction GetOverwriteLoadAction() const;
+
 	/** Informs sceneinfo that tonemapping LUT has queued commands to compute it at least once */
 	void SetValidTonemappingLUT() const;
 
 	/** Gets the tonemapping LUT texture, previously computed by the CombineLUTS post process,
 	* for stereo rendering, this will force the post-processing to use the same texture for both eyes*/
-	const FTextureRHIRef* GetTonemappingLUTTexture() const;
+	IPooledRenderTarget* GetTonemappingLUT() const;
 
 	/** Gets the rendertarget that will be populated by CombineLUTS post process 
 	* for stereo rendering, this will force the post-processing to use the same render target for both eyes*/
-	IPooledRenderTarget* GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput) const;
-	
-	/** Returns whether this view is the last in the family. */
+	IPooledRenderTarget* GetTonemappingLUT(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput) const;
+
+	bool IsFirstInFamily() const
+	{
+		return Family->Views[0] == this;
+	}
+
 	bool IsLastInFamily() const
 	{
 		return Family->Views.Last() == this;
@@ -1486,8 +1544,10 @@ public:
 	/** Setups FViewInfo::ViewRect according to ViewFamilly's ScreenPercentageInterface. */
 	void PrepareViewRectsForRendering();
 
+#if WITH_MGPU
 	/** Setups each FViewInfo::GPUMask. */
 	void ComputeViewGPUMasks(FRHIGPUMask RenderTargetGPUMask);
+#endif
 
 	/** Update the rendertarget with each view results.*/
 	void DoCrossGPUTransfers(FRHICommandListImmediate& RHICmdList, FRHIGPUMask RenderTargetGPUMask);
@@ -1546,7 +1606,12 @@ protected:
 
 	/** Size of the family. */
 	FIntPoint FamilySize;
-	
+
+#if WITH_MGPU
+	FRHIGPUMask AllViewsGPUMask;
+	FRHIGPUMask GetGPUMaskForShadow(FProjectedShadowInfo* ProjectedShadowInfo) const;
+#endif
+
 	bool bDumpMeshDrawCommandInstancingStats;
 
 	// Shared functionality between all scene renderers
@@ -1555,7 +1620,7 @@ protected:
 
 	void SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewCommands& ViewCommands);
 
-	bool RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, bool bProjectingForForwardShading, bool bMobileModulatedProjections);
+	bool RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, IPooledRenderTarget* ScreenShadowMaskSubPixelTexture, bool bProjectingForForwardShading, bool bMobileModulatedProjections, const struct FHairStrandsVisibilityViews* InHairVisibilityViews);
 
 	/** Finds a matching cached preshadow, if one exists. */
 	TRefCountPtr<FProjectedShadowInfo> GetCachedPreshadow(

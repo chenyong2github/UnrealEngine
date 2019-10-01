@@ -1237,11 +1237,11 @@ public:
 
 		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.ResourceArray = &Data;
+		CreateInfo.GPUMask = FRHIGPUMask::FromIndex(Device->GetGPUIndex());
 
 		Buffer = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
 			nullptr, BufferDesc, BufferDesc.Alignment,
-			0, BufferDesc.Width, BUF_Static, CreateInfo,
-			FRHIGPUMask::FromIndex(Device->GetGPUIndex()));
+			0, BufferDesc.Width, BUF_Static, CreateInfo);
 
 		SetName(Buffer->GetResource(), TEXT("Shader binding table"));
 
@@ -1851,11 +1851,15 @@ FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FR
 	if (Initializer.GeometryType == RTGT_Triangles)
 	{
 		// #dxr_todo UE-72160: VET_Half4 (DXGI_FORMAT_R16G16B16A16_FLOAT) is also supported by DXR. Should we support it?
-		check(Initializer.VertexBufferElementType == VET_Float3 || Initializer.VertexBufferElementType == VET_Float2 || Initializer.VertexBufferElementType == VET_Half2);
+		check(Initializer.VertexBufferElementType == VET_Float4 || Initializer.VertexBufferElementType == VET_Float3 || Initializer.VertexBufferElementType == VET_Float2 || Initializer.VertexBufferElementType == VET_Half2);
 
 		// #dxr_todo UE-72160: temporary constraints on vertex and index buffer formats (this will be relaxed when more flexible vertex/index fetching is implemented)
-		checkf(Initializer.VertexBufferElementType == VET_Float3, TEXT("Only float3 vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support other vertex buffer formats
-		checkf(Initializer.VertexBufferStride == 12, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
+		checkf(Initializer.VertexBufferElementType == VET_Float3 || Initializer.VertexBufferElementType == VET_Float4, TEXT("Only float3 vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support other vertex buffer formats
+		if (Initializer.VertexBufferElementType == VET_Float3)
+			checkf(Initializer.VertexBufferStride >= 12, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
+
+		if (Initializer.VertexBufferElementType == VET_Float4)
+			checkf(Initializer.VertexBufferStride >= 16, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
 	}
 
 	if (Initializer.GeometryType == RTGT_Procedural)
@@ -2044,10 +2048,11 @@ static void CreateAccelerationStructureBuffers(TRefCountPtr<FD3D12MemBuffer>& Ac
 	D3D12_RESOURCE_DESC AccelerationStructureBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
 		PrebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
+	CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 	CreateInfo.DebugName = TEXT("AccelerationStructureBuffer");
 	AccelerationStructureBuffer = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
 		nullptr, AccelerationStructureBufferDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT,
-		0, AccelerationStructureBufferDesc.Width, BUF_AccelerationStructure, CreateInfo, FRHIGPUMask::FromIndex(GPUIndex));
+		0, AccelerationStructureBufferDesc.Width, BUF_AccelerationStructure, CreateInfo);
 
 	SetName(AccelerationStructureBuffer->GetResource(), TEXT("Acceleration structure"));
 
@@ -2055,10 +2060,11 @@ static void CreateAccelerationStructureBuffers(TRefCountPtr<FD3D12MemBuffer>& Ac
 	D3D12_RESOURCE_DESC ScratchBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
 		FMath::Max(PrebuildInfo.UpdateScratchDataSizeInBytes, PrebuildInfo.ScratchDataSizeInBytes), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
+	CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 	CreateInfo.DebugName = TEXT("ScratchBuffer");
 	ScratchBuffer = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
 		nullptr, ScratchBufferDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT,
-		0, ScratchBufferDesc.Width, BUF_UnorderedAccess, CreateInfo, FRHIGPUMask::FromIndex(GPUIndex));
+		0, ScratchBufferDesc.Width, BUF_UnorderedAccess, CreateInfo);
 
 	SetName(ScratchBuffer->GetResource(), TEXT("Acceleration structure scratch"));
 }
@@ -2098,6 +2104,10 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 		{
 			switch (VertexElemType)
 			{
+			case VET_Float4: 
+				// While the DXGI_FORMAT_R32G32B32A32_FLOAT format is not supported by DXR, since we manually load vertex 
+				// data when we are building the BLAS, we can just rely on the vertex stride to offset the read index, 
+				// and read only the 3 vertex components, and so use the DXGI_FORMAT_R32G32B32_FLOAT vertex format
 			case VET_Float3:
 				Desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 				break;
@@ -2329,6 +2339,8 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 	if (Instances.Num())
 	{
 		FRHIResourceCreateInfo CreateInfo;
+		CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
+
 		D3D12_RESOURCE_DESC InstanceBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
 			sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * Instances.Num(),
 			D3D12_RESOURCE_FLAG_NONE, D3D12_RAYTRACING_INSTANCE_DESCS_BYTE_ALIGNMENT);
@@ -2338,8 +2350,7 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 		// after the top level acceleration structure build is complete.
 		InstanceBuffer = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
 			nullptr, InstanceBufferDesc, D3D12_RAYTRACING_INSTANCE_DESCS_BYTE_ALIGNMENT,
-			0, InstanceBufferDesc.Width, BUF_Volatile, CreateInfo,
-			FRHIGPUMask::FromIndex(GPUIndex));
+			0, InstanceBufferDesc.Width, BUF_Volatile, CreateInfo);
 
 		D3D12_RAYTRACING_INSTANCE_DESC* MappedData = (D3D12_RAYTRACING_INSTANCE_DESC*)Adapter->GetOwningRHI()->LockBuffer(
 			nullptr, InstanceBuffer.GetReference(), 0, InstanceBufferDesc.Width, RLM_WriteOnly);
@@ -2547,7 +2558,7 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 				if (Geometry->GeometryType == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES)
 				{
 					// #dxr_todo UE-72160: support various vertex buffer layouts (fetch/decode based on vertex stride and format)
-					checkf(Geometry->VertexElemType == VET_Float3, TEXT("Only VET_Float3 is currently implemented and tested. Other formats will be supported in the future."));
+					checkf(Geometry->VertexElemType == VET_Float3 || Geometry->VertexElemType == VET_Float4, TEXT("Only VET_Float3 is currently implemented and tested. Other formats will be supported in the future."));
 				}
 
 				SystemParameters.RootConstants.SetVertexAndIndexStride(Geometry->VertexStrideInBytes, IndexStride);
@@ -3028,11 +3039,11 @@ static void SetRayTracingShaderResources(
 	ResourceBinderType& Binder)
 {
 	SetRayTracingShaderResources(CommandContext, Shader,
-		ARRAY_COUNT(ResourceBindings.Textures), ResourceBindings.Textures,
-		ARRAY_COUNT(ResourceBindings.SRVs), ResourceBindings.SRVs,
-		ARRAY_COUNT(ResourceBindings.UniformBuffers), ResourceBindings.UniformBuffers,
-		ARRAY_COUNT(ResourceBindings.Samplers), ResourceBindings.Samplers,
-		ARRAY_COUNT(ResourceBindings.UAVs), ResourceBindings.UAVs,
+		UE_ARRAY_COUNT(ResourceBindings.Textures), ResourceBindings.Textures,
+		UE_ARRAY_COUNT(ResourceBindings.SRVs), ResourceBindings.SRVs,
+		UE_ARRAY_COUNT(ResourceBindings.UniformBuffers), ResourceBindings.UniformBuffers,
+		UE_ARRAY_COUNT(ResourceBindings.Samplers), ResourceBindings.Samplers,
+		UE_ARRAY_COUNT(ResourceBindings.UAVs), ResourceBindings.UAVs,
 		0, nullptr, // loose parameters
 		DescriptorCache, Binder);
 }

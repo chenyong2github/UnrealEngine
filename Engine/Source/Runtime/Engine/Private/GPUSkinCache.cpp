@@ -632,7 +632,7 @@ void FGPUSkinCache::TransitionToWriteable(FRHICommandList& RHICmdList)
 {
 	int32 BufferIndex = InternalUpdateCount % GPUSKINCACHE_FRAMES;
 	FRHIUnorderedAccessView* OutUAVs[] = { SkinCacheBuffer[BufferIndex].UAV };
-	RHICmdList.TransitionResources(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EGfxToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
+	RHICmdList.TransitionResources(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EGfxToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 }
 
 void FGPUSkinCache::TransitionAllToWriteable(FRHICommandList& RHICmdList)
@@ -646,7 +646,7 @@ void FGPUSkinCache::TransitionAllToWriteable(FRHICommandList& RHICmdList)
 			OutUAVs[Index] = SkinCacheBuffer[Index].UAV;
 		}
 
-		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EGfxToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
+		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EGfxToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 	}
 }
 #endif

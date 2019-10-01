@@ -38,7 +38,7 @@ public:
 	// begin IAllocatedVirtualTexture
 	virtual FRHITexture* GetPageTableTexture(uint32 InPageTableIndex) const override;
 	virtual FRHITexture* GetPhysicalTexture(uint32 InLayerIndex) const override;
-	virtual FRHIShaderResourceView* GetPhysicalTextureView(uint32 InLayerIndex, bool bSRGB) const override;
+	virtual FRHIShaderResourceView* GetPhysicalTextureSRV(uint32 InLayerIndex, bool bSRGB) const override;
 	virtual uint32 GetPhysicalTextureSize(uint32 InLayerIndex) const override;
 	virtual uint32 GetNumPageTableTextures() const override;
 	virtual void GetPackedPageTableUniform(FUintVector4* OutUniform, bool bApplyBlockScale) const override;

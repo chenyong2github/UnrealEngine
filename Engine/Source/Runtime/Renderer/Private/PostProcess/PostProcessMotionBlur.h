@@ -29,7 +29,7 @@ EMotionBlurQuality GetMotionBlurQuality();
 
 FRDGTextureRef AddMotionBlurPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	FIntRect ColorViewportRect,
 	FIntRect VelocityViewportRect,
 	FRDGTextureRef ColorTexture,
@@ -38,7 +38,7 @@ FRDGTextureRef AddMotionBlurPass(
 
 FRDGTextureRef AddVisualizeMotionBlurPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	FIntRect ColorViewportRect,
 	FIntRect VelocityViewportRect,
 	FRDGTextureRef ColorTexture,

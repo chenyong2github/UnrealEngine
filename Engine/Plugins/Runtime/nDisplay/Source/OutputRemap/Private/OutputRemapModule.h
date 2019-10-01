@@ -25,9 +25,9 @@ public:
 
 private:
 	bool IsLoaded(const FString& RemapMeshFile, uint32& OutMeshRef);
-	void ReleaseData();	
+	void ReleaseData();
 
 private:
 	FCriticalSection DataGuard;
-	TArray< TSharedPtr<FOutputRemapMesh>> MeshAssets;
+	TArray<TSharedPtr<FOutputRemapMesh>> MeshAssets;
 };

@@ -204,6 +204,22 @@ static plcrash_error_t plcrash_write_report (plcrashreporter_handler_ctx_t *sigc
     return err;
 }
 
+static volatile sig_atomic_t handling_fatal_signal = 0;
+
+static void spin_wait_for_max_seconds_then_exit(float seconds_to_wait)
+{
+    float current = 0.0f;
+    /* We are never coming out of this loop, wait until max time then exit */
+    while (1) {
+        if (current > seconds_to_wait) {
+            exit(0);
+        }
+
+        usleep(1000);
+        current += 0.001f;
+    }
+}
+
 /**
  * @internal
  *
@@ -211,46 +227,28 @@ static plcrash_error_t plcrash_write_report (plcrashreporter_handler_ctx_t *sigc
  */
 /* EG BEGIN */
 static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t *uap, void *context, PLCrashSignalHandlerCallback *next) {
+
+    bool fatal_signal = true;
+
+    for (int i = 0; i < non_fatal_monitored_signals_count; i++) {
+        if (info->si_signo == non_fatal_monitored_signals[i]) {
+            fatal_signal = false;
+            break;
+        }
+    }
+
+    /* If we are a fatal signal, we *can* only handle one at a time. So avoid allow multiple fatal signals going through */
+    if (fatal_signal) {
+        /* Returns true if set to 1, otherwise we failed to meaning more then one thread has been past here already */
+        if (!__sync_val_compare_and_swap(&handling_fatal_signal, 0, 1)) {
+            spin_wait_for_max_seconds_then_exit(60);
+        }
+    }
+
     plcrashreporter_handler_ctx_t *sigctx = context;
     plcrash_async_thread_state_t thread_state;
     plcrash_log_signal_info_t signal_info;
     plcrash_log_bsd_signal_info_t bsd_signal_info;
-    bool fatal_signal = true;
-    
-    /* Remove all signal handlers -- if the crash reporting code fails, the default terminate
-     * action will occur.
-     *
-     * NOTE: SA_RESETHAND breaks SA_SIGINFO on ARM, so we reset the handlers manually.
-     * http://openradar.appspot.com/11839803
-     *
-     * TODO: When forwarding signals (eg, to Mono's runtime), resetting the signal handlers
-     * could result in incorrect runtime behavior; we should revisit resetting the
-     * signal handlers once we address double-fault handling.
-     */
-
-    for (int i = 0; i < non_fatal_monitored_signals_count; i++) {
-
-        if (info->si_signo == non_fatal_monitored_signals[i]) {
-            fatal_signal = false;
-        }
-
-        // For non_fatal signals we assume it may be called again and need to handle that vs using SIG_DFL
-    }
-
-    // If we are fatal set all signals to DFL
-    if (fatal_signal) {
-
-        for (int i = 0; i < fatal_monitored_signals_count; i++) {
-
-            struct sigaction sa;
-
-            memset(&sa, 0, sizeof(sa));
-            sa.sa_handler = SIG_DFL;
-            sigemptyset(&sa.sa_mask);
-
-            sigaction(fatal_monitored_signals[i], &sa, NULL);
-        }
-    }
 
     /* Extract the thread state */
     // XXX_ARM64 rdar://14970271 -- In the Xcode 5 GM SDK, _STRUCT_MCONTEXT is not correctly
@@ -274,6 +272,32 @@ static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t 
     if (crashCallbacks.handleSignal != NULL)
         crashCallbacks.handleSignal(info, uap, crashCallbacks.context);
 
+
+    // This was moved to the last statement, which may not work how it was original an issue as mentioned in the comment
+    /* Remove all signal handlers -- if the crash reporting code fails, the default terminate
+     * action will occur.
+     *
+     * NOTE: SA_RESETHAND breaks SA_SIGINFO on ARM, so we reset the handlers manually.
+     * http://openradar.appspot.com/11839803
+     *
+     * TODO: When forwarding signals (eg, to Mono's runtime), resetting the signal handlers
+     * could result in incorrect runtime behavior; we should revisit resetting the
+     * signal handlers once we address double-fault handling.
+     */
+
+    /* If we are fatal set all signals to DFL */
+    if (fatal_signal) {
+        for (int i = 0; i < fatal_monitored_signals_count; i++) {
+            struct sigaction sa;
+
+            memset(&sa, 0, sizeof(sa));
+            sa.sa_handler = SIG_DFL;
+            sigemptyset(&sa.sa_mask);
+
+            sigaction(fatal_monitored_signals[i], &sa, NULL);
+        }
+    }
+    
     // When we hit a non fatal signal we return true for handling the signal
     // Otherwise we will continue to re-raise the siganl
     return !fatal_signal;

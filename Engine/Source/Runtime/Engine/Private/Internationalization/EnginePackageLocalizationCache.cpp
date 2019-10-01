@@ -117,10 +117,8 @@ void FEnginePackageLocalizationCache::HandleAssetAdded(const FAssetData& InAsset
 
 	for (auto& CultureCachePair : AllCultureCaches)
 	{
-		CultureCachePair.Value->AddPackage(InAssetData.PackageName.ToString());
+		bPackageNameToAssetGroupDirty |= CultureCachePair.Value->AddPackage(InAssetData.PackageName.ToString());
 	}
-
-	bPackageNameToAssetGroupDirty = true;
 }
 
 void FEnginePackageLocalizationCache::HandleAssetRemoved(const FAssetData& InAssetData)
@@ -129,10 +127,8 @@ void FEnginePackageLocalizationCache::HandleAssetRemoved(const FAssetData& InAss
 
 	for (auto& CultureCachePair : AllCultureCaches)
 	{
-		CultureCachePair.Value->RemovePackage(InAssetData.PackageName.ToString());
+		bPackageNameToAssetGroupDirty |= CultureCachePair.Value->RemovePackage(InAssetData.PackageName.ToString());
 	}
-
-	bPackageNameToAssetGroupDirty = true;
 }
 
 void FEnginePackageLocalizationCache::HandleAssetRenamed(const FAssetData& InAssetData, const FString& InOldObjectPath)
@@ -143,9 +139,7 @@ void FEnginePackageLocalizationCache::HandleAssetRenamed(const FAssetData& InAss
 
 	for (auto& CultureCachePair : AllCultureCaches)
 	{
-		CultureCachePair.Value->RemovePackage(OldPackagePath);
-		CultureCachePair.Value->AddPackage(InAssetData.PackageName.ToString());
+		bPackageNameToAssetGroupDirty |= CultureCachePair.Value->RemovePackage(OldPackagePath);
+		bPackageNameToAssetGroupDirty |= CultureCachePair.Value->AddPackage(InAssetData.PackageName.ToString());
 	}
-
-	bPackageNameToAssetGroupDirty = true;
 }

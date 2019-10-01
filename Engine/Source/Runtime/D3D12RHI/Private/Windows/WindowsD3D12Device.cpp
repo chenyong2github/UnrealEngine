@@ -142,7 +142,7 @@ static bool SafeTestD3D12CreateDevice(IDXGIAdapter* Adapter, D3D_FEATURE_LEVEL M
 			D3D_FEATURE_LEVEL MaxFeatureLevel = MinFeatureLevel;
 			D3D12_FEATURE_DATA_FEATURE_LEVELS FeatureLevelCaps = {};
 			FeatureLevelCaps.pFeatureLevelsRequested = FeatureLevels;
-			FeatureLevelCaps.NumFeatureLevels = ARRAY_COUNT(FeatureLevels);	
+			FeatureLevelCaps.NumFeatureLevels = UE_ARRAY_COUNT(FeatureLevels);	
 			if (SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &FeatureLevelCaps, sizeof(FeatureLevelCaps))))
 			{
 				MaxFeatureLevel = FeatureLevelCaps.MaxSupportedFeatureLevel;
@@ -693,7 +693,9 @@ void FD3D12DynamicRHI::Init()
 	GSupportsDepthBoundsTest = SupportsDepthBoundsTest(this);
 
 	GRHICommandList.GetImmediateCommandList().SetContext(GDynamicRHI->RHIGetDefaultContext());
+	GRHICommandList.GetImmediateCommandList().SetGPUMask(FRHIGPUMask::All());
 	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(GDynamicRHI->RHIGetDefaultAsyncComputeContext());
+	GRHICommandList.GetImmediateAsyncComputeCommandList().SetGPUMask(FRHIGPUMask::All());
 
 	// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
 	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())

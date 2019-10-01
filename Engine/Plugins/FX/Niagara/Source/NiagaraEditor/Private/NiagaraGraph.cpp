@@ -478,9 +478,9 @@ UNiagaraNodeOutput* UNiagaraGraph::FindEquivalentOutputNode(ENiagaraScriptUsage 
 }
 
 
-void BuildTraversalHelper(TArray<class UNiagaraNode*>& OutNodesTraversed, UNiagaraNode* CurrentNode)
+void BuildTraversalHelper(TArray<class UNiagaraNode*>& OutNodesTraversed, UNiagaraNode* CurrentNode, bool bEvaluateStaticSwitches)
 {
-	if (CurrentNode == nullptr)
+	if (CurrentNode == nullptr || (bEvaluateStaticSwitches && CurrentNode->IsA<UNiagaraNodeStaticSwitch>()))
 	{
 		return;
 	}
@@ -490,34 +490,38 @@ void BuildTraversalHelper(TArray<class UNiagaraNode*>& OutNodesTraversed, UNiaga
 	TArray<UEdGraphPin*> Pins = CurrentNode->GetAllPins();
 	for (int32 i = 0; i < Pins.Num(); i++)
 	{
-		if (Pins[i]->Direction == EEdGraphPinDirection::EGPD_Input && Pins[i]->LinkedTo.Num() == 1)
+		if (Pins[i]->Direction == EEdGraphPinDirection::EGPD_Input && Pins[i]->LinkedTo.Num() > 0)
 		{
-			UNiagaraNode* Node = Cast<UNiagaraNode>(Pins[i]->LinkedTo[0]->GetOwningNode());
-			if (OutNodesTraversed.Contains(Node))
+			for (UEdGraphPin* LinkedPin : Pins[i]->LinkedTo)
 			{
-				continue;
+				UEdGraphPin* TracedPin = bEvaluateStaticSwitches ? UNiagaraNode::TraceOutputPin(LinkedPin) : LinkedPin;
+				UNiagaraNode* Node = Cast<UNiagaraNode>(TracedPin->GetOwningNode());
+				if (OutNodesTraversed.Contains(Node))
+				{
+					continue;
+				}
+				BuildTraversalHelper(OutNodesTraversed, Node, bEvaluateStaticSwitches);
 			}
-			BuildTraversalHelper(OutNodesTraversed, Node);
 		}
 	}
 
 	OutNodesTraversed.Add(CurrentNode);
 }
 
-void UNiagaraGraph::BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraversed, ENiagaraScriptUsage TargetUsage, FGuid TargetUsageId) const
+void UNiagaraGraph::BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraversed, ENiagaraScriptUsage TargetUsage, FGuid TargetUsageId, bool bEvaluateStaticSwitches) const
 {
 	UNiagaraNodeOutput* Output = FindOutputNode(TargetUsage, TargetUsageId);
 	if (Output)
 	{
-		BuildTraversalHelper(OutNodesTraversed, Output);
+		BuildTraversalHelper(OutNodesTraversed, Output, bEvaluateStaticSwitches);
 	}
 }
 
-void UNiagaraGraph::BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraversed, UNiagaraNode* FinalNode) 
+void UNiagaraGraph::BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraversed, UNiagaraNode* FinalNode, bool bEvaluateStaticSwitches)
 {
 	if (FinalNode)
 	{
-		BuildTraversalHelper(OutNodesTraversed, FinalNode);
+		BuildTraversalHelper(OutNodesTraversed, FinalNode, bEvaluateStaticSwitches);
 	}
 }
 

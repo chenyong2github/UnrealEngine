@@ -71,9 +71,9 @@ USceneComponent::USceneComponent(const FObjectInitializer& ObjectInitializer /*=
 	, CachedLevelCollection(nullptr)
 {
 	Mobility = EComponentMobility::Movable;
-	RelativeScale3D = FVector(1.0f, 1.0f, 1.0f);
+	SetRelativeScale3D_Direct(FVector(1.0f, 1.0f, 1.0f));
 	// default behavior is visible
-	bVisible = true;
+	SetVisibleFlag(true);
 	bAutoActivate = false;
 	bShouldBeAttached = AttachParent != nullptr;
 }
@@ -505,7 +505,7 @@ void USceneComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	{
 		UpdateAttachedIsEditorOnly(this);
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(USceneComponent, bVisible))
+	if (PropertyName == USceneComponent::GetVisiblePropertyName())
 	{
 		OnVisibilityChanged();
 	}
@@ -550,17 +550,17 @@ FTransform USceneComponent::CalcNewComponentToWorld_GeneralCase(const FTransform
 	{
 		const FTransform ParentToWorld = Parent->GetSocketTransform(SocketName);
 		FTransform NewCompToWorld = NewRelativeTransform * ParentToWorld;
-		if(bAbsoluteLocation)
+		if(IsUsingAbsoluteLocation())
 		{
 			NewCompToWorld.CopyTranslation(NewRelativeTransform);
 		}
 
-		if(bAbsoluteRotation)
+		if(IsUsingAbsoluteRotation())
 		{
 			NewCompToWorld.CopyRotation(NewRelativeTransform);
 		}
 
-		if(bAbsoluteScale)
+		if(IsUsingAbsoluteScale())
 		{
 			NewCompToWorld.CopyScale3D(NewRelativeTransform);
 		}
@@ -609,7 +609,7 @@ void USceneComponent::UpdateComponentToWorldWithParent(USceneComponent* Parent,F
 	{
 		//QUICK_SCOPE_CYCLE_COUNTER(STAT_USceneComponent_UpdateComponentToWorldWithParent_XForm);
 		// Calculate the new ComponentToWorld transform
-		const FTransform RelativeTransform(RelativeRotationQuat, RelativeLocation, RelativeScale3D);
+		const FTransform RelativeTransform(RelativeRotationQuat, GetRelativeLocation(), GetRelativeScale3D());
 #if ENABLE_NAN_DIAGNOSTIC
 		if (!RelativeTransform.IsValid())
 		{
@@ -656,8 +656,8 @@ void USceneComponent::OnRegister()
 		if (AttachToComponent(GetAttachParent(), FAttachmentTransformRules::KeepRelativeTransform, GetAttachSocketName()) == false)
 		{
 			// Failed to attach, we need to clear AttachParent so we don't think we're actually attached when we're not.
-			AttachParent = nullptr;
-			AttachSocketName = NAME_None;
+			SetAttachParent(nullptr);
+			SetAttachSocketName(NAME_None);
 			bShouldBeAttached = false;
 			bShouldSnapLocationWhenAttached = false;
 			bShouldSnapRotationWhenAttached = false;
@@ -681,7 +681,7 @@ void USceneComponent::OnRegister()
 		SpriteComponent = NewObject<UBillboardComponent>(GetOwner(), NAME_None, RF_Transactional | RF_Transient | RF_TextExportTransient);
 
 		SpriteComponent->Sprite = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorResources/EmptyActor.EmptyActor"));
-		SpriteComponent->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+		SpriteComponent->SetRelativeScale3D_Direct(FVector(0.5f, 0.5f, 0.5f));
 		SpriteComponent->Mobility = EComponentMobility::Movable;
 		SpriteComponent->AlwaysLoadOnClient = false;
 		SpriteComponent->SetIsVisualizationComponent(true);
@@ -972,6 +972,8 @@ void USceneComponent::DestroyComponent(bool bPromoteChildren/*= false*/)
 
 						Index = FMath::Clamp<int32>(Index, 0, AttachSiblings.Num());
 						CachedAttachParent->AttachChildren.Insert(ChildToPromote, Index);
+
+						CachedAttachParent->ModifiedAttachChildren();
 					}
 				}
 			}
@@ -1209,6 +1211,13 @@ void USceneComponent::UpdateBounds()
 
 void USceneComponent::SetRelativeLocationAndRotation(FVector NewLocation, const FQuat& NewRotation, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
 {
+	if (UNLIKELY(NeedsInitialization() || OwnerNeedsInitialization()))
+	{
+		SetRelativeLocation_Direct(NewLocation);
+		SetRelativeRotation_Direct(RelativeRotationCache.QuatToRotator(NewRotation));
+		return;
+	}
+
 	ConditionalUpdateComponentToWorld();
 	
 #if ENABLE_NAN_DIAGNOSTIC
@@ -1241,12 +1250,12 @@ void USceneComponent::SetRelativeLocationAndRotation(FVector NewLocation, const 
 // (b) conversions are expensive.
 void USceneComponent::SetRelativeLocationAndRotation(FVector NewLocation, FRotator NewRotation, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
 {
-	if (NewLocation != RelativeLocation)
+	if (NewLocation != GetRelativeLocation())
 	{
 		// It's possible that NewRotation == RelativeRotation, so check the cache for a Rotator->Quat conversion.
 		SetRelativeLocationAndRotation(NewLocation, RelativeRotationCache.RotatorToQuat_ReadOnly(NewRotation), bSweep, OutSweepHitResult, Teleport);
 	}
-	else if (!NewRotation.Equals(RelativeRotation, SCENECOMPONENT_ROTATOR_TOLERANCE))
+	else if (!NewRotation.Equals(GetRelativeRotation(), SCENECOMPONENT_ROTATOR_TOLERANCE))
 	{
 		// We know the rotations are different, don't bother with the cache.
 		SetRelativeLocationAndRotation(NewLocation, NewRotation.Quaternion(), bSweep, OutSweepHitResult, Teleport);
@@ -1255,55 +1264,55 @@ void USceneComponent::SetRelativeLocationAndRotation(FVector NewLocation, FRotat
 
 void USceneComponent::SetRelativeRotationExact(FRotator NewRotation, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
 {
-	if (!NewRotation.Equals(RelativeRotation, SCENECOMPONENT_ROTATOR_TOLERANCE))
+	if (!NewRotation.Equals(GetRelativeRotation(), SCENECOMPONENT_ROTATOR_TOLERANCE))
 	{
 		// We know the rotations are different, don't bother with the cache.
 		const FQuat NewQuat = NewRotation.Quaternion();
-     	SetRelativeLocationAndRotation(RelativeLocation, NewQuat, bSweep, OutSweepHitResult, Teleport);		
+		SetRelativeLocationAndRotation(GetRelativeLocation(), NewQuat, bSweep, OutSweepHitResult, Teleport);
 	}
-	RelativeRotation = NewRotation;
+	SetRelativeRotation_Direct(NewRotation);
 }
 
 void USceneComponent::SetRelativeRotation(FRotator NewRotation, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
 {
-	if (!NewRotation.Equals(RelativeRotation, SCENECOMPONENT_ROTATOR_TOLERANCE))
+	if (!NewRotation.Equals(GetRelativeRotation(), SCENECOMPONENT_ROTATOR_TOLERANCE))
 	{
 		// We know the rotations are different, don't bother with the cache.
-		SetRelativeLocationAndRotation(RelativeLocation, NewRotation.Quaternion(), bSweep, OutSweepHitResult, Teleport);
+		SetRelativeLocationAndRotation(GetRelativeLocation(), NewRotation.Quaternion(), bSweep, OutSweepHitResult, Teleport);
 	}
 }
 
 void USceneComponent::AddRelativeRotation(const FQuat& DeltaRotation, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
 {
-	const FQuat CurRelRotQuat = RelativeRotationCache.RotatorToQuat(RelativeRotation);
+	const FQuat CurRelRotQuat = RelativeRotationCache.RotatorToQuat(GetRelativeRotation());
 	const FQuat NewRelRotQuat = DeltaRotation * CurRelRotQuat;
-	SetRelativeLocationAndRotation(RelativeLocation, NewRelRotQuat, bSweep, OutSweepHitResult, Teleport);
+	SetRelativeLocationAndRotation(GetRelativeLocation(), NewRelRotQuat, bSweep, OutSweepHitResult, Teleport);
 }
 
 void USceneComponent::AddLocalOffset(FVector DeltaLocation, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
 {
-	const FQuat CurRelRotQuat = RelativeRotationCache.RotatorToQuat(RelativeRotation);
+	const FQuat CurRelRotQuat = RelativeRotationCache.RotatorToQuat(GetRelativeRotation());
 	const FVector LocalOffset = CurRelRotQuat.RotateVector(DeltaLocation);
-	SetRelativeLocationAndRotation(RelativeLocation + LocalOffset, CurRelRotQuat, bSweep, OutSweepHitResult, Teleport);
+	SetRelativeLocationAndRotation(GetRelativeLocation() + LocalOffset, CurRelRotQuat, bSweep, OutSweepHitResult, Teleport);
 }
 
 void USceneComponent::AddLocalRotation(FRotator DeltaRotation, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
 {
-	const FQuat CurRelRotQuat = RelativeRotationCache.RotatorToQuat(RelativeRotation);
+	const FQuat CurRelRotQuat = RelativeRotationCache.RotatorToQuat(GetRelativeRotation());
 	const FQuat NewRelRotQuat = CurRelRotQuat * DeltaRotation.Quaternion();
-	SetRelativeLocationAndRotation(RelativeLocation, NewRelRotQuat, bSweep, OutSweepHitResult, Teleport);
+	SetRelativeLocationAndRotation(GetRelativeLocation(), NewRelRotQuat, bSweep, OutSweepHitResult, Teleport);
 }
 
 void USceneComponent::AddLocalRotation(const FQuat& DeltaRotation, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
 {
-	const FQuat CurRelRotQuat = RelativeRotationCache.RotatorToQuat(RelativeRotation);
+	const FQuat CurRelRotQuat = RelativeRotationCache.RotatorToQuat(GetRelativeRotation());
 	const FQuat NewRelRotQuat = CurRelRotQuat * DeltaRotation;
-	SetRelativeLocationAndRotation(RelativeLocation, NewRelRotQuat, bSweep, OutSweepHitResult, Teleport);
+	SetRelativeLocationAndRotation(GetRelativeLocation(), NewRelRotQuat, bSweep, OutSweepHitResult, Teleport);
 }
 
 void USceneComponent::AddLocalTransform(const FTransform& DeltaTransform, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
 {
-	const FTransform RelativeTransform( RelativeRotationCache.RotatorToQuat(RelativeRotation), RelativeLocation, FVector(1,1,1) ); // don't use scaling, so it matches how AddLocalRotation/Offset work
+	const FTransform RelativeTransform(RelativeRotationCache.RotatorToQuat(GetRelativeRotation()), GetRelativeLocation(), FVector(1,1,1) ); // don't use scaling, so it matches how AddLocalRotation/Offset work
 	const FTransform NewRelTransform = DeltaTransform * RelativeTransform;
 	SetRelativeTransform(NewRelTransform, bSweep, OutSweepHitResult, Teleport);
 }
@@ -1336,14 +1345,22 @@ void USceneComponent::AddWorldTransform(const FTransform& DeltaTransform, bool b
 
 void USceneComponent::SetRelativeScale3D(FVector NewScale3D)
 {
-	if( NewScale3D != RelativeScale3D )
+	if (NewScale3D != GetRelativeScale3D())
 	{
 		if (NewScale3D.ContainsNaN())
 		{
 			UE_LOG(LogBlueprint, Warning, TEXT("SetRelativeScale3D : Invalid Scale entered (%s). Resetting to 1.f."), *NewScale3D.ToString());
 			NewScale3D = FVector(1.f);
 		}
-		RelativeScale3D = NewScale3D;		
+
+		SetRelativeScale3D_Direct(NewScale3D);
+
+		if (UNLIKELY(NeedsInitialization() || OwnerNeedsInitialization()))
+		{
+			// If we're in the component or actor constructor, don't do anything else.
+			return;
+		}
+
 		UpdateComponentToWorld();
 		
 		if (IsRegistered())
@@ -1376,7 +1393,7 @@ void USceneComponent::SetRelativeTransform(const FTransform& NewTransform, bool 
 
 FTransform USceneComponent::GetRelativeTransform() const
 {
-	const FTransform RelativeTransform( RelativeRotationCache.RotatorToQuat(RelativeRotation), RelativeLocation, RelativeScale3D );
+	const FTransform RelativeTransform(RelativeRotationCache.RotatorToQuat(GetRelativeRotation()), GetRelativeLocation(), GetRelativeScale3D());
 	return RelativeTransform;
 }
 
@@ -1385,7 +1402,7 @@ void USceneComponent::SetWorldLocation(FVector NewLocation, bool bSweep, FHitRes
 	FVector NewRelLocation = NewLocation;
 
 	// If attached to something, transform into local space
-	if (GetAttachParent() != nullptr && !bAbsoluteLocation)
+	if (GetAttachParent() != nullptr && !IsUsingAbsoluteLocation())
 	{
 		FTransform ParentToWorld = GetAttachParent()->GetSocketTransform(GetAttachSocketName());
 		NewRelLocation = ParentToWorld.InverseTransformPosition(NewLocation);
@@ -1399,12 +1416,12 @@ FQuat USceneComponent::GetRelativeRotationFromWorld(const FQuat & NewRotation)
 	FQuat NewRelRotation = NewRotation;
 
 	// If already attached to something, transform into local space
-	if (GetAttachParent() != nullptr && !bAbsoluteRotation)
+	if (GetAttachParent() != nullptr && !IsUsingAbsoluteRotation())
 	{
 		const FTransform  ParentToWorld = GetAttachParent()->GetSocketTransform(GetAttachSocketName());
 		// in order to support mirroring, you'll have to use FTransform.GetRelativeTransform
 		// because negative SCALE should flip the rotation
-		if (FTransform::AnyHasNegativeScale(RelativeScale3D, ParentToWorld.GetScale3D()))
+		if (FTransform::AnyHasNegativeScale(GetRelativeScale3D(), ParentToWorld.GetScale3D()))
 		{
 			FTransform NewTransform = GetComponentTransform();
 			// set new desired rotation
@@ -1448,7 +1465,7 @@ void USceneComponent::SetWorldScale3D(FVector NewScale)
 	FVector NewRelScale = NewScale;
 
 	// If attached to something, transform into local space
-	if(GetAttachParent() != nullptr && !bAbsoluteScale)
+	if(GetAttachParent() != nullptr && !IsUsingAbsoluteScale())
 	{
 		FTransform ParentToWorld = GetAttachParent()->GetSocketTransform(GetAttachSocketName());
 		NewRelScale = NewScale * ParentToWorld.GetSafeScaleReciprocal(ParentToWorld.GetScale3D());
@@ -1466,17 +1483,17 @@ void USceneComponent::SetWorldTransform(const FTransform& NewTransform, bool bSw
 		FTransform RelativeTM = NewTransform.GetRelativeTransform(ParentToWorld);
 
 		// Absolute location, rotation, and scale use the world transform directly.
-		if (bAbsoluteLocation)
+		if (IsUsingAbsoluteLocation())
 		{
 			RelativeTM.CopyTranslation(NewTransform);
 		}
 
-		if (bAbsoluteRotation)
+		if (IsUsingAbsoluteRotation())
 		{
 			RelativeTM.CopyRotation(NewTransform);
 		}
 
-		if (bAbsoluteScale)
+		if (IsUsingAbsoluteScale())
 		{
 			RelativeTM.CopyScale3D(NewTransform);
 		}
@@ -1510,12 +1527,12 @@ void USceneComponent::SetWorldLocationAndRotation(FVector NewLocation, const FQu
 	{
 		FTransform ParentToWorld = GetAttachParent()->GetSocketTransform(GetAttachSocketName());
 
-		if (!bAbsoluteLocation)
+		if (!IsUsingAbsoluteLocation())
 		{
 			NewLocation = ParentToWorld.InverseTransformPosition(NewLocation);
 		}
 
-		if (!bAbsoluteRotation)
+		if (!IsUsingAbsoluteRotation())
 		{
 			// Quat multiplication works reverse way, make sure you do Parent(-1) * World = Local, not World*Parent(-) = Local (the way matrix does)
 			FQuat NewRelQuat = ParentToWorld.GetRotation().Inverse() * NewRotation;
@@ -1533,30 +1550,30 @@ void USceneComponent::SetWorldLocationAndRotationNoPhysics(const FVector& NewLoc
 	{
 		const FTransform ParentToWorld = GetAttachParent()->GetSocketTransform(GetAttachSocketName());
 
-		if(bAbsoluteLocation)
+		if(IsUsingAbsoluteLocation())
 		{
-			RelativeLocation = NewLocation;
+			SetRelativeLocation_Direct(NewLocation);
 		}
 		else
 		{
-			RelativeLocation = ParentToWorld.InverseTransformPosition(NewLocation);
+			SetRelativeLocation_Direct(ParentToWorld.InverseTransformPosition(NewLocation));
 		}
 
-		if(bAbsoluteRotation)
+		if(IsUsingAbsoluteRotation())
 		{
-			RelativeRotation = NewRotation;
+			SetRelativeRotation_Direct(NewRotation);
 		}
 		else
 		{
 			// Quat multiplication works reverse way, make sure you do Parent(-1) * World = Local, not World*Parent(-) = Local (the way matrix does)
 			const FQuat NewRelQuat = ParentToWorld.GetRotation().Inverse() * NewRotation.Quaternion();
-			RelativeRotation = RelativeRotationCache.QuatToRotator(NewRelQuat);
+			SetRelativeRotation_Direct(RelativeRotationCache.QuatToRotator(NewRelQuat));
 		}
 	}
 	else
 	{
-		RelativeLocation = NewLocation;
-		RelativeRotation = NewRotation;
+		SetRelativeLocation_Direct(NewLocation);
+		SetRelativeRotation_Direct(NewRotation);
 	}
 
 	UpdateComponentToWorld(EUpdateTransformFlags::SkipPhysicsUpdate);
@@ -1564,9 +1581,9 @@ void USceneComponent::SetWorldLocationAndRotationNoPhysics(const FVector& NewLoc
 
 void USceneComponent::SetAbsolute(bool bNewAbsoluteLocation, bool bNewAbsoluteRotation, bool bNewAbsoluteScale)
 {
-	bAbsoluteLocation = bNewAbsoluteLocation;
-	bAbsoluteRotation = bNewAbsoluteRotation;
-	bAbsoluteScale = bNewAbsoluteScale;
+	SetUsingAbsoluteLocation(bNewAbsoluteLocation);
+	SetUsingAbsoluteRotation(bNewAbsoluteRotation);
+	SetUsingAbsoluteScale(bNewAbsoluteScale);
 
 	UpdateComponentToWorld();
 }
@@ -1713,8 +1730,8 @@ void USceneComponent::SetupAttachment(class USceneComponent* InParent, FName InS
 			{
 				if (ensureMsgf(AttachParent == nullptr || !AttachParent->AttachChildren.Contains(this), TEXT("SetupAttachment cannot be used once a component has already had AttachTo used to connect it to a parent.")))
 				{
-					AttachParent = InParent;
-					AttachSocketName = InSocketName;
+					SetAttachParent(InParent);
+					SetAttachSocketName(InSocketName);
 					bShouldBeAttached = AttachParent != nullptr;
 				}
 			}
@@ -1917,18 +1934,19 @@ bool USceneComponent::AttachToComponent(USceneComponent* Parent, const FAttachme
 						//User tried to attach but physically based so detach. However, if they provided relative coordinates we should still get the correct position
 						if (AttachmentRules.LocationRule == EAttachmentRule::KeepRelative || AttachmentRules.RotationRule == EAttachmentRule::KeepRelative || AttachmentRules.ScaleRule == EAttachmentRule::KeepRelative)
 						{
-							UpdateComponentToWorldWithParent(Parent, SocketName, EUpdateTransformFlags::None, RelativeRotationCache.RotatorToQuat(RelativeRotation));
+							UpdateComponentToWorldWithParent(Parent, SocketName, EUpdateTransformFlags::None, RelativeRotationCache.RotatorToQuat(GetRelativeRotation()));
+
 							if (AttachmentRules.LocationRule == EAttachmentRule::KeepRelative)
 							{
-								RelativeLocation = GetComponentLocation();
+								SetRelativeLocation_Direct(GetComponentLocation());
 							}
 							if (AttachmentRules.RotationRule == EAttachmentRule::KeepRelative)
 							{
-								RelativeRotation = GetComponentRotation();
+								SetRelativeRotation_Direct(GetComponentRotation());
 							}
 							if (AttachmentRules.ScaleRule == EAttachmentRule::KeepRelative)
 							{
-								RelativeScale3D = GetComponentScale();
+								SetRelativeScale3D_Direct(GetComponentScale());
 							}
 							if (IsRegistered())
 							{
@@ -1946,8 +1964,8 @@ bool USceneComponent::AttachToComponent(USceneComponent* Parent, const FAttachme
 		PrimaryComponentTick.AddPrerequisite(Parent, Parent->PrimaryComponentTick); // force us to tick after the parent does
 
 		// Save pointer from child to parent
-		AttachParent = Parent;
-		AttachSocketName = SocketName;
+		SetAttachParent(Parent);
+		SetAttachSocketName(SocketName);
 		bShouldBeAttached = AttachParent != nullptr;
 
 		bShouldSnapLocationWhenAttached = AttachmentRules.LocationRule == EAttachmentRule::SnapToTarget;
@@ -1964,6 +1982,8 @@ bool USceneComponent::AttachToComponent(USceneComponent* Parent, const FAttachme
 		{
 			Parent->AttachChildren.Add(this);
 		}
+
+		Parent->ModifiedAttachChildren();
 		AddToCluster(Parent, true);
 
 		if (Parent->IsNetSimulating() && !IsNetSimulating())
@@ -1995,17 +2015,17 @@ bool USceneComponent::AttachToComponent(USceneComponent* Parent, const FAttachme
 			// dont do anything, keep relative position the same
 			break;
 		case EAttachmentRule::KeepWorld:
-			if (bAbsoluteLocation)
+			if (IsUsingAbsoluteLocation())
 			{
-				RelativeLocation = GetComponentTransform().GetTranslation();
+				SetRelativeLocation_Direct(GetComponentTransform().GetTranslation());
 			}
 			else
 			{
-				RelativeLocation = RelativeTM.GetTranslation();
+				SetRelativeLocation_Direct(RelativeTM.GetTranslation());
 			}
 			break;
 		case EAttachmentRule::SnapToTarget:
-			RelativeLocation = FVector::ZeroVector;
+			SetRelativeLocation_Direct(FVector::ZeroVector);
 			break;
 		}
 
@@ -2015,17 +2035,17 @@ bool USceneComponent::AttachToComponent(USceneComponent* Parent, const FAttachme
 			// dont do anything, keep relative rotation the same
 			break;
 		case EAttachmentRule::KeepWorld:
-			if (bAbsoluteRotation)
+			if (IsUsingAbsoluteRotation())
 			{
-				RelativeRotation = GetComponentRotation();
+				SetRelativeRotation_Direct(GetComponentRotation());
 			}
 			else
 			{
-				RelativeRotation = RelativeRotationCache.QuatToRotator(RelativeTM.GetRotation());
+				SetRelativeRotation_Direct(RelativeRotationCache.QuatToRotator(RelativeTM.GetRotation()));
 			}
 			break;
 		case EAttachmentRule::SnapToTarget:
-			RelativeRotation = FRotator::ZeroRotator;
+			SetRelativeRotation_Direct(FRotator::ZeroRotator);
 			break;
 		}
 
@@ -2035,17 +2055,17 @@ bool USceneComponent::AttachToComponent(USceneComponent* Parent, const FAttachme
 			// dont do anything, keep relative scale the same
 			break;
 		case EAttachmentRule::KeepWorld:
-			if (bAbsoluteScale)
+			if (IsUsingAbsoluteScale())
 			{
-				RelativeScale3D = GetComponentTransform().GetScale3D();
+				SetRelativeScale3D_Direct(GetComponentTransform().GetScale3D());
 			}
 			else
 			{
-				RelativeScale3D = RelativeTM.GetScale3D();
+				SetRelativeScale3D_Direct(RelativeTM.GetScale3D());
 			}
 			break;
 		case EAttachmentRule::SnapToTarget:
-			RelativeScale3D = FVector(1.0f, 1.0f, 1.0f);
+			SetRelativeScale3D_Direct(FVector(1.0f, 1.0f, 1.0f));
 			break;
 		}
 
@@ -2140,6 +2160,7 @@ void USceneComponent::DetachFromComponent(const FDetachmentTransformRules& Detac
 		GetAttachParent()->AttachChildren.Remove(this);
 		GetAttachParent()->ClientAttachedChildren.Remove(this);
 		GetAttachParent()->OnChildDetached(this);
+		GetAttachParent()->ModifiedAttachChildren();
 
 #if WITH_EDITOR
 		if(GEngine)
@@ -2150,8 +2171,8 @@ void USceneComponent::DetachFromComponent(const FDetachmentTransformRules& Detac
 			}
 		}
 #endif
-		AttachParent = nullptr;
-		AttachSocketName = NAME_None;
+		SetAttachParent(nullptr);
+		SetAttachSocketName(NAME_None);
 		bShouldBeAttached = 0;
 
 		bShouldSnapLocationWhenAttached = false;
@@ -2165,7 +2186,7 @@ void USceneComponent::DetachFromComponent(const FDetachmentTransformRules& Detac
 		case EDetachmentRule::KeepRelative:
 			break;
 		case EDetachmentRule::KeepWorld:
-			RelativeLocation = GetComponentTransform().GetTranslation(); // or GetComponentLocation, but worried about custom location...
+			SetRelativeLocation_Direct(GetComponentTransform().GetTranslation()); // or GetComponentLocation, but worried about custom location...
 			break;
 		}
 
@@ -2174,7 +2195,7 @@ void USceneComponent::DetachFromComponent(const FDetachmentTransformRules& Detac
 		case EDetachmentRule::KeepRelative:
 			break;
 		case EDetachmentRule::KeepWorld:
-			RelativeRotation = GetComponentRotation();
+			SetRelativeRotation_Direct(GetComponentRotation());
 			break;
 		}
 
@@ -2183,7 +2204,7 @@ void USceneComponent::DetachFromComponent(const FDetachmentTransformRules& Detac
 		case EDetachmentRule::KeepRelative:
 			break;
 		case EDetachmentRule::KeepWorld:
-			RelativeScale3D = GetComponentScale();
+			SetRelativeScale3D_Direct(GetComponentScale());
 			break;
 		}
 
@@ -2236,7 +2257,7 @@ FSceneComponentInstanceData::FSceneComponentInstanceData(const USceneComponent* 
 		USceneComponent* SceneComponent = AttachedChildren[i];
 		if (SceneComponent && SceneComponent->GetOwner() == SourceOwner && !SceneComponent->IsCreatedByConstructionScript() && !SceneComponent->HasAnyFlags(RF_DefaultSubObject))
 		{
-			AttachedInstanceComponents.Emplace(SceneComponent, FTransform(SceneComponent->RelativeRotation, SceneComponent->RelativeLocation, SceneComponent->RelativeScale3D));
+			AttachedInstanceComponents.Emplace(SceneComponent, FTransform(SceneComponent->GetRelativeRotation(), SceneComponent->GetRelativeLocation(), SceneComponent->GetRelativeScale3D()));
 		}
 	}
 }
@@ -2264,9 +2285,9 @@ void FSceneComponentInstanceData::ApplyToComponent(UActorComponent* Component, c
 		// and so the rebuilt component should not take back attachment ownership
 		if (ChildComponent && (ChildComponent->GetAttachParent() == nullptr || ChildComponent->GetAttachParent()->IsPendingKill()))
 		{
-			ChildComponent->RelativeLocation = ChildComponentPair.Value.GetLocation();
-			ChildComponent->RelativeRotation = ChildComponentPair.Value.GetRotation().Rotator();
-			ChildComponent->RelativeScale3D = ChildComponentPair.Value.GetScale3D();
+			ChildComponent->SetRelativeLocation_Direct(ChildComponentPair.Value.GetLocation());
+			ChildComponent->SetRelativeRotation_Direct(ChildComponentPair.Value.GetRotation().Rotator());
+			ChildComponent->SetRelativeScale3D_Direct(ChildComponentPair.Value.GetScale3D());
 			ChildComponent->AttachToComponent(SceneComponent, FAttachmentTransformRules::KeepRelativeTransform);
 		}
 	}
@@ -2343,7 +2364,7 @@ void USceneComponent::UpdateChildTransforms(EUpdateTransformFlags UpdateTransfor
 					}
 
 					// Don't update the child if it uses a completely absolute (world-relative) scheme.
-					if (ChildComp->bAbsoluteLocation && ChildComp->bAbsoluteRotation && ChildComp->bAbsoluteScale)
+					if (ChildComp->IsUsingAbsoluteLocation() && ChildComp->IsUsingAbsoluteRotation() && ChildComp->IsUsingAbsoluteScale())
 					{
 						continue;
 					}
@@ -2359,9 +2380,7 @@ void USceneComponent::PostInterpChange(UProperty* PropertyThatChanged)
 {
 	Super::PostInterpChange(PropertyThatChanged);
 
-	static FName NAME_RelativeScale3D(GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeScale3D));
-
-	if (PropertyThatChanged->GetFName() == NAME_RelativeScale3D)
+	if (PropertyThatChanged->GetFName() == GetRelativeScale3DPropertyName())
 	{
 		UpdateComponentToWorld();
 	}
@@ -2696,29 +2715,29 @@ bool USceneComponent::InternalSetWorldLocationAndRotation(FVector NewLocation, c
 		FTransform const ParentToWorld = GetAttachParent()->GetSocketTransform(GetAttachSocketName());
 		// in order to support mirroring, you'll have to use FTransform.GetrelativeTransform
 		// because negative scale should flip the rotation
-		if (FTransform::AnyHasNegativeScale(RelativeScale3D, ParentToWorld.GetScale3D()))
+		if (FTransform::AnyHasNegativeScale(GetRelativeScale3D(), ParentToWorld.GetScale3D()))
 		{
-			FTransform const WorldTransform = FTransform(RotationQuat, NewLocation, RelativeScale3D*ParentToWorld.GetScale3D());
+			FTransform const WorldTransform = FTransform(RotationQuat, NewLocation, GetRelativeScale3D() * ParentToWorld.GetScale3D());
 			FTransform const RelativeTransform = WorldTransform.GetRelativeTransform(ParentToWorld);
 
-			if (!bAbsoluteLocation)
+			if (!IsUsingAbsoluteLocation())
 			{
 				NewLocation = RelativeTransform.GetLocation();
 			}
 
-			if (!bAbsoluteRotation)
+			if (!IsUsingAbsoluteRotation())
 			{
 				NewRotationQuat = RelativeTransform.GetRotation();
 			}
 		}
 		else
 		{
-			if (!bAbsoluteLocation)
+			if (!IsUsingAbsoluteLocation())
 			{
 				NewLocation = ParentToWorld.InverseTransformPosition(NewLocation);
 			}
 
-			if (!bAbsoluteRotation)
+			if (!IsUsingAbsoluteRotation())
 			{
 				// Quat multiplication works reverse way, make sure you do Parent(-1) * World = Local, not World*Parent(-) = Local (the way matrix does)
 				NewRotationQuat = ParentToWorld.GetRotation().Inverse() * NewRotationQuat;
@@ -2727,11 +2746,11 @@ bool USceneComponent::InternalSetWorldLocationAndRotation(FVector NewLocation, c
 	}
 
 	const FRotator NewRelativeRotation = RelativeRotationCache.QuatToRotator_ReadOnly(NewRotationQuat);
-	bool bDiffLocation = !NewLocation.Equals(RelativeLocation);
-	bool bDiffRotation = !NewRelativeRotation.Equals(RelativeRotation);
+	bool bDiffLocation = !NewLocation.Equals(GetRelativeLocation());
+	bool bDiffRotation = !NewRelativeRotation.Equals(GetRelativeRotation());
 	if (bDiffLocation || bDiffRotation)
 	{
-		RelativeLocation = NewLocation;
+		SetRelativeLocation_Direct(NewLocation);
 
 		// Here it is important to compute the quaternion from the rotator and not the opposite.
 		// In some cases, similar quaternions generate the same rotator, which create issues.
@@ -2742,7 +2761,7 @@ bool USceneComponent::InternalSetWorldLocationAndRotation(FVector NewLocation, c
 		// we must enforce the quaternion to come from the rotator (as in load)
 		if (bDiffRotation)
 		{
-			RelativeRotation = NewRelativeRotation;
+			SetRelativeRotation_Direct(NewRelativeRotation);
 			RelativeRotationCache.RotatorToQuat(NewRelativeRotation);
 		}
 
@@ -2827,7 +2846,7 @@ bool USceneComponent::MoveComponent(const FVector& Delta, const FRotator& NewRot
 {
 	if (GetAttachParent() == nullptr)
 	{
-		if (Delta.IsZero() && NewRotation.Equals(RelativeRotation, SCENECOMPONENT_ROTATOR_TOLERANCE))
+		if (Delta.IsZero() && NewRotation.Equals(GetRelativeRotation(), SCENECOMPONENT_ROTATOR_TOLERANCE))
 		{
 			if (Hit)
 			{
@@ -2891,7 +2910,7 @@ bool USceneComponent::MoveComponentImpl(const FVector& Delta, const FQuat& NewRo
 bool USceneComponent::IsVisibleInEditor() const
 {
 	// in editor, we only check bVisible
-	return bVisible;
+	return GetVisibleFlag();
 }
 
 bool USceneComponent::ShouldRender() const
@@ -2926,8 +2945,8 @@ bool USceneComponent::ShouldRender() const
 #endif
 	const bool bInGameWorld = World && World->UsesGameHiddenFlags();
 
-	const bool bShowInGame = IsVisible() && (!Owner || !Owner->bHidden);
-	return ((bInGameWorld && bShowInGame) || (!bInGameWorld && bShowInEditor)) && bVisible == true;
+	const bool bShowInGame = IsVisible() && (!Owner || !Owner->IsHidden());
+	return ((bInGameWorld && bShowInGame) || (!bInGameWorld && bShowInEditor)) && GetVisibleFlag() == true;
 }
 
 bool USceneComponent::CanEverRender() const
@@ -2954,7 +2973,7 @@ bool USceneComponent::CanEverRender() const
 	UWorld *World = GetWorld();
 	const bool bInGameWorld = World && World->UsesGameHiddenFlags();
 
-	const bool bShowInGame = (!Owner || !Owner->bHidden);
+	const bool bShowInGame = (!Owner || !Owner->IsHidden());
 	return ((bInGameWorld && bShowInGame) || (!bInGameWorld && bShowInEditor));
 }
 
@@ -2972,7 +2991,7 @@ bool USceneComponent::IsVisible() const
 		return false;
 	}
 	
-	return ( bVisible && (!CachedLevelCollection || CachedLevelCollection->IsVisible()) ); 
+	return (GetVisibleFlag() && (!CachedLevelCollection || CachedLevelCollection->IsVisible())); 
 }
 
 void USceneComponent::OnVisibilityChanged()
@@ -2983,10 +3002,10 @@ void USceneComponent::OnVisibilityChanged()
 void USceneComponent::SetVisibility(const bool bNewVisibility, const USceneComponent::EVisibilityPropagation PropagateToChildren)
 {
 	bool bRecurseChildren = (PropagateToChildren == EVisibilityPropagation::Propagate);
-	if ( bNewVisibility != bVisible )
+	if ( bNewVisibility != GetVisibleFlag() )
 	{
 		bRecurseChildren = bRecurseChildren || (PropagateToChildren == EVisibilityPropagation::DirtyOnly);
-		bVisible = bNewVisibility;
+		SetVisibleFlag(bNewVisibility);
 		OnVisibilityChanged();
 	}
 
@@ -3072,21 +3091,19 @@ void USceneComponent::ApplyWorldOffset(const FVector& InOffset, bool bWorldShift
 	// Calculate current ComponentToWorld transform
 	// We do this because at level load/duplication ComponentToWorld is uninitialized
 	{
-		const FTransform RelativeTransform(RelativeRotationCache.RotatorToQuat(RelativeRotation), RelativeLocation, RelativeScale3D);
-		ComponentToWorld = CalcNewComponentToWorld(RelativeTransform);
+		ComponentToWorld = CalcNewComponentToWorld(GetRelativeTransform());
 	}
 
 	// Update bounds
 	Bounds.Origin+= InOffset;
 
 	// Update component location
-	if (GetAttachParent() == nullptr || bAbsoluteLocation)
+	if (GetAttachParent() == nullptr || IsUsingAbsoluteLocation())
 	{
-		RelativeLocation = GetComponentLocation() + InOffset;
+		SetRelativeLocation_Direct(GetComponentLocation() + InOffset);
 		
 		// Calculate the new ComponentToWorld transform
-		const FTransform RelativeTransform(RelativeRotationCache.RotatorToQuat(RelativeRotation), RelativeLocation, RelativeScale3D);
-		ComponentToWorld = CalcNewComponentToWorld(RelativeTransform);
+		ComponentToWorld = CalcNewComponentToWorld(GetRelativeTransform());
 	}
 
 	// Physics move is skipped if physics state is not created or physics scene supports origin shifting
@@ -3140,6 +3157,10 @@ void USceneComponent::OnRep_AttachSocketName()
 
 void USceneComponent::OnRep_AttachChildren()
 {
+	// Don't worry about marking AttachChildren dirty here.
+	// This should only be called after we've received a value from the network,
+	// and that will handle dirtying for us.
+
 	// Because replication of AttachChildren is not atomic with AttachParent of the corresponding component it is
 	// entirely possible to get duplicates in the AttachChildren array.  So we have to extract them and the later entry
 	// is always the duplicate
@@ -3209,7 +3230,7 @@ void USceneComponent::PostNetReceive()
 		if (ParentRoot != this)
 		{
 			bNetUpdateAttachment = true;
-			AttachParent = ParentRoot;
+			SetAttachParent(ParentRoot);
 		}
 	}
 }
@@ -3224,11 +3245,11 @@ void USceneComponent::PostRepNotifies()
 		// Note: This is a local fix for JIRA UE-43355.
 		if (bShouldSnapLocationWhenAttached)
 		{
-			RelativeLocation = FVector::ZeroVector;
+			SetRelativeLocation_Direct(FVector::ZeroVector);
 		}
 		if (bShouldSnapRotationWhenAttached)
 		{
-			RelativeRotation = FRotator::ZeroRotator;
+			SetRelativeRotation_Direct(FRotator::ZeroRotator);
 		}
 
 		// Check if this is a detach
@@ -3331,6 +3352,39 @@ bool USceneComponent::CanEditChange( const UProperty* Property ) const
  * FScopedPreventAttachedComponentMove implementation
  */
 
+FScopedPreventAttachedComponentMove::FScopedPreventAttachedComponentMove(USceneComponent* Component)
+	: Owner(Component)
+{
+	if (Owner)
+	{
+		// Save old flags
+		bSavedAbsoluteLocation = Owner->IsUsingAbsoluteLocation();
+		bSavedAbsoluteRotation = Owner->IsUsingAbsoluteRotation();
+		bSavedAbsoluteScale = Owner->IsUsingAbsoluteScale();
+		bSavedNonAbsoluteComponent = !(bSavedAbsoluteLocation && bSavedAbsoluteRotation && bSavedAbsoluteScale);
+
+		// Use absolute (stay in world space no matter what parent does)
+		Owner->bAbsoluteLocation = true;
+		Owner->bAbsoluteRotation = true;
+		Owner->bAbsoluteScale = true;
+
+		if (bSavedNonAbsoluteComponent && Owner->GetAttachParent())
+		{
+			// Make RelativeLocation etc relative to the world.
+			Component->ConditionalUpdateComponentToWorld();
+			Owner->RelativeLocation = Owner->GetComponentLocation();
+			Owner->RelativeRotation = Owner->GetComponentRotation();
+			Owner->RelativeScale3D = Owner->GetComponentScale();
+		}
+	}
+	else
+	{
+		bSavedAbsoluteLocation = false;
+		bSavedAbsoluteRotation = false;
+		bSavedAbsoluteScale = false;
+	}
+}
+
 FScopedPreventAttachedComponentMove::~FScopedPreventAttachedComponentMove()
 {
 	if (Owner)
@@ -3347,15 +3401,15 @@ FScopedPreventAttachedComponentMove::~FScopedPreventAttachedComponentMove()
 
 			if (!bSavedAbsoluteLocation)
 			{
-				Owner->RelativeLocation = ChildRelativeTM.GetTranslation();
+				Owner->SetRelativeLocation_Direct(ChildRelativeTM.GetTranslation());
 			}
 			if (!bSavedAbsoluteRotation)
 			{
-				Owner->RelativeRotation = Owner->RelativeRotationCache.QuatToRotator(ChildRelativeTM.GetRotation());
+				Owner->SetRelativeRotation_Direct(Owner->RelativeRotationCache.QuatToRotator(ChildRelativeTM.GetRotation()));
 			}
 			if (!bSavedAbsoluteScale)
 			{
-				Owner->RelativeScale3D = ChildRelativeTM.GetScale3D();
+				Owner->SetRelativeScale3D_Direct(ChildRelativeTM.GetScale3D());
 			}
 		}
 	}
@@ -3382,9 +3436,9 @@ FScopedMovementUpdate::FScopedMovementUpdate( class USceneComponent* Component, 
 	{
 		OuterDeferredScope = Component->GetCurrentScopedMovement();
 		InitialTransform = Component->GetComponentToWorld();
-		InitialRelativeLocation = Component->RelativeLocation;
-		InitialRelativeRotation = Component->RelativeRotation;
-		InitialRelativeScale = Component->RelativeScale3D;
+		InitialRelativeLocation = Component->GetRelativeLocation();
+		InitialRelativeRotation = Component->GetRelativeRotation();
+		InitialRelativeScale = Component->GetRelativeScale3D();
 
 		if (ScopeBehavior == EScopedUpdate::ImmediateUpdates)
 		{
@@ -3763,6 +3817,80 @@ void USceneComponent::K2_AddWorldRotation(FRotator DeltaRotation, bool bSweep, F
 void USceneComponent::K2_AddWorldTransform(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport)
 {
 	AddWorldTransform(DeltaTransform, bSweep, (bSweep ? &SweepHitResult : nullptr), TeleportFlagToEnum(bTeleport));
+}
+
+void USceneComponent::SetVisibleFlag(const bool bNewVisible)
+{
+	bVisible = bNewVisible;
+	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bVisible, this);
+}
+
+FVector& USceneComponent::GetRelativeLocation_DirectMutable()
+{
+	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, RelativeLocation, this);
+	return RelativeLocation;
+}
+
+void USceneComponent::SetRelativeLocation_Direct(const FVector NewRelativeLocation)
+{
+	GetRelativeLocation_DirectMutable() = NewRelativeLocation;
+}
+
+FRotator& USceneComponent::GetRelativeRotation_DirectMutable()
+{
+	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, RelativeRotation, this);
+	return RelativeRotation;
+}
+
+void USceneComponent::SetRelativeRotation_Direct(const FRotator NewRelativeRotation)
+{
+	GetRelativeRotation_DirectMutable() = NewRelativeRotation;
+}
+
+FVector& USceneComponent::GetRelativeScale3D_DirectMutable()
+{
+	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, RelativeScale3D, this);
+	return RelativeScale3D;
+}
+
+void USceneComponent::SetRelativeScale3D_Direct(const FVector NewRelativeScale3D)
+{
+	GetRelativeScale3D_DirectMutable() = NewRelativeScale3D;
+}
+
+void USceneComponent::SetUsingAbsoluteLocation(bool bInAbsoluteLocation)
+{
+	bAbsoluteLocation = bInAbsoluteLocation;
+	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bAbsoluteLocation, this);
+}
+
+void USceneComponent::SetUsingAbsoluteRotation(bool bInAbsoluteRotation)
+{
+	bAbsoluteRotation = bInAbsoluteRotation;
+	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bAbsoluteRotation, this);
+}
+
+void USceneComponent::SetUsingAbsoluteScale(bool bInAbsoluteScale)
+{
+	bAbsoluteScale = bInAbsoluteScale;
+	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bAbsoluteScale, this);
+}
+
+void USceneComponent::SetAttachParent(USceneComponent* NewAttachParent)
+{
+	AttachParent = NewAttachParent;
+	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, AttachParent, this);
+}
+
+void USceneComponent::SetAttachSocketName(FName NewSocketName)
+{
+	AttachSocketName = NewSocketName;
+	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, AttachSocketName, this);
+}
+
+void USceneComponent::ModifiedAttachChildren()
+{
+	// MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, AttachChildren, this);
 }
 
 #undef LOCTEXT_NAMESPACE

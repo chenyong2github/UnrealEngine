@@ -3,6 +3,7 @@
 
 #include "AudioDevice.h"
 #include "AudioDeviceManager.h"
+#include "IAudioExtensionPlugin.h"
 
 #include "AudioModulation.h"
 #include "AudioModulationInternal.h"
@@ -13,6 +14,27 @@ USoundModulatorBase::USoundModulatorBase(const FObjectInitializer& ObjectInitial
 	, bAutoActivate(0)
 {
 }
+
+bool USoundModulatorBase::CanAutoActivate(const ISoundModulatable* InSound) const
+{
+	if (bAutoActivate)
+	{
+		if (InSound)
+		{
+			return true;
+		}
+	}
+	else
+	{
+		if (!InSound || InSound->IsPreviewSound())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 
 #if WITH_EDITOR
 void USoundModulatorBase::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)

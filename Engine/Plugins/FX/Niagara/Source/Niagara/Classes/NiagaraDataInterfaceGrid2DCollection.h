@@ -15,11 +15,11 @@ class Grid2DBuffer
 {
 public:
 	Grid2DBuffer(int NumX, int NumY)
-	{
-		GridBuffer.Initialize(NumX, NumY);
+	{		
+		GridBuffer.Initialize(16, NumX, NumY, EPixelFormat::PF_A32B32G32R32F);
 	}
 
-	FTextureRWBuffer GridBuffer;	
+	FTextureRWBuffer2D GridBuffer;	
 };
 
 class Grid2DCollectionRWInstanceData
@@ -28,6 +28,10 @@ public:
 
 	int NumCellsX;
 	int NumCellsY;
+	int NumAttributes;
+	int NumTilesX;
+	int NumTilesY;
+
 	FVector2D CellSize;
 	bool SetGridFromVoxelSize;
 
@@ -66,7 +70,7 @@ public:
 
 		if (DestinationData == nullptr)
 		{
-			DestinationData = new Grid2DBuffer(NumCellsX, NumCellsY);
+			DestinationData = new Grid2DBuffer(NumCellsX * NumTilesX, NumCellsY * NumTilesY);
 			Buffers.Add(DestinationData);
 		}
 
@@ -131,7 +135,7 @@ public:
 	// Fills a texture render target 2d with the current data from the simulation
 	// #todo(dmp): this will eventually go away when we formalize how data makes it out of Niagara
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	virtual void FillTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *dest);
+	virtual void FillTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *dest, int AttributeIndex);
 
 	void GetCellSize(FVectorVMContext& Context);
 

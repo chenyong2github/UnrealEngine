@@ -62,7 +62,15 @@ DEFINE_LOG_CATEGORY(LogUObjectGlobals);
 #endif
 
 bool GIsSavingPackage = false;
-bool GAllowUnversionedContentInEditor = false;
+
+int32 GAllowUnversionedContentInEditor = 0;
+
+static FAutoConsoleVariableRef CVarAllowUnversionedContentInEditor(
+	TEXT("s.AllowUnversionedContentInEditor"),
+	GAllowUnversionedContentInEditor,
+	TEXT("If true, allows unversioned content to be loaded by the editor."),
+	ECVF_Default
+);
 
 /** Object annotation used by the engine to keep track of which objects are selected */
 FUObjectAnnotationSparseBool GSelectedObjectAnnotation;
@@ -772,7 +780,7 @@ bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Thro
 bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObject*& DestRes, UObject* InParent, bool* bInvalidObject )
 {
 	TCHAR TempStr[1024];
-	if( !FParse::Value( Stream, Match, TempStr, ARRAY_COUNT(TempStr) ) )
+	if( !FParse::Value( Stream, Match, TempStr, UE_ARRAY_COUNT(TempStr) ) )
 	{
 		// Match not found
 		return 0;

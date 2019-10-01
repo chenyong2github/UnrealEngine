@@ -147,12 +147,16 @@ void MainPS(
 
 #if COMPUTESHADER
 
+SCREEN_PASS_TEXTURE_VIEWPORT(Output)
+
 RWTexture2D<float4> RWOutputTexture;
 
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	float2 BaseUV = ((float2)DispatchThreadId + Filter_ViewportMin + 0.5f) * Filter_ExtentInverse;
+	uint2 iPixelPos = DispatchThreadId + Output_ViewportMin;
+	float2 PixelPos = float2(iPixelPos);
+	float2 BaseUV = (PixelPos + 0.5) * Output_ExtentInverse;
 
 	if (IsComputeUVOutOfBounds(BaseUV))
 	{
@@ -187,8 +191,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 #if USE_COMBINE_ADDITIVE
 	Color += SampleAdditiveTexture(BaseUV);
 #endif
-
-	const uint2 PixelPos = DispatchThreadId + (uint2)Filter_ViewportMin;
 
 	RWOutputTexture[PixelPos] = Color;
 }

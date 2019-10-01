@@ -75,10 +75,11 @@ struct FShaderParameterStructBindingContext
 				BaseType != UBMT_RDG_TEXTURE_COPY_DEST;
 
 			const bool bIsVariableNativeType = (
-				BaseType == UBMT_BOOL ||
 				BaseType == UBMT_INT32 ||
 				BaseType == UBMT_UINT32 ||
 				BaseType == UBMT_FLOAT32);
+
+			checkf(BaseType != UBMT_BOOL, TEXT("Should have failed in FShaderParametersMetadata::InitializeLayout()"));
 
 			if (BaseType == UBMT_INCLUDED_STRUCT)
 			{
@@ -198,10 +199,15 @@ struct FShaderParameterStructBindingContext
 					Parameter.BaseIndex = BaseIndex;
 					Parameter.ByteOffset = ByteOffset + ArrayElementId * SHADER_PARAMETER_POINTER_ALIGNMENT;
 
-					checkf(
-						BoundSize == 1,
-						TEXT("The shader compiler should give precisely which elements of an array did not get compiled out, ")
-						TEXT("for optimal automatic render graph pass dependency with ClearUnusedGraphResources()."));
+					if (BoundSize != 1)
+					{
+						UE_LOG(LogShaders, Fatal, 
+							TEXT("Error with shader %s's (Permutation Id %d) parameter %s is %i bytes, cpp name = %s.")
+							TEXT("The shader compiler should give precisely which elements of an array did not get compiled out, ")
+							TEXT("for optimal automatic render graph pass dependency with ClearUnusedGraphResources()."),
+							Shader->GetType()->GetName(), Shader->GetPermutationId(),
+							*ElementShaderBindingName, BoundSize, *CppName);
+					}
 
 					if (BaseType == UBMT_TEXTURE)
 						Bindings->Textures.Add(Parameter);
@@ -406,17 +412,7 @@ bool FDepthStencilBinding::Validate() const
 
 void EmitNullShaderParameterFatalError(const FShader* Shader, const FShaderParametersMetadata* ParametersMetadata, uint16 MemberOffset)
 {
-	const FShaderParametersMetadata* MemberContainingStruct = nullptr;
-	const FShaderParametersMetadata::FMember* Member = nullptr;
-	int32 ArrayElementId = 0;
-	FString NamePrefix;
-	ParametersMetadata->FindMemberFromOffset(MemberOffset, &MemberContainingStruct, &Member, &ArrayElementId, &NamePrefix);
-	
-	FString MemberName = FString::Printf(TEXT("%s%s"), *NamePrefix, Member->GetName());
-	if (Member->GetNumElements() > 0)
-	{
-		MemberName = FString::Printf(TEXT("%s%s[%d]"), *NamePrefix, Member->GetName(), ArrayElementId); 
-	}
+	FString MemberName = ParametersMetadata->GetFullMemberCodeName(MemberOffset);
 
 	const TCHAR* ShaderClassName = Shader->GetType()->GetName();
 
@@ -433,6 +429,9 @@ void ValidateShaderParameters(const FShader* Shader, const FShaderParametersMeta
 {
 	const FShaderParameterBindings& Bindings = Shader->Bindings;
 	const uint8* Base = reinterpret_cast<const uint8*>(Parameters);
+
+	const TCHAR* ShaderClassName = Shader->GetType()->GetName();
+	const TCHAR* ShaderParemeterStructName = ParametersMetadata->GetStructTypeName();
 
 	// Textures
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.Textures)
@@ -471,6 +470,14 @@ void ValidateShaderParameters(const FShader* Shader, const FShaderParametersMeta
 		if (!GraphTexture)
 		{
 			EmitNullShaderParameterFatalError(Shader, ParametersMetadata, ParameterBinding.ByteOffset);
+		}
+		else if ((GraphTexture->Desc.TargetableFlags & TexCreate_ShaderResource) == 0)
+		{
+			FString MemberName = ParametersMetadata->GetFullMemberCodeName(ParameterBinding.ByteOffset);
+
+			UE_LOG(LogShaders, Fatal,
+				TEXT("Attempting to set shader %s parameter %s::%s with the RDG texture %s which was not created with TexCreate_ShaderResource"),
+				ShaderClassName, ShaderParemeterStructName, *MemberName, GraphTexture->Name);
 		}
 	}
 

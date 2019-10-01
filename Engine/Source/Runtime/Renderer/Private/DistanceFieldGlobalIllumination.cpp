@@ -152,7 +152,7 @@ public:
 		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = GVPLResources.VPLParameterBuffer.UAV;
 		OutUAVs[1] = GVPLResources.VPLData.UAV;
-		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
+		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 
 		VPLParameterBuffer.SetBuffer(RHICmdList, ShaderRHI, GVPLResources.VPLParameterBuffer);
 		VPLData.SetBuffer(RHICmdList, ShaderRHI, GVPLResources.VPLData);
@@ -175,7 +175,7 @@ public:
 		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = GVPLResources.VPLParameterBuffer.UAV;
 		OutUAVs[1] = GVPLResources.VPLData.UAV;
-		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
+		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 	}
 
 	// FShader interface.
@@ -314,7 +314,7 @@ public:
 		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = GCulledVPLResources.VPLParameterBuffer.UAV;
 		OutUAVs[1] = GCulledVPLResources.VPLData.UAV;
-		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
+		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 
 		CulledVPLParameterBuffer.SetBuffer(RHICmdList, ShaderRHI, GCulledVPLResources.VPLParameterBuffer);
 		CulledVPLData.SetBuffer(RHICmdList, ShaderRHI, GCulledVPLResources.VPLData);

@@ -56,31 +56,24 @@ float4 InstancingFadeOutParams;
 #endif	// USE_INSTANCING
 
 #if USE_SPLINEDEFORM
-float3 SplineStartPos;
-float3 SplineStartTangent;
-float SplineStartRoll;
-float2 SplineStartScale;
-float2 SplineStartOffset;
-
-float3 SplineEndPos;
-float3 SplineEndTangent;
-float SplineEndRoll;
-float2 SplineEndScale;
-float2 SplineEndOffset;
-
-float3 SplineUpDir;
-#if ES2_PROFILE
-float SmoothInterpRollScale;
-#else
-bool SmoothInterpRollScale;
-#endif
-
-float SplineMeshMinZ;
-float SplineMeshScaleZ;
-
-float3 SplineMeshDir;
-float3 SplineMeshX;
-float3 SplineMeshY;
+float4 SplineParams[10];
+#define SplineStartPos			SplineParams[0].xyz
+#define SplineStartRoll			SplineParams[0].w
+#define SplineStartTangent		SplineParams[1].xyz
+#define SplineEndRoll			SplineParams[1].w
+#define SplineStartScale		SplineParams[2].xy
+#define SplineStartOffset		SplineParams[2].zw
+#define SplineEndPos			SplineParams[3].xyz
+#define SmoothInterpRollScale	SplineParams[3].w
+#define SplineEndTangent		SplineParams[4].xyz
+#define SplineMeshMinZ			SplineParams[4].w
+#define SplineEndScale			SplineParams[5].xy
+#define SplineEndOffset			SplineParams[5].zw
+#define SplineUpDir				SplineParams[6].xyz
+#define SplineMeshScaleZ		SplineParams[6].w
+#define SplineMeshDir			SplineParams[7].xyz
+#define SplineMeshX				SplineParams[8].xyz
+#define SplineMeshY				SplineParams[9].xyz
 #endif	// USE_SPLINEDEFORM
 
 #ifndef MANUAL_VERTEX_FETCH
@@ -188,11 +181,18 @@ struct FVertexFactoryInput
 Buffer<float> GPUSkinCachePositionBuffer;
 #endif
 
-FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
+uint GetNumRayTracingDynamicMeshVerticesIndirect()
+{
+	return 0;
+}
+#endif
+
+#if RAYHITGROUPSHADER
+
+FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
 {
 	FVertexFactoryInput Input = (FVertexFactoryInput)0;
 
-#if RAYHITGROUPSHADER
 	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(TriangleIndex);
 
 	Input.VertexId = Triangle.Indices[VertexIndex];
@@ -200,22 +200,40 @@ FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
 	#if VF_USE_PRIMITIVE_SCENE_DATA
 		Input.PrimitiveId = GetInstanceUserData();
 	#endif
-#elif COMPUTESHADER	
+
+	return Input;
+}
+#endif
+
+
+#if COMPUTESHADER
+
+FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, int VertexIndex, uint PrimitiveId)
+{
+	FVertexFactoryInput Input = (FVertexFactoryInput)0;
+
 	#if GPUSKIN_PASS_THROUGH
 		Input.VertexId = TriangleIndex * 3 + VertexIndex;
 		uint VertexOffset = LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId;
 		Input.Position.x = GPUSkinCachePositionBuffer[VertexOffset * 3 + 0];
 		Input.Position.y = GPUSkinCachePositionBuffer[VertexOffset * 3 + 1];
 		Input.Position.z = GPUSkinCachePositionBuffer[VertexOffset * 3 + 2];
+		#if VF_USE_PRIMITIVE_SCENE_DATA
+			Input.PrimitiveId = PrimitiveId;
+		#endif
+	#else
+		Input.VertexId = TriangleIndex * 3 + VertexIndex;
+		uint VertexOffset = LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId * 3;
+		Input.Position.x = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 0];
+		Input.Position.y = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 1];
+		Input.Position.z = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 2];
+		#if VF_USE_PRIMITIVE_SCENE_DATA
+			Input.PrimitiveId = PrimitiveId;
+		#endif
 	#endif
-#endif
 	return Input;
 }
 
-uint GetNumRayTracingDynamicMeshVerticesIndirect()
-{
-	return 0;
-}
 #endif
 
 /** 

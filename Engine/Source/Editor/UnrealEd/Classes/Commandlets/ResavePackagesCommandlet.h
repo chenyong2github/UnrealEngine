@@ -207,7 +207,7 @@ protected:
 
 	bool CanCheckoutFile(const FString& Filename, FString& CheckedOutUser);
 
-	void CheckoutAndSavePackage(UPackage* Package, TArray<FString>& SublevelFilenames);
+	void CheckoutAndSavePackage(UPackage* Package, TArray<FString>& SublevelFilenames, bool bIgnoreAlreadyCheckedOut = false);
 
 	// Print out a message only if running in very verbose mode
 	void VerboseMessage(const FString& Message);

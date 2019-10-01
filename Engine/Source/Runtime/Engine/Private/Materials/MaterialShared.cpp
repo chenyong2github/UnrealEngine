@@ -90,17 +90,17 @@ FName MaterialQualityLevelNames[] =
 	FName(TEXT("Num"))
 };
 
-static_assert(ARRAY_COUNT(MaterialQualityLevelNames) == EMaterialQualityLevel::Num + 1, "Missing entry from material quality level names.");
+static_assert(UE_ARRAY_COUNT(MaterialQualityLevelNames) == EMaterialQualityLevel::Num + 1, "Missing entry from material quality level names.");
 
 void GetMaterialQualityLevelName(EMaterialQualityLevel::Type InQualityLevel, FString& OutName)
 {
-	check(InQualityLevel < ARRAY_COUNT(MaterialQualityLevelNames));
+	check(InQualityLevel < UE_ARRAY_COUNT(MaterialQualityLevelNames));
 	MaterialQualityLevelNames[(int32)InQualityLevel].ToString(OutName);
 }
 
 FName GetMaterialQualityLevelFName(EMaterialQualityLevel::Type InQualityLevel)
 {
-	check(InQualityLevel < ARRAY_COUNT(MaterialQualityLevelNames));
+	check(InQualityLevel < UE_ARRAY_COUNT(MaterialQualityLevelNames));
 	return MaterialQualityLevelNames[(int32)InQualityLevel];
 }
 
@@ -194,7 +194,7 @@ static inline SIZE_T AddShaderSize(FShader* Shader, TSet<FShaderResourceId>& Uni
 int32 FMaterialCompiler::Errorf(const TCHAR* Format,...)
 {
 	TCHAR	ErrorText[2048];
-	GET_VARARGS( ErrorText, ARRAY_COUNT(ErrorText), ARRAY_COUNT(ErrorText)-1, Format, Format );
+	GET_VARARGS( ErrorText, UE_ARRAY_COUNT(ErrorText), UE_ARRAY_COUNT(ErrorText)-1, Format, Format );
 	return Error(ErrorText);
 }
 
@@ -1136,6 +1136,11 @@ bool FMaterialResource::IsUsedWithWater() const
 	return Material->bUsedWithWater;
 }
 
+bool FMaterialResource::IsUsedWithHairStrands() const
+{
+	return Material->bUsedWithHairStrands;
+}
+
 bool FMaterialResource::IsUsedWithLandscape() const
 {
 	return false;
@@ -1219,11 +1224,6 @@ bool FMaterialResource::IsCrackFreeDisplacementEnabled() const
 bool FMaterialResource::IsTranslucencyAfterDOFEnabled() const 
 { 
 	return Material->bEnableSeparateTranslucency && !IsUIMaterial() && !IsDeferredDecal();
-}
-
-bool FMaterialResource::IsTranslucencyUnderWaterEnabled() const
-{
-	return Material->bEnableRenderUnderWater && !IsUIMaterial() && !IsDeferredDecal();
 }
 
 bool FMaterialResource::IsMobileSeparateTranslucencyEnabled() const
@@ -3965,7 +3965,7 @@ void SetShaderMapsOnMaterialResources_RenderThread(FRHICommandListImmediate& RHI
 
 	// Iterate through all loaded material render proxies and recache their uniform expressions if needed
 	// This search does not scale well, but is only used when uploading async shader compile results
-	for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ARRAY_COUNT(bUpdateFeatureLevel); ++FeatureLevelIndex)
+	for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < UE_ARRAY_COUNT(bUpdateFeatureLevel); ++FeatureLevelIndex)
 	{
 		if (bUpdateFeatureLevel[FeatureLevelIndex])
 		{

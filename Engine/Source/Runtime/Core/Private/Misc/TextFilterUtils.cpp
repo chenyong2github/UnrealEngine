@@ -208,7 +208,7 @@ namespace FastToUpper
 		0,		// ~
 		0,		// 	
 	};
-	static const int32 ToUpperAdjustmentTableCount = ARRAY_COUNT(ToUpperAdjustmentTable);
+	static const int32 ToUpperAdjustmentTableCount = UE_ARRAY_COUNT(ToUpperAdjustmentTable);
 
 	FORCEINLINE TCHAR ToUpper(const TCHAR InChar)
 	{

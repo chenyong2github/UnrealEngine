@@ -62,6 +62,14 @@ void UListViewBase::ScrollToBottom()
 	}
 }
 
+void UListViewBase::SetScrollOffset(const float InScrollOffset)
+{
+	if (MyTableViewBase.IsValid())
+	{
+		MyTableViewBase->SetScrollOffset(InScrollOffset);
+	}
+}
+
 void UListViewBase::SetWheelScrollMultiplier(float NewWheelScrollMultiplier)
 {
 	WheelScrollMultiplier = NewWheelScrollMultiplier;

@@ -319,6 +319,17 @@ ERenderTargetLoadAction FRenderingCompositePassContext::GetLoadActionForRenderTa
 	return LoadAction;
 }
 
+FIntRect FRenderingCompositePassContext::GetSceneColorDestRect(FRenderingCompositePass* InPass) const
+{
+	if (const FRenderingCompositeOutput* Output = InPass->GetOutput(ePId_Output0))
+	{
+		if (const IPooledRenderTarget* Target = Output->PooledRenderTarget)
+		{
+			return GetSceneColorDestRect(Target->GetRenderTargetItem());
+		}
+	}
+	return SceneColorViewRect;
+}
 
 // --------------------------------------------------------------------------
 

@@ -77,8 +77,8 @@ class TPhysicsProxy : public IPhysicsProxyBase
 {
 
 public:
-	using FParticleType = typename Concrete;
-	using FParticleData = typename ConcreteData;
+	using FParticleType = Concrete;
+	using FParticleData = ConcreteData;
 
 	using FParticlesType = Chaos::TPBDRigidParticles<float, 3>;
 	using FCollisionConstraintsType = Chaos::TPBDCollisionConstraint<float, 3>;

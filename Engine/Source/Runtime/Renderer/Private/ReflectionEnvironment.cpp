@@ -35,6 +35,8 @@
 #include "RayTracing/RaytracingOptions.h"
 #include "RenderGraph.h"
 #include "PixelShaderUtils.h"
+#include "SceneTextureParameters.h"
+#include "HairStrands/HairStrandsRendering.h"
 
 DECLARE_GPU_STAT_NAMED(ReflectionEnvironment, TEXT("Reflection Environment"));
 DECLARE_GPU_STAT_NAMED(RayTracingReflections, TEXT("Ray Tracing Reflections"));
@@ -587,7 +589,7 @@ bool FDeferredShadingSceneRenderer::ShouldDoReflectionEnvironment() const
 		&& ViewFamily.EngineShowFlags.ReflectionEnvironment;
 }
 
-void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO, TRefCountPtr<IPooledRenderTarget>& VelocityRT)
+void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO, TRefCountPtr<IPooledRenderTarget>& VelocityRT, const FHairStrandsDatas* HairDatas)
 {
 	check(RHICmdList.IsOutsideRenderPass());
 
@@ -645,16 +647,22 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 	FRDGBuilder GraphBuilder(RHICmdList);
 
 	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
+	FRDGTextureRef SceneColorSubPixelTexture = nullptr;
+	if (HairDatas)
+	{
+		SceneColorSubPixelTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColorSubPixel());
+	}
 	FRDGTextureRef AmbientOcclusionTexture = GraphBuilder.RegisterExternalTexture(SceneContext.bScreenSpaceAOIsValid ? SceneContext.ScreenSpaceAO : GSystemTextures.WhiteDummy);
 	FRDGTextureRef DynamicBentNormalAOTexture = GraphBuilder.RegisterExternalTexture(DynamicBentNormalAO ? DynamicBentNormalAO : GSystemTextures.WhiteDummy);
 
 	FSceneTextureParameters SceneTextures;
 	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
+	uint32 ViewIndex = 0;
 	for (FViewInfo& View : Views)
 	{
+		const uint32 CurrentViewIndex = ViewIndex++;
 		const bool bRayTracedReflections = ShouldRenderRayTracingReflections(View);
-
 		const bool bScreenSpaceReflections = !bRayTracedReflections && ShouldRenderScreenSpaceReflections(View);
 
 		const bool bComposePlanarReflections = !bRayTracedReflections && HasDeferredPlanarReflections(View);
@@ -678,7 +686,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 				RayTracingConfig.ResolutionFraction = FMath::Clamp(CVarReflectionScreenPercentage.GetValueOnRenderThread() / 100.0f, 0.25f, 1.0f);
 				RayTracingConfig.RayCountPerPixel = GRayTracingReflectionsSamplesPerPixel > -1 ? GRayTracingReflectionsSamplesPerPixel : View.FinalPostProcessSettings.RayTracingReflectionsSamplesPerPixel;
 
-				bDenoise = DenoiserMode != 0 && RayTracingConfig.RayCountPerPixel == 1;
+				bDenoise = DenoiserMode != 0;
 				
 				if (!bDenoise)
 				{
@@ -857,6 +865,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 
+			// Bind hair data
+			const bool bCheckerboardSubsurfaceRendering = IsSubsurfaceCheckerboardFormat(SceneContext.GetSceneColorFormat());
 			auto PermutationVector = FReflectionEnvironmentSkyLightingPS::BuildPermutationVector(
 				View, bHasBoxCaptures, bHasSphereCaptures, DynamicBentNormalAO != NULL, bSkyLight, bDynamicSkyLight, bApplySkyShadowing, bRayTracedReflections);
 
@@ -867,7 +877,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 				RDG_EVENT_NAME("ReflectionEnvironmentAndSky %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[PassParameters, &View, PixelShader](FRHICommandList& InRHICmdList)
+				[PassParameters, &View, PixelShader, bCheckerboardSubsurfaceRendering](FRHICommandList& InRHICmdList)
 			{
 				InRHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
@@ -882,7 +892,6 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 				}
 				else
 				{
-					const bool bCheckerboardSubsurfaceRendering = IsSubsurfaceCheckerboardFormat(PassParameters->RenderTargets[0].GetTexture()->Desc.Format);
 					if (bCheckerboardSubsurfaceRendering)
 					{
 						GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI();
@@ -898,10 +907,22 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 				FPixelShaderUtils::DrawFullscreenTriangle(InRHICmdList);
 			});
 		} // if (bRequiresApply)
+
+
+		if (HairDatas)
+		{
+			RenderHairStrandsEnvironmentLighting(GraphBuilder, CurrentViewIndex, Views, HairDatas, SceneColorTexture, SceneColorSubPixelTexture);
+		}
 	} // for (FViewInfo& View : Views)
 	
 	TRefCountPtr<IPooledRenderTarget> OutSceneColor;
 	GraphBuilder.QueueTextureExtraction(SceneColorTexture, &OutSceneColor);
+
+	TRefCountPtr<IPooledRenderTarget> OutSceneSubpixelColor;
+	if (SceneColorSubPixelTexture)
+	{
+		GraphBuilder.QueueTextureExtraction(SceneColorSubPixelTexture, &OutSceneSubpixelColor);
+	}
 
 	GraphBuilder.Execute();
 	

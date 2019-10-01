@@ -172,7 +172,6 @@ UStaticMeshComponent::UStaticMeshComponent(const FObjectInitializer& ObjectIniti
 	bForceNavigationObstacle = true;
 	bDisallowMeshPaintPerInstance = false;
 	DistanceFieldIndirectShadowMinVisibility = .1f;
-
 	GetBodyInstance()->bAutoWeld = true;	//static mesh by default has auto welding
 
 #if WITH_EDITORONLY_DATA
@@ -1480,7 +1479,7 @@ void UStaticMeshComponent::ImportCustomProperties(const TCHAR* SourceText, FFeed
 		if (FParse::Value(SourceText, LODString, LODIndex))
 		{
 			TmpStr = FString::Printf(TEXT("%d"), LODIndex);
-			SourceText += TmpStr.Len() + (ARRAY_COUNT(LODString) - 1); // without the zero terminator
+			SourceText += TmpStr.Len() + (UE_ARRAY_COUNT(LODString) - 1); // without the zero terminator
 
 			// See if we need to add a new element to the LODData array
 			if (LODIndex > MaxLODIndex)

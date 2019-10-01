@@ -7,6 +7,7 @@
 #include "OnlineSubsystem.h"
 #include "Containers/Queue.h"
 #include "OnlineSubsystemPackage.h"
+#include "Containers/Ticker.h"
 
 struct FOnlineError;
 
@@ -22,6 +23,7 @@ namespace OSSConsoleVariables
  */
 class ONLINESUBSYSTEM_API FOnlineSubsystemImpl 
 	: public IOnlineSubsystem
+	, public FTickerObjectBase
 {
 private:
 
@@ -45,7 +47,9 @@ protected:
 
 	/** Hidden on purpose */
 	FOnlineSubsystemImpl() = delete;
+
 	FOnlineSubsystemImpl(FName InSubsystemName, FName InInstanceName);
+	FOnlineSubsystemImpl(FName InSubsystemName, FName InInstanceName, FTicker& Ticker);
 
 	/** Name of the subsystem @see OnlineSubsystemNames.h */
 	FName SubsystemName;
@@ -75,13 +79,13 @@ protected:
 
 	/** Stop Ticker */
 	void StopTicker();
-	
-	/** Delegate for callbacks to Tick */
-	FDelegateHandle TickHandle;
+
+	/** Is the ticker started */
+	bool bTickerStarted;
 
 public:
 	
-	virtual ~FOnlineSubsystemImpl();
+	virtual ~FOnlineSubsystemImpl() = default;
 
 	// IOnlineSubsystem
 	virtual void PreUnload() override;
@@ -102,13 +106,8 @@ public:
 	virtual bool IsEnabled() const override;
 	virtual void ReloadConfigs(const TSet<FString>& /*ConfigSections*/) override {};
 
-	/**
-	 * Tick function
-	 *
-	 * @param DeltaTime	time passed since the last call.
-	 * @return true if should continue ticking
-	 */
-	virtual bool Tick(float DeltaTime);
+	// FTickerObjectBase
+	virtual bool Tick(float DeltaTime) override;
 
 	/**
 	 * Modify a response string so that it can be logged cleanly

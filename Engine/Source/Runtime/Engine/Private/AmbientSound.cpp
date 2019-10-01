@@ -30,8 +30,8 @@ AAmbientSound::AAmbientSound(const FObjectInitializer& ObjectInitializer)
 	RootComponent = AudioComponent;
 
 	bReplicates = false;
-	bHidden = true;
-	bCanBeDamaged = false;
+	SetHidden(true);
+	SetCanBeDamaged(false);
 }
 
 #if WITH_EDITOR

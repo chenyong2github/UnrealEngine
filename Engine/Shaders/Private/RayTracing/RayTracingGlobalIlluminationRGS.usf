@@ -27,8 +27,8 @@ float MaxRayDistanceForGI;
 float MaxRayDistanceForAO;
 float NextEventEstimationSamples;
 float DiffuseThreshold;
-bool EvalSkyLight;
-bool UseRussianRoulette;
+uint EvalSkyLight;
+uint UseRussianRoulette;
 float MaxNormalBias;
 uint TileOffsetX;
 uint TileOffsetY;
@@ -129,7 +129,7 @@ void GlobalIlluminationRGS()
 		half3 V = -CameraDirection;
 		half3 L = Ray.Direction;
 		float NoL = saturate(dot(N, L));
-		FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0 };
+		FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0, InitHairTransmittanceData() };
 		FDirectLighting LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
 		RayThroughput *= LightingSample.Diffuse / DiffuseColor;
 #else
@@ -264,7 +264,7 @@ void GlobalIlluminationRGS()
 						half3 V = -Ray.Direction;
 						half3 L = LightRay.Direction;
 						float NoL = saturate(dot(N, L));
-						FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0 };
+						FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0, InitHairTransmittanceData() };
 						FDirectLighting LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
 						MaterialThroughput = LightingSample.Diffuse;
 						MaterialEvalPdf = 1.0;
@@ -304,7 +304,7 @@ void GlobalIlluminationRGS()
 				half3 V = -Ray.Direction;
 				half3 L = Direction;
 				float NoL = saturate(dot(N, L));
-				FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0 };
+				FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0, InitHairTransmittanceData() };
 				FDirectLighting LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
 				Throughput = LightingSample.Diffuse;
 #endif

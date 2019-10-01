@@ -55,40 +55,37 @@ static inline bool IsStencilFormat(EPixelFormat Format)
 	return false;
 }
 
-/** Encapsulates a GPU read/write texture with its UAV and SRV. */
-struct FTextureRWBuffer
+/** Encapsulates a GPU read/write texture 2D with its UAV and SRV. */
+struct FTextureRWBuffer2D
 {
 	FTexture2DRHIRef Buffer;
 	FUnorderedAccessViewRHIRef UAV;
 	FShaderResourceViewRHIRef SRV;
 	uint32 NumBytes;
 
-	FTextureRWBuffer()
+	FTextureRWBuffer2D()
 		: NumBytes(0)
 	{}
 
-	~FTextureRWBuffer()
+	~FTextureRWBuffer2D()
 	{
 		Release();
 	}
 
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
-	void Initialize(uint32 SizeX, uint32 SizeY)
+	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format)
 	{
 		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5
 			|| IsVulkanPlatform(GMaxRHIShaderPlatform)
 			|| IsMetalPlatform(GMaxRHIShaderPlatform)
 			|| (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && GSupportsResourceView)
 		);		
-				
-		// #todo(dmp): hardcoded for now...
-		uint32 BlockBytes = 16;
 
-		NumBytes = SizeX * SizeY * BlockBytes;
+		NumBytes = SizeX * SizeY * BytesPerElement;
 
 		FRHIResourceCreateInfo CreateInfo;
 		Buffer = RHICreateTexture2D(
-			SizeX, SizeY, PF_A32B32G32R32F,
+			SizeX, SizeY, Format, //PF_R32_FLOAT,
 			/*NumMips=*/ 1,
 			1,
 			/*Flags=*/ TexCreate_ShaderResource | TexCreate_UAV,
@@ -124,6 +121,69 @@ struct FTextureRWBuffer
 	}
 };
 
+/** Encapsulates a GPU read/write texture 3d with its UAV and SRV. */
+struct FTextureRWBuffer3D
+{
+	FTexture3DRHIRef Buffer;
+	FUnorderedAccessViewRHIRef UAV;
+	FShaderResourceViewRHIRef SRV;
+	uint32 NumBytes;
+
+	FTextureRWBuffer3D()
+		: NumBytes(0)
+	{}
+
+	~FTextureRWBuffer3D()
+	{
+		Release();
+	}
+
+	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
+	void Initialize(uint32 BytesPerElement, uint32 SizeX, uint32 SizeY, uint32 SizeZ, EPixelFormat Format)
+	{
+		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5
+			|| IsVulkanPlatform(GMaxRHIShaderPlatform)
+			|| IsMetalPlatform(GMaxRHIShaderPlatform)
+			|| (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && GSupportsResourceView)
+		);
+
+		NumBytes = SizeX * SizeY * SizeZ * BytesPerElement;
+
+		FRHIResourceCreateInfo CreateInfo;
+		Buffer = RHICreateTexture3D(
+			SizeX, SizeY, SizeZ, Format,
+			/*NumMips=*/ 1,
+			/*Flags=*/ TexCreate_ShaderResource | TexCreate_UAV,
+			/*BulkData=*/ CreateInfo);
+
+		UAV = RHICreateUnorderedAccessView(Buffer, 0);
+		SRV = RHICreateShaderResourceView(Buffer, 0);
+	}
+
+	void AcquireTransientResource()
+	{
+		RHIAcquireTransientResource(Buffer);
+	}
+	void DiscardTransientResource()
+	{
+		RHIDiscardTransientResource(Buffer);
+	}
+
+	void Release()
+	{
+		int32 BufferRefCount = Buffer ? Buffer->GetRefCount() : -1;
+
+		if (BufferRefCount == 1)
+		{
+			DiscardTransientResource();
+		}
+
+		NumBytes = 0;
+		Buffer.SafeRelease();
+		UAV.SafeRelease();
+		SRV.SafeRelease();
+	}
+};
 
 /** Encapsulates a GPU read/write buffer with its UAV and SRV. */
 struct FRWBuffer
@@ -770,51 +830,10 @@ inline void RHICreateTargetableShaderResource3D(
  */
 inline uint32 GetVertexCountForPrimitiveCount(uint32 NumPrimitives, uint32 PrimitiveType)
 {
-	uint32 VertexCount = 0;
-	switch(PrimitiveType)
-	{
-	case PT_TriangleList: VertexCount = NumPrimitives*3; break;
-	case PT_TriangleStrip: VertexCount = NumPrimitives+2; break;
-	case PT_LineList: VertexCount = NumPrimitives*2; break;
-	case PT_PointList: VertexCount = NumPrimitives; break;
-	case PT_1_ControlPointPatchList:
-	case PT_2_ControlPointPatchList:
-	case PT_3_ControlPointPatchList: 
-	case PT_4_ControlPointPatchList: 
-	case PT_5_ControlPointPatchList:
-	case PT_6_ControlPointPatchList:
-	case PT_7_ControlPointPatchList: 
-	case PT_8_ControlPointPatchList: 
-	case PT_9_ControlPointPatchList: 
-	case PT_10_ControlPointPatchList: 
-	case PT_11_ControlPointPatchList: 
-	case PT_12_ControlPointPatchList: 
-	case PT_13_ControlPointPatchList: 
-	case PT_14_ControlPointPatchList: 
-	case PT_15_ControlPointPatchList: 
-	case PT_16_ControlPointPatchList: 
-	case PT_17_ControlPointPatchList: 
-	case PT_18_ControlPointPatchList: 
-	case PT_19_ControlPointPatchList: 
-	case PT_20_ControlPointPatchList: 
-	case PT_21_ControlPointPatchList: 
-	case PT_22_ControlPointPatchList: 
-	case PT_23_ControlPointPatchList: 
-	case PT_24_ControlPointPatchList: 
-	case PT_25_ControlPointPatchList: 
-	case PT_26_ControlPointPatchList: 
-	case PT_27_ControlPointPatchList: 
-	case PT_28_ControlPointPatchList: 
-	case PT_29_ControlPointPatchList: 
-	case PT_30_ControlPointPatchList: 
-	case PT_31_ControlPointPatchList: 
-	case PT_32_ControlPointPatchList: 
-		VertexCount = (PrimitiveType - PT_1_ControlPointPatchList + 1) * NumPrimitives;
-		break;
-	default: UE_LOG(LogRHI, Fatal,TEXT("Unknown primitive type: %u"),PrimitiveType);
-	};
+	uint32 Factor = (PrimitiveType == PT_TriangleList)? 3 : (PrimitiveType == PT_LineList)? 2 : (PrimitiveType >= PT_1_ControlPointPatchList)? (PrimitiveType - PT_1_ControlPointPatchList + 1) : 1;
+	uint32 Offset = (PrimitiveType == PT_TriangleStrip)? 2 : 0;
 
-	return VertexCount;
+	return NumPrimitives * Factor + Offset;
 }
 
 inline uint32 ComputeAnisotropyRT(int32 InitializerMaxAnisotropy)

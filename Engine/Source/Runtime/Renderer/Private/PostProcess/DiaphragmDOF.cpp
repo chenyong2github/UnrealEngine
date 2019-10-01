@@ -324,7 +324,7 @@ const TCHAR* GetEventName(EDiaphragmDOFLayerProcessing e)
 		TEXT("FocusOnly"),
 	};
 	int32 i = int32(e);
-	check(i < ARRAY_COUNT(kArray));
+	check(i < UE_ARRAY_COUNT(kArray));
 	return kArray[i];
 }
 
@@ -335,7 +335,7 @@ const TCHAR* GetEventName(EDiaphragmDOFPostfilterMethod e)
 		TEXT("Max3x3"),
 	};
 	int32 i = int32(e) - 1;
-	check(i < ARRAY_COUNT(kArray));
+	check(i < UE_ARRAY_COUNT(kArray));
 	return kArray[i];
 }
 
@@ -347,7 +347,7 @@ const TCHAR* GetEventName(EDiaphragmDOFBokehSimulation e)
 		TEXT("Generic"),
 	};
 	int32 i = int32(e);
-	check(i < ARRAY_COUNT(kArray));
+	check(i < UE_ARRAY_COUNT(kArray));
 	return kArray[i];
 }
 
@@ -359,7 +359,7 @@ const TCHAR* GetEventName(EDiaphragmDOFBokehLUTFormat e)
 		TEXT("Gather"),
 	};
 	int32 i = int32(e);
-	check(i < ARRAY_COUNT(kArray));
+	check(i < UE_ARRAY_COUNT(kArray));
 	return kArray[i];
 }
 
@@ -372,7 +372,7 @@ const TCHAR* GetEventName(EDiaphragmDOFGatherQuality e)
 		TEXT("Cinematic"),
 	};
 	int32 i = int32(e);
-	check(i < ARRAY_COUNT(kArray));
+	check(i < UE_ARRAY_COUNT(kArray));
 	return kArray[i];
 }
 
@@ -384,7 +384,7 @@ const TCHAR* GetEventName(EDiaphragmDOFDilateCocMode e)
 		TEXT("MinAbs"),
 	};
 	int32 i = int32(e);
-	check(i < ARRAY_COUNT(kArray));
+	check(i < UE_ARRAY_COUNT(kArray));
 	return kArray[i];
 }
 
@@ -653,7 +653,7 @@ static FORCEINLINE bool SupportsBokehSimmulation(EShaderPlatform ShaderPlatform)
 static FORCEINLINE bool SupportsRGBColorBuffer(EShaderPlatform ShaderPlatform)
 {
 	// There is no point when alpha channel is supported because needs 4 channel anyway for fast gathering tiles.
-	if (FPostProcessing::HasAlphaChannelSupport())
+	if (IsPostProcessingWithAlphaChannelSupported())
 	{
 		return false;
 	}
@@ -1274,7 +1274,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 	EPixelFormat SceneColorFormat = InputSceneColor->Desc.Format;
 	
 	// Whether should process alpha channel of the scene or not.
-	const bool bProcessSceneAlpha = FPostProcessing::HasAlphaChannelSupport();
+	const bool bProcessSceneAlpha = IsPostProcessingWithAlphaChannelSupported();
 
 	const EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
 
@@ -1710,7 +1710,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			SampleRadiusCount[0] = CurrentConvolutionRadius;
 
 			// If the theoric radius is too big, setup more dilate passes.
-			for (int32 i = 1; i < ARRAY_COUNT(SampleDistanceMultiplier); i++)
+			for (int32 i = 1; i < UE_ARRAY_COUNT(SampleDistanceMultiplier); i++)
 			{
 				if (MaximumTileDilation <= CurrentConvolutionRadius)
 				{
@@ -1966,11 +1966,13 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			TEXT("DOFGatherBokehLUT"),
 		};
 
-		FRDGTextureDesc BokehLUTDesc;
-		BokehLUTDesc.NumMips = 1;
-		BokehLUTDesc.Format = LUTFormat == EDiaphragmDOFBokehLUTFormat::GatherSamplePos ? PF_G16R16F : PF_R16F;
-		BokehLUTDesc.Extent = FIntPoint(32, 32);
-		BokehLUTDesc.TargetableFlags |= TexCreate_UAV;
+		FRDGTextureDesc BokehLUTDesc = FRDGTextureDesc::Create2DDesc(
+			FIntPoint(32, 32),
+			LUTFormat == EDiaphragmDOFBokehLUTFormat::GatherSamplePos ? PF_G16R16F : PF_R16F,
+			FClearValueBinding::None,
+			/* InFlags = */ TexCreate_None,
+			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
+			/* bInForceSeparateTargetAndShaderResource = */ false);
 
 		FRDGTextureRef BokehLUT = GraphBuilder.CreateTexture(BokehLUTDesc, DebugNames[int32(LUTFormat)]);
 

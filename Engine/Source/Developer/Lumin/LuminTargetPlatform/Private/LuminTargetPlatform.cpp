@@ -47,7 +47,7 @@ bool FLuminTargetPlatform::IsSdkInstalled(bool bProjectHasCode, FString& OutDocu
 	return true;
 }
 
-int32 FLuminTargetPlatform::CheckRequirements(const FString& ProjectPath, bool bProjectHasCode, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const
+int32 FLuminTargetPlatform::CheckRequirements(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const
 {
 	OutDocumentationPath = TEXT("Platforms/Android/GettingStarted");
 
@@ -242,7 +242,7 @@ void FLuminTargetPlatform::GetTextureFormats(const UTexture* InTexture, TArray< 
 		}
 		else
 		{
-			for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); ++RemapIndex)
+			for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); ++RemapIndex)
 			{
 				if (TextureFormatName == FormatRemap[RemapIndex][0])
 				{
@@ -259,13 +259,13 @@ void FLuminTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 {
 	GetAllDefaultTextureFormats(this, OutFormats, false);
 
-	for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); RemapIndex++)
+	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex++)
 	{
 		OutFormats.Remove(FormatRemap[RemapIndex][0]);
 	}
 
 	// include the formats we want
-	for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); RemapIndex++)
+	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex++)
 	{
 		OutFormats.AddUnique(FormatRemap[RemapIndex][1]);
 	}

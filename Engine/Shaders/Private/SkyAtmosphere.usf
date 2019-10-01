@@ -60,10 +60,6 @@
  // FASTSKY mapping is done based on Light0 as main light
 #define FASTSKY_LIGHT_INDEX 0
 
-// This (arbitrary) multi scattering storage scale is used to make sure the LUT values are in an acceptable range when using r.SkyAtmosphere.MultiScatteringLUT.UseSmallFormat is 1.
-#define MULTISCATTERING_STORE_SCALE (4.0f * PI * 5.0f)
-#define MULTISCATTERING_STORE_SCALE_INV 1.0f/MULTISCATTERING_STORE_SCALE
-
 // Only available for shaders ran per view, so this constant should not be accessed in common code such as IntegrateSingleScatteredLuminance for instance.
 float AerialPerspectiveStartDepth;
 
@@ -336,7 +332,8 @@ float3 GetLightDiskLuminance(float3 WorldPos, float3 WorldDir, uint LightIndex)
 {
 #if SOURCE_DISK_ENABLED
 	float t = RaySphereIntersectNearest(WorldPos, WorldDir, float3(0.0f, 0.0f, 0.0f), Atmosphere.BottomRadius);
-	if (t < 0.0f) // no intersection with the planet
+	if (t < 0.0f												// No intersection with the planet
+		&& View.RenderingReflectionCaptureMask==0.0f)	// Do not render light disk when in reflection capture in order to avoid double specular. The sun contribution is already computed analyticaly.
 	{
 		float3 LightDiskLuminance = GetLightDiskLuminance(
 			WorldPos, WorldDir, Atmosphere.BottomRadius, Atmosphere.TopRadius,
@@ -370,7 +367,7 @@ float3 GetMultipleScattering(float3 WorlPos, float ViewZenithCosAngle)
 	float2 UV = saturate(float2(ViewZenithCosAngle*0.5f + 0.5f, (length(WorlPos) - Atmosphere.BottomRadius) / (Atmosphere.TopRadius - Atmosphere.BottomRadius)));
 	// We do no apply UV transform to sub range here as it has minimal impact.
 	float3 MultiScatteredLuminance = MultiScatteredLuminanceLutTexture.SampleLevel(MultiScatteredLuminanceLutTextureSampler, UV, 0).rgb;
-	return MultiScatteredLuminance * MULTISCATTERING_STORE_SCALE_INV;
+	return MultiScatteredLuminance;
 }
 
 
@@ -1011,7 +1008,7 @@ void RenderMultiScatteredLuminanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
 
 	// MultipleScatteringFactor can be applied here because the LUT is compute every frame
 	// L is pre-exposed since InScatteredLuminance is computed from pre-exposed sun light. So multi-scattering contribution is pre-exposed.
-	MultiScatteredLuminanceLutUAV[int2(PixPos)] = L * Atmosphere.MultiScatteringFactor * MULTISCATTERING_STORE_SCALE;
+	MultiScatteredLuminanceLutUAV[int2(PixPos)] = L * Atmosphere.MultiScatteringFactor;
 }
 
 

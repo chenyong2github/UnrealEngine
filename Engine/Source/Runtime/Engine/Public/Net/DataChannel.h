@@ -50,7 +50,7 @@ private:
 		static bool bInitialized = false;
 		if (!bInitialized)
 		{
-			for (int32 i = 0; i < ARRAY_COUNT(Names); i++)
+			for (int32 i = 0; i < UE_ARRAY_COUNT(Names); i++)
 			{
 				Names[i] = TEXT("");
 			}

@@ -1191,6 +1191,11 @@ void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FVie
 
 	FoundView->ViewMatrices.HackRemoveTemporalAAProjectionJitter();
 
+	if (CascadeSettings.bFarShadowCascade)
+	{
+		(int32&)FoundView->DrawDynamicFlags |= (int32)EDrawDynamicFlags::FarShadowCascade;
+	}
+
 	// Don't do material texture mip biasing in shadow maps.
 	FoundView->MaterialTextureMipBias = 0;
 
@@ -1223,7 +1228,7 @@ void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FVie
 
 	if (bPreShadow && GPreshadowsForceLowestLOD)
 	{
-		FoundView->DrawDynamicFlags = EDrawDynamicFlags::ForceLowestLOD;
+		(int32&)FoundView->DrawDynamicFlags |= EDrawDynamicFlags::ForceLowestLOD;
 	}
 }
 
@@ -1312,9 +1317,48 @@ void FProjectedShadowInfo::GetShadowTypeNameForDrawEvent(FString& TypeName) cons
 	}
 }
 
+#if WITH_MGPU
+FRHIGPUMask FSceneRenderer::GetGPUMaskForShadow(FProjectedShadowInfo* ProjectedShadowInfo) const
+{
+	// Preshadows are handled separately and check bDepthsCached.
+	if (ProjectedShadowInfo->bPreShadow)
+	{
+		return AllViewsGPUMask;
+	}
+
+	// SDCM_StaticPrimitivesOnly shadows don't update every frame so we need to render
+	// their depths on all possible GPUs.
+	if (ProjectedShadowInfo->CacheMode == SDCM_StaticPrimitivesOnly)
+	{
+		// Cached whole scene shadows shouldn't be view dependent.
+		checkSlow(ProjectedShadowInfo->DependentView == nullptr);
+
+		// Multi-GPU support : Updating on all GPUs may be inefficient for AFR. Work is
+		// wasted for any shadows that re-cache on consecutive frames.
+		return FRHIGPUMask::All();
+	}
+	else
+	{
+		// View dependent shadows only need to render depths on their view's GPUs.
+		if (ProjectedShadowInfo->DependentView != nullptr)
+		{
+			return ProjectedShadowInfo->DependentView->GPUMask;
+		}
+		else
+		{
+			return AllViewsGPUMask;
+		}
+	}
+}
+#endif // WITH_MGPU
+
 void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICmdList)
 {
 	check(RHICmdList.IsOutsideRenderPass());
+
+	// Perform setup work on all GPUs in case any cached shadows are being updated this
+	// frame. We revert to the AllViewsGPUMask for uncached shadows.
+	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
@@ -1393,6 +1437,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 			for (int32 ShadowIndex = 0; ShadowIndex < ParallelShadowPasses.Num(); ShadowIndex++)
 			{
 				FProjectedShadowInfo* ProjectedShadowInfo = ParallelShadowPasses[ShadowIndex];
+				SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
 
 				if (!CurrentLightForDrawEvent || ProjectedShadowInfo->GetLightSceneInfo().Proxy != CurrentLightForDrawEvent)
 				{
@@ -1429,6 +1474,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 			for (int32 ShadowIndex = 0; ShadowIndex < SerialShadowPasses.Num(); ShadowIndex++)
 			{
 				FProjectedShadowInfo* ProjectedShadowInfo = SerialShadowPasses[ShadowIndex];
+				SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
 
 				if (!CurrentLightForDrawEvent || ProjectedShadowInfo->GetLightSceneInfo().Proxy != CurrentLightForDrawEvent)
 				{
@@ -1481,6 +1527,13 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
+	// Perform setup work on all GPUs in case any cached shadows are being updated this
+	// frame. We revert to the AllViewsGPUMask for uncached shadows.
+#if WITH_MGPU
+	ensure(RHICmdList.GetGPUMask() == AllViewsGPUMask);
+#endif
+	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+
 	for (int32 CubemapIndex = 0; CubemapIndex < SortedShadowsForShadowDepthPass.ShadowMapCubemaps.Num(); CubemapIndex++)
 	{
 		const FSortedShadowMapAtlas& ShadowMap = SortedShadowsForShadowDepthPass.ShadowMapCubemaps[CubemapIndex];
@@ -1489,6 +1542,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 		check(ShadowMap.Shadows.Num() == 1);
 		FProjectedShadowInfo* ProjectedShadowInfo = ShadowMap.Shadows[0];
+		SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
 
 		const bool bDoParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
 			GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread() &&
@@ -1569,6 +1623,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 			if (!ProjectedShadowInfo->bDepthsCached)
 			{
+				// Multi-GPU support : Updating on all GPUs may be inefficient for AFR. Work is
+				// wasted for any shadows that re-cache on consecutive frames.
+				SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+
 				const bool bDoParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
 					GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread() &&
 					(ProjectedShadowInfo->IsWholeSceneDirectionalShadow() || CVarParallelShadowsNonWholeScene.GetValueOnRenderThread());
@@ -1625,13 +1683,14 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 			ColorTarget1.TargetableTexture
 		};
 
-		FRHIRenderPassInfo RPInfo(ARRAY_COUNT(RenderTargetArray), RenderTargetArray, ERenderTargetActions::Load_Store);
+		FRHIRenderPassInfo RPInfo(UE_ARRAY_COUNT(RenderTargetArray), RenderTargetArray, ERenderTargetActions::Load_Store);
 		TransitionRenderPassTargets(RHICmdList, RPInfo);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderTranslucencyDepths"));
 		{
 			for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
 			{
 				FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
+				SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
 				ProjectedShadowInfo->RenderTranslucencyDepths(RHICmdList, this);
 			}
 		}
@@ -1675,6 +1734,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 		for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
 		{
 			FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
+			SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
 
 			const bool bDoParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
 				GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread() &&
@@ -1698,23 +1758,23 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 				Uavs[2] = LightPropagationVolume->GetVplListBufferUav();
 				Uavs[3] = LightPropagationVolume->GetVplListHeadBufferUav();
 
-				FRHIRenderPassInfo RPInfo(ARRAY_COUNT(RenderTargets), RenderTargets, ERenderTargetActions::Load_Store);
+				FRHIRenderPassInfo RPInfo(UE_ARRAY_COUNT(RenderTargets), RenderTargets, ERenderTargetActions::Load_Store);
 				RPInfo.DepthStencilRenderTarget.Action = EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil;
 				RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DepthTarget.TargetableTexture;
 				RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
 				// Set starting UAV bind index
-				RPInfo.UAVIndex = ARRAY_COUNT(RenderTargets);
-				RPInfo.NumUAVs = ARRAY_COUNT(Uavs);
+				RPInfo.UAVIndex = UE_ARRAY_COUNT(RenderTargets);
+				RPInfo.NumUAVs = UE_ARRAY_COUNT(Uavs);
 				for (int32 Index = 0; Index < RPInfo.NumUAVs; Index++)
 				{
 					RPInfo.UAVs[Index] = Uavs[Index];
 				}
 
-				InRHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToGfx, Uavs, ARRAY_COUNT(Uavs));
+				InRHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToGfx, Uavs, UE_ARRAY_COUNT(Uavs));
 				InRHICmdList.BeginRenderPass(RPInfo, TEXT("ShadowAtlas"));
 
-				ProjectedShadowInfo->ClearDepth(InRHICmdList, this, ARRAY_COUNT(RenderTargets), RenderTargets, DepthTarget.TargetableTexture, bPerformClear);
+				ProjectedShadowInfo->ClearDepth(InRHICmdList, this, UE_ARRAY_COUNT(RenderTargets), RenderTargets, DepthTarget.TargetableTexture, bPerformClear);
 			};
 
 			{
@@ -1743,7 +1803,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 				FRHIUnorderedAccessView* UavsToReadable[2];
 				UavsToReadable[0] = LightPropagationVolume->GetGvListBufferUav();
 				UavsToReadable[1] = LightPropagationVolume->GetGvListHeadBufferUav();
-				RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, UavsToReadable, ARRAY_COUNT(UavsToReadable));
+				RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, UavsToReadable, UE_ARRAY_COUNT(UavsToReadable));
 			}
 			checkSlow(RHICmdList.IsOutsideRenderPass());
 		}

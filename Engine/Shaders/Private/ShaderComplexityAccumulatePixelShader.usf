@@ -8,7 +8,7 @@
 
 // float3(PS/ShaderBudget, VS/ShaderBudget, overdraw)
 float4 NormalizedComplexity;
-bool bShowQuadOverdraw;
+uint bShowQuadOverdraw;
 
 #include "QuadOverdraw.ush"
 #include "DebugViewModeCommon.ush"

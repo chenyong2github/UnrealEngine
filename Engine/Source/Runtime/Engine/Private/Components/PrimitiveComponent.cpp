@@ -45,6 +45,8 @@
 
 #define LOCTEXT_NAMESPACE "PrimitiveComponent"
 
+CSV_DEFINE_CATEGORY(PrimitiveComponent, false);
+
 //////////////////////////////////////////////////////////////////////////
 // Globals
 
@@ -1952,7 +1954,7 @@ FCollisionShape UPrimitiveComponent::GetCollisionShape(float Inflation) const
 bool UPrimitiveComponent::MoveComponentImpl( const FVector& Delta, const FQuat& NewRotationQuat, bool bSweep, FHitResult* OutHit, EMoveComponentFlags MoveFlags, ETeleportType Teleport)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MoveComponentTime);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(MoveComponentTime);
+	CSV_SCOPED_TIMING_STAT(PrimitiveComponent, MoveComponentTime);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && PERF_MOVECOMPONENT_STATS
 	FScopedMoveCompTimer MoveTimer(this, Delta);
@@ -2894,7 +2896,7 @@ bool UPrimitiveComponent::AreAllCollideableDescendantsRelative(bool bAllowCached
 			if (CurrentComp)
 			{
 				// Is the component not using relative position?
-				if (CurrentComp->bAbsoluteLocation || CurrentComp->bAbsoluteRotation)
+				if (CurrentComp->IsUsingAbsoluteLocation() || CurrentComp->IsUsingAbsoluteRotation())
 				{
 					// Can we possibly collide with the component?
 					UPrimitiveComponent* const CurrentPrimitive = Cast<UPrimitiveComponent>(CurrentComp);

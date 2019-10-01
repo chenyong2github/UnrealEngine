@@ -20,9 +20,8 @@ namespace UnrealBuildTool
 		{
 		}
 
-		public virtual string GetVersionInfo()
+		public virtual void GetVersionInfo(List<string> Lines)
 		{
-			return null;
 		}
 
 		public abstract CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, List<Action> Actions);

@@ -799,27 +799,27 @@ void FSHA1::HMACBuffer(const void* Key, uint32 KeySize, const void* Data, uint64
 
 
 	// Start concatenating/hashing the pads/data etc: Hash(OKeyPad + Hash(IKeyPad + Data))
-	uint8* IKeyPad_Data = new uint8[ARRAY_COUNT(IKeyPad) + DataSize];
+	uint8* IKeyPad_Data = new uint8[UE_ARRAY_COUNT(IKeyPad) + DataSize];
 
-	FMemory::Memcpy(IKeyPad_Data, IKeyPad, ARRAY_COUNT(IKeyPad));
-	FMemory::Memcpy(IKeyPad_Data + ARRAY_COUNT(IKeyPad), Data, DataSize);
+	FMemory::Memcpy(IKeyPad_Data, IKeyPad, UE_ARRAY_COUNT(IKeyPad));
+	FMemory::Memcpy(IKeyPad_Data + UE_ARRAY_COUNT(IKeyPad), Data, DataSize);
 
 
 	uint8 IKeyPad_Data_Hash[HashSize];
 
-	HashBuffer(IKeyPad_Data, ARRAY_COUNT(IKeyPad) + DataSize, IKeyPad_Data_Hash);
+	HashBuffer(IKeyPad_Data, UE_ARRAY_COUNT(IKeyPad) + DataSize, IKeyPad_Data_Hash);
 
 	delete[] IKeyPad_Data;
 
 
-	uint8 OKeyPad_IHash[ARRAY_COUNT(OKeyPad) + HashSize];
+	uint8 OKeyPad_IHash[UE_ARRAY_COUNT(OKeyPad) + HashSize];
 
-	FMemory::Memcpy(OKeyPad_IHash, OKeyPad, ARRAY_COUNT(OKeyPad));
-	FMemory::Memcpy(OKeyPad_IHash + ARRAY_COUNT(OKeyPad), IKeyPad_Data_Hash, HashSize);
+	FMemory::Memcpy(OKeyPad_IHash, OKeyPad, UE_ARRAY_COUNT(OKeyPad));
+	FMemory::Memcpy(OKeyPad_IHash + UE_ARRAY_COUNT(OKeyPad), IKeyPad_Data_Hash, HashSize);
 
 
 	// Output the final hash
-	HashBuffer(OKeyPad_IHash, ARRAY_COUNT(OKeyPad_IHash), OutHash);
+	HashBuffer(OKeyPad_IHash, UE_ARRAY_COUNT(OKeyPad_IHash), OutHash);
 }
 
 

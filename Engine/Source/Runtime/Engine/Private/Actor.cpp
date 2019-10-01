@@ -99,7 +99,7 @@ void AActor::InitializeDefaults()
 
 	CustomTimeDilation = 1.0f;
 
-	Role = ROLE_Authority;
+	SetRole(ROLE_Authority);
 	RemoteRole = ROLE_None;
 	bReplicates = false;
 	NetPriority = 1.0f;
@@ -125,7 +125,7 @@ void AActor::InitializeDefaults()
 	bActorEnableCollision = true;
 	bActorSeamlessTraveled = false;
 	bBlockInput = false;
-	bCanBeDamaged = true;
+	SetCanBeDamaged(true);
 	bFindCameraComponentWhenViewTarget = true;
 	bAllowReceiveTickEventOnDedicatedServer = true;
 	bRelevantForNetworkReplays = true;
@@ -725,9 +725,9 @@ void AActor::PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph)
 	FVector OldScale;
 	if (bHadRoot)
 	{
-		OldRotation = OldRoot->RelativeRotation;
-		OldTranslation = OldRoot->RelativeLocation;
-		OldScale = OldRoot->RelativeScale3D;
+		OldRotation = OldRoot->GetRelativeRotation();
+		OldTranslation = OldRoot->GetRelativeLocation();
+		OldScale = OldRoot->GetRelativeScale3D();
 	}
 
 	Super::PostLoadSubobjects(OuterInstanceGraph);
@@ -737,9 +737,9 @@ void AActor::PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph)
 	if (RootComponent && bHadRoot && OldRoot != RootComponent && OldRoot->IsIn(this))
 	{
 		UE_LOG(LogActor, Log, TEXT("Root component has changed, relocating new root component to old position %s->%s"), *OldRoot->GetFullName(), *GetRootComponent()->GetFullName());
-		GetRootComponent()->RelativeRotation = OldRotation;
-		GetRootComponent()->RelativeLocation = OldTranslation;
-		GetRootComponent()->RelativeScale3D = OldScale;
+		GetRootComponent()->SetRelativeRotation_Direct(OldRotation);
+		GetRootComponent()->SetRelativeLocation_Direct(OldTranslation);
+		GetRootComponent()->SetRelativeScale3D_Direct(OldScale);
 		
 		// Migrate any attachment to the new root
 		if (OldRoot->GetAttachParent())
@@ -759,9 +759,9 @@ void AActor::PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph)
 		}
 
 		// Reset the transform on the old component
-		OldRoot->RelativeRotation = FRotator::ZeroRotator;
-		OldRoot->RelativeLocation = FVector::ZeroVector;
-		OldRoot->RelativeScale3D = FVector(1.0f, 1.0f, 1.0f);
+		OldRoot->SetRelativeRotation_Direct(FRotator::ZeroRotator);
+		OldRoot->SetRelativeLocation_Direct(FVector::ZeroVector);
+		OldRoot->SetRelativeScale3D_Direct(FVector(1.0f, 1.0f, 1.0f));
 	}
 }
 
@@ -969,7 +969,7 @@ UNetConnection* AActor::GetNetConnection() const
 UPlayer* AActor::GetNetOwningPlayer()
 {
 	// We can only replicate RPCs to the owning player
-	if (Role == ROLE_Authority)
+	if (GetLocalRole() == ROLE_Authority)
 	{
 		if (Owner)
 		{
@@ -1049,7 +1049,7 @@ bool AActor::ShouldTickIfViewportsOnly() const
 	return false;
 }
 
-void AActor::PreReplication( IRepChangedPropertyTracker & ChangedPropertyTracker )
+void AActor::PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker)
 {
 	// Attachment replication gets filled in by GatherCurrentMovement(), but in the case of a detached root we need to trigger remote detachment.
 	AttachmentReplication.AttachParent = nullptr;
@@ -1057,10 +1057,10 @@ void AActor::PreReplication( IRepChangedPropertyTracker & ChangedPropertyTracker
 
 	GatherCurrentMovement();
 
-	DOREPLIFETIME_ACTIVE_OVERRIDE( AActor, ReplicatedMovement, bReplicateMovement );
+	DOREPLIFETIME_ACTIVE_OVERRIDE(AActor, ReplicatedMovement, bReplicateMovement);
 
 	// Don't need to replicate AttachmentReplication if the root component replicates, because it already handles it.
-	DOREPLIFETIME_ACTIVE_OVERRIDE( AActor, AttachmentReplication, RootComponent && !RootComponent->GetIsReplicated() );
+	DOREPLIFETIME_ACTIVE_OVERRIDE(AActor, AttachmentReplication, RootComponent && !RootComponent->GetIsReplicated());
 
 	UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>(GetClass());
 	if (BPClass != nullptr)
@@ -1080,7 +1080,8 @@ void AActor::CallPreReplication(UNetDriver* NetDriver)
 
 	// PreReplication is only called on the server, except when we're recording a Client Replay.
 	// In that case we call PreReplication on the locally controlled Character as well.
-	if ((Role == ROLE_Authority) || ((Role == ROLE_AutonomousProxy) && GetWorld()->IsRecordingClientReplay()))
+	const ENetRole LocalRole = GetLocalRole();
+	if ((LocalRole == ROLE_Authority) || ((LocalRole == ROLE_AutonomousProxy) && GetWorld()->IsRecordingClientReplay()))
 	{
 		PreReplication(*ActorChangedPropertyTracker);
 	}
@@ -1296,7 +1297,7 @@ bool AActor::CheckStillInWorld()
 	}
 
 	// Only authority or non-networked actors should be destroyed, otherwise misprediction can destroy something the server is intending to keep alive.
-	if (!(HasAuthority() || Role == ROLE_None))
+	if (!(HasAuthority() || GetLocalRole() == ROLE_None))
 	{
 		return true;
 	}
@@ -1592,6 +1593,7 @@ void AActor::SetOwner(AActor* NewOwner)
 		}
 
 		Owner = NewOwner;
+		// MARK_PROPERTY_DIRTY_BY_NAME(AActor, Owner, this);
 
 		if (Owner != nullptr)
 		{
@@ -1681,9 +1683,9 @@ void AActor::OnRep_AttachmentReplication()
 
 			if (AttachParentComponent)
 			{
-				RootComponent->RelativeLocation = AttachmentReplication.LocationOffset;
-				RootComponent->RelativeRotation = AttachmentReplication.RotationOffset;
-				RootComponent->RelativeScale3D = AttachmentReplication.RelativeScale3D;
+				RootComponent->SetRelativeLocation_Direct(AttachmentReplication.LocationOffset);
+				RootComponent->SetRelativeRotation_Direct(AttachmentReplication.RotationOffset);
+				RootComponent->SetRelativeScale3D_Direct(AttachmentReplication.RelativeScale3D);
 
 				// If we're already attached to the correct Parent and Socket, then the update must be position only.
 				// AttachToComponent would early out in this case.
@@ -1765,10 +1767,11 @@ void AActor::DetachRootComponentFromParent(bool bMaintainWorldPosition)
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		RootComponent->DetachFromParent(bMaintainWorldPosition);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+PRAGMA_ENABLE_DEPRECATION_WARNINGS		
 
 		// Clear AttachmentReplication struct
 		AttachmentReplication = FRepAttachment();
+		// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, AttachmentReplication, this);
 	}
 }
 
@@ -1961,7 +1964,7 @@ bool AActor::IsRelevancyOwnerFor(const AActor* ReplicatedActor, const AActor* Ac
 
 void AActor::ForceNetUpdate()
 {
-	if (Role == ROLE_Authority)
+	if (GetLocalRole() == ROLE_Authority)
 	{
 		// ForceNetUpdate on the game net driver only if we are the authority...
 		UNetDriver* NetDriver = GetNetDriver();
@@ -2222,9 +2225,8 @@ void AActor::TearOff()
 
 	if (NetMode == NM_ListenServer || NetMode == NM_DedicatedServer)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		bTearOff = true;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bTearOff, this);
 		if (UNetDriver* NetDriver = GetNetDriver())
 		{
 			NetDriver->NotifyActorTearOff(this);
@@ -2242,7 +2244,7 @@ void AActor::Reset()
 void AActor::FellOutOfWorld(const UDamageType& dmgType)
 {
 	// Only authority or non-networked actors should be destroyed, otherwise misprediction can destroy something the server is intending to keep alive.
-	if (HasAuthority() || Role == ROLE_None)
+	if (HasAuthority() || GetLocalRole() == ROLE_None)
 	{
 		DisableComponentsSimulatePhysics();
 		SetActorHiddenInGame(true);
@@ -2253,7 +2255,7 @@ void AActor::FellOutOfWorld(const UDamageType& dmgType)
 
 void AActor::MakeNoise(float Loudness, APawn* NoiseInstigator, FVector NoiseLocation, float MaxRange, FName Tag)
 {
-	NoiseInstigator = NoiseInstigator ? NoiseInstigator : Instigator;
+	NoiseInstigator = NoiseInstigator ? NoiseInstigator : GetInstigator();
 	if ((GetNetMode() != NM_Client) && NoiseInstigator)
 	{
 		AActor::MakeNoiseDelegate.Execute(this, Loudness, NoiseInstigator
@@ -2452,7 +2454,7 @@ void AActor::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay
 		if( GetNetMode() != NM_Standalone )
 		{
 			// networking attributes
-			T = FString::Printf(TEXT("ROLE: %i RemoteRole: %i NetNode: %i"), (int32)Role, (int32)RemoteRole, (int32)GetNetMode());
+			T = FString::Printf(TEXT("ROLE: %i RemoteRole: %i NetNode: %i"), (int32)GetLocalRole(), (int32)RemoteRole, (int32)GetNetMode());
 
 			if( GetTearOff() )
 			{
@@ -2503,7 +2505,7 @@ void AActor::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay
 		DisplayDebugManager.DrawString(T);
 	}
 	DisplayDebugManager.DrawString(FString::Printf(TEXT(" Instigator: %s Owner: %s"), 
-		(Instigator ? *Instigator->GetName() : TEXT("None")), (Owner ? *Owner->GetName() : TEXT("None"))));
+		*GetNameSafe(GetInstigator()), *GetNameSafe(Owner)));
 
 	static FName NAME_Animation(TEXT("Animation"));
 	static FName NAME_Bones = FName(TEXT("Bones"));
@@ -2565,7 +2567,7 @@ void AActor::CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult)
 
 		for (UCameraComponent* CameraComponent : Cameras)
 		{
-			if (CameraComponent->bIsActive)
+			if (CameraComponent->IsActive())
 			{
 				CameraComponent->GetCameraView(DeltaTime, OutResult);
 				return;
@@ -2586,7 +2588,7 @@ bool AActor::HasActiveCameraComponent() const
 			const UCameraComponent* CameraComponent = Cast<const UCameraComponent>(Component);
 			if (CameraComponent)
 			{
-				if (CameraComponent->bIsActive)
+				if (CameraComponent->IsActive())
 				{
 					return true;
 				}
@@ -2606,7 +2608,7 @@ bool AActor::HasActivePawnControlCameraComponent() const
 			const UCameraComponent* CameraComponent = Cast<const UCameraComponent>(Component);
 			if (CameraComponent)
 			{
-				if (CameraComponent->bIsActive && CameraComponent->bUsePawnControlRotation)
+				if (CameraComponent->IsActive() && CameraComponent->bUsePawnControlRotation)
 				{
 					return true;
 				}
@@ -2951,14 +2953,14 @@ void AActor::PostSpawnInitialize(FTransform const& UserSpawnTransform, AActor* I
 	CreationTime = (World ? World->GetTimeSeconds() : 0.f);
 
 	// Set network role.
-	check(Role == ROLE_Authority);
+	check(GetLocalRole() == ROLE_Authority);
 	ExchangeNetRoles(bRemoteOwned);
 
 	// Set owner.
 	SetOwner(InOwner);
 
 	// Set instigator
-	Instigator = InInstigator;
+	SetInstigator(InInstigator);
 
 	// Set the actor's world transform if it has a native rootcomponent.
 	USceneComponent* const SceneRootComponent = FixupNativeActorComponents(this);
@@ -3001,7 +3003,7 @@ void AActor::PostSpawnInitialize(FTransform const& UserSpawnTransform, AActor* I
 		{
 			// In the "normal" case we do respect any non-default transform value that the root component may have received from the archetype
 			// that's owned by the native CDO, so the final transform might not always necessarily equate to the passed-in UserSpawnTransform.
-			const FTransform RootTransform(SceneRootComponent->RelativeRotation, SceneRootComponent->RelativeLocation, SceneRootComponent->RelativeScale3D);
+			const FTransform RootTransform(SceneRootComponent->GetRelativeRotation(), SceneRootComponent->GetRelativeLocation(), SceneRootComponent->GetRelativeScale3D());
 			const FTransform FinalRootComponentTransform = RootTransform * UserSpawnTransform;
 			SceneRootComponent->SetWorldTransform(FinalRootComponentTransform);
 		}
@@ -3217,7 +3219,7 @@ void AActor::PostActorConstruction()
 
 void AActor::SetReplicates(bool bInReplicates)
 { 
-	if (Role == ROLE_Authority)
+	if (GetLocalRole() == ROLE_Authority)
 	{
 		const bool bNewlyReplicates = (bReplicates == false && bInReplicates == true);
 	
@@ -3239,6 +3241,8 @@ void AActor::SetReplicates(bool bInReplicates)
 				ForcePropertyCompare();
 			}
 		}
+
+		// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
 	}
 	else
 	{
@@ -3248,7 +3252,7 @@ void AActor::SetReplicates(bool bInReplicates)
 
 void AActor::SetReplicateMovement(bool bInReplicateMovement)
 {
-	bReplicateMovement = bInReplicateMovement;
+	SetReplicatingMovement(bInReplicateMovement);
 }
 
 void AActor::SetAutonomousProxy(const bool bInAutonomousProxy, const bool bAllowForcePropertyCompare)
@@ -3260,7 +3264,9 @@ void AActor::SetAutonomousProxy(const bool bInAutonomousProxy, const bool bAllow
 		RemoteRole = (bInAutonomousProxy ? ROLE_AutonomousProxy : ROLE_SimulatedProxy);
 
 		if (bAllowForcePropertyCompare && RemoteRole != OldRemoteRole)
-		{ 
+		{
+			// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+
 			// We have to do this so the role change above will replicate (turn off shadow state sharing for a frame)
 			// This is because RemoteRole is special since it will change between connections, so we have to special case
 			ForcePropertyCompare();
@@ -3275,6 +3281,8 @@ void AActor::SetAutonomousProxy(const bool bInAutonomousProxy, const bool bAllow
 void AActor::CopyRemoteRoleFrom(const AActor* CopyFromActor)
 {
 	RemoteRole = CopyFromActor->GetRemoteRole();
+	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+
 	if (RemoteRole != ROLE_None)
 	{
 		GetWorld()->AddNetworkActor(this);
@@ -3319,6 +3327,10 @@ void AActor::ExchangeNetRoles(bool bRemoteOwned)
 void AActor::SwapRoles()
 {
 	Swap(Role, RemoteRole);
+
+	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
+
 	ForcePropertyCompare();
 }
 
@@ -3812,16 +3824,16 @@ FVector AActor::GetActorRelativeScale3D() const
 {
 	if (RootComponent)
 	{
-		return RootComponent->RelativeScale3D;
+		return RootComponent->GetRelativeScale3D();
 	}
 	return FVector(1,1,1);
 }
 
 void AActor::SetActorHiddenInGame( bool bNewHidden )
 {
-	if (bHidden != bNewHidden)
+	if (IsHidden() != bNewHidden)
 	{
-		bHidden = bNewHidden;
+		SetHidden(bNewHidden);
 		MarkComponentsRenderStateDirty();
 	}
 }
@@ -3989,8 +4001,10 @@ int32 AActor::GetFunctionCallspace( UFunction* Function, FFrame* Stack )
 		return FunctionCallspace::Local;
 	}
 
+	const ENetRole LocalRole = GetLocalRole();
+
 	// If we are on a client and function is 'skip on client', absorb it
-	FunctionCallspace::Type Callspace = (Role < ROLE_Authority) && Function->HasAllFunctionFlags(FUNC_BlueprintAuthorityOnly) ? FunctionCallspace::Absorbed : FunctionCallspace::Local;
+	FunctionCallspace::Type Callspace = (LocalRole < ROLE_Authority) && Function->HasAllFunctionFlags(FUNC_BlueprintAuthorityOnly) ? FunctionCallspace::Absorbed : FunctionCallspace::Local;
 	
 	if (IsPendingKill())
 	{
@@ -4025,7 +4039,7 @@ int32 AActor::GetFunctionCallspace( UFunction* Function, FFrame* Stack )
 	// Quick reject 2. Has to be a network game to continue
 	if (NetMode == NM_Standalone)
 	{
-		if (Role < ROLE_Authority && (Function->FunctionFlags & FUNC_NetServer))
+		if (LocalRole < ROLE_Authority && (Function->FunctionFlags & FUNC_NetServer))
 		{
 			// Don't let clients call server functions (in edge cases where NetMode is standalone (net driver is null))
 			DEBUG_CALLSPACE(TEXT("GetFunctionCallspace No Authority Server Call Absorbed: %s"), *Function->GetName());
@@ -4096,7 +4110,7 @@ int32 AActor::GetFunctionCallspace( UFunction* Function, FFrame* Stack )
 	}
 
 	// Check if the actor can potentially call remote functions	
-	if (Role == ROLE_Authority)
+	if (LocalRole == ROLE_Authority)
 	{
 		UNetConnection* NetConnection = GetNetConnection();
 		if (NetConnection == nullptr)
@@ -4650,7 +4664,7 @@ void AActor::SetLifeSpan( float InLifespan )
 	// Store the new value
 	InitialLifeSpan = InLifespan;
 	// Initialize a timer for the actors lifespan if there is one. Otherwise clear any existing timer
-	if ((Role == ROLE_Authority || GetTearOff()) && !IsPendingKill())
+	if ((GetLocalRole() == ROLE_Authority || GetTearOff()) && !IsPendingKill())
 	{
 		if( InLifespan > 0.0f)
 		{
@@ -4937,6 +4951,47 @@ void AActor::SetLODParent(UPrimitiveComponent* InLODParent, float InParentDrawDi
 		// parent primitive will be null if no LOD parent is selected
 		Component->SetLODParentPrimitive(InLODParent);
 	}
+}
+
+void AActor::SetHidden(bool bInHidden)
+{
+	bHidden = bInHidden;
+	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bHidden, this);
+}
+
+void AActor::SetReplicatingMovement(bool bInReplicateMovement)
+{
+	bReplicateMovement = bInReplicateMovement;
+	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bReplicateMovement, this);
+}
+
+void AActor::SetCanBeDamaged(bool bInCanBeDamaged)
+{
+	bCanBeDamaged = bInCanBeDamaged;
+	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bCanBeDamaged, this);
+}
+
+void AActor::SetRole(ENetRole InRole)
+{
+	Role = InRole;
+	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
+}
+
+FRepMovement& AActor::GetReplicatedMovement_Mutable()
+{
+	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, ReplicatedMovement, this);
+	return ReplicatedMovement;
+}
+
+void AActor::SetReplicatedMovement(const FRepMovement& InReplicatedMovement)
+{
+	GetReplicatedMovement_Mutable() = InReplicatedMovement;
+}
+
+void AActor::SetInstigator(APawn* InInstigator)
+{
+	Instigator = InInstigator;
+	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Instigator, this);
 }
 
 #undef LOCTEXT_NAMESPACE

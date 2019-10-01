@@ -37,9 +37,8 @@ IMPLEMENT_GLOBAL_SHADER(FMitchellNetravaliDownsampleCS, "/Engine/Private/PostPro
 
 FRDGTextureRef ComputeMitchellNetravaliDownsample(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
-	FRDGTextureRef InputTexture,
-	const FIntRect InputViewport,
+	const FViewInfo& View,
+	FScreenPassTexture Input,
 	const FScreenPassTextureViewport OutputViewport)
 {
 	const FRDGTextureDesc OutputTextureDesc = FRDGTextureDesc::Create2DDesc(
@@ -53,24 +52,24 @@ FRDGTextureRef ComputeMitchellNetravaliDownsample(
 	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(OutputTextureDesc, TEXT("MitchelNetravaliDownsampleOutput"));
 
 	FMitchellNetravaliDownsampleCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMitchellNetravaliDownsampleCS::FParameters>();
-	PassParameters->ViewUniformBuffer = ScreenPassView.View.ViewUniformBuffer;
-	PassParameters->Input = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(InputViewport, InputTexture));
-	PassParameters->InputTexture = InputTexture;
+	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+	PassParameters->Input = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(Input));
+	PassParameters->InputTexture = Input.Texture;
 	PassParameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParameters->OutputTexture = GraphBuilder.CreateUAV(OutputTexture);
-	PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, ScreenPassView.View);
+	PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
 
 	// Scale / Bias factor to map the dispatch thread id to the input texture UV.
-	PassParameters->DispatchThreadToInputUVScale.X = InputViewport.Width()  / float(OutputViewport.Rect.Width()  * InputTexture->Desc.Extent.X);
-	PassParameters->DispatchThreadToInputUVScale.Y = InputViewport.Height() / float(OutputViewport.Rect.Height() * InputTexture->Desc.Extent.Y);
-	PassParameters->DispatchThreadToInputUVBias.X = PassParameters->DispatchThreadToInputUVScale.X * (0.5f * InputViewport.Min.X);
-	PassParameters->DispatchThreadToInputUVBias.Y = PassParameters->DispatchThreadToInputUVScale.Y * (0.5f * InputViewport.Min.Y);
+	PassParameters->DispatchThreadToInputUVScale.X = Input.ViewRect.Width()  / float(OutputViewport.Rect.Width()  * Input.Texture->Desc.Extent.X);
+	PassParameters->DispatchThreadToInputUVScale.Y = Input.ViewRect.Height() / float(OutputViewport.Rect.Height() * Input.Texture->Desc.Extent.Y);
+	PassParameters->DispatchThreadToInputUVBias.X = PassParameters->DispatchThreadToInputUVScale.X * (0.5f * Input.ViewRect.Min.X);
+	PassParameters->DispatchThreadToInputUVBias.Y = PassParameters->DispatchThreadToInputUVScale.Y * (0.5f * Input.ViewRect.Min.Y);
 
-	TShaderMapRef<FMitchellNetravaliDownsampleCS> ComputeShader(ScreenPassView.View.ShaderMap);
+	TShaderMapRef<FMitchellNetravaliDownsampleCS> ComputeShader(View.ShaderMap);
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("MitchellNetravaliDownsample %dx%d -> %dx%d", InputViewport.Width(), InputViewport.Height(), OutputViewport.Rect.Width(), OutputViewport.Rect.Height()),
+		RDG_EVENT_NAME("MitchellNetravaliDownsample %dx%d -> %dx%d", Input.ViewRect.Width(), Input.ViewRect.Height(), OutputViewport.Rect.Width(), OutputViewport.Rect.Height()),
 		*ComputeShader,
 		PassParameters,
 		FComputeShaderUtils::GetGroupCount(OutputViewport.Rect.Size(), FComputeShaderUtils::kGolden2DGroupSize));

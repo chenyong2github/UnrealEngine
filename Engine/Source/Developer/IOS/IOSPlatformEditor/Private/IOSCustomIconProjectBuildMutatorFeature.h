@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "ProjectBuildMutatorFeature.h"
+#include "Interfaces/IProjectBuildMutatorFeature.h"
 
-class FIOSCustomIconProjectBuildMutatorFeature : public FProjectBuildMutatorFeature
+class FIOSCustomIconProjectBuildMutatorFeature : public IProjectBuildMutatorFeature
 {
 public:
-
-	virtual bool RequiresProjectBuild(FName InPlatformInfoName) const override;
-
-private:
+	virtual bool RequiresProjectBuild(const FName& InPlatformInfoName, FText& OutReason) const override;
 };

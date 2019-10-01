@@ -182,7 +182,7 @@ APlayerController::APlayerController(const FObjectInitializer& ObjectInitializer
 	if (RootComponent)
 	{
 		// We want to drive rotation with ControlRotation regardless of attachment state.
-		RootComponent->bAbsoluteRotation = true;
+		RootComponent->SetUsingAbsoluteRotation(true);
 	}
 }
 
@@ -709,7 +709,7 @@ void APlayerController::InitInputSystem()
 
 	// add the player to any matinees running so that it gets in on any cinematics already running, etc
 	// (already done on server in PostLogin())
-	if (Role < ROLE_Authority)
+	if (GetLocalRole() < ROLE_Authority)
 	{
 		TArray<AMatineeActor*> AllMatineeActors;
 		World->GetMatineeActors(AllMatineeActors);
@@ -793,7 +793,7 @@ void APlayerController::ClientRestart_Implementation(APawn* NewPawn)
 	GetPawn()->Controller = this;
 	GetPawn()->PawnClientRestart();
 	
-	if (Role < ROLE_Authority)
+	if (GetLocalRole() < ROLE_Authority)
 	{
 		ChangeState( NAME_Playing );
 		if (bAutoManageActiveCameraTarget)
@@ -1123,7 +1123,7 @@ void APlayerController::SpawnDefaultHUD()
 	UE_LOG(LogPlayerController, Verbose, TEXT("SpawnDefaultHUD"));
 	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.Owner = this;
-	SpawnInfo.Instigator = Instigator;
+	SpawnInfo.Instigator = GetInstigator();
 	SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save HUDs into a map
 	MyHUD = GetWorld()->SpawnActor<AHUD>( SpawnInfo );
 }
@@ -1285,7 +1285,7 @@ void APlayerController::OnUnPossess()
 {
 	if (GetPawn() != NULL)
 	{
-		if (Role == ROLE_Authority)
+		if (GetLocalRole() == ROLE_Authority)
 		{
 			GetPawn()->SetReplicates(true);
 		}
@@ -1312,7 +1312,7 @@ void APlayerController::ClientSetHUD_Implementation(TSubclassOf<AHUD> NewHUDClas
 
 	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.Owner = this;
-	SpawnInfo.Instigator = Instigator;
+	SpawnInfo.Instigator = GetInstigator();
 	SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save HUDs into a map
 
 	MyHUD = GetWorld()->SpawnActor<AHUD>(NewHUDClass, SpawnInfo );
@@ -1541,7 +1541,7 @@ void APlayerController::Destroyed()
 	if (GetPawn() != NULL)
 	{
 		// Handle players leaving the game
-		if (Player == NULL && Role == ROLE_Authority)
+		if (Player == NULL && GetLocalRole() == ROLE_Authority)
 		{
 			PawnLeavingGame();
 		}
@@ -2241,7 +2241,7 @@ void APlayerController::PlayerTick( float DeltaTime )
 		
 		if ( IsInState(NAME_Inactive) )
 		{
-			if (Role < ROLE_Authority)
+			if (GetLocalRole() < ROLE_Authority)
 			{
 				SafeServerCheckClientPossession();
 			}
@@ -2250,7 +2250,7 @@ void APlayerController::PlayerTick( float DeltaTime )
 		}
 		else if ( IsInState(NAME_Spectating) )
 		{
-			if (Role < ROLE_Authority)
+			if (GetLocalRole() < ROLE_Authority)
 			{
 				SafeServerUpdateSpectatorState();
 			}
@@ -2664,7 +2664,7 @@ void APlayerController::SpawnPlayerCameraManager()
 	// If no archetype specified, spawn an Engine.PlayerCameraManager.  NOTE all games should specify an archetype.
 	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.Owner = this;
-	SpawnInfo.Instigator = Instigator;
+	SpawnInfo.Instigator = GetInstigator();
 	SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save camera managers into a map
 	if (PlayerCameraManagerClass != NULL)
 	{
@@ -4480,7 +4480,7 @@ void APlayerController::SetPlayer( UPlayer* InPlayer )
 	UpdateStateInputComponents();
 
 #if ENABLE_VISUAL_LOG
-	if (Role == ROLE_Authority && FVisualLogger::Get().IsRecordingOnServer())
+	if (GetLocalRole() == ROLE_Authority && FVisualLogger::Get().IsRecordingOnServer())
 	{
 		OnServerStartedVisualLogger(true);
 	}
@@ -4600,7 +4600,7 @@ void APlayerController::TickActor( float DeltaSeconds, ELevelTick TickType, FAct
 		// force physics update for clients that aren't sending movement updates in a timely manner 
 		// this prevents cheats associated with artificially induced ping spikes
 		// skip updates if pawn lost autonomous proxy role (e.g. TurnOff() call)
-		if (GetPawn() && !GetPawn()->IsPendingKill() && GetPawn()->GetRemoteRole() == ROLE_AutonomousProxy && GetPawn()->bReplicateMovement)
+		if (GetPawn() && !GetPawn()->IsPendingKill() && GetPawn()->GetRemoteRole() == ROLE_AutonomousProxy && GetPawn()->IsReplicatingMovement())
 		{
 			UMovementComponent* PawnMovement = GetPawn()->GetMovementComponent();
 			INetworkPredictionInterface* NetworkPredictionInterface = Cast<INetworkPredictionInterface>(PawnMovement);
@@ -4696,7 +4696,7 @@ void APlayerController::TickActor( float DeltaSeconds, ELevelTick TickType, FAct
 			}
 		}
 	}
-	else if (Role > ROLE_SimulatedProxy)
+	else if (GetLocalRole() > ROLE_SimulatedProxy)
 	{
 		// Process PlayerTick with input.
 		if (!PlayerInput && (Player == nullptr || Cast<ULocalPlayer>( Player ) != nullptr))
@@ -4847,7 +4847,7 @@ void APlayerController::EndPlayingState()
 
 void APlayerController::BeginSpectatingState()
 {
-	if (GetPawn() != NULL && Role == ROLE_Authority && ShouldKeepCurrentPawnUponSpectating() == false)
+	if (GetPawn() != NULL && GetLocalRole() == ROLE_Authority && ShouldKeepCurrentPawnUponSpectating() == false)
 	{
 		UnPossess();
 	}

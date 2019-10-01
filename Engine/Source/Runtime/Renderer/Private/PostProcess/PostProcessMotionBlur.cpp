@@ -4,16 +4,8 @@
 #include "StaticBoundShaderState.h"
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
-#include "SceneUtils.h"
-#include "SceneRenderTargetParameters.h"
-#include "ScenePrivate.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "PostProcess/PostProcessing.h"
-#include "CompositionLighting/PostProcessAmbientOcclusion.h"
-#include "DeferredShadingRenderer.h"
-#include "ClearQuad.h"
-#include "PipelineStateCache.h"
 #include "SpriteIndexBuffer.h"
+#include "PostProcessing.h"
 
 namespace
 {
@@ -435,9 +427,9 @@ struct FMotionBlurViewports
 	FScreenPassTextureViewportTransform ColorToVelocityTileTransform;
 };
 
-void ComputeMotionBlurVelocity(
+void AddMotionBlurVelocityPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	const FMotionBlurViewports& Viewports,
 	FRDGTextureRef ColorTexture,
 	FRDGTextureRef DepthTexture,
@@ -450,8 +442,6 @@ void ComputeMotionBlurVelocity(
 	check(VelocityTexture);
 	check(VelocityFlatTextureOutput);
 	check(VelocityTileTextureOutput);
-
-	const FViewInfo& View = ScreenPassView.View;
 
 	const FIntPoint VelocityTileCount = Viewports.VelocityTile.Extent;
 
@@ -621,7 +611,7 @@ void ComputeMotionBlurVelocity(
 
 FRDGTextureRef AddMotionBlurFilterPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	const FMotionBlurViewports& Viewports,
 	FRDGTextureRef ColorTexture,
 	FRDGTextureRef VelocityFlatTexture,
@@ -635,11 +625,9 @@ FRDGTextureRef AddMotionBlurFilterPass(
 	check(MotionBlurFilterPass != EMotionBlurFilterPass::MAX);
 	check(MotionBlurQuality != EMotionBlurQuality::MAX);
 
-	const FViewInfo& View = ScreenPassView.View;
-
 	const float MotionBlur2ndScale = CVarMotionBlur2ndScale.GetValueOnRenderThread();
 
-	const bool bUseCompute = ScreenPassView.bUseComputePasses;
+	const bool bUseCompute = View.bUseComputePasses;
 
 	const float BlurScaleLUT[static_cast<uint32>(EMotionBlurFilterPass::MAX)][static_cast<uint32>(EMotionBlurQuality::MAX)] =
 	{
@@ -691,7 +679,7 @@ FRDGTextureRef AddMotionBlurFilterPass(
 	OutColorDesc.TargetableFlags |= bUseCompute ? TexCreate_UAV : TexCreate_RenderTargetable;
 	OutColorDesc.Flags |= GFastVRamConfig.MotionBlur;
 	OutColorDesc.AutoWritable = false;
-	OutColorDesc.Format = FPostProcessing::HasAlphaChannelSupport() ? PF_FloatRGBA : PF_FloatRGB;
+	OutColorDesc.Format =  IsPostProcessingWithAlphaChannelSupported() ? PF_FloatRGBA : PF_FloatRGB;
 
 	FRDGTextureRef ColorTextureOutput = GraphBuilder.CreateTexture(OutColorDesc, TEXT("MotionBlur"));
 
@@ -717,18 +705,19 @@ FRDGTextureRef AddMotionBlurFilterPass(
 	{
 		FMotionBlurFilterPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMotionBlurFilterPS::FParameters>();
 		PassParameters->Filter = MotionBlurFilterParameters;
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(ColorTextureOutput, ERenderTargetLoadAction::ENoAction);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(ColorTextureOutput, View.GetOverwriteLoadAction());
 
 		TShaderMapRef<FMotionBlurFilterPS> PixelShader(View.ShaderMap, PermutationVector);
 
 		AddDrawScreenPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Motion Blur %dx%d (PS)", Viewports.Color.Rect.Width(), Viewports.Color.Rect.Height()),
-			ScreenPassView,
+			View,
 			Viewports.Color,
 			Viewports.Color,
 			*PixelShader,
-			PassParameters);
+			PassParameters,
+			EScreenPassDrawFlags::AllowHMDHiddenAreaMask);
 	}
 
 	return ColorTextureOutput;
@@ -736,24 +725,25 @@ FRDGTextureRef AddMotionBlurFilterPass(
 
 FRDGTextureRef AddVisualizeMotionBlurPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	FIntRect ColorViewportRect,
 	FIntRect VelocityViewportRect,
 	FRDGTextureRef ColorTexture,
 	FRDGTextureRef DepthTexture,
 	FRDGTextureRef VelocityTexture)
 {
-	const FViewInfo& View = ScreenPassView.View;
-
-	const FScreenPassTextureViewport ColorViewport(ColorViewportRect, ColorTexture);
-	const FScreenPassTextureViewport VelocityViewport(VelocityViewportRect, VelocityTexture);
+	const FScreenPassTextureViewport ColorViewport(ColorTexture, ColorViewportRect);
+	const FScreenPassTextureViewport VelocityViewport(VelocityTexture, VelocityViewportRect);
 	const FMotionBlurViewports Viewports(ColorViewport, VelocityViewport);
 
-	FRDGTextureDesc ColorTextureDesc = ColorTexture->Desc;
-	ColorTextureDesc.TargetableFlags &= ~(TexCreate_RenderTargetable | TexCreate_UAV);
-	ColorTextureDesc.TargetableFlags |= TexCreate_RenderTargetable;
+	FRDGTextureDesc OutputDesc = ColorTexture->Desc;
+	OutputDesc.TargetableFlags &= ~(TexCreate_RenderTargetable | TexCreate_UAV);
+	OutputDesc.TargetableFlags |= TexCreate_RenderTargetable;
 
-	FRDGTextureRef ColorTextureOutput = GraphBuilder.CreateTexture(ColorTextureDesc, TEXT("MotionBlurVisualize"));
+	FScreenPassRenderTarget Output;
+	Output.Texture = GraphBuilder.CreateTexture(OutputDesc, TEXT("MotionBlurVisualize"));
+	Output.ViewRect = ColorViewport.Rect;
+	Output.LoadAction = View.GetOverwriteLoadAction();
 
 	FMotionBlurVisualizePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMotionBlurVisualizePS::FParameters>();
 	PassParameters->WorldToClipPrev = GetPreviousWorldToClipMatrix(View);
@@ -767,72 +757,59 @@ FRDGTextureRef AddVisualizeMotionBlurPass(
 	PassParameters->ColorSampler = GetMotionBlurColorSampler();
 	PassParameters->VelocitySampler = GetMotionBlurVelocitySampler();
 	PassParameters->DepthSampler = GetMotionBlurVelocitySampler();
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(ColorTextureOutput, ERenderTargetLoadAction::ENoAction);
+	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
 	TShaderMapRef<FMotionBlurVisualizePS> PixelShader(View.ShaderMap);
 
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("MotionBlurVisualize"),
-		PassParameters,
-		ERDGPassFlags::Raster,
-		[ScreenPassView, ColorTextureOutput, ColorViewport, PixelShader, PassParameters](FRHICommandListImmediate& RHICmdList)
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, ColorViewport, ColorViewport, *PixelShader, PassParameters);
+
+	Output.LoadAction = ERenderTargetLoadAction::ELoad;
+
+	AddDrawCanvasPass(GraphBuilder, RDG_EVENT_NAME("Overlay"), View, Output,
+		[&View](FCanvas& Canvas)
 	{
-		DrawScreenPass(RHICmdList, ScreenPassView, ColorViewport, ColorViewport, *PixelShader, *PassParameters);
+		float X = 20;
+		float Y = 38;
+		const float YStep = 14;
+		const float ColumnWidth = 200;
 
-		// Draw debug text.
-		{
-			const FViewInfo& LocalView = ScreenPassView.View;
-			const FSceneViewFamily& ViewFamily = *LocalView.Family;
-			FRenderTargetTemp TempRenderTarget(static_cast<FRHITexture2D*>(ColorTextureOutput->GetRHI()), ColorViewport.Extent);
-			FCanvas Canvas(&TempRenderTarget, nullptr, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, LocalView.GetFeatureLevel());
+		FString Line;
 
-			float X = 20;
-			float Y = 38;
-			const float YStep = 14;
-			const float ColumnWidth = 200;
+		Line = FString::Printf(TEXT("Visualize MotionBlur"));
+		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
 
-			FString Line;
+		static const auto MotionBlurDebugVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MotionBlurDebug"));
+		const int32 MotionBlurDebug = MotionBlurDebugVar ? MotionBlurDebugVar->GetValueOnRenderThread() : 0;
 
-			Line = FString::Printf(TEXT("Visualize MotionBlur"));
-			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
+		Line = FString::Printf(TEXT("%d, %d"), View.Family->FrameNumber, MotionBlurDebug);
+		Canvas.DrawShadowedString(X, Y += YStep, TEXT("FrameNo, r.MotionBlurDebug:"), GetStatsFont(), FLinearColor(1, 1, 0));
+		Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
 
-			static const auto MotionBlurDebugVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MotionBlurDebug"));
-			const int32 MotionBlurDebug = MotionBlurDebugVar ? MotionBlurDebugVar->GetValueOnRenderThread() : 0;
+		static const auto VelocityTestVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VelocityTest"));
+		const int32 VelocityTest = VelocityTestVar ? VelocityTestVar->GetValueOnRenderThread() : 0;
 
-			Line = FString::Printf(TEXT("%d, %d"), ViewFamily.FrameNumber, MotionBlurDebug);
-			Canvas.DrawShadowedString(X, Y += YStep, TEXT("FrameNo, r.MotionBlurDebug:"), GetStatsFont(), FLinearColor(1, 1, 0));
-			Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
+		extern bool IsParallelVelocity();
 
-			static const auto VelocityTestVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VelocityTest"));
-			const int32 VelocityTest = VelocityTestVar ? VelocityTestVar->GetValueOnRenderThread() : 0;
+		Line = FString::Printf(TEXT("%d, %d, %d"), View.Family->bWorldIsPaused, VelocityTest, IsParallelVelocity());
+		Canvas.DrawShadowedString(X, Y += YStep, TEXT("Paused, r.VelocityTest, Parallel:"), GetStatsFont(), FLinearColor(1, 1, 0));
+		Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
 
-			extern bool IsParallelVelocity();
+		const FScene* Scene = (const FScene*)View.Family->Scene;
+		const FSceneViewState *SceneViewState = (const FSceneViewState*)View.State;
 
-			Line = FString::Printf(TEXT("%d, %d, %d"), ViewFamily.bWorldIsPaused, VelocityTest, IsParallelVelocity());
-			Canvas.DrawShadowedString(X, Y += YStep, TEXT("Paused, r.VelocityTest, Parallel:"), GetStatsFont(), FLinearColor(1, 1, 0));
-			Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
-
-			const FScene* Scene = (const FScene*)LocalView.Family->Scene;
-			const FSceneViewState *SceneViewState = (const FSceneViewState*)LocalView.State;
-
-			Line = FString::Printf(TEXT("View=%.4x PrevView=%.4x"),
-				LocalView.ViewMatrices.GetViewMatrix().ComputeHash() & 0xffff,
-				LocalView.PrevViewInfo.ViewMatrices.GetViewMatrix().ComputeHash() & 0xffff);
-			Canvas.DrawShadowedString(X, Y += YStep, TEXT("ViewMatrix:"), GetStatsFont(), FLinearColor(1, 1, 0));
-			Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
-
-			const bool bForce = false;
-			const bool bInsideRenderThread = true;
-			Canvas.Flush_RenderThread(RHICmdList, bForce, bInsideRenderThread);
-		}
+		Line = FString::Printf(TEXT("View=%.4x PrevView=%.4x"),
+			View.ViewMatrices.GetViewMatrix().ComputeHash() & 0xffff,
+			View.PrevViewInfo.ViewMatrices.GetViewMatrix().ComputeHash() & 0xffff);
+		Canvas.DrawShadowedString(X, Y += YStep, TEXT("ViewMatrix:"), GetStatsFont(), FLinearColor(1, 1, 0));
+		Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
 	});
 
-	return ColorTextureOutput;
+	return Output.Texture;
 }
 
 FRDGTextureRef AddMotionBlurPass(
 	FRDGBuilder& GraphBuilder,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	FIntRect ColorViewportRect,
 	FIntRect VelocityViewportRect,
 	FRDGTextureRef ColorTexture,
@@ -844,16 +821,16 @@ FRDGTextureRef AddMotionBlurPass(
 	check(VelocityTexture);
 
 	const FMotionBlurViewports Viewports(
-		FScreenPassTextureViewport(ColorViewportRect, ColorTexture),
-		FScreenPassTextureViewport(VelocityViewportRect, VelocityTexture));
+		FScreenPassTextureViewport(ColorTexture, ColorViewportRect),
+		FScreenPassTextureViewport(VelocityTexture, VelocityViewportRect));
 
 	RDG_EVENT_SCOPE(GraphBuilder, "MotionBlur");
 
 	FRDGTextureRef VelocityFlatTexture = nullptr;
 	FRDGTextureRef VelocityTileTexture = nullptr;
-	ComputeMotionBlurVelocity(
+	AddMotionBlurVelocityPass(
 		GraphBuilder,
-		ScreenPassView,
+		View,
 		Viewports,
 		ColorTexture,
 		DepthTexture,
@@ -869,7 +846,7 @@ FRDGTextureRef AddMotionBlurPass(
 	{
 		FRDGTextureRef MotionBlurFilterTexture = AddMotionBlurFilterPass(
 			GraphBuilder,
-			ScreenPassView,
+			View,
 			Viewports,
 			ColorTexture,
 			VelocityFlatTexture,
@@ -879,7 +856,7 @@ FRDGTextureRef AddMotionBlurPass(
 
 		return AddMotionBlurFilterPass(
 			GraphBuilder,
-			ScreenPassView,
+			View,
 			Viewports,
 			MotionBlurFilterTexture,
 			VelocityFlatTexture,
@@ -891,7 +868,7 @@ FRDGTextureRef AddMotionBlurPass(
 	{
 		return AddMotionBlurFilterPass(
 			GraphBuilder,
-			ScreenPassView,
+			View,
 			Viewports,
 			ColorTexture,
 			VelocityFlatTexture,

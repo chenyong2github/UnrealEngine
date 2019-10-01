@@ -45,7 +45,7 @@ static bool RequiresBuild()
 	return false;
 }
 
-bool FIOSCustomIconProjectBuildMutatorFeature ::RequiresProjectBuild(FName InPlatformInfoName) const
+bool FIOSCustomIconProjectBuildMutatorFeature ::RequiresProjectBuild(const FName& InPlatformInfoName, FText& OutReason) const
 {
 	const PlatformInfo::FPlatformInfo* const PlatInfo = PlatformInfo::FindPlatformInfo(InPlatformInfoName);
 	check(PlatInfo);
@@ -57,7 +57,12 @@ bool FIOSCustomIconProjectBuildMutatorFeature ::RequiresProjectBuild(FName InPla
 		{
 			if (InPlatformInfoName.ToString() == TEXT("IOS"))
 			{
-				return RequiresBuild();
+				bool bResult = RequiresBuild();
+				if (bResult)
+				{
+					OutReason = NSLOCTEXT("IOSPlatformEditor", "RequiresBuildDueToCustomIcon", "custom icon for IOS");
+				}
+				return bResult;
 			}
 		}
 	}

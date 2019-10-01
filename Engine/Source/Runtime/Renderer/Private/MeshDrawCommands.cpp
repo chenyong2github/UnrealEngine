@@ -968,7 +968,6 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	{
 		case EMeshPass::TranslucencyStandard: TaskContext.TranslucencyPass = ETranslucencyPass::TPT_StandardTranslucency; break;
 		case EMeshPass::TranslucencyAfterDOF: TaskContext.TranslucencyPass = ETranslucencyPass::TPT_TranslucencyAfterDOF; break;
-		case EMeshPass::TranslucencyUnderWater: TaskContext.TranslucencyPass = ETranslucencyPass::TPT_TranslucencyUnderWater; break;
 		case EMeshPass::TranslucencyAll: TaskContext.TranslucencyPass = ETranslucencyPass::TPT_AllTranslucency; break;
 		case EMeshPass::MobileInverseOpacity: TaskContext.TranslucencyPass = ETranslucencyPass::TPT_StandardTranslucency; break;
 	}

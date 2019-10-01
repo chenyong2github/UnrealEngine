@@ -5,6 +5,8 @@
 #pragma once
 
 #include "ISteamAudioEditorModule.h"
+
+#include "AssetTypeActions_Base.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "PhononScene.h"
 
@@ -39,5 +41,7 @@ namespace SteamAudio
 		TSharedPtr<FBakeIndirectWindow> BakeIndirectWindow;
 		TArray<FName> RegisteredComponentClassNames;
 		FPhononSceneInfo CurrentPhononSceneInfo;
+
+		TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
 	};
 }

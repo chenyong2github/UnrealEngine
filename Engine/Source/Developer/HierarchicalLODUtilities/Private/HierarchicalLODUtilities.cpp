@@ -573,7 +573,7 @@ EClusterGenerationError FHierarchicalLODUtilities::ShouldGenerateCluster(AActor*
 		return EClusterGenerationError::InvalidActor;
 	}
 
-	if (Actor->bHidden)
+	if (Actor->IsHidden())
 	{
 		return EClusterGenerationError::ActorHiddenInGame;
 	}

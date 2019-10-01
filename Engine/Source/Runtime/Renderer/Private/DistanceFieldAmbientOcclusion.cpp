@@ -205,18 +205,18 @@ float TemporalHalton2( int32 Index, int32 Base )
 
 void GetSpacedVectors(uint32 FrameNumber, TArray<FVector, TInlineAllocator<9> >& OutVectors)
 {
-	OutVectors.Empty(ARRAY_COUNT(SpacedVectors9));
+	OutVectors.Empty(UE_ARRAY_COUNT(SpacedVectors9));
 
 	if (GAOSampleSet == 0)
 	{
-		for (int32 i = 0; i < ARRAY_COUNT(SpacedVectors9); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SpacedVectors9); i++)
 		{
 			OutVectors.Add(SpacedVectors9[i]);
 		}
 	}
 	else
 	{
-		for (int32 i = 0; i < ARRAY_COUNT(RelaxedSpacedVectors9); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(RelaxedSpacedVectors9); i++)
 		{
 			OutVectors.Add(RelaxedSpacedVectors9[i]);
 		}
@@ -240,7 +240,7 @@ void GetSpacedVectors(uint32 FrameNumber, TArray<FVector, TInlineAllocator<9> >&
 }
 
 // Cone half angle derived from each cone covering an equal solid angle
-float GAOConeHalfAngle = FMath::Acos(1 - 1.0f / (float)ARRAY_COUNT(SpacedVectors9));
+float GAOConeHalfAngle = FMath::Acos(1 - 1.0f / (float)UE_ARRAY_COUNT(SpacedVectors9));
 
 // Number of AO sample positions along each cone
 // Must match shader code
@@ -407,6 +407,7 @@ void ComputeDistanceFieldNormal(FRHICommandListImmediate& RHICmdList, const TArr
 			uint32 GroupSizeY = FMath::DivideAndRoundUp(View.ViewRect.Size().Y / GAODownsampleFactor, GDistanceFieldAOTileSizeY);
 
 			{
+				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 				SCOPED_DRAW_EVENT(RHICmdList, ComputeNormalCS);
 				TShaderMapRef<FComputeDistanceFieldNormalCS> ComputeShader(View.ShaderMap);
 
@@ -436,6 +437,7 @@ void ComputeDistanceFieldNormal(FRHICommandListImmediate& RHICmdList, const TArr
 			{
 				const FViewInfo& View = Views[ViewIndex];
 
+				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 				SCOPED_DRAW_EVENT(RHICmdList, ComputeNormal);
 
 				RHICmdList.SetViewport(0, 0, 0.0f, View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor, 1.0f);
@@ -497,14 +499,14 @@ void GenerateBestSpacedVectors()
 	{
 		bGenerated = true;
 
-		FVector OriginalSpacedVectors9[ARRAY_COUNT(SpacedVectors9)];
+		FVector OriginalSpacedVectors9[UE_ARRAY_COUNT(SpacedVectors9)];
 
-		for (int32 i = 0; i < ARRAY_COUNT(OriginalSpacedVectors9); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(OriginalSpacedVectors9); i++)
 		{
 			OriginalSpacedVectors9[i] = SpacedVectors9[i];
 		}
 
-		float CosHalfAngle = 1 - 1.0f / (float)ARRAY_COUNT(OriginalSpacedVectors9);
+		float CosHalfAngle = 1 - 1.0f / (float)UE_ARRAY_COUNT(OriginalSpacedVectors9);
 		// Used to prevent self-shadowing on a plane
 		float AngleBias = .03f;
 		float MinAngle = FMath::Acos(CosHalfAngle) + AngleBias;
@@ -513,11 +515,11 @@ void GenerateBestSpacedVectors()
 		// Relaxation iterations by repulsion
 		for (int32 Iteration = 0; Iteration < 10000; Iteration++)
 		{
-			for (int32 i = 0; i < ARRAY_COUNT(OriginalSpacedVectors9); i++)
+			for (int32 i = 0; i < UE_ARRAY_COUNT(OriginalSpacedVectors9); i++)
 			{
 				FVector Force(0.0f, 0.0f, 0.0f);
 
-				for (int32 j = 0; j < ARRAY_COUNT(OriginalSpacedVectors9); j++)
+				for (int32 j = 0; j < UE_ARRAY_COUNT(OriginalSpacedVectors9); j++)
 				{
 					if (i != j)
 					{
@@ -539,7 +541,7 @@ void GenerateBestSpacedVectors()
 			}
 		}
 
-		for (int32 i = 0; i < ARRAY_COUNT(OriginalSpacedVectors9); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(OriginalSpacedVectors9); i++)
 		{
 			UE_LOG(LogDistanceField, Log, TEXT("FVector(%f, %f, %f),"), OriginalSpacedVectors9[i].X, OriginalSpacedVectors9[i].Y, OriginalSpacedVectors9[i].Z);
 		}
@@ -557,7 +559,7 @@ void GenerateBestSpacedVectors()
 		// HemisphereSolidAngle = 2 * PI
 		// ConeSolidAngle = 2 * PI * (1 - cos(ConeHalfAngle))
 		// cos(ConeHalfAngle) = 1 - 1 / NumCones
-		float CosHalfAngle = 1 - 1.0f / (float)ARRAY_COUNT(BestSpacedVectors9);
+		float CosHalfAngle = 1 - 1.0f / (float)UE_ARRAY_COUNT(BestSpacedVectors9);
 		// Prevent self-intersection in sample set
 		float MinAngle = FMath::Acos(CosHalfAngle);
 		float MinZ = FMath::Sin(MinAngle);
@@ -566,9 +568,9 @@ void GenerateBestSpacedVectors()
 		// Super slow random brute force search
 		for (int i = 0; i < 1000000; i++)
 		{
-			FVector CandidateSpacedVectors[ARRAY_COUNT(BestSpacedVectors9)];
+			FVector CandidateSpacedVectors[UE_ARRAY_COUNT(BestSpacedVectors9)];
 
-			for (int j = 0; j < ARRAY_COUNT(CandidateSpacedVectors); j++)
+			for (int j = 0; j < UE_ARRAY_COUNT(CandidateSpacedVectors); j++)
 			{
 				FVector NewSample;
 
@@ -598,7 +600,7 @@ void GenerateBestSpacedVectors()
 
 				bool bIntersects = false;
 
-				for (int j = 0; j < ARRAY_COUNT(CandidateSpacedVectors); j++)
+				for (int j = 0; j < UE_ARRAY_COUNT(CandidateSpacedVectors); j++)
 				{
 					if (FVector::DotProduct(CandidateSpacedVectors[j], NewSample) > CosHalfAngle)
 					{
@@ -614,7 +616,7 @@ void GenerateBestSpacedVectors()
 			{
 				BestCoverage = Coverage;
 
-				for (int j = 0; j < ARRAY_COUNT(CandidateSpacedVectors); j++)
+				for (int j = 0; j < UE_ARRAY_COUNT(CandidateSpacedVectors); j++)
 				{
 					BestSpacedVectors9[j] = CandidateSpacedVectors[j];
 				}
@@ -803,11 +805,12 @@ bool FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 {
 	check(RHICmdList.IsOutsideRenderPass());
 
-	SCOPED_DRAW_EVENT(RHICmdList, RenderDistanceFieldLighting);
-
 	//@todo - support multiple views
 	const FViewInfo& View = Views[0];
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+
+	SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+	SCOPED_DRAW_EVENT(RHICmdList, RenderDistanceFieldLighting);
 
 	if (SupportsDistanceFieldAO(View.GetFeatureLevel(), View.GetShaderPlatform())
 		&& Views.Num() == 1

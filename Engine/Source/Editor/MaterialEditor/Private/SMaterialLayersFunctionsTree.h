@@ -160,6 +160,7 @@ public:
 	TSharedRef<SWidget> CreateThumbnailWidget(EMaterialParameterAssociation InAssociation, int32 InIndex, float InThumbnailSize);
 	void UpdateThumbnailMaterial(TEnumAsByte<EMaterialParameterAssociation> InAssociation, int32 InIndex, bool bAlterBlendIndex = false);
 	FReply OnThumbnailDoubleClick(const FGeometry& Geometry, const FPointerEvent& MouseEvent, EMaterialParameterAssociation InAssociation, int32 InIndex);
+	bool IsOverriddenExpression(class UDEditorParameterValue* Parameter, int32 InIndex);
 protected:
 
 	void ShowSubParameters(TSharedPtr<FSortedParamData> ParentParameter);

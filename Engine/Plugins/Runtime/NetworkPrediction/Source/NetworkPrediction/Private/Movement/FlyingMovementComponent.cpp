@@ -62,25 +62,16 @@ UFlyingMovementComponent::UFlyingMovementComponent()
 //	Core Network Prediction functions
 // ----------------------------------------------------------------------------------------------------------
 
-IReplicationProxy* UFlyingMovementComponent::InstantiateNetworkSimulation()
+INetworkSimulationModel* UFlyingMovementComponent::InstantiateNetworkSimulation()
 {
-	NetworkSim.Reset(new FlyingMovement::FMovementSystem());
-
-#if NETSIM_MODEL_DEBUG
-	FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NetworkSim.Get(), (IFlyingMovementDriver*)this, GetOwner(), TEXT("FlyingPawnMovement"));
-#endif
-	return NetworkSim.Get();
-}
-
-void UFlyingMovementComponent::InitializeForNetworkRole(ENetRole Role)
-{	
-	check(NetworkSim);
-	NetworkSim->InitializeForNetworkRole(Role, GetSimulationInitParameters(Role));
+	auto NewSim = new FlyingMovement::FMovementSystem<0>(this);
+	DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
+	return NewSim;
 }
 
 void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
-	// TEMP! Disable existing CMC if it is activate. Just makes A/B testing eaiser for now.
+	// TEMP! Disable existing CMC if it is activate. Just makes A/B testing easier for now.
 	if (AActor* Owner = GetOwner())
 	{
 		if (UCharacterMovementComponent* OldComp = Owner->FindComponentByClass<UCharacterMovementComponent>())
@@ -91,43 +82,17 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 			}
 		}
 
-		Owner->bReplicateMovement = false;
+		Owner->SetReplicatingMovement(false);
 	}
-
-
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	const ENetRole OwnerRole = GetOwnerRole();
 
-	// -------------------------------------
-	// Tick the network sim
-	// -------------------------------------
-	if (NetworkSim)
+	// Check if we should trip a mispredict. (Note how its not possible to do this inside the Update function!)
+	if (OwnerRole == ROLE_Authority && FlyingMovementCVars::RequestMispredict)
 	{
-		PreTickSimulation(DeltaTime); // Fixme
-
-		// Check if we should trip a mispredict. (Note how its not possible to do this inside the Update function!)
-		if (OwnerRole == ROLE_Authority && FlyingMovementCVars::RequestMispredict)
-		{
-			FlyingMovement::FMovementSystem::ForceMispredict = true;
-			FlyingMovementCVars::RequestMispredict = 0;
-		}
-
-		FlyingMovement::FMovementSystem::FTickParameters Parameters(DeltaTime, GetOwner());;
-
-		// Tick the core network sim, this will consume input and generate new sync state
-		NetworkSim->Tick((IFlyingMovementDriver*)this, Parameters);
-
-		// Client->Server communication
-		if (NetworkSim->ShouldSendServerRPC(OwnerRole, DeltaTime))
-		{
-			// Temp hack to make sure the ServerRPC doesn't get suppressed from bandwidth limiting
-			// (system hasn't been optimized and not mature enough yet to handle gaps in input stream)
-			FScopedBandwidthLimitBypass BandwidthBypass(GetOwner());
-
-			FServerReplicationRPCParameter ProxyParameter(ReplicationProxy_ServerRPC);
-			ServerRecieveClientInput(ProxyParameter);
-		}
+		FlyingMovement::FMovementSimulation::ForceMispredict = true;
+		FlyingMovementCVars::RequestMispredict = 0;
 	}
 }
 
@@ -160,10 +125,10 @@ void UFlyingMovementComponent::PreSimSync(const FlyingMovement::FMoveState& Sync
 	}
 }
 
-void UFlyingMovementComponent::ProduceInput(const FlyingMovement::TSimTime& SimFrameTime, FlyingMovement::FInputCmd& Cmd)
+void UFlyingMovementComponent::ProduceInput(const FNetworkSimTime SimTime, FlyingMovement::FInputCmd& Cmd)
 {
 	// This isn't ideal. It probably makes sense for the component to do all the input binding rather.
-	ProduceInputDelegate.ExecuteIfBound(SimFrameTime, Cmd);
+	ProduceInputDelegate.ExecuteIfBound(SimTime, Cmd);
 }
 
 void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& SyncState)
@@ -174,4 +139,9 @@ void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& S
 FString UFlyingMovementComponent::GetDebugName() const
 {
 	return FString::Printf(TEXT("FlyingMovement. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetName());
+}
+
+const UObject* UFlyingMovementComponent::GetVLogOwner() const
+{
+	return GetOwner();
 }

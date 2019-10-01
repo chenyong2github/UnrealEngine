@@ -306,6 +306,7 @@ UNiagaraDataInterfaceGrid2D::UNiagaraDataInterfaceGrid2D(FObjectInitializer cons
 	, NumCellsX(3)
 	, NumCellsY(3)
 	, CellSize(1.)
+	, NumAttributes(1)
 	, SetGridFromCellSize(false)
 	, WorldBBoxMin(0., 0., 0.)
 	, WorldBBoxSize(100., 100.)
@@ -483,6 +484,7 @@ bool UNiagaraDataInterfaceGrid2D::Equals(const UNiagaraDataInterface* Other) con
 	return 
 		OtherTyped->NumCellsX == NumCellsX &&
 		OtherTyped->NumCellsY == NumCellsY &&
+		OtherTyped->NumAttributes == NumAttributes &&
 		FMath::IsNearlyEqual(OtherTyped->CellSize, CellSize) &&
 		OtherTyped->WorldBBoxMin.Equals(WorldBBoxMin) &&
 		OtherTyped->WorldBBoxSize.Equals(WorldBBoxSize);
@@ -687,6 +689,7 @@ bool UNiagaraDataInterfaceGrid2D::CopyToInternal(UNiagaraDataInterface* Destinat
 
 	OtherTyped->NumCellsX = NumCellsX;
 	OtherTyped->NumCellsY = NumCellsY;
+	OtherTyped->NumAttributes = NumAttributes;
 	OtherTyped->CellSize = CellSize;
 	OtherTyped->SetGridFromCellSize = SetGridFromCellSize;
 	OtherTyped->WorldBBoxMin = WorldBBoxMin;

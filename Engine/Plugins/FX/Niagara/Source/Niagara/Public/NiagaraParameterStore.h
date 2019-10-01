@@ -121,9 +121,10 @@ struct FNiagaraVariableWithOffset : public FNiagaraVariable
 {
 	GENERATED_USTRUCT_BODY()
 
-	FNiagaraVariableWithOffset() : Offset(INDEX_NONE) {}
-	FNiagaraVariableWithOffset(const FNiagaraVariableWithOffset& InRef) : FNiagaraVariable(InRef), Offset(InRef.Offset) {}
-	FNiagaraVariableWithOffset(const FNiagaraVariable& InVariable, int32 InOffset) : FNiagaraVariable(InVariable), Offset(InOffset) {}
+	// Those constructor enforce that there are no data allocated.
+	FORCEINLINE FNiagaraVariableWithOffset() : Offset(INDEX_NONE) {}
+	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariableWithOffset& InRef) : FNiagaraVariable(InRef.GetType(), InRef.GetName()), Offset(InRef.Offset) {}
+	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariable& InVariable, int32 InOffset) : FNiagaraVariable(InVariable.GetType(), InVariable.GetName()), Offset(InOffset) {}
 
 	UPROPERTY()
 	int32 Offset;
@@ -213,7 +214,7 @@ public:
 
 	FORCEINLINE uint32 GetLayoutVersion() const { return LayoutVersion; }
 
-	/** Binds this parameter store to another. During Tick the values of this store will be pushed into all bound stores */
+	/** Binds this parameter store to another, by default if we find no matching parameters we will not maintain a pointer to the store. */
 	void Bind(FNiagaraParameterStore* DestStore);
 	/** Unbinds this store form one it's bound to. */
 	void Unbind(FNiagaraParameterStore* DestStore);
@@ -434,7 +435,10 @@ public:
 				bool bTriggerRebind = false;
 				AddParameter(Param, bInitInterfaces, bTriggerRebind, &Offset);
 				check(Offset != INDEX_NONE);
-				*(T*)(GetParameterData_Internal(Offset)) = InValue;
+				//Until we solve our alignment issues, temporarily just doing a memcpy here.
+				//*(T*)(GetParameterData_Internal(Offset)) = InValue;
+				T* ParamData = reinterpret_cast<T*>(GetParameterData_Internal(Offset));
+				FMemory::Memcpy(ParamData, &InValue, sizeof(T));
 				OnLayoutChange();
 				return true;
 			}

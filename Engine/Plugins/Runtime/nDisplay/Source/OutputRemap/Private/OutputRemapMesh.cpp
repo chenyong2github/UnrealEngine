@@ -20,13 +20,43 @@
 static int VarOutputRemapReloadChangedExtFilesFrame = 0;
 static TAutoConsoleVariable<int32> CVarOutputRemapReloadChangedExtFiles(
 	TEXT("nDisplay.reload.output_remap"),
-	(int) 0, // Disabled by default
+	(int) 0,
 	TEXT("Changed external files reload period for output remap:\n")
 	TEXT("0 : disable\n"),
 	ECVF_RenderThreadSafe
 );
 
 
+namespace ObjMeshStrings
+{
+	static constexpr auto Vertex = TEXT("v ");
+	static constexpr auto UV = TEXT("vt ");
+	static constexpr auto Face = TEXT("f ");
+
+	namespace delims
+	{
+		static constexpr auto Values = TEXT(" ");
+		static constexpr auto Face = TEXT("/");
+	}
+};
+
+
+FOutputRemapMesh::FOutputRemapMesh(const FString& InExtFileName)
+	: NumVertices(0)
+	, NumIndices(0)
+	, NumTriangles(0)
+	, bIsValid(false)
+	, FileName(InExtFileName)
+	, bIsExtFilesReloadEnabled(false)
+	, bForceExtFilesReload(false)
+{
+	CreateMesh();
+}
+
+FOutputRemapMesh::~FOutputRemapMesh()
+{
+	ReleaseMesh();
+}
 
 void FOutputRemapMesh::DrawMesh(FRHICommandList& RHICmdList)
 {
@@ -46,22 +76,9 @@ void FOutputRemapMesh::DrawMesh(FRHICommandList& RHICmdList)
 	}
 }
 
-namespace ObjMeshStrings
-{
-	static constexpr auto Vertex = TEXT("v ");
-	static constexpr auto UV = TEXT("vt ");
-	static constexpr auto Face = TEXT("f ");
-
-	namespace delims
-	{
-		static constexpr auto Values = TEXT(" ");
-		static constexpr auto Face = TEXT("/");
-	}
-};
-
 bool FOutputRemapMesh::FMeshData::CreateFromFile(const FString& FullPathFileName)
 {	
-	//@load from obj file at runtime:
+	// Load from obj file at runtime:
 	if (FPaths::FileExists(FullPathFileName))
 	{
 		TArray<FString> data;
@@ -70,18 +87,20 @@ bool FOutputRemapMesh::FMeshData::CreateFromFile(const FString& FullPathFileName
 			bool bResult = true;
 
 			// Parse each line from config
-			for (auto line : data)
+			for (FString Line : data)
 			{
-				line.TrimStartAndEndInline();
-				if (!ParseLine(line))
+				Line.TrimStartAndEndInline();
+				if (!ParseLine(Line))
 				{
 					// Handle error
 					bResult = false;
 				}
 			}
+
 			return bResult;
 		}
 	}
+
 	return false;
 }
 
@@ -91,49 +110,54 @@ bool FOutputRemapMesh::FMeshData::ParseLine(const FString& Line)
 	{
 		return ExtractVertex(Line);
 	}
-
-	if (Line.StartsWith(ObjMeshStrings::UV))
+	else if (Line.StartsWith(ObjMeshStrings::UV))
 	{
 		return ExtractUV(Line);
 	}
-
-	if (Line.StartsWith(ObjMeshStrings::Face))
+	else if (Line.StartsWith(ObjMeshStrings::Face))
 	{
 		return ExtractFace(Line);
 	}
 
-	//skip
 	return true;
 }
 
 bool FOutputRemapMesh::FMeshData::ExtractVertex(const FString& Line)
 {
 	TArray<FString> Data;
-	if (Line.ParseIntoArray(Data, ObjMeshStrings::delims::Values)==4)
+
+	if (Line.ParseIntoArray(Data, ObjMeshStrings::delims::Values) == 4)
 	{
 		float X = FCString::Atof(*Data[1]);
 		float Y = FCString::Atof(*Data[2]);
 		float Z = FCString::Atof(*Data[3]);
+
 		InVertex.Add(FVector(X, Y, Z));
+
 		return true;
 	}
-	//! handle error
+
 	return false;
 }
+
 bool FOutputRemapMesh::FMeshData::ExtractUV(const FString& Line)
 {
 	TArray<FString> Data;
+
 	if (Line.ParseIntoArray(Data, ObjMeshStrings::delims::Values) == 4)
 	{
 		float U = FCString::Atof(*Data[1]);
 		float V = FCString::Atof(*Data[2]);
 		float W = FCString::Atof(*Data[3]);
+
 		InUV.Add(FVector(U, V, W));
+
 		return true;
 	}
-	//! handle error
+
 	return false;
 }
+
 bool FOutputRemapMesh::FMeshData::ExtractFace(const FString& Line)
 {
 	TArray<FString> Data;
@@ -141,90 +165,94 @@ bool FOutputRemapMesh::FMeshData::ExtractFace(const FString& Line)
 
 	if (Data.Num() > 3)
 	{
-		int IndexBase = Vertex.Num();
-		if (ExtractFaceVertex(Data[1])
-			&& ExtractFaceVertex(Data[2])
-			&& ExtractFaceVertex(Data[3])
-			)
+		TArray<int> FaceIndices;
+		for (int i = 1; i < Data.Num(); ++i)
 		{
-			// Triangle
-			Index.Add(IndexBase + 0);
-			Index.Add(IndexBase + 1);
-			Index.Add(IndexBase + 2);
+			if (ExtractFaceVertex(Data[i]))
+			{				
+				const int IdxC = Vertices.Num() - 1;
 
-			if (Data.Num() > 4)
-			{
-				// Quad face
-				if (!ExtractFaceVertex(Data[4]))
+				if (FaceIndices.Num() > 2)
 				{
-					//! handle error
-					return false;
-				}
+					const int IdxA = FaceIndices[0];
+					const int IdxB = FaceIndices.Last();
 
-				Index.Add(IndexBase + 3);
-				Index.Add(IndexBase + 0);
-				Index.Add(IndexBase + 2);
+					FaceIndices.Add(IdxA);
+					FaceIndices.Add(IdxB);
+					FaceIndices.Add(IdxC);
+				}
+				else
+				{
+					FaceIndices.Add(IdxC);
+				}
 			}
-			return true;
+			else
+			{
+				return false;
+			}
 		}
+
+		Indices.Append(FaceIndices);
+
+		return true;
 	}
-	//! handle error
+
 	return false;
 }
+
 bool FOutputRemapMesh::FMeshData::ExtractFaceVertex(const FString& Line)
 {
 	TArray<FString> Data;
 	if (Line.ParseIntoArray(Data, ObjMeshStrings::delims::Face) > 1)
 	{
-		int InVertexIndex = FCString::Atoi(*Data[0]) - 1;
-		int InUVIndex = FCString::Atoi(*Data[1]) - 1;
+		const int InVertexIndex = FCString::Atoi(*Data[0]) - 1;
+		const int InUVIndex = FCString::Atoi(*Data[1]) - 1;
 
-		Vertex.Add(InVertex[InVertexIndex]);
-		UV.Add(InUV[InUVIndex]);
+		FMeshData::FVertexData VertexData(InVertex[InVertexIndex], InUV[InUVIndex]);
+		Vertices.Add(VertexData);
+		
 		return true;
 	}
 
-	//! handle error
 	return false;
 }
 
 bool FOutputRemapMesh::FMeshData::CreatePassthrough()
 {
-	//@create dummy Passthrough mesh (test purpose)
-	
-	Vertex.Add(FVector(2.6f, 0, 1));
-	Vertex.Add(FVector(2.6f, 0, 2));
-	Vertex.Add(FVector(5.5f, 0, 2));
-	Vertex.Add(FVector(5.5f, 0, 1));
+	Vertices.Add(FMeshData::FVertexData(FVector(2.6f, 1, 0), FVector(0, 1, 0)));
+	Vertices.Add(FMeshData::FVertexData(FVector(2.6f, 2, 0), FVector(0, 0, 0)));
+	Vertices.Add(FMeshData::FVertexData(FVector(5.5f, 2, 0), FVector(1, 0, 0)));
+	Vertices.Add(FMeshData::FVertexData(FVector(5.5f, 1, 0), FVector(1, 1, 0)));
 
-	UV.Add(FVector(0, 1, 0));
-	UV.Add(FVector(0, 0, 0));
-	UV.Add(FVector(1, 0, 0));
-	UV.Add(FVector(1, 1, 0));
+	for (const auto& It : Vertices)
+	{
+		InVertex.Add(It.Pos);
+	}
 
-	Index.Add(0);
-	Index.Add(1);
-	Index.Add(2);
+	Indices.Add(0);
+	Indices.Add(1);
+	Indices.Add(2);
 
-	Index.Add(3);
-	Index.Add(0);
-	Index.Add(2);
+	Indices.Add(3);
+	Indices.Add(0);
+	Indices.Add(2);
 
 	return true;
 }
+
 void FOutputRemapMesh::FMeshData::Normalize()
 {
 	FBox AABBox(FVector(FLT_MAX, FLT_MAX, FLT_MAX), FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX));
 	
-	for (const auto& Pts: Vertex)
+	for (const FVector& It: InVertex)
 	{
-		AABBox.Min.X = FMath::Min(AABBox.Min.X, Pts.X);
-		AABBox.Min.Y = FMath::Min(AABBox.Min.Y, Pts.Y);
-		AABBox.Min.Z = FMath::Min(AABBox.Min.Z, Pts.Z);
+		AABBox.Min.X = FMath::Min(AABBox.Min.X, It.X);
+		AABBox.Min.Y = FMath::Min(AABBox.Min.Y, It.Y);
+		AABBox.Min.Z = FMath::Min(AABBox.Min.Z, It.Z);
 
-		AABBox.Max.X = FMath::Max(AABBox.Max.X, Pts.X);
-		AABBox.Max.Y = FMath::Max(AABBox.Max.Y, Pts.Y);
-		AABBox.Max.Z = FMath::Max(AABBox.Max.Z, Pts.Z);
+		AABBox.Max.X = FMath::Max(AABBox.Max.X, It.X);
+		AABBox.Max.Y = FMath::Max(AABBox.Max.Y, It.Y);
+		AABBox.Max.Z = FMath::Max(AABBox.Max.Z, It.Z);
 	}
 
 	//Normalize
@@ -234,49 +262,69 @@ void FOutputRemapMesh::FMeshData::Normalize()
 		(AABBox.Max.Z - AABBox.Min.Z)
 	);
 
+	// Detect axis aligned plane
+	const bool bHelperSwapYZ = fabs(Size.Y) > fabs(Size.Z);
+	
 	if (Size.X == 0) { Size.X = 1; }
 	if (Size.Y == 0) { Size.Y = 1; }
 	if (Size.Z == 0) { Size.Z = 1; }
 
 	FVector Scale(1/Size.X, 1 / Size.Y, 1 / Size.Z);
 	
-	for (auto& Pts : Vertex)
+	for (auto& It : Vertices)
 	{
-		float X = (Pts.X - AABBox.Min.X) * Scale.X;
-		float Y = (Pts.Y - AABBox.Min.Y) * Scale.Y;
-		float Z = (Pts.Z - AABBox.Min.Z) * Scale.Z;
+		float X = (It.Pos.X - AABBox.Min.X) * Scale.X;
+		float Y = (It.Pos.Y - AABBox.Min.Y) * Scale.Y;
+		float Z = (It.Pos.Z - AABBox.Min.Z) * Scale.Z;
 
-		Pts = FVector(X,Y,Z);
+		if (bHelperSwapYZ)
+		{
+			It.Pos = FVector(X, Y, Z);
+		}
+		else
+		{
+			It.Pos = FVector(X, Z, Y);
+		}
+
+		// Apply axis wrap
+		It.UV.Y = 1 - It.UV.Y;
 	}
 }
+
 void FOutputRemapMesh::FMeshData::RemoveInvisibleFaces()
 {
-	int FacesNum = Index.Num() / 3;
-	for (int Face = 0; Face < FacesNum; Face++)
+	const int FacesNum = Indices.Num() / 3;
+	for (int Face = 0; Face < FacesNum; ++Face)
 	{
-		if (!IsVisibleFace(Face))
+		if (!IsFaceVisible(Face))
 		{
-			Index.RemoveAt(Face * 3, 3, true);
-			Face--;
+			Indices.RemoveAt(Face * 3, 3, false);
 		}
 	}
-}
-bool FOutputRemapMesh::FMeshData::IsVisibleFace(int Face)
-{
-	int idx0 = Index[Face * 3 + 0];
-	int idx1 = Index[Face * 3 + 1];
-	int idx2 = Index[Face * 3 + 2];
 
-	return IsVisibleUV(idx0) && IsVisibleUV(idx1) && IsVisibleUV(idx2);
+	Indices.Shrink();
 }
 
-bool FOutputRemapMesh::FMeshData::IsVisibleUV(int UVIndex)
+bool FOutputRemapMesh::FMeshData::IsFaceVisible(int Face)
 {
-	if (UV[UVIndex].X < 0 || UV[UVIndex].X > 1)
-		return false;
+	const int idx0 = Indices[Face * 3 + 0];
+	const int idx1 = Indices[Face * 3 + 1];
+	const int idx2 = Indices[Face * 3 + 2];
 
-	if (UV[UVIndex].Y < 0 || UV[UVIndex].Y > 1)
+	return IsUVVisible(idx0) && IsUVVisible(idx1) && IsUVVisible(idx2);
+}
+
+bool FOutputRemapMesh::FMeshData::IsUVVisible(int UVIndex)
+{
+	if (Vertices[UVIndex].UV.X < 0 || Vertices[UVIndex].UV.X > 1)
+	{
 		return false;
+	}
+
+	if (Vertices[UVIndex].UV.Y < 0 || Vertices[UVIndex].UV.Y > 1)
+	{
+		return false;
+	}
 
 	return true;
 }
@@ -295,12 +343,11 @@ void FOutputRemapMesh::ReleaseMesh()
 
 void FOutputRemapMesh::CreateMesh()
 {
-
 	FMeshData* Mesh = new FMeshData();
 
 	if (FileName == "Passthrough")
 	{
-		//autogenerate test mesh:
+		// Auto-generate test mesh
 		bIsValid = Mesh->CreatePassthrough();
 	}
 	else
@@ -324,6 +371,7 @@ void FOutputRemapMesh::CreateMesh()
 	else
 	{
 		delete Mesh;
+		Mesh = nullptr;
 	}
 }
 
@@ -346,47 +394,29 @@ void FOutputRemapMesh::ReloadMesh()
 		}
 
 		if(bForceExtFilesReload)
-		{				
+		{
 			// Check for file data is modified
-			FString FullPathFileName = DisplayClusterHelpers::config::GetFullPath(FileName);
-			FDateTime CurrentDateTime = IFileManager::Get().GetAccessTimeStamp(*FullPathFileName);
+			const FString FullPathFileName = DisplayClusterHelpers::config::GetFullPath(FileName);
+			const FDateTime CurrentDateTime = IFileManager::Get().GetAccessTimeStamp(*FullPathFileName);
+
 			if (CurrentDateTime != FileLastAccessDateTime)
 			{
-				//! Add log. Reload file *FullPathFileName
 				ReleaseMesh();
 				CreateMesh();
 			}
 		}
 	}
+
 	bForceExtFilesReload = false;
-}
-
-
-FOutputRemapMesh::FOutputRemapMesh(const FString& InExtFileName)	
-	: bIsValid(false)
-	, FileName(InExtFileName)
-	, bIsExtFilesReloadEnabled(false)
-	, bForceExtFilesReload(false)
-	, NumVertices(0)
-	, NumIndices(0)
-	, NumTriangles(0)
-{
-	CreateMesh();
-}
-
-FOutputRemapMesh::~FOutputRemapMesh()
-{
-	ReleaseMesh();
 }
 
 static void BuildMesh_RenderThread(FOutputRemapMesh& Dst, const FOutputRemapMesh::FMeshData* Mesh)
 {
-	Dst.NumVertices = Mesh->Vertex.Num();
-	Dst.NumTriangles = Mesh->Index.Num() / 3;
-	Dst.NumIndices = Mesh->Index.Num();
+	Dst.NumVertices  = Mesh->Vertices.Num();
+	Dst.NumTriangles = Mesh->Indices.Num() / 3;
+	Dst.NumIndices   = Mesh->Indices.Num();
 
 	check(Dst.NumVertices > 2 && Dst.NumTriangles > 0);
-
 
 	FRHIResourceCreateInfo CreateInfo;
 	Dst.VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * Dst.NumVertices, BUF_Static, CreateInfo);
@@ -396,31 +426,25 @@ static void BuildMesh_RenderThread(FOutputRemapMesh& Dst, const FOutputRemapMesh
 	Dst.IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * Dst.NumIndices, BUF_Static, CreateInfo);
 	void* VoidPtr2 = RHILockIndexBuffer(Dst.IndexBufferRHI, 0, sizeof(uint16) * Dst.NumIndices, RLM_WriteOnly);
 	uint16* pIndices = reinterpret_cast<uint16*>(VoidPtr2);
-
-	//Copy Vertex
+	
+	// Copy vertices
 	int DataIndex = 0;
-	for (auto& It : Mesh->Vertex)
+	for (const FOutputRemapMesh::FMeshData::FVertexData& It : Mesh->Vertices)
 	{
 		FFilterVertex& Vertex = pVertices[DataIndex++];
-		// Remap from to NDC space [0 1] -> [-1 1]
-		Vertex.Position.X = It.X;
-		Vertex.Position.Y = 1-It.Z;
+
+		Vertex.Position.X = It.Pos.X;
+		Vertex.Position.Y = It.Pos.Y;
 		Vertex.Position.Z = 1.0f;
 		Vertex.Position.W = 1.0f;
-	}
 
-	//Copy UV
-	DataIndex = 0;
-	for (auto& It : Mesh->UV)
-	{
-		FFilterVertex& Vertex = pVertices[DataIndex++];		
-		Vertex.UV.X = It.X;
-		Vertex.UV.Y = It.Y;
+		Vertex.UV.X = It.UV.X;
+		Vertex.UV.Y = It.UV.Y;
 	}
-
-	//Copy faces Index
+	
+	// Copy face indices
 	DataIndex = 0;
-	for (auto& It : Mesh->Index)
+	for (const auto& It : Mesh->Indices)
 	{
 		pIndices[DataIndex++] = (uint16)It;
 	}
@@ -428,7 +452,9 @@ static void BuildMesh_RenderThread(FOutputRemapMesh& Dst, const FOutputRemapMesh
 	RHIUnlockVertexBuffer(Dst.VertexBufferRHI);
 	RHIUnlockIndexBuffer(Dst.IndexBufferRHI);
 
-	delete Mesh; // Now free tempropary mesh data
+	// Now free temporary mesh data
+	delete Mesh;
+	Mesh = nullptr;
 }
 
 void FOutputRemapMesh::BuildMesh(const FMeshData* Mesh)

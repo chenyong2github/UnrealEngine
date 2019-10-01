@@ -6,6 +6,7 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
+#include "Containers/BackgroundableTicker.h"
 
 #if WITH_XMPP_JINGLE
 
@@ -17,8 +18,8 @@ class FXmppMessageJingle
 {
 public:
 	FXmppMessageJingle(
-		const buzz::Jid& InFromJid = buzz::Jid(), 
-		const buzz::Jid& InToJid = buzz::Jid(), 
+		const buzz::Jid& InFromJid = buzz::Jid(),
+		const buzz::Jid& InToJid = buzz::Jid(),
 		const std::string& InBody = std::string()
 		)
 		: FromJid(InFromJid)
@@ -185,7 +186,8 @@ protected:
 };
 
 FXmppMessagesJingle::FXmppMessagesJingle(class FXmppConnectionJingle& InConnection)
-	: MessageRcvTask(NULL)
+	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	, MessageRcvTask(NULL)
 	, MessageSendTask(NULL)
 	, NumMessagesReceived(0)
 	, NumMessagesSent(0)

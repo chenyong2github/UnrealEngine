@@ -26,7 +26,6 @@ namespace EMeshPass
 		Velocity,
 		TranslucencyStandard,
 		TranslucencyAfterDOF,
-		TranslucencyUnderWater,
 		TranslucencyAll, /** Drawing all translucency, regardless of separate or standard.  Used when drawing translucency outside of the main renderer, eg FRendererModule::DrawTile. */
 		LightmapDensity,
 		DebugViewMode, /** Any of EDebugViewShaderMode */
@@ -60,7 +59,6 @@ inline const TCHAR* GetMeshPassName(EMeshPass::Type MeshPass)
 	case EMeshPass::Velocity: return TEXT("Velocity");
 	case EMeshPass::TranslucencyStandard: return TEXT("TranslucencyStandard");
 	case EMeshPass::TranslucencyAfterDOF: return TEXT("TranslucencyAfterDOF");
-	case EMeshPass::TranslucencyUnderWater: return TEXT("TranslucencyUnderWater");
 	case EMeshPass::TranslucencyAll: return TEXT("TranslucencyAll");
 	case EMeshPass::LightmapDensity: return TEXT("LightmapDensity");
 	case EMeshPass::DebugViewMode: return TEXT("DebugViewMode");
@@ -341,6 +339,7 @@ public:
 	void SetOnCommandList(FRHICommandList& RHICmdList, FBoundShaderStateInput Shaders, class FShaderBindingState* StateCacheShaderBindings) const;
 
 	void SetOnCommandListForCompute(FRHICommandList& RHICmdList, FRHIComputeShader* Shader) const;
+	void SetOnCommandListForCompute(FRHIAsyncComputeCommandList& RHICmdList, FRHIComputeShader* Shader) const;
 
 #if RHI_RAYTRACING
 	void SetRayTracingShaderBindingsForHitGroup(FRHICommandList& RHICmdList, FRHIRayTracingScene* Scene, uint32 InstanceIndex, uint32 SegmentIndex, FRayTracingPipelineState* Pipeline, uint32 HitGroupIndex, uint32 ShaderSlot) const;
@@ -392,7 +391,7 @@ private:
 
 		Size = InSize;
 
-		if (InSize > ARRAY_COUNT(InlineStorage))
+		if (InSize > UE_ARRAY_COUNT(InlineStorage))
 		{
 			HeapData = new uint8[InSize];
 		}
@@ -410,28 +409,28 @@ private:
 
 	uint8* GetData()
 	{
-		return Size <= ARRAY_COUNT(InlineStorage) ? &InlineStorage[0] : HeapData;
+		return Size <= UE_ARRAY_COUNT(InlineStorage) ? &InlineStorage[0] : HeapData;
 	}
 
 	const uint8* GetData() const
 	{
-		return Size <= ARRAY_COUNT(InlineStorage) ? &InlineStorage[0] : HeapData;
+		return Size <= UE_ARRAY_COUNT(InlineStorage) ? &InlineStorage[0] : HeapData;
 	}
 
 	RENDERER_API void CopyFrom(const FMeshDrawShaderBindings& Other);
 
 	RENDERER_API void Release();
 
-	template<class RHIShaderType>
+	template<class RHICmdListType, class RHIShaderType>
 	static void SetShaderBindings(
-		FRHICommandList& RHICmdList,
+		RHICmdListType& RHICmdList,
 		RHIShaderType Shader,
 		const class FReadOnlyMeshDrawSingleShaderBindings& RESTRICT SingleShaderBindings,
 		FShaderBindingState& RESTRICT ShaderBindingState);
 
-	template<class RHIShaderType>
+	template<class RHICmdListType, class RHIShaderType>
 	static void SetShaderBindings(
-		FRHICommandList& RHICmdList,
+		RHICmdListType& RHICmdList,
 		RHIShaderType Shader,
 		const class FReadOnlyMeshDrawSingleShaderBindings& RESTRICT SingleShaderBindings);
 };

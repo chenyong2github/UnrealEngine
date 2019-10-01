@@ -61,7 +61,7 @@ void TDrawEvent<TRHICmdList>::Start(TRHICmdList& InRHICmdList, FColor Color, con
 		va_start(ptr, Fmt);
 		TCHAR TempStr[256];
 		// Build the string in the temp buffer
-		FCString::GetVarArgs(TempStr, ARRAY_COUNT(TempStr), Fmt, ptr);
+		FCString::GetVarArgs(TempStr, UE_ARRAY_COUNT(TempStr), Fmt, ptr);
 		InRHICmdList.PushEvent(TempStr, Color);
 		RHICmdList = &InRHICmdList;
 		va_end(ptr);
@@ -89,7 +89,7 @@ void FDrawEventRHIExecute::Start(IRHIComputeContext& InRHICommandContext, FColor
 		va_start(ptr, Fmt);
 		TCHAR TempStr[256];
 		// Build the string in the temp buffer
-		FCString::GetVarArgs(TempStr, ARRAY_COUNT(TempStr), Fmt, ptr);
+		FCString::GetVarArgs(TempStr, UE_ARRAY_COUNT(TempStr), Fmt, ptr);
 		RHICommandContext = &InRHICommandContext;
 		RHICommandContext->RHIPushEvent(TempStr, Color);
 		va_end(ptr);
@@ -163,7 +163,9 @@ public:
 		//QUICK_SCOPE_CYCLE_COUNTER(STAT_SceneUtils_GatherQueryResults);
 
 		// Get the query results which are still outstanding
+#if TRACING_PROFILER
 		check(GFrameNumberRenderThread != FrameNumber);
+#endif
 		check(StartQuery.IsValid() && EndQuery.IsValid());
 
 		if (StartResultMicroseconds == InvalidQueryResult)

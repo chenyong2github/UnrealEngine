@@ -548,6 +548,10 @@ public:
 				int64 ReadSize = Entry->Size;
 				int64 ReadOffset = LibraryCodeOffset + Entry->Offset;
 				Entry->LoadedCode.SetNumUninitialized(ReadSize);
+				
+				INC_DWORD_STAT_BY_FName(GetMemoryStatType((EShaderFrequency)Entry->Frequency).GetName(), ReadSize);
+				INC_DWORD_STAT_BY(STAT_Shaders_ShaderResourceMemory, sizeof(FShaderCodeEntry) + ReadSize);
+				
 				EAsyncIOPriorityAndFlags IOPriority = bHiPriSync ? AIOP_CriticalPath : (EAsyncIOPriorityAndFlags)GShaderCodeLibraryAsyncLoadingPriority;
 				LocalReadRequest = MakeShareable(LibraryAsyncFileHandle->ReadRequest(ReadOffset, ReadSize, IOPriority, nullptr, Entry->LoadedCode.GetData()));
 
@@ -598,6 +602,7 @@ public:
 #if DO_CHECK
 		Entry->bReadCompleted = 1;
 #endif
+		
 		return true;
 	}
 
@@ -611,6 +616,9 @@ public:
 			Entry->NumRefs--;
 			if (Entry->NumRefs == 0)
 			{
+				DEC_DWORD_STAT_BY_FName(GetMemoryStatType((EShaderFrequency)Entry->Frequency).GetName(), Entry->LoadedCode.Num());
+				DEC_DWORD_STAT_BY(STAT_Shaders_ShaderResourceMemory, sizeof(FShaderCodeEntry) + Entry->LoadedCode.Num());
+			
 				// should not attempt to release shader code while it's loading
 				check(Entry->ReadRequest.IsValid() == false);
 
@@ -2149,8 +2157,6 @@ static void FShaderCodeLibraryPluginMountedCallback(IPlugin& Plugin)
 
 void FShaderCodeLibrary::InitForRuntime(EShaderPlatform ShaderPlatform)
 {
-	check(FPlatformProperties::RequiresCookedData());
-
 	if (FShaderCodeLibraryImpl::Impl != nullptr)
 	{
 		//cooked, can't change shader platform on the fly
@@ -2277,7 +2283,7 @@ void FShaderCodeLibrary::LazyReleaseShaderCode(const FSHAHash& Hash)
 FVertexShaderRHIRef FShaderCodeLibrary::CreateVertexShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code)
 {
 	FVertexShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Shader = FShaderCodeLibraryImpl::Impl->CreateVertexShader(Platform, Hash);
 	}
@@ -2292,7 +2298,7 @@ FVertexShaderRHIRef FShaderCodeLibrary::CreateVertexShader(EShaderPlatform Platf
 FPixelShaderRHIRef FShaderCodeLibrary::CreatePixelShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code)
 {
 	FPixelShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Shader = FShaderCodeLibraryImpl::Impl->CreatePixelShader(Platform, Hash);
 	}
@@ -2307,7 +2313,7 @@ FPixelShaderRHIRef FShaderCodeLibrary::CreatePixelShader(EShaderPlatform Platfor
 FGeometryShaderRHIRef FShaderCodeLibrary::CreateGeometryShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code)
 {
 	FGeometryShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Shader = FShaderCodeLibraryImpl::Impl->CreateGeometryShader(Platform, Hash);
 	}
@@ -2322,7 +2328,7 @@ FGeometryShaderRHIRef FShaderCodeLibrary::CreateGeometryShader(EShaderPlatform P
 FHullShaderRHIRef FShaderCodeLibrary::CreateHullShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code)
 {
 	FHullShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Shader = FShaderCodeLibraryImpl::Impl->CreateHullShader(Platform, Hash);
 	}
@@ -2337,7 +2343,7 @@ FHullShaderRHIRef FShaderCodeLibrary::CreateHullShader(EShaderPlatform Platform,
 FDomainShaderRHIRef FShaderCodeLibrary::CreateDomainShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code)
 {
 	FDomainShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Shader = FShaderCodeLibraryImpl::Impl->CreateDomainShader(Platform, Hash);
 	}
@@ -2352,7 +2358,7 @@ FDomainShaderRHIRef FShaderCodeLibrary::CreateDomainShader(EShaderPlatform Platf
 FComputeShaderRHIRef FShaderCodeLibrary::CreateComputeShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code)
 {
 	FComputeShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Shader = FShaderCodeLibraryImpl::Impl->CreateComputeShader(Platform, Hash);
 	}
@@ -2369,7 +2375,7 @@ FComputeShaderRHIRef FShaderCodeLibrary::CreateComputeShader(EShaderPlatform Pla
 TRefCountPtr<FRHIShaderLibrary::FShaderLibraryIterator> FShaderCodeLibrary::CreateIterator(void)
 {
 	TRefCountPtr<FRHIShaderLibrary::FShaderLibraryIterator> It;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		It = FShaderCodeLibraryImpl::Impl->CreateIterator();
 	}
@@ -2379,7 +2385,7 @@ TRefCountPtr<FRHIShaderLibrary::FShaderLibraryIterator> FShaderCodeLibrary::Crea
 uint32 FShaderCodeLibrary::GetShaderCount(void)
 {
 	uint32 Num = 0;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Num = FShaderCodeLibraryImpl::Impl->GetShaderCount();
 	}
@@ -2389,7 +2395,7 @@ uint32 FShaderCodeLibrary::GetShaderCount(void)
 TSet<FShaderCodeLibraryPipeline> const* FShaderCodeLibrary::GetShaderPipelines(EShaderPlatform Platform)
 {
 	TSet<FShaderCodeLibraryPipeline> const* Pipelines = nullptr;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Pipelines = FShaderCodeLibraryImpl::Impl->GetShaderPipelines(Platform);
 	}
@@ -2399,7 +2405,7 @@ TSet<FShaderCodeLibraryPipeline> const* FShaderCodeLibrary::GetShaderPipelines(E
 EShaderPlatform FShaderCodeLibrary::GetRuntimeShaderPlatform(void)
 {
 	EShaderPlatform Platform = SP_NumPlatforms;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
+	if (FShaderCodeLibraryImpl::Impl)
 	{
 		Platform = FShaderCodeLibraryImpl::Impl->GetRuntimeShaderPlatform();
 	}

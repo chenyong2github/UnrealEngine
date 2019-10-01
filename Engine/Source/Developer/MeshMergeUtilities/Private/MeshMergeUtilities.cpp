@@ -1116,21 +1116,8 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 
 	TArray<UStaticMeshComponent*> ComponentsToMerge = InComponentsToMerge;
 
-	// Remove anything non-regular or non-spline static mesh components
-	ComponentsToMerge.RemoveAll([](UStaticMeshComponent* Val)
-	{
-		if (Val->GetClass() != UStaticMeshComponent::StaticClass() && !Val->IsA<UInstancedStaticMeshComponent>() && !Val->IsA<USplineMeshComponent>())
-		{
-			return true;
-		}
-
-		if (Val->GetStaticMesh() == nullptr)
-		{
-			return true;
-		}
-
-		return false;
-	});
+	// Remove invalid components
+	ComponentsToMerge.RemoveAll([](UStaticMeshComponent* Val) { return Val->GetStaticMesh() == nullptr; });
 
 	// No actors given as input
 	if (ComponentsToMerge.Num() == 0)
@@ -3096,7 +3083,7 @@ void FMeshMergeUtilities::MergeComponentsToInstances(const TArray<UPrimitiveComp
 					{
 						ActorToCleanUp->Modify();
 						ActorToCleanUp->bIsEditorOnlyActor = true;
-						ActorToCleanUp->bHidden = true;
+						ActorToCleanUp->SetHidden(true);
 						ActorToCleanUp->bHiddenEd = true;
 						ActorToCleanUp->SetIsTemporarilyHiddenInEditor(true);
 					}

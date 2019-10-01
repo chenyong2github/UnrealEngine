@@ -1,0 +1,103 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+
+//#define SceneTexturesStruct DeepShadowPass.SceneTextures
+
+#include "../SceneTexturesCommon.ush"
+#include "HairStrandsDeepShadowCommon.ush"
+#include "../DeferredShadingCommon.ush"
+#include "HairStrandsVisibilityCommon.ush"
+#include "../VelocityCommon.ush"  
+#include "/Engine/Generated/Material.ush"
+#include "/Engine/Generated/VertexFactory.ush"
+
+#define SUPPORT_OPACITY_MASK 0
+#define SUPPORT_MATERIAL_PROPERTY 1
+
+#ifndef HAIR_RENDER_MODE
+#error Undefined hair render mode
+#endif
+
+uint HairVisibilityPass_HairClusterIndex;
+
+void MainVisibility(
+	centroid FVertexFactoryInterpolantsVSToPS Interpolants,
+	in float4 SvPosition	: SV_Position,
+	float4 PixelPosition : TEXCOORD6,
+	centroid in float WorldStrandRadius : TEXCOORD8,
+	const float4 PackedVelocityA : TEXCOORD9,
+	const float4 PackedVelocityC : TEXCOORD12
+	OPTIONAL_IsFrontFace,
+	out uint4  OutColor0	: SV_Target0
+	#if SUPPORT_MATERIAL_PROPERTY
+	, out float4 OutColor1	: SV_Target1
+	, out float4 OutColor2	: SV_Target2
+	, out float2 OutColor3	: SV_Target3
+	#endif
+)
+{
+	ResolvedView = ResolveView();
+
+	#if SUPPORT_OPACITY_MASK
+	{
+		FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
+		FPixelMaterialInputs PixelMaterialInputs;
+		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, bIsFrontFace);
+		clip(GetMaterialMask(PixelMaterialInputs));
+	}
+	#endif
+
+	float Coverage = 1;
+	{
+		const float SceneDepth = ConvertFromDeviceZ(SvPosition.z); // Linear depth in world unit
+		const float PixelRadius = SceneDepth * HairVisibilityPass.MinStrandRadius_Primary; // Not correct but the coverage is not used (we count instead the number of sub-sample covered)
+		const float StrandRealRadius = WorldStrandRadius;
+		Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
+	}
+
+	FVisibilityData VisibilityData;
+#if VF_STRAND_HAIR
+	VisibilityData.Tangent = normalize(Interpolants.TangentToWorld2.xyz);
+	VisibilityData.PrimitiveId = Interpolants.HairPrimitiveId;
+#else
+	VisibilityData.Tangent = float3(0, 0, 1);
+	VisibilityData.PrimitiveId = 0;
+#endif
+	VisibilityData.ClusterId = HairVisibilityPass_HairClusterIndex;
+	VisibilityData.Coverage8bit = To8bitCoverage(Coverage);
+
+
+	half3 BaseColor = 0;
+	float Roughness = 0;
+	float Specular  = 0;
+	float2 EncodedVelocity = 0;
+	#if SUPPORT_MATERIAL_PROPERTY
+	{
+		FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
+		FPixelMaterialInputs PixelMaterialInputs;
+	
+		float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
+		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
+		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
+
+		BaseColor		 = GetMaterialBaseColor(PixelMaterialInputs);
+		Roughness		 = GetMaterialRoughness(PixelMaterialInputs);
+		half  Metallic	 = GetMaterialMetallic(PixelMaterialInputs);
+		Specular		 = GetMaterialSpecular(PixelMaterialInputs);
+		float MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
+
+		VisibilityData.Tangent = mul(normalize(GetMaterialNormalRaw(PixelMaterialInputs)), MaterialParameters.TangentToWorld);
+	}
+	{
+		const float2 Velocity = Calculate2DVelocity(PackedVelocityA, PackedVelocityC);
+		EncodedVelocity = EncodeVelocityToTexture(Velocity);
+	}
+	#endif
+	OutColor0 = EncodeVisibilityData(VisibilityData);
+	OutColor1 = float4(sqrt(BaseColor), Roughness);
+	OutColor2 = float4(Specular,0,0,0);
+	OutColor3 = EncodedVelocity;
+}
+
+

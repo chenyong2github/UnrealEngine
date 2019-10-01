@@ -20,6 +20,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Components.h"
 #include "ContentStreaming.h"
+#include "MeshBatch.h"
 
 /**
  * This is used to deprecate data that has been built with older versions.
@@ -41,8 +42,8 @@ void FMaterialRelevance::SetPrimitiveViewRelevance(FPrimitiveViewRelevance& OutV
 	OutViewRelevance.bMaskedRelevance = bMasked;
 	OutViewRelevance.bOutputsTranslucentVelocityRelevance = bOutputsTranslucentVelocity;
 	OutViewRelevance.bDistortionRelevance = bDistortion;
+	OutViewRelevance.bHairStrandsRelevance = bHairStrands;
 	OutViewRelevance.bSeparateTranslucencyRelevance = bSeparateTranslucency;
-	OutViewRelevance.bUnderWaterTranslucencyRelevance = bUnderWaterTranslucency;
 	OutViewRelevance.bNormalTranslucencyRelevance = bNormalTranslucency;
 	OutViewRelevance.bUsesSceneColorCopy = bUsesSceneColorCopy;
 	OutViewRelevance.bDisableOffscreenRendering = bDisableOffscreenRendering;
@@ -149,14 +150,13 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 		{
 			// Check whether the material can be drawn in the separate translucency pass as per FMaterialResource::IsTranslucencyAfterDOFEnabled and IsMobileSeparateTranslucencyEnabled
 			bool bSupportsSeparateTranclucency = Material->MaterialDomain != MD_UI && Material->MaterialDomain != MD_DeferredDecal;
-			bool bMaterialSeparateTranclucency = bSupportsSeparateTranclucency && (bIsMobile ? Material->bEnableMobileSeparateTranslucency : Material->bEnableSeparateTranslucency);
-			bool bMaterialUnderWaterTranslucency = bSupportsSeparateTranclucency && Material->bEnableRenderUnderWater;
+			bool bMaterialSeparateTranclucency = bSupportsSeparateTranclucency && (bIsMobile ? Material->bEnableMobileSeparateTranslucency : Material->bEnableSeparateTranslucency );
 			
 			MaterialRelevance.bOpaque = !bIsTranslucent;
 			MaterialRelevance.bMasked = IsMasked();
 			MaterialRelevance.bDistortion = MaterialResource->IsDistorted();
+			MaterialRelevance.bHairStrands = IsCompatibleWithHairStrands(MaterialResource, InFeatureLevel);
 			MaterialRelevance.bSeparateTranslucency = bIsTranslucent && bMaterialSeparateTranclucency;
-			MaterialRelevance.bUnderWaterTranslucency = bIsTranslucent && bMaterialUnderWaterTranslucency;
 			MaterialRelevance.bNormalTranslucency = bIsTranslucent && !bMaterialSeparateTranclucency;
 			MaterialRelevance.bDisableDepthTest = bIsTranslucent && Material->bDisableDepthTest;		
 			MaterialRelevance.bUsesSceneColorCopy = bIsTranslucent && MaterialResource->RequiresSceneColorCopy_GameThread();

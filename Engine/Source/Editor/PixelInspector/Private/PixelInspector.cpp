@@ -660,7 +660,7 @@ namespace PixelInspector
 
 	void SPixelInspector::ReadBackRequestData()
 	{
-		for (int RequestIndex = 0; RequestIndex < ARRAY_COUNT(Requests); ++RequestIndex)
+		for (int RequestIndex = 0; RequestIndex < UE_ARRAY_COUNT(Requests); ++RequestIndex)
 		{
 			FPixelInspectorRequest& Request = Requests[RequestIndex];
 			if (Request.RequestComplete == false && Request.RenderingCommandSend == true)

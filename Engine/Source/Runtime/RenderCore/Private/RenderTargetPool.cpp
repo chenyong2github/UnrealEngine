@@ -975,7 +975,7 @@ void FRenderTargetPool::FreeUnusedResource(TRefCountPtr<IPooledRenderTarget>& In
 	{
 		FPooledRenderTarget* Element = PooledRenderTargets[Index];
 
-		if (Element)
+		if (Element && Element->IsFree())
 		{
 			check(!Element->IsSnapshot());
 			AllocationLevelInKB -= ComputeSizeInKB(*Element);

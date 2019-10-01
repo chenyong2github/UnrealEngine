@@ -20,12 +20,15 @@ struct FMeshDrawingRenderState;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
+extern int32 GCacheShaderComplexityShaders;
+
 extern int32 GShaderComplexityBaselineForwardVS;
 extern int32 GShaderComplexityBaselineForwardPS;
 extern int32 GShaderComplexityBaselineForwardUnlitPS;
 extern int32 GShaderComplexityBaselineDeferredVS;
 extern int32 GShaderComplexityBaselineDeferredPS;
 extern int32 GShaderComplexityBaselineDeferredUnlitPS;
+
 
 template <bool bQuadComplexity>
 class TComplexityAccumulatePS : public FDebugViewModePS
@@ -36,7 +39,20 @@ public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		// See FDebugViewModeMaterialProxy::GetFriendlyName()
-		return AllowDebugViewShaderMode(bQuadComplexity ? DVSM_QuadComplexity : DVSM_ShaderComplexity, Parameters.Platform, Parameters.Material->GetFeatureLevel()) && Parameters.Material->GetFriendlyName().Contains(TEXT("ComplexityAccumulate"));
+		if (AllowDebugViewShaderMode(bQuadComplexity ? DVSM_QuadComplexity : DVSM_ShaderComplexity, Parameters.Platform, Parameters.Material->GetFeatureLevel()))
+		{
+			// If it comes from FDebugViewModeMaterialProxy, compile it.
+			if (Parameters.Material->GetFriendlyName().Contains(TEXT("ComplexityAccumulate")))
+			{
+				return true;
+			}
+			// Otherwise we only cache it if this for the shader complexity.
+			else if (GCacheShaderComplexityShaders)
+			{
+				return !FDebugViewModeInterface::AllowFallbackToDefaultMaterial(Parameters.Material) || Parameters.Material->IsDefaultMaterial();
+			}
+		}
+		return false;
 	}
 
 	TComplexityAccumulatePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):

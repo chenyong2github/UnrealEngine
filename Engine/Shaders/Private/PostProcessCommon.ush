@@ -154,13 +154,17 @@ float ComputeVignetteMask(float2 VignetteCircleSpacePos, float Intensity)
 // Scale {-1 to 1} of the viewport space to vignette circle space.
 // Vignette space is scaled such that regardless of viewport aspect ratio, 
 // corners are at the same brightness on a circle.
-float2 VignetteSpace(float2 Pos)
+float2 VignetteSpace(float2 Pos, float AspectRatio)
 {
 	// could be optimized but this computation should be done in the vertex shader (3 or 4 vertices)
-	float Scale = sqrt(2.0) / sqrt(1.0 + (ViewportSize.y * ViewportSize.z) * (ViewportSize.y * ViewportSize.z));
-	return Pos * float2(1.0,  ViewportSize.y * ViewportSize.z) * Scale;
+	float Scale = sqrt(2.0) / sqrt(1.0 + AspectRatio * AspectRatio);
+	return Pos * float2(1.0, AspectRatio) * Scale;
 }
 
+float2 VignetteSpace(float2 Pos)
+{
+	return VignetteSpace(Pos, ViewportSize.x * ViewportSize.z);
+}
 
 // gets 4 nearby SceneDepth values for one UV value, useful for depth downsample, uses Gather() if possible
 float4 GatherSceneDepth(float2 UV, float2 InvBufferSize)

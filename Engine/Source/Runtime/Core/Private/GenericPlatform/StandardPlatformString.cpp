@@ -264,7 +264,7 @@ int32 FStandardPlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, cons
 			Format += GetFormattingInfo(Format, Info);
 
 			WIDECHAR Formatted[1024];
-			int32 Length = ARRAY_COUNT(Formatted);
+			int32 Length = UE_ARRAY_COUNT(Formatted);
 			const WIDECHAR* FormattedArg = GetFormattedArgument(Info, ArgPtr, Formatted, Length);
 			if (FormattedArg && Length > 0)
 			{

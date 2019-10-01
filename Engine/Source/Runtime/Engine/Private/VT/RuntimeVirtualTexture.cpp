@@ -10,6 +10,16 @@
 #include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTextureLevelRedirector.h"
 
+
+/** Device scalability option for runtime virtual texture size. */
+static TAutoConsoleVariable<int32> CVarVTTileCountBias(
+	TEXT("r.VT.RVT.TileCountBias"),
+	0,
+	TEXT("Bias to apply to Runtime Virtual Texture size."),
+	ECVF_RenderThreadSafe
+);
+
+
 namespace
 {
 	/** Null producer to use as placeholder when no producer has been set on a URuntimeVirtualTexture */
@@ -218,23 +228,30 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 	OutDesc.WidthInBlocks = 1;
 	OutDesc.HeightInBlocks = 1;
 
-	// Set width and height to best match the aspect ratio
+	// Apply TileCount modifier here to allow size scalability option
+	const int32 TileCountBias = CVarVTTileCountBias.GetValueOnAnyThread();
+	const int32 MaxSizeInTiles = GetTileCount(TileCount + TileCountBias);
+
+	// Set width and height to best match the runtime virtual texture volume's aspect ratio
 	const FVector VolumeSize = VolumeToWorld.GetScale3D();
-	const float AspectRatio = VolumeSize.X / VolumeSize.Y;
-	int32 Width, Height;
-	if (AspectRatio >= 1.f)
+	const float VolumeSizeX = FMath::Max(FMath::Abs(VolumeSize.X), 0.0001f);
+	const float VolumeSizeY = FMath::Max(FMath::Abs(VolumeSize.Y), 0.0001f);
+	const float AspectRatioLog2 = FMath::Log2(VolumeSizeX / VolumeSizeY);
+
+	uint32 WidthInTiles, HeightInTiles;
+	if (AspectRatioLog2 >= 0.f)
 	{
-		Width = GetSize();
-		Height = FMath::Max((int32)FMath::RoundUpToPowerOfTwo(Width / AspectRatio), GetTileSize());
+		WidthInTiles = MaxSizeInTiles;
+		HeightInTiles = FMath::Max(WidthInTiles >> FMath::RoundToInt(AspectRatioLog2), 1u);
 	}
 	else
 	{
-		Height = GetSize();
-		Width = FMath::Max((int32)FMath::RoundUpToPowerOfTwo(Height * AspectRatio), GetTileSize());
+		HeightInTiles = MaxSizeInTiles;
+		WidthInTiles = FMath::Max(HeightInTiles >> FMath::RoundToInt(-AspectRatioLog2), 1u);
 	}
 
-	OutDesc.BlockWidthInTiles = Width / GetTileSize();
-	OutDesc.BlockHeightInTiles = Height / GetTileSize();
+	OutDesc.BlockWidthInTiles = WidthInTiles;
+	OutDesc.BlockHeightInTiles = HeightInTiles;
 	OutDesc.MaxLevel = FMath::Max((int32)FMath::CeilLogTwo(FMath::Max(OutDesc.BlockWidthInTiles, OutDesc.BlockHeightInTiles)) - GetRemoveLowMips(), 0);
 
 	OutDesc.NumTextureLayers = GetLayerCount();
@@ -258,6 +275,8 @@ int32 URuntimeVirtualTexture::GetLayerCount(ERuntimeVirtualTextureMaterialType I
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:
 		return 2;
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
+		return 3;
 	default:
 		break;
 	}
@@ -283,6 +302,7 @@ EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 			return bCompressTextures ? PF_DXT1 : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:
+		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
 			return bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::WorldHeight:
 			return PF_G16;
@@ -295,12 +315,21 @@ EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 		switch (MaterialType)
 		{
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal:
+		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
 			return bCompressTextures ? PF_BC5 : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:
 			return bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
-		case ERuntimeVirtualTextureMaterialType::BaseColor:
-		case ERuntimeVirtualTextureMaterialType::WorldHeight:
+		default:
+			break;
+		}
+	}
+	else if (LayerIndex == 2)
+	{
+		switch (MaterialType)
+		{
+		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
+			return bCompressTextures ? PF_DXT1 : PF_B8G8R8A8;
 		default:
 			break;
 		}
@@ -321,6 +350,7 @@ bool URuntimeVirtualTexture::IsLayerSRGB(int32 LayerIndex) const
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:
 		// Only BaseColor layer is sRGB
 		return LayerIndex == 0;
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
 	case ERuntimeVirtualTextureMaterialType::WorldHeight:
 		return false;
 	default:
@@ -492,19 +522,22 @@ void URuntimeVirtualTexture::InitializeStreamingTexture(uint32 InSizeX, uint32 I
 	StreamingTexture->BuildHash = GetStreamingTextureBuildHash();
 
 	const int32 LayerCount = GetLayerCount();
+	check(LayerCount <= RuntimeVirtualTexture::MaxTextureLayers);
+	ETextureSourceFormat LayerFormats[RuntimeVirtualTexture::MaxTextureLayers];
+
 	for (int32 Layer = 0; Layer < LayerCount; Layer++)
 	{
 		EPixelFormat LayerFormat = GetLayerFormat(Layer);
+		LayerFormats[Layer] = LayerFormat == PF_G16 ? TSF_G16 : TSF_BGRA8;
 
 		FTextureFormatSettings FormatSettings;
 		FormatSettings.SRGB = IsLayerSRGB(Layer);
-		FormatSettings.CompressionNone = !bCompressTextures;
+		FormatSettings.CompressionNone = LayerFormat == PF_B8G8R8A8 ||LayerFormat == PF_G16;
 		FormatSettings.CompressionNoAlpha = LayerFormat == PF_DXT1 || LayerFormat == PF_BC5;
 		FormatSettings.CompressionSettings = LayerFormat == PF_BC5 ? TC_Normalmap : TC_Default;
 		StreamingTexture->SetLayerFormatSettings(Layer, FormatSettings);
 	}
 
-	const ETextureSourceFormat LayerFormats[] = { TSF_BGRA8, TSF_BGRA8 };
 	StreamingTexture->Source.InitLayered(InSizeX, InSizeY, 1, LayerCount, 1, LayerFormats, InData);
 
 	StreamingTexture->PostEditChange();
@@ -519,9 +552,15 @@ IVirtualTexture* URuntimeVirtualTexture::CreateStreamingTextureProducer(IVirtual
 		FTexturePlatformData** StreamingTextureData = StreamingTexture->GetRunningPlatformData();
 		if (StreamingTextureData != nullptr && *StreamingTextureData != nullptr)
 		{
-			int32 NumStreamMips = FMath::Min(GetStreamLowMips(), (*StreamingTextureData)->GetNumVTMips()); // Min() is a hack while we fix crash due to data breakage
+			FVirtualTextureBuiltData* VTData = (*StreamingTextureData)->VTData;
+			check(GetTileSize() == VTData->TileSize);
+			check(GetTileBorderSize() == VTData->TileBorderSize);
+
+			// Streaming data may have mips removed during cook
+			const int32 NumStreamMips = FMath::Min(GetStreamLowMips(), (*StreamingTextureData)->GetNumVTMips());
+
 			OutTransitionLevel = FMath::Max(InMaxLevel - NumStreamMips + 1, 0);
-			IVirtualTexture* StreamingProducer = new FUploadingVirtualTexture((*StreamingTextureData)->VTData, 0);
+			IVirtualTexture* StreamingProducer = new FUploadingVirtualTexture(VTData, 0);
 			return new FVirtualTextureLevelRedirector(InProducer, StreamingProducer, OutTransitionLevel);
 		}
 	}

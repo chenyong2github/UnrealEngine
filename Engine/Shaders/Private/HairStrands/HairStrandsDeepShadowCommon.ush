@@ -1,0 +1,82 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#define DEBUG_MODE 0
+
+// Layers' depths in clip space
+#define LAYER_DEPTH0 0.01f
+#define LAYER_DEPTH1 0.05f
+#define LAYER_DEPTH2 0.2f
+#define LAYER_DEPTH3 0.5f
+#define LAYER_DEPTH4 1.0f
+
+bool IsDepthCloser(float a, float b)
+{
+	return a < b;
+}
+
+float ComputeDOMWeight(float DistanceToFrontDepth, float LayerDepth)
+{
+    return IsDepthCloser(DistanceToFrontDepth, LayerDepth) ? 1 : 0;
+}
+
+float4 ComputeDOMWeights(float DistanceToFrontDepth)
+{
+	float4 Weigths = 0;
+	Weigths[0] = ComputeDOMWeight(DistanceToFrontDepth, LAYER_DEPTH0);
+	Weigths[1] = ComputeDOMWeight(DistanceToFrontDepth, LAYER_DEPTH1);
+	Weigths[2] = ComputeDOMWeight(DistanceToFrontDepth, LAYER_DEPTH2);
+	Weigths[3] = ComputeDOMWeight(DistanceToFrontDepth, LAYER_DEPTH3);
+	return Weigths;
+}	
+
+float3 HairDebugColor(float DistanceToFrontDepth)
+{
+	float3 color = 0;
+	if (DistanceToFrontDepth < LAYER_DEPTH3) color = float3(0,0,1);
+	if (DistanceToFrontDepth < LAYER_DEPTH2) color = float3(0,1,0);
+	if (DistanceToFrontDepth < LAYER_DEPTH1) color = float3(1,1,0);
+	if (DistanceToFrontDepth < LAYER_DEPTH0) color = float3(1,0,0);
+	return color;
+}
+
+float InterpolateCount(float DepthToFrontDepth, float Layer0Depth, float Layer1Depth)
+{
+	return saturate((DepthToFrontDepth - Layer0Depth) / (Layer1Depth - Layer0Depth));
+}
+
+float ComputeHairCount(float4 DomValue, float DistanceToFrontDepth)
+{
+	float OutCount = 0;
+	
+	if (DistanceToFrontDepth < LAYER_DEPTH0)
+		OutCount = lerp(          0, DomValue[0], InterpolateCount(DistanceToFrontDepth, 0, LAYER_DEPTH0));
+	else if (DistanceToFrontDepth < LAYER_DEPTH1)
+		OutCount = lerp(DomValue[0], DomValue[1], InterpolateCount(DistanceToFrontDepth, LAYER_DEPTH0, LAYER_DEPTH1));
+	else if (DistanceToFrontDepth < LAYER_DEPTH2)
+		OutCount = lerp(DomValue[1], DomValue[2], InterpolateCount(DistanceToFrontDepth, LAYER_DEPTH1, LAYER_DEPTH2));
+	else if (DistanceToFrontDepth < LAYER_DEPTH3)
+		OutCount = lerp(DomValue[2], DomValue[3], InterpolateCount(DistanceToFrontDepth, LAYER_DEPTH2, LAYER_DEPTH3));
+	else 
+		OutCount = DomValue[3];
+	return OutCount;
+}
+
+float GetDomDistanceToFrontDepth(float FrontDepth, float LightSpaceZ)
+{
+#if HAS_INVERTED_Z_BUFFER
+	return max(0.0f, FrontDepth - LightSpaceZ);
+#else
+	return max(0.0f, LightSpaceZ - FrontDepth);
+#endif
+}
+
+float GetDomDistanceToFrontDepthWithBias(float FrontDepth, float LightSpaceZ, float DepthBias)
+{
+#if HAS_INVERTED_Z_BUFFER
+	return max(0.0f, FrontDepth - LightSpaceZ - DepthBias);
+#else
+	return max(0.0f, LightSpaceZ - FrontDepth - DepthBias);
+#endif
+}

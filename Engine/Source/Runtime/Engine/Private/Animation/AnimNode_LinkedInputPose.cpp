@@ -1,0 +1,84 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "Animation/AnimNode_LinkedInputPose.h"
+#include "Animation/AnimInstanceProxy.h"
+
+const FName FAnimNode_LinkedInputPose::DefaultInputPoseName("InPose");
+
+// Note not calling through Initialize or CacheBones here.
+// This is handled in the owning LinkedAnimGraph node. This is because not all input poses may be linked in a
+// particular linked graph, so to avoid mismatches in initialization and bone references we make sure that all
+// branches of the tree are taken when initializing and caching bones.
+
+#if ENABLE_ANIMGRAPH_TRAVERSAL_DEBUG
+void FAnimNode_LinkedInputPose::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+{
+	// Make sure to sync input pose debug counters as we still use this pose link in Update/Evaluate etc.
+	InputPose.InitializationCounter.SynchronizeWith(Context.AnimInstanceProxy->GetInitializationCounter());
+}
+
+void FAnimNode_LinkedInputPose::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
+{
+	// Make sure to sync input pose debug counters as we still use this pose link in Update/Evaluate etc.
+	InputPose.CachedBonesCounter.SynchronizeWith(Context.AnimInstanceProxy->GetCachedBonesCounter());
+}
+#endif
+
+void FAnimNode_LinkedInputPose::Update_AnyThread(const FAnimationUpdateContext& Context)
+{
+	if(InputProxy)
+	{
+		FAnimationUpdateContext InputContext = Context.WithOtherProxy(InputProxy);
+		InputPose.Update(InputContext);
+	}
+}
+
+void FAnimNode_LinkedInputPose::Evaluate_AnyThread(FPoseContext& Output)
+{
+	if(InputProxy)
+	{
+		Output.Pose.SetBoneContainer(&InputProxy->GetRequiredBones());
+
+		FPoseContext InputContext(InputProxy, Output.ExpectsAdditivePose());
+		InputPose.Evaluate(InputContext);
+
+		Output.Pose.MoveBonesFrom(InputContext.Pose);
+		Output.Curve.MoveFrom(InputContext.Curve);
+	}
+	else if(CachedInputPose.IsValid() && CachedInputCurve.IsValid())
+	{
+		Output.Pose.CopyBonesFrom(CachedInputPose);
+		Output.Curve.CopyFrom(CachedInputCurve);
+	}
+	else
+	{
+		Output.ResetToRefPose();
+	}
+}
+
+void FAnimNode_LinkedInputPose::GatherDebugData(FNodeDebugData& DebugData)
+{
+	FString DebugLine = DebugData.GetNodeName(this);
+	DebugData.AddDebugItem(DebugLine);
+
+	if(InputProxy)
+	{
+		InputPose.GatherDebugData(DebugData);
+	}
+}
+
+void FAnimNode_LinkedInputPose::DynamicLink(FAnimInstanceProxy* InInputProxy, FPoseLinkBase* InPoseLink)
+{
+	check(InputProxy == nullptr);			// Must be unlinked before re-linking
+
+	InputProxy = InInputProxy;
+	InputPose.SetDynamicLinkNode(InPoseLink);
+}
+
+void FAnimNode_LinkedInputPose::DynamicUnlink()
+{
+	check(InputProxy != nullptr);			// Must be linked before unlinking
+
+	InputProxy = nullptr;
+	InputPose.SetDynamicLinkNode(nullptr);
+}

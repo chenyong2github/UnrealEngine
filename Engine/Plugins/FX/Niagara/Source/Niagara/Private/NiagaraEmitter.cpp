@@ -110,6 +110,7 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 , MaxUpdateIterations(1)
 , bLimitDeltaTime(true)
 #if WITH_EDITORONLY_DATA
+, bBakeOutRapidIteration(true)
 , ThumbnailImageOutOfDate(true)
 #endif
 {
@@ -137,8 +138,6 @@ void UNiagaraEmitter::PostInitProperties()
 
 	}
 	UniqueEmitterName = TEXT("Emitter");
-
-	GenerateStatID();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -784,6 +783,8 @@ void UNiagaraEmitter::OnPostCompile()
 	}
 
 	OnEmitterVMCompiled().Broadcast(this);
+
+	InitFastPathAttributeNames();
 }
 
 UNiagaraEmitter* UNiagaraEmitter::MakeRecursiveDeepCopy(UObject* DestOuter) const
@@ -1020,6 +1021,19 @@ bool UNiagaraEmitter::SetUniqueEmitterName(const FString& InName)
 	return false;
 }
 
+TArray<UNiagaraRendererProperties*> UNiagaraEmitter::GetEnabledRenderers() const
+{
+	TArray<UNiagaraRendererProperties*> Renderers;
+	for (UNiagaraRendererProperties* Renderer : RendererProperties)
+	{
+		if (Renderer && Renderer->GetIsEnabled() && Renderer->IsSimTargetSupported(this->SimTarget))
+		{
+			Renderers.Add(Renderer);
+		}
+	}
+	return Renderers;
+}
+
 void UNiagaraEmitter::AddRenderer(UNiagaraRendererProperties* Renderer)
 {
 	Modify();
@@ -1131,41 +1145,49 @@ void UNiagaraEmitter::GraphSourceChanged()
 TStatId UNiagaraEmitter::GetStatID(bool bGameThread, bool bConcurrent)const
 {
 #if STATS
+	if (!StatID_GT.IsValidStat())
+	{
+		GenerateStatID();
+	}
+
 	if (bGameThread)
 	{
 		if (bConcurrent)
 		{
-			return StatID_GT;
+			return StatID_GT_CNC;
 		}
 		else
 		{
-			return StatID_GT_CNC;
+			return StatID_GT;
 		}
 	}
 	else
 	{
 		if (bConcurrent)
 		{
-			return StatID_RT;
+			return StatID_RT_CNC;
 		}
 		else
 		{
-			return StatID_RT_CNC;
+			return StatID_RT;
 		}
 	}
 #endif
 	return TStatId();
 }
-void UNiagaraEmitter::GenerateStatID()
+void UNiagaraEmitter::GenerateStatID()const
 {
 #if STATS
-	StatID_GT = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(GetName() + TEXT("[GT]"));
-	StatID_GT_CNC = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(GetName() + TEXT("[GT_CNC]"));
-	StatID_RT = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(GetName() + TEXT("[RT]"));
-	StatID_RT_CNC = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(GetName() + TEXT("[RT_CNC]"));
+	FString Name = GetOuter() ? GetOuter()->GetFName().ToString() : TEXT("");
+	Name += TEXT("/") + UniqueEmitterName;
+	StatID_GT = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(Name + TEXT("[GT]"));
+	StatID_GT_CNC = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(Name + TEXT("[GT_CNC]"));
+	StatID_RT = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(Name + TEXT("[RT]"));
+	StatID_RT_CNC = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(Name + TEXT("[RT_CNC]"));
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
 UNiagaraEmitter* UNiagaraEmitter::GetParent() const
 {
 	return Parent;
@@ -1175,4 +1197,36 @@ void UNiagaraEmitter::RemoveParent()
 {
 	Parent = nullptr;
 	ParentAtLastMerge = nullptr;
+}
+#endif
+
+void UNiagaraEmitter::InitFastPathAttributeNames()
+{
+	auto InitParameters = [](const FNiagaraParameters& Parameters, const FString& EmitterName, FNiagaraFastPathAttributeNames& FastPathParameterNames)
+	{
+		FastPathParameterNames.System.Empty();
+		FastPathParameterNames.SystemFullNames.Empty();
+		FastPathParameterNames.Emitter.Empty();
+		FastPathParameterNames.EmitterFullNames.Empty();
+
+		FString SystemPrefix = TEXT("System.");
+		FString EmitterPrefix = EmitterName + TEXT(".");
+		for (const FNiagaraVariable& Parameter : Parameters.Parameters)
+		{
+			FString ParameterNameString = Parameter.GetName().ToString();
+			if (ParameterNameString.StartsWith(SystemPrefix))
+			{
+				FastPathParameterNames.System.Add(*(Parameter.GetName().ToString().RightChop(SystemPrefix.Len())));
+				FastPathParameterNames.SystemFullNames.Add(Parameter.GetName());
+			}
+			else if (ParameterNameString.StartsWith(EmitterPrefix))
+			{
+				FastPathParameterNames.Emitter.Add(*(Parameter.GetName().ToString().RightChop(EmitterPrefix.Len())));
+				FastPathParameterNames.EmitterFullNames.Add(Parameter.GetName());
+			}
+		}
+	};
+
+	InitParameters(SpawnScriptProps.Script->GetVMExecutableData().Parameters, UniqueEmitterName, SpawnFastPathAttributeNames);
+	InitParameters(UpdateScriptProps.Script->GetVMExecutableData().Parameters, UniqueEmitterName, UpdateFastPathAttributeNames);
 }

@@ -23,6 +23,7 @@ void FVolumetricLightmapDataLayer::CreateTexture(FIntVector Dimensions)
 {
 	FRHIResourceCreateInfo CreateInfo;
 	CreateInfo.BulkData = this;
+	CreateInfo.DebugName = TEXT("VolumetricLightmap");
 
 	Texture = RHICreateTexture3D(
 		Dimensions.X, 
@@ -37,6 +38,7 @@ void FVolumetricLightmapDataLayer::CreateTexture(FIntVector Dimensions)
 void FVolumetricLightmapDataLayer::CreateTargetTexture(FIntVector Dimensions)
 {
 	FRHIResourceCreateInfo CreateInfo;
+	CreateInfo.DebugName = TEXT("VolumetricLightmap");
 
 	Texture = RHICreateTexture3D(
 		Dimensions.X,
@@ -73,7 +75,7 @@ struct FVolumetricLightmapBrickTextureSet
 		SkyBentNormal.Format = BrickData.SkyBentNormal.Format;
 		DirectionalLightShadowing.Format = BrickData.DirectionalLightShadowing.Format;
 
-		for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 		{
 			SHCoefficients[i].Format = BrickData.SHCoefficients[i].Format;
 		}
@@ -81,7 +83,7 @@ struct FVolumetricLightmapBrickTextureSet
 		AmbientVector.CreateTargetTexture(BrickDataDimensions);
 		AmbientVector.CreateUAV();
 
-		for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 		{
 			SHCoefficients[i].CreateTargetTexture(BrickDataDimensions);
 			SHCoefficients[i].CreateUAV();
@@ -100,7 +102,7 @@ struct FVolumetricLightmapBrickTextureSet
 	void Release()
 	{
 		AmbientVector.Texture.SafeRelease();
-		for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 		{
 			SHCoefficients[i].Texture.SafeRelease();
 		}
@@ -108,7 +110,7 @@ struct FVolumetricLightmapBrickTextureSet
 		DirectionalLightShadowing.Texture.SafeRelease();
 
 		AmbientVector.UAV.SafeRelease();
-		for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 		{
 			SHCoefficients[i].UAV.SafeRelease();
 		}
@@ -212,7 +214,7 @@ FArchive& operator<<(FArchive& Ar,FPrecomputedVolumetricLightmapData& Volume)
 
 	Ar << Volume.BrickData.AmbientVector;
 
-	for (int32 i = 0; i < ARRAY_COUNT(Volume.BrickData.SHCoefficients); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(Volume.BrickData.SHCoefficients); i++)
 	{
 		Ar << Volume.BrickData.SHCoefficients[i];
 	}
@@ -283,7 +285,7 @@ int32 FVolumetricLightmapBrickData::GetMinimumVoxelSize() const
 	check(AmbientVector.Format != PF_Unknown);
 	int32 VoxelSize = GPixelFormats[AmbientVector.Format].BlockBytes;
 
-	for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 	{
 		VoxelSize += GPixelFormats[SHCoefficients[i].Format].BlockBytes;
 	}
@@ -340,7 +342,7 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::InitRHI()
 		{
 			BrickData.AmbientVector.CreateTexture(BrickDataDimensions);
 
-			for (int32 i = 0; i < ARRAY_COUNT(BrickData.SHCoefficients); i++)
+			for (int32 i = 0; i < UE_ARRAY_COUNT(BrickData.SHCoefficients); i++)
 			{
 				BrickData.SHCoefficients[i].CreateTexture(BrickDataDimensions);
 			}
@@ -610,7 +612,7 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 
 	SceneData->BrickDataDimensions = GVolumetricLightmapBrickAtlas.TextureSet.BrickDataDimensions;
 	SceneData->BrickData.AmbientVector = GVolumetricLightmapBrickAtlas.TextureSet.AmbientVector;
-	for (int32 i = 0; i < ARRAY_COUNT(SceneData->BrickData.SHCoefficients); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(SceneData->BrickData.SHCoefficients); i++)
 	{
 		SceneData->BrickData.SHCoefficients[i] = GVolumetricLightmapBrickAtlas.TextureSet.SHCoefficients[i];
 	}
@@ -691,7 +693,7 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::RemoveFromSceneData(FPrecomp
 
 	SceneData->BrickDataDimensions = GVolumetricLightmapBrickAtlas.TextureSet.BrickDataDimensions;
 	SceneData->BrickData.AmbientVector = GVolumetricLightmapBrickAtlas.TextureSet.AmbientVector;
-	for (int32 i = 0; i < ARRAY_COUNT(SceneData->BrickData.SHCoefficients); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(SceneData->BrickData.SHCoefficients); i++)
 	{
 		SceneData->BrickData.SHCoefficients[i] = GVolumetricLightmapBrickAtlas.TextureSet.SHCoefficients[i];
 	}
@@ -909,7 +911,7 @@ void CopyDataIntoAtlas(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type Featu
 		FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, Parameters, FIntVector(NumBricks, 1, 1));
 	}
 
-	for (int32 i = 0; i < ARRAY_COUNT(SrcData.SHCoefficients); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(SrcData.SHCoefficients); i++)
 	{
 		TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
 
@@ -942,7 +944,7 @@ void FVolumetricLightmapBrickAtlas::Insert(int32 Index, FPrecomputedVolumetricLi
 	else
 	{
 		check(TextureSet.AmbientVector.Format == Data->BrickData.AmbientVector.Format);
-		for (int32 i = 0; i < ARRAY_COUNT(TextureSet.SHCoefficients); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(TextureSet.SHCoefficients); i++)
 		{
 			check(TextureSet.SHCoefficients[i].Format == Data->BrickData.SHCoefficients[i].Format);
 		}

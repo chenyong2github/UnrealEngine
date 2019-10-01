@@ -40,7 +40,7 @@ APlayerCameraManager::APlayerCameraManager(const FObjectInitializer& ObjectIniti
 	DefaultAspectRatio = 1.33333f;
 	bDefaultConstrainAspectRatio = false;
 	DefaultOrthoWidth = 512.0f;
-	bHidden = true;
+	SetHidden(true);
 	bReplicates = false;
 	FreeCamDistance = 256.0f;
 	bDebugClientSideCamera = false;
@@ -52,7 +52,7 @@ APlayerCameraManager::APlayerCameraManager(const FObjectInitializer& ObjectIniti
 	ViewRollMax = 89.9f;
 	bUseClientSideCameraUpdates = true;
 	CameraStyle = NAME_Default;
-	bCanBeDamaged = false;
+	SetCanBeDamaged(false);
 	TimeSinceLastServerUpdateCamera = 0.0f;
 
 	// create dummy transform component
@@ -749,7 +749,7 @@ void APlayerCameraManager::PostInitializeComponents()
 	// spawn the temp CameraActor used for updating CameraAnims
 	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.Owner = this;
-	SpawnInfo.Instigator = Instigator;
+	SpawnInfo.Instigator = GetInstigator();
 	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save these temp actors into a map
 	AnimCameraActor = GetWorld()->SpawnActor<ACameraActor>(SpawnInfo);
@@ -1222,7 +1222,7 @@ AEmitterCameraLensEffectBase* APlayerCameraManager::AddCameraLensEffect(TSubclas
 			// spawn with viewtarget as the owner so bOnlyOwnerSee works as intended
 			FActorSpawnParameters SpawnInfo;
 			SpawnInfo.Owner = PCOwner->GetViewTarget();
-			SpawnInfo.Instigator = Instigator;
+			SpawnInfo.Instigator = GetInstigator();
 			SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 			SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save these into a map
 			

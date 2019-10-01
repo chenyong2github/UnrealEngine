@@ -76,10 +76,10 @@ THIRD_PARTY_INCLUDES_END
 THIRD_PARTY_INCLUDES_START
 
 #if WITH_APEX_CLOTHING
-#include "ModuleClothing.h"
+#include "clothing/ModuleClothing.h"
 #include "clothing/ClothingAsset.h"
-#include "ClothingActor.h"
-#include "ClothingCollision.h"
+#include "clothing/ClothingActor.h"
+#include "clothing/ClothingCollision.h"
 #endif
 
 #if WITH_APEX_LEGACY

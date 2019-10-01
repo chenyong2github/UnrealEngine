@@ -191,7 +191,7 @@ public:
 		OutUAVs[1] = GGlobalDistanceFieldCulledObjectBuffers.Buffers.Bounds.UAV;
 		OutUAVs[2] = GGlobalDistanceFieldCulledObjectBuffers.Buffers.Data.UAV;
 		OutUAVs[3] = GGlobalDistanceFieldCulledObjectBuffers.Buffers.BoxBounds.UAV;
-		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
+		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 
 		CulledObjectParameters.Set(RHICmdList, ShaderRHI, GGlobalDistanceFieldCulledObjectBuffers.Buffers);
 
@@ -1388,6 +1388,11 @@ void UpdateGlobalDistanceFieldVolume(
 				TArray<FGlobalDistanceFieldClipmap>& Clipmaps = CacheType == GDF_MostlyStatic 
 					? GlobalDistanceFieldInfo.MostlyStaticClipmaps 
 					: GlobalDistanceFieldInfo.Clipmaps;
+
+				// Multi-GPU support : Updating on all GPUs may be inefficient for AFR. Work is
+				// wasted for any clipmaps that update on consecutive frames.
+				const FRHIGPUMask ClipmapGPUMask = AFRUtils::GetGPUMaskWithSiblings(RHICmdList.GetGPUMask());
+				SCOPED_GPU_MASK(RHICmdList, ClipmapGPUMask);
 
 				for (int32 ClipmapIndex = 0; ClipmapIndex < Clipmaps.Num(); ClipmapIndex++)
 				{

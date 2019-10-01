@@ -1520,8 +1520,9 @@ public:
 			const float W = Gizmo->GetWidth() / (2 * ScaleXY);
 			const float H = Gizmo->GetHeight() / (2 * ScaleXY);
 
-			const float SignX = Gizmo->GetRootComponent()->RelativeScale3D.X > 0.0f ? 1.0f : -1.0f;
-			const float SignY = Gizmo->GetRootComponent()->RelativeScale3D.Y > 0.0f ? 1.0f : -1.0f;
+			const FVector GizmoScale3D = Gizmo->GetRootComponent()->GetRelativeScale3D();
+			const float SignX = GizmoScale3D.X > 0.0f ? 1.0f : -1.0f;
+			const float SignY = GizmoScale3D.Y > 0.0f ? 1.0f : -1.0f;
 
 			const float ScaleX = Gizmo->CachedWidth / Width * ScaleXY / Gizmo->CachedScaleXY;
 			const float ScaleY = Gizmo->CachedHeight / Height * ScaleXY / Gizmo->CachedScaleXY;

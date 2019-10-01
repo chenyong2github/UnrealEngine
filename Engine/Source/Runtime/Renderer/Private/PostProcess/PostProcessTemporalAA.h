@@ -1,9 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessTemporalAA.h: Post process MotionBlur implementation.
-=============================================================================*/
-
 #pragma once
 
 #include "ScreenPass.h"
@@ -32,6 +28,7 @@ enum class ETAAPassConfig
 	MAX
 };
 
+bool IsTemporalAASceneDownsampleAllowed(const FViewInfo& View);
 
 static FORCEINLINE bool IsTAAUpsamplingConfig(ETAAPassConfig Pass)
 {
@@ -151,7 +148,7 @@ FTAAOutputs AddTemporalAAPass(
 void AddTemporalAAPass(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
-	const FScreenPassViewInfo& ScreenPassView,
+	const FViewInfo& View,
 	const bool bAllowDownsampleSceneColor,
 	const EPixelFormat DownsampleOverrideFormat,
 	FRDGTextureRef InSceneColorTexture,

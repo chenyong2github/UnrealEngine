@@ -56,6 +56,14 @@ static FAutoConsoleVariableRef CVarNiagaraForceLastTickGroup(
 	ECVF_Default
 );
 
+static float GNiagaraBoundsExpandByPercent = 0.1f;
+static FAutoConsoleVariableRef CVarNiagaraBoundsExpandByPercent(
+	TEXT("fx.Niagara.BoundsExpandByPercent"),
+	GNiagaraBoundsExpandByPercent,
+	TEXT("The percentage we expand the bounds to avoid updating every frame."),
+	ECVF_Default
+);
+
 FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	: SystemInstanceIndex(INDEX_NONE)
 	, Component(InComponent)
@@ -69,17 +77,18 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	, bHasTickingEmitters(true)
 	, bPaused(false)
 	, bDataInterfacesHaveTickPrereqs(false)
-	, RequestedExecutionState(ENiagaraExecutionState::Complete)
-	, ActualExecutionState(ENiagaraExecutionState::Complete)
+	, bIsTransformDirty(true)
+	, bNeedsFinalize(false)
 	, bDataInterfacesInitialized(false)
 	, bAsyncWorkInProgress(false)
-	, bNeedsFinalize(false)
 	, CachedDeltaSeconds(0.0f)
+	, RequestedExecutionState(ENiagaraExecutionState::Complete)
+	, ActualExecutionState(ENiagaraExecutionState::Complete)
 {
 	static TAtomic<uint64> IDCounter(1);
 	ID = IDCounter.IncrementExchange();
 
-	SystemBounds.Init();
+	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 
 	if (Component)
 	{
@@ -276,14 +285,17 @@ bool FNiagaraSystemInstance::RequestCapture(const FGuid& RequestId)
 	for (const FNiagaraEmitterHandle& Handle : GetSystem()->GetEmitterHandles())
 	{
 		TArray<UNiagaraScript*> Scripts;
-		Handle.GetInstance()->GetScripts(Scripts, false);
-
-		for (UNiagaraScript* Script : Scripts)
+		if (Handle.GetInstance())
 		{
-			TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfoPtr = MakeShared<FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>(Handle.GetIdName(), Script->GetUsage(), Script->GetUsageId());
-			DebugInfoPtr->bWritten = false;
+			Handle.GetInstance()->GetScripts(Scripts, false);
 
-			TempCaptureHolder->Add(DebugInfoPtr);
+			for (UNiagaraScript* Script : Scripts)
+			{
+				TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfoPtr = MakeShared<FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>(Handle.GetIdName(), Script->GetUsage(), Script->GetUsageId());
+				DebugInfoPtr->bWritten = false;
+
+				TempCaptureHolder->Add(DebugInfoPtr);
+			}
 		}
 	}
 	CapturedFrames.Add(RequestId, TempCaptureHolder);
@@ -474,6 +486,7 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 		// Make sure we remove the instance
 		if (SystemInstanceAllocation->SystemInstanceIndex != INDEX_NONE)
 		{
+			SystemInstanceAllocation->UnbindParameters();
 			SystemSim->RemoveInstance(SystemInstanceAllocation.Get());
 		}
 
@@ -682,6 +695,7 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 	TickCount = 0;
 	bHasTickingEmitters = true;
 	CachedDeltaSeconds = 0.0f;
+	// Note: We do not need to update our bounds here as they are still valid
 
 	UNiagaraSystem* System = GetSystem();
 	if (System == nullptr || Component == nullptr || IsDisabled())
@@ -808,7 +822,15 @@ void FNiagaraSystemInstance::ReInitInternal()
 	Age = 0;
 	TickCount = 0;
 	bHasTickingEmitters = true;
+	bIsTransformDirty = true;
+	TimeSinceLastForceUpdateTransform = 0.0f;
+	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 	CachedDeltaSeconds = 0.0f;
+
+	FastPathIntUserParameterInputBindings.Empty();
+	FastPathFloatUserParameterInputBindings.Empty();
+	FastPathIntUpdateRangedInputBindings.Empty();
+	FastPathFloatUpdateRangedInputBindings.Empty();
 
 	UNiagaraSystem* System = GetSystem();
 	if (System == nullptr || Component == nullptr)
@@ -908,7 +930,8 @@ void FNiagaraSystemInstance::ReInitInternal()
 	// rebind now after all parameters have been added
 	InstanceParameters.Rebind();
 
-	TickInstanceParameters(0.01f);
+	TickInstanceParameters_GameThread(0.01f);
+	TickInstanceParameters_Concurrent();
 
 	//Invalidate the component render state so we recreate the scene proxy and the renderers.
 	Component->MarkRenderStateDirty();
@@ -1352,28 +1375,76 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup()
 	return NewTickGroup;
 }
 
-void FNiagaraSystemInstance::TickInstanceParameters(float DeltaSeconds)
+void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSeconds)
 {
 	if (!Component)
 	{
 		return;
 	}
 
-	//TODO: Create helper binding objects to avoid the search in set parameter value.
-	//Set System params.
-	FTransform ComponentTrans = Component->GetComponentTransform();
-	FVector CurrPos = ComponentTrans.GetLocation();
-	FVector OldPos = FMath::IsNearlyZero(Age) ? CurrPos : OwnerPositionParam.GetValue(); // The first frame the value in OwnerPositionParam is uninitialized memory, we need to make sure that we don't use it.
+	GatheredInstanceParameters.DeltaSeconds = DeltaSeconds;
+
+	GatheredInstanceParameters.ComponentTrans = Component->GetComponentTransform();
+	GatheredInstanceParameters.OldPos = OwnerPositionParam.GetValue();
+
+	UWorld* World = Component->GetWorld();
+	if (World != NULL)
+	{
+		GatheredInstanceParameters.LODDistance = GetLODDistance();
+		GatheredInstanceParameters.TimeSeconds = World->TimeSeconds;
+		GatheredInstanceParameters.RealTimeSeconds = World->RealTimeSeconds;
+	}
+	else
+	{
+		GatheredInstanceParameters.LODDistance = 0;
+		GatheredInstanceParameters.TimeSeconds = Age;
+		GatheredInstanceParameters.RealTimeSeconds = Age;
+	}
+
+	GatheredInstanceParameters.Age = Age;
+	GatheredInstanceParameters.TickCount = TickCount;
+
+	GatheredInstanceParameters.NumAlive = 0;
+	for (int32 i = 0; i < Emitters.Num(); ++i)
+	{
+		const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter = Emitters[i];
+		if (Emitter->GetExecutionState() != ENiagaraExecutionState::Disabled)
+		{
+			GatheredInstanceParameters.EmitterNumParticles[i] = Emitter->GetNumParticles();
+			GatheredInstanceParameters.EmitterTotalSpawnedParticles[i] = Emitter->GetTotalSpawnedParticles();
+			if (!Emitter->IsComplete())
+			{
+				GatheredInstanceParameters.NumAlive++;
+			}
+		}
+	}
+
+	//Bias the LastRenderTime slightly to account for any delay as it's written by the RT.
+	GatheredInstanceParameters.SafeTimeSinceRendererd = FMath::Max(0.0f, GatheredInstanceParameters.TimeSeconds - Component->GetLastRenderTime() - GLastRenderTimeSafetyBias);
+
+	GatheredInstanceParameters.RequestedExecutionState = RequestedExecutionState;
+
+	Component->GetOverrideParameters().Tick();
+}
+
+
+void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
+{
+	FVector CurrPos = GatheredInstanceParameters.ComponentTrans.GetLocation();
+	FVector OldPos = FMath::IsNearlyZero(Age) ? CurrPos : GatheredInstanceParameters.OldPos; // The first frame the value in OwnerPositionParam is uninitialized memory, we need to make sure that we don't use it
+
 	OwnerPositionParam.SetValue(CurrPos);
-	OwnerScaleParam.SetValue(ComponentTrans.GetScale3D());
-	OwnerVelocityParam.SetValue((CurrPos - OldPos) / DeltaSeconds);
-	OwnerXAxisParam.SetValue(ComponentTrans.GetRotation().GetAxisX());
-	OwnerYAxisParam.SetValue(ComponentTrans.GetRotation().GetAxisY());
-	OwnerZAxisParam.SetValue(ComponentTrans.GetRotation().GetAxisZ());
+	OwnerScaleParam.SetValue(GatheredInstanceParameters.ComponentTrans.GetScale3D());
+	OwnerVelocityParam.SetValue((CurrPos - OldPos) / GatheredInstanceParameters.DeltaSeconds);
 
-	OwnerRotationParam.SetValue(ComponentTrans.GetRotation());
+	FQuat Rotation = GatheredInstanceParameters.ComponentTrans.GetRotation();
+	OwnerXAxisParam.SetValue(Rotation.GetAxisX());
+	OwnerYAxisParam.SetValue(Rotation.GetAxisY());
+	OwnerZAxisParam.SetValue(Rotation.GetAxisZ());
 
-	FMatrix Transform = ComponentTrans.ToMatrixWithScale();
+	OwnerRotationParam.SetValue(Rotation);
+
+	FMatrix Transform = GatheredInstanceParameters.ComponentTrans.ToMatrixWithScale();
 	FMatrix Inverse = Transform.Inverse();
 	FMatrix Transpose = Transform.GetTransposed();
 	FMatrix InverseTranspose = Inverse.GetTransposed();
@@ -1382,60 +1453,71 @@ void FNiagaraSystemInstance::TickInstanceParameters(float DeltaSeconds)
 	OwnerTransposeParam.SetValue(Transpose);
 	OwnerInverseTransposeParam.SetValue(InverseTranspose);
 
-	FMatrix TransformNoScale = ComponentTrans.ToMatrixNoScale();
+	FMatrix TransformNoScale = GatheredInstanceParameters.ComponentTrans.ToMatrixNoScale();
 	FMatrix InverseNoScale = TransformNoScale.Inverse();
 	OwnerTransformNoScaleParam.SetValue(TransformNoScale);
 	OwnerInverseNoScaleParam.SetValue(InverseNoScale);
 
-	OwnerDeltaSecondsParam.SetValue(DeltaSeconds);
-	OwnerInverseDeltaSecondsParam.SetValue(1.0f / DeltaSeconds);
+	OwnerDeltaSecondsParam.SetValue(GatheredInstanceParameters.DeltaSeconds);
+	OwnerInverseDeltaSecondsParam.SetValue(1.0f / GatheredInstanceParameters.DeltaSeconds);
 
-	//Calculate the min distance to a camera.
-	UWorld* World = Component->GetWorld();
-	if (World != NULL)
-	{
-		float LODDistance = GetLODDistance();
-		OwnerLODDistanceParam.SetValue(LODDistance);
-		OwnerEngineTimeParam.SetValue(World->TimeSeconds);
-		OwnerEngineRealtimeParam.SetValue(World->RealTimeSeconds);
-	}
-	else
-	{
-		OwnerEngineTimeParam.SetValue(Age);
-		OwnerEngineRealtimeParam.SetValue(Age);
-	}
-	SystemAgeParam.SetValue(Age);
-	SystemTickCountParam.SetValue(TickCount);
+	OwnerLODDistanceParam.SetValue(GatheredInstanceParameters.LODDistance);
+	OwnerEngineTimeParam.SetValue(GatheredInstanceParameters.TimeSeconds);
+	OwnerEngineRealtimeParam.SetValue(GatheredInstanceParameters.RealTimeSeconds);
 
-	int32 NumAlive = 0;
-	const TArray<FNiagaraEmitterHandle>& EmitterHandles = GetSystem()->GetEmitterHandles();
+	SystemAgeParam.SetValue(GatheredInstanceParameters.Age);
+	SystemTickCountParam.SetValue(GatheredInstanceParameters.TickCount);
+
 	for (int32 i = 0; i < Emitters.Num(); i++)
 	{
-		if (EmitterHandles[i].GetIsEnabled())//TODO: We should just null out the entry to the emitter in the array.
+		const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter = Emitters[i];
+		if (Emitter->GetExecutionState() != ENiagaraExecutionState::Disabled)
 		{
-			int32 NumParticles = Emitters[i]->GetNumParticles();
-			if (!Emitters[i]->IsComplete())
-			{
-				NumAlive++;
-			}
-			ParameterNumParticleBindings[i].SetValue(NumParticles);
-			ParameterTotalSpawnedParticlesBindings[i].SetValue(Emitters[i]->GetTotalSpawnedParticles());
+			ParameterNumParticleBindings[i].SetValue(GatheredInstanceParameters.EmitterNumParticles[i]);
+			ParameterTotalSpawnedParticlesBindings[i].SetValue(GatheredInstanceParameters.EmitterTotalSpawnedParticles[i]);
 		}
 	}
-	SystemNumEmittersParam.SetValue(Emitters.Num());
-	SystemNumEmittersAliveParam.SetValue(NumAlive);
 
-	check(World);
-	float WorldTime = World->GetTimeSeconds();
-	//Bias the LastRenderTime slightly to account for any delay as it's written by the RT.
-	float SafeTimeSinceRendererd = FMath::Max(0.0f, WorldTime - Component->GetLastRenderTime() - GLastRenderTimeSafetyBias);
-	SystemTimeSinceRenderedParam.SetValue(SafeTimeSinceRendererd);
+	SystemNumEmittersParam.SetValue(Emitters.Num());
+	SystemNumEmittersAliveParam.SetValue(GatheredInstanceParameters.NumAlive);
+
+	SystemTimeSinceRenderedParam.SetValue(GatheredInstanceParameters.SafeTimeSinceRendererd);
+
+	OwnerExecutionStateParam.SetValue((int32)GatheredInstanceParameters.RequestedExecutionState);
 	
-	OwnerExecutionStateParam.SetValue((int32)RequestedExecutionState);
-	
-	Component->GetOverrideParameters().Tick();
 	InstanceParameters.Tick();
 	InstanceParameters.MarkParametersDirty();
+}
+
+void FNiagaraSystemInstance::TickFastPathBindings()
+{
+	for (TNiagaraFastPathUserParameterInputBinding<int32>& IntUserParameterInputBinding : FastPathIntUserParameterInputBindings)
+	{
+		IntUserParameterInputBinding.Tick();
+	}
+
+	for (TNiagaraFastPathUserParameterInputBinding<float>& FloatUserParameterInputBinding : FastPathFloatUserParameterInputBindings)
+	{
+		FloatUserParameterInputBinding.Tick();
+	}
+
+	for (TNiagaraFastPathRangedInputBinding<int32>& IntUpdateRangedInputBinding : FastPathIntUpdateRangedInputBindings)
+	{
+		IntUpdateRangedInputBinding.Tick();
+	}
+
+	for (TNiagaraFastPathRangedInputBinding<float>& FloatUpdateRangedInputBinding : FastPathFloatUpdateRangedInputBindings)
+	{
+		FloatUpdateRangedInputBinding.Tick();
+	}
+}
+
+void FNiagaraSystemInstance::ResetFastPathBindings()
+{
+	FastPathIntUserParameterInputBindings.Empty();
+	FastPathFloatUserParameterInputBindings.Empty();
+	FastPathIntUpdateRangedInputBindings.Empty();
+	FastPathFloatUpdateRangedInputBindings.Empty();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1493,29 +1575,43 @@ void FNiagaraSystemInstance::InitEmitters()
 
 	bHasGPUEmitters = false;
 
+	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
+
 	Emitters.Empty();
 	UNiagaraSystem* System = GetSystem();
 	if (System != nullptr)
 	{
-		const TArray<FNiagaraEmitterHandle>& EmitterHandles = GetSystem()->GetEmitterHandles();
-		for (int32 EmitterIdx=0; EmitterIdx < GetSystem()->GetEmitterHandles().Num(); ++EmitterIdx)
+		const TArray<FNiagaraEmitterHandle>& EmitterHandles = System->GetEmitterHandles();
+		for (int32 EmitterIdx=0; EmitterIdx < System->GetEmitterHandles().Num(); ++EmitterIdx)
 		{
-			TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Sim = MakeShared<FNiagaraEmitterInstance, ESPMode::ThreadSafe>(this);
-			Sim->Init(EmitterIdx, ID);
-			if (System->bFixedBounds)
 			{
-				Sim->SetSystemFixedBoundsOverride(System->GetFixedBounds());
+				TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Sim = MakeShared<FNiagaraEmitterInstance, ESPMode::ThreadSafe>(this);
+				Sim->Init(EmitterIdx, ID);
+				if (System->bFixedBounds)
+				{
+					Sim->SetSystemFixedBoundsOverride(System->GetFixedBounds());
+				}
+				Emitters.Add(Sim);
 			}
-			Emitters.Add(Sim);
 		}
 
 		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
 		{
-			bHasGPUEmitters |= Simulation->GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+			if (Simulation->GetCachedEmitter() != nullptr)
+			{
+				bHasGPUEmitters |= Simulation->GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim;
 
-			Simulation->PostInitSimulation();
+				Simulation->PostInitSimulation();
+			}
+		}
+
+		if (System->bFixedBounds)
+		{
+			LocalBounds = System->GetFixedBounds();
 		}
 	}
+
+	GatheredInstanceParameters.Init(Emitters.Num());
 }
 
 void FNiagaraSystemInstance::ComponentTick(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent)
@@ -1596,14 +1692,14 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	UNiagaraSystem* System = GetSystem();
-	FScopeCycleCounter SystemStat(System->GetStatID(true, true));
+	FScopeCycleCounter SystemStat(System->GetStatID(true, false));
 
 	WaitForAsyncTick(true);
 
 	CachedDeltaSeconds = DeltaSeconds;
 	bNeedsFinalize = true;
 
-	TickInstanceParameters(DeltaSeconds);
+	TickInstanceParameters_GameThread(DeltaSeconds);
 
 	TickDataInterfaces(DeltaSeconds, false);
 
@@ -1646,10 +1742,39 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 		FNiagaraEmitterInstance& Inst = Emitters[EmitterIdx].Get();
 		Inst.Tick(CachedDeltaSeconds);
 
-		if (Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Inst.GetGPUContext() != nullptr && (Inst.GetExecutionState() != ENiagaraExecutionState::Complete))
+		if (Inst.GetCachedEmitter() && Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Inst.GetGPUContext() != nullptr && (Inst.GetExecutionState() != ENiagaraExecutionState::Complete))
 		{
 			TotalParamSize += Inst.GetGPUContext()->CombinedParamStore.GetPaddedParameterSizeInBytes();
 			ActiveGPUEmitterCount++;
+		}
+	}
+
+	// Update local bounds
+	if ( System->bFixedBounds )
+	{
+		LocalBounds = System->GetFixedBounds();
+	}
+	else
+	{
+		FBox NewLocalBounds(EForceInit::ForceInit);
+		for ( const auto& Emitter : Emitters )
+		{
+			NewLocalBounds += Emitter->GetBounds();
+		}
+
+		if ( NewLocalBounds.IsValid )
+		{
+			TimeSinceLastForceUpdateTransform += CachedDeltaSeconds;
+			if ((TimeSinceLastForceUpdateTransform > Component->MaxTimeBeforeForceUpdateTransform) || !LocalBounds.IsInsideOrOn(NewLocalBounds.Min) || !LocalBounds.IsInsideOrOn(NewLocalBounds.Max))
+			{
+				bIsTransformDirty = true;
+				LocalBounds = NewLocalBounds.ExpandBy(NewLocalBounds.GetExtent() * GNiagaraBoundsExpandByPercent);
+				TimeSinceLastForceUpdateTransform = 0.0f;
+			}
+		}
+		else
+		{
+			LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 		}
 	}
 
@@ -1674,7 +1799,11 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread()
 			bool bIsRegistered = true;
 			if (Component)
 			{
-				Component->UpdateComponentToWorld();//Needed for bounds updates. Can probably skip if using fixed bounds
+				if ( bIsTransformDirty )
+				{
+					bIsTransformDirty = false;
+					Component->UpdateComponentToWorld();
+				}
 				Component->MarkRenderDynamicDataDirty();
 				bIsRegistered = Component->IsRegistered();
 			}

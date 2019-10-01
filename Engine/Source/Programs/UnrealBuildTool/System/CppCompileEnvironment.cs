@@ -246,6 +246,11 @@ namespace UnrealBuildTool
 		public bool bUsePDBFiles = false;
 
 		/// <summary>
+		/// Whether to just preprocess source files
+		/// </summary>
+		public bool bPreprocessOnly = false;
+
+		/// <summary>
 		/// Whether to support edit and continue.  Only works on Microsoft compilers in 32-bit compiles.
 		/// </summary>
 		public bool bSupportEditAndContinue;
@@ -407,6 +412,7 @@ namespace UnrealBuildTool
 			bOmitFramePointers = Other.bOmitFramePointers;
 			bEnableOSX109Support = Other.bEnableOSX109Support;
 			bUsePDBFiles = Other.bUsePDBFiles;
+			bPreprocessOnly = Other.bPreprocessOnly;
 			bSupportEditAndContinue = Other.bSupportEditAndContinue;
 			bUseIncrementalLinking = Other.bUseIncrementalLinking;
 			bAllowLTCG = Other.bAllowLTCG;

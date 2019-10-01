@@ -293,6 +293,7 @@ void NiagaraEmitterInstanceBatcher::DispatchMultipleStages(const FNiagaraGPUSyst
 			{
 				continue;
 			}
+
 			PreStageInterface(Tick, Instance, RHICmdList, ComputeShader, ShaderStageIndex);
 
 			if (!IterationInterface)
@@ -1152,10 +1153,10 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 
 	if (IterationInterface)
 	{
-	if (TotalNumInstances > NIAGARA_COMPUTE_THREADGROUP_SIZE)
-	{
-		RHICmdList.SetShaderParameter(Shader->GetComputeShader(), Shader->IterationInterfaceCount.GetBufferIndex(), Shader->IterationInterfaceCount.GetBaseIndex(), Shader->IterationInterfaceCount.GetNumBytes(), &TotalNumInstances);					// 0, except if several stages are defined
-	}
+		if (TotalNumInstances > NIAGARA_COMPUTE_THREADGROUP_SIZE)
+		{
+			RHICmdList.SetShaderParameter(Shader->GetComputeShader(), Shader->IterationInterfaceCount.GetBufferIndex(), Shader->IterationInterfaceCount.GetBaseIndex(), Shader->IterationInterfaceCount.GetNumBytes(), &TotalNumInstances);					// 0, except if several stages are defined
+		}
 	}
 
 

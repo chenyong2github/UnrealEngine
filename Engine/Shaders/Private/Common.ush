@@ -44,6 +44,14 @@
 #define TextureExternal Texture2D
 #endif
 
+#ifndef REGISTER
+	#if COMPILER_HLSLCC
+		#define REGISTER(x)
+	#else
+		#define REGISTER(x)		: register(x)
+	#endif
+#endif
+
 #if FEATURE_LEVEL < FEATURE_LEVEL_SM5
 	// Define TextureCubeArray to something which will compile so we can use it in uniform buffers
 	#define TextureCubeArray TextureCube

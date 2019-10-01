@@ -514,6 +514,7 @@ FProjectedShadowInfo::FProjectedShadowInfo()
 	, bSelfShadowOnly(false)
 	, bPerObjectOpaqueShadow(false)
 	, bTransmission(false)
+	, bHairStrandsDeepShadow(false)
 	, LightSceneInfo(0)
 	, ParentSceneInfo(0)
 	, NumDynamicSubjectMeshElements(0)
@@ -554,6 +555,7 @@ bool FProjectedShadowInfo::SetupPerObjectProjection(
 	bPreShadow = bInPreShadow;
 	bSelfShadowOnly = InParentSceneInfo->Proxy->CastsSelfShadowOnly();
 	bTransmission = InLightSceneInfo->Proxy->Transmission();
+	bHairStrandsDeepShadow = InLightSceneInfo->Proxy->CastsHairStrandsDeepShadow();
 
 	check(!bRayTracedDistanceField);
 
@@ -675,6 +677,7 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 	bRayTracedDistanceField = Initializer.bRayTracedDistanceField;
 	bWholeSceneShadow = true;
 	bTransmission = InLightSceneInfo->Proxy->Transmission();
+	bHairStrandsDeepShadow = InLightSceneInfo->Proxy->CastsHairStrandsDeepShadow();
 	bReflectiveShadowmap = bInReflectiveShadowMap; 
 	BorderSize = InBorderSize;
 
@@ -905,6 +908,21 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, bool
 			if (LODToRenderScan != -MAX_int8)
 			{
 				ShadowLODToRender.SetLOD(LODToRenderScan);
+			}
+		}
+
+		if (CascadeSettings.bFarShadowCascade)
+		{
+			extern ENGINE_API int32 GFarShadowStaticMeshLODBias;
+			int8 LODToRenderScan = ShadowLODToRender.DitheredLODIndices[0] + GFarShadowStaticMeshLODBias;
+
+			for (int32 Index = InPrimitiveSceneInfo->StaticMeshRelevances.Num() - 1; Index >= 0; Index--)
+			{
+				if (LODToRenderScan == InPrimitiveSceneInfo->StaticMeshRelevances[Index].LODIndex)
+				{
+					ShadowLODToRender.SetLOD(LODToRenderScan);
+					break;
+				}
 			}
 		}
 
@@ -1349,6 +1367,11 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 		if (bPreShadow && GPreshadowsForceLowestLOD)
 		{
 			ShadowDepthView->DrawDynamicFlags = EDrawDynamicFlags::ForceLowestLOD;
+		}
+
+		if (CascadeSettings.bFarShadowCascade)
+		{
+			(int32&)ShadowDepthView->DrawDynamicFlags |= (int32)EDrawDynamicFlags::FarShadowCascade;
 		}
 
 		if (IsWholeSceneDirectionalShadow())
@@ -3303,15 +3326,15 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 		FadeAlphas.Init(0.0f, Views.Num());
 		FadeAlphas[ViewIndex] = LightShadowAmount;
 
-		if (IStereoRendering::IsAPrimaryView(View.StereoPass, GEngine->StereoRenderingDevice)
+		if (IStereoRendering::IsAPrimaryView(View, GEngine->StereoRenderingDevice)
 			&& Views.IsValidIndex(ViewIndex + 1)
-			&& IStereoRendering::IsASecondaryView(Views[ViewIndex + 1].StereoPass, GEngine->StereoRenderingDevice))
+			&& IStereoRendering::IsASecondaryView(Views[ViewIndex + 1], GEngine->StereoRenderingDevice))
 		{
 			FadeAlphas[ViewIndex + 1] = LightShadowAmount;
 		}		
 		
 		// If rendering in stereo mode we render shadow depths only for the left eye, but project for both eyes!
-		if (IStereoRendering::IsAPrimaryView(View.StereoPass, GEngine->StereoRenderingDevice))
+		if (IStereoRendering::IsAPrimaryView(View, GEngine->StereoRenderingDevice))
 		{
 			const bool bExtraDistanceFieldCascade = LightSceneInfo.Proxy->ShouldCreateRayTracedCascade(View.GetFeatureLevel(), LightSceneInfo.IsPrecomputedLightingValid(), View.MaxShadowCascades);
 
@@ -4172,7 +4195,7 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 					// Allow movable and stationary lights to create CSM, or static lights that are unbuilt
 					if ((!LightSceneInfo->Proxy->HasStaticLighting() && LightSceneInfoCompact.bCastDynamicShadow) || bCreateShadowToPreviewStaticLight)
 					{
-						static_assert(ARRAY_COUNT(Scene->MobileDirectionalLights) == 3, "All array entries for MobileDirectionalLights must be checked");
+						static_assert(UE_ARRAY_COUNT(Scene->MobileDirectionalLights) == 3, "All array entries for MobileDirectionalLights must be checked");
 						if( !bMobile ||
 							((LightSceneInfo->Proxy->UseCSMForDynamicObjects() || LightSceneInfo->Proxy->IsMovable()) 
 								// Mobile uses the scene's MobileDirectionalLights only for whole scene shadows.

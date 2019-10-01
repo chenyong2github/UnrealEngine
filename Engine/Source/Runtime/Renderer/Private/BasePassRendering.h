@@ -72,14 +72,13 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FOpaqueBasePassUniformParameters,)
 	SHADER_PARAMETER_SAMPLER(SamplerState, DBufferCTextureSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D<uint>, DBufferRenderMask)
 	// Single Layer Water
-	SHADER_PARAMETER_TEXTURE(Texture2D, SceneLuminanceWithoutSingleLayerWaterTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, SceneLuminanceWithoutSingleLayerWaterSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D, SceneColorWithoutSingleLayerWaterTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorWithoutSingleLayerWaterSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, SceneDepthWithoutSingleLayerWaterTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthWithoutSingleLayerWaterSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGFTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
-	SHADER_PARAMETER_TEXTURE(Texture2D, SceneCustomDepthTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, SceneCustomDepthSampler)
+	SHADER_PARAMETER(FVector4, SceneWithoutSingleLayerWaterValidUVRect)
 	SHADER_PARAMETER(FVector4, DistortionParams)
 	// Misc
 	SHADER_PARAMETER_TEXTURE(Texture2D, EyeAdaptation)
@@ -119,8 +118,9 @@ extern void CreateOpaqueBasePassUniformBuffer(
 	FRHICommandListImmediate& RHICmdList, 
 	const FViewInfo& View,
 	IPooledRenderTarget* ForwardScreenSpaceShadowMask,
-	IPooledRenderTarget* SceneLuminanceWithoutSingleLayerWater,
-	IPooledRenderTarget* SceneDepthWithoutSingleLayerWaterTexture,
+	FVector4* SceneWithoutSingleLayerWaterValidUVRect,
+	IPooledRenderTarget* SceneColorWithoutSingleLayerWater,
+	IPooledRenderTarget* SceneDepthWithoutSingleLayerWater,
 	TUniformBufferRef<FOpaqueBasePassUniformParameters>& BasePassUniformBuffer);
 
 extern void CreateTranslucentBasePassUniformBuffer(

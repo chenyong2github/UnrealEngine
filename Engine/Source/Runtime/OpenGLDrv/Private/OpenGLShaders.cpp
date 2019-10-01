@@ -2873,7 +2873,6 @@ static void VerifyUniformLayout(const TCHAR* UniformName, const UniformData& GLS
 				switch(Member.GetBaseType())
 				{
 					case UBMT_NESTED_STRUCT:  BaseTypeName = TEXT("struct");  break;
-					case UBMT_BOOL:    BaseTypeName = TEXT("bool"); break;
 					case UBMT_INT32:   BaseTypeName = TEXT("int"); break;
 					case UBMT_UINT32:  BaseTypeName = TEXT("uint"); break;
 					case UBMT_FLOAT32: BaseTypeName = TEXT("float"); break;
@@ -5184,7 +5183,7 @@ void FOpenGLProgramBinaryCache::CompilePendingShaders(const FOpenGLLinkedProgram
 {
 	if (CachePtr)
 	{
-		for (int32 StageIdx = 0; StageIdx < ARRAY_COUNT(Config.Shaders); ++StageIdx)
+		for (int32 StageIdx = 0; StageIdx < UE_ARRAY_COUNT(Config.Shaders); ++StageIdx)
 		{
 			GLuint ShaderResource = Config.Shaders[StageIdx].Resource;
 			FPendingShaderCode* PendingShaderCodePtr = CachePtr->ShadersPendingCompilation.Find(ShaderResource);

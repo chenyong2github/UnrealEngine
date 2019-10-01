@@ -196,13 +196,13 @@ public:
 			return true;
 
 		int32 ExtIndex = 0;
-		for (; ExtIndex < ARRAY_COUNT(Extensions); ++ExtIndex)
+		for (; ExtIndex < UE_ARRAY_COUNT(Extensions); ++ExtIndex)
 		{
 			if (0 == FCString::Stricmp(Extension, Extensions[ExtIndex]))
 				break;
 		}
 
-		if (ExtIndex >= ARRAY_COUNT(Extensions))
+		if (ExtIndex >= UE_ARRAY_COUNT(Extensions))
 			return true;
 
 		int32 LengthWithoutExtension = Extension - FilenameOrDirectory;

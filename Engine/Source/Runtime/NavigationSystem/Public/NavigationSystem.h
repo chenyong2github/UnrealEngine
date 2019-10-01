@@ -514,6 +514,7 @@ public:
 	FORCEINLINE const TArray<FNavDataConfig>& GetSupportedAgents() const { return SupportedAgents; }
 	void OverrideSupportedAgents(const TArray<FNavDataConfig>& NewSupportedAgents);
 	void SetSupportedAgentsMask(const FNavAgentSelector& InSupportedAgentsMask);
+	FNavAgentSelector GetSupportedAgentsMask() const { return SupportedAgentsMask; }
 
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 
@@ -545,6 +546,11 @@ public:
 	
 	// @todo document
 	virtual void UnregisterNavData(ANavigationData* NavData);
+
+	/** Traverses SupportedAgents and for all agents not supported (i.e. filtered
+	 *	out by SupportedAgentsMask) checks if there's a currently registered
+	 *	NavigationData instance for that agent, and if so it unregisters that agent */
+	virtual void UnregisterUnusedNavData();
 
 	/** Adds NavData to registration candidates queue - NavDataRegistrationQueue*/
 	virtual void RequestRegistrationDeferred(ANavigationData& NavData);

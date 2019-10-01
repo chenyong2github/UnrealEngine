@@ -33,8 +33,6 @@ public:
 
 private:
 
-	class FNiagaraMeshVertexFactory* VertexFactory;
-
 	/** Render data of the static mesh we use. */
 	FStaticMeshRenderData* MeshRenderData;
 
@@ -43,20 +41,7 @@ private:
 	uint32 bOverrideMaterials : 1;
 	uint32 bSortOnlyWhenTranslucent : 1;
 
-	int32 PositionOffset;
-	int32 VelocityOffset;
-	int32 ColorOffset;
-	int32 ScaleOffset;
-	int32 SizeOffset;
 	uint32 MaterialParamValidMask;
-	int32 MaterialParamOffset;
-	int32 MaterialParamOffset1;
-	int32 MaterialParamOffset2;
-	int32 MaterialParamOffset3;
-	int32 TransformOffset;
-	int32 NormalizedAgeOffset;
-	int32 MaterialRandomOffset;
-	int32 CustomSortingOffset;
 
 	int32 MeshMinimumLOD = 0;
 };

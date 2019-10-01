@@ -2469,7 +2469,7 @@ bool FPhysicsInterface_PhysX::LineTrace_Geom(FHitResult& OutHit, const FBodyInst
 						const bool bShapeIsSimple = (ShapeFilter.word3 & EPDF_SimpleCollision) != 0;
 						if((bTraceComplex && bShapeIsComplex) || (!bTraceComplex && bShapeIsSimple))
 						{
-							const int32 ArraySize = ARRAY_COUNT(PHits);
+							const int32 ArraySize = UE_ARRAY_COUNT(PHits);
 							
 							PxTransform ShapeTransform = U2PTransform(GetTransform(ShapeRef));
 							const PxI32 NumHits = PxGeometryQuery::raycast(U2PVector(InStart), U2PVector(Delta / DeltaMag), PShape->getGeometry().any(), ShapeTransform, DeltaMag, PHitFlags, ArraySize, PHits);

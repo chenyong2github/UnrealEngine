@@ -75,12 +75,12 @@ namespace BuildPatchServices
 			, TcpZeroWindowMinimumSeconds(20.0f)
 		{
 			const float RetryFloats[] = {0.5f, 1.0f, 1.0f, 3.0f, 3.0f, 10.0f, 10.0f, 20.0f, 20.0f, 30.0f};
-			RetryDelayTimes.Empty(ARRAY_COUNT(RetryFloats));
-			RetryDelayTimes.Append(RetryFloats, ARRAY_COUNT(RetryFloats));
+			RetryDelayTimes.Empty(UE_ARRAY_COUNT(RetryFloats));
+			RetryDelayTimes.Append(RetryFloats, UE_ARRAY_COUNT(RetryFloats));
 			const float HealthFloats[] = {0.0f, 0.0f, 0.9f, 0.99f, 1.0f};
-			check((int32)EBuildPatchDownloadHealth::NUM_Values == ARRAY_COUNT(HealthFloats));
-			HealthPercentages.Empty(ARRAY_COUNT(HealthFloats));
-			HealthPercentages.Append(HealthFloats, ARRAY_COUNT(HealthFloats));
+			check((int32)EBuildPatchDownloadHealth::NUM_Values == UE_ARRAY_COUNT(HealthFloats));
+			HealthPercentages.Empty(UE_ARRAY_COUNT(HealthFloats));
+			HealthPercentages.Append(HealthFloats, UE_ARRAY_COUNT(HealthFloats));
 		}
 	};
 

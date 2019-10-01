@@ -3,8 +3,9 @@
 #pragma once
 
 #include "Containers/Array.h"
-#include "UObject/ObjectMacros.h"
-#include "ClothingSystemRuntimeTypes.generated.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
+
 
 // Data produced by a clothing simulation
 struct FClothSimulData
@@ -38,77 +39,3 @@ enum class EClothingTeleportMode : uint8
 	TeleportAndReset
 };
 
-/** Data for a single sphere primitive in the clothing simulation. This can either be a 
- *  sphere on its own, or part of a capsule referenced by the indices in FClothCollisionPrim_Capsule
- */
-USTRUCT()
-struct FClothCollisionPrim_Sphere
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	int32 BoneIndex;
-
-	UPROPERTY()
-	float Radius;
-
-	UPROPERTY()
-	FVector LocalPosition;
-};
-
-/** Data for a single connected sphere primitive. This should be configured after all spheres have
- *  been processed as they are really just indexing the existing spheres
- */
-USTRUCT()
-struct FClothCollisionPrim_SphereConnection
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	int32 SphereIndices[2];
-};
-
-/**
- *	Data for a single convex element
- *	A convex is a collection of planes, in which the clothing will attempt to stay outside of the
- *	shape created by the planes combined.
- */
-USTRUCT()
-struct FClothCollisionPrim_Convex
-{
-	GENERATED_BODY()
-
-	FClothCollisionPrim_Convex()
-		: BoneIndex(INDEX_NONE)
-	{
-
-	}
-
-	UPROPERTY()
-	TArray<FPlane> Planes;
-
-	UPROPERTY()
-	int32 BoneIndex;
-};
-
-USTRUCT()
-struct CLOTHINGSYSTEMRUNTIMEINTERFACE_API FClothCollisionData
-{
-	GENERATED_BODY()
-
-	void Reset();
-
-	void Append(const FClothCollisionData& InOther);
-
-	// Sphere data
-	UPROPERTY(EditAnywhere, Category = Collison)
-	TArray<FClothCollisionPrim_Sphere> Spheres;
-
-	// Capsule data
-	UPROPERTY(EditAnywhere, Category = Collison)
-	TArray<FClothCollisionPrim_SphereConnection> SphereConnections;
-
-	// Convex Data
-	UPROPERTY(EditAnywhere, Category = Collison)
-	TArray<FClothCollisionPrim_Convex> Convexes;
-};

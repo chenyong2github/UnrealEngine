@@ -43,6 +43,12 @@ public:
 	/** Removes an input from the node */
 	TSharedPtr<FUICommandInfo> DeleteInput;
 
+	/** Plays the SoundCue or stops the currently playing cue/node */
+	TSharedPtr<FUICommandInfo> ToggleSolo;
+
+	/** Plays the SoundCue or stops the currently playing cue/node */
+	TSharedPtr<FUICommandInfo> ToggleMute;
+
 	/** Initialize commands */
 	virtual void RegisterCommands() override;
 };

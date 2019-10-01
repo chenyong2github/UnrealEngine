@@ -206,6 +206,8 @@ public:
 	//
 	virtual uint32 GetCurrentTemporalAASampleIndex() const = 0;
 
+	virtual uint32 GetCurrentUnclampedTemporalAASampleIndex() const = 0;
+
 	virtual void SetSequencerState(ESequencerState InSequencerState) = 0;
 
 	virtual ESequencerState GetSequencerState() = 0;
@@ -614,7 +616,7 @@ public:
 		InvUniformPenumbraSize(FVector4(0, 0, 0, 0)),
 		Type(SMIT_None)
 	{
-		for (int Channel = 0; Channel < ARRAY_COUNT(bChannelValid); Channel++)
+		for (int Channel = 0; Channel < UE_ARRAY_COUNT(bChannelValid); Channel++)
 		{
 			bChannelValid[Channel] = false;
 		}
@@ -1361,6 +1363,7 @@ public:
 	inline bool CastsStaticShadow() const { return bCastStaticShadow; }
 	inline bool CastsTranslucentShadows() const { return bCastTranslucentShadows; }
 	inline bool CastsVolumetricShadow() const { return bCastVolumetricShadow; }
+	inline bool CastsHairStrandsDeepShadow() const { return bCastHairStrandsDeepShadow; }
 	inline bool CastsRaytracedShadow() const { return bCastRaytracedShadow; }
 	inline bool AffectReflection() const { return bAffectReflection; }
 	inline bool AffectGlobalIllumination() const { return bAffectGlobalIllumination; }
@@ -1527,7 +1530,7 @@ protected:
 	const uint8 bTransmission : 1;
 
 	const uint8 bCastVolumetricShadow : 1;
-
+	const uint8 bCastHairStrandsDeepShadow : 1;
 	const uint8 bCastShadowsFromCinematicObjectsOnly : 1;
 
 	const uint8 bForceCachedShadowsForMovablePrimitives : 1;

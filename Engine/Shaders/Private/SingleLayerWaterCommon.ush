@@ -7,6 +7,8 @@
 #include "ShadingCommon.ush" 
 #include "DistortionCommon.ush"
 
+// Scale for encoding depth into SceneDepthWithoutSingleLayerWaterTexture
+#define SINGLE_LAYER_WATER_DEPTH_SCALE 100.0f
 
 #ifndef SIMPLE_SINGLE_LAYER_WATER
 #define SIMPLE_SINGLE_LAYER_WATER 0
@@ -40,12 +42,12 @@ bool WaterRefract(float3 V, float3 N, float Eta, out float3 R)
 // Returns as luminance, the result of lighting scattering in water and the under water scene color contribution.
 WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	FMaterialPixelParameters MaterialParameters, FPixelMaterialInputs PixelMaterialInputs, ViewState ResolvedView,
-	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
 #if SIMPLE_SINGLE_LAYER_WATER
 	float DirectionalLightShadow,
 #else
-	Texture2D SceneLuminanceWithoutSingleLayerWaterTexture, SamplerState SceneLuminanceWithoutSingleLayerWaterSampler,
-	Texture2D SceneCustomDepthTexture, SamplerState SceneCustomDepthSampler,
+	Texture2D SceneColorWithoutSingleLayerWaterTexture, SamplerState SceneColorWithoutSingleLayerWaterSampler,
+	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
+	float4 SceneWithoutSingleLayerWaterValidUVRect,
 #endif // SIMPLE_SINGLE_LAYER_WATER
 	float Specular, const float4 DistortionParams,
 	float3 SunIlluminance, float3 AmbiantIlluminance, float3 EnvBrdf,
@@ -59,27 +61,20 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	float2 WaterNDC = MaterialParameters.ScreenPosition.xy / MaterialParameters.ScreenPosition.w;
 	float2 ViewportUV = WaterNDC * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz;
 
-#if SIMPLE_SINGLE_LAYER_WATER==0
-	float SceneCustomDepth = SceneCustomDepthTexture.SampleLevel(SceneCustomDepthSampler, ViewportUV, 0).r;
-	if (SceneCustomDepth > MaterialParameters.SvPosition.z)
-	{
-		clip(-1); // Custom depth Z is used to clip, this in order to avoid water being visible inside boats for instance.
-	}
-#endif // !SIMPLE_SINGLE_LAYER_WATER
-
 	float WaterDepth = ConvertFromDeviceZ(MaterialParameters.SvPosition.z);
 	if (WaterVisibility > 0.0f)
 	{
-		float PixelSceneDeviceZ = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, ViewportUV, 0).r;
+#if SIMPLE_SINGLE_LAYER_WATER
+		float PixelSceneDeviceZ = LookupDeviceZ(ViewportUV);
 		float PixelSceneDepth = ConvertFromDeviceZ(PixelSceneDeviceZ);
 		
-#if SIMPLE_SINGLE_LAYER_WATER
-
 		float SceneDeviceZ = PixelSceneDeviceZ;
 		float SceneDepth = PixelSceneDepth;
 
 #else  // !SIMPLE_SINGLE_LAYER_WATER
 
+		float PixelSceneDepth = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, ViewportUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+		
 		float2 Refraction = GetMaterialRefraction(PixelMaterialInputs); // X = IOR, Y = Refraction Bias
 		float2 BufferUVDistortion = ComputeBufferUVDistortion(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
@@ -89,18 +84,20 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		BufferUVDistortion *= saturate((PixelSceneDepth - WaterDepth) * 1.0 / 30.0f);// *(1 - saturate(WaterDepth * 1.0 / 2000.0f));
 
 		// Clamp distorted UVs to not sample black outside the sub part of the buffer. Big quality increase.
-		const float2 DistortedUv = clamp(ViewportUV + BufferUVDistortion, 0.0, (ResolvedView.ViewSizeAndInvSize.xy-0.5f) * ResolvedView.BufferSizeAndInvSize.zw);
+		const float2 DistortedUV = clamp(ViewportUV + BufferUVDistortion, SceneWithoutSingleLayerWaterValidUVRect.xy, SceneWithoutSingleLayerWaterValidUVRect.zw);
 
-		float SceneDeviceZ = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, DistortedUv, 0).r;
-		float SceneDepth = ConvertFromDeviceZ(SceneDeviceZ);
+		float SceneDepth = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, DistortedUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+
 		if (SceneDepth < WaterDepth)
 		{
 			SceneDepth = PixelSceneDepth; // The pixel we try to sample is closer than the water pixel: falback to no distortion
 		}
 		else
 		{
-			ViewportUV = DistortedUv;
+			ViewportUV = DistortedUV;
 		}
+
+		const float SceneDeviceZ = ConvertToDeviceZ(SceneDepth);
 
 #endif // !SIMPLE_SINGLE_LAYER_WATER
 
@@ -109,7 +106,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		const float3 ScatteringCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput0(MaterialParameters));
 		const float3 AbsorptionCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput1(MaterialParameters));
 		const float PhaseG = clamp(GetSingleLayerWaterMaterialOutput2(MaterialParameters), -1.0f, 1.0f);
-		const float3 ExtinctionCoeff = ScatteringCoeff + AbsorptionCoeff;
+		const float3 ExtinctionCoeff = max(ScatteringCoeff + AbsorptionCoeff, 1e-20); // Max to avoid division by 0 with the analytical integral below.
 		
 		float DirLightPhaseValue = 0.0f; // Default when Total Internal Reflection happens.
 		{
@@ -138,7 +135,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		const float3 BehindWaterSceneLuminance = 0.0f; // Cannot read back the scene color in this case
 #else
 		// We use the pixel SvPosition instead of the scene one pre refraction/distortion to avoid those extra ALUs.
-		float3 BehindWaterSceneLuminance = SceneLuminanceWithoutSingleLayerWaterTexture.SampleLevel(SceneLuminanceWithoutSingleLayerWaterSampler, ViewportUV, 0).rgb;
+		float3 BehindWaterSceneLuminance = SceneColorWithoutSingleLayerWaterTexture.SampleLevel(SceneColorWithoutSingleLayerWaterSampler, ViewportUV, 0).rgb;
 		BehindWaterSceneLuminance = MeanTransmittanceToLightSources * (USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f) * BehindWaterSceneLuminance;
 #endif
 

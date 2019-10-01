@@ -228,7 +228,14 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 
 			hCommandList.UpdateResidency(Resource);
 
-			hCommandList.AddTransitionBarrier(Resource, D3D12_RESOURCE_STATE_COPY_DEST, DestinationState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+			if (!Resource->RequiresResourceStateTracking())
+			{
+				hCommandList.AddTransitionBarrier(Resource, D3D12_RESOURCE_STATE_COPY_DEST, DestinationState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+			}
+			else
+			{
+				FD3D12DynamicRHI::TransitionResource(hCommandList, Resource, DestinationState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+			}
 
 			CurrentTexture = CurrentTexture->GetNextObject();
 		}
@@ -838,7 +845,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 	const FD3D12Resource::FD3D12ResourceTypeHelper Type(TextureDesc, D3D12_HEAP_TYPE_DEFAULT);
 	const D3D12_RESOURCE_STATES DestinationState = Type.GetOptimalInitialState(false);
 
-	TD3D12Texture2D<BaseResourceType>* D3D12TextureOut = Adapter->CreateLinkedObject<TD3D12Texture2D<BaseResourceType>>(FRHIGPUMask::All(), [&](FD3D12Device* Device)
+	TD3D12Texture2D<BaseResourceType>* D3D12TextureOut = Adapter->CreateLinkedObject<TD3D12Texture2D<BaseResourceType>>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
 	{
 		TD3D12Texture2D<BaseResourceType>* NewTexture = new TD3D12Texture2D<BaseResourceType>(Device,
 			SizeX,
@@ -1059,7 +1066,7 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 	const D3D12_RESOURCE_STATES DestinationState = Type.GetOptimalInitialState(false);
 
 	FD3D12Adapter* Adapter = &GetAdapter();
-	FD3D12Texture3D* D3D12TextureOut = Adapter->CreateLinkedObject<FD3D12Texture3D>(FRHIGPUMask::All(), [&](FD3D12Device* Device)
+	FD3D12Texture3D* D3D12TextureOut = Adapter->CreateLinkedObject<FD3D12Texture3D>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
 	{
 		FD3D12Texture3D* Texture3D = new FD3D12Texture3D(Device, SizeX, SizeY, SizeZ, NumMips, Format, Flags, CreateInfo.ClearValueBinding);
 
@@ -1256,11 +1263,16 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 
 			FastAllocator.Allocate(Size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &TempResourceLocation);
 			FastAllocator.Allocate(SizeLowMips, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &TempResourceLocationLowMips);
+			TempResourceLocationLowMips.GetResource()->AddRef();
 		}
 		else
 		{
 			FastAllocator.Allocate(Size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &TempResourceLocation);
 		}
+		// We AddRef() the resource here to make sure it doesn't get recycled prematurely. We are likely to be done with it during the frame,
+		// but lifetime of the allocation is not strictly tied to the frame because we're using the copy queue here. Because we're waiting
+		// on the GPU before returning here, this protection is safe, even if we end up straddling frame boundaries.
+		TempResourceLocation.GetResource()->AddRef();
 
 		FD3D12Texture2D* CurrentTexture = TextureOut;
 		while (CurrentTexture != nullptr)
@@ -1316,6 +1328,12 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 		}
 
 		FD3D12TextureStats::D3D12TextureAllocated(*TextureOut);
+
+		// These are clear to be recycled now because GPU is done with it at this point. We wait on GPU in ExecuteCommandList() above.
+		TempResourceLocation.GetResource()->Release();
+		if (TempResourceLocationLowMips.GetResource())
+			TempResourceLocationLowMips.GetResource()->Release();
+
 	}
 
 	if (TempBufferSize != ZeroBufferSize)

@@ -160,6 +160,13 @@
 #define PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS 0
 #endif
 
+#ifndef COMPILER_SUPPORTS_BITFIELD_INTRINSICS
+#define COMPILER_SUPPORTS_BITFIELD_INTRINSICS 0
+#endif
+
+#ifndef COMPILER_SUPPORTS_PACK_INTRINSICS
+#define COMPILER_SUPPORTS_PACK_INTRINSICS 0
+#endif
 
 // ---------------------------------------------------- Alternative floating point types
 

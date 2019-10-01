@@ -636,7 +636,7 @@ FMergeStaticMeshParams::FMergeStaticMeshParams()
 	, bUseUVScaleBias(false)
 {
 	// initialize some UV channel arrays
-	for (int32 Channel = 0; Channel < ARRAY_COUNT(UVChannelRemap); Channel++)
+	for (int32 Channel = 0; Channel < UE_ARRAY_COUNT(UVChannelRemap); Channel++)
 	{
 		// we can't just map channel to channel by default, because we need to know when a UV channel is
 		// actually being redirected in to, so that we can update Triangle.NumUVs

@@ -145,6 +145,7 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 		
 			float4 LightAttenuation = float4(WholeSceneShadowing.xx, PerObjectShadowing.xx);
 		#else
+			LightData.ShadowedBits = 1;
 			LightData.ShadowMapChannelMask.x = 1;
 			#if TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING
 				GBufferData.PrecomputedShadowFactors.x = ComputeDirectionalLightStaticShadowing(WorldPosition).x;
@@ -163,6 +164,8 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 			DirectLighting += NewLighting;
 		}
 	}
+
+#if !DISABLE_FORWARD_LOCAL_LIGHTS
 
 	const FCulledLightsGridData CulledLightsGrid = GetCulledLightsGrid(GridIndex, EyeIndex);
 
@@ -213,6 +216,8 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 			DirectLighting += NewLighting;
 		}
 	}
+
+#endif
 
 	// For debugging
 	//DirectLighting = CulledLightsGrid.NumLocalLights / (float)ForwardLightData.MaxCulledLightsPerCell;

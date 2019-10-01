@@ -814,8 +814,8 @@ void FTextureSource::Compress()
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>( FName("ImageWrapper") );
 		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper( EImageFormat::PNG );
 		// TODO: TSF_BGRA8 is stored as RGBA, so the R and B channels are swapped in the internal png. Should we fix this?
-		ERGBFormat RawFormat = (Format == TSF_G8) ? ERGBFormat::Gray : ERGBFormat::RGBA;
-		if ( ImageWrapper.IsValid() && ImageWrapper->SetRaw( BulkDataPtr, BulkData.GetBulkDataSize(), SizeX, SizeY, RawFormat, Format == TSF_RGBA16 ? 16 : 8 ) )
+		ERGBFormat RawFormat = (Format == TSF_G8 || Format == TSF_G16) ? ERGBFormat::Gray : ERGBFormat::RGBA;
+		if ( ImageWrapper.IsValid() && ImageWrapper->SetRaw( BulkDataPtr, BulkData.GetBulkDataSize(), SizeX, SizeY, RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8 ) )
 		{
 			const TArray<uint8>& CompressedData = ImageWrapper->GetCompressed();
 			if ( CompressedData.Num() > 0 )
@@ -846,7 +846,7 @@ uint8* FTextureSource::LockMip(int32 BlockIndex, int32 LayerIndex, int32 MipInde
 			LockedMipData = (uint8*)BulkData.Lock(LOCK_READ_WRITE);
 			if (bPNGCompressed)
 			{
-				bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
+				bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_G16 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
 				check(Blocks.Num() == 0 && NumLayers == 1 && NumSlices == 1 && bCanPngCompressFormat);
 				if (MipIndex != 0)
 				{
@@ -861,8 +861,8 @@ uint8* FTextureSource::LockMip(int32 BlockIndex, int32 LayerIndex, int32 MipInde
 					check( ImageWrapper->GetHeight() == SizeY );
 					const TArray<uint8>* RawData = NULL;
 					// TODO: TSF_BGRA8 is stored as RGBA, so the R and B channels are swapped in the internal png. Should we fix this?
-					ERGBFormat RawFormat = (Format == TSF_G8) ? ERGBFormat::Gray : ERGBFormat::RGBA;
-					if (ImageWrapper->GetRaw( RawFormat, Format == TSF_RGBA16 ? 16 : 8, RawData ))
+					ERGBFormat RawFormat = (Format == TSF_G8 || Format == TSF_G16) ? ERGBFormat::Gray : ERGBFormat::RGBA;
+					if (ImageWrapper->GetRaw( RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8, RawData ))
 					{
 						if (RawData->Num() > 0)
 						{
@@ -925,7 +925,7 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 		void* RawSourceData = BulkData.Lock(LOCK_READ_ONLY);
 		if (bPNGCompressed)
 		{
-			bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
+			bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_G16 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
 			if (MipIndex == 0 && NumLayers == 1 && NumSlices == 1 && Blocks.Num() == 0 && bCanPngCompressFormat)
 			{
 				if (!ImageWrapperModule) // Optional if called from the gamethread, see FModuleManager::WarnIfItWasntSafeToLoadHere()
@@ -942,8 +942,8 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 					{
 						const TArray<uint8>* RawData = NULL;
 						// TODO: TSF_BGRA8 is stored as RGBA, so the R and B channels are swapped in the internal png. Should we fix this?
-						ERGBFormat RawFormat = (Format == TSF_G8) ? ERGBFormat::Gray : ERGBFormat::RGBA;
-						if (ImageWrapper->GetRaw( RawFormat, Format == TSF_RGBA16 ? 16 : 8, RawData ))
+						ERGBFormat RawFormat = (Format == TSF_G8 || Format == TSF_G16) ? ERGBFormat::Gray : ERGBFormat::RGBA;
+						if (ImageWrapper->GetRaw( RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8, RawData ))
 						{
 							OutMipData = *RawData;
 							bSuccess = true;
@@ -1009,6 +1009,7 @@ int32 FTextureSource::GetBytesPerPixel(ETextureSourceFormat Format)
 	switch (Format)
 	{
 	case TSF_G8:		BytesPerPixel = 1; break;
+	case TSF_G16:		BytesPerPixel = 2; break;
 	case TSF_BGRA8:		BytesPerPixel = 4; break;
 	case TSF_BGRE8:		BytesPerPixel = 4; break;
 	case TSF_RGBA16:	BytesPerPixel = 8; break;
@@ -1100,7 +1101,7 @@ FString FTextureSource::GetIdString() const
 
 bool FTextureSource::CanPNGCompress() const
 {
-	bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
+	bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_G16 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
 
 	if (!bPNGCompressed &&
 		NumLayers == 1 &&
@@ -1312,6 +1313,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	static FName NameBGRA8(TEXT("BGRA8"));
 	static FName NameXGXR8(TEXT("XGXR8"));
 	static FName NameG8(TEXT("G8"));
+	static FName NameG16(TEXT("G16"));
 	static FName NameVU8(TEXT("VU8"));
 	static FName NameRGBA16F(TEXT("RGBA16F"));
 	static FName NameBC6H(TEXT("BC6H"));
@@ -1364,6 +1366,10 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		if (Texture->HasHDRSource(LayerIndex))
 		{
 			TextureFormatName = NameRGBA16F;
+		}
+		else if (SourceFormat == TSF_G16)
+		{
+			TextureFormatName = NameG16;
 		}
 		else if (SourceFormat == TSF_G8 || FormatSettings.CompressionSettings == TC_Grayscale)
 		{

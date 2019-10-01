@@ -47,6 +47,8 @@ static int32 GD3DCheckForDoubles = 1;
 static int32 GD3DCheckForTypedUAVs = 1;
 static int32 GD3DDumpAMDCodeXLFile = 0;
 
+static const uint32 GD3DMaximumNumUAVs = 8; // Limit for feature level 11.0
+
 /**
  * TranslateCompilerFlag - translates the platform-independent compiler flags into D3DX defines
  * @param CompilerFlag - the platform-independent compiler flag to translate
@@ -544,7 +546,7 @@ static void D3DCreateDXCArguments(TArray<const WCHAR*>& OutArgs, const WCHAR* Ex
 		L"0", L"1", L"2", L"3", L"4", L"5", L"6", L"7", L"8", L"9"
 	};
 
-	if (AutoBindingSpace < ARRAY_COUNT(DigitStrings))
+	if (AutoBindingSpace < UE_ARRAY_COUNT(DigitStrings))
 	{
 		OutArgs.Add(L"/auto-binding-space");
 		OutArgs.Add(DigitStrings[AutoBindingSpace]);
@@ -1583,6 +1585,12 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 			// Daniel L: This GenerateShaderName does not generate a deterministic output among shaders as the shader code can be shared. 
 			//			uncommenting this will cause the project to have non deterministic materials and will hurt patch sizes
 			//Output.ShaderCode.AddOptionalData('n', TCHAR_TO_UTF8(*Input.GenerateShaderName()));
+
+			// Check for resource limits for feature level 11.0
+			if (NumUAVs > GD3DMaximumNumUAVs)
+			{
+				UE_LOG(LogD3D11ShaderCompiler, Fatal, TEXT("Number of UAVs in \"%s\" exceeded limit: %d slots used, but limit is %d due to maximum feature level 11.0"), *Input.VirtualSourceFilePath, NumUAVs, GD3DMaximumNumUAVs);
+			}
 
 			// Set the number of instructions.
 			Output.NumInstructions = NumInstructions;
