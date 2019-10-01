@@ -125,6 +125,8 @@ bool USteamSocketsNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNoti
 	// Because of this, a normal flow should be skipped over and use a forced P2P address.
 	if (!bIsDelayedNetworkAccess)
 	{
+		UE_LOG(LogNet, Verbose, TEXT("SteamSockets: Looking for a binding address that matches protocol %s"), *SocketAddressType.ToString());
+
 		// Set the binding address.
 		TArray<TSharedPtr<FInternetAddr>> Addresses;
 		if (SocketSub->GetLocalAdapterAddresses(Addresses))

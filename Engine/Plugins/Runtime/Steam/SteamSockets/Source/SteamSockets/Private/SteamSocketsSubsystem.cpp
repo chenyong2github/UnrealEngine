@@ -197,6 +197,7 @@ void FSteamSocketsSubsystem::Shutdown()
 	if (OnlineSteamSubsystem)
 	{
 		OnlineSteamSubsystem->ClearOnSteamServerLoginCompletedDelegate_Handle(SteamServerLoginDelegateHandle);
+		OnlineSteamSubsystem->SetPingInterface(nullptr);
 	}
 
 	// Clean up the internal event manager.
@@ -794,13 +795,26 @@ void FSteamSocketsSubsystem::OnServerLoginComplete(bool bWasSuccessful)
 TSharedPtr<FInternetAddr> FSteamSocketsSubsystem::GetIdentityAddress()
 {
 	SteamNetworkingIdentity SteamIDData;
+	TSharedRef<FInternetAddrSteamSockets> SteamAddr = StaticCastSharedRef<FInternetAddrSteamSockets>(CreateInternetAddr());
+
 	// Attempt to get the machine's identity (their steam ID)
 	if (GetSteamSocketsInterface() && GetSteamSocketsInterface()->GetIdentity(&SteamIDData))
 	{
 		// If we got it, assign it to the SteamAddr
-		TSharedRef<FInternetAddrSteamSockets> SteamAddr = StaticCastSharedRef<FInternetAddrSteamSockets>(CreateInternetAddr());
 		SteamAddr->Addr = SteamIDData;
 		return SteamAddr;
+	}
+	else if (!IsRunningDedicatedServer() && SteamUser())
+	{
+		CSteamID CurrentUser = SteamUser()->GetSteamID();
+		if (CurrentUser.IsValid())
+		{
+			SteamAddr->Addr.SetSteamID(CurrentUser);
+		}
+		else
+		{
+			UE_LOG(LogSockets, Warning, TEXT("SteamSockets: Unable to process current user's steam id!"));
+		}
 	}
 
 	return nullptr;
