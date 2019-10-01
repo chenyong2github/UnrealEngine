@@ -271,7 +271,7 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	float3 ColorAP1 = mul( sRGB_2_AP1, BalancedColor );
 
 	// Expand bright saturated colors outside the sRGB gamut to fake wide gamut rendering.
-	if (!bUseMobileTonemapper)
+    if (!bUseMobileTonemapper)
 	{
 		float  LumaAP1 = dot( ColorAP1, AP1_RGB2Y );
 		float3 ChromaAP1 = ColorAP1 / LumaAP1;

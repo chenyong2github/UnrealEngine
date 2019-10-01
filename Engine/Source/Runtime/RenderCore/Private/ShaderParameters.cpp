@@ -190,7 +190,6 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 			FString BaseTypeName;
 			switch(Member.GetBaseType())
 			{
-			case UBMT_BOOL:    BaseTypeName = TEXT("bool"); break;
 			case UBMT_INT32:   BaseTypeName = TEXT("int"); break;
 			case UBMT_UINT32:  BaseTypeName = TEXT("uint"); break;
 			case UBMT_FLOAT32: 

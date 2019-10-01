@@ -619,6 +619,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, ColorScale(InitOptions.ColorScale)
 	, StereoPass(InitOptions.StereoPass)
 	, StereoIPD(InitOptions.StereoIPD)
+	, GPUMask(FRHIGPUMask::GPU0())
 	, bRenderFirstInstanceOnly(false)
 	, DiffuseOverrideParameter(FVector4(0,0,0,1))
 	, SpecularOverrideParameter(FVector4(0,0,0,1))
@@ -824,8 +825,7 @@ void FSceneView::SetupAntiAliasingMethod()
 		if (!bWillApplyTemporalAA || !Family->EngineShowFlags.AntiAliasing || Quality <= 0
 			// Disable antialiasing in GammaLDR mode to avoid jittering.
 			|| (FeatureLevel <= ERHIFeatureLevel::ES3_1 && MobileHDRCvar->GetValueOnAnyThread() == 0)
-			|| (FeatureLevel <= ERHIFeatureLevel::ES3_1 && (MobileMSAAValue > 1))
-			|| Family->EngineShowFlags.VisualizeDOF)
+			|| (FeatureLevel <= ERHIFeatureLevel::ES3_1 && (MobileMSAAValue > 1)))
 		{
 			AntiAliasingMethod = AAM_None;
 		}

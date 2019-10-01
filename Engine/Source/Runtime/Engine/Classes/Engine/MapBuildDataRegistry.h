@@ -337,7 +337,7 @@ public:
 	ENGINE_API FLightComponentMapBuildData* GetLightBuildData(FGuid LightId);
 
 	/** 
-	 * Allocates a new FMeshMapBuildData from the registry.
+	 * Allocates a new FReflectionCaptureMapBuildData from the registry.
 	 * Warning: Further allocations will invalidate the returned reference.
 	 */
 	ENGINE_API FReflectionCaptureMapBuildData& AllocateReflectionCaptureBuildData(const FGuid& CaptureId, bool bMarkDirty);

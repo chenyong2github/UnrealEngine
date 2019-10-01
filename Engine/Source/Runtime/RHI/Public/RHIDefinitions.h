@@ -472,8 +472,11 @@ enum EUniformBufferBaseType : uint8
 {
 	UBMT_INVALID,
 
-	// Parameter types.
+	// Invalid type when trying to use bool, to have explicit error message to programmer on why
+	// they shouldn't use bool in shader parameter structures.
 	UBMT_BOOL,
+
+	// Parameter types.
 	UBMT_INT32,
 	UBMT_UINT32,
 	UBMT_FLOAT32,

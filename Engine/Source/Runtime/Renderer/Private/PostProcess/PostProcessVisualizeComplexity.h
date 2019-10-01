@@ -1,119 +1,56 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessVisualizeComplexity.h: PP pass used when visualizing complexity, maps scene color complexity value to colors
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ShaderParameters.h"
-#include "Shader.h"
-#include "GlobalShader.h"
-#include "RendererInterface.h"
-#include "PostProcessParameters.h"
+#include "ScreenPass.h"
 #include "PostProcess/RenderingCompositionGraph.h"
 #include "DebugViewModeHelpers.h"
+#include "OverridePassSequence.h"
 
 /**
 * The number of shader complexity colors from the engine ini that will be passed to the shader. 
 * Changing this requires a recompile of the FShaderComplexityApplyPS.
 */
-static const uint32 MaxNumShaderComplexityColors = 11;
-static const float NormalizedQuadComplexityValue = 1.f / 16.f;
+const uint32 MaxNumShaderComplexityColors = 11;
+const float NormalizedQuadComplexityValue = 1.f / 16.f;
 
-/**
- * Gets the maximum shader complexity count from the ini settings.
- */
+// Gets the maximum shader complexity count from the ini settings.
 float GetMaxShaderComplexityCount(ERHIFeatureLevel::Type InFeatureType);
 
-/**
-* Pixel shader that is used to visualize complexity stored in scene color into color.
-*/
-class FVisualizeComplexityApplyPS : public FGlobalShader
+struct FVisualizeComplexityInputs
 {
-	DECLARE_SHADER_TYPE(FVisualizeComplexityApplyPS,Global);
-public:
-
-	enum EColorSampling
+	enum class EColorSamplingMethod : uint32
 	{
-		CS_RAMP,
-		CS_LINEAR,
-		CS_STAIR
+		Ramp,
+		Linear,
+		Stair
 	};
 
-	/** 
-	* Constructor - binds all shader params
-	* @param Initializer - init data from shader compiler
-	*/
-	FVisualizeComplexityApplyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
+	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
+	FScreenPassRenderTarget OverrideOutput;
 
-	FVisualizeComplexityApplyPS() {}
+	// [Required] The input scene color and view rect.
+	FScreenPassTexture SceneColor;
 
-	template <typename TRHICmdList>
-	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const TArray<FLinearColor>& Colors, EColorSampling ColorSampling, float ComplexityScale, bool bLegend, bool bShowError);
+	// [Required] The table of colors used for visualization, ordered by least to most complex.
+	TArrayView<const FLinearColor> Colors;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return true;
-	}
+	// The method used to derive a color from the sampled complexity value.
+	EColorSamplingMethod ColorSamplingMethod = EColorSamplingMethod::Ramp;
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("READ_QUAD_OVERDRAW"), AllowDebugViewShaderMode(DVSM_QuadComplexity, Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform)));
-		OutEnvironment.SetDefine(TEXT("MAX_NUM_COMPLEXITY_COLORS"), MaxNumShaderComplexityColors);
-		// EColorSampling values
-		OutEnvironment.SetDefine(TEXT("CS_RAMP"), (uint32)CS_RAMP);
-		OutEnvironment.SetDefine(TEXT("CS_LINEAR"), (uint32)CS_LINEAR);
-		OutEnvironment.SetDefine(TEXT("CS_STAIR"), (uint32)CS_STAIR);
-		// EDebugViewShaderMode values
-		OutEnvironment.SetDefine(TEXT("DVSM_None"), (uint32)DVSM_None);
-		OutEnvironment.SetDefine(TEXT("DVSM_ShaderComplexity"), (uint32)DVSM_ShaderComplexity);
-		OutEnvironment.SetDefine(TEXT("DVSM_ShaderComplexityContainedQuadOverhead"), (uint32)DVSM_ShaderComplexityContainedQuadOverhead);
-		OutEnvironment.SetDefine(TEXT("DVSM_ShaderComplexityBleedingQuadOverhead"), (uint32)DVSM_ShaderComplexityBleedingQuadOverhead);
-		OutEnvironment.SetDefine(TEXT("DVSM_QuadComplexity"), (uint32)DVSM_QuadComplexity);
-	}
+	// A scale applied to the sampled scene complexity value prior to colorizing.
+	float ComplexityScale = 1.0f;
 
-	bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << ShaderComplexityColors << MiniFontTexture << ShaderComplexityParams << ShaderComplexityParams2 << QuadOverdrawTexture;
-		return bShaderHasOutdatedParameters;
-	}
-
-private:
-
-	FPostProcessPassParameters PostprocessParameter;
-	FShaderParameter ShaderComplexityColors;
-	FShaderResourceParameter MiniFontTexture;
-	FShaderParameter ShaderComplexityParams;
-	FShaderParameter ShaderComplexityParams2;
-	FShaderResourceParameter QuadOverdrawTexture;
+	// Renders the complexity legend overlay.
+	bool bDrawLegend = false;
 };
 
-class FRCPassPostProcessVisualizeComplexity : public TRenderingCompositePassBase<1, 1>
-{
-public:
+FScreenPassTexture AddVisualizeComplexityPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeComplexityInputs& Inputs);
 
-	typedef FVisualizeComplexityApplyPS::EColorSampling EColorSampling;
-
-	FRCPassPostProcessVisualizeComplexity(const TArray<FLinearColor>& InColors, EColorSampling InColorSampling, float InComplexityScale, bool bInLegend)
-		: Colors(InColors)
-		, ColorSampling(InColorSampling)
-		, ComplexityScale(InComplexityScale)
-		, bLegend(bInLegend)
-	{}
-
-	// interface FRenderingCompositePass ---------
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-
-private: 
-
-	TArray<FLinearColor> Colors;
-	EColorSampling ColorSampling;
-	float ComplexityScale;
-	bool bLegend;
-};
+FRenderingCompositeOutputRef AddVisualizeComplexityPass(
+	FRenderingCompositionGraph& Graph,
+	FRenderingCompositeOutputRef Input,
+	const TArray<FLinearColor>& InColors,
+	FVisualizeComplexityInputs::EColorSamplingMethod InColorSampling,
+	float InComplexityScale,
+	bool bInLegend);

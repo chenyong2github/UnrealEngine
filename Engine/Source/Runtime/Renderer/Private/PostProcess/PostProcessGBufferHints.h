@@ -1,27 +1,25 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessGBufferHints.h: Post processing GBufferHints implementation.
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
-#include "PostProcess/RenderingCompositionGraph.h"
+#include "ScreenPass.h"
+#include "OverridePassSequence.h"
 
-// derives from TRenderingCompositePassBase<InputCount, OutputCount>
-// ePId_Input0: SceneColor
-// ePId_Input1: Emissive (SceneColor without lighting)
-class FRCPassPostProcessGBufferHints : public TRenderingCompositePassBase<2, 1>
+class FSceneTextureParameters;
+
+struct FVisualizeGBufferHintsInputs
 {
-public:
-	// constructor
-	FRCPassPostProcessGBufferHints(FRHICommandList& RHICmdList);
+	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
+	FScreenPassRenderTarget OverrideOutput;
 
-	// interface FRenderingCompositePass ---------
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+	// [Required] The scene color to composite with the gbuffer hint visualization.
+	FScreenPassTexture SceneColor;
+
+	// [Required] The original, unprocessed scene color to composite with the gbuffer hint visualization.
+	FScreenPassTexture OriginalSceneColor;
+
+	// [Required] The scene textures used to visualize gbuffer hints.
+	const FSceneTextureParameters* SceneTextures = nullptr;
 };
 
+FScreenPassTexture AddVisualizeGBufferHintsPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeGBufferHintsInputs& Inputs);

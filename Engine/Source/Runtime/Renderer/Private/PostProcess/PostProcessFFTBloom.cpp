@@ -760,7 +760,7 @@ FRDGTextureRef AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 		Inputs.FullResolutionTexture->Desc.Extent,
 		Inputs.FullResolutionTexture->Desc.Format,
 		FClearValueBinding::None,
-		TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV,
+		TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
 		false);
 
 	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("FFTBloom"));

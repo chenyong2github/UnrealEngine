@@ -2,11 +2,16 @@
 
 #pragma once
 
+// Number of sample batched at same time.
+#define SSRT_SAMPLE_BATCH_SIZE 4
+
 #ifndef IS_SSGI_SHADER
 #define IS_SSGI_SHADER 0
 #endif
 
 #include "../Common.ush"	
+
+#define SSGI_TRACE_CONE 0
 
 
 #ifndef DEBUG_SSRT
@@ -157,8 +162,13 @@ bool CastScreenSpaceRay(
 	float LastDiff = 0;
 	Level = 1;
 
+	//StepOffset = View.GeneralPurposeTweak;
+
 	RayStepUVz *= Step;
 	float3 RayUVz = RayStartUVz + RayStepUVz * StepOffset;
+	#if IS_SSGI_SHADER && SSGI_TRACE_CONE
+		RayUVz = RayStartUVz;
+	#endif
 	
 	#if DEBUG_SSRT
 	{
@@ -168,42 +178,93 @@ bool CastScreenSpaceRay(
 	#endif
 	
 	float4 MultipleSampleDepthDiff;
-	bool4 bMultipleSampleHit;
+	bool4 bMultipleSampleHit; // TODO: Might consumes VGPRS if bug in compiler.
 	bool bFoundAnyHit = false;
 	
-	LOOP
-	for( uint i = 0; i < NumSteps; i += 4 )
-	{
-		// Vectorized to group fetches
-		float4 SampleUV0 = RayUVz.xyxy + RayStepUVz.xyxy * float4( 1, 1, 2, 2 );
-		float4 SampleUV1 = RayUVz.xyxy + RayStepUVz.xyxy * float4( 3, 3, 4, 4 );
-		float4 SampleZ   = RayUVz.zzzz + RayStepUVz.zzzz * float4( 1, 2, 3, 4 );
-		
-		#if DEBUG_SSRT
+	#if IS_SSGI_SHADER && SSGI_TRACE_CONE
+		const float ConeAngle = PI / 4;
+		const float d = 1;
+		const float r = d * sin(0.5 * ConeAngle);
+		const float Exp = 1.6; //(d + r) / (d - r);
+		const float ExpLog2 = log2(Exp);
+		const float MaxPower = exp2(log2(Exp) * (NumSteps + 1.0)) - 0.9;
+
 		{
-			if (bDebugPrint)
+			//Level = 2;
+		}
+	#endif
+
+	uint i;
+
+	LOOP
+	for (i = 0; i < NumSteps; i += SSRT_SAMPLE_BATCH_SIZE)
+	{
+		float2 SamplesUV[SSRT_SAMPLE_BATCH_SIZE];
+		float4 SamplesZ;
+		float4 SamplesMip;
+
+		// Compute the sample coordinates.
+		#if IS_SSGI_SHADER && SSGI_TRACE_CONE
+		{
+			UNROLL_N(SSRT_SAMPLE_BATCH_SIZE)
+			for (uint j = 0; j < SSRT_SAMPLE_BATCH_SIZE; j++)
 			{
-				PrintSample(HZBUvFactorAndInvFactor, SampleUV0.xy, float4(0, 1, 0, 1));
-				PrintSample(HZBUvFactorAndInvFactor, SampleUV0.zw, float4(0, 1, 0, 1));
-				PrintSample(HZBUvFactorAndInvFactor, SampleUV1.xy, float4(0, 1, 0, 1));
-				PrintSample(HZBUvFactorAndInvFactor, SampleUV1.zw, float4(0, 1, 0, 1));
+				float S = float(i + j) + StepOffset;
+
+				float NormalizedPower = (exp2(ExpLog2 * S) - 0.9) / MaxPower;
+
+				float Offset = NormalizedPower * NumSteps;
+
+				SamplesUV[j] = RayUVz.xy + Offset * RayStepUVz.xy;
+				SamplesZ[j] = RayUVz.z + Offset * RayStepUVz.z;
 			}
+		
+			SamplesMip.xy = Level;
+			Level += (8.0 / NumSteps) * Roughness;
+			//Level += 2.0 * ExpLog2;
+		
+			SamplesMip.zw = Level;
+			Level += (8.0 / NumSteps) * Roughness;
+			//Level += 2.0 * ExpLog2;
+		}
+		#else
+		{
+			UNROLL_N(SSRT_SAMPLE_BATCH_SIZE)
+			for (uint j = 0; j < SSRT_SAMPLE_BATCH_SIZE; j++)
+			{
+				SamplesUV[j] = RayUVz.xy + (float(i) + float(j + 1)) * RayStepUVz.xy;
+				SamplesZ[j] = RayUVz.z + (float(i) + float(j + 1)) * RayStepUVz.z;
+			}
+		
+			SamplesMip.xy = Level;
+			Level += (8.0 / NumSteps) * Roughness;
+		
+			SamplesMip.zw = Level;
+			Level += (8.0 / NumSteps) * Roughness;
 		}
 		#endif
 
-		// Use lower res for farther samples
+		// Sample the scene depth.
 		float4 SampleDepth;
-		SampleDepth.x = Texture.SampleLevel( Sampler, SampleUV0.xy, Level ).r;
-		SampleDepth.y = Texture.SampleLevel( Sampler, SampleUV0.zw, Level ).r;
-		Level += (8.0 / NumSteps) * Roughness;
-		
-		SampleDepth.z = Texture.SampleLevel( Sampler, SampleUV1.xy, Level ).r;
-		SampleDepth.w = Texture.SampleLevel( Sampler, SampleUV1.zw, Level ).r;
-		Level += (8.0 / NumSteps) * Roughness;
+		{
+			UNROLL_N(SSRT_SAMPLE_BATCH_SIZE)
+			for (uint j = 0; j < SSRT_SAMPLE_BATCH_SIZE; j++)
+			{
+				#if DEBUG_SSRT
+				{
+					if (bDebugPrint)
+					{
+						PrintSample(HZBUvFactorAndInvFactor, SamplesUV[j], float4(0, 1, 0, 1));
+					}
+				}
+				#endif
+				SampleDepth[j] = Texture.SampleLevel(Sampler, SamplesUV[j], SamplesMip[j]).r;
+			}
+		}
 
-		MultipleSampleDepthDiff = SampleZ - SampleDepth;
+		// Evaluates the intersections.
+		MultipleSampleDepthDiff = SamplesZ - SampleDepth;
 		bMultipleSampleHit = abs(MultipleSampleDepthDiff + CompareTolerance) < CompareTolerance;
-		
 		bFoundAnyHit = any(bMultipleSampleHit);
 
 		BRANCH
@@ -214,19 +275,48 @@ bool CastScreenSpaceRay(
 
 		LastDiff = MultipleSampleDepthDiff.w;
 
-		RayUVz += 4 * RayStepUVz;
+		//#if !SSGI_TRACE_CONE
+		//	RayUVz += SSRT_SAMPLE_BATCH_SIZE * RayStepUVz;
+		//#endif
 	} // for( uint i = 0; i < NumSteps; i += 4 )
 	
+	// Compute the output coordinates.
 	BRANCH
 	if (bFoundAnyHit)
     {
-        if (IS_SSGI_SHADER)
+		#if IS_SSGI_SHADER && SSGI_TRACE_CONE
+		{
+			// If hit set to intersect time. If missed set to beyond end of ray
+            float4 HitTime = bMultipleSampleHit ? float4(0, 1, 2, 3) : 4;
+
+			// Take closest hit
+            float Time1 = min(min3(HitTime.x, HitTime.y, HitTime.z), HitTime.w);
+		
+			float S = float(i + Time1) + StepOffset;
+
+			float NormalizedPower = (exp2(log2(Exp) * S) - 0.9) / MaxPower;
+
+			float Offset = NormalizedPower * NumSteps;
+
+            OutHitUVz = RayUVz + RayStepUVz * Offset;
+		}
+		#elif IS_SSGI_SHADER
+		{
+			// If hit set to intersect time. If missed set to beyond end of ray
+            float4 HitTime = bMultipleSampleHit ? float4(1, 2, 3, 4) : 5;
+
+			// Take closest hit
+            float Time1 = float(i) + min(min3(HitTime.x, HitTime.y, HitTime.z), HitTime.w);
+		
+            OutHitUVz = RayUVz + RayStepUVz * Time1;
+		}
+		#elif 0 // binary search refinement that has been attempted for SSR.
         {
 			// If hit set to intersect time. If missed set to beyond end of ray
             float4 HitTime = bMultipleSampleHit ? float4(1, 2, 3, 4) : 5;
 
 			// Take closest hit
-            float Time1 = min(min3(HitTime.x, HitTime.y, HitTime.z), HitTime.w);
+            float Time1 = float(i) + min(min3(HitTime.x, HitTime.y, HitTime.z), HitTime.w);
             float Time0 = Time1 - 1;
 
             const uint NumBinarySteps = Roughness < 0.2 ? 4 : 0;
@@ -253,7 +343,7 @@ bool CastScreenSpaceRay(
 			
             OutHitUVz = RayUVz + RayStepUVz * Time1;
         }
-        else // if (!IS_SSGI_SHADER)
+		#else // SSR
         {
             float DepthDiff0 = MultipleSampleDepthDiff[2];
             float DepthDiff1 = MultipleSampleDepthDiff[3];
@@ -280,6 +370,8 @@ bool CastScreenSpaceRay(
                 DepthDiff1 = MultipleSampleDepthDiff[0];
                 Time0 = 0;
             }
+
+			Time0 += float(i);
 
             float Time1 = Time0 + 1;
 			#if 0
@@ -314,7 +406,8 @@ bool CastScreenSpaceRay(
 			//float IntersectTime = lerp( Time0, Time1, TimeLerp );
 				
             OutHitUVz = RayUVz + RayStepUVz * IntersectTime;
-        } // if (!IS_SSGI_SHADER)
+        }
+		#endif
 		
 		#if DEBUG_SSRT
 		{

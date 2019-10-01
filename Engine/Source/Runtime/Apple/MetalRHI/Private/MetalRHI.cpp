@@ -253,7 +253,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	else if(GRHIAdapterName.Contains("Intel"))
 	{
 		bSupportsTiledReflections = false;
-		bSupportsPointLights = (FPlatformMisc::MacOSXVersionCompare(10,11,4) >= 0);
+		bSupportsPointLights = (FPlatformMisc::MacOSXVersionCompare(10,14,6) > 0);
 		GRHIVendorId = 0x8086;
 		bSupportsRHIThread = true;
 		bSupportsDistanceFields = (FPlatformMisc::MacOSXVersionCompare(10,12,2) >= 0);

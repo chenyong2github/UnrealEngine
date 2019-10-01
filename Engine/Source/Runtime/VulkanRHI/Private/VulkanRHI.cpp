@@ -699,8 +699,6 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHISupportsBaseVertexIndex = true;
 		GSupportsSeparateRenderTargetBlendState = true;
 
-		GSupportsDepthFetchDuringDepthTest = true;
-
 		FVulkanPlatform::SetupFeatureLevels();
 
 		GRHIRequiresRenderTargetForPixelShaderUAVs = true;

@@ -117,9 +117,13 @@ float GetRectLightBarnLength(int LightId)
 	return SceneLightsData.RectLightBarnLength[LightId];
 }
 
+#ifndef USE_ATTENUATION_TERM
+	#define USE_ATTENUATION_TERM 0
+#endif
+
 float ComputeAttenuationFalloff(float Distance, float Attenuation)
 {
-#ifdef USE_ATTENUATION_TERM
+#if USE_ATTENUATION_TERM
 	// Mirrors GetLocalLightAttenuation() custom attenuation controls
 	// #dxr_todo: UE-72508: encapsulate this function in a shared space
 	return Square(saturate(1.0 - Square(Square(Distance) / Square(Attenuation))));

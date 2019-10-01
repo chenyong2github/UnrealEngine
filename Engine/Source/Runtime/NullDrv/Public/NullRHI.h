@@ -389,13 +389,13 @@ public:
 	}
 
 
-	virtual void RHIMapStagingSurface(FRHITexture* Texture,void*& OutData,int32& OutWidth,int32& OutHeight) final override
+	virtual void RHIMapStagingSurface(FRHITexture* Texture,void*& OutData,int32& OutWidth,int32& OutHeight, uint32 GPUIndex = 0) final override
 	{
 
 	}
 
 
-	virtual void RHIUnmapStagingSurface(FRHITexture* Texture) final override
+	virtual void RHIUnmapStagingSurface(FRHITexture* Texture, uint32 GPUIndex = 0) final override
 	{
 
 	}

@@ -407,6 +407,7 @@ void ComputeDistanceFieldNormal(FRHICommandListImmediate& RHICmdList, const TArr
 			uint32 GroupSizeY = FMath::DivideAndRoundUp(View.ViewRect.Size().Y / GAODownsampleFactor, GDistanceFieldAOTileSizeY);
 
 			{
+				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 				SCOPED_DRAW_EVENT(RHICmdList, ComputeNormalCS);
 				TShaderMapRef<FComputeDistanceFieldNormalCS> ComputeShader(View.ShaderMap);
 
@@ -436,6 +437,7 @@ void ComputeDistanceFieldNormal(FRHICommandListImmediate& RHICmdList, const TArr
 			{
 				const FViewInfo& View = Views[ViewIndex];
 
+				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 				SCOPED_DRAW_EVENT(RHICmdList, ComputeNormal);
 
 				RHICmdList.SetViewport(0, 0, 0.0f, View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor, 1.0f);
@@ -803,11 +805,12 @@ bool FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 {
 	check(RHICmdList.IsOutsideRenderPass());
 
-	SCOPED_DRAW_EVENT(RHICmdList, RenderDistanceFieldLighting);
-
 	//@todo - support multiple views
 	const FViewInfo& View = Views[0];
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+
+	SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+	SCOPED_DRAW_EVENT(RHICmdList, RenderDistanceFieldLighting);
 
 	if (SupportsDistanceFieldAO(View.GetFeatureLevel(), View.GetShaderPlatform())
 		&& Views.Num() == 1

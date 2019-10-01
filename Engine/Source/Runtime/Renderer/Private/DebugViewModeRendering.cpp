@@ -17,6 +17,7 @@ DebugViewModeRendering.cpp: Contains definitions for rendering debug viewmodes.
 #include "PostProcess/PostProcessVisualizeComplexity.h"
 #include "PostProcess/PostProcessStreamingAccuracyLegend.h"
 #include "CompositionLighting/PostProcessPassThrough.h"
+#include "PostProcess/PostProcessSelectionOutline.h"
 #include "PostProcess/PostProcessCompositeEditorPrimitives.h"
 #include "PostProcess/PostProcessUpscale.h"
 #include "PostProcess/PostProcessTemporalAA.h"
@@ -71,184 +72,6 @@ bool FDebugViewModeVS::ShouldCompilePermutation(const FMeshMaterialShaderPermuta
 	return false;
 }
 
-extern FRenderingCompositeOutputRef AddTemporalAADebugViewPass(FPostprocessContext& Context);
-
-void FDeferredShadingSceneRenderer::DoDebugViewModePostProcessing(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& VelocityRT)
-{
-	QUICK_SCOPE_CYCLE_COUNTER( STAT_PostProcessing_Process );
-
-	check(IsInRenderingThread());
-	check(View.VerifyMembersChecks());
-
-	GRenderTargetPool.AddPhaseEvent(TEXT("PostProcessing"));
-
-	// so that the passes can register themselves to the graph
-	FMemMark Mark(FMemStack::Get());
-	FRenderingCompositePassContext CompositeContext(RHICmdList, View);
-
-	FPostprocessContext Context(RHICmdList, CompositeContext.Graph, View);
-	ensure(Context.View.PrimaryScreenPercentageMethod != EPrimaryScreenPercentageMethod::TemporalUpscale);
-
-	const bool bHDROutputEnabled = GRHISupportsHDROutput && IsHDREnabled();
-	
-	// Some view modes do not actually output a color so they should not be tonemapped	
-	const bool bAllowTonemapper = !View.Family->EngineShowFlags.ShaderComplexity && !View.Family->EngineShowFlags.RayTracingDebug;
-	if (bAllowTonemapper)
-	{
-		GPostProcessing.AddGammaOnlyTonemapper(Context);
-	}
-
-	switch (View.Family->GetDebugViewShaderMode())
-	{
-		case DVSM_QuadComplexity:
-		{
-			float ComplexityScale = 1.f / (float)(GEngine->QuadComplexityColors.Num() - 1) / NormalizedQuadComplexityValue; // .1f comes from the values used in LightAccumulator_GetResult
-			FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessVisualizeComplexity(GEngine->QuadComplexityColors, FVisualizeComplexityApplyPS::CS_STAIR, ComplexityScale, true));
-			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
-			break;
-		}
-		case DVSM_ShaderComplexity:
-		case DVSM_ShaderComplexityContainedQuadOverhead:
-		case DVSM_ShaderComplexityBleedingQuadOverhead:
-		{
-			FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessVisualizeComplexity(GEngine->ShaderComplexityColors, FVisualizeComplexityApplyPS::CS_RAMP, 1.f, true));
-			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
-			break;
-		}
-		case DVSM_PrimitiveDistanceAccuracy:
-		case DVSM_MeshUVDensityAccuracy:
-		case DVSM_MaterialTextureScaleAccuracy:
-		case DVSM_RequiredTextureResolution:
-		{
-			FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessStreamingAccuracyLegend(GEngine->StreamingAccuracyColors));
-			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
-			break;
-		}
-		case DVSM_RayTracingDebug:
-		{
-			Context.FinalOutput = AddTemporalAADebugViewPass(Context);
-
-			if (View.Family->EngineShowFlags.Tonemapper)
-			{
-				GPostProcessing.AddGammaOnlyTonemapper(Context);
-			}
-
-			break;
-		}
-		default:
-			ensure(false);
-			break;
-	};
-
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		GPostProcessing.AddSelectionOutline(Context);
-	}
-#endif
-
-	FIntPoint PrimaryUpscaleViewSize = Context.View.GetSecondaryViewRectSize();
-
-	// Adds primary spatial upscale regardless of using temporal upsample, so screen percentage preview can work.
-	if (View.ViewRect.Size() != PrimaryUpscaleViewSize)
-	{
-		int32 UpscaleQuality = 1;
-		FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessUpscale(
-			View, UpscaleQuality, FRCPassPostProcessUpscale::PaniniParams::Default, /* bIsSecondaryUpscale = */ false));
-		Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput)); // Bilinear sampling.
-		Node->SetInput(ePId_Input1, FRenderingCompositeOutputRef(Context.FinalOutput)); // Point sampling.
-		Context.FinalOutput = FRenderingCompositeOutputRef(Node);
-	}
-
-	// Adds secondary spatial upscale for OS DPI to work correctly in editor.
-	if (View.RequiresSecondaryUpscale())
-	{
-		int32 UpscaleQuality = View.Family->SecondaryScreenPercentageMethod == ESecondaryScreenPercentageMethod::LowerPixelDensitySimulation ? 6 : 0;
-
-		FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessUpscale(
-			View, UpscaleQuality, FRCPassPostProcessUpscale::PaniniParams::Default, /* bIsSecondaryUpscale = */ true));
-		Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-		Node->SetInput(ePId_Input1, FRenderingCompositeOutputRef(Context.FinalOutput));
-		Context.FinalOutput = FRenderingCompositeOutputRef(Node);
-	}
-
-	// After the graph is built but before the graph is processed.
-	// If a postprocess material is using a GBuffer it adds the refcount int FRCPassPostProcessMaterial::Process()
-	// and when it gets processed it removes the refcount
-	// We only release the GBuffers after the last view was processed (SplitScreen)
-	if(View.Family->Views[View.Family->Views.Num() - 1] == &View)
-	{
-		// Generally we no longer need the GBuffers, anyone that wants to keep the GBuffers for longer should have called AdjustGBufferRefCount(1) to keep it for longer
-		// and call AdjustGBufferRefCount(-1) once it's consumed. This needs to happen each frame. PostProcessMaterial do that automatically
-		FSceneRenderTargets::Get(RHICmdList).AdjustGBufferRefCount(RHICmdList, -1);
-	}
-
-	// Add a pass-through for the final step if a backbuffer UAV is required but unsupported by this RHI
-	if (Context.FinalOutput.IsComputePass() && !View.Family->RenderTarget->GetRenderTargetUAV().IsValid())
-	{
-		FRenderingCompositePass* PassthroughNode = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessPassThrough(nullptr));
-		PassthroughNode->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-		Context.FinalOutput = FRenderingCompositeOutputRef(PassthroughNode);
-	}
-
-	// The graph setup should be finished before this line ----------------------------------------
-	{
-		// currently created on the heap each frame but View.Family->RenderTarget could keep this object and all would be cleaner
-		TRefCountPtr<IPooledRenderTarget> Temp;
-		FSceneRenderTargetItem Item;
-		Item.TargetableTexture = (FTextureRHIRef&)View.Family->RenderTarget->GetRenderTargetTexture();
-		Item.ShaderResourceTexture = (FTextureRHIRef&)View.Family->RenderTarget->GetRenderTargetTexture();
-		Item.UAV = View.Family->RenderTarget->GetRenderTargetUAV();
-
-		FPooledRenderTargetDesc Desc;
-
-		// Texture could be bigger than viewport
-		if (View.Family->RenderTarget->GetRenderTargetTexture())
-		{
-			Desc.Extent.X = View.Family->RenderTarget->GetRenderTargetTexture()->GetSizeX();
-			Desc.Extent.Y = View.Family->RenderTarget->GetRenderTargetTexture()->GetSizeY();
-		}
-		else
-		{
-			Desc.Extent = View.Family->RenderTarget->GetSizeXY();
-		}
-
-		const bool bIsFinalOutputComputePass = Context.FinalOutput.IsComputePass();
-		Desc.TargetableFlags |= bIsFinalOutputComputePass ? TexCreate_UAV : TexCreate_RenderTargetable;
-		Desc.Format = bIsFinalOutputComputePass ? PF_R8G8B8A8 : PF_B8G8R8A8;
-
-		// todo: this should come from View.Family->RenderTarget
-		Desc.Format = bHDROutputEnabled ? GRHIHDRDisplayOutputFormat : Desc.Format;
-		Desc.NumMips = 1;
-		Desc.DebugName = TEXT("FinalPostProcessColor");
-
-		GRenderTargetPool.CreateUntrackedElement(Desc, Temp, Item);
-
-		GPostProcessing.OverrideRenderTarget(Context.FinalOutput, Temp, Desc);
-
-		TArray<FRenderingCompositePass*> TargetedRoots;
-		TargetedRoots.Add(Context.FinalOutput.GetPass());
-
-		// execute the graph/DAG
-		CompositeContext.Process(TargetedRoots, TEXT("PostProcessing"));
-
-		// May need to wait on the final pass to complete
-		if (Context.FinalOutput.IsAsyncComputePass())
-		{
-			FRHIComputeFence* ComputeFinalizeFence = Context.FinalOutput.GetComputePassEndFence();
-			if (ComputeFinalizeFence)
-			{
-				Context.RHICmdList.WaitComputeFence(ComputeFinalizeFence);
-			}
-		}
-	}
-
-	GRenderTargetPool.AddPhaseEvent(TEXT("AfterPostprocessing"));
-}
-
 bool FDeferredShadingSceneRenderer::RenderDebugViewMode(FRHICommandListImmediate& RHICmdList)
 {
 	bool bDirty=0;
@@ -258,9 +81,10 @@ bool FDeferredShadingSceneRenderer::RenderDebugViewMode(FRHICommandListImmediate
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
-		SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
-
 		FViewInfo& View = Views[ViewIndex];
+
+		SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+		SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
 
 		Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 

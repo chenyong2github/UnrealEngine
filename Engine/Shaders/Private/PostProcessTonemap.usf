@@ -9,20 +9,18 @@
 #include "TonemapCommon.ush"
 #include "EyeAdaptationCommon.ush"
 #include "PixelQuadMessagePassing.ush"
+#include "ScreenPass.ush"
 
-
-
-/** Values of DIM_OUTPUT_DEVICE (matching C++'s FTonemapperOutputDevice) */
-	#define TONEMAPPER_OUTOUT_sRGB 0
-	#define TONEMAPPER_OUTOUT_Rec709 1
-	#define TONEMAPPER_OUTOUT_ExplicitGammaMapping 2
-	#define TONEMAPPER_OUTOUT_ACES1000nitST2084 3
-	#define TONEMAPPER_OUTOUT_ACES2000nitST2084 4
-	#define TONEMAPPER_OUTOUT_ACES1000nitScRGB 5
-	#define TONEMAPPER_OUTOUT_ACES2000nitScRGB 6
-	#define TONEMAPPER_OUTOUT_LinearEXR 7
-	#define TONEMAPPER_OUTOUT_NoToneCurve 8
-
+/** Values of DIM_OUTPUT_DEVICE (matching C++'s ETonemapperOutputDevice) */
+#define TONEMAPPER_OUTOUT_sRGB 0
+#define TONEMAPPER_OUTOUT_Rec709 1
+#define TONEMAPPER_OUTOUT_ExplicitGammaMapping 2
+#define TONEMAPPER_OUTOUT_ACES1000nitST2084 3
+#define TONEMAPPER_OUTOUT_ACES2000nitST2084 4
+#define TONEMAPPER_OUTOUT_ACES1000nitScRGB 5
+#define TONEMAPPER_OUTOUT_ACES2000nitScRGB 6
+#define TONEMAPPER_OUTOUT_LinearEXR 7
+#define TONEMAPPER_OUTOUT_NoToneCurve 8
 
 #ifndef DIM_OUTPUT_DEVICE
 	#define DIM_OUTPUT_DEVICE (TONEMAPPER_OUTOUT_sRGB)
@@ -31,9 +29,19 @@
 // 0 / 1(slower, visualize multiple internals side by side for the same image portion, see DebugTile)
 #define DEBUG_TONEMAPPER 0
 
+SCREEN_PASS_TEXTURE_VIEWPORT(Color)
+SCREEN_PASS_TEXTURE_VIEWPORT(Bloom)
+SCREEN_PASS_TEXTURE_VIEWPORT(Output)
+
 // 64x64 tiling noise texture, optimized to have mostly high frequency content
 Texture2D NoiseTexture;
-SamplerState NoiseTextureSampler;
+SamplerState NoiseSampler;
+
+Texture2D ColorTexture;
+SamplerState ColorSampler;
+
+Texture2D BloomTexture;
+SamplerState BloomSampler;
 
 // xyz:SceneColorTint.rgb, w:unused
 float4 ColorScale0;
@@ -47,16 +55,18 @@ float2 TonemapperParams;
 float3 GrainRandomFull;
 float3 GrainScaleBiasJitter;
 
-float4 SceneUVMinMax;
-float4 SceneBloomUVMinMax;
+float EditorNITLevel;
 
-float4 ScreenPosToScenePixel;
-float4 HDRParams;
+uint bOutputInHDR;
 
 #if EYEADAPTATION_EXPOSURE_FIX != 1
 // Default value used when eye adaptation is disabled (e.g fixed exposure) or not available.
 float DefaultEyeExposure;
 #endif
+
+float4 BloomDirtMaskTint;
+Texture2D BloomDirtMaskTexture;
+SamplerState BloomDirtMaskSampler;
 
 half GrainFromUV(float2 GrainUV) 
 {
@@ -103,7 +113,7 @@ half3 ColorLookupTable( half3 LinearColor )
 // and this if you have TEX performance left.
 float PseudoRandomTex(float2 xy)
 {
-	return Texture2DSample(NoiseTexture, NoiseTextureSampler, xy / 64.0f).r;
+	return Texture2DSample(NoiseTexture, NoiseSampler, xy / 64.0f).r;
 }
 
 float SwitchVerticalAxis;
@@ -113,9 +123,9 @@ float SwitchVerticalAxis;
 #endif
 
 // can be optimized
-float2 ScreenPosToUV(float2 ScreenPos)
+float2 ScreenPosToUV(float2 ScreenPos, float2 ExtentInverse)
 {
-	float2 UV = (ScreenPos * ScreenPosToScenePixel.xy + ScreenPosToScenePixel.zw) * PostprocessInput0Size.zw;
+	float2 UV = (ScreenPos * Color_ScreenPosToViewportScale + Color_ScreenPosToViewportBias) * ExtentInverse;
 
 #if NEEDTOSWITCHVERTICLEAXIS
 	UV.y = 1.0 - UV.y;
@@ -124,13 +134,13 @@ float2 ScreenPosToUV(float2 ScreenPos)
 	return UV;
 }
 
-float2 UVToScreenPos(float2 UV)
+float2 UVToScreenPos(float2 UV, float2 Extent)
 {
 #if NEEDTOSWITCHVERTICLEAXIS
 	UV.y = 1.0 - UV.y;
 #endif
 
-	return (UV * PostprocessInput0Size.xy - ScreenPosToScenePixel.zw) / ScreenPosToScenePixel.xy;
+	return (UV * Extent - Color_ScreenPosToViewportBias) / Color_ScreenPosToViewportScale;
 }
 
 float4 ChromaticAberrationParams;
@@ -160,15 +170,19 @@ void TonemapCommonVS(
 	OutExposureScaleVignette.x = DefaultEyeExposure;
 #endif
 
+	const float AspectRatio = Output_ViewportSize.y * Output_ViewportSizeInverse.x;
+
+	float2 ColorViewportPos = UVToScreenPos(TexCoord, Color_Extent);
+
 	// Scale vignette to always be a circle with consistent corner intensity.
-	OutExposureScaleVignette.yz = VignetteSpace(Position.xy);
+	OutExposureScaleVignette.yz = VignetteSpace(ColorViewportPos, AspectRatio);
 
 	// Grain
-	OutGrainUV.xy = TexCoord + PostprocessInput0Size.zw * float2(-0.5,0.5);
+	OutGrainUV.xy = TexCoord + Color_ExtentInverse * float2(-0.5,0.5);
 	OutGrainUV.zw = TexCoord + GrainRandomFull.xy;
 
 	// Fringe
-	OutScreenPos = UVToScreenPos(TexCoord);
+	OutScreenPos = UVToScreenPos(TexCoord, Color_Extent);
 }
 
 // vertex shader entry point
@@ -267,7 +281,7 @@ float max4(float4 x)
 float2 ComputeCounterStepForTileDebugging(float4 SvPosition, int2 TileSize, out int2 DebugTile, out int2 LocalDebugTilePosition)
 {
 	// ViewportRect is defined for postprocessing passes
-	float2 CenterPos = (ViewportRect.xy + ViewportRect.zw) / 2.0f;
+	float2 CenterPos = (Output_ViewportMin + Output_ViewportMax) / 2.0f;
 	float2 LeftTopPos = CenterPos - TileSize / 2;
 
 	float2 LocalPos = SvPosition.xy - LeftTopPos;
@@ -289,20 +303,20 @@ half3 LookupSceneColor(float2 SceneUV, int2 PixelOffset)
 #if (ES2_PROFILE && COMPILER_GLSL_ES2) || (ES3_1_PROFILE && COMPILER_GLSL_ES3_1)
 	// slower but always works
 	// to prevent "error: Texture offset not supported on GLSL ES"
-	return Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, SceneUV + PixelOffset * PostprocessInput0Size.zw).rgb;
+	return Texture2DSample(ColorTexture, ColorSampler, SceneUV + PixelOffset * Color_ExtentInverse).rgb;
 #else
 	// faster
-	return PostprocessInput0.SampleLevel(PostprocessInput0Sampler, SceneUV, 0, PixelOffset).rgb;
+	return ColorTexture.SampleLevel(ColorSampler, SceneUV, 0, PixelOffset).rgb;
 #endif
 }
 
 float4 SampleSceneColor(float2 SceneUV)
 {
 	#if USE_GRAIN_JITTER
-		SceneUV = clamp(SceneUV, SceneUVMinMax.xy, SceneUVMinMax.zw);
+		SceneUV = clamp(SceneUV, Color_UVViewportBilinearMin, Color_UVViewportBilinearMax);
 	#endif
 
-	return Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, SceneUV);
+	return Texture2DSample(ColorTexture, ColorSampler, SceneUV);
 }
 
 float4 TonemapCommonPS(
@@ -329,7 +343,7 @@ float4 TonemapCommonPS(
 	bool bOutputDebugTile = false;
 	{
 		// split the screen in a 3x3 layout and add some border (0.3)
-		int2 TileSize = floor(ViewportSize.xy / float2(3.3f, 3.3f));
+		int2 TileSize = floor(Output_ViewportSize / float2(3.3f, 3.3f));
 		bool bBorder;
 
 		float2 CounterStep = ComputeCounterStepForTileDebugging(SvPosition, TileSize, DebugTile, LocalDebugTilePosition);
@@ -365,8 +379,8 @@ float4 TonemapCommonPS(
 
 	        float4 CAUV;
 	        CAUV = ScreenPos.xyxy - sign(ScreenPos).xyxy * saturate(abs(ScreenPos) - StartOffset).xyxy * CAScale.rrgg;
-	        CAUV.xy = ScreenPosToUV(CAUV.xy);
-	        CAUV.zw = ScreenPosToUV(CAUV.zw);
+	        CAUV.xy = ScreenPosToUV(CAUV.xy, Color_ExtentInverse);
+	        CAUV.zw = ScreenPosToUV(CAUV.zw, Color_ExtentInverse);
 
 		half4 SceneColor = SampleSceneColor(CAUV.xy + SceneUVJitter.xy);
 		half SceneColorG = SampleSceneColor(CAUV.zw + SceneUVJitter.xy).g;
@@ -413,8 +427,8 @@ float4 TonemapCommonPS(
 		FPQMPContext PQMP = PQMPInit(ScreenPos);
 		half4 LuminanceNeighbors;
 
-		half3 C1 = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, SceneUV + float2(PQMP.QuadVector.x, 0) * PostprocessInput0Size.zw).rgb * OneOverPreExposure;
-		half3 C3 = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, SceneUV + float2(0, PQMP.QuadVector.y) * PostprocessInput0Size.zw).rgb * OneOverPreExposure;
+		half3 C1 = Texture2DSample(ColorTexture, ColorSampler, SceneUV + float2(PQMP.QuadVector.x, 0) * Color_ExtentInverse).rgb * OneOverPreExposure;
+		half3 C3 = Texture2DSample(ColorTexture, ColorSampler, SceneUV + float2(0, PQMP.QuadVector.y) * Color_ExtentInverse).rgb * OneOverPreExposure;
 		LuminanceNeighbors.x = Luminance(C1);
 		LuminanceNeighbors.y = Luminance(C3);
 		
@@ -475,15 +489,15 @@ float4 TonemapCommonPS(
 		half3 LinearColor = SceneColor.rgb * ColorScale0.rgb;
 
 		#if USE_BLOOM
-			float2 BloomUV = clamp(UV, SceneBloomUVMinMax.xy, SceneBloomUVMinMax.zw);
+			float2 BloomUV = clamp(UV, Bloom_UVViewportBilinearMin, Bloom_UVViewportBilinearMax);
 			#if ES2_PROFILE || ES3_1_PROFILE
 				BloomUV = FullViewUV.xy;
 			#endif
-			float4 CombinedBloom = Texture2DSample(PostprocessInput1, PostprocessInput1Sampler, BloomUV);
+			float4 CombinedBloom = Texture2DSample(BloomTexture, BloomSampler, BloomUV);
 			CombinedBloom.rgb *= OneOverPreExposure; // Standard bloom path, convolution path has bloom already in scene color.
 
-			float2 DirtViewportUV = (SvPosition.xy - float2(ViewportRect.xy)) * ViewportSize.zw;
-			float3 BloomDirtMaskColor = Texture2DSample(BloomDirtMask.Mask, BloomDirtMask.MaskSampler, DirtViewportUV).rgb * BloomDirtMask.Tint.rgb;
+			float2 DirtViewportUV = (SvPosition.xy - float2(Output_ViewportMin)) * Output_ViewportSizeInverse;
+			float3 BloomDirtMaskColor = Texture2DSample(BloomDirtMaskTexture, BloomDirtMaskSampler, DirtViewportUV).rgb * BloomDirtMaskTint.rgb;
 
 #if DEBUG_TONEMAPPER
 			if (all(DebugTile == int2(-1, -1)))
@@ -504,7 +518,7 @@ float4 TonemapCommonPS(
 		#endif
 
 		#if NO_EYEADAPTATION_EXPOSURE_FIX == 1
-			ExposureScale = BloomDirtMask.Tint.w;
+			ExposureScale = BloomDirtMaskTint.w;
 		#endif
 		
 		LinearColor *= ExposureScale;
@@ -521,8 +535,6 @@ float4 TonemapCommonPS(
 
 		half3 OutDeviceColor = ColorLookupTable( LinearColor );
 
-		//OutDeviceColor = Graph(SvPositionToScreenPosition(SvPosition).xy);
-	
 		half LuminanceForPostProcessAA  = dot(OutDeviceColor, half3(0.299f, 0.587f, 0.114f));
 
 		#if USE_GRAIN_QUANTIZATION
@@ -584,11 +596,11 @@ float4 TonemapCommonPS(
 #if SM5_PROFILE && !USE_GAMMA_ONLY
 	// If HDR in the editor need to convert from PQ space to linear sRGB
 	BRANCH
-	if(HDRParams.x == 1.0f)
+	if(bOutputInHDR)
 	{
 		OutColor.rgb = ST2084ToLinear(OutColor.rgb);
-		OutColor.rgb = OutColor.rgb / HDRParams.y;
-		OutColor.rgb = LinearToSrgbBranchless( OutColor.rgb );
+		OutColor.rgb = OutColor.rgb / EditorNITLevel;
+		OutColor.rgb = LinearToSrgbBranchless(OutColor.rgb);
 	}
 #endif
 	return OutColor;
@@ -609,15 +621,14 @@ void MainPS(
 }
 
 #if COMPUTESHADER
-// xy: Unused, zw: ThreadToUVScale
-float4 TonemapComputeParams;
-RWTexture2D<float4> RWOutComputeTex;
+RWTexture2D<float4> RWOutputTexture;
 
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	float2 UV = ((float2)DispatchThreadId + View.ViewRectMin.xy + 0.5f) * TonemapComputeParams.zw;
-	float4 SvPosition = float4(UV*2-1,0,1);
+	float4 SvPosition = float4((float2)DispatchThreadId + Output_ViewportMin + 0.5f, 0.0f, 1.0f);
+	float2 UV = SvPosition.xy * Output_ExtentInverse;
+	float4 InScreenPos = float4(UV*2-1,0,1);
 
 	if (IsComputeUVOutOfBounds(UV))
 	{
@@ -627,15 +638,15 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	float3 ExposureScaleVignette;
 	float4 GrainUV;
 	float2 FullViewUV, ScreenPos;	
-	TonemapCommonVS(SvPosition, UV, ExposureScaleVignette, GrainUV, ScreenPos, FullViewUV);
+	TonemapCommonVS(InScreenPos, UV, ExposureScaleVignette, GrainUV, ScreenPos, FullViewUV);
 
 	float4 OutColor = TonemapCommonPS(UV, ExposureScaleVignette, GrainUV, ScreenPos, FullViewUV, SvPosition);
 
-	uint2 PixelPos = DispatchThreadId + (uint2)View.ViewRectMin.xy;
+	uint2 PixelPos = DispatchThreadId + Output_ViewportMin;
 #if NEEDTOSWITCHVERTICLEAXIS
-	PixelPos.y = (uint)(1.0/TonemapComputeParams.w) - PixelPos.y;
+	PixelPos.y = (uint)(Output_Extent.y) - PixelPos.y;
 #endif
-	RWOutComputeTex[PixelPos] = OutColor;
+	RWOutputTexture[PixelPos] = OutColor;
 }
 #endif
 
@@ -702,9 +713,9 @@ void MainVS_ES2(
 		float ScaleG = 0.007f * (PrimaryG - PrimaryB);
 
 		// Fringe
-		float2 ScreenPos = UVToScreenPos(OutTexCoord.xy);
-		OutFringeTexCoords.xy = ScreenPosToUV(ScreenPos * (1.0/(1.0 + (FringeIntensity * ScaleG))));
-		OutFringeTexCoords.zw = ScreenPosToUV(ScreenPos * (1.0/(1.0 + (FringeIntensity * ScaleR))));
+		float2 ScreenPos = UVToScreenPos(OutTexCoord.xy, PostprocessInput0Size.xy);
+		OutFringeTexCoords.xy = ScreenPosToUV(ScreenPos * (1.0/(1.0 + (FringeIntensity * ScaleG))), PostprocessInput0Size.zw);
+		OutFringeTexCoords.zw = ScreenPosToUV(ScreenPos * (1.0/(1.0 + (FringeIntensity * ScaleR))), PostprocessInput0Size.zw);
 	}
 	else
 	{

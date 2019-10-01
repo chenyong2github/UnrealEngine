@@ -22,7 +22,8 @@
 			"LoadingPhase" : "PostConfigInit",
 			"WhitelistPlatforms" :
 			[
-				"Linux"
+				"Linux",
+				"LinuxAArch64"
 			]
 		}
 	]

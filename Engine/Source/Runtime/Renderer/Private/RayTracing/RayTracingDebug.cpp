@@ -2,6 +2,7 @@
 
 #include "RHI.h"
 #include "ScenePrivate.h"
+#include "ScreenPass.h"
 
 #if RHI_RAYTRACING
 
@@ -90,7 +91,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 		RenderRayTracingPrimaryRaysView(
 				GraphBuilder, View, &OutputColor, &HitDistanceTexture, 1, 1, 1,
 			ERayTracingPrimaryRaysFlag::ConsiderSurfaceScatter);
-		AddCopyTexturePass(GraphBuilder, OutputColor, SceneColor, View.ViewRect.Min, View.ViewRect.Min, View.ViewRect.Size());
+
+		AddDrawTexturePass(GraphBuilder, View, OutputColor, SceneColor, View.ViewRect.Min, View.ViewRect.Min, View.ViewRect.Size());
 
 		GraphBuilder.Execute();
 		return;

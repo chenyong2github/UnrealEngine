@@ -111,7 +111,7 @@ static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 	}
 
 	//TODO: check if translucency uses CustomDepth
-	return bPPUsesCustomDepth || bPPUsesCustomStencil;
+	return bPPUsesCustomDepth || bPPUsesCustomStencil || View.bUsesCustomDepthStencil;
 }
 
 
@@ -282,17 +282,12 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 
 	// update buffers used in cached mesh path
 	// in case there are multiple views, these buffers will be updated before rendering each view
+	// OpaqueBasePassUniformBuffer, TranslucentBasePassUniformBuffer and DistortionPassUniformBuffer may depend on custom depth render target, so they should be updated after custom depth rendering 
 	if (Views.Num() > 0)
 	{
 		const FViewInfo& View = Views[0];
 		Scene->UniformBuffers.UpdateViewUniformBuffer(View);
-		UpdateOpaqueBasePassUniformBuffer(RHICmdList, View);
-		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
 		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
-
-		FMobileDistortionPassUniformParameters DistortionPassParameters;
-		SetupMobileDistortionPassUniformBuffer(RHICmdList, View, DistortionPassParameters);
-		Scene->UniformBuffers.MobileDistortionPassUniformBuffer.UpdateUniformBufferImmediate(DistortionPassParameters);
 	}
 	UpdateSkyReflectionUniformBuffer();
 
@@ -447,6 +442,16 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			RenderCustomDepthPass(RHICmdList);
 		}
+	}
+
+	// Update OpaqueBasePassUniformBuffer, TranslucentBasePassUniformBuffer and DistortionUniformBuffer right after CustomDepthPass and before BeginRenderPass of MobileBasePass
+	{
+		UpdateOpaqueBasePassUniformBuffer(RHICmdList, View);
+		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
+
+		FMobileDistortionPassUniformParameters DistortionPassParameters;
+		SetupMobileDistortionPassUniformBuffer(RHICmdList, View, DistortionPassParameters);
+		Scene->UniformBuffers.MobileDistortionPassUniformBuffer.UpdateUniformBufferImmediate(DistortionPassParameters);
 	}
 		
 	//
@@ -715,39 +720,24 @@ void FMobileSceneRenderer::BasicPostProcess(FRHICommandListImmediate& RHICmdList
 	const bool bBlitRequired = !bDoUpscale && !bDoEditorPrimitives;
 
 	if (bDoUpscale || bBlitRequired)
-	{	// blit from sceneRT to view family target, simple bilinear if upscaling otherwise point filtered.
-		uint32 UpscaleQuality = bDoUpscale ? 1 : 0;
-		FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessUpscaleES2(View, UpscaleQuality, false));
+	{
+		const EUpscaleMethod UpscaleMethod = bDoUpscale ? EUpscaleMethod::Bilinear : EUpscaleMethod::Nearest;
 
-		Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-		Node->SetInput(ePId_Input1, FRenderingCompositeOutputRef(Context.FinalOutput));
-
-		Context.FinalOutput = FRenderingCompositeOutputRef(Node);
+		Context.FinalOutput = AddUpscalePass(Context.Graph, Context.FinalOutput, UpscaleMethod, EUpscaleStage::PrimaryToOutput);
 	}
 
 #if WITH_EDITOR
 	// Composite editor primitives if we had any to draw and compositing is enabled
 	if (bDoEditorPrimitives)
 	{
-		FRenderingCompositePass* EditorCompNode = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessCompositeEditorPrimitives(false));
-		EditorCompNode->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-		//Node->SetInput(ePId_Input1, FRenderingCompositeOutputRef(Context.SceneDepth));
-		Context.FinalOutput = FRenderingCompositeOutputRef(EditorCompNode);
+		Context.FinalOutput = AddEditorPrimitivePass(Context.Graph, Context.FinalOutput, FEditorPrimitiveInputs::EBasePassType::Mobile);
 	}
 #endif
 
 	bool bStereoRenderingAndHMD = View.Family->EngineShowFlags.StereoRendering && View.Family->EngineShowFlags.HMDDistortion;
 	if (bStereoRenderingAndHMD)
 	{
-		const IHeadMountedDisplay* HMD =  GEngine->XRSystem->GetHMDDevice();
-		checkf(HMD, TEXT("EngineShowFlags.HMDDistortion can not be true when IXRTrackingSystem::GetHMDDevice returns null"));
-		FRenderingCompositePass* Node = Context.Graph.RegisterPass(new FRCPassPostProcessHMD());
-
-		if (Node)
-		{
-			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
-		}
+		Context.FinalOutput = AddHMDDistortionPass(Context.Graph, Context.FinalOutput);
 	}
 
 	// currently created on the heap each frame but View.Family->RenderTarget could keep this object and all would be cleaner
@@ -879,7 +869,6 @@ bool FMobileSceneRenderer::RequiresTranslucencyPass(FRHICommandListImmediate& RH
 void FMobileSceneRenderer::ConditionalResolveSceneDepth(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	SceneContext.ResolveSceneDepthToAuxiliaryTexture(RHICmdList);
 	
 	if (IsSimulatedPlatform(ShaderPlatform)) // mobile emulation on PC
 	{

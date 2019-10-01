@@ -136,3 +136,14 @@ FSSDSignalArray NormalizeToOneSample(FSSDSignalArray Samples)
 	}
 	return OutSamples;
 }
+
+FSSDSignalArray WaveBroadcastSignalArray(const FWaveBroadcastSettings BroadcastSettings, FSSDSignalArray Samples)
+{
+	FSSDSignalArray OutSamples;
+	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+	{
+		OutSamples.Array[BatchedSignalId] = WaveBroadcastSignal(BroadcastSettings, Samples.Array[BatchedSignalId]);
+	}
+	return OutSamples;
+}

@@ -64,7 +64,7 @@ struct FVertexFactoryInput
 
 // RHI_RAYTRACING
 #if RAYHITGROUPSHADER
-FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
+FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
 {
 	FVertexFactoryInput Input;
 	

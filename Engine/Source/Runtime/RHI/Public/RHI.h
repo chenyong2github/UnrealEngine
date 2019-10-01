@@ -71,9 +71,6 @@ extern RHI_API bool GSupportsQuadBufferStereo;
 /** true if the RHI supports textures that may be bound as both a render target and a shader resource. */
 extern RHI_API bool GSupportsRenderDepthTargetableShaderResources;
 
-/** true if the RHI supports binding depth as a texture when testing against depth */
-extern RHI_API bool GSupportsDepthFetchDuringDepthTest;
-
 // The maximum feature level and shader platform available on this system
 // GRHIFeatureLevel and GRHIShaderPlatform have been deprecated. There is no longer a current featurelevel/shaderplatform that
 // should be used for all rendering, rather a specific set for each view.
@@ -349,8 +346,17 @@ extern RHI_API bool GSupportsWideMRT;
 /** True if the RHI and current hardware supports supports depth bounds testing */
 extern RHI_API bool GSupportsDepthBoundsTest;
 
-/** True if the RHI and current hardware support a render target write mask */
+/** True if the RHI and current hardware supports a render target write mask */
 extern RHI_API bool GSupportsRenderTargetWriteMask;
+
+/** True if the RHI supports explicit access to depth target HTile meta data. */
+extern RHI_API bool GRHISupportsExplicitHTile;
+
+/** True if the RHI supports resummarizing depth target HTile meta data. */
+extern RHI_API bool GRHISupportsResummarizeHTile;
+
+/** True if the RHI supports depth target unordered access views. */
+extern RHI_API bool GRHISupportsDepthUAV;
 
 /** True if the RHI and current hardware supports efficient AsyncCompute (by default we assume false and later we can enable this for more hardware) */
 extern RHI_API bool GSupportsEfficientAsyncCompute;
@@ -358,7 +364,7 @@ extern RHI_API bool GSupportsEfficientAsyncCompute;
 /** True if the RHI supports 'GetHDR32bppEncodeModeES2' shader intrinsic. */
 extern RHI_API bool GSupportsHDR32bppEncodeModeIntrinsic;
 
-/** True if the RHI supports getting the result of occlusion queries when on a thread other than the renderthread */
+/** True if the RHI supports getting the result of occlusion queries when on a thread other than the render thread */
 extern RHI_API bool GSupportsParallelOcclusionQueries;
 
 /** true if the RHI supports aliasing of transient resources */
@@ -1220,6 +1226,7 @@ struct FRHIResourceCreateInfo
 		: BulkData(nullptr)
 		, ResourceArray(nullptr)
 		, ClearValueBinding(FLinearColor::Transparent)
+		, GPUMask(FRHIGPUMask::All())
 		, bWithoutNativeResource(false)
 		, DebugName(nullptr)
 	{}
@@ -1229,6 +1236,7 @@ struct FRHIResourceCreateInfo
 		: BulkData(InBulkData)
 		, ResourceArray(nullptr)
 		, ClearValueBinding(FLinearColor::Transparent)
+		, GPUMask(FRHIGPUMask::All())
 		, bWithoutNativeResource(false)
 		, DebugName(nullptr)
 	{}
@@ -1238,6 +1246,7 @@ struct FRHIResourceCreateInfo
 		: BulkData(nullptr)
 		, ResourceArray(InResourceArray)
 		, ClearValueBinding(FLinearColor::Transparent)
+		, GPUMask(FRHIGPUMask::All())
 		, bWithoutNativeResource(false)
 		, DebugName(nullptr)
 	{}
@@ -1246,6 +1255,7 @@ struct FRHIResourceCreateInfo
 		: BulkData(nullptr)
 		, ResourceArray(nullptr)
 		, ClearValueBinding(InClearValueBinding)
+		, GPUMask(FRHIGPUMask::All())
 		, bWithoutNativeResource(false)
 		, DebugName(nullptr)
 	{
@@ -1255,6 +1265,7 @@ struct FRHIResourceCreateInfo
 		: BulkData(nullptr)
 		, ResourceArray(nullptr)
 		, ClearValueBinding(FLinearColor::Transparent)
+		, GPUMask(FRHIGPUMask::All())
 		, bWithoutNativeResource(false)
 		, DebugName(InDebugName)
 	{
@@ -1265,8 +1276,12 @@ struct FRHIResourceCreateInfo
 	// for CreateVertexBuffer/CreateStructuredBuffer calls
 	FResourceArrayInterface* ResourceArray;
 
-	// for binding clear colors to rendertargets.
+	// for binding clear colors to render targets.
 	FClearValueBinding ClearValueBinding;
+
+	// set of GPUs on which to create the resource
+	FRHIGPUMask GPUMask;
+
 	// whether to create an RHI object with no underlying resource
 	bool bWithoutNativeResource;
 	const TCHAR* DebugName;
@@ -1316,7 +1331,6 @@ struct FRHITextureSRVCreateInfo
 
 	/** Specify number of array slices. If FirstArraySlice and NumArraySlices are both zero, the SRV is created for all array slices. By default 0. */
 	uint32 NumArraySlices;
-
 
 	FORCEINLINE bool operator==(const FRHITextureSRVCreateInfo& Other)const
 	{

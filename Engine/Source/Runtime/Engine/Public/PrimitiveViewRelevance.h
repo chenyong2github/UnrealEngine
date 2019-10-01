@@ -85,6 +85,8 @@ struct FPrimitiveViewRelevance
 	uint32 bUsesSingleLayerWaterMaterial : 1;
 	/** Whether the view use custom data. */
 	uint32 bUseCustomViewData : 1;
+	/** Whether the primitive has materials that read the custom depth or custom stencil */
+	uint32 bUsesCustomDepthStencil : 1;
 
 	/** 
 	 * Whether this primitive view relevance has been initialized this frame.  

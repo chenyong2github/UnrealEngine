@@ -174,6 +174,8 @@ struct FRenderingCompositePassContext
 		return SceneColorViewRect;
 	}
 
+	FIntRect GetSceneColorDestRect(FRenderingCompositePass* InPass) const;
+
 	FIntPoint GetSceneColorDownscaleFactor(FIntPoint InputExtent) const
 	{
 		const uint32 ScaleFactorX = FMath::RoundUpToPowerOfTwo(FMath::DivideAndRoundUp(ReferenceBufferSize.X, InputExtent.X));

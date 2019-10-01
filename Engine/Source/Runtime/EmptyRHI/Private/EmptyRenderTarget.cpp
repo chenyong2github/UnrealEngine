@@ -18,12 +18,12 @@ void FEmptyDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect
 
 }
 
-void FEmptyDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI,void*& OutData,int32& OutWidth,int32& OutHeight)
+void FEmptyDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI,void*& OutData,int32& OutWidth,int32& OutHeight, uint32 GPUIndex)
 {
 
 }
 
-void FEmptyDynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI)
+void FEmptyDynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI, uint32 GPUIndex)
 {
 
 }

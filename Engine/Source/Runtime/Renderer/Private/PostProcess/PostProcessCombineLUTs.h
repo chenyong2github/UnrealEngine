@@ -11,18 +11,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 FColorRemapParameters GetColorRemapParameters();
 
-BEGIN_SHADER_PARAMETER_STRUCT(FFilmTonemapParameters, )
-	SHADER_PARAMETER(float, FilmSlope)
-	SHADER_PARAMETER(float, FilmToe)
-	SHADER_PARAMETER(float, FilmShoulder)
-	SHADER_PARAMETER(float, FilmBlackClip)
-	SHADER_PARAMETER(float, FilmWhiteClip)
-END_SHADER_PARAMETER_STRUCT()
-
-FFilmTonemapParameters GetFilmTonemapParameters(const FPostProcessSettings& Settings);
-
 bool PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(EShaderPlatform Platform);
 
-FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FScreenPassViewInfo& ScreenPassView);
+FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
 FRenderingCompositeOutputRef AddCombineLUTPass(FRenderingCompositionGraph& Graph);

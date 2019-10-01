@@ -85,6 +85,10 @@ void FVirtualTextureFeedback::TransferGPUToCPU( FRHICommandListImmediate& RHICmd
 		FeedbackEntryCPU.GPUFenceRHI = RHICmdList.CreateGPUFence(DebugNames[GPUWriteIndex]);
 	}
 
+	// We only need to transfer 1 copy of the data, so restrict mask to the first active GPU.
+	FeedbackEntryCPU.GPUMask = FRHIGPUMask::FromIndex(RHICmdList.GetGPUMask().GetFirstIndex());
+	SCOPED_GPU_MASK(RHICmdList, FeedbackEntryCPU.GPUMask);
+
 	// Transfer memory GPU -> CPU
 	FeedbackEntryCPU.GPUFenceRHI->Clear();
 	RHICmdList.CopyToResolveTarget(
@@ -110,8 +114,10 @@ bool FVirtualTextureFeedback::Map(FRHICommandListImmediate& RHICmdList, MapResul
 	const FeedBackItem& FeedbackEntryCPU = FeedbackTextureCPU[CPUReadIndex];
 	if (PendingTargetCount > 0u &&
 		FeedbackEntryCPU.TextureCPU.IsValid() &&
-		FeedbackEntryCPU.GPUFenceRHI->Poll())
+		FeedbackEntryCPU.GPUFenceRHI->Poll(FeedbackEntryCPU.GPUMask))
 	{
+		SCOPED_GPU_MASK(RHICmdList, FeedbackEntryCPU.GPUMask);
+
 		OutResult.MapHandle = CPUReadIndex;
 		OutResult.Rect = FeedbackEntryCPU.Rect;
 
@@ -132,6 +138,7 @@ void FVirtualTextureFeedback::Unmap( FRHICommandListImmediate& RHICmdList, int32
 {
 	check(FeedbackTextureCPU[MapHandle].TextureCPU.IsValid());
 
+	SCOPED_GPU_MASK(RHICmdList, FeedbackTextureCPU[MapHandle].GPUMask);
 	RHICmdList.UnmapStagingSurface(FeedbackTextureCPU[MapHandle].TextureCPU->GetRenderTargetItem().ShaderResourceTexture);
 	GRenderTargetPool.FreeUnusedResource(FeedbackTextureCPU[MapHandle].TextureCPU);
 }

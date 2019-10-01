@@ -5,10 +5,18 @@
 =============================================================================*/
 
 #include "Common.ush"
-#include "PostProcessCommon.ush"
-#include "DeferredShadingCommon.ush"
+#include "ScreenPass.ush"
+#include "SceneTextureParameters.ush"
 
-// 0: good, 1: heavy performance cost, 2:warning (very uncommon material), 3:error (impossibele material attributes)
+SCREEN_PASS_TEXTURE_VIEWPORT(Input)
+
+Texture2D SceneColorTexture;
+SamplerState SceneColorSampler;
+
+Texture2D OriginalSceneColorTexture;
+SamplerState OriginalSceneColorSampler;
+
+// 0: good, 1: heavy performance cost, 2:warning (very uncommon material), 3:error (impossible material attributes)
 uint ComputeAdvice(FGBufferData BufferData, float3 OriginalSceneColor)
 {
 	float SubsurfaceLum = 0;
@@ -27,12 +35,6 @@ uint ComputeAdvice(FGBufferData BufferData, float3 OriginalSceneColor)
 		float TotalLum = DiffuseLum + SpecularLum + SubsurfaceLum;
 
 		float OriginalSceneColorLum = dot(OneThird.xxx, OriginalSceneColor);
-
-		/*FLATTEN if()
-		{
-			// heavy shading cost
-			return 1;
-		}*/
 
 		FLATTEN if(TotalLum < 0.01f && OriginalSceneColorLum < 0.001f)
 		{
@@ -54,8 +56,8 @@ uint ComputeAdvice(FGBufferData BufferData, float3 OriginalSceneColor)
 uint ComputeAdvice(float2 UV)
 {
 	// Ideally without GI as we want the emissive, we should do that later.
-	float3 OriginalSceneColor = Texture2DSample(PostprocessInput1, PostprocessInput1Sampler, UV).rgb;
-	FGBufferData BufferData = GetGBufferData(UV);
+	float3 OriginalSceneColor = Texture2DSample(OriginalSceneColorTexture, OriginalSceneColorSampler, UV).rgb;
+	FGBufferData BufferData = GetGBufferDataFromSceneTextures(UV);
 
 	return ComputeAdvice(BufferData, OriginalSceneColor);
 }
@@ -67,11 +69,11 @@ void HighlightAdvice(inout float3 OutColor, float2 UV, uint2 PixelPos)
 	uint AdviceOuter = 0;
 
 	bool SpecialDotInArea = ((PixelPos.x + PixelPos.y) % 6) == 0 && ((PixelPos.x - PixelPos.y) % 6) == 0;
-	
-	AdviceOuter = max(AdviceOuter, ComputeAdvice(UV + float2( 1,  0) * PostprocessInput0Size.zw));
-	AdviceOuter = max(AdviceOuter, ComputeAdvice(UV + float2( 0,  1) * PostprocessInput0Size.zw));
-	AdviceOuter = max(AdviceOuter, ComputeAdvice(UV + float2(-1,  0) * PostprocessInput0Size.zw));
-	AdviceOuter = max(AdviceOuter, ComputeAdvice(UV + float2( 0, -1) * PostprocessInput0Size.zw));
+
+	AdviceOuter = max(AdviceOuter, ComputeAdvice(UV + float2( 1,  0) * Input_ExtentInverse));
+	AdviceOuter = max(AdviceOuter, ComputeAdvice(UV + float2( 0,  1) * Input_ExtentInverse));
+	AdviceOuter = max(AdviceOuter, ComputeAdvice(UV + float2(-1,  0) * Input_ExtentInverse));
+	AdviceOuter = max(AdviceOuter, ComputeAdvice(UV + float2( 0, -1) * Input_ExtentInverse));
 
 	uint Advice = (AdviceInner == AdviceOuter && !SpecialDotInArea) ? 0 : AdviceOuter;
 
@@ -102,7 +104,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	int2 PixelPos = (uint2)SvPosition.xy;
 	
 	// background is the scene color
-	OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV);
+	OutColor = Texture2DSample(SceneColorTexture, SceneColorSampler, UV);
 
 	HighlightAdvice(OutColor.rgb, UV, PixelPos);
 }
