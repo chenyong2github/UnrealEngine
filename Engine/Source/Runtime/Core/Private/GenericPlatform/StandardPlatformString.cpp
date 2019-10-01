@@ -273,7 +273,7 @@ int32 FStandardPlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, cons
 			{
 				if (FormattedArg && Length > 0)
 				{
-					if (Length >= DestSize)
+					if (Length > DestSize)
 					{
 						Length = DestSize;
 						bLengthExceeded = true;
