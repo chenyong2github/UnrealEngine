@@ -1242,7 +1242,7 @@ ShadingModel);
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
 			OpaqueBasePass.SceneColorWithoutSingleLayerWaterTexture, SingleLayerWaterSceneColorSampler,
 			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler,
-			OpaqueBasePass.SceneWithoutSingleLayerWaterValidUVRect,
+			OpaqueBasePass.SceneWithoutSingleLayerWaterMaxUV,
 			Specular, OpaqueBasePass.DistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility).Luminance;
