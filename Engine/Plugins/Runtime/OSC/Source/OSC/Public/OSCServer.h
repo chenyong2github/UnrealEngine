@@ -134,8 +134,8 @@ public:
 	/** Enqueues packet to be processed */
 	void EnqueuePacket(TSharedPtr<IOSCPacket>);
 
-	/** Callback for when message is received by server */
-	void OnMessageReceived(const FString& InIPAddress);
+	/** Callback for when packet is received by server */
+	void OnPacketReceived(const FString& InIPAddress);
 
 protected:
 	void BeginDestroy() override;
