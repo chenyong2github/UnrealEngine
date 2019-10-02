@@ -14,11 +14,6 @@ class UCompositeCurveTable
 {
 	GENERATED_UCLASS_BODY()
 
-	// Parent tables
-	// Tables with higher indices override data in tables with lower indices
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tables)
-	TArray<UCurveTable*> ParentTables;
-
 	//~ Begin UObject Interface.
 	ENGINE_API virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 	ENGINE_API virtual void Serialize(FArchive& Ar) override;
@@ -46,6 +41,11 @@ protected:
 	void UpdateCachedRowMap(bool bWarnOnInvalidChildren = true);
 
 	void OnParentTablesUpdated(EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified);
+
+	// Parent tables
+	// Tables with higher indices override data in tables with lower indices
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tables)
+	TArray<UCurveTable*> ParentTables;
 
 	// true if this asset is currently being loaded; false otherwise
 	uint8 bIsLoading : 1;

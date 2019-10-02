@@ -321,7 +321,7 @@ FText UK2Node_FunctionEntry::GetNodeTitle(ENodeTitleType::Type TitleType) const
 
 void UK2Node_FunctionEntry::OnRenameNode(const FString& NewName)
 {
-	CustomGeneratedFunctionName = FName(*NewName);
+	// Note: RenameGraph() will handle the rename operation for this node as well.
 	FBlueprintEditorUtils::RenameGraph(GetGraph(), NewName);
 }
 

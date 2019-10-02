@@ -87,6 +87,16 @@ void FClass::GetShowCategories(TArray<FString>& OutShowCategories) const
 	}
 }
 
+void FClass::GetSparseClassDataTypes(TArray<FString>& OutSparseClassDataTypes) const
+{
+	static const FName NAME_SparseClassDataTypes(TEXT("SparseClassDataTypes"));
+	if (HasMetaData(NAME_SparseClassDataTypes))
+	{
+		const FString& SparseClassDataTypes = GetMetaData(NAME_SparseClassDataTypes);
+		SparseClassDataTypes.ParseIntoArray(OutSparseClassDataTypes, TEXT(" "), true);
+	}
+}
+
 bool FClass::IsDynamic(const UField* Field)
 {
 	static const FName NAME_ReplaceConverted(TEXT("ReplaceConverted"));

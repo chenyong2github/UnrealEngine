@@ -179,12 +179,6 @@ public:
 			|| (CompileType == EKismetCompileType::Cpp);
 	}
 
-	/** Whether or not this compile type should operate on the generated class of the blueprint, as opposed to just the skeleton */
-	bool IsGeneratedClassCompileType() const
-	{
-		return (CompileType != EKismetCompileType::SkeletonOnly);
-	}
-
 	FKismetCompilerOptions()
 		: CompileType(EKismetCompileType::Full)
 		, bSaveIntermediateProducts(false)
