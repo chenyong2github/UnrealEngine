@@ -814,6 +814,7 @@ public:
 		if (CachedBuffer)
 		{
 			FMemory::Free(CachedBuffer);
+			CachedBuffer = nullptr;
 			CachedBufferSize = 0;
 		}
 		// Don't reset CachedBufferSize if !CachedBuffer since it could be the locked buffer allocation size.
