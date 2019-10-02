@@ -343,10 +343,10 @@ EAppReturnType::Type OpenMsgDlgInt(EAppMsgType::Type InMessageType, const FText&
 
 EAppReturnType::Type OpenMsgDlgInt(EAppMsgType::Type InMessageType, EAppReturnType::Type InDefaultValue, const FText& InMessage, const FText& InTitle)
 {
+	EAppReturnType::Type Response = InDefaultValue;
 	if (FApp::IsUnattended() == true || GIsRunningUnattendedScript)
 	{
 		UE_LOG(LogDialogs, Log, TEXT("Message Dialog was triggered in unattended script mode without a default value. %d will be used."), (int32)InDefaultValue);
-		return InDefaultValue;
 	}
 	else
 	{
@@ -357,10 +357,11 @@ EAppReturnType::Type OpenMsgDlgInt(EAppMsgType::Type InMessageType, EAppReturnTy
 
 		GEditor->EditorAddModalWindow(MsgWindow.ToSharedRef());
 
-		EAppReturnType::Type Response = MsgDialog->GetResponse();
-
-		return Response;
+		Response = MsgDialog->GetResponse();
 	}
+
+	UE_LOG(LogDialogs, Log, TEXT("Message dialog closed, result: %s, title: %s, text: %s"), LexToString(Response), *InTitle.ToString(), *InMessage.ToString());
+	return Response;
 }
 
 TSharedRef<SWindow> OpenMsgDlgInt_NonModal(EAppMsgType::Type InMessageType, const FText& InMessage, const FText& InTitle,
