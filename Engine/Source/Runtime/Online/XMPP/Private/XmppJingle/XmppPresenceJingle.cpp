@@ -5,6 +5,7 @@
 #include "XmppLog.h"
 #include "XmppJingle/XmppConnectionJingle.h"
 #include "XmppMultiUserChat.h"
+#include "Containers/BackgroundableTicker.h"
 
 #if WITH_XMPP_JINGLE
 
@@ -356,7 +357,8 @@ private:
 };
 
 FXmppPresenceJingle::FXmppPresenceJingle(class FXmppConnectionJingle& InConnection)
-	: PresenceSendTask(NULL)
+	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	, PresenceSendTask(NULL)
 	, PresenceRcvTask(NULL)
 	, NumPresenceIn(0)
 	, NumPresenceOut(0)
