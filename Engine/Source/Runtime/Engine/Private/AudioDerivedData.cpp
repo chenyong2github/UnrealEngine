@@ -140,6 +140,28 @@ static void GetStreamedAudioDerivedDataKey(
 	GetStreamedAudioDerivedDataKeyFromSuffix(KeySuffix, OutKey);
 }
 
+static ITargetPlatform* GetRunningTargetPlatform(ITargetPlatformManagerModule* TPM)
+{
+	ITargetPlatform* CurrentPlatform = NULL;
+	const TArray<ITargetPlatform*>& Platforms = TPM->GetActiveTargetPlatforms();
+
+	check(Platforms.Num());
+
+	CurrentPlatform = Platforms[0];
+
+	for (int32 Index = 1; Index < Platforms.Num(); Index++)
+	{
+		if (Platforms[Index]->IsRunningPlatform())
+		{
+			CurrentPlatform = Platforms[Index];
+			break;
+		}
+	}
+
+	check(CurrentPlatform != NULL);
+	return CurrentPlatform;
+}
+
 /**
  * Gets Wave format for a SoundWave on the current running platform
  * @param SoundWave - The SoundWave to get format for.
@@ -150,28 +172,29 @@ static FName GetWaveFormatForRunningPlatform(USoundWave& SoundWave)
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
 	if (TPM)
 	{
-		ITargetPlatform* CurrentPlatform = NULL;
-		const TArray<ITargetPlatform*>& Platforms = TPM->GetActiveTargetPlatforms();
+		ITargetPlatform* CurrentPlatform = GetRunningTargetPlatform(TPM);
 
-		check(Platforms.Num());
-
-		CurrentPlatform = Platforms[0];
-
-		for (int32 Index = 1; Index < Platforms.Num(); Index++)
-		{
-			if (Platforms[Index]->IsRunningPlatform())
-			{
-				CurrentPlatform = Platforms[Index];
-				break;
-			}
-		}
-
-		check(CurrentPlatform != NULL);
 
 		return CurrentPlatform->GetWaveFormat(&SoundWave);
 	}
 
 	return NAME_None;
+}
+
+static const FPlatformAudioCookOverrides* GetCookOverridesForRunningPlatform()
+{
+	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
+	if (TPM)
+	{
+		ITargetPlatform* CurrentPlatform = GetRunningTargetPlatform(TPM);
+
+
+		return CurrentPlatform->GetAudioCompressionSettings();
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 /**
@@ -753,6 +776,12 @@ int32 FStreamedAudioPlatformData::DeserializeChunkFromDDC(TArray<uint8> TempData
 
 int32 FStreamedAudioPlatformData::GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded /* = false */)
 {
+	if (Chunks.Num() == 0)
+	{
+		UE_LOG(LogAudioDerivedData, Warning, TEXT("No streamed audio chunks found!"));
+		return 0;
+	}
+
 	// if bMakeSureChunkIsLoaded is true, we don't actually know the size of the chunk's bulk data,
 	// so it will need to be allocated in GetCopy.
 	check(!bMakeSureChunkIsLoaded || (OutChunkData && (*OutChunkData == nullptr)));
@@ -1223,7 +1252,14 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 			{
 				CompressionQualityModifier = CompressionOverrides->CompressionQualityModifier;
 			}
-			float ModifiedCompressionQuality = (float)SoundWave->CompressionQuality * CompressionQualityModifier;
+
+			float ModifiedCompressionQuality = (float)SoundWave->CompressionQuality;
+
+			if (!FMath::IsNearlyEqual(CompressionQualityModifier, 1.0f))
+			{
+				ModifiedCompressionQuality = (float)SoundWave->CompressionQuality * CompressionQualityModifier;
+			}
+			
 			if (ModifiedCompressionQuality >= 1.0f)
 			{
 				QualityInfo.Quality = FMath::FloorToInt(ModifiedCompressionQuality);
@@ -1415,7 +1451,7 @@ void USoundWave::CachePlatformData(bool bAsyncCache)
 {
 	FString DerivedDataKey;
 	FName AudioFormat = GetWaveFormatForRunningPlatform(*this);
-	const FPlatformAudioCookOverrides* CompressionOverrides = GetPlatformCompressionOverridesForCurrentPlatform();
+	const FPlatformAudioCookOverrides* CompressionOverrides = GetCookOverridesForRunningPlatform();
 	GetStreamedAudioDerivedDataKey(*this, AudioFormat, CompressionOverrides, DerivedDataKey);
 
 	if (RunningPlatformData == NULL || RunningPlatformData->DerivedDataKey != DerivedDataKey)
@@ -1587,7 +1623,7 @@ void USoundWave::FinishCachePlatformData()
 	{
 		FString DerivedDataKey;
 		FName AudioFormat = GetWaveFormatForRunningPlatform(*this);
-		const FPlatformAudioCookOverrides* CompressionOverrides = GetPlatformCompressionOverridesForCurrentPlatform();
+		const FPlatformAudioCookOverrides* CompressionOverrides = GetCookOverridesForRunningPlatform();
 		GetStreamedAudioDerivedDataKey(*this, AudioFormat, CompressionOverrides, DerivedDataKey);
 
 		check(RunningPlatformData->DerivedDataKey == DerivedDataKey);
