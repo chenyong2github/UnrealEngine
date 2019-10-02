@@ -392,7 +392,7 @@ struct BLUEPRINTGRAPH_API FEdGraphSchemaAction_K2TargetNode : public FEdGraphSch
 
 /** Action to paste at this location on graph*/
 USTRUCT()
-struct BLUEPRINTGRAPH_API FEdGraphSchemaAction_K2PasteHere : public FEdGraphSchemaAction_K2NewNode
+struct BLUEPRINTGRAPH_API FEdGraphSchemaAction_K2PasteHere : public FEdGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -400,12 +400,12 @@ struct BLUEPRINTGRAPH_API FEdGraphSchemaAction_K2PasteHere : public FEdGraphSche
 	static FName StaticGetTypeId() {static FName Type("FEdGraphSchemaAction_K2PasteHere"); return Type;}
 	virtual FName GetTypeId() const override { return StaticGetTypeId(); } 
 
-	FEdGraphSchemaAction_K2PasteHere ()
-		: FEdGraphSchemaAction_K2NewNode()
+	FEdGraphSchemaAction_K2PasteHere()
+		: FEdGraphSchemaAction()
 	{}
 
 	FEdGraphSchemaAction_K2PasteHere (FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping)
-		: FEdGraphSchemaAction_K2NewNode(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping)
+		: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping)
 	{}
 
 	// FEdGraphSchemaAction interface
