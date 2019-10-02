@@ -110,7 +110,7 @@ void USkyAtmosphereComponent::CreateRenderState_Concurrent()
 		bHidden = true;
 	}
 
-	if (bVisible && !bHidden &&
+	if (GetVisibleFlag() && !bHidden &&
 		ShouldComponentAddToScene() && ShouldRender() && IsRegistered() && (GetOuter() == NULL || !GetOuter()->HasAnyFlags(RF_ClassDefaultObject)))
 	{
 		// Create the scene proxy.
@@ -158,7 +158,7 @@ void USkyAtmosphereComponent::UpdateStaticLightingGUIDs()
 void USkyAtmosphereComponent::CheckForErrors()
 {
 	AActor* Owner = GetOwner();
-	if (Owner && bVisible)
+	if (Owner && GetVisibleFlag())
 	{
 		UWorld* ThisWorld = Owner->GetWorld();
 		bool bMultipleFound = false;
@@ -172,7 +172,7 @@ void USkyAtmosphereComponent::CheckForErrors()
 
 				if (Component != this
 					&& !Component->IsPendingKill()
-					&& Component->bVisible
+					&& Component->GetVisibleFlag()
 					&& Component->GetOwner()
 					&& ThisWorld->ContainsActor(Component->GetOwner())
 					&& !Component->GetOwner()->IsPendingKill())
@@ -186,7 +186,7 @@ void USkyAtmosphereComponent::CheckForErrors()
 				UAtmosphericFogComponent* Component = *ComponentIt;
 
 				if (!Component->IsPendingKill()
-					&& Component->bVisible
+					&& Component->GetVisibleFlag()
 					&& Component->GetOwner()
 					&& ThisWorld->ContainsActor(Component->GetOwner())
 					&& !Component->GetOwner()->IsPendingKill())
@@ -342,7 +342,7 @@ ASkyAtmosphere::ASkyAtmosphere(const FObjectInitializer& ObjectInitializer)
 		if (GetSpriteComponent())
 		{
 			GetSpriteComponent()->Sprite = ConstructorStatics.SkyAtmosphereTextureObject.Get();
-			GetSpriteComponent()->RelativeScale3D = FVector(0.5f, 0.5f, 0.5f);
+			GetSpriteComponent()->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
 			GetSpriteComponent()->SpriteInfo.Category = ConstructorStatics.ID_SkyAtmosphere;
 			GetSpriteComponent()->SpriteInfo.DisplayName = ConstructorStatics.NAME_SkyAtmosphere;
 			GetSpriteComponent()->SetupAttachment(SkyAtmosphereComponent);
@@ -363,7 +363,7 @@ ASkyAtmosphere::ASkyAtmosphere(const FObjectInitializer& ObjectInitializer)
 #endif // WITH_EDITORONLY_DATA
 
 	PrimaryActorTick.bCanEverTick = true;
-	bHidden = false;
+	SetHidden(false);
 }
 
 

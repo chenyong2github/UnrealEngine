@@ -82,7 +82,7 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 			}
 		}
 
-		Owner->bReplicateMovement = false;
+		Owner->SetReplicatingMovement(false);
 	}
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);

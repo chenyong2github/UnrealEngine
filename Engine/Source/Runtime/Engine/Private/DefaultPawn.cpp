@@ -21,7 +21,7 @@ FName ADefaultPawn::MeshComponentName(TEXT("MeshComponent0"));
 ADefaultPawn::ADefaultPawn(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bCanBeDamaged = true;
+	SetCanBeDamaged(true);
 
 	SetRemoteRoleForBackwardsCompat(ROLE_SimulatedProxy);
 	bReplicates = true;

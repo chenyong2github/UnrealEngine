@@ -76,7 +76,7 @@ void FMovieSceneVisibilitySectionRecorder::CreateSection(UObject* InObjectToReco
 		}
 		else if(AActor* Actor = Cast<AActor>(ObjectToRecord.Get()))
 		{
-			bWasVisible = !Actor->bHidden;
+			bWasVisible = !Actor->IsHidden();
 		}
 
 		FFrameRate   TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
@@ -127,7 +127,7 @@ void FMovieSceneVisibilitySectionRecorder::Record(float CurrentTime)
 		}
 		else if(AActor* Actor = Cast<AActor>(ObjectToRecord.Get()))
 		{
-			bVisible = !Actor->bHidden;
+			bVisible = !Actor->IsHidden();
 		}
 
 		if(bVisible != bWasVisible)

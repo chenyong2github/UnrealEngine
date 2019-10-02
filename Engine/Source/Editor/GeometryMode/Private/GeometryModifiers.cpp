@@ -1023,7 +1023,7 @@ void UGeomModifier_Lathe::Apply( int32 InTotalSegments, int32 InSegments, EAxis:
 	BuilderBrush->Brush->Polys->Element.Empty();
 
 	// Ensure the builder brush is unhidden.
-	BuilderBrush->bHidden = false;
+	BuilderBrush->SetHidden(false);
 	BuilderBrush->bHiddenEdLayer = false;
 	BuilderBrush->SetIsTemporarilyHiddenInEditor( false );
 
@@ -1350,7 +1350,7 @@ void UGeomModifier_Pen::Apply()
 		ResultingBrush->Brush->Polys->Element.Empty();
 
 		// Ensure the brush is unhidden.
-		ResultingBrush->bHidden = false;
+		ResultingBrush->SetHidden(false);
 		ResultingBrush->bHiddenEdLayer = false;
 		ResultingBrush->SetIsTemporarilyHiddenInEditor( false );
 

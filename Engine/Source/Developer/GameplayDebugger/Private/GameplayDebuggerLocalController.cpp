@@ -633,7 +633,7 @@ void UGameplayDebuggerLocalController::OnSelectActorTick()
 		const FVector ViewDir = CameraRotation.Vector();
 		for (APawn* TestPawn  : TActorRange<APawn>(OwnerPC->GetWorld()))
 		{
-			if (!TestPawn->bHidden && TestPawn->GetActorEnableCollision() &&
+			if (!TestPawn->IsHidden() && TestPawn->GetActorEnableCollision() &&
 				!TestPawn->IsA(ASpectatorPawn::StaticClass()) &&
 				TestPawn != OwnerPC->GetPawn())
 			{

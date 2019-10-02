@@ -3178,7 +3178,7 @@ void UNetConnection::HandleClientPlayer( APlayerController *PC, UNetConnection* 
 	check(LocalPlayer);
 	if( LocalPlayer->PlayerController && LocalPlayer->PlayerController->GetLevel() == PC->GetLevel())
 	{
-		if (LocalPlayer->PlayerController->Role == ROLE_Authority)
+		if (LocalPlayer->PlayerController->GetLocalRole() == ROLE_Authority)
 		{
 			// local placeholder PC while waiting for connection to be established
 			LocalPlayer->PlayerController->GetWorld()->DestroyActor(LocalPlayer->PlayerController);
@@ -3199,7 +3199,7 @@ void UNetConnection::HandleClientPlayer( APlayerController *PC, UNetConnection* 
 	LocalPlayer->CurrentNetSpeed = CurrentNetSpeed;
 
 	// Init the new playerpawn.
-	PC->Role = ROLE_AutonomousProxy;
+	PC->SetRole(ROLE_AutonomousProxy);
 	PC->NetConnection = NetConnection;
 	PC->SetPlayer(LocalPlayer);
 	UE_LOG(LogNet, Verbose, TEXT("%s setplayer %s"),*PC->GetName(),*LocalPlayer->GetName());
@@ -3264,7 +3264,7 @@ void UChildConnection::HandleClientPlayer(APlayerController* PC, UNetConnection*
 		check( PC->GetWorld() );
 		for (TActorIterator<APlayerController> It(PC->GetWorld()); It; ++It)
 		{
-			if (It->Role < ROLE_Authority)
+			if (It->GetLocalRole() < ROLE_Authority)
 			{
 				UE_LOG(LogNet, Log, TEXT(" - %s"), *It->GetFullName());
 			}
@@ -3281,7 +3281,7 @@ void UChildConnection::HandleClientPlayer(APlayerController* PC, UNetConnection*
 	check(NewPlayer);
 	if (NewPlayer->PlayerController != NULL)
 	{
-		if (NewPlayer->PlayerController->Role == ROLE_Authority)
+		if (NewPlayer->PlayerController->GetLocalRole() == ROLE_Authority)
 		{
 			// local placeholder PC while waiting for connection to be established
 			NewPlayer->PlayerController->GetWorld()->DestroyActor(NewPlayer->PlayerController);
@@ -3302,7 +3302,7 @@ void UChildConnection::HandleClientPlayer(APlayerController* PC, UNetConnection*
 	NewPlayer->CurrentNetSpeed = CurrentNetSpeed;
 
 	// Init the new playerpawn.
-	PC->Role = ROLE_AutonomousProxy;
+	PC->SetRole(ROLE_AutonomousProxy);
 	PC->NetConnection = NetConnection;
 	PC->SetPlayer(NewPlayer);
 	UE_LOG(LogNet, Verbose, TEXT("%s setplayer %s"), *PC->GetName(), *NewPlayer->GetName());

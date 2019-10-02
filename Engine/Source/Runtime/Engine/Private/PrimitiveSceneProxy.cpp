@@ -89,7 +89,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	LightmapType(InComponent->LightmapType)
 ,	StatId()
 ,	DrawInGame(InComponent->IsVisible())
-,	DrawInEditor(InComponent->bVisible)
+,	DrawInEditor(InComponent->GetVisibleFlag())
 ,	bReceivesDecals(InComponent->bReceivesDecals)
 ,	bOnlyOwnerSee(InComponent->bOnlyOwnerSee)
 ,	bOwnerNoSee(InComponent->bOwnerNoSee)
@@ -195,7 +195,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 	
 	if(InComponent->GetOwner())
 	{
-		DrawInGame &= !(InComponent->GetOwner()->bHidden);
+		DrawInGame &= !(InComponent->GetOwner()->IsHidden());
 		#if WITH_EDITOR
 			DrawInEditor &= !InComponent->GetOwner()->IsHiddenEd();
 		#endif

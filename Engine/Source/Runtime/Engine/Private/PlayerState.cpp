@@ -20,7 +20,7 @@ APlayerState::APlayerState(const FObjectInitializer& ObjectInitializer)
 	SetRemoteRoleForBackwardsCompat(ROLE_SimulatedProxy);
 	bReplicates = true;
 	bAlwaysRelevant = true;
-	bReplicateMovement = false;
+	SetReplicatingMovement(false);
 	NetUpdateFrequency = 1;
 
 	// Note: this is very important to set to false. Though all replication infos are spawned at run time, during seamless travel
@@ -193,7 +193,7 @@ void APlayerState::PostInitializeComponents()
 		GameStateBase->AddPlayerState(this);
 	}
 
-	if ( Role < ROLE_Authority )
+	if (GetLocalRole() < ROLE_Authority)
 	{
 		return;
 	}
@@ -421,7 +421,7 @@ void APlayerState::UnregisterPlayerWithSession()
 APlayerState* APlayerState::Duplicate()
 {
 	FActorSpawnParameters SpawnInfo;
-	SpawnInfo.Instigator = Instigator;
+	SpawnInfo.Instigator = GetInstigator();
 	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save player states into a map
 	APlayerState* NewPlayerState = GetWorld()->SpawnActor<APlayerState>(GetClass(), SpawnInfo );

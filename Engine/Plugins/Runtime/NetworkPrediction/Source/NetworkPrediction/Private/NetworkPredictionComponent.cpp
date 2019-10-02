@@ -8,7 +8,7 @@
 
 UNetworkPredictionComponent::UNetworkPredictionComponent()
 {
-	bReplicates = true;
+	SetIsReplicatedByDefault(true);
 }
 
 void UNetworkPredictionComponent::InitializeComponent()
@@ -128,7 +128,7 @@ bool UNetworkPredictionComponent::IsLocallyControlled()
 	// override this function.
 
 	bool bIsLocallyControlled = false;
-	if (GetOwner()->Role == ROLE_AutonomousProxy)
+	if (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy)
 	{
 		bIsLocallyControlled = true;
 	}
@@ -142,7 +142,7 @@ bool UNetworkPredictionComponent::IsLocallyControlled()
 
 bool UNetworkPredictionComponent::CheckOwnerRoleChange()
 {
-	ENetRole CurrentRole = GetOwner()->Role;
+	ENetRole CurrentRole = GetOwner()->GetLocalRole();
 	if (CurrentRole != OwnerCachedNetRole)
 	{
 		if (OwnerCachedNetRole == ROLE_AutonomousProxy)

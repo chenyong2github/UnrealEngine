@@ -18,9 +18,6 @@ void ALobbyBeaconPlayerState::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
-	if (Role == ROLE_Authority)
-	{
-	}
 }
 
 void ALobbyBeaconPlayerState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const

@@ -81,7 +81,7 @@ void UComposurePostProcessPass::Activate(bool bReset)
 {
 	Super::Activate(bReset);
 
-	if (bIsActive)
+	if (IsActive())
 	{
 		if (SceneCapture == nullptr)
 		{

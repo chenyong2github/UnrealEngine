@@ -92,7 +92,7 @@ void UAudioComponent::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	if (bIsActive && Sound && Sound->IsLooping())
+	if (IsActive() && Sound && Sound->IsLooping())
 	{
 		UE_LOG(LogAudio, Verbose, TEXT("Audio Component is being destroyed prior to stopping looping sound '%s' directly."), *Sound->GetFullName());
 		Stop();
@@ -210,9 +210,9 @@ void UAudioComponent::OnRegister()
 			}
 		}
 
-		SavedAutoAttachRelativeLocation = RelativeLocation;
-		SavedAutoAttachRelativeRotation = RelativeRotation;
-		SavedAutoAttachRelativeScale3D = RelativeScale3D;
+		SavedAutoAttachRelativeLocation = GetRelativeLocation();
+		SavedAutoAttachRelativeRotation = GetRelativeRotation();
+		SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
 	}
 
 	Super::OnRegister();
@@ -276,7 +276,7 @@ void UAudioComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFla
 
 	if (FAudioDevice* AudioDevice = GetAudioDevice())
 	{
-		if (bIsActive)
+		if (IsActive())
 		{
 			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.UpdateAudioComponentTransform"), STAT_AudioUpdateComponentTransform, STATGROUP_AudioThreadCommands);
 
@@ -315,9 +315,9 @@ void UAudioComponent::CancelAutoAttachment(bool bDetachFromParent, const UWorld*
 		if (bDidAutoAttach)
 		{
 			// Restore relative transform from before attachment. Actual transform will be updated as part of DetachFromParent().
-			RelativeLocation = SavedAutoAttachRelativeLocation;
-			RelativeRotation = SavedAutoAttachRelativeRotation;
-			RelativeScale3D = SavedAutoAttachRelativeScale3D;
+			SetRelativeLocation_Direct(SavedAutoAttachRelativeLocation);
+			SetRelativeRotation_Direct(SavedAutoAttachRelativeRotation);
+			SetRelativeScale3D_Direct(SavedAutoAttachRelativeScale3D);
 			bDidAutoAttach = false;
 		}
 
@@ -366,7 +366,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 	// Reset our fading out flag in case this is a reused audio component and we are replaying after previously fading out
 	bIsFadingOut = false;
 
-	if (bIsActive)
+	if (IsActive())
 	{
 		// If this is an auto destroy component we need to prevent it from being auto-destroyed since we're really just restarting it
 		bool bCurrentAutoDestroy = bAutoDestroy;
@@ -404,9 +404,9 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 					{
 						bDidAutoAttach = bWasAutoAttached;
 						CancelAutoAttachment(true, World);
-						SavedAutoAttachRelativeLocation = RelativeLocation;
-						SavedAutoAttachRelativeRotation = RelativeRotation;
-						SavedAutoAttachRelativeScale3D = RelativeScale3D;
+						SavedAutoAttachRelativeLocation = GetRelativeLocation();
+						SavedAutoAttachRelativeRotation = GetRelativeRotation();
+						SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
 						AttachToComponent(NewParent, FAttachmentTransformRules(AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule, false), AutoAttachSocketName);
 					}
 
@@ -524,7 +524,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 
 			// In editor, the audio thread is not run separate from the game thread, and can result in calling PlaybackComplete prior
 			// to bIsActive being set. Therefore, we assign to the current state of ActiveCount as opposed to just setting to true.
-			bIsActive = ActiveCount > 0;
+			SetActiveFlag(ActiveCount > 0);
 		}
 	}
 }
@@ -571,7 +571,7 @@ void UAudioComponent::AdjustVolume(float AdjustVolumeDuration, float AdjustVolum
 
 void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float AdjustVolumeLevel, bool bIsFadeOut, const EAudioFaderCurve FadeCurve)
 {
-	if (!bIsActive)
+	if (!IsActive())
 	{
 		return;
 	}
@@ -647,7 +647,7 @@ void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float Adj
 
 void UAudioComponent::Stop()
 {
-	if (!bIsActive)
+	if (!IsActive())
 	{
 		return;
 	}
@@ -659,7 +659,7 @@ void UAudioComponent::Stop()
 	}
 
 	// Set this to immediately be inactive
-	bIsActive = false;
+	SetActiveFlag(false);
 
 	UE_LOG(LogAudio, Verbose, TEXT("%g: Stopping AudioComponent : '%s' with Sound: '%s'"),
 		GetWorld() ? GetWorld()->GetAudioTimeSeconds() : 0.0f, *GetFullName(),
@@ -677,7 +677,7 @@ void UAudioComponent::StopDelayed(float DelayTime)
 		return;
 	}
 
-	if (!bIsActive)
+	if (!IsActive())
 	{
 		return;
 	}
@@ -737,7 +737,7 @@ void UAudioComponent::SetPaused(bool bPause)
 	{
 		bIsPaused = bPause;
 
-		if (bIsActive)
+		if (IsActive())
 		{
 			UE_LOG(LogAudio, Verbose, TEXT("%g: Pausing AudioComponent : '%s' with Sound: '%s'"), GetWorld() ? GetWorld()->GetAudioTimeSeconds() : 0.0f, *GetFullName(), Sound ? *Sound->GetName() : TEXT("nullptr"));
 
@@ -781,7 +781,7 @@ void UAudioComponent::PlaybackCompleted(bool bFailedToStart)
 	}
 
 	// Mark inactive before calling destroy to avoid recursion
-	bIsActive = false;
+	SetActiveFlag(false);
 
 	const UWorld* MyWorld = GetWorld();
 	if (!bFailedToStart && MyWorld != nullptr && (OnAudioFinished.IsBound() || OnAudioFinishedNative.IsBound()))
@@ -807,13 +807,13 @@ void UAudioComponent::PlaybackCompleted(bool bFailedToStart)
 
 bool UAudioComponent::IsPlaying() const
 {
-	return bIsActive;
+	return IsActive();
 }
 
 EAudioComponentPlayState UAudioComponent::GetPlayState() const
 {
 	UWorld* World = GetWorld();
-	if (!bIsActive || !World)
+	if (!IsActive() || !World)
 	{
 		return EAudioComponentPlayState::Stopped;
 	}
@@ -862,7 +862,7 @@ void UAudioComponent::UpdateSpriteTexture()
 #if WITH_EDITOR
 void UAudioComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (bIsActive)
+	if (IsActive())
 	{
 		// If this is an auto destroy component we need to prevent it from being auto-destroyed since we're really just restarting it
 		const bool bWasAutoDestroy = bAutoDestroy;
@@ -938,7 +938,7 @@ void UAudioComponent::Activate(bool bReset)
 	if (bReset || ShouldActivate() == true)
 	{
 		Play();
-		if (bIsActive)
+		if (IsActive())
 		{
 			OnComponentActivated.Broadcast(this, bReset);
 		}
@@ -951,7 +951,7 @@ void UAudioComponent::Deactivate()
 	{
 		Stop();
 
-		if (!bIsActive)
+		if (!IsActive())
 		{
 			OnComponentDeactivated.Broadcast(this);
 		}
@@ -984,7 +984,7 @@ void UAudioComponent::SetFloatParameter( const FName InName, const float InFloat
 		}
 
 		// If we're active we need to push this value to the ActiveSound
-		if (bIsActive)
+		if (IsActive())
 		{
 			if (FAudioDevice* AudioDevice = GetAudioDevice())
 			{
@@ -1029,7 +1029,7 @@ void UAudioComponent::SetWaveParameter( const FName InName, USoundWave* InWave )
 		}
 
 		// If we're active we need to push this value to the ActiveSound
-		if (bIsActive)
+		if (IsActive())
 		{
 			if (FAudioDevice* AudioDevice = GetAudioDevice())
 			{
@@ -1074,7 +1074,7 @@ void UAudioComponent::SetBoolParameter( const FName InName, const bool InBool )
 		}
 
 		// If we're active we need to push this value to the ActiveSound
-		if (bIsActive)
+		if (IsActive())
 		{
 			if (FAudioDevice* AudioDevice = GetAudioDevice())
 			{
@@ -1120,7 +1120,7 @@ void UAudioComponent::SetIntParameter( const FName InName, const int32 InInt )
 		}
 
 		// If we're active we need to push this value to the ActiveSound
-		if (bIsActive)
+		if (IsActive())
 		{
 			if (FAudioDevice* AudioDevice = GetAudioDevice())
 			{
@@ -1162,7 +1162,7 @@ void UAudioComponent::SetSoundParameter(const FAudioComponentParam& Param)
 			const int32 NewParamIndex = InstanceParameters.Add(Param);
 		}
 
-		if (bIsActive)
+		if (IsActive())
 		{
 			if (FAudioDevice* AudioDevice = GetAudioDevice())
 			{
@@ -1187,7 +1187,7 @@ void UAudioComponent::SetVolumeMultiplier(const float NewVolumeMultiplier)
 	VolumeMultiplier = NewVolumeMultiplier;
 	VolumeModulationMin = VolumeModulationMax = 1.f;
 
-	if (bIsActive)
+	if (IsActive())
 	{
 		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{
@@ -1211,7 +1211,7 @@ void UAudioComponent::SetPitchMultiplier(const float NewPitchMultiplier)
 	PitchMultiplier = NewPitchMultiplier;
 	PitchModulationMin = PitchModulationMax = 1.f;
 
-	if (bIsActive)
+	if (IsActive())
 	{
 		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{
@@ -1234,7 +1234,7 @@ void UAudioComponent::SetUISound(const bool bInIsUISound)
 {
 	bIsUISound = bInIsUISound;
 
-	if (bIsActive)
+	if (IsActive())
 	{
 		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{
@@ -1258,7 +1258,7 @@ void UAudioComponent::AdjustAttenuation(const FSoundAttenuationSettings& InAtten
 	bOverrideAttenuation = true;
 	AttenuationOverrides = InAttenuationSettings;
 
-	if (bIsActive)
+	if (IsActive())
 	{
 		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{

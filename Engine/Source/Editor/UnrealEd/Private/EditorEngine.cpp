@@ -2769,7 +2769,7 @@ void UEditorEngine::ApplyDeltaToComponent(USceneComponent* InComponent,
 		{
 			if ( bDelta )
 			{
-				const FRotator Rot = InComponent->RelativeRotation;
+				const FRotator Rot = InComponent->GetRelativeRotation();
 				FRotator ActorRotWind, ActorRotRem;
 				Rot.GetWindingAndRemainder(ActorRotWind, ActorRotRem);
 				const FQuat ActorQ = ActorRotRem.Quaternion();
@@ -2789,7 +2789,7 @@ void UEditorEngine::ApplyDeltaToComponent(USceneComponent* InComponent,
 
 			if ( bDelta )
 			{
-				FVector NewCompLocation = InComponent->RelativeLocation;
+				FVector NewCompLocation = InComponent->GetRelativeLocation();
 				NewCompLocation -= PivotLocation;
 				NewCompLocation = FRotationMatrix( InDeltaRot ).TransformPosition( NewCompLocation );
 				NewCompLocation += PivotLocation;
@@ -2804,7 +2804,7 @@ void UEditorEngine::ApplyDeltaToComponent(USceneComponent* InComponent,
 	{
 		if ( bDelta )
 		{
-			InComponent->SetRelativeLocation(InComponent->RelativeLocation + *InTrans);
+			InComponent->SetRelativeLocation(InComponent->GetRelativeLocation() + *InTrans);
 		}
 		else
 		{
@@ -2822,9 +2822,9 @@ void UEditorEngine::ApplyDeltaToComponent(USceneComponent* InComponent,
 		{
 			if ( bDelta )
 			{
-				InComponent->SetRelativeScale3D(InComponent->RelativeScale3D + InDeltaScale);
+				InComponent->SetRelativeScale3D(InComponent->GetRelativeScale3D() + InDeltaScale);
 
-				FVector NewCompLocation = InComponent->RelativeLocation;
+				FVector NewCompLocation = InComponent->GetRelativeLocation();
 				NewCompLocation -= PivotLocation;
 				NewCompLocation += FScaleMatrix( InDeltaScale ).TransformPosition( NewCompLocation );
 				NewCompLocation += PivotLocation;
@@ -3606,8 +3606,8 @@ private:
 		// Copy over actor properties.
 		Location				= Actor->GetActorLocation();
 		Rotation				= Actor->GetActorRotation();
-		DrawScale3D				= Actor->GetRootComponent() ? Actor->GetRootComponent()->RelativeScale3D : FVector(1.f,1.f,1.f);
-		bHidden					= Actor->bHidden;
+		DrawScale3D				= Actor->GetRootComponent() ? Actor->GetRootComponent()->GetRelativeScale3D() : FVector(1.f,1.f,1.f);
+		bHidden					= Actor->IsHidden();
 
 		// Record which actor properties differ from their defaults.
 		// we don't have properties for location, rotation, scale3D, so copy all the time. 
@@ -3629,16 +3629,25 @@ private:
 		}
 
 		// Set actor properties.
-		if ( bActorPropsDifferFromDefaults[0] ) Actor->SetActorLocation(Location, false);
-		if ( bActorPropsDifferFromDefaults[1] ) Actor->SetActorRotation(Rotation);
-		if ( bActorPropsDifferFromDefaults[4] )
+		if (bActorPropsDifferFromDefaults[0])
+		{
+			Actor->SetActorLocation(Location, false);
+		}
+		if (bActorPropsDifferFromDefaults[1])
+		{
+			Actor->SetActorRotation(Rotation);
+		}
+		if (bActorPropsDifferFromDefaults[4])
 		{
 			if( Actor->GetRootComponent() != NULL )
 			{
 				Actor->GetRootComponent()->SetRelativeScale3D( DrawScale3D );
 			}
 		}
-		if ( bActorPropsDifferFromDefaults[5] ) Actor->bHidden				= bHidden;
+		if (bActorPropsDifferFromDefaults[5])
+		{
+			Actor->SetHidden(bHidden);
+		}
 	}
 
 
@@ -5156,7 +5165,7 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 				}
 				else
 				{
-					NewActorRootComponent->SetRelativeScale3D( OldActor->GetRootComponent()->RelativeScale3D );
+					NewActorRootComponent->SetRelativeScale3D( OldActor->GetRootComponent()->GetRelativeScale3D() );
 				}
 			}
 

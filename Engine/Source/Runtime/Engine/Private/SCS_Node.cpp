@@ -128,7 +128,7 @@ UActorComponent* USCS_Node::ExecuteNodeOnActor(AActor* Actor, USceneComponent* P
 					// does NOT occur when this component is instanced as part of dynamically spawning a Blueprint class in a cooked build (i.e.
 					// 'bIsDefaultTransform' will be 'false' in that situation). In order to maintain the same behavior between a nativized and
 					// non-nativized cooked build, if this ever changes, we would also need to update the code in AActor::PostSpawnInitialize().
-					WorldTransform.SetScale3D(NewSceneComp->RelativeScale3D);
+					WorldTransform.SetScale3D(NewSceneComp->GetRelativeScale3D());
 				}
 
 				if (RootRelativeRotationCache)

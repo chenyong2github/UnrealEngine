@@ -3083,7 +3083,7 @@ void FMeshMergeUtilities::MergeComponentsToInstances(const TArray<UPrimitiveComp
 					{
 						ActorToCleanUp->Modify();
 						ActorToCleanUp->bIsEditorOnlyActor = true;
-						ActorToCleanUp->bHidden = true;
+						ActorToCleanUp->SetHidden(true);
 						ActorToCleanUp->bHiddenEd = true;
 						ActorToCleanUp->SetIsTemporarilyHiddenInEditor(true);
 					}

@@ -59,7 +59,7 @@ UBaseMovementComponent::UBaseMovementComponent()
 	
 	bWantsInitializeComponent = true;
 	bAutoActivate = true;
-	bReplicates = true;
+	SetIsReplicatedByDefault(true);
 	bWantsInitializeComponent = true;
 }
 

@@ -1060,7 +1060,7 @@ bool UAbilitySystemComponent::TryActivateAbility(FGameplayAbilitySpecHandle Abil
 	}
 
 		
-	ENetRole NetMode = ActorInfo->AvatarActor->Role;
+	const ENetRole NetMode = ActorInfo->AvatarActor->GetLocalRole();
 
 	// This should only come from button presses/local instigation (AI, etc).
 	if (NetMode == ROLE_SimulatedProxy)
@@ -1161,12 +1161,12 @@ bool UAbilitySystemComponent::InternalTryActivateAbility(FGameplayAbilitySpecHan
 	// Use PC netmode if its there
 	if (APlayerController* PC = ActorInfo->PlayerController.Get())
 	{
-		NetMode = PC->Role;
+		NetMode = PC->GetLocalRole();
 	}
 	// Fallback to avataractor otherwise. Edge case: avatar "dies" and becomes torn off and ROLE_Authority. We don't want to use this case (use PC role instead).
 	else if (AvatarActor)
 	{
-		NetMode = AvatarActor->Role;
+		NetMode = AvatarActor->GetLocalRole();
 	}
 
 	if (NetMode == ROLE_SimulatedProxy)
@@ -1832,7 +1832,7 @@ bool UAbilitySystemComponent::TriggerAbilityFromGameplayEvent(FGameplayAbilitySp
 		// if we're the server and this is coming from a predicted event we should check if the client has already predicted it
 		if (ScopedPredictionKey.IsValidKey()
 			&& Ability->GetNetExecutionPolicy() == EGameplayAbilityNetExecutionPolicy::LocalPredicted
-			&& ActorInfo->OwnerActor->Role == ROLE_Authority)
+			&& ActorInfo->OwnerActor->GetLocalRole() == ROLE_Authority)
 		{
 			bool bPendingClientAbilityFound = false;
 			for (auto PendingAbilityInfo : Component.PendingClientActivatedAbilities)
@@ -2354,7 +2354,7 @@ float UAbilitySystemComponent::PlayMontage(UGameplayAbility* InAnimatingAbility,
 			{
 				UE_LOG(LogRootMotion, Log, TEXT("UAbilitySystemComponent::PlayMontage %s, Role: %s")
 					, *GetNameSafe(NewAnimMontage)
-					, *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), AnimInstance->GetOwningActor()->Role)
+					, *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), AnimInstance->GetOwningActor()->GetLocalRole())
 					);
 			}
 

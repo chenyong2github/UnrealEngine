@@ -270,7 +270,7 @@ void AOnlineBeaconClient::ClientOnConnected_Implementation()
 	SetConnectionState(EBeaconConnectionState::Open);
 	BeaconConnection->State = USOCK_Open;
 
-	Role = ROLE_Authority;
+	SetRole(ROLE_Authority);
 	SetReplicates(true);
 	SetAutonomousProxy(true);
 
