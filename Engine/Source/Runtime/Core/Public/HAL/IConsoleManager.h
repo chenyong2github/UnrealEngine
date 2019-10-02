@@ -1249,7 +1249,7 @@ public:
 	// constructor
 	TConsoleVariableData(const T DefaultValue)
 	{
-		for(uint32 i = 0; i < ARRAY_COUNT(ShadowedValue); ++i)
+		for(uint32 i = 0; i < UE_ARRAY_COUNT(ShadowedValue); ++i)
 		{
 			ShadowedValue[i] = DefaultValue;
 		}

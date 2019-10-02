@@ -292,7 +292,7 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 		// parse actor name
 		TCHAR ActorName[128];
 		AActor* FoundActor = nullptr;
-		if (FParse::Token(Str, ActorName, ARRAY_COUNT(ActorName), 0))
+		if (FParse::Token(Str, ActorName, UE_ARRAY_COUNT(ActorName), 0))
 		{
 			FoundActor = FindActorByName(FString(ActorName), InWorld);
 		}
@@ -303,7 +303,7 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 			if (SkelComp)
 			{
 				TCHAR AssetPath[256];
-				FParse::Token(Str, AssetPath, ARRAY_COUNT(AssetPath), 0);
+				FParse::Token(Str, AssetPath, UE_ARRAY_COUNT(AssetPath), 0);
 				FString const AssetName = FPackageName::GetLongPackageAssetName(AssetPath);
 				return FAnimationRecorderManager::Get().RecordAnimation(SkelComp, AssetPath, AssetName, GetDefault<USequenceRecorderSettings>()->DefaultAnimationSettings);
 			}
@@ -366,7 +366,7 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 		TCHAR ActorName[128];
 		AActor* FoundActor = nullptr;
 		bool bStopAll = false;
-		if (FParse::Token(Str, ActorName, ARRAY_COUNT(ActorName), 0))
+		if (FParse::Token(Str, ActorName, UE_ARRAY_COUNT(ActorName), 0))
 		{
 			FString const ActorNameStr = FString(ActorName);
 
@@ -432,7 +432,7 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 		const TCHAR* Str = InStr;
 		EFilterType FilterType = EFilterType::None;
 		TCHAR Filter[128];
-		if(FParse::Token(Str, Filter, ARRAY_COUNT(Filter), 0))
+		if(FParse::Token(Str, Filter, UE_ARRAY_COUNT(Filter), 0))
 		{
 			FString const FilterStr = Filter;
 			if (FilterStr == TEXT("all"))
@@ -456,7 +456,7 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 		if(FilterType == EFilterType::Actor || FilterType == EFilterType::Class)
 		{
 			TCHAR Specifier[128];
-			if(FParse::Token(Str, Specifier, ARRAY_COUNT(Specifier), 0))
+			if(FParse::Token(Str, Specifier, UE_ARRAY_COUNT(Specifier), 0))
 			{
 				FString const SpecifierStr = FString(Specifier).TrimStart();
 				if(FilterType == EFilterType::Actor)

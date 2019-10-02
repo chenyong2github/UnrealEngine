@@ -184,7 +184,7 @@ namespace UE4Variant_Details
 		static void Destruct(SIZE_T TypeIndex, void* Value)
 		{
 			static constexpr void(*Destructors[])(void*) = { &TDestructorCaller<Ts>::Destruct... };
-			check(TypeIndex < ARRAY_COUNT(Destructors));
+			check(TypeIndex < UE_ARRAY_COUNT(Destructors));
 			Destructors[TypeIndex](Value);
 		}
 	};
@@ -208,7 +208,7 @@ namespace UE4Variant_Details
 		static void Construct(SIZE_T TypeIndex, void* Storage, const void* Value)
 		{
 			static constexpr void(*CopyConstructors[])(void*, const void*) = { &TCopyConstructorCaller<Ts>::Construct... };
-			check(TypeIndex < ARRAY_COUNT(CopyConstructors));
+			check(TypeIndex < UE_ARRAY_COUNT(CopyConstructors));
 			CopyConstructors[TypeIndex](Storage, Value);
 		}
 	};
@@ -233,7 +233,7 @@ namespace UE4Variant_Details
 		static void Construct(SIZE_T TypeIndex, void* Target, void* Source)
 		{
 			static constexpr void(*MoveConstructors[])(void*, void*) = { &TMoveConstructorCaller<Ts>::Construct... };
-			check(TypeIndex < ARRAY_COUNT(MoveConstructors));
+			check(TypeIndex < UE_ARRAY_COUNT(MoveConstructors));
 			MoveConstructors[TypeIndex](Target, Source);
 		}
 	};
@@ -246,7 +246,7 @@ namespace UE4Variant_Details
 		static bool IsSame(SIZE_T TypeIndex)
 		{
 			static constexpr bool bIsSameType[] = { TIsSame<Ts, LookupType>::Value... };
-			check(TypeIndex < ARRAY_COUNT(bIsSameType));
+			check(TypeIndex < UE_ARRAY_COUNT(bIsSameType));
 			return bIsSameType[TypeIndex];
 		}
 	};

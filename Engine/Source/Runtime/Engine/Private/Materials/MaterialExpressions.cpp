@@ -8043,7 +8043,7 @@ UMaterialExpressionQualitySwitch::UMaterialExpressionQualitySwitch(const FObject
 int32 UMaterialExpressionQualitySwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	const EMaterialQualityLevel::Type QualityLevelToCompile = Compiler->GetQualityLevel();
-	check(QualityLevelToCompile < ARRAY_COUNT(Inputs));
+	check(QualityLevelToCompile < UE_ARRAY_COUNT(Inputs));
 	FExpressionInput QualityInput = Inputs[QualityLevelToCompile].GetTracedInput();
 	FExpressionInput DefaultTraced = Default.GetTracedInput();
 
@@ -8071,7 +8071,7 @@ const TArray<FExpressionInput*> UMaterialExpressionQualitySwitch::GetInputs()
 
 	OutInputs.Add(&Default);
 
-	for (int32 InputIndex = 0; InputIndex < ARRAY_COUNT(Inputs); InputIndex++)
+	for (int32 InputIndex = 0; InputIndex < UE_ARRAY_COUNT(Inputs); InputIndex++)
 	{
 		OutInputs.Add(&Inputs[InputIndex]);
 	}
@@ -8154,7 +8154,7 @@ UMaterialExpressionFeatureLevelSwitch::UMaterialExpressionFeatureLevelSwitch(con
 int32 UMaterialExpressionFeatureLevelSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	const ERHIFeatureLevel::Type FeatureLevelToCompile = Compiler->GetFeatureLevel();
-	check(FeatureLevelToCompile < ARRAY_COUNT(Inputs));
+	check(FeatureLevelToCompile < UE_ARRAY_COUNT(Inputs));
 	FExpressionInput& FeatureInput = Inputs[FeatureLevelToCompile];
 
 	if (!Default.GetTracedInput().Expression)
@@ -8181,7 +8181,7 @@ const TArray<FExpressionInput*> UMaterialExpressionFeatureLevelSwitch::GetInputs
 
 	OutInputs.Add(&Default);
 
-	for (int32 InputIndex = 0; InputIndex < ARRAY_COUNT(Inputs); InputIndex++)
+	for (int32 InputIndex = 0; InputIndex < UE_ARRAY_COUNT(Inputs); InputIndex++)
 	{
 		OutInputs.Add(&Inputs[InputIndex]);
 	}
@@ -8296,7 +8296,7 @@ int32 UMaterialExpressionShadingPathSwitch::Compile(class FMaterialCompiler* Com
 		ShadingPathToCompile = ERHIShadingPath::Mobile;
 	}
 
-	check(ShadingPathToCompile < ARRAY_COUNT(Inputs));
+	check(ShadingPathToCompile < UE_ARRAY_COUNT(Inputs));
 	FExpressionInput ShadingPathInput = Inputs[ShadingPathToCompile].GetTracedInput();
 	FExpressionInput DefaultTraced = Default.GetTracedInput();
 
@@ -8324,7 +8324,7 @@ const TArray<FExpressionInput*> UMaterialExpressionShadingPathSwitch::GetInputs(
 
 	OutInputs.Add(&Default);
 
-	for (int32 InputIndex = 0; InputIndex < ARRAY_COUNT(Inputs); InputIndex++)
+	for (int32 InputIndex = 0; InputIndex < UE_ARRAY_COUNT(Inputs); InputIndex++)
 	{
 		OutInputs.Add(&Inputs[InputIndex]);
 	}

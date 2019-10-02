@@ -41,7 +41,7 @@ void FAndroidErrorOutputDevice::HandleError()
 	GIsRunning = 0;
 	GIsCriticalError = 1;
 	GLogConsole = NULL;
-	GErrorHist[ARRAY_COUNT(GErrorHist) - 1] = 0;
+	GErrorHist[UE_ARRAY_COUNT(GErrorHist) - 1] = 0;
 
 	// Dump the error and flush the log.
 #if !NO_LOGGING

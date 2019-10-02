@@ -361,7 +361,7 @@ void FMagicLeapCustomPresentOpenGL::FinishRendering()
 			glEnable(GL_FRAMEBUFFER_SRGB);
 		}
 
-		static_assert(ARRAY_COUNT(vp_array.virtual_cameras) == 2, "The MLSDK has updated the size of the virtual_cameras array.");
+		static_assert(UE_ARRAY_COUNT(vp_array.virtual_cameras) == 2, "The MLSDK has updated the size of the virtual_cameras array.");
 #if 0 // Enable this in case the MLSDK increases the size of the virtual_cameras array past 2
 		for (uint32 i = 2; i < vp_array.num_virtual_cameras; ++i)
 		{

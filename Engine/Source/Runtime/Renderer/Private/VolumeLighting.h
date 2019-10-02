@@ -87,7 +87,7 @@ public:
 
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowInjectParams, ShadowInjectParamValue);
 
-		SetShaderValueArray(RHICmdList, ShaderRHI, ClippingPlanes, Planes, ARRAY_COUNT(Planes));
+		SetShaderValueArray(RHICmdList, ShaderRHI, ClippingPlanes, Planes, UE_ARRAY_COUNT(Planes));
 	
 		ELightComponentType LightType = (ELightComponentType)LightSceneInfo->Proxy->GetLightType();
 

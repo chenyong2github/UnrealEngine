@@ -97,7 +97,7 @@ FString FOnlineAuthSteam::GetAuthTicket(uint32& AuthTokenHandle)
 	{
 		uint8 AuthToken[STEAM_AUTH_MAX_TICKET_LENGTH_IN_BYTES];
 		uint32 AuthTokenSize = 0;
-		AuthTokenHandle = SteamUserPtr->GetAuthSessionTicket(AuthToken, ARRAY_COUNT(AuthToken), &AuthTokenSize);
+		AuthTokenHandle = SteamUserPtr->GetAuthSessionTicket(AuthToken, UE_ARRAY_COUNT(AuthToken), &AuthTokenSize);
 		if (AuthTokenHandle != k_HAuthTicketInvalid && AuthTokenSize > 0)
 		{
 			ResultToken = BytesToHex(AuthToken, AuthTokenSize);

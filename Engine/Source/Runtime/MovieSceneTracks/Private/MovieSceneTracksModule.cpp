@@ -37,7 +37,7 @@ FName IMovieSceneTracksModule::GetEvaluationGroupName(EBuiltInEvaluationGroup::T
 		"SpawnObjects",
 		"PostEvaluation",
 	};
-	check(InEvalGroup >= 0 && InEvalGroup < ARRAY_COUNT(Names));
+	check(InEvalGroup >= 0 && InEvalGroup < UE_ARRAY_COUNT(Names));
 	return Names[InEvalGroup];
 }
 

@@ -425,7 +425,7 @@ void CreateExceptionInfoString(int32 Signal, struct __siginfo* Info)
 	}
 	
 #if WITH_EDITORONLY_DATA
-	FCString::Strncpy(GErrorExceptionDescription, *ErrorString, FMath::Min(ErrorString.Len() + 1, (int32)ARRAY_COUNT(GErrorExceptionDescription)));
+	FCString::Strncpy(GErrorExceptionDescription, *ErrorString, FMath::Min(ErrorString.Len() + 1, (int32)UE_ARRAY_COUNT(GErrorExceptionDescription)));
 #endif
 #undef HANDLE_CASE
 }
@@ -448,7 +448,7 @@ int32 ReportCrash(ucontext_t *Context, int32 Signal, struct __siginfo* Info)
 		// Walk the stack and dump it to the allocated memory.
 		FPlatformStackWalk::StackWalkAndDump( StackTrace, StackTraceSize, 0, Context );
 #if WITH_EDITORONLY_DATA
-        FCString::Strncat( GErrorHist, ANSI_TO_TCHAR(StackTrace), ARRAY_COUNT(GErrorHist) - 1 );
+        FCString::Strncat( GErrorHist, ANSI_TO_TCHAR(StackTrace), UE_ARRAY_COUNT(GErrorHist) - 1 );
 		CreateExceptionInfoString(Signal, Info);
 #endif
 	}

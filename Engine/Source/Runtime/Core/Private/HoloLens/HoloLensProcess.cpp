@@ -133,13 +133,13 @@ const TCHAR* FHoloLensProcess::ExecutableName(bool bRemoveExtension)
 	if (!Result[0])
 	{
 		// Get complete path for the executable
-		if (GetModuleFileName(NULL, Result, ARRAY_COUNT(Result)) != 0)
+		if (GetModuleFileName(NULL, Result, UE_ARRAY_COUNT(Result)) != 0)
 		{
 			// Remove all of the path information by finding the base filename
 			FString FileName = Result;
 			FString FileNameWithExt = Result;
-			FCString::Strncpy(Result, *(FPaths::GetBaseFilename(FileName)), ARRAY_COUNT(Result));
-			FCString::Strncpy(ResultWithExt, *(FPaths::GetCleanFilename(FileNameWithExt)), ARRAY_COUNT(ResultWithExt));
+			FCString::Strncpy(Result, *(FPaths::GetBaseFilename(FileName)), UE_ARRAY_COUNT(Result));
+			FCString::Strncpy(ResultWithExt, *(FPaths::GetCleanFilename(FileNameWithExt)), UE_ARRAY_COUNT(ResultWithExt));
 		}
 		// If the call failed, zero out the memory to be safe
 		else
